@@ -300,7 +300,7 @@
 #define ER_NOT_ALLOWED_COMMAND 1148
 "The used command is not allowed with this MySQL version",
 #define ER_SYNTAX_ERROR 1149
-"You have an error in your SQL syntax",
+"You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use",
 #define ER_DELAYED_CANT_CHANGE_LOCK 1150
 "Delayed insert thread couldn't get requested lock for table %-.64s",
 #define ER_TOO_MANY_DELAYED_THREADS 1151
@@ -358,7 +358,7 @@
 #define ER_CHECK_NO_SUCH_TABLE 1177
 "Can't open table",
 #define ER_CHECK_NOT_IMPLEMENTED 1178
-"The handler for the table doesn't support check/repair",
+"The handler for the table doesn't support %s",
 #define ER_CANT_DO_THIS_DURING_AN_TRANSACTION 1179
 "You are not allowed to execute this command in a transaction",
 #define ER_ERROR_DURING_COMMIT 1180
@@ -454,4 +454,24 @@
 #define ER_DUP_ARGUMENT 1225
 "Option '%s' used twice in statement",
 #define ER_USER_LIMIT_REACHED 1226
-"User '%-64s' has exceeded the '%s' resource (current value: %ld)",
+"User '%-.64s' has exceeded the '%s' resource (current value: %ld)",
+#define ER_SPECIFIC_ACCESS_DENIED_ERROR 1227
+"Access denied. You need the %-.128s privilege for this operation",
+#define ER_LOCAL_VARIABLE 1228
+"Variable '%-.64s' is a LOCAL variable and can't be used with SET GLOBAL",
+#define ER_GLOBAL_VARIABLE 1229
+"Variable '%-.64s' is a GLOBAL variable and should be set with SET GLOBAL",
+#define ER_NO_DEFAULT 1230
+"Variable '%-.64s' doesn't have a default value",
+#define ER_WRONG_VALUE_FOR_VAR 1231
+"Variable '%-.64s' can't be set to the value of '%-.64s'",
+#define ER_WRONG_TYPE_FOR_VAR 1232
+"Wrong argument type to variable '%-.64s'",
+#define ER_VAR_CANT_BE_READ 1233
+"Variable '%-.64s' can only be set, not read",
+#define ER_CANT_USE_OPTION_HERE 1234
+"Wrong usage/placement of '%s'",
+#define 1235
+"This version of MySQL doesn't yet support '%s'",
+#define ER_MASTER_FATAL_ERROR_READING_BINLOG 1236
+"Got fatal error %d: '%-.128s' from master when reading data from binary log",

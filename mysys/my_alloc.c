@@ -25,12 +25,13 @@
 void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
 		     uint pre_alloc_size __attribute__((unused)))
 {
-  mem_root->free= mem_root->used= 0;
+  mem_root->free= mem_root->used= mem_root->pre_alloc= 0;
   mem_root->min_malloc= 32;
   mem_root->block_size= block_size-MALLOC_OVERHEAD-sizeof(USED_MEM)-8;
   mem_root->error_handler= 0;
   mem_root->block_num= 4;			/* We shift this with >>2 */
   mem_root->first_block_usage= 0;
+
 #if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
   if (pre_alloc_size)
   {
@@ -137,6 +138,7 @@ static inline void mark_blocks_free(MEM_ROOT* root)
 
   /* Now everything is set; Indicate that nothing is used anymore */
   root->used= 0;
+  root->first_block_usage= 0;
 }
 
 

@@ -4592,9 +4592,11 @@ void Field_blob::get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetyp
 
   if ((uint32) length > blob_length)
   {
-#ifdef HAVE_purify
+    /*
+      Must clear this as we do a memcmp in opt_range.cc to detect
+      identical keys
+    */
     bzero(buff+2+blob_length, (length-blob_length));
-#endif
     length=(uint) blob_length;
   }
   int2store(buff,length);

@@ -225,9 +225,13 @@ convert_error_code_to_mysql(
 
     		return(HA_ERR_ROW_IS_REFERENCED);
 
- 	} else if (error == (int) DB_CANNOT_ADD_CONSTRAINT) {
+        } else if (error == (int) DB_CANNOT_ADD_CONSTRAINT) {
 
     		return(HA_ERR_CANNOT_ADD_FOREIGN);
+
+        } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
+
+    		return(HA_ERR_WRONG_TABLE_DEF);
 
  	} else if (error == (int) DB_OUT_OF_FILE_SPACE) {
 
@@ -1233,7 +1237,14 @@ ha_innobase::open(
 	        if (primary_key != MAX_KEY) {
 	                fprintf(stderr,
 		    "InnoDB: Error: table %s has no primary key in InnoDB\n"
-		    "InnoDB: data dictionary, but has one in MySQL!\n", name);
+		    "InnoDB: data dictionary, but has one in MySQL!\n"
+		    "InnoDB: If you created the table with a MySQL\n"
+                    "InnoDB: version < 3.23.54 and did not define a primary\n"
+                    "InnoDB: key, but defined a unique key with all non-NULL\n"
+                    "InnoDB: columns, then MySQL internally treats that key\n"
+                    "InnoDB: as the primary key. You can fix this error by\n"
+		    "InnoDB: dump + DROP + CREATE + reimport of the table.\n",
+				name);
 		}
 
 		((row_prebuilt_t*)innobase_prebuilt)
@@ -1898,12 +1909,9 @@ ha_innobase::write_row(
 		the counter here. */
 
 	        skip_auto_inc_decr = FALSE;
-
-	        if (error == DB_DUPLICATE_KEY) {
-	                ut_a(user_thd->query);
-	                dict_accept(user_thd->query, "REPLACE",
-				                       &skip_auto_inc_decr);
-		}
+	        if (error == DB_DUPLICATE_KEY &&
+		    user_thd->lex.sql_command == SQLCOM_REPLACE)
+		  skip_auto_inc_decr= TRUE;
 
 	        if (!skip_auto_inc_decr && incremented_auto_inc_counter
 		    && prebuilt->trx->auto_inc_lock) {
@@ -3803,8 +3811,8 @@ innobase_map_isolation_level(
 	enum_tx_isolation	iso)	/* in: MySQL isolation level code */
 {
 	switch(iso) {
-		case ISO_READ_COMMITTED: return(TRX_ISO_READ_COMMITTED);
 		case ISO_REPEATABLE_READ: return(TRX_ISO_REPEATABLE_READ);
+		case ISO_READ_COMMITTED: return(TRX_ISO_READ_COMMITTED);
 		case ISO_SERIALIZABLE: return(TRX_ISO_SERIALIZABLE);
 		case ISO_READ_UNCOMMITTED: return(TRX_ISO_READ_UNCOMMITTED);
 		default: ut_a(0); return(0);
@@ -3859,11 +3867,9 @@ ha_innobase::external_lock(
 		trx->n_mysql_tables_in_use++;
 		prebuilt->mysql_has_locked = TRUE;
 
-		if (thd->variables.tx_isolation != ISO_REPEATABLE_READ) {
-			trx->isolation_level = innobase_map_isolation_level(
+		trx->isolation_level = innobase_map_isolation_level(
 						(enum_tx_isolation)
 						thd->variables.tx_isolation);
-		}
 
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
 		    && prebuilt->select_lock_type == LOCK_NONE) {

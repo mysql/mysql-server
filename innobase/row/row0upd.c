@@ -71,6 +71,20 @@ the x-latch freed? The most efficient way for performing a
 searched delete is obviously to keep the x-latch for several
 steps of query graph execution. */
 
+/***************************************************************
+Checks if an update vector changes some of the first fields of an index
+record. */
+static
+ibool
+row_upd_changes_first_fields(
+/*=========================*/
+				/* out: TRUE if changes */
+	dtuple_t*	entry,	/* in: old value of index entry */
+	dict_index_t*	index,	/* in: index of entry */
+	upd_t*		update,	/* in: update vector for the row */
+	ulint		n);	/* in: how many first fields to check */
+
+
 /*************************************************************************
 Checks if index currently is mentioned as a referenced index in a foreign
 key constraint. */
@@ -132,6 +146,7 @@ ulint
 row_upd_check_references_constraints(
 /*=================================*/
 				/* out: DB_SUCCESS or an error code */
+	upd_node_t*	node,	/* in: row update node */
 	btr_pcur_t*	pcur,	/* in: cursor positioned on a record; NOTE: the
 				cursor position is lost in this function! */
 	dict_table_t*	table,	/* in: table in question */
@@ -173,7 +188,16 @@ row_upd_check_references_constraints(
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
 
 	while (foreign) {
-		if (foreign->referenced_index == index) {
+		/* Note that we may have an update which updates the index
+		record, but does NOT update the first fields which are
+		referenced in a foreign key constraint. Then the update does
+		NOT break the constraint. */
+
+		if (foreign->referenced_index == index
+		    && (node->is_delete
+		       || row_upd_changes_first_fields(entry, index,
+			    		node->update, foreign->n_fields))) {
+			    				
 			if (foreign->foreign_table == NULL) {
 				dict_table_get(foreign->foreign_table_name,
 									trx);
@@ -189,10 +213,9 @@ row_upd_check_references_constraints(
 			}
 
 			/* NOTE that if the thread ends up waiting for a lock
-			we will release dict_operation_lock
-			temporarily! But the counter on the table
-			protects 'foreign' from being dropped while the check
-			is running. */
+			we will release dict_operation_lock temporarily!
+			But the counter on the table protects 'foreign' from
+			being dropped while the check is running. */
 			
 			err = row_ins_check_foreign_constraint(FALSE, foreign,
 						table, index, entry, thr);
@@ -255,6 +278,7 @@ upd_node_create(
 	node->index = NULL;
 	node->update = NULL;
 	
+	node->foreign = NULL;
 	node->cascade_heap = NULL;
 	node->cascade_node = NULL;
 	
@@ -953,6 +977,53 @@ row_upd_changes_some_index_ord_field_binary(
 	return(FALSE);
 }
 
+/***************************************************************
+Checks if an update vector changes some of the first fields of an index
+record. */
+static
+ibool
+row_upd_changes_first_fields(
+/*=========================*/
+				/* out: TRUE if changes */
+	dtuple_t*	entry,	/* in: index entry */
+	dict_index_t*	index,	/* in: index of entry */
+	upd_t*		update,	/* in: update vector for the row */
+	ulint		n)	/* in: how many first fields to check */
+{
+	upd_field_t*	upd_field;
+	dict_field_t*	ind_field;
+	dict_col_t*	col;
+	ulint		n_upd_fields;
+	ulint		col_pos;
+	ulint		i, j;
+	
+	ut_a(update && index);
+	ut_a(n <= dict_index_get_n_fields(index));
+	
+	n_upd_fields = upd_get_n_fields(update);
+
+	for (i = 0; i < n; i++) {
+
+		ind_field = dict_index_get_nth_field(index, i);
+		col = dict_field_get_col(ind_field);
+		col_pos = dict_col_get_clust_pos(col);
+
+		for (j = 0; j < n_upd_fields; j++) {
+
+			upd_field = upd_get_nth_field(update, j);
+
+			if (col_pos == upd_field->field_no
+			    && cmp_dfield_dfield(
+					     dtuple_get_nth_field(entry, i),
+					     &(upd_field->new_val))) {
+				return(TRUE);
+			}
+		}
+	}
+
+	return(FALSE);
+}
+
 /*************************************************************************
 Copies the column values from a record. */
 UNIV_INLINE
@@ -1106,9 +1177,11 @@ row_upd_sec_index_entry(
 			err = btr_cur_del_mark_set_sec_rec(0, btr_cur, TRUE,
 								thr, &mtr);
 			if (err == DB_SUCCESS && check_ref) {
+			    	
 				/* NOTE that the following call loses
 				the position of pcur ! */
 				err = row_upd_check_references_constraints(
+							node,
 							&pcur, index->table,
 							index, thr, &mtr);
 				if (err != DB_SUCCESS) {
@@ -1224,7 +1297,7 @@ row_upd_clust_rec_by_insert(
 		if (check_ref) {
 			/* NOTE that the following call loses
 			the position of pcur ! */
-			err = row_upd_check_references_constraints(
+			err = row_upd_check_references_constraints(node,
 							pcur, table,
 							index, thr, mtr);
 			if (err != DB_SUCCESS) {
@@ -1392,7 +1465,8 @@ row_upd_del_mark_clust_rec(
 	if (err == DB_SUCCESS && check_ref) {
 		/* NOTE that the following call loses the position of pcur ! */
 
-		err = row_upd_check_references_constraints(pcur, index->table,
+		err = row_upd_check_references_constraints(node,
+							pcur, index->table,
 							index, thr, mtr);
 		if (err != DB_SUCCESS) {
 			mtr_commit(mtr);

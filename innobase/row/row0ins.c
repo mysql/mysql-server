@@ -322,13 +322,129 @@ row_ins_clust_index_entry_by_modify(
 }
 
 /*************************************************************************
-Either deletes or sets the referencing columns SQL NULL in a child row.
-Used in ON DELETE ... clause for foreign keys when a parent row is
-deleted. */
+Returns TRUE if in a cascaded update/delete an ancestor node of node
+updates table. */
+static
+ibool
+row_ins_cascade_ancestor_updates_table(
+/*===================================*/
+				/* out: TRUE if an ancestor updates table */
+	que_node_t*	node,	/* in: node in a query graph */
+	dict_table_t*	table)	/* in: table */
+{
+	que_node_t*	parent;
+	upd_node_t*	upd_node;
+
+	parent = que_node_get_parent(node);
+	
+	while (que_node_get_type(parent) == QUE_NODE_UPDATE) {
+
+		upd_node = parent;
+
+		if (upd_node->table == table) {
+
+			return(TRUE);
+		}
+
+		parent = que_node_get_parent(parent);
+
+		ut_a(parent);
+	}
+
+	return(FALSE);
+}
+	
+/**********************************************************************
+Calculates the update vector node->cascade->update for a child table in
+a cascaded update. */
 static
 ulint
-row_ins_foreign_delete_or_set_null(
-/*===============================*/
+row_ins_cascade_calc_update_vec(
+/*============================*/
+					/* out: number of fields in the
+					calculated update vector; the value
+					can also be 0 if no foreign key
+					fields changed */
+	upd_node_t*	node,		/* in: update node of the parent
+					table */
+	dict_foreign_t*	foreign)	/* in: foreign key constraint whose
+					type is != 0 */
+{
+	upd_node_t*	cascade		= node->cascade_node;
+	dict_table_t*	table		= foreign->foreign_table;
+	dict_index_t*	index		= foreign->foreign_index;
+	upd_t*		update;
+	upd_field_t*	ufield;
+	dict_table_t*	parent_table;
+	dict_index_t*	parent_index;
+	upd_t*		parent_update;
+	upd_field_t*	parent_ufield;
+	ulint		n_fields_updated;
+	ulint           parent_field_no;
+	ulint		i;
+	ulint		j;
+	    	
+	ut_a(node && foreign && cascade && table && index);
+
+	/* Calculate the appropriate update vector which will set the fields
+	in the child index record to the same value as the referenced index
+	record will get in the update. */
+
+	parent_table = node->table;
+	ut_a(parent_table == foreign->referenced_table);
+	parent_index = foreign->referenced_index;
+	parent_update = node->update;
+		
+	update = cascade->update;
+
+	update->info_bits = 0;
+	update->n_fields = foreign->n_fields;
+		
+	n_fields_updated = 0;
+
+	for (i = 0; i < foreign->n_fields; i++) {
+
+		parent_field_no = dict_table_get_nth_col_pos(
+					parent_table,
+					dict_index_get_nth_col_no(
+							parent_index, i));
+
+		for (j = 0; j < parent_update->n_fields; j++) {
+			parent_ufield = parent_update->fields + j;
+		
+			if (parent_ufield->field_no == parent_field_no) {
+
+				/* A field in the parent index record is
+				updated. Let us make the update vector
+				field for the child table. */
+
+ 				ufield = update->fields + n_fields_updated;
+
+				ufield->field_no =
+					dict_table_get_nth_col_pos(table,
+					dict_index_get_nth_col_no(index, i));
+				ufield->exp = NULL;
+				ufield->new_val = parent_ufield->new_val;
+				ufield->extern_storage = FALSE;
+
+				n_fields_updated++;
+			}
+		}
+	}
+
+	update->n_fields = n_fields_updated;
+
+	return(n_fields_updated);
+}
+
+/*************************************************************************
+Perform referential actions or checks when a parent row is deleted or updated
+and the constraint had an ON DELETE or ON UPDATE condition which was not
+RESTRICT. */
+static
+ulint
+row_ins_foreign_check_on_constraint(
+/*================================*/
 					/* out: DB_SUCCESS, DB_LOCK_WAIT,
 					or error code */
 	que_thr_t*	thr,		/* in: query thread whose run_node
@@ -378,15 +494,34 @@ row_ins_foreign_delete_or_set_null(
 						ut_strlen(table->name) + 1);
 	node = thr->run_node;
 
-	ut_a(que_node_get_type(node) == QUE_NODE_UPDATE);
+	if (node->is_delete && 0 == (foreign->type &
+			(DICT_FOREIGN_ON_DELETE_CASCADE
+			 | DICT_FOREIGN_ON_DELETE_SET_NULL))) {
 
-	if (!node->is_delete) {
-	        /* According to SQL-92 an UPDATE with respect to FOREIGN
-	        KEY constraints is not semantically equivalent to a
-                DELETE + INSERT. Therefore we do not perform any action
-	        here and consequently the child rows would be left
-	        orphaned if we would let the UPDATE happen. Thus we return
-		an error. */
+		/* No action is defined: return a foreign key error if
+		NO ACTION is not specified */
+
+		if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION) {
+
+			return(DB_SUCCESS);
+		}
+
+	        return(DB_ROW_IS_REFERENCED);
+	}
+
+	if (!node->is_delete && 0 == (foreign->type &
+			(DICT_FOREIGN_ON_UPDATE_CASCADE
+			 | DICT_FOREIGN_ON_UPDATE_SET_NULL))) {
+
+		/* This is an UPDATE */
+			 
+		/* No action is defined: return a foreign key error if
+		NO ACTION is not specified */
+
+		if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
+
+			return(DB_SUCCESS);
+		}
 
 	        return(DB_ROW_IS_REFERENCED);
 	}
@@ -411,7 +546,10 @@ row_ins_foreign_delete_or_set_null(
 	
 	cascade->table = table;
 
-	if (foreign->type == DICT_FOREIGN_ON_DELETE_CASCADE ) {
+	cascade->foreign = foreign;
+	
+	if (node->is_delete
+	    && (foreign->type & DICT_FOREIGN_ON_DELETE_CASCADE)) {
 		cascade->is_delete = TRUE;
 	} else {
 		cascade->is_delete = FALSE;
@@ -425,8 +563,30 @@ row_ins_foreign_delete_or_set_null(
 		}
 	}
 
+	/* We do not allow cyclic cascaded updating of the same
+	table. Check that we are not updating the same table which
+	is already being modified in this cascade chain. We have to
+	check this because the modification of the indexes of a
+	'parent' table may still be incomplete, and we must avoid
+	seeing the indexes of the parent table in an inconsistent
+	state! In this way we also prevent possible infinite
+	update loops caused by cyclic cascaded updates. */
+
+	if (!cascade->is_delete
+	    && row_ins_cascade_ancestor_updates_table(cascade, table)) {
+
+	        /* We do not know if this would break foreign key
+	        constraints, but play safe and return an error */
+
+	        err = DB_ROW_IS_REFERENCED;
+
+		goto nonstandard_exit_func;
+	}
+
 	index = btr_pcur_get_btr_cur(pcur)->index;
 
+	ut_a(index == foreign->foreign_index);
+	
 	rec = btr_pcur_get_rec(pcur);
 
 	if (index->type & DICT_CLUSTERED) {
@@ -520,7 +680,11 @@ row_ins_foreign_delete_or_set_null(
 		goto nonstandard_exit_func;
 	}
 
-	if (foreign->type == DICT_FOREIGN_ON_DELETE_SET_NULL) {
+	if ((node->is_delete
+	    && (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL))
+	   || (!node->is_delete
+	    && (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL))) {
+	    	
 		/* Build the appropriate update vector which sets
 		foreign->n_fields first fields in rec to SQL NULL */
 
@@ -540,6 +704,26 @@ row_ins_foreign_delete_or_set_null(
 		}
 	}
 
+	if (!node->is_delete
+	    && (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)) {
+
+		/* Build the appropriate update vector which sets changing
+		foreign->n_fields first fields in rec to new values */
+
+		row_ins_cascade_calc_update_vec(node, foreign);
+
+		if (cascade->update->n_fields == 0) {
+
+			/* The update does not change any columns referred
+			to in this foreign key constraint: no need to do
+			anything */
+
+			err = DB_SUCCESS;		
+
+			goto nonstandard_exit_func;			
+		}
+	}
+	
 	/* Store pcur position and initialize or store the cascade node
 	pcur stored position */
 	
@@ -629,6 +813,7 @@ row_ins_check_foreign_constraint(
 	dtuple_t*	entry,	/* in: index entry for index */
 	que_thr_t*	thr)	/* in: query thread */
 {
+  upd_node_t*  upd_node;
 	dict_table_t*	check_table;
 	dict_index_t*	check_index;
 	ulint		n_fields_cmp;
@@ -662,6 +847,30 @@ run_again:
                                          dtuple_get_nth_field(entry, i))) {
 
 			return(DB_SUCCESS);
+		}
+	}
+
+	if (que_node_get_type(thr->run_node) == QUE_NODE_UPDATE) {
+	        upd_node = thr->run_node;
+
+	        if (!(upd_node->is_delete) && upd_node->foreign == foreign) {
+		        /* If a cascaded update is done as defined by a 
+			foreign key constraint, do not check that
+			constraint for the child row. In ON UPDATE CASCADE
+			the update of the parent row is only half done when
+			we come here: if we would check the constraint here
+			for the child row it would fail.
+
+			A QUESTION remains: if in the child table there are
+			several constraints which refer to the same parent
+			table, we should merge all updates to the child as
+			one update? And the updates can be contradictory!
+			Currently we just perform the update associated
+			with each foreign key constraint, one after
+			another, and the user has problems predicting in
+			which order they are performed. */
+		
+		        return(DB_SUCCESS);
 		}
 	}
 
@@ -774,8 +983,12 @@ run_again:
 
 					break;
 				} else if (foreign->type != 0) {
+					/* There is an ON UPDATE or ON DELETE
+					condition: check them in a separate
+					function */
+
 					err =
-					  row_ins_foreign_delete_or_set_null(
+					  row_ins_foreign_check_on_constraint(
 						thr, foreign, &pcur, &mtr);
 
 					if (err != DB_SUCCESS) {

@@ -262,7 +262,7 @@ ut_print_buf(
 	data = buf;
 
 	for (i = 0; i < len; i++) {
-		if (isprint((char)(*data))) {
+		if (isprint((int)(*data))) {
 			printf("%c", (char)*data);
 		}
 		data++;
@@ -302,7 +302,7 @@ ut_sprintf_buf(
 	data = buf;
 
 	for (i = 0; i < len; i++) {
-		if (isprint((char)(*data))) {
+		if (isprint((int)(*data))) {
 			n += sprintf(str + n, "%c", (char)*data);
 		} else {
 			n += sprintf(str + n, ".");

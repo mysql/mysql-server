@@ -73,7 +73,7 @@ extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #include "thr_alarm.h"
 
 #define TEST_BLOCKING		8
-#define MAX_THREE_BYTES 255L*255L*255L
+#define MAX_THREE_BYTES (256L*256L*256L-1)
 
 static my_bool net_write_buff(NET *net,const char *packet,ulong len);
 
@@ -312,6 +312,7 @@ net_write_command(NET *net,uchar command,
 /*
   Caching the data in a local buffer before sending it.
   One can force the buffer to be flushed with 'net_flush'.
+
 */
 
 static my_bool
@@ -319,15 +320,24 @@ net_write_buff(NET *net,const char *packet,ulong len)
 {
   ulong left_length=(ulong) (net->buff_end - net->write_pos);
 
-  while (len > left_length)
+  if (len > left_length)
   {
     memcpy((char*) net->write_pos,packet,left_length);
     if (net_real_write(net,(char*) net->buff,net->max_packet))
       return 1;
     net->write_pos=net->buff;
     packet+=left_length;
-    len-=left_length;
-    left_length=net->max_packet;
+    len-= left_length;
+    left_length= net->max_packet;
+
+    /* Send out rest of the blocks as full sized blocks */
+    while (len > left_length)
+    {
+      if (net_real_write(net, packet, left_length))
+	return 1;
+      packet+= left_length;
+      len-= left_length;
+    }
   }
   memcpy((char*) net->write_pos,packet,len);
   net->write_pos+=len;
@@ -500,6 +510,7 @@ static void my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed)
   ALARM alarm_buff;
   uint retry_count=0;
   my_bool old_mode;
+  uint32 old=remain;
 
   if (!thr_alarm_in_use(&alarmed))
   {
@@ -521,6 +532,12 @@ static void my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed)
       return;
     }
     remain -= (uint32) length;
+    if (!remain && old==MAX_THREE_BYTES && 
+	(length=vio_read(net->vio,(char*) net->buff,NET_HEADER_SIZE)))
+    {
+      old=remain= uint3korr(net->buff);
+      net->pkt_nr++;
+    }
     statistic_add(bytes_received,length,&LOCK_bytes_received);
   }
 }
@@ -667,7 +684,10 @@ my_real_read(NET *net, ulong *complen)
 #ifdef HAVE_COMPRESS
 	if (net->compress)
 	{
-	  /* complen is > 0 if package is really compressed */
+	  /*
+	    If the packet is compressed then complen > 0 and contains the
+	    number of bytes in the uncompressed packet
+	  */
 	  *complen=uint3korr(&(net->buff[net->where_b + NET_HEADER_SIZE]));
 	}
 #endif
@@ -681,11 +701,19 @@ my_real_read(NET *net, ulong *complen)
 	{
 	  if (net_realloc(net,helping))
 	  {
+#ifdef MYSQL_SERVER
 #ifndef NO_ALARM
-	    if (i == 1)
-	      my_net_skip_rest(net, (uint32) len, &alarmed);
+	    if (net->compress)
+	    {
+	      len= packet_error;
+	      goto end;
+	    }
+	    my_net_skip_rest(net, (uint32) len, &alarmed);
+	    len=0;
 #endif
-	    len= packet_error;		/* Return error */
+#else
+	    len= packet_error;          /* Return error */
+#endif
 	    goto end;
 	  }
 	}
@@ -738,7 +766,7 @@ my_net_read(NET *net)
       {
 	net->where_b += len;
 	total_length += len;
-	len = my_real_read (net,&complen);
+	len = my_real_read(net,&complen);
       } while (len == MAX_THREE_BYTES);
       if (len != packet_error)
 	len+= total_length;
@@ -766,7 +794,7 @@ my_net_read(NET *net)
     }
     else
     {
-      /* reuse buffer, as there is noting in it that we need */
+      /* reuse buffer, as there is nothing in it that we need */
       buf_length=start_of_packet=first_packet_offset=0;
     }
     for (;;)

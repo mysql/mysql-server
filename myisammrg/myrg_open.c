@@ -33,7 +33,7 @@
 MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 {
   int save_errno,i,errpos;
-  uint files,dir_length,length,options;
+  uint files,dir_length,length,options, key_parts;
   ulonglong file_offset;
   char name_buff[FN_REFLEN*2],buff[FN_REFLEN],*end;
   MYRG_INFO info,*m_info;
@@ -89,24 +89,39 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     }
     info.reclength=isam->s->base.reclength;
   }
+  key_parts=(isam ? isam->s->base.key_parts : 0);
   if (!(m_info= (MYRG_INFO*) my_malloc(sizeof(MYRG_INFO)+
-				       files*sizeof(MYRG_TABLE),
+                                       files*sizeof(MYRG_TABLE)+
+                                       sizeof(long)*key_parts,
 				       MYF(MY_WME))))
     goto err;
   *m_info=info;
-  m_info->open_tables=(files) ? (MYRG_TABLE *) (m_info+1) : 0;
   m_info->tables=files;
+  if (files)
+  {
+    m_info->open_tables=(MYRG_TABLE *) (m_info+1);
+    m_info->rec_per_key_part=(ulong *) (m_info->open_tables+files);
+    bzero((char*) m_info->rec_per_key_part,sizeof(long)*key_parts);
+  }
+  else
+  {
+    m_info->open_tables=0;
+    m_info->rec_per_key_part=0;
+  }
   errpos=2;
 
   options= (uint) ~0;
   for (i=files ; i-- > 0 ; )
   {
+    uint j;
     m_info->open_tables[i].table=isam;
     m_info->options|=isam->s->options;
     options&=isam->s->options;
     m_info->records+=isam->state->records;
     m_info->del+=isam->state->del;
     m_info->data_file_length+=isam->state->data_file_length;
+    for (j=0; j < key_parts; j++)
+      m_info->rec_per_key_part[j]+=isam->s->state.rec_per_key_part[j] / files;
     if (i)
       isam=(MI_INFO*) (isam->open_list.next->data);
   }

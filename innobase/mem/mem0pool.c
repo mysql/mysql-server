@@ -15,6 +15,7 @@ Created 5/12/1997 Heikki Tuuri
 #include "ut0mem.h"
 #include "ut0lst.h"
 #include "ut0byte.h"
+#include "mem0mem.h"
 
 /* We would like to use also the buffer frames to allocate memory. This
 would be desirable, because then the memory consumption of the database
@@ -251,7 +252,6 @@ mem_pool_fill_free_list(
 	mem_area_t*	area;
 	mem_area_t*	area2;
 	ibool		ret;
-	char            err_buf[500];
 
 	ut_ad(mutex_own(&(pool->mutex)));
 
@@ -300,11 +300,8 @@ mem_pool_fill_free_list(
 	}
 
 	if (UT_LIST_GET_LEN(pool->free_list[i + 1]) == 0) {
-		ut_sprintf_buf(err_buf, ((byte*)area) - 50, 100);
-	        fprintf(stderr,
-"InnoDB: Error: Removing element from mem pool free list %lu\n"
-"InnoDB: though the list length is 0! Dump of 100 bytes around element:\n%s\n",
-			i + 1, err_buf);
+	        mem_analyze_corruption((byte*)area);
+
 		ut_a(0);
 	}
 
@@ -340,7 +337,6 @@ mem_area_alloc(
 	mem_area_t*	area;
 	ulint		n;
 	ibool		ret;
-	char            err_buf[500];
 
 	n = ut_2_log(ut_max(size + MEM_AREA_EXTRA_SIZE, MEM_AREA_MIN_SIZE));
 
@@ -364,20 +360,22 @@ mem_area_alloc(
 	}
 
 	if (!mem_area_get_free(area)) {
-		ut_sprintf_buf(err_buf, ((byte*)area) - 50, 100);
 	        fprintf(stderr,
 "InnoDB: Error: Removing element from mem pool free list %lu though the\n"
-"InnoDB: element is not marked free! Dump of 100 bytes around element:\n%s\n",
-			n, err_buf);
+"InnoDB: element is not marked free!\n",
+			n);
+
+		mem_analyze_corruption((byte*)area);
 		ut_a(0);
 	}
 
 	if (UT_LIST_GET_LEN(pool->free_list[n]) == 0) {
-		ut_sprintf_buf(err_buf, ((byte*)area) - 50, 100);
 	        fprintf(stderr,
 "InnoDB: Error: Removing element from mem pool free list %lu\n"
-"InnoDB: though the list length is 0! Dump of 100 bytes around element:\n%s\n",
-			n, err_buf);
+"InnoDB: though the list length is 0!\n",
+			n);
+		mem_analyze_corruption((byte*)area);
+
 		ut_a(0);
 	}
 
@@ -451,7 +449,6 @@ mem_area_free(
 	void*		new_ptr;
 	ulint		size;
 	ulint		n;
-	char            err_buf[500];
 	
 	if (mem_out_of_mem_err_msg_count > 0) {
 		/* It may be that the area was really allocated from the
@@ -468,18 +465,25 @@ mem_area_free(
 
 	area = (mem_area_t*) (((byte*)ptr) - MEM_AREA_EXTRA_SIZE);
 
-	if (mem_area_get_free(area)) {
-		ut_sprintf_buf(err_buf, ((byte*)area) - 50, 100);
+        if (mem_area_get_free(area)) {
 	        fprintf(stderr,
 "InnoDB: Error: Freeing element to mem pool free list though the\n"
-"InnoDB: element is marked free! Dump of 100 bytes around element:\n%s\n",
-			err_buf);
+"InnoDB: element is marked free!\n");
+
+		mem_analyze_corruption((byte*)area);
 		ut_a(0);
 	}
 
 	size = mem_area_get_size(area);
 	
-	ut_ad(size != 0);
+        if (size == 0) {
+	        fprintf(stderr,
+"InnoDB: Error: Mem area size is 0. Possibly a memory overrun of the\n"
+"InnoDB: previous allocated area!\n");
+
+		mem_analyze_corruption((byte*)area);
+		ut_a(0);
+	}
 
 #ifdef UNIV_LIGHT_MEM_DEBUG	
 	if (((byte*)area) + size < pool->buf + pool->size) {
@@ -488,7 +492,15 @@ mem_area_free(
 
 		next_size = mem_area_get_size(
 					(mem_area_t*)(((byte*)area) + size));
-		ut_a(ut_2_power_up(next_size) == next_size);
+		if (ut_2_power_up(next_size) != next_size) {
+		        fprintf(stderr,
+"InnoDB: Error: Memory area size %lu, next area size %lu not a power of 2!\n"
+"InnoDB: Possibly a memory overrun of the buffer being freed here.\n",
+			  size, next_size);
+			mem_analyze_corruption((byte*)area);
+
+			ut_a(0);
+		}
 	}
 #endif
 	buddy = mem_area_get_buddy(area, size, pool);

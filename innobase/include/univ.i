@@ -9,7 +9,8 @@ Created 1/20/1994 Heikki Tuuri
 #ifndef univ_i
 #define univ_i
 
-#if (defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)) && !defined(MYSQL_SERVER)
+#if (defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)) && !defined(MYSQL_SERVER) && !defined(__WIN__)
+#undef __WIN__
 #define __WIN__
 
 #include <windows.h>

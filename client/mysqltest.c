@@ -2207,10 +2207,15 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   /* Add all warnings to the result */
   if (!disable_result_log && mysql_warning_count(mysql))
   {
-    MYSQL_RES *warn_res= mysql_warnings(mysql);
+    MYSQL_RES *warn_res=0;
+    uint count= mysql_warning_count(mysql);
+    if (!mysql_real_query(mysql, "SHOW WARNINGS", 13))
+    {
+      warn_res=mysql_store_result(mysql);
+    }
     if (!warn_res)
-      verbose_msg("Warning count is %d but didn't get any warnings\n",
-		  mysql_warning_count(mysql));
+      verbose_msg("Warning count is %u but didn't get any warnings\n",
+		  count);
     else
     {
       dynstr_append_mem(ds, "Warnings:\n", 10);

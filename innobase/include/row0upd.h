@@ -312,8 +312,11 @@ struct upd_node_struct{
 	ibool		in_mysql_interface;
 				/* TRUE if the update node was created
 				for the MySQL interface */
+	dict_foreign_t*	foreign;/* NULL or pointer to a foreign key
+				constraint if this update node is used in
+				doing an ON DELETE or ON UPDATE operation */
 	upd_node_t*	cascade_node;/* NULL or an update node template which
-				is used to implement ON DELETE CASCADE
+				is used to implement ON DELETE/UPDATE CASCADE
 				or ... SET NULL for foreign keys */
 	mem_heap_t*	cascade_heap;/* NULL or a mem heap where the cascade
 				node is created */

@@ -1,4 +1,5 @@
 #!@PERL@
+# -*- perl -*-
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 #
 # This library is free software; you can redistribute it and/or
@@ -47,7 +48,7 @@ require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";
 
 $opt_server="mysql"; $opt_host="localhost"; $opt_database="test";
 $opt_dir="limits";
-$opt_user=$opt_password="";
+$opt_user=$opt_password="";$opt_verbose="";
 $opt_debug=$opt_help=$opt_Information=$opt_restart=$opt_force=$opt_quick=0;
 $opt_log_all_queries=$opt_fix_limit_file=$opt_batch_mode=0;
 $opt_db_start_cmd="";           # the db server start command
@@ -55,6 +56,7 @@ $opt_check_server=0;		# Check if server is alive before each query
 $opt_sleep=10;                  # time to sleep while starting the db server
 $limit_changed=0;               # For configure file
 $reconnect_count=0;
+$opt_suffix="";
 $opt_comment=$opt_config_file=$opt_log_queries_to_file="";
 $limits{'crash_me_safe'}='yes';
 $prompts{'crash_me_safe'}='crash me safe';
@@ -62,10 +64,22 @@ $limits{'operating_system'}= machine();
 $prompts{'operating_system'}='crash-me tested on';
 $retry_limit=3;
 
-GetOptions("Information","help","server=s","debug","user=s","password=s","database=s","restart","force","quick","log-all-queries","comment=s","host=s","fix-limit-file","dir=s","db-start-cmd=s","sleep=s","batch-mode","config-file=s","log-queries-to-file=s","check-server") || usage();
+GetOptions("Information","help","server=s","debug","user=s","password=s",
+"database=s","restart","force","quick","log-all-queries","comment=s",
+"host=s","fix-limit-file","dir=s","db-start-cmd=s","sleep=s","suffix=s",
+"batch-mode","config-file=s","log-queries-to-file=s","check-server",
+"verbose!" => \$opt_verbose) || usage();
 usage() if ($opt_help || $opt_Information);
 
-$opt_config_file="$pwd/$opt_dir/$opt_server.cfg" if (length($opt_config_file) == 0);
+$opt_suffix = '-'.$opt_suffix if (length($opt_suffix) != 0);
+$opt_config_file = "$pwd/$opt_dir/$opt_server$opt_suffix.cfg"  
+  if (length($opt_config_file) == 0);
+$log_prefix='   ###';  # prefix for log lines in result file
+$safe_query_log='';
+$safe_query_result_log='';
+$log{"crash-me"}="";
+
+#!!!
 
 if ($opt_fix_limit_file)
 {
@@ -112,7 +126,8 @@ if (length($opt_comment))
 $opt_log=0;
 if (length($opt_log_queries_to_file))
 {
-  open(LOG,">$opt_log_queries_to_file") || die "Can't open file $opt_log_queries_to_file\n";
+  open(LOG,">$opt_log_queries_to_file") || 
+    die "Can't open file $opt_log_queries_to_file\n";
   $opt_log=1;
 }
 
@@ -163,11 +178,13 @@ $prompt="drop table require cascade/restrict";
 $drop_attr="";
 $dbh->do("drop table crash_me");
 $dbh->do("drop table crash_me cascade");
-if (!safe_query(["create table crash_me (a integer not null)",
+if (!safe_query_l('drop_requires_cascade',
+         ["create table crash_me (a integer not null)",
 		 "drop table crash_me"]))
 {
   $dbh->do("drop table crash_me cascade");  
-  if (safe_query(["create table crash_me (a integer not null)",
+  if (safe_query_l('drop_requires_cascade',
+        ["create table crash_me (a integer not null)",
 		  "drop table crash_me cascade"]))
   {
     save_config_data('drop_requires_cascade',"yes","$prompt");
@@ -192,11 +209,14 @@ $dbh->do("drop table crash_q $drop_attr");
 $dbh->do("drop table crash_q1 $drop_attr");
 
 $prompt="Tables without primary key";
-if (!safe_query(["create table crash_me (a integer not null,b char(10) not null)",
+if (!safe_query_l('no_primary_key',
+      ["create table crash_me (a integer not null,b char(10) not null)",
 		 "insert into crash_me (a,b) values (1,'a')"]))
 {
-  if (!safe_query(["create table crash_me (a integer not null,b char(10) not null, primary key (a))",
-		   "insert into crash_me (a,b) values (1,'a')"]))
+  if (!safe_query_l('no_primary_key',
+      ["create table crash_me (a integer not null,b char(10) not null".
+        ", primary key (a))",
+	 "insert into crash_me (a,b) values (1,'a')"]))
   {
     die "Can't create table 'crash_me' with one record: $DBI::errstr\n";
   }
@@ -298,14 +318,31 @@ report("INSERT with set syntax",'insert_with_set',
        "create table crash_q (a integer)",
        "insert into crash_q SET a=1",
        "drop table crash_q $drop_attr");
+report("INSERT with DEFAULT","insert_with_default",
+       "create table crash_me_q (a int)",
+       "insert into crash_me_q (a) values (DEFAULT)",
+       "drop table crash_me_q $drop_attr");
+
+report("INSERT with empty value list","insert_with_empty_value_list",
+       "create table crash_me_q (a int)",
+       "insert into crash_me_q (a) values ()",
+       "drop table crash_me_q $drop_attr");
+
+report("INSERT DEFAULT VALUES","insert_default_values",
+       "create table crash_me_q (a int)",
+       "insert into crash_me_q  DEFAULT VALUES",
+       "drop table crash_me_q $drop_attr");
+       
 report("allows end ';'","end_colon", "select * from crash_me;");
 try_and_report("LIMIT number of rows","select_limit",
 	       ["with LIMIT",
 		"select * from crash_me limit 1"],
 	       ["with TOP",
 		"select TOP 1 * from crash_me"]);
-report("SELECT with LIMIT #,#","select_limit2", "select * from crash_me limit 1,1");
-report("SELECT with LIMIT # OFFSET #","select_limit3", "select * from crash_me limit 1 offset 1");
+report("SELECT with LIMIT #,#","select_limit2", 
+      "select * from crash_me limit 1,1");
+report("SELECT with LIMIT # OFFSET #",
+      "select_limit3", "select * from crash_me limit 1 offset 1");
 
 # The following alter table commands MUST be kept together!
 if ($dbh->do("create table crash_q (a integer, b integer,c1 CHAR(10))"))
@@ -327,7 +364,8 @@ if ($dbh->do("create table crash_q (a integer, b integer,c1 CHAR(10))"))
 	 "alter table crash_q alter b set default 10");
   report_one("Alter table drop column",'alter_drop_col',
 	     [["alter table crash_q drop column b","yes"],
-	      ["alter table crash_q drop column b restrict","with restrict/cascade"]]);
+	      ["alter table crash_q drop column b restrict",
+	      "with restrict/cascade"]]);
   report("Alter table rename table",'alter_rename_table',
 	 "alter table crash_q rename to crash_q1");
 }
@@ -349,13 +387,14 @@ report("truncate","truncate_table",
        "drop table crash_q $drop_attr");
 
 if ($dbh->do("create table crash_q (a integer, b integer,c1 CHAR(10))") &&
-    $dbh->do("create table crash_q1 (a integer, b integer,c1 CHAR(10) not null)"))
+ $dbh->do("create table crash_q1 (a integer, b integer,c1 CHAR(10) not null)"))
 {
   report("Alter table add constraint",'alter_add_constraint',
 	 "alter table crash_q add constraint c2 check(a > b)");
   report_one("Alter table drop constraint",'alter_drop_constraint',
 	     [["alter table crash_q drop constraint c2","yes"],
-	      ["alter table crash_q drop constraint c2 restrict","with restrict/cascade"]]);
+	      ["alter table crash_q drop constraint c2 restrict",
+	      "with restrict/cascade"]]);
   report("Alter table add unique",'alter_add_unique',
 	 "alter table crash_q add constraint u1 unique(c1)");
   try_and_report("Alter table drop unique",'alter_drop_unique',
@@ -371,7 +410,8 @@ if ($dbh->do("create table crash_q (a integer, b integer,c1 CHAR(10))") &&
 		 ["with add primary key",
 		  "alter table crash_q1 add primary key(c1)"]);
   report("Alter table add foreign key",'alter_add_foreign_key',
-	 "alter table crash_q add constraint f1 foreign key(c1) references crash_q1(c1)");
+	 "alter table crash_q add constraint f1 foreign key(c1)",
+	 " references crash_q1(c1)");
   try_and_report("Alter table drop foreign key",'alter_drop_foreign_key',
 		 ["with drop constraint",
 		  "alter table crash_q drop constraint f1"],
@@ -402,10 +442,12 @@ check_and_report("Group on column with null values",'group_by_null',
 $prompt="Having";
 if (!defined($limits{'having'}))
 {                               # Complicated because of postgreSQL
-  if (!safe_query_result("select a from crash_me group by a having a > 0",1,0))
+  if (!safe_query_result_l("having",
+      "select a from crash_me group by a having a > 0",1,0))
   {
-    if (!safe_query_result("select a from crash_me group by a having a < 0",
-			   1,0))
+    if (!safe_query_result_l("having",
+           "select a from crash_me group by a having a < 0",
+	    1,0))
     { save_config_data("having","error",$prompt); }
     else
     { save_config_data("having","yes",$prompt); }
@@ -446,7 +488,7 @@ $logical_value= $limits{'logical_value'};
 
 $false=0;
 $result="no";
-if ($res=safe_query("select (1=1)=true $end_query")) {
+if ($res=safe_query_l('has_true_false',"select (1=1)=true $end_query")) {
   $false="false";
   $result="yes";
 }
@@ -492,7 +534,8 @@ else
 
   if ($i == 0)
   {
-    print "Can't connect to server: $DBI::errstr.  Please start it and try again\n";
+    print "Can't connect to server: $DBI::errstr.".
+          "  Please start it and try again\n";
     exit 1;
   }
   $dbh=safe_connect();
@@ -525,7 +568,9 @@ if (!defined($limits{'query_size'}))
   }
   for ($i=$first ; $i < $end ; $i*=2)
   {
-    last if (!safe_query($query . (" " x ($i - length($query)-length($end_query) -1)) . "$select$end_query"));
+    last if (!safe_query($query . 
+            (" " x ($i - length($query)-length($end_query) -1)) 
+	      . "$select$end_query"));
     $first=$i;
     save_config_data("restart",$i,"") if ($opt_restart);
   }
@@ -553,6 +598,13 @@ if (!defined($limits{'query_size'}))
 $query_size=$limits{'query_size'};
 
 print "$limits{'query_size'}\n";
+
+#
+# Check for reserved words
+#
+
+check_reserved_words($dbh);
+
 #
 # Test database types
 #
@@ -568,7 +620,8 @@ print "$limits{'query_size'}\n";
             "interval month",
             "interval day", "interval day to hour", "interval day to minute",
             "interval day to second",
-            "interval hour", "interval hour to minute", "interval hour to second",
+            "interval hour", "interval hour to minute",
+	    "interval hour to second",
             "interval minute", "interval minute to second",
             "interval second",
 	    "national character varying(20)",
@@ -633,6 +686,7 @@ foreach $types (@types)
 # Test some type limits
 #
 
+
 check_and_report("Remembers end space in char()","remember_end_space",
 		 ["create table crash_q (a char(10))",
 		  "insert into crash_q values('hello ')"],
@@ -648,55 +702,6 @@ check_and_report("Remembers end space in varchar()",
 		 ["drop table crash_q $drop_attr"],
 		 'hello ',6);
 
-check_and_report("Supports 0000-00-00 dates","date_zero",
-		 ["create table crash_me2 (a date not null)",
-		  "insert into crash_me2 values ('0000-00-00')"],
-		 "select a from crash_me2",
-		 ["drop table crash_me2 $drop_attr"],
-		 "0000-00-00",1);
-
-check_and_report("Supports 0001-01-01 dates","date_one",
-		 ["create table crash_me2 (a date not null)",
-		  "insert into crash_me2 values (DATE '0001-01-01')"],
-		 "select a from crash_me2",
-		 ["drop table crash_me2 $drop_attr"],
-		 "0001-01-01",1);
-
-check_and_report("Supports 9999-12-31 dates","date_last",
-		 ["create table crash_me2 (a date not null)",
-		  "insert into crash_me2 values (DATE '9999-12-31')"],
-		 "select a from crash_me2",
-		 ["drop table crash_me2 $drop_attr"],
-		 "9999-12-31",1);
-
-check_and_report("Supports 'infinity dates","date_infinity",
-		 ["create table crash_me2 (a date not null)",
-		  "insert into crash_me2 values ('infinity')"],
-		 "select a from crash_me2",
-		 ["drop table crash_me2 $drop_attr"],
-		 "infinity",1);
-
-if (!defined($limits{'date_with_YY'}))
-{
-    check_and_report("Supports YY-MM-DD dates","date_with_YY",
-		     ["create table crash_me2 (a date not null)",
-		      "insert into crash_me2 values ('98-03-03')"],
-		     "select a from crash_me2",
-		     ["drop table crash_me2 $drop_attr"],
-		     "1998-03-03",5);
-    if ($limits{'date_with_YY'} eq "yes")
-    {
-	undef($limits{'date_with_YY'});
-	check_and_report("Supports YY-MM-DD 2000 compilant dates",
-			 "date_with_YY",
-			 ["create table crash_me2 (a date not null)",
-			  "insert into crash_me2 values ('10-03-03')"],
-			 "select a from crash_me2",
-			 ["drop table crash_me2 $drop_attr"],
-			 "2010-03-03",5);
-    }
-}
-
 if (($limits{'type_extra_float(2_arg)'} eq "yes" ||
     $limits{'type_sql_decimal(2_arg)'} eq "yes") &&
     (!defined($limits{'storage_of_float'})))
@@ -704,33 +709,33 @@ if (($limits{'type_extra_float(2_arg)'} eq "yes" ||
   my $type=$limits{'type_extra_float(2_arg)'} eq "yes" ? "float(4,1)" :
     "decimal(4,1)";
   my $result="undefined";
-  if (execute_and_check(["create table crash_q (q1 $type)",
+  if (execute_and_check("storage_of_float",["create table crash_q (q1 $type)",
 			 "insert into crash_q values(1.14)"],
 			"select q1 from crash_q",
 			["drop table crash_q $drop_attr"],1.1,0) &&
-      execute_and_check(["create table crash_q (q1 $type)",
+      execute_and_check("storage_of_float",["create table crash_q (q1 $type)",
 			 "insert into crash_q values(1.16)"],
 			"select q1 from crash_q",
 			["drop table crash_q $drop_attr"],1.1,0))
   {
     $result="truncate";
   }
-  elsif (execute_and_check(["create table crash_q (q1 $type)",
+  elsif (execute_and_check("storage_of_float",["create table crash_q (q1 $type)",
 			    "insert into crash_q values(1.14)"],
 			   "select q1 from crash_q",
 			   ["drop table crash_q $drop_attr"],1.1,0) &&
-	 execute_and_check(["create table crash_q (q1 $type)",
+	 execute_and_check("storage_of_float",["create table crash_q (q1 $type)",
 			    "insert into crash_q values(1.16)"],
 			   "select q1 from crash_q",
 			   ["drop table crash_q $drop_attr"],1.2,0))
   {
     $result="round";
   }
-  elsif (execute_and_check(["create table crash_q (q1 $type)",
+  elsif (execute_and_check("storage_of_float",["create table crash_q (q1 $type)",
 			    "insert into crash_q values(1.14)"],
 			   "select q1 from crash_q",
 			   ["drop table crash_q $drop_attr"],1.14,0) &&
-	 execute_and_check(["create table crash_q (q1 $type)",
+	 execute_and_check("storage_of_float",["create table crash_q (q1 $type)",
 			    "insert into crash_q values(1.16)"],
 			   "select q1 from crash_q",
 			   ["drop table crash_q $drop_attr"],1.16,0))
@@ -744,13 +749,17 @@ if (($limits{'type_extra_float(2_arg)'} eq "yes" ||
 
 try_and_report("Type for row id", "rowid",
 	       ["rowid",
-		"create table crash_q (a rowid)","drop table crash_q $drop_attr"],
+		"create table crash_q (a rowid)",
+		"drop table crash_q $drop_attr"],
 	       ["auto_increment",
-		"create table crash_q (a int not null auto_increment, primary key(a))","drop table crash_q $drop_attr"],
+		"create table crash_q (a int not null auto_increment".
+		", primary key(a))","drop table crash_q $drop_attr"],
 	       ["oid",
-		"create table crash_q (a oid, primary key(a))","drop table crash_q $drop_attr"],
+		"create table crash_q (a oid, primary key(a))",
+		"drop table crash_q $drop_attr"],
 	       ["serial",
-		"create table crash_q (a serial, primary key(a))","drop table crash_q $drop_attr"]);
+		"create table crash_q (a serial, primary key(a))",
+		"drop table crash_q $drop_attr"]);
 
 try_and_report("Automatic row id", "automatic_rowid",
 	       ["_rowid",
@@ -767,21 +776,26 @@ try_and_report("Automatic row id", "automatic_rowid",
   (["+, -, * and /","+","5*3-4/2+1",14,0],
    ["ANSI SQL SUBSTRING","substring","substring('abcd' from 2 for 2)","bc",1],
    ["BIT_LENGTH","bit_length","bit_length('abc')",24,0],
-   ["searched CASE","searched_case","case when 1 > 2 then 'false' when 2 > 1 then 'true' end", "true",1],
-   ["simple CASE","simple_case","case 2 when 1 then 'false' when 2 then 'true' end", "true",1],
+   ["searched CASE","searched_case",
+     "case when 1 > 2 then 'false' when 2 > 1 then 'true' end", "true",1],
+   ["simple CASE","simple_case",
+     "case 2 when 1 then 'false' when 2 then 'true' end", "true",1],
    ["CAST","cast","CAST(1 as CHAR)","1",1],
    ["CHARACTER_LENGTH","character_length","character_length('abcd')","4",0],
    ["CHAR_LENGTH","char_length","char_length(b)","10",0],
-   ["CHAR_LENGTH(constant)","char_length(constant)","char_length('abcd')","4",0],
+   ["CHAR_LENGTH(constant)","char_length(constant)",
+     "char_length('abcd')","4",0],
    ["COALESCE","coalesce","coalesce($char_null,'bcd','qwe')","bcd",1],
    ["CURRENT_DATE","current_date","current_date",0,2],
    ["CURRENT_TIME","current_time","current_time",0,2],
    ["CURRENT_TIMESTAMP","current_timestamp","current_timestamp",0,2],
-   ["EXTRACT","extract_sql","extract(minute from timestamp '2000-02-23 18:43:12.987')",43,0],
+   ["EXTRACT","extract_sql",
+     "extract(minute from timestamp '2000-02-23 18:43:12.987')",43,0],
    ["LOCALTIME","localtime","localtime",0,2],
    ["LOCALTIMESTAMP","localtimestamp","localtimestamp",0,2],
    ["LOWER","lower","LOWER('ABC')","abc",1],
-   ["NULLIF with strings","nullif_string","NULLIF(NULLIF('first','second'),'first')",undef(),4],
+   ["NULLIF with strings","nullif_string",
+       "NULLIF(NULLIF('first','second'),'first')",undef(),4],
    ["NULLIF with numbers","nullif_num","NULLIF(NULLIF(1,2),1)",undef(),4],
    ["OCTET_LENGTH","octet_length","octet_length('abc')",3,0],
    ["POSITION","position","position('ll' in 'hello')",3,0],
@@ -794,7 +808,7 @@ try_and_report("Automatic row id", "automatic_rowid",
   (["ASCII", "ascii", "ASCII('A')","65",0],
    ["CHAR", "char", "CHAR(65)"  ,"A",1],
    ["CONCAT(2 arg)","concat", "concat('a','b')","ab",1],
-   ["DIFFERENCE()","difference","difference('abc','abe')",0,2],
+   ["DIFFERENCE()","difference","difference('abc','abe')",3,0],
    ["INSERT","insert","insert('abcd',2,2,'ef')","aefd",1],
    ["LEFT","left","left('abcd',2)","ab",1],
    ["LTRIM","ltrim","ltrim('   abcd')","abcd",1],
@@ -838,14 +852,6 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["TRUNCATE","truncate","truncate(18.18,-1)",10,0],
    ["NOW","now","now()",0,2],           # Any value is acceptable
    ["CURDATE","curdate","curdate()",0,2],
-   ["DAYNAME","dayname","dayname(DATE '1997-02-01')","",2],
-   ["MONTH","month","month(DATE '1997-02-01')","",2],
-   ["MONTHNAME","monthname","monthname(DATE '1997-02-01')","",2],
-   ["DAYOFMONTH","dayofmonth","dayofmonth(DATE '1997-02-01')",1,0],
-   ["DAYOFWEEK","dayofweek","dayofweek(DATE '1997-02-01')",7,0],
-   ["DAYOFYEAR","dayofyear","dayofyear(DATE '1997-02-01')",32,0],
-   ["QUARTER","quarter","quarter(DATE '1997-02-01')",1,0],
-   ["YEAR","year","year(DATE '1997-02-01')",1997,0],
    ["CURTIME","curtime","curtime()",0,2],
    ["HOUR","hour","hour('12:13:14')",12,0],
    ["ANSI HOUR","hour_time","hour(TIME '12:13:14')",12,0],
@@ -855,7 +861,8 @@ try_and_report("Automatic row id", "automatic_rowid",
     "timestampadd(SQL_TSI_SECOND,1,'1997-01-01 00:00:00')",
     "1997-01-01 00:00:01",1],
    ["TIMESTAMPDIFF","timestampdiff",
-    "timestampdiff(SQL_TSI_SECOND,'1997-01-01 00:00:02', '1997-01-01 00:00:01')","1",0],
+    "timestampdiff(SQL_TSI_SECOND,'1997-01-01 00:00:02',".
+     " '1997-01-01 00:00:01')","1",0],
    ["USER()","user()","user()",0,2],
    ["DATABASE","database","database()",0,2],
    ["IFNULL","ifnull","ifnull(2,3)",2,0],
@@ -871,7 +878,6 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["<> in SELECT","<>","1<>1","0",0],
    ["=","=","(1=1)",1,$logical_value],
    ["~* (case insensitive compare)","~*","'hi' ~* 'HI'",1,$logical_value],
-   ["ADD_MONTHS","add_months","add_months('1997-01-01',1)","1997-02-01",0], # oracle the date plus n months
    ["AND and OR in SELECT","and_or","1=1 AND 2=2",$logical_value,0],
    ["AND as '&&'",'&&',"1=1 && 2=2",$logical_value,0],
    ["ASCII_CHAR", "ascii_char", "ASCII_CHAR(65)","A",1],
@@ -885,40 +891,38 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["CONCAT(list)","concat_list", "concat('a','b','c','d')","abcd",1],
    ["CONVERT","convert","convert(CHAR,5)","5",1],
    ["COSH","cosh","cosh(0)","1",0], # oracle hyperbolic cosine of n.
-   ["DATEADD","dateadd","dateadd(day,3,'Nov 30 1997')",0,2],
-   ["DATEDIFF","datediff","datediff(month,'Oct 21 1997','Nov 30 1997')",0,2],
-   ["DATENAME","datename","datename(month,'Nov 30 1997')",0,2],
-   ["DATEPART","datepart","datepart(month,'July 20 1997')",0,2],
-   ["DATE_FORMAT","date_format", "date_format('1997-01-02 03:04:05','M W D Y y m d h i s w')", 0,2],
    ["ELT","elt","elt(2,'ONE','TWO','THREE')","TWO",1],
    ["ENCRYPT","encrypt","encrypt('hello')",0,2],
    ["FIELD","field","field('IBM','NCA','ICL','SUN','IBM','DIGITAL')",4,0],
    ["FORMAT","format","format(1234.5555,2)","1,234.56",1],
-   ["FROM_DAYS","from_days","from_days(729024)","1996-01-01",1],
-   ["FROM_UNIXTIME","from_unixtime","from_unixtime(0)",0,2],
    ["GETDATE","getdate","getdate()",0,2],
-   ["GREATEST","greatest","greatest('HARRY','HARRIOT','HAROLD')","HARRY",1], # oracle
+   ["GREATEST","greatest","greatest('HARRY','HARRIOT','HAROLD')","HARRY",1],
    ["IF","if", "if(5,6,7)",6,0],
    ["IN on numbers in SELECT","in_num","2 in (3,2,5,9,5,1)",$logical_value,0],
    ["IN on strings in SELECT","in_str","'monty' in ('david','monty','allan')", $logical_value,0],
-   ["INITCAP","initcap","initcap('the soap')","The Soap",1], # oracle Returns char, with the first letter of each word in uppercase
+   ["INITCAP","initcap","initcap('the soap')","The Soap",1], 
+       # oracle Returns char, with the first letter of each word in uppercase
    ["INSTR (Oracle syntax)", "instr_oracle", "INSTR('CORPORATE FLOOR','OR',3,2)"  ,"14",0], # oracle instring
-   ["INSTRB", "instrb", "INSTRB('CORPORATE FLOOR','OR',5,2)"  ,"27",0], # oracle instring in bytes
+   ["INSTRB", "instrb", "INSTRB('CORPORATE FLOOR','OR',5,2)"  ,"27",0], 
+      # oracle instring in bytes
    ["INTERVAL","interval","interval(55,10,20,30,40,50,60,70,80,90,100)",5,0],
-   ["LAST_DAY","last_day","last_day('1997-04-01')","1997-04-30",0], # oracle last day of month of date
    ["LAST_INSERT_ID","last_insert_id","last_insert_id()",0,2],
-   ["LEAST","least","least('HARRY','HARRIOT','HAROLD')","HAROLD",1], # oracle
-   ["LENGTHB","lengthb","lengthb('CANDIDE')","14",0], # oracle length in bytes
-   ["LIKE ESCAPE in SELECT","like_escape","'%' like 'a%' escape 'a'",$logical_value,0],
+   ["LEAST","least","least('HARRY','HARRIOT','HAROLD')","HAROLD",1], 
+      # oracle
+   ["LENGTHB","lengthb","lengthb('CANDIDE')","14",0], 
+      # oracle length in bytes
+   ["LIKE ESCAPE in SELECT","like_escape",
+     "'%' like 'a%' escape 'a'",$logical_value,0],
    ["LIKE in SELECT","like","'a' like 'a%'",$logical_value,0],
-   ["LN","ln","ln(95)","4.55387689",0], # oracle natural logarithm of n
+   ["LN","ln","ln(95)","4.55387689",0], 
+      # oracle natural logarithm of n
    ["LOCATE as INSTR","instr","instr('hello','ll')",3,0],
-   ["LOG(m,n)","log(m_n)","log(10,100)","2",0], # oracle logarithm, base m, of n
-   ["LOGN","logn","logn(2)","0.693147",0], # informix
+   ["LOG(m,n)","log(m_n)","log(10,100)","2",0], 
+      # oracle logarithm, base m, of n
+   ["LOGN","logn","logn(2)","0.693147",0], 
+      # informix
    ["LPAD","lpad","lpad('hi',4,'??')",'??hi',3],
-   ["MDY","mdy","mdy(7,1,1998)","1998-07-01",0], # informix
    ["MOD as %","%","10%7","3",0],
-   ["MONTHS_BETWEEN","months_between","months_between('1997-02-02','1997-01-01')","1.03225806",0], # oracle number of months between 2 dates
    ["NOT BETWEEN in SELECT","not_between","5 not between 4 and 6",0,0],
    ["NOT LIKE in SELECT","not_like","'a' not like 'a%'",0,0],
    ["NOT as '!' in SELECT","!","! 1",0,0],
@@ -928,10 +932,9 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["PASSWORD","password","password('hello')",0,2],
    ["PASTE", "paste", "paste('ABCDEFG',3,2,'1234')","AB1234EFG",1],
    ["PATINDEX","patindex","patindex('%a%','crash')",3,0],
-   ["PERIOD_ADD","period_add","period_add(9602,-12)",199502,0],
-   ["PERIOD_DIFF","period_diff","period_diff(199505,199404)",13,0],
    ["POW","pow","pow(3,2)",9,0],
-   ["RANGE","range","range(a)","0.0",0], # informix range(a) = max(a) - min(a)
+   ["RANGE","range","range(a)","0.0",0], 
+       # informix range(a) = max(a) - min(a)
    ["REGEXP in SELECT","regexp","'a' regexp '^(a|b)*\$'",$logical_value,0],
    ["REPLICATE","replicate","replicate('a',5)","aaaaa",1],
    ["REVERSE","reverse","reverse('abcd')","dcba",1],
@@ -943,23 +946,26 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["STR","str","str(123.45,5,1)",123.5,3],
    ["STRCMP","strcmp","strcmp('abc','adc')",-1,0],
    ["STUFF","stuff","stuff('abc',2,3,'xyz')",'axyz',3],
-   ["SUBSTRB", "substrb", "SUBSTRB('ABCDEFG',5,4.2)"  ,"CD",1], # oracle substring with bytes
+   ["SUBSTRB", "substrb", "SUBSTRB('ABCDEFG',5,4.2)"  ,"CD",1], 
+      # oracle substring with bytes
    ["SUBSTRING as MID","mid","mid('hello',3,2)","ll",1],
-   ["SUBSTRING_INDEX","substring_index","substring_index('www.tcx.se','.',-2)", "tcx.se",1],
+   ["SUBSTRING_INDEX","substring_index",
+     "substring_index('www.tcx.se','.',-2)", "tcx.se",1],
    ["SYSDATE","sysdate","sysdate()",0,2],
    ["TAIL","tail","tail('ABCDEFG',3)","EFG",0],
-   ["TANH","tanh","tanh(1)","0.462117157",0], # oracle hyperbolic tangent of n
+   ["TANH","tanh","tanh(1)","0.462117157",0], 
+      # oracle hyperbolic tangent of n
    ["TIME_TO_SEC","time_to_sec","time_to_sec('01:23:21')","5001",0],
-   ["TO_DAYS","to_days","to_days(DATE '1996-01-01')",729024,0],
    ["TRANSLATE","translate","translate('abc','bc','de')",'ade',3],
-   ["TRIM; Many char extension","trim_many_char","trim(':!' FROM ':abc!')","abc",3],
-   ["TRIM; Substring extension","trim_substring","trim('cb' FROM 'abccb')","abc",3],
+   ["TRIM; Many char extension",
+     "trim_many_char","trim(':!' FROM ':abc!')","abc",3],
+   ["TRIM; Substring extension",
+     "trim_substring","trim('cb' FROM 'abccb')","abc",3],
    ["TRUNC","trunc","trunc(18.18,-1)",10,0], # oracle
    ["UID","uid","uid",0,2], # oracle uid from user
    ["UNIX_TIMESTAMP","unix_timestamp","unix_timestamp()",0,2],
    ["USERENV","userenv","userenv",0,2], # oracle user enviroment
    ["VERSION","version","version()",0,2],
-   ["WEEKDAY","weekday","weekday(DATE '1997-11-29')",5,0],
    ["automatic num->string convert","auto_num2string","concat('a',2)","a2",1],
    ["automatic string->num convert","auto_string2num","'1'+2",3,0],
    ["concatenation with +","concat_as_+","'abc' + 'def'","abcdef",1],
@@ -969,8 +975,8 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["RFILL (3 arg)",'rfill3arg',"rfill('abcd','.',6)",'abcd..',1],
    ["RPAD (4 arg)",'rpad4arg',"rpad('abcd',2,'+-',8)",'abcd+-+-',1],
    ["LPAD (4 arg)",'rpad4arg',"lpad('abcd',2,'+-',8)",'+-+-abcd',1],
-   ["SAPDB compatible TRIM (1 arg)",'trim1arg',"trim(' abcd ')",'abcd',1],
-   ["SAPDB compatible TRIM (2 arg)",'trim2arg',"trim('..abcd..','.')",'abcd',1],
+   ["TRIM (1 arg)",'trim1arg',"trim(' abcd ')",'abcd',1],
+   ["TRIM (2 arg)",'trim2arg',"trim('..abcd..','.')",'abcd',1],
    ["LTRIM (2 arg)",'ltrim2arg',"ltrim('..abcd..','.')",'abcd..',1],
    ["RTRIM (2 arg)",'rtrim2arg',"rtrim('..abcd..','.')",'..abcd',1],
    ["EXPAND",'expand2arg',"expand('abcd',6)",'abcd  ',0],
@@ -984,34 +990,24 @@ try_and_report("Automatic row id", "automatic_rowid",
    ["FLOAT",'float',"float(6666.66,4)",6667,0],
    ["LENGTH",'length',"length(1)",2,0],
    ["INDEX",'index',"index('abcdefg','cd',1,1)",3,0],
-   ["ADDDATE",'adddate',"ADDDATE('20021201',3)",'20021204',0],
-   ["SUBDATE",'subdate',"SUBDATE('20021204',3)",'20021201',0],
-   ["DATEDIFF (2 arg)",'datediff2arg',"DATEDIFF('20021204','20021201')",'3',0], # sapdb
-   ["DAYOFWEEK with sapdb internal date as arg",'dayofweek_sapdb',"DAYOFWEEK('19630816')",'5',0],
-   ["WEEKOFYEAR",'weekofyear',"WEEKOFYEAR('19630816')",'33',0],
-   ["DAYOFMONTH with sapdb internal date as arg",'dayofmonth_sapdb',"dayofmonth('19630816')",'16',0],
-   ["DAYOFYEAR  with sapdb internal date as arg",'dayofyear_sapdb',"DAYOFYEAR('19630816')",'228',0],
-   ["MAKEDATE",'makedate',"MAKEDATE(1963,228)",'19630816',0],
-   ["DAYNAME  with sapdb internal date as arg",'dayname_sapdb',"DAYNAME('19630816')",'Friday',0],
-   ["MONTHNAME with sapdb internal date as arg",'monthname_sapdb',"MONTHNAME('19630816')",'August',0],
    ["ADDTIME",'addtime',"ADDTIME('00200212','00000300')",'00200215',0],
-   ["SUBTIME",'subdate',"SUBDATE('00200215','00000300')",'00200212',0],
+   ["SUBTIME",'subtime',"SUBTIME('00200215','00000300')",'00200212',0],
    ["TIMEDIFF",'timediff',"TIMEDIFF('00200215','00200212')",'00000003',0],
    ["MAKETIME",'maketime',"MAKETIME(20,02,12)",'00200212',0],
-   ["YEAR with sapdb internal date as arg",'year_sapdb',"YEAR('20021201')",'2002',0],
-   ["MONTH with sapdb internal date as arg",'month_sapdb',"MONTH('20021201')",'12',0],
-   ["DAY",'day',"DAY('20021201')",1,0],
-   ["HOUR with sapdb internal time as arg",'hour_sapdb',"HOUR('00200212')",20,0],
-   ["MINUTE with sapdb internal time as arg",'minute_sapdb',"MINUTE('00200212')",2,0],
-   ["SECOND with sapdb internal time as arg",'second_sapdb',"SECOND('00200212')",12,0],
-   ["MICROSECOND",'microsecond',"MICROSECOND('19630816200212111111')",'111111',0],
-   ["TIMESTAMP",'timestamp',"timestamp('19630816','00200212')",'19630816200212000000',0],
+   ["HOUR with sapdb internal time as arg",
+       'hour_sapdb',"HOUR('00200212')",20,0],
+   ["MINUTE with sapdb internal time as arg",
+       'minute_sapdb',"MINUTE('00200212')",2,0],
+   ["SECOND with sapdb internal time as arg",
+       'second_sapdb',"SECOND('00200212')",12,0],
+   ["MICROSECOND",'microsecond',
+      "MICROSECOND('19630816200212111111')",'111111',0],
+   ["TIMESTAMP",'timestamp',
+      "timestamp('19630816','00200212')",'19630816200212000000',0],
    ["TIME",'time',"time('00200212')",'00200212',0],
-   ["DATE",'date',"date('19630816')",'19630816',0],
    ["VALUE",'value',"value(NULL,'WALRUS')",'WALRUS',0],
    ["DECODE",'decode',"DECODE('S-103','T72',1,'S-103',2,'Leopard',3)",2,0],
    ["NUM",'num',"NUM('2123')",2123,0],
-   ["CHAR (conversation date)",'char_date',"CHAR(DATE('19630816'),EUR)",'16.08.1963',0],
    ["CHR (any type to string)",'chr_str',"CHR(67)",'67',0],
    ["HEX",'hex',"HEX('A')",41,0],
    );
@@ -1037,7 +1033,8 @@ try_and_report("Automatic row id", "automatic_rowid",
   (
    ["BIT_AND",'bit_and',"bit_and(a)",1,0],
    ["BIT_OR", 'bit_or', "bit_or(a)",1,0],
-   ["COUNT(DISTINCT expr,expr,...)","count_distinct_list","count(distinct a,b)",1,0],
+   ["COUNT(DISTINCT expr,expr,...)",
+     "count_distinct_list","count(distinct a,b)",1,0],
    ["STD","std","std(a)",0,0],
    ["STDDEV","stddev","stddev(a)",0,0],
    ["VARIANCE","variance","variance(a)",0,0],
@@ -1053,13 +1050,16 @@ try_and_report("Automatic row id", "automatic_rowid",
  ["IN on numbers","in_num","2 in (3,2,5,9,5,1)",1,0],
  ["LIKE ESCAPE","like_escape","b like '%' escape 'a'",1,0],
  ["LIKE","like","b like 'a%'",1,0],
- ["MATCH UNIQUE","match_unique","1 match unique (select a from crash_me)",1,0],
+ ["MATCH UNIQUE","match_unique",
+   "1 match unique (select a from crash_me)",1,0],
  ["MATCH","match","1 match (select a from crash_me)",1,0],
  ["MATCHES","matches","b matcjhes 'a*'",1,0],
  ["NOT BETWEEN","not_between","7 not between 4 and 6",1,0],
- ["NOT EXISTS","not_exists","not exists (select * from crash_me where a = 2)",1,0],
+ ["NOT EXISTS","not_exists",
+   "not exists (select * from crash_me where a = 2)",1,0],
  ["NOT LIKE","not_like","b not like 'b%'",1,0],
- ["NOT UNIQUE","not_unique","not unique (select * from crash_me where a = 2)",1,0],
+ ["NOT UNIQUE","not_unique",
+   "not unique (select * from crash_me where a = 2)",1,0],
  ["UNIQUE","unique","unique (select * from crash_me)",1,0],
  );
 
@@ -1176,6 +1176,8 @@ if ($limits{'functions'} eq 'yes')
 		     "select $tmp $end_query",[], undef(),4);
   }
   $prompt="Need to cast NULL for arithmetic";
+  add_log("Need_cast_for_null",
+    " Check if numeric_null ($numeric_null) is 'NULL'");
   save_config_data("Need_cast_for_null",
 		   ($numeric_null eq "NULL") ? "no" : "yes",
 		   $prompt);
@@ -1194,15 +1196,16 @@ else
  save_incomplete('func_extra_noround','Function NOROUND');
 
 # 1) check if noround() function is supported
- $error = safe_query("select noround(22.6) $end_query");
+ $error = safe_query_l('func_extra_noround',"select noround(22.6) $end_query");
  if ($error ne 1)         # syntax error -- noround is not supported 
  {
    $resultat = 'no'
  } else                   # Ok, now check if it really works
  {   
-   $error=safe_query(  "create table crash_me_nr (a int)",
+   $error=safe_query_l('func_extra_noround', 
+     ["create table crash_me_nr (a int)",
     "insert into crash_me_nr values(noround(10.2))",
-    "drop table crash_me_nr $drop_attr");
+    "drop table crash_me_nr $drop_attr"]);
   if ($error eq 1) {
        $resultat = "syntax only";
     } else {
@@ -1218,32 +1221,310 @@ check_parenthesis("func_sql_","SESSION_USER");
 check_parenthesis("func_sql_","SYSTEM_USER");
 check_parenthesis("func_sql_","USER");
 
+
+if ($limits{'type_sql_date'} eq 'yes')
+{  # 
+   # Checking the format of date in result. 
+   
+    safe_query("drop table crash_me_d $drop_attr");
+    assert("create table crash_me_d (a date)");
+    # find the example of date
+    my $dateexample;
+    if ($limits{'func_extra_sysdate'} eq 'yes') {
+     $dateexample=' sysdate() ';
+    } 
+    elsif ($limits{'func_sql_current_date'} eq 'yes') {
+     $dateexample='CURRENT_DATE';
+    } 
+    elsif ($limits{'func_odbc_curdate'} eq 'yes') {
+     $dateexample='curdate()';
+    } 
+    elsif ($limits{'func_extra_getdate'} eq 'yes') {
+	$dateexample='getdate()';
+    }
+    elsif ($limits{'func_odbc_now'} eq 'yes') {
+	$dateexample='now()';
+    } else {
+	#try to guess 
+	$dateexample="DATE '1963-08-16'";
+    } ;
+    
+    my $key = 'date_format_inresult';
+    my $prompt = "Date format in result";
+    if (! safe_query_l('date_format_inresult',
+       "insert into crash_me_d values($dateexample) "))
+    { 
+	die "Cannot insert date ($dateexample):".$last_error; 
+    };
+    my $sth= $dbh->prepare("select a from crash_me_d");
+    add_log('date_format_inresult',"< select a from crash_me_d");
+    $sth->execute;
+    $_= $sth->fetchrow_array;
+    add_log('date_format_inresult',"> $_");
+    safe_query_l($key,"delete from crash_me_d");   
+    if (/\d{4}-\d{2}-\d{2}/){ save_config_data($key,"iso",$prompt);} 
+    elsif (/\d{2}-\d{2}-\d{2}/){ save_config_data($key,"short iso",$prompt);}
+    elsif (/\d{2}\.\d{2}\.\d{4}/){ save_config_data($key,"euro",$prompt);}
+    elsif (/\d{2}\.\d{2}\.\d{2}/){ save_config_data($key,"short euro",$prompt);}
+    elsif (/\d{2}\/\d{2}\/\d{4}/){ save_config_data($key,"usa",$prompt);}
+    elsif (/\d{2}\/\d{2}\/\d{2}/){ save_config_data($key,"short usa",$prompt);}
+    elsif (/\d*/){ save_config_data($key,"YYYYMMDD",$prompt);}
+    else  { save_config_data($key,"unknown",$prompt);};
+    $sth->finish;
+
+    check_and_report("Supports YYYY-MM-DD (ISO) format","date_format_ISO",
+		     [ "insert into crash_me_d(a)  values ('1963-08-16')"],
+		     "select a from crash_me_d",
+		     ["delete from crash_me_d"],
+		     make_date_r(1963,8,16),1);
+
+    check_and_report("Supports DATE 'YYYY-MM-DD' (ISO) format",
+		     "date_format_ISO_with_date",
+		     [ "insert into crash_me_d(a) values (DATE '1963-08-16')"],
+		     "select a from crash_me_d",
+		     ["delete from crash_me_d"],
+		     make_date_r(1963,8,16),1);
+
+    check_and_report("Supports DD.MM.YYYY (EUR) format","date_format_EUR",
+		     [ "insert into crash_me_d(a) values ('16.08.1963')"],
+		     "select a from crash_me_d",
+		     ["delete from crash_me_d"],
+		     make_date_r(1963,8,16),1);
+    check_and_report("Supports DATE 'DD.MM.YYYY' (EUR) format",
+		     "date_format_EUR_with_date",
+		     [ "insert into crash_me_d(a) values (DATE '16.08.1963')"],
+		     "select a from crash_me_d",
+		     ["delete from crash_me_d"],
+		     make_date_r(1963,8,16),1);
+
+    check_and_report("Supports YYYYMMDD format",
+	 "date_format_YYYYMMDD",
+	 [ "insert into crash_me_d(a) values ('19630816')"],
+	 "select a from crash_me_d",
+	 ["delete from crash_me_d"],
+	 make_date_r(1963,8,16),1);
+    check_and_report("Supports DATE 'YYYYMMDD' format",
+	 "date_format_YYYYMMDD_with_date",
+	 [ "insert into crash_me_d(a) values (DATE '19630816')"],
+	 "select a from crash_me_d",
+	 ["delete from crash_me_d"],
+	 make_date_r(1963,8,16),1);
+
+    check_and_report("Supports MM/DD/YYYY format",
+	 "date_format_USA",
+	 [ "insert into crash_me_d(a) values ('08/16/1963')"],
+	 "select a from crash_me_d",
+	 ["delete from crash_me_d"],
+	 make_date_r(1963,8,16),1);
+    check_and_report("Supports DATE 'MM/DD/YYYY' format",
+	 "date_format_USA_with_date",
+	 [ "insert into crash_me_d(a) values (DATE '08/16/1963')"],
+	 "select a from crash_me_d",
+	 ["delete from crash_me_d"],
+	 make_date_r(1963,8,16),1);
+
+
+ 
+
+    check_and_report("Supports 0000-00-00 dates","date_zero",
+	 ["create table crash_me2 (a date not null)",
+	  "insert into crash_me2 values (".make_date(0,0,0).")"],
+	 "select a from crash_me2",
+	 ["drop table crash_me2 $drop_attr"],
+	 make_date_r(0,0,0),1);
+
+    check_and_report("Supports 0001-01-01 dates","date_one",
+	 ["create table crash_me2 (a date not null)",
+	  "insert into crash_me2 values (".make_date(1,1,1).")"],
+	 "select a from crash_me2",
+	 ["drop table crash_me2 $drop_attr"],
+	 make_date_r(1,1,1),1);
+    
+    check_and_report("Supports 9999-12-31 dates","date_last",
+	["create table crash_me2 (a date not null)",
+        "insert into crash_me2 values (".make_date(9999,12,31).")"],
+        "select a from crash_me2",
+	["drop table crash_me2 $drop_attr"],
+	make_date_r(9999,12,31),1);
+    
+    check_and_report("Supports 'infinity dates","date_infinity",
+	 ["create table crash_me2 (a date not null)",
+	 "insert into crash_me2 values ('infinity')"],
+	 "select a from crash_me2",
+	 ["drop table crash_me2 $drop_attr"],
+	 "infinity",1);
+    
+    if (!defined($limits{'date_with_YY'}))
+    {
+	check_and_report("Supports YY-MM-DD dates","date_with_YY",
+	   ["create table crash_me2 (a date not null)",
+	   "insert into crash_me2 values ('98-03-03')"],
+	   "select a from crash_me2",
+	   ["drop table crash_me2 $drop_attr"],
+	   make_date_r(1998,3,3),5);
+	if ($limits{'date_with_YY'} eq "yes")
+	{
+	    undef($limits{'date_with_YY'});
+	    check_and_report("Supports YY-MM-DD 2000 compilant dates",
+	       "date_with_YY",
+	       ["create table crash_me2 (a date not null)",
+	       "insert into crash_me2 values ('10-03-03')"],
+	       "select a from crash_me2",
+	       ["drop table crash_me2 $drop_attr"],
+	       make_date_r(2010,3,3),5);
+	}
+    }
+    
 # Test: WEEK()
-{
- my $explain="";
- my $resultat="no";
- my $error;
- print "WEEK:";
- save_incomplete('func_odbc_week','WEEK');
- $error = safe_query_result("select week(DATE '1997-02-01') $end_query",5,0);
- # actually this query must return 4 or 5 in the $last_result,
- # $error can be 1 (not supported at all) , -1 ( probably USA weeks)
- # and 0 - EURO weeks
- if ($error == -1) { 
-     if ($last_result == 4) {
-       $resultat = 'USA';
-       $explain = ' started from Sunday';
-     } else {
-       $resultat='error';
-       $explain = " must return 4 or 5, but $last_error";
-     }
- } elsif ($error == 0) {
-       $resultat = 'EURO';
-       $explain = ' started from Monday'; 
- }
- print " $resultat\n";
- save_config_data('func_odbc_week',$resultat,"WEEK $explain");
+    {
+	my $resultat="no";
+	my $error;
+	print "WEEK:";
+	save_incomplete('func_odbc_week','WEEK');
+	$error = safe_query_result_l('func_odbc_week',
+	     "select week(".make_date(1997,2,1).") $end_query",5,0);
+	# actually this query must return 4 or 5 in the $last_result,
+	# $error can be 1 (not supported at all) , -1 ( probably USA weeks)
+	# and 0 - EURO weeks
+	if ($error == -1) { 
+	    if ($last_result == 4) {
+		$resultat = 'USA';
+	    } else {
+		$resultat='error';
+		add_log('func_odbc_week',
+		  " must return 4 or 5, but $last_result");
+	    }
+	} elsif ($error == 0) {
+	    $resultat = 'EURO';
+	}
+	print " $resultat\n";
+	save_config_data('func_odbc_week',$resultat,"WEEK");
+    }
+    
+    my $insert_query ='insert into crash_me_d values('.
+        make_date(1997,2,1).')';
+    safe_query($insert_query);
+    
+    foreach $fn ( (
+		   ["DAYNAME","dayname","dayname(a)","",2],
+		   ["MONTH","month","month(a)","",2],
+		   ["MONTHNAME","monthname","monthname(a)","",2],
+		   ["DAYOFMONTH","dayofmonth","dayofmonth(a)",1,0],
+		   ["DAYOFWEEK","dayofweek","dayofweek(a)",7,0],
+		   ["DAYOFYEAR","dayofyear","dayofyear(a)",32,0],
+		   ["QUARTER","quarter","quarter(a)",1,0],
+		   ["YEAR","year","year(a)",1997,0]))
+    {
+	$prompt='Function '.$fn->[0];
+	$key='func_odbc_'.$fn->[1];
+	add_log($key,"< ".$insert_query);
+	check_and_report($prompt,$key,
+			 [],"select ".$fn->[2]." from crash_me_d",[],
+			 $fn->[3],$fn->[4]
+			 );
+	
+    };
+    safe_query(['delete from crash_me_d', 
+		'insert into crash_me_d values('.make_date(1963,8,16).')']);
+    foreach $fn ((
+	  ["DATEADD","dateadd","dateadd(day,3,make_date(1997,11,30))",0,2],
+	  ["MDY","mdy","mdy(7,1,1998)","make_date_r(1998,07,01)",0], # informix
+	  ["DATEDIFF","datediff",
+	     "datediff(month,'Oct 21 1997','Nov 30 1997')",0,2],
+	  ["DATENAME","datename","datename(month,'Nov 30 1997')",0,2],
+	  ["DATEPART","datepart","datepart(month,'July 20 1997')",0,2],
+	  ["DATE_FORMAT","date_format", 
+	    "date_format('1997-01-02 03:04:05','M W D Y y m d h i s w')", 0,2],
+	  ["FROM_DAYS","from_days",
+	    "from_days(729024)","make_date_r(1996,1,1)",1],
+	  ["FROM_UNIXTIME","from_unixtime","from_unixtime(0)",0,2],
+	  ["MONTHS_BETWEEN","months_between",
+	   "months_between(make_date(1997,2,2),make_date(1997,1,1))",
+	   "1.03225806",0], # oracle number of months between 2 dates
+	  ["PERIOD_ADD","period_add","period_add(9602,-12)",199502,0],
+	  ["PERIOD_DIFF","period_diff","period_diff(199505,199404)",13,0],
+	  ["WEEKDAY","weekday","weekday(make_date(1997,11,29))",5,0],
+	  ["ADDDATE",'adddate',
+	   "ADDDATE(make_date(2002,12,01),3)",'make_date_r(2002,12,04)',0],
+	  ["SUBDATE",'subdate',
+	   "SUBDATE(make_date(2002,12,04),3)",'make_date_r(2002,12,01)',0],
+	  ["DATEDIFF (2 arg)",'datediff2arg',
+	   "DATEDIFF(make_date(2002,12,04),make_date(2002,12,01))",'3',0],
+	  ["WEEKOFYEAR",'weekofyear',
+	   "WEEKOFYEAR(make_date(1963,08,16))",'33',0],
+# table crash_me_d must contain  record with 1963-08-16 (for CHAR)
+	  ["CHAR (conversation date)",'char_date',
+	   "CHAR(a,EUR)",'16.08.1963',0],
+	  ["MAKEDATE",'makedate',"MAKEDATE(1963,228)"
+	   ,'make_date_r(1963,08,16)',0],
+	  ["TO_DAYS","to_days",
+	   "to_days(make_date(1996,01,01))",729024,0],
+	  ["ADD_MONTHS","add_months",
+	   "add_months(make_date(1997,01,01),1)","make_date_r(1997,02,01)",0], 
+	      # oracle the date plus n months
+	  ["LAST_DAY","last_day",
+	  "last_day(make_date(1997,04,01))","make_date_r(1997,04,30)",0], 
+	      # oracle last day of month of date
+	  ["DATE",'date',"date(make_date(1963,8,16))",
+	     'make_date_r(1963,8,16)',0],
+	  ["DAY",'day',"DAY(make_date(2002,12,01))",1,0]))
+    {
+	$prompt='Function '.$fn->[0];
+	$key='func_extra_'.$fn->[1];
+	my $qry="select ".$fn->[2]." from crash_me_d";
+	while( $qry =~ /^(.*)make_date\((\d+),(\d+),(\d+)\)(.*)$/)
+	{
+	    my $dt= &make_date($2,$3,$4);
+	    $qry=$1.$dt.$5;
+	};
+	my $result=$fn->[3];
+	while( $result =~ /^(.*)make_date_r\((\d+),(\d+),(\d+)\)(.*)$/)
+	{
+	    my $dt= &make_date_r($2,$3,$4);
+	    $result=$1.$dt.$5;
+	};
+	check_and_report($prompt,$key,
+			 [],$qry,[],
+			 $result,$fn->[4]
+			 );
+	
+    }
+    
+    safe_query("drop table crash_me_d $drop_attr");    
+    
 }
+
+
+# NOT id BETWEEN a and b
+if ($limits{'func_where_not_between'} eq 'yes')
+{
+   my $resultat = 'error';
+   my $err;
+   my $key='not_id_between';
+   my $prompt='NOT ID BETWEEN interprets as ID NOT BETWEEN';
+   print "$prompt:";
+   save_incomplete($key,$prompt);
+   safe_query_l($key,["create table crash_me_b (i int)",
+         "insert into crash_me_b values(2)",
+         "insert into crash_me_b values(5)"]);
+   $err =safe_query_result_l($key,
+    "select i from crash_me_b where not i between 1 and 3",
+     5,0);
+   if ($err eq 1) {
+      if (not defined($last_result)) {
+        $resultat='no';
+      };
+   };
+   if ( $err eq 0) {
+      $resultat = 'yes';
+   };
+   safe_query_l($key,["drop table crash_me_b"]);
+   save_config_data($key,$resultat,$prompt);
+   print "$resultat\n";
+};
+
+
+
 
 report("LIKE on numbers","like_with_number",
        "create table crash_q (a int,b int)",
@@ -1289,19 +1570,20 @@ if (defined($tmp))
 if (!defined($limits{'multi_table_update'}))
 {
   if (check_and_report("Update with many tables","multi_table_update",
-		   ["create table crash_q (a integer,b char(10))",
-		    "insert into crash_q values(1,'c')",
-		    "update crash_q left join crash_me on crash_q.a=crash_me.a set crash_q.b=crash_me.b"],
-		   "select b from crash_q",
-		   ["drop table crash_q $drop_attr"],
-		   "a",1,undef(),2))
+	   ["create table crash_q (a integer,b char(10))",
+	    "insert into crash_q values(1,'c')",
+	    "update crash_q left join crash_me on crash_q.a=crash_me.a set crash_q.b=crash_me.b"],
+            "select b from crash_q",
+	   ["drop table crash_q $drop_attr"],
+	   "a",1,undef(),2))
   {
     check_and_report("Update with many tables","multi_table_update",
-		     ["create table crash_q (a integer,b char(10))",
-		      "insert into crash_q values(1,'c')",
-		      "update crash_q,crash_me set crash_q.b=crash_me.b where crash_q.a=crash_me.a"],
-		     "select b from crash_q",
-		     ["drop table crash_q $drop_attr"],
+	     ["create table crash_q (a integer,b char(10))",
+	      "insert into crash_q values(1,'c')",
+	      "update crash_q,crash_me set crash_q.b=crash_me.b ".
+	      "where crash_q.a=crash_me.a"],
+	     "select b from crash_q",
+	     ["drop table crash_q $drop_attr"],
 		     "a",1,
 		    1);
   }
@@ -1316,7 +1598,8 @@ report("DELETE FROM table1,table2...","multi_table_delete",
 check_and_report("Update with sub select","select_table_update",
 		 ["create table crash_q (a integer,b char(10))",
 		  "insert into crash_q values(1,'c')",
-		  "update crash_q set b= (select b from crash_me where crash_q.a = crash_me.a)"],
+		  "update crash_q set b= ".
+		  "(select b from crash_me where crash_q.a = crash_me.a)"],
 		 "select b from crash_q",
 		 ["drop table crash_q $drop_attr"],
 		 "a",1);
@@ -1460,27 +1743,27 @@ report("index in create table",'index_in_create',
 # later
 if (!(defined($limits{'create_index'}) && defined($limits{'drop_index'})))
 {
-  if ($res=safe_query("create index crash_q on crash_me (a)"))
+  if ($res=safe_query_l('create_index',"create index crash_q on crash_me (a)"))
   {
     $res="yes";
     $drop_res="yes";
     $end_drop_keyword="";
-    if (!safe_query("drop index crash_q"))
+    if (!safe_query_l('drop_index',"drop index crash_q"))
     {
       # Can't drop the standard way; Check if mSQL
-      if (safe_query("drop index crash_q from crash_me"))
+      if (safe_query_l('drop_index',"drop index crash_q from crash_me"))
       {
         $drop_res="with 'FROM'";	# Drop is not ANSI SQL
         $end_drop_keyword="drop index %i from %t";
       }
       # else check if Access or MySQL
-      elsif (safe_query("drop index crash_q on crash_me"))
+      elsif (safe_query_l('drop_index',"drop index crash_q on crash_me"))
       {
         $drop_res="with 'ON'";	# Drop is not ANSI SQL
         $end_drop_keyword="drop index %i on %t";
       }
       # else check if MS-SQL
-      elsif (safe_query("drop index crash_me.crash_q"))
+      elsif (safe_query_l('drop_index',"drop index crash_me.crash_q"))
       {
         $drop_res="with 'table.index'"; # Drop is not ANSI SQL
         $end_drop_keyword="drop index %t.%i";
@@ -1490,7 +1773,7 @@ if (!(defined($limits{'create_index'}) && defined($limits{'drop_index'})))
     {
       # Old MySQL 3.21 supports only the create index syntax
       # This means that the second create doesn't give an error.
-      $res=safe_query(["create index crash_q on crash_me (a)",
+      $res=safe_query_l('create_index',["create index crash_q on crash_me (a)",
       		     "create index crash_q on crash_me (a)",
       		     "drop index crash_q"]);
       $res= $res ? 'ignored' : 'yes';
@@ -1586,25 +1869,31 @@ safe_query("drop table crash_q $drop_attr");
 # test of different join types
 #
 
-assert("create table crash_me2 (a integer not null,b char(10) not null, c1 integer)");
+assert("create table crash_me2 (a integer not null,b char(10) not null,".
+       " c1 integer)");
 assert("insert into crash_me2 (a,b,c1) values (1,'b',1)");
 assert("create table crash_me3 (a integer not null,b char(10) not null)");
 assert("insert into crash_me3 (a,b) values (1,'b')");
 
 report("inner join","inner_join",
-       "select crash_me.a from crash_me inner join crash_me2 ON crash_me.a=crash_me2.a");
+       "select crash_me.a from crash_me inner join crash_me2 ON ".
+       "crash_me.a=crash_me2.a");
 report("left outer join","left_outer_join",
-       "select crash_me.a from crash_me left join crash_me2 ON crash_me.a=crash_me2.a");
+       "select crash_me.a from crash_me left join crash_me2 ON ".
+       "crash_me.a=crash_me2.a");
 report("natural left outer join","natural_left_outer_join",
        "select c1 from crash_me natural left join crash_me2");
 report("left outer join using","left_outer_join_using",
        "select c1 from crash_me left join crash_me2 using (a)");
 report("left outer join odbc style","odbc_left_outer_join",
-       "select crash_me.a from { oj crash_me left outer join crash_me2 ON crash_me.a=crash_me2.a }");
+       "select crash_me.a from { oj crash_me left outer join crash_me2 ON".
+       " crash_me.a=crash_me2.a }");
 report("right outer join","right_outer_join",
-       "select crash_me.a from crash_me right join crash_me2 ON crash_me.a=crash_me2.a");
+       "select crash_me.a from crash_me right join crash_me2 ON ".
+       "crash_me.a=crash_me2.a");
 report("full outer join","full_outer_join",
-       "select crash_me.a from crash_me full join crash_me2 ON crash_me.a=crash_me2.a");
+       "select crash_me.a from crash_me full join crash_me2 ON "."
+       crash_me.a=crash_me2.a");
 report("cross join (same as from a,b)","cross_join",
        "select crash_me.a from crash_me cross join crash_me3");
 report("natural join","natural_join",
@@ -1658,7 +1947,8 @@ assert("drop table crash_me3 $drop_attr");
 # >ALL | ANY | SOME - EXISTS - UNIQUE
 
 if (report("subqueries","subqueries",
-	   "select a from crash_me where crash_me.a in (select max(a) from crash_me)"))
+	   "select a from crash_me where crash_me.a in ".
+	   "(select max(a) from crash_me)"))
 {
     $tmp=new query_repeat([],"select a from crash_me","","",
 			  " where a in (select a from crash_me",")",
@@ -1734,17 +2024,19 @@ report("views","views",
  save_incomplete('foreign_key','foreign keys');
 
 # 1) check if foreign keys are supported
- safe_query(create_table("crash_me_qf",["a integer not null"],
+ safe_query_l('foreign_key',create_table("crash_me_qf",["a integer not null"],
          ["primary key (a)"]));
- $error = safe_query( create_table("crash_me_qf2",["a integer not null",
+ $error = safe_query_l('foreign_key', 
+          create_table("crash_me_qf2",["a integer not null",
 	 "foreign key (a) references crash_me_qf (a)"], []));
  			   
  if ($error eq 1)         # OK  -- syntax is supported 
  {
    $resultat = 'error';
    # now check if foreign key really works
-   safe_query( "insert into crash_me_qf values (1)");
-   if (safe_query( "insert into crash_me_qf2 values (2)") eq 1) {
+   safe_query_l('foreign_key', "insert into crash_me_qf values (1)");
+   if (safe_query_l('foreign_key', "insert into crash_me_qf2 values (2)") eq 1) 
+   {
      $resultat = 'syntax only';
    } else {
      $resultat = 'yes';
@@ -1753,13 +2045,15 @@ report("views","views",
  } else  { 
    $resultat = "no";
  } 
- safe_query( "drop table crash_me_qf2 $drop_attr","drop table crash_me_qf $drop_attr");
+ safe_query_l('foreign_key', 
+   "drop table crash_me_qf2 $drop_attr","drop table crash_me_qf $drop_attr");
  print "$resultat\n";
  save_config_data('foreign_key',$resultat,"foreign keys");
 }
 
 report("Create SCHEMA","create_schema",
-       "create schema crash_schema create table crash_q (a int) create table crash_q2(b int)",
+       "create schema crash_schema create table crash_q (a int) ".
+       "create table crash_q2(b int)",
        "drop schema crash_schema cascade");
 
 if ($limits{'foreign_key'} eq 'yes')
@@ -1767,7 +2061,10 @@ if ($limits{'foreign_key'} eq 'yes')
   if ($limits{'create_schema'} eq 'yes')
   {
     report("Circular foreign keys","foreign_key_circular",
-           "create schema crash_schema create table crash_q (a int primary key, b int, foreign key (b) references crash_q2(a)) create table crash_q2(a int, b int, primary key(a), foreign key (b) references crash_q(a))",
+           "create schema crash_schema create table crash_q ".
+	   "(a int primary key, b int, foreign key (b) references ".
+	   "crash_q2(a)) create table crash_q2(a int, b int, ".
+	   "primary key(a), foreign key (b) references crash_q(a))",
            "drop schema crash_schema cascade");
   }
 }
@@ -1795,35 +2092,47 @@ report("NULL constraint (SyBase style)","constraint_null",
 
 report("Triggers (ANSI SQL)","psm_trigger",
        "create table crash_q (a int ,b int)",
-       "create trigger crash_trigger after insert on crash_q referencing new table as new_a when (localtime > time '18:00:00') begin atomic end",
+       "create trigger crash_trigger after insert on crash_q referencing ".
+       "new table as new_a when (localtime > time '18:00:00') ".
+       "begin atomic end",
        "insert into crash_q values(1,2)",
        "drop trigger crash_trigger",
        "drop table crash_q $drop_attr");
 
 report("PSM procedures (ANSI SQL)","psm_procedures",
        "create table crash_q (a int,b int)",
-       "create procedure crash_proc(in a1 int, in b1 int) language sql modifies sql data begin declare c1 int; set c1 = a1 + b1; insert into crash_q(a,b) values (a1,c1); end",
+       "create procedure crash_proc(in a1 int, in b1 int) language ".
+       "sql modifies sql data begin declare c1 int; set c1 = a1 + b1;".
+       " insert into crash_q(a,b) values (a1,c1); end",
        "call crash_proc(1,10)",
        "drop procedure crash_proc",
        "drop table crash_q $drop_attr");
 
 report("PSM modules (ANSI SQL)","psm_modules",
        "create table crash_q (a int,b int)",
-       "create module crash_m declare procedure crash_proc(in a1 int, in b1 int) language sql modifies sql data begin declare c1 int; set c1 = a1 + b1; insert into crash_q(a,b) values (a1,c1); end; declare procedure crash_proc2(INOUT a int, in b int) contains sql set a = b + 10; end module",
+       "create module crash_m declare procedure ".
+         "crash_proc(in a1 int, in b1 int) language sql modifies sql ".
+         "data begin declare c1 int; set c1 = a1 + b1; ".
+         "insert into crash_q(a,b) values (a1,c1); end; ".
+         "declare procedure crash_proc2(INOUT a int, in b int) ".
+         "contains sql set a = b + 10; end module",
        "call crash_proc(1,10)",
        "drop module crash_m cascade",
        "drop table crash_q cascade $drop_attr");
 
 report("PSM functions (ANSI SQL)","psm_functions",
        "create table crash_q (a int)",
-       "create function crash_func(in a1 int, in b1 int) returns int language sql deterministic contains sql begin return a1 * b1; end",
+       "create function crash_func(in a1 int, in b1 int) returns int".
+         " language sql deterministic contains sql ".
+	 " begin return a1 * b1; end",
        "insert into crash_q values(crash_func(2,4))",
        "select a,crash_func(a,2) from crash_q",
        "drop function crash_func cascade",
        "drop table crash_q $drop_attr");
 
 report("Domains (ANSI SQL)","domains",
-       "create domain crash_d as varchar(10) default 'Empty' check (value <> 'abcd')",
+       "create domain crash_d as varchar(10) default 'Empty' ".
+         "check (value <> 'abcd')",
        "create table crash_q(a crash_d, b int)",
        "insert into crash_q(a,b) values('xyz',10)",
        "insert into crash_q(b) values(10)",
@@ -1999,28 +2308,31 @@ if ($limits{'unique_in_create'} eq 'yes')
 			     $max_keys,0));
 
   find_limit("index parts","max_index_parts",
-	     new query_table("create table crash_q ($key_definitions,unique (q0",
+	     new query_table("create table crash_q ".
+	         "($key_definitions,unique (q0",
 			     ",q%d","))",
-			     ["insert into crash_q ($key_fields) values ($key_values)"],
-			     "select q0 from crash_q",1,
-			     "drop table crash_q $drop_attr",
-			     $max_keys,1));
+ 	     ["insert into crash_q ($key_fields) values ($key_values)"],
+	     "select q0 from crash_q",1,
+	     "drop table crash_q $drop_attr",
+	     $max_keys,1));
 
   find_limit("max index part length","max_index_part_length",
-	     new query_many(["create table crash_q (q char(%d) not null,unique(q))",
-			     "insert into crash_q (q) values ('%s')"],
-			    "select q from crash_q","%s",
-			    ["drop table crash_q $drop_attr"],
-			    $limits{'max_char_size'},0));
+	     new query_many(["create table crash_q (q char(%d) not null,".
+	           "unique(q))",
+		     "insert into crash_q (q) values ('%s')"],
+		    "select q from crash_q","%s",
+		    ["drop table crash_q $drop_attr"],
+		    $limits{'max_char_size'},0));
 
   if ($limits{'type_sql_varchar(1_arg)'} eq 'yes')
   {
     find_limit("index varchar part length","max_index_varchar_part_length",
-	     new query_many(["create table crash_q (q varchar(%d) not null,unique(q))",
-			     "insert into crash_q (q) values ('%s')"],
-			    "select q from crash_q","%s",
-			    ["drop table crash_q $drop_attr"],
-			    $limits{'max_varchar_size'},0));
+	     new query_many(["create table crash_q (q varchar(%d) not null,".
+	                "unique(q))",
+			 "insert into crash_q (q) values ('%s')"],
+			"select q from crash_q","%s",
+			["drop table crash_q $drop_attr"],
+			$limits{'max_varchar_size'},0));
   }
 }
 
@@ -2030,6 +2342,9 @@ if ($limits{'create_index'} ne 'no')
   if ($limits{'create_index'} eq 'ignored' ||
       $limits{'unique_in_create'} eq 'yes')
   {                                     # This should be true
+    add_log('max_index',
+     " max_unique_index=$limits{'max_unique_index'} ,".
+     "so max_index must be same");
     save_config_data('max_index',$limits{'max_unique_index'},"max index");
     print "indexes: $limits{'max_index'}\n";
   }
@@ -2037,10 +2352,11 @@ if ($limits{'create_index'} ne 'no')
   {
     if (!defined($limits{'max_index'}))
     {
-      assert("create table crash_q ($key_definitions)");
+      safe_query_l('max_index',"create table crash_q ($key_definitions)");
       for ($i=1; $i <= min($limits{'max_columns'},$max_keys) ; $i++)
       {
-	last if (!safe_query("create index crash_q$i on crash_q (q$i)"));
+	last if (!safe_query_l('max_index',
+	     "create index crash_q$i on crash_q (q$i)"));
       }
       save_config_data('max_index',$i == $max_keys ? $max_keys : $i,
 		       "max index");
@@ -2056,10 +2372,12 @@ if ($limits{'create_index'} ne 'no')
     print "indexs: $limits{'max_index'}\n";
     if (!defined($limits{'max_unique_index'}))
     {
-      assert("create table crash_q ($key_definitions)");
+      safe_query_l('max_unique_index',
+           "create table crash_q ($key_definitions)");
       for ($i=0; $i < min($limits{'max_columns'},$max_keys) ; $i++)
       {
-	last if (!safe_query("create unique index crash_q$i on crash_q (q$i)"));
+	last if (!safe_query_l('max_unique_index',
+	    "create unique index crash_q$i on crash_q (q$i)"));
       }
       save_config_data('max_unique_index',$i == $max_keys ? $max_keys : $i,
 		       "max unique index");
@@ -2075,7 +2393,8 @@ if ($limits{'create_index'} ne 'no')
     print "unique indexes: $limits{'max_unique_index'}\n";
     if (!defined($limits{'max_index_parts'}))
     {
-      assert("create table crash_q ($key_definitions)");
+      safe_query_l('max_index_parts',
+            "create table crash_q ($key_definitions)");
       $end_drop=$end_drop_keyword;
       $end_drop =~ s/%i/crash_q1%d/;
       $end_drop =~ s/%t/crash_q/;
@@ -2156,23 +2475,29 @@ if (!defined($limits{$key}))
 {
    print "$prompt=";
    save_incomplete($key,$prompt);	
-   if (!safe_query($server->create("crash_me_a",["a decimal(10,2)","b decimal(10,2)"]))) 
+   if (!safe_query_l($key,$server->create("crash_me_a",
+         ["a decimal(10,2)","b decimal(10,2)"]))) 
      {
        print DBI->errstr();
        die "Can't create table 'crash_me_a' $DBI::errstr\n";
      };
    
-   if (!safe_query(["insert into crash_me_a (a,b) values (11.4,18.9)"]))
+   if (!safe_query_l($key,
+       ["insert into crash_me_a (a,b) values (11.4,18.9)"]))
      {
        die "Can't insert into table 'crash_me_a' a  record: $DBI::errstr\n";
      };
      
    $arithmetic_safe = 'no'; 
    $arithmetic_safe = 'yes' 
-   if ( (safe_query_result('select count(*) from crash_me_a where a+b=30.3',1,0) == 0) 
-      and (safe_query_result('select count(*) from crash_me_a where a+b-30.3 = 0',1,0) == 0)  
-      and (safe_query_result('select count(*) from crash_me_a where a+b-30.3 < 0',0,0) == 0)
-      and (safe_query_result('select count(*) from crash_me_a where a+b-30.3 > 0',0,0) == 0) );
+   if ( (safe_query_result_l($key,
+            'select count(*) from crash_me_a where a+b=30.3',1,0) == 0) 
+      and (safe_query_result_l($key,
+            'select count(*) from crash_me_a where a+b-30.3 = 0',1,0) == 0)  
+      and (safe_query_result_l($key,
+            'select count(*) from crash_me_a where a+b-30.3 < 0',0,0) == 0)
+      and (safe_query_result_l($key,
+            'select count(*) from crash_me_a where a+b-30.3 > 0',0,0) == 0));
    save_config_data($key,$arithmetic_safe,$prompt);
    print "$arithmetic_safe\n";
    assert("drop table crash_me_a $drop_attr");
@@ -2188,11 +2513,12 @@ if (!safe_query($server->create("crash_me_n",["i integer","r integer"])))
    print DBI->errstr();
    die "Can't create table 'crash_me_n' $DBI::errstr\n";
  };
-assert("insert into crash_me_n (i) values(1)");
-assert("insert into crash_me_n values(2,2)");
-assert("insert into crash_me_n values(3,3)");
-assert("insert into crash_me_n values(4,4)");
-assert("insert into crash_me_n (i) values(5)");
+ 
+safe_query_l("position_of_null",["insert into crash_me_n (i) values(1)",
+"insert into crash_me_n values(2,2)",
+"insert into crash_me_n values(3,3)",
+"insert into crash_me_n values(4,4)",
+"insert into crash_me_n (i) values(5)"]);
 
 $key = "position_of_null";
 $prompt ="Where is null values in sorted recordset";
@@ -2202,7 +2528,8 @@ if (!defined($limits{$key}))
  print "$prompt=";
  $sth=$dbh->prepare("select r from crash_me_n order by r ");
  $sth->execute;
- $limit= detect_null_position($sth);
+ add_log($key,"< select r from crash_me_n order by r ");
+ $limit= detect_null_position($key,$sth);
  $sth->finish;
  print "$limit\n";
  save_config_data($key,$limit,$prompt);
@@ -2218,7 +2545,8 @@ if (!defined($limits{$key}))
  print "$prompt=";
  $sth=$dbh->prepare("select r from crash_me_n order by r desc");
  $sth->execute;
- $limit= detect_null_position($sth);
+ add_log($key,"< select r from crash_me_n order by r  desc");
+ $limit= detect_null_position($key,$sth);
  $sth->finish;
  print "$limit\n";
  save_config_data($key,$limit,$prompt);
@@ -2230,7 +2558,22 @@ if (!defined($limits{$key}))
 assert("drop table  crash_me_n $drop_attr");
 
 
+
+
+
 #
+# End of test
+#
+
+$dbh->do("drop table crash_me $drop_attr");        # Remove temporary table
+
+print "crash-me safe: $limits{'crash_me_safe'}\n";
+print "reconnected $reconnect_count times\n";
+
+$dbh->disconnect || warn $dbh->errstr;
+save_all_config_data();
+exit 0;
+
 # End of test
 #
 
@@ -2248,13 +2591,14 @@ exit 0;
 
 sub detect_null_position
 {
+  my $key = shift;
   my $sth = shift;
   my ($z,$r1,$r2,$r3,$r4,$r5);
- $r1 = $sth->fetchrow_array;
- $r2 = $sth->fetchrow_array;
- $r3 = $sth->fetchrow_array;
- $r4 = $sth->fetchrow_array;
- $r5 = $sth->fetchrow_array;
+ $r1 = $sth->fetchrow_array; add_log($key,"> $r1");
+ $r2 = $sth->fetchrow_array; add_log($key,"> $r2");
+ $r3 = $sth->fetchrow_array; add_log($key,"> $r3");
+ $r4 = $sth->fetchrow_array; add_log($key,"> $r4");
+ $r5 = $sth->fetchrow_array; add_log($key,"> $r5");
  return "first" if ( !defined($r1) && !defined($r2) && defined($r3));
  return "last" if ( !defined($r5) && !defined($r4) && defined($r3));
  return "random";
@@ -2265,16 +2609,24 @@ sub check_parenthesis {
  my $fn=shift;
  my $resultat='no';
  my $param_name=$prefix.lc($fn);
+ my $r;
  
  save_incomplete($param_name,$fn);
- if (safe_query("select $fn $end_query") == 1)
+ $r = safe_query("select $fn $end_query"); 
+ add_log($param_name,$safe_query_log);
+ if ($r == 1)
   {
     $resultat="yes";
   } 
-  elsif ( safe_query("select $fn() $end_query") == 1)   
-  {    
-    $resultat="with_parenthesis";
+  else{
+   $r = safe_query("select $fn() $end_query");
+   add_log($param_name,$safe_query_log);
+   if ( $r  == 1)   
+    {    
+       $resultat="with_parenthesis";
+    }
   }
+
   save_config_data($param_name,$resultat,$fn);
 }
 
@@ -2287,19 +2639,65 @@ sub check_constraint {
  save_incomplete($key,$prompt);
  print "$prompt=";
  my $res = 'no';
-
- if ( ($t=safe_query($create)) == 1)
+ my $t;
+ $t=safe_query($create);
+ add_log($key,$safe_query_log);
+ if ( $t == 1)
  {
    $res='yes';
-   if (safe_query($check) == 1)
+   $t= safe_query($check);
+   add_log($key,$safe_query_log);
+   if ($t == 1)
    {
      $res='syntax only';
    }
  }        
  safe_query($drop);
+ add_log($key,$safe_query_log);
+ 
  save_config_data($key,$res,$prompt);
  print "$res\n";
 }
+
+sub make_date_r {
+  my $year=shift;
+  my $month=shift;
+  my $day=shift;
+  $_ = $limits{'date_format_inresult'};
+  return sprintf "%02d-%02d-%02d", ($year%100),$month,$day if (/^short iso$/);
+  return sprintf "%04d-%02d-%02d", $year,$month,$day if (/^iso/);
+  return sprintf "%02d.%02d.%02d", $day,$month,($year%100) if (/^short euro/);
+  return sprintf "%02d.%02d.%04d", $day,$month,$year if (/^euro/);
+  return sprintf "%02d/%02d/%02d", $month,$day,($year%100) if (/^short usa/);
+  return sprintf "%02d/%02d/%04d", $month,$day,$year if (/^usa/);
+  return sprintf "%04d%02d%02d", $year,$month,$day if (/^YYYYMMDD/);
+  return "UNKNOWN FORMAT";
+}
+
+
+sub make_date {
+  my $year=shift;
+  my $month=shift;
+  my $day=shift;
+  return sprintf "'%04d-%02d-%02d'", $year,$month,$day 
+      if ($limits{'date_format_ISO'} eq yes);
+  return sprintf "DATE '%04d-%02d-%02d'", $year,$month,$day 
+      if ($limits{'date_format_ISO_with_date'} eq yes);
+  return sprintf "'%02d.%02d.%04d'", $day,$month,$year 
+      if ($limits{'date_format_EUR'} eq 'yes');
+  return sprintf "DATE '%02d.%02d.%04d'", $day,$month,$year 
+      if ($limits{'date_format_EUR_with_date'} eq 'yes');
+  return sprintf "'%02d/%02d/%04d'", $month,$day,$year 
+      if ($limits{'date_format_USA'} eq 'yes');
+  return sprintf "DATE '%02d/%02d/%04d'", $month,$day,$year 
+      if ($limits{'date_format_USA_with_date'} eq 'yes');
+  return sprintf "'%04d%02d%02d'", $year,$month,$day 
+      if ($limits{'date_format_YYYYMMDD'} eq 'yes');
+  return sprintf "DATE '%04d%02d%02d'", $year,$month,$day 
+      if ($limits{'date_format_YYYYMMDD_with_date'} eq 'yes');
+  return "UNKNOWN FORMAT";
+}
+
 
 sub usage
 {
@@ -2331,6 +2729,9 @@ $0 takes the following options:
 
 --batch-mode
   Don\'t ask any questions, quit on errors.
+
+--config-file='filename'
+  Read limit results from specific file
 
 --comment='some comment'
   Add this comment to the crash-me limit file
@@ -2368,7 +2769,7 @@ $0 takes the following options:
 
 --password='password'
   Password for the current user.
-
+   
 --restart
   Save states during each limit tests. This will make it possible to continue
   by restarting with the same options if there is some bug in the DBI or
@@ -2376,8 +2777,14 @@ $0 takes the following options:
 
 --server='server name'  (Default $opt_server)
   Run the test on the given server.
-  Known servers names are: Access, Adabas, AdabasD, Empress, Oracle, Informix, DB2, Mimer, mSQL, MS-SQL, MySQL, Pg, Solid or Sybase.
+  Known servers names are: Access, Adabas, AdabasD, Empress, Oracle, 
+  Informix, DB2, Mimer, mSQL, MS-SQL, MySQL, Pg, Solid or Sybase.
   For others $0 can\'t report the server version.
+
+--suffix='suffix' (Default '')
+  Add suffix to the output filename. For instance if you run crash-me like
+  "crash-me --suffix="myisam",
+  then output filename will look "mysql-myisam.cfg".
 
 --user='user_name'
   User name to log into the SQL server.
@@ -2387,6 +2794,10 @@ $0 takes the following options:
 
 --sleep='time in seconds' (Default $opt_sleep)
   Wait this long before restarting server.
+
+--verbose
+--noverbose
+  Log into the result file queries performed for determination parameter value
 
 EOF
   exit(0);
@@ -2540,11 +2951,13 @@ sub safe_connect
       $dbh->{LongReadLen}= 16000000; # Set max retrieval buffer
       return $dbh;
     }
-    print "Error: $DBI::errstr;  $server->{'data_source'}  - '$opt_user' - '$opt_password'\n";
+    print "Error: $DBI::errstr;  $server->{'data_source'} ".
+        " - '$opt_user' - '$opt_password'\n";
     print "I got the above error when connecting to $opt_server\n";
     if (defined($object) && defined($object->{'limit'}))
     {
-      print "This check was done with limit: $object->{'limit'}.\nNext check will be done with a smaller limit!\n";
+      print "This check was done with limit: $object->{'limit'}.".
+          "\nNext check will be done with a smaller limit!\n";
       $object=undef();
     }
     save_config_data('crash_me_safe','no',"crash me safe");
@@ -2600,6 +3013,15 @@ sub check_connect
 #
 # print query if debugging
 #
+sub repr_query {
+  my $query=shift;
+ if (length($query) > 130)
+ {
+   $query=substr($query,0,120) . "...(" . (length($query)-120) . ")";
+ }
+ return $query;
+}  
+
 sub print_query
 {
   my ($query)=@_;
@@ -2616,13 +3038,23 @@ sub print_query
 
 #
 # Do one or many queries. Return 1 if all was ok
-# Note that all rows are executed (to ensure that we execute drop table commands)
+# Note that all rows are executed 
+# (to ensure that we execute drop table commands)
 #
+
+sub safe_query_l {
+  my $key = shift;
+  my $q = shift;
+  my $r = safe_query($q);
+  add_log($key,$safe_query_log);
+  return $r;
+}  
 
 sub safe_query
 {
   my($queries)=@_;
   my($query,$ok,$retry_ok,$retry,@tmp,$sth);
+  $safe_query_log="";
   $ok=1;
   if (ref($queries) ne "ARRAY")
   {
@@ -2631,11 +3063,14 @@ sub safe_query
   }
   foreach $query (@$queries)
   {
-    printf "query1: %-80.80s ...(%d - %d)\n",$query,length($query),$retry_limit  if ($opt_log_all_queries);
+    printf "query1: %-80.80s ...(%d - %d)\n",$query,
+          length($query),$retry_limit  if ($opt_log_all_queries);
     print LOG "$query;\n" if ($opt_log);
+    $safe_query_log .= "< $query\n";
     if (length($query) > $query_size)
     {
       $ok=0;
+      $safe_query_log .= "Query is too long\n";
       next;
     }
 
@@ -2645,6 +3080,7 @@ sub safe_query
       if (! ($sth=$dbh->prepare($query)))
       {
 	print_query($query);
+        $safe_query_log .= "> couldn't prepare:". $dbh->errstr. "\n";
 	$retry=100 if (!$server->abort_if_fatal_error());
 	# Force a reconnect because of Access drop table bug!
 	if ($retry == $retry_limit-2)
@@ -2659,6 +3095,7 @@ sub safe_query
         if (!$sth->execute())
         {
  	  print_query($query);
+          $safe_query_log .= "> execute error:". $dbh->errstr. "\n";
 	  $retry=100 if (!$server->abort_if_fatal_error());
 	  # Force a reconnect because of Access drop table bug!
 	  if ($retry == $retry_limit-2)
@@ -2672,6 +3109,8 @@ sub safe_query
         {
 	  $retry = $retry_limit;
 	  $retry_ok = 1;
+          $safe_query_log .= "> OK\n";
+	  
         }
         $sth->finish;
       }
@@ -2687,6 +3126,213 @@ sub safe_query
   return $ok;
 }
 
+sub check_reserved_words
+{
+  my ($dbh)= @_;
+
+  my $answer, $prompt, $config, $keyword_type;
+
+  my @keywords_ext  = ( "ansi-92/99", "ansi92", "ansi99", "extra");
+
+  my %reserved_words = (
+        'ABSOLUTE' =>  0,          'ACTION' =>  0,             'ADD' =>  0,
+           'AFTER' =>  0,           'ALIAS' =>  0,             'ALL' =>  0,
+        'ALLOCATE' =>  0,           'ALTER' =>  0,             'AND' =>  0,
+             'ANY' =>  0,             'ARE' =>  0,              'AS' =>  0,
+             'ASC' =>  0,       'ASSERTION' =>  0,              'AT' =>  0,
+   'AUTHORIZATION' =>  0,          'BEFORE' =>  0,           'BEGIN' =>  0,
+             'BIT' =>  0,         'BOOLEAN' =>  0,            'BOTH' =>  0,
+         'BREADTH' =>  0,              'BY' =>  0,            'CALL' =>  0,
+         'CASCADE' =>  0,        'CASCADED' =>  0,            'CASE' =>  0,
+            'CAST' =>  0,         'CATALOG' =>  0,            'CHAR' =>  0,
+       'CHARACTER' =>  0,           'CHECK' =>  0,           'CLOSE' =>  0,
+         'COLLATE' =>  0,       'COLLATION' =>  0,          'COLUMN' =>  0,
+          'COMMIT' =>  0,      'COMPLETION' =>  0,         'CONNECT' =>  0,
+      'CONNECTION' =>  0,      'CONSTRAINT' =>  0,     'CONSTRAINTS' =>  0,
+        'CONTINUE' =>  0,   'CORRESPONDING' =>  0,          'CREATE' =>  0,
+           'CROSS' =>  0,         'CURRENT' =>  0,    'CURRENT_DATE' =>  0,
+    'CURRENT_TIME' =>  0,'CURRENT_TIMESTAMP' =>  0,   'CURRENT_USER' =>  0,
+          'CURSOR' =>  0,           'CYCLE' =>  0,            'DATA' =>  0,
+            'DATE' =>  0,             'DAY' =>  0,      'DEALLOCATE' =>  0,
+             'DEC' =>  0,         'DECIMAL' =>  0,         'DECLARE' =>  0,
+         'DEFAULT' =>  0,      'DEFERRABLE' =>  0,        'DEFERRED' =>  0,
+          'DELETE' =>  0,           'DEPTH' =>  0,            'DESC' =>  0,
+        'DESCRIBE' =>  0,      'DESCRIPTOR' =>  0,     'DIAGNOSTICS' =>  0,
+      'DICTIONARY' =>  0,      'DISCONNECT' =>  0,        'DISTINCT' =>  0,
+          'DOMAIN' =>  0,          'DOUBLE' =>  0,            'DROP' =>  0,
+            'EACH' =>  0,            'ELSE' =>  0,          'ELSEIF' =>  0,
+             'END' =>  0,        'END-EXEC' =>  0,          'EQUALS' =>  0,
+          'ESCAPE' =>  0,          'EXCEPT' =>  0,       'EXCEPTION' =>  0,
+            'EXEC' =>  0,         'EXECUTE' =>  0,        'EXTERNAL' =>  0,
+           'FALSE' =>  0,           'FETCH' =>  0,           'FIRST' =>  0,
+           'FLOAT' =>  0,             'FOR' =>  0,         'FOREIGN' =>  0,
+           'FOUND' =>  0,            'FROM' =>  0,            'FULL' =>  0,
+         'GENERAL' =>  0,             'GET' =>  0,          'GLOBAL' =>  0,
+              'GO' =>  0,            'GOTO' =>  0,           'GRANT' =>  0,
+           'GROUP' =>  0,          'HAVING' =>  0,            'HOUR' =>  0,
+        'IDENTITY' =>  0,              'IF' =>  0,          'IGNORE' =>  0,
+       'IMMEDIATE' =>  0,              'IN' =>  0,       'INDICATOR' =>  0,
+       'INITIALLY' =>  0,           'INNER' =>  0,           'INPUT' =>  0,
+          'INSERT' =>  0,             'INT' =>  0,         'INTEGER' =>  0,
+       'INTERSECT' =>  0,        'INTERVAL' =>  0,            'INTO' =>  0,
+              'IS' =>  0,       'ISOLATION' =>  0,            'JOIN' =>  0,
+             'KEY' =>  0,        'LANGUAGE' =>  0,            'LAST' =>  0,
+         'LEADING' =>  0,           'LEAVE' =>  0,            'LEFT' =>  0,
+            'LESS' =>  0,           'LEVEL' =>  0,            'LIKE' =>  0,
+           'LIMIT' =>  0,           'LOCAL' =>  0,            'LOOP' =>  0,
+           'MATCH' =>  0,          'MINUTE' =>  0,          'MODIFY' =>  0,
+          'MODULE' =>  0,           'MONTH' =>  0,           'NAMES' =>  0,
+        'NATIONAL' =>  0,         'NATURAL' =>  0,           'NCHAR' =>  0,
+             'NEW' =>  0,            'NEXT' =>  0,              'NO' =>  0,
+            'NONE' =>  0,             'NOT' =>  0,            'NULL' =>  0,
+         'NUMERIC' =>  0,          'OBJECT' =>  0,              'OF' =>  0,
+             'OFF' =>  0,             'OLD' =>  0,              'ON' =>  0,
+            'ONLY' =>  0,            'OPEN' =>  0,       'OPERATION' =>  0,
+          'OPTION' =>  0,              'OR' =>  0,           'ORDER' =>  0,
+           'OUTER' =>  0,          'OUTPUT' =>  0,             'PAD' =>  0,
+      'PARAMETERS' =>  0,         'PARTIAL' =>  0,       'PRECISION' =>  0,
+        'PREORDER' =>  0,         'PREPARE' =>  0,        'PRESERVE' =>  0,
+         'PRIMARY' =>  0,           'PRIOR' =>  0,      'PRIVILEGES' =>  0,
+       'PROCEDURE' =>  0,          'PUBLIC' =>  0,            'READ' =>  0,
+            'REAL' =>  0,       'RECURSIVE' =>  0,             'REF' =>  0,
+      'REFERENCES' =>  0,     'REFERENCING' =>  0,        'RELATIVE' =>  0,
+        'RESIGNAL' =>  0,        'RESTRICT' =>  0,          'RETURN' =>  0,
+         'RETURNS' =>  0,          'REVOKE' =>  0,           'RIGHT' =>  0,
+            'ROLE' =>  0,        'ROLLBACK' =>  0,         'ROUTINE' =>  0,
+             'ROW' =>  0,            'ROWS' =>  0,       'SAVEPOINT' =>  0,
+          'SCHEMA' =>  0,          'SCROLL' =>  0,          'SEARCH' =>  0,
+          'SECOND' =>  0,         'SECTION' =>  0,          'SELECT' =>  0,
+        'SEQUENCE' =>  0,         'SESSION' =>  0,    'SESSION_USER' =>  0,
+             'SET' =>  0,          'SIGNAL' =>  0,            'SIZE' =>  0,
+        'SMALLINT' =>  0,            'SOME' =>  0,           'SPACE' =>  0,
+             'SQL' =>  0,    'SQLEXCEPTION' =>  0,        'SQLSTATE' =>  0,
+      'SQLWARNING' =>  0,       'STRUCTURE' =>  0,     'SYSTEM_USER' =>  0,
+           'TABLE' =>  0,       'TEMPORARY' =>  0,            'THEN' =>  0,
+            'TIME' =>  0,       'TIMESTAMP' =>  0,   'TIMEZONE_HOUR' =>  0,
+ 'TIMEZONE_MINUTE' =>  0,              'TO' =>  0,        'TRAILING' =>  0,
+     'TRANSACTION' =>  0,     'TRANSLATION' =>  0,         'TRIGGER' =>  0,
+            'TRUE' =>  0,           'UNDER' =>  0,           'UNION' =>  0,
+          'UNIQUE' =>  0,         'UNKNOWN' =>  0,          'UPDATE' =>  0,
+           'USAGE' =>  0,            'USER' =>  0,           'USING' =>  0,
+           'VALUE' =>  0,          'VALUES' =>  0,         'VARCHAR' =>  0,
+        'VARIABLE' =>  0,         'VARYING' =>  0,            'VIEW' =>  0,
+            'WHEN' =>  0,        'WHENEVER' =>  0,           'WHERE' =>  0,
+           'WHILE' =>  0,            'WITH' =>  0,         'WITHOUT' =>  0,
+            'WORK' =>  0,           'WRITE' =>  0,            'YEAR' =>  0,
+            'ZONE' =>  0,
+
+           'ASYNC' =>  1,             'AVG' =>  1,         'BETWEEN' =>  1,
+      'BIT_LENGTH' =>  1,'CHARACTER_LENGTH' =>  1,     'CHAR_LENGTH' =>  1,
+        'COALESCE' =>  1,         'CONVERT' =>  1,           'COUNT' =>  1,
+          'EXISTS' =>  1,         'EXTRACT' =>  1,     'INSENSITIVE' =>  1,
+           'LOWER' =>  1,             'MAX' =>  1,             'MIN' =>  1,
+          'NULLIF' =>  1,    'OCTET_LENGTH' =>  1,             'OID' =>  1,
+       'OPERATORS' =>  1,          'OTHERS' =>  1,        'OVERLAPS' =>  1,
+         'PENDANT' =>  1,        'POSITION' =>  1,         'PRIVATE' =>  1,
+       'PROTECTED' =>  1,         'REPLACE' =>  1,       'SENSITIVE' =>  1,
+         'SIMILAR' =>  1,         'SQLCODE' =>  1,        'SQLERROR' =>  1,
+       'SUBSTRING' =>  1,             'SUM' =>  1,            'TEST' =>  1,
+           'THERE' =>  1,       'TRANSLATE' =>  1,            'TRIM' =>  1,
+            'TYPE' =>  1,           'UPPER' =>  1,         'VIRTUAL' =>  1,
+         'VISIBLE' =>  1,            'WAIT' =>  1,
+
+           'ADMIN' =>  2,       'AGGREGATE' =>  2,           'ARRAY' =>  2,
+          'BINARY' =>  2,            'BLOB' =>  2,           'CLASS' =>  2,
+            'CLOB' =>  2,       'CONDITION' =>  2,     'CONSTRUCTOR' =>  2,
+        'CONTAINS' =>  2,            'CUBE' =>  2,    'CURRENT_PATH' =>  2,
+    'CURRENT_ROLE' =>  2,        'DATALINK' =>  2,           'DEREF' =>  2,
+         'DESTROY' =>  2,      'DESTRUCTOR' =>  2,   'DETERMINISTIC' =>  2,
+              'DO' =>  2,         'DYNAMIC' =>  2,           'EVERY' =>  2,
+            'EXIT' =>  2,          'EXPAND' =>  2,       'EXPANDING' =>  2,
+            'FREE' =>  2,        'FUNCTION' =>  2,        'GROUPING' =>  2,
+         'HANDLER' =>  2,            'HAST' =>  2,            'HOST' =>  2,
+      'INITIALIZE' =>  2,           'INOUT' =>  2,         'ITERATE' =>  2,
+           'LARGE' =>  2,         'LATERAL' =>  2,       'LOCALTIME' =>  2,
+  'LOCALTIMESTAMP' =>  2,         'LOCATOR' =>  2,           'MEETS' =>  2,
+        'MODIFIES' =>  2,           'NCLOB' =>  2,       'NORMALIZE' =>  2,
+      'ORDINALITY' =>  2,             'OUT' =>  2,       'PARAMETER' =>  2,
+            'PATH' =>  2,          'PERIOD' =>  2,         'POSTFIX' =>  2,
+        'PRECEDES' =>  2,          'PREFIX' =>  2,           'READS' =>  2,
+            'REDO' =>  2,          'REPEAT' =>  2,          'RESULT' =>  2,
+          'ROLLUP' =>  2,            'SETS' =>  2,        'SPECIFIC' =>  2,
+    'SPECIFICTYPE' =>  2,           'START' =>  2,           'STATE' =>  2,
+          'STATIC' =>  2,        'SUCCEEDS' =>  2,       'TERMINATE' =>  2,
+            'THAN' =>  2,           'TREAT' =>  2,            'UNDO' =>  2,
+           'UNTIL' =>  2,
+
+          'ACCESS' =>  3,         'ANALYZE' =>  3,           'AUDIT' =>  3,
+  'AUTO_INCREMENT' =>  3,          'BACKUP' =>  3,             'BDB' =>  3,
+      'BERKELEYDB' =>  3,          'BIGINT' =>  3,           'BREAK' =>  3,
+          'BROWSE' =>  3,           'BTREE' =>  3,            'BULK' =>  3,
+          'CHANGE' =>  3,      'CHECKPOINT' =>  3,         'CLUSTER' =>  3,
+       'CLUSTERED' =>  3,         'COLUMNS' =>  3,         'COMMENT' =>  3,
+        'COMPRESS' =>  3,         'COMPUTE' =>  3,   'CONTAINSTABLE' =>  3,
+        'DATABASE' =>  3,       'DATABASES' =>  3,        'DAY_HOUR' =>  3,
+      'DAY_MINUTE' =>  3,      'DAY_SECOND' =>  3,            'DBCC' =>  3,
+         'DELAYED' =>  3,            'DENY' =>  3,            'DISK' =>  3,
+     'DISTINCTROW' =>  3,     'DISTRIBUTED' =>  3,           'DUMMY' =>  3,
+            'DUMP' =>  3,        'ENCLOSED' =>  3,          'ERRLVL' =>  3,
+          'ERRORS' =>  3,         'ESCAPED' =>  3,       'EXCLUSIVE' =>  3,
+         'EXPLAIN' =>  3,          'FIELDS' =>  3,            'FILE' =>  3,
+      'FILLFACTOR' =>  3,        'FREETEXT' =>  3,   'FREETEXTTABLE' =>  3,
+        'FULLTEXT' =>  3,        'GEOMETRY' =>  3,            'HASH' =>  3,
+   'HIGH_PRIORITY' =>  3,        'HOLDLOCK' =>  3,     'HOUR_MINUTE' =>  3,
+     'HOUR_SECOND' =>  3,      'IDENTIFIED' =>  3,     'IDENTITYCOL' =>  3,
+ 'IDENTITY_INSERT' =>  3,       'INCREMENT' =>  3,           'INDEX' =>  3,
+          'INFILE' =>  3,         'INITIAL' =>  3,          'INNODB' =>  3,
+            'KEYS' =>  3,            'KILL' =>  3,          'LINENO' =>  3,
+           'LINES' =>  3,            'LOAD' =>  3,            'LOCK' =>  3,
+            'LONG' =>  3,        'LONGBLOB' =>  3,        'LONGTEXT' =>  3,
+    'LOW_PRIORITY' =>  3, 'MASTER_SERVER_ID' =>  3,      'MAXEXTENTS' =>  3,
+      'MEDIUMBLOB' =>  3,       'MEDIUMINT' =>  3,      'MEDIUMTEXT' =>  3,
+       'MIDDLEINT' =>  3,           'MINUS' =>  3,   'MINUTE_SECOND' =>  3,
+        'MLSLABEL' =>  3,            'MODE' =>  3,      'MRG_MYISAM' =>  3,
+         'NOAUDIT' =>  3,         'NOCHECK' =>  3,      'NOCOMPRESS' =>  3,
+    'NONCLUSTERED' =>  3,          'NOWAIT' =>  3,          'NUMBER' =>  3,
+         'OFFLINE' =>  3,         'OFFSETS' =>  3,          'ONLINE' =>  3,
+  'OPENDATASOURCE' =>  3,       'OPENQUERY' =>  3,      'OPENROWSET' =>  3,
+         'OPENXML' =>  3,        'OPTIMIZE' =>  3,      'OPTIONALLY' =>  3,
+         'OUTFILE' =>  3,            'OVER' =>  3,         'PCTFREE' =>  3,
+         'PERCENT' =>  3,            'PLAN' =>  3,           'PRINT' =>  3,
+            'PROC' =>  3,           'PURGE' =>  3,       'RAISERROR' =>  3,
+             'RAW' =>  3,        'READTEXT' =>  3,     'RECONFIGURE' =>  3,
+          'REGEXP' =>  3,          'RENAME' =>  3,     'REPLICATION' =>  3,
+         'REQUIRE' =>  3,        'RESOURCE' =>  3,         'RESTORE' =>  3,
+           'RLIKE' =>  3,        'ROWCOUNT' =>  3,      'ROWGUIDCOL' =>  3,
+           'ROWID' =>  3,          'ROWNUM' =>  3,           'RTREE' =>  3,
+            'RULE' =>  3,            'SAVE' =>  3,         'SETUSER' =>  3,
+           'SHARE' =>  3,            'SHOW' =>  3,        'SHUTDOWN' =>  3,
+          'SONAME' =>  3,         'SPATIAL' =>  3,  'SQL_BIG_RESULT' =>  3,
+'SQL_CALC_FOUND_ROWS' =>  3,'SQL_SMALL_RESULT' =>  3,        'SSL' =>  3,
+        'STARTING' =>  3,      'STATISTICS' =>  3,   'STRAIGHT_JOIN' =>  3,
+         'STRIPED' =>  3,      'SUCCESSFUL' =>  3,         'SYNONYM' =>  3,
+         'SYSDATE' =>  3,          'TABLES' =>  3,      'TERMINATED' =>  3,
+        'TEXTSIZE' =>  3,        'TINYBLOB' =>  3,         'TINYINT' =>  3,
+        'TINYTEXT' =>  3,             'TOP' =>  3,            'TRAN' =>  3,
+        'TRUNCATE' =>  3,         'TSEQUAL' =>  3,           'TYPES' =>  3,
+             'UID' =>  3,          'UNLOCK' =>  3,        'UNSIGNED' =>  3,
+      'UPDATETEXT' =>  3,             'USE' =>  3,  'USER_RESOURCES' =>  3,
+        'VALIDATE' =>  3,       'VARBINARY' =>  3,        'VARCHAR2' =>  3,
+         'WAITFOR' =>  3,        'WARNINGS' =>  3,       'WRITETEXT' =>  3,
+             'XOR' =>  3,      'YEAR_MONTH' =>  3,        'ZEROFILL' =>  3
+);
+
+
+  safe_query("drop table crash_me10 $drop_attr");
+
+  foreach my $keyword (sort {$a cmp $b} keys %reserved_words)
+  {
+    $keyword_type= $reserved_words{$keyword};
+
+    $prompt= "Keyword ".$keyword;
+    $config= "reserved_word_".$keywords_ext[$keyword_type]."_".lc($keyword);
+
+    report_fail($prompt,$config,
+      "create table crash_me10 ($keyword int not null)",
+      "drop table crash_me10 $drop_attr"
+    );
+  }
+}
 
 #
 # Do a query on a query package object.
@@ -2747,7 +3393,17 @@ sub report
   print "$prompt: ";
   if (!defined($limits{$limit}))
   {
-    save_config_data($limit,safe_query(\@queries) ? "yes" : "no",$prompt);
+    my $queries_result = safe_query(\@queries);
+    add_log($limit, $safe_query_log);
+    my $report_result;
+    if ( $queries_result) {
+      $report_result= "yes";
+      add_log($limit,"As far as all queries returned OK, result is YES");
+    } else {
+      $report_result= "no";
+      add_log($limit,"As far as some queries didnt return OK, result is NO");
+    } 
+    save_config_data($limit,$report_result,$prompt);
   }
   print "$limits{$limit}\n";
   return $limits{$limit} ne "no";
@@ -2759,7 +3415,17 @@ sub report_fail
   print "$prompt: ";
   if (!defined($limits{$limit}))
   {
-    save_config_data($limit,safe_query(\@queries) ? "no" : "yes",$prompt);
+    my $queries_result = safe_query(\@queries);
+    add_log($limit, $safe_query_log);
+    my $report_result;
+    if ( $queries_result) {
+      $report_result= "no";
+      add_log($limit,"As far as all queries returned OK, result is NO");
+    } else {
+      $report_result= "yes";
+      add_log($limit,"As far as some queries didnt return OK, result is YES");
+    } 
+    save_config_data($limit,$report_result,$prompt);
   }
   print "$limits{$limit}\n";
   return $limits{$limit} ne "no";
@@ -2779,7 +3445,7 @@ sub report_one
     $result="no";
     foreach $query (@$queries)
     {
-      if (safe_query($query->[0]))
+      if (safe_query_l($limit,$query->[0]))
       {
 	$result= $query->[1];
 	last;
@@ -2803,6 +3469,7 @@ sub report_result
   {
     save_incomplete($limit,$prompt);
     $error=safe_query_result($query,"1",2);
+    add_log($limit,$safe_query_result_log);
     save_config_data($limit,$error ? "not supported" :$last_result,$prompt);
   }
   print "$limits{$limit}\n";
@@ -2823,16 +3490,19 @@ sub report_trans
 	  $dbh->rollback;
           $dbh->{AutoCommit} = 1;
 	    if (safe_query_result($check,"","")) {
+              add_log($limit,$safe_query_result_log);	    
 	      save_config_data($limit,"yes",$limit);
 	    }
 	    safe_query($clear);
       } else {
+        add_log($limit,$safe_query_log);
         save_config_data($limit,"error",$limit);
       }
       $dbh->{AutoCommit} = 1;
     }
     else
     {
+      add_log($limit,"Couldnt undef autocommit ?? ");
       save_config_data($limit,"no",$limit);
     }
     safe_query($clear);
@@ -2851,20 +3521,26 @@ sub report_rollback
     {
       if (safe_query(\@$queries))
       {
+          add_log($limit,$safe_query_log);
+
 	  $dbh->rollback;
            $dbh->{AutoCommit} = 1;
            if (safe_query($check)) {
+	      add_log($limit,$safe_query_log);
 	      save_config_data($limit,"no",$limit);
 	    }  else  {
+	      add_log($limit,$safe_query_log);
 	      save_config_data($limit,"yes",$limit);
 	    };
 	    safe_query($clear);
       } else {
+        add_log($limit,$safe_query_log);
         save_config_data($limit,"error",$limit);
       }
     }
     else
     {
+      add_log($limit,'Couldnt undef Autocommit??');
       save_config_data($limit,"error",$limit);
     }
     safe_query($clear);
@@ -2886,8 +3562,14 @@ sub check_and_report
   {
     save_incomplete($limit,$prompt);
     $tmp=1-safe_query(\@$pre);
-    $tmp=safe_query_result($query,$answer,$string_type) if (!$tmp);
+    add_log($limit,$safe_query_log);
+    if (!$tmp) 
+    {
+        $tmp=safe_query_result($query,$answer,$string_type) ;
+        add_log($limit,$safe_query_result_log);
+    };	
     safe_query(\@$post);
+    add_log($limit,$safe_query_log);
     delete $limits{$limit};
     if ($function == 3)		# Report error as 'no'.
     {
@@ -2925,7 +3607,7 @@ sub try_and_report
     foreach $test (@tests)
     {
       my $tmp_type= shift(@$test);
-      if (safe_query(\@$test))
+      if (safe_query_l($limit,\@$test))
       {
 	$type=$tmp_type;
 	goto outer;
@@ -2944,32 +3626,49 @@ sub try_and_report
 
 sub execute_and_check
 {
-  my ($pre,$query,$post,$answer,$string_type)=@_;
+  my ($key,$pre,$query,$post,$answer,$string_type)=@_;
   my ($tmp);
 
-  $tmp=safe_query(\@$pre);
-  $tmp=safe_query_result($query,$answer,$string_type) == 0 if ($tmp);
-  safe_query(\@$post);
+  $tmp=safe_query_l($key,\@$pre);
+
+  $tmp=safe_query_result_l($key,$query,$answer,$string_type) == 0 if ($tmp);
+  safe_query_l($key,\@$post);
   return $tmp;
 }
 
 
 # returns 0 if ok, 1 if error, -1 if wrong answer
 # Sets $last_result to value of query
+sub safe_query_result_l{
+  my ($key,$query,$answer,$result_type)=@_;
+  my $r = safe_query_result($query,$answer,$result_type);
+  add_log($key,$safe_query_result_log);
+  return $r;
+}  
 
 sub safe_query_result
 {
+# result type can be 
+#  8 (must be empty), 2 (Any value), 0 (number)
+#  1 (char, endspaces can differ), 3 (exact char), 4 (NULL)
+#  5 (char with prefix), 6 (exact, errors are ignored)
+#  7 (array of numbers)
   my ($query,$answer,$result_type)=@_;
   my ($sth,$row,$result,$retry);
   undef($last_result);
-
+  $safe_query_result_log="";
+  
   printf "\nquery3: %-80.80s\n",$query  if ($opt_log_all_queries);
   print LOG "$query;\n" if ($opt_log);
+  $safe_query_result_log="<".$query."\n";
+
   for ($retry=0; $retry < $retry_limit ; $retry++)
   {
     if (!($sth=$dbh->prepare($query)))
     {
       print_query($query);
+      $safe_query_result_log .= "> prepare failed:".$dbh->errstr."\n";
+      
       if ($server->abort_if_fatal_error())
       {
 	check_connect();	# Check that server is still up
@@ -2981,6 +3680,7 @@ sub safe_query_result
     if (!$sth->execute)
     {
       print_query($query);
+      $safe_query_result_log .= "> execute failed:".$dbh->errstr."\n";
       if ($server->abort_if_fatal_error())
       {
 	check_connect();	# Check that server is still up
@@ -2997,6 +3697,7 @@ sub safe_query_result
   if (!($row=$sth->fetchrow_arrayref))
   {
     print "\nquery: $query didn't return any result\n" if ($opt_debug);
+    $safe_query_result_log .= "> didn't return any result:".$dbh->errstr."\n";    
     $sth->finish;
     return ($result_type == 8) ? 0 : 1;
   }
@@ -3007,41 +3708,72 @@ sub safe_query_result
   }
   $result=0;                  	# Ok
   $last_result= $row->[0];	# Save for report_result;
+  $safe_query_result_log .= ">".$last_result."\n";    
+  # Note:
+  # if ($result_type == 2)        We accept any return value as answer
+
   if ($result_type == 0)	# Compare numbers
   {
-    $row->[0] =~ s/,/,/;	# Fix if ',' is used instead of '.'
+    $row->[0] =~ s/,/./;	# Fix if ',' is used instead of '.'
     if ($row->[0] != $answer && (abs($row->[0]- $answer)/
 				 (abs($row->[0]) + abs($answer))) > 0.01)
     {
       $result=-1;
+      $safe_query_result_log .= 
+          "We expected '$answer' but got '$last_result' \n";    
     }
   }
   elsif ($result_type == 1)	# Compare where end space may differ
   {
     $row->[0] =~ s/\s+$//;
-    $result=-1 if ($row->[0] ne $answer);
+    if ($row->[0] ne $answer)
+    {
+     $result=-1;
+     $safe_query_result_log .= 
+         "We expected '$answer' but got '$last_result' \n";    
+    } ;
   }
   elsif ($result_type == 3)	# This should be a exact match
   {
-    $result= -1 if ($row->[0] ne $answer);
+     if ($row->[0] ne $answer)
+     { 
+      $result= -1; 
+      $safe_query_result_log .= 
+          "We expected '$answer' but got '$last_result' \n";    
+    };
   }
   elsif ($result_type == 4)	# If results should be NULL
   {
-    $result= -1 if (defined($row->[0]));
+    if (defined($row->[0]))
+    { 
+     $result= -1; 
+     $safe_query_result_log .= 
+         "We expected NULL but got '$last_result' \n";    
+    };
   }
   elsif ($result_type == 5)	# Result should have given prefix
   {
-    $result= -1 if (length($row->[0]) < length($answer) &&
-		    substr($row->[0],1,length($answer)) ne $answer);
+     if (length($row->[0]) < length($answer) &&
+		    substr($row->[0],1,length($answer)) ne $answer)
+     { 
+      $result= -1 ;
+      $safe_query_result_log .= 
+        "Result must have prefix '$answer', but  '$last_result' \n";    
+     };
   }
   elsif ($result_type == 6)	# Exact match but ignore errors
   {
-    $result= 1 if ($row->[0] ne $answer);
+    if ($row->[0] ne $answer)    
+    { $result= 1;
+      $safe_query_result_log .= 
+          "We expected '$answer' but got '$last_result' \n";    
+    } ;
   }
   elsif ($result_type == 7)	# Compare against array of numbers
   {
     if ($row->[0] != $answer->[0])
     {
+      $safe_query_result_log .= "must be '$answer->[0]' \n";    
       $result= -1;
     }
     else
@@ -3050,16 +3782,20 @@ sub safe_query_result
       shift @$answer;
       while (($row=$sth->fetchrow_arrayref))
       {
+       $safe_query_result_log .= ">$row\n";    
+
 	$value=shift(@$answer);
 	if (!defined($value))
 	{
 	  print "\nquery: $query returned to many results\n"
 	    if ($opt_debug);
+          $safe_query_result_log .= "It returned to many results \n";    	    
 	  $result= 1;
 	  last;
 	}
 	if ($row->[0] != $value)
 	{
+          $safe_query_result_log .= "Must return $value here \n";    	    
 	  $result= -1;
 	  last;
 	}
@@ -3068,6 +3804,7 @@ sub safe_query_result
       {
 	print "\nquery: $query returned too few results\n"
 	  if ($opt_debug);
+        $safe_query_result_log .= "It returned too few results \n";    	    
 	$result= 1;
       }
     }
@@ -3080,13 +3817,14 @@ sub safe_query_result
 
 #
 # Find limit using binary search.  This is a weighed binary search that
-# will prefere lower limits to get the server to crash as few times as possible
-#
+# will prefere lower limits to get the server to crash as 
+# few times as possible
+
 
 sub find_limit()
 {
   my ($prompt,$limit,$query)=@_;
-  my ($first,$end,$i,$tmp);
+  my ($first,$end,$i,$tmp,@tmp_array, $queries);
   print "$prompt: ";
   if (defined($end=$limits{$limit}))
   {
@@ -3094,10 +3832,30 @@ sub find_limit()
     return $end;
   }
   save_incomplete($limit,$prompt);
+  add_log($limit,"We are trying (example with N=5):");
+  $queries = $query->query(5);
+  if (ref($queries) ne "ARRAY")
+  {
+    push(@tmp_array,$queries);
+    $queries= \@tmp_array;
+  }
+  foreach $tmp (@$queries)
+  {   add_log($limit,repr_query($tmp));  }    
 
+  if (defined($queries = $query->check_query()))
+  { 
+    if (ref($queries) ne "ARRAY")
+    {
+      @tmp_array=();
+      push(@tmp_array,$queries); 
+      $queries= \@tmp_array;
+    }
+    foreach $tmp (@$queries)
+      {   add_log($limit,repr_query($tmp));  }    
+  }
   if (defined($query->{'init'}) && !defined($end=$limits{'restart'}{'tohigh'}))
   {
-    if (!safe_query($query->{'init'}))
+    if (!safe_query_l($limit,$query->{'init'}))
     {
       $query->cleanup();
       return "error";
@@ -3106,7 +3864,8 @@ sub find_limit()
 
   if (!limit_query($query,1))           # This must work
   {
-    print "\nMaybe fatal error: Can't check '$prompt' for limit=1\nerror: $last_error\n";
+    print "\nMaybe fatal error: Can't check '$prompt' for limit=1\n".
+    "error: $last_error\n";
     return "error";
   }
 
@@ -3125,7 +3884,7 @@ sub find_limit()
     $end= $query->max_limit();
     $i=int(($end+$first)/2);
   }
-
+  my $log_str = "";
   unless(limit_query($query,0+$end)) {
     while ($first < $end)
     {
@@ -3134,11 +3893,13 @@ sub find_limit()
       if (limit_query($query,$i))
       {
         $first=$i;
+	$log_str .= " $i:OK";
         $i=$first+int(($end-$first+1)/2); # to be a bit faster to go up
       }
       else
-      {
+      { 
         $end=$i-1;
+	$log_str .= " $i:FAIL";
         $i=$first+int(($end-$first+4)/5); # Prefere lower on errors
       }
     }
@@ -3150,6 +3911,7 @@ sub find_limit()
     $end= $query->{'max_limit'};
   }
   print "$end\n";
+  add_log($limit,$log_str);
   save_config_data($limit,$end,$prompt);
   delete $limits{'restart'};
   return $end;
@@ -3201,6 +3963,7 @@ sub read_config_data
 	{
 	  $limits{$key}=$limit eq "null"? undef : $limit;
 	  $prompts{$key}=length($prompt) ? substr($prompt,2) : "";
+	  $last_read=$key;
 	  delete $limits{'restart'};
 	}
 	else
@@ -3213,6 +3976,11 @@ sub read_config_data
 	  $limits{'restart'}{'tohigh'} = $limit;
 	}
       }
+    }
+    elsif (/\s*###(.*)$/)    # log line
+    {
+       # add log line for previously read key
+       $log{$last_read} .= "$1\n";
     }
     elsif (!/^\s*$/ && !/^\#/)
     {
@@ -3235,6 +4003,17 @@ sub save_config_data
   print CONFIG_FILE "$key=$limit\t# $prompt\n";
   $limits{$key}=$limit;
   $limit_changed=1;
+# now write log lines (immediatelly after limits)
+  my $line;
+  my $last_line_was_empty=0;
+  foreach $line (split /\n/, $log{$key})
+  {
+    print CONFIG_FILE "   ###$line\n" 
+	unless ( ($last_line_was_empty eq 1)  
+	         && ($line =~ /^\s+$/)  );
+    $last_line_was_empty= ($line =~ /^\s+$/)?1:0;
+  };     
+
   if (($opt_restart && $limits{'operating_system'} =~ /windows/i) ||
 		       ($limits{'operating_system'} =~ /NT/))
   {
@@ -3245,6 +4024,12 @@ sub save_config_data
   }
 }
 
+sub add_log
+{
+  my $key = shift;
+  my $line = shift;
+  $log{$key} .= $line . "\n" if ($opt_verbose);;  
+}
 
 sub save_all_config_data
 {
@@ -3258,12 +4043,21 @@ sub save_all_config_data
   select STDOUT;
   delete $limits{'restart'};
 
-  print CONFIG_FILE "#This file is automaticly generated by crash-me $version\n\n";
+  print CONFIG_FILE 
+       "#This file is automaticly generated by crash-me $version\n\n";
   foreach $key (sort keys %limits)
   {
     $tmp="$key=$limits{$key}";
     print CONFIG_FILE $tmp . ("\t" x (int((32-min(length($tmp),32)+7)/8)+1)) .
       "# $prompts{$key}\n";
+     my $line;
+     my $last_line_was_empty=0;
+     foreach $line (split /\n/, $log{$key})
+     {
+        print CONFIG_FILE "   ###$line\n" unless 
+	      ( ($last_line_was_empty eq 1) && ($line =~ /^\s*$/));
+        $last_line_was_empty= ($line =~ /^\s*$/)?1:0;
+     };     
   }
   close CONFIG_FILE;
 }
@@ -3540,7 +4334,6 @@ sub new
   $self->{'check'}=$check;
   bless $self;
 }
-
 
 sub query
 {
@@ -3832,7 +4625,8 @@ sub query
   $self->{'limit'}=$limit;
 
   $res=$parts=$values="";
-  $size=main::min($main::limits{'max_index_part_length'},$main::limits{'max_char_size'});
+  $size=main::min($main::limits{'max_index_part_length'},
+       $main::limits{'max_char_size'});
   $size=1 if ($size == 0);	# Avoid infinite loop errors
   for ($length=$i=0; $length + $size <= $limit ; $length+=$size, $i++)
   {

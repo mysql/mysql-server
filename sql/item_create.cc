@@ -303,6 +303,18 @@ Item *create_func_pow(Item* a, Item *b)
   return new Item_func_pow(a,b);
 }
 
+Item *create_func_current_user()
+{
+  THD *thd=current_thd;
+  char buff[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  uint length;
+
+  length= (uint) (strxmov(buff, thd->priv_user, "@", thd->host_or_ip, NullS) -
+		  buff);
+  return new Item_string("CURRENT_USER()", thd->memdup(buff, length), length,
+			 default_charset_info);
+}
+
 Item *create_func_quarter(Item* a)
 {
   return new Item_func_quarter(a);
@@ -406,7 +418,7 @@ Item *create_func_ucase(Item* a)
 
 Item *create_func_version(void)
 {
-  return new Item_string(NullS,server_version, 
+  return new Item_string("VERSION()",server_version, 
 			 (uint) strlen(server_version),
 			 default_charset_info);
 }

@@ -662,7 +662,12 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
 		    rli->linfo.log_file_name);
     goto err;
   }
+  /*
+    Reset position to current log.  This involves setting both of the
+    position variables:
+  */
   rli->relay_log_pos = BIN_LOG_HEADER_SIZE;
+  rli->pending = 0;
   strmake(rli->relay_log_name,rli->linfo.log_file_name,
 	  sizeof(rli->relay_log_name)-1);
 
@@ -1121,8 +1126,20 @@ bool MYSQL_LOG::write(Log_event* event_info)
 
     if (file == &log_file)
     {
-      error = ha_report_binlog_offset_and_commit(thd, log_file_name,
+      /*
+	LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
+	chunks also before it is successfully completed. We only report
+	the binlog write and do the commit inside the transactional table
+	handler if the log event type is appropriate.
+      */
+
+      if (event_info->get_type_code() == QUERY_EVENT
+          || event_info->get_type_code() == EXEC_LOAD_EVENT)
+      {
+	error = ha_report_binlog_offset_and_commit(thd, log_file_name,
                                                  file->pos_in_file);
+      }
+
       should_rotate= (my_b_tell(file) >= (my_off_t) max_binlog_size); 
     }
 
@@ -1165,7 +1182,7 @@ uint MYSQL_LOG::next_file_id()
 
   NOTE
     - We only come here if there is something in the cache.
-    - The thing in the cache is always a complete transcation
+    - The thing in the cache is always a complete transaction
     - 'cache' needs to be reinitialized after this functions returns.
 
   IMPLEMENTATION
@@ -1233,6 +1250,13 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 					    log_file.pos_in_file)))
       goto err;
     signal_update();
+    if (my_b_tell(&log_file) >= (my_off_t) max_binlog_size)
+    {
+      pthread_mutex_lock(&LOCK_index);
+      new_file(0); // inside mutex
+      pthread_mutex_unlock(&LOCK_index);
+    }
+
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
   DBUG_RETURN(0);

@@ -696,20 +696,48 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
   return 0;
 }
 
+
+/*
+  Remove all relay logs and start replication from the start
+
+  SYNOPSIS
+    reset_slave()
+    thd			Thread handler
+    mi			Master info for the slave
+
+
+  NOTES
+    We don't send ok in this functions as this is called from
+    reload_acl_and_cache() which may have done other tasks, which may
+    have failed for which we want to send and error.
+
+  RETURN
+    0	ok
+    1	error
+	In this case error is sent to the client with send_error()
+*/
+
+
 int reset_slave(THD *thd, MASTER_INFO* mi)
 {
   MY_STAT stat_area;
   char fname[FN_REFLEN];
-  int restart_thread_mask = 0,error=0;
+  int thread_mask= 0, error= 0;
+  uint sql_errno=0;
   const char* errmsg=0;
   DBUG_ENTER("reset_slave");
 
   lock_slave_threads(mi);
-  init_thread_mask(&restart_thread_mask,mi,0 /* not inverse */);
-  if ((error=terminate_slave_threads(mi,restart_thread_mask,1 /*skip lock*/))
-      || (error=purge_relay_logs(&mi->rli, thd,
-				 1 /* just reset */,
-				 &errmsg)))
+  init_thread_mask(&thread_mask,mi,0 /* not inverse */);
+  if (thread_mask) // We refuse if any slave thread is running
+  {
+    sql_errno= ER_SLAVE_MUST_STOP;
+    error=1;
+    goto err;
+  }
+  if ((error= purge_relay_logs(&mi->rli, thd,
+			       1 /* just reset */,
+			       &errmsg)))
     goto err;
   
   end_master_info(mi);
@@ -725,16 +753,14 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
     error=1;
     goto err;
   }
-  if (restart_thread_mask)
-    error=start_slave_threads(0 /* mutex not needed */,
-			      1 /* wait for start*/,
-			      mi,master_info_file,relay_log_info_file,
-			      restart_thread_mask);
-  // TODO: fix error messages so they get to the client
+
 err:
   unlock_slave_threads(mi);
+  if (thd && error) 
+    send_error(thd, sql_errno, errmsg);
   DBUG_RETURN(error);
 }
+
 
 void kill_zombie_dump_threads(uint32 slave_server_id)
 {
@@ -767,23 +793,20 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
 
 int change_master(THD* thd, MASTER_INFO* mi)
 {
-  int error=0,restart_thread_mask;
+  int thread_mask;
   const char* errmsg=0;
   bool need_relay_log_purge=1;
   DBUG_ENTER("change_master");
 
-  // kill slave thread
   lock_slave_threads(mi);
-  init_thread_mask(&restart_thread_mask,mi,0 /*not inverse*/);
-  if (restart_thread_mask &&
-      (error=terminate_slave_threads(mi,
-				     restart_thread_mask,
-				     1 /*skip lock*/)))
+  init_thread_mask(&thread_mask,mi,0 /*not inverse*/);
+  if (thread_mask) // We refuse if any slave thread is running
   {
-    send_error(thd,error);
+    net_printf(thd,ER_SLAVE_MUST_STOP);
     unlock_slave_threads(mi);
     DBUG_RETURN(1);
   }
+
   thd->proc_info = "changing master";
   LEX_MASTER_INFO* lex_mi = &thd->lex.mi;
   // TODO: see if needs re-write
@@ -852,6 +875,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
 			 &errmsg))
     {
       net_printf(thd, 0, "Failed purging old relay logs: %s",errmsg);
+      unlock_slave_threads(mi);
       DBUG_RETURN(1);
     }
   }
@@ -882,18 +906,9 @@ int change_master(THD* thd, MASTER_INFO* mi)
   pthread_cond_broadcast(&mi->data_cond);
   pthread_mutex_unlock(&mi->rli.data_lock);
 
-  thd->proc_info = "starting slave";
-  if (restart_thread_mask) 
-      error=start_slave_threads(0 /* mutex not needed*/,
-			        1 /* wait for start*/,
-			        mi,master_info_file,relay_log_info_file,
-				restart_thread_mask);
   unlock_slave_threads(mi);
   thd->proc_info = 0;
-  if (error)
-    send_error(thd,error);
-  else
-    send_ok(thd);
+  send_ok(thd);
   DBUG_RETURN(0);
 }
 

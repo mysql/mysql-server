@@ -323,11 +323,12 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos, ushort flags);
-int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists);
+int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
+		   my_bool drop_temporary);
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
-			 bool log_query);
+			 bool drop_temporary, bool log_query);
 int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
-				   bool if_exists,
+				   bool if_exists, bool drop_temporary,
 				   bool log_query);
 int quick_rm_table(enum db_type base,const char *db,
 		   const char *table_name);
