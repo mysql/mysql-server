@@ -234,7 +234,11 @@ public:
 
 class Item_sum_avg :public Item_sum_num
 {
-  void fix_length_and_dec() { decimals+=4; maybe_null=1; }
+  void fix_length_and_dec()
+  {
+    decimals=min(decimals+4, NOT_FIXED_DEC);
+    maybe_null=1;
+  }
 
   double sum;
   ulonglong count;
@@ -276,7 +280,11 @@ class Item_sum_std :public Item_sum_num
   double sum;
   double sum_sqr;
   ulonglong count;
-  void fix_length_and_dec() { decimals+=4; maybe_null=1; }
+  void fix_length_and_dec()
+  {
+    decimals=min(decimals+4, NOT_FIXED_DEC);
+    maybe_null=1;
+  }
 
   public:
   Item_sum_std(Item *item_par) :Item_sum_num(item_par),count(0) {}
