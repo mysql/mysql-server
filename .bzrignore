@@ -791,3 +791,4 @@ sql/my_time.c
 libmysql/my_time.c
 libmysqld/my_time.c
 sql/mysql_tzinfo_to_sql
+sql/mysql_tzinfo_to_sql.cc
