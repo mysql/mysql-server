@@ -252,8 +252,8 @@ mutex_enter_func(
 
   mutex->count_using++;
 	
-	if (!mutex_test_and_set(mutex))
-	{
+  if (!mutex_test_and_set(mutex))
+  {
 #ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
 #endif

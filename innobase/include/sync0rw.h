@@ -61,7 +61,7 @@ Creates, or rather, initializes an rw-lock object in a specified memory
 location (which must be appropriately aligned). The rw-lock is initialized
 to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
 is necessary only if the memory block containing it is freed. */
-#define rw_lock_create(L)	rw_lock_create_func(\
+#define rw_lock_create(L) rw_lock_create_func(\
             (L), __FILE__, __LINE__, __STRING(L))
           
 /*=====================*/
@@ -76,8 +76,8 @@ rw_lock_create_func(
 /*================*/
 	rw_lock_t*	lock,		/* in: pointer to memory */
 	const char*	cfile_name,	/* in: file name where created */
-  ulint		cline,		/* in: file line where created */
-  const char*	cmutex_name);	/* in: mutex name */
+  ulint cline,  /* in: file line where created */
+  const char* cmutex_name); /* in: mutex name */
 /**********************************************************************
 Calling this function is obligatory only if the memory buffer containing
 the rw-lock is freed. Removes an rw-lock object from the global list. The

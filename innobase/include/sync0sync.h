@@ -17,7 +17,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "sync0arr.h"
 
-extern my_bool	timed_mutexes;
+extern my_bool  timed_mutexes;
 
 /**********************************************************************
 Initializes the synchronization data structures. */
@@ -50,8 +50,8 @@ mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
 	const char*	cfile_name,	/* in: file name where created */
-	ulint		cline,		/* in: file line where created */
-	const char*	cmutex_name);	/* in: mutex name */
+  ulint cline,  /* in: file line where created */
+  const char* cmutex_name); /* in: mutex name */
 /**********************************************************************
 Calling this function is obligatory only if the memory buffer containing
 the mutex is freed. Removes a mutex object from the mutex list. The mutex
@@ -480,7 +480,7 @@ struct mutex_struct {
   ulong count_os_yield; /* count of os_wait */
   ulonglong lspent_time; /* mutex os_wait timer msec */
   ulonglong lmax_spent_time; /* mutex os_wait timer msec */
-  const char*	cmutex_name;/* mutex name  */
+  const char* cmutex_name;/* mutex name  */
   ulint mutex_type;/* 0 - usual mutex 1 - rw_lock mutex  */
 };
 
@@ -516,10 +516,10 @@ extern ibool	sync_order_checks_on;
 extern ibool	sync_initialized;
 
 /* Global list of database mutexes (not OS mutexes) created. */
-UT_LIST_BASE_NODE_T(mutex_t)	mutex_list;
+UT_LIST_BASE_NODE_T(mutex_t)  mutex_list;
 
 /* Mutex protecting the mutex_list variable */
-mutex_t		mutex_list_mutex;
+mutex_t mutex_list_mutex;
 
 
 #ifndef UNIV_NONINL

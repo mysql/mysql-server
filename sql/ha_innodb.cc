@@ -5550,7 +5550,9 @@ innodb_mutex_show_status(
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-//  mutex_enter(&mutex_list_mutex);
+#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
+    mutex_enter(&mutex_list_mutex);
+#endif
 
   mutex = UT_LIST_GET_FIRST(mutex_list);
 
@@ -5572,7 +5574,9 @@ innodb_mutex_show_status(
 
         if (protocol->write())
         {
-//          mutex_exit(&mutex_list_mutex);
+#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
+          mutex_exit(&mutex_list_mutex);
+#endif
           DBUG_RETURN(1);
         }
       }
@@ -5602,12 +5606,12 @@ innodb_mutex_show_status(
 
   if (protocol->write())
   {
-//          mutex_exit(&mutex_list_mutex);
     DBUG_RETURN(1);
   }
 
-
-//          mutex_exit(&mutex_list_mutex);
+#ifdef MUTEX_PROTECT_TO_BE_ADDED_LATER
+      mutex_exit(&mutex_list_mutex);
+#endif
   send_eof(thd);
   DBUG_RETURN(FALSE);
 }

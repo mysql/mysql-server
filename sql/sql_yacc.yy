@@ -337,7 +337,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	MAX_UPDATES_PER_HOUR
 %token	MEDIUM_SYM
 %token	MIN_ROWS
-%token	MUTEX_SYM
+%token  MUTEX_SYM
 %token	NAMES_SYM
 %token	NAME_SYM
 %token	NATIONAL_SYM
@@ -6990,7 +6990,7 @@ keyword:
 	| MULTILINESTRING	{}
 	| MULTIPOINT		{}
 	| MULTIPOLYGON		{}
-	| MUTEX_SYM		{}
+  | MUTEX_SYM   {}
 	| NAME_SYM              {}
 	| NAMES_SYM		{}
 	| NATIONAL_SYM		{}
