@@ -260,15 +260,14 @@ void _ftb_climb_the_tree(FTB_WORD *ftbw, my_off_t curdoc)
     else
  /* if (yn==0) */
     {
+      ftbe->cur_weight+=weight;
       if (ftbe->yesses >= ftbe->ythresh && !ftbe->nos)
       {
         yn=ftbe->yesno;
-        ftbe->cur_weight=weight;
         weight*=ftbe->weight;
       }
       else
       {
-        ftbe->cur_weight+=weight;
         break;
       }
     }
