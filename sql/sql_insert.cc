@@ -127,9 +127,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   if (thd->master_access & SUPER_ACL)
   {
     if (!(thd->options & OPTION_UPDATE_LOG))
-      log_on &= ~(int) DELAYED_LOG_UPDATE ;
+      log_on&= ~(int) DELAYED_LOG_UPDATE;
     if (!(thd->options & OPTION_BIN_LOG))
-      log_on &= ~(int) DELAYED_LOG_BIN ;
+      log_on&= ~(int) DELAYED_LOG_BIN;
   }
 
   /*
