@@ -6245,7 +6245,7 @@ static MY_CHARSET_HANDLER my_charset_big5_handler=
   mbcharlen_big5,
   my_numchars_mb,
   my_charpos_mb,
-  my_wellformedlen_mb,
+  my_well_formed_len_mb,
   my_lengthsp_8bit,
   my_mb_wc_big5,	/* mb_wc       */
   my_wc_mb_big5,	/* wc_mb       */

@@ -4075,10 +4075,10 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     Make sure we don't break a multibyte sequence
     as well as don't copy a malformed data.
   */
-  copy_length= field_charset->cset->wellformedlen(field_charset,
-						  from,from+length,
-						  field_length/
-						  field_charset->mbmaxlen);
+  copy_length= field_charset->cset->well_formed_len(field_charset,
+						    from,from+length,
+						    field_length/
+						    field_charset->mbmaxlen);
   memcpy(ptr,from,copy_length);
   if (copy_length < field_length)	// Append spaces if shorter
     field_charset->cset->fill(field_charset,ptr+copy_length,
@@ -4571,11 +4571,15 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     }
     
     copy_length= max_data_length();
-    if (copy_length > length)
-      copy_length= length;
-    copy_length= field_charset->cset->wellformedlen(field_charset,
-                                                    from,from+copy_length,
-                                                    field_length);
+    /*
+      copy_length is ok as last argument to well_formed_len as this is never
+      used to limit the length of the data. The cut of long data is done with
+      the 'min()' call below.
+    */
+    copy_length= field_charset->cset->well_formed_len(field_charset,
+						      from,from +
+						      min(length, copy_length),
+						      copy_length);
     if (copy_length < length)
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
     

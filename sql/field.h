@@ -953,14 +953,9 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const
   { return (uint32) (packlength+table->blob_ptr_size); }
-  uint32 max_data_length() const
+  inline uint32 max_data_length() const
   {
-    switch (packlength) {
-    case 1: return 255;
-    case 2: return (uint32) 0xFFFFL;
-    case 3: return (uint32) 0xFFFFFF;
-    default: return (uint32) 0xFFFFFFFF;
-    }
+    return (uint32) (((ulonglong) 1 << (packlength*8)) -1);
   }
   void reset(void) { bzero(ptr, packlength+sizeof(char*)); }
   void reset_fields() { bzero((char*) &value,sizeof(value)); }

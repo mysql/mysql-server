@@ -1089,100 +1089,86 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   DBUG_RETURN(0);
 }
 
-static inline const char *require_quotes(const char *name, uint length)
-{
-  uint i, d, c;
-  for (i=0; i<length; i+=d)
-  {
-    c=((uchar *)name)[i];
-    d=my_mbcharlen(system_charset_info, c);
-    if (d==1 && !system_charset_info->ident_map[c])
-      return name+i;
-  }
-  return 0;
-}
-
 /*
-  Looking for char in multibyte string
+  Go through all character combinations and ensure that sql_lex.cc can
+  parse it as an identifer.
 
   SYNOPSIS
-    look_for_char()
-    name      string for looking at
-    length    length of name
-    q         '\'' or '\"' for looking for
+  require_quotes()
+  name			attribute name
+  name_length		length of name
 
-  RETURN VALUES
-    # pointer to found char in string
-    0 string doesn't contain required char
+  RETURN
+    #	Pointer to conflicting character
+    0	No conflicting character
 */
 
-static inline const char *look_for_char(const char *name, 
-					uint length, char q)
+static const char *require_quotes(const char *name, uint name_length)
 {
-  const char *cur= name;
-  const char *end= cur+length;
-  uint symbol_length;
-  for (; cur<end; cur+= symbol_length)
+  uint length;
+  const char *end= name + name_length;
+
+  for ( ; name < end ; name++)
   {
-    char c= *cur;
-    symbol_length= my_mbcharlen(system_charset_info, c);
-    if (symbol_length==1 && c==q)
-      return cur;
+    uchar chr= (uchar) *name;
+    length= my_mbcharlen(system_charset_info, chr);
+    if (length == 1 && !system_charset_info->ident_map[chr])
+      return name;
   }
   return 0;
 }
+
+
+static void append_quoted_simple_identifier(String *packet, char quote_char,
+					    const char *name, uint length)
+{
+  packet->append(&quote_char, 1, system_charset_info);
+  packet->append(name, length, system_charset_info);
+  packet->append(&quote_char, 1, system_charset_info);
+}  
+
 
 void
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
-  char qtype;
+  const char *name_end;
+  char quote_char;
   uint part_len;
-  const char *qplace;
+
   if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
-    qtype= '\"';
+    quote_char= '\"';
   else
-    qtype= '`';
+    quote_char= '`';
 
   if (is_keyword(name,length))
   {
-    packet->append(&qtype, 1, system_charset_info);
-    packet->append(name, length, system_charset_info);
-    packet->append(&qtype, 1, system_charset_info);
+    append_quoted_simple_identifier(packet, quote_char, name, length);
+    return;
   }
-  else
+
+  if (!require_quotes(name, length))
   {
-    if (!(qplace= require_quotes(name, length)))
-    {
-      if (!(thd->options & OPTION_QUOTE_SHOW_CREATE))
-	packet->append(name, length, system_charset_info);
-      else
-      {
-	packet->append(&qtype, 1, system_charset_info);
-	packet->append(name, length, system_charset_info);
-	packet->append(&qtype, 1, system_charset_info);
-      }
-    }
-    else
-    {
-      packet->shrink(packet->length()+length+2);
-      packet->append(&qtype, 1, system_charset_info);
-      if (*qplace != qtype)
-	qplace= look_for_char(qplace+1,length-(qplace-name)-1,qtype);
-      while (qplace)
-      {
-	if ((part_len= qplace-name))
-	{
-	  packet->append(name, part_len, system_charset_info);
-	  length-= part_len;
-	}
-	packet->append(qplace, 1, system_charset_info);
-	name= qplace;
-	qplace= look_for_char(name+1,length-1,qtype);
-      }
+    if (!(thd->options & OPTION_QUOTE_SHOW_CREATE))
       packet->append(name, length, system_charset_info);
-      packet->append(&qtype, 1, system_charset_info);
-    }
+    else
+      append_quoted_simple_identifier(packet, quote_char, name, length);
+    return;
   }
+
+  /* The identifier must be quoted as it includes a quote character */
+
+  packet->reserve(length*2 + 2);
+  packet->append(&quote_char, 1, system_charset_info);
+
+  for (name_end= name+length ; name < name_end ; name+= length)
+  {
+    char chr= *name;
+    length= my_mbcharlen(system_charset_info, chr);
+    if (length == 1 && chr == quote_char)
+      packet->append(&quote_char, 1, system_charset_info);
+    packet->append(name, length, packet->charset());
+  }
+  packet->append(&quote_char, 1, system_charset_info);
 }
 
 

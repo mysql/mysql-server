@@ -35,14 +35,12 @@ drop table t1;
 create table t1 (word char(20) not null);
 load data infile '../../std_data/words.dat' into table t1 ignore 1 lines;
 select count(*) from t1;
-create table t2 like t1;
 drop table t1;
 --replace_result $VERSION VERSION
 show binlog events;
 show binlog events from 79 limit 1;
 show binlog events from 79 limit 2;
 show binlog events from 79 limit 2,1;
-show binlog events from 79 limit 2,2;
 flush logs;
 
 # We need an extra update before doing save_master_pos.
