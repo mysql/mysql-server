@@ -184,6 +184,11 @@ static int STDCALL emb_stmt_execute(MYSQL_STMT *stmt)
   THD *thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
+  if (thd->data)
+  {
+    free_rows(thd->data);
+    thd->data= 0;
+  }
   if (emb_advanced_command(stmt->mysql, COM_EXECUTE,0,0,
 			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),1)
       || emb_mysql_read_query_result(stmt->mysql))
