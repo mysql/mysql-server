@@ -137,6 +137,7 @@ void kill_one_thread(THD *thd, ulong id);
 #define TEST_READCHECK		64	/* Force use of readcheck */
 #define TEST_NO_EXTRA		128
 #define TEST_CORE_ON_SIGNAL	256	/* Give core if signal */
+#define TEST_NO_STACKTRACE	512
 
 /* options for select set by the yacc parser (stored in lex->options) */
 #define SELECT_DISTINCT		1

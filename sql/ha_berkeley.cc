@@ -1307,13 +1307,19 @@ int ha_berkeley::index_init(uint keynr)
   int error;
   DBUG_ENTER("index_init");
   DBUG_PRINT("enter",("table: '%s'  key: %d", table->real_name, keynr));
+
+  /*
+    Under some very rare conditions (like full joins) we may already have
+    an active cursor at this point
+  */
+  if (cursor)
+    cursor->c_close(cursor);
   active_index=keynr;
-  dbug_assert(cursor == 0);
   if ((error=key_file[keynr]->cursor(key_file[keynr], transaction, &cursor,
 				     table->reginfo.lock_type >
 				     TL_WRITE_ALLOW_READ ?
 				     0 : 0)))
-    cursor=0;					// Safety /* purecov: inspected */
+    cursor=0;				// Safety /* purecov: inspected */
   bzero((char*) &last_key,sizeof(last_key));
   DBUG_RETURN(error);
 }

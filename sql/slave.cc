@@ -588,7 +588,7 @@ int show_master_info(THD* thd)
   net_store_data(packet, (uint32) glob_mi.port);
   net_store_data(packet, (uint32) glob_mi.connect_retry);
   net_store_data(packet, glob_mi.log_file_name);
-  net_store_data(packet, (uint32) glob_mi.pos);
+  net_store_data(packet, (uint32) glob_mi.pos);	// QQ: Should be fixed
   pthread_mutex_unlock(&glob_mi.lock);
   pthread_mutex_lock(&LOCK_slave);
   net_store_data(packet, slave_running ? "Yes":"No");
@@ -619,7 +619,7 @@ int flush_master_info(MASTER_INFO* mi)
   return 0;
 }
 
-int st_master_info::wait_for_pos(THD* thd, String* log_name, ulong log_pos)
+int st_master_info::wait_for_pos(THD* thd, String* log_name, ulonglong log_pos)
 {
   if (!inited) return -1;
   bool pos_reached;
@@ -838,6 +838,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 {
   Log_event * ev = Log_event::read_log_event((const char*)net->read_pos + 1,
 					     event_len);
+  char llbuff[22];
   
   if (ev)
   {
@@ -1006,8 +1007,9 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 			TL_WRITE))
 	    thd->query_error = 1;
 	  if(thd->cuted_fields)
-	    sql_print_error("Slave: load data infile at position %d in log \
-'%s' produced %d warning(s)", glob_mi.pos, RPL_LOG_NAME, thd->cuted_fields );
+	    sql_print_error("Slave: load data infile at position %s in log \
+'%s' produced %d warning(s)", llstr(glob_mi.pos,llbuff), RPL_LOG_NAME,
+			    thd->cuted_fields );
 	  net->pkt_nr = thd->net.pkt_nr;
 	}
       }
@@ -1124,6 +1126,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 #endif  
   THD *thd; // needs to be first for thread_stack
   MYSQL *mysql = NULL ;
+  char llbuff[22];
 
   pthread_mutex_lock(&LOCK_slave);
   if (!server_id)
@@ -1150,7 +1153,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   
   int error = 1;
   bool retried_once = 0;
-  uint32 last_failed_pos = 0;
+  ulonglong last_failed_pos = 0;
   
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
@@ -1168,8 +1171,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   thd->temporary_tables = save_temporary_tables; // restore temp tables
   threads.append(thd);
   
-  DBUG_PRINT("info",("master info: log_file_name=%s, position=%d",
-		     glob_mi.log_file_name, glob_mi.pos));
+  DBUG_PRINT("info",("master info: log_file_name=%s, position=%s",
+		     glob_mi.log_file_name, llstr(glob_mi.pos,llbuff)));
 
   
   if (!(mysql = mc_mysql_init(NULL)))
@@ -1183,17 +1186,17 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   sql_print_error("Slave thread initialized");
 #endif
   // we can get killed during safe_connect
-  if(!safe_connect(thd, mysql, &glob_mi))
+  if (!safe_connect(thd, mysql, &glob_mi))
    sql_print_error("Slave: connected to master '%s@%s:%d',\
-  replication started in log '%s' at position %ld", glob_mi.user,
-		  glob_mi.host, glob_mi.port,
-		  RPL_LOG_NAME,
-		  glob_mi.pos);
+  replication started in log '%s' at position %s", glob_mi.user,
+		   glob_mi.host, glob_mi.port,
+		   RPL_LOG_NAME,
+		   llstr(glob_mi.pos,llbuff));
   else
-    {
-      sql_print_error("Slave thread killed while connecting to master");
-      goto err;
-    }
+  {
+    sql_print_error("Slave thread killed while connecting to master");
+    goto err;
+  }
   
   while (!slave_killed(thd))
   {
@@ -1227,9 +1230,10 @@ dump");
 	    }
 
 	  thd->proc_info = "Reconnecting after a failed dump request";
+	  last_failed_pos=glob_mi.pos;
           sql_print_error("Slave: failed dump request, reconnecting to \
-try again, log '%s' at postion %ld", RPL_LOG_NAME,
-			  last_failed_pos = glob_mi.pos );
+try again, log '%s' at postion %s", RPL_LOG_NAME,
+			  llstr(last_failed_pos,llbuff));
 	  if(safe_reconnect(thd, mysql, &glob_mi) || slave_killed(thd))
 	    {
 	      sql_print_error("Slave thread killed during or after reconnect");
@@ -1267,9 +1271,10 @@ reconnect after a failed read");
 	        goto err;
 	      }
 	    thd->proc_info = "Reconnecting after a failed read";
+	    last_failed_pos= glob_mi.pos;
 	    sql_print_error("Slave: Failed reading log event, \
-reconnecting to retry, log '%s' position %ld", RPL_LOG_NAME,
-			    last_failed_pos = glob_mi.pos);
+reconnecting to retry, log '%s' position %s", RPL_LOG_NAME,
+			    llstr(last_failed_pos, llbuff));
 	    if(safe_reconnect(thd, mysql, &glob_mi) || slave_killed(thd))
 	      {
 		sql_print_error("Slave thread killed during or after a \
@@ -1285,8 +1290,8 @@ reconnect done to recover from failed read");
 	      sql_print_error("\
 Error running query, slave aborted. Fix the problem, and re-start \
 the slave thread with \"mysqladmin start-slave\". We stopped at log \
-'%s' position %ld",
-			      RPL_LOG_NAME, glob_mi.pos);
+'%s' position %s",
+			      RPL_LOG_NAME, llstr(glob_mi.pos, llbuff));
 	      goto err;
 	      // there was an error running the query
 	      // abort the slave thread, when the problem is fixed, the user
@@ -1328,8 +1333,8 @@ the slave thread with \"mysqladmin start-slave\". We stopped at log \
  err:
   // print the current replication position 
   sql_print_error("Slave thread exiting, replication stopped in log '%s' at \
-position %ld",
-		  RPL_LOG_NAME, glob_mi.pos);
+position %s",
+		  RPL_LOG_NAME, llstr(glob_mi.pos,llbuff));
   thd->query = thd->db = 0; // extra safety
   if(mysql)
       mc_mysql_close(mysql);
@@ -1382,6 +1387,8 @@ static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 {
   int slave_was_killed;
+  char llbuff[22];
+
  // if we lost connection after reading a state set event
   // we will be re-reading it, so pending needs to be cleared
   mi->pending = 0;
@@ -1398,10 +1405,10 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 
   if(!slave_was_killed)
     sql_print_error("Slave: reconnected to master '%s@%s:%d',\
-replication resumed in log '%s' at position %ld", glob_mi.user,
-		  glob_mi.host, glob_mi.port,
-		  RPL_LOG_NAME,
-		  glob_mi.pos);
+replication resumed in log '%s' at position %s", glob_mi.user,
+		    glob_mi.host, glob_mi.port,
+		    RPL_LOG_NAME,
+		    llstr(glob_mi.pos,llbuff));
 
   return slave_was_killed;
 }
