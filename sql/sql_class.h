@@ -374,6 +374,7 @@ struct system_variables
   my_bool log_warnings;
   my_bool low_priority_updates;
   my_bool new_mode;
+  my_bool convert_result_charset;
 
   CHARSET_INFO 	*thd_charset;
 };

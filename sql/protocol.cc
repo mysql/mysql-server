@@ -703,11 +703,13 @@ bool Protocol_simple::store(const char *from, uint length, CHARSET_INFO *cs)
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
 #endif
-  if (cs != this->thd->charset())
+  if (!my_charset_same(cs, this->thd->charset()) &&
+      (cs != &my_charset_bin) &&
+      (this->thd->charset() != &my_charset_bin) &&
+      (this->thd->variables.convert_result_charset))
   {
-    String tmp;
-    tmp.copy(from, length, cs, this->thd->charset());
-    return net_store_data(tmp.ptr(), tmp.length());
+    convert.copy(from, length, cs, this->thd->charset());
+    return net_store_data(convert.ptr(), convert.length());
   }
   else
     return net_store_data(from, length);
@@ -800,16 +802,18 @@ bool Protocol_simple::store(Field *field)
   field_pos++;
 #endif
   char buff[MAX_FIELD_WIDTH];
-  String tmp1(buff,sizeof(buff), &my_charset_bin);
-  field->val_str(&tmp1,&tmp1);
-  if (field->charset() != this->thd->charset())
+  String str(buff,sizeof(buff), &my_charset_bin);
+  field->val_str(&str,&str);
+  if (!my_charset_same(field->charset(), this->thd->charset()) &&
+      (field->charset() != &my_charset_bin) &&
+      (this->thd->charset() != &my_charset_bin) &&
+      (this->thd->variables.convert_result_charset))
   {
-    String tmp;
-    tmp.copy(tmp1.ptr(), tmp1.length(), tmp1.charset(), this->thd->charset());
-    return net_store_data(tmp.ptr(), tmp.length());
+    convert.copy(str.ptr(), str.length(), str.charset(), this->thd->charset());
+    return net_store_data(convert.ptr(), convert.length());
   }
   else
-    return net_store_data(tmp1.ptr(), tmp1.length());
+    return net_store_data(str.ptr(), str.length());
 }
 
 
