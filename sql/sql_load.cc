@@ -767,9 +767,13 @@ int READ_INFO::read_field()
 	  row_end=  to;
 	  return 0;
 	}
-	/* Copy the found '"' character */
+	/*
+	  The string didn't terminate yet.
+	  Store back next character for the loop
+	*/
 	PUSH(chr);
-	chr='"';
+	/* copy the found term character to 'to' */
+	chr= found_enclosed_char;
       }
       else if (chr == field_term_char && found_enclosed_char == INT_MAX)
       {
