@@ -71,9 +71,11 @@ void Querycache_stream::store_int(uint i)
     cur_data+= 4;
     return;
   }
-  memcpy(cur_data, &i, rest_len);
+  char buf[4];
+  int4store(buf, i);
+  memcpy(cur_data, buf, rest_len);
   use_next_block();
-  memcpy(cur_data, ((byte*)&i)+rest_len, 4-rest_len);
+  memcpy(cur_data, buf+rest_len, 4-rest_len);
   cur_data+= 4-rest_len;
 }
 
@@ -186,10 +188,12 @@ uint Querycache_stream::load_int()
     cur_data+= 4;
     return result;
   }
-  memcpy(&result, cur_data, rest_len);
+  char buf[4];
+  memcpy(buf, cur_data, rest_len);
   use_next_block();
-  memcpy(((byte*)&result)+rest_len, cur_data, 4-rest_len);
+  memcpy(buf+rest_len, cur_data, 4-rest_len);
   cur_data+= 4-rest_len;
+  result= uint4korr(buf);
   return result;
 }
 
@@ -270,10 +274,10 @@ int Querycache_stream::load_column(MEM_ROOT *alloc, char** column)
     return 0;
   }
   len--;
-  if (!(*column= (char *)alloc_root(alloc, len + 4 + 1)))
+  if (!(*column= (char *)alloc_root(alloc, len + sizeof(uint) + 1)))
     return 1;
-  int4store(*column, len);
-  (*column)+= 4;
+  *((uint*)*column)= len;
+  (*column)+= sizeof(uint);
   load_str_only(*column, len);
   return 1;
 }
