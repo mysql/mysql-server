@@ -2431,9 +2431,10 @@ mysql_init_select(LEX *lex)
 {
   SELECT_LEX *select_lex = lex->select;
   select_lex->where=select_lex->having=0;
-  select_lex->select_limit=current_thd->default_select_limit;
+  select_lex->select_limit=lex->thd->default_select_limit;
   select_lex->offset_limit=0;
-  select_lex->options=0; select_lex->linkage=UNSPECIFIED_TYPE;
+  select_lex->options=0;
+  select_lex->linkage=UNSPECIFIED_TYPE;
   lex->exchange = 0;
   lex->proc_list.first=0;
   select_lex->order_list.elements=select_lex->group_list.elements=0;
@@ -2444,17 +2445,24 @@ mysql_init_select(LEX *lex)
   select_lex->next = (SELECT_LEX *)NULL; 
 }
 
-void
+bool
 mysql_new_select(LEX *lex)
 {
   SELECT_LEX *select_lex = (SELECT_LEX *) lex->thd->calloc(sizeof(SELECT_LEX));
+  if (!select_lex)
+    return 1;
   lex->select->next=select_lex; 
   lex->select=select_lex;
   select_lex->table_list.next= (byte**) &select_lex->table_list.first;
-  select_lex->item_list.empty(); select_lex->when_list.empty(); 
-  select_lex->expr_list.empty();  select_lex->interval_list.empty(); 
-  select_lex->use_index.empty(); select_lex->ftfunc_list.empty();
+  select_lex->item_list.empty();
+  select_lex->when_list.empty(); 
+  select_lex->expr_list.empty();
+  select_lex->interval_list.empty(); 
+  select_lex->use_index.empty();
+  select_lex->ftfunc_list.empty();
+  return 0;
 }
+
 
 void
 mysql_parse(THD *thd,char *inBuf,uint length)
@@ -3035,7 +3043,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     reset_master();
   if (options & REFRESH_SLAVE)
     reset_slave();
-
+#ifdef OPENSSL
+  if (options & REFRESH_DES_KEY_FILE)
+  {
+    if (des_key_file)
+      result=load_des_key_file(des_key_file);
+  }
+#endif
   return result;
 }
 

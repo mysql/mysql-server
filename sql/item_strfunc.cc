@@ -209,78 +209,84 @@ void Item_func_concat::fix_length_and_dec()
   Function des_encrypt() by tonu@spam.ee & monty
   Works only if compiled with OpenSSL library support.
   This returns a binary string where first character is
-  CHAR(128 | tail-length << 4 | key-number).
-  If one uses a string key key_number is 0.
+  CHAR(128 | key-number).
+  If one uses a string key key_number is 127.
   Encryption result is longer than original by formula:
-  new_length= (8-(original_length % 8))+1
+  new_length= org_length + (8-(org_length % 8))+1
 */
 
 String *Item_func_des_encrypt::val_str(String *str)
 {
 #ifdef HAVE_OPENSSL
-  des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+  des_cblock ivec;
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
-  struct st_des_keyschedule *keyschedule_ptr;
   const char *append_str="********";
   uint key_number, res_length, tail;
   String *res= args[0]->val_str(str);
 
   if ((null_value=args[0]->null_value))
     return 0;
-  if (res->length() == 0)
+  if ((res_length=res->length()) == 0)
     return &empty_string;
 
   if (arg_count == 1)
-    keyschedule_ptr= &des_keyschedule[key_number=des_default_key];
+  {
+    /* Protect against someone doing FLUSH DES_KEY_FILE */
+    VOID(pthread_mutex_lock(&LOCK_des_key_file));
+    keyschedule= des_keyschedule[key_number=des_default_key];
+    VOID(pthread_mutex_unlock(&LOCK_des_key_file));
+  }
   else if (args[1]->result_type() == INT_RESULT)
   {
     key_number= (uint) args[1]->val_int();
     if (key_number > 9)
       goto error;
-    keyschedule_ptr= &des_keyschedule[key_number];
+    VOID(pthread_mutex_lock(&LOCK_des_key_file));
+    keyschedule= des_keyschedule[key_number];
+    VOID(pthread_mutex_unlock(&LOCK_des_key_file));
   }
   else
   {
-    uint tail,res_length;
     String *keystr=args[1]->val_str(&tmp_value);
     if (!keystr)
       goto error;
-    key_number=15;				// User key string
+    key_number=127;				// User key string
 
     /* We make good 24-byte (168 bit) key from given plaintext key with MD5 */
-    keyschedule_ptr= &keyschedule;
+    bzero((char*) &ivec,sizeof(ivec));
     EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		   (uchar*) keystr->ptr(), (int) keystr->length(),
 		   1, (uchar*) &keyblock,ivec);
-    des_set_key_unchecked(&keyblock.key1,keyschedule_ptr->ks1);
-    des_set_key_unchecked(&keyblock.key2,keyschedule_ptr->ks2);
-    des_set_key_unchecked(&keyblock.key3,keyschedule_ptr->ks3);
+    des_set_key_unchecked(&keyblock.key1,keyschedule.ks1);
+    des_set_key_unchecked(&keyblock.key2,keyschedule.ks2);
+    des_set_key_unchecked(&keyblock.key3,keyschedule.ks3);
   }
 
   /* 
      The problem: DES algorithm requires original data to be in 8-bytes
-     chunks. Missing bytes get filled with zeros and result of encryption 
-     can be up to 7 bytes longer than original string. When decrypted, 
+     chunks. Missing bytes get filled with '*'s and result of encryption 
+     can be up to 8 bytes longer than original string. When decrypted, 
      we do not know the size of original string :(
-     We add one byte with value 0x1..0x8 as the second byte to original
-     plaintext marking change of string length.
+     We add one byte with value 0x1..0x8 as the last byte of the padded
+     string marking change of string length.
   */
 
-  tail=  (7-(res->length()+7) % 8); 	// 0..7 marking extra length
-  res_length=res->length()+tail+1;
-  if (tail && res->append(append_str, tail) || tmp_value.alloc(res_length))
+  tail=  (8-(res_length) % 8);			// 1..8 marking extra length
+  res_length+=tail;
+  if (tail && res->append(append_str, tail) || tmp_value.alloc(res_length+1))
     goto error;
-
-  tmp_value.length(res_length);
-  tmp_value[0]=(char) (128 | tail << 4 | key_number);
+  (*res)[res_length-1]=tail;			// save extra length
+  tmp_value.length(res_length+1);
+  tmp_value[0]=(char) (128 | key_number);
   // Real encryption
+  bzero((char*) &ivec,sizeof(ivec));
   des_ede3_cbc_encrypt((const uchar*) (res->ptr()),
 		       (uchar*) (tmp_value.ptr()+1),
-		       res->length(),
-		       keyschedule_ptr->ks1,
-		       keyschedule_ptr->ks2,
-		       keyschedule_ptr->ks3, 
+		       res_length,
+		       keyschedule.ks1,
+		       keyschedule.ks2,
+		       keyschedule.ks3,
 		       &ivec, TRUE);
   return &tmp_value;
 
@@ -295,24 +301,27 @@ String *Item_func_des_decrypt::val_str(String *str)
 {
 #ifdef HAVE_OPENSSL
   des_key_schedule ks1, ks2, ks3;
-  des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+  des_cblock ivec;
   struct st_des_keyblock keyblock;
   struct st_des_keyschedule keyschedule;
-  struct st_des_keyschedule *keyschedule_ptr;
   String *res= args[0]->val_str(str);
+  uint length=res->length(),tail;
 
   if ((null_value=args[0]->null_value))
     return 0;
-  if (res->length() < 9 || (res->length() % 8) != 1 || !((*res)[0] & 128))
+  length=res->length();
+  if (length < 9 || (length % 8) != 1 || !((*res)[0] & 128))
     return res;				// Skip decryption if not encrypted
 
   if (arg_count == 1)			// If automatic uncompression
   {
-    uint key_number=(uint) (*res)[0] & 15;
+    uint key_number=(uint) (*res)[0] & 127;
     // Check if automatic key and that we have privilege to uncompress using it
     if (!(current_thd->master_access & PROCESS_ACL) || key_number > 9)
       goto error;
-    keyschedule_ptr= &des_keyschedule[key_number];
+    VOID(pthread_mutex_lock(&LOCK_des_key_file));
+    keyschedule= des_keyschedule[key_number];
+    VOID(pthread_mutex_unlock(&LOCK_des_key_file));
   }
   else
   {
@@ -321,26 +330,30 @@ String *Item_func_des_decrypt::val_str(String *str)
     if (!keystr)
       goto error;
 
-    keyschedule_ptr= &keyschedule;
+    bzero((char*) &ivec,sizeof(ivec));
     EVP_BytesToKey(EVP_des_ede3_cbc(),EVP_md5(),NULL,
 		   (uchar*) keystr->ptr(),(int) keystr->length(),
 		   1,(uchar*) &keyblock,ivec);
     // Here we set all 64-bit keys (56 effective) one by one
-    des_set_key_unchecked(&keyblock.key1,keyschedule_ptr->ks1);
-    des_set_key_unchecked(&keyblock.key2,keyschedule_ptr->ks2);
-    des_set_key_unchecked(&keyblock.key3,keyschedule_ptr->ks3); 
+    des_set_key_unchecked(&keyblock.key1,keyschedule.ks1);
+    des_set_key_unchecked(&keyblock.key2,keyschedule.ks2);
+    des_set_key_unchecked(&keyblock.key3,keyschedule.ks3); 
   }
-  if (tmp_value.alloc(res->length()-1))
+  if (tmp_value.alloc(length-1))
     goto error;
-  /* Restore old length of key */
-  tmp_value.length(res->length()-1-(((uchar) (*res)[0] >> 4) & 7));
+
+  bzero((char*) &ivec,sizeof(ivec));
   des_ede3_cbc_encrypt((const uchar*) res->ptr()+1,
 		       (uchar*) (tmp_value.ptr()),
-		       res->length()-1,
-		       keyschedule_ptr->ks1,
-		       keyschedule_ptr->ks2,
-		       keyschedule_ptr->ks3,
+		       length-1,
+		       keyschedule.ks1,
+		       keyschedule.ks2,
+		       keyschedule.ks3,
 		       &ivec, FALSE);
+  /* Restore old length of key */
+  if ((tail=(uint) (uchar) tmp_value[length-2]) > 8)
+    goto error;					// Wrong key
+  tmp_value.length(length-1-tail);
   return &tmp_value;
 
 error:
@@ -1274,9 +1287,9 @@ String *Item_func_soundex::val_str(String *str)
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
 
-  if (str_value.alloc(max(res->length(),4)))
+  if (tmp_value.alloc(max(res->length(),4)))
     return str; /* purecov: inspected */
-  char *to= (char *) str_value.ptr();
+  char *to= (char *) tmp_value.ptr();
   char *from= (char *) res->ptr(), *end=from+res->length();
 
   while (from != end && isspace(*from)) // Skip pre-space
@@ -1300,11 +1313,11 @@ String *Item_func_soundex::val_str(String *str)
        last_ch = ch;			// save code of last input letter
     }					// for next double-letter check
   }
-  for (end=(char*) str_value.ptr()+4 ; to < end ; to++)
+  for (end=(char*) tmp_value.ptr()+4 ; to < end ; to++)
     *to = '0';
   *to=0;				// end string
-  str_value.length((uint) (to-str_value.ptr()));
-  return &str_value;
+  tmp_value.length((uint) (to-tmp_value.ptr()));
+  return &tmp_value;
 }
 
 
@@ -1758,6 +1771,45 @@ String *Item_func_conv::val_str(String *str)
     return &empty_string;
   return str;
 }
+
+
+String *Item_func_hex::val_str(String *str)
+{
+  if (args[0]->result_type() != STRING_RESULT)
+  {
+    /* Return hex of unsigned longlong value */
+    longlong dec= args[0]->val_int();
+    char ans[65],*ptr;
+    if ((null_value= args[0]->null_value))
+      return 0;
+    ptr= longlong2str(dec,ans,16);
+    if (str->copy(ans,(uint32) (ptr-ans)))
+      return &empty_string;			// End of memory
+    return str;
+  }
+
+  /* Convert given string to a hex string, character by character */
+  String *res= args[0]->val_str(str);
+  const char *from, *end;
+  char *to;
+  if (!res || tmp_value.alloc(res->length()*2))
+  {
+    null_value=1;
+    return 0;
+  }
+  null_value=0;
+  tmp_value.length(res->length()*2);
+  for (from=res->ptr(), end=from+res->length(), to= (char*) tmp_value.ptr();
+       from != end ;
+       from++, to+=2)
+  {
+    uint tmp=(uint) (uchar) *from;
+    to[0]=_dig_vec[tmp >> 4];
+    to[1]=_dig_vec[tmp & 15];
+  }
+  return &tmp_value;
+}
+
 
 #include <my_dir.h>				// For my_stat
 

@@ -171,13 +171,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DEMAND_SYM
 %token	DESC
 %token	DESCRIBE
-%token  DIRECTORY_SYM
-%token	DISTINCT
+%token	DES_KEY_FILE
 %token	DISABLE_SYM
+%token	DISTINCT
 %token	DYNAMIC_SYM
 %token	ENABLE_SYM
 %token	ENCLOSED
 %token	ESCAPED
+%token  DIRECTORY_SYM
 %token	ESCAPE_SYM
 %token	EXISTS
 %token	EXTENDED_SYM
@@ -2106,13 +2107,7 @@ order_dir:
 
 
 limit_clause:
-	/* empty */
-	{
-	  SELECT_LEX *sel=Select;
-	  sel->select_limit= (Lex->sql_command == SQLCOM_HA_READ) ?
-             1 : current_thd->default_select_limit;
-	  sel->offset_limit= 0L;
-	}
+	/* empty */ {}
 	| LIMIT ULONG_NUM
 	  {
 	    SELECT_LEX *sel=Select;
@@ -2511,13 +2506,14 @@ show_param:
 	  TEXT_STRING AND MASTER_LOG_POS_SYM EQ ulonglong_num AND
 	MASTER_LOG_SEQ_SYM EQ ULONG_NUM AND MASTER_SERVER_ID_SYM EQ
 	ULONG_NUM
-          {
-	    Lex->sql_command = SQLCOM_SHOW_NEW_MASTER;
-	    Lex->mi.log_file_name = $8.str;
-	    Lex->mi.pos = $12;
-	    Lex->mi.last_log_seq = $16;
-	    Lex->mi.server_id = $20;
-          }
+        {
+	  LEX *lex=Lex;
+	  lex->sql_command = SQLCOM_SHOW_NEW_MASTER;
+	  lex->mi.log_file_name = $8.str;
+	  lex->mi.pos = $12;
+	  lex->mi.last_log_seq = $16;
+	  lex->mi.server_id = $20;
+        }
         | MASTER_SYM LOGS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_BINLOGS;
@@ -2526,10 +2522,13 @@ show_param:
           {
 	    Lex->sql_command = SQLCOM_SHOW_SLAVE_HOSTS;
           }
-        | BINLOG_SYM EVENTS_SYM binlog_in binlog_from limit_clause
+        | BINLOG_SYM EVENTS_SYM binlog_in binlog_from
           {
-	    Lex->sql_command = SQLCOM_SHOW_BINLOG_EVENTS;
-          } 
+	    LEX *lex=Lex;
+	    lex->sql_command = SQLCOM_SHOW_BINLOG_EVENTS;
+	    lex->select->select_limit= lex->thd->default_select_limit;
+	    lex->select->offset_limit= 0L;
+          } limit_clause
 	| keys_or_index FROM table_ident opt_db
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
@@ -2642,6 +2641,7 @@ flush_option:
 	| STATUS_SYM	{ Lex->type|= REFRESH_STATUS; }
         | SLAVE         { Lex->type|= REFRESH_SLAVE; }
         | MASTER_SYM    { Lex->type|= REFRESH_MASTER; }
+	| DES_KEY_FILE	{ Lex->type|= REFRESH_DES_KEY_FILE; }
 
 opt_table_list:
 	/* empty */  {}
@@ -2912,27 +2912,28 @@ keyword:
 	| CIPHER_SYM		{}
 	| CLOSE_SYM		{}
 	| COMMENT_SYM		{}
-	| COMMIT_SYM		{}
 	| COMMITTED_SYM		{}
+	| COMMIT_SYM		{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
 	| DATE_SYM		{}
 	| DAY_SYM		{}
-	| DIRECTORY_SYM		{}
 	| DELAY_KEY_WRITE_SYM	{}
 	| DEMAND_SYM		{}
-        | DISABLE_SYM           {}
+	| DES_KEY_FILE		{}
+	| DIRECTORY_SYM		{}
 	| DUMPFILE		{}
 	| DYNAMIC_SYM		{}
-        | ENABLE_SYM            {}
 	| END			{}
 	| ENUM			{}
 	| ESCAPE_SYM		{}
 	| EVENTS_SYM		{}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
+        | DISABLE_SYM           {}
+        | ENABLE_SYM            {}
 	| FULL			{}
 	| FILE_SYM		{}
 	| FIRST_SYM		{}
@@ -3296,6 +3297,8 @@ handler:
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_HA_READ;
 	  lex->ha_rkey_mode= HA_READ_KEY_EXACT;	/* Avoid purify warnings */
+	  lex->select->select_limit= 1;
+	  lex->select->offset_limit= 0L;
 	  if (!add_table_to_list($2,0,0))
 	    YYABORT;
         }
@@ -3581,9 +3584,8 @@ union_list:
        net_printf(&lex->thd->net, ER_WRONG_USAGE,"UNION","INTO");
        YYABORT;
     } 
-    if (lex->select->linkage == NOT_A_SELECT)
+    if (lex->select->linkage == NOT_A_SELECT || mysql_new_select(lex))
       YYABORT;
-    mysql_new_select(lex);
     lex->select->linkage=UNION_TYPE;
   } 
   select_init
@@ -3597,11 +3599,11 @@ optional_order_or_limit:
   |
   {
     LEX *lex=Lex;
-    if (!lex->select->braces)
-      YYABORT;
-    mysql_new_select(lex);
+    if (!lex->select->braces || mysql_new_select(lex))
+     YYABORT;
     mysql_init_select(lex);
     lex->select->linkage=NOT_A_SELECT;
+    lex->select->select_limit=lex->thd->default_select_limit;
   }
   opt_order_clause limit_clause
 
