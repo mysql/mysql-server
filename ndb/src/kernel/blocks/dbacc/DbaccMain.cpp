@@ -2522,6 +2522,26 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     *sig = *req;
     return;
   }
+  operationRecPtr.i = req->accOpPtr;
+  ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+  fragrecptr.i = operationRecPtr.p->fragptr;
+  ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+  if (fragrecptr.p->keyLength == 0 &&
+      // should test some state variable
+      operationRecPtr.p->elementPage != RNIL) {
+    jam();
+    // re-compute long key vars
+    Page8Ptr tPageptr;
+    tPageptr.i = operationRecPtr.p->elementPage;
+    ptrCheckGuard(tPageptr, cpagesize, page8);
+    Uint32 tKeyptr =
+      operationRecPtr.p->elementPointer +
+      operationRecPtr.p->elementIsforward *
+      (ZELEM_HEAD_SIZE + fragrecptr.p->localkeylen);
+    tslcPageIndex = tPageptr.p->word32[tKeyptr] & 0x3ff;
+    tslcPagedir = tPageptr.p->word32[tKeyptr] >> 10;
+    searchLongKey(signal, false);
+  }
   if (lockOp == AccLockReq::Unlock) {
     jam();
     // do unlock via ACC_COMMITREQ (immediate)
