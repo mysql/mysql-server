@@ -93,11 +93,12 @@ class ha_ndbcluster: public handler
   const char * table_type() const { return("ndbcluster");}
   const char ** bas_ext() const;
   ulong table_flags(void) const { return m_table_flags; }
-  ulong index_flags(uint idx) const;
-  uint max_record_length() const { return NDB_MAX_TUPLE_SIZE; };
-  uint max_keys()          const { return MAX_KEY;  }
-  uint max_key_parts()     const { return NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY; };
-  uint max_key_length()    const { return NDB_MAX_KEY_SIZE;};
+  ulong index_flags(uint idx, uint part) const;
+  uint max_supported_record_length() const { return NDB_MAX_TUPLE_SIZE; };
+  uint max_supported_keys() const { return MAX_KEY;  }
+  uint max_supported_key_parts() const 
+    { return NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY; };
+  uint max_supported_key_length() const { return NDB_MAX_KEY_SIZE;};
 
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
@@ -227,6 +228,7 @@ int ndbcluster_discover(const char* dbname, const char* name,
 			const void** frmblob, uint* frmlen);
 int ndbcluster_drop_database(const char* path);
 
+void ndbcluster_print_error(int error);
 
 
 
