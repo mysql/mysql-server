@@ -1,0 +1,168 @@
+a	b
+a	35
+ac	2
+ad	4
+ä	1
+ae	3
+ää	31
+aeae	33
+ääa	32
+aeb	6
+Äc	5
+eä	28
+o	37
+oc	15
+od	18
+ö	14
+oe	17
+Öa	16
+oeb	20
+Öc	19
+öo	30
+q	34
+s	21
+ss	22
+ß	23
+ssa	25
+ßa	27
+ßb	24
+ssc	26
+u	36
+uc	8
+ud	10
+ue	9
+Ü	11
+ueb	12
+üc	7
+uf	13
+uü	29
+é	38
+É	39
+a	b
+a	35
+ac	2
+ad	4
+ä	1
+ae	3
+ää	31
+aeae	33
+ääa	32
+aeb	6
+Äc	5
+eä	28
+o	37
+oc	15
+od	18
+ö	14
+oe	17
+Öa	16
+oeb	20
+Öc	19
+öo	30
+q	34
+s	21
+ss	22
+ß	23
+ssa	25
+ßa	27
+ßb	24
+ssc	26
+u	36
+uc	8
+ud	10
+ue	9
+Ü	11
+ueb	12
+üc	7
+uf	13
+uü	29
+é	38
+É	39
+a
+É
+é
+uü
+uf
+üc
+ueb
+Ü
+ue
+ud
+uc
+u
+ssc
+ßb
+ßa
+ssa
+ß
+ss
+s
+q
+öo
+Öc
+oeb
+Öa
+oe
+ö
+od
+oc
+o
+eä
+Äc
+aeb
+ääa
+aeae
+ää
+ae
+ä
+ad
+ac
+a
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+a	b
+Öa	16
+Öc	19
+öo	30
+a	b
+é	38
+É	39
+a	b
+a	35
+ac	2
+ad	4
+ae	3
+aeae	33
+ääa	32
+aeb	6
+Öa	16
+ssa	25
+ßa	27
+a	b
+u	36
+uc	8
+ud	10
+ue	9
+ueb	12
+uf	13
+uü	29
+a	b
+ss	22
+ssa	25
+ssc	26
+strcmp('ä','ae')	strcmp('ae','ä')	strcmp('aeq','äq')	strcmp('äq','aeq')
+0	0	0	0
+strcmp('ss','ß')	strcmp('ß','ss')	strcmp('ßs','sss')	strcmp('ßq','ssq')
+0	0	0	0
+strcmp('ä','af')	strcmp('a','ä')	strcmp('ää','aeq')	strcmp('ää','aeaeq')
+-1	-1	-1	-1
+strcmp('ss','ßa')	strcmp('ß','ssa')	strcmp('sßa','sssb')	strcmp('s','ß')
+-1	-1	-1	-1
+strcmp('ö','oö')	strcmp('Ü','uü')	strcmp('ö','oeb')
+-1	-1	-1
+strcmp('af','ä')	strcmp('ä','a')	strcmp('aeq','ää')	strcmp('aeaeq','ää')
+1	1	1	1
+strcmp('ßa','ss')	strcmp('ssa','ß')	strcmp('sssb','sßa')	strcmp('ß','s')
+1	1	1	1
+strcmp('u','öa')	strcmp('u','ö')
+1	1

@@ -1826,7 +1826,7 @@ CHARSETS_AVAILABLE="big5 cp1251 cp1257
                           latin1 latin1_de latin2 latin5 sjis swe7 tis620 ujis
                           usa7 win1250 win1251ukr"
 CHARSETS_DEPRECATED="win1251"
-DEFAULT_CHARSET=latin1_de
+DEFAULT_CHARSET=latin1
 AC_DIVERT_POP
 
 AC_ARG_WITH(charset,

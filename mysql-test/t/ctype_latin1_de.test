@@ -1,0 +1,36 @@
+#
+# Test latin_de character set
+#
+drop table if exists t1;
+create table t1 (a char (20) not null, b int not null auto_increment, index (a,b),index(b));
+insert into t1 (a) values ('ä'),('ac'),('ae'),('ad'),('Äc'),('aeb');
+insert into t1 (a) values ('üc'),('uc'),('ue'),('ud'),('Ü'),('ueb'),('uf');
+insert into t1 (a) values ('ö'),('oc'),('Öa'),('oe'),('od'),('Öc'),('oeb');
+insert into t1 (a) values ('s'),('ss'),('ß'),('ßb'),('ssa'),('ssc'),('ßa');
+insert into t1 (a) values ('eä'),('uü'),('öo'),('ää'),('ääa'),('aeae');
+insert into t1 (a) values ('q'),('a'),('u'),('o'),('é'),('É');
+select a,b from t1 order by a,b;
+select a,b from t1 order by upper(a),b;
+select a from t1 order by a desc;
+check table t1;
+select * from t1 where a like "ö%";
+select * from t1 where a like "%É%";
+select * from t1 where a like "%Á%";
+select * from t1 where a like "%U%";
+select * from t1 where a like "%ss%";
+drop table t1;
+
+# The following should all be true
+select strcmp('ä','ae'),strcmp('ae','ä'),strcmp('aeq','äq'),strcmp('äq','aeq');
+select strcmp('ss','ß'),strcmp('ß','ss'),strcmp('ßs','sss'),strcmp('ßq','ssq');
+
+# The following should all return -1
+select strcmp('ä','af'),strcmp('a','ä'),strcmp('ää','aeq'),strcmp('ää','aeaeq');
+select strcmp('ss','ßa'),strcmp('ß','ssa'),strcmp('sßa','sssb'),strcmp('s','ß');
+select strcmp('ö','oö'),strcmp('Ü','uü'),strcmp('ö','oeb');
+
+# The following should all return 1
+select strcmp('af','ä'),strcmp('ä','a'),strcmp('aeq','ää'),strcmp('aeaeq','ää');
+select strcmp('ßa','ss'),strcmp('ssa','ß'),strcmp('sssb','sßa'),strcmp('ß','s');
+select strcmp('u','öa'),strcmp('u','ö');
+

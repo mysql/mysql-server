@@ -748,7 +748,7 @@ is also available through the SQL interface as well.
 
 @item
 Full support for several different character sets, including
-ISO-8859-1 (Latin1), big5, ujis, and more.  For example, the
+ISO-8859-1 (Latin1), german, big5, ujis, and more.  For example, the
 Scandinavian characters `@ringaccent{a}', `@"a' and `@"o' are allowed
 in table and column names.
 
@@ -20441,6 +20441,35 @@ default-character-set=character-set-name
 @end example
 
 but normally this is never needed.
+
+@menu
+* German character set::        
+@end menu
+
+@node German character set,  , Character sets, Character sets
+@subsubsection German character set
+
+To get German sorting order, you should start @code{mysqld} with
+@code{--default-character-set=latin_de}.  This will give you the following
+characteristics.
+
+When sorting and comparing string's the following mapping is done on the
+strings before doing the comparison:
+
+@example
+ä  ->  ae
+ö  ->  oe
+ü  ->  ue
+ß  ->  ss
+@end example
+
+All accented characters, except @code{'é'} and @code{É} are converted to
+their un-accented counterpart.  All letters are converted to uppercase.
+
+When comparing strings with @code{LIKE} the one -> two character mapping
+is not done. All letters are converted to uppercase. Accent are removed
+from all letters except: @code{Ü}, @code{ü}, @code{É}, @code{é}, @code{Ö},
+@code{ö}, @code{Ä} and @code{ä}.
 
 
 @node Languages, Adding character set, Character sets, Localization
@@ -46752,6 +46781,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @cindex changes, version 4.0
 
 @itemize @bullet
+@item
+New character set @code{latin_de} which provides correct German sorting.
 @item
 @code{TRUNCATE TABLE} and @code{DELETE FROM table_name} are now separate
 functions. One bonus is that @code{DELETE FROM table_name} now returns
