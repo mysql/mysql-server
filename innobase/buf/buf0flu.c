@@ -115,7 +115,15 @@ buf_flush_ready_for_replace(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	if (block->state != BUF_BLOCK_FILE_PAGE) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: Error: buffer block state %lu in the LRU list!\n",
+			(ulong)block->state);
+		ut_print_buf(stderr, (byte*)block, sizeof(buf_block_t));
+
+		return(FALSE);
+	}
 
 	if ((ut_dulint_cmp(block->oldest_modification, ut_dulint_zero) > 0)
 	    || (block->buf_fix_count != 0)

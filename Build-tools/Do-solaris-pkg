@@ -14,19 +14,17 @@ $pkginfo = "pkginfo";
 ($gid ,$pkg ,$uid ,$userInfo ,$email ,$quota ,$group ,$passwd
 ,$category ,$userHome ,$vendor ,$loginShell ,$pstamp ,$basedir)=();
 
-$fullname = shift @ARGV;
-$fullname or die "No package name was specified";
--d $fullname or die "That directory is not present!";
+$tarball= $fullname= shift @ARGV;
+$fullname=~ s/.*(mysql.*)\.tar\.gz/$1/;
+$workdir= $$; 
+chomp ($parent_workdir= `pwd`);
 
-$fullname =~ s,/+$,,;             # Remove ending slash if any
+$hostname= ($fullname=~ m/^.+-64bit$/) ? $hostname . "-64bit" : $hostname;
+$pkgdir= "$ENV{'HOME'}/$hostname";
 
-$pkgdir= `cd ../$hostname; pwd`;
-$pwd = `pwd`;
-if ($pwd =~ '\/usr\/local') {
-        $pwd = $`;
-}
-die  "Wrong location, please cd to <PKGBASE>/usr/local/ and run again.\n"
-    	if ($pwd eq "");
+mkdir $workdir or die "Can't make workdir: $!\n";
+chdir $workdir or die "Can't change to workdir: $!\n";
+system ("tar xzvf $tarball") == 0 or die "Can't untar: $!\n";
 
 system  ("$find . -print | $pkgproto > $temp");
 open (PREPROTO,"<$temp") or die "Unable to read prototype information ($!)\n";
@@ -57,8 +55,9 @@ unlink $temp or warn "Unable to remove tempfile ($!)\n";
 # Now we can start building the package
 #
 # First get some info
+$fullname =~ s,/+$,,;             # Remove ending slash if any
 
-$fullname =~ /^((mysql)-.+)-([\d\.]+)-.+$/
+$fullname =~ /^((mysql)(?:-\w+){1,3})-([\d\.]+\w?)-.+$/
   or die "This name is not what I expected - \"$fullname\"";
 
 $default{"name"}= $2;
@@ -137,10 +136,11 @@ system ("gzip /tmp/$packagename");
 # Clean-up the spool area
 system ("(cd /var/spool/pkg; rm -rf $pkg)");
 # Clean-up the ~/packaging/ area
-system ("(rm -rf mysql*)");
 unlink $pkginfo;
 unlink $prototype;
-system ("mv /tmp/${packagename}.gz $pkgdir");
+chdir $parent_workdir or die "Can't change to parent workdir '$parent_workdir': $!\n";
+system ("rm -rf $workdir") == 0 or die "Can't remove the working dir: $!\n";
+system ("mv /tmp/${packagename}.gz $pkgdir") == 0 or die "Can't move the finished package out of /tmp: $!\n";
 print "Done. (~/$hostname/$packagename.gz)\n";
 # The subroutines
 sub chkvar {
