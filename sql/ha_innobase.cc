@@ -267,43 +267,6 @@ innobase_mysql_print_thd(
 
         thd = (THD*) input_thd;
 
-        buf += sprintf(buf, "MySQL thread id %lu, query id %lu",
-                       thd->thread_id, thd->query_id);
-        if (thd->host) {
-                buf += sprintf(buf, " %.30s", thd->host);
-        }
-
-        if (thd->ip) {
-                buf += sprintf(buf, " %.20s", thd->ip);
-        }
-
-        if (thd->user) {
-                buf += sprintf(buf, " %.20s", thd->user);
-        }
-
-        if (thd->proc_info) {
-                buf += sprintf(buf, " %.50s", thd->proc_info);
-        }
-
-        if (thd->query) {
-                buf += sprintf(buf, "\n%.150s", thd->query);
-        }
-
-        buf += sprintf(buf, "\n");
-
-#ifdef notdefined
-        /* August 8, 2002
-        Revert these changes because they make control characters sometimes
-	appear in the output and scramble it:
-	the reason is that the last character of the ouptput will be
-	'\n', not the null character '\0'. We do not know where the output
-	ends in buf!
-
-        On platforms (what are those?) where sprintf does not work
-        we should define sprintf as 'my_emulated_sprintf'; InnoDB code
-        contains lots of sprintfs, it does not help to remove them from
-	just a single file. */
-
 	/*  We can't use value of sprintf() as this is not portable */
   	buf+= my_sprintf(buf,
 			 (buf, "MySQL thread id %lu",
@@ -337,9 +300,8 @@ innobase_mysql_print_thd(
 	  *buf++='\n';
 	  buf=strnmov(buf, thd->query, 150);
   	}  
-	*buf='\n';
-	/* Here we should add '\0' to the end of output to mark its end */
-#endif
+	buf[0]='\n';
+	buf[1]=0;
 }
 }
 
