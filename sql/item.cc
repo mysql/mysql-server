@@ -287,6 +287,140 @@ String *Item_null::val_str(String *str)
 { null_value=1; return 0;}
 
 
+/* Item_param related */
+void Item_param::set_null()
+{ 
+  maybe_null=null_value=1;    
+}
+
+void Item_param::set_int(longlong i)
+{  
+  int_value=(longlong)i; 
+  item_result_type = INT_RESULT;
+  item_type = INT_ITEM;
+}
+
+void Item_param::set_double(double i)
+{  
+  double value = (double)i;
+  real_value=value;
+  item_result_type = REAL_RESULT;
+  item_type = REAL_ITEM;
+}
+
+void Item_param::set_double(float i)
+{  
+  float value = (float)i;
+  real_value=(double)value;
+  item_result_type = REAL_RESULT;
+  item_type = REAL_ITEM;
+}
+
+void Item_param::set_value(const char *str, uint length)
+{  
+  str_value.set(str,length,default_charset_info);  
+  item_result_type = STRING_RESULT;
+  item_type = STRING_ITEM;
+}
+
+void Item_param::set_longdata(const char *str, ulong length)
+{
+  /* TODO: Fix this for binary handling by making use of 
+     buffer_type.. 
+  */  
+  str_value.append(str,length);    
+}
+
+void Item_param::set_long_end() 
+{ 
+  long_data_supplied = true; 
+  item_result_type = STRING_RESULT;
+};
+
+bool Item_param::save_in_field(Field *field)
+{
+  if (null_value)
+    return set_field_to_null(field);   
+    
+  field->set_notnull();
+  if (item_result_type == INT_RESULT)
+  {
+    longlong nr=val_int();
+    field->store(nr);
+    return 0;
+  }
+  if (item_result_type == REAL_RESULT)
+  {
+    double nr=val();    
+    field->store(nr);   
+    return 0;
+  }
+  String *result;
+  CHARSET_INFO *cs=default_charset_info;//fix this
+  result=val_str(&str_value);
+  field->store(result->ptr(),result->length(),cs);
+  return 0;
+}
+
+void Item_param::make_field(Send_field *tmp_field)
+{
+  init_make_field(tmp_field,FIELD_TYPE_STRING);
+}
+
+double Item_param::val() 
+{
+  /* Cross check whether we need need this conversions ? or direct 
+     return(real_value) is enough ?
+  */
+
+  switch(item_result_type) {
+  
+  case STRING_RESULT:
+    return (double)atof(str_value.ptr()); 
+  case INT_RESULT:
+    return (double)int_value;
+  default:
+    return real_value;
+  }
+} 
+
+longlong Item_param::val_int() 
+{ 
+  /* Cross check whether we need need this conversions ? or direct 
+     return(int_value) is enough ?
+  */
+  
+ switch(item_result_type) {
+
+  case STRING_RESULT:
+    return (longlong)strtoll(str_value.ptr(),(char**) 0,10);
+  case REAL_RESULT:
+    return (longlong) (real_value+(real_value > 0 ? 0.5 : -0.5));
+  default:
+    return int_value;
+  }
+}
+
+String *Item_param::val_str(String* str) 
+{ 
+  /* Cross check whether we need need this conversions ? or direct 
+     return(&str_value) is enough ?
+  */
+  
+  switch(item_result_type) {
+  
+  case INT_RESULT:
+    str->set(int_value);
+    return str;
+  case REAL_RESULT:
+    str->set(real_value);
+    return str;
+  default:
+    return (String*) &str_value;
+  }
+}
+/* End of Item_param related */
+
 void Item_copy_string::copy()
 {
   String *res=item->val_str(&str_value);
@@ -373,7 +507,10 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
 
 void Item::init_make_field(Send_field *tmp_field,
 			   enum enum_field_types field_type)
-{
+{  
+  tmp_field->db_name=(char*) "";
+  tmp_field->org_table_name=(char*) "";
+  tmp_field->org_col_name=(char*) "";
   tmp_field->table_name=(char*) "";
   tmp_field->col_name=name;
   tmp_field->flags=maybe_null ? 0 : NOT_NULL_FLAG;

@@ -57,8 +57,10 @@ enum enum_sql_command {
   SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
   SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_MULTI_UPDATE,
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
-  SQLCOM_EMPTY_QUERY,
-  SQLCOM_END
+  SQLCOM_END, SQLCOM_SHOW_WARNS, SQLCOM_SHOW_WARNS_COUNT, 
+  SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS, 
+  SQLCOM_SHOW_ERRORS_COUNT, SQLCOM_SHOW_COLUMN_TYPES,
+  SQLCOM_SHOW_TABLE_TYPES, SQLCOM_SHOW_PRIVILEGES
 };
 
 enum lex_states { STATE_START, STATE_CHAR, STATE_IDENT,
@@ -318,6 +320,7 @@ typedef struct st_lex {
   List<Item>	      *insert_list,field_list,value_list;
   List<List_item>     many_values;
   List<Set_option>    option_list;
+  List<Item>          param_list;
   SQL_LIST	      proc_list, auxilliary_table_list;
   TYPELIB	      *interval;
   create_field	      *last_field;

@@ -289,7 +289,30 @@ public:
   i_string_pair():key(0),val(0) { }
   i_string_pair(char* key_arg, char* val_arg) : key(key_arg),val(val_arg) {}
 };
+#define MYSQL_DEFAULT_ERROR_COUNT 500
 
+class mysql_st_error
+{
+public:
+  uint code;
+  char msg[MYSQL_ERRMSG_SIZE+1];
+  char query[NAME_LEN+1]; 
+  
+  static void *operator new(size_t size)
+  {
+    return (void*)my_malloc((uint)size, MYF(MY_WME | MY_FAE));
+  }
+  static void operator delete(void* ptr_arg, size_t size)
+  {
+    my_free((gptr)ptr_arg, MYF(MY_WME|MY_ALLOW_ZERO_PTR));
+  }
+  mysql_st_error(uint ecode, const char *emsg, const char *equery)
+  {
+    code = ecode;
+    strmov(msg, emsg); 
+    strnmov(query, equery ? equery : "", NAME_LEN);    
+  }
+};
 
 class delayed_insert;
 
@@ -308,6 +331,7 @@ public:
   NET	  net;				// client connection descriptor
   LEX	  lex;				// parse tree descriptor
   MEM_ROOT mem_root;			// 1 command-life memory
+  MEM_ROOT con_root;                    // connection-life memory
   HASH     user_vars;			// hash for user variables
   String  packet;			// buffer used for network I/O		
   struct  sockaddr_in remote;		// client socket address
@@ -410,7 +434,8 @@ public:
              max_join_size, sent_row_count, examined_row_count;
   table_map  used_tables;
   USER_CONN *user_connect;
-  ulong	     query_id,version, inactive_timeout,options,thread_id;
+  ulong	     query_id,version, inactive_timeout,options,thread_id,
+             max_error_count, max_warning_count;
   long	     dbug_thread_id;
   pthread_t  real_id;
   uint	     current_tablenr,tmp_table,cond_count,col_access;
@@ -428,8 +453,13 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     safe_to_cache_query;
   bool	     volatile killed;
-  //  TRUE when having fix field called
-  bool       having_fix_field;
+  bool       having_fix_field; //TRUE when having fix field called
+  bool       prepare_command;  
+  ulong      param_count,current_param_number;  
+  Error<mysql_st_error> err_list;  
+  Error<mysql_st_error> warn_list; 
+  Item_param *current_param;     
+
   /*
     If we do a purge of binary logs, log index info of the threads
     that are currently reading it needs to be adjusted. To do that

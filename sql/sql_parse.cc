@@ -65,7 +65,6 @@ static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
 static bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
-void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, char **filename_ptr,
@@ -77,7 +76,8 @@ const char *command_name[]={
   "Sleep", "Quit", "Init DB", "Query", "Field List", "Create DB",
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
-  "Binlog Dump","Table Dump",  "Connect Out", "Register Slave"
+  "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
+  "Prepare", "Prepare Execute", "Long Data"
 };
 
 bool volatile abort_slave = 0;
@@ -486,7 +486,7 @@ check_connections(THD *thd)
   {
     /* buff[] needs to big enough to hold the server_version variable */
     char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH+32],*end;
-    int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB;
+    int client_flags = CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB | CLIENT_PROTOCOL_41;
 
     if (opt_using_transactions)
       client_flags|=CLIENT_TRANSACTIONS;
@@ -957,7 +957,21 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->password=test(passwd[0]);
     break;
   }
-
+  case COM_EXECUTE:
+  {
+    mysql_com_execute(thd);
+    break;
+  }
+  case COM_LONG_DATA:
+  {
+    mysql_com_longdata(thd);
+    break;
+  }
+  case COM_PREPARE:
+  {
+    mysql_com_prepare(thd,packet,packet_length);
+    break;
+  }
   case COM_QUERY:
   {
     packet_length--;				// Remove end null
@@ -1378,6 +1392,26 @@ mysql_execute_command(void)
     if (check_process_priv(thd))
       goto error;
     res = purge_master_logs(thd, lex->to_log);
+    break;
+  }
+  case SQLCOM_SHOW_WARNS_COUNT:
+  {
+    res = mysqld_show_warnings_count(thd);
+    break;
+  }
+  case SQLCOM_SHOW_WARNS:
+  {
+    res = mysqld_show_warnings(thd);
+    break;
+  }
+  case SQLCOM_SHOW_ERRORS_COUNT:
+  {
+    res = mysqld_show_errors_count(thd);
+    break;
+  }
+  case SQLCOM_SHOW_ERRORS:
+  {
+    res = mysqld_show_errors(thd);
     break;
   }
   case SQLCOM_SHOW_NEW_MASTER:
@@ -2047,6 +2081,15 @@ mysql_execute_command(void)
       break;
     mysqld_list_processes(thd,thd->master_access & PROCESS_ACL ? NullS :
 			  thd->priv_user,lex->verbose);
+    break;
+  case SQLCOM_SHOW_TABLE_TYPES:
+    res= mysqld_show_table_types(thd);
+    break;
+  case SQLCOM_SHOW_PRIVILEGES:
+    res= mysqld_show_privileges(thd);
+    break;
+  case SQLCOM_SHOW_COLUMN_TYPES:
+    res= mysqld_show_column_types(thd);
     break;
   case SQLCOM_SHOW_STATUS:
     res= mysqld_show(thd,(lex->wild ? lex->wild->ptr() : NullS),status_vars);
@@ -2732,6 +2775,9 @@ mysql_init_query(THD *thd)
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->safe_to_cache_query= 1;
+  thd->param_count=0;
+  thd->prepare_command=false;
+  thd->lex.param_list.empty();
   DBUG_VOID_RETURN;
 }
 

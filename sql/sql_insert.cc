@@ -44,7 +44,7 @@ static void unlink_blobs(register TABLE *table);
   Resets form->time_stamp if a timestamp value is set
 */
 
-static int
+int
 check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 		    List<Item> &values, ulong counter)
 {

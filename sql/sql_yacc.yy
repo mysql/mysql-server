@@ -324,6 +324,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	TRAILING
 %token	TRANSACTION_SYM
 %token	TYPE_SYM
+%token  TYPES_SYM
 %token	FUNC_ARG0
 %token	FUNC_ARG1
 %token	FUNC_ARG2
@@ -345,6 +346,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	WRITE_SYM
 %token  X509_SYM
 %token  COMPRESSED_SYM
+
+%token  ERRORS
+%token  SQL_ERROR_COUNT
+%token  WARNINGS
+%token  SQL_WARNING_COUNT
 
 %token	BIGINT
 %token	BLOB_SYM
@@ -548,7 +554,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
 	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
-	using_list subselect subselect_init
+	using_list param_marker subselect subselect_init
 
 %type <item_list>
 	expr_list udf_expr_list when_list ident_list ident_list_arg
@@ -1720,6 +1726,7 @@ no_and_expr:
 simple_expr:
 	simple_ident
 	| literal
+	| param_marker
 	| '@' ident_or_text SET_VAR expr
 	  { $$= new Item_func_set_user_var($2,$4);
 	    current_thd->safe_to_cache_query=0;
@@ -2795,6 +2802,29 @@ show_param:
 	    if (!add_table_to_list($3,NULL,0))
 	      YYABORT;
 	  }
+	| COLUMN_SYM TYPES_SYM
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_COLUMN_TYPES;
+	  }
+	| TABLE_SYM TYPES_SYM
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_TABLE_TYPES;
+	  }
+	| PRIVILEGES
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_PRIVILEGES;
+	  }
+        | COUNT_SYM '(' '*' ')' WARNINGS 
+          { Lex->sql_command = SQLCOM_SHOW_WARNS_COUNT;}
+        | COUNT_SYM '(' '*' ')' ERRORS 
+          { Lex->sql_command = SQLCOM_SHOW_ERRORS_COUNT;}
+        | WARNINGS {Select->offset_limit=0L;} limit_clause
+          { Lex->sql_command = SQLCOM_SHOW_WARNS;}
+        | ERRORS {Select->offset_limit=0L;} limit_clause
+          { Lex->sql_command = SQLCOM_SHOW_ERRORS;}  
 	| STATUS_SYM wild
 	  { Lex->sql_command= SQLCOM_SHOW_STATUS; }
 	| opt_full PROCESSLIST_SYM
@@ -3055,7 +3085,20 @@ text_string:
 	    Item *tmp = new Item_varbinary($1.str,$1.length,default_charset_info);
 	    $$= tmp ? tmp->val_str((String*) 0) : (String*) 0;
 	  };
-
+param_marker:
+        '?' 
+        {
+          if(current_thd->prepare_command)
+          {     
+            Lex->param_list.push_back($$=new Item_param());      
+            current_thd->param_count++;
+          }
+          else 
+          {
+            yyerror("You have an error in your SQL syntax");
+            YYABORT;
+          }
+        }
 literal:
 	text_literal	{ $$ =	$1; }
 	| NUM		{ $$ =	new Item_int($1.str, (longlong) atol($1.str),$1.length); }
@@ -3411,6 +3454,16 @@ option_value:
 	     YYABORT;
 	 }
 	| SQL_QUERY_CACHE_TYPE_SYM equal query_cache_type
+        | SQL_ERROR_COUNT equal ULONG_NUM
+          {
+            LEX *lex = Lex;
+            lex->thd->max_error_count = $3;
+          }
+        | SQL_WARNING_COUNT equal ULONG_NUM
+          {
+            LEX *lex = Lex;
+            lex->thd->max_warning_count = $3;
+          }
 	| '@' ident_or_text equal expr
 	  {
 	     Item_func_set_user_var *item = new Item_func_set_user_var($2,$4);

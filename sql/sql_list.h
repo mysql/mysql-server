@@ -122,11 +122,14 @@ public:
       last= &first;
     return tmp->info;
   }
+  inline list_node* last_node() { return *last; }
+  inline list_node* first_node() { return first;}
   inline void *head() { return first->info; }
   inline void **head_ref() { return first != &end_of_list ? &first->info : 0; }
   inline bool is_empty() { return first == &end_of_list ; }
   inline list_node *last_ref() { return &end_of_list; }
   friend class base_list_iterator;
+  friend class error_list;
 
 protected:
   void after(void *info,list_node *node)
@@ -204,6 +207,7 @@ public:
   {
     return el == &list->last_ref()->next;
   }
+  friend class error_list_iterator;
 };
 
 
@@ -356,3 +360,120 @@ public:
   I_List_iterator(I_List<T> &a) : base_ilist_iterator(a) {}
   inline T* operator++(int) { return (T*) base_ilist_iterator::next(); }
 };
+
+/*
+  New error list without mem_root from THD, to have the life of the 
+  allocation becomes connection level . by ovveriding new from Sql_alloc. 
+*/
+class Error_alloc
+{
+public:
+  static void *operator new(size_t size)
+  {
+    return (void*)my_malloc((uint)size, MYF(MY_WME | MY_FAE));
+  }
+#if 0
+  static void operator delete(void* ptr_arg, size_t size)
+  {
+    my_free((gptr)ptr_arg, MYF(MY_WME|MY_ALLOW_ZERO_PTR));  
+  }
+#endif
+  friend class error_node;
+  friend class error_list;
+};
+
+class error_node :public Error_alloc, public list_node
+{
+public:
+  static void *operator new(size_t size)
+  {
+    return (void*)my_malloc((uint)size, MYF(MY_WME | MY_FAE));
+  }
+#if 0
+  static void operator delete(void* ptr_arg, size_t size)
+  {
+    my_free((gptr)ptr_arg, MYF(MY_WME|MY_ALLOW_ZERO_PTR));  
+  }
+#endif
+  error_node(void *info_par,list_node *next_par):list_node(info_par,next_par){};
+  error_node() : list_node() {};
+  friend class error_list;
+  friend class error_list_iterator;
+};
+
+class error_list: public Error_alloc, public base_list
+{
+public:
+  inline error_list() : base_list() { };  
+  inline error_list(const error_list &tmp) : Error_alloc()
+  {
+    elements=tmp.elements;
+    first=tmp.first;
+    last=tmp.last; 
+  }
+  inline bool push_front(void *info)
+  {
+    error_node *node=new error_node(info,first);
+    if (node)
+    {
+      if (last == &first)
+        last= &node->next;
+      first=node;
+      elements++;
+      return 0;
+    }
+    return 1;
+  }
+  inline void remove_last(void)
+  {
+    remove(last);
+  }
+protected:
+  void after(void *info,list_node *node)
+  {
+    error_node *new_node=new error_node(info,node->next);
+    node->next=new_node;
+    elements++;
+    if (last == &(node->next))
+      last= &new_node->next;
+  }
+};
+
+class error_list_iterator : public base_list_iterator 
+{ 
+  inline error_list_iterator(base_list &base_ptr): base_list_iterator(base_ptr) {};
+};
+
+template <class T> class Error :public error_list
+{
+public:
+  inline Error() :error_list() {}
+  inline Error(const Error<T> &tmp) :error_list(tmp) {}
+  inline bool push_back(T *a) { return error_list::push_back(a); }
+  inline bool push_front(T *a) { return error_list::push_front(a); }
+  inline T* head() {return (T*) error_list::head(); }
+  inline T** head_ref() {return (T**) error_list::head_ref(); }
+  inline T* pop()  {return (T*) error_list::pop(); }
+  void delete_elements(void)
+  {
+    error_node *element,*next;
+    for (element=first; element != &error_end_of_list; element=next)
+    {
+      next=element->next;
+      delete (T*) element->info;
+    }
+    empty();
+  }
+};
+
+template <class T> class Error_iterator :public base_list_iterator
+{
+public:
+  Error_iterator(Error<T> &a) : base_list_iterator(a) {}
+  inline T* operator++(int) { return (T*) base_list_iterator::next(); }
+  inline T *replace(T *a)   { return (T*) base_list_iterator::replace(a); }
+  inline T *replace(Error<T> &a) { return (T*) base_list_iterator::replace(a); }
+  inline void after(T *a)   { base_list_iterator::after(a); }
+  inline T** ref(void)      { return (T**) base_list_iterator::ref(); }
+};
+

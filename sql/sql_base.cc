@@ -179,56 +179,58 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
   DBUG_RETURN(open_list);
 }
 
-
-/******************************************************************************
-** Send name and type of result to client.
-** Sum fields has table name empty and field_name.
-** flag is a bit mask with the following functions:
-**   1 send number of rows
-**   2 send default values
-**   4 Don't convert field names
-******************************************************************************/
+/*
+  Send name and type of result to client. 
+  Sum fields has table name empty and field_name.
+  flag is a bit mask with the following functions:
+   1 send number of rows
+   2 send default values
+   4 Don't convert field names
+*/
 
 bool
-send_fields(THD *thd,List<Item> &list,uint flag)
+send_convert_fields(THD *thd,List<Item> &list,CONVERT *convert,uint flag)
 {
   List_iterator_fast<Item> it(list);
   Item *item;
   char buff[80];
-  CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->convert_set;
-  DBUG_ENTER("send_fields");
-
+  
   String tmp((char*) buff,sizeof(buff),default_charset_info);
   String *res,*packet= &thd->packet;
-
-  if (thd->fatal_error)		// We have got an error
-    goto err;
-
-  if (flag & 1)
-  {				// Packet with number of elements
-    char *pos=net_store_length(buff,(uint) list.elements);
-    (void) my_net_write(&thd->net, buff,(uint) (pos-buff));
-  }
+  
   while ((item=it++))
   {
     char *pos;
     Send_field field;
     item->make_field(&field);
+    
     packet->length(0);
 
-    if (convert)
+    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
-      if (convert->store(packet,field.table_name,
+      if (convert->store(packet,field.db_name,
+			 (uint) strlen(field.db_name)) ||
+	  convert->store(packet,field.table_name,
 			 (uint) strlen(field.table_name)) ||
+	  convert->store(packet,field.org_table_name,
+			 (uint) strlen(field.org_table_name)) ||
 	  convert->store(packet,field.col_name,
 			 (uint) strlen(field.col_name)) ||
+	  convert->store(packet,field.org_col_name,
+			 (uint) strlen(field.org_col_name)) ||
 	  packet->realloc(packet->length()+10))
-	goto err;
+	return 1;
+     }
+     else
+     {
+       if (convert->store(packet,field.table_name,
+			  (uint) strlen(field.table_name)) ||
+	   convert->store(packet,field.col_name,
+			  (uint) strlen(field.col_name)) ||
+	   packet->realloc(packet->length()+10))
+	 return 1;
     }
-    else if (net_store_data(packet,field.table_name) ||
-	     net_store_data(packet,field.col_name) ||
-	     packet->realloc(packet->length()+10))
-      goto err; /* purecov: inspected */
+     
     pos= (char*) packet->ptr()+packet->length();
 
     if (!(thd->client_capabilities & CLIENT_LONG_FLAG))
@@ -250,19 +252,135 @@ send_fields(THD *thd,List<Item> &list,uint flag)
       if (!(res=item->val_str(&tmp)))
       {
 	if (net_store_null(packet))
-	  goto err;
+	  return 1;
       }
       else if (net_store_data(packet,res->ptr(),res->length()))
-	goto err;
+	return 1;
     }
     if (my_net_write(&thd->net, (char*) packet->ptr(),packet->length()))
       break;					/* purecov: inspected */
   }
-  send_eof(&thd->net,1);
-  DBUG_RETURN(0);
- err:
+  return 0;
+}
+
+/*
+ Send name and type of result to client.
+ Sum fields has table name empty and field_name
+ flag is a bit mask with the following functios:
+   1 send number of rows
+   2 send default values
+   4 Don't convert field names
+*/
+
+bool 
+send_non_convert_fields(THD *thd,List<Item> &list,uint flag)
+{
+  List_iterator_fast<Item> it(list);
+  Item *item;
+  char buff[80];
+  
+  String tmp((char*) buff,sizeof(buff),default_charset_info);
+  String *res,*packet= &thd->packet;
+  
+  while ((item=it++))
+  {
+    char *pos;
+    Send_field field;
+    item->make_field(&field);
+    
+    packet->length(0);
+
+    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
+    {
+      if (net_store_data(packet,field.db_name) ||
+	  net_store_data(packet,field.table_name) ||
+	  net_store_data(packet,field.org_table_name) ||
+	  net_store_data(packet,field.col_name) ||
+	  net_store_data(packet,field.org_col_name) ||
+	  packet->realloc(packet->length()+10))
+	return 1;
+    }
+    else
+    {
+      if (net_store_data(packet,field.table_name) ||
+	  net_store_data(packet,field.col_name) ||
+	  packet->realloc(packet->length()+10))
+	return 1;
+    }
+    
+    pos= (char*) packet->ptr()+packet->length();
+
+    if (!(thd->client_capabilities & CLIENT_LONG_FLAG))
+    {
+      packet->length(packet->length()+9);
+      pos[0]=3; int3store(pos+1,field.length);
+      pos[4]=1; pos[5]=field.type;
+      pos[6]=2; pos[7]=(char) field.flags; pos[8]= (char) field.decimals;
+    }
+    else
+    {
+      packet->length(packet->length()+10);
+      pos[0]=3; int3store(pos+1,field.length);
+      pos[4]=1; pos[5]=field.type;
+      pos[6]=3; int2store(pos+7,field.flags); pos[9]= (char) field.decimals;
+    }
+    if (flag & 2)
+    {						// Send default value
+      if (!(res=item->val_str(&tmp)))
+      {
+	if (net_store_null(packet))
+	  return 1;
+      }
+      else if (net_store_data(packet,res->ptr(),res->length()))
+	return 1;
+    }
+    if (my_net_write(&thd->net, (char*) packet->ptr(),packet->length()))
+      break;					
+  }
+  return 0;
+}
+
+/******************************************************************************
+** Send name and type of result to client.
+** Sum fields has table name empty and field_name.
+** flag is a bit mask with the following functions:
+**   1 send number of rows
+**   2 send default values
+**   4 Don't convert field names
+******************************************************************************/
+
+bool
+send_fields(THD *thd,List<Item> &list,uint flag)
+{
+  List_iterator_fast<Item> it(list);  
+  char buff[80];
+  CONVERT *convert= (flag & 4) ? (CONVERT*) 0 : thd->convert_set;
+
+  String tmp((char*) buff,sizeof(buff),default_charset_info);
+
+  if (thd->fatal_error)		// We have got an error
+    goto err;
+
+  if (flag & 1)
+  {				// Packet with number of elements
+    char *pos=net_store_length(buff,(uint) list.elements);
+    (void) my_net_write(&thd->net, buff,(uint) (pos-buff));
+  }
+
+  /* Avoid check conditions on convert() for each field 
+     by having two diffrent functions 
+  */
+  if (convert && send_convert_fields(thd,list,convert,flag))
+    goto err;
+
+  else if(send_non_convert_fields(thd,list,flag))
+    goto err;
+  
+  send_eof(&thd->net);
+  return 0;
+err:
   send_error(&thd->net,ER_OUT_OF_RESOURCES);	/* purecov: inspected */
-  DBUG_RETURN(1);				/* purecov: inspected */
+  return 1;					/* purecov: inspected */
 }
 
 
