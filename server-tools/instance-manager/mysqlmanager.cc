@@ -106,13 +106,12 @@ static void daemonize(const char *log_file_name)
   case 0:                                       // child, fork ok
     int fd;
     /*
-      Become a session leader: setsid should succeed because child is
+      Become a session leader: setsid must succeed because child is
       guaranteed not to be a process group leader (it belongs to the 
       process group of the parent.) 
       The goal is not to have a controlling terminal.
     */
-    if (setsid() == -1)
-      die("daemonize(): setsid() failed, %s", strerror(errno)); 
+    setsid();
     /*
       As we now don't have a controlling terminal we will not receive
       tty-related signals - no need to ignore them.
@@ -193,19 +192,21 @@ static void angel(const Options &options)
   sigset_t zeromask;                            // to sigsuspend in parent
   struct sigaction sa_chld, sa_term;
   struct sigaction sa_chld_out, sa_term_out, sa_int_out, sa_hup_out;
-  if (sigemptyset(&zeromask) ||
-      sigemptyset(&sa_chld.sa_mask) ||
-      sigemptyset(&sa_term.sa_mask))            // how can it fail?
-    die("angel(): sigemptyset() failed, %s", strerror(errno));
+
+  sigemptyset(&zeromask);
+  sigemptyset(&sa_chld.sa_mask);
+  sigemptyset(&sa_term.sa_mask);
+
   sa_chld.sa_handler= reap_child;
   sa_chld.sa_flags= SA_NOCLDSTOP;
   sa_term.sa_handler= terminate;
   sa_term.sa_flags= 0;
-  if (sigaction(SIGCHLD, &sa_chld, &sa_chld_out) == -1 ||
-      sigaction(SIGTERM, &sa_term, &sa_term_out) == -1 ||
-      sigaction(SIGINT, &sa_term, &sa_int_out) == -1 ||
-      sigaction(SIGHUP, &sa_term, &sa_hup_out) == -1)
-    die("angel(): sigaction() failed, %s", strerror(errno));
+
+  /* sigaction can fail only on wrong arguments */
+  sigaction(SIGCHLD, &sa_chld, &sa_chld_out);
+  sigaction(SIGTERM, &sa_term, &sa_term_out);
+  sigaction(SIGINT, &sa_term, &sa_int_out);
+  sigaction(SIGHUP, &sa_term, &sa_hup_out);
 
   /* spawn a child */
 spawn:
@@ -218,22 +219,16 @@ spawn:
       restore default actions for signals to let the manager work with
       signals as he wishes
     */ 
-    if (sigaction(SIGCHLD, &sa_chld_out, 0) == -1 ||
-        sigaction(SIGTERM, &sa_term_out, 0) == -1 ||
-        sigaction(SIGINT, &sa_int_out, 0) == -1 ||
-        sigaction(SIGHUP, &sa_hup_out, 0) == -1)
-      die("angel(): child failed to restore old signal actions, %s",
-          strerror(errno));
+    sigaction(SIGCHLD, &sa_chld_out, 0);
+    sigaction(SIGTERM, &sa_term_out, 0);
+    sigaction(SIGINT, &sa_int_out, 0);
+    sigaction(SIGHUP, &sa_hup_out, 0);
 
     manager(options.socket_file_name);
   default:                                    // parent, success
     while (child_status == CHILD_OK && is_terminated == 0)
-    {
-      errno= 0;
       sigsuspend(&zeromask);
-      if (errno != EINTR)
-        die("angel(): sigsuspend failed, %s", strerror(errno));
-    }
+
     if (is_terminated)
       log_info("angel got signal %d (%s), exiting",
                is_terminated, sys_siglist[is_terminated]);

@@ -1,5 +1,5 @@
-#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
-#define INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
+#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_LISTENER_H
+#define INCLUDES_MYSQL_INSTANCE_MANAGER_LISTENER_H
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-void manager(const char *socket_file_name);
+#ifdef __GNUC__
+#pragma interface
+#endif
 
-#endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
+#include <my_global.h>
+#include <my_pthread.h>
+
+C_MODE_START
+
+pthread_handler_decl(listener, arg);
+
+C_MODE_END
+
+class Thread_repository;
+
+struct Listener_thread_args
+{
+  Thread_repository &thread_repository;
+  const char *socket_file_name;
+
+  Listener_thread_args(Thread_repository &thread_repository_arg,
+                       const char *socket_file_name_arg) :
+    thread_repository(thread_repository_arg),
+    socket_file_name(socket_file_name_arg) {}
+};
+
+#endif

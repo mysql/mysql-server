@@ -15,8 +15,10 @@ liboptions_a_SOURCES= otpions.h options.cc
 
 bin_PROGRAMS = mysqlmanager
 
-#AM_CXXFLAGS= -Wformat=2 -W -Wall -Wformat-security
-mysqlmanager_SOURCES= mysqlmanager.cc manager.h manager.cc log.h log.cc
+mysqlmanager_SOURCES= mysqlmanager.cc manager.h manager.cc log.h log.cc \
+		      listener.h listener.cc \
+		      thread_repository.h thread_repository.cc
+
 mysqlmanager_LDADD= liboptions.a \
 		    $(top_builddir)/mysys/libmysys.a \
 		    $(top_builddir)/strings/libmystrings.a \

@@ -35,6 +35,4 @@ struct Options
   static void load(int argc, char **argv);
 };
 
-void init_mysys_library(const char *progname);
-
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_OPTIONS_H
