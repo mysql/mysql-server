@@ -3730,18 +3730,31 @@ list in this manual. @xref{TODO}.
 
 @cindex sub-selects
 
-The following will not yet work in MySQL:
+MySQL currently only supports sub selects of the form @code{INSERT
+... SELECT ...} and @code{REPLACE ... SELECT ...}. You can however use
+the function @code{IN()} in other contexts.
+
+In many cases you can rewrite the query without a sub-select:
 
 @example
 SELECT * FROM table1 WHERE id IN (SELECT id FROM table2);
+@end example
+
+This can be re-written as:
+
+@example
+SELECT table1.* FROM table1,table2 WHERE table1.id=table2.id;
+@end example
+
+The queries:
+@example
 SELECT * FROM table1 WHERE id NOT IN (SELECT id FROM table2);
 SELECT * FROM table1 WHERE NOT EXISTS (SELECT id FROM table2 where table1.id=table2.id);
 @end example
 
-However, in many cases you can rewrite the query without a sub-select:
+Can be rewritten as:
 
 @example
-SELECT table1.* FROM table1,table2 WHERE table1.id=table2.id;
 SELECT table1.* FROM table1 LEFT JOIN table2 ON table1.id=table2.id where table2.id IS NULL
 @end example
 
@@ -3777,11 +3790,9 @@ second instance of the interpreter:
 prompt> mysql --skip-column-names mydb < myscript.sql | mysql mydb
 @end example
 
-MySQL only supports @code{INSERT ... SELECT ...} and
-@code{REPLACE ... SELECT ...} Independent sub-selects will probably
-be available in Version 4.0.  You can now use the function @code{IN()} in
-other contexts, however.
-
+MySQL 4.0 supports multi-table deletes that can be used to efficiently
+delete rows based on information from one table or even from many tables
+at the same time.
 
 @node Missing SELECT INTO TABLE, Missing Transactions, Missing Sub-selects, Missing functions
 @subsubsection @code{SELECT INTO TABLE}

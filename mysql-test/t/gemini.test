@@ -338,3 +338,18 @@ SELECT * FROM t1;
 SELECT _userid FROM t1 WHERE _userid='marc@anyware.co.uk';
 drop table t1;
 set autocommit=1;
+
+#
+# Test of load data infile
+#
+
+CREATE TABLE if not exists `t1` (
+  `f1` int(11) unsigned NOT NULL default '0',
+  `f2` tinyint(3) unsigned NOT NULL default '0',
+  `f3` tinyint(3) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`f1`)
+) TYPE=Gemini;
+lock table t1 write;
+load data infile ''../../std_data/gemini.dat' ignore into table t1 fields terminated by ',';
+select f1 from t1;
+drop table t1;
