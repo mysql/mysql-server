@@ -55,7 +55,7 @@ static int
 vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file)
 {
   DBUG_ENTER("vio_set_cert_stuff");
-  DBUG_PRINT("enter", ("ctx=%p, cert_file=%p, key_file=%p",
+  DBUG_PRINT("enter", ("ctx=%p, cert_file=%s, key_file=%s",
 		       ctx, cert_file, key_file));
   if (cert_file != NULL)
   {
@@ -170,7 +170,7 @@ struct st_VioSSLConnectorFd* new_VioSSLConnectorFd(const char* key_file,
     ssl_error_strings_loaded = TRUE;
     SSL_load_error_strings();
   }
-  ptr->ssl_method_ = SSLv23_client_method();
+  ptr->ssl_method_ = TLSv1_client_method();
   ptr->ssl_context_ = SSL_CTX_new(ptr->ssl_method_);
   DBUG_PRINT("info", ("ssl_context_: %p",ptr->ssl_context_));
   if (ptr->ssl_context_ == 0)
@@ -200,7 +200,7 @@ struct st_VioSSLConnectorFd* new_VioSSLConnectorFd(const char* key_file,
       report_errors();
       goto ctor_failure;
     }
-  }
+  } 
   DBUG_RETURN(ptr);
 ctor_failure:
   DBUG_PRINT("exit", ("there was an error"));
@@ -246,7 +246,7 @@ new_VioSSLAcceptorFd(const char*	key_file,
     ssl_error_strings_loaded = TRUE;
     SSL_load_error_strings();
   }
-  ptr->ssl_method_ = SSLv23_server_method();
+  ptr->ssl_method_ = TLSv1_server_method();
   ptr->ssl_context_ = SSL_CTX_new(ptr->ssl_method_);
   if (ptr->ssl_context_==0)
   {

@@ -17,6 +17,7 @@
 
 /* Function with list databases, tables or fields */
 
+#include "global.h"
 #include "mysql_priv.h"
 #include "sql_select.h"                         // For select_describe
 #include "sql_acl.h"
@@ -44,6 +45,8 @@ store_create_info(THD *thd, TABLE *table, String *packet);
 
 static void
 append_identifier(THD *thd, String *packet, const char *name);
+
+extern struct st_VioSSLAcceptorFd * ssl_acceptor_fd;
 
 /****************************************************************************
 ** Send list of databases
@@ -1151,6 +1154,90 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
           net_store_data(&packet2,convert, value ? value : "");
           break;
         }
+#ifdef HAVE_OPENSSL
+      case SHOW_SSL_CTX_SESS_ACCEPT:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_accept(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_CTX_SESS_ACCEPT_GOOD:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_accept_good(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_GET_VERSION:
+	net_store_data(&packet2,
+			SSL_get_version(thd->net.vio->ssl_));
+        break;
+      case SHOW_SSL_CTX_SESS_CB_HITS:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_cb_hits(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_CTX_SESS_NUMBER:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_SESSION_REUSED:
+	net_store_data(&packet2,(uint32) 
+			SSL_session_reused(thd->net.vio->ssl_));
+        break;
+      case SHOW_SSL_GET_DEFAULT_TIMEOUT:
+	net_store_data(&packet2,(uint32) 
+			SSL_get_default_timeout(thd->net.vio->ssl_));
+        break;
+      case SHOW_SSL_CTX_SESS_GET_CACHE_SIZE:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_sess_get_cache_size(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_CTX_GET_VERIFY_MODE:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_GET_VERIFY_MODE:
+	net_store_data(&packet2,(uint32) 
+			SSL_get_verify_mode(thd->net.vio->ssl_));
+        break;
+      case SHOW_SSL_CTX_GET_VERIFY_DEPTH:
+	net_store_data(&packet2,(uint32) 
+			SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context_));
+        break;
+      case SHOW_SSL_GET_VERIFY_DEPTH:
+	net_store_data(&packet2,(uint32) 
+			SSL_get_verify_depth(thd->net.vio->ssl_));
+        break;
+      case SHOW_SSL_GET_CIPHER:
+	net_store_data(&packet2, SSL_get_cipher(thd->net.vio->ssl_));
+        break;
+      case SHOW_SSL_CTX_GET_SESSION_CACHE_MODE:
+	switch(SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context_))
+	{
+          case SSL_SESS_CACHE_OFF:
+            net_store_data(&packet2,"OFF" );
+	    break;
+          case SSL_SESS_CACHE_CLIENT:
+            net_store_data(&packet2,"CLIENT" );
+	    break;
+          case SSL_SESS_CACHE_SERVER:
+            net_store_data(&packet2,"SERVER" );
+	    break;
+          case SSL_SESS_CACHE_BOTH:
+            net_store_data(&packet2,"BOTH" );
+	    break;
+          case SSL_SESS_CACHE_NO_AUTO_CLEAR:
+            net_store_data(&packet2,"NO_AUTO_CLEAR" );
+	    break;
+          case SSL_SESS_CACHE_NO_INTERNAL_LOOKUP:
+            net_store_data(&packet2,"NO_INTERNAL_LOOKUP" );
+	    break;
+	  default:
+            net_store_data(&packet2,"Unknown");
+	    break;
+	}
+        break;
+
+#endif /* HAVE_OPENSSL */
       }
       if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
         goto err;                               /* purecov: inspected */
