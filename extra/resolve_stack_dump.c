@@ -31,7 +31,7 @@
 #define INIT_SYM_TABLE  4096
 #define INC_SYM_TABLE  4096
 #define MAX_SYM_SIZE   128
-#define DUMP_VERSION "1.0"
+#define DUMP_VERSION "1.1"
 #define HEX_INVALID  (uchar)255
 
 typedef ulong my_long_addr_t ; /* at some point, we need to fix configure
@@ -198,6 +198,8 @@ static int init_sym_entry(SYM_ENTRY* se, char* buf)
 	break;
     }
   *p = 0;
+  if(!strcmp(se->symbol, "gcc2_compiled."))
+    return -1;
   return 0;
 }
 
