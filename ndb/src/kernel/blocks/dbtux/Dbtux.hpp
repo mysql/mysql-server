@@ -284,7 +284,7 @@ private:
    * m_occup), and whether the position is at an existing entry or
    * before one (if any).  Position m_occup points past the node and is
    * also represented by position 0 of next node.  Includes direction
-   * and copy of entry used by scan.
+   * used by scan.
    */
   struct TreePos;
   friend struct TreePos;
@@ -292,8 +292,7 @@ private:
     TupLoc m_loc;               // physical node address
     Uint16 m_pos;               // position 0 to m_occup
     Uint8 m_match;              // at an existing entry
-    Uint8 m_dir;                // from link (0-2) or within node (3)
-    TreeEnt m_ent;              // copy of current entry
+    Uint8 m_dir;                // see scanNext()
     TreePos();
   };
 
@@ -374,6 +373,10 @@ private:
    * a separate lock wait flag.  It may be for current entry or it may
    * be for an entry we were moved away from.  In any case nothing
    * happens with current entry before lock wait flag is cleared.
+   *
+   * An unfinished scan is always linked to some tree node, and has
+   * current position and direction (see comments at scanNext).  There
+   * is also a copy of latest entry found.
    */
   struct ScanOp;
   friend struct ScanOp;
@@ -412,7 +415,7 @@ private:
     ScanBound* m_bound[2];      // pointers to above 2
     Uint16 m_boundCnt[2];       // number of bounds in each
     TreePos m_scanPos;          // position
-    TreeEnt m_lastEnt;          // last entry returned
+    TreeEnt m_scanEnt;          // latest entry found
     Uint32 m_nodeScan;          // next scan at node (single-linked)
     union {
     Uint32 nextPool;
@@ -968,8 +971,7 @@ Dbtux::TreePos::TreePos() :
   m_loc(),
   m_pos(ZNIL),
   m_match(false),
-  m_dir(255),
-  m_ent()
+  m_dir(255)
 {
 }
 
@@ -1010,7 +1012,7 @@ Dbtux::ScanOp::ScanOp(ScanBoundPool& scanBoundPool) :
   m_boundMin(scanBoundPool),
   m_boundMax(scanBoundPool),
   m_scanPos(),
-  m_lastEnt(),
+  m_scanEnt(),
   m_nodeScan(RNIL)
 {
   m_bound[0] = &m_boundMin;
