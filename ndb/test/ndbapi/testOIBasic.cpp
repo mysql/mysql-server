@@ -42,7 +42,7 @@ struct Opt {
   CHARSET_INFO* m_cs;
   bool m_dups;
   NdbDictionary::Object::FragmentType m_fragtype;
-  unsigned m_idxloop;
+  unsigned m_subsubloop;
   const char* m_index;
   unsigned m_loop;
   bool m_nologging;
@@ -66,7 +66,7 @@ struct Opt {
     m_cs(0),
     m_dups(false),
     m_fragtype(NdbDictionary::Object::FragUndefined),
-    m_idxloop(4),
+    m_subsubloop(4),
     m_index(0),
     m_loop(1),
     m_nologging(false),
@@ -79,7 +79,7 @@ struct Opt {
     m_seed(0),
     m_subloop(4),
     m_table(0),
-    m_threads(4),
+    m_threads(6),       // table + 5 indexes
     m_v(1) {
   }
 };
@@ -208,6 +208,8 @@ struct Par : public Opt {
   Set& set() const { assert(m_set != 0); return *m_set; }
   Tmr* m_tmr;
   Tmr& tmr() const { assert(m_tmr != 0); return *m_tmr; }
+  unsigned m_lno;
+  unsigned m_slno;
   unsigned m_totrows;
   // value calculation
   unsigned m_range;
@@ -226,6 +228,8 @@ struct Par : public Opt {
     m_tab(0),
     m_set(0),
     m_tmr(0),
+    m_lno(0),
+    m_slno(0),
     m_totrows(m_threads * m_rows),
     m_range(m_rows),
     m_pctrange(0),
@@ -2069,7 +2073,8 @@ pkinsert(Par par)
   CHK(con.startTransaction() == 0);
   Lst lst;
   for (unsigned j = 0; j < par.m_rows; j++) {
-    unsigned i = thrrow(par, j);
+    unsigned j2 = ! par.m_randomkey ? j : urandom(par.m_rows);
+    unsigned i = thrrow(par, j2);
     set.lock();
     if (set.exist(i) || set.pending(i)) {
       set.unlock();
@@ -2174,7 +2179,8 @@ pkdelete(Par par)
   Lst lst;
   bool deadlock = false;
   for (unsigned j = 0; j < par.m_rows; j++) {
-    unsigned i = thrrow(par, j);
+    unsigned j2 = ! par.m_randomkey ? j : urandom(par.m_rows);
+    unsigned i = thrrow(par, j2);
     set.lock();
     if (! set.exist(i) || set.pending(i)) {
       set.unlock();
@@ -2398,7 +2404,7 @@ static int
 scanreadindex(Par par, const ITab& itab)
 {
   const Tab& tab = par.tab();
-  for (unsigned i = 0; i < par.m_idxloop; i++) {
+  for (unsigned i = 0; i < par.m_subsubloop; i++) {
     BSet bset(tab, itab, par.m_rows);
     bset.calc(par);
     CHK(scanreadindex(par, itab, bset) == 0);
@@ -2645,7 +2651,7 @@ static int
 scanupdateindex(Par par, const ITab& itab)
 {
   const Tab& tab = par.tab();
-  for (unsigned i = 0; i < par.m_idxloop; i++) {
+  for (unsigned i = 0; i < par.m_subsubloop; i++) {
     BSet bset(tab, itab, par.m_rows);
     bset.calc(par);
     CHK(scanupdateindex(par, itab, bset) == 0);
@@ -2682,6 +2688,53 @@ readverify(Par par)
   par.m_verify = true;
   CHK(pkread(par) == 0);
   CHK(scanreadall(par) == 0);
+  return 0;
+}
+
+static int
+readverifyfull(Par par)
+{
+  par.m_verify = true;
+  if (par.m_no == 0)
+    CHK(scanreadtable(par) == 0);
+  else {
+    const Tab& tab = par.tab();
+    unsigned i = par.m_no;
+    if (i <= tab.m_itabs && useindex(i)) {
+      const ITab& itab = tab.m_itab[i - 1];
+      BSet bset(tab, itab, par.m_rows);
+      CHK(scanreadindex(par, itab, bset) == 0);
+    }
+  }
+  return 0;
+}
+
+static int
+pkops(Par par)
+{
+  par.m_randomkey = true;
+  for (unsigned i = 0; i < par.m_subsubloop; i++) {
+    unsigned sel = urandom(10);
+    if (par.m_slno % 2 == 0) {
+      // favor insert
+      if (sel < 8) {
+        CHK(pkinsert(par) == 0);
+      } else if (sel < 9) {
+        CHK(pkupdate(par) == 0);
+      } else {
+        CHK(pkdelete(par) == 0);
+      }
+    } else {
+      // favor delete
+      if (sel < 1) {
+        CHK(pkinsert(par) == 0);
+      } else if (sel < 2) {
+        CHK(pkupdate(par) == 0);
+      } else {
+        CHK(pkdelete(par) == 0);
+      }
+    }
+  }
   return 0;
 }
 
@@ -2930,6 +2983,8 @@ runstep(Par par, const char* fname, TFunc func, unsigned mode)
     thr.m_par.m_tab = par.m_tab;
     thr.m_par.m_set = par.m_set;
     thr.m_par.m_tmr = par.m_tmr;
+    thr.m_par.m_lno = par.m_lno;
+    thr.m_par.m_slno = par.m_slno;
     thr.m_func = func;
     thr.start();
   }
@@ -2953,8 +3008,8 @@ tbuild(Par par)
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
-    if (i % 2 == 0) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
+    if (par.m_slno % 2 == 0) {
       RUNSTEP(par, createindex, ST);
       RUNSTEP(par, invalidateindex, MT);
       RUNSTEP(par, pkinsert, MT);
@@ -2964,9 +3019,9 @@ tbuild(Par par)
       RUNSTEP(par, invalidateindex, MT);
     }
     RUNSTEP(par, pkupdate, MT);
-    RUNSTEP(par, readverify, ST);
+    RUNSTEP(par, readverifyfull, MT);
     RUNSTEP(par, pkdelete, MT);
-    RUNSTEP(par, readverify, ST);
+    RUNSTEP(par, readverifyfull, MT);
     RUNSTEP(par, dropindex, ST);
   }
   return 0;
@@ -2978,11 +3033,27 @@ tpkops(Par par)
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
+  RUNSTEP(par, createindex, ST);
+  RUNSTEP(par, invalidateindex, MT);
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
+    RUNSTEP(par, pkops, MT);
+    LL2("rows=" << par.set().count());
+    RUNSTEP(par, readverifyfull, MT);
+  }
+  return 0;
+}
+
+static int
+tpkopsread(Par par)
+{
+  RUNSTEP(par, droptable, ST);
+  RUNSTEP(par, createtable, ST);
+  RUNSTEP(par, invalidatetable, MT);
   RUNSTEP(par, pkinsert, MT);
   RUNSTEP(par, createindex, ST);
   RUNSTEP(par, invalidateindex, MT);
   RUNSTEP(par, readverify, ST);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, pkupdatescanread, MT);
     RUNSTEP(par, readverify, ST);
   }
@@ -3001,7 +3072,7 @@ tmixedops(Par par)
   RUNSTEP(par, createindex, ST);
   RUNSTEP(par, invalidateindex, MT);
   RUNSTEP(par, readverify, ST);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, mixedoperations, MT);
     RUNSTEP(par, readverify, ST);
   }
@@ -3015,7 +3086,7 @@ tbusybuild(Par par)
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
   RUNSTEP(par, pkinsert, MT);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, pkupdateindexbuild, MT);
     RUNSTEP(par, invalidateindex, MT);
     RUNSTEP(par, readverify, ST);
@@ -3031,7 +3102,7 @@ ttimebuild(Par par)
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, pkinsert, MT);
     t1.on();
     RUNSTEP(par, createindex, ST);
@@ -3050,7 +3121,7 @@ ttimemaint(Par par)
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, pkinsert, MT);
     t1.on();
     RUNSTEP(par, pkupdate, MT);
@@ -3075,7 +3146,7 @@ ttimescan(Par par)
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, pkinsert, MT);
     RUNSTEP(par, createindex, ST);
     par.m_tmr = &t1;
@@ -3097,7 +3168,7 @@ ttimepkread(Par par)
   RUNSTEP(par, droptable, ST);
   RUNSTEP(par, createtable, ST);
   RUNSTEP(par, invalidatetable, MT);
-  for (unsigned i = 0; i < par.m_subloop; i++) {
+  for (par.m_slno = 0; par.m_slno < par.m_subloop; par.m_slno++) {
     RUNSTEP(par, pkinsert, MT);
     RUNSTEP(par, createindex, ST);
     par.m_tmr = &t1;
@@ -3133,9 +3204,10 @@ struct TCase {
 static const TCase
 tcaselist[] = {
   TCase("a", tbuild, "index build"),
-  TCase("b", tpkops, "pk operations and scan reads"),
-  TCase("c", tmixedops, "pk operations and scan operations"),
-  TCase("d", tbusybuild, "pk operations and index build"),
+  TCase("b", tpkops, "pk operations"),
+  TCase("c", tpkopsread, "pk operations and scan reads"),
+  TCase("d", tmixedops, "pk operations and scan operations"),
+  TCase("e", tbusybuild, "pk operations and index build"),
   TCase("t", ttimebuild, "time index build"),
   TCase("u", ttimemaint, "time index maintenance"),
   TCase("v", ttimescan, "time full scan table vs index on pk"),
@@ -3193,10 +3265,10 @@ runtest(Par par)
     Thr& thr = *g_thrlist[n];
     assert(thr.m_thread != 0);
   }
-  for (unsigned l = 0; par.m_loop == 0 || l < par.m_loop; l++) {
-    LL1("loop " << l);
+  for (par.m_lno = 0; par.m_loop == 0 || par.m_lno < par.m_loop; par.m_lno++) {
+    LL1("loop " << par.m_lno);
     if (par.m_seed == 0)
-      srandom(l);
+      srandom(par.m_lno);
     for (unsigned i = 0; i < tcasecount; i++) {
       const TCase& tcase = tcaselist[i];
       if (par.m_case != 0 && strchr(par.m_case, tcase.m_name[0]) == 0)
