@@ -211,7 +211,6 @@ row_undo(
 
 	if (node->state == UNDO_NODE_FETCH_NEXT) {
 
-		/* The call below also starts &mtr */
 		node->undo_rec = trx_roll_pop_top_rec_of_trx(trx,
 							trx->roll_limit,
 							&roll_ptr,
@@ -254,6 +253,18 @@ row_undo(
 		}
 	}
 
+	/* Prevent DROP TABLE etc. while we are rolling back this row.
+        If we are doing a TABLE CREATE or some other dictionary operation,
+        then we already have dict_operation_lock locked in x-mode. Do not
+        try to lock again in s-mode, because that would cause a hang.
+	   
+	TODO: keep track when trx exactly has the latch locked!!!
+	TODO: trx->dict_operation tells it only in some cases!!! */
+	
+	if (!trx->dict_operation) {
+	        rw_lock_s_lock(&dict_operation_lock);		
+	}
+
 	if (node->state == UNDO_NODE_INSERT) {
 
 		err = row_undo_ins(node, thr);
@@ -262,6 +273,11 @@ row_undo(
 	} else {
 		ut_ad(node->state == UNDO_NODE_MODIFY);
 		err = row_undo_mod(node, thr);
+	}
+
+	if (!trx->dict_operation) {
+
+	        rw_lock_s_unlock(&dict_operation_lock);
 	}
 
 	/* Do some cleanup */

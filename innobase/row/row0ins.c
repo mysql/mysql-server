@@ -321,59 +321,6 @@ row_ins_clust_index_entry_by_modify(
 	return(err);
 }
 
-/*******************************************************************
-Checks if a unique key violation to rec would occur at the index entry
-insert. */
-static
-ibool
-row_ins_dupl_error_with_rec(
-/*========================*/
-				/* out: TRUE if error */
-	rec_t*		rec,	/* in: user record; NOTE that we assume
-				that the caller already has a record lock on
-				the record! */
-	dtuple_t*	entry,	/* in: entry to insert */
-	dict_index_t*	index)	/* in: index */
-{
-	ulint	matched_fields;
-	ulint	matched_bytes;
-	ulint	n_unique;
-	ulint   i;
-	
-	n_unique = dict_index_get_n_unique(index);
-
-	matched_fields = 0;
-	matched_bytes = 0;
-
-	cmp_dtuple_rec_with_match(entry, rec, &matched_fields, &matched_bytes);
-
-	if (matched_fields < n_unique) {
-
-	        return(FALSE);
-	}
-
-	/* In a unique secondary index we allow equal key values if they
-	contain SQL NULLs */
-
-	if (!(index->type & DICT_CLUSTERED)) {
-
-	        for (i = 0; i < n_unique; i++) {
-	                if (UNIV_SQL_NULL == dfield_get_len(
-                                         dtuple_get_nth_field(entry, i))) {
-
-	                        return(FALSE);
-	                }
-	        }
-	}
-
-	if (!rec_get_deleted_flag(rec)) {
-
-	        return(TRUE);
-	}
-
-	return(FALSE);
-}	
-
 /*************************************************************************
 Either deletes or sets the referencing columns SQL NULL in a child row.
 Used in ON DELETE ... clause for foreign keys when a parent row is
@@ -533,8 +480,12 @@ row_ins_foreign_delete_or_set_null(
 	err = lock_table(0, table, LOCK_IX, thr);
 
 	if (err == DB_SUCCESS) {
+		/* Here it suffices to use a LOCK_REC_NOT_GAP type lock;
+		we already have a normal shared lock on the appropriate
+		gap if the search criterion was not unique */
+		
 		err = lock_clust_rec_read_check_and_lock(0, clust_rec,
-						clust_index, LOCK_X, thr);
+				clust_index, LOCK_X, LOCK_REC_NOT_GAP, thr);
 	}
 	
 	if (err != DB_SUCCESS) {
@@ -630,12 +581,14 @@ nonstandard_exit_func:
 
 /*************************************************************************
 Sets a shared lock on a record. Used in locking possible duplicate key
-records. */
+records and also in checking foreign key constraints. */
 static
 ulint
 row_ins_set_shared_rec_lock(
 /*========================*/
 				/* out: DB_SUCCESS or error code */
+	ulint		type, 	/* in: LOCK_ORDINARY, LOCK_GAP, or
+				LOCK_REC_NOT_GAP type lock */
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: index */
 	que_thr_t*	thr)	/* in: query thread */	
@@ -644,10 +597,10 @@ row_ins_set_shared_rec_lock(
 
 	if (index->type & DICT_CLUSTERED) {
 		err = lock_clust_rec_read_check_and_lock(0, rec, index, LOCK_S,
-									thr);
+								type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(0, rec, index, LOCK_S,
-									thr);
+								type, thr);
 	}
 
 	return(err);
@@ -656,7 +609,7 @@ row_ins_set_shared_rec_lock(
 /*******************************************************************
 Checks if foreign key constraint fails for an index entry. Sets shared locks
 which lock either the success or the failure of the constraint. NOTE that
-the caller must have a shared latch on dict_foreign_key_check_lock. */
+the caller must have a shared latch on dict_operation_lock. */
 
 ulint
 row_ins_check_foreign_constraint(
@@ -679,7 +632,7 @@ row_ins_check_foreign_constraint(
 	dict_table_t*	check_table;
 	dict_index_t*	check_index;
 	ulint		n_fields_cmp;
-	ibool           timeout_expired;
+	ibool		unique_search;
 	rec_t*		rec;
 	btr_pcur_t	pcur;
 	ibool		moved;
@@ -689,7 +642,9 @@ row_ins_check_foreign_constraint(
 	mtr_t		mtr;
 
 run_again:
-	ut_ad(rw_lock_own(&dict_foreign_key_check_lock, RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
+
+	err = DB_SUCCESS;
 
 	if (thr_get_trx(thr)->check_foreigns == FALSE) {
 		/* The user has suppressed foreign key checks currently for
@@ -748,6 +703,14 @@ run_again:
 
 	dtuple_set_n_fields_cmp(entry, foreign->n_fields);
 
+	if (dict_index_get_n_unique(check_index) <= foreign->n_fields) {
+		/* We can just set a LOCK_REC_NOT_GAP type lock */
+	
+		unique_search = TRUE;
+	} else {
+		unique_search = FALSE;
+	}
+
 	btr_pcur_open(check_index, entry, PAGE_CUR_GE,
 					BTR_SEARCH_LEAF, &pcur, &mtr);
 
@@ -761,25 +724,45 @@ run_again:
 			goto next_rec;
 		}
 		
-		/* Try to place a lock on the index record */
-
-		err = row_ins_set_shared_rec_lock(rec, check_index, thr);
-
-		if (err != DB_SUCCESS) {
-
-			break;
-		}
-
 		if (rec == page_get_supremum_rec(buf_frame_align(rec))) {
 		
+			err = row_ins_set_shared_rec_lock(LOCK_ORDINARY, rec,
+							check_index, thr);
+			if (err != DB_SUCCESS) {
+
+				break;
+			}
+
 			goto next_rec;
 		}
 
 		cmp = cmp_dtuple_rec(entry, rec);
 
 		if (cmp == 0) {
-			if (!rec_get_deleted_flag(rec)) {
+			if (rec_get_deleted_flag(rec)) {
+				err = row_ins_set_shared_rec_lock(LOCK_ORDINARY,
+							rec, check_index, thr);
+				if (err != DB_SUCCESS) {
+
+					break;
+				}
+			} else {
 				/* Found a matching record */
+				
+				if (unique_search) {
+					err = row_ins_set_shared_rec_lock(
+							LOCK_REC_NOT_GAP,
+							rec, check_index, thr);
+				} else {
+					err = row_ins_set_shared_rec_lock(
+							LOCK_ORDINARY,
+							rec, check_index, thr);
+				}
+				
+				if (err != DB_SUCCESS) {
+
+					break;
+				}
 
 /*				printf(
 "FOREIGN: Found matching record from %s %s\n",
@@ -807,6 +790,13 @@ run_again:
 		}
 
 		if (cmp < 0) {
+			err = row_ins_set_shared_rec_lock(LOCK_GAP,
+						rec, check_index, thr);
+			if (err != DB_SUCCESS) {
+
+				break;
+			}
+
 			if (check_ref) {			
 				err = DB_NO_REFERENCED_ROW;
 			} else {
@@ -844,14 +834,14 @@ do_possible_lock_wait:
 
 		que_thr_stop_for_mysql(thr);
 
-		timeout_expired = srv_suspend_mysql_thread(thr);
+		srv_suspend_mysql_thread(thr);
 	
-		if (!timeout_expired) {
+		if (thr_get_trx(thr)->error_state == DB_SUCCESS) {
 
 		        goto run_again;
 		}
 
-		err = DB_LOCK_WAIT_TIMEOUT;
+		err = thr_get_trx(thr)->error_state;
 	}
 
 	return(err);
@@ -890,21 +880,21 @@ row_ins_check_foreign_constraints(
 									trx);
 			}
 
-			if (!trx->has_dict_foreign_key_check_lock) {
+			if (!trx->has_dict_operation_lock) {
 				got_s_lock = TRUE;
 
-				rw_lock_s_lock(&dict_foreign_key_check_lock);
+				rw_lock_s_lock(&dict_operation_lock);
 
-				trx->has_dict_foreign_key_check_lock = TRUE;
+				trx->has_dict_operation_lock = TRUE;
 			}
 
 			err = row_ins_check_foreign_constraint(TRUE, foreign,
 						table, index, entry, thr);
 			if (got_s_lock) {
 
-				rw_lock_s_unlock(&dict_foreign_key_check_lock);	
+				rw_lock_s_unlock(&dict_operation_lock);	
 
-				trx->has_dict_foreign_key_check_lock = FALSE;
+				trx->has_dict_operation_lock = FALSE;
 			}
 				
 			if (err != DB_SUCCESS) {
@@ -917,6 +907,59 @@ row_ins_check_foreign_constraints(
 
 	return(DB_SUCCESS);
 }
+
+/*******************************************************************
+Checks if a unique key violation to rec would occur at the index entry
+insert. */
+static
+ibool
+row_ins_dupl_error_with_rec(
+/*========================*/
+				/* out: TRUE if error */
+	rec_t*		rec,	/* in: user record; NOTE that we assume
+				that the caller already has a record lock on
+				the record! */
+	dtuple_t*	entry,	/* in: entry to insert */
+	dict_index_t*	index)	/* in: index */
+{
+	ulint	matched_fields;
+	ulint	matched_bytes;
+	ulint	n_unique;
+	ulint   i;
+	
+	n_unique = dict_index_get_n_unique(index);
+
+	matched_fields = 0;
+	matched_bytes = 0;
+
+	cmp_dtuple_rec_with_match(entry, rec, &matched_fields, &matched_bytes);
+
+	if (matched_fields < n_unique) {
+
+	        return(FALSE);
+	}
+
+	/* In a unique secondary index we allow equal key values if they
+	contain SQL NULLs */
+
+	if (!(index->type & DICT_CLUSTERED)) {
+
+	        for (i = 0; i < n_unique; i++) {
+	                if (UNIV_SQL_NULL == dfield_get_len(
+                                         dtuple_get_nth_field(entry, i))) {
+
+	                        return(FALSE);
+	                }
+	        }
+	}
+
+	if (!rec_get_deleted_flag(rec)) {
+
+	        return(TRUE);
+	}
+
+	return(FALSE);
+}	
 
 /*******************************************************************
 Scans a unique non-clustered index at a given index entry to determine
@@ -976,9 +1019,10 @@ row_ins_scan_sec_index_for_duplicate(
 			goto next_rec;
 		}
 				
-		/* Try to place a lock on the index record */	
+		/* Try to place a lock on the index record */
 
-		err = row_ins_set_shared_rec_lock(rec, index, thr);
+		err = row_ins_set_shared_rec_lock(LOCK_ORDINARY, rec, index,
+									thr);
 
 		if (err != DB_SUCCESS) {
 
@@ -1082,8 +1126,8 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 		
-			err = row_ins_set_shared_rec_lock(rec, cursor->index,
-									thr);
+			err = row_ins_set_shared_rec_lock(LOCK_REC_NOT_GAP,
+						rec, cursor->index, thr);
 			if (err != DB_SUCCESS) {
 					
 				return(err);
@@ -1105,8 +1149,8 @@ row_ins_duplicate_error_in_clust(
 
 		if (rec != page_get_supremum_rec(page)) {
 
-			err = row_ins_set_shared_rec_lock(rec, cursor->index,
-									thr);
+			err = row_ins_set_shared_rec_lock(LOCK_REC_NOT_GAP,
+						rec, cursor->index, thr);
 			if (err != DB_SUCCESS) {
 					
 				return(err);

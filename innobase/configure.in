@@ -86,6 +86,8 @@ else
 fi
 
 case "$target_os" in
+       lin*)
+	 CFLAGS="$CFLAGS -DUNIV_LINUX";;
        hpux10*)
 	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX -DUNIV_HPUX10";;
        hp*)

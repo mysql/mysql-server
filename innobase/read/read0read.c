@@ -201,6 +201,28 @@ read_view_close(
 } 
 
 /*************************************************************************
+Closes a consistent read view for MySQL. This function is called at an SQL
+statement end if the trx isolation level is <= TRX_ISO_READ_COMMITTED. */
+
+void
+read_view_close_for_mysql(
+/*======================*/
+	trx_t*	trx)	/* in: trx which has a read view */
+{
+	ut_a(trx->read_view);
+
+	mutex_enter(&kernel_mutex);
+
+	read_view_close(trx->read_view);
+
+	mem_heap_empty(trx->read_view_heap);
+
+	trx->read_view = NULL;
+
+	mutex_exit(&kernel_mutex);
+}
+	
+/*************************************************************************
 Prints a read view to stderr. */
 
 void

@@ -327,6 +327,7 @@ struct trx_struct{
         time_t          start_time;     /* time the trx object was created
                                         or the state last time became
                                         TRX_ACTIVE */
+	ulint		isolation_level;/* TRX_ISO_REPEATABLE_READ, ... */
 	ibool		check_foreigns;	/* normally TRUE, but if the user
 					wants to suppress foreign key checks,
 					(in table imports, for example) we
@@ -350,6 +351,9 @@ struct trx_struct{
 	/*------------------------------*/
         void*           mysql_thd;      /* MySQL thread handle corresponding
                                         to this trx, or NULL */
+	char**		mysql_query_str;/* pointer to the field in mysqld_thd
+					which contains the pointer to the
+					current SQL query string */
 	char*		mysql_log_file_name;
 					/* if MySQL binlog is used, this field
 					contains a pointer to the latest file
@@ -371,6 +375,9 @@ struct trx_struct{
 					replication has processed */
 	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
 					with this transaction object */
+	ulint		mysql_process_no;/* since in Linux, 'top' reports
+					process id's and not thread id's, we
+					store the process number too */
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current
@@ -379,9 +386,9 @@ struct trx_struct{
                                         /* how many tables the current SQL
 					statement uses, except those
 					in consistent read */
-	ibool		has_dict_foreign_key_check_lock;
+	ibool		has_dict_operation_lock;
 					/* TRUE if the trx currently holds
-					an s-lock on dict_foreign_... */
+					an s-lock on dict_operation_lock */
         ibool           has_search_latch;
 			                /* TRUE if this trx has latched the
 			                search system latch in S-mode */
@@ -522,6 +529,41 @@ struct trx_struct{
 #define TRX_QUE_LOCK_WAIT	2	/* transaction is waiting for a lock */
 #define TRX_QUE_ROLLING_BACK	3	/* transaction is rolling back */
 #define TRX_QUE_COMMITTING	4	/* transaction is committing */
+
+/* Transaction isolation levels */
+#define TRX_ISO_READ_UNCOMMITTED	1	/* dirty read: non-locking
+						SELECTs are performed so that
+						we do not look at a possible
+						earlier version of a record;
+						thus they are not 'consistent'
+						reads under this isolation
+						level; otherwise like level
+						2 */
+
+#define TRX_ISO_READ_COMMITTED		2	/* somewhat Oracle-like
+						isolation, except that in
+						range UPDATE and DELETE we
+						must block phantom rows
+						with next-key locks;
+						SELECT ... FOR UPDATE and ...
+						LOCK IN SHARE MODE only lock
+						the index records, NOT the
+						gaps before them, and thus
+						allow free inserting;
+						each consistent read reads its
+						own snapshot */
+
+#define TRX_ISO_REPEATABLE_READ		3	/* this is the default;
+						all consistent reads in the
+						same trx read the same
+						snapshot;
+						full next-key locking used
+						in locking reads to block
+						insertions into gaps */
+
+#define TRX_ISO_SERIALIZABLE		4	/* all plain SELECTs are
+						converted to LOCK IN SHARE
+						MODE reads */
 
 /* Types of a trx signal */
 #define TRX_SIG_NO_SIGNAL		100
