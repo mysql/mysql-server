@@ -20,9 +20,7 @@
 #include <ndb_global.h>
 #include <BackupFormat.hpp>
 #include <NdbApi.hpp>
-#include <AttrType.hpp>
-
-#include <NdbOut.hpp>
+#include <NdbSchemaCon.hpp>
 #include "myVector.hpp"
 
 #include <ndb_version.h>

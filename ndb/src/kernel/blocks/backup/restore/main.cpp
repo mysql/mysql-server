@@ -23,6 +23,9 @@
 #ifdef USE_MYSQL
 #include <mysql.h>
 #endif
+
+#include <NdbOut.hpp>
+
 NdbOut& operator<<(NdbOut& ndbout, const TupleS& tuple);
 NdbOut& operator<<(NdbOut& ndbout, const LogEntry& logEntry);
 NdbOut& operator<<(NdbOut& ndbout, const RestoreMetaData &);
@@ -606,7 +609,7 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
 	break;
       } // switch size
       break;
-    case (String):
+    case String:
       if (desc.size == 8){ 
 	NdbDictionary::Column::Type type = desc.m_table->m_dictTable->getColumn(desc.attrId)->getType();
 	if(type == NdbDictionary::Column::Varchar){
@@ -622,7 +625,7 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
       }
       j = desc.arraySize;
       break;
-    case (Float):
+    case Float:
       // Not yet supported to print float
       ndbout << "float";
       break;

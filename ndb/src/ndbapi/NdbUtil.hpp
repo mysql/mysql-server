@@ -30,7 +30,6 @@ Comment:
 #define NdbUtil_H
 
 #include <ndb_global.h>
-#include "AttrType.hpp"
 
 class NdbApiSignal;
 class NdbOperation;

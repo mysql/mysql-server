@@ -121,7 +121,7 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
   HugoOperations hugoOps(*ctx->getTab());
   NdbRestarter restarter;
 
-  int restartGCI = pNdb->NdbTamper(ReadRestartGCI, 0);    
+  int restartGCI = pNdb->NdbTamper(Ndb::ReadRestartGCI, 0);    
 
   ndbout << "restartGCI = " << restartGCI << endl;
   int count = 0;

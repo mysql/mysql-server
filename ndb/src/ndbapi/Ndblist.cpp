@@ -16,8 +16,8 @@
 
 #include <NdbOut.hpp>
 #include "Ndb.hpp"
-#include "NdbSchemaOp.hpp"
-#include "NdbSchemaCon.hpp" 
+//#include "NdbSchemaOp.hpp"
+//#include "NdbSchemaCon.hpp" 
 #include "NdbOperation.hpp"
 #include "NdbScanOperation.hpp"
 #include "NdbIndexOperation.hpp"
@@ -104,7 +104,7 @@ Ndb::createConIdleList(int aNrOfCon)
       tNdbCon->next(theConIdleList);
       theConIdleList = tNdbCon;
     }
-    tNdbCon->Status(NotConnected);
+    tNdbCon->Status(NdbConnection::NotConnected);
   }
   theNoOfAllocatedTransactions = aNrOfCon;
   return aNrOfCon; 
@@ -770,7 +770,7 @@ Ndb::releaseConnectToNdb(NdbConnection* a_con)
   tSignal.setData((tConPtr = a_con->getTC_ConnectPtr()), 1);
   tSignal.setData(theMyRef, 2);
   tSignal.setData(a_con->ptr2int(), 3); 
-  a_con->Status(DisConnecting);
+  a_con->Status(NdbConnection::DisConnecting);
   a_con->theMagicNumber = 0x37412619;
   int ret_code = sendRecSignal(node_id,
                                WAIT_TC_RELEASE,

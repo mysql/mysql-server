@@ -17,7 +17,6 @@
 #ifndef TransporterFacade_H
 #define TransporterFacade_H
 
-#include <AttrType.hpp>
 #include <kernel_types.h>
 #include <ndb_limits.h>
 #include <NdbThread.h>
@@ -43,6 +42,10 @@ extern "C" {
   void atexit_stop_instance();
 }
 
+/**
+ * Max number of Ndb objects in different threads.  
+ * (Ndb objects should not be shared by different threads.)
+ */
 class TransporterFacade
 {
 public:
@@ -156,6 +159,8 @@ private:
   /**
    * Block number handling
    */
+  static const unsigned MAX_NO_THREADS = 4711;
+
   struct ThreadData {
     static const Uint32 ACTIVE = (1 << 16) | 1;
     static const Uint32 INACTIVE = (1 << 16);

@@ -58,6 +58,7 @@
 #include <NdbThread.h>
 #include <NdbMutex.h>
 #include <NdbApi.hpp>
+#include <NdbSchemaCon.hpp>
 #include <NDBT.hpp>
 
 #define MAXATTR 3
@@ -93,8 +94,8 @@ TTYPE t_addReg(int, NdbOperation*);
 TTYPE t_subReg(int, NdbOperation*);
 TTYPE t_subroutineWithBranchLabel(int, NdbOperation*);
 
-char        tableName[MAXTABLES][MAXSTRLEN+1] = {0};
-char        attrName[MAXATTR][MAXSTRLEN+1] = {0};
+char        tableName[MAXSTRLEN+1];
+char        attrName[MAXATTR][MAXSTRLEN+1];
 int         attrValue[NUMBEROFRECORDS] = {0};
 int         pkValue[NUMBEROFRECORDS] = {0};
 const int   tAttributeSize = 1 ;
@@ -105,11 +106,9 @@ int         bTestPassed = 0;
 
 int main(int argc, const char** argv) {
 
-  int tTableId = 0;
   int operationType = 0;
-  int tupTest = 0 ;
-  int scanTest = 0 ;
-  bool loop = 0 ;
+  int tupTest = 0;
+  int scanTest = 0;
 
   Ndb* pNdb = new Ndb("TEST_DB");
   pNdb->init();
@@ -140,7 +139,7 @@ int main(int argc, const char** argv) {
   setAttrNames() ;
   setTableNames() ;
   
-  const void * p = NDBT_Table::discoverTableFromDb(pNdb, tableName[0]);
+  const void * p = NDBT_Table::discoverTableFromDb(pNdb, tableName);
   if (p != 0){
     create_table(pNdb);
   }
@@ -252,18 +251,17 @@ void  create_table(Ndb* pMyNdb) {
    ***************************************************************/
 
   int               check = -1 ;
-  NdbSchemaCon      *MySchemaTransaction = NULL ;
   NdbSchemaOp       *MySchemaOp = NULL ;
 
-  ndbout << endl << "Creating " << tableName[0] << " ... " << endl;
+  ndbout << endl << "Creating " << tableName << " ... " << endl;
 
-   MySchemaTransaction = pMyNdb->startSchemaTransaction();
+   NdbSchemaCon* MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pMyNdb);
    if(!MySchemaTransaction) error_handler(MySchemaTransaction->getNdbError(), NO_FAIL);
    
    MySchemaOp = MySchemaTransaction->getNdbSchemaOp();
    if( !MySchemaOp ) error_handler(MySchemaTransaction->getNdbError(), NO_FAIL);
    // Create table
-   check = MySchemaOp->createTable( tableName[0],
+   check = MySchemaOp->createTable( tableName,
                                      8,         // Table size
                                      TupleKey,  // Key Type
                                      40         // Nr of Pages
@@ -305,7 +303,8 @@ void  create_table(Ndb* pMyNdb) {
        ndbout << tableName[0] << " created" << endl;
    }
 
-   pMyNdb->closeSchemaTransaction(MySchemaTransaction);
+
+   NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
 
    return;
 
@@ -333,7 +332,7 @@ void write_rows (Ndb* pMyNdb) {
           error_handler(pMyNdb->getNdbError(), NO_FAIL);
       }//if
 
-      MyOperation = MyTransaction->getNdbOperation(tableName[0]);
+      MyOperation = MyTransaction->getNdbOperation(tableName);
       if (!MyOperation) {
         error_handler(pMyNdb->getNdbError(), NO_FAIL);
       }//if
@@ -366,9 +365,6 @@ void verify_deleted(Ndb* pMyNdb) {
 
   int               check = -1 ;
   int               loop_count_ops = nRecords;
-  NdbRecAttr*       tTmp;
-  int               readValue[MAXATTR];
-  NdbConnection*    pMyTransaction = NULL ;
   NdbOperation*     pMyOperation = NULL ;
 
   ndbout << "Verifying deleted records..."<< flush;
@@ -378,7 +374,7 @@ void verify_deleted(Ndb* pMyNdb) {
       NdbConnection*  pMyTransaction = pMyNdb->startTransaction();
       if (!pMyTransaction) error_handler(pMyNdb->getNdbError(), NO_FAIL);
       
-      pMyOperation = pMyTransaction->getNdbOperation(tableName[0]);
+      pMyOperation = pMyTransaction->getNdbOperation(tableName);
       if (!pMyOperation) error_handler(pMyNdb->getNdbError(), NO_FAIL);
       
       check = pMyOperation->readTuple();
@@ -421,7 +417,7 @@ void read_and_verify_rows(Ndb* pMyNdb, bool pre) {
       pMyTransaction = pMyNdb->startTransaction();
       if (!pMyTransaction) error_handler(pMyNdb->getNdbError(), NO_FAIL);
 
-      MyOp = pMyTransaction->getNdbOperation(tableName[0]);
+      MyOp = pMyTransaction->getNdbOperation(tableName);
       if (!MyOp) error_handler( pMyTransaction->getNdbError(), NO_FAIL);
 
 
@@ -1232,14 +1228,13 @@ void scan_rows(Ndb* pMyNdb, int opType, int tupleType, int scanType) {
   int           readValue = 0 ;
   int           readValue2 = 0 ;
   int           scanCount = 0 ;
-  NdbRecAttr*   tTmp = NULL ;
   TTYPE         fail = NO_FAIL ;
 
   for (int count=0 ; count < loop_count_ops ; count++)    {
   NdbConnection* MyTransaction = pMyNdb->startTransaction();
   if (!MyTransaction) error_handler(pMyNdb->getNdbError(), NO_FAIL);
 
-  NdbOperation*  MyOperation = MyTransaction->getNdbOperation(tableName[0]);
+  NdbOperation*  MyOperation = MyTransaction->getNdbOperation(tableName);
   if (!MyOperation) error_handler(pMyNdb->getNdbError(), NO_FAIL);
 
   if (opType == 1)
@@ -1306,7 +1301,7 @@ void scan_rows(Ndb* pMyNdb, int opType, int tupleType, int scanType) {
   }else{
     // Sends the SCAN_NEXTREQ signal(s) and reads the answer in TRANS_ID signals.
     // SCAN_TABCONF or SCAN_TABREF is the confirmation.
-    while (eOf = MyTransaction->nextScanResult() == 0) {
+    while ((eOf = MyTransaction->nextScanResult()) == 0) {
       ndbout << readValue <<"; ";
       // Here we call takeOverScanOp for update of the tuple.
     }
@@ -1348,7 +1343,7 @@ void  update_rows(Ndb* pMyNdb, int tupleType, int opType) {
       return;
     }//if
 
-    MyOperation = MyTransaction->getNdbOperation(tableName[0]);
+    MyOperation = MyTransaction->getNdbOperation(tableName);
     if (MyOperation == NULL) {
       error_handler(pMyNdb->getNdbError(), NO_FAIL);
       return;
@@ -1442,7 +1437,7 @@ void delete_rows(Ndb* pMyNdb, int tupleTest, int opType) {
     MyTransaction = pMyNdb->startTransaction();
     if (!MyTransaction) error_handler(pMyNdb->getNdbError(), NO_FAIL) ;
     
-    MyOperation = MyTransaction->getNdbOperation(tableName[0]);
+    MyOperation = MyTransaction->getNdbOperation(tableName);
     if (!MyOperation) error_handler(pMyNdb->getNdbError(), NO_FAIL) ;
 
     check = MyOperation->interpretedDeleteTuple();
@@ -1517,8 +1512,6 @@ inline void setAttrNames(){
 
 
 inline void setTableNames(){
-  for (int i = 0; i < MAXTABLES; i++){
-      snprintf(tableName[i], MAXSTRLEN, "TAB%d", i);
-    }
+  snprintf(tableName, MAXSTRLEN, "TAB1");
 }
 

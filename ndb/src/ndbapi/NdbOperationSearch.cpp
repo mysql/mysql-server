@@ -35,7 +35,6 @@ Adjust:  971022  UABMNST   First version.
 #include <Ndb.hpp>
 #include "NdbImpl.hpp"
 #include <NdbOut.hpp>
-#include "AttrType.hpp"
 
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyReq.hpp>
@@ -102,7 +101,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 	    goto equal_error2;
 	  }//if
 	}//if
-      } while (i < MAXNROFTUPLEKEY);
+      } while (i < NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY);
       goto equal_error2;
     } else {
       goto equal_error1;

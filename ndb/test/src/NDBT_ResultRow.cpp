@@ -17,6 +17,7 @@
 #include <ndb_global.h>
 #include "NDBT_ResultRow.hpp"
 #include <NdbOut.hpp>
+#include <NdbSchemaCon.hpp>
 
 NDBT_ResultRow::NDBT_ResultRow(const NdbDictionary::Table& tab,
 			       char attrib_delimiter)
@@ -109,6 +110,12 @@ BaseString NDBT_ResultRow::c_str() {
   return str;
 }
 
+
+/**
+ * TODO This could chare the sanme printer function as in 
+ * NdbEventOperationImpl.cpp, using new types of course :)
+ */
+
 NdbOut & 
 operator << (NdbOut& ndbout, const NDBT_ResultRow & res) {
   for(int i = 0; i<res.cols; i++){
@@ -117,7 +124,7 @@ operator << (NdbOut& ndbout, const NDBT_ResultRow & res) {
     else{
       const int  size = res.data[i]->attrSize();
       const int aSize = res.data[i]->arraySize();
-      switch(res.data[i]->attrType()){
+      switch(convertColumnTypeToAttrType(res.data[i]->getType())){
       case UnSigned:
 	switch(size){
 	case 8:
@@ -174,7 +181,8 @@ operator << (NdbOut& ndbout, const NDBT_ResultRow & res) {
 	break;
 	
       default:
-	ndbout << "Unknown(" << res.data[i]->attrType() << ")";
+	ndbout << "Unknown(" << 
+	  convertColumnTypeToAttrType(res.data[i]->getType()) << ")";
 	break;
       }
     }

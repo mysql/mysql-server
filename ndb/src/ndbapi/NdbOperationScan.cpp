@@ -31,7 +31,7 @@ NdbOperation::openScanRead(Uint32 aParallelism)
 {
   aParallelism = checkParallelism(aParallelism);
 
-  if ((theNdbCon->theCommitStatus != Started) &&
+  if ((theNdbCon->theCommitStatus != NdbConnection::Started) &&
       (theStatus != Init) &&
       (aParallelism == 0)) {
     setErrorCode(4200);
@@ -48,7 +48,7 @@ NdbOperation::openScanExclusive(Uint32 aParallelism)
 {
   aParallelism = checkParallelism(aParallelism);
   
-  if ((theNdbCon->theCommitStatus != Started) &&
+  if ((theNdbCon->theCommitStatus != NdbConnection::Started) &&
       (theStatus != Init) &&
       (aParallelism == 0)) {
     setErrorCode(4200);
@@ -65,7 +65,7 @@ NdbOperation::openScanReadHoldLock(Uint32 aParallelism)
 {
   aParallelism = checkParallelism(aParallelism);
 
-  if ((theNdbCon->theCommitStatus != Started) &&
+  if ((theNdbCon->theCommitStatus != NdbConnection::Started) &&
       (theStatus != Init) &&
       (aParallelism == 0)) {
     setErrorCode(4200);
@@ -82,7 +82,7 @@ NdbOperation::openScanReadCommitted(Uint32 aParallelism)
 {
   aParallelism = checkParallelism(aParallelism);
 
-  if ((theNdbCon->theCommitStatus != Started) &&
+  if ((theNdbCon->theCommitStatus != NdbConnection::Started) &&
       (theStatus != Init) &&
       (aParallelism == 0)) {
     setErrorCode(4200);

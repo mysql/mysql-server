@@ -31,7 +31,6 @@
 #include "NdbConnection.hpp"
 #include "Ndb.hpp"
 #include "NdbRecAttr.hpp"
-#include "AttrType.hpp"
 #include "NdbUtil.hpp"
 #include "NdbOut.hpp"
 #include "NdbImpl.hpp"

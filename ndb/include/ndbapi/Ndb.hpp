@@ -860,7 +860,6 @@
 
 #include <ndb_types.h>
 #include <ndbapi_limits.h>
-#include <AttrType.hpp>
 #include <NdbError.hpp>
 #include <NdbDictionary.hpp>
 
@@ -870,8 +869,6 @@ class NdbEventOperationImpl;
 class NdbScanOperation;
 class NdbIndexOperation;
 class NdbConnection;
-class NdbSchemaOp;
-class NdbSchemaCon;
 class NdbApiSignal;
 class NdbRecAttr;
 class NdbLabel;
@@ -961,8 +958,6 @@ class Ndb
   friend class NdbOperation;
   friend class NdbEventOperationImpl;
   friend class NdbConnection;
-  friend class NdbSchemaOp;
-  friend class NdbSchemaCon;
   friend class Table;
   friend class NdbApiSignal;
   friend class NdbScanReceiver;
@@ -1064,8 +1059,6 @@ public:
    *         A value larger than 1024 will be downgraded to 1024. 
    *         This means that one Ndb object can handle at most 1024 parallel
    *         transactions. 
-   *         There is a maximum of 128 simultaneous
-   *         Ndb object within one application process.
    * @return 0 if successful, -1 otherwise.
    *
    * @note   The internal implementation multiplies this value 
@@ -1245,22 +1238,6 @@ public:
    */
   void closeTransaction(NdbConnection* aConnection);
   
-#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-  /**
-   * To create a table it is necessary to obtain a schema transaction 
-   * object.  
-   * All schema transactions need to closed when they are
-   * completed.
-   * 
-   * @return NdbSchemaCon
-   */
-  NdbSchemaCon*	startSchemaTransaction();
-
-  /**
-   *  Close schema transaction when finished.
-   */
-  void closeSchemaTransaction(NdbSchemaCon* aSchemaCon);
-#endif
 
   /** @} *********************************************************************/
 
@@ -1391,6 +1368,20 @@ public:
   /** @} *********************************************************************/
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+
+  /**
+   * Different types of tampering with the NDB Cluster.
+   * <b>Only for debugging purposes only.</b>
+   */
+  enum TamperType	{ 
+    LockGlbChp = 1,               ///< Lock GCP
+    UnlockGlbChp,                 ///< Unlock GCP
+    CrashNode,                    ///< Crash an NDB node
+    ReadRestartGCI,               ///< Request the restart GCI id from NDB Cluster
+    InsertError                   ///< Execute an error in NDB Cluster 
+                                  ///< (may crash system)
+  };
+
   /**
    * For testing purposes it is possible to tamper with the NDB Cluster
    * (i.e. send a special signal to DBDIH, the NDB distribution handler).
@@ -1398,14 +1389,7 @@ public:
    * In a release versions of NDB Cluster,
    * this call always return -1 and does nothing.
    * 
-   * @param aAction Action to be taken
-   *                - 1:     Lock global checkpointing
-   *	                     (Can only be sent to master DIH, 
-   *                         Parameter aNode ignored).
-   *	            - 2:     UnLock global checkpointing    
-   *	                     (Can only be sent to master DIH, 
-   *                         Parameter aNode ignored).
-   *                - 3:     Crash node.
+   * @param aAction Action to be taken according to TamperType above
    *
    * @param aNode  Which node the action will be taken
    *              -1:   Master DIH.
@@ -1616,9 +1600,6 @@ private:
 
   NdbScanOperation*	theScanOpIdleList;	// First scan operation in the idle list. 
   NdbIndexOperation*	theIndexOpIdleList;	// First index operation in the idle list. 
-  NdbSchemaCon*		theSchemaConIdleList;  // First schemaCon in idle list.
-
-  NdbSchemaCon* 	theSchemaConToNdbList; // Connected schemaCon object.
   NdbConnection*	theTransactionList;
   NdbConnection**       theConnectionArray;
   NdbRecAttr*		theRecAttrIdleList;  
@@ -1649,7 +1630,14 @@ private:
   NdbError              theError;
 
   Int32        	        theNdbBlockNumber;
-  InitType		theInitState;
+
+  enum InitType {
+    NotConstructed,
+    NotInitialised,
+    StartingInit,
+    Initialised,
+    InitConfigError
+  } theInitState;
 
   // Ensure good distribution of connects
   Uint32		theCurrentConnectIndex;

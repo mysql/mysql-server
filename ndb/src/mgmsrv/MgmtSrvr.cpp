@@ -21,7 +21,6 @@
 #include "MgmtErrorReporter.hpp"
 
 #include <NdbOut.hpp>
-#include <AttrType.hpp>
 #include <NdbApiSignal.hpp>
 #include <kernel_types.h>
 #include <RefConvert.hpp>

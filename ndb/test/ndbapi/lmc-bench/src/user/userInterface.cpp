@@ -32,6 +32,7 @@
 #include <NdbSleep.h>
 #include "ndb_schema.hpp"
 #include <NDBT.hpp>
+#include <NdbSchemaCon.hpp>
 
 /***************************************************************
 * L O C A L   C O N S T A N T S                                *
@@ -141,13 +142,11 @@ extern int useIndexTables;
 
 
 int
-create_table_server(Ndb * pNDB){
-  
+create_table_server(Ndb * pNdb){
   int check;
-   
-  NdbSchemaCon * MySchemaTransaction = pNDB->startSchemaTransaction();
+  NdbSchemaCon * MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pNdb);
   if( MySchemaTransaction == NULL )
-    error_handler("startSchemaTransaction", pNDB->getNdbError(), 0);
+    error_handler("startSchemaTransaction", pNdb->getNdbError(), 0);
   
   NdbSchemaOp * MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
   if( MySchemaOp == NULL ) 
@@ -246,17 +245,17 @@ create_table_server(Ndb * pNDB){
     error_handler("schemaTransaction->execute()", 
 		  MySchemaTransaction->getNdbError(), 0);
   }    
-  pNDB->closeSchemaTransaction(MySchemaTransaction);
+  NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   return 0;
 }
 
 int
-create_table_group(Ndb * pNDB){
+create_table_group(Ndb * pNdb){
   int check;
 
-  NdbSchemaCon * MySchemaTransaction = pNDB->startSchemaTransaction();
+  NdbSchemaCon * MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pNdb);
   if( MySchemaTransaction == NULL )
-    error_handler("startSchemaTransaction", pNDB->getNdbError(), 0);
+    error_handler("startSchemaTransaction", pNdb->getNdbError(), 0);
   
   NdbSchemaOp * MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
   if( MySchemaOp == NULL ) 
@@ -340,16 +339,16 @@ create_table_group(Ndb * pNDB){
     error_handler("schemaTransaction->execute()", 
 		  MySchemaTransaction->getNdbError(), 0);
   }    
-  pNDB->closeSchemaTransaction(MySchemaTransaction);
+  NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   return 0;
 }
 
 int
-create_table_subscriber(Ndb * pNDB){
+create_table_subscriber(Ndb * pNdb){
   int check;
-  NdbSchemaCon * MySchemaTransaction = pNDB->startSchemaTransaction();
+  NdbSchemaCon * MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pNdb);
   if( MySchemaTransaction == NULL )
-    error_handler("startSchemaTransaction", pNDB->getNdbError(), 0);
+    error_handler("startSchemaTransaction", pNdb->getNdbError(), 0);
   
   NdbSchemaOp * MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
   if( MySchemaOp == NULL ) 
@@ -459,16 +458,16 @@ create_table_subscriber(Ndb * pNDB){
     error_handler("schemaTransaction->execute()", 
 		  MySchemaTransaction->getNdbError(), 0);
   }    
-  pNDB->closeSchemaTransaction(MySchemaTransaction);
+  NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   return 0;
 }
 
 int
-create_table_session(Ndb * pNDB){
+create_table_session(Ndb * pNdb){
   int check;
-  NdbSchemaCon * MySchemaTransaction = pNDB->startSchemaTransaction();
+  NdbSchemaCon * MySchemaTransaction = NdbSchemaCon::startSchemaTrans(pNdb);
   if( MySchemaTransaction == NULL )
-    error_handler("startSchemaTransaction", pNDB->getNdbError(), 0);
+    error_handler("startSchemaTransaction", pNdb->getNdbError(), 0);
   
   NdbSchemaOp * MySchemaOp = MySchemaTransaction->getNdbSchemaOp();	
   if( MySchemaOp == NULL ) 
@@ -533,29 +532,29 @@ create_table_session(Ndb * pNDB){
     error_handler("schemaTransaction->execute()", 
 		  MySchemaTransaction->getNdbError(), 0);
   }    
-  pNDB->closeSchemaTransaction(MySchemaTransaction);
+  NdbSchemaCon::closeSchemaTrans(MySchemaTransaction);
   return 0;
 }
 
 void 
-create_table(const char * name, int (* function)(Ndb * pNDB), Ndb* pNDB){
+create_table(const char * name, int (* function)(Ndb * pNdb), Ndb* pNdb){
   printf("creating table %s...", name);
-  if(pNDB->getDictionary()->getTable(name) != 0){
+  if(pNdb->getDictionary()->getTable(name) != 0){
     printf(" it already exists\n");
     return;
   } else {
     printf("\n");
   }
-  function(pNDB);
+  function(pNdb);
   printf("creating table %s... done\n", name);
 }
 
-static int dbCreate(Ndb * pNDB)
+static int dbCreate(Ndb * pNdb)
 {
-  create_table(SUBSCRIBER_TABLE, create_table_subscriber, pNDB);
-  create_table(GROUP_TABLE     , create_table_group, pNDB);
-  create_table(SESSION_TABLE   , create_table_session, pNDB);
-  create_table(SERVER_TABLE    , create_table_server, pNDB);
+  create_table(SUBSCRIBER_TABLE, create_table_subscriber, pNdb);
+  create_table(GROUP_TABLE     , create_table_group, pNdb);
+  create_table(SESSION_TABLE   , create_table_session, pNdb);
+  create_table(SERVER_TABLE    , create_table_server, pNdb);
   return 0;
 }
 
@@ -570,23 +569,23 @@ userDbConnect(uint32 createDb, char *dbName)
 {
   NdbMutex_Lock(startupMutex);
 
-  Ndb * pNDB = new Ndb("");
+  Ndb * pNdb = new Ndb("");
   
   //printf("Initializing...\n");
-  pNDB->init();
+  pNdb->init();
   
   //printf("Waiting...");
-  while(pNDB->waitUntilReady() != 0){
+  while(pNdb->waitUntilReady() != 0){
     //printf("...");
   }
   //  printf("done\n");
   
   if( createDb )
-    dbCreate(pNDB);
+    dbCreate(pNdb);
   
 
   UserHandle * uh = new UserHandle;
-  uh->pNDB       = pNDB;
+  uh->pNDB       = pNdb;
   uh->pCurrTrans = 0;
 
   NdbMutex_Unlock(startupMutex);

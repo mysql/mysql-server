@@ -17,7 +17,6 @@
 #include "NdbDictionaryImpl.hpp"
 #include "API.hpp"
 #include <NdbOut.hpp>
-#include <AttrType.hpp>
 #include "NdbApiSignal.hpp"
 #include "TransporterFacade.hpp"
 #include <signaldata/GetTabInfo.hpp>
@@ -1257,7 +1256,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 				     NdbTableImpl & impl,
 				     bool alter)
 {
-  if((unsigned)impl.getNoOfPrimaryKeys() > MAXNROFTUPLEKEY){
+  if((unsigned)impl.getNoOfPrimaryKeys() > NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY){
     m_error.code = 4317;
     return -1;
   }

@@ -16,15 +16,16 @@
 
 #ifndef NdbSchemaCon_H
 #define NdbSchemaCon_H
+
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
 
 #include <ndb_types.h>
-#include "AttrType.hpp"
 #include "NdbError.hpp"
+#include <NdbSchemaOp.hpp>
 
 class NdbSchemaOp;
-class NdbApiSignal;
 class Ndb;
+class NdbApiSignal;
 
 /**
  * @class NdbSchemaCon
@@ -44,6 +45,7 @@ class Ndb;
  * into the database. 
  *
  * @note   Currently only one table can be added per transaction.
+ * @note Depricated, use NdbDictionary
  */
 class NdbSchemaCon
 {
@@ -51,6 +53,18 @@ friend class Ndb;
 friend class NdbSchemaOp;
   
 public:
+
+  static 
+  NdbSchemaCon* startSchemaTrans(Ndb* pNdb){
+    return  new NdbSchemaCon(pNdb);
+  }
+  
+  static 
+  void closeSchemaTrans(NdbSchemaCon* pSchCon){
+    delete pSchCon;
+  }
+  
+
   /**
    * Execute a schema transaction.
    * 
@@ -75,6 +89,7 @@ public:
   const NdbError & getNdbError() const;
 
 private:
+
 /******************************************************************************
  *	These are the create and delete methods of this class.
  *****************************************************************************/
@@ -85,8 +100,6 @@ private:
 /******************************************************************************
  *	These are the private methods of this class.
  *****************************************************************************/
-  void init();             // Initialise connection object for new
-				   // transaction.
 
   void release();	         // Release all schemaop in schemaCon
 
@@ -103,7 +116,6 @@ private:
   int receiveCREATE_INDX_REF(NdbApiSignal*);
   int receiveDROP_INDX_CONF(NdbApiSignal*);
   int receiveDROP_INDX_REF(NdbApiSignal*);
-
 
 
 /*****************************************************************************
@@ -126,6 +138,9 @@ NdbSchemaCon::checkMagicNumber()
     return -1;
   return 0;
 }//NdbSchemaCon::checkMagicNumber()
+
+
+
 #endif
 #endif
 
