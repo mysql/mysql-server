@@ -2206,7 +2206,13 @@ void Item_func_set_collation::fix_length_and_dec()
     set_collation= get_charset_by_csname(args[0]->charset()->csname,
 					 MY_CS_BINSORT,MYF(0));
   else
-    set_collation= get_charset_by_name(colname,MYF(0));
+  {
+    if (!(set_collation= get_charset_by_name(colname,MYF(0))))
+    {
+      my_error(ER_UNKNOWN_COLLATION, MYF(0), colname);
+      return;
+    }
+  }
 
   if (!set_collation || !my_charset_same(args[0]->charset(),set_collation))
   {

@@ -552,7 +552,7 @@ int yylex(void *arg, void *yythd)
       /* 
          Note: "SELECT _bla AS 'alias'"
          _bla should be considered as a IDENT if charset haven't been found.
-         So we don't use MYF(MY_WME) with get_charset_by_name to avoid 
+         So we don't use MYF(MY_WME) with get_charset_by_csname to avoid 
          producing an error.
       */
 

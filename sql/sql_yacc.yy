@@ -1410,7 +1410,7 @@ collation_name:
 	{
 	  if (!($$=get_charset_by_name($1.str,MYF(0))))
 	  {
-	    net_printf(YYTHD,ER_UNKNOWN_CHARACTER_SET,$1.str);
+	    net_printf(YYTHD,ER_UNKNOWN_COLLATION,$1.str);
 	    YYABORT;
 	  }
 	};
