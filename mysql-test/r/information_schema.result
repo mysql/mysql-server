@@ -258,7 +258,7 @@ Function	sql_mode	Create Function
 sub1		
 show create function sub2;
 Function	sql_mode	Create Function
-sub2		CREATE FUNCTION `test`.`sub2`(i int) RETURNS int
+sub2		CREATE FUNCTION `test`.`sub2`(i int) RETURNS int(11)
 return i+1
 drop function sub2;
 show create procedure sel2;
