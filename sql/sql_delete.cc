@@ -17,6 +17,8 @@
 
 /* Delete of records */
 
+/* Multi-table deletes were introduced by Monty and Sinisa */
+
 #include "mysql_priv.h"
 #include "ha_innobase.h"
 #include "sql_select.h"
