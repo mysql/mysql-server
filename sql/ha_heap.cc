@@ -196,11 +196,6 @@ int ha_heap::extra(enum ha_extra_function operation)
   return heap_extra(file,operation);
 }
 
-int ha_heap::reset(void)
-{
-  return heap_extra(file,HA_EXTRA_RESET);
-}
-
 int ha_heap::delete_all_rows()
 {
   heap_clear(file);

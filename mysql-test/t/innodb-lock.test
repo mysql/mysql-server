@@ -1,0 +1,43 @@
+-- source include/have_innodb.inc
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Testing of explicit table locks
+#
+
+connection con1;
+create table t1 (id integer, x integer) engine=INNODB;
+insert into t1 values(0, 0);
+set autocommit=0;
+SELECT * from t1 where id = 0 FOR UPDATE;
+
+connection con2;
+set autocommit=0;
+
+# The following statement should hang because con1 is locking the page
+--send
+lock table t1 write;
+--sleep 2;
+
+connection con1;
+update t1 set x=1 where id = 0;
+select * from t1;
+commit;
+
+connection con2;
+reap;
+update t1 set x=2 where id = 0;
+commit;
+unlock tables;
+
+connection con1;
+select * from t1;
+commit;
+
+drop table t1;

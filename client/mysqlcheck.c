@@ -576,7 +576,8 @@ static void print_result()
     else if (!status && changed)
     {
       printf("%s\n%-9s: %s", row[0], row[2], row[3]);
-      found_error=1;
+      if (strcmp(row[2],"note"))
+	found_error=1;
     }
     else
       printf("%-9s: %s", row[2], row[3]);

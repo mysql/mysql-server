@@ -36,7 +36,7 @@ extern "C" {
 	/* defines used by myisam-funktions */
 
 /* The following defines can be increased if necessary */
-#define MI_MAX_KEY	32		/* Max allowed keys */
+#define MI_MAX_KEY	64		/* Max allowed keys */
 #define MI_MAX_KEY_SEG	16		/* Max segments for key */
 #define MI_MAX_KEY_LENGTH 1000
 
@@ -192,7 +192,7 @@ extern uint myisam_block_size;
 extern my_bool myisam_flush,myisam_delay_key_write,myisam_single_user;
 extern my_bool myisam_concurrent_insert;
 extern my_off_t myisam_max_temp_length,myisam_max_extra_temp_length;
-extern ulong myisam_bulk_insert_tree_size;
+extern ulong myisam_bulk_insert_tree_size, myisam_data_pointer_size;
 
 	/* Prototypes for myisam-functions */
 

@@ -359,7 +359,7 @@ reads:          %10lu\n\n",
 	   name,
 	   (ulong) key_cache->param_buff_size, key_cache->param_block_size,
 	   key_cache->param_division_limit, key_cache->param_age_threshold,
-	   key_cache->global_blocks_used,key_cache->global_blocks_changed,
+	   key_cache->blocks_used,key_cache->global_blocks_changed,
 	   key_cache->global_cache_w_requests,key_cache->global_cache_write,
 	   key_cache->global_cache_r_requests,key_cache->global_cache_read);
   }

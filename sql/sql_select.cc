@@ -262,15 +262,19 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 			       ORDER *order,
 			       ORDER *group, bool *hidden_group_fields)
 {
-  bool save_allow_sum_func= thd->allow_sum_func;
+  bool save_allow_sum_func;
+  int res;
+  DBUG_ENTER("setup_without_group");
+
+  save_allow_sum_func= thd->allow_sum_func;
   thd->allow_sum_func= 0;
-  int res= (setup_conds(thd, tables, conds) ||
-	    setup_order(thd, ref_pointer_array, tables, fields, all_fields,
-			order) ||
-	    setup_group(thd, ref_pointer_array, tables, fields, all_fields,
-			group, hidden_group_fields));
+  res= (setup_conds(thd, tables, conds) ||
+        setup_order(thd, ref_pointer_array, tables, fields, all_fields,
+                    order) ||
+        setup_group(thd, ref_pointer_array, tables, fields, all_fields,
+                    group, hidden_group_fields));
   thd->allow_sum_func= save_allow_sum_func;
-  return res;
+  DBUG_RETURN(res);
 }
 
 /*****************************************************************************
@@ -279,7 +283,7 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 *****************************************************************************/
 
 /*
-  Prepare of whole select (including subselect in future).
+  Prepare of whole select (including sub queries in future).
   return -1 on error
           0 on success
 */
@@ -440,7 +444,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     goto err;
   }
 #endif
-  if (!procedure && result->prepare(fields_list, unit_arg))
+  if (!procedure && result && result->prepare(fields_list, unit_arg))
     goto err;					/* purecov: inspected */
 
   if (select_lex->olap == ROLLUP_TYPE && rollup_init())
@@ -1052,6 +1056,13 @@ JOIN::reinit()
   if (tmp_join)
     restore_tmp();
 
+  if (sum_funcs)
+  {
+    Item_sum *func, **func_ptr= sum_funcs;
+    while ((func= *(func_ptr++)))
+      func->clear();
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -1116,8 +1127,7 @@ JOIN::exec()
   if (zero_result_cause)
   {
     (void) return_zero_rows(this, result, tables_list, fields_list,
-			    tmp_table_param.sum_func_count != 0 &&
-			    !group_list,
+			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
 			    having, procedure,
@@ -2654,8 +2664,6 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
   ha_rows rec;
   double tmp;
   THD *thd= join->thd;
-  if (thd->killed)				// Abort
-    return;
 
   if (!rest_tables)
   {
@@ -3631,6 +3639,12 @@ make_join_readinfo(JOIN *join, uint options)
       table->status=STATUS_NO_RECORD;
       tab->read_first_record= join_read_const;
       tab->read_record.read_record= join_no_more_records;
+      if (table->used_keys.is_set(tab->ref.key) &&
+          !table->no_keyread)
+      {
+        table->key_read=1;
+        table->file->extra(HA_EXTRA_KEYREAD);
+      }
       break;
     case JT_EQ_REF:
       table->status=STATUS_NO_RECORD;
@@ -3747,7 +3761,8 @@ make_join_readinfo(JOIN *join, uint options)
 	    table->key_read=1;
 	    table->file->extra(HA_EXTRA_KEYREAD);
 	  }
-	  else if (!table->used_keys.is_clear_all() && ! (tab->select && tab->select->quick))
+	  else if (!table->used_keys.is_clear_all() &&
+		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
 	    tab->index=find_shortest_key(table, & table->used_keys);
 	    tab->table->file->index_init(tab->index);
@@ -4116,11 +4131,6 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
     DBUG_RETURN(0);
   }
 
-  if (procedure)
-  {
-    if (result->prepare(fields, unit))		// This hasn't been done yet
-      DBUG_RETURN(-1);
-  }
   if (send_row)
   {
     for (TABLE_LIST *table=tables; table ; table=table->next)
@@ -5668,6 +5678,8 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       if (!(error=(*end_select)(join,join_tab,0)) || error == -3)
 	error=(*end_select)(join,join_tab,1);
     }
+    else if (join->send_row_on_empty_set())
+      error= join->result->send_data(*join->fields);
   }
   else
   {
@@ -5956,6 +5968,12 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   }
   else
   {
+    if (!table->key_read && table->used_keys.is_set(tab->ref.key) &&
+	!table->no_keyread)
+    {
+      table->key_read=1;
+      table->file->extra(HA_EXTRA_KEYREAD);
+    }
     if ((error=join_read_const(tab)))
     {
       tab->info="unique row not found";
@@ -6908,6 +6926,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
   key_part_end=key_part+table->key_info[idx].key_parts;
   key_part_map const_key_parts=table->const_key_parts[idx];
   int reverse=0;
+  DBUG_ENTER("test_if_order_by_key");
 
   for (; order ; order=order->next, const_key_parts>>=1)
   {
@@ -6918,24 +6937,23 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
       Skip key parts that are constants in the WHERE clause.
       These are already skipped in the ORDER BY by const_expression_in_where()
     */
-    while (const_key_parts & 1)
-    {
-      key_part++; const_key_parts>>=1;
-    }
+    for (; const_key_parts & 1 ; const_key_parts>>= 1)
+      key_part++; 
+
     if (key_part == key_part_end || key_part->field != field)
-      return 0;
+      DBUG_RETURN(0);
 
     /* set flag to 1 if we can use read-next on key, else to -1 */
-    flag=(order->asc == !(key_part->key_part_flag & HA_REVERSE_SORT))
-      ? 1 : -1;
+    flag= ((order->asc == !(key_part->key_part_flag & HA_REVERSE_SORT)) ? 1 : -1);
     if (reverse && flag != reverse)
-      return 0;
+      DBUG_RETURN(0);
     reverse=flag;				// Remember if reverse
     key_part++;
   }
   *used_key_parts= (uint) (key_part - table->key_info[idx].key_part);
-  return reverse;
+  DBUG_RETURN(reverse);
 }
+
 
 uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 {
@@ -6959,18 +6977,20 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 }
 
 /*
+  Test if a second key is the subkey of the first one.
+
   SYNOPSIS
     is_subkey()
-    key_part		- first key parts
-    ref_key_part	- second key parts
-    ref_key_part_end	- last+1 part of the second key
-  DESCRIPTION
-    Test if a second key is the subkey of the first one.
+    key_part		First key parts
+    ref_key_part	Second key parts
+    ref_key_part_end	Last+1 part of the second key
+
   NOTE
     Second key MUST be shorter than the first one.
+
   RETURN
-    1	- is the subkey
-    0	- otherwise
+    1	is a subkey
+    0	no sub key
 */
 
 inline bool 
@@ -6984,20 +7004,21 @@ is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
 }
 
 /*
+  Test if we can use one of the 'usable_keys' instead of 'ref' key for sorting
+
   SYNOPSIS
     test_if_subkey()
-    ref		- number of key, used for WHERE clause
-    usable_keys - keys for testing
-  DESCRIPTION
-    Test if we can use one of the 'usable_keys' instead of 'ref' key.
+    ref			Number of key, used for WHERE clause
+    usable_keys		Keys for testing
+
   RETURN
-    MAX_KEY			- if we can't use other key
-    the number of found key	- otherwise
+    MAX_KEY			If we can't use other key
+    the number of found key	Otherwise
 */
 
 static uint
 test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
-	       const key_map& usable_keys)
+	       const key_map *usable_keys)
 {
   uint nr;
   uint min_length= (uint) ~0;
@@ -7008,7 +7029,7 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
 
   for (nr= 0 ; nr < table->keys ; nr++)
   {
-    if (usable_keys.is_set(nr) &&
+    if (usable_keys->is_set(nr) &&
 	table->key_info[nr].key_length < min_length &&
 	table->key_info[nr].key_parts >= ref_key_parts &&
 	is_subkey(table->key_info[nr].key_part, ref_key_part,
@@ -7052,12 +7073,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     if ((*tmp_order->item)->type() != Item::FIELD_ITEM)
     {
       usable_keys.clear_all();
-      break;
+      DBUG_RETURN(0);
     }
-    usable_keys.intersect(
-        ((Item_field*) (*tmp_order->item))->field->part_of_sortkey);
+    usable_keys.intersect(((Item_field*) (*tmp_order->item))->
+			  field->part_of_sortkey);
     if (usable_keys.is_clear_all())
-      break;					// No usable keys
+      DBUG_RETURN(0);					// No usable keys
   }
 
   ref_key= -1;
@@ -7096,9 +7117,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	keys
       */
       if (table->used_keys.is_set(ref_key))
-	usable_keys.merge(table->used_keys);
+	usable_keys.intersect(table->used_keys);
       if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
-				       usable_keys)) < MAX_KEY)
+				       &usable_keys)) < MAX_KEY)
       {
 	/* Found key that can be used to retrieve data in sorted order */
 	if (tab->ref.key >= 0)
@@ -7165,6 +7186,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  /* fall through */
 	}
       }
+      else if (select && select->quick)
+	  select->quick->sorted= 1;
       DBUG_RETURN(1);			/* No need to sort */
     }
   }
@@ -7306,9 +7329,9 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 	For impossible ranges (like when doing a lookup on NULL on a NOT NULL
 	field, quick will contain an empty record set.
       */
-      if (!(select->quick= tab->type == JT_FT ?
-			   new FT_SELECT(thd, table, tab->ref.key) :
-			   get_quick_select_for_ref(thd, table, &tab->ref)))
+      if (!(select->quick= (tab->type == JT_FT ?
+			    new FT_SELECT(thd, table, tab->ref.key) :
+			    get_quick_select_for_ref(thd, table, &tab->ref))))
 	goto err;
     }
   }
@@ -9284,7 +9307,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 				       join->best_positions[i]. records_read,
 				       21));
       my_bool key_read=table->key_read;
-      if (tab->type == JT_NEXT && table->used_keys.is_set(tab->index))
+      if ((tab->type == JT_NEXT || tab->type == JT_CONST) &&
+          table->used_keys.is_set(tab->index))
 	key_read=1;
 
       if (tab->info)

@@ -869,13 +869,15 @@ int yylex(void *arg, void *yythd)
       }
       yySkip();
       return (SET_VAR);
-    case MY_LEX_COLON:			// optional line terminator
+    case MY_LEX_SEMICOLON:			// optional line terminator
       if (yyPeek())
       {
-        if (((THD *)yythd)->client_capabilities & CLIENT_MULTI_STATEMENTS)
+        THD* thd= (THD*)yythd;
+        if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
+            (thd->command != COM_PREPARE))
         {
           lex->found_colon=(char*)lex->ptr;
-          ((THD *)yythd)->server_status |= SERVER_MORE_RESULTS_EXISTS;
+          thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
           lex->next_state=MY_LEX_END;
           return(END_OF_INPUT);
         }
@@ -1012,6 +1014,7 @@ void st_select_lex::init_query()
   ref_pointer_array= 0;
   select_n_having_items= 0;
   prep_where= 0;
+  explicit_limit= 0;
 }
 
 void st_select_lex::init_select()
@@ -1520,7 +1523,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 */
 bool st_select_lex_unit::check_updateable(char *db, char *table)
 {
-  for(SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     if (sl->check_updateable(db, table))
       return 1;
   return 0;
@@ -1605,10 +1608,7 @@ void st_select_lex::print_limit(THD *thd, String *str)
   if (!thd)
     thd= current_thd;
 
-  if ((select_limit != thd->variables.select_limit &&
-       this == &thd->lex->select_lex) ||
-      (select_limit != HA_POS_ERROR && this != &thd->lex->select_lex) ||
-      offset_limit != 0L)
+  if (explicit_limit)
   {
     str->append(" limit ", 7);
     char buff[20];
@@ -1642,6 +1642,75 @@ void st_select_lex_unit::set_limit(SELECT_LEX *values,
     select_limit_cnt= HA_POS_ERROR;		// no limit
   if (select_limit_cnt == HA_POS_ERROR)
     sl->options&= ~OPTION_FOUND_ROWS;
+}
+
+
+/*
+  Unlink first table from global table list and first table from outer select
+  list (lex->select_lex)
+
+  SYNOPSIS
+    unlink_first_table()
+    tables		Global table list
+    global_first	Save first global table here
+    local_first		Save first local table here
+
+  NORES
+   global_first & local_first are used to save result for link_first_table_back
+
+  RETURN
+    global list without first table
+
+*/
+TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
+				       TABLE_LIST **global_first,
+				       TABLE_LIST **local_first)
+{
+  *global_first= tables;
+  *local_first= (TABLE_LIST*)select_lex.table_list.first;
+  /*
+    Exclude from global table list
+  */
+  tables= tables->next;
+  /*
+    and from local list if it is not the same
+  */
+  select_lex.table_list.first= ((&select_lex != all_selects_list) ?
+				(byte*) (*local_first)->next :
+				(byte*) tables);
+  (*global_first)->next= 0;
+  return tables;
+}
+
+
+/*
+  Link table back that was unlinked with unlink_first_table()
+
+  SYNOPSIS
+    link_first_table_back()
+    tables		Global table list
+    global_first	Saved first global table
+    local_first		Saved first local table
+
+  RETURN
+    global list
+*/
+TABLE_LIST *st_lex::link_first_table_back(TABLE_LIST *tables,
+					  TABLE_LIST *global_first,
+					  TABLE_LIST *local_first)
+{
+  global_first->next= tables;
+  if (&select_lex != all_selects_list)
+  {
+    /*
+      we do not touch local table 'next' field => we need just
+      put the table in the list
+    */
+    select_lex.table_list.first= (byte*) local_first;
+  }
+  else
+    select_lex.table_list.first= (byte*) global_first;
+  return global_first;
 }
 
 /*

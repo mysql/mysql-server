@@ -65,6 +65,15 @@ NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
 
 #define mutex_enter(M)    mutex_enter_func((M), IB__FILE__, __LINE__)
+/**********************************************************************
+A noninlined function that reserves a mutex. In ha_innodb.cc we have disabled
+inlining of InnoDB functions, and no inlined functions should be called from
+there. That is why we need to duplicate the inlined function here. */
+
+void
+mutex_enter_noninline(
+/*==================*/
+	mutex_t*	mutex);	/* in: mutex */
 /******************************************************************
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
@@ -105,6 +114,13 @@ mutex_exit(
 /*=======*/
 	mutex_t*	mutex);	/* in: pointer to mutex */
 /**********************************************************************
+Releases a mutex. */
+
+void
+mutex_exit_noninline(
+/*=================*/
+	mutex_t*	mutex);	/* in: mutex */
+/**********************************************************************
 Returns TRUE if no mutex or rw-lock is currently locked.
 Works only in the debug version. */
 
@@ -119,16 +135,15 @@ Prints wait info of the sync system. */
 void
 sync_print_wait_info(
 /*=================*/
-	char*	buf,		/* in/out: buffer where to print */
-	char*	buf_end);	/* in: buffer end */
+	FILE*	file);		/* in: file where to print */
 /***********************************************************************
 Prints info of the sync system. */
 
 void
 sync_print(
 /*=======*/
-	char*	buf,		/* in/out: buffer where to print */
-	char*	buf_end);	/* in: buffer end */
+	FILE*	file);		/* in: file where to print */
+#ifdef UNIV_DEBUG
 /**********************************************************************
 Checks that the mutex has been initialized. */
 
@@ -136,6 +151,7 @@ ibool
 mutex_validate(
 /*===========*/
 	mutex_t*	mutex);
+#endif /* UNIV_DEBUG */
 /**********************************************************************
 Sets the mutex latching level field. */
 
@@ -202,7 +218,7 @@ void
 mutex_get_debug_info(
 /*=================*/
 	mutex_t*	mutex,		/* in: mutex */
-	char**		file_name,	/* out: file where requested */
+	const char**	file_name,	/* out: file where requested */
 	ulint*		line,		/* out: line where requested */
 	os_thread_id_t* thread_id);	/* out: id of the thread which owns
 					the mutex */

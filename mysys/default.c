@@ -166,6 +166,12 @@ int load_defaults(const char *conf_file, const char **groups,
     if ((error= search_default_file(&args, &alloc, "",
 				    forced_default_file, "", &group)) < 0)
       goto err;
+    if (error > 0)
+    {
+      fprintf(stderr, "Could not open required defaults file: %s\n",
+              forced_default_file);
+      goto err;
+    }
   }
   else if (dirname_length(conf_file))
   {

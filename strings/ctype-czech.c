@@ -587,7 +587,7 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     2,0,0,				/* number */
     MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state      */
     "latin2",				/* cs name    */
-    "latin2_czech_ci",			/* name */
+    "latin2_czech_cs",			/* name */
     "",					/* comment    */
     ctype_czech,
     to_lower_czech,

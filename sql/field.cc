@@ -327,7 +327,7 @@ bool Field::send_binary(Protocol *protocol)
 {
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),charset());
-  val_str(&tmp,&tmp);
+  val_str(&tmp);
   return protocol->store(tmp.ptr(), tmp.length(), tmp.charset());
 }
 
@@ -396,8 +396,8 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
 bool Field::get_date(TIME *ltime,uint fuzzydate)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),&my_charset_bin),tmp2,*res;
-  if (!(res=val_str(&tmp,&tmp2)) ||
+  String tmp(buff,sizeof(buff),&my_charset_bin),*res;
+  if (!(res=val_str(&tmp)) ||
       str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) <=
       TIMESTAMP_DATETIME_ERROR)
     return 1;
@@ -407,8 +407,8 @@ bool Field::get_date(TIME *ltime,uint fuzzydate)
 bool Field::get_time(TIME *ltime)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff),&my_charset_bin),tmp2,*res;
-  if (!(res=val_str(&tmp,&tmp2)) ||
+  String tmp(buff,sizeof(buff),&my_charset_bin),*res;
+  if (!(res=val_str(&tmp)) ||
       str_to_time(res->ptr(),res->length(),ltime))
     return 1;
   return 0;
@@ -2308,7 +2308,12 @@ int Field_float::store(double nr)
     else
     {
       max_value= (log_10[field_length]-1)/log_10[dec];
-      nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
+      /*
+	The following comparison is needed to not get an overflow if nr
+	is close to FLT_MAX
+      */
+      if (fabs(nr) < FLT_MAX/10.0e+32)
+	nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
     }
     if (nr < -max_value)
     {
@@ -2603,7 +2608,8 @@ int Field_double::store(double nr)
     else
     {
       max_value= (log_10[field_length]-1)/log_10[dec];
-      nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
+      if (fabs(nr) < DBL_MAX/10.0e+32)
+	nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
     }
     if (nr < -max_value)
     {
@@ -3087,16 +3093,16 @@ longlong Field_timestamp::val_int(void)
 }
 
 
-String *Field_timestamp::val_str(String *val_buffer,
-				 String *val_ptr __attribute__((unused)))
+String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
 {
   uint32 temp, temp2;
   time_t time_arg;
   struct tm *l_time;
   struct tm tm_tmp;
+  char *to;
 
   val_buffer->alloc(field_length+1);
-  char *to= (char*) val_buffer->ptr();
+  to= (char*) val_buffer->ptr();
   val_buffer->length(field_length);
 
 #ifdef WORDS_BIGENDIAN
@@ -4360,7 +4366,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
     error= 1;
   }
-  memcpy(ptr+2,from,length);
+  memcpy(ptr+HA_KEY_BLOB_LENGTH,from,length);
   int2store(ptr, length);
   return error;
 }
@@ -4389,18 +4395,18 @@ int Field_varstring::store(longlong nr)
 double Field_varstring::val_real(void)
 {
   int not_used;
-  uint length=uint2korr(ptr)+2;
+  uint length=uint2korr(ptr)+HA_KEY_BLOB_LENGTH;
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,ptr+2,length,(char**)0, &not_used);
+  return my_strntod(cs, ptr+HA_KEY_BLOB_LENGTH, length, (char**)0, &not_used);
 }
 
 
 longlong Field_varstring::val_int(void)
 {
   int not_used;
-  uint length=uint2korr(ptr)+2;
+  uint length=uint2korr(ptr)+HA_KEY_BLOB_LENGTH;
   CHARSET_INFO *cs=charset();
-  return my_strntoll(cs,ptr+2,length,10,NULL, &not_used);
+  return my_strntoll(cs,ptr+HA_KEY_BLOB_LENGTH,length,10,NULL, &not_used);
 }
 
 
@@ -4408,7 +4414,7 @@ String *Field_varstring::val_str(String *val_buffer __attribute__((unused)),
 				 String *val_ptr)
 {
   uint length=uint2korr(ptr);
-  val_ptr->set((const char*) ptr+2,length,field_charset);
+  val_ptr->set((const char*) ptr+HA_KEY_BLOB_LENGTH,length,field_charset);
   return val_ptr;
 }
 
@@ -4418,18 +4424,21 @@ int Field_varstring::cmp(const char *a_ptr, const char *b_ptr)
   uint a_length=uint2korr(a_ptr);
   uint b_length=uint2korr(b_ptr);
   int diff;
-  diff=my_strnncoll(field_charset,
-		      (const uchar*)a_ptr+2,min(a_length,b_length),
-		      (const uchar*)b_ptr+2,min(a_length,b_length));
+  diff= my_strnncoll(field_charset,
+		     (const uchar*) a_ptr+HA_KEY_BLOB_LENGTH,
+		     min(a_length,b_length),
+		     (const uchar*) b_ptr+HA_KEY_BLOB_LENGTH,
+		     min(a_length,b_length));
   return diff ? diff : (int) (a_length - b_length);
 }
 
 void Field_varstring::sort_string(char *to,uint length)
 {
   uint tot_length=uint2korr(ptr);
-  tot_length=my_strnxfrm(field_charset,
-                             (unsigned char *) to, length,
-                             (unsigned char *)ptr+2, tot_length);
+  tot_length= my_strnxfrm(field_charset,
+			  (uchar*) to, length,
+			  (uchar*) ptr+HA_KEY_BLOB_LENGTH,
+			  tot_length);
   if (tot_length < length)
     field_charset->cset->fill(field_charset, to+tot_length,length-tot_length,
 			      binary() ? (char) 0 : ' ');
@@ -4454,7 +4463,7 @@ char *Field_varstring::pack(char *to, const char *from, uint max_length)
   if (max_length > 255)
     *to++= (char) (length >> 8);
   if (length)
-    memcpy(to, from+2, length);
+    memcpy(to, from+HA_KEY_BLOB_LENGTH, length);
   return to+length;
 }
 
@@ -4474,7 +4483,7 @@ const char *Field_varstring::unpack(char *to, const char *from)
     to[1] = *from++;
   }
   if (length)
-    memcpy(to+2, from, length);
+    memcpy(to+HA_KEY_BLOB_LENGTH, from, length);
   return from+length;
 }
 
@@ -4485,8 +4494,8 @@ int Field_varstring::pack_cmp(const char *a, const char *b, uint key_length)
   uint b_length;
   if (key_length > 255)
   {
-    a_length=uint2korr(a); a+=2;
-    b_length=uint2korr(b); b+=2;
+    a_length=uint2korr(a); a+= 2;
+    b_length=uint2korr(b); b+= 2;
   }
   else
   {
@@ -4494,32 +4503,32 @@ int Field_varstring::pack_cmp(const char *a, const char *b, uint key_length)
     b_length= (uint) (uchar) *b++;
   }
   return my_strnncoll(field_charset,
-		     (const uchar *)a,a_length,
-		     (const uchar *)b,b_length);
+		     (const uchar*) a, a_length,
+		     (const uchar*) b, b_length);
 }
 
 int Field_varstring::pack_cmp(const char *b, uint key_length)
 {
-  char *a=ptr+2;
-  uint a_length=uint2korr(ptr);
+  char *a= ptr+HA_KEY_BLOB_LENGTH;
+  uint a_length= uint2korr(ptr);
   uint b_length;
   if (key_length > 255)
   {
-    b_length=uint2korr(b); b+=2;
+    b_length=uint2korr(b); b+= 2;
   }
   else
   {
     b_length= (uint) (uchar) *b++;
   }
   return my_strnncoll(field_charset,
-		     (const uchar *)a,a_length,
-		     (const uchar *)b,b_length);
+		     (const uchar*) a, a_length,
+		     (const uchar*) b, b_length);
 }
 
 uint Field_varstring::packed_col_length(const char *data_ptr, uint length)
 {
   if (length > 255)
-    return uint2korr(data_ptr)+2;
+    return uint2korr(data_ptr)+HA_KEY_BLOB_LENGTH;
   else
     return (uint) ((uchar) *data_ptr)+1;
 }
@@ -4532,22 +4541,21 @@ uint Field_varstring::max_packed_col_length(uint max_length)
 void Field_varstring::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
 				    imagetype type)
 {
-  length-= HA_KEY_BLOB_LENGTH;
   uint f_length=uint2korr(ptr);
   if (f_length > length)
     f_length= length;
   int2store(buff,length);
-  memcpy(buff+2,ptr+2,length);
+  memcpy(buff+HA_KEY_BLOB_LENGTH, ptr+HA_KEY_BLOB_LENGTH, length);
 #ifdef HAVE_purify
   if (f_length < length)
-    bzero(buff+2+f_length, (length-f_length));
+    bzero(buff+HA_KEY_BLOB_LENGTH+f_length, (length-f_length));
 #endif
 }
 
 void Field_varstring::set_key_image(char *buff,uint length, CHARSET_INFO *cs)
 {
   length=uint2korr(buff);			// Real length is here
-  (void) Field_varstring::store(buff+2, length, cs);
+  (void) Field_varstring::store(buff+HA_KEY_BLOB_LENGTH, length, cs);
 }
 
 
@@ -4800,7 +4808,6 @@ int Field_blob::cmp_binary(const char *a_ptr, const char *b_ptr,
 void Field_blob::get_key_image(char *buff,uint length,
 			       CHARSET_INFO *cs, imagetype type)
 {
-  length-= HA_KEY_BLOB_LENGTH;
   uint32 blob_length= get_length(ptr);
   char *blob;
 
@@ -4839,18 +4846,18 @@ void Field_blob::get_key_image(char *buff,uint length,
       Must clear this as we do a memcmp in opt_range.cc to detect
       identical keys
     */
-    bzero(buff+2+blob_length, (length-blob_length));
+    bzero(buff+HA_KEY_BLOB_LENGTH+blob_length, (length-blob_length));
     length=(uint) blob_length;
   }
   int2store(buff,length);
   get_ptr(&blob);
-  memcpy(buff+2,blob,length);
+  memcpy(buff+HA_KEY_BLOB_LENGTH, blob, length);
 }
 
 void Field_blob::set_key_image(char *buff,uint length, CHARSET_INFO *cs)
 {
-  length=uint2korr(buff);
-  (void) Field_blob::store(buff+2,length,cs);
+  length= uint2korr(buff);
+  (void) Field_blob::store(buff+HA_KEY_BLOB_LENGTH, length, cs);
 }
 
 
@@ -4858,16 +4865,16 @@ int Field_blob::key_cmp(const byte *key_ptr, uint max_key_length)
 {
   char *blob1;
   uint blob_length=get_length(ptr);
-  max_key_length-=2;
   memcpy_fixed(&blob1,ptr+packlength,sizeof(char*));
   return Field_blob::cmp(blob1,min(blob_length, max_key_length),
-			 (char*) key_ptr+2,uint2korr(key_ptr));
+			 (char*) key_ptr+HA_KEY_BLOB_LENGTH,
+			 uint2korr(key_ptr));
 }
 
 int Field_blob::key_cmp(const byte *a,const byte *b)
 {
-  return Field_blob::cmp((char*) a+2,uint2korr(a),
-			 (char*) b+2,uint2korr(b));
+  return Field_blob::cmp((char*) a+HA_KEY_BLOB_LENGTH, uint2korr(a),
+			 (char*) b+HA_KEY_BLOB_LENGTH, uint2korr(b));
 }
 
 
@@ -4883,8 +4890,8 @@ void Field_blob::sort_string(char *to,uint length)
     memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
     
     blob_length=my_strnxfrm(field_charset,
-                            (unsigned char *)to, length, 
-                            (unsigned char *)blob, blob_length);
+                            (uchar*) to, length, 
+                            (uchar*) blob, blob_length);
     if (blob_length < length)
       field_charset->cset->fill(field_charset, to+blob_length,
 				length-blob_length,
@@ -4966,8 +4973,8 @@ int Field_blob::pack_cmp(const char *a, const char *b, uint key_length)
     b_length= (uint) (uchar) *b++;
   }
   return my_strnncoll(field_charset,
-		     (const uchar *)a,a_length,
-		     (const uchar *)b,b_length);
+		     (const uchar*) a, a_length,
+		     (const uchar*) b, b_length);
 }
 
 
@@ -4989,8 +4996,8 @@ int Field_blob::pack_cmp(const char *b, uint key_length)
     b_length= (uint) (uchar) *b++;
   }
   return my_strnncoll(field_charset,
-		     (const uchar *)a,a_length,
-		     (const uchar *)b,b_length);
+		     (const uchar*) a, a_length,
+		     (const uchar*) b, b_length);
 }
 
 /* Create a packed key that will be used for storage from a MySQL row */
@@ -5026,7 +5033,7 @@ char *Field_blob::pack_key_from_key_image(char *to, const char *from,
   if (max_length > 255)
     *to++= (char) (length >> 8);
   if (length)
-    memcpy(to, from+2, length);
+    memcpy(to, from+HA_KEY_BLOB_LENGTH, length);
   return to+length;
 }
 
@@ -5049,11 +5056,12 @@ uint Field_blob::max_packed_col_length(uint max_length)
 void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
 			       imagetype type)
 {
-  length-= HA_KEY_BLOB_LENGTH;
-  ulong blob_length= get_length(ptr);
   char *blob;
   const char *dummy;
   MBR mbr;
+  ulong blob_length= get_length(ptr);
+  Geometry_buffer buffer;
+  Geometry *gobj;
 
   if (blob_length < SRID_SIZE)
   {
@@ -5061,8 +5069,6 @@ void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
     return;
   }
   get_ptr(&blob);
-  Geometry_buffer buffer;
-  Geometry *gobj;
   gobj= Geometry::create_from_wkb(&buffer,
 				  blob + SRID_SIZE, blob_length - SRID_SIZE);
   if (gobj->get_mbr(&mbr, &dummy))
@@ -5555,7 +5561,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   switch (type) {
   case FIELD_TYPE_STRING:
   case FIELD_TYPE_DECIMAL: return (length);
-  case FIELD_TYPE_VAR_STRING: return (length+2);
+  case FIELD_TYPE_VAR_STRING: return (length+HA_KEY_BLOB_LENGTH);
   case FIELD_TYPE_YEAR:
   case FIELD_TYPE_TINY	: return 1;
   case FIELD_TYPE_SHORT : return 2;
@@ -5789,7 +5795,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     my_ptrdiff_t diff= (my_ptrdiff_t) (orig_field->table->rec_buff_length*2);
     orig_field->move_field(diff);		// Points now at default_values
     bool is_null=orig_field->is_real_null();
-    orig_field->val_str(&tmp,&tmp);
+    orig_field->val_str(&tmp);
     orig_field->move_field(-diff);		// Back to record[0]
     if (!is_null)
     {

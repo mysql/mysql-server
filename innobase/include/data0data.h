@@ -294,6 +294,7 @@ dtuple_check_typed_no_assert(
 /*=========================*/
 				/* out: TRUE if ok */
 	dtuple_t*	tuple);	/* in: tuple */
+#ifdef UNIV_DEBUG
 /**************************************************************
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set. */
@@ -303,6 +304,7 @@ dtuple_validate(
 /*============*/
 				/* out: TRUE if ok */
 	dtuple_t*	tuple);	/* in: tuple */
+#endif /* UNIV_DEBUG */
 /*****************************************************************
 Pretty prints a dfield value according to its data type. */
 
@@ -324,16 +326,7 @@ The following function prints the contents of a tuple. */
 void
 dtuple_print(
 /*=========*/
-	dtuple_t*	tuple);	/* in: tuple */
-/**************************************************************
-The following function prints the contents of a tuple to a buffer. */
-
-ulint
-dtuple_sprintf(
-/*===========*/
-				/* out: printed length in bytes */
-	char*		buf,	/* in: print buffer */
-	ulint		buf_len,/* in: buf length in bytes */
+	FILE*		f,	/* in: output stream */
 	dtuple_t*	tuple);	/* in: tuple */
 /******************************************************************
 Moves parts of long fields in entry to the big record vector so that

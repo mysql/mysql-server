@@ -688,6 +688,8 @@ public:
   virtual ~set_var_base() {}
   virtual int check(THD *thd)=0;	/* To check privileges etc. */
   virtual int update(THD *thd)=0;	/* To set the value */
+  /* light check for PS */
+  virtual   int light_check(THD *thd) { return check(thd); }
 };
 
 
@@ -728,6 +730,7 @@ public:
   }
   int check(THD *thd);
   int update(THD *thd);
+  int light_check(THD *thd);
 };
 
 
@@ -742,6 +745,7 @@ public:
   {}
   int check(THD *thd);
   int update(THD *thd);
+  int light_check(THD *thd);
 };
 
 /* For SET PASSWORD */

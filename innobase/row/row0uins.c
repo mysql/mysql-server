@@ -37,8 +37,7 @@ ulint
 row_undo_ins_remove_clust_rec(
 /*==========================*/
 				/* out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-	undo_node_t*	node,	/* in: undo node */
-	que_thr_t*	thr)	/* in: query thread */
+	undo_node_t*	node)	/* in: undo node */
 {
 	btr_cur_t*	btr_cur;		
 	ibool		success;
@@ -46,8 +45,6 @@ row_undo_ins_remove_clust_rec(
 	ulint		n_tries		= 0;
 	mtr_t		mtr;
 	
-	UT_NOT_USED(thr);
-
 	mtr_start(&mtr);
 	
 	success = btr_pcur_restore_position(BTR_MODIFY_LEAF, &(node->pcur),
@@ -126,8 +123,7 @@ row_undo_ins_remove_sec_low(
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: index entry to remove */
-	que_thr_t*	thr)	/* in: query thread */
+	dtuple_t*	entry)	/* in: index entry to remove */
 {
 	btr_pcur_t	pcur;		
 	btr_cur_t*	btr_cur;
@@ -136,8 +132,6 @@ row_undo_ins_remove_sec_low(
 	ulint		err;
 	mtr_t		mtr;
 	
-	UT_NOT_USED(thr);
-
 	log_free_check();
 	mtr_start(&mtr);
 
@@ -147,15 +141,6 @@ row_undo_ins_remove_sec_low(
 
 	if (!found) {
 		/* Not found */
-
-		/* FIXME: remove printfs in the final version */
-
-		/* printf(
-		"--UNDO INS: Record not found from page %lu index %s\n",
-			buf_frame_get_page_no(btr_cur_get_rec(btr_cur)),
-			index->name); */
-
-		/* ibuf_print(); */
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -192,15 +177,14 @@ row_undo_ins_remove_sec(
 /*====================*/
 				/* out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: index entry to insert */
-	que_thr_t*	thr)	/* in: query thread */
+	dtuple_t*	entry)	/* in: index entry to insert */
 {
 	ulint	err;
 	ulint	n_tries	= 0;
 	
 	/* Try first optimistic descent to the B-tree */
 
-	err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry, thr);
+	err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry);
 								
 	if (err == DB_SUCCESS) {
 
@@ -209,7 +193,7 @@ row_undo_ins_remove_sec(
 
 	/* Try then pessimistic descent to the B-tree */
 retry:
-	err = row_undo_ins_remove_sec_low(BTR_MODIFY_TREE, index, entry, thr);
+	err = row_undo_ins_remove_sec_low(BTR_MODIFY_TREE, index, entry);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -233,8 +217,7 @@ static
 void
 row_undo_ins_parse_undo_rec(
 /*========================*/
-	undo_node_t*	node,	/* in: row undo node */
-	que_thr_t*	thr __attribute__((unused))) /* in: query thread */
+	undo_node_t*	node)	/* in: row undo node */
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -244,7 +227,7 @@ row_undo_ins_parse_undo_rec(
 	ulint		dummy;
 	ibool		dummy_extern;
 
-	ut_ad(node && thr);
+	ut_ad(node);
 	
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy,
 					&dummy_extern, &undo_no, &table_id);
@@ -280,22 +263,21 @@ ulint
 row_undo_ins(
 /*=========*/
 				/* out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-	undo_node_t*	node,	/* in: row undo node */
-	que_thr_t*	thr)	/* in: query thread */
+	undo_node_t*	node)	/* in: row undo node */
 {
 	dtuple_t*	entry;
 	ibool		found;
 	ulint		err;
-	
-	ut_ad(node && thr);
+
+	ut_ad(node);
 	ut_ad(node->state == UNDO_NODE_INSERT);
 	
-	row_undo_ins_parse_undo_rec(node, thr);
+	row_undo_ins_parse_undo_rec(node);
 
 	if (node->table == NULL) {
 	  	found = FALSE;
 	} else {
-	  	found = row_undo_search_clust_to_pcur(node, thr);
+	  	found = row_undo_search_clust_to_pcur(node);
 	}
 
 	if (!found) {
@@ -310,7 +292,7 @@ row_undo_ins(
 	while (node->index != NULL) {
 		entry = row_build_index_entry(node->row, node->index,
 								node->heap);
-		err = row_undo_ins_remove_sec(node->index, entry, thr);
+		err = row_undo_ins_remove_sec(node->index, entry);
 
 		if (err != DB_SUCCESS) {
 
@@ -320,7 +302,7 @@ row_undo_ins(
 		node->index = dict_table_get_next_index(node->index);
 	}
 
-	err = row_undo_ins_remove_clust_rec(node, thr);
+	err = row_undo_ins_remove_clust_rec(node);
 		
 	return(err);
 }

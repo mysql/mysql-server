@@ -103,3 +103,16 @@ check table t1;
 analyze table t1;
 drop table t1;
 
+#
+# The following crashed gis
+#
+
+CREATE TABLE t1 (
+  fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+  g GEOMETRY NOT NULL,
+  SPATIAL KEY(g)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 (g) VALUES (GeomFromText('LineString(1 2, 2 3)')),(GeomFromText('LineString(1 2, 2 4)'));
+#select * from t1 where g<GeomFromText('LineString(1 2, 2 3)');
+drop table t1;

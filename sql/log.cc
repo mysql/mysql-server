@@ -108,6 +108,7 @@ MYSQL_LOG::~MYSQL_LOG()
 
 void MYSQL_LOG::cleanup()
 {
+  DBUG_ENTER("cleanup");
   if (inited)
   {
     inited= 0;
@@ -118,6 +119,7 @@ void MYSQL_LOG::cleanup()
     (void) pthread_mutex_destroy(&LOCK_index);
     (void) pthread_cond_destroy(&update_cond);
   }
+  DBUG_VOID_RETURN;
 }
 
 

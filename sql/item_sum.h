@@ -331,6 +331,7 @@ class Item_sum_avg :public Item_sum_num
   void update_field();
   Item *result_item(Field *field)
   { return new Item_avg_field(this); }
+  void no_rows_in_result() {}
   const char *func_name() const { return "avg"; }
   Item *copy_or_same(THD* thd);
 };
@@ -383,6 +384,7 @@ class Item_sum_variance : public Item_sum_num
   void update_field();
   Item *result_item(Field *field)
   { return new Item_variance_field(this); }
+  void no_rows_in_result() {}
   const char *func_name() const { return "variance"; }
   Item *copy_or_same(THD* thd);
 };
@@ -766,8 +768,12 @@ class Item_func_group_concat : public Item_sum
   }
   longlong val_int()
   {
-    String *res;  res=val_str(&str_value);
-    return res ? strtoll(res->c_ptr(),(char**) 0,10) : (longlong) 0;
+    String *res;
+    char *end_ptr;
+    int error;
+    res= val_str(&str_value);
+    end_ptr= (char*) res->ptr()+ res->length();
+    return res ? my_strtoll10(res->ptr(), &end_ptr, &error) : (longlong) 0;
   }
   String* val_str(String* str);
   Item *copy_or_same(THD* thd);
