@@ -500,6 +500,7 @@ static void close_connections(void)
   }
 #endif
   end_thr_alarm();			 // Don't allow alarms
+  end_slave();
 
   /* First signal all threads that it's time to die */
 
@@ -716,8 +717,8 @@ void clean_up(bool print_message)
   x_free(opt_bin_logname);
   bitmap_free(&temp_pool);
   free_max_user_conn();
-  end_slave();
   end_slave_list();
+
 #ifndef __WIN__
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
@@ -1405,7 +1406,8 @@ static void *signal_hand(void *arg __attribute__((unused)))
       }
       break;
     case SIGHUP:
-      reload_acl_and_cache((THD*) 0,~0, (TABLE_LIST*) 0); // Flush everything
+      reload_acl_and_cache((THD*) 0,REFRESH_LOG,
+			   (TABLE_LIST*) 0); // Flush logs
       mysql_print_status((THD*) 0);		// Send debug some info
       break;
 #ifdef USE_ONE_SIGNAL_HAND
