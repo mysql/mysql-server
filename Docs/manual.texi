@@ -40408,7 +40408,11 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.31
 @itemize @bullet
 @item
-Using @code{HAVING} on an empty table could produce one result row.
+The test suite now tests all reachable BDB interface code.  During
+testing we found and fixed a lot of errors in the interface code.
+@item
+Using @code{HAVING} on an empty table could produce one result row when
+it shouldn't.
 @item
 Fixed that the @strong{MySQL} RPM is not depending on perl5 anymore.
 @item
