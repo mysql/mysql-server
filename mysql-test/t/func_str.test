@@ -61,6 +61,9 @@ select least(1,2,3) | greatest(16,32,8), least(5,4)*1,greatest(-1.0,1.0)*1,least
 select decode(encode(repeat("a",100000),"monty"),"monty")=repeat("a",100000);
 select decode(encode("abcdef","monty"),"monty")="abcdef";
 
+select quote('\'\"\\test');
+select quote(concat('abc\'', '\\cba'));
+
 #
 # Wrong usage of functions
 #
