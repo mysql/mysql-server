@@ -1094,11 +1094,14 @@ then
   fi
 fi
 
+TOOLS_LIBS="$NON_THREADED_CLIENT_LIBS"
+
 # Should we use named pthread library ?
 AC_MSG_CHECKING("named thread libs:")
 if test "$with_named_thread" != "no"
 then
   LIBS="$with_named_thread $LIBS $with_named_thread"
+  TOOLS_LIBS="$with_named_thread $TOOLS_LIBS $with_named_thread"
   with_posix_threads="yes"
   with_mit_threads="no"
   AC_MSG_RESULT("$with_named_thread")
@@ -1117,7 +1120,9 @@ else
     then
       AC_MSG_CHECKING("for pthread_create in -lpthread");
       ac_save_LIBS="$LIBS"
+      ac_save_TOOLS_LIBS="$TOOLS_LIBS"
       LIBS="$LIBS -lpthread"
+      TOOLS_LIBS="$TOOLS_LIBS -lpthread"
       AC_TRY_LINK(
       [#include <pthread.h>],
       [ (void) pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1126,6 +1131,7 @@ else
       if test "$with_posix_threads" = "no"
       then
         LIBS=" $ac_save_LIBS -lpthreads"
+        TOOLS_LIBS=" $ac_save_TOOLS_LIBS -lpthreads"
         AC_MSG_CHECKING("for pthread_create in -lpthreads");
         AC_TRY_LINK(
         [#include <pthread.h>],
@@ -1136,6 +1142,7 @@ else
         then
 	  # This is for FreeBSD
 	  LIBS="$ac_save_LIBS -pthread"
+	  TOOLS_LIBS="$ac_save_TOOLS_LIBS -pthread"
 	  AC_MSG_CHECKING("for pthread_create in -pthread");
 	  AC_TRY_LINK(
 	  [#include <pthread.h>],
@@ -1146,6 +1153,7 @@ else
 	  then
 	    with_mit_threads="yes"
 	    LIBS="$ac_save_LIBS"
+	    TOOLS_LIBS="$ac_save_TOOLS_LIBS"
 	  fi
 	fi
       fi
@@ -1673,6 +1681,21 @@ AC_ARG_WITH(embedded-server,
     [with_embedded_server=no]
 )
 
+AC_ARG_WITH(extra-tools,
+    [  --without-extra-tools        Skip building utilites in the tools \
+     directory.],
+    [with_tools=$withval],
+    [with_tools=yes]
+)
+
+if test "$with_tools" = "yes"
+then
+  tools_dirs="tools"
+else
+  tools_dirs=""
+fi
+AC_SUBST([tools_dirs])
+
 MYSQL_CHECK_CPU
 MYSQL_CHECK_MYSQLFS
 MYSQL_CHECK_VIO
@@ -2138,6 +2161,7 @@ AC_SUBST(server_scripts)
 # Some usefull subst
 AC_SUBST(CC)
 AC_SUBST(GXX)
+AC_SUBST(TOOLS_LIBS)
 
 # Output results
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
@@ -2148,7 +2172,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  libmysql_r/Makefile libmysqld/Makefile libmysql/Makefile client/Makefile \
  pstack/Makefile sql/Makefile sql/share/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
- include/Makefile sql-bench/Makefile \
+ include/Makefile sql-bench/Makefile tools/Makefile \
  tests/Makefile Docs/Makefile support-files/Makefile \
  mysql-test/Makefile \
  include/mysql_version.h

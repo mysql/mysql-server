@@ -20,6 +20,7 @@
 .out
 .snprj/*
 .vimrc
+=6
 BitKeeper/etc/config
 BitKeeper/etc/csets
 BitKeeper/etc/csets-in
@@ -208,6 +209,7 @@ libmysqld/filesort.cc
 libmysqld/get_password.c
 libmysqld/ha_berkeley.cc
 libmysqld/ha_heap.cc
+libmysqld/ha_innobase.cc
 libmysqld/ha_isam.cc
 libmysqld/ha_isammrg.cc
 libmysqld/ha_myisam.cc
@@ -283,6 +285,7 @@ linked_libmysql_r_sources
 linked_libmysql_sources
 linked_libmysqld_sources
 linked_server_sources
+linked_tools_sources
 locked
 myisam/ft_dump
 myisam/ft_eval
@@ -390,8 +393,9 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 tmp/*
-vio/viotest-ssl
-=6
-libmysqld/ha_innobase.cc
+tools/my_vsnprintf.c
+tools/mysqlmngd
+tools/mysys_priv.h
 vio/test-sslclient
 vio/test-sslserver
+vio/viotest-ssl
