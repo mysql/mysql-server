@@ -49170,64 +49170,6 @@ By Thomas Thaele @email{tthaele@@papenmeier.de}
 
 @appendixsec  Clients
 
-@cindex Web clients
-@item Web Clients
-@itemize @minus
-@item @uref{http://www.mysql.com/Downloads/Contrib/mysqladmin-atif-1.0.tar.gz}
-WWW MySQL administrator for the @code{user,} @code{db} and
-@code{host} tables.  By Tim Sailer, modified by Atif Ghaffar
-@email{aghaffar@@artemedia.ch}.
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/mysql-webadmin-1.0a8-rz.tar.gz}
-A tool written in PHP-FI to administrate MySQL databases
-remotely over the web within a web-browser. By Peter Kuppelwieser,
-@email{peter.kuppelwieser@@kantea.it}. Updated by Wim Bonis,
-@email{bonis@@kiss.de}. Not maintained anymore!
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/mysqladm.tar.gz}
-MySQL Web Database Administration written in Perl.  By Tim Sailer.
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/mysqladm-2.tar.gz}
-Updated version of @file{mysqladm.tar.gz}, by High Tide.
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/billowmysql.zip}
-Updated version of @file{mysqladm.tar.gz}, by Ying Gao.  You can get the
-newest version from @uref{http://civeng.com/sqldemo/} (the home site).
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/myadmin-0.4.tar.gz}.
-MyAdmin is a web-based MySQL administrator by Mike Machado.
-TheMyAdmin homepage is at @uref{http://myadmin.cheapnet.net/}
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/phpMyAdmin_2.2.0.tar.gz}
-A set of PHP3-scripts to adminstrate MySQL over the WWW.
-
-@item @uref{http://www.phpwizard.net/projects/phpMyAdmin/}
-phpMyAdmin is a PHP3 tool in the spirit of mysql-webadmin, by Tobias Ratschiller, tobias@@dnet.it.
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/useradm.tar.gz}
-MySQL administrator in PHP. By Ofni Thomas
-@email{othomas@@vaidsystems.com}.
-
-@item @uref{http://gossamer-threads.com/perl/mysqlman/mysql.cgi}
-MySQLMan has similar functionality to phpmyadmin, but written with
-Perl and using html templates. By Alex Krohn.
-@end itemize
-
-@item @uref{http://www.mysql.com/Downloads/Contrib/mysql-editor.tar.gz}
-This cgi scripts in Perl enables you to edit content of Mysql
-database. By Tomas Zeman.
-
-@item @uref{http://worldcommunity.com/opensource/futuresql/}
-FutureSQL by Peter F. Brown, is a free, @code{Open Source} rapid application
-development web database administration tool, written in Perl,
-using MySQL. It uses @code{DBI:DBD} and @code{CGI.pm}.
-
-FutureSQL allows one to easily set up config files to view, edit, delete,
-and otherwise process records from a MySQL database. It uses a data
-dictionary, configuration files and templates, and allows "pre-processing"
-and "post-processing" on both fields, records, and operations.
-@end itemize
-
 @cindex web tools
 @cindex tools,, web
 @appendixsec Web Tools
