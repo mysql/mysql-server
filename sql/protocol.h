@@ -22,9 +22,9 @@
 
 class i_string;
 class THD;
-#ifdef EMBEDDED_LIBRARY
 typedef struct st_mysql_field MYSQL_FIELD;
-#endif
+typedef struct st_mysql_rows MYSQL_ROWS;
+
 class Protocol
 {
 protected:
@@ -133,6 +133,28 @@ public:
   virtual bool store(float nr, uint32 decimals, String *buffer);
   virtual bool store(double from, uint32 decimals, String *buffer);
   virtual bool store(Field *field);
+};
+
+class Protocol_cursor :public Protocol_simple
+{
+public:
+  MEM_ROOT *alloc;
+  MYSQL_FIELD *fields;
+  MYSQL_ROWS *data;
+  MYSQL_ROWS **prev_record;
+  ulong row_count;
+
+  Protocol_cursor() {}
+  Protocol_cursor(THD *thd, MEM_ROOT *ini_alloc) :Protocol_simple(thd), alloc(ini_alloc) {}
+  bool prepare_for_send(List<Item> *item_list) 
+  {
+    fields= NULL;
+    data= NULL;
+    prev_record= &data;
+    return Protocol_simple::prepare_for_send(item_list);
+  }
+  bool send_fields(List<Item> *list, uint flag);
+  bool write();
 };
 
 void send_warning(THD *thd, uint sql_errno, const char *err=0);

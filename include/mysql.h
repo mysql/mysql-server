@@ -597,6 +597,10 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
 unsigned long net_safe_read(MYSQL* mysql);
 void mysql_once_init(void);
 
+#ifdef _global_h
+my_ulonglong net_field_length_ll(uchar **packet);
+#endif
+
 #ifdef __NETWARE__
 #pragma pack(pop)		/* restore alignment */
 #endif
