@@ -55,7 +55,7 @@ static uint use_blob=0;
 static uint16 key1[1001],key3[5000];
 static char record[300],record2[300],key[100],key2[100],
 	    read_record[300],read_record2[300],read_record3[300];
-static MI_KEYSEG glob_keyseg[MYISAM_KEYS][MAX_PARTS];
+static HA_KEYSEG glob_keyseg[MYISAM_KEYS][MAX_PARTS];
 
 		/* Test program */
 
@@ -1006,7 +1006,7 @@ static void put_blob_in_record(char *blob_pos, char **blob_buffer)
 
 static void copy_key(MI_INFO *info,uint inx,uchar *rec,uchar *key_buff)
 {
-  MI_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
 
   for (keyseg=info->s->keyinfo[inx].seg ; keyseg->type ; keyseg++)
   {

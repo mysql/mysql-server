@@ -36,7 +36,7 @@ int main(int argc, char **argv)
   char record[128],key[32];
   const char *filename;
   HP_KEYDEF keyinfo[10];
-  MI_KEYSEG keyseg[4];
+  HA_KEYSEG keyseg[4];
   MY_INIT(argv[0]);
 
   filename= "test1";

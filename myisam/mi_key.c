@@ -37,7 +37,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
 {
   byte *pos,*end;
   uchar *start;
-  reg1 MI_KEYSEG *keyseg;
+  reg1 HA_KEYSEG *keyseg;
   DBUG_ENTER("_mi_make_key");
 
   if(info->s->keyinfo[keynr].flag & HA_SPATIAL)
@@ -153,7 +153,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
 {
   uint length;
   uchar *pos,*end,*start_key=key;
-  reg1 MI_KEYSEG *keyseg;
+  reg1 HA_KEYSEG *keyseg;
   enum ha_base_keytype type;
   DBUG_ENTER("_mi_pack_key");
 
@@ -252,7 +252,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
 {
   reg2 byte *key;
   byte *pos,*key_end;
-  reg1 MI_KEYSEG *keyseg;
+  reg1 HA_KEYSEG *keyseg;
   byte *blob_ptr;
   DBUG_ENTER("_mi_put_key_in_record");
 
@@ -385,7 +385,7 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, byte *buf)
 void update_auto_increment(MI_INFO *info,const byte *record)
 {
   ulonglong value;
-  MI_KEYSEG *keyseg=info->s->keyinfo[info->s->base.auto_key-1].seg;
+  HA_KEYSEG *keyseg=info->s->keyinfo[info->s->base.auto_key-1].seg;
   const uchar *key=(uchar*) record+keyseg->start;
 
   switch (keyseg->type) {

@@ -41,7 +41,7 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
   uint i,j,key_segs,max_length,length;
   HP_INFO *info;
   HP_SHARE *share;
-  MI_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
 
   DBUG_ENTER("heap_open");
 
@@ -72,14 +72,14 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
     }
     if (!(share = (HP_SHARE*) my_malloc((uint) sizeof(HP_SHARE)+
 				       keys*sizeof(HP_KEYDEF)+
-				       key_segs*sizeof(MI_KEYSEG),
+				       key_segs*sizeof(HA_KEYSEG),
 				       MYF(MY_ZEROFILL))))
     {
       pthread_mutex_unlock(&THR_LOCK_heap);
       DBUG_RETURN(0);
     }
     share->keydef=(HP_KEYDEF*) (share+1);
-    keyseg=(MI_KEYSEG*) (share->keydef+keys);
+    keyseg=(HA_KEYSEG*) (share->keydef+keys);
     init_block(&share->block,reclength+1,min_records,max_records);
 	/* Fix keys */
     memcpy(share->keydef,keydef,(size_t) (sizeof(keydef[0])*keys));

@@ -93,7 +93,7 @@
    MBR_DATA(a,b)       Data reference is the same
  Returns 0 on success.
 */
-int rtree_key_cmp(MI_KEYSEG *keyseg, uchar *b, uchar *a, uint key_length, 
+int rtree_key_cmp(HA_KEYSEG *keyseg, uchar *b, uchar *a, uint key_length, 
                   uint nextflag)
 {
   for (; (int) key_length > 0; keyseg += 2 )
@@ -186,7 +186,7 @@ end:
 /*
  Calculates rectangle volume
 */
-double rtree_rect_volume(MI_KEYSEG *keyseg, uchar *a, uint key_length)
+double rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
 {
   double res = 1;
   for (; (int)key_length > 0; keyseg += 2)
@@ -269,7 +269,7 @@ double rtree_rect_volume(MI_KEYSEG *keyseg, uchar *a, uint key_length)
 /*
  Creates an MBR as an array of doubles.
 */
-int rtree_d_mbr(MI_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
+int rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
 {
   for (; (int)key_length > 0; keyseg += 2)
   {
@@ -366,7 +366,7 @@ Creates common minimal bounding rectungle
 for two input rectagnles a and b
 Result is written to c
 */
-int rtree_combine_rect(MI_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c, 
+int rtree_combine_rect(HA_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c, 
                       uint key_length)
 {
 
@@ -466,7 +466,7 @@ int rtree_combine_rect(MI_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c,
 /*
 Calculates overlapping area of two MBRs a & b
 */
-double rtree_overlapping_area(MI_KEYSEG *keyseg, uchar* a, uchar* b, 
+double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b, 
                              uint key_length)
 {
   double res = 1;
@@ -559,7 +559,7 @@ double rtree_overlapping_area(MI_KEYSEG *keyseg, uchar* a, uchar* b,
 /*
 Calculates MBR_AREA(a+b) - MBR_AREA(a)
 */
-double rtree_area_increase(MI_KEYSEG *keyseg, uchar* a, uchar* b, 
+double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b, 
                           uint key_length, double *ab_area)
 {
   double a_area = 1;
@@ -675,7 +675,7 @@ double rtree_area_increase(MI_KEYSEG *keyseg, uchar* a, uchar* b,
 /*
 Calculates key page total MBR = MBR(key1) + MBR(key2) + ...
 */
-int rtree_page_mbr(MI_INFO *info, MI_KEYSEG *keyseg, uchar *page_buf,
+int rtree_page_mbr(MI_INFO *info, HA_KEYSEG *keyseg, uchar *page_buf,
                   uchar *c, uint key_length)
 {
   uint inc = 0;

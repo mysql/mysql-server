@@ -85,7 +85,7 @@ typedef struct st_hp_keydef		/* Key definition with open */
   uint length;				/* Length of key (automatic) */
   uint8 algorithm;			/* HASH / BTREE */
   uint ref_offs;			/* Data reference offset */
-  MI_KEYSEG *seg;
+  HA_KEYSEG *seg;
   HP_BLOCK block;			/* Where keys are saved */
   TREE rb_tree;
   int (*write_key)(struct st_heap_info *info, struct st_hp_keydef *keyinfo,

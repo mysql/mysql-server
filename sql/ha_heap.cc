@@ -36,7 +36,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   uint key,parts,mem_per_row=0;
   ulong max_rows;
   HP_KEYDEF *keydef;
-  MI_KEYSEG *seg;
+  HA_KEYSEG *seg;
 
   for (key=parts=0 ; key < table->keys ; key++)
   {
@@ -48,9 +48,9 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   }
 
   if (!(keydef=(HP_KEYDEF*) my_malloc(table->keys*sizeof(HP_KEYDEF)+
-				      parts*sizeof(MI_KEYSEG),MYF(MY_WME))))
+				      parts*sizeof(HA_KEYSEG),MYF(MY_WME))))
     return my_errno;
-  seg=my_reinterpret_cast(MI_KEYSEG*) (keydef+table->keys);
+  seg=my_reinterpret_cast(HA_KEYSEG*) (keydef+table->keys);
   for (key=0 ; key < table->keys ; key++)
   {
     KEY *pos=table->key_info+key;

@@ -588,7 +588,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
       goto err;
     }
     if ((*keys)++ &&
-	(flag=_mi_key_cmp(keyinfo->seg,info->lastkey,key,key_length,
+	(flag=ha_key_cmp(keyinfo->seg,info->lastkey,key,key_length,
 			  comp_flag, &not_used)) >=0)
     {
       DBUG_DUMP("old",(byte*) info->lastkey, info->lastkey_length);
@@ -606,7 +606,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
       if (*keys != 1L)				/* not first_key */
       {
 	uint diff;
-	_mi_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,SEARCH_FIND,
+	ha_key_cmp(keyinfo->seg,info->lastkey,key,USE_WHOLE_KEY,SEARCH_FIND,
 		    &diff);
 	param->unique_count[diff-1]++;
       }
@@ -674,7 +674,7 @@ static ha_checksum calc_checksum(ha_rows count)
 static uint isam_key_length(MI_INFO *info, register MI_KEYDEF *keyinfo)
 {
   uint length;
-  MI_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   DBUG_ENTER("isam_key_length");
 
   length= info->s->rec_reflength;
@@ -2625,7 +2625,7 @@ int sort_write_record(SORT_INFO *sort_info)
 static int sort_key_cmp(SORT_INFO *sort_info, const void *a, const void *b)
 {
   uint not_used;
-  return (_mi_key_cmp(sort_info->keyseg,*((uchar**) a),*((uchar**) b),
+  return (ha_key_cmp(sort_info->keyseg,*((uchar**) a),*((uchar**) b),
 		      USE_WHOLE_KEY, SEARCH_SAME,&not_used));
 } /* sort_key_cmp */
 
@@ -2639,7 +2639,7 @@ static int sort_key_write(SORT_INFO *sort_info, const void *a)
 
   if (sort_info->key_block->inited)
   {
-    cmp=_mi_key_cmp(sort_info->keyseg,sort_info->key_block->lastkey,(uchar*) a,
+    cmp=ha_key_cmp(sort_info->keyseg,sort_info->key_block->lastkey,(uchar*) a,
 		    USE_WHOLE_KEY,SEARCH_FIND | SEARCH_UPDATE ,&diff_pos);
     sort_info->unique[diff_pos-1]++;
   }
@@ -2922,7 +2922,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   MI_INFO info;
   MYISAM_SHARE share;
   MI_KEYDEF *keyinfo,*key,*key_end;
-  MI_KEYSEG *keysegs,*keyseg;
+  HA_KEYSEG *keysegs,*keyseg;
   MI_COLUMNDEF *recdef,*rec,*end;
   MI_UNIQUEDEF *uniquedef,*u_ptr,*u_end;
   MI_STATUS_INFO status_info;
@@ -2944,7 +2944,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
 	 (size_t) (sizeof(MI_KEYDEF)*share.base.keys));
 
   key_parts= share.base.all_key_parts;
-  if (!(keysegs=(MI_KEYSEG*) my_alloca(sizeof(MI_KEYSEG)*
+  if (!(keysegs=(HA_KEYSEG*) my_alloca(sizeof(HA_KEYSEG)*
 				       (key_parts+share.base.keys))))
   {
     my_afree((gptr) keyinfo);
@@ -2980,7 +2980,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
 
   /* Change the new key to point at the saved key segments */
   memcpy((byte*) keysegs,(byte*) share.keyparts,
-	 (size_t) (sizeof(MI_KEYSEG)*(key_parts+share.base.keys+
+	 (size_t) (sizeof(HA_KEYSEG)*(key_parts+share.base.keys+
 				      share.state.header.uniques)));
   keyseg=keysegs;
   for (key=keyinfo,key_end=keyinfo+share.base.keys; key != key_end ; key++)

@@ -18,16 +18,16 @@
 #ifndef _rt_mbr_h
 #define _rt_mbr_h
 
-int rtree_key_cmp(MI_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
+int rtree_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
                   uint nextflag);
-int rtree_combine_rect(MI_KEYSEG *keyseg,uchar *, uchar *, uchar*, 
+int rtree_combine_rect(HA_KEYSEG *keyseg,uchar *, uchar *, uchar*, 
                        uint key_length);
-double rtree_rect_volume(MI_KEYSEG *keyseg, uchar*, uint key_length);
-int rtree_d_mbr(MI_KEYSEG *keyseg, uchar *a, uint key_length, double *res);
-double rtree_overlapping_area(MI_KEYSEG *keyseg, uchar *a, uchar *b, 
+double rtree_rect_volume(HA_KEYSEG *keyseg, uchar*, uint key_length);
+int rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res);
+double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar *a, uchar *b, 
                               uint key_length);
-double rtree_area_increase(MI_KEYSEG *keyseg, uchar *a, uchar *b, 
+double rtree_area_increase(HA_KEYSEG *keyseg, uchar *a, uchar *b, 
                            uint key_length, double *ab_area);
-int rtree_page_mbr(MI_INFO *info, MI_KEYSEG *keyseg, uchar *page_buf, 
+int rtree_page_mbr(MI_INFO *info, HA_KEYSEG *keyseg, uchar *page_buf, 
                    uchar* c, uint key_length);
 #endif /* _rt_mbr_h */

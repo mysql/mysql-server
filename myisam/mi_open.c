@@ -256,7 +256,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 			 &share->uniqueinfo,uniques*sizeof(MI_UNIQUEDEF),
 			 &share->keyparts,
 			 (key_parts+unique_key_parts+keys+uniques) *
-			 sizeof(MI_KEYSEG),
+			 sizeof(HA_KEYSEG),
 			 &share->rec,
 			 (share->base.fields+1)*sizeof(MI_COLUMNDEF),
 			 &share->blobs,sizeof(MI_BLOB)*share->base.blobs,
@@ -286,7 +286,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 
     share->blocksize=min(IO_SIZE,myisam_block_size);
     {
-      MI_KEYSEG *pos=share->keyparts;
+      HA_KEYSEG *pos=share->keyparts;
       for (i=0 ; i < keys ; i++)
       {
 	disk_pos=mi_keydef_read(disk_pos, &share->keyinfo[i]);
@@ -949,9 +949,9 @@ char *mi_keydef_read(char *ptr, MI_KEYDEF *keydef)
 **  mi_keyseg
 ***************************************************************************/
 
-int mi_keyseg_write(File file, const MI_KEYSEG *keyseg)
+int mi_keyseg_write(File file, const HA_KEYSEG *keyseg)
 {
-  uchar buff[MI_KEYSEG_SIZE];
+  uchar buff[HA_KEYSEG_SIZE];
   uchar *ptr=buff;
 
   *ptr++ =keyseg->type;
@@ -969,7 +969,7 @@ int mi_keyseg_write(File file, const MI_KEYSEG *keyseg)
 }
 
 
-char *mi_keyseg_read(char *ptr, MI_KEYSEG *keyseg)
+char *mi_keyseg_read(char *ptr, HA_KEYSEG *keyseg)
 {
    keyseg->type		= *ptr++;
    keyseg->language	= *ptr++;

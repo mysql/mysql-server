@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
   const char *filename,*filename2;
   HP_INFO *file,*file2;
   HP_KEYDEF keyinfo[MAX_KEYS];
-  MI_KEYSEG keyseg[MAX_KEYS*5];
+  HA_KEYSEG keyseg[MAX_KEYS*5];
   HEAP_PTR position;
   MY_INIT(argv[0]);		/* init my_sys library & pthreads */
   LINT_INIT(position);

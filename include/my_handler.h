@@ -23,7 +23,7 @@
 #include "m_ctype.h"
 #include "myisampack.h"
 
-typedef struct st_MI_KEYSEG		/* Key-portion */
+typedef struct st_HA_KEYSEG		/* Key-portion */
 {
   uint8  type;				/* Type of key (for sort) */
   uint8  language;
@@ -34,7 +34,7 @@ typedef struct st_MI_KEYSEG		/* Key-portion */
   uint32 start;				/* Start of key in record */
   uint32 null_pos;			/* position to NULL indicator */
   CHARSET_INFO *charset;
-} MI_KEYSEG;
+} HA_KEYSEG;
 
 #define get_key_length(length,key) \
 { if ((uchar) *(key) != 255) \
@@ -52,11 +52,11 @@ typedef struct st_MI_KEYSEG		/* Key-portion */
 
 extern int _mi_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
 			    my_bool);
-extern int _mi_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
+extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 		       register uchar *b, uint key_length, uint nextflag,
 		       uint *diff_pos);
 
-extern int hp_rb_key_cmp(register MI_KEYSEG *keyseg, register uchar *a,
+extern int hp_rb_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 			 register uchar *b, uint key_length, uint nextflag,
 			 uint *diff_pos);
 

@@ -195,7 +195,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
 {
   /*register*/ 
   ulong nr=1, nr2=4;
-  MI_KEYSEG *seg,*endseg;
+  HA_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
@@ -242,7 +242,7 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
 {
   /*register*/
   ulong nr=1, nr2=4;
-  MI_KEYSEG *seg,*endseg;
+  HA_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
@@ -300,7 +300,7 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
 ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
 {
   register ulong nr=0;
-  MI_KEYSEG *seg,*endseg;
+  HA_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
@@ -341,7 +341,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
 ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
 {
   register ulong nr=0;
-  MI_KEYSEG *seg,*endseg;
+  HA_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
@@ -381,7 +381,7 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
 
 int hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
 {
-  MI_KEYSEG *seg,*endseg;
+  HA_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
@@ -412,7 +412,7 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
 
 int hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
 {
-  MI_KEYSEG *seg,*endseg;
+  HA_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ;
        seg < endseg ;
@@ -450,7 +450,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
 
 void hp_make_key(HP_KEYDEF *keydef, byte *key, const byte *rec)
 {
-  MI_KEYSEG *seg,*endseg;
+  HA_KEYSEG *seg,*endseg;
 
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
@@ -464,7 +464,7 @@ void hp_make_key(HP_KEYDEF *keydef, byte *key, const byte *rec)
 void hp_rb_make_key(HP_KEYDEF *keydef, byte *key, 
 		    const byte *rec, byte *recpos)
 {
-  MI_KEYSEG *seg, *endseg;
+  HA_KEYSEG *seg, *endseg;
 
   /* -1 means that HA_KEYTYPE_END segment will not copy */
   for (seg= keydef->seg, endseg= seg + keydef->keysegs - 1; seg < endseg; 
@@ -481,7 +481,7 @@ void hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
 uint hp_rb_pack_key(HP_INFO *info, uint inx, uchar *key, const uchar *old,
                   uint k_length)
 {
-  MI_KEYSEG *seg, *endseg;
+  HA_KEYSEG *seg, *endseg;
   uchar *start_key= key;
   HP_KEYDEF *keydef= info->s->keydef + inx;
   
@@ -508,7 +508,7 @@ uint hp_rb_pack_key(HP_INFO *info, uint inx, uchar *key, const uchar *old,
 
 my_bool hp_if_null_in_key(HP_KEYDEF *keydef, const byte *record)
 {
-  MI_KEYSEG *seg,*endseg;
+  HA_KEYSEG *seg,*endseg;
   for (seg=keydef->seg,endseg=seg+keydef->keysegs ; seg < endseg ; seg++)
   {
     if (seg->null_bit && (record[seg->null_pos] & seg->null_bit))

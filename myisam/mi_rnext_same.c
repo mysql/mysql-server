@@ -60,7 +60,7 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
 			       info->lastkey_length,flag,
 			       info->s->state.key_root[inx])))
           break;
-        if (_mi_key_cmp(keyinfo->seg,info->lastkey2,info->lastkey,
+        if (ha_key_cmp(keyinfo->seg,info->lastkey2,info->lastkey,
 		    info->last_rkey_length, SEARCH_FIND, &not_used))
         {
           error=1;

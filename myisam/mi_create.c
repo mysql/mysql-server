@@ -53,7 +53,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   MYISAM_SHARE share;
   MI_KEYDEF *keydef,tmp_keydef;
   MI_UNIQUEDEF *uniquedef;
-  MI_KEYSEG *keyseg,tmp_keyseg;
+  HA_KEYSEG *keyseg,tmp_keyseg;
   MI_COLUMNDEF *rec;
   ulong *rec_per_key_part;
   my_off_t key_root[MI_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
@@ -440,7 +440,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   info_length=base_pos+(uint) (MI_BASE_INFO_SIZE+
 			       keys * MI_KEYDEF_SIZE+
 			       uniques * MI_UNIQUEDEF_SIZE +
-			       (key_segs + unique_key_parts)*MI_KEYSEG_SIZE+
+			       (key_segs + unique_key_parts)*HA_KEYSEG_SIZE+
 			       columns*MI_COLUMNDEF_SIZE);
 
   bmove(share.state.header.file_version,(byte*) myisam_file_magic,4);
@@ -596,14 +596,14 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
        goto err;
     for (j=0 ; j < ft_segs ; j++)
     {
-      MI_KEYSEG seg=ft_keysegs[j];
+      HA_KEYSEG seg=ft_keysegs[j];
       seg.language= keydefs[i].seg[0].language;
       if (mi_keyseg_write(file, &seg))
         goto err;
     }
     for (j=0 ; j < sp_segs ; j++)
     {
-      MI_KEYSEG sseg;
+      HA_KEYSEG sseg;
       sseg.type=SPTYPE;
       sseg.language= 7;
       sseg.null_bit=0;
