@@ -2272,12 +2272,12 @@ ConfigInfo::ConfigInfo()
  * Getters
  ****************************************************************************/
 inline void warning(const char * src, const char * arg){
-  ndbout << "Illegal call to ConfigInfo::CI_" << src << "() - " << arg << endl;
+  ndbout << "Illegal call to ConfigInfo::" << src << "() - " << arg << endl;
   abort();
 }
 
 const Properties * 
-ConfigInfo::CI_getInfo(const char * section) const {
+ConfigInfo::getInfo(const char * section) const {
   const Properties * p;
   if(!m_info.get(section, &p)){
     return 0;
@@ -2391,23 +2391,23 @@ ConfigInfo::getType(const Properties * section, const char* fname) const {
   return (ConfigInfo::Type) getInfoInt(section, fname, "Type");
 }
 
-ConfigInfo::CI_Status
-ConfigInfo::CI_getStatus(const Properties * section, const char* fname) const {
-  return (ConfigInfo::CI_Status) getInfoInt(section, fname, "Status");
+ConfigInfo::Status
+ConfigInfo::getStatus(const Properties * section, const char* fname) const {
+  return (ConfigInfo::Status) getInfoInt(section, fname, "Status");
 }
 
 /****************************************************************************
  * Printers
  ****************************************************************************/
 
-void ConfigInfo::CI_print() const {
+void ConfigInfo::print() const {
   Properties::Iterator it(&m_info);
   for (const char* n = it.first(); n != NULL; n = it.next()) {
     print(n);
   }
 }
 
-void ConfigInfo::CI_print(const char* section) const {
+void ConfigInfo::print(const char* section) const {
   ndbout << "****** " << section << " ******" << endl << endl;
   const Properties * sec = getInfo(section);
   Properties::Iterator it(sec);
@@ -2420,7 +2420,7 @@ void ConfigInfo::CI_print(const char* section) const {
   }
 }
 
-void ConfigInfo::CI_print(const Properties * section, 
+void ConfigInfo::print(const Properties * section, 
 		       const char* parameter) const {
   ndbout << parameter;
   //  ndbout << getDescription(section, parameter) << endl;
@@ -2743,7 +2743,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
     Properties::Iterator it(defaults);
 
     for(const char * name = it.first(); name != NULL; name = it.next()){
-      ConfigInfo::CI_Status st = ctx.m_info->getStatus(ctx.m_currentInfo, name);
+      ConfigInfo::Status st = ctx.m_info->getStatus(ctx.m_currentInfo, name);
       if(!ctx.m_currentSection->contains(name)){
 	switch (ctx.m_info->getType(ctx.m_currentInfo, name)){
 	case ConfigInfo::CI_INT:
@@ -3163,7 +3163,7 @@ transform(InitConfigFileParser::Context & ctx,
   
   PropertiesType oldType;
   require(ctx.m_currentSection->getTypeOf(oldName, &oldType));
-  ConfigInfo::CI_Type newType = ctx.m_info->getType(ctx.m_currentInfo, newName);  
+  ConfigInfo::Type newType = ctx.m_info->getType(ctx.m_currentInfo, newName);  
   if(!((oldType == PropertiesType_Uint32 || oldType == PropertiesType_Uint64) 
        && (newType == ConfigInfo::CI_INT || newType == ConfigInfo::CI_INT64 || newType == ConfigInfo::CI_BOOL))){
     ndbout << "oldType: " << (int)oldType << ", newType: " << (int)newType << endl;
@@ -3326,7 +3326,7 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
 }
 
 static bool
-sanity_checks(Vector<ConfigInfo::CI_ConfigRuleSection>&sections, 
+sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 	      struct InitConfigFileParser::Context &ctx, 
 	      const char * rule_data)
 {
@@ -3349,7 +3349,7 @@ sanity_checks(Vector<ConfigInfo::CI_ConfigRuleSection>&sections,
 }
 
 static bool
-add_node_connections(Vector<ConfigInfo::CI_ConfigRuleSection>&sections, 
+add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		   struct InitConfigFileParser::Context &ctx, 
 		   const char * rule_data)
 {
@@ -3401,7 +3401,7 @@ add_node_connections(Vector<ConfigInfo::CI_ConfigRuleSection>&sections,
     for (Uint32 j= i+1;; j++){
       if(!p_db_nodes.get("", j, &nodeId2)) break;
       if(!p_connections2.get("", nodeId1+nodeId2<<16, &dummy)) {
-	ConfigInfo::CI_ConfigRuleSection s;
+	ConfigInfo::ConfigRuleSection s;
 	s.m_sectionType= BaseString("TCP");
 	s.m_sectionData= new Properties(true);
 	char buf[16];
@@ -3418,7 +3418,7 @@ add_node_connections(Vector<ConfigInfo::CI_ConfigRuleSection>&sections,
     if(!p_connections.get("", nodeId1, &dummy)) {
       for (Uint32 j= 0;; j++){
 	if(!p_db_nodes.get("", j, &nodeId2)) break;
-	ConfigInfo::CI_ConfigRuleSection s;
+	ConfigInfo::ConfigRuleSection s;
 	s.m_sectionType= BaseString("TCP");
 	s.m_sectionData= new Properties(true);
 	char buf[16];
@@ -3435,7 +3435,7 @@ add_node_connections(Vector<ConfigInfo::CI_ConfigRuleSection>&sections,
 }
 
 
-static bool add_server_ports(Vector<ConfigInfo::CI_ConfigRuleSection>&sections, 
+static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		      struct InitConfigFileParser::Context &ctx, 
 		      const char * rule_data)
 {
@@ -3475,7 +3475,7 @@ static bool add_server_ports(Vector<ConfigInfo::CI_ConfigRuleSection>&sections,
 }
 
 static bool
-check_node_vs_replicas(Vector<ConfigInfo::CI_ConfigRuleSection>&sections, 
+check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		       struct InitConfigFileParser::Context &ctx, 
 		       const char * rule_data)
 {
@@ -3602,4 +3602,4 @@ check_node_vs_replicas(Vector<ConfigInfo::CI_ConfigRuleSection>&sections,
   return true;
 }
 
-template class Vector<ConfigInfo::CI_ConfigRuleSection>;
+template class Vector<ConfigInfo::ConfigRuleSection>;

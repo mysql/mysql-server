@@ -183,7 +183,7 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbConnection *trans)
   if (m_batch_execute)
     return 0;
 #endif
-  return trans->execute(NoCommit,IgnoreError,1);
+  return trans->execute(NoCommit, AO_IgnoreError,1);
 }
 
 /*
