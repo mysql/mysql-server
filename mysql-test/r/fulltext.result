@@ -132,6 +132,7 @@ a	b
 MySQL has now support	for full-text search
 select * from t1 where MATCH a,b AGAINST ('"now   support"' IN BOOLEAN MODE);
 a	b
+MySQL has now support	for full-text search
 select * from t1 where MATCH a,b AGAINST ('"text search"  "now support"' IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search

@@ -1781,7 +1781,11 @@ void TMP_TABLE_PARAM::init()
 
 void thd_increment_bytes_sent(ulong length)
 {
-  current_thd->status_var.bytes_sent+= length;
+  THD *thd=current_thd;
+  if (likely(thd))
+  { /* current_thd==0 when close_connection() calls net_send_error() */
+    thd->status_var.bytes_sent+= length;
+  }
 }
 
 
