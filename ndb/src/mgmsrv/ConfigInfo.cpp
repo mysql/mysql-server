@@ -3177,7 +3177,7 @@ transform(InitConfigFileParser::Context & ctx,
   Uint64 oldVal;
   require(ctx.m_currentSection->get(oldName, &oldVal));
 
-  Uint64 newVal = (Uint64)(oldVal * mul + add);
+  Uint64 newVal = (Uint64)((Int64)oldVal * mul + add);
   if(!ctx.m_info->verify(ctx.m_currentInfo, newName, newVal)){
     ctx.reportError("Unable to handle deprication, new value not within bounds"
 		    "%s %s - [%s] starting at line: %d",

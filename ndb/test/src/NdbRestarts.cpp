@@ -445,7 +445,7 @@ int twoNodeFailure(NdbRestarter& _restarter,
 	 << ") secs " << endl;
   NdbSleep_SecSleep(seconds);
 
-  randomId = (random() % _restarter.getNumDbNodes());
+  randomId = (rand() % _restarter.getNumDbNodes());
   nodeId = _restarter.getDbNodeId(randomId);  
   g_info << _restart->m_name << ": node = "<< nodeId << endl;
 

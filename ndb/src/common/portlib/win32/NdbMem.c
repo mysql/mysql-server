@@ -14,14 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
-#include <windows.h>
-#include <assert.h>
-#include <NdbStdio.h>
-
+#include <ndb_global.h>
 #include "NdbMem.h"
 
-
+#if 0
 struct AWEINFO
 {
     SIZE_T dwSizeInBytesRequested;
@@ -233,5 +229,55 @@ int NdbMem_MemUnlockAll()
 {
     //VirtualUnlock();
     return -1;
+}
+
+#endif
+
+void NdbMem_Create()
+{
+  /* Do nothing */
+  return;
+}
+
+void NdbMem_Destroy()
+{
+  /* Do nothing */
+  return;
+}
+
+
+void* NdbMem_Allocate(size_t size)
+{
+  void* mem_allocated;
+  assert(size > 0);
+  mem_allocated= (void*)malloc(size);
+  return mem_allocated;
+}
+
+void* NdbMem_AllocateAlign(size_t size, size_t alignment)
+{
+  (void)alignment; /* remove warning for unused parameter */
+  /*
+    return (void*)memalign(alignment, size);
+    TEMP fix
+  */
+  return (void*)malloc(size);
+}
+
+
+void NdbMem_Free(void* ptr)
+{
+  free(ptr);
+}
+
+ 
+int NdbMem_MemLockAll()
+{
+  return 0;
+}
+
+int NdbMem_MemUnlockAll()
+{
+  return 0;
 }
 

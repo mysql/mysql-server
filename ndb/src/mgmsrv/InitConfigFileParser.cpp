@@ -386,7 +386,7 @@ bool InitConfigFileParser::convertStringToUint64(const char* s,
 
   errno = 0;
   char* p;
-  long long v = strtoll(s, &p, log10base);
+  Int64 v = strtoll(s, &p, log10base);
   if (errno != 0)
     return false;
   
