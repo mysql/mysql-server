@@ -91,8 +91,10 @@ NdbScanOperation::init(NdbTableImpl* tab, NdbConnection* myConnection)
   m_transConnection = myConnection;
   //NdbConnection* aScanConnection = theNdb->startTransaction(myConnection);
   NdbConnection* aScanConnection = theNdb->hupp(myConnection);
-  if (!aScanConnection)
+  if (!aScanConnection){
+    setErrorCodeAbort(theNdb->getNdbError().code);
     return -1;
+  }
   aScanConnection->theFirstOpInList = this;
   aScanConnection->theLastOpInList = this;
   NdbCursorOperation::cursInit();
