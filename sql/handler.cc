@@ -472,7 +472,7 @@ int ha_release_temporary_latches(THD *thd)
 int ha_commit_trans(THD *thd, THD_TRANS* trans)
 {
   int error=0;
-  DBUG_ENTER("ha_commit");
+  DBUG_ENTER("ha_commit_trans");
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
@@ -480,8 +480,8 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
     bool operation_done= 0, need_start_waiters= 0;
 
     /* If transaction has done some updates to tables */
-    if (trans == &thd->transaction.all &&
-	my_b_tell(&thd->transaction.trans_log))
+    if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
+        my_b_tell(&thd->transaction.trans_log))
     {
       if (error= wait_if_global_read_lock(thd, 0, 0))
       {
@@ -576,7 +576,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 {
   int error=0;
-  DBUG_ENTER("ha_rollback");
+  DBUG_ENTER("ha_rollback_trans");
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
@@ -587,7 +587,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       if ((error=ndbcluster_rollback(thd, trans->ndb_tid)))
       {
 	if (error == -1)
-	  my_error(ER_ERROR_DURING_ROLLBACK, MYF(0));	  
+	  my_error(ER_ERROR_DURING_ROLLBACK, MYF(0));
         error=1;
       }
       trans->ndb_tid = 0;
@@ -768,12 +768,12 @@ bool ha_flush_logs()
 {
   bool result=0;
 #ifdef HAVE_BERKELEY_DB
-  if ((have_berkeley_db == SHOW_OPTION_YES) && 
+  if ((have_berkeley_db == SHOW_OPTION_YES) &&
       berkeley_flush_logs())
     result=1;
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if ((have_innodb == SHOW_OPTION_YES) && 
+  if ((have_innodb == SHOW_OPTION_YES) &&
       innobase_flush_logs())
     result=1;
 #endif
@@ -868,7 +868,7 @@ my_off_t ha_get_ptr(byte *ptr, uint pack_length)
 int handler::ha_open(const char *name, int mode, int test_if_locked)
 {
   int error;
-  DBUG_ENTER("handler::open");
+  DBUG_ENTER("handler::ha_open");
   DBUG_PRINT("enter",("name: %s  db_type: %d  db_stat: %d  mode: %d  lock_test: %d",
 		      name, table->db_type, table->db_stat, mode,
 		      test_if_locked));
@@ -967,7 +967,7 @@ void handler::update_auto_increment()
 {
   longlong nr;
   THD *thd;
-  DBUG_ENTER("update_auto_increment");
+  DBUG_ENTER("handler::update_auto_increment");
   if (table->next_number_field->val_int() != 0 ||
       table->auto_increment_field_not_null &&
       current_thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
@@ -1025,7 +1025,7 @@ longlong handler::get_auto_increment()
 
 void handler::print_error(int error, myf errflag)
 {
-  DBUG_ENTER("print_error");
+  DBUG_ENTER("handler::print_error");
   DBUG_PRINT("enter",("error: %d",error));
 
   int textno=ER_GET_ERRNO;
@@ -1164,7 +1164,7 @@ bool handler::get_error_message(int error, String* buf)
 
 uint handler::get_dup_key(int error)
 {
-  DBUG_ENTER("get_dup_key");
+  DBUG_ENTER("handler::get_dup_key");
   table->file->errkey  = (uint) -1;
   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOUND_DUPP_UNIQUE)
     info(HA_STATUS_ERRKEY | HA_STATUS_NO_LOCK);
