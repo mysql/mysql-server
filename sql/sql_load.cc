@@ -283,6 +283,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   table->copy_blobs=0;
   thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
 
+  /* We must invalidate the table in query cache before binlog writing and
+  ha_autocommit_... */
+  query_cache_invalidate3(thd, table_list, 0);
+
   if (error)
   {
     if (transactional_table)
@@ -344,8 +348,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   if (transactional_table)
     error=ha_autocommit_or_rollback(thd,error); 
-  query_cache_invalidate3(thd, table_list, 0);
-
 err:
   if (thd->lock)
   {

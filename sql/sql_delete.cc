@@ -178,6 +178,15 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
     (void) table->file->extra(HA_EXTRA_NORMAL);
 
 cleanup:
+  /*
+    Invalidate the table in the query cache if something changed. This must
+    be before binlog writing and ha_autocommit_...
+  */
+  if (deleted)
+  {
+    query_cache_invalidate3(thd, table_list, 1);
+  }
+
   transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);
   if (deleted && (error <= 0 || !transactional_table))
@@ -199,14 +208,6 @@ cleanup:
       error=1;
   }
 
-  /*
-    Store table for future invalidation  or invalidate it in
-    the query cache if something changed
-  */
-  if (deleted)
-  {
-    query_cache_invalidate3(thd, table_list, 1);
-  }
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
@@ -480,6 +481,10 @@ bool multi_delete::send_eof()
   /* reset used flags */
   thd->proc_info="end";
 
+  /* We must invalidate the query cache before binlog writing and
+  ha_autocommit_... */
+  if (deleted)
+    query_cache_invalidate3(thd, delete_tables, 1);
 
   /*
     Write the SQL statement to the binlog if we deleted
@@ -504,9 +509,6 @@ bool multi_delete::send_eof()
   if (transactional_tables)
     if (ha_autocommit_or_rollback(thd,local_error > 0))
       local_error=1;
-  
-  if (deleted)
-    query_cache_invalidate3(thd, delete_tables, 1);
 
   if (local_error)
     ::send_error(thd);

@@ -332,6 +332,21 @@ int mysql_update(THD *thd,
   free_io_cache(table);				// If ORDER BY
   thd->proc_info="end";
   VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
+
+  /*
+    Invalidate the table in the query cache if something changed.
+    This must be before binlog writing and ha_autocommit_...
+  */
+  if (updated)
+  {
+    query_cache_invalidate3(thd, table_list, 1);
+  }
+  if (thd->lock)
+  {
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;
+  }
+
   transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);
   if (updated && (error <= 0 || !transactional_table))
@@ -351,20 +366,6 @@ int mysql_update(THD *thd,
   {
     if (ha_autocommit_or_rollback(thd, error >= 0))
       error=1;
-  }
-
-  /*
-    Store table for future invalidation  or invalidate it in
-    the query cache if something changed
-  */
-  if (updated)
-  {
-    query_cache_invalidate3(thd, table_list, 1);
-  }
-  if (thd->lock)
-  {
-    mysql_unlock_tables(thd, thd->lock);
-    thd->lock=0;
   }
 
   delete select;
@@ -950,6 +951,14 @@ bool multi_update::send_eof()
   int local_error = (table_count) ? do_updates(0) : 0;
   thd->proc_info= "end";
 
+  /* We must invalidate the query cache before binlog writing and
+  ha_autocommit_... */
+
+  if (updated)
+  {
+    query_cache_invalidate3(thd, update_tables, 1);
+  }
+
   /*
     Write the SQL statement to the binlog if we updated
     rows and we succeeded or if we updated some non
@@ -988,10 +997,6 @@ bool multi_update::send_eof()
 
   sprintf(buff,ER(ER_UPDATE_INFO), (long) found, (long) updated,
 	  (long) thd->cuted_fields);
-  if (updated)
-  {
-    query_cache_invalidate3(thd, update_tables, 1);
-  }
   ::send_ok(thd,
 	    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
 	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
