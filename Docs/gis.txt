@@ -496,17 +496,27 @@ built GEOMETRY value.
     * |*LineFromText(lineStringTaggedText String [,SRID
       Integer]):LineString *| - constructs a LineString
 
+      . |*LineStringFromText()*| - synonym for LineFromText().
+
     * |*PolyFromText(polygonTaggedText String [,SRID Integer]):Polygon
       *|- constructs a Polygon
+
+      |*PolygonFromText()*| - synonym for PolyFromText().
 
     * |*MPointFromText(multiPointTaggedText String [,SRID
       Integer]):MultiPoint *| - constructs a MultiPoint
 
+      |*MultiPointFromText()*| - synonym for MPointFromText().
+
     * |*MLineFromText(multiLineStringTaggedText String [,SRID
       Integer]):MultiLineString *| - constructs a MultiLineString
 
+      |*MultiLineStringFromText()*| - synonym for MLineFromText().
+
     * |*MPolyFromText(multiPolygonTaggedText String [,SRID
       Integer]):MultiPolygon *| - constructs a MultiPolygon
+
+      |*MultiPolygonFromText()*| - synonym for MPolyFromText().
 
     * |*GeomCollFromText(geometryCollectionTaggedText String [,SRID
       Integer]):GeomCollection *| - constructs a GeometryCollection
@@ -844,7 +854,10 @@ implementation of several spatial field types correspondent to every
 instansiable object subclass. For example a *Point* type is proposed to
 restrict data stored in a field of this type to only Point OpenGIS
 subclass. MySQL provides an implementation of single GEOMETRY type which
-doesn't restrict objects to certain OpenGIS subclass.
+doesn't restrict objects to certain OpenGIS subclass. Other proposed
+spatial field types are mapped into GEOMETRY type, so all these types
+can be used as a symonym for GEOMETRY: POINT, MULTIPOINT, LINESTRING,
+MULTILINESTRING, POLYGON, MULTIPOLYGON.
 
 
       9.2 No additional Metadata Views

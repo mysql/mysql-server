@@ -503,7 +503,7 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
     return res;
   }
 
-  switch ((res = rtree_insert_req(info, &keyinfo[keynr], key, key_length, 
+  switch ((res = rtree_insert_req(info, keyinfo, key, key_length, 
                                   old_root, &new_page, ins_level, 0)))
   {
     case 0: /* root was not split */
