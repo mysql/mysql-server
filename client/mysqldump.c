@@ -37,7 +37,7 @@
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.2"
+#define DUMP_VERSION "10.3"
 
 #include <my_global.h>
 #include <my_sys.h>
