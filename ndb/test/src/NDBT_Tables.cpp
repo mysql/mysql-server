@@ -430,7 +430,7 @@ NDBT_Table F2("F2", sizeof(F2Attribs)/sizeof(NDBT_Attribute), F2Attribs);
 
 /* F3
  *
- * Error: Too many primary keys defined, 16 is max?
+ * Error: Too many primary keys defined, 32 is max
  */
 static
 const
@@ -452,10 +452,26 @@ NDBT_Attribute F3Attribs[] = {
   NDBT_Attribute("KOL15", NdbDictionary::Column::Unsigned, 1, true), 
   NDBT_Attribute("KOL16", NdbDictionary::Column::Unsigned, 1, true), 
   NDBT_Attribute("KOL17", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL20", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL30", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("KOL18", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL19", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL20", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL21", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL22", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL23", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL24", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL25", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL26", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL27", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL28", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL29", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL30", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL31", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL32", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL33", NdbDictionary::Column::Unsigned, 1, true), 
   NDBT_Attribute("KOL40", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL50", NdbDictionary::Column::Unsigned)
+  NDBT_Attribute("KOL50", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("KOL60", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("KOL70", NdbDictionary::Column::Unsigned)
 };
 
 static
