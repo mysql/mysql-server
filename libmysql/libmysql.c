@@ -186,7 +186,7 @@ void STDCALL mysql_server_end()
 static MYSQL_PARAMETERS mysql_internal_parameters=
 {&max_allowed_packet, &net_buffer_length};
 
-MYSQL_PARAMETERS *STDCALL mysql_get_parameters()
+MYSQL_PARAMETERS *STDCALL mysql_get_parameters(void)
 {
   return &mysql_internal_parameters;
 }
@@ -616,60 +616,10 @@ mysql_connect(MYSQL *mysql,const char *host,
 #endif
 
 
-#ifdef CHECK_LICENSE
-/*
-  Check server side variable 'license'.
-  If the variable does not exist or does not contain 'Commercial', 
-  we're talking to non-commercial server from commercial client.
-  SYNOPSIS
-    check_license()
-  RETURN VALUE
-    0  success
-   !0  network error or the server is not commercial.
-       Error code is saved in mysql->net.last_errno.
-*/
-
-static int check_license(MYSQL *mysql)
-{
-  MYSQL_ROW row;
-  MYSQL_RES *res;
-  NET *net= &mysql->net;
-  static const char query[]= "SELECT @@license";
-  static const char required_license[]= STRINGIFY_ARG(LICENSE);
-
-  if (mysql_real_query(mysql, query, sizeof(query)-1))
-  {
-    if (net->last_errno == ER_UNKNOWN_SYSTEM_VARIABLE)
-    {
-      net->last_errno= CR_WRONG_LICENSE;
-      sprintf(net->last_error, ER(net->last_errno), required_license);
-    }
-    return 1;
-  }
-  if (!(res= mysql_use_result(mysql)))
-    return 1;
-  row= mysql_fetch_row(res);
-  /* 
-    If no rows in result set, or column value is NULL (none of these
-    two is ever true for server variables now), or column value
-    mismatch, set wrong license error.
-  */
-  if (!net->last_errno &&
-      (!row || !row[0] ||
-       strncmp(row[0], required_license, sizeof(required_license))))
-  {
-    net->last_errno= CR_WRONG_LICENSE;
-    sprintf(net->last_error, ER(net->last_errno), required_license);
-  }
-  mysql_free_result(res);
-  return net->last_errno;
-}
-#endif /* CHECK_LICENSE */
-
-
 /**************************************************************************
   Change user and database
 **************************************************************************/
+
 int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd)
 {
   NET *net= &mysql->net;
