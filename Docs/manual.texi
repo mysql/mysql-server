@@ -19620,6 +19620,7 @@ The status variables listed above have the following meaning:
 @item @code{Aborted_connects} @tab Number of tries to connect to the MySQL server that failed. @xref{Communication errors}.
 @item @code{Bytes_received} @tab Number of bytes received from all clients.
 @item @code{Bytes_sent} @tab Number of bytes sent to all clients.
+@item @code{Com_xxxx} @tab Number of times the xxx commands has been executed.
 @item @code{Connections} @tab Number of connection attempts to the MySQL server.
 @item @code{Created_tmp_disk_tables} @tab Number of implicit temporary tables on disk created while executing statements.
 @item @code{Created_tmp_tables} @tab Number of implicit temporary tables in memory created while executing statements.
@@ -46838,6 +46839,11 @@ not yet 100% confident in this code.
 @node News-3.23.47, News-3.23.46, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
+@item
+Added statistics variables for all MySQL commands. (@code{SHOW STATUS} is
+now much longer).
+@item
+Fix default values for InnoDB tables.
 @item
 Fixed that @code{GROUP BY expr DESC} works.
 @item
