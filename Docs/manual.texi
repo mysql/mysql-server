@@ -14454,8 +14454,8 @@ by creating a tab-delimited text file containing the information:
 @item Buffy @tab 1994-06-19 @tab litter @tab 3 puppies, 3 female
 @item Chirpy @tab 1999-03-21 @tab vet @tab needed beak straightened
 @item Slim @tab 1997-08-03 @tab vet @tab broken rib
-@item Bowser @tab 1991-10-12 @tab kennel
-@item Fang @tab 1991-10-12 @tab kennel
+@item Bowser @tab 1991-10-12 @tab kennel @tab
+@item Fang @tab 1991-10-12 @tab kennel @tab 
 @item Fang @tab 1998-08-28 @tab birthday @tab Gave him a new chew toy
 @item Claws @tab 1998-03-17 @tab birthday @tab Gave him a new flea collar
 @item Whistler @tab 1998-12-09 @tab birthday @tab First birthday
@@ -15116,11 +15116,8 @@ laboratory testing, neuroimaging, psychological status assessment, and family
 history collection. In addition, data are collected on medical and
 environmental risk factors.
 
-More information about Twin studies can be found at:
-
-@example
-@url{http://www.imm.ki.se/TWIN/TWINUKW.HTM}
-@end example
+More information about Twin studies can be found at: 
+@uref{http://www.imm.ki.se/TWIN/TWINUKW.HTM}
 
 The latter part of the project is administered with a Web interface
 written using Perl and MySQL.
@@ -16450,26 +16447,26 @@ The server uses the @code{user}, @code{db}, and @code{host} tables in the
 grant tables are shown below:
 
 @multitable @columnfractions .2 .25 .25 .25
-@item @strong{Table name} @tab @code{user} @tab @code{db} @tab @code{host}
+@item @strong{Table name}       @tab @code{user}        @tab @code{db}          @tab @code{host}
 
-@item @strong{Scope fields} @tab @code{Host}          @tab @code{Host}        @tab @code{Host}
-@item @tab @code{User}          @tab @code{Db}          @tab @code{Db}
-@item @tab @code{Password}      @tab @code{User}        @tab
+@item @strong{Scope fields}     @tab @code{Host}        @tab @code{Host}        @tab @code{Host}
+@item                           @tab @code{User}        @tab @code{Db}          @tab @code{Db}
+@item                           @tab @code{Password}    @tab @code{User}        @tab
 
 @item @strong{Privilege fields} @tab @code{Select_priv} @tab @code{Select_priv} @tab @code{Select_priv}
-@item @tab @code{Insert_priv}   @tab @code{Insert_priv} @tab @code{Insert_priv}
-@item @tab @code{Update_priv}   @tab @code{Update_priv} @tab @code{Update_priv}
-@item @tab @code{Delete_priv}   @tab @code{Delete_priv} @tab @code{Delete_priv}
-@item @tab @code{Index_priv}    @tab @code{Index_priv}  @tab @code{Index_priv}
-@item @tab @code{Alter_priv}    @tab @code{Alter_priv}  @tab @code{Alter_priv}
-@item @tab @code{Create_priv}   @tab @code{Create_priv} @tab @code{Create_priv}
-@item @tab @code{Drop_priv}     @tab @code{Drop_priv}   @tab @code{Drop_priv}
-@item @tab @code{Grant_priv}    @tab @code{Grant_priv}  @tab @code{Grant_priv}
-@item @tab @code{References_priv} @tab                  @tab
-@item @tab @code{Reload_priv}   @tab                    @tab
-@item @tab @code{Shutdown_priv} @tab                    @tab
-@item @tab @code{Process_priv}  @tab                    @tab
-@item @tab @code{File_priv}     @tab                    @tab
+@item                           @tab @code{Insert_priv} @tab @code{Insert_priv} @tab @code{Insert_priv}
+@item                           @tab @code{Update_priv} @tab @code{Update_priv} @tab @code{Update_priv}
+@item                           @tab @code{Delete_priv} @tab @code{Delete_priv} @tab @code{Delete_priv}
+@item                           @tab @code{Index_priv}  @tab @code{Index_priv}  @tab @code{Index_priv}
+@item                           @tab @code{Alter_priv}  @tab @code{Alter_priv}  @tab @code{Alter_priv}
+@item                           @tab @code{Create_priv} @tab @code{Create_priv} @tab @code{Create_priv}
+@item                           @tab @code{Drop_priv}   @tab @code{Drop_priv}   @tab @code{Drop_priv}
+@item                           @tab @code{Grant_priv}  @tab @code{Grant_priv}  @tab @code{Grant_priv}
+@item                           @tab @code{References_priv} @tab                @tab
+@item                           @tab @code{Reload_priv} @tab                    @tab
+@item                           @tab @code{Shutdown_priv} @tab                  @tab
+@item                           @tab @code{Process_priv} @tab                   @tab                   
+@item                           @tab @code{File_priv}    @tab                   @tab
 @end multitable
 
 For the second stage of access control (request verification), the server
@@ -16523,14 +16520,14 @@ Scope fields are strings, declared as shown below; the default value for
 each is the empty string:
 
 @multitable @columnfractions .15 .15 .7
-@item @strong{Field name} @tab @strong{Type}
-@item @code{Host}         @tab @code{CHAR(60)}
-@item @code{User}         @tab @code{CHAR(16)}
-@item @code{Password}     @tab @code{CHAR(16)}
-@item @code{Db}           @tab @code{CHAR(64)} @tab (@code{CHAR(60)} for the
+@item @strong{Field name} @tab @strong{Type}     @tab @strong{Notes}
+@item @code{Host}         @tab @code{CHAR(60)}   @tab
+@item @code{User}         @tab @code{CHAR(16)}   @tab
+@item @code{Password}     @tab @code{CHAR(16)}   @tab
+@item @code{Db}           @tab @code{CHAR(64)}   @tab (@code{CHAR(60)} for the
 @code{tables_priv} and @code{columns_priv} tables)
-@item @code{Table_name}   @tab @code{CHAR(60)}
-@item @code{Column_name}  @tab @code{CHAR(60)}
+@item @code{Table_name}   @tab @code{CHAR(60)}   @tab
+@item @code{Column_name}  @tab @code{CHAR(60)}   @tab
 @end multitable
 
 In the @code{user}, @code{db} and @code{host} tables,
@@ -16541,13 +16538,18 @@ In the @code{tables_priv} and @code{columns_priv} tables, the privilege
 fields are declared as @code{SET} fields:
 
 @multitable @columnfractions .2 .2 .6
-@item @strong{Table name} @tab @strong{Field name} @tab @strong{Possible set elements}
-@item @code{tables_priv} @tab @code{Table_priv} @tab @code{'Select', 'Insert',
-'Update', 'Delete', 'Create', 'Drop', 'Grant', 'References', 'Index', 'Alter'}
-@item @code{tables_priv} @tab @code{Column_priv} @tab @code{'Select', 'Insert',
-'Update', 'References'}
-@item @code{columns_priv} @tab @code{Column_priv} @tab @code{'Select', 'Insert',
-'Update', 'References'}
+@item @strong{Table name} 
+ @tab @strong{Field name} 
+ @tab @strong{Possible set elements}
+@item @code{tables_priv}
+ @tab @code{Table_priv}   
+ @tab @code{'Select', 'Insert', 'Update', 'Delete', 'Create', 'Drop', 'Grant', 'References', 'Index', 'Alter'}
+@item @code{tables_priv}
+ @tab @code{Column_priv}
+ @tab @code{'Select', 'Insert', 'Update', 'References'}
+@item @code{columns_priv}
+ @tab @code{Column_priv}
+ @tab @code{'Select', 'Insert', 'Update', 'References'}
 @end multitable
 
 Briefly, the server uses the grant tables like this:
@@ -25496,26 +25498,26 @@ For example, (run on the same NT 4.0 machine):
 
 @multitable @columnfractions .6 .2 .2
 @item @strong{Reading 2000000 rows by index} @tab @strong{Seconds} @tab @strong{Seconds}
-@item mysql             @tab 367 @tab 249
-@item mysql_odbc	@tab 464
-@item db2_odbc		@tab 1206
-@item informix_odbc	@tab 121126
-@item ms-sql_odbc	@tab 1634
-@item oracle_odbc	@tab 20800
-@item solid_odbc	@tab 877
-@item sybase_odbc	@tab 17614
+@item mysql             @tab 367          @tab 249
+@item mysql_odbc	@tab 464          @tab
+@item db2_odbc		@tab 1206         @tab
+@item informix_odbc	@tab 121126       @tab
+@item ms-sql_odbc	@tab 1634         @tab
+@item oracle_odbc	@tab 20800        @tab
+@item solid_odbc	@tab 877          @tab
+@item sybase_odbc	@tab 17614        @tab
 @end multitable
 
 @multitable @columnfractions .6 .2 .2
 @item @strong{Inserting (350768) rows} @tab @strong{Seconds} @tab @strong{Seconds}
-@item mysql		@tab 381 @tab 206
-@item mysql_odbc	@tab 619
-@item db2_odbc		@tab 3460
-@item informix_odbc	@tab 2692
-@item ms-sql_odbc	@tab 4012
-@item oracle_odbc	@tab 11291
-@item solid_odbc	@tab 1801
-@item sybase_odbc	@tab 4802
+@item mysql		@tab 381          @tab 206
+@item mysql_odbc	@tab 619          @tab
+@item db2_odbc		@tab 3460         @tab
+@item informix_odbc	@tab 2692         @tab
+@item ms-sql_odbc	@tab 4012         @tab
+@item oracle_odbc	@tab 11291        @tab
+@item solid_odbc	@tab 1801         @tab
+@item sybase_odbc	@tab 4802         @tab
 @end multitable
 
 In the above test MySQL was run with a 8M index cache.
@@ -34896,9 +34898,9 @@ The @code{DROP DATABASE} command removes from the given database
 directory all files with the following extensions:
 
 @multitable @columnfractions .25 .25 .25 .25
-@item .BAK @tab .DAT @tab .HSH @tab .ISD
-@item .ISM @tab .ISM @tab .MRG @tab .MYD
-@item .MYI @tab .db  @tab .frm
+@item .BAK  @tab .DAT  @tab .HSH  @tab .ISD
+@item .ISM  @tab .ISM  @tab .MRG  @tab .MYD
+@item .MYI  @tab .db   @tab .frm  @tab
 @end multitable
 
 All subdirectories that consists of 2 digits (@code{RAID} directories)
@@ -36012,9 +36014,9 @@ The following commands automatically end a transaction (as if you had done
 a @code{COMMIT} before executing the command):
 
 @multitable @columnfractions .33 .33 .33
-@item @code{ALTER TABLE} @tab @code{BEGIN} @tab @code{CREATE INDEX}
-@item @code{DROP DATABASE} @tab @code{DROP TABLE} @tab @code{RENAME TABLE}
-@item @code{TRUNCATE}
+@item @code{ALTER TABLE}    @tab @code{BEGIN}       @tab @code{CREATE INDEX}
+@item @code{DROP DATABASE}  @tab @code{DROP TABLE}  @tab @code{RENAME TABLE}
+@item @code{TRUNCATE}       @tab                    @tab
 @end multitable
 
 You can change the isolation level for transactions with
@@ -42434,7 +42436,6 @@ The specified group in the option file may contain the following options:
 @item @code{port} @tab Default port number.
 @item @code{return-found-rows} @tab Tell @code{mysql_info()} to return found rows instead of updated rows when using @code{UPDATE}.
 @item @code{socket} @tab Default socket number.
-@item
 @item @code{user} @tab Default user.
 @end multitable
 
