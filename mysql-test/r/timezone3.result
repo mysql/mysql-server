@@ -36,6 +36,6 @@ create table t1 (ts timestamp);
 insert into t1 values (19730101235900), (20040101235900);
 select * from t1;
 ts
-19730101235900
-20040101235900
+1973-01-01 23:59:00
+2004-01-01 23:59:00
 drop table t1;
