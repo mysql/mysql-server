@@ -667,13 +667,24 @@ int yylex(void *arg, void *yythd)
 
     case MY_LEX_USER_VARIABLE_DELIMITER:
     {
-      char delim= c;				// Used char
+      uint double_quotes= 0;
+      char quote_char= c;                       // Used char
       lex->tok_start=lex->ptr;			// Skip first `
 #ifdef USE_MB
       if (use_mb(cs))
       {
-	while ((c=yyGet()) && c != delim && c != (uchar) NAMES_SEP_CHAR)
+	while ((c= yyGet()))
 	{
+	  if (c == quote_char)
+	  {
+	    if (yyPeek() != quote_char)
+	      break;
+	    c= yyGet();
+	    double_quotes++;
+	    continue;
+	  }
+	  if (c == (uchar) NAMES_SEP_CHAR)
+	    break;
           if (my_mbcharlen(cs, c) > 1)
           {
             int l;
@@ -684,13 +695,10 @@ int yylex(void *arg, void *yythd)
             lex->ptr += l-1;
           }
         }
-	yylval->lex_str=get_token(lex,yyLength());
       }
       else
 #endif
       {
-	uint double_quotes= 0;
-	char quote_char= c;
 	while ((c=yyGet()))
 	{
 	  if (c == quote_char)
@@ -704,13 +712,13 @@ int yylex(void *arg, void *yythd)
 	  if (c == (uchar) NAMES_SEP_CHAR)
 	    break;
 	}
-	if (double_quotes)
-	  yylval->lex_str=get_quoted_token(lex,yyLength() - double_quotes,
-					   quote_char);
-	else
-	  yylval->lex_str=get_token(lex,yyLength());
       }
-      if (c == delim)
+      if (double_quotes)
+	yylval->lex_str=get_quoted_token(lex,yyLength() - double_quotes,
+					 quote_char);
+      else
+	yylval->lex_str=get_token(lex,yyLength());
+      if (c == quote_char)
 	yySkip();			// Skip end `
       lex->next_state= MY_LEX_START;
       return(IDENT_QUOTED);
