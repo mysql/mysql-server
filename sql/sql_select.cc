@@ -3621,7 +3621,7 @@ make_join_readinfo(JOIN *join, uint options)
       /* These init changes read_record */
       if (tab->use_quick == 2)
       {
-	select_lex->options|=QUERY_NO_GOOD_INDEX_USED;
+	join->thd->server_status|=SERVER_QUERY_NO_GOOD_INDEX_USED;
 	tab->read_first_record= join_init_quick_read_record;
 	statistic_increment(select_range_check_count, &LOCK_status);
       }
@@ -3636,7 +3636,7 @@ make_join_readinfo(JOIN *join, uint options)
 	  }
 	  else
 	  {
-	    select_lex->options|=QUERY_NO_INDEX_USED;
+	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
 	    statistic_increment(select_scan_count, &LOCK_status);
 	  }
 	}
@@ -3648,7 +3648,7 @@ make_join_readinfo(JOIN *join, uint options)
 	  }
 	  else
 	  {
-	    select_lex->options|=QUERY_NO_INDEX_USED;
+	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
 	    statistic_increment(select_full_join_count, &LOCK_status);
 	  }
 	}
@@ -4736,6 +4736,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     return 0;					// Error
   }
   case Item::FIELD_ITEM:
+  case Item::DEFAULT_VALUE_ITEM:
     return create_tmp_field_from_field(thd, (*from_field=
 					     ((Item_field*) item)->field),
 				       item, table, modify_item);
@@ -8941,7 +8942,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 		      (ulong)join->select_lex, join->select_lex->type,
 		      message ? message : "NULL"));
   /* Don't log this into the slow query log */
-  select_lex->options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
+  thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED);
   join->unit->offset_limit_cnt= 0;
 
   if (message)

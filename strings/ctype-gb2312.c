@@ -174,7 +174,7 @@ static int ismbchar_gb2312(CHARSET_INFO *cs __attribute__((unused)),
 
 static int mbcharlen_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
-  return (isgb2312head(c)? 2:0);
+  return (isgb2312head(c)? 2 : 1);
 }
 
 
@@ -5641,16 +5641,16 @@ my_wc_mb_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
   if (s >= e)
     return MY_CS_TOOSMALL;
 
-  if (wc<0x80)
+  if ((uint) wc < 0x80)
   {
-    s[0]=wc;
+    s[0]= (uchar) wc;
     return 1;
   }
   
   if (!(code=func_uni_gb2312_onechar(wc)))
     return MY_CS_ILUNI;
   
-  if(s+2>e)
+  if (s+2>e)
     return MY_CS_TOOSMALL;
   
   code|=0x8080;
@@ -5659,26 +5659,27 @@ my_wc_mb_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
   return 2;
 }
 
+
 static int 
 my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
 		my_wc_t *pwc, const uchar *s, const uchar *e){
   int hi;
   
-  hi=s[0];
+  hi=(int) s[0];
   
   if (s >= e)
     return MY_CS_TOOFEW(0);
   
-  if(hi<0x80)
+  if (hi<0x80)
   {
     pwc[0]=hi;
     return 1;
   }
   
-  if(s+2>e)
+  if (s+2>e)
     return MY_CS_TOOFEW(0);
   
-  if(!(pwc[0]=func_gb2312_uni_onechar(((hi<<8)+s[1])&0x7F7F)))
+  if (!(pwc[0]=func_gb2312_uni_onechar(((hi<<8)+s[1])&0x7F7F)))
     return MY_CS_ILSEQ;
   
   return 2;

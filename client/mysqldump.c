@@ -37,7 +37,7 @@
 ** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
-#define DUMP_VERSION "10.2"
+#define DUMP_VERSION "10.3"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -89,7 +89,11 @@ static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *where=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0;
+#ifdef HAVE_CHARSET_utf8
+static char *default_charset= (char*) "utf8";
+#else
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
+#endif
 static ulong opt_compatible_mode= 0;
 static uint     opt_mysql_port= 0, err_len= 0;
 static my_string opt_mysql_unix_port=0;
@@ -351,7 +355,7 @@ static void write_header(FILE *sql_file, char *db_name)
     fprintf(sql_file, "-- Server version\t%s\n",
 	    mysql_get_server_info(&mysql_connection));
     if (!opt_set_names)
-      fprintf(sql_file,"\n/*!40101 SET NAMES %s*/;\n",default_charset);
+      fprintf(sql_file,"\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT, CHARACTER_SET_CLIENT=%s */;\n",default_charset);
     fprintf(md_result_file,"\
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;\n\
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;\n\
@@ -372,6 +376,7 @@ static void write_footer(FILE *sql_file)
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n\
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;\n\
 /*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;\n\
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n\
 ");
   }
   fputs("\n", sql_file);

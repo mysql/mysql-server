@@ -30,7 +30,7 @@ set SQL_LOG_BIN=0;
 
 CREATE TABLE t1 (
  a int not null
-) TYPE=MyISAM MAX_ROWS=4000 CHECKSUM=1;
+) ENGINE=MyISAM MAX_ROWS=4000 CHECKSUM=1;
 INSERT INTO t1 VALUES (1);
 save_master_pos;
 connection slave;

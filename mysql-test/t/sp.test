@@ -289,7 +289,7 @@ select sub3((select max(i) from t2))|
 drop procedure sub1|
 #drop procedure sub2|
 drop function sub3|
-
+delete from t2|
 
 # Basic tests of the flow control constructs
 
@@ -462,6 +462,30 @@ delete from t1|
 drop procedure i|
 
 
+# SELECT with one of more result set sent back to the clinet
+insert into t1 values ("foo", 3), ("bar", 19)|
+insert into t2 values ("x", 9, 4.1), ("y", -1, 19.2), ("z", 3, 2.2)|
+
+create procedure sel1()
+begin
+  select * from t1;
+end|
+
+call sel1()|
+drop procedure sel1|
+
+create procedure sel2()
+begin
+  select * from t1;
+  select * from t2;
+end|
+
+call sel2()|
+drop procedure sel2|
+delete from t1|
+delete from t2|
+
+
 # SELECT INTO local variables
 create procedure into_test(x char(16), y int)
 begin
@@ -501,7 +525,6 @@ begin
 end|
 
 insert into t1 values ("into3", 19)|
-delete from t2|
 # Two call needed for bug test
 call into_test3()|
 call into_test3()|
@@ -816,6 +839,71 @@ drop table t3|
 drop procedure cur2|
 
 
+# The few characteristics we parse
+create procedure chistics()
+  language sql
+  not deterministic
+  sql security definer
+  comment 'Characteristics procedure test'
+ insert into t1 values ("chistics", 1)|
+
+# Call it, just to make sure.
+call chistics()|
+select * from t1|
+delete from t1|
+alter procedure chistics sql security invoker name chistics2|
+show create procedure chistics2|
+drop procedure chistics2|
+
+create function chistics() returns int
+  language sql
+  deterministic
+  sql security invoker
+  comment 'Characteristics procedure test'
+ return 42|
+
+# Call it, just to make sure.
+select chistics()|
+alter function chistics name chistics2 comment 'Characteristics function test'|
+show create function chistics2|
+drop function chistics2|
+
+
+# Check mode settings
+insert into t1 values ("foo", 1), ("bar", 2), ("zip", 3)|
+
+set @@sql_mode = 'ANSI'|
+delimiter $|
+create procedure modes(out c1 int, out c2 int)
+begin
+  declare done int default 0;
+  declare x int;
+  declare continue handler for sqlstate '02000' set done = 1;
+  declare c cursor for select data from t1;
+
+  select 1 || 2 into c1;
+  set c2 = 0;
+  open c;
+  repeat
+    fetch c into x;
+    if not done then
+      set c2 = c2 + 1;
+    end if;
+  until done end repeat;
+  close c;
+end$
+delimiter |$
+set @@sql_mode = ''|
+
+set sql_select_limit = 1|
+call modes(@c1, @c2)|
+set sql_select_limit = default|
+
+select @c1, @c2|
+delete from t1|
+drop procedure modes|
+
+
 #
 # Test cases for old bugs
 #
@@ -947,26 +1035,6 @@ select * from t2|
 delete from t1|
 delete from t2|
 drop procedure bug1874|
-
-#
-# BUG#1653
-#
---disable_warnings
-drop table if exists table_1|
---enable_warnings
-create table t3 (column_1_0 int)|
-
-create procedure bug1653()
-  update t3 set column_1 = 0|
-
---error 1054
-call bug1653()|
-drop table t3|
-create table t3 (column_1 int)|
-call bug1653()|
-
-drop procedure bug1653|
-drop table t3|
 
 
 #

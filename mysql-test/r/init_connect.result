@@ -1,0 +1,24 @@
+select hex(@a);
+hex(@a)
+NULL
+select hex(@a);
+hex(@a)
+610063
+set global init_connect="set @a=2;set @b=3";
+select @a, @b;
+@a	@b
+2	3
+set GLOBAL init_connect=DEFAULT;
+select @a;
+@a
+NULL
+set global init_connect="create table t1(a char(10));\
+insert into t1 values ('\0');insert into t1 values('abc')";
+select hex(a) from t1;
+hex(a)
+00
+616263
+set GLOBAL init_connect="adsfsdfsdfs";
+select @a;
+ERROR HY000: Lost connection to MySQL server during query
+drop table t1;

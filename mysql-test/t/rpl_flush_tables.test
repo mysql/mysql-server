@@ -8,7 +8,7 @@ source include/master-slave.inc;
 create table t1 (a int);
 insert into t1 values (10);
 create table t2 (a int);
-create table t3 (a int) type=merge union(t1);
+create table t3 (a int) engine=merge union(t1);
 create table t4 (a int);
 # We force the slave to open t3 (because we want to try confusing him) with this :
 insert into t4 select * from t3;

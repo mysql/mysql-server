@@ -3,7 +3,7 @@ CREATE TABLE t1 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 g GEOMETRY NOT NULL,
 SPATIAL KEY(g)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -11,7 +11,7 @@ t1	CREATE TABLE `t1` (
   `g` geometry NOT NULL default '',
   PRIMARY KEY  (`fid`),
   SPATIAL KEY `g` (`g`(32))
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(150 150, 150 150)'));
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(149 149, 151 151)'));
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(148 148, 152 152)'));
@@ -185,7 +185,7 @@ DROP TABLE t1;
 CREATE TABLE t2 (
 fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 g GEOMETRY NOT NULL
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 10 * 10 - 9), Point(10 * 10, 10 * 10))));
 INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 9 * 10 - 9), Point(10 * 10, 9 * 10))));
 INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point(10 * 10 - 9, 8 * 10 - 9), Point(10 * 10, 8 * 10))));
@@ -294,7 +294,7 @@ t2	CREATE TABLE `t2` (
   `g` geometry NOT NULL default '',
   PRIMARY KEY  (`fid`),
   SPATIAL KEY `g` (`g`(32))
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT count(*) FROM t2;
 count(*)
 100

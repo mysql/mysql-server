@@ -5,7 +5,7 @@
 drop table if exists t1,t2;
 --enable_warnings
 
-create table t1 (a int, b int not null,unique key (a,b),index(b)) type=myisam;
+create table t1 (a int, b int not null,unique key (a,b),index(b)) engine=myisam;
 insert ignore into t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(null,7),(9,9),(8,8),(7,7),(null,9),(null,9),(6,6);
 explain select * from t1 where a is null;
 explain select * from t1 where a is null and b = 2;
@@ -92,13 +92,13 @@ CREATE TABLE t1 (
   uniq_id int(10) unsigned default NULL,
   PRIMARY KEY  (id),
   UNIQUE KEY idx1 (uniq_id)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 
 CREATE TABLE t2 (
   id int(10) unsigned NOT NULL auto_increment,
   uniq_id int(10) unsigned default NULL,
   PRIMARY KEY  (id)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 
 INSERT INTO t1 VALUES (1,NULL),(2,NULL),(3,1),(4,2),(5,NULL),(6,NULL),(7,3),(8,4),(9,NULL),(10,NULL);
 INSERT INTO t2 VALUES (1,NULL),(2,NULL),(3,1),(4,2),(5,NULL),(6,NULL),(7,3),(8,4),(9,NULL),(10,NULL);
@@ -136,13 +136,13 @@ CREATE TABLE `t1` (
   `product_id` char(32) NOT NULL default '',
   `product_type` int(11) NOT NULL default '0',
   PRIMARY KEY  (`order_id`,`product_id`,`product_type`)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 CREATE TABLE `t2` (
   `order_id` char(32) NOT NULL default '',
   `product_id` char(32) NOT NULL default '',
   `product_type` int(11) NOT NULL default '0',
   PRIMARY KEY  (`order_id`,`product_id`,`product_type`)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t1 (order_id, product_id, product_type) VALUES
 ('3d7ce39b5d4b3e3d22aaafe9b633de51',1206029, 3),
 ('3d7ce39b5d4b3e3d22aaafe9b633de51',5880836, 3),

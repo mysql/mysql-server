@@ -119,10 +119,17 @@ select @@warning_count;
 @@warning_count
 50
 drop table t1;
-create table t1 (id int) type=isam;
+create table t1 (id int) engine=isam;
 Warnings:
 Warning	1265	Using storage engine MyISAM for table 't1'
-alter table t1 type=isam;
+alter table t1 engine=isam;
 Warnings:
 Warning	1265	Using storage engine MyISAM for table 't1'
+drop table t1;
+create table t1 (id int) type=heap;
+Warnings:
+Warning	1286	'TYPE=database_engine' is deprecated. Use 'ENGINE=database_engine' instead.
+alter table t1 type=myisam;
+Warnings:
+Warning	1286	'TYPE=database_engine' is deprecated. Use 'ENGINE=database_engine' instead.
 drop table t1;

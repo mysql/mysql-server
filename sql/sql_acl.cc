@@ -778,6 +778,66 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 }
 
 
+/*
+ * This is like acl_getroot() above, but it doesn't check password,
+ * and we don't care about the user resources.
+ * Used to get access rights for SQL SECURITY DEFINER invokation of
+ * stored procedures.
+ */
+int acl_getroot_no_password(THD *thd)
+{
+  ulong user_access= NO_ACCESS;
+  int res= 1;
+  ACL_USER *acl_user= 0;
+  DBUG_ENTER("acl_getroot_no_password");
+
+  if (!initialized)
+  {
+    /* 
+      here if mysqld's been started with --skip-grant-tables option.
+    */
+    thd->priv_user= (char *) "";                // privileges for
+    *thd->priv_host= '\0';                      // the user are unknown
+    thd->master_access= ~NO_ACCESS;             // everything is allowed
+    DBUG_RETURN(0);
+  }
+
+  VOID(pthread_mutex_lock(&acl_cache->lock));
+
+  /*
+     Find acl entry in user database.
+     This is specially tailored to suit the check we do for CALL of
+     a stored procedure; thd->user is set to what is actually a
+     priv_user, which can be ''.
+  */
+  for (uint i=0 ; i < acl_users.elements ; i++)
+  {
+    acl_user= dynamic_element(&acl_users,i,ACL_USER*);
+    if ((!acl_user->user && (!thd->user || !thd->user[0])) ||
+	(acl_user->user && strcmp(thd->user, acl_user->user) == 0))
+    {
+      if (compare_hostname(&acl_user->host, thd->host, thd->ip))
+      {
+	res= 0;
+	break;
+      }
+    }
+  }
+
+  if (acl_user)
+  {
+    thd->master_access= acl_user->access;
+    thd->priv_user= acl_user->user ? thd->user : (char *) "";
+
+    if (acl_user->host.hostname)
+      strmake(thd->priv_host, acl_user->host.hostname, MAX_HOSTNAME);
+    else
+      *thd->priv_host= 0;
+  }
+  VOID(pthread_mutex_unlock(&acl_cache->lock));
+  DBUG_RETURN(res);
+}
+
 static byte* check_get_key(ACL_USER *buff,uint *length,
 			   my_bool not_used __attribute__((unused)))
 {
@@ -2547,7 +2607,6 @@ my_bool grant_init(THD *org_thd)
     {
       if (hostname_requires_resolving(mem_check->host))
       {
-	char buff[MAX_FIELD_WIDTH];
 	sql_print_error("Warning: 'tables_priv' entry '%s %s@%s' "
 			"ignored in --skip-name-resolve mode.",
 			mem_check->tname, mem_check->user, 

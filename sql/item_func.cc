@@ -3069,13 +3069,27 @@ Item_func_sp::execute(Item **itp)
 {
   DBUG_ENTER("Item_func_sp::execute");
   THD *thd= current_thd;
+  int res;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  st_sp_security_context save_ctx;
+#endif
 
   if (! m_sp)
     m_sp= sp_find_function(thd, &m_name);
   if (! m_sp)
     DBUG_RETURN(-1);
 
-  DBUG_RETURN(m_sp->execute_function(thd, args, arg_count, itp));
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  sp_change_security_context(thd, m_sp, &save_ctx);
+#endif
+
+  res= m_sp->execute_function(thd, args, arg_count, itp);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  sp_restore_security_context(thd, m_sp, &save_ctx);
+#endif
+
+  DBUG_RETURN(res);
 }
 
 enum enum_field_types
@@ -3129,6 +3143,11 @@ Item_func_sp::fix_length_and_dec()
     case INT_RESULT:
       decimals= 0;
       max_length= 21;
+      break;
+    case ROW_RESULT:
+    default:
+      // This case should never be choosen
+      DBUG_ASSERT(0);
       break;
     }
   }

@@ -158,7 +158,7 @@ CREATE TABLE t1 (
   a tinytext NOT NULL,
   b tinyint(3) unsigned NOT NULL default '0',
   PRIMARY KEY (a(32),b)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 INSERT INTO t1 VALUES ('a',1),('a',2);
 SELECT * FROM t1 WHERE a='a' AND b=2;
 SELECT * FROM t1 WHERE a='a' AND b in (2);
