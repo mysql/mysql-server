@@ -1145,7 +1145,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
       switch (variables[i].type){
       case SHOW_LONG:
       case SHOW_LONG_CONST:
-        net_store_data(&packet2,(long long) *(ulong*) variables[i].value);
+        net_store_data(&packet2,(longlong) *(ulong*) variables[i].value);
         break;
       case SHOW_BOOL:
         net_store_data(&packet2,(ulong) *(bool*) variables[i].value ?
