@@ -556,8 +556,8 @@ t1	CREATE TABLE `t1` (
   `a` double(4,1) NOT NULL default '0.0'
 ) TYPE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob);
-insert into t2 values (NULL, 1, 3, 4, 1.5, 2.5, 1972, '1972-10-22', '1972-10-22 11:50', 'testc', 'testv', 'tetetetetest');
+create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
+insert into t2 values (NULL, 1, 3, 4, 1.5, 2.5, 1972, '1972-10-22', '1972-10-22 11:50', 'testc', 'testv', 'tetetetetest', 'teeeeeeeeeeeest');
 create table t1 SELECT it2 from t2 UNION select it1 from t2;
 select * from t1;
 it2
@@ -720,7 +720,7 @@ tetetetetest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` blob
+  `dt` longblob
 ) TYPE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sv from t2 UNION select b from t2;
@@ -731,7 +731,7 @@ tetetetetest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `sv` blob
+  `sv` longblob
 ) TYPE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT i from t2 UNION select d from t2 UNION select b from t2;
@@ -745,4 +745,61 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` blob
 ) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT sv from t2 UNION select tx from t2;
+select * from t1;
+sv
+testv
+teeeeeeeeeeeest
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `sv` text
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 SELECT b from t2 UNION select tx from t2;
+select * from t1;
+b
+tetetetetest
+teeeeeeeeeeeest
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` longblob
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2;
+create table t1 (d decimal(10,1));
+create table t2 (d decimal(10,9));
+insert into t1 values ("100000000.0");
+insert into t2 values ("1.23456780");
+create table t3 select * from t2 union select * from t1;
+select * from t3;
+d
+1.234567800
+100000000.0
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `d` decimal(10,9) default NULL
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1,t2,t3;
+create table t1 select 1 union select -1;
+select * from t1;
+1
+1
+-1
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `1` bigint(1) NOT NULL default '0'
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 select _latin1"test" union select _latin2"testt" ;
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'UNION'
+create table t1 select _latin2"test" union select _latin2"testt" ;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `test` char(5) character set latin2 NOT NULL default ''
+) TYPE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;

@@ -2005,17 +2005,24 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
     field_example= ((Item_field*) item)->field;
   else
     field_example= 0;
+  collation.set(item->collation);
 }
 
 
-// STRING_RESULT, REAL_RESULT, INT_RESULT, ROW_RESULT
+/*
+  STRING_RESULT, REAL_RESULT, INT_RESULT, ROW_RESULT
+
+  ROW_RESULT should never appear in Item_type_holder::join_types,
+  but it is included in following table just to make table full
+  (there DBUG_ASSERT in function to catch ROW_RESULT)
+*/
 static Item_result type_convertor[4][4]=
 {{STRING_RESULT, STRING_RESULT, STRING_RESULT, ROW_RESULT},
  {STRING_RESULT, REAL_RESULT,   REAL_RESULT,   ROW_RESULT},
  {STRING_RESULT, REAL_RESULT,   INT_RESULT,    ROW_RESULT},
  {ROW_RESULT,    ROW_RESULT,    ROW_RESULT,    ROW_RESULT}};
 
-void Item_type_holder::join_types(THD *thd, Item *item)
+bool Item_type_holder::join_types(THD *thd, Item *item)
 {
   bool change_field= 0, skip_store_field= 0;
   Item_result new_type= type_convertor[item_type][item->result_type()];
@@ -2045,14 +2052,20 @@ void Item_type_holder::join_types(THD *thd, Item *item)
       (max_length < item->max_length) ||
       ((new_type == INT_RESULT) &&
        (decimals < item->decimals)) ||
-      (!maybe_null && item->maybe_null))
+      (!maybe_null && item->maybe_null) ||
+      (item_type == STRING_RESULT && new_type == STRING_RESULT &&
+       !my_charset_same(collation.collation, item->collation.collation)))
   {
     // new field has some parameters worse then current
     skip_store_field|= (change_field &&
 			(max_length > item->max_length) ||
 			((new_type == INT_RESULT) &&
 			 (decimals > item->decimals)) ||
-			(maybe_null && !item->maybe_null));
+			(maybe_null && !item->maybe_null) ||
+			(item_type == STRING_RESULT &&
+			 new_type == STRING_RESULT &&
+			 !my_charset_same(collation.collation,
+					  item->collation.collation)));
     /*
       It is safe assign pointer on field, because it will be used just after
       all JOIN::prepare calls and before any SELECT execution
@@ -2062,12 +2075,25 @@ void Item_type_holder::join_types(THD *thd, Item *item)
     else
       field_example= ((Item_field*) item)->field;
 
+    const char *old_cs= collation.collation->name,
+      *old_derivation= collation.derivation_name();
+    if (item_type == STRING_RESULT && collation.aggregate(item->collation))
+    {
+      my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
+	       old_cs, old_derivation,
+	       item->collation.collation->name,
+	       item->collation.derivation_name(),
+	       "UNION");
+      return 1;
+    }
+
     max_length= max(max_length, item->max_length);
     decimals= max(decimals, item->decimals);
     maybe_null|= item->maybe_null;
     item_type= new_type;
   }
   DBUG_ASSERT(item_type != ROW_RESULT);
+  return 0;
 }
 
 

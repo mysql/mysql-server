@@ -197,7 +197,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result)
       Item *type, *item;
       while((type= tp++, item= it++))
       {
-	((Item_type_holder*)type)->join_types(thd, item);
+	if (((Item_type_holder*)type)->join_types(thd, item))
+	  DBUG_RETURN(-1)
       }
     }
   }
