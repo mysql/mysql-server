@@ -47265,14 +47265,18 @@ that contain up to 2,000 million rows in a validation regression database.
 Many users of MySQL have contributed @emph{very} useful support
 tools and add-ons.
 
-@ifclear web
-A list of what is available at @uref{http://www.mysql.com/Downloads/Contrib/}
+A list of what is available at
+@uref{http://www.mysql.com/Downloads/Contrib/}
 (or any mirror) is shown below.
-If you want to build MySQL support for the Perl @code{DBI}/@code{DBD}
+
+Please visit our Software Portal at
+@uref{http://www.mysql.com/portal/software/}.
+The community facilities there also allow for your input!
+
+Note: if you want to build MySQL support for the Perl @code{DBI}/@code{DBD}
 interface, you should fetch the @code{Data-Dumper}, @code{DBI}, and
 @code{Msql-Mysql-modules} files and install them.
 @xref{Perl support}.
-@end ifclear
 
 @appendixsec APIs
 
