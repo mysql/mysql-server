@@ -33409,7 +33409,7 @@ mysql> SELECT COUNT(DISTINCT results) FROM student;
 In MySQL you can get the number of distinct expression
 combinations that don't contain NULL by giving a list of expressions.
 In ANSI SQL you would have to do a concatenation of all expressions
-inside @code{CODE(DISTINCT ...)}.
+inside @code{COUNT(DISTINCT ...)}.
 
 @findex AVG()
 @item AVG(expr)
