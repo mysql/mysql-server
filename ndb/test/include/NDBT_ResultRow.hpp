@@ -24,8 +24,9 @@ public:
   NDBT_ResultRow(const NdbDictionary::Table &tab, char attrib_delimiter='\t');
   ~NDBT_ResultRow();
   NdbRecAttr * & attributeStore(int i);
-  const NdbRecAttr * attributeStore(const char* name);
-
+  const NdbRecAttr * attributeStore(int i) const ;
+  const NdbRecAttr * attributeStore(const char* name) const ;
+  
   BaseString c_str();
 
   NdbOut & header (NdbOut &) const;
