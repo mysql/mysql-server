@@ -693,12 +693,14 @@ HugoTransactions::loadTable(Ndb* pNdb,
 			    int records,
 			    int batch,
 			    bool allowConstraintViolation,
-			    int doSleep){
+			    int doSleep,
+                            bool oneTrans){
   int             check;
   int             retryAttempt = 0;
   int             retryMax = 5;
   NdbConnection   *pTrans;
   NdbOperation	  *pOp;
+  bool            first_batch = true;
 
   const int org = batch;
   const int cols = tab.getNoOfColumns();
@@ -707,7 +709,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
   batch = (batch * 256); // -> 512 -> 65536k per commit
   batch = batch/bytes;   // 
   batch = batch == 0 ? 1 : batch;
-  
+ 
   if(batch != org){
     g_info << "batch = " << org << " rowsize = " << bytes
 	   << " -> rows/commit = " << batch << endl;
@@ -715,7 +717,7 @@ HugoTransactions::loadTable(Ndb* pNdb,
   
   g_info << "|- Inserting records..." << endl;
   for (int c=0 ; c<records ; ){
-
+    bool closeTrans;
     if (retryAttempt >= retryMax){
       g_info << "Record " << c << " could not be inserted, has retried "
 	     << retryAttempt << " times " << endl;
@@ -726,19 +728,22 @@ HugoTransactions::loadTable(Ndb* pNdb,
     if (doSleep > 0)
       NdbSleep_MilliSleep(doSleep);
 
-    pTrans = pNdb->startTransaction();
+    if (first_batch || !oneTrans) {
+      first_batch = false;
+      pTrans = pNdb->startTransaction();
+    
+      if (pTrans == NULL) {
+        const NdbError err = pNdb->getNdbError();
 
-    if (pTrans == NULL) {
-      const NdbError err = pNdb->getNdbError();
-
-      if (err.status == NdbError::TemporaryError){
-	ERR(err);
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
+        if (err.status == NdbError::TemporaryError){
+          ERR(err);
+	  NdbSleep_MilliSleep(50);
+	  retryAttempt++;
+	  continue;
+        }
+        ERR(err);
+        return NDBT_FAILED;
       }
-      ERR(err);
-      return NDBT_FAILED;
     }
 
     for(int b = 0; b < batch && c+b<records; b++){ 
@@ -768,7 +773,13 @@ HugoTransactions::loadTable(Ndb* pNdb,
     }
     
     // Execute the transaction and insert the record
-    check = pTrans->execute( Commit ); 
+    if (!oneTrans || (c + batch) >= records) {
+      closeTrans = true;
+      check = pTrans->execute( Commit );
+    } else {
+      closeTrans = false;
+      check = pTrans->execute( NoCommit );
+    }
     if(check == -1 ) {
       const NdbError err = pTrans->getNdbError();
       pNdb->closeTransaction(pTrans);
@@ -811,8 +822,10 @@ HugoTransactions::loadTable(Ndb* pNdb,
 	break;
       }
     }
-    else{      
-      pNdb->closeTransaction(pTrans);
+    else{
+      if (closeTrans) {
+        pNdb->closeTransaction(pTrans);
+      }
     }
     
     // Step to next record

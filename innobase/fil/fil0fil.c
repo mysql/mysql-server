@@ -1513,6 +1513,8 @@ fil_decr_pending_ibuf_merges(
 	mutex_exit(&(system->mutex));
 }
 
+/************************************************************
+Creates the database directory for a table if it does not exist yet. */
 static
 void
 fil_create_directory_for_tablename(
