@@ -653,7 +653,8 @@ NdbDictionaryImpl::fetchGlobalTableImpl(const char * internalTableName)
   m_globalHash->unlock();
 
   if (impl == 0){
-    impl = m_receiver.getTable(internalTableName, m_ndb.usingFullyQualifiedNames());
+    impl = m_receiver.getTable(internalTableName,
+			       m_ndb.usingFullyQualifiedNames());
     m_globalHash->lock();
     m_globalHash->put(internalTableName, impl);
     m_globalHash->unlock();
@@ -663,15 +664,14 @@ NdbDictionaryImpl::fetchGlobalTableImpl(const char * internalTableName)
     }
   }
 
-  Ndb_local_table_info *info= Ndb_local_table_info::create(impl, m_local_table_data_size);
+  Ndb_local_table_info *info=
+    Ndb_local_table_info::create(impl, m_local_table_data_size);
 
   m_localHash.put(internalTableName, info);
 
   m_ndb.theFirstTupleId[impl->getTableId()] = ~0;
   m_ndb.theLastTupleId[impl->getTableId()]  = ~0;
   
-  addBlobTables(*impl);
-
   return info;
 }
 
@@ -1333,12 +1333,13 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
   if (t.m_noOfBlobs == 0)
     return 0;
   // update table def from DICT
-  NdbTableImpl * tp = getTable(t.m_externalName.c_str());
-  if (tp == NULL) {
+  Ndb_local_table_info *info=
+    get_local_table_info(t.m_internalName.c_str(),false);
+  if (info == NULL) {
     m_error.code = 709;
     return -1;
   }
-  if (createBlobTables(* tp) != 0) {
+  if (createBlobTables(*(info->m_table_impl)) != 0) {
     int save_code = m_error.code;
     (void)dropTable(t);
     m_error.code = save_code;
@@ -1359,8 +1360,12 @@ NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
     if (createTable(bt) != 0)
       return -1;
     // Save BLOB table handle
-    NdbTableImpl * cachedBlobTable = getTable(bt.m_externalName.c_str());
-    c.m_blobTable = cachedBlobTable;
+    Ndb_local_table_info *info=
+      get_local_table_info(bt.m_internalName.c_str(),false);
+    if (info == 0) {
+      return -1;
+    }
+    c.m_blobTable = info->m_table_impl;
   }
   
   return 0;
@@ -1369,14 +1374,22 @@ NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
 int
 NdbDictionaryImpl::addBlobTables(NdbTableImpl &t)
 {
-  for (unsigned i = 0; i < t.m_columns.size(); i++) {
+  unsigned n= t.m_noOfBlobs;
+  // optimized for blob column being the last one
+  // and not looking for more than one if not neccessary
+  for (unsigned i = t.m_columns.size(); i > 0 && n > 0;) {
+    i--;
     NdbColumnImpl & c = *t.m_columns[i];
     if (! c.getBlobType() || c.getPartSize() == 0)
       continue;
+    n--;
     char btname[NdbBlob::BlobTableNameSize];
     NdbBlob::getBlobTableName(btname, &t, &c);
     // Save BLOB table handle
-    NdbTableImpl * cachedBlobTable = getTable(btname);;
+    NdbTableImpl * cachedBlobTable = getTable(btname);
+    if (cachedBlobTable == 0) {
+      return -1;
+    }
     c.m_blobTable = cachedBlobTable;
   }
   
@@ -1587,7 +1600,8 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     : createTable(&tSignal, ptr);
 
   if (!alter && haveAutoIncrement) {
-    if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(), autoIncrementValue)) {
+    if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
+				   autoIncrementValue)) {
       if (ndb.theError.code == 0) {
 	m_error.code = 4336;
 	ndb.theError = m_error;
@@ -1607,7 +1621,6 @@ NdbDictInterface::createTable(NdbApiSignal* signal, LinearSectionPtr ptr[3])
   SimplePropertiesLinearReader r(ptr[0].p, ptr[0].sz);
   r.printAll(ndbout);
 #endif
-
   const int noErrCodes = 2;
   int errCodes[noErrCodes] = 
      {CreateTableRef::Busy,
@@ -1625,7 +1638,10 @@ void
 NdbDictInterface::execCREATE_TABLE_CONF(NdbApiSignal * signal,
 					LinearSectionPtr ptr[3])
 {
-  //CreateTableConf* const conf = CAST_PTR(CreateTableConf, signal->getDataPtr());
+  const CreateTableConf* const conf=
+    CAST_CONSTPTR(CreateTableConf, signal->getDataPtr());
+  Uint32 tableId= conf->tableId;
+  Uint32 tableVersion= conf->tableVersion;
   
   m_waiter.signal(NO_WAIT);  
 }
@@ -1634,7 +1650,8 @@ void
 NdbDictInterface::execCREATE_TABLE_REF(NdbApiSignal * signal,
 				       LinearSectionPtr ptr[3])
 {
-  const CreateTableRef* const ref = CAST_CONSTPTR(CreateTableRef, signal->getDataPtr());
+  const CreateTableRef* const ref=
+    CAST_CONSTPTR(CreateTableRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
   m_waiter.signal(NO_WAIT);  
@@ -1648,7 +1665,6 @@ NdbDictInterface::alterTable(NdbApiSignal* signal, LinearSectionPtr ptr[3])
   SimplePropertiesLinearReader r(ptr[0].p, ptr[0].sz);
   r.printAll(ndbout);
 #endif
-
   const int noErrCodes = 2;
   int errCodes[noErrCodes] =
     {AlterTableRef::NotMaster,
@@ -1871,7 +1887,8 @@ NdbIndexImpl*
 NdbDictionaryImpl::getIndexImpl(const char * externalName, 
 				const char * internalName)
 {
-  Ndb_local_table_info * info = get_local_table_info(internalName);
+  Ndb_local_table_info * info = get_local_table_info(internalName,
+						     false);
   if(info == 0){
     m_error.code = 4243;
     return 0;
