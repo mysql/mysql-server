@@ -138,7 +138,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	BOTH
 %token	BY
 %token	CASCADE
-%token  CHANGED_FILES
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
 %token	COLUMNS
@@ -332,8 +331,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DATE_SUB_INTERVAL
 %token	DAY_HOUR_SYM
 %token	DAY_MINUTE_SYM
-%token	DAY_OF_WEEK
-%token	DAY_OF_YEAR
 %token	DAY_SECOND_SYM
 %token	DAY_SYM
 %token	DECODE_SYM
@@ -372,7 +369,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	RIGHT
 %token	ROUND
 %token	SECOND_SYM
-%token	SEC_TO_TIME
 %token	SUBSTRING
 %token	SUBSTRING_INDEX
 %token	TRIM
@@ -385,8 +381,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	UNIQUE_USERS
 %token	UNIX_TIMESTAMP
 %token	USER
-%token	VERSION_SYM
-%token	WEEKDAY
 %token	WEEK_SYM
 %token	WHEN_SYM
 %token  WORK_SYM
@@ -1040,10 +1034,9 @@ alter:
     	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
 	}
-	alter_list order_clause opt_create_table_options
+	alter_list
  
 alter_list:
-        /* empty */
         | alter_list_item
 	| alter_list ',' alter_list_item
 
@@ -1082,7 +1075,8 @@ alter_list_item:
 	  { Lex->alter_list.push_back(new Alter_column($3.str,(Item*) 0)); }
 	| RENAME opt_to table_alias table_ident
 	  { Lex->db=$4->db.str ; Lex->name= $4->table.str; }
-        | opt_create_table_options
+        | create_table_options
+	| order_clause
 
 opt_column:
 	/* empty */	{}
@@ -1227,7 +1221,7 @@ select_into:
 	| select_from opt_into
 
 select_from:
-	FROM join_table_list where_clause group_clause having_clause order_clause limit_clause procedure_clause
+	FROM join_table_list where_clause group_clause having_clause opt_order_clause limit_clause procedure_clause
 
 
 select_options:
@@ -1850,9 +1844,12 @@ group_list:
 ** Order by statement in select
 */
 
-order_clause:
+opt_order_clause:
 	/* empty */
-	| ORDER_SYM BY { Lex->sort_default=1; } order_list
+	| order_clause
+
+order_clause:
+	ORDER_SYM BY { Lex->sort_default=1; } order_list
 
 order_list:
 	order_list ',' order_ident order_dir
@@ -2136,7 +2133,7 @@ opt_delete_option:
 	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
 
 truncate:
-	TRUNCATE_SYM TABLE_SYM table
+	TRUNCATE_SYM table
 	{ Lex->sql_command= SQLCOM_TRUNCATE; Lex->options=0;
 	  Lex->lock_option= current_thd->update_lock_default; }
 
@@ -2241,7 +2238,7 @@ flush_options:
 	| flush_option
 
 flush_option:
-	TABLES		{ Lex->type|= REFRESH_TABLES; } opt_table_list
+	table_or_tables	{ Lex->type|= REFRESH_TABLES; } opt_table_list
 	| TABLES WITH READ_SYM LOCK_SYM { Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK; }
 	| HOSTS_SYM	{ Lex->type|= REFRESH_HOSTS; }
 	| PRIVILEGES	{ Lex->type|= REFRESH_GRANT; }

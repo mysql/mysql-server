@@ -320,7 +320,7 @@ int _my_b_net_read(register IO_CACHE *info, byte *Buffer,
   read_length=my_net_read(net);
   if (read_length == (int) packet_error)
   {
-    info->error=(uint) -1;
+    info->error= -1;
     return 1;
   }
   if (read_length == 0)

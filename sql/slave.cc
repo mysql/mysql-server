@@ -171,9 +171,6 @@ int db_ok(const char* db, I_List<i_string> &do_list,
       return 1;
       
     }
-
-  // impossible
-  return 0;
 }
 
 static void init_strvar_from_file(char* var, int max_size, FILE* f,

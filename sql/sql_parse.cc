@@ -78,7 +78,7 @@ static inline bool end_active_trans(THD *thd)
   {
     if (ha_commit(thd))
       return 1;
-    thd->options&= ~OPTION_BEGIN;
+    thd->options&= ~(ulong) (OPTION_BEGIN);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   }
   return 0;
@@ -1562,7 +1562,7 @@ mysql_execute_command(void)
       if (!org_options & OPTION_AUTO_COMMIT)
       {
 	/* We changed to auto_commit mode */
-	thd->options&= ~OPTION_BEGIN;
+	thd->options&= ~(ulong) (OPTION_BEGIN);
 	thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
 	if (ha_commit(thd))
 	{
@@ -1747,7 +1747,7 @@ mysql_execute_command(void)
       even if there is a problem with the OPTION_AUTO_COMMIT flag
       (Which of course should never happen...)
     */
-    thd->options&= ~OPTION_BEGIN;
+    thd->options&= ~(ulong) (OPTION_BEGIN);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (!ha_commit(thd))
       send_ok(&thd->net);
@@ -1755,7 +1755,7 @@ mysql_execute_command(void)
       res= -1;
     break;
   case SQLCOM_ROLLBACK:
-    thd->options&= ~OPTION_BEGIN;
+    thd->options&= ~(ulong) (OPTION_BEGIN);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (!ha_rollback(thd))
       send_ok(&thd->net);

@@ -35,6 +35,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       continue;
     }
     /* Skipp if max size is used (to be compatible with printf) */
+    fmt++;
     while (isdigit(*fmt) || *fmt == '.' || *fmt == '-')
       fmt++;
     if (*fmt == 's')				/* String parameter */
