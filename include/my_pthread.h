@@ -468,7 +468,7 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 typedef struct st_safe_mutex_t
 {
   pthread_mutex_t global,mutex;
-  char *file;
+  const char *file;
   uint line,count;
   pthread_t thread;
 #ifdef SAFE_MUTEX_DETECT_DESTROY
@@ -487,7 +487,7 @@ typedef struct st_safe_mutex_info_t
 {
   struct st_safe_mutex_info_t *next;
   struct st_safe_mutex_info_t *prev;
-  char *init_file;
+  const char *init_file;
   uint32 init_line;
 } safe_mutex_info_t;
 #endif /* SAFE_MUTEX_DETECT_DESTROY */

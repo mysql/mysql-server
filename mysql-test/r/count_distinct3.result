@@ -5,3 +5,4 @@ COUNT(*)
 4181000
 SELECT COUNT(DISTINCT id) FROM t1 GROUP BY grp;
 DROP TABLE t1;
+set @@read_buffer_size=default;

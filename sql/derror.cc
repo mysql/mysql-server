@@ -75,6 +75,7 @@ Please install the latest version of this file.",name);
     goto err1;
   }
   
+  /* TODO: Convert the character set to server system character set */
   if (!(cset= get_charset(head[30],MYF(MY_WME))))
   {
     sql_print_error("Character set #%d is not supported for messagefile '%s'",

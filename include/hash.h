@@ -22,13 +22,14 @@
 extern "C" {
 #endif
 
+/*
+  Overhead to store an element in hash
+  Can be used to approximate memory consumption for a hash
+ */
+#define HASH_OVERHEAD (sizeof(char*)*2)
+
 typedef byte *(*hash_get_key)(const byte *,uint*,my_bool);
 typedef void (*hash_free_key)(void *);
-
-typedef struct st_hash_info {
-  uint next;					/* index to next key */
-  byte *data;					/* data for current entry */
-} HASH_LINK;
 
 typedef struct st_hash {
   uint key_offset,key_length;		/* Length of key if const length */

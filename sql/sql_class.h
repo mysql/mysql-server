@@ -606,7 +606,6 @@ public:
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
   bool	     volatile killed;
-  bool       prepare_command;
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       slow_command;
@@ -946,6 +945,7 @@ class select_union :public select_result {
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
+  void set_table(TABLE *tbl) { table= tbl; }
 };
 
 /* Base subselect interface class */

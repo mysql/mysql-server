@@ -302,6 +302,8 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
     pos=net_store_data((char*) pos, message, strlen(message));
   VOID(my_net_write(net,buff,(uint) (pos-buff)));
   VOID(net_flush(net));
+  /* We can't anymore send an error to the client */
+  thd->net.report_error= 0;
   DBUG_VOID_RETURN;
 }
 

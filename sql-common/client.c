@@ -55,12 +55,6 @@ my_bool	net_flush(NET *net);
 #else  /*EMBEDDED_LIBRARY*/
 #define CLI_MYSQL_REAL_CONNECT mysql_real_connect
 #endif /*EMBEDDED_LIBRARY*/
-
-#if !defined(MYSQL_SERVER) && (defined(__WIN__) || defined(_WIN32) || defined(_WIN64))
-
-#include <winsock.h>
-#include <odbcinst.h>
-#endif /* !defined(MYSQL_SERVER) && (defined(__WIN__) ... */
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
@@ -634,7 +628,7 @@ void free_rows(MYSQL_DATA *cur)
   }
 }
 
-my_bool STDCALL
+my_bool
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
 		     const char *arg, ulong arg_length, my_bool skip_check)
@@ -1014,7 +1008,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void STDCALL cli_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count)
+static void cli_fetch_lengths(ulong *to, MYSQL_ROW column,
+			      unsigned int field_count)
 { 
   ulong *prev_length;
   byte *start=0;
@@ -1145,8 +1140,8 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 
 /* Read all rows (fields or data) from server */
 
-MYSQL_DATA * STDCALL cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
-				   unsigned int fields)
+MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
+			  unsigned int fields)
 {
   uint	field;
   ulong pkt_len;
@@ -1402,8 +1397,8 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   before calling mysql_real_connect !
 */
 
-static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql);
-static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql);
+static my_bool cli_mysql_read_query_result(MYSQL *mysql);
+static MYSQL_RES *cli_mysql_use_result(MYSQL *mysql);
 
 static MYSQL_METHODS client_methods=
 {
@@ -2227,7 +2222,7 @@ void STDCALL mysql_close(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql)
+static my_bool cli_mysql_read_query_result(MYSQL *mysql)
 {
   uchar *pos;
   ulong field_count;
@@ -2402,7 +2397,7 @@ MYSQL_RES * STDCALL mysql_store_result(MYSQL *mysql)
   have to wait for the client (and will not wait more than 30 sec/packet).
 **************************************************************************/
 
-static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql)
+static MYSQL_RES * cli_mysql_use_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("cli_mysql_use_result");

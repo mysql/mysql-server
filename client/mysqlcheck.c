@@ -309,6 +309,8 @@ static int get_options(int *argc, char ***argv)
     else
       what_to_do = DO_CHECK;
   }
+
+  /* TODO: This variable is not yet used */
   if (!(charset_info= get_charset_by_csname(default_charset, 
   					    MY_CS_PRIMARY, MYF(MY_WME))))
       exit(1);

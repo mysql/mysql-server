@@ -1692,7 +1692,7 @@ void MYSQL_LOG:: wait_for_update(THD* thd, bool master_or_slave)
   const char* old_msg = thd->enter_cond(&update_cond, &LOCK_log,
                                         master_or_slave ?
                                         "Has read all relay log; waiting for \
-the I/O slave thread to update it" : 
+the slave I/O thread to update it" : 
                                         "Has sent all binlog to slave; \
 waiting for binlog to be updated"); 
   pthread_cond_wait(&update_cond, &LOCK_log);
