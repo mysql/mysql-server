@@ -63,9 +63,10 @@ static uint num_from_csname(CS_ID **cs, const char *name)
 static char *name_from_csnum(CS_ID **cs, uint number)
 {
   CS_ID **c;
-  for (c = cs; *c; ++c)
-    if ((*c)->number == number)
-      return (*c)->name;
+  if(cs)
+    for (c = cs; *c; ++c)
+      if ((*c)->number == number)
+	return (*c)->name;
   return "?";   /* this mimics find_type() */
 }
 
