@@ -69,6 +69,7 @@ c_t="" c_c=""
 c_hl="" c_hl=""
 c_hc="" c_hc=""
 c_clr="" c_clr=""
+c_p=""
 
 # Check for old tables
 if test ! -f $mdata/db.frm
@@ -246,6 +247,17 @@ then
   c_hc="$c_hc   comment='categories of help topics';"
 fi
 
+if test ! -f $mdata/proc.frm
+then
+  c_p="$c_p CREATE TABLE proc ("
+  c_p="$c_p   name char(64) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p   type enum('function','procedure') NOT NULL,"
+  c_p="$c_p   body blob DEFAULT '' NOT NULL,"
+  c_p="$c_p   PRIMARY KEY (name,type)"
+  c_p="$c_p )"
+  c_p="$c_p   comment='Stored Procedures';"
+fi
+	      
 mysqld_boot=" $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
     --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $EXTRA_ARG"
 echo "running $mysqld_boot"
@@ -270,6 +282,9 @@ $c_c
 $c_hl
 $c_hc
 $c_clr
+
+$c_p
+
 END_OF_DATA
 then
     exit 0

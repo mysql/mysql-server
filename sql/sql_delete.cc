@@ -179,7 +179,6 @@ cleanup:
   log_delayed= (transactional_table || table->tmp_table);
   if (deleted && (error <= 0 || !transactional_table))
   {
-    mysql_update_log.write(thd,thd->query, thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length, 
@@ -486,7 +485,6 @@ bool multi_delete::send_eof()
   */
   if (deleted && (error <= 0 || normal_tables))
   {
-    mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
@@ -601,7 +599,6 @@ end:
   {
     if (!error)
     {
-      mysql_update_log.write(thd,thd->query,thd->query_length);
       if (mysql_bin_log.is_open())
       {
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
