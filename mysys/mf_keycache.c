@@ -826,7 +826,7 @@ restart:
             (uint) hash_link->file,(ulong) hash_link->diskpos));
       }
     }
-    KEYCACHE_DBUG_ASSERT(n <= my_hash_links_used);
+    KEYCACHE_DBUG_ASSERT(cnt <= my_hash_links_used);
 #endif
   }
   if (! hash_link)
@@ -1063,6 +1063,9 @@ restart:
 
   KEYCACHE_DBUG_ASSERT(page_status != -1);
   *page_st=page_status;
+  KEYCACHE_DBUG_PRINT("find_key_block",
+                      ("file %u, filepos %lu, page_status %lu",
+                      (uint) file,(ulong) filepos,(uint) page_status));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_keycache2",test_key_cache("end of find_key_block",0););
@@ -1181,7 +1184,7 @@ byte *key_cache_read(File file, my_off_t filepos, byte *buff, uint length,
       keycache_pthread_mutex_lock(&THR_LOCK_keycache);
       my_cache_r_requests++;
       block=find_key_block(file,filepos,0,&page_st);
-      if (page_st != PAGE_READ)
+      if (block->status != BLOCK_ERROR && page_st != PAGE_READ)
       {
         /* The requested page is to be read into the block buffer */
         read_block(block,key_cache_block_size,read_length+offset,
@@ -1303,7 +1306,7 @@ int key_cache_write(File file, my_off_t filepos, byte *buff, uint length,
       keycache_pthread_mutex_lock(&THR_LOCK_keycache);
       my_cache_w_requests++;
       block=find_key_block(file, filepos, 1, &page_st);
-      if (page_st != PAGE_READ &&
+      if (block->status != BLOCK_ERROR && page_st != PAGE_READ &&
           (offset || read_length < key_cache_block_size))
         read_block(block,
                    offset + read_length >= key_cache_block_size?
