@@ -27175,9 +27175,9 @@ statement, a dedicated table object is allocated for the thread.
 This table object is not shared by other threads an will not be closed
 until the thread calls @code{HANDLER table_name CLOSE} or the thread dies.
 @xref{HANDLER, , @code{HANDLER}}.  When this happens, the table is put
-back in the table_cache (if it isn't full).
+back in the table cache (if it isn't full).
 
-You can check if your table cache is too small by checking the mysqld
+You can check if your table cache is too small by checking the @code{mysqld}
 variable @code{Opened_tables}.  If this is quite big, even if you
 haven't done a lot of @code{FLUSH TABLES}, you should increase your table
 cache. @xref{SHOW STATUS, , @code{SHOW STATUS}}.
@@ -27770,9 +27770,11 @@ you would write:
 
 @example
 mysql> SET PASSWORD FOR bob@@"%.loc.gov" = PASSWORD("newpass");
+@end example
 
-or
+Which is equivalent to:
 
+@example
 mysql> UPDATE mysql.user SET password=PASSWORD("newpass")
     ->                   WHERE user="bob' AND host="%.loc.gov";
 @end example
@@ -27956,8 +27958,8 @@ inode and by this will avoid some disk seeks.
 
 @item
 On Linux, you can get much more performance (up to 100% under load is
-not uncommon) by using hdparm to configure your disk's interface!  The
-following should be quite good hdparm options for MySQL (and
+not uncommon) by using @code{hdparm} to configure your disk's interface!  The
+following should be quite good @code{hdparm} options for MySQL (and
 probably many other applications):
 
 @example
@@ -27971,15 +27973,15 @@ man page for more information!  If @code{hdparm} is not used wisely,
 filesystem corruption may result.  Backup everything before experimenting!
 
 @item
-On many operating systems you can mount the disks with the 'async' flag to
-set the filesystem to be updated asynchronously.  If your computer is
-reasonable stable, this should give you more performance without sacrificing
+On many operating systems you can mount the disks with the @code{-o async}
+option to set the filesystem to be updated asynchronously.  If your computer is
+reasonably stable, this should give you more performance without sacrificing
 too much reliability.  (This flag is on by default on Linux.)
 
 @item
 If you don't need to know when a file was last accessed (which is not
 really useful on a database server), you can mount your filesystems
-with the @code{noatime} flag.
+with the @code{-o noatime} option.
 @end itemize
 
 @menu
@@ -33606,7 +33608,7 @@ non-magic value (that is, a value that is not @code{NULL} and not @code{0}).
 
 If you insert many rows at the same time with an insert statement,
 @code{LAST_INSERT_ID()} returns the value for the first inserted row.
-The reason for this is so that you it makes it possible to easily reproduce
+The reason for this is to make it possible to easily reproduce
 the same @code{INSERT} statement against some other server.
 
 @cindex sequence emulation
@@ -37682,7 +37684,7 @@ You can combine many statements and accept these all in one go with
 the @code{COMMIT} command.
 @item
 You can execute @code{ROLLBACK} to ignore your changes (if you are not
-running in auto commit mode).
+running in auto-commit mode).
 @item
 If an update fails, all your changes will be restored. (With NTST tables all
 changes that have taken place are permanent)
@@ -38261,7 +38263,7 @@ kind of benefits.)
 @item
 Do more efficient searches. If you know exactly what you are looking
 after, you can search in just one of the split tables for some queries
-and use @code{MERGE} table for others.  You can even have many
+and use a @code{MERGE} table for others.  You can even have many
 different @code{MERGE} tables active, with possible overlapping files.
 @item
 More efficient repairs. It's easier to repair the individual files that
@@ -38296,7 +38298,7 @@ You can only use identical @code{MyISAM} tables for a @code{MERGE} table.
 @code{REPLACE} doesn't work.
 @item
 @code{MERGE} tables uses more file descriptors. If you are using a
-@code{MERGE} that maps over 10 tables and 10 users are using this, you
+@code{MERGE} table that maps over 10 tables and 10 users are using this, you
 are using 10*10 + 10 file descriptors.  (10 datafiles for 10 users
 and 10 shared index files.)
 @item
@@ -38452,8 +38454,8 @@ recovery}.
 @end itemize
 
 Most of the things true for @code{MyISAM} tables are also true for @code{ISAM}
-tables. @xref{MyISAM}. The major differences compared to @code{MyISAM}
-tables are:
+tables. @xref{MyISAM, , @code{MyISAM} tables}. The major differences compared
+to @code{MyISAM} tables are:
 
 @itemize @bullet
 @item @code{ISAM} tables are not binary portable across OS/Platforms.
@@ -38529,7 +38531,7 @@ are 100% dynamic (on inserting). No overflow areas and no extra key
 space are needed.  Deleted rows are put in a linked list and are
 reused when you insert new data into the table.
 @item
-You need enough extra memory for all HEAP tables that you want to use at
+You need enough extra memory for all @code{HEAP} tables that you want to use at
 the same time.
 @item
 To free memory, you should execute @code{DELETE FROM heap_table},
@@ -39458,7 +39460,7 @@ the relevant files. If the formats are different and your tables
 contain floating-point data, you have to use @file{mysqldump}
 and @file{mysqlimport} to move those tables.
 
-A performance tip is to switch off the auto commit when you import
+A performance tip is to switch off auto-commit mode when you import
 data into your database, assuming your tablespace has enough space for
 the big rollback segment the big import transaction will generate.
 Do the commit only after importing a whole table or a segment of
@@ -39479,7 +39481,7 @@ without InnoDB running out of memory.
 
 In InnoDB all user activity happens inside transactions. If the
 auto-commit mode is used in MySQL, then each SQL statement
-will form a single transaction. If the auto commit mode is
+will form a single transaction. If the auto-commit mode is
 switched off, then we can think that a user always has a transaction
 open. If he issues
 the SQL @code{COMMIT} or @code{ROLLBACK} statement, that
@@ -40791,8 +40793,8 @@ In this case you have to rebuild MySQL without @code{BDB} table support.
 Note: The following list is not complete; we will update it as we
 receive more information about this.
 
-Currently we know that @code{BDB} tables work with the following operating
-system.
+Currently we know that the @code{BDB} handler works with the following
+operating systems:
 
 @itemize @bullet
 @item
@@ -40823,7 +40825,7 @@ Here follows the restrictions you have when using @code{BDB} tables:
 @item
 @code{BDB} tables store in the @file{.db} file the path to the file as it was
 created.
-This was done to be able to detect locks in a multi-user
+(This was done to be able to detect locks in a multi-user
 environment that supports symlinks).
 
 The effect of this is that @code{BDB} tables are not movable between directories!
@@ -40852,9 +40854,9 @@ file format.  In this case you have to delete all @code{BDB} logs
 from your database directory (the files with names that have the format
 @code{log.XXXXXXXXXX}) and restart @code{mysqld}.  We would also
 recommend you to do a @code{mysqldump --opt} of your old @code{BDB}
-tables, delete the old table and restore the dump.
+tables, delete the old tables, and restore the dump.
 @item
-If you are running in not @code{auto_commit} mode and delete a table you
+If you are not running in auto-commit mode and delete a table you
 are using by another thread you may get the following error messages in
 the MySQL error file:
 
@@ -40865,7 +40867,7 @@ the MySQL error file:
 @end example
 
 This is not fatal but we don't recommend that you delete tables if you are
-not in @code{auto_commit} mode, until this problem is fixed (the fix is
+not in auto-commit mode, until this problem is fixed (the fix is
 not trivial).
 @end itemize
 
