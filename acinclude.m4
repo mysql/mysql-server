@@ -707,6 +707,32 @@ AC_DEFUN(MYSQL_CHECK_VIO, [
   AC_SUBST([vio_libs])
 ])
 
+AC_DEFUN(MYSQL_FIND_OPENSSL, [
+ for d in /usr/ssl/include /usr/local/ssl/include /usr/include/openssl \
+/usr/include/ssl /opt/ssl/include /opt/openssl/include ; do
+  if test -f $d/ssl.h  ; then
+    OPENSSL_INCLUDE=$d
+  fi
+ done
+
+ for d in /usr/ssl/lib /usr/local/ssl/lib /usr/lib/openssl \
+/usr/lib /opt/ssl/lib /opt/openssl/lib ; do
+  if test -f $d/libssl.a -o -f $d/libssl.so  ; then
+    OPENSSL_LIB=$d
+  fi
+ done
+
+ if test -z "$OPENSSL_LIB" -o -z "$OPENSSL_INCLUDE" ; then
+   echo "Could not find an installation of OpenSSL"
+   if test -n "$OPENSSL_LIB" ; then
+    if test "$IS_LINUX" = "true"; then
+      echo "Looks like you've forgotted to install OpenSSL development RPM"
+    fi
+   fi
+  exit 1
+ fi
+
+])
 
 AC_DEFUN(MYSQL_CHECK_OPENSSL, [
 AC_MSG_CHECKING(for OpenSSL)
@@ -719,15 +745,15 @@ AC_MSG_CHECKING(for OpenSSL)
   openssl_includes=""
   if test "$openssl" = "yes"
   then
-    if test -n "$vio_dir"
-    then
-      AC_MSG_RESULT(yes)
-      openssl_libs="-L/usr/local/ssl/lib -lssl -lcrypto"
-      openssl_includes="-I/usr/local/ssl/include"
-      AC_DEFINE(HAVE_OPENSSL)
-    else
-      AC_MSG_RESULT(disabled because --with-vio wasn not used)
-    fi
+    MYSQL_FIND_OPENSSL
+    #force VIO use
+    vio_dir="vio"
+    vio_libs="../vio/libvio.la"
+    AC_DEFINE(HAVE_VIO)
+    AC_MSG_RESULT(yes)
+    openssl_libs="-L$OPENSSL_LIB -lssl -lcrypto"
+    openssl_includes="-I$OPENSSL_INCLUDE"
+    AC_DEFINE(HAVE_OPENSSL)
   else
     AC_MSG_RESULT(no)
   fi

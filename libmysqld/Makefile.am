@@ -47,7 +47,7 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	hostname.cc init.cc \
 	item.cc item_buff.cc item_cmpfunc.cc item_create.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
-	item_uniq.cc key.cc lock.cc log.cc log_event.cc md5.c \
+	item_uniq.cc key.cc lock.cc log.cc log_event.cc \
 	mini_client.cc net_pkg.cc net_serv.cc opt_ft.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc slave.cc sql_acl.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
@@ -65,7 +65,7 @@ sqlobjects = convert.lo derror.lo field.lo field_conv.lo filesort.lo \
 	hostname.lo init.lo \
 	item.lo item_buff.lo item_cmpfunc.lo item_create.lo \
 	item_func.lo item_strfunc.lo item_sum.lo item_timefunc.lo \
-	item_uniq.lo key.lo lock.lo log.lo log_event.lo md5.lo \
+	item_uniq.lo key.lo lock.lo log.lo log_event.lo  \
 	mini_client.lo net_pkg.lo net_serv.lo opt_ft.lo opt_range.lo \
 	opt_sum.lo procedure.lo records.lo slave.lo sql_acl.lo \
 	sql_analyse.lo sql_base.lo sql_cache.lo sql_class.lo \

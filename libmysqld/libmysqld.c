@@ -1473,6 +1473,107 @@ get_info:
   DBUG_RETURN(0);
 }
 
+/****************************************************************************
+* A modified version of connect().  connect2() allows you to specify
+* a timeout value, in seconds, that we should wait until we
+* derermine we can't connect to a particular host.  If timeout is 0,
+* my_connect() will behave exactly like connect().
+*
+* Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
+*****************************************************************************/
+
+int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
+		    uint timeout)
+{
+#if defined(__WIN__) || defined(OS2)
+  return connect(s, (struct sockaddr*) name, namelen);
+#else
+  int flags, res, s_err;
+  SOCKOPT_OPTLEN_TYPE s_err_size = sizeof(uint);
+  fd_set sfds;
+  struct timeval tv;
+  time_t start_time, now_time;
+
+  /* If they passed us a timeout of zero, we should behave
+   * exactly like the normal connect() call does.
+   */
+
+  if (timeout == 0)
+    return connect(s, (struct sockaddr*) name, namelen);
+
+  flags = fcntl(s, F_GETFL, 0);		  /* Set socket to not block */
+#ifdef O_NONBLOCK
+  fcntl(s, F_SETFL, flags | O_NONBLOCK);  /* and save the flags..  */
+#endif
+
+  res = connect(s, (struct sockaddr*) name, namelen);
+  s_err = errno;			/* Save the error... */
+  fcntl(s, F_SETFL, flags);
+  if ((res != 0) && (s_err != EINPROGRESS))
+  {
+    errno = s_err;			/* Restore it */
+    return(-1);
+  }
+  if (res == 0)				/* Connected quickly! */
+    return(0);
+
+  /* Otherwise, our connection is "in progress."  We can use
+   * the select() call to wait up to a specified period of time
+   * for the connection to suceed.  If select() returns 0
+   * (after waiting howevermany seconds), our socket never became
+   * writable (host is probably unreachable.)  Otherwise, if
+   * select() returns 1, then one of two conditions exist:
+   *
+   * 1. An error occured.  We use getsockopt() to check for this.
+   * 2. The connection was set up sucessfully: getsockopt() will
+   * return 0 as an error.
+   *
+   * Thanks goes to Andrew Gierth <andrew@erlenstar.demon.co.uk>
+   * who posted this method of timing out a connect() in
+   * comp.unix.programmer on August 15th, 1997.
+   */
+
+  FD_ZERO(&sfds);
+  FD_SET(s, &sfds);
+  /*
+   * select could be interrupted by a signal, and if it is, 
+   * the timeout should be adjusted and the select restarted
+   * to work around OSes that don't restart select and 
+   * implementations of select that don't adjust tv upon
+   * failure to reflect the time remaining
+   */
+  start_time = time(NULL);
+  for (;;)
+  {
+    tv.tv_sec = (long) timeout;
+    tv.tv_usec = 0;
+    if ((res = select(s+1, NULL, &sfds, NULL, &tv)) >= 0)
+      break;
+    now_time=time(NULL);
+    timeout-= (uint) (now_time - start_time);
+    if (errno != EINTR || (int) timeout <= 0)
+      return -1;
+  }
+
+  /* select() returned something more interesting than zero, let's
+   * see if we have any errors.  If the next two statements pass,
+   * we've got an open socket!
+   */
+
+  s_err=0;
+  if (getsockopt(s, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
+    return(-1);
+
+  if (s_err)
+  {						/* getsockopt could succeed */
+    errno = s_err;
+    return(-1);					/* but return an error... */
+  }
+  return(0);					/* It's all good! */
+#endif
+}
+
+
 int STDCALL
 mysql_real_query(MYSQL *mysql, const char *query, uint length)
 {
