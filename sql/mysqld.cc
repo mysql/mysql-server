@@ -345,8 +345,8 @@ arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
  {&Arg_comparator::compare_int, &Arg_comparator::compare_e_int},
  {&Arg_comparator::compare_row, &Arg_comparator::compare_e_row}};
 #ifdef HAVE_SMEM
-static char *shared_memory_base_name=default_shared_memory_base_name;
-static bool opt_enable_shared_memory = 0;
+char *shared_memory_base_name=default_shared_memory_base_name;
+bool opt_enable_shared_memory = 0;
 #endif
 
 volatile ulong cached_thread_count=0;
