@@ -627,13 +627,13 @@ public:
   /*
     During a MySQL session, one can lock tables in two modes: automatic
     or manual. In automatic mode all necessary tables are locked just before
-    statement execution, and all acquired locks are stored in a 'lock'
+    statement execution, and all acquired locks are stored in 'lock'
     member. Unlocking takes place automatically as well, when the
     statement ends.
     Manual mode comes into play when a user issues a 'LOCK TABLES'
     statement. In this mode the user can only use the locked tables.
     Trying to use any other tables will give an error. The locked tables are
-    stored in a 'locked_tables' member.  Manual locking is described in
+    stored in 'locked_tables' member.  Manual locking is described in
     the 'LOCK_TABLES' chapter of the MySQL manual.
     See also lock_tables() for details.
   */
