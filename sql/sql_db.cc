@@ -597,7 +597,7 @@ bool mysql_change_db(THD *thd, const char *name)
 }
 
 
-int mysqld_show_create_db(THD *thd, const char *dbname)
+int mysqld_show_create_db(THD *thd, const char *dbname, HA_CREATE_INFO *create_info)
 {
   int length;
   char	path[FN_REFLEN], *to;
@@ -605,6 +605,8 @@ int mysqld_show_create_db(THD *thd, const char *dbname)
   bool found_libchar;
   HA_CREATE_INFO create;
   CONVERT *convert=thd->variables.convert_set;
+  uint create_options = create_info ? create_info->options : 0;
+  
   DBUG_ENTER("mysql_show_create_db");
   
   if (check_db_name(dbname))
@@ -660,12 +662,17 @@ int mysqld_show_create_db(THD *thd, const char *dbname)
   String *packet = &thd->packet;
   packet->length(0);
   net_store_data(packet, convert, dbname);
-  to= strxmov(path, "CREATE DATABASE `", dbname, "`", NullS);
+  to= strxmov(path, "CREATE DATABASE ", NullS);
+  if (create_options & HA_LEX_CREATE_IF_NOT_EXISTS)
+    to= strxmov(to,"/*!32312 IF NOT EXISTS*/ ", NullS);
+  to=strxmov(to,"`",dbname,"`", NullS);
+  
   if (create.table_charset)
-    to= strxmov(to," DEFAULT CHARACTER SET ", create.table_charset->name,
-		NullS);
+    to= strxmov(to," /*!40100 DEFAULT CHARACTER SET ", 
+		create.table_charset->name,"*/",NullS);
+  
   net_store_data(packet, convert, path, (uint) (to-path));
-
+  
   if (my_net_write(&thd->net,(char*) packet->ptr(), packet->length()))
     DBUG_RETURN(1);
   
