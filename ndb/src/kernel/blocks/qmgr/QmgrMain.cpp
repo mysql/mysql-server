@@ -525,7 +525,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   cmRegConf->dynamicId         = TdynId;
   c_clusterNodes.copyto(NdbNodeBitmask::Size, cmRegConf->allNdbNodes);
   sendSignal(Tblockref, GSN_CM_REGCONF, signal, 
-	     CmRegConf::SignalLength, JBB);
+	     CmRegConf::SignalLength, JBA);
   DEBUG_START(GSN_CM_REGCONF, refToNode(Tblockref), "");
 
   /**
@@ -847,7 +847,7 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   nodePtr.i = getOwnNodeId();
   ptrAss(nodePtr, nodeRec);  
   ndbrequire(nodePtr.p->phase == ZSTARTING);
-  ndbrequire(c_start.m_gsn = GSN_CM_NODEINFOREQ);
+  ndbrequire(c_start.m_gsn == GSN_CM_NODEINFOREQ);
   c_start.m_nodes.clearWaitingFor(nodeId);
 
   /**
@@ -1019,7 +1019,7 @@ void Qmgr::execCM_ADD(Signal* signal)
     ndbrequire(addNodePtr.i == nodePtr.i);
     switch(type){
     case CmAdd::Prepare:
-      ndbrequire(c_start.m_gsn = GSN_CM_NODEINFOREQ);
+      ndbrequire(c_start.m_gsn == GSN_CM_NODEINFOREQ);
       /**
        * Wait for CM_NODEINFO_CONF
        */
