@@ -676,9 +676,13 @@ int mysqld_show_create_db(THD *thd, const char *dbname,
   to=strxmov(to,"`",dbname,"`", NullS);
   
   if (create.table_charset)
-    to= strxmov(to," /*!40100 DEFAULT CHARACTER SET ", 
-		create.table_charset->name,"*/",NullS);
-  
+  {
+    int cl= (create.table_charset->state & MY_CS_PRIMARY) ? 0 : 1;
+    to= strxmov(to," /*!40100"
+		" DEFAULT CHARACTER SET ",create.table_charset->csname,
+		cl ? " COLLATE " : "", cl ? create.table_charset->name : "",
+		" */",NullS);
+  }
   protocol->store(path, (uint) (to-path));
   
   if (protocol->write())
