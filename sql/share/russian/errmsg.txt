@@ -89,7 +89,7 @@ character-set=koi8r
 "Невозможно создать IP-сокет",
 "В таблице '%-.64s' нет такого индекса, как в CREATE INDEX. Создайте таблицу заново",
 "Аргумент разделителя полей - не тот, который ожидался. Обращайтесь к документации",
-"Фиксированный размер записи с полями типа BLOB использовать нельзя. Применяйте 'fields terminated by'.",
+"Фиксированный размер записи с полями типа BLOB использовать нельзя, применяйте 'fields terminated by'",
 "Файл '%-.64s' должен находиться в том же каталоге, что и база данных, или быть общедоступным для чтения",
 "Файл '%-.80s' уже существует",
 "Записей: %ld  Удалено: %ld  Пропущено: %ld  Предупреждений: %ld",
@@ -278,7 +278,7 @@ character-set=koi8r
 "Illegal mix of collations for operation '%s'",
 "Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
 "Unknown collation: '%-.64s'",
-"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support. They can be used later when MySQL slave with SSL will be started.",
+"SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support; they can be used later when MySQL slave with SSL will be started",
 "Сервер запущен в режиме --secure-auth (безопасной авторизации), но для пользователя '%s'@'%s' пароль сохранён в старом формате; необходимо обновить формат пароля",
 "Поле или ссылка '%-.64s%s%-.64s%s%-.64s' из SELECTа #%d была найдена в SELECTе #%d",
 "Wrong parameter or combination of parameters for START SLAVE UNTIL",
@@ -291,7 +291,7 @@ character-set=koi8r
 "Unknown key cache '%-.100s'",
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Unknown table engine '%s'",
-"'%s' is deprecated. Use '%s' instead.",
-"Таблица %-.100s в %s не может изменятся.",
-"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working"
+"'%s' is deprecated, use '%s' instead",
+"Таблица %-.100s в %s не может изменятся",
+"The '%s' feature was disabled; you need MySQL built with '%s' define to have it working"
 "MySQL is started in --skip-grant-tables mode. You can't use this command"

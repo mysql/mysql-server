@@ -606,13 +606,42 @@ mysql_connect(MYSQL *mysql,const char *host,
 /**************************************************************************
   Change user and database
 **************************************************************************/
+int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd)
+{
+  NET *net= &mysql->net;
+  ulong pkt_length;
+
+  pkt_length= net_safe_read(mysql);
+  
+  if (pkt_length == packet_error)
+    return 1;
+
+  if (pkt_length == 1 && net->read_pos[0] == 254 &&
+      mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    /*
+      By sending this very specific reply server asks us to send scrambled
+      password in old format. The reply contains scramble_323.
+    */
+    scramble_323(buff, mysql->scramble, passwd);
+    if (my_net_write(net, buff, SCRAMBLE_LENGTH_323 + 1) || net_flush(net))
+    {
+      net->last_errno= CR_SERVER_LOST;
+      strmov(net->sqlstate, unknown_sqlstate);
+      strmov(net->last_error,ER(net->last_errno));
+      return 1;
+    }
+    /* Read what server thinks about out new auth message report */
+    if (net_safe_read(mysql) == packet_error)
+      return 1;
+  }
+  return 0;
+}
 
 my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
   char buff[512],*end=buff;
-  NET *net= &mysql->net;
-  ulong pkt_length;
   DBUG_ENTER("mysql_change_user");
 
   if (!user)
@@ -646,31 +675,8 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   /* Write authentication package */
   simple_command(mysql,COM_CHANGE_USER, buff,(ulong) (end-buff),1);
 
-  pkt_length= net_safe_read(mysql);
-
-  if (pkt_length == packet_error)
-    goto error;
-
-  if (pkt_length == 1 && net->read_pos[0] == 254 &&
-      mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
-  {
-    /*
-      By sending this very specific reply server asks us to send scrambled
-      password in old format. The reply contains scramble_323.
-    */
-    scramble_323(buff, mysql->scramble, passwd);
-    if (my_net_write(net, buff, SCRAMBLE_LENGTH_323 + 1) || net_flush(net))
-    {
-      net->last_errno= CR_SERVER_LOST;
-      strmov(net->sqlstate, unknown_sqlstate);
-      strmov(net->last_error,ER(net->last_errno));
-      goto error;
-    }
-    /* Read what server thinks about out new auth message report */
-    if (net_safe_read(mysql) == packet_error)
-      goto error;
-  }
-
+  if ((*mysql->methods->read_change_user_result)(mysql, buff, passwd))
+    DBUG_RETURN(1);
   /* Free old connect information */
   my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->passwd,MYF(MY_ALLOW_ZERO_PTR));
@@ -681,9 +687,6 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   mysql->passwd=my_strdup(passwd,MYF(MY_WME));
   mysql->db=    db ? my_strdup(db,MYF(MY_WME)) : 0;
   DBUG_RETURN(0);
-
-error:
-  DBUG_RETURN(1);
 }
 
 #if defined(HAVE_GETPWUID) && defined(NO_GETPWUID_DECL)
@@ -1653,14 +1656,6 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
   DBUG_ENTER("mysql_prepare");
   DBUG_ASSERT(mysql != 0);
 
-#ifdef CHECK_EXTRA_ARGUMENTS
-  if (!query)
-  {
-    set_mysql_error(mysql, CR_NULL_POINTER, unknown_sqlstate);
-    DBUG_RETURN(0);
-  }
-#endif
-
   if (!(stmt= (MYSQL_STMT *) my_malloc(sizeof(MYSQL_STMT),
 				       MYF(MY_WME | MY_ZEROFILL))) ||
       !(stmt->query= my_strdup_with_length((byte *) query, length, MYF(0))))
@@ -2018,6 +2013,7 @@ static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
     DBUG_RETURN(1);
   }
+  stmt->affected_rows= mysql->affected_rows;
   DBUG_RETURN(0);
 }
 
@@ -2086,19 +2082,6 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("mysql_execute");
 
-  if (stmt->state == MY_ST_UNKNOWN)
-  {
-    set_stmt_error(stmt, CR_NO_PREPARE_STMT, unknown_sqlstate);
-    DBUG_RETURN(1);
-  }
-#ifdef CHECK_EXTRA_ARGUMENTS
-  if (stmt->param_count && !stmt->param_buffers)
-  {
-    /* Parameters exists, but no bound buffers */
-    set_stmt_error(stmt, CR_NOT_ALL_PARAMS_BOUND, unknown_sqlstate);
-    DBUG_RETURN(1);
-  }
-#endif
   if ((*stmt->mysql->methods->stmt_execute)(stmt))
     DBUG_RETURN(1);
       
@@ -2127,7 +2110,7 @@ ulong STDCALL mysql_param_count(MYSQL_STMT * stmt)
 
 my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt)
 {
-  return stmt->mysql->last_used_con->affected_rows;
+  return stmt->affected_rows;
 }
 
 
@@ -2143,19 +2126,6 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
   uint count=0;
   MYSQL_BIND *param, *end;
   DBUG_ENTER("mysql_bind_param");
-
-#ifdef CHECK_EXTRA_ARGUMENTS
-  if (stmt->state == MY_ST_UNKNOWN)
-  {
-    set_stmt_error(stmt, CR_NO_PREPARE_STMT, unknown_sqlstate);
-    DBUG_RETURN(1);
-  }
-  if (!stmt->param_count)
-  {
-    set_stmt_error(stmt, CR_NO_PARAMETERS_EXISTS, unknown_sqlstate);
-    DBUG_RETURN(1);
-  }
-#endif
 
   /* Allocated on prepare */
   memcpy((char*) stmt->params, (char*) bind,
@@ -2279,11 +2249,6 @@ mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
   DBUG_PRINT("enter",("param no : %d, data : %lx, length : %ld",
 		      param_number, data, length));
 
-  if (param_number >= stmt->param_count)
-  {
-    set_stmt_error(stmt, CR_INVALID_PARAMETER_NO, unknown_sqlstate);
-    DBUG_RETURN(1);
-  }
   param= stmt->params+param_number;
   if (param->buffer_type < MYSQL_TYPE_TINY_BLOB ||
       param->buffer_type > MYSQL_TYPE_STRING)
@@ -2853,18 +2818,6 @@ my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   DBUG_ENTER("mysql_bind_result");
   DBUG_ASSERT(stmt != 0);
 
-#ifdef CHECK_EXTRA_ARGUMENTS
-  if (stmt->state == MY_ST_UNKNOWN)
-  {
-    set_stmt_error(stmt, CR_NO_PREPARE_STMT, unknown_sqlstate);
-    DBUG_RETURN(1);
-  }
-  if (!bind)
-  {
-    set_stmt_error(stmt, CR_NULL_POINTER, unknown_sqlstate);
-    DBUG_RETURN(1);
-  }
-#endif
   if (!(bind_count= stmt->field_count) && 
       !(bind_count= alloc_stmt_fields(stmt)))
     DBUG_RETURN(0);
@@ -3035,6 +2988,15 @@ int STDCALL mysql_fetch(MYSQL_STMT *stmt)
   }
   else						/* un-buffered */
   {
+    if (mysql->status != MYSQL_STATUS_GET_RESULT)
+    {
+      if (!stmt->field_count)
+        goto no_data;
+
+      set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+      DBUG_RETURN(1);
+    }
+    
     if((*mysql->methods->unbuffered_fetch)(mysql, ( char **)&row))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
@@ -3065,7 +3027,7 @@ no_data:
     mysql_fetch_column()
     stmt		Prepared statement handler
     bind		Where data should be placed. Should be filled in as
-			when calling mysql_bind_param()
+			when calling mysql_bind_result()
     column		Column to fetch (first column is 0)
     ulong offset	Offset in result data (to fetch blob in pieces)
 			This is normally 0
@@ -3082,14 +3044,6 @@ int STDCALL mysql_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind,
 
   if (!stmt->current_row)
     goto no_data;
-
-#ifdef CHECK_EXTRA_ARGUMENTS  
-  if (column >= stmt->field_count)
-  {
-    set_stmt_errmsg(stmt, "Invalid column descriptor",1, unknown_sqlstate);
-    DBUG_RETURN(1);
-  }
-#endif
 
   if (param->null_field)
   {
@@ -3223,6 +3177,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     DBUG_RETURN(0);
   }
   mysql->affected_rows= result->row_count= result->data->rows;
+  stmt->affected_rows= result->row_count;
   result->data_cursor=	result->data->data;
   result->fields=	stmt->fields;
   result->field_count=	stmt->field_count;
@@ -3510,7 +3465,6 @@ my_bool STDCALL mysql_more_results(MYSQL *mysql)
 /*
   Reads and returns the next query results
 */
-
 int STDCALL mysql_next_result(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_next_result");
@@ -3529,8 +3483,8 @@ int STDCALL mysql_next_result(MYSQL *mysql)
   mysql->affected_rows= ~(my_ulonglong) 0;
 
   if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
-    DBUG_RETURN((*mysql->methods->read_query_result)(mysql));
-  
+    DBUG_RETURN((*mysql->methods->next_result)(mysql));
+
   DBUG_RETURN(-1);				/* No more results */
 }
 

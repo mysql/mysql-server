@@ -173,7 +173,6 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
-  fix_tables_pointers(lex->all_selects_list);
   if (select_lex->next_select())
     res=mysql_union(thd, lex, result, &lex->unit);
   else
@@ -1511,12 +1510,7 @@ JOIN::cleanup()
       JOIN_TAB *tab, *end;
       for (tab= join_tab, end= tab+tables ; tab != end ; tab++)
       {
-	delete tab->select;
-	delete tab->quick;
-	tab->select=0;
-	tab->quick=0;
-	x_free(tab->cache.buff);
-	tab->cache.buff= 0;
+	tab->cleanup();
       }
     }
     tmp_join->tmp_join= 0;
@@ -1580,8 +1574,8 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	  goto err;
 	}
       }
-      free_join= 0;
     }
+    free_join= 0;
     join->select_options= select_options;
   }
   else
@@ -3761,6 +3755,41 @@ bool error_if_full_join(JOIN *join)
 
 
 /*
+  cleanup JOIN_TAB
+
+  SYNOPSIS
+    JOIN_TAB::cleanup()
+*/
+
+void JOIN_TAB::cleanup()
+{
+  delete select;
+  select= 0;
+  delete quick;
+  quick= 0;
+  x_free(cache.buff);
+  cache.buff= 0;
+  if (table)
+  {
+    if (table->key_read)
+    {
+      table->key_read= 0;
+      table->file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+    /* Don't free index if we are using read_record */
+    if (!read_record.table)
+      table->file->index_end();
+    /*
+      We need to reset this for next select
+      (Tested in part_of_refkey)
+    */
+    table->reginfo.join_tab= 0;
+  }
+  end_read_record(&read_record);
+}
+
+
+/*
   Free resources of given join
 
   SYNOPSIS
@@ -3794,11 +3823,6 @@ JOIN::join_free(bool full)
       {
 	if (tab->table)
 	{
-	  if (tab->table->key_read)
-	  {
-	    tab->table->key_read= 0;
-	    tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
-	  }
 	  /* Don't free index if we are using read_record */
 	  if (!tab->read_record.table)
 	    tab->table->file->index_end();
@@ -3809,29 +3833,7 @@ JOIN::join_free(bool full)
     {
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
       {
-	delete tab->select;
-	delete tab->quick;
-	tab->select=0;
-	tab->quick=0;
-	x_free(tab->cache.buff);
-	tab->cache.buff= 0;
-	if (tab->table)
-	{
-	  if (tab->table->key_read)
-	  {
-	    tab->table->key_read= 0;
-	    tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
-	  }
-	  /* Don't free index if we are using read_record */
-	  if (!tab->read_record.table)
-	    tab->table->file->index_end();
-	  /*
-	    We need to reset this for next select
-	    (Tested in part_of_refkey)
-	  */
-	  tab->table->reginfo.join_tab= 0;
-	}
-	end_read_record(&tab->read_record);
+	tab->cleanup();
       }
       table= 0;
     }
@@ -4962,6 +4964,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			     tmp_from_field, group != 0,not_all_columns);
 	  if (!new_field)
 	    goto err;					// Should be OOM
+	  if (param->all_nulls)
+	    new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
 	  tmp_from_field++;
 	  *(reg_field++)= new_field;
 	  reclength+=new_field->pack_length();
@@ -4997,6 +5001,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  goto err;				// Got OOM
 	continue;				// Some kindf of const item
       }
+      if (param->all_nulls)
+	new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
       if (type == Item::SUM_FUNC_ITEM)
 	((Item_sum *) item)->result_field= new_field;
       tmp_from_field++;
@@ -9149,6 +9155,9 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
        sl;
        sl= sl->next_select())
   {
+    // drop UNCACHEABLE_EXPLAIN, because it is for internal usage only
+    uint8 uncacheable= (sl->uncacheable & ~UNCACHEABLE_EXPLAIN);
+
     res= mysql_explain_select(thd, sl,
 			      (((&thd->lex->select_lex)==sl)?
 			       ((thd->lex->all_selects_list != sl) ? 
@@ -9156,13 +9165,13 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 			       ((sl == first)?
 				((sl->linkage == DERIVED_TABLE_TYPE) ?
 				 "DERIVED":
-				((sl->uncacheable & UNCACHEABLE_DEPENDENT) ?
+				((uncacheable & UNCACHEABLE_DEPENDENT) ?
 				 "DEPENDENT SUBQUERY":
-				 (sl->uncacheable?"UNCACHEABLE SUBQUERY":
+				 (uncacheable?"UNCACHEABLE SUBQUERY":
 				   "SUBQUERY"))):
-				((sl->uncacheable & UNCACHEABLE_DEPENDENT) ?
+				((uncacheable & UNCACHEABLE_DEPENDENT) ?
 				 "DEPENDENT UNION":
-				 sl->uncacheable?"UNCACHEABLE UNION":
+				 uncacheable?"UNCACHEABLE UNION":
 				  "UNION"))),
 			      result);
     if (res)

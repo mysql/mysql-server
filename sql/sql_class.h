@@ -565,6 +565,7 @@ public:
   struct st_mysql_bind *client_params;
   char *extra_data;
   ulong extra_length;
+  String query_rest;
 #endif
   NET	  net;				// client connection descriptor
   MEM_ROOT warn_root;			// For warnings and errors
@@ -1075,11 +1076,11 @@ public:
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
-  bool  using_indirect_summary_function;
+  bool  using_indirect_summary_function, all_nulls;
 
   TMP_TABLE_PARAM()
     :copy_funcs_it(copy_funcs), copy_field(0), group_parts(0),
-    group_length(0), group_null_parts(0)
+    group_length(0), group_null_parts(0), all_nulls(0)
   {}
   ~TMP_TABLE_PARAM()
   {

@@ -4485,19 +4485,9 @@ void Field_blob::store_length(uint32 number)
 {
   switch (packlength) {
   case 1:
-    if (number > 255)
-    {
-      number=255;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-    }
     ptr[0]= (uchar) number;
     break;
   case 2:
-    if (number > (uint16) ~0)
-    {
-      number= (uint16) ~0;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-    }
 #ifdef WORDS_BIGENDIAN
     if (table->db_low_byte_first)
     {
@@ -4508,11 +4498,6 @@ void Field_blob::store_length(uint32 number)
       shortstore(ptr,(unsigned short) number);
     break;
   case 3:
-    if (number > (uint32) (1L << 24))
-    {
-      number= (uint32) (1L << 24)-1L;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-    }
     int3store(ptr,number);
     break;
   case 4:
@@ -4573,6 +4558,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     bool was_conversion;
     char buff[80];
     String tmpstr(buff,sizeof(buff), &my_charset_bin);
+    uint copy_length;
     uint32 not_used;
 
     /* Convert character set if nesessary */
@@ -4583,12 +4569,22 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
       from= tmpstr.ptr();
       length=  tmpstr.length();
     }
-    Field_blob::store_length(length);
-    if (was_conversion || table->copy_blobs || length <= MAX_FIELD_WIDTH)
+    
+    copy_length= max_data_length();
+    if (copy_length > length)
+      copy_length= length;
+    copy_length= field_charset->cset->wellformedlen(field_charset,
+                                                    from,from+copy_length,
+                                                    field_length);
+    if (copy_length < length)
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
+    
+    Field_blob::store_length(copy_length);
+    if (was_conversion || table->copy_blobs || copy_length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
       if (from != value.ptr())			// For valgrind
       {
-	value.copy(from,length,charset());
+	value.copy(from,copy_length,charset());
 	from=value.ptr();
       }
     }

@@ -101,7 +101,7 @@ int GTextReadStream::get_next_number(double *d)
 
   char *endptr;
 
-  *d = strtod(cur, &endptr);
+  *d = my_strtod(cur, &endptr);
 
   if (endptr)
   {

@@ -2152,13 +2152,13 @@ select_init:
             SELECT_LEX * sel= lex->current_select;
 	    if (sel->set_braces(1))
 	    {
-	      send_error(lex->thd, ER_SYNTAX_ERROR);
+	      yyerror(ER(ER_SYNTAX_ERROR));
 	      YYABORT;
 	    }
 	  if (sel->linkage == UNION_TYPE &&
 	      !sel->master_unit()->first_select()->braces)
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
             /* select in braces, can't contain global parameters */
@@ -2174,13 +2174,13 @@ select_init2:
           SELECT_LEX * sel= lex->current_select;
           if (lex->current_select->set_braces(0))
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	  if (sel->linkage == UNION_TYPE &&
 	      sel->master_unit()->first_select()->braces)
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	}
@@ -2574,8 +2574,6 @@ simple_expr:
 	  }
 	| CONVERT_SYM '(' expr USING charset_name ')'
 	  { $$= new Item_func_conv_charset($3,$5); }
-	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
-	  { $$= new Item_func_conv_charset3($3,$7,$5); }
 	| DEFAULT '(' simple_ident ')'
 	  { $$= new Item_default_value($3); }
 	| VALUES '(' simple_ident ')'
@@ -2736,7 +2734,7 @@ simple_expr:
 	  {
             if ($1->type() != Item::ROW_ITEM)
             {
-              send_error(Lex->thd, ER_SYNTAX_ERROR);
+              yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
             $$= new Item_func_interval((Item_row *)$1);
@@ -3072,7 +3070,7 @@ in_sum_expr:
 	  LEX *lex= Lex;
 	  if (lex->current_select->inc_in_sum_expr())
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	}
@@ -3243,8 +3241,8 @@ select_derived:
 	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
 	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
 	       lex->sql_command == (int)SQLCOM_KILL)
-	  {	
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	  {
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE ||
@@ -3475,9 +3473,12 @@ order_dir:
 opt_limit_clause_init:
 	/* empty */
 	{
-	  SELECT_LEX *sel= Select;
+	  LEX *lex= Lex;
+	  SELECT_LEX *sel= lex->current_select;
           sel->offset_limit= 0L;
-          sel->select_limit= Lex->thd->variables.select_limit;
+          sel->select_limit= (&lex->select_lex == sel) ?
+	    Lex->thd->variables.select_limit :	/* primary SELECT */
+	    HA_POS_ERROR;			/* subquery */
 	}
 	| limit_clause {}
 	;
@@ -3879,7 +3880,7 @@ opt_insert_update:
                for a moment */
 	    if (Lex->sql_command != SQLCOM_INSERT)
             {
-	      send_error(Lex->thd, ER_SYNTAX_ERROR);
+	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
           }
@@ -4486,7 +4487,7 @@ param_marker:
           }
           else
           {
-            yyerror("You have an error in your SQL syntax");
+            yyerror(ER(ER_SYNTAX_ERROR));
             YYABORT;
           }
         }
@@ -5203,7 +5204,7 @@ revoke_command:
 	grant_privileges ON opt_table FROM user_list
 	{}
 	|
-	ALL PRIVILEGES ',' GRANT FROM user_list
+	ALL PRIVILEGES ',' GRANT OPTION FROM user_list
 	{
 	  Lex->sql_command = SQLCOM_REVOKE_ALL;
 	}
@@ -5529,7 +5530,7 @@ union_list:
 	  }
 	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+            yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	  if (mysql_new_select(lex, 0))
@@ -5629,8 +5630,8 @@ subselect_start:
 	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
 	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
 	       lex->sql_command == (int)SQLCOM_KILL)
-	  {	
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	  {
+            yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	  if (mysql_new_select(Lex, 1))

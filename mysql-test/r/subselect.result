@@ -970,7 +970,7 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 CREATE TABLE t1 (a int, KEY(a));
 HANDLER t1 OPEN;
 HANDLER t1 READ a=((SELECT 1));
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1))' at line 1
 HANDLER t1 CLOSE;
 drop table t1;
 create table t1 (a int);
@@ -1603,3 +1603,14 @@ id	max_anno_dep	PIPPO
 50	1990	0
 51	1990	NULL
 DROP TABLE t1, t2;
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+SET SQL_SELECT_LIMIT=1;
+select sum(a) from (select * from t1) as a;
+sum(a)
+6
+select 2 in (select * from t1);
+2 in (select * from t1)
+1
+SET SQL_SELECT_LIMIT=default;
+drop table t1;

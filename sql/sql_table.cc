@@ -877,7 +877,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 			column->field_name);
 	  DBUG_RETURN(-1);
       }
-      key_part_info->length=(uint8) length;
+      if (length > file->max_key_part_length())
+      {
+	my_error(ER_WRONG_SUB_KEY,MYF(0));
+	DBUG_RETURN(-1);
+      }
+      key_part_info->length=(uint16) length;
       /* Use packed keys for long strings on the first column */
       if (!(db_options & HA_OPTION_NO_PACK_KEYS) &&
 	  (length >= KEY_DEFAULT_PACK_LENGTH &&
@@ -1845,6 +1850,20 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
                           table_name); /* purecov: inspected */
     DBUG_RETURN(-1);       /* purecov: inspected */
   }
+  else
+  {
+    // Must be written before unlock
+    mysql_update_log.write(thd,thd->query, thd->query_length);
+    if (mysql_bin_log.is_open())
+    {
+      thd->clear_error();
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+			    test(create_info->options &
+				 HA_LEX_CREATE_TMP_TABLE));
+      mysql_bin_log.write(&qinfo);
+    }
+  }
+
   DBUG_RETURN(0);
   
 table_exists:
