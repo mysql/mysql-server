@@ -519,6 +519,7 @@ BDB or Berkeley_DB Tables
 * BDB start::                   
 * BDB characteristic::          
 * BDB TODO::                    
+* BDB portability::             
 * BDB errors::                  
 
 GEMINI Tables
@@ -7466,11 +7467,6 @@ signal, you can start mysqld with the @code{--core-file} option.  Note
 that you also probably need to raise the @code{core file size} by adding
 @code{ulimit -c 1000000} to @code{safe_mysqld} or starting @code{safe_mysqld}
 with @code{--core-file-sizes=1000000}. @xref{safe_mysqld}.
-
-@c the stuff below is really out of date - hardly anybody uses it anymore
-
-If you are using LinuxThreads and @code{mysqladmin shutdown} doesn't work,
-you must upgrade to LinuxThreads Version 0.7.1 or newer.
 
 To get a core dump on Linux if mysqld dies with a SIGSEGV signal, you can 
 start mysqld with the @code{--core-file} option.  Note that you also probably
@@ -23905,6 +23901,7 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 * BDB start::                   
 * BDB characteristic::          
 * BDB TODO::                    
+* BDB portability::             
 * BDB errors::                  
 @end menu
 
@@ -23923,12 +23920,26 @@ distribution that has a couple of small patches to make it work more
 smoothly with @strong{MySQL}.  You can't use a not-patched @code{BDB}
 version with @strong{MySQL}.
 
+We at MySQL AB are working in close cooperating with Sleepycat to
+keep the quality of the @strong{MySQL} - BDB interface high.
+
+When it comes to supporting BDB tables, we are committed to help our
+users to locate the problem and help creating a reproducable test case
+for any problems involving BDB tables.  Any such test case will be
+forwarded to Sleepycat who in turn will help us find and fix the
+problem.  As this is a two stage operating, any problems with BDB tables
+may take a little longer for us to fix than for other table handlers,
+but as the Berkeley code itself has been used by many other applications
+than @strong{MySQL} we don't envision any big problems with this.
+@xref{Table handler support}.
+
 @node BDB install, BDB start, BDB overview, BDB
 @subsection Installing BDB
 
 If you have downloaded a binary version of @strong{MySQL} that includes
 support for Berkeley DB, simply follow the instructions for
 installing a binary version of @strong{MySQL}. @xref{Installing binary}.
+@xref{mysqld-max}.
 
 To compile @strong{MySQL} with Berkeley DB support, download @strong{MySQL}
 3.23.34 or newer and configure @code{MySQL} with the
@@ -24076,7 +24087,7 @@ contrast with @code{MyISAM} and @code{ISAM} tables where mysqld will
 wait for enough free disk before continuing.
 @end itemize
 
-@node BDB TODO, BDB errors, BDB characteristic, BDB
+@node BDB TODO, BDB portability, BDB characteristic, BDB
 @subsection Some things we need to fix for BDB in the near future:
 
 @itemize @bullet
@@ -24094,7 +24105,47 @@ Optimize performance.
 Change to not use page locks at all when we are scanning tables.
 @end itemize
 
-@node BDB errors,  , BDB TODO, BDB
+@node BDB portability, BDB errors, BDB TODO, BDB
+@subsection Operating systems supported by @strong{BDB}
+
+If you after having built @strong{MySQL} with support for BDB tables get
+the following error in the log file when you start @code{mysqld}:
+
+@example
+bdb: architecture lacks fast mutexes: applications cannot be threaded
+Can't init dtabases
+@end example
+
+This means that @code{BDB} tables are not supported for your architecture.
+In this case you have to rebuild @strong{MySQL} without BDB table support.
+
+NOTE: The following list is not complete; We will update this as we get
+more information about this.
+
+Currently we know that BDB tables works with the following operating
+system.
+
+@itemize @bullet
+@item
+Linux 2.x intel
+@item
+Solaris sparc
+@item
+SCO OpenServer
+@item
+SCO UnixWare 7.0.1
+@end itemize
+
+It doesn't work with the following operating systems:
+
+@itemize @bullet
+@item
+Linux 2.x Alpha
+@item
+Max OS X
+@end itemize
+
+@node BDB errors,  , BDB portability, BDB
 @subsection Errors You May Get When Using BDB Tables
 
 @itemize @bullet
@@ -42937,6 +42988,8 @@ not yet 100% confident in this code.
 @node News-3.23.37, News-3.23.36, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
+@item
+Fixed a bug when using @code{HEAP} tables with @code{LIKE}.
 @item
 Added @code{--mysql-version} to @code{safe_mysqld}
 @item
