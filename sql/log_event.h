@@ -101,7 +101,7 @@ public:
     time(&end_time);
     exec_time = end_time  - thd->start_time;
     valid_exec_time = 1;
-    db_len = (db) ? strlen(db) : 0;
+    db_len = (db) ? (uint) strlen(db) : 0;
   }
 #endif
 
@@ -189,9 +189,9 @@ public:
     time(&end_time);
     exec_time = end_time  - thd->start_time;
     valid_exec_time = 1;
-    db_len = (db) ? strlen(db) : 0;
-    table_name_len = (table_name) ? strlen(table_name) : 0;
-    fname_len = (fname) ? strlen(fname) : 0;
+    db_len = (db) ? (uint) strlen(db) : 0;
+    table_name_len = (table_name) ? (uint) strlen(table_name) : 0;
+    fname_len = (fname) ? (uint) strlen(fname) : 0;
     sql_ex.field_term = (*ex->field_term)[0];
     sql_ex.enclosed = (*ex->enclosed)[0];
     sql_ex.line_term = (*ex->line_term)[0];
@@ -232,7 +232,7 @@ public:
     while((item = li++))
       {
 	num_fields++;
-	uchar len = (uchar)strlen(item->name);
+	uchar len = (uchar) strlen(item->name);
 	field_block_len += len + 1;
 	fields_buf.append(item->name, len + 1);
 	field_lens_buf.append((char*)&len, 1);
@@ -333,7 +333,7 @@ public:
   Rotate_log_event(const char* new_log_ident_arg, uint ident_len_arg = 0) :
     Log_event(time(NULL)),
     new_log_ident(new_log_ident_arg),
-    ident_len(ident_len_arg ? ident_len_arg : strlen(new_log_ident_arg)),
+    ident_len(ident_len_arg ? ident_len_arg : (uint) strlen(new_log_ident_arg)),
     alloced(0)
   {}
   

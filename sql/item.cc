@@ -125,13 +125,14 @@ const char *Item_ident::full_name() const
     return field_name ? field_name : name ? name : "tmp_field";
   if (db_name)
   {
-    tmp=(char*) sql_alloc(strlen(db_name)+strlen(table_name)+
-			  strlen(field_name)+3);
+    tmp=(char*) sql_alloc((uint) strlen(db_name)+(uint) strlen(table_name)+
+			  (uint) strlen(field_name)+3);
     strxmov(tmp,db_name,".",table_name,".",field_name,NullS);
   }
   else
   {
-    tmp=(char*) sql_alloc(strlen(table_name)+strlen(field_name)+2);
+    tmp=(char*) sql_alloc((uint) strlen(table_name)+
+			  (uint) strlen(field_name)+2);
     strxmov(tmp,table_name,".",field_name,NullS);
   }
   return tmp;

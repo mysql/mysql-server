@@ -418,7 +418,11 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
       return 0;
 
   /* Create a table entry with the right key and with an old refresh version */
-  if (!(table= (TABLE*) thd->calloc(sizeof(*table)+key_length)))
+  /* Note that we must use my_malloc() here as this is freed by the table
+     cache */
+
+  if (!(table= (TABLE*) my_malloc(sizeof(*table)+key_length,
+				  MYF(MY_WME | MY_ZEROFILL))))
     return -1;
   memcpy((table->table_cache_key= (char*) (table+1)), key, key_length);
   table->key_length=key_length;
@@ -435,7 +439,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
 void unlock_table_name(THD *thd, TABLE_LIST *table_list)
 {
   if (table_list->table)
-    hash_delete(&open_cache, (gptr) table_list->table);
+    hash_delete(&open_cache, (byte*) table_list->table);
 }
 
 static bool locked_named_table(THD *thd, TABLE_LIST *table_list)
@@ -461,10 +465,7 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
       break;
     }
     wait_for_refresh(thd);
+    pthread_mutex_lock(&LOCK_open);
   }
-  pthread_mutex_lock(&thd->mysys_var->mutex);
-  thd->mysys_var->current_mutex=0;
-  thd->mysys_var->current_cond=0;
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
   return result;
 }

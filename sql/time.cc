@@ -267,7 +267,7 @@ void find_date(string pos,uint *vek,uint flag)
   bzero((char*) vek,sizeof(int)*4);
   while (*pos && !isdigit(*pos))
     pos++;
-  length=strlen(pos);
+  length=(uint) strlen(pos);
   for (uint i=0 ; i< 3; i++)
   {
     start=pos; value=0;

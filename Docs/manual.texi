@@ -16818,9 +16818,10 @@ from a database to another:
 RENAME TABLE current_database.table_name TO other_database.table_name;
 @end example
 
-When you execute @code{RENAME}, you can't have any locked tables or active
-transactions.  You must also have the @code{ALTER TABLE} privilege on both
-the old and the new table.
+When you execute @code{RENAME}, you can't have any locked tables or
+active transactions.  You must also have the @code{ALTER TABLE}
+privilege on the original table and @code{CREATE} and @code{INSERT}
+privilege on the new table.
 
 If @strong{MySQL} encounters any errors in a multiple table rename, it
 will do a reverse rename for all renamed tables to get everything back
@@ -18222,7 +18223,9 @@ file name, @strong{MySQL} will close and reopen the update log file.
 @item @code{PRIVILEGES} @tab Reloads the privileges from the grant tables in
 the @code{mysql} database.
 
-@item @code{TABLES} @tab Closes all open tables.
+@item @code{TABLES} @tab Closes all open tables and force all tables in use to be closed.
+
+@item @code{TABLES table_name [,table_name...]} @tab Flush only the given tables
 
 @item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}.
 
@@ -35399,6 +35402,8 @@ and will soon be declared beta, gamma and release.
 @node News-3.23.23, News-3.23.22, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.23
 @itemize @bullet
+@item
+Added table_list to @code{FLUSH TABLES} commmand.
 @item
 Added atomic @code{RENAME} command.
 @item

@@ -423,13 +423,13 @@ mc_simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg
     arg="";
 
   if (net_write_command(net,(uchar) command,arg,
-			length ? length :strlen(arg)))
+			length ? length :(uint) strlen(arg)))
   {
     DBUG_PRINT("error",("Can't send command to server. Error: %d",errno));
     mc_end_server(mysql);
     if (mc_mysql_reconnect(mysql) ||
 	net_write_command(net,(uchar) command,arg,
-			  length ? length :strlen(arg)))
+			  length ? length :(uint) strlen(arg)))
     {
       net->last_errno=CR_SERVER_GONE_ERROR;
       strmov(net->last_error,ER(net->last_errno));

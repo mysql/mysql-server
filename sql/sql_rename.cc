@@ -21,8 +21,8 @@
 #include "mysql_priv.h"
 
 
-static TABLE_LIST *mysql_rename_tables(THD *thd, TABLE_LIST *table_list,
-				       bool skip_error);
+static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
+				 bool skip_error);
 
 /*
   Every second entry in the table_list is the original name and every
@@ -58,7 +58,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
   if (!got_all_locks && wait_for_locked_table_names(thd,table_list))
     goto end;
 
-  if (!(ren_table=mysql_rename_tables(thd,table_list,0)))
+  if (!(ren_table=rename_tables(thd,table_list,0)))
     error=0;
   
 end:
@@ -66,25 +66,24 @@ end:
   {
     /* Rename didn't succeed;  rename back the tables in reverse order */
     TABLE_LIST *prev=0,*table;
-    /*
-      Reverse the table list ; Note that we need to handle the case that
-      every second entry must stay in place in respect to the previous
-    */
+    /* Reverse the table list */
+
     while (table_list)
     {
-      TABLE_LIST *next=table_list->next->next;
-      table_list->next->next=prev;
+      TABLE_LIST *next=table_list->next;
+      table_list->next=prev;
       prev=table_list;
       table_list=next;
     }
     table_list=prev;
 
     /* Find the last renamed table */
-    for (table=table_list ; table->next != ren_table ;
+    for (table=table_list ;
+	 table->next != ren_table ;
 	 table=table->next->next) ;
     table=table->next->next;			// Skipp error table
     /* Revert to old names */
-    mysql_rename_tables(thd, table, 1);
+    rename_tables(thd, table, 1);
     /* Note that lock_table == 0 here, so the unlock loop will work */
   }
   if (!error)
@@ -92,6 +91,7 @@ end:
     mysql_update_log.write(thd->query,thd->query_length);
     Query_log_event qinfo(thd, thd->query);
     mysql_bin_log.write(&qinfo);
+    send_ok(&thd->net);
   }
   for (TABLE_LIST *table=table_list ; table != lock_table ; table=table->next)
     unlock_table_name(thd,table);
@@ -103,30 +103,45 @@ end:
 
 /*
   Rename all tables in list; Return pointer to wrong entry if something goes
-  wrong.
+  wrong.  Note that the table_list may be empty!
 */
 
 static TABLE_LIST *
-mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
+rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 {
-  TABLE_LIST *ren_table;
-  for (ren_table=table_list ; ren_table ; ren_table=ren_table->next)
+  TABLE_LIST *ren_table,*new_table;
+  DBUG_ENTER("rename_tables");
+
+  for (ren_table=table_list ; ren_table ; ren_table=new_table->next)
   {
     db_type table_type;
     char name[FN_REFLEN];
-    TABLE_LIST *new_table=ren_table->next;
+    new_table=ren_table->next;
 
+    sprintf(name,"%s/%s/%s%s",mysql_data_home,
+	    new_table->db,new_table->name,
+	    reg_ext);
+    if (!access(name,F_OK))
+    {
+      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),name);
+      return ren_table;				// This can't be skipped
+    }
     sprintf(name,"%s/%s/%s%s",mysql_data_home,
 	    ren_table->db,ren_table->name,
 	    reg_ext);
-    if ((table_type=get_table_type(name)) == DB_TYPE_UNKNOWN ||
-	mysql_rename_table(table_type,
-			   ren_table->db, ren_table->name,
-			   new_table->db, new_table->name))
+    if ((table_type=get_table_type(name)) == DB_TYPE_UNKNOWN)
+    {
+      my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
+      if (!skip_error)
+	return ren_table;
+    }
+    else if (mysql_rename_table(table_type,
+				ren_table->db, ren_table->name,
+				new_table->db, new_table->name))
     {
       if (!skip_error)
 	return ren_table;
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
