@@ -587,7 +587,10 @@ AC_SUBST(MYSQLD_USER)
 AC_ARG_ENABLE(local-infile,
     [  --enable-local-infile
                           If LOAD DATA LOCAL INFILE is enabled by default.],
-    [ ENABLED_LOCAL_INFILE=$enablewal ],
+    [ 
+      ENABLED_LOCAL_INFILE=$enablewal
+      AC_DEFINE(ENABLED_LOCAL_INFILE)
+    ],
     [ ENABLED_LOCAL_INFILE=no ]
     )
 
