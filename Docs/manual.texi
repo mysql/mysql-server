@@ -50854,7 +50854,6 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
-* News-3.23.53::                Changes in release 3.23.53
 * News-3.23.52::                Changes in release 3.23.52
 * News-3.23.51::                Changes in release 3.23.51 (31 May 2002)
 * News-3.23.50::                Changes in release 3.23.50 (21 Apr 2002)
@@ -50911,13 +50910,7 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0 (05 Aug 1999: Alpha)
 @end menu
 
-@node News-3.23.53, News-3.23.52, News-3.23.x, News-3.23.x
-@appendixsubsec Changes in release 3.23.53
-
-@itemize @bullet
-@end itemize
-
-@node News-3.23.52, News-3.23.51, News-3.23.53, News-3.23.x
+@node News-3.23.52, News-3.23.51, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.52
 
 @itemize @bullet
