@@ -1483,7 +1483,7 @@ innobase_commit(
  		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
-                /* We need current binlog position for HotBackup to work.
+                /* We need current binlog position for ibbackup to work.
                 Note, the position is current because of prepare_commit_mutex */
                 trx->mysql_log_file_name = mysql_bin_log.get_log_fname();
                 trx->mysql_log_offset =
@@ -6472,6 +6472,25 @@ innobase_xa_prepare(
 
         if (thd->lex->sql_command != SQLCOM_XA_PREPARE) {
 
+                /* For ibbackup to work the order of transactions in binlog
+                and InnoDB must be the same. Consider the situation
+
+                  thread1> prepare; write to binlog; ...
+                          <context switch>
+                  thread2> prepare; write to binlog; commit
+                  thread1>                           ... commit
+
+                To ensure this will not happen we're taking the mutex on
+                prepare, and releasing it on commit.
+
+                Note: only do it for normal commits, done via ha_commit_trans.
+                If 2pc protocol is executed by external transaction
+                coordinator, it will be just a regular MySQL client
+                executing XA PREPARE and XA COMMIT commands.
+                In this case we cannot know how many minutes or hours
+                will be between XA PREPARE and XA COMMIT, and we don't want
+                to block for undefined period of time.
+                */
                 pthread_mutex_lock(&prepare_commit_mutex);
                 trx->active_trans = 2;
         }
