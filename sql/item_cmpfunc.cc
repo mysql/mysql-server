@@ -311,7 +311,7 @@ void Item_func_interval::split_sum_func(List<Item> &fields)
 }
 
 /*
-  return  NULL if null value,
+  return -1 if null value,
 	  0 if lower than lowest
 	  1 - arg_count if between args[n] and args[n+1]
 	  arg_count+1 if higher than biggest argument
@@ -321,10 +321,7 @@ longlong Item_func_interval::val_int()
 {
   double value= item->val();
   if (item->null_value)
-  {
-    null_value= 1;
-    return -1;
-  }
+    return -1;				// -1 if NULL
   if (intervals)
   {					// Use binary search to find interval
     uint start= 0, end= arg_count - 1;
