@@ -240,7 +240,6 @@ STOP_WAIT_TIMEOUT=10
 MYSQL_TEST_SSL_OPTS=""
 USE_TIMER=""
 USE_EMBEDDED_SERVER=""
-RESULT_EXT=""
 TEST_MODE=""
 
 NDB_MGM_EXTRA_OPTS=
@@ -253,7 +252,6 @@ while test $# -gt 0; do
       USE_EMBEDDED_SERVER=1
       USE_MANAGER=0 NO_SLAVE=1
       USE_RUNNING_SERVER=""
-      RESULT_EXT=".es"
       TEST_MODE="$TEST_MODE embedded" ;;
     --purify)
       USE_PURIFY=1
@@ -734,13 +732,6 @@ show_failed_diff ()
   reject_file=r/$1.reject
   result_file=r/$1.result
   eval_file=r/$1.eval
-
-  # If we have an special externsion for result files we use it if we are recording
-  # or a result file with that extension exists.
-  if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ]
-  then
-    result_file="$result_file$RESULT_EXT"
-  fi
 
   if [ -f $eval_file ]
   then
@@ -1462,9 +1453,6 @@ run_testcase ()
  result_file="r/$tname.result"
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
- if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
-   result_file="$result_file$RESULT_EXT"
- fi
  if [ "$USE_MANAGER" = 1 ] ; then
   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
@@ -1531,10 +1519,8 @@ run_testcase ()
        --result-file=*)
          result_file=`$ECHO "$EXTRA_MASTER_OPT" | $SED -e "s;--result-file=;;"`
          result_file="r/$result_file.result"
-         if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
-	   result_file="$result_file$RESULT_EXT"
-	 fi
-	 # Note that this must be set to space, not "" for test-reset to work
+         # Note that this must be set to space, not "" for test-reset to
+# work
 	 EXTRA_MASTER_OPT=" "
          ;;
      esac
