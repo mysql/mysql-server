@@ -122,53 +122,49 @@ sub new
   $self->{'vacuum'}		= 1; # When using with --fast
   $self->{'drop_attr'}		= "";
 
-  $limits{'max_conditions'}	= 9999; # (Actually not a limit)
-  $limits{'max_columns'}	= 2000;	# Max number of columns in table
-  # Windows can't handle that many files in one directory
-  $limits{'max_tables'}		= (($machine || '') =~ "^win") ? 5000 : 65000;
-  $limits{'max_text_size'}	= 65000; # Max size with default buffers.
-  $limits{'query_size'}		= 1000000; # Max size with default buffers.
-  $limits{'max_index'}		= 16; # Max number of keys
-  $limits{'max_index_parts'}	= 16; # Max segments/key
-  $limits{'max_column_name'}	= 64; # max table and column name
-
-  $limits{'join_optimizer'}	= 1; # Can optimize FROM tables
-  $limits{'load_data_infile'}	= 1; # Has load data infile
-  $limits{'lock_tables'}	= 1; # Has lock tables
+  $limits{'NEG'}		= 1; # Supports -id
+  $limits{'alter_add_multi_col'}= 1; #Have ALTER TABLE t add a int,add b int;
+  $limits{'alter_table'}	= 1; # Have ALTER TABLE
+  $limits{'alter_table_dropcol'}= 1; # Have ALTER TABLE DROP column
+  $limits{'column_alias'}	= 1; # Alias for fields in select statement.
+  $limits{'func_extra_%'}	= 1; # Has % as alias for mod()
+  $limits{'func_extra_if'}	= 1; # Have function if.
+  $limits{'func_extra_in_num'}	= 1; # Has function in
+  $limits{'func_odbc_floor'}	= 1; # Has func_odbc_floor function
+  $limits{'func_odbc_mod'}	= 1; # Have function mod.
   $limits{'functions'}		= 1; # Has simple functions (+/-)
-  $limits{'group_functions'}	= 1; # Have group functions
-  $limits{'group_func_sql_min_str'} = 1; # Can execute MIN() and MAX() on strings
+  $limits{'group_by_position'}  = 1; # Can use 'GROUP BY 1'
   $limits{'group_distinct_functions'}= 1; # Have count(distinct)
-  $limits{'select_without_from'}= 1; # Can do 'select 1';
-  $limits{'multi_drop'}		= 1; # Drop table can take many tables
-  $limits{'subqueries'}		= 0; # Doesn't support sub-queries.
-  $limits{'left_outer_join'}	= 1; # Supports left outer joins
-  $limits{'table_wildcard'}	= 1; # Has SELECT table_name.*
+  $limits{'group_func_extra_std'} = 1; # Have group function std().
+  $limits{'group_func_sql_min_str'} = 1; # Can execute MIN() and MAX() on strings
+  $limits{'group_functions'}	= 1; # Have group functions
   $limits{'having_with_alias'}  = 1; # Can use aliases in HAVING
   $limits{'having_with_group'}	= 1; # Can use group functions in HAVING
-  $limits{'like_with_column'}	= 1; # Can use column1 LIKE column2
-  $limits{'order_by_position'}  = 1; # Can use 'ORDER BY 1'
-  $limits{'group_by_position'}  = 1; # Can use 'GROUP BY 1'
-  $limits{'alter_table'}	= 1; # Have ALTER TABLE
-  $limits{'alter_add_multi_col'}= 1; #Have ALTER TABLE t add a int,add b int;
-  $limits{'alter_table_dropcol'}= 1; # Have ALTER TABLE DROP column
   $limits{'insert_multi_value'} = 1; # Have INSERT ... values (1,2),(3,4)
-
-  $limits{'group_func_extra_std'} = 1; # Have group function std().
-
-  $limits{'func_odbc_mod'}	= 1; # Have function mod.
-  $limits{'func_extra_%'}	= 1; # Has % as alias for mod()
-  $limits{'func_odbc_floor'}	= 1; # Has func_odbc_floor function
-  $limits{'func_extra_if'}	= 1; # Have function if.
-  $limits{'column_alias'}	= 1; # Alias for fields in select statement.
-  $limits{'NEG'}		= 1; # Supports -id
-  $limits{'func_extra_in_num'}	= 1; # Has function in
-  $limits{'limit'}		= 1;		# supports the limit attribute
-  $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
-  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'join_optimizer'}	= 1; # Can optimize FROM tables
+  $limits{'left_outer_join'}	= 1; # Supports left outer joins
+  $limits{'like_with_column'}	= 1; # Can use column1 LIKE column2
+  $limits{'limit'}		= 1;		# supports the limit attribute
+  $limits{'load_data_infile'}	= 1; # Has load data infile
+  $limits{'lock_tables'}	= 1; # Has lock tables
+  $limits{'max_column_name'}	= 64; # max table and column name
+  $limits{'max_columns'}	= 2000;	# Max number of columns in table
+  $limits{'max_conditions'}	= 9999; # (Actually not a limit)
+  $limits{'max_index'}		= 16; # Max number of keys
+  $limits{'max_index_parts'}	= 16; # Max segments/key
+  $limits{'max_tables'}		= (($machine || '') =~ "^win") ? 5000 : 65000;
+  $limits{'max_text_size'}	= 1000000; # Good enough for tests
+  $limits{'multi_drop'}		= 1; # Drop table can take many tables
+  $limits{'order_by_position'}  = 1; # Can use 'ORDER BY 1'
   $limits{'order_by_unused'}	= 1;
+  $limits{'query_size'}		= 1000000; # Max size with default buffers.
+  $limits{'select_without_from'}= 1; # Can do 'select 1';
+  $limits{'subqueries'}		= 0; # Doesn't support sub-queries.
+  $limits{'table_wildcard'}	= 1; # Has SELECT table_name.*
+  $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'working_all_fields'} = 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
 
   $smds{'time'}			= 1;
   $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
@@ -569,12 +565,12 @@ sub new
   $self->{'drop_attr'}		= "";
   $self->{"vacuum"}		= 1;
   $limits{'join_optimizer'}	= 1;		# Can optimize FROM tables
-  $limits{'load_data_infile'}	= 0;		# Is this true ?
+  $limits{'load_data_infile'}	= 0;
 
-  $limits{'NEG'}		= 1;		# Can't handle -id
-  $limits{'alter_table'}	= 1;		# alter ??
+  $limits{'NEG'}		= 1;
   $limits{'alter_add_multi_col'}= 0;		# alter_add_multi_col ?
-  $limits{'alter_table_dropcol'}= 0;		# alter_drop_col ?
+  $limits{'alter_table'}	= 1;
+  $limits{'alter_table_dropcol'}= 0;
   $limits{'column_alias'}	= 1;
   $limits{'func_extra_%'}	= 1;
   $limits{'func_extra_if'}	= 0;
@@ -583,33 +579,33 @@ sub new
   $limits{'func_odbc_mod'}	= 1;		# Has %
   $limits{'functions'}		= 1;
   $limits{'group_by_position'}  = 1;
+  $limits{'group_distinct_functions'}= 1; # Have count(distinct)
   $limits{'group_func_extra_std'} = 0;
   $limits{'group_func_sql_min_str'}= 1; # Can execute MIN() and MAX() on strings
   $limits{'group_functions'}	= 1;
-  $limits{'group_distinct_functions'}= 1; # Have count(distinct)
   $limits{'having_with_alias'}  = 0;
   $limits{'having_with_group'}	= 1;
-  $limits{'left_outer_join'}	= 0;
+  $limits{'insert_select'}	= 1;
+  $limits{'left_outer_join'}	= 1;
   $limits{'like_with_column'}	= 1;
   $limits{'lock_tables'}	= 0;		# in ATIS gives this a problem
+  $limits{'max_column_name'} 	= 128;
+  $limits{'max_columns'}	= 1000;		# 500 crashes pg 6.3
+  $limits{'max_conditions'}	= 9999;		# This makes Pg real slow
+  $limits{'max_index'}		= 64;		# Big enough
+  $limits{'max_index_parts'}	= 16;
+  $limits{'max_tables'}		= 5000;		# 10000 crashes pg 7.0.2
+  $limits{'max_text_size'}	= 65000;	# Good enough for test
   $limits{'multi_drop'}		= 1;
   $limits{'order_by_position'}  = 1;
+  $limits{'order_by_unused'}	= 1;
+  $limits{'query_size'}		= 16777216;
   $limits{'select_without_from'}= 1;
   $limits{'subqueries'}		= 1;
   $limits{'table_wildcard'}	= 1;
-  $limits{'max_column_name'} 	= 32;		# Is this true
-  $limits{'max_columns'}	= 1000;		# 500 crashes pg 6.3
-  $limits{'max_tables'}		= 5000;		# 10000 crashes pg 7.0.2
-  $limits{'max_conditions'}	= 30;		# This makes Pg real slow
-  $limits{'max_index'}		= 64;		# Is this true ?
-  $limits{'max_index_parts'}	= 16;		# Is this true ?
-  $limits{'max_text_size'}	= 7000;		# 8000 crashes pg 6.3
-  $limits{'query_size'}		= 16777216;
   $limits{'unique_index'}	= 1; # Unique index works or not
-  $limits{'insert_select'}	= 1;
-  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
-  $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'working_blobs'}	= 1; # If big varchar/blobs works
 
   # the different cases per query ...
   $smds{'q1'} 	= 'b'; # with time
@@ -640,7 +636,7 @@ sub new
 sub version
 {
   my ($version,$dir);
-  foreach $dir ($ENV{'PGDATA'},"/usr/local/pgsql/data", "/my/local/pgsql/")
+  foreach $dir ($ENV{'PGDATA'},"/usr/local/pgsql/data", "/usr/local/pg/data")
   {
     if ($dir && -e "$dir/PG_VERSION")
     {
