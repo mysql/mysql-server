@@ -74,7 +74,16 @@ Conversion tables
   ctype      - pointer to array[257] of "type of characters"
                bit mask for each chatacter, e.g. if a 
                character is a digit or a letter or a separator, etc.
-  to_lower   - pointer to arrat[256] used in LCASE()
+
+               Monty 2004-10-21:
+                 If you look at the macros, we use ctype[(char)+1].
+                 ctype[0] is traditionally in most ctype libraries
+                 reserved for EOF (-1). The idea is that you can use
+                 the result from fgetc() directly with ctype[]. As
+                 we have to be compatible with external ctype[] versions,
+                 it's better to do it the same way as they do...
+
+  to_lower   - pointer to array[256] used in LCASE()
   to_upper   - pointer to array[256] used in UCASE()
   sort_order - pointer to array[256] used for strings comparison
 
@@ -137,7 +146,7 @@ following set of functions:
 Multibyte routines
 ------------------
 ismbchar()  - detects if the given string is a multibyte sequence
-mbcharlen() - retuturns length of multibyte sequence starting with
+mbcharlen() - returns length of multibyte sequence starting with
               the given character
 numchars()  - returns number of characters in the given string, e.g.
               in SQL function CHAR_LENGTH().
