@@ -474,6 +474,16 @@ void *create_embedded_thd(int client_flag, char *db)
   return thd;
 }
 
+void free_embedded_thd(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  if (!thd)
+    return;
+  if (thd->data)
+    free_rows(thd->data);
+  delete thd;
+}
+
 C_MODE_END
 
 bool Protocol::send_fields(List<Item> *list, uint flag)
