@@ -1110,6 +1110,12 @@ type:
 	    $$=FIELD_TYPE_SET;
 	  }
 	| LONG_SYM opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
+	| SERIAL_SYM
+	  {
+	    $$=FIELD_TYPE_LONGLONG;
+	    Lex->type|= (AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG |
+		         UNIQUE_FLAG);
+	  }
 	;
 
 char:
@@ -1184,11 +1190,12 @@ attribute:
 	| DEFAULT literal { Lex->default_value=$2; }
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
 	| SERIAL_SYM DEFAULT VALUE_SYM
-	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
-	| PRIMARY_SYM KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
+	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG; }
+	| opt_primary KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
 	| COMMENT_SYM text_literal { Lex->comment= $2; };
+
 
 charset_name:
 	BINARY
@@ -1226,6 +1233,11 @@ opt_binary:
 	| BYTE_SYM			{ Lex->charset=my_charset_bin; }
 	| BINARY			{ Lex->charset=my_charset_bin; }
 	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
+
+
+opt_primary:
+	/* empty */
+	| PRIMARY_SYM
 
 references:
 	REFERENCES table_ident
@@ -2882,6 +2894,7 @@ fields:
 
 insert_values:
 	VALUES	values_list  {}
+	| VALUE_SYM values_list  {}
 	| SELECT_SYM
 	  {
 	    LEX *lex=Lex;
