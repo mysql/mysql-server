@@ -902,6 +902,7 @@ public:
   void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
+  Field *get_tmp_table_field() { return result_field; }
   table_map used_tables() const		
   { 
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
