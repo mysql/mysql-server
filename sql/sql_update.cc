@@ -544,7 +544,7 @@ int mysql_multi_update(THD *thd,
     }
   }
 
-  if (!(result=new multi_update(thd, table_list, fields, values,
+  if (!(result=new multi_update(thd, update_list, fields, values,
 				handle_duplicates)))
     DBUG_RETURN(-1);
 
@@ -578,7 +578,7 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
 int multi_update::prepare(List<Item> &not_used_values,
 			  SELECT_LEX_UNIT *lex_unit)
 {
-  TABLE_LIST *table_ref, *tables;
+  TABLE_LIST *table_ref;
   SQL_LIST update;
   table_map tables_to_update= 0;
   Item_field *item;
@@ -604,9 +604,8 @@ int multi_update::prepare(List<Item> &not_used_values,
     We have to check values after setup_tables to get used_keys right in
     reference tables
   */
-  tables= thd->lex->select_lex.get_table_list();
 
-  if (setup_fields(thd, 0, tables, *values, 1, 0, 0))
+  if (setup_fields(thd, 0, all_tables, *values, 1, 0, 0))
     DBUG_RETURN(1);
 
   /*
@@ -616,7 +615,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   */
 
   update.empty();
-  for (table_ref= tables;  table_ref; table_ref=table_ref->next)
+  for (table_ref= all_tables;  table_ref; table_ref=table_ref->next)
   {
     TABLE *table=table_ref->table;
     if (tables_to_update & table->map)
@@ -685,10 +684,10 @@ int multi_update::prepare(List<Item> &not_used_values,
     which will cause an error when reading a row.
     (This issue is mostly relevent for MyISAM tables)
   */
-  for (table_ref= tables;  table_ref; table_ref=table_ref->next)
+  for (table_ref= all_tables;  table_ref; table_ref=table_ref->next)
   {
     TABLE *table=table_ref->table;
-    if (!(tables_to_update & table->map) || !table->no_keyread && 
+    if (!(tables_to_update & table->map) && 
 	find_real_table_in_list(update_tables, table_ref->db,
 				table_ref->real_name))
       table->no_cache= 1;			// Disable row cache

@@ -1023,6 +1023,7 @@ void st_select_lex::init_query()
   ref_pointer_array= 0;
   select_n_having_items= 0;
   prep_where= 0;
+  explicit_limit= 0;
 }
 
 void st_select_lex::init_select()
@@ -1616,10 +1617,7 @@ void st_select_lex::print_limit(THD *thd, String *str)
   if (!thd)
     thd= current_thd;
 
-  if ((select_limit != thd->variables.select_limit &&
-       this == &thd->lex->select_lex) ||
-      (select_limit != HA_POS_ERROR && this != &thd->lex->select_lex) ||
-      offset_limit != 0L)
+  if (explicit_limit)
   {
     str->append(" limit ", 7);
     char buff[20];
