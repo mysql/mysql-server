@@ -410,13 +410,10 @@ os_file_handle_error_no_exit(
 /*=========================*/
 				/* out: TRUE if we should retry the
 				operation */
-	os_file_t	file,	/* in: file pointer */
 	const char*	name,	/* in: name of a file or NULL */
 	const char*	operation)/* in: operation */
 {
 	ulint	err;
-
-	UT_NOT_USED(file);
 
 	err = os_file_get_last_error(FALSE);
 	
@@ -624,7 +621,7 @@ os_file_closedir(
 	ret = FindClose(dir);
 
 	if (!ret) {
-	        os_file_handle_error_no_exit(NULL, NULL, "closedir");
+	        os_file_handle_error_no_exit(NULL, "closedir");
 		
 		return(-1);
 	}
@@ -636,7 +633,7 @@ os_file_closedir(
 	ret = closedir(dir);
 
 	if (ret) {
-	        os_file_handle_error_no_exit(0, NULL, "closedir");
+	        os_file_handle_error_no_exit(NULL, "closedir");
 	}
 
 	return(ret);
@@ -705,7 +702,7 @@ http://www.mysql.com/doc/en/Windows_symbolic_links.html */
 
 		return(1);
 	} else {
-		os_file_handle_error_no_exit(NULL, dirname,
+		os_file_handle_error_no_exit(dirname,
 						"readdir_next_file");
 		return(-1);
 	}
@@ -737,7 +734,7 @@ next_file:
 	ret = stat(full_path, &statinfo);
 
 	if (ret) {
-		os_file_handle_error_no_exit(0, full_path, "stat");
+		os_file_handle_error_no_exit(full_path, "stat");
 
 		ut_free(full_path);
 
@@ -1326,7 +1323,7 @@ loop:
 	ret = unlink((const char*)name);
 
 	if (ret != 0 && errno != ENOENT) {
-		os_file_handle_error(name, "delete");
+		os_file_handle_error_no_exit(name, "delete");
 
 		return(FALSE);
 	}
@@ -1388,7 +1385,7 @@ loop:
 	ret = unlink((const char*)name);
 
 	if (ret != 0) {
-		os_file_handle_error(name, "delete");
+		os_file_handle_error_no_exit(name, "delete");
 
 		return(FALSE);
 	}
@@ -2117,7 +2114,7 @@ try_again:
 #ifdef __WIN__
 error_handling:
 #endif
-	retry = os_file_handle_error_no_exit(file, NULL, "read"); 
+	retry = os_file_handle_error_no_exit(NULL, "read"); 
 
 	if (retry) {
 		goto try_again;
@@ -2310,7 +2307,7 @@ os_file_status(
 	} else if (ret) {
 		/* file exists, but stat call failed */
 		
-		os_file_handle_error_no_exit(0, path, "stat");
+		os_file_handle_error_no_exit(path, "stat");
 		
 		return(FALSE);
 	}
@@ -2338,7 +2335,7 @@ os_file_status(
 	} else if (ret) {
 		/* file exists, but stat call failed */
 		
-		os_file_handle_error_no_exit(0, path, "stat");
+		os_file_handle_error_no_exit(path, "stat");
 		
 		return(FALSE);
 	}
@@ -2381,7 +2378,7 @@ os_file_get_status(
 	} else if (ret) {
 		/* file exists, but stat call failed */
 		
-		os_file_handle_error_no_exit(0, path, "stat");
+		os_file_handle_error_no_exit(path, "stat");
 		
 		return(FALSE);
 	}
@@ -2412,7 +2409,7 @@ os_file_get_status(
 	} else if (ret) {
 		/* file exists, but stat call failed */
 		
-		os_file_handle_error_no_exit(0, path, "stat");
+		os_file_handle_error_no_exit(path, "stat");
 		
 		return(FALSE);
 	}
