@@ -325,7 +325,9 @@ typedef compare_func_creator (*chooser_compare_func_creator)(bool invert);
 struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
-  uint charset_num;
+  uint character_set_client_num;
+  uint character_set_results_num;
+  uint collation_connection_num;
   ha_rows limit;
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
