@@ -297,7 +297,7 @@ NDBT_Table T14("T14", sizeof(T14Attribs)/sizeof(NDBT_Attribute), T14Attribs);
 */
 static 
 const
-NDBT_Attribute C2_PORTS_Attribs[] = {
+NDBT_Attribute I1_Cols[] = {
   NDBT_Attribute("ID", NdbDictionary::Column::Unsigned, true),
   NDBT_Attribute("PORT", NdbDictionary::Column::Char, 16, true),
   NDBT_Attribute("ACCESSNODE", NdbDictionary::Column::Char, 16, true),
@@ -310,11 +310,19 @@ NDBT_Attribute C2_PORTS_Attribs[] = {
 };
 
 static
-NDBT_Table C2_PORTS("C2_PORTS", sizeof(C2_PORTS_Attribs)/sizeof(NDBT_Attribute), C2_PORTS_Attribs);
+const
+char* I1_Indexes[] = {
+  "UNIQUE", "ID", "PORT", "ACCESSNODE", "POP", "PORTSTATE", 0,
+  0
+};
+
+static
+NDBT_Table I1("I1", sizeof(I1_Cols)/sizeof(NDBT_Attribute), I1_Cols
+	      );// ,I1_Indexes);
 
 static 
 const
-NDBT_Attribute C2_SERVICES_Attribs[] = {
+NDBT_Attribute I2_Cols[] = {
   NDBT_Attribute("ID", NdbDictionary::Column::Unsigned, true),
   NDBT_Attribute("PORT", NdbDictionary::Column::Char, 16, true),
   NDBT_Attribute("ACCESSNODE", NdbDictionary::Column::Char, 16, true),
@@ -331,12 +339,20 @@ NDBT_Attribute C2_SERVICES_Attribs[] = {
   NDBT_Attribute("UPDATES", NdbDictionary::Column::Unsigned)
 };
 
+const
+char* I2_Indexes[] = {
+  "ORDERED", "CUSTOMER_ID", 0,
+  "ORDERED", "NUM_IP", 0,
+  0
+};
+
 static
-NDBT_Table C2_SERVICES("C2_SERVICES", sizeof(C2_SERVICES_Attribs)/sizeof(NDBT_Attribute), C2_SERVICES_Attribs);
+NDBT_Table I2("I2", sizeof(I2_Cols)/sizeof(NDBT_Attribute), I2_Cols
+	      );//, I2_Indexes);
 
 static 
 const
-NDBT_Attribute C2_CLIENTS_Attribs[] = {
+NDBT_Attribute I3_Cols[] = {
   NDBT_Attribute("ID", NdbDictionary::Column::Unsigned, true),
   NDBT_Attribute("PORT", NdbDictionary::Column::Char, 16), // SI2
   NDBT_Attribute("ACCESSNODE", NdbDictionary::Column::Char, 16), // SI2
@@ -355,8 +371,17 @@ NDBT_Attribute C2_CLIENTS_Attribs[] = {
   NDBT_Attribute("UPDATES", NdbDictionary::Column::Unsigned)
 };
 
+const
+char* I3_Indexes[] = {
+  "UNIQUE", "ID", 0,
+  "ORDERED", "MAC", 0,
+  "ORDERED", "GW", 0,
+  0
+};
+
 static
-NDBT_Table C2_CLIENTS("C2_CLIENTS", sizeof(C2_CLIENTS_Attribs)/sizeof(NDBT_Attribute), C2_CLIENTS_Attribs);
+NDBT_Table I3("I3", sizeof(I3_Cols)/sizeof(NDBT_Attribute), I3_Cols
+	      ); // ,I3_Indexes);
 
 // Define array with pointer to all tables 
 static
@@ -377,10 +402,23 @@ NDBT_Table *test_tables[]=
   &T12,
   &T13,
   &T14,
-  &C2_PORTS,
-  &C2_SERVICES,
-  &C2_CLIENTS
+  &I1,
+  &I2,
+  &I3
+};
 
+struct NDBT_IndexList {
+  const char * m_table;
+  const char ** m_indexes;
+};
+
+static
+const
+NDBT_IndexList indexes[] = {
+  "I1", I1_Indexes, 
+  "I2", I2_Indexes, 
+  "I3", I3_Indexes,
+  0, 0
 };
 
 static
@@ -763,27 +801,12 @@ NDBT_Tables::getNumTables(){
 
 int
 NDBT_Tables::createAllTables(Ndb* pNdb, bool _temp, bool existsOk){
-
+  
   for (int i=0; i < NDBT_Tables::getNumTables(); i++){
-
-    const NdbDictionary::Table* tab = NDBT_Tables::getTable(i);
-    if (tab == NULL){
-      return NDBT_ProgramExit(NDBT_FAILED);
-    }
-    
-    // Set temporary table 
-    NdbDictionary::Table tmpTab(* tab);
-    tmpTab.setStoredTable(_temp? 0 : 1);
-    
-    int r = pNdb->getDictionary()->createTable(tmpTab);
-    int err = pNdb->getDictionary()->getNdbError().code;
-    if(r == -1){
-      if (existsOk && err == 721)
-	;
-      else {
-	return NDBT_FAILED;
-      }
-    }
+    int ret= createTable(pNdb, 
+			 NDBT_Tables::getTable(i)->getName(), _temp, existsOk);
+    if(ret)
+      return ret;
   }
   return NDBT_OK;
 }
@@ -794,7 +817,8 @@ NDBT_Tables::createAllTables(Ndb* pNdb){
 }
 
 int
-NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp){
+NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp, 
+			 bool existsOk){
   
   const NdbDictionary::Table* tab = NDBT_Tables::getTable(_name);
   if (tab == NULL){
@@ -804,10 +828,59 @@ NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp){
     return NDBT_WRONGARGS;
   }
 
-  NdbDictionary::Table tmpTab(* tab);
-  tmpTab.setStoredTable(_temp ? 0 : 1);
+  int r = 0;
+  do {
+    NdbDictionary::Table tmpTab(* tab);
+    tmpTab.setStoredTable(_temp ? 0 : 1);
   
-  int r = pNdb->getDictionary()->createTable(tmpTab);
+    r = pNdb->getDictionary()->createTable(tmpTab);
+    if(r == -1){
+      if(!existsOk)
+	break;
+      if(pNdb->getDictionary()->getNdbError().code != 721){
+	ndbout << pNdb->getDictionary()->getNdbError() << endl;
+	break;
+      }
+      r = 0;
+    }
+
+    Uint32 i = 0;
+    for(Uint32 i = 0; indexes[i].m_table != 0; i++){
+      if(strcmp(indexes[i].m_table, _name) != 0)
+	continue;
+      Uint32 j = 0;
+      while(indexes[i].m_indexes[j] != 0){
+	NdbDictionary::Index tmpIndx;
+	BaseString name;
+	name.assfmt("%s$NDBT_IDX%d", _name, j);
+	tmpIndx.setName(name.c_str());
+	tmpIndx.setTable(_name);
+	bool logging = !_temp;
+	if(strcmp(indexes[i].m_indexes[j], "ORDERED") == 0){
+	  logging = false;
+	  tmpIndx.setType(NdbDictionary::Index::OrderedIndex);
+	} else if(strcmp(indexes[i].m_indexes[j], "UNIQUE") == 0){
+	  tmpIndx.setType(NdbDictionary::Index::UniqueHashIndex);
+	} else {
+	  ndbout << "Unknown index type";
+	  abort();
+	}
+	tmpIndx.setLogging(logging);
+	
+	j++;
+	while(indexes[i].m_indexes[j] != 0){
+	  tmpIndx.addIndexColumn(indexes[i].m_indexes[j]);
+	  j++;
+	}
+	j++;
+	if(pNdb->getDictionary()->createIndex(tmpIndx) != 0){
+	  ndbout << pNdb->getDictionary()->getNdbError() << endl;
+	  return NDBT_FAILED;
+	}
+      }
+    }
+  } while(false);
+  
   return r;
 }
 
