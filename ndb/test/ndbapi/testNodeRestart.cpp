@@ -299,9 +299,11 @@ int runRestarts(NDBT_Context* ctx, NDBT_Step* step){
 int runDirtyRead(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
   NdbRestarter restarter;
-  HugoTransactions hugoTrans(*ctx->getTab());
-  
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+    
   int i = 0;
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
     g_info << i << ": ";
@@ -312,14 +314,34 @@ int runDirtyRead(NDBT_Context* ctx, NDBT_Step* step){
     restarter.insertErrorInNode(nodeId, 5041);
     restarter.insertErrorInAllNodes(8048);
     
-    if (hugoTrans.pkReadRecords(GETNDB(step), 1, 1, 
-				NdbOperation::LM_CommittedRead) != 0)
-    {
-      return NDBT_FAILED;
+    for(int j = 0; j<records; j++){
+      if(hugoOps.startTransaction(pNdb) != 0)
+	return NDBT_FAILED;
+      
+      if(hugoOps.pkReadRecord(pNdb, j, 1, NdbOperation::LM_CommittedRead) != 0)
+	goto err;
+      
+      int res;
+      if((res = hugoOps.execute_Commit(pNdb)) == 4119)
+	goto done;
+      
+      if(res != 0)
+	goto err;
+      
+      if(hugoOps.closeTransaction(pNdb) != 0)
+	return NDBT_FAILED;
     }
+done:
+    if(hugoOps.closeTransaction(pNdb) != 0)
+      return NDBT_FAILED;
+    
     i++;
+    restarter.waitClusterStarted(60) ;
   }
   return result;
+err:
+  hugoOps.closeTransaction(pNdb);
+  return NDBT_FAILED;
 }
 
 NDBT_TESTSUITE(testNodeRestart);
