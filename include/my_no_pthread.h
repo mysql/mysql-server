@@ -27,5 +27,9 @@
 #define pthread_mutex_lock(A)
 #define pthread_mutex_unlock(A)
 #define pthread_mutex_destroy(A)
-
+#define my_rwlock_init(A,B)
+#define rw_rdlock(A)
+#define rw_wrlock(A)
+#define rw_unlock(A)
+#define rwlock_destroy(A)
 #endif

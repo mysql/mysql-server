@@ -126,14 +126,14 @@ enum ha_extra_function {
   HA_EXTRA_RESET_STATE,			/* Reset positions */
   HA_EXTRA_IGNORE_DUP_KEY,		/* Dup keys don't rollback everything*/
   HA_EXTRA_NO_IGNORE_DUP_KEY,
-  HA_EXTRA_RETRIEVE_ALL_COLS,		/* Instructs InnoDB to retrieve all
-					columns, not just those where
-					field->query_id is the same as the
-					current query id */
+  /*
+    Instructs InnoDB to retrieve all columns, not just those where
+    field->query_id is the same as the current query id
+  */
+  HA_EXTRA_RETRIEVE_ALL_COLS,
   HA_EXTRA_PREPARE_FOR_DELETE,
   HA_EXTRA_PREPARE_FOR_UPDATE,		/* Remove read cache if problems */
   HA_EXTRA_PRELOAD_BUFFER_SIZE,         /* Set buffer size for preloading */
-  HA_EXTRA_SET_KEY_CACHE                /* Set ref to assigned key cache  */
 };
 
 	/* The following is parameter to ha_panic() */

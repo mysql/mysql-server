@@ -754,7 +754,15 @@ mysql_free_result(MYSQL_RES *result)
 	if ((pkt_len=net_safe_read(result->handle)) == packet_error)
 	  break;
 	if (pkt_len <= 8 && result->handle->net.read_pos[0] == 254)
+	{
+	  if (protocol_41(result->handle))
+	  {
+	    char *pos= (char*) result->handle->net.read_pos;
+	    result->handle->warning_count=uint2korr(pos); pos+=2;
+	    result->handle->server_status=uint2korr(pos); pos+=2;
+	  }
 	  break;				/* End of data */
+	}
       }
       result->handle->status=MYSQL_STATUS_READY;
     }
@@ -987,7 +995,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  options->client_flag|= CLIENT_MULTI_RESULTS;
 	  break;
 	case 31:
-	  options->client_flag|= CLIENT_MULTI_QUERIES | CLIENT_MULTI_RESULTS;
+	  options->client_flag|= CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS;
 	  break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
@@ -1231,6 +1239,7 @@ MYSQL_DATA * STDCALL cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   if (pkt_len > 1)				/* MySQL 4.1 protocol */
   {
     mysql->warning_count= uint2korr(cp+1);
+    mysql->server_status= uint2korr(cp+3);
     DBUG_PRINT("info",("warning_count:  %ld", mysql->warning_count));
   }
   DBUG_PRINT("exit",("Got %d rows",result->rows));
@@ -1256,7 +1265,10 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
   if (pkt_len <= 8 && net->read_pos[0] == 254)
   {
     if (pkt_len > 1)				/* MySQL 4.1 protocol */
+    {
       mysql->warning_count= uint2korr(net->read_pos+1);
+      mysql->server_status= uint2korr(net->read_pos+3);
+    }
     return 1;				/* End of data */
   }
   prev_pos= 0;				/* allowed to write at packet[-1] */
@@ -1818,7 +1830,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   
   client_flag|=mysql->options.client_flag;
   client_flag|=CLIENT_CAPABILITIES;
-  if (client_flag & CLIENT_MULTI_QUERIES)
+  if (client_flag & CLIENT_MULTI_STATEMENTS)
     client_flag|= CLIENT_MULTI_RESULTS;
 
 #ifdef HAVE_OPENSSL

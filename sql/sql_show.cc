@@ -1253,7 +1253,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 	!(thd->variables.sql_mode & MODE_MYSQL323) &&
 	!(thd->variables.sql_mode & MODE_MYSQL40))
     {
-      packet->append(" CHARSET=", 9);
+      packet->append(" DEFAULT CHARSET=", 17);
       packet->append(table->table_charset->csname);
       if (!(table->table_charset->state & MY_CS_PRIMARY))
       {
@@ -1589,6 +1589,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
   if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1); /* purecov: inspected */
   null_lex_str.str= 0;				// For sys_var->value_ptr()
+  null_lex_str.length= 0;
 
   pthread_mutex_lock(mutex);
   for (; variables->name; variables++)
@@ -1848,6 +1849,10 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         break;
 
 #endif /* HAVE_OPENSSL */
+      case SHOW_KEY_CACHE_LONG:
+	value= (value-(char*) &dflt_key_cache_var)+ (char*) sql_key_cache;
+	end= int10_to_str(*(long*) value, buff, 10);
+        break;
       case SHOW_UNDEF:				// Show never happen
       case SHOW_SYS:
 	break;					// Return empty string

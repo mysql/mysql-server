@@ -11,7 +11,7 @@ t1	CREATE TABLE `t1` (
   `g` geometry NOT NULL default '',
   PRIMARY KEY  (`fid`),
   SPATIAL KEY `g` (`g`(32))
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(150 150, 150 150)'));
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(149 149, 151 151)'));
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(148 148, 152 152)'));
@@ -294,7 +294,7 @@ t2	CREATE TABLE `t2` (
   `g` geometry NOT NULL default '',
   PRIMARY KEY  (`fid`),
   SPATIAL KEY `g` (`g`(32))
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 SELECT count(*) FROM t2;
 count(*)
 100

@@ -422,6 +422,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   for (field_no=0; (sql_field=it++) ; field_no++)
   {
     if (!sql_field->charset)
+      sql_field->charset= create_info->default_table_charset;
+    /*
+      table_charset is set in ALTER TABLE if we want change character set
+      for all varchar/char columns
+    */
+    if (create_info->table_charset)
       sql_field->charset= create_info->table_charset;
     sql_field->create_length_to_internal_length();
 
@@ -461,7 +467,9 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         {
 	  /* Field redefined */
 	  sql_field->sql_type=		dup_field->sql_type;
-	  sql_field->charset=		dup_field->charset ? dup_field->charset : create_info->table_charset;
+	  sql_field->charset=		(dup_field->charset ?
+					 dup_field->charset :
+					 create_info->default_table_charset);
 	  sql_field->length=		dup_field->length;
 	  sql_field->pack_length=	dup_field->pack_length;
 	  sql_field->create_length_to_internal_length();
@@ -484,8 +492,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   it.rewind();
   while ((sql_field=it++))
   {
-    if (!sql_field->charset)
-      sql_field->charset = create_info->table_charset;
+    DBUG_ASSERT(sql_field->charset);
+
     switch (sql_field->sql_type) {
     case FIELD_TYPE_BLOB:
     case FIELD_TYPE_MEDIUM_BLOB:
@@ -1625,11 +1633,25 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
    -1	  error
 */
 
-int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables)
+int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
+			     LEX_STRING *key_cache_name)
 {
+  HA_CHECK_OPT check_opt;
+  KEY_CACHE_VAR *key_cache;
   DBUG_ENTER("mysql_assign_to_keycache");
-  DBUG_RETURN(mysql_admin_table(thd, tables, 0,
-				"assign_to_keycache", TL_READ, 0, 
+
+  check_opt.init();
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  if (!(key_cache= get_key_cache(key_cache_name)))
+  {
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), key_cache_name->str);
+    DBUG_RETURN(-1);
+  }
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  check_opt.key_cache= key_cache;
+  DBUG_RETURN(mysql_admin_table(thd, tables, &check_opt,
+				"assign_to_keycache", TL_READ_NO_INSERT, 0, 
                                 HA_OPEN_TO_ASSIGN, 0,
 				&handler::assign_to_keycache));
 }
@@ -1642,78 +1664,34 @@ int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables)
     reassign_keycache_tables()
     thd	        Thread object
     src_cache   Reference to the key cache to clean up
-    dest_name   Name of the cache to assign tables to
-    remove_fl   Flag to destroy key cache when all tables are reassigned      
+    dest_cache  New key cache
 
-  RETURN VALUES
+  NOTES
+    This is called when one sets a key cache size to zero, in which
+    case we have to move the tables associated to this key cache to
+    the "default" one.
+
+    One has to ensure that one never calls this function while
+    some other thread is changing the key cache. This is assured by
+    the caller setting src_cache->in_init before calling this function.
+
+    We don't delete the old key cache as there may still be pointers pointing
+    to it for a while after this function returns.
+
+ RETURN VALUES
     0	  ok
-   -1	  error
 */
 
-int reassign_keycache_tables(THD* thd, KEY_CACHE_VAR* src_cache, 
-                             char *dest_name, bool remove_fl)
+int reassign_keycache_tables(THD *thd, KEY_CACHE_VAR *src_cache, 
+                             KEY_CACHE_VAR *dst_cache)
 {
-  int rc= 0;
-  TABLE_LIST table;
-  KEY_CACHE_ASMT *key_cache_asmt;
-
   DBUG_ENTER("reassign_keycache_tables");
 
-  VOID(pthread_mutex_lock(&LOCK_assign));
-  for (key_cache_asmt= src_cache->assign_list ; 
-       key_cache_asmt;
-       key_cache_asmt= key_cache_asmt->next)
-    key_cache_asmt->to_reassign = 1;
-  key_cache_asmt= src_cache->assign_list; 
-  while (key_cache_asmt)
-  {
-    if (key_cache_asmt->to_reassign)
-    {
-      bool refresh;
-      VOID(pthread_mutex_unlock(&LOCK_assign));
-      bzero((byte *) &table, sizeof(table));
-      table.option= dest_name;
-      table.db= key_cache_asmt->db_name;
-      table.alias= table.real_name= key_cache_asmt->table_name;
-      thd->open_options|= HA_OPEN_TO_ASSIGN;
-      while (!(table.table=open_table(thd,table.db,
-			              table.real_name,table.alias,
-			              &refresh)) && refresh) ;
-      thd->open_options&= ~HA_OPEN_TO_ASSIGN;
-      if (!table.table)
-        DBUG_RETURN(-1);
-      table.table->pos_in_table_list= &table;
-      key_cache_asmt->triggered= 1;
-      rc= table.table->file->assign_to_keycache(thd, 0);
-      close_thread_tables(thd);
-      if (rc)
-        DBUG_RETURN(rc);
-      VOID(pthread_mutex_lock(&LOCK_assign));
-      key_cache_asmt= src_cache->assign_list;
-      continue;
-    }
-    else
-      key_cache_asmt= key_cache_asmt->next;
-  }
-  
-  while (src_cache->assignments)
-  {
-    struct st_my_thread_var *waiting_thread= my_thread_var;
-    pthread_cond_wait(&waiting_thread->suspend, &LOCK_assign);
-  }
-  if (src_cache->extra_info)
-  {
-    my_free((char *) src_cache->extra_info, MYF(0));
-    src_cache->extra_info= 0;
-  }
-
-  if (remove_fl && !src_cache->assign_list && src_cache != &dflt_key_cache_var)
-  {
-    end_key_cache(&src_cache->cache, 1);
-    src_cache->buff_size= 0;
-    src_cache->block_size= 0;
-  }
-  VOID(pthread_mutex_unlock(&LOCK_assign));
+  DBUG_ASSERT(src_cache != dst_cache);
+  DBUG_ASSERT(src_cache->in_init);
+  src_cache->buff_size= 0;			// Free key cache
+  ha_resize_key_cache(src_cache);
+  ha_change_key_cache(src_cache, dst_cache);
   DBUG_RETURN(0);            
 }
 
@@ -1766,7 +1744,6 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
   char *src_db= thd->db;
   char *src_table= table_ident->table.str;
   int  err;
- 
   DBUG_ENTER("mysql_create_like_table");
 
   /*
@@ -2126,8 +2103,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     create_info->max_rows=table->max_rows;
   if (!(used_fields & HA_CREATE_USED_AVG_ROW_LENGTH))
     create_info->avg_row_length=table->avg_row_length;
-  if (!(used_fields & HA_CREATE_USED_CHARSET))
-    create_info->table_charset=table->table_charset;
+  if (!(used_fields & HA_CREATE_USED_DEFAULT_CHARSET))
+    create_info->default_table_charset= table->table_charset;
 
   restore_record(table,default_values);			// Empty record for DEFAULT
   List_iterator<Alter_drop> drop_it(drop_list);

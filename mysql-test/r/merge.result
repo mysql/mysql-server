@@ -175,7 +175,7 @@ t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL default '0',
   `b` char(20) default NULL,
   KEY `a` (`a`)
-) TYPE=MRG_MyISAM CHARSET=latin1 UNION=(`t1`,`t2`)
+) TYPE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
 create table t4 (a int not null, b char(10), key(a)) type=MERGE UNION=(t1,t2);
 select * from t4;
 ERROR HY000: Can't open file: 't4.MRG' (errno: 143)
@@ -190,7 +190,7 @@ t5	CREATE TABLE `t5` (
   `a` int(11) NOT NULL default '0',
   `b` char(20) default NULL,
   KEY `a` (`a`)
-) TYPE=MRG_MyISAM CHARSET=latin1 UNION=(`t1`,`mysqltest`.`t6`)
+) TYPE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`mysqltest`.`t6`)
 alter table t5 type=myisam;
 drop table t5, mysqltest.t6;
 drop database mysqltest;
@@ -263,14 +263,14 @@ t3	CREATE TABLE `t3` (
   `incr` int(11) NOT NULL default '0',
   `othr` int(11) NOT NULL default '0',
   PRIMARY KEY  (`incr`)
-) TYPE=MRG_MyISAM CHARSET=latin1 UNION=(`t1`,`t2`)
+) TYPE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
 alter table t3 drop primary key;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `incr` int(11) NOT NULL default '0',
   `othr` int(11) NOT NULL default '0'
-) TYPE=MRG_MyISAM CHARSET=latin1 UNION=(`t1`,`t2`)
+) TYPE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
 drop table t3,t2,t1;
 create table t1 (a int not null, key(a)) type=merge;
 select * from t1;
@@ -299,28 +299,28 @@ t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL default '0',
   `b` int(11) NOT NULL default '0',
   KEY `a` (`a`,`b`)
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) NOT NULL default '0',
   `b` int(11) NOT NULL default '0',
   KEY `a` (`a`,`b`)
-) TYPE=MRG_MyISAM CHARSET=latin1 UNION=(`t1`,`t2`)
+) TYPE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
 show create table t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `a` int(11) NOT NULL default '0',
   `b` int(11) NOT NULL auto_increment,
   PRIMARY KEY  (`a`,`b`)
-) TYPE=MRG_MyISAM CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`,`t2`)
+) TYPE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`,`t2`)
 show create table t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
   `a` int(11) NOT NULL default '0',
   `b` int(11) NOT NULL auto_increment,
   PRIMARY KEY  (`a`,`b`)
-) TYPE=MRG_MyISAM CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+) TYPE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`t1`,`t2`)
 insert into t1 values (1,NULL),(1,NULL),(1,NULL),(1,NULL);
 insert into t2 values (2,NULL),(2,NULL),(2,NULL),(2,NULL);
 select * from t3 order by b,a limit 3;
@@ -385,7 +385,7 @@ t4	CREATE TABLE `t4` (
   `a` int(11) NOT NULL default '0',
   `b` int(11) NOT NULL default '0',
   KEY `a` (`a`,`b`)
-) TYPE=MRG_MyISAM CHARSET=latin1 UNION=(`t1`,`t2`,`t3`)
+) TYPE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`,`t3`)
 select * from t4 order by a,b;
 a	b
 1	1
@@ -411,7 +411,7 @@ t4	CREATE TABLE `t4` (
   `a` int(11) NOT NULL default '0',
   `b` int(11) NOT NULL default '0',
   KEY `a` (`a`,`b`)
-) TYPE=MRG_MyISAM CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`,`t2`,`t3`)
+) TYPE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST UNION=(`t1`,`t2`,`t3`)
 insert into t4 values (4,1),(4,2);
 select * from t1 order by a,b;
 a	b

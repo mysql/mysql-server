@@ -1105,67 +1105,6 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   DBUG_RETURN(error != 0);
 }
 
-	/* Use key cacheing on all databases */
-
-int ha_key_cache(KEY_CACHE_VAR *key_cache)
-{
-  if (!key_cache->cache)
-  {
-    /*
-      The following mutex is not really needed as long as keybuff_size is
-      treated as a long value, but we use the mutex here to guard for future
-      changes.
-    */
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    if (!key_cache->block_size)
-      key_cache->block_size= dflt_key_cache_block_size;
-    if (!key_cache->buff_size)
-      key_cache->buff_size= dflt_key_buff_size;
-    long tmp_buff_size= (long) key_cache->buff_size;
-    long tmp_block_size= (long) key_cache->block_size;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    return !init_key_cache(&key_cache->cache,
-			   tmp_block_size,
-			   tmp_buff_size,
-                           key_cache);
-  }
-  return 0;
-}
-
-int ha_resize_key_cache(KEY_CACHE_VAR *key_cache)
-{
-  if (key_cache->cache)
-  {
-    pthread_mutex_lock(&LOCK_global_system_variables);
-    long tmp_buff_size= (long) key_cache->buff_size;
-    long tmp_block_size= (long) key_cache->block_size;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
-    return !resize_key_cache(&key_cache->cache, tmp_block_size,
-                             tmp_buff_size);
-  }
-  return 0;
-}
-
-int ha_change_key_cache_param(KEY_CACHE_VAR *key_cache)
-{
-  if (key_cache->cache)
-  {
-    change_key_cache_param(key_cache->cache);
-  }
-  return 0;
-}
-
-int ha_end_key_cache(KEY_CACHE_VAR *key_cache)
-{
-  if (key_cache->cache)
-  {
-    end_key_cache(&key_cache->cache, 1);
-    return key_cache->cache ? 1 : 0;
-  }
-  return 0;
-}
-
-
 static int NEAR_F delete_file(const char *name,const char *ext,int extflag)
 {
   char buff[FN_REFLEN];
@@ -1177,4 +1116,86 @@ void st_ha_check_opt::init()
 {
   flags= sql_flags= 0;
   sort_buffer_size = current_thd->variables.myisam_sort_buff_size;
+}
+
+
+/*****************************************************************************
+  Key cache handling.
+
+  This code is only relevant for ISAM/MyISAM tables
+
+  key_cache->cache may be 0 only in the case where a key cache is not
+  initialized or when we where not able to init the key cache in a previous
+  call to ha_init_key_cache() (probably out of memory)
+*****************************************************************************/
+
+/* Init a key cache if it has not been initied before */
+
+
+int ha_init_key_cache(const char *name, KEY_CACHE_VAR *key_cache)
+{
+  DBUG_ENTER("ha_init_key_cache");
+
+  if (!key_cache->cache)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    long tmp_buff_size= (long) key_cache->buff_size;
+    long tmp_block_size= (long) key_cache->block_size;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    DBUG_RETURN(!init_key_cache(&key_cache->cache,
+				tmp_block_size,
+				tmp_buff_size,
+				key_cache));
+  }
+  DBUG_RETURN(0);
+}
+
+
+/* Resize key cache */
+
+int ha_resize_key_cache(KEY_CACHE_VAR *key_cache)
+{
+  DBUG_ENTER("ha_resize_key_cache");
+
+  if (key_cache->cache)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    long tmp_buff_size= (long) key_cache->buff_size;
+    long tmp_block_size= (long) key_cache->block_size;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    DBUG_RETURN(!resize_key_cache(&key_cache->cache, tmp_block_size,
+				  tmp_buff_size));
+  }
+  DBUG_RETURN(0);
+}
+
+
+/* Change parameters for key cache (like size) */
+
+int ha_change_key_cache_param(KEY_CACHE_VAR *key_cache)
+{
+  if (key_cache->cache)
+    change_key_cache_param(key_cache->cache);
+  return 0;
+}
+
+/* Free memory allocated by a key cache */
+
+int ha_end_key_cache(KEY_CACHE_VAR *key_cache)
+{
+  if (key_cache->cache)
+  {
+    end_key_cache(key_cache->cache, 1);		// Can never fail
+    key_cache->cache= 0;
+  }
+  return 0;
+}
+
+/* Move all tables from one key cache to another one */
+
+int ha_change_key_cache(KEY_CACHE_VAR *old_key_cache,
+			KEY_CACHE_VAR *new_key_cache)
+{
+  mi_change_key_cache(old_key_cache, new_key_cache);
+  return 0;
 }

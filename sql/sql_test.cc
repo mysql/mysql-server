@@ -28,9 +28,6 @@
 #include <sys/malloc.h>
 #endif
 
-/* Intern key cache variables */
-extern "C" pthread_mutex_t THR_LOCK_keycache;
-
 static const char *lock_descriptions[] =
 {
   "No lock",
@@ -229,7 +226,9 @@ static int dl_compare(TABLE_LOCK_INFO *a,TABLE_LOCK_INFO *b)
   return 1;
 }
 
-static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data, bool wait, const char *text)
+
+static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data,
+				  bool wait, const char *text)
 {
   if (data)
   {
@@ -238,31 +237,34 @@ static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data, bool w
     {
       TABLE_LOCK_INFO table_lock_info;
       table_lock_info.thread_id=table->in_use->thread_id;
-      memcpy(table_lock_info.table_name, table->table_cache_key, table->key_length);
+      memcpy(table_lock_info.table_name, table->table_cache_key,
+	     table->key_length);
       table_lock_info.table_name[strlen(table_lock_info.table_name)]='.';
       table_lock_info.waiting=wait;
       table_lock_info.lock_text=text;
-      table_lock_info.type=table->reginfo.lock_type; // obtainable also from THR_LOCK_DATA
+      // lock_type is also obtainable from THR_LOCK_DATA
+      table_lock_info.type=table->reginfo.lock_type;
       VOID(push_dynamic(ar,(gptr) &table_lock_info));
     }
   }
 }
-/* 
-   Regarding MERGE tables:
 
-For now, the best option is to use the common TABLE *pointer for all
-cases;  The drawback is that for MERGE tables we will see many locks
-for the merge tables even if some of them are for individual tables.
 
-The way to solve this is to add to 'THR_LOCK' structure a pointer to
-the filename and use this when printing the data.
-(We can for now ignore this and just print the same name for all merge
-table parts;  Please add the above as a comment to the display_lock
-function so that we can easily add this if we ever need this.
+/*
+  Regarding MERGE tables:
 
+  For now, the best option is to use the common TABLE *pointer for all
+  cases;  The drawback is that for MERGE tables we will see many locks
+  for the merge tables even if some of them are for individual tables.
+
+  The way to solve this is to add to 'THR_LOCK' structure a pointer to
+  the filename and use this when printing the data.
+  (We can for now ignore this and just print the same name for all merge
+  table parts;  Please add the above as a comment to the display_lock
+  function so that we can easily add this if we ever need this.
 */
 
-static void display_table_locks (void) 
+static void display_table_locks(void) 
 {
   LIST *list;
   DYNAMIC_ARRAY saved_table_locks;
@@ -301,6 +303,36 @@ end:
 }
 
 
+static int print_key_cache_status(const char *name, KEY_CACHE_VAR *key_cache)
+{
+  if (!key_cache->cache)
+  {
+    printf("%s: Not in use\n", name);
+  }
+  else
+  {
+    printf("%s\n\
+Buffer_size:    %10lu\n\
+Block_size:     %10lu\n\
+Division_limit: %10lu\n\
+Age_limit:      %10lu\n\
+blocks used:    %10lu\n\
+not flushed:    %10lu\n\
+w_requests:     %10lu\n\
+writes:         %10lu\n\
+r_requests:     %10lu\n\
+reads:          %10lu\n\n",
+	   name,
+	   (ulong) key_cache->buff_size, key_cache->block_size,
+	   key_cache->division_limit, key_cache->age_threshold,
+	   key_cache->blocks_used,key_cache->blocks_changed,
+	   key_cache->cache_w_requests,key_cache->cache_write,
+	   key_cache->cache_r_requests,key_cache->cache_read);
+  }
+  return 0;
+}
+
+
 void mysql_print_status(THD *thd)
 {
   char current_dir[FN_REFLEN];
@@ -320,19 +352,8 @@ void mysql_print_status(THD *thd)
   /* Print key cache status */
   if (thd)
     thd->proc_info="key cache";
-  pthread_mutex_lock(&THR_LOCK_keycache);
-  printf("key_cache status:\n\
-blocks used:%10lu\n\
-not flushed:%10lu\n\
-w_requests: %10lu\n\
-writes:     %10lu\n\
-r_requests: %10lu\n\
-reads:      %10lu\n",
-	 dflt_key_cache_var.blocks_used,dflt_key_cache_var.blocks_changed,
-         dflt_key_cache_var.cache_w_requests,dflt_key_cache_var.cache_write,
-         dflt_key_cache_var.cache_r_requests,dflt_key_cache_var.cache_read);
-  pthread_mutex_unlock(&THR_LOCK_keycache);
-
+  puts("\nKey caches:");
+  process_key_caches(print_key_cache_status);
   if (thd)
     thd->proc_info="status";
   pthread_mutex_lock(&LOCK_status);

@@ -1071,7 +1071,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(1) NOT NULL default '0',
   `(SELECT 1)` bigint(1) NOT NULL default '0'
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
 SHOW CREATE TABLE t1;
@@ -1079,7 +1079,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(1) NOT NULL default '0',
   `(SELECT a)` bigint(1) NOT NULL default '0'
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
 SHOW CREATE TABLE t1;
@@ -1087,7 +1087,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(1) NOT NULL default '0',
   `(SELECT a+0)` bigint(17) NOT NULL default '0'
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
 select * from t1;
@@ -1097,7 +1097,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(17) NOT NULL default '0'
-) TYPE=MyISAM CHARSET=latin1
+) TYPE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a int);
 insert into t1 values (1), (2), (3);

@@ -27,7 +27,6 @@ ha_checksum mi_checksum(MI_INFO *info, const byte *buf)
   for (i=info->s->base.fields ; i-- ; buf+=(rec++)->length)
   {
     const byte *pos;
-    const byte *end;
     ulong length;
     switch (rec->type) {
     case FIELD_BLOB:

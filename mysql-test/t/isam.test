@@ -12,12 +12,14 @@ create table t1 (a tinyint not null auto_increment, b blob not null, primary key
 
 let $1=100;
 disable_query_log;
+--disable_warnings
 while ($1)
 {
   eval insert into t1 (b) values(repeat(char(65+$1),65540-$1));
   dec $1;
 }
 enable_query_log;
+--enable_warnings
 delete from t1 where (a & 1);
 select sum(length(b)) from t1;
 drop table t1;
