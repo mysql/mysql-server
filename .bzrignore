@@ -308,3 +308,16 @@ bdb/include/mutex_ext.h
 mit-pthreads/syscall.S
 mit-pthreads/config.flags
 stamp-h.in
+mit-pthreads/include/bits
+mit-pthreads/include/pthread/machdep.h
+mit-pthreads/include/pthread/posix.h
+mit-pthreads/include/sys
+mit-pthreads/machdep.c
+mit-pthreads/pg++
+mit-pthreads/pgcc
+sql-bench/innotest1
+sql-bench/innotest1a
+sql-bench/innotest1b
+sql-bench/innotest2
+sql-bench/innotest2a
+sql-bench/innotest2b
