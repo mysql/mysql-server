@@ -1271,11 +1271,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
             prev_subselect_item->parsing_place;
           /*
             check table fields only if subquery used somewhere out of HAVING
-            or SELECT list or outer SELECT do not use groupping (i.e. tables
-            are accessable)
+            or outer SELECT do not use groupping (i.e. tables are
+            accessable)
           */
-          if (((place != IN_HAVING &&
-                place != SELECT_LIST) ||
+          if ((place != IN_HAVING ||
                (sl->with_sum_func == 0 && sl->group_list.elements == 0)) &&
               (tmp= find_field_in_tables(thd, this,
                                          table_list, &where,
@@ -1952,8 +1951,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
           or SELECT list or outer SELECT do not use groupping (i.e. tables
           are accessable)
         */
-        if (((place != IN_HAVING &&
-              place != SELECT_LIST) ||
+        if ((place != IN_HAVING ||
              (sl->with_sum_func == 0 && sl->group_list.elements == 0)) &&
             (tmp= find_field_in_tables(thd, this,
                                        table_list, &where,

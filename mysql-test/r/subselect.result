@@ -1966,5 +1966,13 @@ howmanyvalues	mycount
 3	3
 4	4
 SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.avalue) as mycount from t1 a group by a.howmanyvalues;
-ERROR 42S22: Unknown column 'a.avalue' in 'where clause'
+howmanyvalues	mycount
+1	1
+2	1
+3	1
+4	1
+drop table t1;
+create table t1 (x int);
+select  (select b.x from t1 as b where b.x=a.x) from t1 as a where a.x=2 group by a.x;
+(select b.x from t1 as b where b.x=a.x)
 drop table t1;
