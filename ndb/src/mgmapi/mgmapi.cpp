@@ -914,21 +914,67 @@ ndb_mgm_restart(NdbMgmHandle handle, int no_of_nodes, const int *node_list)
   return ndb_mgm_restart2(handle, no_of_nodes, node_list, 0, 0, 0);
 }
 
+static const char *clusterlog_level_names[]=
+  { "enabled", "debug", "info", "warning", "error", "critical", "alert" };
+
+struct ndb_mgm_clusterlog_levels 
+{
+  const char* name;
+  enum ndb_mgm_clusterlog_level level;
+} clusterlog_levels[] = {
+  { clusterlog_level_names[0], NDB_MGM_CLUSTERLOG_ON },
+  { clusterlog_level_names[1], NDB_MGM_CLUSTERLOG_DEBUG },
+  { clusterlog_level_names[2], NDB_MGM_CLUSTERLOG_INFO },
+  { clusterlog_level_names[3], NDB_MGM_CLUSTERLOG_WARNING },
+  { clusterlog_level_names[4], NDB_MGM_CLUSTERLOG_ERROR },
+  { clusterlog_level_names[5], NDB_MGM_CLUSTERLOG_CRITICAL },
+  { clusterlog_level_names[6], NDB_MGM_CLUSTERLOG_ALERT },
+  { "all",                     NDB_MGM_CLUSTERLOG_ALL },
+  { 0,                         NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL },
+};
+
+extern "C"
+ndb_mgm_clusterlog_level
+ndb_mgm_match_clusterlog_level(const char * name)
+{
+  if(name == 0)
+    return NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL;
+  
+  for(int i = 0; clusterlog_levels[i].name !=0 ; i++)
+    if(strcasecmp(name, clusterlog_levels[i].name) == 0)
+      return clusterlog_levels[i].level;
+
+  return NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL;
+}
+
+extern "C"
+const char * 
+ndb_mgm_get_clusterlog_level_string(enum ndb_mgm_clusterlog_level level)
+{
+  int i= (int)level;
+  if (i >= 0 && i < (int)NDB_MGM_CLUSTERLOG_ALL)
+    return clusterlog_level_names[i];
+  for(i = (int)NDB_MGM_CLUSTERLOG_ALL; clusterlog_levels[i].name != 0; i++)
+    if(clusterlog_levels[i].level == level)
+      return clusterlog_levels[i].name;
+  return 0;
+}
+
 extern "C"
 unsigned int *
 ndb_mgm_get_logfilter(NdbMgmHandle handle) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_logfilter");
-  static Uint32 enabled[7] = {0,0,0,0,0,0,0};
+  static Uint32 enabled[(int)NDB_MGM_CLUSTERLOG_ALL] = {0,0,0,0,0,0,0};
   const ParserRow<ParserDummy> getinfo_reply[] = {
     MGM_CMD("clusterlog", NULL, ""),
-    MGM_ARG("enabled", Int, Mandatory, ""),
-    MGM_ARG("debug", Int, Mandatory, ""),
-    MGM_ARG("info", Int, Mandatory, ""),
-    MGM_ARG("warning", Int, Mandatory, ""),
-    MGM_ARG("error", Int, Mandatory, ""),
-    MGM_ARG("critical", Int, Mandatory, ""),
-    MGM_ARG("alert", Int, Mandatory, ""),
+    MGM_ARG(clusterlog_level_names[0], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_level_names[1], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_level_names[2], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_level_names[3], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_level_names[4], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_level_names[5], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_level_names[6], Int, Mandatory, ""),
   };
   CHECK_HANDLE(handle, NULL);
   CHECK_CONNECTED(handle, NULL);
@@ -938,10 +984,8 @@ ndb_mgm_get_logfilter(NdbMgmHandle handle)
   reply = ndb_mgm_call(handle, getinfo_reply, "get info clusterlog", &args);
   CHECK_REPLY(reply, NULL);
   
-  const char *names[] = { "enabled", "debug", "info", "warning", "error",
-			  "critical", "alert" };
-  for(int i=0; i < 7; i++) {
-    reply->get(names[i], &enabled[i]);
+  for(int i=0; i < (int)NDB_MGM_CLUSTERLOG_ALL; i++) {
+    reply->get(clusterlog_level_names[i], &enabled[i]);
   }
   return enabled;
 }
@@ -950,6 +994,7 @@ extern "C"
 int 
 ndb_mgm_filter_clusterlog(NdbMgmHandle handle, 
 			  enum ndb_mgm_clusterlog_level level,
+			  int enable,
 			  struct ndb_mgm_reply* /*reply*/) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_filter_clusterlog");
@@ -964,6 +1009,7 @@ ndb_mgm_filter_clusterlog(NdbMgmHandle handle,
 
   Properties args;
   args.put("level", level);
+  args.put("enable", enable);
   
   const Properties *reply;
   reply = ndb_mgm_call(handle, filter_reply, "set logfilter", &args);
@@ -971,11 +1017,14 @@ ndb_mgm_filter_clusterlog(NdbMgmHandle handle,
 
   BaseString result;
   reply->get("result", result);
-  if(strcmp(result.c_str(), "1") == 0) {
+
+  if (strcmp(result.c_str(), "1") == 0)
+    retval = 1;
+  else if (strcmp(result.c_str(), "0") == 0)
     retval = 0;
-  } else {
+  else
+  {
     SET_ERROR(handle, EINVAL, result.c_str());
-    retval = -1;
   }
   delete reply;
   return retval;
