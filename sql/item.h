@@ -160,6 +160,31 @@ public:
   /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
   virtual double val()=0;
   virtual longlong val_int()=0;
+  /*
+    Return string representation of this item object.
+
+    The argument to val_str() is an allocated buffer this or any
+    nested Item object can use to store return value of this method.
+    This buffer should only be used if the item itself doesn't have an
+    own String buffer. In case when the item maintains it's own string
+    buffer, it's preferrable to return it instead to minimize number of
+    mallocs/memcpys.
+    The caller of this method can modify returned string, but only in
+    case when it was allocated on heap, (is_alloced() is true).  This
+    allows the caller to efficiently use a buffer allocated by a child
+    without having to allocate a buffer of it's own. The buffer, given
+    to val_str() as agrument, belongs to the caller and is later used
+    by the caller at it's own choosing.
+    A few implications from the above:
+    - unless you return a string object which only points to your buffer
+      but doesn't manages it you should be ready that it will be
+      modified.
+    - even for not allocated strings (is_alloced() == false) the caller
+      can change charset (see Item_func_{typecast/binary}. XXX: is this
+      a bug?
+    - still you should try to minimize data copying and return internal
+      object whenever possible.
+  */
   virtual String *val_str(String*)=0;
   virtual Field *get_tmp_table_field() { return 0; }
   virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
@@ -390,6 +415,9 @@ public:
   void print(String *str) { str->append("NULL", 4); }
 };
 
+
+/* Item represents one placeholder ('?') of prepared statement */
+
 class Item_param :public Item
 {
 public:    
@@ -399,6 +427,17 @@ public:
     STRING_VALUE, TIME_VALUE, LONG_DATA_VALUE
   } state;
 
+  /*
+    A buffer for string and long data values. Historically all allocated
+    values returned from val_str() were treated as eligible to
+    modification. I. e. in some cases Item_func_concat can append it's
+    second argument to return value of the first one. Because of that we
+    can't return the original buffer holding string data from val_str(),
+    and have to have one buffer for data and another just pointing to
+    the data. This is the latter one and it's returned from val_str().
+    Can not be declared inside the union as it's not a POD type.
+  */
+  String str_value_ptr;
   union
   {
     longlong integer;                           

@@ -753,9 +753,10 @@ void Item_param::reset()
     str_value.free();
   else
     str_value.length(0);
+  str_value_ptr.length(0);
   /*
-    We must prevent all charset conversions unless data of str_value
-    has been written to the binary log.
+    We must prevent all charset conversions untill data has been written
+    to the binary log.
   */
   str_value.set_charset(&my_charset_bin);
   state= NO_VALUE;
@@ -866,7 +867,7 @@ String *Item_param::val_str(String* str)
   switch (state) {
   case STRING_VALUE:
   case LONG_DATA_VALUE:
-    return &str_value;
+    return &str_value_ptr;
   case REAL_VALUE:
     str->set(value.real, NOT_FIXED_DEC, &my_charset_bin);
     return str;
@@ -980,6 +981,12 @@ bool Item_param::convert_str_value(THD *thd)
     }
     max_length= str_value.length();
     decimals= 0;
+    /*
+      str_value_ptr is returned from val_str(). It must be not alloced
+      to prevent it's modification by val_str() invoker.
+    */
+    str_value_ptr.set(str_value.ptr(), str_value.length(),
+                      str_value.charset());
   }
   return rc;
 }
