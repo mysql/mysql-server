@@ -35,11 +35,10 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext" };
 
 static bool make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
-                        DYNAMIC_ARRAY *keyuse,List<Item_func_match> &ftfuncs);
+                        DYNAMIC_ARRAY *keyuse);
 static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
 				JOIN_TAB *join_tab,
-                                uint tables,COND *conds,table_map table_map,
-                                List<Item_func_match> &ftfuncs);
+                                uint tables,COND *conds,table_map table_map);
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
 static void set_position(JOIN *join,uint index,JOIN_TAB *table,KEYUSE *key);
 static void find_best_combination(JOIN *join,table_map rest_tables);
@@ -150,7 +149,6 @@ static void describe_info(THD *thd, const char *info);
 
 int
 mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
-             List<Item_func_match> &ftfuncs,
 	     ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
 	     uint select_options,select_result *result)
 {
@@ -193,7 +191,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     if (having->with_sum_func)
       having->split_sum_func(all_fields);
   }
-  if (setup_ftfuncs(thd,tables,ftfuncs)) /* should be after having->fix_fields */
+  if (setup_ftfuncs(thd)) /* should be after having->fix_fields */
     DBUG_RETURN(-1);
   /*
     Check if one one uses a not constant column with group functions
@@ -378,7 +376,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 
   /* Calculate how to do the join */
   thd->proc_info="statistics";
-  if (make_join_statistics(&join,tables,conds,&keyuse,ftfuncs) ||
+  if (make_join_statistics(&join,tables,conds,&keyuse) ||
       thd->fatal_error)
     goto err;
   thd->proc_info="preparing";
@@ -493,8 +491,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	      (group && order) ||
 	      test(select_options & OPTION_BUFFER_RESULT)));
 
-  make_join_readinfo(&join, (select_options & SELECT_DESCRIBE) | 
-           (ftfuncs.elements ? 0 : SELECT_USE_CACHE)); // No cache for MATCH
+  make_join_readinfo(&join, (select_options & SELECT_DESCRIBE) |
+           (thd->lex.ftfunc_list.elements ? 0 : SELECT_USE_CACHE)); // No cache for MATCH
 
   /* Need to tell Innobase that to play it safe, it should fetch all
      columns of the tables: this is because MySQL
@@ -560,18 +558,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   }
 
   /* Perform FULLTEXT search before all regular searches */
-  if (ftfuncs.elements)
-  {
-    List_iterator<Item_func_match> li(ftfuncs);
-    Item_func_match *ifm;
-    DBUG_PRINT("info",("Performing FULLTEXT search"));
-    thd->proc_info="FULLTEXT searching";
+  init_ftfuncs(thd, test(order));
 
-    while ((ifm=li++))
-    {
-      ifm->init_search(test(order));
-    }
-  }
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
   {
@@ -833,8 +821,7 @@ static ha_rows get_quick_record_count(SQL_SELECT *select,TABLE *table,
 
 static bool
 make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
-		     DYNAMIC_ARRAY *keyuse_array,
-		     List<Item_func_match> &ftfuncs)
+		     DYNAMIC_ARRAY *keyuse_array)
 {
   int error;
   uint i,table_count,const_count,found_ref,refs,key,const_ref,eq_part;
@@ -946,7 +933,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 
   if (conds || outer_join)
     if (update_ref_and_keys(join->thd,keyuse_array,stat,join->tables,
-                            conds,~outer_join,ftfuncs))
+                            conds,~outer_join))
       DBUG_RETURN(1);
 
   /* loop until no more const tables are found */
@@ -1453,8 +1440,7 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
 
 static bool
 update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
-		    uint tables, COND *cond, table_map normal_tables,
-		    List<Item_func_match> &ftfuncs)
+		    uint tables, COND *cond, table_map normal_tables)
 {
   uint	and_level,i,found_eq_constant;
 
@@ -1482,7 +1468,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       add_key_part(keyuse,field);
   }
 
-  if (ftfuncs.elements)
+  if (thd->lex.ftfunc_list.elements)
   {
     add_ft_keys(keyuse,join_tab,cond,normal_tables);
   }
