@@ -651,6 +651,8 @@ drop table t1, t2;
 CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
+count(*)
+100
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from
