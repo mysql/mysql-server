@@ -845,7 +845,7 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->version=refresh_version;
     thd->set_time();
     thd->init_for_queries();
-    while (!net->error && net->vio != 0 && !thd->killed)
+    while (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
     {
       if (do_command(thd))
 	break;
@@ -1049,6 +1049,9 @@ bool do_command(THD *thd)
   }
   else
   {
+    if (thd->killed == THD::KILL_QUERY)
+      thd->killed= THD::NOT_KILLED;
+
     packet=(char*) net->read_pos;
     command = (enum enum_server_command) (uchar) packet[0];
     if (command >= COM_END)
@@ -1468,7 +1471,7 @@ restore_user:
   {
     statistic_increment(com_stat[SQLCOM_KILL],&LOCK_status);
     ulong id=(ulong) uint4korr(packet);
-    kill_one_thread(thd,id);
+    kill_one_thread(thd,id,false);
     break;
   }
   case COM_DEBUG:
@@ -1655,7 +1658,7 @@ mysql_execute_command(THD *thd)
 						  cursor)))
 	{
 	  if (res < 0 || thd->net.report_error)
-	    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
+	    send_error(thd,thd->killed);
 	  DBUG_RETURN(res);
 	}
       }
@@ -2908,7 +2911,7 @@ mysql_execute_command(THD *thd)
     reload_acl_and_cache(thd, lex->type, tables);
     break;
   case SQLCOM_KILL:
-    kill_one_thread(thd,lex->thread_id);
+    kill_one_thread(thd,lex->thread_id, lex->type & ONLY_KILL_QUERY);
     break;
   case SQLCOM_SHOW_GRANTS:
     res=0;
@@ -3138,7 +3141,7 @@ mysql_execute_command(THD *thd)
   // We end up here if res == 0 and send_ok() has been done,
   // or res != 0 and no send_error() has yet been done.
   if (res < 0)
-    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
+    send_error(thd,thd->killed);
   DBUG_RETURN(res);
 
 error:
@@ -4213,7 +4216,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     This is written such that we have a short lock on LOCK_thread_count
 */
 
-void kill_one_thread(THD *thd, ulong id)
+void kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 {
   THD *tmp;
   uint error=ER_NO_SUCH_THREAD;
@@ -4233,7 +4236,7 @@ void kill_one_thread(THD *thd, ulong id)
     if ((thd->master_access & SUPER_ACL) ||
 	!strcmp(thd->user,tmp->user))
     {
-      tmp->awake(1 /*prepare to die*/);
+      tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
       error=0;
     }
     else
