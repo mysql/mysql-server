@@ -566,11 +566,12 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   }
 
   if (!optimize ||
+      memcmp(file->state, & share->state.state, sizeof(MI_STATUS_INFO)) ||
       ((file->state->del || share->state.split != file->state->records) &&
        (!(param.testflag & T_QUICK) ||
 	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
   {
-    ulonglong key_map= ((local_testflag & T_CREATE_MISSING_KEYS) ? 
+    ulonglong key_map= ((local_testflag & T_CREATE_MISSING_KEYS) ?
 			((ulonglong) 1L << share->base.keys)-1 :
 			share->state.key_map);
     uint testflag=param.testflag;

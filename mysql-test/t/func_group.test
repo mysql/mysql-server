@@ -2,6 +2,7 @@
 # simple test of all group functions
 #
 
+drop table if exists t1,t2;
 create table t1 (grp int, a bigint unsigned, c char(10) not null);
 insert into t1 values (1,1,"a");
 insert into t1 values (2,2,"b");

@@ -2,6 +2,7 @@
 # test of primary key conversions
 #
 
+drop table if exists t1;
 create table t1 (t1 char(3) primary key);
 insert into t1 values("ABC");
 insert into t1 values("ABA");

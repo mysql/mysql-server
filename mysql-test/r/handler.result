@@ -134,6 +134,6 @@ handler t2 read next;
 a	b
 19	fff
 handler t2 read last;
-You have an error in your SQL syntax near '' at line 1
+You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 handler t2 close;
 drop table if exists t1;

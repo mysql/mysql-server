@@ -1,0 +1,7 @@
+drop table if exists t1;
+create table t1 SELECT 1,"table 1";
+repair table t1 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	warning	Number of rows changed from 0 to 1
+test.t1	repair	status	OK
+drop table if exists t1;

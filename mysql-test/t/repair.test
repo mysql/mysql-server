@@ -1,0 +1,8 @@
+#
+# Test of repair table
+#
+
+drop table if exists t1;
+create table t1 SELECT 1,"table 1";
+repair table t1 use_frm;
+drop table if exists t1;
