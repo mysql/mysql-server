@@ -1739,7 +1739,7 @@ CREATE TABLE t1 (
 );
 INSERT INTO t1 (pseudo) VALUES ('test');
 INSERT INTO t1 (pseudo) VALUES ('test1');
-SELECT 1 from t1 where rand() > 2;
+SELECT 1 as rnd1 from t1 where rand() > 2;
 DROP TABLE t1;
 
 #
