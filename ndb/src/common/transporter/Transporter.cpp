@@ -130,7 +130,6 @@ Transporter::doDisconnect() {
   if(!m_connected)
     return; //assert(0); TODO will fail
 
-  disconnectImpl();
-
   m_connected= false;
+  disconnectImpl();
 }
