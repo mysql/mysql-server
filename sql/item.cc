@@ -39,7 +39,7 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  set_charset(&my_charset_bin, DERIVATION_COERCIBLE);
+  set_charset(default_charset(), DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
   THD *thd= current_thd;
@@ -185,27 +185,27 @@ CHARSET_INFO * Item::default_charset() const
 
 bool DTCollation::aggregate(DTCollation &dt)
 {
-  if (collation == &my_charset_bin || dt.collation == &my_charset_bin)
-  {
-    collation= &my_charset_bin;
-    derivation= derivation > dt.derivation ? derivation : dt.derivation;
-    return 0;
-  }
-  
   if (!my_charset_same(collation, dt.collation))
   {
     /* 
        We do allow to use binary strings (like BLOBS)
        together with character strings.
-       Binaries have more precedance
+       Binaries have more precedance than a character
+       string of the same derivation.
     */
-    if ((derivation <= dt.derivation) && (collation == &my_charset_bin))
+    if (collation == &my_charset_bin)
     {
-      // Do nothing
+      if (derivation <= dt.derivation)
+	; // Do nothing
+      else
+	set(dt);
     }
-    else if ((dt.derivation <= derivation) && (dt.collation==&my_charset_bin))
+    else if (dt.collation == &my_charset_bin)
     {
-      set(dt);
+      if (dt.derivation <= derivation)
+        set(dt);
+      else
+       ; // Do nothing
     }
     else
     {

@@ -382,21 +382,23 @@ class in_vector :public Sql_alloc
  protected:
   char *base;
   uint size;
-  qsort_cmp compare;
+  qsort2_cmp compare;
+  CHARSET_INFO *collation;
   uint count;
 public:
   uint used_count;
   in_vector() {}
-  in_vector(uint elements,uint element_length,qsort_cmp cmp_func)
+  in_vector(uint elements,uint element_length,qsort2_cmp cmp_func, 
+  	    CHARSET_INFO *cmp_coll)
     :base((char*) sql_calloc(elements*element_length)),
-     size(element_length), compare(cmp_func), count(elements),
-     used_count(elements) {}
+     size(element_length), compare(cmp_func), collation(cmp_coll),
+     count(elements), used_count(elements) {}
   virtual ~in_vector() {}
   virtual void set(uint pos,Item *item)=0;
   virtual byte *get_value(Item *item)=0;
   void sort()
   {
-    qsort(base,used_count,size,compare);
+    qsort2(base,used_count,size,compare,collation);
   }
   int find(Item *item);
 };
@@ -406,7 +408,7 @@ class in_string :public in_vector
   char buff[80];
   String tmp;
 public:
-  in_string(uint elements,qsort_cmp cmp_func);
+  in_string(uint elements,qsort2_cmp cmp_func, CHARSET_INFO *cs);
   ~in_string();
   void set(uint pos,Item *item);
   byte *get_value(Item *item);
@@ -605,6 +607,7 @@ class Item_func_in :public Item_int_func
   in_vector *array;
   cmp_item *in_item;
   bool have_null;
+  DTCollation cmp_collation;
  public:
   Item_func_in(Item *a,List<Item> &list)
     :Item_int_func(list), item(a), array(0), in_item(0), have_null(0)
