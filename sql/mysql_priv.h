@@ -720,10 +720,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
-bool mysqld_show(THD *thd, const char *wild, show_var_st *variables,
-		enum enum_var_type value_type,
-		pthread_mutex_t *mutex,
-		struct system_status_var *status_var);
 int mysql_find_files(THD *thd,List<char> *files, const char *db,
                 const char *path, const char *wild, bool dir);
 bool mysqld_show_storage_engines(THD *thd);
