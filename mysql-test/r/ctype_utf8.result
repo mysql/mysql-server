@@ -801,7 +801,6 @@ select * from t1 where b like 'foob%';
 a	b
 2	foobar
 drop table t1;
-drop table t1;
 create table t1 (
 a enum('петя','вася','анюта') character set utf8 not null default 'анюта',
 b set('петя','вася','анюта') character set utf8 not null default 'анюта'
