@@ -4754,6 +4754,8 @@ udf_expr:
 sum_expr:
 	AVG_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_avg($3); }
+	| AVG_SYM '(' DISTINCT in_sum_expr ')'
+	  { $$=new Item_sum_avg_distinct($4); }
 	| BIT_AND  '(' in_sum_expr ')'
 	  { $$=new Item_sum_and($3); }
 	| BIT_OR  '(' in_sum_expr ')'

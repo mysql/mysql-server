@@ -536,9 +536,10 @@ NdbEventOperationImpl::getEventType()
 void
 NdbEventOperationImpl::print()
 {
+  int i;
   ndbout << "EventId " << m_eventId << "\n";
 
-  for (int i = 0; i < 2; i++) {
+  for (i = 0; i < 2; i++) {
     NdbRecAttr *p = theFirstPkAttrs[i];
     ndbout << " %u " << i;
     while (p) {
@@ -547,7 +548,7 @@ NdbEventOperationImpl::print()
     }
     ndbout << "\n";
   }
-  for (int i = 0; i < 2; i++) {
+  for (i = 0; i < 2; i++) {
     NdbRecAttr *p = theFirstDataAttrs[i];
     ndbout << " %u " << i;
     while (p) {

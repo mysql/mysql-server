@@ -217,9 +217,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     if ((table= delayed_get_table(thd,table_list)) && !thd->is_fatal_error)
     {
-      res= 0;
-      if (table_list->next_global)			/* if sub select */
-	res= open_and_lock_tables(thd, table_list->next_global);
+      /*
+        Open tables used for sub-selects or in stored functions, will also
+        cache these functions.
+      */
+      res= open_and_lock_tables(thd, table_list->next_global);
       /*
 	First is not processed by open_and_lock_tables() => we need set
 	updateability flags "by hands".

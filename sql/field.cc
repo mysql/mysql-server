@@ -5332,7 +5332,7 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
   uint32 not_used, copy_length;
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
-  enum MYSQL_ERROR::enum_warning_level level= MYSQL_ERROR::WARN_LEVEL_WARN;
+  bool lost_only_spaces= FALSE;
 
   /* Convert character set if necessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
@@ -5370,11 +5370,18 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
       then don't reset level to NOTE.
     */
     if (from == end && !error)
-      level= MYSQL_ERROR::WARN_LEVEL_NOTE;
+      lost_only_spaces= TRUE;
     error= 1;
   }
   if (error)
-    set_warning(level, WARN_DATA_TRUNCATED, 1);
+  {
+    if (lost_only_spaces)
+      set_warning(MYSQL_ERROR::WARN_LEVEL_NOTE, WARN_DATA_TRUNCATED, 1);
+    else if (table->in_use->abort_on_warning)
+      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+    else
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+  }
   return error;
 }
 
@@ -5971,7 +5978,12 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     bmove(ptr+packlength,(char*) &from,sizeof(char*));
   }
   if (error)
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+  {
+    if (table->in_use->abort_on_warning)
+      set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
+    else
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+  }
   return 0;
 }
 
@@ -7147,6 +7159,24 @@ void create_field::create_length_to_internal_length(void)
     key_length= pack_length= calc_pack_length(sql_type, length);
     break;
   }
+}
+
+
+void create_field::init_for_tmp_table(enum_field_types sql_type_arg,
+                                      uint32 length_arg, uint32 decimals,
+                                      bool maybe_null, bool is_unsigned)
+{
+  field_name= "";
+  sql_type= sql_type_arg;
+  length= length_arg;;
+  unireg_check= Field::NONE;
+  interval= 0;
+  charset= &my_charset_bin;
+  geom_type= Field::GEOM_GEOMETRY;
+  pack_flag= (FIELDFLAG_NUMBER |
+              ((decimals & FIELDFLAG_MAX_DEC) << FIELDFLAG_DEC_SHIFT) |
+              (maybe_null ? FIELDFLAG_MAYBE_NULL : 0) |
+              (is_unsigned ? 0 : FIELDFLAG_DECIMAL));
 }
 
 

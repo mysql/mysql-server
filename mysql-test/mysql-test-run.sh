@@ -861,7 +861,7 @@ report_stats () {
 	whole=`$PRINTF %.2s $raw`
 	xwhole=`$EXPR $whole \* 100`
 	deci=`$EXPR $raw - $xwhole`
-	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests, ${whole}.${deci}% successful."
+	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests, ${whole}.${deci}% were successful."
 	$ECHO ""
         $ECHO "The log files in $MY_LOG_DIR may give you some hint"
 	$ECHO "of what when wrong."
