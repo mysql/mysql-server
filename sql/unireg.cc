@@ -305,6 +305,7 @@ static uint pack_keys(uchar *keybuff,uint key_count,KEY *keyinfo)
   {
     keybuff[0]=(uchar) key_count;
     keybuff[1]=(uchar) key_parts;
+    keybuff[2]= keybuff[3]= 0;
   }
   length=(uint) (pos-keyname_pos);
   int2store(keybuff+4,length);

@@ -835,7 +835,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    error_code(thd_arg->killed ? ER_SERVER_SHUTDOWN: thd_arg->net.last_errno),
    thread_id(thd_arg->thread_id),
    /* save the original thread id; we already know the server id */
-   slave_proxy_id(thd_arg->slave_proxy_id)
+   slave_proxy_id(thd_arg->variables.pseudo_thread_id)
 {
   time_t end_time;
   time(&end_time);
@@ -1357,7 +1357,7 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 			       enum enum_duplicates handle_dup,
 			       bool using_trans)
   :Log_event(thd_arg, 0, using_trans), thread_id(thd_arg->thread_id),
-   slave_proxy_id(thd_arg->slave_proxy_id),
+   slave_proxy_id(thd_arg->variables.pseudo_thread_id),
    num_fields(0),fields(0),
    field_lens(0),field_block_len(0),
    table_name(table_name_arg ? table_name_arg : ""),

@@ -335,10 +335,12 @@ static char time_separator=':';
 
   RETURN VALUES
     TIMESTAMP_NONE	String wasn't a timestamp, like
-			[DD [HH:[MM:[SS]]]].fraction
+			[DD [HH:[MM:[SS]]]].fraction.
+			l_time is not changed.
     TIMESTAMP_DATE	DATE string (YY MM and DD parts ok)
-    TIMESTAMP_DATETIME	 Full timestamp
-    TIMESTAMP_DATETIME_ERROR Timestamp with wrong values
+    TIMESTAMP_DATETIME	Full timestamp
+    TIMESTAMP_DATETIME_ERROR Timestamp with wrong values.
+			All elements in l_time is set to 0
 */
 
 #define MAX_DATE_PARTS 8
@@ -409,9 +411,9 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
       if (pos == end)
       {
 	if (flags & TIME_DATETIME_ONLY)
-	  return TIMESTAMP_NONE;		// Can't be a full datetime
+	  DBUG_RETURN(TIMESTAMP_NONE);		// Can't be a full datetime
 	/* Date field.  Set hour, minutes and seconds to 0 */
-	date[0]= date[1]= date[2]= date[3]= 0;
+	date[0]= date[1]= date[2]= date[3]= date[4]= 0;
 	start_loop= 5;				// Start with first date part
       }
     }
@@ -535,7 +537,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
     if (format_position[7] != (uchar) 255)
     {
       if (l_time->hour > 12)
-	DBUG_RETURN(TIMESTAMP_DATETIME_ERROR);
+	goto err;
       l_time->hour= l_time->hour%12 + add_hours;
     }
   }
@@ -574,7 +576,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
     }
     if (not_zero_date)
       current_thd->cuted_fields++;
-    DBUG_RETURN(TIMESTAMP_DATETIME_ERROR);
+    goto err;
   }
   if (str != end && current_thd->count_cuted_fields)
   {
@@ -590,6 +592,10 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
 
   DBUG_RETURN(l_time->time_type=
 	      (number_of_fields <= 3 ? TIMESTAMP_DATE : TIMESTAMP_DATETIME));
+
+err:
+  bzero((char*) l_time, sizeof(*l_time));
+  DBUG_RETURN(TIMESTAMP_DATETIME_ERROR);
 }
 
 

@@ -2645,46 +2645,46 @@ String *Item_func_compress::val_str(String *str)
   }
 
   buffer.length((uint32)new_size + 4);
-
   return &buffer;
 }
+
 
 String *Item_func_uncompress::val_str(String *str)
 {
   String *res= args[0]->val_str(str);
-  if (!res)
-  {
-    null_value= 1;
-    return 0;
-  }
-  if (res->is_empty()) return res;
-
-  ulong new_size= uint4korr(res->c_ptr()) & 0x3FFFFFFF;
-  int err= Z_OK;
+  ulong new_size;
+  int err;
   uint code;
 
+  if (!res)
+    goto err;
+  if (res->is_empty())
+    return res;
+
+  new_size= uint4korr(res->ptr()) & 0x3FFFFFFF;
   if (new_size > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
 			ER_TOO_BIG_FOR_UNCOMPRESS,
 			ER(ER_TOO_BIG_FOR_UNCOMPRESS),
                         current_thd->variables.max_allowed_packet);
-    null_value= 0;
-    return 0;
+    goto err;
   }
+  if (buffer.realloc((uint32)new_size))
+    goto err;
 
-  buffer.realloc((uint32)new_size);
-
-  if ((err= uncompress((Byte*)buffer.c_ptr(), &new_size,
-		       ((const Bytef*)res->c_ptr())+4,res->length())) == Z_OK)
+  if ((err= uncompress((Byte*)buffer.ptr(), &new_size,
+		       ((const Bytef*)res->ptr())+4,res->length())) == Z_OK)
   {
-    buffer.length((uint32)new_size);
+    buffer.length((uint32) new_size);
     return &buffer;
   }
 
-  code= err==Z_BUF_ERROR ? ER_ZLIB_Z_BUF_ERROR :
-    err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_DATA_ERROR;
+  code= ((err == Z_BUF_ERROR) ? ER_ZLIB_Z_BUF_ERROR :
+	 ((err == Z_MEM_ERROR) ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_DATA_ERROR));
   push_warning(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,code,ER(code));
+
+err:
   null_value= 1;
   return 0;
 }

@@ -41,17 +41,20 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
   if (info->s->concurrent_insert)
     rw_rdlock(&info->s->key_root_lock[inx]);
     
-  switch(keyinfo->key_alg)
+  switch (keyinfo->key_alg)
   {
     case HA_KEY_ALG_RTREE:
-      if((error=rtree_find_next(info,inx,myisam_read_vec[info->last_key_func])))
-        {
-          /* FIXME: What to do?*/
-        }
+      if ((error=rtree_find_next(info,inx,
+				 myisam_read_vec[info->last_key_func])))
+      {
+	error=1;
+	my_errno=HA_ERR_END_OF_FILE;
+	info->lastpos= HA_OFFSET_ERROR;
+	break;
+      }
       break;
     case HA_KEY_ALG_BTREE:
     default:
-    
       memcpy(info->lastkey2,info->lastkey,info->last_rkey_length);
       for (;;)
       {
