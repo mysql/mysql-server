@@ -602,7 +602,6 @@ bool mysql_change_db(THD *thd, const char *name)
   strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
   load_db_opt(path, &create);
   thd->db_charset= create.table_charset ? create.table_charset : default_charset_info;
-  thd->variables.thd_charset=thd->db_charset ? thd->db_charset : default_charset_info;
   DBUG_RETURN(0);
 }
 

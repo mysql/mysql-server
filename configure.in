@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.1.0-alpha)
+AM_INIT_AUTOMAKE(mysql, 4.1.1-alpha)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -2211,7 +2211,7 @@ then
 else
     MYSQL_CHECK_LIBEDIT_INTERFACE
     MYSQL_CHECK_NEW_RL_INTERFACE
-    if ["$mysql_cv_new_rl_interface"="yes"] || [test "$mysql_cv_libedit_interface"="no"]
+    if [test "$mysql_cv_new_rl_interface" = "yes"] || [test "$mysql_cv_libedit_interface" = "no"]
     then
         readline_link="-lreadline"
     else

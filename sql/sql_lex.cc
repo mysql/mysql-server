@@ -118,7 +118,6 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->current_select= &lex->select_lex;
-  lex->thd_charset= lex->thd->variables.thd_charset;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
   lex->sql_command=SQLCOM_END;
@@ -209,7 +208,7 @@ static char *get_text(LEX *lex)
 {
   reg1 uchar c,sep;
   uint found_escape=0;
-  CHARSET_INFO *cs= lex->thd->variables.thd_charset;
+  CHARSET_INFO *cs= lex->thd->charset();
 
   sep= yyGetLast();			// String should end with this
   //lex->tok_start=lex->ptr-1;		// Remember '
@@ -422,7 +421,7 @@ int yylex(void *arg, void *yythd)
   enum my_lex_states state,prev_state;
   LEX	*lex= &(((THD *)yythd)->lex);
   YYSTYPE *yylval=(YYSTYPE*) arg;
-  CHARSET_INFO *cs= ((THD *) yythd)->variables.thd_charset;
+  CHARSET_INFO *cs= ((THD *) yythd)->charset();
   uchar *state_map= cs->state_map;
   uchar *ident_map= cs->ident_map;
 

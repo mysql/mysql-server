@@ -5689,7 +5689,7 @@ CHARSET_INFO my_charset_gb2312 =
     24,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
     "gb2312",		/* cs name    */
-    "gb2312",		/* name */
+    "gb2312_chinese_ci",/* name */
     "",			/* comment    */
     ctype_gb2312,
     to_lower_gb2312,

@@ -105,3 +105,41 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	warning	Found row where the auto_increment column has the value 0
 test.t1	check	status	OK
 drop table t1;
+create table t1 (i tinyint unsigned not null auto_increment primary key);
+insert into t1 set i = 254;
+insert into t1 set i = null;
+select last_insert_id();
+last_insert_id()
+255
+insert into t1 set i = null;
+Duplicate entry '255' for key 1
+select last_insert_id();
+last_insert_id()
+255
+drop table t1;
+create table t1 (i tinyint unsigned not null auto_increment, key (i));
+insert into t1 set i = 254;
+insert into t1 set i = null;
+select last_insert_id();
+last_insert_id()
+255
+insert into t1 set i = null;
+select last_insert_id();
+last_insert_id()
+255
+drop table t1;
+create table t1 (i tinyint unsigned not null auto_increment primary key, b int, unique (b));
+insert into t1 values (NULL, 10);
+select last_insert_id();
+last_insert_id()
+1
+insert into t1 values (NULL, 15);
+select last_insert_id();
+last_insert_id()
+2
+insert into t1 values (NULL, 10);
+Duplicate entry '10' for key 2
+select last_insert_id();
+last_insert_id()
+3
+drop table t1;

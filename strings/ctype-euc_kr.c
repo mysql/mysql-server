@@ -8639,7 +8639,7 @@ CHARSET_INFO my_charset_euc_kr =
     19,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
     "euckr",		/* cs name    */
-    "euckr",		/* name */
+    "euckr_korean_ci",	/* name */
     "",			/* comment    */
     ctype_euc_kr,
     to_lower_euc_kr,
