@@ -1582,6 +1582,8 @@ void Item_func_group_concat::reset()
 
 bool Item_func_group_concat::add()
 {
+  if (always_null)
+    return 0;
   copy_fields(tmp_table_param);
   copy_funcs(tmp_table_param->items_to_copy);
 
@@ -1676,6 +1678,7 @@ bool Item_func_group_concat::setup(THD *thd)
   /*
     all not constant fields are push to list and create temp table
   */ 
+  always_null= 0;
   for (uint i= 0; i < arg_count; i++)
   {
     Item *item= args[i];
@@ -1688,6 +1691,8 @@ bool Item_func_group_concat::setup(THD *thd)
 	always_null= 1;
     }
   }
+  if (always_null)
+    return 0;
         
   List<Item> all_fields(list);
   if (arg_count_order) 
