@@ -96,7 +96,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   query_error= tmp_table_used= 0;
   next_insert_id=last_insert_id=0;
   open_tables= temporary_tables= handler_tables= derived_tables= 0;
-  current_tablenr=0;
   handler_items=0;
   tmp_table=0;
   lock=locked_tables=0;
@@ -161,8 +160,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   else
     bzero((char*) &user_var_events, sizeof(user_var_events));
 
-
-
   /* Prepared statements */
   last_prepared_stmt= 0;
   init_tree(&prepared_statements, 0, 0, sizeof(PREP_STMT),
@@ -218,6 +215,7 @@ void THD::init(void)
   warn_list.empty();
   bzero((char*) warn_count, sizeof(warn_count));
   total_warn_count= 0;
+  update_charset();
 }
 
 
@@ -383,6 +381,59 @@ bool THD::store_globals()
   dbug_thread_id=my_thread_id();
   return 0;
 }
+
+
+/*
+  Convert a string to another character set
+
+  SYNOPSIS
+    convert_string()
+    to				Store new allocated string here
+    to_cs			New character set for allocated string
+    from			String to convert
+    from_length			Length of string to convert
+    from_cs			Original character set
+
+  NOTES
+    to will be 0-terminated to make it easy to pass to system funcs
+
+  RETURN
+    0	ok
+    1	End of memory.
+        In this case to->str will point to 0 and to->length will be 0.
+*/
+
+bool THD::convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
+			 const char *from, uint from_length,
+			 CHARSET_INFO *from_cs)
+{
+  DBUG_ENTER("convert_string");
+  size_s new_length= to_cs->mbmaxlen * from_length;
+  if (!(to->str= alloc(new_length+1)))
+  {
+    to->length= 0;				// Safety fix
+    DBUG_RETURN(1);				// EOM
+  }
+  to->length= copy_and_convert((char*) to->str, new_length, to_cs,
+			       from, from_length, from_cs);
+  to->str[to->length]=0;			// Safety
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Update some cache variables when character set changes
+*/
+
+void THD::update_charset()
+{
+  charset_is_system_charset= my_charset_same(charset(),system_charset_info);
+  charset_is_collation_connection= my_charset_same(charset(),
+						   variables.
+						   collation_connection);
+}
+
+
 
 
 /* routings to adding tables to list of changed in transaction tables */

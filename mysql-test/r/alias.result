@@ -59,3 +59,15 @@ SELECT ELT(FIELD(kundentyp,'PP','PPA','PG','PGA','FK','FKA','FP','FPA','K','KA',
 Kundentyp	kategorie
 Privat (Private Nutzung)	Mobilfunk
 drop table t1;
+CREATE TABLE t1 (
+AUFNR varchar(12) NOT NULL default '',
+PLNFL varchar(6) NOT NULL default '',
+VORNR varchar(4) NOT NULL default '',
+xstatus_vor smallint(5) unsigned NOT NULL default '0',
+);
+INSERT INTO t1 VALUES ('40004712','000001','0010',9);
+INSERT INTO t1 VALUES ('40004712','000001','0020',0);
+UPDATE t1 SET t1.xstatus_vor = Greatest(t1.xstatus_vor,1) WHERE t1.aufnr =
+"40004712" AND t1.plnfl = "000001" AND t1.vornr > "0010" ORDER BY t1.vornr
+ASC LIMIT 1;
+drop table t1;

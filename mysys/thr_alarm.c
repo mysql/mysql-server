@@ -220,8 +220,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
 {
   ALARM *alarm_data;
   sigset_t old_mask;
-  uint i;
-  my_bool found=0;
+  uint i, found=0;
   DBUG_ENTER("thr_end_alarm");
 
   pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
@@ -235,11 +234,13 @@ void thr_end_alarm(thr_alarm_t *alarmed)
       queue_remove(&alarm_queue,i),MYF(0);
       if (alarm_data->malloced)
 	my_free((gptr) alarm_data,MYF(0));
-      found=1;
+      found++;
+#ifndef DBUG_OFF
       break;
+#endif
     }
   }
-  DBUG_ASSERT(!*alarmed || found);
+  DBUG_ASSERT(!*alarmed || found == 1);
   if (!found)
   {
     if (*alarmed)
@@ -717,7 +718,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 }
 
 
-bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
+my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
 {
   (*alrm)= &alarm->alarmed;
   if (alarm_aborted)

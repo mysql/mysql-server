@@ -192,39 +192,41 @@ class handler :public Sql_alloc
 {
  protected:
   struct st_table *table;		/* The table definition */
-  uint  active_index;
 
 public:
   byte *ref;				/* Pointer to current row */
   byte *dupp_ref;			/* Pointer to dupp row */
-  uint ref_length;			/* Length of ref (1-8) */
-  uint block_size;			/* index block size */
-  ha_rows records;			/* Records i datafilen */
-  ha_rows deleted;			/* Deleted records */
   ulonglong data_file_length;		/* Length off data file */
   ulonglong max_data_file_length;	/* Length off data file */
   ulonglong index_file_length;
   ulonglong max_index_file_length;
   ulonglong delete_length;		/* Free bytes */
   ulonglong auto_increment_value;
-  uint raid_type,raid_chunks;
+  ha_rows records;			/* Records in table */
+  ha_rows deleted;			/* Deleted records */
   ulong raid_chunksize;
-  uint errkey;				/* Last dup key */
-  uint sortkey, key_used_on_scan;
+  ulong mean_rec_length;		/* physical reclength */
   time_t create_time;			/* When table was created */
   time_t check_time;
   time_t update_time;
-  ulong mean_rec_length;		/* physical reclength */
+  uint errkey;				/* Last dup key */
+  uint sortkey, key_used_on_scan;
+  uint active_index;
+  /* Length of ref (1-8 or the clustered key length) */
+  uint ref_length;
+  uint block_size;			/* index block size */
+  uint raid_type,raid_chunks;
   FT_INFO *ft_handler;
   bool  auto_increment_column_changed;
 
-  handler(TABLE *table_arg) : table(table_arg),active_index(MAX_REF_PARTS),
-    ref(0),ref_length(sizeof(my_off_t)), block_size(0),records(0),deleted(0),
-    data_file_length(0), max_data_file_length(0), index_file_length(0),
-    delete_length(0), auto_increment_value(0), raid_type(0),
-    key_used_on_scan(MAX_KEY),
-    create_time(0), check_time(0), update_time(0), mean_rec_length(0),
-    ft_handler(0)
+  handler(TABLE *table_arg) :table(table_arg),
+    ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
+    delete_length(0), auto_increment_value(0),
+    records(0), deleted(0), mean_rec_length(0),
+    create_time(0), check_time(0), update_time(0),
+    key_used_on_scan(MAX_KEY), active_index(MAX_REF_PARTS),
+    ref_length(sizeof(my_off_t)), block_size(0),
+    raid_type(0), ft_handler(0)
     {}
   virtual ~handler(void) {}
   int ha_open(const char *name, int mode, int test_if_locked);
@@ -234,7 +236,7 @@ public:
   uint get_dup_key(int error);
   void change_table_ptr(TABLE *table_arg) { table=table_arg; }
   virtual double scan_time()
-    { return ulonglong2double(data_file_length) / IO_SIZE + 1; }
+    { return ulonglong2double(data_file_length) / IO_SIZE + 2; }
   virtual double read_time(uint index, uint ranges, ha_rows rows)
  { return rows2double(ranges+rows); }
   virtual bool fast_key_read() { return 0;}
@@ -395,6 +397,8 @@ int ha_commit_complete(THD *thd);
 int ha_release_temporary_latches(THD *thd);
 int ha_commit_trans(THD *thd, THD_TRANS *trans);
 int ha_rollback_trans(THD *thd, THD_TRANS *trans);
+int ha_rollback_to_savepoint(THD *thd, char *savepoint_name);
+int ha_savepoint(THD *thd, char *savepoint_name);
 int ha_autocommit_or_rollback(THD *thd, int error);
 void ha_set_spin_retries(uint retries);
 bool ha_flush_logs(void);

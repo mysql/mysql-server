@@ -981,6 +981,7 @@ void st_select_lex::init_query()
   resolve_mode= NOMATTER_MODE;
   cond_count= with_wild= 0;
   ref_pointer_array= 0;
+  select_n_having_items= 0;
 }
 
 void st_select_lex::init_select()
@@ -989,7 +990,6 @@ void st_select_lex::init_select()
   group_list.empty();
   type= db= db1= table1= db2= table2= 0;
   having= 0;
-  group_list.empty();
   use_index_ptr= ignore_index_ptr= 0;
   table_join_options= 0;
   in_sum_expr= with_wild= 0;
@@ -1007,7 +1007,6 @@ void st_select_lex::init_select()
   order_list.next= (byte**) &order_list.first;
   select_limit= HA_POS_ERROR;
   offset_limit= 0;
-  select_n_having_items= 0;
   with_sum_func= 0;
   parsing_place= SELECT_LEX_NODE::NO_MATTER;
 }
@@ -1408,6 +1407,17 @@ List<String>* st_select_lex::get_ignore_index()
 ulong st_select_lex::get_table_join_options()
 {
   return table_join_options;
+}
+
+bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
+{
+  if (ref_pointer_array)
+    return 0;
+  return (ref_pointer_array= 
+	  (Item **)thd->alloc(sizeof(Item*) *
+			      (item_list.elements +
+			       select_n_having_items +
+			       order_group_num)* 5)) == 0;
 }
 
 /*

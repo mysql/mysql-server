@@ -822,9 +822,16 @@ btr_page_reorganize_low(
 {
 	page_t*	new_page;
 	ulint	log_mode;
+	ulint	data_size1;
+	ulint	data_size2;
+	ulint	max_ins_size1;
+	ulint	max_ins_size2;
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 			      				MTR_MEMO_PAGE_X_FIX));
+	data_size1 = page_get_data_size(page);
+	max_ins_size1 = page_get_max_insert_size_after_reorganize(page, 1);
+
 	/* Write the log record */
 	mlog_write_initial_log_record(page, MLOG_PAGE_REORGANIZE, mtr);
 
@@ -857,6 +864,19 @@ btr_page_reorganize_low(
 	if (!recovery) {
 		/* Update the record lock bitmaps */
 		lock_move_reorganize_page(page, new_page);
+	}
+
+	data_size2 = page_get_data_size(page);
+	max_ins_size2 = page_get_max_insert_size_after_reorganize(page, 1);
+
+	if (data_size1 != data_size2 || max_ins_size1 != max_ins_size2) {
+		buf_page_print(page);
+		buf_page_print(new_page);
+	        fprintf(stderr,
+"InnoDB: Error: page old data size %lu new data size %lu\n"
+"InnoDB: Error: page old max ins size %lu new max ins size %lu\n"
+"InnoDB: Make a detailed bug report and send it to mysql@lists.mysql.com\n",
+			data_size1, data_size2, max_ins_size1, max_ins_size2);
 	}
 
 	buf_frame_free(new_page);
@@ -1945,9 +1965,18 @@ btr_compress(
 
 		btr_page_reorganize(merge_page, mtr);
 
+		max_ins_size = page_get_max_insert_size(merge_page, n_recs);
+
 		ut_ad(page_validate(merge_page, cursor->index));
 		ut_ad(page_get_max_insert_size(merge_page, n_recs)
 							== max_ins_size_reorg);
+	}
+
+	if (data_size > max_ins_size) {
+
+		/* Add fault tolerance, though this should never happen */
+
+		return;
 	}
 
 	btr_search_drop_page_hash_index(page);

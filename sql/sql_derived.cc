@@ -135,17 +135,18 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	
     item_list= select_cursor->item_list;
     select_cursor->with_wild= 0;
-    if (setup_ref_array(thd, &select_cursor->ref_pointer_array, 
-			(item_list.elements +
-			 select_cursor->select_n_having_items +
-			 select_cursor->order_list.elements + 
-			 select_cursor->group_list.elements)) ||
+    if (select_cursor->setup_ref_array(thd,
+				       select_cursor->order_list.elements +
+				       select_cursor->group_list.elements) ||
 	setup_fields(thd, select_cursor->ref_pointer_array, first_table,
 		     item_list, 0, 0, 1))
     {
       res= -1;
       goto exit;
     }
+    // Item list should be fix_fielded yet another time in JOIN::prepare
+    unfix_item_list(item_list);
+
     bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
     tmp_table_param.field_count= item_list.elements;
     /*
@@ -157,7 +158,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 				  is_union && !unit->union_option, 1,
 				  (select_cursor->options | thd->options |
 				   TMP_TABLE_ALL_COLUMNS),
-				  HA_POS_ERROR)))
+				  HA_POS_ERROR,
+				  org_table_list->alias)))
     {
       res= -1;
       goto exit;

@@ -72,8 +72,9 @@ searched delete is obviously to keep the x-latch for several
 steps of query graph execution. */
 
 /***************************************************************
-Checks if an update vector changes some of the first fields of an index
-record. */
+Checks if an update vector changes some of the first ordering fields of an
+index record. This is only used in foreign key checks and we can assume
+that index does not contain column prefixes. */
 static
 ibool
 row_upd_changes_first_fields(
@@ -234,7 +235,8 @@ row_upd_check_references_constraints(
 
 			if (err != DB_SUCCESS) {
 				if (got_s_lock) {
-					row_mysql_unfreeze_data_dictionary(trx);
+					row_mysql_unfreeze_data_dictionary(
+									trx);
 				}
 
 				mem_heap_free(heap);
@@ -350,14 +352,15 @@ row_upd_index_entry_sys_field(
 }
 
 /***************************************************************
-Returns TRUE if row update changes size of some field in index
-or if some field to be updated is stored externally in rec or update. */
+Returns TRUE if row update changes size of some field in index or if some
+field to be updated is stored externally in rec or update. */
 
 ibool
-row_upd_changes_field_size(
-/*=======================*/
+row_upd_changes_field_size_or_external(
+/*===================================*/
 				/* out: TRUE if the update changes the size of
-				some field in index */		
+				some field in index or the field is external
+				in rec or update */
 	rec_t*		rec,	/* in: record in clustered index */
 	dict_index_t*	index,	/* in: clustered index */
 	upd_t*		update)	/* in: update vector */
@@ -820,69 +823,55 @@ void
 row_upd_index_replace_new_col_vals(
 /*===============================*/
 	dtuple_t*	entry,	/* in/out: index entry where replaced */
-	dict_index_t*	index,	/* in: index; NOTE that may also be a
+	dict_index_t*	index,	/* in: index; NOTE that this may also be a
 				non-clustered index */
-	upd_t*		update)	/* in: update vector */
+	upd_t*		update,	/* in: update vector */
+	mem_heap_t*	heap)	/* in: memory heap to which we allocate and
+				copy the new values, set this as NULL if you
+				do not want allocation */
 {
+	dict_field_t*	field;
 	upd_field_t*	upd_field;
 	dfield_t*	dfield;
 	dfield_t*	new_val;
-	ulint		field_no;
-	dict_index_t*	clust_index;
+	ulint		j;
 	ulint		i;
 
 	ut_ad(index);
 
-	clust_index = dict_table_get_first_index(index->table);
-
 	dtuple_set_info_bits(entry, update->info_bits);
 
-	for (i = 0; i < upd_get_n_fields(update); i++) {
+	for (j = 0; j < dict_index_get_n_fields(index); j++) {
 
-		upd_field = upd_get_nth_field(update, i);
+	        field = dict_index_get_nth_field(index, j);
 
-		field_no = dict_index_get_nth_col_pos(index,
-				dict_index_get_nth_col_no(clust_index,
-							upd_field->field_no));
-		if (field_no != ULINT_UNDEFINED) {
-			dfield = dtuple_get_nth_field(entry, field_no);
+		for (i = 0; i < upd_get_n_fields(update); i++) {
 
-			new_val = &(upd_field->new_val);
+		        upd_field = upd_get_nth_field(update, i);
 
-			dfield_set_data(dfield, new_val->data, new_val->len);
+			if (upd_field->field_no == field->col->clust_pos) {
+
+			        dfield = dtuple_get_nth_field(entry, j);
+
+				new_val = &(upd_field->new_val);
+
+				dfield_set_data(dfield, new_val->data,
+								new_val->len);
+				if (heap && new_val->len != UNIV_SQL_NULL) {
+				        dfield->data = mem_heap_alloc(heap,
+								new_val->len);
+					ut_memcpy(dfield->data, new_val->data,
+								new_val->len);
+				}
+
+				if (field->prefix_len > 0
+			            && new_val->len != UNIV_SQL_NULL
+			            && new_val->len > field->prefix_len) {
+
+				        dfield->len = field->prefix_len;
+				}
+			}
 		}
-	}
-}
-
-/***************************************************************
-Replaces the new column values stored in the update vector to the
-clustered index entry given. */
-
-void
-row_upd_clust_index_replace_new_col_vals(
-/*=====================================*/
-	dtuple_t*	entry,	/* in/out: index entry where replaced */
-	upd_t*		update)	/* in: update vector */
-{
-	upd_field_t*	upd_field;
-	dfield_t*	dfield;
-	dfield_t*	new_val;
-	ulint		field_no;
-	ulint		i;
-
-	dtuple_set_info_bits(entry, update->info_bits);
-
-	for (i = 0; i < upd_get_n_fields(update); i++) {
-
-		upd_field = upd_get_nth_field(update, i);
-
-		field_no = upd_field->field_no;
-
-		dfield = dtuple_get_nth_field(entry, field_no);
-
-		new_val = &(upd_field->new_val);
-
-		dfield_set_data(dfield, new_val->data, new_val->len);
 	}
 }
 
@@ -931,9 +920,15 @@ row_upd_changes_ord_field_binary(
 
 			upd_field = upd_get_nth_field(update, j);
 
+			/* Note that if the index field is a column prefix
+			then it may be that row does not contain an externally
+			stored part of the column value, and we cannot compare
+			the datas */
+
 			if (col_pos == upd_field->field_no
-			     && (row == NULL
-				 || !dfield_datas_are_binary_equal(
+			    && (row == NULL
+			        || ind_field->prefix_len > 0
+				|| !dfield_datas_are_binary_equal(
 					dtuple_get_nth_field(row, col_no),
 						&(upd_field->new_val)))) {
 				return(TRUE);
@@ -978,8 +973,9 @@ row_upd_changes_some_index_ord_field_binary(
 }
 
 /***************************************************************
-Checks if an update vector changes some of the first fields of an index
-record. */
+Checks if an update vector changes some of the first ordering fields of an
+index record. This is only used in foreign key checks and we can assume
+that index does not contain column prefixes. */
 static
 ibool
 row_upd_changes_first_fields(
@@ -1013,9 +1009,10 @@ row_upd_changes_first_fields(
 			upd_field = upd_get_nth_field(update, j);
 
 			if (col_pos == upd_field->field_no
-			    && cmp_dfield_dfield(
+			    && (ind_field->prefix_len > 0
+			        || 0 != cmp_dfield_dfield(
 					     dtuple_get_nth_field(entry, i),
-					     &(upd_field->new_val))) {
+					     &(upd_field->new_val)))) {
 				return(TRUE);
 			}
 		}
@@ -1204,7 +1201,7 @@ close_cur:
 	}
 
 	/* Build a new index entry */
-	row_upd_index_replace_new_col_vals(entry, index, node->update);
+	row_upd_index_replace_new_col_vals(entry, index, node->update, NULL);
 
 	/* Insert new index entry */
 	err = row_ins_index_entry(index, entry, NULL, 0, thr);
@@ -1317,12 +1314,12 @@ row_upd_clust_rec_by_insert(
 	
 	entry = row_build_index_entry(node->row, index, heap);
 
-	row_upd_clust_index_replace_new_col_vals(entry, node->update);
+	row_upd_index_replace_new_col_vals(entry, index, node->update, NULL);
 	
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 	
 	/* If we return from a lock wait, for example, we may have
-	extern fields marked as not-owned in entry (marked if the
+	extern fields marked as not-owned in entry (marked in the
 	if-branch above). We must unmark them. */
 	
 	btr_cur_unmark_dtuple_extern_fields(entry, node->ext_vec,
@@ -1702,9 +1699,9 @@ function_exit:
 		/* Do some cleanup */
 
 		if (node->row != NULL) {
-			mem_heap_empty(node->heap);
 			node->row = NULL;
 			node->n_ext_vec = 0;
+			mem_heap_empty(node->heap);
 		}
 
 		node->state = UPD_NODE_UPDATE_CLUSTERED;

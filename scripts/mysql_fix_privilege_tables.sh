@@ -88,12 +88,12 @@ fi
 
 # The following test is to make this script compatible with the 4.0 where
 # the first argument was the password
-if test -z $password
+if test -z "$password"
 then
   password=`echo $args | sed -e 's/ *//g'`
 fi
 
-if test -z $password ; then
+if test -z "$password" ; then
   cmd="$bindir/mysql -f --user=$user --host=$host mysql"
 else
   cmd="$bindir/mysql -f --user=$user --password=$password --host=$host mysql"

@@ -247,7 +247,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
       opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
     }
     open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     opt_binlog_index_name, LOG_BIN);
+	     opt_binlog_index_name, LOG_BIN, 0, 0, max_binlog_size);
     using_update_log=1;
   }
 

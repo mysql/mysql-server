@@ -559,10 +559,15 @@ public:
 
   /* fname doesn't point to memory inside Log_event::temp_buf  */
   void set_fname_outside_temp_buf(const char *afname, uint alen)
-    {fname=afname;fname_len=alen;}
+  {
+    fname= afname;
+    fname_len= alen;
+  }
   /* fname doesn't point to memory inside Log_event::temp_buf  */
   int  check_fname_outside_temp_buf()
-    {return fname<temp_buf || fname>temp_buf+cached_event_len;}
+  {
+    return fname < temp_buf || fname > temp_buf+ cached_event_len;
+  }
 
 #ifndef MYSQL_CLIENT
   String field_lens_buf;
@@ -619,6 +624,26 @@ extern char server_version[SERVER_VERSION_LENGTH];
 class Start_log_event: public Log_event
 {
 public:
+  /* 
+     If this event is at the start of the first binary log since server startup
+     'created' should be the timestamp when the event (and the binary log) was
+     created. 
+     In the other case (i.e. this event is at the start of a binary log created
+     by FLUSH LOGS or automatic rotation), 'created' should be 0.
+     This "trick" is used by MySQL >=4.0.14 slaves to know if they must drop the
+     stale temporary tables or not.
+     Note that when 'created'!=0, it is always equal to the event's timestamp;
+     indeed Start_log_event is written only in log.cc where the first
+     constructor below is called, in which 'created' is set to 'when'. 
+     So in fact 'created' is a useless variable. When it is 0
+     we can read the actual value from timestamp ('when') and when it is
+     non-zero we can read the same value from timestamp ('when'). Conclusion:
+     - we use timestamp to print when the binlog was created.
+     - we use 'created' only to know if this is a first binlog or not.
+     In 3.23.57 we did not pay attention to this identity, so mysqlbinlog in
+     3.23.57 does not print 'created the_date' if created was zero. This is now
+     fixed.
+  */
   time_t created;
   uint16 binlog_version;
   char server_version[ST_SERVER_VER_LEN];
@@ -947,6 +972,7 @@ public:
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+  void print(FILE* file, bool short_form, char* last_db, bool enable_local);
 #endif  
   
   Delete_file_log_event(const char* buf, int event_len);

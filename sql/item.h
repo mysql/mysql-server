@@ -146,7 +146,24 @@ public:
   virtual double  val_result() { return val(); }
   virtual longlong val_int_result() { return val_int(); }
   virtual String *str_result(String* tmp) { return val_str(tmp); }
+  /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map) 0L; }
+  /*
+    Return table map of tables that can't be NULL tables (tables that are
+    used in a context where if they would contain a NULL row generated
+    by a LEFT or RIGHT join, the item would not be true).
+    This expression is used on WHERE item to determinate if a LEFT JOIN can be
+    converted to a normal join.
+    Generally this function should return used_tables() if the function
+    would return null if any of the arguments are null
+    As this is only used in the beginning of optimization, the value don't
+    have to be updated in update_used_tables()
+  */
+  virtual table_map not_null_tables() const { return used_tables(); }
+  /*
+    Returns true if this is a simple constant item like an integer, not
+    a constant expression
+  */
   virtual bool basic_const_item() const { return 0; }
   virtual Item *new_item() { return 0; }	/* Only for const items */
   virtual cond_result eq_cmp_result() const { return COND_OK; }
@@ -178,6 +195,7 @@ public:
   }
 
   virtual bool remove_dependence_processor(byte * arg) { return 0; }
+  virtual bool remove_fixed(byte * arg) { fixed= 0; return 0; }
   
   // Row emulation
   virtual uint cols() { return 1; }
@@ -427,7 +445,7 @@ public:
   {
     collation.set(cs, dv);
     str_value.set(str,length,cs);
-    max_length=length;
+    max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(str, length, cs);
     decimals=NOT_FIXED_DEC;
   }
@@ -436,7 +454,7 @@ public:
   {
     collation.set(cs, dv);
     str_value.set(str,length,cs);
-    max_length=length;
+    max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(name_par,0,cs);
     decimals=NOT_FIXED_DEC;
   }
@@ -626,58 +644,15 @@ public:
   }
 };
 
-
-/*
-  Used to find item in list of select items after '*' items processing.
-
-  Because item '*' can be used in item list. when we create
-  Item_ref_on_list_position we do not know how item list will be changed, but
-  we know number of item position (I mean queries like "select * from t").
-*/
-class Item_ref_on_list_position: public Item_ref_null_helper
+class Item_null_helper :public Item_ref_null_helper
 {
-protected:
-  /* 
-     select_lex used for:
-     1) receiving expanded variant of item list (to check max possible 
-        number of elements);
-     2) to have access to  ref_pointer_array, via wich item will refered.
-  */
-  st_select_lex *select_lex;
-  uint pos;
+  Item *store;
 public:
-  Item_ref_on_list_position(Item_in_subselect* master,
-			    st_select_lex *sl, uint num,
-			    char *table_name, char *field_name):
-    Item_ref_null_helper(master, 0, table_name, field_name),
-    select_lex(sl), pos(num) {}
-  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-};
-
-/*
-  To resolve '*' field moved to condition
-  and register NULL values
-*/
-class Item_asterisk_remover :public Item_ref_null_helper
-{
-  Item *item;
-public:
-  Item_asterisk_remover(Item_in_subselect *master, Item *it,
-			char *table, char *field):
-    Item_ref_null_helper(master, &item, table, field),
-    item(it) 
-  {}
-  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-  Item **storage() {return &item;}
-  void print(String *str)
-  {
-    str->append("ref_null_helper('");
-    if (item)
-      item->print(str);
-    else
-      str->append('?');
-    str->append(')');
-  }
+  Item_null_helper(Item_in_subselect* master, Item *item,
+		   const char *table_name_par, const char *field_name_par)
+    :Item_ref_null_helper(master, &store, table_name_par, field_name_par),
+     store(item)
+    {}
 };
 
 /*

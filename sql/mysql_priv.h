@@ -77,6 +77,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 /* Password lengh for 4.1 version previous versions had 16 bytes password hash */
 #define HASH_PASSWORD_LENGTH	45
 #define HASH_OLD_PASSWORD_LENGTH 16
+#define MAX_PASSWORD_LENGTH	32
 #define HOST_CACHE_SIZE		128
 #define MAX_ACCEPT_RETRY	10	// Test accept this many times
 #define MAX_FIELDS_BEFORE_HASH	32
@@ -158,6 +159,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define TEST_NO_EXTRA		128
 #define TEST_CORE_ON_SIGNAL	256	/* Give core if signal */
 #define TEST_NO_STACKTRACE	512
+#define TEST_SIGINT		1024	/* Allow sigint on threads */
 
 /* options for select set by the yacc parser (stored in lex->options) */
 #define SELECT_DISTINCT		1
@@ -285,6 +287,17 @@ typedef struct st_sql_list {
     next= next_ptr;
     *next=0;
   }
+  inline void save_and_clear(struct st_sql_list *save)
+  {
+    *save= *this;
+    empty();
+  }
+  inline void push_front(struct st_sql_list *save)
+  {
+    *save->next= first;				/* link current list last */
+    first= save->first;
+    elements+= save->elements;
+  }
 } SQL_LIST;
 
 
@@ -411,7 +424,6 @@ int mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
 bool check_simple_select();
 
 SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length);
-int setup_ref_array(THD *thd, Item ***rref_pointer_array, uint elements);
 int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List <Item> &all_fields, ORDER *order);
 int setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
@@ -613,6 +625,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 int setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
 		 List<Item> &item, bool set_query_id, 
 		 List<Item> *sum_func_list, bool allow_sum_func);
+void unfix_item_list(List<Item> item_list);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
@@ -689,8 +702,8 @@ bool fn_format_relative_to_data_home(my_string to, const char *name,
 bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *opt_name, const char *extension,
 	      const char *index_file_name,
-	      enum_log_type type, bool read_append = 0,
-	      bool no_auto_events = 0);
+	      enum_log_type type, bool read_append,
+	      bool no_auto_events, ulong max_size);
 
 /*
   External variables
@@ -738,7 +751,8 @@ extern ulong max_insert_delayed_threads, max_user_connections;
 extern ulong long_query_count, what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack,thread_stack_min;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
-extern ulong max_binlog_size, rpl_recovery_rank, thread_cache_size;
+extern ulong max_binlog_size, max_relay_log_size;
+extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong com_stat[(uint) SQLCOM_END], com_other, back_log;
 extern ulong specialflag, current_pid;
 extern ulong expire_logs_days;
@@ -917,6 +931,10 @@ Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
 /* log.cc */
 bool flush_error_log(void);
 
+/* sql_list.cc */
+void free_list(I_List <i_string_pair> *list);
+void free_list(I_List <i_string> *list);
+
 /* Some inline functions for more speed */
 
 inline bool add_item_to_list(THD *thd, Item *item)
@@ -966,7 +984,7 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
 {
   table->used_fields= 0;
   table->const_table= 0;
-  table->outer_join= table->null_row= 0;
+  table->null_row= 0;
   table->status= STATUS_NO_RECORD;
   table->keys_in_use_for_query= table->keys_in_use;
   table->maybe_null= test(table->outer_join= table_list->outer_join);

@@ -300,6 +300,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "ifnull"; }
+  table_map not_null_tables() const { return 0; }
 };
 
 
@@ -321,6 +322,7 @@ public:
   }
   void fix_length_and_dec();
   const char *func_name() const { return "if"; }
+  table_map not_null_tables() const { return 0; }
 };
 
 
@@ -337,6 +339,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "nullif"; }
+  table_map not_null_tables() const { return 0; }
 };
 
 
@@ -353,7 +356,9 @@ public:
   void fix_length_and_dec();
   enum Item_result result_type () const { return cached_result_type; }
   const char *func_name() const { return "coalesce"; }
+  table_map not_null_tables() const { return 0; }
 };
+
 
 class Item_func_case :public Item_func
 {
@@ -385,6 +390,7 @@ public:
   longlong val_int();
   String *val_str(String *);
   void fix_length_and_dec();
+  table_map not_null_tables() const { return 0; }
   enum Item_result result_type () const { return cached_result_type; }
   const char *func_name() const { return "case"; }
   void print(String *str);
@@ -677,6 +683,7 @@ public:
       }
     }
   }
+  table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
 };
 
@@ -709,7 +716,9 @@ public:
   }
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
+  table_map not_null_tables() const { return 0; }
 };
+
 
 class Item_func_like :public Item_bool_func2
 {
@@ -783,6 +792,8 @@ class Item_cond :public Item_bool_func
 protected:
   List<Item> list;
   bool abort_on_null;
+  table_map and_tables_cache;
+
 public:
   /* Item_cond() is only used to create top level items */
   Item_cond() : Item_bool_func(), abort_on_null(1) { const_item_cache=0; }
@@ -823,8 +834,14 @@ public:
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
   const char *func_name() const { return "or"; }
+  table_map not_null_tables() const { return and_tables_cache; }
 };
 
+
+/*
+  XOR is Item_cond, not an Item_int_func bevause we could like to
+  optimize (a XOR b) later on. It's low prio, though
+*/
 
 class Item_cond_xor :public Item_cond
 {
@@ -832,6 +849,8 @@ public:
   Item_cond_xor() :Item_cond() {}
   Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) {}
   enum Functype functype() const { return COND_XOR_FUNC; }
+  /* TODO: remove the next line when implementing XOR optimization */
+  enum Type type() const { return FUNC_ITEM; }
   longlong val_int();
   const char *func_name() const { return "xor"; }
 };

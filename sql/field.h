@@ -1066,6 +1066,7 @@ public:
   uint	offset,pack_flag;
   create_field() :after(0) {}
   create_field(Field *field, Field *orig_field);
+  void create_length_to_internal_length(void);
 };
 
 

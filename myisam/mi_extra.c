@@ -273,6 +273,10 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     }
     break;
   case HA_EXTRA_FORCE_REOPEN:
+    pthread_mutex_lock(&THR_LOCK_myisam);
+    share->last_version= 0L;			/* Impossible version */
+    pthread_mutex_unlock(&THR_LOCK_myisam);
+    break;
   case HA_EXTRA_PREPARE_FOR_DELETE:
     pthread_mutex_lock(&THR_LOCK_myisam);
     share->last_version= 0L;			/* Impossible version */
