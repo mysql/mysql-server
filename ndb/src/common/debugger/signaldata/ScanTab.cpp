@@ -67,7 +67,7 @@ printSCANTABCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
     fprintf(output, " Operation(s) [api tc rows len]:\n");
     ScanTabConf::OpData * op = (ScanTabConf::OpData*)
       (theData + ScanTabConf::SignalLength);
-    for(int i = 0; i<op_count; i++){
+    for(size_t i = 0; i<op_count; i++){
       if(op->info != ScanTabConf::EndOfData)
 	fprintf(output, " [0x%x 0x%x %d %d]",
 		op->apiPtrI, op->tcPtrI,
