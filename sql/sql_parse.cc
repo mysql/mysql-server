@@ -912,7 +912,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   while (fgets(buff, thd->net.max_packet, file))
   {
     uint length=(uint) strlen(buff);
-    while (length && (my_isspace(system_charset_info, buff[length-1]) ||
+    while (length && (my_isspace(thd->charset(), buff[length-1]) ||
            buff[length-1] == ';'))
       length--;
     buff[length]=0;
@@ -1265,7 +1265,7 @@ restore_user:
       ulong length= thd->query_length-(ulong)(thd->lex.found_colon-thd->query);
       
       /* Remove garbage at start of query */
-      while (my_isspace(system_charset_info, *packet) && length > 0)
+      while (my_isspace(thd->charset(), *packet) && length > 0)
       {
         packet++;
         length--;
@@ -1539,14 +1539,14 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
 {
   packet_length--;				// Remove end null
   /* Remove garbage at start and end of query */
-  while (my_isspace(system_charset_info,packet[0]) && packet_length > 0)
+  while (my_isspace(thd->charset(),packet[0]) && packet_length > 0)
   {
     packet++;
     packet_length--;
   }
   char *pos=packet+packet_length;		// Point at end null
   while (packet_length > 0 &&
-	 (pos[-1] == ';' || my_isspace(system_charset_info,pos[-1])))
+	 (pos[-1] == ';' || my_isspace(thd->charset() ,pos[-1])))
   {
     pos--;
     packet_length--;
