@@ -547,6 +547,10 @@ net_safe_read(MYSQL *mysql)
   {
     DBUG_PRINT("error",("Wrong connection or packet. fd: %s  len: %d",
 			vio_description(net->vio),len));
+#ifdef MYSQL_SERVER
+    if (socket_errno == SOCKET_EINTR)
+      return (packet_error);
+#endif /*MYSQL_SERVER*/
     end_server(mysql);
     net->last_errno=(net->last_errno == ER_NET_PACKET_TOO_LARGE ?
 		     CR_NET_PACKET_TOO_LARGE:
