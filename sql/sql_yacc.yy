@@ -649,7 +649,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	insert_values update delete truncate rename
 	show describe load alter optimize flush
 	reset purge begin commit rollback slave master_def master_defs
-	repair restore backup analyze check
+	repair restore backup analyze check start
 	field_list field_list_item field_spec kill
 	select_item_list select_item values_list no_braces
 	opt_limit_clause delete_limit_clause fields opt_values values
@@ -730,6 +730,7 @@ verb_clause:
 	| select
 	| set
 	| slave
+	| start
 	| show
 	| truncate
 	| handler
@@ -1564,6 +1565,11 @@ slave:
             lex->sql_command = SQLCOM_SLAVE_STOP;
 	    lex->type = 0;
           }
+	;
+
+start:
+	START_SYM TRANSACTION_SYM { Lex->sql_command = SQLCOM_BEGIN;}
+	{}
 	;
 
 slave_thread_opts:
@@ -2421,7 +2427,7 @@ sum_expr:
 	  { $$=new Item_sum_and($3); }
 	| BIT_OR  '(' in_sum_expr ')'
 	  { $$=new Item_sum_or($3); }
-	| COUNT_SYM '(' '*' ')'
+	| COUNT_SYM '(' opt_all '*' ')'
 	  { $$=new Item_sum_count(new Item_int((int32) 0L,1)); }
 	| COUNT_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_count($3); }
@@ -2441,6 +2447,7 @@ sum_expr:
 	  { $$=new Item_sum_sum($3); };
 
 in_sum_expr:
+	opt_all
 	{
 	  LEX *lex= Lex;
 	  if (lex->current_select->inc_in_sum_expr())
@@ -2452,7 +2459,7 @@ in_sum_expr:
 	expr
 	{
 	  Select->select_lex()->in_sum_expr--;
-	  $$=$2;
+	  $$= $3;
 	};
 
 cast_type:
@@ -2523,19 +2530,22 @@ opt_pad:
 join_table_list:
 	'(' join_table_list ')'	{ $$=$2; }
 	| join_table		{ $$=$1; }
+	| join_table_list ',' join_table_list { $$=$3; }
 	| join_table_list normal_join join_table_list { $$=$3; }
 	| join_table_list STRAIGHT_JOIN join_table_list
 	  { $$=$3 ; $$->straight=1; }
-	| join_table_list INNER_SYM JOIN_SYM join_table_list ON expr
-	  { add_join_on($4,$6); $$=$4; }
-	| join_table_list INNER_SYM JOIN_SYM join_table_list
+	| join_table_list normal_join join_table_list ON expr
+	  { add_join_on($3,$5); $$=$3; }
+	| join_table_list normal_join join_table_list
+	  USING 
 	  {
 	    SELECT_LEX *sel= Select->select_lex();
 	    sel->db1=$1->db; sel->table1=$1->alias;
-	    sel->db2=$4->db; sel->table2=$4->alias;
+	    sel->db2=$3->db; sel->table2=$3->alias;
 	  }
-	  USING '(' using_list ')'
-	  { add_join_on($4,$8); $$=$4; }
+	  '(' using_list ')'
+	  { add_join_on($3,$7); $$=$3; }
+
 	| join_table_list LEFT opt_outer JOIN_SYM join_table_list ON expr
 	  { add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| join_table_list LEFT opt_outer JOIN_SYM join_table_list
@@ -2564,9 +2574,10 @@ join_table_list:
 	  { add_join_natural($1,$4); $$=$4; };
 
 normal_join:
-	',' {}
-	| JOIN_SYM {}
-	| CROSS JOIN_SYM {};
+	JOIN_SYM		{}
+	| INNER_SYM JOIN_SYM	{}
+	| CROSS JOIN_SYM	{}
+	;
 
 join_table:
 	{
@@ -2712,6 +2723,10 @@ opt_table_alias:
 	| table_alias ident
 	  { $$= (LEX_STRING*) sql_memdup(&$2,sizeof(LEX_STRING)); };
 
+opt_all:
+	/* empty */
+	| ALL
+	;
 
 where_clause:
 	/* empty */  { Select->select_lex()->where= 0; }

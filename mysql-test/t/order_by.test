@@ -228,7 +228,8 @@ explain select * from t1 where a = 2 and (b is null or b > 0) order by a
 desc,b desc;
 explain select * from t1 where a = 2 and b > 0 order by a desc,b desc;
 explain select * from t1 where a = 2 and b < 2 order by a desc,b desc;
-
+explain select * from t1 where a = 1 order by b desc;
+select * from t1 where a = 1 order by b desc;
 #
 # Test things when we don't have NULL keys
 #

@@ -103,7 +103,9 @@ public:
 private:
   int cmp_prev(QUICK_RANGE *range);
   bool range_reads_after_key(QUICK_RANGE *range);
+#ifdef NOT_USED
   bool test_if_null_range(QUICK_RANGE *range, uint used_key_parts);
+#endif
   void reset(void) { next=0; rev_it.rewind(); }
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;

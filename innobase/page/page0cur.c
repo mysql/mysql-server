@@ -301,7 +301,7 @@ page_cur_search_with_match(
 				/* This means current dfield is not SQL
 			    	NULL, and the current rec field extends it */
 
-				low = mid;
+				low_rec = mid_rec;
 				low_matched_fields = cur_matched_fields;
 				low_matched_bytes = cur_matched_bytes;
 			} else {
