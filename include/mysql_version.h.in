@@ -20,8 +20,5 @@
 #define MYSQL_CONFIG_NAME		"my"
 
 /* mysqld compile time options */
-#ifndef MYSQL_CHARSET
-#define MYSQL_CHARSET			"@default_charset@"
-#endif /* MYSQL_CHARSET */
 #endif /* _CUSTOMCONFIG_ */
 #endif /* _mysql_version_h */

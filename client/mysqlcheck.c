@@ -38,7 +38,8 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
 static uint verbose = 0, opt_mysql_port=0;
 static my_string opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, 
-	    *default_charset = (char *)MYSQL_CHARSET, *current_host = 0;
+	    *default_charset = (char *)MYSQL_DEFAULT_CHARSET_NAME,
+	    *current_host = 0;
 static int first_error = 0;
 DYNAMIC_ARRAY tables4repair;
 #ifdef HAVE_SMEM

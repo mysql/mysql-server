@@ -386,6 +386,8 @@ struct system_variables
   my_bool low_priority_updates;
   my_bool new_mode;
   
+  CHARSET_INFO	*character_set_server;
+  CHARSET_INFO	*character_set_database;
   CHARSET_INFO 	*character_set_client;
   CHARSET_INFO  *character_set_results;
   CHARSET_INFO  *collation_connection;

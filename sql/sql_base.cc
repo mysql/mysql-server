@@ -2311,7 +2311,7 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_ENTER("mysql_create_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.table_charset= thd->db_charset;
+  create_info.table_charset= thd->variables.character_set_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, drop, alter, 0, (ORDER*)0, FALSE,
@@ -2328,7 +2328,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
   DBUG_ENTER("mysql_drop_index");
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.table_charset= thd->db_charset;
+  create_info.table_charset= thd->variables.character_set_database;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, drop, alter, 0, (ORDER*)0, FALSE,

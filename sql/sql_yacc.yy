@@ -848,7 +848,7 @@ create:
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
-	  lex->create_info.table_charset= thd->db_charset;
+	  lex->create_info.table_charset= thd->variables.character_set_database;
 	  lex->name=0;
 	}
 	create2
@@ -1536,7 +1536,7 @@ alter:
 	  lex->select_lex.db=lex->name=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
-	  lex->create_info.table_charset= thd->db_charset;
+	  lex->create_info.table_charset= thd->variables.character_set_database;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
@@ -2233,10 +2233,12 @@ simple_expr:
 	    $$= new Item_func_set_collation($2,new Item_string(binary_keyword,
 					    6, &my_charset_latin1));
 	  }
-	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
+	| CAST_SYM '(' expr AS cast_type ')'
+	  { $$= create_func_cast($3, $5, Lex->charset); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
-	| CONVERT_SYM '(' expr ',' cast_type ')'  { $$= create_func_cast($3, $5); }
+	| CONVERT_SYM '(' expr ',' cast_type ')'
+	  { $$= create_func_cast($3, $5, Lex->charset); }
 	| CONVERT_SYM '(' expr USING charset_name ')'
 	  { $$= new Item_func_conv_charset($3,$5); }
 	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
@@ -2645,15 +2647,15 @@ in_sum_expr:
 	};
 
 cast_type:
-	BINARY			{ $$=ITEM_CAST_BINARY; }
-	| CHAR_SYM		{ $$=ITEM_CAST_CHAR; }
-	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; }
-	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; }
-	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; }
-	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; }
-	| DATE_SYM		{ $$=ITEM_CAST_DATE; }
-	| TIME_SYM		{ $$=ITEM_CAST_TIME; }
-	| DATETIME		{ $$=ITEM_CAST_DATETIME; }
+	BINARY			{ $$=ITEM_CAST_BINARY; Lex->charset= NULL; }
+	| CHAR_SYM opt_binary	{ $$=ITEM_CAST_CHAR; }
+	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; }
+	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; }
+	| UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; }
+	| UNSIGNED INT_SYM	{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; }
+	| DATE_SYM		{ $$=ITEM_CAST_DATE; Lex->charset= NULL; }
+	| TIME_SYM		{ $$=ITEM_CAST_TIME; Lex->charset= NULL; }
+	| DATETIME		{ $$=ITEM_CAST_DATETIME; Lex->charset= NULL; }
 	;
 
 expr_list:
@@ -4437,7 +4439,7 @@ option_value:
 	  THD *thd= YYTHD;
 	  LEX *lex= Lex;
 	  $2= $2 ? $2: global_system_variables.character_set_client;
-	  lex->var_list.push_back(new set_var_collation_client($2,thd->db_charset,$2));
+	  lex->var_list.push_back(new set_var_collation_client($2,thd->variables.character_set_database,$2));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
