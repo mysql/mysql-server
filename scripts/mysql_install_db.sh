@@ -333,7 +333,7 @@ then
   if test "$IN_RPM" -eq 0
   then
     echo "You can start the MySQL daemon with:"
-    echo "cd @prefix@ ; $bindir/safe_mysqld &"
+    echo "cd @prefix@ ; $bindir/mysqld_safe &"
     echo
     echo "You can test the MySQL daemon with the benchmarks in the 'sql-bench' directory:"
     echo "cd sql-bench ; run-all-tests"

@@ -265,9 +265,9 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
      SEARCH_NO_FIND,SEARCH_LAST and HA_REVERSE_SORT flags.
      flag is the value returned by _mi_key_cmp and as treated as final */
   int flag=0, my_flag=-1;
-  uint nod_flag, length, len, matched, cmplen, kseg_len, key_len_left;
+  uint nod_flag, length, len, matched, cmplen, kseg_len;
   uint prefix_len,suffix_len;
-  int key_len_skip, seg_len_pack;
+  int key_len_skip, seg_len_pack, key_len_left;
   uchar *end, *kseg, *vseg;
   uchar *sort_order=keyinfo->seg->charset->sort_order;
   uchar tt_buff[MI_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
@@ -294,7 +294,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
     uint lenght_pack;
     get_key_pack_length(kseg_len,lenght_pack,kseg);
     key_len_skip=lenght_pack+kseg_len;
-    key_len_left=key_len-key_len_skip;
+    key_len_left=(int) key_len- (int) key_len_skip;
     cmplen=(key_len_left>=0) ? kseg_len : key_len-lenght_pack;
   }
 
