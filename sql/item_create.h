@@ -18,6 +18,8 @@
 
 Item *create_func_abs(Item* a);
 Item *create_func_acos(Item* a);
+Item *create_func_aes_encrypt(Item* a, Item* b);
+Item *create_func_aes_decrypt(Item* a, Item* b);
 Item *create_func_ascii(Item* a);
 Item *create_func_asin(Item* a);
 Item *create_func_bin(Item* a);
@@ -75,6 +77,7 @@ Item *create_func_rtrim(Item* a);
 Item *create_func_sec_to_time(Item* a);
 Item *create_func_sign(Item* a);
 Item *create_func_sin(Item* a);
+Item *create_func_sha(Item* a);
 Item *create_func_soundex(Item* a);
 Item *create_func_space(Item *);
 Item *create_func_sqrt(Item* a);
