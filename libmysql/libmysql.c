@@ -84,7 +84,6 @@ my_bool	net_flush(NET *net);
 #define MAX_LONG_DATA_LENGTH 8192
 #define unsigned_field(A) ((A)->flags & UNSIGNED_FLAG)
 
-static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
 static void append_wild(char *to,char *end,const char *wild);
 sig_handler pipe_sig_handler(int sig);
 
@@ -1665,6 +1664,11 @@ static int stmt_read_row_unbuffered(MYSQL_STMT *stmt, unsigned char **row);
 static int stmt_read_row_buffered(MYSQL_STMT *stmt, unsigned char **row);
 static int stmt_read_row_no_data(MYSQL_STMT *stmt, unsigned char **row);
 
+/*
+  This function is used in mysql_stmt_store_result if
+  STMT_ATTR_UPDATE_MAX_LENGTH attribute is set.
+*/
+static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
 
 /*
   Maximum sizes of MYSQL_TYPE_DATE, MYSQL_TYPE_TIME, MYSQL_TYPE_DATETIME
@@ -2362,7 +2366,8 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
 
 
 /*
-  Send the prepared query to server for execution
+  Auxilary function to send COM_EXECUTE packet to server and read reply.
+  Used from cli_stmt_execute, which is in turn used by mysql_stmt_execute.
 */
 
 static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
@@ -2492,7 +2497,7 @@ static int stmt_read_row_buffered(MYSQL_STMT *stmt, unsigned char **row)
     1           - error; error code is written to
                   stmt->last_{errno,error}; *row is not changed
   MYSQL_NO_DATA - end of file was read from network;
-                  *row is to NULL
+                  *row is set to NULL
 */
 
 static int stmt_read_row_unbuffered(MYSQL_STMT *stmt, unsigned char **row)
@@ -2868,9 +2873,8 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     case MYSQL_TYPE_STRING:
       param->store_param_func= store_param_str;
       /*
-        For variable length types we expect user to set
-        length or buffer_length. Otherwise mysql_stmt_execute
-        will just fail.
+        For variable length types user must set either length or
+        buffer_length.
       */
       break;
     default:
@@ -2887,7 +2891,7 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     if (!param->length)
       param->length= &param->buffer_length;
   }
-  /* We have to send/resendtype information to MySQL */
+  /* We have to send/resend type information to MySQL */
   stmt->send_types_to_server= TRUE;
   stmt->bind_param_done= TRUE;
   DBUG_RETURN(0);
@@ -2907,6 +2911,30 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     param_number		Parameter number (0 - N-1)
     data			Data to send to server
     length			Length of data to send (may be 0)
+
+  DESCRIPTION
+    This call can be used repeatedly to send long data in pieces
+    for any string/binary placeholder. Data supplied for
+    a placeholder is saved at server side till execute, and then
+    used instead of value from MYSQL_BIND object. More precisely,
+    if long data for a parameter was supplied, MYSQL_BIND object
+    corresponding to this parameter is not sent to server. In the
+    end of execution long data states of placeholders are reset,
+    so next time values of such placeholders will be taken again
+    from MYSQL_BIND array.
+    The server does not reply to this call: if there was an error
+    in data handling (which now only can happen if server run out
+    of memory) it would be returned in reply to
+    mysql_stmt_execute().
+    You should choose type of long data carefully if you care
+    about character set conversions performed by server when the
+    statement is executed.  No conversion is performed at all for
+    MYSQL_TYPE_BLOB and other binary typecodes. For
+    MYSQL_TYPE_STRING and the rest of text placeholders data is
+    converted from client character set to character set of
+    connection. If these character sets are different, this
+    conversion may require additional memory at server, equal to
+    total size of supplied pieces.
 
   RETURN VALUES
     0	ok
