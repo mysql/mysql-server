@@ -322,7 +322,7 @@ then
     echo "able to use the new GRANT command!"
   fi
   echo
-  if test -z "$IN_RPM"
+  if test "$IN_RPM" -eq 0
   then
     echo "You can start the MySQL demon with:"
     echo "cd @prefix@ ; $bindir/safe_mysqld &"

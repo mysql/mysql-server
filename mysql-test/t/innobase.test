@@ -4,7 +4,7 @@
 # Small basic test with ignore
 #
 
-drop table if exists t1;
+drop table if exists t1,t2;
 create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) type=innobase;
 
 insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David'), (2, 'Erik'), (3, 'Sasha'), (3, 'Jeremy'), (4, 'Matt');
@@ -33,7 +33,8 @@ INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),
 update t1 set parent_id=parent_id+100;
 select * from t1 where parent_id=102;
 update t1 set id=id+1000;
-!$1062 update t1 set id=1024 where id=1009; 
+-- error 1062
+update t1 set id=1024 where id=1009; 
 select * from t1;
 update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
@@ -44,6 +45,8 @@ explain select level,id from t1 where level=1;
 explain select level,id,parent_id from t1 where level=1;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
+optimize table t1;
+show keys from t1;
 drop table t1;
 
 #
@@ -68,8 +71,28 @@ drop table t1;
 
 create table t1 (a int) type=innobase;
 insert into t1 values (1), (2);
+optimize table t1;
 delete from t1 where a = 1;
 select * from t1;
+check table t1;
+drop table t1;
+
+create table t1 (a int,b varchar(20)) type=innobase;
+insert into t1 values (1,""), (2,"testing");
+delete from t1 where a = 1;
+select * from t1;
+create index skr on t1 (a);
+insert into t1 values (3,""), (4,"testing");
+analyze table t1;
+show keys from t1;
+drop table t1;
+
+
+# Test of reading on secondary key with may be null
+
+create table t1 (a int,b varchar(20),key(a)) type=innobase;
+insert into t1 values (1,""), (2,"testing");
+select * from t1 where a = 1;
 drop table t1;
 
 #
@@ -84,6 +107,8 @@ insert into t1 (a) values ('k'),('d');
 insert into t1 (a) values ("a");
 insert into t1 values ("d",last_insert_id());
 select * from t1;
+flush tables;
+select count(*) from t1;
 drop table t1;
 
 #
@@ -100,12 +125,14 @@ commit;
 select n, "after commit" from t1;
 commit;
 insert into t1 values (5);
-!$1062 insert into t1 values (4);
+-- error 1062
+insert into t1 values (4);
 commit;
 select n, "after commit" from t1;
 set autocommit=1;
 insert into t1 values (6);
-!$1062 insert into t1 values (4);
+-- error 1062
+insert into t1 values (4);
 select n from t1;
 # nop
 rollback;
@@ -135,7 +162,8 @@ drop table t1;
 
 CREATE TABLE t1 (id char(8) not null primary key, val int not null) type=innobase;
 insert into t1 values ('pippo', 12);
-!$1062 insert into t1 values ('pippo', 12); # Gives error
+-- error 1062
+insert into t1 values ('pippo', 12); # Gives error
 delete from t1;
 delete from t1 where id = 'pippo';
 select * from t1;
@@ -247,10 +275,22 @@ CREATE TABLE t1 (
 
 insert into t1 (ggid,passwd) values ('test1','xxx');
 insert into t1 (ggid,passwd) values ('test2','yyy');
+-- error 1062
+insert into t1 (ggid,passwd) values ('test2','this will fail');
+-- error 1062
+insert into t1 (ggid,id) values ('this will fail',1);
 
 select * from t1 where ggid='test1';
 select * from t1 where passwd='xxx';
 select * from t1 where id=2;
+
+replace into t1 (ggid,id) values ('this will work',1);
+replace into t1 (ggid,passwd) values ('test2','this will work');
+-- error 1062
+update t1 set id=100,ggid='test2' where id=1;
+select * from t1;
+select * from t1 where id=1;
+select * from t1 where id=999;
 drop table t1;
 
 #
@@ -320,17 +360,67 @@ CREATE TABLE t1 (
    sca_pic varchar(100),
    sca_sdesc varchar(50),
    sca_sch_desc varchar(16),
-   PRIMARY KEY (sca_code, cat_code, lan_code)
+   PRIMARY KEY (sca_code, cat_code, lan_code),
+   INDEX sca_pic (sca_pic)
 ) type = innobase ;
 
-INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca_sch_desc) VALUES ( 'PD', 'J', 'PENDANT', 'EN', NULL, NULL, 'PENDANT'),( 'RI', 'J', 'RING', 'EN', NULL, NULL, 'RING');
+INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca_sch_desc) VALUES ( 'PD', 'J', 'PENDANT', 'EN', NULL, NULL, 'PENDANT'),( 'RI', 'J', 'RING', 'EN', NULL, NULL, 'RING'),( 'QQ', 'N', 'RING', 'EN', 'not null', NULL, 'RING');
 select count(*) from t1 where sca_code = 'PD';
+select count(*) from t1 where sca_code <= 'PD';
+select count(*) from t1 where sca_pic is null;
+alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+select count(*) from t1 where sca_code='PD' and sca_pic is null;
+select count(*) from t1 where cat_code='E';
+
+alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+select count(*) from t1 where sca_code='PD' and sca_pic is null;
+select count(*) from t1 where sca_pic >= 'n';
+select sca_pic from t1 where sca_pic is null;
+update t1 set sca_pic="test" where sca_pic is null;
+delete from t1 where sca_code='pd';
 drop table t1;
 
 #
-# Test of opening table twice
+# Test of opening table twice and timestamps
 #
-CREATE TABLE t1 (a int not null, primary key (a)) type=innobase;
-insert into t1 values(1),(2),(3);
-select t1.a from t1 natural join t1 as t2 order by t1.a;
+set @a:=now();
+CREATE TABLE t1 (a int not null, b timestamp not null, primary key (a)) type=innobase;
+insert into t1 (a) values(1),(2),(3);
+select t1.a from t1 natural join t1 as t2 where t1.b >= @a order by t1.a;
+update t1 set a=5 where a=1;
+select a from t1;
+drop table t1;
+
+#
+# Test key on blob with null values
+#
+create table t1 (b blob, i int, key (b(100)), key (i), key (i, b(20))) type=innobase;
+insert into t1 values ('this is a blob', 1), (null, -1), (null, null),("",1),("",2),("",3);
+select b from t1 where b = 'this is a blob';
+select * from t1 where b like 't%';
+select b, i from t1 where b is not null;
+select * from t1 where b is null and i > 0;
+select * from t1 where i is NULL;
+update t1 set b='updated' where i=1;
+select * from t1;
+drop table t1;
+
+#
+# Test with variable length primary key
+#
+create table t1 (a varchar(100) not null, primary key(a), b int not null) type=innobase;
+insert into t1 values("hello",1),("world",2);
+select * from t1 order by b desc;
+optimize table t1;
+show keys from t1;
+drop table t1;
+
+#
+# Test of create index with NULL columns
+#
+create table t1 (i int, j int ) TYPE=innobase;
+insert into t1 values (1,2);
+select * from t1 where i=1 and j=2;
+create index ax1 on t1 (i,j);
+select * from t1 where i=1 and j=2;
 drop table t1;

@@ -1,0 +1,56 @@
+/******************************************************
+The interface to the operating system synchronization primitives.
+
+(c) 1995 Innobase Oy
+
+Created 9/6/1995 Heikki Tuuri
+*******************************************************/
+
+#ifdef __WIN__
+#include <winbase.h>
+#endif
+
+#ifndef _WIN32
+/**************************************************************
+Acquires ownership of a fast mutex. */
+UNIV_INLINE
+ulint
+os_fast_mutex_trylock(
+/*==================*/
+						/* out: 0 if success, != 0 if
+						was reserved by another
+						thread */
+	os_fast_mutex_t*	fast_mutex)	/* in: mutex to acquire */
+{
+#ifdef __WIN__	
+	int	ret;
+
+	/* TryEnterCriticalSection is probably not found from
+	NT versions < 4! */
+	ret = TryEnterCriticalSection(fast_mutex);
+
+	if (ret) {
+		return(0);
+	}
+
+	return(1);
+#else
+	return((ulint) pthread_mutex_trylock(fast_mutex));
+#endif
+}
+
+/**************************************************************
+Releases ownership of a fast mutex. */
+UNIV_INLINE
+void
+os_fast_mutex_unlock(
+/*=================*/
+	os_fast_mutex_t*	fast_mutex)	/* in: mutex to release */
+{
+#ifdef __WIN__
+	LeaveCriticalSection(fast_mutex);
+#else
+	pthread_mutex_unlock(fast_mutex);
+#endif
+}
+#endif

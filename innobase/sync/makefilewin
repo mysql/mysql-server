@@ -1,0 +1,17 @@
+include ..\include\makefile.i
+
+sync.lib: sync0sync.obj sync0rw.obj sync0ipm.obj sync0arr.obj
+	lib -out:..\libs\sync.lib sync0sync.obj sync0rw.obj sync0ipm.obj sync0arr.obj
+
+sync0sync.obj: sync0sync.c
+	$(CCOM) $(CFLN) -c sync0sync.c
+
+sync0rw.obj: sync0rw.c
+	$(CCOM) $(CFL) -c sync0rw.c
+
+sync0ipm.obj: sync0ipm.c
+	$(CCOM) $(CFL) -c sync0ipm.c
+
+sync0arr.obj: sync0arr.c
+	$(CCOM) $(CFL) -c sync0arr.c
+

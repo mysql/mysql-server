@@ -1,0 +1,959 @@
+/************************************************************************
+Record manager
+
+(c) 1994-1996 Innobase Oy
+
+Created 5/30/1994 Heikki Tuuri
+*************************************************************************/
+
+#include "mach0data.h"
+#include "ut0byte.h"
+
+/* Offsets of the bit-fields in the record. NOTE! In the table the most 
+significant bytes and bits are written below less significant.
+
+	(1) byte offset		(2) bit usage within byte
+	downward from
+	origin ->	1	8 bits pointer to next record
+			2	8 bits pointer to next record
+			3  	1 bit short flag
+				7 bits number of fields
+			4	3 bits number of fields
+				5 bits heap number
+			5	8 bits heap number
+			6	4 bits n_owned
+				4 bits info bits
+*/
+
+
+/* Maximum lengths for the data in a physical record if the offsets
+are given as one byte (resp. two byte) format. */
+#define REC_1BYTE_OFFS_LIMIT	0x7F
+#define REC_2BYTE_OFFS_LIMIT	0x7FFF
+
+/* We list the byte offsets from the origin of the record, the mask,
+and the shift needed to obtain each bit-field of the record. */
+
+#define REC_NEXT		2
+#define REC_NEXT_MASK		0xFFFF
+#define REC_NEXT_SHIFT		0
+
+#define REC_SHORT		3	/* This is single byte bit-field */
+#define	REC_SHORT_MASK		0x1
+#define REC_SHORT_SHIFT		0
+
+#define	REC_N_FIELDS		4
+#define REC_N_FIELDS_MASK	0x7FE
+#define	REC_N_FIELDS_SHIFT	1
+
+#define	REC_HEAP_NO		5
+#define REC_HEAP_NO_MASK	0xFFF8
+#define	REC_HEAP_NO_SHIFT	3
+
+#define REC_N_OWNED		6	/* This is single byte bit-field */
+#define	REC_N_OWNED_MASK	0xF
+#define REC_N_OWNED_SHIFT	0
+
+#define	REC_INFO_BITS_MASK	0xF0
+#define REC_INFO_BITS_SHIFT	0
+
+/* The deleted flag in info bits */
+#define REC_INFO_DELETED_FLAG 	0x20	/* when bit is set to 1, it means the
+					record has been delete marked */
+/* The following masks are used to filter the SQL null bit from
+one-byte and two-byte offsets */
+
+#define REC_1BYTE_SQL_NULL_MASK	0x80
+#define REC_2BYTE_SQL_NULL_MASK	0x8000
+
+/***************************************************************
+Sets the value of the ith field SQL null bit. */
+
+void
+rec_set_nth_field_null_bit(
+/*=======================*/
+	rec_t*	rec,	/* in: record */
+	ulint	i,	/* in: ith field */
+	ibool	val);	/* in: value to set */
+/*************************************************************** 
+Sets a record field to SQL null. The physical size of the field is not
+changed. */
+
+void
+rec_set_nth_field_sql_null(
+/*=======================*/
+	rec_t*	rec, 	/* in: record */
+	ulint	n);	/* in: index of the field */
+
+/**********************************************************
+Gets a bit field from within 1 byte. */
+UNIV_INLINE
+ulint
+rec_get_bit_field_1(
+/*================*/
+	rec_t*	rec,	/* in: pointer to record origin */
+	ulint	offs,	/* in: offset from the origin down */
+	ulint	mask,	/* in: mask used to filter bits */
+	ulint	shift)	/* in: shift right applied after masking */
+{
+	ut_ad(rec);
+
+	return((mach_read_from_1(rec - offs) & mask) >> shift);
+}
+
+/**********************************************************
+Sets a bit field within 1 byte. */
+UNIV_INLINE
+void
+rec_set_bit_field_1(
+/*================*/
+	rec_t*	rec,	/* in: pointer to record origin */
+	ulint	val,	/* in: value to set */
+	ulint	offs,	/* in: offset from the origin down */
+	ulint	mask,	/* in: mask used to filter bits */
+	ulint	shift)	/* in: shift right applied after masking */
+{
+	ut_ad(rec);
+	ut_ad(offs <= REC_N_EXTRA_BYTES);
+	ut_ad(mask);
+	ut_ad(mask <= 0xFF);
+	ut_ad(((mask >> shift) << shift) == mask);
+	ut_ad(((val << shift) & mask) == (val << shift));
+	
+	mach_write_to_1(rec - offs, 
+			(mach_read_from_1(rec - offs) & ~mask) 
+			| (val << shift));
+}
+
+/**********************************************************
+Gets a bit field from within 2 bytes. */
+UNIV_INLINE
+ulint
+rec_get_bit_field_2(
+/*================*/
+	rec_t*	rec,	/* in: pointer to record origin */
+	ulint	offs,	/* in: offset from the origin down */
+	ulint	mask,	/* in: mask used to filter bits */
+	ulint	shift)	/* in: shift right applied after masking */
+{
+	ut_ad(rec);
+
+	return((mach_read_from_2(rec - offs) & mask) >> shift);
+}
+
+/**********************************************************
+Sets a bit field within 2 bytes. */
+UNIV_INLINE
+void
+rec_set_bit_field_2(
+/*================*/
+	rec_t*	rec,	/* in: pointer to record origin */
+	ulint	val,	/* in: value to set */
+	ulint	offs,	/* in: offset from the origin down */
+	ulint	mask,	/* in: mask used to filter bits */
+	ulint	shift)	/* in: shift right applied after masking */
+{
+	ut_ad(rec);
+	ut_ad(offs <= REC_N_EXTRA_BYTES);
+	ut_ad(mask > 0xFF);
+	ut_ad(mask <= 0xFFFF);
+	ut_ad((mask >> shift) & 1);
+	ut_ad(0 == ((mask >> shift) & ((mask >> shift) + 1)));
+	ut_ad(((mask >> shift) << shift) == mask);
+	ut_ad(((val << shift) & mask) == (val << shift));
+#ifdef UNIV_DEBUG
+      {
+	ulint	m;
+
+	/* The following assertion checks that the masks of currently
+	defined bit-fields in bytes 3-6 do not overlap. */
+	m = (ulint)((REC_SHORT_MASK << (8 * (REC_SHORT - 3)))
+			   + (REC_N_FIELDS_MASK << (8 * (REC_N_FIELDS - 4)))
+			   + (REC_HEAP_NO_MASK << (8 * (REC_HEAP_NO - 4)))
+			   + (REC_N_OWNED_MASK << (8 * (REC_N_OWNED - 3)))
+			   + (REC_INFO_BITS_MASK << (8 * (REC_INFO_BITS - 3))));
+	if (m != ut_dbg_zero + 0xFFFFFFFF) {
+		printf("Sum of masks %lx\n", m);
+		ut_error;
+	}
+      }
+#endif	
+	mach_write_to_2(rec - offs, 
+			(mach_read_from_2(rec - offs) & ~mask) 
+			| (val << shift));
+}
+
+/**********************************************************
+The following function is used to get the offset of the next chained record
+on the same page. */
+UNIV_INLINE
+ulint 
+rec_get_next_offs(
+/*==============*/
+			/* out: the page offset of the next chained record */
+	rec_t*	rec)	/* in: physical record */
+{	
+	ulint	ret;
+
+	ut_ad(rec);
+
+	ret = rec_get_bit_field_2(rec, REC_NEXT, REC_NEXT_MASK,
+							REC_NEXT_SHIFT);
+	ut_ad(ret < UNIV_PAGE_SIZE);
+
+	return(ret);
+}
+
+/**********************************************************
+The following function is used to set the next record offset field of the
+record. */
+UNIV_INLINE
+void
+rec_set_next_offs(
+/*==============*/
+	rec_t*	rec,	/* in: physical record */
+	ulint	next)	/* in: offset of the next record */
+{
+	ut_ad(rec);
+	ut_ad(UNIV_PAGE_SIZE > next);
+
+	rec_set_bit_field_2(rec, next, REC_NEXT, REC_NEXT_MASK,
+							REC_NEXT_SHIFT);
+}
+
+/**********************************************************
+The following function is used to get the number of fields in the record. */
+UNIV_INLINE
+ulint
+rec_get_n_fields(
+/*=============*/
+			/* out: number of data fields */
+	rec_t*	rec)	/* in: physical record */
+{
+	ulint	ret;
+
+	ut_ad(rec);
+
+	ret = rec_get_bit_field_2(rec, REC_N_FIELDS, REC_N_FIELDS_MASK,
+							REC_N_FIELDS_SHIFT);
+	ut_ad(ret <= REC_MAX_N_FIELDS);
+	ut_ad(ret > 0);
+
+	return(ret);
+}	
+
+/**********************************************************
+The following function is used to set the number of fields field in the
+record. */
+UNIV_INLINE
+void
+rec_set_n_fields(
+/*=============*/
+	rec_t*	rec,		/* in: physical record */
+	ulint	n_fields)	/* in: the number of fields */
+{
+	ut_ad(rec);
+	ut_ad(n_fields <= REC_MAX_N_FIELDS);
+	ut_ad(n_fields > 0);
+
+	rec_set_bit_field_2(rec, n_fields, REC_N_FIELDS, REC_N_FIELDS_MASK,
+							REC_N_FIELDS_SHIFT);
+}
+
+/**********************************************************
+The following function is used to get the number of records owned by the
+previous directory record. */
+UNIV_INLINE
+ulint
+rec_get_n_owned(
+/*============*/
+			/* out: number of owned records */
+	rec_t*	rec)	/* in: physical record */
+{
+	ulint	ret;
+
+	ut_ad(rec);
+
+	ret = rec_get_bit_field_1(rec, REC_N_OWNED, REC_N_OWNED_MASK,
+							REC_N_OWNED_SHIFT);
+	ut_ad(ret <= REC_MAX_N_OWNED); 
+
+	return(ret);
+}	
+
+/**********************************************************
+The following function is used to set the number of owned records. */
+UNIV_INLINE
+void
+rec_set_n_owned(
+/*============*/
+	rec_t*	rec,		/* in: physical record */
+	ulint	n_owned)	/* in: the number of owned */
+{
+	ut_ad(rec);
+	ut_ad(n_owned <= REC_MAX_N_OWNED);
+
+	rec_set_bit_field_1(rec, n_owned, REC_N_OWNED, REC_N_OWNED_MASK,
+							REC_N_OWNED_SHIFT);
+}
+
+/**********************************************************
+The following function is used to retrieve the info bits of a record. */
+UNIV_INLINE
+ulint
+rec_get_info_bits(
+/*==============*/
+			/* out: info bits */
+	rec_t*	rec)	/* in: physical record */
+{
+	ulint	ret;
+
+	ut_ad(rec);
+
+	ret = rec_get_bit_field_1(rec, REC_INFO_BITS, REC_INFO_BITS_MASK,
+							REC_INFO_BITS_SHIFT);
+	ut_ad((ret & ~REC_INFO_BITS_MASK) == 0);
+
+	return(ret);
+}	
+
+/**********************************************************
+The following function is used to set the info bits of a record. */
+UNIV_INLINE
+void
+rec_set_info_bits(
+/*==============*/
+	rec_t*	rec,	/* in: physical record */
+	ulint	bits)	/* in: info bits */
+{
+	ut_ad(rec);
+	ut_ad((bits & ~REC_INFO_BITS_MASK) == 0);
+
+	rec_set_bit_field_1(rec, bits, REC_INFO_BITS, REC_INFO_BITS_MASK,
+							REC_INFO_BITS_SHIFT);
+}
+
+/**********************************************************
+Gets the value of the deleted flag in info bits. */
+UNIV_INLINE
+ibool
+rec_info_bits_get_deleted_flag(
+/*===========================*/
+				/* out: TRUE if deleted flag set */
+	ulint	info_bits)	/* in: info bits from a record */
+{
+	if (info_bits & REC_INFO_DELETED_FLAG) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/**********************************************************
+The following function tells if record is delete marked. */
+UNIV_INLINE
+ibool
+rec_get_deleted_flag(
+/*=================*/
+			/* out: TRUE if delete marked */
+	rec_t*	rec)	/* in: physical record */
+{
+	if (REC_INFO_DELETED_FLAG & rec_get_info_bits(rec)) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+/**********************************************************
+The following function is used to set the deleted bit. */
+UNIV_INLINE
+void
+rec_set_deleted_flag(
+/*=================*/
+	rec_t*	rec,	/* in: physical record */
+	ibool	flag)	/* in: TRUE if delete marked */
+{
+	ulint	old_val;
+	ulint	new_val;
+
+	ut_ad(TRUE == 1);
+	ut_ad(flag <= TRUE);
+
+	old_val = rec_get_info_bits(rec);
+	
+	if (flag) {
+		new_val = REC_INFO_DELETED_FLAG | old_val;
+	} else {
+		new_val = ~REC_INFO_DELETED_FLAG & old_val;
+	}
+
+	rec_set_info_bits(rec, new_val);
+}
+
+/**********************************************************
+The following function is used to get the order number of the record in the
+heap of the index page. */
+UNIV_INLINE
+ulint
+rec_get_heap_no(
+/*=============*/
+			/* out: heap order number */
+	rec_t*	rec)	/* in: physical record */
+{
+	ulint	ret;
+
+	ut_ad(rec);
+
+	ret = rec_get_bit_field_2(rec, REC_HEAP_NO, REC_HEAP_NO_MASK,
+							REC_HEAP_NO_SHIFT);
+	ut_ad(ret <= REC_MAX_HEAP_NO);
+
+	return(ret);
+}	
+
+/**********************************************************
+The following function is used to set the heap number field in the record. */
+UNIV_INLINE
+void
+rec_set_heap_no(
+/*=============*/
+	rec_t*	rec,	/* in: physical record */
+	ulint	heap_no)/* in: the heap number */
+{
+	ut_ad(heap_no <= REC_MAX_HEAP_NO);
+
+	rec_set_bit_field_2(rec, heap_no, REC_HEAP_NO, REC_HEAP_NO_MASK,
+							REC_HEAP_NO_SHIFT);
+}
+
+/**********************************************************
+The following function is used to test whether the data offsets in the record
+are stored in one-byte or two-byte format. */
+UNIV_INLINE
+ibool
+rec_get_1byte_offs_flag(
+/*====================*/
+			/* out: TRUE if 1-byte form */
+	rec_t*	rec)	/* in: physical record */
+{
+	ut_ad(TRUE == 1);
+
+	return(rec_get_bit_field_1(rec, REC_SHORT, REC_SHORT_MASK,
+							REC_SHORT_SHIFT));
+}
+
+/**********************************************************
+The following function is used to set the 1-byte offsets flag. */
+UNIV_INLINE
+void
+rec_set_1byte_offs_flag(
+/*====================*/
+	rec_t*	rec,	/* in: physical record */
+	ibool	flag)	/* in: TRUE if 1byte form */
+{
+	ut_ad(TRUE == 1);
+	ut_ad(flag <= TRUE);
+
+	rec_set_bit_field_1(rec, flag, REC_SHORT, REC_SHORT_MASK,
+							REC_SHORT_SHIFT);
+}
+
+/**********************************************************
+Returns the offset of nth field end if the record is stored in the 1-byte
+offsets form. If the field is SQL null, the flag is ORed in the returned
+value. */
+UNIV_INLINE
+ulint
+rec_1_get_field_end_info(
+/*=====================*/
+ 			/* out: offset of the start of the field, SQL null
+ 			flag ORed */
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n)	/* in: field index */
+{
+	ut_ad(rec_get_1byte_offs_flag(rec));
+	ut_ad(n < rec_get_n_fields(rec));
+
+	return(mach_read_from_1(rec - (REC_N_EXTRA_BYTES + n + 1)));
+}
+						
+/**********************************************************
+Returns the offset of nth field end if the record is stored in the 2-byte
+offsets form. If the field is SQL null, the flag is ORed in the returned
+value. */
+UNIV_INLINE
+ulint
+rec_2_get_field_end_info(
+/*=====================*/
+ 			/* out: offset of the start of the field, SQL null
+ 			flag ORed */
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n)	/* in: field index */
+{
+	ut_ad(!rec_get_1byte_offs_flag(rec));
+	ut_ad(n < rec_get_n_fields(rec));
+
+	return(mach_read_from_2(rec - (REC_N_EXTRA_BYTES + 2 * n + 2)));
+}
+
+/**********************************************************
+Returns the offset of n - 1th field end if the record is stored in the 1-byte
+offsets form. If the field is SQL null, the flag is ORed in the returned
+value. This function and the 2-byte counterpart are defined here because the
+C-compilerwas not able to sum negative and positive constant offsets, and
+warned of constant arithmetic overflow within the compiler. */
+UNIV_INLINE
+ulint
+rec_1_get_prev_field_end_info(
+/*==========================*/
+ 			/* out: offset of the start of the PREVIOUS field, SQL
+			null flag ORed */
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n)	/* in: field index */
+{
+	ut_ad(rec_get_1byte_offs_flag(rec));
+	ut_ad(n <= rec_get_n_fields(rec));
+
+	return(mach_read_from_1(rec - (REC_N_EXTRA_BYTES + n)));
+}
+						
+/**********************************************************
+Returns the offset of n - 1th field end if the record is stored in the 2-byte
+offsets form. If the field is SQL null, the flag is ORed in the returned
+value. */
+UNIV_INLINE
+ulint
+rec_2_get_prev_field_end_info(
+/*==========================*/
+ 			/* out: offset of the start of the PREVIOUS field, SQL
+			null flag ORed */
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n)	/* in: field index */
+{
+	ut_ad(!rec_get_1byte_offs_flag(rec));
+	ut_ad(n <= rec_get_n_fields(rec));
+
+	return(mach_read_from_2(rec - (REC_N_EXTRA_BYTES + 2 * n)));
+}
+
+/**********************************************************
+Sets the field end info for the nth field if the record is stored in the
+1-byte format. */
+UNIV_INLINE
+void
+rec_1_set_field_end_info(
+/*=====================*/
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n,	/* in: field index */
+ 	ulint	info)	/* in: value to set */
+{
+	ut_ad(rec_get_1byte_offs_flag(rec));
+	ut_ad(n < rec_get_n_fields(rec));
+
+	mach_write_to_1(rec - (REC_N_EXTRA_BYTES + n + 1), info);
+}
+
+/**********************************************************
+Sets the field end info for the nth field if the record is stored in the
+2-byte format. */
+UNIV_INLINE
+void
+rec_2_set_field_end_info(
+/*=====================*/
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n,	/* in: field index */
+ 	ulint	info)	/* in: value to set */
+{
+	ut_ad(!rec_get_1byte_offs_flag(rec));
+	ut_ad(n < rec_get_n_fields(rec));
+
+	mach_write_to_2(rec - (REC_N_EXTRA_BYTES + 2 * n + 2), info);
+}
+
+/**********************************************************
+Returns the offset of nth field start if the record is stored in the 1-byte
+offsets form. */
+UNIV_INLINE
+ulint
+rec_1_get_field_start_offs(
+/*=======================*/
+ 			/* out: offset of the start of the field */
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n)	/* in: field index */
+{
+	ut_ad(rec_get_1byte_offs_flag(rec));
+	ut_ad(n <= rec_get_n_fields(rec));
+
+	if (n == 0) {
+
+		return(0);
+	}
+
+	return(rec_1_get_prev_field_end_info(rec, n)
+						& ~REC_1BYTE_SQL_NULL_MASK);
+}
+						
+/**********************************************************
+Returns the offset of nth field start if the record is stored in the 2-byte
+offsets form. */
+UNIV_INLINE
+ulint
+rec_2_get_field_start_offs(
+/*=======================*/
+ 			/* out: offset of the start of the field */
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n)	/* in: field index */
+{
+	ut_ad(!rec_get_1byte_offs_flag(rec));
+	ut_ad(n <= rec_get_n_fields(rec));
+
+	if (n == 0) {
+
+		return(0);
+	}
+
+	return(rec_2_get_prev_field_end_info(rec, n)
+						& ~REC_2BYTE_SQL_NULL_MASK);
+}
+						
+/**********************************************************
+The following function is used to read the offset of the start of a data field
+in the record. The start of an SQL null field is the end offset of the
+previous non-null field, or 0, if none exists. If n is the number of the last
+field + 1, then the end offset of the last field is returned. */
+UNIV_INLINE
+ulint
+rec_get_field_start_offs(
+/*=====================*/
+ 			/* out: offset of the start of the field */
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n)	/* in: field index */
+{
+	ut_ad(rec);
+	ut_ad(n <= rec_get_n_fields(rec));
+
+	if (n == 0) {
+
+		return(0);
+	}
+
+	if (rec_get_1byte_offs_flag(rec)) {
+
+		return(rec_1_get_field_start_offs(rec, n));
+	}
+
+	return(rec_2_get_field_start_offs(rec, n));
+}
+
+/****************************************************************
+Gets the physical size of a field. Also an SQL null may have a field of
+size > 0, if the data type is of a fixed size. */
+UNIV_INLINE
+ulint
+rec_get_nth_field_size(
+/*===================*/
+			/* out: field size in bytes */
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n)	/* in: index of the field */
+{
+	ulint	os;
+	ulint	next_os;
+
+	os = rec_get_field_start_offs(rec, n);
+	next_os = rec_get_field_start_offs(rec, n + 1);
+
+	ut_ad(next_os - os < UNIV_PAGE_SIZE);
+
+	return(next_os - os);
+}
+
+/****************************************************************
+The following function is used to get a copy of the nth data field in a
+record to a buffer. */
+UNIV_INLINE
+void
+rec_copy_nth_field(
+/*===============*/
+ 	void*	buf,	/* in: pointer to the buffer */
+ 	rec_t*	rec, 	/* in: record */
+ 	ulint	n,	/* in: index of the field */
+	ulint*	len)	/* out: length of the field; UNIV_SQL_NULL if SQL 
+			null */
+{
+	byte*	ptr;
+	
+	ut_ad(buf && rec && len);
+
+	ptr = rec_get_nth_field(rec, n, len);
+
+	if (*len == UNIV_SQL_NULL) {
+
+		return;
+	}
+
+	ut_memcpy(buf, ptr, *len);
+}
+
+/*************************************************************** 
+This is used to modify the value of an already existing field in a record.
+The previous value must have exactly the same size as the new value. If len
+is UNIV_SQL_NULL then the field is treated as an SQL null. */
+UNIV_INLINE
+void
+rec_set_nth_field(
+/*==============*/
+	rec_t*	rec, 	/* in: record */
+	ulint	n,	/* in: index of the field */
+	void*	data,	/* in: pointer to the data if not SQL null */
+	ulint	len)	/* in: length of the data or UNIV_SQL_NULL */
+{
+	byte*	data2;
+	ulint	len2;
+
+	ut_ad((len == UNIV_SQL_NULL)
+				|| (rec_get_nth_field_size(rec, n) == len));
+	
+	if (len == UNIV_SQL_NULL) {
+		rec_set_nth_field_sql_null(rec, n);
+
+		return;
+	}
+
+	data2 = rec_get_nth_field(rec, n, &len2);
+
+	ut_memcpy(data2, data, len);
+
+	if (len2 == UNIV_SQL_NULL) {
+	
+		rec_set_nth_field_null_bit(rec, n, FALSE);
+	}
+}
+
+/************************************************************** 
+The following function returns the data size of a physical
+record, that is the sum of field lengths. SQL null fields
+are counted as length 0 fields. The value returned by the function
+is the distance from record origin to record end in bytes. */
+UNIV_INLINE
+ulint
+rec_get_data_size(
+/*==============*/
+			/* out: size */
+	rec_t*	rec)	/* in: physical record */
+{
+	ut_ad(rec);
+
+	return(rec_get_field_start_offs(rec, rec_get_n_fields(rec)));
+}
+
+/************************************************************** 
+Returns the total size of record minus data size of record. The value
+returned by the function is the distance from record start to record origin
+in bytes. */
+UNIV_INLINE
+ulint
+rec_get_extra_size(
+/*===============*/
+			/* out: size */
+	rec_t*	rec)	/* in: physical record */
+{
+	ulint	n_fields;
+	
+	ut_ad(rec);
+
+	n_fields = rec_get_n_fields(rec);
+
+	if (rec_get_1byte_offs_flag(rec)) {
+
+		return(REC_N_EXTRA_BYTES + n_fields);
+	}
+
+	return(REC_N_EXTRA_BYTES + 2 * n_fields);
+}
+
+/************************************************************** 
+Returns the total size of a physical record.  */
+UNIV_INLINE
+ulint
+rec_get_size(
+/*=========*/
+			/* out: size */
+	rec_t*	rec)	/* in: physical record */
+{
+	ulint	n_fields;
+	
+	ut_ad(rec);
+
+	n_fields = rec_get_n_fields(rec);
+
+	if (rec_get_1byte_offs_flag(rec)) {
+
+		return(REC_N_EXTRA_BYTES + n_fields
+				+ rec_1_get_field_start_offs(rec, n_fields));
+	}
+	
+	return(REC_N_EXTRA_BYTES + 2 * n_fields
+				+ rec_2_get_field_start_offs(rec, n_fields));
+}
+	
+/**************************************************************
+Returns a pointer to the end of the record. */
+UNIV_INLINE
+byte*
+rec_get_end(
+/*========*/
+			/* out: pointer to end */
+	rec_t*	rec)	/* in: pointer to record */
+{
+	return(rec + rec_get_data_size(rec));
+}
+
+/**************************************************************
+Returns a pointer to the start of the record. */
+UNIV_INLINE
+byte*
+rec_get_start(
+/*==========*/
+			/* out: pointer to start */
+	rec_t*	rec)	/* in: pointer to record */
+{
+	return(rec - rec_get_extra_size(rec));
+}
+
+/*******************************************************************
+Copies a physical record to a buffer. */
+UNIV_INLINE
+rec_t*
+rec_copy(
+/*=====*/
+			/* out: pointer to the origin of the copied record */
+	void*	buf,	/* in: buffer */
+	rec_t*	rec)	/* in: physical record */
+{
+	ulint	extra_len;
+	ulint	data_len;
+	
+	ut_ad(rec && buf);
+	ut_ad(rec_validate(rec));
+
+	extra_len = rec_get_extra_size(rec);
+	data_len = rec_get_data_size(rec);
+
+	ut_memcpy(buf, rec - extra_len, extra_len + data_len);
+
+	return((byte*)buf + extra_len);
+}
+
+/**************************************************************
+Returns the extra size of a physical record if we know its data size and
+the number of fields. */
+UNIV_INLINE
+ulint
+rec_get_converted_extra_size(
+/*=========================*/
+				/* out: extra size */
+	ulint	data_size,	/* in: data size */
+	ulint	n_fields)	/* in: number of fields */
+{
+	if (data_size <= REC_1BYTE_OFFS_LIMIT) {
+
+		return(REC_N_EXTRA_BYTES + n_fields);
+	}
+
+	return(REC_N_EXTRA_BYTES + 2 * n_fields);
+}
+
+/**************************************************************
+The following function returns the size of a data tuple when converted to
+a physical record. */
+UNIV_INLINE
+ulint
+rec_get_converted_size(
+/*===================*/
+				/* out: size */
+	dtuple_t*	dtuple)	/* in: data tuple */
+{
+	ulint	data_size;
+	ulint	extra_size;
+	
+	ut_ad(dtuple);
+	ut_ad(dtuple_check_typed(dtuple));
+
+	data_size = dtuple_get_data_size(dtuple);
+
+	extra_size = rec_get_converted_extra_size(
+				data_size, dtuple_get_n_fields(dtuple));
+
+	return(data_size + extra_size);
+}
+
+/****************************************************************
+Folds a prefix of a physical record to a ulint. */
+UNIV_INLINE
+ulint
+rec_fold(
+/*=====*/
+				/* out: the folded value */
+	rec_t*	rec,		/* in: the physical record */
+	ulint	n_fields,	/* in: number of complete fields to fold */
+	ulint	n_bytes,	/* in: number of bytes to fold in an
+				incomplete last field */
+	dulint	tree_id)	/* in: index tree id */
+{
+	ulint	i;
+	byte*	data;
+	ulint	len;
+	ulint	fold;
+
+	ut_ad(rec_validate(rec));
+	ut_ad(n_fields <= rec_get_n_fields(rec));
+	ut_ad((n_fields < rec_get_n_fields(rec)) || (n_bytes == 0));
+	ut_ad(n_fields + n_bytes > 0);
+	/* Only the page supremum and infimum records have 1 field: */
+	ut_ad(rec_get_n_fields(rec) > 1);
+	
+	fold = ut_fold_dulint(tree_id);
+	
+	for (i = 0; i < n_fields; i++) {
+		data = rec_get_nth_field(rec, i, &len);
+
+		if (len != UNIV_SQL_NULL) {
+			fold = ut_fold_ulint_pair(fold,
+						  ut_fold_binary(data, len));
+		}
+	}
+
+	if (n_bytes > 0) {
+		data = rec_get_nth_field(rec, i, &len);
+
+		if (len != UNIV_SQL_NULL) {
+			if (len > n_bytes) {
+				len = n_bytes;
+			}
+		
+			fold = ut_fold_ulint_pair(fold,
+						  ut_fold_binary(data, len));
+		}
+	}
+
+	return(fold);
+}
+
+/*************************************************************
+Builds a physical record out of a data tuple and stores it beginning from
+the address destination. */
+UNIV_INLINE
+rec_t* 	
+rec_convert_dtuple_to_rec(
+/*======================*/			
+				/* out: pointer to the origin of physical
+				record */
+	byte*	destination,	/* in: start address of the physical record */
+	dtuple_t* dtuple)	/* in: data tuple */
+{
+	return(rec_convert_dtuple_to_rec_low(destination, dtuple,
+						dtuple_get_data_size(dtuple)));
+}
