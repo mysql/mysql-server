@@ -24,11 +24,12 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-int mysql_union(THD *thd, LEX *lex, select_result *result,SELECT_LEX_UNIT *unit)
+int mysql_union(THD *thd, LEX *lex, select_result *result,
+		SELECT_LEX_UNIT *unit, bool tables_OK)
 {
   DBUG_ENTER("mysql_union");
   int res= 0;
-  if (!(res= unit->prepare(thd, result)))
+  if (!(res= unit->prepare(thd, result, tables_OK)))
     res= unit->exec();
   res|= unit->cleanup();
   DBUG_RETURN(res);
@@ -107,7 +108,8 @@ bool select_union::flush()
   return 0;
 }
 
-int st_select_lex_unit::prepare(THD *thd, select_result *result)
+int st_select_lex_unit::prepare(THD *thd, select_result *result,
+				bool tables_OK)
 {
   DBUG_ENTER("st_select_lex_unit::prepare");
 
@@ -121,7 +123,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
   SELECT_LEX *sl;
 
-  thd->lex.current_select=first_select();
+  thd->lex.current_select= sl= first_select();
   /* Global option */
   if (((void*)(global_parameters)) == ((void*)this))
   {
@@ -130,20 +132,28 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
     if (found_rows_for_union)
       first_select()->options ^=  OPTION_FOUND_ROWS;
   }
-  item_list.empty();
+  if (tables_OK)
   {
-    Item *item;
-    List_iterator<Item> it(first_select()->item_list);
+    item_list= sl->item_list;
+  }
+  else
+  {
+    item_list.empty();
     TABLE_LIST *first_table= (TABLE_LIST*) first_select()->table_list.first;
 
-    /* Create a list of items that will be in the result set */
-    while ((item= it++))
-      if (item_list.push_back(item))
-	goto err;
-    if (setup_wild(thd, first_table, item_list, 0,
-		   first_select()->with_wild) ||
-	setup_fields(thd, 0, first_table, item_list, 0, 0, 1))
+    if (setup_tables(first_table) ||
+	setup_wild(thd, first_table, sl->item_list, 0, sl->with_wild))
       goto err;
+	
+    item_list= sl->item_list;
+    sl->with_wild= 0;
+    if (setup_ref_array(thd, &sl->ref_pointer_array, 
+			(item_list.elements + sl->with_sum_func +
+			 sl->order_list.elements + sl->group_list.elements)) ||
+	setup_fields(thd, sl->ref_pointer_array, first_table, item_list,
+		     0, 0, 1))
+      goto err;
+    tables_OK= 1;
   }
 
   bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
@@ -191,11 +201,25 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
 		       (ORDER*) sl->group_list.first,
 		       sl->having,
 		       (ORDER*) NULL,
-		       sl, this, 0);
+		       sl, this, 0, tables_OK);
+    tables_OK= 0;
     if (res | thd->fatal_error)
       goto err;
   }
+  item_list.empty();
   thd->lex.current_select= lex_select_save;
+  {
+    List_iterator<Item> it(first_select()->item_list);
+    Field **field;
+
+    for (field= table->field; *field; field++)
+    {
+      (void) it++;
+      if (item_list.push_back(new Item_field(*field)))
+	DBUG_RETURN(-1);
+    }
+  }
+
   DBUG_RETURN(res | thd->fatal_error);
 err:
   thd->lex.current_select= lex_select_save;
@@ -260,9 +284,6 @@ int st_select_lex_unit::exec()
   thd->lex.current_select = first_select();
   res =-1;
   {
-    /* Create a list of fields in the temporary table */
-    List_iterator<Item> it(item_list);
-    Field **field;
 #if 0
     List<Item_func_match> ftfunc_list;
     ftfunc_list.empty();
@@ -272,11 +293,6 @@ int st_select_lex_unit::exec()
     thd->lex.select_lex.ftfunc_list= &empty_list;
 #endif
 
-    for (field=table->field ; *field ; field++)
-    {
-      (void) it++;
-      (void) it.replace(new Item_field(*field));
-    }
     if (!thd->fatal_error)			// Check if EOM
     {
       SELECT_LEX *sl=thd->lex.current_select->master_unit()->first_select();
@@ -292,7 +308,7 @@ int st_select_lex_unit::exec()
 			global_parameters->order_list.elements,
 			(ORDER*)global_parameters->order_list.first,
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
-			thd->options, result, this, first_select(), 1);
+			thd->options, result, this, first_select(), 1, 0);
       if (found_rows_for_union && !res)
 	thd->limit_found_rows = (ulonglong)table->file->records;
     }

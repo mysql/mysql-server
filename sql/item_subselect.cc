@@ -161,7 +161,7 @@ void Item_singlerow_subselect::select_transformer(THD *thd,
       select_lex->item_list.elements == 1 &&
       // TODO: mark subselect items from item list separately
       !(select_lex->item_list.head()->type() == FIELD_ITEM ||
-	select_lex->item_list.head()->type() == REF_ITEM)
+	select_lex->item_list.head()->type() == REF_ITEM) 
       )
   {
     
@@ -693,7 +693,7 @@ int subselect_single_select_engine::prepare()
 		    (ORDER*) select_lex->group_list.first,
 		    select_lex->having,
 		    (ORDER*) 0, select_lex, 
-		    select_lex->master_unit(), 0))
+		    select_lex->master_unit(), 0, 0))
     return 1;
   thd->lex.current_select= save_select;
   return 0;
@@ -701,7 +701,7 @@ int subselect_single_select_engine::prepare()
 
 int subselect_union_engine::prepare()
 {
-  return unit->prepare(thd, result);
+  return unit->prepare(thd, result, 0);
 }
 
 static Item_result set_row(SELECT_LEX *select_lex, Item * item,

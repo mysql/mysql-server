@@ -106,17 +106,22 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
       fix_tables_pointers(unit);
     }
 
-    Item *item;
-    List_iterator<Item> it(sl->item_list);
-
-    while ((item= it++))
-      item_list.push_back(item);
-
-
     lex->current_select= sl;
     TABLE_LIST *first_table= (TABLE_LIST*) sl->table_list.first;
-    if (setup_wild(thd, first_table, item_list, 0, sl->with_wild) ||
-	setup_fields(thd, 0, first_table, item_list, 0, 0, 1))
+    if (setup_tables(first_table) ||
+	setup_wild(thd, first_table, sl->item_list, 0, sl->with_wild))
+    {
+      res= -1;
+      goto exit;
+    }
+	
+    item_list= sl->item_list;
+    sl->with_wild= 0;
+    if (setup_ref_array(thd, &sl->ref_pointer_array, 
+			(item_list.elements + sl->with_sum_func +
+			 sl->order_list.elements + sl->group_list.elements)) ||
+	setup_fields(thd, sl->ref_pointer_array, first_table, item_list,
+		     0, 0, 1))
     {
       res= -1;
       goto exit;
@@ -145,7 +150,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 	sl->options&= ~OPTION_FOUND_ROWS;
 
       if (is_union)
-	res= mysql_union(thd, lex, derived_result, unit);
+	res= mysql_union(thd, lex, derived_result, unit, 1);
       else
         res= mysql_select(thd, &sl->ref_pointer_array, 
 			  (TABLE_LIST*) sl->table_list.first,
@@ -156,7 +161,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 			  (ORDER *) sl->group_list.first,
 			  sl->having, (ORDER*) NULL,
 			  sl->options | thd->options  | SELECT_NO_UNLOCK,
-			  derived_result, unit, sl, 0);
+			  derived_result, unit, sl, 0, 1);
 
       if (!res)
       {

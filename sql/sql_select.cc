@@ -169,7 +169,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   register SELECT_LEX *select_lex = &lex->select_lex;
   fix_tables_pointers(lex->all_selects_list);
   if (select_lex->next_select())
-    res=mysql_union(thd,lex,result,&lex->unit);
+    res=mysql_union(thd, lex, result, &lex->unit, 0);
   else
     res= mysql_select(thd, &select_lex->ref_pointer_array,
 		      (TABLE_LIST*) select_lex->table_list.first,
@@ -182,7 +182,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		      select_lex->having,
 		      (ORDER*) lex->proc_list.first,
 		      select_lex->options | thd->options,
-		      result, &(lex->unit), &(lex->select_lex), 0);
+		      result, &(lex->unit), &(lex->select_lex), 0, 0);
   if (res && result)
     result->abort();
 
@@ -267,7 +267,8 @@ JOIN::prepare(Item ***rref_pointer_array,
 	      ORDER *order_init, ORDER *group_init,
 	      Item *having_init,
 	      ORDER *proc_param_init, SELECT_LEX *select,
-	      SELECT_LEX_UNIT *unit, bool fake_select_lex)
+	      SELECT_LEX_UNIT *unit,
+	      bool fake_select_lex, bool tables_OK)
 {
   DBUG_ENTER("JOIN::prepare");
 
@@ -284,8 +285,9 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   /* Check that all tables, fields, conds and order are ok */
 
-  if (setup_tables(tables_list) ||
-      setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
+  if ((tables_OK?0:(setup_tables(tables_list) ||
+		    setup_wild(thd, tables_list, fields_list,
+			       &all_fields, wild_num))) ||
       setup_ref_array(thd, rref_pointer_array, (fields_list.elements +
 						select_lex->with_sum_func +
 						og_num)) ||
@@ -1296,7 +1298,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	     COND *conds, uint og_num,  ORDER *order, ORDER *group,
 	     Item *having, ORDER *proc_param, ulong select_options,
 	     select_result *result, SELECT_LEX_UNIT *unit,
-	     SELECT_LEX *select_lex, bool fake_select_lex)
+	     SELECT_LEX *select_lex, bool fake_select_lex, bool tables_OK)
 {
   int err;
   bool free_join= 1;
@@ -1323,7 +1325,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 
     if (join->prepare(rref_pointer_array, tables, wild_num,
 		      conds, og_num, order, group, having, proc_param,
-		      select_lex, unit, fake_select_lex))
+		      select_lex, unit, fake_select_lex, tables_OK))
     {
       DBUG_RETURN(-1);
     }
@@ -8065,7 +8067,7 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
 			select_lex->having,
 			(ORDER*) thd->lex.proc_list.first,
 			select_lex->options | thd->options | SELECT_DESCRIBE,
-			result, unit, select_lex, 0);
+			result, unit, select_lex, 0, 0);
   DBUG_RETURN(res);
 }
 

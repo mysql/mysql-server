@@ -633,7 +633,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       uint counter= 0;
       // Prevent using outer fields in subselects, that is not supported now
       SELECT_LEX *cursel=(SELECT_LEX *) thd->lex.current_select;
-      if (cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
+      if (outer_resolving ||
+	  cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
 	for (SELECT_LEX *sl=(outer_resolving?cursel:cursel->outer_select());
 	     sl;
 	     sl= sl->outer_select())
@@ -1184,10 +1185,6 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       }
       ref= thd->lex.current_select->ref_pointer_array + counter-1;
     }
-    
-    max_length= (*ref)->max_length;
-    maybe_null= (*ref)->maybe_null;
-    decimals=	(*ref)->decimals;
   }
 
   if (((*ref)->with_sum_func && 
@@ -1202,6 +1199,9 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	      "forward reference in item list"));
     return 1;
   }
+  max_length= (*ref)->max_length;
+  maybe_null= (*ref)->maybe_null;
+  decimals=   (*ref)->decimals;
   fixed= 1;
   if (ref && (*ref)->check_cols(1))
     return 1;

@@ -312,7 +312,7 @@ public:
   void exclude_level();
 
   /* UNION methods */
-  int prepare(THD *thd, select_result *result);
+  int prepare(THD *thd, select_result *result, bool tables_OK);
   int exec();
   int cleanup();
   
