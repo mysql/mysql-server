@@ -147,6 +147,8 @@ HugoCalculator::calcValue(int record,
   case NdbDictionary::Column::Double:
   case NdbDictionary::Column::Olddecimal:
   case NdbDictionary::Column::Olddecimalunsigned:
+  case NdbDictionary::Column::Decimal:
+  case NdbDictionary::Column::Decimalunsigned:
   case NdbDictionary::Column::Binary:
   case NdbDictionary::Column::Datetime:
   case NdbDictionary::Column::Time:

@@ -250,6 +250,10 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
           out.print("%.*s", len, r.aRef());
         }
 	break;
+      case NdbDictionary::Column::Decimal:
+      case NdbDictionary::Column::Decimalunsigned:
+        goto unknown;   // TODO
+        break;
       // for dates cut-and-paste from field.cc
       case NdbDictionary::Column::Datetime:
         {
@@ -359,6 +363,7 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
           j = length;
         }
         break;
+      unknown:
       default: /* no print functions for the rest, just print type */
 	out << (int) r.getType();
 	j = length;
