@@ -641,7 +641,7 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
                                      SELECT_LEX *select_lex)
 {
   THD *thd= stmt->thd;
-  LEX *lex= thd->lex;
+  LEX *lex= &thd->main_lex;
   select_result *result= thd->lex->result;
   DBUG_ENTER("mysql_test_select_fields");
 
@@ -703,7 +703,7 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
 static bool send_prepare_results(PREP_STMT *stmt)     
 {   
   THD *thd= stmt->thd;
-  LEX *lex= thd->lex;
+  LEX *lex= &thd->main_lex;
   enum enum_sql_command sql_command= thd->lex->sql_command;
   DBUG_ENTER("send_prepare_results");
   DBUG_PRINT("enter",("command: %d, param_count: %ld",
@@ -812,7 +812,7 @@ static bool init_param_items(PREP_STMT *stmt)
   Item_param **to;
   uint32 length= thd->query_length;
  
-  stmt->lex=  *thd->lex;
+  stmt->lex=  thd->main_lex;
 
   if (mysql_bin_log.is_open())
   {
@@ -972,8 +972,8 @@ void mysql_stmt_execute(THD *thd, char *packet)
     DBUG_VOID_RETURN;
   }
 
-  LEX *thd_lex= thd->lex;
-  thd->lex= &stmt->lex;
+  LEX thd_lex= thd->main_lex;
+  thd->main_lex= stmt->lex;
   
   for (sl= stmt->lex.all_selects_list;
        sl;
@@ -1012,7 +1012,7 @@ void mysql_stmt_execute(THD *thd, char *packet)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
-  thd->lex= thd_lex;
+  thd->main_lex= thd_lex;
   DBUG_VOID_RETURN;
 }
 

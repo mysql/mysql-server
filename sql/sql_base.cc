@@ -2269,7 +2269,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	}
       }
       cond_and->used_tables_cache= t1->map | t2->map;
-      thd->lex->current_select->cond_count+=cond_and->list.elements;
+      thd->lex->current_select->cond_count+= cond_and->list.elements;
       if (!table->outer_join)			// Not left join
       {
 	if (!(*conds=and_conds(*conds, cond_and)))
