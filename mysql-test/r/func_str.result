@@ -226,7 +226,7 @@ select length(repeat("a",100000000)),length(repeat("a",1000*64));
 length(repeat("a",100000000))	length(repeat("a",1000*64))
 NULL	64000
 Warnings:
-Warning	1300	Data truncated by function 'repeat' do to max_allowed_packet
+Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
 select position("0" in "baaa" in (1)),position("0" in "1" in (1,2,3)),position("sql" in ("mysql"));
 position("0" in "baaa" in (1))	position("0" in "1" in (1,2,3))	position("sql" in ("mysql"))
 1	0	3

@@ -308,3 +308,4 @@ character-set=latin7
 "Got temporary error %d '%-.100s' from %s",
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid %s character string: '%.64s'",
+"Result of %s() was larger than max_allowed_packet (%d) - truncated"
