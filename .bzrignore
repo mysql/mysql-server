@@ -1055,4 +1055,3 @@ vio/viotest-ssl
 include/mysqld_ername.h
 include/mysqld_error.h
 include/sql_state.h
-innobase/row/row0index.c
