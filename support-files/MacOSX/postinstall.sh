@@ -8,11 +8,14 @@
 # afterwards.
 #
 
-cd @prefix@
-if [ ! -f data/mysql/db.frm ] ; then
-	./scripts/mysql_install_db
-fi
+if cd @prefix@ ; then
+	if [ ! -f data/mysql/db.frm ] ; then
+		./scripts/mysql_install_db
+	fi
 
-if [ -d data ] ; then
-	chown -R @MYSQLD_USER@ data
+	if [ -d data ] ; then
+		chown -R @MYSQLD_USER@ data
+	fi
+else
+	exit $?
 fi
