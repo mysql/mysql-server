@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1,t2;
 set names latin1;
 select 'hello',"'hello'",'""hello""','''h''e''l''l''o''',"hel""lo",'hel\'lo';
 hello	'hello'	""hello""	'h'e'l'l'o'	hel"lo	hel'lo
@@ -236,6 +236,8 @@ Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - t
 select position("0" in "baaa" in (1)),position("0" in "1" in (1,2,3)),position("sql" in ("mysql"));
 position("0" in "baaa" in (1))	position("0" in "1" in (1,2,3))	position("sql" in ("mysql"))
 1	0	3
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'baaa'
 select position(("1" in (1,2,3)) in "01");
 position(("1" in (1,2,3)) in "01")
 2
@@ -393,9 +395,9 @@ select FIELD(_latin2'b','A','B');
 ERROR HY000: Illegal mix of collations (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'field'
 select FIELD('b',_latin2'A','B');
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE), (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'field'
-select FIELD('b',_latin2'A','B',1);
-FIELD('b',_latin2'A','B',1)
-1
+select FIELD('1',_latin2'3','2',1);
+FIELD('1',_latin2'3','2',1)
+3
 select POSITION(_latin1'B' IN _latin1'abcd');
 POSITION(_latin1'B' IN _latin1'abcd')
 2

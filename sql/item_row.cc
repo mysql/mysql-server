@@ -73,8 +73,8 @@ bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
 	with_null|= item->null_inside();
       else
       {
-	item->val_int();
-	with_null|= item->null_value;
+	if (item->is_null())
+          with_null|= 1;
       }
     }
     maybe_null|= item->maybe_null;
