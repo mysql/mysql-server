@@ -370,7 +370,7 @@ public:
   void close();
 
   void set_unit(SELECT_LEX_UNIT *unit_arg) { unit= unit_arg; }
-  Cursor() :join(0), unit(0) {}
+  Cursor() :Item_arena(TRUE), join(0), unit(0) {}
   ~Cursor();
 };
 
