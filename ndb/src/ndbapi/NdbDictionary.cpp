@@ -177,12 +177,12 @@ NdbDictionary::Column::getPrimaryKey() const {
 }
 
 void 
-NdbDictionary::Column::setDistributionKey(bool val){
+NdbDictionary::Column::setPartitionKey(bool val){
   m_impl.m_distributionKey = val;
 }
 
 bool 
-NdbDictionary::Column::getDistributionKey() const{
+NdbDictionary::Column::getPartitionKey() const{
   return m_impl.m_distributionKey;
 }
 
@@ -824,7 +824,25 @@ NdbDictionary::Dictionary::listObjects(List& list, Object::Type type)
 }
 
 int
+NdbDictionary::Dictionary::listObjects(List& list, Object::Type type) const
+{
+  return m_impl.listObjects(list, type);
+}
+
+int
 NdbDictionary::Dictionary::listIndexes(List& list, const char * tableName)
+{
+  const NdbDictionary::Table* tab= getTable(tableName);
+  if(tab == 0)
+  {
+    return -1;
+  }
+  return m_impl.listIndexes(list, tab->getTableId());
+}
+
+int
+NdbDictionary::Dictionary::listIndexes(List& list,
+				       const char * tableName) const
 {
   const NdbDictionary::Table* tab= getTable(tableName);
   if(tab == 0)

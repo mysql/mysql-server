@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* 
- *  ndbapi_example1.cpp: Using synchronous transactions in NDB API
+ *  ndbapi_simple.cpp: Using synchronous transactions in NDB API
  *
  *  Correct output from this program is:
  *
@@ -72,7 +72,7 @@ int main()
     }
 
     // Optionally connect and wait for the storage nodes (ndbd's)
-    if (cluster_connection.wait_until_ready(30,30))
+    if (cluster_connection.wait_until_ready(30,0) < 0)
     {
       std::cout << "Cluster was not ready within 30 secs.\n";
       exit(-1);
@@ -92,7 +92,6 @@ int main()
     run_application(mysql, cluster_connection);
   }
 
-  // ndb_end should not be called until all "Ndb" objects are deleted
   ndb_end(0);
 
   std::cout << "\nTo drop created table use:\n"
@@ -170,7 +169,7 @@ static void do_insert(Ndb &myNdb)
     myOperation->equal("ATTR1", i+5);
     myOperation->setValue("ATTR2", i+5);
     
-    if (myTransaction->execute( Commit ) == -1)
+    if (myTransaction->execute( NdbTransaction::Commit ) == -1)
       APIERROR(myTransaction->getNdbError());
     
     myNdb.closeTransaction(myTransaction);
@@ -193,7 +192,7 @@ static void do_update(Ndb &myNdb)
     myOperation->equal( "ATTR1", i );
     myOperation->setValue( "ATTR2", i+10);
     
-    if( myTransaction->execute( Commit ) == -1 ) 
+    if( myTransaction->execute( NdbTransaction::Commit ) == -1 ) 
       APIERROR(myTransaction->getNdbError());
     
     myNdb.closeTransaction(myTransaction);
@@ -214,7 +213,7 @@ static void do_delete(Ndb &myNdb)
   myOperation->deleteTuple();
   myOperation->equal( "ATTR1", 3 );
   
-  if (myTransaction->execute(Commit) == -1) 
+  if (myTransaction->execute(NdbTransaction::Commit) == -1) 
     APIERROR(myTransaction->getNdbError());
   
   myNdb.closeTransaction(myTransaction);
@@ -240,7 +239,7 @@ static void do_read(Ndb &myNdb)
     NdbRecAttr *myRecAttr= myOperation->getValue("ATTR2", NULL);
     if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
     
-    if(myTransaction->execute( Commit ) == -1)
+    if(myTransaction->execute( NdbTransaction::Commit ) == -1)
       if (i == 3) {
 	std::cout << "Detected that deleted tuple doesn't exist!" << std::endl;
       } else {

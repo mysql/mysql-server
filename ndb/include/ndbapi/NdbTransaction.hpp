@@ -42,72 +42,62 @@ class NdbBlob;
 typedef void (* NdbAsynchCallback)(int, NdbTransaction*, void*);
 #endif
 
-/**
- * Commit type of transaction
- */
-enum AbortOption {      
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  CommitIfFailFree = 0,         
-  CommitAsMuchAsPossible = 2,   ///< Commit transaction with as many 
-  TryCommit = 0,                ///< <i>Missing explanation</i>
-#endif
-  AbortOnError = 0,             ///< Abort transaction on failed operation
-  AO_IgnoreError = 2               ///< Transaction continues on failed operation
+enum AbortOption {
+  CommitIfFailFree= 0,         
+  TryCommit= 0,
+  AbortOnError= 0,
+  CommitAsMuchAsPossible= 2,
+  AO_IgnoreError= 2
 };
-  
-typedef AbortOption CommitType;
-
-
-/**
- * Execution type of transaction
- */
 enum ExecType { 
-  NoExecTypeDef = -1,           ///< Erroneous type (Used for debugging only)
-  Prepare,                      ///< <i>Missing explanation</i>
-  NoCommit,                     ///< Execute the transaction as far as it has
-                                ///< been defined, but do not yet commit it
-  Commit,                       ///< Execute and try to commit the transaction
-  Rollback                      ///< Rollback transaction
+  NoExecTypeDef = -1,
+  Prepare,
+  NoCommit,
+  Commit,
+  Rollback
 };
-
+#endif
 
 /**
  * @class NdbTransaction
  * @brief Represents a transaction.
  *
  * A transaction (represented by an NdbTransaction object) 
- * belongs to an Ndb object and is typically created using 
- * Ndb::startTransaction.
+ * belongs to an Ndb object and is created using 
+ * Ndb::startTransaction().
  * A transaction consists of a list of operations 
- * (represented by NdbOperation objects). 
+ * (represented by NdbOperation, NdbScanOperation, NdbIndexOperation,
+ *  and NdbIndexScanOperation objects). 
  * Each operation access exactly one table.
  *
  * After getting the NdbTransaction object, 
- * the first step is to get (allocate) an operation given the table name. 
+ * the first step is to get (allocate) an operation given the table name using
+ * one of the methods getNdbOperation(), getNdbScanOperation(),
+ * getNdbIndexOperation(), or getNdbIndexScanOperation().
  * Then the operation is defined. 
- * Several operations can be defined in parallel on the same 
- * NdbTransaction object. 
- * When all operations are defined, the NdbTransaction::execute
- * method sends them to the NDB kernel for execution. 
+ * Several operations can be defined on the same 
+ * NdbTransaction object, they will in that case be executed in parallell.
+ * When all operations are defined, the execute()
+ * method sends them to the NDB kernel for execution.
  *
- * The NdbTransaction::execute method returns when the NDB kernel has 
+ * The execute() method returns when the NDB kernel has 
  * completed execution of all operations defined before the call to 
- * NdbTransaction::execute. 
- * All allocated operations should be properly defined 
- * before calling NdbTransaction::execute.
+ * execute(). All allocated operations should be properly defined 
+ * before calling execute().
  *
- * A call to NdbTransaction::execute uses one out of three types of execution:
- *  -# ExecType::NoCommit  Executes operations without committing them.
- *  -# ExecType::Commit	   Executes remaining operation and commits the 
+ * A call to execute() uses one out of three types of execution:
+ *  -# NdbTransaction::NoCommit  Executes operations without committing them.
+ *  -# NdbTransaction::Commit    Executes remaining operation and commits the 
  *        	           complete transaction
- *  -# ExecType::Rollback  Rollbacks the entire transaction.
+ *  -# NdbTransaction::Rollback  Rollbacks the entire transaction.
  *
- * NdbTransaction::execute is equipped with an extra error handling parameter 
+ * execute() is equipped with an extra error handling parameter. 
  * There are two alternatives:
- * -# AbortOption::AbortOnError (default).
+ * -# NdbTransaction::AbortOnError (default).
  *    The transaction is aborted if there are any error during the
  *    execution
- * -# AbortOption::IgnoreError
+ * -# NdbTransaction::AO_IgnoreError
  *    Continue execution of transaction even if operation fails
  *
  */
@@ -139,6 +129,7 @@ enum ExecType {
  *    primary key since it came along from the scanned tuple.
  *
  */
+
 class NdbTransaction
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -151,6 +142,44 @@ class NdbTransaction
 #endif
 
 public:
+
+  /**
+   * Commit type of transaction
+   */
+  enum AbortOption {
+    AbortOnError=               ///< Abort transaction on failed operation
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    ::AbortOnError
+#endif
+    ,AO_IgnoreError=            ///< Transaction continues on failed operation
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    ::AO_IgnoreError
+#endif
+  };
+
+  /**
+   * Execution type of transaction
+   */
+  enum ExecType {
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    NoExecTypeDef=
+    ::NoExecTypeDef,            ///< Erroneous type (Used for debugging only)
+    Prepare= ::Prepare,         ///< <i>Missing explanation</i>
+#endif
+    NoCommit=                   ///< Execute the transaction as far as it has
+                                ///< been defined, but do not yet commit it
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    ::NoCommit
+#endif
+    ,Commit=                    ///< Execute and try to commit the transaction
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    ::Commit
+#endif
+    ,Rollback                   ///< Rollback transaction
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    = ::Rollback
+#endif
+  };
 
   /**
    * Get an NdbOperation for a table.
@@ -279,9 +308,15 @@ public:
    *                          the send.
    * @return 0 if successful otherwise -1.
    */
-  int execute(ExecType execType, 
+  int execute(ExecType execType,
 	      AbortOption abortOption = AbortOnError,
 	      int force = 0 );
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  int execute(::ExecType execType,
+	      ::AbortOption abortOption = ::AbortOnError,
+	      int force = 0 )
+  { return execute ((ExecType)execType,(AbortOption)abortOption,force); }
+#endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   // to be documented later
@@ -298,7 +333,7 @@ public:
    *        ExecType::Rollback rollbacks the entire transaction.
    * @param callback       A callback method.  This method gets 
    *                        called when the transaction has been 
-   *                        executed.  See @ref ndbapi_example2.cpp 
+   *                        executed.  See @ref ndbapi_async1.cpp 
    *                        for an example on how to specify and use 
    *                        a callback method.
    * @param anyObject       A void pointer.  This pointer is forwarded to the 
@@ -312,6 +347,14 @@ public:
 			    NdbAsynchCallback callback,
 			    void*             anyObject,
 			    AbortOption abortOption = AbortOnError);
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  void executeAsynchPrepare(::ExecType       execType,
+			    NdbAsynchCallback callback,
+			    void*             anyObject,
+			    ::AbortOption abortOption = ::AbortOnError)
+  { executeAsynchPrepare((ExecType)execType, callback, anyObject,
+			 (AbortOption)abortOption); }
+#endif
 
   /**
    * Prepare and send an asynchronous transaction.
@@ -330,6 +373,14 @@ public:
 		     NdbAsynchCallback   aCallback,
 		     void*               anyObject,
 		     AbortOption abortOption = AbortOnError);
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+  void executeAsynch(::ExecType         aTypeOfExec,
+		     NdbAsynchCallback   aCallback,
+		     void*               anyObject,
+		     ::AbortOption abortOption= ::AbortOnError)
+  { executeAsynch((ExecType)aTypeOfExec, aCallback, anyObject,
+		  (AbortOption)abortOption); }
+#endif
 #endif
   /**
    * Refresh
@@ -345,6 +396,8 @@ public:
 
   /**
    * Close transaction
+   *
+   * @note Equivalent to to calling Ndb::closeTransaction()
    */
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
@@ -366,7 +419,13 @@ public:
    *   Once a transaction has been completed successfully
    *     it can be started again wo/ calling closeTransaction/startTransaction
    *
-   *   Note this method also releases completed operations
+   *  @note This method also releases completed operations
+   *
+   *  @note This method does not close open scans, 
+   *        c.f. NdbScanOperation::close()
+   *
+   *  @note This method can only be called _directly_ after commit
+   *        and only if commit is successful
    */
   int restart();
 #endif
@@ -409,10 +468,7 @@ public:
   Uint64	getTransactionId();
 
   /**
-   * Returns the commit status of the transaction.
-   *
-   * @return  The commit status of the transaction, i.e. one of
-   *          { NotStarted, Started, TimeOut, Committed, Aborted, NeedAbort } 
+   * The commit status of the transaction.
    */
   enum CommitStatusType { 
     NotStarted,                   ///< Transaction not yet started
@@ -422,6 +478,11 @@ public:
     NeedAbort                     ///< <i>Missing explanation</i>
   };
 
+  /**
+   * Get the commit status of the transaction.
+   *
+   * @return  The commit status of the transaction
+   */
   CommitStatusType commitStatus();
 
   /** @} *********************************************************************/
@@ -443,7 +504,7 @@ public:
    * This method is used on the NdbTransaction object to find the
    * NdbOperation causing an error.  
    * To find more information about the
-   * actual error, use method NdbOperation::getNdbError 
+   * actual error, use method NdbOperation::getNdbError()
    * on the returned NdbOperation object.
    *
    * @return The NdbOperation causing the latest error.

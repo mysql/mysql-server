@@ -1076,15 +1076,15 @@ NdbTransaction::getNdbScanOperation(const char* aTableName)
 }//NdbTransaction::getNdbScanOperation()
 
 /*****************************************************************************
-NdbScanOperation* getNdbScanOperation(const char* anIndexName, const char* aTableName);
+NdbScanOperation* getNdbIndexScanOperation(const char* anIndexName, const char* aTableName);
 
-Return Value    Return a pointer to a NdbScanOperation object if getNdbScanOperation was succesful.
+Return Value    Return a pointer to a NdbIndexScanOperation object if getNdbIndexScanOperation was succesful.
                 Return NULL : In all other case. 	
 Parameters:     anIndexName : Name of the index to use. 	
                 aTableName : Name of the database table. 	
-Remark:         Get an operation from NdbScanOperation idlelist and get the NdbTransaction object 
+Remark:         Get an operation from NdbIndexScanOperation idlelist and get the NdbTransaction object 
 		who was fetch by startTransaction pointing to this  operation  
-		getOperation will set the theTableId in the NdbOperation object.synchronous
+		getOperation will set the theTableId in the NdbIndexScanOperation object.synchronous
 ******************************************************************************/
 NdbIndexScanOperation*
 NdbTransaction::getNdbIndexScanOperation(const char* anIndexName, 
@@ -1134,12 +1134,12 @@ NdbTransaction::getNdbIndexScanOperation(const NdbDictionary::Index * index,
 /*****************************************************************************
 NdbScanOperation* getNdbScanOperation(int aTableId);
 
-Return Value    Return a pointer to a NdbOperation object if getNdbOperation was succesful.
+Return Value    Return a pointer to a NdbScanOperation object if getNdbScanOperation was succesful.
                 Return NULL: In all other case. 	
 Parameters:     tableId : Id of the database table beeing deleted.
 Remark:         Get an operation from NdbScanOperation object idlelist and get the NdbTransaction 
                 object who was fetch by startTransaction pointing to this  operation 
-  	        getOperation will set the theTableId in the NdbOperation object, synchronous.
+  	        getOperation will set the theTableId in the NdbScanOperation object, synchronous.
 *****************************************************************************/
 NdbIndexScanOperation*
 NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
@@ -1203,12 +1203,12 @@ NdbTransaction::getNdbScanOperation(const NdbDictionary::Table * table)
 NdbIndexOperation* getNdbIndexOperation(const char* anIndexName,
 					const char* aTableName);
 
-Return Value    Return a pointer to a NdbOperation object if getNdbScanOperation was succesful.
+Return Value    Return a pointer to a NdbOperation object if getNdbIndexOperation was succesful.
                 Return NULL : In all other case. 	
 Parameters:     aTableName : Name of the database table. 	
-Remark:         Get an operation from NdbScanOperation idlelist and get the NdbTransaction object 
-		who was fetch by startTransaction pointing to this  operation  
-		getOperation will set the theTableId in the NdbScanOperation object.synchronous
+Remark:         Get an operation from NdbIndexOperation idlelist and get the NdbTransaction object 
+		who was fetch by startTransaction pointing to this operation  
+		getOperation will set the theTableId in the NdbIndexOperation object.synchronous
 ******************************************************************************/
 NdbIndexOperation*
 NdbTransaction::getNdbIndexOperation(const char* anIndexName, 
@@ -1216,8 +1216,21 @@ NdbTransaction::getNdbIndexOperation(const char* anIndexName,
 {
   if (theCommitStatus == Started) {
     NdbTableImpl * table = theNdb->theDictionary->getTable(aTableName);
-    NdbIndexImpl * index = theNdb->theDictionary->getIndex(anIndexName,
-							   aTableName);
+    NdbIndexImpl * index;
+
+    if (table->m_frm.get_data())
+    {
+      // This unique index is defined from SQL level
+      static const char* uniqueSuffix= "$unique";
+      char uniqueIndexName[MAX_TAB_NAME_SIZE];
+
+      strxnmov(uniqueIndexName, MAX_TAB_NAME_SIZE, anIndexName, uniqueSuffix, NullS);
+      index = theNdb->theDictionary->getIndex(uniqueIndexName,
+					      aTableName);      
+    }
+    else
+      index = theNdb->theDictionary->getIndex(anIndexName,
+					      aTableName);
     if(table != 0 && index != 0){
       return getNdbIndexOperation(index, table);
     }

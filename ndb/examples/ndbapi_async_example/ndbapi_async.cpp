@@ -381,7 +381,7 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
       }     
 
       /*Prepare transaction (the transaction is NOT yet sent to NDB)*/
-      transaction[current].conn->executeAsynchPrepare(Commit, 
+      transaction[current].conn->executeAsynchPrepare(NdbTransaction::Commit, 
 						       &callback,
 						       cb);
       /**

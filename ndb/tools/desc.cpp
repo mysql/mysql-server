@@ -80,19 +80,22 @@ int main(int argc, char** argv){
   Ndb_cluster_connection con(opt_connect_str);
   if(con.connect(12, 5, 1) != 0)
   {
+    ndbout << "Unable to connect to management server." << endl;
+    return NDBT_ProgramExit(NDBT_FAILED);
+  }
+  if (con.wait_until_ready(30,0) < 0)
+  {
+    ndbout << "Cluster nodes not ready in 30 seconds." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
-  Ndb* pMyNdb = new Ndb(&con, _dbname);  
-  pMyNdb->init();
-  
-  ndbout << "Waiting...";
-  while (pMyNdb->waitUntilReady() != 0) {
-    ndbout << "...";
+  Ndb MyNdb(&con, _dbname);
+  if(MyNdb.init() != 0){
+    ERR(MyNdb.getNdbError());
+    return NDBT_ProgramExit(NDBT_FAILED);
   }
-  ndbout << endl;
-
-  NdbDictionary::Dictionary * dict = pMyNdb->getDictionary();
+  
+  const NdbDictionary::Dictionary * dict= MyNdb.getDictionary();
   for (int i = 0; i < argc; i++) {
     NDBT_Table* pTab = (NDBT_Table*)dict->getTable(argv[i]);
     if (pTab != 0){
@@ -132,6 +135,5 @@ int main(int argc, char** argv){
       ndbout << argv[i] << ": " << dict->getNdbError() << endl;
   }
   
-  delete pMyNdb;
   return NDBT_ProgramExit(NDBT_OK);
 }
