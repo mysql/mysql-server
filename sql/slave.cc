@@ -1124,6 +1124,7 @@ slaves can't replicate a 5.0 or newer master.";
   Used by fetch_master_table (used by LOAD TABLE tblname FROM MASTER and LOAD
   DATA FROM MASTER). Drops the table (if 'overwrite' is true) and recreates it
   from the dump. Honours replication inclusion/exclusion rules.
+  db must be non-zero (guarded by assertion).
 
   RETURN VALUES
     0           success
@@ -1134,8 +1135,8 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name, bool overwrite)
 {
   ulong packet_len = my_net_read(net); // read create table statement
-  char *query;
-  char* save_db;
+  char *query, *save_db;
+  uint32 save_db_length;
   Vio* save_vio;
   HA_CHECK_OPT check_opt;
   TABLE_LIST tables;
@@ -1193,9 +1194,13 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   thd->proc_info = "Creating table from master dump";
   // save old db in case we are creating in a different database
   save_db = thd->db;
+  save_db_length= thd->db_length;
   thd->db = (char*)db;
+  DBUG_ASSERT(thd->db);
+  thd->db_length= strlen(thd->db);
   mysql_parse(thd, thd->query, packet_len); // run create table
   thd->db = save_db;		// leave things the way the were before
+  thd->db_length= save_db_length;
   thd->options = save_options;
   
   if (thd->query_error)
@@ -2689,7 +2694,7 @@ err:
 		  IO_RPL_LOG_NAME, llstr(mi->master_log_pos,llbuff));
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query = thd->db = 0; // extra safety
-  thd->query_length = 0;
+  thd->query_length= thd->db_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (mysql)
   {
@@ -2838,7 +2843,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
  err:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query = thd->db = 0; // extra safety
-  thd->query_length = 0;
+  thd->query_length= thd->db_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&rli->run_lock);
