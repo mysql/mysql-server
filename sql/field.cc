@@ -806,14 +806,11 @@ double Field_decimal::val_real(void)
 
 longlong Field_decimal::val_int(void)
 {
-  char temp= *(ptr+field_length); *(ptr+field_length) = '\0';
-  longlong nr;
+  CHARSET_INFO *cs=charset();
   if (unsigned_flag)
-    nr=(longlong) strtoull(ptr,NULL,10);
+    return my_strntoull(cs,ptr,field_length,NULL,10);
   else
-    nr=strtoll(ptr,NULL,10);
-  *(ptr+field_length)=temp;
-  return(nr);
+    return my_strntoll(cs,ptr,field_length,NULL,10);
 }
 
 String *Field_decimal::val_str(String *val_buffer __attribute__((unused)),
@@ -1100,8 +1097,7 @@ void Field_tiny::sql_type(String &res) const
 ****************************************************************************/
 
 
-// Note:  Sometimes this should be fixed to use one strtol() to use
-// len and check for garbage after number.
+// Note:  Sometimes this should be fixed to check for garbage after number.
 
 int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
 {
@@ -1363,8 +1359,7 @@ void Field_short::sql_type(String &res) const
 ** medium int
 ****************************************************************************/
 
-// Note:  Sometimes this should be fixed to use one strtol() to use
-// len and check for garbage after number.
+// Note:  Sometimes this should be fixed to check for garbage after number.
 
 int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
 {
@@ -1571,8 +1566,7 @@ void Field_medium::sql_type(String &res) const
 ****************************************************************************/
 
 
-// Note:  Sometimes this should be fixed to use one strtol() to use
-// len and check for garbage after number.
+// Note:  Sometimes this should be fixed to check for garbage after number.
 
 int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
 {
@@ -3794,23 +3788,16 @@ int Field_string::store(longlong nr)
 
 double Field_string::val_real(void)
 {
-  double value;
-  char save=ptr[field_length];			// Ok to patch record
-  ptr[field_length]=0;
-  value=atof(ptr);
-  ptr[field_length]=save;
-  return value;
+  CHARSET_INFO *cs=charset();
+  return my_strntod(cs,ptr,field_length,(char**)0);
 }
 
 
 longlong Field_string::val_int(void)
 {
   longlong value;
-  char save=ptr[field_length];			// Ok to patch record
-  ptr[field_length]=0;
-  value=strtoll(ptr,NULL,10);
-  ptr[field_length]=save;
-  return value;
+  CHARSET_INFO *cs=charset();
+  return my_strntoll(cs,ptr,field_length,NULL,10);
 }
 
 
@@ -3998,25 +3985,17 @@ int Field_varstring::store(longlong nr)
 
 double Field_varstring::val_real(void)
 {
-  double value;
   uint length=uint2korr(ptr)+2;
-  char save=ptr[length];			// Ok to patch record
-  ptr[length]=0;
-  value=atof(ptr+2);
-  ptr[length]=save;
-  return value;
+  CHARSET_INFO *cs=charset();
+  return my_strntod(cs,ptr+2,length,(char**)0);
 }
 
 
 longlong Field_varstring::val_int(void)
 {
-  longlong value;
   uint length=uint2korr(ptr)+2;
-  char save=ptr[length];			// Ok to patch record
-  ptr[length]=0;
-  value=strtoll(ptr+2,NULL,10);
-  ptr[length]=save;
-  return value;
+  CHARSET_INFO *cs=charset();
+  return my_strntoll(cs,ptr+2,length,NULL,10);
 }
 
 
@@ -4339,12 +4318,8 @@ double Field_blob::val_real(void)
   if (!blob)
     return 0.0;
   uint32 length=get_length(ptr);
-
-  char save=blob[length];			// Ok to patch blob in NISAM
-  blob[length]=0;
-  double nr=atof(blob);
-  blob[length]=save;
-  return nr;
+  CHARSET_INFO *cs=charset();
+  return my_strntod(cs,blob,length,(char**)0);
 }
 
 
@@ -4355,12 +4330,8 @@ longlong Field_blob::val_int(void)
   if (!blob)
     return 0;
   uint32 length=get_length(ptr);
-
-  char save=blob[length];			// Ok to patch blob in NISAM
-  blob[length]=0;
-  longlong nr=strtoll(blob,NULL,10);
-  blob[length]=save;
-  return nr;
+  CHARSET_INFO *cs=charset();
+  return my_strntoll(cs,blob,length,NULL,10);
 }
 
 
@@ -4803,16 +4774,10 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
     if (length < 6)			// Can't be more than 99999 enums
     {
       /* This is for reading numbers with LOAD DATA INFILE */
-      char buff[7], *end;
-      const char *conv=from;
-      if (from[length])
-      {
-	strmake(buff, from, length);
-	conv=buff;
-      }
+      char *end;
       my_errno=0;
-      tmp=(uint) strtoul(conv,&end,10);
-      if (my_errno || end != conv+length || tmp > typelib->count)
+      tmp=(uint) my_strntoul(cs,from,length,&end,10);
+      if (my_errno || end != from+length || tmp > typelib->count)
       {
 	tmp=0;
 	current_thd->cuted_fields++;
@@ -5007,16 +4972,10 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
   if (!tmp && length && length < 22)
   {
     /* This is for reading numbers with LOAD DATA INFILE */
-    char buff[22], *end;
-    const char *conv=from;
-    if (from[length])
-    {
-      strmake(buff, from, length);
-      conv=buff;
-    }
+    char *end;
     my_errno=0;
-    tmp=strtoull(conv,&end,10);
-    if (my_errno || end != conv+length ||
+    tmp=my_strntoull(cs,from,length,&end,10);
+    if (my_errno || end != from+length ||
 	tmp > (ulonglong) (((longlong) 1 << typelib->count) - (longlong) 1))
     {
       tmp=0;
