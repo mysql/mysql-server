@@ -1,3 +1,5 @@
+drop table if exists t1, t2, t3, t4;
+drop table if exists t1, t2, t3, t4;
 slave start;
 Could not initialize master info structure, check permisions on master.info
 slave start;
@@ -8,7 +10,6 @@ reset slave;
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 reset master;
 slave start;
-drop table if exists t1, t2, t3, t4;
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables");
 create table t1 (s text);

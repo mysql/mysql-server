@@ -10,10 +10,12 @@
 # - Test creating a duplicate key error and recover from it
 #
 connect (master,localhost,root,,test,0,master.sock);
+drop table if exists t1, t2, t3, t4;
 connect (slave,localhost,root,,test,0,slave.sock);
 system cat /dev/null > var/slave-data/master.info;
 system chmod 000 var/slave-data/master.info;
 connection slave;
+drop table if exists t1, t2, t3, t4;
 --error 1201
 slave start;
 system chmod 600 var/slave-data/master.info;
@@ -30,8 +32,6 @@ reset master;
 connection slave;
 slave start;
 connection master;
-
-drop table if exists t1, t2, t3, t4;
 
 #
 # Test FLUSH LOGS
