@@ -328,7 +328,7 @@ bool Field::get_time(TIME *ltime)
   char buff[40];
   String tmp(buff,sizeof(buff)),tmp2,*res;
   if (!(res=val_str(&tmp,&tmp2)) ||
-      str_to_time(res->ptr(),res->length(),ltime) == TIMESTAMP_NONE)
+      str_to_time(res->ptr(),res->length(),ltime))
     return 1;
   return 0;
 }
