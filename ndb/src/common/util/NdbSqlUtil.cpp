@@ -469,21 +469,17 @@ int
 NdbSqlUtil::cmpDatetime(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
   assert(full >= size && size > 0);
-  /*
-   * Datetime is CC YY MM DD hh mm ss \0
-   *
-   * Not used via MySQL.
-   */
-  union { const Uint32* p; const unsigned char* v; } u1, u2;
-  u1.p = p1;
-  u2.p = p2;
-  // no format check
-  int k = memcmp(u1.v, u2.v, 4);
-  if (k != 0)
-    return k < 0 ? -1 : +1;
   if (size >= 2) {
-    k = memcmp(u1.v + 4, u2.v + 4, 4);
-    return k < 0 ? -1 : k > 0 ? +1 : 0;
+    union { Uint32 p[2]; Int64 v; } u1, u2;
+    u1.p[0] = p1[0];
+    u1.p[1] = p1[1];
+    u2.p[0] = p2[0];
+    u2.p[1] = p2[1];
+    if (u1.v < u2.v)
+      return -1;
+    if (u1.v > u2.v)
+      return +1;
+    return 0;
   }
   return CmpUnknown;
 }
