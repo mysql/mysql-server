@@ -334,3 +334,13 @@ CREATE TABLE t1 (a int not null, primary key (a)) type=bdb;
 insert into t1 values(1),(2),(3);
 select t1.a from t1 natural join t1 as t2 order by t1.a;
 drop table t1;
+
+#
+# Test key on blob with null values
+#
+create table t1 (b blob, i int, key (b(100)), key (i), key (i, b(20)));
+insert into t1 values ('this is a blob', 1), (null, -1), (null, null);
+select b from t1 where b = 'this is a blob';
+select * from t1 where b like 't%';
+select b, i from t1 where b is not null;
+select * from t1 where b is null and i > 0;
