@@ -316,3 +316,4 @@ sasha@work.mysql.com|BitKeeper/etc/logging_ok|20001214015456|29919|32b6551b8288c
 serg@serg.mysql.com|mysql-test/r/3.23/mrg000001.dummy.result|20001206231604|05053|bf7e6d609f22b897
 serg@serg.mysql.com|mysql-test/r/3.23/mrg000001.result|20001206231609|46662|db2ef2e717ab8332
 mwagner@evoq.home.mwagner.org|mysql-test/chew_on_this/select.res|20001014084759|41327|1295456b9394876
+mwagner@evoq.home.mwagner.org|mysql-test/chew_on_this/select.res|20001014084759|41327|1295456b93948768

@@ -1784,8 +1784,8 @@ mysql_execute_command(void)
     break;
   case SQLCOM_SHOW_GRANTS:
     res=0;
-    if ((thd->user && !strcmp(thd->user,lex->grant_user->user.str)) ||
-	!(check_access(thd, SELECT_ACL, "mysql")))
+    if ((thd->priv_user && !strcmp(thd->priv_user,lex->grant_user->user.str)) ||
+	!check_access(thd, SELECT_ACL, "mysql",0,1))
     {
       res = mysql_show_grants(thd,lex->grant_user);
     }
@@ -1854,7 +1854,7 @@ error:
 
 bool
 check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
-	     bool no_grant)
+	     bool dont_check_global_grants)
 {
   uint db_access,dummy;
   if (save_priv)
@@ -1862,7 +1862,7 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
   else
     save_priv= &dummy;
 
-  if (!db && !thd->db && !no_grant)
+  if (!db && !thd->db && !dont_check_global_grants)
   {
     send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: tested */
     return TRUE;				/* purecov: tested */
@@ -1874,7 +1874,7 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
     return FALSE;
   }
   if ((want_access & ~thd->master_access) & ~(DB_ACLS | EXTRA_ACL) ||
-      ! db && no_grant)
+      ! db && dont_check_global_grants)
   {						// We can never grant this
     net_printf(&thd->net,ER_ACCESS_DENIED_ERROR,
 	       thd->priv_user,
@@ -1892,8 +1892,11 @@ check_access(THD *thd,uint want_access,const char *db, uint *save_priv,
     db_access=thd->db_access;
   want_access &= ~EXTRA_ACL;			// Remove SHOW attribute
   db_access= ((*save_priv=(db_access | thd->master_access)) & want_access);
+
+  /* grant_option is set if there exists a single table or column grant */
   if (db_access == want_access ||
-      ((grant_option && !no_grant) && !(want_access & ~TABLE_ACLS)))
+      ((grant_option && !dont_check_global_grants) &&
+       !(want_access & ~TABLE_ACLS)))
     return FALSE;				/* Ok */
   net_printf(&thd->net,ER_DBACCESS_DENIED_ERROR,
 	     thd->priv_user,
