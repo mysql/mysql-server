@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.28"
+#define MTEST_VERSION "1.29"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -63,9 +63,10 @@
 #include <errno.h>
 #include <violite.h>
 
-#define MAX_QUERY  65536
+#define MAX_QUERY	65536
+#define MAX_COLUMNS	256
 #define PAD_SIZE	128
-#define MAX_CONS   1024
+#define MAX_CONS	128
 #define MAX_INCLUDE_DEPTH 16
 #define LAZY_GUESS_BUF_SIZE 8192
 #define INIT_Q_LINES	  1024
@@ -192,7 +193,7 @@ Q_SYNC_WITH_MASTER,
 Q_SYNC_SLAVE_WITH_MASTER,
 Q_ERROR,
 Q_SEND,		    Q_REAP,
-Q_DIRTY_CLOSE,	    Q_REPLACE,
+Q_DIRTY_CLOSE,	    Q_REPLACE, Q_REPLACE_COLUMN,
 Q_PING,		    Q_EVAL,
 Q_RPL_PROBE,	    Q_ENABLE_RPL_PARSE,
 Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
@@ -246,6 +247,7 @@ const char *command_names[]=
   "reap",
   "dirty_close",
   "replace_result",
+  "replace_column",
   "ping",
   "eval",
   "rpl_probe",
@@ -290,7 +292,7 @@ VAR* var_get(const char *var_name, const char** var_name_end, my_bool raw,
 int eval_expr(VAR* v, const char *p, const char** p_end);
 static int read_server_arguments(const char *name);
 
-/* Definitions for replace */
+/* Definitions for replace result */
 
 typedef struct st_pointer_array {		/* when using array-strings */
   TYPELIB typelib;				/* Pointer to strings */
@@ -318,6 +320,13 @@ static char *out_buff;
 static uint out_length;
 static int eval_result = 0;
 
+/* For column replace */
+char *replace_column[MAX_COLUMNS];
+uint max_replace_column= 0;
+
+static void get_replace_column(struct st_query *q);
+static void free_replace_column();
+
 /* Disable functions that only exist in MySQL 4.0 */
 #if MYSQL_VERSION_ID < 40000 || defined(EMBEDDED_LIBRARY)
 void mysql_enable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
@@ -337,7 +346,6 @@ static const char *embedded_server_groups[] = {
   "mysqltest_SERVER",
   NullS
 };
-
 
 static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
 {
@@ -433,6 +441,7 @@ static void free_used_memory()
   delete_dynamic(&q_lines);
   dynstr_free(&ds_res);
   free_replace();
+  free_replace_column();
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
   mysql_server_end();
@@ -2048,27 +2057,35 @@ static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
   dynstr_append_mem(ds, val, len);
 }
 
+
 /*
   Append all results to the dynamic string separated with '\t'
+  Values may be converted with 'replace_column'
 */
 
 static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 {
   MYSQL_ROW row;
-  int num_fields= mysql_num_fields(res);
+  uint num_fields= mysql_num_fields(res);
   unsigned long *lengths;
   while ((row = mysql_fetch_row(res)))
   {
-    int i;
+    uint i;
     lengths = mysql_fetch_lengths(res);
     for (i = 0; i < num_fields; i++)
     {
       const char *val= row[i];
       ulonglong len= lengths[i];
+
+      if (i < max_replace_column && replace_column[i])
+      {
+	val= replace_column[i];
+	len= strlen(val);
+      }
       if (!val)
       {
-	val = "NULL";
-	len = 4;
+	val= "NULL";
+	len= 4;
       }
       if (i)
 	dynstr_append_mem(ds, "\t", 1);
@@ -2076,6 +2093,7 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
     }
     dynstr_append_mem(ds, "\n", 1);
   }
+  free_replace_column();
 }
 
 
@@ -2538,6 +2556,9 @@ int main(int argc, char **argv)
 	break;
       case Q_REPLACE:
 	get_replace(q);
+	break;
+      case Q_REPLACE_COLUMN:
+	get_replace_column(q);
 	break;
       case Q_SAVE_MASTER_POS: do_save_master_pos(); break;
       case Q_SYNC_WITH_MASTER: do_sync_with_master(q); break;
@@ -3356,4 +3377,61 @@ static int initialize_replace_buffer(void)
 static void free_replace_buffer(void)
 {
   my_free(out_buff,MYF(MY_WME));
+}
+
+
+/****************************************************************************
+ Replace results for a column
+*****************************************************************************/
+
+static void free_replace_column()
+{
+  uint i;
+  for (i=0 ; i < max_replace_column ; i++)
+  {
+    if (replace_column[i])
+    {
+      my_free(replace_column[i], 0);
+      replace_column[i]= 0;
+    }
+  }
+  max_replace_column= 0;
+}
+
+/*
+  Get arguments for replace_columns. The syntax is:
+  replace-column column_number to_string [column_number to_string ...]
+  Where each argument may be quoted with ' or "
+  A argument may also be a variable, in which case the value of the
+  variable is replaced.
+*/
+
+static void get_replace_column(struct st_query *q)
+{
+  char *from=q->first_argument;
+  char *buff,*start;
+  DBUG_ENTER("get_replace_columns");
+
+  free_replace_column();
+  if (!*from)
+    die("Missing argument in %s\n", q->query);
+
+  /* Allocate a buffer for results */
+  start=buff=my_malloc(strlen(from)+1,MYF(MY_WME | MY_FAE));
+  while (*from)
+  {
+    char *to;
+    uint column_number;
+
+    to= get_string(&buff, &from, q);
+    if (!(column_number= atoi(to)) || column_number > MAX_COLUMNS)
+      die("Wrong column number to replace_columns in %s\n", q->query);
+    if (!*from)
+      die("Wrong number of arguments to replace in %s\n", q->query);
+    to= get_string(&buff, &from, q);
+    my_free(replace_column[column_number-1], MY_ALLOW_ZERO_PTR);
+    replace_column[column_number-1]= my_strdup(to, MYF(MY_WME | MY_FAE));
+    set_if_bigger(max_replace_column, column_number);
+  }
+  my_free(start, MYF(0));
 }

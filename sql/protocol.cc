@@ -572,7 +572,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 #endif
   }
 
-  send_eof(thd);
+  send_eof(thd, 1);
   DBUG_RETURN(prepare_for_send(list));
 
 err:

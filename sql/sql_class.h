@@ -503,8 +503,23 @@ public:
 #ifdef SIGNAL_WITH_VIO_CLOSE
   Vio* active_vio;
 #endif  
-  ulonglong  next_insert_id,last_insert_id,current_insert_id,
-             limit_found_rows;
+  /*
+    next_insert_id is set on SET INSERT_ID= #. This is used as the next
+    generated auto_increment value in handler.cc
+  */
+  ulonglong  next_insert_id;
+  /*
+    The insert_id used for the last statement or set by SET LAST_INSERT_ID=#
+    or SELECT LAST_INSERT_ID(#).  Used for binary log and returned by
+    LAST_INSERT_ID()
+  */
+  ulonglong  last_insert_id;
+  /*
+    Set to the first value that LAST_INSERT_ID() returned for the last
+    statement.  When this is set, last_insert_id_used is set to true.
+  */
+  ulonglong  current_insert_id;
+  ulonglong  limit_found_rows;
   ha_rows    select_limit, offset_limit, cuted_fields,
              sent_row_count, examined_row_count;
   table_map  used_tables;
