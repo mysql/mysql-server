@@ -1471,12 +1471,26 @@ private:
 public:
   ha_rows quick_prefix_records;
 public:
-  TRP_GROUP_MIN_MAX(bool have_min, bool have_max,
-                    KEY_PART_INFO *min_max_arg_part, uint group_prefix_len,
-                    uint used_key_parts, uint group_key_parts, KEY *index_info,
-                    uint index, uint key_infix_len, byte *key_infix,
-                    SEL_TREE *tree, SEL_ARG *index_tree, uint param_idx,
-                    ha_rows quick_prefix_records);
+  TRP_GROUP_MIN_MAX(bool have_min_arg, bool have_max_arg,
+                    KEY_PART_INFO *min_max_arg_part_arg,
+                    uint group_prefix_len_arg, uint used_key_parts_arg,
+                    uint group_key_parts_arg, KEY *index_info_arg,
+                    uint index_arg, uint key_infix_len_arg, byte *key_infix_arg,
+                    SEL_TREE *tree_arg, SEL_ARG *index_tree_arg,
+                    uint param_idx_arg, ha_rows quick_prefix_records_arg)
+  : have_min(have_min_arg), have_max(have_max_arg),
+    min_max_arg_part(min_max_arg_part_arg),
+    group_prefix_len(group_prefix_len_arg), used_key_parts(used_key_parts_arg),
+    group_key_parts(group_key_parts_arg), index_info(index_info_arg),
+    index(index_arg), key_infix_len(key_infix_len_arg), range_tree(tree_arg),
+    index_tree(index_tree_arg), param_idx(param_idx_arg),
+    quick_prefix_records(quick_prefix_records_arg)
+{
+  if (key_infix_len)
+    memcpy(this->key_infix, key_infix_arg, key_infix_len);
+}
+
+
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
@@ -7135,25 +7149,6 @@ SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param,
 }
 
 
-TRP_GROUP_MIN_MAX::TRP_GROUP_MIN_MAX(bool have_min, bool have_max,
-                                     KEY_PART_INFO *min_max_arg_part,
-                                     uint group_prefix_len, uint used_key_parts,
-                                     uint group_key_parts, KEY *index_info,
-                                     uint index, uint key_infix_len,
-                                     byte *key_infix, SEL_TREE *tree,
-                                     SEL_ARG *index_tree, uint param_idx,
-                                     ha_rows quick_prefix_records)
-  : have_min(have_min), have_max(have_max), min_max_arg_part(min_max_arg_part),
-    group_prefix_len(group_prefix_len), used_key_parts(used_key_parts),
-    group_key_parts(group_key_parts), index_info(index_info), index(index),
-    key_infix_len(key_infix_len), range_tree(tree), index_tree(index_tree),
-    param_idx(param_idx), quick_prefix_records(quick_prefix_records)
-{
-  if (key_infix_len)
-    memcpy(this->key_infix, key_infix, key_infix_len);
-}
-
-
 /*
   Compute the cost of a quick_group_min_max_select for a particular index.
 
@@ -7412,23 +7407,25 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
 */
 
 QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
-  TABLE *table, JOIN *join, bool have_min, bool have_max,
-  KEY_PART_INFO *min_max_arg_part, uint group_prefix_len, uint used_key_parts,
-  KEY *index_info, uint use_index, double read_cost, ha_rows records,
-  uint key_infix_len, byte *key_infix, MEM_ROOT *parent_alloc)
-: join(join), index_info(index_info), group_prefix_len(group_prefix_len),
-  have_min(have_min), have_max(have_max), seen_first_key(FALSE),
-  min_max_arg_part(min_max_arg_part), key_infix(key_infix),
-  key_infix_len(key_infix_len)
+  TABLE *table, JOIN *join_arg, bool have_min_arg, bool have_max_arg,
+  KEY_PART_INFO *min_max_arg_part_arg, uint group_prefix_len_arg,
+  uint used_key_parts_arg, KEY *index_info_arg, uint use_index,
+  double read_cost_arg, ha_rows records_arg, uint key_infix_len_arg,
+  byte *key_infix_arg, MEM_ROOT *parent_alloc)
+: join(join_arg), index_info(index_info_arg),
+  group_prefix_len(group_prefix_len_arg), have_min(have_min_arg),
+  have_max(have_max_arg), seen_first_key(FALSE),
+  min_max_arg_part(min_max_arg_part_arg), key_infix(key_infix_arg),
+  key_infix_len(key_infix_len_arg)
 {
   head=       table;
   file=       head->file;
   index=      use_index;
   record=     head->record[0];
   tmp_record= head->record[1];
-  this->read_time= read_cost;
-  this->records= records;
-  this->used_key_parts= used_key_parts;
+  read_time= read_cost_arg;
+  records= records_arg;
+  used_key_parts= used_key_parts_arg;
   real_prefix_len= group_prefix_len + key_infix_len;
   group_prefix= NULL;
   min_max_arg_len= min_max_arg_part ? min_max_arg_part->store_length : 0;
