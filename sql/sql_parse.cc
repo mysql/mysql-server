@@ -1900,6 +1900,8 @@ mysql_execute_command(THD *thd)
                       (ORDER *) select_lex->order_list.first,
                       select_lex->select_limit,
                       lex->duplicates);
+    if (thd->net.report_error)
+      res= -1;
     break;
   case SQLCOM_UPDATE_MULTI:
     if (check_access(thd,UPDATE_ACL,tables->db,&tables->grant.privilege))
@@ -1959,6 +1961,8 @@ mysql_execute_command(THD *thd)
 			  SELECT_NO_JOIN_CACHE,
 			  result, unit, select_lex, 0);
 	delete result;
+	if (thd->net.report_error)
+	  res= -1;
       }
       else
 	res= -1;					// Error is not sent
@@ -1976,6 +1980,8 @@ mysql_execute_command(THD *thd)
       goto error;
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
 		       lex->duplicates);
+    if (thd->net.report_error)
+      res= -1;
     break;
   }
   case SQLCOM_REPLACE_SELECT:
@@ -2020,6 +2026,8 @@ mysql_execute_command(THD *thd)
       if ((result=new select_insert(tables->table,&lex->field_list,
 				    lex->duplicates)))
 	res=handle_select(thd,lex,result);
+      if (thd->net.report_error)
+	res= -1;
     }
     else
       res= -1;
@@ -2050,6 +2058,8 @@ mysql_execute_command(THD *thd)
     res = mysql_delete(thd,tables, select_lex->where,
                        (ORDER*) select_lex->order_list.first,
                        select_lex->select_limit, select_lex->options);
+    if (thd->net.report_error)
+      res= -1;
     break;
   }
   case SQLCOM_DELETE_MULTI:
@@ -2122,6 +2132,8 @@ mysql_execute_command(THD *thd)
 			select_lex->options | thd->options |
 			SELECT_NO_JOIN_CACHE,
 			result, unit, select_lex, 0);
+      if (thd->net.report_error)
+	res= -1;
       delete result;
     }
     else
