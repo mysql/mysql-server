@@ -1,15 +1,15 @@
 /* Copyright (C) 2000-2003 MySQL AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -43,31 +43,31 @@ static bool test_if_number(const char *str,
 
 #ifdef __NT__
 static int eventSource = 0;
-void setupWindowsEventSource() 
+void setupWindowsEventSource()
 {
 	if (eventSource) return;
 
 	eventSource = 1;
-    HKEY    hRegKey = NULL; 
+    HKEY    hRegKey = NULL;
     DWORD   dwError = 0;
     TCHAR   szPath[ MAX_PATH ];
-    
+
     // Create the event source registry key
-    dwError = RegCreateKey(HKEY_LOCAL_MACHINE, 
-		"SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\MySQL", 
+    dwError = RegCreateKey(HKEY_LOCAL_MACHINE,
+		"SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\MySQL",
 		&hRegKey);
 
     // Name of the PE module that contains the message resource
     GetModuleFileName(NULL, szPath, MAX_PATH);
 
     // Register EventMessageFile
-    dwError = RegSetValueEx(hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ, 
-                            (PBYTE) szPath, strlen(szPath)+1); 
-    
+    dwError = RegSetValueEx(hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ,
+                            (PBYTE) szPath, strlen(szPath)+1);
+
 
     // Register supported event types
-    DWORD dwTypes = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE | EVENTLOG_INFORMATION_TYPE; 
-    dwError = RegSetValueEx(hRegKey, "TypesSupported", 0, REG_DWORD, 
+    DWORD dwTypes = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE | EVENTLOG_INFORMATION_TYPE;
+    dwError = RegSetValueEx(hRegKey, "TypesSupported", 0, REG_DWORD,
                             (LPBYTE) &dwTypes, sizeof dwTypes);
 
     RegCloseKey(hRegKey);
@@ -2200,6 +2200,8 @@ void MYSQL_LOG::report_pos_in_innodb()
                                                my_b_tell(&log_file));
   }
 #endif
+  DBUG_VOID_RETURN;
+}
 
 #ifdef __NT__
 void print_buffer_to_nt_eventlog(enum loglevel level, char *buff, int buffLen)
@@ -2241,7 +2243,6 @@ void print_buffer_to_nt_eventlog(enum loglevel level, char *buff, int buffLen)
   if (buffptr != buff)
     delete[] buffptr;
 
-
   DBUG_VOID_RETURN;
 }
 #endif
@@ -2253,7 +2254,7 @@ void print_buffer_to_nt_eventlog(enum loglevel level, char *buff, int buffLen)
     vprint_msg_to_log()
     event_type                  Type of event to write (Error, Warning, or Info)
     format                      Printf style format of message
-    args                        va_list list of arguments for the message    
+    args                        va_list list of arguments for the message
 
   NOTE
 
@@ -2267,7 +2268,6 @@ void print_buffer_to_nt_eventlog(enum loglevel level, char *buff, int buffLen)
 void vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
-
   DBUG_ENTER("vprint_msg_to_log");
 
   my_vsnprintf(buff, sizeof(buff)-5, format, args);
@@ -2286,7 +2286,7 @@ void vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 }
 
 
-void sql_print_error(const char *format, ...) 
+void sql_print_error(const char *format, ...)
 {
   DBUG_ENTER("sql_print_error");
 
@@ -2298,7 +2298,7 @@ void sql_print_error(const char *format, ...)
   DBUG_VOID_RETURN;
 }
 
-void sql_print_warning(const char *format, ...) 
+void sql_print_warning(const char *format, ...)
 {
   DBUG_ENTER("sql_print_warning");
 
@@ -2310,7 +2310,7 @@ void sql_print_warning(const char *format, ...)
   DBUG_VOID_RETURN;
 }
 
-void sql_print_information(const char *format, ...) 
+void sql_print_information(const char *format, ...)
 {
   DBUG_ENTER("sql_print_information");
 
