@@ -1936,8 +1936,8 @@ static int dump_databases(char **db_names)
 static int init_dumping(char *database)
 {
   if (mysql_get_server_version(sock) >= 50003 &&
-      !strcmp(database, "information_schema"))
-    return 1;
+      !my_strcasecmp(&my_charset_latin1, database, "information_schema"))
+    return 1; 
 
   if (mysql_select_db(sock, database))
   {
