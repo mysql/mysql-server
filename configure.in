@@ -2752,6 +2752,14 @@ EOF
 
   if test X"$have_ndbcluster" = Xyes
   then
+    if test X"$mysql_cv_compress" != Xyes
+    then
+      echo
+      echo "MySQL Cluster table handler ndbcluster requires compress/uncompress."
+      echo "Commonly available in libzlib.a.  Please install and rerun configure."
+      echo
+      exit 1
+    fi
     sql_server_dirs="$sql_server_dirs ndb"
     echo "CONFIGURING FOR NDB CLUSTER" 
     case $with_debug in
