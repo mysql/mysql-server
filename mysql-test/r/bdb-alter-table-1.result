@@ -1,0 +1,4 @@
+objid	tablename	oid	test
+1	t1	4	9
+2	metatable	1	9
+3	metaindex	1	9
