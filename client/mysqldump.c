@@ -1936,7 +1936,7 @@ static int init_dumping(char *database)
         MYSQL_ROW row;
         MYSQL_RES *dbinfo;
 
-        sprintf(qbuf,"SHOW CREATE DATABASE WITH IF NOT EXISTS %s",
+        sprintf(qbuf,"SHOW CREATE DATABASE IF NOT EXISTS %s",
 		qdatabase);
 
         if (mysql_query_with_error_report(sock, &dbinfo, qbuf))

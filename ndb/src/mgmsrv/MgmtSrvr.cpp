@@ -49,6 +49,8 @@
 
 #include <NdbAutoPtr.hpp>
 
+#include <ndberror.h>
+
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
@@ -264,16 +266,6 @@ MgmtSrvr::isEventLogFilterEnabled(int severity)
 
 static ErrorItem errorTable[] = 
 {
-  {200, "Backup undefined error"},
-  {202, "Backup failed to allocate buffers (check configuration)"}, 
-  {203, "Backup failed to setup fs buffers (check configuration)"},
-  {204, "Backup failed to allocate tables (check configuration)"},
-  {205, "Backup failed to insert file header (check configuration)"},
-  {206, "Backup failed to insert table list (check configuration)"},	
-  {207, "Backup failed to allocate table memory (check configuration)"},
-  {208, "Backup failed to allocate file record (check configuration)"},
-  {209, "Backup failed to allocate attribute record (check configuration)"},
-
   {MgmtSrvr::NO_CONTACT_WITH_PROCESS, "No contact with the process (dead ?)."},
   {MgmtSrvr::PROCESS_NOT_CONFIGURED, "The process is not configured."},
   {MgmtSrvr::WRONG_PROCESS_TYPE, 
@@ -1856,18 +1848,21 @@ MgmtSrvr::dumpState(int processId, const Uint32 args[], Uint32 no)
 //****************************************************************************
 //****************************************************************************
 
-const char* MgmtSrvr::getErrorText(int errorCode) 
+const char* MgmtSrvr::getErrorText(int errorCode, char *buf, int buf_sz)
 {
-  static char text[255];
 
   for (int i = 0; i < noOfErrorCodes; ++i) {
     if (errorCode == errorTable[i]._errorCode) {
-      return errorTable[i]._errorText;
+      BaseString::snprintf(buf, buf_sz, errorTable[i]._errorText);
+      buf[buf_sz-1]= 0;
+      return buf;
     }
   }
-  
-  BaseString::snprintf(text, 255, "Unknown management server error code %d", errorCode);
-  return text;
+
+  ndb_error_string(errorCode, buf, buf_sz);
+  buf[buf_sz-1]= 0;
+
+  return buf;
 }
 
 void 
