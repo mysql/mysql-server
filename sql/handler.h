@@ -48,6 +48,7 @@
 #define HA_TABLE_SCAN_ON_INDEX  4	/* No separate data/index file */
 #define HA_REC_NOT_IN_SEQ	8	/* ha_info don't return recnumber;
 					   It returns a position to ha_r_rnd */
+#define HA_HAS_GEOMETRY 	16
 #define HA_NO_INDEX		32	/* No index needed for next/prev */
 #define HA_KEY_READ_WRONG_STR	64	/* keyread returns converted strings */
 #define HA_NULL_KEY		128	/* One can have keys with NULL */
