@@ -693,9 +693,6 @@ NdbConnection::checkState_TransId(const Uint32 * transId) const {
   const Uint32 tTmp2 = transId[1];
   Uint64 tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
   bool b = theStatus == Connected && theTransactionId == tRecTransId;
-#ifdef NDB_NO_DROPPED_SIGNAL
-  if(!b) abort();
-#endif
   return b;
 }
 

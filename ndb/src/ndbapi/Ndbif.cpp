@@ -77,7 +77,7 @@ Ndb::init(int aMaxNoOfTransactions)
                                        executeMessage, 
                                        statusMessage);
   
-
+  
   if ( tBlockNo == -1 ) {
     theError.code = 4105;
     theFacade->unlock_mutex();
@@ -373,8 +373,10 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	  switch(tRec->getType()){
 	  case NdbReceiver::NDB_OPERATION:
 	  case NdbReceiver::NDB_INDEX_OPERATION:
-	    if(tCon->OpCompleteSuccess() != -1)
+	    if(tCon->OpCompleteSuccess() != -1){
 	      completedTransaction(tCon);
+	      return;
+	    }
 	    break;
 	  case NdbReceiver::NDB_SCANRECEIVER:
 	    tCon->theScanningOp->receiver_delivered(tRec);
@@ -392,26 +394,28 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_TCKEY_FAILCONF:
     {
       tFirstDataPtr = int2void(tFirstData);
-      if (tFirstDataPtr == 0) goto InvalidSignal;
-
-      const TcKeyFailConf * const failConf = (TcKeyFailConf *)tDataPtr;
+      const TcKeyFailConf * failConf = (TcKeyFailConf *)tDataPtr;
       const BlockReference aTCRef = aSignal->theSendersBlockRef;
-
-      tOp = void2rec_op(tFirstDataPtr);
-      
-      if (tOp->checkMagicNumber() == 0) {
-	tCon = tOp->theNdbCon;
-	if (tCon != NULL) {
-	  if ((tCon->theSendStatus == NdbConnection::sendTC_OP) ||
-	      (tCon->theSendStatus == NdbConnection::sendTC_COMMIT)) {
-	    tReturnCode = tCon->receiveTCKEY_FAILCONF(failConf);
-	    if (tReturnCode != -1) {
-	      completedTransaction(tCon);
+      if (tFirstDataPtr != 0){
+	tOp = void2rec_op(tFirstDataPtr);
+	
+	if (tOp->checkMagicNumber(false) == 0) {
+	  tCon = tOp->theNdbCon;
+	  if (tCon != NULL) {
+	    if ((tCon->theSendStatus == NdbConnection::sendTC_OP) ||
+		(tCon->theSendStatus == NdbConnection::sendTC_COMMIT)) {
+	      tReturnCode = tCon->receiveTCKEY_FAILCONF(failConf);
+	      if (tReturnCode != -1) {
+		completedTransaction(tCon);
+	      }//if
 	    }//if
-	  }//if
-	}//if
-      }//if
-      
+	  }
+	}
+      } else {
+#ifdef VM_TRACE
+	ndbout_c("Recevied TCKEY_FAILCONF wo/ operation");
+#endif
+      }
       if(tFirstData & 1){
 	NdbConnection::sendTC_COMMIT_ACK(theCommitAckSignal,
 					 failConf->transId1, 
@@ -423,23 +427,27 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_TCKEY_FAILREF:
     {
       tFirstDataPtr = int2void(tFirstData);
-      if (tFirstDataPtr == 0) goto InvalidSignal;
-
-      tOp = void2rec_op(tFirstDataPtr);
-      if (tOp->checkMagicNumber() == 0) {
-        tCon = tOp->theNdbCon;
-        if (tCon != NULL) {
-          if ((tCon->theSendStatus == NdbConnection::sendTC_OP) ||
-              (tCon->theSendStatus == NdbConnection::sendTC_ROLLBACK)) {
-            tReturnCode = tCon->receiveTCKEY_FAILREF(aSignal);
-            if (tReturnCode != -1) {
-              completedTransaction(tCon);
-              return;
-            }//if
-          }//if
-        }//if
-      }//if
-      return;
+      if(tFirstDataPtr != 0){
+	tOp = void2rec_op(tFirstDataPtr);
+	if (tOp->checkMagicNumber() == 0) {
+	  tCon = tOp->theNdbCon;
+	  if (tCon != NULL) {
+	    if ((tCon->theSendStatus == NdbConnection::sendTC_OP) ||
+		(tCon->theSendStatus == NdbConnection::sendTC_ROLLBACK)) {
+	      tReturnCode = tCon->receiveTCKEY_FAILREF(aSignal);
+	      if (tReturnCode != -1) {
+		completedTransaction(tCon);
+		return;
+	      }//if
+	    }//if
+	  }//if
+	}//if
+      } else {
+#ifdef VM_TRACE
+	ndbout_c("Recevied TCKEY_FAILREF wo/ operation");
+#endif
+      }
+      break;
     }
   case GSN_TCKEYREF:
     {
@@ -454,8 +462,9 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	    tReturnCode = tOp->receiveTCKEYREF(aSignal);
 	    if (tReturnCode != -1) {
 	      completedTransaction(tCon);
+	      return;
 	    }//if
-	    return;
+	    break;
 	  }//if
 	}//if
       } //if
@@ -501,7 +510,6 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	tReturnCode = tCon->receiveTC_COMMITREF(aSignal);
 	if (tReturnCode != -1) {
 	  completedTransaction(tCon);
-	  return;
 	}//if
       }//if
       return;
@@ -532,7 +540,6 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	tReturnCode = tCon->receiveTCROLLBACKREF(aSignal);
 	if (tReturnCode != -1) {
 	  completedTransaction(tCon);
-	  return;
 	}//if
       }//if
       return;
@@ -665,66 +672,66 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 
   case GSN_DIHNDBTAMPER:
     {
-    tFirstDataPtr = int2void(tFirstData);
-    if (tFirstDataPtr == 0) goto InvalidSignal;
-
-    if (tWaitState != WAIT_NDB_TAMPER)
-      return;
-    tCon = void2con(tFirstDataPtr);
-    if (tCon->checkMagicNumber() != 0)
-      return;
-    tReturnCode = tCon->receiveDIHNDBTAMPER(aSignal);
-    if (tReturnCode != -1)
-      theWaiter.m_state = NO_WAIT;
-    break;
-    }
-  case GSN_SCAN_TABCONF:
-  {
-    tFirstDataPtr = int2void(tFirstData);
-    assert(tFirstDataPtr);
-    assert(void2con(tFirstDataPtr));
-    assert(void2con(tFirstDataPtr)->checkMagicNumber() == 0);
-    if(tFirstDataPtr && 
-       (tCon = void2con(tFirstDataPtr)) && (tCon->checkMagicNumber() == 0)){
+      tFirstDataPtr = int2void(tFirstData);
+      if (tFirstDataPtr == 0) goto InvalidSignal;
       
-      if(aSignal->m_noOfSections > 0){
-	tReturnCode = tCon->receiveSCAN_TABCONF(aSignal, ptr[0].p, ptr[0].sz);
-      } else {
-	tReturnCode = 
-	  tCon->receiveSCAN_TABCONF(aSignal, 
-				    tDataPtr + ScanTabConf::SignalLength, 
-				    tLen - ScanTabConf::SignalLength);
-      }
+      if (tWaitState != WAIT_NDB_TAMPER)
+	return;
+      tCon = void2con(tFirstDataPtr);
+      if (tCon->checkMagicNumber() != 0)
+	return;
+      tReturnCode = tCon->receiveDIHNDBTAMPER(aSignal);
       if (tReturnCode != -1)
 	theWaiter.m_state = NO_WAIT;
       break;
-    } else {
+    }
+  case GSN_SCAN_TABCONF:
+    {
+      tFirstDataPtr = int2void(tFirstData);
+      assert(tFirstDataPtr);
+      assert(void2con(tFirstDataPtr));
+      assert(void2con(tFirstDataPtr)->checkMagicNumber() == 0);
+      if(tFirstDataPtr && 
+	 (tCon = void2con(tFirstDataPtr)) && (tCon->checkMagicNumber() == 0)){
+	
+	if(aSignal->m_noOfSections > 0){
+	  tReturnCode = tCon->receiveSCAN_TABCONF(aSignal, ptr[0].p, ptr[0].sz);
+	} else {
+	  tReturnCode = 
+	    tCon->receiveSCAN_TABCONF(aSignal, 
+				      tDataPtr + ScanTabConf::SignalLength, 
+				      tLen - ScanTabConf::SignalLength);
+	}
+	if (tReturnCode != -1)
+	  theWaiter.m_state = NO_WAIT;
+	break;
+      } else {
+	goto InvalidSignal;
+      }
+    }
+  case GSN_SCAN_TABREF:
+    {
+      tFirstDataPtr = int2void(tFirstData);
+      if (tFirstDataPtr == 0) goto InvalidSignal;
+      
+      tCon = void2con(tFirstDataPtr);
+      
+      assert(tFirstDataPtr != 0 && 
+	     void2con(tFirstDataPtr)->checkMagicNumber() == 0);
+      
+      if (tCon->checkMagicNumber() == 0){
+	tReturnCode = tCon->receiveSCAN_TABREF(aSignal);
+	if (tReturnCode != -1){
+	  theWaiter.m_state = NO_WAIT;
+	}
+	break;
+      }
       goto InvalidSignal;
     }
-  }
-  case GSN_SCAN_TABREF:
-  {
-    tFirstDataPtr = int2void(tFirstData);
-    if (tFirstDataPtr == 0) goto InvalidSignal;
-
-    tCon = void2con(tFirstDataPtr);
-
-    assert(tFirstDataPtr != 0 && 
-	   void2con(tFirstDataPtr)->checkMagicNumber() == 0);
-    
-    if (tCon->checkMagicNumber() == 0){
-      tReturnCode = tCon->receiveSCAN_TABREF(aSignal);
-      if (tReturnCode != -1){
-	theWaiter.m_state = NO_WAIT;
-      }
-      break;
-    }
-    goto InvalidSignal;
-  }
   case GSN_SCAN_TABINFO: 
-  {
-    goto InvalidSignal;
-  }
+    {
+      goto InvalidSignal;
+    }
   case GSN_KEYINFO20: {
     tFirstDataPtr = int2void(tFirstData);
     if (tFirstDataPtr == 0) goto InvalidSignal;
@@ -777,7 +784,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 				       indxConf->transId2,
 				       aTCRef);
     }
-    break;
+    return;
   }
   case GSN_TCINDXREF:{
     tFirstDataPtr = int2void(tFirstData);
@@ -940,6 +947,10 @@ Ndb::check_send_timeout()
           WAITFOR_RESPONSE_TIMEOUT) {
 #ifdef VM_TRACE
         a_con->printState();
+	Uint32 t1 = a_con->theTransactionId;
+	Uint32 t2 = a_con->theTransactionId >> 32;
+	ndbout_c("[%.8x %.8x]", t1, t2);
+	abort();
 #endif
         a_con->setOperationErrorCodeAbort(4012);
         a_con->theCommitStatus = NdbConnection::Aborted;
