@@ -178,7 +178,7 @@ AC_SUBST([zlib_dir])
 mysql_cv_compress="yes"
 ])
 
-dnl Auxilary macro to check for zlib at given path
+dnl Auxiliary macro to check for zlib at given path
 
 AC_DEFUN([MYSQL_CHECK_ZLIB_DIR], [
 save_INCLUDES="$INCLUDES"
