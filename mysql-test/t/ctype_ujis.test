@@ -73,3 +73,13 @@ create index idx_c1 on t1(c1);
 select c1 as 'using index' from t1 where c1 like cast(concat(0xA4A2, '%') as char character set ujis);
 select c1 as 'no index' from t1 where c1 like cast(concat('%',0xA4A2, '%') as char character set ujis);
 drop table t1;
+
+
+# Bug 2077
+CREATE TABLE t1 (
+  a char(1) NOT NULL default '',
+  b enum('¤¢','¤¤') default NULL
+) CHARACTER SET ujis;
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+DROP TABLE t1;
