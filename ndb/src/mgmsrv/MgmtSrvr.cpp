@@ -432,15 +432,20 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
   theFacade = 0;
 
   m_newConfig = NULL;
-  m_configFilename.assign(config_filename);
+  if (config_filename)
+    m_configFilename.assign(config_filename);
+  else
+    m_configFilename.assign("config.ini");
 
   m_nextConfigGenerationNumber = 0;
 
   m_config_retriever= new ConfigRetriever(connect_string,
 					  NDB_VERSION, NDB_MGM_NODE_TYPE_MGM);
-
+  // if connect_string explicitly given or
+  // no config filename is given then
   // first try to allocate nodeid from another management server
-  if(m_config_retriever->do_connect(0,0,0) == 0)
+  if ((connect_string || config_filename == NULL) &&
+      (m_config_retriever->do_connect(0,0,0) == 0))
   {
     int tmp_nodeid= 0;
     tmp_nodeid= m_config_retriever->allocNodeId(0 /*retry*/,0 /*delay*/);
