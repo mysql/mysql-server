@@ -1,0 +1,98 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# Basic test to show that the NDB 
+# table handler is working
+#
+
+#
+# Create a normal table with primary key
+#
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  attr1 INT NOT NULL
+) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES (9410,9412);
+  
+SELECT pk1 FROM t1;
+SELECT * FROM t1;
+SELECT t1.* FROM t1;
+
+UPDATE t1 SET attr1=1 WHERE pk1=9410;
+SELECT * FROM t1;
+
+# Can't UPDATE PK! Test that correct error is returned
+-- error 1112
+UPDATE t1 SET pk1=2 WHERE attr1=1;
+SELECT * FROM t1;
+
+# Delete the record
+DELETE FROM t1;
+SELECT * FROM t1;
+
+# Delete the record by specifying pk
+INSERT INTO t1 VALUES (9410,9412);
+DELETE FROM t1 WHERE pk1 = 9410;
+SELECT * FROM t1;
+
+# Insert three records and delete the
+INSERT INTO t1 VALUES (9410,9412), (9411, 9413), (9408, 8765);
+DELETE FROM t1;
+SELECT * FROM t1;
+
+# Insert three records with attr1=4 and two with attr1=5
+# Delete all with attr1=4
+INSERT INTO t1 values (1, 4), (2, 4), (3, 5), (4, 4), (5, 5);
+DELETE FROM t1 WHERE attr1=4;
+SELECT * FROM t1 order by pk1;
+DELETE FROM t1;
+
+# Insert two records and delete one
+INSERT INTO t1 VALUES (9410,9412), (9411, 9413);
+DELETE FROM t1 WHERE pk1 = 9410;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#
+# Create table without primary key
+# a hidden primary key column is created by handler
+#
+CREATE TABLE t1 (id INT, id2 int) engine=ndbcluster;
+INSERT INTO t1 values(3456, 7890);
+SELECT * FROM t1;
+UPDATE t1 SET id=2 WHERE id2=12;
+SELECT * FROM t1;
+UPDATE t1 SET id=1234 WHERE id2=7890;
+SELECT * FROM t1;
+DELETE FROM t1;
+
+INSERT INTO t1 values(3456, 7890), (3456, 7890), (3456, 7890);
+SELECT * FROM t1;
+DELETE FROM t1 WHERE id = 3456;
+
+DROP TABLE t1;
+
+# test create with the keyword "engine=NDBCLUSTER"
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  attr1 INT NOT NULL
+) ENGINE=NDBCLUSTER;
+
+INSERT INTO t1 values(1, 9999);
+
+DROP TABLE t1;
+
+# test create with the keyword "engine=NDB"
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  attr1 INT NOT NULL
+) ENGINE=NDB;
+
+INSERT INTO t1 values(1, 9999);
+
+DROP TABLE t1;

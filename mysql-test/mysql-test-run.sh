@@ -244,9 +244,9 @@ while test $# -gt 0; do
     --local)   USE_RUNNING_SERVER="" ;;
     --extern)  USE_RUNNING_SERVER="1" ;;
     --with-ndbcluster)
-      USE_NDBCLUSTER="--with-ndbcluster" ;;
+      USE_NDBCLUSTER="--ndbcluster" ;;
     --ndbconnectstring=*)
-      USE_NDBCLUSTER="--with-ndbcluster" ;
+      USE_NDBCLUSTER="--ndbcluster" ;
       USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndbconnectstring=;;"` ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
