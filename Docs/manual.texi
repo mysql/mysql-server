@@ -43897,7 +43897,7 @@ users uses this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
-* News-3.23.38::                
+* News-3.23.38::                Changes in release 3.23.38
 * News-3.23.37::                Changes in release 3.23.37
 * News-3.23.36::                Changes in release 3.23.36
 * News-3.23.35::                Changes in release 3.23.35
@@ -43942,6 +43942,11 @@ not yet 100% confident in this code.
 @node News-3.23.38, News-3.23.37, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.38
 @itemize @bullet
+@item
+New program @code{mysqlcheck}.
+@item
+Added database name to output for admin commands like @code{CHECK},
+@code{REPAIR}, @code{OPTIMIZE}.
 @item
 Lots of portability fixes for InnoDB.
 @item
