@@ -1388,7 +1388,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
 	if (!(opt_specialflag & SPECIAL_NO_PRIOR))
 	  my_pthread_attr_setprio(&connection_attrib,INTERRUPT_PRIOR);
 	if (pthread_create(&tmp,&connection_attrib, kill_server_thread,
-			   (void*) sig))
+			   (void*) 0))
 	  sql_print_error("Error: Can't create thread to kill server");
 #else
 	  kill_server((void*) sig);		// MIT THREAD has a alarm thread

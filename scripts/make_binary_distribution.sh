@@ -62,9 +62,10 @@ do
 done
 
 for i in extra/comp_err extra/replace extra/perror extra/resolveip \
-  extra/my_print_defaults isam/isamchk isam/pack_isam myisam/myisamchk \
+  extra/my_print_defaults extra/resolve_stack_dump \
+  isam/isamchk isam/pack_isam myisam/myisamchk \
   myisam/myisampack sql/mysqld sql/mysqlbinlog \
-  client/mysql sql/mysqld client/mysqlshow \
+  client/mysql sql/mysqld client/mysqlshow client/mysqlcheck \
   client/mysqladmin client/mysqldump client/mysqlimport client/mysqltest \
   client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin \
   client/.libs/mysqldump client/.libs/mysqlimport client/.libs/mysqltest

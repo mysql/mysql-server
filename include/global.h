@@ -332,7 +332,8 @@ typedef int	File;		/* File descriptor */
 typedef int	my_socket;	/* File descriptor for sockets */
 #define INVALID_SOCKET -1
 #endif
-typedef RETSIGTYPE sig_handler; /* Function to handle signals */
+/* Type for fuctions that handles signals */
+#define sig_handler RETSIGTYPE
 typedef void	(*sig_return)();/* Returns type from signal */
 #if defined(__GNUC__) && !defined(_lint)
 typedef char	pchar;		/* Mixed prototypes can take char */

@@ -533,18 +533,18 @@ InnoDB Tables
 
 * InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database
+* Creating an InnoDB database:: Creating an InnoDB database.
 * Using InnoDB tables::         Creating InnoDB tables
 * Adding and removing::         Adding and removing InnoDB data and log files
 * Backing up::                  Backing up and recovering an InnoDB database
 * Moving::                      Moving an InnoDB database to another machine
-* InnoDB transaction model:: InnoDB transaction model.  InnoDB transaction model
+* InnoDB transaction model::    InnoDB transaction model.
 * Implementation::              Implementation of multiversioning
 * Table and index::             Table and index structures
 * File space management::       File space management and disk i/o
 * Error handling::              Error handling
 * InnoDB restrictions::         Some restrictions on InnoDB tables
-* InnoDB contact information:: InnoDB contact information.  InnoDB contact information
+* InnoDB contact information::  InnoDB contact information.
 
 MySQL Tutorial
 
@@ -666,7 +666,7 @@ Speed of Queries that Access or Update Data
 MySQL Utilites
 
 * Programs::                    What do the executables do?
-* mysqld-max::                  
+* mysqld-max::                  mysqld-max, An extended mysqld server
 * safe_mysqld::                 safe_mysqld, the wrapper around mysqld
 * mysqld_multi::                Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
@@ -759,6 +759,7 @@ Problems and Common Errors
 * No matching rows::            Solving problems with no matching rows
 * ALTER TABLE problems::        Problems with @code{ALTER TABLE}.
 * Change column order::         How to change the order of columns in a table
+* Temporary table problems::    
 
 Some Common Errors When Using MySQL
 
@@ -926,7 +927,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
-* News-3.23.38::                
+* News-3.23.38::                Changes in release 3.23.38
 * News-3.23.37::                Changes in release 3.23.37
 * News-3.23.36::                Changes in release 3.23.36
 * News-3.23.35::                Changes in release 3.23.35
@@ -2442,7 +2443,7 @@ New Client libraries for the Mac OS Classic (Macintosh).
 @item @uref{http://www.lilback.com/macsql/}
 Client libraries for Mac OS Classic (Macintosh).
 
-@item @uref{http://mapage.noos.fr/vpenvern01/index_en.html}
+@item @uref{http://sixk.maniasys.com/index_en.html}
 MySQL for Amiga
 @end table
 
@@ -3104,8 +3105,23 @@ unsubscribe from the @code{myodbc} list, send a message to
 @email{myodbc-subscribe@@lists.mysql.com} or
 @email{myodbc-unsubscribe@@lists.mysql.com}.
 
-There is also a german mailing list.  You can find information about this
-at: @uref{http://www.4t2.com/mysql}.
+The following table shows some @strong{MySQL} mailing in other languages than
+English.  Note that these are not operated by @strong{MySQL AB}, so we can't
+guarantee the quality on these.
+
+@table @code
+@item @email{mysql-france-subscribe@@yahoogroups.com, A French mailing list}
+@item @email{list@@tinc.net, A Korean mailing list}
+Email @code{subscribe mysql your@@email.address} to this list.
+@item @email{mysql-de-request@@lists.4t2.com, A German mailing list}
+Email @code{subscribe mysql-de your@@email.address} to this list.
+You can find information about this mailing list at
+@uref{http://www.4t2.com/mysql}.
+@item @email{mysql-br-request@@listas.linkway.com.br, A Portugese mailing list}
+Email @code{subscribe mysql-br your@@email.address} to this list.
+@item @email{mysql-alta@@elistas.net, A Spanish mailing list}
+Email @code{subscribe mysql your@@email.address} to this list.
+@end table
 
 @cindex net etiquette
 @cindex mailing lists, archive location
@@ -8679,6 +8695,16 @@ added it to all flags.
 The optimization flags used by @strong{MySQL} (-O3) are not recognized by HP's
 compilers.  I did not change the flags.
 @end itemize
+
+If you get the following error from @code{configure}
+
+@example
+checking for cc option to accept ANSI C... no
+configure: error: MySQL requires a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.
+@end example
+
+Check that you don't have the path to the K&R compiler before the path
+to the HP-UX C and C++ compiler.
 
 @node Mac OS X, BEOS, HP-UX 11.x, Source install system issues
 @subsection Mac OS X Notes
@@ -18181,6 +18207,11 @@ per-connection basis.  It will not be changed by another client. It will not
 even be changed if you update another @code{AUTO_INCREMENT} column with a
 non-magic value (that is, a value that is not @code{NULL} and not @code{0}).
 
+If you insert many rows at the same time with an insert statement,
+@code{LAST_INSERT_ID()} returns the value for the first inserted row.
+The reason for this is so that you it makes it possible to easily reproduce
+the same @code{INSERT} statement against some other server.
+
 @cindex sequence emulation
 If @code{expr} is given as an argument to @code{LAST_INSERT_ID()} in an
 @code{UPDATE} clause, then the value of the argument is returned as a
@@ -24378,18 +24409,18 @@ NuSphere is working on removing these limitations.
 @menu
 * InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database.  Creating an InnoDB database
+* Creating an InnoDB database:: Creating an InnoDB database.
 * Using InnoDB tables::         Creating InnoDB tables
 * Adding and removing::         Adding and removing InnoDB data and log files
 * Backing up::                  Backing up and recovering an InnoDB database
 * Moving::                      Moving an InnoDB database to another machine
-* InnoDB transaction model:: InnoDB transaction model.  InnoDB transaction model
+* InnoDB transaction model::    InnoDB transaction model.
 * Implementation::              Implementation of multiversioning
 * Table and index::             Table and index structures
 * File space management::       File space management and disk i/o
 * Error handling::              Error handling
 * InnoDB restrictions::         Some restrictions on InnoDB tables
-* InnoDB contact information:: InnoDB contact information.  InnoDB contact information
+* InnoDB contact information::  InnoDB contact information. 
 @end menu
 
 @node InnoDB overview, InnoDB start, InnoDB, InnoDB
@@ -24399,55 +24430,56 @@ InnoDB tables are included in the @strong{MySQL} source distribution
 starting from 3.23.34a and are activated in the @strong{MySQL -max}
 binary.
 
-If you have downloaded a binary version of MySQL that includes
-support for InnoDB, simply follow the instructions for
-installing a binary version of MySQL.
-See section 4.6 'Installing a MySQL Binary Distribution'.
+If you have downloaded a binary version of @strong{MySQL} that includes
+support for InnoDB (mysqld-max), simply follow the instructions for
+installing a binary version of @strong{MySQL}. @xref{Installing binary}.
+@xref{mysqld-max}.
 
-To compile MySQL with InnoDB support, download MySQL-3.23.34a or newer
-and configure @code{MySQL} with the
-@code{--with-innobase} option. Starting from MySQL-3.23.37 the option
-is @code{--with-innodb}. See section
-4.7 'Installing a MySQL Source Distribution'.
+To compile @strong{MySQL} with InnoDB support, download MySQL-3.23.37 or newer
+and configure @code{MySQL} with the @code{--with-innodb} option.
+@xref{Installing source}.
 
 @example
 cd /path/to/source/of/mysql-3.23.37
 ./configure --with-innodb
 @end example
 
-InnoDB provides MySQL with a transaction safe table handler with
+InnoDB provides @strong{MySQL} with a transaction safe table handler with
 commit, rollback, and crash recovery capabilities. InnoDB does
 locking on row level, and also provides an Oracle-style consistent
 non-locking read in @code{SELECTS}, which increases transaction
 concurrency. There is not need for lock escalation in InnoDB,
 because row level locks in InnoDB fit in very small space.
 
-Technically, InnoDB is a database backend placed under MySQL. InnoDB
+Technically, InnoDB is a database backend placed under @strong{MySQL}. InnoDB
 has its own buffer pool for caching data and indexes in main
 memory. InnoDB stores its tables and indexes in a tablespace, which
 may consist of several files. This is different from, for example,
 @code{MyISAM} tables where each table is stored as a separate file.
 
 InnoDB is distributed under the GNU GPL License Version 2 (of June 1991).
-In the source distribution of MySQL, InnoDB appears as a subdirectory.
+In the source distribution of @strong{MySQL}, InnoDB appears as a subdirectory.
 
 @node InnoDB start, Creating an InnoDB database, InnoDB overview, InnoDB
 @subsection InnoDB startup options
 
-Beginning from MySQL-3.23.37 the prefix of the options is changed
+Beginning from @strong{MySQL}-3.23.37 the prefix of the options is changed
 from @code{innobase_...} to @code{innodb_...}.
 
-To use InnoDB tables you must specify configuration parameters
-in the MySQL configuration file in the @code{[mysqld]} section of
-the configuration file @file{my.cnf}.
-Suppose you have a Windows NT machine with 128 MB RAM and a
-single 10 GB hard disk.
-Below is an example of possible configuration parameters in @file{my.cnf} for
-InnoDB:
+To use InnoDB tables you @strong{MUST} specify configuration parameters
+in the @strong{MySQL} configuration file in the @code{[mysqld]} section of
+the configuration file @file{my.cnf}. @xref{Option files}.
+
+The only required parameter to use InnoDB is @code{innodb_data_file_path},
+but you should set others if you want to get a better performance.
+
+Suppose you have a Windows NT machine with 128 MB RAM and a single 10 GB
+hard disk.  Below is an example of possible configuration parameters in
+@file{my.cnf} for InnoDB:
 
 @example
-innodb_data_home_dir = c:\ibdata
 innodb_data_file_path = ibdata1:2000M;ibdata2:2000M
+innodb_data_home_dir = c:\ibdata
 set-variable = innodb_mirrored_log_groups=1
 innodb_log_group_home_dir = c:\iblogs
 set-variable = innodb_log_files_in_group=3
@@ -24469,8 +24501,8 @@ Below is an example of possible configuration parameters in @file{my.cnf} for
 InnoDB:
 
 @example
-innodb_data_home_dir = /
 innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
+innodb_data_home_dir = /
 set-variable = innodb_mirrored_log_groups=1
 innodb_log_group_home_dir = /dr3
 set-variable = innodb_log_files_in_group=3
@@ -24540,7 +24572,7 @@ log archiving.  The value of this parameter should currently be set the
 same as @code{innodb_log_group_home_dir}.
 @item @code{innodb_log_archive} @tab 
 This value should currently be set to 0.  As recovery from a backup is
-done by MySQL using its own log files, there is currently no need to
+done by @strong{MySQL} using its own log files, there is currently no need to
 archive InnoDB log files.
 @item @code{innodb_buffer_pool_size} @tab 
 The size of the memory buffer InnoDB uses to cache data and indexes of
@@ -24555,7 +24587,7 @@ and other internal data structures. A sensible value for this might be
 2M, but the more tables you have in your application the more you will
 need to allocate here. If InnoDB runs out of memory in this pool, it
 will start to allocate memory from the operating system, and write
-warning messages to the MySQL error log.
+warning messages to the @strong{MySQL} error log.
 @item @code{innodb_file_io_threads} @tab 
 Number of file i/o threads in InnoDB. Normally, this should be 4, but
 on Windows NT disk i/o may benefit from a larger number.
@@ -24572,15 +24604,15 @@ resolve the situation.
 @node Creating an InnoDB database, Using InnoDB tables, InnoDB start, InnoDB
 @subsection Creating an InnoDB database
 
-Suppose you have installed MySQL and have edited @file{my.cnf} so that
+Suppose you have installed @strong{MySQL} and have edited @file{my.cnf} so that
 it contains the necessary InnoDB configuration parameters.
-Before starting MySQL you should check that the directories you have
+Before starting @strong{MySQL} you should check that the directories you have
 specified for InnoDB data files and log files exist and that you have
 access rights to those directories. InnoDB
 cannot create directories, only files. Check also you have enough disk space
 for the data and log files.
 
-When you now start MySQL, InnoDB will start creating your data files
+When you now start @strong{MySQL}, InnoDB will start creating your data files
 and log files. InnoDB will print something like the following:
 
 @example
@@ -24605,9 +24637,9 @@ InnoDB: Started
 mysqld: ready for connections
 @end example
 
-A new InnoDB database has now been created. You can connect to the MySQL
-server with the usual MySQL client programs like @code{mysql}.
-When you shut down the MySQL server with @file{mysqladmin shutdown},
+A new InnoDB database has now been created. You can connect to the @strong{MySQL}
+server with the usual @strong{MySQL} client programs like @code{mysql}.
+When you shut down the @strong{MySQL} server with @file{mysqladmin shutdown},
 InnoDB output will be like the following:
 
 @example
@@ -24622,7 +24654,7 @@ will see the files created. The log directory will also contain
 a small file named @file{ib_arch_log_0000000000}. That file
 resulted from the database creation, after which InnoDB switched off
 log archiving.
-When MySQL is again started, the output will be like the following:
+When @strong{MySQL} is again started, the output will be like the following:
 
 @example
 ~/mysqlm/sql > mysqld
@@ -24632,17 +24664,17 @@ mysqld: ready for connections
 
 @subsubsection If something goes wrong in database creation
 
-If something goes wrong in an InnoDB database creation, you should delete
-all files created by InnoDB. This means all data files, all log files,
-the small archived log file, and in the case you already did create
-some InnoDB tables, delete also the corresponding @file{.frm}
-files for these tables from the MySQL database directories. Then you can
-try the InnoDB database creation again.
+If something goes wrong in an InnoDB database creation, you should
+delete all files created by InnoDB. This means all data files, all log
+files, the small archived log file, and in the case you already did
+create some InnoDB tables, delete also the corresponding @file{.frm}
+files for these tables from the @strong{MySQL} database
+directories. Then you can try the InnoDB database creation again.
 
 @node Using InnoDB tables, Adding and removing, Creating an InnoDB database, InnoDB
 @subsection Creating InnoDB tables
 
-Suppose you have started the MySQL client with the command
+Suppose you have started the @strong{MySQL} client with the command
 @code{mysql test}.
 To create a table in the InnoDB format you must specify
 @code{TYPE = InnoDB} in the table creation SQL command:
@@ -24653,15 +24685,15 @@ CREATE TABLE CUSTOMER (A INT, B CHAR (20), INDEX (A)) TYPE = InnoDB;
 
 This SQL command will create a table and an index on column @code{A}
 into the InnoDB tablespace consisting of the data files you specified
-in @file{my.cnf}. In addition MySQL will create a file
-@file{CUSTOMER.frm} to the MySQL database directory @file{test}.
+in @file{my.cnf}. In addition @strong{MySQL} will create a file
+@file{CUSTOMER.frm} to the @strong{MySQL} database directory @file{test}.
 Internally, InnoDB will add to its own data dictionary an entry
 for table @code{'test/CUSTOMER'}. Thus you can create a table
-of the same name @code{CUSTOMER} in another database of MySQL, and
+of the same name @code{CUSTOMER} in another database of @strong{MySQL}, and
 the table names will not collide inside InnoDB.
 
 You can query the amount of free space in the InnoDB tablespace
-by issuing the table status command of MySQL for any table you have
+by issuing the table status command of @strong{MySQL} for any table you have
 created with @code{TYPE = InnoDB}. Then the amount of free
 space in the tablespace appears in the table comment section in the
 output of @code{SHOW}. An example:
@@ -24679,7 +24711,7 @@ You must drop the tables individually. Also take care not to delete or
 add @file{.frm} files to your InnoDB database manually: use
 @code{CREATE TABLE} and @code{DROP TABLE} commands.
 InnoDB has its own internal data dictionary, and you will get problems
-if the MySQL @file{.frm} files are out of 'sync' with the InnoDB
+if the @strong{MySQL} @file{.frm} files are out of 'sync' with the InnoDB
 internal data dictionary.
 
 @node Adding and removing, Backing up, Using InnoDB tables, InnoDB
@@ -24687,8 +24719,8 @@ internal data dictionary.
 
 You cannot increase the size of an InnoDB data file. To add more into
 your tablespace you have to add a new data file. To do this you have to
-shut down your MySQL database, edit the @file{my.cnf} file, adding a
-new file to @code{innodb_data_file_path}, and then start MySQL
+shut down your @strong{MySQL} database, edit the @file{my.cnf} file, adding a
+new file to @code{innodb_data_file_path}, and then start @strong{MySQL}
 again.
 
 Currently you cannot remove a data file from InnoDB. To decrease the
@@ -24697,11 +24729,11 @@ all your tables, create a new database, and import your tables to the
 new database.
 
 If you want to change the number or the size of your InnoDB log files,
-you have to shut down MySQL and make sure that it shuts down without errors.
+you have to shut down @strong{MySQL} and make sure that it shuts down without errors.
 Then copy the old log files into a safe place just in case something
 went wrong in the shutdown and you will need them to recover the
 database. Delete then the old log files from the log file directory,
-edit @file{my.cnf}, and start MySQL again. InnoDB will tell
+edit @file{my.cnf}, and start @strong{MySQL} again. InnoDB will tell
 you at the startup that it is creating new log files.
 
 @node Backing up, Moving, Adding and removing, InnoDB
@@ -24712,7 +24744,7 @@ To take a 'binary' backup of your database you have to do the following:
 
 @itemize @bullet
 @item
-Shut down your MySQL database and make sure it shuts down without errors.
+Shut down your @strong{MySQL} database and make sure it shuts down without errors.
 @item
 Copy all your data files into a safe place.
 @item
@@ -24743,12 +24775,12 @@ dumps. Then you can take the binary backup, and you will then have
 a consistent snapshot of your database in two formats. 
 
 To be able to recover your InnoDB database to the present from the
-binary backup described above, you have to run your MySQL database
-with the general logging and log archiving of MySQL switched on. Here
-by the general logging we mean the logging mechanism of the MySQL server
+binary backup described above, you have to run your @strong{MySQL} database
+with the general logging and log archiving of @strong{MySQL} switched on. Here
+by the general logging we mean the logging mechanism of the @strong{MySQL} server
 which is independent of InnoDB logs.
 
-To recover from a crash of your MySQL server process, the only thing
+To recover from a crash of your @strong{MySQL} server process, the only thing
 you have to do is to restart it. InnoDB will automatically check the
 logs and perform a roll-forward of the database to the present.
 InnoDB will automatically roll back uncommitted transactions which were
@@ -24783,7 +24815,7 @@ mysqld: ready for connections
 If your database gets corrupted or your disk fails, you have
 to do the recovery from a backup. In the case of corruption, you should
 first find a backup which is not corrupted. From a backup do the recovery
-from the general log files of MySQL according to instructions in the
+from the general log files of @strong{MySQL} according to instructions in the
 MySQL manual.
 
 @subsubsection Checkpoints
@@ -24849,7 +24881,7 @@ to lock every row in the database, or any random subset of the rows,
 without InnoDB running out of memory.
 
 In InnoDB all user activity happens inside transactions. If the
-auto commit mode is used in MySQL, then each SQL statement
+auto commit mode is used in @strong{MySQL}, then each SQL statement
 will form a single transaction. If the auto commit mode is
 switched off, then we can think that a user always has a transaction
 open. If he issues
@@ -25017,7 +25049,7 @@ on the duplicate index record.
 @code{INSERT INTO T SELECT ... FROM S WHERE ...} sets an exclusive
 (non-next-key) lock on each row inserted into @code{T}. Does
 the search on @code{S} as a consistent read, but sets shared next-key
-locks on @code{S} if the MySQL logging is on. InnoDB has to set
+locks on @code{S} if the @strong{MySQL} logging is on. InnoDB has to set
 locks in the latter case because in roll-forward recovery from a
 backup every SQL statement has to be executed in exactly the same
 way as it was done originally.
@@ -25037,10 +25069,10 @@ lock on every record the search encounters.
 lock on every record the search encounters.
 @item
 @code{LOCK TABLES ... } : sets table locks. In the implementation
-the MySQL layer of code sets these locks. The automatic deadlock detection
+the @strong{MySQL} layer of code sets these locks. The automatic deadlock detection
 of InnoDB cannot detect deadlocks where such table locks are involved:
 see the next section below. See also section 13 'InnoDB restrictions'
-about the following: since MySQL does know about row level locks,
+about the following: since @strong{MySQL} does know about row level locks,
 it is possible that you
 get a table lock on a table where another user currently has row level
 locks. But that does not put transaction integerity into danger.
@@ -25051,7 +25083,7 @@ locks. But that does not put transaction integerity into danger.
 InnoDB automatically detects a deadlock of transactions and rolls
 back the transaction whose lock request was the last one to build
 a deadlock, that is, a cycle in the waits-for graph of transactions.
-InnoDB cannot detect deadlocks where a lock set by a MySQL
+InnoDB cannot detect deadlocks where a lock set by a @strong{MySQL}
 @code{LOCK TABLES} statement is involved, or if a lock set
 in another table handler than InnoDB is involved. You have to resolve
 these situations using @code{innodb_lock_wait_timeout} set in
@@ -25318,7 +25350,7 @@ The following list specifies the error handling of InnoDB.
 @itemize @bullet
 @item
 If you run out of file space in the tablespace,
-you will get the MySQL @code{'Table is full'} error
+you will get the @strong{MySQL} @code{'Table is full'} error
 and InnoDB rolls back the SQL statement.
 @item
 A transaction deadlock or a timeout in a lock wait will give
@@ -25333,7 +25365,7 @@ statement.
 @item
 A 'row too long' error rolls back the SQL statement.
 @item
-Other errors are mostly detected by the MySQL layer of code, and
+Other errors are mostly detected by the @strong{MySQL} layer of code, and
 they roll back the corresponding SQL statement.
 @end itemize
 
@@ -25353,7 +25385,7 @@ where only the first 5 characters from column @code{A} are stored.
 @item
 @code{INSERT DELAYED} is not supported for InnoDB tables.
 @item
-The MySQL @code{LOCK TABLES} operation does not know of InnoDB
+The @strong{MySQL} @code{LOCK TABLES} operation does not know of InnoDB
 row level locks set in already completed SQL statements: this means that
 you can get a table lock on a table even if there still exist transactions
 of other users which have row level locks on the same table. Thus
@@ -25370,7 +25402,7 @@ A table cannot contain more than 1000 columns.
 @item
 @code{DELETE FROM TABLE} does not regenerate the table but instead
 deletes all rows, one by one, which is not that fast. In future versions
-of MySQL you can use @code{TRUNCATE} which is fast.
+of @strong{MySQL} you can use @code{TRUNCATE} which is fast.
 @item
 Before dropping a database with InnoDB tables one has to drop
 the individual InnoDB tables first.
@@ -31451,7 +31483,7 @@ We can find the result from crash-me on a lot of different databases at
 
 @menu
 * Programs::                    What do the executables do?
-* mysqld-max::                  
+* mysqld-max::                  mysqld-max, An extended mysqld server
 * safe_mysqld::                 safe_mysqld, the wrapper around mysqld
 * mysqld_multi::                Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
@@ -31636,6 +31668,13 @@ The meaning of the values are:
 @item DISABLED @tab The xxxx option is disabled because one started @code{mysqld} with @code{--skip-xxxx} or because one didn't start @code{mysqld} with all needed options to enable the option.  In this case the @code{hostname.err} file should contain a reason for why the option is disabled.
 @end multitable
 
+@strong{NOTE}:  To be able to create InnoDB tables you @strong{MUST} edit
+your startup options to include at least the @code{innodb_data_file_path}
+option. @xref{InnoDB start}.
+
+To get better performance for BDB tables, you should add some configuration
+options for these too. @xref{BDB start}.
+
 @code{safe_mysqld} will automaticly try to start any @code{mysqld} binary
 with the @code{-max} prefix. This makes it very easy to test out a
 another @code{mysqld} binary in an existing installation.  Just
@@ -31657,6 +31696,7 @@ binaries includes:
 @item HPUX 11.0 @tab N @tab Y
 @item Linux-Alpha @tab N	@tab Y
 @item Linux-Intel @tab Y @tab Y
+@item Linux-Ia64 @tab N @tab Y
 @item Solaris-intel @tab N @tab Y
 @item Solaris-sparc @tab Y @tab Y
 @item SCO OSR5 @tab Y @tab Y
@@ -35602,6 +35642,8 @@ INSERT INTO foo (auto,text) VALUES(NULL,'text');
 INSERT INTO foo2 (id,text) VALUES(LAST_INSERT_ID(),'text');
 @end example
 
+@xref{Getting unique ID}.
+
 For the benefit of some ODBC applications (at least Delphi and Access),
 the following query can be used to find a newly inserted row:
 @example
@@ -35762,6 +35804,7 @@ pre-allocated MYSQL struct.
 * No matching rows::            Solving problems with no matching rows
 * ALTER TABLE problems::        Problems with @code{ALTER TABLE}.
 * Change column order::         How to change the order of columns in a table
+* Temporary table problems::    
 @end menu
 
 This chapter lists some common problems and error messages that users have
@@ -37308,7 +37351,7 @@ simple rename should get your data back.
 @cindex columns, changing
 @cindex changing, column order
 @cindex tables, changing column order
-@node Change column order,  , ALTER TABLE problems, Problems
+@node Change column order, Temporary table problems, ALTER TABLE problems, Problems
 @section How To Change the Order of Columns in a Table
 
 The whole point of SQL is to abstract the application from the data
@@ -37346,6 +37389,32 @@ Drop or rename @code{old_table}.
 @item
 @code{ALTER TABLE new_table RENAME old_table}.
 @end enumerate
+
+@cindex temporary tables, problems
+@node Temporary table problems,  , Change column order, Problems
+@section TEMPORARY TABLE problems
+
+The following are a list of the limitations with @code{TEMPORARY TABLES}.
+
+@itemize @bullet
+@item
+A temporary table can only be of type @code{HEAP}, @code{ISAM} or
+@code{MyISAM}.
+@item
+You can't use temporary tables more than once in the same query.
+For example, the following doesn't work.
+
+@example
+select * from temporary_table, temporary_table as t2;
+@end example
+
+We plan to fix the above in 4.0.
+@item
+You can't use @code{RENAME} on a @code{TEMPORARY} table.
+Note that @code{ALTER TABLE org_name RENAME new_name} works!
+
+We plan to fix the above in 4.0.
+@end itemize
 
 @cindex problems, solving
 @cindex solving, problems
@@ -43972,6 +44041,10 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.38
 @itemize @bullet
 @item
+@code{SHOW CREATE TABLE} now returns @code{TEMPORARY} for temporary tables.
+@item
+Added @code{Rows_examined} to slow query log.
+@item
 Fixed problems with function returning empty string when using
 together with a group functions and a @code{WHERE} that didn't match any rows.
 @item
@@ -49018,10 +49091,14 @@ mysql> UPDATE tbl_name SET KEY=KEY+1,KEY=KEY+1;
 will update @code{KEY} with @code{2} instead of with @code{1}.
 @item
 You can't use temporary tables more than once in the same query.
+For example, the following doesn't work.
 
 @example
 select * from temporary_table, temporary_table as t2;
 @end example
+
+@item
+@code{RENAME} doesn't work with @code{TEMPORARY} tables.
 
 @item
 The optimizer may handle @code{DISTINCT} differently if you are using

@@ -569,7 +569,7 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
   else
     {
       v->str_val = (char*)p;
-      v->str_val_len = (p_end && *p_end) ? *p_end - p : strlen(p);
+      v->str_val_len = (p_end && *p_end) ? (int) (*p_end - p) : (int) strlen(p);
       v->int_val=atoi(p);
       v->int_dirty=0;
       return 0;

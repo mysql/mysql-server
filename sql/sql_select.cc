@@ -265,7 +265,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   join.join_tab=0;
   join.tmp_table_param.copy_field=0;
   join.sum_funcs=0;
-  join.send_records=join.found_records=0;
+  join.send_records=join.found_records=join.examined_rows=0;
   join.tmp_table_param.end_write_records= HA_POS_ERROR;
   join.first_record=join.sort_and_group=0;
   join.select_options=select_options;
@@ -784,6 +784,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   error=do_select(&join,&fields,NULL,procedure);
 
 err:
+  thd->examined_row_count=join.examined_rows;
   thd->proc_info="end";
   join.lock=0;					// It's faster to unlock later
   join_free(&join);
@@ -867,6 +868,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     table->reginfo.not_exists_optimize=0;
     bzero((char*) table->const_key_parts, sizeof(key_part_map)*table->keys);
     all_table_map|= table->map;
+    s->join=join;
     if ((s->on_expr=tables->on_expr))
     {
       // table->maybe_null=table->outer_join=1;	// Mark for send fields
@@ -2219,6 +2221,7 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join_tab->ref.key = -1;
   join_tab->not_used_in_distinct=0;
   join_tab->read_first_record= join_init_read_record;
+  join_tab->join=join;
   bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
   tmp_table->status=0;
   tmp_table->null_row=0;
@@ -3915,8 +3918,8 @@ bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
   table->file=0;
   *table =new_table;
   table->file->change_table_ptr(table);
-
-  thd->proc_info=save_proc_info;
+  thd->proc_info= (!strcmp(save_proc_info,"Copying to tmp table") ?
+		   "Copying to tmp table on disk" : save_proc_info);
   DBUG_RETURN(0);
 
  err:
@@ -4096,6 +4099,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     bool not_used_in_distinct=join_tab->not_used_in_distinct;
     ha_rows found_records=join->found_records;
     READ_RECORD *info= &join_tab->read_record;
+    join->examined_rows++;
 
     do
     {
@@ -4482,6 +4486,7 @@ join_init_read_next_with_key(READ_RECORD *info)
   }
   return 0;
 }
+
 
 static int
 join_init_read_last_with_key(JOIN_TAB *tab)
@@ -5204,6 +5209,7 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 {
   SORT_FIELD *sortorder;
   uint length;
+  ha_rows examined_rows;
   TABLE *table=tab->table;
   SQL_SELECT *select=tab->select;
   DBUG_ENTER("create_sort_index");
@@ -5242,12 +5248,13 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
     }
   }
   table->found_records=filesort(&table,sortorder,length,
-				select, 0L, select_limit);
+				select, 0L, select_limit, &examined_rows);
   delete select;				// filesort did select
   tab->select=0;
   tab->select_cond=0;
   tab->type=JT_ALL;				// Read with normal read_record
   tab->read_first_record= join_init_read_record;
+  tab->join->examined_rows+=examined_rows;
   if (table->key_read)				// Restore if we used indexes
   {
     table->key_read=0;
