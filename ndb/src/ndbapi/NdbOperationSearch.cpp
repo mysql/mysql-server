@@ -209,7 +209,20 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
 	goto equal_error4;
       Uint32 ahValue;
       const Uint32 sz = totalSizeInWords;
-      AttributeHeader::init(&ahValue, tAttrId, sz);
+
+      // XXX
+      if(m_accessTable == m_currentTable)
+      {
+	AttributeHeader::init(&ahValue, tAttrId, sz);
+      }
+      else
+      {
+	assert(m_accessTable->m_index);
+	int attr_id_current_table = 
+	  m_accessTable->m_index->m_columns[tAttrId]->m_keyInfoPos;
+	AttributeHeader::init(&ahValue, attr_id_current_table, sz);
+      }
+      
       insertATTRINFO( ahValue );
       insertATTRINFOloop((Uint32*)aValueToWrite, sz);
     }//if
