@@ -49304,7 +49304,7 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @menu
 * News-4.0.2::                  Changes in release 4.0.2
 * News-4.0.1::                  Changes in release 4.0.1 (23 Dec 2001)
-* News-4.0.0::                  Changes in release 4.0.0
+* News-4.0.0::                  Changes in release 4.0.0 (Oct 2001: Alpha)
 @end menu
 
 @node News-4.0.2, News-4.0.1, News-4.0.x, News-4.0.x
@@ -49586,7 +49586,7 @@ Indexes are now used with @code{ORDER BY} on a whole @code{InnoDB} table.
 @end itemize
 
 @node News-4.0.0,  , News-4.0.1, News-4.0.x
-@appendixsubsec Changes in release 4.0.0
+@appendixsubsec Changes in release 4.0.0 (Oct 2001: Alpha)
 
 @itemize @bullet
 @item
@@ -49763,11 +49763,11 @@ not yet 100% confident in this code.
 * News-3.23.34a::               Changes in release 3.23.34a
 * News-3.23.34::                Changes in release 3.23.34 (10 Mar 2001)
 * News-3.23.33::                Changes in release 3.23.33 (09 Feb 2001)
-* News-3.23.32::                Changes in release 3.23.32 (22 Jan 2001)
+* News-3.23.32::                Changes in release 3.23.32 (22 Jan 2001: Stable)
 * News-3.23.31::                Changes in release 3.23.31 (17 Jan 2001)
 * News-3.23.30::                Changes in release 3.23.30 (04 Jan 2001)
 * News-3.23.29::                Changes in release 3.23.29 (16 Dec 2000)
-* News-3.23.28::                Changes in release 3.23.28 (22 Nov 2000)
+* News-3.23.28::                Changes in release 3.23.28 (22 Nov 2000: Gamma)
 * News-3.23.27::                Changes in release 3.23.27 (24 Oct 2000)
 * News-3.23.26::                Changes in release 3.23.26
 * News-3.23.25::                Changes in release 3.23.25
@@ -49780,7 +49780,7 @@ not yet 100% confident in this code.
 * News-3.23.18::                Changes in release 3.23.18
 * News-3.23.17::                Changes in release 3.23.17
 * News-3.23.16::                Changes in release 3.23.16
-* News-3.23.15::                Changes in release 3.23.15
+* News-3.23.15::                Changes in release 3.23.15 (May 2000: Beta)
 * News-3.23.14::                Changes in release 3.23.14
 * News-3.23.13::                Changes in release 3.23.13
 * News-3.23.12::                Changes in release 3.23.12
@@ -49795,7 +49795,7 @@ not yet 100% confident in this code.
 * News-3.23.3::                 Changes in release 3.23.3
 * News-3.23.2::                 Changes in release 3.23.2
 * News-3.23.1::                 Changes in release 3.23.1
-* News-3.23.0::                 Changes in release 3.23.0
+* News-3.23.0::                 Changes in release 3.23.0 (Sep 1999: Alpha)
 @end menu
 
 @node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
@@ -50771,7 +50771,7 @@ the disk cache.
 
 
 @node News-3.23.32, News-3.23.31, News-3.23.33, News-3.23.x
-@appendixsubsec Changes in release 3.23.32 (22 Jan 2001)
+@appendixsubsec Changes in release 3.23.32 (22 Jan 2001: Stable)
 
 @itemize @bullet
 @item
@@ -51061,7 +51061,7 @@ read by @code{mysql_options()}.
 
 
 @node News-3.23.28, News-3.23.27, News-3.23.29, News-3.23.x
-@appendixsubsec Changes in release 3.23.28 (22 Nov 2000)
+@appendixsubsec Changes in release 3.23.28 (22 Nov 2000: Gamma)
 
 @itemize @bullet
 @item
@@ -51769,7 +51769,7 @@ Added @code{SQL_LOG_BIN} option.
 
 
 @node News-3.23.15, News-3.23.14, News-3.23.16, News-3.23.x
-@appendixsubsec Changes in release 3.23.15
+@appendixsubsec Changes in release 3.23.15 (May 2000: Beta)
 
 @itemize @bullet
 @item
@@ -52465,7 +52465,7 @@ Fixed some compilation problems.
 
 
 @node News-3.23.0,  , News-3.23.1, News-3.23.x
-@appendixsubsec Changes in release 3.23.0
+@appendixsubsec Changes in release 3.23.0 (Sep 1999: Alpha)
 
 @itemize @bullet
 @item
@@ -52640,10 +52640,10 @@ be very easy and painless.  @xref{Upgrading-from-3.21}.
 * News-3.22.22::                Changes in release 3.22.22
 * News-3.22.21::                Changes in release 3.22.21
 * News-3.22.20::                Changes in release 3.22.20
-* News-3.22.19::                Changes in release 3.22.19
+* News-3.22.19::                Changes in release 3.22.19 (Mar 1999: Stable)
 * News-3.22.18::                Changes in release 3.22.18
 * News-3.22.17::                Changes in release 3.22.17
-* News-3.22.16::                Changes in release 3.22.16
+* News-3.22.16::                Changes in release 3.22.16 (Feb 1999: Gamma)
 * News-3.22.15::                Changes in release 3.22.15
 * News-3.22.14::                Changes in release 3.22.14
 * News-3.22.13::                Changes in release 3.22.13
@@ -52652,13 +52652,13 @@ be very easy and painless.  @xref{Upgrading-from-3.21}.
 * News-3.22.10::                Changes in release 3.22.10
 * News-3.22.9::                 Changes in release 3.22.9
 * News-3.22.8::                 Changes in release 3.22.8
-* News-3.22.7::                 Changes in release 3.22.7
+* News-3.22.7::                 Changes in release 3.22.7 (Sep 1998: Beta)
 * News-3.22.6::                 Changes in release 3.22.6
 * News-3.22.5::                 Changes in release 3.22.5
 * News-3.22.4::                 Changes in release 3.22.4
 * News-3.22.3::                 Changes in release 3.22.3
 * News-3.22.2::                 Changes in release 3.22.2
-* News-3.22.1::                 Changes in release 3.22.1
+* News-3.22.1::                 Changes in release 3.22.1 (Jun 1998: Alpha)
 * News-3.22.0::                 Changes in release 3.22.0
 @end menu
 
@@ -52963,7 +52963,7 @@ The update log didn't have newlines on some operating systems.
 
 
 @node News-3.22.19, News-3.22.18, News-3.22.20, News-3.22.x
-@appendixsubsec Changes in release 3.22.19
+@appendixsubsec Changes in release 3.22.19 (Mar 1999: Stable)
 
 @itemize @bullet
 @item
@@ -53009,7 +53009,7 @@ Using @code{LEFT JOIN} on tables that had circular dependencies caused
 
 
 @node News-3.22.16, News-3.22.15, News-3.22.17, News-3.22.x
-@appendixsubsec Changes in release 3.22.16
+@appendixsubsec Changes in release 3.22.16 (Feb 1999: Gamma)
 
 @itemize @bullet
 @item
@@ -53338,7 +53338,7 @@ Added patches for UNIXWARE 7.
 
 
 @node News-3.22.7, News-3.22.6, News-3.22.8, News-3.22.x
-@appendixsubsec Changes in release 3.22.7
+@appendixsubsec Changes in release 3.22.7 (Sep 1998: Beta)
 
 @itemize @bullet
 @item
@@ -53631,7 +53631,7 @@ All bug fixes from MySQL Version 3.21.32.
 
 
 @node News-3.22.1, News-3.22.0, News-3.22.2, News-3.22.x
-@appendixsubsec Changes in release 3.22.1
+@appendixsubsec Changes in release 3.22.1 (Jun 1998: Alpha)
 
 @itemize @bullet
 @item
