@@ -3434,6 +3434,11 @@ When using @code{SET CHARACTER SET}, one can't use translated
 characters in database, table, and column names.
 
 @item
+If you have a @code{DECIMAL} column with a  number stored in different
+formats (+01.00, 1.00, 01.00), @code{GROUP BY} may regard each value
+as a different value.
+
+@item
 @code{DELETE FROM merge_table} used without a @code{WHERE}
 will only clear the mapping for the table, not delete everything in the
 mapped tables.
@@ -16389,6 +16394,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * Privilege changes::           When Privilege Changes Take Effect
 * Default privileges::          Setting Up the Initial MySQL Privileges
 * Adding users::                Adding New Users to MySQL
+* User resources::              
 * Passwords::                   Setting Up Passwords
 * Password security::           Keeping Your Password Secure
 * Secure connections::          Using Secure Connections
@@ -16417,7 +16423,8 @@ GRANT priv_type [(column_list)] [, priv_type [(column_list)] ...]
 	[CIPHER cipher [AND]]
 	[ISSUER issuer [AND]]
 	[SUBJECT subject]]
-    [WITH [GRANT OPTION | MAX_QUERIES_PER_HOUR=#]]
+    [WITH [GRANT OPTION | MAX_QUERIES_PER_HOUR=# | MAX_UPDATES_PER_HOUR=#|
+     MAX_CONNECTIONS_PER_HOUR=#]]
 
 REVOKE priv_type [(column_list)] [, priv_type [(column_list)] ...]
     ON @{tbl_name | * | *.* | db_name.*@}
@@ -16580,11 +16587,11 @@ to other users any privileges the user has at the specified privilege level.
 You should be careful to whom you give the @strong{grant} privilege, as two
 users with different privileges may be able to join privileges!
 
-@code{MAX_QUERIES_PER_HOUR=#} limits the number of queries the user can
-do during one hour. If @code{#} is 0, then this means that there is no
-limit of the number of queries. This works by MySQL resetting a user
-specific query counter to 0, after it has gone more than one hour
-since the counter started incrementing.
+@code{MAX_QUERIES_PER_HOUR=#}, @code{MAX_UPDATES_PER_HOUR=#} and
+@code{MAX_CONNECTIONS_PER_HOUR=#} limits the limits the number of
+queries/updates and logins the user can do during one hour. 
+If @code{#} is 0 (default), then this means that there is no limitations
+for the user. @xref{User resources}.
 
 You cannot grant another user a privilege you don't have yourself;
 the @strong{grant} privilege allows you to give away only those privileges
@@ -16875,7 +16882,7 @@ you should copy them back from your MySQL distribution before
 running @code{mysql_install_db}.
 
 
-@node Adding users, Passwords, Default privileges, User Account Management
+@node Adding users, User resources, Default privileges, User Account Management
 @subsection Adding New Users to MySQL
 
 @findex GRANT statement
@@ -17068,7 +17075,72 @@ You can find these utilities in the Contrib directory of the
 MySQL web site (@uref{http://www.mysql.com/Downloads/Contrib/}).
 
 
-@node Passwords, Password security, Adding users, User Account Management
+@node User resources, Passwords, Adding users, User Account Management
+@subsection Limiting user resources
+
+Starting from MySQL 4.0.2 one can limit certain resources per user.
+
+Before the only available method of limiting user usage of MySQL server
+resources has been setting @code{max_user_connections} startup variable
+to some non-zero value at MySQL startup. But this method is strictly a
+global one and does not allow management of individual users, which
+could be of paricular interest to Interent Service Providers.
+
+Therefore, management of three resources is introduced on the
+individual user level :
+
+@itemize @bullet
+@item
+Number of all queries per hour
+@item
+Number of all updates per hour.  As updates is considered any command that
+changes any table or database.
+@item
+Number of connections made per hour
+@end itemize
+
+A user in the above context is single entry in user table, which is
+uniquely identified by user and host columns.
+
+All users are by default not limited in using the above resources,
+unless the limits are GRANTed to them. These limits can be granted
+ONLY by global GRANT (*.*) and with a following syntax :
+
+@example
+GRANT ... WITH MAX_QUERIES_PER_HOUR = N1 MAX_UPDATES_PER_HOUR = N2
+MAX_CONNECTIONS_PER_HOUR = N3;
+@end example
+
+One can specify any combination of the above resources.
+N1, N2 and N3 are integers and stands for count / hour.
+
+If user reaches any of the above limits withing one hour, his connection
+will be broken or refused and the appropriate error message shall be
+issued.
+
+Current values of particular user resources can be flushed (set to
+zero) by issuing a grant statement with any of the above limiting
+clauses, including a GRANT statement with current value(s) of tha
+resource(s).
+
+Also, current values for all users will be flushed if privileges are
+reloaded or if the folloing new flush command is issuedd :
+
+@example
+FLUSH USER_RESOURCES
+@end example
+
+Also, current values for all users will be flushed with mysqladmin
+reload command.
+
+This new feature is enabled as soon as single user is @code{GRANT}ed with
+some of the limiting @code{GRANT} clauses.
+
+As a prerequisite for enabling this features, user table in mysql
+database must have the additional columns, just as defined in table
+creation scripts @code{mysql_install_db} in the @code{scripts} directory.
+
+@node Passwords, Password security, User resources, User Account Management
 @subsection Setting Up Passwords
 
 @findex PASSWORD()
@@ -19377,6 +19449,7 @@ The status variables listed above have the following meaning:
 @item @code{Delayed_writes} @tab Number of rows written with @code{INSERT DELAYED}.
 @item @code{Delayed_errors} @tab Number of rows written with @code{INSERT DELAYED} for which some error occurred (probably @code{duplicate key}).
 @item @code{Flush_commands} @tab Number of executed @code{FLUSH} commands.
+@item @code{Handler_commit} @tab Number of internal @code{COMMIT} commands.
 @item @code{Handler_delete} @tab Number of times a row was deleted from a table.
 @item @code{Handler_read_first} @tab Number of times the first entry was read from an index.
 If this is high, it suggests that the server is doing a lot of full index scans, for example,
@@ -19386,12 +19459,14 @@ is high, it is a good indication that your queries and tables are properly index
 @item @code{Handler_read_next} @tab Number of requests to read next row in key order. This
 will be incremented if you are querying an index column with a range constraint. This also
 will be incremented if you are doing an index scan.
+@item @code{Handler_read_prev} @tab Number of requests to read previous row in key order.  This is mainly used to optimize @code{ORDER BY ... DESC}.
 @item @code{Handler_read_rnd} @tab Number of requests to read a row based on a fixed position.
 This will be high if you are doing a lot of queries that require sorting of the result.
 @item @code{Handler_read_rnd_next} @tab Number of requests to read the next row in the datafile.
 This will be high if you are doing a lot of table scans. Generally this suggests that your tables
 are not properly indexed or that your queries are not written to take advantage of the indexes you
 have.
+@item @code{Handler_rollback} @tab  Number of internal @code{ROLLBACK} commands.
 @item @code{Handler_update} @tab Number of requests to update a row in a table.
 @item @code{Handler_write} @tab Number of requests to insert a row in a table.
 @item @code{Key_blocks_used} @tab The number of used blocks in the key cache.
@@ -19406,6 +19481,7 @@ have.
 @item @code{Open_files} @tab  Number of files that are open.
 @item @code{Open_streams} @tab Number of streams that are open (used mainly for logging).
 @item @code{Opened_tables} @tab Number of tables that have been opened.
+@item @code{Rpl_status} @tab Status of failsafe replication. (Not yet in use).
 @item @code{Select_full_join} @tab Number of joins without keys (Should be 0).
 @item @code{Select_full_range_join} @tab Number of joins where we used a range search on reference table.
 @item @code{Select_range} @tab Number of joins where we used ranges on the first table. (It's normally not critical even if this is big.)
@@ -19414,12 +19490,14 @@ have.
 @item @code{Questions} @tab Number of queries sent to the server.
 @item @code{Slave_open_temp_tables} @tab Number of temporary tables currently
 open by the slave thread
+@item @code{Slave_running} @tab Is @code{ON} if this is a slave that is connected to a master.
 @item @code{Slow_launch_threads} @tab Number of threads that have taken more than @code{slow_launch_time} to connect.
 @item @code{Slow_queries} @tab Number of queries that have taken more than @code{long_query_time}. @xref{Slow query log}.
 @item @code{Sort_merge_passes} @tab Number of merges the sort has to do. If this value is large you should consider increasing @code{sort_buffer}.
 @item @code{Sort_range} @tab Number of sorts that where done with ranges.
 @item @code{Sort_rows}  @tab Number of sorted rows.
 @item @code{Sort_scan}  @tab Number of sorts that where done by scanning the table.
+@item @code{ssl_xxx}	@tab Variables used by SSL; Not yet implemented.
 @item @code{Table_locks_immediate} @tab Number of times a table lock was
 acquired immediately. Available after 3.23.33.
 @item @code{Table_locks_waited} @tab Number of times a table lock could not
@@ -44293,7 +44371,7 @@ have both a normal and a thread-safe client library.
 
 To get a threaded client where you can interrupt the client from other
 threads and set timeouts when talking with the MySQL server, you should
-use the @code{-lmysys}, @code{-lstring}, and @code{-ldbug} libraries and
+use the @code{-lmysys}, @code{-lmystrings}, and @code{-ldbug} libraries and
 the @code{net_serv.o} code that the server uses.
 
 If you don't need interrupts or timeouts, you can just compile a
@@ -49215,72 +49293,14 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Fixed bug in DROP DATABASE with symlink
+Fixed bug in @code{DROP DATABASE} with symlink
 @item
-Fixed bug in EXPLAIN with LIMIT offset != 0
+Fixed bug in @code{EXPLAIN} with @code{LIMIT offset != 0}
 @item
-
-New feature :
-
-Management of user resources
-
-So far, the only available method of limiting user usage of MySQL
-server resources has been setting max_user_connections startup
-variable to some non-zero value at MySQL startup. But this method is
-strictly a global one and does not allow management of individual
-users, which could be  of paricular interest to Interent Service
-Providers. 
-
-Therefore, management of three resources is introduced on the
-individual user level :
-
-* number of all queries per hour
-* number of all updates per hour
-* number of connections made per hour
-
-Small clarification : By the  updates in the above sense is considered
-any command that changes any table or database. Queries in the above
-context comprehend all commands that could be run by user. User in the
-above context comprehends a single entry in user table, which is
-uniquely identified by user and host columns.
-
-All users are by default not limited in using the above resources,
-unless the limits are GRANTed to them. These limits can be granted
-ONLY by global GRANT (*.*) and with a following syntax :
-
-GRANT ... WITH MAX_QUERIES_PER_HOUR = N1 MAX_UPDATES_PER_HOUR = N2
-MAX_CONNECTIONS_PER_HOUR = N3;
-
-It is not required that all three resources are specified. One or two
-can be specified also. N1,N2 and N3 are intergers and should limit
-number of times user can execute any command, update command  or can
-login that many times per hour.
-
-If user reaches any of the above limits withing one hour, his
-connection will be broken or refused and the appropriate error message
-shall be issued.
-
-Current values of particular user resources can be flushed (set to
-zero) by issuing a grant statement with any of the above limiting
-clauses, including a GRANT statement with current value(s) of tha
-resource(s).
-
-Also, current values for all users will be flushed if privileges are
-reloaded or if a new flush command is issued :
-
-flush user_resources.
-
-Also, current values for all users will be flushed with mysqladmin
-reload command.
-
-This new feature is enabled as soon as single user is GRANTed with
-some of the limiting GRANT clauses.
-
-As a prerequisite for enabling this features, user table in mysql
-database must have the additional columns, just as defined in table
-creation scripts mysql_install_db and mysql_install_db.sh in scripts/
-directory.
-
+Fixed bug in @code{SELECT SQL_CALC_FOUND_ROWS DISTINCT ... LIMIT #}
+@item
+Added limiting of user resources like queries per hour, updates per hour
+and connections made per hour.
 @item
 New configure option --without-query-cache. 
 @item
@@ -55339,7 +55359,7 @@ New math functions:
 The @code{configure} source now compiles a thread-free client library
 @code{-lmysqlclient}. This is the only library that needs to be linked
 with client applications.  When using the binary releases, you must
-link with @code{-lmysql -lmysys -ldbug -lstrings} as before.
+link with @code{-lmysql -lmysys -ldbug -lmystrings} as before.
 @item
 New @code{readline} library from @code{bash-2.0}.
 @item
