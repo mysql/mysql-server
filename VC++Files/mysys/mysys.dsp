@@ -390,6 +390,10 @@ SOURCE=.\my_open.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_file.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\my_pread.c
 # End Source File
 # Begin Source File

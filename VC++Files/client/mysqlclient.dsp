@@ -358,6 +358,10 @@ SOURCE=..\mysys\my_open.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\mysys\my_file.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\my_pread.c
 # End Source File
 # Begin Source File
