@@ -1,5 +1,5 @@
 
-bin_PROGRAMS = testBank bankSumAccounts bankValidateAllGLs bankMakeGL bankTransactionMaker bankCreator bankTimer
+ndbtest_PROGRAMS = testBank bankSumAccounts bankValidateAllGLs bankMakeGL bankTransactionMaker bankCreator bankTimer
 
 noinst_LIBRARIES = libbank.a
 
