@@ -913,6 +913,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     */
     {
       char path[FN_REFLEN];
+      TABLE tab;
+      if (!table)
+        table= &tab;
       strxnmov(path, FN_REFLEN, mysql_data_home, "/", table_list->db, "/",
                table_list->real_name, reg_ext, NullS);
       (void) unpack_filename(path, path);

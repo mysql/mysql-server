@@ -127,3 +127,12 @@ insert into t1 values (1),(2),(3);
 --exec rm $MYSQL_TEST_DIR/var/tmp/t1.sql
 --exec rm $MYSQL_TEST_DIR/var/tmp/t1.txt
 drop table t1;
+
+#
+# dump of view
+#
+create table t1(a int);
+create view v1 as select * from t1;
+--exec $MYSQL_DUMP test
+drop view v1;
+drop table t1;
