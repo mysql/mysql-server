@@ -5,6 +5,8 @@ select ((@id := kill_id) - kill_id) from t1;
 ((@id := kill_id) - kill_id)
 0
 kill @id;
+select 1;
+ERROR HY000: MySQL server has gone away
 select ((@id := kill_id) - kill_id) from t1;
 ((@id := kill_id) - kill_id)
 0
