@@ -5456,7 +5456,7 @@ ReiserFS (or any similar Linux distribution) and Sparc with Solaris 2.7
 or 2.8. FreeBSD comes third, but we really hope it will join the top
 club once the thread library is improved. We also hope that at some
 point we will be able to include all other platforms on which
-MySQL compiles, runs ok, but not quite with the same level of
+MySQL compiles, runs okay, but not quite with the same level of
 stability and performance, into the top category. This will require some
 effort on our part in cooperation with the developers of the OS/library
 components MySQL depends upon. If you are interested in making
@@ -7049,7 +7049,7 @@ From the @code{Build} menu,
 select the @code{Set Active Configuration} menu.
 @item
 Click over the screen selecting @code{mysqld - Win32 Debug}
-and click Ok.
+and click OK.
 @item
 Press @code{F7} to begin the build of the debug server, libs and
 some client applications.
@@ -7578,7 +7578,7 @@ Can't start server : Bind on unix socket...
 Use @code{ps} to make sure that you don't have another @code{mysqld} server
 running.  If you can't find another server running, you can try to execute
 the command @code{telnet your-host-name tcp-ip-port-number} and press
-@code{RETURN} a couple of times.  If you don't get an error message like
+Enter a couple of times.  If you don't get an error message like
 @code{telnet: Unable to connect to remote host: Connection refused},
 something is using the TCP/IP port @code{mysqld} is trying to use.
 See @ref{mysql_install_db} and @ref{Multiple servers}.
@@ -9761,7 +9761,7 @@ before running make.
 
 Note that the above means that you can't symbolic link a database directories
 to another database directory or symbolic link a table to another database
-on BSDI!  (Making a symbolic link to another disk is ok).
+on BSDI!  (Making a symbolic link to another disk is okay).
 
 
 @node Mac OS X, Other Unix Notes, BSD Notes, Operating System Specific Notes
@@ -11107,7 +11107,7 @@ familiarise yourself with how @code{mysql} works.
 
 Here's a simple command that asks the server to tell you its version number
 and the current date.  Type it in as shown below following the @code{mysql>}
-prompt and hit the RETURN key:
+prompt and press Enter:
 
 @example
 mysql> SELECT VERSION(), CURRENT_DATE;
@@ -11287,7 +11287,7 @@ mysql> SELECT * FROM my_table WHERE name = "Smith AND age < 30;
     ">
 @end example
 
-If you enter this @code{SELECT} statement, then hit RETURN and wait for the
+If you enter this @code{SELECT} statement, then press Enter and wait for the
 result, nothing will happen.  Instead of wondering why this
 query takes so long, notice the clue provided by the @code{">} prompt.  It
 tells you that @code{mysql} expects to see the rest of an unterminated
@@ -14491,8 +14491,7 @@ user=mysql
 
 This will cause the server to start as the designated user whether you
 start it manually or by using @code{safe_mysqld} or @code{mysql.server}.
-For more details, see @ref{Changing MySQL user, , Changing MySQL
-user}.
+For more details, see @ref{Changing MySQL user}.
 
 @item
 Don't support symlinks to tables (this can be disabled with the
@@ -17012,7 +17011,7 @@ The different check types stand for the following:
 @item @code{QUICK} @tab Don't scan the rows to check for wrong links.
 @item @code{FAST}  @tab Only check tables which haven't been closed properly.
 @item @code{CHANGED} @tab Only check tables which have been changed since last check or haven't been closed properly.
-@item @code{MEDIUM} @tab Scan rows to verify that deleted links are ok. This also calculates a key checksum for the rows and verifies this with a calcualted checksum for the keys.
+@item @code{MEDIUM} @tab Scan rows to verify that deleted links are okay. This also calculates a key checksum for the rows and verifies this with a calcualted checksum for the keys.
 @item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This ensures that the table is 100 % consistent, but will take a long time!
 @end multitable
 
@@ -17031,13 +17030,13 @@ Which only would do a quick check on the table if it wasn't closed properly.
 @strong{Note:} that in some case @code{CHECK TABLE} will change the
 table!  This happens if the table is marked as 'corrupted' or 'not
 closed properly' but @code{CHECK TABLE} didn't find any problems in the
-table.  In this case @code{CHECK TABLE} will mark the table as ok.
+table.  In this case @code{CHECK TABLE} will mark the table as okay.
 
 If a table is corrupted, then it's most likely that the problem is in
 the indexes and not in the data part.  All of the above check types
 checks the indexes throughly and should thus find most errors.
 
-If you just want to check a table that you assume is ok, you should use
+If you just want to check a table that you assume is okay, you should use
 no check options or the @code{QUICK} option. The latter should be used
 when you are in a hurry and can take the very small risk that
 @code{QUICK} didn't find an error in the data file. (In most cases
@@ -20949,7 +20948,7 @@ retrieve the result set.
 
 Using @code{mysql} is very easy. Just start it as follows:
 @code{mysql database} or @code{mysql --user=user_name --password=your_password database}. Type a SQL statement, end it with @samp{;}, @samp{\g}, or @samp{\G}
-and press RETURN/ENTER.
+and press Enter.
 
 @cindex @code{mysql} command line options
 @cindex command line options, @code{mysql}
@@ -23344,7 +23343,7 @@ If the slave is running, did it establish connection with the master? Do
 @code{State} column. If it says @code{connecting to master}, verify the
 privileges for the replication user on the master, master host name, your
 DNS setup, whether the master is actually running, whether it is reachable
-from the slave, and if all that seems ok, read the error logs.
+from the slave, and if all that seems okay, read the error logs.
 @item
 If the slave was running, but then stopped, look at SHOW SLAVE STATUS
 output and check the error logs. It usually
@@ -35219,7 +35218,7 @@ If you get the following warning from @code{CHECK TABLE} or @code{myisamchk}:
 
 this means that this counter has come out of sync.  This doesn't mean
 that the table is corrupted, but means that you should at least do a
-check on the table to verify that it's ok.
+check on the table to verify that it's okay.
 
 The counter works as follows:
 
@@ -35234,7 +35233,7 @@ When the last instance of a table is closed (because of a @code{FLUSH} or
 because there isn't room in the table cache) the counter is
 decremented if the table has been updated at any point.
 @item
-When you repair the table or check the table and it was ok,
+When you repair the table or check the table and it was okay,
 the counter is reset to 0.
 @item
 To avoid problems with interaction with other processes that may do a
@@ -35249,7 +35248,7 @@ The @code{MyISAM} tables are copied without a @code{LOCK} and
 @code{FLUSH TABLES}.
 @item
 MySQL has crashed between an update and the final close.
-(Note that the table may still be ok, as MySQL always issues writes
+(Note that the table may still be okay, as MySQL always issues writes
 for everything between each statement.)
 @item
 Someone has done a @code{myisamchk --repair} or @code{myisamchk
@@ -39517,7 +39516,7 @@ this case the user and database are not changed
 The @code{db} parameter may be set to @code{NULL} if you don't want to have a
 default database.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero for success.  Non-zero if an error occurred.
 
@@ -39727,7 +39726,7 @@ if(mysql_drop_db(&mysql, "my_database"))
 Instructs the server to write some debug information to the log.  The
 connected user must have the @strong{process} privilege for this to work.
 
-@subsubheading Return values
+@subsubheading Return Values
 
 Zero if the command was successful. Non-zero if an error occurred.
 
@@ -41641,7 +41640,7 @@ int main(void) @{
 
 @subsubheading Return Values
 
-0 if ok, 1 if an error occurred.
+0 if okay, 1 if an error occurred.
 
 @node mysql_server_end,  , mysql_server_init, C Embedded Server func
 @subsubsection @code{mysql_server_end()}
@@ -42758,10 +42757,10 @@ is not the case, you should run the script
 @cindex functions, user-definable, adding
 
 @menu
-* UDF calling sequences::       UDF calling sequences
-* UDF arguments::               Argument processing
-* UDF return values::           Return values and error handling
-* UDF compiling::               Compiling and installing user-definable functions
+* UDF calling sequences::       UDF Calling Sequences
+* UDF arguments::               Argument Processing
+* UDF return values::           Return Values and Error Handling
+* UDF compiling::               Compiling and Installing User-definable Functions
 @end menu
 
 
@@ -43662,7 +43661,7 @@ problem is :
 @itemize @bullet
 @item
 Check if the server is up by doing @code{telnet your-host-name
-tcp-ip-port-number} and press @code{RETURN} a couple of times.  If there
+tcp-ip-port-number} and press Enter a couple of times.  If there
 is a MySQL server running on this port you should get a
 responses that includes the version number of the running MySQL
 server.  If you get an error like @code{telnet: Unable to connect to
