@@ -274,7 +274,7 @@ public:
   enum Functype rev_functype() const { return EQUAL_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<=>"; }
-  Item* neg_transformer(THD *thd) { return 0; }
+  Item *neg_transformer(THD *thd) { return 0; }
 };
 
 

@@ -2030,15 +2030,6 @@ void Item_cond::neg_arguments(THD *thd)
     {
       if (!(new_item= new Item_func_not(item)))
 	return;					// Fatal OEM error
-      /*
-	We can use 0 as tables list because Item_func_not do not use it
-	on fix_fields and its arguments are already fixed.
-
-	We do not check results of fix_fields, because there are not way
-	to return error in this functions interface, thd->net.report_error
-	will be checked on upper level call.
-      */
-      new_item->fix_fields(thd, 0, &new_item);
     }
     VOID(li.replace(new_item));
   }
@@ -2734,18 +2725,6 @@ Item *Item_func_not::neg_transformer(THD *thd)	/* NOT(x)  ->  x */
 Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
 {
   Item *item= negated_item();
-  if (item)
-  {
-    /*
-      We can use 0 as tables list because Item_func* family do not use it
-      on fix_fields and its arguments are already fixed.
-      
-      We do not check results of fix_fields, because there are not way
-      to return error in this functions interface, thd->net.report_error
-      will be checked on upper level call.
-    */
-    item->fix_fields(thd, 0, &item);
-  }
   return item;
 }
 
@@ -2754,9 +2733,6 @@ Item *Item_bool_rowready_func2::neg_transformer(THD *thd)
 Item *Item_func_isnull::neg_transformer(THD *thd)
 {
   Item *item= new Item_func_isnotnull(args[0]);
-  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
-  if (item)
-    item->fix_fields(thd, 0, &item);
   return item;
 }
 
@@ -2765,9 +2741,6 @@ Item *Item_func_isnull::neg_transformer(THD *thd)
 Item *Item_func_isnotnull::neg_transformer(THD *thd)
 {
   Item *item= new Item_func_isnull(args[0]);
-  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
-  if (item)
-    item->fix_fields(thd, 0, &item);
   return item;
 }
 
@@ -2777,9 +2750,6 @@ Item *Item_cond_and::neg_transformer(THD *thd)	/* NOT(a AND b AND ...)  -> */
 {
   neg_arguments(thd);
   Item *item= new Item_cond_or(list);
-  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
-  if (item)
-    item->fix_fields(thd, 0, &item);
   return item;
 }
 
@@ -2789,9 +2759,6 @@ Item *Item_cond_or::neg_transformer(THD *thd)	/* NOT(a OR b OR ...)  -> */
 {
   neg_arguments(thd);
   Item *item= new Item_cond_and(list);
-  // see comment before fix_fields in Item_bool_rowready_func2::neg_transformer
-  if (item)
-    item->fix_fields(thd, 0, &item);
   return item;
 }
 

@@ -2755,8 +2755,16 @@ simple_expr:
 	| '+' expr %prec NEG	{ $$= $2; }
 	| '-' expr %prec NEG    { $$= new Item_func_neg($2); }
 	| '~' expr %prec NEG	{ $$= new Item_func_bit_neg($2); }
-	| NOT expr %prec NEG	{ $$= new Item_func_not($2); }
-	| '!' expr %prec NEG	{ $$= new Item_func_not($2); }
+	| NOT expr %prec NEG
+          {
+            if (($$= $2->neg_transformer(YYTHD)) == 0)
+              $$= new Item_func_not($2);
+          }
+	| '!' expr %prec NEG
+          {
+            if (($$= $2->neg_transformer(YYTHD)) == 0)
+              $$= new Item_func_not($2);
+          }
 	| '(' expr ')'		{ $$= $2; }
 	| '(' expr ',' expr_list ')'
 	  {
