@@ -51,8 +51,6 @@ class ha_innobase: public handler
   	byte*		key_val_buff;	/* buffer used in converting
   					search key values from MySQL format
   					to Innobase format */
-	uint		ref_stored_len;	/* length of the key value stored to
-					'ref' buffer of the handle, if any */
   	ulong 		int_option_flag;
   	uint 		primary_key;
 	uint		last_dup_key;
