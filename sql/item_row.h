@@ -56,6 +56,11 @@ public:
     illegal_method_call((const char*)"val_str");
     return 0;
   };
+  my_decimal *val_decimal(my_decimal *)
+  {
+    illegal_method_call((const char*)"val_decimal");
+    return 0;
+  };
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
   void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   table_map used_tables() const { return used_tables_cache; };

@@ -448,7 +448,7 @@ create view v1 as select a+1 from t1;
 create table t2 select * from v1;
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
-a+1	bigint(17)	YES		NULL	
+a+1	bigint(12)	YES		NULL	
 select * from t2;
 a+1
 2
