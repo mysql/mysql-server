@@ -12,7 +12,7 @@ use test;
 
 let $type= 'HEAP' ;
 --disable_warnings
-drop table if exists t1, t_many_col_types ;
+drop table if exists t1, t9 ;
 --enable_warnings
 eval create table t1
 (
@@ -21,12 +21,12 @@ eval create table t1
 ) engine = $type ;
 
 --disable_warnings
-drop table if exists t_many_col_types;
+drop table if exists t9;
 --enable_warnings
 # The used table type doesn't support BLOB/TEXT columns.
 # (The server would send error 1163  .)
 # So we use char(100) instead.
-eval create table t_many_col_types 
+eval create table t9 
 (
   c1  tinyint, c2  smallint, c3  mediumint, c4  int,
   c5  integer, c6  bigint, c7  float, c8  double,
@@ -44,5 +44,6 @@ eval create table t_many_col_types
 -- source include/ps_query.inc
 -- source include/ps_modify.inc
 -- source include/ps_modify1.inc
+-- source include/ps_conv.inc
 
-drop table t1, t_many_col_types;
+drop table t1, t9;
