@@ -59,6 +59,44 @@ class QUICK_RANGE :public Sql_alloc {
 /*
   Quick select interface.
   This class is a parent for all QUICK_*_SELECT and FT_SELECT classes.
+  
+  The usage scenario is as follows:
+  1. Create quick select
+    quick= new QUICK_XXX_SELECT(...);
+    
+  2. Perform lightweight initialization. This can be done in 2 ways:
+  2.a: Regular initialization
+    if (quick->init())
+    {
+      //the only valid action after failed init() call is delete
+      delete quick;
+    }
+  2.b: Special initialization for quick selects merged by QUICK_ROR_*_SELECT
+    if (quick->init_ror_merged_scan())
+      delete quick;
+        
+  3. Perform zero, one, or more scans.
+    while (...)
+    {
+      // initialize quick select for scan. This may allocate
+      // buffers and/or prefetch rows. 
+      if (quick->reset())
+      {
+        //the only valid action after failed reset() call is delete
+        delete quick;
+        //abort query
+      }
+      
+      // perform the scan
+      do
+      {
+        res= quick->get_next();
+      } while (res && ...)
+    }
+    
+  4. Delete the select:
+    delete quick;
+  
 */
 
 class QUICK_SELECT_I
@@ -117,27 +155,16 @@ public:
     reset() should be called when it is certain that row retrieval will be
     necessary. This call may do heavyweight initialization like buffering first
     N records etc. If reset() call fails get_next() must not be called.
-    Note that reset() may be called several times if this quick select 
-    executes in a subselect.
+    Note that reset() may be called several times if 
+     * the quick select is executed in a subselect
+     * a JOIN buffer is used
+    
     RETURN
       0      OK
       other  Error code
   */
   virtual int  reset(void) = 0;
 
-  /*
-    Initialize get_next() for row retrieval.
-    SYNOPSIS
-      get_next_init()
-
-    get_next_init() must be called before the first get_next().
-    If get_next_init() call fails get_next() must not be called.
-
-    RETURN
-      0      OK
-      other  Error code
-  */
-  virtual int  get_next_init() { return false; }
   virtual int  get_next() = 0;   /* get next record to retrieve */
 
   /* Range end should be called when we have looped over the whole index */
@@ -284,18 +311,7 @@ public:
   ~QUICK_RANGE_SELECT();
 
   int init();
-  int reset(void)
-  {
-    next=0;
-    range= NULL;
-    cur_range= (QUICK_RANGE**) ranges.buffer;
-    /*
-      Note: in opt_range.cc there are places where it is assumed that this
-      function always succeeds 
-    */
-    return 0;
-  }
-  int get_next_init(void);
+  int reset(void);
   int get_next();
   void range_end();
   int get_next_prefix(uint prefix_length, byte *cur_prefix);
@@ -310,6 +326,8 @@ public:
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
+private:
+  /* Used only by QUICK_SELECT_DESC */
   QUICK_RANGE_SELECT(const QUICK_RANGE_SELECT& org) : QUICK_SELECT_I()
   {
     bcopy(&org, this, sizeof(*this));
@@ -685,6 +703,7 @@ public:
       QUICK_RANGE_SELECT (thd, table, key, 1) { init(); }
   ~FT_SELECT() { file->ft_end(); }
   int init() { return error=file->ft_init(); }
+  int reset() { return 0; }
   int get_next() { return error=file->ft_read(record); }
   int get_type() { return QS_TYPE_FULLTEXT; }
 };

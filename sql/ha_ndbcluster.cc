@@ -4901,7 +4901,8 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     if (check == -1)
       break;
     
-    Uint64 rows, commits, size, mem;
+    Uint64 rows, commits, mem;
+    Uint32 size;
     pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&rows);
     pOp->getValue(NdbDictionary::Column::COMMIT_COUNT, (char*)&commits);
     pOp->getValue(NdbDictionary::Column::ROW_SIZE, (char*)&size);
