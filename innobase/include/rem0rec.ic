@@ -564,7 +564,7 @@ rec_set_info_and_status_bits(
 	} else {
 		ut_ad(!(bits & ~(REC_INFO_BITS_MASK >> REC_INFO_BITS_SHIFT)));
 	}
-	rec_set_info_bits(rec, bits & ~REC_NEW_STATUS_MASK, comp);
+	rec_set_info_bits(rec, comp, bits & ~REC_NEW_STATUS_MASK);
 }
 
 /**********************************************************
