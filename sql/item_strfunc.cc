@@ -1507,7 +1507,7 @@ void Item_func_elt::fix_length_and_dec()
 {
   max_length=0;
   decimals=0;
-  for (uint i=1 ; i < arg_count ; i++)
+  for (uint i= 0; i < arg_count ; i++) // first number argument isn't in list!
   {
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
