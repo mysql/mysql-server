@@ -2156,6 +2156,8 @@ simple_expr:
 	  { $$= new Item_func_charset($3); }
 	| COALESCE '(' expr_list ')'
 	  { $$= new Item_func_coalesce(* $3); }
+	| COLLATION_SYM '(' expr ')'
+	  { $$= new Item_func_collation($3); }
 	| CONCAT '(' expr_list ')'
 	  { $$= new Item_func_concat(* $3); }
 	| CONCAT_WS '(' expr ',' expr_list ')'
