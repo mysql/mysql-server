@@ -926,15 +926,26 @@ bool Item_sum_count_distinct::setup(THD *thd)
 	}
       else // too bad, cannot cheat - there is more than one field
 	{
-	  cmp_arg = (void*)this;
-	  compare_key = (qsort_cmp2)composite_key_cmp;
+	  bool all_binary = 1;
 	  Field** field, **field_end;
 	  field_end = (field = table->field) + table->fields;
 	  for(key_len = 0; field < field_end; ++field)
 	    {
 	      key_len += (*field)->field_length;
+	      if(!(*field)->binary())
+		all_binary = 0;
 	    }
 	  rec_offset = table->reclength - key_len;
+	  if(all_binary)
+	  {
+	    compare_key = (qsort_cmp2)simple_raw_key_cmp;
+	    cmp_arg = (void*)key_len;
+	  }
+	  else
+	  {
+	    compare_key = (qsort_cmp2)composite_key_cmp ;
+ 	    cmp_arg = (void*)this;
+	  }
 	}
 
       init_tree(&tree, min(max_heap_table_size, sortbuff_size/16),
