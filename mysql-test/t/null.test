@@ -97,3 +97,4 @@ insert into t1 values
 explain select * from t1 where a between 2 and 3;
 explain select * from t1 where a between 2 and 3 or b is null;
 drop table t1;
+select cast(NULL as signed);
