@@ -682,7 +682,8 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name, myf flags)
   
   for (css= all_charsets; css < all_charsets+255; ++css)
   {
-    if ( css[0] && css[0]->csname && !strcmp(css[0]->csname, cs_name))
+    if ( css[0] && (css[0]->state & MY_CS_PRIMARY) && 
+         css[0]->csname && !strcmp(css[0]->csname, cs_name))
     {
       cs= css[0]->number ? get_internal_charset(css[0]->number,flags) : NULL;
       break;
