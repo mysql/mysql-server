@@ -719,7 +719,9 @@ dnl echo "DBG3: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
       ;;
     compile )
       have_berkeley_db="$bdb"
+dnl Is added to @sql_server_dirs@ in configure.in
       MYSQL_TOP_BUILDDIR([have_berkeley_db])
+      AC_MSG_RESULT([Compiling Berekeley DB in '$have_berkeley_db'])
       ;;
     * )
       AC_MSG_ERROR([impossible case condition '$mode': please report this to bugs@lists.mysql.com])
@@ -816,12 +818,17 @@ AC_DEFUN([MYSQL_CHECK_BDB_VERSION], [
   elif test $db_major -eq 3 && test $db_minor -gt 2
   then
     bdb_version_ok=yes
-  elif test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -ge 3
+  elif test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -gt 3
+  then
+    bdb_version_ok=yes
+  # This is ugly, but about as good as it can get
+  elif test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -eq 3 &&\
+       grep 'DB_VERSION_STRING\>.*g: (' [$1] > /dev/null
   then
     bdb_version_ok=yes
   else
     bdb_version_ok="invalid version $db_major.$db_minor.$db_patch"
-    bdb_version_ok="$bdb_version_ok (must be at least version 3.2.3)"
+    bdb_version_ok="$bdb_version_ok (must be at least version 3.2.3g)"
   fi
 ])
 
@@ -830,6 +837,10 @@ AC_DEFUN([MYSQL_TOP_BUILDDIR], [
     /* )        ;;      # already an absolute path
     *  )        [$1]="'\$(top_builddir)/'$[$1]" ;;
   esac
+  if X"$[$1]" != "/"
+  then
+    [$1]=`echo $[$1] | sed -e 's,/$,,'`
+  fi
 ])
 
 dnl ---------------------------------------------------------------------------
