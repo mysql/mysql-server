@@ -158,8 +158,8 @@ static void usage(void)
   -f, --force		Continue even if we get an sql-error.\n\
   -e, --extended        If you are using this option with CHECK TABLE,\n\
                         it will ensure that the table is 100 percent\n\
-                        consistent, but will take a long time.\n\
-                        
+                        consistent, but will take a long time.\n\n");
+printf("\
                         If you are using this option with REPAIR TABLE,\n\
                         it will run an extended repair on the table, which\n\
                         may not only take a long time to execute, but\n\
@@ -177,8 +177,7 @@ static void usage(void)
   -P, --port=...	Port number to use for connection.\n\
   -q, --quick		If you are using this option with CHECK TABLE, it\n\
                         prevents the check from scanning the rows to check\n\
-                        for wrong links. This is the fastest check.\n\
-
+                        for wrong links. This is the fastest check.\n\n\
                         If you are using this option with REPAIR TABLE, it\n\
                         will try to repair only the index tree. This is\n\
                         the fastest repair method for a table.\n\
