@@ -1844,6 +1844,7 @@ bool setup_tables(TABLE_LIST *tables)
 	DBUG_RETURN(1);
       table->keys_in_use_for_query &= ~map;
     }
+    table->used_keys &= table->keys_in_use_for_query;
     if (table_list->shared)
     {
       /* Clear query_id that may have been set by previous select */
