@@ -88,6 +88,7 @@ extern "C" {
 
 uint 	innobase_init_flags 	= 0;
 ulong 	innobase_cache_size 	= 0;
+ulong 	innobase_large_page_size = 0;
 
 /* The default values for the following, type long, start-up parameters
 are declared in mysqld.cc: */
@@ -116,6 +117,9 @@ values */
 
 uint	innobase_flush_log_at_trx_commit	= 1;
 my_bool innobase_log_archive			= FALSE;/* unused */
+my_bool innobase_use_doublewrite    = TRUE;
+my_bool innobase_use_checksums      = TRUE;
+my_bool innobase_use_large_pages    = FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
 my_bool innobase_very_fast_shutdown		= FALSE; /* this can be set to
@@ -1123,6 +1127,12 @@ innobase_init(void)
 
 	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
 
+  srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
+  srv_use_checksums = (ibool) innobase_use_checksums;
+
+  os_use_large_pages = (ibool) innobase_use_large_pages;
+  os_large_page_size = (ulint) innobase_large_page_size;
+  
 	srv_file_per_table = (ibool) innobase_file_per_table;
         srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
 
@@ -1326,7 +1336,7 @@ innobase_commit(
 			&innodb_dummy_stmt_trx_handle: the latter means
 			that the current SQL statement ended */
 {
-	trx_t*	trx;
+	trx_t*		trx;
 
   	DBUG_ENTER("innobase_commit");
   	DBUG_PRINT("trans", ("ending transaction"));
@@ -3831,6 +3841,7 @@ ha_innobase::create(
 	char		name2[FN_REFLEN];
 	char		norm_name[FN_REFLEN];
 	THD		*thd= current_thd;
+	ib_longlong     auto_inc_value;
 
   	DBUG_ENTER("ha_innobase::create");
 
@@ -4000,6 +4011,20 @@ ha_innobase::create(
 	innobase_table = dict_table_get(norm_name, NULL);
 
 	DBUG_ASSERT(innobase_table != 0);
+
+	if ((thd->lex->create_info.used_fields & HA_CREATE_USED_AUTO) &&
+	   (thd->lex->create_info.auto_increment_value != 0)) {
+
+		/* Query was ALTER TABLE...AUTO_INCREMENT = x; or 
+		CREATE TABLE ...AUTO_INCREMENT = x; Find out a table
+		definition from the dictionary and get the current value
+		of the auto increment field. Set a new value to the
+		auto increment field if the value is greater than the
+		maximum value in the column. */
+
+		auto_inc_value = thd->lex->create_info.auto_increment_value;
+		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
+	}
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */

@@ -849,9 +849,11 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 	}
 	else if (count->field_type == FIELD_VARCHAR)
 	{
-	  length=uint2korr(start_pos);
-	  pos=start_pos+2;
-	  end_pos=start_pos+length;
+          uint pack_length= HA_VARCHAR_PACKLENGTH(count->field_length-1);
+	  length= (pack_length == 1 ? (uint) *(uchar*) start_pos :
+                   uint2korr(start_pos));
+	  pos= start_pos+pack_length;
+	  end_pos= pos+length;
 	  set_if_bigger(count->max_length,length);
 	}
 	if (count->field_length <= 8 &&
@@ -1833,17 +1835,19 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 	}
 	case FIELD_VARCHAR:
 	{
-	  ulong col_length= uint2korr(start_pos);
+          uint pack_length= HA_VARCHAR_PACKLENGTH(count->field_length-1);
+	  ulong col_length= (pack_length == 1 ? (uint) *(uchar*) start_pos :
+                             uint2korr(start_pos));
 	  if (!col_length)
 	  {
 	    write_bits(1,1);			/* Empty varchar */
 	  }
 	  else
 	  {
-	    byte *end=start_pos+2+col_length;
+	    byte *end=start_pos+pack_length+col_length;
 	    write_bits(0,1);
 	    write_bits(col_length,count->length_bits);
-	    for (start_pos+=2 ; start_pos < end ; start_pos++)
+	    for (start_pos+=pack_length ; start_pos < end ; start_pos++)
 	      write_bits(tree->code[(uchar) *start_pos],
 			 (uint) tree->code_len[(uchar) *start_pos]);
 	  }

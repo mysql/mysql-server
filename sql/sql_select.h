@@ -420,15 +420,15 @@ class store_key :public Sql_alloc
     :null_ptr(null),err(0)
   {
     if (field_arg->type() == FIELD_TYPE_BLOB)
-      to_field=new Field_varstring(ptr, length, (uchar*) null, 1, 
+    {
+      /* Key segments are always packed with a 2 byte length prefix */
+      to_field=new Field_varstring(ptr, length, 2, (uchar*) null, 1, 
 				   Field::NONE, field_arg->field_name,
 				   field_arg->table, field_arg->charset());
-    else
-    {
-      to_field=field_arg->new_field(thd->mem_root,field_arg->table);
-      if (to_field)
-	to_field->move_field(ptr, (uchar*) null, 1);
     }
+    else
+      to_field=field_arg->new_key_field(thd->mem_root, field_arg->table,
+                                        ptr, (uchar*) null, 1);
   }
   virtual ~store_key() {}			/* Not actually needed */
   virtual bool copy()=0;

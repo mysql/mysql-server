@@ -981,6 +981,7 @@ sp_cache_functions(THD *thd, LEX *lex)
 
       thd->lex= newlex;
       newlex->proc_table= oldlex->proc_table; // hint if mysql.oper is opened
+      newlex->current_select= NULL;
       name.m_name.str= strchr(name.m_qname.str, '.');
       name.m_db.length= name.m_name.str - name.m_qname.str;
       name.m_db.str= strmake_root(thd->mem_root,

@@ -1976,6 +1976,8 @@ int schema_tables_add(THD *thd, List<char> *files, const char *wild)
   ST_SCHEMA_TABLE *tmp_schema_table= schema_tables;
   for ( ; tmp_schema_table->table_name; tmp_schema_table++)
   {
+    if (tmp_schema_table->hidden)
+      continue;
     if (wild)
     {
       if (lower_case_table_names)
@@ -2374,12 +2376,24 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
 				    const char *file_name)
 {
   TIME time;
-  const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
+  LEX *lex= thd->lex;
+  const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_column_record");
   if (res)
   {
-    DBUG_RETURN(1);
+    if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS)
+    {
+      /*
+        I.e. we are in SELECT FROM INFORMATION_SCHEMA.COLUMS
+        rather than in SHOW COLUMNS
+      */ 
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+      thd->clear_error();
+      res= 0;
+    }
+    DBUG_RETURN(res);
   }
 
   TABLE *show_table= tables->table;
@@ -2745,7 +2759,23 @@ static int get_schema_stat_record(THD *thd, struct st_table_list *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_stat_record");
-  if (!res && !tables->view)
+  if (res)
+  {
+    if (thd->lex->orig_sql_command != SQLCOM_SHOW_KEYS)
+    {
+      /*
+        I.e. we are in SELECT FROM INFORMATION_SCHEMA.STATISTICS
+        rather than in SHOW KEYS
+      */ 
+      if (!tables->view)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     thd->net.last_errno, thd->net.last_error);
+      thd->clear_error();
+      res= 0;
+    }
+    DBUG_RETURN(res);
+  }
+  else if (!tables->view)
   {
     TABLE *show_table= tables->table;
     KEY *key_info=show_table->key_info;
@@ -2843,7 +2873,14 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
       table->file->write_row(table->record[0]);
     }
   }
-  DBUG_RETURN(res);
+  else
+  {
+    if (tables->view)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+  }
+  DBUG_RETURN(0);
 }
 
 
@@ -2868,7 +2905,15 @@ static int get_schema_constraints_record(THD *thd, struct st_table_list *tables,
 					 const char *file_name)
 {
   DBUG_ENTER("get_schema_constraints_record");
-  if (!res && !tables->view)
+  if (res)
+  {
+    if (!tables->view)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+    DBUG_RETURN(0);
+  }
+  else if (!tables->view)
   {
     List<FOREIGN_KEY_INFO> f_key_list;
     TABLE *show_table= tables->table;
@@ -2925,7 +2970,15 @@ static int get_schema_key_column_usage_record(THD *thd,
 {
   DBUG_ENTER("get_schema_key_column_usage_record");
   CHARSET_INFO *cs= system_charset_info;
-  if (!res && !tables->view)
+  if (res)
+  {
+    if (!tables->view)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->net.last_errno, thd->net.last_error);
+    thd->clear_error();
+    DBUG_RETURN(0);
+  }
+  else if (!tables->view)
   {
     List<FOREIGN_KEY_INFO> f_key_list;
     TABLE *show_table= tables->table;
@@ -3338,7 +3391,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 
 
 /*
-  Fill temporaty schema tables before SELECT
+  Fill temporary schema tables before SELECT
 
   SYNOPSIS
     get_schema_tables_result()
@@ -3637,38 +3690,38 @@ ST_FIELD_INFO table_names_fields_info[]=
 ST_SCHEMA_TABLE schema_tables[]=
 {
   {"SCHEMATA", schema_fields_info, create_schema_table,
-   fill_schema_shemata, make_schemata_old_format, 0, 1, -1},
+   fill_schema_shemata, make_schemata_old_format, 0, 1, -1, 0},
   {"TABLES", tables_fields_info, create_schema_table, 
-   get_all_tables, make_old_format, get_schema_tables_record, 1, 2},
+   get_all_tables, make_old_format, get_schema_tables_record, 1, 2, 0},
   {"COLUMNS", columns_fields_info, create_schema_table, 
-   get_all_tables, make_columns_old_format, get_schema_column_record, 1, 2},
+   get_all_tables, make_columns_old_format, get_schema_column_record, 1, 2, 0},
   {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-   fill_schema_charsets, make_character_sets_old_format, 0, -1, -1},
+   fill_schema_charsets, make_character_sets_old_format, 0, -1, -1, 0},
   {"COLLATIONS", collation_fields_info, create_schema_table, 
-   fill_schema_collation, make_old_format, 0, -1, -1},
+   fill_schema_collation, make_old_format, 0, -1, -1, 0},
   {"COLLATION_CHARACTER_SET_APPLICABILITY", coll_charset_app_fields_info,
-   create_schema_table, fill_schema_coll_charset_app, 0, 0, -1, -1},
+   create_schema_table, fill_schema_coll_charset_app, 0, 0, -1, -1, 0},
   {"ROUTINES", proc_fields_info, create_schema_table, 
-    fill_schema_proc, make_proc_old_format, 0, -1, -1},
+    fill_schema_proc, make_proc_old_format, 0, -1, -1, 0},
   {"STATISTICS", stat_fields_info, create_schema_table, 
-    get_all_tables, make_old_format, get_schema_stat_record, 1, 2},
+    get_all_tables, make_old_format, get_schema_stat_record, 1, 2, 0},
   {"VIEWS", view_fields_info, create_schema_table, 
-    get_all_tables, 0, get_schema_views_record, 1, 2},
+    get_all_tables, 0, get_schema_views_record, 1, 2, 0},
   {"USER_PRIVILEGES", user_privileges_fields_info, create_schema_table, 
-    fill_schema_user_privileges, 0, 0, -1, -1},
+    fill_schema_user_privileges, 0, 0, -1, -1, 0},
   {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
-    fill_schema_schema_privileges, 0, 0, -1, -1},
+    fill_schema_schema_privileges, 0, 0, -1, -1, 0},
   {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
-    fill_schema_table_privileges, 0, 0, -1, -1},
+    fill_schema_table_privileges, 0, 0, -1, -1, 0},
   {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
-    fill_schema_column_privileges, 0, 0, -1, -1},
+    fill_schema_column_privileges, 0, 0, -1, -1, 0},
   {"TABLE_CONSTRAINTS", table_constraints_fields_info, create_schema_table,
-    get_all_tables, 0, get_schema_constraints_record, 3, 4},
+    get_all_tables, 0, get_schema_constraints_record, 3, 4, 0},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-    get_all_tables, 0, get_schema_key_column_usage_record, 4, 5},
+    get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0},
   {"TABLE_NAMES", table_names_fields_info, create_schema_table,
-   get_all_tables, make_table_names_old_format, 0, 1, 2},
-  {0, 0, 0, 0, 0, 0, 0, 0}
+   get_all_tables, make_table_names_old_format, 0, 1, 2, 1},
+  {0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
 

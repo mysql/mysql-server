@@ -80,7 +80,7 @@ static int
 vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file)
 {
   DBUG_ENTER("vio_set_cert_stuff");
-  DBUG_PRINT("enter", ("ctx=%p, cert_file=%s, key_file=%s",
+  DBUG_PRINT("enter", ("ctx: %p, cert_file: %s, key_file: %s",
 		       ctx, cert_file, key_file));
   if (cert_file != NULL)
   {
@@ -131,7 +131,7 @@ vio_verify_callback(int ok, X509_STORE_CTX *ctx)
   int	err,depth;
 
   DBUG_ENTER("vio_verify_callback");
-  DBUG_PRINT("enter", ("ok=%d, ctx=%p", ok, ctx));
+  DBUG_PRINT("enter", ("ok: %d, ctx: 0x%p", ok, ctx));
   err_cert=X509_STORE_CTX_get_current_cert(ctx);
   err=	   X509_STORE_CTX_get_error(ctx);
   depth=   X509_STORE_CTX_get_error_depth(ctx);
@@ -220,7 +220,7 @@ new_VioSSLConnectorFd(const char* key_file,
   DH *dh;
   DBUG_ENTER("new_VioSSLConnectorFd");
   DBUG_PRINT("enter",
-	     ("key_file=%s, cert_file=%s, ca_path=%s, ca_file=%s, cipher=%s",
+	     ("key_file: %s, cert_file: %s, ca_path: %s, ca_file: %s, cipher: %s",
 	      key_file, cert_file, ca_path, ca_file, cipher));
 
   if (!(ptr=((struct st_VioSSLConnectorFd*)
@@ -315,7 +315,7 @@ new_VioSSLAcceptorFd(const char *key_file,
   DH *dh;
   DBUG_ENTER("new_VioSSLAcceptorFd");
   DBUG_PRINT("enter",
-	     ("key_file=%s, cert_file=%s, ca_path=%s, ca_file=%s, cipher=%s",
+	     ("key_file: %s, cert_file: %s, ca_path: %s, ca_file: %s, cipher: %s",
 	      key_file, cert_file, ca_path, ca_file, cipher));
 
   ptr= ((struct st_VioSSLAcceptorFd*)

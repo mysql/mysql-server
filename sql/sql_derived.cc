@@ -140,6 +140,18 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     derived_result->set_table(table);
 
 exit:
+    /* Hide "Unknown column" or "Unknown function" error */
+    if (orig_table_list->view)
+    {
+      if (thd->net.last_errno == ER_BAD_FIELD_ERROR ||
+          thd->net.last_errno == ER_SP_DOES_NOT_EXIST)
+      {
+        thd->clear_error();
+        my_error(ER_VIEW_INVALID, MYF(0), orig_table_list->db,
+                 orig_table_list->real_name);
+      }
+    }
+
     /*
       if it is preparation PS only or commands that need only VIEW structure
       then we do not need real data and we can skip execution (and parameters
@@ -256,13 +268,8 @@ int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
         unit->cleanup();
     }
     else
-    {
-      free_tmp_table(thd, table);
       unit->cleanup();
-    }
     lex->current_select= save_current_select;
-    if (res)
-      free_tmp_table(thd, table);
   }
   return res;
 }
