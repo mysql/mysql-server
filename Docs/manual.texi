@@ -2524,7 +2524,7 @@ We will continue to support transactional and not transactional
 databases to satisfy both heavy web/logging usage and mission critical
 24/7 usage.
 
-MySQL Server was designed from the start to work with medium large databases
+MySQL Server was designed from the start to work with medium size databases
 (10-100 million rows / about 100 MB per table) on small computer
 systems.  We will continue to extend MySQL Server to both work even better
 with terabyte size databases, but we are also doing work to make it possible
@@ -3062,7 +3062,7 @@ If you lock tables with @code{LOCK TABLES}, all updates will stall
 until any integrity checks are made. If you only obtain a read lock
 (as opposed to a write lock), then reads and inserts are still allowed
 to happen. The new inserted records will not be seen by any of the
-clients that have a @code{READ} lock until they release their read
+clients that have a read lock until they release their read
 locks. With @code{INSERT DELAYED} you can queue inserts into a local
 queue, until the locks are released, without having the client wait
 for the insert to complete. @xref{INSERT DELAYED}.
@@ -3270,7 +3270,7 @@ Disadvantages:
 
 @itemize @bullet
 @item
-Mistakes, that are easy to make in designing key relations, can cause
+Mistakes, which are easy to make in designing key relations, can cause
 severe problems, for example, circular rules, or the wrong combination
 of cascading deletes.
 
@@ -3396,8 +3396,8 @@ see errors like the following in the MySQL error file:
 
 @item
 Don't execute @code{ALTER TABLE} on a @code{BDB} table on which you are
-running not completed multi-statement transactions. (The transaction
-will probably be ignored).
+running multi-statement transactions until all those transactions complete
+(the transaction will probably be ignored).
 
 @item
 @code{ANALYZE TABLE}, @code{OPTIMIZE TABLE} and @code{REPAIR TABLE} may
@@ -3441,7 +3441,7 @@ likely to fix this. @xref{MIT-pthreads}.
 @item
 @code{BLOB} values can't ``reliably'' be used in @code{GROUP BY} or
 @code{ORDER BY} or @code{DISTINCT}. Only the first @code{max_sort_length}
-bytes (default 1024) are used when comparing @code{BLOB}bs in these cases.
+bytes (default 1024) are used when comparing @code{BLOB}s in these cases.
 This can be changed with the @code{-O max_sort_length} option to
 @code{mysqld}. A workaround for most cases is to use a substring:
 @code{SELECT DISTINCT LEFT(blob,2048) FROM tbl_name}.
@@ -3452,8 +3452,8 @@ normally 64 bits long). It depends on the function which precision one
 gets. The general rule is that bit functions are done with @code{BIGINT}
 precision, @code{IF}, and @code{ELT()} with @code{BIGINT} or @code{DOUBLE}
 precision and the rest with @code{DOUBLE} precision.  One should try to
-avoid using bigger unsigned long long values than 63 bits
-(9223372036854775807) for anything else than bit fields!
+avoid using unsigned long long values if they resolve to be bigger than
+63 bits (9223372036854775807) for anything else than bit fields!
 MySQL Server 4.0 has better @code{BIGINT} handling than 3.23.
 
 @item
@@ -3806,8 +3806,8 @@ Add true @code{VARCHAR} support (There is already support for this in
 Optimise @code{BIT} type to take 1 bit (now @code{BIT} takes 1 char).
 @item
 New internal file interface change.  This will make all file handling much
-more general and make it easier to add extensions like RAID nicely.
-(The current implementation is a hack).
+more general and make it easier to add extensions like RAID
+(the current implementation is a hack).
 @item
 Better in-memory (@code{HEAP}) tables:
 @itemize @bullet
@@ -5075,7 +5075,7 @@ this as a ``standard'' benchmark tool is to stretch the truth a long way.
 @item
 Great Bridge admitted that they had optimised the PostgreSQL database
 (with @code{VACUUM} before the test) and tuned the startup for the tests,
-something they hadn't done for any of the other databases involved.  To
+something they hadn't done for any of the other databases involved.  They
 say ``This process optimises indexes and frees up disk space a bit.  The
 optimised indexes boost performance by some margin.''  Our benchmarks
 clearly indicate that the difference in running a lot of selects on a
@@ -5213,7 +5213,8 @@ better in most cases while our tests, which anyone can reproduce,
 clearly shows otherwise.  With this we don't want to say that PostgreSQL
 isn't good at many things (it is!) or that it isn't faster than MySQL Server
 under certain conditions.  We would just like to see a fair test where
-they are very good so that we could get some friendly competition going!
+PostgreSQL performs very well, so that we could get some friendly
+competition going!
 
 For more information about our benchmarks suite, see @ref{MySQL Benchmarks}.
 
