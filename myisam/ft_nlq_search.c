@@ -205,6 +205,10 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
 		left_root_right))
     goto err2;
 
+  /*
+    If ndocs == 0, this will not allocate RAM for FT_INFO.doc[],
+    so if ndocs == 0, FT_INFO.doc[] must not be accessed.
+   */
   dlist=(FT_INFO *)my_malloc(sizeof(FT_INFO)+
 			     sizeof(FT_DOC)*(aio.dtree.elements_in_tree-1),
 			     MYF(0));
@@ -275,7 +279,8 @@ float ft_nlq_find_relevance(FT_INFO *handler,
     else
       a=c;
   }
-  if (docs[a].dpos == docid)
+  /* bounds check to avoid accessing unallocated handler->doc  */
+  if (a < handler->ndocs && docs[a].dpos == docid)
     return (float) docs[a].weight;
   else
     return 0.0;

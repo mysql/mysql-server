@@ -291,6 +291,18 @@ my_bool vio_peer_addr(Vio * vio, char *buf, uint16 *port)
 }
 
 
+/*
+  Get in_addr for a TCP/IP connection
+
+  SYNOPSIS
+    vio_in_addr()
+    vio		vio handle
+    in		put in_addr here
+
+  NOTES
+    one must call vio_peer_addr() before calling this one
+*/
+
 void vio_in_addr(Vio *vio, struct in_addr *in)
 {
   DBUG_ENTER("vio_in_addr");
