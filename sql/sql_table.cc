@@ -1415,8 +1415,8 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
        check_table_name(src_table,table_ident->table.length)) ||
       table_ident->db.str && check_db_name((src_db= table_ident->db.str)))
   {
-    net_printf(thd,ER_WRONG_TABLE_NAME,src_table);
-    DBUG_RETURN(0);
+    my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
+    DBUG_RETURN(-1);
   }
 
   if ((tmp_table= find_temporary_table(thd, src_db, src_table)))
@@ -1472,14 +1472,16 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
   {
     if (err || !open_temporary_table(thd, dst_path, db, table_name, 1))
     {
-      (void) rm_temporary_table(create_info->db_type, dst_path);
-      DBUG_RETURN(-1);
+      (void) rm_temporary_table(create_info->db_type, 
+                                dst_path); /* purecov: inspected */
+      DBUG_RETURN(-1);     /* purecov: inspected */
     }
   }
   else if (err)
   {
-    (void) quick_rm_table(create_info->db_type, db, table_name);
-    DBUG_RETURN(-1);
+    (void) quick_rm_table(create_info->db_type, db, 
+                          table_name); /* purecov: inspected */
+    DBUG_RETURN(-1);       /* purecov: inspected */
   }
   DBUG_RETURN(0);
   
