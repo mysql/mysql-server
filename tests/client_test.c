@@ -27,11 +27,19 @@
 #include <my_getopt.h>
 #include <m_string.h>
 #include <assert.h>
+#ifdef HAVE_SYS_PARAM_H
+/* Include to get MAXPATHLEN */
+#include <sys/param.h>
+#endif
 
+#ifndef MAXPATHLEN
+#define MAXPATHLEN 256
+#endif
 
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
 
 /* set default options */
+static int   opt_testcase = 0;
 static char *opt_db= 0;
 static char *opt_user= 0;
 static char *opt_password= 0;
@@ -183,7 +191,7 @@ static void client_connect()
   if (!(mysql= mysql_init(NULL)))
   {
     myerror("mysql_init() failed");
-    exit(0);
+    exit(1);
   }
 
   if (!(mysql_real_connect(mysql, opt_host, opt_user,
@@ -193,7 +201,7 @@ static void client_connect()
     myerror("connection failed");
     mysql_close(mysql);
     fprintf(stdout, "\n Check the connection options using --help or -?\n");
-    exit(0);
+    exit(1);
   }
 
   fprintf(stdout, " OK");
@@ -4071,14 +4079,14 @@ static void test_stmt_close()
   if (!(lmysql= mysql_init(NULL)))
   {
     myerror("mysql_init() failed");
-    exit(0);
+    exit(1);
   }
   if (!(mysql_real_connect(lmysql, opt_host, opt_user,
                            opt_password, current_db, opt_port,
                            opt_unix_socket, 0)))
   {
     myerror("connection failed");
-    exit(0);
+    exit(1);
   }
   fprintf(stdout, " OK");
 
@@ -4688,7 +4696,7 @@ static void test_manual_sample()
   {
     fprintf(stderr, "\n drop table failed");
     fprintf(stderr, "\n %s", mysql_error(mysql));
-    exit(0);
+    exit(1);
   }
   if (mysql_query(mysql, "CREATE TABLE test_table(col1 int, col2 varchar(50), \
                                                  col3 smallint, \
@@ -4696,7 +4704,7 @@ static void test_manual_sample()
   {
     fprintf(stderr, "\n create table failed");
     fprintf(stderr, "\n %s", mysql_error(mysql));
-    exit(0);
+    exit(1);
   }
 
   /* Prepare a insert query with 3 parameters */
@@ -4705,7 +4713,7 @@ static void test_manual_sample()
   {
     fprintf(stderr, "\n prepare, insert failed");
     fprintf(stderr, "\n %s", mysql_error(mysql));
-    exit(0);
+    exit(1);
   }
   fprintf(stdout, "\n prepare, insert successful");
 
@@ -4716,7 +4724,7 @@ static void test_manual_sample()
   if (param_count != 3) /* validate parameter count */
   {
     fprintf(stderr, "\n invalid parameter count returned by MySQL");
-    exit(0);
+    exit(1);
   }
 
   /* Bind the data for the parameters */
@@ -4747,7 +4755,7 @@ static void test_manual_sample()
   {
     fprintf(stderr, "\n param bind failed");
     fprintf(stderr, "\n %s", mysql_stmt_error(stmt));
-    exit(0);
+    exit(1);
   }
 
   /* Specify the data */
@@ -4762,7 +4770,7 @@ static void test_manual_sample()
   {
     fprintf(stderr, "\n execute 1 failed");
     fprintf(stderr, "\n %s", mysql_stmt_error(stmt));
-    exit(0);
+    exit(1);
   }
 
   /* Get the total rows affected */
@@ -4772,7 +4780,7 @@ static void test_manual_sample()
   if (affected_rows != 1) /* validate affected rows */
   {
     fprintf(stderr, "\n invalid affected rows by MySQL");
-    exit(0);
+    exit(1);
   }
 
   /* Re-execute the insert, by changing the values */
@@ -4786,7 +4794,7 @@ static void test_manual_sample()
   {
     fprintf(stderr, "\n execute 2 failed");
     fprintf(stderr, "\n %s", mysql_stmt_error(stmt));
-    exit(0);
+    exit(1);
   }
 
   /* Get the total rows affected */
@@ -4796,7 +4804,7 @@ static void test_manual_sample()
   if (affected_rows != 1) /* validate affected rows */
   {
     fprintf(stderr, "\n invalid affected rows by MySQL");
-    exit(0);
+    exit(1);
   }
 
   /* Close the statement */
@@ -4804,7 +4812,7 @@ static void test_manual_sample()
   {
     fprintf(stderr, "\n failed while closing the statement");
     fprintf(stderr, "\n %s", mysql_stmt_error(stmt));
-    exit(0);
+    exit(1);
   }
   assert(2 == my_stmt_result("SELECT * FROM test_table"));
 
@@ -4813,7 +4821,7 @@ static void test_manual_sample()
   {
     fprintf(stderr, "\n drop table failed");
     fprintf(stderr, "\n %s", mysql_error(mysql));
-    exit(0);
+    exit(1);
   }
   fprintf(stdout, "Success !!!");
 }
@@ -4865,7 +4873,7 @@ static void test_prepare_alter()
   check_execute(stmt, rc);
 
   if (thread_query((char *)"ALTER TABLE test_prep_alter change id id_new varchar(20)"))
-    exit(0);
+    exit(1);
 
   is_null= 1;
   rc= mysql_stmt_execute(stmt);
@@ -6486,7 +6494,7 @@ static void test_prepare_grant()
        ER_UNKNOWN_COM_ERROR= 1047
      */
     if (mysql_errno(mysql) != 1047)
-      exit(0);
+      exit(1);
   }
   else
   {
@@ -6497,7 +6505,7 @@ static void test_prepare_grant()
     if (!(lmysql= mysql_init(NULL)))
     {
       myerror("mysql_init() failed");
-      exit(0);
+      exit(1);
     }
     if (!(mysql_real_connect(lmysql, opt_host, "test_grant",
                              "", current_db, opt_port,
@@ -6505,7 +6513,7 @@ static void test_prepare_grant()
     {
       myerror("connection failed");
       mysql_close(lmysql);
-      exit(0);
+      exit(1);
     }
     fprintf(stdout, " OK");
 
@@ -6559,8 +6567,8 @@ static void test_frm_bug()
   MYSQL_RES  *result;
   MYSQL_ROW  row;
   FILE       *test_file;
-  char       data_dir[NAME_LEN];
-  char       test_frm[255];
+  char       data_dir[MAXPATHLEN];
+  char       test_frm[MAXPATHLEN];
   int        rc;
 
   myheader("test_frm_bug");
@@ -6581,7 +6589,7 @@ static void test_frm_bug()
 
   bind[0].buffer_type= MYSQL_TYPE_STRING;
   bind[0].buffer= data_dir;
-  bind[0].buffer_length= NAME_LEN;
+  bind[0].buffer_length= MAXPATHLEN;
   bind[0].is_null= 0;
   bind[0].length= 0;
   bind[1]= bind[0];
@@ -6605,7 +6613,7 @@ static void test_frm_bug()
   {
     fprintf(stdout, "\n ERROR: my_fopen failed for '%s'", test_frm);
     fprintf(stdout, "\n test cancelled");
-    return;
+    exit(1);
   }
   fprintf(test_file, "this is a junk file for test");
 
@@ -6894,7 +6902,7 @@ static void test_drop_temp()
        ER_UNKNOWN_COM_ERROR= 1047
      */
     if (mysql_errno(mysql) != 1047)
-      exit(0);
+      exit(1);
   }
   else
   {
@@ -6904,7 +6912,7 @@ static void test_drop_temp()
     if (!(lmysql= mysql_init(NULL)))
     {
       myerror("mysql_init() failed");
-      exit(0);
+      exit(1);
     }
 
     rc= mysql_query(mysql, "flush privileges");
@@ -6917,7 +6925,7 @@ static void test_drop_temp()
       mysql= lmysql;
       myerror("connection failed");
       mysql_close(lmysql);
-      exit(0);
+      exit(1);
     }
     fprintf(stdout, " OK");
 
@@ -10447,6 +10455,8 @@ static struct my_option client_test_long_options[] =
    (char **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection", (char **) &opt_unix_socket,
    (char **) &opt_unix_socket, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"testcase", 'c', "May disable some code when runs as mysql-test-run testcase.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"count", 't', "Number of times test to be executed", (char **) &opt_count,
    (char **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -10489,6 +10499,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   switch (optid) {
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
+    break;
+  case 'c':
+    opt_testcase = 1;
     break;
   case 'p':
     if (argument)
@@ -10740,6 +10753,5 @@ int main(int argc, char **argv)
   print_test_output();
   my_end(0);
 
-  return(0);
+  exit(0);
 }
-
