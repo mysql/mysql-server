@@ -736,7 +736,7 @@ void thr_unlock(THR_LOCK_DATA *data)
 			     data->type == TL_WRITE_ALLOW_WRITE));
       else
       {
-	DBUG_PRINT("lock",("No locks to free"));
+	DBUG_PRINT("lock",("No waiting read locks to free"));
       }
     }
     else if (data &&

@@ -397,6 +397,8 @@ struct trx_struct{
 			wait_thrs;	/* query threads belonging to this
 					trx that are in the QUE_THR_LOCK_WAIT
 					state */
+	ulint		deadlock_mark;	/* a mark field used in deadlock
+					checking algorithm */
 	/*------------------------------*/
 	mem_heap_t*	lock_heap;	/* memory heap for the locks of the
 					transaction; protected by

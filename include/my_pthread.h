@@ -146,6 +146,7 @@ int pthread_mutex_destroy (pthread_mutex_t *);
 #define pthread_mutex_destroy(A) DeleteCriticalSection(A)
 #define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))
 #define pthread_kill(A,B) pthread_dummy(0)
+#define pthread_exit(A) pthread_dummy()
 #endif /* OS2 */
 
 /* Dummy defines for easier code */

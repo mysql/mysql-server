@@ -5467,9 +5467,10 @@ something that is of course not true.  We could make things even worse
 by just taking the test where PostgreSQL performs worst and claim that 
 MySQL is more than 2000 times faster than PostgreSQL.
 
-The case is that MySQL does a lot of optimizations that PostgreSQL doesn't 
-do and the other way around.  An SQL optimizer is a very complex thing, and
-a company could spend years on just making the optimizer faster and faster.
+The case is that MySQL does a lot of optimizations that PostgreSQL
+doesn't do. This is of course also true the other way around.  An SQL
+optimizer is a very complex thing, and a company could spend years on
+just making the optimizer faster and faster.
 
 When looking at the benchmark results you should look for things that
 you do in your application and just use these results to decide which
@@ -5604,12 +5605,14 @@ MySQL with 2000 simultaneous connections doing 400 queries per second.
 
 It sounded like he was using a Linux kernel that either had some
 problems with many threads, such as kernels before 2.4, which had a problem 
-with this but we have documented how to fix this and Tim should be aware of
-this problem.  The other possible problem could have been an old glibc
-library and that Tim didn't use a MySQL binary from our site, which is
-linked with a corrected glibc library, but had compiled a version of his
-own with.  In any of the above cases, the symptom would have been exactly
-what Tim had measured.
+with many threads on multi-CPU machines. We have documented in this manual
+how to fix this and Tim should be aware of this problem.
+
+The other possible problem could have been an old glibc library and
+that Tim didn't use a MySQL binary from our site, which is linked with
+a corrected glibc library, but had compiled a version of his own with.
+In any of the above cases, the symptom would have been exactly what Tim
+had measured.
 
 We asked Tim if we could get access to his data so that we could repeat
 the benchmark and if he could check the MySQL version on the machine to
@@ -5617,6 +5620,16 @@ find out what was wrong and he promised to come back to us about this.
 He has not done that yet.
 
 Because of this we can't put any trust in this benchmark either :(
+
+Over time things also changes and the above benchmarks are not that
+relevant anymore.  MySQL now have a couple of different table handlers
+with different speed/concurrency tradeoffs.  @xref{Table types}. It
+would be interesting to see how the above tests would run with the
+different transactional table types in MySQL.  PostgreSQL has of course
+also got new features since the test was made.  As the above test are
+not publicly available there is no way for us to know how the
+database would preform in the same tests today.
+
 
 Conclusion:
 
@@ -5632,15 +5645,15 @@ The thing we find strange is that every test we have seen about
 PostgreSQL, that is impossible to reproduce, claims that PostgreSQL is
 better in most cases while our tests, which anyone can reproduce,
 clearly shows otherwise.  With this we don't want to say that PostgreSQL
-isn't good at many things (it is!).  We would just like to see a fair test
-where they are very good so that we could get some friendly competition
-going!
+isn't good at many things (it is!) or that it isn't faster than MySQL
+under certain conditions.  We would just like to see a fair test where
+they are very good so that we could get some friendly competition going!
 
 For more information about our benchmarks suite @xref{MySQL Benchmarks}. 
 
-We are working on an even better benchmark suite, including much better
-documentation of what the individual tests really do, and how to add more
-tests to the suite.
+We are working on an even better benchmark suite, including multi user
+tests, and a better documentation of what the individual tests really
+do and how to add more tests to the suite.
 
 
 @node TODO,  , Comparisons, Introduction
@@ -6149,9 +6162,9 @@ Nothing;  In the long run we plan to be fully ANSI 92 / ANSI 99 compliant.
 @menu
 * Quick Standard Installation::  Quick Standard Installation of MySQL
 * General Installation Issues::  General Installation Issues
-* Installing source::            Installing a MySQL source distribution
-* Post-installation::            Post-installation setup and testing
-* Upgrade::                      Upgrading/Downgrading MySQL
+* Installing source::           Installing a MySQL source distribution
+* Post-installation::           Post-installation setup and testing
+* Upgrade::                     Upgrading/Downgrading MySQL
 * Operating System Specific Notes::  Operating System Specific Notes
 @end menu
 
@@ -6434,13 +6447,13 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @item
 @c Added: 990920
-@c EMAIL: <radek@sopik.cz> (Radek Libovicky)
+@c EMAIL: radek@sopik.cz (Radek Libovicky)
 @image{Flags/czech-republic} Czech Republic [www.sopik.cz] @
 @uref{http://www.mysql.cz/, WWW}
 
 @item
 @c Added: 000418
-@c EMAIL: <feela@ipex.cz> (Ondrej Feela Filip)
+@c EMAIL: feela@ipex.cz (Ondrej Feela Filip)
 @image{Flags/czech-republic} Czech Republic [www.gin.cz] @
 @uref{http://mysql.gin.cz/, WWW}
 @uref{ftp://ftp.gin.cz/pub/MIRRORS/www.mysql.com/, FTP}
@@ -6448,7 +6461,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c removed 991020 (no DNS entry). New name 991026. Added 991121
 @c Statistics at http://mirror.borsen.dk/
-@c EMAIL: mirrorman@borsen.dk  (Michael Kyed)
+@c EMAIL: guru@borsen.dk  (Jesper Angelo)
 @image{Flags/denmark} Denmark [Borsen] @
 @uref{ http://mysql.borsen.dk/, WWW}
 
@@ -6648,7 +6661,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
-@c EMAIL: Equipa de suporte do Leirianet <support@leirianet.pt>
+@c EMAIL: support@leirianet.pt (Equipa de suporte do Leirianet)
 @c @image{Flags/portugal} Portugal [lerianet] @
 @c @uref{http://mysql.leirianet.pt, WWW}
 @c @uref{ftp://ftp.leirianet.pt/pub/mysql/,FTP}
@@ -8202,7 +8215,7 @@ If your client programs are using threads, you need to also compile a
 thread-safe version of the MySQL client library with the
 @code{--with-thread-safe-client} configure options. This will create a
 @code{libmysqlclient_r} library with which you should link your threaded
-applications.  @xref{Thread-safe clients}.
+applications.  @xref{Threaded clients}.
 
 @item
 Options that pertain to particular systems can be found in the
@@ -23603,20 +23616,29 @@ Because the user could issue the @code{FLUSH LOGS} command, we need to
 know which log is currently active and which ones have been rotated out
 and in what sequence. This information is stored in the binary log index file.
 The default is `hostname`.index. You can use this option if you want to
-be a rebel.  (Example: @code{log-bin-index=db.index})
+be a rebel.
+
+Example: @code{log-bin-index=db.index}.
 
 @item @code{sql-bin-update-same} @tab
 If set, setting @code{SQL_LOG_BIN} to a value will automatically set
 @code{SQL_LOG_UPDATE} to the same value and vice versa.
 
 @item @code{binlog-do-db=database_name} @tab
-Tells the master it should log updates for the specified database, and
-exclude all others not explicitly mentioned.
-(Example: @code{binlog-do-db=some_database})
+Tells the master that it should log updates to the binary log if the
+current database is 'database_name'. All others database are ignored.
+Note that if you use this you should ensure that you only do updates in
+the current database.
+
+Example: @code{binlog-do-db=some_database}.
 
 @item @code{binlog-ignore-db=database_name} @tab
-Tells the master that updates to the given database should not be logged
-to the binary log (Example: @code{binlog-ignore-db=some_database})
+Tells the master that updates where the current database is
+'database_name' should not be stored in the binary log.  Note that if
+you use this you should ensure that you only do updates in the current
+database.
+
+Example: @code{binlog-ignore-db=some_database}
 @end multitable
 
 The following table has the options you can use for the @strong{SLAVE}:
@@ -23627,65 +23649,79 @@ The following table has the options you can use for the @strong{SLAVE}:
 @item @code{master-host=host} @tab
 Master hostname or IP address for replication. If not set, the slave
 thread will not be started.
-(Example: @code{master-host=db-master.mycompany.com})
+
+Example: @code{master-host=db-master.mycompany.com}.
 
 @item @code{master-user=username} @tab
 The user the slave thread will us for authentication when connecting to
 the master. The user must have @code{FILE} privilege. If the master user
-is not set, user @code{test} is assumed.  (Example:
-@code{master-user=scott})
+is not set, user @code{test} is assumed.
+
+Example: @code{master-user=scott}.
 
 @item @code{master-password=password} @tab
 The password the slave thread will authenticate with when connecting to
-the master. If not set, an empty password is assumed. (Example:
-@code{master-password=tiger})
+the master. If not set, an empty password is assumed.
+
+Example: @code{master-password=tiger}.
 
 @item @code{master-port=portnumber} @tab
 The port the master is listening on. If not set, the compiled setting of
 @code{MYSQL_PORT} is assumed. If you have not tinkered with
-@code{configure} options, this should be 3306.  (Example:
-@code{master-port=3306})
+@code{configure} options, this should be 3306.
+
+Example: @code{master-port=3306}.
 
 @item @code{master-connect-retry=seconds} @tab
 The number of seconds the slave thread will sleep before retrying to
 connect to the master in case the master goes down or the connection is
-lost.  Default is 60.  (Example: @code{master-connect-retry=60})
+lost.  Default is 60. 
+
+Example: @code{master-connect-retry=60}.
 
 @item @code{master-info-file=filename} @tab
 The location of the file that remembers where we left off on the master
 during the replication process. The default is master.info in the data
 directory.  Sasha: The only reason I see for ever changing the default
-is the desire to be rebelious.  (Example:
-@code{master-info-file=master.info})
+is the desire to be rebelious.
+
+Example: @code{master-info-file=master.info}.
 
 @item @code{replicate-do-table=db_name.table_name} @tab
-Tells the slave thread to restrict replication to the specified database.
-To specify more than one table, use the directive multiple times,
-once for each table. .
-(Example: @code{replicate-do-table=some_db.some_table})
+Tells the slave thread to restrict replication to the specified table.
+To specify more than one table, use the directive multiple times, once
+for each table.  This will work for cross-database updates, in
+contrast to @code{replicate-do-db}.
+
+Example: @code{replicate-do-table=some_db.some_table}.
 
 @item @code{replicate-ignore-table=db_name.table_name} @tab
 Tells the slave thread to not replicate to the specified table. To
-specify more than one table to ignore, use the directive multiple
-times, once for each table.(Example:
-@code{replicate-ignore-table=db_name.some_table})
+specify more than one table to ignore, use the directive multiple times,
+once for each table. This will work for cross-datbase updates,
+in contrast to @code{replicate-ignore-db}.
+
+Example: @code{replicate-ignore-table=db_name.some_table}.
 
 @item @code{replicate-wild-do-table=db_name.table_name} @tab
-Tells the slave thread to restrict replication to the tables that match the
-specified wildcard pattern. .
-To specify more than one table, use the directive multiple times,
-once for each table. .
-(Example: @code{replicate-do-table=foo%.bar%} will replicate only updates
+Tells the slave thread to restrict replication to the tables that match
+the specified wildcard pattern.  To specify more than one table, use the
+directive multiple times, once for each table.  This will work for
+cross-database updates.
+
+Example: @code{replicate-wild-do-table=foo%.bar%} will replicate only updates
 to tables in all databases that start with foo and whose table names
-start with bar)
+start with bar.
 
 @item @code{replicate-wild-ignore-table=db_name.table_name} @tab
-Tells the slave thread to not replicate to the tables that match the given
-wild card pattern. To
-specify more than one table to ignore, use the directive multiple
-times, once for each table.(Example:
-@code{replicate-ignore-table=foo%.bar%} - will not upates to tables in all databases that start with foo and whose table names
-start with bar)
+Tells the slave thread to not replicate to the tables that match the
+given wild card pattern. To specify more than one table to ignore, use
+the directive multiple times, once for each table. This will work for
+cross-database updates.
+
+Example: @code{replicate-wild-ignore-table=foo%.bar%} will not do updates
+to tables in databases that start with foo and whose table names start
+with bar.
 
 @item @code{replicate-ignore-db=database_name} @tab
 Tells the slave thread to not replicate to the specified database. To
@@ -23693,19 +23729,21 @@ specify more than one database to ignore, use the directive multiple
 times, once for each database. This option will not work if you use cross
 database updates. If you need cross database updates to work, make sure
 you have 3.23.28 or later, and use
-@code{replicate-wild-ignore-table=db_name.%}(Example:
-@code{replicate-ignore-db=some_db})
+@code{replicate-wild-ignore-table=db_name.%}
+
+Example: @code{replicate-ignore-db=some_db}.
 
 @item @code{replicate-do-db=database_name} @tab
-Tells the slave thread to restrict replication to the specified database.
-To specify more than one database, use the directive multiple times,
-once for each database. Note that this will only work if you do not use
-cross-database queries such as @code{UPDATE some_db.some_table SET
-foo='bar'} while having selected a different or no database. If you need
-cross database updates to work, make sure
-you have 3.23.28 or later, and use
-@code{replicate-wild-do-table=db_name.%}
-(Example: @code{replicate-do-db=some_db})
+
+Tells the slave thread to restrict replication to the specified
+database.  To specify more than one database, use the directive multiple
+times, once for each database. Note that this will only work if you do
+not use cross-database queries such as @code{UPDATE some_db.some_table
+SET foo='bar'} while having selected a different or no database. If you
+need cross database updates to work, make sure you have 3.23.28 or
+later, and use @code{replicate-wild-do-table=db_name.%}
+
+Example: @code{replicate-do-db=some_db}.
 
 @item @code{log-slave-updates} @tab
 Tells the slave to log the updates from the slave thread to the binary
@@ -23713,8 +23751,9 @@ log. Off by default. You will need to turn it on if you plan to
 daisy-chain the slaves.
 
 @item @code{replicate-rewrite-db=from_name->to_name} @tab
-Updates to a database with a different name than the original (Example:
-@code{replicate-rewrite-db=master_db_name->slave_db_name}
+Updates to a database with a different name than the original
+
+Example: @code{replicate-rewrite-db=master_db_name->slave_db_name}.
 
 @item @code{skip-slave-start} @tab
 Tells the slave server not to start the slave on the startup.  The user
@@ -32579,9 +32618,6 @@ The following conditions hold for an @code{INSERT ... SELECT} statement:
 
 @itemize @minus
 @item
-The query cannot contain an @code{ORDER BY} clause.
-
-@item
 The target table of the @code{INSERT} statement cannot appear in the
 @code{FROM} clause of the @code{SELECT} part of the query because it's
 forbidden in ANSI SQL to @code{SELECT} from the same table into which you are
@@ -38964,9 +39000,10 @@ likely it is that we can fix the problem!
 * C API datatypes::             C API Datatypes
 * C API function overview::     C API Function Overview
 * C API functions::             C API Function Descriptions
+* C Thread functions::          
 * C API problems::              Common questions and problems when using the C API
 * Building clients::            Building Client Programs
-* Thread-safe clients::         How to Make a Thread-safe Client
+* Threaded clients::            How to Make a Threaded Client
 @end menu
 
 The C API code is distributed with MySQL. It is included in the
@@ -39007,7 +39044,7 @@ the buffer associated with a connection is not decreased until the connection
 is closed, at which time client memory is reclaimed.
 
 For programming with threads, consult the 'how to make a thread-safe
-client' chapter. @xref{Thread-safe clients}.
+client' chapter. @xref{Threaded clients}.
 
 
 @node C API datatypes, C API function overview, C, C
@@ -39455,7 +39492,7 @@ recently invoked function that can succeed or fail, allowing you to determine
 when an error occurred and what it was.
 
 
-@node C API functions, C API problems, C API function overview, C
+@node C API functions, C Thread functions, C API function overview, C
 @subsection C API Function Descriptions
 
 @menu
@@ -40373,7 +40410,7 @@ of @code{mysql_field_count()} whether or not the statement was a
 
 @code{MYSQL_FIELD_OFFSET mysql_field_seek(MYSQL_RES *result, MYSQL_FIELD_OFFSET offset)}
 
-* Thread-safe clients::         How to Make a Thread-safe Client
+* Threaded clients::         How to Make a Threaded Client
 @subsubheading Description
 
 Sets the field cursor to the given offset.   The next call to
@@ -41650,8 +41687,71 @@ The connection to the server was lost during the query.
 An unknown error occurred.
 @end table
 
+@node C Thread functions, C API problems, C API functions, C
+@subsection C Threaded Function Descriptions
 
-@node C API problems, Building clients, C API functions, C
+You need to use the following functions when you want to create a
+threaded client. @xref{Threaded clients}.
+
+@menu
+* my_init::                     
+* my_thread_init()::            
+* my_thread_end()::             
+@end menu
+
+@node my_init, my_thread_init(), C Thread functions, C Thread functions
+@subsubsection @code{my_init()}
+
+@findex @code{my_init()}
+
+@subsubheading Description
+
+This function needs to be called once in the program before calling any
+MySQL function.  This initializes some global variables that MySQL
+needs.  If you are using a thread safe client library, this will also
+call @code{my_thread_init()} for this thread.
+
+This is automaticly called by @code{mysql_init()}
+and @code{mysql_connect()}.
+
+@subsubheading Return Values
+
+none.
+
+@node my_thread_init(), my_thread_end(), my_init, C Thread functions
+@subsubsection @code{my_thread_init()}
+
+@findex @code{my_thread_init()}
+
+@subsubheading Description
+
+This function needs to be called for each created thread to initialize
+thread specific variables.
+
+This is automaticly called by @code{my_init()} and @code{mysql_connect()}.
+
+@subsubheading Return Values
+
+none.
+
+@node my_thread_end(),  , my_thread_init(), C Thread functions
+@subsubsection @code{my_thread_end()}
+
+@findex @code{my_thread_end()}
+
+@subsubheading Description
+
+This function needs to be called before calling @code{pthread_exit()} to
+freed memory allocated by @code{my_thread_init()}.
+
+Note that this function is NOT invoked automaticly be the client
+library!
+
+@subsubheading Return Values
+
+none.
+
+@node C API problems, Building clients, C Thread functions, C
 @subsection Common questions and problems when using the C API
 
 @tindex @code{mysql_query()}
@@ -41806,7 +41906,7 @@ If this happens on your system, you must include the math library by
 adding @code{-lm} to the end of the compile/link line.
 
 
-@node Building clients, Thread-safe clients, C API problems, C
+@node Building clients, Threaded clients, C API problems, C
 @subsection Building Client Programs
 
 @cindex client programs, building
@@ -41827,11 +41927,11 @@ For clients that use MySQL header files, you may need to specify a
 files.
 
 
-@node Thread-safe clients,  , Building clients, C
-@subsection How to Make a Thread-safe Client
+@node Threaded clients,  , Building clients, C
+@subsection How to Make a Threaded Client
 
-@cindex clients, thread-safe
-@cindex thread-safe clients
+@cindex clients, threaded
+@cindex threaded clients
 
 The client library is almost thread safe. The biggest problem is
 that the subroutines in @file{net.c} that read from sockets are not
@@ -41846,20 +41946,21 @@ Windows binaries are by default compiled to be thread safe).
 Newer binary distributions should have both a normal and a
 thread-safe client library.
 
-To get a really thread-safe client where you can interrupt the client
-from other threads and set timeouts when talking with the MySQL
-server, you should use the @code{-lmysys}, @code{-lstring}, and @code{-ldbug}
-libraries and the @code{net_serv.o} code that the server uses.
+To get a threaded client where you can interrupt the client from other
+threads and set timeouts when talking with the MySQL server, you should
+use the @code{-lmysys}, @code{-lstring}, and @code{-ldbug} libraries and
+the @code{net_serv.o} code that the server uses.
 
 If you don't need interrupts or timeouts, you can just compile a thread
 safe client library @code{(mysqlclient_r)} and use this.  @xref{C,,
 MySQL C API}.  In this case you don't have to worry about the
 @code{net_serv.o} object file or the other MySQL libraries.
 
-When using a threaded client and you want to use timeouts and interrupts,
-you can make great use of the routines in the @file{thr_alarm.c} file.
-If you are using routines from the @code{mysys} library, the only thing
-you must remember is to call @code{my_init()} first!
+When using a threaded client and you want to use timeouts and
+interrupts, you can make great use of the routines in the
+@file{thr_alarm.c} file.  If you are using routines from the
+@code{mysys} library, the only thing you must remember is to call
+@code{my_init()} first! @xref{C Thread functions}.
 
 All functions except @code{mysql_real_connect()} are by default
 thread safe.  The following notes describe how to compile a thread safe
@@ -41906,10 +42007,37 @@ If you program with POSIX threads, you can use
 establish and release a mutex lock.
 @end itemize
 
+You need to know the following if you have a thread that is calling
+MySQL functions, but that thread has not created the connection to the
+MySQL database:
+
+When you call @code{mysql_init()} or @code{mysql_connect()}, MySQL will
+create a thread specific variable for the thread that is used by the
+debug library (among other things).
+
+If you have in a thread call a MySQL function, before a thread has
+called @code{mysql_init()} or @code{mysql_connect()}, the thread will
+not have the necessary thread specific variables in place and you are
+likely to end up with a core dump sooner or later.
+ 
+The get things to work smoothly you have to do the following:
+
+@enumerate
+@item
+Call @code{my_init()} at the start of your program if it calls
+any other MySQL function before calling @code{mysql_real_connect()}.
+@item
+Call @code{my_thread_init()} in the thread handler before calling
+any MySQL function.
+@item
+In the thread, call @code{my_thread_end()} before calling
+@code{pthread_exit()}.  This will free the memory used by MySQL thread
+specific variables.
+@end enumerate
+
 You may get some errors because of undefined symbols when linking your
 client with @code{mysqlclient_r}. In most cases this is because you haven't
 included the thread libraries on the link/compile line.
-
 
 @node Cplusplus, Java, C, Clients
 @section MySQL C++ APIs
@@ -44220,34 +44348,6 @@ full condition.  If you have several ``locked'' threads, killing the one
 thread that is waiting on the disk-full condition will allow the other
 threads to continue.
 @end itemize
-
-You need to know the following if you have a thread that is calling
-MySQL functions, but that thread has not created the connection to the
-MySQL database:
-
-When you call @code{mysql_init()} or @code{mysql_connect()}, MySQL will
-create a thread specific variable for the thread that is used by the
-debug library (among other things).
-
-If you have in a thread call a MySQL function, before a thread has
-called @code{mysql_init()} or @code{mysql_connect()}, the thread will
-not have the necessary thread specific variables in place and you are
-likely to end up with a core dump sooner or later.
- 
-The get things to work smoothly you have to do the following:
-
-@enumerate
-@item
-Call @code{my_init()} at the start of your program if it calls
-any other MySQL function before calling @code{mysql_real_connect()}.
-@item
-Call @code{my_thread_init()} in the thread handler before calling
-any MySQL function.
-@item
-In the thread, call @code{my_thread_end()} before calling
-@code{pthread_exit()}.  This will free the memory used by MySQL thread
-specific variables.
-@end enumerate
 
 Exceptions to the above behaveour is when you use @code{REPAIR} or
 @code{OPTIMIZE} or when the indexes are created in a batch after an
@@ -46706,6 +46806,11 @@ not yet 100% confident in this code.
 @node News-3.23.42, News-3.23.41, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.42
 @itemize @bullet
+@item
+Fixed problem when using @code{LOCK TABLES} and @code{BDB} tables.
+@item
+Fixed problem with @code{REPAIR TABLE} on MyISAM tables with row lengths
+between 65517 - 65520 bytes
 @item
 Fixed rare hang when doing @code{mysqladmin shutdown} when there was
 a lot of activity in other threads.

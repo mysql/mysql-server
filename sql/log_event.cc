@@ -272,24 +272,24 @@ void Log_event::print_header(FILE* file)
 
 void Log_event::print_timestamp(FILE* file, time_t* ts)
 {
-  struct tm tm_tmp;
+  struct tm tm_tmp, *res;
   if (!ts)
   {
     ts = &when;
   }
 #ifdef MYSQL_SERVER
-  localtime_r(ts,&tm_tmp);
+  localtime_r(ts,(res= &tm_tmp));
 #else
-  localtime(ts);
+  res=localtime(ts);
 #endif
 
   fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
-	  tm_tmp.tm_year % 100,
-	  tm_tmp.tm_mon+1,
-	  tm_tmp.tm_mday,
-	  tm_tmp.tm_hour,
-	  tm_tmp.tm_min,
-	  tm_tmp.tm_sec);
+	  res->tm_year % 100,
+	  res->tm_mon+1,
+	  res->tm_mday,
+	  res->tm_hour,
+	  res->tm_min,
+	  res->tm_sec);
 }
 
 
