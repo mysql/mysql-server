@@ -70,41 +70,8 @@ static double total_time;
   fprintf(stdout,"  \n#####################################\n"); \
 }
 
-/* 
-  TODO: un comment this in 4.1.1 when it supports mysql_param_result 
-  and also enable all meta_param_result tests 
-*/
-#ifndef mysql_param_result
-#define mysql_param_result mysql_prepare_result
-#endif
-
-static void print_error(const char *msg)
-{  
-  if (mysql && mysql_errno(mysql))
-  {
-    if (mysql->server_version)
-      fprintf(stdout,"\n [MySQL-%s]",mysql->server_version);
-    else
-      fprintf(stdout,"\n [MySQL]");
-    fprintf(stdout,"[%d] %s\n",mysql_errno(mysql),mysql_error(mysql));
-  }
-  else if (msg) fprintf(stderr, " [MySQL] %s\n", msg);
-}
-
-static void print_st_error(MYSQL_STMT *stmt, const char *msg)
-{  
-  if (stmt && mysql_stmt_errno(stmt))
-  {
-    if (stmt->mysql && stmt->mysql->server_version)
-      fprintf(stdout,"\n [MySQL-%s]",stmt->mysql->server_version);
-    else
-      fprintf(stdout,"\n [MySQL]");
-
-    fprintf(stdout,"[%d] %s\n",mysql_stmt_errno(stmt),
-            mysql_stmt_error(stmt));
-  }
-	else if (msg) fprintf(stderr, " [MySQL] %s\n", msg);
-}
+static void print_error(const char *msg);
+static void print_st_error(MYSQL_STMT *stmt, const char *msg);
 static void client_disconnect();
 
 #define myerror(msg) print_error(msg)
@@ -157,6 +124,37 @@ myassert(stmt == 0);\
 
 #define mytest(x) if (!x) {myerror(NULL);myassert(TRUE);}
 #define mytest_r(x) if (x) {myerror(NULL);myassert(TRUE);}
+
+/********************************************************
+* print the error message                               *
+*********************************************************/
+static void print_error(const char *msg)
+{  
+  if (mysql && mysql_errno(mysql))
+  {
+    if (mysql->server_version)
+      fprintf(stdout,"\n [MySQL-%s]",mysql->server_version);
+    else
+      fprintf(stdout,"\n [MySQL]");
+    fprintf(stdout,"[%d] %s\n",mysql_errno(mysql),mysql_error(mysql));
+  }
+  else if (msg) fprintf(stderr, " [MySQL] %s\n", msg);
+}
+
+static void print_st_error(MYSQL_STMT *stmt, const char *msg)
+{  
+  if (stmt && mysql_stmt_errno(stmt))
+  {
+    if (stmt->mysql && stmt->mysql->server_version)
+      fprintf(stdout,"\n [MySQL-%s]",stmt->mysql->server_version);
+    else
+      fprintf(stdout,"\n [MySQL]");
+
+    fprintf(stdout,"[%d] %s\n",mysql_stmt_errno(stmt),
+            mysql_stmt_error(stmt));
+  }
+  else if (msg) fprintf(stderr, " [MySQL] %s\n", msg);
+}
 
 /********************************************************
 * connect to the server                                 *
@@ -582,6 +580,29 @@ static void verify_field_count(MYSQL_RES *result, uint exp_count)
   fprintf(stdout,"\n total fields in the result set: `%d` (expected: `%d`)",
           field_count, exp_count);
   myassert(field_count == exp_count);
+}
+
+/*
+  Utility function to execute a query using prepare-execute
+*/
+static void execute_prepare_query(const char *query, ulonglong exp_count)
+{
+  MYSQL_STMT *stmt;
+  ulonglong  affected_rows;
+  int        rc;
+
+  stmt= mysql_prepare(mysql,query,strlen(query));
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  myquery(rc);  
+
+  affected_rows= mysql_stmt_affected_rows(stmt);
+  fprintf(stdout,"\n total affected rows: `%lld` (expected: `%lld`)",
+          affected_rows, exp_count);
+
+  myassert(affected_rows == exp_count);
+  mysql_stmt_close(stmt);
 }
 
 
@@ -5902,6 +5923,251 @@ static void test_field_misc()
   mysql_stmt_close(stmt);
 }
 
+
+/*
+  To test SET OPTION feature with prepare stmts
+  bug #85 
+*/
+static void test_set_option()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_RES  *result;
+  int        rc;
+
+  myheader("test_set_option");
+
+  mysql_autocommit(mysql, TRUE);
+
+  /* LIMIT the rows count to 2 */
+  rc= mysql_query(mysql,"SET OPTION SQL_SELECT_LIMIT=2");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"DROP TABLE IF EXISTS test_limit");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE test_limit(a tinyint)");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"INSERT INTO test_limit VALUES(10),(20),(30),(40)");
+  myquery(rc);  
+  
+  fprintf(stdout,"\n with SQL_SELECT_LIMIT=2 (direct)");
+  rc = mysql_query(mysql,"SELECT * FROM test_limit");
+  myquery(rc);
+
+  result = mysql_store_result(mysql);
+  mytest(result);
+
+  myassert(2 == my_process_result_set(result));
+
+  mysql_free_result(result);
+  
+  fprintf(stdout,"\n with SQL_SELECT_LIMIT=2 (prepare)");  
+  stmt = mysql_prepare(mysql, "SELECT * FROM test_limit", 50);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  myassert(2 == my_process_stmt_result(stmt));
+
+  mysql_stmt_close(stmt);
+
+  /* RESET the LIMIT the rows count to 0 */  
+  fprintf(stdout,"\n with SQL_SELECT_LIMIT=DEFAULT (prepare)");
+  rc= mysql_query(mysql,"SET OPTION SQL_SELECT_LIMIT=DEFAULT");
+  myquery(rc);
+  
+  stmt = mysql_prepare(mysql, "SELECT * FROM test_limit", 50);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  myassert(4 == my_process_stmt_result(stmt));
+
+  mysql_stmt_close(stmt);
+}
+
+/*
+  To test a misc GRANT option
+  bug #89
+*/
+static void test_prepare_grant()
+{
+  int rc;
+
+  myheader("test_prepare_grant");
+
+  mysql_autocommit(mysql, TRUE);
+
+  rc= mysql_query(mysql,"DROP TABLE IF EXISTS test_grant");
+  myquery(rc);
+  
+  rc= mysql_query(mysql,"CREATE TABLE test_grant(a tinyint primary key auto_increment)");
+  myquery(rc);
+
+  strxmov(query,"GRANT INSERT,UPDATE,SELECT ON ", current_db,
+                ".test_grant TO 'test_grant'@",
+                opt_host ? opt_host : "'localhost'", NullS);
+
+  if (mysql_query(mysql,query))
+  {
+    myerror("GRANT failed");
+    
+    /* 
+       If server started with --skip-grant-tables, skip this test, else
+       exit to indicate an error
+
+       ER_UNKNOWN_COM_ERROR = 1047
+     */ 
+    if (mysql_errno(mysql) != 1047)  
+      exit(0);  
+  }
+  else
+  {
+    MYSQL *org_mysql= mysql, *lmysql;
+    MYSQL_STMT *stmt;
+    
+    fprintf(stdout, "\n Establishing a test connection ...");
+    if (!(lmysql = mysql_init(NULL)))
+    { 
+	    myerror("mysql_init() failed");
+      exit(0);
+    }
+    if (!(mysql_real_connect(lmysql,opt_host,"test_grant",
+			     "", current_db, opt_port,
+			     opt_unix_socket, 0)))
+    {
+      myerror("connection failed");   
+      mysql_close(lmysql);
+      exit(0);
+    }   
+    fprintf(stdout," OK");
+
+    mysql= lmysql;
+    rc = mysql_query(mysql,"INSERT INTO test_grant VALUES(NULL)");
+    myquery(rc);
+
+    rc = mysql_query(mysql,"INSERT INTO test_grant(a) VALUES(NULL)");
+    myquery(rc);
+    
+    execute_prepare_query("INSERT INTO test_grant(a) VALUES(NULL)",1);    
+    execute_prepare_query("INSERT INTO test_grant VALUES(NULL)",1);
+    execute_prepare_query("UPDATE test_grant SET a=9 WHERE a=1",1);
+    myassert(4 == my_stmt_result("SELECT a FROM test_grant",50));
+    
+    rc = mysql_query(mysql,"DELETE FROM test_grant");
+    myquery_r(rc);
+
+    stmt= mysql_prepare(mysql,"DELETE FROM test_grant",50);
+    mystmt_init(stmt);
+
+    rc = mysql_execute(stmt);
+    myquery_r(rc);
+    
+    myassert(4 == my_stmt_result("SELECT * FROM test_grant",50));
+    
+    mysql_close(lmysql);        
+    mysql= org_mysql;
+
+    rc = mysql_query(mysql,"delete from mysql.user where User='test_grant'");
+    myquery(rc);
+    myassert(1 == mysql_affected_rows(mysql));
+
+    rc = mysql_query(mysql,"delete from mysql.tables_priv where User='test_grant'");
+    myquery(rc);
+    myassert(1 == mysql_affected_rows(mysql));
+  }
+}
+
+
+/*
+  To test a crash when invalid/corrupted .frm is used in the 
+  SHOW TABLE STATUS (in debug mode)
+  bug #93 
+*/
+static void test_frm_bug()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[2];
+  MYSQL_RES  *result;
+  MYSQL_ROW  row;
+  FILE       *test_file;
+  char       data_dir[NAME_LEN];
+  char       test_frm[255];
+  int        rc;
+
+  myheader("test_frm_bug");
+
+  mysql_autocommit(mysql, TRUE);
+
+  rc= mysql_query(mysql,"drop table if exists test_frm_bug");
+  myquery(rc);
+
+  rc= mysql_query(mysql,"flush tables");
+  myquery(rc);
+  
+  stmt = mysql_prepare(mysql, "show variables like 'datadir'", 50);
+  mystmt_init(stmt);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer= data_dir;
+  bind[0].buffer_length= NAME_LEN;
+  bind[0].is_null= 0;
+  bind[0].length= 0;
+  bind[1]=bind[0];
+
+  rc = mysql_bind_result(stmt,bind);
+  mystmt(stmt,rc);
+
+  rc = mysql_fetch(stmt);
+  mystmt(stmt,rc);
+
+  fprintf(stdout,"\n data directory: %s", data_dir);
+
+  rc = mysql_fetch(stmt);
+  myassert(rc == MYSQL_NO_DATA);
+
+  strxmov(test_frm,data_dir,"/",current_db,"/","test_frm_bug.frm",NullS);
+
+  fprintf(stdout,"\n test_frm: %s", test_frm);
+
+  if (!(test_file= my_fopen(test_frm, (int) (O_RDWR | O_CREAT), MYF(MY_WME))))
+  {
+    fprintf(stdout,"\n ERROR: my_fopen failed for '%s'", test_frm);
+    fprintf(stdout,"\n test cancelled");
+    return;  
+  }
+  fprintf(test_file,"this is a junk file for test");
+
+  rc = mysql_query(mysql,"SHOW TABLE STATUS like 'test_frm_bug'");
+  myquery(rc);
+
+  result = mysql_store_result(mysql);
+  mytest(result);/* It can't be NULL */
+
+  myassert(1 == my_process_result_set(result));
+
+  mysql_data_seek(result,0);
+
+  row= mysql_fetch_row(result);
+  mytest(row);
+
+  fprintf(stdout,"\n Comment: %s", row[15]);
+  myassert(row[15] != 0);
+
+  mysql_free_result(result);
+  mysql_stmt_close(stmt);
+
+  my_fclose(test_file,MYF(0));
+  mysql_query(mysql,"drop table if exists test_frm_bug");
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -6041,7 +6307,7 @@ int main(int argc, char **argv)
     test_count= 1;
    
     start_time= time((time_t *)0);
-   
+
     test_fetch_nobuffs();   /* to fecth without prior bound buffers */
     test_open_direct();     /* direct execution in the middle of open stmts */
     test_fetch_null();      /* to fetch null data */
@@ -6120,6 +6386,9 @@ int main(int argc, char **argv)
     test_sshort_bug();      /* test a simple conv bug from php */
     test_stiny_bug();       /* test a simple conv bug from php */
     test_field_misc();      /* check the field info for misc case, bug: #74 */
+    test_set_option();      /* test the SET OPTION feature, bug #85 */
+    test_prepare_grant();   /* to test the GRANT command, bug #89 */
+    test_frm_bug();         /* test the crash when .frm is invalid, bug #93 */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

@@ -531,8 +531,9 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
       my_casedn_str(files_charset_info, file_name);
     if (!(table = open_ltable(thd, &table_list, TL_READ)))
     {
-      for (uint i=0 ; i < field_list.elements ; i++)
+      for (uint i=1 ; i < field_list.elements-1 ; i++)
         protocol->store_null();
+      // Send error to Comment field
       protocol->store(thd->net.last_error);
       thd->net.last_error[0]=0;
     }
