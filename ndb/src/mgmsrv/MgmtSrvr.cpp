@@ -2830,7 +2830,7 @@ MgmtSrvr::setConnectionDbParameter(int node1,
   ConfigValues::Iterator i2(_config->m_configValues->m_config, 
 			    iter.m_config);
 
-  if(i2.set(param, (unsigned)value) < 0) {
+  if(i2.set(param, (unsigned)value) == false) {
     msg.assign("Unable to set new value of parameter");
     DBUG_RETURN(-4);
   }
