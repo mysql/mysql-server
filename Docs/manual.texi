@@ -6289,6 +6289,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{http://mysql.masterd.es, WWW}
 
 @item
+@c EMAIL: hostmaster@neptuno2000.com (Luis Gargallo)
+@image{Flags/spain} Spain [GMC Control Systems] @
+@uref{http://mysql.neptuno2000.com/, WWW}
+@uref{ftp://ftp.neptuno2000.com/pub/mysql/, FTP}
+
+@item
 @c EMAIL: Patrik.Karen@sdi.slu.se (Patrik Karen)
 @c ftp -> remove old files
 @image{Flags/sweden} Sweden [Sunet] @
@@ -6502,7 +6508,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c EMAIL: darrinw@nixc.net (Darrin Walton)
 @image{Flags/usa} USA [NIXC/Vienna, VA] @
-@uref{http://www.nixc.net/mysql/, WWW}
+@uref{http://mysql.nixc.net/, WWW}
 @uref{ftp://www.nixc.net/pub/mysql/, FTP}
 
 @end itemize
