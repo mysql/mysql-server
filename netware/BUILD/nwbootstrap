@@ -171,15 +171,9 @@ do
   rm $file.org
 done
 
-# create the libmysql.imp file in netware folder from libmysql/libmysql.def
-# file
-echo "generating llibmysql.imp file..."
-awk 'BEGIN{x=0;}  x==1 {print $1;next} /EXPORTS/{x=1}' libmysql/libmysql.def > netware/libmysql.imp
-
 # create the libmysql.imp file in netware folder from libmysql/libmysql.def file
 echo "generating llibmysql.imp file..."
-awk 'BEGIN{x=0;}  x==1 {print $1;next} /EXPORTS/{x=1}' libmysql/libmysql.def > netware/libmysql.imp
-
+awk 'BEGIN{x=0;}  END{printf("\n");} x==1 {printf(" %s",$1); x++; next} x>1 {printf(",\n %s", $1);next} /EXPORTS/{x=1}' libmysql/libmysql.def > netware/libmysql.imp
 
 # build linux tools
 echo "compiling linux tools..."
