@@ -310,6 +310,7 @@ struct system_variables
   ulong max_heap_table_size;
   ulong max_sort_length;
   ulong max_tmp_tables;
+  ulong max_insert_delayed_threads;
   ulong myisam_repair_threads;
   ulong myisam_sort_buff_size;
   ulong net_buffer_length;

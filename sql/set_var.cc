@@ -155,8 +155,10 @@ sys_var_long_ptr	sys_max_connections("max_connections",
                                             fix_max_connections);
 sys_var_long_ptr	sys_max_connect_errors("max_connect_errors",
 					       &max_connect_errors);
-sys_var_long_ptr	sys_max_delayed_threads("max_delayed_threads",
-						&max_insert_delayed_threads,
+sys_var_thd_ulong       sys_max_insert_delayed_threads("max_insert_delayed_threads",
+						       &SV::max_insert_delayed_threads);
+sys_var_thd_ulong	sys_max_delayed_threads("max_delayed_threads",
+						&SV::max_insert_delayed_threads,
 						fix_max_connections);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
@@ -381,6 +383,7 @@ sys_var *sys_variables[]=
   &sys_max_connect_errors,
   &sys_max_connections,
   &sys_max_delayed_threads,
+  &sys_max_insert_delayed_threads,
   &sys_max_heap_table_size,
   &sys_max_join_size,
   &sys_max_relay_log_size,
@@ -771,7 +774,8 @@ static void fix_max_relay_log_size(THD *thd, enum_var_type type)
 
 static void fix_max_connections(THD *thd, enum_var_type type)
 {
-  resize_thr_alarm(max_connections + max_insert_delayed_threads + 10);
+  resize_thr_alarm(max_connections + 
+		   global_system_variables.max_insert_delayed_threads + 10);
 }
 
 
