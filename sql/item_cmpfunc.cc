@@ -2037,6 +2037,20 @@ Item *Item_cond::transform(Item_transformer transformer, byte *arg)
   return Item_func::transform(transformer, arg);
 }
 
+void Item_cond::traverse_cond(Item_cond_traverser traverser, 
+			      void *arg,
+			      traverse_order order)
+{
+  List_iterator<Item> li(list);
+  Item *item;
+
+  if (order == PREFIX) (*traverser)(this, arg);
+  while ((item= li++))
+  {
+    item->traverse_cond(traverser, arg, order);
+  }
+  if (order == POSTFIX) (*traverser)(this, arg);
+}
 
 void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
                                List<Item> &fields)

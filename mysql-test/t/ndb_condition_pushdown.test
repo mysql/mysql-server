@@ -1,0 +1,26 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+
+#
+# Test of condition pushdown to storage engine
+#
+CREATE TABLE t1 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 int unsigned,   attr3 VARCHAR(10) ) ENGINE=ndbcluster;
+
+insert into t1 values (0,0,0, "a"),(1,1,1,"b"),(2,2,NULL,NULL),(3,3,3,"d"),(4,4,4,"e"),(5,5,5,"f");
+
+CREATE TABLE  t2 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 int unsigned,   attr3 VARCHAR(10) ) ENGINE=ndbcluster;
+
+insert into t2 values (0,0,0, "a"),(1,1,1,"b"),(2,2,2,"c"),(3,3,3,"d"),(4,4,4,"e"),(5,5,5,"f");
+
+set @old_ndbcpd = @@session.ndb_condition_pushdown;
+set ndb_condition_pushdown = off;
+select * from t1 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
+select * from t1,t2 where t1.attr1 > 1 and t1.attr2 = t2.attr2 and t2.attr1 < 5 order by t1.pk1;
+set ndb_condition_pushdown = on;
+select * from t1 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
+select * from t1,t2 where t1.attr1 > 1 and t1.attr2 = t2.attr2 and t2.attr1 < 5 order by t1.pk1;
+set ndb_condition_pushdown = @old_ndbcpd;
+DROP TABLE t1,t2;
