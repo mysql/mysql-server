@@ -309,6 +309,7 @@ struct system_variables
   ulong tmp_table_size;
   ulong tx_isolation;
   ulong table_type;
+  ulong default_week_format;
 
   my_bool log_warnings;
   my_bool low_priority_updates;

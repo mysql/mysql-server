@@ -2322,6 +2322,12 @@ The server will not act as a slave.");
 	     opt_binlog_index_name,LOG_BIN);
     using_update_log=1;
   }
+  else if (opt_log_slave_updates)
+  {
+      sql_print_error("\
+Warning: you need to use --log-bin to make --log-slave-updates work. \
+Now disabling --log-slave-updates.");
+  }
 
   if (opt_bootstrap)
   {
@@ -3179,7 +3185,8 @@ enum options {
   OPT_BDB_CACHE_SIZE,
   OPT_BDB_LOG_BUFFER_SIZE,
   OPT_BDB_MAX_LOCK,
-  OPT_ERROR_LOG_FILE
+  OPT_ERROR_LOG_FILE,
+  OPT_DEFAULT_WEEK_FORMAT
 };
 
 
@@ -3988,6 +3995,11 @@ replicating a LOAD DATA INFILE command",
    (gptr*) &global_system_variables.net_wait_timeout,
    (gptr*) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
+  { "default-week-format", OPT_DEFAULT_WEEK_FORMAT,
+    "The default week format used by WEEK() functions.",
+    (gptr*) &global_system_variables.default_week_format, 
+    (gptr*) &max_system_variables.default_week_format, 
+    0, GET_ULONG, REQUIRED_ARG, 0, 0, 3L, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 

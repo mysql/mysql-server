@@ -569,6 +569,16 @@ dict_index_get_nth_col_pos(
 	dict_index_t*	index,	/* in: index */
 	ulint		n);	/* in: column number */
 /************************************************************************
+Returns TRUE if the index contains a column or a prefix of that column. */
+
+ibool
+dict_index_contains_col_or_prefix(
+/*==============================*/
+				/* out: TRUE if contains the column or its
+				prefix */
+	dict_index_t*	index,	/* in: index */
+	ulint		n);	/* in: column number */
+/************************************************************************
 Looks for a matching field in an index. The column and the prefix len has
 to be the same. */
 

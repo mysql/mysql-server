@@ -569,7 +569,9 @@ error () {
 }
 
 error_is () {
-    $CAT < $TIMEFILE | $SED -e 's/.* At line \(.*\)\: \(.*\)/   \>\> Error at line \1: \2<\</' | $HEAD -1
+    $ECHO "Errors are (from $TIMEFILE) :"
+    $CAT < $TIMEFILE
+    $ECHO "(the last line(s) may be the ones that caused the die() in mysqltest)"
 }
 
 prefix_to_8() {

@@ -609,7 +609,29 @@ row_sel_get_clust_rec(
 
 	clust_rec = btr_pcur_get_rec(&(plan->clust_pcur));
 
-	ut_ad(page_rec_is_user_rec(clust_rec));
+	/* Note: only if the search ends up on a non-infimum record is the
+	low_match value the real match to the search tuple */
+
+	if (!page_rec_is_user_rec(clust_rec)
+            || btr_pcur_get_low_match(&(plan->clust_pcur))
+	       < dict_index_get_n_unique(index)) {
+	
+		ut_a(rec_get_deleted_flag(rec));
+		ut_a(node->read_view);
+
+		/* In a rare case it is possible that no clust rec is found
+		for a delete-marked secondary index record: if in row0umod.c
+		in row_undo_mod_remove_clust_low() we have already removed
+		the clust rec, while purge is still cleaning and removing
+		secondary index records associated with earlier versions of
+		the clustered index record. In that case we know that the
+		clustered index record did not exist in the read view of
+		trx. */
+
+		clust_rec = NULL;
+
+		goto func_exit;
+	}
 
 	if (!node->read_view) {
 		/* Try to place a lock on the index record */
@@ -672,6 +694,7 @@ row_sel_get_clust_rec(
 	
 	row_sel_fetch_columns(index, clust_rec,
 					UT_LIST_GET_FIRST(plan->columns));
+func_exit:
 	*out_rec = clust_rec;
 
 	return(DB_SUCCESS);
@@ -1252,6 +1275,8 @@ rec_loop:
 	set: the cursor is now placed on a user record */
 
 	/* PHASE 3: Get previous version in a consistent read */
+
+	cons_read_requires_clust_rec = FALSE;
 
 	if (consistent_read) {
 		/* This is a non-locking consistent read: if necessary, fetch
@@ -2269,7 +2294,10 @@ row_sel_get_clust_rec_for_mysql(
 				/* out: DB_SUCCESS or error code */
 	row_prebuilt_t*	prebuilt,/* in: prebuilt struct in the handle */
 	dict_index_t*	sec_index,/* in: secondary index where rec resides */
-	rec_t*		rec,	/* in: record in a non-clustered index */
+	rec_t*		rec,	/* in: record in a non-clustered index; if
+				this is a locking read, then rec is not
+				allowed to be delete-marked, and that would
+				not make sense either */
 	que_thr_t*	thr,	/* in: query thread */
 	rec_t**		out_rec,/* out: clustered record or an old version of
 				it, NULL if the old version did not exist
@@ -2285,7 +2313,7 @@ row_sel_get_clust_rec_for_mysql(
 	ulint		err;
 	trx_t*		trx;
 	char		err_buf[1000];
-
+	
 	*out_rec = NULL;
 	
 	row_build_row_ref_in_tuple(prebuilt->clust_ref, sec_index, rec);
@@ -2298,26 +2326,47 @@ row_sel_get_clust_rec_for_mysql(
 
 	clust_rec = btr_pcur_get_rec(prebuilt->clust_pcur);
 
-	if (!page_rec_is_user_rec(clust_rec)) {
-		ut_print_timestamp(stderr);
-	  	fprintf(stderr,
-		"  InnoDB: error clustered record for sec rec not found\n"
-		"InnoDB: index %s table %s\n", sec_index->name,
-		  	sec_index->table->name);
+	/* Note: only if the search ends up on a non-infimum record is the
+	low_match value the real match to the search tuple */
 
-	  	rec_sprintf(err_buf, 900, rec);
-	  	fprintf(stderr, "InnoDB: sec index record %s\n", err_buf);
+	if (!page_rec_is_user_rec(clust_rec)
+	    || btr_pcur_get_low_match(prebuilt->clust_pcur)
+	       < dict_index_get_n_unique(clust_index)) {
+	
+		/* In a rare case it is possible that no clust rec is found
+		for a delete-marked secondary index record: if in row0umod.c
+		in row_undo_mod_remove_clust_low() we have already removed
+		the clust rec, while purge is still cleaning and removing
+		secondary index records associated with earlier versions of
+		the clustered index record. In that case we know that the
+		clustered index record did not exist in the read view of
+		trx. */
 
-	  	rec_sprintf(err_buf, 900, clust_rec);
-	  	fprintf(stderr, "InnoDB: clust index record %s\n", err_buf);
+		if (!rec_get_deleted_flag(rec)
+		    || prebuilt->select_lock_type != LOCK_NONE) {
 
-		trx = thr_get_trx(thr);
-		trx_print(err_buf, trx);
+		        ut_print_timestamp(stderr);
+			fprintf(stderr,
+                "  InnoDB: error clustered record for sec rec not found\n"
+                "InnoDB: index %s table %s\n", sec_index->name,
+					       sec_index->table->name);
 
-	  	fprintf(stderr,
-		"%s\nInnoDB: Make a detailed bug report and send it\n",
-							err_buf);
-	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+			rec_sprintf(err_buf, 900, rec);
+			fprintf(stderr,
+		"InnoDB: sec index record %s\n", err_buf);
+
+			rec_sprintf(err_buf, 900, clust_rec);
+			fprintf(stderr,
+			 "InnoDB: clust index record %s\n", err_buf);
+
+			trx = thr_get_trx(thr);
+			trx_print(err_buf, trx);
+
+			fprintf(stderr,
+                "%s\nInnoDB: Make a detailed bug report and send it\n",
+                                                        err_buf);
+			fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+		}
 
 		clust_rec = NULL;
 
@@ -2989,8 +3038,6 @@ rec_loop:
 	/*-------------------------------------------------------------*/
 	/* PHASE 4: Look for matching records in a loop */
 	
-	cons_read_requires_clust_rec = FALSE;
-
 	rec = btr_pcur_get_rec(pcur);
 /*
 	printf("Using index %s cnt %lu ", index->name, cnt);
@@ -3145,6 +3192,8 @@ rec_loop:
 	/* We are ready to look at a possible new index entry in the result
 	set: the cursor is now placed on a user record */
 
+	cons_read_requires_clust_rec = FALSE;
+
 	if (prebuilt->select_lock_type != LOCK_NONE) {
 		/* Try to place a lock on the index record; note that delete
 		marked records are a special case in a unique search. If there
@@ -3169,8 +3218,6 @@ rec_loop:
 	} else {
 		/* This is a non-locking consistent read: if necessary, fetch
 		a previous version of the record */
-
-		cons_read_requires_clust_rec = FALSE;
 
 		if (trx->isolation_level == TRX_ISO_READ_UNCOMMITTED) {
 
@@ -3215,7 +3262,7 @@ rec_loop:
 
 	if (rec_get_deleted_flag(rec) && !cons_read_requires_clust_rec) {
 
-		/* The record is delete marked: we can skip it if this is
+		/* The record is delete-marked: we can skip it if this is
 		not a consistent read which might see an earlier version
 		of a non-clustered index record */
 		
@@ -3324,7 +3371,7 @@ got_row:
 	goto normal_return;
 
 next_rec:
-	/*-------------------------------------------------------------*/	
+	/*-------------------------------------------------------------*/
 	/* PHASE 5: Move the cursor to the next index record */
 	
 	if (mtr_has_extra_clust_latch) {

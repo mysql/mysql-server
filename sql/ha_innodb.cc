@@ -1863,7 +1863,11 @@ build_template(
 
 		if (prebuilt->read_just_key) {
 			/* MySQL has instructed us that it is enough to
-			fetch the columns in the key */
+			fetch the columns in the key; looks like MySQL
+			can set this flag also when there is only a
+			prefix of the column in the key: in that case we
+			retrieve the whole column from the clustered
+			index */
 
 			fetch_all_in_key = TRUE;
 		} else {
@@ -1924,9 +1928,8 @@ build_template(
 		field = table->field[i];
 
 		if (templ_type == ROW_MYSQL_REC_FIELDS
-			&& !(fetch_all_in_key &&
-				ULINT_UNDEFINED != dict_index_get_nth_col_pos(
-								index, i))
+			&& !(fetch_all_in_key
+			     && dict_index_contains_col_or_prefix(index, i))
 			&& thd->query_id != field->query_id
 			&& thd->query_id != (field->query_id ^ MAX_ULONG_BIT)
 			&& thd->query_id !=
@@ -4125,6 +4128,12 @@ ha_innobase::analyze(
 	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
 
 	return(0);
+}
+
+
+int ha_innobase::optimize(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return ha_innobase::analyze(thd,check_opt);
 }
 
 /***********************************************************************

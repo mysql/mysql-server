@@ -100,7 +100,7 @@ static void pretty_print_str(String* packet, char* str, int len)
 static inline char* slave_load_file_stem(char*buf, uint file_id,
 					 int event_server_id)
 {
-  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir,"",0); /* 4+32); */
+  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir, "", MY_UNPACK_FILENAME);
   buf = strend(buf);
   buf = int10_to_str(::server_id, buf, 10);
   *buf++ = '-';
@@ -168,18 +168,21 @@ static void cleanup_load_tmpdir()
   uint i;
   if (!(dirp=my_dir(slave_load_tmpdir,MYF(MY_WME))))
     return;
-
+  char fname[FN_REFLEN];
   for (i=0 ; i < (uint)dirp->number_off_files; i++)
   {
     file=dirp->dir_entry+i;
     if (is_prefix(file->name,"SQL_LOAD-"))
-      my_delete(file->name, MYF(0));
+    {
+      fn_format(fname,file->name,slave_load_tmpdir,"",MY_UNPACK_FILENAME);
+      my_delete(fname, MYF(0));
+    }
   }
 
   my_dirend(dirp);
 }
-
 #endif
+
 
 Log_event::Log_event(const char* buf, bool old_format)
   :temp_buf(0), cached_event_len(0), cache_stmt(0)
@@ -813,7 +816,7 @@ Rotate_log_event::Rotate_log_event(const char* buf, int event_len,
 int Rotate_log_event::write_data(IO_CACHE* file)
 {
   char buf[ROTATE_HEADER_LEN];
-  int8store(buf, pos + R_POS_OFFSET);
+  int8store(buf + R_POS_OFFSET, pos);
   return (my_b_safe_write(file, (byte*)buf, ROTATE_HEADER_LEN) ||
 	  my_b_safe_write(file, (byte*)new_log_ident, (uint) ident_len));
 }
