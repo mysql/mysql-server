@@ -9232,7 +9232,6 @@ problems. @xref{Windows}.
 If you are using BDB (Berkeley DB) tables, you should familiarize
 yourself with the different BDB specific startup options. @xref{BDB start}.
 
-
 @node Automatic start, Command-line options, Starting server, Post-installation
 @subsection Starting and Stopping MySQL Automatically
 @cindex starting, the server automatically
@@ -28765,11 +28764,12 @@ connection and the server you are using. If you are running in the
 the @code{mysql} variables that affect your queries.
 
 @cindex @code{safe-mode} command
-A useful startup option for beginners (introduced in @strong{MySQL} Version 3.23.11) is
-@code{--safe-mode} (or @code{--i-am-a-dummy} for users that has at some
-time done a @code{DELETE FROM table_name} but forgot the @code{WHERE}
-clause.  When using this option, @code{mysql} sends the following
-command to the @strong{MySQL} server when opening the connection:
+A useful startup option for beginners (introduced in @strong{MySQL}
+Version 3.23.11) is @code{--safe-mode} (or @code{--i-am-a-dummy} for
+users that has at some time done a @code{DELETE FROM table_name} but
+forgot the @code{WHERE} clause.  When using this option, @code{mysql}
+sends the following command to the @strong{MySQL} server when opening
+the connection:
 
 @example
 SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=#select_limit#,
@@ -39781,6 +39781,8 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.29, News-3.23.28, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
+@item
+Fixed bug in <=> operator.
 @item
 Fixed bug in @code{REPLACE} with BDB tables.
 @item

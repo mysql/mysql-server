@@ -42,7 +42,6 @@
 #include <errno.h>
 
 #define MAX_QUERY  16384
-#define MAX_RECORD_FILE 128
 #define PAD_SIZE        128
 #define MAX_CONS   1024
 #define MAX_INCLUDE_DEPTH 16
@@ -109,7 +108,7 @@ struct query
   int first_word_len;
   int abort_on_error;
   uint expected_errno;
-  char record_file[MAX_RECORD_FILE];
+  char record_file[FN_REFLEN];
   enum {Q_CONNECTION, Q_QUERY, Q_CONNECT,
 	Q_SLEEP, Q_INC, Q_DEC,Q_SOURCE,
 	Q_DISCONNECT,Q_LET, Q_ECHO, Q_WHILE, Q_END_BLOCK,
@@ -928,6 +927,7 @@ void usage()
   -P, --port=...           Port number to use for connection.\n\
   -S, --socket=...         Socket file to use for connection.\n\
   -r, --record             Record output of test_file into result file.\n\
+  -R, --result-file=...    Store result in this file\n\
   -v, --verbose            Write more.\n\
   -q, --quiet, --silent    Suppress all normal output.\n\
   -V, --version            Output version information and exit.\n\n");
@@ -1024,22 +1024,21 @@ char* safe_str_append(char* buf, const char* str, int size)
 void str_to_file(const char* fname, char* str, int size)
 {
   int fd;
-  if((fd = my_open(fname, O_WRONLY|O_CREAT, MYF(MY_WME))) < 0)
+  if((fd = my_open(fname, O_WRONLY|O_CREAT, MYF(MY_WME | MY_FFNF))) < 0)
     die("Could not open %s: errno = %d", fname, errno);
-  if(my_write(fd, (byte*)str, size, MYF(MY_WME|MY_NABP)))
+  if(my_write(fd, (byte*)str, size, MYF(MY_WME|MY_FNABP)))
     die("write failed");
   my_close(fd, MYF(0));
 }
 
 void reject_dump(const char* record_file, char* buf, int size)
 {
-  char reject_file[MAX_RECORD_FILE+16];
+  char reject_file[FN_REFLEN];
   char* p;
-  
-  p = reject_file;
-  p = safe_str_append(p, record_file, sizeof(reject_file));
-  p = safe_str_append(p, (char*)".reject", reject_file - p +
-		      sizeof(reject_file));
+
+  if (strlen(record_file) >= FN_REFLEN-8)
+    die("too long path name for reject");
+  strmov(strmov(reject_file, record_file),".reject");
   str_to_file(reject_file, buf, size);
 }
 
