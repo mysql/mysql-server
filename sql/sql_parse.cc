@@ -3518,29 +3518,29 @@ purposes internal to the MySQL server", MYF(0));
   }
   thd->proc_info="query end";			// QQ
   if (thd->one_shot_set)
+  {
+    /*
+      If this is a SET, do nothing. This is to allow mysqlbinlog to print
+      many SET commands (in this case we want the charset temp setting to
+      live until the real query). This is also needed so that SET
+      CHARACTER_SET_CLIENT... does not cancel itself immediately.
+    */
+    if (lex->sql_command != SQLCOM_SET_OPTION)
     {
-      /*
-        If this is a SET, do nothing. This is to allow mysqlbinlog to print
-        many SET commands (in this case we want the charset temp setting to
-        live until the real query). This is also needed so that SET
-        CHARACTER_SET_CLIENT... does not cancel itself immediately.
-      */
-      if (lex->sql_command != SQLCOM_SET_OPTION)
-      {
-        thd->variables.character_set_client=
-          global_system_variables.character_set_client;
-        thd->variables.collation_connection=
-          global_system_variables.collation_connection;
-        thd->variables.collation_database=
-          global_system_variables.collation_database;
-        thd->variables.collation_server=
-          global_system_variables.collation_server;
-        thd->update_charset();
-        thd->variables.time_zone=
-          global_system_variables.time_zone;
-        thd->one_shot_set= 0;
-      }
+      thd->variables.character_set_client=
+        global_system_variables.character_set_client;
+      thd->variables.collation_connection=
+        global_system_variables.collation_connection;
+      thd->variables.collation_database=
+        global_system_variables.collation_database;
+      thd->variables.collation_server=
+        global_system_variables.collation_server;
+      thd->update_charset();
+      thd->variables.time_zone=
+        global_system_variables.time_zone;
+      thd->one_shot_set= 0;
     }
+  }
   if (res < 0)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
 
