@@ -107,7 +107,7 @@ bool test_if_int(const char *str, int length, const char *int_end,
   return 1;
 }
 
-
+#ifdef NOT_USED
 static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
 {
   cs= system_charset_info; // QQ move test_if_real into CHARSET_INFO struct
@@ -159,7 +159,7 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
   }
   return 1;
 }
-
+#endif
 
 static inline uint field_length_without_space(const char *ptr, uint length)
 {
@@ -2273,7 +2273,7 @@ int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
   int err;
   char *end;
   double nr= my_strntod(cs,(char*) from,len,&end,&err);
-  if (!err && (!current_thd->count_cuted_fields || end-from==len))
+  if (!err && (!current_thd->count_cuted_fields || end-from==(int)len))
   {
     return Field_float::store(nr);
   }
@@ -2570,8 +2570,8 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   int err;
   char *end;
-  double nr= my_strntod(cs,(char*) from,len,&end,&err);  
-  if (!err && (!current_thd->count_cuted_fields || end-from==len))
+  double nr= my_strntod(cs,(char*) from,len,&end,&err);
+  if (!err && (!current_thd->count_cuted_fields || end-from==(int)len))
   {
     return Field_double::store(nr);
   }

@@ -289,13 +289,13 @@ select @a, @b;
 #
 # Bug#2586:Disallow global/session/local as structured var. instance names
 #
---error 1149
+--error 1064
 set @@global.global.key_buffer_size= 1;
---error 1149
+--error 1064
 set GLOBAL global.key_buffer_size= 1;
---error 1149
+--error 1064
 SELECT @@global.global.key_buffer_size;
---error 1149
+--error 1064
 SELECT @@global.session.key_buffer_size;
---error 1149
+--error 1064
 SELECT @@global.local.key_buffer_size;
