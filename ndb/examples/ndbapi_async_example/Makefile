@@ -1,34 +1,23 @@
--include .defs.mk
-#NDB_OS = OS_YOU_ARE_RUNNING_ON
-#NDB_OS = LINUX
-#You need to set the NDB_OS variable here (LINUX, SOLARIS, MACOSX)
 TARGET = ndbapi_async
-SRCS = ndbapi_async.cpp 
-OBJS = ndbapi_async.o 
-CC = g++
-CFLAGS = -c -Wall -fno-rtti -D$(NDB_OS)
+SRCS = $(TARGET).cpp
+OBJS = $(TARGET).o
+CXX = g++
+CFLAGS = -g -c -Wall -fno-rtti -fno-exceptions
+CXXFLAGS = -g
 DEBUG = 
 LFLAGS = -Wall
-INCLUDE_DIR = ../../include
-LIB_DIR = ../../lib
-ifeq ($(NDB_OS), SOLARIS)
-# Here is the definition of system libraries necessary for Solaris 7
-SYS_LIB = -lpthread -lsocket -lnsl -lrt
-endif
-ifeq ($(NDB_OS), LINUX)
-# Here is the definition of system libraries necessary for Linux 2.4
-SYS_LIB = -lpthread
-endif
-ifeq ($(NDB_OS), MACOSX)
-# Here is the definition of system libraries necessary for Mac OS X
+TOP_SRCDIR = ../../..
+INCLUDE_DIR = $(TOP_SRCDIR)
+LIB_DIR = -L$(TOP_SRCDIR)/ndb/src/.libs \
+          -L$(TOP_SRCDIR)/libmysql_r/.libs \
+          -L$(TOP_SRCDIR)/mysys
 SYS_LIB = 
-endif
 
 $(TARGET): $(OBJS)
-	$(CC) $(LFLAGS) -L$(LIB_DIR) -lNDB_API $(OBJS) $(SYS_LIB) -o $(TARGET)
+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r -lmysys -lz $(SYS_LIB) -o $(TARGET)
 
 $(TARGET).o: $(SRCS)
-	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
+	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/extra -I$(INCLUDE_DIR)/ndb/include -I$(INCLUDE_DIR)/ndb/include/ndbapi $(SRCS)
 
 clean:
 	rm -f *.o $(TARGET)
