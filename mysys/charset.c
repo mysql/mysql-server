@@ -100,7 +100,7 @@ char *get_charsets_dir(char *buf)
   DBUG_ENTER("get_charsets_dir");
 
   if (charsets_dir != NULL)
-    strnmov(buf, charsets_dir, FN_REFLEN);
+    strmake(buf, charsets_dir, FN_REFLEN-1);
   else
   {
     if (test_if_hard_path(sharedir) ||

@@ -930,7 +930,7 @@ String *Item_func_trim::val_str(String *str)
   char *ptr=(char*) res->ptr();
   char *end=ptr+res->length();
   const char *r_ptr=remove_str->ptr();
-  while (ptr+remove_length < end && !memcmp(ptr,r_ptr,remove_length))
+  while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
     ptr+=remove_length;
 #ifdef USE_MB
   if (use_mb(default_charset_info) && !binary)
@@ -954,7 +954,7 @@ String *Item_func_trim::val_str(String *str)
   else
 #endif /* USE_MB */
   {
-    while (ptr + remove_length < end &&
+    while (ptr + remove_length <= end &&
 	   !memcmp(end-remove_length,r_ptr,remove_length))
       end-=remove_length;
   }
