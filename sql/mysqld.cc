@@ -298,12 +298,14 @@ my_bool lower_case_file_system= 0;
 my_bool opt_innodb_safe_binlog= 0;
 volatile bool mqh_used = 0;
 
+#ifdef HAVE_INITGROUPS
+static bool calling_initgroups= FALSE; /* Used in SIGSEGV handler. */
+#endif
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint delay_key_write_options, protocol_version;
 uint lower_case_table_names;
 uint opt_crash_binlog_innodb;
 uint volatile thread_count, thread_running, kill_cached_threads, wake_thread;
-
 ulong back_log, connect_timeout, concurrency;
 ulong server_id, thd_startup_options;
 ulong table_cache_size, thread_stack, thread_stack_min, what_to_log;
@@ -1143,7 +1145,15 @@ static void set_user(const char *user, struct passwd *user_info)
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   DBUG_ASSERT(user_info);
 #ifdef HAVE_INITGROUPS
-  initgroups((char*) user,user_info->pw_gid);
+  /*
+    We can get a SIGSEGV when calling initgroups() on some systems when NSS
+    is configured to use LDAP and the server is statically linked.  We set
+    calling_initgroups as a flag to the SIGSEGV handler that is then used to
+    output a specific message to help the user resolve this problem.
+  */
+  calling_initgroups= TRUE;
+  initgroups((char*) user, user_info->pw_gid);
+  calling_initgroups= FALSE;
 #endif
   if (setgid(user_info->pw_gid) == -1)
   {
@@ -1896,6 +1906,17 @@ The manual page at http://www.mysql.com/doc/en/Crashing.html contains\n\
 information that should help you find out what is causing the crash.\n");
   fflush(stderr);
 #endif /* HAVE_STACKTRACE */
+
+#ifdef HAVE_INITGROUPS
+  if (calling_initgroups)
+    fprintf(stderr, "\n\
+This crash occured while the server was calling initgroups(). This is\n\
+often due to the use of a mysqld that is statically linked against glibc\n\
+and configured to use LDAP in /etc/nsswitch.conf. You will need to either\n\
+upgrade to a version of glibc that does not have this problem (2.3.4 or\n\
+later when used with nscd), disable LDAP in your nsswitch.conf, or use a\n\
+mysqld that is not statically linked.\n");
+#endif
 
  if (test_flags & TEST_CORE_ON_SIGNAL)
  {
