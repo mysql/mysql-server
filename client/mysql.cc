@@ -21,24 +21,25 @@
  *   Michael 'Monty' Widenius
  *   Andi Gutmans  <andi@zend.com>
  *   Zeev Suraski <zeev@zend.com>
+ *   Jani Tolonen <jani@mysql.com>
  *
  **/
 
 #include <global.h>
-#include <my_sys.h>
+#include <my_sys.h> 
 #include <m_string.h>
 #include <m_ctype.h>
 #include "mysql.h"
 #include "errmsg.h"
 #include <my_dir.h>
 #ifndef __GNU_LIBRARY__
-#define __GNU_LIBRARY__				// Skip warnings in getopt.h
+#define __GNU_LIBRARY__		      // Skip warnings in getopt.h
 #endif
 #include <getopt.h>
 #include "my_readline.h"
 #include <signal.h>
 
-gptr sql_alloc(unsigned size);			// Don't use mysqld alloc for theese
+gptr sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
 void sql_element_free(void *ptr);
 #include "sql_string.h"
 
@@ -53,7 +54,7 @@ extern "C" {
 #elif defined(HAVE_TERMBITS_H)
 #include <termbits.h>
 #elif defined(HAVE_ASM_TERMBITS_H) && (!defined __GLIBC__ || !(__GLIBC__ > 2 || __GLIBC__ == 2 && __GLIBC_MINOR__ > 0))
-#include <asm/termbits.h>			// Standard linux
+#include <asm/termbits.h>		// Standard linux
 #endif
 #undef VOID
 #if defined(HAVE_TERMCAP_H)
@@ -62,14 +63,14 @@ extern "C" {
 #ifdef HAVE_CURSES_H
 #include <curses.h>
 #endif
-#undef SYSV					// hack to avoid syntax error
+#undef SYSV				// hack to avoid syntax error
 #ifdef HAVE_TERM_H
 #include <term.h>
 #endif
 #endif
 #endif
 
-#undef bcmp					// Fix problem with new readline
+#undef bcmp				// Fix problem with new readline
 #undef bzero
 #ifdef __WIN__
 #include <conio.h>
@@ -82,7 +83,7 @@ extern "C" {
 
 #if !defined(HAVE_VIDATTR)
 #undef vidattr
-#define vidattr(A) {}				// Can't get this to work
+#define vidattr(A) {}			// Can't get this to work
 #endif
 
 #ifdef __WIN__
@@ -114,8 +115,9 @@ static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	    no_rehash=0,skip_updates=0,safe_updates=0,one_database=0,
 	    opt_compress=0,
 	    vertical=0,skip_line_numbers=0,skip_column_names=0,opt_html=0,
-            no_named_cmds=1; // we want this to be the default
-static uint verbose=0,opt_silent=0,opt_mysql_port=0,opt_connect_timeout=0;
+            opt_nopager=1, opt_outfile=0,
+            no_named_cmds=1;
+static uint verbose=0,opt_silent=0,opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
@@ -124,6 +126,9 @@ static char *histfile;
 static String glob_buffer,old_buffer;
 static STATUS status;
 static ulong select_limit,max_join_size;
+static char default_pager[FN_REFLEN];
+char pager[FN_REFLEN], outfile[FN_REFLEN];
+FILE *PAGER, *OUTFILE;
 
 #include "sslopt-vars.h"
 
@@ -131,6 +136,9 @@ static ulong select_limit,max_join_size;
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
 #endif
 
+void tee_fprintf(FILE *file, const char *fmt, ...);
+void tee_fputs(const char *s, FILE *file);
+void tee_puts(const char *s, FILE *file);
 /* The names of functions that actually do the manipulation. */
 static int get_options(int argc,char **argv);
 static int com_quit(String *str,char*),
@@ -139,13 +147,19 @@ static int com_quit(String *str,char*),
 	   com_help(String *str,char*), com_clear(String *str,char*),
 	   com_connect(String *str,char*), com_status(String *str,char*),
 	   com_use(String *str,char*), com_source(String *str, char*),
-	   com_rehash(String *str, char*);
+	   com_rehash(String *str, char*), com_pager(String *str, char*),
+           com_nopager(String *str, char*), com_tee(String *str, char*),
+           com_notee(String *str, char*);
 
 static int read_lines(bool execute_commands);
 static int sql_connect(char *host,char *database,char *user,char *password,
 		       uint silent);
 static int put_info(const char *str,INFO_TYPE info,uint error=0);
 static void safe_put_field(const char *pos,ulong length);
+static void init_pager();
+static void end_pager();
+static void init_tee();
+static void end_tee();
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -159,26 +173,36 @@ typedef struct {
 } COMMANDS;
 
 static COMMANDS commands[] = {
-  { "help",   'h', com_help,   0, "Display this text" },
-  { "?",      '?', com_help,   0, "Synonym for `help'" },
-  { "clear",  'c', com_clear,  0, "Clear command"},
+  { "help",   'h', com_help,   0, "Display this help." },
+  { "?",      '?', com_help,   0, "Synonym for `help'." },
+  { "clear",  'c', com_clear,  0, "Clear command."},
   { "connect",'r', com_connect,1,
-    "Reconnect to the server. Optional arguments are db and host" },
-  { "edit",   'e', com_edit,   0, "Edit command with $EDITOR"},
-  { "exit",   'q', com_quit,   0, "Exit mysql. Same as quit"},
-  { "go",     'g', com_go,     0, "Send command to mysql server" },
+    "Reconnect to the server. Optional arguments are db and host." },
+  { "edit",   'e', com_edit,   0, "Edit command with $EDITOR."},
   { "ego",    'G', com_ego,    0,
-    "Send command to mysql server; Display result vertically"},
-  { "print",  'p', com_print,  0, "Print current command" },
-  { "quit",   'q', com_quit,   0, "Quit mysql" },
-  { "rehash", '#', com_rehash, 0, "Rebuild completion hash" },
+    "Send command to mysql server, display result vertically."},
+  { "exit",   'q', com_quit,   0, "Exit mysql. Same as quit."},
+  { "go",     'g', com_go,     0, "Send command to mysql server." },
+#ifndef __WIN__
+  { "nopager",'n', com_nopager,0, "Disable pager, print to stdout." },
+#endif
+  { "notee",  't', com_notee,  0, "Don't write into outfile." },
+#ifndef __WIN__
+  { "pager",  'P', com_pager,  1, 
+    "Set PAGER [to_pager]. Print the query results via PAGER." },
+#endif
+  { "print",  'p', com_print,  0, "Print current command." },
+  { "quit",   'q', com_quit,   0, "Quit mysql." },
+  { "rehash", '#', com_rehash, 0, "Rebuild completion hash." },
   { "source", '.', com_source, 1,
-    "Execute a SQL script file. Takes a file name as an argument"},
-  { "status", 's', com_status, 0, "Get status information from the server"},
+    "Execute a SQL script file. Takes a file name as an argument."},
+  { "status", 's', com_status, 0, "Get status information from the server."},
+  { "tee",    'T', com_tee,    1, 
+    "Set outfile [to_outfile]. Append everything into given outfile." },
   { "use",    'u', com_use,    1,
-    "Use another database. Takes database name as argument" },
+    "Use another database. Takes database name as argument." },
 
-  /* Get bash-like expansion for some commmands */
+  /* Get bash-like expansion for some commands */
   { "create table",     0, 0, 0, ""},
   { "create database",  0, 0, 0, ""},
   { "drop",             0, 0, 0, ""},
@@ -231,6 +255,8 @@ int main(int argc,char *argv[])
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
 
+  strmov(outfile, "\0");   // no (default) outfile, unless given at least once
+  strmov(pager, "stdout"); // the default, if --pager wasn't given
   if (!isatty(0) || !isatty(1))
   {
     status.batch=1; opt_silent=1;
@@ -262,7 +288,7 @@ int main(int argc,char *argv[])
     ignore_errors=1;				// Don't abort monitor
   signal(SIGINT, mysql_end);			// Catch SIGINT to clean up
 
- /*
+  /*
   **  Run in interactive mode like the ingres/postgres monitor
   */
 
@@ -291,14 +317,17 @@ int main(int argc,char *argv[])
     if (histfile)
     {
       if (verbose)
-	printf("Reading history-file %s\n",histfile);
+	tee_fprintf(stdout, "Reading history-file %s\n",histfile);
       read_history(histfile);
     }
   }
 #endif
-  sprintf(buff, "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer\n");
+  sprintf(buff, 
+	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the buffer\n");
   put_info(buff,INFO_INFO);
   status.exit_status=read_lines(1);		// read lines and execute them
+  if (opt_outfile)
+    end_tee();
   mysql_end(0);
 #ifndef _lint
   DBUG_RETURN(0);				// Keep compiler happy
@@ -314,7 +343,7 @@ sig_handler mysql_end(int sig)
   {
     /* write-history */
     if (verbose)
-      printf("Writing history-file %s\n",histfile);
+      tee_fprintf(stdout, "Writing history-file %s\n",histfile);
     write_history(histfile);
   }
   batch_readline_end(status.line_buff);
@@ -334,21 +363,22 @@ sig_handler mysql_end(int sig)
   exit(status.exit_status);
 }
 
-enum options {OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET, OPT_TIMEOUT} ;
+enum options {OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET, OPT_PAGER, 
+	      OPT_NOPAGER, OPT_TEE, OPT_NOTEE} ;
 
 
 static struct option long_options[] =
 {
   {"i-am-a-dummy",  no_argument,	   0, 'U'},
   {"batch",	    no_argument,	   0, 'B'},
-  {"character-sets-dir",required_argument,0,    OPT_CHARSETS_DIR},
+  {"character-sets-dir",required_argument, 0, OPT_CHARSETS_DIR},
   {"compress",	    no_argument,	   0, 'C'},
 #ifndef DBUG_OFF
   {"debug",	    optional_argument,	   0, '#'},
 #endif
   {"database",	    required_argument,     0, 'D'},
   {"debug-info",    no_argument,	   0, 'T'},
-  {"default-character-set", required_argument,  0, OPT_DEFAULT_CHARSET},
+  {"default-character-set", required_argument, 0, OPT_DEFAULT_CHARSET},
   {"enable-named-commands", no_argument,   0, 'G'},
   {"execute",	    required_argument,	   0, 'e'},
   {"force",	    no_argument,	   0, 'f'},
@@ -358,6 +388,14 @@ static struct option long_options[] =
   {"ignore-spaces", no_argument,	   0, 'i'},
   {"no-auto-rehash",no_argument,	   0, 'A'},
   {"no-named-commands", no_argument,       0, 'g'},
+  {"no-tee",        no_argument,           0, OPT_NOTEE},
+#ifndef __WIN__
+  {"no-pager",      no_argument,           0, OPT_NOPAGER},
+  {"nopager",       no_argument,           0, OPT_NOPAGER},  /* we are kind */
+  {"pager",         optional_argument,     0, OPT_PAGER},
+#endif
+  {"notee",         no_argument,           0, OPT_NOTEE},    /* we are kind */
+  {"tee",           required_argument,     0, OPT_TEE},
   {"one-database",  no_argument,	   0, 'o'},
   {"password",	    optional_argument,	   0, 'p'},
 #ifdef __WIN__
@@ -374,7 +412,6 @@ static struct option long_options[] =
   {"socket",	    required_argument,	   0, 'S'},
 #include "sslopt-longopts.h"
   {"table",	    no_argument,	   0, 't'},
-  {"timeout",	    required_argument,	   0, OPT_TIMEOUT},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user",	    required_argument,	   0, 'u'},
 #endif
@@ -400,7 +437,7 @@ CHANGEABLE_VAR changeable_vars[] = {
 
 static void usage(int version)
 {
-  printf("%s  Ver 10.12 Distrib %s, for %s (%s)\n",
+  printf("%s  Ver 11.2 Distrib %s, for %s (%s)\n",
 	 my_progname, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
@@ -440,14 +477,33 @@ static void usage(int version)
   -i, --ignore-space	Ignore space after function names.\n\
   -h, --host=...	Connect to host.\n\
   -H, --html		Produce HTML output.\n\
-  -L, --skip-line-numbers  Don't write line number for errors.\n\
+  -L, --skip-line-numbers\n\
+                        Don't write line number for errors.\n");
+#ifndef __WIN__
+  printf("\
+  --no-pager            Disable pager and print to stdout. See interactive\n\
+                        help (\\h) also.\n");
+#endif
+  printf("\
+  --no-tee              Disable outfile. See interactive help (\\h) also.\n\
   -n, --unbuffered	Flush buffer after each query.\n\
-  -N, --skip-column-names  Don't write column names in results.\n\
+  -N, --skip-column-names\n\
+                        Don't write column names in results.\n\
   -O, --set-variable var=option\n\
 			Give a variable an value. --help lists variables.\n\
   -o, --one-database	Only update the default database. This is useful\n\
 			for skipping updates to other database in the update\n\
 			log.\n\
+  --tee=...             Append everything into outfile. See interactive help\n\
+                        (\\h) also. Does not work in batch mode.\n");
+#ifndef __WIN__
+  printf("\
+  --pager[=...]         Output type. Default is your ENV variable PAGER.\n\
+                        Valid pagers are less, more, cat [> filename], etc.\n\
+                        See interactive help (\\h) also. This options does\n\
+                        not work in batch mode.\n");
+#endif
+  printf("\
   -p[password], --password[=...]\n\
 			Password to use when connecting to server\n\
 			If password is not given it's asked from the tty.\n");
@@ -492,7 +548,8 @@ static int get_options(int argc, char **argv)
   bool tty_password=0;
 
   set_all_changeable_vars(changeable_vars);
-  while ((c=getopt_long(argc,argv,"?ABCD:LfgGHinNoqrstTUvVwWEe:h:O:P:S:u:#::p::",
+  while ((c=getopt_long(argc,argv,
+			"?ABCD:LfgGHinNoqrstTUvVwWEe:h:O:P:S:u:#::p::",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -501,6 +558,30 @@ static int get_options(int argc, char **argv)
       break;
     case OPT_CHARSETS_DIR:
       charsets_dir= optarg;
+      break;
+    case OPT_TEE:
+      if (!opt_outfile && strlen(optarg))
+      {
+	strmov(outfile, optarg);
+	opt_outfile=1;
+	init_tee();
+      }
+      break;
+    case OPT_NOTEE:
+      if (opt_outfile)
+	end_tee();
+      opt_outfile=0;
+      break;
+    case OPT_PAGER:
+      opt_nopager=0;
+      if (optarg)
+	strmov(pager, optarg);
+      else
+	strmov(pager, (char*) getenv("PAGER"));
+      strmov(default_pager, pager);
+      break;
+    case OPT_NOPAGER:
+      opt_nopager=1;
       break;
     case 'D':
       my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));      
@@ -546,12 +627,9 @@ static int get_options(int argc, char **argv)
     case 'p':
       if (optarg)
       {
-	char *start=optarg;
 	my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
 	opt_password=my_strdup(optarg,MYF(MY_FAE));
 	while (*optarg) *optarg++= 'x';		// Destroy argument
-	if (*start)
-	  start[1]=0;
       }
       else
 	tty_password=1;
@@ -607,9 +685,6 @@ static int get_options(int argc, char **argv)
       opt_mysql_unix_port=my_strdup(MYSQL_NAMEDPIPE,MYF(0));
 #endif
       break;
-    case OPT_TIMEOUT:
-      opt_connect_timeout=atoi(optarg);
-      break;
     case 'V': usage(1); exit(0);
     case 'I':
     case '?':
@@ -617,10 +692,17 @@ static int get_options(int argc, char **argv)
       exit(0);
 #include "sslopt-case.h"
     default:
-      fprintf(stderr,"illegal option: -%c\n",opterr);
+      tee_fprintf(stderr,"illegal option: -%c\n",opterr);
       usage(0);
       exit(1);
     }
+  }
+  if (status.batch) /* disable pager and outfile in this case */
+  {
+    strmov(default_pager, "stdout");
+    strmov(pager, "stdout");
+    opt_nopager=1;
+    opt_outfile=0;
   }
   if (default_charset)
   {
@@ -674,18 +756,29 @@ static int read_lines(bool execute_commands)
     else
 #ifdef __WIN__
     {
-      printf(glob_buffer.is_empty() ? "mysql> " :
-	     !in_string ? "    -> " :
-	     in_string == '\'' ?
-	     "    '> " : "    \"> ");
+      tee_fprintf(stdout, glob_buffer.is_empty() ? "mysql> " :
+		  !in_string ? "    -> " :
+		  in_string == '\'' ?
+		  "    '> " : "    \"> ");
       linebuffer[0]=(char) sizeof(linebuffer);
       line=_cgets(linebuffer);
     }
 #else
-      line=readline((char*) (glob_buffer.is_empty() ? "mysql> " :
-			     !in_string ? "    -> " :
-			     in_string == '\'' ?
-			     "    '> " : "    \"> "));
+    if (opt_outfile)
+    {
+      if (glob_buffer.is_empty())
+	fflush(OUTFILE);
+      fputs(glob_buffer.is_empty() ? "mysql> " :
+	    !in_string ? "    -> " :
+	    in_string == '\'' ?
+	    "    '> " : "    \"> ", OUTFILE);
+    }
+    line=readline((char*) (glob_buffer.is_empty() ? "mysql> " :
+			   !in_string ? "    -> " :
+			   in_string == '\'' ?
+			   "    '> " : "    \"> "));
+    if (opt_outfile)
+      fprintf(OUTFILE, "%s\n", line);
 #endif
     if (!line)					// End of file
     {
@@ -1060,7 +1153,7 @@ static void build_completion_hash(bool skip_rehash,bool write_info)
     {
       if (mysql_num_rows(tables) > 0 && !opt_silent && write_info)
       {
-	printf("\
+	tee_fprintf(stdout, "\
 Reading table information for completion of table and column names\n\
 You can turn off this feature to get a quicker startup with -A\n\n");
       }
@@ -1121,7 +1214,8 @@ You can turn off this feature to get a quicker startup with -A\n\n");
       }
     }
     else
-      printf("Didn't find any fields in table '%s'\n",table_row[0]);
+      tee_fprintf(stdout,
+		  "Didn't find any fields in table '%s'\n",table_row[0]);
     i++;
   }
   DBUG_VOID_RETURN;
@@ -1189,14 +1283,15 @@ com_help (String *buffer __attribute__((unused)),
   for (i = 0; commands[i].name; i++)
   {
     if (commands[i].func)
-      printf("%s\t(\\%c)\t%s\n", commands[i].name,
-	     commands[i].cmd_char, commands[i].doc);
+      tee_fprintf(stdout, "%s\t(\\%c)\t%s\n", commands[i].name,
+		  commands[i].cmd_char, commands[i].doc);
   }
   if (connected)
-    printf("\nConnection id: %ld  (Can be used with mysqladmin kill)\n\n",
-	   mysql_thread_id(&mysql));
+    tee_fprintf(stdout,
+		"\nConnection id: %ld  (Can be used with mysqladmin kill)\n\n",
+		mysql_thread_id(&mysql));
   else
-    printf("Not connected!  Reconnect with 'connect'!\n\n");
+    tee_fprintf(stdout, "Not connected!  Reconnect with 'connect'!\n\n");
   return 0;
 }
 
@@ -1264,7 +1359,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
     if (!mysql_real_query(&mysql,buffer->ptr(),buffer->length()))
       break;
     error=put_info(mysql_error(&mysql),INFO_ERROR, mysql_errno(&mysql));
-    if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 || status.batch)
+    if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 
+	|| status.batch)
     {
       buffer->length(0);			// Remove query on error
       return error;
@@ -1308,6 +1404,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
     }
     else
     {
+      init_pager();
       if (opt_html)
 	print_table_data_html(result);
       else if (vertical)
@@ -1320,6 +1417,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 	      (long) mysql_num_rows(result),
 	      (long) mysql_num_rows(result) == 1 ? "row" : "rows",
 	      time_buff);
+      end_pager();
     }
   }
   else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
@@ -1340,6 +1438,47 @@ com_go(String *buffer,char *line __attribute__((unused)))
     fflush(stdout);
   mysql_free_result(result);
   return error;				/* New command follows */
+}
+
+
+static void init_pager()
+{
+#ifndef __WIN__
+  if (!opt_nopager)
+  {
+    if (!(PAGER= popen(pager, "w")))
+    {
+      tee_fprintf(stdout, "popen() failed! defaulting PAGER to stdout!\n");
+      PAGER= stdout;
+    }
+  }
+  else
+#endif
+    PAGER= stdout;
+}
+
+static void end_pager()
+{
+#ifndef __WIN__
+  if (!opt_nopager)
+    pclose(PAGER);
+#endif
+}
+
+static void init_tee()
+{
+  if (!(OUTFILE= my_fopen(outfile,O_APPEND | O_WRONLY | O_BINARY,MYF(MY_WME))))
+  {
+    opt_outfile=0;
+    init_pager();
+    return;
+  }
+}
+
+static void end_tee()
+{
+  my_fclose(OUTFILE, MYF(0));
+  return;
 }
 
 static int
@@ -1377,35 +1516,34 @@ print_table_data(MYSQL_RES *result)
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
   }
-  puts(separator.c_ptr());
-
+  tee_puts(separator.c_ptr(), PAGER);
   if (!skip_column_names)
   {
     mysql_field_seek(result,0);
-    (void) fputs("|",stdout);
+    (void) tee_fputs("|", PAGER);
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
-      printf(" %-*s|",field->max_length,field->name);
+      tee_fprintf(PAGER, " %-*s|",field->max_length,field->name);
       num_flag[off]= IS_NUM(field->type);
     }
-    (void) fputc('\n',stdout);
-    puts(separator.c_ptr());
+    (void) tee_fputs("\n", PAGER);
+    tee_puts(separator.c_ptr(), PAGER);
   }
 
   while ((cur = mysql_fetch_row(result)))
   {
-    (void) fputs("|",stdout);
+    (void) tee_fputs("|", PAGER);
     mysql_field_seek(result,0);
     for (uint off=0 ; off < mysql_num_fields(result); off++)
     {
       field = mysql_fetch_field(result);
       uint length=field->max_length;
-      printf(num_flag[off] ? "%*s |" : " %-*s|",
-	     length,cur[off] ? (char*) cur[off] : "NULL");
+      tee_fprintf(PAGER, num_flag[off] ? "%*s |" : " %-*s|",
+		  length,cur[off] ? (char*) cur[off] : "NULL");
     }
-    (void) fputc('\n',stdout);
+    (void) tee_fputs("\n", PAGER);
   }
-  puts(separator.c_ptr());
+  tee_puts(separator.c_ptr(), PAGER);
   my_afree((gptr) num_flag);
 }
 
@@ -1416,30 +1554,30 @@ print_table_data_html(MYSQL_RES *result)
   MYSQL_FIELD *field;
 
   mysql_field_seek(result,0);
-  fputs("<TABLE BORDER=1><TR>",stdout);
+  (void) tee_fputs("<TABLE BORDER=1><TR>", PAGER);
   if (!skip_column_names)
   {
     while((field = mysql_fetch_field(result)))
     {
-      printf("<TH>%s</TH>", (field->name ? (field->name[0] ? field->name : 
-					    " &nbsp; ") :
-			     "NULL"));
+      tee_fprintf(PAGER, "<TH>%s</TH>", (field->name ? 
+					 (field->name[0] ? field->name : 
+					  " &nbsp; ") : "NULL"));
     }
-    puts("</TR>");
+    (void) tee_fputs("</TR>", PAGER);
   }
   while ((cur = mysql_fetch_row(result)))
   {
-    fputs("<TR>",stdout);
+    (void) tee_fputs("<TR>", PAGER);
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
       ulong *lengths=mysql_fetch_lengths(result);
-      fputs("<TD>",stdout);
+      (void) tee_fputs("<TD>", PAGER);
       safe_put_field(cur[i],lengths[i]);
-      fputs("</TD>",stdout);
+      (void) tee_fputs("</TD>", PAGER);
     }
-    puts("</TR>");
+    (void) tee_fputs("</TR>", PAGER);
   }
-  puts("</TABLE>");
+  (void) tee_fputs("</TABLE>", PAGER);
 }
 
 
@@ -1463,13 +1601,13 @@ print_table_data_vertically(MYSQL_RES *result)
   for (uint row_count=1; (cur= mysql_fetch_row(result)); row_count++)
   {
     mysql_field_seek(result,0);
-    printf("*************************** %d. row ***************************\n",
-	   row_count);
+    tee_fprintf(PAGER, 
+		"*************************** %d. row ***************************\n", row_count);
     for (uint off=0; off < mysql_num_fields(result); off++)
     {
       field= mysql_fetch_field(result);
-      printf("%*s: ",(int) max_length,field->name);
-      printf("%s\n",cur[off] ? (char*) cur[off] : "NULL");
+      tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
+      tee_fprintf(PAGER, "%s\n",cur[off] ? (char*) cur[off] : "NULL");
     }
   }
 }
@@ -1479,11 +1617,11 @@ static void
 safe_put_field(const char *pos,ulong length)
 {
   if (!pos)
-    fputs("NULL",stdout);
+    tee_fputs("NULL", PAGER);
   else
   {
     if (opt_raw_data)
-      fputs(pos,stdout);
+      tee_fputs(pos, PAGER);
     else for (const char *end=pos+length ; pos != end ; pos++)
     {
 #ifdef USE_MB
@@ -1491,21 +1629,21 @@ safe_put_field(const char *pos,ulong length)
       if (use_mb(default_charset_info) &&
           (l = my_ismbchar(default_charset_info, pos, end))) {
 	  while (l--)
-	      putchar(*pos++);
+	    tee_fputs((const char *) *pos++, PAGER);
 	  pos--;
 	  continue;
       }
 #endif
       if (!*pos)
-	fputs("\\0",stdout);		// This makes everything hard
+	tee_fputs("\\0", PAGER); // This makes everything hard
       else if (*pos == '\t')
-	fputs("\\t",stdout);		// This would destroy tab format
+	tee_fputs("\\t", PAGER); // This would destroy tab format
       else if (*pos == '\n')
-	fputs("\\n",stdout);		// This too
+	tee_fputs("\\n", PAGER); // This too
       else if (*pos == '\\')
-	fputs("\\\\",stdout);
+	tee_fputs("\\\\", PAGER);
       else
-	putchar(*pos);
+	tee_fputs(pos, PAGER);
     }
   }
 }
@@ -1524,10 +1662,10 @@ print_tab_data(MYSQL_RES *result)
     while ((field = mysql_fetch_field(result)))
     {
       if (first++)
-	(void) fputc('\t',stdout);
-      (void) fputs(field->name,stdout);
+	(void) tee_fputs("\t", PAGER);
+      (void) tee_fputs(field->name, PAGER);
     }
-    (void) fputc('\n',stdout);
+    (void) tee_fputs("\n", PAGER);
   }
   while ((cur = mysql_fetch_row(result)))
   {
@@ -1535,11 +1673,119 @@ print_tab_data(MYSQL_RES *result)
     safe_put_field(cur[0],lengths[0]);
     for (uint off=1 ; off < mysql_num_fields(result); off++)
     {
-      (void) fputc('\t',stdout);
+      (void) tee_fputs("\t", PAGER);
       safe_put_field(cur[off],lengths[off]);
     }
-    (void) fputc('\n',stdout);
+    (void) tee_fputs("\n", PAGER);
   }
+}
+
+static int
+com_tee(String *buffer, char *line __attribute__((unused)))
+{
+  char file_name[FN_REFLEN], *end, *param;
+
+  if (status.batch)
+    return 0;
+  while (isspace(*line))
+    line++;
+  if (!(param = strchr(line, ' '))) // if outfile wasn't given, use the default
+  {
+    if (!strlen(outfile))
+    {
+      printf("No previous outfile available, you must give the filename!\n");
+      opt_outfile=0;
+      return 0;
+    }
+  }
+  else
+  {
+    while (isspace(*param))
+      param++;
+    end=strmake(file_name, param, sizeof(file_name)-1);
+    while (end > file_name && (isspace(end[-1]) || iscntrl(end[-1])))
+      end--;
+    end[0]=0;
+    strmov(outfile, file_name);
+  }
+  if (!strlen(outfile))
+  {
+    printf("No outfile specified!\n");
+    return 0;
+  }
+  if (!opt_outfile)
+  {
+    init_tee();
+    opt_outfile=1;
+  }
+  tee_fprintf(stdout, "Outfile '%s' is in use now.\n", outfile);
+  return 0;
+}
+
+static int
+com_notee(String *buffer __attribute__((unused)),
+	  char *line __attribute__((unused)))
+{
+  if (opt_outfile)
+    end_tee();
+  opt_outfile=0;
+  tee_fprintf(stdout, "Outfile disabled.\n");
+  return 0;
+}
+
+static int
+com_pager(String *buffer, char *line __attribute__((unused)))
+{
+  char pager_name[FN_REFLEN], *end, *param;
+
+  if (status.batch)
+    return 0;
+#ifdef __WIN__
+  tee_fprintf(stdout, "Sorry, this command is not available in Windows.\n");
+  return 0;
+#endif
+  /* Skip space from file name */
+  while (isspace(*line))
+    line++;
+  if (!(param = strchr(line, ' '))) // if pager was not given, use the default
+  {
+    if (!strlen(default_pager))
+    {
+      tee_fprintf(stdout, "Default pager wasn't available, using stdout.\n");
+      opt_nopager=1;
+      strmov(pager, "stdout");
+      PAGER= stdout;
+      return 0;
+    }
+    strmov(pager, default_pager);
+  }
+  else
+  {
+    while (isspace(*param))
+      param++;
+    end=strmake(pager_name, param, sizeof(pager_name)-1);
+    while (end > pager_name && (isspace(end[-1]) || iscntrl(end[-1])))
+      end--;
+    end[0]=0;
+    strmov(pager, pager_name);
+  }
+  opt_nopager=0;
+  tee_fprintf(stdout, "PAGER set to %s\n", pager);
+  return 0;
+}
+
+static int
+com_nopager(String *buffer __attribute__((unused)),
+	    char *line __attribute__((unused)))
+{
+#ifdef __WIN__
+  tee_fprintf(stdout, "This command has no function in Windows.\n");
+  return 0;
+#endif
+  strmov(pager, "stdout");
+  opt_nopager=1;
+  tee_fprintf(stdout, "PAGER set to stdout\n");
+  return 0;
 }
 
 
@@ -1610,11 +1856,11 @@ com_rehash(String *buffer __attribute__((unused)),
 static int
 com_print(String *buffer,char *line __attribute__((unused)))
 {
-  puts("--------------");
-  (void) fputs(buffer->c_ptr(),stdout);
+  tee_puts("--------------", stdout);
+  (void) tee_fputs(buffer->c_ptr(), stdout);
   if (!buffer->length() || (*buffer)[buffer->length()-1] != '\n')
-    putchar('\n');
-  puts("--------------\n");
+    tee_fputs("\n", stdout);
+  tee_puts("--------------\n", stdout);
   return 0;					/* If empty buffer */
 }
 
@@ -1676,8 +1922,9 @@ static int com_source(String *buffer, char *line)
   /* Skip space from file name */
   while (isspace(*line))
     line++;
-  if (!(param = strchr(line, ' ')))		// Skipp command name
-    return put_info("Usage: \\. <filename> | source <filename>", INFO_ERROR, 0);
+  if (!(param = strchr(line, ' ')))		// Skip command name
+    return put_info("Usage: \\. <filename> | source <filename>", 
+		    INFO_ERROR, 0);
   while (isspace(*param))
     param++;
   end=strmake(source_name,param,sizeof(source_name)-1);
@@ -1727,7 +1974,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
   strnmov(buff,line,sizeof(buff)-1);		// Don't destroy history
   if (buff[0] == '\\')				// Short command
     buff[1]=' ';
-  tmp=(char *) strtok(buff," \t;");		// Skipp connect command
+  tmp=(char *) strtok(buff," \t;");		// Skip connect command
   if (!tmp || !(tmp=(char *) strtok(NullS," \t;")))
   {
     put_info("USE must be followed by a database name",INFO_ERROR);
@@ -1779,9 +2026,6 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     connected= 0;
   }
   mysql_init(&mysql);
-  if (opt_connect_timeout)
-    mysql_options(&mysql,MYSQL_OPT_CONNECT_TIMEOUT,
-		  (char*) &opt_connect_timeout);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
 #ifdef HAVE_OPENSSL
@@ -1832,7 +2076,7 @@ sql_connect(char *host,char *database,char *user,char *password,uint silent)
     {
       if (count)
       {
-	fputs("\n",stderr);
+	tee_fputs("\n", stderr);
 	(void) fflush(stderr);
       }
       return error;
@@ -1842,7 +2086,7 @@ sql_connect(char *host,char *database,char *user,char *password,uint silent)
     if (!message && !silent)
     {
       message=1;
-      fputs("Waiting",stderr); (void) fflush(stderr);
+      tee_fputs("Waiting",stderr); (void) fflush(stderr);
     }
     (void) sleep(5);
     if (!silent)
@@ -1860,75 +2104,82 @@ com_status(String *buffer __attribute__((unused)),
 	   char *line __attribute__((unused)))
 {
   char *status;
-  puts("--------------");
+  tee_puts("--------------", stdout);
   usage(1);					/* Print version */
   if (connected)
   {
     MYSQL_RES *result;
     LINT_INIT(result);
-    printf("\nConnection id:\t\t%ld\n",mysql_thread_id(&mysql));
+    tee_fprintf(stdout, "\nConnection id:\t\t%ld\n",mysql_thread_id(&mysql));
     if (!mysql_query(&mysql,"select DATABASE(),USER()") &&
 	(result=mysql_use_result(&mysql)))
     {
       MYSQL_ROW cur=mysql_fetch_row(result);
-      printf("Current database:\t%s\n",cur[0]);
-      printf("Current user:\t\t%s\n",cur[1]);
+      tee_fprintf(stdout, "Current database:\t%s\n",cur[0]);
+      tee_fprintf(stdout, "Current user:\t\t%s\n",cur[1]);
       (void) mysql_fetch_row(result);		// Read eof
     }
   }
   else
   {
     vidattr(A_BOLD);
-    printf("\nNo connection\n");
+    tee_fprintf(stdout, "\nNo connection\n");
     vidattr(A_NORMAL);
     return 0;
   }
   if (skip_updates)
   {
     vidattr(A_BOLD);
-    printf("\nAll updates ignored to this database\n");
+    tee_fprintf(stdout, "\nAll updates ignored to this database\n");
     vidattr(A_NORMAL);
   }
-  printf("Server version\t\t%s\n", mysql_get_server_info(&mysql));
-  printf("Protocol version\t%d\n", mysql_get_proto_info(&mysql));
-  printf("Connection\t\t%s\n",	   mysql_get_host_info(&mysql));
-  printf("Language\t\t%s\n",	   mysql.charset->name);
-  if (strstr(mysql_get_host_info(&mysql),"TCP/IP") || ! mysql.unix_socket)
-    printf("TCP port\t\t%d\n",	   mysql.port);
+#ifndef __WIN__
+  tee_fprintf(stdout, "Current pager:\t\t%s\n", pager);
+  if (opt_outfile)
+    tee_fprintf(stdout, "Using outfile:\t\tYes: '%s'\n", outfile);
   else
-    printf("UNIX socket\t\t%s\n",  mysql.unix_socket);
+    printf("Using outfile:\t\tNo\n");
+#endif
+  tee_fprintf(stdout, "Server version:\t\t%s\n", mysql_get_server_info(&mysql));
+  tee_fprintf(stdout, "Protocol version:\t%d\n", mysql_get_proto_info(&mysql));
+  tee_fprintf(stdout, "Connection:\t\t%s\n", mysql_get_host_info(&mysql));
+  tee_fprintf(stdout, "Language:\t\t%s\n", mysql.charset->name);
+  if (strstr(mysql_get_host_info(&mysql),"TCP/IP") || ! mysql.unix_socket)
+    tee_fprintf(stdout, "TCP port:\t\t%d\n", mysql.port);
+  else
+    tee_fprintf(stdout, "UNIX socket:\t\t%s\n", mysql.unix_socket);
   if ((status=mysql_stat(&mysql)) && !mysql_error(&mysql)[0])
   {
     char *pos,buff[40];
     ulong sec;
     pos=strchr(status,' ');
     *pos++=0;
-    printf("%s\t\t\t",status);			/* print label */
+    tee_fprintf(stdout, "%s\t\t\t", status);	/* print label */
     if ((status=str2int(pos,10,0,LONG_MAX,(long*) &sec)))
     {
       nice_time((double) sec,buff,0);
-      puts(buff);				/* print nice time */
+      tee_puts(buff, stdout);			/* print nice time */
       while (*status == ' ') status++;		/* to next info */
     }
     if (status)
     {
-      putchar('\n');
-      puts(status);
+      tee_fputs("\n", stdout);
+      tee_puts(status, stdout);
     }
   }
   if (safe_updates)
   {
     vidattr(A_BOLD);
-    printf("\nNote that we are running in safe_update_mode:\n");
+    tee_fprintf(stdout, "\nNote that we are running in safe_update_mode:\n");
     vidattr(A_NORMAL);
-    printf("\
+    tee_fprintf(stdout, "\
 UPDATE and DELETE that doesn't use a key in the WHERE clause are not allowed\n\
 (One can force UPDATE/DELETE by adding LIMIT # at the end of the command)\n\
 SELECT has an automatic 'LIMIT %lu' if LIMIT is not used\n\
 Max number of examined row combination in a join is set to: %lu\n\n",
 select_limit,max_join_size);
   }
-  puts("--------------\n");
+  tee_puts("--------------\n", stdout);
   return 0;
 }
 
@@ -1937,7 +2188,7 @@ static int
 put_info(const char *str,INFO_TYPE info_type,uint error)
 {
   static int inited=0;
-
+  
   if (status.batch)
   {
     if (info_type == INFO_ERROR)
@@ -1958,7 +2209,7 @@ put_info(const char *str,INFO_TYPE info_type,uint error)
 	return 1;
     }
     else if (info_type == INFO_RESULT && verbose > 1)
-      puts(str);
+      tee_puts(str, stdout);
     if (unbuffered)
       fflush(stdout);
     return info_type == INFO_ERROR ? -1 : 0;
@@ -1977,19 +2228,20 @@ put_info(const char *str,INFO_TYPE info_type,uint error)
       putchar('\007');				/* This should make a bell */
       vidattr(A_STANDOUT);
       if (error)
-	(void) fprintf(stderr,"ERROR %d: ",error);
+        (void) tee_fprintf(stderr, "ERROR %d: ", error);
       else
-	fputs("ERROR: ",stdout);
+        tee_puts("ERROR: ", stdout);
     }
     else
       vidattr(A_BOLD);
-    (void) puts(str);
+    (void) tee_puts(str, stdout);
     vidattr(A_NORMAL);
   }
   if (unbuffered)
     fflush(stdout);
   return info_type == INFO_ERROR ? -1 : 0;
 }
+
 
 static void remove_cntrl(String &buffer)
 {
@@ -2000,6 +2252,37 @@ static void remove_cntrl(String &buffer)
   buffer.length((uint) (end-start));
 }
 
+
+void tee_fprintf(FILE *file, const char *fmt, ...)
+{
+  va_list args;
+
+  va_start(args, fmt);
+  VOID(vfprintf(file, fmt, args));
+  if (opt_outfile)
+    VOID(vfprintf(OUTFILE, fmt, args));
+  va_end(args);
+}
+
+
+void tee_fputs(const char *s, FILE *file)
+{
+  fputs(s, file);
+  if (opt_outfile)
+    fputs(s, OUTFILE);
+}
+
+
+void tee_puts(const char *s, FILE *file)
+{
+  fputs(s, file);
+  fputs("\n", file);
+  if (opt_outfile)
+  {
+    fputs(s, OUTFILE);
+    fputs("\n", OUTFILE);
+  }
+}
 
 #ifdef __WIN__
 #include <time.h>
