@@ -1025,6 +1025,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     THD *tmp;
     while ((tmp=it++))
     {
+      struct st_my_thread_var *mysys_var;
       if ((tmp->net.vio || tmp->system_thread) &&
           (!user || (tmp->user && !strcmp(tmp->user,user))))
       {
@@ -1034,12 +1035,13 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->user=thd->strdup(tmp->user ? tmp->user : (tmp->system_thread ?
                                   "system user" : "unauthenticated user"));
         thd_info->host=thd->strdup(tmp->host ? tmp->host : (tmp->ip ? tmp->ip :
-                                   (tmp->system_thread ? "none" : "connecting host")));
+                                   (tmp->system_thread ? "none" :
+				    "connecting host")));
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
-        if (tmp->mysys_var)
-          pthread_mutex_lock(&tmp->mysys_var->mutex);
+        if ((mysys_var= tmp->mysys_var))
+          pthread_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed ? "Killed" : 0);
         thd_info->state_info= (char*) (tmp->locked ? "Locked" :
                                        tmp->net.reading_or_writing ?
@@ -1051,8 +1053,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                                        tmp->mysys_var &&
                                        tmp->mysys_var->current_cond ?
                                        "Waiting on cond" : NullS);
-        if (tmp->mysys_var)
-          pthread_mutex_unlock(&tmp->mysys_var->mutex);
+        if (mysys_var)
+          pthread_mutex_unlock(&mysys_var->mutex);
 
 #if !defined(DONT_USE_THR_ALARM) && ! defined(SCO)
         if (pthread_kill(tmp->real_id,0))
