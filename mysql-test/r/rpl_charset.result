@@ -103,7 +103,7 @@ a	b
 1	cp850_general_ci
 drop database mysqltest2;
 drop database mysqltest3;
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	drop database if exists mysqltest2
 master-bin.000001	#	Query	1	#	drop database if exists mysqltest3

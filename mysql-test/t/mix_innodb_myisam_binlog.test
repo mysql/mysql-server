@@ -27,7 +27,7 @@ commit;
 
 --replace_column 5 #
 --replace_result "xid=12" "xid=7"
-show binlog events from 96;
+show binlog events from 98;
 
 delete from t1;
 delete from t2;
@@ -40,7 +40,7 @@ insert into t2 select * from t1;
 rollback;
 
 --replace_column 5 #
-show binlog events from 96;
+show binlog events from 98;
 
 delete from t1;
 delete from t2;
@@ -56,7 +56,7 @@ commit;
 
 --replace_column 5 #
 --replace_result "xid=45" "xid=24"
-show binlog events from 96;
+show binlog events from 98;
 
 delete from t1;
 delete from t2;
@@ -74,7 +74,7 @@ select a from t1 order by a; # check that savepoints work :)
 
 --replace_column 5 #
 --replace_result "xid=67" "xid=36"
-show binlog events from 96;
+show binlog events from 98;
 
 # and when ROLLBACK is not explicit?
 delete from t1;
@@ -95,7 +95,7 @@ connection con2;
 # logging has been done, we use a user lock.
 select get_lock("a",10);
 --replace_column 5 #
-show binlog events from 96;
+show binlog events from 98;
 
 # and when not in a transact1on?
 delete from t1;
@@ -107,7 +107,7 @@ insert into t2 select * from t1;
 
 --replace_column 5 #
 --replace_result "xid=116" "xid=59"
-show binlog events from 96;
+show binlog events from 98;
 
 # Check that when the query updat1ng the MyISAM table is the first in the
 # transaction, we log it immediately.
@@ -120,13 +120,13 @@ begin;
 insert into t2 select * from t1;
 --replace_column 5 #
 --replace_result "xid=130" "xid=65"
-show binlog events from 96;
+show binlog events from 98;
 insert into t1 values(11);
 commit;
 
 --replace_column 5 #
 --replace_result "xid=130" "xid=65" "xid=133" "xid=67"
-show binlog events from 96;
+show binlog events from 98;
 
 
 # Check that things work like before this BEGIN/ROLLBACK code was added,
@@ -145,7 +145,7 @@ commit;
 
 --replace_column 5 #
 --replace_result "xid=152" "xid=77"
-show binlog events from 96;
+show binlog events from 98;
 
 delete from t1;
 delete from t2;
@@ -157,7 +157,7 @@ insert into t2 select * from t1;
 rollback;
 
 --replace_column 5 #
-show binlog events from 96;
+show binlog events from 98;
 
 delete from t1;
 delete from t2;
@@ -173,7 +173,7 @@ commit;
 
 --replace_column 5 #
 --replace_result "xid=184" "xid=93"
-show binlog events from 96;
+show binlog events from 98;
 
 delete from t1;
 delete from t2;
@@ -191,7 +191,7 @@ select a from t1 order by a; # check that savepoints work :)
 
 --replace_column 5 #
 --replace_result "xid=205" "xid=104"
-show binlog events from 96;
+show binlog events from 98;
 
 # Test for BUG#5714, where a MyISAM update in the transaction used to
 # release row-level locks in InnoDB

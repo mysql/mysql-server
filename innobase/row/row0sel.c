@@ -2018,7 +2018,8 @@ Converts a key value stored in MySQL format to an Innobase dtuple. The last
 field of the key value may be just a prefix of a fixed length field: hence
 the parameter key_len. But currently we do not allow search keys where the
 last field is only a prefix of the full key field len and print a warning if
-such appears. */
+such appears. A counterpart of this function is
+ha_innobase::store_key_val_for_row() in ha_innodb.cc. */
 
 void
 row_sel_convert_mysql_key_to_innobase(
@@ -2099,10 +2100,10 @@ row_sel_convert_mysql_key_to_innobase(
 		type = dfield_get_type(dfield)->mtype;
 
 		/* Calculate data length and data field total length */
-
+		
 		if (type == DATA_BLOB) {
 			/* The key field is a column prefix of a BLOB or
-			TEXT type column */
+			TEXT */
 
 			ut_a(field->prefix_len > 0);
 
@@ -2118,9 +2119,10 @@ row_sel_convert_mysql_key_to_innobase(
 			data_len = key_ptr[data_offset]
 				   + 256 * key_ptr[data_offset + 1];
 			data_field_len = data_offset + 2 + field->prefix_len;
+
 			data_offset += 2;
 
-			/* now that we know the length, we store the column
+			/* Now that we know the length, we store the column
 			value like it would be a fixed char field */
 
 		} else if (field->prefix_len > 0) {
@@ -2140,6 +2142,18 @@ row_sel_convert_mysql_key_to_innobase(
 		} else {
 			data_len = dfield_get_type(dfield)->len;
 			data_field_len = data_offset + data_len;
+		}
+
+ 		if (dtype_get_mysql_type(dfield_get_type(dfield))
+					== DATA_MYSQL_TRUE_VARCHAR) {
+			/* In a MySQL key value format, a true VARCHAR is
+			always preceded by 2 bytes of a length field.
+			dfield_get_type(dfield)->len returns the maximum
+			'payload' len in bytes. That does not include the
+			2 bytes that tell the actual data length. */
+
+			data_len += 2;
+			data_field_len += 2;
 		}
 
 		/* Storing may use at most data_len bytes of buf */

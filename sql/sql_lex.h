@@ -810,6 +810,12 @@ typedef struct st_lex
   */
   TABLE_LIST **query_tables_own_last;
 
+  /*
+    Pointers to part of LOAD DATA statement that should be rewritten
+    during replication ("LOCAL 'filename' REPLACE INTO" part).
+  */
+  uchar *fname_start, *fname_end;
+
   st_lex() :result(0), sql_command(SQLCOM_END), query_tables_own_last(0)
   {
     extern byte *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
