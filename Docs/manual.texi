@@ -39223,7 +39223,7 @@ though, so Version 3.23 is not released as a stable version yet.
 @itemize @bullet
 @item
 Fixed bug when doing a @code{SELECT DISTINCT ... table1 LEFT JOIN
-table2..] when table2 was empty.
+table2..} when table2 was empty.
 @item
 Added @code{--abort-slave-event-count} and
 @code{--disconnect-slave-event-count} options to @code{mysqld} for

@@ -2217,7 +2217,11 @@ enum options {
 	       OPT_SKIP_INNOBASE,OPT_SAFEMALLOC_MEM_LIMIT,
 	       OPT_REPLICATE_DO_TABLE, OPT_REPLICATE_IGNORE_TABLE,
 	       OPT_REPLICATE_WILD_DO_TABLE, OPT_REPLICATE_WILD_IGNORE_TABLE,
-	       OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_ABORT_SLAVE_EVENT_COUNT
+	       OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_ABORT_SLAVE_EVENT_COUNT,
+	       OPT_INNOBASE_DATA_HOME_DIR,OPT_INNOBASE_DATA_FILE_PATH,
+	       OPT_INNOBASE_LOG_GROUP_HOME_DIR,
+	       OPT_INNOBASE_LOG_ARCH_DIR, OPT_INNOBASE_LOG_ARCHIVE,
+	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT
 };
 
 static struct option long_options[] = {
@@ -2253,6 +2257,20 @@ static struct option long_options[] = {
   {"enable-locking",        no_argument,       0, (int) OPT_ENABLE_LOCK},
   {"exit-info",             optional_argument, 0, 'T'},
   {"flush",                 no_argument,       0, (int) OPT_FLUSH},
+#ifdef HAVE_INNOBASE_DB
+  {"innobase_data_home_dir", required_argument, 0,
+     OPT_INNOBASE_DATA_HOME_DIR},
+  {"innobase_data_file_path", required_argument, 0, 
+     OPT_INNOBASE_DATA_FILE_PATH},
+  {"innobase_log_group_home_dir", required_argument, 0,
+    OPT_INNOBASE_LOG_GROUP_HOME_DIR},
+  {"innobase_log_arch_dir", required_argument, 0,
+    OPT_INNOBASE_LOG_ARCH_DIR},
+  {"innobase_log_archive", optional_argument, 0,
+     OPT_INNOBASE_LOG_ARCHIVE},
+  {"innobase_flush_log_at_trx_commit", optional_argument, 0,
+     OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT},
+#endif
   {"help",                  no_argument,       0, '?'},
   {"init-file",             required_argument, 0, (int) OPT_INIT_FILE},
   {"log",                   optional_argument, 0, 'l'},
@@ -2358,6 +2376,26 @@ CHANGEABLE_VAR changeable_vars[] = {
       DELAYED_QUEUE_SIZE, 1, ~0L, 0, 1 },
   { "flush_time",              (long*) &flush_time,
       FLUSH_TIME, 0, ~0L, 0, 1 },
+#ifdef HAVE_INNOBASE_DB
+  {"innobase_mirrored_log_groups",
+   (long*) &innobase_mirrored_log_groups, 1, 1, 10, 0, 1},
+  {"innobase_log_files_in_group", 
+     (long*) &innobase_mirrored_log_groups, 2, 2, 100, 0, 1},
+  {"innobase_log_file_size", 
+     (long*) &innobase_log_file_size, 5*1024*1024L, 1*1024*1024L,
+     ~0L, 0, 1024*1024L},
+  {"innobase_log_buffer_size", 
+     (long*) &innobase_log_buffer_size, 1024*1024L, 256*1024L,
+     ~0L, 0, 1024},
+  {"innobase_buffer_pool_size", 
+     (long*) &innobase_buffer_pool_size, 8*1024*1024L, 1024*1024L,
+     ~0L, 0, 1024*1024L},
+  {"innobase_additional_mem_pool_size_mb",
+   (long*) &innobase_additional_mem_pool_size, 1*1024*1024L, 512*1024L,
+     ~0L, 0, 1024},
+  {"innobase_file_io_threads",
+     (long*) &innobase_file_io_threads, 9, 4, 64, 0, 1},
+#endif
   { "interactive_timeout",     (long*) &net_interactive_timeout,
       NET_WAIT_TIMEOUT, 1, 31*24*60*60, 0, 1 },
   { "join_buffer_size",        (long*) &join_buff_size,
@@ -3193,6 +3231,24 @@ static void get_options(int argc,char **argv)
 #ifdef HAVE_INNOBASE_DB
     case OPT_INNOBASE_SKIP:
       innobase_skip=1;
+      break;
+    case OPT_INNOBASE_DATA_HOME_DIR:
+      innobase_data_home_dir=optarg;
+      break;
+    case OPT_INNOBASE_DATA_FILE_PATH:
+      innobase_data_file_path=optarg;
+      break;
+    case OPT_INNOBASE_LOG_GROUP_HOME_DIR:
+      innobase_log_group_home_dir=optarg;
+      break;
+    case OPT_INNOBASE_LOG_ARCH_DIR:
+      innobase_log_arch_dir=optarg;
+      break;
+    case OPT_INNOBASE_LOG_ARCHIVE:
+      innobase_log_archive= optarg ? test(atoi(optarg)) : 1;
+      break;
+    case OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT:
+      innobase_flush_log_at_trx_commit= optarg ? test(atoi(optarg)) : 1;
       break;
 #endif
     case OPT_MYISAM_RECOVER:
