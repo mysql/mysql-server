@@ -90,10 +90,11 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
 are determined in innobase_init below: */
   
 char*	innobase_data_home_dir			= NULL;
+char*	innobase_data_file_path 		= NULL;
 char*	innobase_log_group_home_dir		= NULL;
 char*	innobase_log_arch_dir			= NULL;
-/* The following has a midleading name: starting from 4.0.5 this also
-affects Windows */
+/* The following has a misleading name: starting from 4.0.5, this also
+affects Windows: */
 char*	innobase_unix_file_flush_method		= NULL;
 
 /* Below we have boolean-valued start-up parameters, and their default
@@ -104,14 +105,7 @@ my_bool innobase_log_archive			= FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
 
-/*
-  Set default InnoDB data file size to 10 MB and let it be
-  auto-extending. Thus users can use InnoDB without having to
-  specify any startup options.
-*/
-
-char *innobase_data_file_path= (char*) "ibdata1:10M:autoextend";
-static char *internal_innobase_data_file_path=0;
+static char *internal_innobase_data_file_path	= NULL;
 
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
@@ -650,22 +644,25 @@ innobase_init(void)
 
   	DBUG_ENTER("innobase_init");
 
-	os_innodb_umask = (ulint)my_umask;
+  	os_innodb_umask = (ulint)my_umask;
 
-	/*
-	  When using the embedded server, the datadirectory is not
-	  in the current directory.
-	*/
-	if (mysql_embedded)
-	  default_path=mysql_real_data_home;
-	else
-	{
-	  /* It's better to use current lib, to keep path's short */
-	  current_dir[0] = FN_CURLIB;
-	  current_dir[1] = FN_LIBCHAR;
-	  current_dir[2] = 0;
-	  default_path=current_dir;
+	/* First calculate the default path for innodb_data_home_dir etc.,
+	in case the user has not given any value.
+
+	Note that when using the embedded server, the datadirectory is not
+	necessarily the current directory of this program. */
+
+	if (mysql_embedded) {
+		default_path = mysql_real_data_home;
+	} else {
+	  	/* It's better to use current lib, to keep paths short */
+	  	current_dir[0] = FN_CURLIB;
+	  	current_dir[1] = FN_LIBCHAR;
+	  	current_dir[2] = 0;
+	  	default_path = current_dir;
 	}
+
+	ut_a(default_path);
 
 	if (specialflag & SPECIAL_NO_PRIOR) {
 	        srv_set_thread_priorities = FALSE;
@@ -673,23 +670,63 @@ innobase_init(void)
 	        srv_set_thread_priorities = TRUE;
 	        srv_query_thread_priority = QUERY_PRIOR;
 	}
+	
+	/* Set InnoDB initialization parameters according to the values
+	read from MySQL .cnf file */
 
-	/*
-	  Set InnoDB initialization parameters according to the values
-	  read from MySQL .cnf file
-	*/
+	/* --------------------------------------------------*/
+	/* Make copies of all string-valued parameters, because after
+	C# calls server_init(), it may move the parameter strings around */
 
-	// Make a copy of innobase_data_file_path to not modify the original
-	internal_innobase_data_file_path=my_strdup(innobase_data_file_path,
-						   MYF(MY_WME));
+	if (innobase_data_home_dir) {
+		innobase_data_home_dir = my_strdup(
+						innobase_data_home_dir,
+						MYF(MY_WME));
+	}
+	if (innobase_data_file_path) {
+		innobase_data_file_path = my_strdup(
+						innobase_data_file_path,
+						MYF(MY_WME));
+	}
+	if (innobase_log_group_home_dir) {
+		innobase_log_group_home_dir = my_strdup(
+						innobase_log_group_home_dir,
+						MYF(MY_WME));
+	}
+	if (innobase_log_arch_dir) {
+		innobase_log_arch_dir = my_strdup(
+						innobase_log_arch_dir,
+						MYF(MY_WME));
+	}
+	if (innobase_unix_file_flush_method) {
+		innobase_unix_file_flush_method = my_strdup(
+					innobase_unix_file_flush_method,
+						MYF(MY_WME));
+	}
+
+	/*--------------- Data files -------------------------*/
+
+	/* The default dir for data files is the datadir of MySQL */
 
 	srv_data_home = (innobase_data_home_dir ? innobase_data_home_dir :
 			 default_path);
-	srv_arch_dir =  (innobase_log_arch_dir ? innobase_log_arch_dir :
-			 default_path);
 
-	ret = (bool)
-		srv_parse_data_file_paths_and_sizes(internal_innobase_data_file_path,
+	/* Set default InnoDB data file size to 10 MB and let it be
+  	auto-extending. Thus users can use InnoDB in >= 4.0 without having
+	to specify any startup options. */
+
+	if (!innobase_data_file_path) {
+  		innobase_data_file_path = (char*) "ibdata1:10M:autoextend";
+	}
+
+	/* Since InnoDB edits the argument in the next call, we make another
+	copy of it: */
+
+	internal_innobase_data_file_path = my_strdup(innobase_data_file_path,
+						   MYF(MY_WME));
+
+	ret = (bool) srv_parse_data_file_paths_and_sizes(
+				internal_innobase_data_file_path,
 				&srv_data_file_names,
 				&srv_data_file_sizes,
 				&srv_data_file_is_raw_partition,
@@ -697,12 +734,26 @@ innobase_init(void)
 				&srv_auto_extend_last_data_file,
 				&srv_last_file_size_max);
 	if (ret == FALSE) {
-	  sql_print_error("InnoDB: syntax error in innodb_data_file_path");
-	  DBUG_RETURN(TRUE);
+	  	sql_print_error(
+			"InnoDB: syntax error in innodb_data_file_path");
+	  	DBUG_RETURN(TRUE);
 	}
 
-	if (!innobase_log_group_home_dir)
-	  innobase_log_group_home_dir= default_path;
+	/* -------------- Log files ---------------------------*/
+
+	/* The default dir for log files is the datadir of MySQL */
+	
+	if (!innobase_log_group_home_dir) {
+	  	innobase_log_group_home_dir = default_path;
+	}
+	  	
+	/* Since innodb_log_arch_dir has no relevance under MySQL,
+	starting from 4.0.6 we always set it the same as
+	innodb_log_group_home_dir: */
+
+	innobase_log_arch_dir = innobase_log_group_home_dir;
+
+	srv_arch_dir = innobase_log_arch_dir;
 
 	ret = (bool)
 		srv_parse_log_group_home_dirs(innobase_log_group_home_dir,
@@ -716,9 +767,9 @@ innobase_init(void)
 		DBUG_RETURN(TRUE);
 	}
 
-	srv_file_flush_method_str = (innobase_unix_file_flush_method ?
-				      innobase_unix_file_flush_method :
-				      NULL);
+	/* --------------------------------------------------*/
+
+	srv_file_flush_method_str = innobase_unix_file_flush_method;
 
 	srv_n_log_groups = (ulint) innobase_mirrored_log_groups;
 	srv_n_log_files = (ulint) innobase_log_files_in_group;
@@ -741,7 +792,9 @@ innobase_init(void)
 	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
+
 	if (strcmp(default_charset_info->name, "latin1") == 0) {
+
 		/* Store the character ordering table to InnoDB.
 		For non-latin1 charsets we use the MySQL comparison
 		functions, and consequently we do not need to know
@@ -4177,3 +4230,4 @@ ha_innobase::get_auto_increment()
 }
 
 #endif /* HAVE_INNOBASE_DB */
+ 
