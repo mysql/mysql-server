@@ -2250,29 +2250,17 @@ void Dbtc::hash(Signal* signal)
       ti += 4;
     }//while
   }//if
-  UintR ThashValue;
-  UintR TdistrHashValue;
-  ThashValue = md5_hash((Uint64*)&Tdata32[0], (UintR)regCachePtr->keylen);
+  Uint32 tmp[4];
+  md5_hash(tmp, (Uint64*)&Tdata32[0], (UintR)regCachePtr->keylen);
 
-  if (regCachePtr->distributionGroupIndicator == 1) {
-    if (regCachePtr->distributionGroupType == 1) {
-      jam();
-      TdistrHashValue = (regCachePtr->distributionGroup << 6);
-    } else {
-      jam();
-      Tdata32[0] = regCachePtr->distributionGroup;
-      TdistrHashValue = md5_hash((Uint64*)&Tdata32[0], (UintR)1);
-    }//if
-  } else if (regCachePtr->distributionKeyIndicator == 1) {
+  thashValue = tmp[0];
+  if (regCachePtr->distributionKeyIndicator == 1) {
     jam();
-    TdistrHashValue = md5_hash((Uint64*)&Tdata32[0], 
-                               (UintR)regCachePtr->distributionKeySize);
+    tdistrHashValue = regCachePtr->distributionKey;
   } else {
     jam();
-    TdistrHashValue = ThashValue;
+    tdistrHashValue = tmp[1];
   }//if
-  thashValue = ThashValue;
-  tdistrHashValue = TdistrHashValue;
 }//Dbtc::hash()
 
 /*
@@ -2666,18 +2654,13 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TSimpleFlag         = tcKeyReq->getSimpleFlag(Treqinfo);
   Uint8 TDirtyFlag          = tcKeyReq->getDirtyFlag(Treqinfo);
   Uint8 TInterpretedFlag    = tcKeyReq->getInterpretedFlag(Treqinfo);
-  Uint8 TDistrGroupFlag     = tcKeyReq->getDistributionGroupFlag(Treqinfo);
-  Uint8 TDistrGroupTypeFlag = tcKeyReq->getDistributionGroupTypeFlag(Treqinfo);
   Uint8 TDistrKeyFlag       = tcKeyReq->getDistributionKeyFlag(Treqinfo);
   Uint8 TexecuteFlag        = TexecFlag;
   
   regCachePtr->opSimple = TSimpleFlag;
   regCachePtr->opExec   = TInterpretedFlag;
   regTcPtr->dirtyOp  = TDirtyFlag;
-
-  regCachePtr->distributionGroupIndicator = TDistrGroupFlag;
-  regCachePtr->distributionGroupType      = TDistrGroupTypeFlag;
-  regCachePtr->distributionKeyIndicator   = TDistrKeyFlag;
+  regCachePtr->distributionKeyIndicator = TDistrKeyFlag;
 
   //-------------------------------------------------------------
   // The next step is to read the upto three conditional words.
@@ -2686,7 +2669,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint32* TOptionalDataPtr = (Uint32*)&tcKeyReq->scanInfo;
   {
     Uint32  TDistrGHIndex    = tcKeyReq->getScanIndFlag(Treqinfo);
-    Uint32  TDistrKeyIndex   = TDistrGHIndex + TDistrGroupFlag;
+    Uint32  TDistrKeyIndex   = TDistrGHIndex;
 
     Uint32 TscanNode = tcKeyReq->getTakeOverScanNode(TOptionalDataPtr[0]);
     Uint32 TscanInfo = tcKeyReq->getTakeOverScanInfo(TOptionalDataPtr[0]);
@@ -2695,8 +2678,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     regCachePtr->scanNode = TscanNode;
     regCachePtr->scanInfo = TscanInfo;
 
-    regCachePtr->distributionGroup   = TOptionalDataPtr[TDistrGHIndex];
-    regCachePtr->distributionKeySize = TOptionalDataPtr[TDistrKeyIndex];
+    regCachePtr->distributionKey = TOptionalDataPtr[TDistrKeyIndex];
 
     TkeyIndex = TDistrKeyIndex + TDistrKeyFlag;
   }
@@ -2957,7 +2939,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   tnoOfBackup = tnodeinfo & 3;
   tnoOfStandby = (tnodeinfo >> 8) & 3;
  
-  regCachePtr->distributionKey = (tnodeinfo >> 16) & 255;
+  regCachePtr->fragmentDistributionKey = (tnodeinfo >> 16) & 255;
   if (Toperation == ZREAD) {
     if (Tdirty == 1) {
       jam();
@@ -3127,7 +3109,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   /* ---------------------------------------------------------------------- */
   // Bit16 == 0 since StoredProcedures are not yet supported.
   /* ---------------------------------------------------------------------- */
-  LqhKeyReq::setDistributionKey(tslrAttrLen, regCachePtr->distributionKey);
+  LqhKeyReq::setDistributionKey(tslrAttrLen, regCachePtr->fragmentDistributionKey);
   LqhKeyReq::setScanTakeOverFlag(tslrAttrLen, regCachePtr->scanTakeOverInd);
 
   Tdata10 = 0;
@@ -11060,7 +11042,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
 {
   jamEntry();
 
-  TcIndxReq * const tcIndxReq =  (TcIndxReq *)signal->getDataPtr();
+  TcKeyReq * const tcIndxReq =  (TcKeyReq *)signal->getDataPtr();
   const UintR TapiIndex = tcIndxReq->apiConnectPtr;
   Uint32 tcIndxRequestInfo = tcIndxReq->requestInfo;
   Uint32 startFlag = tcIndxReq->getStartFlag(tcIndxRequestInfo);
@@ -11111,7 +11093,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
 
   // If operation is readTupleExclusive or updateTuple then read index 
   // table with exclusive lock
-  Uint32 indexLength = TcIndxReq::getIndexLength(tcIndxRequestInfo);
+  Uint32 indexLength = TcKeyReq::getKeyLength(tcIndxRequestInfo);
   Uint32 attrLength = tcIndxReq->attrLen;
   indexOp->expectedKeyInfo = indexLength;
   Uint32 includedIndexLength = MIN(indexLength, indexBufSize);
@@ -11524,7 +11506,7 @@ void Dbtc::execTCKEYREF(Signal* signal)
     // Send TCINDXREF 
     
     jam();
-    TcIndxReq * const tcIndxReq = &indexOp->tcIndxReq;
+    TcKeyReq * const tcIndxReq = &indexOp->tcIndxReq;
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
     
     ndbassert(regApiPtr->noIndexOp);
@@ -11719,7 +11701,7 @@ void Dbtc::readIndexTable(Signal* signal,
     (Operation_t)TcKeyReq::getOperationType(tcKeyRequestInfo);
 
   // Find index table
-  if ((indexData = c_theIndexes.getPtr(indexOp->tcIndxReq.indexId)) == NULL) {
+  if ((indexData = c_theIndexes.getPtr(indexOp->tcIndxReq.tableId)) == NULL) {
     jam();
     // Failed to find index record
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
@@ -11736,7 +11718,7 @@ void Dbtc::readIndexTable(Signal* signal,
   tcKeyReq->transId2 = transId2;
   tcKeyReq->tableId = indexData->indexId;
   tcKeyLength += MIN(keyLength, keyBufSize);
-  tcKeyReq->tableSchemaVersion = indexOp->tcIndxReq.indexSchemaVersion;
+  tcKeyReq->tableSchemaVersion = indexOp->tcIndxReq.tableSchemaVersion;
   TcKeyReq::setOperationType(tcKeyRequestInfo, 
 			     opType == ZREAD ? ZREAD : ZREAD_EX);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 1); // Allways send one AttrInfo
@@ -11828,7 +11810,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
   Uint32 keyBufSize = 8; // Maximum for key in TCKEYREQ
   Uint32 attrBufSize = 5;
   Uint32 dataPos = 0;
-  TcIndxReq * const tcIndxReq = &indexOp->tcIndxReq;
+  TcKeyReq * const tcIndxReq = &indexOp->tcIndxReq;
   TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtrSend();
   Uint32 * dataPtr = &tcKeyReq->scanInfo;
   Uint32 tcKeyLength = TcKeyReq::StaticLength;
@@ -11839,7 +11821,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
   bool moreKeyData = indexOp->transIdAI.first(aiIter);
       
   // Find index table
-  if ((indexData = c_theIndexes.getPtr(tcIndxReq->indexId)) == NULL) {
+  if ((indexData = c_theIndexes.getPtr(tcIndxReq->tableId)) == NULL) {
     jam();
     // Failed to find index record 
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();

@@ -63,12 +63,8 @@ public:
   CHARSET_INFO * m_cs;          // not const in MySQL
   
   bool m_pk;
-  bool m_tupleKey;
   bool m_distributionKey;
-  bool m_distributionGroup;
-  int m_distributionGroupBits;
   bool m_nullable;
-  bool m_indexOnly;
   bool m_autoIncrement;
   Uint64 m_autoIncrementInitialValue;
   BaseString m_defaultValue;

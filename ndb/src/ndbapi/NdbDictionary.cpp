@@ -176,16 +176,6 @@ NdbDictionary::Column::getPrimaryKey() const {
   return m_impl.m_pk;
 }
 
-void
-NdbDictionary::Column::setTupleKey(bool val){
-  m_impl.m_tupleKey = val;
-}
-
-bool 
-NdbDictionary::Column::getTupleKey() const {
-  return m_impl.m_tupleKey;
-}
-
 void 
 NdbDictionary::Column::setDistributionKey(bool val){
   m_impl.m_distributionKey = val;
@@ -194,32 +184,6 @@ NdbDictionary::Column::setDistributionKey(bool val){
 bool 
 NdbDictionary::Column::getDistributionKey() const{
   return m_impl.m_distributionKey;
-}
-
-void
-NdbDictionary::Column::setDistributionGroup(bool val, int bits){
-  m_impl.m_distributionGroup = val;
-  m_impl.m_distributionGroupBits = bits;
-}
-
-bool 
-NdbDictionary::Column::getDistributionGroup() const {
-  return m_impl.m_distributionGroup;
-}
-
-int 
-NdbDictionary::Column::getDistributionGroupBits() const{
-  return m_impl.m_distributionGroupBits;
-}
-
-void 
-NdbDictionary::Column::setIndexOnlyStorage(bool val){
-  m_impl.m_indexOnly = val;
-}
-
-bool 
-NdbDictionary::Column::getIndexOnlyStorage() const {
-  return m_impl.m_indexOnly;
 }
 
 const NdbDictionary::Table * 

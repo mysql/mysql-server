@@ -719,6 +719,12 @@ public:
 
   LockMode getLockMode() const { return theLockMode; }
 
+  /**
+   * Set/get distribution key
+   */
+  void setDistributionKey(Uint32 key);
+  Uint32 getDistributionKey() const;
+
 protected:
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
@@ -893,8 +899,7 @@ protected:
   Uint32         theMagicNumber;  // Magic number to verify that object 
                                    // is correct
   Uint32 theScanInfo;      	   // Scan info bits (take over flag etc)
-  Uint32 theDistrKeySize;         // Distribution Key size if used
-  Uint32 theDistributionGroup;    // Distribution Group if used
+  Uint32 theDistributionKey;       // Distribution Key size if used
 
   Uint32 theSubroutineSize;	   // Size of subroutines for interpretation
   Uint32 theInitialReadSize;	   // Size of initial reads for interpretation
@@ -907,8 +912,6 @@ protected:
   Uint8  theSimpleIndicator;	   // Indicator of whether simple operation
   Uint8  theDirtyIndicator;	   // Indicator of whether dirty operation
   Uint8  theInterpretIndicator;   // Indicator of whether interpreted operation
-  Uint8  theDistrGroupIndicator;  // Indicates whether distribution grp is used
-  Uint8  theDistrGroupType;       // Type of distribution group used
   Uint8  theDistrKeyIndicator;    // Indicates whether distr. key is used
 
   Uint16 m_tcReqGSN;

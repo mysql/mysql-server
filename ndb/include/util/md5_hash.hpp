@@ -20,6 +20,15 @@
 #include <ndb_types.h>
 
 // External declaration of hash function 
-Uint32 md5_hash(const Uint64* keybuf, Uint32 no_of_32_words);
+void md5_hash(Uint32 result[4], const Uint64* keybuf, Uint32 no_of_32_words);
+
+inline
+Uint32
+md5_hash(const Uint64* keybuf, Uint32 no_of_32_words)
+{
+  Uint32 result[4];
+  md5_hash(result, keybuf, no_of_32_words);
+  return result[0];
+}
 
 #endif
