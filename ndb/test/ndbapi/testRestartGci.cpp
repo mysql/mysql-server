@@ -216,3 +216,5 @@ NDBT_TESTSUITE_END(testRestartGci);
 int main(int argc, const char** argv){
   return testRestartGci.execute(argc, argv);
 }
+
+template class Vector<SavedRecord>;

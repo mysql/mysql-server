@@ -1112,16 +1112,24 @@ NetWare. */
 
 	mutex_create(&srv_monitor_file_mutex);
 	mutex_set_level(&srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
-	srv_monitor_file_name = mem_alloc(
-			strlen(fil_path_to_mysql_datadir) +
-			20 + sizeof "/innodb_status.");
-	sprintf(srv_monitor_file_name, "%s/innodb_status.%lu",
-		fil_path_to_mysql_datadir, os_proc_get_number());
-	srv_monitor_file = fopen(srv_monitor_file_name, "w+");
-	if (!srv_monitor_file) {
-		fprintf(stderr, "InnoDB: unable to create %s: %s\n",
-			srv_monitor_file_name, strerror(errno));
-		return(DB_ERROR);
+	if (srv_innodb_status) {
+		srv_monitor_file_name = mem_alloc(
+				strlen(fil_path_to_mysql_datadir) +
+				20 + sizeof "/innodb_status.");
+		sprintf(srv_monitor_file_name, "%s/innodb_status.%lu",
+			fil_path_to_mysql_datadir, os_proc_get_number());
+		srv_monitor_file = fopen(srv_monitor_file_name, "w+");
+		if (!srv_monitor_file) {
+			fprintf(stderr, "InnoDB: unable to create %s: %s\n",
+				srv_monitor_file_name, strerror(errno));
+			return(DB_ERROR);
+		}
+	} else {
+		srv_monitor_file_name = NULL;
+		srv_monitor_file = os_file_create_tmpfile();
+		if (!srv_monitor_file) {
+			return(DB_ERROR);
+		}
 	}
 
 	/* Restrict the maximum number of file i/o threads */
@@ -1177,6 +1185,7 @@ NetWare. */
 
 	for (i = 0; i < srv_n_file_io_threads; i++) {
 		n[i] = i;
+
 		os_thread_create(io_handler_thread, n + i, thread_ids + i);
     	}
 
@@ -1578,9 +1587,10 @@ NetWare. */
 
 		fprintf(stderr,
 "InnoDB: You have now successfully upgraded to the multiple tablespaces\n"
-"InnoDB: format. You should NOT DOWNGRADE again to an earlier version of\n"
-"InnoDB: InnoDB! But if you absolutely need to downgrade, see section 4.6 of\n"
-"InnoDB: http://www.innodb.com/ibman.php for instructions.\n");
+"InnoDB: format. You should NOT DOWNGRADE to an earlier version of\n"
+"InnoDB: InnoDB! But if you absolutely need to downgrade, see\n"
+"InnoDB: http://dev.mysql.com/doc/mysql/en/Multiple_tablespaces.html\n"
+"InnoDB: for instructions.\n");
 	}
 
 	if (srv_force_recovery == 0) {
@@ -1606,7 +1616,9 @@ innobase_shutdown_for_mysql(void)
 				/* out: DB_SUCCESS or error code */
 {
 	ulint   i;
-
+#ifdef __NETWARE__
+	extern ibool panic_shutdown;
+#endif
         if (!srv_was_started) {
 	  	if (srv_is_being_started) {
 	    		ut_print_timestamp(stderr);
@@ -1623,8 +1635,11 @@ innobase_shutdown_for_mysql(void)
 	The step 1 is the real InnoDB shutdown. The remaining steps 2 - ...
 	just free data structures after the shutdown. */
 
+#ifdef __NETWARE__
+	if(!panic_shutdown)
+#endif 
 	logs_empty_and_mark_files_at_shutdown();
-	
+
 	if (srv_conc_n_threads != 0) {
 		fprintf(stderr,
 		"InnoDB: Warning: query counter shows %ld queries still\n"
@@ -1687,15 +1702,16 @@ innobase_shutdown_for_mysql(void)
 	if (srv_monitor_file) {
 		fclose(srv_monitor_file);
 		srv_monitor_file = 0;
-		unlink(srv_monitor_file_name);
-		mem_free(srv_monitor_file_name);
+		if (srv_monitor_file_name) {
+			unlink(srv_monitor_file_name);
+			mem_free(srv_monitor_file_name);
+		}
 	}
-
+	
 	mutex_free(&srv_monitor_file_mutex);
 
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside
 	them */
-
 	sync_close();
 
 	/* 4. Free the os_conc_mutex and all os_events and os_mutexes */
@@ -1706,7 +1722,7 @@ innobase_shutdown_for_mysql(void)
 	/* 5. Free all allocated memory and the os_fast_mutex created in
 	ut0mem.c */
 
-        ut_free_all_mem();
+	ut_free_all_mem();
 
 	if (os_thread_count != 0
 	    || os_event_count != 0
@@ -1736,3 +1752,11 @@ innobase_shutdown_for_mysql(void)
 
 	return((int) DB_SUCCESS);
 }
+
+#ifdef __NETWARE__
+void set_panic_flag_for_netware()
+{
+	extern ibool panic_shutdown;
+	panic_shutdown = TRUE;
+}
+#endif

@@ -30,8 +30,6 @@
 #include <NdbResultSet.hpp>
 
 NdbCursorOperation::NdbCursorOperation(Ndb* aNdb) :
-  NdbOperation(aNdb),
-  m_resultSet(0)
 {
 }
 
@@ -48,10 +46,6 @@ void NdbCursorOperation::cursInit()
 
 NdbResultSet* NdbCursorOperation::getResultSet()
 {
-  if (!m_resultSet)
-    m_resultSet = new NdbResultSet(this);
-
-  return m_resultSet;
 }
 
 

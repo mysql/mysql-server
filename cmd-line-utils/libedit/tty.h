@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.h,v 1.8 2000/09/04 22:06:33 lukem Exp $	*/
+/*	$NetBSD: tty.h,v 1.9 2002/03/18 16:01:01 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -453,16 +453,16 @@
 #define	MD_NN	5
 
 typedef struct {
-	const char *t_name;
-	u_int       t_setmask;
-	u_int       t_clrmask;
+	const char	*t_name;
+	u_int	 t_setmask;
+	u_int	 t_clrmask;
 } ttyperm_t[NN_IO][MD_NN];
 
 typedef unsigned char ttychar_t[NN_IO][C_NCC];
 
 protected int	tty_init(EditLine *);
 protected void	tty_end(EditLine *);
-protected int	tty_stty(EditLine *, int, const char**);
+protected int	tty_stty(EditLine *, int, const char **);
 protected int	tty_rawmode(EditLine *);
 protected int	tty_cookedmode(EditLine *);
 protected int	tty_quotemode(EditLine *);

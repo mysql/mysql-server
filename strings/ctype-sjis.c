@@ -4558,6 +4558,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   my_charpos_mb,
   my_well_formed_len_mb,
   my_lengthsp_8bit,
+  my_numcells_mb,
   my_mb_wc_sjis,	/* mb_wc */
   my_wc_mb_sjis,	/* wc_mb */
   my_caseup_str_8bit,
@@ -4615,7 +4616,7 @@ CHARSET_INFO my_charset_sjis_bin=
     ctype_sjis,
     to_lower_sjis,
     to_upper_sjis,
-    sort_order_sjis,
+    NULL,		/* sort_order   */
     NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */

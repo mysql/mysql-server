@@ -873,6 +873,7 @@ int Dbtup::handleReadReq(Signal* signal,
                          Page* pagePtr)
 {
   Uint32 Ttupheadoffset = regOperPtr->pageOffset;
+  const BlockReference sendBref = regOperPtr->recBlockref;
   if (regTabPtr->checksumIndicator &&
       (calculateChecksum(pagePtr, Ttupheadoffset,
                          regTabPtr->tupheadsize) != 0)) {
@@ -882,14 +883,29 @@ int Dbtup::handleReadReq(Signal* signal,
     return -1;
   }//if
 
+  Uint32 * dst = &signal->theData[25];
+  Uint32 dstLen = (sizeof(signal->theData) / 4) - 25;
+  const Uint32 node = refToNode(sendBref);
+  if(node != 0 && node != getOwnNodeId()) {
+    ;
+  } else {
+    jam();
+    /**
+     * execute direct
+     */
+    dst = &signal->theData[3];
+    dstLen = (sizeof(signal->theData) / 4) - 3;
+  }
+  
   if (regOperPtr->interpretedExec != 1) {
     jam();
+    
     Uint32 TnoOfDataRead = readAttributes(pagePtr,
                                           Ttupheadoffset,
                                           &cinBuffer[0],
                                           regOperPtr->attrinbufLen,
-                                          &coutBuffer[0],
-                                         (Uint32)ZATTR_BUFFER_SIZE);
+                                          dst,
+					  dstLen);
     if (TnoOfDataRead != (Uint32)-1) {
 /* ------------------------------------------------------------------------- */
 // We have read all data into coutBuffer. Now send it to the API.
@@ -1214,11 +1230,8 @@ int Dbtup::interpreterStartLab(Signal* signal,
   Uint32 RattrinbufLen = regOperPtr->attrinbufLen;
   const BlockReference sendBref = regOperPtr->recBlockref;
 
-  Uint32 * dst = &coutBuffer[0];
-  Uint32 dstLen = sizeof(coutBuffer) / 4;
-  Uint32 * tmp = &signal->theData[3];
-  Uint32 tmpLen = (sizeof(signal->theData) / 4) - 3;
-  bool executeDirect = false;
+  Uint32 * dst = &signal->theData[25];
+  Uint32 dstLen = (sizeof(signal->theData) / 4) - 25;
   const Uint32 node = refToNode(sendBref);
   if(node != 0 && node != getOwnNodeId()) {
     ;
@@ -1227,12 +1240,8 @@ int Dbtup::interpreterStartLab(Signal* signal,
     /**
      * execute direct
      */
-    executeDirect = true;
     dst = &signal->theData[3];
     dstLen = (sizeof(signal->theData) / 4) - 3;
-
-    tmp = &coutBuffer[0];
-    tmpLen = sizeof(coutBuffer) / 4;
   }
   
   RtotalLen = RinitReadLen;
@@ -1292,8 +1301,8 @@ int Dbtup::interpreterStartLab(Signal* signal,
 				     RexecRegionLen,
 				     &cinBuffer[RsubPC],
 				     RsubLen,
-				     tmp,
-				     tmpLen);
+				     &coutBuffer[0],
+				     sizeof(coutBuffer) / 4);
       if (TnoDataRW != (Uint32)-1) {
 	RinstructionCounter += RexecRegionLen;
 	RlogSize = TnoDataRW;
@@ -1350,20 +1359,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
     }//if
     regOperPtr->logSize = RlogSize;
     regOperPtr->attroutbufLen = RattroutCounter;
-    if(!executeDirect) {
-      jam();
-      sendReadAttrinfo(signal, RattroutCounter, regOperPtr);
-    } else {
-      jam();
-      Uint32 sig0 = regOperPtr->tcOperationPtr;
-      Uint32 sig1 = regOperPtr->transid1;
-      Uint32 sig2 = regOperPtr->transid2;
-      signal->theData[0] = sig0;
-      signal->theData[1] = sig1;
-      signal->theData[2] = sig2;
-      EXECUTE_DIRECT(refToBlock(sendBref), GSN_TRANSID_AI, signal, 
-		     3 + RattroutCounter);
-    }//if
+    sendReadAttrinfo(signal, RattroutCounter, regOperPtr);
     if (RlogSize > 0) {
       sendLogAttrinfo(signal, RlogSize, regOperPtr);
     }//if
@@ -1445,7 +1441,10 @@ int Dbtup::interpreterNextLab(Signal* signal,
   register Uint32 theRegister;
   Uint32 TdataWritten = 0;
   Uint32 RstackPtr = 0;
-  Uint32 TregMemBuffer[32];
+  union {
+    Uint32 TregMemBuffer[32];
+    Uint64 Tdummy[16];
+  };
   Uint32 TstackMemBuffer[32];
 
   /* ---------------------------------------------------------------- */
@@ -1496,19 +1495,23 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    // word read. Thus we set the register to be a 32 bit register.
 	    /* ------------------------------------------------------------- */
 	    TregMemBuffer[theRegister] = 0x50;
-	    TregMemBuffer[theRegister + 2] = 0;
+            * (Int64*)(TregMemBuffer+theRegister+2) = TregMemBuffer[theRegister+1];
 	  } else if (TnoDataRW == 3) {
 	    /* ------------------------------------------------------------- */
 	    // Three words read means that we get the instruction plus two 
 	    // 32 words read. Thus we set the register to be a 64 bit register.
 	    /* ------------------------------------------------------------- */
 	    TregMemBuffer[theRegister] = 0x60;
+            TregMemBuffer[theRegister+3] = TregMemBuffer[theRegister+2];
+            TregMemBuffer[theRegister+2] = TregMemBuffer[theRegister+1];
 	  } else if (TnoDataRW == 1) {
 	    /* ------------------------------------------------------------- */
 	    // One word read means that we must have read a NULL value. We set
 	    // the register to indicate a NULL value.
 	    /* ------------------------------------------------------------- */
 	    TregMemBuffer[theRegister] = 0;
+	    TregMemBuffer[theRegister + 2] = 0;
+	    TregMemBuffer[theRegister + 3] = 0;
 	  } else if (TnoDataRW == (Uint32)-1) {
 	    jam();
 	    tupkeyErrorLab(signal);
@@ -1550,8 +1553,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 
 	  AttributeHeader& ah = AttributeHeader::init(&TdataForUpdate[0], 
 						      TattrId, TattrNoOfWords);
-	  TdataForUpdate[1] = TregMemBuffer[theRegister + 1];
-	  TdataForUpdate[2] = TregMemBuffer[theRegister + 2];
+	  TdataForUpdate[1] = TregMemBuffer[theRegister + 2];
+	  TdataForUpdate[2] = TregMemBuffer[theRegister + 3];
 	  Tlen = TattrNoOfWords + 1;
 	  if (Toptype == ZUPDATE) {
 	    if (TattrNoOfWords <= 2) {
@@ -1597,24 +1600,22 @@ int Dbtup::interpreterNextLab(Signal* signal,
       case Interpreter::LOAD_CONST16:
 	jam();
 	TregMemBuffer[theRegister] = 0x50;	/* 32 BIT UNSIGNED CONSTANT */
-	TregMemBuffer[theRegister + 1] = theInstruction >> 16;
-	TregMemBuffer[theRegister + 2] = 0;
+	* (Int64*)(TregMemBuffer+theRegister+2) = theInstruction >> 16;
 	break;
 
       case Interpreter::LOAD_CONST32:
 	jam();
 	TregMemBuffer[theRegister] = 0x50;	/* 32 BIT UNSIGNED CONSTANT */
-	TregMemBuffer[theRegister + 1] = TcurrentProgram[TprogramCounter];
-	TregMemBuffer[theRegister + 2] = 0;
+	* (Int64*)(TregMemBuffer+theRegister+2) = * 
+	  (TcurrentProgram+TprogramCounter);
 	TprogramCounter++;
 	break;
 
       case Interpreter::LOAD_CONST64:
 	jam();
 	TregMemBuffer[theRegister] = 0x60;	/* 64 BIT UNSIGNED CONSTANT */
-	TregMemBuffer[theRegister + 1] = TcurrentProgram[TprogramCounter + 0];
-	TregMemBuffer[theRegister + 2] = TcurrentProgram[TprogramCounter + 1];
-	TprogramCounter += 2;
+        TregMemBuffer[theRegister + 2 ] = * (TcurrentProgram + TprogramCounter++);
+        TregMemBuffer[theRegister + 3 ] = * (TcurrentProgram + TprogramCounter++);
 	break;
 
       case Interpreter::ADD_REG_REG:
@@ -1624,27 +1625,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TdestRegister = Interpreter::getReg3(theInstruction) << 2;
 
 	  Uint32 TrightType = TregMemBuffer[TrightRegister];
-	  Uint32 Tright0 = TregMemBuffer[TrightRegister + 1];
-	  Uint32 Tright1 = TregMemBuffer[TrightRegister + 2];
+	  Int64 Tright0 = * (Int64*)(TregMemBuffer + TrightRegister + 2);
+	  
 
 	  Uint32 TleftType = TregMemBuffer[theRegister];
-	  Uint32 Tleft0 = TregMemBuffer[theRegister + 1];
-	  Uint32 Tleft1 = TregMemBuffer[theRegister + 2];
-	  Uint32 Tany64bit = (((TleftType | TrightType) & 0x60) == 0x60);
+	  Int64 Tleft0 = * (Int64*)(TregMemBuffer + theRegister + 2);
          
 	  if ((TleftType | TrightType) != 0) {
-	    Uint32 Tdest0 = Tleft0 + Tright0;
-	    Uint32 Tdest1 = 0;
-	    TregMemBuffer[TdestRegister + 1] = Tdest0;
-	    TregMemBuffer[TdestRegister] = 0x50;
-	    if (Tany64bit) {
-	      TregMemBuffer[TdestRegister] = 0x60;
-	      Tdest1 = Tleft1 + Tright1;
-	      if (Tdest0 < Tleft0) { 
-		Tdest1++;
-	      }
-	    }//if
-	    TregMemBuffer[TdestRegister + 2] = Tdest1;
+	    Uint64 Tdest0 = Tleft0 + Tright0;
+	    * (Int64*)(TregMemBuffer+TdestRegister+2) = Tdest0;
+	    TregMemBuffer[TdestRegister] = 0x60;
 	  } else {
 	    return TUPKEY_abort(signal, 20);
 	  }
@@ -1658,30 +1648,18 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TdestRegister = Interpreter::getReg3(theInstruction) << 2;
 
 	  Uint32 TrightType = TregMemBuffer[TrightRegister];
-	  Uint32 Tright0 = TregMemBuffer[TrightRegister + 1];
-	  Uint32 Tright1 = TregMemBuffer[TrightRegister + 2];
-
+	  Int64 Tright0 = * (Int64*)(TregMemBuffer + TrightRegister + 2);
+	  
 	  Uint32 TleftType = TregMemBuffer[theRegister];
-	  Uint32 Tleft0 = TregMemBuffer[theRegister + 1];
-	  Uint32 Tleft1 = TregMemBuffer[theRegister + 2];
-	  Uint32 Tany64bit = (((TleftType | TrightType) & 0x60) == 0x60);
+	  Int64 Tleft0 = * (Int64*)(TregMemBuffer + theRegister + 2);
          
 	  if ((TleftType | TrightType) != 0) {
-	    Uint32 Tdest0 = Tleft0 - Tright0;
-	    Uint32 Tdest1 = 0;
-	    TregMemBuffer[TdestRegister + 1] = Tdest0;
-	    TregMemBuffer[TdestRegister] = 0x50;
-	    if (Tany64bit) {
-	      TregMemBuffer[TdestRegister] = 0x60;
-	      Tdest1 = Tleft1 - Tright1;
-	      if (Tdest0 > Tleft0) {
-		Tdest1--;
-	      }//if
-	    }//if
-	    TregMemBuffer[TdestRegister + 2] = Tdest1;
+	    Int64 Tdest0 = Tleft0 - Tright0;
+	    * (Int64*)(TregMemBuffer+TdestRegister+2) = Tdest0;
+	    TregMemBuffer[TdestRegister] = 0x60;
 	  } else {
-	    return TUPKEY_abort(signal, 21);
-	  }//if
+	    return TUPKEY_abort(signal, 20);
+	  }
 	  break;
 	}
 
@@ -1715,12 +1693,12 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TrightRegister = Interpreter::getReg2(theInstruction) << 2;
 
 	  Uint32 TleftType = TregMemBuffer[theRegister];
-	  Uint32 Tleft0    = TregMemBuffer[theRegister + 1];
-	  Uint32 Tleft1    = TregMemBuffer[theRegister + 2];
+	  Uint32 Tleft0    = TregMemBuffer[theRegister + 2];
+	  Uint32 Tleft1    = TregMemBuffer[theRegister + 3];
 
 	  Uint32 TrightType = TregMemBuffer[TrightRegister];
-	  Uint32 Tright0 = TregMemBuffer[TrightRegister + 1];
-	  Uint32 Tright1 = TregMemBuffer[TrightRegister + 2];
+	  Uint32 Tright0 = TregMemBuffer[TrightRegister + 2];
+	  Uint32 Tright1 = TregMemBuffer[TrightRegister + 3];
 	  if ((TrightType | TleftType) != 0) {
 	    jam();
 	    if ((Tleft0 == Tright0) && (Tleft1 == Tright1)) {
@@ -1737,12 +1715,12 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TrightRegister = Interpreter::getReg2(theInstruction) << 2;
 
 	  Uint32 TleftType = TregMemBuffer[theRegister];
-	  Uint32 Tleft0    = TregMemBuffer[theRegister + 1];
-	  Uint32 Tleft1    = TregMemBuffer[theRegister + 2];
+	  Uint32 Tleft0    = TregMemBuffer[theRegister + 2];
+	  Uint32 Tleft1    = TregMemBuffer[theRegister + 3];
 
 	  Uint32 TrightType = TregMemBuffer[TrightRegister];
-	  Uint32 Tright0 = TregMemBuffer[TrightRegister + 1];
-	  Uint32 Tright1 = TregMemBuffer[TrightRegister + 2];
+	  Uint32 Tright0 = TregMemBuffer[TrightRegister + 2];
+	  Uint32 Tright1 = TregMemBuffer[TrightRegister + 3];
 	  if ((TrightType | TleftType) != 0) {
 	    jam();
 	    if ((Tleft0 != Tright0) || (Tleft1 != Tright1)) {
@@ -1758,17 +1736,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	{
 	  Uint32 TrightRegister = Interpreter::getReg2(theInstruction) << 2;
 
-	  Uint32 TleftType = TregMemBuffer[theRegister];
-	  Uint32 Tleft0    = TregMemBuffer[theRegister + 1];
-	  Uint32 Tleft1    = TregMemBuffer[theRegister + 2];
-
 	  Uint32 TrightType = TregMemBuffer[TrightRegister];
-	  Uint32 Tright0 = TregMemBuffer[TrightRegister + 1];
-	  Uint32 Tright1 = TregMemBuffer[TrightRegister + 2];
+	  Int64 Tright0 = * (Int64*)(TregMemBuffer + TrightRegister + 2);
+	  
+	  Uint32 TleftType = TregMemBuffer[theRegister];
+	  Int64 Tleft0 = * (Int64*)(TregMemBuffer + theRegister + 2);
+         
+
 	  if ((TrightType | TleftType) != 0) {
 	    jam();
-	    if ((Tleft0 < Tright0) || ((Tleft0 == Tright0) &&
-				       (Tleft1 < Tright1))) {
+	    if (Tleft0 < Tright0) {
 	      TprogramCounter = brancher(theInstruction, TprogramCounter);
 	    }//if
 	  } else {
@@ -1781,17 +1758,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	{
 	  Uint32 TrightRegister = Interpreter::getReg2(theInstruction) << 2;
 
-	  Uint32 TleftType = TregMemBuffer[theRegister];
-	  Uint32 Tleft0    = TregMemBuffer[theRegister + 1];
-	  Uint32 Tleft1    = TregMemBuffer[theRegister + 2];
-
 	  Uint32 TrightType = TregMemBuffer[TrightRegister];
-	  Uint32 Tright0 = TregMemBuffer[TrightRegister + 1];
-	  Uint32 Tright1 = TregMemBuffer[TrightRegister + 2];
+	  Int64 Tright0 = * (Int64*)(TregMemBuffer + TrightRegister + 2);
+	  
+	  Uint32 TleftType = TregMemBuffer[theRegister];
+	  Int64 Tleft0 = * (Int64*)(TregMemBuffer + theRegister + 2);
+	  
+
 	  if ((TrightType | TleftType) != 0) {
 	    jam();
-	    if ((Tleft0 < Tright0) || ((Tleft0 == Tright0) &&
-				       (Tleft1 <= Tright1))) {
+	    if (Tleft0 <= Tright0) {
 	      TprogramCounter = brancher(theInstruction, TprogramCounter);
 	    }//if
 	  } else {
@@ -1804,17 +1780,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	{
 	  Uint32 TrightRegister = Interpreter::getReg2(theInstruction) << 2;
 
-	  Uint32 TleftType = TregMemBuffer[theRegister];
-	  Uint32 Tleft0    = TregMemBuffer[theRegister + 1];
-	  Uint32 Tleft1    = TregMemBuffer[theRegister + 2];
-
 	  Uint32 TrightType = TregMemBuffer[TrightRegister];
-	  Uint32 Tright0 = TregMemBuffer[TrightRegister + 1];
-	  Uint32 Tright1 = TregMemBuffer[TrightRegister + 2];
+	  Int64 Tright0 = * (Int64*)(TregMemBuffer + TrightRegister + 2);
+	  
+	  Uint32 TleftType = TregMemBuffer[theRegister];
+	  Int64 Tleft0 = * (Int64*)(TregMemBuffer + theRegister + 2);
+	  
+
 	  if ((TrightType | TleftType) != 0) {
 	    jam();
-	    if ((Tleft0 > Tright0) || ((Tleft0 == Tright0) &&
-				       (Tleft1 > Tright1))) {
+	    if (Tleft0 > Tright0){
 	      TprogramCounter = brancher(theInstruction, TprogramCounter);
 	    }//if
 	  } else {
@@ -1827,17 +1802,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	{
 	  Uint32 TrightRegister = Interpreter::getReg2(theInstruction) << 2;
 
-	  Uint32 TleftType = TregMemBuffer[theRegister];
-	  Uint32 Tleft0    = TregMemBuffer[theRegister + 1];
-	  Uint32 Tleft1    = TregMemBuffer[theRegister + 2];
-
 	  Uint32 TrightType = TregMemBuffer[TrightRegister];
-	  Uint32 Tright0 = TregMemBuffer[TrightRegister + 1];
-	  Uint32 Tright1 = TregMemBuffer[TrightRegister + 2];
+	  Int64 Tright0 = * (Int64*)(TregMemBuffer + TrightRegister + 2);
+	  
+	  Uint32 TleftType = TregMemBuffer[theRegister];
+	  Int64 Tleft0 = * (Int64*)(TregMemBuffer + theRegister + 2);
+	  
+
 	  if ((TrightType | TleftType) != 0) {
 	    jam();
-	    if ((Tleft0 > Tright0) || ((Tleft0 == Tright0) &&
-				       (Tleft1 >= Tright1))) {
+	    if (Tleft0 >= Tright0){
 	      TprogramCounter = brancher(theInstruction, TprogramCounter);
 	    }//if
 	  } else {

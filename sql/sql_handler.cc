@@ -253,7 +253,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   it++;                                         // Skip first NULL field
 
-  insert_fields(thd, tables, tables->db, tables->alias, &it, 0);
+  insert_fields(thd, tables, tables->db, tables->alias, &it, 0, 0);
 
   select_limit+=offset_limit;
   protocol->send_fields(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);

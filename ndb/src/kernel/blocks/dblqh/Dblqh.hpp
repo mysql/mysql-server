@@ -410,7 +410,6 @@
  */
 class Dblqh: public SimulatedBlock {
 public:
-  
   enum LcpCloseState {
     LCP_IDLE = 0,
     LCP_RUNNING = 1,       // LCP is running
@@ -1990,7 +1989,6 @@ public:
     UintR nextTcLogQueue;
     UintR nextTc;
     UintR nextTcConnectrec;
-    Uint16 nodeAfterNext[2];
     UintR prevHashRec;
     UintR prevLogTcrec;
     UintR prevTc;
@@ -2027,6 +2025,7 @@ public:
     Uint16 nextReplica;
     Uint16 primKeyLen;
     Uint16 save1;
+    Uint16 nodeAfterNext[3];
 
     Uint8 activeCreat;
     Uint8 apiVersionNo;
@@ -2765,6 +2764,11 @@ private:
 /* ------------------------------------------------------------------------- */
   UintR cfirstCompletedFragSr;
 
+  /**
+   * List of fragment that the log execution is completed for
+   */
+  Uint32 c_redo_log_complete_frags;
+  
 /* ------------------------------------------------------------------------- */
 /*USED DURING SYSTEM RESTART, INDICATES THE OLDEST GCI THAT CAN BE RESTARTED */
 /*FROM AFTER THIS SYSTEM RESTART. USED TO FIND THE LOG TAIL.                 */
@@ -2859,8 +2863,9 @@ private:
 /* ------------------------------------------------------------------------- */
   UintR preComputedRequestInfoMask;
   UintR ctransidHash[1024];
-
-
+  
+  Uint32 c_diskless;
+  
 public:
   /**
    *

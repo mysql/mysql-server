@@ -156,3 +156,31 @@ drop table t1;
 select cast(NULL as signed);
 cast(NULL as signed)
 NULL
+create table t1(i int, key(i));
+insert into t1 values(1);
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 values(null);
+explain select * from t1 where i=2 or i is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref_or_null	i	i	5	const	10	Using where; Using index
+select count(*) from t1 where i=2 or i is null;
+count(*)
+10
+alter table t1 change i i int not null;
+Warnings:
+Warning	1265	Data truncated for column 'i' at row 513
+explain select * from t1 where i=2 or i is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	i	i	4	const	8	Using index
+select count(*) from t1 where i=2 or i is null;
+count(*)
+9
+drop table t1;

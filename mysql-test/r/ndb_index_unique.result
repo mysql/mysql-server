@@ -21,6 +21,28 @@ insert into t1 values(7,8,3);
 select * from t1 where b = 4 order by a;
 a	b	c
 3	4	6
+insert into t1 values(8, 2, 3);
+ERROR 23000: Can't write, because of unique constraint, to table 't1'
+select * from t1 order by a;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+7	8	3
+delete from t1 where a = 1;
+insert into t1 values(8, 2, 3);
+select * from t1 order by a;
+a	b	c
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+7	8	3
+8	2	3
 drop table t1;
 CREATE TABLE t2 (
 a int unsigned NOT NULL PRIMARY KEY,
@@ -42,6 +64,28 @@ insert into t2 values(7,8,3);
 select * from t2 where b = 4 order by a;
 a	b	c
 3	4	6
+insert into t2 values(8, 2, 3);
+ERROR 23000: Can't write, because of unique constraint, to table 't2'
+select * from t2 order by a;
+a	b	c
+1	2	3
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+7	8	3
+delete from t2 where a = 1;
+insert into t2 values(8, 2, 3);
+select * from t2 order by a;
+a	b	c
+2	3	5
+3	4	6
+4	5	8
+5	6	2
+6	7	2
+7	8	3
+8	2	3
 drop table t2;
 CREATE TABLE t3 (
 a int unsigned NOT NULL,
@@ -65,6 +109,68 @@ a	b	c
 3	4	6
 drop table t3;
 CREATE TABLE t1 (
+pk int NOT NULL PRIMARY KEY,
+a int unsigned,
+UNIQUE KEY (a)
+) engine=ndbcluster;
+insert into t1 values (-1,NULL), (0,0), (1,NULL),(2,2),(3,NULL),(4,4);
+select * from t1 order by pk;
+pk	a
+-1	NULL
+0	0
+1	NULL
+2	2
+3	NULL
+4	4
+insert into t1 values (5,0);
+ERROR 23000: Can't write, because of unique constraint, to table 't1'
+select * from t1 order by pk;
+pk	a
+-1	NULL
+0	0
+1	NULL
+2	2
+3	NULL
+4	4
+delete from t1 where a = 0;
+insert into t1 values (5,0);
+select * from t1 order by pk;
+pk	a
+-1	NULL
+1	NULL
+2	2
+3	NULL
+4	4
+5	0
+CREATE TABLE t2 (
+pk int NOT NULL PRIMARY KEY,
+a int unsigned,
+b tinyint NOT NULL,
+c VARCHAR(10),
+UNIQUE KEY si(a, c)
+) engine=ndbcluster;
+insert into t2 values (-1,1,17,NULL),(0,NULL,18,NULL),(1,3,19,'abc');
+select * from t2 order by pk;
+pk	a	b	c
+-1	1	17	NULL
+0	NULL	18	NULL
+1	3	19	abc
+insert into t2 values(2,3,19,'abc');
+ERROR 23000: Can't write, because of unique constraint, to table 't2'
+select * from t2 order by pk;
+pk	a	b	c
+-1	1	17	NULL
+0	NULL	18	NULL
+1	3	19	abc
+delete from t2 where c IS NOT NULL;
+insert into t2 values(2,3,19,'abc');
+select * from t2 order by pk;
+pk	a	b	c
+-1	1	17	NULL
+0	NULL	18	NULL
+2	3	19	abc
+drop table t1, t2;
+CREATE TABLE t1 (
 cid smallint(5) unsigned NOT NULL default '0',
 cv varchar(250) NOT NULL default '',
 PRIMARY KEY  (cid),
@@ -74,8 +180,10 @@ INSERT INTO t1 VALUES (8,'dummy');
 CREATE TABLE t2 (
 cid bigint(20) unsigned NOT NULL auto_increment,
 cap varchar(255) NOT NULL default '',
-PRIMARY KEY  (cid)
+PRIMARY KEY  (cid),
+UNIQUE KEY (cid, cap)
 ) engine=ndbcluster;
+INSERT INTO t2 VALUES (NULL,'another dummy');
 CREATE TABLE t3 (
 gid bigint(20) unsigned NOT NULL auto_increment,
 gn varchar(255) NOT NULL default '',
@@ -132,6 +240,9 @@ cid	cv
 8	dummy
 select * from t1 where cv = 'test';
 cid	cv
+select * from t2 where cap = 'another dummy';
+cid	cap
+0	another dummy
 select * from t4 where uid = 1 and gid=1 and rid=2 and cid=4;
 uid	gid	rid	cid
 1	1	2	4

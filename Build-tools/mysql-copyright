@@ -101,6 +101,7 @@ sub main
     # on the toplevel of the directory instead. file 'PUBLIC' shouldn't
     # exist in the new mysql distributions, but let's be sure..
     unlink("$destdir/PUBLIC", "$destdir/README");
+    unlink("$destdir/COPYING", "$destdir/EXCEPTIONS-CLIENT");
     copy("$WD/Docs/MySQLEULA.txt", "$destdir");
 
     # remove readline, bdb subdirs and update 'configure'
@@ -114,6 +115,9 @@ sub main
     # fix file copyrights
     &fix_usage_copyright();
     &add_copyright();
+   
+    # fix LICENSE tag in include/mysql_version.h
+    &fix_mysql_version();
     
     # rename the directory with new distribution name
     chdir("$WD/$dir");
@@ -141,6 +145,28 @@ sub main
 }  
 
 ####
+#### This function will s/GPL/Commercial/ in include/mysql_version.h for the
+#### LICENSE tag.
+####
+sub fix_mysql_version
+{
+  chdir("$destdir");
+  my $header_file= (-f 'include/mysql_version.h.in')? 'include/mysql_version.h.in' : 'include/mysql_version.h';
+
+  open(MYSQL_VERSION,"<$header_file") or die "Unable to open $header_file for read: $!\n";
+  undef $/;
+  my $mysql_version= <MYSQL_VERSION>;
+  close(MYSQL_VERSION);
+
+  $mysql_version=~ s/\#define LICENSE[\s\t]+GPL/#define LICENSE Commercial/;
+
+  open(MYSQL_VERSION,">$header_file") or die "Unable to open $header_file for write: $!\n";
+  print MYSQL_VERSION $mysql_version;
+  close(MYSQL_VERSION);
+  chdir("$cwd");
+}
+
+####
 #### This function will remove unwanted parts of a src tree for the mysqlcom
 #### distributions.
 ####
@@ -150,11 +176,7 @@ sub trim_the_fat
         my $cwd= getcwd();
 
         system("rm -rf $destdir/${the_fat}");
-        if ($win_flag)
-        {
-                chdir("$destdir") or die "Unable to change directory to $destdir!: $!\n";
-        }
-        else
+        if (!$win_flag)
         {
                 chdir("$destdir");
                 unlink ("configure") or die "Can't delete $destdir/configure: $!\n";
@@ -182,7 +204,7 @@ sub trim_the_fat
                 open(CONFIGURE,">configure.in") or die "Unable to open configure.in for write: $!\n";
                 print CONFIGURE $configure;
                 close(CONFIGURE);
-                `autoconf`;
+                `aclocal && autoheader && aclocal && automake && autoconf`;
                 die "'./configure' was not produced!" unless (-f "configure");
                 chdir("$cwd");
         }

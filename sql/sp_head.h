@@ -28,6 +28,7 @@
 // in the CREATE TABLE command.
 #define TYPE_ENUM_FUNCTION  1
 #define TYPE_ENUM_PROCEDURE 2
+#define TYPE_ENUM_TRIGGER   3
 
 Item_result
 sp_map_result_type(enum enum_field_types type);
@@ -377,6 +378,72 @@ private:
 }; // class sp_instr_set : public sp_instr
 
 
+/*
+  Set user variable instruction.
+  Used in functions and triggers to set user variables because we don't
+  want use sp_instr_stmt + "SET @a:=..." statement in this case since
+  latter will close all tables and thus will ruin execution of statement
+  calling/invoking this function/trigger.
+*/
+class sp_instr_set_user_var : public sp_instr
+{
+  sp_instr_set_user_var(const sp_instr_set_user_var &);
+  void operator=(sp_instr_set_user_var &);
+
+public:
+
+  sp_instr_set_user_var(uint ip, sp_pcontext *ctx, LEX_STRING var, Item *val)
+    : sp_instr(ip, ctx), m_set_var_item(var, val)
+  {}
+
+  virtual ~sp_instr_set_user_var()
+  {}
+
+  virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
+
+private:
+
+  Item_func_set_user_var m_set_var_item;
+}; // class sp_instr_set_user_var : public sp_instr
+
+
+/*
+  Set NEW/OLD row field value instruction. Used in triggers.
+*/
+class sp_instr_set_trigger_field : public sp_instr
+{
+  sp_instr_set_trigger_field(const sp_instr_set_trigger_field &);
+  void operator=(sp_instr_set_trigger_field &);
+
+public:
+
+  sp_instr_set_trigger_field(uint ip, sp_pcontext *ctx,
+                             LEX_STRING field_name, Item *val)
+    : sp_instr(ip, ctx),
+      trigger_field(Item_trigger_field::NEW_ROW, field_name.str),
+      value(val)
+  {}
+
+  virtual ~sp_instr_set_trigger_field()
+  {}
+
+  virtual int execute(THD *thd, uint *nextp);
+
+  virtual void print(String *str);
+
+  bool setup_field(THD *thd, TABLE *table, enum trg_event_type event)
+  {
+    return trigger_field.setup_field(thd, table, event);
+  }
+private:
+
+  Item_trigger_field trigger_field;
+  Item *value;
+}; // class sp_instr_trigger_field : public sp_instr
+
+
 class sp_instr_jump : public sp_instr
 {
   sp_instr_jump(const sp_instr_jump &);	/* Prevent use of these */
@@ -610,7 +677,7 @@ private:
 }; // class sp_instr_hpop : public sp_instr
 
 
-class sp_instr_hreturn : public sp_instr
+class sp_instr_hreturn : public sp_instr_jump
 {
   sp_instr_hreturn(const sp_instr_hreturn &);	/* Prevent use of these */
   void operator=(sp_instr_hreturn &);
@@ -618,7 +685,7 @@ class sp_instr_hreturn : public sp_instr
 public:
 
   sp_instr_hreturn(uint ip, sp_pcontext *ctx, uint fp)
-    : sp_instr(ip, ctx), m_frame(fp)
+    : sp_instr_jump(ip, ctx), m_frame(fp)
   {}
 
   virtual ~sp_instr_hreturn()
@@ -628,11 +695,7 @@ public:
 
   virtual void print(String *str);
 
-  virtual uint opt_mark(sp_head *sp)
-  {
-    marked= 1;
-    return UINT_MAX;
-  }
+  virtual uint opt_mark(sp_head *sp);
 
 private:
 

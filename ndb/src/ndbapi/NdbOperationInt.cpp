@@ -33,6 +33,7 @@ Adjust:  991029  UABRONM   First version.
 #include "NdbRecAttr.hpp"
 #include "NdbUtil.hpp"
 #include "Interpreter.hpp"
+#include <NdbIndexScanOperation.hpp>
 
 #ifdef VM_TRACE
 #include <NdbEnv.h>
@@ -42,6 +43,31 @@ Adjust:  991029  UABRONM   First version.
 #else
 #define INT_DEBUG(x)
 #endif
+
+void
+NdbOperation::initInterpreter(){
+  theFirstLabel = NULL;
+  theLastLabel = NULL;
+  theFirstBranch = NULL;
+  theLastBranch = NULL;
+  
+  theFirstCall = NULL;
+  theLastCall = NULL;
+  theFirstSubroutine = NULL;
+  theLastSubroutine = NULL;
+  
+  theNoOfLabels = 0;
+  theNoOfSubroutines = 0;
+  
+  theSubroutineSize = 0;
+  theInitialReadSize = 0;
+  theInterpretedSize = 0;
+  theFinalUpdateSize = 0;
+  theFinalReadSize = 0;
+  theInterpretIndicator = 1;
+
+  theTotalCurrAI_Len = 5;
+}
 
 int
 NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
@@ -191,7 +217,7 @@ NdbOperation::initial_interpreterCheck()
 {
   if ((theInterpretIndicator == 1)) {
     if (theStatus == SetBound) {
-      saveBoundATTRINFO();
+      ((NdbIndexScanOperation*)this)->saveBoundATTRINFO();
       theStatus = GetValue;
     }
     if (theStatus == ExecInterpretedValue) {
@@ -382,9 +408,7 @@ NdbOperation::incValue(const NdbColumnImpl* tNdbColumnImpl, Uint64 aValue)
 // Load aValue into register 7
   if (insertATTRINFO( Interpreter::LoadConst64(7)) == -1)
     goto incValue_error1;
-  if (insertATTRINFO((Uint32)(aValue >> 32)) == -1)
-    goto incValue_error1;
-  if (insertATTRINFO(Uint32(aValue & 0xFFFFFFFF)) == -1)
+  if (insertATTRINFOloop((Uint32*)&aValue, 2) == -1)
     goto incValue_error1;
   // Add register 6 and 7 and put result in register 7
   if (insertATTRINFO( Interpreter::Add(7, 6, 7)) == -1)
@@ -425,9 +449,7 @@ NdbOperation::subValue(const NdbColumnImpl* tNdbColumnImpl, Uint64 aValue)
 // Load aValue into register 7
   if (insertATTRINFO( Interpreter::LoadConst64(7)) == -1)
     goto subValue_error1;
-  if (insertATTRINFO((Uint32)(aValue >> 32)) == -1)
-    goto subValue_error1;
-  if (insertATTRINFO(Uint32(aValue & 0xFFFFFFFF)) == -1)
+  if (insertATTRINFOloop((Uint32*)&aValue, 2) == -1)
     goto subValue_error1;
 // Subtract register 6 and 7 and put result in register 7
   if (insertATTRINFO( Interpreter::Sub(7, 6, 7)) == -1)
@@ -664,8 +686,6 @@ int
 NdbOperation::load_const_u64(Uint32 RegDest, Uint64 Constant)
 {
   INT_DEBUG(("load_const_u64 %u %llu", RegDest, Constant));
-  Uint32 tTemp1;
-  Uint32 tTemp2;
   if (initial_interpreterCheck() == -1)
     return -1;
   if (RegDest >= 8)
@@ -673,15 +693,11 @@ NdbOperation::load_const_u64(Uint32 RegDest, Uint64 Constant)
     setErrorCodeAbort(4229);
     return -1;
   }
-  tTemp1 = (Uint32)(Constant & 0xFFFFFFFF);
-  tTemp2 = (Uint32)(Constant >> 32);
-
+  
   // 64 bit value
   if (insertATTRINFO( Interpreter::LoadConst64(RegDest)) == -1)
     return -1;
-  if (insertATTRINFO(tTemp1) == -1)
-    return -1;
-  if (insertATTRINFO(tTemp2) == -1)
+  if (insertATTRINFOloop((Uint32*)&Constant, 2) == -1)
     return -1;
   theErrorLine++;
   return 0;

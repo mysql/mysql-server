@@ -23,6 +23,8 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "sql_select.h"
+#include "sp_head.h"
+#include "sql_trigger.h"
 
 static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
 
@@ -354,6 +356,10 @@ int mysql_update(THD *thd,
       if (fill_record(fields,values, 0) || thd->net.report_error)
 	break; /* purecov: inspected */
       found++;
+
+      if (table->triggers)
+        table->triggers->process_triggers(thd, TRG_EVENT_UPDATE, TRG_ACTION_BEFORE);
+
       if (compare_record(table, query_id))
       {
 	if (!(error=table->file->update_row((byte*) table->record[1],
@@ -369,6 +375,10 @@ int mysql_update(THD *thd,
 	  break;
 	}
       }
+
+      if (table->triggers)
+        table->triggers->process_triggers(thd, TRG_EVENT_UPDATE, TRG_ACTION_AFTER);
+
       if (!--limit && using_limit)
       {
 	error= -1;				// Simulate end of file
@@ -496,8 +506,7 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(-1);
 
   /* Check that we are not using table that we are updating in a sub select */
-  if (find_table_in_global_list(table_list->next_global, 
-			      table_list->db, table_list->real_name))
+  if (unique_table(table_list, table_list->next_independent()))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
@@ -788,7 +797,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   {
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) && 
-	find_table_in_global_list(update_tables, table_ref->db,
+	find_table_in_local_list(update_tables, table_ref->db,
 				table_ref->real_name))
       table->no_cache= 1;			// Disable row cache
   }

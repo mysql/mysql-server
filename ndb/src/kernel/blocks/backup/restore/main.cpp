@@ -250,8 +250,8 @@ main(int argc, const char** argv)
     return -1;
   }
 
-
-  for(Uint32 i= 0; i < g_consumers.size(); i++)
+  Uint32 i;
+  for(i= 0; i < g_consumers.size(); i++)
   {
     if (!g_consumers[i]->init())
     {
@@ -261,7 +261,7 @@ main(int argc, const char** argv)
 
   }
 
-  for(Uint32 i = 0; i<metaData.getNoOfTables(); i++)
+  for(i = 0; i<metaData.getNoOfTables(); i++)
   {
     if (checkSysTable(metaData[i]->getTableName()))
     {
@@ -345,7 +345,7 @@ main(int argc, const char** argv)
 	  return -1;
 	}
 	logIter.validateFooter(); //not implemented
-	for (Uint32 i= 0; i < g_consumers.size(); i++)
+	for (i= 0; i < g_consumers.size(); i++)
 	  g_consumers[i]->endOfLogEntrys();
       }
   }
@@ -353,3 +353,4 @@ main(int argc, const char** argv)
   return 1;
 } // main
 
+template class Vector<BackupConsumer*>;

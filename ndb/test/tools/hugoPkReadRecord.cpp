@@ -43,7 +43,7 @@ int main(int argc, const char** argv)
   };
 
   int num_args = sizeof(args) / sizeof(args[0]);
-  int optind = 0;
+  int optind = 0, i;
 
   if(getarg(args, num_args, argc, argv, &optind) || argv[optind] == NULL) {
     arg_printusage(args, num_args, argv[0], "table name\n");
@@ -80,7 +80,7 @@ int main(int argc, const char** argv)
     }
     op->readTuple();
     NdbRecAttr** data = new NdbRecAttr*[table->getNoOfColumns()];
-    for (int i = 0; i < table->getNoOfColumns(); i++)
+    for (i = 0; i < table->getNoOfColumns(); i++)
     {
       const NdbDictionary::Column* c = table->getColumn(i);
       if (c->getPrimaryKey())
@@ -93,11 +93,10 @@ int main(int argc, const char** argv)
 	data[i] = op->getValue(c->getName(), NULL);
       }      
     }
-
     if (conn->execute(Commit) == 0)
     {
       // Print column names
-      for (int i = 0; i < table->getNoOfColumns(); i++)
+      for (i = 0; i < table->getNoOfColumns(); i++)
       {
 	const NdbDictionary::Column* c = table->getColumn(i);
 	
@@ -111,7 +110,7 @@ int main(int argc, const char** argv)
       {
 	g_info << hex;
       }
-      for (int i = 0; i < table->getNoOfColumns(); i++)
+      for (i = 0; i < table->getNoOfColumns(); i++)
       {
 	NdbRecAttr* a = data[i];
 	switch(a->getType())

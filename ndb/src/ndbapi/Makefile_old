@@ -34,31 +34,24 @@ SOURCES = \
         Ndblist.cpp     \
         Ndbif.cpp       \
         Ndbinit.cpp     \
-        Ndberr.cpp    \
-        ndberror.c    \
-        NdbErrorOut.cpp    \
-        NdbConnection.cpp       \
+        ndberror.c Ndberr.cpp NdbErrorOut.cpp   \
+        NdbConnection.cpp \
         NdbConnectionScan.cpp \
         NdbOperation.cpp        \
         NdbOperationSearch.cpp  \
-        NdbOperationScan.cpp    \
         NdbOperationInt.cpp     \
         NdbOperationDefine.cpp  \
         NdbOperationExec.cpp    \
-        NdbScanReceiver.cpp     \
         NdbResultSet.cpp        \
-        NdbCursorOperation.cpp  \
         NdbScanOperation.cpp    NdbScanFilter.cpp \
         NdbIndexOperation.cpp   \
         NdbEventOperation.cpp   \
         NdbEventOperationImpl.cpp   \
         NdbApiSignal.cpp        \
         NdbRecAttr.cpp  \
-        NdbSchemaCon.cpp        \
-        NdbSchemaOp.cpp \
         NdbUtil.cpp \
         NdbReceiver.cpp \
-        NdbDictionary.cpp NdbDictionaryImpl.cpp DictCache.cpp \
+        NdbDictionary.cpp NdbDictionaryImpl.cpp DictCache.cpp
 	NdbBlob.cpp
 
 include $(NDB_TOP)/Epilogue.mk

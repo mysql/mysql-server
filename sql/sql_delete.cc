@@ -26,6 +26,8 @@
 #include "mysql_priv.h"
 #include "ha_innodb.h"
 #include "sql_select.h"
+#include "sp_head.h"
+#include "sql_trigger.h"
 
 int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
                  ha_rows limit, ulong options)
@@ -160,6 +162,11 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
     // thd->net.report_error is tested to disallow delete row on error
     if (!(select && select->skip_record())&& !thd->net.report_error )
     {
+
+      if (table->triggers)
+        table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                          TRG_ACTION_BEFORE);
+
       if (!(error=table->file->delete_row(table->record[0])))
       {
 	deleted++;
@@ -183,6 +190,10 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
  	error= 1;
 	break;
       }
+
+      if (table->triggers)
+        table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                          TRG_ACTION_AFTER);
     }
     else
       table->file->unlock_row();  // Row failed selection, release lock on it
@@ -282,8 +293,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
     DBUG_RETURN(-1);
   }
-  if (find_table_in_global_list(table_list->next_global,
-			      table_list->db, table_list->real_name))
+  if (unique_table(table_list, table_list->next_independent()))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
@@ -693,17 +703,13 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   int error;
   DBUG_ENTER("mysql_truncate");
 
+  bzero((char*) &create_info,sizeof(create_info));
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table_ptr=find_temporary_table(thd,table_list->db,
 						       table_list->real_name)))
   {
     TABLE *table= *table_ptr;
-    HA_CREATE_INFO create_info;
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
-    bzero((char*) &create_info,sizeof(create_info));
-    create_info.auto_increment_value=  table->file->auto_increment_value;
-    create_info.default_table_charset= table->table_charset;
-
     db_type table_type=table->db_type;
     strmov(path,table->path);
     *table_ptr= table->next;			// Unlink table from list
@@ -744,8 +750,6 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     if (lock_and_wait_for_table_name(thd, table_list))
       DBUG_RETURN(-1);
   }
-
-  bzero((char*) &create_info,sizeof(create_info));
 
   *fn_ext(path)=0;				// Remove the .frm extension
   error= ha_create_table(path,&create_info,1) ? -1 : 0;

@@ -34,6 +34,7 @@
 #include "NdbUtil.hpp"
 #include "NdbOut.hpp"
 #include "NdbImpl.hpp"
+#include <NdbIndexScanOperation.hpp>
 #include "NdbBlob.hpp"
 
 #include <Interpreter.hpp>
@@ -262,30 +263,10 @@ NdbOperation::interpretedUpdateTuple()
     theStatus = OperationDefined;
     tNdbCon->theSimpleState = 0;
     theOperationType = UpdateRequest;
-    theInterpretIndicator = 1;
     theAI_LenInCurrAI = 25;
 
     theErrorLine = tErrorLine++;
-    theTotalCurrAI_Len = 5;
-    theSubroutineSize = 0;
-    theInitialReadSize = 0;
-    theInterpretedSize = 0;
-    theFinalUpdateSize = 0;
-    theFinalReadSize = 0;
-
-    theFirstLabel = NULL;
-    theLastLabel = NULL;
-    theFirstBranch = NULL;
-    theLastBranch = NULL;
-  
-    theFirstCall = NULL;
-    theLastCall = NULL;
-    theFirstSubroutine = NULL;
-    theLastSubroutine = NULL;
-
-    theNoOfLabels         = 0;
-    theNoOfSubroutines    = 0;
-
+    initInterpreter();
     return 0;
   } else {
     setErrorCode(4200);
@@ -305,30 +286,11 @@ NdbOperation::interpretedDeleteTuple()
     theStatus = OperationDefined;
     tNdbCon->theSimpleState = 0;
     theOperationType = DeleteRequest;
-    theInterpretIndicator = 1;
 
     theErrorLine = tErrorLine++;
     theAI_LenInCurrAI = 25;
-    theTotalCurrAI_Len = 5;
-    theSubroutineSize = 0;
-    theInitialReadSize = 0;
-    theInterpretedSize = 0;
-    theFinalUpdateSize = 0;
-    theFinalReadSize = 0;
 
-    theFirstLabel = NULL;
-    theLastLabel = NULL;
-    theFirstBranch = NULL;
-    theLastBranch = NULL;
-  
-    theFirstCall = NULL;
-    theLastCall = NULL;
-    theFirstSubroutine = NULL;
-    theLastSubroutine = NULL;
-
-    theNoOfLabels         = 0;
-    theNoOfSubroutines    = 0;
-
+    initInterpreter();
     return 0;
   } else {
     setErrorCode(4200);
@@ -348,14 +310,14 @@ NdbOperation::interpretedDeleteTuple()
  * Remark:        Define an attribute to retrieve in query.
  *****************************************************************************/
 NdbRecAttr*
-NdbOperation::getValue(const NdbColumnImpl* tAttrInfo, char* aValue)
+NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 {
   NdbRecAttr* tRecAttr;
   if ((tAttrInfo != NULL) &&
       (!tAttrInfo->m_indexOnly) && 
       (theStatus != Init)){
     if (theStatus == SetBound) {
-      saveBoundATTRINFO();
+      ((NdbIndexScanOperation*)this)->saveBoundATTRINFO();
       theStatus = GetValue;
     }
     if (theStatus != GetValue) {
@@ -387,33 +349,15 @@ NdbOperation::getValue(const NdbColumnImpl* tAttrInfo, char* aValue)
       // Insert Attribute Id into ATTRINFO part. 
       
       /************************************************************************
-       *	Get a Receive Attribute object and link it into the operation object.
-       ************************************************************************/
-      tRecAttr = theNdb->getRecAttr();
-      if (tRecAttr != NULL) {
-	if (theFirstRecAttr == NULL)
-	  theFirstRecAttr = tRecAttr;
-	else
-	  theCurrentRecAttr->next(tRecAttr);
-	theCurrentRecAttr = tRecAttr;
-	tRecAttr->next(NULL);
-	
-	/**********************************************************************
-	 * Now set the attribute identity and the pointer to the data in 
-	 * the RecAttr object
-	 * Also set attribute size, array size and attribute type
-	 ********************************************************************/
-	if (tRecAttr->setup(tAttrInfo, aValue) == 0) {
-	  theErrorLine++;
-	  return tRecAttr;
-	} else {
-	  setErrorCodeAbort(4000);
-	  return NULL;
-	}
-      } else {
+       * Get a Receive Attribute object and link it into the operation object.
+       ***********************************************************************/
+      if((tRecAttr = theReceiver.getValue(tAttrInfo, aValue)) != 0){
+	theErrorLine++;
+	return tRecAttr;
+      } else {  
 	setErrorCodeAbort(4000);
 	return NULL;
-      }//if getRecAttr failure
+      }
     } else {
       return NULL;
     }//if insertATTRINFO failure
@@ -630,47 +574,6 @@ NdbOperation::getBlobHandle(NdbConnection* aCon, const NdbColumnImpl* tAttrInfo)
   tBlob->theNext = NULL;
   theNdbCon->theBlobFlag = true;
   return tBlob;
-}
-
-/*
- * Define bound on index column in range scan.
- */
-int
-NdbOperation::setBound(const NdbColumnImpl* tAttrInfo, int type, const void* aValue, Uint32 len)
-{
-  if (theOperationType == OpenRangeScanRequest &&
-      theStatus == SetBound &&
-      (0 <= type && type <= 4) &&
-      aValue != NULL &&
-      len <= 8000) {
-    // bound type
-    insertATTRINFO(type);
-    // attribute header
-    Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
-    if (len != sizeInBytes && (len != 0)) {
-      setErrorCodeAbort(4209);
-      return -1;
-    }
-    len = sizeInBytes;
-    Uint32 tIndexAttrId = tAttrInfo->m_attrId;
-    Uint32 sizeInWords = (len + 3) / 4;
-    AttributeHeader ah(tIndexAttrId, sizeInWords);
-    insertATTRINFO(ah.m_value);
-    // attribute data
-    if ((UintPtr(aValue) & 0x3) == 0 && (len & 0x3) == 0)
-      insertATTRINFOloop((const Uint32*)aValue, sizeInWords);
-    else {
-      Uint32 temp[2000];
-      memcpy(temp, aValue, len);
-      while ((len & 0x3) != 0)
-        ((char*)temp)[len++] = 0;
-      insertATTRINFOloop(temp, sizeInWords);
-    }
-    return 0;
-  } else {
-    setErrorCodeAbort(4228);    // XXX wrong code
-    return -1;
-  }
 }
 
 /****************************************************************************

@@ -19,9 +19,9 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-/* mysql standard class memoryallocator */
+/* mysql standard class memory allocator */
 
-#ifdef PEDANTIC_SAFEMALLOC
+#ifdef SAFEMALLOC
 #define TRASH(XX,YY) bfill((XX), (YY), 0x8F)
 #else
 #define TRASH(XX,YY) /* no-op */
