@@ -1158,6 +1158,9 @@ buf_page_init(
 
 	block->n_hash_helps	= 0;
 	block->is_hashed	= FALSE;
+	block->n_fields         = 1;
+	block->n_bytes          = 0;
+	block->side             = BTR_SEARCH_LEFT_SIDE;
 
 	block->file_page_was_freed = FALSE;
 }
