@@ -1718,7 +1718,7 @@ int parse_args(int argc, char **argv)
     {
       switch(c)	{
       case '#':
-	DBUG_PUSH(optarg ? optarg : "d:t:i:O,/tmp/mysqltest.trace");
+	DBUG_PUSH(optarg ? optarg : "d:t:S:i:O,/tmp/mysqltest.trace");
 	break;
       case 'v':
 	verbose = 1;
@@ -1952,8 +1952,14 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       {
 	if ((q->expected_errno[i] == mysql_errno(mysql)))
 	{
-	  dynstr_append(ds,mysql_error(mysql));
-	  dynstr_append_mem(ds,"\n",1);
+	  if (i == 0 && q->expected_errno[1] == 0)
+	  {
+	    /* Only log error if there is one possible error */
+	    dynstr_append(ds,mysql_error(mysql));
+	    dynstr_append_mem(ds,"\n",1);
+	  }
+	  else
+	    dynstr_append(ds,"Got one of the listed errors\n");
 	  goto end;				/* Ok */
 	}
       }
@@ -2153,8 +2159,6 @@ int main(int argc, char** argv)
   struct st_query* q;
   my_bool require_file=0, q_send_flag=0;
   char save_file[FN_REFLEN];
-  mysql_server_init(sizeof(embedded_server_args) / sizeof(char *) - 1,
-		    embedded_server_args, embedded_server_groups);
   MY_INIT(argv[0]);
   {
   DBUG_ENTER("main");

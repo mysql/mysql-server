@@ -27,21 +27,13 @@ create table t1 (a int not null,b text) type=heap;
 The used table type doesn't support BLOB/TEXT columns
 create table t1 (a int ,primary key(a)) type=heap;
 All parts of a PRIMARY KEY must be NOT NULL;  If you need NULL in a key, use UNIQUE instead
-create table t1 (a int,b text, index(a)) type=isam;
-Column 'a' is used with UNIQUE or INDEX but is not defined as NOT NULL
-create table t1 (a int,b text, index(b)) type=isam;
-BLOB column 'b' can't be used in key specification with the used table type
 drop table if exists t1;
-create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=isam;
-Incorrect table definition; There can only be one auto column and it must be defined as a key
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
 The used table type doesn't support AUTO_INCREMENT columns
 create table t1 (ordid int(8), primary key (ordid));
 All parts of a PRIMARY KEY must be NOT NULL;  If you need NULL in a key, use UNIQUE instead
-create table t1 (ordid int(8), unique (ordid)) type=isam;
-Column 'ordid' is used with UNIQUE or INDEX but is not defined as NOT NULL
 create table not_existing_database.test (a int);
-Can't create/write to file './not_existing_database/test.frm' (Errcode: 2)
+Got one of the listed errors
 create table `a/a` (a int);
 Incorrect table name 'a/a'
 create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);

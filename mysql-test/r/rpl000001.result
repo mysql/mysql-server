@@ -37,8 +37,8 @@ create table t1(n int);
 create table t2(id int);
 insert into t2 values(connection_id());
 create temporary table t1_temp(n int);
-insert into t1_temp select get_lock('crash_lock', 1) from t2;
- update t1 set n = n + get_lock('crash_lock', 2);
+insert into t1_temp select get_lock('crash_lock%20C', 1) from t2;
+ update t1 set n = n + get_lock('crash_lock%20C', 2);
 select (@id := id) - id from t2;
 (@id := id) - id
 0

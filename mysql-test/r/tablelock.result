@@ -1,3 +1,4 @@
+drop table if exists t1,t2;
 create table t1 ( n int auto_increment primary key);
 lock tables t1 write;
 insert into t1 values(NULL);
@@ -39,11 +40,9 @@ drop table t1;
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int);
 lock tables t1 write,t1 as b write, t2 write, t2 as c read;
-drop table t1;
-drop table t2;
+drop table t1,t2;
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int);
 lock tables t1 write,t1 as b write, t2 write, t2 as c read;
-drop table t2;
-drop table t1;
+drop table t2,t1;
 unlock tables;

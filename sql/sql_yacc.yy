@@ -3150,8 +3150,8 @@ set_isolation:
         }
 	| SESSION_SYM tx_isolation
 	{
-	 LEX *lex=Lex;
-	 lex->thd->session_tx_isolation= lex->tx_isolation= $2;
+	  LEX *lex=Lex;
+	  lex->thd->session_tx_isolation= lex->tx_isolation= $2;
 	}
 	| tx_isolation
 	{ Lex->tx_isolation= $1; }
@@ -3315,27 +3315,33 @@ require_list: require_list_element AND require_list
 
 require_list_element: SUBJECT_SYM TEXT_STRING
  {
-   if (Lex->x509_subject) {
-     send_error(&Lex->thd->net,ER_GRANT_DUPL_SUBJECT);
+   LEX *lex=Lex;
+   if (lex->x509_subject)
+   {
+     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "SUBJECT");
      YYABORT;
-   } else 
-   Lex->x509_subject=$2.str;
+   }
+   lex->x509_subject=$2.str;
  }
  | ISSUER_SYM TEXT_STRING
  {
-   if (Lex->x509_issuer) {
-     send_error(&Lex->thd->net,ER_GRANT_DUPL_ISSUER);
+   LEX *lex=Lex;
+   if (lex->x509_issuer)
+   {
+     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "ISSUER");
      YYABORT;
-   } else 
-     Lex->x509_issuer=$2.str;
+   }
+   lex->x509_issuer=$2.str;
  }
  | CIPHER_SYM TEXT_STRING
  {
-   if (Lex->ssl_cipher) {
-     send_error(&Lex->thd->net,ER_GRANT_DUPL_CIPHER);
+   LEX *lex=lex;
+   if (lex->ssl_cipher)
+   {
+     net_printf(&lex->thd->net,ER_DUP_ARGUMENT, "CHIPER");
      YYABORT;
-   } else 
-     Lex->ssl_cipher=$2.str;
+   }
+   lex->ssl_cipher=$2.str;
  }
  
 opt_table:
@@ -3491,7 +3497,7 @@ union_list:
     if (lex->exchange)
     {
        /* Only the last SELECT can have  INTO...... */
-       net_printf(&current_thd->net, ER_WRONG_USAGE,"UNION","INTO");
+       net_printf(&lex->thd->net, ER_WRONG_USAGE,"UNION","INTO");
        YYABORT;
     } 
     mysql_new_select(lex);
