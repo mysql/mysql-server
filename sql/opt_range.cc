@@ -296,6 +296,9 @@ typedef struct st_qsel_param {
   char min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
     max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
   bool quick;				// Don't calulate possible keys
+
+  uint *imerge_cost_buff;     /* buffer for index_merge cost estimates */
+  uint imerge_cost_buff_size; /* size of the buffer */
 } PARAM;
 
 static SEL_TREE * get_mm_parts(PARAM *param,Field *field,
@@ -953,6 +956,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.table=head;
     param.keys=0;
     param.mem_root= &alloc;
+    param.imerge_cost_buff_size= 0;
 
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
@@ -1011,7 +1015,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 	ha_rows found_records;
 	double found_read_time= read_time;
 
-        if (!get_quick_select_params(tree, &param, needed_reg, true,
+        if (!get_quick_select_params(tree, &param, needed_reg, false,
                                      &found_read_time, &found_records,
                                      &best_key))
         {
@@ -1254,54 +1258,48 @@ static int get_index_merge_params(PARAM *param, key_map& needed_reg,
   */
 
   /*
-    It may be possible to use different keys for index_merge scans,
-     e.g. for query like 
+    It may be possible to use different keys for index_merge scans, e.g. for
+    query like 
     ...WHERE (key1 < c2 AND key2 < c2) OR (key3 < c3 AND key4 < c4)
-    we have to make choice between key1 and key2 for one scan and 
-    between key3,key4 for another.
-    We assume we'll get the best way if we choose the best key read
-    inside each of the conjuncts. Comparison is done without 'using index'.
+    we have to make choice between key1 and key2 for one scan and between
+    key3, key4 for another.
+    We assume we'll get the best if we choose the best key read inside each
+    of the conjuncts.
   */
   for (SEL_TREE **ptree= imerge->trees;
        ptree != imerge->trees_next;
        ptree++)
   {
     SEL_ARG **tree_best_key;
-    uint keynr;
-
     tree_read_time= *read_time;
-    if (get_quick_select_params(*ptree, param, needed_reg, false,
+
+    if (get_quick_select_params(*ptree, param, needed_reg, true,
                                 &tree_read_time, &tree_records,
                                 &tree_best_key))
     {
       /*
-        Non-'index only' range scan on a one in index_merge key is more 
-        expensive than other available option. The entire index_merge will be
-        more expensive then, too. We continue here only to update SQL_SELECT 
-        members.
+        One of index scans in this index_merge is more expensive than entire
+        table read for another available option. The entire index_merge will 
+        be more expensive then, too. We continue here only to update 
+        SQL_SELECT members.
       */
       imerge_too_expensive= true;
     }
 
     if (imerge_too_expensive)
       continue;
-
+    
+    uint keynr= param->real_keynr[(tree_best_key-(*ptree)->keys)];
     imerge->best_keys[ptree - imerge->trees]= tree_best_key;
-    keynr= param->real_keynr[(tree_best_key-(*ptree)->keys)];    
+    imerge_cost += tree_read_time;
 
     if (pk_is_clustered && keynr == param->table->primary_key)
     {
-      /* This is a Clustered PK scan, it will be done without 'index only' */
-      imerge_cost += tree_read_time;
       have_cpk_scan= true;
       cpk_records= tree_records;
     }
     else
-    {
-      /* Non-CPK scan, calculate time to do it using 'index only' */
-      imerge_cost += get_index_only_read_time(param, tree_records,keynr);
       records_for_unique += tree_records;
-    }
   }  
   DBUG_PRINT("info",("index_merge cost of index reads: %g", imerge_cost));
 
@@ -1359,18 +1357,27 @@ static int get_index_merge_params(PARAM *param, key_map& needed_reg,
   DBUG_PRINT("info",("index_merge cost with rowid-to-row scan: %g", imerge_cost));
 
   /* PHASE 3: Add Unique operations cost */
-  double unique_cost= 
-    Unique::get_use_cost(param->mem_root, records_for_unique, 
+  register uint unique_calc_buff_size= 
+    Unique::get_cost_calc_buff_size(records_for_unique, 
+                                    param->table->file->ref_length,
+                                    param->thd->variables.sortbuff_size);
+  if (param->imerge_cost_buff_size < unique_calc_buff_size)
+  {
+    if (!(param->imerge_cost_buff= (uint*)alloc_root(param->mem_root,
+                                                     unique_calc_buff_size)))
+      DBUG_RETURN(1);
+    param->imerge_cost_buff_size= unique_calc_buff_size;
+  }
+
+  imerge_cost += 
+    Unique::get_use_cost(param->imerge_cost_buff, records_for_unique,
                          param->table->file->ref_length,
                          param->thd->variables.sortbuff_size);
-  if (unique_cost < 0.0)
-    DBUG_RETURN(1);
 
-  imerge_cost += unique_cost;
   DBUG_PRINT("info",("index_merge total cost: %g", imerge_cost));
   if (imerge_cost < *read_time)
   {
-    *read_time=   imerge_cost;    
+    *read_time=   imerge_cost;
     records_for_unique += cpk_records;
     *imerge_rows= min(records_for_unique, param->table->file->records);    
     DBUG_RETURN(0);
@@ -1415,8 +1422,8 @@ inline double get_index_only_read_time(PARAM* param, ha_rows records,
       tree        in         make range select for this SEL_TREE 
       param       in         parameters from test_quick_select
       needed_reg  in/out     other table data needed by this quick_select
-      index_read_can_be_used if false, assume that 'index only' option is not
-                             available.
+      index_read_must_be_used if true, assume 'index only' option will be set 
+                             (except for clustered PK indexes)
       read_time   out        read time estimate
       records     out        # of records estimate
       key_to_read out        SEL_ARG to be used for creating quick select
@@ -1424,16 +1431,17 @@ inline double get_index_only_read_time(PARAM* param, ha_rows records,
 
 static int get_quick_select_params(SEL_TREE *tree, PARAM *param,
                                    key_map& needed_reg,
-                                   bool index_read_can_be_used,
+                                   bool index_read_must_be_used,
                                    double *read_time, ha_rows *records,
                                    SEL_ARG ***key_to_read)
 {
   int idx;
   int result = 1;
+  bool pk_is_clustered= param->table->file->primary_key_is_clustered();
   /*
-    Note that there may be trees that have type SEL_TREE::KEY but contain 
-    no key reads at all. For example, tree for expression "key1 is not null"
-    where key1 is defined as "not null".
+    Note that there may be trees that have type SEL_TREE::KEY but contain no 
+    key reads at all, e.g. tree for expression "key1 is not null" where key1 
+    is defined as "not null".
   */
   SEL_ARG **key,**end;
 
@@ -1450,22 +1458,29 @@ static int get_quick_select_params(SEL_TREE *tree, PARAM *param,
           (*key)->maybe_flag)
         needed_reg.set_bit(keynr);
       
-      bool read_index_only= index_read_can_be_used? 
-                            param->table->used_keys.is_set(keynr): false;
+      bool read_index_only= index_read_must_be_used? true :
+                            (bool)param->table->used_keys.is_set(keynr);
       found_records=check_quick_select(param, idx, *key);
 
       if (found_records != HA_POS_ERROR && found_records > 2 &&
           read_index_only &&
-          (param->table->file->index_flags(keynr) & HA_KEY_READ_ONLY))
+          (param->table->file->index_flags(keynr) & HA_KEY_READ_ONLY) &&
+          !(pk_is_clustered && keynr == param->table->primary_key))
       {
         /* We can resolve this by only reading through this key. */
         found_read_time=get_index_only_read_time(param, found_records, keynr);
       }
       else
+      {
+        /* 
+          cost(read_through_index) = cost(disk_io) + cost(row_in_range_checks)
+          The row_in_range check is in QUICK_RANGE_SELECT::cmp_next function.
+        */
 	found_read_time= (param->table->file->read_time(keynr,
 						        param->range_count,
 						        found_records)+
 			  (double) found_records / TIME_FOR_COMPARE);
+      }
       if (*read_time > found_read_time && found_records != HA_POS_ERROR)
       {
         *read_time=   found_read_time;

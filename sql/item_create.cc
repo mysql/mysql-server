@@ -18,10 +18,6 @@
 
 #include "mysql_priv.h"
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 Item *create_func_abs(Item* a)
 {
   return new Item_func_abs(a);
