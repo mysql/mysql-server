@@ -291,6 +291,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NATURAL
 %token	NEW_SYM
 %token	NCHAR_SYM
+%token	NCHAR_STRING
 %token	NOT
 %token	NO_SYM
 %token	NULL_SYM
@@ -561,6 +562,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
 	ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_db
+	NCHAR_STRING
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -3862,10 +3864,13 @@ text_literal:
 			    thd->charset() : thd->db_charset;
 	  $$ = new Item_string($1.str,$1.length,cs);
 	}
+	| NCHAR_STRING
+	{ $$=  new Item_string($1.str,$1.length,&my_charset_utf8); }
 	| UNDERSCORE_CHARSET TEXT_STRING
 	  { $$ = new Item_string($2.str,$2.length,Lex->charset,Item::COER_IMPLICIT); }
 	| text_literal TEXT_STRING_db
-	  { ((Item_string*) $1)->append($2.str,$2.length); };
+	  { ((Item_string*) $1)->append($2.str,$2.length); }
+	;
 
 text_string:
 	TEXT_STRING_db

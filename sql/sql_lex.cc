@@ -463,6 +463,26 @@ int yylex(void *arg, void *yythd)
 	lex->tok_start=lex->ptr;	// Let tok_start point at next item
       return((int) c);
 
+    case MY_LEX_IDENT_OR_NCHAR:
+      if (yyPeek() != '\'')
+      {					// Found x'hex-number'
+	state= MY_LEX_IDENT;
+	break;
+      }
+      yyGet();				// Skip '
+      while ((c = yyGet()) && (c !='\'')) ;
+      length=(lex->ptr - lex->tok_start);	// Length of hexnum+3
+      if (c != '\'')
+      {
+	return(ABORT_SYM);		// Illegal hex constant
+      }
+      yyGet();				// get_token makes an unget
+      yylval->lex_str=get_token(lex,length);
+      yylval->lex_str.str+=2;		// Skip x'
+      yylval->lex_str.length-=3;	// Don't count x' and last '
+      lex->yytoklen-=3;
+      return (NCHAR_STRING);
+
     case MY_LEX_IDENT_OR_HEX:
       if (yyPeek() == '\'')
       {					// Found x'hex-number'
