@@ -2750,6 +2750,13 @@ procedure_clause:
 	| PROCEDURE ident			/* Procedure name */
 	  {
 	    LEX *lex=Lex;
+	    if (&lex->select_lex != lex->current_select)
+	    {
+	      net_printf(lex->thd, ER_WRONG_USAGE,
+			  "PROCEDURE",
+			  "subquery");
+	      YYABORT;
+	    }
 	    lex->proc_list.elements=0;
 	    lex->proc_list.first=0;
 	    lex->proc_list.next= (byte**) &lex->proc_list.first;
