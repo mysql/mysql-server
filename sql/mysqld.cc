@@ -420,6 +420,7 @@ SHOW_COMP_OPTION have_federated_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
+SHOW_COMP_OPTION have_blackhole_db;
 
 /* Thread specific variables */
 
@@ -5963,6 +5964,11 @@ static void mysql_init_variables(void)
   have_archive_db= SHOW_OPTION_YES;
 #else
   have_archive_db= SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_BLACKHOLE_DB
+  have_blackhole_db= SHOW_OPTION_YES;
+#else
+  have_blackhole_db= SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_FEDERATED_DB
   have_federated_db= SHOW_OPTION_YES;
