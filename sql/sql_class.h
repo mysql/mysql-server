@@ -380,7 +380,8 @@ struct system_variables
   my_bool new_mode;
   my_bool convert_result_charset;
 
-  CHARSET_INFO 	*thd_charset;
+  CHARSET_INFO 	*client_collation;
+  CHARSET_INFO  *literal_collation;
 };
 
 void free_tmp_table(THD *thd, TABLE *entry);
@@ -661,9 +662,9 @@ public:
     net.report_error= 1; 
     DBUG_PRINT("error",("Fatal error set"));
   }
-  inline CHARSET_INFO *charset() { return variables.thd_charset; }
+  inline CHARSET_INFO *charset() { return variables.client_collation; }
   inline CHARSET_INFO *result_charset(CHARSET_INFO *cs)
-  { return variables.convert_result_charset ? variables.thd_charset : cs; }
+  { return variables.convert_result_charset ? charset() : cs; }
 };
 
 /*
