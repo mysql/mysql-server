@@ -81,28 +81,6 @@ static void end_server(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-/**************************************************************************
-** Connect to sql server
-** If host == 0 then use localhost
-**************************************************************************/
-
-MYSQL * STDCALL
-mysql_connect(MYSQL *mysql,const char *host,
-	      const char *user, const char *passwd)
-{
-  MYSQL *res;
-  mysql=mysql_init(mysql);			/* Make it thread safe */
-  {
-    DBUG_ENTER("mysql_connect");
-    if (!(res=mysql_real_connect(mysql,host,user,passwd,NullS,0,NullS,0)))
-    {
-      if (mysql->free_me)
-	my_free((gptr) mysql,MYF(0));
-    }
-    DBUG_RETURN(res);
-  }
-}
-
 static inline int mysql_init_charset(MYSQL *mysql)
 {
   char charset_name_buff[16], *charset_name;
