@@ -433,6 +433,11 @@ public:
   bool having_fix_field;
   /* explicit LIMIT clause was used */
   bool explicit_limit;
+  /*
+    there are subquery in HAVING clause => we can't close tables before
+    query processing end even if we use temporary table
+  */
+  bool subquery_in_having;
 
   /* 
      SELECT for SELECT command st_select_lex. Used to privent scaning

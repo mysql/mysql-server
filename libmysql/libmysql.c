@@ -16,6 +16,7 @@
 
 #include <my_global.h>
 #include <my_sys.h>
+#include <my_time.h>
 #include <mysys_err.h>
 #include <m_string.h>
 #include <m_ctype.h>
@@ -3008,33 +3009,33 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
 
 
 /********************************************************************
-  Fetch-bind related implementations
+ Fetch and conversion of result set rows (binary protocol).
 *********************************************************************/
-
-/****************************************************************************
-  Functions to fetch data to application buffers
-
-  All functions have the following characteristics:
-
-  SYNOPSIS
-    fetch_result_xxx()
-    param   MySQL bind param
-    row     Row value
-
-  RETURN VALUES
-    0	ok
-    1	Error	(Can't alloc net->buffer)
-****************************************************************************/
 
 static void set_zero_time(MYSQL_TIME *tm)
 {
-  tm->year= tm->month= tm->day= 0;
-  tm->hour= tm->minute= tm->second= 0;
-  tm->second_part= 0;
-  tm->neg= (bool)0;
+  bzero((void *)tm, sizeof(*tm));
 }
 
-/* Read TIME from binary packet and return it to MYSQL_TIME */
+
+/*
+  Read date, (time, datetime) value from network buffer and store it
+  in MYSQL_TIME structure.
+
+  SYNOPSIS
+    read_binary_{date,time,datetime}()
+    tm    MYSQL_TIME structure to fill
+    pos   pointer to current position in network buffer.
+          These functions increase pos to point to the beginning of this
+          field (this is just due to implementation of net_field_length
+          which is used to get length of binary representation of
+          time value).
+
+  Auxiliary functions to read time (date, datetime) values from network
+  buffer and store in MYSQL_TIME structure. Jointly used by conversion
+  and no-conversion fetching.
+*/
+
 static uint read_binary_time(MYSQL_TIME *tm, uchar **pos)
 {
   uchar *to;
@@ -3060,7 +3061,6 @@ static uint read_binary_time(MYSQL_TIME *tm, uchar **pos)
   return length;
 }
 
-/* Read DATETIME from binary packet and return it to MYSQL_TIME */
 static uint read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
 {
   uchar *to;
@@ -3091,7 +3091,6 @@ static uint read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
   return length;
 }
 
-/* Read DATE from binary packet and return it to MYSQL_TIME */
 static uint read_binary_date(MYSQL_TIME *tm, uchar **pos)
 {
   uchar *to;
@@ -3115,7 +3114,8 @@ static uint read_binary_date(MYSQL_TIME *tm, uchar **pos)
 }
 
 
-/* Convert Numeric to buffer types */
+/* Convert integer value to client buffer type. */
+
 static void send_data_long(MYSQL_BIND *param, MYSQL_FIELD *field,
 			   longlong value)
 {
@@ -3273,6 +3273,21 @@ static void send_data_str(MYSQL_BIND *param, char *value, uint length)
     doublestore(buffer, data);
     break;
   }
+  case MYSQL_TYPE_TIME:
+  {
+    int dummy;
+    MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
+    str_to_time(value, length, tm, &dummy);
+    break;
+  }
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_DATETIME:
+  {
+    int dummy;
+    MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
+    str_to_datetime(value, length, tm, 0, &dummy);
+    break;
+  }
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
@@ -3332,7 +3347,7 @@ static void send_data_time(MYSQL_BIND *param, MYSQL_TIME ltime,
       length= my_sprintf(buff,(buff, "%04d-%02d-%02d", ltime.year,
                                ltime.month,ltime.day));
       break;
-    case MYSQL_TIMESTAMP_FULL:
+    case MYSQL_TIMESTAMP_DATETIME:
       length= my_sprintf(buff,(buff, "%04d-%02d-%02d %02d:%02d:%02d",
                                ltime.year,ltime.month,ltime.day,
                                ltime.hour,ltime.minute,ltime.second));
@@ -3351,7 +3366,7 @@ static void send_data_time(MYSQL_BIND *param, MYSQL_TIME ltime,
 }
 
 
-/* Fetch data to buffers */
+/* Fetch data to client buffers with conversion. */
 
 static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
 {
@@ -3437,7 +3452,7 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
     MYSQL_TIME tm;
 
     length= read_binary_datetime(&tm, row);
-    tm.time_type= MYSQL_TIMESTAMP_FULL;
+    tm.time_type= MYSQL_TIMESTAMP_DATETIME;
     send_data_time(param, tm, length);
     break;
   }
@@ -3449,6 +3464,25 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
   *row+= length;
 }
 
+
+/*
+  Functions to fetch data to application buffers without conversion.
+
+  All functions have the following characteristics:
+
+  SYNOPSIS
+    fetch_result_xxx()
+    param   MySQL bind param
+    pos     Row value
+
+  DESCRIPTION
+    These are no-conversion functions, used in binary protocol to store
+    rows in application buffers. A function used only if type of binary data
+    is compatible with type of application buffer.
+
+  RETURN
+    none
+*/
 
 static void fetch_result_tinyint(MYSQL_BIND *param, uchar **row)
 {
