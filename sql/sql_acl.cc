@@ -165,14 +165,21 @@ my_bool acl_init(bool dont_read_acl_tables)
   tables[0].db=tables[1].db=tables[2].db=thd->db;
 
   if (open_tables(thd,tables))
+  {
+    sql_print_error("Fatal error: Can't open privilege tables: %s",
+		    thd->net.last_error);
     goto end;
+  }
   TABLE *ptr[3];				// Lock tables for quick update
   ptr[0]= tables[0].table;
   ptr[1]= tables[1].table;
   ptr[2]= tables[2].table;
   if (!(lock=mysql_lock_tables(thd,ptr,3)))
+  {
+    sql_print_error("Fatal error: Can't lock privilege tables: %s",
+		    thd->net.last_error);
     goto end;
-
+  }
   init_sql_alloc(&mem,1024,0);
   init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0);
   VOID(my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50));

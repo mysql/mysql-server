@@ -36,7 +36,7 @@
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
 */
 
-#define DUMP_VERSION "9.06"
+#define DUMP_VERSION "9.07"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -263,20 +263,32 @@ static void print_version(void)
 } /* print_version */
 
 
+static void short_usage_sub(void)
+{
+  printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
+  printf("OR     %s [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]\n",
+	 my_progname);
+  printf("OR     %s [OPTIONS] --all-databases [OPTIONS]\n", my_progname);
+}
+
 static void usage(void)
 {
   print_version();
   puts("By Igor Romanenko, Monty, Jani & Sinisa");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   puts("Dumping definition and data mysql database or table");
-  printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
-  printf("OR     %s [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]\n",
-	 my_progname);
-  printf("OR     %s [OPTIONS] --all-databases [OPTIONS]\n", my_progname);
+  short_usage_sub();
   print_defaults("my",load_default_groups);
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 } /* usage */
+
+
+static void short_usage(void)
+{
+  short_usage_sub();
+  printf("For more options, use %s --help\n", my_progname);
+}
 
 
 static void write_header(FILE *sql_file, char *db_name)
@@ -408,7 +420,7 @@ static int get_options(int *argc, char ***argv)
   }
   if ((*argc < 1 && !opt_alldbs) || (*argc > 0 && opt_alldbs))
   {
-    usage();
+    short_usage();
     return 1;
   }
   if (tty_password)
