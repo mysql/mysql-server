@@ -163,7 +163,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   int len = snprintf(prefixName, sizeof(prefixName), "%s%c%s%c",
                      theDataBase, table_name_separator,
                      theDataBaseSchema, table_name_separator);
-  prefixEnd = prefixName + (len < sizeof(prefixName) ? len : 
+  prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
                             sizeof(prefixName) - 1);
 
   NdbMutex_Lock(&createNdbMutex);
