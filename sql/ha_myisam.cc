@@ -715,6 +715,7 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
       }
     }
     enable_activate_all_index=1;
+    info(HA_STATUS_CONST);			// Read new key info
   }
   else
     enable_activate_all_index=0;
@@ -743,6 +744,7 @@ bool ha_myisam::activate_all_index(THD *thd)
     param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
     param.tmpdir=mysql_tmpdir;
     error=repair(thd,param,0) != HA_ADMIN_OK;
+    info(HA_STATUS_CONST);
     thd->proc_info=save_proc_info;
   }
   else
@@ -926,8 +928,9 @@ void ha_myisam::info(uint flag)
     ref_length=info.reflength;
     table->db_options_in_use    = info.options;
     block_size=myisam_block_size;
-    table->keys_in_use&=      info.key_map;
-    table->keys_for_keyread&= info.key_map;
+    table->keys_in_use= (set_bits(key_map, table->keys) &
+			 (key_map) info.key_map);
+    table->keys_for_keyread= table->keys_in_use & ~table->read_only_keys;
     table->db_record_offset=info.record_offset;
     if (table->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,

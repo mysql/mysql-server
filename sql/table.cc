@@ -422,7 +422,10 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       /* This has to be done after the above fulltext correction */
       index_flags=outparam->file->index_flags(key);
       if (!(index_flags & HA_KEY_READ_ONLY))
+      {
+	outparam->read_only_keys|=    ((key_map) 1 << key);
 	outparam->keys_for_keyread&= ~((key_map) 1 << key);
+      }
 
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
       {
