@@ -2,9 +2,6 @@
 	      Implementation specification for Stored Procedures
 	      ==================================================
 
-This is a first draft, only covering the basics for parsing, creating, and
-calling a PROCEDURE.
-
 
 - How parsing and execution of queries work
 
@@ -436,21 +433,37 @@ calling a PROCEDURE.
 
       // Return the "out" index for slot 'idx'
       int get_oindex(uint idx);
+
+      // Set the FUNCTION result
+      void set_result(Item *i);
+
+      // Get the FUNCTION result
+      Item *get_result();
     }
 
 
     - The procedure: sp_head.h
 
+      #define TYPE_ENUM_FUNCTION  1
+      #define TYPE_ENUM_PROCEDURE 2
+
       class sp_head
       {
+        int m_type;		// TYPE_ENUM_FUNCTION or TYPE_ENUM_PROCEDURE
+
         sp_head(LEX_STRING *name, LEX*);
 
         // Store this procedure in the database. This is a wrapper around
         // the function sp_create_procedure().
         int create(THD *);
 
-        // CALL this procedure.
-        int execute(THD *);
+	// Invoke a FUNCTION
+	int
+	execute_function(THD *thd, Item **args, uint argcount, Item **resp);
+
+	// CALL a PROCEDURE
+	int
+	execute_procedure(THD *thd, List<Item> *args);
 
         // Add the instruction to this procedure.
         void add_instr(sp_instr *);
@@ -524,7 +537,7 @@ calling a PROCEDURE.
 	  // 'dest' is the destination instruction index.
 	  sp_instr_jump(uint ip, uint dest);
 
-	  virtual int execute(THD *, uint *nextp);
+	  int execute(THD *, uint *nextp);
 
 	  // Set the destination instruction 'dest'.
 	  void set_destination(uint dest);
@@ -542,10 +555,28 @@ calling a PROCEDURE.
 	  int execute(THD *, uint *nextp);
         }
 
+      - Return a function value
+        class sp_instr_return : public sp_instr
+	{
+	  // Return the value 'val'
+	  sp_instr_return(uint ip, Item *val, enum enum_field_types type);
+	  
+	  int execute(THD *thd, uint *nextp);
+	}
+
+
     - Utility functions: sp.h
 
+      #define SP_OK                 0
+      #define SP_KEY_NOT_FOUND     -1
+      #define SP_OPEN_TABLE_FAILED -2
+      #define SP_WRITE_ROW_FAILED  -3
+      #define SP_DELETE_ROW_FAILED -4
+      #define SP_GET_FIELD_FAILED  -5
+      #define SP_PARSE_ERROR       -6
+
       // Finds a stored procedure given its name. Returns NULL if not found.
-      sp_head *sp_find(THD *, Item_string *name);
+      sp_head *sp_find_procedure(THD *, LEX_STRING *name);
 
       // Store the procedure 'name' in the database. 'def' is the complete
       // definition string ("create procedure ...").
@@ -554,6 +585,18 @@ calling a PROCEDURE.
 			      char *def, uint deflen);
 
       // Drop the procedure 'name' from the database.
-      int sp_drop(THD *, char *name, uint namelen);
+      int sp_drop_procedure(THD *, char *name, uint namelen);
+
+      // Finds a stored function given its name. Returns NULL if not found.
+      sp_head *sp_find_function(THD *, LEX_STRING *name);
+
+      // Store the function 'name' in the database. 'def' is the complete
+      // definition string ("create function ...").
+      int sp_create_function(THD *,
+                             char *name, uint namelen,
+			     char *def, uint deflen);
+
+      // Drop the function 'name' from the database.
+      int sp_drop_function(THD *, char *name, uint namelen);
 
 --
