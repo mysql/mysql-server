@@ -1014,12 +1014,12 @@ append_identifier(THD *thd, String *packet, const char *name)
   if (thd->options & OPTION_QUOTE_SHOW_CREATE)
   {
     packet->append(&qtype, 1);
-    packet->append(name);
+    packet->append(name, 0, system_charset_info);
     packet->append(&qtype, 1);
   }
   else
   {
-    packet->append(name);
+    packet->append(name, 0, system_charset_info);
   }
 }
 
