@@ -195,8 +195,6 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
   thd->db_length=0;
   USER_RESOURCES ur;
 
-  if (passwd[0] && strlen(passwd) != SCRAMBLE_LENGTH)
-    return 1;
   /* We shall avoid dupplicate user allocations here */
   if (!thd->user && !(thd->user = my_strdup(user, MYF(0))))
   {
