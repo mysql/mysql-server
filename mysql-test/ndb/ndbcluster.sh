@@ -5,7 +5,7 @@
 # This scripts starts the table handler ndbcluster
 
 # configurable parameters, make sure to change in mysqlcluterd as well
-port_base="22"  # using ports port_base{"00","01", etc}
+port_base="2200"
 fsdir=`pwd`
 # end configurable parameters
 
@@ -82,11 +82,8 @@ while test $# -gt 0; do
 done
 
 fs_ndb=$fsdir/ndbcluster
-fs_mgm_1=$fs_ndb/1.ndb_mgm
-fs_ndb_2=$fs_ndb/2.ndb_db
-fs_ndb_3=$fs_ndb/3.ndb_db
-fs_name_2=$fs_ndb/node-2-fs
-fs_name_3=$fs_ndb/node-3-fs
+fs_name_1=$fs_ndb/node-1-fs-$port_base
+fs_name_2=$fs_ndb/node-2-fs-$port_base
 
 NDB_HOME=
 export NDB_CONNECTSTRING
@@ -111,13 +108,10 @@ NDB_CONNECTSTRING=
 
 if [ $initial_ndb ] ; then
   [ -d $fs_ndb ] || mkdir $fs_ndb
-  [ -d $fs_mgm_1 ] || mkdir $fs_mgm_1
-  [ -d $fs_ndb_2 ] || mkdir $fs_ndb_2
-  [ -d $fs_ndb_3 ] || mkdir $fs_ndb_3
+  [ -d $fs_name_1 ] || mkdir $fs_name_1
   [ -d $fs_name_2 ] || mkdir $fs_name_2
-  [ -d $fs_name_3 ] || mkdir $fs_name_3
 fi
-if [ -d "$fs_ndb" -a -d "$fs_mgm_1" -a -d "$fs_ndb_2" -a -d "$fs_ndb_3" -a -d "$fs_name_2" -a -d "$fs_name_3" ]; then :; else
+if [ -d "$fs_ndb" -a -d "$fs_name_1" -a -d "$fs_name_2" ]; then :; else
   echo "$fs_ndb filesystem directory does not exist"
   exit 1
 fi
@@ -125,14 +119,12 @@ fi
 # set som help variables
 
 ndb_host="localhost"
-ndb_port=$port_base"00"
-NDB_CONNECTSTRING_BASE="host=$ndb_host:$ndb_port;nodeid="
+ndb_mgmd_port=$port_base
+port_transporter=`expr $ndb_mgmd_port + 2`
+export NDB_CONNECTSTRING="host=$ndb_host:$ndb_mgmd_port"
 
 
 # Start management server as deamon
-
-NDB_ID="1"
-NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
 
 # Edit file system path and ports in config file
 
@@ -143,59 +135,54 @@ sed \
     -e s,"CHOOSE_IndexMemory",$ndb_imem,g \
     -e s,"CHOOSE_Discless",$ndb_discless,g \
     -e s,"CHOOSE_HOSTNAME_".*,"$ndb_host",g \
+    -e s,"CHOOSE_FILESYSTEM_NODE_1","$fs_name_1",g \
     -e s,"CHOOSE_FILESYSTEM_NODE_2","$fs_name_2",g \
-    -e s,"CHOOSE_FILESYSTEM_NODE_3","$fs_name_3",g \
-    -e s,"CHOOSE_PORT_BASE",$port_base,g \
+    -e s,"CHOOSE_PORT_MGM",$ndb_mgmd_port,g \
+    -e s,"CHOOSE_PORT_TRANSPORTER",$port_transporter,g \
     < ndb/ndb_config_2_node.ini \
-    > "$fs_mgm_1/config.ini"
+    > "$fs_ndb/config.ini"
 fi
 
-if ( cd $fs_mgm_1 ; echo $NDB_CONNECTSTRING > $cfgfile ; $exec_mgmtsrvr -d -c config.ini ) ; then :; else
+rm -f Ndb.cfg
+rm -f $fs_ndb/Ndb.cfg
+
+if ( cd $fs_ndb ; $exec_mgmtsrvr -d -c config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
 
-cat `find $fs_ndb -name 'node*.pid'` > $pidfile
+cat `find $fs_ndb -name 'ndb_*.pid'` > $pidfile
 
 # Start database node 
 
-NDB_ID="2"
-NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
-echo "Starting ndbd connectstring=\""$NDB_CONNECTSTRING\"
-( cd $fs_ndb_2 ; echo $NDB_CONNECTSTRING > $cfgfile ; $exec_ndb -d $flags_ndb & )
+echo "Starting ndbd"
+( cd $fs_ndb ; $exec_ndb -d $flags_ndb & )
 
-cat `find $fs_ndb -name 'node*.pid'` > $pidfile
+cat `find $fs_ndb -name 'ndb_*.pid'` > $pidfile
 
 # Start database node 
 
-NDB_ID="3"
-NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
-echo "Starting ndbd connectstring=\""$NDB_CONNECTSTRING\"
-( cd $fs_ndb_3 ; echo $NDB_CONNECTSTRING > $cfgfile ; $exec_ndb -d $flags_ndb & )
+echo "Starting ndbd"
+( cd $fs_ndb ; $exec_ndb -d $flags_ndb & )
 
-cat `find $fs_ndb -name 'node*.pid'` > $pidfile
+cat `find $fs_ndb -name 'ndb_*.pid'` > $pidfile
 
 # test if Ndb Cluster starts properly
 
 echo "Waiting for started..."
-NDB_ID="11"
-NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
 if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK"; then :; else
   echo "Ndbcluster startup failed"
   exit 1
 fi
 
-echo $NDB_CONNECTSTRING > $cfgfile
-
-cat `find $fs_ndb -name 'node*.pid'` > $pidfile
+cat `find $fs_ndb -name 'ndb_*.pid'` > $pidfile
 
 status_ndbcluster
 }
 
 status_ndbcluster() {
-# Start management client
-
-echo "show" | $exec_mgmtclient $ndb_host $ndb_port
+  # Start management client
+  echo "show" | $exec_mgmtclient $ndb_host $ndb_mgmd_port
 }
 
 stop_default_ndbcluster() {
@@ -210,11 +197,11 @@ if [ ! -f $cfgfile ] ; then
 fi
 
 ndb_host=`cat $cfgfile | sed -e "s,.*host=\(.*\)\:.*,\1,1"`
-ndb_port=`cat $cfgfile | sed -e "s,.*host=$ndb_host\:\([0-9]*\).*,\1,1"`
+ndb_mgmd_port=`cat $cfgfile | sed -e "s,.*host=$ndb_host\:\([0-9]*\).*,\1,1"`
 
 # Start management client
 
-exec_mgmtclient="$exec_mgmtclient --try-reconnect=1 $ndb_host $ndb_port"
+exec_mgmtclient="$exec_mgmtclient --try-reconnect=1 $ndb_host $ndb_mgmd_port"
 
 echo "$exec_mgmtclient"
 echo "all stop" | $exec_mgmtclient
