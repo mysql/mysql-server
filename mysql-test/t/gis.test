@@ -89,6 +89,11 @@ SELECT fid, AsText(ExteriorRing(g)) FROM p;
 SELECT fid, NumInteriorRings(g) FROM p;
 SELECT fid, AsText(InteriorRingN(g, 1)) FROM p;
 
+SELECT fid, IsClosed(g) FROM mls;
+
+SELECT fid, AsText(Centroid(g)) FROM mp;
+SELECT fid, Area(g) FROM mp;
+
 SELECT fid, NumGeometries(g) from mpt;
 SELECT fid, NumGeometries(g) from mls;
 SELECT fid, NumGeometries(g) from mp;
