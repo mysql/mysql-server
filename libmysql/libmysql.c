@@ -3018,6 +3018,7 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
 static void set_zero_time(MYSQL_TIME *tm)
 {
   bzero((void *)tm, sizeof(*tm));
+  tm->time_type= MYSQL_TIMESTAMP_NONE;
 }
 
 
@@ -3041,86 +3042,203 @@ static void set_zero_time(MYSQL_TIME *tm)
 
 static uint read_binary_time(MYSQL_TIME *tm, uchar **pos)
 {
-  uchar *to;
   uint  length;
 
   /* net_field_length will set pos to the first byte of data */
   if (!(length= net_field_length(pos)))
-  {
     set_zero_time(tm);
-    return 0;
+  else
+  {
+    uchar *to= *pos;
+    tm->neg= (bool) to[0];
+
+    tm->day=    (ulong) sint4korr(to+1);
+    tm->hour=   (uint) to[5];
+    tm->minute= (uint) to[6];
+    tm->second= (uint) to[7];
+    tm->second_part= (length > 8) ? (ulong) sint4korr(to+8) : 0;
+
+    tm->year= tm->month= 0;
+    tm->time_type= MYSQL_TIMESTAMP_TIME;
   }
-
-  to= *pos;
-  tm->neg= (bool) to[0];
-
-  tm->day=    (ulong) sint4korr(to+1);
-  tm->hour=   (uint) to[5];
-  tm->minute= (uint) to[6];
-  tm->second= (uint) to[7];
-  tm->second_part= (length > 8) ? (ulong) sint4korr(to+8) : 0;
-
-  tm->year= tm->month= 0;
   return length;
 }
 
 static uint read_binary_datetime(MYSQL_TIME *tm, uchar **pos)
 {
-  uchar *to;
   uint  length;
 
   if (!(length= net_field_length(pos)))
-  {
     set_zero_time(tm);
-    return 0;
-  }
-
-  to= *pos;
-
-  tm->neg=    0;
-  tm->year=   (uint) sint2korr(to);
-  tm->month=  (uint) to[2];
-  tm->day=    (uint) to[3];
-
-  if (length > 4)
-  {
-    tm->hour=   (uint) to[4];
-    tm->minute= (uint) to[5];
-    tm->second= (uint) to[6];
-  }
   else
-    tm->hour= tm->minute= tm->second= 0;
-  tm->second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
+  {
+    uchar *to= *pos;
+
+    tm->neg=    0;
+    tm->year=   (uint) sint2korr(to);
+    tm->month=  (uint) to[2];
+    tm->day=    (uint) to[3];
+
+    if (length > 4)
+    {
+      tm->hour=   (uint) to[4];
+      tm->minute= (uint) to[5];
+      tm->second= (uint) to[6];
+    }
+    else
+      tm->hour= tm->minute= tm->second= 0;
+    tm->second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
+    tm->time_type= MYSQL_TIMESTAMP_DATETIME;
+  }
   return length;
 }
 
 static uint read_binary_date(MYSQL_TIME *tm, uchar **pos)
 {
-  uchar *to;
   uint  length;
 
   if (!(length= net_field_length(pos)))
-  {
     set_zero_time(tm);
-    return 0;
+  else
+  {
+    uchar *to= *pos;
+    tm->year =  (uint) sint2korr(to);
+    tm->month=  (uint) to[2];
+    tm->day= (uint) to[3];
+
+    tm->hour= tm->minute= tm->second= 0;
+    tm->second_part= 0;
+    tm->neg= 0;
+    tm->time_type= MYSQL_TIMESTAMP_DATE;
   }
-
-  to= *pos;
-  tm->year =  (uint) sint2korr(to);
-  tm->month=  (uint) to[2];
-  tm->day= (uint) to[3];
-
-  tm->hour= tm->minute= tm->second= 0;
-  tm->second_part= 0;
-  tm->neg= 0;
   return length;
 }
 
 
-/* Convert integer value to client buffer type. */
+/*
+  Convert string to supplied buffer of any type.
 
-static void send_data_long(MYSQL_BIND *param, MYSQL_FIELD *field,
-			   longlong value)
+  SYNOPSIS
+    fetch_string_with_conversion()
+    param   output buffer descriptor
+    value   column data
+    length  data length
+*/
+
+static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
+                                         uint length)
+{
+  char *buffer= (char *)param->buffer;
+  int err= 0;
+
+  /*
+    This function should support all target buffer types: the rest
+    of conversion functions can delegate conversion to it.
+  */
+  switch(param->buffer_type) {
+  case MYSQL_TYPE_NULL: /* do nothing */
+    break;
+  case MYSQL_TYPE_TINY:
+  {
+    uchar data= (uchar) my_strntol(&my_charset_latin1, value, length, 10,
+                                   NULL, &err);
+    *buffer= data;
+    break;
+  }
+  case MYSQL_TYPE_SHORT:
+  {
+    short data= (short) my_strntol(&my_charset_latin1, value, length, 10,
+                                   NULL, &err);
+    shortstore(buffer, data);
+    break;
+  }
+  case MYSQL_TYPE_LONG:
+  {
+    int32 data= (int32)my_strntol(&my_charset_latin1, value, length, 10,
+                                  NULL, &err);
+    longstore(buffer, data);
+    break;
+  }
+  case MYSQL_TYPE_LONGLONG:
+  {
+    longlong data= my_strntoll(&my_charset_latin1, value, length, 10,
+                               NULL, &err);
+    longlongstore(buffer, data);
+    break;
+  }
+  case MYSQL_TYPE_FLOAT:
+  {
+    float data = (float) my_strntod(&my_charset_latin1, value, length,
+                                    NULL, &err);
+    floatstore(buffer, data);
+    break;
+  }
+  case MYSQL_TYPE_DOUBLE:
+  {
+    double data= my_strntod(&my_charset_latin1, value, length, NULL, &err);
+    doublestore(buffer, data);
+    break;
+  }
+  case MYSQL_TYPE_TIME:
+  {
+    MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
+    str_to_time(value, length, tm, &err);
+    break;
+  }
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_DATETIME:
+  {
+    MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
+    str_to_datetime(value, length, tm, 0, &err);
+    break;
+  }
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  default:
+  {
+    /*
+      Copy column data to the buffer taking into account offset,
+      data length and buffer length.
+    */
+    char *start= value + param->offset;
+    char *end= value + length;
+    ulong copy_length;
+    if (start < end)
+    {
+      copy_length= end - start;
+      /* We've got some data beyond offset: copy up to buffer_length bytes */
+      if (param->buffer_length)
+        memcpy(buffer, start, min(copy_length, param->buffer_length));
+    }
+    else
+      copy_length= 0;
+    if (copy_length < param->buffer_length)
+      buffer[copy_length]= '\0';
+    /*
+      param->length will always contain length of entire column;
+      number of copied bytes may be way different:
+    */
+    *param->length= length;
+    break;
+  }
+  }
+}
+
+
+/*
+  Convert integer value to client buffer of any type.
+
+  SYNOPSIS
+    fetch_long_with_conversion()
+    param   output buffer descriptor
+    field   column metadata
+    value   column data
+*/
+
+static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
+                                       longlong value)
 {
   char *buffer= (char *)param->buffer;
   uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
@@ -3142,45 +3260,47 @@ static void send_data_long(MYSQL_BIND *param, MYSQL_FIELD *field,
     break;
   case MYSQL_TYPE_FLOAT:
   {
-    float data= (field_is_unsigned ? (float) ulonglong2double(value) :
-		 (float) value);
+    float data= field_is_unsigned ? (float) ulonglong2double(value) :
+                                    (float) value;
     floatstore(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data= (field_is_unsigned ? ulonglong2double(value) :
-		 (double) value);
+    double data= field_is_unsigned ? ulonglong2double(value) :
+                                     (double) value;
     doublestore(buffer, data);
     break;
   }
   default:
   {
-    char tmp[22];				/* Enough for longlong */
-    uint length= (uint)(longlong10_to_str(value,(char *)tmp,
-                                          field_is_unsigned ? 10: -10) -
-                        tmp);
-    ulong copy_length= min((ulong)length-param->offset, param->buffer_length);
-    if ((long) copy_length < 0)
-      copy_length=0;
-    else
-      memcpy(buffer, (char *)tmp+param->offset, copy_length);
-    *param->length= length;
-
-    if (copy_length != param->buffer_length)
-      *(buffer+copy_length)= '\0';
+    char buff[22];                              /* Enough for longlong */
+    char *end= longlong10_to_str(value, buff, field_is_unsigned ? 10: -10);
+    /* Resort to string conversion which supports all typecodes */
+    return fetch_string_with_conversion(param, buff, end - buff);
   }
   }
 }
 
 
-/* Convert Double to buffer types */
+/*
+  Convert double/float column to supplied buffer of any type.
 
-static void send_data_double(MYSQL_BIND *param, double value)
+  SYNOPSIS
+    fetch_float_with_conversion()
+    param   output buffer descriptor
+    field   column metadata
+    value   column data
+    width   default number of significant digits used when converting
+            float/double to string
+*/
+
+static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
+                                        double value, int width)
 {
   char *buffer= (char *)param->buffer;
 
-  switch(param->buffer_type) {
+  switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
     break;
   case MYSQL_TYPE_TINY:
@@ -3211,167 +3331,108 @@ static void send_data_double(MYSQL_BIND *param, double value)
   }
   default:
   {
-    char tmp[128];
-    uint length= my_sprintf(tmp,(tmp,"%g",value));
-    ulong copy_length= min((ulong)length-param->offset, param->buffer_length);
-    if ((long) copy_length < 0)
-      copy_length=0;
+    /*
+      Resort to fetch_string_with_conversion: this should handle
+      floating point -> string conversion nicely, honor all typecodes
+      and param->offset possibly set in mysql_stmt_fetch_column
+    */
+    char buff[331];
+    char *end;
+    /* TODO: move this to a header shared between client and server. */
+#define NOT_FIXED_DEC  31
+    if (field->decimals >= 31)
+#undef NOT_FIXED_DEC
+    {
+      sprintf(buff, "%-*.*g", (int) param->buffer_length, width, value);
+      end= strcend(buff, ' ');
+      *end= 0;
+    }
     else
-      memcpy(buffer, (char *)tmp+param->offset, copy_length);
-    *param->length= length;
-
-    if (copy_length != param->buffer_length)
-      *(buffer+copy_length)= '\0';
+    {
+      sprintf(buff, "%.*f", field->decimals, value);
+      end= strend(buff);
+    }
+    return fetch_string_with_conversion(param, buff, end - buff);
   }
   }
 }
 
 
-/* Convert string to buffer types */
+/*
+  Fetch time/date/datetime to supplied buffer of any type
 
-static void send_data_str(MYSQL_BIND *param, char *value, uint length)
-{
-  char *buffer= (char *)param->buffer;
-  int err=0;
+  SYNOPSIS
+    param   output buffer descriptor
+    time    column data
+*/
 
-  switch(param->buffer_type) {
-  case MYSQL_TYPE_NULL: /* do nothing */
-    break;
-  case MYSQL_TYPE_TINY:
-  {
-    uchar data= (uchar)my_strntol(&my_charset_latin1,value,length,10,NULL,
-				  &err);
-    *buffer= data;
-    break;
-  }
-  case MYSQL_TYPE_SHORT:
-  {
-    short data= (short)my_strntol(&my_charset_latin1,value,length,10,NULL,
-				  &err);
-    shortstore(buffer, data);
-    break;
-  }
-  case MYSQL_TYPE_LONG:
-  {
-    int32 data= (int32)my_strntol(&my_charset_latin1,value,length,10,NULL,
-				  &err);
-    longstore(buffer, data);
-    break;
-  }
-  case MYSQL_TYPE_LONGLONG:
-  {
-    longlong data= my_strntoll(&my_charset_latin1,value,length,10,NULL,&err);
-    longlongstore(buffer, data);
-    break;
-  }
-  case MYSQL_TYPE_FLOAT:
-  {
-    float data = (float)my_strntod(&my_charset_latin1,value,length,NULL,&err);
-    floatstore(buffer, data);
-    break;
-  }
-  case MYSQL_TYPE_DOUBLE:
-  {
-    double data= my_strntod(&my_charset_latin1,value,length,NULL,&err);
-    doublestore(buffer, data);
-    break;
-  }
-  case MYSQL_TYPE_TIME:
-  {
-    int dummy;
-    MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
-    str_to_time(value, length, tm, &dummy);
-    break;
-  }
-  case MYSQL_TYPE_DATE:
-  case MYSQL_TYPE_DATETIME:
-  {
-    int dummy;
-    MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
-    str_to_datetime(value, length, tm, 0, &dummy);
-    break;
-  }
-  case MYSQL_TYPE_TINY_BLOB:
-  case MYSQL_TYPE_MEDIUM_BLOB:
-  case MYSQL_TYPE_LONG_BLOB:
-  case MYSQL_TYPE_BLOB:
-    *param->length= length;
-    length= min(length-param->offset, param->buffer_length);
-    if ((long) length > 0)
-      memcpy(buffer, value+param->offset, length);
-    break;
-  default:
-    *param->length= length;
-    length= min(length-param->offset, param->buffer_length);
-    if ((long) length < 0)
-      length= 0;
-    else
-      memcpy(buffer, value+param->offset, length);
-    if (length != param->buffer_length)
-      buffer[length]= '\0';
-  }
-}
-
-
-static void send_data_time(MYSQL_BIND *param, MYSQL_TIME ltime,
-                           uint length)
+static void fetch_datetime_with_conversion(MYSQL_BIND *param,
+                                           MYSQL_TIME *time)
 {
   switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
     break;
-
   case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_TIME:
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
-  {
-    MYSQL_TIME *tm= (MYSQL_TIME *)param->buffer;
-
-    tm->year= ltime.year;
-    tm->month= ltime.month;
-    tm->day= ltime.day;
-
-    tm->hour= ltime.hour;
-    tm->minute= ltime.minute;
-    tm->second= ltime.second;
-
-    tm->second_part= ltime.second_part;
-    tm->neg= ltime.neg;
+    /* XXX: should we copy only relevant members here? */
+    *(MYSQL_TIME *)(param->buffer)= *time;
     break;
-  }
   default:
   {
+    /*
+      Convert time value  to string and delegate the rest to
+      fetch_string_with_conversion:
+    */
     char buff[25];
+    uint length;
 
-    if (!length)
-      ltime.time_type= MYSQL_TIMESTAMP_NONE;
-    switch (ltime.time_type) {
+    switch (time->time_type) {
     case MYSQL_TIMESTAMP_DATE:
-      length= my_sprintf(buff,(buff, "%04d-%02d-%02d", ltime.year,
-                               ltime.month,ltime.day));
+      length= my_sprintf(buff,(buff, "%04d-%02d-%02d",
+                               time->year, time->month, time->day));
       break;
     case MYSQL_TIMESTAMP_DATETIME:
       length= my_sprintf(buff,(buff, "%04d-%02d-%02d %02d:%02d:%02d",
-                               ltime.year,ltime.month,ltime.day,
-                               ltime.hour,ltime.minute,ltime.second));
+                               time->year, time->month, time->day,
+                               time->hour, time->minute, time->second));
       break;
     case MYSQL_TIMESTAMP_TIME:
       length= my_sprintf(buff, (buff, "%02d:%02d:%02d",
-                                ltime.hour,ltime.minute,ltime.second));
+                                time->hour, time->minute, time->second));
       break;
     default:
       length= 0;
       buff[0]='\0';
+      break;
     }
-    send_data_str(param, (char *)buff, length);
+    /* Resort to string conversion */
+    fetch_string_with_conversion(param, (char *)buff, length);
+    break;
   }
   }
 }
 
 
-/* Fetch data to client buffers with conversion. */
+/*
+  Fetch and convert result set column to output buffer.
 
-static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
+  SYNOPSIS
+    fetch_result_with_conversion()
+    param   output buffer descriptor
+    field   column metadata
+    row     points to a column of result set tuple in binary format
+
+  DESCRIPTION
+    This is a fallback implementation of column fetch used
+    if column and output buffer types do not match.
+    Increases tuple pointer to point at the next column within the
+    tuple.
+*/
+
+static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
+                                         uchar **row)
 {
   ulong length;
   enum enum_field_types field_type= field->type;
@@ -3381,9 +3442,9 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
   {
     char value= (char) **row;
     uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
-    longlong data= ((field_is_unsigned) ? (longlong) (unsigned char) value:
-		    (longlong) value);
-    send_data_long(param, field, data);
+    longlong data= (field_is_unsigned) ? (longlong) (unsigned char) value:
+		                         (longlong) value;
+    fetch_long_with_conversion(param, field, data);
     length= 1;
     break;
   }
@@ -3394,7 +3455,7 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
     uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
     longlong data= ((field_is_unsigned) ? (longlong) (unsigned short) value:
 		    (longlong) value);
-    send_data_long(param, field, data);
+    fetch_long_with_conversion(param, field, data);
     length= 2;
     break;
   }
@@ -3404,14 +3465,14 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
     uint field_is_unsigned= (field->flags & UNSIGNED_FLAG);
     longlong data= ((field_is_unsigned) ? (longlong) (unsigned long) value:
 		    (longlong) value);
-    send_data_long(param, field, data);
+    fetch_long_with_conversion(param, field, data);
     length= 4;
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
     longlong value= (longlong)sint8korr(*row);
-    send_data_long(param, field, value);
+    fetch_long_with_conversion(param, field, value);
     length= 8;
     break;
   }
@@ -3419,7 +3480,7 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
   {
     float value;
     float4get(value,*row);
-    send_data_double(param,value);
+    fetch_float_with_conversion(param, field, value, FLT_DIG);
     length= 4;
     break;
   }
@@ -3427,7 +3488,7 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
   {
     double value;
     float8get(value,*row);
-    send_data_double(param,value);
+    fetch_float_with_conversion(param, field, value, DBL_DIG);
     length= 8;
     break;
   }
@@ -3436,8 +3497,7 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
     MYSQL_TIME tm;
 
     length= read_binary_date(&tm, row);
-    tm.time_type= MYSQL_TIMESTAMP_DATE;
-    send_data_time(param, tm, length);
+    fetch_datetime_with_conversion(param, &tm);
     break;
   }
   case MYSQL_TYPE_TIME:
@@ -3445,8 +3505,7 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
     MYSQL_TIME tm;
 
     length= read_binary_time(&tm, row);
-    tm.time_type= MYSQL_TIMESTAMP_TIME;
-    send_data_time(param, tm, length);
+    fetch_datetime_with_conversion(param, &tm);
     break;
   }
   case MYSQL_TYPE_DATETIME:
@@ -3455,13 +3514,12 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
     MYSQL_TIME tm;
 
     length= read_binary_datetime(&tm, row);
-    tm.time_type= MYSQL_TIMESTAMP_DATETIME;
-    send_data_time(param, tm, length);
+    fetch_datetime_with_conversion(param, &tm);
     break;
   }
   default:
     length= net_field_length(row);
-    send_data_str(param,(char*) *row,length);
+    fetch_string_with_conversion(param, (char*) *row, length);
     break;
   }
   *row+= length;
@@ -3604,7 +3662,6 @@ static void skip_result_string(MYSQL_BIND *param __attribute__((unused)),
   if (field->max_length < length)
     field->max_length= length;
 }
-
 
 
 /*
@@ -3825,7 +3882,7 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
       if (field->type == bind->buffer_type)
         (*bind->fetch_result)(bind, &row);
       else
-        fetch_results(bind, field, &row);
+        fetch_result_with_conversion(bind, field, &row);
     }
     if (!((bit<<=1) & 255))
     {
@@ -3917,7 +3974,7 @@ int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind,
       *bind->length= *param->length;
     else
       bind->length= &param->internal_length;	/* Needed for fetch_result() */
-    fetch_results(bind, field, &row);
+    fetch_result_with_conversion(bind, field, &row);
   }
   else
   {

@@ -2961,10 +2961,10 @@ then
   if test "$with_debug" = "yes"
   then
     # Medium debug.
-    NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+    NDB_DEFS="-DNDB_DEBUG -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   elif test "$with_debug" = "full"
   then
-    NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+    NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   else
     NDB_DEFS="-DNDEBUG"
   fi
