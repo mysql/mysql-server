@@ -2374,7 +2374,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
 rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
 echo
 echo "MySQL has a Web site at http://www.mysql.com/ which carries details on the"
-echo "latest release, upcoming features and other information to make your"
+echo "latest release, upcoming features, and other information to make your"
 echo "work or play with MySQL more productive. There you can also find"
 echo "information about mailing lists for MySQL discussion."
 echo
