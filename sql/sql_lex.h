@@ -54,7 +54,8 @@ enum enum_sql_command {
   SQLCOM_RENAME_TABLE, SQLCOM_BACKUP_TABLE, SQLCOM_RESTORE_TABLE,
   SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_SHOW_BINLOGS,
   SQLCOM_SHOW_OPEN_TABLES, SQLCOM_LOAD_MASTER_DATA,
-  SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ
+  SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
+  SQLCOM_MULTI_DELETE
 };
 
 enum lex_states { STATE_START, STATE_CHAR, STATE_IDENT,
@@ -94,39 +95,57 @@ typedef struct st_lex_master_info
   ulonglong pos;
 } LEX_MASTER_INFO;
 
+
+enum sub_select_type {UNSPECIFIED_TYPE,UNION_TYPE, INTERSECT_TYPE, EXCEPT_TYPE};
+
+/* The state of the lex parsing for selects */
+
+typedef struct st_select_lex {
+  enum sub_select_type linkage;
+  uint select_number;                           /* For Item_select         */
+  char *db,*db1,*table1,*db2,*table2;		/* For outer join using .. */
+  Item *where,*having;
+  ha_rows select_limit,offset_limit;
+  ulong options;
+  List<List_item>     expr_list;
+  List<List_item>     when_list;
+  SQL_LIST	      order_list,table_list,group_list;
+  List<Item>          item_list;
+  List<String>        interval_list,use_index, *use_index_ptr, ignore_index, *ignore_index_ptr;
+  List<Item_func_match> ftfunc_list;
+  uint in_sum_expr, sort_default;
+  bool	create_refs;
+  st_select_lex *next;
+} SELECT_LEX;
+
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex {
   uint	 yylineno,yytoklen;			/* Simulate lex */
   LEX_YYSTYPE yylval;
+  SELECT_LEX select_lex, *select;
   uchar *ptr,*tok_start,*tok_end,*end_of_query;
   char *length,*dec,*change,*name;
-  char *db,*db1,*table1,*db2,*table2;		/* For outer join using .. */
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   String *wild;
   sql_exchange *exchange;
-  ha_rows select_limit,offset_limit;
 
-  List<List_item>     expr_list;
-  List<List_item>     when_list;
-  List<List_item>     many_values;
   List<key_part_spec> col_list;
   List<Alter_drop>    drop_list;
   List<Alter_column>  alter_list;
-  List<String>	      interval_list,use_index,*use_index_ptr,
-		      ignore_index, *ignore_index_ptr;
+  List<String>	      interval_list;
   List<st_lex_user>   users_list;
   List<LEX_COLUMN>    columns;
   List<Key>	      key_list;
   List<create_field>  create_list;
-  List<Item>	      item_list,*insert_list,field_list,value_list;
-  List<Item_func_match> ftfunc_list;
-  SQL_LIST	      order_list,table_list,group_list,proc_list;
+  List<Item>	      *insert_list,field_list,value_list;
+  List<List_item>     many_values;
+  SQL_LIST	      proc_list, auxilliary_table_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
-
-  Item *where,*having,*default_value;
+  Item *default_value;
   CONVERT *convert_set;
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;
@@ -136,7 +155,6 @@ typedef struct st_lex {
   HA_CREATE_INFO create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   ulong thread_id,type;
-  ulong options;
   ulong gemini_spin_retries;
   enum_sql_command sql_command;
   enum lex_states next_state;
@@ -145,9 +163,9 @@ typedef struct st_lex {
   enum enum_ha_read_modes ha_read_mode;
   enum ha_rkey_function ha_rkey_mode;
   enum enum_enable_or_disable alter_keys_onoff;
-  uint in_sum_expr,grant,grant_tot_col,which_columns, sort_default;
+  uint grant,grant_tot_col,which_columns;
   thr_lock_type lock_option;
-  bool	create_refs,drop_primary,drop_if_exists,local_file;
+  bool	drop_primary,drop_if_exists,local_file;
   bool  in_comment,ignore_space,verbose,simple_alter;
 
 } LEX;
