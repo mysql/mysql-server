@@ -242,6 +242,8 @@ sys_var_thd_ulong	sys_max_tmp_tables("max_tmp_tables",
 					   &SV::max_tmp_tables);
 sys_var_long_ptr	sys_max_write_lock_count("max_write_lock_count",
 						 &max_write_lock_count);
+sys_var_long_ptr	sys_myisam_data_pointer_size("myisam_data_pointer_size",
+                                                    &myisam_data_pointer_size);
 sys_var_thd_ulonglong	sys_myisam_max_extra_sort_file_size("myisam_max_extra_sort_file_size", &SV::myisam_max_extra_sort_file_size, fix_myisam_max_extra_sort_file_size, 1);
 sys_var_thd_ulonglong	sys_myisam_max_sort_file_size("myisam_max_sort_file_size", &SV::myisam_max_sort_file_size, fix_myisam_max_sort_file_size, 1);
 sys_var_thd_ulong       sys_myisam_repair_threads("myisam_repair_threads", &SV::myisam_repair_threads);
@@ -521,6 +523,7 @@ sys_var *sys_variables[]=
   &sys_max_tmp_tables,
   &sys_max_user_connections,
   &sys_max_write_lock_count,
+  &sys_myisam_data_pointer_size,
   &sys_myisam_max_extra_sort_file_size,
   &sys_myisam_max_sort_file_size,
   &sys_myisam_repair_threads,
@@ -721,6 +724,7 @@ struct show_var_st init_vars[]= {
   {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
   {sys_max_write_lock_count.name, (char*) &sys_max_write_lock_count,SHOW_SYS},
+  {sys_myisam_data_pointer_size.name, (char*) &sys_myisam_data_pointer_size, SHOW_SYS},
   {sys_myisam_max_extra_sort_file_size.name,
    (char*) &sys_myisam_max_extra_sort_file_size,
    SHOW_SYS},
