@@ -108,7 +108,7 @@ bool Protocol_cursor::write()
   data_tmp= (byte **)(new_record + 1);
   new_record->data= (char **)data_tmp;
 
-  to= (byte *)data + (field_count + 1)*sizeof(char *);
+  to= (byte *)data_tmp + (field_count + 1)*sizeof(char *);
 
   for (; cur_field < fields_end; ++cur_field, ++data_tmp)
   {
@@ -123,7 +123,7 @@ bool Protocol_cursor::write()
 // TODO error signal      send_error(thd, CR_MALFORMED_PACKET);
 	return TRUE;
       }
-      *data= to;
+      *data_tmp= to;
       memcpy(to,(char*) cp,len);
       to[len]=0;
       to+=len+1;
@@ -132,7 +132,7 @@ bool Protocol_cursor::write()
 	cur_field->max_length=len;
     }
   }
-  *data= 0;
+  *data_tmp= 0;
 
   *prev_record= new_record;
   prev_record= &new_record->next;

@@ -1777,7 +1777,7 @@ sp_case:
 	    { /* Simple case: <caseval> = <whenval> */
 	      LEX_STRING ivar;
 
-	      ivar.str= "_tmp_";
+	      ivar.str= (char *)"_tmp_";
 	      ivar.length= 5;
 	      Item *var= (Item*) new Item_splocal(ivar, 
 						  ctx->current_framesize()-1);

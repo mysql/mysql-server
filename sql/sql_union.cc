@@ -221,7 +221,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result)
     union_result->set_table(table);
 
     item_list.empty();
-    thd_arg->lex.current_select= lex_select_save;
+    thd_arg->lex->current_select= lex_select_save;
     {
       Field **field;
       for (field= table->field; *field; field++)
@@ -234,7 +234,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result)
   else
     first_select->braces= 0; // remove our changes
 
-  thd_arg->lex.current_select= lex_select_save;
+  thd_arg->lex->current_select= lex_select_save;
 
   DBUG_RETURN(res || thd_arg->is_fatal_error ? 1 : 0);
 
