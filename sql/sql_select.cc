@@ -195,9 +195,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   /* Don't set res if it's -1 as we may want this later */
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
 		     thd->net.report_error));
-  if (thd->net.report_error)
-    res= 1;
-  if (res)
+  if (thd->net.report_error || res<0)
   {
     result->send_error(0, NullS);
     result->abort();
@@ -1462,7 +1460,7 @@ JOIN::exec()
   }
   curr_join->having= curr_join->tmp_having;
   thd->proc_info="Sending data";
-  error= thd->net.report_error ||
+  error= thd->net.report_error ? -1 :
     do_select(curr_join, curr_fields_list, NULL, procedure);
   thd->limit_found_rows= curr_join->send_records;
   thd->examined_row_count= curr_join->examined_rows;
@@ -5684,7 +5682,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     DBUG_PRINT("error",("Error: do_select() failed"));
   }
 #endif
-  DBUG_RETURN(error || join->thd->net.report_error);
+  DBUG_RETURN(join->thd->net.report_error ? -1 : error)
 }
 
 
