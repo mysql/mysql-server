@@ -1654,17 +1654,10 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
   execute_stmt(thd, stmt);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
-  //psergey-todo: move this into execute_stmt: 
-  reset_stmt_params(stmt);
-  /* 
-    Free Items that were created during this execution of the PS by query
-    optimizer.
-  */
-  free_items(thd->free_list); 
   DBUG_VOID_RETURN;
 
 set_params_data_err:
-  reset_stmt_params(stmt); //psergey-todo: check if this belongs here
+  reset_stmt_params(stmt); 
   my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_execute");
   send_error(thd);
   DBUG_VOID_RETURN;
@@ -1709,10 +1702,12 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
 /*
   Execute prepared statement.
   Caller must set parameter values and thd::protocol.
+  thd->free_list is assumed to be garbage.
 */
 static void execute_stmt(THD *thd, Prepared_statement *stmt)
 {
   DBUG_ENTER("execute_stmt");
+  thd->free_list= NULL;
   thd->stmt_backup.set_statement(thd);
   thd->set_statement(stmt);
   reset_stmt_for_execute(stmt);
@@ -1724,6 +1719,11 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
+  /* 
+    Free Items that were created during this execution of the PS by query
+    optimizer.
+  */
+  free_items(thd->free_list); 
   cleanup_items(stmt->free_list);
   reset_stmt_params(stmt);
   close_thread_tables(thd); // to close derived tables

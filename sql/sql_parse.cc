@@ -1424,7 +1424,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_EXECUTE:
   {
-    thd->free_list= NULL;
     mysql_stmt_execute(thd, packet, packet_length);
     break;
   }
