@@ -16,5 +16,3 @@ fi
 
 echo "NDBT_ProgramExit: Failed"
 exit 1
-
-

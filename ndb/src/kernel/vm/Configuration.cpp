@@ -503,7 +503,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
   for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
     Uint32 tmp;
-    if(!ndb_mgm_get_int_parameter(&db, LogLevel::MIN_LOGLEVEL_ID+j, &tmp)){
+    if(!ndb_mgm_get_int_parameter(&db, CFG_MIN_LOGLEVEL+j, &tmp)){
       m_logLevel->setLogLevel((LogLevel::EventCategory)j, tmp);
     }
   }

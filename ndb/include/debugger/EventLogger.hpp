@@ -34,39 +34,6 @@ public:
   LogLevel m_logLevel;
   
   /**
-   * Find a category matching the string
-   *
-   * @param str string to match.
-   * @param cat the event category.
-   * @param exactMatch only do exact matching.
-   *
-   *  @return TRUE if match is found, then cat is modified
-   *          FALSE if match is not found
-   */
-  static bool matchEventCategory(const char * str, 
-				 LogLevel::EventCategory * cat,
-				 bool exactMatch = false);
-  
-  /**
-   * Returns category name or NULL if not found.
-   *
-   * @param cat the event category.
-   * @return category name.
-   */
-  static const char * getEventCategoryName(LogLevel::EventCategory cat);
-
-  /**
-   * Specifies allowed event categories/log levels.
-   */
-  struct EventCategoryName {
-    LogLevel::EventCategory category;
-    const char * name;
-  };
-
-  static const EventCategoryName eventCategoryNames[];
-  static const Uint32 noOfEventCategoryNames;
-
-  /**
    * This matrix defines which event should be printed when
    *
    * threshold - is in range [0-15]
