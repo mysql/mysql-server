@@ -92,6 +92,11 @@ int deny_severity = LOG_WARNING;
 typedef fp_except fp_except_t;
 #endif
 
+#ifdef _AIX41
+extern "C" int initgroups(const char *,int);
+#endif
+
+
   /* We can't handle floating point expections with threads, so disable
      this on freebsd
   */
@@ -144,7 +149,7 @@ static pthread_cond_t COND_handler_count;
 static uint handler_count;
 #endif
 #ifdef __WIN__
-static bool opt_console=0;
+static bool opt_console=0,start_mode=0;
 #endif
 
 #ifdef HAVE_BERKELEY_DB
@@ -1945,12 +1950,24 @@ The server will not act as a slave.");
   sql_print_error("After lock_thread_count");
 #endif
 #else
-  // remove the event, because it will not be valid anymore
-  Service.SetShutdownEvent(0);
-  if(hEventShutdown) CloseHandle(hEventShutdown);
-  // if it was started as service on NT try to stop the service
-  if(Service.IsNT())
-     Service.Stop();
+  if (Service.IsNT())
+  {
+    if(start_mode)
+    {
+      if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
+        Service.Stop();
+    }
+    else
+    {
+      Service.SetShutdownEvent(0);
+      if(hEventShutdown) CloseHandle(hEventShutdown);
+    }
+  }
+  else
+  {
+    Service.SetShutdownEvent(0);
+    if(hEventShutdown) CloseHandle(hEventShutdown);
+  }
 #endif
 
   /* Wait until cleanup is done */
@@ -2003,6 +2020,7 @@ int main(int argc, char **argv)
     else if (argc == 1)		   // No arguments; start as a service
     {
       // init service
+      start_mode = 1;
       long tmp=Service.Init(MYSQL_SERVICENAME,mysql_service);
       return 0;
     }
@@ -2477,7 +2495,7 @@ enum options {
 	       OPT_GEMINI_SKIP, OPT_INNODB_SKIP,
                OPT_TEMP_POOL, OPT_TX_ISOLATION,
 	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
-               OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
+               OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC
 };
 
 static struct option long_options[] = {

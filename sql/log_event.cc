@@ -694,7 +694,7 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
   }
      
   if((int)skip_lines > 0)
-    fprintf(file, " IGNORE %d LINES ", skip_lines);
+    fprintf(file, " IGNORE %ld LINES ", (long) skip_lines);
 
   if (num_fields)
   {
