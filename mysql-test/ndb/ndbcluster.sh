@@ -67,8 +67,7 @@ while test $# -gt 0; do
      initial_ndb=1
      ;;
     --debug*)
-     f=`echo "$1" | sed -e "s;--debug=;;"`
-     flags_ndb="$flags_ndb $f"
+     flags_ndb="$flags_ndb $1"
      ;;
     --status)
      status_ndb=1
