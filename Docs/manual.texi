@@ -38903,21 +38903,20 @@ different.  This means that for some applications @strong{MySQL} is more
 suitable and for others @code{PostgreSQL} is more suitable.  When
 choosing which database to use, you should first check if the database's
 feature set is good enough to satisfy your application.  If you need
-speed then @strong{MySQL} is probably your best choice. If you need some
+speed, @strong{MySQL} is probably your best choice. If you need some
 of the extra features that @code{PostgreSQL} can offer, you should use
 @code{PostgreSQL}.
 
 @code{PostgreSQL} has some more advanced features like user-defined
 types, triggers, rules, and some transaction support (currently it
 has about the same symantics as @strong{MySQL}'s transactions in that the
-transaction is not 100% atomic). However, PostgreSQL lacks
-many of the standard types and functions from ANSI SQL and ODBC. See the
-@uref{http://www.mysql.com/information/crash-me.php, @code{crash-me} Web page}
-for a complete list of limits and which types and functions are supported
-or unsupported.
+transaction is not 100% atomic).  However, PostgreSQL lacks many of the 
+standard types and functions from ANSI SQL and ODBC. See the @code{crash-me} 
+Web page (@uref{http://www.mysql.com/information/crash-me.php}) for a complete
+list of limits and which types and functions are supported or unsupported.
 
-Normally, @code{PostgreSQL} is a magnitude slower than
-@strong{MySQL}. @xref{Benchmarks}.  This is due largely to the fact that they have only
+Normally, @code{PostgreSQL} is a magnitude slower than @strong{MySQL}. 
+@xref{Benchmarks}.  This is due largely to the fact that they have only
 transaction-safe tables and that their transactions system is not as
 sophisticated as Berkeley DB's.  In @strong{MySQL} you can decide per
 table if you want the table to be fast or take the speed penalty of
@@ -38951,9 +38950,10 @@ This chapter describes a lot of things that you need to know when
 working on the @strong{MySQL} code. If you plan to contribute to MySQL
 development, want to have access to the bleeding-edge in-between
 versions code, or just want to keep track of development, follow the
-instructions in @xref{Installing source tree}. . If you are intersted in MySQL
-internals you should also subscribe to internals@@lists.mysql.com - this is
-a relatively low traffic list, in comparison with mysql@@lists.mysql.com .
+instructions in @xref{Installing source tree}.  If you are interested in MySQL
+internals, you should also subscribe to @email{internals@@lists.mysql.com}.
+This is a relatively low traffic list, in comparison with 
+@email{mysql@@lists.mysql.com}.
 
 @menu
 * MySQL threads::               MySQL threads
@@ -38967,38 +38967,46 @@ a relatively low traffic list, in comparison with mysql@@lists.mysql.com .
 The @strong{MySQL} server creates the following threads:
 
 @itemize @bullet
+
 @item
-The TCP/IP connection thread handles all connect requests and
+The TCP/IP connection thread handles all connection requests and
 creates a new dedicated thread to handle the authentication and
-and SQL query processing for the connection.
+and SQL query processing for each connection.
+
 @item
-On NT there is a named pipe handler thread that does the same work as
+On Windows NT there is a named pipe handler thread that does the same work as
 the TCP/IP connection thread on named pipe connect requests.
+
 @item
-The signal thread handles all signals. This thread also normally handles
+The signal thread handles all signals.  This thread also normally handles
 alarms and calls @code{process_alarm()} to force timeouts on connections
 that have been idle too long.
+
 @item
-If compiled with @code{-DUSE_ALARM_THREAD}, a dedicated thread that
-handles alarms is created. This is only used on some systems where
-there are some problems with @code{sigwait()} or if one wants to use the
+If @code{mysqld} is compiled with @code{-DUSE_ALARM_THREAD}, a dedicated 
+thread that handles alarms is created.  This is only used on some systems where
+there are problems with @code{sigwait()} or if one wants to use the
 @code{thr_alarm()} code in ones application without a dedicated signal
 handling thread.
+
 @item
 If one uses the @code{--flush_time=#} option, a dedicated thread is created
 to flush all tables at the given interval.
+
 @item
 Every connection has its own thread.
+
 @item
 Every different table on which one uses @code{INSERT DELAYED} gets its
 own thread.
+
 @item
-If you use @code{--master-host}, slave replication thread will be
+If you use @code{--master-host}, a slave replication thread will be
 started to read and apply updates from the master.
 @end itemize
 
-@code{mysqladmin processlist} only shows the connection and @code{INSERT
-DELAYED} threads.
+@code{mysqladmin processlist} only shows the connection, @code{INSERT DELAYED},
+and replication threads.
 
 @cindex searching, full-text
 @cindex full-text search
@@ -39007,13 +39015,13 @@ DELAYED} threads.
 @section MySQL Full-text Search
 
 Since Version 3.23.23, @strong{MySQL} has support for full-text indexing
-and searching. Full-text index in @strong{MySQL} is an
-index of type @code{FULLTEXT}. @code{FULLTEXT} indexes can be created from
-@code{VARCHAR} and @code{TEXT} columns at @code{CREATE TABLE} time or added
-later with @code{ALTER TABLE} or @code{CREATE INDEX}. For big datasets,
-adding @code{FULLTEXT} index with @code{ALTER TABLE}
-(or @code{CREATE INDEX}) would be much faster, than inserting rows into
-the empty table with @code{FULLTEXT} index.
+and searching.  Full-text indexes in @strong{MySQL} are an index of type 
+@code{FULLTEXT}.  @code{FULLTEXT} indexes can be created from @code{VARCHAR} 
+and @code{TEXT} columns at @code{CREATE TABLE} time or added later with 
+@code{ALTER TABLE} or @code{CREATE INDEX}.  For large datasets, adding 
+@code{FULLTEXT} index with @code{ALTER TABLE} (or @code{CREATE INDEX}) would 
+be much faster than inserting rows into the empty table with a @code{FULLTEXT} 
+index.
 
 Full-text search is performed with the @code{MATCH} function.
 
@@ -39052,48 +39060,47 @@ mysql> SELECT *,MATCH a,b AGAINST ('collections support') as x FROM t;
 5 rows in set (0.00 sec)
 @end example
 
-The function @code{MATCH} matches a natural language query
-@code{AGAINST} a text collection (which is simply the columns that are
-covered by a @strong{FULLTEXT} index). For every row in a table it
-returns relevance - a similarity measure between the text in that row
-(in the columns that are part of the collection) and the query. When it
-is used in a @code{WHERE} clause (see example above) the rows returned
-are automatically sorted with relevance decreasing. Relevance is a
-non-negative floating-point number. Zero relevance means no similarity.
-Relevance is computed based on the number of words in the row and the
-number of unique words in that row, the total number of words in the
-collection, the number of documents (rows) that contain a particular
-word, etc.
+The function @code{MATCH} matches a natural language query @code{AGAINST} 
+a text collection (which is simply the columns that are covered by a 
+@strong{FULLTEXT} index).  For every row in a table it returns relevance - 
+a similarity measure between the text in that row (in the columns that are 
+part of the collection) and the query.  When it is used in a @code{WHERE} 
+clause (see example above) the rows returned are automatically sorted with 
+relevance decreasing.  Relevance is a non-negative floating-point number. 
+Zero relevance means no similarity.  Relevance is computed based on the 
+number of words in the row, the number of unique words in that row, the 
+total number of words in the collection, and the number of documents (rows) 
+that contain a particular word.
 
-MySQL uses a very simple parser to split text into words. A "word" is
-any sequence of letters, numbers, @code{'}, and @code{_}. Any "word"
+MySQL uses a very simple parser to split text into words.  A ``word'' is
+any sequence of letters, numbers, @samp{'}, and @samp{_}.  Any ``word''
 that is present in the stopword list or just too short (3 characters
 or less) is ignored.
 
 Every correct word in the collection and in the query is weighted,
-according to its significance in the query or collection. This way, a
+according to its significance in the query or collection.  This way, a
 word that is present in many documents will have lower weight (and may
 even have a zero weight), because it has lower semantic value in this
-particular collection. Otherwise, if the word is rare, it will receive a
-higher weight. Weights of the words are then combined to compute the
-relevance.
+particular collection.  Otherwise, if the word is rare, it will receive a
+higher weight.  The weights of the words are then combined to compute the
+relevance of the row.
 
-Such a technique works best with big collections (in fact, it was
-carefully tuned up this way). For very small tables, word distribution
+Such a technique works best with large collections (in fact, it was
+carefully tuned this way).  For very small tables, word distribution
 does not reflect adequately their semantical value, and this model
 may sometimes produce bizarre results.
 
 For example, search for the word "search" will produce no results in the
 above example. Word "search" is present in more than half of rows, and
-as, such, is effectively treated as stopword (that is, with semantical value
-zero). It is, really, the desired behavior - natural language query
-should not return every second row in 1GB table.
+as such, is effectively treated as a stopword (that is, with semantical value
+zero).  It is, really, the desired behavior - a natural language query
+should not return every other row in 1GB table.
 
-The word that select 50% of rows has low ability to locate relevant
-documents (and will find plenty of unrelevant documents also - we all
-know this happen too often when we are trying to find something in Internet
-with search engine), and, as such, has low semantical value in @strong{this
-particular dataset}.
+A word that matches half of rows in a table is less likely to locate relevant
+documents.  In fact, it will most likely find plenty of irrelevant documents.
+We all know this happens far too often when we are trying to find something on
+the Internet with a search engine.  It is with this reasoning that such rows 
+have been assigned a low semantical value in @strong{a particular dataset}.
 
 @menu
 * Fulltext Fine-tuning::
@@ -39104,14 +39111,14 @@ particular dataset}.
 @node Fulltext Fine-tuning, Fulltext features to appear in MySQL 4.0, MySQL full-text search, MySQL full-text search
 @subsection Fine-tuning MySQL Full-text Search
 
-Unfortunately, full-text search has no user-tunable parameters yet
-(but adding some is very high in the TODO). But if one has @strong{MySQL}
-source distribution (@xref{Installing source}.) he can somewhat alter
-full-text search default behaviour.
+Unfortunately, full-text search has no user-tunable parameters yet,
+although adding some is very high on the TODO.  However, if you have a 
+@strong{MySQL} source distribution (@xref{Installing source}.), you can 
+somewhat alter the full-text search behavior.
 
-But note, that full-text search was carefully tuned up for the best
-search effectivity. Modifying default behaviour will, most probably,
-make search results only worse. Do not play with @strong{MySQL} sources,
+Note that full-text search was carefully tuned for the best searching
+effectiveness.  Modifying the default behavior will, in most cases,
+only make the search results worse.  Do not alter the @strong{MySQL} sources
 unless you know what you are doing!
 
 @itemize
@@ -39122,25 +39129,26 @@ Minimal length of word to be indexed is defined in
 @example
 #define MIN_WORD_LEN 4
 @end example
-Change it to the value, you prefer, recompile @strong{MySQL} and rebuild
+Change it to the value you prefer, recompile @strong{MySQL}, and rebuild
 your @code{FULLTEXT} indexes.
 
 @item
-Stopword list is defined in @code{myisam/ft_static.c}
+The stopword list is defined in @code{myisam/ft_static.c}
 Modify it to your taste, recompile @strong{MySQL} and rebuild
 your @code{FULLTEXT} indexes.
 
 @item
-50% threshold is caused by weighting scheme chosen. To disable it, change
+The 50% threshold is caused by the particular weighting scheme chosen. To 
+disable it, change the following line in @code{myisam/ftdefs.h}:
 @example
 #define GWS_IN_USE GWS_PROB
 @end example
-line in @code{myisam/ftdefs.h} to
+to
 @example
 #define GWS_IN_USE GWS_FREQ
 @end example
 and recompile @strong{MySQL}.
-There is no need to rebuild the indexes though.
+There is no need to rebuild the indexes in this case.
 
 @end itemize
 
@@ -39157,24 +39165,28 @@ implemented in the 4.0 tree. It explains
 @code{OPTIMIZE TABLE} with @code{FULLTEXT} indexes are now
 up to 100 times faster.
 
-@item @code{MATCH ... AGAINST} now supports @strong{boolean operators}.
-They are the following:@itemize @bullet
+@item @code{MATCH ... AGAINST} now supports the following 
+@strong{boolean operators}:
+
+@itemize @bullet
 @item @code{+}word means the that word @strong{must} be present in every
 row returned.
 @item @code{-}word means the that word @strong{must not} be present in every
 row returned.
 @item @code{<} and @code{>} can be used to decrease and increase word 
 weight in the query.
-@item @code{~} can be used to assign a @strong{negative} weight to noise-word.
+@item @code{~} can be used to assign a @strong{negative} weight to a noise 
+word.
 @item @code{*} is a truncation operator.
 @end itemize
-Boolean search utilizes more simplistic way of calculating the relevance,
-that does not has 50% threshold.
+
+Boolean search utilizes a more simplistic way of calculating the relevance,
+that does not have a 50% threshold.
 
 @item Searches are now up to 2 times faster due to optimized search algorithm.
 
 @item Utility program @code{ft_dump} added for low-level @code{FULLTEXT}
-index operations (quering/dumping/statistics).
+index operations (querying/dumping/statistics).
 
 @end itemize
 
@@ -39190,104 +39202,116 @@ the user wants to treat as words, examples are "C++", "AS/400", "TCP/IP", etc.
 @item Support for multi-byte charsets.
 @item Make stopword list to depend of the language of the data.
 @item Stemming (dependent of the language of the data, of course).
-@item Generic user-suppliable UDF (?) preparser.
+@item Generic user-supplyable UDF (?) preparser.
 @item Make the model more flexible (by adding some adjustable
 parameters to @code{FULLTEXT} in @code{CREATE/ALTER TABLE}).
 
 @end itemize
 
 @node MySQL test suite,  , MySQL full-text search, MySQL internals
+@cindex mysqltest, MySQL Test Suite
+@cindex testing mysqld, mysqltest
 @section MySQL Test Suite
 
-Until recently, our main full-coverage test suite was based on
-proprietary customer data and for that reason was not publically available. The
-only publically available part of our testing process consisted of
-@code{crash-me} test, the Perl DBI/DBD benchmark found in @code{sql-bench}
-directory, and miscalaneous tests combined in @code{tests} directory. The lack
-of a standardazied publically available test suite made it hard for our users
-as well as developers to do regression tests on MySQL code. To address this
-problem, we have created a new test system that is  included in the source
-and binary distributions starting in version 3.23.29.
+Until recently, our main full-coverage test suite was based on proprietary 
+customer data and for that reason has not been publicly available. The only 
+publicly available part of our testing process consisted of the @code{crash-me}
+test, a Perl DBI/DBD benchmark found in the @code{sql-bench} directory, and 
+miscellaneous tests located in @code{tests} directory. The lack of a 
+standardized publicly available test suite has made it difficult for our users,
+as well developers, to do regression tests on the MySQL code. To address this
+problem, we have created a new test system that is included in the source
+and binary distributions starting in Version 3.23.29.
 
-The test system consist of a test language interpreter @code{mysqltest},
-@code{mysql-test-run} - a shell script to run all tests, the actual test cases
-written in a special test language, and their expected results. To run the
+The test system consist of a test language interpreter (@code{mysqltest}),
+a shell script to run all tests(@code{mysql-test-run}), the actual test cases
+written in a special test language, and their expected results.  To run the
 test suite on your system after a build, type @code{mysql-test/mysql-test-run}
-from the source root. If you have installed a binary distribution, @code{cd}
-to the install root ( eg. @code{/usr/local/mysql} ), and do
-@code{scripts/mysql-test-run}. All tests should succeed. If they do not,
-use @code{mysqlbug} and send a bug report to @email{bugs@@lists.mysql.com}.
-Make sure to include the output of @code{mysql-test-run}, contents of all
-@code{.reject} files in @code{mysql-test/r} directory.
+from the source root.  If you have installed a binary distribution, @code{cd}
+to the install root (eg. @code{/usr/local/mysql}), and do
+@code{scripts/mysql-test-run}.  All tests should succeed.  If they do not,
+use @code{mysqlbug} to send a bug report to @email{bugs@@lists.mysql.com}.
+Make sure to include the output of @code{mysql-test-run}, as well as
+contents of all @code{.reject} files in @code{mysql-test/r} directory.
 
 If you have a copy of @code{mysqld} running on the machine where you want to
 run the test suite you do not have to stop it, as long as it is not using
-ports @code{9306} and @code{9307}. If one of those ports is taken, you should
+ports @code{9306} and @code{9307}.  If one of those ports is taken, you should
 edit @code{mysql-test-run} and change the values of the master and/or slave
-port to something not used. 
+port to one that is available.
 
 The current set of test cases is far from comprehensive, as we have not yet
-converted all of our private suite tests to the new format. However,
-it should already catch most obvious bugs in the SQL processing code,
-OS/library issues, and is quite thorough in testing replication. Our eventual
-goal is to have the tests cover 100% of the code. We welcome contributions to
-our test suite. You may especially want to contribute tests that examine the
-functionality critical to your system - this will ensure that all
-@strong{MySQL} releases will work well with your applications.
+converted all of our private tests to the new format.  However, it should 
+already catch most obvious bugs in the SQL processing code, OS/library issues,
+and is quite thorough in testing replication.  Our eventual goal is to have 
+the tests cover 100% of the code.  We welcome contributions to our test suite.
+You may especially want to contribute tests that examine the functionality 
+critical to your system, as this will ensure that all future @strong{MySQL} 
+releases will work well with your applications.
 
-You can use @code{mysqltest} language to write your own test cases.
+You can use the @code{mysqltest} language to write your own test cases.
 Unfortunately, we have not yet written full documentation for it - we plan to
-do this shortly. However, you can look at our current test cases and
-use them as an example. Also the following points should help you get started:
+do this shortly.  You can, however, look at our current test cases and use 
+them as an example.  The following points should help you get started:
 
 @itemize
+
 @item
 The tests are located in @code{mysql-test/t/*.test}
+
 @item
 You can run one individual test case with
 @code{mysql-test/mysql-test-run test_name}
 removing @code{.test} extension from the file name
+
 @item
 A test case consists of @code{;} terminated statements and is similar to the
-input of @code{mysql} command line client. A statement by default is a query
+input of @code{mysql} command line client.  A statement by default is a query
 to be sent to @strong{MySQL} server, unless it is recognized as internal
 command ( eg. @code{sleep} ).
+
 @item
-All queries that produce results, eg @code{SELECT}, @code{SHOW},
-@code{EXPLAIN}, etc, must be preceded with @code{@@/path/to/result/file}. The
-file must contain expected results. An easy way to generate the result file
-is to run @code{mysqltest -r < t/test-case-name.test} from @code{mysql-test}
-directory, and then edit the generated result files, if needed, to adjust
-them to the expected output. In that case, be very careful about not adding or
-deleting any invisible characters - make sure to only change the text and/or
-delete lines. If you have to insert a line, make sure the fields are separated
-with a hard tab, and there is a hard tab at the end. You may want to use
-@code{od -c} to make sure your text editor has not messed anything up during
-edit. We, of course, hope that you will never have to edit the output of
-@code{mysqltest -r} as you only have to do it when you find a bug.
+All queries that produce results, e.g. @code{SELECT}, @code{SHOW},
+@code{EXPLAIN}, etc., must be preceded with @code{@@/path/to/result/file}.  The
+file must contain the expected results.  An easy way to generate the result 
+file is to run @code{mysqltest -r < t/test-case-name.test} from 
+@code{mysql-test} directory, and then edit the generated result files, if 
+needed, to adjust them to the expected output.  In that case, be very careful 
+about not adding or deleting any invisible characters - make sure to only 
+change the text and/or delete lines.  If you have to insert a line, make sure
+the fields are separated with a hard tab, and there is a hard tab at the end.  
+You may want to use @code{od -c} to make sure your text editor has not messed 
+anything up during edit.  We, of course, hope that you will never have to edit
+the output of @code{mysqltest -r} as you only have to do it when you find a 
+bug.
+
 @item
 To be consistent with our setup, you should put your result files in
-@code{mysql-test/r} directory and name them @code{test_name.result}. If the
+@code{mysql-test/r} directory and name them @code{test_name.result}.  If the
 test produces more than one result, you should use @code{test_name.a.result},
-@code{test_name.b.result}, etc
+@code{test_name.b.result}, etc.
+
 @item
 Failed test results are put in a file with the same base name as the
-result file with the @code{.reject} extenstion. If your test case is
-failing, you should do a diff on the two files. If you cannot see how
+result file with the @code{.reject} extension.  If your test case is
+failing, you should do a diff on the two files.  If you cannot see how
 they are different, examine both with @code{od -c} and also check their
 lengths.
+
 @item
 You can prefix a query with @code{!} if the test can continue after that query
 returns an error.
+
 @item
-If you are writing a replication test case, you should on the first line put
-@code{source include/master-slave.inc;} at the start of the test file. To
-switch between master and slave, use @code{connection master;}/
-@code{connection slave;}. If you need to do something on an alternate
-connection, you can do @code{connection master1;} for the master, and
-@code{connection slave1;} on the slave
+If you are writing a replication test case, you should on the first line of
+the test file, put @code{source include/master-slave.inc;}.  To switch between
+master and slave, use @code{connection master;} and @code{connection slave;}. 
+If you need to do something on an alternate connection, you can do 
+@code{connection master1;} for the master, and @code{connection slave1;} for
+the slave.
+
 @item
-If you need to do something in a loop, you can use someting like this:
+If you need to do something in a loop, you can use something like this:
 @example
 let $1=1000;
 while ($1)
@@ -39296,18 +39320,21 @@ while ($1)
  dec $1;
 @}
 @end example
+
 @item
-To sleep between queries, use @code{sleep} command. It supports fractions of
-a second, so you can do @code{sleep 1.3;}, for example, to sleep 1.3 seconds.
+To sleep between queries, use the @code{sleep} command. It supports fractions
+of a second, so you can do @code{sleep 1.3;}, for example, to sleep 1.3 
+seconds.
+
 @item
 To run the slave with additional options for your test case, put them
 in the command-line format in @code{mysql-test/t/test_name-slave.opt}. For
 the master, put them in @code{mysql-test/t/test_name-master.opt}.
+
 @item
-If you have a question about the test suite, or have a test case to
-contribute, e-mail to
-@email{internals@@lists.mysql.com}. As the list does not accept attachemnts,
-you should ftp all the relevant files to
+If you have a question about the test suite, or have a test case to contribute,
+e-mail to @email{internals@@lists.mysql.com}. As the list does not accept 
+attachemnts, you should ftp all the relevant files to:
 @url{ftp://support.mysql.com/pub/mysql/Incoming}
 
 @end itemize
