@@ -22,6 +22,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include "my_dir.h"
+#include "sp_rcontext.h"
 
 /*****************************************************************************
 ** Item functions
@@ -173,6 +174,23 @@ bool Item::get_time(TIME *ltime)
 CHARSET_INFO * Item::default_charset() const
 {
   return current_thd->db_charset;
+}
+
+
+Item *
+Item_splocal::this_item()
+{
+  THD *thd= current_thd;
+
+  return thd->spcont->get_item(m_offset);
+}
+
+Item *
+Item_splocal::this_const_item() const
+{
+  THD *thd= current_thd;
+
+  return thd->spcont->get_item(m_offset);
 }
 
 bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,

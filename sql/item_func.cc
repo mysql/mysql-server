@@ -30,6 +30,9 @@
 #ifdef HAVE_COMPRESS
 #include <zlib.h>
 #endif
+#include "sp_head.h"
+#include "sp_rcontext.h"
+#include "sp.h"
 
 /* return TRUE if item is a constant */
 
@@ -2838,4 +2841,75 @@ longlong Item_func_srid::val_int()
 				    swkb->length() - SRID_SIZE));
   uint32 res= uint4korr(swkb->ptr());
   return (longlong) res;
+}
+
+int
+Item_func_sp::execute(Item **itp)
+{
+  DBUG_ENTER("Item_func_sp::execute");
+  THD *thd= current_thd;
+
+  if (! m_sp)
+    m_sp= sp_find_function(thd, &m_name);
+  if (! m_sp)
+    DBUG_RETURN(-1);
+
+  DBUG_RETURN(m_sp->execute_function(thd, args, arg_count, itp));
+}
+
+enum enum_field_types
+Item_func_sp::field_type() const
+{
+  DBUG_ENTER("Item_func_sp::field_type");
+
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, const_cast<LEX_STRING*>(&m_name));
+  if (m_sp)
+  {
+    DBUG_PRINT("info", ("m_returns = %d", m_sp->m_returns));
+    DBUG_RETURN(m_sp->m_returns);
+  }
+  DBUG_RETURN(MYSQL_TYPE_STRING);
+}
+
+Item_result
+Item_func_sp::result_type() const
+{
+  DBUG_ENTER("Item_func_sp::result_type");
+  DBUG_PRINT("info", ("m_sp = %p", m_sp));
+
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, const_cast<LEX_STRING*>(&m_name));
+  if (m_sp)
+  {
+    DBUG_RETURN(m_sp->result());
+  }
+  DBUG_RETURN(STRING_RESULT);
+}
+
+void
+Item_func_sp::fix_length_and_dec()
+{
+  DBUG_ENTER("Item_func_sp::fix_length_and_dec");
+
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, &m_name);
+  if (m_sp)
+  {
+    switch (m_sp->result()) {
+    case STRING_RESULT:
+      maybe_null= 1;
+      max_length= 0;
+      break;
+    case REAL_RESULT:
+      decimals= NOT_FIXED_DEC;
+      max_length= float_length(decimals);
+      break;
+    case INT_RESULT:
+      decimals= 0;
+      max_length= 21;
+      break;
+    }
+  }
+  DBUG_VOID_RETURN;
 }

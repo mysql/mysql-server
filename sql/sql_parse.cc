@@ -26,6 +26,9 @@
 #include "ha_innodb.h"
 #endif
 
+#include "sp_head.h"
+#include "sp.h"
+
 #ifdef HAVE_OPENSSL
 /*
   Without SSL the handshake consists of one packet. This packet
@@ -43,6 +46,15 @@
 #else
 #define MIN_HANDSHAKE_SIZE      6
 #endif /* HAVE_OPENSSL */
+
+/* Used in error handling only */
+#define SP_TYPE_STRING(LP) \
+  ((LP)->sphead->m_type == TYPE_ENUM_FUNCTION ? "FUNCTION" : "PROCEDURE")
+#define SP_COM_STRING(LP) \
+  ((LP)->sql_command == SQLCOM_CREATE_SPFUNCTION || \
+   (LP)->sql_command == SQLCOM_ALTER_FUNCTION || \
+   (LP)->sql_command == SQLCOM_DROP_FUNCTION ? \
+   "FUNCTION" : "PROCEDURE")
 
 extern int yyparse(void *thd);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
@@ -1565,7 +1577,7 @@ bool alloc_query(THD *thd, char *packet, ulong packet_length)
 ** Execute command saved in thd and current_lex->sql_command
 ****************************************************************************/
 
-void
+int
 mysql_execute_command(THD *thd)
 {
   int	res= 0;
@@ -1574,6 +1586,18 @@ mysql_execute_command(THD *thd)
   SELECT_LEX *select_lex= &lex->select_lex;
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
+
+  /*
+    Clear the SP function cache before each statement (QQ this is a temporary
+    solution; caching will be rehacked later), and the new ones.
+  */
+  sp_clear_function_cache(thd);
+  if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
+      lex->sql_command != SQLCOM_CREATE_SPFUNCTION)
+  {
+    if (sp_cache_functions(thd, lex))
+      DBUG_RETURN(-1);
+  }
 
   /*
     Reset warning count for each query that uses tables
@@ -1597,7 +1621,7 @@ mysql_execute_command(THD *thd)
       given and the table list says the query should not be replicated
     */
     if (table_rules_on && tables && !tables_ok(thd,tables))
-      DBUG_VOID_RETURN;
+      DBUG_RETURN(0);
 #ifndef TO_BE_DELETED
     /*
        This is a workaround to deal with the shortcoming in 3.23.44-3.23.46
@@ -1632,7 +1656,7 @@ mysql_execute_command(THD *thd)
 	{
 	  if (res < 0 || thd->net.report_error)
 	    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
-	  DBUG_VOID_RETURN;
+	  DBUG_RETURN(res);
 	}
       }
     }
@@ -1645,7 +1669,7 @@ mysql_execute_command(THD *thd)
        !tables_ok(thd,tables))
 #endif
       )
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(0);
 
   statistic_increment(com_stat[lex->sql_command],&LOCK_status);
   switch (lex->sql_command) {
@@ -1684,7 +1708,7 @@ mysql_execute_command(THD *thd)
 	if (!(result= new select_send()))
 	{
 	  send_error(thd, ER_OUT_OF_RESOURCES);
-	  DBUG_VOID_RETURN;
+	  goto error;
 	}
 	else
 	  thd->send_explain_fields(result);
@@ -1947,7 +1971,7 @@ mysql_execute_command(THD *thd)
 	  find_real_table_in_list(tables->next, tables->db, tables->real_name))
       {
 	net_printf(thd,ER_UPDATE_TABLE_USED,tables->real_name);
-	DBUG_VOID_RETURN;
+	DBUG_RETURN(-1);
       }
       if (tables->next)
       {
@@ -2029,7 +2053,7 @@ mysql_execute_command(THD *thd)
   if (thd->locked_tables || thd->active_transaction())
   {
     send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
-    break;
+    goto error;
   }
   {
     LOCK_ACTIVE_MI;
@@ -2042,7 +2066,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_ALTER_TABLE:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
     send_error(thd,ER_NOT_ALLOWED_COMMAND); /* purecov: inspected */
-    break;
+    goto error;
 #else
     {
       ulong priv=0;
@@ -2134,7 +2158,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_BINLOGS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(thd,ER_NOT_ALLOWED_COMMAND); /* purecov: inspected */
-    DBUG_VOID_RETURN;
+    goto error;
 #else
     {
       if (check_global_access(thd, SUPER_ACL))
@@ -2147,7 +2171,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_CREATE:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(thd,ER_NOT_ALLOWED_COMMAND); /* purecov: inspected */
-    DBUG_VOID_RETURN;
+    goto error;
 #else
     {
       if (check_db_used(thd, tables) ||
@@ -2225,7 +2249,7 @@ mysql_execute_command(THD *thd)
     if (select_lex->item_list.elements != lex->value_list.elements)
     {
       send_error(thd,ER_WRONG_VALUE_COUNT);
-      DBUG_VOID_RETURN;
+      goto error;
     }
     res= mysql_update(thd,tables,
                       select_lex->item_list,
@@ -2246,7 +2270,7 @@ mysql_execute_command(THD *thd)
     if (select_lex->item_list.elements != lex->value_list.elements)
     {
       send_error(thd,ER_WRONG_VALUE_COUNT);
-      DBUG_VOID_RETURN;
+      goto error;
     }
     {
       const char *msg= 0;
@@ -2282,7 +2306,7 @@ mysql_execute_command(THD *thd)
     if (select_lex->item_list.elements != lex->value_list.elements)
     {
       send_error(thd,ER_WRONG_VALUE_COUNT);
-      DBUG_VOID_RETURN;
+      goto error;
     }
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
                        select_lex->item_list, lex->value_list,
@@ -2323,8 +2347,7 @@ mysql_execute_command(THD *thd)
 
     if (find_real_table_in_list(tables->next, tables->db, tables->real_name))
     {
-      net_printf(thd,ER_UPDATE_TABLE_USED,tables->real_name);
-      DBUG_VOID_RETURN;
+      lex->select_lex.options |= OPTION_BUFFER_RESULT;    
     }
 
     /* Skip first table, which is the table we are inserting in */
@@ -2486,7 +2509,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_DATABASES:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
     send_error(thd,ER_NOT_ALLOWED_COMMAND);   /* purecov: inspected */
-    DBUG_VOID_RETURN;
+    goto error;
 #else
     if ((specialflag & SPECIAL_SKIP_SHOW_DB) &&
 	check_global_access(thd, SHOW_DB_ACL))
@@ -2520,7 +2543,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_LOGS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(thd,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
-    DBUG_VOID_RETURN;
+    goto error;
 #else
     {
       if (grant_option && check_access(thd, FILE_ACL, any_db))
@@ -2533,7 +2556,7 @@ mysql_execute_command(THD *thd)
     /* FALL THROUGH */
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(thd,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
-    DBUG_VOID_RETURN;
+    goto error;
 #else
     {
       char *db=select_lex->db ? select_lex->db : thd->db;
@@ -2572,7 +2595,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_FIELDS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(thd,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
-    DBUG_VOID_RETURN;
+    goto error;
 #else
     {
       char *db=tables->db;
@@ -2597,7 +2620,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_SHOW_KEYS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(thd,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
-    DBUG_VOID_RETURN;
+    goto error;
 #else
     {
       char *db=tables->db;
@@ -2779,26 +2802,24 @@ mysql_execute_command(THD *thd)
     res=mysqld_show_create_db(thd,lex->name,&lex->create_info);
     break;
   }
-  case SQLCOM_CREATE_FUNCTION:
-    if (check_access(thd,INSERT_ACL,"mysql",0,1))
-      break;
+  case SQLCOM_CREATE_FUNCTION:	// UDF function
+    {
+      if (check_access(thd,INSERT_ACL,"mysql",0,1))
+	break;
 #ifdef HAVE_DLOPEN
-    if (!(res = mysql_create_function(thd,&lex->udf)))
-      send_ok(thd);
+      sp_head *sph= sp_find_function(thd, &lex->udf.name);
+      if (sph)
+      {
+	net_printf(thd, ER_UDF_EXISTS, lex->udf.name.str);
+	goto error;
+      }
+      if (!(res = mysql_create_function(thd,&lex->udf)))
+	send_ok(thd);
 #else
-    res= -1;
+      res= -1;
 #endif
-    break;
-  case SQLCOM_DROP_FUNCTION:
-    if (check_access(thd,DELETE_ACL,"mysql",0,1))
       break;
-#ifdef HAVE_DLOPEN
-    if (!(res = mysql_drop_function(thd,&lex->udf.name)))
-      send_ok(thd);
-#else
-    res= -1;
-#endif
-    break;
+    }
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
   {
@@ -2967,16 +2988,162 @@ mysql_execute_command(THD *thd)
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     break;
+  case SQLCOM_CREATE_PROCEDURE:
+  case SQLCOM_CREATE_SPFUNCTION:
+    if (!lex->sphead)
+    {
+      res= -1;			// Shouldn't happen
+      break;
+    }
+    else
+    {
+      uint namelen;
+      char *name= lex->sphead->name(&namelen);
+#ifdef HAVE_DLOPEN
+      if (lex->sphead->m_type == TYPE_ENUM_FUNCTION)
+      {
+	udf_func *udf = find_udf(name, namelen);
+
+	if (udf)
+	{
+	  net_printf(thd, ER_UDF_EXISTS, name);
+	  goto error;
+	}
+      }
+#endif
+      res= lex->sphead->create(thd);
+      switch (res)
+      {
+      case SP_OK:
+	send_ok(thd);
+	break;
+      case SP_WRITE_ROW_FAILED:
+	net_printf(thd, ER_SP_ALREADY_EXISTS, SP_TYPE_STRING(lex), name);
+	goto error;
+      default:
+	net_printf(thd, ER_SP_STORE_FAILED, SP_TYPE_STRING(lex), name);
+	goto error;
+      }
+    }
+    break;
+  case SQLCOM_CALL:
+    {
+      sp_head *sp;
+
+      sp= sp_find_procedure(thd, &lex->udf.name);
+      if (! sp)
+      {
+	net_printf(thd, ER_SP_DOES_NOT_EXIST, "PROCEDURE", lex->udf.name);
+	goto error;
+      }
+      else
+      {
+#ifndef EMBEDDED_LIBRARY
+	// When executing substatements, they're assumed to send_error when
+	// it happens, but not to send_ok.
+	my_bool nsok= thd->net.no_send_ok;
+
+	thd->net.no_send_ok= TRUE;
+#endif
+	res= sp->execute_procedure(thd, &lex->value_list);
+#ifndef EMBEDDED_LIBRARY
+	thd->net.no_send_ok= nsok;
+#endif
+
+	if (res == 0)
+	  send_ok(thd);
+	else
+	  goto error;		// Substatement should already have sent error
+      }
+    }
+    break;
+  case SQLCOM_ALTER_PROCEDURE:
+  case SQLCOM_ALTER_FUNCTION:
+    {
+      sp_head *sp;
+
+      if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
+	sp= sp_find_procedure(thd, &lex->udf.name);
+      else
+	sp= sp_find_function(thd, &lex->udf.name);
+      if (! sp)
+      {
+	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),lex->udf.name);
+	goto error;
+      }
+      else
+      {
+	/* QQ This is an no-op right now, since we haven't
+	      put the characteristics in yet. */
+	send_ok(thd);
+      }
+    }
+    break;
+  case SQLCOM_DROP_PROCEDURE:
+  case SQLCOM_DROP_FUNCTION:
+    {
+      if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
+	res= sp_drop_procedure(thd, lex->udf.name.str, lex->udf.name.length);
+      else
+      {
+	res= sp_drop_function(thd, lex->udf.name.str, lex->udf.name.length);
+#ifdef HAVE_DLOPEN
+	if (res == SP_KEY_NOT_FOUND)
+	{
+	  udf_func *udf = find_udf(lex->udf.name.str, lex->udf.name.length);
+	  if (udf)
+	  {
+	    if (check_access(thd, DELETE_ACL, "mysql", 0, 1))
+	      goto error;
+	    if (!(res = mysql_drop_function(thd,&lex->udf.name)))
+	    {
+	      send_ok(thd);
+	      break;
+	    }
+	  }
+	}
+#endif
+      }
+      switch (res)
+      {
+      case SP_OK:
+	send_ok(thd);
+	break;
+      case SP_KEY_NOT_FOUND:
+	if (lex->drop_if_exists)
+	{
+	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
+			      SP_COM_STRING(lex), lex->udf.name.str);
+	  res= 0;
+	  send_ok(thd);
+	  break;
+	}
+	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),
+		   lex->udf.name.str);
+	goto error;
+      default:
+	net_printf(thd, ER_SP_DROP_FAILED, SP_COM_STRING(lex),
+		   lex->udf.name.str);
+	goto error;
+      }
+    }
+    break;
   default:					/* Impossible */
     send_ok(thd);
     break;
   }
   thd->proc_info="query end";			// QQ
+
+  // We end up here if res == 0 and send_ok() has been done,
+  // or res != 0 and no send_error() has yet been done.
   if (res < 0)
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
+  DBUG_RETURN(res);
 
 error:
-  DBUG_VOID_RETURN;
+  // We end up here if send_error() has already been done.
+  DBUG_RETURN(-1);
 }
 
 

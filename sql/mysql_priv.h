@@ -362,7 +362,7 @@ extern "C" pthread_handler_decl(handle_one_connection,arg);
 extern "C" pthread_handler_decl(handle_bootstrap,arg);
 void end_thread(THD *thd,bool put_in_cache);
 void flush_thread_cache();
-void mysql_execute_command(THD *thd);
+int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
