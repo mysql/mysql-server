@@ -464,8 +464,6 @@ public:
   void send_error(uint errcode,const char *err);
   bool send_eof();
 };
-
-
 class select_insert :public select_result {
  protected:
   TABLE *table;
@@ -578,19 +576,50 @@ class Unique :public Sql_alloc
 
 public:
   ulong elements;
-  Unique(qsort_cmp2 comp_func, uint size, ulong max_in_memory_size_arg);
+  Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
+	 uint size, ulong max_in_memory_size_arg);
   ~Unique();
   inline bool Unique::unique_add(gptr ptr)
   {
     if (tree.elements_in_tree > max_elements && flush())
       return 1;
-    return tree_insert(&tree,ptr,0);
+    return !tree_insert(&tree,ptr,0);
   }
 
   bool get(TABLE *table);
 
-  friend int unique_write_to_file(gptr key, Unique *unique,
-				  element_count count);
-  friend int unique_write_to_ptrs(gptr key, Unique *unique,
-				  element_count count);
+  friend int unique_write_to_file(gptr key, element_count count, Unique *unique);
+  friend int unique_write_to_ptrs(gptr key, element_count count, Unique *unique);
 };
+
+ class multi_delete : public select_result {
+   TABLE_LIST *delete_tables, *table_being_deleted;
+#ifdef SINISAS_STRIP
+   IO_CACHE **tempfiles;
+   byte *memory_lane;
+#else
+   Unique  **tempfiles;
+#endif
+   byte * dup_checking;
+   THD *thd;
+   ha_rows deleted;
+   int num_of_tables, error;
+   thr_lock_type lock_option;
+   bool do_delete;
+ public:
+   multi_delete(TABLE_LIST *dt, thr_lock_type o, uint n)
+     : delete_tables (dt), lock_option(o), deleted(0), num_of_tables(n), error(0)
+   {
+     thd = current_thd; do_delete = false;
+   }
+   ~multi_delete();
+   int prepare(List<Item> &list);
+   bool send_fields(List<Item> &list,
+ 		   uint flag) { return 0; }
+   bool send_data(List<Item> &items);
+   void send_error(uint errcode,const char *err);
+   int  do_deletes (bool from_send_error);
+   bool send_eof();
+ };
+
+

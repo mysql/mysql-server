@@ -34,14 +34,17 @@
 #include "mysql_priv.h"
 #include "sql_sort.h"
 
-Unique::Unique(qsort_cmp2 comp_func, uint size, ulong max_in_memory_size_arg)
+
+Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
+	       uint size, ulong max_in_memory_size_arg)
   :max_in_memory_size(max_in_memory_size_arg),elements(0)
 {
-  my_b_clear(&file);
   init_tree(&tree, max_in_memory_size / 16, size, comp_func, 0, 0);
+  tree.cmp_arg=comp_func_fixed_arg;
   /* If the following fail's the next add will also fail */
   init_dynamic_array(&file_ptrs, sizeof(BUFFPEK), 16, 16);
   max_elements= max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+size);
+  open_cached_file(&file, mysql_tmpdir,TEMP_PREFIX, DISK_BUFFER_SIZE, MYF(MY_WME));
 }
 
 
@@ -69,12 +72,12 @@ bool Unique::flush()
 }
 
 
-int unique_write_to_file(gptr key, Unique *unique,  element_count count)
+int unique_write_to_file(gptr key, element_count count, Unique *unique)
 {
   return my_b_write(&unique->file, key, unique->tree.size_of_element) ? 1 : 0;
 }
 
-int unique_write_to_ptrs(gptr key, Unique *unique,  element_count count)
+int unique_write_to_ptrs(gptr key, element_count count, Unique *unique)
 {
   memcpy(unique->record_pointers, key, unique->tree.size_of_element);
   unique->record_pointers+=unique->tree.size_of_element;
@@ -109,7 +112,7 @@ bool Unique::get(TABLE *table)
 
   IO_CACHE *outfile=table->io_cache, tempfile;
   BUFFPEK *file_ptr= (BUFFPEK*) file_ptrs.buffer;
-  uint maxbuffer= file_ptrs.elements;
+  uint maxbuffer= file_ptrs.elements - 1;
   uchar *sort_buffer;
   my_off_t save_pos;
   bool error=1;
@@ -117,18 +120,20 @@ bool Unique::get(TABLE *table)
   my_b_clear(&tempfile);
 
       /* Open cached file if it isn't open */
-  if (! my_b_inited(outfile) &&
+  outfile=table->io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),MYF(MY_ZEROFILL));
+
+  if (!outfile || ! my_b_inited(outfile) &&
       open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,
 		       MYF(MY_WME)))
     return 1;
   reinit_io_cache(outfile,WRITE_CACHE,0L,0,0);
-
-  sort_param.keys=elements;
+  
+  sort_param.max_rows= elements;
   sort_param.sort_form=table;
   sort_param.sort_length=sort_param.ref_length=tree.size_of_element;
   sort_param.keys= max_in_memory_size / sort_param.sort_length;
   
-  if (!(sort_buffer=(uchar*) my_malloc((sort_param.keys+1) *
+  if (!(sort_buffer=(uchar*) my_malloc((sort_param.keys+1) * 
 				      sort_param.sort_length,
 				      MYF(0))))
     return 1;

@@ -128,7 +128,7 @@ int mysql_update(THD *thd,
   /* If running in safe sql mode, don't allow updates without keys */
   if (!table->quick_keys)
   {
-    thd->lex.options|=QUERY_NO_INDEX_USED;
+    thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
     if ((thd->options & OPTION_SAFE_UPDATES) && limit == HA_POS_ERROR)
     {
       delete select;
