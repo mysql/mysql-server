@@ -22,6 +22,7 @@ if (!$opt_builddir) {
 $opt_tarball =~ /(mysql[^\/]*)-win-src\.tar/;
 $mysqlver=$1;
 $basedir = "$opt_builddir/$mysqlver";
+$scriptdir = `pwd`;
 
 # Make sure build dir exists
 mkdir($opt_builddir);
@@ -47,6 +48,8 @@ chdir($mysqlver);
 
 system("\"$MSDEV\" mysql.dsw /MAKE \"ALL\" /OUT $mysqlver-build.log");
 
+system("cp $mysqlver-build.log $scriptdir");
+
 #
 # Print a help text message
 #
@@ -55,10 +58,10 @@ sub print_help
 	print <<EOF;
 Usage: Do-compile-win [options] source-tarball
 
-Unpacks a Windows source distribution on the local machine and 
+Unpacks a Windows source distribution on the local machine and
 compiles it using VC++ 6.0.
 
-This script is intended for Cygwin Perl. You must have a working 
+This script is intended for Cygwin Perl. You must have a working
 MSDEV.EXE in your path for compilation.
 
 
@@ -68,8 +71,8 @@ Options:
 Print this text.
 
 --builddir=<dir>
-Set the Cygwin path to build under; the tarball will actually 
-be moved to <builddir>/mysql-<version>/tarball and extracted under 
+Set the Cygwin path to build under; the tarball will actually
+be moved to <builddir>/mysql-<version>/tarball and extracted under
 <builddir>/mysql-<version>/build.
 Default: /cygdrive/c/mysql-win-build
 
