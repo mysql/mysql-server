@@ -42,7 +42,6 @@ struct my_option
   longlong   sub_size;                  /* Subtract this from given value */
   long       block_size;                /* Value should be a mult. of this */
   int        app_type;                  /* To be used by an application */
-  my_bool    opt_is_var;                /* If true, the option is a variable */
 };
 
 extern int handle_options (int *argc, char ***argv, 
@@ -50,3 +49,5 @@ extern int handle_options (int *argc, char ***argv,
 			   my_bool (*get_one_option)(int,
 						     const struct my_option *,
 						     char *));
+extern void my_print_help(const struct my_option *options);
+extern void my_print_variables(const struct my_option *options);
