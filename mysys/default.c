@@ -85,7 +85,8 @@ struct handle_option_ctx
 
 static int search_default_file(Process_option_func func, void *func_ctx,
 			       const char *dir, const char *config_file);
-static int search_default_file_with_ext(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
+static int search_default_file_with_ext(Process_option_func func,
+                                        void *func_ctx,
 					const char *dir, const char *ext,
 					const char *config_file);
 

@@ -649,8 +649,8 @@ bool drop_locked_tables(THD *thd,const char *db, const char *table_name);
 void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 void execute_init_command(THD *thd, sys_var_str *init_command_var,
 			  rw_lock_t *var_mutex);
-extern const Field *not_found_field;
-extern const Field *view_ref_found;
+extern Field *not_found_field;
+extern Field *view_ref_found;
 
 enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS, REPORT_EXCEPT_NON_UNIQUE,
@@ -776,7 +776,7 @@ TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, COND *conds, int *error,
                         bool allow_null_cond= false);
-extern const Item **not_found_item;
+extern Item **not_found_item;
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
                           find_item_error_report_type report_error,
                           bool *unaliased);
