@@ -204,7 +204,7 @@ ut_get_year_month_day(
 
   	cal_tm_ptr = localtime(&tm);
 
-  	*year = (ulint)cal_tm_ptr->tm_year;
+  	*year = (ulint)cal_tm_ptr->tm_year + 1900;
   	*month = (ulint)cal_tm_ptr->tm_mon + 1;
   	*day = (ulint)cal_tm_ptr->tm_mday;
 #endif

@@ -6,7 +6,7 @@ Contains also create table and other data dictionary operations.
 
 Created 9/17/2000 Heikki Tuuri
 *******************************************************/
-  
+
 #include "row0mysql.h"
 
 #ifdef UNIV_NONINL
@@ -1156,7 +1156,7 @@ row_mysql_recover_tmp_table(
 			return(DB_ERROR);
 		}
 
-		if (0 == ut_memcmp(ptr, "/rsql", 5)) {
+		if (0 == ut_memcmp(ptr, (char*)"/rsql", 5)) {
 			ptr++;
 			*ptr = '#';
 
@@ -1280,10 +1280,10 @@ row_create_table_for_mysql(
 	}
 
 	trx->op_info = (char *) "creating table";
-
-	if (0 == ut_strcmp(table->name, "mysql/host")
-	    || 0 == ut_strcmp(table->name, "mysql/user")
-	    || 0 == ut_strcmp(table->name, "mysql/db")) {
+	
+	if (0 == ut_strcmp(table->name, (char*)"mysql/host")
+	    || 0 == ut_strcmp(table->name, (char*)"mysql/user")
+	    || 0 == ut_strcmp(table->name, (char*)"mysql/db")) {
 	    	
 		fprintf(stderr,
     "InnoDB: Error: trying to create a MySQL system table %s of type InnoDB.\n"
@@ -1303,7 +1303,7 @@ row_create_table_for_mysql(
 
 	if (namelen >= keywordlen
 		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
- 				"_recover_innodb_tmp_table", keywordlen)) {
+ 		     (char*)"_recover_innodb_tmp_table", keywordlen)) {
 
 		/* MySQL prevents accessing of tables whose name begins
 		with #sql, that is temporary tables. If mysqld crashes in
@@ -1371,7 +1371,7 @@ row_create_table_for_mysql(
 
 	if (namelen >= keywordlen
 		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
- 				"innodb_mem_validate", keywordlen)) {
+ 				(char*)"innodb_mem_validate", keywordlen)) {
 
 	        /* We define here a debugging feature intended for
 		developers */
@@ -1481,7 +1481,7 @@ row_create_index_for_mysql(
 	if (namelen >= keywordlen
 		    && 0 == ut_memcmp(
 				index->table_name + namelen - keywordlen,
- 				"_recover_innodb_tmp_table", keywordlen)) {
+ 			(char*)"_recover_innodb_tmp_table", keywordlen)) {
 
 		return(DB_SUCCESS);
 	}
@@ -1586,7 +1586,7 @@ row_table_add_foreign_constraints(
 	if (namelen >= keywordlen
 		    && 0 == ut_memcmp(
 				name + namelen - keywordlen,
- 				"_recover_innodb_tmp_table", keywordlen)) {
+ 			(char*)"_recover_innodb_tmp_table", keywordlen)) {
 
 		return(DB_SUCCESS);
 	}
@@ -1808,7 +1808,6 @@ row_drop_table_for_mysql(
 	ulint		len;
 	ulint		namelen;
 	ulint		keywordlen;
-	ulint		rounds	= 0;
 	ibool		locked_dictionary	= FALSE;
 	char		buf[10000];
 
@@ -2155,7 +2154,7 @@ row_is_mysql_tmp_table_name(
 	ulint	i;
 
 	for (i = 0; i <= ut_strlen(name) - 5; i++) {
-		if (ut_memcmp(name + i, "/#sql", 5) == 0) {
+		if (ut_memcmp(name + i, (char*)"/#sql", 5) == 0) {
 
 			return(TRUE);
 		}
@@ -2177,12 +2176,16 @@ row_rename_table_for_mysql(
 {
 	dict_table_t*	table;
 	que_thr_t*	thr;
-	que_t*		graph;
+	que_t*		graph			= NULL;
 	ulint		err;
 	char*		str1;
 	char*		str2;
 	char*		str3;
+	mem_heap_t*	heap			= NULL;
+	char**		constraints_to_drop	= NULL;
+	ulint		n_constraints_to_drop	= 0;
 	ulint		len;
+	ulint		i;
 	char		buf[10000];
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -2200,10 +2203,10 @@ row_rename_table_for_mysql(
   		trx_commit_for_mysql(trx);
 		return(DB_ERROR);
 	}
-
-	if (0 == ut_strcmp(new_name, "mysql/host")
-	    || 0 == ut_strcmp(new_name, "mysql/user")
-	    || 0 == ut_strcmp(new_name, "mysql/db")) {
+	
+	if (0 == ut_strcmp(new_name, (char*)"mysql/host")
+	    || 0 == ut_strcmp(new_name, (char*)"mysql/user")
+	    || 0 == ut_strcmp(new_name, (char*)"mysql/db")) {
 	    	
 		fprintf(stderr,
     "InnoDB: Error: trying to create a MySQL system table %s of type InnoDB.\n"
@@ -2217,6 +2220,19 @@ row_rename_table_for_mysql(
 	trx->op_info = (char *) "renaming table";
 	trx_start_if_not_started(trx);
 
+	/* Serialize data dictionary operations with dictionary mutex:
+	no deadlocks can occur then in these operations */
+
+	row_mysql_lock_data_dictionary(trx);
+
+	table = dict_table_get_low(old_name);
+
+	if (!table) {
+		err = DB_TABLE_NOT_FOUND;
+
+		goto funct_exit;
+	}
+
 	str1 = (char *) 
 	"PROCEDURE RENAME_TABLE_PROC () IS\n"
 	"new_table_name CHAR;\n"
@@ -2229,14 +2245,43 @@ row_rename_table_for_mysql(
 
 	if (row_is_mysql_tmp_table_name(new_name)) {
 
-		/* We want to preserve the original foreign key
-		constraint definitions despite the name change */
+		/* MySQL is doing an ALTER TABLE command and it renames the
+		original table to a temporary table name. We want to preserve
+		the original foreign key constraint definitions despite the
+		name change. An exception is those constraints for which
+		the ALTER TABLE contained DROP FOREIGN KEY <foreign key id>.*/
 
-		str3 = (char*)
-		"';\n"
-		"UPDATE SYS_TABLES SET NAME = new_table_name\n"
-		"WHERE NAME = old_table_name;\n"
-		"END;\n";
+		heap = mem_heap_create(100);
+		
+		err = dict_foreign_parse_drop_constraints(heap, trx,
+					table,
+					&n_constraints_to_drop,
+					&constraints_to_drop);
+		if (err != DB_SUCCESS) {
+
+			goto funct_exit;
+		}
+		
+		str3 = mem_heap_alloc(heap,
+					1000 + 500 * n_constraints_to_drop);
+		*str3 = '\0';
+		sprintf(str3,
+			"';\n"
+			"UPDATE SYS_TABLES SET NAME = new_table_name\n"
+			"WHERE NAME = old_table_name;\n");
+
+		for (i = 0; i < n_constraints_to_drop; i++) {
+			sprintf(str3 + strlen(str3),
+			"DELETE FROM SYS_FOREIGN_COLS WHERE ID = '%s';\n"
+			"DELETE FROM SYS_FOREIGN WHERE ID = '%s';\n",
+				constraints_to_drop[i],
+				constraints_to_drop[i]);
+		}
+
+		sprintf(str3 + strlen(str3),
+			"END;\n");
+
+		ut_a(strlen(str3) < 1000 + 500 * n_constraints_to_drop);
 	} else {
 		str3 = (char*)
 		"';\n"
@@ -2267,13 +2312,6 @@ row_rename_table_for_mysql(
 
 	ut_memcpy(buf + len, str3, ut_strlen(str3) + 1);
 	
-	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations */
-
-	row_mysql_lock_data_dictionary(trx);
-
-	table = dict_table_get_low(old_name);
-
 	graph = pars_sql(buf);
 
 	ut_a(graph);
@@ -2282,12 +2320,6 @@ row_rename_table_for_mysql(
 	trx->graph = NULL;
 
 	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
-
-	if (!table) {
-		err = DB_TABLE_NOT_FOUND;
-
-		goto funct_exit;
-	}
 
 	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
 
@@ -2329,6 +2361,13 @@ row_rename_table_for_mysql(
 
 		if (row_is_mysql_tmp_table_name(old_name)) {
 
+			/* MySQL is doing an ALTER TABLE command and it
+			renames the created temporary table to the name
+			of the original table. In the ALTER TABLE we maybe
+			created some FOREIGN KEY constraints for the temporary
+			table. But we want to load also the foreign key
+			constraint definitions for the original table name. */
+
 			err = dict_load_foreigns(new_name);
 
 			if (err != DB_SUCCESS) {
@@ -2354,7 +2393,13 @@ row_rename_table_for_mysql(
 funct_exit:	
 	row_mysql_unlock_data_dictionary(trx);
 
-	que_graph_free(graph);
+	if (graph) {
+		que_graph_free(graph);
+	}
+
+	if (heap) {
+		mem_heap_free(heap);
+	}
 	
   	trx_commit_for_mysql(trx);
 

@@ -214,9 +214,14 @@ os_file_get_last_error(void)
   "InnoDB: the directory. It may also be you have created a subdirectory\n"
   "InnoDB: of the same name as a data file.\n"); 
 		} else {
-		         fprintf(stderr,
-  "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
-  "InnoDB: what the error number means.\n");
+			 if (strerror((int)err) != NULL) {
+				fprintf(stderr,
+  "InnoDB: Error number %lu means '%s'.\n", err, strerror((int)err));
+			 }
+
+			 fprintf(stderr,
+  "InnoDB: See also section 13.2 at http://www.innodb.com/ibman.html\n"
+  "InnoDB: about operating system error numbers.\n");
 		}
 	}
 
@@ -252,9 +257,14 @@ os_file_get_last_error(void)
   "InnoDB: The error means mysqld does not have the access rights to\n"
   "InnoDB: the directory.\n");
 		} else {
-		         fprintf(stderr,
-  "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
-  "InnoDB: what the error number means or use the perror program of MySQL.\n");
+			 if (strerror((int)err) != NULL) {
+				fprintf(stderr,
+  "InnoDB: Error number %lu means '%s'.\n", err, strerror((int)err));
+			 }
+
+			 fprintf(stderr,
+  "InnoDB: See also section 13.2 at http://www.innodb.com/ibman.html\n"
+  "InnoDB: about operating system error numbers.\n");
 		}
 	}
 

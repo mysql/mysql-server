@@ -219,6 +219,24 @@ dict_create_foreign_constraints(
 	char*	name);		/* in: table full name in the normalized form
 				database_name/table_name */
 /**************************************************************************
+Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement. */
+
+ulint
+dict_foreign_parse_drop_constraints(
+/*================================*/
+						/* out: DB_SUCCESS or
+						DB_CANNOT_DROP_CONSTRAINT if
+						syntax error or the constraint
+						id does not match */
+	mem_heap_t*	heap,			/* in: heap from which we can
+						allocate memory */
+	trx_t*		trx,			/* in: transaction */
+	dict_table_t*	table,			/* in: table */
+	ulint*		n,			/* out: number of constraints
+						to drop */
+	char***		constraints_to_drop);	/* out: id's of the
+						constraints to drop */
+/**************************************************************************
 Returns a table object and memoryfixes it. NOTE! This is a high-level
 function to be used mainly from outside the 'dict' directory. Inside this
 directory dict_table_get_low is usually the appropriate function. */
@@ -333,6 +351,16 @@ dict_print_info_on_foreign_keys(
 	char*		str,	/* in/out: pointer to a string */
 	ulint		len,	/* in: space in str available for info */
 	dict_table_t*	table);	/* in: table */
+/**************************************************************************
+Sprintfs to a string info on a foreign key of a table in a format suitable
+for CREATE TABLE. */
+
+char*
+dict_print_info_on_foreign_key_in_create_format(
+/*============================================*/
+                                /* out: how far in buf we printed */
+	dict_foreign_t*	foreign,/* in: foreign key constraint */
+	char*		buf);	/* in: buffer of at least 5000 bytes */
 /************************************************************************
 Gets the first index on the table (the clustered index). */
 UNIV_INLINE
@@ -808,6 +836,13 @@ void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
 
+/* The following len must be at least 10000 bytes! */
+#define DICT_FOREIGN_ERR_BUF_LEN	10000
+
+/* Buffer for storing detailed information about the latest foreig  key
+error */
+extern char*	dict_foreign_err_buf;
+extern mutex_t	dict_foreign_err_mutex; /* mutex protecting the buffer */
 
 extern dict_sys_t*	dict_sys;	/* the dictionary system */
 extern rw_lock_t	dict_operation_lock;

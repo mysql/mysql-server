@@ -224,7 +224,7 @@ then
   if test -n "$open_files"
   then
     ulimit -n $open_files
-    args="open-files-limit=$open_files $args"
+    args="--open-files-limit=$open_files $args"
   fi
   if test -n "$core_file_size"
   then
