@@ -897,7 +897,7 @@ public:
     UintR  hashValue;    /* THE HASH VALUE USED TO LOCATE FRAGMENT       */
     
     Uint8  distributionKeyIndicator;
-    Uint8  unused1;
+    Uint8  m_special_hash; // collation or distribution key
     Uint8  unused2;
     Uint8  lenAiInTckeyreq;  /* LENGTH OF ATTRIBUTE INFORMATION IN TCKEYREQ */
 
@@ -986,7 +986,8 @@ public:
 
     Uint8 noOfKeyAttr;
     Uint8 hasCharAttr;
-
+    Uint8 noOfDistrKeys;
+    
     struct KeyAttr {
       Uint32 attributeDescriptor;
       CHARSET_INFO* charsetInfo;
@@ -1445,7 +1446,10 @@ private:
   void gcpTcfinished(Signal* signal);
   void handleGcp(Signal* signal);
   void hash(Signal* signal);
-  Uint32 xfrmKeyData(Signal* signal, Uint32* dst, Uint32 dstSize, const Uint32* src);
+  Uint32 handle_special_hash(Uint32 dstHash[4], 
+			     Uint32* src, Uint32 srcLen, 
+			     Uint32 tabPtrI, bool distr);
+  
   void initApiConnect(Signal* signal);
   void initApiConnectRec(Signal* signal, 
 			 ApiConnectRecord * const regApiPtr,

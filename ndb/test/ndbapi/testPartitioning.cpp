@@ -84,7 +84,7 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when)
       col.setType(NdbDictionary::Column::Unsigned);
       col.setLength(1); 
       col.setNullable(false);
-      col.setPrimaryKey(1);
+      col.setPrimaryKey(true);
       col.setDistributionKey(true);
       tab.addColumn(col);
     }
