@@ -73,30 +73,25 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   }
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
-  // set up index entry
+  // set up index keys for this operation
+  setKeyAttrs(frag, c_keyAttrs);
+  // set up search entry
   TreeEnt ent;
   ent.m_tupLoc = TupLoc(req->pageId, req->pageOffset);
   ent.m_tupVersion = req->tupVersion;
   ent.m_fragBit = fragBit;
   // read search key
-  ReadPar readPar;
-  readPar.m_ent = ent;
-  readPar.m_first = 0;
-  readPar.m_count = frag.m_numAttrs;
-  // output goes here
-  readPar.m_data = c_keyBuffer;
-  tupReadAttrs(signal, frag, readPar);
+  readKeyAttrs(frag, ent, 0, c_keyAttrs, c_searchKey);
   // check if all keys are null
   {
+    const unsigned numAttrs = frag.m_numAttrs;
     bool allNull = true;
-    ConstData data = readPar.m_data;
-    for (unsigned i = 0; i < frag.m_numAttrs; i++) {
-      if (! data.ah().isNULL()) {
+    for (unsigned i = 0; i < numAttrs; i++) {
+      if (c_searchKey[i] != 0) {
         jam();
         allNull = false;
         break;
       }
-      data += AttributeHeaderSize + data.ah().getDataSize();
     }
     if (allNull) {
       jam();
@@ -107,7 +102,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   }
   // find position in tree
   SearchPar searchPar;
-  searchPar.m_data = c_keyBuffer;
+  searchPar.m_data = c_searchKey;
   searchPar.m_ent = ent;
   TreePos treePos;
 #ifdef VM_TRACE
