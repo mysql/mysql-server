@@ -780,6 +780,14 @@ extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
+
+/* implemented in my_windac.c */
+
+int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
+                            DWORD owner_rights, DWORD everybody_rights);
+
+void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
+
 #endif
 #ifdef __NETWARE__
 void netware_reg_user(const char *ip, const char *user,

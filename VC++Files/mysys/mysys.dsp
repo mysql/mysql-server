@@ -532,6 +532,11 @@ SOURCE=.\my_wincond.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_windac.c
+# End Source File
+# Begin Source File
+
+
 SOURCE=.\my_winsem.c
 # End Source File
 # Begin Source File
