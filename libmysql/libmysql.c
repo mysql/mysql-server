@@ -3511,6 +3511,21 @@ my_bool STDCALL mysql_more_results(MYSQL *mysql)
   Reads and returns the next query results
 */
 
+int cli_next_result(MYSQL *mysql)
+{
+  DBUG_ENTER("cli_next_result");
+
+  mysql->net.last_error[0]= 0;
+  mysql->net.last_errno= 0;
+  strmov(mysql->net.sqlstate, not_error_sqlstate);
+  mysql->affected_rows= ~(my_ulonglong) 0;
+
+  if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
+    DBUG_RETURN((*mysql->methods->read_query_result)(mysql));
+  
+  DBUG_RETURN(-1);				/* No more results */
+}
+
 int STDCALL mysql_next_result(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_next_result");
@@ -3523,15 +3538,7 @@ int STDCALL mysql_next_result(MYSQL *mysql)
     DBUG_RETURN(1);
   }
 
-  mysql->net.last_error[0]= 0;
-  mysql->net.last_errno= 0;
-  strmov(mysql->net.sqlstate, not_error_sqlstate);
-  mysql->affected_rows= ~(my_ulonglong) 0;
-
-  if (mysql->last_used_con->server_status & SERVER_MORE_RESULTS_EXISTS)
-    DBUG_RETURN((*mysql->methods->read_query_result)(mysql));
-  
-  DBUG_RETURN(-1);				/* No more results */
+  DBUG_RETURN((*mysql->methods->next_result)(mysql));
 }
 
 
