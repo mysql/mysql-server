@@ -28,7 +28,7 @@ NTService::NTService()
 
     //time-out variables
     nStartTimeOut    = 15000;
-    nStopTimeOut     = 15000;
+    nStopTimeOut     = 86400000;
     nPauseTimeOut    = 5000;
     nResumeTimeOut   = 5000;
 
@@ -253,7 +253,7 @@ void NTService::ServiceMain(DWORD argc, LPTSTR *argv)
   WaitForSingleObject (pService->hExitEvent, INFINITE);
 
   // wait for thread to exit
-  if (WaitForSingleObject (pService->hThreadHandle, 1000) == WAIT_TIMEOUT)
+  if (WaitForSingleObject (pService->hThreadHandle, INFINITE) == WAIT_TIMEOUT)
    CloseHandle(pService->hThreadHandle);
 
   pService->Exit(0);

@@ -98,7 +98,7 @@ $data =~ s{(\S+)[\t ]+</para>}
           {$1</para>}g;
 
 msg ("Removing PARA around INDEXTERM if no text in PARA...");
-$data =~ s{<para>((?:<indexterm role=\"(?:cp|fn)\">(?:<(primary|secondary)>[^>]+</\2>)+?</indexterm>)+?)\s*</para>}
+$data =~ s{<para>((?:<indexterm role=\"[^"]+\">(?:<(primary|secondary)>[^>]+</\2>)+?</indexterm>)+?)\s*</para>}
           {$1}gs;
 
 @apx = ("Users", "MySQL Testimonials", "News", "GPL-license", "LGPL-license");

@@ -157,6 +157,7 @@ typedef struct st_relay_log_info
 		      log_pos_current(0)
     {
       relay_log_name[0] = master_log_name[0] = 0;
+      bzero(&info_file,sizeof(info_file));
       pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
       pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
       pthread_cond_init(&data_cond, NULL);
@@ -271,6 +272,7 @@ typedef struct st_master_info
   st_master_info():fd(-1), io_thd(0), inited(0), old_format(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
+    bzero(&file,sizeof(file));
     pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
     pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
     pthread_cond_init(&data_cond, NULL);
