@@ -1,0 +1,30 @@
+source include/master-slave.inc;
+
+#first, make sure the slave has had enough time to register
+connection master;
+save_master_pos;
+connection slave;
+sync_with_master;
+
+#discover slaves
+connection master;
+rpl_probe;
+
+#turn on master/slave query direction auto-magic
+enable_rpl_parse;
+drop table if exists t1;
+create table t1 ( n int);
+insert into t1 values (1),(2),(3),(4);
+disable_rpl_parse;
+save_master_pos;
+enable_rpl_parse;
+connection slave;
+sync_with_master;
+insert into t1 values(5);
+connection master;
+select * from t1;
+select * from t1;
+disable_rpl_parse;
+select * from t1;
+connection slave;
+select * from t1;
