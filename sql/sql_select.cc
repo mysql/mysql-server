@@ -11288,8 +11288,8 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
        thd->is_fatal_error))
     return 1;					// Wrong field 
   uint el= all_fields.elements;
-  all_fields.push_front(it);		        // Add new field to field list
-  ref_pointer_array[el]= it;
+  all_fields.push_front(order_item);		        // Add new field to field list
+  ref_pointer_array[el]= order_item;
   order->item= ref_pointer_array + el;
   return 0;
 }
