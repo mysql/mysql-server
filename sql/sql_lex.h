@@ -366,7 +366,8 @@ public:
 
   bool check_updateable(char *db, char *table);
   void print(String *str);
-  
+
+  ulong init_prepare_fake_select_lex(THD *thd);
 
   friend void mysql_init_query(THD *thd);
   friend int subselect_union_engine::exec();
