@@ -50453,6 +50453,8 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed bug in @code{myisamchk -R} mode.
+@item
 Fixed bug that caused @code{mysqld} to crash on @code{REVOKE}.
 @item
 Fixed bug in @code{ORDER BY} when there is a constant in the @code{SELECT}
