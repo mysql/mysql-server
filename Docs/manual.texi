@@ -18413,7 +18413,9 @@ After this many write locks, allow some read locks to run in between.
 MySQL uses special tree-like cache to make bulk inserts (that is,
 @code{INSERT ... SELECT}, @code{INSERT ... VALUES (...), (...), ...}, and
 @code{LOAD DATA INFILE}) faster. This variable limits
-the size of the cache tree in bytes per thread. Default value is 8 MB.
+the size of the cache tree in bytes per thread.
+@strong{Note:} This cache is only used when adding data to non-empty table.
+Default value is 8 MB.
 
 @item @code{myisam_recover_options}
 The value of the @code{--myisam-recover} option.
@@ -24116,10 +24118,10 @@ Some ways to speed up inserts:
 @itemize @bullet
 @item
 If you are inserting many rows from the same client at the same time, use
-multiple value lists @code{INSERT} statements. This is much faster (many
-times in some cases) than using separate @code{INSERT} statements.
-Tune up @code{myisam_bulk_insert_tree_size} variable to make it even
-faster. @xref{SHOW VARIABLES}.
+multiple value lists @code{INSERT} statements. This is much faster (many times
+in some cases) than using separate @code{INSERT} statements.  If you are adding
+data to non-empty table, you may tune up @code{myisam_bulk_insert_tree_size}
+variable to make it even faster. @xref{SHOW VARIABLES}.
 @item
 If you are inserting a lot of rows from different clients, you can get
 higher speed by using the @code{INSERT DELAYED} statement. @xref{INSERT,
