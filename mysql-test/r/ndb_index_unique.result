@@ -612,3 +612,17 @@ a	b	c
 3	NULL	NULL
 4	4	NULL
 drop table t1, t8;
+create table t1(
+id integer not null auto_increment,
+month integer not null,
+year integer not null,
+code varchar( 2) not null,
+primary key ( id),
+unique idx_t1( month, code, year)
+) engine=ndb;
+INSERT INTO t1 (month, year, code) VALUES (4,2004,'12');
+INSERT INTO t1 (month, year, code) VALUES (5,2004,'12');
+select * from t1 where code = '12' and month = 4 and year = 2004 ;
+id	month	year	code
+1	4	2004	12
+drop table t1;
