@@ -1817,13 +1817,6 @@ int read_query(struct st_query** q_ptr)
   q->record_file[0] = 0;
   q->require_file=0;
   q->first_word_len = 0;
-  memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
-	 sizeof(global_expected_errno));
-  q->expected_errors=global_expected_errors;
-  q->abort_on_error = global_expected_errno[0] == 0;
-  bzero((gptr) global_expected_errno,sizeof(global_expected_errno));
-  global_expected_errors=0;
-
   q->type = Q_UNKNOWN;
   q->query_buf=q->query=0;
   if (read_line(read_query_buf, sizeof(read_query_buf)))
@@ -1832,8 +1825,16 @@ int read_query(struct st_query** q_ptr)
   if (*p == '#')
   {
     q->type = Q_COMMENT;
+    /* This goto is to avoid losing the "expected error" info. */
+    goto end;
   }
-  else if (p[0] == '-' && p[1] == '-')
+  memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
+	 sizeof(global_expected_errno));
+  q->expected_errors=global_expected_errors;
+  q->abort_on_error = global_expected_errno[0] == 0;
+  bzero((gptr) global_expected_errno,sizeof(global_expected_errno));
+  global_expected_errors=0;
+  if (p[0] == '-' && p[1] == '-')
   {
     q->type = Q_COMMENT_WITH_COMMAND;
     p+=2;					/* To calculate first word */
@@ -1868,6 +1869,8 @@ int read_query(struct st_query** q_ptr)
       *p1 = 0;
     }
   }
+
+end:
   while (*p && my_isspace(charset_info,*p))
     p++;
   if (!(q->query_buf=q->query=my_strdup(p,MYF(MY_WME))))
