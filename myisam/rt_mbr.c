@@ -94,6 +94,7 @@ int rtree_key_cmp(HA_KEYSEG *keyseg, uchar *b, uchar *a, uint key_length,
 {
   for (; (int) key_length > 0; keyseg += 2 )
   {
+    uint32 keyseg_length;
     switch ((enum ha_base_keytype) keyseg->type) {
     case HA_KEYTYPE_INT8:
       RT_CMP_KORR(int8, mi_sint1korr, 1, nextflag);
@@ -138,7 +139,7 @@ int rtree_key_cmp(HA_KEYSEG *keyseg, uchar *b, uchar *a, uint key_length,
     default:
       return 1;
     }
-    uint32 keyseg_length= keyseg->length * 2;
+    keyseg_length= keyseg->length * 2;
     key_length-= keyseg_length;
     a+= keyseg_length;
     b+= keyseg_length;
@@ -181,6 +182,7 @@ double rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
   double res = 1;
   for (; (int)key_length > 0; keyseg += 2)
   {
+    uint32 keyseg_length;
     switch ((enum ha_base_keytype) keyseg->type) {
     case HA_KEYTYPE_INT8:
       RT_VOL_KORR(int8, mi_sint1korr, 1, (double));
@@ -226,7 +228,7 @@ double rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
     default:
       return -1;
     }
-    uint32 keyseg_length= keyseg->length * 2;
+    keyseg_length= keyseg->length * 2;
     key_length-= keyseg_length;
     a+= keyseg_length;
   }
@@ -251,13 +253,16 @@ double rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
   *res++ = cast(amax); \
 }
 
+
 /*
- Creates an MBR as an array of doubles.
+  Creates an MBR as an array of doubles.
 */
+
 int rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
 {
   for (; (int)key_length > 0; keyseg += 2)
   {
+    uint32 keyseg_length;
     switch ((enum ha_base_keytype) keyseg->type) {
     case HA_KEYTYPE_INT8:
       RT_D_MBR_KORR(int8, mi_sint1korr, 1, (double));
@@ -303,7 +308,7 @@ int rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
     default:
       return 1;
     }
-    uint32 keyseg_length= keyseg->length * 2;
+    keyseg_length= keyseg->length * 2;
     key_length-= keyseg_length;
     a+= keyseg_length;
   }
@@ -347,6 +352,7 @@ int rtree_combine_rect(HA_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c,
 {
   for ( ; (int) key_length > 0 ; keyseg += 2)
   {
+    uint32 keyseg_length;
     switch ((enum ha_base_keytype) keyseg->type) {
     case HA_KEYTYPE_INT8:
       RT_COMB_KORR(int8, mi_sint1korr, mi_int1store, 1);
@@ -391,7 +397,7 @@ int rtree_combine_rect(HA_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c,
     default:
       return 1;
     }
-    uint32 keyseg_length= keyseg->length * 2;
+    keyseg_length= keyseg->length * 2;
     key_length-= keyseg_length;
     a+= keyseg_length;
     b+= keyseg_length;
@@ -399,6 +405,7 @@ int rtree_combine_rect(HA_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c,
   }
   return 0;
 }
+
 
 #define RT_OVL_AREA_KORR(type, korr_func, len) \
 { \
@@ -437,6 +444,7 @@ double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
   double res = 1;
   for (; (int) key_length > 0 ; keyseg += 2)
   {
+    uint32 keyseg_length;
     switch ((enum ha_base_keytype) keyseg->type) {
     case HA_KEYTYPE_INT8:
       RT_OVL_AREA_KORR(int8, mi_sint1korr, 1);
@@ -481,7 +489,7 @@ double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
     default:
       return -1;
     }
-    uint32 keyseg_length= keyseg->length * 2;
+    keyseg_length= keyseg->length * 2;
     key_length-= keyseg_length;
     a+= keyseg_length;
     b+= keyseg_length;
@@ -522,11 +530,10 @@ double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
   *ab_area= 1.0;
   for (; (int)key_length > 0; keyseg += 2)
   {
-    /* Handle NULL part */
-    if (keyseg->null_bit)
-    {
+    uint32 keyseg_length;
+
+    if (keyseg->null_bit)                       /* Handle NULL part */
       return -1;
-    }
 
     switch ((enum ha_base_keytype) keyseg->type) {
     case HA_KEYTYPE_INT8:
@@ -572,7 +579,7 @@ double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
     default:
       return -1;
     }
-    uint32 keyseg_length= keyseg->length * 2;
+    keyseg_length= keyseg->length * 2;
     key_length-= keyseg_length;
     a+= keyseg_length;
     b+= keyseg_length;
@@ -613,11 +620,10 @@ double rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
   *ab_perim= 0.0;
   for (; (int)key_length > 0; keyseg += 2)
   {
-    /* Handle NULL part */
-    if (keyseg->null_bit)
-    {
+    uint32 keyseg_length;
+
+    if (keyseg->null_bit)                       /* Handle NULL part */
       return -1;
-    }
 
     switch ((enum ha_base_keytype) keyseg->type) {
     case HA_KEYTYPE_INT8:
@@ -663,7 +669,7 @@ double rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
     default:
       return -1;
     }
-    uint32 keyseg_length= keyseg->length * 2;
+    keyseg_length= keyseg->length * 2;
     key_length-= keyseg_length;
     a+= keyseg_length;
     b+= keyseg_length;
