@@ -72,10 +72,6 @@ FTP (@uref{ftp://mir1.ovh.net/ftp.mysql.com/})
 WWW (@uref{http://www.mysql.netsample.com/})
 
 @item
-@image{Flags/france} France [Omegatomic] @@
-WWW (@uref{http://mysql.omegatomic.com/})
-
-@item
 @image{Flags/france} France [Universite Paris 10] @@
 WWW (@uref{http://ftp.u-paris10.fr/mysql.com})
 FTP (@uref{ftp://ftp.u-paris10.fr/mysql.com})
@@ -222,6 +218,10 @@ WWW (@uref{http://sunsite.cnlab-switch.ch/ftp/mirror/mysql/})
 FTP (@uref{ftp://sunsite.cnlab-switch.ch/mirror/mysql/})
 
 @item
+@image{Flags/taiwan} Taiwan [I-SHOU University] @@
+WWW (@uref{http://mysql.isu.edu.tw})
+
+@item
 @image{Flags/turkey} Turkey [proGEN] @@
 WWW (@uref{http://mysql.progen.com.tr/})
 
@@ -239,6 +239,10 @@ FTP (@uref{ftp://ftp.tlk-l.net/pub/mirrors/mysql.com/})
 @image{Flags/ukraine} Ukraine [PACO] @@
 WWW (@uref{http://mysql.paco.net.ua/})
 FTP (@uref{ftp://mysql.paco.net.ua/})
+
+@item
+@image{Flags/usa} USA [Argonne National Laboratory / Chicago, IL] @@
+FTP (@uref{ftp://mirror.mcs.anl.gov/pub/mysql/})
 
 @item
 @image{Flags/yugoslavia} Yugoslavia [Open Source Network of Yugoslavia] @@
@@ -268,10 +272,6 @@ FTP (@uref{ftp://mysql.unam.mx/pub/mysql/})
 @item
 @image{Flags/usa} USA [adgrafix.com / Boston, MA] @@
 WWW (@uref{http://mysql.adgrafix.com/})
-
-@item
-@image{Flags/usa} USA [Fast Mirror / Englewood, CO] @@
-WWW (@uref{http://mysql.fastmirror.com/})
 
 @item
 @image{Flags/usa} USA [Hurricane Electric / San Jose, CA] @@
@@ -431,5 +431,4 @@ WWW (@uref{http://www.mysql.mweb.co.za/})
 FTP (@uref{ftp://ftp.is.co.za/linux/mysql/})
 
 @end itemize
-
 
