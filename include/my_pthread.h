@@ -522,11 +522,13 @@ typedef struct _my_rw_lock_t {
 #define rw_unlock(A) my_rw_unlock((A))
 #define rwlock_destroy(A) my_rwlock_destroy((A))
 
-extern	int	my_rwlock_init( my_rw_lock_t *, void * );
-extern	int	my_rwlock_destroy( my_rw_lock_t * );
-extern	int	my_rw_rdlock( my_rw_lock_t * );
-extern	int	my_rw_wrlock( my_rw_lock_t * );
-extern	int	my_rw_unlock( my_rw_lock_t * );
+extern int my_rwlock_init(my_rw_lock_t *, void *);
+extern int my_rwlock_destroy(my_rw_lock_t *);
+extern int my_rw_rdlock(my_rw_lock_t *);
+extern int my_rw_wrlock(my_rw_lock_t *);
+extern int my_rw_unlock(my_rw_lock_t *);
+extern int my_rw_tryrdlock(my_rw_lock_t *);
+extern int my_rw_trywrlock(my_rw_lock_t *);
 #endif /* USE_MUTEX_INSTEAD_OF_RW_LOCKS */
 
 #define GETHOSTBYADDR_BUFF_SIZE 2048

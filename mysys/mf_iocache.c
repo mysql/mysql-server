@@ -468,9 +468,11 @@ static int lock_io_cache(IO_CACHE *info)
     very beginning, that is returns 1 and does not unlock the mutex.
   */
   if (++(info->share->count))
-    return pthread_mutex_unlock(&info->share->mutex);
-  else
-    return 1;
+  {
+    pthread_mutex_unlock(&info->share->mutex);
+    return 0;
+  }
+  return 1;
 }
 
 static void unlock_io_cache(IO_CACHE *info)
@@ -478,6 +480,7 @@ static void unlock_io_cache(IO_CACHE *info)
   pthread_cond_broadcast(&info->share->cond);
   pthread_mutex_unlock(&info->share->mutex);
 }
+
 
 /*
   Read from IO_CACHE when it is shared between several threads.
@@ -488,6 +491,7 @@ static void unlock_io_cache(IO_CACHE *info)
   returns 1, the thread does actual IO and unlock_io_cache(),
   which signals all the waiting threads that data is in the buffer.
 */
+
 int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
 {
   my_off_t pos_in_file;
@@ -1068,8 +1072,9 @@ int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
     if ((length=(uint) (info->write_pos - info->write_buffer)))
     {
       pos_in_file=info->pos_in_file;
-      /* if we have append cache, we always open the file with
-	 O_APPEND which moves the pos to EOF automatically on every write
+      /*
+	If we have append cache, we always open the file with
+	O_APPEND which moves the pos to EOF automatically on every write
       */
       if (!append_cache && info->seek_not_done)
       {					/* File touched, do seek */
