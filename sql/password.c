@@ -556,7 +556,7 @@ void get_hash_and_password(ulong* salt, uint8 pversion, char* hash, unsigned cha
       val=*(++salt);
       for (t=3; t>=0; t--)
       {
-        bin_password[t]=val%256;
+        bin_password[t]=val & 255;
         val>>=8; /* Scroll 8 bits to get next part*/
       }
       bin_password+=4; /* Get to next 4 chars*/

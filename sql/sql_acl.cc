@@ -461,6 +461,9 @@ void prepare_scramble(THD *thd, ACL_USER *acl_user,char* prepared_scramble)
   thd->scramble[SCRAMBLE41_LENGTH]=0;
   /* Get binary form, First 4 bytes of prepared scramble is salt */
   get_hash_and_password(acl_user->salt,acl_user->pversion,prepared_scramble,(unsigned char*)bin_password);
+  /* Store "*" as identifier for old passwords */
+  if (!acl_user->pversion)
+    prepared_scramble[0]='*';
   /* Finally encrypt password to get prepared scramble */
   password_crypt(thd->scramble,prepared_scramble+4,bin_password,SCRAMBLE41_LENGTH);
 }
@@ -482,12 +485,13 @@ void prepare_scramble(THD *thd, ACL_USER *acl_user,char* prepared_scramble)
 ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		  const char *password,const char *message,char **priv_user,
 		  bool old_ver, USER_RESOURCES  *mqh,char* prepared_scramble,
-                  int stage,uint *cur_priv_version,ACL_USER** hint_user)
+                  uint *cur_priv_version,ACL_USER** hint_user)
 {
   ulong user_access=NO_ACCESS;
-  *priv_user=(char*) user;
-  bool password_correct=0;
-  ACL_USER *acl_user=NULL;
+  *priv_user= (char*) user;
+  bool password_correct= 0;
+  int stage= (*hint_user != NULL); /* NULL passed as first stage */
+  ACL_USER *acl_user= NULL;
 
   DBUG_ENTER("acl_getroot");
 

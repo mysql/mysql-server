@@ -187,7 +187,7 @@ end:
 
 static int check_user(THD *thd,enum_server_command command, const char *user,
 		       const char *passwd, const char *db, bool check_count,
-                       bool do_send_error, char* crypted_scramble,int stage,
+                       bool do_send_error, char* crypted_scramble,
                        bool had_password,uint *cur_priv_version,
                        ACL_USER** hint_user)
 {
@@ -207,7 +207,7 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
 				   CLIENT_LONG_PASSWORD),&ur,crypted_scramble,
-                                   stage,cur_priv_version,hint_user);
+                                   cur_priv_version,hint_user);
 
   DBUG_PRINT("info",
 	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
@@ -628,7 +628,7 @@ check_connections(THD *thd)
 
   char prepared_scramble[SCRAMBLE41_LENGTH+4]; /* Buffer for scramble and hash */
 
-  ACL_USER* cached_user;
+  ACL_USER* cached_user=NULL; /* Initialise to NULL as first stage indication */
   uint cur_priv_version;
 
   /* Simple connect only for old clients. New clients always use secure auth */
@@ -636,10 +636,9 @@ check_connections(THD *thd)
 
   /* Store information if we used password. passwd will be dammaged */
   bool using_password=test(passwd[0]);
-
   /* Check user permissions. If password failure we'll get scramble back */
   if (check_user(thd,COM_CONNECT, user, passwd, db, 1, simple_connect,
-      prepared_scramble,0,using_password,&cur_priv_version,&cached_user)<0)
+      prepared_scramble,using_password,&cur_priv_version,&cached_user)<0)
   {
     /* If The client is old we just have to return error */
     if (simple_connect)
@@ -659,8 +658,8 @@ check_connections(THD *thd)
       strmake(tmp_db,db,NAME_LEN);
 
     /* Write hash and encrypted scramble to client */
-    if (my_net_write(net,prepared_scramble,SCRAMBLE41_LENGTH+4)
-        || net_flush(net))
+    if (my_net_write(net,prepared_scramble,SCRAMBLE41_LENGTH+4) ||
+        net_flush(net))
       {
         inc_host_errors(&thd->remote.sin_addr);
         return ER_HANDSHAKE_ERROR;
@@ -679,7 +678,7 @@ check_connections(THD *thd)
       }
     /* Final attempt to check the user based on reply */
     if (check_user(thd,COM_CONNECT, tmp_user, (char*)net->read_pos,
-        tmp_db, 1, 1,prepared_scramble,1,using_password,&cur_priv_version,
+        tmp_db, 1, 1,prepared_scramble,using_password,&cur_priv_version,
         &cached_user))
       return -1;
   }
@@ -1059,7 +1058,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       goto restore_user_err;
 
     char prepared_scramble[SCRAMBLE41_LENGTH+4];/* Buffer for scramble,hash */
-    ACL_USER* cached_user;                      /* Cached user */
+    ACL_USER* cached_user     ;                 /* Cached user */
+    cached_user= NULL;
     uint cur_priv_version;                      /* Cached grant version */
 
     /* Simple connect only for old clients. New clients always use sec. auth*/
@@ -1076,7 +1076,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
      Do not retry if we already have sent error (result>0)
     */
     if (check_user(thd,COM_CHANGE_USER, user, passwd, db, 0, simple_connect,
-        prepared_scramble,0,using_password,&cur_priv_version,&cached_user)<0)
+        prepared_scramble,using_password,&cur_priv_version,&cached_user)<0)
     {
       /* If The client is old we just have to have auth failure */
       if (simple_connect)
@@ -1086,26 +1086,19 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       char tmp_user[USERNAME_LENGTH+1];
       char tmp_db[NAME_LEN+1];
-
+     
+      tmp_user[0]=0;
       if (user)
-      {
-        strncpy(tmp_user,user,USERNAME_LENGTH+1);
-        /* Extra safety if we have too long data */
-        tmp_user[USERNAME_LENGTH]=0;
-      }
-      else
-        tmp_user[0]=0;
+        strmake(tmp_user,user,USERNAME_LENGTH);
+
+      tmp_db[0]=0;
       if (db)
-      {
-        strncpy(tmp_db,db,NAME_LEN+1);
-        tmp_db[NAME_LEN]=0;
-      }
-      else
-        tmp_db[0]=0;
+        strmake(tmp_db,db,NAME_LEN);
+
 
       /* Write hash and encrypted scramble to client */
-      if (my_net_write(net,prepared_scramble,SCRAMBLE41_LENGTH+4)
-        || net_flush(net))
+      if (my_net_write(net,prepared_scramble,SCRAMBLE41_LENGTH+4) ||
+          net_flush(net))
         goto restore_user_err;
 
       /* Reading packet back */
@@ -1117,8 +1110,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         goto restore_user;
 
       /* Final attempt to check the user based on reply */
-      if (check_user(thd,COM_CONNECT, tmp_user, (char*)net->read_pos,
-          tmp_db, 0, 1,prepared_scramble,1,using_password,&cur_priv_version,
+      if (check_user(thd,COM_CHANGE_USER, tmp_user, (char*)net->read_pos,
+          tmp_db, 0, 1,prepared_scramble,using_password,&cur_priv_version,
           &cached_user))
         goto restore_user;
     }
