@@ -115,13 +115,13 @@ set global concurrent_insert=DEFAULT;
 show variables like 'concurrent_insert';
 Variable_name	Value
 concurrent_insert	ON
-set table_type=MYISAM, table_type="HEAP", global table_type="INNODB";
-show local variables like 'table_type';
+set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="INNODB";
+show local variables like 'storage_engine';
 Variable_name	Value
-table_type	HEAP
-show global variables like 'table_type';
+storage_engine	HEAP
+show global variables like 'storage_engine';
 Variable_name	Value
-table_type	InnoDB
+storage_engine	InnoDB
 set GLOBAL query_cache_size=100000;
 set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';
@@ -218,17 +218,17 @@ set unknown_variable=1;
 ERROR HY000: Unknown system variable 'unknown_variable'
 set max_join_size="hello";
 ERROR 42000: Wrong argument type to variable 'max_join_size'
-set table_type=UNKNOWN_TABLE_TYPE;
+set storage_engine=UNKNOWN_TABLE_TYPE;
 ERROR 42000: Unknown table engine 'UNKNOWN_TABLE_TYPE'
-set table_type=INNODB, big_tables=2;
+set storage_engine=INNODB, big_tables=2;
 ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
-show local variables like 'table_type';
+show local variables like 'storage_engine';
 Variable_name	Value
-table_type	HEAP
+storage_engine	HEAP
 set SESSION query_cache_size=10000;
 ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
-set GLOBAL table_type=DEFAULT;
-ERROR 42000: Variable 'table_type' doesn't have a default value
+set GLOBAL storage_engine=DEFAULT;
+ERROR 42000: Variable 'storage_engine' doesn't have a default value
 set character_set_client=UNKNOWN_CHARACTER_SET;
 ERROR 42000: Unknown character set: 'UNKNOWN_CHARACTER_SET'
 set collation_connection=UNKNOWN_COLLATION;
@@ -348,7 +348,7 @@ set sql_select_limit=1;
 set global sql_slave_skip_counter=100;
 set sql_warnings=1;
 set global table_cache=100;
-set table_type=myisam;
+set storage_engine=myisam;
 set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
 set tmp_table_size=100;

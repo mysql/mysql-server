@@ -344,12 +344,12 @@ public:
 };
 
 
-class sys_var_thd_table_type :public sys_var_thd
+class sys_var_thd_storage_engine :public sys_var_thd
 {
 protected:
   ulong SV::*offset;
 public:
-  sys_var_thd_table_type(const char *name_arg, ulong SV::*offset_arg)
+  sys_var_thd_storage_engine(const char *name_arg, ulong SV::*offset_arg)
     :sys_var_thd(name_arg), offset(offset_arg)
   {}
   bool check(THD *thd, set_var *var);
@@ -363,6 +363,16 @@ SHOW_TYPE type() { return SHOW_CHAR; }
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
 };
 
+class sys_var_thd_table_type :public sys_var_thd_storage_engine
+{
+public:
+  sys_var_thd_table_type(const char *name_arg, ulong SV::*offset_arg)
+    :sys_var_thd_storage_engine(name_arg, offset_arg)
+  {}
+  void warn_deprecated(THD *thd);
+  void set_default(THD *thd, enum_var_type type);
+  bool update(THD *thd, set_var *var);
+};
 
 class sys_var_thd_bit :public sys_var_thd
 {
