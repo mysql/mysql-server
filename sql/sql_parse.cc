@@ -175,14 +175,10 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     }
     uc->user=(char*) (uc+1);
     memcpy(uc->user,temp_user,temp_len+1);
-    uc->user_len= user_len;
-    uc->host=uc->user + uc->user_len +  1;
+    uc->host= uc->user + user_len +  1;
     uc->len = temp_len;
-    uc->connections = 1;
-    uc->questions=uc->updates=uc->conn_per_hour=0;
+    uc->connections= uc->questions= uc->updates= uc->conn_per_hour= 0;
     uc->user_resources=*mqh;
-    if (max_user_connections && mqh->connections > max_user_connections)
-      uc->user_resources.connections = max_user_connections;
     uc->intime=thd->thr_create_time;
     if (my_hash_insert(&hash_user_connections, (byte*) uc))
     {
@@ -355,12 +351,16 @@ int check_user(THD *thd, enum enum_server_command command,
       thd->db_access=0;
 
       /* Don't allow user to connect if he has done too many queries */
-      if ((ur.questions || ur.updates || ur.connections ||
+      if ((ur.questions || ur.updates || ur.conn_per_hour || ur.user_conn ||
 	   max_user_connections) &&
-	  get_or_create_user_conn(thd,thd->user,thd->host_or_ip,&ur))
+	  get_or_create_user_conn(thd,
+            opt_old_style_user_limits ? thd->user : thd->priv_user,
+            opt_old_style_user_limits ? thd->host_or_ip : thd->priv_host,
+            &ur))
 	DBUG_RETURN(-1);
       if (thd->user_connect &&
-	  (thd->user_connect->user_resources.connections ||
+	  (thd->user_connect->user_resources.conn_per_hour ||
+	   thd->user_connect->user_resources.user_conn ||
 	   max_user_connections) &&
 	  check_for_max_user_connections(thd, thd->user_connect))
 	DBUG_RETURN(-1);
@@ -451,19 +451,28 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   DBUG_ENTER("check_for_max_user_connections");
 
   (void) pthread_mutex_lock(&LOCK_user_conn);
-  if (max_user_connections &&
+  if (max_user_connections && !uc->user_resources.user_conn &&
       max_user_connections < (uint) uc->connections)
   {
     net_printf_error(thd, ER_TOO_MANY_USER_CONNECTIONS, uc->user);
     error=1;
     goto end;
   }
-  if (uc->user_resources.connections &&
-      uc->user_resources.connections <= uc->conn_per_hour)
+  if (uc->user_resources.user_conn &&
+      uc->user_resources.user_conn < uc->connections)
+  {
+    net_printf_error(thd, ER_USER_LIMIT_REACHED, uc->user,
+                     "max_user_connections",
+                     (long) uc->user_resources.user_conn);
+    error= 1;
+    goto end;
+  }
+  if (uc->user_resources.conn_per_hour &&
+      uc->user_resources.conn_per_hour <= uc->conn_per_hour)
   {
     net_printf_error(thd, ER_USER_LIMIT_REACHED, uc->user,
                      "max_connections",
-                     (long) uc->user_resources.connections);
+                     (long) uc->user_resources.conn_per_hour);
     error=1;
     goto end;
   }
@@ -3526,7 +3535,7 @@ create_error:
 	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	  mysql_bin_log.write(&qinfo);
 	}
-	if (mqh_used && lex->sql_command == SQLCOM_GRANT)
+	if (lex->sql_command == SQLCOM_GRANT)
 	{
 	  List_iterator <LEX_USER> str_list(lex->users_list);
 	  LEX_USER *user;
@@ -5698,8 +5707,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   {
     acl_reload(thd);
     grant_reload(thd);
-    if (mqh_used)
-      reset_mqh((LEX_USER *) NULL,TRUE);
+    reset_mqh((LEX_USER *)NULL, TRUE);
   }
 #endif
   if (options & REFRESH_LOG)
