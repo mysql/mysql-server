@@ -70,6 +70,7 @@ parse_arguments() {
 	  MYSQLD="mysqld"
 	fi
 	;;
+      --nice=*) niceness=`echo "$arg" | sed -e "s;--nice=;;"` ;;
       *)
         if test -n "$pick_args"
         then
@@ -110,6 +111,7 @@ fi
 MYSQL_UNIX_PORT=${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}
 MYSQL_TCP_PORT=${MYSQL_TCP_PORT:-@MYSQL_TCP_PORT@}
 user=@MYSQLD_USER@
+niceness=0
 
 # Use the mysqld-max binary by default if the user doesn't specify a binary
 if test -x $ledir/mysqld-max
@@ -167,7 +169,12 @@ export MYSQL_UNIX_PORT
 export MYSQL_TCP_PORT
 
 
-NOHUP_NICENESS="nohup"
+if test $niceness -eq 0
+then
+  NOHUP_NICENESS="nohup"
+else
+  NOHUP_NICENESS="nohup nice -$niceness"
+fi
 
 # Using nice with no args to get the niceness level is GNU-specific.
 # This check could be extended for other operating systems (e.g.,
@@ -198,8 +205,10 @@ then
             nice --$nice_value_diff echo testing > /dev/null 2>&1
         then
             # nohup increases the priority (bad), and we are permitted
-            # to lower the priority
-            NOHUP_NICENESS="nice --$nice_value_diff nohup"
+            # to lower the priority with respect to the value the user
+            # might have been given
+            niceness=`expr $niceness - $nice_value_diff`
+            NOHUP_NICENESS="nice -$niceness nohup"
         fi
     fi
 else
