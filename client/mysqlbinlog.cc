@@ -183,7 +183,16 @@ public:
   void process(Append_block_log_event *ae)
     {
       if (ae->file_id >= file_names.elements)
-	die("Skiped CreateFile event for file_id: %u",ae->file_id);
+      {
+        /*
+          There is no Create_file event (a bad binlog or a big
+          --position). Assuming it's a big --position, we just do nothing and
+          print a warning.
+        */
+	fprintf(stderr,"Warning: ignoring Append_block as there is no \
+Create_file event for file_id: %u\n",ae->file_id);
+        return;
+      }
       Create_file_log_event* ce= 
 	*((Create_file_log_event**)file_names.buffer + ae->file_id);
       append_to_file(ce->fname,O_APPEND|O_BINARY|O_WRONLY,ae->block,ae->block_len);
@@ -568,44 +577,42 @@ Could not read entry at offset %s : Error in log format or read error",
     }
     if (rec_count >= offset)
     {
-      // see if we should skip this event (only care about queries for now)
-      if (one_database)
-      {
-        if (ev->get_type_code() == QUERY_EVENT)
-        {
-          //const char * log_dbname = ev->get_db();
-          const char * log_dbname = ((Query_log_event*)ev)->db;
-          //printf("entry: %llu, database: %s\n", rec_count, log_dbname);
-
-          if ((log_dbname != NULL) && (strcmp(log_dbname, database)))
-          {
-            //printf("skipping, %s is not %s\n", log_dbname, database);
-            rec_count++;
-            delete ev;
-            continue; // next
-          }
-#ifndef DBUG_OFF
-          else
-          {
-            printf("no skip\n");
-          }
-#endif
-        }
-#ifndef DBUG_OFF
-        else
-        {
-          const char * query_type = ev->get_type_str();
-          printf("not query -- %s\n", query_type);
-        }
-#endif
-      }
       if (!short_form)
         fprintf(result_file, "# at %s\n",llstr(old_off,llbuff));
       
       switch (ev->get_type_code()) {
+      case QUERY_EVENT:
+        if (one_database)
+        {
+          const char * log_dbname = ((Query_log_event*)ev)->db;
+          if ((log_dbname != NULL) && (strcmp(log_dbname, database)))
+          {
+            rec_count++;
+            delete ev;
+            continue; // next
+          }
+        }
+	ev->print(result_file, short_form, last_db);
+        break;
       case CREATE_FILE_EVENT:
       {
 	Create_file_log_event* ce= (Create_file_log_event*)ev;
+        if (one_database)
+        {
+          /*
+            We test if this event has to be ignored. If yes, we don't save this
+            event; this will have the good side-effect of ignoring all related
+            Append_block and Exec_load.
+            Note that Load event from 3.23 is not tested.
+          */
+          const char * log_dbname = ce->db;            
+          if ((log_dbname != NULL) && (strcmp(log_dbname, database)))
+          {
+            rec_count++;
+            delete ev;
+            continue; // next
+          }
+        }
 	ce->print(result_file, short_form, last_db,true);
 	load_processor.process(ce);
 	ev= 0;
@@ -620,9 +627,20 @@ Could not read entry at offset %s : Error in log format or read error",
 	ev->print(result_file, short_form, last_db);
 	Execute_load_log_event *exv= (Execute_load_log_event*)ev;
 	Create_file_log_event *ce= load_processor.grab_event(exv->file_id);
-	ce->print(result_file, short_form, last_db,true);
-	my_free((char*)ce->fname,MYF(MY_WME));
-	delete ce;
+        /*
+          if ce is 0, it probably means that we have not seen the Create_file
+          event (a bad binlog, or most probably --position is after the
+          Create_file event). Print a warning comment.
+        */
+        if (ce)
+        {
+          ce->print(result_file, short_form, last_db,true);
+          my_free((char*)ce->fname,MYF(MY_WME));
+          delete ce;
+        }
+        else
+          fprintf(stderr,"Warning: ignoring Exec_load as there is no \
+Create_file event for file_id: %u\n",exv->file_id);
 	break;
       }
       default:
@@ -634,7 +652,7 @@ Could not read entry at offset %s : Error in log format or read error",
       delete ev;
   }
   if (fd >= 0)
-   my_close(fd, MYF(MY_WME));
+    my_close(fd, MYF(MY_WME));
   end_io_cache(file);
 }
 
