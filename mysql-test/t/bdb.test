@@ -929,3 +929,13 @@ SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterb");
 SELECT id FROM t1 WHERE (list_id = 1) AND (term = "lettera");
 SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterd");
 DROP TABLE t1;
+
+#
+# alter temp table
+#
+create temporary table t1 (a int, primary key(a)) engine=bdb;
+select * from t1;
+alter table t1 add b int;
+select * from t1;
+drop table t1;
+
