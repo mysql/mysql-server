@@ -2648,10 +2648,9 @@ longlong Item_func_inet_aton::val_int()
   }
   if (c != '.')					// IP number can't end on '.'
   {
-    switch (dot_count)
-    {
-    case 1: result<<= 8;
-    case 2: result<<= 8;
+    switch (dot_count) {
+    case 1: result<<= 8; /* fall through */
+    case 2: result<<= 8; /* fall through */
     }
     return (result << 8) + (ulonglong) byte_result;
   }
