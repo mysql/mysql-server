@@ -632,11 +632,13 @@ extern const Field *view_ref_found;
 Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 			    Item **ref, bool report_error,
                             bool check_privileges);
-Field *find_field_in_table(THD *thd, TABLE_LIST *tables, const char *name,
-			   uint length, Item **ref,
-                           bool check_grant_table,  bool check_grant_view,
-			   bool allow_rowid,
-                           uint *cached_field_index_ptr);
+Field *
+find_field_in_table(THD *thd, TABLE_LIST *table_list,
+                    const char *name, const char *item_name,
+                    uint length, Item **ref,
+                    bool check_grants_table, bool check_grants_view,
+                    bool allow_rowid,
+                    uint *cached_field_index_ptr);
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 struct st_des_keyblock

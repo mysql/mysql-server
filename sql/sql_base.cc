@@ -1924,6 +1924,7 @@ const Field *view_ref_found= (Field*) 0x2;
     thd				thread handler
     table_list			table where to find
     name			name of field
+    item_name                   name of item if it will be created (VIEW)
     length			length of name
     ref				expression substituted in VIEW should be
 				  passed using this reference (return
@@ -1940,11 +1941,13 @@ const Field *view_ref_found= (Field*) 0x2;
     #			pointer to field
 */
 
-Field *find_field_in_table(THD *thd, TABLE_LIST *table_list,
-			   const char *name, uint length, Item **ref,
-                           bool check_grants_table, bool check_grants_view,
-			   bool allow_rowid, 
-                           uint *cached_field_index_ptr)
+Field *
+find_field_in_table(THD *thd, TABLE_LIST *table_list,
+                    const char *name, const char *item_name,
+                    uint length, Item **ref,
+                    bool check_grants_table, bool check_grants_view,
+                    bool allow_rowid,
+                    uint *cached_field_index_ptr)
 {
   Field *fld;
   if (table_list->field_translation)
@@ -1972,7 +1975,7 @@ Field *find_field_in_table(THD *thd, TABLE_LIST *table_list,
           if (arena)
             thd->set_n_backup_item_arena(arena, &backup);
           *ref= new Item_ref(trans + i, 0, table_list->view_name.str,
-                             name);
+                             item_name);
           if (arena)
             thd->restore_backup_item_arena(arena, &backup);
           /* as far as Item_ref have defined refernce it do not need tables */
@@ -2163,7 +2166,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	  (!db || !tables->db ||  !tables->db[0] || !strcmp(db,tables->db)))
       {
 	found_table=1;
-	Field *find= find_field_in_table(thd, tables, name, length, ref,
+	Field *find= find_field_in_table(thd, tables, name, item->name,
+                                         length, ref,
 					 (test(tables->table->grant.
                                                want_privilege) &&
                                           check_privileges),
@@ -2226,7 +2230,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
       return (Field*) not_found_field;
     }
 
-    Field *field= find_field_in_table(thd, tables, name, length, ref,
+    Field *field= find_field_in_table(thd, tables, name, item->name,
+                                      length, ref,
 				      (test(tables->table->grant.
                                             want_privilege) &&
                                        check_privileges),
@@ -2683,7 +2688,8 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
         const char *field_name= iterator->name();
         /* Skip duplicate field names if NATURAL JOIN is used */
         if (!natural_join_table ||
-            !find_field_in_table(thd, natural_join_table, field_name, 
+            !find_field_in_table(thd, natural_join_table, field_name,
+                                 field_name,
                                  strlen(field_name), &not_used_item, 0, 0, 0,
                                  &not_used_field_index))
         {
@@ -2890,6 +2896,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
           uint not_used_field_index= NO_CACHED_FIELD_INDEX;
 
           if ((t2_field= find_field_in_table(thd, tab2, t1_field_name,
+                                             t1_field_name,
                                              strlen(t1_field_name), &item_t2,
                                              0, 0, 0,
                                              &not_used_field_index)))
