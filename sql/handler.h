@@ -138,8 +138,10 @@
 
 /* Table caching type */
 #define HA_CACHE_TBL_NONTRANSACT 0
-#define HA_CACHE_TBL_ASKTRANSACT 1
-#define HA_CACHE_TBL_TRANSACT    2
+#define HA_CACHE_TBL_NOCACHE     1
+#define HA_CACHE_TBL_ASKTRANSACT 2
+#define HA_CACHE_TBL_TRANSACT    4
+
 
 enum db_type 
 { 
