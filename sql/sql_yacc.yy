@@ -162,7 +162,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DESC
 %token	DESCRIBE
 %token	DISTINCT
+%token	DISABLE_SYM
 %token	DYNAMIC_SYM
+%token	ENABLE_SYM
 %token	ENCLOSED
 %token	ESCAPED
 %token	ESCAPE_SYM
@@ -1066,6 +1068,8 @@ alter:
 	  lex->db=lex->name=0;
     	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
+          lex->alter_keys_onoff=LEAVE_AS_IS;
+          lex->simple_alter=1;
 	}
 	alter_list
  
@@ -1074,16 +1078,18 @@ alter_list:
 	| alter_list ',' alter_list_item
 
 add_column:
-	ADD opt_column { Lex->change=0;}
+	ADD opt_column { Lex->change=0; }
 
 alter_list_item:
-	add_column field_list_item opt_place
-	| add_column '(' field_list ')'
-	| CHANGE opt_column field_ident { Lex->change= $3.str; } field_spec
+	add_column field_list_item opt_place { Lex->simple_alter=0; }
+	| add_column '(' field_list ')'      { Lex->simple_alter=0; }
+	| CHANGE opt_column field_ident { Lex->change= $3.str; Lex->simple_alter=0; }
+          field_spec
 	| MODIFY_SYM opt_column field_ident
 	  {
 	    Lex->length=Lex->dec=0; Lex->type=0; Lex->interval=0;
 	    Lex->default_value=0;
+            Lex->simple_alter=0;
 	  }
 	  type opt_attribute
 	  {
@@ -1093,23 +1099,26 @@ alter_list_item:
 				  Lex->default_value, $3.str,
 				  Lex->interval))
 	     YYABORT;
+             Lex->simple_alter=0;
 	  }
 	| DROP opt_column field_ident opt_restrict
 	  { Lex->drop_list.push_back(new Alter_drop(Alter_drop::COLUMN,
-						    $3.str)); }
-	| DROP PRIMARY_SYM KEY_SYM { Lex->drop_primary=1; }
-	| DROP FOREIGN KEY_SYM opt_ident {}
+					    $3.str)); Lex->simple_alter=0; }
+	| DROP PRIMARY_SYM KEY_SYM { Lex->drop_primary=1; Lex->simple_alter=0; }
+	| DROP FOREIGN KEY_SYM opt_ident { Lex->simple_alter=0; }
 	| DROP key_or_index field_ident
 	  { Lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
-						    $3.str)); }
+					    $3.str)); Lex->simple_alter=0; }
+	| DISABLE_SYM KEYS { Lex->alter_keys_onoff=DISABLE; }
+	| ENABLE_SYM KEYS  { Lex->alter_keys_onoff=ENABLE; }
 	| ALTER opt_column field_ident SET DEFAULT literal
-	  { Lex->alter_list.push_back(new Alter_column($3.str,$6)); }
+	  { Lex->alter_list.push_back(new Alter_column($3.str,$6)); Lex->simple_alter=0; }
 	| ALTER opt_column field_ident DROP DEFAULT
-	  { Lex->alter_list.push_back(new Alter_column($3.str,(Item*) 0)); }
+	  { Lex->alter_list.push_back(new Alter_column($3.str,(Item*) 0)); Lex->simple_alter=0; }
 	| RENAME opt_to table_alias table_ident
-	  { Lex->db=$4->db.str ; Lex->name= $4->table.str; }
-        | create_table_options
-	| order_clause
+	  { Lex->db=$4->db.str ; Lex->name= $4->table.str; Lex->simple_alter=0; }
+        | create_table_options { Lex->simple_alter=0; }
+	| order_clause         { Lex->simple_alter=0; }
 
 opt_column:
 	/* empty */	{}
@@ -2567,8 +2576,10 @@ keyword:
 	| DATE_SYM		{}
 	| DAY_SYM		{}
 	| DELAY_KEY_WRITE_SYM	{}
+        | DISABLE_SYM           {}
 	| DUMPFILE		{}
 	| DYNAMIC_SYM		{}
+        | ENABLE_SYM            {}
 	| END			{}
 	| ENUM			{}
 	| ESCAPE_SYM		{}
