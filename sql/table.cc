@@ -1841,9 +1841,10 @@ void st_table_list::cleanup_items()
   if (!field_translation)
     return;
 
-  Item **end= field_translation + view->select_lex.item_list.elements;
-  for (Item **item= field_translation; item < end; item++)
-    (*item)->walk(&Item::cleanup_processor, 0);
+  Field_translator *end= (field_translation +
+                          view->select_lex.item_list.elements);
+  for (Field_translator *transl= field_translation; transl < end; transl++)
+    transl->item->walk(&Item::cleanup_processor, 0);
 }
 
 
@@ -1883,7 +1884,7 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
 
 /*
   Find table in underlaying tables by mask and check that only this
-  table sbelong to given mask
+  table belong to given mask
 
   SYNOPSIS
     st_table_list::check_single_table()
@@ -1893,8 +1894,8 @@ int st_table_list::view_check_option(THD *thd, bool ignore_failure)
     map         bit mask of tables
 
   RETURN
-    0 table not found or found only one
-    1 found several tables
+    FALSE table not found or found only one
+    TRUE  found several tables
 */
 
 bool st_table_list::check_single_table(st_table_list **table, table_map map)
@@ -1906,15 +1907,16 @@ bool st_table_list::check_single_table(st_table_list **table, table_map map)
       if (tbl->table->map & map)
       {
 	if (*table)
-	  return 1;
+	  return TRUE;
 	else
 	  *table= tbl;
       }
     }
     else
       if (tbl->check_single_table(table, map))
-	return 1;
+	return TRUE;
   }
+  return FALSE;
 }
 
 
