@@ -3600,14 +3600,14 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case Item_sum::AVG_FUNC:			/* Place for sum & count */
       if (group)
 	return new Field_string(sizeof(double)+sizeof(longlong),
-				maybe_null, item->name,table,1,default_charset_info);
+				maybe_null, item->name,table,my_charset_bin);
       else
 	return new Field_double(item_sum->max_length,maybe_null,
 				item->name, table, item_sum->decimals);
     case Item_sum::STD_FUNC:			/* Place for sum & count */
       if (group)
 	return	new Field_string(sizeof(double)*2+sizeof(longlong),
-				 maybe_null, item->name,table,1,default_charset_info);
+				 maybe_null, item->name,table,my_charset_bin);
       else
 	return new Field_double(item_sum->max_length, maybe_null,
 				item->name,table,item_sum->decimals);
@@ -3624,9 +3624,9 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       case STRING_RESULT:
 	if (item_sum->max_length > 255)
 	  return  new Field_blob(item_sum->max_length,maybe_null,
-				 item->name,table,item->binary,default_charset_info);
+				 item->name,table,item->str_value.charset());
 	return	new Field_string(item_sum->max_length,maybe_null,
-				 item->name,table,item->binary,default_charset_info);
+				 item->name,table,item->str_value.charset());
       }
     }
     thd->fatal_error=1;
@@ -3678,12 +3678,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case STRING_RESULT:
       if (item->max_length > 255)
 	new_field=  new Field_blob(item->max_length,maybe_null,
-				   item->name,table,item->binary,
-				   item->str_value.charset());
+				   item->name,table,item->str_value.charset());
       else
 	new_field= new Field_string(item->max_length,maybe_null,
-				    item->name,table,item->binary,
-				    item->str_value.charset());
+				    item->name,table,item->str_value.charset());
       break;
     }
     if (copy_func)
@@ -4121,7 +4119,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 					    (uchar*) 0,
 					    (uint) 0,
 					    Field::NONE,
-					    NullS, table, (bool) 1, default_charset_info);
+					    NullS, table, my_charset_bin);
       key_part_info->key_type=FIELDFLAG_BINARY;
       key_part_info->type=    HA_KEYTYPE_BINARY;
       key_part_info++;

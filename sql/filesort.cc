@@ -498,7 +498,7 @@ static void make_sortkey(register SORTPARAM *param,
 #ifdef USE_STRCOLL
           if(use_strnxfrm(cs))
           {
-            if (item->binary)
+            if (item->binary())
             {
               if (res->ptr() != (char*) to)
                 memcpy(to,res->ptr(),length);
@@ -525,7 +525,7 @@ static void make_sortkey(register SORTPARAM *param,
             if (res->ptr() != (char*) to)
               memcpy(to,res->ptr(),length);
             bzero((char *)to+length,diff);
-            if (!item->binary)
+            if (!item->binary())
               my_tosort(cs, (char*) to,length);
 #ifdef USE_STRCOLL
           }
@@ -948,7 +948,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
       case STRING_RESULT:
 	sortorder->length=sortorder->item->max_length;
 #ifdef USE_STRCOLL
-	if (!sortorder->item->binary)
+	if (!sortorder->item->binary())
 	{ 
 	  CHARSET_INFO *cs=sortorder->item->str_value.charset();
 	  if (use_strnxfrm(cs))

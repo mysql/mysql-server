@@ -383,6 +383,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   it.rewind();
   while ((sql_field=it++))
   {
+    if(!sql_field->charset)
+      sql_field->charset = create_info->table_charset ?
+			   create_info->table_charset : 
+			   thd->db_charset? thd->db_charset :
+			   default_charset_info;
+    
     switch (sql_field->sql_type) {
     case FIELD_TYPE_BLOB:
     case FIELD_TYPE_MEDIUM_BLOB:
@@ -391,7 +397,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       sql_field->pack_flag=FIELDFLAG_BLOB |
 	pack_length_to_packflag(sql_field->pack_length -
 				portable_sizeof_char_ptr);
-      if (sql_field->flags & BINARY_FLAG)
+      if (sql_field->charset->state & MY_CS_BINSORT)
 	sql_field->pack_flag|=FIELDFLAG_BINARY;
       sql_field->length=8;			// Unireg field length
       sql_field->unireg_check=Field::BLOB_FIELD;
@@ -400,7 +406,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     case FIELD_TYPE_VAR_STRING:
     case FIELD_TYPE_STRING:
       sql_field->pack_flag=0;
-      if (sql_field->flags & BINARY_FLAG)
+      if (sql_field->charset->state & MY_CS_BINSORT)
 	sql_field->pack_flag|=FIELDFLAG_BINARY;
       break;
     case FIELD_TYPE_ENUM:
@@ -438,11 +444,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     sql_field->offset= pos;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
-    if(!sql_field->charset)
-      sql_field->charset = create_info->table_charset ?
-			   create_info->table_charset : 
-			   thd->db_charset? thd->db_charset :
-			   default_charset_info;
     pos+=sql_field->pack_length;
   }
   if (auto_increment > 1)
