@@ -834,15 +834,26 @@ class MYSQL_ERROR;
 
 class Item_func_group_concat : public Item_sum
 {
-  THD *item_thd;
   TMP_TABLE_PARAM *tmp_table_param;
-  uint max_elements_in_tree;
   MYSQL_ERROR *warning;
-  uint key_length;
-  bool tree_mode;
+  String result;
+  String *separator;
+  TREE tree_base;
+  TREE *tree;
+  TABLE *table;
+  ORDER **order;
+  TABLE_LIST *tables_list;
+  uint arg_count_order;               // total count of ORDER BY items
+  uint arg_count_field;               // count of arguments
+  uint count_cut_values;
   bool distinct;
   bool warning_for_row;
   bool always_null;
+  /*
+    Following is 0 normal object and pointer to original one for copy
+    (to correctly free resources)
+  */
+  Item_func_group_concat *original;
 
   friend int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
 					      byte* key2);
@@ -854,30 +865,12 @@ class Item_func_group_concat : public Item_sum
   friend int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
 			   Item_func_group_concat *group_concat_item);
 
- public:
-  String result;
-  String *separator;
-  TREE tree_base;
-  TREE *tree;
-  TABLE *table;
-  ORDER **order;
-  TABLE_LIST *tables_list;
-  ulong group_concat_max_len;
-  uint arg_count_order;
-  uint arg_count_field;
-  uint field_list_offset;
-  uint count_cut_values;
-  /*
-    Following is 0 normal object and pointer to original one for copy 
-    (to correctly free resources)
-  */
-  Item_func_group_concat *original;
-  
+public:
   Item_func_group_concat(bool is_distinct,List<Item> *is_select,
                          SQL_LIST *is_order,String *is_separator);
-			 
+
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
-  ~Item_func_group_concat();
+  ~Item_func_group_concat() {}
   void cleanup();
 
   enum Sumfunctype sum_func () const {return GROUP_CONCAT_FUNC;}
@@ -885,11 +878,11 @@ class Item_func_group_concat : public Item_sum
   virtual Item_result result_type () const { return STRING_RESULT; }
   void clear();
   bool add();
-  void reset_field();
+  void reset_field() {}                         // not used
+  void update_field() {}                        // not used
   bool fix_fields(THD *, TABLE_LIST *, Item **);
   bool setup(THD *thd);
   void make_unique();
-  virtual void update_field() {}
   double val_real()
   {
     String *res;  res=val_str(&str_value);
