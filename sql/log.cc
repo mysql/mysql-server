@@ -2488,7 +2488,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   {
     inited= 1;
     crashed= TRUE;
-    sql_print_information("Recovering after a crash");
+    sql_print_information("Recovering after a crash using %s", opt_name);
     if (tc_heuristic_recover)
     {
       sql_print_error("Cannot perform automatic crash recovery when "
@@ -2948,7 +2948,10 @@ int TC_LOG_BINLOG::open(const char *opt_name)
     if ((ev= Log_event::read_log_event(&log, 0, &fdle)) &&
         ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
         ev->flags & LOG_EVENT_BINLOG_IN_USE_F)
+    {
+      sql_print_information("Recovering after a crash using %s", opt_name);
       error= recover(&log, (Format_description_log_event *)ev);
+    }
     else
       error=0;
 
