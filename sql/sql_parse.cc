@@ -589,7 +589,7 @@ pthread_handler_decl(handle_one_connection,arg)
 
 #if !defined( __WIN__) && !defined(OS2)	// Win32 calls this in pthread_create
   // The following calls needs to be done before we call DBUG_ macros
-  if (my_thread_init())
+  if (!(test_flags & TEST_NO_THREADS) & my_thread_init())
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_thread_count);
