@@ -370,8 +370,14 @@ public:
   }
   ~Item_string() {}
   enum Type type() const { return STRING_ITEM; }
-  double val() { return atof(str_value.ptr()); }
-  longlong val_int() { return strtoll(str_value.ptr(),(char**) 0,10); }
+  double val()
+  { 
+    return my_strntod(str_value.charset(),str_value.ptr(),str_value.length(),(char**)NULL);
+  }
+  longlong val_int()
+  {
+    return my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),(char**) 0,10);
+  }
   String *val_str(String*) { return (String*) &str_value; }
   int save_in_field(Field *field, bool no_conversions);
   void make_field(Send_field *field);
