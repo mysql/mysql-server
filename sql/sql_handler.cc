@@ -285,7 +285,20 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
   {
     if (!memcmp(table->table_cache_key, db, dblen) &&
         !my_strcasecmp((is_alias ? table->table_name : table->real_name),table_name))
+    {
+      if (table->version != refresh_version)
+      {
+        VOID(pthread_mutex_lock(&LOCK_open));
+        if (close_thread_table(thd, ptr))
+        {
+          /* Tell threads waiting for refresh that something has happened */
+          VOID(pthread_cond_broadcast(&COND_refresh));
+        }
+        VOID(pthread_mutex_unlock(&LOCK_open));
+        continue;
+      }
       break;
+    }
     ptr=&(table->next);
   }
   return ptr;
