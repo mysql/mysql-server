@@ -131,7 +131,7 @@ About this manual
 
 * Manual conventions::          Conventions used in this manual
 
-MySQL mailing lists and how to ask questions or report errors (bugs)
+MySQL mailing lists
 
 * Mailing-list::                The @strong{MySQL} mailing lists
 * Asking questions::            Asking questions or reporting bugs
@@ -183,7 +183,7 @@ Installing MySQL
 * Source install system issues::  System-specific issues
 * Windows::                     Windows notes
 * OS/2::                        OS/2 notes
-* MySQL binaries::              
+* MySQL binaries::              MySQL binaries
 * Post-installation::           Post-installation setup and testing
 * Upgrade::                     Is there anything special to do when upgrading/downgrading @strong{MySQL}?
 
@@ -426,6 +426,7 @@ Functions for use in @code{SELECT} and @code{WHERE} clauses
 MySQL table types
 
 * MyISAM::                      MyISAM tables
+* MERGE::                       
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
@@ -456,7 +457,7 @@ Examples of common queries
 
 * example-Maximum-column::      The maximum value for a column
 * example-Maximum-row::         The row holding the maximum of a certain column
-* example-Maximum-column-group::  Maximum of column: per group: only the values
+* example-Maximum-column-group::  Maximum of column per group
 * example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
 * example-Foreign keys::        Using foreign keys
 
@@ -608,7 +609,7 @@ MySQL ODBC Support
 * ODBC and last_insert_id::     How to get the value of an @code{AUTO_INCREMENT} column in ODBC
 * MyODBC bug report::           Reporting problems with MyODBC
 
-Using @strong{MySQL} with some common programs
+Using MySQL with some common programs
 
 * Apache::                      Using @strong{MySQL} with Apache
 
@@ -2136,6 +2137,8 @@ support @strong{MySQL}}
 @uref{http://www.softagency.co.jp/mysql/index.en.phtml, Links about using
 @strong{MySQL} in Japan/Asia}
 @item
+@uref{http://abattoir.cc.ndsu.nodak.edu/~nem/mysql/udf/, @strong{MySQL} UDF Registry}
+@item
 @uref{http://www.open.com.au/products.html, Commercial Web defect tracking
 system}
 @item
@@ -2167,8 +2170,6 @@ which mentions @strong{MySQL} in the right company}
 @strong{MySQL} and @code{mSQL}}
 @item
 @uref{http://www.aewa.org, Airborne Early Warning Association }
-@item
-@uref{http://abattoir.cc.ndsu.nodak.edu/~nem/mysql/udf/, @strong{MySQL} UDF Registry}
 @item
 @uref{http://21ccs.com/~gboersm/y2kmatrix/, Y2K tester}
 @end itemize
@@ -16432,7 +16433,7 @@ reference_option:
         RESTRICT | CASCADE | SET NULL | NO ACTION | SET DEFAULT
 
 table_options:
-	TYPE = @{ISAM | MYISAM | HEAP@}
+	TYPE = @{ISAM | MYISAM | HEAP | MERGE@}
 or	AUTO_INCREMENT = #
 or	AVG_ROW_LENGTH = #
 or	CHECKSUM = @{0 | 1@}
@@ -16662,10 +16663,11 @@ implemented in @strong{MySQL} 3.23 and above.
 The different table types are:
 
 @multitable @columnfractions .20 .80
-@item ISAM @tab The original table handler. @xref{ISAM}.
-@item MyISAM @tab The new binary portable table handler. @xref{MyISAM}.
-@item HEAP @tab The data for this table is only stored in memory. @xref{HEAP}.
 @item BDB or Berkeley_db @tab Transaction safe tables @xref{BDB}.
+@item HEAP @tab The data for this table is only stored in memory. @xref{HEAP}.
+@item ISAM @tab The original table handler. @xref{ISAM}.
+@item MERGE @tab A collection of MyISAM tables used as one table @xref{MERGE}.
+@item MyISAM @tab The new binary portable table handler. @xref{MyISAM}.
 @end multitable
 @xref{Table types}.
 
@@ -18627,7 +18629,7 @@ The following columns are returned:
 @multitable @columnfractions .30 .70
 @item @strong{Column} @tab @strong{Meaning}
 @item @code{Name} @tab Name of the table
-@item @code{Type} @tab Type of table (BDB, ISAM, MyISAM or HEAP)
+@item @code{Type} @tab Type of table (BDB, ISAM, MERGE, MyISAM or HEAP)
 @item @code{Row_format} @tab The row storage format (Fixed, Dynamic, or Compressed)
 @item @code{Rows} @tab Number of rows
 @item @code{Avg_row_length} @tab Average row length
@@ -20275,6 +20277,7 @@ used them.
 @cindex Berkeley_db table type
 @cindex ISAM table type
 @cindex HEAP table type
+@cindex MERGE table type
 @cindex MySQL table types
 @cindex MyISAM table type
 @node Table types, Tutorial, Reference, Top
@@ -20296,7 +20299,7 @@ TABLE} statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
 Note that @strong{MySQL} supports two different kind of
 tables. Transactions safe tables (@code{BDB}) and not transaction safe
-tables (@code{ISAM}, @code{MyISAM} and @code{HEAP}).
+tables (@code{ISAM}, @code{MERGE}, @code{MyISAM} and @code{HEAP}).
 
 Advantages of transaction safe tables (TST)
 
@@ -20332,12 +20335,13 @@ of both worlds.
 
 @menu
 * MyISAM::                      MyISAM tables
+* MERGE::                       
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
 @end menu
 
-@node MyISAM, ISAM, Table types, Table types
+@node MyISAM, MERGE, Table types, Table types
 @section MyISAM tables
 
 @code{MyISAM} is the default table type in @strong{MySQL} 3.23. It's
@@ -20620,7 +20624,128 @@ columns.
 Can be uncompressed with @code{myisamchk}.
 @end itemize
 
-@node ISAM, HEAP, MyISAM, Table types
+@node MERGE, ISAM, MyISAM, Table types
+@section MERGE tables
+
+@code{MERGE} tables are new in @strong{MySQL} 3.23.25; The code is still
+in alpha, but should stabilize soon!  The one thing that is currently
+missing is a way from the SQL prompt to say which tables are part of the
+@code{MERGE} table.
+
+A @code{MERGE} table is a collection of identical @code{MyISAM} tables
+that can be used as one.  You can only @code{SELECT} from the collection
+of tables. If you @code{DROP} the @code{MERGE} table, you are only
+dropping the @code{MERGE} specification.
+
+With identical tables we mean that all tables are created with identical
+column information.  Some of the tables can be compressed with
+@code{myisampack}. @xref{myisampack}.
+
+When you create a @code{MERGE} table, you will get a @code{.frm} table
+definition file and a @code{.MRG} table list file.  The @code{.MRG} just
+contains a list of the index files (@code{.MYI} files) that should
+be used as one.
+
+@code{MERGE} tables helps you solve the following problems:
+
+@itemize @bullet
+@item
+Easily manage a set of log tables; For example you can put data from
+different months into separate files, compress some of them with
+@code{myisampack} and then create a @code{MERGE} to use these as one.
+@item
+Give you more speed;  You can split a big read-only table based on some
+criteria and then put the different table part on different disks.
+A @code{MERGE} table on this could be much faster than using
+the big table. (You can of course also use a RAID to get the same
+kind of benefits).
+@item
+Do more efficient searches: If you know exactly what you are looking
+after, you can search in just one of the split tables for some queries
+and use @strong{MERGE} table for others.  You can even have many
+different @code{MERGE} tables active, which possible overlapping files.
+@item
+More efficient repairs; It's easier to repair the individual files that
+are mapped to a @code{MERGE} file than trying to repair a real big file.
+@item
+Instant mapping of many files as one;  A @code{MERGE} table uses the
+index of the individual tables;  It doesn't need an index of its one.
+This makes @code{MERGE} table collections VERY fast to make or remap.
+@end itemize
+
+The disadvantages with @code{MERGE} tables are:
+
+@itemize @bullet
+@item
+@code{MERGE} tables are read-only.
+@item
+@code{MERGE} tables uses more file descriptors: If you are using a
+@strong{MERGE} that maps over 10 tables and 10 users are using this, you
+are using 10*10 + 10 file descriptors.  (10 data files for 10 users
+and 10 shared index files).
+@item
+Key reads are slower;  When you do a read on a key, the @code{MERGE}
+handler will need to issue a read on all underlying tables to check
+which on most closely matches the given key.  If you then do a 'read-next'
+then the merge table handler will need to search the read buffers
+to find the next key;  Only when one key buffer is used up, the handler
+will need to read the next key block. This makes @code{MERGE} keys much slower
+on @code{eq_ref} searches, but not much slower on @code{ref} searches.
+@xref{EXPLAIN}.
+@item
+You can't yet easily map the @code{MERGE} table from withing @strong{MySQL}.
+@end itemize
+
+The following example shows you how to use @code{MERGE} tables:
+
+@example
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20));
+CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20));
+INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
+INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
+CREATE TABLE total (a INT NOT NULL, message CHAR(20), KEY(a)) TYPE=MERGE;
+@end example
+
+Note that we didn't create an @code{UNIQUE} or @code{PRIMARY KEY} in the
+@code{total} table as the key isn't going to be unique in the @code{total}
+table.
+
+(We plan to in the future add the information in the @code{MERGE} handler
+that unique keys are not necessarily unique in the @code{MERGE} table.)
+
+Now you have to use tool (editor, unix command...) to insert the file
+names into the 'total' table:
+
+@example
+shell> cd /mysql-data-directory/current-database
+shell> ls -1 t1.MYI t2.MYI > total.MRG
+@end example
+
+Now you can do things like:
+
+@example
+mysql> select * from total;
++---+---------+
+| a | message |
++---+---------+
+| 1 | Testing |
+| 2 | table   |
+| 3 | t1      |
+| 1 | Testing |
+| 2 | table   |
+| 3 | t2      |
++---+---------+
+@end example
+
+To remap a @code{MERGE} table you must either @code{DROP} it and recreate it
+or change the @code{.MRG} file and issue a @code{FLUSH TABLE} on the
+@code{MERGE} table to force the handler to read the new definition file.
+
+You can also put full paths to the index files in the @code{.MRG} file;  If
+you don't do this, the @code{MERGE} handler assumes that the index files
+are in the same directory as the @code{.MRG} file.
+
+@node ISAM, HEAP, MERGE, Table types
 @section ISAM tables
 
 You can also use the deprecated ISAM table type. This will disappear
@@ -23382,10 +23507,8 @@ have, in effect, much bigger tables.  @xref{myisampack, ,
 @code{myisampack}}.
 
 Another solution can be the included MERGE library, which allows you to
-handle a collection of identical tables as one.  (Identical in this case
-means that all tables are created with identical column information.)
-Currently MERGE can only be used to scan a collection of tables because it
-doesn't support indexes. We will add indexes to this in the near future.
+handle a collection of identical tables as one. @xref{MERGE, MERGE
+tables}. 
 
 @cindex Replication
 @node Replication, Performance, Server, Top
