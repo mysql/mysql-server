@@ -497,7 +497,8 @@ check_connections(THD *thd)
     {
       vio_in_addr(net->vio,&thd->remote.sin_addr);
       thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
-      thd->host[strnlen(thd->host, HOSTNAME_LENGTH)]= 0;
+      /* Cut very long hostnames to avoid possible overflows */
+      thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
       if (connect_errors > max_connect_errors)
 	return(ER_HOST_IS_BLOCKED);
     }
@@ -2012,7 +2013,8 @@ mysql_execute_command(void)
 	goto error;
       }
       walk->lock_type= auxi->lock_type;
-      auxi->table= (TABLE *) walk;		// Remember corresponding table
+      // Store address to table as we need it later
+      auxi->table= my_reinterpret_cast(TABLE *) (walk);
     }
     if (add_item_to_list(new Item_null()))
     {
@@ -2025,7 +2027,8 @@ mysql_execute_command(void)
       break;
     /* Fix tables-to-be-deleted-from list to point at opened tables */
     for (auxi=(TABLE_LIST*) aux_tables ; auxi ; auxi=auxi->next)
-      auxi->table= ((TABLE_LIST*) auxi->table)->table;
+      auxi->table= (my_reinterpret_cast(TABLE_LIST*) (auxi->table))->table;
+
     if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
 						       table_count)))
     {
@@ -3321,7 +3324,7 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
 	}
 	else
 	  aux->shared=1;			// Mark that it's used twice
-	aux->table=(TABLE *) cursor;
+	aux->table= my_reinterpret_cast(TABLE *) (cursor);
       }
     }
   }

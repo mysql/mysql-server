@@ -8,7 +8,7 @@ use Getopt::Long;
 $opt_distribution=$opt_user=$opt_config_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
-$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_debug=0;
+$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=0;
 $opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=0;
 
 GetOptions(
@@ -30,7 +30,9 @@ GetOptions(
 	"no-crash-me",
 	"no-perl",
 	"no-strip",
-	"no-test|no-mysqltest",
+	"no-test",
+	"no-mysqltest",
+	"no-benchmark",
 	"perl-files=s",
 	"perl-options=s",
 	"raid",
@@ -148,6 +150,7 @@ select STDOUT;
 $|=1;
 
 info("Compiling MySQL$opt_version_suffix at $host$opt_suffix, stage: $opt_stage\n");
+log_timestamp();
 
 if (-x "$host/bin/mysqladmin")
 {
@@ -161,6 +164,7 @@ kill_all("mysqlmanager");
 
 if ($opt_stage == 0)
 {
+  log_timestamp();
   print "$host: Removing old distribution\n" if ($opt_debug);
   if (!$opt_use_old_distribution)
   {
@@ -209,6 +213,7 @@ safe_cd("$pwd/$host/$ver");
 if ($opt_stage <= 1)
 {
   # Fix files if this is in another timezone than the build host
+  log_timestamp();
   unlink("config.cache");
   unlink("bdb/build_unix/config.cache");
   unlink("innobase/config.cache");
@@ -252,6 +257,7 @@ if ($opt_stage <= 1)
 if ($opt_stage <= 2)
 {
   my ($command);
+  log_timestamp();
   unlink($opt_distribution) if ($opt_delete && !$opt_use_old_distribution);
   $command=$make;
   $command.= " $opt_make_options" if (defined($opt_make_options) && $opt_make_options ne "");
@@ -264,6 +270,7 @@ if ($opt_stage <= 2)
 if ($opt_stage <= 3)
 {
   my $flags= "";
+  log_timestamp();
   log_system("rm -fr mysql-3* mysql-4* $pwd/$host/*.tar.gz");
   log_system("nm -n sql/mysqld | gzip -9 -v 2>&1 > sql/mysqld.sym.gz | cat");
 
@@ -292,6 +299,7 @@ if (!defined($tar_file))
 #
 if ($opt_stage <= 4 && !$opt_no_test)
 {
+  log_timestamp();
   rm_all(<$pwd/$host/test/*>);
   safe_cd("$pwd/$host/test");
   safe_system("gunzip < $tar_file | $tar xf -");
@@ -305,8 +313,9 @@ $ENV{"LD_LIBRARY_PATH"}= "$test_dir/lib:" . $ENV{"LD_LIBRARY_PATH"};
 #
 # Run the test suite
 #
-if ($opt_stage <= 5 && !$opt_no_test)
+if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
+  log_timestamp();
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
   check_system("./mysql-test-run --warnings --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
@@ -315,7 +324,7 @@ if ($opt_stage <= 5 && !$opt_no_test)
 #
 # Start the server if we are going to run any of the benchmarks
 #
-if (!$opt_no_test)
+if (!$opt_no_test && !$opt_no_benchmark)
 {
   my $extra;
   safe_cd($test_dir);
@@ -339,8 +348,10 @@ if (!$opt_no_test)
 #
 # Compile and install the required Perl modules
 #
-if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
+if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test &&
+    !$opt_no_benchmark)
 {
+  log_timestamp();
   safe_cd($test_dir);
   rm_all("perl");
   safe_system("mkdir perl");
@@ -376,6 +387,7 @@ if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
 #
 if ($opt_stage <= 8 && !$opt_no_test && !$opt_no_crash_me)
 {
+  log_timestamp();
   safe_cd("$test_dir/sql-bench");
   log_system("rm -f limits/mysql.cfg");
   safe_system("perl ./crash-me --force --batch-mode $connect_option");
@@ -384,8 +396,9 @@ if ($opt_stage <= 8 && !$opt_no_test && !$opt_no_crash_me)
 #
 # Run sql-bench Benchmarks
 #
-if ($opt_stage <= 9 && !$opt_no_test)
+if ($opt_stage <= 9 && !$opt_no_test && !$opt_no_benchmark)
 {
+  log_timestamp();
   safe_cd("$test_dir/sql-bench");
   log_system("rm -f output/*");
   $tmp= $opt_fast_benchmark ? "--fast --user root --small-test" : "";
@@ -469,7 +482,13 @@ Do not run the "crash-me" test
 Do not strip the binaries included in the binary distribution
 
 --no-test
-Do not run any tests
+Do not run any tests.
+
+--no-benchmark
+Do not run the benchmark test (written in perl)
+
+--no-mysqltest
+Do not run the the mysql-test-run test (Same as 'make test')
 
 --perl-files=list of files
 Compile and install the given perl modules.
@@ -532,6 +551,7 @@ sub abort
   my($mail_header_file);
   print LOG "\n$message\n";
   print "$host: $message\n" if ($opt_debug);
+  print LOG "Aborting\n";
   close LOG;
 
   if ($opt_user)
@@ -547,7 +567,6 @@ sub abort
     unlink($mail_header_file);
     unlink("$log.mail");
   }
-  print LOG "Aborting\n";
   exit 1;
 }
 
@@ -689,9 +708,10 @@ sub rm_all
 sub kill_all
 {
   my ($pattern) = @_;
-  my ($USER,$BSD,$LINUX, $pscmd, $user, $pid);
+  my ($USER,$BSD,$LINUX, $pscmd, $user, $os, $pid);
   $user=$ENV{'USER'};
-  $BSD = -f '/vmunix' || $ENV{"OS"} eq "SunOS4" || $^O eq 'darwin';
+  $os=defined($ENV{'OS'}) ? $ENV{'OS'} : "unknown";
+  $BSD = -f '/vmunix' || $os eq "SunOS4" || $^O eq 'darwin';
   $LINUX = $^O eq 'linux';
   $pscmd = $BSD ? "/bin/ps -auxww" : $LINUX ? "/bin/ps axuw" : "/bin/ps -ef";
 
@@ -707,7 +727,7 @@ sub kill_all
   {
     chop($cand);
     ($pid_user, $pid) = split(' ', $cand);
-    next if $pid == $$;
+    next if $pid eq $$;
     next process if (! ($cand =~ $pattern) || $pid_user ne $user);
     print LOG "Killing $_\n";
     &killpid($pid);
@@ -729,4 +749,15 @@ sub killpid
     return if kill(0, $pid) == 0;
   }
   print LOG "$pid will not die!\n";
+}
+
+#
+# return the current date as a string (YYYY-MM-DD HH:MM:SS)
+#
+sub log_timestamp
+{
+  my @ta=localtime(time());
+  print LOG sprintf("%4d-%02d-%02d %02d:%02d:%02d\n",
+		    $ta[5]+1900, $ta[4]+1, $ta[3], $ta[2], $ta[1], $ta[0]);
+
 }
