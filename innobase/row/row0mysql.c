@@ -308,7 +308,8 @@ handle_new_error:
 
 		return(TRUE);
 
-	} else if (err == DB_DEADLOCK || err == DB_LOCK_WAIT_TIMEOUT) {
+	} else if (err == DB_DEADLOCK || err == DB_LOCK_WAIT_TIMEOUT
+		   || err == DB_LOCK_TABLE_FULL) {
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
 
