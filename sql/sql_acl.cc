@@ -1388,7 +1388,7 @@ static bool test_if_create_new_users(THD *thd)
 		      thd->priv_user, tl.db, 0);
     if (!(db_access & INSERT_ACL))
     {
-      if (check_grant(thd,INSERT_ACL,&tl,0,1))
+      if (check_grant(thd, INSERT_ACL, &tl, 0, UINT_MAX, 1))
 	create_new_users=0;
     }
   }
@@ -2650,7 +2650,7 @@ void grant_reload(THD *thd)
 ****************************************************************************/
 
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
-		 uint show_table, bool no_errors)
+		 uint show_table, uint number, bool no_errors)
 {
   TABLE_LIST *table;
   char *user = thd->priv_user;
@@ -2660,7 +2660,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     return 0;					// ok
 
   rw_rdlock(&LOCK_grant);
-  for (table=tables; table ;table=table->next)
+  for (table= tables; table && number--; table= table->next)
   {
     if (!(~table->grant.privilege & want_access) || table->derived)
     {

@@ -70,8 +70,6 @@ int mysql_update(THD *thd,
   READ_RECORD	info;
   TABLE_LIST    *update_table_list= ((TABLE_LIST*) 
 				     thd->lex->select_lex.table_list.first);
-  TABLE_LIST    tables;
-  List<Item>    all_fields;
   DBUG_ENTER("mysql_update");
 
   LINT_INIT(used_index);
@@ -86,30 +84,13 @@ int mysql_update(THD *thd,
   /* Calculate "table->used_keys" based on the WHERE */
   table->used_keys=table->keys_in_use;
   table->quick_keys.clear_all();
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  want_privilege=table->grant.want_privilege;
-  table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
+  want_privilege= table->grant.want_privilege;
 #endif
-
-  bzero((char*) &tables,sizeof(tables));	// For ORDER BY
-  tables.table= table;
-  tables.alias= table_list->alias;
-
-  if (setup_tables(update_table_list) ||
-      setup_conds(thd,update_table_list,&conds) ||
-      thd->lex->select_lex.setup_ref_array(thd, order_num) ||
-      setup_order(thd, thd->lex->select_lex.ref_pointer_array,
-		  update_table_list, all_fields, all_fields, order) ||
-      setup_ftfuncs(&thd->lex->select_lex))
-    DBUG_RETURN(-1);				/* purecov: inspected */
-
-  /* Check that we are not using table that we are updating in a sub select */
-  if (find_real_table_in_list(table_list->next, 
-			      table_list->db, table_list->real_name))
-  {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
-    DBUG_RETURN(-1);
-  }
+  if ((error= mysql_prepare_update(thd, table_list, update_table_list,
+				   &conds, order_num, order)))
+    DBUG_RETURN(error);
 
   old_used_keys= table->used_keys;		// Keys used in WHERE
   /*
@@ -404,6 +385,59 @@ err:
     table->file->extra(HA_EXTRA_NO_KEYREAD);
   }
   DBUG_RETURN(-1);
+}
+
+/*
+  Prepare items in UPDATE statement
+
+  SYNOPSIS
+    mysql_prepare_update()
+    thd			- thread handler
+    table_list		- global table list
+    update_table_list	- local table list of UPDATE SELECT_LEX
+    conds		- conditions
+    order_num		- number of ORDER BY list entries
+    order		- ORDER BY clause list
+
+  RETURN VALUE
+    0  - OK
+    1  - error (message is sent to user)
+    -1 - error (message is not sent to user)
+*/
+int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
+			 TABLE_LIST *update_table_list,
+			 Item **conds, uint order_num, ORDER *order)
+{
+  TABLE *table= table_list->table;
+  TABLE_LIST tables;
+  List<Item> all_fields;
+  DBUG_ENTER("mysql_prepare_update");
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
+#endif
+
+  bzero((char*) &tables,sizeof(tables));	// For ORDER BY
+  tables.table= table;
+  tables.alias= table_list->alias;
+
+  if (setup_tables(update_table_list) ||
+      setup_conds(thd, update_table_list, conds) ||
+      thd->lex->select_lex.setup_ref_array(thd, order_num) ||
+      setup_order(thd, thd->lex->select_lex.ref_pointer_array,
+		  update_table_list, all_fields, all_fields, order) ||
+      setup_ftfuncs(&thd->lex->select_lex))
+    DBUG_RETURN(-1);
+
+  /* Check that we are not using table that we are updating in a sub select */
+  if (find_real_table_in_list(table_list->next, 
+			      table_list->db, table_list->real_name))
+  {
+    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
+    DBUG_RETURN(-1);
+  }
+
+  DBUG_RETURN(0);
 }
 
 

@@ -2529,6 +2529,18 @@ int set_var::check(THD *thd)
 }
 
 
+/*
+  Check variable, but without assigning value (used by PS)
+
+  SYNOPSIS
+    set_var::light_check()
+    thd		thread handler
+
+  RETURN VALUE
+    0	ok
+    1	ERROR, message sent (normally no variables was updated)
+    -1  ERROR, message not sent
+*/
 int set_var::light_check(THD *thd)
 {
   if (var->check_type(type))
@@ -2538,7 +2550,7 @@ int set_var::light_check(THD *thd)
 	     var->name);
     return -1;
   }
-  if ((type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
+  if (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL))
     return 1;
 
   if (value && (value->fix_fields(thd, 0, &value) || value->check_cols(1)))
@@ -2574,6 +2586,18 @@ int set_var_user::check(THD *thd)
 }
 
 
+/*
+  Check variable, but without assigning value (used by PS)
+
+  SYNOPSIS
+    set_var_user::light_check()
+    thd		thread handler
+
+  RETURN VALUE
+    0	ok
+    1	ERROR, message sent (normally no variables was updated)
+    -1  ERROR, message not sent
+*/
 int set_var_user::light_check(THD *thd)
 {
   /*

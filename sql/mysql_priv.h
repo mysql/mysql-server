@@ -348,12 +348,17 @@ void cleanup_items(Item *item);
 class THD;
 void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
 int check_one_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables, bool no_errors);
+			   TABLE_LIST *tables);
 bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
 int multi_update_precheck(THD *thd, TABLE_LIST *tables);
 int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
 int insert_select_precheck(THD *thd, TABLE_LIST *tables);
+int update_precheck(THD *thd, TABLE_LIST *tables);
+int delete_precheck(THD *thd, TABLE_LIST *tables);
+int insert_precheck(THD *thd, TABLE_LIST *tables, bool update);
+int create_table_precheck(THD *thd, TABLE_LIST *tables,
+			  TABLE_LIST *create_table);
 #include "sql_class.h"
 #include "opt_range.h"
 
@@ -532,6 +537,9 @@ bool mysql_rename_table(enum db_type base,
 int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
 		     List<Alter_drop> &drop_list);
+int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
+			 TABLE_LIST *update_table_list,
+			 Item **conds, uint order_num, ORDER *order);
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds,
                  uint order_num, ORDER *order, ha_rows limit,
@@ -541,9 +549,15 @@ int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
 		       COND *conds, ulong options,
 		       enum enum_duplicates handle_duplicates,
 		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex);
+int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
+			 TABLE_LIST *insert_table_list, TABLE *table,
+			 List<Item> &fields, List_item *values,
+			 List<Item> &update_fields,
+			 List<Item> &update_values, enum_duplicates duplic);
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, List<Item> &update_fields,
 		 List<Item> &update_values, enum_duplicates flag);
+int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                  ha_rows rows, ulong options);
 int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok=0);

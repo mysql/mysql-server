@@ -1634,8 +1634,10 @@ void st_select_lex::print_limit(THD *thd, String *str)
   }
 }
 
+
 /*
-  unlink first table from table lists
+  Unlink first table from global table list and first must outer select list
+    (lex->select_lex)
 
   SYNOPSIS
     unlink_first_table()
@@ -1652,9 +1654,13 @@ TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
 {
   *global_first= tables;
   *local_first= (TABLE_LIST*)select_lex.table_list.first;
-  // exclude from global table list
+  /*
+    exclude from global table list
+  */
   tables= tables->next;
-  // and from local list if it is not the same
+  /*
+    and from local list if it is not the same
+  */
   if (&select_lex != all_selects_list)
     select_lex.table_list.first= (gptr)(*local_first)->next;
   else
@@ -1663,8 +1669,9 @@ TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
   return tables;
 }
 
+
 /*
-  link unlinked first table back
+  Link table back that was unlinked with unlink_first_table()
 
   SYNOPSIS
     link_first_table_back()
@@ -1680,7 +1687,6 @@ TABLE_LIST *st_lex::link_first_table_back(TABLE_LIST *tables,
 					  TABLE_LIST *local_first)
 {
   global_first->next= tables;
-  tables= global_first;
   if (&select_lex != all_selects_list)
   {
     /*
@@ -1690,8 +1696,8 @@ TABLE_LIST *st_lex::link_first_table_back(TABLE_LIST *tables,
     select_lex.table_list.first= (gptr) local_first;
   }
   else
-    select_lex.table_list.first= (gptr) tables;
-  return tables;
+    select_lex.table_list.first= (gptr) global_first;
+  return global_first;
 }
 
 /*

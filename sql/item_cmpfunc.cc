@@ -477,10 +477,9 @@ bool Item_in_optimizer::fix_left(THD *thd,
 				 struct st_table_list *tables,
 				 Item **ref)
 {
-  if ((!args[0]->fixed && args[0]->fix_fields(thd, tables, args)))
+  if (!args[0]->fixed && args[0]->fix_fields(thd, tables, args) ||
+      !cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
     return 1;
-  if (!cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
-      return 1;
 
   cache->setup(args[0]);
   cache->store(args[0]);
