@@ -40942,12 +40942,12 @@ a group function, like
 @code{SELECT a,DISTINCT SEC_TO_TIME(sum(a)) from table_name GROUP BY a,b}.
 @item
 Fixed bug in handling @code{STOP} event after @code{ROTATE} event in
-replication
+replication.
 @item
-Fixed another buffer overrun in @code{DROP DATABASE}
+Fixed another buffer overrun in @code{DROP DATABASE}.
 @item
 Added @code{Table_locks_immediate} and @code{Table_locks_waited} status
-variables
+variables.
 @item
 Fixed bug in replication that broke slave server start with existing
 @code{master.info}. This fixes a bug introduced in 3.23.32.
