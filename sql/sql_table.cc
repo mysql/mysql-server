@@ -1690,6 +1690,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       found_count++;
   }
   end_read_record(&info);
+  free_io_cache(from);
   delete [] copy;
   uint tmp_error;
   if ((tmp_error=to->file->extra(HA_EXTRA_NO_CACHE)))

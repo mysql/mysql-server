@@ -48,6 +48,7 @@ public:
 };
 
 static hash_filo *hostname_cache;
+static pthread_mutex_t LOCK_hostname;
 
 void hostname_cache_refresh()
 {
@@ -56,6 +57,7 @@ void hostname_cache_refresh()
 
 bool hostname_cache_init()
 {
+  (void) pthread_mutex_init(&LOCK_hostname,NULL);
   if (!(hostname_cache=new hash_filo(HOST_CACHE_SIZE,offsetof(host_entry,ip),
 				     sizeof(struct in_addr),NULL,
 				     (void (*)(void*)) free)))
@@ -66,6 +68,7 @@ bool hostname_cache_init()
 
 void hostname_cache_free()
 {
+  (void) pthread_mutex_destroy(&LOCK_hostname);
   delete hostname_cache;
 }
 
@@ -180,26 +183,26 @@ my_string ip_to_hostname(struct in_addr *in, uint *errors)
     DBUG_RETURN(0);				// out of memory
 
 #else
-  VOID(pthread_mutex_lock(&hostname_cache->lock));
+  VOID(pthread_mutex_lock(&LOCK_hostname));
   if (!(hp=gethostbyaddr((char*) in,sizeof(*in), AF_INET)))
   {
-    VOID(pthread_mutex_unlock(&hostname_cache->lock));
+    VOID(pthread_mutex_unlock(&LOCK_hostname));
     DBUG_PRINT("error",("gethostbyaddr returned %d",errno));
     goto err;
   }
   if (!hp->h_name[0])				// Don't allow empty hostnames
   {
-    VOID(pthread_mutex_unlock(&hostname_cache->lock));
+    VOID(pthread_mutex_unlock(&LOCK_hostname));
     DBUG_PRINT("error",("Got an empty hostname"));
     goto err;
   }
   if (!(name=my_strdup(hp->h_name,MYF(0))))
   {
-    VOID(pthread_mutex_unlock(&hostname_cache->lock));
+    VOID(pthread_mutex_unlock(&LOCK_hostname));
     DBUG_RETURN(0);				// out of memory
   }
   check=gethostbyname(name);
-  VOID(pthread_mutex_unlock(&hostname_cache->lock));
+  VOID(pthread_mutex_unlock(&LOCK_hostname));
   if (!check)
   {
     DBUG_PRINT("error",("gethostbyname returned %d",errno));
