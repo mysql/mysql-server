@@ -1407,16 +1407,15 @@ int NdbDictionaryImpl::alterTable(NdbTableImpl &impl)
     // Remove cached information and let it be refreshed at next access
     if (m_localHash.get(originalInternalName) != NULL) {
       m_localHash.drop(originalInternalName);
+      m_globalHash->lock();
       NdbTableImpl * cachedImpl = m_globalHash->get(originalInternalName);
       // If in local cache it must be in global
       if (!cachedImpl)
 	abort();
-      m_globalHash->lock();
       m_globalHash->drop(cachedImpl);
       m_globalHash->unlock();
     }
   }
-  
   return ret;
 }
 
@@ -1714,6 +1713,7 @@ NdbDictionaryImpl::dropTable(const char * name)
 int
 NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
 {
+  int res;
   const char * name = impl.getName();
   if(impl.m_status == NdbDictionary::Object::New){
     return dropTable(name);
@@ -1725,28 +1725,34 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
   }
 
   List list;
-  if (listIndexes(list, name) == -1)
+  if ((res = listIndexes(list, impl.m_tableId)) == -1){
     return -1;
+  }
   for (unsigned i = 0; i < list.count; i++) {
     const List::Element& element = list.elements[i];
-    if (dropIndex(element.name, name) == -1)
+    if ((res = dropIndex(element.name, name)) == -1)
+    {
       return -1;
+    }
   }
-
+  
   if (impl.m_noOfBlobs != 0) {
-    if (dropBlobTables(impl) != 0)
+    if (dropBlobTables(impl) != 0){
       return -1;
+    }
   }
-
+  
   int ret = m_receiver.dropTable(impl);  
-  if(ret == 0){
+  if(ret == 0 || m_error.code == 709){
     const char * internalTableName = impl.m_internalName.c_str();
-
+    
     m_localHash.drop(internalTableName);
     
     m_globalHash->lock();
     m_globalHash->drop(&impl);
     m_globalHash->unlock();
+
+    return 0;
   }
   
   return ret;
@@ -1762,8 +1768,9 @@ NdbDictionaryImpl::dropBlobTables(NdbTableImpl & t)
     char btname[NdbBlob::BlobTableNameSize];
     NdbBlob::getBlobTableName(btname, &t, &c);
     if (dropTable(btname) != 0) {
-      if (m_error.code != 709)
+      if (m_error.code != 709){
         return -1;
+      }
     }
   }
   return 0;
@@ -2132,7 +2139,6 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName)
       m_globalHash->drop(impl.m_table);
       m_globalHash->unlock();
     }
-    
     return ret;
   }
 
@@ -2816,14 +2822,11 @@ NdbDictionaryImpl::listObjects(List& list, NdbDictionary::Object::Type type)
 }
 
 int
-NdbDictionaryImpl::listIndexes(List& list, const char * tableName)
+NdbDictionaryImpl::listIndexes(List& list, Uint32 indexId)
 {
   ListTablesReq req;
-  NdbTableImpl* impl = getTable(tableName);
-  if (impl == 0)
-    return -1;
   req.requestData = 0;
-  req.setTableId(impl->m_tableId);
+  req.setTableId(indexId);
   req.setListNames(true);
   req.setListIndexes(true);
   return m_receiver.listObjects(list, req.requestData, m_ndb.usingFullyQualifiedNames());
