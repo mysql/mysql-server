@@ -274,12 +274,16 @@ then
 fi
 
 #
-# Uncomment the following lines if you want all tables to be automaticly
-# checked and repaired at start
+# Uncomment the following lines if you want all tables to be automatically
+# checked and repaired during startup. You should add sensible key_buffer
+# and sort_buffer values to my.cnf to improve check performance or require
+# less disk space.
+# Alternatively, you can start mysqld with the "myisam-recover" option. See
+# the manual for details.
 #
 # echo "Checking tables in $DATADIR"
-# $MY_BASEDIR_VERSION/bin/myisamchk --silent --force --fast --medium-check -O key_buffer=64M -O sort_buffer=64M $DATADIR/*/*.MYI
-# $MY_BASEDIR_VERSION/bin/isamchk --silent --force -O sort_buffer=64M $DATADIR/*/*.ISM
+# $MY_BASEDIR_VERSION/bin/myisamchk --silent --force --fast --medium-check $DATADIR/*/*.MYI
+# $MY_BASEDIR_VERSION/bin/isamchk --silent --force $DATADIR/*/*.ISM
 
 echo "Starting $MYSQLD daemon with databases from $DATADIR"
 
