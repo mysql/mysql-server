@@ -135,19 +135,19 @@ MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --u
 GDB_MASTER_INIT=/tmp/gdbinit.master
 GDB_SLAVE_INIT=/tmp/gdbinit.slave
 
-if [ "$1" = "-force" ] ; then
+if [ "$1" = "--force" ] ; then
  FORCE=1
  shift 1
 fi
 
 
-if [ "$1" = "-record" ] ; then
+if [ "$1" = "--record" ] ; then
  RECORD=1
  shift 1
 fi
 
 
-if [ "$1" = "-gcov" ];
+if [ "$1" = "--gcov" ];
 then
   if [ x$BINARY_DIST = x1 ] ; then
    echo "Cannot do coverage test without the source - please us source dist"
@@ -483,7 +483,7 @@ run_testcase ()
 	$ECHO
 	$ECHO
 	if [ x$FORCE != x1 ] ; then
-	 echo "Aborting, if you want to continue, re-run with -force"
+	 echo "Aborting, if you want to continue, re-run with --force"
 	 mysql_stop
 	 exit 1
 	fi
