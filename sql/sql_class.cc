@@ -169,7 +169,11 @@ THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
   tablespace_op=FALSE;
 #ifdef USING_TRANSACTIONS
   bzero((char*) &transaction,sizeof(transaction));
-  if (opt_using_transactions)
+  /*
+    Binlog is always open (if needed) before a THD is created (including
+    bootstrap).
+  */
+  if (opt_using_transactions && mysql_bin_log.is_open())
   {
     if (open_cached_file(&transaction.trans_log,
 			 mysql_tmpdir, LOG_PREFIX, binlog_cache_size,
