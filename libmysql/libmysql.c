@@ -3487,10 +3487,11 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     char *end;
     /* TODO: move this to a header shared between client and server. */
 #define NOT_FIXED_DEC  31
-    if (field->decimals >= 31)
+    if (field->decimals >= NOT_FIXED_DEC)
 #undef NOT_FIXED_DEC
     {
-      sprintf(buff, "%-*.*g", (int) param->buffer_length, width, value);
+      sprintf(buff, "%-*.*g", (int) min(sizeof(buff)-1, param->buffer_length),
+	      width, value);
       end= strcend(buff, ' ');
       *end= 0;
     }
