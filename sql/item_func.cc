@@ -2104,8 +2104,9 @@ err:
 
 void Item_func_match::init_search(bool no_order)
 {
+  DBUG_ENTER("Item_func_match::init_search");
   if (ft_handler)
-    return;
+    DBUG_VOID_RETURN;
 
   if (key == NO_SUCH_KEY)
     concat= new Item_func_concat_ws(new Item_string(" ",1), fields);
@@ -2116,7 +2117,7 @@ void Item_func_match::init_search(bool no_order)
     master->init_search(no_order);
     ft_handler=master->ft_handler;
     join_key=master->join_key;
-    return;
+    DBUG_VOID_RETURN;
   }
 
   String *ft_tmp=0;
@@ -2136,10 +2137,9 @@ void Item_func_match::init_search(bool no_order)
 				      join_key && !no_order);
 
   if (join_key)
-  {
     table->file->ft_handler=ft_handler;
-    return;
-  }
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2289,13 +2289,14 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 
 double Item_func_match::val()
 {
+  DBUG_ENTER("Item_func_match::val");
   if (ft_handler == NULL)
-    return -1.0;
+    DBUG_RETURN(-1.0);
 
   if (join_key)
   {
     if (table->file->ft_handler)
-      return ft_handler->please->get_relevance(ft_handler);
+      DBUG_RETURN(ft_handler->please->get_relevance(ft_handler));
     join_key=0;
   }
 
@@ -2303,12 +2304,12 @@ double Item_func_match::val()
   {
     String *a= concat->val_str(&value);
     if ((null_value= (a == 0)))
-      return 0;
-    return ft_handler->please->find_relevance(ft_handler,
-					      (byte *)a->ptr(), a->length());
+      DBUG_RETURN(0);
+    DBUG_RETURN(ft_handler->please->find_relevance(ft_handler,
+				      (byte *)a->ptr(), a->length()));
   }
   else
-    return ft_handler->please->find_relevance(ft_handler, record, 0);
+    DBUG_RETURN(ft_handler->please->find_relevance(ft_handler, record, 0));
 }
 
 longlong Item_func_bit_xor::val_int()
