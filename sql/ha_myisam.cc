@@ -685,10 +685,13 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
 	/* Only disable old index if the table was empty */
 	if (file->state->records == 0)
 	  mi_disable_non_unique_index(file,rows);
-        ha_myisam::extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
-			     current_thd->variables.bulk_insert_buff_size);
+        else
+        {
+          mi_init_bulk_insert(file,
+              current_thd->variables.bulk_insert_buff_size, rows);
 	table->bulk_insert= 1;
       }
+    }
     }
     enable_activate_all_index=1;
   }
@@ -704,7 +707,7 @@ bool ha_myisam::activate_all_index(THD *thd)
   MYISAM_SHARE* share = file->s;
   DBUG_ENTER("activate_all_index");
 
-  mi_extra(file, HA_EXTRA_BULK_INSERT_END, 0);
+  mi_end_bulk_insert(file);
   table->bulk_insert= 0;
   if (enable_activate_all_index &&
      share->state.key_map != set_bits(ulonglong, share->base.keys))
@@ -945,13 +948,11 @@ int ha_myisam::extra(enum ha_extra_function operation)
 }
 
 
-/* To be used with WRITE_CACHE, EXTRA_CACHE and BULK_INSERT_BEGIN */
+/* To be used with WRITE_CACHE and EXTRA_CACHE */
 
 int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
 {
-  if ((specialflag & SPECIAL_SAFE_MODE) &
-      (operation == HA_EXTRA_WRITE_CACHE ||
-       operation == HA_EXTRA_BULK_INSERT_BEGIN))
+  if ((specialflag & SPECIAL_SAFE_MODE) & operation == HA_EXTRA_WRITE_CACHE)
     return 0;
   return mi_extra(file, operation, (void*) &cache_size);
 }
@@ -1213,8 +1214,7 @@ longlong ha_myisam::get_auto_increment()
   }
 
   if (table->bulk_insert)
-    mi_extra(file, HA_EXTRA_BULK_INSERT_FLUSH,
-	     (void*) &table->next_number_index);
+    mi_flush_bulk_insert(file, table->next_number_index);
 
   longlong nr;
   int error;

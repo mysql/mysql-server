@@ -801,32 +801,38 @@ static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
 }
 
 
-int _mi_init_bulk_insert(MI_INFO *info, ulong cache_size)
+int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows)
 {
   MYISAM_SHARE *share=info->s;
   MI_KEYDEF *key=share->keyinfo;
   bulk_insert_param *params;
-  uint i, num_keys;
+  uint i, num_keys, total_keylength;
   ulonglong key_map=0;
   DBUG_ENTER("_mi_init_bulk_insert");
   DBUG_PRINT("enter",("cache_size: %lu", cache_size));
 
-  if (info->bulk_insert)
+  if (info->bulk_insert || (rows && rows < MI_MIN_ROWS_TO_USE_BULK_INSERT))
     DBUG_RETURN(0);
 
-  for (i=num_keys=0 ; i < share->base.keys ; i++)
+  for (i=total_keylength=num_keys=0 ; i < share->base.keys ; i++)
   {
     if (!(key[i].flag & HA_NOSAME) && share->base.auto_key != i+1
         && test(share->state.key_map & ((ulonglong) 1 << i)))
     {
       num_keys++;
       key_map |=((ulonglong) 1 << i);
+      total_keylength+=key[i].maxlength+TREE_ELEMENT_EXTRA_SIZE;
     }
   }
 
   if (num_keys==0 ||
       num_keys * MI_MIN_SIZE_BULK_INSERT_TREE > cache_size)
     DBUG_RETURN(0);
+
+  if (rows && rows*total_keylength < cache_size)
+    cache_size=rows;
+  else
+    cache_size/=total_keylength*16;
 
   info->bulk_insert=(TREE *)
     my_malloc((sizeof(TREE)*share->base.keys+
@@ -836,7 +842,7 @@ int _mi_init_bulk_insert(MI_INFO *info, ulong cache_size)
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   params=(bulk_insert_param *)(info->bulk_insert+share->base.keys);
-  for (i=0 ; i < share->base.keys ; i++,key++)
+  for (i=0 ; i < share->base.keys ; i++)
   {
     if (test(key_map & ((ulonglong) 1 << i)))
     {
@@ -844,8 +850,8 @@ int _mi_init_bulk_insert(MI_INFO *info, ulong cache_size)
       params->keynr=i;
       /* Only allocate a 16'th of the buffer at a time */
       init_tree(&info->bulk_insert[i],
-                cache_size / num_keys / 16 + 10,
-		cache_size / num_keys, 0,
+                cache_size * key[i].maxlength,
+                cache_size * key[i].maxlength, 0,
 		(qsort_cmp2)keys_compare, 0,
 		(tree_element_free) keys_free, (void *)params++);
     }
@@ -855,3 +861,30 @@ int _mi_init_bulk_insert(MI_INFO *info, ulong cache_size)
 
   DBUG_RETURN(0);
 }
+
+void mi_flush_bulk_insert(MI_INFO *info, uint inx)
+{
+  if (info->bulk_insert)
+  {
+    if (is_tree_inited(&info->bulk_insert[inx]))
+      reset_tree(&info->bulk_insert[inx]);
+  }
+}
+
+void mi_end_bulk_insert(MI_INFO *info)
+{
+  if (info->bulk_insert)
+  {
+    uint i;
+    for (i=0 ; i < info->s->base.keys ; i++)
+    {
+      if (is_tree_inited(& info->bulk_insert[i]))
+      {
+        delete_tree(& info->bulk_insert[i]);
+      }
+    }
+    my_free((void *)info->bulk_insert, MYF(0));
+    info->bulk_insert=0;
+  }
+}
+
