@@ -585,6 +585,13 @@ NdbDictionary::Event::Event(const char * name)
   setName(name);
 }
 
+NdbDictionary::Event::Event(const char * name, const Table& table)
+  : m_impl(* new NdbEventImpl(* this))
+{
+  setName(name);
+  setTable(table);
+}
+
 NdbDictionary::Event::Event(NdbEventImpl & impl)
   : m_impl(impl) 
 {
@@ -608,6 +615,12 @@ const char *
 NdbDictionary::Event::getName() const
 {
   return m_impl.getName();
+}
+
+void 
+NdbDictionary::Event::setTable(const Table& table)
+{
+  m_impl.setTable(table);
 }
 
 void 
