@@ -1040,11 +1040,11 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
 			bounds[bound],
 			field->field_name));
     DBUG_DUMP("key", (char*)key_ptr, field_len);
-
+    
     if (op->setBound(field->field_name,
 		     bound, 
-		     key_ptr,
-		     field_len) != 0)
+		     field->is_null() ? 0 : key_ptr,
+		     field->is_null() ? 0 : field_len) != 0)
       ERR_RETURN(op->getNdbError());
     
     key_ptr+= field_len;
@@ -1281,7 +1281,7 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
 
 int ha_ndbcluster::write_row(byte *record)
 {
-  bool has_auto_increment, auto_increment_field_not_null;
+  bool has_auto_increment;
   uint i;
   NdbConnection *trans= m_active_trans;
   NdbOperation *op;
@@ -1292,9 +1292,7 @@ int ha_ndbcluster::write_row(byte *record)
   if (table->timestamp_default_now)
     update_timestamp(record+table->timestamp_default_now-1);
   has_auto_increment= (table->next_number_field && record == table->record[0]);
-  auto_increment_field_not_null= table->auto_increment_field_not_null;
-  if ((has_auto_increment) && (!auto_increment_field_not_null))
-    update_auto_increment();
+  skip_auto_increment= table->auto_increment_field_not_null;
 
   if (!(op= trans->getNdbOperation(m_tabname)))
     ERR_RETURN(trans->getNdbError());
@@ -1313,6 +1311,10 @@ int ha_ndbcluster::write_row(byte *record)
   else 
   {
     int res;
+
+    if ((has_auto_increment) && (!skip_auto_increment))
+      update_auto_increment();
+
     if ((res= set_primary_key(op)))
       return res;
   }
@@ -1323,7 +1325,10 @@ int ha_ndbcluster::write_row(byte *record)
     Field *field= table->field[i];
     if (!(field->flags & PRI_KEY_FLAG) &&
 	set_ndb_value(op, field, i))
+    {
+      skip_auto_increment= true;
       ERR_RETURN(op->getNdbError());
+    }
   }
 
   /*
@@ -1345,9 +1350,12 @@ int ha_ndbcluster::write_row(byte *record)
 			(int)rows_inserted, (int)bulk_insert_rows)); 
     bulk_insert_not_flushed= false;
     if (trans->execute(NoCommit) != 0)
+    {
+      skip_auto_increment= true;
       DBUG_RETURN(ndb_err(trans));
+    }
   }
-  if ((has_auto_increment) && (auto_increment_field_not_null))
+  if ((has_auto_increment) && (skip_auto_increment))
   {
     Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
     DBUG_PRINT("info", 
@@ -1356,6 +1364,7 @@ int ha_ndbcluster::write_row(byte *record)
       DBUG_PRINT("info", 
 		 ("Setting next auto increment value to %u", next_val));  
   }
+  skip_auto_increment= true;
 
   DBUG_RETURN(0);
 }
@@ -3049,7 +3058,9 @@ longlong ha_ndbcluster::get_auto_increment()
     rows_to_insert 
     : autoincrement_prefetch;
   Uint64 auto_value= 
-    m_ndb->getAutoIncrementValue(m_tabname, cache_size);
+    (skip_auto_increment) ? 
+    m_ndb->readAutoIncrementValue(m_tabname)
+    : m_ndb->getAutoIncrementValue(m_tabname, cache_size);
   DBUG_RETURN((longlong)auto_value);
 }
 
@@ -3065,6 +3076,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_ndb(NULL),
   m_table(NULL),
   m_table_flags(HA_REC_NOT_IN_SEQ |
+		//HA_NULL_IN_KEY |
                 HA_NOT_EXACT_COUNT |
                 HA_NO_PREFIX_CHAR_KEYS),
   m_use_write(false),
@@ -3074,6 +3086,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   bulk_insert_rows(1024),
   bulk_insert_not_flushed(false),
   ops_pending(0),
+  skip_auto_increment(true),
   blobs_buffer(0),
   blobs_buffer_size(0)
 { 

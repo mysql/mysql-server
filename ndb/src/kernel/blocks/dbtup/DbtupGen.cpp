@@ -698,7 +698,8 @@ void Dbtup::initRecords()
 
   page = (Page*)allocRecord("Page", 
 			    sizeof(Page), 
-			    cnoOfPage);
+			    cnoOfPage,
+			    false);
   
   pageRange = (PageRange*)allocRecord("PageRange",
 				      sizeof(PageRange), 

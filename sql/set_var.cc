@@ -34,6 +34,12 @@
   - If the variable should show up in 'show variables' add it to the
     init_vars[] struct in this file
 
+  NOTES:
+    - Be careful with var->save_result: sys_var::check() only updates
+    ulonglong_value; so other members of the union are garbage then; to use
+    them you must first assign a value to them (in specific ::check() for
+    example).
+
   TODO:
     - Add full support for the variable character_set (for 4.1)
 
@@ -652,6 +658,8 @@ struct show_var_st init_vars[]= {
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_compress",	      (char*) &have_compress,		    SHOW_HAVE},
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
+  {"have_csv",	              (char*) &have_csv_db,	            SHOW_HAVE},
+  {"have_example_engine",      (char*) &have_example_db,	            SHOW_HAVE},
   {"have_geometry",           (char*) &have_geometry,               SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",		      (char*) &have_isam,		    SHOW_HAVE},
@@ -2330,7 +2338,7 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
 bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
 {
   pthread_mutex_t *lock_log= mysql_bin_log.get_log_lock();
-  sync_binlog_period= var->save_result.ulong_value;
+  sync_binlog_period= (ulong) var->save_result.ulonglong_value;
   /*
     Must reset the counter otherwise it may already be beyond the new period
     and so the new period will not be taken into account. Need mutex otherwise

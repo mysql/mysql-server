@@ -65,6 +65,7 @@
 #include <signaldata/DictTabInfo.hpp>
 
 #include <NdbOut.hpp>
+#include <DebuggerNames.hpp>
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -260,6 +261,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     tcConnectptr.i = Tdata0;
     apiConnectptr.i = Tdata1;
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+    apiConnectptr.p->counter--;
     sendAbortedAfterTimeout(signal, 1);
     return;
   case TcContinueB::ZHANDLE_FAILED_API_NODE_REMOVE_MARKERS:
@@ -4926,7 +4928,9 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	
 	// The operation executed an index trigger
 	const Uint32 opType = regTcPtr->operation;
-	if (!(opType == ZDELETE && errCode == ZNOT_FOUND)) {
+	if (errCode == ZALREADYEXIST)
+	  errCode = terrorCode = ZNOTUNIQUE;
+	else if (!(opType == ZDELETE && errCode == ZNOT_FOUND)) {
 	  jam();
 	  /**
 	   * "Normal path"
@@ -5008,6 +5012,8 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	regApiPtr->lqhkeyreqrec--; // Compensate for extra during read
 	tcKeyRef->connectPtr = indexOp;
 	EXECUTE_DIRECT(DBTC, GSN_TCKEYREF, signal, TcKeyRef::SignalLength);
+	apiConnectptr.i = regTcPtr->apiConnect;
+	apiConnectptr.p = regApiPtr;
       } else {
         jam();
 	tcKeyRef->connectPtr = clientData;
@@ -6040,7 +6046,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr)
 	<< " H'" << apiConnectptr.p->transid[1] << "] " << dec 
 	<< "Time-out in state = " << apiConnectptr.p->apiConnectstate
 	<< " apiConnectptr.i = " << apiConnectptr.i 
-	<< " - exec: " << apiConnectptr.p->m_exec_flag);
+	<< " - exec: " << apiConnectptr.p->m_exec_flag
+	<< " - place: " << c_apiConTimer_line[apiConnectptr.i]);
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
     if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec){
@@ -6301,9 +6308,8 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	warningEvent(buf);
 	ndbout_c(buf);
 	ndbrequire(false);
-	releaseAbortResources(signal);
-        return;
-      }//if
+      }
+      releaseAbortResources(signal);
       return;
     }//if
     TloopCount++;
@@ -6314,6 +6320,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
       // away the job buffer.
       /*------------------------------------------------------------------*/
       setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+      apiConnectptr.p->counter++;
       signal->theData[0] = TcContinueB::ZABORT_TIMEOUT_BREAK;
       signal->theData[1] = tcConnectptr.i;
       signal->theData[2] = apiConnectptr.i;      
@@ -10017,7 +10024,8 @@ void Dbtc::releaseAbortResources(Signal* signal)
     }//if
 
   }
-  setApiConTimer(apiConnectptr.i, 0, __LINE__);
+  setApiConTimer(apiConnectptr.i, 0, 
+		 100000+c_apiConTimer_line[apiConnectptr.i]);
   if (apiConnectptr.p->apiFailState == ZTRUE) {
     jam();
     handleApiFailState(signal, apiConnectptr.i);
@@ -11304,6 +11312,8 @@ void Dbtc::execTCKEYCONF(Signal* signal)
   }
   const UintR TconnectIndex = indexOp->connectionIndex;
   ApiConnectRecord * const regApiPtr = &apiConnectRecord[TconnectIndex];
+  apiConnectptr.p = regApiPtr;
+  apiConnectptr.i = TconnectIndex;
   switch(indexOp->indexOpState) {
   case(IOS_NOOP): {
     jam();
@@ -12146,34 +12156,33 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   // Calculate key length and renumber attribute id:s
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
   LocalDataBuffer<11> afterValues(pool, firedTriggerData->afterValues);
+  bool skipNull = false;
   for(bool moreKeyAttrs = afterValues.first(iter); moreKeyAttrs; attrId++) {
     jam();
     AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
 
+    // Filter out NULL valued attributes
+    if (attrHeader->isNULL()) {
+      skipNull = true;
+      break;
+    }
     attrHeader->setAttributeId(attrId);      
     keyLength += attrHeader->getDataSize();
     hops = attrHeader->getHeaderSize() + attrHeader->getDataSize();
     moreKeyAttrs = afterValues.next(iter, hops);
   }
-
-  // Filter out single NULL attributes
-  if (attrId == 1) {
+  if (skipNull) {
     jam();
-    afterValues.first(iter);
-    AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-    if (attrHeader->isNULL() && !afterValues.next(iter)) {
+    opRecord->triggerExecutionCount--;
+    if (opRecord->triggerExecutionCount == 0) {
+      /*
+	We have completed current trigger execution
+	Continue triggering operation
+      */
       jam();
-      opRecord->triggerExecutionCount--;
-      if (opRecord->triggerExecutionCount == 0) {
-        /*
-	  We have completed current trigger execution
-	  Continue triggering operation
-        */
-	jam();
-	continueTriggeringOp(signal, opRecord);	
-      }//if
-      return;
+      continueTriggeringOp(signal, opRecord);	
     }//if
+    return;
   }//if
 
   // Calculate total length of primary key to be stored in index table
@@ -12501,36 +12510,36 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
   // Calculate key length and renumber attribute id:s
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
   LocalDataBuffer<11> beforeValues(pool, firedTriggerData->beforeValues);
+  bool skipNull = false;
   for(bool moreKeyAttrs = beforeValues.first(iter);
       (moreKeyAttrs);
       attrId++) {
     jam();
     AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
     
+    // Filter out NULL valued attributes
+    if (attrHeader->isNULL()) {
+      skipNull = true;
+      break;
+    }
     attrHeader->setAttributeId(attrId);      
     keyLength += attrHeader->getDataSize();
     hops = attrHeader->getHeaderSize() + attrHeader->getDataSize();
     moreKeyAttrs = beforeValues.next(iter, hops);
   }
 
-  // Filter out single NULL attributes
-  if (attrId == 1) {
+  if (skipNull) {
     jam();
-    beforeValues.first(iter);
-    AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-    if (attrHeader->isNULL() && !beforeValues.next(iter)) {
-      jam();
-      opRecord->triggerExecutionCount--;
-      if (opRecord->triggerExecutionCount == 0) {
-        /*
+    opRecord->triggerExecutionCount--;
+    if (opRecord->triggerExecutionCount == 0) {
+      /*
         We have completed current trigger execution
 	Continue triggering operation
-        */
-	jam();
-	continueTriggeringOp(signal, opRecord);	
-      }//if
-      return;
+      */
+      jam();
+      continueTriggeringOp(signal, opRecord);	
     }//if
+    return;
   }//if
 
   TcKeyReq::setKeyLength(tcKeyRequestInfo, keyLength);
