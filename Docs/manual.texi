@@ -24759,6 +24759,7 @@ the paths specified here. The file sizes are specified in megabytes,
 hence the 'M' after the size specification above. Do not set a file size
 bigger than 4000M, and on most operating systems not bigger than 2000M.
 InnoDB also understands the abbreviation 'G', 1G meaning 1024M.
+The sum of the sizes of the files must be at least 10 MB.
 @item @code{innodb_mirrored_log_groups} @tab 
 Number of identical copies of log groups we
 keep for the database. Currently this should be set to 1.
@@ -25214,7 +25215,7 @@ Thus it sets the same locks a searched SQL @code{UPDATE} would set
 on the rows.
 
 @node InnoDB Next-key locking, InnoDB Locks set, InnoDB locking reads, InnoDB transaction model
-@subsubsection Next-key locking: avoiding the 'phantom problem'
+@subsubsection Next-key locking: avoiding the phantom problem
 
 In row level locking InnoDB uses an algorithm called next-key locking.
 InnoDB does the row level locking so that when it searches or
