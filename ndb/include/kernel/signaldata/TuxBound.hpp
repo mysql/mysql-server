@@ -48,7 +48,6 @@ private:
   Uint32 tuxScanPtrI;
   /*
    * Number of words of bound info included after fixed signal data.
-   * Starts with 5 unused words (word 0 is length used by LQH).
    */
   Uint32 boundAiLength;
 };
