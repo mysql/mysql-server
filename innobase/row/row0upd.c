@@ -361,8 +361,8 @@ row_upd_changes_field_size_or_external(
 				/* out: TRUE if the update changes the size of
 				some field in index or the field is external
 				in rec or update */
-	rec_t*		rec,	/* in: record in clustered index */
-	dict_index_t*	index,	/* in: clustered index */
+	rec_t*		rec,	/* in: record in index */
+	dict_index_t*	index,	/* in: index */
 	upd_t*		update)	/* in: update vector */
 {
 	upd_field_t*	upd_field;
@@ -371,8 +371,6 @@ row_upd_changes_field_size_or_external(
 	ulint		new_len;
 	ulint		n_fields;
 	ulint		i;
-
-	ut_ad(index->type & DICT_CLUSTERED);
 
 	n_fields = upd_get_n_fields(update);
 

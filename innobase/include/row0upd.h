@@ -123,8 +123,8 @@ row_upd_changes_field_size_or_external(
 				/* out: TRUE if the update changes the size of
 				some field in index or the field is external
 				in rec or update */
-	rec_t*		rec,	/* in: record in clustered index */
-	dict_index_t*	index,	/* in: clustered index */
+	rec_t*		rec,	/* in: record in index */
+	dict_index_t*	index,	/* in: index */
 	upd_t*		update);/* in: update vector */
 /***************************************************************
 Replaces the new column values stored in the update vector to the record
