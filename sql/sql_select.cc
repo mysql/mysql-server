@@ -5173,7 +5173,6 @@ static void add_not_null_conds(JOIN *join)
             DBUG_VOID_RETURN;
 
           null_rej->quick_fix_field();
-          //psergey-todo: Flatten AND's
           DBUG_EXECUTE("where",print_where(null_rej,
                                            referred_tab->table->table_name););
           add_cond_and_fix(&referred_tab->select_cond, null_rej);
