@@ -923,7 +923,8 @@ point. If you are sure that your master is ok, run this query manually on the\
 
 inline int ignored_error_code(int err_code)
 {
-  return use_slave_mask && bitmap_is_set(&slave_error_mask, err_code);
+  return ((err_code == ER_EMPTY_QUERY) ||
+          (use_slave_mask && bitmap_is_set(&slave_error_mask, err_code)));
 }
 
 static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
