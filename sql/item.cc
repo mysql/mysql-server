@@ -1996,12 +1996,13 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   :Item(thd, *item), item_type(item->result_type())
 {
   DBUG_ASSERT(item->fixed);
+
+  /*
+    It is safe assign pointer on field, because it will be used just after
+    all JOIN::prepare calls and before any SELECT execution
+  */
   if (item->type() == Item::FIELD_ITEM)
-  {
-    Item_field *fitem= (Item_field*) item;
-    field_example= (Field*) thd->memdup((const char*)fitem->field,
-					fitem->field->size_of());
-  }
+    field_example= ((Item_field*) item)->field;
   else
     field_example= 0;
 }
@@ -2023,23 +2024,18 @@ void Item_type_holder::join_types(THD *thd, Item *item)
   if (field_example && item->type() == Item::FIELD_ITEM)
   {
     Field *field= ((Item_field *)item)->field;
-
-    // is new field better
-    if ((change_field=
-	 field_example->convert_order() < field->convert_order()))
+    if (field_example->field_cast_type() != field->field_cast_type())
     {
-      // is it compatible?
-      if (field->convert_order_compatible(field_example->convert_order()))
-	skip_store_field= 1;
-    }
-    else
-    {
-      /*
-	if old field can't store value of 'worse' new field we will make
-	decision about result field tipe based only on Item result type
-      */
-      if (field_example->convert_order_compatible(field->convert_order()))
-	skip_store_field= 1;
+      if (!(change_field=
+	    field_example->field_cast_compatible(field->field_cast_type())))
+      {
+	/*
+	  if old field can't store value of 'worse' new field we will make
+	  decision about result field type based only on Item result type
+	*/
+	if (!field->field_cast_compatible(field_example->field_cast_type()))
+	  skip_store_field= 1;
+      }
     }
   }
 
@@ -2057,19 +2053,15 @@ void Item_type_holder::join_types(THD *thd, Item *item)
 			((new_type == INT_RESULT) &&
 			 (decimals > item->decimals)) ||
 			(maybe_null && !item->maybe_null));
+    /*
+      It is safe assign pointer on field, because it will be used just after
+      all JOIN::prepare calls and before any SELECT execution
+    */
     if (skip_store_field || item->type() != Item::FIELD_ITEM)
       field_example= 0;
     else
-    {
-      /*
-	we do not need following, because we use mem_root
-	if (field_example)
-	  thd->free(field_example)
-      */
-      Item_field *fitem= (Item_field*) item;
-      field_example= (Field*) thd->memdup((const char*)fitem->field,
-					  fitem->field->size_of());
-    }
+      field_example= ((Item_field*) item)->field;
+
     max_length= max(max_length, item->max_length);
     decimals= max(decimals, item->decimals);
     maybe_null|= item->maybe_null;

@@ -309,7 +309,13 @@ protected:
 public:
   // list of fields which points to temporary table for union
   List<Item> item_list;
-  // list of types of items inside union (used for union & derived tables)
+  /*
+    list of types of items inside union (used for union & derived tables)
+    
+    Item_type_holders from which this list consist may have pointers to Field,
+    pointers is valid only after preparing SELECTS of this unit and before
+    any SELECT of this unit execution
+  */
   List<Item> types;
   /*
     Pointer to 'last' select or pointer to unit where stored
