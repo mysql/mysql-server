@@ -1149,7 +1149,7 @@ Dbtup::updateBitsNULLable(Uint32* inBuffer,
 			  inBuffer+indexBuf+1);
     
     Uint32 newIndex = indexBuf + 1 + ((bitCount + 31) >> 5);
-    tInBufLen = newIndex;
+    tInBufIndex = newIndex;
     return true;
   } else {
     Uint32 newIndex = tInBufIndex + 1;
