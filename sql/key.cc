@@ -102,6 +102,19 @@ void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
 		   key_part->null_bit);
       key_length--;
     }
+    if (key_part->type == HA_KEYTYPE_BIT)
+    {
+      Field_bit *field= (Field_bit *) (key_part->field);
+      if (field->bit_len)
+      {
+        uchar bits= get_rec_bits((uchar*) from_record +
+                                 key_part->null_offset +
+                                 (key_part->null_bit == 128),
+                                 field->bit_ofs, field->bit_len);
+        *to_key++= bits;
+        key_length--;
+      }
+    }
     if (key_part->key_part_flag & HA_BLOB_PART)
     {
       char *pos;
@@ -169,6 +182,23 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
       else
 	to_record[key_part->null_offset]&= ~key_part->null_bit;
       key_length--;
+    }
+    if (key_part->type == HA_KEYTYPE_BIT)
+    {
+      Field_bit *field= (Field_bit *) (key_part->field);
+      if (field->bit_len)
+      {
+        uchar bits= *(from_key + key_part->length - field->field_length -1);
+        set_rec_bits(bits, to_record + key_part->null_offset +
+                     (key_part->null_bit == 128),
+                     field->bit_ofs, field->bit_len);
+      }
+      else
+      {
+        clr_rec_bits(to_record + key_part->null_offset +
+                     (key_part->null_bit == 128),
+                     field->bit_ofs, field->bit_len);
+      }
     }
     if (key_part->key_part_flag & HA_BLOB_PART)
     {
