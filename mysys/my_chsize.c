@@ -18,8 +18,22 @@
 #include "mysys_err.h"
 #include "m_string.h"
 
-	/* Change size of file.  Truncate file if shorter,	*/
-	/* else expand with zero.				*/
+/*
+  Change size of file.
+
+  SYNOPSIS
+    my_chsize()
+      fd		File descriptor
+      new_length	New file size
+      MyFlags		Flags
+
+  DESCRIPTION
+    my_chsize() truncates file if shorter, else expand with zero.	
+
+  RETURN VALUE
+    0	Ok
+    1	Error 
+*/
 
 int my_chsize(File fd, my_off_t newlength, myf MyFlags)
 {

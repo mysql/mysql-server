@@ -23,7 +23,18 @@
 #include <share.h>
 #endif
 
-	/* Open a file */
+/*
+  Open a file
+
+  SYNOPSIS
+    my_open()
+      FileName	Fully qualified file name
+      Flags	Read | write 
+      MyFlags	Special flags
+
+  RETURN VALUE
+    File descriptor
+*/
 
 File my_open(const char *FileName, int Flags, myf MyFlags)
 				/* Path-name of file */
@@ -51,7 +62,15 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
 } /* my_open */
 
 
-	/* Close a file */
+/*
+  Close a file
+
+  SYNOPSIS
+    my_close()
+      fd	File sescriptor
+      myf	Special Flags
+      
+*/
 
 int my_close(File fd, myf MyFlags)
 {
@@ -80,6 +99,16 @@ int my_close(File fd, myf MyFlags)
   DBUG_RETURN(err);
 } /* my_close */
 
+
+/*
+  Register file in my_file_info[]
+   
+  SYNOPSIS
+    my_register_filename()
+      fd
+      FileName
+      type_file_type
+*/
 
 File my_register_filename(File fd, const char *FileName, enum file_type
 			  type_of_file, uint error_message_number, myf MyFlags)

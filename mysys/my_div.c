@@ -16,6 +16,14 @@
 
 #include "mysys_priv.h"
 
+/*
+  Get filename of file
+
+  SYNOPSIS
+    my_filename()
+      fd	File descriptor
+*/
+
 my_string my_filename(File fd)
 {
   DBUG_ENTER("my_filename");

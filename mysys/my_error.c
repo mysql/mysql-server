@@ -25,8 +25,15 @@
 const char ** NEAR my_errmsg[MAXMAPS]={0,0,0,0};
 char NEAR errbuff[NRERRBUFFS][ERRMSGSIZE];
 
-/* Error message to user */
-/*VARARGS2*/
+/*
+   Error message to user
+
+   SYNOPSIS
+     my_error()
+       nr	Errno
+       MyFlags	Flags
+       ...	variable list
+*/
 
 int my_error(int nr,myf MyFlags, ...)
 {
@@ -102,7 +109,16 @@ int my_error(int nr,myf MyFlags, ...)
   DBUG_RETURN((*error_handler_hook)(nr, ebuff, MyFlags));
 }
 
-	/* Error as printf */
+/*
+  Error as printf
+
+  SYNOPSIS
+    my_printf_error()
+      error	Errno
+      format	Format string
+      MyFlags	Flags
+      ...	variable list
+*/
 
 int my_printf_error (uint error, const char *format, myf MyFlags, ...)
 {
@@ -115,7 +131,15 @@ int my_printf_error (uint error, const char *format, myf MyFlags, ...)
   return (*error_handler_hook)(error, ebuff, MyFlags);
 }
 
-	/* Give message using error_handler_hook */
+/*
+  Give message using error_handler_hook
+
+  SYNOPSIS
+    my_message()
+      error	Errno
+      str	Error message
+      MyFlags	Flags
+*/
 
 int my_message(uint error, const char *str, register myf MyFlags)
 {

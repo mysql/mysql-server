@@ -14,11 +14,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-	/* Malloc many pointers at the same time */
-	/* format myFlags,ptr,length,ptr,length ... until null ptr */
-
 #include "mysys_priv.h"
 #include <stdarg.h>
+
+/*
+  Malloc many pointers at the same time
+
+  SYNOPSIS
+    my_multi_malloc()
+      myFlags	Flags
+      ... 	Multiple arguments terminated by null ptr
+
+	ptr, length
+	ptr, length
+	NULL
+*/ 
 
 gptr my_multi_malloc(myf myFlags, ...)
 {

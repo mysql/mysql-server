@@ -14,16 +14,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Calculate a long checksum for a memoryblock. Used to verify pack_isam */
 
 #include <my_global.h>
 #include "my_sys.h"
 
+/*
+  Calculate a long checksum for a memoryblock. Used to verify pack_isam 
+   
+  SYNOPSIS
+    checksum()
+      mem	Pointer to memory block
+      count	Count of bytes 
+*/
+
 ulong checksum(const byte *mem, uint count)
 {
   ulong crc;
-  for (crc=0; count-- ; mem++)
-    crc=((crc << 1) + *((uchar*) mem)) +
+  for (crc= 0; count-- ; mem++)
+    crc= ((crc << 1) + *((uchar*) mem)) +
       test(crc & ((ulong) 1L << (8*sizeof(ulong)-1)));
   return crc;
 }
