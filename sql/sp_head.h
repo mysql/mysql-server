@@ -351,7 +351,7 @@ class sp_instr_jump : public sp_instr
 public:
 
   sp_instr_jump(uint ip)
-    : sp_instr(ip)
+    : sp_instr(ip), m_dest(0)
   {}
 
   sp_instr_jump(uint ip, uint dest)
@@ -368,7 +368,8 @@ public:
   virtual void
   set_destination(uint dest)
   {
-    m_dest= dest;
+    if (m_dest == 0)		// Don't reset
+      m_dest= dest;
   }
 
 protected:
