@@ -790,9 +790,6 @@ recv_parse_or_apply_log_rec_body(
 	} else if (type == MLOG_IBUF_BITMAP_INIT) {
 		new_ptr = ibuf_parse_bitmap_init(ptr, end_ptr, page, mtr);
 
-	} else if (type == MLOG_FULL_PAGE) {
-		new_ptr = mtr_log_parse_full_page(ptr, end_ptr, page);
-	
 	} else if (type == MLOG_INIT_FILE_PAGE) {
 		new_ptr = fsp_parse_init_file_page(ptr, end_ptr, page);
 
@@ -1093,15 +1090,7 @@ recv_recover_page(
 			buf = ((byte*)(recv->data)) + sizeof(recv_data_t);
 		}
 
-		if (recv->type == MLOG_INIT_FILE_PAGE
-		    || recv->type == MLOG_FULL_PAGE) {
-			/* A new file page may have been taken into use,
-			or we have stored the full contents of the page:
-			in this case it may be that the original log record
-			type was MLOG_INIT_FILE_PAGE, and we replaced it
-			with MLOG_FULL_PAGE, thus we have to apply
-			any record of type MLOG_FULL_PAGE */
-			
+		if (recv->type == MLOG_INIT_FILE_PAGE) {
 			page_lsn = page_newest_lsn;
 
 			mach_write_to_8(page + UNIV_PAGE_SIZE
