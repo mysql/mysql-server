@@ -545,6 +545,11 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
     CHARSET_INFO *cs= system_charset_info;
     Send_field field;
     item->make_field(&field);
+
+    /* Keep things compatible for old clients */
+    if (field.type == MYSQL_TYPE_VARCHAR)
+      field.type= MYSQL_TYPE_VAR_STRING;
+
     prot.prepare_for_resend();
 
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)

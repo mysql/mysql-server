@@ -276,8 +276,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       goto err;
 #endif /*HAVE_SPATIAL*/
     }
-    else
-    if (keydef->flag & HA_FULLTEXT)
+    else if (keydef->flag & HA_FULLTEXT)
     {
       keydef->flag=HA_FULLTEXT | HA_PACK_KEY | HA_VAR_LENGTH_KEY;
       options|=HA_OPTION_PACK_KEYS;             /* Using packed keys */
@@ -310,7 +309,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
 	/* Only use HA_PACK_KEY when first segment is a variable length key */
 	if (!(keydef->seg[0].flag & (HA_SPACE_PACK | HA_BLOB_PART |
-				     HA_VAR_LENGTH)))
+				     HA_VAR_LENGTH_PART)))
 	{
 	  /* pack relative to previous key */
 	  keydef->flag&= ~HA_PACK_KEY;
@@ -344,12 +343,18 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	case HA_KEYTYPE_UINT24:
 	case HA_KEYTYPE_INT8:
 	  keyseg->flag|= HA_SWAP_KEY;
-	  /* fall through */
+          break;
+        case HA_KEYTYPE_VARTEXT:
+        case HA_KEYTYPE_VARBINARY:
+          if (!(keyseg->flag & HA_BLOB_PART))
+            keyseg->flag|= HA_VAR_LENGTH_PART;
+          break;
 	default:
 	  break;
 	}
 	if (keyseg->flag & HA_SPACE_PACK)
 	{
+          DBUG_ASSERT(!(keyseg->flag & HA_VAR_LENGTH_PART));
 	  keydef->flag |= HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY;
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
 	  length++;				/* At least one length byte */
@@ -360,7 +365,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	    length+=2;
 	  }
 	}
-	if (keyseg->flag & (HA_VAR_LENGTH | HA_BLOB_PART))
+	if (keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART))
 	{
 	  keydef->flag|=HA_VAR_LENGTH_KEY;
 	  length++;				/* At least one length byte */

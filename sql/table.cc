@@ -139,7 +139,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   *fn_ext(outparam->path)='\0';		// Remove extension
 
   if (head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] != FRM_VER+1 && head[2] != FRM_VER+3))
+      (head[2] != FRM_VER && head[2] != FRM_VER+1 &&
+       ! (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4)))
     goto err_not_open;				/* purecov: inspected */
   new_field_pack_flag=head[27];
   new_frm_ver= (head[2] - FRM_VER);
@@ -215,7 +216,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
-    if (new_frm_ver == 3)
+    keyinfo->table= outparam;
+    if (new_frm_ver >= 3)
     {
       keyinfo->flags=	   (uint) uint2korr(strpos) ^ HA_NOSAME;
       keyinfo->key_length= (uint) uint2korr(strpos+2);
@@ -433,7 +435,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
     LEX_STRING comment;
 
-    if (new_frm_ver == 3)
+    if (new_frm_ver >= 3)
     {
       /* new frm file in 4.1 */
       field_length= uint2korr(strpos+3);
@@ -441,11 +443,10 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       pack_flag=    uint2korr(strpos+8);
       unireg_type=  (uint) strpos[10];
       interval_nr=  (uint) strpos[12];
-
       uint comment_length=uint2korr(strpos+15);
       field_type=(enum_field_types) (uint) strpos[13];
 
-      // charset and geometry_type share the same byte in frm
+      /* charset and geometry_type share the same byte in frm */
       if (field_type == FIELD_TYPE_GEOMETRY)
       {
 #ifdef HAVE_SPATIAL
@@ -590,10 +591,12 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	    keyinfo->key_length+= HA_KEY_NULL_LENGTH;
 	  }
 	  if (field->type() == FIELD_TYPE_BLOB ||
-	      field->real_type() == FIELD_TYPE_VAR_STRING)
+	      field->real_type() == MYSQL_TYPE_VARCHAR)
 	  {
 	    if (field->type() == FIELD_TYPE_BLOB)
 	      key_part->key_part_flag|= HA_BLOB_PART;
+            else
+              key_part->key_part_flag|= HA_VAR_LENGTH_PART;
 	    keyinfo->extra_length+=HA_KEY_BLOB_LENGTH;
 	    key_part->store_length+=HA_KEY_BLOB_LENGTH;
 	    keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
@@ -1213,7 +1216,11 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
   if ((file=my_create(name,CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
     bzero((char*) fileinfo,64);
-    fileinfo[0]=(uchar) 254; fileinfo[1]= 1; fileinfo[2]= FRM_VER+3; // Header
+    /* header */
+    fileinfo[0]=(uchar) 254;
+    fileinfo[1]= 1;
+    fileinfo[2]= FRM_VER+3+ test(create_info->varchar);
+
     fileinfo[3]= (uchar) ha_checktype(create_info->db_type);
     fileinfo[4]=1;
     int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
@@ -1366,7 +1373,7 @@ bool check_db_name(char *name)
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, 
-		name+system_charset_info->mbmaxlen);
+                          name+system_charset_info->mbmaxlen);
       if (len)
       {
         name += len;
@@ -1443,7 +1450,7 @@ bool check_column_name(const char *name)
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, 
-		name+system_charset_info->mbmaxlen);
+                          name+system_charset_info->mbmaxlen);
       if (len)
       {
         name += len;
@@ -1478,7 +1485,8 @@ db_type get_table_type(const char *name)
   error=my_read(file,(byte*) head,4,MYF(MY_NABP));
   my_close(file,MYF(0));
   if (error || head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] != FRM_VER && head[2] != FRM_VER+1 && head[2] != FRM_VER+3))
+      (head[2] != FRM_VER && head[2] != FRM_VER+1 &&
+       (head[2] < FRM_VER+3 || head[2] > FRM_VER+4)))
     DBUG_RETURN(DB_TYPE_UNKNOWN);
   DBUG_RETURN(ha_checktype((enum db_type) (uint) *(head+3)));
 }

@@ -2024,7 +2024,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       sort_param.key_length+=keyseg[i].length;
       if (keyseg[i].flag & HA_SPACE_PACK)
 	sort_param.key_length+=get_pack_length(keyseg[i].length);
-      if (keyseg[i].flag & (HA_BLOB_PART | HA_VAR_LENGTH))
+      if (keyseg[i].flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART))
 	sort_param.key_length+=2 + test(keyseg[i].length >= 127);
       if (keyseg[i].flag & HA_NULL_PART)
 	sort_param.key_length++;
@@ -2433,7 +2433,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
       sort_param[i].key_length+=keyseg->length;
       if (keyseg->flag & HA_SPACE_PACK)
         sort_param[i].key_length+=get_pack_length(keyseg->length);
-      if (keyseg->flag & (HA_BLOB_PART | HA_VAR_LENGTH))
+      if (keyseg->flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART))
         sort_param[i].key_length+=2 + test(keyseg->length >= 127);
       if (keyseg->flag & HA_NULL_PART)
         sort_param[i].key_length++;

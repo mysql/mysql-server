@@ -810,11 +810,13 @@ col1	col2
 NULL	NULL
 1.79769313486232e+308	0
 DROP TABLE t1;
-CREATE TABLE t1 (col1 CHAR(5), col2 VARCHAR(5));
-INSERT INTO t1 VALUES ('hello', 'hello'),('he', 'he'),('hello   ', 'hello   ');
+CREATE TABLE t1 (col1 CHAR(5), col2 VARCHAR(6));
+INSERT INTO t1 VALUES ('hello', 'hello'),('he', 'he'),('hello   ', 'hello ');
 INSERT INTO t1 (col1) VALUES ('hellobob');
 ERROR 01000: Data truncated for column 'col1' at row 1
 INSERT INTO t1 (col2) VALUES ('hellobob');
+ERROR 01000: Data truncated for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES ('hello  ');
 ERROR 01000: Data truncated for column 'col2' at row 1
 UPDATE t1 SET col1 ='hellobob' WHERE col1 ='he';
 ERROR 01000: Data truncated for column 'col1' at row 2
@@ -830,9 +832,9 @@ Warning	1265	Data truncated for column 'col2' at row 2
 SELECT * FROM t1;
 col1	col2
 hello	hello
-he	hello
-hello	hello
-hello	hello
+he	hellot
+hello	hello 
+hello	hellob
 DROP TABLE t1;
 CREATE TABLE t1 (col1 enum('red','blue','green'));
 INSERT INTO t1 VALUES ('red'),('blue'),('green');

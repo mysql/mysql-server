@@ -2309,7 +2309,7 @@ select * from t2 where s = 'one';
 s
 select * from t3 where s = 'one';
 s
-one
+one 
 select * from t1,t2 where t1.s = t2.s;
 s	s
 two		two	

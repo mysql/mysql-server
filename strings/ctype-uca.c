@@ -7048,6 +7048,9 @@ static int my_strnncoll_uca(CHARSET_INFO *cs,
     slen	First string length
     t		Second string
     tlen	Seconf string length
+    diff_if_only_endspace_difference
+		        Set to 1 if the strings should be regarded as different
+                        if they only difference in end space
   
   NOTES:
     Works exactly the same with my_strnncoll_uca(),
@@ -7085,13 +7088,16 @@ static int my_strnncoll_uca(CHARSET_INFO *cs,
 static int my_strnncollsp_uca(CHARSET_INFO *cs, 
                               my_uca_scanner_handler *scanner_handler,
                               const uchar *s, uint slen,
-                              const uchar *t, uint tlen)
+                              const uchar *t, uint tlen,
+                              my_bool diff_if_only_endspace_difference)
 {
-  my_uca_scanner sscanner;
-  my_uca_scanner tscanner;
-  int s_res;
-  int t_res;
+  my_uca_scanner sscanner, tscanner;
+  int s_res, t_res;
   
+#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
+  diff_if_only_endspace_difference= 0;
+#endif
+
   scanner_handler->init(&sscanner, cs, s, slen);
   scanner_handler->init(&tscanner, cs, t, tlen);
   
@@ -7113,7 +7119,7 @@ static int my_strnncollsp_uca(CHARSET_INFO *cs,
         return (s_res - t_res);
       s_res= scanner_handler->next(&sscanner);
     } while (s_res > 0);
-    return 0;
+    return diff_if_only_endspace_difference ? 1 : 0;
   }
     
   if (s_res < 0 && t_res > 0)
@@ -7128,7 +7134,7 @@ static int my_strnncollsp_uca(CHARSET_INFO *cs,
         return (s_res - t_res);
       t_res= scanner_handler->next(&tscanner);
     } while (t_res > 0);
-    return 0;
+    return diff_if_only_endspace_difference ? -1 : 0;
   }
   
   return ( s_res - t_res );
@@ -7939,11 +7945,13 @@ static int my_strnncoll_any_uca(CHARSET_INFO *cs,
 }
 
 static int my_strnncollsp_any_uca(CHARSET_INFO *cs,
-                              const uchar *s, uint slen,
-                              const uchar *t, uint tlen)
+                                  const uchar *s, uint slen,
+                                  const uchar *t, uint tlen,
+                                  my_bool diff_if_only_endspace_difference)
 {
   return my_strnncollsp_uca(cs, &my_any_uca_scanner_handler,
-                            s, slen, t, tlen);
+                            s, slen, t, tlen,
+                            diff_if_only_endspace_difference);
 }   
 
 static void my_hash_sort_any_uca(CHARSET_INFO *cs,
@@ -7976,11 +7984,13 @@ static int my_strnncoll_ucs2_uca(CHARSET_INFO *cs,
 }
 
 static int my_strnncollsp_ucs2_uca(CHARSET_INFO *cs,
-                              const uchar *s, uint slen,
-                              const uchar *t, uint tlen)
+                                   const uchar *s, uint slen,
+                                   const uchar *t, uint tlen,
+                                   my_bool diff_if_only_endspace_difference)
 {
   return my_strnncollsp_uca(cs, &my_ucs2_uca_scanner_handler,
-                            s, slen, t, tlen);
+                            s, slen, t, tlen,
+                            diff_if_only_endspace_difference);
 }   
 
 static void my_hash_sort_ucs2_uca(CHARSET_INFO *cs,

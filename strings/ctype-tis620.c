@@ -320,7 +320,7 @@ static int t_ctype[][TOT_LEVELS] = {
     /*0xFC*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0xFD*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0xFE*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
-/* Utilize 0xFF for max_sort_chr in my_like_range_tis620 */
+    /* Utilize 0xFF for max_sort_chr in my_like_range_tis620 */
     /*0xFF*/ { 255 /*IGNORE*/, IGNORE, IGNORE, IGNORE, X },
 };
 
@@ -559,13 +559,16 @@ int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
 static
 int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
 			  const uchar *a0, uint a_length, 
-			  const uchar *b0, uint b_length)
+			  const uchar *b0, uint b_length,
+                          my_bool diff_if_only_endspace_difference)
 {
-  uchar	buf[80] ;
-  uchar *end, *a, *b;
+  uchar	buf[80], *end, *a, *b;
   uint length;
-  int res= 0;
-  int alloced= 0;
+  int res= 0, alloced= 0;
+
+#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
+  diff_if_only_endspace_difference= 0;
+#endif
   
   a= buf;
   if ((a_length + b_length +2) > (int) sizeof(buf))
@@ -594,6 +597,8 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
   if (a_length != b_length)
   {
     int swap= 0;
+    if (diff_if_only_endspace_difference)
+      res= 1;                                   /* Assume 'a' is bigger */
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -604,6 +609,7 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
       a_length= b_length;
       a= b;
       swap= -1;					/* swap sign of result */
+      res= -res;
     }
     for (end= a + a_length-length; a < end ; a++)
     {
@@ -687,8 +693,14 @@ my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
     }
     if (*ptr == w_many)				/* '%' in SQL */
     {
-      *min_length= (uint) (min_str - min_org);
-      *max_length=res_length;
+      /*
+        Calculate length of keys:
+        'a\0\0... is the smallest possible string when we have space expand
+        a\ff\ff... is the biggest possible string
+      */
+      *min_length= ((cs->state & MY_CS_BINSORT) ? (uint) (min_str - min_org) :
+                    res_length);
+      *max_length= res_length;
       do
       {
 	*min_str++ = 0;
@@ -698,10 +710,10 @@ my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
     }
     *min_str++= *max_str++ = *ptr;
   }
-  *min_length= *max_length = (uint) (min_str - min_org);
 
+ *min_length= *max_length = (uint) (min_str - min_org);
   while (min_str != min_end)
-    *min_str++ = *max_str++ = ' ';	/* Because of key compression */
+    *min_str++= *max_str++ = ' ';      /* Because of key compression */
   return 0;
 }
 

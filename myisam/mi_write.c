@@ -253,7 +253,7 @@ int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
     comp_flag=SEARCH_BIGGER;			/* Put after same key */
   else if (keyinfo->flag & (HA_NOSAME|HA_FULLTEXT))
   {
-    comp_flag=SEARCH_FIND | SEARCH_UPDATE;	/* No dupplicates */
+    comp_flag=SEARCH_FIND | SEARCH_UPDATE;	/* No duplicates */
     if (keyinfo->flag & HA_NULL_ARE_EQUAL)
       comp_flag|= SEARCH_NULL_ARE_EQUAL;
   }

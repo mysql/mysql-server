@@ -415,7 +415,7 @@ a	int(11)	YES		NULL
 b	bigint(11)			0	
 c	bigint(10)			0	
 d	date	YES		NULL	
-e	char(1)				
+e	varchar(1)				
 f	datetime	YES		NULL	
 g	time	YES		NULL	
 h	longblob				

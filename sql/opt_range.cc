@@ -1749,8 +1749,10 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           objects are not allowed so don't use ROR-intersection for
           table deletes.
         */
-        if ((thd->lex->sql_command != SQLCOM_DELETE) )//&& 
-//          (thd->lex->sql_command != SQLCOM_UPDATE))
+        if ((thd->lex->sql_command != SQLCOM_DELETE))
+#ifdef NOT_USED
+          if ((thd->lex->sql_command != SQLCOM_UPDATE))
+#endif
         {
           /*
             Get best non-covering ROR-intersection plan and prepare data for
@@ -3687,8 +3689,7 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
     DBUG_RETURN(0);
   if (maybe_null)
     *str= (char) field->is_real_null();		// Set to 1 if null
-  field->get_key_image(str+maybe_null, key_part->length,
-		       field->charset(), key_part->image_type);
+  field->get_key_image(str+maybe_null, key_part->length, key_part->image_type);
   if (copies == 2)
   {
     /*
@@ -8437,7 +8438,7 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
       key++;					// Skip null byte
       store_length--;
     }
-    field->set_key_image((char*) key, key_part->length, field->charset());
+    field->set_key_image((char*) key, key_part->length);
     field->val_str(&tmp);
     fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
     if (key+store_length < key_end)

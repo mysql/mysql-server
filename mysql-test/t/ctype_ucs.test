@@ -16,17 +16,19 @@ SET CHARACTER SET koi8r;
 # which contains 0x20 in the high byte.
 #
 
-CREATE TABLE t1 (word VARCHAR(64) CHARACTER SET ucs2);
-INSERT INTO t1 VALUES (_koi8r'ò'), (X'2004');
+CREATE TABLE t1 (word VARCHAR(64) CHARACTER SET ucs2, word2 CHAR(64) CHARACTER SET ucs2);
+INSERT INTO t1 VALUES (_koi8r'ò',_koi8r'ò'), (X'2004',X'2004');
 SELECT hex(word) FROM t1 ORDER BY word;
+SELECT hex(word2) FROM t1 ORDER BY word2;
 DELETE FROM t1;
 
 #
 # Check that real spaces are correctly trimmed.
 #
 
-INSERT INTO t1 VALUES (X'042000200020'), (X'200400200020');
+INSERT INTO t1 VALUES (X'042000200020',X'042000200020'), (X'200400200020', X'200400200020');
 SELECT hex(word) FROM t1 ORDER BY word;
+SELECT hex(word2) FROM t1 ORDER BY word2;
 DROP TABLE t1;
 
 #
@@ -48,7 +50,6 @@ RPAD(_ucs2 X'0420',10,_ucs2 X'0421') r;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-
 #
 # BUG3946
 #
@@ -57,6 +58,7 @@ create table t2(f1 Char(30));
 insert into t2 values ("103000"), ("22720000"), ("3401200"), ("78000");
 select lpad(f1, 12, "-o-/") from t2;
 drop table t2;
+
 ######################################################
 #
 # Test of like

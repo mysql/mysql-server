@@ -275,8 +275,9 @@ static int my_strnncoll_czech(CHARSET_INFO *cs __attribute__((unused)),
 
 static
 int my_strnncollsp_czech(CHARSET_INFO * cs, 
-			const uchar *s, uint slen, 
-			const uchar *t, uint tlen)
+                         const uchar *s, uint slen, 
+                         const uchar *t, uint tlen,
+                         my_bool diff_if_only_endspace_difference)
 {
   for ( ; slen && s[slen-1] == ' ' ; slen--);
   for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
@@ -352,7 +353,7 @@ static int my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)),
 
 #ifdef REAL_MYSQL
 
-#define min_sort_char ' '
+#define min_sort_char 0
 #define max_sort_char '9'
 
 #define EXAMPLE
@@ -391,8 +392,17 @@ static my_bool my_like_range_czech(CHARSET_INFO *cs __attribute__((unused)),
 
     *min_str++= *max_str++ = *ptr;
   }
-  *min_length= (uint) (min_str - min_org);
+
+  if (cs->state & MY_CS_BINSORT)
+    *min_length= (uint) (min_str - min_org);
+  else
+  {
+    /* 'a\0\0... is the smallest possible string */
+    *min_length= res_length;
+  }
+  /* a\ff\ff... is the biggest possible string */
   *max_length= res_length;
+
   while (min_str != min_end)
   {
     *min_str++ = min_sort_char;	/* Because of key compression */

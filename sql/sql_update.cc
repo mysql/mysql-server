@@ -701,7 +701,7 @@ int mysql_multi_update_prepare(THD *thd)
     */
     List_iterator_fast<Item> it(*fields);
     Item *item;
-    while (item= it++)
+    while ((item= it++))
     {
       item->cleanup();
     }

@@ -123,7 +123,7 @@ int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
 
   while (pos->ptr_to_rec != recpos)
   {
-    if (flag && !hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec))
+    if (flag && !hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec, 0))
       last_ptr=pos;				/* Previous same key */
     gpos=pos;
     if (!(pos=pos->next_key))

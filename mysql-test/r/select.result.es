@@ -1,4 +1,6 @@
 drop table if exists t1,t2,t3,t4;
+drop table if exists t1_1,t1_2,t9_1,t9_2;
+drop view if exists v1;
 CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
@@ -2074,10 +2076,8 @@ INSERT INTO t2 VALUES (1,3,10,'2002-06-01 08:00:00',35),(1,3,1010,'2002-06-01 12
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= 'wrong-date-value' AND b.sampletime < 'wrong-date-value' AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
 gvid	the_success	the_fail	the_size	the_time
 Warnings:
-Warning	1292	Truncated incorrect datetime value: 'wrong-date-value'
-Warning	1292	Truncated incorrect datetime value: 'wrong-date-value'
-Warning	1292	Truncated incorrect datetime value: 'wrong-date-value'
-Warning	1292	Truncated incorrect datetime value: 'wrong-date-value'
+Warning	1292	Incorrect datetime value: 'wrong-date-value' for column 'sampletime' at row 1
+Warning	1292	Incorrect datetime value: 'wrong-date-value' for column 'sampletime' at row 1
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= NULL AND b.sampletime < NULL AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
 gvid	the_success	the_fail	the_size	the_time
 DROP TABLE t1,t2;
@@ -2340,7 +2340,7 @@ select * from t2 where s = 'one';
 s
 select * from t3 where s = 'one';
 s
-one
+one 
 select * from t1,t2 where t1.s = t2.s;
 s	s
 two		two	

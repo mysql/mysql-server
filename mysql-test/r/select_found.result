@@ -84,7 +84,7 @@ UNIQUE KEY e_n (email,name)
 EXPLAIN SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	PRIMARY,kid	NULL	NULL	NULL	0	const row not found
-1	SIMPLE	t2	index	NULL	e_n	100	NULL	200	
+1	SIMPLE	t2	index	NULL	e_n	104	NULL	200	
 SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10;
 email
 email1

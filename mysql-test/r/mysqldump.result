@@ -106,7 +106,7 @@ INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
 	<table_structure name="t1">
 		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
 		<field Field="b" Type="text" Null="YES" Key="" Extra="" />
-		<field Field="c" Type="char(3)" Null="YES" Key="" Extra="" />
+		<field Field="c" Type="varchar(3)" Null="YES" Key="" Extra="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>

@@ -1546,12 +1546,13 @@ static void dumpTable(uint numFields, char *table)
 	   we'll dump in hex only BLOB columns.
 	*/
         is_blob= (opt_hex_blob && field->charsetnr == 63 &&
-                  (field->type == FIELD_TYPE_STRING ||
-                   field->type == FIELD_TYPE_VAR_STRING ||
-                   field->type == FIELD_TYPE_BLOB ||
-                   field->type == FIELD_TYPE_LONG_BLOB ||
-                   field->type == FIELD_TYPE_MEDIUM_BLOB ||
-                   field->type == FIELD_TYPE_TINY_BLOB)) ? 1 : 0;
+                  (field->type == MYSQL_TYPE_STRING ||
+                   field->type == MYSQL_TYPE_VAR_STRING ||
+                   field->type == MYSQL_TYPE_VARCHAR ||
+                   field->type == MYSQL_TYPE_BLOB ||
+                   field->type == MYSQL_TYPE_LONG_BLOB ||
+                   field->type == MYSQL_TYPE_MEDIUM_BLOB ||
+                   field->type == MYSQL_TYPE_TINY_BLOB)) ? 1 : 0;
 	if (extended_insert)
 	{
 	  ulong length = lengths[i];

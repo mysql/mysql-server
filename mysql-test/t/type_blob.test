@@ -18,12 +18,14 @@ CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
 show columns from t1;
 # PS doesn't give errors on prepare yet
 --disable_ps_protocol
-CREATE TABLE t2 (a char(257), b varbinary(70000), c varchar(70000000));
+CREATE TABLE t2 (a char(255), b varbinary(70000), c varchar(70000000));
+CREATE TABLE t4 (c varchar(65530) character set utf8 not null);
 --enable_ps_protocol
 show columns from t2;
 create table t3 (a long, b long byte);
 show create TABLE t3;
-drop table t1,t2,t3
+show create TABLE t4;
+drop table t1,t2,t3,t4;
 
 #
 # Check errors with blob
@@ -31,6 +33,10 @@ drop table t1,t2,t3
 
 --error 1074
 CREATE TABLE t1 (a char(257) default "hello");
+--error 1074
+CREATE TABLE t2 (a char(256));
+--error 1074
+CREATE TABLE t1 (a varchar(70000) default "hello");
 --error 1101
 CREATE TABLE t2 (a blob default "hello");
 
@@ -316,10 +322,16 @@ drop table t1;
 
 #
 # Test blob's with end space (Bug #1651)
+# This is a bit changed since we now have true varchar
 #
 
 create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20)));
+--error 1062
 insert into t1 (txt) values ('Chevy'), ('Chevy ');
+--error 1062
+insert into t1 (txt) values ('Chevy'), ('CHEVY');
+alter table t1 drop index txt_index, add index txt_index (txt(20));
+insert into t1 (txt) values ('Chevy ');
 select * from t1 where txt='Chevy';
 select * from t1 where txt='Chevy ';
 select * from t1 where txt='Chevy ' or txt='Chevy';
@@ -340,7 +352,7 @@ select * from t1 where txt > 'Chevy';
 select * from t1 where txt >= 'Chevy';
 drop table t1;
 
-create table t1 (id integer primary key auto_increment, txt text, unique index txt_index (txt (20)));
+create table t1 (id integer primary key auto_increment, txt text, index txt_index (txt (20)));
 insert into t1 (txt) values ('Chevy'), ('Chevy '), (NULL);
 select * from t1 where txt='Chevy' or txt is NULL;
 explain select * from t1 where txt='Chevy' or txt is NULL;

@@ -410,7 +410,7 @@ NdbSqlUtil::cmpChar(const void* info, const Uint32* p1, const Uint32* p2, Uint32
   CHARSET_INFO* cs = (CHARSET_INFO*)(info);
   // length in bytes including null padding to Uint32
   uint l1 = (full << 2);
-  int k = (*cs->coll->strnncollsp)(cs, u1.v, l1, u2.v, l1);
+  int k = (*cs->coll->strnncollsp)(cs, u1.v, l1, u2.v, l1, 0);
   return k < 0 ? -1 : k > 0 ? +1 : 0;
 }
 
@@ -559,7 +559,7 @@ NdbSqlUtil::cmpText(const void* info, const Uint32* p1, const Uint32* p2, Uint32
     CHARSET_INFO* cs = (CHARSET_INFO*)(info);
     // length in bytes including null padding to Uint32
     uint l1 = (full << 2);
-    int k = (*cs->coll->strnncollsp)(cs, u1.v, l1, u2.v, l1);
+    int k = (*cs->coll->strnncollsp)(cs, u1.v, l1, u2.v, l1,0);
     return k < 0 ? -1 : k > 0 ? +1 : 0;
   }
   return CmpUnknown;
