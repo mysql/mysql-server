@@ -2693,8 +2693,9 @@ char *get_arg(char *line, my_bool get_next_arg)
       ptr++;
     if (*ptr == '\\') // short command was used
       ptr+= 2;
-    while (*ptr &&!my_isspace(charset_info, *ptr)) // skip command
-      ptr++;
+    else
+      while (*ptr &&!my_isspace(charset_info, *ptr)) // skip command
+        ptr++;
   }
   if (!*ptr)
     return NullS;
