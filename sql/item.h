@@ -1782,33 +1782,33 @@ public:
 
 
 /*
-  Used to store type. name, length of Item for UNIONS & derived table
+  Item_type_holder used to store type. name, length of Item for UNIONS &
+  derived tables.
+
+  Item_type_holder do not need cleanup() because its time of live limited by
+  single SP/PS execution.
 */
 class Item_type_holder: public Item
 {
 protected:
-  Item_result item_type;
-  Item_result orig_type;
-  Field *field_example;
-public:
-  Item_type_holder(THD*, Item*, TABLE *);
+  TYPELIB *enum_set_typelib;
+  enum_field_types fld_type;
 
-  Item_result result_type () const { return item_type; }
+  void get_full_info(Item *item);
+public:
+  Item_type_holder(THD*, Item*);
+
+  Item_result result_type() const;
+  virtual enum_field_types field_type() const { return fld_type; };
   enum Type type() const { return TYPE_HOLDER; }
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
-  bool join_types(THD *thd, Item *, TABLE *);
-  Field *example() { return field_example; }
-  static uint32 real_length(Item *item);
-  void cleanup()
-  {
-    DBUG_ENTER("Item_type_holder::cleanup");
-    Item::cleanup();
-    item_type= orig_type;
-    DBUG_VOID_RETURN;
-  }
+  bool join_types(THD *thd, Item *);
+  Field *make_field_by_type(TABLE *table);
+  static uint32 display_length(Item *item);
+  static enum_field_types get_real_type(Item *);
 };
 
 

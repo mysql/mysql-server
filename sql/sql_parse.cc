@@ -5529,9 +5529,7 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
 	my_error(ER_TOO_BIG_SET, MYF(0), field_name); /* purecov: inspected */
 	DBUG_RETURN(NULL);
       }
-      new_field->pack_length= (interval_list->elements + 7) / 8;
-      if (new_field->pack_length > 4)
-        new_field->pack_length=8;
+      new_field->pack_length= get_set_pack_length(interval_list->elements);
 
       List_iterator<String> it(*interval_list);
       String *tmp;
@@ -5548,7 +5546,7 @@ new_create_field(THD *thd, char *field_name, enum_field_types type,
   case FIELD_TYPE_ENUM:
     {
       // Should be safe
-      new_field->pack_length= interval_list->elements < 256 ? 1 : 2; 
+      new_field->pack_length= get_enum_pack_length(interval_list->elements);
 
       List_iterator<String> it(*interval_list);
       String *tmp;

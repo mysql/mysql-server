@@ -54,7 +54,7 @@ public:
 		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN,
                   NOT_FUNC, NOT_ALL_FUNC,
                   NOW_FUNC, TRIG_COND_FUNC,
-                  GUSERVAR_FUNC};
+                  GUSERVAR_FUNC, VAR_VALUE_FUNC};
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const { return FUNC_ITEM; }
@@ -1124,6 +1124,7 @@ public:
     select @t1:=1,@t1,@t:="hello",@t from foo where (@t1:= t2.b)
   */
   enum_field_types field_type() const  { return MYSQL_TYPE_VARCHAR; }
+  enum Functype functype() const   { return VAR_VALUE_FUNC; }
   const char *func_name() const { return "get_user_var"; }
   bool const_item() const;
   table_map used_tables() const
