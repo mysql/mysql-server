@@ -27,13 +27,33 @@
 
 static const char *any_db="*any*";	// Special symbol for check_access
 
+/*
+  Resolve derived tables in all queries
+
+  SYNOPSIS
+    mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
+    thd			Thread handle
+    lex                 LEX for this thread
+    unit                node that contains all SELECT's for derived tables
+    t                   TABLE_LIST for the upper SELECT
+
+  IMPLEMENTATION
+  
+  Derived table is  resolved with temporary table. It is created based on the
+  queries defined. After temporary table is created, if this is not EXPLAIN,
+  then the entire unit / node is deleted. unit is deleted if UNION is used 
+  for derived table and node is deleted is it is a  simple SELECT.
+
+  After table creation, the above TABLE_LIST is updated with a new table.
+
+  This function is called before any command containing derived table is executed. 
+
+  TODO: To move creation of derived tables IN  open_and_lock_tables()
+*/  
+
 
 int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 {
-  /*
-    TODO: make derived tables with union inside (now only 1 SELECT may be
-    procesed)
-  */
   SELECT_LEX *sl= unit->first_select();
   List<Item> item_list;
   TABLE *table;
@@ -45,6 +65,12 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
   DBUG_ENTER("mysql_derived");
   
 
+/*
+  In create_total_list, derived tables have to be treated in case of EXPLAIN, 
+  This is because unit/node is not deleted in that case. Current code in this 
+  function has to be improved to recognize better when this function is called 
+  from derived tables and when from other functions.
+*/
   if (is_union && unit->create_total_list(thd, lex, &tables))
     DBUG_RETURN(-1);
 
@@ -65,6 +91,15 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
   {
     if (is_union)
     {
+/* 
+   The following code is a re-do of fix_tables_pointers() found in sql_select.cc
+   for UNION's within derived tables. The only difference is in navigation, as in 
+   derived tables we care for this level only.
+
+   fix_tables_pointers makes sure that in UNION's we do not open single table twice 
+   if found in different SELECT's.
+
+*/
       for (SELECT_LEX *sel= sl;
 	   sel;
 	   sel= sel->next_select())
