@@ -210,9 +210,6 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27)
 #define SELECT_NO_UNLOCK                (1L << 28)
 
-/* options for UNION set by the yacc parser (stored in unit->union_option) */
-#define UNION_ALL               1
-
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT      	1
 #define MODE_PIPES_AS_CONCAT    	2

@@ -23,7 +23,7 @@ extern my_string	mysql_unix_port;
 
 sig_handler pipe_sig_handler(int sig __attribute__((unused)));
 void read_user_name(char *name);
-my_bool send_file_to_server(MYSQL *mysql, const char *filename);
+my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 
 /*
   Let the user specify that we don't want SIGPIPE;  This doesn't however work

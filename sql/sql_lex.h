@@ -335,7 +335,7 @@ public:
   /* fake SELECT_LEX for union processing */
   st_select_lex *fake_select_lex;
 
-  uint union_option;
+  st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
 
   void init_query();
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);

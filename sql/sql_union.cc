@@ -210,7 +210,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     union_result->tmp_table_param.field_count= types.elements;
     if (!(table= create_tmp_table(thd_arg,
 				  &union_result->tmp_table_param, types,
-				  (ORDER*) 0, !union_option, 1, 
+				  (ORDER*) 0, union_distinct, 1, 
 				  (first_select_in_union()->options |
 				   thd_arg->options |
 				   TMP_TABLE_ALL_COLUMNS),
@@ -267,6 +267,8 @@ int st_select_lex_unit::exec()
       item->reset();
       table->file->delete_all_rows();
     }
+    if (union_distinct) // for subselects
+      table->file->extra(HA_EXTRA_CHANGE_KEY_TO_UNIQUE);
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
       ha_rows records_at_start= 0;
@@ -317,6 +319,8 @@ int st_select_lex_unit::exec()
       {
 	records_at_start= table->file->records;
 	sl->join->exec();
+        if (sl == union_distinct)
+          table->file->extra(HA_EXTRA_CHANGE_KEY_TO_DUP);
 	res= sl->join->error;
 	offset_limit_cnt= sl->offset_limit;
 	if (!res && union_result->flush())
