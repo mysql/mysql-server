@@ -1376,8 +1376,9 @@ of @strong{MySQL} so that we could accelerate the development pace.  If you
 are interested in doing this, you can email @email{partner@@mysql.com} about 
 this!
 
-@strong{MySQL AB} has currently 20+ people on its payroll and is growing 
-rapidly.  @uref{http://www.mysql.com/development/team.html}.
+@strong{MySQL AB} has currently 20+ people
+(@uref{http://www.mysql.com/development/team.html}) on its payroll and is growing rapidly.
+
 
 Our main sources of income are:
 
@@ -4424,6 +4425,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c EMAIL: alex@mtesa.net (Alexandre Dupouy)
 @image{Flags/france} France [mtesa.net] @
 @uref{http://mysql.mtesa.net/, WWW}
+
+@item
+@c EMAIL: mrjack@fastorama.com (MrJacK)
+@image{Flags/france} France [fastorama.com, Chatenois] @
+@uref{http://mysql.fastorama.com/, WWW}
+@uref{ftp://ftp.fastorama.com/unix/mysql/, FTP}
 
 @c @item
 @c Not ok 20000919; Old site (Matt)
