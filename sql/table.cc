@@ -261,7 +261,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   outparam->comment=strdup_root(&outparam->mem_root,
 				(char*) head+47);
 
-  DBUG_PRINT("form",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d", interval_count,interval_parts, outparam->keys,n_length,int_length));
+  DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d", interval_count,interval_parts, outparam->keys,n_length,int_length));
 
   if (!(field_ptr = (Field **)
 	alloc_root(&outparam->mem_root,

@@ -297,9 +297,8 @@ static int authenticate(struct manager_thd* thd);
 static char* read_line(struct manager_thd* thd); /* returns pointer to end of
 						 line
 					      */
-static pthread_handler_decl(process_connection,arg);
-static pthread_handler_decl(process_launcher_messages,
-			    __attribute__((unused)) arg);
+static pthread_handler_decl(process_connection, arg);
+static pthread_handler_decl(process_launcher_messages, arg);
 static int exec_line(struct manager_thd* thd,char* buf,char* buf_end);
 
 #ifdef DO_STACKTRACE
@@ -1024,7 +1023,8 @@ static void log_msg(const char* fmt, int msg_type, va_list args)
   pthread_mutex_unlock(&lock_log);
 }
 
-#define LOG_MSG_FUNC(type,TYPE) inline static void type  \
+/* No 'inline' here becasue functions with ... can't do that portable */
+#define LOG_MSG_FUNC(type,TYPE) static void type  \
  (const char* fmt,...) { \
   va_list args; \
   va_start(args,fmt); \
@@ -1038,7 +1038,7 @@ LOG_MSG_FUNC(log_info,LOG_INFO)
 #ifndef DBUG_OFF
 LOG_MSG_FUNC(log_debug,LOG_DEBUG)
 #else
-inline void log_debug(const char* __attribute__((unused)) fmt,...) {}
+void log_debug(const char* __attribute__((unused)) fmt,...) {}
 #endif
 
 static pthread_handler_decl(process_launcher_messages,
@@ -1367,6 +1367,12 @@ static int run_server_loop()
   int client_sock;
   uint len;
   Vio* vio;
+  pthread_attr_t thr_attr;
+  (void) pthread_attr_init(&thr_attr);
+#if !defined(HAVE_DEC_3_2_THREADS)
+  pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
+  (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
+#endif
 
   for (;!shutdown_requested;)
   {
@@ -1412,7 +1418,7 @@ static int run_server_loop()
       manager_thd_free(thd);
       continue;
     }
-    else if (pthread_create(&th,0,process_connection,(void*)thd))
+    else if (pthread_create(&th,&thr_attr,process_connection,(void*)thd))
     {
       client_msg(vio,MANAGER_INTERNAL_ERR,"Could not create thread, errno=%d",
 		 errno);
@@ -1420,6 +1426,7 @@ static int run_server_loop()
       continue;
     }
   }
+  (void) pthread_attr_destroy(&thr_attr);
   return 0;
 }
 
@@ -1659,13 +1666,20 @@ static void init_user_hash()
 
 static void init_globals()
 {
+  pthread_attr_t thr_attr;
   if (hash_init(&exec_hash,1024,0,0,get_exec_key,manager_exec_free,MYF(0)))
     die("Exec hash initialization failed");
   if (!one_thread)
   {
+    (void) pthread_attr_init(&thr_attr);
+#if !defined(HAVE_DEC_3_2_THREADS)
+    pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
+    (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
+#endif
     fork_launcher();
-    if (pthread_create(&launch_msg_th,0,process_launcher_messages,0))
+    if (pthread_create(&launch_msg_th,&thr_attr,process_launcher_messages,0))
       die("Could not start launcher message handler thread");
+    /* (void) pthread_attr_destroy(&thr_attr); */
   }
   init_user_hash();
   loop_th=pthread_self();
