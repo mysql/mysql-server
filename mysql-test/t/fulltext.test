@@ -20,7 +20,6 @@ select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 # UNION of fulltext's
 select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
 
-
 # boolean search
 
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
@@ -33,6 +32,8 @@ select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN
 select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
 select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
 select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+
+select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 
 # boolean w/o index:
 
