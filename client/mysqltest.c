@@ -224,7 +224,6 @@ Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
 Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
 Q_SERVER_START, Q_SERVER_STOP,Q_REQUIRE_MANAGER,
 Q_WAIT_FOR_SLAVE_TO_STOP,
-Q_REQUIRE_VERSION, Q_REQUIRE_OS,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_ENABLE_METADATA, Q_DISABLE_METADATA,
@@ -297,8 +296,6 @@ const char *command_names[]=
   "server_stop",
   "require_manager",
   "wait_for_slave_to_stop",
-  "require_version",
-  "require_os",
   "enable_warnings",
   "disable_warnings",
   "enable_info",
@@ -817,63 +814,6 @@ int do_server_op(struct st_query* q,const char* op)
   return 0;
 }
 #endif
-
-int do_require_version(struct st_query* q)
-{
-  MYSQL* mysql = &cur_con->mysql;
-  MYSQL_RES* res;
-  MYSQL_ROW row;
-  char* p=q->first_argument, *ver_arg;
-  uint ver_arg_len,ver_len;
-  LINT_INIT(res);
-
-  if (!*p)
-    die("Missing version argument in require_version\n");
-  ver_arg = p;
-  while (*p && !my_isspace(charset_info,*p))
-    p++;
-  *p = 0;
-  ver_arg_len = p - ver_arg;
-
-  if (mysql_query(mysql, "select version()") ||
-      !(res=mysql_store_result(mysql)))
-    die("Query failed while check server version: %s",
-	mysql_error(mysql));
-  if (!(row=mysql_fetch_row(res)) || !row[0])
-  {
-    mysql_free_result(res);
-    die("Strange result from query while checking version");
-  }
-  ver_len = strlen(row[0]);
-  if (ver_len < ver_arg_len || memcmp(row[0],ver_arg,ver_arg_len))
-  {
-    mysql_free_result(res);
-    abort_not_supported_test();
-  }
-  mysql_free_result(res);
-  return 0;
-}
-
-int do_require_os(struct st_query* q)
-{
-  char *p=q->first_argument, *os_arg;
-  DBUG_ENTER("do_require_os");
-
-  if (!*p)
-    die("Missing version argument in require_os\n");
-  os_arg= p;
-  while (*p && !my_isspace(charset_info,*p))
-    p++;
-  *p = 0;
-
-  if (strcmp(os_arg, "unix"))
-    die("For now only testing of os=unix is implemented\n");
-
-#if defined(__NETWARE__) || defined(__WIN__) || defined(__OS2__)
-  abort_not_supported_test();
-#endif
-  DBUG_RETURN(0);
-}
 
 int do_source(struct st_query* q)
 {
@@ -1628,6 +1568,7 @@ int do_connect(struct st_query* q)
   if (opt_compress)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, "latin1");
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
@@ -1910,12 +1851,6 @@ int read_query(struct st_query** q_ptr)
   q->record_file[0]= 0;
   q->require_file= 0;
   q->first_word_len= 0;
-  memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
-	 sizeof(global_expected_errno));
-  q->expected_errors= global_expected_errors;
-  q->abort_on_error= global_expected_errors == 0;
-  bzero((gptr) global_expected_errno, sizeof(global_expected_errno));
-  global_expected_errors=0;
 
   q->type = Q_UNKNOWN;
   q->query_buf= q->query= 0;
@@ -1928,8 +1863,16 @@ int read_query(struct st_query** q_ptr)
   if (*p == '#')
   {
     q->type = Q_COMMENT;
+    /* This goto is to avoid losing the "expected error" info. */
+    goto end;
   }
-  else if (p[0] == '-' && p[1] == '-')
+  memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
+	 sizeof(global_expected_errno));
+  q->expected_errors= global_expected_errors;
+  q->abort_on_error= global_expected_errors == 0;
+  bzero((gptr) global_expected_errno, sizeof(global_expected_errno));
+  global_expected_errors=0;
+  if (p[0] == '-' && p[1] == '-')
   {
     q->type= Q_COMMENT_WITH_COMMAND;
     p+= 2;					/* To calculate first word */
@@ -1964,6 +1907,8 @@ int read_query(struct st_query** q_ptr)
       *p1 = 0;
     }
   }
+
+end:
   while (*p && my_isspace(charset_info, *p))
     p++;
   if (!(q->query_buf= q->query= my_strdup(p, MYF(MY_WME))))
@@ -2692,6 +2637,8 @@ int main(int argc, char **argv)
   if (opt_compress)
     mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME, "latin1");
+
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&cur_con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
@@ -2729,15 +2676,13 @@ int main(int argc, char **argv)
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
       case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
-      case Q_ENABLE_INFO:    	 disable_info=0; break;
-      case Q_DISABLE_INFO:   	 disable_info=1; break;
+      case Q_ENABLE_INFO:        disable_info=0; break;
+      case Q_DISABLE_INFO:       disable_info=1; break;
       case Q_ENABLE_METADATA:    display_metadata=1; break;
-      case Q_DISABLE_METADATA: 	 display_metadata=0; break;
+      case Q_DISABLE_METADATA:   display_metadata=0; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q, 0); break;
       case Q_REAL_SLEEP: do_sleep(q, 1); break;
-      case Q_REQUIRE_VERSION: do_require_version(q); break;
-      case Q_REQUIRE_OS: do_require_os(q); break;
       case Q_WAIT_FOR_SLAVE_TO_STOP: do_wait_for_slave_to_stop(q); break;
       case Q_REQUIRE_MANAGER: do_require_manager(q); break;
 #ifndef EMBEDDED_LIBRARY

@@ -675,6 +675,8 @@ int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		enum enum_var_type value_type,
 		pthread_mutex_t *mutex);
+int mysql_find_files(THD *thd,List<char> *files, const char *db,
+                const char *path, const char *wild, bool dir);
 int mysqld_show_charsets(THD *thd,const char *wild);
 int mysqld_show_collations(THD *thd,const char *wild);
 int mysqld_show_storage_engines(THD *thd);
@@ -844,6 +846,9 @@ bool is_keyword(const char *name, uint len);
 
 #define MY_DB_OPT_FILE "db.opt"
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
+bool my_dbopt_init(void);
+void my_dbopt_cleanup(void);
+void my_dbopt_free(void);
 
 /*
   External variables

@@ -69,12 +69,16 @@ public:
     return 0;
   }
   /*
-    This is a list of flags that says how the storage engine
+    This is a bitmap of flags that says how the storage engine
     implements indexes. The current index flags are documented in
     handler.h. If you do not implement indexes, just return zero
     here.
+
+    part is the key part to check. First key part is 0
+    If all_parts it's set, MySQL want to know the flags for the combined
+    index up to and including 'part'.
   */
-  ulong index_flags(uint inx, uint part) const
+  ulong index_flags(uint inx, uint part, bool all_parts) const
   {
     return 0;
   }

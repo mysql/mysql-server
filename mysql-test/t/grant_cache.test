@@ -126,6 +126,15 @@ show status like "Qcache_not_cached";
 # Cleanup
 
 connection root;
+#
+# A temporary 4.1 workaround to make this test pass if
+# mysql was compiled with other than latin1 --with-charset=XXX.
+# Without "set names binary" the below queries fail with
+# "Illegal mix of collations" error.
+# In 5.0 we will change grant tables to use NCHAR(N) instead
+# of "CHAR(N) BINARY", and use cast-to-nchar:  N'mysqltest_1'.
+#
+set names binary;
 delete from mysql.user where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
 delete from mysql.db where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
 delete from mysql.tables_priv where user in ("mysqltest_1","mysqltest_2","mysqltest_3");

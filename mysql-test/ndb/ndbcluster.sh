@@ -98,7 +98,7 @@ if [ ! -x $exec_ndb ]; then
   echo "$exec_ndb missing"
   exit 1
 fi
-if [ ! -x $exec_mgmtsrv ]; then
+if [ ! -x $exec_mgmtsrvr ]; then
   echo "$exec_mgmtsrvr missing"
   exit 1
 fi

@@ -213,7 +213,11 @@ C_MODE_END
 
 /* Fix problem when linking c++ programs with gcc 3.x */
 #ifdef DEFINE_CXA_PURE_VIRTUAL
-#define FIX_GCC_LINKING_PROBLEM extern "C" { int __cxa_pure_virtual() {return 0;} }
+#define FIX_GCC_LINKING_PROBLEM \
+extern "C" { int __cxa_pure_virtual() {\
+  DBUG_ASSERT("Pure virtual method called." == "Aborted");\
+  return 0;\
+} }
 #else
 #define FIX_GCC_LINKING_PROBLEM
 #endif

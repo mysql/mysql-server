@@ -72,7 +72,7 @@ public:
     return (HA_REC_NOT_IN_SEQ | HA_NOT_EXACT_COUNT | HA_NO_AUTO_INCREMENT |
             HA_FILE_BASED);
   }
-  ulong index_flags(uint idx, uint part) const
+  ulong index_flags(uint idx, uint part, bool all_parts) const
   {
     return 0;
   }

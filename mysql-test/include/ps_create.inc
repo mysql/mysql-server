@@ -1,8 +1,22 @@
 ############### include/ps_create.inc ##################
 #                                                      #
 #  drop + create the tables used in most PS test cases #
+#         t/ps_*.test                                  #
 #                                                      #
 ########################################################
+
+#    
+# NOTE: PLEASE SEE ps_1general.test (bottom) 
+#       BEFORE ADDING NEW TABLES HERE !!!
+#
+# Please be aware, that this file will be sourced by several
+# test case files stored within the subdirectory 't'.
+# So every change here will affect several test cases.
+
+#----------- Please insert your table definitions here ----------#
+
+
+#---- Please do not alter the following table definitions -------#
 
 --disable_warnings
 drop table if exists t1, t_many_col_types ;

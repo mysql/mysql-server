@@ -198,6 +198,7 @@ Qcache_hits	8
 show status like "Qcache_not_cached";
 Variable_name	Value
 Qcache_not_cached	8
+set names binary;
 delete from mysql.user where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
 delete from mysql.db where user in ("mysqltest_1","mysqltest_2","mysqltest_3");
 delete from mysql.tables_priv where user in ("mysqltest_1","mysqltest_2","mysqltest_3");

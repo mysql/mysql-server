@@ -1417,7 +1417,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     s = SimpleProperties::pack(w, 
 			       &tmpAttr,
 			       DictTabInfo::AttributeMapping, 
-			       DictTabInfo::TableMappingSize, true);
+			       DictTabInfo::AttributeMappingSize, true);
     w.add(DictTabInfo::AttributeEnd, 1);
   }
 

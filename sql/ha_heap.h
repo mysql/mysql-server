@@ -44,7 +44,7 @@ class ha_heap: public handler
             HA_REC_NOT_IN_SEQ | HA_READ_RND_SAME |
             HA_CAN_INSERT_DELAYED);
   }
-  ulong index_flags(uint inx, uint part) const
+  ulong index_flags(uint inx, uint part, bool all_parts) const
   {
     return ((table->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
 	    HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE :

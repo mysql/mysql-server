@@ -80,4 +80,3 @@ DROP TABLE help_relation;
 DROP TABLE help_topic;
 
 -- enable_query_log
-

@@ -299,8 +299,17 @@ drop table test_$1.t1;
 drop database test_$1;
 
 connection default;
+set names binary;
 delete from mysql.user 
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 delete from mysql.db   
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 flush privileges;
+
+#Bug #4374 SHOW TABLE STATUS FROM ignores collation_connection
+set names latin1;
+create database `ä`;
+create table `ä`.`ä` (a int) engine=heap;
+--replace_column 7 # 8 # 9 #
+show table status from `ä` LIKE 'ä';
+drop database `ä`;
