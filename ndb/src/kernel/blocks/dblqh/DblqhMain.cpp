@@ -7283,6 +7283,7 @@ Dblqh::seize_acc_ptr_list(ScanRecord* scanP, Uint32 batch_size)
 {
   Uint32 i;
   Uint32 attr_buf_recs= (batch_size + 30) / 32;
+
   if (batch_size > 1) {
     if (c_no_attrinbuf_recs < attr_buf_recs) {
       jam();
@@ -7302,7 +7303,8 @@ Dblqh::release_acc_ptr_list(ScanRecord* scanP)
 {
   Uint32 i, attr_buf_recs;
   attr_buf_recs= scanP->scan_acc_attr_recs;
-  for (i= 1; i < attr_buf_recs; i++) {
+
+  for (i= 1; i <= attr_buf_recs; i++) {
     release_attrinbuf(scanP->scan_acc_op_ptr[i]);
   }
   scanP->scan_acc_attr_recs= 0;
@@ -7570,9 +7572,9 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
 
 void Dblqh::scanAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length) 
 {
+  scanptr.i = tcConnectptr.p->tcScanRec;
+  c_scanRecordPool.getPtr(scanptr);
   if (saveTupattrbuf(signal, dataPtr, length) == ZOK) {
-    scanptr.i = tcConnectptr.p->tcScanRec;
-    c_scanRecordPool.getPtr(scanptr);
     if (tcConnectptr.p->currTupAiLen < scanptr.p->scanAiLength) {
       jam();
     } else {
@@ -8394,7 +8396,6 @@ void Dblqh::tupScanCloseConfLab(Signal* signal)
     scanptr.p->m_curr_batch_size_bytes= 0;
     sendScanFragConf(signal, ZSCAN_FRAG_CLOSED);
   }//if
-  release_acc_ptr_list(scanptr.p);
   finishScanrec(signal);
   releaseScanrec(signal);
   tcConnectptr.p->tcScanRec = RNIL;
@@ -8554,10 +8555,12 @@ void Dblqh::initScanTc(Signal* signal,
  * ========================================================================= */
 void Dblqh::finishScanrec(Signal* signal)
 {
+  release_acc_ptr_list(scanptr.p);
+
   FragrecordPtr tFragPtr;
   tFragPtr.i = scanptr.p->fragPtrI;
   ptrCheckGuard(tFragPtr, cfragrecFileSize, fragrecord);
-  
+
   LocalDLFifoList<ScanRecord> queue(c_scanRecordPool,
 				    tFragPtr.p->m_queuedScans);
   
