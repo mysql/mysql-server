@@ -247,9 +247,12 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   }
   if (lock_type == TL_WRITE_DELAYED)
   {
-    id=0;					// No auto_increment id
-    info.copied=values_list.elements;
-    end_delayed_insert(thd);
+    if (!error)
+    {
+      id=0;					// No auto_increment id
+      info.copied=values_list.elements;
+      end_delayed_insert(thd);
+    }
   }
   else
   {
@@ -486,7 +489,7 @@ public:
      table(0),tables_in_use(0),stacked_inserts(0), status(0), dead(0),
      group_count(0)
   {
-    thd.user=thd.host=(char*) "";
+    thd.user=0; thd.host=(char*) localhost;
     thd.current_tablenr=0;
     thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;
@@ -676,7 +679,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 TABLE *delayed_insert::get_local_table(THD* client_thd)
 {
   my_ptrdiff_t adjust_ptrs;
-  Field **field,**org_field;
+  Field **field,**org_field, *found_next_number_field;
   TABLE *copy;
 
   /* First request insert thread to get a lock */
@@ -719,11 +722,14 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
 
   adjust_ptrs=PTR_BYTE_DIFF(copy->record[0],table->record[0]);
 
+  found_next_number_field=table->found_next_number_field;
   for (org_field=table->field ; *org_field ; org_field++,field++)
   {
     if (!(*field= (*org_field)->new_field(copy)))
       return 0;
     (*field)->move_field(adjust_ptrs);		// Point at copy->record[0]
+    if (*org_field == found_next_number_field)
+      (*field)->table->found_next_number_field= *field;
   }
   *field=0;
 
@@ -806,14 +812,17 @@ static int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic,
 
 static void end_delayed_insert(THD *thd)
 {
+  DBUG_ENTER("end_delayed_insert");
   delayed_insert *di=thd->di;
   pthread_mutex_lock(&di->mutex);
+  DBUG_PRINT("info",("tables in use: %d",di->tables_in_use));
   if (!--di->tables_in_use || di->thd.killed)
   {						// Unlock table
     di->status=1;
     pthread_cond_signal(&di->cond);
   }
   pthread_mutex_unlock(&di->mutex);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -951,6 +960,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
       pthread_mutex_unlock(&di->thd.mysys_var->mutex);
       di->thd.proc_info=0;
 
+      DBUG_PRINT("info",("Waiting for someone to insert rows"));
       for ( ; ;)
       {
 	int error;
