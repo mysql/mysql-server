@@ -228,7 +228,7 @@ extern unsigned long net_buffer_length;
 
 void randominit(struct rand_struct *,unsigned long seed1,
 		unsigned long seed2);
-double rnd(struct rand_struct *);
+double my_rnd(struct rand_struct *);
 void make_scrambled_password(char *to,const char *password);
 void get_salt_from_password(unsigned long *res,const char *password);
 void make_password_from_salt(char *to, unsigned long *hash_res);

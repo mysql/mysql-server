@@ -1,9 +1,9 @@
 #! /bin/sh
 
-# WINE_BUILD_DIR, BUILD_DIR, and VERSION must be changed before compiling
+# WINE_BUILD_DIR, BUILD_DIR, and VERSION must be correct before compiling
 # This values are normally changed by the nwbootstrap script
 
-# the default for WINE_BUILD_DIR is "F:/mydev"
+# the default is "F:/mydev"
 export MYDEV="WINE_BUILD_DIR"
 
 export MWCNWx86Includes="$MYDEV/libc/include"
@@ -12,16 +12,16 @@ export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib"
 
 export WINEPATH="$MYDEV/mw/bin"
 
-# the default for BUILD_DIR is "$HOME/mydev"
+# the default added path is "$HOME/mydev/mysql-x.x-x/netware/BUILD"
 export PATH="$PATH:BUILD_DIR/mysql-VERSION/netware/BUILD"
 
 export AR='mwldnlm'
 export AR_FLAGS='-type library -o'
 export AS='mwasmnlm'
 export CC='mwccnlm -gccincludes'
-export CFLAGS='-dialect c -proc 686 -bool on -relax_pointers -DUSE_OLD_FUNCTIONS'
+export CFLAGS='-dialect c -proc 686 -relax_pointers'
 export CXX='mwccnlm -gccincludes'
-export CXXFLAGS='-dialect c++ -proc 686 -bool on -relax_pointers'
+export CXXFLAGS='-dialect c++ -proc 686 -bool on -wchar_t on -relax_pointers -D_WCHAR_T'
 export LD='mwldnlm'
 export LDFLAGS='-entry _LibCPrelude -exit _LibCPostlude -flags pseudopreemption'
 export RANLIB=:

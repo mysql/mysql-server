@@ -59,3 +59,8 @@ INSERT INTO t1 (numfacture,expedition) VALUES ('1212','0001-00-00 00:00:00');
 SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
 EXPLAIN SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
 drop table t1;
+create table t1 (a datetime not null, b datetime not null);
+insert into t1 values (now(), now());
+insert into t1 values (now(), now());
+select * from t1 where a is null or b is null;
+drop table t1;

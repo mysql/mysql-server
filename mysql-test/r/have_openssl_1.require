@@ -1,2 +1,2 @@
 Variable_name	Value
-have_openssl	YES
+Ssl_cipher	EDH-RSA-DES-CBC3-SHA

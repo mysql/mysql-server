@@ -256,6 +256,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MAX_UPDATES_PER_HOUR
 %token	MEDIUM_SYM
 %token	MERGE_SYM
+%token	MEMORY_SYM
 %token	MIN_ROWS
 %token	MYISAM_SYM
 %token	NATIONAL_SYM
@@ -871,6 +872,7 @@ table_types:
 	| MYISAM_SYM	{ $$= DB_TYPE_MYISAM; }
 	| MERGE_SYM	{ $$= DB_TYPE_MRG_MYISAM; }
 	| HEAP_SYM	{ $$= DB_TYPE_HEAP; }
+	| MEMORY_SYM	{ $$= DB_TYPE_HEAP; }
 	| BERKELEY_DB_SYM { $$= DB_TYPE_BERKELEY_DB; }
 	| INNOBASE_SYM  { $$= DB_TYPE_INNODB; };
 
@@ -2448,13 +2450,17 @@ procedure_item:
 opt_into:
 	INTO OUTFILE TEXT_STRING
 	{
-	  if (!(Lex->exchange= new sql_exchange($3.str,0)))
+	  THD *thd= current_thd;
+	  thd->safe_to_cache_query= 0; 
+	  if (!(thd->lex.exchange= new sql_exchange($3.str,0)))
 	    YYABORT;
 	}
 	opt_field_term opt_line_term
 	| INTO DUMPFILE TEXT_STRING
 	{
-	  if (!(Lex->exchange= new sql_exchange($3.str,1)))
+	  THD *thd= current_thd;
+	  thd->safe_to_cache_query= 0;
+	  if (!(thd->lex.exchange= new sql_exchange($3.str,1)))
 	    YYABORT;
 	};
 
@@ -3316,6 +3322,7 @@ keyword:
 	| MAX_UPDATES_PER_HOUR  {}
 	| MEDIUM_SYM		{}
 	| MERGE_SYM		{}
+	| MEMORY_SYM		{}
 	| MINUTE_SYM		{}
 	| MIN_ROWS		{}
 	| MODIFY_SYM		{}

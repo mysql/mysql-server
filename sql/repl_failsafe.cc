@@ -446,8 +446,33 @@ int show_new_master(THD* thd)
   }
 }
 
+/*
+  Asks the master for the list of its other connected slaves.
+  This is for failsafe replication : 
+  in order for failsafe replication to work, the servers involved in replication
+  must know of each other. We accomplish this by having each slave report to the
+  master how to reach it, and on connection, each slave receives information
+  about where the other slaves are.
 
-int update_slave_list(MYSQL* mysql)
+  SYNOPSIS
+    update_slave_list()
+    mysql           pre-existing connection to the master
+    mi              master info
+
+  NOTES
+    mi is used only to give detailed error messages which include the
+    hostname/port of the master, the username used by the slave to connect to
+    the master.
+    If the user used by the slave to connect to the master does not have the
+    REPLICATION SLAVE privilege, it will pop in this function because SHOW SLAVE
+    HOSTS will fail on the master.
+
+  RETURN VALUES
+    1           error
+    0           success
+ */
+
+int update_slave_list(MYSQL* mysql, MASTER_INFO* mi)
 {
   MYSQL_RES* res=0;
   MYSQL_ROW row;
@@ -459,7 +484,7 @@ int update_slave_list(MYSQL* mysql)
   if (mc_mysql_query(mysql,"SHOW SLAVE HOSTS",0) ||
       !(res = mc_mysql_store_result(mysql)))
   {
-    error = "Query error";
+    error= mc_mysql_error(mysql);
     goto err;
   }
 
@@ -473,7 +498,8 @@ int update_slave_list(MYSQL* mysql)
     port_ind=4;
     break;
   default:
-    error = "Invalid number of fields in SHOW SLAVE HOSTS";
+    error= "the master returned an invalid number of fields for SHOW SLAVE \
+HOSTS";
     goto err;
   }
 
@@ -491,7 +517,7 @@ int update_slave_list(MYSQL* mysql)
     {
       if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
       {
-	error = "Out of memory";
+	error= "the slave is out of memory";
 	pthread_mutex_unlock(&LOCK_slave_list);
 	goto err;
       }
@@ -515,7 +541,9 @@ err:
     mc_mysql_free_result(res);
   if (error)
   {
-    sql_print_error("Error updating slave list: %s",error);
+    sql_print_error("While trying to obtain the list of slaves from the master \
+'%s:%d', user '%s' got the following error: '%s'", 
+                    mi->host, mi->port, mi->user, error);
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);

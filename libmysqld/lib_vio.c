@@ -33,7 +33,6 @@
 #include <my_sys.h>
 #include <my_net.h>
 #include <m_string.h>
-#include <dbug.h>
 #include <assert.h>
 
 #ifndef __WIN__

@@ -16,16 +16,16 @@
 # MA 02111-1307, USA
 
 BUILT_SOURCES =		mysql_version.h m_ctype.h my_config.h
-pkginclude_HEADERS =	dbug.h m_string.h my_sys.h my_list.h \
+pkginclude_HEADERS =	my_dbug.h m_string.h my_sys.h my_list.h \
 			mysql.h mysql_com.h mysqld_error.h mysql_embed.h \
 		  	my_semaphore.h my_pthread.h my_no_pthread.h raid.h \
 			errmsg.h my_global.h my_net.h my_alloc.h \
-			my_getopt.h sslopt-longopts.h \
+			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h $(BUILT_SOURCES)
 noinst_HEADERS =	config-win.h config-os2.h config-netware.h \
 			nisam.h heap.h merge.h my_bitmap.h\
 			myisam.h myisampack.h myisammrg.h ft_global.h\
-			my_dir.h mysys_err.h my_base.h \
+			mysys_err.h my_base.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
 			my_aes.h my_tree.h hash.h thr_alarm.h \
 			thr_lock.h t_ctype.h violite.h md5.h mysql_version.h.in

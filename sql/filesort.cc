@@ -68,7 +68,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 		 ha_rows *examined_rows)
 {
   int error;
-  ulong memavl;
+  ulong memavl, min_sort_memory;
   uint maxbuffer;
   BUFFPEK *buffpek;
   ha_rows records;
@@ -137,7 +137,8 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 #endif
 
   memavl= thd->variables.sortbuff_size;
-  while (memavl >= MIN_SORT_MEMORY)
+  min_sort_memory= max(MIN_SORT_MEMORY, param.sort_length*MERGEBUFF2);
+  while (memavl >= min_sort_memory)
   {
     ulong old_memavl;
     ulong keys= memavl/(param.sort_length+sizeof(char*));
@@ -146,10 +147,10 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 					       MYF(0))))
       break;
     old_memavl=memavl;
-    if ((memavl=memavl/4*3) < MIN_SORT_MEMORY && old_memavl > MIN_SORT_MEMORY)
-      memavl=MIN_SORT_MEMORY;
+    if ((memavl=memavl/4*3) < min_sort_memory && old_memavl > min_sort_memory)
+      memavl= min_sort_memory;
   }
-  if (memavl < MIN_SORT_MEMORY)
+  if (memavl < min_sort_memory)
   {
     my_error(ER_OUTOFMEMORY,MYF(ME_ERROR+ME_WAITTANG),
 	     thd->variables.sortbuff_size);

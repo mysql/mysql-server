@@ -2,7 +2,7 @@
 
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
-   id int(11) DEFAULT '0' NOT NULL auto_increment,
+   id int(11) NOT NULL auto_increment,
    datatype_id int(11) DEFAULT '0' NOT NULL,
    minvalue decimal(20,10) DEFAULT '0.0000000000' NOT NULL,
    maxvalue decimal(20,10) DEFAULT '0.0000000000' NOT NULL,

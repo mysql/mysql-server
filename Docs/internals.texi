@@ -51,6 +51,7 @@ This is a manual about @strong{MySQL} internals.
 
 @menu
 * caching::                     How MySQL Handles Caching
+* join_buffer_size::
 * flush tables::                How MySQL Handles @code{FLUSH TABLES}
 * filesort::                    How MySQL Does Sorting (@code{filesort})
 * coding guidelines::           Coding Guidelines
@@ -58,10 +59,15 @@ This is a manual about @strong{MySQL} internals.
 * DBUG::                        DBUG Tags To Use
 * protocol::                    MySQL Client/Server Protocol
 * Fulltext Search::             Fulltext Search in MySQL
+* MyISAM Record Structure::     MyISAM Record Structure
+* InnoDB Record Structure::     InnoDB Record Structure
+* InnoDB Page Structure::       InnoDB Page Structure
+* Files in MySQL Sources::      Annotated List Of Files in the MySQL Source Code Distribution
+* Files in InnoDB Sources::     Annotated List Of Files in the InnoDB Source Code Distribution
 @end menu
 
 
-@node caching, flush tables, Top, Top
+@node caching, join_buffer_size, Top, Top
 @chapter How MySQL Handles Caching
 
 @strong{MySQL} has the following caches:
@@ -104,7 +110,7 @@ use many join caches in the worst case.
 @end table
 
 @node join_buffer_size, flush tables, caching, Top
-@subchapter How MySQL uses the join_buffer cache
+@chapter How MySQL uses the join_buffer cache
 
 Basic information about @code{join_buffer_size}:
 
@@ -175,7 +181,7 @@ same algorithm described above to handle it.  (In other words, we store
 the same row combination several times into different buffers)
 @end itemize
 
-@node flush tables, filesort, caching, Top
+@node flush tables, filesort, join_buffer_size, Top
 @chapter How MySQL Handles @code{FLUSH TABLES}
 
 @itemize @bullet
@@ -1650,8 +1656,8 @@ fe 00                       . .
 
 @c @printindex fn
 
-@node 4.1 protocol,,,
-@subchapter MySQL 4.1 protocol
+@c @node 4.1 protocol,,,
+@c @chapter MySQL 4.1 protocol
 
 @node 4.1 protocol changes,,,
 @section Changes to 4.0 protocol in 4.1
@@ -1694,7 +1700,7 @@ results will sent as binary (low-byte-first).
 The field description packet is sent as a response to a query that
 contains a result set.  It can be distinguished from a ok packet by
 the fact that the first byte can't be 0 for a field packet.
-@xref {4.1 ok packet}.
+@xref{4.1 ok packet}.
 
 The header packet has the following structure:
 
@@ -1820,7 +1826,7 @@ parameter in the query:
 @item 2 @tab 2 byte column flags (NOT_NULL_FLAG etc)
 @item 1 @tab Number of decimals
 @item 4 @tab Max column length.
-@end itemize
+@end multitable
 
 Note that the above is not yet in 4.1 but will be added this month.
 
@@ -1829,7 +1835,7 @@ able to provide the optimal information for all parameters.
 
 If number of columns, in the header packet, is not 0 then the
 prepared statement will contain a result set. In this case the packet
-is followed by a field description result set. @xref{4.1 field descr}.
+is followed by a field description result set. @xref{4.1 field desc}.
 
 
 @node 4.1 long data,,,
@@ -1853,7 +1859,7 @@ This packet is sent from client -> server:
 @item 2 @tab Parameter number
 @item 2 @tab Type of parameter  (not used at this point)
 @item # @tab data (Rest of packet)
-@end itemize
+@end multitable
 
 The server will NOT send an @code{ok} or @code{error} packet in
 responce for this.  If there is any errors (like to big string), one
@@ -1875,7 +1881,7 @@ execute or if one has rebound the parameters.
 @item 2*param_count     @tab Type of parameters (only given if new_parameter_bound flag is 1)
 @item #    @tab Parameter data, repeated for each parameter that are
 NOT NULL and not used with mysql_send_long_data().
-@end itemize
+@end multitable
 
 The null-bit-map is for all parameters (including parameters sent with
 'mysql_send_long_data). If parameter 0 is NULL, then bit 0 in the
@@ -1933,7 +1939,7 @@ DATETIME, DATE and TIME are sent to the server in a binary format as follows:
 The first byte is a length byte and then comes all parameters that are
 not 0. (Always counted from the beginning).
 
-@node Fulltext Search,  , protocol, Top
+@node Fulltext Search, MyISAM Record Structure, protocol, Top
 @chapter Fulltext Search in MySQL
 
 Hopefully, sometime there will be complete description of
@@ -1974,6 +1980,3850 @@ The second expression gives somewhat steeper increase in total
 weight as number of matched B's increases, because it assigns
 higher weights to individual B's. Also the first expression in
 much simplier. So it is the first one, that is implemented in MySQL.
+
+
+@node MyISAM Record Structure, InnoDB Record Structure, Fulltext Search, Top
+@chapter MyISAM Record Structure
+
+@section Introduction
+
+When you say:
+@*
+
+@strong{CREATE TABLE Table1 ...}
+@*
+
+MySQL creates files named Table1.MYD ("MySQL Data"), Table1.MYI
+("MySQL Index"), and Table1.FRM ("Format"). These files will be in the
+directory: @*
+/<datadir>/<database>/
+@*
+
+For example, if you use Linux, you might find the files here (assume
+your database name is "test"): @*
+/usr/local/var/test
+@*
+
+And if you use Windows, you might find the files in this directory: @*
+\mysql\data\test\
+@*@*
+
+Let's look at the .MYD Data file (MyISAM SQL Data file) more closely.
+
+@table @strong
+@item Page Size
+Unlike most DBMSs, MySQL doesn't store on disk using pages. Therefore
+you will not see filler space between rows. (Reminder: This does not
+refer to BDB and INNODB tables, which do use pages).
+@*
+
+@item Record Header
+The minimal record header is a set of flags:
+@itemize @bullet
+@item
+"X bit"  =  0 if row is deleted, = 1 if row is not deleted
+@item
+"Null Bits"  =  0 if column is not NULL, = 1 if column is NULL
+@item
+"Filler Bits"  = 1
+@end itemize
+@end table
+@*
+
+Here's an example. Suppose you say:
+@*
+
+@strong{CREATE TABLE Table1 (column1 CHAR(1), column2 CHAR(1), column3 CHAR(1))}
+@*
+
+@strong{INSERT INTO Table1 VALUES ('a', 'b', 'c')}
+@*
+
+@strong{INSERT INTO Table1 VALUES ('d', NULL, 'e')}
+@*
+
+A CHAR(1) column takes precisely one byte (plus one bit of overhead
+that is assigned to every column -- I'll describe the details of
+column storage later). So the file Table1.MYD looks like this:
+@*
+
+@strong{Hexadecimal Display of Table1.MYD file}@*
+@code{
+F1 61 62 63 00 F5 64 00 66 00              ... .abc..d e.
+}
+@*
+
+Here's how to read this hexadecimal-dump display:@*
+@itemize @bullet
+@item
+The hexadecimal numbers @code{F1 61 62 63 00 F5 64 20 66 00} are byte
+values and the column on the right is an attempt to show the
+same bytes in ASCII.
+@item
+The @code{F1} byte means that there are no null fields in the first row.
+@item
+The @code{F5} byte means that the second column of the second row is NULL.
+@end itemize
+
+(It's probably easier to understand the flag setting if you restate
+@code{F5} as @code{11110101 binary}, and (a) notice that the third flag bit from the
+right is @code{on}, and (b) remember that the first flag bit is the X bit.)
+@*
+
+There are complications -- the record header is more complex if there
+are variable-length fields -- but the simple display shown in the
+example is exactly what you'd see if you took a debugger and looked
+at the MySQL Data file.
+@*
+
+@section Physical Attributes of Columns
+
+Next I'll describe the physical attributes of each column in a row.
+The format depends entirely on the data type and the size of the
+column, so, for every data type, I'll give a description and an example.
+@*
+
+@table @strong
+@item The character data types
+
+@strong{CHAR}
+@itemize @bullet
+@item
+Storage: fixed-length string with space padding on the right.
+@item
+Example: a CHAR(5) column containing the value 'A' looks like:@*
+@code{hexadecimal 41 20 20 20 20} --  (length = 5, value = @code{'A    '})
+@end itemize
+
+@strong{VARCHAR}
+@itemize @bullet
+@item
+Storage: variable-length string with a preceding length.
+@item
+Example: a VARCHAR(7) column containing 'A' looks like:@*
+@code{hexadecimal 01 41}  --  (length = 1, value = @code{'A'})
+@end itemize
+
+@item The numeric data types
+
+Important: MySQL stores all multi-byte binary numbers with the
+high byte first. This is called "little-endian" numeric storage;
+it's normal on Intel x86 machines; MySQL uses it even for non-Intel
+machines so that databases will be portable.
+@*
+
+@strong{TINYINT}
+@itemize @bullet
+@item
+Storage: fixed-length binary, always one byte.
+@item
+Example: a TINYINT column containing 65 looks like:@*
+@code{hexadecimal 41}  --  (length = 1, value = 65)
+@end itemize
+
+@strong{SMALLINT}
+@itemize @bullet
+@item
+Storage: fixed-length binary, always two bytes.
+@item
+Example: a SMALLINT column containing 65 looks like:@*
+@code{hexadecimal 41 00}  --  (length = 2, value = 65)
+@end itemize
+
+@strong{MEDIUMINT}
+@itemize @bullet
+@item
+Storage: fixed-length binary, always three bytes.
+@item
+Example: a MEDIUMINT column containing 65 looks like:@*
+@code{hexadecimal 41 00 00}  --  (length = 3, value = 65)
+@end itemize
+
+@strong{INT}
+@itemize @bullet
+@item
+Storage: fixed-length binary, always four bytes.
+@item
+Example: an INT column containing 65 looks like:@*
+@code{hexadecimal 41 00 00 00}  --  (length = 4, value = 65)
+@end itemize
+
+@strong{BIGINT}
+@itemize @bullet
+@item
+Storage: fixed-length binary, always eight bytes.
+@item
+Example: a BIGINT column containing 65 looks like:@*
+@code{hexadecimal 41 00 00 00 00 00 00 00}  --  (length = 8, value = 65)
+@end itemize
+
+@strong{FLOAT}
+@itemize @bullet
+@item
+Storage: fixed-length binary, always four bytes.
+@item
+Example: a FLOAT column containing approximately 65 looks like:@*
+@code{hexadecimal 00 00 82 42}  --  (length = 4, value = 65)
+@end itemize
+
+@strong{DOUBLE PRECISION}
+@itemize @bullet
+@item
+Storage: fixed-length binary, always eight bytes.
+@item
+Example: a DOUBLE PRECISION column containing approximately 65 looks like:@*
+@code{hexadecimal 00 00 00 00 00 40 50 40}  --  (length = 8, value = 65)
+@end itemize
+
+@strong{REAL}
+@itemize @bullet
+@item
+Storage: same as FLOAT, or same as DOUBLE PRECISION, depending on setting of the --ansi switch.
+@end itemize
+
+@strong{DECIMAL}
+@itemize @bullet
+@item
+Storage: fixed-length string, with a leading byte for the sign, if any.
+@item
+Example: a DECIMAL(2) column containing 65 looks like:@*
+@code{hexadecimal 20 36 35}  --  (length = 3, value = @code{' 65'})
+@item
+Example: a DECIMAL(2) UNSIGNED column containing 65 looks like:@*
+@code{hexadecimal 36 35}  --  (length = 2, value = @code{'65'})
+@item
+Example: a DECIMAL(4,2) UNSIGNED column containing 65 looks like:@*
+@code{hexadecimal 36 35 2E 30 30}  --  (length = 5, value = @code{'65.00'})
+@end itemize
+
+@strong{NUMERIC}
+@itemize @bullet
+@item
+Storage: same as DECIMAL.
+@end itemize
+
+@strong{BOOL}
+@itemize @bullet
+@item
+Storage: same as TINYINT.
+@end itemize
+
+@item The temporal data types
+
+@strong{DATE}
+@itemize @bullet
+@item
+Storage: 3 byte integer, low byte first.
+Packed as: 'day + month*32 + year*16*32'
+@item
+Example: a DATE column containing '1962-01-02' looks like:@*
+@code{hexadecimal 22 54 0F}
+@end itemize
+
+@strong{DATETIME}
+@itemize @bullet
+@item
+Storage: eight bytes.
+@item
+Part 1 is a 32-bit integer containing year*10000 + month*100 + day.
+@item
+Part 2 is a 32-bit integer containing hour*10000 + minute*100 + second.
+@item
+Example: a DATETIME column for '0001-01-01 01:01:01' looks like:@*
+@code{hexadecimal B5 2E 11 5A 02 00 00 00}
+@end itemize
+
+@strong{TIME}
+@itemize @bullet
+@item
+Storage: 3 bytes, low byte first.
+This is stored as seconds:  days*24*3600+hours*3600+minutes*60+seconds
+@item
+Example: a TIME column containing '1 02:03:04' (1 day 2 hour 3 minutes and 4 seconds) looks like:@*
+@code{hexadecimal 58 6E 01}
+@end itemize
+
+@strong{TIMESTAMP}
+@itemize @bullet
+@item
+Storage: 4 bytes, low byte first.
+Stored as unix @code{time()}, which is seconds since the Epoch
+(00:00:00 UTC, January 1, 1970).
+@item
+Example: a TIMESTAMP column containing '2003-01-01 01:01:01' looks like:@*
+@code{hexadecimal 4D AE 12 23}
+@end itemize
+
+@strong{YEAR}
+@itemize @bullet
+@item
+Storage: same as unsigned TINYINT with a base value of 0 = 1901.
+@end itemize
+
+@item Others
+
+@strong{SET}
+@itemize @bullet
+@item
+Storage: one byte for each eight members in the set.
+@item
+Maximum length: eight bytes (for maximum 64 members).
+@item
+This is a bit list. The least significant bit corresponds to the
+first listed member of the set.
+@item
+Example: a SET('A','B','C') column containing 'A' looks like:@*
+@code{01} --  (length = 1, value = 'A')
+@end itemize
+
+@strong{ENUM}
+@itemize @bullet
+@item
+Storage: one byte if less than 256 alternatives, else two bytes.
+@item
+This is an index. The value 1 corresponds to the first listed
+alternative. (Note: ENUM always reserves 0 for a blank '' value. This
+explains why 'A' is 1 instead of 0.)
+@item
+Example: an ENUM('A','B','C') column containing 'A' looks like:@*
+@code{01}  --  (length = 1, value = 'A')
+@end itemize
+
+@item The Large-Object data types
+
+Warning: Because TINYBLOB's preceding length is one byte long (the
+size of a TINYINT) and MEDIUMBLOB's preceding length is three bytes
+long (the size of a MEDIUMINT), it's easy to think there's some sort
+of correspondence between the BLOB and the INT types. There isn't -- a
+BLOB's preceding length is not four bytes long (the size of an INT).
+@*
+
+(NOTE TO SELF: BLOB storage has not been fully addressed here.)
+@*
+
+@strong{TINYBLOB}
+@itemize @bullet
+@item
+Storage: variable-length string with a preceding one-byte length.
+@item
+Example: a TINYBLOB column containing 'A' looks like:@*
+@code{hexadecimal 01 41}  --  (length = 2, value = 'A')
+@end itemize
+
+@strong{TINYTEXT}
+@itemize @bullet
+@item
+Storage: same as TINYBLOB.
+@end itemize
+
+@strong{BLOB}
+@itemize @bullet
+@item
+Storage: variable-length string with a preceding two-byte length.
+@item
+Example: a BLOB column containing 'A' looks like:@*
+@code{hexadecimal 01 00 41}  --  (length = 2, value = 'A')
+@end itemize
+
+@strong{TEXT}
+@itemize @bullet
+@item
+Storage: same as BLOB.
+@end itemize
+
+@strong{MEDIUMBLOB}
+@itemize @bullet
+@item
+Storage: variable-length string with a preceding length.
+@item
+Example: a MEDIUMBLOB column containing 'A' looks like:@*
+@code{hexadecimal 01 00 00 41}  --  (length = 4, value = 'A')
+@end itemize
+
+@strong{MEDIUMTEXT}
+@itemize @bullet
+@item
+Storage: same as MEDIUMBLOB.
+@end itemize
+
+@strong{LONGBLOB}
+@itemize @bullet
+@item
+Storage: variable-length string with a preceding four-byte length.
+@item
+Example: a LONGBLOB column containing 'A' looks like:@*
+@code{hexadecimal 01 00 00 00 41}  --  (length = 5, value = 'A')
+@end itemize
+
+@strong{LONGTEXT}
+@itemize @bullet
+@item
+Storage: same as LONGBLOB.
+@end itemize
+
+@end table
+
+@section Where to Look For More Information
+
+@strong{References:} @*
+Most of the formatting work for MyISAM columns is visible
+in the program /sql/field.cc in the source code directory.
+@*
+
+@node InnoDB Record Structure,InnoDB Page Structure,MyISAM Record Structure,Top
+@chapter InnoDB Record Structure
+
+This page contains:
+@itemize @bullet
+@item
+A high-altitude "summary" picture of the parts of a MySQL/InnoDB
+record structure.
+@item
+A description of each part.
+@item
+An example.
+@end itemize
+
+After reading this page, you will know how MySQL/InnoDB stores a
+physical record.
+@*
+
+@section High-Altitude Picture
+
+The chart below shows the three parts of a physical record.
+
+@multitable @columnfractions .10 .35
+
+@item @strong{Name} @tab @strong{Size}
+@item Field Start Offsets
+@tab (F*1) or (F*2) bytes
+@item Extra Bytes
+@tab 6 bytes
+@item Field Contents
+@tab depends on content
+
+@end multitable
+
+Legend: The letter 'F' stands for 'Number Of Fields'.
+
+The meaning of the parts is as follows:
+@itemize @bullet
+@item
+The FIELD START OFFSETS is a list of numbers containing the
+information "where a field starts".
+@item
+The EXTRA BYTES is a fixed-size header.
+@item
+The FIELD CONTENTS contains the actual data.
+@end itemize
+
+@strong{An Important Note About The Word "Origin"}@*
+The "Origin" or "Zero Point" of a record is the first byte of the
+Field Contents -- not the first byte of the Field Start Offsets. If
+there is a pointer to a record, that pointer is pointing to the
+Origin. Therefore the first two parts of the record are addressed by
+subtracting from the pointer, and only the third part is addressed by
+adding to the pointer.
+
+@subsection FIELD START OFFSETS
+
+The Field Start Offsets is a list in which each entry is the
+position, relative to the Origin, of the start of the next field. The
+entries are in reverse order, that is, the first field's offset is at
+the end of the list.
+@*
+
+An example: suppose there are three columns. The first column's length
+is 1, the second column's length is 2, and the third column's length is 4.
+In this case, the offset values are, respectively, 1, 3 (1+2), and 7 (1+2+4).
+Because values are reversed, a core dump of the Field Start Offsets
+would look like this: @code{07,03,01}.
+@*
+
+There are two complications for special cases:
+@itemize @bullet
+@item
+Complication #1: The size of each offset can be either one byte or
+two bytes. One-byte offsets are only usable if the total record size
+is less than 127. There is a flag in the "Extra Bytes" part which will
+tell you whether the size is one byte or two bytes.
+@item
+Complication #2: The most significant bits of an offset may contain
+flag values. The next two paragraphs explain what the contents are.
+@end itemize
+
+@strong{When The Size Of Each Offset Is One Byte}
+@itemize @bullet
+@item
+1 bit  = 0 if field is non-NULL, = 1 if field is NULL
+@item
+7 bits  = the actual offset, a number between 0 and 127
+@end itemize
+
+@strong{When The Size Of Each Offset Is Two Bytes}
+@itemize @bullet
+@item
+1 bit  = 0 if field is non-NULL, = 1 if field is NULL
+@item
+1 bit  = 0 if field is on same page as offset, = 1 if field and offset are on different pages
+@item
+14 bits  = the actual offset, a number between 0 and 16383
+@end itemize
+
+It is unlikely that the "field and offset are on different pages"
+unless the record contains a large BLOB.
+
+@subsection EXTRA BYTES
+
+The Extra Bytes are a fixed six-byte header.
+
+@multitable @columnfractions .10 .25 .35
+
+@item @strong{Name} @tab @strong{Size} @tab @strong{Description}
+@item @strong{info_bits:}
+@item ()
+@tab 1 bit
+@tab unused or unknown
+@item ()
+@tab 1 bit
+@tab unused or unknown
+@item deleted_flag
+@tab 1 bit
+@tab 1 if record is deleted
+@item min_rec_flag
+@tab 1 bit
+@tab 1 if record is predefined minimum record
+@item n_owned
+@tab 4 bits
+@tab number of records owned by this record
+@item heap_no
+@tab 13 bits
+@tab record's order number in heap of index page
+@item n_fields
+@tab 10 bits
+@tab number of fields in this record, 1 to 1023
+@item 1byte_offs_flag
+@tab 1 bit
+@tab 1 if each Field Start Offsets is 1 byte long (this item is also called the "short" flag)
+@item @strong{next 16 bits}
+@tab 16 bits
+@tab pointer to next record in page
+@item @strong{TOTAL}
+@tab 48 bits
+
+@end multitable
+
+Total size is 48 bits, which is six bytes.
+@*
+
+If you're just trying to read the record, the key bit in the Extra
+Bytes is 1byte_offs_flag -- you need to know if 1byte_offs_flag is 1
+(i.e.: "short 1-byteoffsets") or 0 (i.e.: "2-byte offsets").
+@*
+
+Given a pointer to the Origin, InnoDB finds the start of the record as follows:
+@itemize @bullet
+@item
+Let X = n_fields (the number of fields is by definition equal to the
+number of entries in the Field Start Offsets Table).
+@item
+If 1byte_offs_flag equals 0, then let X = X * 2 because there are
+two bytes for each entry instead of just one.
+@item
+Let X = X + 6, because the fixed size of Extra Bytes is 6.
+@item
+The start of the record is at (pointer value minus X).
+@end itemize
+
+@subsection FIELD CONTENTS
+
+The Field Contents part of the record has all the data. Fields are
+stored in the order they were defined in.
+@*
+
+There are no markers between fields, and there is no marker or filler
+at the end of a record.
+@*
+
+Here's an example.
+@itemize @bullet
+@item
+I made a table with this definition:
+@*@*
+
+@strong{CREATE TABLE T
+    (FIELD1 VARCHAR(3), FIELD2 VARCHAR(3), FIELD3 VARCHAR(3))
+    Type=InnoDB;}
+@*@*
+
+To understand what follows, you must know that table T has six columns
+-- not three -- because InnoDB automatically added three "system
+columns" at the start for its own housekeeping. It happens that these
+system columns are the row ID, the transaction ID, and the rollback
+pointer, but their values don't matter now. Regard them as three black
+boxes.
+@*@*
+
+@item
+I put some rows in the table. My last three INSERTs were:
+@*@*
+
+@strong{INSERT INTO T VALUES ('PP', 'PP', 'PP')}
+@*@*
+
+@strong{INSERT INTO T VALUES ('Q', 'Q', 'Q')}
+@*@*
+
+@strong{INSERT INTO T VALUES ('R', NULL, NULL)}
+@*@*
+
+@item
+I ran Borland's TDUMP to get a hexadecimal dump of
+the contents of \mysql\data\ibdata1, which (in my case) is the
+MySQL/InnoDB data file (on Windows).
+@end itemize
+
+Here is an extract of the dump:
+
+@multitable @columnfractions .05 .95
+
+@item @strong{Address Values In Hexadecimal} @tab @strong{Values In ASCII}
+@item @code{0D4280: 00 00 2D 00 84 4F 4F 4F 4F 4F 4F 4F 4F 4F 19 17}
+@tab @code{..-..OOOOOOOOO..}
+@item @code{0D4290: 15 13 0C 06 00 00 78 0D 02 BF 00 00 00 00 04 21}
+@tab @code{......x........!}
+@item @code{0D42A0: 00 00 00 00 09 2A 80 00 00 00 2D 00 84 50 50 50}
+@tab @code{.....*....-..PPP}
+@item @code{0D42B0: 50 50 50 16 15 14 13 0C 06 00 00 80 0D 02 E1 00}
+@tab @code{PPP.............}
+@item @code{0D42C0: 00 00 00 04 22 00 00 00 00 09 2B 80 00 00 00 2D}
+@tab @code{....".....+....-}
+@item @code{0D42D0: 00 84 51 51 51 94 94 14 13 0C 06 00 00 88 0D 00}
+@tab @code{..QQQ...........}
+@item @code{0D42E0: 74 00 00 00 00 04 23 00 00 00 00 09 2C 80 00 00}
+@tab @code{t.....#.....,...}
+@item @code{0D42F0: 00 2D 00 84 52 00 00 00 00 00 00 00 00 00 00 00}
+@tab @code{.-..R...........}
+
+@end multitable
+
+A reformatted version of the dump, showing only the relevant bytes,
+looks like this (I've put a line break after each field and added labels):
+
+@strong{Reformatted Hexadecimal Dump}@*
+@code{
+  19 17 15 13 0C 06 Field Start Offsets /* First Row */@*
+  00 00 78 0D 02 BF Extra Bytes@*
+  00 00 00 00 04 21 System Column #1@*
+  00 00 00 00 09 2A System Column #2@*
+  80 00 00 00 2D 00 84 System Column #3@*
+  50 50 Field1 'PP'@*
+  50 50 Field2 'PP'@*
+  50 50 Field3 'PP'}@*
+
+@code{
+  16 15 14 13 0C 06 Field Start Offsets /* Second Row */@*
+  00 00 80 0D 02 E1 Extra Bytes@*
+  00 00 00 00 04 22 System Column #1@*
+  00 00 00 00 09 2B 80 System Column #2@*
+  00 00 00 2D 00 84 System Column #3@*
+  51 Field1 'Q'@*
+  51 Field2 'Q'@*
+  51 Field3 'Q'}@*
+
+@code{
+  94 94 14 13 0C 06 Field Start Offsets /* Third Row */@*
+  00 00 88 0D 00 74 Extra Bytes@*
+  00 00 00 00 04 23 System Column #1@*
+  00 00 00 00 09 2C System Column #2@*
+  80 00 00 00 2D 00 84 System Column #3@*
+  52 Field1 'R'}@*
+@*
+
+You won't need explanation if you followed everything I've said, but
+I'll add helpful notes for the three trickiest details.
+@itemize @bullet
+@item
+Helpful Notes About "Field Start Offsets": @*
+Notice that the sizes of the record's fields, in forward order, are:
+6, 6, 7, 2, 2, 2. Since each offset is for the start of the "next"
+field, the hexadecimal offsets are 06, 0c (6+6), 13 (6+6+7), 15
+(6+6+7+2), 17 (6+6+7+2+2), 19 (6+6+7+2+2+2). Reversing the order, the
+Field Start Offsets of the first record are: @code{19,17,15,13,0c,06}.
+@item
+Helpful Notes About "Extra Bytes": @*
+Look at the Extra Bytes of the first record: @code{00 00 78 0D 02 BF}. The
+fourth byte is @code{0D hexadecimal}, which is @code{1101 binary} ... the 110 is the
+last bits of n_fields (@code{110 binary} is 6 which is indeed the number of
+fields in the record) and the final 1 bit is 1byte_offs_flag. The
+fifth and sixth bytes, which contain @code{02 BF}, constitute the "next"
+field. Looking at the original hexadecimal dump, at address
+@code{0D42BF} (which is position @code{02BF} within the page), you'll see the beginning bytes of
+System Column #1 of the second row. In other words, the "next" field
+points to the "Origin" of the following row.
+@item
+Helpful Notes About NULLs:@*
+For the third row, I inserted NULLs in FIELD2 and FIELD3. Therefore in
+the Field Start Offsets the top bit is @code{on} for these fields (the
+values are @code{94 hexadecimal}, @code{94 hexadecimal}, instead of 
+@code{14 hexadecimal}, @code{14 hexadecimal}). And the row is
+shorter because the NULLs take no space.
+@end itemize
+
+@section Where to Look For More Information
+
+@strong{References:} @*
+The most relevant InnoDB source-code files are rem0rec.c, rem0rec.ic,
+and rem0rec.h in the rem ("Record Manager") directory.
+
+@node InnoDB Page Structure,Files in MySQL Sources,InnoDB Record Structure,Top
+@chapter InnoDB Page Structure
+
+InnoDB stores all records inside a fixed-size unit which is commonly called a
+"page" (though InnoDB sometimes calls it a "block" instead).
+Currently all pages are the same size, 16KB.
+@*
+
+A page contains records, but it also contains headers and trailers.
+I'll start this description with a high-altitude view of a page's parts,
+then I'll describe each part of a page. Finally, I'll show an example. This 
+discussion deals only with the most common format, for the leaf page of a data file.
+@*
+
+@section High-Altitude View
+
+An InnoDB page has seven parts:
+@itemize @bullet
+@item
+Fil Header
+@item
+Page Header
+@item
+Infimum + Supremum Records
+@item
+User Records
+@item
+Free Space
+@item
+Page Directory
+@item
+Fil Trailer
+@end itemize
+
+As you can see, a page has two header/trailer pairs. The inner pair, "Page Header" and
+"Page Directory", are mostly the concern of the \page program group,
+while the outer pair, "Fil Header" and "Fil Trailer", are mostly the
+concern of the \fil program group. The "Fil" header also goes goes by
+the name of "File Page Header".
+@*
+
+Sandwiched between the headers and trailers, are the records and
+the free (unused) space. A page always begins with two unchanging
+records called the Infimum and the Supremum. Then come the user
+records. Between the user records (which grow downwards) and the page 
+directory (which grows upwards) there is space for new records.
+@*
+
+@subsection Fil Header
+
+The Fil Header has eight parts, as follows:
+
+@multitable @columnfractions .10 .30 .35
+
+@item @strong{Name} @tab @strong{Size} @tab @strong{Remarks}
+@item FIL_PAGE_SPACE
+@tab 4
+@tab 4  ID of the space the page is in
+@item FIL_PAGE_OFFSET
+@tab 4
+@tab ordinal page number from start of space
+@item FIL_PAGE_PREV
+@tab 4
+@tab offset of previous page in key order
+@item FIL_PAGE_NEXT
+@tab 4
+@tab offset of next page in key order
+@item FIL_PAGE_LSN
+@tab 8
+@tab log serial number of page's latest log record
+@item FIL_PAGE_TYPE
+@tab 2
+@tab current defined types are: FIL_PAGE_INDEX, FIL_PAGE_UNDO_LOG, FIL_PAGE_INODE, FIL_PAGE_IBUF_FREE_LIST
+@item FIL_PAGE_FILE_FLUSH_LSN
+@tab 8
+@tab "the file has been flushed to disk at least up to this lsn" (log serial number), 
+     valid only on the first page of the file
+@item FIL_PAGE_ARCH_LOG_NO
+@tab 4
+@tab the latest archived log file number at the time that FIL_PAGE_FILE_FLUSH_LSN was written (in the log)
+@end multitable
+
+@itemize
+@item
+FIL_PAGE_SPACE is a necessary identifier because different pages might belong to
+different (table) spaces within the same file. The word
+"space" is generic jargon for either "log" or "tablespace".
+@*@*
+
+@item
+FIL_PAGE_PREV and FIL_PAGE_NEXT are the page's "backward" and
+"forward" pointers. To show what they're about, I'll draw a two-level
+B-tree.
+@*@*
+
+@example
+  --------
+  - root -
+  --------
+       |
+  ----------------------
+  |                    |
+  |                    |
+  --------          --------
+  - leaf -  <-->    - leaf -
+  --------          --------
+@end example
+@*
+
+Everyone has seen a B-tree and knows that the entries in the root page
+point to the leaf pages. (I indicate those pointers with vertical '|'
+bars in the drawing.) But sometimes people miss the detail that leaf
+pages can also point to each other (I indicate those pointers with a horizontal
+two-way pointer '<-->' in the drawing). This feature allows InnoDB to navigate from
+leaf to leaf without having to back up to the root level. This is a
+sophistication which you won't find in the classic B-tree, which is
+why InnoDB should perhaps be called a B+-tree instead.
+@*@*
+
+@item
+The fields FIL_PAGE_FILE_FLUSH_LSN, FIL_PAGE_PREV, and FIL_PAGE_NEXT
+all have to do with logs, so I'll refer you to my article "How Logs
+Work With MySQL And InnoDB" on devarticles.com.
+@*@*
+
+@item
+FIL_PAGE_FILE_FLUSH_LSN and FIL_PAGE_ARCH_LOG_NO are only valid for
+the first page of a data file.
+@end itemize
+
+@subsection Page Header
+
+The Page Header has 14 parts, as follows:
+@*@*
+
+@multitable @columnfractions .10 .20 .30
+
+@item @strong{Name} @tab @strong{Size} @tab @strong{Remarks}
+@item PAGE_N_DIR_SLOTS
+@tab 2
+@tab number of directory slots in the Page Directory part; initial value = 2
+@item PAGE_HEAP_TOP
+@tab 2
+@tab record pointer to first record in heap
+@item PAGE_N_HEAP
+@tab 2
+@tab number of heap records; initial value = 2
+@item PAGE_FREE
+@tab 2
+@tab record pointer to first free record
+@item PAGE_GARBAGE
+@tab 2
+@tab "number of bytes in deleted records"
+@item PAGE_LAST_INSERT
+@tab 2
+@tab record pointer to the last inserted record
+@item PAGE_DIRECTION
+@tab 2
+@tab either PAGE_LEFT, PAGE_RIGHT, or PAGE_NO_DIRECTION
+@item PAGE_N_DIRECTION
+@tab 2
+@tab number of consecutive inserts in the same direction, e.g. "last 5 were all to the left"
+@item PAGE_N_RECS
+@tab 2
+@tab number of user records
+@item PAGE_MAX_TRX_ID
+@tab 8
+@tab the highest ID of a transaction which might have changed a record on the page (only set for secondary indexes)
+@item PAGE_LEVEL
+@tab 2
+@tab level within the index (0 for a leaf page)
+@item PAGE_INDEX_ID
+@tab 8
+@tab identifier of the index the page belongs to
+@item PAGE_BTR_SEG_LEAF
+@tab 10
+@tab "file segment header for the leaf pages in a B-tree" (this is irrelevant here)
+@item PAGE_BTR_SEG_TOP
+@tab 10
+@tab "file segment header for the non-leaf pages in a B-tree" (this is irrelevant here)
+
+@end multitable
+@*
+
+(Note: I'll clarify what a "heap" is when I discuss the User Records part of the page.)
+@*@*
+
+Some of the Page Header parts require further explanation:
+@itemize @bullet
+@item
+PAGE_FREE: @*
+Records which have been freed (due to deletion or migration) are in a
+one-way linked list. The PAGE_FREE pointer in the page header points
+to the first record in the list. The "next" pointer in the record
+header (specifically, in the record's Extra Bytes) points to the next
+record in the list.
+@item
+PAGE_DIRECTION and PAGE_N_DIRECTION: @*
+It's useful to know whether inserts are coming in a constantly
+ascending sequence. That can affect InnoDB's efficiency.
+@item
+PAGE_HEAP_TOP and PAGE_FREE and PAGE_LAST_INSERT: @*
+Warning: Like all record pointers, these point not to the beginning of the
+record but to its Origin (see the earlier discussion of Record
+Structure).
+@item
+PAGE_BTR_SEG_LEAF and PAGE_BTR_SEG_TOP: @*
+These variables contain information (space ID, page number, and byte offset) about
+index node file segments. InnoDB uses the information for allocating new pages. 
+There are two different variables because InnoDB allocates separately for leaf 
+pages and upper-level pages.
+@end itemize
+
+@subsection The Infimum And Supremum Records
+
+"Infimum" and "supremum" are real English words but they are found
+only in arcane mathematical treatises, and in InnoDB comments. To
+InnoDB, an infimum is lower than the the lowest possible real value
+(negative infinity) and a supremum is greater than the greatest
+possible real value (positive infinity). InnoDB sets up an infimum
+record and a supremum record automatically at page-create time, and
+never deletes them. They make a useful barrier to navigation so that
+"get-prev" won't pass the beginning and "get-next" won't pass the end.
+Also, the infimum record can be a dummy target for temporary record
+locks.
+@*@*
+
+The InnoDB code comments distinguish between "the infimum and supremum
+records" and the "user records" (all other kinds).
+@*@*
+
+It's sometimes unclear whether InnoDB considers the infimum and
+supremum to be part of the header or not. Their size is fixed and
+their position is fixed, so I guess so.
+
+@subsection User Records
+
+In the User Records part of a page, you'll find all the records that the user
+inserted.
+@*@*
+
+There are two ways to navigate through the user records, depending
+whether you want to think of their organization as an unordered or an
+ordered list.
+@*@*
+
+An unordered list is often called a "heap". If you make a pile of
+stones by saying "whichever one I happen to pick up next will go on
+top" -- rather than organizing them according to size and colour --
+then you end up with a heap. Similarly, InnoDB does not want to insert
+new rows according to the B-tree's key order (that would involve
+expensive shifting of large amounts of data), so it inserts new rows
+right after the end of the existing rows (at the
+top of the Free Space part) or wherever there's space left by a
+deleted row.
+@*@*
+
+But by definition the records of a B-tree must be accessible in order
+by key value, so there is a record pointer in each record (the "next"
+field in the Extra Bytes) which points to the next record in key
+order. In other words, the records are a one-way linked list. So
+InnoDB can access rows in key order when searching.
+
+@subsection Free Space
+
+I think it's clear what the Free Space part of a page is, from the discussion of
+other parts.
+
+@subsection Page Directory
+
+The Page Directory part of a page has a variable number of record pointers.
+Sometimes the record pointers are called "slots" or "directory slots".
+Unlike other DBMSs, InnoDB does not have a slot for every record in
+the page. Instead it keeps a sparse directory. In a fullish page, 
+there will be one slot for every six records.
+@*@*
+
+The slots track the records' logical order (the order by key rather
+than the order by placement on the heap). Therefore, if the records
+are @code{'A' 'B' 'F' 'D'} the slots will be @code{(pointer to 'A') (pointer to
+'B') (pointer to 'D') (pointer to 'F')}. Because the slots are in key
+order, and each slot has a fixed size, it's easy to do a binary
+search of the records on the page via the slots.
+@*@*
+
+(Since the Page Directory does not have a slot for every record,
+binary search can only give a rough position and then InnoDB must
+follow the "next" record pointers. InnoDB's "sparse slots" policy also
+accounts for the n_owned field in the Extra Bytes part of a record:
+n_owned indicates how many more records must be gone through because
+they don't have their own slots.)
+
+@subsection Fil Trailer
+
+The Fil Trailer has one part, as follows:
+@*@*
+
+@multitable @columnfractions .10 .35 .40
+
+@item @strong{Name} @tab @strong{Size} @tab @strong{Remarks}
+@item FIL_PAGE_END_LSN
+@tab 8
+@tab low 4 bytes = checksum of page, last 4 bytes = same as FIL_PAGE_LSN
+@end multitable
+@*
+
+The final part of a page, the fil trailer (or File Page Trailer),
+exists because InnoDB's architect worried about integrity. It's
+impossible for a page to be only half-written, or corrupted by
+crashes, because the log-recovery mechanism restores to a consistent
+state. But if something goes really wrong, then it's nice to have a
+checksum, and to have a value at the very end of the page which must
+be the same as a value at the very beginning of the page.
+
+@section Example
+
+For this example, I used Borland's TDUMP again, as I did for the earlier chapter on
+Record Format. This is what a page looked like:
+@*@*
+
+@multitable @columnfractions .05 .95
+
+@item @strong{Address Values In Hexadecimal} @tab @strong{Values In ASCII}
+@item @code{0D4000: 00 00 00 00 00 00 00 35 FF FF FF FF FF FF FF FF}
+@tab @code{.......5........}
+@item @code{0D4010: 00 00 00 00 00 00 E2 64 45 BF 00 00 00 00 00 00}
+@tab @code{.......dE.......}
+@item @code{0D4020: 00 00 00 00 00 00 00 05 02 F5 00 12 00 00 00 00}
+@tab @code{................}
+@item @code{0D4030: 02 E1 00 02 00 0F 00 10 00 00 00 00 00 00 00 00}
+@tab @code{................}
+@item @code{0D4040: 00 00 00 00 00 00 00 00 00 14 00 00 00 00 00 00}
+@tab @code{................}
+@item @code{0D4050: 00 02 16 B2 00 00 00 00 00 00 00 02 15 F2 08 01}
+@tab @code{................}
+@item @code{0D4060: 00 00 03 00 89 69 6E 66 69 6D 75 6D 00 09 05 00}
+@tab @code{.....infimum....}
+@item @code{0D4070: 08 03 00 00 73 75 70 72 65 6D 75 6D 00 22 1D 18}
+@tab @code{....supremum."..}
+@item @code{0D4080: 13 0C 06 00 00 10 0D 00 B7 00 00 00 00 04 14 00}
+@tab @code{................}
+@item @code{0D4090: 00 00 00 09 1D 80 00 00 00 2D 00 84 41 41 41 41}
+@tab @code{.........-..AAAA}
+@item @code{0D40A0: 41 41 41 41 41 41 41 41 41 41 41 1F 1B 17 13 0C}
+@tab @code{AAAAAAAAAAA.....}
+@item @code{ ... }
+@item @code{ ... }
+@item @code{0D7FE0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 74}
+@tab @code{...............t}
+@item @code{0D7FF0: 02 47 01 AA 01 0A 00 65 3A E0 AA 71 00 00 E2 64}
+@tab @code{.G.....e:..q...d}
+@end multitable
+@*@*
+
+Let's skip past the first 38 bytes, which are Fil Header. The bytes
+of the Page Header start at location @code{0d4026 hexadecimal}:
+@*@*
+
+@multitable @columnfractions .10 .45 .60
+
+@item @strong{Location} @tab @strong{Name} @tab @strong{Description}
+@item @code{00 05}
+@tab PAGE_N_DIR_SLOTS
+@tab There are 5 directory slots.
+@item @code{02 F5}
+@tab PAGE_HEAP_TOP
+@tab At location @code{0402F5}, not shown, is the beginning of free space.
+Maybe a better name would have been PAGE_HEAP_END
+@item @code{00 12}
+@tab PAGE_N_HEAP
+@tab There are 18 (hexadecimal 12) records in the page.
+@item @code{00 00}
+@tab PAGE_FREE
+@tab There are zero free (deleted) records.
+@item @code{00 00}
+@tab PAGE_GARBAGE
+@tab There are zero bytes in deleted records.
+@item @code{02 E1}
+@tab PAGE_LAST_INSERT
+@tab The last record was inserted at location @code{02E1}, not shown, within the page.
+@item @code{00 02}
+@tab PAGE_DIRECTION
+@tab A glance at page0page.h will tell you that 2 is the #defined value for PAGE_RIGHT.
+@item @code{00 0F}
+@tab PAGE_N_DIRECTION
+@tab The last 15 (hexadecimal 0F) inserts were all done "to the right"
+because I was inserting in ascending order.
+@item @code{00 10}
+@tab PAGE_N_RECS
+@tab There are 16 (hexadecimal 10) user records. Notice that PAGE_N_RECS is
+smaller than the earlier field, PAGE_N_HEAP.
+@item @code{00 00 00 00 00 00 00}
+@tab PAGE_MAX_TRX_ID
+@item @code{00 00}
+@tab PAGE_LEVEL
+@tab Zero because this is a leaf page.
+@item @code{00 00 00 00 00 00 00 14}
+@tab PAGE_INDEX_ID
+@tab This is index number 20.
+@item @code{00 00 00 00 00 00 00 02 16 B2}
+@tab PAGE_BTR_SEG_LEAF
+@item @code{00 00 00 00 00 00 00 02 15 F2}
+@tab PAGE_BTR_SEG_TOP
+@end multitable
+@*
+
+Immediately after the page header are the infimum and supremum
+records. Looking at the "Values In ASCII" column in the hexadecimal
+dump, you will see that the contents are in fact the words "infimum"
+and "supremum" respectively.
+@*@*
+
+Skipping past the User Records and the Free Space, many bytes later,
+is the end of the 16KB page. The values shown there are the two trailers.
+@itemize @bullet
+@item
+The first trailer (@code{00 74, 02 47, 01 AA, 01 0A, 00 65}) is the page
+directory. It has 5 entries, because the header field PAGE_N_DIR_SLOTS
+says there are 5.
+@item
+The next trailer (@code{3A E0 AA 71, 00 00 E2 64}) is the fil trailer. Notice
+that the last four bytes, @code{00 00 E2 64}, appeared before in the fil
+header.
+@end itemize
+
+@section Where to Look For More Information
+
+@strong{References:} @*
+The most relevant InnoDB source-code files are page0page.c,
+page0page.ic, and page0page.h in \page directory.
+
+@node Files in MySQL Sources,Files in InnoDB Sources,InnoDB Page Structure,Top
+@chapter Annotated List Of Files in the MySQL Source Code Distribution
+
+This is a description of the files that you get when you download the
+source code of MySQL. This description begins with a list
+of the 43 directories and a short comment about each one. Then, for
+each directory, in alphabetical order, a longer description is
+supplied. When a directory contains significant program files, a list of each C
+program is given along with an explanation of its intended function.
+
+@section Directory Listing
+
+@strong{Directory  --  Short Comment}
+@itemize @bullet
+@item
+bdb  --  The Berkeley Database table handler 
+@item
+BitKeeper  --  BitKeeper administration 
+@item
+BUILD  --  Build switches 
+@item
+Build-tools  --  Build tools 
+@item
+client  --  Client library 
+@item
+cmd-line-utils  --  Command-line utilities 
+@item
+dbug  --  Fred Fish's dbug library 
+@item
+div  --  Deadlock test 
+@item
+Docs  --  Preliminary documents about internals and new modules 
+@item
+extra  --  Eight minor standalone utility programs 
+@item
+fs  --  File System 
+@item
+heap  --  The HEAP table handler 
+@item
+Images  --  Empty directory 
+@item
+include  --  Include (*.h) files 
+@item
+innobase  --  The Innobase (InnoDB) table handler 
+@item
+isam  --  The ISAM (MySQL) table handler 
+@item
+libmysql  --  For producing MySQL as a library (e.g. a Windows DLL)
+@item
+libmysql_r  --  Only one file, a makefile 
+@item
+libmysqld  --  The MySQL Library 
+@item
+man  --  Manual pages 
+@item
+merge  --  The MERGE table handler (see Reference Manual section 7.2)
+@item
+myisam  --  The MyISAM table handler 
+@item
+myisammrg  --  The MyISAM Merge table handler 
+@item
+mysql-test  --  A test suite for mysqld 
+@item
+mysys  --  MySQL system library (Low level routines for file access
+etc.)
+@item
+netware  --  Files related to the Novell NetWare version of MySQL 
+@item
+NEW-RPMS  --  New "RPM Package Manager" files 
+@item
+os2  --  Routines for working with the OS/2 operating system 
+@item
+pstack  --  Process stack display 
+@item
+regex  --  Regular Expression library for support of REGEXP function
+@item
+repl-tests  --  Test cases for replication 
+@item
+SCCS  --  Source Code Control System 
+@item
+scripts  --  SQL batches, e.g. for converting msql to MySQL 
+@item
+sql  --  Programs for handling SQL commands. The "core" of MySQL 
+@item
+sql-bench  --  The MySQL benchmarks 
+@item
+SSL  --  Secure Sockets Layer 
+@item
+strings  --  Library for C string routines, e.g. atof, strchr 
+@item
+support-files  --  15 files used for building, containing switches? 
+@item
+tests  --  Tests in Perl 
+@item
+tools  --  mysqlmanager.c 
+@item
+VC++Files  --  Includes this entire directory, repeated for VC++
+(Windows) use 
+@item
+vio  --  Virtual I/O Library 
+@item
+zlib  --  data compression library 
+@end itemize
+
+@subsection bdb
+
+The Berkeley Database table handler.
+@*@*
+
+The Berkeley Database (BDB) is maintained by Sleepycat Software.
+@*@*
+
+The documentation for BDB is available at
+http://www.sleepycat.com/docs/. Since it's reasonably thorough
+documentation, a description of the BDB program files is not included
+in this document.
+@*@*
+
+@subsection BitKeeper
+
+BitKeeper administration.
+@*@*
+
+This directory may be present if you downloaded the MySQL source using
+BitKeeper rather than via the mysql.com site. The files in the
+BitKeeper directory are for maintenance purposes only -- they are not
+part of the MySQL package.
+@*@*
+
+@subsection BUILD
+
+Build switches.
+@*@*
+
+This directory contains the build switches for compilation on various
+platforms. There is a subdirectory for each set of options. The main
+ones are:
+@itemize @bullet
+@item
+alpha
+@item
+ia64
+@item
+pentium (with and without debug or bdb, etc.)
+@item
+solaris
+@end itemize
+@*@*
+
+@subsection Build-tools
+
+Build tools.
+@*@*
+
+This directory contains batch files for extracting, making
+directories, and making programs from source files. There are several
+subdirectories -- for building Linux executables, for compiling, for
+performing all build steps, etc.
+@*@*
+
+@subsection client
+
+Client library.
+@*@*
+
+The client library includes mysql.cc (the source of the 'mysql'
+executable) and other utilities. Most of the utilities are mentioned
+in the MySQL Reference Manual. Generally these are standalone C
+programs which one runs in "client mode", that is, they call the
+server.
+@*@*
+
+The C program files in the directory are:
+@itemize @bullet
+@item
+connect_test.c  --  test that a connect is possible 
+@item
+get_password.c  --  ask for a password from the console 
+@item
+insert_test.c  --  test that an insert is possible 
+@item
+list_test.c  --  test that a select is possible  
+@item
+mysql.cc  --  "The MySQL command tool" 
+@item
+mysqladmin.c  --  maintenance of MYSQL databases 
+@item
+mysqlcheck.c  --  check all databases, check connect, etc. 
+@item
+mysqldump.c  --  dump table's contents in ascii 
+@item
+mysqlimport.c  --  import file into a table 
+@item
+mysqlmanager-pwgen.c  --  pwgen seems to stand for "password
+generation" 
+@item
+mysqlmanagerc.c  --  entry point for mysql manager 
+@item
+mysqlshow.c  --  show databases, tables or columns 
+@item
+mysqltest.c  --  test program 
+@item
+password.c  --  password checking routines 
+@item
+select_test.c  --  test that a select is possible 
+@item
+showdb_test.c  --  test that a show-databases is possible 
+@item
+ssl_test.c  --  test that SSL is possible 
+@item
+thread_test.c  --  test that threading is possible 
+@end itemize
+@*@*
+
+@subsection cmd-line-utils
+
+Command-line utilities.
+@*@*
+
+There are two subdirectories: \readline and \libedit. All the files
+here are "non-MYSQL" files, in the sense that MySQL AB didn't produce
+them, it just uses them. It should be unnecessary to study the
+programs in these files unless
+you are writing or debugging a tty-like client for MySQL, such as
+mysql.exe.
+@*@*
+
+The \readline subdirectory contains the files of the GNU Readline
+Library, "a library for reading lines of text with interactive input
+and history editing". The programs are copyrighted by the Free
+Software Foundation.
+@*@*
+
+The \libedit (library of edit functions) subdirectory has files
+written by Christos Zoulas. They are for editing the line contents.
+These are the program files in the \libedit subdirectory:
+@itemize @bullet
+@item
+chared.c  --  character editor 
+@item
+common.c  --  common editor functions 
+@item
+el.c  --  editline interface functions 
+@item
+emacs.c  --  emacs functions 
+@item
+fgetln.c  --  get line 
+@item
+hist.c  --  history access functions 
+@item
+history.c  --  more history access functions 
+@item
+key.c  --  procedures for maintaining the extended-key map 
+@item
+map.c  --  editor function definitions 
+@item
+parse.c  --  parse an editline extended command 
+@item
+prompt.c  --  prompt printing functions 
+@item
+read.c  --  terminal read functions 
+@item
+readline.c  --  read line 
+@item
+refresh.c  --  "lower level screen refreshing functions" 
+@item
+search.c  --  "history and character search functions" 
+@item
+sig.c  --  for signal handling 
+@item
+strlcpy.c  --  string copy 
+@item
+term.c  --  "editor/termcap-curses interface" 
+@item
+tokenizer.c  --  Bourne shell line tokenizer 
+@item
+tty.c  --  for a tty interface 
+@item
+vi.c  --  commands used when in the vi (editor) mode 
+@end itemize
+@*@*
+
+@subsection dbug
+
+Fred Fish's dbug library.
+@*@*
+
+This is not really part of the MySQL package. Rather, it's a set of
+public-domain routines which are useful for debugging MySQL programs.
+@*@*
+
+How it works: One inserts a function call that begins with DBUG_* in
+one of the regular MYSQL programs. For example, in get_password.c, you
+will find this line: @*
+DBUG_ENTER("get_tty_password"); @*
+at the start of a routine, and this line: @*
+DBUG_RETURN(my_strdup(to,MYF(MY_FAE))); @*
+at the end of the routine. These lines don't affect production code.
+Features of the dbug library include profiling and state pushing.
+@*@*
+
+The C programs in this directory are:
+@itemize @bullet
+@item
+dbug.c  --  The main module 
+@item
+dbug_analyze.c  --  Reads a file produced by trace functions 
+@item
+example1.c  --  A tiny example 
+@item
+example2.c  --  A tiny example 
+@item
+example3.c  --  A tiny example 
+@item
+factorial.c  --  A tiny example 
+@item
+main.c  --  A tiny example 
+@item
+sanity.c  --   Declaration of a variable 
+@end itemize
+@*@*
+
+@subsection div
+
+Deadlock test.
+@*@*
+
+This file contains only one program, deadlock_test.c.
+@*@*
+
+@subsection Docs
+
+Preliminary documents about internals and new modules.
+@*@*
+
+This directory doesn't have much at present that's very useful to the
+student, but the plan is that some documentation related to the source
+files and the internal workings of MySQL, including perhaps some
+documentation from developers themselves, will be placed here.
+@*@*
+
+These sub-directories are part of this directory:
+@itemize @bullet
+@item
+books  --  .gif images and empty .txt files; no real information 
+@item
+flags  --  images of flags of countries 
+@item
+images  --  flag backgrounds and the MySQL dolphin logo 
+@item
+mysql-logos  --  more MySQL-related logos, some of them moving 
+@item
+raw-flags  --   more country flags, all .gif files 
+@item
+support  --  various files for generating texinfo/docbook
+documentation 
+@item
+to-be-included...  --  an empty subdirectory 
+@item
+translations  --  some Portuguese myodbc documentation 
+@end itemize
+@*@*
+
+In the main directory, you'll find some .txt files related to the
+methods that MySQL uses to produce its printed and html documents, odd
+bits in various languages, and the single file in the directory which
+has any importance -- internals.texi -- The "MySQL Internals"
+document.
+@*@*
+
+Despite the name, internals.texi is not really much of a description
+of MySQL internals. However, there is some useful description of the
+functions in the mysys directory (see below), and of the structure of
+client/server messages (doubtless very useful for people who want to
+make their own JDBC drivers, or just sniff).
+@*@*
+
+@subsection extra
+
+Eight minor standalone utility programs.
+@*@*
+
+These eight programs are all standalone utilities, that is, they have
+a main() function and their main role is to show information that the
+MySQL server needs or produces. Most are unimportant. They are as
+follows:
+@itemize @bullet
+@item
+my_print_defaults.c  --  print all parameters in a default file 
+@item
+mysql_install.c  --  startup: install MySQL server 
+@item
+mysql_waitpid.c  --  wait for a program to terminate 
+@item
+perror.c  --  "print error" -- given error number, display message 
+@item
+replace.c  --  replace strings in text files 
+@item
+resolve_stack_dump.c  --  show symbolic info from a stack dump 
+@item
+resolveip.c  --  convert an IP address to a hostname, or vice versa 
+@end itemize
+@*@*
+
+@subsection fs
+
+File System.
+@*@*
+
+Here the word "File System" does not refer to the mere idea of a
+directory of files on a disk drive, but to object-based access. The
+concept has been compared with Oracle's Internet File System (iFS).
+@*@*
+
+The original developer of the files on this directory is Tonu Samuel,
+a former MySQL AB employee. Here is a quote (somewhat edited) from
+Tonu Samuel's web page (http://no.spam.ee/~tonu/index.php): 
+"Question: What is it? 
+Answer: Actually this is not filesystem in common terms. MySQL FS
+makes it possible to make SQL tables and some functions available over
+a filesystem. MySQL does not require disk space, it uses an ordinary
+MySQL daemon to store data." 
+The descriptions imply that this is a development project.
+@*@*
+
+There are four program files in the directory:
+@itemize @bullet
+@item
+database.c  --  "emulate filesystem behaviour on top of SQL database" 
+@item
+libmysqlfs.c  --  Search/replace, show-functions, and parse routines
+@item
+mysqlcorbafs.c  --  Connection with the CORBA "Object Request Broker" 
+@item
+mysqlcorbafs_test.c  --  Utility to test the working of mysqlcorbafs.c
+
+@*@*
+
+@subsection heap
+
+The HEAP table handler.
+@*@*
+
+All the MySQL table handlers (i.e. the handlers that MySQL itself
+produces) have files with similar names and functions. Thus, this
+(heap) directory contains a lot of duplication of the myisam directory
+(for the MyISAM table handler). Such duplicates have been marked with
+an "*" in the following list. For example, you will find that
+\heap\hp_extra.c has a close equivalent in the myisam directory
+(\myisam\mi_extra.c) with the same descriptive comment.
+@*@*
+
+@item
+hp_block.c  --  Read/write a block (i.e. a page)
+@item
+hp_clear.c  --  Remove all records in the database 
+@item
+hp_close.c  --  * close database 
+@item
+hp_create.c  --  * create a table 
+@item
+hp_delete.c  --  * delete a row 
+@item
+hp_extra.c  --  * for setting options and buffer sizes when optimizing
+@item
+hp_hash.c  --  Hash functions used for saving keys 
+@item
+hp_info.c  --  * Information about database status 
+@item
+hp_open.c  --  * open database 
+@item
+hp_panic.c  --  * the hp_panic routine, probably for sudden shutdowns 
+@item
+hp_rename.c  --  * rename a table 
+@item
+hp_rfirst.c  --  * read first row through a specific key (very short)
+@item
+hp_rkey.c  --  * read record using a key 
+@item
+hp_rlast.c  --  * read last row with same key as previously-read row
+@item
+hp_rnext.c  --  * read next row with same key as previously-read row
+@item
+hp_rprev.c  --  * read previous row with same key as previously-read
+row 
+@item
+hp_rrnd.c  --  * read a row based on position 
+@item
+hp_rsame.c  --  * find current row using positional read or key-based
+read 
+@item
+hp_scan.c  --  * read all rows sequentially 
+@item
+hp_static.c  --  * static variables (very short)
+@item
+hp_test1.c  --  * testing basic functions 
+@item
+hp_test2.c  --  * testing database and storing results 
+@item
+hp_update.c  --  * update an existing row 
+@item
+hp_write.c  --  * insert a new row 
+@end itemize
+@*@*
+
+There are fewer files in the heap directory than in the myisam
+directory, because fewer are necessary. For example, there is no need
+for a \myisam\mi_cache.c equivalent (to cache reads) or a
+\myisam\log.c equivalent (to log statements).
+@*@*
+
+@subsection Images
+
+Empty directory.
+@*@*
+
+There are no files in this directory.
+@*@*
+
+@subsection include
+
+Include (*.h) files.
+@*@*
+
+These files may be included in C program files. Note that each
+individual directory will also have its own *.h files, for including
+in its own *.c programs. The *.h files in the include directory are
+ones that might be included from more than one place.
+@*@*
+
+For example, the mysys directory contains a C file named rijndael.c,
+but does not include rijndael.h. The include directory contains
+rijndael.h. Looking further, you'll find that rijndael.h is also
+included in other places: by my_aes.c and my_aes.h.
+@*@*
+
+The include directory contains 51 *.h (include) files.
+@*@*
+
+@subsection innobase
+
+The Innobase (InnoDB) table handler.
+@*@*
+
+A full description of these files can be found elsewhere in this
+document.
+@*@*
+
+@subsection isam
+
+The ISAM table handler.
+@*@*
+
+The C files in this directory are:
+@itemize @bullet
+@item
+_cache.c  --  for reading records from a cache 
+@item
+changed.c  --  a single routine for setting a "changed" flag (very
+short)
+@item
+close.c  --  close database 
+@item
+create.c  --  create a table 
+@item
+_dbug.c  --  support routines for use with "dbug" (see the \dbug
+description)
+@item
+delete.c  --  delete a row 
+@item
+_dynrec.c  --  functions to handle space-packed records and blobs 
+@item
+extra.c  --  setting options and buffer sizes when optimizing table
+handling 
+@item
+info.c  --  Information about database status 
+@item
+_key.c  --  for handling keys 
+@item
+_locking.c  --  lock database 
+@item
+log.c  --  save commands in log file which myisamlog program can read 
+@item
+_packrec.c  --  compress records 
+@item
+_page.c  --  read and write pages containing keys 
+@item
+panic.c  --  the mi_panic routine, probably for sudden shutdowns 
+@item
+range.c  --  approximate count of how many records lie between two
+keys 
+@item
+rfirst.c  --  read first row through a specific key (very short)
+@item
+rkey.c  --  read a record using a key 
+@item
+rlast.c  --  read last row with same key as previously-read row 
+@item
+rnext.c  --  read next row with same key as previously-read row 
+@item
+rprev.c  --  read previous row with same key as previously-read row 
+@item
+rrnd.c  --  read a row based on position 
+@item
+rsame.c  --  find current row using positional read or key-based read 
+@item
+rsamepos.c  --  positional read 
+@item
+_search.c  --  key-handling functions 
+@item
+static.c  --  static variables (very short)
+@item
+_statrec.c  --  functions to handle fixed-length records 
+@item
+test1.c  --  testing basic functions 
+@item
+test2.c  --  testing database and storing results 
+@item
+test3.c  --  testing locking 
+@item
+update.c  --  update an existing row 
+@item
+write.c  --  insert a new row 
+@item
+pack_isam.c  --  pack isam file (NOTE TO SELF ?? equivalent to
+\myisam\myisampack.c)
+@end itemize
+@*@*
+
+Except for one minor C file (pack_isam.c) every program in the ISAM
+directory has a counterpart in the MyISAM directory. For example
+\isam\update.c corresponds to \myisam\mi_update.c. However, the
+reverse is not true -- there are many files in the MyISAM directory
+which have no counterpart in the ISAM directory.
+@*@*
+
+The reason is simple -- it's because the ISAM files are becoming
+obsolete. When MySQL programmers add new features, they add them for
+MyISAM only. The student can therefore ignore all files in this
+directory and study the MyISAM programs instead.
+@*@*
+
+@subsection libmysql
+
+The MySQL Library, Part 1.
+@*@*
+
+The files here are for producing MySQL as a library (e.g. a Windows
+DLL). The idea is that, instead of producing separate mysql (client)
+and mysqld (server) programs, one produces a library. Instead of
+sending messages, the client part merely calls the server part.
+@*@*
+
+The libmysql files are split into three directories: libmysql (this
+one), libmysql_r (the next one), and libmysqld (the next one after
+that). It may be that the original intention was that the libmysql
+directory would hold the "client part" files, and the libmysqld
+directory would hold the "server part" files.
+@*@*
+
+The program files on this directory are:
+@itemize @bullet
+@item
+conf_to_src.c  --  has to do with charsets 
+@item
+dll.c  --  initialization of the dll library 
+@item
+errmsg.c  --  English error messages, compare \mysys\errors.c 
+@item
+get_password.c  --  get password 
+@item
+libmysql.c  --  the main "packet-sending emulation" program 
+@item
+manager.c  --  initialize/connect/fetch with MySQL manager 
+@end itemize
+@*@*
+
+@subsection libmysql_r
+
+The MySQL Library, Part 2.
+@*@*
+
+This is a continuation of the libmysql directory. There is only one
+file here:
+@itemize @bullet
+@item
+makefile.am
+@end itemize
+@*@*
+
+@subsection libmysqld
+
+The MySQL library, Part 3.
+@*@*
+
+This is a continuation of the libmysql directory. The program files on
+this directory are:
+@itemize @bullet
+@item
+libmysqld.c  --  The called side, compare the mysqld.exe source 
+@item
+lib_vio.c --  Emulate the vio directory's communication buffer 
+@end itemize
+@*@*
+
+@subsection man
+
+Manual pages.
+@*@*
+
+These are not the actual "man" (manual) pages, they are switches for
+the production.
+@*@*
+
+@subsection merge
+
+The MERGE table handler.
+@*@*
+
+For a description of the MERGE table handler, see the MySQL Reference
+Manual, section 7.2.
+@*@*
+
+You'll notice that there seem to be several directories with
+similar-sounding names of C files in them. That's because the MySQL
+table handlers are all quite similar.
+@*@*
+
+The related directories are:
+@itemize @bullet
+@item
+\isam  --  for ISAM 
+@item
+\myisam  --  for MyISAM 
+@item
+\merge  --  for ISAM MERGE (mostly call functions in \isam programs)
+@item
+\myisammrg  --  for MyISAM MERGE (mostly call functions in \myisam
+programs)
+@end itemize
+@*@*
+
+To avoid duplication, only the \myisam program versions are discussed.
+@*@*
+
+The C programs in this (merge) directory are:
+@itemize @bullet
+@item
+mrg_close.c  --  compare \isam's close.c 
+@item
+mrg_create.c  --  "" create.c 
+@item
+mrg_delete.c  --  "" delete.c 
+@item
+mrg_extra.c  --  "" extra.c 
+@item
+mrg_info.c  --  "" info.c 
+@item
+mrg_locking.c  --  "" locking.c 
+@item
+mrg_open.c  --  "" open.c 
+@item
+mrg_panic.c  --  "" panic.c 
+@item
+mrg_rrnd.c  --  "" rrnd.c 
+@item
+mrg_rsame.c  --  "" rsame.c 
+@item
+mrg_static.c  --  "" static.c 
+@item
+mrg_update.c  --  "" update.c 
+@end itemize
+@*@*
+
+@subsection myisam
+
+The MyISAM table handler.
+@*@*
+
+The C files in this subdirectory come in six main groups:
+@itemize @bullet
+@item
+ft*.c files  --  ft stands for "Full Text", code contributed by Sergei
+Golubchik 
+@item
+mi*.c files  --  mi stands for "My Isam", these are the main programs
+for Myisam 
+@item
+myisam*.c files  --  for example, "myisamchk" utility routine
+functions source 
+@item
+rt*.c files  --  rt stands for "rtree", some code was written by
+Alexander Barkov 
+@item
+sp*.c files  --  sp stands for "spatial", some code was written by
+Ramil Kalimullin 
+@item
+sort.c  --  this is a single file that sorts keys for index-create
+purposes 
+@end itemize
+@*@*
+
+The "full text" and "rtree" and "spatial" program sets are for special
+purposes, so this document focuses only on the mi*.c "myisam" C
+programs. They are:
+@itemize @bullet
+@item
+mi_cache.c  --  for reading records from a cache 
+@item
+mi_changed.c  --  a single routine for setting a "changed" flag (very
+short)
+@item
+mi_check.c  --  doesn't just do checks, ?? for myisamchk program? 
+@item
+mi_checksum.c  --  calculates a checksum for a row 
+@item
+mi_close.c  --  close database 
+@item
+mi_create.c  --  create a table 
+@item
+mi_dbug.c  -- support routines for use with "dbug" (see \dbug
+description)
+@item
+mi_delete.c  --  delete a row 
+@item
+mi_delete_all.c  --  delete all rows 
+@item
+mi_delete_table.c  --  delete a table (very short)
+@item
+mi_dynrec.c  --  functions to handle space-packed records and blobs 
+@item
+mi_extra.c  --  setting options and buffer sizes when optimizing 
+@item
+mi_info.c  --  "Ger tillbaka en struct med information om isam-filen" 
+@item
+mi_key.c  --  for handling keys 
+@item
+mi_locking.c  --  lock database 
+@item
+mi_log.c  --  save commands in log file which myisamlog program can
+read 
+@item
+mi_open.c  --  open database 
+@item
+mi_packrec.c  --  compress records 
+@item
+mi_page.c  --  read and write pages containing keys 
+@item
+mi_panic.c  --  the mi_panic routine, probably for sudden shutdowns 
+@item
+mi_range.c  --  approximate count of how many records lie between two
+keys 
+@item
+mi_rename.c  --  rename a table 
+@item
+mi_rfirst.c  --  read first row through a specific key (very short)
+@item
+mi_rkey.c  --  read a record using a key 
+@item
+mi_rlast.c  --  read last row with same key as previously-read row 
+@item
+mi_rnext.c  --  read next row with same key as previously-read row 
+@item
+mi_rnext_same.c  --  same as mi_rnext.c, but abort if the key changes 
+@item
+mi_rprev.c  --  read previous row with same key as previously-read row
+@item
+mi_rrnd.c  --  read a row based on position 
+@item
+mi_rsame.c  --  find current row using positional read or key-based
+read 
+@item
+mi_rsamepos.c  --  positional read 
+@item
+mi_scan.c  --  read all rows sequentially 
+@item
+mi_search.c  --  key-handling functions 
+@item
+mi_static.c  --  static variables (very short)
+@item
+mi_statrec.c  --  functions to handle fixed-length records 
+@item
+mi_test1.c  --  testing basic functions 
+@item
+mi_test2.c  --  testing database and storing results 
+@item
+mi_test3.c  --  testing locking 
+@item
+mi_unique.c  --  functions to check if a row is unique 
+@item
+mi_update.c  --  update an existing row 
+@item
+mi_write.c  --  insert a new row 
+@end itemize
+@*@*
+
+@subsection myisammrg
+
+MyISAM Merge table handler.
+@*@*
+
+As with other table handlers, you'll find that the *.c files in the
+myissammrg directory have counterparts in the myisam directory. In
+fact, this general description of a myisammrg program is almost always
+true: The myisammrg
+function checks an argument, the myisammrg function formulates an
+expression for passing to a myisam function, the myisammrg calls a
+myisam function, the myisammrg function returns.
+@*@*
+
+These are the 21 files in the myisammrg directory, with notes about
+the myisam functions or programs they're connected with:
+@itemize @bullet
+@item
+myrg_close.c  --  mi_close.c 
+@item
+myrg_create.c  --  mi_create.c 
+@item
+myrg_delete.c  --  mi_delete.c / delete last-read record 
+@item
+myrg_extra.c  --  mi_extra.c / "extra functions we want to do ..." 
+@item
+myrg_info.c  --  mi_info.c / display information about a mymerge file 
+@item
+myrg_locking.c  --  mi_locking.c / lock databases 
+@item
+myrg_open.c  --  mi_open.c / open a MyISAM MERGE table 
+@item
+myrg_panic.c  --  mi_panic.c / close in a hurry 
+@item
+myrg_queue.c  --  read record based on a key 
+@item
+myrg_range.c  --  mi_range.c / find records in a range 
+@item
+myrg_rfirst.c  --  mi_rfirst.c / read first record according to
+specific key 
+@item
+myrg_rkey.c  --  mi_rkey.c / read record based on a key 
+@item
+myrg_rlast.c  --  mi_rlast.c / read last row with same key as previous
+read 
+@item
+myrg_rnext.c  --  mi_rnext.c / read next row with same key as previous
+read 
+@item
+myrg_rnext_same.c  --  mi_rnext_same.c / read next row with same key
+@item
+myrg_rprev.c  --  mi_rprev.c / read previous row with same key 
+@item
+myrg_rrnd.c  --  mi_rrnd.c / read record with random access 
+@item
+myrg_rsame.c  --  mi_rsame.c / call mi_rsame function, see
+\myisam\mi_rsame.c 
+@item
+myrg_static.c  --  mi_static.c / static variable declaration 
+@item
+myrg_update.c  --  mi_update.c / call mi_update function, see
+\myisam\mi_update.c 
+@item
+myrg_write.c  --  mi_write.c / call mi_write function, see
+\myisam\mi_write.c 
+@end itemize
+@*@*
+
+@subsection mysql-test
+
+A test suite for mysqld.
+@*@*
+
+The directory has a README file which explains how to run the tests,
+how to make new tests (in files with the filename extension "*.test"),
+and how to report errors.
+@*@*
+
+There are four subdirectories:
+@itemize @bullet
+@item
+\misc  --  contains one minor Perl program
+@item
+\r  --  contains *.result, i.e. "what happened" files and
+*.required, i.e. "what should happen" file
+@item
+\std_data  --  contains standard data for input to tests
+@item
+\t  --  contains tests
+@end itemize
+@*@*
+
+There are 186 *.test files in the \t subdirectory. Primarily these are
+SQL scripts which try out a feature, output a result, and compare the
+result with what's required. Some samples of what the test files check
+are: latin1_de comparisons, date additions, the HAVING clause, outer
+joins, openSSL, load data, logging, truncate, and UNION.
+@*@*
+
+There are other tests in these directories:
+@itemize @bullet
+@item
+sql-bench
+@item
+repl-tests
+@item
+tests
+@end itemize
+
+@subsection mysys
+
+MySQL system library (Low level routines for file access etc.).
+@*@*
+
+There are 115 *.c programs in this directory:
+@itemize @bullet
+@item
+array.c  --  Dynamic array handling 
+@item
+charset.c  --  Using dynamic character sets, set default character
+set, ... 
+@item
+charset2html.c  --  Checking what character set a browser is using 
+@item
+checksum.c  --  Calculate checksum for a memory block, used for
+pack_isam 
+@item
+default.c  --  Find defaults from *.cnf or *.ini files 
+@item
+errors.c  --  English text of global errors 
+@item
+hash.c  --  Hash search/compare/free functions "for saving keys" 
+@item
+list.c  --  Double-linked lists 
+@item
+make-conf.c  --  "Make a charset .conf file out of a ctype-charset.c
+file" 
+@item
+md5.c  --  MD5 ("Message Digest 5") algorithm from RSA Data Security
+@item
+mf_brkhant.c  --  Prevent user from doing a Break during critical
+execution 
+@item
+mf_cache.c  --  "Open a temporary file and cache it with io_cache" 
+@item
+mf_dirname.c  --  Parse/convert directory names 
+@item
+mf_fn_ext.c  --  Get filename extension 
+@item
+mf_format.c  --  Format a filename 
+@item
+mf_getdate.c  --  Get date, return in yyyy-mm-dd hh:mm:ss format 
+@item
+mf_iocache.c  --  Cached read/write of files in fixed-size units 
+@item
+mf_iocache2.c  --  Continuation of mf_iocache.c 
+@item
+mf_keycache.c  --  Key block caching for certain file types 
+@item
+mf_loadpath.c  --  Return full path name (no ..\ stuff)
+@item
+mf_pack.c  --  Packing/unpacking directory names for create purposes
+@item
+mf_path.c  --  Determine where a program can find its files 
+@item
+mf_qsort.c  --  Quicksort 
+@item
+mf_qsort2.c  --  Quicksort, part 2 
+@item
+mf_radix.c  --  Radix sort 
+@item
+mf_same.c  --  Determine whether filenames are the same 
+@item
+mf_sort.c  --  Sort with choice of Quicksort or Radix sort 
+@item
+mf_soundex.c  --  Soundex algorithm derived from EDN Nov. 14, 1985
+(pg. 36)
+@item
+mf_strip.c  --  Strip trail spaces from a string 
+@item
+mf_tempdir.c  --  Initialize/find/free temporary directory 
+@item
+mf_tempfile.c  --  Create a temporary file 
+@item
+mf_unixpath.c  --  Convert filename to UNIX-style filename 
+@item
+mf_util.c  --  Routines, #ifdef'd, which may be missing on some
+machines 
+@item
+mf_wcomp.c  --  Comparisons with wildcards 
+@item
+mf_wfile.c  --  Finding files with wildcards 
+@item
+mulalloc.c  --  Malloc many pointers at the same time 
+@item
+my_aes.c  --  AES encryption 
+@item
+my_alarm.c  --  Set a variable value when an alarm is received 
+@item
+my_alloc.c  --  malloc of results which will be freed simultaneously
+@item
+my_append.c  --  one file to another 
+@item
+my_bit.c  --  smallest X where 2^X >= value, maybe useful for
+divisions 
+@item
+my_bitmap.c  --  Handle uchar arrays as large bitmaps 
+@item
+my_chsize.c  --  Truncate file if shorter, else fill with a filler
+character 
+@item
+my_clock.c  --  Time-of-day ("clock()") function, with OS-dependent
+#ifdef's  
+@item
+my_compress.c  --  Compress packet (see also description of \zlib
+directory)
+@item
+my_copy.c  --  Copy files 
+@item
+my_create.c  --  Create file 
+@item
+my_delete.c  --  Delete file 
+@item
+my_div.c  --  Get file's name 
+@item
+my_dup.c  --  Open a duplicated file 
+@item
+my_error.c  --  Return formatted error to user 
+@item
+my_fopen.c  --  File open 
+@item
+my_fstream.c  --  Streaming file read/write 
+@item
+my_getwd.c  --  Get working directory 
+@item
+my_gethostbyname.c  --  Thread-safe version of standard net
+gethostbyname() func 
+@item
+my_getopt.c  --  Find out what options are in effect 
+@item
+my_handler.c  --  Compare two keys in various possible formats 
+@item
+my_init.c  --  Initialize variables and functions in the mysys library
+@item
+my_lib.c  --  Compare/convert directory names and file names 
+@item
+my_lock.c  --  Lock part of a file 
+@item
+my_lockmem.c  --  "Allocate a block of locked memory" 
+@item
+my_lread.c  --  Read a specified number of bytes from a file into
+memory 
+@item
+my_lwrite.c  --  Write a specified number of bytes from memory into a
+file 
+@item
+my_malloc.c  --  Malloc (memory allocate) and dup functions 
+@item
+my_messnc.c  --  Put out a message on stderr with "no curses" 
+@item
+my_mkdir.c  --  Make directory 
+@item
+my_net.c  --  Thread-safe version of net inet_ntoa function 
+@item
+my_netware.c  --  Functions used only with the Novell Netware version
+of MySQL 
+@item
+my_once.c  --  Allocation / duplication for "things we don't need to
+free" 
+@item
+my_open.c  --  Open a file 
+@item
+my_os2cond.c  --  OS2-specific: "A simple implementation of posix
+conditions" 
+@item
+my_os2dirsrch.c  --  OS2-specific: Emulate a Win32 directory search 
+@item
+my_os2dlfcn.c  --  OS2-specific: Emulate UNIX dynamic loading 
+@item
+my_os2file64.c  --  OS2-specific: For File64bit setting 
+@item
+my_os2mutex.c  --  OS2-specific: For mutex handling 
+@item
+my_os2thread.c  --  OS2-specific: For thread handling 
+@item
+my_os2tls.c  --  OS2-specific: For thread-local storage 
+@item
+my_port.c  --  AIX-specific: my_ulonglong2double() 
+@item
+my_pread.c  --  Read a specified number of bytes from a file 
+@item
+my_pthread.c  --  A wrapper for thread-handling functions in different
+OSs 
+@item
+my_quick.c  --  Read/write (labelled a "quicker" interface, perhaps
+obsolete)
+@item
+my_read.c  --  Read a specified number of bytes from a file, possibly
+retry 
+@item
+my_realloc.c  --  Reallocate memory allocated with my_alloc.c
+(probably)
+@item
+my_redel.c  --  Rename and delete file 
+@item
+my_rename.c  --  Rename without delete 
+@item
+my_seek.c  --  Seek, i.e. point to a spot within a file 
+@item
+my_semaphore.c  --  Semaphore routines, for use on OS that doesn't
+support them 
+@item
+my_sleep.c  --  Wait n microseconds 
+@item
+my_static.c  --  Static-variable definitions 
+@item
+my_symlink.c  --  Read a symbolic link (symlinks are a UNIX thing, I
+guess)
+@item
+my_symlink2.c  --  Part 2 of my_symlink.c 
+@item
+my_tempnam.c  --  Obsolete temporary-filename routine used by ISAM
+table handler 
+@item
+my_thr_init.c  --  initialize/allocate "all mysys & debug thread
+variables" 
+@item
+my_wincond.c  --  Windows-specific: emulate Posix conditions 
+@item
+my_winsem.c  --  Windows-specific: emulate Posix threads 
+@item
+my_winthread.c  --  Windows-specific: emulate Posix threads 
+@item
+my_write.c  --  Write a specified number of bytes to a file 
+@item
+ptr_cmp.c  --  Point to an optimal byte-comparison function 
+@item
+queues.c  --  Handle priority queues as in Robert Sedgewick's book 
+@item
+raid2.c  --  RAID support (the true implementation is in raid.cc)
+@item
+rijndael.c  --  "Optimised ANSI C code for the Rijndael cipher (now
+AES")
+@item
+safemalloc.c  --  A version of the standard malloc() with safety
+checking 
+@item
+sha1.c  --  Implementation of Secure Hashing Algorithm 1 
+@item
+string.c  --  Initialize/append/free dynamically-sized strings 
+@item
+testhash.c  --  Standalone program: test the hash library routines 
+@item
+test_charset.c  --  Standalone program: display character set
+information 
+@item
+test_dir.c  --  Standalone program: placeholder for "test all
+functions" idea 
+@item
+test_fn.c  --  Standalone program: apparently tests a function 
+@item
+test_xml.c  --  Standalone program: test XML routines 
+@item
+thr_alarm.c  --  Thread alarms and signal handling 
+@item
+thr_lock.c  --  "Read and write locks for Posix threads" 
+@item
+thr_mutex.c  --  A wrapper for mutex functions 
+@item
+thr_rwlock.c  --  Synchronizes the readers' thread locks with the
+writer's lock 
+@item
+tree.c  --  Initialize/search/free binary trees 
+@item
+typelib.c  --  Determine what type a field has 
+@end itemize
+@*@*
+
+You can find documentation for the main functions in these files
+elsewhere in this document.
+For example, the main functions in my_getwd.c are described thus:
+@*@*
+
+@example
+"int my_getwd _A((string buf, uint size, myf MyFlags)); @*
+     int my_setwd _A((const char *dir, myf MyFlags)); @*
+     Get and set working directory." @*
+@end example
+
+@subsection netware
+
+Files related to the Novell NetWare version of MySQL.
+@*@*
+
+There are 39 files on this directory. Most have filename extensions of
+*.def, *.sql, or *.c.
+@*@*
+
+The twenty-five *.def files are all from Novell Inc. They contain import or
+export symbols. (".def" is a common filename extension for
+"definition".)
+@*@*
+
+The two *.sql files are short scripts of SQL statements used in
+testing.
+@*@*
+
+These are the five *.c files, all from Novell Inc.:
+@itemize @bullet
+@item
+libmysqlmain.c  --  Only one function: init_available_charsets() 
+@item
+my_manage.c  --  Standalone management utility 
+@item
+mysql_install_db.c  --  Compare \scripts\mysql_install_db.sh 
+@item
+mysql_test_run.c  --  Short test program 
+@item
+mysqld_safe.c  --  Compare \scripts\mysqld_safe.sh 
+@end itemize
+
+Perhaps the most important file is:
+@itemize @bullet
+@item
+netware.patch  --  NetWare-specific build instructions and switches
+(compare \mysql-4.1\ltmain.sh)
+@end itemize
+@*@*
+
+For instructions about basic installation, see "Deployment Guide For
+NetWare AMP" at: 
+@url{http://developer.novell.com/ndk/whitepapers/namp.htm}
+@*
+
+@subsection NEW-RPMS
+
+New "RPM Package Manager" files.
+@*@*
+
+This directory is not part of the Windows distribution. Perhaps in
+MYSQL's Linux distribution it has files for use with Red Hat
+installations -- a point that needs checking someday.
+@*@*
+
+@subsection os2
+
+Routines for working with the OS2 operating system.
+@*@*
+
+The files in this directory are the product of the efforts of three
+people from outside MySQL: Yuri Dario, Timo Maier, and John M
+Alfredsson. There are no .C program files in this directory.
+@*@*
+
+The contents of \os2 are: 
+@itemize @bullet
+@item
+A Readme.Txt file 
+@item
+An \include subdirectory containing .h files which are for OS/2 only
+@item
+Files used in the build process (configuration, switches, and one
+.obj)
+@end itemize
+@*@*
+
+The README file refers to MySQL version 3.23, which suggests that
+there have been no updates for MySQL 4.0 for this section.
+@*@*
+
+@subsection pstack
+
+Process stack display.
+@*@*
+
+This is a set of publicly-available debugging aids which all do pretty
+well the same thing: display the contents of the stack, along with
+symbolic information, for a running process. There are versions for
+various object file formats (such as ELF and IEEE-695). Most of the
+programs are copyrighted by the Free Software Foundation and are
+marked as "part of GNU Binutils".
+@*@*
+
+In other words, the pstack files are not really part of the MySQL
+library. They are merely useful when you re-program some MYSQL code
+and it crashes.
+@*@*
+
+@subsection regex
+
+Regular Expression library for support of REGEXP function.
+@*@*
+
+This is the copyrighted product of Henry Spencer from the University
+of Toronto. It's a fairly-well-known implementation of the
+requirements of POSIX 1003.2 Section 2.8. The library is bundled with
+Apache and is the default implementation for regular-expression
+handling in BSD Unix. MySQL's Monty Widenius has made minor changes in
+three programs (debug.c, engine.c, regexec.c) but this is not a MySQL
+package. MySQL calls it only in order to support two MySQL functions:
+REGEXP and RLIKE.
+@*@*
+
+Some of Mr Spencer's documentation for the regex library can be found
+in the README and WHATSNEW files.
+@*@*
+
+One MySQL program which uses regex is \cmd-line-utils\libedit\search.c
+@*@*
+
+This program calls the 'regcomp' function, which is the entry point in
+\regex\regexp.c.
+@*@*
+
+@subsection repl-tests
+
+Test cases for replication.
+@*@*
+
+There are six short and trivial-looking tests in these subdirectories:
+@itemize @bullet
+@item
+\test-auto-inc  --  Do auto-Increment columns work? 
+@item
+\test-bad-query  --  Does insert in PK column work? 
+@item
+\test-dump  --  Do LOAD statements work? 
+@item
+\test-repl  --  Does replication work? 
+@item
+\test-repl-alter  --  Does ALTER TABLE work? 
+@item
+\test-repl-ts  --  Does TIMESTAMP column work? 
+@end itemize
+@*@*
+
+@subsection SCCS
+
+Source Code Control System.
+@*@*
+
+You will see this directory if and only if you used BitKeeper for
+downloading the source. The files here are for BitKeeper
+administration and are not of interest to application programmers.
+@*@*
+
+@subsection scripts
+
+SQL batches, e.g. for converting msql to MySQL.
+@*@*
+
+The *.sh filename extension apparently stands for "shell script".
+Linux programmers use it where Windows programmers would use a *.bat
+(batch filename extension).
+@*@*
+
+The *.sh files on this directory are:
+@itemize @bullet
+@item
+fill_help_tables.sh  --  Create help-information tables and insert 
+@item
+make_binary_distribution.sh  --  Get configure information, make,
+produce tar 
+@item
+msql2mysql.sh  --  Convert mSQL to MySQL 
+@item
+mysqlbug.sh  --  Create a bug report and mail it 
+@item
+mysqld_multi.sh  --  Start/stop any number of mysqld instances 
+@item
+mysqld_safe-watch.sh  --  Start/restart in safe mode 
+@item
+mysqld_safe.sh  --  Start/restart in safe mode 
+@item
+mysqldumpslow.sh  --  Parse and summarize the slow query log 
+@item
+mysqlhotcopy.sh  --  Hot backup 
+@item
+mysql_config.sh  --  Get configure information that client might need 
+@item
+mysql_convert_table_format.sh  --  Conversion, e.g. from ISAM to
+MyISAM 
+@item
+mysql_explain_log.sh  --  Put a log (made with --log) into a MySQL
+table 
+@item
+mysql_find_rows.sh  --  Search for queries containing <regexp> 
+@item
+mysql_fix_extensions.sh  --  Renames some file extensions, not
+recommended 
+@item
+mysql_fix_privilege_tables.sh  --  Fix mysql.user etc. if upgrading to
+MySQL 3.23.14+ 
+@item
+mysql_install_db.sh  --  Create privilege tables and func table 
+@item
+mysql_secure_installation.sh  --  Disallow remote root login,
+eliminate test, etc. 
+@item
+mysql_setpermission.sh  --  Aid to add users or databases, sets
+privileges 
+@item
+mysql_tableinfo.sh  --  Puts info re MySQL tables into a MySQL table
+@item
+mysql_zap.sh  --  Kill processes which match pattern 
+@end itemize
+@*@*
+
+@subsection sql
+
+Programs for handling SQL commands. The "core" of MySQL.
+@*@*
+
+These are the .c and .cc files in the sql directory:
+@itemize @bullet
+@item
+cache_manager.cc  --  manages a number of blocks 
+@item
+convert.cc  --  convert tables between different character sets 
+@item
+derror.cc  --  read language-dependent message file 
+@item
+des_key_file.cc  --  load DES keys from plaintext file 
+@item
+field.cc  --  "implement classes defined in field.h" (long)
+@item
+field_conv.cc  --  functions to copy data to or from fields 
+@item
+filesort.cc  --  sort file 
+@item
+frm_crypt.cc  --  contains only one short function: get_crypt_for_frm 
+@item
+gen_lex_hash.cc  --  Knuth's algorithm from Vol 3 Sorting and
+Searching, Chapter 6.3 
+@item
+gstream.cc  --  GTextReadStream 
+@item
+handler.cc  --  handler-calling functions 
+@item
+hash_filo.cc  --  static-sized hash tables 
+@item
+ha_berkeley.cc  --  Handler: BDB 
+@item
+ha_heap.cc  --  Handler: Heap 
+@item
+ha_innodb.cc  --  Handler: InnoDB 
+@item
+ha_isam.cc  --  Handler: ISAM 
+@item
+ha_isammrg.cc  --  Handler: (ISAM MERGE)
+@item
+ha_myisam.cc  --  Handler: MyISAM 
+@item
+ha_myisammrg.cc  --  Handler: (MyISAM MERGE)
+@item
+hostname.cc  --  Given IP, return hostname 
+@item
+init.cc  --  Init and dummy functions for interface with unireg 
+@item
+item.cc  --  Item functions 
+@item
+item_buff.cc  --  Buffers to save and compare item values 
+@item
+item_cmpfunc.cc  --  Definition of all compare functions 
+@item
+item_create.cc  --  Create an item. Used by lex.h. 
+@item
+item_func.cc  --  Numerical functions 
+@item
+item_row.cc  --  Row items for comparing rows and for IN on rows 
+@item
+item_sum.cc  --  Set functions (sum, avg, etc.)
+@item
+item_strfunc.cc  --  String functions 
+@item
+item_subselect.cc  --  Item subselect 
+@item
+item_timefunc.cc  --  Date/time functions, e.g. week of year 
+@item
+item_uniq.cc  --  Empty file, here for compatibility reasons 
+@item
+key.cc  --  Functions to handle keys and fields in forms 
+@item
+lock.cc  --  Locks 
+@item
+log.cc  --  Logs 
+@item
+log_event.cc  --  Log event 
+@item
+matherr.c  --  Handling overflow, underflow, etc. 
+@item
+mf_iocache.cc  --  Caching of (sequential) reads 
+@item
+mini_client.cc  --  Client included in server for server-server
+messaging 
+@item
+mysqld.cc  --  Source of mysqld.exe 
+@item
+my_lock.c  --  Lock part of a file 
+@item
+net_serv.cc  --  Read/write of packets on a network socket 
+@item
+nt_servc.cc  --  Initialize/register/remove an NT service 
+@item
+opt_ft.cc  --  Create a FT or QUICK RANGE based on a key (very short)
+* opt_range.cc  --  Range of keys 
+@item
+opt_sum.cc  --  Optimize functions in presence of (implied) GROUP BY
+@item
+password.c  --  Password checking 
+@item
+procedure.cc  --  Procedure 
+@item
+protocol.cc  --  Low level functions for storing data to be sent to
+client 
+@item
+records.cc  --  Functions to read, write, and lock records 
+@item
+repl_failsafe.cc  --  Replication fail-save 
+@item
+set_var.cc  --  MySQL variables 
+@item
+slave.cc  --  Procedures for a slave in a master/slave (replication?)
+relation 
+@item
+spatial.cc  --  Geometry stuff (lines, points, etc.)
+@item
+sql_acl.cc  --  Functions related to ACL security 
+@item
+sql_analyse.cc  --  Analyse an input string (?)
+@item
+sql_base.cc  --  Basic functions needed by many modules 
+@item
+sql_cache.cc  --  SQL cache, with long comments about how caching
+works 
+@item
+sql_class.cc  --  SQL class 
+@item
+sql_crypt.cc  --  Encode / decode, very short 
+@item
+sql_db.cc  --  Create / drop database 
+@item
+sql_delete.cc  --  The DELETE statement 
+@item
+sql_derived.cc  --  Derived tables, with long comments 
+@item
+sql_do.cc  --  The DO statement 
+@item
+sql_error.cc  --  Errors and warnings 
+@item
+sql_handler.cc  --  Direct access to ISAM 
+@item
+sql_help.cc  --  The HELP statement (if there is one?)
+@item
+sql_insert.cc  --  The INSERT statement 
+@item
+sql_lex.cc  --  Related to lex or yacc 
+@item
+sql_list.cc  --  Only list_node_end_of_list, short 
+@item
+sql_load.cc  --  The LOAD DATA statement? 
+@item
+sql_map.cc  --  Memory-mapped files? 
+@item
+sql_manager.cc  --  Maintenance tasks, e.g. flushing the buffers
+periodically 
+@item
+sql_olap.cc  --  ROLLUP 
+@item
+sql_parse.cc  --  Parse an SQL statement 
+@item
+sql_prepare.cc  --  Prepare an SQL statement 
+@item
+sql_repl.cc  --  Replication 
+@item
+sql_rename.cc  --  Rename table 
+@item
+sql_select.cc  --  Select and join optimisation 
+@item
+sql_show.cc  --  The SHOW statement 
+@item
+sql_string.cc  --  String functions: alloc, realloc, copy, convert,
+etc. 
+@item
+sql_table.cc  --  The DROP TABLE and ALTER TABLE statements 
+@item
+sql_test.cc  --  Some debugging information 
+@item
+sql_udf.cc  --  User-defined functions 
+@item
+sql_union.cc  --  The UNION operator 
+@item
+sql_update.cc  --  The UPDATE statement 
+@item
+stacktrace.c  --  Display stack trace (Linux/Intel only?)
+@item
+table.cc  --  Table metadata retrieval, mostly 
+@item
+thr_malloc.cc  --  Mallocs used in threads 
+@item
+time.cc  --  Date and time functions 
+@item
+udf_example.cc  --  Example file of user-defined functions 
+@item
+uniques.cc  --  Function to handle quick removal of duplicates 
+@item
+unireg.cc  --  Create a unireg form file from a FIELD and field-info struct 
+@end itemize
+@*@*
+
+@subsection sql-bench
+
+The MySQL Benchmarks.
+@*@*
+
+This directory has the programs and input files which MySQL uses for
+its comparisons of MySQL, PostgreSQL, mSQL, Solid, etc. Since MySQL
+publishes the comparative results, it's only right that it should make
+available all the material necessary to reproduce all the tests.
+@*@*
+
+There are five subdirectories and sub-subdirectories:
+@itemize @bullet
+@item
+\Comments  --  Comments about results from tests of Access, Adabas,
+etc. 
+@item
+\Data\ATIS  --  .txt files containing input data for the "ATIS" tests 
+@item
+\Data\Wisconsin  --  .txt files containing input data for the
+"Wisconsin" tests 
+@item
+\Results  --  old test results 
+@item
+\Results-win32  --  old test results from Windows 32-bit tests 
+@end itemize
+@*@*
+
+There are twenty-four *.sh (shell script) files, which involve Perl
+programs.
+@*@*
+
+There are three *.bat (batch) files.
+@*@*
+
+There is one README file and one TODO file.
+@*@*
+
+@subsection SSL
+
+Secure Sockets Layer.
+@*@*
+
+This isn't a code directory. It contains a short note from Tonu Samuel
+(the NOTES file) and seven *.pem files. PEM stands for "Privacy
+Enhanced Mail" and is an Internet standard for adding security to
+electronic mail. Finally, there are two short scripts for running
+clients and servers over SSL connections.
+@*@*
+
+@subsection strings
+
+The string library.
+@*@*
+
+Many of the files in this subdirectory are equivalent to well-known
+functions that appear in most C string libraries. For those, there is
+documentation available in most compiler handbooks.
+@*@*
+
+On the other hand, some of the files are MySQL additions or
+improvements. Often the MySQL changes are attempts to optimize the
+standard libraries. It doesn't seem that anyone tried to optimize for
+recent Pentium class processors, though.
+@*@*
+
+The .C files are:
+@itemize @bullet
+@item
+atof.c  --  ascii-to-float, MySQL version 
+@item
+bchange.c  --  short replacement routine written by Monty Widenius in
+1987 
+@item
+bcmp.c  --  binary compare, rarely used 
+@item
+bcopy-duff.c  --  block copy: attempt to copy memory blocks faster
+than cmemcpy 
+@item
+bfill.c  --  byte fill, to fill a buffer with (length) copies of a
+byte 
+@item
+bmove.c  --  block move 
+@item
+bmove512.c  --  "should be the fastest way to move a multiple of 512
+bytes" 
+@item
+bmove_upp.c  --  bmove.c variant, starting with last byte 
+@item
+bzero.c  --  something like bfill with an argument of 0 
+@item
+conf_to_src.c  --  reading a configuration file (NOTE TO SELF ? what's
+this doing here?)
+@item
+ctype*.c  --  string handling programs for each char type MySQL
+handles 
+@item
+do_ctype.c  --  display case-conversion and sort-conversion tables 
+@item
+int2str.c  --  integer-to-string 
+@item
+is_prefix.c  --  checks whether string1 starts with string2 
+@item
+llstr.c  --  convert long long to temporary-buffer string, return
+pointer 
+@item
+longlong2str.c  --  ditto, but to argument-buffer 
+@item
+memcmp.c  --  memory compare 
+@item
+memset.c  --  memory set 
+@item
+my_vsnprintf.c  --  variant of printf 
+@item
+r_strinstr.c  --  see if one string is within another 
+@item
+str2int.c  --  convert string to integer 
+@item
+strappend.c  --  append one string to another 
+@item
+strcat.c  --  concatenate strings 
+@item
+strcend.c  --  point to where a character C occurs within str, or NULL
+@item
+strchr.c  --  point to first place in string where character occurs 
+@item
+strcmp.c  --  compare two strings 
+@item
+strcont.c  --  point to where any one of a set of characters appears
+@item
+strend.c  --  point to the '\0' byte which terminates str 
+@item
+strfill.c  --  fill a string with n copies of a byte 
+@item
+strinstr.c  --  find string within string 
+@item
+strlen.c  --  return length of string in bytes 
+@item
+strmake.c  --  move n characters, or move till end 
+@item
+strmov.c  --  move source to dest and return pointer to end 
+@item
+strnlen.c  --  return length of string, or return n 
+@item
+strnmov.c  --  move source to dest for source size, or for n bytes 
+@item
+strrchr.c  --  find a character within string, searching from end 
+@item
+strstr.c  --  find an instance of pattern within source 
+@item
+strto.c  --  string to long, to long long, to unsigned long, etc. 
+@item
+strtol.c  --  string to long 
+@item
+strtoll.c  --  string to long long 
+@item
+strtoul.c  --  string to unsigned long 
+@item
+strtoull.c  --  string to unsigned long long 
+@item
+strxmov.c  --  move a series of concatenated source strings to dest 
+@item
+strxnmov.c  --  like strxmov.c but with a maximum length n 
+@item
+str_test.c  --  test of all the string functions encoded in assembler 
+@item
+udiv.c  --  unsigned long divide 
+@item
+xml.c  --  read and parse XML strings 
+@end itemize
+@*@*
+
+There are also four .ASM files -- macros.asm, ptr_cmp.asm,
+strings.asm, and strxmov.asm -- which can replace some of the
+C-program functions. But again, they look like optimizations for old
+members of the Intel processor family.
+@*@*
+
+@subsection support-files
+
+Support files.
+@*@*
+
+The files here are for building ("making") MySQL given a package
+manager, compiler, linker, and other build tools. The support files
+provide instructions and switches for the build processes.
+@*@*
+
+@subsection tests
+
+Tests in Perl.
+@*@*
+
+These are tests that were run once to check for bugs in various
+scenarios: forks, locks, big records, exporting, truncating, etc.
+@*@*
+
+@subsection tools
+
+Tools -- well, actually, one tool.
+@*@*
+
+The only file is:
+@itemize @bullet
+@item
+mysqlmanager.c  --  A "server management daemon" by Sasha Pachev 
+@end itemize
+@*@*
+
+@subsection VC++Files
+
+Visual C++ Files.
+@*@*
+
+Includes this entire directory, repeated for VC++ (Windows) use.
+@*@*
+
+VC++Files has subdirectories which are copies of the main directories.
+For example there is a subdirectory \VC++Files\heap, which has the
+same files as \heap. So for a description of the files in
+\VC++Files\heap, see the description of the files in \heap. The same
+applies for almost all of VC++Files's subdirectories (bdb, client,
+isam, libmysql, etc.). The difference is that the \VC++Files variants
+are specifically for compilation with Microsoft Visual C++ in 32-bit
+Windows environments.
+@*@*
+
+In addition to the "subdirectories which are duplicates of
+directories", VC++Files contains these subdirectories, which are not
+duplicates:
+@itemize @bullet
+@item
+comp_err  --  (nearly empty) 
+@item
+contrib  --  (nearly empty) 
+@item
+InstallShield     script files 
+@item
+isamchk  --  (nearly empty) 
+@item
+libmysqltest  --  one small non-MySQL test program: mytest.c 
+@item
+myisamchk  --  (nearly empty) 
+@item
+myisamlog  --  (nearly empty) 
+@item
+myisammrg  --  (nearly empty) 
+@item
+mysqlbinlog  --  (nearly empty) 
+@item
+mysqlmanager  --  MFC foundation class files created by AppWizard 
+@item
+mysqlserver  --  (nearly empty) 
+@item
+mysqlshutdown  --  one short program, mysqlshutdown.c 
+@item
+mysqlwatch.c  --  Windows service initialization and monitoring 
+@item
+my_print_defaults  --  (nearly empty) 
+@item
+pack_isam  --  (nearly empty) 
+@item
+perror  --  (nearly empty) 
+@item
+prepare  --  (nearly empty) 
+@item
+replace  --  (nearly empty) 
+@item
+SCCS  --  source code control system 
+@item
+test1  --  tests connecting via X threads 
+@item
+thr_insert_test  --  (nearly empty) 
+@item
+thr_test  --  one short program used to test for memory-allocation bug
+@item
+winmysqladmin  --  the winmysqladmin.exe source. machine-generated? 
+@end itemize
+@*@*
+
+@subsection vio
+
+Virtual I/O Library.
+@*@*
+
+The VIO routines are wrappers for the various network I/O calls that
+happen with different protocols. The idea is that in the main modules
+one won't have to write separate bits of code for each protocol. Thus
+vio's purpose is somewhat like the purpose of Microsoft's winsock
+library.
+@*@*
+
+The underlying protocols at this moment are: TCP/IP, Named Pipes (for
+WindowsNT), Shared Memory, and Secure Sockets (SSL).
+@*@*
+
+The C programs are:
+@itemize @bullet
+@item
+test-ssl.c  --  Short standalone test program: SSL 
+@item
+test-sslclient.c  --  Short standalone test program: clients 
+@item
+test-sslserver.c  --  Short standalone test program: server 
+@item
+vio.c  --  Declarations + open/close functions 
+@item
+viosocket.c  --  Send/retrieve functions 
+@item
+viossl.c  --  SSL variations for the above 
+@item
+viosslfactories.c  --  Certification / Verification 
+@item
+viotest.cc  --  Short standalone test program: general 
+@item
+viotest-ssl.c  --  Short standalone test program: SSL 
+@item
+viotest-sslconnect.cc  --  Short standalone test program: SSL connect 
+@end itemize
+@*@*
+
+The older functions -- raw_net_read, raw_net_write -- are now
+obsolete.
+@*@*
+
+@subsection zlib
+
+Data compression library.
+@*@*
+
+Zlib -- which presumably stands for "Zip Library" -- is not a MySQL
+package. It was produced by the GNU Zip (gzip.org) people. Zlib is a
+variation of the famous "Lempel-Ziv" method, which is also used by
+"Zip". The method for reducing the size of any arbitrary string of
+bytes is as follows:
+@itemize @bullet
+@item
+Find a substring which occurs twice in the string. 
+@item
+Replace the second occurrence of the substring with (a) a pointer to
+the first occurrence, plus (b) an indication of the length of the
+first occurrence. 
+@end itemize
+
+There is a full description of the library's functions in the gzip
+manual at: @*
+@url{http://www.gzip.org/zlib/manual.html} @*
+There is therefore no need to list the modules in this document.
+@*@*
+
+The MySQL program that uses zlib is \mysys\my_compress.c. The use is
+for packet compression. The client sends messages to the server which
+are compressed by zlib. See also: \sql\net_serv.cc.
+
+@node Files in InnoDB Sources,,Files in MySQL Sources,Top
+@chapter Annotated List Of Files in the InnoDB Source Code Distribution
+
+ERRATUM BY HEIKKI TUURI (START)
+@*@*
+
+Errata about InnoDB row locks:@*@*
+
+@example
+  #define LOCK_S  4 /* shared */
+  #define LOCK_X  5 /* exclusive */
+...
+@strong{/* Waiting lock flag */}
+  #define LOCK_WAIT 256
+/* this wait bit should be so high that it can be ORed to the lock
+mode and type; when this bit is set, it means that the lock has not
+yet been granted, it is just waiting for its turn in the wait queue */
+...
+@strong{/* Precise modes */}
+  #define LOCK_ORDINARY 0
+/* this flag denotes an ordinary next-key lock in contrast to LOCK_GAP
+or LOCK_REC_NOT_GAP */
+  #define LOCK_GAP 512
+/* this gap bit should be so high that it can be ORed to the other
+flags; when this bit is set, it means that the lock holds only on the
+gap before the record; for instance, an x-lock on the gap does not
+give permission to modify the record on which the bit is set; locks of
+this type are created when records are removed from the index chain of
+records */
+  #define LOCK_REC_NOT_GAP 1024
+/* this bit means that the lock is only on the index record and does
+NOT block inserts to the gap before the index record; this is used in
+the case when we retrieve a record with a unique key, and is also used
+in locking plain SELECTs (not part of UPDATE or DELETE) when the user
+has set the READ COMMITTED isolation level */
+  #define LOCK_INSERT_INTENTION 2048
+/* this bit is set when we place a waiting gap type record lock
+request in order to let an insert of an index record to wait until
+there are no conflicting locks by other transactions on the gap; note
+that this flag remains set when the waiting lock is granted, or if the
+lock is inherited to a neighboring record */
+@end example
+@*
+
+ERRATUM BY HEIKKI TUURI (END)
+@*@*
+
+The InnoDB source files are the best place to look for information
+about internals of the file structure that MySQLites can optionally
+use for transaction support. But when you first look at all the
+subdirectories and file names you'll wonder: Where Do I Start? It can
+be daunting.
+@*@*
+
+Well, I've been through that phase, so I'll pass on what I had to
+learn on the first day that I looked at InnoDB source files. I am very
+sure that this will help you grasp, in overview, the organization of
+InnoDB modules. I'm also going to add comments about what is going on
+-- which you should mistrust! These comments are reasonable working
+hypotheses; nevertheless, they have not been subjected to expert peer
+review.
+@*@*
+
+Here's how I'm going to organize the discussion. I'll take each of the
+32 InnoDB subdirectories that come with the MySQL 4.0 source code in
+\mysql\innobase (on my Windows directory). The format of each section
+will be like this every time:
+@*@*
+
+@strong{\subdirectory-name (LONGER EXPLANATORY NAME)}@*
+@multitable @columnfractions .10 .20 .40 .50
+@item @strong{File Name} @tab @strong{What Name Stands For} @tab @strong{Size} @tab @strong{Comment Inside File}
+@item file-name
+@tab my-own-guess
+@tab in-bytes
+@tab from-the-file-itself
+@end multitable
+...@*
+My-Comments@*
+@*
+
+For example: @*
+@example
+"
+@strong{\ha (HASHING)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  ha0ha.c     Hashing/Hashing        7,452   Hash table with external chains
+
+  Comments about hashing will be here.
+"
+@end example
+@*
+
+The "Comment Inside File" column is a direct copy from the first /*
+comment */ line inside the file. All other comments are mine. After
+I've discussed each directory, I'll finish with some notes about
+naming conventions and a short list of URLs that you can use for
+further reference.
+@*@*
+
+Now let's begin.
+@*@*
+
+@example
+
+@strong{\ha (HASHING)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  ha0ha.c     Hashing / Hashing      7,452   Hash table with external chains
+
+I'll hold my comments until the next section, \hash (HASHING).
+
+@strong{\hash (HASHING)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  hash0hash.c Hashing / Hashing      3,257   Simple hash table utility
+
+The two C programs in the \ha and \hashing directories -- ha0ha.c and
+hash0hash.c -- both refer to a "hash table" but hash0hash.c is
+specialized, it is mostly about accessing points in the table under
+mutex control.
+
+When a "database" is so small that InnoDB can load it all into memory
+at once, it's more efficient to access it via a hash table. After all,
+no disk i/o can be saved by using an index lookup, if there's no disk.
+
+@strong{\os (OPERATING SYSTEM)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  os0shm.c    OS / Shared Memory     3,150   To shared memory primitives
+  os0file.c   OS / File             64,412   To i/o primitives
+  os0thread.c OS / Thread            6,827   To thread control primitives
+  os0proc.c   OS / Process           3,700   To process control primitives
+  os0sync.c   OS / Synchronization  10,208   To synchronization primitives
+
+This is a group of utilities that other modules may call whenever they
+want to use an operating-system resource. For example, in os0file.c
+there is a public InnoDB function named os_file_create_simple(), which
+simply calls the Windows-API function CreateFile. Naturally the
+contents of this group are somewhat different for other operating systems.
+
+The "Shared Memory" functions in os0shm.c are only called from the
+communications program com0shm.c (see \com COMMUNICATIONS). The i/o
+and thread-control primitives are called extensively. The word
+"synchronization" in this context refers to the mutex-create and
+mutex-wait functionality.
+
+@strong{\ut (UTILITIES)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  ut0ut.c     Utilities / Utilities  7,041   Various utilities
+  ut0byte.c   Utilities / Debug      1,856   Byte utilities
+  ut0rnd.c    Utilities / Random     1,475   Random numbers and hashing
+  ut0mem.c    Utilities / Memory     5,530   Memory primitives
+  ut0dbg.c    Utilities / Debug        642   Debug utilities
+
+The two functions in ut0byte.c are just for lower/upper case
+conversion and comparison. The single function in ut0rnd.c is for
+finding a prime slightly greater than the given argument, which is
+useful for hash functions, but unrelated to randomness. The functions
+in ut0mem.c are wrappers for "malloc" and "free" calls -- for the
+real "memory" module see section \mem (MEMORY). Finally, the
+functions in ut0ut.c are a miscellany that didn't fit better elsewhere:
+get_high_bytes, clock, time, difftime, get_year_month_day, and "sprintf"
+for various diagnostic purposes.
+
+In short: the \ut group is trivial.
+
+@strong{\buf (BUFFERING)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  buf0buf.c   Buffering / Buffering 53,246   The database buffer buf_pool
+  buf0flu.c   Buffering / Flush     23,711   ... flush algorithm
+  buf0lru.c   / least-recently-used 20,245   ... replacement algorithm
+  buf0rea.c   Buffering / read      17,399   ... read
+
+There is a separate file group (\mem MEMORY) which handles memory
+requests in general.A "buffer" usually has a more specific
+definition, as a memory area which contains copies of pages that
+ordinarily are in the main data file. The "buffer pool" is the set
+of all buffers (there are lots of them because InnoDB doesn't
+depend on the OS's caching to make things faster).
+
+The pool size is fixed (at the time of this writing) but the rest of
+the buffering architecture is sophisticated, involving a host of
+control structures. In general: when InnoDB needs to access a new page
+it looks first in the buffer pool; InnoDB reads from disk to a new
+buffer when the page isn't there; InnoDB chucks old buffers (basing
+its decision on a conventional Least-Recently-Used algorithm) when it
+has to make space for a new buffer.
+
+There are routines for checking a page's validity, and for read-ahead.
+An example of "read-ahead" use: if a sequential scan is going on, then
+a DBMS can read more than one page at a time, which is efficient
+because reading 32,768 bytes (two pages) takes less than twice as long
+as reading 16,384 bytes (one page).
+
+@strong{\btr (B-TREE)}
+  File Name   What Name Stands For         Size     Comment Inside File
+  ---------   --------------------         ------   -------------------
+  btr0btr.c   B-tree / B-tree              74,255   B-tree
+  btr0cur.c   B-tree / Cursor              94,950   index tree cursor
+  btr0sea.c   B-tree / Search              36,580   index tree adaptive search
+  btr0pcur.c  B-tree / persistent cursor   14,548   index tree persistent cursor
+
+If you total up the sizes of the C files, you'll see that \btr is the
+second-largest file group in InnoDB. This is understandable because
+maintaining a B-tree is a relatively complex task. Luckily, there has
+been a lot of work done to describe efficient management of B-tree and
+B+-tree structures, much of it open-source or public-domain, since
+their original invention over thirty years ago.
+
+InnoDB likes to put everything in B-trees. This is what I'd call a
+"distinguishing characteristic" because in all the major DBMSs (like
+IBM DB2, Microsoft SQL Server, and Oracle), the main or default or
+classic structure is the heap-and-index. In InnoDB the main structure
+is just the index. To put it another way: InnoDB keeps the rows in the
+leaf node of the index, rather than in a separate file. Compare
+Oracle's Index Organized Tables, and Microsoft SQL Server's Clustered
+Indexes.
+
+This, by the way, has some consequences. For example, you may as well
+have a primary key since otherwise InnoDB will make one anyway. And
+that primary key should be the shortest of the candidate keys, since
+InnoDB
+will use it as a pointer if there are secondary indexes.
+
+Most importantly, it means that rows have no fixed address. Therefore
+the routines for managing file pages should be good. We'll see about
+that when we look at the \row (ROW) program group later.
+
+@strong{\com (COMMUNCATION)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  com0com.c   Communication          6,913   Communication primitives
+  com0shm.c   Communication /       24,633   ... through shared memory
+              Shared Memory
+
+The communication primitives in com0com.c are said to be modelled
+after the ones in Microsoft's winsock library (the Windows Sockets
+interface). The communication primitives in com0shm.c are at a
+slightly lower level, and are called from the routines in com0com.c.
+
+I was interested in seeing how InnoDB would handle inter-process
+communication, since there are many options -- named pipes, TCP/IP,
+Windows messaging, and Shared Memory being the main ones that come to
+mind. It appears that InnoDB prefers Shared Memory. The main idea is:
+there is an area of memory which two different processes (or threads,
+of course) can both access. To communicate, a thread gets an
+appropriate mutex, puts in a request, and waits for a response. Thread 
+interaction is also a subject for the os0thread.c program in another 
+program group, \os (OPERATING SYSTEM).
+
+@strong{\dyn (DYNAMICALLY ALLOCATED ARRAY)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  dyn0dyn.c   Dynamic / Dynamic        994   dynamically allocated array
+
+There is a single function in the dyn0dyn.c program, for adding a
+block to the dynamically allocated array. InnoDB might use the array
+for managing concurrency between threads.
+
+At the moment, the \dyn program group is trivial.
+
+@strong{\fil (FILE)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  fil0fil.c   File / File           39,725   The low-level file system
+
+The reads and writes to the database files happen here, in
+co-ordination with the low-level file i/o routines (see os0file.h in
+the \os program group).
+
+Briefly: a table's contents are in pages, which are in files, which
+are in tablespaces. Files do not grow; instead one can add new files
+to the tablespace. As we saw earlier (discussing the \btr program group)
+the pages are nodes of B-trees. Since that's the case, new additions can
+happen at various places in the logical file structure, not
+necessarily at the end. Reads and writes are asynchronous, and go into
+buffers, which are set up by routines in the \buf program group.
+
+@strong{\fsp (FILE SPACE)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  fsp0fsp.c   File Space Management 100,271  File space management
+
+I would have thought that the \fil (FILE) and \fsp (FILE SPACE)
+MANAGEMENT programs would fit together in the same program group;
+however, I guess the InnoDB folk are splitters rather than lumpers.
+
+It's in fsp0fsp.c that one finds some of the descriptions and comments
+of extents, segments, and headers. For example, the "descriptor bitmap
+of the pages in the extent" is in here, and you can find as well how
+the free-page list is maintained, what's in the bitmaps, and what
+various header fields' contents are.
+
+@strong{\fut (FILE UTILITY)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  fut0fut.c   File Utility / Utility   293   File-based utilities
+  fut0lst.c   File Utility / List   14,129   File-based list utilities
+
+Mainly these small programs affect only file-based lists, so maybe
+saying "File Utility" is too generic. The real work with data files 
+goes on in the \fsp program group.
+
+@strong{\log (LOGGING)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  log0log.c   Logging / Logging     77,834   Database log
+  log0recv.c  Logging / Recovery    80,701   Recovery
+
+I've already written about the \log program group, so here's a link to
+my previous article: "How Logs work with MySQL and InnoDB":
+@url{http://www.devarticles.com/art/1/181/2}
+
+@strong{\mem (MEMORY)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  mem0mem.c   Memory / Memory        9,971   The memory management
+  mem0dbg.c   Memory / Debug        21,297   ... the debug code
+  mem0pool.c  Memory / Pool         16,293   ... the lowest level
+
+There is a long comment at the start of the mem0pool.c program, which
+explains what the memory-consumers are, and how InnoDB tries to
+satisfy them. The main thing to know is that there are really three
+pools: the buffer pool (see the \buf program group), the log pool (see the \log
+program group), and the common pool, which is where everything that's
+not in the buffer or log pools goes (for example the parsed SQL
+statements and the data dictionary cache).
+
+@strong{\mtr (MINI-TRANSACTION)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  mtr0mtr.c   Mini-transaction /    12,433   Mini-transaction buffer
+  mtr0log.c   Mini-transaction / Log 8,180   ... log routines
+
+The mini-transaction routines are called from most of the other
+program groups. I'd describe this as a low-level utility set.
+
+@strong{\que (QUERY GRAPH)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  que0que.c   Query Graph / Query   35,964   Query graph
+
+The program que0que.c ostensibly is about the execution of stored
+procedures which contain commit/rollback statements. I took it that
+this has little importance for the average MySQL user.
+
+@strong{\rem (RECORD MANAGER)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  rem0rec.c   Record Manager        14,961   Record Manager
+  rem0cmp.c   Record Manager /      25,263   Comparison services for records
+              Comparison
+
+There's an extensive comment near the start of rem0rec.c title
+"Physical Record" and it's recommended reading. At some point you'll
+ask what are all those bits that surround the data in the rows on a page, 
+and this is where you'll find the answer.
+
+@strong{\row (ROW)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  row0row.c   Row / Row             16,764   General row routines
+  row0uins.c  Row / Undo Insert      7,199   Fresh insert undo
+  row0umod.c  Row / Undo Modify     17,147   Undo modify of a row
+  row0undo.c  Row / Undo            10,254   Row undo
+  row0vers.c  Row / Version         12,288   Row versions
+  row0mysql.c Row / MySQL           63,556   Interface [to MySQL]
+  row0ins.c   Row / Insert          42,829   Insert into a table
+  row0sel.c   Row / Select          85,923   Select
+  row0upd.c   Row / Update          44,456   Update of a row
+  row0purge.c Row / Purge           14,961   Purge obsolete records
+
+Rows can be selected, inserted, updated/deleted, or purged (a
+maintenance activity). These actions have ancillary actions, for
+example after insert there can be an index-update test, but it seems 
+to me that sometimes the ancillary action has no MySQL equivalent (yet) 
+and so is inoperative.
+
+Speaking of MySQL, notice that one of the larger programs in the \row
+program group is the "interface between Innobase row operations and
+MySQL" (row0mysql.c) -- information interchange happens at this level
+because rows in InnoDB and in MySQL are analogous, something which
+can't be said for pages and other levels.
+
+@strong{\srv (Server)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  srv0srv.c   Server / Server       79,058   Server main program
+  srv0que.c   Server / Query         2,361   Server query execution
+  srv0start.c Server / Start        34,586   Starts the server
+
+This is where the server reads the initial configuration files, splits
+up the threads, and gets going. There is a long comment deep in the
+program (you might miss it at first glance) titled "IMPLEMENTATION OF
+THE SERVER MAIN PROGRAM" in which you'll find explanations about
+thread priority, and about what the responsibiities are for various 
+thread types.
+
+InnoDB has many threads, for example "user threads" (which wait for
+client requests and reply to them), "parallel communication threads"
+(which take part of a user thread's job if a query process can be
+split), "utility threads" (background priority), and a "master thread"
+(high priority, usually asleep).
+
+@strong{\thr (Thread Local Storage)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  thr0loc.c   Thread / Local         5,261   The thread local storage
+
+InnoDB doesn't use the Windows-API thread-local-storage functions,
+perhaps because they're not portable enough.
+
+@strong{\trx (Transaction)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  trx0trx.c   Transaction /         37,447   The transaction
+  trx0purge.c Transaction / Purge   26,782   ... Purge old versions
+  trx0rec.c   Transaction / Record  36,525   ... Undo log record
+  trx0sys.c   Transaction / System  20,671   ... System
+  trx0rseg.c  / Rollback segment     6,214   ... Rollback segment
+  trx0undo.c  Transaction / Undo    46,595   ... Undo log
+
+InnoDB's transaction management is supposedly "in the style of Oracle"
+and that's close to true but can mislead you. 
+@itemize
+@item
+First: InnoDB uses rollback segments like Oracle8i does -- but
+Oracle9i uses a different name 
+@item
+Second: InnoDB uses multi-versioning like Oracle does -- but I see
+nothing that looks like an Oracle ITL being stored in the InnoDB data
+pages. 
+@item
+Third: InnoDB and Oracle both have short (back-to-statement-start)
+versioning for the READ COMMITTED isolation level and long
+(back-to-transaction-start) versioning for higher levels -- but InnoDB
+and Oracle have different "default" isolation levels. 
+@item
+Finally: InnoDB's documentation says it has to lock "the gaps before
+index keys" to prevent phantoms -- but any Oracle user will tell you that
+phantoms are impossible anyway at the SERIALIZABLE isolation level, so 
+key-locks are unnecessary.
+@end itemize
+
+The main idea, though, is that InnoDB has multi-versioning. So does
+Oracle. This is very different from the way that DB2 and SQL Server do
+things.
+
+@strong{\usr (USER)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  usr0sess.c  User / Session        27,415   Sessions
+
+One user can have multiple sessions (the session being all the things
+that happen betweeen a connect and disconnect). This is where InnoDB
+tracks session IDs, and server/client messaging. It's another of those
+items which is usually MySQL's job, though.
+
+@strong{\data (DATA)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  data0data.c Data / Data           26,002   SQL data field and tuple
+  data0type.c Data / Type            2,122   Data types
+
+This is a collection of minor utility routines affecting rows.
+
+@strong{\dict (DICTIONARY)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  dict0dict.c Dictionary / Dictionary 84,667 Data dictionary system
+  dict0boot.c Dictionary / boot     12,134   ... creation and booting
+  dict0load.c Dictionary / load     26,546   ... load to memory cache
+  dict0mem.c  Dictionary / memory    8,221   ... memory object creation
+
+The data dictionary (known in some circles as the catalog) has the
+metadata information about objects in the database -- column sizes,
+table names, and the like.
+
+@strong{\eval (EVALUATING)}
+  File Name   What Name Stands For  Size    Comment Inside File
+  ---------   --------------------  ------  -------------------
+  eval0eval.c Evaluating/Evaluating 15,682  SQL evaluator
+  eval0proc.c Evaluating/Procedures  5,000  Executes SQL procedures
+
+The evaluating step is a late part of the process of interpreting an
+SQL statement -- parsing has already occurred during \pars (PARSING).
+
+The ability to execute SQL stored procedures is an InnoDB feature, but
+not a MySQL feature, so the eval0proc.c program is unimportant.
+
+@strong{\ibuf (INSERT BUFFER)}
+  File Name   What Name Stands For  Size     Comment Inside File
+  ---------   --------------------  ------   -------------------
+  ibuf0ibuf.c Insert Buffer /       69,884   Insert buffer
+
+The words "Insert Buffer" mean not "buffer used for INSERT" but
+"insertion of a buffer into the buffer pool" (see the \buf BUFFER
+program group description). The matter is complex due to possibilities
+for deadlocks, a problem to which the comments in the ibuf0ibuf.c 
+program devote considerable attention.
+
+@strong{\mach (MACHINE FORMAT)}
+  File Name   What Name Stands For  Size    Comment Inside File
+  ---------   --------------------  ------  -------------------
+  mach0data.c Machine/Data           2,319  Utilities for converting
+
+The mach0data.c program has two small routines for reading compressed
+ulints (unsigned long integers).
+
+@strong{\lock (LOCKING)}
+  File Name   What Name Stands For  Size    Comment Inside File
+  ---------   --------------------  ------  -------------------
+  lock0lock.c Lock / Lock           127,646 The transaction lock system
+
+If you've used DB2 or SQL Server, you might think that locks have their
+own in-memory table, that row locks might need occasional escalation to 
+table locks, and that there are three lock types: Shared, Update, Exclusive. 
+
+All those things are untrue with InnoDB! Locks are kept in the database 
+pages. A bunch of row locks can't be rolled together into a single table 
+lock. And most importantly there's only one lock type. I call this type 
+"Update" because it has the characteristics of DB2 / SQL Server Update 
+locks, that is, it blocks other updates but doesn't block reads. 
+Unfortunately, InnoDB comments refer to them as "x-locks" etc.
+
+To sum it up: if your background is Oracle you won't find too much
+surprising, but if your background is DB2 or SQL Server the locking
+concepts and terminology will probably confuse you at first.
+
+You can find an online article about the differences between
+Oracle-style and DB2/SQL-Server-style locks at:
+@url{http://dbazine.com/gulutzan6.html}
+
+@strong{\odbc (ODBC)}
+  File Name   What Name Stands For Size    Comment Inside File
+  ---------   --------------------  ------  -------------------
+  odbc0odbc.c ODBC / ODBC           16,865  ODBC client library
+
+The odbc0odbc.c program has a small selection of old ODBC-API
+functions: SQLAllocEnv, SQLAllocConnect, SQLAllocStmt, SQLConnect, 
+SQLError, SQLPrepare, SQLBindParameter, SQLExecute.
+
+@strong{\page (PAGE)}
+  File Name   What Name Stands For  Size    Comment Inside File
+  ---------   --------------------  ------  -------------------
+  page0page.c Page / Page           44,309  Index page routines
+  page0cur.c  Page / Cursor         30,305  The page cursor
+
+It's in the page0page.c program that you'll learn as follows: index
+pages start with a header, entries in the page are in order, at the
+end of the page is a sparse "page directory" (what I would have called
+a slot table) which makes binary searches easier.
+
+Incidentally, the program comments refer to "a page size of 8 kB"
+which seems obsolete. In univ.i (a file containing universal
+constants) the page size is now #defined as 16KB.
+
+@strong{\pars (PARSING)}
+  File Name   What Name Stands For Size    Comment Inside File
+  ---------   -------------------- ------  -------------------
+  pars0pars.c Parsing/Parsing      49,947  SQL parser
+  pars0grm.c  Parsing/Grammar      62,685  A Bison parser
+  pars0opt.c  Parsing/Optimizer    30,809  Simple SQL Optimizer
+  pars0sym.c  Parsing/Symbol Table  5,541  SQL parser symbol table
+  lexyy.c     ?/Lexer              59,948  Lexical scanner
+
+The job is to input a string containing an SQL statement and output an
+in-memory parse tree. The EVALUATING (subdirectory \eval) programs
+will use the tree.
+
+As is common practice, the Bison and Flex tools were used -- pars0grm.c 
+is what the Bison parser produced from an original file named pars0grm.y 
+(not supplied), and lexyy.c is what Flex produced.
+
+Since InnoDB is a DBMS by itself, it's natural to find SQL parsing in
+it. But in the MySQL/InnoDB combination, MySQL handles most of the
+parsing. These files are unimportant.
+
+@strong{\read (READ)}
+  File Name   What Name Stands For Size    Comment Inside File
+  ---------   -------------------- ------  -------------------
+  read0read.c Read / Read           6,244  Cursor read
+
+The read0read.c program opens a "read view" of a query result, using
+some functions in the \trx program group.
+
+@strong{\sync (SYNCHRONIZATION)}
+  File Name   What Name Stands For Size    Comment Inside File
+  ---------   -------------------- ------  -------------------
+  sync0sync.c Synchronization /    35,918  Mutex, the basic sync primitive
+  sync0arr.c  ... / array          26,461  Wait array used in primitives
+  sync0ipm.c  ... / interprocess    4,027  for interprocess sync
+  sync0rw.c   ... / read-write     22,220  read-write lock for thread sync
+
+A mutex (Mutual Exclusion) is an object which only one thread/process
+can hold at a time. Any modern operating system API has some functions
+for mutexes; however, as the comments in the sync0sync.c code indicate, it
+can be faster to write one's own low-level mechanism. In fact the old
+assembly-language XCHG trick is in here -- this is the only program
+that contains any assembly code.
+@end example
+@*
+@*
+
+This is the end of the section-by-section account of InnoDB
+subdirectories.
+@*@*
+
+@strong{A Note About File Naming} @*@*
+
+There appears to be a naming convention. The first letters of the file
+name are the same as the subdirectory name, then there is a '0'
+separator, then there is an individual name. For the main program in a
+subdirectory, the individual name may be a repeat of the subdirectory
+name. For example, there is a file named ha0ha.c (the first two
+letters ha mean "it's in in subdirectory ..\ha", the next letter 0
+means "0 separator", the next two letters mean "this is the main ha
+program"). This naming convention is not strict, though: for example
+the file lexyy.c is in the \pars subdirectory.
+@*@*
+
+@strong{A Note About Copyrights} @*@*
+
+Most of the files begin with a copyright notice or a creation date,
+for example "Created 10/25/1995 Heikki Tuuri". I don't know a great
+deal about the history of InnoDB, but found it interesting that most
+creation dates were between 1994 and 1998.
+@*@*
+
+@strong{References} @*@*
+
+Ryan Bannon, Alvin Chin, Faryaaz Kassam and Andrew Roszko @*
+"InnoDB Concrete Architecture" @*
+@url{http://www.swen.uwaterloo.ca/~mrbannon/cs798/assignment_02/innodb.pdf}
+
+A student paper. It's an interesting attempt to figure out InnoDB's
+architecture using tools, but I didn't end up using it for the specific 
+purposes of this article.
+@*@*
+
+Peter Gulutzan @*
+"How Logs Work With MySQL And InnoDB" @*
+@url{http://www.devarticles.com/art/1/181/2}
+@*@*
+
+Heikki Tuuri @*
+"InnoDB Engine in MySQL-Max-3.23.54 / MySQL-4.0.9: The Up-to-Date
+Reference Manual of InnoDB" @*
+@url{http://www.innodb.com/ibman.html}
+
+This is the natural starting point for all InnoDB information. Mr
+Tuuri also appears frequently on MySQL forums.
+@*@*
 
 @summarycontents
 @contents

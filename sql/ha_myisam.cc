@@ -407,7 +407,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
     param.db_name    = table->table_cache_key;
     param.table_name = table->table_name;
     param.testflag = 0;
-    mi_check_print_error(&param,errmsg, my_errno);
+    mi_check_print_error(&param, errmsg, my_errno);
     DBUG_RETURN(error);
   }
 }
@@ -425,17 +425,17 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
   if (fn_format_relative_to_data_home(dst_path, table_name, backup_dir,
 				      reg_ext))
   {
-    errmsg = "Failed in fn_format() for .frm file: errno = %d";
+    errmsg = "Failed in fn_format() for .frm file (errno: %d)";
     error = HA_ADMIN_INVALID;
     goto err;
   }
 
   if (my_copy(fn_format(src_path, table->path,"", reg_ext, MY_UNPACK_FILENAME),
 	      dst_path,
-	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES)))
+	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_DONT_OVERWRITE_FILE)))
   {
     error = HA_ADMIN_FAILED;
-    errmsg = "Failed copying .frm file: errno = %d";
+    errmsg = "Failed copying .frm file (errno: %d)";
     goto err;
   }
 
@@ -443,7 +443,7 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
   if (!fn_format(dst_path, dst_path, "", MI_NAME_DEXT,
 		 MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH))
   {
-    errmsg = "Failed in fn_format() for .MYD file: errno = %d";
+    errmsg = "Failed in fn_format() for .MYD file (errno: %d)";
     error = HA_ADMIN_INVALID;
     goto err;
   }
@@ -451,9 +451,9 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
   if (my_copy(fn_format(src_path, table->path,"", MI_NAME_DEXT,
 			MY_UNPACK_FILENAME),
 	      dst_path,
-	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES)))
+	      MYF(MY_WME | MY_HOLD_ORIGINAL_MODES | MY_DONT_OVERWRITE_FILE)))
   {
-    errmsg = "Failed copying .MYD file: errno = %d";
+    errmsg = "Failed copying .MYD file (errno: %d)";
     error= HA_ADMIN_FAILED;
     goto err;
   }
@@ -1021,7 +1021,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 {
   int error;
   uint i,j,recpos,minpos,fieldpos,temp_length,length;
-  bool found_auto_increment=0, found_real_auto_increment=0;
+  bool found_real_auto_increment=0;
   enum ha_base_keytype type;
   char buff[FN_REFLEN];
   KEY *pos;
@@ -1091,12 +1091,6 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 	keydef[i].seg[j].null_bit=0;
 	keydef[i].seg[j].null_pos=0;
       }
-      if (field->flags & AUTO_INCREMENT_FLAG && !found_auto_increment)
-      {
-	keydef[i].flag|=HA_AUTO_KEY;
-	found_auto_increment=1;
-        found_real_auto_increment=(j==0);
-      }
       if (field->type() == FIELD_TYPE_BLOB)
       {
 	keydef[i].seg[j].flag|=HA_BLOB_PART;
@@ -1106,6 +1100,12 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
       }
     }
     keyseg+=pos->key_parts;
+  }
+
+  if (table_arg->found_next_number_field)
+  {
+    keydef[table_arg->next_number_index].flag|= HA_AUTO_KEY;
+    found_real_auto_increment= table_arg->next_number_key_offset == 0;
   }
 
   recpos=0; recinfo_pos=recinfo;
@@ -1242,6 +1242,35 @@ longlong ha_myisam::get_auto_increment()
 }
 
 
+/*
+  Find out how many rows there is in the given range
+
+  SYNOPSIS
+    records_in_range()
+    inx			Index to use
+    start_key		Start of range.  Null pointer if from first key
+    start_key_len	Length of start key
+    start_search_flag	Flag if start key should be included or not
+    end_key		End of range. Null pointer if to last key
+    end_key_len		Length of end key
+    end_search_flag	Flag if start key should be included or not
+
+  NOTES
+    start_search_flag can have one of the following values:
+      HA_READ_KEY_EXACT		Include the key in the range
+      HA_READ_AFTER_KEY		Don't include key in range
+
+    end_search_flag can have one of the following values:  
+      HA_READ_BEFORE_KEY	Don't include key in range
+      HA_READ_AFTER_KEY		Include all 'end_key' values in the range
+
+  RETURN
+   HA_POS_ERROR		Something is wrong with the index tree.
+   0			There is no matching keys in the given range
+   number > 0		There is approximately 'number' matching rows in
+			the range.
+*/
+
 ha_rows ha_myisam::records_in_range(int inx,
 				    const byte *start_key,uint start_key_len,
 				    enum ha_rkey_function start_search_flag,
@@ -1255,6 +1284,7 @@ ha_rows ha_myisam::records_in_range(int inx,
 				       end_key,end_key_len,
 				       end_search_flag);
 }
+
 
 int ha_myisam::ft_read(byte * buf)
 {

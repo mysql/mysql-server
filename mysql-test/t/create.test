@@ -55,6 +55,14 @@ create table test_$1.test2$ (a int);
 drop table test_$1.test2$;
 drop database test_$1;
 
+--error 1103
+create table `` (a int);
+--error 1103
+drop table if exists ``;
+--error 1166
+create table t1 (`` int);
+drop table if exists t1;
+
 #
 # Test of CREATE ... SELECT with indexes
 #
@@ -94,3 +102,20 @@ drop table t1;
 create table t1 select if('2002'='2002','Y','N');
 select * from t1;
 drop table if exists t1;
+
+#
+# Test default table type
+#
+SET SESSION table_type="heap";
+SELECT @@table_type;
+CREATE TABLE t1 (a int not null);
+show create table t1;
+drop table t1;
+# Test what happens when using a non existing table type
+SET SESSION table_type="gemini";
+SELECT @@table_type;
+CREATE TABLE t1 (a int not null);
+show create table t1;
+SET SESSION table_type=default;
+drop table t1;
+

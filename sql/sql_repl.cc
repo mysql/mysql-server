@@ -858,22 +858,21 @@ int change_master(THD* thd, MASTER_INFO* mi)
 
   if (lex_mi->relay_log_name)
   {
-    need_relay_log_purge = 0;
-    mi->rli.skip_log_purge=1;
+    need_relay_log_purge= 0;
     strmake(mi->rli.relay_log_name,lex_mi->relay_log_name,
 	    sizeof(mi->rli.relay_log_name)-1);
   }
 
   if (lex_mi->relay_log_pos)
   {
-    need_relay_log_purge=0;
+    need_relay_log_purge= 0;
     mi->rli.relay_log_pos=lex_mi->relay_log_pos;
   }
 
   flush_master_info(mi);
   if (need_relay_log_purge)
   {
-    mi->rli.skip_log_purge=0;
+    mi->rli.skip_log_purge= 0;
     thd->proc_info="purging old relay logs";
     if (purge_relay_logs(&mi->rli, thd,
 			 0 /* not only reset, but also reinit */,
@@ -887,6 +886,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   else
   {
     const char* msg;
+    mi->rli.skip_log_purge= 1;
     /* Relay log is already initialized */
     if (init_relay_log_pos(&mi->rli,
 			   mi->rli.relay_log_name,

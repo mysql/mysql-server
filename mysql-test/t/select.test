@@ -6,8 +6,6 @@
 # Simple select test
 #
 
-use test;
-
 drop table if exists t1,t2,t3,t4;
 
 CREATE TABLE t1 (
@@ -1724,9 +1722,25 @@ drop table t4, t3, t2, t1;
 
 #
 # Test of DO
+#
 
 DO 1;
 DO benchmark(100,1+1),1,1;
+
+#
+# random in WHERE clause
+#
+
+CREATE TABLE t1 (
+  id mediumint(8) unsigned NOT NULL auto_increment,
+  pseudo varchar(35) NOT NULL default '',
+  PRIMARY KEY  (id),
+  UNIQUE KEY pseudo (pseudo)
+);
+INSERT INTO t1 (pseudo) VALUES ('test');
+INSERT INTO t1 (pseudo) VALUES ('test1');
+SELECT 1 as rnd1 from t1 where rand() > 2;
+DROP TABLE t1;
 
 #
 # Test of bug with SUM(CASE...)
@@ -1796,10 +1810,11 @@ select * from t1 natural right join (t1 as t2 left join t1 as t3 using (a));
 select * from t1 natural join (t1 as t2 left join t1 as t3 using (a));
 select * from (t1 as t2 left join t1 as t3 using (a)) natural join t1;
 drop table t1;
-drop table if exists t1,t2;
+
 CREATE TABLE t1 (  aa char(2),  id int(11) NOT NULL auto_increment,  t2_id int(11) NOT NULL default '0',  PRIMARY KEY  (id),  KEY replace_id (t2_id)) TYPE=MyISAM;
 INSERT INTO t1 VALUES ("1",8264,2506),("2",8299,2517),("3",8301,2518),("4",8302,2519),("5",8303,2520),("6",8304,2521),("7",8305,2522);
 CREATE TABLE t2 ( id int(11) NOT NULL auto_increment,  PRIMARY KEY  (id)) TYPE=MyISAM;
 INSERT INTO t2 VALUES (2517), (2518), (2519), (2520), (2521), (2522);
 select * from t1, t2 WHERE t1.t2_id = t2.id and t1.t2_id > 0   order by t1.id   LIMIT 0, 5;
-drop table if exists t1,t2;
+drop table t1,t2;
+

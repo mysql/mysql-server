@@ -206,6 +206,7 @@ config.h.in
 config.log
 config.status
 configure
+configure.lineno
 core
 core.2430
 db-*.*.*
@@ -214,6 +215,7 @@ depcomp
 extra/comp_err
 extra/my_print_defaults
 extra/mysql_install
+extra/mysql_waitpid
 extra/perror
 extra/replace
 extra/resolve_stack_dump
@@ -232,6 +234,7 @@ innobase/autom4te.cache/*
 innobase/autom4te.cache/output.0
 innobase/autom4te.cache/requests
 innobase/autom4te.cache/traces.0
+innobase/configure.lineno
 innobase/conftest.s1
 innobase/conftest.subs
 innobase/ib_config.h
@@ -499,6 +502,11 @@ stamp-h1
 strings/conf_to_src
 strings/ctype_autoconf.c
 strings/ctype_extra_sources.c
+support-files/MacOSX/Description.plist
+support-files/MacOSX/Info.plist
+support-files/MacOSX/StartupParameters.plist
+support-files/MacOSX/postinstall
+support-files/MacOSX/preinstall
 support-files/binary-configure
 support-files/my-huge.cnf
 support-files/my-large.cnf
@@ -522,11 +530,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-extra/mysql_waitpid
-support-files/MacOSX/Description.plist
-support-files/MacOSX/Info.plist
-support-files/MacOSX/StartupParameters.plist
-support-files/MacOSX/postinstall
-support-files/MacOSX/preinstall
-configure.lineno
-innobase/configure.lineno

@@ -2668,7 +2668,7 @@ static void create_new_thread(THD *thd)
     max_used_connections=thread_count-delayed_insert_threads;
   thd->thread_id=thread_id++;
   for (uint i=0; i < 8 ; i++)			// Generate password teststring
-    thd->scramble[i]= (char) (rnd(&sql_rand)*94+33);
+    thd->scramble[i]= (char) (my_rnd(&sql_rand)*94+33);
   thd->scramble[8]=0;
 
   thd->real_id=pthread_self();			// Keep purify happy
@@ -3340,7 +3340,7 @@ struct my_option my_long_options[] =
   {"log-long-format", OPT_LONG_FORMAT,
    "Log some extra information to update log", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"log-slave-updates", OPT_LOG_SLAVE_UPDATES, 
+  {"log-slave-updates", OPT_LOG_SLAVE_UPDATES,
    "Tells the slave to log the updates from the slave thread to the binary log. You will need to turn it on if you plan to daisy-chain the slaves.",
    (gptr*) &opt_log_slave_updates, (gptr*) &opt_log_slave_updates, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -3349,7 +3349,7 @@ struct my_option my_long_options[] =
    (gptr*) &global_system_variables.low_priority_updates,
    (gptr*) &max_system_variables.low_priority_updates,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"master-host", OPT_MASTER_HOST, 
+  {"master-host", OPT_MASTER_HOST,
    "Master hostname or IP address for replication. If not set, the slave thread will not be started. Note that the setting of master-host will be ignored if there exists a valid master.info file.",
    (gptr*) &master_host, (gptr*) &master_host, 0, GET_STR, REQUIRED_ARG, 0, 0,
    0, 0, 0, 0},
@@ -3423,8 +3423,10 @@ struct my_option my_long_options[] =
   {"safemalloc-mem-limit", OPT_SAFEMALLOC_MEM_LIMIT,
    "Simulate memory shortage when compiled with the --with-debug=full option",
    0, 0, 0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"new", 'n', "Use very new possible 'unsafe' functions", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"new", 'n', "Use some 4.1 features and syntax (4.1 compatibility mode)",
+   (gptr*) &global_system_variables.new_mode,
+   (gptr*) &max_system_variables.new_mode,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef NOT_YET
   {"no-mix-table-types", OPT_NO_MIX_TYPE, "Don't allow commands with uses two different table types",
    (gptr*) &opt_no_mix_types, (gptr*) &opt_no_mix_types, 0, GET_BOOL, NO_ARG,
@@ -3595,8 +3597,8 @@ struct my_option my_long_options[] =
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
    IF_PURIFY(0,1), 0, 0, 0, 0, 0},
 #endif
-  {"user", 'u', "Run mysqld daemon as user", (gptr*) &mysqld_user,
-   (gptr*) &mysqld_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "Run mysqld daemon as user", 0, 0, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'v', "Synonym for option -v", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
@@ -3768,9 +3770,9 @@ struct my_option my_long_options[] =
    (gptr*) &max_connect_errors, (gptr*) &max_connect_errors, 0, GET_ULONG,
     REQUIRED_ARG, MAX_CONNECT_ERRORS, 1, ~0L, 0, 1, 0},
   {"max_delayed_threads", OPT_MAX_DELAYED_THREADS,
-   "Don't start more than this number of threads to handle INSERT DELAYED statements.",
+   "Don't start more than this number of threads to handle INSERT DELAYED statements. This option does not yet have effect (on TODO), unless it is set to zero, which means INSERT DELAYED is not used.",
    (gptr*) &max_insert_delayed_threads, (gptr*) &max_insert_delayed_threads,
-   0, GET_ULONG, REQUIRED_ARG, 20, 1, 16384, 0, 1, 0},
+   0, GET_ULONG, REQUIRED_ARG, 20, 0, 16384, 0, 1, 0},
   {"max_heap_table_size", OPT_MAX_HEP_TABLE_SIZE,
    "Don't allow creation of heap tables bigger than this.",
    (gptr*) &global_system_variables.max_heap_table_size,
@@ -4219,11 +4221,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     /* Correct pointer set by my_getopt (for embedded library) */
     mysql_data_home= mysql_real_data_home;
     break;
+  case 'u':
+    if (!mysqld_user)
+      mysqld_user= argument;
+    else
+      fprintf(stderr, "Warning: Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
+    break;
   case 'L':
     strmake(language, argument, sizeof(language)-1);
-    break;
-  case 'n':
-    opt_specialflag|= SPECIAL_NEW_FUNC;
     break;
   case 'o':
     protocol_version=PROTOCOL_VERSION-1;
@@ -4232,9 +4237,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     init_slave_skip_errors(argument);
     break;
   case OPT_SAFEMALLOC_MEM_LIMIT:
-#if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
+#if !defined(DBUG_OFF) && defined(SAFEMALLOC)
     safemalloc_mem_limit = atoi(argument);
-#endif      
+#endif
     break;
 #ifdef EMBEDDED_LIBRARY
   case OPT_MAX_ALLOWED_PACKET:

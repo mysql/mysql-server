@@ -2527,6 +2527,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     {
       JOIN_TAB *tab=join->join_tab+i;
       table_map current_map= tab->table->map;
+      /*
+	Following force including random expression in last table condition.
+	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
+      */
+      if (i == join->tables-1)
+	current_map|= RAND_TABLE_BIT;
       bool use_quick_range=0;
       used_tables|=current_map;
 
@@ -3330,6 +3336,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
       == Item_func::COND_AND_FUNC;
     List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
     Item::cond_result tmp_cond_value;
+    bool should_fix_fields=0;
 
     *cond_value=Item::COND_UNDEF;
     Item *item;
@@ -3349,6 +3356,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	delete item;				// This may be shared
 #endif
 	VOID(li.replace(new_item));
+	should_fix_fields=1;
       }
       if (*cond_value == Item::COND_UNDEF)
 	*cond_value=tmp_cond_value;
@@ -3375,6 +3383,9 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	break; /* purecov: deadcode */
       }
     }
+    if (should_fix_fields)
+      cond->fix_fields(current_thd,0);
+
     if (!((Item_cond*) cond)->argument_list()->elements ||
 	*cond_value != Item::COND_OK)
       return (COND*) 0;
@@ -4464,7 +4475,11 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     error=0;
     if (!table)					// If sending data to client
     {
-      join_free(join);				// Unlock all cursors
+      /*
+	The following will unlock all cursors if the command wasn't an
+	update command
+      */
+      join_free(join);
       if (join->result->send_eof())
 	error= 1;				// Don't send error
     }

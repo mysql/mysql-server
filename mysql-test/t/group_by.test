@@ -17,7 +17,7 @@ INSERT INTO t1 VALUES (2,1,1,'','0000-00-00');
 INSERT INTO t1 VALUES (3,3,3,'','0000-00-00');
 
 CREATE TABLE t2 (
-  userID int(10) unsigned DEFAULT '0' NOT NULL auto_increment,
+  userID int(10) unsigned NOT NULL auto_increment,
   niName char(15),
   passwd char(8),
   mail char(50),
@@ -47,7 +47,7 @@ drop table test.t1,test.t2;
 #
 
 CREATE TABLE t1 (
-  PID int(10) unsigned DEFAULT '0' NOT NULL auto_increment,
+  PID int(10) unsigned NOT NULL auto_increment,
   payDate date DEFAULT '0000-00-00' NOT NULL,
   recDate datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
   URID int(10) unsigned DEFAULT '0' NOT NULL,
@@ -68,7 +68,8 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES (1,'1970-01-01','1997-10-17 00:00:00',2529,1,21000,11886,'check',0,'F',16200,6);
 
-!$1056 SELECT COUNT(P.URID),SUM(P.amount),P.method, MIN(PP.recdate+0) > 19980501000000   AS IsNew FROM t1 AS P JOIN t1 as PP WHERE P.URID = PP.URID GROUP BY method,IsNew;
+--error 1056
+SELECT COUNT(P.URID),SUM(P.amount),P.method, MIN(PP.recdate+0) > 19980501000000   AS IsNew FROM t1 AS P JOIN t1 as PP WHERE P.URID = PP.URID GROUP BY method,IsNew;
 
 drop table t1;
 
@@ -78,7 +79,7 @@ drop table t1;
 #
 
 CREATE TABLE t1 (
-  cid mediumint(9) DEFAULT '0' NOT NULL auto_increment,
+  cid mediumint(9) NOT NULL auto_increment,
   firstname varchar(32) DEFAULT '' NOT NULL,
   surname varchar(32) DEFAULT '' NOT NULL,
   PRIMARY KEY (cid)
@@ -87,7 +88,7 @@ INSERT INTO t1 VALUES (1,'That','Guy');
 INSERT INTO t1 VALUES (2,'Another','Gent');
 
 CREATE TABLE t2 (
-  call_id mediumint(8) DEFAULT '0' NOT NULL auto_increment,
+  call_id mediumint(8) NOT NULL auto_increment,
   contact_id mediumint(8) DEFAULT '0' NOT NULL,
   PRIMARY KEY (call_id),
   KEY contact_id (contact_id)
@@ -113,7 +114,7 @@ unlock tables;
 #
 
 CREATE TABLE t1 (
-  bug_id mediumint(9) DEFAULT '0' NOT NULL auto_increment,
+  bug_id mediumint(9) NOT NULL auto_increment,
   groupset bigint(20) DEFAULT '0' NOT NULL,
   assigned_to mediumint(9) DEFAULT '0' NOT NULL,
   bug_file_loc text,
@@ -255,6 +256,14 @@ select sql_big_result score,count(*) from t1 group by score desc;
 drop table t1;
 
 #
+
+# not purely group_by bug, but group_by is involved...
+
+create table t1 (a date default null, b date default null);
+insert t1 values ('1999-10-01','2000-01-10'), ('1997-01-01','1998-10-01');
+select a,min(b) c,count(distinct rand()) from t1 group by a having c<a + interval 1 day;
+drop table t1;
+
 # Compare with hash keys
 #
 

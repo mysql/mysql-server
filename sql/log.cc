@@ -645,6 +645,8 @@ int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
   */
   pthread_mutex_lock(&rli->log_space_lock);
   rli->log_space_total -= rli->relay_log_pos;
+  //tell the I/O thread to take the relay_log_space_limit into account
+  rli->ignore_log_space_limit= 0;
   pthread_mutex_unlock(&rli->log_space_lock);
   pthread_cond_broadcast(&rli->log_space_cond);
   
@@ -1211,6 +1213,14 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
     */
     {
       Query_log_event qinfo(thd, "BEGIN", 5, TRUE);
+      /*
+        Now this Query_log_event has artificial log_pos 0. It must be adjusted
+        to reflect the real position in the log. Not doing it would confuse the
+        slave: it would prevent this one from knowing where he is in the master's
+        binlog, which would result in wrong positions being shown to the user,
+        MASTER_POS_WAIT undue waiting etc.
+      */
+      qinfo.set_log_pos(this);
       if (qinfo.write(&log_file))
 	goto err;
     }
@@ -1233,6 +1243,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 
     {
       Query_log_event qinfo(thd, "COMMIT", 6, TRUE);
+      qinfo.set_log_pos(this);
       if (qinfo.write(&log_file) || flush_io_cache(&log_file))
 	goto err;
     }

@@ -699,9 +699,9 @@ try_again:
 	and the transaction has at least 1000 row operations to undo */
 
 	if (srv_is_being_started && trx_roll_max_undo_no > 1000) {
-		progress_pct = 100 -
-				(ut_conv_dulint_to_longlong(undo_no) * 100)
-				/ trx_roll_max_undo_no;
+	  progress_pct = 100 - (ulint)
+				((ut_conv_dulint_to_longlong(undo_no) * 100)
+				/ trx_roll_max_undo_no);
 		if (progress_pct != trx_roll_progress_printed_pct) {
 			if (trx_roll_progress_printed_pct == 0) {
 				fprintf(stderr,

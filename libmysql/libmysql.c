@@ -170,9 +170,10 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
   struct timeval tv;
   time_t start_time, now_time;
 
-  /* If they passed us a timeout of zero, we should behave
-   * exactly like the normal connect() call does.
-   */
+  /*
+    If they passed us a timeout of zero, we should behave
+    exactly like the normal connect() call does.
+  */
 
   if (timeout == 0)
     return connect(s, (struct sockaddr*) name, namelen);
@@ -193,30 +194,31 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
   if (res == 0)				/* Connected quickly! */
     return(0);
 
-  /* Otherwise, our connection is "in progress."  We can use
-   * the select() call to wait up to a specified period of time
-   * for the connection to suceed.  If select() returns 0
-   * (after waiting howevermany seconds), our socket never became
-   * writable (host is probably unreachable.)  Otherwise, if
-   * select() returns 1, then one of two conditions exist:
-   *
-   * 1. An error occured.  We use getsockopt() to check for this.
-   * 2. The connection was set up sucessfully: getsockopt() will
-   * return 0 as an error.
-   *
-   * Thanks goes to Andrew Gierth <andrew@erlenstar.demon.co.uk>
-   * who posted this method of timing out a connect() in
-   * comp.unix.programmer on August 15th, 1997.
-   */
+  /*
+    Otherwise, our connection is "in progress."  We can use
+    the select() call to wait up to a specified period of time
+    for the connection to suceed.  If select() returns 0
+    (after waiting howevermany seconds), our socket never became
+    writable (host is probably unreachable.)  Otherwise, if
+    select() returns 1, then one of two conditions exist:
+   
+    1. An error occured.  We use getsockopt() to check for this.
+    2. The connection was set up sucessfully: getsockopt() will
+    return 0 as an error.
+   
+    Thanks goes to Andrew Gierth <andrew@erlenstar.demon.co.uk>
+    who posted this method of timing out a connect() in
+    comp.unix.programmer on August 15th, 1997.
+  */
 
   FD_ZERO(&sfds);
   FD_SET(s, &sfds);
   /*
-   * select could be interrupted by a signal, and if it is, 
-   * the timeout should be adjusted and the select restarted
-   * to work around OSes that don't restart select and 
-   * implementations of select that don't adjust tv upon
-   * failure to reflect the time remaining
+    select could be interrupted by a signal, and if it is, 
+    the timeout should be adjusted and the select restarted
+    to work around OSes that don't restart select and 
+    implementations of select that don't adjust tv upon
+    failure to reflect the time remaining
    */
   start_time = time(NULL);
   for (;;)
@@ -224,22 +226,25 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
 #if defined(HPUX10) && defined(THREAD)
-    if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) >= 0)
+    if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) > 0)
       break;
 #else
-    if ((res = select(s+1, NULL, &sfds, NULL, &tv)) >= 0)
+    if ((res = select(s+1, NULL, &sfds, NULL, &tv)) > 0)
       break;
 #endif
+    if (res == 0)					/* timeout */
+      return -1;
     now_time=time(NULL);
     timeout-= (uint) (now_time - start_time);
     if (errno != EINTR || (int) timeout <= 0)
       return -1;
   }
 
-  /* select() returned something more interesting than zero, let's
-   * see if we have any errors.  If the next two statements pass,
-   * we've got an open socket!
-   */
+  /*
+    select() returned something more interesting than zero, let's
+    see if we have any errors.  If the next two statements pass,
+    we've got an open socket!
+  */
 
   s_err=0;
   if (getsockopt(s, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
@@ -250,7 +255,8 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
     errno = s_err;
     return(-1);					/* but return an error... */
   }
-  return(0);					/* It's all good! */
+  return (0);					/* ok */
+
 #endif
 }
 

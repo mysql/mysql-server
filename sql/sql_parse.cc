@@ -499,7 +499,10 @@ check_connections(THD *thd)
       thd->host=ip_to_hostname(&thd->remote.sin_addr,&connect_errors);
       /* Cut very long hostnames to avoid possible overflows */
       if (thd->host)
+      {
 	thd->host[min(strlen(thd->host), HOSTNAME_LENGTH)]= 0;
+	thd->host_or_ip= thd->host;
+      }
       if (connect_errors > max_connect_errors)
 	return(ER_HOST_IS_BLOCKED);
     }
@@ -1521,11 +1524,6 @@ mysql_execute_command(void)
       if (error)
 	goto error;
     }
-    if (strlen(tables->real_name) > NAME_LEN)
-    {
-      net_printf(&thd->net,ER_WRONG_TABLE_NAME,tables->real_name);
-      break;
-    }
     LOCK_ACTIVE_MI;
     // fetch_master_table will send the error to the client on failure
     if (!fetch_master_table(thd, tables->db, tables->real_name,
@@ -1595,6 +1593,7 @@ mysql_execute_command(void)
 	for (table = tables->next ; table ; table=table->next)
 	  table->lock_type= lex->lock_option;
       }
+      select_lex->options|= SELECT_NO_UNLOCK;
       thd->offset_limit=select_lex->offset_limit;
       thd->select_limit=select_lex->select_limit+select_lex->offset_limit;
       if (thd->select_limit < select_lex->select_limit)
@@ -1840,8 +1839,14 @@ mysql_execute_command(void)
     break;
   }
   case SQLCOM_UPDATE:
-    if (check_access(thd,UPDATE_ACL,tables->db,&tables->grant.privilege))
+    TABLE_LIST *table;
+    if (check_db_used(thd,tables))
       goto error;
+    for (table=tables ; table ; table=table->next)
+    {
+      if (check_access(thd,UPDATE_ACL,table->db,&table->grant.privilege))
+	goto error;
+    }
     if (grant_option && check_grant(thd,UPDATE_ACL,tables))
       goto error;
     if (select_lex->item_list.elements != lex->value_list.elements)
@@ -1922,6 +1927,8 @@ mysql_execute_command(void)
       if ((res=check_table_access(thd, SELECT_ACL, save_next)))
 	goto error;
     }
+    /* Don't unlock tables until command is written to binary log */
+    select_lex->options|= SELECT_NO_UNLOCK;
 
     select_result *result;
     thd->offset_limit=select_lex->offset_limit;
@@ -1957,6 +1964,8 @@ mysql_execute_command(void)
   case SQLCOM_TRUNCATE:
     if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
       goto error; /* purecov: inspected */
+    if (grant_option && check_grant(thd,DELETE_ACL,tables))
+      goto error;
     /*
       Don't allow this within a transaction because we want to use
       re-generate table
@@ -2871,21 +2880,35 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     lex->col_list.empty();
   }
 
-  if (default_value && default_value->type() == Item::NULL_ITEM)
+  if (default_value)
   {
-    if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==
-	NOT_NULL_FLAG)
+    if (default_value->type() == Item::NULL_ITEM)
     {
-      net_printf(&thd->net,ER_INVALID_DEFAULT,field_name);
+      default_value=0;
+      if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==
+	  NOT_NULL_FLAG)
+      {
+	net_printf(&thd->net,ER_INVALID_DEFAULT,field_name);
+	DBUG_RETURN(1);
+      }
+    }
+#ifdef MYSQL41000
+    else if (type_modifier & AUTO_INCREMENT_FLAG)
+    {
+      net_printf(&thd->net, ER_INVALID_DEFAULT, field_name);
       DBUG_RETURN(1);
     }
-    default_value=0;
+#endif
   }
   if (!(new_field=new create_field()))
     DBUG_RETURN(1);
   new_field->field=0;
   new_field->field_name=field_name;
+#ifdef MYSQL41000
+  new_field->def= default_value;
+#else
   new_field->def= (type_modifier & AUTO_INCREMENT_FLAG ? 0 : default_value);
+#endif
   new_field->flags= type_modifier;
   new_field->unireg_check= (type_modifier & AUTO_INCREMENT_FLAG ?
 			    Field::NEXT_NUMBER : Field::NONE);
@@ -3212,8 +3235,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (table->table.length > NAME_LEN ||
-      check_table_name(table->table.str,table->table.length) ||
+  if (check_table_name(table->table.str,table->table.length) ||
       table->db.str && check_db_name(table->db.str))
   {
     net_printf(&thd->net,ER_WRONG_TABLE_NAME,table->table.str);

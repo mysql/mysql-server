@@ -53,10 +53,6 @@ link_sources:
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ ../strings/$$f $(srcdir)/$$f; \
 	  done; \
-	  for f in $$qs; do \
-	    rm -f $(srcdir)/$$f; \
-	    @LN_CP_F@ $(srcdir)/../sql/$$f $(srcdir)/$$f; \
-	  done; \
 	  for f in $$ds; do \
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ $(srcdir)/../dbug/$$f $(srcdir)/$$f; \
@@ -66,7 +62,9 @@ link_sources:
 	    @LN_CP_F@ $(srcdir)/../mysys/$$f $(srcdir)/$$f; \
 	  done; \
 	  rm -f $(srcdir)/net.c; \
-	  @LN_CP_F@ $(srcdir)/../sql/net_serv.cc $(srcdir)/net.c
+	  @LN_CP_F@ $(srcdir)/../sql/net_serv.cc $(srcdir)/net.c ; \
+	  rm -f $(srcdir)/password.c; \
+	  @LN_CP_F@ $(srcdir)/../sql/password.c $(srcdir)/password.c
 
 # This part requires GNUmake
 #
