@@ -2731,7 +2731,6 @@ row_sel_pop_cached_row_for_mysql(
 	ulint			i;
 	mysql_row_templ_t*	templ;
 	byte*			cached_rec;
-        byte			null_byte;
         ut_ad(prebuilt->n_fetch_cached > 0);
 	
 	if (prebuilt->keep_other_fields_on_keyread)
@@ -2747,15 +2746,14 @@ row_sel_pop_cached_row_for_mysql(
 				buf + templ->mysql_col_offset, 
 				cached_rec + templ->mysql_col_offset,
 				templ->mysql_col_len);
-                        /* Copy NULL bit of the current field from cached_rec 
+			/* Copy NULL bit of the current field from cached_rec 
 			to buf */
 			if (templ->mysql_null_bit_mask)
 			{
-				null_byte = buf[templ->mysql_null_byte_offset] & 
-					~(byte)templ->mysql_null_bit_mask;
-				null_byte |= (byte)templ->mysql_null_bit_mask & 
-					cached_rec[templ->mysql_null_byte_offset];
-				buf[templ->mysql_null_byte_offset] = null_byte;
+				buf[templ->mysql_null_byte_offset] ^=
+				  (buf[templ->mysql_null_byte_offset] ^
+				   cached_rec[templ->mysql_null_byte_offset]) &
+				  (byte)templ->mysql_null_bit_mask;
 			}
 		}
 	}
