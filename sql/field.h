@@ -300,6 +300,7 @@ public:
   void store(const char *to,uint length);
   void store(double nr);
   void store(longlong nr);
+  void reset(void) { ptr[0]=0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -328,6 +329,7 @@ public:
   void store(const char *to,uint length);
   void store(double nr);
   void store(longlong nr);
+  void reset(void) { ptr[0]=ptr[1]=0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -356,6 +358,7 @@ public:
   void store(const char *to,uint length);
   void store(double nr);
   void store(longlong nr);
+  void reset(void) { ptr[0]=ptr[1]=ptr[2]=0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -389,6 +392,7 @@ public:
   void store(const char *to,uint length);
   void store(double nr);
   void store(longlong nr);
+  void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -423,6 +427,7 @@ public:
   void store(const char *to,uint length);
   void store(double nr);
   void store(longlong nr);
+  void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=ptr[4]=ptr[5]=ptr[6]=ptr[7]=0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -449,6 +454,7 @@ public:
   void store(const char *to,uint length);
   void store(double nr);
   void store(longlong nr);
+  void reset(void) { bzero(ptr,sizeof(float)); }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -480,6 +486,7 @@ public:
   void store(const char *to,uint length);
   void store(double nr);
   void store(longlong nr);
+  void reset(void) { bzero(ptr,sizeof(double)); }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -505,6 +512,7 @@ public:
   void store(const char *to, uint length) { null[0]=1; }
   void store(double nr)   { null[0]=1; }
   void store(longlong nr) { null[0]=1; }
+  void reset(void)	  {}
   double val_real(void)		{ return 0.0;}
   longlong val_int(void)	{ return 0;}
   String *val_str(String *value,String *value2)
@@ -528,6 +536,7 @@ public:
   void store(const char *to,uint length);
   void store(double nr);
   void store(longlong nr);
+  void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -588,6 +597,7 @@ public:
   void store(const char *to,uint length);
   void store(double nr);
   void store(longlong nr);
+  void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -615,6 +625,7 @@ public:
   void store(double nr);
   void store(longlong nr);
   void store_time(TIME *ltime,timestamp_type type);
+  void reset(void) { ptr[0]=ptr[1]=ptr[2]=0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -643,6 +654,7 @@ public:
   void store(const char *to,uint length);
   void store(double nr);
   void store(longlong nr);
+  void reset(void) { ptr[0]=ptr[1]=ptr[2]=0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -673,6 +685,7 @@ public:
   void store(double nr);
   void store(longlong nr);
   void store_time(TIME *ltime,timestamp_type type);
+  void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=ptr[4]=ptr[5]=ptr[6]=ptr[7]=0; }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
@@ -922,6 +935,7 @@ public:
   void store(const char *to,uint length);
   void store(double nr);
   void store(longlong nr);
+  void reset() { bzero(ptr,packlength); }
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);

@@ -562,7 +562,7 @@ if ($limits->{'group_functions'})
     fetch_all_rows($dbh,"select min(id) from bench1");
     fetch_all_rows($dbh,"select max(id) from bench1");
     fetch_all_rows($dbh,"select sum(id+0.0) from bench1");
-    fetch_all_rows($dbh,"select min(id3),max(id3),sum(id3 +0.0) from bench1");
+    fetch_all_rows($dbh,"select min(id3),max(id3),sum(id3-0.0) from bench1");
     if ($limits->{'group_func_sql_min_str'})
     {
       fetch_all_rows($dbh,"select min(dummy1),max(dummy1) from bench1");
@@ -579,7 +579,7 @@ if ($limits->{'group_functions'})
 
 
     $count++;
-    $sth=$dbh->prepare($query="select count(*),sum(id+0.0),min(id),max(id),avg(id+0.0) from bench1") or die $DBI::errstr;
+    $sth=$dbh->prepare($query="select count(*),sum(id+0.0),min(id),max(id),avg(id-0.0) from bench1") or die $DBI::errstr;
     $sth->execute or die $DBI::errstr;
     @row=$sth->fetchrow_array;
     if ($row[0] != $total_rows ||

@@ -136,12 +136,12 @@ if ($limits->{'group_functions'})
   print "Test if the database has a query cache\n";
 
   # First ensure that the table is read into memory
-  fetch_all_rows($dbh,"select sum(idn+$tmp),sum(rev_idn+$tmp) from bench1");
+  fetch_all_rows($dbh,"select sum(idn+$tmp),sum(rev_idn-$tmp) from bench1");
 
   $loop_time=new Benchmark;
   for ($tests=0 ; $tests < $opt_loop_count ; $tests++)
   {
-    fetch_all_rows($dbh,"select sum(idn+$tests),sum(rev_idn+$tests) from bench1");
+    fetch_all_rows($dbh,"select sum(idn+$tests),sum(rev_idn-$tests) from bench1");
   }
   $end_time=new Benchmark;
   print "Time for select_query_cache ($opt_loop_count): " .
@@ -153,7 +153,7 @@ if ($limits->{'group_functions'})
   $loop_time=new Benchmark;
   for ($tests=0 ; $tests < $opt_loop_count ; $tests++)
   {
-    fetch_all_rows($dbh,"select sum(idn+$tests),sum(rev_idn+$tests) from bench1");
+    fetch_all_rows($dbh,"select sum(idn+$tests),sum(rev_idn-$tests) from bench1");
   }
   $end_time=new Benchmark;
   print "Time for select_query_cache2 ($opt_loop_count): " .
