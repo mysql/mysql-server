@@ -525,3 +525,6 @@ vio/viotest-ssl
 extra/mysql_waitpid
 support-files/MacOSX/Description.plist
 support-files/MacOSX/Info.plist
+support-files/MacOSX/StartupParameters.plist
+support-files/MacOSX/postinstall
+support-files/MacOSX/preinstall
