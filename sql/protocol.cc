@@ -166,10 +166,10 @@ net_printf(THD *thd, uint errcode, ...)
   const char *format;
 #ifndef EMBEDDED_LIBRARY
   const char *text_pos;
+  int head_length= NET_HEADER_SIZE;
 #else
   char text_pos[1024];
 #endif
-  int head_length= NET_HEADER_SIZE;
   NET *net= &thd->net;
 
   DBUG_ENTER("net_printf");

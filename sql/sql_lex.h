@@ -396,6 +396,7 @@ public:
   SQL_LIST order_list;                /* ORDER clause */
   List<List_item>     expr_list;
   List<List_item>     when_list;      /* WHEN clause (expression) */
+  SQL_LIST *gorder_list;
   ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
@@ -538,7 +539,6 @@ typedef struct st_lex
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
   CHARSET_INFO *charset;
-  SQL_LIST *gorder_list;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
