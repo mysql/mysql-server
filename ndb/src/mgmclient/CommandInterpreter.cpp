@@ -54,7 +54,7 @@ static const char* helpText =
 #endif
 "START BACKUP                           Start backup\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
-"SHUTDOWN                               Shutdown all processed in cluster and quit\n"
+"SHUTDOWN                               Shutdown all processes in cluster and quit\n"
 "CLUSTERLOG ON                          Enable Cluster logging\n"
 "CLUSTERLOG OFF                         Disable Cluster logging\n"
 "CLUSTERLOG FILTER <severity>           Toggle severity filter on/off\n"
