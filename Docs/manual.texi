@@ -5896,9 +5896,9 @@ of function} warnings. These may be ignored.
 @node Linux, Alpha-DEC-Unix, SunOS, Source install system issues
 @subsection Linux notes (all Linux versions)
 
-@strong{MySQL} uses LinuxThreads on Linux.  If you are using an old Linux
-version that doesn't have @code{glibc2}, you must install LinuxThreads before
-trying to compile
+@strong{MySQL} uses LinuxThreads on Linux.  If you are using an old
+Linux version that doesn't have @code{glibc2}, you must install
+LinuxThreads before trying to compile
 @strong{MySQL}. @uref{http://www.mysql.com/Downloads/Linux}
 
 Note that @code{glibc} versions before and including 2.1.1 has a fatal
@@ -5968,6 +5968,11 @@ go around this limit.
 If you see a dead @code{mysqld} daemon process with @code{ps}, this usually
 means that you have found a bug in @strong{MySQL} or you have got a corrupted
 table. @xref{Crashing}.
+
+If you want to get a core dump on Linux if mysqld dies with a SIGSEGV
+signal, you can start mysqld with the @code{--core-file} option.  Note
+that you also probably need to raise the @code{core file size} with
+@code{ulimit}!
 
 If you are using LinuxThreads and @code{mysqladmin shutdown} doesn't work,
 you must upgrade to LinuxThreads 0.7.1 or newer.
@@ -6164,6 +6169,10 @@ run @code{configure} with the @code{--with-mysqld-ldflags=-all-static} option
 until you have installed @code{glibc} 2.0.7-19 from source!
 
 You can check which version of @code{glibc} you have with @code{rpm -q glibc}.
+
+Another reason for the above error is if you try to use more threads
+than your Linux kernel is configured for.  In this case you should rise
+the limits in @file{include/linux/tasks.h} and recompile your kernel!
 
 @node Linux-SPARC, Linux-Alpha, Linux-RedHat51, Linux
 @subsubsection Linux-SPARC notes
@@ -35686,6 +35695,9 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.23
 @itemize @bullet
 @item
+Added option @code{--core-file} to @code{mysqld} to get a core file on
+Linux if mysqld dies on the SIGSEGV signal
+@item
 @strong{MySQL} client 'mysql' now starts with option --no-named-commands
 (-g) by default. This option can be disabled with --enable-named-commands
 (-G). This may cause incompatibility problems in some cases, for example
@@ -40323,6 +40335,9 @@ new connections the whole time as @code{gdb} doesn't free the memory for
 old threads.  You can avoid this problem by starting @code{mysqld} with
 @code{-O thread_cache_size= 'max_connections +1'}.  In most cases just
 using @code{-O thread_cache_size= 5'} will help a lot!
+
+If you want to get a core dump on Linux if mysqld dies with a SIGSEGV signal,
+you can start mysqld with the @code{--core-file} option.
 
 If you are using gdb 4.17.x or above on Linux, you should install a
 @file{.gdb} file, with the following information, in your current
