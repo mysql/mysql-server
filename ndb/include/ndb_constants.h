@@ -61,7 +61,9 @@
 #define NDB_TYPE_LONG_VARCHAR           23
 #define NDB_TYPE_LONG_VARBINARY         24
 #define NDB_TYPE_TIME                   25
+#define NDB_TYPE_YEAR                   26
+#define NDB_TYPE_TIMESTAMP              27
 
-#define NDB_TYPE_MAX                    26
+#define NDB_TYPE_MAX                    28
  
 #endif
