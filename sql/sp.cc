@@ -1054,6 +1054,8 @@ sp_use_new_db(THD *thd, char *newdb, char *olddb, uint olddblen,
   DBUG_ENTER("sp_use_new_db");
   DBUG_PRINT("enter", ("newdb: %s", newdb));
 
+  if (! newdb)
+    newdb= (char *)"";
   if (thd->db && thd->db[0])
   {
     if (my_strcasecmp(system_charset_info, thd->db, newdb) == 0)
