@@ -445,7 +445,8 @@ drop procedure create_select|
 create function e() returns double
   return 2.7182818284590452354|
 
-select e()|
+set @e = e()|
+select e(), @e|
 
 # A minimal function with one argument
 create function inc(i int) returns int
@@ -458,6 +459,12 @@ create function mul(x int, y int) returns int
   return x*y|
 
 select mul(1,1), mul(3,5), mul(4711, 666)|
+
+# A minimal string function
+create function append(s1 char(8), s2 char(8)) returns char(16)
+  return concat(s1, s2)|
+
+select append("foo", "bar")|
 
 # A function with flow control
 create function fac(n int unsigned) returns bigint unsigned
@@ -472,11 +479,12 @@ begin
   return f;
 end|
 
-select fac(1), fac(2), fac(10)|
+select fac(1), fac(2), fac(5), fac(10)|
 
 drop function e|
 drop function inc|
 drop function mul|
+drop function append|
 drop function fac|
 
 delimiter ;|

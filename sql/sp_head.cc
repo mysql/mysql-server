@@ -70,11 +70,11 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
     default:
       {
 	char buffer[MAX_FIELD_WIDTH];
-	String tmp(buffer, sizeof(buffer), default_charset_info);
+	String tmp(buffer, sizeof(buffer), it->charset());
 	String *s= it->val_str(&tmp);
 
-	it= new Item_string(s->c_ptr_quick(), s->length(),
-			    default_charset_info);
+	it= new Item_string(sql_strmake(s->c_ptr_quick(), s->length()),
+			    s->length(), it->charset());
 	break;
       }
     }

@@ -1161,7 +1161,7 @@ class Item_func_sp :public Item_func
 {
 private:
   LEX_STRING m_name;
-  sp_head *m_sp;
+  mutable sp_head *m_sp;
 
   int execute(Item **itp);
 
@@ -1182,6 +1182,8 @@ public:
   {
     return m_name.str;
   }
+
+  enum enum_field_types field_type() const;
 
   Item_result result_type() const;
 
@@ -1207,8 +1209,6 @@ public:
       return NULL;
     return it->val_str(str);
   }
-
-  void make_field(Send_field *field);
 
   void fix_length_and_dec();
 

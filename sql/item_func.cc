@@ -2781,10 +2781,27 @@ Item_func_sp::execute(Item **itp)
   DBUG_ENTER("Item_func_sp::execute");
   THD *thd= current_thd;
 
-  if (!m_sp && !(m_sp= sp_find_function(thd, &m_name)))
+  if (! m_sp)
+    m_sp= sp_find_function(thd, &m_name);
+  if (! m_sp)
     DBUG_RETURN(-1);
 
   DBUG_RETURN(m_sp->execute_function(thd, args, arg_count, itp));
+}
+
+enum enum_field_types
+Item_func_sp::field_type() const
+{
+  DBUG_ENTER("Item_func_sp::field_type");
+
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, const_cast<LEX_STRING*>(&m_name));
+  if (m_sp)
+  {
+    DBUG_PRINT("info", ("m_returns = %d", m_sp->m_returns));
+    DBUG_RETURN(m_sp->m_returns);
+  }
+  DBUG_RETURN(MYSQL_TYPE_STRING);
 }
 
 Item_result
@@ -2793,32 +2810,13 @@ Item_func_sp::result_type() const
   DBUG_ENTER("Item_func_sp::result_type");
   DBUG_PRINT("info", ("m_sp = %p", m_sp));
 
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, const_cast<LEX_STRING*>(&m_name));
   if (m_sp)
   {
     DBUG_RETURN(m_sp->result());
   }
-  else
-  {
-    sp_head *sp= sp_find_function(current_thd, (LEX_STRING *)(&m_name));
-    if (sp)
-      DBUG_RETURN(m_sp->result());
-    DBUG_RETURN(STRING_RESULT);
-  }
-}
-
-void
-Item_func_sp::make_field(Send_field *field)
-{
-  DBUG_ENTER("Item_func_sp::make_field");
-  Item *it;
-
-  if (!execute(&it))
-  {
-    it->set_name(name, 0);
-    init_make_field(field, field_type());
-    it->make_field(field);
-  }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(STRING_RESULT);
 }
 
 void
@@ -2826,7 +2824,9 @@ Item_func_sp::fix_length_and_dec()
 {
   DBUG_ENTER("Item_func_sp::fix_length_and_dec");
 
-  if (m_sp || (m_sp= sp_find_function(current_thd, &m_name)))
+  if (! m_sp)
+    m_sp= sp_find_function(current_thd, &m_name);
+  if (m_sp)
   {
     switch (m_sp->result()) {
     case STRING_RESULT:
