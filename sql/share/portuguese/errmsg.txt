@@ -232,7 +232,7 @@ character-set=latin1
 "Opção '%s' usada duas vezes no comando",
 "Usuário '%-.64s' tem excedido o '%s' recurso (atual valor: %ld)",
 "Acesso negado. Você precisa o privilégio %-.128s para essa operação",
-"Variável '%-.64s' é uma LOCAL variável e não pode ser usada com SET GLOBAL",
+"Variável '%-.64s' é uma SESSION variável e não pode ser usada com SET GLOBAL",
 "Variável '%-.64s' é uma GLOBAL variável e deve ser configurada com SET GLOBAL",
 "Variável '%-.64s' não tem um valor padrão",
 "Variável '%-.64s' não pode ser configurada para o valor de '%-.64s'",
