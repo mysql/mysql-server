@@ -153,6 +153,8 @@ select @@global.sql_auto_is_null;
 set myisam_max_sort_file_size=100;
 --error 1229
 set myisam_max_extra_sort_file_size=100;
+--error 1231
+set @@SQL_WARNINGS=NULL;
 
 # Test setting all variables
 
