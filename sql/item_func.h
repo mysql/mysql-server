@@ -817,6 +817,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd,struct st_table_list *tables);
   void fix_length_and_dec();
+  void print(String *str);
   const char *func_name() const { return "set_user_var"; }
 };
 
@@ -835,12 +836,15 @@ public:
   longlong val_int();
   String *val_str(String* str);
   void fix_length_and_dec();
+  void print(String *str);
   enum Item_result result_type() const;
   const char *func_name() const { return "get_user_var"; }
   bool const_item() const { return const_var_flag; }
   table_map used_tables() const
   { return const_var_flag ? 0 : RAND_TABLE_BIT; }
+  bool eq(const Item *item) const;
 };
+
 
 class Item_func_inet_aton : public Item_int_func
 {
