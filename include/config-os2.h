@@ -87,6 +87,8 @@
 #define S_IFMT		0xF000	    /* Mask for file type */
 #define F_TO_EOF	0L	    /* Param to lockf() to lock rest of file */
 
+#define HUGE_PTR
+
 #ifdef __cplusplus
 extern "C"
 #endif
@@ -102,8 +104,13 @@ BOOL	 TlsSetValue( DWORD, PVOID);
 #define lseek(A,B,C)	_lseek64( A, B, C)
 #define tell(A)		_lseek64( A, 0, SEEK_CUR)
 
+void* dlopen( char* path, int flag);
+char* dlerror( void);
+void* dlsym( void* hmod, char* fn);
+void  dlclose( void* hmod);
+
 /* Some typedefs */
-typedef ulonglong os_off_t;
+typedef unsigned long long os_off_t;
 
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */

@@ -45,13 +45,11 @@ static int calc_check(byte *buf,uint length);
 
 		/* Huvudprogrammet */
 
-int main(argc,argv)
-int argc;
-char *argv[];
+int main(int argc, char *argv[])
 {
   register uint i,j;
   uint ant,n1,n2,n3;
-  uint reclength,write_count,update,delete,check2,dupp_keys,found_key;
+  uint reclength,write_count,update,opt_delete,check2,dupp_keys,found_key;
   int error;
   ulong pos;
   unsigned long key_check;
@@ -70,7 +68,7 @@ char *argv[];
   get_options(argc,argv);
   reclength=37;
 
-  write_count=update=delete=0;
+  write_count=update=opt_delete=0;
   key_check=0;
 
   keyinfo[0].seg=keyseg;
@@ -169,7 +167,7 @@ char *argv[];
 	printf("error: %d; can't delete record: \"%s\"\n", my_errno,record);
 	goto err;
       }
-      delete++;
+      opt_delete++;
       key1[atoi(record+keyinfo[0].seg[0].start)]--;
       key3[atoi(record+keyinfo[2].seg[0].start)]=0;
       key_check-=atoi(record);
@@ -198,7 +196,7 @@ char *argv[];
     {
       if (heap_scan_init(file))
 	goto err;
-      j=rnd(write_count-delete);
+      j=rnd(write_count-opt_delete);
       while ((error=heap_scan(file,record) == HA_ERR_RECORD_DELETED) ||
 	     (!error && j))
       {
@@ -271,7 +269,7 @@ char *argv[];
     key_check-=atoi(record3);
     key1[atoi(record+keyinfo[0].seg[0].start)]--;
     key3[atoi(record+keyinfo[2].seg[0].start)]=0;
-    delete++;
+    opt_delete++;
     ant=2;
     while ((error=heap_rnext(file,record3)) == 0 ||
 	   error == HA_ERR_RECORD_DELETED)
@@ -291,21 +289,21 @@ char *argv[];
     }
 
     if (!silent)
-      printf("- Read last key - delete - prev - prev - delete - prev -> first\n");
+      printf("- Read last key - delete - prev - prev - opt_delete - prev -> first\n");
 
     if (heap_rlast(file,record3)) goto err;
     if (heap_delete(file,record3)) goto err;
     key_check-=atoi(record3);
     key1[atoi(record+keyinfo[0].seg[0].start)]--;
     key3[atoi(record+keyinfo[2].seg[0].start)]=0;
-    delete++;
+    opt_delete++;
     if (heap_rprev(file,record3) || heap_rprev(file,record3))
       goto err;
     if (heap_delete(file,record3)) goto err;
     key_check-=atoi(record3);
     key1[atoi(record+keyinfo[0].seg[0].start)]--;
     key3[atoi(record+keyinfo[2].seg[0].start)]=0;
-    delete++;
+    opt_delete++;
     ant=3;
     while ((error=heap_rprev(file,record3)) == 0 ||
 	   error == HA_ERR_RECORD_DELETED)
@@ -340,7 +338,7 @@ char *argv[];
     goto err;
   if (heap_delete(file,record3)) goto err;
   key_check-=atoi(record3);
-  delete++;
+  opt_delete++;
   key1[atoi(record+keyinfo[0].seg[0].start)]--;
   key3[atoi(record+keyinfo[2].seg[0].start)]=0;
   ant=0;
@@ -348,9 +346,9 @@ char *argv[];
 	 error == HA_ERR_RECORD_DELETED)
     if (! error)
       ant++;
-  if (ant != write_count-delete)
+  if (ant != write_count-opt_delete)
   {
-    printf("next: Found: %d records of %d\n",ant,write_count-delete);
+    printf("next: Found: %d records of %d\n",ant,write_count-opt_delete);
     goto end;
   }
   if (heap_check_heap(file,0))
@@ -361,7 +359,7 @@ char *argv[];
 
   puts("- Test if: Read rrnd - same - rkey - same");
   DBUG_PRINT("progpos",("Read rrnd - same"));
-  pos=rnd(write_count-delete-5)+5;
+  pos=rnd(write_count-opt_delete-5)+5;
   heap_scan_init(file);
   i=5;
   while ((error=heap_scan(file,record)) == HA_ERR_RECORD_DELETED ||
@@ -399,14 +397,14 @@ char *argv[];
   {
     HEAPINFO info;
     heap_info(file,&info,0);
-    /* We have to test with delete +1 as this may be the case if the last
+    /* We have to test with opt_delete +1 as this may be the case if the last
        inserted row was a duplicate key */
-    if (info.records != write_count-delete ||
-	(info.deleted != delete && info.deleted != delete+1))
+    if (info.records != write_count-opt_delete ||
+	(info.deleted != opt_delete && info.deleted != opt_delete+1))
     {
       puts("Wrong info from heap_info");
       printf("Got: records: %ld(%d)  deleted: %ld(%d)\n",
-	     info.records,write_count-delete,info.deleted,delete);
+	     info.records,write_count-opt_delete,info.deleted,opt_delete);
     }
   }
 
@@ -429,10 +427,10 @@ char *argv[];
 	check+=calc_check(record,reclength);
       }
     }
-    if (ant != write_count-delete)
+    if (ant != write_count-opt_delete)
     {
       printf("rrnd: I can only find: %d records of %d\n", ant,
-	     write_count-delete);
+	     write_count-opt_delete);
       goto end;
     }
     if (heap_extra(file,HA_EXTRA_NO_CACHE))
@@ -460,10 +458,10 @@ char *argv[];
       check2+=calc_check(record,reclength);
     }
   }
-  if (ant != write_count-delete)
+  if (ant != write_count-opt_delete)
   {
     printf("scan: I can only find: %d records of %d\n", ant,
-	   write_count-delete);
+	   write_count-opt_delete);
     goto end;
   }
 #ifdef OLD_HEAP_VERSION
@@ -552,7 +550,7 @@ char *argv[];
       write_count++;
       if (heap_delete(file,record))
 	goto err;
-      delete++;
+      opt_delete++;
     }
     pos++;
   }
@@ -570,7 +568,7 @@ char *argv[];
 
 end:
   printf("\nFollowing test have been made:\n");
-  printf("Write records: %d\nUpdate records: %d\nDelete records: %d\n", write_count,update,delete);
+  printf("Write records: %d\nUpdate records: %d\nDelete records: %d\n", write_count,update,opt_delete);
   heap_clear(file);
   if (heap_close(file) || (file2 && heap_close(file2)))
     goto err;
@@ -629,8 +627,7 @@ static int get_options(int argc,char *argv[])
 
 	/* Generate a random value in intervall 0 <=x <= n */
 
-static int rnd(max_value)
-int max_value;
+static int rnd(int max_value)
 {
   return (int) ((rand() & 32767)/32767.0*max_value);
 } /* rnd */
@@ -650,9 +647,7 @@ static sig_handler endprog(int sig_number __attribute__((unused)))
   }
 }
 
-static int calc_check(buf,length)
-byte *buf;
-uint length;
+static int calc_check(byte *buf, uint length)
 {
   int check=0;
   while (length--)

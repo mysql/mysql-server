@@ -139,6 +139,7 @@ int pthread_mutex_unlock (pthread_mutex_t *);
 int pthread_mutex_destroy (pthread_mutex_t *);
 #define my_pthread_setprio(A,B)  DosSetPriority(PRTYS_THREAD,PRTYC_NOCHANGE, B, A)
 #define pthread_kill(A,B) raise(B)
+#define pthread_exit(A) pthread_dummy()
 #else
 #define pthread_mutex_init(A,B)  InitializeCriticalSection(A)
 #define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
@@ -146,7 +147,6 @@ int pthread_mutex_destroy (pthread_mutex_t *);
 #define pthread_mutex_destroy(A) DeleteCriticalSection(A)
 #define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))
 #define pthread_kill(A,B) pthread_dummy(0)
-#define pthread_exit(A) pthread_dummy()
 #endif /* OS2 */
 
 /* Dummy defines for easier code */

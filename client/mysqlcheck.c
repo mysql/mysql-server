@@ -18,18 +18,11 @@
 
 #define CHECK_VERSION "1.02"
 
-#include <global.h>
-#include <my_sys.h>
-#include <m_string.h>
+#include "client_priv.h"
 #include <m_ctype.h>
-
-#include "mysql.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include <getopt.h>
 #include "sslopt-vars.h"
-
-#include <m_string.h>
 
 /* Exit codes */
 
@@ -49,9 +42,6 @@ static int first_error = 0;
 DYNAMIC_ARRAY tables4repair;
 
 enum operations {DO_CHECK, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE};
-
-enum options {OPT_CHARSETS_DIR=256, OPT_COMPRESS, OPT_DEFAULT_CHARSET,
-              OPT_TABLES, OPT_AUTO_REPAIR};
 
 static struct option long_options[] =
 {
