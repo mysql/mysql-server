@@ -92,6 +92,7 @@ THD::THD():user_time(0), is_fatal_error(0),
 	   global_read_lock(0), bootstrap(0), spcont(NULL)
 {
   host= user= priv_user= db= ip= 0;
+  catalog= (char*)"std"; // the only catalog we have for now
   host_or_ip= "connecting host";
   locked=some_tables_deleted=no_errors=password= 0;
   query_start_used= 0;

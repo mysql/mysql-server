@@ -498,6 +498,7 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
 /* tell write offset in the SEQ_APPEND cache */
 my_off_t my_b_append_tell(IO_CACHE* info);
+my_off_t my_b_safe_tell(IO_CACHE* info); /* picks the correct tell() */
 
 #define my_b_bytes_in_cache(info) (uint) (*(info)->current_end - \
 					  *(info)->current_pos)
