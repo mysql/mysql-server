@@ -289,10 +289,11 @@ character-set=latin1
 "Kolumn '%-.64s' kan inte vara del av ett FULLTEXT index",
 "Okänd nyckel cache '%-.100s'",
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
+"Unknown table engine '%s'",
 "'%s' is deprecated, use '%s' instead",
 "Tabel %-.100s använd med '%s' är inte uppdateringsbar",
 "'%s' är inte aktiverad; För att aktivera detta måste du bygga om MySQL med '%s' definerad",
-"MySQL är started i --skip-grant-tables mod. Pga av detta kan du inte använda detta program",
+"MySQL är startad med --skip-grant-tables. Pga av detta kan du inte använda detta kommando",
 "Column '%-.100s' has duplicated value '%-.64s' in %s"
 "Truncated wrong %-.32s value: '%-.128s'"
 "Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
