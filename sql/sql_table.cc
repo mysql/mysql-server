@@ -29,7 +29,7 @@
 #include <io.h>
 #endif
 
-static const char *primary_key_name="PRIMARY";
+const char *primary_key_name= "PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
@@ -2242,13 +2242,15 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   KEY *key_info=table->key_info;
   for (uint i=0 ; i < table->keys ; i++,key_info++)
   {
-    if (drop_primary && (key_info->flags & HA_NOSAME))
+    char *key_name= key_info->name;
+
+    if (drop_primary && (key_info-> flags & HA_NOSAME) &&
+	!my_strcasecmp(system_charset_info, key_name, primary_key_name))
     {
-      drop_primary=0;
+      drop_primary= 0;
       continue;
     }
 
-    char *key_name=key_info->name;
     Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++))
@@ -2303,7 +2305,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       key_list.push_back(new Key(key_info->flags & HA_SPATIAL ? Key::SPATIAL :
                                  (key_info->flags & HA_NOSAME ?
 				 (!my_strcasecmp(system_charset_info,
-                                                 key_name, "PRIMARY") ?
+                                                 key_name, primary_key_name) ?
 				  Key::PRIMARY  : Key::UNIQUE) :
 				  (key_info->flags & HA_FULLTEXT ?
 				   Key::FULLTEXT : Key::MULTIPLE)),

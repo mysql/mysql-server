@@ -124,17 +124,14 @@ static inline int mysql_init_charset(MYSQL *mysql)
   return 0;
 }
 
-int check_embedded_connection(MYSQL *mysql);
-
 MYSQL * STDCALL
 mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   const char *passwd, const char *db,
 		   uint port, const char *unix_socket,ulong client_flag)
 {
   char *db_name;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   char name_buff[USERNAME_LENGTH];
-#endif
+
   DBUG_ENTER("mysql_real_connect");
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s",
 		      host ? host : "(Null)",
@@ -165,10 +162,10 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (!db || !db[0])
     db=mysql->options.db;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!user || !user[0])
     user=mysql->options.user;
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!passwd)
   {
     passwd=mysql->options.password;
@@ -177,16 +174,18 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       passwd=getenv("MYSQL_PWD");		/* get it from environment */
 #endif
   }
+  mysql->passwd= passwd ? my_strdup(passwd,MYF(0)) : NULL;
+#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
   if (!user || !user[0])
   {
     read_user_name(name_buff);
-    if (!name_buff[0])
+    if (name_buff[0])
       user= name_buff;
   }
 
+  if (!user)
+    user= "";
   mysql->user=my_strdup(user,MYF(0));
-  mysql->passwd= passwd ? my_strdup(passwd,MYF(0)) : NULL;
-#endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
 
   port=0;
   unix_socket=0;
@@ -196,10 +195,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 
   init_embedded_mysql(mysql, client_flag, db_name);
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_embedded_connection(mysql))
     goto error;
-#endif
 
   if (mysql_init_charset(mysql))
     goto error;

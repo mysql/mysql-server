@@ -589,4 +589,17 @@ show status like "Qcache_queries_in_cache";
 # Keep things tidy
 #
 DROP TABLE t1;
+
+#
+# DROP current database test
+#
+CREATE TABLE t1 (a int(1));
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+SELECT * FROM test.t1;
+USE test;
+DROP TABLE t1;
+
+
 SET GLOBAL query_cache_size=0;

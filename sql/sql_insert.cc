@@ -84,7 +84,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     table_list.grant=table->grant;
 
     thd->dupp_field=0;
-    if (setup_tables(&table_list) ||
+    if (setup_tables(&table_list, 0) ||
 	setup_fields(thd, 0, &table_list,fields,1,0,0))
       return -1;
     if (thd->dupp_field)
@@ -204,7 +204,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   }
 
   if (check_insert_fields(thd,table,fields,*values,1) ||
-      setup_tables(insert_table_list) ||
+      setup_tables(insert_table_list, 0) ||
       setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
       (duplic == DUP_UPDATE &&
        (setup_fields(thd, 0, insert_table_list, update_fields, 0, 0, 0) ||

@@ -1882,7 +1882,6 @@ void Item_cache_int::store(Item *item)
 {
   value= item->val_int_result();
   null_value= item->null_value;
-  collation.set(item->collation);
 }
 
 
@@ -1890,7 +1889,6 @@ void Item_cache_real::store(Item *item)
 {
   value= item->val_result();
   null_value= item->null_value;
-  collation.set(item->collation);
 }
 
 
@@ -1913,7 +1911,6 @@ void Item_cache_str::store(Item *item)
     value_buff.copy(*value);
     value= &value_buff;
   }
-  collation.set(item->collation);
 }
 
 

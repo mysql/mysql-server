@@ -114,7 +114,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
       DBUG_RETURN(1); // out of memory
 
     // st_select_lex_unit::prepare correctly work for single select
-    if ((res= unit->prepare(thd, derived_result)))
+    if ((res= unit->prepare(thd, derived_result, 0)))
       goto exit;
 
     /* 
@@ -146,17 +146,19 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     }
     derived_result->set_table(table);
 
-    unit->offset_limit_cnt= first_select->offset_limit;
-    unit->select_limit_cnt= first_select->select_limit+
-      first_select->offset_limit;
-    if (unit->select_limit_cnt < first_select->select_limit)
-      unit->select_limit_cnt= HA_POS_ERROR;
-    if (unit->select_limit_cnt == HA_POS_ERROR)
-      first_select->options&= ~OPTION_FOUND_ROWS;
-
     if (is_union)
       res= mysql_union(thd, lex, derived_result, unit);
     else
+    {
+      unit->offset_limit_cnt= first_select->offset_limit;
+      unit->select_limit_cnt= first_select->select_limit+
+	first_select->offset_limit;
+      if (unit->select_limit_cnt < first_select->select_limit)
+	unit->select_limit_cnt= HA_POS_ERROR;
+      if (unit->select_limit_cnt == HA_POS_ERROR)
+	first_select->options&= ~OPTION_FOUND_ROWS;
+
+      lex->current_select= first_select;
       res= mysql_select(thd, &first_select->ref_pointer_array, 
 			(TABLE_LIST*) first_select->table_list.first,
 			first_select->with_wild,
@@ -169,6 +171,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 			(first_select->options | thd->options |
 			 SELECT_NO_UNLOCK),
 			derived_result, unit, first_select);
+    }
 
     if (!res)
     {
@@ -198,7 +201,10 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	  }
 	}
 	else
+	{
 	  unit->exclude_tree();
+	  unit->cleanup();
+	}
 	org_table_list->db= (char *)"";
 	  // Force read of table stats in the optimizer
 	table->file->info(HA_STATUS_VARIABLE);
