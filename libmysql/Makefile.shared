@@ -62,7 +62,7 @@ mysysobjects =		$(mysysobjects1) $(mysysobjects2)
 target_libadd = $(mysysobjects) $(mystringsobjects) $(dbugobjects) \
  $(vio_objects)
 target_ldflags = -version-info @SHARED_LIB_VERSION@
-vio_objects= vio.lo viosocket.lo
+vio_objects= vio.lo viosocket.lo viossl.lo viosslfactories.lo
 CLEANFILES =		$(target_libadd) $(SHLIBOBJS) \
 			$(target)
 DEFS =			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \

@@ -22,7 +22,7 @@ target_defs =
 ## LIBS = @LIBS@
 
 INCLUDES =	@MT_INCLUDES@ -I$(srcdir)/../include -I../include \
-		-I$(srcdir)/.. -I$(top_srcdir) -I..
+		-I$(srcdir)/.. -I$(top_srcdir) -I.. $(openssl_includes)
 
 ## automake barfs if you don't use $(srcdir) or $(top_srcdir) in include
 include $(top_srcdir)/libmysql/Makefile.shared

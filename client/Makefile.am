@@ -16,7 +16,7 @@
 
 # This file is public domain and comes with NO WARRANTY of any kind
 
-INCLUDES =			-I$(srcdir)/../include \
+INCLUDES =			-I$(srcdir)/../include $(openssl_includes) \
 				-I../include -I$(srcdir)/.. -I$(top_srcdir) \
 				-I..
 LIBS =				@CLIENT_LIBS@

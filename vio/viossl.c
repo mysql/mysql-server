@@ -23,6 +23,9 @@
 */
 
 #include <global.h>
+
+#ifdef HAVE_OPENSSL
+
 #include <mysql_com.h>
 
 #include <errno.h>
@@ -60,9 +63,6 @@
 #ifndef __WIN__
 #define HANDLE void *
 #endif
-
-
-#ifdef HAVE_OPENSSL
 
 static void
 report_errors()
@@ -105,8 +105,11 @@ int vio_ssl_read(Vio * vio, gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_ssl_read");
-  DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d, ssl_=%p", vio->sd, buf, size, vio->ssl_));
   assert(vio->ssl_!= 0);
+
+  DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'",SSL_get_cipher_name(vio->ssl_)));
+  
   r = SSL_read(vio->ssl_, buf, size);
 #ifndef DBUG_OFF
   if ( r< 0)
@@ -123,6 +126,7 @@ int vio_ssl_write(Vio * vio, const gptr buf, int size)
   DBUG_ENTER("vio_ssl_write");
   DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d", vio->sd, buf, size));
   assert(vio->ssl_!=0);
+  DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'",SSL_get_cipher_name(vio->ssl_)));
   r = SSL_write(vio->ssl_, buf, size);
 #ifndef DBUG_OFF
   if (r<0)
@@ -204,6 +208,7 @@ int vio_ssl_close(Vio * vio)
   if (r)
   {
     DBUG_PRINT("error", ("close() failed, error: %d",errno));
+    report_errors();
     /* FIXME: error handling (not critical for MySQL) */
   }
   vio->type= VIO_CLOSED;
@@ -289,12 +294,14 @@ my_bool vio_ssl_poll_read(Vio *vio,uint timeout)
 /* FIXME: There are some duplicate code in 
  * sslaccept()/sslconnect() which maybe can be eliminated 
  */
-Vio *sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* sd)
+void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* sd)
 {
+  X509*    client_cert;
+  char *str;
   DBUG_ENTER("sslaccept");
-  DBUG_PRINT("enter", ("sd=%s ptr=%p", sd->desc,ptr));
+  DBUG_PRINT("enter", ("sd=%s ptr=%p", sd->sd,ptr));
   vio_reset(sd,VIO_TYPE_SSL,sd->sd,0,FALSE);
-  ptr->bio_=0;
+//  ptr->bio_=0;
   sd->ssl_=0;
   sd->open_=FALSE; 
   assert(sd != 0);
@@ -304,9 +311,12 @@ Vio *sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* sd)
   {
     DBUG_PRINT("error", ("SSL_new failure"));
     report_errors();
-    DBUG_RETURN(sd);
+    DBUG_VOID_RETURN;
   }
-  if (!(ptr->bio_ = BIO_new_socket(sd->sd, BIO_NOCLOSE)))
+  DBUG_PRINT("info", ("ssl_=%p",sd->ssl_));
+  SSL_set_fd(sd->ssl_,sd->sd);
+//  SSL_accept(sd->ssl_);                
+/*  if (!(ptr->bio_ = BIO_new_socket(sd->sd, BIO_NOCLOSE)))
   {
     DBUG_PRINT("error", ("BIO_new_socket failure"));
     report_errors();
@@ -314,18 +324,42 @@ Vio *sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* sd)
     sd->ssl_=0;
     DBUG_RETURN(sd);
   }
-  SSL_set_bio(sd->ssl_, ptr->bio_, ptr->bio_);
+  SSL_set_bio(sd->ssl_, ptr->bio_, ptr->bio_);*/
   SSL_set_accept_state(sd->ssl_);
-  sprintf(ptr->desc_, "VioSSL(%d)", sd->sd);
-/*  sd->ssl_cip_ = SSL_get_cipher(sd->ssl_); */
+//  sprintf(ptr->desc_, "VioSSL(%d)", sd->sd);
+//  sd->ssl_cip_ = SSL_get_cipher(sd->ssl_); 
   sd->open_ = TRUE;
-  DBUG_RETURN(sd);
+
+
+  client_cert = SSL_get_peer_certificate (sd->ssl_);
+  if (client_cert != NULL) {
+    DBUG_PRINT("info",("Client certificate:"));
+    str = X509_NAME_oneline (X509_get_subject_name (client_cert), 0, 0);
+    //CHK_NULL(str);
+    DBUG_PRINT("info",("\t subject: %s", str));
+    free (str);
+
+    str = X509_NAME_oneline (X509_get_issuer_name  (client_cert), 0, 0);
+    //CHK_NULL(str);
+    DBUG_PRINT("info",("\t issuer: %s", str));
+    free (str);
+
+    /* We could do all sorts of certificate verification stuff here before
+     *        deallocating the certificate. */
+
+    X509_free (client_cert);
+  } else
+    DBUG_PRINT("info",("Client does not have certificate."));
+
+  DBUG_VOID_RETURN;
 }
 
-Vio *sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* sd)
+void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* sd)
 {
+  char *str;
+  X509*    server_cert;
   DBUG_ENTER("sslconnect");
-  DBUG_PRINT("enter", ("sd=%s ptr=%p ctx: %p", sd->desc,ptr,ptr->ssl_context_));
+  DBUG_PRINT("enter", ("sd=%s ptr=%p ctx: %p", sd->sd,ptr,ptr->ssl_context_));
   vio_reset(sd,VIO_TYPE_SSL,sd->sd,0,FALSE);
 
   sd->bio_=0;
@@ -339,9 +373,11 @@ Vio *sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* sd)
   {
     DBUG_PRINT("error", ("SSL_new failure"));
     report_errors();
-    DBUG_RETURN(sd);
+    DBUG_VOID_RETURN;
   }
-  if (!(sd->bio_ = BIO_new_socket(sd->sd, BIO_NOCLOSE)))
+  DBUG_PRINT("info", ("ssl_=%p",sd->ssl_));
+  printf("ssl_=%p\n",sd->ssl_);
+/*  if (!(sd->bio_ = BIO_new_socket(sd->sd, BIO_NOCLOSE)))
   {
     DBUG_PRINT("error", ("BIO_new_socket failure"));
     report_errors();
@@ -349,12 +385,32 @@ Vio *sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* sd)
     sd->ssl_=0;
     DBUG_RETURN(sd);
   }
-  SSL_set_bio(sd->ssl_, sd->bio_, sd->bio_);
+  SSL_set_bio(sd->ssl_, sd->bio_, sd->bio_);*/
+
+  SSL_set_fd (sd->ssl_, sd->sd);
   SSL_set_connect_state(sd->ssl_);
-/*  sprintf(ptr->desc_, "VioSSL(%d)", sd->sd); 
-  sd->ssl_cip_ = SSL_get_cipher(sd->ssl_);*/
+
+  server_cert = SSL_get_peer_certificate (sd->ssl_);
+  if (server_cert != NULL) {
+    DBUG_PRINT("info",("Server certificate:"));
+    str = X509_NAME_oneline (X509_get_subject_name (server_cert), 0, 0);
+    DBUG_PRINT("info",("\t subject: %s", str));
+    free (str);
+
+    str = X509_NAME_oneline (X509_get_issuer_name  (server_cert), 0, 0);
+    DBUG_PRINT("info",("\t issuer: %s\n", str));
+    free (str);
+
+    /* We could do all sorts of certificate verification stuff here before
+     *        deallocating the certificate. */
+
+    X509_free(server_cert);
+  } else
+    DBUG_PRINT("info",("Server does not have certificate."));
+
+//  sd->ssl_cip_ = SSL_get_cipher(sd->ssl_);
   sd->open_ = TRUE;
-  DBUG_RETURN(sd);
+  DBUG_VOID_RETURN;
 }
 
 
