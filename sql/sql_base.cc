@@ -2089,7 +2089,12 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
 	  DBUG_RETURN(WRONG_GRANT);
 #endif
         if (thd->lex->current_select->no_wrap_view_item)
-          *ref= trans[i].item;
+	{
+	  if (register_tree_change)
+	    thd->change_item_tree(ref, trans[i].item);
+	  else
+            *ref= trans[i].item;
+	}
         else
         {
           Item_ref *item_ref= new Item_ref(&trans[i].item,
@@ -2098,6 +2103,8 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
           /* as far as Item_ref have defined reference it do not need tables */
           if (register_tree_change && item_ref)
             thd->change_item_tree(ref, item_ref);
+	  else if (item_ref)
+	    *ref= item_ref;
         }
 	DBUG_RETURN((Field*) view_ref_found);
       }
@@ -2944,6 +2951,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
     TABLE_LIST *last;
     TABLE_LIST *embedding;
     TABLE *table= tables->table;
+    bool alias_used= 0;
 
     if (!table_name || (!my_strcasecmp(table_alias_charset, table_name,
 				       tables->alias) &&
@@ -3016,6 +3024,8 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
       {
         iterator= &view_iter;
 	view= 1;
+	alias_used= my_strcasecmp(table_alias_charset,
+				  tables->real_name, tables->alias);
       }
       else
       {
@@ -3037,15 +3047,15 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
                                  &not_used_field_index, TRUE))
         {
           Item *item= iterator->item(thd);
-          if (!found++)
-            (void) it->replace(item);		// Replace '*'
-          else
-            it->after(item);
 	  if (view && !thd->lex->current_select->no_wrap_view_item)
 	  {
 	    item= new Item_ref(it->ref(), tables->view_name.str,
 			       field_name);
 	  }
+          if (!found++)
+            (void) it->replace(item);		// Replace '*'
+          else
+            it->after(item);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
           if (any_privileges)
           {
@@ -3099,9 +3109,15 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
         else if (allocate_view_names &&
                  thd->lex->current_select->first_execution)
         {
-          Item_field *item= new Item_field(thd->strdup(tables->view_db.str),
-                                           thd->strdup(tables->view_name.str),
-                                           thd->strdup(field_name));
+	  Item_field *item;
+	  if (alias_used)
+	    item= new Item_field(0,
+				 thd->strdup(tables->alias),
+				 thd->strdup(field_name));
+	  else
+	    item= new Item_field(thd->strdup(tables->view_db.str),
+				 thd->strdup(tables->view_name.str),
+				 thd->strdup(field_name));
           /*
             during cleunup() this item will be put in list to replace
             expression from VIEW

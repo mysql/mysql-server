@@ -680,18 +680,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       hash_free(&lex->spfuns);
 
     /*
-      mark to avoid temporary table using and put view reference and find
-      last view table
-    */
-    for (tbl= view_tables;
-         tbl;
-         tbl= (view_tables_tail= tbl)->next_global)
-    {
-      tbl->skip_temporary= 1;
-      tbl->belong_to_view= top_view;
-    }
-
-    /*
       check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
       underlying tables
     */
@@ -708,6 +696,18 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     {
       if (check_table_access(thd, SHOW_VIEW_ACL, table, 0))
         goto err;
+    }
+
+    /*
+      mark to avoid temporary table using and put view reference and find
+      last view table
+    */
+    for (tbl= view_tables;
+         tbl;
+         tbl= (view_tables_tail= tbl)->next_global)
+    {
+      tbl->skip_temporary= 1;
+      tbl->belong_to_view= top_view;
     }
 
     /* move SQL_NO_CACHE & Co to whole query */

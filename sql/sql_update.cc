@@ -170,10 +170,8 @@ int mysql_update(THD *thd,
   table->quick_keys.clear_all();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  /* In case of view TABLE_LIST contain right privilages request */
-  want_privilege= (table_list->view ?
-                   table_list->grant.want_privilege :
-                   table->grant.want_privilege);
+  /* TABLE_LIST contain right privilages request */
+  want_privilege= table_list->grant.want_privilege;
 #endif
   if (mysql_prepare_update(thd, table_list, &conds, order_num, order))
     DBUG_RETURN(1);
@@ -221,7 +219,7 @@ int mysql_update(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Check values */
   table_list->grant.want_privilege= table->grant.want_privilege=
-    (SELECT_ACL & ~table->grant.privilege);
+    (SELECT_ACL & ~~table->grant.privilege);
 #endif
   if (setup_fields(thd, 0, table_list, values, 1, 0, 0))
   {
@@ -715,7 +713,7 @@ bool mysql_multi_update_prepare(THD *thd)
     }
 
     /* Check access privileges for table */
-    if (!tl->derived)
+    if (!tl->derived && !tl->belong_to_view)
     {
       uint want_privilege= tl->updating ? UPDATE_ACL : SELECT_ACL;
       if (!using_lock_tables)
