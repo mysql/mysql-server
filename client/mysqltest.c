@@ -1901,6 +1901,22 @@ void reject_dump(const char* record_file, char* buf, int size)
   str_to_file(fn_format(reject_file, record_file,"",".reject",2), buf, size);
 }
 
+
+/* Append the string to ds, with optional replace */
+
+static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, char *val, int len)
+{
+  if (glob_replace)
+  {
+    len=(int) replace_strings(glob_replace, &out_buff, &out_length, val);
+    if (len == -1)
+      die("Out of memory in replace\n");
+    val=out_buff;
+  }
+  dynstr_append_mem(ds, val, len);
+}
+
+
 /*
 * flags control the phased/stages of query execution to be performed 
 * if QUERY_SEND bit is on, the query will be sent. If QUERY_REAP is on
@@ -1976,7 +1992,8 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	  if (i == 0 && q->expected_errors == 1)
 	  {
 	    /* Only log error if there is one possible error */
-	    dynstr_append(ds,mysql_error(mysql));
+	    replace_dynstr_append_mem(ds,mysql_error(mysql),
+				      strlen(mysql_error(mysql)));
 	    dynstr_append_mem(ds,"\n",1);
 	  }
 	  /* Don't log error if we may not get an error */
@@ -1987,14 +2004,16 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       }
       if (i)
       {
-	dynstr_append(ds,mysql_error(mysql));
+	replace_dynstr_append_mem(ds, mysql_error(mysql),
+				  strlen(mysql_error(mysql)));
 	dynstr_append_mem(ds,"\n",1);
 	verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
 		    q->query, mysql_errno(mysql), q->expected_errno[0]);
 	error=1;
 	goto end;
       }
-      dynstr_append(ds,mysql_error(mysql));
+      replace_dynstr_append_mem(ds,mysql_error(mysql),
+				strlen(mysql_error(mysql)));
       dynstr_append_mem(ds,"\n",1);
       verbose_msg("query '%s' failed: %d: %s", q->query, mysql_errno(mysql),
 		  mysql_error(mysql));
@@ -2050,14 +2069,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 
       if (i)
 	dynstr_append_mem(ds, "\t", 1);
-      if (glob_replace)
-      {
-	len=(int) replace_strings(glob_replace, &out_buff, &out_length, val);
-	if (len == -1)
-	  die("Out of memory in replace\n");
-	val=out_buff;
-      }
-      dynstr_append_mem(ds, val, len);
+      replace_dynstr_append_mem(ds, val, len);
     }
 
     dynstr_append_mem(ds, "\n", 1);

@@ -18,9 +18,9 @@
 
 #include "ftdefs.h"
 
-uint ft_min_word_len=4;
-uint ft_max_word_len=HA_FT_MAXLEN;
-uint ft_max_word_len_for_sort=20;
+ulong ft_min_word_len=4;
+ulong ft_max_word_len=HA_FT_MAXLEN;
+ulong ft_max_word_len_for_sort=20;
 
 const MI_KEYSEG ft_keysegs[FT_SEGS]={
 {
