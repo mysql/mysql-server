@@ -84,3 +84,17 @@ t1	CREATE TABLE `t1` (
   `b` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 (i int) data directory = "/home/jimw/my/mysql-4.1-8707/mysql-test/var/master-data/test/";
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (i int) index directory = "/home/jimw/my/mysql-4.1-8707/mysql-test/var/master-data/test/";
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
