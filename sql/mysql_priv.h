@@ -521,7 +521,7 @@ extern uint protocol_version,dropping_tables;
 extern ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
 	     max_join_size,join_buff_size,tmp_table_size,
 	     max_connections,max_connect_errors,long_query_time,
-	     max_insert_delayed_threads,
+	     max_insert_delayed_threads, max_user_connections,
 	     long_query_count,net_wait_timeout,net_interactive_timeout,
 	     net_read_timeout,net_write_timeout,
 	     what_to_log,flush_time,

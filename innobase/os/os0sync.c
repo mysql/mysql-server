@@ -19,14 +19,14 @@ Created 9/6/1995 Heikki Tuuri
 #include "ut0mem.h"
 
 /* Type definition for an operating system mutex struct */
-struct os_mutex_struct{ 
+struct os_mutex_struct{
 	void*		handle;	/* OS handle to mutex */
 	ulint		count;	/* we use this counter to check
 				that the same thread does not
 				recursively lock the mutex: we
 				do not assume that the OS mutex
 				supports recursive locking, though
-				NT seems to do that */				
+				NT seems to do that */
 };
 
 /*************************************************************
@@ -44,7 +44,7 @@ os_event_create(
 {
 #ifdef __WIN__
 	HANDLE	event;
-	
+
 	event = CreateEvent(NULL,	/* No security attributes */
 			TRUE,		/* Manual reset */
 			FALSE,		/* Initial state nonsignaled */
@@ -60,9 +60,9 @@ os_event_create(
 	event = ut_malloc(sizeof(struct os_event_struct));
 
 	os_fast_mutex_init(&(event->os_mutex));
-	os_fast_mutex_init(&(event->wait_mutex));
+	pthread_cond_init(&(event->cond_var), NULL);
 
-	event->is_set = TRUE;
+	event->is_set = FALSE;
 
 	return(event);
 #endif
@@ -108,7 +108,7 @@ os_event_set(
 /*=========*/
 	os_event_t	event)	/* in: event to set */
 {
-#ifdef __WIN__	
+#ifdef __WIN__
 	ut_a(event);
 	ut_a(SetEvent(event));
 #else
@@ -119,12 +119,12 @@ os_event_set(
 	if (event->is_set) {
 		/* Do nothing */
 	} else {
-		os_fast_mutex_unlock(&(event->wait_mutex));
 		event->is_set = TRUE;
+		pthread_cond_broadcast(&(event->cond_var));
 	}
 
 	os_fast_mutex_unlock(&(event->os_mutex));
-#endif		
+#endif
 }
 
 /**************************************************************
@@ -148,7 +148,6 @@ os_event_reset(
 	if (!event->is_set) {
 		/* Do nothing */
 	} else {
-		os_fast_mutex_lock(&(event->wait_mutex));
 		event->is_set = FALSE;
 	}
 
@@ -163,7 +162,7 @@ void
 os_event_free(
 /*==========*/
 	os_event_t	event)	/* in: event to free */
-	
+
 {
 #ifdef __WIN__
 	ut_a(event);
@@ -173,7 +172,7 @@ os_event_free(
 	ut_a(event);
 
 	os_fast_mutex_free(&(event->os_mutex));
-	os_fast_mutex_free(&(event->wait_mutex));
+	pthread_cond_destroy(&(event->cond_var));
 
 	ut_free(event);
 #endif
@@ -197,8 +196,22 @@ os_event_wait(
 
 	ut_a(err == WAIT_OBJECT_0);
 #else
-	os_fast_mutex_lock(&(event->wait_mutex));
-	os_fast_mutex_unlock(&(event->wait_mutex));
+	os_fast_mutex_lock(&(event->os_mutex));
+loop:
+	if (event->is_set == TRUE) {
+		os_fast_mutex_unlock(&(event->os_mutex));
+
+		/* Ok, we may return */
+
+		return;
+	}
+
+	pthread_cond_wait(&(event->cond_var), &(event->os_mutex));
+
+	/* Solaris manual said that spurious wakeups may occur: we have
+	to check the 'is_set' variable again */
+
+	goto loop;
 #endif
 }
 
@@ -225,7 +238,7 @@ os_event_wait_time(
 	} else {
 		err = WaitForSingleObject(event, INFINITE);
 	}
-	
+
 	if (err == WAIT_OBJECT_0) {
 
 		return(0);
@@ -237,7 +250,7 @@ os_event_wait_time(
 	}
 #else
 	UT_NOT_USED(time);
-	
+
 	/* In Posix this is just an ordinary, infinite wait */
 
 	os_event_wait(event);
@@ -277,7 +290,7 @@ os_event_wait_multiple(
 	return(index - WAIT_OBJECT_0);
 #else
 	ut_a(n == 0);
-	
+
 	/* In Posix we can only wait for a single event */
 
 	os_event_wait(*event_array);
@@ -318,7 +331,7 @@ os_mutex_create(
 	os_mutex_t		mutex_str;
 
 	UT_NOT_USED(name);
-	
+
 	os_mutex = ut_malloc(sizeof(os_fast_mutex_t));
 
 	os_fast_mutex_init(os_mutex);
@@ -329,7 +342,7 @@ os_mutex_create(
 	mutex_str->count = 0;
 
 	return(mutex_str);
-#endif	
+#endif
 }
 
 /**************************************************************
@@ -385,7 +398,7 @@ os_mutex_exit(
 	(mutex->count)--;
 
 	os_fast_mutex_unlock(mutex->handle);
-#endif	
+#endif
 }
 
 /**************************************************************
@@ -419,7 +432,7 @@ os_fast_mutex_init(
 {
 #ifdef __WIN__
 	ut_a(fast_mutex);
-	
+
 	InitializeCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
 	pthread_mutex_init(fast_mutex, NULL);
