@@ -614,7 +614,7 @@ public:
   Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
 	 uint size, ulong max_in_memory_size_arg);
   ~Unique();
-  inline bool Unique::unique_add(gptr ptr)
+  inline bool unique_add(gptr ptr)
   {
     if (tree.elements_in_tree > max_elements && flush())
       return 1;
