@@ -22,7 +22,6 @@
 //===========================================================================
 #include "Backup.hpp"
 
-#include <new>
 #include <Properties.hpp>
 #include <Configuration.hpp>
 
