@@ -135,6 +135,7 @@ struct st_mysql_options {
   char *ssl_cert;				/* PEM cert file */
   char *ssl_ca;					/* PEM CA file */
   char *ssl_capath;				/* PEM directory of CA-s? */
+  char *ssl_cipher;				/* cipher to use */
   my_bool use_ssl;				/* if to use SSL or not */
   my_bool compress,named_pipe;
  /*
@@ -262,7 +263,7 @@ const char * STDCALL mysql_character_set_name(MYSQL *mysql);
 MYSQL *		STDCALL mysql_init(MYSQL *mysql);
 int		STDCALL mysql_ssl_set(MYSQL *mysql, const char *key,
 				      const char *cert, const char *ca,
-				      const char *capath);
+				      const char *capath, const char *cipher);
 int		STDCALL mysql_ssl_clear(MYSQL *mysql);
 my_bool		STDCALL mysql_change_user(MYSQL *mysql, const char *user, 
 					  const char *passwd, const char *db);

@@ -134,7 +134,7 @@ then
   c_u="$c_u   References_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Index_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
   c_u="$c_u   Alter_priv enum('N','Y') DEFAULT 'N' NOT NULL,"
-  c_u="$c_u   ssl_type enum('none', 'cipher', 'x509','issuer','subject') NOT NULL,"
+  c_u="$c_u   ssl_type enum('NONE','ANY', 'X509', 'SPECIFIED') NOT NULL,"
   c_u="$c_u   ssl_cipher char(60) NULL,"
   c_u="$c_u   x509_issuer blob NULL,"
   c_u="$c_u   x509_subject blob NULL,"

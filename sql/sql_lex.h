@@ -56,7 +56,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_OPEN_TABLES, SQLCOM_LOAD_MASTER_DATA,
   SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
   SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_MULTI_DELETE,
-  SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER,
+  SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER
 };
 
 enum lex_states { STATE_START, STATE_CHAR, STATE_IDENT,
@@ -145,7 +145,8 @@ typedef struct st_lex {
   char *length,*dec,*change,*name;
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
-  char* ssl_subject,*ssl_issuer,*ssl_chipher;
+  char* x509_subject,*x509_issuer,*ssl_cipher;
+  enum SSL_type ssl_type; /* defined in violite.h */
   String *wild;
   sql_exchange *exchange;
 

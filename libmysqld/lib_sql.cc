@@ -257,7 +257,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
     send_error(net,ER_OUT_OF_RESOURCES);
     return 1;
   }
-  thd->master_access=acl_getroot(thd->host, thd->ip, thd->user,
+  thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
 				 passwd, thd->scramble, &thd->priv_user,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
