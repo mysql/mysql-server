@@ -162,8 +162,14 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
     max_records=1000;			/* As good as quess as anything */
   recbuffer=(uint) (reclength+sizeof(byte**)-1) & ~(sizeof(byte**)-1);
   records_in_block=max_records/10;
-  if (records_in_block < 10 && max_records)
-    records_in_block=10;
+  if (records_in_block < HP_MIN_RECORDS_IN_BLOCK && max_records)
+    records_in_block= HP_MIN_RECORDS_IN_BLOCK;
+  /*
+    Don't allocate too many rows at one time too keep memory consumption
+    done when we don't need it.
+  */
+  if (records_in_block > HP_MAX_RECORDS_IN_BLOCK)
+    records_in_block= HP_MAX_RECORDS_IN_BLOCK;
   if (!records_in_block || records_in_block*recbuffer >
       (my_default_record_cache_size-sizeof(HP_PTRS)*HP_MAX_LEVELS))
     records_in_block=(my_default_record_cache_size-sizeof(HP_PTRS)*

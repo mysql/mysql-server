@@ -37,7 +37,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.16";
+my $VERSION = "1.17";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -388,6 +388,8 @@ foreach my $rdb ( @db_desc ) {
     foreach my $td ( '', @{$rdb->{raid_dirs}} ) {
 
 	my $tgt_dirpath = "$rdb->{target}/$td";
+	# Remove trailing slashes (needed for Mac OS X)
+    	substr($tgt_dirpath, 1) =~ s|/+$||;
 	if ( $opt{dryrun} ) {
 	    print "mkdir $tgt_dirpath, 0750\n";
 	}
@@ -1001,3 +1003,5 @@ resulted in nothing being copied when a regexp was specified but no
 database name(s).
 
 Martin Waite - Fix to handle database name that contains space.
+
+Paul DuBois - Remove end '/' from directory names

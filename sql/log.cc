@@ -938,8 +938,8 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
     int error=0;
     VOID(pthread_mutex_lock(&LOCK_log));
 
-    /* Test if someone closed after the is_open test */
-    if (log_type != LOG_CLOSED)
+    /* Test if someone closed between the is_open test and lock */
+    if (is_open())
     {
       time_t skr;
       ulong id;
