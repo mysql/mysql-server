@@ -5326,11 +5326,23 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 	can use.
       */
       if (!(select->quick=get_ft_or_quick_select_for_ref(table, tab)))
-	goto err;
+      {
+	if (current_thd->fatal_error)
+	  goto err;				// End of memory
+	/*
+	  Impossible range (for example lookup on NULL on not null field)
+	  Create empty result set
+	*/
+	if (!(table->record_pointers= my_malloc(1, MYF(MY_WME))))
+	  goto err;
+	table->found_records= 0;
+	goto end;
+      }	
     }
   }
   table->found_records=filesort(&table,sortorder,length,
 				select, 0L, select_limit, &examined_rows);
+end:
   delete select;				// filesort did select
   tab->select=0;
   tab->select_cond=0;
