@@ -37,7 +37,7 @@
 **   Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 **/
 
-#define DUMP_VERSION "8.12"
+#define DUMP_VERSION "8.13"
 
 #include <global.h>
 #include <my_sys.h>
@@ -808,7 +808,7 @@ static uint getTableStructure(char *table, char* db)
 		putc(',', sql_file);
         fputs(quote_name(row[4],name_buff), sql_file);
         if (row[7])
-		fprintf(sql_file, "(%s)",row[7]);      /* Sub key */
+		fprintf(sql_file, " (%s)",row[7]);      /* Sub key */
       }
       if (keynr)
         putc(')', sql_file);

@@ -846,7 +846,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     if(i != primary_key)
      append_identifier(thd,packet,key_info->name);
 
-    packet->append('(');
+    packet->append(" (", 2);
 
     for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
     {
