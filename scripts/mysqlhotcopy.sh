@@ -30,7 +30,7 @@ mysqlhotcopy - fast on-line hot-backup utility for local MySQL databases and tab
   mysqlhotcopy --method='scp -Bq -i /usr/home/foo/.ssh/identity' --user=root --password=secretpassword \
          db_1./^nice_table/ user@some.system.dom:~/path/to/new_directory
 
-WARNING: THIS IS VERY MUCH A FIRST-CUT ALPHA. Comments/patches welcome.
+WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 =cut
 

@@ -30,3 +30,7 @@ Documentation		0
 Host communication		0
 kkkkkkkkkkk lllllllllll		3
 Test Procedures		0
+1+1	a	count(*)
+2	a	0
+1+1	a	count(*)
+2	a	0

@@ -781,7 +781,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH];
   String type(tmp, sizeof(tmp));
-  packet->append("CREATE TABLE ", 13);
+  if (table->tmp_table)
+    packet->append("CREATE TEMPORARY TABLE ", 23);
+  else
+    packet->append("CREATE TABLE ", 13);
   append_identifier(thd,packet,table->real_name);
   packet->append(" (\n", 3);
 

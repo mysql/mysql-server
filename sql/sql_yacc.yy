@@ -145,6 +145,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	COMMITTED_SYM
 %token	COLUMNS
 %token	COLUMN_SYM
+%token	CONCURRENT
 %token	CONSTRAINT
 %token	DATABASES
 %token	DATA_SYM
@@ -1270,7 +1271,7 @@ select_lock_type:
 	/* empty */
 	| FOR_SYM UPDATE_SYM
 	  { Lex->lock_option= TL_WRITE; }
-	| IN_SYM SHARE_SYM MODE_SYM
+	| LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
 	  { Lex->lock_option= TL_READ_WITH_SHARED_LOCKS; }
 
 select_item_list:
@@ -2339,7 +2340,7 @@ use:	USE_SYM ident
 
 /* import, export of files */
 
-load:	LOAD DATA_SYM opt_low_priority opt_local INFILE TEXT_STRING
+load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING
 	{
 	  Lex->sql_command= SQLCOM_LOAD;
 	  Lex->local_file= $4;
@@ -2365,6 +2366,12 @@ load:	LOAD DATA_SYM opt_low_priority opt_local INFILE TEXT_STRING
 opt_local:
 	/* empty */	{ $$=0;}
 	| LOCAL_SYM	{ $$=1;}
+
+load_data_lock:
+	/* empty */	{ Lex->lock_option= current_thd->update_lock_default; }
+	| CONCURRENT	{ Lex->lock_option= TL_WRITE_CONCURRENT_INSERT ; }
+	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
+
 
 opt_duplicate:
 	/* empty */	{ Lex->duplicates=DUP_ERROR; }
@@ -2523,6 +2530,7 @@ keyword:
 	| COMMIT_SYM		{}
 	| COMMITTED_SYM		{}
 	| COMPRESSED_SYM	{}
+	| CONCURRENT		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
 	| DATE_SYM		{}

@@ -103,7 +103,7 @@ MYSQL_LOG::~MYSQL_LOG()
 void MYSQL_LOG::set_index_file_name(const char* index_file_name)
 {
   if (index_file_name)
-    fn_format(this->index_file_name,index_file_name,mysql_data_home,"-index",
+    fn_format(this->index_file_name,index_file_name,mysql_data_home,".index",
 	      4);
   else
     this->index_file_name[0] = 0;
@@ -129,6 +129,32 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
   return 0;
 }
 
+bool MYSQL_LOG::open_index( int options)
+{
+  return (index_file < 0 && 
+	 (index_file = my_open(index_file_name, options | O_BINARY ,
+			       MYF(MY_WME))) < 0);
+}
+
+void MYSQL_LOG::init(enum_log_type log_type_arg)
+{
+  log_type = log_type_arg;
+  if (!inited)
+  {
+    inited=1;
+    (void) pthread_mutex_init(&LOCK_log,MY_MUTEX_INIT_SLOW);
+    (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
+  }
+}
+
+void MYSQL_LOG::close_index()
+{
+  if(index_file >= 0)
+    {
+      my_close(index_file, MYF(0));
+      index_file = -1;
+    }
+}
 
 void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 		     const char *new_name)
@@ -137,17 +163,11 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   char buff[512];
   File file= -1;
   bool do_magic;
-
-  if (!inited)
-  {
-    inited=1;
-    (void) pthread_mutex_init(&LOCK_log,MY_MUTEX_INIT_SLOW);
-    (void) pthread_mutex_init(&LOCK_index, MY_MUTEX_INIT_SLOW);
-    if (log_type_arg == LOG_BIN && *fn_ext(log_name))
-      no_rotate = 1;
-  }
   
-  log_type=log_type_arg;
+  if (!inited && log_type_arg == LOG_BIN && *fn_ext(log_name))
+      no_rotate = 1;
+  init(log_type_arg);
+  
   if (!(name=my_strdup(log_name,MYF(MY_WME))))
     goto err;
   if (new_name)
@@ -208,10 +228,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       clean up if failed
     */
     if ((do_magic && my_b_write(&log_file, (byte*) BINLOG_MAGIC, 4)) ||
-	(index_file < 0 && 
-	 (index_file = my_open(index_file_name,
-			       O_APPEND | O_BINARY | O_RDWR | O_CREAT,
-			       MYF(MY_WME))) < 0))
+	open_index(O_APPEND | O_RDWR | O_CREAT))
       goto err;
     Start_log_event s;
     bool error;
@@ -224,8 +241,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     pthread_mutex_unlock(&LOCK_index);
     if (error)
     {
-      my_close(index_file,MYF(0));
-      index_file= -1;
+      close_index();
       goto err;
     }
   }
@@ -825,11 +841,12 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
       {
 	/* For slow query log */
 	if (my_b_printf(&log_file,
-			"# Time: %lu  Lock_time: %lu  Rows_sent: %lu\n",
+			"# Time: %lu  Lock_time: %lu  Rows_sent: %lu  Rows_examined: %lu\n",
 			(ulong) (current_time - query_start),
 			(ulong) (thd->time_after_lock - query_start),
-			(ulong) thd->sent_row_count) == (uint) -1)
-	    tmp_errno=errno;
+			(ulong) thd->sent_row_count,
+			(ulong) thd->examined_row_count) == (uint) -1)
+	  tmp_errno=errno;
       }
       if (thd->db && strcmp(thd->db,db))
       {						// Database changed

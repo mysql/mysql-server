@@ -25,8 +25,8 @@ then
  data=var/slave-data
  ldata=$fix_bin/var/slave-data
 else
- data=var/lib
- ldata=$fix_bin/var/lib
+ data=var/master-data
+ ldata=$fix_bin/var/master-data
 fi
 
 mdata=$data/mysql

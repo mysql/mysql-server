@@ -132,7 +132,7 @@ static int send_file(THD *thd)
 }
 
 
-static File open_log(IO_CACHE *log, const char *log_file_name,
+File open_binlog(IO_CACHE *log, const char *log_file_name,
 		     const char **errmsg)
 {
   File file;
@@ -294,7 +294,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
     goto err;
   }
 
-  if ((file=open_log(&log, log_file_name, &errmsg)) < 0)
+  if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0)
     goto err;
 
   if(pos < 4)
@@ -483,7 +483,7 @@ sweepstakes if you report the bug";
       
       // fake Rotate_log event just in case it did not make it to the log
       // otherwise the slave make get confused about the offset
-      if ((file=open_log(&log, log_file_name, &errmsg)) < 0 ||
+      if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0 ||
 	  fake_rotate_event(net, packet, log_file_name, &errmsg))
 	goto err;
 
@@ -694,7 +694,9 @@ int change_master(THD* thd)
     glob_mi.pos = lex_mi->pos;
 
   if(lex_mi->host)
-    strmake(glob_mi.host, lex_mi->host, sizeof(glob_mi.host));
+    {
+      strmake(glob_mi.host, lex_mi->host, sizeof(glob_mi.host));
+    }
   if(lex_mi->user)
     strmake(glob_mi.user, lex_mi->user, sizeof(glob_mi.user));
   if(lex_mi->password)

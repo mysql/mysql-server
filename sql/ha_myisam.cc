@@ -50,10 +50,12 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 {
   THD* thd = (THD*)param->thd;
   String* packet = &thd->packet;
-  packet->length(0);
+  uint length;
   char msgbuf[MI_MAX_MSG_BUF];
-  msgbuf[0] = 0;
+  char name[NAME_LEN*2+2];
+  packet->length(0);
 
+  msgbuf[0] = 0;		// healthy paranoia ?
   my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
   msgbuf[sizeof(msgbuf) - 1] = 0; // healthy paranoia
 
@@ -70,9 +72,12 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
     my_message(ER_NOT_KEYFILE,msgbuf,MYF(MY_WME));
     return;
   }
-  net_store_data(packet, param->table_name);
+  length=(uint) (strxmov(name, param->db_name,".",param->table_name,NullS) -
+		 name);
+  net_store_data(packet, name, length);
   net_store_data(packet, param->op_name);
   net_store_data(packet, msg_type);
+
   net_store_data(packet, msgbuf);
   if (my_net_write(&thd->net, (char*)thd->packet.ptr(), thd->packet.length()))
     fprintf(stderr,
@@ -245,6 +250,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name = (char*)"check";
+  param.db_name    = table->table_cache_key;
   param.table_name = table->table_name;
   param.testflag = check_opt->flags | T_CHECK | T_SILENT;
 
@@ -332,6 +338,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
   myisamchk_init(&param);
   param.thd = thd;
   param.op_name = (char*) "analyze";
+  param.db_name    = table->table_cache_key;
   param.table_name = table->table_name;
   param.testflag=(T_FAST | T_CHECK | T_SILENT | T_STATISTICS |
 		  T_DONT_CHECK_CHECKSUM);
@@ -384,6 +391,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
     myisamchk_init(&param);
     param.thd = thd;
     param.op_name = (char*)"restore";
+    param.db_name    = table->table_cache_key;
     param.table_name = table->table_name;
     param.testflag = 0;
     mi_check_print_error(&param,errmsg, errno );
@@ -438,6 +446,7 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
     myisamchk_init(&param);
     param.thd = thd;
     param.op_name = (char*)"backup";
+    param.db_name    = table->table_cache_key;
     param.table_name = table->table_name;
     param.testflag = 0;
     mi_check_print_error(&param,errmsg, errno );
@@ -524,6 +533,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   ha_rows rows= file->state->records;
   DBUG_ENTER("ha_myisam::repair");
 
+  param.db_name    = table->table_cache_key;
   param.table_name = table->table_name;
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;

@@ -346,7 +346,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   *write_lock_used=0;
   for (i=tables=lock_count=0 ; i < count ; i++)
   {
-    if (!table_ptr[i]->tmp_table)
+    if (table_ptr[i]->tmp_table != TMP_TABLE)
     {
       tables+=table_ptr[i]->file->lock_count();
       lock_count++;
@@ -366,7 +366,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   for (i=0 ; i < count ; i++)
   {
     TABLE *table;
-    if ((table=table_ptr[i])->tmp_table)
+    if ((table=table_ptr[i])->tmp_table == TMP_TABLE)
       continue;
     *to++=table;
     enum thr_lock_type lock_type= table->reginfo.lock_type;

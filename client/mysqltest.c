@@ -569,7 +569,7 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
   else
     {
       v->str_val = (char*)p;
-      v->str_val_len = (p_end && *p_end) ? *p_end - p : strlen(p);
+      v->str_val_len = (p_end && *p_end) ? (int) (*p_end - p) : (int) strlen(p);
       v->int_val=atoi(p);
       v->int_dirty=0;
       return 0;
@@ -1766,6 +1766,7 @@ static void init_var_hash()
     die("Variable hash initialization failed");
   var_from_env("MASTER_MYPORT", "9306");
   var_from_env("SLAVE_MYPORT", "9307");
+  var_from_env("MYSQL_TEST_DIR", "");
 }
 
 int main(int argc, char** argv)

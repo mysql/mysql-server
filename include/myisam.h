@@ -333,9 +333,9 @@ typedef struct st_mi_check_param
   ulonglong unique_count[MI_MAX_KEY_SEG+1];
   ha_checksum key_crc[MI_MAX_POSSIBLE_KEY];
   ulong rec_per_key_part[MI_MAX_KEY_SEG*MI_MAX_POSSIBLE_KEY];
-  void* thd;
-  char* table_name;
-  char* op_name;
+  void *thd;
+  char *db_name,*table_name;
+  char *op_name;
 } MI_CHECK;
 
 

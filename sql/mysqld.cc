@@ -20,6 +20,7 @@
 #include <my_dir.h>
 #include "sql_acl.h"
 #include "slave.h"
+#include "stacktrace.h"
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
@@ -92,6 +93,11 @@ int deny_severity = LOG_WARNING;
 typedef fp_except fp_except_t;
 #endif
 
+#ifdef _AIX41
+extern "C" int initgroups(const char *,int);
+#endif
+
+
   /* We can't handle floating point expections with threads, so disable
      this on freebsd
   */
@@ -144,7 +150,23 @@ static pthread_cond_t COND_handler_count;
 static uint handler_count;
 #endif
 #ifdef __WIN__
-static bool opt_console=0;
+static bool opt_console=0,start_mode=0;
+#endif
+
+/* Set prefix for windows binary */
+#ifdef __WIN__
+#undef MYSQL_SERVER_SUFFIX
+#ifdef __NT__
+#if defined(HAVE_INNOBASE_DB) || defined(HAVE_BERKELEY_DB)
+#define MYSQL_SERVER_SUFFIX "-max-nt"
+#else
+#define MYSQL_SERVER_SUFFIX "-nt"
+#endif /* ...DB */
+#elif defined(HAVE_INNOBASE_DB) || defined(HAVE_BERKELEY_DB)
+#define MYSQL_SERVER_SUFFIX "-max"
+#else
+#define MYSQL_SERVER_SUFFIX ""
+#endif /* __NT__ */
 #endif
 
 #ifdef HAVE_BERKELEY_DB
@@ -1104,138 +1126,83 @@ static void start_signal_handler(void)
 #else /* if ! __WIN__ && ! __EMX__ */
 
 #ifdef HAVE_LINUXTHREADS
-static sig_handler write_core(int sig);
-
-#ifdef __i386__
-#define SIGRETURN_FRAME_COUNT  1
-#define PTR_SANE(p) ((char*)p >= heap_start && (char*)p <= heap_end)
-
-extern char* __bss_start;
-static char* heap_start, *heap_end;
-
-inline __volatile__ void print_str(const char* name,
-				   const char* val, int max_len)
-{
-  fprintf(stderr, "%s at %p ", name, val);
-  if(!PTR_SANE(val))
-    {
-      fprintf(stderr, " is invalid pointer\n");
-      return;
-    }
-
-  fprintf(stderr, "= ");
-  for(; max_len && PTR_SANE(val) && *val; --max_len)
-    fputc(*val++, stderr);
-  fputc('\n', stderr);
-}
-
-inline __volatile__ void  trace_stack()
-{
-  uchar **stack_bottom;
-  uchar** ebp;
-  LINT_INIT(ebp);
-  LINT_INIT(stack_bottom);
-
-  fprintf(stderr,
-"Attempting backtrace. You can use the following information to find out\n\
-where mysqld died.  If you see no messages after this, something went\n\
-terribly wrong...\n");
-  THD* thd = current_thd;
-  uint frame_count = 0;
-  __asm __volatile__ ("movl %%ebp,%0"
-		      :"=r"(ebp)
-		      :"r"(ebp));
-  if (!ebp)
-  {
-    fprintf(stderr, "frame pointer (ebp) is NULL, did you compile with\n\
--fomit-frame-pointer? Aborting backtrace!\n");
-    return;
-  }
-  if (!thd)
-  {
-    fprintf(stderr, "Cannot determine thread, ebp=%p, backtrace may not be correct.\n", ebp);
-    /* Assume that the stack starts at the previous even 65K */
-    ulong tmp= min(0x10000,thread_stack);
-    stack_bottom= (uchar**) (((ulong) &stack_bottom + tmp) &
-			     ~(ulong) 0xFFFF);
-  }
-  else
-    stack_bottom = (uchar**) thd->thread_stack;
-  if (ebp > stack_bottom || ebp < stack_bottom - thread_stack)
-  {
-    fprintf(stderr,
-	    "Bogus stack limit or frame pointer, aborting backtrace.\n");
-    return;
-  }
-
-  fprintf(stderr, "Stack range sanity check OK, backtrace follows:\n");
-  
-  while (ebp < stack_bottom)
-  {
-    uchar** new_ebp = (uchar**)*ebp;
-    fprintf(stderr, "%p\n", frame_count == SIGRETURN_FRAME_COUNT ?
-	    *(ebp+17) : *(ebp+1));
-    if (new_ebp <= ebp )
-    {
-      fprintf(stderr, "\
-New value of ebp failed sanity check, terminating backtrace!\n");
-      return;
-    }
-    ebp = new_ebp;
-    ++frame_count;
-  }
-
-  fprintf(stderr, "Stack trace successful, trying to get some variables.\n\
-Some pointers may be invalid and cause the dump to abort...\n");
-  heap_start = __bss_start; 
-  heap_end = (char*)sbrk(0);
-  print_str("thd->query", thd->query, 1024);
-  fprintf(stderr, "thd->thread_id = %ld\n", thd->thread_id);
-  fprintf(stderr, "Successfully dumped variables, if you ran with --log,\n\
-take a look at the details of what thread %ld did to cause the crash.\n\
-In some cases of really bad corruption, this value may be invalid\n",
-	  thd->thread_id);
-  fprintf(stderr, "Please use the information above to create a repeatable\n\
-test case for the crash, and send it to bugs@lists.mysql.com\n");
-}
-#endif
+#define UNSAFE_DEFAULT_LINUX_THREADS 200
 #endif
 
 static sig_handler handle_segfault(int sig)
 {
+  THD *thd=current_thd;
   // strictly speaking, one needs a mutex here
   // but since we have got SIGSEGV already, things are a mess
   // so not having the mutex is not as bad as possibly using a buggy
   // mutex - so we keep things simple
   if (segfaulted)
-    return;
+  {
+    fprintf(stderr, "Fatal signal %d while backtracing\n", sig);
+    exit(1);
+  }
+  
   segfaulted = 1;
   fprintf(stderr,"\
 mysqld got signal %d;\n\
-The manual section 'Debugging a MySQL server' tells you how to use a\n\
-stack trace and/or the core file to produce a readable backtrace that may\n\
-help in finding out why mysqld died.\n",sig);
+This could be because you hit a bug. It is also possible that this binary\n\
+or one of the libraries it was linked agaist is corrupt, improperly built,\n\
+or misconfigured. This error can also be caused by malfunctioning hardware.\n",
+	  sig);
+  fprintf(stderr, "\
+We will try our best to scrape up some info that will hopefully help diagnose\n\
+the problem, but since we have already crashed, something is definitely wrong\n\
+and this may fail\n\n");
+  fprintf(stderr, "key_buffer_size=%ld\n", keybuff_size);
+  fprintf(stderr, "record_buffer=%ld\n", my_default_record_cache_size);
+  fprintf(stderr, "sort_buffer=%ld\n", sortbuff_size);
+  fprintf(stderr, "max_used_connections=%ld\n", max_used_connections);
+  fprintf(stderr, "max_connections=%ld\n", max_connections);
+  fprintf(stderr, "threads_connected=%d\n", thread_count);
+  fprintf(stderr, "It is possible that mysqld could use up to \n\
+key_buffer_size + (record_buffer + sort_buffer)*max_connections = %ld K\n\
+bytes of memory\n", (keybuff_size + (my_default_record_cache_size +
+			     sortbuff_size) * max_connections)/ 1024);
+  fprintf(stderr, "Hope that's ok, if not, decrease some variables in the equation\n\n");
+  
 #if defined(HAVE_LINUXTHREADS)
-#ifdef __i386__
-  trace_stack();
+  if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
+  {
+    fprintf(stderr, "\
+You seem to be running 32-bit Linux and have %d concurrent connections.\n\
+If you have not changed STACK_SIZE in LinuxThreads and build the binary \n\
+yourself, LinuxThreads is quite likely to steal a part of global heap for\n\
+the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
+	    thread_count);
+  }
+#endif /* HAVE_LINUXTHREADS */
+
+#ifdef HAVE_STACKTRACE
+  if(!(test_flags & TEST_NO_STACKTRACE))
+    print_stacktrace(thd ? (gptr) thd->thread_stack : (gptr) 0,
+		     thread_stack);
+  if (thd)
+  {
+    fprintf(stderr, "Trying to get some variables.\n\
+Some pointers may be invalid and cause the dump to abort...\n");
+    safe_print_str("thd->query", thd->query, 1024);
+    fprintf(stderr, "thd->thread_id=%ld\n", thd->thread_id);
+    fprintf(stderr, "\n
+Successfully dumped variables, if you ran with --log, take a look at the\n\
+details of what thread %ld did to cause the crash.  In some cases of really\n\
+bad corruption, the above values may be invalid\n\n",
+	  thd->thread_id);
+  }
+  fprintf(stderr, "\
+Please use the information above to create a repeatable test case for the\n\
+crash, and send it to bugs@lists.mysql.com\n");
   fflush(stderr);
-#endif /* __i386__ */
+#endif /* HAVE_STACKTRACE */
+
  if (test_flags & TEST_CORE_ON_SIGNAL)
    write_core(sig);
-#endif /* HAVE_LINUXTHREADS */
  exit(1);
 }
-
-/* Produce a core for the thread */
-
-#ifdef HAVE_LINUXTHREADS
-static sig_handler write_core(int sig)
-{
-  signal(sig, SIG_DFL);
-  if (fork() != 0) exit(1);			// Abort main program
-  // Core will be written at exit
-}
-#endif
 
 
 static void init_signals(void)
@@ -1248,8 +1215,10 @@ static void init_signals(void)
   struct sigaction sa; sa.sa_flags = 0;
   sigemptyset(&sa.sa_mask);
   sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
-  if (!(test_flags & TEST_NO_STACKTRACE))
+
+  if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
+    init_stacktrace();
     sa.sa_handler=handle_segfault;
     sigaction(SIGSEGV, &sa, NULL);
 #ifdef SIGBUS
@@ -1388,7 +1357,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
 	if (!(opt_specialflag & SPECIAL_NO_PRIOR))
 	  my_pthread_attr_setprio(&connection_attrib,INTERRUPT_PRIOR);
 	if (pthread_create(&tmp,&connection_attrib, kill_server_thread,
-			   (void*) sig))
+			   (void*) 0))
 	  sql_print_error("Error: Can't create thread to kill server");
 #else
 	  kill_server((void*) sig);		// MIT THREAD has a alarm thread
@@ -1945,12 +1914,24 @@ The server will not act as a slave.");
   sql_print_error("After lock_thread_count");
 #endif
 #else
-  // remove the event, because it will not be valid anymore
-  Service.SetShutdownEvent(0);
-  if(hEventShutdown) CloseHandle(hEventShutdown);
-  // if it was started as service on NT try to stop the service
-  if(Service.IsNT())
-     Service.Stop();
+  if (Service.IsNT())
+  {
+    if(start_mode)
+    {
+      if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
+        Service.Stop();
+    }
+    else
+    {
+      Service.SetShutdownEvent(0);
+      if(hEventShutdown) CloseHandle(hEventShutdown);
+    }
+  }
+  else
+  {
+    Service.SetShutdownEvent(0);
+    if(hEventShutdown) CloseHandle(hEventShutdown);
+  }
 #endif
 
   /* Wait until cleanup is done */
@@ -2003,6 +1984,7 @@ int main(int argc, char **argv)
     else if (argc == 1)		   // No arguments; start as a service
     {
       // init service
+      start_mode = 1;
       long tmp=Service.Init(MYSQL_SERVICENAME,mysql_service);
       return 0;
     }
@@ -2478,6 +2460,7 @@ enum options {
                OPT_TEMP_POOL, OPT_TX_ISOLATION,
 	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
                OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
+	       OPT_SKIP_STACK_TRACE
 };
 
 static struct option long_options[] = {
@@ -2599,11 +2582,12 @@ static struct option long_options[] = {
   {"skip-locking",          no_argument,       0, (int) OPT_SKIP_LOCK},
   {"skip-host-cache",       no_argument,       0, (int) OPT_SKIP_HOST_CACHE},
   {"skip-name-resolve",     no_argument,       0, (int) OPT_SKIP_RESOLVE},
+  {"skip-networking",       no_argument,       0, (int) OPT_SKIP_NETWORKING},
   {"skip-new",              no_argument,       0, (int) OPT_SKIP_NEW},
   {"skip-safemalloc",	    no_argument,       0, (int) OPT_SKIP_SAFEMALLOC},
   {"skip-show-database",    no_argument,       0, (int) OPT_SKIP_SHOW_DB},
   {"skip-slave-start",      no_argument,       0, (int) OPT_SKIP_SLAVE_START},
-  {"skip-networking",       no_argument,       0, (int) OPT_SKIP_NETWORKING},
+  {"skip-stack-trace",	    no_argument,       0, (int) OPT_SKIP_STACK_TRACE},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
 #include "sslopt-longopts.h"
@@ -3029,15 +3013,16 @@ static void usage(void)
 		        Don't use concurrent insert with MyISAM\n\
   --skip-delay-key-write\n\
 			Ignore the delay_key_write option for all tables\n\
+  --skip-host-cache	Don't cache host names\n\
   --skip-locking	Don't use system locking. To use isamchk one has\n\
 			to shut down the server.\n\
   --skip-name-resolve	Don't resolve hostnames.\n\
 			All hostnames are IP's or 'localhost'\n\
   --skip-networking	Don't allow connection with TCP/IP.\n\
-  --skip-new		Don't use new, possible wrong routines.\n\
-  --skip-host-cache	Don't cache host names\n");
+  --skip-new		Don't use new, possible wrong routines.\n");
   /* We have to break the string here because of VC++ limits */
   puts("\
+  --skip-stack-trace    Don't print a stack trace on failure\n\
   --skip-show-database  Don't allow 'SHOW DATABASE' commands\n\
   --skip-thread-priority\n\
 			Don't give threads different priorities.\n\
@@ -3482,6 +3467,9 @@ static void get_options(int argc,char **argv)
       break;
     case (int) OPT_WANT_CORE:
       test_flags |= TEST_CORE_ON_SIGNAL;
+      break;
+    case (int) OPT_SKIP_STACK_TRACE:
+      test_flags|=TEST_NO_STACKTRACE;
       break;
     case (int) OPT_BIND_ADDRESS:
       if (optarg && isdigit(optarg[0]))

@@ -73,6 +73,7 @@
 #define HA_NOT_READ_AFTER_KEY	(HA_DROP_BEFORE_CREATE*2)
 #define HA_NOT_DELETE_WITH_CACHE (HA_NOT_READ_AFTER_KEY*2)
 #define HA_NO_TEMP_TABLES       (HA_NOT_DELETE_WITH_CACHE*2)
+#define HA_NO_PREFIX_CHAR_KEYS	(HA_NO_TEMP_TABLES*2) 
 
 	/* Parameters for open() (in register form->filestat) */
 	/* HA_GET_INFO does a implicit HA_ABORT_IF_LOCKED */

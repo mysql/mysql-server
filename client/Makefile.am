@@ -21,13 +21,14 @@ INCLUDES =			-I$(srcdir)/../include \
 				-I..
 LIBS =				@CLIENT_LIBS@
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
-bin_PROGRAMS =			mysql mysqladmin mysqlshow mysqldump mysqlimport mysqltest
+bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow mysqldump mysqlimport mysqltest
 noinst_PROGRAMS =		insert_test select_test thread_test
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
 mysql_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES)
 mysqladmin_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
+mysqlcheck_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 mysqlshow_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES)
 mysqldump_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES)
 mysqlimport_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)

@@ -534,8 +534,15 @@ row_undo_mod_parse_undo_rec(
 							&undo_no, &table_id);
 	node->rec_type = type;
 	
-	/* NOTE that the table has to be explicitly released later */
 	node->table = dict_table_get_on_id(table_id, thr_get_trx(thr));
+
+	/* TODO: other fixes associated with DROP TABLE + rollback in the
+	same table by another user */
+
+	if (node->table == NULL) {
+	        /* Table was dropped */
+	        return;
+	}
 
 	clust_index = dict_table_get_first_index(node->table);
 
@@ -571,12 +578,18 @@ row_undo_mod(
 
 	row_undo_mod_parse_undo_rec(node, thr);
 
-	found = row_undo_search_clust_to_pcur(node, thr);
+	if (node->table == NULL) {
+	  found = FALSE;
+	} else {
+
+	  found = row_undo_search_clust_to_pcur(node, thr);
+	}
 
 	if (!found) {
 		/* It is already undone, or will be undone by another query
-		thread */
+		thread, or table was dropped */
 	
+	        trx_undo_rec_release(node->trx, node->undo_no);
 		node->state = UNDO_NODE_FETCH_NEXT;
 
 		return(DB_SUCCESS);
