@@ -51,7 +51,11 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 {
   HANDLER_TABLES_HACK(thd);
   uint counter;
+
+  /* for now HANDLER can be used only for real TABLES */
+  tables->required_type= FRMTYPE_TABLE;
   int err=open_tables(thd, tables, &counter);
+
   HANDLER_TABLES_HACK(thd);
   if (err)
     return -1;
