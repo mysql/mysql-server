@@ -547,6 +547,12 @@ public:
   void restore_backup_statement(Statement *stmt, Statement *backup);
   /* return class type */
   virtual Type type() const;
+
+  /*
+    Cleanup statement parse state (parse tree, lex) after execution of
+    a non-prepared SQL statement.
+  */
+  void end_statement();
 };
 
 
@@ -1029,10 +1035,13 @@ public:
   ~Disable_binlog();
 };
 
+
 /*
   Used to hold information about file and file structure in exchainge 
   via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
+  XXX: We never call destructor for objects of this class.
 */
+
 class sql_exchange :public Sql_alloc
 {
 public:
@@ -1042,7 +1051,6 @@ public:
   bool dumpfile;
   ulong skip_lines;
   sql_exchange(char *name,bool dumpfile_flag);
-  ~sql_exchange() {}
 };
 
 #include "log_event.h"
@@ -1073,6 +1081,11 @@ public:
   virtual void send_error(uint errcode,const char *err);
   virtual bool send_eof()=0;
   virtual void abort() {}
+  /*
+    Cleanup instance of this class for next execution of a prepared
+    statement/stored procedure.
+  */
+  virtual void cleanup();
 };
 
 
@@ -1099,6 +1112,8 @@ public:
   ~select_to_file();
   bool send_fields(List<Item> &list, uint flag) { return 0; }
   void send_error(uint errcode,const char *err);
+  bool send_eof();
+  void cleanup();
 };
 
 
@@ -1111,7 +1126,6 @@ public:
   ~select_export();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
-  bool send_eof();
 };
 
 
@@ -1120,7 +1134,6 @@ public:
   select_dump(sql_exchange *ex) :select_to_file(ex) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
-  bool send_eof();
 };
 
 
@@ -1145,6 +1158,8 @@ class select_insert :public select_result {
   bool send_data(List<Item> &items);
   void send_error(uint errcode,const char *err);
   bool send_eof();
+  /* not implemented: select_insert is never re-used in prepared statements */
+  void cleanup();
 };
 
 
@@ -1445,4 +1460,5 @@ public:
   bool send_fields(List<Item> &list, uint flag) {return 0;}
   bool send_data(List<Item> &items);
   bool send_eof();
+  void cleanup();
 };

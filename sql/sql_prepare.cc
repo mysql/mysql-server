@@ -1630,7 +1630,8 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 static void reset_stmt_for_execute(Prepared_statement *stmt)
 {
   THD *thd= stmt->thd;
-  SELECT_LEX *sl= stmt->lex->all_selects_list;
+  LEX *lex= stmt->lex;
+  SELECT_LEX *sl= lex->all_selects_list;
 
   for (; sl; sl= sl->next_select_in_list())
   {
@@ -1678,7 +1679,9 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
       unit->reinit_exec_mechanism();
     }
   }
-  stmt->lex->current_select= &stmt->lex->select_lex;
+  lex->current_select= &lex->select_lex;
+  if (lex->result)
+    lex->result->cleanup();
 }
 
 
@@ -2053,6 +2056,7 @@ void Prepared_statement::setup_set_params()
 Prepared_statement::~Prepared_statement()
 {
   free_items(free_list);
+  delete lex->result;
 }
 
 
