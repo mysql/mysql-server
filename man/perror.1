@@ -1,17 +1,12 @@
 .TH perror 1 "19 December 2000" "MySQL 3.23" "MySQL database"
 .SH NAME
-.BR perror
-can be used to display a description for a system error code, or an MyISAM/ISAM table handler error code. The error messages are mostly system dependent. 
-.SH USAGE
-perror [OPTIONS] [ERRORCODE [ERRORCODE...]]
+perror \- describes a system or MySQL error code.
 .SH SYNOPSIS
-.B perror
-.RB [ \-? | \-\-help ]
-.RB [ \-I | \-\-info ]
-.RB [ \-s | \-\-silent ]
-.RB [ \-v | \-\-verbose ]
-.RB [ \-V | \-\-version ]
+perror [OPTIONS] [ERRORCODE [ERRORCODE...]]
 .SH DESCRIPTION
+Can be used to display a description for a system error code, or an MyISAM/ISAM table handler error code.
+The error messages are mostly system dependent.
+.SH OPTIONS
 .TP 
 .BR  \-? | \-\-help    
 Displays this help and exits.
