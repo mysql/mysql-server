@@ -46683,6 +46683,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.42
 @itemize @bullet
 @item
+Fixed coredump during REPAIR of some particulary broken tables.
+@item
 Fixed bug in @code{InnoDB} and @code{AUTO_INCREMENT} columns.
 @item
 Applied large patch for OS/2 from Yuri Dario.
