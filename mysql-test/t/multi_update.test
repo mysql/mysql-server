@@ -314,10 +314,10 @@ drop table t1,t2;
 #
 # Test for bug #1980.
 #
-set @ttype_save=@@table_type;
+set @ttype_save=@@storage_engine;
 
 --disable_warnings
-set @@table_type=innodb;
+set @@storage_engine=innodb;
 create table t1 ( c char(8) not null );
 --enable_warnings
 
@@ -337,7 +337,7 @@ delete t1,t2 from t2,t1 where t1.a<'B' and t2.b=t1.b;
 drop table t1,t2;
 
 --disable_warnings
-set @@table_type=bdb;
+set @@storage_engine=bdb;
 create table t1 ( c char(8) not null );
 --enable_warnings
 
@@ -354,5 +354,5 @@ insert into t2 select * from t1;
 
 delete t1,t2 from t2,t1 where t1.a<'B' and t2.b=t1.b;
 
-set @@table_type=@ttype_save;
+set @@storage_engine=@ttype_save;
 drop table t1,t2;
