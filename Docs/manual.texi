@@ -18370,7 +18370,8 @@ After this many write locks, allow some read locks to run in between.
 MySQL uses special tree-like cache to make bulk inserts (that is,
 @code{INSERT ... SELECT}, @code{INSERT ... VALUES (...), (...), ...}, and
 @code{LOAD DATA INFILE}) faster. This variable limits
-the size of the cache tree in bytes per thread.
+the size of the cache tree in bytes per thread. Setting it to 0
+will disable this optimization.
 @strong{Note:} This cache is only used when adding data to non-empty table.
 Default value is 8 MB.
 
