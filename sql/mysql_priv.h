@@ -327,7 +327,6 @@ int setup_order(THD *thd,TABLE_LIST *tables, List<Item> &fields,
 
 int handle_select(THD *thd, LEX *lex, select_result *result);
 int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
-                 List<Item_func_match> &ftfuncs,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
 		 ulong select_type,select_result *result);
 int mysql_union(THD *thd,LEX *lex,select_result *result);
@@ -450,7 +449,8 @@ int setup_fields(THD *thd,TABLE_LIST *tables,List<Item> &item,
 		 bool set_query_id,List<Item> *sum_func_list,
 		 bool allow_sum_func);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
-int setup_ftfuncs(THD *thd,TABLE_LIST *tables, List<Item_func_match> &ftfuncs);
+int setup_ftfuncs(THD *thd);
+int init_ftfuncs(THD *thd, bool no_order);
 void wait_for_refresh(THD *thd);
 int open_tables(THD *thd,TABLE_LIST *tables);
 int open_and_lock_tables(THD *thd,TABLE_LIST *tables);

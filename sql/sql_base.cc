@@ -2172,17 +2172,18 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   DBUG_RETURN(result);
 }
 
-int setup_ftfuncs(THD *thd,TABLE_LIST *tables, List<Item_func_match> &ftfuncs)
+int setup_ftfuncs(THD *thd)
 {
-  List_iterator<Item_func_match> li(ftfuncs), li2(ftfuncs);
+  List_iterator<Item_func_match> li(thd->lex.ftfunc_list),
+                                 lj(thd->lex.ftfunc_list);
   Item_func_match *ftf, *ftf2;
 
   while ((ftf=li++))
   {
     if (ftf->fix_index())
       return 1;
-    li2.rewind();
-    while ((ftf2=li2++) != ftf)
+    lj.rewind();
+    while ((ftf2=lj++) != ftf)
     {
       if (ftf->eq(ftf2) && !ftf2->master)
         ftf2->master=ftf;
@@ -2191,3 +2192,19 @@ int setup_ftfuncs(THD *thd,TABLE_LIST *tables, List<Item_func_match> &ftfuncs)
 
   return 0;
 }
+
+int init_ftfuncs(THD *thd, bool no_order)
+{
+  List_iterator<Item_func_match> li(thd->lex.ftfunc_list);
+  Item_func_match *ifm;
+  DBUG_PRINT("info",("Performing FULLTEXT search"));
+  thd->proc_info="FULLTEXT initialization";
+
+  while ((ifm=li++))
+  {
+    ifm->init_search(no_order);
+  }
+
+  return 0;
+}
+
