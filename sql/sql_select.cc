@@ -4395,17 +4395,9 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
     {
       Item *new_item=remove_eq_conds(item,&tmp_cond_value);
       if (!new_item)
-      {
-#ifdef DELETE_ITEMS
-	delete item;				// This may be shared
-#endif
 	li.remove();
-      }
       else if (item != new_item)
       {
-#ifdef DELETE_ITEMS
-	delete item;				// This may be shared
-#endif
 	VOID(li.replace(new_item));
 	should_fix_fields=1;
       }
