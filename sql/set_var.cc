@@ -1710,19 +1710,31 @@ CHARSET_INFO *get_old_charset_by_name(const char *name)
 bool sys_var_collation::check(THD *thd, set_var *var)
 {
   CHARSET_INFO *tmp;
-  char buff[80];
-  String str(buff,sizeof(buff), system_charset_info), *res;
 
-  if (!(res=var->value->val_str(&str)))
+  if (var->value->result_type() == STRING_RESULT)
   {
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
-    return 1;
+    char buff[80];
+    String str(buff,sizeof(buff), system_charset_info), *res;
+    if (!(res=var->value->val_str(&str)))
+    {
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
+      return 1;
+    }
+    if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
+    {
+      my_error(ER_UNKNOWN_COLLATION, MYF(0), res->c_ptr());
+      return 1;
+    }
   }
-
-  if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
+  else // INT_RESULT
   {
-    my_error(ER_UNKNOWN_COLLATION, MYF(0), res->c_ptr());
-    return 1;
+    if (!(tmp=get_charset(var->value->val_int(),MYF(0))))
+    {
+      char buf[20];
+      int10_to_str(var->value->val_int(), buf, -10);
+      my_error(ER_UNKNOWN_COLLATION, MYF(0), buf);
+      return 1;
+    }
   }
   var->save_result.charset= tmp;	// Save for update
   return 0;
@@ -1732,23 +1744,36 @@ bool sys_var_collation::check(THD *thd, set_var *var)
 bool sys_var_character_set::check(THD *thd, set_var *var)
 {
   CHARSET_INFO *tmp;
-  char buff[80];
-  String str(buff,sizeof(buff), system_charset_info), *res;
 
-  if (!(res=var->value->val_str(&str)))
-  { 
-    if (!nullable)
+  if (var->value->result_type() == STRING_RESULT)
+  {
+    char buff[80];
+    String str(buff,sizeof(buff), system_charset_info), *res;
+    if (!(res=var->value->val_str(&str)))
     {
-      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
+      if (!nullable)
+      {
+        my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
+        return 1;
+      }
+      tmp= NULL;
+    }
+    else if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
+             !(tmp=get_old_charset_by_name(res->c_ptr())))
+    {
+      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
       return 1;
     }
-    tmp= NULL;
   }
-  else if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
-	   !(tmp=get_old_charset_by_name(res->c_ptr())))
+  else // INT_RESULT
   {
-    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
-    return 1;
+    if (!(tmp=get_charset(var->value->val_int(),MYF(0))))
+    {
+      char buf[20];
+      int10_to_str(var->value->val_int(), buf, -10);
+      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), buf);
+      return 1;
+    }
   }
   var->save_result.charset= tmp;	// Save for update
   return 0;
@@ -1861,6 +1886,20 @@ void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
  }
 }
 
+#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50000)
+bool sys_var_character_set_server::check(THD *thd, set_var *var)
+{
+  if ((var->type == OPT_GLOBAL) &&
+      (mysql_bin_log.is_open() ||
+       active_mi->slave_running || active_mi->rli.slave_running))
+  {
+    my_printf_error(0, "Binary logging and replication forbid changing \
+the global server character set or collation", MYF(0));
+    return 1;
+  }
+  return sys_var_character_set::check(thd,var);
+}
+#endif
 
 CHARSET_INFO ** sys_var_character_set_database::ci_ptr(THD *thd,
 						       enum_var_type type)
@@ -1954,6 +1993,20 @@ void sys_var_collation_database::set_default(THD *thd, enum_var_type type)
  }
 }
 
+#if defined(HAVE_REPLICATION) && (MYSQL_VERSION_ID < 50000)
+bool sys_var_collation_server::check(THD *thd, set_var *var)
+{
+  if ((var->type == OPT_GLOBAL) &&
+      (mysql_bin_log.is_open() ||
+       active_mi->slave_running || active_mi->rli.slave_running))
+  {
+    my_printf_error(0, "Binary logging and replication forbid changing \
+the global server character set or collation", MYF(0));
+    return 1;
+  }
+  return sys_var_collation::check(thd,var);
+}
+#endif
 
 bool sys_var_collation_server::update(THD *thd, set_var *var)
 {
@@ -2523,6 +2576,36 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
   while ((var=it++))
     error|= var->update(thd);			// Returns 0, -1 or 1
   DBUG_RETURN(error);
+}
+
+
+/*
+  Say if all variables set by a SET support the ONE_SHOT keyword (currently,
+  only character set and collation do; later timezones will).
+
+  SYNOPSIS
+
+  not_all_support_one_shot
+    set_var	List of variables to update
+
+  NOTES
+    It has a "not_" because it makes faster tests (no need to "!")
+
+    RETURN VALUE
+    0	all variables of the list support ONE_SHOT
+    1	at least one does not support ONE_SHOT
+*/
+
+bool not_all_support_one_shot(List<set_var_base> *var_list)
+{
+  List_iterator_fast<set_var_base> it(*var_list);
+  set_var_base *var;
+  while ((var= it++))
+  {
+    if (var->no_support_one_shot())
+      return 1;
+  }
+  return 0;
 }
 
 
