@@ -1502,15 +1502,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
   void print(String *str);
-  int save_in_field(Field *field_arg, bool no_conversions)
-  {
-    if (!arg)
-    {
-      field_arg->set_default();
-      return 0;
-    }
-    return Item_field::save_in_field(field_arg, no_conversions);
-  }
+  int save_in_field(Field *field_arg, bool no_conversions);
   table_map used_tables() const { return (table_map)0L; }
   
   bool walk(Item_processor processor, byte *args)

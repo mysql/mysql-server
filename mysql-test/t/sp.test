@@ -24,7 +24,7 @@ use test;
 drop table if exists t1;
 --enable_warnings
 create table t1 (
-	id   char(16) not null,
+	id   char(16) not null default '',
         data int not null
 );
 --disable_warnings
