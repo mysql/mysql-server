@@ -360,4 +360,22 @@ SUM(b)	COUNT(DISTINCT b)	COUNT(*)
 6	2	4
 4	1	4
 14	3	9
+SELECT a, sum(b) FROM t1 GROUP BY a,b WITH ROLLUP;
+a	sum(b)
+1	4
+1	4
+2	2
+2	4
+2	6
+4	4
+4	4
+NULL	14
+SELECT DISTINCT a, sum(b) FROM t1 GROUP BY a,b WITH ROLLUP;
+a	sum(b)
+1	4
+2	2
+2	4
+2	6
+4	4
+NULL	14
 DROP TABLE t1;
