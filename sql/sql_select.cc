@@ -7874,6 +7874,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   SELECT_LEX *select_lex = &(join->thd->lex.select_lex);
   select_result *result=join->result;
   Item *item_null= new Item_null();
+  CHARSET_INFO *cs= &my_charset_latin1;
   DBUG_ENTER("select_describe");
   DBUG_PRINT("info", ("Select 0x%lx, type %s, message %s", 
 		      (ulong)join->select_lex, join->select_lex->type,
@@ -7886,12 +7887,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   {
     item_list.push_back(new Item_int((int32) join->select_lex->select_number));
     item_list.push_back(new Item_string(join->select_lex->type,
-					strlen(join->select_lex->type),
-					default_charset_info));
+					strlen(join->select_lex->type), cs));
     for (uint i=0 ; i < 7; i++)
       item_list.push_back(item_null);
-    item_list.push_back(new Item_string(message,strlen(message),
-					default_charset_info));
+    item_list.push_back(new Item_string(message,strlen(message),cs));
     if (result->send_data(item_list))
       join->error= 1;
   }
@@ -7904,8 +7903,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       TABLE *table=tab->table;
       char buff[512],*buff_ptr=buff;
       char buff1[512], buff2[512];
-      String tmp1(buff1,sizeof(buff1),default_charset_info);
-      String tmp2(buff2,sizeof(buff2),default_charset_info);
+      String tmp1(buff1,sizeof(buff1),cs);
+      String tmp2(buff2,sizeof(buff2),cs);
       tmp1.length(0);
       tmp2.length(0);
 
@@ -7914,7 +7913,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 				       join->select_lex->select_number));
       item_list.push_back(new Item_string(join->select_lex->type,
 					  strlen(join->select_lex->type),
-					  default_charset_info));
+					  cs));
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
 	tab->type= JT_RANGE;
       if (table->tmp_table == TMP_TABLE && table->derived_select_number != 0)
@@ -7923,15 +7922,15 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	char buff[512];
 	int len= my_snprintf(buff, 512, "<derived%u>",
 			     table->derived_select_number);
-	item_list.push_back(new Item_string(buff, len, default_charset_info));
+	item_list.push_back(new Item_string(buff, len, cs));
       }
       else
 	item_list.push_back(new Item_string(table->table_name,
 					    strlen(table->table_name),
-					    default_charset_info));
+					    cs));
       item_list.push_back(new Item_string(join_type_str[tab->type],
 					  strlen(join_type_str[tab->type]),
-					  default_charset_info));
+					  cs));
       key_map bits;
       uint j;
       for (j=0,bits=tab->keys ; bits ; j++,bits>>=1)
@@ -7944,8 +7943,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	}
       }
       if (tmp1.length())
-	item_list.push_back(new Item_string(tmp1.ptr(),tmp1.length(),
-					    default_charset_info));
+	item_list.push_back(new Item_string(tmp1.ptr(),tmp1.length(),cs));
       else
  	item_list.push_back(item_null);
       if (tab->ref.key_parts)
@@ -7961,15 +7959,13 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	    tmp2.append(',');
 	  tmp2.append((*ref)->name());
 	}
-	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),
-					    default_charset_info));
+	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
       }
       else if (tab->type == JT_NEXT)
       {
 	KEY *key_info=table->key_info+ tab->index;
 	item_list.push_back(new Item_string(key_info->name,
-					    strlen(key_info->name),
-					    default_charset_info));
+					    strlen(key_info->name),cs));
 	item_list.push_back(new Item_int((int32) key_info->key_length));
 	item_list.push_back(item_null);
       }
@@ -7977,8 +7973,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       {
 	KEY *key_info=table->key_info+ tab->select->quick->index;
 	item_list.push_back(new Item_string(key_info->name,
-					    strlen(key_info->name),
-					    default_charset_info));
+					    strlen(key_info->name),cs));
 	item_list.push_back(new Item_int((int32) tab->select->quick->
 					 max_used_key_length));
 	item_list.push_back(item_null);
@@ -7998,8 +7993,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	key_read=1;
       
       if (tab->info)
-	item_list.push_back(new Item_string(tab->info,strlen(tab->info),
-					    default_charset_info));
+	item_list.push_back(new Item_string(tab->info,strlen(tab->info),cs));
       else
       {
 	if (tab->select)
@@ -8032,7 +8026,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	if (buff_ptr == buff)
 	  buff_ptr+= 2;				// Skip inital "; "
 	item_list.push_back(new Item_string(buff+2,(uint) (buff_ptr - buff)-2,
-					    default_charset_info));
+					    cs));
       }
       // For next iteration
       used_tables|=table->map;
