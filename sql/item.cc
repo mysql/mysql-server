@@ -724,7 +724,6 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
 */
 bool DTCollation::aggregate(DTCollation &dt, uint flags)
 {
-  nagg++;
   if (!my_charset_same(collation, dt.collation))
   {
     /* 
@@ -740,7 +739,6 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
       else
       {
 	set(dt); 
-        strong= nagg;
       }
     }
     else if (dt.collation == &my_charset_bin)
@@ -748,7 +746,6 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
       if (dt.derivation <= derivation)
       {
         set(dt);
-        strong= nagg;
       }
       else
        ; // Do nothing
@@ -764,20 +761,18 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
              dt.collation->state & MY_CS_UNICODE)
     {
       set(dt);
-      strong= nagg;
     }
     else if ((flags & MY_COLL_ALLOW_COERCIBLE_CONV) &&
              derivation < dt.derivation &&
-             dt.derivation >= DERIVATION_COERCIBLE)
+             dt.derivation >= DERIVATION_SYSCONST)
     {
       // Do nothing;
     }
     else if ((flags & MY_COLL_ALLOW_COERCIBLE_CONV) &&
              dt.derivation < derivation &&
-             derivation >= DERIVATION_COERCIBLE)
+             derivation >= DERIVATION_SYSCONST)
     {
       set(dt);
-      strong= nagg;
     }
     else
     {
@@ -793,7 +788,6 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
   else if (dt.derivation < derivation)
   {
     set(dt);
-    strong= nagg;
   }
   else
   { 

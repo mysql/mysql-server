@@ -103,7 +103,14 @@ public:
   LEX_STRING m_definer_host;
   longlong m_created;
   longlong m_modified;
-  HASH m_sptabs;		/* Merged table lists */
+  /*
+    Sets containing names of SP and SF used by this routine.
+
+    TODO Probably we should combine these two hashes in one. It will
+    decrease memory overhead ans simplify algorithms using them. The
+    same applies to similar hashes in LEX.
+  */
+  HASH m_spfuns, m_spprocs;
   // Pointers set during parsing
   uchar *m_param_begin, *m_param_end, *m_returns_begin, *m_returns_end,
     *m_body_begin;
@@ -225,6 +232,10 @@ public:
     return ip;
   }
 
+  /* Add tables used by routine to the table list. */
+  bool add_used_tables_to_table_list(THD *thd,
+                                     TABLE_LIST ***query_tables_last_ptr);
+
 private:
 
   MEM_ROOT *m_thd_root;		// Temp. store for thd's mem_root
@@ -240,10 +251,20 @@ private:
     sp_instr *instr;
   } bp_t;
   List<bp_t> m_backpatch;	// Instructions needing backpatching
+  /*
+    Multi-set representing optimized list of tables to be locked by this
+    routine. Does not include tables which are used by invoked routines.
+  */
+  HASH m_sptabs;
 
   int
   execute(THD *thd);
 
+  /*
+    Merge the list of tables used by query into the multi-set of tables used
+    by routine.
+  */
+  bool merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check);
 }; // class sp_head : public Sql_alloc
 
 
@@ -277,6 +298,17 @@ public:
   // Returns 0 on success, non-zero if some error occured.
   virtual int execute(THD *thd, uint *nextp) = 0;
 
+  /*
+    Execute core function of instruction after all preparations (e.g.
+    setting of proper LEX, saving part of the thread context have been
+    done).
+
+    Should be implemented for instructions using expressions or whole
+    statements (thus having to have own LEX). Used in concert with
+    sp_lex_keeper class and its descendants.
+  */
+  virtual int exec_core(THD *thd, uint *nextp);
+
   virtual void print(String *str) = 0;
 
   virtual void backpatch(uint dest, sp_pcontext *dst_ctx)
@@ -301,6 +333,60 @@ public:
 }; // class sp_instr : public Sql_alloc
 
 
+/*
+  Auxilary class to which instructions delegate responsibility
+  for handling LEX and preparations before executing statement
+  or calculating complex expression.
+
+  Exist mainly to avoid having double hierarchy between instruction
+  classes.
+
+  TODO: Add ability to not store LEX and do any preparations if
+        expression used is simple.
+*/
+
+class sp_lex_keeper
+{
+  /* Prevent use of these */
+  sp_lex_keeper(const sp_lex_keeper &);
+  void operator=(sp_lex_keeper &);
+public:
+
+  sp_lex_keeper(LEX *lex, bool lex_resp)
+    : m_lex(lex), m_lex_resp(lex_resp)
+  {
+    lex->sp_lex_in_use= TRUE;
+  }
+  virtual ~sp_lex_keeper()
+  {
+    if (m_lex_resp)
+      delete m_lex;
+  }
+
+  /*
+    Prepare execution of instruction using LEX, if requested check whenever
+    we have read access to tables used and open/lock them, call instruction's
+    exec_core() method, perform cleanup afterwards.
+  */
+  int reset_lex_and_exec_core(THD *thd, uint *nextp, bool open_tables,
+                              sp_instr* instr);
+
+  inline uint sql_command() const
+  {
+    return (uint)m_lex->sql_command;
+  }
+
+private:
+
+  LEX *m_lex;
+  /*
+    Indicates whenever this sp_lex_keeper instance responsible
+    for LEX deletion.
+  */
+  bool m_lex_resp;
+};
+
+
 //
 // Call out to some prepared SQL statement.
 //
@@ -313,38 +399,25 @@ public:
 
   LEX_STRING m_query;		// For thd->query
 
-  sp_instr_stmt(uint ip, sp_pcontext *ctx)
-    : sp_instr(ip, ctx), m_lex(NULL)
+  sp_instr_stmt(uint ip, sp_pcontext *ctx, LEX *lex)
+    : sp_instr(ip, ctx), m_lex_keeper(lex, TRUE)
   {
     m_query.str= 0;
     m_query.length= 0;
   }
 
-  virtual ~sp_instr_stmt();
+  virtual ~sp_instr_stmt()
+  {};
 
   virtual int execute(THD *thd, uint *nextp);
 
+  virtual int exec_core(THD *thd, uint *nextp);
+
   virtual void print(String *str);
-
-  inline void
-  set_lex(LEX *lex)
-  {
-    m_lex= lex;
-  }
-
-  inline LEX *
-  get_lex()
-  {
-    return m_lex;
-  }
-
-protected:
-
-  int exec_stmt(THD *thd, LEX *lex); // Execute a statement
 
 private:
 
-  LEX *m_lex;			// My own lex
+  sp_lex_keeper m_lex_keeper;
 
 }; // class sp_instr_stmt : public sp_instr
 
@@ -356,18 +429,19 @@ class sp_instr_set : public sp_instr
 
 public:
 
-  TABLE_LIST *tables;
-
   sp_instr_set(uint ip, sp_pcontext *ctx,
-	       uint offset, Item *val, enum enum_field_types type)
-    : sp_instr(ip, ctx),
-      tables(NULL), m_offset(offset), m_value(val), m_type(type)
+	       uint offset, Item *val, enum enum_field_types type,
+               LEX *lex, bool lex_resp)
+    : sp_instr(ip, ctx), m_offset(offset), m_value(val), m_type(type),
+      m_lex_keeper(lex, lex_resp)
   {}
 
   virtual ~sp_instr_set()
   {}
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual int exec_core(THD *thd, uint *nextp);
 
   virtual void print(String *str);
 
@@ -376,39 +450,9 @@ private:
   uint m_offset;		// Frame offset
   Item *m_value;
   enum enum_field_types m_type;	// The declared type
+  sp_lex_keeper m_lex_keeper;
 
 }; // class sp_instr_set : public sp_instr
-
-
-/*
-  Set user variable instruction.
-  Used in functions and triggers to set user variables because we don't
-  want use sp_instr_stmt + "SET @a:=..." statement in this case since
-  latter will close all tables and thus will ruin execution of statement
-  calling/invoking this function/trigger.
-*/
-class sp_instr_set_user_var : public sp_instr
-{
-  sp_instr_set_user_var(const sp_instr_set_user_var &);
-  void operator=(sp_instr_set_user_var &);
-
-public:
-
-  sp_instr_set_user_var(uint ip, sp_pcontext *ctx, LEX_STRING var, Item *val)
-    : sp_instr(ip, ctx), m_set_var_item(var, val)
-  {}
-
-  virtual ~sp_instr_set_user_var()
-  {}
-
-  virtual int execute(THD *thd, uint *nextp);
-
-  virtual void print(String *str);
-
-private:
-
-  Item_func_set_user_var m_set_var_item;
-}; // class sp_instr_set_user_var : public sp_instr
 
 
 /*
@@ -492,20 +536,20 @@ class sp_instr_jump_if : public sp_instr_jump
 
 public:
 
-  TABLE_LIST *tables;
-
-  sp_instr_jump_if(uint ip, sp_pcontext *ctx, Item *i)
-    : sp_instr_jump(ip, ctx), tables(NULL), m_expr(i)
+  sp_instr_jump_if(uint ip, sp_pcontext *ctx, Item *i, LEX *lex)
+    : sp_instr_jump(ip, ctx), m_expr(i), m_lex_keeper(lex, TRUE)
   {}
 
-  sp_instr_jump_if(uint ip, sp_pcontext *ctx, Item *i, uint dest)
-    : sp_instr_jump(ip, ctx, dest), tables(NULL), m_expr(i)
+  sp_instr_jump_if(uint ip, sp_pcontext *ctx, Item *i, uint dest, LEX *lex)
+    : sp_instr_jump(ip, ctx, dest), m_expr(i), m_lex_keeper(lex, TRUE)
   {}
 
   virtual ~sp_instr_jump_if()
   {}
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual int exec_core(THD *thd, uint *nextp);
 
   virtual void print(String *str);
 
@@ -519,6 +563,7 @@ public:
 private:
 
   Item *m_expr;			// The condition
+  sp_lex_keeper m_lex_keeper;
 
 }; // class sp_instr_jump_if : public sp_instr_jump
 
@@ -530,20 +575,20 @@ class sp_instr_jump_if_not : public sp_instr_jump
 
 public:
 
-  TABLE_LIST *tables;
-
-  sp_instr_jump_if_not(uint ip, sp_pcontext *ctx, Item *i)
-    : sp_instr_jump(ip, ctx), tables(NULL), m_expr(i)
+  sp_instr_jump_if_not(uint ip, sp_pcontext *ctx, Item *i, LEX *lex)
+    : sp_instr_jump(ip, ctx), m_expr(i), m_lex_keeper(lex, TRUE)
   {}
 
-  sp_instr_jump_if_not(uint ip, sp_pcontext *ctx, Item *i, uint dest)
-    : sp_instr_jump(ip, ctx, dest), tables(NULL), m_expr(i)
+  sp_instr_jump_if_not(uint ip, sp_pcontext *ctx, Item *i, uint dest, LEX *lex)
+    : sp_instr_jump(ip, ctx, dest), m_expr(i), m_lex_keeper(lex, TRUE)
   {}
 
   virtual ~sp_instr_jump_if_not()
   {}
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual int exec_core(THD *thd, uint *nextp);
 
   virtual void print(String *str);
 
@@ -557,6 +602,7 @@ public:
 private:
 
   Item *m_expr;			// The condition
+  sp_lex_keeper m_lex_keeper;
 
 }; // class sp_instr_jump_if_not : public sp_instr_jump
 
@@ -568,17 +614,17 @@ class sp_instr_freturn : public sp_instr
 
 public:
 
-  TABLE_LIST *tables;
-
   sp_instr_freturn(uint ip, sp_pcontext *ctx,
-		   Item *val, enum enum_field_types type)
-    : sp_instr(ip, ctx), tables(NULL), m_value(val), m_type(type)
+		   Item *val, enum enum_field_types type, LEX *lex)
+    : sp_instr(ip, ctx), m_value(val), m_type(type), m_lex_keeper(lex, TRUE)
   {}
 
   virtual ~sp_instr_freturn()
   {}
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual int exec_core(THD *thd, uint *nextp);
 
   virtual void print(String *str);
 
@@ -592,6 +638,7 @@ protected:
 
   Item *m_value;
   enum enum_field_types m_type;
+  sp_lex_keeper m_lex_keeper;
 
 }; // class sp_instr_freturn : public sp_instr
 
@@ -710,10 +757,11 @@ class sp_instr_cpush : public sp_instr
 public:
 
   sp_instr_cpush(uint ip, sp_pcontext *ctx, LEX *lex)
-    : sp_instr(ip, ctx), m_lex(lex)
+    : sp_instr(ip, ctx), m_lex_keeper(lex, TRUE)
   {}
 
-  virtual ~sp_instr_cpush();
+  virtual ~sp_instr_cpush()
+  {}
 
   virtual int execute(THD *thd, uint *nextp);
 
@@ -721,7 +769,7 @@ public:
 
 private:
 
-  LEX *m_lex;
+  sp_lex_keeper m_lex_keeper;
 
 }; // class sp_instr_cpush : public sp_instr
 
@@ -760,7 +808,7 @@ private:
 }; // class sp_instr_cpop : public sp_instr
 
 
-class sp_instr_copen : public sp_instr_stmt
+class sp_instr_copen : public sp_instr
 {
   sp_instr_copen(const sp_instr_copen &); /* Prevent use of these */
   void operator=(sp_instr_copen &);
@@ -768,13 +816,15 @@ class sp_instr_copen : public sp_instr_stmt
 public:
 
   sp_instr_copen(uint ip, sp_pcontext *ctx, uint c)
-    : sp_instr_stmt(ip, ctx), m_cursor(c)
+    : sp_instr(ip, ctx), m_cursor(c)
   {}
 
   virtual ~sp_instr_copen()
   {}
 
   virtual int execute(THD *thd, uint *nextp);
+
+  virtual int exec_core(THD *thd, uint *nextp);
 
   virtual void print(String *str);
 
@@ -893,22 +943,11 @@ void
 sp_restore_security_context(THD *thd, sp_head *sp,st_sp_security_context *ctxp);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
-bool
-sp_merge_table_list(THD *thd, HASH *h, TABLE_LIST *table,
-		    LEX *lex_for_tmp_check = 0);
-void
-sp_merge_routine_tables(THD *thd, LEX *lex);
-void
-sp_merge_table_hash(HASH *hdst, HASH *hsrc);
-TABLE_LIST *
-sp_hash_to_table_list(THD *thd, HASH *h);
-bool
-sp_open_and_lock_tables(THD *thd, TABLE_LIST *tables);
-void
-sp_unlock_tables(THD *thd);
 TABLE_LIST *
 sp_add_to_query_tables(THD *thd, LEX *lex,
 		       const char *db, const char *name,
 		       thr_lock_type locktype);
+bool
+sp_add_sp_tables_to_table_list(THD *thd, LEX *lex, LEX *func_lex);
 
 #endif /* _SP_HEAD_H_ */
