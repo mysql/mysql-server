@@ -218,7 +218,8 @@ CHARSET_INFO my_charset_latin1=
     1,			/* strxfrm_multiply */
     1,			/* mbminlen   */
     1,			/* mbmaxlen  */
-    0,
+    0,			/* min_sort_char */
+    0,			/* max_sort_char */
     &my_charset_handler,
     &my_collation_8bit_simple_ci_handler
 };
@@ -414,7 +415,8 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   2,					/* strxfrm_multiply */
   1,					/* mbminlen   */
   1,					/* mbmaxlen  */
-  0,
+  0,					/* min_sort_char */
+  0,					/* max_sort_char */
   &my_charset_handler,
   &my_collation_german2_ci_handler
 };
@@ -438,7 +440,8 @@ CHARSET_INFO my_charset_latin1_bin=
   1,					/* strxfrm_multiply */
   1,					/* mbminlen   */
   1,					/* mbmaxlen  */
-  0,
+  0,					/* min_sort_char */
+  0,					/* max_sort_char */
   &my_charset_handler,
   &my_collation_8bit_bin_handler
 };

@@ -184,6 +184,17 @@ show create table t1;
 drop table t1;
 
 #
+# Bug#2821
+# Test that table CHARACTER SET does not affect blobs
+#
+create table t1 (myblob longblob,mytext longtext) 
+default charset latin1 collate latin1_general_cs;
+show create table t1;
+alter table t1 character set latin2;
+show create table t1;
+drop table t1;
+
+#
 # Test ALTER TABLE ENABLE/DISABLE keys when things are locked
 #
 

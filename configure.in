@@ -2704,7 +2704,9 @@ then
 	/* ) rel_srcdir="$srcdir" ;;
 	* )  rel_srcdir="../../$srcdir" ;;
       esac
-      AC_CONFIG_SUBDIRS($bdb/dist/configure)
+      (cd $bdb/build_unix && \
+       sh $rel_srcdir/$bdb/dist/configure $bdb_conf_flags) || \
+        AC_MSG_ERROR([could not configure Berkeley DB])
 
 dnl       echo "bdb = '$bdb'; inc = '$bdb_includes', lib = '$bdb_libs'"
       echo "END OF BERKELEY DB CONFIGURATION"

@@ -470,9 +470,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       sql_field->charset= create_info->default_table_charset;
     /*
       table_charset is set in ALTER TABLE if we want change character set
-      for all varchar/char columns
+      for all varchar/char columns.
+      But the table charset must not affect the BLOB fields, so don't
+      allow to change my_charset_bin to somethig else.
     */
-    if (create_info->table_charset)
+    if (create_info->table_charset && sql_field->charset != &my_charset_bin)
       sql_field->charset= create_info->table_charset;
     sql_field->create_length_to_internal_length();
 
