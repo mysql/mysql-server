@@ -3,6 +3,11 @@
 # This is for BUG#1100 (LOAD DATA INFILE was half-logged).
 
 source include/master-slave.inc;
+
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+
 connection slave;
 reset master;
 
@@ -10,9 +15,9 @@ reset master;
 
 connection master;
 # 'test' is the current database
-create database test2;
+create database mysqltest;
 create table t1(a int, b int, unique(b));
-use test2;
+use mysqltest;
 load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
 show binlog events from 79; # should be nothing
-drop database test2;
+drop database mysqltest;

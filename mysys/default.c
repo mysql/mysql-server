@@ -374,9 +374,20 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
       char *value_end;
       for (value++ ; my_isspace(&my_charset_latin1,*value); value++) ;
       value_end=strend(value);
+      /*
+	We don't have to test for value_end >= value as we know there is
+	an '=' before
+      */
       for ( ; my_isspace(&my_charset_latin1,value_end[-1]) ; value_end--) ;
       if (value_end < value)			/* Empty string */
 	value_end=value;
+
+      /* remove quotes around argument */
+      if ((*value == '\"' || *value == '\'') && *value == value_end[-1])
+      {
+	value++;
+	value_end--;
+      }
       if (!(tmp=alloc_root(alloc,(uint) (end-ptr)+3 +
 			   (uint) (value_end-value)+1)))
 	goto err;
@@ -384,6 +395,7 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 	goto err;
       ptr=strnmov(strmov(tmp,"--"),ptr,(uint) (end-ptr));
       *ptr++= '=';
+
       for ( ; value != value_end; value++)
       {
 	if (*value == '\\' && value != value_end-1)
@@ -403,6 +415,12 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 	    break;
 	  case 's':
 	    *ptr++= ' ';			/* space */
+	    break;
+	  case '\"':
+	    *ptr++= '\"';
+	    break;
+	  case '\'':
+	    *ptr++= '\'';
 	    break;
 	  case '\\':
 	    *ptr++= '\\';

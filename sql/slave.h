@@ -199,7 +199,8 @@ typedef struct st_relay_log_info
   /*
     Handling of the relay_log_space_limit optional constraint.
     ignore_log_space_limit is used to resolve a deadlock between I/O and SQL
-    threads, it makes the I/O thread temporarily forget about the constraint
+    threads, the SQL thread sets it to unblock the I/O thread and make it
+    temporarily forget about the constraint.
   */
   ulonglong log_space_limit,log_space_total;
   bool ignore_log_space_limit;
@@ -478,9 +479,9 @@ int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
 int mysql_table_dump(THD* thd, const char* db,
 		     const char* tbl_name, int fd = -1);
 
-/* retrieve non-exitent table from master */
+/* retrieve table from master and copy to slave*/
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
-		       MASTER_INFO* mi, MYSQL* mysql);
+		       MASTER_INFO* mi, MYSQL* mysql, bool overwrite);
 
 void table_rule_ent_hash_to_str(String* s, HASH* h);
 void table_rule_ent_dynamic_array_to_str(String* s, DYNAMIC_ARRAY* a);

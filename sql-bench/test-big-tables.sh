@@ -21,13 +21,14 @@
 
 ##################### Standard benchmark inits ##############################
 
+use Cwd;
 use DBI;
 use Benchmark;
 
 $opt_loop_count=1000; # Change this to make test harder/easier
 $opt_field_count=1000;
 
-chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
+$pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
 $opt_field_count=min($opt_field_count,$limits->{'max_columns'},

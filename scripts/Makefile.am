@@ -17,7 +17,6 @@
 ## Process this file with automake to create Makefile.in
 
 bin_SCRIPTS =		@server_scripts@ \
-			make_win_src_distribution \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \
@@ -34,6 +33,7 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysql_explain_log \
 			mysql_tableinfo \
 			mysqld_multi \
+			make_win_src_distribution \
 			mysql_create_system_tables
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
@@ -69,7 +69,6 @@ dist_pkgdata_DATA =		fill_help_tables.sql mysql_fix_privilege_tables.sql
 # failures with it.
 CLEANFILES =		@server_scripts@ \
 			make_binary_distribution \
-			make_win_src_distribution \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \
@@ -83,6 +82,7 @@ CLEANFILES =		@server_scripts@ \
 			mysqlhotcopy \
 			mysqldumpslow \
 			mysqld_multi \
+			make_win_src_distribution \
 			fill_help_tables \
 			mysql_create_system_tables
 
@@ -119,6 +119,7 @@ SUFFIXES = .sh
 	  -e 's!@''CLIENT_LIBS''@!@CLIENT_LIBS@!' \
 	  -e 's!@''LIBS''@!@LIBS@!' \
 	  -e 's!@''innodb_system_libs''@!@innodb_system_libs@!' \
+	  -e 's!@''openssl_libs''@!@openssl_libs@!' \
 	  -e 's!@''VERSION''@!@VERSION@!' \
 	  -e 's!@''MYSQL_SERVER_SUFFIX''@!@MYSQL_SERVER_SUFFIX@!' \
 	  -e 's!@''COMPILATION_COMMENT''@!@COMPILATION_COMMENT@!' \

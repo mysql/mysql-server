@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.1";
+const char *VER= "14.2";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -860,7 +860,9 @@ static int read_lines(bool execute_commands)
       char *prompt= (char*) (glob_buffer.is_empty() ? construct_prompt() :
 			     !in_string ? "    -> " :
 			     in_string == '\'' ?
-			     "    '> " : "    \"> ");
+			     "    '> " : (in_string == '`' ?
+			     "    `> " :
+			     "    \"> "));
       if (opt_outfile && glob_buffer.is_empty())
 	fflush(OUTFILE);
 
@@ -2643,7 +2645,7 @@ com_status(String *buffer __attribute__((unused)),
 	(result=mysql_use_result(&mysql)))
     {
       MYSQL_ROW cur=mysql_fetch_row(result);
-      tee_fprintf(stdout, "Current database:\t%s\n",cur[0]);
+      tee_fprintf(stdout, "Current database:\t%s\n", cur[0] ? cur[0] : "");
       tee_fprintf(stdout, "Current user:\t\t%s\n",cur[1]);
       (void) mysql_fetch_row(result);		// Read eof
     }

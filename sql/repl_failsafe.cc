@@ -734,7 +734,8 @@ static int fetch_db_tables(THD *thd, MYSQL *mysql, const char *db,
       if (!tables_ok(thd, &table))
 	continue;
     }
-    if ((error= fetch_master_table(thd, db, table_name, mi, mysql)))
+    /* download master's table and overwrite slave's table */
+    if ((error= fetch_master_table(thd, db, table_name, mi, mysql, 1)))
       return error;
   }
   return 0;
@@ -754,6 +755,8 @@ int load_master_data(THD* thd)
   int error = 0;
   const char* errmsg=0;
   int restart_thread_mask;
+  HA_CREATE_INFO create_info;
+
   mysql_init(&mysql);
 
   /*
@@ -836,8 +839,11 @@ int load_master_data(THD* thd)
       char* db = row[0];
 
       /*
-	Do not replicate databases excluded by rules
-	also skip mysql database - in most cases the user will
+	Do not replicate databases excluded by rules. We also test
+	replicate_wild_*_table rules (replicate_wild_ignore_table='db1.%' will
+	be considered as "ignore the 'db1' database as a whole, as it already
+	works for CREATE DATABASE and DROP DATABASE).
+	Also skip 'mysql' database - in most cases the user will
 	mess up and not exclude mysql database with the rules when
 	he actually means to - in this case, he is up for a surprise if
 	his priv tables get dropped and downloaded from master
@@ -847,14 +853,17 @@ int load_master_data(THD* thd)
       */
 
       if (!db_ok(db, replicate_do_db, replicate_ignore_db) ||
+          !db_ok_with_wild_table(db) ||
 	  !strcmp(db,"mysql"))
       {
 	*cur_table_res = 0;
 	continue;
       }
 
-      if (mysql_rm_db(thd, db, 1,1) ||
-	  mysql_create_db(thd, db, 0, 1))
+      bzero((char*) &create_info, sizeof(create_info));
+      create_info.options= HA_LEX_CREATE_IF_NOT_EXISTS;
+
+      if (mysql_create_db(thd, db, &create_info, 1))
       {
 	send_error(thd, 0, 0);
 	cleanup_mysql_results(db_res, cur_table_res - 1, table_res);

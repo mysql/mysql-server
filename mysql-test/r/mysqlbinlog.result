@@ -1,0 +1,83 @@
+drop table if exists t1,t2;
+set timestamp=1000000000;
+create table t1 (word varchar(20));
+create table t2 (id int auto_increment not null primary key);
+insert into t1 values ("abirvalg");
+insert into t2 values ();
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+insert into t1 values ("Alas");
+flush logs;
+
+--- Local --
+use test;
+SET TIMESTAMP=1000000000;
+create table t1 (word varchar(20));
+SET TIMESTAMP=1000000000;
+create table t2 (id int auto_increment not null primary key);
+SET TIMESTAMP=1000000000;
+insert into t1 values ("abirvalg");
+SET INSERT_ID=1;
+SET TIMESTAMP=1000000000;
+insert into t2 values ();
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-1-0' INTO TABLE t1  FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-2-0' INTO TABLE t1  FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-3-0' INTO TABLE t1  FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-4-0' INTO TABLE t1  FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-5-0' INTO TABLE t1  FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+
+--- Broken LOAD DATA --
+use test;
+SET TIMESTAMP=1000000000;
+insert into t1 values ("Alas");
+
+--- --database --
+SET INSERT_ID=1;
+
+--- --position --
+use test;
+SET TIMESTAMP=1000000000;
+insert into t1 values ("Alas");
+
+--- Remote --
+use test;
+SET TIMESTAMP=1000000000;
+create table t1 (word varchar(20));
+SET TIMESTAMP=1000000000;
+create table t2 (id int auto_increment not null primary key);
+SET TIMESTAMP=1000000000;
+insert into t1 values ("abirvalg");
+SET INSERT_ID=1;
+SET TIMESTAMP=1000000000;
+insert into t2 values ();
+SET TIMESTAMP=1000000000;
+insert into t1 values ("Alas");
+
+--- Broken LOAD DATA --
+use test;
+SET TIMESTAMP=1000000000;
+insert into t1 values ("Alas");
+
+--- --database --
+use test;
+SET TIMESTAMP=1000000000;
+create table t1 (word varchar(20));
+SET TIMESTAMP=1000000000;
+create table t2 (id int auto_increment not null primary key);
+SET TIMESTAMP=1000000000;
+insert into t1 values ("abirvalg");
+SET INSERT_ID=1;
+SET TIMESTAMP=1000000000;
+insert into t2 values ();
+SET TIMESTAMP=1000000000;
+insert into t1 values ("Alas");
+
+--- --position --
+use test;
+SET TIMESTAMP=1000000000;
+insert into t1 values ("Alas");
+drop table t1;

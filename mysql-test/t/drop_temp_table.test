@@ -1,0 +1,19 @@
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection con1;
+reset master;
+create database `drop-temp+table-test`;
+use `drop-temp+table-test`;
+create temporary table `table:name` (a int);
+select get_lock("a",10);
+disconnect con1;
+
+connection con2;
+# We want to SHOW BINLOG EVENTS, to know what was logged. But there is no
+# guarantee that logging of the terminated con1 has been done yet.
+# To be sure that logging has been done, we use a user lock.
+select get_lock("a",10);
+let $VERSION=`select version()`;
+--replace_result $VERSION VERSION
+show binlog events;
+drop database `drop-temp+table-test`;
