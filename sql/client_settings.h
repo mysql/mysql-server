@@ -23,10 +23,11 @@ extern char *mysql_unix_port;
                              | CLIENT_LOCAL_FILES | CLIENT_SECURE_CONNECTION)
 
 
-extern ulong slave_net_timeout;
 #define init_sigpipe_variables
 #define set_sigpipe(mysql)
 #define reset_sigpipe(mysql)
+
+extern ulong slave_net_timeout;
 
 #ifdef HAVE_SMEM
 #undef HAVE_SMEM
