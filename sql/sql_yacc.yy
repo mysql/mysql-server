@@ -4884,7 +4884,19 @@ IDENT_sys:
 	  {
 	    THD *thd= YYTHD;
 	    if (thd->charset_is_system_charset)
+            {
+              CHARSET_INFO *cs= system_charset_info;
+              uint wlen= cs->cset->well_formed_len(cs, $1.str,
+                                                   $1.str+$1.length,
+                                                   $1.length);
+              if (wlen < $1.length)
+              {
+                net_printf(YYTHD, ER_INVALID_CHARACTER_STRING, cs->csname,
+                           $1.str + wlen);
+                YYABORT;
+              }
 	      $$= $1;
+            }
 	    else
 	      thd->convert_string(&$$, system_charset_info,
 				  $1.str, $1.length, thd->charset());
