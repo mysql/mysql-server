@@ -279,7 +279,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
 #ifdef __WIN__
     /* Close the isam and data files as Win32 can't drop an open table */
     pthread_mutex_lock(&share->intern_lock);
-    if (flush_key_blocks(share->kfile,
+    if (flush_key_blocks(dflt_keycache, share->kfile,
 			 (function == HA_EXTRA_FORCE_REOPEN ?
 			  FLUSH_RELEASE : FLUSH_IGNORE_CHANGED)))
     {
@@ -325,7 +325,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     break;
   case HA_EXTRA_FLUSH:
     if (!share->temporary)
-      flush_key_blocks(share->kfile,FLUSH_KEEP);
+      flush_key_blocks(dflt_keycache,share->kfile,FLUSH_KEEP);
 #ifdef HAVE_PWRITE
     _mi_decrement_open_count(info);
 #endif

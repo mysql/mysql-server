@@ -31,7 +31,8 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
   DBUG_ENTER("_mi_fetch_keypage");
   DBUG_PRINT("enter",("page: %ld",page));
 
-  tmp=(uchar*) key_cache_read(info->s->kfile,page,(byte*) buff,
+  tmp=(uchar*) key_cache_read(dflt_keycache,
+                             info->s->kfile,page,(byte*) buff,
 			     (uint) keyinfo->block_length,
 			     (uint) keyinfo->block_length,
 			     return_buffer);
@@ -92,7 +93,8 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     length=keyinfo->block_length;
   }
 #endif
-  DBUG_RETURN((key_cache_write(info->s->kfile,page,(byte*) buff,length,
+  DBUG_RETURN((key_cache_write(dflt_keycache,
+                         info->s->kfile,page,(byte*) buff,length,
 			 (uint) keyinfo->block_length,
 			 (int) ((info->lock_type != F_UNLCK) ||
 				info->s->delay_key_write))));
@@ -112,7 +114,8 @@ int _mi_dispose(register MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos)
   info->s->state.key_del[keyinfo->block_size]=pos;
   mi_sizestore(buff,old_link);
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
-  DBUG_RETURN(key_cache_write(info->s->kfile,pos,buff,
+  DBUG_RETURN(key_cache_write(dflt_keycache,
+                              info->s->kfile,pos,buff,
 			      sizeof(buff),
 			      (uint) keyinfo->block_length,
 			      (int) (info->lock_type != F_UNLCK)));
@@ -140,7 +143,8 @@ my_off_t _mi_new(register MI_INFO *info, MI_KEYDEF *keyinfo)
   }
   else
   {
-    if (!key_cache_read(info->s->kfile,pos,
+    if (!key_cache_read(dflt_keycache,
+                        info->s->kfile,pos,
 			buff,
 			(uint) sizeof(buff),
 			(uint) keyinfo->block_length,0))
