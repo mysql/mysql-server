@@ -44,8 +44,8 @@ static String day_names[] = { "Monday", "Tuesday", "Wednesday",
 ** DAY_TO_SECOND as "D MM:HH:SS", "MM:HH:SS" "HH:SS" or as seconds.
 */
 
-bool get_interval_info(const char *str,uint length,uint count,
-		       long *values)
+static bool get_interval_info(const char *str,uint length,uint count,
+                              ulonglong *values)
 {
   const char *end=str+length;
   uint i;
@@ -54,9 +54,9 @@ bool get_interval_info(const char *str,uint length,uint count,
 
   for (i=0 ; i < count ; i++)
   {
-    long value;
+    longlong value;
     for (value=0; str != end && isdigit(*str) ; str++)
-      value=value*10L + (long) (*str - '0');
+      value=value*10LL + (long) (*str - '0');
     values[i]= value;
     while (str != end && !isdigit(*str))
       str++;
@@ -65,8 +65,8 @@ bool get_interval_info(const char *str,uint length,uint count,
       i++;
       /* Change values[0...i-1] -> values[0...count-1] */
       bmove_upp((char*) (values+count), (char*) (values+i),
-		sizeof(long)*i);
-      bzero((char*) values, sizeof(long)*(count-i));
+		sizeof(*values)*i);
+      bzero((char*) values, sizeof(*values)*(count-i));
       break;
     }
   }
@@ -302,7 +302,8 @@ longlong Item_func_time_to_sec::val_int()
 static bool get_interval_value(Item *args,interval_type int_type,
 			       String *str_value, INTERVAL *t)
 {
-  long array[4],value;
+  ulonglong array[4];
+  longlong value;
   const char *str;
   uint32 length;
   LINT_INIT(value);  LINT_INIT(str); LINT_INIT(length);
@@ -310,7 +311,7 @@ static bool get_interval_value(Item *args,interval_type int_type,
   bzero((char*) t,sizeof(*t));
   if ((int) int_type <= INTERVAL_SECOND)
   {
-    value=(long) args->val_int();
+    value= args->val_int();
     if (args->null_value)
       return 1;
     if (value < 0)
@@ -340,68 +341,68 @@ static bool get_interval_value(Item *args,interval_type int_type,
 
   switch (int_type) {
   case INTERVAL_YEAR:
-    t->year=value;
+    t->year= (ulong) value;
     break;
   case INTERVAL_MONTH:
-    t->month=value;
+    t->month= (ulong) value;
     break;
   case INTERVAL_DAY:
-    t->day=value;
+    t->day= (ulong) value;
     break;
   case INTERVAL_HOUR:
-    t->hour=value;
+    t->hour= (ulong) value;
     break;
   case INTERVAL_MINUTE:
-    t->minute=value;
+    t->minute= value;
     break;
   case INTERVAL_SECOND:
-    t->second=value;
+    t->second= value;
     break;
   case INTERVAL_YEAR_MONTH:			// Allow YEAR-MONTH YYYYYMM
     if (get_interval_info(str,length,2,array))
       return (1);
-    t->year=array[0];
-    t->month=array[1];
+    t->year= (ulong) array[0];
+    t->month= (ulong) array[1];
     break;
   case INTERVAL_DAY_HOUR:
     if (get_interval_info(str,length,2,array))
       return (1);
-    t->day=array[0];
-    t->hour=array[1];
+    t->day=  (ulong) array[0];
+    t->hour= (ulong) array[1];
     break;
   case INTERVAL_DAY_MINUTE:
     if (get_interval_info(str,length,3,array))
       return (1);
-    t->day=array[0];
-    t->hour=array[1];
-    t->minute=array[2];
+    t->day= (ulong) array[0];
+    t->hour= (ulong) array[1];
+    t->minute= array[2];
     break;
   case INTERVAL_DAY_SECOND:
     if (get_interval_info(str,length,4,array))
       return (1);
-    t->day=array[0];
-    t->hour=array[1];
-    t->minute=array[2];
-    t->second=array[3];
+    t->day= (ulong) array[0];
+    t->hour= (ulong) array[1];
+    t->minute= array[2];
+    t->second= array[3];
     break;
   case INTERVAL_HOUR_MINUTE:
     if (get_interval_info(str,length,2,array))
       return (1);
-    t->hour=array[0];
-    t->minute=array[1];
+    t->hour=  (ulong) array[0];
+    t->minute= array[1];
     break;
   case INTERVAL_HOUR_SECOND:
     if (get_interval_info(str,length,3,array))
       return (1);
-    t->hour=array[0];
-    t->minute=array[1];
-    t->second=array[2];
+    t->hour= (ulong) array[0];
+    t->minute= array[1];
+    t->second= array[2];
     break;
   case INTERVAL_MINUTE_SECOND:
     if (get_interval_info(str,length,2,array))
       return (1);
-    t->minute=array[0];
-    t->second=array[1];
+    t->minute= array[0];
+    t->second= array[1];
     break;
   }
   return 0;
@@ -999,37 +1000,39 @@ bool Item_date_add_interval::get_date(TIME *ltime, bool fuzzy_date)
   case INTERVAL_DAY_SECOND:
   case INTERVAL_DAY_MINUTE:
   case INTERVAL_DAY_HOUR:
-    long sec,days,daynr;
+    longlong sec, days, daynr;
     ltime->time_type=TIMESTAMP_FULL;		// Return full date
 
     sec=((ltime->day-1)*3600*24L+ltime->hour*3600+ltime->minute*60+
 	 ltime->second +
-	 sign*(interval.day*3600*24L +
-	       interval.hour*3600+interval.minute*60+interval.second));
-    days=sec/(3600*24L); sec=sec-days*3600*24L;
+	 sign*(longlong) (interval.day*3600*24L +
+                          interval.hour*LL(3600)+interval.minute*LL(60)+
+                          interval.second));
+    days= sec/(3600*LL(24));
+    sec-= days*3600*LL(24);
     if (sec < 0)
     {
       days--;
-      sec+=3600*24L;
+      sec+=3600*LL(24);
     }
     ltime->second=sec % 60;
     ltime->minute=sec/60 % 60;
     ltime->hour=sec/3600;
     daynr= calc_daynr(ltime->year,ltime->month,1) + days;
-    get_date_from_daynr(daynr,&ltime->year,&ltime->month,&ltime->day);
-    if (daynr < 0 || daynr >= 3652424) // Day number from year 0 to 9999-12-31
+    if ((ulonglong) daynr >= 3652424) // Day number from year 0 to 9999-12-31
       goto null_date;
+    get_date_from_daynr((long) daynr,&ltime->year,&ltime->month,&ltime->day);
     break;
   case INTERVAL_DAY:
     period= calc_daynr(ltime->year,ltime->month,ltime->day) +
-      sign*interval.day;
+      sign* (long) interval.day;
     if (period < 0 || period >= 3652424) // Daynumber from year 0 to 9999-12-31
       goto null_date;
     get_date_from_daynr((long) period,&ltime->year,&ltime->month,&ltime->day);
     break;
   case INTERVAL_YEAR:
-    ltime->year += sign*interval.year;
-    if ((int) ltime->year < 0 || ltime->year >= 10000L)
+    ltime->year += sign*(long) interval.year;
+    if ((long) ltime->year < 0 || ltime->year >= 10000L)
       goto null_date;
     if (ltime->month == 2 && ltime->day == 29 &&
 	calc_days_in_year(ltime->year) != 366)
@@ -1037,8 +1040,8 @@ bool Item_date_add_interval::get_date(TIME *ltime, bool fuzzy_date)
     break;
   case INTERVAL_YEAR_MONTH:
   case INTERVAL_MONTH:
-    period= (ltime->year*12 + sign*interval.year*12 +
-	     ltime->month-1 + sign*interval.month);
+    period= (ltime->year*12 + sign*(long) interval.year*12 +
+	     ltime->month-1 + sign*(long) interval.month);
     if (period < 0 || period >= 120000L)
       goto null_date;
     ltime->year= (uint) (period / 12);
