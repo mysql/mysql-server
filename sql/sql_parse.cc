@@ -1225,6 +1225,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       }
       thd->query_length= length;
       thd->query= packet;
+      thd->net.last_error[0]= '\0';
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_id= query_id++;
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
