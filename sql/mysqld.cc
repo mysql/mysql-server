@@ -1818,15 +1818,23 @@ extern "C" int my_message_sql(uint error, const char *str,
 {
   THD *thd;
   DBUG_ENTER("my_message_sql");
-  DBUG_PRINT("error",("Message: '%s'",str));
-  if ((thd=current_thd))
+  DBUG_PRINT("error", ("Message: '%s'", str));
+  if ((thd= current_thd))
   {
-    NET *net= &thd->net;
-    net->report_error= 1;
-    if (!net->last_error[0])			// Return only first message
+    if (thd->lex.current_select->no_error && !thd->is_fatal_error)
     {
-      strmake(net->last_error,str,sizeof(net->last_error)-1);
-      net->last_errno=error ? error : ER_UNKNOWN_ERROR;
+      DBUG_PRINT("error", ("above error converted to warning"));
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
+    }
+    else
+    {
+      NET *net= &thd->net;
+      net->report_error= 1;
+      if (!net->last_error[0])			// Return only first message
+      {
+	strmake(net->last_error, str, sizeof(net->last_error)-1);
+	net->last_errno= error ? error : ER_UNKNOWN_ERROR;
+      }
     }
   }
   else
