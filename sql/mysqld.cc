@@ -1896,6 +1896,7 @@ int main(int argc, char **argv)
 
   set_options();
   get_options(argc,argv);
+  max_system_variables.pseudo_thread_id= (ulong)~0;
   if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
     strcat(server_version,"-log");
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
