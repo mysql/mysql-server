@@ -9,7 +9,7 @@ select repeat('a',2000);
 repeat('a',2000)
 NULL
 Warnings:
-Warning	1300	Data truncated by function 'repeat' do to max_allowed_packet
+Warning	1301	Result of repeat() was larger than max_allowed_packet (1024) - truncated
 select @@net_buffer_length, @@max_allowed_packet;
 @@net_buffer_length	@@max_allowed_packet
 1024	1024

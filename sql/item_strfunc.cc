@@ -269,7 +269,8 @@ String *Item_func_concat::val_str(String *str)
       {
 	push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			    ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			    ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name());
+			    ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+			    current_thd->variables.max_allowed_packet);
 	goto null;
       }
       if (res->alloced_length() >= res->length()+res2->length())
@@ -552,7 +553,8 @@ String *Item_func_concat_ws::val_str(String *str)
     {
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			  ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			  ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name());
+			  ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+			  current_thd->variables.max_allowed_packet);
       goto null;
     }
     if (res->alloced_length() >=
@@ -815,7 +817,8 @@ redo:
 	    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_WARN_ALLOWED_PACKET_OVERFLOWED,
 				ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-				func_name());
+				func_name(),
+				current_thd->variables.max_allowed_packet);
 
             goto null;
 	  }
@@ -842,7 +845,8 @@ skip:
       {
 	push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			    ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			    ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name());
+			    ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+			    current_thd->variables.max_allowed_packet);
         goto null;
       }
       if (!alloced)
@@ -907,7 +911,8 @@ String *Item_func_insert::val_str(String *str)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name());
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
     goto null;
   }
   res=copy_if_not_alloced(str,res,res->length());
@@ -1964,7 +1969,8 @@ String *Item_func_repeat::val_str(String *str)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name());
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
   tot_length= length*(uint) count;
@@ -2035,7 +2041,8 @@ String *Item_func_rpad::val_str(String *str)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name());
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
   if(args[2]->null_value || !pad_char_length)
@@ -2121,7 +2128,8 @@ String *Item_func_lpad::val_str(String *str)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name());
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
 
@@ -2415,7 +2423,8 @@ String *Item_load_file::val_str(String *str)
   {
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name());
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
   if (tmp_value.alloc(stat_info.st_size))
