@@ -66,13 +66,17 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
 		      my_socket sd, HANDLE hPipe,
 		      my_bool localhost)
 {
+  DBUG_ENTER("vio_reset");
+  DBUG_PRINT("enter", ("type=%d  sd=%d  localhost=%d", type, sd, localhost));
   bzero((char*) vio, sizeof(Vio));
   vio->type	= type;
   vio->sd	= sd;
   vio->hPipe	= hPipe;
   vio->localhost= localhost;
 #ifdef HAVE_VIO
-if(type == VIO_TYPE_SSL){
+if(0) {
+#ifdef HAVE_OPENSSL
+} else if(type == VIO_TYPE_SSL){
 	vio->viodelete	=vio_ssl_delete;
 	vio->vioerrno	=vio_ssl_errno;
 	vio->read	=vio_ssl_read;
@@ -84,6 +88,9 @@ if(type == VIO_TYPE_SSL){
 	vio->peer_addr	=vio_ssl_peer_addr;
 	vio->in_addr	=vio_ssl_in_addr;
 	vio->poll_read	=vio_ssl_poll_read;
+	vio->vioblocking=vio_blocking;
+	vio->is_blocking=vio_is_blocking;
+#endif /* HAVE_OPENSSL */
 } else { /* default is VIO_TYPE_TCPIP */
 	vio->viodelete	=vio_delete;
 	vio->vioerrno	=vio_errno;
@@ -96,9 +103,12 @@ if(type == VIO_TYPE_SSL){
 	vio->peer_addr	=vio_peer_addr;
 	vio->in_addr	=vio_in_addr;
 	vio->poll_read	=vio_poll_read;
+	vio->vioblocking=vio_blocking;
+	vio->is_blocking=vio_is_blocking;
 }
 
 #endif /* HAVE_VIO */
+	DBUG_VOID_RETURN;
 }
 
 /* Open the socket or TCP/IP connection and read the fnctl() status */
