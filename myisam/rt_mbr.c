@@ -228,7 +228,7 @@ double rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
     case HA_KEYTYPE_LONGLONG:
       RT_VOL_KORR(longlong, mi_sint8korr, 8, (double));
     case HA_KEYTYPE_ULONGLONG:
-      RT_VOL_KORR(ulonglong, mi_uint8korr, 8, ulonglong2double);
+      RT_VOL_KORR(longlong, mi_sint8korr, 8, ulonglong2double);
 #endif
     case HA_KEYTYPE_FLOAT:
       RT_VOL_GET(float, mi_float4get, 4, (double));
@@ -311,7 +311,7 @@ int rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
     case HA_KEYTYPE_LONGLONG:
       RT_D_MBR_KORR(longlong, mi_sint8korr, 8, (double));
     case HA_KEYTYPE_ULONGLONG:
-      RT_D_MBR_KORR(ulonglong, mi_uint8korr, 8, ulonglong2double);
+      RT_D_MBR_KORR(longlong, mi_sint8korr, 8, ulonglong2double);
 #endif
     case HA_KEYTYPE_FLOAT:
       RT_D_MBR_GET(float, mi_float4get, 4, (double));
@@ -516,7 +516,7 @@ double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
     case HA_KEYTYPE_LONGLONG:
       RT_OVL_AREA_KORR(longlong, mi_sint8korr, 8);
     case HA_KEYTYPE_ULONGLONG:
-      RT_OVL_AREA_KORR(ulonglong, mi_uint8korr, 8);
+      RT_OVL_AREA_KORR(longlong, mi_sint8korr, 8);
 #endif
     case HA_KEYTYPE_FLOAT:
       RT_OVL_AREA_GET(float, mi_float4get, 4);
@@ -614,7 +614,7 @@ double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
     case HA_KEYTYPE_LONGLONG:
       RT_AREA_INC_KORR(longlong, mi_sint8korr, 8);
     case HA_KEYTYPE_ULONGLONG:
-      RT_AREA_INC_KORR(ulonglong, mi_uint8korr, 8);
+      RT_AREA_INC_KORR(longlong, mi_sint8korr, 8);
 #endif
     case HA_KEYTYPE_FLOAT:
       RT_AREA_INC_GET(float, mi_float4get, 4);

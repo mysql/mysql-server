@@ -104,6 +104,10 @@ SOURCE=.\bmove512.c
 # End Source File
 # Begin Source File
 
+SOURCE=".\ctype-bin.c"
+# End Source File
+# Begin Source File
+
 SOURCE=".\ctype-big5.c"
 # End Source File
 # Begin Source File
@@ -168,6 +172,18 @@ SOURCE=.\str2int.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\strcend.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\strend.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\strfill.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\Strings.asm
 
 !IF  "$(CFG)" == "strings - Win32 Release"
@@ -198,6 +214,19 @@ InputName=Strings
 
 # End Source File
 # Begin Source File
+
+SOURCE=.\strmake.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\strmov.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\strnmov.c
+# End Source File
+# Begin Source File
+
 
 SOURCE=.\strtol.c
 # End Source File

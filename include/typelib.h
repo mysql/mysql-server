@@ -19,14 +19,14 @@
 #define _typelib_h
 
 typedef struct st_typelib {	/* Different types saved here */
-  uint count;			/* How many types */
+  unsigned int count;		/* How many types */
   const char *name;		/* Name of typelib */
   const char **type_names;
 } TYPELIB;
 
-extern int find_type(char *x,TYPELIB *typelib,uint full_name);
-extern void make_type(char *to,uint nr,TYPELIB *typelib);
-extern const char *get_type(TYPELIB *typelib,uint nr);
+extern int find_type(char *x,TYPELIB *typelib,unsigned int full_name);
+extern void make_type(char *to,unsigned int nr,TYPELIB *typelib);
+extern const char *get_type(TYPELIB *typelib,unsigned int nr);
 
 extern TYPELIB sql_protocol_typelib;
 
