@@ -478,8 +478,7 @@ bool JOIN::test_in_subselect(Item **where)
 /*
   global select optimisation.
   return 0 - success
-         1 - go out
-        -1 - go out with cleaning
+         1 - error
   error code saved in field 'error'
 */
 int
@@ -516,11 +515,9 @@ JOIN::optimize()
   conds= optimize_cond(conds,&cond_value);
   if (thd->net.report_error)
   {
-    // quick abort
-    delete procedure;
-    error= thd->is_fatal_error ? -1 : 1; 
+    error= 1; 
     DBUG_PRINT("error",("Error from optimize_cond"));
-    DBUG_RETURN(error);
+    DBUG_RETURN(1);
   }
 
   if (cond_value == Item::COND_FALSE ||
@@ -543,8 +540,7 @@ JOIN::optimize()
     {
       if (res > 1)
       {
-	delete procedure;
-	DBUG_RETURN(-1);
+	DBUG_RETURN(1);
       }
       if (res < 0)
       {
