@@ -34,11 +34,14 @@ explain select t1.*,t2.* from t1 left join t2 on t1.a=t2.a where isnull(t2.a)=1;
 select t1.*,t2.*,t3.a from t1 left join t2 on (t1.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
 
 # The next query should rearange the left joins to get this to work
-!$1120 explain select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t1.a=t3.a);
-!$1120 select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t1.a=t3.a);
+--error 1120
+explain select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t1.a=t3.a);
+--error 1120
+select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t1.a=t3.a);
 
 # The next query should give an error in MySQL
-!$1120 select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
+--error 1120
+select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
 
 # Test of inner join
 select t1.*,t2.* from t1 inner join t2 using (a);
@@ -94,7 +97,8 @@ WHERE t1.uniq_id = 4
 ORDER BY t2.c_amount;
 
 INSERT INTO t2 VALUES (2,3,3000,6000,0,0,746584,837484,'yes');
-!$1062 INSERT INTO t2 VALUES (2,3,3000,6000,0,0,746584,837484,'yes');
+--error 1062
+INSERT INTO t2 VALUES (2,3,3000,6000,0,0,746584,837484,'yes');
 INSERT INTO t2 VALUES (7,3,1000,2000,0,0,746294,937484,'yes');
 
 #3rd select should show that one record is returned with null entries for the
@@ -288,7 +292,8 @@ insert into t3 values (1);
 insert into t4 values (1,1);
 insert into t5 values (1,1);
 
-!$1120 explain select * from t3 left join t4 on t4.seq_1_id = t2.t2_id left join t1 on t1.t1_id = t4.seq_0_id left join t5 on t5.seq_0_id = t1.t1_id left join t2 on t2.t2_id = t5.seq_1_id where t3.t3_id = 23;
+--error 1120
+explain select * from t3 left join t4 on t4.seq_1_id = t2.t2_id left join t1 on t1.t1_id = t4.seq_0_id left join t5 on t5.seq_0_id = t1.t1_id left join t2 on t2.t2_id = t5.seq_1_id where t3.t3_id = 23;
 
 drop table t1,t2,t3,t4,t5;
 

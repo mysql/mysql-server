@@ -21,7 +21,8 @@ check table t1 changed;
 check table t1 medium;
 check table t1 extended;
 show index from t1;
-!$1062 insert into t1 values (5,5,5);
+--error 1062
+insert into t1 values (5,5,5);
 optimize table t1;
 optimize table t1;
 drop table t1;

@@ -7,11 +7,6 @@ otto
 select otto from (select 1 as otto) as t1;
 otto
 1
-select otto from (select 1 as otto) as t1;
-otto
-1
-select friedrich from (select 1 as otto) as t1;
-ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select otto from (select 1 as otto) as t1;
@@ -145,7 +140,5 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 select 1064 as "after_--enable_abort_on_error" ;
 after_--enable_abort_on_error
 1064
-select 3 from t1 ;
-ERROR 42S02: Table 'test.t1' doesn't exist
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist

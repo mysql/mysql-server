@@ -75,6 +75,7 @@ public:
     field_count=item_list->elements;
     return 0;
   }
+  virtual bool flush();
   virtual void prepare_for_resend()=0;
 
   virtual bool store_null()=0;
