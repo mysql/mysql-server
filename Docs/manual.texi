@@ -9934,7 +9934,9 @@ Error in accept: Protocol error
 @end example
 
 You might try starting the server with the @code{--set-variable back_log=50}
-option as a workaround for this. @xref{Command-line options}.
+option as a workaround for this. Please note that @code{--set-variable} is
+deprecated since @strong{MySQL 4.0}, just use @code{--back_log=50} instead.
+@xref{Command-line options}.
 
 If you are linking your own MySQL client, you might get the
 following error when you try to execute it:
@@ -14390,7 +14392,9 @@ Only use one thread (for debugging under Linux).  @xref{Debugging server}.
 Give a variable a value. @code{--help} lists variables.  You can find a full
 description for all variables in the @code{SHOW VARIABLES} section in this
 manual.  @xref{SHOW VARIABLES}.  The tuning server parameters section includes
-information of how to optimise these.  @xref{Server parameters}.
+information of how to optimize these. Please note that @code{--set-variable}
+is deprecated since @strong{MySQL 4.0}, just use @code{--var=option} instead.
+@xref{Server parameters}.
 
 In MySQL 4.0.2 one can set a variable directly with
 @code{--variable-name=option} and @code{set-variable} is not anymore needed
@@ -14611,7 +14615,9 @@ This is equivalent to @code{--option=value} on the command-line.
 
 @item set-variable = variable=value
 This is equivalent to @code{--set-variable variable=value} on the command-line.
-This syntax must be used to set a @code{mysqld} variable.
+This syntax must be used to set a @code{mysqld} variable. Please note that
+@code{--set-variable} is deprecated since @strong{MySQL 4.0}, just use
+@code{--variable=value} instead.
 @end table
 
 The @code{client} group allows you to specify options that apply to all
@@ -18164,8 +18170,10 @@ Output debug log. The @code{debug_options} string often is
 @item -? or --help
 Display a help message and exit.
 @item -O var=option, --set-variable var=option
-Set the value of a variable.  The possible variables and their default values
-for myisamchk can be examined with @code{myisamchk --help}:
+Set the value of a variable. Please note that @code{--set-variable} is
+deprecated since @strong{MySQL 4.0}, just use @code{--var=option} instead.
+The possible variables and their default values for myisamchk can be examined
+with @code{myisamchk --help}:
 @multitable @columnfractions .20 .10
 @item @strong{Variable} @tab @strong{Value}
 @item key_buffer_size @tab 523264
@@ -22104,6 +22112,8 @@ Don't write column names in results.
 @cindex @code{set-variable}, @code{mysql} option
 @item -O, --set-variable var=option
 Give a variable a value. @code{--help} lists variables.
+Please note that @code{--set-variable} is deprecated since
+@strong{MySQL 4.0}, just use @code{--var=option} instead.
 
 @cindex @code{one-database}, @code{mysql} option
 @item -o, --one-database
@@ -22181,7 +22191,8 @@ Wait and retry if connection is down instead of aborting.
 @end table
 
 You can also set the following variables with @code{-O} or
-@code{--set-variable}:
+@code{--set-variable}; please note that @code{--set-variable} is
+deprecated since @strong{MySQL 4.0}, just use @code{--var=option} instead:
 
 @cindex timeout, @code{connect_timeout} variable
 @cindex @code{connect_timeout} variable
@@ -22874,6 +22885,8 @@ The MySQL user name to use when connecting to the server. The
 default value is your Unix login name.
 @item -O var=option, --set-variable var=option
 Set the value of a variable.  The possible variables are listed below.
+Please note that @code{--set-variable} is deprecated since
+@strong{MySQL 4.0}, just use @code{--var=option} instead.
 @item -v, --verbose
 Verbose mode.  Print out more information on what the program does.
 @item -V, --version
@@ -27395,6 +27408,9 @@ tmp_table_size           current value: 1048576
 thread_stack             current value: 131072
 wait_timeout             current value: 28800
 @end example
+
+Please note that @code{--set-variable} is deprecated since
+@strong{MySQL 4.0}, just use @code{--var=option} instead.
 
 If there is a @code{mysqld} server currently running, you can see what
 values it actually is using for the variables by executing this command:
@@ -45679,7 +45695,7 @@ will be active.
 static char *server_args[] = @{
   "this_program",       /* this string is not used */
   "--datadir=.",
-  "--set-variable=key_buffer_size=32M"
+  "--key_buffer_size=32M"
 @};
 static char *server_groups[] = @{
   "embedded",
@@ -47995,6 +48011,8 @@ use big packets so that you run out of memory.
 
 If you are using the @code{mysql} client, you may specify a bigger
 buffer by starting the client with @code{mysql --set-variable=max_allowed_packet=8M}.  Other clients have different methods to set this variable.
+Please note that @code{--set-variable} is deprecated since
+@strong{MySQL 4.0}, just use @code{--max-allowed-packet=8M} instead.
 
 You can use the option file to set @code{max_allowed_packet} to a larger
 size in @code{mysqld}.  For example, if you are expecting to store the
