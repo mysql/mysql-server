@@ -33,6 +33,7 @@
 #include "md5.h"
 #include "sha1.h"
 #include "my_aes.h"
+#include "../mysys/my_static.h"			// For soundex_map
 
 String empty_string("",default_charset_info);
 
@@ -1496,15 +1497,11 @@ void Item_func_soundex::fix_length_and_dec()
 }
 
 
-  /*
-    If alpha, map input letter to soundex code.
-    If not alpha and remove_garbage is set then skip to next char
-    else return 0
-    */
-
-extern "C" {
-extern const char *soundex_map;		// In mysys/static.c
-}
+/*
+  If alpha, map input letter to soundex code.
+  If not alpha and remove_garbage is set then skip to next char
+  else return 0
+*/
 
 static char get_scode(CHARSET_INFO *cs,char *ptr)
 {

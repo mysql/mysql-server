@@ -41,7 +41,6 @@ static const char *lock_descriptions[] =
   "High priority write lock",
   "Highest priority write lock"
 };
-extern HASH open_cache;
 
 
 #ifndef DBUG_OFF
@@ -65,7 +64,6 @@ print_where(COND *cond,const char *info)
 }
 	/* This is for debugging purposes */
 
-extern TABLE *unused_tables;
 
 void print_cached_tables(void)
 {
