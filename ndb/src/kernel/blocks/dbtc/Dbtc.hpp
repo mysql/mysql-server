@@ -192,7 +192,8 @@ public:
     OS_WAIT_ATTR = 14,
     OS_WAIT_COMMIT_CONF = 15,
     OS_WAIT_ABORT_CONF = 16,
-    OS_WAIT_COMPLETE_CONF = 17
+    OS_WAIT_COMPLETE_CONF = 17,
+    OS_WAIT_SCAN = 18
   };
 
   enum AbortState {
@@ -1169,6 +1170,8 @@ public:
     // Length of expected attribute information
     Uint32 scanAiLength;
 
+    Uint32 scanKeyLen;
+
     // Reference to ApiConnectRecord
     Uint32 scanApiRec;
 
@@ -1571,7 +1574,7 @@ private:
   void diFcountReqLab(Signal* signal, ScanRecordPtr);
   void signalErrorRefuseLab(Signal* signal);
   void abort080Lab(Signal* signal);
-  void packKeyData000Lab(Signal* signal, BlockReference TBRef);
+  void packKeyData000Lab(Signal* signal, BlockReference TBRef, Uint32 len);
   void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode);
   void sendAbortedAfterTimeout(Signal* signal, int Tcheck);
   void abort010Lab(Signal* signal);

@@ -2248,7 +2248,7 @@ private:
   void sendAttrinfoLoop(Signal* signal);
   void sendAttrinfoSignal(Signal* signal);
   void sendLqhAttrinfoSignal(Signal* signal);
-  void sendKeyinfoAcc(Signal* signal);
+  void sendKeyinfoAcc(Signal* signal, Uint32 pos);
   Uint32 initScanrec(const class ScanFragReq *);
   void initScanTc(Signal* signal,
                   Uint32 transid1,

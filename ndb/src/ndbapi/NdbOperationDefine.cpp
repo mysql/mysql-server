@@ -334,10 +334,6 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
   if ((tAttrInfo != NULL) &&
       (!tAttrInfo->m_indexOnly) && 
       (theStatus != Init)){
-    if (theStatus == SetBound) {
-      ((NdbIndexScanOperation*)this)->saveBoundATTRINFO();
-      theStatus = GetValue;
-    }
     if (theStatus != GetValue) {
       if (theInterpretIndicator == 1) {
 	if (theStatus == FinalGetValue) {
