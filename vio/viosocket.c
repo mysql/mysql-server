@@ -203,9 +203,11 @@ int vio_close(Vio * vio)
 #endif
     r=CloseHandle(vio->hPipe);
   }
-  else if (vio->type != VIO_CLOSED)
+  else
 #endif /* __WIN__ */
+ if (vio->type != VIO_CLOSED)
   {
+    DBUG_ASSERT(vio->sd >= 0);
     if (shutdown(vio->sd,2))
       r= -1;
     if (closesocket(vio->sd))

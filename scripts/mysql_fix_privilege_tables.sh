@@ -17,7 +17,23 @@ bindir=""
 
 file=mysql_fix_privilege_tables.sql
 
+# The following test is to make this script compatible with the 4.0 where
+# the single argument could be a password
+if test "$#" = 1
+then
+  case "$1" in
+  --*) ;;
+  *) old_style_password="$1" ; shift ;;
+  esac
+fi
+
 # The following code is almost identical to the code in mysql_install_db.sh
+
+case "$1" in
+    --no-defaults|--defaults-file=*|--defaults-extra-file=*)
+      defaults="$1"; shift
+      ;;
+esac
 
 parse_arguments() {
   # We only need to pass arguments through to the server if we don't
@@ -36,7 +52,7 @@ parse_arguments() {
       --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --password=*) password=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --host=*) host=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
-      --sql|--sql-only) sql_only=1;;
+      --sql|--sql-only) sql_only=1 ;;
       --verbose) verbose=1 ;;
       --port=*) port=`echo "$arg" | sed -e "s;--port=;;"` ;;
       --socket=*) socket=`echo "$arg" | sed -e "s;--socket=;;"` ;;
@@ -47,7 +63,7 @@ parse_arguments() {
         then
           # This sed command makes sure that any special chars are quoted,
           # so the arg gets passed exactly to the server.
-          args="$args "`echo "$arg" | sed -e 's,\([^a-zA-Z0-9_.-]\),\\\\\1,g'`
+          args="$args "`echo "$arg" | sed -e 's,\([^=a-zA-Z0-9_.-]\),\\\\\1,g'`
         fi
         ;;
     esac
@@ -94,11 +110,9 @@ else
   fi
 fi
 
-# The following test is to make this script compatible with the 4.0 where
-# the first argument was the password
 if test -z "$password"
 then
-  password=`echo $args | sed -e 's/ *//g'`
+  password=$old_style_password
 fi
 
 cmd="$bindir/mysql -f --user=$user --host=$host"
@@ -145,11 +159,11 @@ s_echo()
    fi
 }
 
-s_echo "This scripts updates all the mysql privilege tables to be usable by"
+s_echo "This script updates all the mysql privilege tables to be usable by"
 s_echo "MySQL 4.0 and above."
 s_echo ""
 s_echo "This is needed if you want to use the new GRANT functions,"
-s_echo "CREATE AGGREGATE FUNCTION or want to use the more secure passwords in 4.1"
+s_echo "CREATE AGGREGATE FUNCTION, or the more secure passwords in 4.1"
 s_echo ""
 
 if test $verbose = 1
