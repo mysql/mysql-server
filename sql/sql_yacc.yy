@@ -4150,7 +4150,7 @@ optional_order_or_limit:
 
 union_option:
 	/* empty */ {}
-	| ALL {Lex->union_option=1;};
+	| ALL {Select->master_unit()->union_option= 1;};
 
 singleval_subselect:
 	subselect_start singleval_subselect_init
