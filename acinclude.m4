@@ -652,21 +652,21 @@ if test -r /proc/cpuinfo ; then
   cpu_vendor=`$cpuinfo | grep 'vendor_id' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
 fi 
 if test "$cpu_vendor" = "AuthenticAMD"; then
-    if test $cpu_family>=6; then
+    if test $cpu_family -ge 6; then
       cpu_set="athlon pentiumpro k5 pentium i486 i386";
-    elif test $cpu_family=5; then
+    elif test $cpu_family -eq 5; then
       cpu_set="k5 pentium i486 i386";
-    elif test $cpu_family=4; then
+    elif test $cpu_family -eq 4; then
       cpu_set="i486 i386"
     else
       cpu_set="i386"
     fi
 elif test "$cpu_vendor" = "GenuineIntel"; then
-    if test $cpu_family>=6; then
+    if test $cpu_family -ge 6; then
       cpu_set="pentiumpro pentium i486 i386";
-    elif test $cpu_family=5; then
+    elif test $cpu_family -eq 5; then
       cpu_set="pentium i486 i386";
-    elif test $cpu_family=4; then
+    elif test $cpu_family -eq 4; then
       cpu_set="i486 i386"
     else
       cpu_set="i386"
