@@ -185,7 +185,8 @@ dyn_array_open(
 /*===========*/
 				/* out: pointer to the buffer */
 	dyn_array_t*	arr,	/* in: dynamic array */
-	ulint		size)	/* in: size in bytes of the buffer */
+	ulint		size)	/* in: size in bytes of the buffer; MUST be
+				smaller than DYN_ARRAY_DATA_SIZE! */
 {
 	dyn_block_t*	block;
 	ulint		used;
@@ -207,6 +208,7 @@ dyn_array_open(
 		if (used + size > DYN_ARRAY_DATA_SIZE) {
 			block = dyn_array_add_block(arr);
 			used = block->used;
+			ut_a(size <= DYN_ARRAY_DATA_SIZE);
 		}
 	}
 

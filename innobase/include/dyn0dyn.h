@@ -17,7 +17,7 @@ typedef struct dyn_block_struct		dyn_block_t;
 typedef dyn_block_t			dyn_array_t;
 
 
-/* Initial 'payload' size in bytes in a dynamic array block */
+/* This must be > MLOG_BUF_MARGIN + 30 */
 #define	DYN_ARRAY_DATA_SIZE	512
 
 /*************************************************************************
