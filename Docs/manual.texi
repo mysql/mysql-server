@@ -36607,7 +36607,7 @@ deleted due to duplication of unique key values.
 The @code{FOREIGN KEY}, @code{CHECK}, and @code{REFERENCES} clauses don't
 actually do anything, except for InnoDB type tables which support
 @code{ADD CONSTRAINT FOREIGN KEY (...) REFERENCES ... (...)}.
-Note that InnoDB does not allow a constraint @code{symbol} or @code{index_name}
+Note that InnoDB does not allow an @code{index_name}
 to be specified. @xref{InnoDB}.
 The syntax for other table types is provided only for compatibility,
 to make it easier to port code from other SQL servers and to run applications
