@@ -1001,6 +1001,8 @@ sync_thread_add_level(
 		     && !sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
 		     && !sync_thread_levels_contain(array,
 						SYNC_IBUF_PESS_INSERT_MUTEX));
+	} else if (level == SYNC_DICT_AUTOINC_MUTEX) {
+		ut_a(sync_thread_levels_g(array, SYNC_DICT_AUTOINC_MUTEX));
 	} else if (level == SYNC_DICT_HEADER) {
 		ut_a(sync_thread_levels_g(array, SYNC_DICT_HEADER));
 	} else if (level == SYNC_PURGE_IS_RUNNING) {

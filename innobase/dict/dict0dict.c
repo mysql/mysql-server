@@ -236,6 +236,71 @@ dict_table_get_index_noninline(
 }
 	
 /************************************************************************
+Initializes the autoinc counter. It is not an error to initialize already
+initialized counter. */
+
+void
+dict_table_autoinc_initialize(
+/*==========================*/
+	dict_table_t*	table,	/* in: table */
+	ib_longlong	value)	/* in: value which was assigned to a row */
+{
+	mutex_enter(&(table->autoinc_mutex));
+
+	table->autoinc_inited = TRUE;
+	table->autoinc = value;
+
+	mutex_exit(&(table->autoinc_mutex));
+}
+
+/************************************************************************
+Gets the next autoinc value, 0 if not yet initialized. */
+
+ib_longlong
+dict_table_autoinc_get(
+/*===================*/
+				/* out: value for a new row, or 0 */
+	dict_table_t*	table)	/* in: table */
+{
+	ib_longlong	value;
+
+	mutex_enter(&(table->autoinc_mutex));
+
+	if (!table->autoinc_inited) {
+
+		value = 0;
+	} else {
+		table->autoinc = table->autoinc + 1;
+		value = table->autoinc;
+	}
+	
+	mutex_exit(&(table->autoinc_mutex));
+
+	return(value);
+}
+
+/************************************************************************
+Updates the autoinc counter if the value supplied is bigger than the
+current value. If not inited, does nothing. */
+
+void
+dict_table_autoinc_update(
+/*======================*/
+	dict_table_t*	table,	/* in: table */
+	ib_longlong	value)	/* in: value which was assigned to a row */
+{
+	mutex_enter(&(table->autoinc_mutex));
+
+	if (table->autoinc_inited) {
+		if (value > table->autoinc) {
+			table->autoinc = value;
+		}
+	}	
+
+	mutex_exit(&(table->autoinc_mutex));
+}
+
+/************************************************************************
 Looks for column n in an index. */
 
 ulint
@@ -567,6 +632,8 @@ dict_table_remove_from_cache(
 
 	/* Remove table from LRU list of tables */
 	UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
+
+	mutex_free(&(table->autoinc_mutex));
 
 	size = mem_heap_get_size(table->heap);
 
