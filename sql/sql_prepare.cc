@@ -1193,7 +1193,7 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
 #ifndef EMBEDDED_LIBRARY
     setup_params= insert_params; // not fully qualified query
 #else
-    setup_params_data= setup_params_data;
+    setup_params_data= ::setup_params_data;
 #endif
 }
 
