@@ -541,3 +541,4 @@ libmysql_r/vio_priv.h
 hardcopy.0
 scripts/make_sharedlib_distribution
 sql/udf_example.so
+man/*.1
