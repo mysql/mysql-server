@@ -3630,6 +3630,12 @@ make_join_readinfo(JOIN *join, uint options)
       table->status=STATUS_NO_RECORD;
       tab->read_first_record= join_read_const;
       tab->read_record.read_record= join_no_more_records;
+      if (table->used_keys.is_set(tab->index) &&
+          !table->no_keyread)
+      {
+        table->key_read=1;
+        table->file->extra(HA_EXTRA_KEYREAD);
+      }
       break;
     case JT_EQ_REF:
       table->status=STATUS_NO_RECORD;
@@ -5951,6 +5957,12 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   }
   else
   {
+    if (!table->key_read && table->used_keys.is_set(tab->index) &&
+	!table->no_keyread)
+    {
+      table->key_read=1;
+      table->file->extra(HA_EXTRA_KEYREAD);
+    }
     if ((error=join_read_const(tab)))
     {
       tab->info="unique row not found";
@@ -9216,7 +9228,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 				       join->best_positions[i]. records_read,
 				       21));
       my_bool key_read=table->key_read;
-      if (tab->type == JT_NEXT && table->used_keys.is_set(tab->index))
+      if ((tab->type == JT_NEXT || tab->type == JT_CONST) &&
+          table->used_keys.is_set(tab->index))
 	key_read=1;
 
       if (tab->info)
