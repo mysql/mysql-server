@@ -1739,7 +1739,6 @@ srv_conc_enter_innodb(
 	trx_t*	trx)	/* in: transaction object associated with the
 			thread */
 {
-	ibool			has_slept	= FALSE;
 	srv_conc_slot_t*	slot;
 	ulint			i;
 	char                    err_buf[1000];
@@ -1758,7 +1757,7 @@ srv_conc_enter_innodb(
 
 		return;
 	}
-retry:
+
 	os_fast_mutex_lock(&srv_conc_mutex);
 
 	if (trx->declared_to_be_inside_innodb) {
@@ -1769,6 +1768,9 @@ retry:
 	        fprintf(stderr,
 "  InnoDB: Error: trying to declare trx to enter InnoDB, but\n"
 "InnoDB: it already is declared.\n%s\n", err_buf);
+		os_fast_mutex_unlock(&srv_conc_mutex);
+
+		return;
 	}
 
 	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
@@ -1781,22 +1783,6 @@ retry:
 
 		return;
 	}
-
-	/* If the transaction is not holding resources, let it sleep
-	for 100 milliseconds, and try again then */
-	
-	if (!has_slept && !trx->has_search_latch
-	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
-
-	    	has_slept = TRUE; /* We let is sleep only once to avoid
-	    			  starvation */
-
-	    	os_fast_mutex_unlock(&srv_conc_mutex);
-
-	    	os_thread_sleep(100000);
-
-		goto retry;
-	}	    	
 
 	/* Too many threads inside: put the current thread to a queue */
 
@@ -2110,7 +2096,8 @@ srv_suspend_mysql_thread(
 	os_event_t	event;
 	double		wait_time;
 	trx_t*		trx;
-	ibool		had_dict_lock	= FALSE;
+	ibool		had_dict_lock			= FALSE;
+	ibool		was_declared_inside_innodb	= FALSE;
 	
 	ut_ad(!mutex_own(&kernel_mutex));
 
@@ -2158,11 +2145,16 @@ srv_suspend_mysql_thread(
 	
 	mutex_exit(&kernel_mutex);
 
-	/* We must declare this OS thread to exit InnoDB, since a possible
-	other thread holding a lock which this thread waits for must be
-	allowed to enter, sooner or later */
+	if (trx->declared_to_be_inside_innodb) {
+
+		was_declared_inside_innodb = TRUE;
 	
-	srv_conc_force_exit_innodb(thr_get_trx(thr));
+		/* We must declare this OS thread to exit InnoDB, since a
+		possible other thread holding a lock which this thread waits
+		for must be allowed to enter, sooner or later */
+	
+		srv_conc_force_exit_innodb(trx);
+	}
 
 	/* Release possible foreign key check latch */
 	if (trx->dict_operation_lock_mode == RW_S_LATCH) {
@@ -2183,9 +2175,12 @@ srv_suspend_mysql_thread(
 		row_mysql_freeze_data_dictionary(trx);
 	}
 
-	/* Return back inside InnoDB */
+	if (was_declared_inside_innodb) {
+
+		/* Return back inside InnoDB */
 	
-	srv_conc_force_enter_innodb(thr_get_trx(thr));
+		srv_conc_force_enter_innodb(trx);
+	}
 
 	mutex_enter(&kernel_mutex);
 
