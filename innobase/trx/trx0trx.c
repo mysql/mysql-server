@@ -434,9 +434,21 @@ trx_lists_init_at_db_start(void)
 				commit or abort decision from MySQL */
 
 				if (undo->state == TRX_UNDO_PREPARED) {
-					trx->conc_state = TRX_PREPARED;
+
+					fprintf(stderr,
+"InnoDB: Transaction %lu %lu was in the XA prepared state. We change it to\n"
+"InnoDB: the 'active' state, so that InnoDB's true-and-tested crash\n"
+"InnoDB: recovery will roll it back. If mysqld refuses to start after\n"
+"InnoDB: this, you may be able to resolve the problem by moving the binlog\n"
+"InnoDB: files to a safe place, and deleting all binlog files and the binlog\n"
+"InnoDB: .index file from the datadir.\n", ut_dulint_get_high(trx->id),
+					   ut_dulint_get_low(trx->id));
+
+					/* trx->conc_state = TRX_PREPARED; */
+					trx->conc_state =
+						TRX_ACTIVE;
 				} else {
-					trx->conc_state = 
+					trx->conc_state =
 						TRX_COMMITTED_IN_MEMORY;
 				}
 
@@ -490,11 +502,23 @@ trx_lists_init_at_db_start(void)
 					commit or abort decision from MySQL */
 
 					if (undo->state == TRX_UNDO_PREPARED) {
-						trx->conc_state =
-							TRX_PREPARED;
+
+					fprintf(stderr,
+"InnoDB: Transaction %lu %lu was in the XA prepared state. We change it to\n"
+"InnoDB: the 'active' state, so that InnoDB's true-and-tested crash\n"
+"InnoDB: recovery will roll it back. If mysqld refuses to start after\n"
+"InnoDB: this, you may be able to resolve the problem by moving the binlog\n"
+"InnoDB: files to a safe place, and deleting all binlog files and the binlog\n"
+"InnoDB: .index file from the datadir.\n", ut_dulint_get_high(trx->id),
+					   ut_dulint_get_low(trx->id));
+
+					/* trx->conc_state = TRX_PREPARED; */
+					trx->conc_state =
+						TRX_ACTIVE;
+
 					} else {
 						trx->conc_state =
-							TRX_COMMITTED_IN_MEMORY;
+						  TRX_COMMITTED_IN_MEMORY;
 					}
 
 					/* We give a dummy value for the trx
