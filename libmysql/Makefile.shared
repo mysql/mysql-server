@@ -42,7 +42,7 @@ mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 			bchange.lo bmove.lo bmove_upp.lo longlong2str.lo \
 			strtoull.lo strtoll.lo llstr.lo \
 			ctype.lo $(LTCHARSET_OBJS)
-mystringsextra= 	strto.c ctype_autoconf.c
+mystringsextra= 	strto.c
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo
 mysysheaders =		mysys_priv.h my_static.h
 mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
@@ -75,19 +75,15 @@ DEFS =			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
 
 # The automatic dependencies miss this
 bmove_upp.lo:		$(LTCHARSET_OBJS)
-ctype.lo:		ctype_extra_sources.c
 
 clean-local:
 	rm -f `echo $(mystringsobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(dbugobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(mysysobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(vio_objects) | sed "s;\.lo;.c;g"` \
-	       $(mystringsextra) $(mysysheaders) ctype_extra_sources.c \
+	       $(mystringsextra) $(mysysheaders) \
 	       ../linked_client_sources
 
-ctype_extra_sources.c: conf_to_src
-	./conf_to_src $(top_srcdir) @CHARSETS_NEED_SOURCE@ > \
-	              $(srcdir)/ctype_extra_sources.c
 conf_to_src_SOURCES = conf_to_src.c
 conf_to_src_LDADD=
 #force static linking of conf_to_src - essential when linking against
