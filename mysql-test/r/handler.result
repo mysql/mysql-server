@@ -203,3 +203,247 @@ handler t1 read a=(1) where b=1;
 a	b
 handler t1 close;
 drop table t1;
+drop database if exists test_test;
+create database test_test;
+use test_test;
+create table t1(table_id char(20) primary key);
+insert into t1 values ('test_test.t1');
+insert into t1 values ('');
+handler t1 open;
+handler t1 read first limit 9;
+table_id
+test_test.t1
+
+create table t2(table_id char(20) primary key);
+insert into t2 values ('test_test.t2');
+insert into t2 values ('');
+handler t2 open;
+handler t2 read first limit 9;
+table_id
+test_test.t2
+
+use test;
+drop table if exists t1;
+create table t1(table_id char(20) primary key);
+insert into t1 values ('test.t1');
+insert into t1 values ('');
+handler t1 open;
+Not unique table/alias: 't1'
+use test;
+handler test.t1 read first limit 9;
+Unknown table 'test.t1' in HANDLER
+handler test_test.t1 read first limit 9;
+table_id
+test_test.t1
+
+handler t1 read first limit 9;
+table_id
+test_test.t1
+
+handler test_test.t2 read first limit 9;
+table_id
+test_test.t2
+
+handler t2 read first limit 9;
+table_id
+test_test.t2
+
+handler test_test.t1 close;
+handler t1 close;
+Unknown table 't1' in HANDLER
+drop table test_test.t1;
+handler test_test.t2 close;
+handler t2 close;
+Unknown table 't2' in HANDLER
+drop table test_test.t2;
+drop database test_test;
+use test;
+handler test.t1 close;
+Unknown table 'test.t1' in HANDLER
+handler t1 close;
+Unknown table 't1' in HANDLER
+drop table test.t1;
+drop database if exists test_test;
+drop table if exists t1;
+drop table if exists t2;
+drop table if exists t3;
+create database test_test;
+use test_test;
+create table t1 (c1 char(20));
+insert into t1 values ('test_test.t1');
+create table t3 (c1 char(20));
+insert into t3 values ('test_test.t3');
+handler t1 open;
+handler t1 read first limit 9;
+c1
+test_test.t1
+handler t1 open h1;
+handler h1 read first limit 9;
+c1
+test_test.t1
+use test;
+create table t1 (c1 char(20));
+create table t2 (c1 char(20));
+create table t3 (c1 char(20));
+insert into t1 values ('t1');
+insert into t2 values ('t2');
+insert into t3 values ('t3');
+handler t1 open;
+Not unique table/alias: 't1'
+handler t2 open t1;
+Not unique table/alias: 't1'
+handler t3 open t1;
+Not unique table/alias: 't1'
+handler t1 read first limit 9;
+c1
+test_test.t1
+handler test.t1 close;
+Unknown table 'test.t1' in HANDLER
+handler test.t1 open h1;
+Not unique table/alias: 'h1'
+handler test_test.t1 open h1;
+Not unique table/alias: 'h1'
+handler test_test.t3 open h3;
+handler test.t1 open h2;
+handler t1 read first limit 9;
+c1
+test_test.t1
+handler h1 read first limit 9;
+c1
+test_test.t1
+handler h2 read first limit 9;
+c1
+t1
+handler h3 read first limit 9;
+c1
+test_test.t3
+handler test.h2 read first limit 9;
+c1
+t1
+handler test.h1 close;
+Unknown table 'test.h1' in HANDLER
+handler test_test.t1 close;
+handler test_test.h1 close;
+handler h2 close;
+handler t1 read first limit 9;
+Unknown table 't1' in HANDLER
+handler h1 read first limit 9;
+Unknown table 'h1' in HANDLER
+handler h2 read first limit 9;
+Unknown table 'h2' in HANDLER
+handler h3 read first limit 9;
+c1
+test_test.t3
+handler test_test.h3 read first limit 9;
+c1
+test_test.t3
+use test_test;
+handler h3 read first limit 9;
+c1
+test_test.t3
+handler test.h3 read first limit 9;
+Unknown table 'test.h3' in HANDLER
+handler test_test.h3 close;
+use test;
+drop table t3;
+drop table t2;
+drop table t1;
+drop database test_test;
+create table t1 (c1 char(20));
+insert into t1 values ("t1");
+handler t1 open as h1;
+handler h1 read first limit 9;
+c1
+t1
+create table t2 (c1 char(20));
+insert into t2 values ("t2");
+handler t2 open as h2;
+handler h2 read first limit 9;
+c1
+t2
+create table t3 (c1 char(20));
+insert into t3 values ("t3");
+handler t3 open as h3;
+handler h3 read first limit 9;
+c1
+t3
+create table t4 (c1 char(20));
+insert into t4 values ("t4");
+handler t4 open as h4;
+handler h4 read first limit 9;
+c1
+t4
+create table t5 (c1 char(20));
+insert into t5 values ("t5");
+handler t5 open as h5;
+handler h5 read first limit 9;
+c1
+t5
+alter table t1 engine=MyISAM;
+handler h1 read first limit 9;
+Unknown table 'h1' in HANDLER
+handler h2 read first limit 9;
+c1
+t2
+handler h3 read first limit 9;
+c1
+t3
+handler h4 read first limit 9;
+c1
+t4
+handler h5 read first limit 9;
+c1
+t5
+alter table t5 engine=MyISAM;
+handler h1 read first limit 9;
+Unknown table 'h1' in HANDLER
+handler h2 read first limit 9;
+c1
+t2
+handler h3 read first limit 9;
+c1
+t3
+handler h4 read first limit 9;
+c1
+t4
+handler h5 read first limit 9;
+Unknown table 'h5' in HANDLER
+alter table t3 engine=MyISAM;
+handler h1 read first limit 9;
+Unknown table 'h1' in HANDLER
+handler h2 read first limit 9;
+c1
+t2
+handler h3 read first limit 9;
+Unknown table 'h3' in HANDLER
+handler h4 read first limit 9;
+c1
+t4
+handler h5 read first limit 9;
+Unknown table 'h5' in HANDLER
+handler h2 close;
+handler h4 close;
+handler t1 open as h1_1;
+handler t1 open as h1_2;
+handler t1 open as h1_3;
+handler h1_1 read first limit 9;
+c1
+t1
+handler h1_2 read first limit 9;
+c1
+t1
+handler h1_3 read first limit 9;
+c1
+t1
+alter table t1 engine=MyISAM;
+handler h1_1 read first limit 9;
+Unknown table 'h1_1' in HANDLER
+handler h1_2 read first limit 9;
+Unknown table 'h1_2' in HANDLER
+handler h1_3 read first limit 9;
+Unknown table 'h1_3' in HANDLER
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+drop table t5;
