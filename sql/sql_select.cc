@@ -444,7 +444,7 @@ JOIN::optimize()
       best_read > (double) thd->variables.max_join_size &&
       !(select_options & SELECT_DESCRIBE))
   {						/* purecov: inspected */
-    result->send_error(ER_TOO_BIG_SELECT,ER(ER_TOO_BIG_SELECT)); /* purecov: inspected */
+    my_message(ER_TOO_BIG_SELECT, ER(ER_TOO_BIG_SELECT), MYF(0));
     error= 1;					/* purecov: inspected */
     DBUG_RETURN(-1);
   }
@@ -670,10 +670,7 @@ JOIN::exec()
       if (!having || having->val_int())
       {
 	if (do_send_rows && result->send_data(fields_list))
-	{
-	  result->send_error(0,NullS);          /* purecov: inspected */
 	  error= 1;
-	}
 	else
 	  error= (int) result->send_eof();
       }
@@ -1092,12 +1089,13 @@ err:
     thd->limit_found_rows = join->send_records;
     thd->examined_row_count = join->examined_rows;
     thd->proc_info="end";
-    int error= (fake_select_lex?0:join->cleanup(thd)) || thd->net.report_error;
+    int error= (fake_select_lex?join->error:join->cleanup(thd)) || 
+      thd->net.report_error;
     delete join;
     DBUG_RETURN(error);
   }
   else
-    DBUG_RETURN(0);
+    DBUG_RETURN(join->error);
 }
 
 /*****************************************************************************
