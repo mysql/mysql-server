@@ -1349,8 +1349,9 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   if(tableDesc.FragmentDataLen > 0)
   {
     int i;
-    Uint32 fragCount = tableDesc.FragmentData[0];
-    Uint32 replicaCount = tableDesc.FragmentData[1];
+    Uint32 replicaCount = tableDesc.FragmentData[0];
+    Uint32 fragCount = tableDesc.FragmentData[1];
+
     impl->m_replicaCount = replicaCount;
     impl->m_fragmentCount = fragCount;
 
@@ -1359,9 +1360,6 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       impl->m_fragments.push_back(tableDesc.FragmentData[i+2]);
     }
 
-    impl->m_replicaCount = replicaCount;
-    impl->m_fragmentCount = fragCount;
-    
     Uint32 topBit = (1 << 31);
     for(int i = 31; i>=0; i--){
       if((fragCount & topBit) != 0)
