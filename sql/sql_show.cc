@@ -422,7 +422,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       {
 	if (lower_case_table_names)
 	{
-	  if (wild_case_compare(system_charset_info,file->name,wild))
+	  if (wild_case_compare(files_charset_info, file->name, wild))
 	    continue;
 	}
 	else if (wild_compare(file->name,wild,0))
