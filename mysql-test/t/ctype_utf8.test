@@ -46,6 +46,15 @@ SELECT 'a\0' < 'a ';
 SELECT 'a\t' < 'a';
 SELECT 'a\t' < 'a ';
 
+#
+# The same for binary collation
+#
+SELECT 'a' = 'a ' collate utf8_bin;
+SELECT 'a\0' < 'a' collate utf8_bin;
+SELECT 'a\0' < 'a ' collate utf8_bin;
+SELECT 'a\t' < 'a' collate utf8_bin;
+SELECT 'a\t' < 'a ' collate utf8_bin;
+
 CREATE TABLE t1 (a char(10) character set utf8 not null);
 INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
 SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
@@ -189,7 +198,7 @@ drop table t2;
 
 #
 # Bug 4521: unique key prefix interacts poorly with utf8
-# Check keys with prefix compression
+# MYISAM: keys with prefix compression, case insensitive collation.
 #
 create table t1 (c varchar(30) character set utf8, unique(c(10)));
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
@@ -211,7 +220,8 @@ drop table t1;
 
 #
 # Bug 4521: unique key prefix interacts poorly with utf8
-# Check fixed length keys
+# MYISAM: fixed length keys, case insensitive collation
+#
 create table t1 (c char(3) character set utf8, unique (c(2)));
 insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
@@ -263,6 +273,105 @@ drop table t1;
 #
 # Bug 4531: unique key prefix interacts poorly with utf8
 # Check HEAP+BTREE, case insensitive collation
+#
+create table t1 (
+c char(10) character set utf8,
+unique key a using btree (c(1))
+) engine=heap;
+show create table t1;
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+--error 1062
+insert into t1 values ('aa');
+--error 1062
+insert into t1 values ('aaa');
+insert into t1 values ('б');
+--error 1062
+insert into t1 values ('бб');
+--error 1062
+insert into t1 values ('ббб');
+select c as c_all from t1 order by c;
+select c as c_a from t1 where c='a';
+select c as c_a from t1 where c='б';
+drop table t1;
+
+
+#
+# Bug 4521: unique key prefix interacts poorly with utf8
+# MYISAM: keys with prefix compression, binary collation.
+#
+create table t1 (c varchar(30) character set utf8 collate utf8_bin, unique(c(10)));
+insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
+insert into t1 values ('aaaaaaaaaa');
+--error 1062
+insert into t1 values ('aaaaaaaaaaa');
+--error 1062
+insert into t1 values ('aaaaaaaaaaaa');
+insert into t1 values (repeat('b',20));
+select c c1 from t1 where c='1';
+select c c2 from t1 where c='2';
+select c c3 from t1 where c='3';
+select c cx from t1 where c='x';
+select c cy from t1 where c='y';
+select c cz from t1 where c='z';
+select c ca10 from t1 where c='aaaaaaaaaa';
+select c cb20 from t1 where c=repeat('b',20);
+drop table t1;
+
+#
+# Bug 4521: unique key prefix interacts poorly with utf8
+# MYISAM: fixed length keys, binary collation
+#
+create table t1 (c char(3) character set utf8 collate utf8_bin, unique (c(2)));
+insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
+insert into t1 values ('a');
+insert into t1 values ('aa');
+--error 1062
+insert into t1 values ('aaa');
+insert into t1 values ('b');
+insert into t1 values ('bb');
+--error 1062
+insert into t1 values ('bbb');
+insert into t1 values ('а');
+insert into t1 values ('аа');
+--error 1062
+insert into t1 values ('ааа');
+insert into t1 values ('б');
+insert into t1 values ('бб');
+--error 1062
+insert into t1 values ('ббб');
+insert into t1 values ('ꪪ');
+insert into t1 values ('ꪪꪪ');
+--error 1062
+insert into t1 values ('ꪪꪪꪪ');
+drop table t1;
+
+#
+# Bug 4531: unique key prefix interacts poorly with utf8
+# Check HEAP+HASH, binary collation
+#
+create table t1 (
+c char(10) character set utf8 collate utf8_bin,
+unique key a using hash (c(1))
+) engine=heap;
+show create table t1;
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+--error 1062
+insert into t1 values ('aa');
+--error 1062
+insert into t1 values ('aaa');
+insert into t1 values ('б');
+--error 1062
+insert into t1 values ('бб');
+--error 1062
+insert into t1 values ('ббб');
+select c as c_all from t1 order by c;
+select c as c_a from t1 where c='a';
+select c as c_a from t1 where c='б';
+drop table t1;
+
+#
+# Bug 4531: unique key prefix interacts poorly with utf8
+# Check HEAP+BTREE, binary collation
 #
 create table t1 (
 c char(10) character set utf8 collate utf8_bin,
