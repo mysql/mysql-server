@@ -546,7 +546,7 @@ int ha_ndbcluster::get_metadata(const char *path)
 }
 
 
-int ha_ndbcluster::build_index_list(TABLE *tab, enum IBLP phase)
+int ha_ndbcluster::build_index_list(TABLE *tab, enum ILBP phase)
 {
   int error= 0;
   char *name;
