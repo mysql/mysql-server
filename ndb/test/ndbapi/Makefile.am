@@ -25,6 +25,7 @@ testOperations \
 testRestartGci \
 testScan \
 testScanInterpreter \
+testScanPerf \
 testSystemRestart \
 testTimeout \
 testTransactions \
@@ -57,8 +58,9 @@ testNodeRestart_SOURCES = testNodeRestart.cpp
 testOIBasic_SOURCES = testOIBasic.cpp
 testOperations_SOURCES = testOperations.cpp
 testRestartGci_SOURCES = testRestartGci.cpp
-testScan_SOURCES = testScan.cpp
-testScanInterpreter_SOURCES = testScanInterpreter.cpp
+testScan_SOURCES = testScan.cpp ScanFunctions.hpp
+testScanInterpreter_SOURCES = testScanInterpreter.cpp ScanFilter.hpp ScanInterpretTest.hpp 
+testScanPerf_SOURCES = testScanPerf.cpp
 testSystemRestart_SOURCES = testSystemRestart.cpp
 testTimeout_SOURCES = testTimeout.cpp
 testTransactions_SOURCES = testTransactions.cpp

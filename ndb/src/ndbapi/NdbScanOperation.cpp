@@ -470,11 +470,6 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
   if(DEBUG_NEXT_RESULT)
     ndbout_c("nextResult(%d) idx=%d last=%d", fetchAllowed, idx, last);
   
-  if(DEBUG_NEXT_RESULT) 
-    ndbout_c("nextResult(%d) idx=%d last=%d",
-	     fetchAllowed, 
-	     idx, last);
-
   /**
    * Check next buckets
    */

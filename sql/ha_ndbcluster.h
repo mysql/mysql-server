@@ -221,6 +221,7 @@ class ha_ndbcluster: public handler
   ha_rows rows_to_insert;
   ha_rows rows_inserted;
   ha_rows bulk_insert_rows;
+  bool bulk_insert_not_flushed;
   ha_rows ops_pending;
   bool blobs_pending;
   // memory for blobs in one tuple
