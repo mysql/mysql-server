@@ -2050,7 +2050,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     }
     if (cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
 	cond_func->functype() != Item_func::LIKE_FUNC &&
-	!(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
+	!(cond_func->arguments()[1]->used_tables() & OUTER_REF_TABLE_BIT))
     {
       add_key_field(key_fields,*and_level,
 		    ((Item_field*) (cond_func->arguments()[1])->real_item())
