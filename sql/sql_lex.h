@@ -687,7 +687,6 @@ typedef struct st_lex
   List<Item_param>    param_list;
   List<LEX_STRING>    view_list; // view list (list of field names in view)
   SQL_LIST	      proc_list, auxilliary_table_list, save_list;
-  TYPELIB	      *interval;
   create_field	      *last_field;
   char		      *savepoint_name;		// Transaction savepoint id
   udf_func udf;
@@ -721,6 +720,7 @@ typedef struct st_lex
   /* special JOIN::prepare mode: changing of query is prohibited */
   bool view_prepare_mode;
   bool safe_to_cache_query;
+  bool subqueries;
   bool variables_used;
   ALTER_INFO alter_info;
   /* Prepared statements SQL syntax:*/
