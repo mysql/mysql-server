@@ -796,6 +796,8 @@ private:
   void define_scan_op(NdbIndexScanOperation*);
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+
 inline
 Uint32
 NdbTransaction::get_send_size()
@@ -1033,5 +1035,7 @@ NdbTransaction::ptr2int(){
 }
 
 typedef NdbTransaction NdbConnection;
+
+#endif // ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 
 #endif
