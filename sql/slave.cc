@@ -1086,11 +1086,12 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
       BINLOG_FORMAT_323_GEQ_57 ;
     break;
   case '4':
-  case '5':
     mi->old_format = BINLOG_FORMAT_CURRENT;
     break;
   default:
-    errmsg = "Master reported unrecognized MySQL version";
+    /* 5.0 is not supported */
+    errmsg = "Master reported an unrecognized MySQL version. Note that 4.0 \
+slaves can't replicate a 5.0 or newer master.";
     break;
   }
 
@@ -3165,6 +3166,8 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
 		  RPL_LOG_NAME, llstr(rli->group_master_log_pos,llbuff));
 
  err:
+  /* Free temporary tables etc */
+  thd->cleanup();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query = thd->db = 0; // extra safety
   VOID(pthread_mutex_unlock(&LOCK_thread_count));

@@ -220,6 +220,44 @@ ERROR 23000: Column 'k1' cannot be null
 insert into t1 values (NULL, NULL);
 ERROR 23000: Column 'k1' cannot be null
 drop table t1;
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+create table if not exists t1 select 1,2,3,4;
+Column count doesn't match value count at row 1
+create table if not exists t1 select 1;
+select * from t1;
+1	2	3
+1	2	3
+0	1	2
+0	0	1
+drop table t1;
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+create table if not exists t1 select 1,2,3,4;
+Column count doesn't match value count at row 1
+create table if not exists t1 select 1;
+select * from t1;
+1	2	3
+1	2	3
+0	1	2
+0	0	1
+drop table t1;
+create table t1 (a int not null, b int, primary key (a));
+insert into t1 values (1,1);
+create table if not exists t1 select 2;
+select * from t1;
+a	b
+1	1
+0	2
+create table if not exists t1 select 3 as 'a',4 as 'b';
+create table if not exists t1 select 3 as 'a',3 as 'b';
+Duplicate entry '3' for key 1
+select * from t1;
+a	b
+1	1
+0	2
+3	4
+drop table t1;
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t1,t2;

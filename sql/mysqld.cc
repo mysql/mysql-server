@@ -3453,10 +3453,10 @@ error:
   Handle start options
 ******************************************************************************/
 
-enum options
+enum options_mysqld
 {
-  OPT_ISAM_LOG=256,            OPT_SKIP_NEW,
-  OPT_SKIP_GRANT,              OPT_SKIP_LOCK,
+  OPT_ISAM_LOG=256,            OPT_SKIP_NEW, 
+  OPT_SKIP_GRANT,              OPT_SKIP_LOCK, 
   OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
   OPT_SOCKET,                  OPT_UPDATE_LOG,
   OPT_BIN_LOG,                 OPT_SKIP_RESOLVE,

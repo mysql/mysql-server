@@ -60,9 +60,10 @@ typedef my_bool ALARM;
 #define thr_end_alarm(A)
 #define thr_alarm(A,B,C) ((*(A)=1)-1)
 /* The following should maybe be (*(A)) */
-#define thr_got_alarm(A) 0 
+#define thr_got_alarm(A) 0
 #define init_thr_alarm(A)
 #define thr_alarm_kill(A)
+#define resize_thr_alarm(N)
 #define end_thr_alarm()
 
 #else
@@ -100,6 +101,7 @@ typedef struct st_alarm {
 #define thr_alarm_init(A) (*(A))=0
 #define thr_alarm_in_use(A) (*(A)!= 0)
 void init_thr_alarm(uint max_alarm);
+void resize_thr_alarm(uint max_alarms);
 my_bool thr_alarm(thr_alarm_t *alarmed, uint sec, ALARM *buff);
 void thr_alarm_kill(pthread_t thread_id);
 void thr_end_alarm(thr_alarm_t *alarmed);

@@ -64,7 +64,7 @@ int init_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
 
 
 /*
-  Reinitialize queue for other usage (deletes all elements)
+  Reinitialize queue for other usage
 
   SYNOPSIS
     reinit_queue()
@@ -77,8 +77,8 @@ int init_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
     first_cmp_arg	First argument to compare function
 
   NOTES
-    You can't currently resize the number of elements!  If you need this,
-    fix it :)
+    This will delete all elements from the queue.  If you don't want this,
+    use resize_queue() instead.
 
   RETURN
     0			ok
@@ -90,15 +90,46 @@ int reinit_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
 		 void *first_cmp_arg)
 {
   DBUG_ENTER("reinit_queue");
-  if (queue->max_elements < max_elements)
-    /* It's real easy to do realloc here, just don't want to bother */
-    DBUG_RETURN(my_errno=EE_OUTOFMEMORY);
-
   queue->elements=0;
   queue->compare=compare;
   queue->first_cmp_arg=first_cmp_arg;
   queue->offset_to_key=offset_to_key;
   queue->max_at_top= max_at_top ? (-1 ^ 1) : 0;
+  resize_queue(queue, max_elements);
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Resize queue
+
+  SYNOPSIS
+    resize_queue()
+    queue			Queue
+    max_elements		New max size for queue
+
+  NOTES
+    If you resize queue to be less than the elements you have in it,
+    the extra elements will be deleted
+
+  RETURN
+    0	ok
+    1	Error.  In this case the queue is unchanged
+*/
+
+int resize_queue(QUEUE *queue, uint max_elements)
+{
+  byte **new_root;
+  DBUG_ENTER("resize_queue");
+  if (queue->max_elements == max_elements)
+    DBUG_RETURN(0);
+  if ((new_root= (byte **) my_realloc((void *)queue->root,
+				      (max_elements+1)*sizeof(void*),
+				      MYF(MY_WME))) == 0)
+    DBUG_RETURN(1);
+  set_if_smaller(queue->elements, max_elements);
+  queue->max_elements= max_elements;
+  queue->root= new_root;
   DBUG_RETURN(0);
 }
 

@@ -901,7 +901,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       && find_temporary_table(thd,db,table_name))
   {
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+    {
+      create_info->table_existed= 1;		// Mark that table existed
       DBUG_RETURN(0);
+    }
     my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
     DBUG_RETURN(-1);
   }
@@ -913,14 +916,18 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     if (!access(path,F_OK))
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+      {
+	create_info->table_existed= 1;		// Mark that table existed
 	error= 0;
+      }  
       else
-	my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
+        my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto end;
     }
   }
 
   thd->proc_info="creating table";
+  create_info->table_existed= 0;		// Mark that table is created
 
   if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
     create_info->data_file_name= create_info->index_file_name= 0;
