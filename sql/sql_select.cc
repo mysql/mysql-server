@@ -5333,7 +5333,7 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
 	  Impossible range (for example lookup on NULL on not null field)
 	  Create empty result set
 	*/
-	if (!(table->record_pointers= (uchar*) my_malloc(1, MYF(MY_WME))))
+	if (!(table->record_pointers= (byte*) my_malloc(1, MYF(MY_WME))))
 	  goto err;
 	table->found_records= 0;
 	goto end;
