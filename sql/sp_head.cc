@@ -157,9 +157,6 @@ sp_head::execute(THD *thd)
 
   {				// Execute instructions...
     uint ip= 0;
-    my_bool nsok= thd->net.no_send_ok;
-
-    thd->net.no_send_ok= TRUE;	// Don't send_ok() during execution
 
     while (ret == 0)
     {
@@ -170,8 +167,6 @@ sp_head::execute(THD *thd)
 	break;
       ret= i->execute(thd, &ip);
     }
-
-    thd->net.no_send_ok= nsok;
   }
 
   // Don't copy back OUT values if we got an error
@@ -323,18 +318,19 @@ int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
   LEX olex;			// The other lex
+  int res;
 
   memcpy(&olex, &thd->lex, sizeof(LEX)); // Save the other lex
 
   memcpy(&thd->lex, &m_lex, sizeof(LEX)); // Use my own lex
   thd->lex.thd = thd;
 
-  mysql_execute_command(thd);
+  res= mysql_execute_command(thd);
 
   memcpy(&thd->lex, &olex, sizeof(LEX)); // Restore the other lex
 
   *nextp = m_ip+1;
-  return 0;
+  return res;
 }
 
 //
