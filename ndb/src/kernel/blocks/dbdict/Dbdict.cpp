@@ -2867,7 +2867,6 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
   if(parseRecord.errorCode != 0){
     jam();
     c_opCreateTable.release(alterTabPtr);
-    parseRecord.tablePtr.p->tabState = TableRecord::NOT_DEFINED;
     alterTableRef(signal, req, 
 		  (AlterTableRef::ErrorCode) parseRecord.errorCode, 
 		  aParseRecord);
@@ -3052,7 +3051,6 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
       if(parseRecord.errorCode != 0){
 	jam();
 	c_opCreateTable.release(alterTabPtr);
-	parseRecord.tablePtr.p->tabState = TableRecord::NOT_DEFINED;
 	alterTabRef(signal, req, 
 		    (AlterTableRef::ErrorCode) parseRecord.errorCode, 
 		    aParseRecord);
@@ -3437,7 +3435,6 @@ Dbdict::execALTER_TAB_CONF(Signal * signal){
       // Release resources
       TableRecordPtr tabPtr;
       c_tableRecordPool.getPtr(tabPtr, regAlterTabPtr->m_tablePtrI);  
-      tabPtr.p->tabState = TableRecord::NOT_DEFINED;
       releaseTableObject(tabPtr.i, false);
       c_opCreateTable.release(alterTabPtr);
       c_blockState = BS_IDLE;
@@ -3571,7 +3568,6 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
     jam();
     // Release resources
     c_tableRecordPool.getPtr(tabPtr, regAlterTabPtr->m_tablePtrI);  
-    tabPtr.p->tabState = TableRecord::NOT_DEFINED;
     releaseTableObject(tabPtr.i, false);
     c_opCreateTable.release(alterTabPtr);
     c_blockState = BS_IDLE;
@@ -4459,7 +4455,6 @@ Dbdict::createTab_dropComplete(Signal* signal,
 
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_tablePtrI);
-  tabPtr.p->tabState = TableRecord::NOT_DEFINED;
   
   releaseTableObject(tabPtr.i);
   PageRecordPtr pagePtr;
@@ -5497,6 +5492,8 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
   c_tableRecordPool.getPtr(tablePtr, tableId);
   if (removeFromHash)
     c_tableRecordHash.remove(tablePtr);
+  
+  tablePtr.p->tabState = TableRecord::NOT_DEFINED;
 
   Uint32 nextAttrRecord = tablePtr.p->firstAttribute;
   while (nextAttrRecord != RNIL) {
