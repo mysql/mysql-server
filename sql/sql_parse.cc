@@ -1992,7 +1992,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     statistic_increment(thd->status_var.com_other, &LOCK_status);
     if (check_global_access(thd, SUPER_ACL))
       break;					/* purecov: inspected */
-    mysql_print_status(thd);
+    mysql_print_status();
     mysql_log.write(thd,command,NullS);
     send_eof(thd);
     break;

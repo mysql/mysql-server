@@ -436,29 +436,24 @@ reads:          %10lu\n\n",
 }
 
 
-void mysql_print_status(THD *thd)
+void mysql_print_status()
 {
   char current_dir[FN_REFLEN];
+  STATUS_VAR tmp;
+
+  calc_sum_of_all_status(&tmp);
   printf("\nStatus information:\n\n");
   my_getwd(current_dir, sizeof(current_dir),MYF(0));
   printf("Current dir: %s\n", current_dir);
   printf("Running threads: %d  Stack size: %ld\n", thread_count,
 	 (long) thread_stack);
-  if (thd)
-    thd->proc_info="locks";
   thr_print_locks();				// Write some debug info
 #ifndef DBUG_OFF
-  if (thd)
-    thd->proc_info="table cache";
   print_cached_tables();
 #endif
   /* Print key cache status */
-  if (thd)
-    thd->proc_info="key cache";
   puts("\nKey caches:");
   process_key_caches(print_key_cache_status);
-  if (thd)
-    thd->proc_info="status";
   pthread_mutex_lock(&LOCK_status);
   printf("\nhandler status:\n\
 read_key:   %10lu\n\
@@ -468,20 +463,20 @@ read_first: %10lu\n\
 write:      %10lu\n\
 delete      %10lu\n\
 update:     %10lu\n",
-	 thd->status_var.ha_read_key_count,
-	 thd->status_var.ha_read_next_count,
-	 thd->status_var.ha_read_rnd_count,
-	 thd->status_var.ha_read_first_count,
-	 thd->status_var.ha_write_count,
-	 thd->status_var.ha_delete_count,
-	 thd->status_var.ha_update_count);
+	 tmp.ha_read_key_count,
+	 tmp.ha_read_next_count,
+	 tmp.ha_read_rnd_count,
+	 tmp.ha_read_first_count,
+	 tmp.ha_write_count,
+	 tmp.ha_delete_count,
+	 tmp.ha_update_count);
   pthread_mutex_unlock(&LOCK_status);
   printf("\nTable status:\n\
 Opened tables: %10lu\n\
 Open tables:   %10lu\n\
 Open files:    %10lu\n\
 Open streams:  %10lu\n",
-	 thd->status_var.opened_tables,
+	 tmp.opened_tables,
 	 (ulong) cached_tables(),
 	 (ulong) my_file_opened,
 	 (ulong) my_stream_opened);
@@ -499,8 +494,6 @@ Next alarm time: %lu\n",
 #endif
   display_table_locks();
   fflush(stdout);
-  if (thd)
-    thd->proc_info="malloc";
   my_checkmalloc();
   TERMINATE(stdout);				// Write malloc information
 
@@ -531,6 +524,4 @@ Estimated memory (with thread stack):    %ld\n",
 	 (long) (thread_count * thread_stack + info.hblkhd + info.arena));
 #endif
   puts("");
-  if (thd)
-    thd->proc_info=0;
 }
