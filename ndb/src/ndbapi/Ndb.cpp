@@ -22,6 +22,7 @@ Name:          Ndb.cpp
 ******************************************************************************/
 
 #include <ndb_global.h>
+#include <pthread.h>
 
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
@@ -1244,7 +1245,7 @@ Ndb::printState(const char* fmt, ...)
   NdbMutex_Lock(&print_state_mutex);
   bool dups = false;
   ndbout << buf << " ndb=" << hex << this << dec;
-#ifdef NDB_LINUX
+#ifndef NDB_WIN32
   ndbout << " thread=" << (int)pthread_self();
 #endif
   ndbout << endl;
