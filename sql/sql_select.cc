@@ -3220,7 +3220,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 
   store_key **ref_key= j->ref.key_copy;
   byte *key_buff=j->ref.key_buff, *null_ref_key= 0;
-  bool keyuse_uses_no_tables= true;
+  bool keyuse_uses_no_tables= TRUE;
   if (ftkey)
   {
     j->ref.items[0]=((Item_func*)(keyuse->val))->key_item();
@@ -3240,7 +3240,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 
       uint maybe_null= test(keyinfo->key_part[i].null_bit);
       j->ref.items[i]=keyuse->val;		// Save for cond removal
-      keyuse_uses_no_tables= keyuse_uses_no_tables & !keyuse->used_tables;
+      keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
       if (!keyuse->used_tables &&
 	  !(join->select_options & SELECT_DESCRIBE))
       {					// Compare against constant

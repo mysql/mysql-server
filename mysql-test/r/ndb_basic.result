@@ -1,5 +1,5 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
-drop database if exists test2;
+drop database if exists mysqltest;
 CREATE TABLE t1 (
 pk1 INT NOT NULL PRIMARY KEY,
 attr1 INT NOT NULL,
@@ -369,8 +369,8 @@ attr2 INT,
 attr3 VARCHAR(10)
 ) ENGINE=ndbcluster;
 INSERT INTO t1 VALUES (9410,9412, NULL, '9412'), (9411,9413, 17, '9413');
-create database test2;
-use test2;
+create database mysqltest;
+use mysqltest;
 CREATE TABLE t2 (
 a bigint unsigned NOT NULL PRIMARY KEY,
 b int unsigned not null,
@@ -388,4 +388,4 @@ select b,test.t1.attr1 from test.t1, t2 where test.t1.pk1 < a;
 b	attr1
 9413	9412
 drop table test.t1, t2;
-drop database test2;
+drop database mysqltest;
