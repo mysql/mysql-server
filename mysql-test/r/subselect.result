@@ -852,3 +852,5 @@ select @a;
 drop table t1;
 do (SELECT a from t1);
 Table 'test.t1' doesn't exist
+set @a:=(SELECT a from t1);
+Table 'test.t1' doesn't exist
