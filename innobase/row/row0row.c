@@ -386,10 +386,12 @@ row_build_row_ref(
 			dict_index_get_nth_field(clust_index, i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
-		    	if (len != UNIV_SQL_NULL
-			    && len > clust_col_prefix_len) {
+		    	if (len != UNIV_SQL_NULL) {
 
-				dfield_set_len(dfield, clust_col_prefix_len);
+				dfield_set_len(dfield,
+				  dtype_get_at_most_n_mbchars(
+					dfield_get_type(dfield),
+					clust_col_prefix_len, len, field));
 			}
 		}
 	}
@@ -471,10 +473,12 @@ row_build_row_ref_in_tuple(
 			dict_index_get_nth_field(clust_index, i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
-		    	if (len != UNIV_SQL_NULL
-			    && len > clust_col_prefix_len) {
+		    	if (len != UNIV_SQL_NULL) {
 
-				dfield_set_len(dfield, clust_col_prefix_len);
+				dfield_set_len(dfield,
+				  dtype_get_at_most_n_mbchars(
+					dfield_get_type(dfield),
+					clust_col_prefix_len, len, field));
 			}
 		}
 	}
