@@ -1482,7 +1482,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
 
-#ifdef __WIN__
+#if defined( __WIN__) || defined( __EMX__)
   // Win32 can't rename an open table, so we must close the org table!
   table_name=thd->strdup(table_name);		// must be saved
   if (close_cached_table(thd,table))

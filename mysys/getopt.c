@@ -660,8 +660,12 @@ _getopt_internal (int argc, char *const *argv, const char *optstring, const stru
   }
 }
 
+#ifdef __EMX__
+int getopt (int argc, char **argv, __const__ char *optstring)
+#else
 int
 getopt (int argc, char *const *argv, const char *optstring)
+#endif
 {
   return _getopt_internal (argc, argv, optstring,
 			   (const struct option *) 0,

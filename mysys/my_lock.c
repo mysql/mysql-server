@@ -33,8 +33,10 @@
 #include <os2emx.h>
 #endif
 
+#ifndef __EMX__
 #ifdef HAVE_FCNTL
 static struct flock lock;		/* Must be static for sun-sparc */
+#endif
 #endif
 
 	/* Lock a part of a file */

@@ -37,7 +37,7 @@
 static my_bool alarm_aborted=1;
 my_bool thr_alarm_inited=0;
 
-#if !defined(__WIN__) && !defined(__OS2__)
+#if !defined(__WIN__) && !defined(__EMX__)
 
 static pthread_mutex_t LOCK_alarm;
 static sigset_t full_signal_set;
@@ -460,42 +460,91 @@ static void *alarm_handler(void *arg __attribute__((unused)))
 **  thr_alarm for OS/2
 *****************************************************************************/
 
-#elif defined(__OS2__)
+#elif defined(__EMX__)
 
 #define INCL_BASE
 #define INCL_NOPMAPI
 #include <os2.h>
+
+static pthread_mutex_t LOCK_alarm;
+static sigset_t full_signal_set;
+static QUEUE alarm_queue;
+pthread_t alarm_thread;
+
+#ifdef USE_ALARM_THREAD
+static pthread_cond_t COND_alarm;
+static void *alarm_handler(void *arg);
+#define reschedule_alarms() pthread_cond_signal(&COND_alarm)
+#else
+#define reschedule_alarms() pthread_kill(alarm_thread,THR_SERVER_ALARM)
+#endif
+
+sig_handler process_alarm(int sig __attribute__((unused)))
+{
+  sigset_t old_mask;
+  ALARM *alarm_data;
+  DBUG_PRINT("info",("sig: %d active alarms: %d",sig,alarm_queue.elements));
+}
+
+
+/*
+** Remove another thread from the alarm
+*/
+
+void thr_alarm_kill(pthread_t thread_id)
+{
+  uint i;
+
+  pthread_mutex_lock(&LOCK_alarm);
+  for (i=0 ; i < alarm_queue.elements ; i++)
+  {
+    if (pthread_equal(((ALARM*) queue_element(&alarm_queue,i))->thread,
+		      thread_id))
+    {
+      ALARM *tmp=(ALARM*) queue_remove(&alarm_queue,i);
+      tmp->expire_time=0;
+      queue_insert(&alarm_queue,(byte*) tmp);
+      reschedule_alarms();
+      break;
+    }
+  }
+  pthread_mutex_unlock(&LOCK_alarm);
+}
 
 bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
 {
   APIRET rc;
   if (alarm_aborted)
   {
-    alrm->crono=0;
-    alrm->event=0;
+    alarm->alarmed.crono=0;
+    alarm->alarmed.event=0;
     return 1;
   }
-  if (!(rc = DosCreateEventSem(NULL,(HEV *)&alrm->event,DC_SEM_SHARED,FALSE)))
+  if (rc = DosCreateEventSem(NULL,(HEV *) &alarm->alarmed.event,
+			     DC_SEM_SHARED,FALSE))
   {
     printf("Error creating event semaphore! [%d] \n",rc);
-    alrm->crono=0;
-    alrm->event=0;
+    alarm->alarmed.crono=0;
+    alarm->alarmed.event=0;
     return 1;
   }
-  if (!(rc = DosAsyncTimer((long) sec*1000L, (HSEM) alrm->event,(HTIMER *) &alrm->crono))) {
+  if (rc = DosAsyncTimer((long) sec*1000L, (HSEM) alarm->alarmed.event,
+			 (HTIMER *) &alarm->alarmed.crono))
+  {
     printf("Error starting async timer! [%d] \n",rc);
-    DosCloseEventSem((HEV) alrm->event);
-    alrm->crono=0;
-    alrm->event=0;
+    DosCloseEventSem((HEV) alarm->alarmed.event);
+    alarm->alarmed.crono=0;
+    alarm->alarmed.event=0;
     return 1;
   } /* endif */
-
+  (*alrm)= &alarm->alarmed;
   return 1;
 }
 
 
-bool thr_got_alarm(thr_alarm_t *alrm)
+bool thr_got_alarm(thr_alarm_t *alrm_ptr)
 {
+  thr_alarm_t alrm= *alrm_ptr;
   APIRET rc;
 
   if (alrm->crono)
@@ -511,8 +560,9 @@ bool thr_got_alarm(thr_alarm_t *alrm)
 }
 
 
-void thr_end_alarm(thr_alarm_t *alrm)
+void thr_end_alarm(thr_alarm_t *alrm_ptr)
 {
+  thr_alarm_t alrm= *alrm_ptr;
   if (alrm->crono)
   {
     DosStopTimer((HTIMER) alrm->crono);
@@ -542,21 +592,35 @@ void init_thr_alarm(uint max_alarm)
 
 #else /* __WIN__ */
 
+void thr_alarm_kill(pthread_t thread_id)
+{
+  /* Can't do this yet */
+}
+
+sig_handler process_alarm(int sig __attribute__((unused)))
+{
+  /* Can't do this yet */
+}
+
+
 bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
 {
   if (alarm_aborted)
   {
-    alrm->crono=0;
+    alarm->alarmed.crono=0;
     return 1;
   }
-  if (!(alrm->crono=SetTimer((HWND) NULL,0, sec*1000,(TIMERPROC) NULL)))
+  if (!(alarm->alarmed.crono=SetTimer((HWND) NULL,0, sec*1000,
+				      (TIMERPROC) NULL)))
     return 1;
+  (*alrm)= &alarm->alarmed;
   return 0;
 }
 
 
-bool thr_got_alarm(thr_alarm_t *alrm)
+bool thr_got_alarm(thr_alarm_t *alrm_ptr)
 {
+  thr_alarm_t alrm= *alrm_ptr;
   MSG msg;
   if (alrm->crono)
   {
@@ -571,8 +635,9 @@ bool thr_got_alarm(thr_alarm_t *alrm)
 }
 
 
-void thr_end_alarm(thr_alarm_t *alrm)
+void thr_end_alarm(thr_alarm_t *alrm_ptr)
 {
+  thr_alarm_t alrm= *alrm_ptr;
   if (alrm->crono)
   {
     KillTimer(NULL, alrm->crono);
@@ -584,6 +649,13 @@ void end_thr_alarm(void)
 {
   DBUG_ENTER("end_thr_alarm");
   alarm_aborted=1;				/* No more alarms */
+  DBUG_VOID_RETURN;
+}
+
+void init_thr_alarm(uint max_alarm)
+{
+  DBUG_ENTER("init_thr_alarm");
+  alarm_aborted=0;				/* Yes, Gimmie alarms */
   DBUG_VOID_RETURN;
 }
 
@@ -634,12 +706,12 @@ static void *test_thread(void *arg)
     }
     else
     {
-      for (retry=0 ; !thr_got_alarm(got_alarm) && retry < 10 ; retry++)
+      for (retry=0 ; !thr_got_alarm(&got_alarm) && retry < 10 ; retry++)
       {
 	printf("Thread: %s  Waiting %d sec\n",my_thread_name(),wait_time);
 	select(0,(fd_set_ptr) &fd,0,0,0);
       }
-      if (!thr_got_alarm(got_alarm))
+      if (!thr_got_alarm(&got_alarm))
       {
 	printf("Thread: %s  didn't get an alarm. Aborting!\n",
 	       my_thread_name());
