@@ -1421,6 +1421,8 @@ int main(int argc, char **argv)
       return(first_error);
     }
   }
+  if(mysql_query(sock, "set sql_query_cache_type=off") && verbose)
+    fprintf(stderr, "-- can't take off query cache (not supported).\n");
   if (opt_alldbs)
     dump_all_databases();
   /* Only one database and selected table(s) */
