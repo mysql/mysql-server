@@ -737,7 +737,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  *end=0;				/* Remove '=' */
 	}
 	/* Change all '_' in variable name to '-' */
-	for (end= *option ; (end= strcend(end,'_')) ; )
+	for (end= *option ; (end= strcend(end,'_')) && *end ; )
 	  *end= '-';
 	switch (find_type(*option+2,&option_types,2)) {
 	case 1:				/* port */
