@@ -19,6 +19,7 @@
 
 EXTRA_DIST =		mysql.spec.sh \
 			my-small.cnf.sh \
+			my.cnf \
 			my-medium.cnf.sh \
 			my-large.cnf.sh \
 			my-huge.cnf.sh \

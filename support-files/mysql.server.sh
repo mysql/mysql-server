@@ -136,6 +136,9 @@ else
   esac
 fi
 
+user=@MYSQLD_USER@
+USER_OPTION="--user=$user"
+
 # Safeguard (relative paths, core dumps..)
 cd $basedir
 
@@ -147,7 +150,7 @@ case "$mode" in
     then
       # Give extra arguments to mysqlmanager with the my.cnf file. This script may
       # be overwritten at next upgrade.
-      $sbindir/mysqlmanager "--pid-file=$pid_file" --run-as-service >/dev/null 2>&1 &
+      $sbindir/mysqlmanager "--pid-file=$pid_file" $USER_OPTION --run-as-service >/dev/null 2>&1 &
       # Make lock for RedHat / SuSE
       if test -w /var/lock/subsys
       then
