@@ -19,7 +19,7 @@ To make maintaining easier please:
   <alias>csbig5</alias>
   <collation name="big5_chinese_ci"	id="1"	order="Chinese">
     <flag>primary</flag>
-    <flag>compiled"</flag>
+    <flag>compiled</flag>
   </collation>
 </charset>
 
@@ -245,7 +245,7 @@ To make maintaining easier please:
   <alias>euc-kr</alias>
   <collation name="euckr_korean_ci"	id="19"	order="Korean">
     <flag>primary</flag>
-    <flag>compiled"</flag>
+    <flag>compiled</flag>
   </collation>
 </charset>
 
@@ -285,7 +285,7 @@ To make maintaining easier please:
   <alias>iso-ir-58</alias>
   <collation name="gb2312_chinese_ci"	id="24"	order="Chinese">
     <flag>primary</flag>
-    <flag>compiled"</flag>
+    <flag>compiled</flag>
   </collation>
 </charset>
 
