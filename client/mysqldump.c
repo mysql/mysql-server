@@ -1252,7 +1252,7 @@ static int init_dumping(char *database)
         MYSQL_ROW row;
         MYSQL_RES *dbinfo;
 	
-        sprintf(qbuf,"SHOW CREATE DATABASE %s",database);
+        sprintf(qbuf,"SHOW CREATE DATABASE IF NOT EXISTS %s",database);
         
         if (mysql_query(sock, qbuf) || !(dbinfo = mysql_store_result(sock)))
         {

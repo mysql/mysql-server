@@ -2465,7 +2465,7 @@ mysql_execute_command(THD *thd)
       send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
       goto error;
     }
-    res=mysqld_show_create_db(thd,lex->name);
+    res=mysqld_show_create_db(thd,lex->name,&lex->create_info);
     break;
   }
   case SQLCOM_CREATE_FUNCTION:
