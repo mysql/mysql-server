@@ -24,8 +24,8 @@ key1	key2
 0	200
 1	199
 2	198
-4	196
 3	197
+4	196
 alter table t1 add str1 char (255) not null, 
 add zeroval int not null default 0,
 add str2 char (255) not null,
@@ -37,19 +37,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using where
 select * from t1 where key1 < 5 or key2 > 197;
 key1	key2	str1	zeroval	str2	str3
-0	200	aaa	0	bbb	200-0_a
-1	199	aaa	0	bbb	199-0_A
-2	198	aaa	0	bbb	198-1_a
-3	197	aaa	0	bbb	197-1_A
 4	196	aaa	0	bbb	196-2_a
+3	197	aaa	0	bbb	197-1_A
+2	198	aaa	0	bbb	198-1_a
+1	199	aaa	0	bbb	199-0_A
+0	200	aaa	0	bbb	200-0_a
 explain select * from t1 where key1 < 3 or key2 > 195;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using where
 select * from t1 where key1 < 3 or key2 > 195;
 key1	key2	str1	zeroval	str2	str3
-0	200	aaa	0	bbb	200-0_a
-1	199	aaa	0	bbb	199-0_A
-2	198	aaa	0	bbb	198-1_a
 4	196	aaa	0	bbb	196-2_a
 3	197	aaa	0	bbb	197-1_A
+2	198	aaa	0	bbb	198-1_a
+1	199	aaa	0	bbb	199-0_A
+0	200	aaa	0	bbb	200-0_a
 drop table t1;

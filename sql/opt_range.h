@@ -88,7 +88,7 @@ public:
   QUICK_SELECT_I();
   virtual ~QUICK_SELECT_I(){};
   virtual int  init() = 0;
-  virtual void reset(void) = 0;
+  virtual int  reset(void) = 0;
   virtual int  get_next() = 0;   /* get next record to retrieve */
   virtual bool reverse_sorted() = 0;
   virtual bool unique_key_range() { return false; }
@@ -140,7 +140,7 @@ public:
                      MEM_ROOT *parent_alloc=NULL);
   ~QUICK_RANGE_SELECT();
   
-  void reset(void) { next=0; it.rewind(); }
+  int reset(void) { next=0; it.rewind(); return 0; }
   int init();
   int get_next();
   bool reverse_sorted() { return 0; }
