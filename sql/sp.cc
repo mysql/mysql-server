@@ -230,8 +230,8 @@ db_create_routine(THD *thd, int type,
 						  (uint)strlen(creator),
 						  system_charset_info);
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_CREATED])->set_time();
-    if (suid)
-      table->field[MYSQL_PROC_FIELD_SUID]->store((longlong)suid);
+    if (!suid)
+      table->field[MYSQL_PROC_FIELD_SUID]->store((longlong) 1);
     if (comment)
       table->field[MYSQL_PROC_FIELD_COMMENT]->store(comment, commentlen,
 						    system_charset_info);
@@ -266,6 +266,182 @@ db_drop_routine(THD *thd, int type, char *name, uint namelen)
   if (opened)
     close_thread_tables(thd);
   DBUG_RETURN(ret);
+}
+
+static int
+db_update_routine(THD *thd, int type, char *name, uint namelen,
+		  char *newname, uint newnamelen,
+		  char *comment, uint commentlen, enum suid_behaviour suid)
+{
+  DBUG_ENTER("db_update_routine");
+  DBUG_PRINT("enter", ("type: %d name: %*s", type, namelen, name));
+  TABLE *table;
+  int ret;
+  bool opened;
+
+  ret= db_find_routine_aux(thd, type, name, namelen, TL_WRITE, &table, &opened);
+  if (ret == SP_OK)
+  {
+    store_record(table,record[1]);
+    ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_MODIFIED])->set_time();
+    if (suid)
+      table->field[MYSQL_PROC_FIELD_SUID]->store((longlong) suid);
+    if (newname)
+      table->field[MYSQL_PROC_FIELD_NAME]->store(newname,
+						 newnamelen,
+						 system_charset_info);
+    if (comment)
+      table->field[MYSQL_PROC_FIELD_COMMENT]->store(comment,
+						    commentlen,
+						    system_charset_info);
+    if ((table->file->update_row(table->record[1],table->record[0])))
+      ret= SP_WRITE_ROW_FAILED;
+  }
+  if (opened)
+    close_thread_tables(thd);
+  DBUG_RETURN(ret);
+}
+
+struct st_used_field
+{
+  const char *field_name;
+  uint field_length;
+  enum enum_field_types field_type;
+  Field *field;
+};
+
+static struct st_used_field init_fields[]=
+{
+  { "Name",     NAME_LEN, MYSQL_TYPE_STRING,    0},
+  { "Type",            9, MYSQL_TYPE_STRING,    0},
+  { "Creator",        77, MYSQL_TYPE_STRING,    0},
+  { "Modified",        0, MYSQL_TYPE_TIMESTAMP, 0},
+  { "Created",         0, MYSQL_TYPE_TIMESTAMP, 0},
+  { "Suid",            1, MYSQL_TYPE_STRING,    0},
+  { "Comment",  NAME_LEN, MYSQL_TYPE_STRING,    0},
+  { 0,                 0, MYSQL_TYPE_STRING,    0}
+};
+
+int print_field_values(THD *thd, TABLE *table,
+		       struct st_used_field *used_fields,
+		       int type, const char *wild)
+{
+  Protocol *protocol= thd->protocol;
+
+  if (table->field[MYSQL_PROC_FIELD_TYPE]->val_int() == type)
+  {
+    String *tmp_string= new String();
+    struct st_used_field *used_field= used_fields;
+    get_field(&thd->mem_root,
+	      used_field->field,
+	      tmp_string);
+    if (!wild || !wild[0] || !wild_compare(tmp_string->ptr(), wild, 0))
+    {
+      protocol->prepare_for_resend();
+      protocol->store(tmp_string);
+      for (used_field++;
+	   used_field->field_name;
+	   used_field++)
+      {
+	switch (used_field->field_type) {
+	case MYSQL_TYPE_TIMESTAMP:
+	{
+	  TIME tmp_time;
+	  ((Field_timestamp *) used_field->field)->get_time(&tmp_time);
+	  protocol->store(&tmp_time);
+	}
+	break;
+	default:
+	{
+	  String *tmp_string1= new String();
+	  get_field(&thd->mem_root, used_field->field, tmp_string1);
+	  protocol->store(tmp_string1);
+	}
+	break;
+	}
+      }
+      if (protocol->write())
+	return 1;
+    }
+  }
+  return 0;
+}
+
+int
+db_show_routine_status(THD *thd, int type, const char *wild)
+{
+  DBUG_ENTER("db_show_routine_status");
+
+  TABLE *table;
+  TABLE_LIST tables;
+
+  memset(&tables, 0, sizeof(tables));
+  tables.db= (char*)"mysql";
+  tables.real_name= tables.alias= (char*)"proc";
+
+  if (! (table= open_ltable(thd, &tables, TL_READ)))
+  {
+    DBUG_RETURN(1);
+  }
+  else
+  {
+    Item *item;
+    List<Item> field_list;
+    struct st_used_field *used_field;
+    st_used_field used_fields[array_elements(init_fields)];
+    memcpy((char*) used_fields, (char*) init_fields, sizeof(used_fields));
+    /* Init header */
+    for (used_field= &used_fields[0];
+	 used_field->field_name;
+	 used_field++)
+    {
+      switch (used_field->field_type) {
+      case MYSQL_TYPE_TIMESTAMP:
+	field_list.push_back(item=new Item_datetime(used_field->field_name));
+	break;
+      default:
+	field_list.push_back(item=new Item_empty_string(used_field->field_name,
+							used_field->
+							field_length));
+	break;
+      }
+    }
+    /* Print header */
+    if (thd->protocol->send_fields(&field_list,1))
+      goto err_case;
+
+    /* Init fields */
+    setup_tables(&tables);
+    for (used_field= &used_fields[0];
+	 used_field->field_name;
+	 used_field++)
+    {
+      TABLE_LIST *not_used;
+      Item_field *field= new Item_field("mysql", "proc",
+					used_field->field_name);
+      if (!(used_field->field= find_field_in_tables(thd, field, &tables, 
+						    &not_used, TRUE)))
+	goto err_case1;
+    }
+
+    table->file->index_init(0);
+    table->file->index_first(table->record[0]);
+    if (print_field_values(thd, table, used_fields, type, wild))
+      goto err_case1;
+    while (!table->file->index_next(table->record[0]))
+    {
+      if (print_field_values(thd, table, used_fields, type, wild))
+	goto err_case1;
+    }
+    send_eof(thd);
+    close_thread_tables(thd);
+    DBUG_RETURN(0);
+  }
+err_case1:
+  send_eof(thd);
+err_case:
+  close_thread_tables(thd);
+  DBUG_RETURN(1);
 }
 
 
@@ -326,6 +502,46 @@ sp_drop_procedure(THD *thd, char *name, uint namelen)
   DBUG_RETURN(ret);
 }
 
+int
+sp_update_procedure(THD *thd, char *name, uint namelen,
+		    char *newname, uint newnamelen,
+		    char *comment, uint commentlen, enum suid_behaviour suid)
+{
+  DBUG_ENTER("sp_update_procedure");
+  DBUG_PRINT("enter", ("name: %*s", namelen, name));
+  sp_head *sp;
+  int ret;
+
+  sp= sp_cache_remove(&thd->sp_proc_cache, name, namelen);
+  if (sp)
+    delete sp;
+  ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen,
+			 newname, newnamelen,
+			 comment, commentlen, suid);
+
+  DBUG_RETURN(ret);
+}
+
+int
+sp_show_create_procedure(THD *thd, LEX_STRING *name)
+{
+  DBUG_ENTER("sp_show_create_procedure");
+  DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
+  sp_head *sp;
+
+  sp= sp_find_procedure(thd, name);
+  if (sp)
+    DBUG_RETURN(sp->show_create_procedure(thd));
+
+  DBUG_RETURN(1);
+}
+
+int
+db_show_status_procedure(THD *thd, const char *wild)
+{
+  DBUG_ENTER("db_show_status_procedure");
+  DBUG_RETURN(db_show_routine_status(thd, TYPE_ENUM_PROCEDURE, wild));
+}
 
 /*
  *
@@ -379,6 +595,47 @@ sp_drop_function(THD *thd, char *name, uint namelen)
   ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name, namelen);
 
   DBUG_RETURN(ret);
+}
+
+int
+sp_update_function(THD *thd, char *name, uint namelen,
+		    char *newname, uint newnamelen,
+		    char *comment, uint commentlen, enum suid_behaviour suid)
+{
+  DBUG_ENTER("sp_update_procedure");
+  DBUG_PRINT("enter", ("name: %*s", namelen, name));
+  sp_head *sp;
+  int ret;
+
+  sp= sp_cache_remove(&thd->sp_func_cache, name, namelen);
+  if (sp)
+    delete sp;
+  ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name, namelen,
+			 newname, newnamelen,
+			 comment, commentlen, suid);
+
+  DBUG_RETURN(ret);
+}
+
+int
+sp_show_create_function(THD *thd, LEX_STRING *name)
+{
+  DBUG_ENTER("sp_show_create_function");
+  DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
+  sp_head *sp;
+
+  sp= sp_find_function(thd, name);
+  if (sp)
+    DBUG_RETURN(sp->show_create_function(thd));
+
+  DBUG_RETURN(1);
+}
+
+int
+db_show_status_function(THD *thd, const char *wild)
+{
+  DBUG_ENTER("db_show_status_function");
+  DBUG_RETURN(db_show_routine_status(thd, TYPE_ENUM_FUNCTION, wild));
 }
 
 // QQ Temporary until the function call detection in sql_lex has been reworked.

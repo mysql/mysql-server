@@ -38,6 +38,17 @@ int
 sp_drop_procedure(THD *thd, char *name, uint namelen);
 
 
+int
+sp_update_procedure(THD *thd, char *name, uint namelen,
+		    char *newname, uint newnamelen,
+		    char *comment, uint commentlen, enum suid_behaviour suid);
+
+int
+sp_show_create_procedure(THD *thd, LEX_STRING *name);
+
+int
+db_show_status_procedure(THD *thd, const char *wild);
+
 sp_head *
 sp_find_function(THD *thd, LEX_STRING *name);
 
@@ -47,6 +58,17 @@ sp_create_function(THD *thd, char *name, uint namelen, char *def, uint deflen,
 
 int
 sp_drop_function(THD *thd, char *name, uint namelen);
+
+int
+sp_update_function(THD *thd, char *name, uint namelen,
+		   char *newname, uint newnamelen,
+		   char *comment, uint commentlen, enum suid_behaviour suid);
+
+int
+sp_show_create_function(THD *thd, LEX_STRING *name);
+
+int
+db_show_status_function(THD *thd, const char *wild);
 
 // QQ Temporary until the function call detection in sql_lex has been reworked.
 bool

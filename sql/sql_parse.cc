@@ -3394,22 +3394,34 @@ mysql_execute_command(THD *thd)
   case SQLCOM_ALTER_PROCEDURE:
   case SQLCOM_ALTER_FUNCTION:
     {
-      sp_head *sp;
-
-      if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
-	sp= sp_find_procedure(thd, &lex->udf.name);
-      else
-	sp= sp_find_function(thd, &lex->udf.name);
-      if (! sp)
+      res= -1;
+      uint newname_len= 0;
+      if (lex->name)
+	newname_len= strlen(lex->name);
+      if (newname_len > NAME_LEN)
       {
-	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),lex->udf.name);
+	net_printf(thd, ER_TOO_LONG_IDENT, lex->name);
 	goto error;
       }
+      if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
+	res= sp_update_procedure(thd, lex->udf.name.str, lex->udf.name.length,
+				lex->name, newname_len, lex->comment->str,
+				lex->comment->length, lex->suid);
       else
+	res= sp_update_function(thd, lex->udf.name.str, lex->udf.name.length,
+			       lex->name, newname_len, lex->comment->str,
+			       lex->comment->length, lex->suid);
+      switch (res)
       {
-	/* QQ This is an no-op right now, since we haven't
-	      put the characteristics in yet. */
+      case SP_OK:
 	send_ok(thd);
+	break;
+      case SP_KEY_NOT_FOUND:
+	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),lex->udf.name);
+	goto error;
+      default:
+	net_printf(thd, ER_SP_CANT_ALTER, SP_COM_STRING(lex),lex->udf.name);
+	goto error;
       }
       break;
     }
@@ -3461,6 +3473,51 @@ mysql_execute_command(THD *thd)
 		   lex->udf.name.str);
 	goto error;
       }
+      break;
+    }
+  case SQLCOM_SHOW_CREATE_PROC:
+    {
+      res= -1;
+      if (lex->udf.name.length > NAME_LEN)
+      {
+	net_printf(thd, ER_TOO_LONG_IDENT, lex->udf.name.str);
+	goto error;
+      }
+      res= sp_show_create_procedure(thd, &lex->udf.name);
+      if (res == SP_KEY_NOT_FOUND)
+      {
+	net_printf(thd, ER_SP_DOES_NOT_EXIST, 
+		   SP_COM_STRING(lex), lex->udf.name.str);
+	goto error;
+      }
+      break;
+    }
+  case SQLCOM_SHOW_CREATE_FUNC:
+    {
+      if (lex->udf.name.length > NAME_LEN)
+      {
+	net_printf(thd, ER_TOO_LONG_IDENT, lex->udf.name.str);
+	goto error;
+      }
+      res= sp_show_create_function(thd, &lex->udf.name);
+      if (res == SP_KEY_NOT_FOUND)
+      {
+	net_printf(thd, ER_SP_DOES_NOT_EXIST,
+		   SP_COM_STRING(lex), lex->udf.name.str);
+	goto error;
+      }
+      break;
+    }
+  case SQLCOM_SHOW_STATUS_PROC:
+    {
+      res= db_show_status_procedure(thd, (lex->wild ?
+					  lex->wild->ptr() : NullS));
+      break;
+    }
+  case SQLCOM_SHOW_STATUS_FUNC:
+    {
+      res= db_show_status_function(thd, (lex->wild ? 
+					 lex->wild->ptr() : NullS));
       break;
     }
   default:					/* Impossible */

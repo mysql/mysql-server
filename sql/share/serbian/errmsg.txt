@@ -309,3 +309,4 @@ character-set=cp1250
 "Duplicate variable: %s"
 "Duplicate condition: %s"
 "Duplicate cursor: %s"
+"Failed to ALTER %s %s"

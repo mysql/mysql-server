@@ -131,7 +131,7 @@ sp_head::sp_head()
 }
 
 void
-sp_head::init(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid)
+sp_head::init(LEX_STRING *name, LEX *lex)
 {
   DBUG_ENTER("sp_head::init");
   const char *dstr = (const char*)lex->buf;
@@ -141,16 +141,6 @@ sp_head::init(LEX_STRING *name, LEX *lex, LEX_STRING *comment, char suid)
   m_name.str= lex->thd->strmake(name->str, name->length);
   m_defstr.length= lex->end_of_query - lex->buf;
   m_defstr.str= lex->thd->strmake(dstr, m_defstr.length);
-
-  m_comment.length= 0;
-  m_comment.str= 0;
-  if (comment)
-  {
-    m_comment.length= comment->length;
-    m_comment.str= comment->str;
-  }
-
-  m_suid= suid;
   lex->spcont= m_pcont= new sp_pcontext();
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
   DBUG_VOID_RETURN;
@@ -605,7 +595,56 @@ sp_head::backpatch(sp_label_t *lab)
     }
 }
 
+int
+sp_head::show_create_procedure(THD *thd)
+{
+  Protocol *protocol= thd->protocol;
+  char buff[2048];
+  String buffer(buff, sizeof(buff), system_charset_info);
+  int res;
+  List<Item> field_list;
 
+  DBUG_ENTER("sp_head::show_create_procedure");
+  DBUG_PRINT("info", ("procedure %s", m_name.str));
+
+  field_list.push_back(new Item_empty_string("Procedure",NAME_LEN));
+  // 1024 is for not to confuse old clients
+  field_list.push_back(new Item_empty_string("Create Procedure",
+					     max(buffer.length(),1024)));
+  if (protocol->send_fields(&field_list, 1))
+    DBUG_RETURN(1);
+  protocol->prepare_for_resend();
+  protocol->store(m_name.str, m_name.length, system_charset_info);
+  protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
+  res= protocol->write();
+  send_eof(thd);
+  DBUG_RETURN(res);
+}
+
+int
+sp_head::show_create_function(THD *thd)
+{
+  Protocol *protocol= thd->protocol;
+  char buff[2048];
+  String buffer(buff, sizeof(buff), system_charset_info);
+  int res;
+  List<Item> field_list;
+
+  DBUG_ENTER("sp_head::show_create_function");
+  DBUG_PRINT("info", ("procedure %s", m_name.str));
+
+  field_list.push_back(new Item_empty_string("Function",NAME_LEN));
+  field_list.push_back(new Item_empty_string("Create Function",
+					     max(buffer.length(),1024)));
+  if (protocol->send_fields(&field_list, 1))
+    DBUG_RETURN(1);
+  protocol->prepare_for_resend();
+  protocol->store(m_name.str, m_name.length, system_charset_info);
+  protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
+  res= protocol->write();
+  send_eof(thd);
+  DBUG_RETURN(res);
+}
 // ------------------------------------------------------------------
 
 //
