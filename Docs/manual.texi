@@ -38816,9 +38816,6 @@ Copy all the @file{.frm} files for your InnoDB tables into a
 safe place.
 @end itemize
 
-There is currently no online or incremental backup tool available for
-InnoDB, though they are in the TODO list.
-
 In addition to taking the binary backups described above,
 you should also regularly take dumps of your tables with
 @file{mysqldump}. The reason to this is that a binary file
