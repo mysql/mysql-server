@@ -20512,8 +20512,6 @@ or  INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
 or  INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
         [INTO] tbl_name
         SET col_name=expression, col_name=expression, ...
-or  INSERT [LOW_PRIORITY] [IGNORE] [INTO] tbl_name
-        SELECT ...
 
 @end example
 
