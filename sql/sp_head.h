@@ -677,7 +677,7 @@ private:
 }; // class sp_instr_hpop : public sp_instr
 
 
-class sp_instr_hreturn : public sp_instr
+class sp_instr_hreturn : public sp_instr_jump
 {
   sp_instr_hreturn(const sp_instr_hreturn &);	/* Prevent use of these */
   void operator=(sp_instr_hreturn &);
@@ -685,7 +685,7 @@ class sp_instr_hreturn : public sp_instr
 public:
 
   sp_instr_hreturn(uint ip, sp_pcontext *ctx, uint fp)
-    : sp_instr(ip, ctx), m_frame(fp)
+    : sp_instr_jump(ip, ctx), m_frame(fp)
   {}
 
   virtual ~sp_instr_hreturn()
@@ -695,11 +695,7 @@ public:
 
   virtual void print(String *str);
 
-  virtual uint opt_mark(sp_head *sp)
-  {
-    marked= 1;
-    return UINT_MAX;
-  }
+  virtual uint opt_mark(sp_head *sp);
 
 private:
 

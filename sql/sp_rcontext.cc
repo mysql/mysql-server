@@ -32,6 +32,7 @@ sp_rcontext::sp_rcontext(uint fsize, uint hmax, uint cmax)
   : m_count(0), m_fsize(fsize), m_result(NULL), m_hcount(0), m_hsp(0),
     m_hfound(-1), m_ccount(0)
 {
+  in_handler= FALSE;
   m_frame= (Item **)sql_alloc(fsize * sizeof(Item*));
   m_outs= (int *)sql_alloc(fsize * sizeof(int));
   m_handler= (sp_handler_t *)sql_alloc(hmax * sizeof(sp_handler_t));
@@ -58,6 +59,8 @@ sp_rcontext::set_item_eval(uint idx, Item *i, enum_field_types type)
 int
 sp_rcontext::find_handler(uint sql_errno)
 {
+  if (in_handler)
+    return 0;			// Already executing a handler
   if (m_hfound >= 0)
     return 1;			// Already got one
 

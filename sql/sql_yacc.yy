@@ -1599,13 +1599,17 @@ sp_decl:
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= lex->spcont;
 	    sp_label_t *hlab= lex->spcont->pop_label(); /* After this hdlr */
+	    sp_instr_hreturn *i;
 
 	    if ($2 == SP_HANDLER_CONTINUE)
-	      sp->add_instr(new sp_instr_hreturn(sp->instructions(), ctx,
-	                                         ctx->current_pvars()));
+	    {
+	      i= new sp_instr_hreturn(sp->instructions(), ctx,
+	                              ctx->current_pvars());
+	      sp->add_instr(i);
+	    }
 	    else
 	    {  /* EXIT or UNDO handler, just jump to the end of the block */
-	      sp_instr_jump *i= new sp_instr_jump(sp->instructions(), ctx);
+	      i= new sp_instr_hreturn(sp->instructions(), ctx, 0);
 
 	      sp->add_instr(i);
 	      sp->push_backpatch(i, lex->spcont->last_label()); /* Block end */
