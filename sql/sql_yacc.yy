@@ -593,7 +593,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <item>
 	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
-	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
+	table_wild no_in_expr expr_expr simple_expr no_and_expr
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init
@@ -2479,13 +2479,19 @@ simple_expr:
 	| SUBSTRING_INDEX '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_substr_index($3,$5,$7); }
 	| TRIM '(' expr ')'
-	  { $$= new Item_func_trim($3,new Item_string(" ",1,default_charset_info)); }
-	| TRIM '(' LEADING opt_pad FROM expr ')'
+	  { $$= new Item_func_trim($3); }
+	| TRIM '(' LEADING expr FROM expr ')'
 	  { $$= new Item_func_ltrim($6,$4); }
-	| TRIM '(' TRAILING opt_pad FROM expr ')'
+	| TRIM '(' TRAILING expr FROM expr ')'
 	  { $$= new Item_func_rtrim($6,$4); }
-	| TRIM '(' BOTH opt_pad FROM expr ')'
+	| TRIM '(' BOTH expr FROM expr ')'
 	  { $$= new Item_func_trim($6,$4); }
+	| TRIM '(' LEADING FROM expr ')'
+	 { $$= new Item_func_ltrim($5); }
+	| TRIM '(' TRAILING FROM expr ')'
+	  { $$= new Item_func_rtrim($5); }
+	| TRIM '(' BOTH FROM expr ')'
+	  { $$= new Item_func_trim($5); }
 	| TRIM '(' expr FROM expr ')'
 	  { $$= new Item_func_trim($5,$3); }
 	| TRUNCATE_SYM '(' expr ',' expr ')'
@@ -2706,10 +2712,6 @@ when_list2:
 	    sel->when_list.head()->push_back($3);
 	    sel->when_list.head()->push_back($5);
 	  };
-
-opt_pad:
-	/* empty */ { $$=new Item_string(" ",1,default_charset_info); }
-	| expr	    { $$=$1; };
 
 join_table_list:
 	'(' join_table_list ')'	{ $$=$2; }
