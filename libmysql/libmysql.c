@@ -316,7 +316,7 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
 			 char **arg_unix_socket)
 {
   HANDLE hPipe=INVALID_HANDLE_VALUE;
-  char szPipeName [ 257 ];
+  char szPipeName [ 1024 ];
   DWORD dwMode;
   int i;
   my_bool testing_named_pipes=0;
@@ -327,9 +327,9 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
   if (!host || !strcmp(host,LOCAL_HOST))
     host=LOCAL_HOST_NAMEDPIPE;
 
-  sprintf( szPipeName, "\\\\%s\\pipe\\%s", host, unix_socket);
-  DBUG_PRINT("info",("Server name: '%s'.  Named Pipe: %s",
-		     host, unix_socket));
+  strxnmov(szPipeName, sizeof(szPipeName), "\\\\", host, "\\pipe\\",
+                                           unix_socket, NullS);
+  DBUG_PRINT("info",("Server name: '%s'.  Named Pipe: %s", host, unix_socket));
 
   for (i=0 ; i < 100 ; i++)			/* Don't retry forever */
   {
@@ -694,7 +694,7 @@ mysql_debug(const char *debug __attribute__((unused)))
 #else
     {
       char buff[80];
-      strmov(strmov(buff,"libmysql: "),env);
+      strxnmov(buff,sizeof(buff),"libmysql: ", env);
       MessageBox((HWND) 0,"Debugging variable MYSQL_DEBUG used",buff,MB_OK);
     }
 #endif
@@ -1746,7 +1746,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 	    (unix_socket && !strcmp(unix_socket,MYSQL_NAMEDPIPE)))
 	{
 	  net->last_errno= CR_SERVER_LOST;
-	  strmov(net->last_error,ER(net->last_errno));    
+	  strmov(net->last_error,ER(net->last_errno));
 	  goto error;		/* User only requested named pipes */
 	}
 	/* Try also with TCP/IP */
@@ -1832,7 +1832,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       vio_poll_read(net->vio, mysql->options.connect_timeout))
   {
     net->last_errno= CR_SERVER_LOST;
-    strmov(net->last_error,ER(net->last_errno));    
+    strmov(net->last_error,ER(net->last_errno));
     goto error;
   }
   if ((pkt_length=net_safe_read(mysql)) == packet_error)
@@ -1984,7 +1984,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
     {
       net->last_errno= CR_SERVER_LOST;
-      strmov(net->last_error,ER(net->last_errno));    
+      strmov(net->last_error,ER(net->last_errno));
       goto error;
     }
     /* Do the SSL layering. */
@@ -1996,7 +1996,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 				       options->ssl_cipher)))
     {
       net->last_errno= CR_SSL_CONNECTION_ERROR;
-      strmov(net->last_error,ER(net->last_errno));    
+      strmov(net->last_error,ER(net->last_errno));
       goto error;
     }
     DBUG_PRINT("info", ("IO layer change in progress..."));
@@ -2036,7 +2036,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net))
   {
     net->last_errno= CR_SERVER_LOST;
-    strmov(net->last_error,ER(net->last_errno));    
+    strmov(net->last_error,ER(net->last_errno));
     goto error;
   }
   if (net_safe_read(mysql) == packet_error)
