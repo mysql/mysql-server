@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.5";
+const char *VER= "14.6";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -792,6 +792,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       while (*argument) *argument++= 'x';		// Destroy argument
       if (*start)
 	start[1]=0 ;
+      tty_password= 0;
     }
     else
       tty_password= 1;
@@ -858,7 +859,7 @@ static int get_options(int argc, char **argv)
   opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
   opt_net_buffer_length= *mysql_params->p_net_buffer_length;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option, 0)))
     exit(ho_error);
 
   *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
@@ -1669,15 +1670,15 @@ static int com_server_help(String *buffer __attribute__((unused)),
       if (num_fields == 2)
       {
 	put_info("Many help items for your request exist", INFO_INFO);
-	put_info("For more specific request please type 'help <item>' where item is one of next", INFO_INFO);
+	put_info("To make a more specific request, please type 'help <item>',\nwhere item is one of next", INFO_INFO);
 	num_name= 0;
 	num_cat= 1;
 	last_char= '_';
       }
       else if ((cur= mysql_fetch_row(result)))
       {
-	tee_fprintf(PAGER, "You asked help about help category: \"%s\"\n", cur[0]);
-	put_info("For a more information type 'help <item>' where item is one of the following", INFO_INFO);
+	tee_fprintf(PAGER, "You asked for help about help category: \"%s\"\n", cur[0]);
+	put_info("For more information, type 'help <item>', where item is one of the following", INFO_INFO);
 	num_name= 1;
 	num_cat= 2;
 	print_help_item(&cur,1,2,&last_char);
@@ -1691,7 +1692,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
     else
     {
       put_info("\nNothing found", INFO_INFO);
-      put_info("Please try to run 'help contents' for list of all accessible topics\n", INFO_INFO);
+      put_info("Please try to run 'help contents' for a list of all accessible topics\n", INFO_INFO);
     }
   }
 
@@ -1710,9 +1711,9 @@ com_help(String *buffer __attribute__((unused)),
   if (help_arg)
     return com_server_help(buffer,line,help_arg+1);
 
-  put_info("\nFor the complete MySQL Manual online visit:\n   http://www.mysql.com/documentation\n", INFO_INFO);
-  put_info("For info on technical support from MySQL developers visit:\n   http://www.mysql.com/support\n", INFO_INFO);
-  put_info("For info on MySQL books, utilities, consultants, etc. visit:\n   http://www.mysql.com/portal\n", INFO_INFO);
+  put_info("\nFor the complete MySQL Manual online, visit:\n   http://www.mysql.com/documentation\n", INFO_INFO);
+  put_info("For info on technical support from MySQL developers, visit:\n   http://www.mysql.com/support\n", INFO_INFO);
+  put_info("For info on MySQL books, utilities, consultants, etc., visit:\n   http://www.mysql.com/portal\n", INFO_INFO);
   put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);

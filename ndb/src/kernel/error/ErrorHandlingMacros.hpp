@@ -22,6 +22,8 @@
 
 extern const char programName[];
 
+#define ERROR_SET_SIGNAL(messageCategory, messageID, problemData, objectRef) \
+        ErrorReporter::handleError(messageCategory, messageID, problemData, objectRef, NST_ErrorHandlerSignal)
 #define ERROR_SET(messageCategory, messageID, problemData, objectRef) \
         ErrorReporter::handleError(messageCategory, messageID, problemData, objectRef)
         // Description:

@@ -920,6 +920,89 @@ SOURCE=.\log_event.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\message.mc
+
+!IF  "$(CFG)" == "mysqld - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 Debug"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 nt"
+
+# Begin Custom Build - Compiling messages
+InputDir=.
+InputPath=.\message.mc
+InputName=message
+
+BuildCmds= \
+	mc.exe "$(InputDir)\$(InputName).mc"
+
+"$(InputDir)\$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"$(InputDir)\$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 Max nt"
+# Begin Custom Build - Compiling messages
+InputDir=.
+InputPath=.\message.mc
+InputName=message
+
+BuildCmds= \
+	mc.exe "$(InputDir)\$(InputName).mc"
+
+"$(InputDir)\$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"$(InputDir)\$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+!ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 classic"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 pro"
+
+!ELSEIF  "$(CFG)" == "mysqld - Win32 classic nt"
+# Begin Custom Build - Compiling messages
+InputDir=.
+InputPath=.\message.mc
+InputName=message
+
+BuildCmds= \
+	mc.exe "$(InputDir)\$(InputName).mc"
+
+"$(InputDir)\$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"$(InputDir)\$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+!ELSEIF  "$(CFG)" == "mysqld - Win32 pro nt"
+# Begin Custom Build - Compiling messages
+InputDir=.
+InputPath=.\message.mc
+InputName=message
+
+BuildCmds= \
+	mc.exe "$(InputDir)\$(InputName).mc"
+
+"$(InputDir)\$(InputName).rc" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+
+"$(InputDir)\$(InputName).h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+   $(BuildCmds)
+# End Custom Build
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=.\message.rc
+# End Source File
+# Begin Source File
+
 SOURCE=.\mf_iocache.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
