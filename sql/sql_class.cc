@@ -86,7 +86,7 @@ bool key_part_spec::operator==(const key_part_spec& other) const
 
 
 /*
-  Test if a foreign key is a prefix of the given key
+  Test if a foreign key (= generated key) is a prefix of the given key
   (ignoring key name, key type and order of columns)
 
   NOTES:

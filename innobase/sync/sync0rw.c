@@ -89,7 +89,7 @@ void
 rw_lock_create_func(
 /*================*/
 	rw_lock_t*	lock,		/* in: pointer to memory */
-	char*		cfile_name,	/* in: file name where created */
+	const char*	cfile_name,	/* in: file name where created */
 	ulint		cline)		/* in: file line where created */
 {
 	/* If this is the very first time a synchronization
@@ -213,7 +213,7 @@ rw_lock_s_lock_spin(
         rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock
 				will be passed to another thread to unlock */
-	char*		file_name, /* in: file name where lock requested */
+	const char*	file_name, /* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
         ulint    index;	/* index of the reserved wait cell */
@@ -324,7 +324,7 @@ rw_lock_x_lock_low(
         rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
-	char*		file_name,/* in: file name where lock requested */
+	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
 #ifdef UNIV_SYNC_DEBUG
@@ -429,7 +429,7 @@ rw_lock_x_lock_func(
         rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
-	char*		file_name,/* in: file name where lock requested */
+	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
         ulint	index;  /* index of the reserved wait cell */
@@ -551,7 +551,7 @@ rw_lock_debug_mutex_enter(void)
 {
 loop:
 	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex,
-			IB__FILE__, __LINE__)) {
+			__FILE__, __LINE__)) {
 		return;
 	}
 
@@ -560,7 +560,7 @@ loop:
 	rw_lock_debug_waiters = TRUE;
 
 	if (0 == mutex_enter_nowait(&rw_lock_debug_mutex,
-			IB__FILE__, __LINE__)) {
+			__FILE__, __LINE__)) {
 		return;
 	}
 

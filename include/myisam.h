@@ -231,10 +231,7 @@ extern int mi_extra(struct st_myisam_info *file,
 		    enum ha_extra_function function,
 		    void *extra_arg);
 extern ha_rows mi_records_in_range(struct st_myisam_info *info,int inx,
-				   const byte *start_key,uint start_key_len,
-				   enum ha_rkey_function start_search_flag,
-				   const byte *end_key,uint end_key_len,
-				   enum ha_rkey_function end_search_flag);
+                                   key_range *min_key, key_range *max_key);
 extern int mi_log(int activate_log);
 extern int mi_is_changed(struct st_myisam_info *info);
 extern int mi_delete_all_rows(struct st_myisam_info *info);
