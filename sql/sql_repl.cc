@@ -730,7 +730,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
               to p, no digits were found, error. If it contains '\0' it
               means  conversion went ok.
             */ 
-            if(p_end==p || *p_end)
+            if (p_end==p || *p_end)
               slave_errno=ER_BAD_SLAVE_UNTIL_COND;
           }
           else
@@ -753,7 +753,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
             ER(ER_UNTIL_COND_IGNORED));
         
       
-      if(!slave_errno)
+      if (!slave_errno)
         slave_errno = start_slave_threads(0 /*no mutex */,
 					1 /* wait for start */,
 					mi,

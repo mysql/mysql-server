@@ -4,13 +4,13 @@ then
   exit 1
 fi
 
-nonono=
+just_print=
 just_configure=
 while test $# -gt 0
 do
   case "$1" in
   -c | --just-configure ) just_configure=1; shift ;;
-  -n | --just-print | --print ) nonono=1; shift ;;
+  -n | --just-print | --print ) just_print=1; shift ;;
   -h | --help ) cat <<EOF; exit 0 ;;
 Usage: $0 [-h|-n] [configure-options]
   -h, --help              Show this help message.

@@ -5333,7 +5333,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       HAVING will be chcked after processing aggregate functions,
       But WHERE should checkd here (we alredy have read tables)
     */
-    if(!join->conds || join->conds->val_int())
+    if (!join->conds || join->conds->val_int())
     {
       if (!(error=(*end_select)(join,join_tab,0)) || error == -3)
 	error=(*end_select)(join,join_tab,1);
