@@ -618,14 +618,14 @@ row_update_for_mysql(
 	que_thr_t*	thr;
 	ibool		was_lock_wait;
 	dict_index_t*	clust_index; 
-	ulint		ref_len;
+/*	ulint		ref_len; */
 	upd_node_t*	node;
 	dict_table_t*	table		= prebuilt->table;
 	trx_t*		trx		= prebuilt->trx;
-	mem_heap_t*	heap;
+/*	mem_heap_t*	heap;
 	dtuple_t*	search_tuple;
 	dtuple_t*	row_tuple;
-	mtr_t		mtr;
+	mtr_t		mtr; */
 	
 	ut_ad(prebuilt && trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -643,11 +643,23 @@ row_update_for_mysql(
 							prebuilt->clust_pcur);
 		}
 		
-	 	ut_ad(node->pcur->rel_pos == BTR_PCUR_ON);
+	 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
 
 	 	goto skip_cursor_search;
-	} 	
+	} else {
+	        /* MySQL seems to call rnd_pos before updating each row it
+	        has cached: we can get the correct cursor position from
+	        prebuilt->pcur; NOTE that we cannot build the row reference
+	        from mysql_rec if the clustered index was automatically
+	        generated for the table: MySQL does not know anything about
+	        the row id used as the clustered index key */
 
+		btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
+	 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
+
+	 	goto skip_cursor_search;
+	}
+#ifdef notdefined
 	/* We have to search for the correct cursor position */
 
 	ref_len = dict_index_get_n_unique(clust_index);
@@ -678,7 +690,7 @@ row_update_for_mysql(
 	mtr_commit(&mtr);
 
 	mem_heap_free(heap);
-
+#endif
 skip_cursor_search:
 	savept = trx_savept_take(trx);
 	
