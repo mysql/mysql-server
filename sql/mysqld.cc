@@ -3134,7 +3134,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
 ** handle start options
 ******************************************************************************/
 
-enum options {
+enum options_mysqld {
   OPT_ISAM_LOG=256,            OPT_SKIP_NEW, 
   OPT_SKIP_GRANT,              OPT_SKIP_LOCK, 
   OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
