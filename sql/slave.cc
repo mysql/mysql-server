@@ -759,8 +759,10 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	sql_exchange ex((char*)lev->fname, lev->sql_ex.opt_flags &&
 			DUMPFILE_FLAG );
 	String field_term(&lev->sql_ex.field_term, 1),
-	  enclosed(&lev->sql_ex.enclosed, 1), line_term(&lev->sql_ex.line_term,1),
-	  escaped(&lev->sql_ex.escaped, 1), line_start(&lev->sql_ex.line_start, 1);
+	  enclosed(&lev->sql_ex.enclosed, 1),
+	  line_term(&lev->sql_ex.line_term,1),
+	  escaped(&lev->sql_ex.escaped, 1),
+	  line_start(&lev->sql_ex.line_start, 1);
 	    
 	ex.field_term = &field_term;
 	if(lev->sql_ex.empty_flags & FIELD_TERM_EMPTY)
