@@ -1188,9 +1188,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   if (!rep_quick)
   {
     /* Get real path for data file */
-    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
     if ((new_file=my_raid_create(fn_format(param->temp_filename,
-					   param->temp_filename,"",
+					   share->data_file_name, "",
 					   DATA_TMP_EXT, 2+4),
 				 0,param->tmpfile_createflag,
 				 share->base.raid_type,
@@ -1861,11 +1860,9 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   if (!rep_quick)
   {
     /* Get real path for data file */
-    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
     if ((new_file=my_raid_create(fn_format(param->temp_filename,
-					   param->temp_filename, "",
-					   DATA_TMP_EXT,
-					   2+4),
+					   share->data_file_name, "",
+					   DATA_TMP_EXT, 2+4),
 				 0,param->tmpfile_createflag,
 				 share->base.raid_type,
 				 share->base.raid_chunks,
@@ -2225,9 +2222,8 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   if (!rep_quick)
   {
     /* Get real path for data file */
-    fn_format(param->temp_filename,name,"", MI_NAME_DEXT,2+4+32);
     if ((new_file=my_raid_create(fn_format(param->temp_filename,
-					   param->temp_filename, "",
+					   share->data_file_name, "",
 					   DATA_TMP_EXT,
 					   2+4),
 				 0,param->tmpfile_createflag,
