@@ -160,7 +160,7 @@ int mysqld_show_tables(THD *thd, const char *db, const char *wild,
   len= FN_LEN - len;
   field_list.push_back(field);
   if (show_type)
-    field_list.push_back(new Item_empty_string("table_type", 10));
+    field_list.push_back(new Item_empty_string("Table_type", 10));
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
