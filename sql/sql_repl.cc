@@ -697,22 +697,22 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
       {
         pthread_mutex_lock(&mi->rli.data_lock);
 
-        if (thd->lex.mi.pos)
+        if (thd->lex->mi.pos)
         {
           mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_MASTER_POS;
-          mi->rli.until_log_pos= thd->lex.mi.pos;
+          mi->rli.until_log_pos= thd->lex->mi.pos;
           /* 
              We don't check thd->lex.mi.log_file_name for NULL here 
              since it is checked in sql_yacc.yy
           */
-          strmake(mi->rli.until_log_name, thd->lex.mi.log_file_name,
+          strmake(mi->rli.until_log_name, thd->lex->mi.log_file_name,
               sizeof(mi->rli.until_log_name)-1);
         } 
-        else if (thd->lex.mi.relay_log_pos)
+        else if (thd->lex->mi.relay_log_pos)
         {
           mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_RELAY_POS;
-          mi->rli.until_log_pos= thd->lex.mi.relay_log_pos;
-          strmake(mi->rli.until_log_name, thd->lex.mi.relay_log_name,
+          mi->rli.until_log_pos= thd->lex->mi.relay_log_pos;
+          strmake(mi->rli.until_log_name, thd->lex->mi.relay_log_name,
               sizeof(mi->rli.until_log_name)-1);
         }
         else
@@ -750,7 +750,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
         
         pthread_mutex_unlock(&mi->rli.data_lock);
       }
-      else if (thd->lex.mi.pos || thd->lex.mi.relay_log_pos)
+      else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
             ER(ER_UNTIL_COND_IGNORED));
         

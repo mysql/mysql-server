@@ -393,7 +393,7 @@ sp_add_fun_to_lex(LEX *lex, LEX_STRING fun)
     ls->str= sql_strmake(fun.str, fun.length);
     ls->length= fun.length;
 
-    hash_insert(&lex->spfuns, (byte *)ls);
+    my_hash_insert(&lex->spfuns, (byte *)ls);
   }
 }
 
@@ -405,7 +405,7 @@ sp_merge_funs(LEX *dst, LEX *src)
     LEX_STRING *ls= (LEX_STRING *)hash_element(&src->spfuns, i);
 
     if (! hash_search(&dst->spfuns, (byte *)ls->str, ls->length))
-      hash_insert(&dst->spfuns, (byte *)ls);
+      my_hash_insert(&dst->spfuns, (byte *)ls);
   }
 }
 
