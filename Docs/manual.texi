@@ -688,6 +688,7 @@ System/Compile Time and Startup Parameter Tuning
 
 * Compile and link options::    How compiling and linking affects the speed of MySQL
 * Disk issues::                 Disk issues
+* Symbolic links::              
 * Server parameters::           Tuning server parameters
 * Table cache::                 How MySQL opens and closes tables
 * Creating many tables::        Drawbacks of creating large numbers of tables in the same database
@@ -697,9 +698,10 @@ System/Compile Time and Startup Parameter Tuning
 * Table locking::               Table locking issues
 * DNS::                         
 
-Disk Issues
+Using Symbolic Links
 
-* Symbolic links::              Using symbolic links for databases and tables
+* Symbolic links to database::  
+* Symbolic links to tables::    
 
 Speed of Queries that Access or Update Data
 
@@ -9603,7 +9605,7 @@ shell> cd mysql_installation_directory
 shell> ./bin/safe_mysqld --user=mysql &
 @end example
 
-For a binary distribution, do this:
+For a binary distribution (not RPM or pkg packages), do this:
 
 @example
 shell> cd mysql_installation_directory
@@ -10407,9 +10409,8 @@ recommended for systems where only local requests are allowed.  @xref{DNS}.
 Don't use new, possible wrong routines.  Implies @code{--skip-delay-key-write}.
 This will also set default table type to @code{ISAM}.  @xref{ISAM}.
 
-@item --skip-stack-trace
-Don't write stack traces.  This option is useful when you are running
-@code{mysqld} under a debugger. @xref{Debugging server}.
+@item --skip-symlinks
+Don't delete or rename files that symlinks in the data directory points to.
 
 @item --skip-safemalloc
 If @strong{MySQL} is configured with @code{--with-debug=full}, all programs
@@ -10420,6 +10421,10 @@ need memory checking, by using this option.
 @item --skip-show-database
 Don't allow 'SHOW DATABASE' commands, unless the user has @strong{process}
 privilege.
+
+@item --skip-stack-trace
+Don't write stack traces.  This option is useful when you are running
+@code{mysqld} under a debugger. @xref{Debugging server}.
 
 @item --skip-thread-priority
 Disable using thread priorities for faster response time.
@@ -12153,6 +12158,13 @@ user names have nothing to do with Unix user names.  You can edit the
 @code{mysql.server} script to start @code{mysqld} as another Unix user.
 Normally this is done with the @code{su} command.  For more details, see
 @ref{Changing MySQL user, , Changing @strong{MySQL} user}.
+
+@item
+Don't support symlinks to tables (This can be disabled with the
+@code{--skip-symlinks} option. This is especially important if you run
+@code{mysqld} as root as anyone that has write access to the mysqld data
+directories could then delete any file in the system!
+@xref{Symbolic links to tables}.
 
 @item
 If you put a password for the Unix @code{root} user in the @code{mysql.server}
@@ -18810,6 +18822,8 @@ or	DELAY_KEY_WRITE = @{0 | 1@}
 or      ROW_FORMAT= @{ default | dynamic | fixed | compressed @}
 or	RAID_TYPE= @{1 | STRIPED | RAID0 @} RAID_CHUNKS=#  RAID_CHUNKSIZE=#
 or	UNION = (table_name,[table_name...])
+or      DATA DIRECTORY="directory"
+or      INDEX DIRECTORY="directory"
 
 select_statement:
 	[IGNORE | REPLACE] SELECT ...  (Some legal select statement)
@@ -19141,6 +19155,14 @@ In the created table the @code{PRIMARY} key will be placed first, followed
 by all @code{UNIQUE} keys and then the normal keys.  This helps the
 @strong{MySQL} optimizer to prioritize which key to use and also more quickly
 detect duplicated @code{UNIQUE} keys.
+
+@item
+By using @code{DATA DIRECTORY="directory"} or @code{INDEX
+DIRECTORY="directory"} you can specify where the table handler should
+put it's table and index files.  This only works for @code{MyISAM} tables
+in @code{MySQL} 4.0, when you are not using the @code{--skip-symlinks}
+option. @xref{Symbolic links to tables}.
+
 @end itemize
 
 @cindex silent column changes
@@ -23691,6 +23713,10 @@ with updates and inserts.  This is done by automatically combining adjacent
 deleted blocks and by extending blocks if the next block is deleted.
 @item
 @code{myisampack} can pack @code{BLOB} and @code{VARCHAR} columns.
+@item
+You can use put the datafile and index file on different directories
+to get more speed (with the @code{DATA/INDEX DIRECTORY="path"} option to
+@code{CREATE TABLE}). @xref{CREATE TABLE}.
 @end itemize
 
 @code{MyISAM} also supports the following things, which @strong{MySQL}
@@ -29737,6 +29763,11 @@ Replication will be done correctly with @code{AUTO_INCREMENT},
 @code{RAND()}. You can, for example, use @code{UNIX_TIMESTAMP()} for the
 argument to @code{RAND()}.
 @item
+You have to use the same character set (@code{--default-character-set})
+on the master and the slave. If not, you may get duplicate key errors on
+the slave, because a key that is regarded as unique on the master may
+not be that in the other character set.
+@item
 @code{LOAD DATA INFILE} will be handled properly as long as the file
 still resides on the master server at the time of update
 propagation. @code{LOAD LOCAL DATA INFILE} will be skipped.
@@ -30839,6 +30870,7 @@ are using @code{--skip-locking}
 @menu
 * Compile and link options::    How compiling and linking affects the speed of MySQL
 * Disk issues::                 Disk issues
+* Symbolic links::              Using Symbolic Links
 * Server parameters::           Tuning server parameters
 * Table cache::                 How MySQL opens and closes tables
 * Creating many tables::        Drawbacks of creating large numbers of tables in the same database
@@ -30951,7 +30983,7 @@ Linux binary is linked statically to get it faster and more portable.
 
 @cindex disk issues
 @cindex performance, disk issues
-@node Disk issues, Server parameters, Compile and link options, System
+@node Disk issues, Symbolic links, Compile and link options, System
 @subsection Disk Issues
 
 @itemize @bullet
@@ -31029,31 +31061,40 @@ really useful on a database server), you can mount your file systems
 with the noatime flag.
 @end itemize
 
-@menu
-* Symbolic links::              Using symbolic links for databases and tables
-@end menu
-
 @cindex symbolic links
 @cindex links, symbolic
-@cindex databases, symbolic links
-@cindex tables, symbolic links
-@node Symbolic links,  , Disk issues, Disk issues
-@subsubsection Using Symbolic Links for Databases and Tables
+@node Symbolic links, Server parameters, Disk issues, System
+@subsection Using Symbolic Links
 
 You can move tables and databases from the database directory to other
 locations and replace them with symbolic links to the new locations.
 You might want to do this, for example, to move a database to a file
-system with more free space.
+system with more free space or increase the speed of your system by
+spreading your tables to different disk.
 
-If @strong{MySQL} notices that a table is symbolically linked, it will
-resolve the symlink and use the table it points to instead. This works
-on all systems that support the @code{realpath()} call (at least Linux
-and Solaris support @code{realpath()})!  On systems that don't support
-@code{realpath()}, you should not access the table through the real path
-and through the symlink at the same time!  If you do, the table will be
-inconsistent after any update.
+The recommended may to do this, is to just symlink databases to different
+disk and only symlink tables as a last resort.
+.
 
-@strong{MySQL} doesn't that you link one directory to multiple
+@cindex databases, symbolic links
+@menu
+* Symbolic links to database::  
+* Symbolic links to tables::    
+@end menu
+
+@node Symbolic links to database, Symbolic links to tables, Symbolic links, Symbolic links
+@subsubsection Using Symbolic Links for Databases
+
+The way to symlink a database is to first create a directory on some
+disk where you have free space and then create a symlink to it from
+the @strong{MySQL} database directory.
+
+@example
+shell> mkdir /dr1/databases/test
+shell> ln -s /dr1/databases/test mysqld-datadir
+@end example
+
+@strong{MySQL} doesn't support that you link one directory to multiple
 databases.  Replacing a database directory with a symbolic link will
 work fine as long as you don't make a symbolic link between databases.
 Suppose you have a database @code{db1} under the @strong{MySQL} data
@@ -31085,11 +31126,82 @@ On Windows you can use internal symbolic links to directories by compiling
 @strong{MySQL} with @code{-DUSE_SYMDIR}. This allows you to put different
 databases on different disks. @xref{Windows symbolic links}.
 
+@cindex databases, symbolic links
+@node Symbolic links to tables,  , Symbolic links to database, Symbolic links
+@subsubsection Using Symbolic Links for Tables
+
+Before @strong{MySQL} 4.0 you should not symlink tables, if you are not
+very carefully with them. The problem is that if you run @code{ALTER
+TABLE}, @code{REPAIR TABLE} or @code{OPTIMIZE TABLE} on a symlinked
+table, the symlinks will be removed and replaced by the original
+files. This happens because the above command works by creating a
+temporary file in the database directory and when the command is
+complete, replace the original file with the temporary file.
+
+You should not symlink tables on system that doesn't have a fully
+working @code{realpath()} call. (At least Linux and Solaris support
+@code{realpath()})
+
+In @strong{MySQL} 4.0 symlinks is only fully supported for @code{MyISAM}
+tables.  For other table types you will probably get strange problems
+when doing any of the above mentioned commands.
+
+The handling of symbolic links in @strong{MySQL} 4.0 works the following
+way (this is mostly relevant only for @code{MyISAM} tables).
+
+@itemize @bullet
+@item
+In the data directory you will always have the table definition file
+and the data/index files.
+@item
+You can symlink the index file and the data file to different directories
+independent of the other.
+@item
+The symlinking can be done from the operating system (if @code{mysqld} is
+not running) or with the @code{INDEX/DATA DIRECTORY="path-to-dir"} command
+in @code{CREATE TABLE}. @xref{CREATE TABLE}.
+@item
+@code{myisamchk} will not replace a symlink with the index/file but
+work directly on the files the symlinks points to. Any temporary files
+will be created in the same directory where the data/index file is.
+@item
+When you drop a table that is using symlinks, both the symlink and the
+file the symlink points to is dropped.  This is a good reason to why you
+should NOT run @code{mysqld} as root and not allow persons to have write
+access to the @strong{MySQL} database directories.
+@item
+If you rename a table with @code{ALTER TABLE RENAME} and you don't change
+database, the symlink in the database directory will be renamed to the new
+name and the data/index file will be renamed accordingly.
+@item
+If you use @code{ALTER TABLE RENAME} to move a table to another database,
+then the table will be moved to the other database directory and the old
+symlinks and the files they pointed to will be deleted.
+@item
+If you are not using symlinks you should use the @code{--skip-symlinks}
+option to @code{mysqld} to ensure that no one can drop or rename a file
+outside of the @code{mysqld} data directory.
+@end itemize
+
+Things that are not yet fully supported:
+
+@cindex TODO, symlinks
+@itemize @bullet
+@item
+@code{ALTER TABLE} ignores all @code{INDEX/DATA DIRECTORY="path"} options.
+@item
+@code{CREATE TABLE} doesn't report if the table has symbolic links.
+@item
+@code{mysqldump} doesn't include the symbolic links information in the output.
+@item
+@code{BACKUP TABLE} and @code{RESTORE TABLE} doesn't use symbolic links.
+@end itemize
+
 @cindex parameters, server
 @cindex @code{mysqld} server, buffer sizes
 @cindex buffer sizes, @code{mysqld} server
 @cindex startup parameters
-@node Server parameters, Table cache, Disk issues, System
+@node Server parameters, Table cache, Symbolic links, System
 @subsection Tuning Server Parameters
 
 You can get the default buffer sizes used by the @code{mysqld} server
@@ -38862,6 +38974,12 @@ Post the test file using @code{mysqlbug} to @email{mysql@@lists.mysql.com}.
 @node ALTER TABLE problems, Change column order, No matching rows, Problems
 @section Problems with @code{ALTER TABLE}.
 
+@code{ALTER TABLE} changes a table to the current character set.
+If you during @code{ALTER TABLE} get a duplicate key error, then the cause
+is either that the new character sets maps to keys to the same value
+or that the table is corrupted, in which case you should run
+@code{REPAIR TABLE} on the table.
+
 If @code{ALTER TABLE} dies with an error like this:
 
 @example
@@ -45422,6 +45540,8 @@ Slovak error messages.
 Romanian error messages.
 @item Peter Feher
 Hungarian error messages.
+@item Roberto M. Serqueira
+Portugise error messages.
 @item David Sacerdote @email{davids@@secnet.com}
 Ideas for secure checking of DNS hostnames.
 @item Wei-Jou Chen @email{jou@@nematic.ieo.nctu.edu.tw}
@@ -45436,7 +45556,7 @@ Active mailing list member.
 Ported (and extended) the benchmark suite to @code{DBI}/@code{DBD}. Have
 been of great help with @code{crash-me} and running benchmarks. Some new
 date functions. The mysql_setpermissions script.
-@item Jay Flaherty @email{fty@@utk.edu}
+@item Jay Flaherty @email{fty@@mediapulse.com}
 Big parts of the Perl @code{DBI}/@code{DBD} section in the manual.
 @item Paul Southworth @email{pauls@@etext.org}, Ray Loyzaga @email{yar@@cs.su.oz.au}
 Proof-reading of the Reference Manual.
@@ -45584,9 +45704,11 @@ Added @code{ALTER TABLE table_name DISABLE KEYS} and
 @item
 Added @code{HANDLER} command.
 @item
-Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This make it
-possible to know how many rows a query would have returned if one hadn't
-used @code{LIMIT}.
+Added support for symbolic links to @code{MyISAM} tables.
+@item
+Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This makes it
+possible to know how many rows a query would have returned
+without a @code{LIMIT} clause.
 @item
 Changed output format of @code{SHOW OPEN TABLES}.
 @item
@@ -45598,8 +45720,6 @@ Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
 @item
 Optimized queries of type:
 @code{SELECT DISTINCT * from table_name ORDER by key_part1 LIMIT #}
-@item
-Added support for sym-linking of MyISAM tables.
 @end itemize
 
 @node News-3.23.x, News-3.22.x, News-4.0.x, News
@@ -45692,6 +45812,13 @@ not yet 100% confident in this code.
 @node News-3.23.39, News-3.23.38, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
+@item
+Fixed problem that client 'hang' when @code{LOAD TABLE FROM MASTER} failed.
+@item
+Running @code{myisamchk --fast --force} will not anymore repair tables
+that only had the open count wrong.
+@item
+Added functions to handle symbolic links to make life easier in 4.0.
 @item
 We are now using the @code{-lcma} thread library on HPUX 10.20 to
 get @strong{MySQL} more stabile on HPUX.
