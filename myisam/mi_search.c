@@ -1110,6 +1110,9 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
 	  key+=length;
 	}
 	memcpy(key,page,rest_length);
+	page+=rest_length;
+	key+=rest_length;
+	continue;
       }
       else
       {
