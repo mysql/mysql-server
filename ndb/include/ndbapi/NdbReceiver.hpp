@@ -37,7 +37,7 @@ public:
   };
   
   NdbReceiver(Ndb *aNdb);
-  void init(ReceiverType type, void* owner, bool keyInfo);
+  void init(ReceiverType type, void* owner);
   void release();
   ~NdbReceiver();
   

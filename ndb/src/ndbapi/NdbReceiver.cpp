@@ -29,10 +29,20 @@ NdbReceiver::NdbReceiver(Ndb *aNdb) :
   m_owner(0)
 {
   theCurrentRecAttr = theFirstRecAttr = 0;
+  m_defined_rows = 0;
+  m_rows = new NdbRecAttr*[0];
 }
  
+NdbReceiver::~NdbReceiver()
+{
+  if (m_id != NdbObjectIdMap::InvalidId) {
+    m_ndb->theNdbObjectIdMap->unmap(m_id, this);
+  }
+  delete[] m_rows;
+}
+
 void
-NdbReceiver::init(ReceiverType type, void* owner, bool keyInfo)
+NdbReceiver::init(ReceiverType type, void* owner)
 {
   theMagicNumber = 0x11223344;
   m_type = type;
@@ -44,8 +54,6 @@ NdbReceiver::init(ReceiverType type, void* owner, bool keyInfo)
 
   theFirstRecAttr = NULL;
   theCurrentRecAttr = NULL;
-  m_key_info = (keyInfo ? 1 : 0);
-  m_defined_rows = 0;
 }
 
 void
@@ -61,13 +69,6 @@ NdbReceiver::release(){
   theCurrentRecAttr = NULL;
 }
   
-NdbReceiver::~NdbReceiver()
-{
-  if (m_id != NdbObjectIdMap::InvalidId) {
-    m_ndb->theNdbObjectIdMap->unmap(m_id, this);
-  }
-}
-
 NdbRecAttr *
 NdbReceiver::getValue(const NdbColumnImpl* tAttrInfo, char * user_dst_ptr){
   NdbRecAttr* tRecAttr = m_ndb->getRecAttr();
@@ -90,9 +91,13 @@ NdbReceiver::getValue(const NdbColumnImpl* tAttrInfo, char * user_dst_ptr){
 
 void
 NdbReceiver::do_get_value(NdbReceiver * org, Uint32 rows, Uint32 key_size){
-  m_defined_rows = rows;
-  m_rows = new NdbRecAttr*[rows + 1]; m_rows[rows] = 0;
-
+  if(rows > m_defined_rows){
+    delete[] m_rows;
+    m_defined_rows = rows;
+    m_rows = new NdbRecAttr*[rows + 1]; 
+  }
+  m_rows[rows] = 0;
+  
   NdbColumnImpl key;
   if(key_size){
     key.m_attrId = KEY_ATTR_ID;
@@ -159,7 +164,6 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
 {
   bool ok = true;
   NdbRecAttr* currRecAttr = theCurrentRecAttr;
-  NdbRecAttr* prevRecAttr = currRecAttr;
   
   for (Uint32 used = 0; used < aLength ; used++){
     AttributeHeader ah(* aDataPtr++);
@@ -171,18 +175,21 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
      */
     while(currRecAttr && currRecAttr->attrId() != tAttrId){
       ok &= currRecAttr->setNULL();
-      prevRecAttr = currRecAttr;
       currRecAttr = currRecAttr->next();
     }
     
     if(ok && currRecAttr && currRecAttr->receive_data(aDataPtr, tAttrSize)){
       used += tAttrSize;
       aDataPtr += tAttrSize;
-      prevRecAttr = currRecAttr;
       currRecAttr = currRecAttr->next();
     } else {
       ndbout_c("%p: ok: %d tAttrId: %d currRecAttr: %p", 
 	       this,ok, tAttrId, currRecAttr);
+      currRecAttr = theCurrentRecAttr;
+      while(currRecAttr != 0){
+	ndbout_c("%d ", currRecAttr->attrId());
+	currRecAttr = currRecAttr->next();
+      }
       abort();
       return -1;
     }

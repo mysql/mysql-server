@@ -176,6 +176,7 @@ public:
   BaseString m_externalName;
   BaseString m_tableName;
   Vector<NdbColumnImpl *> m_columns;
+  Vector<int> m_key_ids;
   NdbDictionary::Index::Type m_type;
 
   bool m_logging;
