@@ -822,11 +822,11 @@ ha_innobase::open(
 
  	if (NULL == (ib_table = dict_table_get(norm_name, NULL))) {
 
-	  fprintf(stderr, "\
-Cannot find table %s from the internal data dictionary\n\
-of InnoDB though the .frm file for the table exists. Maybe you have deleted\n\
-and created again an InnoDB database but forgotten to delete the\n\
-corresponding .frm files of old InnoDB tables?\n",
+	  fprintf(stderr,
+"Cannot find table %s from the internal data dictionary\n"
+"of InnoDB though the .frm file for the table exists. Maybe you have deleted\n"
+"and created again an InnoDB database but forgotten to delete the\n"
+"corresponding .frm files of old InnoDB tables?\n",
 		  norm_name);
 
 	        free_share(share);
@@ -2657,6 +2657,37 @@ ha_innobase::records_in_range(
     	my_free((char*) key_val_buff2, MYF(0));
 
 	DBUG_RETURN((ha_rows) n_rows);
+}
+
+/*************************************************************************
+Gives an UPPER BOUND to the number of rows in a table. This is used in
+filesort.cc and the upper bound must hold. TODO: Since the number of
+rows in a table may change after this function is called, we still may
+get a 'Sort aborted' error in filesort.cc of MySQL. The ultimate fix is to
+improve the algorithm of filesort.cc. */
+
+ha_rows
+ha_innobase::estimate_number_of_rows(void)
+/*======================================*/
+			/* out: upper bound of rows, currently 32-bit int
+			or uint */
+{
+	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
+	dict_table_t*	ib_table;
+
+ 	DBUG_ENTER("info");
+
+ 	ib_table = prebuilt->table;
+
+ 	dict_update_statistics(ib_table);
+
+	data_file_length = ((ulonglong)
+				ib_table->stat_clustered_index_size)
+    					* UNIV_PAGE_SIZE;
+
+	/* The minimum clustered index record size is 20 bytes */
+
+	return((ha_rows) (1000 + data_file_length / 20));
 }
 
 /*************************************************************************
