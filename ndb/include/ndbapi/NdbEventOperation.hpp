@@ -64,7 +64,7 @@ class NdbEventOperationImpl;
  *
  * Known issues:
  *
- * When several NdbEventOperation s are tied to the same event in the same
+ * When several NdbEventOperation's are tied to the same event in the same
  * process they will share the circular buffer. The BufferLength will then
  * be the same for all and decided by the first NdbEventOperation 
  * instantiation. Just make sure to instantiate the "largest" one first.
@@ -84,7 +84,7 @@ class NdbEventOperationImpl;
  * replica.  If a node fails events will not be received twice anymore
  * for data in corresponding fragment. Will be optimized in later versions.
  *
- * If a nodefailiure has occured not all events will be recieved
+ * If a node failure has occured not all events will be recieved
  * anymore. Drop NdbEventOperation and Create again after nodes are up
  * again. Will be fixed in later versions.
  *
@@ -97,7 +97,7 @@ class NdbEventOperationImpl;
  *
  * Useful API programs:
  *
- * select_all -d sys 'NDB$EVENTS_0'
+ * ndb_select_all -d sys 'NDB$EVENTS_0'
  * Will show contents in the system table containing created events.
  *
  */
@@ -187,8 +187,19 @@ public:
    */
   NdbDictionary::Event::TableEvent getEventType();
 
+  /**
+   *
+   */
   Uint32 getGCI();
+
+  /**
+   *
+   */
   Uint32 getLatestGCI();
+
+  /*
+   *
+   */
   void print();
 
 private:
