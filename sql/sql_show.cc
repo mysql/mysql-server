@@ -688,14 +688,14 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
       {
         byte *pos;
         uint flags=field->flags;
-        String type(tmp,sizeof(tmp), field->charset());
+        String type(tmp,sizeof(tmp), system_charset_info);
         uint col_access;
         bool null_default_value=0;
 
 	protocol->prepare_for_resend();
         protocol->store(field->field_name, system_charset_info);
         field->sql_type(type);
-        protocol->store(type.ptr(), type.length(), type.charset());
+        protocol->store(type.ptr(), type.length(), system_charset_info);
 	if (verbose)
 	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
@@ -1117,7 +1117,13 @@ store_create_info(THD *thd, TABLE *table, String *packet)
         type.set(tmp, sizeof(tmp), field->charset());
         field->val_str(&type,&type);
 	if (type.length())
-          append_unescaped(packet, type.ptr(), type.length());
+	{
+   	  String def_val;
+	  /* convert to system_charset_info == utf8 */
+	  def_val.copy(type.ptr(), type.length(), field->charset(),
+		       system_charset_info);
+          append_unescaped(packet, def_val.ptr(), def_val.length());
+	}
         else
 	  packet->append("''",2);
       }

@@ -995,35 +995,42 @@ enum_field_types Item::field_type() const
 
 Field *Item::tmp_table_field_from_field_type(TABLE *table)
 {
-  switch (field_type()) 
-  {
+  /*
+    The field functions defines a field to be not null if null_ptr is not 0
+  */
+  uchar *null_ptr= maybe_null ? (uchar*) "" : 0;
+
+  switch (field_type()) {
   case MYSQL_TYPE_DECIMAL:
-    return new Field_decimal(max_length, maybe_null, name, table,
-			     unsigned_flag);
+    return new Field_decimal((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			     name, table, decimals, 0, unsigned_flag);
   case MYSQL_TYPE_TINY:
-    return new Field_tiny(max_length, maybe_null, name, table,
-			  unsigned_flag);
+    return new Field_tiny((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			  name, table, 0, unsigned_flag);
   case MYSQL_TYPE_SHORT:
-    return new Field_short(max_length, maybe_null, name, table,
-			   unsigned_flag);
+    return new Field_short((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			   name, table, 0, unsigned_flag);
   case MYSQL_TYPE_LONG:
-    return new Field_long(max_length, maybe_null, name, table,
-			  unsigned_flag);
-  case MYSQL_TYPE_FLOAT:
-    return new Field_float(max_length, maybe_null, name, table, decimals);
-  case MYSQL_TYPE_DOUBLE:
-    return new Field_double(max_length, maybe_null, name, table, decimals);
-  case MYSQL_TYPE_NULL:
-    return new Field_null(max_length, name, table, &my_charset_bin);
+    return new Field_long((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			  name, table, 0, unsigned_flag);
 #ifdef HAVE_LONG_LONG
   case MYSQL_TYPE_LONGLONG:
-    return new Field_longlong(max_length, maybe_null, name, table,
-			      unsigned_flag);
+    return new Field_longlong((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			      name, table, 0, unsigned_flag);
 #endif
+  case MYSQL_TYPE_FLOAT:
+    return new Field_float((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			   name, table, decimals, 0, unsigned_flag);
+  case MYSQL_TYPE_DOUBLE:
+    return new Field_double((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			    name, table, decimals, 0, unsigned_flag);
+  case MYSQL_TYPE_NULL:
+    return new Field_null((char*) 0, max_length, Field::NONE,
+			  name, table, &my_charset_bin);
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_INT24:
-    return new Field_long(max_length, maybe_null, name, table,
-			  unsigned_flag);
+    return new Field_medium((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			    name, table, 0, unsigned_flag);
   case MYSQL_TYPE_DATE:
     return new Field_date(maybe_null, name, table, &my_charset_bin);
   case MYSQL_TYPE_TIME:
@@ -1032,33 +1039,37 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
   case MYSQL_TYPE_DATETIME:
     return new Field_datetime(maybe_null, name, table, &my_charset_bin);
   case MYSQL_TYPE_YEAR:
-    return new Field_year(max_length, maybe_null, name, table);
+    return new Field_year((char*) 0, max_length, null_ptr, 0, Field::NONE,
+			  name, table);
+  default:
+    /* This case should never be choosen */
+    DBUG_ASSERT(0);
+    /* If something goes awfully wrong, it's better to get a string than die */
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
-    return new Field_long(max_length, maybe_null, name, table,
-			  unsigned_flag);
+  case MYSQL_TYPE_VAR_STRING:
+    if (max_length > 255)
+      break;					// If blob
+    return new Field_varstring(max_length, maybe_null, name, table,
+			       collation.collation);
+  case MYSQL_TYPE_STRING:
+    if (max_length > 255)			// If blob
+      break;
+    return new Field_string(max_length, maybe_null, name, table,
+			    collation.collation);
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
-    return new Field_blob(max_length, maybe_null, name, table, collation.collation);
-  case MYSQL_TYPE_VAR_STRING:
-    if (max_length > 255)
-      return new Field_blob(max_length, maybe_null, name, table, collation.collation);
-    else
-      return new Field_varstring(max_length, maybe_null, name, table, collation.collation);
-  case MYSQL_TYPE_STRING:
-    if (max_length > 255)
-      return new Field_blob(max_length, maybe_null, name, table, collation.collation);
-    else
-      return new Field_string(max_length, maybe_null, name, table, collation.collation);
-  default:
-    // This case should never be choosen
-    DBUG_ASSERT(0);
-    return 0;
+    break;					// Blob handled outside of case
   }
+
+  /* blob is special as it's generated for both blobs and long strings */
+  return new Field_blob(max_length, maybe_null, name, table,
+			collation.collation);
 }
+
 
 /* ARGSUSED */
 void Item_field::make_field(Send_field *tmp_field)
