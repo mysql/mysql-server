@@ -35402,6 +35402,9 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.23
 @itemize @bullet
 @item
+Updated mysqlhotcopy to use the new @code{FLUSH TABLES table_list} syntax. Only
+tables which are being backed up are flushed now.
+@item
 Changed behavior of @code{--enable-thread-safe-client} so
 that both non-threaded (@code{-lmysqlclient}) and threaded
 (@code{-lmysqlclient_r}) libraries are built.  Users who linked
