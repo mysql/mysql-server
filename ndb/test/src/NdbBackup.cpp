@@ -336,7 +336,7 @@ NdbBackup::NF(NdbRestarter& _restarter, int *NFDuringBackup_codes, const int sz,
   }
 
   return NDBT_OK;
-};
+}
 
 int
 FailS_codes[] = {
