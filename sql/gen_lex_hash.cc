@@ -22,13 +22,13 @@
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__				// Skip warnings in getopt.h
 #endif
-#include <getopt.h>
+#include <my_getopt.h>
 #include "mysql_version.h"
 #include "lex.h"
 
-bool opt_search=0;
-int  opt_verbose=0;
-ulong opt_count=100000;
+my_bool opt_search;
+int  opt_verbose;
+ulong opt_count;
 
 #define max_allowed_array  8000	// Don't generate bigger arrays than this
 #define max_symbol	  32767	// Use this for 'not found'
@@ -55,6 +55,35 @@ static uchar bits[how_much_and/8+1];
 static uint primes[max_allowed_array+1];
 static ulong hash_results[type_count][how_much_for_plus+1][total_symbols];
 static ulong start_value=0;
+static uint best_type;
+static ulong best_t1,best_t2, best_start_value;
+
+static struct my_option my_long_options[] =
+{
+  {"help", '?', "Display help and exit",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"count", 'c', "Try count times to find a optimal hash table",
+   (gptr*) &opt_count, (gptr*) &opt_count, 0, GET_ULONG, REQUIRED_ARG,
+   100000, 0, 0, 0, 0, 0},
+  {"search", 'S', "Search after good rnd1 and rnd2 values",
+   (gptr*) &opt_search, (gptr*) &opt_search, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"verbose", 'v', "Write some information while the program executes",
+   (gptr*) &opt_verbose, (gptr*) &opt_verbose, 0, GET_INT, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"version", 'V', "Output version information and exit",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"rnd1", 'r', "Set 1 part of rnd value for hash generator",
+   (gptr*) &best_t1, (gptr*) &best_t1, 0, GET_ULONG, REQUIRED_ARG, 6657025L,
+   0, 0, 0, 0, 0},
+  {"rnd2", 'R', "Set 2 part of rnd value for hash generator",
+   (gptr*) &best_t2, (gptr*) &best_t2, 0, GET_ULONG, REQUIRED_ARG, 6114496L,
+   0, 0, 0, 0, 0},
+  {"type", 't', "Set type of char table to generate",
+   (gptr*) &best_type, (gptr*) &best_type, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0,
+   0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
@@ -325,82 +354,51 @@ void print_arrays()
 }
 
 
-static struct option long_options[] =
-{
-  {"count",	    required_argument,	   0, 'c'},
-  {"search",	    no_argument,	   0, 'S'},
-  {"verbose",	    no_argument,	   0, 'v'},
-  {"version",	    no_argument,	   0, 'V'},
-  {"rnd1",	    required_argument,	   0, 'r'},
-  {"rnd2",	    required_argument,	   0, 'R'},
-  {"type",	    required_argument,	   0, 't'},
-  {0, 0, 0, 0}
-};
-
-
 static void usage(int version)
 {
-  printf("%s  Ver 3.3 Distrib %s, for %s (%s)\n",
+  printf("%s  Ver 3.4 Distrib %s, for %s (%s)\n",
 	 my_progname, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
   puts("Copyright (C) 2001 MySQL AB, by Sinisa and Monty");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   puts("This program generates a perfect hashing function for the sql_lex.cc");
-  printf("Usage: %s [OPTIONS]\n", my_progname);
-  printf("\n\
--c, --count=#		Try count times to find a optimal hash table\n\
--r, --rnd1=#		Set 1 part of rnd value for hash generator\n\
--R, --rnd2=#		Set 2 part of rnd value for hash generator\n\
--t, --type=#		Set type of char table to generate\n\
--S, --search		Search after good rnd1 and rnd2 values\n\
--v, --verbose		Write some information while the program executes\n\
--V, --version		Output version information and exit\n");
-
+  printf("Usage: %s [OPTIONS]\n\n", my_progname);
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
 }
 
-static uint best_type;
-static ulong best_t1,best_t2, best_start_value;
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument __attribute__((unused)))
+{
+  switch(optid) {
+  case 'v':
+    opt_verbose++;
+    break;
+  case 'V':
+    usage(1);
+    exit(0);
+  case 'I':
+  case '?':
+    usage(0);
+    exit(0);
+  }
+  return 0;
+}
+
 
 static int get_options(int argc, char **argv)
 {
-  int c,option_index=0;
+  int ho_error;
 
-  while ((c=getopt_long(argc,argv,"?SvVc:r:R:t:",
-			long_options, &option_index)) != EOF)
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
-    switch(c) {
-    case 'c':
-      opt_count=atol(optarg);
-      break;
-    case 'r':
-      best_t1=atol(optarg);
-      break;
-    case 'R':
-      best_t2=atol(optarg);
-      break;
-    case 't':
-      best_type=atoi(optarg);
-      break;
-    case 'S':
-      opt_search=1;
-      break;
-    case 'v':
-      opt_verbose++;
-      break;
-    case 'V': usage(1); exit(0);
-    case 'I':
-    case '?':
-      usage(0);
-      exit(0);
-    default:
-      fprintf(stderr,"illegal option: -%c\n",opterr);
-      usage(0);
-      exit(1);
-    }
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
   }
-  argc-=optind;
-  argv+=optind;
   if (argc >= 1)
   {
     usage(0);
@@ -483,7 +481,7 @@ int main(int argc,char **argv)
 
   MY_INIT(argv[0]);
 
-  start_value=1109118L; best_t1=6657025L;  best_t2=6114496L;  best_type=1; /* mode=4903  add=3  type: 0 */
+  start_value=1109118L;   /* mode=4903  add=3  type: 0 */
   if (get_options(argc,(char **) argv))
     exit(1);
 
