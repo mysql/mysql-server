@@ -1967,6 +1967,26 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
   return 0;
 }
 
+bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const
+{
+  /* Assume we don't have rtti */
+  if (this == item)
+    return 1;
+  if (item->type() != FUNC_ITEM)
+    return 0;
+  Item_func *item_func=(Item_func*) item;
+  if (arg_count != item_func->arg_count ||
+      func_name() != item_func->func_name())
+    return 0;
+  Item_func_set_collation *item_func_sc=(Item_func_set_collation*) item;
+  if (set_collation != item_func_sc->set_collation)
+    return 0;
+  for (uint i=0; i < arg_count ; i++)
+    if (!args[i]->eq(item_func_sc->args[i], binary_cmp))
+      return 0;
+  return 1;
+}
+
 
 String *Item_func_charset::val_str(String *str)
 {

@@ -508,6 +508,7 @@ public:
     max_length = args[0]->max_length; 
     str_value.set_charset(set_collation);
   }
+  bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "set_collation"; }
 };
 
