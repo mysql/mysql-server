@@ -417,9 +417,8 @@ install -s -m755 $MBD/sql/mysqld-max $RBR%{_sbindir}/mysqld-max
 install -m644 $MBD/sql/mysqld-max.sym $RBR%{_libdir}/mysql/mysqld-max.sym
 install -m644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
 
-# Install logrotate, autostart and config file
+# Install logrotate and autostart
 install -m644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
-install -m644 $MBD/support-files/my.cnf $RBR%{_sysconfdir}/my.cnf
 install -m755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
@@ -429,6 +428,10 @@ ln -s %{_sysconfdir}/init.d/mysql $RPM_BUILD_ROOT%{_sbindir}/rcmysql
 # Create symbolic compatibility link safe_mysqld -> mysqld_safe
 # (safe_mysqld will be gone in MySQL 4.1)
 ln -sf ./mysqld_safe $RBR%{_bindir}/safe_mysqld
+
+# Touch the place where the my.cnf config file might be located
+# Just to make sure it's in the file list and marked as a config file
+touch $RBR%{_sysconfdir}/my.cnf
 
 %pre server
 # Shut down a previously installed server first
@@ -547,6 +550,8 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 
+%ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
+
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisam_ftdump
@@ -574,12 +579,10 @@ fi
 %attr(755, root, root) %{_bindir}/safe_mysqld
 
 %attr(755, root, root) %{_sbindir}/mysqld
-%attr(755, root, root) %{_sbindir}/mysqlmanager
 %attr(755, root, root) %{_sbindir}/rcmysql
 %attr(644, root, root) %{_libdir}/mysql/mysqld.sym
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
-%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
 
 %attr(755, root, root) %{_datadir}/mysql/
