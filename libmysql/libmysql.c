@@ -678,7 +678,8 @@ static const char *default_options[]=
  "init-command", "host", "database", "debug", "return-found-rows",
  "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
  "character-set-dir", "default-character-set", "interactive-timeout",
- "connect_timeout",
+ "connect_timeout", "replication-probe", "enable-reads-from-master",
+ "repl-parse-query",
  NullS
 };
 
@@ -811,6 +812,15 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  break;
 	case 19:				/* Interactive-timeout */
 	  options->client_flag|=CLIENT_INTERACTIVE;
+	  break;
+	case 21:  /* replication probe */
+	  options->rpl_probe = 1;
+	  break;
+	case 22: /* enable-reads-from-master */
+	  options->rpl_parse = 1;
+	  break;
+	case 23: /* repl-parse-query */
+	  options->no_master_reads = 0;
 	  break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
@@ -987,6 +997,175 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
   return 0;
 }
 
+/* perform query on master */
+int STDCALL mysql_master_query(MYSQL *mysql, const char *q,
+					unsigned int length)
+{
+  if(!length)
+    length = strlen(q);
+  return mysql_real_query(mysql->master, q, length);
+}
+
+/* perform query on slave */  
+int STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
+					unsigned int length)
+{
+  MYSQL* last_used_slave, *slave_to_use = 0;
+  
+  if((last_used_slave = mysql->last_used_slave))
+    slave_to_use = last_used_slave->next_slave;
+  else
+    slave_to_use = mysql->next_slave;
+  /* next_slave is always safe to use - we have a circular list of slaves
+     if there are no slaves, mysql->next_slave == mysql
+  */
+  mysql->last_used_slave = slave_to_use;
+  if(!length)
+    length = strlen(q);
+  return mysql_real_query(slave_to_use, q, length);
+}
+
+/* enable/disable parsing of all queries to decide
+   if they go on master or slave */
+void STDCALL mysql_enable_rpl_parse(MYSQL* mysql)
+{
+  mysql->options.rpl_parse = 1;
+}
+
+void STDCALL mysql_disable_rpl_parse(MYSQL* mysql)
+{
+  mysql->options.rpl_parse = 0;
+}
+
+/* get the value of the parse flag */  
+int STDCALL mysql_rpl_parse_enabled(MYSQL* mysql)
+{
+  return mysql->options.rpl_parse;
+}
+
+/*  enable/disable reads from master */
+void STDCALL mysql_enable_reads_from_master(MYSQL* mysql)
+{
+  mysql->options.no_master_reads = 0;
+}
+
+void STDCALL mysql_disable_reads_from_master(MYSQL* mysql)
+{
+  mysql->options.no_master_reads = 1;
+}
+
+/* get the value of the master read flag */  
+int STDCALL mysql_reads_from_master_enabled(MYSQL* mysql)
+{
+  return !(mysql->options.no_master_reads);
+}
+
+/* This function assumes we have just called SHOW SLAVE STATUS and have
+   read the given result and row
+*/
+static inline int get_master(MYSQL* mysql, MYSQL_RES* res, MYSQL_ROW row)
+{
+  MYSQL* master;
+  if(mysql_num_rows(res) < 3)
+    return 1; /* safety */
+  if(!(master = mysql_init(0)))
+    return 1;
+
+  /* use the same username and password as the original connection */
+  master->user = mysql->user;
+  master->passwd = mysql->passwd;
+  master->host = row[0];
+  master->port = atoi(row[2]);
+  master->db = mysql->db;
+  mysql->master = master;
+  return 0;
+}
+
+static inline int get_slaves_from_master(MYSQL* mysql)
+{
+  if(!mysql->net.vio && !mysql_real_connect(mysql, mysql->host, mysql->user,
+				      mysql->passwd, mysql->db, mysql->port,
+				      mysql->unix_socket, mysql->client_flag))
+    return 1;
+  /* more to be written */
+  return 0;
+}
+
+int STDCALL mysql_rpl_probe(MYSQL* mysql)
+{
+  MYSQL_RES* res;
+  MYSQL_ROW row;
+  int error = 1;
+  /* first determine the replication role of the server we connected to
+     the most reliable way to do this is to run SHOW SLAVE STATUS and see
+     if we have a non-empty master host. This is still not fool-proof -
+     it is not a sin to have a master that has a dormant slave thread with
+     a non-empty master host. However, it is more reliable to check 
+     for empty master than whether the slave thread is actually running
+  */
+  if(mysql_query(mysql, "SHOW SLAVE STATUS") ||
+     !(res = mysql_store_result(mysql)))
+    return 1;
+
+  if(!(row = mysql_fetch_row(res)))
+    goto err;
+
+  /* check master host for emptiness/NULL */
+  if(row[0] && *(row[0]))
+  {
+    /* this is a slave, ask it for the master */
+    if(get_master(mysql, res, row) || get_slaves_from_master(mysql))
+      goto err;
+  }
+  else
+  {
+    mysql->master = mysql;
+    if(get_slaves_from_master(mysql))
+      goto err;
+  }
+
+  error = 0;
+err:
+  mysql_free_result(res);
+  return error;
+}
+
+
+/* make a not so fool-proof decision on where the query should go, to
+   the master or the slave. Ideally the user should always make this
+   decision himself with mysql_master_query() or mysql_slave_query().
+   However, to be able to more easily port the old code, we support the
+   option of an educated guess - this should work for most applications,
+   however, it may make the wrong decision in some particular cases. If
+   that happens, the user would have to change the code to call
+   mysql_master_query() or mysql_slave_query() explicitly in the place
+   where we have made the wrong decision
+*/
+int STDCALL mysql_query_goes_to_master(const char* q, int len)
+{
+  const char* q_end;
+  q_end = (len) ? q + len : strend(q);
+  for(; q < q_end; ++q)
+  {
+    char c;
+    if(isalpha(c=*q))
+      switch(tolower(c))
+       {
+       case 'i':  /* insert */
+       case 'u':  /* update or unlock tables */
+       case 'l':  /* lock tables or load data infile */
+       case 'd':  /* drop or delete */
+       case 'a':  /* alter */
+	 return 1;
+       default:
+	 return 0;
+       }
+  }
+
+  return 0;
+}
+
+
 /****************************************************************************
 ** Init MySQL structure or allocate one
 ****************************************************************************/
@@ -1005,6 +1184,8 @@ mysql_init(MYSQL *mysql)
   else
     bzero((char*) (mysql),sizeof(*(mysql)));
   mysql->options.connect_timeout=CONNECT_TIMEOUT;
+  mysql->next_slave = mysql->master = mysql;
+  mysql->last_used_slave = 0;
 #if defined(SIGPIPE) && defined(THREAD)
   if (!((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE))
     (void) signal(SIGPIPE,pipe_sig_handler);

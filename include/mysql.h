@@ -127,6 +127,15 @@ typedef struct st_mysql_data {
 struct st_mysql_options {
   unsigned int connect_timeout,client_flag;
   my_bool compress,named_pipe;
+  my_bool rpl_probe; /* on connect, find out the replication
+				role of the server, and establish connections
+				to all the peers */
+  my_bool rpl_parse; /* each call to mysql_real_query() will parse
+				it to tell if it is a read or a write, and
+				direct it to the slave or the master */
+  my_bool no_master_reads; /* if set, never read from
+				    a master,only from slave, when doing
+				 a read that is replication-aware */
   unsigned int port;
   char *host,*init_command,*user,*password,*unix_socket,*db;
   char *my_cnf_file,*my_cnf_group, *charset_dir, *charset_name;
@@ -168,6 +177,13 @@ typedef struct st_mysql {
   char	        scramble_buff[9];
   struct charset_info_st *charset;
   unsigned int  server_language;
+
+  /* pointers to the master, and the next slave
+    connections, points to itself if lone connection  */
+  struct st_mysql* master, *next_slave;
+  
+  struct st_mysql* last_used_slave; /* needed for round-robin slave pick */
+  my_bool is_slave; /* will be false for a lone connection */
 } MYSQL;
 
 
@@ -242,6 +258,31 @@ int		STDCALL mysql_send_query(MYSQL *mysql, const char *q,
 int		STDCALL mysql_read_query_result(MYSQL *mysql);
 int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
 					unsigned int length);
+/* perform query on master */
+int		STDCALL mysql_master_query(MYSQL *mysql, const char *q,
+					unsigned int length);
+/* perform query on slave */  
+int		STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
+					unsigned int length);
+
+/* enable/disable parsing of all queries to decide
+   if they go on master or slave */
+void            STDCALL mysql_enable_rpl_parse(MYSQL* mysql);
+void            STDCALL mysql_disable_rpl_parse(MYSQL* mysql);
+/* get the value of the parse flag */  
+int             STDCALL mysql_rpl_parse_enabled(MYSQL* mysql);
+
+/*  enable/disable reads from master */
+void            STDCALL mysql_enable_reads_from_master(MYSQL* mysql);
+void            STDCALL mysql_disable_reads_from_master(MYSQL* mysql);
+/* get the value of the master read flag */  
+int             STDCALL mysql_reads_from_master_enabled(MYSQL* mysql);
+
+int             STDCALL mysql_query_goes_to_master(const char* q, int len);  
+
+/* discover the master and its slaves */  
+int             STDCALL mysql_rpl_probe(MYSQL* mysql);  
+
 int		STDCALL mysql_create_db(MYSQL *mysql, const char *DB);
 int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 int		STDCALL mysql_shutdown(MYSQL *mysql);
