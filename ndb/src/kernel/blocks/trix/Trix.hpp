@@ -39,6 +39,15 @@ public:
   Trix(const class Configuration & conf);
   virtual ~Trix();
 
+public:
+  // Subscription data, when communicating with SUMA
+
+  enum RequestType {
+    TABLE_REORG = 0,
+    INDEX_BUILD = 1
+  };
+  typedef DataBuffer<11> AttrOrderBuffer;
+
 private:
   // Private attributes
   
@@ -86,14 +95,6 @@ private:
   BlockReference c_masterTrixRef;
   Uint16 c_noNodesFailed;
   Uint16 c_noActiveNodes;
-
-  // Subscription data, when communicating with SUMA
-    enum RequestType {
-      TABLE_REORG = 0,
-      INDEX_BUILD = 1
-    };
-
-  typedef DataBuffer<11> AttrOrderBuffer;
 
   AttrOrderBuffer::DataBufferPool c_theAttrOrderBufferPool;
 

@@ -186,8 +186,8 @@ public:
   };
 };
 
-void *
-ExtNDB::signalExecThread_C(void *r) 
+extern "C"
+void *signalExecThread_C(void *r) 
 {
   ExtNDB *grepps = (ExtNDB*)r;
 
@@ -197,6 +197,7 @@ ExtNDB::signalExecThread_C(void *r)
   /* NOTREACHED */
   return 0;
 }
+
 
 void
 ExtNDB::signalExecThreadRun() 
@@ -233,10 +234,12 @@ ExtNDB::signalExecThreadRun()
   sl.push_back(SigMatch(GSN_GREP_SUB_START_REF, &ExtNDB::sendSignalRep));
   sl.push_back(SigMatch(GSN_GREP_SUB_CREATE_REF, &ExtNDB::sendSignalRep));
 
+
   while(1) {
     SigMatch *handler = NULL;
     NdbApiSignal *signal = NULL;
-    if(m_signalRecvQueue.waitFor(sl, handler, signal)) {
+
+    if(m_signalRecvQueue.waitFor(sl, handler, signal, DEFAULT_TIMEOUT)) {
 #if 0
       RLOG(("Removed signal from queue (GSN: %d, QSize: %d)",
 	    signal->readSignalNumber(), m_signalRecvQueue.size()));
