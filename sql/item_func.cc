@@ -2377,16 +2377,17 @@ longlong Item_func_release_lock::val_int()
 
 longlong Item_func_last_insert_id::val_int()
 {
+  THD *thd= current_thd;
   DBUG_ASSERT(fixed == 1);
   if (arg_count)
   {
-    longlong value=args[0]->val_int();
-    current_thd->insert_id(value);
-    null_value=args[0]->null_value;
+    longlong value= args[0]->val_int();
+    thd->insert_id(value);
+    null_value= args[0]->null_value;
+    return value;                       // Avoid side effect of insert_id()
   }
-  else
-    current_thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-  return current_thd->insert_id();
+  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return thd->insert_id();
 }
 
 /* This function is just used to test speed of different functions */

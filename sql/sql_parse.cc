@@ -4719,19 +4719,21 @@ bool
 mysql_new_select(LEX *lex, bool move_down)
 {
   SELECT_LEX *select_lex;
+  DBUG_ENTER("mysql_new_select");
+
   if (!(select_lex= new(lex->thd->mem_root) SELECT_LEX()))
-    return 1;
+    DBUG_RETURN(1);
   select_lex->select_number= ++lex->thd->select_number;
   select_lex->init_query();
   select_lex->init_select();
   select_lex->parent_lex= lex;
   if (move_down)
   {
+    SELECT_LEX_UNIT *unit;
     lex->subqueries= TRUE;
     /* first select_lex of subselect or derived table */
-    SELECT_LEX_UNIT *unit;
     if (!(unit= new(lex->thd->mem_root) SELECT_LEX_UNIT()))
-      return 1;
+      DBUG_RETURN(1);
 
     unit->init_query();
     unit->init_select();
@@ -4748,7 +4750,7 @@ mysql_new_select(LEX *lex, bool move_down)
     if (lex->current_select->order_list.first && !lex->current_select->braces)
     {
       my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
-      return 1;
+      DBUG_RETURN(1);
     }
     select_lex->include_neighbour(lex->current_select);
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
@@ -4760,7 +4762,7 @@ mysql_new_select(LEX *lex, bool move_down)
 	fake SELECT_LEX for UNION processing
       */
       if (!(fake= unit->fake_select_lex= new(lex->thd->mem_root) SELECT_LEX()))
-        return 1;
+        DBUG_RETURN(1);
       fake->include_standalone(unit,
 			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
       fake->select_number= INT_MAX;
@@ -4774,7 +4776,7 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);
   lex->current_select= select_lex;
   select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /*
