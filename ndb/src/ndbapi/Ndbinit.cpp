@@ -204,14 +204,6 @@ Ndb::~Ndb()
     TransporterFacade::instance()->close(theNdbBlockNumber, theFirstTransId);
   }
   
-  if (global_ndb_cluster_connection != 0) {
-    theNoOfNdbObjects--;
-    if(theNoOfNdbObjects == 0){
-      delete global_ndb_cluster_connection;
-      global_ndb_cluster_connection= 0;
-    }
-  }//if
-
 //  if (theSchemaConToNdbList != NULL)
 //    closeSchemaTransaction(theSchemaConToNdbList);
   while ( theConIdleList != NULL )
@@ -248,6 +240,19 @@ Ndb::~Ndb()
   }
 
   delete theImpl;
+
+  /**
+   * This needs to be put after delete theImpl
+   *  as TransporterFacade::instance is delete by global_ndb_cluster_connection
+   *  and used by theImpl
+   */
+  if (global_ndb_cluster_connection != 0) {
+    theNoOfNdbObjects--;
+    if(theNoOfNdbObjects == 0){
+      delete global_ndb_cluster_connection;
+      global_ndb_cluster_connection= 0;
+    }
+  }//if
 
   /** 
    *  This sleep is to make sure that the transporter 

@@ -24,7 +24,8 @@
 
 	/* Functions defined in this file */
 
-static void frm_error(int error,TABLE *form,const char *name,int errortype);
+static void frm_error(int error,TABLE *form,const char *name,
+                      int errortype, int errarg);
 static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 			      uint types, char **names);
 static uint find_field(TABLE *form,uint start,uint length);
@@ -57,7 +58,7 @@ static byte* get_field_name(Field **buff,uint *length,
    2    Error (see frm_error)
    3    Wrong data in .frm file
    4    Error (see frm_error)
-   5    It is new format of .frm file
+   5    Error (see frm_error: charset unavailable)
 */
 
 int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
@@ -65,7 +66,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 {
   reg1 uint i;
   reg2 uchar *strpos;
-  int	 j,error;
+  int	 j,error, errarg= 0;
   uint	 rec_buff_length,n_length,int_length,records,key_parts,keys,
          interval_count,interval_parts,read_length,db_create_options;
   uint	 key_info_length, com_length;
@@ -454,10 +455,14 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       }
       else
       {
-	if (!strpos[14])
-	  charset= &my_charset_bin;
-	else if (!(charset=get_charset((uint) strpos[14], MYF(0))))
-	  charset= outparam->table_charset;
+        if (!strpos[14])
+          charset= &my_charset_bin;
+        else if (!(charset=get_charset((uint) strpos[14], MYF(0))))
+        {
+          error= 5; // Unknown or unavailable charset
+          errarg= (int) strpos[14];
+          goto err_not_open;
+        }
       }
       if (!comment_length)
       {
@@ -509,25 +514,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     {
       /* Unescape UCS2 intervals from HEX notation */
       TYPELIB *interval= outparam->intervals + interval_nr - 1;
-      for (uint pos= 0; pos < interval->count; pos++)
-      {
-        char *from, *to;
-        for (from= to= (char*) interval->type_names[pos]; *from; )
-        {
-          /*
-            Note, hexchar_to_int(*from++) doesn't work
-            one some compilers, e.g. IRIX. Looks like a compiler
-            bug in inline functions in combination with arguments
-            that have a side effect. So, let's use from[0] and from[1]
-            and increment 'from' by two later.
-          */
-
-          *to++= (char) (hexchar_to_int(from[0]) << 4) +
-                         hexchar_to_int(from[1]);
-          from+= 2;
-        }
-        interval->type_lengths[pos] /= 2;
-      }
+      unhex_type2(interval);
     }
     
     *field_ptr=reg_field=
@@ -847,7 +834,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   delete crypted;
   *root_ptr= old_root;
   if (! error_reported)
-    frm_error(error,outparam,name,ME_ERROR+ME_WAITTANG);
+    frm_error(error,outparam,name,ME_ERROR+ME_WAITTANG, errarg);
   delete outparam->file;
   outparam->file=0;				// For easier errorchecking
   outparam->db_stat=0;
@@ -1032,7 +1019,8 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
 
 	/* error message when opening a form file */
 
-static void frm_error(int error, TABLE *form, const char *name, myf errortype)
+static void frm_error(int error, TABLE *form, const char *name,
+                      myf errortype, int errarg)
 {
   int err_no;
   char buff[FN_REFLEN];
@@ -1059,8 +1047,22 @@ static void frm_error(int error, TABLE *form, const char *name, myf errortype)
     datext= datext==NullS ? "" : datext;
     err_no= (my_errno == ENOENT) ? ER_FILE_NOT_FOUND : (my_errno == EAGAIN) ?
       ER_FILE_USED : ER_CANT_OPEN_FILE;
-    my_error(err_no, errortype,
-             fn_format(buff, form->real_name, form_dev, datext, 2), my_errno);
+    my_error(err_no,errortype,
+	     fn_format(buff,form->real_name,form_dev,datext,2),my_errno);
+    break;
+  }
+  case 5:
+  {
+    const char *csname= get_charset_name((uint) errarg);
+    char tmp[10];
+    if (!csname || csname[0] =='?')
+    {
+      my_snprintf(tmp, sizeof(tmp), "#%d", errarg);
+      csname= tmp;
+    }
+    my_printf_error(ER_UNKNOWN_COLLATION,
+                    "Unknown collation '%s' in table '%-.64s' definition", 
+                    MYF(0), csname, form->real_name);
     break;
   }
   default:				/* Better wrong error than none */

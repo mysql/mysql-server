@@ -43,6 +43,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <m_ctype.h>
+#include <hash.h>
 
 #include "client_priv.h"
 #include "mysql.h"
@@ -130,6 +131,15 @@ const char *compatible_mode_names[]=
 TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
 				  "", compatible_mode_names, NULL};
 
+#define TABLE_RULE_HASH_SIZE   16
+
+typedef struct st_table_rule_ent
+{
+  char* key;    /* dbname.tablename */
+  uint key_len;
+} TABLE_RULE_ENT;
+
+HASH ignore_table;
 
 static struct my_option my_long_options[] =
 {
@@ -235,6 +245,11 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_hex_blob, (gptr*) &opt_hex_blob, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (gptr*) &current_host,
    (gptr*) &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"ignore-table", OPT_IGNORE_TABLE,
+   "Do not dump the specified table. To specify more than one table to ignore, "
+   "use the directive multiple times, once for each table.  Each table must "
+   "be specified with both database and table names, e.g. --ignore-table=database.table",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lines-terminated-by", OPT_LTB, "Lines in the i.file are terminated by ...",
    (gptr*) &lines_terminated, (gptr*) &lines_terminated, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -506,6 +521,28 @@ static void write_footer(FILE *sql_file)
 } /* write_footer */
 
 
+static void free_table_ent(TABLE_RULE_ENT* e)
+{
+  my_free((gptr) e, MYF(0));
+}
+
+
+static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
+			   my_bool not_used __attribute__((unused)))
+{
+  *len= e->key_len;
+  return (byte*)e->key;
+}
+
+
+void init_table_rule_hash(HASH* h)
+{
+  if(hash_init(h, charset_info, TABLE_RULE_HASH_SIZE, 0, 0,
+	       (hash_get_key) get_table_key,
+	       (hash_free_key) free_table_ent, 0))
+    exit(EX_EOM);
+}
+
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -577,8 +614,32 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_TABLES:
     opt_databases=0;
     break;
+  case (int) OPT_IGNORE_TABLE:
+  {
+    uint len= (uint)strlen(argument);
+    TABLE_RULE_ENT* e;
+    if (!strchr(argument, '.'))
+    {
+      fprintf(stderr, "Illegal use of option --ignore-table=<database>.<table>\n");
+      exit(1);
+    }
+    /* len is always > 0 because we know the there exists a '.' */
+    e= (TABLE_RULE_ENT*)my_malloc(sizeof(TABLE_RULE_ENT) + len, MYF(MY_WME));
+    if (!e)
+      exit(EX_EOM);
+    e->key= (char*)e + sizeof(TABLE_RULE_ENT);
+    e->key_len= len;
+    memcpy(e->key, argument, len);
+
+    if (!hash_inited(&ignore_table))
+      init_table_rule_hash(&ignore_table);
+
+    if(my_hash_insert(&ignore_table, (byte*)e))
+      exit(EX_EOM);
+    break;
+  }
   case (int) OPT_COMPATIBLE:
-    {  
+    {
       char buff[255];
       char *end= compatible_mode_normal_str;
       int i;
@@ -617,6 +678,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       }
       if (end!=compatible_mode_normal_str)
 	end[-1]= 0;
+      /* 
+        Set charset to the default compiled value if it hasn't
+        been reset yet by --default-character-set=xxx.
+      */
+      if (default_charset == (char*) MYSQL_UNIVERSAL_CLIENT_CHARSET)
+        default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
       break;
     }
   case (int) OPT_MYSQL_PROTOCOL:
@@ -1991,12 +2058,26 @@ static int init_dumping(char *database)
 } /* init_dumping */
 
 
+my_bool include_table(byte* hash_key, uint len)
+{
+  if (hash_search(&ignore_table, (byte*) hash_key, len))
+    return FALSE;
+
+  return TRUE;
+}
+
 
 static int dump_all_tables_in_db(char *database)
 {
   char *table;
   uint numrows;
   char table_buff[NAME_LEN*2+3];
+
+  char hash_key[2*NAME_LEN+2];  /* "db.tablename" */
+  char *afterdot;
+
+  afterdot= strmov(hash_key, database);
+  *afterdot++= '.';
 
   if (init_dumping(database))
     return 1;
@@ -2006,7 +2087,7 @@ static int dump_all_tables_in_db(char *database)
   {
     DYNAMIC_STRING query;
     init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
-    for (numrows=0 ; (table = getTableName(1)) ; numrows++)
+    for (numrows= 0 ; (table= getTableName(1)) ; numrows++)
     {
       dynstr_append(&query, quote_name(table, table_buff, 1));
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
@@ -2022,13 +2103,17 @@ static int dump_all_tables_in_db(char *database)
       DBerror(sock, "when doing refresh");
            /* We shall continue here, if --force was given */
   }
-  while ((table = getTableName(0)))
+  while ((table= getTableName(0)))
   {
-    numrows = getTableStructure(table, database);
-    if (!dFlag && numrows > 0)
-      dumpTable(numrows,table);
-    my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
-    order_by= 0;
+    char *end= strmov(afterdot, table);
+    if (include_table(hash_key, end - hash_key))
+    {
+      numrows = getTableStructure(table, database);
+      if (!dFlag && numrows > 0)
+	dumpTable(numrows,table);
+      my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
+      order_by= 0;
+    }
   }
   if (opt_xml)
   {
