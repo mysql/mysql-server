@@ -2215,11 +2215,7 @@ in_sum_expr:
 	}
 	expr
 	{
-  	/* 
-	  There are (SELECT_LEX *) pointer conversionis here, because 
-	  global union parameters checked in 'increment' above
-	*/
-	  ((SELECT_LEX *)Select)->in_sum_expr--;
+	  Select->select_lex()->in_sum_expr--;
 	  $$=$2;
 	};
 
@@ -2296,12 +2292,7 @@ join_table_list:
 	  { add_join_on($4,$6); $$=$4; }
 	| join_table_list INNER_SYM JOIN_SYM join_table_list
 	  {
-  	    /* 
-	      There are (SELECT_LEX *) pointer conversionis here and 
-	      following joins, because it is impossible FROM clause in
-	      global union parameters 
-	    */
-	    SELECT_LEX *sel= (SELECT_LEX *)Select;
+	    SELECT_LEX *sel= Select->select_lex();
 	    sel->db1=$1->db; sel->table1=$1->alias;
 	    sel->db2=$4->db; sel->table2=$4->alias;
 	  }
@@ -2311,7 +2302,7 @@ join_table_list:
 	  { add_join_on($5,$7); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| join_table_list LEFT opt_outer JOIN_SYM join_table_list
 	  {
-	    SELECT_LEX *sel= (SELECT_LEX *)Select;
+	    SELECT_LEX *sel= Select->select_lex();
 	    sel->db1=$1->db; sel->table1=$1->alias;
 	    sel->db2=$5->db; sel->table2=$5->alias;
 	  }
@@ -2323,7 +2314,7 @@ join_table_list:
 	  { add_join_on($1,$7); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
 	| join_table_list RIGHT opt_outer JOIN_SYM join_table_list
 	  {
-	    SELECT_LEX *sel= (SELECT_LEX *)Select;
+	    SELECT_LEX *sel= Select->select_lex();
 	    sel->db1=$1->db; sel->table1=$1->alias;
 	    sel->db2=$5->db; sel->table2=$5->alias;
 	  }
@@ -2341,7 +2332,7 @@ normal_join:
 
 join_table:
 	{
-	  SELECT_LEX *sel= (SELECT_LEX *)Select;
+	  SELECT_LEX *sel= Select->select_lex();
 	  sel->use_index_ptr=sel->ignore_index_ptr=0;
 	}
         table_ident opt_table_alias opt_key_definition
@@ -2388,45 +2379,40 @@ opt_key_definition:
 	/* empty */	{}
 	| USE_SYM    key_usage_list
           {
-  	    /* 
-	      There are (SELECT_LEX *) pointer conversionis here and 
-	      following key definitions, because 
-	      key definitions is impossible in union global parameters
-	    */
-	    SELECT_LEX *sel= (SELECT_LEX*)Select;
+	    SELECT_LEX *sel= Select->select_lex();
 	    sel->use_index= *$2;
 	    sel->use_index_ptr= &sel->use_index;
 	  }
 	| IGNORE_SYM key_usage_list
 	  {
-	    SELECT_LEX *sel= (SELECT_LEX*)Select;
+	    SELECT_LEX *sel= Select->select_lex();
 	    sel->ignore_index= *$2;
 	    sel->ignore_index_ptr= &sel->ignore_index;
 	  };
 
 key_usage_list:
-	key_or_index { ((SELECT_LEX *)Select)->interval_list.empty(); }
+	key_or_index { Select->select_lex()->interval_list.empty(); }
         '(' key_usage_list2 ')'
-        { $$= &((SELECT_LEX *)Select)->interval_list; };
+        { $$= &Select->select_lex()->interval_list; };
 
 key_usage_list2:
 	key_usage_list2 ',' ident
-        { ((SELECT_LEX *)Select)->
+        { Select->select_lex()->
 	    interval_list.push_back(new String((const char*) $3.str, $3.length,
 				    default_charset_info)); }
 	| ident
-        { ((SELECT_LEX *)Select)->
+        { Select->select_lex()->
 	    interval_list.push_back(new String((const char*) $1.str, $1.length,
 				    default_charset_info)); }
 	| PRIMARY_SYM
-        { ((SELECT_LEX *)Select)->
+        { Select->select_lex()->
 	    interval_list.push_back(new String("PRIMARY", 7,
 				    default_charset_info)); };
 
 using_list:
 	ident
 	  {
-	    SELECT_LEX *sel= (SELECT_LEX *)Select;
+	    SELECT_LEX *sel= Select->select_lex();
 	    if (!($$= new Item_func_eq(new Item_field(sel->db1, sel->table1,
 						      $1.str),
 				       new Item_field(sel->db2, sel->table2,
@@ -2435,7 +2421,7 @@ using_list:
 	  }
 	| using_list ',' ident
 	  {
-	    SELECT_LEX *sel= (SELECT_LEX *)Select;
+	    SELECT_LEX *sel= Select->select_lex();
 	    if (!($$= new Item_cond_and(new Item_func_eq(new Item_field(sel->db1,sel->table1,$3.str), new Item_field(sel->db2,sel->table2,$3.str)), $1)))
 	      YYABORT;
 	  };
@@ -2467,22 +2453,14 @@ opt_table_alias:
 
 
 where_clause:
-	/* 
-	  There are (SELECT_LEX *) pointer conversionis here, because 
-	  it is impossible where_clause in global union parameters
-	*/
-	/* empty */  { ((SELECT_LEX *)Select)->where= 0; }  
-	| WHERE expr { ((SELECT_LEX *)Select)->where= $2; };
+	/* empty */  { Select->select_lex()->where= 0; }  
+	| WHERE expr { Select->select_lex()->where= $2; };
 
 having_clause:
-	/* 
-	  There are (SELECT_LEX *) pointer conversionis here, because 
-	  it is impossible having_clause in global union parameters
-	*/
 	/* empty */
-	| HAVING { ((SELECT_LEX *)Select)->create_refs= 1; } expr
+	| HAVING { Select->select_lex()->create_refs= 1; } expr
 	{
-	  SELECT_LEX *sel= (SELECT_LEX*)Select;
+	  SELECT_LEX *sel= Select->select_lex();
 	  sel->having= $3; sel->create_refs=0;
 	};
 
@@ -2517,7 +2495,7 @@ olap_opt:
 		       "global union parameters");
 	      YYABORT;
 	    }
-	    ((SELECT_LEX *)lex->current_select)->olap= CUBE_TYPE;
+	    lex->current_select->select_lex()->olap= CUBE_TYPE;
 	    net_printf(lex->thd, ER_NOT_SUPPORTED_YET, "CUBE");
 	    YYABORT;	/* To be deleted in 4.1 */
 	  }
@@ -2531,7 +2509,7 @@ olap_opt:
 		       "global union parameters");
 	      YYABORT;
 	    }
-	    ((SELECT_LEX *)lex->current_select)->olap= ROLLUP_TYPE;
+	    lex->current_select->select_lex()->olap= ROLLUP_TYPE;
 	    net_printf(lex->thd, ER_NOT_SUPPORTED_YET, "ROLLUP");
 	    YYABORT;	/* To be deleted in 4.1 */
 	  }
@@ -2555,7 +2533,7 @@ order_clause:
 	    YYABORT;
 	  }	
 	  if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-	      ((SELECT_LEX*)lex->current_select)->olap !=
+	      lex->current_select->select_lex()->olap !=
 	      UNSPECIFIED_OLAP_TYPE)
 	  {
 	    net_printf(lex->thd, ER_WRONG_USAGE,
@@ -2583,7 +2561,7 @@ limit_clause:
 	  {
 	    LEX *lex= Lex;
 	    if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-	        ((SELECT_LEX*)lex->current_select)->olap !=
+	        lex->current_select->select_lex()->olap !=
 		UNSPECIFIED_OLAP_TYPE)
 	    {
 	      net_printf(lex->thd, ER_WRONG_USAGE, "CUBE/ROLLUP",
@@ -2598,7 +2576,7 @@ limit_clause:
 	  {
 	    LEX *lex=Lex;
 	    if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
-                ((SELECT_LEX*)lex->current_select)->olap !=
+                lex->current_select->select_lex()->olap !=
 		UNSPECIFIED_OLAP_TYPE)
 	    {
 	      net_printf(lex->thd, ER_WRONG_USAGE, "CUBE/ROLLUP",
@@ -4005,12 +3983,7 @@ opt_table:
 	'*'
 	  {
 	    LEX *lex= Lex;
-	    /* 
-	      There are (SELECT_LEX *) pointer conversionis here and following
-	      opt_table, because it is impossible GRANT clause in global 
-	      union parameters
-	    */
-	    ((SELECT_LEX *)lex->current_select)->db= lex->thd->db;
+	    lex->current_select->select_lex()->db= lex->thd->db;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
@@ -4022,7 +3995,7 @@ opt_table:
 	| ident '.' '*'
 	  {
 	    LEX *lex= Lex;
-	    ((SELECT_LEX *)lex->current_select)->db = $1.str;
+	    lex->current_select->select_lex()->db = $1.str;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
@@ -4034,7 +4007,7 @@ opt_table:
 	| '*' '.' '*'
 	  {
 	    LEX *lex= Lex;
-	    ((SELECT_LEX *)lex->current_select)->db = NULL;
+	    lex->current_select->select_lex()->db = NULL;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant= GLOBAL_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)
@@ -4227,7 +4200,7 @@ optional_order_or_limit:
 	      send_error(lex->thd, ER_SYNTAX_ERROR);
 	      YYABORT;
 	    }
-	    SELECT_LEX *sel= (SELECT_LEX *)lex->current_select;
+	    SELECT_LEX *sel= lex->current_select->select_lex();
 	    sel->master_unit()->global_parameters= 
 	      sel->master_unit();
 	    lex->current_select= sel->master_unit();
