@@ -2157,7 +2157,7 @@ void Item_func_group_concat::print(String *str)
       (*order[i]->item)->print(str);
     }
   }
-  str->append(" seperator \'", 12);
+  str->append(" separator \'", 12);
   str->append(*separator);
   str->append("\')", 2);
 }
