@@ -106,3 +106,17 @@ select last_insert_id();
 
 drop table t1;
 
+drop table if exists t1;
+create table t1(a int auto_increment,b int null,primary key(a));
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+insert into t1(a,b)values(NULL,1);
+insert into t1(a,b)values(200,2);
+insert into t1(a,b)values(0,3);
+insert into t1(b)values(4);
+SET SQL_MODE='';
+insert into t1(a,b)values(NULL,5);
+insert into t1(a,b)values(300,6);
+insert into t1(a,b)values(0,7);
+insert into t1(b)values(8);
+select * from t1;
+drop table t1;
