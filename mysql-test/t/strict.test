@@ -1040,7 +1040,6 @@ delimiter |;
 create procedure t1 () begin declare exit handler for sqlexception
 select'a'; insert into t1 values (200); end;|
 delimiter ;|
---error 1264
 call t1();
 select * from t1;
 drop procedure t1;
