@@ -107,7 +107,8 @@ struct show_table_type_st sys_table_types[]=
   {"FEDERATED",&have_federated_db,
    "Federated MySQL storage engine", DB_TYPE_FEDERATED_DB},
   {"BLACKHOLE",&have_blackhole_db,
-   "Storage engine designed to act as null storage", DB_TYPE_BLACKHOLE_DB},
+   "/dev/null storage engine (anything you write to it disappears)",
+   DB_TYPE_BLACKHOLE_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
