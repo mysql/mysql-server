@@ -27,7 +27,7 @@
 
 int mysql_union(THD *thd, LEX *lex,select_result *result)
 {
-  SELECT_LEX *sl, *last_sl, lex_sl;
+  SELECT_LEX *sl, *last_sl=(SELECT_LEX *)NULL, lex_sl;
   ORDER *order;
   List<Item> item_list;
   TABLE *table;
@@ -38,7 +38,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   DBUG_ENTER("mysql_union");
 
   /* Fix tables 'to-be-unioned-from' list to point at opened tables */
-  for (sl=&lex->select_lex; sl && sl->linkage != NOT_A_SELECT; sl=sl->next)
+  for (sl=&lex->select_lex; sl && sl->linkage != NOT_A_SELECT; last_sl=sl, sl=sl->next)
   {
     for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
 	 cursor;
@@ -50,6 +50,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   {
     lex_sl=*sl;
     sl=(SELECT_LEX *)NULL;
+    if (last_sl) last_sl->next=sl;
   }
   else
     lex_sl.linkage=UNSPECIFIED_TYPE;
@@ -68,7 +69,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		       sl->item_list,
 		       sl->where,
 		       sl->ftfunc_list,
-		       (sl->braces) ? (ORDER*) 0 : (ORDER *) sl->order_list.first,
+		       (sl->braces) ? (ORDER *) sl->order_list.first : (ORDER *) 0,
 		       (ORDER*) sl->group_list.first,
 		       sl->having,
 		       (ORDER*) NULL,
@@ -79,7 +80,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     DBUG_RETURN(0);
   }
 
-  order = (lex_sl.linkage == UNSPECIFIED_TYPE) ? (ORDER *) last_sl->order_list.first : (ORDER *) lex_sl.order_list.first;
+  order = (lex_sl.linkage == UNSPECIFIED_TYPE) ? ( (last_sl->braces) ? (ORDER *) 0 :  (ORDER *) last_sl->order_list.first) : (ORDER *) lex_sl.order_list.first;
 
   {
     Item *item;
@@ -127,7 +128,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		     sl->item_list,
 		     sl->where,
 		     sl->ftfunc_list,
-		     (sl->braces) ? (ORDER*) 0 : (ORDER *)sl->order_list.first,
+		     (sl->braces) ? (ORDER *)sl->order_list.first : (ORDER *) 0,
 		     (ORDER*) sl->group_list.first,
 		     sl->having,
 		     (ORDER*) NULL,
