@@ -1391,7 +1391,7 @@ private:
   void sendCompleteLqh(Signal* signal,
                        TcConnectRecord * const regTcPtr);
   void sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord *);
-  void sendTCKEY_FAILCONF(Signal* signal, const ApiConnectRecord *);
+  void sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord *);
   void checkStartTimeout(Signal* signal);
   void checkStartFragTimeout(Signal* signal);
   void timeOutFoundFragLab(Signal* signal, Uint32 TscanConPtr);
