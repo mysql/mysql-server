@@ -1706,7 +1706,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     Usually mysql_init_query() is called by mysql_parse(), but we need it here
     as the present method does not call mysql_parse().
   */
-  mysql_init_query(thd);
+  mysql_init_query(thd, 0, 0);
   if (!use_rli_only_for_errors)
   {
 #if MYSQL_VERSION_ID < 50000
