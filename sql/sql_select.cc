@@ -7802,14 +7802,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
                                       convert_blob_length);
   case Item::TYPE_HOLDER:
-  {
-    Field *example= ((Item_type_holder *)item)->example();
-    if (example)
-      return create_tmp_field_from_field(thd, example, item->name, table, NULL,
-                                         convert_blob_length);
-    return create_tmp_field_from_item(thd, item, table, copy_func, 0,
-                                      convert_blob_length);
-  }
+    return ((Item_type_holder *)item)->make_field_by_type(table);
   default:					// Dosen't have to be stored
     return 0;
   }
@@ -10584,7 +10577,19 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	/* Found key that can be used to retrieve data in sorted order */
 	if (tab->ref.key >= 0)
 	{
-	  tab->ref.key= new_ref_key;
+          /*
+            We'll use ref access method on key new_ref_key. In general case 
+            the index search tuple for new_ref_key will be different (e.g.
+            when one of the indexes only covers prefix of the field, see
+            BUG#9213 in group_by.test).
+            So we build tab->ref from scratch here.
+          */
+          KEYUSE *keyuse= tab->keyuse;
+          while (keyuse->key != new_ref_key && keyuse->table == tab->table)
+            keyuse++;
+          if (create_ref_for_key(tab->join, tab, keyuse, 
+                                 tab->join->const_table_map))
+            DBUG_RETURN(0);
 	}
 	else
 	{
@@ -13188,7 +13193,8 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
-    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
+    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE,
+                             "")))
       res= unit->exec();
     res|= unit->cleanup();
   }

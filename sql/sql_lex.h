@@ -436,7 +436,8 @@ public:
   void exclude_tree();
 
   /* UNION methods */
-  bool prepare(THD *thd, select_result *result, ulong additional_options);
+  bool prepare(THD *thd, select_result *result, ulong additional_options,
+               const char *tmp_table_alias);
   bool exec();
   bool cleanup();
   inline void unclean() { cleaned= 0; }

@@ -677,3 +677,28 @@ select sum(a)*sum(b) as d from t1 where a=1 group by c having d > 0;
 d
 10
 drop table t1;
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(8),(9);
+create table t2 (
+a int,
+b varchar(200) NOT NULL,
+c varchar(50) NOT NULL,
+d varchar(100) NOT NULL,
+primary key (a,b(132),c,d),
+key a (a,b)
+) charset=utf8;
+insert into t2 select 
+x3.a,  -- 3
+concat('val-', x3.a + 3*x4.a), -- 12
+concat('val-', @a:=x3.a + 3*x4.a + 12*C.a), -- 120
+concat('val-', @a + 120*D.a)
+from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4;
+delete from t2  where a = 2 and b = 'val-2' limit 30;
+explain select c from t2 where a = 2 and b = 'val-2' group by c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	PRIMARY,a	PRIMARY	402	const,const	6	Using where
+select c from t2 where a = 2 and b = 'val-2' group by c;
+c
+val-74
+val-98
+drop table t1,t2;

@@ -115,7 +115,7 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
       DBUG_RETURN(1); // out of memory
 
     // st_select_lex_unit::prepare correctly work for single select
-    if ((res= unit->prepare(thd, derived_result, 0)))
+    if ((res= unit->prepare(thd, derived_result, 0, orig_table_list->alias)))
       goto exit;
 
 
