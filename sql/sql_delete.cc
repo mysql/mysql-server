@@ -375,7 +375,7 @@ void multi_delete::send_error(uint errcode,const char *err)
   if ((table_being_deleted->table->file->has_transactions() &&
        table_being_deleted == delete_tables) ||
       !some_table_is_not_transaction_safe(delete_tables->next))
-    ha_rollback(thd);
+    ha_rollback_stmt(thd);
   else if (do_delete)
     VOID(do_deletes(true));
 }
@@ -454,29 +454,45 @@ int multi_delete::do_deletes (bool from_send_error)
 
 bool multi_delete::send_eof()
 {
-  thd->proc_info="deleting from reference tables";
-  int error = do_deletes(false);
+  thd->proc_info="deleting from reference tables";  /* out: 1 if error, 0 if success */
+  int error = do_deletes(false);   /* do_deletes returns 0 if success */
 
   /* reset used flags */
   delete_tables->table->no_keyread=0;
 
   thd->proc_info="end";
-  if (error && error != -1)
+  if (error)
   {
     ::send_error(&thd->net);
     return 1;
   }
 
+  /* Write the SQL statement to the binlog if we deleted
+   rows and we succeeded, or also in an error case when there
+   was a non-transaction-safe table involved, since
+   modifications in it cannot be rolled back. */
+
   if (deleted &&
-      (error <= 0 || some_table_is_not_transaction_safe(delete_tables)))
+      (!error || some_table_is_not_transaction_safe(delete_tables)))
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
     Query_log_event qinfo(thd, thd->query);
-    if (mysql_bin_log.write(&qinfo) &&
+
+    /* mysql_bin_log is not open if binlogging or replication
+    is not used */
+
+    if (mysql_bin_log.is_open() &&  mysql_bin_log.write(&qinfo) &&
 	!some_table_is_not_transaction_safe(delete_tables))
-      error=1;					// Rollback
-    VOID(ha_autocommit_or_rollback(thd,error >= 0));
+      error=1;  /* Log write failed: roll back
+		   the SQL statement */
+    if (deleted) 
+    {
+      /* If autocommit is on we do a commit, in an error case we
+	 roll back the current SQL statement */
+      VOID(ha_autocommit_or_rollback(thd, error != 0));
+    }
   }
+
   ::send_ok(&thd->net,deleted);
   return 0;
 }
