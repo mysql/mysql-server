@@ -77,27 +77,59 @@ public:
   ha_rows records;  /* estimate of # of records to be retrieved */
   double  read_time; /* time to perform this retrieval          */
   TABLE   *head;
-
   /*
-    index this quick select uses, or MAX_KEY for quick selects 
+    Index this quick select uses, or MAX_KEY for quick selects 
     that use several indexes
   */
   uint index;
 
-  /* applicable iff index!= MAX_KEY */
-  uint max_used_key_length, used_key_parts;
+  /*
+    Total length of first used_key_parts parts of the key.
+    Applicable if index!= MAX_KEY.
+  */
+  uint max_used_key_length;
+
+  /*
+    Max. number of (first) key parts this quick select uses for retrieval.
+    eg. for "(key1p1=c1 AND key1p2=c2) OR key1p1=c2" used_key_parts == 2.
+    Applicable if index!= MAX_KEY.
+  */
+  uint used_key_parts;
 
   QUICK_SELECT_I();
   virtual ~QUICK_SELECT_I(){};
-  /* 
-    Call init() immediately after creation of quick select. if init() call 
-    fails, reset() or get_next() must not be called.
+  
+  /*
+    Do post-constructor initialization.
+    SYNOPSIS
+      init()
+    
+    init() performs initializations that should have been in constructor if 
+    it was possible to return errors from constructors. The join optimizer may 
+    create and then delete quick selects without retrieving any rows so init()
+    must not contain any IO or CPU intensive code.
+
+    If init() call fails the only valid action is to delete this quick select, 
+    reset() and get_next() must not be called.
+    
+    RETURN
+      0      OK
+      other  Error code
   */
   virtual int  init() = 0;
   
   /* 
-    Call reset() before first get_next call. get_next must not be called if 
-    reset() call fails.
+    Initialize quick select for row retrieval.
+    SYNOPSIS
+      reset()
+    
+    reset() should be called when it is certain that row retrieval will be 
+    necessary. This call may do heavyweight initialization like buffering first
+    N records etc. If reset() call fails get_next() must not be called.
+    
+    RETURN
+      0      OK
+      other  Error code
   */
   virtual int  reset(void) = 0;
   virtual int  get_next() = 0;   /* get next record to retrieve */
@@ -117,30 +149,54 @@ public:
   virtual int get_type() = 0;
 
   /*
-    Initialize this quick select as a child of a index union or intersection 
-    scan. This call replaces init() call.
+    Initialize this quick select as a merged scan inside a ROR-union or a ROR-
+    intersection scan. The caller must not additionally call init() if this 
+    function is called.
+    SYNOPSIS
+      init_ror_merged_scan()
+        reuse_handler quick select may use (q: psergey??)
+        (q: is this natural that we do it this way)
+    NOTES 
+      psergey?  
   */
-  virtual int init_ror_child_scan(bool reuse_handler)
+  virtual int init_ror_merged_scan(bool reuse_handler)
   { DBUG_ASSERT(0); return 1; }
   
-  virtual void cleanup_ror_child_scan() { DBUG_ASSERT(0); }
+  /* Save ROWID of last retrieved row in file->ref. (psergey: or table->ref?) */
   virtual void save_last_pos(){};
 
   /* 
-    Fill key_names with list of keys this quick select used;
-    fill used_lenghth with correponding used lengths.
+    Append comma-separated list of keys this quick select uses to key_names;
+    append comma-separated list of corresponding used lengths to used_lengths.
     This is used by select_describe.
   */
-  virtual void fill_keys_and_lengths(String *key_names, 
-                                     String *used_lengths)=0;
-
+  virtual void add_keys_and_lengths(String *key_names, 
+                                    String *used_lengths)=0;
+ 
+  /* 
+    Append text representation of quick select structure (what and how is 
+    merged) to str. The result is added to "Extra" field in EXPLAIN output.
+    This function is implemented only by quick selects that merge other quick
+    selects output and/or can produce output suitable for merging.
+  */
+  virtual void add_info_string(String *str) {};
+  /*
+    Return 1 if any index used by this quick select 
+     a) uses field that is listed in passed field list or 
+     b) is automatically updated (like a timestamp)
+  */
   virtual bool check_if_keys_used(List<Item> *fields);
 
   /*
-    rowid of last row retrieved by this quick select. This is used only 
-    when doing ROR-index_merge selects 
+    rowid of last row retrieved by this quick select. This is used only when 
+    doing ROR-index_merge selects 
   */
   byte    *last_rowid;
+
+  /*
+    Table record buffer used by this quick select. 
+    Currently this is always the same as  head->record[0]. psergey: check that!
+  */
   byte    *record;
 #ifndef DBUG_OFF
   /*
@@ -155,6 +211,10 @@ public:
 struct st_qsel_param;
 class SEL_ARG;
 
+/*
+  Quick select that does a range scan on a single key. The records are 
+  returned in key order.
+*/
 class QUICK_RANGE_SELECT : public QUICK_SELECT_I
 {
 protected:
@@ -163,7 +223,11 @@ public:
   int error;
 protected:
   handler *file;
-  bool free_file; /* if true, this quick select "owns" file and will free it */
+  /*
+    If true, this quick select has its "own" handler object which should be
+    closed no later then this quick select is deleted.
+  */
+  bool free_file;
 
 protected:
   friend
@@ -207,15 +271,16 @@ public:
   int get_next();
   bool reverse_sorted() { return 0; }
   bool unique_key_range();
-  int init_ror_child_scan(bool reuse_handler);
+  int init_ror_merged_scan(bool reuse_handler);
   void save_last_pos()
   {
     file->position(record);
   };
   int get_type() { return QS_TYPE_RANGE; }
-  void fill_keys_and_lengths(String *key_names, String *used_lengths);
+  void add_keys_and_lengths(String *key_names, String *used_lengths);
+  void add_info_string(String *str);
 #ifndef DBUG_OFF
-  virtual void dbug_dump(int indent, bool verbose);
+  void dbug_dump(int indent, bool verbose);
 #endif
 };
 
@@ -291,10 +356,11 @@ public:
   bool reverse_sorted() { return false; }
   bool unique_key_range() { return false; }
   int get_type() { return QS_TYPE_INDEX_MERGE; }
-  void fill_keys_and_lengths(String *key_names, String *used_lengths);
+  void add_keys_and_lengths(String *key_names, String *used_lengths);
+  void add_info_string(String *str);
   bool check_if_keys_used(List<Item> *fields);
 #ifndef DBUG_OFF
-  virtual void dbug_dump(int indent, bool verbose);
+  void dbug_dump(int indent, bool verbose);
 #endif
 
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
@@ -317,7 +383,6 @@ public:
 
   THD *thd;
   int prepare_unique();
-  bool reset_called;
   
   /* used to get rows collected in Unique */
   READ_RECORD read_record;
@@ -326,9 +391,22 @@ public:
 
 /*
   Rowid-Ordered Retrieval (ROR) index intersection quick select.
-  This quick select produces an intersection of records returned by several
-  QUICK_RANGE_SELECTs that return data ordered by rowid.
+  This quick select produces intersection of row sequences returned 
+  by several QUICK_RANGE_SELECTs it "merges".
+  
+  All merged QUICK_RANGE_SELECTs must return rowids in rowid order. 
+  QUICK_ROR_INTERSECT_SELECT will return rows in rowid order, too.
+
+  All merged quick selects retrieve {rowid, covered_fields} tuples (not full 
+  table records).
+  QUICK_ROR_INTERSECT_SELECT retrieves full records if it is not being used 
+  by QUICK_ROR_INTERSECT_SELECT and all merged quick selects together don't 
+  cover needed all fields.
+  
+  If one of the merged quick selects is a Clustered PK range scan, it is
+  used only to filter rowid sequence produced by other merged quick selects.
 */
+
 class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I 
 {
 public:
@@ -343,28 +421,46 @@ public:
   bool reverse_sorted() { return false; }
   bool unique_key_range() { return false; }
   int get_type() { return QS_TYPE_ROR_INTERSECT; }
-  void fill_keys_and_lengths(String *key_names, String *used_lengths);
+  void add_keys_and_lengths(String *key_names, String *used_lengths);
+  void add_info_string(String *str);
   bool check_if_keys_used(List<Item> *fields);
 #ifndef DBUG_OFF
-  virtual void dbug_dump(int indent, bool verbose);
+  void dbug_dump(int indent, bool verbose);
 #endif
-  int init_ror_child_scan(bool reuse_handler);
+  int init_ror_merged_scan(bool reuse_handler);
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
 
-  /* range quick selects this intersection consists of */
+  /* 
+    Range quick selects this intersection consists of, not including
+    cpk_quick.
+  */
   List<QUICK_RANGE_SELECT> quick_selects;
   
+  /* 
+    Merged quick select that uses Clustered PK, if there is one. This quick 
+    select is not used for row retrieval, it is used for row retrieval.
+  */
   QUICK_RANGE_SELECT *cpk_quick;
-  MEM_ROOT alloc;
-  THD *thd;
-  bool reset_called;    
-  bool need_to_fetch_row;
+
+  MEM_ROOT alloc; /* Memory pool for this and merged quick selects data. */
+  THD *thd;       /* current thread */
+  bool need_to_fetch_row; /* if true, do retrieve full table records. */
 };
+
 
 /*
   Rowid-Ordered Retrieval index union select.
+  This quick select produces union of row sequences returned by several
+  quick select it "merges".
 
+  All merged quick selects must return rowids in rowid order. 
+  QUICK_ROR_UNION_SELECT will return rows in rowid order, too.
+
+  All merged quick selects are set not to retrieve full table records.
+  ROR-union quick select always retrieves full records.
+ 
 */
+
 class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I 
 {
 public:
@@ -377,31 +473,28 @@ public:
   bool reverse_sorted() { return false; }
   bool unique_key_range() { return false; }
   int get_type() { return QS_TYPE_ROR_UNION; }
-  void fill_keys_and_lengths(String *key_names, String *used_lengths);
+  void add_keys_and_lengths(String *key_names, String *used_lengths);
+  void add_info_string(String *str);
   bool check_if_keys_used(List<Item> *fields);
 #ifndef DBUG_OFF
-  virtual void dbug_dump(int indent, bool verbose);
+  void dbug_dump(int indent, bool verbose);
 #endif
 
   bool push_quick_back(QUICK_SELECT_I *quick_sel_range);
 
-  /* range quick selects this index_merge read consists of */
-  List<QUICK_SELECT_I> quick_selects;
+  List<QUICK_SELECT_I> quick_selects; /* Merged quick selects */
   
-  QUEUE queue;
-  MEM_ROOT alloc;
+  QUEUE queue;    /* Priority queue for merge operation */
+  MEM_ROOT alloc; /* Memory pool for this and merged quick selects data. */
 
-  THD *thd;
-  byte *cur_rowid;
-  byte *prev_rowid;
-  uint rowid_length;
-  bool reset_called;
-  bool have_prev_rowid;
-  
+  THD *thd;             /* current thread */
+  byte *cur_rowid;      /* buffer used in get_next() */
+  byte *prev_rowid;     /* rowid of last row returned by get_next() */
+  bool have_prev_rowid; /* true if prev_rowid has valid data */
+  uint rowid_length;    /* table rowid length */ 
 private:
   static int queue_cmp(void *arg, byte *val1, byte *val2);
 };
-
 
 
 class QUICK_SELECT_DESC: public QUICK_RANGE_SELECT
