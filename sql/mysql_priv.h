@@ -930,7 +930,7 @@ extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
 extern char *default_tz_name;
 
-extern MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
+extern MYSQL_LOG mysql_log,mysql_slow_log,mysql_bin_log;
 extern FILE *bootstrap_file;
 extern pthread_key(MEM_ROOT*,THR_MALLOC);
 extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,

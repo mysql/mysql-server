@@ -1693,11 +1693,11 @@ err:
   sorting
 */
 
-static my_bool not_killed= 0;
+static int not_killed= 0;
 
 volatile int *killed_ptr(MI_CHECK *param)
 {
-  return (int *)thd; /* always NULL */
+  return &not_killed;			/* always NULL */
 }
 
 	/* print warnings and errors */
