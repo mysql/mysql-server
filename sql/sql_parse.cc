@@ -3584,21 +3584,25 @@ purposes internal to the MySQL server", MYF(0));
     switch (res) {
     case SP_OK:
       send_ok(thd);
+      lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
       break;
     case SP_WRITE_ROW_FAILED:
       net_printf(thd, ER_SP_ALREADY_EXISTS, SP_TYPE_STRING(lex), name);
+      lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
       goto error;
     case SP_NO_DB_ERROR:
       net_printf(thd, ER_BAD_DB_ERROR, lex->sphead->m_db.str);
+      lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
       goto error;
     default:
       net_printf(thd, ER_SP_STORE_FAILED, SP_TYPE_STRING(lex), name);
+      lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
       goto error;

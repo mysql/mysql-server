@@ -727,3 +727,28 @@ DELETE FROM t2;
 SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON t2.a=t3.a ON t1.a=t3.a;
 
 DROP TABLE t1,t2,t3;
+
+#on expression for a nested outer join does not depend on the outer table
+#bug #4976
+
+CREATE TABLE t1(a int, key (a));                                              
+CREATE TABLE t2(b int, key (b));                                               
+CREATE TABLE t3(c int, key (c));                                               
+
+INSERT INTO t1 VALUES (NULL), (0), (1), (2), (3), (4), (5), (6), (7), (8), (9),
+(10), (11), (12), (13), (14), (15), (16), (17), (18), (19);
+
+INSERT INTO t2 VALUES (NULL), (0), (1), (2), (3), (4), (5), (6), (7), (8), (9),
+(10), (11), (12), (13), (14), (15), (16), (17), (18), (19);
+
+INSERT INTO t3 VALUES (0), (1), (2), (3), (4), (5);
+ 
+EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON c < 3 and b = c;
+EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+
+DELETE FROM t3;
+EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+
+DROP TABLE t1,t2,t3;

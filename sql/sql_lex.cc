@@ -1481,8 +1481,9 @@ void st_select_lex::print_order(String *str, ORDER *order)
 
 void st_select_lex::print_limit(THD *thd, String *str)
 {
-  Item_subselect *item= master_unit()->item;
-  if (item &&
+  SELECT_LEX_UNIT *unit= master_unit();
+  Item_subselect *item= unit->item;
+  if (item && unit->global_parameters == this &&
       (item->substype() == Item_subselect::EXISTS_SUBS ||
        item->substype() == Item_subselect::IN_SUBS ||
        item->substype() == Item_subselect::ALL_SUBS))
@@ -1539,13 +1540,14 @@ bool st_lex::can_be_merged()
 	  select_lex.order_list.elements == 0 &&
 	  select_lex.group_list.elements == 0 &&
 	  select_lex.having == 0 &&
+          select_lex.with_sum_func == 0 &&
 	  select_lex.table_list.elements == 1 &&
 	  !(select_lex.options & SELECT_DISTINCT) &&
           select_lex.select_limit == HA_POS_ERROR);
 }
 
 /*
-  check if command can use VIEW with MERGE algorithm
+  check if command can use VIEW with MERGE algorithm (for top VIEWs)
 
   SYNOPSIS
     st_lex::can_use_merged()
@@ -1569,6 +1571,29 @@ bool st_lex::can_use_merged()
   case SQLCOM_INSERT_SELECT:
   case SQLCOM_REPLACE:
   case SQLCOM_REPLACE_SELECT:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
+/*
+  check if command can't use merged views in any part of command
+
+  SYNOPSIS
+    st_lex::can_not_use_merged()
+
+  RETURN
+    FALSE - command can't use merged VIEWs
+    TRUE  - VIEWs with MERGE algorithms can be used
+*/
+
+bool st_lex::can_not_use_merged()
+{
+  switch (sql_command)
+  {
+  case SQLCOM_CREATE_VIEW:
+  case SQLCOM_SHOW_CREATE:
     return TRUE;
   default:
     return FALSE;

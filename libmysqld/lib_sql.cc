@@ -568,7 +568,7 @@ err:
 
 C_MODE_END
 
-bool Protocol::send_fields(List<Item> *list, uint flags)
+bool Protocol::send_fields(List<Item> *list, int flags)
 {
   List_iterator_fast<Item> it(*list);
   Item                     *item;
@@ -615,7 +615,7 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
     if (INTERNAL_NUM_FIELD(client_field))
       client_field->flags|= NUM_FLAG;
 
-    if (flags & Protocol::SEND_DEFAULTS)
+    if (flags & (int) Protocol::SEND_DEFAULTS)
     {
       char buff[80];
       String tmp(buff, sizeof(buff), default_charset_info), *res;
