@@ -301,7 +301,8 @@ void THD::add_changed_table(TABLE *table)
 
   DBUG_ASSERT((options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
 	      table->file->has_transactions());
-  DBUG_RETURN(add_changed_table(table->table_cache_key, table->key_length));
+  add_changed_table(table->table_cache_key, table->key_length);
+  DBUG_VOID_RETURN;
 }
 
 void THD::add_changed_table(const char *key, long key_length)
