@@ -47,7 +47,6 @@ static int send_file(THD *thd)
 {
   NET* net = &thd->net;
   int fd = -1,bytes, error = 1;
-  uint packet_len;
   char fname[FN_REFLEN+1];
   char buf[IO_SIZE*15];
   const char *errmsg = 0;
@@ -61,7 +60,7 @@ static int send_file(THD *thd)
 
   // we need net_flush here because the client will not know it needs to send
   // us the file name until it has processed the load event entry
-  if (net_flush(net) || (packet_len = my_net_read(net)) == packet_error)
+  if (net_flush(net) || my_net_read(net) == packet_error)
   {
     errmsg = "Failed reading file name";
     goto err;
