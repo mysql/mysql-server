@@ -1,0 +1,23 @@
+#! /bin/sh
+
+# debug
+#set -x
+
+# stop on errors
+set -e
+
+
+path=`dirname $0`
+. $path/compile-netware-START
+
+suffix="max"
+
+extra_configs=" \
+	--with-innodb	\
+	--with-embedded-server \
+	--with-openssl \
+	"
+
+. $path/compile-netware-END
+
+
