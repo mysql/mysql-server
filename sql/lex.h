@@ -30,9 +30,9 @@
 #endif
 
 /*
-** Symbols are breaked in to separated arrays to allow fieldnames with
-** same name as functions
-** Theese are kept sorted for human lookup (the symbols are hashed)
+  Symbols are breaked in to separated arrays to allow field names with
+  same name as functions.
+  These are kept sorted for human lookup (the symbols are hashed).
 */
 
 static SYMBOL symbols[] = {
@@ -86,6 +86,7 @@ static SYMBOL symbols[] = {
   { "CHECK",		SYM(CHECK_SYM),0,0},
   { "CHECKSUM",		SYM(CHECKSUM_SYM),0,0},
   { "CIPHER",		SYM(CIPHER_SYM),0,0},
+  { "CLIENT",		SYM(CLIENT_SYM),0,0},
   { "CLOSE",		SYM(CLOSE_SYM),0,0},
   { "COLUMN",		SYM(COLUMN_SYM),0,0},
   { "COLUMNS",		SYM(COLUMNS),0,0},
@@ -136,6 +137,7 @@ static SYMBOL symbols[] = {
   { "ENCLOSED",		SYM(ENCLOSED),0,0},
   { "ENUM",		SYM(ENUM),0,0},
   { "EVENTS",		SYM(EVENTS_SYM),0,0},
+  { "EXECUTE",		SYM(EXECUTE_SYM),0,0},
   { "EXPLAIN",		SYM(DESCRIBE),0,0},
   { "EXISTS",		SYM(EXISTS),0,0},
   { "EXTENDED",		SYM(EXTENDED_SYM),0,0},
@@ -289,6 +291,7 @@ static SYMBOL symbols[] = {
   { "RENAME",		SYM(RENAME),0,0},
   { "REPAIR",		SYM(REPAIR),0,0},
   { "REPLACE",		SYM(REPLACE),0,0},
+  { "REPLICATION",	SYM(REPLICATION),0,0},
   { "REPEATABLE",	SYM(REPEATABLE_SYM),0,0},
   { "REQUIRE",	        SYM(REQUIRE_SYM),0,0},
   { "RESET",		SYM(RESET_SYM),0,0},
@@ -344,6 +347,7 @@ static SYMBOL symbols[] = {
   { "STOP",		SYM(STOP_SYM),0,0},
   { "STRIPED",		SYM(RAID_STRIPED_SYM),0,0},
   { "SUBJECT",		SYM(SUBJECT_SYM),0,0},
+  { "SUPER",		SYM(SUPER_SYM),0,0},
   { "TABLE",		SYM(TABLE_SYM),0,0},
   { "TABLES",		SYM(TABLES),0,0},
   { "TEMPORARY",	SYM(TEMPORARY),0,0},

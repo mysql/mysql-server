@@ -316,7 +316,7 @@ String *Item_func_des_decrypt::val_str(String *str)
   {
     uint key_number=(uint) (*res)[0] & 127;
     // Check if automatic key and that we have privilege to uncompress using it
-    if (!(current_thd->master_access & PROCESS_ACL) || key_number > 9)
+    if (!(current_thd->master_access & SUPER_ACL) || key_number > 9)
       goto error;
     VOID(pthread_mutex_lock(&LOCK_des_key_file));
     keyschedule= des_keyschedule[key_number];

@@ -8149,6 +8149,29 @@ version 4.0;
 
 @itemize @bullet
 @item
+MySQL 4.0 has a lot of new privileges in the @code{mysql.user} table.
+@xref{GRANT}.
+
+To get these new privileges to work, one must run the
+@code{mysql_fix_privilege_tables} scripts.  Until this script is run all
+users have the @code{SHOW DATABASES}, @code{CREATE TEMPORARY TABLES},
+and @code{LOCK TABLES} privileges. @code{SUPER} and @code{EXECUTE}
+privileges takes their value from @code{PROCESS}. @code{REPLICATION
+SLAVE} and @code{REPLICATION CLIENT} takes their values from
+@code{FILE}.
+
+If you have any scripts that creates new users, you may want to change
+them to use the new privileges.  If you are not using @code{GRANT}
+commands in the scripits, this is a good time to change the scripts...
+
+In 4.0.2 the option @code{--safe-show-database} doesn't do anything and
+should not be used. @xref{Privileges options}.
+
+If you get access denied errors for new users with MySQL 4.0.2, you
+should check if you need some of the new grants that you didn't need
+before.  In particular, you will need @code{REPLICATION SLAVE} (instead
+of @code{FILE}) for new slaves.
+@item
 @code{DOUBLE} and @code{FLOAT} columns are now honoring the
 @code{UNSIGNED} flag on storage (before, @code{UNSIGNED} was ignored for
 these columns).
@@ -11886,6 +11909,9 @@ The list of databases is probably different on your machine, but the
 privileges.  The @code{test} database is often provided as a workspace for
 users to try things out.
 
+Note that you may not see all databases if you don't have the @code{SHOW
+DATABASES} privilege. @xref{GRANT}.
+
 If the @code{test} database exists, try to access it:
 
 @example
@@ -14336,8 +14362,9 @@ freeing.  As this checking is very slow, you can avoid this, when you don't
 need memory checking, by using this option.
 
 @item --skip-show-database
-Don't allow 'SHOW DATABASE' commands, unless the user has @strong{process}
-privilege.
+Don't allow 'SHOW DATABASE' commands, unless the user has the
+@strong{SHOW DATABASE} privilege.  In 4.0.2 this command should not be
+need anymore.
 
 @item --skip-stack-trace
 Don't write stack traces.  This option is useful when you are running
@@ -15112,9 +15139,10 @@ If one uses @code{--local-infile=0} then one can't use @code{LOAD DATA LOCAL
 INFILE}.
 
 @item --safe-show-database
-With this option,
-@code{SHOW DATABASES} returns only those databases for which the user has
-some kind of privilege.
+With this option, @code{SHOW DATABASES} returns only those databases for
+which the user has some kind of privilege. In 4.0.2 this command doesn't
+do anything (the option is enabled by default) as we now have the
+@code{SHOWS DATABASES} privilege. @xref{GRANT}.
 
 @item --safe-user-create
 If this is enabled, an user can't create new users with the @code{GRANT}
@@ -15433,26 +15461,33 @@ MySQL server reads the contents of these tables when it starts up
 and under the circumstances indicated in @ref{Privilege changes}.
 
 The names used in this manual to refer to the privileges provided by
-MySQL are shown here, along with the table column name associated
+MySQL 4.0.2 are shown here, along with the table column name associated
 with each privilege in the grant tables and the context in which the
 privilege applies:
 
 @multitable @columnfractions .15 .20 .35
 @item @strong{Privilege}   @tab @strong{Column}      @tab @strong{Context}
-@item @strong{select}      @tab @code{Select_priv}   @tab tables
-@item @strong{insert}      @tab @code{Insert_priv}   @tab tables
-@item @strong{update}      @tab @code{Update_priv}   @tab tables
+@item @strong{alter}       @tab @code{Alter_priv}    @tab tables
 @item @strong{delete}      @tab @code{Delete_priv}   @tab tables
 @item @strong{index}       @tab @code{Index_priv}    @tab tables
-@item @strong{alter}       @tab @code{Alter_priv}    @tab tables
+@item @strong{insert}      @tab @code{Insert_priv}   @tab tables
+@item @strong{select}      @tab @code{Select_priv}   @tab tables
+@item @strong{update}      @tab @code{Update_priv}   @tab tables
 @item @strong{create}      @tab @code{Create_priv}   @tab databases, tables, or indexes
 @item @strong{drop}        @tab @code{Drop_priv}     @tab databases or tables
 @item @strong{grant}       @tab @code{Grant_priv}    @tab databases or tables
 @item @strong{references}  @tab @code{References_priv} @tab databases or tables
-@item @strong{reload}      @tab @code{Reload_priv}   @tab server administration
-@item @strong{shutdown}    @tab @code{Shutdown_priv} @tab server administration
-@item @strong{process}     @tab @code{Process_priv}  @tab server administration
+@item @strong{create temporary tables} @tab @code{create_tmp_table_priv} @tab server administration
+@item @strong{execute} @tab @code{execute_priv} @tab server administration
 @item @strong{file}        @tab @code{File_priv}     @tab file access on server
+@item @strong{lock tables} @tab @code{Lock_tables_priv} @tab server administration
+@item @strong{process}     @tab @code{Process_priv}  @tab server administration
+@item @strong{reload}      @tab @code{Reload_priv}   @tab server administration
+@item @strong{replication client} @tab @code{Repl_client_priv} @tab server administration
+@item @strong{replication slave} @tab @code{Repl_slave_priv} @tab server administration
+@item @strong{show databases} @tab @code{Show_db_priv} @tab server administration
+@item @strong{shutdown}    @tab @code{Shutdown_priv} @tab server administration
+@item @strong{super}       @tab @code{Super_priv}    @tab server administration
 @end multitable
 
 The @strong{select}, @strong{insert}, @strong{update}, and @strong{delete}
@@ -15500,7 +15535,8 @@ execute:
 @code{flush-privileges}, @code{flush-hosts}, @code{flush-logs}, and
 @code{flush-tables}
 @item @strong{shutdown}   @tab @code{shutdown}
-@item @strong{process}    @tab @code{processlist}, @code{kill}
+@item @strong{process}    @tab @code{processlist}
+@item @strong{super}	  @tab @code{kill}
 @end multitable
 
 The @code{reload} command tells the server to re-read the grant tables.  The
@@ -15514,10 +15550,10 @@ than @code{refresh}.
 The @code{shutdown} command shuts down the server.
 
 The @code{processlist} command displays information about the threads
-executing within the server.  The @code{kill} command kills server threads.
-You can always display or kill your own threads, but you need the
-@strong{process} privilege to display or kill threads initiated by other
-users. @xref{KILL}.
+executing within the server.  The @code{kill} command kills server
+threads.  You can always display or kill your own threads, but you need
+the @strong{PROCESS} privilege to display and @code{SUPER} privilege to
+kill threads initiated by other users. @xref{KILL}.
 
 It is a good idea in general to grant privileges only to those users who need
 them, but you should exercise particular caution in granting certain
@@ -16465,17 +16501,40 @@ For examples of how @code{GRANT} works, see @ref{Adding users}.
 For the @code{GRANT} and @code{REVOKE} statements, @code{priv_type} may be
 specified as any of the following:
 
-@example
-ALL PRIVILEGES      FILE                RELOAD
-ALTER               INDEX               SELECT
-CREATE              INSERT              SHUTDOWN
-DELETE              PROCESS             UPDATE
-DROP                REFERENCES          USAGE
-@end example
+@multitable @columnfractions .30 .70
+@item @code{ALL [PRIVILEGES]} @tab Sets all simple privileges except @code{WITH GRANT OPTION}
+@item @code{ALTER}  @tab Allows usage of @code{ALTER TABLE}
+@item @code{CREATE} @tab Allows usage of @code{CREATE TABLE}
+@item @code{CREATE TEMPORARY TABLE} @tab Allows usage of @code{CREATE TEMPORARY TABLE}
+@item @code{DELETE} @tab Allows usage of @code{DELETE}
+@item @code{DROP} @tab Allows usage of @code{DROP TABLE}.
+@item @code{EXECUTE} @tab Allows the user to run stored procedures (for MySQL 5.0)
+@item @code{FILE} @tab Allows usage of @code{SELECT ... INTO OUTFILE} and @code{LOAD DATA INFILE}.
+@item @code{INDEX} @tab Allows usage of @code{CREATE INDEX} and @code{DROP INDEX}
+@item @code{INSERT} @tab Allows usage of @code{INSERT}
+@item @code{LOCK TABLES} @tab Allows usage of @code{LOCK TABLES} on tables for which on has the @code{SELECT} privilege.
+@item @code{PROCESS} @tab Allows usage of @code{SHOW FULL PROCESSLIST}
+@item @code{REFERENCES} @tab For the future
+@item @code{RELOAD} @tab Allows usage of @code{FLUSH}
+@item @code{REPLICATION CLIENT} @tab Gives the right to the user to ask where the slaves/masters are.
+@item @code{REPLICATION SLAVE} @tab Needed for the replication slaves (to read binlogs from master).
+@item @code{SELECT} @tab Allows usage of @code{SELECT}
+@item @code{SHOW DATABASES} @tab @code{SHOW DATABASES} shows all databases.
+@item @code{SHUTDOWN} @tab Allows usage of @code{mysqladmin shutdown}
+@item @code{SUPER} @tab Allows one connect (once) even if max_connections is reached and execute commands @code{CHANGE MASTER}, @code{KILL thread}, @code{mysqladmin debug}, @code{PURGE MASTER LOGS} and @code{SET GLOBAL}
+@item @code{UPDATE} @tab Allows usage of @code{UPDATE}
+@item @code{USAGE} @tab Synonym for ``no privileges.''
+@end multitable
 
-@code{ALL} is a synonym for @code{ALL PRIVILEGES}.  @code{REFERENCES} is not
-yet implemented.  @code{USAGE} is currently a synonym for ``no privileges.''
-It can be used when you want to create a user that has no privileges.
+@code{USAGE} can be used when you want to create a user that has no privileges.
+
+The privileges @code{CREATE TEMPORARY TABLE}, @code{EXECUTE},
+@code{LOCK TABLES}, @code{REPLICATION ...}, @code{SHOW DATABASES} and
+@code{SUPER} are new for MySQL 4.0.2.  To use these, after upgrading to
+4.0.2, one has to run the @code{mysql_fix_privilege_tables} script.
+
+In older MySQL versions, the @code{PROCESS} privilege gave the same rights
+as the new @code{SUPER} privilege.
 
 To revoke the @strong{grant} privilege from a user, use a @code{priv_type}
 value of @code{GRANT OPTION}:
@@ -16591,10 +16650,10 @@ You should be careful to whom you give the @strong{grant} privilege, as two
 users with different privileges may be able to join privileges!
 
 @code{MAX_QUERIES_PER_HOUR #}, @code{MAX_UPDATES_PER_HOUR #} and
-@code{MAX_CONNECTIONS_PER_HOUR #} limit the number of
-queries/updates and logins the user can do during one hour. 
-If @code{#} is 0 (default), then this means that there is no limitations
-for the user. @xref{User resources}.
+@code{MAX_CONNECTIONS_PER_HOUR #} are new in MySQL 4.0.2.  They limit
+the number of queries/updates and logins the user can do during one
+hour. If @code{#} is 0 (default), then this means that there is no
+limitations for the user. @xref{User resources}.
 
 You cannot grant another user a privilege you don't have yourself;
 the @strong{grant} privilege allows you to give away only those privileges
@@ -16939,7 +16998,7 @@ earlier in the @code{user} table sort order.
 
 @item admin
 A user who can connect from @code{localhost} without a password and who is
-granted the @strong{reload} and @strong{process} administrative privileges.
+granted the @strong{reload} and @strong{PROCESS} administrative privileges.
 This allows the user to execute the @code{mysqladmin reload},
 @code{mysqladmin refresh}, and @code{mysqladmin flush-*} commands, as well as
 @code{mysqladmin processlist} .  No database-related privileges are granted.
@@ -19152,7 +19211,8 @@ Each connection to @code{mysqld} runs in a separate thread.  You can see
 which threads are running with the @code{SHOW PROCESSLIST} command and kill
 a thread with the @code{KILL thread_id} command.
 
-If you have the @strong{process} privilege, you can see and kill all threads.
+If you have the @strong{PROCESS} privilege, you can see all threads.
+If you have the @code{SUPER} privilege you can kill all threads.
 Otherwise, you can see and kill only your own threads.
 
 You can also use the @code{mysqladmin processlist} and @code{mysqladmin kill}
@@ -19260,8 +19320,10 @@ mysql> SHOW INDEX FROM mytable FROM mydb;
 mysql> SHOW INDEX FROM mydb.mytable;
 @end example
 
-@code{SHOW DATABASES} lists the databases on the MySQL server
-host.  You can also get this list using the @code{mysqlshow} command.
+@code{SHOW DATABASES} lists the databases on the MySQL server host.  You
+can also get this list using the @code{mysqlshow} command.  In MySQL
+4.0.2 you will only see those databases for which you have some kind of
+privilege, if you don't have the global @code{SHOW DATABASES} privilege.
 
 @code{SHOW TABLES} lists the tables in a given database.  You can also
 get this list using the @code{mysqlshow db_name} command.
@@ -20058,7 +20120,7 @@ Is ON if we only allow local (socket) connections.
 
 @item @code{skip_show_database}
 This prevents people from doing @code{SHOW DATABASES} if they don't have
-the @strong{process} privilege. This can improve security if you're
+the @strong{PROCESS} privilege. This can improve security if you're
 concerned about people being able to see what databases other users
 have. See also @code{safe_show_database}.
 
@@ -20168,14 +20230,14 @@ subsystem)
 
 @code{SHOW [FULL] PROCESSLIST} shows you which threads are running.  You can
 also get this information using the @code{mysqladmin processlist}
-command.  If you have the @strong{process} privilege, you can see all
+command.  If you have the @strong{SUPER} privilege, you can see all
 threads.  Otherwise, you can see only your own threads.  @xref{KILL, ,
 @code{KILL}}.  If you don't use the @code{FULL} option, then only
 the first 100 characters of each query will be shown.
 
 This command is very useful if you get the 'too many connections' error
 message and want to find out what's going on. MySQL reserves
-one extra connection for a client with the @strong{process} privilege
+one extra connection for a client with the @strong{SUPER} privilege
 to ensure that you should always be able to login and check the system
 (assuming you are not giving this privilege to all your users).
 
@@ -23531,10 +23593,11 @@ do not report bugs until you have verified that the problem is present
 in the latest release.
 
 @item
-Set up special a replication user on the master with the @code{FILE}
-privilege and permission to connect from all the slaves. If the user is
-only doing replication (which is recommended), you don't need to grant any
-additional privileges.
+Set up special a replication user on the master with the @code{FILE} (in
+MySQL versions older than 4.0.2) or @code{REPLICATION SLAVE} privilege
+in newer MySQL versions.  You must also gived permission to connect from
+all the slaves. If the user is only doing replication (which is
+recommended), you don't need to grant any additional privileges.
 
 For example, to create a user named @code{repl} which can access your
 master from any host, you might use this command:
@@ -23749,8 +23812,9 @@ a database that was excluded from replication.
 @item
 Starting in Version 3.23.16, @code{SET SQL_LOG_BIN = 0} will turn off
 replication (binary) logging on the master, and @code{SET SQL_LOG_BIN =
-1} will turn it back on -- you must have the @strong{process} privilege to do
-this.
+1} will turn it back on -- you must have the @strong{SUPER} (in MySQL
+4.0.2 and above) or @strong{PROCESS} (in older MySQL versions) privilege
+to do this.
 @item
 Starting in Version 3.23.19, you can clean up stale replication leftovers when
 something goes wrong and you want a clean start with @code{FLUSH MASTER}
@@ -24088,11 +24152,11 @@ summary of commands:
  @tab Stops the slave thread. (Slave)
 
 @item @code{SET SQL_LOG_BIN=0}
- @tab Disables update logging if the user has the @strong{process} privilege.
+@tab Disables update logging if the user has the @strong{SUPER} privilege.
  Ignored otherwise. (Master)
 
 @item @code{SET SQL_LOG_BIN=1}
- @tab Re-enables update logging if the user has the @strong{process} privilege.
+ @tab Re-enables update logging if the user has the @strong{SUPER} privilege.
  Ignored otherwise. (Master)
 
 @item @code{SET SQL_SLAVE_SKIP_COUNTER=n}
@@ -27599,12 +27663,12 @@ can be restored by using a @code{SQL_SELECT_LIMIT} value of @code{DEFAULT}.
 
 @item SQL_LOG_OFF = 0 | 1
 If set to @code{1}, no logging will be done to the standard log for this
-client, if the client has the @strong{process} privilege.  This does not
+client, if the client has the @strong{SUPER} privilege.  This does not
 affect the update log!
 
 @item SQL_LOG_UPDATE = 0 | 1
 If set to @code{0}, no logging will be done to the update log for the client,
-if the client has the @strong{process} privilege.  This does not affect the
+if the client has the @strong{SUPER} privilege.  This does not affect the
 standard log!
 
 @item SQL_QUOTE_SHOW_CREATE = 0 | 1
@@ -32935,7 +32999,7 @@ If no @code{key_string} argument is given, @code{DES_DECRYPT()} examines
 the first byte of the encrypted string to determine the DES key number
 that was used to encrypt the original string, then reads the key
 from the @code{des-key-file} to decrypt the message.  For this to work
-the user must have the @strong{process} privilege.
+the user must have the @strong{SUPER} privilege.
 
 If you pass this function a @code{key_string} argument, that string
 is used as the key for decrypting the message.
@@ -35156,7 +35220,9 @@ you create a table.  A temporary table will automatically be deleted if a
 connection dies and the name is per connection.  This means that two different
 connections can both use the same temporary table name without conflicting
 with each other or with an existing table of the same name. (The existing table
-is hidden until the temporary table is deleted.)
+is hidden until the temporary table is deleted.).  In MySQL 4.0.2 one must
+have the @code{CREATE TEMPORARY TABLE} privilege to be able to create
+temporary tables.
 
 In MySQL Version 3.23 or later, you can use the keywords
 @code{IF NOT EXISTS} so that an error does not occur if the table already
@@ -36179,6 +36245,11 @@ are locked by the current thread are automatically unlocked when the
 thread issues another @code{LOCK TABLES}, or when the connection to the
 server is closed.
 
+To use @code{LOCK TABLES} in MySQL 4.0.2 you need the global @code{LOCK
+TABLES} privilege and a @code{SELECT} privilege on the involved tables.
+In MySQL 3.23 you need to have @code{SELECT}, @code{INSERT},
+@code{DELETE} and @code{UPDATE} privileges for the tables.
+
 The main reasons to use @code{LOCK TABLES} are for emulating transactions
 or getting more speed when updating tables.  This is explained in more
 detail later.
@@ -36315,7 +36386,7 @@ the next transaction.
 The default behavior is to set the isolation level for the next (not
 started) transaction.  If you use the @code{GLOBAL} keyword, the statement
 sets the default transaction level globally for all new connections
-created from that point on.  You will need the @strong{process}
+created from that point on.  You will need the @strong{SUPER}
 privilege to do do this.  Using the @code{SESSION} keyword sets the
 default transaction level for all future transactions performed on the
 current connection.
@@ -42266,7 +42337,7 @@ if(mysql_drop_db(&mysql, "my_database"))
 @subsubheading Description
 
 Instructs the server to write some debug information to the log.  The
-connected user must have the @strong{process} privilege for this to work.
+connected user must have the @strong{SUPER} privilege for this to work.
 
 @subsubheading Return Values
 
@@ -46405,7 +46476,7 @@ If you need more connections than the default (100), then you should restart
 
 Note that @code{mysqld} actually allows (@code{max_connections}+1)
 clients to connect.  The last connection is reserved for a user with the
-@strong{process} privilege.  By not giving this privilege to normal
+@strong{SUPER} privilege.  By not giving this privilege to normal
 users (they shouldn't need this), an administrator with this privilege
 can log in and use @code{SHOW PROCESSLIST} to find out what could be
 wrong. @xref{SHOW}.
@@ -49342,6 +49413,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.2
 
 @itemize @bullet
+@item
+Added privileges @code{CREATE TEMPORARY TABLE}, @code{LOCK TABLES},
+@code{REPLICATION CLIENT}, @code{REPLICATION SLAVE}, @code{SHOW
+DATABASES} and @code{SUPER}. To use these, one must run the
+@code{mysql_fix_privilege_tables}.
 @item
 Fixed query cache align data bug.
 @item
@@ -53424,8 +53500,8 @@ Changed optimiser to make it better at deciding when to do a full join
 and when using keys.
 @item
 You can now use @code{mysqladmin proc} to display information about your own
-threads. Only users with the @strong{process} privilege can get
-information about all threads.
+threads. Only users with the @strong{PROCESS} privilege can get
+information about all threads. (In 4.0.2 one need the @strong{SUPER} privilege for this.)
 @item
 Added handling of formats @code{YYMMDD}, @code{YYYYMMDD},
 @code{YYMMDDHHMMSS} for numbers when using @code{DATETIME} and

@@ -102,7 +102,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 {
   int error;
   bool log_on= ((thd->options & OPTION_UPDATE_LOG) ||
-		!(thd->master_access & PROCESS_ACL));
+		!(thd->master_access & SUPER_ACL));
   bool using_transactions, bulk_insert=0;
   uint value_count;
   uint save_time_stamp;
