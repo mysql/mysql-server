@@ -768,7 +768,7 @@ public:
   uint	     current_tablenr,tmp_table;
   uint	     server_status,open_options,system_thread;
   uint32     db_length;
-  uint       select_number;             //number of select (used for EXPLAIN)
+  int        select_number;             //number of select (used for EXPLAIN)
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;
   enum_check_fields count_cuted_fields;
@@ -1147,7 +1147,6 @@ class select_union :public select_result {
   TABLE *table;
   COPY_INFO info;
   TMP_TABLE_PARAM tmp_table_param;
-  bool not_describe;
 
   select_union(TABLE *table_par);
   ~select_union();

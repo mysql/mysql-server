@@ -991,7 +991,7 @@ JOIN::optimize()
       }
     }
     
-    if (select_lex->master_unit()->uncacheable)
+    if (select_lex->master_unit()->uncacheable || thd->lex->describe)
     {
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
@@ -9132,12 +9132,56 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
   if (message)
   {
-    item_list.push_back(new Item_int((int32) join->select_lex->select_number));
+    item_list.push_back(new Item_int((longlong)
+				     join->select_lex->select_number));
     item_list.push_back(new Item_string(join->select_lex->type,
 					strlen(join->select_lex->type), cs));
     for (uint i=0 ; i < 7; i++)
       item_list.push_back(item_null);
     item_list.push_back(new Item_string(message,strlen(message),cs));
+    if (result->send_data(item_list))
+      join->error= 1;
+  }
+  else if (join->select_lex == join->unit->fake_select_lex)
+  {
+    /* 
+       Here is guessing about fake_select_lex to avoid union SELECT
+       execution to get accurate information
+    */
+    char table_name_buffer[64];
+    item_list.empty();
+    /* id */
+    item_list.push_back(new Item_int((int32)
+				     join->select_lex->select_number));
+    /* select_type */
+    item_list.push_back(new Item_string(join->select_lex->type,
+					strlen(join->select_lex->type),
+					cs));
+    /* table */
+    int len= my_snprintf(table_name_buffer, sizeof(table_name_buffer)-1,
+			 "<union%d>",
+			 -join->select_lex->select_number);
+    item_list.push_back(new Item_string(table_name_buffer, len, cs));
+    item_list.push_back(new Item_string(join_type_str[JT_ALL],
+					  strlen(join_type_str[JT_ALL]),
+					  cs));
+    /* possible_keys */
+    item_list.push_back(item_null);
+    /* key*/
+    item_list.push_back(item_null);
+    /* key_len */
+    item_list.push_back(item_null);
+    /* ref */
+    item_list.push_back(item_null);
+    /* rows */
+    item_list.push_back(item_null);
+    /* extra */
+    if (join->unit->global_parameters->order_list.first)
+      item_list.push_back(new Item_string("Using filesort",
+					  14, cs));
+    else
+      item_list.push_back(new Item_string("", 0, cs));
+
     if (result->send_data(item_list))
       join->error= 1;
   }
@@ -9150,36 +9194,41 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       TABLE *table=tab->table;
       char buff[512],*buff_ptr=buff;
       char buff1[512], buff2[512];
-      char derived_name[64];
+      char table_name_buffer[64];
       String tmp1(buff1,sizeof(buff1),cs);
       String tmp2(buff2,sizeof(buff2),cs);
       tmp1.length(0);
       tmp2.length(0);
 
       item_list.empty();
+      /* id */
       item_list.push_back(new Item_int((int32)
 				       join->select_lex->select_number));
+      /* select_type */
       item_list.push_back(new Item_string(join->select_lex->type,
 					  strlen(join->select_lex->type),
 					  cs));
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
 	tab->type= JT_RANGE;
+      /* table */
       if (table->derived_select_number)
       {
 	/* Derived table name generation */
-	int len= my_snprintf(derived_name, sizeof(derived_name)-1,
+	int len= my_snprintf(table_name_buffer, sizeof(table_name_buffer)-1,
 			     "<derived%u>",
 			     table->derived_select_number);
-	item_list.push_back(new Item_string(derived_name, len, cs));
+	item_list.push_back(new Item_string(table_name_buffer, len, cs));
       }
       else
 	item_list.push_back(new Item_string(table->table_name,
 					    strlen(table->table_name),
 					    cs));
+      /* type */
       item_list.push_back(new Item_string(join_type_str[tab->type],
 					  strlen(join_type_str[tab->type]),
 					  cs));
       uint j;
+      /* possible_keys */
       if (!tab->keys.is_clear_all())
       {
         for (j=0 ; j < table->keys ; j++)
@@ -9196,6 +9245,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_string(tmp1.ptr(),tmp1.length(),cs));
       else
 	item_list.push_back(item_null);
+      /* key key_len ref */
       if (tab->ref.key_parts)
       {
 	KEY *key_info=table->key_info+ tab->ref.key;
@@ -9234,9 +9284,11 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(item_null);
 	item_list.push_back(item_null);
       }
+      /* rows */
       item_list.push_back(new Item_int((longlong) (ulonglong)
 				       join->best_positions[i]. records_read,
 				       21));
+      /* extra */
       my_bool key_read=table->key_read;
       if ((tab->type == JT_NEXT || tab->type == JT_CONST) &&
           table->used_keys.is_set(tab->index))
@@ -9301,59 +9353,56 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   DBUG_ENTER("mysql_explain_union");
   int res= 0;
   SELECT_LEX *first= unit->first_select();
+
   for (SELECT_LEX *sl= first;
        sl;
        sl= sl->next_select())
   {
     // drop UNCACHEABLE_EXPLAIN, because it is for internal usage only
     uint8 uncacheable= (sl->uncacheable & ~UNCACHEABLE_EXPLAIN);
-
-    res= mysql_explain_select(thd, sl,
-			      (((&thd->lex->select_lex)==sl)?
-			       ((thd->lex->all_selects_list != sl) ? 
-				primary_key_name : "SIMPLE"):
-			       ((sl == first)?
-				((sl->linkage == DERIVED_TABLE_TYPE) ?
-				 "DERIVED":
-				((uncacheable & UNCACHEABLE_DEPENDENT) ?
-				 "DEPENDENT SUBQUERY":
-				 (uncacheable?"UNCACHEABLE SUBQUERY":
-				   "SUBQUERY"))):
-				((uncacheable & UNCACHEABLE_DEPENDENT) ?
-				 "DEPENDENT UNION":
-				 uncacheable?"UNCACHEABLE UNION":
-				  "UNION"))),
-			      result);
-    if (res)
-      break;
-
+    sl->type= (((&thd->lex->select_lex)==sl)?
+	       ((thd->lex->all_selects_list != sl) ? 
+		primary_key_name : "SIMPLE"):
+	       ((sl == first)?
+		((sl->linkage == DERIVED_TABLE_TYPE) ?
+		 "DERIVED":
+		 ((uncacheable & UNCACHEABLE_DEPENDENT) ?
+		  "DEPENDENT SUBQUERY":
+		  (uncacheable?"UNCACHEABLE SUBQUERY":
+		   "SUBQUERY"))):
+		((uncacheable & UNCACHEABLE_DEPENDENT) ?
+		 "DEPENDENT UNION":
+		 uncacheable?"UNCACHEABLE UNION":
+		 "UNION")));
+    sl->options|= SELECT_DESCRIBE;
+  }
+  if (first->next_select())
+  {
+    unit->fake_select_lex->select_number= -first->select_number;
+    unit->fake_select_lex->type= "UNION RESULT";
+    unit->fake_select_lex->options|= SELECT_DESCRIBE;
+    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
+      res= unit->exec();
+    res|= unit->cleanup();
+  }
+  else
+  {
+    thd->lex->current_select= first;
+    res= mysql_select(thd, &first->ref_pointer_array,
+			(TABLE_LIST*) first->table_list.first,
+			first->with_wild, first->item_list,
+			first->where,
+			first->order_list.elements +
+			first->group_list.elements,
+			(ORDER*) first->order_list.first,
+			(ORDER*) first->group_list.first,
+			first->having,
+			(ORDER*) thd->lex->proc_list.first,
+			first->options | thd->options | SELECT_DESCRIBE,
+			result, unit, first);
   }
   if (res > 0 || thd->net.report_error)
     res= -1; // mysql_explain_select do not report error
-  DBUG_RETURN(res);
-}
-
-
-int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type, 
-			 select_result *result)
-{
-  DBUG_ENTER("mysql_explain_select");
-  DBUG_PRINT("info", ("Select 0x%lx, type %s", (ulong)select_lex, type))
-  select_lex->type= type;
-  thd->lex->current_select= select_lex;
-  SELECT_LEX_UNIT *unit=  select_lex->master_unit();
-  int res= mysql_select(thd, &select_lex->ref_pointer_array,
-			(TABLE_LIST*) select_lex->table_list.first,
-			select_lex->with_wild, select_lex->item_list,
-			select_lex->where,
-			select_lex->order_list.elements +
-			select_lex->group_list.elements,
-			(ORDER*) select_lex->order_list.first,
-			(ORDER*) select_lex->group_list.first,
-			select_lex->having,
-			(ORDER*) thd->lex->proc_list.first,
-			select_lex->options | thd->options | SELECT_DESCRIBE,
-			result, unit, select_lex);
   DBUG_RETURN(res);
 }
 
