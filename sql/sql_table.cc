@@ -777,6 +777,14 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       }
       sql_field->pack_flag= FIELDFLAG_NUMBER;
       break;
+    case FIELD_TYPE_NEWDECIMAL:
+      sql_field->pack_flag=(FIELDFLAG_NUMBER |
+                            (sql_field->flags & UNSIGNED_FLAG ? 0 :
+                             FIELDFLAG_DECIMAL) |
+                            (sql_field->flags & ZEROFILL_FLAG ?
+                             FIELDFLAG_ZEROFILL : 0) |
+                            (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
+      break;
     case FIELD_TYPE_TIMESTAMP:
       /* We should replace old TIMESTAMP fields with their newer analogs */
       if (sql_field->unireg_check == Field::TIMESTAMP_OLD_FIELD)
