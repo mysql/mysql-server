@@ -122,6 +122,7 @@ SET datetime_format=default;
 --disable_ps_protocol
 select str_to_date(concat('15-01-2001',' 2:59:58.999'),
 	           concat('%d-%m-%Y',' ','%H:%i:%s.%f'));
+select STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T');
 --enable_ps_protocol
 
 create table t1 (date char(30), format char(30) not null);

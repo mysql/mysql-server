@@ -1052,17 +1052,17 @@ bool Query_log_event::write(IO_CACHE* file)
       of this x>=4 master segfault (expecting a zero when there is
       none). Remaining compatibility problems are: the older slave will not
       find the catalog; but it is will not crash, and it's not an issue
-      that it does not find the catalog as catalogs were not used in these older
-      MySQL versions (we store it in binlog and read it from relay log but do
-      nothing useful with it). What is an issue is that the older slave will
-      stop processing the Q_* blocks (and jumps to the db/query) as soon as it
-      sees unknown Q_CATALOG_NZ_CODE; so it will not be able to read
+      that it does not find the catalog as catalogs were not used in these
+      older MySQL versions (we store it in binlog and read it from relay log
+      but do nothing useful with it). What is an issue is that the older slave
+      will stop processing the Q_* blocks (and jumps to the db/query) as soon
+      as it sees unknown Q_CATALOG_NZ_CODE; so it will not be able to read
       Q_AUTO_INCREMENT*, Q_CHARSET and so replication will fail silently in
       various ways. Documented that you should not mix alpha/beta versions if
       they are not exactly the same version, with example of 5.0.3->5.0.2 and
       5.0.4->5.0.3. If replication is from older to new, the new will
       recognize Q_CATALOG_CODE and have no problem.
-      */
+    */
   }
   if (auto_increment_increment != 1)
   {
@@ -1265,7 +1265,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     }
     case Q_CATALOG_NZ_CODE:
       if ((catalog_len= *pos))
-        catalog= (char*) pos+1;                           // Will be copied later
+        catalog= (char*) pos+1;                 // Will be copied later
       pos+= catalog_len+1;
       break;
     case Q_AUTO_INCREMENT:
@@ -4208,7 +4208,8 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
       goto err;
     }
   }
-  else if ((fd = my_open(fname, O_WRONLY|O_APPEND|O_BINARY|O_NOFOLLOW, MYF(MY_WME))) < 0)
+  else if ((fd = my_open(fname, O_WRONLY | O_APPEND | O_BINARY | O_NOFOLLOW,
+                         MYF(MY_WME))) < 0)
   {
     slave_print_error(rli, my_errno,
                       "Error in %s event: could not open file '%s'",
@@ -4421,7 +4422,8 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
   Load_log_event* lev = 0;
 
   memcpy(p, ".info", 6);
-  if ((fd = my_open(fname, O_RDONLY|O_BINARY|O_NOFOLLOW, MYF(MY_WME))) < 0 ||
+  if ((fd = my_open(fname, O_RDONLY | O_BINARY | O_NOFOLLOW,
+                    MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
