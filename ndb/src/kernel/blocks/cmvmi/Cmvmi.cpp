@@ -134,6 +134,10 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
   if(ERROR_INSERTED(9998)){
     while(true) NdbSleep_SecSleep(1);
   }
+
+  if(ERROR_INSERTED(9997)){
+    ndbrequire(false);
+  }
 }//execNDB_TAMPER()
 
 void Cmvmi::execSET_LOGLEVELORD(Signal* signal) 

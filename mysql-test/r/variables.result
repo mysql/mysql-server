@@ -400,7 +400,7 @@ ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of ''
 set global myisam_max_sort_file_size=4294967296;
 show global variables like 'myisam_max_sort_file_size';
 Variable_name	Value
-myisam_max_sort_file_size	4294967296
+myisam_max_sort_file_size	MAX_FILE_SIZE
 set global myisam_max_sort_file_size=default;
 select @@global.max_user_connections,@@local.max_join_size;
 @@global.max_user_connections	@@session.max_join_size

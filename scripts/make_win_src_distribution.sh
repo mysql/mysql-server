@@ -302,10 +302,12 @@ do
 done
 
 #
-# Fix some windows files
+# Fix some windows files to avoid compiler warnings
 #
 
-./extra/replace std:: "" -- $BASE/sql/sql_yacc.cpp
+./extra/replace std:: "" < $BASE/sql/sql_yacc.cpp | sed '/^ *switch (yytype)$/ { N; /\n *{$/ { N; /\n *default:$/ { N; /\n *break;$/ { N; /\n *}$/ d; };};};} ' > $BASE/sql/sql_yacc.cpp-new
+mv $BASE/sql/sql_yacc.cpp-new $BASE/sql/sql_yacc.cpp
+
 
 unix_to_dos $BASE/README
 mv $BASE/README $BASE/README.txt
