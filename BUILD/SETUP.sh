@@ -40,7 +40,7 @@ c_warnings="$global_warnings -Wunused"
 cxx_warnings="$global_warnings -Woverloaded-virtual -Wextern-inline -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
 
 alpha_cflags="-mcpu=ev6 -Wa,-mev6"	# Not used yet
-pentium_cflags="-mpentiumpro"
+pentium_cflags="-mcpu=pentiumpro"
 sparc_cflags=""
 
 # be as fast as we can be without losing our ability to backtrace
@@ -64,4 +64,11 @@ then
   make=gmake
 else
   make=make
+fi
+
+if gcc -v 2>&1 | grep 'version 3' > /dev/null 2>&1
+then
+  CXX=c++
+else
+  CXX=gcc
 fi
