@@ -1494,6 +1494,7 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
     break;
   default:
     ndbrequire(false);
+    prepOp = 0; // remove warning
   }
   
   /**
