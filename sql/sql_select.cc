@@ -3906,7 +3906,8 @@ JOIN::join_free(bool full)
   */
   if ((full || !select_lex->uncacheable) &&
       lock && thd->lock &&
-      !(select_options & SELECT_NO_UNLOCK))
+      !(select_options & SELECT_NO_UNLOCK) &&
+      !select_lex->subquery_in_having)
   {
     mysql_unlock_read_tables(thd, lock);// Don't free join->lock
     lock=0;
