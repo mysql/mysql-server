@@ -282,6 +282,8 @@ multi_delete::initialize_tables(JOIN *join)
       walk=walk->next;
       /* Don't use KEYREAD optimization on this table */
       tbl->no_keyread=1;
+      /* Don't use record cache */
+      tbl->no_cache= 1;
       tbl->used_keys= 0;
       if (tbl->file->has_transactions())
 	log_delayed= transactional_tables= 1;
