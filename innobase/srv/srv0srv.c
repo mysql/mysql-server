@@ -2144,10 +2144,14 @@ loop:
 				/* Timeout exceeded or a wrap-around in system
 				time counter: cancel the lock request queued
 				by the transaction and release possible
-				other transactions waiting behind */
+				other transactions waiting behind; it is
+				possible that the lock has already been
+				granted: in that case do nothing */
 
-				lock_cancel_waiting_and_release(
-				    thr_get_trx(slot->thr)->wait_lock);
+			        if (thr_get_trx(slot->thr)->wait_lock) {
+				        lock_cancel_waiting_and_release(
+				          thr_get_trx(slot->thr)->wait_lock);
+			        }
 			}
 		}
 	}
