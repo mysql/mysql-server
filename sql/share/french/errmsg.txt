@@ -8,8 +8,8 @@
 "Ne peut créer le fichier '%-.64s' (Errcode: %d)",
 "Ne peut créer la table '%-.64s' (Errcode: %d)",
 "Ne peut créer la base '%-.64s'. Erreur %d",
-"Ne peut créer la base '%-.64s'. Elle existe déjà",
-"Ne peut effacer la base '%-.64s'. Elle n'existe pas",
+"Ne peut créer la base '%-.64s'; elle existe déjà",
+"Ne peut effacer la base '%-.64s'; elle n'existe pas",
 "Ne peut effacer la base '%-.64s' (erreur %d)",
 "Erreur en effaçant la base (rmdir '%-.64s', erreur %d)",
 "Erreur en effaçant '%-.64s' (Errcode: %d)",
@@ -266,3 +266,4 @@
 "Can't revoke all privileges, grant for one or more of the requested users"
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
+"Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",

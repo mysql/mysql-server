@@ -823,6 +823,13 @@ bool Protocol_simple::store(Field *field)
 }
 
 
+/*
+   TODO:
+        Second_part format ("%06") needs to change when 
+        we support 0-6 decimals for time.
+*/
+
+
 bool Protocol_simple::store(TIME *tm)
 {
 #ifndef DEBUG_OFF
@@ -840,6 +847,8 @@ bool Protocol_simple::store(TIME *tm)
 			   (int) tm->hour,
 			   (int) tm->minute,
 			   (int) tm->second));
+  if (tm->second_part)
+    length+= my_sprintf(buff+length,(buff+length, ".%06d", (int)tm->second_part));
   return net_store_data((char*) buff, length);
 }
 
@@ -861,6 +870,12 @@ bool Protocol_simple::store_date(TIME *tm)
 }
 
 
+/*
+   TODO:
+        Second_part format ("%06") needs to change when 
+        we support 0-6 decimals for time.
+*/
+
 bool Protocol_simple::store_time(TIME *tm)
 {
 #ifndef DEBUG_OFF
@@ -876,6 +891,8 @@ bool Protocol_simple::store_time(TIME *tm)
 			   (long) day*24L+(long) tm->hour,
 			   (int) tm->minute,
 			   (int) tm->second));
+  if (tm->second_part)
+    length+= my_sprintf(buff+length,(buff+length, ".%06d", (int)tm->second_part));
   return net_store_data((char*) buff, length);
 }
 

@@ -17,8 +17,8 @@
 "Kann Datei '%-.64s' nicht erzeugen. (Fehler: %d)",
 "Kann Tabelle '%-.64s' nicht erzeugen. (Fehler: %d)",
 "Kann Datenbank '%-.64s' nicht erzeugen. (Fehler: %d)",
-"Kann Datenbank '%-.64s' nicht erzeugen. Datenbank '%-.64s' existiert bereits.",
-"Kann Datenbank '%-.64s' nicht löschen. Keine Datenbank '%-.64s' vorhanden.",
+"Kann Datenbank '%-.64s' nicht erzeugen; datenbank '%-.64s' existiert bereits.",
+"Kann Datenbank '%-.64s' nicht löschen; keine Datenbank '%-.64s' vorhanden.",
 "Fehler beim Löschen der Datenbank. ('%-.64s' kann nicht gelöscht werden, Fehlernuumer: %d)",
 "Fehler beim Löschen der Datenbank. (Verzeichnis '%-.64s' kann nicht gelöscht werden, Fehlernummer: %d)",
 "Fehler beim Löschen von '%-.64s'. (Fehler: %d)",
@@ -275,3 +275,4 @@
 "Can't revoke all privileges, grant for one or more of the requested users"
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
+"Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",

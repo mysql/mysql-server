@@ -8,8 +8,8 @@
 "Não pode criar o arquivo '%-.64s' (erro no. %d)",
 "Não pode criar a tabela '%-.64s' (erro no. %d)",
 "Não pode criar o banco de dados '%-.64s' (erro no. %d)",
-"Não pode criar o banco de dados '%-.64s'. Este banco de dados já existe",
-"Não pode eliminar o banco de dados '%-.64s'. Este banco de dados não existe",
+"Não pode criar o banco de dados '%-.64s'; este banco de dados já existe",
+"Não pode eliminar o banco de dados '%-.64s'; este banco de dados não existe",
 "Erro ao eliminar banco de dados (não pode eliminar '%-.64s' - erro no. %d)",
 "Erro ao eliminar banco de dados (não pode remover diretório '%-.64s' - erro no. %d)",
 "Erro na remoção de '%-.64s' (erro no. %d)",
@@ -266,3 +266,4 @@
 "Can't revoke all privileges, grant for one or more of the requested users"
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
+"Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",

@@ -8,8 +8,8 @@
 "Can't create file '%-.64s' (errno: %d)",
 "Can't create table '%-.64s' (errno: %d)",
 "Can't create database '%-.64s'. (errno: %d)",
-"Can't create database '%-.64s'. Database exists",
-"Can't drop database '%-.64s'. Database doesn't exist",
+"Can't create database '%-.64s'; database exists",
+"Can't drop database '%-.64s'; database doesn't exist",
 "Error dropping database (can't delete '%-.64s', errno: %d)",
 "Error dropping database (can't rmdir '%-.64s', errno: %d)",
 "Error on delete of '%-.64s' (errno: %d)",
@@ -271,3 +271,4 @@
 "Can't revoke all privileges, grant for one or more of the requested users"
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
+"Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",

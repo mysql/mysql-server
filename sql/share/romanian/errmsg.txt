@@ -12,8 +12,8 @@
 "Nu pot sa creez fisierul '%-.64s' (Eroare: %d)",
 "Nu pot sa creez tabla '%-.64s' (Eroare: %d)",
 "Nu pot sa creez baza de date '%-.64s'. (Eroare: %d)",
-"Nu pot sa creez baza de date '%-.64s'. Baza de date exista deja",
-"Nu pot sa drop baza de date '%-.64s'. Baza da date este inexistenta",
+"Nu pot sa creez baza de date '%-.64s'; baza de date exista deja",
+"Nu pot sa drop baza de date '%-.64s'; baza da date este inexistenta",
 "Eroare dropuind baza de date (nu pot sa sterg '%-.64s', Eroare: %d)",
 "Eroare dropuind baza de date (nu pot sa rmdir '%-.64s', Eroare: %d)",
 "Eroare incercind sa delete '%-.64s' (Eroare: %d)",
@@ -270,3 +270,4 @@
 "Can't revoke all privileges, grant for one or more of the requested users"
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
+"Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",

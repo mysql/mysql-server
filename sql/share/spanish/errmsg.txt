@@ -9,8 +9,8 @@
 "No puedo crear archivo '%-.64s' (Error: %d)",
 "No puedo crear tabla '%-.64s' (Error: %d)",
 "No puedo crear base de datos '%-.64s'. Error %d",
-"No puedo crear base de datos '%-.64s'. La base de datos ya existe",
-"No puedo eliminar base de datos '%-.64s'. La base de datos no existe",
+"No puedo crear base de datos '%-.64s'; la base de datos ya existe",
+"No puedo eliminar base de datos '%-.64s'; la base de datos no existe",
 "Error eliminando la base de datos(no puedo borrar '%-.64s', error %d)",
 "Error eliminando la base de datos (No puedo borrar directorio '%-.64s', error %d)",
 "Error en el borrado de '%-.64s' (Error: %d)",
@@ -267,3 +267,4 @@
 "Can't revoke all privileges, grant for one or more of the requested users"
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
+"Variable '%-.64s' is not a variable component (Can't be used as XXXX.variable_name)",
