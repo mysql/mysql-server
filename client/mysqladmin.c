@@ -276,7 +276,7 @@ int main(int argc,char *argv[])
   mysql_init(&mysql);
   load_defaults("my",load_default_groups,&argc,&argv);
   save_argv = argv;				/* Save for free_defaults */
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option, 0)))
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
     free_defaults(save_argv);
     exit(ho_error);
