@@ -2680,7 +2680,7 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
       if (order)
       {
 	found++;
-	dbug_assert(!(order->used & map));
+	DBUG_ASSERT(!(order->used & map));
 	order->used|=map;
 	continue;				// Used in ORDER BY
       }

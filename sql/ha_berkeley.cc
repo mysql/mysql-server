@@ -1045,7 +1045,7 @@ int ha_berkeley::restore_keys(DB_TXN *trans, key_map changed_keys,
   }
   
 err:
-  dbug_assert(error != DB_KEYEXIST);
+  DBUG_ASSERT(error != DB_KEYEXIST);
   DBUG_RETURN(error);
 }
 
@@ -1187,7 +1187,7 @@ int ha_berkeley::remove_key(DB_TXN *trans, uint keynr, const byte *record,
 	   ((table->key_info[keynr].flags & (HA_NOSAME | HA_NULL_PART_KEY)) ==
 	    HA_NOSAME))
   {						// Unique key
-    dbug_assert(keynr == primary_key || prim_key->data != key_buff2);
+    DBUG_ASSERT(keynr == primary_key || prim_key->data != key_buff2);
     error=key_file[keynr]->del(key_file[keynr], trans,
 			       keynr == primary_key ?
 			       prim_key :
@@ -1201,7 +1201,7 @@ int ha_berkeley::remove_key(DB_TXN *trans, uint keynr, const byte *record,
       row to find the key to be delete and delete it.
       We will never come here with keynr = primary_key
     */
-    dbug_assert(keynr != primary_key && prim_key->data != key_buff2);
+    DBUG_ASSERT(keynr != primary_key && prim_key->data != key_buff2);
     DBC *tmp_cursor;
     if (!(error=key_file[keynr]->cursor(key_file[keynr], trans,
 					&tmp_cursor, 0)))

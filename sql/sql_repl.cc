@@ -137,7 +137,7 @@ File open_binlog(IO_CACHE *log, const char *log_file_name,
 
   if ((file = my_open(log_file_name, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0 ||
       init_io_cache(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
-		    MYF(MY_WME)))
+		    MYF(MY_WME | MY_DONT_CHECK_FILESIZE)))
   {
     *errmsg = "Could not open log file";	// This will not be sent
     goto err;
@@ -1024,8 +1024,10 @@ int log_loaded_block(IO_CACHE* file)
 {
   LOAD_FILE_INFO* lf_info;
   uint block_len ;
-  char* buffer = (char*)file->buffer;
-  if (!(block_len = file->rc_end - buffer))
+
+  /* file->request_pos contains position where we started last read */
+  char* buffer = (char*) file->request_pos;
+  if (!(block_len = file->read_end - buffer))
     return 0;
   lf_info = (LOAD_FILE_INFO*)file->arg;
   if (lf_info->last_pos_in_file != HA_POS_ERROR &&
