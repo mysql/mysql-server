@@ -36937,7 +36937,7 @@ Lock one table at a time until the thread gets all locks.
 This policy ensures that table locking is deadlock free. There is
 however other things one needs to be aware of with this schema:
 
-If you are using a @code{LOW_PRIORITY_WRITE} lock for a table, this
+If you are using a @code{LOW_PRIORITY WRITE} lock for a table, this
 means only that MySQL will wait for this particlar lock until
 there is no threads that wants a @code{READ} lock.  When the thread has
 got the @code{WRITE} lock and is waiting to get the lock for the next
