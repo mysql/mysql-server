@@ -393,6 +393,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   TABLE_LIST tables;
   int error= 1;
   handler *file;
+  uint save_options;
   
   if (packet_len == packet_error)
   {
@@ -418,12 +419,17 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   thd->current_tablenr = 0;
   thd->query_error = 0;
   thd->net.no_send_ok = 1;
+  
+  /* we do not want to log create table statement */
+  save_options = thd->options;
+  thd->options &= ~OPTION_BIN_LOG;
   thd->proc_info = "Creating table from master dump";
   // save old db in case we are creating in a different database
   char* save_db = thd->db;
   thd->db = (char*)db;
   mysql_parse(thd, thd->query, packet_len); // run create table
   thd->db = save_db;		// leave things the way the were before
+  thd->options = save_options;
   
   if (thd->query_error)
     goto err;			// mysql_parse took care of the error send
@@ -1000,7 +1006,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
     int type_code = ev->get_type_code();
     int exec_res;
     if (ev->server_id == ::server_id ||
-	(slave_skip_counter && ev->get_type_code() != ROTATE_EVENT))
+	(slave_skip_counter && type_code != ROTATE_EVENT))
     {
       if(type_code == LOAD_EVENT)
 	skip_load_data_infile(net);

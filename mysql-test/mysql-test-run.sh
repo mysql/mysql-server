@@ -151,6 +151,11 @@ while test $# -gt 0; do
     --verbose-manager)  MANAGER_QUIET_OPT="" ;;
     --local)   USE_RUNNING_SERVER="" ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
+    --local-master)
+      MASTER_MYPORT=3306;
+      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --host=127.0.0.1 \
+      --port=$MYSQL_MYPORT"
+      LOCAL_MASTER=1 ;;
     --master_port=*) MASTER_MYPORT=`$ECHO "$1" | $SED -e "s;--master_port=;;"` ;;
     --slave_port=*) SLAVE_MYPORT=`$ECHO "$1" | $SED -e "s;--slave_port=;;"` ;;
     --manager-port=*) MYSQL_MANAGER_PORT=`$ECHO "$1" | $SED -e "s;--manager_port=;;"` ;;
@@ -639,7 +644,9 @@ EOF
 
 start_master()
 {
-    [ x$MASTER_RUNNING = 1 ] && return
+    if [ x$MASTER_RUNNING = x1 ] || [ x$LOCAL_MASTER = x1 ] ; then
+      return
+    fi
     # Remove old berkeley db log files that can confuse the server
     $RM -f $MASTER_MYDDIR/log.*
     # Remove stale binary logs
