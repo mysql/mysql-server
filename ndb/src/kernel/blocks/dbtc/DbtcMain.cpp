@@ -8599,8 +8599,6 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
 		       UintR scanParallel,
 		       UintR noOprecPerFrag) 
 {
-  const UintR reqinfo = scanTabReq->requestInfo;
-
   scanptr.p->scanTcrec = tcConnectptr.i;
   scanptr.p->scanApiRec = apiConnectptr.i;
   scanptr.p->scanAiLength = scanTabReq->attrLenKeyLen & 0xFFFF;
@@ -8611,10 +8609,17 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->noOprecPerFrag = noOprecPerFrag;
   scanptr.p->first_batch_size= scanTabReq->first_batch_size;
   scanptr.p->batch_byte_size= scanTabReq->batch_byte_size;
-  scanptr.p->scanLockMode = ScanTabReq::getLockMode(reqinfo);
-  scanptr.p->scanLockHold = ScanTabReq::getHoldLockFlag(reqinfo);
-  scanptr.p->readCommitted = ScanTabReq::getReadCommittedFlag(reqinfo);
-  scanptr.p->rangeScan = ScanTabReq::getRangeScanFlag(reqinfo);
+
+  Uint32 tmp = 0;
+  const UintR ri = scanTabReq->requestInfo;
+  ScanFragReq::setLockMode(tmp, ScanTabReq::getLockMode(ri));
+  ScanFragReq::setHoldLockFlag(tmp, ScanTabReq::getHoldLockFlag(ri));
+  ScanFragReq::setKeyinfoFlag(tmp, ScanTabReq::getKeyinfoFlag(ri));
+  ScanFragReq::setReadCommittedFlag(tmp,ScanTabReq::getReadCommittedFlag(ri));
+  ScanFragReq::setRangeScanFlag(tmp, ScanTabReq::getRangeScanFlag(ri));
+  ScanFragReq::setAttrLen(tmp, scanTabReq->attrLenKeyLen & 0xFFFF);
+  
+  scanptr.p->scanRequestInfo = tmp;
   scanptr.p->scanStoredProcId = scanTabReq->storedProcId;
   scanptr.p->scanState = ScanRecord::RUNNING;
   scanptr.p->m_queued_count = 0;
@@ -8631,7 +8636,7 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
     ptr.p->m_apiPtr = cdata[i];
   }//for
 
-  (* (scanptr.p->rangeScan ? 
+  (* (ScanTabReq::getRangeScanFlag(ri) ? 
       &c_counters.c_range_scan_count : 
       &c_counters.c_scan_count))++;
 }//Dbtc::initScanrec()
@@ -9491,17 +9496,8 @@ void Dbtc::sendScanFragReq(Signal* signal,
 			   ScanRecord* scanP, 
 			   ScanFragRec* scanFragP)
 {
-  Uint32 requestInfo = 0;
   ScanFragReq * const req = (ScanFragReq *)&signal->theData[0];
-  ScanFragReq::setLockMode(requestInfo, scanP->scanLockMode);
-  ScanFragReq::setHoldLockFlag(requestInfo, scanP->scanLockHold);
-  if(scanP->scanLockMode == 1){ // Not read -> keyinfo
-    jam();
-    ScanFragReq::setKeyinfoFlag(requestInfo, 1);
-  }
-  ScanFragReq::setReadCommittedFlag(requestInfo, scanP->readCommitted);
-  ScanFragReq::setRangeScanFlag(requestInfo, scanP->rangeScan);
-  ScanFragReq::setAttrLen(requestInfo, scanP->scanAiLength);
+  Uint32 requestInfo = scanP->scanRequestInfo;
   ScanFragReq::setScanPrio(requestInfo, 1);
   apiConnectptr.i = scanP->scanApiRec;
   req->tableId = scanP->scanTableref;
@@ -10470,9 +10466,6 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 	      sp.p->scanSchemaVersion,
 	      sp.p->scanTableref,
 	      sp.p->scanStoredProcId);
-    infoEvent(" lhold=%d, lmode=%d",	      
-	      sp.p->scanLockHold,
-	      sp.p->scanLockMode);
     infoEvent(" apiRec=%d, next=%d",
 	      sp.p->scanApiRec, sp.p->nextScan);
 

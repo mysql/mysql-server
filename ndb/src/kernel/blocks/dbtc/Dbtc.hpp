@@ -1197,18 +1197,7 @@ public:
     Uint16 first_batch_size;
     Uint32 batch_byte_size;
 
-    // Shall the locks be held until the application have read the 
-    // records
-    Uint8 scanLockHold;
-
-    // Shall the locks be read or write locks
-    Uint8 scanLockMode;
-
-    // Skip locks by other transactions and read latest committed
-    Uint8 readCommitted;
-
-    // Scan is on ordered index
-    Uint8 rangeScan;
+    Uint32 scanRequestInfo; // ScanFrag format
 
     // Close is ordered
     bool m_close_scan_req;

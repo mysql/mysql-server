@@ -55,6 +55,7 @@ NdbOperation::insertTuple()
     theOperationType = InsertRequest;
     tNdbCon->theSimpleState = 0;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Exclusive;
     return 0; 
   } else {
     setErrorCode(4200);
@@ -74,6 +75,7 @@ NdbOperation::updateTuple()
     tNdbCon->theSimpleState = 0;
     theOperationType = UpdateRequest;  
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Exclusive;
     return 0; 
   } else {
     setErrorCode(4200);
@@ -93,6 +95,7 @@ NdbOperation::writeTuple()
     tNdbCon->theSimpleState = 0;
     theOperationType = WriteRequest;  
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Exclusive;
     return 0; 
   } else {
     setErrorCode(4200);
@@ -115,6 +118,8 @@ NdbOperation::readTuple(NdbOperation::LockMode lm)
   case LM_CommittedRead:
     return readTuple();
     break;
+  default:
+    return -1;
   };
 }
 /******************************************************************************
@@ -130,6 +135,7 @@ NdbOperation::readTuple()
     tNdbCon->theSimpleState = 0;
     theOperationType = ReadRequest;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Read;
     return 0;
   } else {
     setErrorCode(4200);
@@ -150,6 +156,7 @@ NdbOperation::deleteTuple()
     tNdbCon->theSimpleState = 0;
     theOperationType = DeleteRequest;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Exclusive;
     return 0;
   } else {
     setErrorCode(4200);
@@ -170,6 +177,7 @@ NdbOperation::readTupleExclusive()
     tNdbCon->theSimpleState = 0;
     theOperationType = ReadExclusive;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Exclusive;
     return 0;
   } else {
     setErrorCode(4200);
@@ -189,6 +197,7 @@ NdbOperation::simpleRead()
     theOperationType = ReadRequest;
     theSimpleIndicator = 1;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_CommittedRead;
     return 0;
   } else {
     setErrorCode(4200);
@@ -218,6 +227,7 @@ NdbOperation::committedRead()
     theSimpleIndicator = 1;
     theDirtyIndicator = 1;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_CommittedRead;
     return 0;
   } else {
     setErrorCode(4200);
@@ -240,6 +250,7 @@ NdbOperation::dirtyUpdate()
     theSimpleIndicator = 1;
     theDirtyIndicator = 1;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_CommittedRead;
     return 0;
   } else {
     setErrorCode(4200);
@@ -262,6 +273,7 @@ NdbOperation::dirtyWrite()
     theSimpleIndicator = 1;
     theDirtyIndicator = 1;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_CommittedRead;
     return 0;
   } else {
     setErrorCode(4200);
@@ -282,7 +294,7 @@ NdbOperation::interpretedUpdateTuple()
     tNdbCon->theSimpleState = 0;
     theOperationType = UpdateRequest;
     theAI_LenInCurrAI = 25;
-
+    theLockMode = LM_Exclusive;
     theErrorLine = tErrorLine++;
     initInterpreter();
     return 0;
@@ -307,7 +319,7 @@ NdbOperation::interpretedDeleteTuple()
 
     theErrorLine = tErrorLine++;
     theAI_LenInCurrAI = 25;
-
+    theLockMode = LM_Exclusive;
     initInterpreter();
     return 0;
   } else {
