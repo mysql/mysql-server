@@ -932,7 +932,7 @@ public:
     net.last_errno= 0;
     net.report_error= 0;
   }
-  inline bool vio_ok() const { return net.vio; }
+  inline bool vio_ok() const { return net.vio != 0; }
 #else
   void clear_error();
   inline bool vio_ok() const { return true; }
