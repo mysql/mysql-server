@@ -83,7 +83,7 @@ int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
 			       attr->dwStackSize ? attr->dwStackSize :
 			       65535, (void*) map);
 #else
-  hThread=(HANDLE)_beginthread(pthread_start,
+  hThread=(HANDLE)_beginthread((void( __cdecl *)(void *)) pthread_start,
 			       attr->dwStackSize ? attr->dwStackSize :
 			       65535, (void*) map);
 #endif
