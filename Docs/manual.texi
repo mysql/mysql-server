@@ -35664,6 +35664,8 @@ You can also create databases with @code{mysqladmin}.
 @subsection @code{DROP DATABASE} Syntax
 
 @findex DROP DATABASE
+@cindex deleting, database
+@cindex database, deleting
 
 @example
 DROP DATABASE [IF EXISTS] db_name
@@ -36241,6 +36243,8 @@ using @code{myisampack}. @xref{Compressed format}.
 @subsection @code{ALTER TABLE} Syntax
 
 @findex ALTER TABLE
+@cindex changing, table
+@cindex table, changing
 
 @example
 ALTER [IGNORE] TABLE tbl_name alter_spec [, alter_spec ...]
@@ -36382,6 +36386,10 @@ From MySQL Version 4.0.1, you can also use the @code{FIRST} and
 @code{AFTER} keywords in @code{CHANGE} or @code{MODIFY}.
 
 @findex ALTER COLUMN
+@cindex changing, column
+@cindex column, changing
+@cindex changing, field
+@cindex field, changing
 @item
 @code{ALTER COLUMN} specifies a new default value for a column
 or removes the old default value.
@@ -36391,6 +36399,8 @@ assigns a default value, as described in
 @ref{CREATE TABLE, , @code{CREATE TABLE}}.
 
 @findex DROP INDEX
+@cindex deleting, index
+@cindex index, deleting
 @item
 @code{DROP INDEX} removes an index. This is a MySQL extension to
 ANSI SQL92. @xref{DROP INDEX}.
@@ -36405,6 +36415,8 @@ If a table contains only one column, the column cannot be dropped.
 If what you intend is to remove the table, use @code{DROP TABLE} instead.
 
 @findex DROP PRIMARY KEY
+@cindex deleting, primary key
+@cindex primary key, deleting
 @item
 @code{DROP PRIMARY KEY} drops the primary index. If no such
 index exists, it drops the first @code{UNIQUE} index in the table.
@@ -36429,6 +36441,8 @@ option after big changes to the table, you may be able to get higher
 performance.
 
 @findex ALTER TABLE
+@cindex changing, table
+@cindex table, changing
 @item
 If you use @code{ALTER TABLE} on a @code{MyISAM} table, all non-unique
 indexes are created in a separate batch (like in @code{REPAIR}).
@@ -36573,6 +36587,8 @@ to the original state.
 @subsection @code{DROP TABLE} Syntax
 
 @findex DROP TABLE
+@cindex deleting, table
+@cindex table, deleting
 
 @example
 DROP TABLE [IF EXISTS] tbl_name [, tbl_name,...] [RESTRICT | CASCADE]
@@ -36654,6 +36670,8 @@ are available in MySQL Version 3.23.23 and later.
 @subsection @code{DROP INDEX} Syntax
 
 @findex DROP INDEX
+@cindex deleting, index
+@cindex index, deleting
 
 @example
 DROP INDEX index_name ON tbl_name
@@ -45987,6 +46005,8 @@ native functions such as @code{ABS()} or @code{SOUNDEX()}.
 
 @findex CREATE FUNCTION
 @findex DROP FUNCTION
+@cindex deleting, function
+@cindex function, deleting
 @findex UDF functions
 @findex User-defined functions
 @findex Functions, user-defined
@@ -48649,6 +48669,8 @@ mysql> SELECT i, SUM(d1) AS a, SUM(d2) AS b FROM t1
 @appendixsubsec Problems with @code{ALTER TABLE}.
 
 @tindex ALTER TABLE
+@cindex changing, table
+@cindex table, changing
 
 @code{ALTER TABLE} changes a table to the current character set.
 If you during @code{ALTER TABLE} get a duplicate key error, then the cause
