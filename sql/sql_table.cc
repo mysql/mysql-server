@@ -65,7 +65,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary)
 {
-  bool error= FALSE;
+  bool error= FALSE, need_start_waiters= FALSE;
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
@@ -74,29 +74,28 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   thd->mysys_var->current_cond= &COND_refresh;
   VOID(pthread_mutex_lock(&LOCK_open));
 
-  if (!drop_temporary && global_read_lock)
+  if (!drop_temporary)
   {
-    if (thd->global_read_lock)
+    if ((error= wait_if_global_read_lock(thd, 0, 1)))
     {
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), tables->table_name);
-      error= TRUE;
       goto err;
     }
-    while (global_read_lock && ! thd->killed)
-    {
-      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-    }
-
+    else
+      need_start_waiters= TRUE;
   }
   error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
 
- err:
+err:
   pthread_mutex_unlock(&LOCK_open);
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond= 0;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
+
+  if (need_start_waiters)
+    start_waiting_global_read_lock(thd);
 
   if (error)
     DBUG_RETURN(TRUE);
@@ -114,7 +113,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     tables		List of tables to delete
     if_exists		If 1, don't give error if one table doesn't exists
     dont_log_query	Don't write query to log files. This will also not
-			generate warnings if the handler files doesn't exists  
+                        generate warnings if the handler files doesn't exists
 
  NOTES
    Works like documented in mysql_rm_table(), but don't check
