@@ -5467,7 +5467,7 @@ The minimum value for this variable is 4096.",
    "Synchronously flush binary log to disk after every #th event. "
    "Use 0 (default) to disable synchronous flushing.",
    (gptr*) &sync_binlog_period, (gptr*) &sync_binlog_period, 0, GET_ULONG,
-   REQUIRED_ARG, 1, 0, ~0L, 0, 1, 0},
+   REQUIRED_ARG, 0, 0, ~0L, 0, 1, 0},
   {"sync-frm", OPT_SYNC_FRM, "Sync .frm to disk on create. Enabled by default.",
    (gptr*) &opt_sync_frm, (gptr*) &opt_sync_frm, 0, GET_BOOL, NO_ARG, 1, 0,
    0, 0, 0, 0},
