@@ -1203,11 +1203,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 void
 mysql_execute_command(void)
 {
-  int	res=0;
-  THD	*thd=current_thd;
+  int	res= 0;
+  THD	*thd= current_thd;
   LEX	*lex= &thd->lex;
-  TABLE_LIST *tables=(TABLE_LIST*) lex->select_lex.table_list.first;
-  SELECT_LEX *select_lex = lex->select;
+  TABLE_LIST *tables= (TABLE_LIST*) lex->select_lex.table_list.first;
+  SELECT_LEX *select_lex= lex->select;
+  SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
 
   if (thd->slave_thread)
@@ -1240,8 +1241,10 @@ mysql_execute_command(void)
   {
     for (TABLE_LIST *cursor= tables;
 	 cursor;
-	 cursor=cursor->next)
-      if (cursor->derived && mysql_derived(thd,lex,(SELECT_LEX *)cursor->derived,cursor))
+	 cursor= cursor->next)
+      if (cursor->derived && mysql_derived(thd, lex,
+					   (SELECT_LEX_UNIT *)cursor->derived,
+					   cursor))
 	DBUG_VOID_RETURN;
   }
   if ((lex->select_lex.next && create_total_list(thd,lex,&tables)) ||
@@ -1272,11 +1275,11 @@ mysql_execute_command(void)
       break;					// Error message is given
     }
 
-    thd->offset_limit=select_lex->offset_limit;
-    thd->select_limit=select_lex->select_limit+select_lex->offset_limit;
-    if (thd->select_limit < select_lex->select_limit)
-      thd->select_limit= HA_POS_ERROR;		// no limit
-    if (thd->select_limit == HA_POS_ERROR)
+    unit->offset_limit_cnt =select_lex->offset_limit;
+    unit->select_limit_cnt =select_lex->select_limit+select_lex->offset_limit;
+    if (unit->select_limit_cnt < select_lex->select_limit)
+      unit->select_limit_cnt= HA_POS_ERROR;		// no limit
+    if (unit->select_limit_cnt == HA_POS_ERROR)
       select_lex->options&= ~OPTION_FOUND_ROWS;
 
     if (lex->exchange)
@@ -1501,10 +1504,11 @@ mysql_execute_command(void)
 	for (table = tables->next ; table ; table=table->next)
 	  table->lock_type= lex->lock_option;
       }
-      thd->offset_limit=select_lex->offset_limit;
-      thd->select_limit=select_lex->select_limit+select_lex->offset_limit;
-      if (thd->select_limit < select_lex->select_limit)
-	thd->select_limit= HA_POS_ERROR;		// No limit
+      unit->offset_limit_cnt= select_lex->offset_limit;
+      unit->select_limit_cnt= select_lex->select_limit+
+	select_lex->offset_limit;
+      if (unit->select_limit_cnt < select_lex->select_limit)
+	unit->select_limit_cnt= HA_POS_ERROR;		// No limit
 
       /* Skip first table, which is the table we are creating */
       lex->select_lex.table_list.first=
@@ -1786,13 +1790,13 @@ mysql_execute_command(void)
 	while ((item=value_list++))
 	  total_list.push_back(item);
 	
-	res=mysql_select(thd,tables,total_list,
-			 select_lex->where,
-			 (ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
-			 (ORDER *)NULL,
-			 select_lex->options | thd->options |
-			 SELECT_NO_JOIN_CACHE,
-			 result);
+	res= mysql_select(thd, tables, total_list,
+			  select_lex->where,
+			  (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
+			  (ORDER *)NULL,
+			  select_lex->options | thd->options |
+			  SELECT_NO_JOIN_CACHE,
+			  result, unit);
 	delete result;
       }
       else
@@ -1842,10 +1846,10 @@ mysql_execute_command(void)
     }
 
     select_result *result;
-    thd->offset_limit=select_lex->offset_limit;
-    thd->select_limit=select_lex->select_limit+select_lex->offset_limit;
-    if (thd->select_limit < select_lex->select_limit)
-      thd->select_limit= HA_POS_ERROR;		// No limit
+    unit->offset_limit_cnt= select_lex->offset_limit;
+    unit->select_limit_cnt= select_lex->select_limit+select_lex->offset_limit;
+    if (unit->select_limit_cnt < select_lex->select_limit)
+      unit->select_limit_cnt= HA_POS_ERROR;		// No limit
 
     if (check_dup(tables->db, tables->real_name, tables->next))
     {
@@ -1961,7 +1965,7 @@ mysql_execute_command(void)
 		       (ORDER *)NULL,
 		       select_lex->options | thd->options |
 		       SELECT_NO_JOIN_CACHE,
-		       result);
+		       result, unit);
       delete result;
     }
     else
@@ -2664,18 +2668,21 @@ static void
 mysql_init_query(THD *thd)
 {
   DBUG_ENTER("mysql_init_query");
-  thd->lex.select_lex.item_list.empty();
+  thd->lex.unit.init_query();
+  thd->lex.unit.init_select();
+  thd->lex.select_lex.init_query();
+  thd->lex.unit.slave= &thd->lex.select_lex;
+  thd->lex.unit.select_limit= thd->default_select_limit; //Global limit
+  thd->lex.select_lex.master= &thd->lex.unit;
+  thd->lex.select_lex.prev= &thd->lex.unit.slave;
   thd->lex.value_list.empty();
-  thd->lex.select_lex.table_list.elements=0;
-  thd->free_list=0;  thd->lex.union_option=0;
-  thd->lex.select = thd->lex.last_select = &thd->lex.select_lex;
-  thd->lex.select_lex.table_list.first=0;
-  thd->lex.select_lex.table_list.next= (byte**) &thd->lex.select_lex.table_list.first;
-  thd->lex.select_lex.next=0;
-  thd->fatal_error=0;				// Safety
-  thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
-  thd->sent_row_count=thd->examined_row_count=0;
-  thd->safe_to_cache_query=1;
+  thd->free_list= 0;
+  thd->lex.union_option= 0;
+  thd->lex.select= &thd->lex.select_lex;
+  thd->fatal_error= 0;				// Safety
+  thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
+  thd->sent_row_count= thd->examined_row_count= 0;
+  thd->safe_to_cache_query= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -2683,53 +2690,53 @@ void
 mysql_init_select(LEX *lex)
 {
   SELECT_LEX *select_lex = lex->select;
-  select_lex->where=select_lex->having=0;
+  select_lex->init_select();
   select_lex->select_limit=lex->thd->default_select_limit;
   select_lex->offset_limit=0;
-  select_lex->options=0;
-  select_lex->linkage=UNSPECIFIED_TYPE;
   lex->exchange = 0;
   lex->proc_list.first=0;
-  select_lex->order_list.elements=select_lex->group_list.elements=0;
-  select_lex->order_list.first=0;
-  select_lex->order_list.next= (byte**) &select_lex->order_list.first;
-  select_lex->group_list.first=0;
-  select_lex->group_list.next= (byte**) &select_lex->group_list.first;
-  select_lex->next = select_lex->prev = (SELECT_LEX *)NULL; 
 }
 
 bool
-mysql_new_select(LEX *lex)
+mysql_new_select(LEX *lex, bool move_down)
 {
   SELECT_LEX *select_lex = (SELECT_LEX *) lex->thd->calloc(sizeof(SELECT_LEX));
   if (!select_lex)
     return 1;
-  lex->select=lex->last_select;
-  lex->select->next=select_lex; 
-  lex->select=lex->last_select=select_lex;
-  select_lex->table_list.next= (byte**) &select_lex->table_list.first;
-  select_lex->item_list.empty();
-  select_lex->when_list.empty(); 
-  select_lex->expr_list.empty();
-  select_lex->interval_list.empty(); 
-  select_lex->use_index.empty();
-  select_lex->ftfunc_list.empty();
+  select_lex->init_query();
+  select_lex->init_select();
+  if (move_down)
+  {
+    /* first select_lex of subselect or derived table */
+    SELECT_LEX_UNIT *unit= 
+      (SELECT_LEX_UNIT *) lex->thd->calloc(sizeof(SELECT_LEX_UNIT));
+    if (!unit)
+      return 1;
+    unit->init_query();
+    unit->init_select();
+    unit->include_down(lex->select);
+    select_lex->include_down(unit);
+  }
+  else
+    select_lex->include_neighbour(lex->select);
+    
+  ((SELECT_LEX_UNIT*)select_lex->master)->global_parameters= select_lex;
+  select_lex->include_global(&lex->select->link_next);
+  lex->select= select_lex;
   return 0;
 }
 
 void mysql_init_multi_delete(LEX *lex)
 {
-  lex->sql_command =  SQLCOM_DELETE_MULTI;
+  lex->sql_command=  SQLCOM_DELETE_MULTI;
   mysql_init_select(lex);
-  lex->select->select_limit=HA_POS_ERROR;
-  lex->auxilliary_table_list=lex->select_lex.table_list;
-  lex->select->table_list.elements=0; 
-  lex->select->table_list.first=0;
-  lex->select->table_list.next= (byte**) &(lex->select->table_list.first);
+  lex->select->select_limit= HA_POS_ERROR;
+  lex->auxilliary_table_list= lex->select_lex.table_list;
+  lex->select->init_query();
 }
 
 void
-mysql_parse(THD *thd,char *inBuf,uint length)
+mysql_parse(THD *thd, char *inBuf, uint length)
 {
   DBUG_ENTER("mysql_parse");
 
@@ -3159,7 +3166,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
   ptr->real_name_length=table->table.length;
   ptr->lock_type=flags;
   ptr->updating=updating;
-  ptr->derived=(SELECT_LEX *)table->sel;
+  ptr->derived= (SELECT_LEX_UNIT *) table->sel;
   if (use_index)
     ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,
 					       sizeof(*use_index));
@@ -3204,8 +3211,8 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
   SELECT_LEX *sl;
   TABLE_LIST **new_table_list= result, *aux;
 
-  *new_table_list=0;				// end result list
-  for (sl= &lex->select_lex; sl; sl=sl->next)
+  *new_table_list= 0;				// end result list
+  for (sl= &lex->select_lex; sl; sl= (SELECT_LEX *) sl->next)
   {
     if (sl->order_list.first && sl->next && !sl->braces)
     {

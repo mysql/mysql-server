@@ -291,7 +291,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 void mysql_init_select(LEX *lex);
-bool mysql_new_select(LEX *lex);
+bool mysql_new_select(LEX *lex, bool move_down);
 void mysql_init_multi_delete(LEX *lex);
 void init_max_user_conn(void);
 void free_max_user_conn(void);
@@ -359,9 +359,10 @@ int setup_order(THD *thd,TABLE_LIST *tables, List<Item> &fields,
 int handle_select(THD *thd, LEX *lex, select_result *result);
 int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
-		 ulong select_type,select_result *result);
-int mysql_union(THD *thd,LEX *lex,select_result *result);
-int mysql_derived(THD *thd,LEX *lex,SELECT_LEX *s, TABLE_LIST *t);
+		 ulong select_type,select_result *result,
+		 SELECT_LEX_UNIT *unit);
+int mysql_union(THD *thd, LEX *lex,select_result *result);
+int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
 			bool group,bool modify_item);

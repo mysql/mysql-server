@@ -940,6 +940,7 @@ bool Item_sum_count_distinct::fix_fields(THD *thd,TABLE_LIST *tables)
 bool Item_sum_count_distinct::setup(THD *thd)
 {
   List<Item> list;
+  SELECT_LEX *select_lex= current_lex->select;
   /* Create a table with an unique key over all parameters */
   for (uint i=0; i < arg_count ; i++)
   {
@@ -961,9 +962,10 @@ bool Item_sum_count_distinct::setup(THD *thd)
     free_tmp_table(thd, table);
     tmp_table_param->cleanup();
   }
-  if (!(table=create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
-			       0, 0,
-			       current_lex->select->options | thd->options)))
+  if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
+				0, 0,
+				select_lex->options | thd->options,
+				(SELECT_LEX_UNIT*) select_lex->master)))
     return 1;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
   table->no_rows=1;
