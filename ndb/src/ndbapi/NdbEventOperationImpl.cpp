@@ -58,10 +58,14 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
     m_state(EO_ERROR), m_bufferL(bufferLength)
 {
   m_eventId = 0;
-  theFirstRecAttrs[0] = NULL;
-  theCurrentRecAttrs[0] = NULL;
-  theFirstRecAttrs[1] = NULL;
-  theCurrentRecAttrs[1] = NULL;
+  theFirstPkAttrs[0] = NULL;
+  theCurrentPkAttrs[0] = NULL;
+  theFirstPkAttrs[1] = NULL;
+  theCurrentPkAttrs[1] = NULL;
+  theFirstDataAttrs[0] = NULL;
+  theCurrentDataAttrs[0] = NULL;
+  theFirstDataAttrs[1] = NULL;
+  theCurrentDataAttrs[1] = NULL;
   sdata = NULL;
   ptr[0].p = NULL;
   ptr[1].p = NULL;
@@ -94,7 +98,15 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
   int i;
   if (sdata) NdbMem_Free((char*)sdata);
   for (i=0 ; i<2; i++) {
-    NdbRecAttr *p = theFirstRecAttrs[i];
+    NdbRecAttr *p = theFirstPkAttrs[i];
+    while (p) {
+      NdbRecAttr *p_next = p->next();
+      m_ndb->releaseRecAttr(p);
+      p = p_next;
+    }
+  }
+  for (i=0 ; i<2; i++) {
+    NdbRecAttr *p = theFirstDataAttrs[i];
     while (p) {
       NdbRecAttr *p_next = p->next();
       m_ndb->releaseRecAttr(p);
@@ -138,14 +150,26 @@ NdbEventOperationImpl::getValue(const NdbColumnImpl *tAttrInfo, char *aValue, in
 {
   DBUG_ENTER("NdbEventOperationImpl::getValue");
   // Insert Attribute Id into ATTRINFO part. 
-  NdbRecAttr *&theFirstRecAttr = theFirstRecAttrs[n];
-  NdbRecAttr *&theCurrentRecAttr = theCurrentRecAttrs[n];
-      
+
+  NdbRecAttr **theFirstAttr;
+  NdbRecAttr **theCurrentAttr;
+
+  if (tAttrInfo->getPrimaryKey())
+  {
+    theFirstAttr = &theFirstPkAttrs[n];
+    theCurrentAttr = &theCurrentPkAttrs[n];
+  }
+  else
+  {
+    theFirstAttr = &theFirstDataAttrs[n];
+    theCurrentAttr = &theCurrentDataAttrs[n];
+  }
+
   /************************************************************************
    *	Get a Receive Attribute object and link it into the operation object.
    ************************************************************************/
-  NdbRecAttr *tRecAttr = m_ndb->getRecAttr();
-  if (tRecAttr == NULL) { 
+  NdbRecAttr *tAttr = m_ndb->getRecAttr();
+  if (tAttr == NULL) { 
     exit(-1);
     //setErrorCodeAbort(4000);
     DBUG_RETURN(NULL);
@@ -156,51 +180,51 @@ NdbEventOperationImpl::getValue(const NdbColumnImpl *tAttrInfo, char *aValue, in
    * the RecAttr object
    * Also set attribute size, array size and attribute type
    ********************************************************************/
-  if (tRecAttr->setup(tAttrInfo, aValue)) {
+  if (tAttr->setup(tAttrInfo, aValue)) {
     //setErrorCodeAbort(4000);
-    m_ndb->releaseRecAttr(tRecAttr);
+    m_ndb->releaseRecAttr(tAttr);
     exit(-1);
     DBUG_RETURN(NULL);
   }
   //theErrorLine++;
 
-  tRecAttr->setNULL();
+  tAttr->setUNDEFINED();
   
   // We want to keep the list sorted to make data insertion easier later
-  if (theFirstRecAttr == NULL) {
-    theFirstRecAttr = tRecAttr;
-    theCurrentRecAttr = tRecAttr;
-    tRecAttr->next(NULL);
+
+  if (*theFirstAttr == NULL) {
+    *theFirstAttr = tAttr;
+    *theCurrentAttr = tAttr;
+    tAttr->next(NULL);
   } else {
     Uint32 tAttrId = tAttrInfo->m_attrId;
-    if (tAttrId > theCurrentRecAttr->attrId()) { // right order
-      theCurrentRecAttr->next(tRecAttr);
-      tRecAttr->next(NULL);
-      theCurrentRecAttr = tRecAttr;
-    } else if (theFirstRecAttr->next() == NULL ||    // only one in list
-	       theFirstRecAttr->attrId() > tAttrId) {// or first 
-      tRecAttr->next(theFirstRecAttr);
-      theFirstRecAttr = tRecAttr;
+    if (tAttrId > (*theCurrentAttr)->attrId()) { // right order
+      (*theCurrentAttr)->next(tAttr);
+      tAttr->next(NULL);
+      *theCurrentAttr = tAttr;
+    } else if ((*theFirstAttr)->next() == NULL ||    // only one in list
+	       (*theFirstAttr)->attrId() > tAttrId) {// or first 
+      tAttr->next(*theFirstAttr);
+      *theFirstAttr = tAttr;
     } else { // at least 2 in list and not first and not last
-      NdbRecAttr *p = theFirstRecAttr;
+      NdbRecAttr *p = *theFirstAttr;
       NdbRecAttr *p_next = p->next();
       while (tAttrId > p_next->attrId()) {
 	p = p_next;
 	p_next = p->next();
       }
       if (tAttrId == p_next->attrId()) { // Using same attribute twice
-	tRecAttr->release(); // do I need to do this?
-	m_ndb->releaseRecAttr(tRecAttr);
+	tAttr->release(); // do I need to do this?
+	m_ndb->releaseRecAttr(tAttr);
 	exit(-1);
 	DBUG_RETURN(NULL);
       }
       // this is it, between p and p_next
-      p->next(tRecAttr);
-      tRecAttr->next(p_next);
+      p->next(tAttr);
+      tAttr->next(p_next);
     }
   }
-
-  DBUG_RETURN(tRecAttr);
+  DBUG_RETURN(tAttr);
 }
 
 int
@@ -213,7 +237,8 @@ NdbEventOperationImpl::execute()
     DBUG_RETURN(-1);
   }
 
-  if (theFirstRecAttrs[0] == NULL) { // defaults to get all
+  if (theFirstPkAttrs[0] == NULL && 
+      theFirstDataAttrs[0] == NULL) { // defaults to get all
     
   }
 
@@ -362,8 +387,10 @@ NdbEventOperationImpl::next(int *pOverrun)
 #endif
 
     // now move the data into the RecAttrs
-    if ((theFirstRecAttrs[0] == NULL) && 
-	(theFirstRecAttrs[1] == NULL)) 
+    if ((theFirstPkAttrs[0] == NULL) && 
+	(theFirstPkAttrs[1] == NULL) &&
+	(theFirstDataAttrs[0] == NULL) && 
+	(theFirstDataAttrs[1] == NULL)) 
     {
       DBUG_RETURN(r);
     }
@@ -385,10 +412,27 @@ NdbEventOperationImpl::next(int *pOverrun)
     printf("\n");
 #endif
 
-    NdbRecAttr *tWorkingRecAttr = theFirstRecAttrs[0];
-
     // copy data into the RecAttr's
     // we assume that the respective attribute lists are sorted
+
+    // first the pk's
+    {
+      NdbRecAttr *tAttr= theFirstPkAttrs[0];
+      while(tAttr)
+      {
+	assert(aAttrPtr < aAttrEndPtr);
+	unsigned tDataSz= AttributeHeader(*aAttrPtr).getDataSize();
+	assert(tAttr->attrId() ==
+	       AttributeHeader(*aAttrPtr).getAttributeId());
+	assert(tAttr->receive_data(aDataPtr, tDataSz));
+        // next
+	aAttrPtr++;
+	aDataPtr+= tDataSz;
+	tAttr= tAttr->next();
+      }
+    }
+
+    NdbRecAttr *tWorkingRecAttr = theFirstDataAttrs[0];
 
     Uint32 tRecAttrId;
     Uint32 tAttrId;
@@ -401,7 +445,7 @@ NdbEventOperationImpl::next(int *pOverrun)
       
       while (tAttrId > tRecAttrId) {
 	//printf("[%u] %u %u [%u]\n", tAttrId, tDataSz, *aDataPtr, tRecAttrId);
-	tWorkingRecAttr->setNULL();
+	tWorkingRecAttr->setUNDEFINED();
 	tWorkingRecAttr = tWorkingRecAttr->next();
 	if (tWorkingRecAttr == NULL)
 	  break;
@@ -413,32 +457,25 @@ NdbEventOperationImpl::next(int *pOverrun)
       //printf("[%u] %u %u [%u]\n", tAttrId, tDataSz, *aDataPtr, tRecAttrId);
       
       if (tAttrId == tRecAttrId) {
-	if (!m_eventImpl->m_tableImpl->getColumn(tRecAttrId)->getPrimaryKey())
-	  hasSomeData++;
+	hasSomeData++;
 	
 	//printf("set!\n");
 	
-	tWorkingRecAttr->receive_data(aDataPtr, tDataSz);
-	
-	// move forward, data has already moved forward
-	aAttrPtr++;
-	aDataPtr += tDataSz;
+	assert(tWorkingRecAttr->receive_data(aDataPtr, tDataSz));
 	tWorkingRecAttr = tWorkingRecAttr->next();
-      } else {
-	// move only attr forward
-	aAttrPtr++;
-	aDataPtr += tDataSz;
       }
+      aAttrPtr++;
+      aDataPtr += tDataSz;
     }
     
     while (tWorkingRecAttr != NULL) {
       tRecAttrId = tWorkingRecAttr->attrId();
       //printf("set undefined [%u] %u %u [%u]\n", tAttrId, tDataSz, *aDataPtr, tRecAttrId);
-      tWorkingRecAttr->setNULL();
+      tWorkingRecAttr->setUNDEFINED();
       tWorkingRecAttr = tWorkingRecAttr->next();
     }
     
-    tWorkingRecAttr = theFirstRecAttrs[1];
+    tWorkingRecAttr = theFirstDataAttrs[1];
     aDataPtr = ptr[2].p;
     Uint32 *aDataEndPtr = aDataPtr + ptr[2].sz;
     while ((aDataPtr < aDataEndPtr) && (tWorkingRecAttr != NULL)) {
@@ -447,7 +484,7 @@ NdbEventOperationImpl::next(int *pOverrun)
       tDataSz = AttributeHeader(*aDataPtr).getDataSize();
       aDataPtr++;
       while (tAttrId > tRecAttrId) {
-	tWorkingRecAttr->setNULL();
+	tWorkingRecAttr->setUNDEFINED();
 	tWorkingRecAttr = tWorkingRecAttr->next();
 	if (tWorkingRecAttr == NULL)
 	  break;
@@ -456,20 +493,16 @@ NdbEventOperationImpl::next(int *pOverrun)
       if (tWorkingRecAttr == NULL)
 	break;
       if (tAttrId == tRecAttrId) {
-	if (!m_eventImpl->m_tableImpl->getColumn(tRecAttrId)->getPrimaryKey())
-	  hasSomeData++;
+	assert(!m_eventImpl->m_tableImpl->getColumn(tRecAttrId)->getPrimaryKey());
+	hasSomeData++;
 	
-	tWorkingRecAttr->receive_data(aDataPtr, tDataSz);
-	aDataPtr += tDataSz;
-	// move forward, data+attr has already moved forward
+	assert(tWorkingRecAttr->receive_data(aDataPtr, tDataSz));
 	tWorkingRecAttr = tWorkingRecAttr->next();
-      } else {
-	// move only data+attr forward
-	aDataPtr += tDataSz;
       }
+      aDataPtr += tDataSz;
     }
     while (tWorkingRecAttr != NULL) {
-      tWorkingRecAttr->setNULL();
+      tWorkingRecAttr->setUNDEFINED();
       tWorkingRecAttr = tWorkingRecAttr->next();
     }
     
@@ -504,7 +537,16 @@ NdbEventOperationImpl::print()
   ndbout << "EventId " << m_eventId << "\n";
 
   for (int i = 0; i < 2; i++) {
-    NdbRecAttr *p = theFirstRecAttrs[i];
+    NdbRecAttr *p = theFirstPkAttrs[i];
+    ndbout << " %u " << i;
+    while (p) {
+      ndbout << " : " << p->attrId() << " = " << *p;
+      p = p->next();
+    }
+    ndbout << "\n";
+  }
+  for (int i = 0; i < 2; i++) {
+    NdbRecAttr *p = theFirstDataAttrs[i];
     ndbout << " %u " << i;
     while (p) {
       ndbout << " : " << p->attrId() << " = " << *p;

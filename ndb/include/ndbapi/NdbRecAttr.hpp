@@ -252,6 +252,7 @@ private:
 
   Uint32 attrId() const;        /* Get attribute id                     */
   bool setNULL();               /* Set NULL indicator                   */
+  void setUNDEFINED();          /* Set UNDEFINED indicator              */
   bool receive_data(const Uint32*, Uint32);
 
   void release();               /* Release memory if allocated          */
@@ -420,6 +421,13 @@ NdbRecAttr::setNULL()
 {
   theNULLind = 1;
   return m_nullable;
+}
+
+inline
+void
+NdbRecAttr::setUNDEFINED()
+{
+  theNULLind = -1;
 }
 
 inline

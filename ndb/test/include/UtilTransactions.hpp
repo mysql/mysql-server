@@ -66,6 +66,14 @@ public:
   int copyTableData(Ndb*,
 		const char* destName);
 		
+  /**
+   * Compare this table with other_table
+   *
+   * return 0 - on equality
+   *       -1 - on error
+   *      >0 - otherwise
+   */
+  int compare(Ndb*, const char * other_table, int flags);
   
 private:
   static int takeOverAndDeleteRecord(Ndb*, 
