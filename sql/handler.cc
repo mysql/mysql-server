@@ -1135,7 +1135,8 @@ int ha_key_cache(KEY_CACHE_VAR *key_cache)
   return 0;
 }
 
-
+int ha_resize_key_cache(KEY_CACHE_VAR *key_cache)
+{
   if (key_cache->cache)
   {
     pthread_mutex_lock(&LOCK_global_system_variables);

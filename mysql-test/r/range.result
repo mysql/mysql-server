@@ -215,17 +215,6 @@ select count(*) from t1 where art = 'J';
 count(*)
 213
 drop table t1;
-create table t1 ( id1 int not null, id2 int not null, idnull int null, c char(20), primary key (id1,id2));
-insert into t1 values (0,1,NULL,"aaa"), (1,1,NULL,"aaa"), (2,1,NULL,"aaa"),
-(3,1,NULL,"aaa"), (4,1,NULL,"aaa"), (5,1,NULL,"aaa"),
-(6,1,NULL,"aaa"), (7,1,NULL,"aaa"), (8,1,NULL,"aaa"),
-(9,1,NULL,"aaa"), (10,1,NULL,"aaa"), (11,1,NULL,"aaa"),
-(12,1,NULL,"aaa"), (13,1,NULL,"aaa"), (14,1,NULL,"aaa"),
-(15,1,NULL,"aaa"), (16,1,NULL,"aaa"), (17,1,NULL,"aaa"),
-(18,1,NULL,"aaa"), (19,1,NULL,"aaa"), (20,1,NULL,"aaa");
-select a.id1, b.idnull from t1 as a, t1 as b where a.id2=1 and a.id1=1 and b.id1=a.idnull order by b.id2 desc limit 1;
-id1	idnull
-drop table t1;
 create table t1 (x int, y int, index(x), index(y));
 insert into t1 (x) values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 update t1 set y=x;
@@ -285,6 +274,17 @@ id
 2
 5
 9
+drop table t1;
+create table t1 ( id1 int not null, id2 int not null, idnull int null, c char(20), primary key (id1,id2));
+insert into t1 values (0,1,NULL,"aaa"), (1,1,NULL,"aaa"), (2,1,NULL,"aaa"),
+(3,1,NULL,"aaa"), (4,1,NULL,"aaa"), (5,1,NULL,"aaa"),
+(6,1,NULL,"aaa"), (7,1,NULL,"aaa"), (8,1,NULL,"aaa"),
+(9,1,NULL,"aaa"), (10,1,NULL,"aaa"), (11,1,NULL,"aaa"),
+(12,1,NULL,"aaa"), (13,1,NULL,"aaa"), (14,1,NULL,"aaa"),
+(15,1,NULL,"aaa"), (16,1,NULL,"aaa"), (17,1,NULL,"aaa"),
+(18,1,NULL,"aaa"), (19,1,NULL,"aaa"), (20,1,NULL,"aaa");
+select a.id1, b.idnull from t1 as a, t1 as b where a.id2=1 and a.id1=1 and b.id1=a.idnull order by b.id2 desc limit 1;
+id1	idnull
 drop table t1;
 create table t1 (
 id int not null auto_increment,

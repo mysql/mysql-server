@@ -1906,7 +1906,8 @@ mysql_execute_command(THD *thd)
   case SQLCOM_ASSIGN_TO_KEYCACHE:
   {
     if (check_db_used(thd, tables) ||
-        check_access(thd, INDEX_ACL, tables->db, &tables->grant.privilege))
+        check_access(thd, INDEX_ACL, tables->db,
+                     &tables->grant.privilege, 0, 0))
       goto error;
     res = mysql_assign_to_keycache(thd, tables);
     break;
@@ -1914,7 +1915,8 @@ mysql_execute_command(THD *thd)
   case SQLCOM_PRELOAD_KEYS:
   {
     if (check_db_used(thd, tables) ||
-	check_access(thd, INDEX_ACL, tables->db, &tables->grant.privilege,0,0))
+	check_access(thd, INDEX_ACL, tables->db,
+                     &tables->grant.privilege, 0, 0))
       goto error; 
     res = mysql_preload_keys(thd, tables);
     break;

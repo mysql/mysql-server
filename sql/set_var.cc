@@ -1597,7 +1597,8 @@ void sys_var_collation_server::set_default(THD *thd, enum_var_type type)
 
 static LEX_STRING default_key_cache_base= {(char *) DEFAULT_KEY_CACHE_NAME, 7};
 
-static KEY_CACHE_VAR zero_key_cache= { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static KEY_CACHE_VAR zero_key_cache=
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 static KEY_CACHE_VAR *get_key_cache(LEX_STRING *cache_name)
 {
