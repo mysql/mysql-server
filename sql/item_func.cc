@@ -3568,12 +3568,17 @@ Item_func_sp::execute(Item **itp)
 #endif
 
   if (! m_sp)
-    m_sp= sp_find_function(thd, m_name);
+    m_sp= sp_find_function(thd, m_name, TRUE); // cache only
   if (! m_sp)
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
     DBUG_RETURN(-1);
   }
+
+#ifndef EMBEDDED_LIBRARY
+  my_bool nsok= thd->net.no_send_ok;
+  thd->net.no_send_ok= TRUE;
+#endif
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (check_procedure_access(thd, EXECUTE_ACL, 
@@ -3600,6 +3605,9 @@ Item_func_sp::execute(Item **itp)
   sp_restore_security_context(thd, m_sp, &save_ctx);
 #endif
 
+#ifndef EMBEDDED_LIBRARY
+  thd->net.no_send_ok= nsok;
+#endif
   DBUG_RETURN(res);
 }
 
@@ -3610,7 +3618,7 @@ Item_func_sp::field_type() const
   DBUG_ENTER("Item_func_sp::field_type");
 
   if (! m_sp)
-    m_sp= sp_find_function(current_thd, m_name);
+    m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
   if (m_sp)
   {
     DBUG_PRINT("info", ("m_returns = %d", m_sp->m_returns));
@@ -3628,7 +3636,7 @@ Item_func_sp::result_type() const
   DBUG_PRINT("info", ("m_sp = %p", m_sp));
 
   if (! m_sp)
-    m_sp= sp_find_function(current_thd, m_name);
+    m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
   if (m_sp)
   {
     DBUG_RETURN(m_sp->result());
@@ -3643,7 +3651,7 @@ Item_func_sp::fix_length_and_dec()
   DBUG_ENTER("Item_func_sp::fix_length_and_dec");
 
   if (! m_sp)
-    m_sp= sp_find_function(current_thd, m_name);
+    m_sp= sp_find_function(current_thd, m_name, TRUE); // cache only
   if (! m_sp)
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
