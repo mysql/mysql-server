@@ -1237,7 +1237,7 @@ void sys_var_client_collation::set_default(THD *thd, enum_var_type type)
    global_system_variables.client_collation= default_charset_info;
  else
  {
-   thd->variables.client_collation= thd->db_charset;
+   thd->variables.client_collation= global_system_variables.client_collation;
  }
 }
 
@@ -1264,7 +1264,7 @@ void sys_var_literal_collation::set_default(THD *thd, enum_var_type type)
  if (type == OPT_GLOBAL)
    global_system_variables.literal_collation= default_charset_info;
  else
-   thd->variables.literal_collation= thd->db_charset;
+   thd->variables.literal_collation= global_system_variables.literal_collation;
 }
 
 
@@ -1274,7 +1274,8 @@ void sys_var_literal_collation::set_default(THD *thd, enum_var_type type)
 
 int set_var_client_collation::check(THD *thd)
 {
-  client_charset= client_charset ? client_charset : thd->db_charset;
+  client_charset= client_charset ? 
+		  client_charset : global_system_variables.client_collation;
   client_collation= client_collation ? client_collation : client_charset;
   if (!my_charset_same(client_charset, client_collation))
   {
@@ -1288,7 +1289,8 @@ int set_var_client_collation::check(THD *thd)
 int set_var_client_collation::update(THD *thd)
 {
   thd->variables.client_collation= client_collation;
-  thd->variables.literal_collation= client_collation;
+  thd->variables.literal_collation= convert_result_charset ? 
+				    thd->db_charset: client_collation;
   thd->variables.convert_result_charset= convert_result_charset;
   thd->protocol_simple.init(thd);
   thd->protocol_prep.init(thd);
