@@ -402,6 +402,7 @@ longlong Item_func_div::val_int()
 void Item_func_div::fix_length_and_dec()
 {
   decimals=max(args[0]->decimals,args[1]->decimals)+2;
+  set_if_smaller(decimals, NOT_FIXED_DEC);
   max_length=args[0]->max_length - args[0]->decimals + decimals;
   uint tmp=float_length(decimals);
   set_if_smaller(max_length,tmp);
