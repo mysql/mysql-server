@@ -995,7 +995,7 @@ void st_select_lex::init_query()
   embedding= 0;
   item_list.empty();
   join= 0;
-  where= 0;
+  where= prep_where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
   resolve_mode= NOMATTER_MODE;
@@ -1003,7 +1003,6 @@ void st_select_lex::init_query()
   conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
   select_n_having_items= 0;
-  prep_where= 0;
   subquery_in_having= explicit_limit= 0;
   first_execution= 1;
   first_cond_optimization= 1;
@@ -1269,122 +1268,6 @@ bool st_select_lex::test_limit()
   return(0);
 }
 
-/*  
-  Interface method of table list creation for query
-  
-  SYNOPSIS
-    st_select_lex_unit::create_total_list()
-    thd            THD pointer
-    result         pointer on result list of tables pointer
-    check_derived  force derived table chacking (used for creating 
-                   table list for derived query)
-  DESCRIPTION
-    This is used for UNION & subselect to create a new table list of all used 
-    tables.
-    The table_list->table entry in all used tables are set to point
-    to the entries in this list.
-
-  RETURN
-    0 - OK
-    !0 - error
-*/
-bool st_select_lex_unit::create_total_list(THD *thd_arg, st_lex *lex,
-					   TABLE_LIST **result_arg)
-{
-  *result_arg= 0;
-  res= create_total_list_n_last_return(thd_arg, lex, &result_arg);
-  return res;
-}
-
-/*  
-  Table list creation for query
-  
-  SYNOPSIS
-    st_select_lex_unit::create_total_list()
-    thd            THD pointer
-    lex            pointer on LEX stricture
-    result         pointer on pointer on result list of tables pointer
-
-  DESCRIPTION
-    This is used for UNION & subselect to create a new table list of all used 
-    tables.
-    The table_list->table_list in all tables of global list are set to point
-    to the local SELECT_LEX entries.
-
-  RETURN
-    0 - OK
-    !0 - error
-*/
-bool st_select_lex_unit::
-create_total_list_n_last_return(THD *thd_arg,
-				st_lex *lex,
-				TABLE_LIST ***result_arg)
-{
-  TABLE_LIST *slave_list_first=0, **slave_list_last= &slave_list_first;
-  TABLE_LIST **new_table_list= *result_arg, *aux;
-  SELECT_LEX *sl= (SELECT_LEX*)slave;
-  
-  /*
-    iterate all inner selects + fake_select (if exists),
-    fake_select->next_select() always is 0
-  */
-  for (;
-       sl;
-       sl= (sl->next_select() ?
-	    sl->next_select() :
-	    (sl == fake_select_lex ?
-	     0 :
-	     fake_select_lex)))
-  {
-    // check usage of ORDER BY in union
-    if (sl->order_list.first && sl->next_select() && !sl->braces &&
-	sl->linkage != GLOBAL_OPTIONS_TYPE)
-    {
-      net_printf(thd_arg,ER_WRONG_USAGE,"UNION","ORDER BY");
-      return 1;
-    }
-
-    for (SELECT_LEX_UNIT *inner=  sl->first_inner_unit();
-	 inner;
-	 inner= inner->next_unit())
-    {
-      if (inner->create_total_list_n_last_return(thd, lex,
-						 &slave_list_last))
-	return 1;
-    }
-
-    if ((aux= (TABLE_LIST*) sl->table_list.first))
-    {
-      TABLE_LIST *next_table;
-      for (; aux; aux= next_table)
-      {
-	TABLE_LIST *cursor;
-	next_table= aux->next;
-	/* Add to the total table list */
-	if (!(cursor= (TABLE_LIST *) thd->memdup((char*) aux,
-						 sizeof(*aux))))
-	{
-	  send_error(thd,0);
-	  return 1;
-	}
-	*new_table_list= cursor;
-	cursor->table_list= aux;
-	new_table_list= &cursor->next;
-	*new_table_list= 0;			// end result list
-	aux->table_list= cursor;
-      }
-    }
-  }
-
-  if (slave_list_first)
-  {
-    *new_table_list= slave_list_first;
-    new_table_list= slave_list_last;
-  }
-  *result_arg= new_table_list;
-  return 0;
-}
-
 
 st_select_lex_unit* st_select_lex_unit::master_unit()
 {
@@ -1539,7 +1422,7 @@ bool st_select_lex_unit::check_updateable(char *db, char *table)
 */
 bool st_select_lex::check_updateable(char *db, char *table)
 {
-  if (find_real_table_in_list(get_table_list(), db, table))
+  if (find_real_table_in_local_list(get_table_list(), db, table))
     return 1;
 
   for (SELECT_LEX_UNIT *un= first_inner_unit();
@@ -1599,6 +1482,16 @@ void st_select_lex::print_order(String *str, ORDER *order)
 
 void st_select_lex::print_limit(THD *thd, String *str)
 {
+  Item_subselect *item= master_unit()->item;
+  if (item &&
+      (item->substype() == Item_subselect::EXISTS_SUBS ||
+       item->substype() == Item_subselect::IN_SUBS ||
+       item->substype() == Item_subselect::ALL_SUBS))
+  {
+    DBUG_ASSERT(select_limit == 1L && offset_limit == 0L);
+    return;
+  }
+
   if (!thd)
     thd= current_thd;
 
@@ -1619,6 +1512,98 @@ void st_select_lex::print_limit(THD *thd, String *str)
   }
 }
 
+
+/*
+  Check is merging algorithm can be used on this VIEW
+
+  SYNOPSIS
+    st_lex::can_be_merged()
+
+  RETURN
+    FALSE - only temporary table algorithm can be used
+    TRUE  - merge algorithm can be used
+*/
+
+bool st_lex::can_be_merged()
+{
+  // TODO: do not forget implement case when select_lex.table_list.elements==0
+
+  /* find non VIEW subqueries/unions */
+  uint selects= 0;
+  for (SELECT_LEX *sl= all_selects_list;
+       sl && selects <= 1;
+       sl= sl->next_select_in_list())
+    if (sl->parent_lex == this)
+      selects++;
+
+  return (selects <= 1 &&
+	  select_lex.order_list.elements == 0 &&
+	  select_lex.group_list.elements == 0 &&
+	  select_lex.having == 0 &&
+	  select_lex.table_list.elements == 1 &&
+	  !(select_lex.options & SELECT_DISTINCT) &&
+          select_lex.select_limit == HA_POS_ERROR);
+}
+
+/*
+  check if command can use VIEW with MERGE algorithm
+
+  SYNOPSIS
+    st_lex::can_use_merged()
+
+  RETURN
+    FALSE - command can't use merged VIEWs
+    TRUE  - VIEWs with MERGE algorithms can be used
+*/
+
+bool st_lex::can_use_merged()
+{
+  switch (sql_command)
+  {
+  case SQLCOM_SELECT:
+  case SQLCOM_CREATE_TABLE:
+  case SQLCOM_UPDATE:
+  case SQLCOM_UPDATE_MULTI:
+  case SQLCOM_DELETE:
+  case SQLCOM_DELETE_MULTI:
+  case SQLCOM_INSERT:
+  case SQLCOM_INSERT_SELECT:
+  case SQLCOM_REPLACE:
+  case SQLCOM_REPLACE_SELECT:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
+/*
+  Detect that we need only table structure of derived table/view
+
+  SYNOPSIS
+    only_view_structure()
+
+  RETURN
+    TRUE yes, we need only structure
+    FALSE no, we need data
+*/
+bool st_lex::only_view_structure()
+{
+  switch(sql_command)
+  {
+  case SQLCOM_SHOW_CREATE:
+  case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_REVOKE_ALL:
+  case SQLCOM_REVOKE:
+  case SQLCOM_GRANT:
+  case SQLCOM_CREATE_VIEW:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
+
 /*
   initialize limit counters
 
@@ -1627,6 +1612,7 @@ void st_select_lex::print_limit(THD *thd, String *str)
     values	- SELECT_LEX with initial values for counters
     sl		- SELECT_LEX for options set
 */
+
 void st_select_lex_unit::set_limit(SELECT_LEX *values,
 				   SELECT_LEX *sl)
 {
@@ -1645,35 +1631,83 @@ void st_select_lex_unit::set_limit(SELECT_LEX *values,
 
   SYNOPSIS
     unlink_first_table()
-    tables		Global table list
-    global_first	Save first global table here
-    local_first		Save first local table here
+    link_to_local	do we need link this table to local
 
-  NORES
-   global_first & local_first are used to save result for link_first_table_back
+  NOTES
+    We rely on fact that first table in both list are same or local list
+    is empty
 
   RETURN
-    global list without first table
+    unlinked table
 
 */
-TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
-				       TABLE_LIST **global_first,
-				       TABLE_LIST **local_first)
+TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
 {
-  *global_first= tables;
-  *local_first= (TABLE_LIST*)select_lex.table_list.first;
-  /*
-    Exclude from global table list
-  */
-  tables= tables->next;
-  /*
-    and from local list if it is not the same
-  */
-  select_lex.table_list.first= ((&select_lex != all_selects_list) ?
-				(byte*) (*local_first)->next :
-				(byte*) tables);
-  (*global_first)->next= 0;
-  return tables;
+  TABLE_LIST *first;
+  if ((first= query_tables))
+  {
+    /*
+      Exclude from global table list
+    */
+    if ((query_tables= query_tables->next_global))
+      query_tables->prev_global= &query_tables;
+    first->next_global= 0;
+
+    /*
+      and from local list if it is not empty
+    */
+    if ((*link_to_local= test(select_lex.table_list.first)))
+    {
+      select_lex.table_list.first= (byte*) first->next_local;
+      select_lex.table_list.elements--;	//safety
+      first->next_local= 0;
+      /*
+	reorder global list to keep first tables the same in both lists
+	(if it is need)
+      */
+      first_lists_tables_same();
+    }
+  }
+  return first;
+}
+
+
+/*
+  Bring first local table of first most outer select to first place in global
+  table list
+
+  SYNOPSYS
+     st_lex::first_lists_tables_same()
+
+  NOTES
+    In many cases first table of main SELECT_LEX have special meaning =>
+    check that it is first table in global list and relink it first in
+    queries_tables list if it is necessary (we need such relinking only
+    for queries with subqueries in select list, in this case tables of
+    subqueries will go to global list first)
+*/
+
+void st_lex::first_lists_tables_same()
+{
+  TABLE_LIST *first_table= (TABLE_LIST*) select_lex.table_list.first;
+  if (query_tables != first_table && first_table != 0)
+  {
+    if (query_tables_last == &first_table->next_global)
+      query_tables_last= first_table->prev_global;
+    TABLE_LIST *next= *first_table->prev_global= first_table->next_global;
+    first_table->next_global= 0;
+    if (next)
+      next->prev_global= first_table->prev_global;
+    /* include in new place */
+    first_table->next_global= query_tables;
+    /*
+       we are sure that above is not 0, because first_table was not
+       first table in global list => we can do following without check
+    */
+    query_tables->prev_global= &first_table->next_global;
+    first_table->prev_global= &query_tables;
+    query_tables= first_table;
+  }
 }
 
 
@@ -1682,36 +1716,54 @@ TABLE_LIST *st_lex::unlink_first_table(TABLE_LIST *tables,
 
   SYNOPSIS
     link_first_table_back()
-    tables		Global table list
-    global_first	Saved first global table
-    local_first		Saved first local table
+    link_to_local	do we need link this table to local
 
   RETURN
     global list
 */
-TABLE_LIST *st_lex::link_first_table_back(TABLE_LIST *tables,
-					  TABLE_LIST *global_first,
-					  TABLE_LIST *local_first)
+
+void st_lex::link_first_table_back(TABLE_LIST *first,
+				   bool link_to_local)
 {
-  global_first->next= tables;
-  if (&select_lex != all_selects_list)
+  if (first)
   {
-    /*
-      we do not touch local table 'next' field => we need just
-      put the table in the list
-    */
-    select_lex.table_list.first= (byte*) local_first;
+    if ((first->next_global= query_tables))
+      query_tables->prev_global= &first->next_global;
+    query_tables= first;
+
+    if (link_to_local)
+    {
+      first->next_local= (TABLE_LIST*) select_lex.table_list.first;
+      select_lex.table_list.first= (byte*) first;
+      select_lex.table_list.elements++;	//safety
+    }
   }
-  else
-    select_lex.table_list.first= (byte*) global_first;
-  return global_first;
+}
+
+
+/*
+  fix some structures at the end of preparation
+
+  SYNOPSIS
+    st_select_lex::fix_prepare_information
+    thd   thread handler
+    conds pointer on conditions which will be used for execution statement
+*/
+
+void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
+{
+  if (thd->current_arena && first_execution)
+  {
+    prep_where= where;
+    first_execution= 0;
+  }
 }
 
 /*
-  There are st_select_lex::add_table_to_list & 
+  There are st_select_lex::add_table_to_list &
   st_select_lex::set_lock_for_tables are in sql_parse.cc
 
-  st_select_lex::print is in sql_select.h
+  st_select_lex::print is in sql_select.cc
 
   st_select_lex_unit::prepare, st_select_lex_unit::exec,
   st_select_lex_unit::cleanup, st_select_lex_unit::reinit_exec_mechanism,

@@ -990,6 +990,23 @@ Item_in_subselect::select_transformer(JOIN *join)
 }
 
 
+Item_subselect::trans_res
+Item_in_subselect::no_select_transform()
+{
+  DBUG_ENTER("Item_in_subselect::no_select_transform");
+  // We have execute fix_fields() for left expression
+  SELECT_LEX *current= thd->lex->current_select, *up;
+  thd->lex->current_select= up= current->return_after_parsing();
+  if (left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
+  {
+    thd->lex->current_select= current;
+    DBUG_RETURN(RES_ERROR);
+  }
+  thd->lex->current_select= current;
+  DBUG_RETURN(RES_OK);
+}
+
+
 void Item_in_subselect::print(String *str)
 {
   if (transformed)
@@ -1383,7 +1400,7 @@ void subselect_uniquesubquery_engine::exclude()
 table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
 {
   table_map map= 0;
-  for (; table; table= table->next)
+  for(; table; table= table->next_local)
   {
     TABLE *tbl= table->table;
     if (tbl && tbl->const_table)

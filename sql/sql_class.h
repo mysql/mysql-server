@@ -403,6 +403,8 @@ struct system_variables
   ulong tx_isolation;
   /* Determines which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
+  /* check of key presence in updatable view */
+  ulong sql_updatable_view_key;
   ulong default_week_format;
   ulong max_seeks_for_key;
   ulong range_alloc_block_size;
@@ -633,7 +635,7 @@ private:
   a thread/connection descriptor
 */
 
-class THD :public ilink, 
+class THD :public ilink,
            public Statement
 {
 public:
@@ -1165,14 +1167,18 @@ public:
 
 class select_insert :public select_result {
  public:
+  TABLE_LIST *table_list;
   TABLE *table;
   List<Item> *fields;
   ulonglong last_insert_id;
   COPY_INFO info;
+  bool insert_into_view;
 
-  select_insert(TABLE *table_par, List<Item> *fields_par,
-		enum_duplicates duplic)
-    :table(table_par), fields(fields_par), last_insert_id(0)
+  select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
+                List<Item> *fields_par, enum_duplicates duplic)
+    :table_list(table_list_par), table(table_par), fields(fields_par),
+     last_insert_id(0),
+     insert_into_view(table_list_par && table_list_par->view != 0)
   {
     bzero((char*) &info,sizeof(info));
     info.handle_duplicates=duplic;
@@ -1189,22 +1195,21 @@ class select_insert :public select_result {
 
 class select_create: public select_insert {
   ORDER *group;
-  const char *db;
-  const char *name;
+  TABLE_LIST *create_table;
   List<create_field> *extra_fields;
   List<Key> *keys;
   HA_CREATE_INFO *create_info;
   MYSQL_LOCK *lock;
   Field **field;
 public:
-  select_create(const char *db_name, const char *table_name,
-		HA_CREATE_INFO *create_info_par,
-		List<create_field> &fields_par,
-		List<Key> &keys_par,
-		List<Item> &select_fields,enum_duplicates duplic)
-    :select_insert (NULL, &select_fields, duplic), db(db_name),
-    name(table_name), extra_fields(&fields_par),keys(&keys_par),
-    create_info(create_info_par), lock(0)
+  select_create (TABLE_LIST *table,
+		 HA_CREATE_INFO *create_info_par,
+		 List<create_field> &fields_par,
+		 List<Key> &keys_par,
+		 List<Item> &select_fields,enum_duplicates duplic)
+    :select_insert (NULL, NULL, &select_fields, duplic), create_table(table),
+    extra_fields(&fields_par),keys(&keys_par), create_info(create_info_par),
+    lock(0)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &values);

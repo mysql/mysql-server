@@ -1,21 +1,21 @@
 show tables;
-Tables_in_db
-columns_priv
-db
-func
-help_category
-help_keyword
-help_relation
-help_topic
-host
-proc
-tables_priv
-time_zone
-time_zone_leap_second
-time_zone_name
-time_zone_transition
-time_zone_transition_type
-user
+Tables_in_db	Type
+columns_priv	table
+db	table
+func	table
+help_category	table
+help_keyword	table
+help_relation	table
+help_topic	table
+host	table
+proc	table
+tables_priv	table
+time_zone	table
+time_zone_leap_second	table
+time_zone_name	table
+time_zone_transition	table
+time_zone_transition_type	table
+user	table
 show create table db;
 Table	Create Table
 db	CREATE TABLE `db` (
@@ -34,6 +34,8 @@ db	CREATE TABLE `db` (
   `Alter_priv` enum('N','Y') NOT NULL default 'N',
   `Create_tmp_table_priv` enum('N','Y') NOT NULL default 'N',
   `Lock_tables_priv` enum('N','Y') NOT NULL default 'N',
+  `Create_view_priv` enum('N','Y') NOT NULL default 'N',
+  `Show_view_priv` enum('N','Y') NOT NULL default 'N',
   PRIMARY KEY  (`Host`,`Db`,`User`),
   KEY `User` (`User`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Database privileges'
@@ -54,6 +56,8 @@ host	CREATE TABLE `host` (
   `Alter_priv` enum('N','Y') NOT NULL default 'N',
   `Create_tmp_table_priv` enum('N','Y') NOT NULL default 'N',
   `Lock_tables_priv` enum('N','Y') NOT NULL default 'N',
+  `Create_view_priv` enum('N','Y') NOT NULL default 'N',
+  `Show_view_priv` enum('N','Y') NOT NULL default 'N',
   PRIMARY KEY  (`Host`,`Db`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Host privileges;  Merged with database privileges'
 show create table user;
@@ -83,6 +87,8 @@ user	CREATE TABLE `user` (
   `Execute_priv` enum('N','Y') NOT NULL default 'N',
   `Repl_slave_priv` enum('N','Y') NOT NULL default 'N',
   `Repl_client_priv` enum('N','Y') NOT NULL default 'N',
+  `Create_view_priv` enum('N','Y') NOT NULL default 'N',
+  `Show_view_priv` enum('N','Y') NOT NULL default 'N',
   `ssl_type` enum('','ANY','X509','SPECIFIED') NOT NULL default '',
   `ssl_cipher` blob NOT NULL,
   `x509_issuer` blob NOT NULL,
