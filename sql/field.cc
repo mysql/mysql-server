@@ -3099,9 +3099,10 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
   time_t time_arg;
   struct tm *l_time;
   struct tm tm_tmp;
+  char *to;
 
   val_buffer->alloc(field_length+1);
-  char *to= (char*) val_buffer->ptr();
+  to= (char*) val_buffer->ptr();
   val_buffer->length(field_length);
 
 #ifdef WORDS_BIGENDIAN

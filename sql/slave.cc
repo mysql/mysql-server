@@ -39,7 +39,7 @@ HASH replicate_do_table, replicate_ignore_table;
 DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
 bool wild_do_table_inited = 0, wild_ignore_table_inited = 0;
-bool table_rules_on = 0;
+bool table_rules_on= 0, replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
 /*
@@ -747,7 +747,16 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
     Note that changing the order of the tables in the list can lead to
     different results. Note also the order of precedence of the do/ignore 
     rules (see code below). For that reason, users should not set conflicting 
-    rules because they may get unpredicted results.
+    rules because they may get unpredicted results (precedence order is
+    explained in the manual).
+    If no table of the list is marked "updating" (so far this can only happen
+    if the statement is a multi-delete (SQLCOM_DELETE_MULTI) and the "tables"
+    is the tables in the FROM): then we always return 0, because there is no
+    reason we play this statement on this slave if it updates nothing. In the
+    case of SQLCOM_DELETE_MULTI, there will be a second call to tables_ok(),
+    with tables having "updating==TRUE" (those after the DELETE), so this
+    second call will make the decision (because
+    all_tables_not_ok() = !tables_ok(1st_list) && !tables_ok(2nd_list)).
 
   RETURN VALUES
     0           should not be logged/replicated
@@ -756,6 +765,7 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
 
 int tables_ok(THD* thd, TABLE_LIST* tables)
 {
+  bool some_tables_updating= 0;
   DBUG_ENTER("tables_ok");
 
   for (; tables; tables = tables->next)
@@ -766,6 +776,7 @@ int tables_ok(THD* thd, TABLE_LIST* tables)
 
     if (!tables->updating) 
       continue;
+    some_tables_updating= 1;
     end= strmov(hash_key, tables->db ? tables->db : thd->db);
     *end++= '.';
     len= (uint) (strmov(end, tables->real_name) - hash_key);
@@ -788,10 +799,13 @@ int tables_ok(THD* thd, TABLE_LIST* tables)
   }
 
   /*
+    If no table was to be updated, ignore statement (no reason we play it on
+    slave, slave is supposed to replicate _changes_ only).
     If no explicit rule found and there was a do list, do not replicate.
     If there was no do list, go ahead
   */
-  DBUG_RETURN(!do_table_inited && !wild_do_table_inited);
+  DBUG_RETURN(some_tables_updating &&
+              !do_table_inited && !wild_do_table_inited);
 }
 
 
@@ -1529,13 +1543,13 @@ Failed to open the existing relay log info file '%s' (errno %d)",
     rli->info_fd = info_fd;
     int relay_log_pos, master_log_pos;
     if (init_strvar_from_file(rli->group_relay_log_name,
-			      sizeof(rli->group_relay_log_name), &rli->info_file,
-			      "") ||
+			      sizeof(rli->group_relay_log_name),
+                              &rli->info_file, "") ||
        init_intvar_from_file(&relay_log_pos,
 			     &rli->info_file, BIN_LOG_HEADER_SIZE) ||
        init_strvar_from_file(rli->group_master_log_name,
-			     sizeof(rli->group_master_log_name), &rli->info_file,
-			     "") ||
+			     sizeof(rli->group_master_log_name),
+                             &rli->info_file, "") ||
        init_intvar_from_file(&master_log_pos, &rli->info_file, 0))
     {
       msg="Error reading slave log configuration";
@@ -2232,7 +2246,8 @@ st_relay_log_info::st_relay_log_info()
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0)
 {
-  group_relay_log_name[0]= event_relay_log_name[0]= group_master_log_name[0]= 0;
+  group_relay_log_name[0]= event_relay_log_name[0]=
+    group_master_log_name[0]= 0;
   last_slave_error[0]=0; until_log_name[0]= 0;
 
   bzero((char*) &info_file, sizeof(info_file));
@@ -2334,6 +2349,8 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
     error= -2; //means improper arguments
     goto err;
   }
+  // Convert 0-3 to 4
+  log_pos= max(log_pos, BIN_LOG_HEADER_SIZE);
   /* p points to '.' */
   log_name_extension= strtoul(++p, &p_end, 10);
   /*
@@ -2354,10 +2371,24 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
   {
     bool pos_reached;
     int cmp_result= 0;
-    DBUG_ASSERT(*group_master_log_name || group_master_log_pos == 0);
+
+    /*
+      group_master_log_name can be "", if we are just after a fresh
+      replication start or after a CHANGE MASTER TO MASTER_HOST/PORT
+      (before we have executed one Rotate event from the master) or
+      (rare) if the user is doing a weird slave setup (see next
+      paragraph).  If group_master_log_name is "", we assume we don't
+      have enough info to do the comparison yet, so we just wait until
+      more data. In this case master_log_pos is always 0 except if
+      somebody (wrongly) sets this slave to be a slave of itself
+      without using --replicate-same-server-id (an unsupported
+      configuration which does nothing), then group_master_log_pos
+      will grow and group_master_log_name will stay "".
+    */
     if (*group_master_log_name)
     {
-      char *basename= group_master_log_name + dirname_length(group_master_log_name);
+      char *basename= (group_master_log_name +
+                       dirname_length(group_master_log_name));
       /*
         First compare the parts before the extension.
         Find the dot in the master's log basename,
@@ -2374,14 +2405,15 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
       char *q_end;
       ulong group_master_log_name_extension= strtoul(q, &q_end, 10);
       if (group_master_log_name_extension < log_name_extension)
-        cmp_result = -1 ;
+        cmp_result= -1 ;
       else
         cmp_result= (group_master_log_name_extension > log_name_extension) ? 1 : 0 ;
+
+      pos_reached= ((!cmp_result && group_master_log_pos >= (ulonglong)log_pos) ||
+                    cmp_result > 0);
+      if (pos_reached || thd->killed)
+        break;
     }
-    pos_reached = ((!cmp_result && group_master_log_pos >= (ulonglong)log_pos) ||
-                   cmp_result > 0);
-    if (pos_reached || thd->killed)
-      break;
 
     //wait for master update, with optional timeout.
     
@@ -2801,7 +2833,12 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       log files themselves.
     */
 
-    if (ev->server_id == (uint32) ::server_id ||
+    /*
+      TODO: when this is merged into 4.1, one needs to update queue_event() to
+      add a similar test for replicate_same_server_id, because in 4.1 the I/O
+      thread is also filtering events based on the server id.
+    */
+    if ((ev->server_id == (uint32) ::server_id && !replicate_same_server_id) ||
 	(rli->slave_skip_counter && type_code != ROTATE_EVENT))
     {
       /* TODO: I/O thread should not even log events with the same server id */
@@ -3530,8 +3567,8 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
       this end 0, which leads to segfault.
     */
     tmp_buf[event_len++]=0;
-    buf = (const char*)tmp_buf;
     int4store(tmp_buf+EVENT_LEN_OFFSET, event_len);
+    buf = (const char*)tmp_buf;
   }
   /*
     This will transform LOAD_EVENT into CREATE_FILE_EVENT, ask the master to

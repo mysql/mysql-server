@@ -1579,7 +1579,7 @@ String *Item_func_soundex::val_str(String *str)
   char *from= (char *) res->ptr(), *end=from+res->length();
   tmp_value.set_charset(cs);
   
-  while (from != end && my_isspace(cs,*from)) // Skip pre-space
+  while (from != end && !my_isalpha(cs,*from)) // Skip pre-space
     from++; /* purecov: inspected */
   if (from == end)
     return &my_empty_string;		// No alpha characters.

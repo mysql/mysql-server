@@ -139,10 +139,27 @@ select extract(MINUTE_SECOND FROM "10:11:12");
 select extract(SECOND FROM "1999-01-02 10:11:12");
 select extract(MONTH FROM "2001-02-00");
 
+#
+# Test big intervals (Bug #3498)
+#
+SELECT "1900-01-01 00:00:00" + INTERVAL 2147483648 SECOND;
+SELECT "1900-01-01 00:00:00" + INTERVAL "1:2147483647" MINUTE_SECOND;
+SELECT "1900-01-01 00:00:00" + INTERVAL "100000000:214748364700" MINUTE_SECOND;SELECT "1900-01-01 00:00:00" + INTERVAL 1<<37 SECOND;
+SELECT "1900-01-01 00:00:00" + INTERVAL 1<<31 MINUTE;
+SELECT "1900-01-01 00:00:00" + INTERVAL 1<<20 HOUR;
+
+SELECT "1900-01-01 00:00:00" + INTERVAL 1<<38 SECOND;
+SELECT "1900-01-01 00:00:00" + INTERVAL 1<<33 MINUTE;
+SELECT "1900-01-01 00:00:00" + INTERVAL 1<<30 HOUR;
+SELECT "1900-01-01 00:00:00" + INTERVAL "1000000000:214748364700" MINUTE_SECOND;
+
+#
+# Bug #614 (multiple extracts in where)
+#
+
 create table t1 (ctime varchar(20));
 insert into t1 values ('2001-01-12 12:23:40');
 select ctime, hour(ctime) from t1;
-# test bug 614 (multiple extracts in where)
 select ctime from t1 where extract(MONTH FROM ctime) = 1 AND extract(YEAR FROM ctime) = 2001;
 drop table t1;
 

@@ -84,9 +84,9 @@ bbbb	bb	bbbbbbbb	aaaa	bbbb
 select replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL') ;
 replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL')
 this is a REAL test
-select soundex(''),soundex('he'),soundex('hello all folks');
-soundex('')	soundex('he')	soundex('hello all folks')
-	H000	H4142
+select soundex(''),soundex('he'),soundex('hello all folks'),soundex('#3556 in bugdb');
+soundex('')	soundex('he')	soundex('hello all folks')	soundex('#3556 in bugdb')
+	H000	H4142	I51231
 select 'mood' sounds like 'mud';
 'mood' sounds like 'mud'
 1
@@ -281,7 +281,7 @@ CREATE TABLE t1 (
 wid int(10) unsigned NOT NULL auto_increment,
 data_podp date default NULL,
 status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
-PRIMARY KEY(wid),
+PRIMARY KEY(wid)
 );
 INSERT INTO t1 VALUES (8,NULL,'real');
 INSERT INTO t1 VALUES (9,NULL,'nowy');
