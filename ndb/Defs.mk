@@ -40,7 +40,6 @@ SHLIBEXT := sl
 endif
 
 ifeq ($(NDB_OS), MACOSX)
-CCFLAGS_TOP += -DNDBOUT_UINTPTR
 SHLIBEXT := dylib
 endif
 
