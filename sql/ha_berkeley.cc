@@ -140,7 +140,7 @@ bool berkeley_init(void)
   berkeley_log_file_size= max(berkeley_log_file_size, 10*1024*1024L);
 
   if (db_env_create(&db_env,0))
-    DBUG_RETURN(1);
+    DBUG_RETURN(1); /* purecov: inspected */
   db_env->set_errcall(db_env,berkeley_print_error);
   db_env->set_errpfx(db_env,"bdb");
   db_env->set_noticecall(db_env, berkeley_noticecall);
@@ -148,7 +148,7 @@ bool berkeley_init(void)
   db_env->set_data_dir(db_env, mysql_data_home);
   db_env->set_flags(db_env, berkeley_env_flags, 1);
   if (berkeley_logdir)
-    db_env->set_lg_dir(db_env, berkeley_logdir);
+    db_env->set_lg_dir(db_env, berkeley_logdir); /* purecov: tested */
 
   if (opt_endinfo)
     db_env->set_verbose(db_env,
@@ -168,8 +168,8 @@ bool berkeley_init(void)
 		   DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN |
 		   DB_CREATE | DB_THREAD, 0666))
   {
-    db_env->close(db_env,0);
-    db_env=0;
+    db_env->close(db_env,0); /* purecov: inspected */
+    db_env=0; /* purecov: inspected */
   }
 
   (void) hash_init(&bdb_open_tables,32,0,0,
@@ -184,7 +184,7 @@ bool berkeley_end(void)
   int error;
   DBUG_ENTER("berkeley_end");
   if (!db_env)
-    return 1;
+    return 1; /* purecov: tested */
   berkeley_cleanup_log_files();
   error=db_env->close(db_env,0);		// Error is logged
   db_env=0;
@@ -1165,8 +1165,9 @@ int ha_berkeley::remove_key(DB_TXN *trans, uint keynr, const byte *record,
   DBUG_ENTER("remove_key");
   DBUG_PRINT("enter",("index: %d",keynr));
 
-  if ((table->key_info[keynr].flags & (HA_NOSAME | HA_NULL_PART_KEY)) ==
-      HA_NOSAME || keynr == primary_key)
+  if (keynr == primary_key ||
+      ((table->key_info[keynr].flags & (HA_NOSAME | HA_NULL_PART_KEY)) ==
+       HA_NOSAME))
   {						// Unique key
     dbug_assert(keynr == primary_key || prim_key->data != key_buff2);
     error=key_file[keynr]->del(key_file[keynr], trans,

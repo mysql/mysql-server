@@ -3949,7 +3949,12 @@ void Field_blob::get_key_image(char *buff,uint length)
   ulong blob_length=get_length(ptr);
   char *blob;
   if ((ulong) length > blob_length)
+  {
+#ifdef HAVE_purify
+    bzero(buff+2+blob_length, (length-blob_length));
+#endif
     length=(uint) blob_length;
+  }
   int2store(buff,length);
   get_ptr(&blob);
   memcpy(buff+2,blob,length);

@@ -33,7 +33,8 @@ INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),
 update t1 set parent_id=parent_id+100;
 select * from t1 where parent_id=102;
 update t1 set id=id+1000;
-!$1062 update t1 set id=1024 where id=1009; 
+-- error 1062
+update t1 set id=1024 where id=1009; 
 select * from t1;
 update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
@@ -100,12 +101,14 @@ commit;
 select n, "after commit" from t1;
 commit;
 insert into t1 values (5);
-!$1062 insert into t1 values (4);
+-- error 1062
+insert into t1 values (4);
 commit;
 select n, "after commit" from t1;
 set autocommit=1;
 insert into t1 values (6);
-!$1062 insert into t1 values (4);
+-- error 1062
+insert into t1 values (4);
 select n from t1;
 # nop
 rollback;
@@ -135,7 +138,8 @@ drop table t1;
 
 CREATE TABLE t1 (id char(8) not null primary key, val int not null) type=bdb;
 insert into t1 values ('pippo', 12);
-!$1062 insert into t1 values ('pippo', 12); # Gives error
+-- error 1062
+insert into t1 values ('pippo', 12); # Gives error
 delete from t1;
 delete from t1 where id = 'pippo';
 select * from t1;
