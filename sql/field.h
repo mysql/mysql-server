@@ -149,14 +149,14 @@ public:
     if (null_ptr)
       null_ptr=ADD_TO_PTR(null_ptr,ptr_diff,uchar*);
   }
-  inline void get_image(char *buff,uint length)
+  inline void get_image(char *buff,uint length, CHARSET_INFO *cs)
     { memcpy(buff,ptr,length); }
-  inline void set_image(char *buff,uint length)
+  inline void set_image(char *buff,uint length, CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
-  virtual void get_key_image(char *buff,uint length, imagetype type)
-    { get_image(buff,length); }
-  virtual void set_key_image(char *buff,uint length)
-    { set_image(buff,length); }
+  virtual void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type)
+    { get_image(buff,length,cs); }
+  virtual void set_key_image(char *buff,uint length, CHARSET_INFO *cs)
+    { set_image(buff,length,cs); }
   inline int cmp_image(char *buff,uint length)
     { return memcmp(ptr,buff,length); }
   inline longlong val_int_offset(uint row_offset)
@@ -836,8 +836,8 @@ public:
   bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
-  void get_key_image(char *buff,uint length, imagetype type);
-  void set_key_image(char *buff,uint length);
+  void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type);
+  void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   const char *unpack(char* to, const char *from);
@@ -908,8 +908,8 @@ public:
       store_length(length);
       memcpy_fixed(ptr+packlength,&data,sizeof(char*));
     }
-  void get_key_image(char *buff,uint length, imagetype type);
-  void set_key_image(char *buff,uint length);
+  void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type);
+  void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
   void sql_type(String &str) const;
   inline bool copy()
   { char *tmp;
@@ -950,8 +950,8 @@ public:
                  table_arg, my_charset_bin) {}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY; }
 
-  void get_key_image(char *buff,uint length, imagetype type);
-  void set_key_image(char *buff,uint length);
+  void get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type);
+  void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
 };
 
 

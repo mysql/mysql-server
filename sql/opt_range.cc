@@ -1043,7 +1043,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   if (maybe_null)
     *str= (char) field->is_real_null();		// Set to 1 if null
   field->get_key_image(str+maybe_null,key_part->part_length,
-		       key_part->image_type);
+		       field->charset(),key_part->image_type);
   if (!(tree=new SEL_ARG(field,str,str)))
     DBUG_RETURN(0);
 
@@ -2813,7 +2813,8 @@ print_key(KEY_PART *key_part,const char *key,uint used_length)
     }
     field->set_key_image((char*) key,key_part->part_length -
 			 ((field->type() == FIELD_TYPE_BLOB) ?
-			  HA_KEY_BLOB_LENGTH : 0));
+			  HA_KEY_BLOB_LENGTH : 0),
+			 field->charset());
     field->val_str(&tmp,&tmp);
     fwrite(tmp.ptr(),sizeof(char),tmp.length(),DBUG_FILE);
   }
