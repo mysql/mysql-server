@@ -645,7 +645,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
          part != part_end ;
          part++, jdx++, key_part_to_use= (key_part_to_use << 1) | 1)
     {
-      if (!(table->file->index_flags(idx, jdx) & HA_READ_ORDER))
+      if (!(table->file->index_flags(idx, jdx, 0) & HA_READ_ORDER))
         return 0;
 
       if (field->eq(part->field))

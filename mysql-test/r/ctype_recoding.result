@@ -136,3 +136,9 @@ SET character_set_connection=binary;
 SELECT 'я┌п╣я│я┌' as s;
 s
 я┌п╣я│я┌
+SET NAMES binary;
+CREATE TABLE `goodплохо` (a int);
+ERROR HY000: Invalid utf8 character string: 'плохо'
+SET NAMES utf8;
+CREATE TABLE `goodплохо` (a int);
+ERROR HY000: Invalid utf8 character string: 'плохо` (a int)'

@@ -359,9 +359,10 @@ class Item_func_database :public Item_str_func
 public:
   Item_func_database() { collation.set(system_charset_info,DERIVATION_IMPLICIT); }
   String *val_str(String *);
-  void fix_length_and_dec() 
-  { 
+  void fix_length_and_dec()
+  {
     max_length= MAX_FIELD_NAME * system_charset_info->mbmaxlen;
+    maybe_null=1;
   }
   const char *func_name() const { return "database"; }
 };

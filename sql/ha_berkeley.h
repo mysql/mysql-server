@@ -94,13 +94,7 @@ class ha_berkeley: public handler
     changed_rows(0),last_dup_key((uint) -1),version(0),using_ignore(0) {}
   ~ha_berkeley() {}
   const char *table_type() const { return "BerkeleyDB"; }
-  ulong index_flags(uint idx, uint part) const
-  {
-    ulong flags=HA_READ_NEXT | HA_READ_PREV;
-    if (table->key_info[idx].key_part[part].field->key_type() != HA_KEYTYPE_TEXT)
-      flags|= HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE;
-    return flags;
-  }
+  ulong index_flags(uint idx, uint part, bool all_parts) const;
   const char *index_type(uint key_number) { return "BTREE"; }
   const char **bas_ext() const;
   ulong table_flags(void) const { return int_table_flags; }

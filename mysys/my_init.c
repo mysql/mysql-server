@@ -127,6 +127,7 @@ void my_end(int infoflag)
   FILE *info_file;
   if (!(info_file=DBUG_FILE))
     info_file=stderr;
+  DBUG_PRINT("info",("Shutting down"));
   if (infoflag & MY_CHECK_ERROR || info_file != stderr)
   {					/* Test if some file is left open */
     if (my_file_opened | my_stream_opened)
