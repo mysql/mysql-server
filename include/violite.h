@@ -32,7 +32,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 enum enum_vio_type { VIO_CLOSED, VIO_TYPE_TCPIP, VIO_TYPE_SOCKET,
-		     VIO_TYPE_NAMEDPIPE, VIO_TYPE_SSL};
+		     VIO_TYPE_NAMEDPIPE, VIO_TYPE_SSL,VIO_TYPE_SHARED_MEMORY};
 
 #ifndef __WIN__
 #define HANDLE void *
@@ -41,6 +41,9 @@ enum enum_vio_type { VIO_CLOSED, VIO_TYPE_TCPIP, VIO_TYPE_SOCKET,
 Vio*	vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost);
 #ifdef __WIN__
 Vio*	vio_new_win32pipe(HANDLE hPipe);
+Vio*	vio_new_win32shared_memory(NET *net,HANDLE handle_file_map, HANDLE handle_map,
+                                HANDLE event_server_wrote, HANDLE event_server_read,
+                                HANDLE event_client_wrote, HANDLE event_client_read);
 #endif
 void	vio_delete(Vio* vio);
 
@@ -105,6 +108,17 @@ my_bool vio_poll_read(Vio *vio,uint timeout);
 
 #ifdef	__cplusplus
 }
+#endif
+
+#ifdef HAVE_SMEM
+int vio_read_shared_memory(Vio *vio, gptr buf, int size);
+int vio_write_shared_memory(Vio *vio, const gptr buf, int size);
+int vio_close_shared_memory(Vio * vio);
+#endif
+#ifdef __WIN__
+int vio_read_pipe(Vio *vio, gptr buf, int size);
+int vio_write_pipe(Vio *vio, const gptr buf, int size);
+int vio_close_pipe(Vio * vio);
 #endif
 
 #if defined(HAVE_VIO) && !defined(DONT_MAP_VIO)
@@ -233,6 +247,17 @@ struct st_vio
   SSL* ssl_;
   my_bool open_;
 #endif /* HAVE_OPENSSL */
+#ifdef HAVE_SMEM
+  HANDLE handle_file_map;
+  char *handle_map;
+  HANDLE event_server_wrote;
+  HANDLE event_server_read;
+  HANDLE event_client_wrote;
+  HANDLE event_client_read;
+  long  shared_memory_remain;
+  char *shared_memory_pos;
+  NET *net;
+#endif /* HAVE_SMEM */
 #endif /* HAVE_VIO */
 };
 #endif /* EMBEDDED_LIBRARY */

@@ -23,6 +23,8 @@
 #include <io.h>
 #include <malloc.h>
 
+#define HAVE_SMEM 1
+
 #if defined(__NT__)
 #define SYSTEM_TYPE	"NT"
 #elif defined(__WIN2000__)
@@ -311,3 +313,6 @@ inline double ulonglong2double(ulonglong value)
 #define statistic_add(V,C,L)	 (V)+=(C)
 #endif
 #define statistic_increment(V,L) thread_safe_increment((V),(L))
+
+#define shared_memory_buffer_length 16000
+#define default_shared_memory_base_name "MYSQL";
