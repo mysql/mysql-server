@@ -90,6 +90,12 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
         KEY *keyinfo=table->key_info+keyno;
 	uint key_len=0, i;
 	byte *key, *buf;
+	if (key_expr->elements > keyinfo->key_parts)
+	{
+	   my_printf_error(ER_TOO_MANY_KEY_PARTS,ER(ER_TOO_MANY_KEY_PARTS),
+	       MYF(0),keyinfo->key_parts);
+           return -1;
+	}
 	for (i=0; i < key_expr->elements; i++)
 	  key_len+=keyinfo->key_part[i].store_length;
 	if (!(key=sql_calloc(ALIGN_SIZE(key_len))))
