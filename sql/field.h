@@ -533,6 +533,7 @@ public:
   enum Item_result result_type () const { return field_length == 8 || field_length == 14 ? INT_RESULT : STRING_RESULT; }
   enum_field_types type() const { return FIELD_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
+  enum Item_result cmp_type () const { return INT_RESULT; }
   void store(const char *to,uint length);
   void store(double nr);
   void store(longlong nr);
