@@ -45729,7 +45729,7 @@ that new feature to work.
 @item
 A lot of extensions to the @code{mysql} client.
 @item
-@code{procedure analyse()}
+@code{PROCEDURE ANALYSE()}
 @end itemize
 
 @item Sinisa Milivojevic
@@ -45739,9 +45739,29 @@ Compression (with @code{zlib}) in the client/server protocol.
 @item
 Perfect hashing for the lexical analyser phase.
 @item
-The MySQLGUI client.
+Multi-row @code{INSERT}
 @item
-Maintainer of mysql++.
+@code{mysqldump} -e option
+@item
+@code{LOAD DATA INFILE LOCAL}
+@item
+@code{SQL_CALC_FOUND_ROWS} @code{SELECT} option
+@item
+@code{--max-user-connections=...} option
+@item
+@code{net_read} and @code{net_write_timeout}
+@item
+@code{GRANT}/@code{REVOKE} and @code{SHOW GRANTS FOR}
+@item
+New client-server protocol for 4.0
+@item
+@code{UNION}.
+@item
+Multi-table @code{DELETE}/@code{UPDATE}
+@item
+The @code{MySQLGUI} client.
+@item
+Maintainer of @code{MySQL++}.
 @end itemize
 
 @item Tonu Samuel
