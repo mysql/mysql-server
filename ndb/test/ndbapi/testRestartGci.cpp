@@ -132,7 +132,8 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
   // RULE1: The vector with saved records should have exactly as many 
   // records with lower or same gci as there are in DB
   int recordsWithLowerOrSameGci = 0;
-  for (unsigned i = 0; i < savedRecords.size(); i++){
+  unsigned i; 
+  for (i = 0; i < savedRecords.size(); i++){
     if (savedRecords[i].m_gci <= restartGCI)
       recordsWithLowerOrSameGci++;
   }
@@ -144,7 +145,7 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
 
   // RULE2: The records found in db should have same or lower 
   // gci as in the vector
-  for (unsigned i = 0; i < savedRecords.size(); i++){
+  for (i = 0; i < savedRecords.size(); i++){
     CHECK(hugoOps.startTransaction(pNdb) == 0);
     CHECK(hugoOps.pkReadRecord(pNdb, i) == 0);
     if (hugoOps.execute_Commit(pNdb) != 0){

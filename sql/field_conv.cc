@@ -473,9 +473,7 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
 {
   if (to->flags & BLOB_FLAG)
   {
-    if (!(from->flags & BLOB_FLAG))
-      return do_conv_blob;
-    if (from->charset() != to->charset())
+    if (!(from->flags & BLOB_FLAG) || from->charset() != to->charset())
       return do_conv_blob;
     if (from_length != to_length ||
 	to->table->db_low_byte_first != from->table->db_low_byte_first)

@@ -85,7 +85,8 @@ main(int argc, char ** argv){
   g_info << "  where ZLCP_OP_WRITE_RT_BREAK is finished before SAVE_PAGES"
 	 << endl;
   require(!pause_lcp());
-  for(size_t j = 0; j<g_rows; j++){
+  size_t j;
+  for(j = 0; j<g_rows; j++){
     require(!do_op(j));
   }
   require(!continue_lcp(5900));
@@ -98,7 +99,7 @@ main(int argc, char ** argv){
 	 << endl;
   require(!load_table());
   require(!pause_lcp());
-  for(size_t j = 0; j<g_rows; j++){
+  for(j = 0; j<g_rows; j++){
     require(!do_op(j));
   }
   require(!continue_lcp(5901));
@@ -109,7 +110,7 @@ main(int argc, char ** argv){
   g_info << "Testing pre LCP operations, undo-ed at commit" << endl;
   require(!load_table());
   require(!pause_lcp());
-  for(size_t j = 0; j<g_rows; j++){
+  for(j = 0; j<g_rows; j++){
     require(!do_op(j));
   }
   require(!continue_lcp(5902));
