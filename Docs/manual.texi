@@ -538,7 +538,7 @@ InnoDB Tables
 
 * InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database.
+* InnoDB init::                 Creating InnoDB table space.
 * Using InnoDB tables::         Creating InnoDB tables
 * Adding and removing::         Adding and removing InnoDB data and log files
 * Backing up::                  Backing up and recovering an InnoDB database
@@ -551,7 +551,7 @@ InnoDB Tables
 * InnoDB restrictions::         Some restrictions on InnoDB tables
 * InnoDB contact information::  InnoDB contact information. 
 
-Creating an InnoDB database
+Creating InnoDB table space
 
 * Error creating InnoDB::      
 
@@ -939,6 +939,12 @@ MySQL Internals
 
 * MySQL threads::               MySQL threads
 * MySQL test suite::            MySQL test suite
+
+MySQL Test Suite
+
+* running mysqltest::           
+* extending mysqltest::         
+* Reporting mysqltest bugs::    
 
 Credits
 
@@ -24633,7 +24639,7 @@ NuSphere is working on removing these limitations.
 @menu
 * InnoDB overview::             InnoDB tables overview
 * InnoDB start::                InnoDB startup options
-* Creating an InnoDB database:: Creating an InnoDB database.
+* InnoDB init::                 Creating InnoDB table space.
 * Using InnoDB tables::         Creating InnoDB tables
 * Adding and removing::         Adding and removing InnoDB data and log files
 * Backing up::                  Backing up and recovering an InnoDB database
@@ -24688,7 +24694,7 @@ may consist of several files. This is different from, for example,
 InnoDB is distributed under the GNU GPL License Version 2 (of June 1991).
 In the source distribution of @strong{MySQL}, InnoDB appears as a subdirectory.
 
-@node InnoDB start, Creating an InnoDB database, InnoDB overview, InnoDB
+@node InnoDB start, InnoDB init, InnoDB overview, InnoDB
 @subsection InnoDB startup options
 
 Beginning from @strong{MySQL}-3.23.37 the prefix of the options is changed
@@ -24830,8 +24836,8 @@ InnoDB cannot notice. In cases like this the timeout is useful to
 resolve the situation.
 @end multitable
  
-@node Creating an InnoDB database, Using InnoDB tables, InnoDB start, InnoDB
-@subsection Creating an InnoDB database
+@node InnoDB init, Using InnoDB tables, InnoDB start, InnoDB
+@subsection Creating InnoDB table space
 
 Suppose you have installed @strong{MySQL} and have edited @file{my.cnf} so that
 it contains the necessary InnoDB configuration parameters.
@@ -24895,7 +24901,7 @@ mysqld: ready for connections
 * Error creating InnoDB::      
 @end menu
 
-@node Error creating InnoDB,  , Creating an InnoDB database, Creating an InnoDB database
+@node Error creating InnoDB,  , InnoDB init, InnoDB init
 @subsubsection If something goes wrong in database creation
 
 If something goes wrong in an InnoDB database creation, you should
@@ -24905,7 +24911,7 @@ create some InnoDB tables, delete also the corresponding @file{.frm}
 files for these tables from the @strong{MySQL} database
 directories. Then you can try the InnoDB database creation again.
 
-@node Using InnoDB tables, Adding and removing, Creating an InnoDB database, InnoDB
+@node Using InnoDB tables, Adding and removing, InnoDB init, InnoDB
 @subsection Creating InnoDB tables
 
 Suppose you have started the @strong{MySQL} client with the command
@@ -42432,16 +42438,35 @@ as well developers, to do regression tests on the @strong{MySQL} code. To
 address this problem, we have created a new test system that is included in
 the source and binary distributions starting in Version 3.23.29.
 
-The test system consist of a test language interpreter (@code{mysqltest}),
-a shell script to run all tests(@code{mysql-test-run}), the actual test cases
-written in a special test language, and their expected results.  To run the
-test suite on your system after a build, type @code{mysql-test/mysql-test-run}
-from the source root.  If you have installed a binary distribution, @code{cd}
-to the install root (eg. @code{/usr/local/mysql}), and do
-@code{scripts/mysql-test-run}.  All tests should succeed.  If they do not,
-use @code{mysqlbug} to send a bug report to @email{bugs@@lists.mysql.com}.
-Make sure to include the output of @code{mysql-test-run}, as well as
-contents of all @code{.reject} files in @code{mysql-test/r} directory.
+The current set of test cases doesn't test everything in MySQL but, it
+should catch most obvious bugs in the SQL processing code, OS/library
+issues, and is quite thorough in testing replication.  Our eventual goal
+is to have the tests cover 100% of the code.  We welcome contributions
+to our test suite.  You may especially want to contribute tests that
+examine the functionality critical to your system, as this will ensure
+that all future @strong{MySQL} releases will work well with your
+applications.
+
+@menu
+* running mysqltest::           
+* extending mysqltest::         
+* Reporting mysqltest bugs::    
+@end menu
+
+@node running mysqltest, extending mysqltest, MySQL test suite, MySQL test suite
+@subsection Running the MySQL Test Suite
+
+The test system consist of a test language interpreter
+(@code{mysqltest}), a shell script to run all
+tests(@code{mysql-test-run}), the actual test cases written in a special
+test language, and their expected results.  To run the test suite on
+your system after a build, type @code{make test} or
+@code{mysql-test/mysql-test-run} from the source root.  If you have
+installed a binary distribution, @code{cd} to the install root
+(eg. @code{/usr/local/mysql}), and do @code{scripts/mysql-test-run}.
+All tests should succeed.  If not, you should try to find out why and
+report the problem if this is a bug in @strong{MySQL}.
+@xref{Reporting mysqltest bugs}.
 
 If you have a copy of @code{mysqld} running on the machine where you want to
 run the test suite you do not have to stop it, as long as it is not using
@@ -42449,14 +42474,14 @@ ports @code{9306} and @code{9307}.  If one of those ports is taken, you should
 edit @code{mysql-test-run} and change the values of the master and/or slave
 port to one that is available.
 
-The current set of test cases is far from comprehensive, as we have not yet
-converted all of our private tests to the new format.  However, it should 
-already catch most obvious bugs in the SQL processing code, OS/library issues,
-and is quite thorough in testing replication.  Our eventual goal is to have 
-the tests cover 100% of the code.  We welcome contributions to our test suite.
-You may especially want to contribute tests that examine the functionality 
-critical to your system, as this will ensure that all future @strong{MySQL} 
-releases will work well with your applications.
+You can run one individual test case with
+@code{mysql-test/mysql-test-run test_name}.
+
+If one test fails, you should test running @code{mysql-test-run} with
+the @code{--force} option to check if any other tests fails.
+
+@node extending mysqltest, Reporting mysqltest bugs, running mysqltest, MySQL test suite
+@subsection Extending the MySQL Test Suite
 
 You can use the @code{mysqltest} language to write your own test cases.
 Unfortunately, we have not yet written full documentation for it - we plan to
@@ -42464,14 +42489,8 @@ do this shortly.  You can, however, look at our current test cases and use
 them as an example.  The following points should help you get started:
 
 @itemize
-
 @item
 The tests are located in @code{mysql-test/t/*.test}
-
-@item
-You can run one individual test case with
-@code{mysql-test/mysql-test-run test_name}
-removing @code{.test} extension from the file name
 
 @item
 A test case consists of @code{;} terminated statements and is similar to the
@@ -42501,15 +42520,9 @@ test produces more than one result, you should use @code{test_name.a.result},
 @code{test_name.b.result}, etc.
 
 @item
-Failed test results are put in a file with the same base name as the
-result file with the @code{.reject} extension.  If your test case is
-failing, you should do a diff on the two files.  If you cannot see how
-they are different, examine both with @code{od -c} and also check their
-lengths.
-
-@item
-You can prefix a query with @code{!} if the test can continue after that query
-returns an error.
+If a statement returns an error, you should on the line before the statement
+specify with the @code{--error error-number}.  The error number can be
+a list of possible error numbers separated with @code{','}.
 
 @item
 If you are writing a replication test case, you should on the first line of
@@ -42548,6 +42561,9 @@ attachments, you should ftp all the relevant files to:
 
 @end itemize
 
+@node Reporting mysqltest bugs,  , extending mysqltest, MySQL test suite
+@subsection Extending the MySQL Test Suite
+
 If your @strong{MySQL} version doesn't pass the test suite you should
 do the following:
 
@@ -42557,6 +42573,26 @@ Don't send a bug report before you have found out as much as possible of
 what when wrong!  When you do it, please use the @code{mysqlbug} script
 so that we can get information about your system and @code{MySQL}
 version. @xref{Bug reports}.
+@item
+Make sure to include the output of @code{mysql-test-run}, as well as
+contents of all @code{.reject} files in @code{mysql-test/r} directory.
+@item
+If a test in the test suite fails, check if the test fails also when run
+by its own:
+
+@example
+cd mysql-test
+mysql-test-run --local test-name
+@end example
+
+If this fails, then you should configure @strong{MySQL} with
+@code{--with-debug} and run @code{mysql-test-run} with the
+@code{--debug} option. If this also fails send the trace file
+@file{var/tmp/master.trace} to ftp://support.mysql.com/pub/mysql/secret
+so that we can examine it. Please remember to also include a full
+description of your system, the version of the mysqld binary and how you
+compiled it.
+
 @item
 If you have compiled @strong{MySQL} yourself, check our manual for how
 to compile @strong{MySQL} on your platform or, preferable, use one of
@@ -42568,10 +42604,14 @@ pass the test suite !
 If you get an error, like @code{Result length mismatch} or @code{Result
 content mismatch} it means that the output of the test didn't match
 exactly the expected output. This could be a bug in @strong{MySQL} or
-that your @code{mysqld} version produces slightly different results under some
-circumstances. In this case, you should compare the @file{.test}
-and @file{.reject} file in the @file{mysql-test/r} sub directory to
-see if this is something to worry about.
+that your mysqld version produces slight different results under some
+circumstances.
+
+Failed test results are put in a file with the same base name as the
+result file with the @code{.reject} extension.  If your test case is
+failing, you should do a diff on the two files.  If you cannot see how
+they are different, examine both with @code{od -c} and also check their
+lengths.
 
 @item
 If a test fails totally, you should check the logs file in the
@@ -42579,7 +42619,8 @@ If a test fails totally, you should check the logs file in the
 
 @item
 If you have compiled @strong{MySQL} with debugging you can try to debug this
-with the @code{--gdb} and @code{--debug} options to @code{mysql-test-run}.
+by running @code{mysql-test-run} with the @code{--gdb} and/or @code{--debug}
+options.
 @xref{Making trace files}.
 
 If you have not compiled @strong{MySQL} for debugging you should probably
