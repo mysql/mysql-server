@@ -32,13 +32,13 @@ INSERT INTO t1 VALUES (8,'dummy');
 CREATE TABLE t2 (
 cid bigint(20) unsigned NOT NULL auto_increment,
 cap varchar(255) NOT NULL default '',
-PRIMARY KEY  (cid),
+PRIMARY KEY  (cid)
 ) engine=ndbcluster;
 CREATE TABLE t3 (
 gid bigint(20) unsigned NOT NULL auto_increment,
 gn varchar(255) NOT NULL default '',
 must tinyint(4) default NULL,
-PRIMARY KEY  (gid),
+PRIMARY KEY  (gid)
 ) engine=ndbcluster;
 INSERT INTO t3 VALUES (1,'V1',NULL);
 CREATE TABLE t4 (
@@ -46,7 +46,7 @@ uid bigint(20) unsigned NOT NULL default '0',
 gid bigint(20) unsigned NOT NULL,
 rid bigint(20) unsigned NOT NULL default '-1',
 cid bigint(20) unsigned NOT NULL default '-1',
-UNIQUE KEY m (uid,gid,rid,cid),
+UNIQUE KEY m (uid,gid,rid,cid)
 ) engine=ndbcluster;
 INSERT INTO t4 VALUES (1,1,2,4);
 INSERT INTO t4 VALUES (1,1,2,3);
@@ -55,14 +55,14 @@ INSERT INTO t4 VALUES (1,1,10,8);
 CREATE TABLE t5 (
 rid bigint(20) unsigned NOT NULL auto_increment,
 rl varchar(255) NOT NULL default '',
-PRIMARY KEY  (rid),
+PRIMARY KEY  (rid)
 ) engine=ndbcluster;
 CREATE TABLE t6 (
 uid bigint(20) unsigned NOT NULL auto_increment,
 un varchar(250) NOT NULL default '',
 uc smallint(5) unsigned NOT NULL default '0',
 PRIMARY KEY  (uid),
-UNIQUE KEY nc (un,uc),
+UNIQUE KEY nc (un,uc)
 ) engine=ndbcluster;
 INSERT INTO t6 VALUES (1,'test',8);
 INSERT INTO t6 VALUES (2,'test2',9);
@@ -73,7 +73,7 @@ uid bigint(20) unsigned NOT NULL default '0',
 gid bigint(20) unsigned NOT NULL,
 rid bigint(20) unsigned NOT NULL default '-1',
 cid bigint(20) unsigned NOT NULL default '-1',
-UNIQUE KEY m (uid,gid,rid,cid),
+UNIQUE KEY m (uid,gid,rid,cid)
 ) engine=ndbcluster;
 INSERT INTO t7 VALUES(1, 1, 1, 1, 1);
 INSERT INTO t7 VALUES(2, 2, 1, 1, 1);
