@@ -2407,6 +2407,8 @@ do
       AC_DEFINE(USE_MB)
       AC_DEFINE(USE_MB_IDENT)
       ;;
+    binary)
+      ;;
     cp1250)
       AC_DEFINE(HAVE_CHARSET_cp1250)
       ;;
@@ -2532,6 +2534,10 @@ case $default_charset in
     big5)
       default_charset_default_collation="big5_chinese_ci"
       default_charset_collations="big5_chinese_ci big5_bin"
+      ;;
+    binary)
+      default_charset_default_collation="binary"
+      default_charset_collations="binary"
       ;;
     cp1250)
       default_charset_default_collation="cp1250_general_ci"

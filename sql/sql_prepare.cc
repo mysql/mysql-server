@@ -1610,7 +1610,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   if (name)
   {
     stmt->name.length= name->length;
-    if (!(stmt->name.str= memdup_root(&stmt->mem_root, (byte*)name->str,
+    if (!(stmt->name.str= memdup_root(&stmt->mem_root, (char*)name->str,
                                       name->length)))
     {
       delete stmt;
