@@ -6655,7 +6655,8 @@ Download @strong{BitKeeper} from
 Follow the instructions to install it.
 
 @item
-After @strong{BitKeeper} is installed, use this command if you want to clone
+After @strong{BitKeeper} is installed, first go to the directory you
+want to work from, and then use this command if you want to clone
 the MySQL 3.23 branch:
 
 @example
@@ -6667,6 +6668,9 @@ To clone the 4.0 branch, use this command instead:
 @example
 shell> bk clone bk://work.mysql.com:7001 mysql-4.0
 @end example
+
+In the above examples the source tree will be set up in the @file{mysql/}
+or @file{mysql-4.0/} subdirectory of your current directory.
 
 The initial download of the source tree may take a while, depending on the
 speed of your connection; be patient.
