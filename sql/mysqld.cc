@@ -47,10 +47,6 @@
 #define ONE_THREAD
 #endif
 
-#define SHUTDOWN_THD
-#define MAIN_THD
-#define SIGNAL_THD
-
 #ifdef HAVE_purify
 #define IF_PURIFY(A,B) (A)
 #else
@@ -827,7 +823,6 @@ static void __cdecl kill_server(int sig_ptr)
 #if defined(USE_ONE_SIGNAL_HAND) || (defined(__NETWARE__) && defined(SIGNALS_DONT_BREAK_READ))
 extern "C" pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 {
-  SHUTDOWN_THD;
   my_thread_init();				// Initialize new thread
   kill_server(0);
   my_thread_end();				// Normally never reached
@@ -1716,7 +1711,6 @@ static void init_signals(void)
   signal(SIGALRM, SIG_IGN);
   signal(SIGBREAK,SIG_IGN);
   signal_thread = pthread_self();
-  SIGNAL_THD;
 }
 
 static void start_signal_handler(void)
@@ -2116,7 +2110,6 @@ int uname(struct utsname *a)
 extern "C" pthread_handler_decl(handle_shutdown,arg)
 {
   MSG msg;
-  SHUTDOWN_THD;
   my_thread_init();
 
   /* this call should create the message queue for this thread */
@@ -2145,7 +2138,6 @@ int STDCALL handle_kill(ulong ctrl_type)
 #ifdef OS2
 extern "C" pthread_handler_decl(handle_shutdown,arg)
 {
-  SHUTDOWN_THD;
   my_thread_init();
 
   // wait semaphore

@@ -3001,6 +3001,7 @@ static uint read_binary_date(MYSQL_TIME *tm, uchar **pos)
   return length;
 }
 
+
 /* Convert Numeric to buffer types */
 static void send_data_long(MYSQL_BIND *param, MYSQL_FIELD *field,
 			   longlong value)
@@ -3015,26 +3016,26 @@ static void send_data_long(MYSQL_BIND *param, MYSQL_FIELD *field,
     *param->buffer= (uchar) value;
     break;
   case MYSQL_TYPE_SHORT:
-    int2store(buffer, value);
+    shortstore(buffer, value);
     break;
   case MYSQL_TYPE_LONG:
-    int4store(buffer, value);
+    longstore(buffer, value);
     break;
   case MYSQL_TYPE_LONGLONG:
-    int8store(buffer, value);
+    longlongstore(buffer, value);
     break;
   case MYSQL_TYPE_FLOAT:
   {
     float data= (field_is_unsigned ? (float) ulonglong2double(value) :
 		 (float) value);
-    float4store(buffer, data);
+    floatstore(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
     double data= (field_is_unsigned ? ulonglong2double(value) :
 		 (double) value);
-    float8store(buffer, data);
+    doublestore(buffer, data);
     break;
   }
   default:
@@ -3070,24 +3071,26 @@ static void send_data_double(MYSQL_BIND *param, double value)
     *buffer= (uchar)value;
     break;
   case MYSQL_TYPE_SHORT:
-    int2store(buffer, (short)value);
+    shortstore(buffer, (short)value);
     break;
   case MYSQL_TYPE_LONG:
-    int4store(buffer, (long)value);
+    longstore(buffer, (long)value);
     break;
   case MYSQL_TYPE_LONGLONG:
-    int8store(buffer, (longlong)value);
+  {
+    longlong val= (longlong) value;
+    longlongstore(buffer, val);
     break;
+  }
   case MYSQL_TYPE_FLOAT:
   {
-    float data= (float)value;
-    float4store(buffer, data);
+    float data= (float) value;
+    floatstore(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data= (double)value;
-    float8store(buffer, data);
+    doublestore(buffer, value);
     break;
   }
   default:
