@@ -2984,7 +2984,7 @@ CHANGEABLE_VAR changeable_vars[] = {
 #endif
     ,0, 1, 0, 1 },
   { "max_allowed_packet",      (long*) &max_allowed_packet,
-      1024*1024L, 80, 64*1024*1024L, MALLOC_OVERHEAD, 1024 },
+      1024*1024L, 80, 255*255*255L, MALLOC_OVERHEAD, 1024 },
   { "max_binlog_cache_size",   (long*) &max_binlog_cache_size,
       ~0L, IO_SIZE, ~0L, 0, IO_SIZE },
   { "max_binlog_size",         (long*) &max_binlog_size,
