@@ -2559,7 +2559,8 @@ int main(int argc, char **argv)
   {
     char file_path[FN_REFLEN];
     my_path(file_path, argv[0], "");		      /* Find name in path */
-    fn_format(file_path,argv[0],file_path,"",1+4+16); /* Force full path */
+    fn_format(file_path,argv[0],file_path,"",MY_REPLACE_DIR+
+              MY_UNPACK_FILENAME+MY_RESOLVE_SYMLINKS+MY_QUOTE_SPACES);
 
     if (argc == 2)
     {	
@@ -2605,8 +2606,10 @@ int main(int argc, char **argv)
 	mysqld --install-manual mysqldopt --defaults-file=c:\miguel\my.ini
       */
       uint length=strlen(file_path);
+      char tmp_path[FN_REFLEN];
+      fn_format(tmp_path,argv[3],tmp_path,"",MY_QUOTE_SPACES);
       *strxnmov(file_path + length, sizeof(file_path)-length-2, " ",
-		argv[3], " ", argv[2], NullS)= '\0';
+                tmp_path, " ", argv[2], NullS)= '\0';
       if (!default_service_handling(argv, argv[2], argv[2], file_path))
 	return 0;
     }

@@ -111,6 +111,14 @@ my_string fn_format(my_string to, const char *name, const char *dir,
     strmov(buff,to);
     (void) my_readlink(to, buff, MYF(0));
   }
+  if ( flag & MY_QUOTE_SPACES)
+    if ( strchr(to, ' '))
+    {
+      char tmp_buff[FN_REFLEN];
+      tmp_buff[0]='"';
+      strxmov(tmp_buff+1,to,"\"",NullS);
+      strmov(to,tmp_buff);
+    }  
   DBUG_RETURN (to);
 } /* fn_format */
 
