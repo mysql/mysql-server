@@ -620,10 +620,10 @@ sess_raise_error_low(
 
 	len = 0;
 	
-	len += sprintf(str + len, "Error number: %lu", err_no);
+	len += sprintf(str + len, "Error number: %lu", (ulong) err_no);
 
 	if (type) {
-		len += sprintf(str + len, ", type: %lu", type);
+		len += sprintf(str + len, ", type: %lu", (ulong) type);
 	}
 
 	if (table) {

@@ -67,6 +67,7 @@ Microsoft Visual C++ */
 
 #endif /* #if (defined(WIN32) || ... */
 
+#ifdef NOT_USED
 /* On the 64-bit Windows we replace printf with ut_printf, etc. so that
 we can use the %lu format string to print a 64-bit ulint */
 #if defined(__WIN__) && (defined(WIN64) || defined(_WIN64))
@@ -74,7 +75,7 @@ we can use the %lu format string to print a 64-bit ulint */
 #define sprintf 	ut_sprintf
 #define fprintf		ut_fprintf
 #endif
-
+#endif
 
 /*			DEBUG VERSION CONTROL
 			===================== */

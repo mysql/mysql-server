@@ -323,7 +323,8 @@ row_undo_step(
 	if (err != DB_SUCCESS) {
 		/* SQL error detected */
 
-		fprintf(stderr, "InnoDB: Fatal error %lu in rollback.\n", err);
+		fprintf(stderr, "InnoDB: Fatal error %lu in rollback.\n",
+			(ulong) err);
 
 		if (err == DB_OUT_OF_FILE_SPACE) {
 			fprintf(stderr,

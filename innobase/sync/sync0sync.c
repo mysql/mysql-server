@@ -406,8 +406,8 @@ spin_loop:
 	if (srv_print_latch_waits) {
 		printf(
 	"Thread %lu spin wait mutex at %lx cfile %s cline %lu rnds %lu\n",
-		os_thread_pf(os_thread_get_curr_id()), (ulint)mutex,
-				mutex->cfile_name, mutex->cline, i);
+		(ulong) os_thread_pf(os_thread_get_curr_id()), (ulong) mutex,
+		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
 	}
 
 	mutex_spin_round_count += i;
@@ -472,7 +472,8 @@ spin_loop:
 		if (srv_print_latch_waits) {
 			printf(
 			"Thread %lu spin wait succeeds at 2: mutex at %lx\n",
-			os_thread_pf(os_thread_get_curr_id()), (ulint)mutex);
+			(ulong) os_thread_pf(os_thread_get_curr_id()),
+			(ulong) mutex);
 		}
 		
                 return;
@@ -490,8 +491,8 @@ spin_loop:
 	if (srv_print_latch_waits) {
 		printf(
 	"Thread %lu OS wait mutex at %lx cfile %s cline %lu rnds %lu\n",
-		os_thread_pf(os_thread_get_curr_id()), (ulint)mutex,
-			mutex->cfile_name, mutex->cline, i);
+		(ulong) os_thread_pf(os_thread_get_curr_id()), (ulong) mutex,
+		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
 	}
 	
 	mutex_system_call_count++;
@@ -813,11 +814,11 @@ sync_thread_levels_g(
 
 				printf(
 	"InnoDB error: sync levels should be > %lu but a level is %lu\n",
-				limit, slot->level);
+				(ulong) limit, (ulong) slot->level);
 
 				if (mutex->magic_n == MUTEX_MAGIC_N) {
 	printf("Mutex created at %s %lu\n", mutex->cfile_name,
-						mutex->cline);
+						(ulong) mutex->cline);
 
 					if (mutex_get_lock_word(mutex) != 0) {
 
@@ -825,8 +826,8 @@ sync_thread_levels_g(
 						&file_name, &line, &thread_id);
 
 	printf("InnoDB: Locked mutex: addr %lx thread %ld file %s line %ld\n",
-		    	(ulint)mutex, os_thread_pf(thread_id),
-						file_name, line);
+		    	(ulong) mutex, (ulong) os_thread_pf(thread_id),
+						file_name, (ulong) line);
 					} else {
 						printf("Not locked\n");
 					}	
@@ -1288,10 +1289,13 @@ sync_print_wait_info(
 	sprintf(buf,
 "Mutex spin waits %lu, rounds %lu, OS waits %lu\n"
 "RW-shared spins %lu, OS waits %lu; RW-excl spins %lu, OS waits %lu\n",
-			mutex_spin_wait_count, mutex_spin_round_count,
-			mutex_os_wait_count,
-			rw_s_spin_wait_count, rw_s_os_wait_count,
-			rw_x_spin_wait_count, rw_x_os_wait_count);
+			(ulong) mutex_spin_wait_count,
+		        (ulong) mutex_spin_round_count,
+			(ulong) mutex_os_wait_count,
+			(ulong) rw_s_spin_wait_count,
+		        (ulong) rw_s_os_wait_count,
+			(ulong) rw_x_spin_wait_count,
+		        (ulong) rw_x_os_wait_count);
 }
 
 /***********************************************************************
