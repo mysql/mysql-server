@@ -1,13 +1,31 @@
 #!/bin/sh
 
+function die
+{
+  echo $1
+  exit 1
+}
+
 echo
 echo "|---- Running makeinfo ----|"
 makeinfo --no-split -I . manual.texi
+
+[ $? != 0 ] && die "Manual has errors - fix before you commit"
 
 echo
 echo "|---- Running texi2html ----|"
 /usr/bin/perl ./Support/texi2html -iso -number manual.texi
 
+[ $? != 0 ] && die "Manual has errors - fix before you commit"
+
+[ -z $BROWSER ] && BROWSER=netscape 
+
 echo
 echo "Please examine your modifications in \`manual.html'."
-echo
+echo "For your convenience, I will show you the manual in $BROWSER"
+echo "If you would like to use a different browser, set BROWSER enviroment\
+ variable" 
+echo "If this is a GUI browser, to get your shell prompt back, close the
+ window"
+
+$BROWSER file://`pwd`/manual_toc.html
