@@ -2734,6 +2734,51 @@ assert("drop table  crash_me_n $drop_attr");
 
 
 
+$key = 'sorted_group_by';
+$prompt = 'Group by always sorted';
+if (!defined($limits{$key}))
+{
+ save_incomplete($key,$prompt);
+ print "$prompt=";
+ safe_query_l($key,[  
+			 "create table crash_me_t1 (a int not null, b int not null)",
+			 "insert into crash_me_t1 values (1,1)",
+			 "insert into crash_me_t1 values (1,2)",
+			 "insert into crash_me_t1 values (3,1)",
+			 "insert into crash_me_t1 values (3,2)",
+			 "insert into crash_me_t1 values (2,2)",
+			 "insert into crash_me_t1 values (2,1)",
+			 "create table crash_me_t2 (a int not null, b int not null)",
+			 "create index crash_me_t2_ind on crash_me_t2 (a)",
+			 "insert into crash_me_t2 values (1,3)",
+			 "insert into crash_me_t2 values (3,1)",
+			 "insert into crash_me_t2 values (2,2)",
+			 "insert into crash_me_t2 values (1,1)"]);
+
+ my $bigqry = "select crash_me_t1.a,crash_me_t2.b from ".
+	     "crash_me_t1,crash_me_t2 where crash_me_t1.a=crash_me_t2.a ".
+	     "group by crash_me_t1.a,crash_me_t2.b";
+
+ my $limit='no';
+ my $rs = get_recordset($key,$bigqry);
+ print_recordset($key,$rs); 
+ if ( defined ($rs)) { 
+   if (compare_recordset($key,$rs,[[1,1],[1,3],[2,2],[3,1]]) eq 0)
+   {
+     $limit='yes'
+   }
+ } else {
+  add_log($key,"error: ".$DBI::errstr);
+ } 
+
+ print "$limit\n";
+ safe_query_l($key,["drop table crash_me_t1",
+		       "drop table crash_me_t2"]);
+ save_config_data($key,$limit,$prompt);	        
+ 
+} else {
+ print "$prompt=$limits{$key} (cashed)\n";
+}
 
 
 #
