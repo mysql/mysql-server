@@ -17,7 +17,7 @@ v/*
 "Nemohu vytvo-Bøit soubor '%-.64s' (chybový kód: %d)",
 "Nemohu vytvo-Bøit tabulku '%-.64s' (chybový kód: %d)",
 "Nemohu vytvo-Bøit databázi '%-.64s', chyba %d",
-"Nemohu vytvo-Bøit databázi '%-.64s', databáze ji¾ existuje",
+"Nemohu vytvo-Bøit databázi '%-.64s'; databáze ji¾ existuje",
 "Nemohu zru-B¹it databázi '%-.64s', databáze neexistuje",
 "Chyba p-Bøi ru¹ení databáze (nemohu vymazat '%-.64s', chyba %d)",
 "Chyba p-Bøi ru¹ení databáze (nemohu vymazat adresáø '%-.64s', chyba %d)",
