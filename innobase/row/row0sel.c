@@ -930,7 +930,9 @@ row_sel_try_search_shortcut(
 	ut_ad(node->read_view);
 	ut_ad(plan->unique_search);
 	ut_ad(!plan->must_get_clust);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	row_sel_open_pcur(node, plan, TRUE, mtr);
 

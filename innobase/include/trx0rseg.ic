@@ -24,7 +24,9 @@ trx_rsegf_get(
 
 	header = TRX_RSEG + buf_page_get(space, page_no, RW_X_LATCH, mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(header, SYNC_RSEG_HEADER);
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(header);
 }
@@ -45,7 +47,9 @@ trx_rsegf_get_new(
 
 	header = TRX_RSEG + buf_page_get(space, page_no, RW_X_LATCH, mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(header, SYNC_RSEG_HEADER_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(header);
 }

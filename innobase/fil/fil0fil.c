@@ -332,7 +332,9 @@ fil_node_close(
 	ibool	ret;
 
 	ut_ad(node && system);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->open);
 	ut_a(node->n_pending == 0);
 
@@ -356,7 +358,9 @@ fil_node_free(
 	fil_space_t*	space)	/* in: space where the file node is chained */
 {
 	ut_ad(node && system && space);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
 
 	if (node->open) {
@@ -875,7 +879,9 @@ fil_node_prepare_for_io(
 	fil_node_t*	last_node;
 
 	ut_ad(node && system && space);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	if (node->open == FALSE) {
 		/* File is closed */
@@ -952,7 +958,9 @@ fil_node_complete_io(
 {
 	ut_ad(node);
 	ut_ad(system);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->n_pending > 0);
 	
 	node->n_pending--;

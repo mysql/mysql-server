@@ -606,7 +606,9 @@ srv_suspend_thread(void)
 	ulint		slot_no;
 	ulint		type;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	slot_no = thr_local_get_slot_no(os_thread_get_curr_id());
 
@@ -656,7 +658,9 @@ srv_release_threads(
 	ut_ad(type >= SRV_WORKER);
 	ut_ad(type <= SRV_MASTER);
 	ut_ad(n > 0);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 	
@@ -1148,7 +1152,9 @@ srv_table_reserve_slot_for_mysql(void)
 	srv_slot_t*	slot;
 	ulint		i;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	i = 0;
 	slot = srv_mysql_table + i;
@@ -1213,7 +1219,9 @@ srv_suspend_mysql_thread(
 	ibool		had_dict_lock			= FALSE;
 	ibool		was_declared_inside_innodb	= FALSE;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx = thr_get_trx(thr);
 	
@@ -1332,7 +1340,9 @@ srv_release_mysql_thread_if_suspended(
 	srv_slot_t*	slot;
 	ulint		i;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 

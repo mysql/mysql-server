@@ -39,8 +39,9 @@ dict_hdr_get(
 	
 	header = DICT_HDR + buf_page_get(DICT_HDR_SPACE, DICT_HDR_PAGE_NO,
 							RW_X_LATCH, mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(header, SYNC_DICT_HEADER);
-
+#endif /* UNIV_SYNC_DEBUG */
 	return(header);
 }
 
@@ -94,7 +95,9 @@ dict_hdr_flush_row_id(void)
 	dulint		id;
 	mtr_t		mtr;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	id = dict_sys->row_id;
 

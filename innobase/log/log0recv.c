@@ -152,7 +152,9 @@ void
 recv_sys_empty_hash(void)
 /*=====================*/
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(recv_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	if (recv_sys->n_addrs != 0) {
 		fprintf(stderr,
 "InnoDB: Error: %lu pages with log records were left unprocessed!\n"
@@ -1044,7 +1046,9 @@ recv_recover_page(
 					&mtr);
 		ut_a(success);
 
+#ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(page, SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
 	}
 
 	/* Read the newest modification lsn from the page */
@@ -1245,14 +1249,13 @@ loop:
 		goto loop;
 	}
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!allow_ibuf == mutex_own(&log_sys->mutex));
+#endif /* UNIV_SYNC_DEBUG */
 	if (!allow_ibuf) {
-		ut_ad(mutex_own(&(log_sys->mutex)));
-
 		recv_no_ibuf_operations = TRUE;
-	} else {
-		ut_ad(!mutex_own(&(log_sys->mutex)));
 	}
-	
+
 	recv_sys->apply_log_recs = TRUE;
 	recv_sys->apply_batch_on = TRUE;
 
@@ -1282,8 +1285,10 @@ loop:
 					page = buf_page_get(space, page_no,
 							RW_X_LATCH, &mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 					buf_page_dbg_add_level(page,
 							SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
 					recv_recover_page(FALSE, FALSE, page,
 							space, page_no);
 					mtr_commit(&mtr);
@@ -1505,7 +1510,9 @@ recv_update_replicate(
 
 	replica = buf_page_get(space + RECV_REPLICA_SPACE_ADD, page_no,
 							RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(replica, SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
 							
 	ptr = recv_parse_or_apply_log_rec_body(type, body, end_ptr, replica,
 									&mtr);
@@ -1574,7 +1581,9 @@ recv_compare_replicate(
 
 	replica = buf_page_get(space + RECV_REPLICA_SPACE_ADD, page_no,
 							RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(replica, SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
 
 	recv_check_identical(page + FIL_PAGE_DATA,
 			replica + FIL_PAGE_DATA,
@@ -1615,7 +1624,9 @@ recv_compare_spaces(
 						IB__FILE__, __LINE__,
 						&mtr);
 		if (frame) {
+#ifdef UNIV_SYNC_DEBUG
 			buf_page_dbg_add_level(frame, SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
 			ut_memcpy(page, frame, UNIV_PAGE_SIZE);
 		} else {
 			/* Read it from file */
@@ -1628,7 +1639,9 @@ recv_compare_spaces(
 						IB__FILE__, __LINE__,
 						&mtr);
 		if (frame) {
+#ifdef UNIV_SYNC_DEBUG
 			buf_page_dbg_add_level(frame, SYNC_NO_ORDER_CHECK);
+#endif /* UNIV_SYNC_DEBUG */
 			ut_memcpy(replica, frame, UNIV_PAGE_SIZE);
 		} else {
 			/* Read it from file */
@@ -1880,7 +1893,9 @@ recv_parse_log_recs(
 	byte*	body;
 	ulint	n_recs;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!ut_dulint_is_zero(recv_sys->parse_start_lsn));
 loop:
 	ptr = recv_sys->buf + recv_sys->recovered_offset;
@@ -2775,8 +2790,9 @@ recv_reset_logs(
 {
 	log_group_t*	group;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(log_sys->mutex)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	log_sys->lsn = ut_dulint_align_up(lsn, OS_FILE_LOG_BLOCK_SIZE);
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
