@@ -201,7 +201,6 @@ export LD_LIBRARY_PATH DYLD_LIBRARY_PATH
 MASTER_RUNNING=0
 MASTER1_RUNNING=0
 MASTER_MYPORT=9306
-MASTER_MYPORT1=9307
 SLAVE_RUNNING=0
 SLAVE_MYPORT=9308 # leave room for 2 masters for cluster tests
 MYSQL_MANAGER_PORT=9305 # needs to be out of the way of slaves
@@ -1135,6 +1134,8 @@ start_master()
    id=`$EXPR $1 + 101`;
    this_master_myport=`$EXPR $MASTER_MYPORT + $1`
    NOT_FIRST_MASTER_EXTRA_OPTS="--skip-innodb"
+   eval "MASTER_MYPORT$1=$this_master_myport"
+   export MASTER_MYPORT$1
   else
    id=1;
    this_master_myport=$MASTER_MYPORT
@@ -1748,7 +1749,7 @@ then
     $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK1 -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
-    $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT1 -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+    $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT+1 -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --host=$hostname --port=$SLAVE_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     $MYSQLADMIN --no-defaults --host=$hostname --port=`expr $SLAVE_MYPORT + 1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
     sleep_until_file_deleted 0 $MASTER_MYPID

@@ -4604,14 +4604,14 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
     create_tmp_field_from_field()
     thd			Thread handler
     org_field           field from which new field will be created
+    name                New field name
     item		Item to create a field for
     table		Temporary table
-    modify_item	        1 if item->result_field should point to new item.
-			This is relevent for how fill_record() is going to
-			work:
-			If modify_item is 1 then fill_record() will update
+    item	        !=NULL if item->result_field should point to new field.
+			This is relevant for how fill_record() is going to work:
+			If item != NULL then fill_record() will update
 			the record in the original table.
-			If modify_item is 0 then fill_record() will update
+			If item == NULL then fill_record() will update
 			the temporary table
     convert_blob_length If >0 create a varstring(convert_blob_length) field 
                         instead of blob.
@@ -4622,8 +4622,8 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 */
 
 static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
-                                          Item *item, TABLE *table,
-                                          bool modify_item,
+                                          const char *name, TABLE *table,
+                                          Item_field *item,
                                           uint convert_blob_length)
 {
   Field *new_field;
@@ -4636,10 +4636,10 @@ static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
     new_field= org_field->new_field(thd->mem_root, table);
   if (new_field)
   {
-    if (modify_item)
-      ((Item_field *)item)->result_field= new_field;
+    if (item)
+      item->result_field= new_field;
     else
-      new_field->field_name= item->name;
+      new_field->field_name= name;
     if (org_field->maybe_null())
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == FIELD_TYPE_VAR_STRING)
@@ -4779,8 +4779,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       if (item_sum->args[0]->type() == Item::FIELD_ITEM)
       {
         *from_field= ((Item_field*) item_sum->args[0])->field;
-        return create_tmp_field_from_field(thd, *from_field, item, table,
-                                           modify_item, convert_blob_length);
+        return create_tmp_field_from_field(thd, *from_field, item->name, table,
+                                           NULL, convert_blob_length);
       }
       /* fall through */
     default:
@@ -4818,8 +4818,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::DEFAULT_VALUE_ITEM:
   {
     Item_field *field= (Item_field*) item;
-    return create_tmp_field_from_field(thd, (*from_field= field->field), item,
-                                       table, modify_item, convert_blob_length);
+    return create_tmp_field_from_field(thd, (*from_field= field->field),
+                                       item->name, table,
+                                       modify_item ? (Item_field*) item : NULL,
+                                       convert_blob_length);
   }
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
@@ -4837,14 +4839,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
                                       convert_blob_length);
   case Item::TYPE_HOLDER:
-  {
-    Field *example= ((Item_type_holder *)item)->example();
-    if (example)
-      return create_tmp_field_from_field(thd, example, item, table, 0,
-                                         convert_blob_length);
-    return create_tmp_field_from_item(thd, item, table, copy_func, 0,
-                                      convert_blob_length);
-  }
+    return ((Item_type_holder *)item)->make_field_by_type(table);
   default:					// Dosen't have to be stored
     return 0;
   }
@@ -5341,8 +5336,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (create_myisam_tmp_table(table,param,select_options))
       goto err;
   }
-  /* Set table_name for easier debugging */
-  table->table_name= base_name(tmpname);
   if (!open_tmp_table(table))
     DBUG_RETURN(table);
 
@@ -7183,7 +7176,19 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	/* Found key that can be used to retrieve data in sorted order */
 	if (tab->ref.key >= 0)
 	{
-	  tab->ref.key= new_ref_key;
+          /*
+            We'll use ref access method on key new_ref_key. In general case 
+            the index search tuple for new_ref_key will be different (e.g.
+            when one of the indexes only covers prefix of the field, see
+            BUG#9213 in group_by.test).
+            So we build tab->ref from scratch here.
+          */
+          KEYUSE *keyuse= tab->keyuse;
+          while (keyuse->key != new_ref_key && keyuse->table == tab->table)
+            keyuse++;
+          if (create_ref_for_key(tab->join, tab, keyuse, 
+                                 tab->join->const_table_map))
+            DBUG_RETURN(0);
 	}
 	else
 	{
@@ -9592,7 +9597,8 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
-    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
+    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE,
+                             "")))
       res= unit->exec();
     res|= unit->cleanup();
   }

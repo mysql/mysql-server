@@ -34,4 +34,17 @@ select t1.id, t1.data, t2.data from t1, t2 where t1.id = t2.id order by t1.id;
 select t1.id from t1 union select t2.id from t2;
 drop table t1,t2;
 
+#
+# variables union and derived tables metadata test
+#
+create table t1 ( a int, b varchar(30), primary key(a));
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+set @arg00=1 ;
+select @arg00 FROM t1 where a=1 union distinct select 1 FROM t1 where a=1;
+select * from (select @arg00) aaa;
+select 1 union select 1;
+select * from (select 1 union select 1) aaa;
+drop table t1;
+
 --disable_metadata

@@ -389,7 +389,8 @@ public:
   void exclude_tree();
 
   /* UNION methods */
-  int prepare(THD *thd, select_result *result, ulong additional_options);
+  int prepare(THD *thd, select_result *result, ulong additional_options,
+              const char *tmp_table_alias);
   int exec();
   int cleanup();
   inline void unclean() { cleaned= 0; }

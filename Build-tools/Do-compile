@@ -10,8 +10,8 @@ use Sys::Hostname;
 $opt_comment=$opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
-$opt_bundled_zlib=$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_one_error=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_archive=$opt_with_cluster=$opt_with_csv=$opt_with_example=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
-$opt_skip_embedded_test=$opt_skip_ps_test=$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=0;
+$opt_bundled_zlib=$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_one_error=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_archive=$opt_with_cluster=$opt_with_csv=$opt_with_example=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=$opt_with_blackhole=0;
+$opt_skip_embedded_test=$opt_skip_ps_test=$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=$opt_with_big_tables=0;
 $global_step="";
 
 GetOptions(
@@ -58,6 +58,8 @@ GetOptions(
 	"user=s",
 	"version-suffix=s",
 	"with-archive",
+        "with-big-tables",
+        "with-blackhole",
 	"with-cluster",
 	"with-csv",
 	"with-example",
@@ -274,6 +276,7 @@ if ($opt_stage <= 1)
   $opt_config_options.= " --without-ndb-debug" if ($opt_with_debug && $opt_with_cluster);
   $opt_config_options.= " --with-libwrap" if ($opt_libwrap);
   $opt_config_options.= " --with-low-memory" if ($opt_with_low_memory);
+  $opt_config_options.= " --with-big-tables" if ($opt_with_big_tables);
   $opt_config_options.= " --with-mysqld-ldflags=-all-static" if ($opt_static_server);
   $opt_config_options.= " --with-raid" if ($opt_raid);
 	if ($opt_readline)
@@ -287,6 +290,7 @@ if ($opt_stage <= 1)
   $opt_config_options.= " --with-embedded-server" unless ($opt_without_embedded);
   $opt_skip_embedded_test= 1 if ($opt_without_embedded);
   $opt_config_options.= " --with-archive-storage-engine" if ($opt_with_archive);
+  $opt_config_options.= " --with-blackhole-storage-engine" if ($opt_with_blackhole);
   $opt_config_options.= " --with-ndbcluster" if ($opt_with_cluster);
   $opt_config_options.= " --with-csv-storage-engine" if ($opt_with_csv);
   $opt_config_options.= " --with-example-storage-engine" if ($opt_with_example);
