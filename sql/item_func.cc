@@ -1504,7 +1504,7 @@ void item_user_lock_free(void)
 void item_user_lock_release(ULL *ull)
 {
   ull->locked=0;
-  if (mysql_bin_log.is_open())
+  if (mysql_bin_log.is_open(1))
   {
     char buf[256];
     String tmp(buf,sizeof(buf));

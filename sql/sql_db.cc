@@ -84,7 +84,7 @@ int mysql_create_db(THD *thd, char *db, uint create_options, bool silent)
     }
     {
       mysql_update_log.write(thd,thd->query, thd->query_length);
-      if (mysql_bin_log.is_open())
+      if (mysql_bin_log.is_open(1))
       {
 	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	mysql_bin_log.write(&qinfo);
@@ -174,7 +174,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 	thd->query= path;
       }
       mysql_update_log.write(thd, thd->query, thd->query_length);
-      if (mysql_bin_log.is_open())
+      if (mysql_bin_log.is_open(1))
       {
 	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	mysql_bin_log.write(&qinfo);

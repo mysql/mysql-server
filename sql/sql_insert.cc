@@ -308,7 +308,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     if ((info.copied || info.deleted) && (error <= 0 || !transactional_table))
     {
       mysql_update_log.write(thd, thd->query, thd->query_length);
-      if (mysql_bin_log.is_open())
+      if (mysql_bin_log.is_open(1))
       {
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
 			      log_delayed);
@@ -1143,7 +1143,7 @@ bool delayed_insert::handle_inserts(void)
 {
   int error;
   uint max_rows;
-  bool using_ignore=0, using_bin_log=mysql_bin_log.is_open();
+  bool using_ignore=0, using_bin_log=mysql_bin_log.is_open(1);
   delayed_row *row;
   DBUG_ENTER("handle_inserts");
 
@@ -1361,7 +1361,7 @@ void select_insert::send_error(uint errcode,const char *err)
     if (last_insert_id)
       thd->insert_id(last_insert_id);		// For binary log
     mysql_update_log.write(thd,thd->query,thd->query_length);
-    if (mysql_bin_log.is_open())
+    if (mysql_bin_log.is_open(1))
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
                             table->file->has_transactions());
@@ -1387,7 +1387,7 @@ bool select_insert::send_eof()
     thd->insert_id(last_insert_id);		// For binary log
   /* Write to binlog before commiting transaction */
   mysql_update_log.write(thd,thd->query,thd->query_length);
-  if (mysql_bin_log.is_open())
+  if (mysql_bin_log.is_open(1))
   {
     Query_log_event qinfo(thd, thd->query, thd->query_length,
 			  table->file->has_transactions());

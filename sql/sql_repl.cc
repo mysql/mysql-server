@@ -269,7 +269,7 @@ int purge_master_logs(THD* thd, const char* to_log)
   const char* errmsg = 0;
   int res;
 
-  if (!mysql_bin_log.is_open())
+  if (!mysql_bin_log.is_open(1))
     goto end;
 
   mysql_bin_log.make_log_name(search_file_name, to_log);
@@ -335,7 +335,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   }
 #endif
 
-  if (!mysql_bin_log.is_open())
+  if (!mysql_bin_log.is_open(1))
   {
     errmsg = "Binary log is not open";
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
@@ -972,7 +972,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
 
 int reset_master(THD* thd)
 {
-  if (!mysql_bin_log.is_open())
+  if (!mysql_bin_log.is_open(1))
   {
     my_error(ER_FLUSH_MASTER_BINLOG_CLOSED,  MYF(ME_BELL+ME_WAITTANG));
     return 1;
@@ -1010,7 +1010,7 @@ int show_binlog_events(THD* thd)
   if (send_fields(thd, field_list, 1))
     DBUG_RETURN(-1);
 
-  if (mysql_bin_log.is_open())
+  if (mysql_bin_log.is_open(1))
   {
     LEX_MASTER_INFO *lex_mi = &thd->lex.mi;
     ha_rows event_count, limit_start, limit_end;
@@ -1110,7 +1110,7 @@ int show_binlog_info(THD* thd)
   String* packet = &thd->packet;
   packet->length(0);
 
-  if (mysql_bin_log.is_open())
+  if (mysql_bin_log.is_open(1))
   {
     LOG_INFO li;
     mysql_bin_log.get_current_log(&li);
@@ -1128,7 +1128,7 @@ int show_binlog_info(THD* thd)
 
 
 /*
-  Send a lost of all binary logs to client
+  Send a list of all binary logs to client
 
   SYNOPSIS
     show_binlogs()
@@ -1148,7 +1148,7 @@ int show_binlogs(THD* thd)
   String *packet = &thd->packet;
   uint length;
 
-  if (!mysql_bin_log.is_open())
+  if (!mysql_bin_log.is_open(1))
   {
     //TODO:  Replace with ER() error message
     send_error(net, 0, "You are not using binary logging");

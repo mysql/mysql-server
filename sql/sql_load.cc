@@ -219,7 +219,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     DBUG_RETURN(-1);				// Can't allocate buffers
   }
 
-  if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+  if (!opt_old_rpl_compat && mysql_bin_log.is_open(1))
   {
     lf_info.thd = thd;
     lf_info.ex = ex;
@@ -281,7 +281,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     if (transactional_table)
       ha_autocommit_or_rollback(thd,error);
-    if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+    if (!opt_old_rpl_compat && mysql_bin_log.is_open(1))
     {
       if (lf_info.wrote_create_file)
       {
@@ -315,7 +315,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (!log_delayed)
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
-  if (mysql_bin_log.is_open())
+  if (mysql_bin_log.is_open(1))
   {
     if (opt_old_rpl_compat)
     {
@@ -607,7 +607,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, String &field_term,
 	cache.read_function = _my_b_net_read;
 
       need_end_io_cache = 1;
-      if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+      if (!opt_old_rpl_compat && mysql_bin_log.is_open(1))
 	cache.pre_read = cache.pre_close =
 	  (IO_CACHE_CALLBACK) log_loaded_block;
     }
