@@ -19,6 +19,9 @@ select mysqltest2.foo.n,mysqltest.bar.m from mysqltest2.foo,mysqltest.bar;
 n	m
 4	15
 drop database mysqltest;
+drop database if exists mysqltest2;
+drop database mysqltest;
+Can't drop database 'mysqltest'. Database doesn't exist
 drop database mysqltest2;
 set sql_log_bin = 0;
 create database mysqltest2;

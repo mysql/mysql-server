@@ -31,8 +31,8 @@ save_master_pos;
 connection slave;
 sync_with_master;
 --error 1008
-drop database mysqltest2;
 drop database mysqltest;
+drop database mysqltest2;
 
 # Now let's test load data from master
 

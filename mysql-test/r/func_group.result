@@ -42,8 +42,8 @@ insert into t1 values (null,null,'');
 select count(distinct a),count(distinct grp) from t1;
 count(distinct a)	count(distinct grp)
 6	3
-select sum(all a),count(all a),avg(all a),std(all a),bit_or(all a),bit_and(all a),min(all a),max(all a),min(all c),max(all c) from t1;
-sum(all a)	count(all a)	avg(all a)	std(all a)	bit_or(all a)	bit_and(all a)	min(all a)	max(all a)	min(all c)	max(all c)
+select sum(all a),count(all a),avg(all a),std(all a),variance(all a),bit_or(all a),bit_and(all a),min(all a),max(all a),min(all c),max(all c) from t1;
+sum(all a)	count(all a)	avg(all a)	std(all a)	variance(all a)	bit_or(all a)	bit_and(all a)	min(all a)	max(all a)	min(all c)	max(all c)
 21	6	3.5000	1.7078	2.9167	7	0	1	6		E
 select grp, sum(a),count(a),avg(a),std(a),variance(a),bit_or(a),bit_and(a),min(a),max(a),min(c),max(c) from t1 group by grp;
 grp	sum(a)	count(a)	avg(a)	std(a)	variance(a)	bit_or(a)	bit_and(a)	min(a)	max(a)	min(c)	max(c)
