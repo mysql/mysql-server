@@ -12,6 +12,11 @@ Created 9/30/1995 Heikki Tuuri
 
 #include "univ.i"
 
+#ifdef UNIV_LINUX
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#endif
+
 typedef void*			os_process_t;
 typedef unsigned long int	os_process_id_t;
 
@@ -26,6 +31,10 @@ typedef ulint		os_awe_t;
 page size of an Intel x86 processor. We cannot use AWE with 2 MB or 4 MB
 pages. */
 #define	OS_AWE_X86_PAGE_SIZE	4096
+
+extern ibool os_use_large_pages;
+/* Large page size. This may be a boot-time option on some platforms */
+extern ulint os_large_page_size;
 
 /********************************************************************
 Windows AWE support. Tries to enable the "lock pages in memory" privilege for
@@ -102,6 +111,25 @@ os_mem_alloc_nocache(
 /*=================*/
 			/* out: allocated memory */
 	ulint	n);	/* in: number of bytes */
+/********************************************************************
+Allocates large pages memory. */
+
+void*
+os_mem_alloc_large(
+/*=================*/
+      /* out: allocated memory */
+	ulint   n,     /* in: number of bytes */
+  ibool   set_to_zero, /* in: TRUE if allocated memory should be set
+          to zero if UNIV_SET_MEM_TO_ZERO is defined */
+  ibool	  assert_on_error); /* in: if TRUE, we crash mysqld if the memory
+          cannot be allocated */
+/********************************************************************
+Frees large pages memory. */
+
+void
+os_mem_free_large(
+/*=================*/
+void    *ptr);  /* in: number of bytes */
 /********************************************************************
 Sets the priority boost for threads released from waiting within the current
 process. */
