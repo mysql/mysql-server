@@ -20,6 +20,8 @@ fld5 char(35) DEFAULT '' NOT NULL,
 fld6 char(4) DEFAULT '' NOT NULL,
 primary key (auto)
 ) ENGINE=blackhole;
+INSERT INTO t2 VALUES (1192,068305,00,'Colombo','hardware','colicky','');
+INSERT INTO t2 VALUES (1193,000000,00,'nondecreasing','implant','thrillingly','');
 select t2.fld3 from t2 where companynr = 58 and fld3 like "%imaginable%";
 fld3
 select fld3 from t2 where fld3 like "%cultivation" ;
@@ -81,3 +83,4 @@ Full-text indexes	are called collections
 Only MyISAM tables	support collections
 select * from t1 where MATCH(a,b) AGAINST ("only");
 a	b
+drop table if exists t1,t2;
