@@ -3893,7 +3893,7 @@ enum options_mysqld
   OPT_INNODB_FILE_PER_TABLE, OPT_CRASH_BINLOG_INNODB,
   OPT_INNODB_LOCKS_UNSAFE_FOR_BINLOG,
   OPT_SAFE_SHOW_DB, OPT_INNODB_SAFE_BINLOG,
-  OPT_INNODB, OPT_ISAM, OPT_NDBCLUSTER, OPT_SKIP_SAFEMALLOC,
+  OPT_INNODB, OPT_ISAM, OPT_NDBCLUSTER, OPT_NDB_CONNECTSTRING, OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
@@ -4318,6 +4318,11 @@ master-ssl",
 Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &opt_ndbcluster, (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
+#ifdef HAVE_NDBCLUSTER_DB
+  {"ndb-connectstring", OPT_NDB_CONNECTSTRING, "Connect string for ndbcluster.",
+   (gptr*) &ndbcluster_connectstring, (gptr*) &ndbcluster_connectstring, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (gptr*) &global_system_variables.new_mode,
    (gptr*) &max_system_variables.new_mode,
@@ -5997,6 +6002,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_ndbcluster=SHOW_OPTION_YES;
     else
       have_ndbcluster=SHOW_OPTION_DISABLED;
+#endif
+    break;
+  case OPT_NDB_CONNECTSTRING:
+#ifdef HAVE_NDBCLUSTER_DB
+    have_ndbcluster=SHOW_OPTION_YES;
 #endif
     break;
   case OPT_INNODB:
