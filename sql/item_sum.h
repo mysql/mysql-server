@@ -387,7 +387,7 @@ class Item_sum_hybrid :public Item_sum
     Item_sum(thd, item), value(item.value), tmp_value(item.tmp_value),
     sum(item.sum), sum_int(item.sum_int), hybrid_type(item.hybrid_type),
     hybrid_field_type(item.hybrid_field_type),cmp_sign(item.cmp_sign), 
-    used_table_cache(item.used_table_cache), cmp_charset(item.cmp_charset) {}
+    used_table_cache(used_table_cache), cmp_charset(item.cmp_charset) {}
   bool fix_fields(THD *, TABLE_LIST *, Item **);
   table_map used_tables() const { return used_table_cache; }
   bool const_item() const { return !used_table_cache; }
