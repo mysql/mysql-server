@@ -755,11 +755,6 @@ innobase_init(void)
 	        srv_set_thread_priorities = TRUE;
 	        srv_query_thread_priority = QUERY_PRIOR;
 	}
-	
-	/* Store the default charset-collation number of this MySQL
-	installation */
-
-	data_mysql_default_charset_coll = (ulint)default_charset_info->number;
 
 	/* Set InnoDB initialization parameters according to the values
 	read from MySQL .cnf file */
@@ -874,6 +869,14 @@ innobase_init(void)
 	srv_max_n_open_files = (ulint) innobase_open_files;
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
+
+		/* Store the default charset-collation number of this MySQL
+	installation */
+
+	data_mysql_default_charset_coll = (ulint)default_charset_info->number;
+
+	data_mysql_latin1_swedish_charset_coll =
+					(ulint)my_charset_latin1.number;
 
 	/* Store the latin1_swedish_ci character ordering table to InnoDB. For
 	non-latin1_swedish_ci charsets we use the MySQL comparison functions,
@@ -3260,7 +3263,6 @@ create_table_def(
   	ulint		nulls_allowed;
 	ulint		unsigned_type;
 	ulint		binary_type;
-	ulint		nonlatin1_type;
 	ulint		charset_no;
   	ulint		i;
 
@@ -3290,17 +3292,8 @@ create_table_def(
 			unsigned_type = 0;
 		}
 
-		if (col_type == DATA_BLOB
-		    && strcmp(field->charset()->name,
-						"latin1_swedish_ci") != 0) {
-			nonlatin1_type = DATA_NONLATIN1;
-		} else {
-		        nonlatin1_type = 0;
-		}
-
 		if (field->binary()) {
 			binary_type = DATA_BINARY_TYPE;
-		        nonlatin1_type = 0;
 		} else {
 			binary_type = 0;
 		}
@@ -3319,7 +3312,7 @@ create_table_def(
 					col_type, dtype_form_prtype( 
 					(ulint)field->type()
 					| nulls_allowed | unsigned_type
-					| nonlatin1_type | binary_type,
+					| binary_type,
 					+ charset_no),
 					field->pack_length(), 0);
 	}
