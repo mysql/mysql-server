@@ -19,7 +19,6 @@
 
 #include "mysql_priv.h"
 #include <mysys_err.h>
-#include "sql_acl.h"
 #include "sp.h"
 #include <my_dir.h>
 #include <m_ctype.h>
@@ -399,7 +398,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
-  // do not create database if another thread is holding read lock
+  /* do not create database if another thread is holding read lock */
   if (wait_if_global_read_lock(thd, 0, 1))
   {
     error= -1;
@@ -522,7 +521,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
-  // do not alter database if another thread is holding read lock
+  /* do not alter database if another thread is holding read lock */
   if ((error=wait_if_global_read_lock(thd,0,1)))
     goto exit2;
 
@@ -549,9 +548,11 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0, 
 			  /* suppress_use */ TRUE);
 
-    // Write should use the database being created as the "current
-    // database" and not the threads current database, which is the
-    // default.
+    /*
+      Write should use the database being created as the "current
+      database" and not the threads current database, which is the
+      default.
+    */
     qinfo.db     = db;
     qinfo.db_len = strlen(db);
 
@@ -595,7 +596,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
-  // do not drop database if another thread is holding read lock
+  /* do not drop database if another thread is holding read lock */
   if (wait_if_global_read_lock(thd, 0, 1))
   {
     error= -1;
@@ -662,10 +663,11 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     {
       Query_log_event qinfo(thd, query, query_length, 0, 
 			    /* suppress_use */ TRUE);
-
-      // Write should use the database being created as the "current
-      // database" and not the threads current database, which is the
-      // default.
+      /*
+        Write should use the database being created as the "current
+        database" and not the threads current database, which is the
+        default.
+      */
       qinfo.db     = db;
       qinfo.db_len = strlen(db);
 
@@ -799,7 +801,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 	found_other_files++;
       continue;
     }
-    // just for safety we use files_charset_info
+    /* just for safety we use files_charset_info */
     if (db && !my_strcasecmp(files_charset_info,
                              extension, reg_ext))
     {

@@ -93,6 +93,21 @@ extern my_bool opt_log_slave_updates;
 extern ulonglong relay_log_space_limit;
 struct st_master_info;
 
+/*
+  3 possible values for MASTER_INFO::slave_running and
+  RELAY_LOG_INFO::slave_running.
+  The values 0,1,2 are very important: to keep the diff small, I didn't
+  substitute places where we use 0/1 with the newly defined symbols. So don't change
+  these values.
+  The same way, code is assuming that in RELAY_LOG_INFO we use only values
+  0/1.
+  I started with using an enum, but
+  enum_variable=1; is not legal so would have required many line changes.
+*/
+#define MYSQL_SLAVE_NOT_RUN         0
+#define MYSQL_SLAVE_RUN_NOT_CONNECT 1
+#define MYSQL_SLAVE_RUN_CONNECT     2
+
 /****************************************************************************
 
   Replication SQL Thread
@@ -248,7 +263,8 @@ typedef struct st_relay_log_info
 
   /* if not set, the value of other members of the structure are undefined */
   bool inited;
-  volatile bool abort_slave, slave_running;
+  volatile bool abort_slave;
+  volatile uint slave_running;
 
   /* 
      Condition and its parameters from START SLAVE UNTIL clause.
@@ -383,7 +399,8 @@ typedef struct st_master_info
   int events_till_abort;
 #endif
   bool inited;
-  volatile bool abort_slave, slave_running;
+  volatile bool abort_slave;
+  volatile uint slave_running;
   volatile ulong slave_run_id;
   /* 
      The difference in seconds between the clock of the master and the clock of
@@ -462,7 +479,7 @@ int terminate_slave_threads(MASTER_INFO* mi, int thread_mask,
 int terminate_slave_thread(THD* thd, pthread_mutex_t* term_mutex,
 			   pthread_mutex_t* cond_lock,
 			   pthread_cond_t* term_cond,
-			   volatile bool* slave_running);
+			   volatile uint* slave_running);
 int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 			MASTER_INFO* mi, const char* master_info_fname,
 			const char* slave_info_fname, int thread_mask);
@@ -475,7 +492,7 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
 		       pthread_mutex_t *cond_lock,
 		       pthread_cond_t* start_cond,
-		       volatile bool *slave_running,
+		       volatile uint *slave_running,
 		       volatile ulong *slave_run_id,
 		       MASTER_INFO* mi,
                        bool high_priority);
@@ -517,7 +534,7 @@ void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...);
 void end_slave(); /* clean up */
 void init_master_info_with_options(MASTER_INFO* mi);
 void clear_until_condition(RELAY_LOG_INFO* rli);
-void clear_slave_error_timestamp(RELAY_LOG_INFO* rli);
+void clear_slave_error(RELAY_LOG_INFO* rli);
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
 		     bool abort_if_no_master_info_file,
