@@ -1833,6 +1833,12 @@ row_drop_table_for_mysql_in_background(
 
 	trx = trx_allocate_for_background();
 
+	/* If the original transaction was dropping a table referenced by
+	foreign keys, we must set the following to be able to drop the
+	table: */
+
+	trx->check_foreigns = FALSE;
+
 /*	fputs("InnoDB: Error: Dropping table ", stderr);
 	ut_print_name(stderr, name);
 	fputs(" in background drop list\n", stderr); */
@@ -1906,16 +1912,16 @@ loop:
 
 	        goto already_dropped;
 	}
-
-	if (table->n_mysql_handles_opened > 0
-				|| table->n_foreign_key_checks_running > 0) {
+							
+	if (DB_SUCCESS != row_drop_table_for_mysql_in_background(
+							drop->table_name)) {
+		/* If the DROP fails for some table, we return, and let the
+		main thread retry later */
 
 		return(n_tables + n_tables_dropped);
 	}
 
 	n_tables_dropped++;
-							
-	row_drop_table_for_mysql_in_background(drop->table_name);
 
 already_dropped:
 	mutex_enter(&kernel_mutex);
