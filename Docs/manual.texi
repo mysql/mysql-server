@@ -48099,6 +48099,12 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
 @item
+InnoDB now supports @code{NULL} in keys.
+@item
+Fixed shutdown problem on HPUX. (Introduced in 3.23.46)
+@item
+Added 'DO expression' command.
+@item
 Fixed core-dump bug in replication when using SELECT RELEASE_LOCK();
 @item
 Added new statement DO expression,[expression].
