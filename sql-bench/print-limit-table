@@ -161,7 +161,7 @@ print_match("Order by and group by","order|having|group");
 print_match("Join methods",'join|subqueries|multi_table|select_table_update');
 print_match("String handling","string|select_constant|quote_with|double_quotes|end_space");
 print_match("Quoting","quote");
-print_match("Name limits","name");
+print_match("Name limits","name","alter");
 print_match("Index limits",'index|primary|unique');
 print_match("Type limits",'char|float|binary|text_size|date|end_space');
 print_match("Expression limits",'expression|conditions|select_limit');

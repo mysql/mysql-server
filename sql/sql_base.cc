@@ -33,8 +33,8 @@ TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
 
 
-static int open_unireg_entry(TABLE *entry,const char *db,const char *name,
-			     const char *alias, bool locked);
+static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
+			     const char *name, const char *alias, bool locked);
 static bool insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
 			  List_iterator<Item> *it);
 static void free_cache_entry(TABLE *entry);
@@ -572,7 +572,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
   pthread_mutex_lock(&LOCK_open);
-  if (open_unireg_entry(table, db, table_name, table_name,0) ||
+  if (open_unireg_entry(thd, table, db, table_name, table_name,0) ||
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
     {
@@ -706,7 +706,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     /* make a new table */
     if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
       DBUG_RETURN(NULL);
-    if (open_unireg_entry(table,db,table_name,alias,0) ||
+    if (open_unireg_entry(thd, table,db,table_name,alias,0) ||
 	!(table->table_cache_key=memdup_root(&table->mem_root,(char*) key,
 					     key_length)))
     {
@@ -816,7 +816,8 @@ bool reopen_table(TABLE *table,bool locked)
   if (!locked)
     VOID(pthread_mutex_lock(&LOCK_open));
 
-  if (open_unireg_entry(&tmp,db,table_name,table->table_name,locked))
+  if (open_unireg_entry(current_thd,&tmp,db,table_name,table->table_name,
+			locked))
     goto end;
   free_io_cache(table);
 
@@ -1110,10 +1111,11 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 **	Purpose : Load a table definition from file and open unireg table
 **	Args	: entry with DB and table given
 **	Returns : 0 if ok
+**	Note that the extra argument for open is taken from thd->open_options
 */
 
-static int open_unireg_entry(TABLE *entry,const char *db,const char *name,
-			     const char *alias, bool locked)
+static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
+			     const char *name, const char *alias, bool locked)
 {
   char path[FN_REFLEN];
   int error;
@@ -1124,10 +1126,8 @@ static int open_unireg_entry(TABLE *entry,const char *db,const char *name,
 	       (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
 		       HA_TRY_READ_ONLY),
 	       READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
-		 ha_open_options,
-		 entry))
+	      thd->open_options, entry))
   {
-    THD *thd=current_thd;
     if (!entry->crashed)
       goto err;					// Can't repair the table
 

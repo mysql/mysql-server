@@ -177,18 +177,19 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	if (!share->w_locks)
 	{
 	  flag=1;
-	  VOID(my_seek(share->kfile,0L,MY_SEEK_SET,MYF(0)));
-	  if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,info->lock_wait))
+	  if (my_lock(share->kfile,lock_type,0L,F_TO_EOF,
+		      info->lock_wait | MY_SEEK_NOT_DONE))
 	  {
 	    error=my_errno;
 	    break;
 	  }
 	  if (!share->r_locks)
 	  {
-	    if (mi_state_info_read_dsk(share->kfile, &share->state, 0))
+	    if (mi_state_info_read_dsk(share->kfile, &share->state, 1))
 	    {
 	      error=my_errno;
-	      VOID(my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,info->lock_wait));
+	      VOID(my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
+			   info->lock_wait | MY_SEEK_NOT_DONE));
 	      my_errno=error;
 	      break;
 	    }

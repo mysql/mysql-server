@@ -39,7 +39,7 @@
 # "3-byte int" or "same as xxx".
 
 
-$version="1.49";
+$version="1.50";
 
 use DBI;
 use Getopt::Long;
@@ -271,8 +271,9 @@ if ($dbh->do("create table crash_q (a integer, b integer,c CHAR(10))"))
   report("Alter table alter column default",'alter_alter_col',
 	 "alter table crash_q alter b set default 10",
 	 "alter table crash_q alter b set default NULL");
-  report("Alter table drop column",'alter_drop_col',
-	 "alter table crash_q drop column b");
+  report_one("Alter table drop column",'alter_drop_col',
+	     [["alter table crash_q drop column b","yes"],
+	      ["alter table crash_q drop column b restrict","with restrict/cascade"]]);
   report("Alter table rename table",'alter_rename_table',
 	 "alter table crash_q rename to crash_q1");
 }
@@ -757,7 +758,7 @@ try_and_report("Automatic rowid", "automatic_rowid",
    ["COS","cos","cos(0)","1.00000",0],
    ["COT","cot","cot(1)","0.64209262",0],
    ["DEGREES","degrees","degrees(6.283185)","360",0],
-   ["EXP","exp","exp(1)","2.718282",0],
+   ["EXP","exp","exp(1.0)","2.718282",0],
    ["FLOOR","floor","floor(2.5)","2",0],
    ["LOG","log","log(2)","0.693147",0],
    ["LOG10","log10","log10(10)","1",0],
@@ -1047,7 +1048,11 @@ if ($limits{'functions'} eq 'yes')
   print "\n";
   report("mixing of integer and float in expression","float_int_expr",
 	 "select 1+1.0 $end_query");
-
+  if ($limits{'func_odbc_exp'} eq 'yes')
+  {
+    report("No need to cast from integer to float",
+	   "dont_require_cast_to_float", "select exp(1) $end_query");
+  }
   check_and_report("Is 1+NULL = NULL","null_num_expr",
 		   [],"select 1+$numeric_null $end_query",[],undef(),4);
   $tmp=sql_concat("'a'",$char_null);
@@ -1269,9 +1274,10 @@ report("temporary tables",'tempoary_table',
        "create temporary table crash_q (q integer not null)",
        "drop table crash_q");
 
-report("create table from select",'create_table_select',
-       "create table crash_q SELECT * from crash_me",
-       "drop table crash_q");
+report_one("create table from select",'create_table_select',
+	   [["create table crash_q SELECT * from crash_me","yes"],
+	    ["create table crash_q AS SELECT * from crash_me","with AS"]]);
+$dbh->do("drop table crash_q");
 
 report("index in create table",'index_in_create',
        "create table crash_q (q integer not null,index (q))",
@@ -1628,9 +1634,9 @@ if (!report("many tables to drop table","multi_drop",
 }
 
 
-report("-- as comment","comment_--",
+report("-- as comment (ANSI)","comment_--",
        "select * from crash_me -- Testing of comments");
-report("// as comment","comment_//",
+report("// as comment (ANSI)","comment_//",
        "select * from crash_me // Testing of comments");
 report("# as comment","comment_#",
        "select * from crash_me # Testing of comments");

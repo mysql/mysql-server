@@ -76,7 +76,7 @@ int pthread_attr_setprio(pthread_attr_t *connect_att,int priority);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
 struct tm *localtime_r(const time_t *timep,struct tm *tmp);
 
-void pthread_exit(unsigned A);	 /* was #define pthread_exit(A) ExitThread(A)*/
+void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 
 #define ETIMEDOUT 145		    /* Win32 doesn't have this */
 #define getpid() GetCurrentThreadId()

@@ -446,7 +446,8 @@ static my_bool execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_REFRESH:
       if (mysql_refresh(mysql,
 			(uint) ~(REFRESH_GRANT | REFRESH_STATUS |
-				 REFRESH_READ_LOCK)) < 0)
+				 REFRESH_READ_LOCK | REFRESH_SLAVE |
+				 REFRESH_MASTER)) < 0)
       {
 	my_printf_error(0,"refresh failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
