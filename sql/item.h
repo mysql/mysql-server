@@ -120,6 +120,7 @@ public:
   longlong val_int()             { return item->val_int(); }
   String* val_str(String* s)     { return item->val_str(s); }
   void make_field(Send_field* f) { item->make_field(f); }
+  bool check_cols(uint col)      { return item->check_cols(col); }
 };
 
 
