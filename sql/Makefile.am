@@ -22,7 +22,7 @@ MYSQLBASEdir=		$(prefix)
 INCLUDES =		@MT_INCLUDES@ @ZLIB_INCLUDES@ \
 			@bdb_includes@ @innodb_includes@ @ndbcluster_includes@ \
 			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
-			-I$(srcdir) $(openssl_includes) -I$(top_srcdir)/extra
+			-I$(srcdir) $(openssl_includes) -I$(top_builddir)/include
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
@@ -115,6 +115,7 @@ DEFS =			-DMYSQL_SERVER \
 # Don't put lex_hash.h in BUILT_SOURCES as this will give infinite recursion
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h
 EXTRA_DIST =		udf_example.cc $(BUILT_SOURCES)
+DISTCLEANFILES =        lex_hash.h
 AM_YFLAGS =		-d
 
 mysql_tzinfo_to_sql.cc:
@@ -159,9 +160,6 @@ sql_lex.o:	lex_hash.h
 # (This is not part of our build process but only provided as an example)
 udf_example.so:	udf_example.cc
 		$(CXXCOMPILE) -shared -o $@ $<
-
-distclean:
-		rm -f lex_hash.h
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
