@@ -25,12 +25,12 @@
 
 void *operator new (size_t sz)
 {
-  return (void *) malloc (sz ? sz+1 : sz);
+  return (void *) malloc (sz ? sz : 1);
 }
 
 void *operator new[] (size_t sz)
 {
-  return (void *) malloc (sz ? sz+1 : sz);
+  return (void *) malloc (sz ? sz : 1);
 }
 
 void operator delete (void *ptr)
