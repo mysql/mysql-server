@@ -1244,6 +1244,7 @@ operator<<(NdbOut& out, const LogLevel & ll)
   for(size_t i = 0; i<LogLevel::LOGLEVEL_CATEGORIES; i++)
     out << ll.getLogLevel((LogLevel::EventCategory)i) << " ";
   out << "]";
+  return out;
 }
 
 void

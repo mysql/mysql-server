@@ -318,3 +318,21 @@ execute stmt;
 a
 drop table t1;
 deallocate prepare stmt;
+create table t1 (a int, b int);
+insert into t1 (a, b) values (1,1), (1,2), (2,1), (2,2);
+prepare stmt from
+"explain select * from t1 where t1.a=2 and t1.a=t1.b and t1.b > 1 + ?";
+set @v=5;
+execute stmt using @v;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-	-	-	-	-	-	-	-	NULL	Impossible WHERE
+set @v=0;
+execute stmt using @v;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-	-	-	-	-	-	-	-	4	Using where
+set @v=5;
+execute stmt using @v;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-	-	-	-	-	-	-	-	NULL	Impossible WHERE
+drop table t1;
+deallocate prepare stmt;
