@@ -1291,10 +1291,7 @@ int cmp_item_row::cmp(Item *arg)
 	return 1;
       was_null= 1;
     }
-  if (!was_null)
-    return 0;
-  arg->null_value= 1;
-  return 1;
+  return (arg->null_value= was_null);
 }
 
 int cmp_item_row::compare(cmp_item *c)
