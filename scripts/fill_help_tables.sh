@@ -203,7 +203,7 @@ sub prepare_name
   $a =~ s/\@command\{((.|\n)+?)\}/$1/go;
   $a =~ s/\@code\{((.|\n)+?)\}/$1/go;
   $a =~ s/\@strong\{(.+?)\}/$1/go;
-  $a =~ s/\@samp\{(.+?)\}/$1/go;
+  $a =~ s/\@samp\{(.+?)\}/'$1'/go;
   $a =~ s/\@emph\{((.|\n)+?)\}/\/$1\//go;
   $a =~ s/\@xref\{((.|\n)+?)\}/See also : [$1]/go;
   $a =~ s/\@ref\{((.|\n)+?)\}/[$1]/go;
@@ -254,7 +254,7 @@ sub prepare_description
   $a =~ s/\@command\{((.|\n)+?)\}/$1/go;
   $a =~ s/\@code\{((.|\n)+?)\}/$1/go;
   $a =~ s/\@strong\{(.+?)\}/$1/go;
-  $a =~ s/\@samp\{(.+?)\}/$1/go;
+  $a =~ s/\@samp\{(.+?)\}/'$1'/go;
   $a =~ s/\@emph\{((.|\n)+?)\}/\/$1\//go;
   $a =~ s/\@xref\{((.|\n)+?)\}/See also : [$1]/go;
   $a =~ s/\@ref\{((.|\n)+?)\}/[$1]/go;
