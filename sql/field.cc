@@ -2569,7 +2569,8 @@ static longlong fix_datetime(longlong nr, TIME *time_res)
   time_res->minute=(int) part2 / 100;
   time_res->second=(int) part2 % 100;
     
-  if (time_res->month <= 12 && time_res->day <= 31 && time_res->hour <= 23 && 
+  if (time_res->year <= 9999 && time_res->month <= 12 && 
+      time_res->day <= 31 && time_res->hour <= 23 && 
       time_res->minute <= 59 && time_res->second <= 59)
     return nr;
   
@@ -2584,7 +2585,7 @@ void Field_timestamp::store(longlong nr)
   TIME l_time;
   time_t timestamp;
 
-  if ((nr=fix_datetime(nr, &l_time)))
+  if ((nr= fix_datetime(nr, &l_time)))
   {
     long not_used;
     
@@ -3432,15 +3433,10 @@ void Field_datetime::store(double nr)
 
 void Field_datetime::store(longlong nr)
 {
-  TIME l_time;
+  TIME not_used;
   
-  nr=fix_datetime(nr, &l_time);
+  nr= fix_datetime(nr, &not_used);
   
-  if (l_time.year > 9999)
-  {
-    nr=0;
-    current_thd->cuted_fields++;
-  }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
