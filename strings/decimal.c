@@ -901,19 +901,26 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
   if (scale >= from->frac)
     goto done; /* nothing to do */
 
-  DBUG_ASSERT(frac0+intg0 > 0);
   buf0+=intg0+frac0-1;
   buf1+=intg0+frac0-1;
   if (scale == frac0*DIG_PER_DEC1)
   {
+    DBUG_ASSERT(frac0+intg0 >= 0);
     x=buf0[1]/DIG_MASK;
     if (x > round_digit ||
-        (round_digit == 5 && x == 5 && (mode == HALF_UP || *buf0 & 1)))
-      (*buf1)++;
+        (round_digit == 5 && x == 5 && (mode == HALF_UP ||
+             (frac0+intg0 > 0 && *buf0 & 1))))
+    {
+      if (frac0+intg0>0)
+        (*buf1)++;
+      else
+        *(++buf1)=DIG_BASE;
+    }
   }
   else
   {
     int pos=frac0*DIG_PER_DEC1-scale-1;
+    DBUG_ASSERT(frac0+intg0 > 0);
     x=*buf1 / powers10[pos];
     y=x % 10;
     if (y > round_digit ||
@@ -942,7 +949,7 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
         scale=frac0*DIG_PER_DEC1;
         error=E_DEC_TRUNCATED; /* XXX */
       }
-      for (buf1=to->buf+frac0+intg0; buf1 > to->buf; buf1--)
+      for (buf1=to->buf+intg0+max(frac0,0); buf1 > to->buf; buf1--)
       {
         buf1[0]=buf1[-1];
       }
@@ -2103,6 +2110,9 @@ main()
   test_ro("15.4",-1,HALF_UP,"20");
   test_ro("-15.4",-1,HALF_UP,"-20");
   test_ro("5.4",-1,HALF_UP,"10");
+  test_ro(".999", 0, HALF_UP, "1");
+  memset(buf2, 33, sizeof(buf2));
+  test_ro("999999999", -9, HALF_UP, "1000000000");
   test_ro("15.1",0,HALF_EVEN,"15");
   test_ro("15.5",0,HALF_EVEN,"16");
   test_ro("14.5",0,HALF_EVEN,"14");
