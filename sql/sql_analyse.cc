@@ -270,7 +270,7 @@ void free_string(String *s)
 void field_str::add()
 {
   char buff[MAX_FIELD_WIDTH], *ptr;
-  String s(buff, sizeof(buff)), *res;
+  String s(buff, sizeof(buff),default_charset_info), *res;
   ulong length;
 
   if (!(res = item->val_str(&s)))
@@ -573,8 +573,9 @@ bool analyse::end_of_records()
 {
   field_info **f = f_info;
   char buff[MAX_FIELD_WIDTH];
-  String *res, s_min(buff, sizeof(buff)), s_max(buff, sizeof(buff)),
-	 ans(buff, sizeof(buff));
+  String *res, s_min(buff, sizeof(buff),default_charset_info), 
+	 s_max(buff, sizeof(buff),default_charset_info),
+	 ans(buff, sizeof(buff),default_charset_info);
 
   for (; f != f_end; f++)
   {
@@ -620,14 +621,14 @@ bool analyse::end_of_records()
 	   ((*f)->tree.elements_in_tree * 3 - 1 + 6))))
     {
       char tmp[331]; //331, because one double prec. num. can be this long
-      String tmp_str(tmp, sizeof(tmp));
+      String tmp_str(tmp, sizeof(tmp),default_charset_info);
       TREE_INFO tree_info;
 
       tree_info.str = &tmp_str;
       tree_info.found = 0;
       tree_info.item = (*f)->item;
 
-      tmp_str.set("ENUM(", 5);
+      tmp_str.set("ENUM(", 5,default_charset_info);
       tree_walk(&(*f)->tree, (*f)->collect_enum(), (char*) &tree_info,
 		left_root_right);
       tmp_str.append(')');
@@ -891,7 +892,7 @@ int collect_real(double *element, element_count count __attribute__((unused)),
 		 TREE_INFO *info)
 {
   char buff[MAX_FIELD_WIDTH];
-  String s(buff, sizeof(buff));
+  String s(buff, sizeof(buff),default_charset_info);
 
   if (info->found)
     info->str->append(',');
@@ -910,7 +911,7 @@ int collect_longlong(longlong *element,
 		     TREE_INFO *info)
 {
   char buff[MAX_FIELD_WIDTH];
-  String s(buff, sizeof(buff));
+  String s(buff, sizeof(buff),default_charset_info);
 
   if (info->found)
     info->str->append(',');
@@ -929,7 +930,7 @@ int collect_ulonglong(ulonglong *element,
 		      TREE_INFO *info)
 {
   char buff[MAX_FIELD_WIDTH];
-  String s(buff, sizeof(buff));
+  String s(buff, sizeof(buff),default_charset_info);
 
   if (info->found)
     info->str->append(',');

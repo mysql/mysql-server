@@ -358,7 +358,7 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
 	    field->field_length)
 	  length=field->field_length;
 	save_chr=pos[length]; pos[length]='\0'; // Safeguard aganst malloc
-	field->store((char*) pos,length);
+	field->store((char*) pos,length,default_charset_info);
 	pos[length]=save_chr;
 	if ((pos+=length) > read_info.row_end)
 	  pos= read_info.row_end;	/* Fills rest with space */
@@ -427,7 +427,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
       }
       field->set_notnull();
       read_info.row_end[0]=0;			// Safe to change end marker
-      field->store((char*) read_info.row_start,length);
+      field->store((char*) read_info.row_start,length,default_charset_info);
     }
     if (read_info.error)
       break;

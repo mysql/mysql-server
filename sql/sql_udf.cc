@@ -412,9 +412,9 @@ int mysql_create_function(THD *thd,udf_func *udf)
     goto err;
 
   restore_record(table,2);		// Get default values for fields
-  table->field[0]->store(u_d->name, u_d->name_length);
+  table->field[0]->store(u_d->name, u_d->name_length, default_charset_info);
   table->field[1]->store((longlong) u_d->returns);
-  table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl));
+  table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl), default_charset_info);
   if (table->fields >= 4)			// If not old func format
     table->field[3]->store((longlong) u_d->type);
   error = table->file->write_row(table->record[0]);

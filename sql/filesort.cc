@@ -77,9 +77,18 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
   SORTPARAM param;
   DBUG_ENTER("filesort");
   DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length,special););
+  CHARSET_INFO *charset=table->table_charset;
+  uint i;
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_PUSH("");		/* No DBUG here */
 #endif
+
+  // BAR TODO: this is not absolutely correct, but OK for now
+  for(i=0;i<table->fields;i++)
+    if (!table->field[i]->binary())
+      charset=((Field_str*)(table->field[i]))->charset();
+  charset=charset?charset:default_charset_info;
+  // /BAR TODO
 
   outfile= table->io_cache;
   my_b_clear(&tempfile);
@@ -129,7 +138,7 @@ ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
     records=param.max_rows;			/* purecov: inspected */
 
 #ifdef USE_STRCOLL
-  if (use_strcoll(default_charset_info) &&
+  if (use_strcoll(charset) &&
       !(param.tmp_buffer=my_malloc(param.sort_length,MYF(MY_WME))))
     goto err;
 #endif
@@ -467,12 +476,10 @@ static void make_sortkey(register SORTPARAM *param,
       switch (sort_field->result_type) {
       case STRING_RESULT:
 	{
-          CHARSET_INFO *cs=item->str_value.charset();
-          
 	  if (item->maybe_null)
 	    *to++=1;
 	  /* All item->str() to use some extra byte for end null.. */
-	  String tmp((char*) to,sort_field->length+4);
+	  String tmp((char*) to,sort_field->length+4,default_charset_info);
 	  String *res=item->val_str(&tmp);
 	  if (!res)
 	  {
@@ -487,6 +494,7 @@ static void make_sortkey(register SORTPARAM *param,
 	    break;
 	  }
 	  length=res->length();
+	  CHARSET_INFO *cs=res->charset();
 	  int diff=(int) (sort_field->length-length);
 	  if (diff < 0)
 	  {
@@ -923,7 +931,6 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
 #ifdef USE_STRCOLL
 	if (!sortorder->field->binary())
 	{
-	  // BAR TODO: need checking that it is really Field_str based class
 	  CHARSET_INFO *cs=((Field_str*)(sortorder->field))->charset();
 	  if (use_strcoll(cs))
 	    sortorder->length= sortorder->length*cs->strxfrm_multiply;

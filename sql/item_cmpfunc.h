@@ -341,7 +341,7 @@ class cmp_item_sort_string :public cmp_item {
   char value_buff[80];
   String value,*value_res;
 public:
-  cmp_item_sort_string() :value(value_buff,sizeof(value_buff)) {}
+  cmp_item_sort_string() :value(value_buff,sizeof(value_buff),default_charset_info) {}
   void store_value(Item *item)
     {
       value_res=item->val_str(&value);
@@ -349,7 +349,7 @@ public:
   int cmp(Item *arg)
     {
       char buff[80];
-      String tmp(buff,sizeof(buff)),*res;
+      String tmp(buff,sizeof(buff),default_charset_info),*res;
       if (!(res=arg->val_str(&tmp)))
 	return 1;				/* Can't be right */
       return sortcmp(value_res,res);
@@ -362,7 +362,7 @@ public:
   int cmp(Item *arg)
     {
       char buff[80];
-      String tmp(buff,sizeof(buff)),*res;
+      String tmp(buff,sizeof(buff),default_charset_info),*res;
       if (!(res=arg->val_str(&tmp)))
 	return 1;				/* Can't be right */
       return stringcmp(value_res,res);

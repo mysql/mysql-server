@@ -89,7 +89,7 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 bool Item::get_date(TIME *ltime,bool fuzzydate)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff)),*res;
+  String tmp(buff,sizeof(buff),default_charset_info),*res;
   if (!(res=val_str(&tmp)) ||
       str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) == TIMESTAMP_NONE)
   {
@@ -107,7 +107,7 @@ bool Item::get_date(TIME *ltime,bool fuzzydate)
 bool Item::get_time(TIME *ltime)
 {
   char buff[40];
-  String tmp(buff,sizeof(buff)),*res;
+  String tmp(buff,sizeof(buff),default_charset_info),*res;
   if (!(res=val_str(&tmp)) ||
       str_to_time(res->ptr(),res->length(),ltime))
   {
@@ -484,14 +484,15 @@ bool Item::save_in_field(Field *field)
       field->result_type() == STRING_RESULT)
   {
     String *result;
+    CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();
     char buff[MAX_FIELD_WIDTH];		// Alloc buffer for small columns
-    str_value.set_quick(buff,sizeof(buff));
+    str_value.set_quick(buff,sizeof(buff),cs);
     result=val_str(&str_value);
     if (null_value)
       return set_field_to_null(field);
     field->set_notnull();
-    field->store(result->ptr(),result->length());
-    str_value.set_quick(0, 0);
+    field->store(result->ptr(),result->length(),cs);
+    str_value.set_quick(0, 0, cs);
   }
   else if (result_type() == REAL_RESULT)
   {
@@ -515,11 +516,12 @@ bool Item::save_in_field(Field *field)
 bool Item_string::save_in_field(Field *field)
 {
   String *result;
+  CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();
   result=val_str(&str_value);
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  field->store(result->ptr(),result->length());
+  field->store(result->ptr(),result->length(),cs);
   return 0;
 }
 
@@ -556,14 +558,14 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
-Item_varbinary::Item_varbinary(const char *str, uint str_length)
+Item_varbinary::Item_varbinary(const char *str, uint str_length, CHARSET_INFO *cs)
 {
   name=(char*) str-2;				// Lex makes this start with 0x
   max_length=(str_length+1)/2;
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
     return;
-  str_value.set(ptr,max_length);
+  str_value.set(ptr,max_length,cs);
   char *end=ptr+max_length;
   if (max_length*2 != str_length)
     *ptr++=char_val(*str++);			// Not even, assume 0 prefix
@@ -590,10 +592,11 @@ longlong Item_varbinary::val_int()
 
 bool Item_varbinary::save_in_field(Field *field)
 {
+  CHARSET_INFO *cs=field->binary()?default_charset_info:((Field_str*)field)->charset();
   field->set_notnull();
   if (field->result_type() == STRING_RESULT)
   {
-    field->store(str_value.ptr(),str_value.length());
+    field->store(str_value.ptr(),str_value.length(),cs);
   }
   else
   {
@@ -617,7 +620,7 @@ bool Item::send(THD *thd, String *packet)
 {
   char buff[MAX_FIELD_WIDTH];
   CONVERT *convert;
-  String s(buff,sizeof(buff)),*res;
+  String s(buff,sizeof(buff),packet->charset()),*res;
   if (!(res=val_str(&s)))
     return net_store_null(packet);
   if ((convert=thd->convert_set))
@@ -676,7 +679,7 @@ Item *resolve_const_item(Item *item,Item *comp_item)
   if (res_type == STRING_RESULT)
   {
     char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff)),*result;
+    String tmp(buff,sizeof(buff),default_charset_info),*result;
     result=item->val_str(&tmp);
     if (item->null_value)
     {
@@ -690,7 +693,7 @@ Item *resolve_const_item(Item *item,Item *comp_item)
 #ifdef DELETE_ITEMS
     delete item;
 #endif
-    return new Item_string(name,tmp_str,length);
+    return new Item_string(name,tmp_str,length,default_charset_info);
   }
   if (res_type == INT_RESULT)
   {
@@ -731,8 +734,8 @@ bool field_is_equal_to_item(Field *field,Item *item)
   {
     char item_buff[MAX_FIELD_WIDTH];
     char field_buff[MAX_FIELD_WIDTH];
-    String item_tmp(item_buff,sizeof(item_buff)),*item_result;
-    String field_tmp(field_buff,sizeof(field_buff));
+    String item_tmp(item_buff,sizeof(item_buff),default_charset_info),*item_result;
+    String field_tmp(field_buff,sizeof(field_buff),default_charset_info);
     item_result=item->val_str(&item_tmp);
     if (item->null_value)
       return 1;					// This must be true

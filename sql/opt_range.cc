@@ -930,7 +930,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   {
     bool like_error;
     char buff1[MAX_FIELD_WIDTH],*min_str,*max_str;
-    String tmp(buff1,sizeof(buff1)),*res;
+    String tmp(buff1,sizeof(buff1),default_charset_info),*res;
     uint length,offset,min_length,max_length;
 
     if (!field->optimize_range((uint) key_part->key))
@@ -2836,7 +2836,7 @@ static void
 print_key(KEY_PART *key_part,const char *key,uint used_length)
 {
   char buff[1024];
-  String tmp(buff,sizeof(buff));
+  String tmp(buff,sizeof(buff),default_charset_info);
 
   for (uint length=0;
        length < used_length ;

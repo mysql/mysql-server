@@ -680,13 +680,16 @@ int GPolygon::centroid_xy(double *x, double *y) const
   uint32 i;
   double res_area, res_cx, res_cy;
   const char *data = m_data;
+  LINT_INIT(res_area);
+  LINT_INIT(res_cx);
+  LINT_INIT(res_cy);
 
   if (no_data(data, 4))
     return 1;
   n_linear_rings = uint4korr(data);
   data += 4;
 
-  for(i = 0; i < n_linear_rings; ++i)
+  for (i = 0; i < n_linear_rings; ++i)
   {
     if (no_data(data, 4))
       return 1;
@@ -720,7 +723,8 @@ int GPolygon::centroid_xy(double *x, double *y) const
     cur_area = fabs(cur_area) / 2;
     cur_cx = cur_cx / (n_points - 1);
     cur_cy = cur_cy / (n_points - 1);
-    if(i)
+
+    if (i)
     {
       double d_area = res_area - cur_area;
       if (d_area <= 0)
@@ -1195,6 +1199,10 @@ int GMultiPolygon::centroid(String *result) const
   double res_area, res_cx, res_cy;
   double cur_area, cur_cx, cur_cy;
 
+  LINT_INIT(res_area);
+  LINT_INIT(res_cx);
+  LINT_INIT(res_cy);
+
   const char *data = m_data;
   if (no_data(data, 4))
     return 1;
@@ -1211,7 +1219,7 @@ int GMultiPolygon::centroid(String *result) const
     if (p.centroid_xy(&cur_cx, &cur_cy))
       return 1;
 
-    if(i)
+    if (i)
     {
       double sum_area = res_area + cur_area;
       res_cx = (res_area * res_cx + cur_area * cur_cx) / sum_area;

@@ -777,7 +777,7 @@ create:
 	    lex->key_list.push_back(new Key($2,$5,$4.str,lex->col_list));
 	    lex->col_list.empty();
 	  }
-	| CREATE DATABASE opt_if_not_exists ident
+	| CREATE DATABASE opt_if_not_exists ident default_charset
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_CREATE_DB;
@@ -1095,8 +1095,31 @@ attribute:
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
 
 opt_binary:
-	/* empty */	{}
-	| BINARY	{ Lex->type|=BINARY_FLAG; }
+	/* empty */		{ Lex->charset=default_charset_info; }
+	| BINARY		{ Lex->type|=BINARY_FLAG; Lex->charset=default_charset_info; }
+	| CHAR_SYM SET ident
+	  {
+	    CHARSET_INFO *cs=get_charset_by_name($3.str,MYF(MY_WME));
+	    if (!cs)
+	    {
+	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$3);
+	      YYABORT;
+	    }
+	    Lex->charset=cs;
+	  }
+
+default_charset:
+	/* empty */			{ Lex->charset-default_charset_info; }
+	| DEFAULT CHAR_SYM SET ident
+	  {
+	    CHARSET_INFO *cs=get_charset_by_name($4.str,MYF(MY_WME));
+	    if (!cs)
+	    {
+	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$4);
+	      YYABORT;
+	    }
+	    Lex->charset=cs;
+	  }
 
 references:
 	REFERENCES table_ident opt_on_delete {}
@@ -1912,7 +1935,7 @@ simple_expr:
 	| SUBSTRING_INDEX '(' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_substr_index($3,$5,$7); }
 	| TRIM '(' expr ')'
-	  { $$= new Item_func_trim($3,new Item_string(" ",1)); }
+	  { $$= new Item_func_trim($3,new Item_string(" ",1,default_charset_info)); }
 	| TRIM '(' LEADING opt_pad FROM expr ')'
 	  { $$= new Item_func_ltrim($6,$4); }
 	| TRIM '(' TRAILING opt_pad FROM expr ')'
@@ -2097,7 +2120,7 @@ when_list2:
 	  }
 
 opt_pad:
-	/* empty */ { $$=new Item_string(" ",1); }
+	/* empty */ { $$=new Item_string(" ",1,default_charset_info); }
 	| expr	    { $$=$1; }
 
 join_table_list:
@@ -2211,11 +2234,11 @@ key_usage_list:
 
 key_usage_list2:
 	key_usage_list2 ',' ident
-        { Select->interval_list.push_back(new String((const char*) $3.str,$3.length)); }
+        { Select->interval_list.push_back(new String((const char*) $3.str,$3.length,default_charset_info)); }
 	| ident
-        { Select->interval_list.push_back(new String((const char*) $1.str,$1.length)); }
+        { Select->interval_list.push_back(new String((const char*) $1.str,$1.length,default_charset_info)); }
 	| PRIMARY_SYM
-        { Select->interval_list.push_back(new String("PRIMARY",7)); }
+        { Select->interval_list.push_back(new String("PRIMARY",7,default_charset_info)); }
 
 using_list:
 	ident
@@ -2822,7 +2845,7 @@ describe_command:
 opt_describe_column:
 	/* empty */	{}
 	| text_string	{ Lex->wild= $1; }
-	| ident		{ Lex->wild= new String((const char*) $1.str,$1.length); }
+	| ident		{ Lex->wild= new String((const char*) $1.str,$1.length,default_charset_info); }
 
 
 /* flush things */
@@ -2990,15 +3013,15 @@ opt_ignore_lines:
 /* Common definitions */
 
 text_literal:
-	TEXT_STRING { $$ = new Item_string($1.str,$1.length); }
+	TEXT_STRING { $$ = new Item_string($1.str,$1.length,default_charset_info); }
 	| text_literal TEXT_STRING
 	{ ((Item_string*) $1)->append($2.str,$2.length); }
 
 text_string:
-	TEXT_STRING	{ $$=  new String($1.str,$1.length); }
+	TEXT_STRING	{ $$=  new String($1.str,$1.length,default_charset_info); }
 	| HEX_NUM
 	  {
-	    Item *tmp = new Item_varbinary($1.str,$1.length);
+	    Item *tmp = new Item_varbinary($1.str,$1.length,default_charset_info);
 	    $$= tmp ? tmp->val_str((String*) 0) : (String*) 0;
 	  }
 
@@ -3011,7 +3034,7 @@ literal:
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
 	| NULL_SYM	{ $$ =	new Item_null();
 			  Lex->next_state=STATE_OPERATOR_OR_IDENT;}
-	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
+	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length,default_charset_info);}
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
 	| TIMESTAMP text_literal { $$ = $2; }
@@ -3738,7 +3761,7 @@ column_list:
 column_list_id:
 	ident
 	{
-	  String *new_str = new String((const char*) $1.str,$1.length);
+	  String *new_str = new String((const char*) $1.str,$1.length,default_charset_info);
 	  List_iterator <LEX_COLUMN> iter(Lex->columns);
 	  class LEX_COLUMN *point;
 	  LEX *lex=Lex;

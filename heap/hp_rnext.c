@@ -47,7 +47,8 @@ int heap_rnext(HP_INFO *info, byte *record)
     }
     if (pos)
     {
-      memcpy(&pos, pos + keyinfo->ref_offs, sizeof(byte*));
+      memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), 
+	     sizeof(byte*));
       info->current_ptr = pos;
     }
     else

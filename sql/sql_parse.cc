@@ -2794,14 +2794,14 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   if (type_modifier & PRI_KEY_FLAG)
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::PRIMARY,NullS,
+    lex->key_list.push_back(new Key(Key::PRIMARY, HA_KEY_ALG_UNDEF, NullS,
 				    lex->col_list));
     lex->col_list.empty();
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
     lex->col_list.push_back(new key_part_spec(field_name,0));
-    lex->key_list.push_back(new Key(Key::UNIQUE,NullS,
+    lex->key_list.push_back(new Key(Key::UNIQUE, HA_KEY_ALG_UNDEF, NullS,
 				    lex->col_list));
     lex->col_list.empty();
   }
@@ -2865,6 +2865,7 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   case FIELD_TYPE_STRING:
   case FIELD_TYPE_VAR_STRING:
   case FIELD_TYPE_NULL:
+  case FIELD_TYPE_GEOMETRY:
     break;
   case FIELD_TYPE_DECIMAL:
     if (!length)

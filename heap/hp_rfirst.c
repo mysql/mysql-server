@@ -31,7 +31,8 @@ int heap_rfirst(HP_INFO *info, byte *record, int inx)
     if ((pos = tree_search_edge(&keyinfo->rb_tree, info->parents,
                                 &info->last_pos, offsetof(TREE_ELEMENT, left))))
     {
-      memcpy(&pos, pos + keyinfo->ref_offs, sizeof(byte*));
+      memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), 
+	     sizeof(byte*));
       info->current_ptr = pos;
       memcpy(record, pos, (size_t)share->reclength);
       info->update = HA_STATE_AKTIV;

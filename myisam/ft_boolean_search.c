@@ -104,7 +104,7 @@ int FTB_WORD_cmp(void *v __attribute__((unused)), FTB_WORD *a, FTB_WORD *b)
 int FTB_WORD_cmp_list(void *v __attribute__((unused)), FTB_WORD **a, FTB_WORD **b)
 {
   /* ORDER BY word DESC, ndepth DESC */
-  int i=_mi_compare_text(default_charset_info, (*b)->word+1,(*b)->len-1,
+  int i= mi_compare_text(default_charset_info, (*b)->word+1,(*b)->len-1,
                                                (*a)->word+1,(*a)->len-1,0);
   if (!i)
     i=CMP_NUM((*b)->ndepth,(*a)->ndepth);
@@ -203,7 +203,7 @@ void  _ftb_init_index_search(FT_INFO *ftb)
                               SEARCH_FIND | SEARCH_BIGGER, keyroot);
     if (!r)
     {
-      r=_mi_compare_text(default_charset_info,
+      r= mi_compare_text(default_charset_info,
                          info->lastkey + (ftbw->flags&FTB_FLAG_TRUNC),
                          ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
                          ftbw->word    + (ftbw->flags&FTB_FLAG_TRUNC),
@@ -359,7 +359,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
                    SEARCH_BIGGER , keyroot);
       if (!r)
       {
-        r=_mi_compare_text(default_charset_info,
+        r= mi_compare_text(default_charset_info,
                            info->lastkey + (ftbw->flags&FTB_FLAG_TRUNC),
                            ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
                            ftbw->word    + (ftbw->flags&FTB_FLAG_TRUNC),
@@ -443,7 +443,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       for (a=0, b=ftb->queue.elements, c=(a+b)/2; b-a>1; c=(a+b)/2)
       {
         ftbw=(FTB_WORD *)(ftb->list[c]);
-        if (_mi_compare_text(default_charset_info, word.pos,word.len,
+        if (mi_compare_text(default_charset_info, word.pos,word.len,
                          (uchar*) ftbw->word+1,ftbw->len-1,
                          (ftbw->flags&FTB_FLAG_TRUNC) ) >0)
           b=c;
@@ -453,7 +453,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       for (; c>=0; c--)
       {
         ftbw=(FTB_WORD *)(ftb->list[c]);
-        if (_mi_compare_text(default_charset_info, word.pos,word.len,
+        if (mi_compare_text(default_charset_info, word.pos,word.len,
                          (uchar*) ftbw->word+1,ftbw->len-1,
                          (ftbw->flags&FTB_FLAG_TRUNC) ))
           break;
