@@ -2390,8 +2390,9 @@ ha_innobase::write_row(
 		same SQL statement! */
 
 		if (auto_inc == 0 && user_thd->next_insert_id != 0) {
-		        auto_inc = user_thd->next_insert_id;
-		        auto_inc_counter_for_this_stat = auto_inc;
+
+		        auto_inc_counter_for_this_stat
+						= user_thd->next_insert_id;
 		}
 
 		if (auto_inc == 0 && auto_inc_counter_for_this_stat) {
@@ -2399,14 +2400,14 @@ ha_innobase::write_row(
 			this SQL statement with SET INSERT_ID. We must
 			assign sequential values from the counter. */
 
-			auto_inc_counter_for_this_stat++;
-			incremented_auto_inc_for_stat = TRUE;
-
 			auto_inc = auto_inc_counter_for_this_stat;
 
 			/* We give MySQL a new value to place in the
 			auto-inc column */
 			user_thd->next_insert_id = auto_inc;
+
+			auto_inc_counter_for_this_stat++;
+			incremented_auto_inc_for_stat = TRUE;
 		}
 
 		if (auto_inc != 0) {
