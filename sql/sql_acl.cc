@@ -139,6 +139,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   READ_RECORD read_record_info;
   MYSQL_LOCK *lock;
   my_bool return_val=1;
+  bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
+
   DBUG_ENTER("acl_init");
 
   if (!acl_cache)
@@ -198,6 +200,13 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     host.access= get_access(table,2);
     host.access= fix_rights_for_db(host.access);
     host.sort=	 get_sort(2,host.host.hostname,host.db);
+    if (check_no_resolve && hostname_requires_resolving(host.host.hostname))
+    {
+      sql_print_error("Error in table 'host' entry '%s|%s'. "
+		      "Can't resolve '%s' if --skip-name-resolve active. Skipped",
+		      host.host.hostname, host.db, host.host.hostname);
+      continue;
+    }
 #ifndef TO_BE_REMOVED
     if (table->fields ==  8)
     {						// Without grant
@@ -259,6 +268,14 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     ACL_USER user;
     update_hostname(&user.host, get_field(&mem, table->field[0]));
     user.user= get_field(&mem, table->field[1]);
+    if (check_no_resolve && hostname_requires_resolving(user.host.hostname))
+    {
+      sql_print_error("Error in table 'user' entry '%s@%s'. "
+		      "Can't resolve '%s' if --skip-name-resolve active. Skipped",
+		      user.user, user.host.hostname, user.host.hostname);
+      continue;
+    }
+
     const char *password= get_field(&mem, table->field[2]);
     uint password_len= password ? strlen(password) : 0;
     set_user_salt(&user, password, password_len);
@@ -353,6 +370,13 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
       continue;
     }
     db.user=get_field(&mem, table->field[2]);
+    if (check_no_resolve && hostname_requires_resolving(db.host.hostname))
+    {
+      sql_print_error("Error in table 'db' entry '%s %s@%s'. "
+		      "Can't resolve '%s' if --skip-name-resolve active. Skipped",
+		      db.db, db.user, db.host.hostname, db.host.hostname);
+      continue;
+    }
     db.access=get_access(table,3);
     db.access=fix_rights_for_db(db.access);
     db.sort=get_sort(3,db.host.hostname,db.db,db.user);
@@ -1257,6 +1281,25 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
 	  (ip && !wild_compare(ip,host->hostname,0)));
 }
 
+bool hostname_requires_resolving(const char *hostname)
+{
+  char cur;
+  if (!hostname)
+    return false;
+  int namelen= strlen(hostname);
+  int lhlen= strlen(my_localhost);
+  if ((namelen == lhlen) &&
+      !my_strnncoll(&my_charset_latin1, (const uchar *)hostname,  namelen,
+		    (const uchar *)my_localhost, strlen(my_localhost)))
+    return false;
+  for (; (cur=*hostname); hostname++)
+  {
+    if ((cur != '%') && (cur != '_') && (cur != '.') &&
+	((cur < '0') || (cur > '9')))
+      return true;
+  }
+  return false;
+}
 
 /*
   Update grants in the user and database privilege tables
@@ -2444,6 +2487,7 @@ my_bool grant_init(THD *org_thd)
   MYSQL_LOCK *lock;
   my_bool return_val= 1;
   TABLE *t_table, *c_table;
+  bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   DBUG_ENTER("grant_init");
 
   grant_option = FALSE;
@@ -2493,11 +2537,29 @@ my_bool grant_init(THD *org_thd)
   do
   {
     GRANT_TABLE *mem_check;
-    if (!(mem_check=new GRANT_TABLE(t_table,c_table)) ||
-	mem_check->ok() && my_hash_insert(&column_priv_hash,(byte*) mem_check))
+    if (!(mem_check=new GRANT_TABLE(t_table,c_table)) || mem_check->ok())
     {
       /* This could only happen if we are out memory */
       grant_option= FALSE;			/* purecov: deadcode */
+      goto end_unlock;
+    }
+
+    if (check_no_resolve)
+    {
+      if (hostname_requires_resolving(mem_check->host))
+      {
+	char buff[MAX_FIELD_WIDTH];
+	sql_print_error("Error in table 'tables_priv' entry '%s %s@%s'. "
+			"Can't resolve '%s' if --skip-name-resolve active. Skipped",
+			mem_check->tname, mem_check->user, 
+			mem_check->host, mem_check->host);
+	continue;
+      }
+    }
+
+    if (my_hash_insert(&column_priv_hash,(byte*) mem_check))
+    {
+      grant_option= FALSE;
       goto end_unlock;
     }
   }
