@@ -334,53 +334,6 @@ static bool setup_params_data(PREP_STMT *stmt)
 }
 
 /*
-  Validates insert fields                                    
-*/
-
-static int check_prepare_fields(THD *thd,TABLE *table, List<Item> &fields,
-				List<Item> &values, ulong counter)
-{
-  if (fields.elements == 0 && values.elements != 0)
-  {
-    if (values.elements != table->fields)
-    {
-      my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
-		      ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-		      MYF(0),counter);
-      return -1;
-    }
-  }
-  else
-  {           
-    if (fields.elements != values.elements)
-    {
-      my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
-		      ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-		      MYF(0),counter);
-      return -1;
-    }
-    TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
-    table_list.db=  table->table_cache_key;
-    table_list.real_name= table_list.alias= table->table_name;
-    table_list.table= table;
-    table_list.grant= table->grant;
-
-    thd->dupp_field=0;
-    if (setup_tables(&table_list) ||
-	setup_fields(thd,&table_list,fields,1,0,0))
-      return -1;
-    if (thd->dupp_field)
-    {
-      my_error(ER_FIELD_SPECIFIED_TWICE,MYF(0), thd->dupp_field->field_name);
-      return -1;
-    }
-  }
-  return 0;
-}
-
-
-/*
   Validate the following information for INSERT statement:                         
     - field existance           
     - fields count                          
@@ -517,21 +470,6 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
       send_item_params(stmt))
     DBUG_RETURN(1);
   DBUG_RETURN(0);  
-}
-
-
-/*
-  Check the access privileges
-*/
-
-static bool check_prepare_access(THD *thd, TABLE_LIST *tables,
-                                 uint type)
-{
-  if (check_access(thd,type,tables->db,&tables->grant.privilege))
-    return 1; 
-  if (grant_option && check_grant(thd,type,tables))
-    return 1;
-  return 0;
 }
 
 /*
