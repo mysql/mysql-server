@@ -26,7 +26,7 @@
 #define CHECK(b) if (!(b)) { \
   g_err << "ERR: "<< step->getName() \
          << " failed on line " << __LINE__ << endl; \
-  result = NDBT_FAILED; \
+  result = NDBT_FAILED; break;\
 } 
 
 
