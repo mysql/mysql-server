@@ -299,6 +299,7 @@ my_bool opt_innodb_safe_binlog= 0;
 my_bool opt_large_pages= 0;
 uint   opt_large_page_size= 0;
 volatile bool mqh_used = 0;
+my_bool sp_automatic_privileges= 1;
 
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint delay_key_write_options, protocol_version;
@@ -4199,6 +4200,7 @@ enum options_mysqld
   OPT_OPTIMIZER_SEARCH_DEPTH,
   OPT_OPTIMIZER_PRUNE_LEVEL,
   OPT_UPDATABLE_VIEWS_WITH_LIMIT,
+  OPT_SP_AUTOMATIC_PRIVILEGES,
   OPT_AUTO_INCREMENT, OPT_AUTO_INCREMENT_OFFSET,
   OPT_ENABLE_LARGE_PAGES
 };
@@ -4229,6 +4231,10 @@ struct my_option my_long_options[] =
    (gptr*) &global_system_variables.auto_increment_offset,
    (gptr*) &max_system_variables.auto_increment_offset, 0, GET_ULONG, OPT_ARG,
    1, 1, 65535, 0, 1, 0 },
+  {"automatic-sp-privileges", OPT_SP_AUTOMATIC_PRIVILEGES,
+   "Creating and dropping stored procedures alters ACLs. Disable with --skip-automatic-sp-privileges.",
+   (gptr*) &sp_automatic_privileges, (gptr*) &sp_automatic_privileges,
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"basedir", 'b',
    "Path to installation directory. All paths are usually resolved relative to this.",
    (gptr*) &mysql_home_ptr, (gptr*) &mysql_home_ptr, 0, GET_STR, REQUIRED_ARG,
@@ -6128,6 +6134,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
     myisam_concurrent_insert=0;
     myisam_recover_options= HA_RECOVER_NONE;
+    sp_automatic_privileges=0;
     my_use_symdir=0;
     ha_open_options&= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
 #ifdef HAVE_QUERY_CACHE

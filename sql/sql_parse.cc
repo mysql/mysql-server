@@ -69,7 +69,6 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
-static bool check_sp_definer_access(THD *thd, sp_head *sp);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -3495,15 +3494,30 @@ create_error:
     }
     if (first_table)
     {
-      if (grant_option && check_grant(thd,
-				      (lex->grant | lex->grant_tot_col |
-				       GRANT_ACL),
-				      all_tables, 0, UINT_MAX, 0))
-	goto error;
-      if (!(res = mysql_table_grant(thd, all_tables, lex->users_list,
-				    lex->columns, lex->grant,
-				    lex->sql_command == SQLCOM_REVOKE)) &&
-          mysql_bin_log.is_open())
+      if (!lex->columns.elements && 
+          sp_exists_routine(thd, all_tables, 1, 1))
+      {
+        uint grants= lex->all_privileges 
+		   ? (PROC_ACLS & ~GRANT_ACL) | (lex->grant & GRANT_ACL)
+		   : lex->grant;
+        if (grant_option && 
+	    check_grant_procedure(thd, grants | GRANT_ACL, all_tables, 0))
+	  goto error;
+        res= mysql_procedure_grant(thd, all_tables, lex->users_list,
+				   grants, lex->sql_command == SQLCOM_REVOKE,0);
+      }
+      else
+      {
+	if (grant_option && check_grant(thd,
+					(lex->grant | lex->grant_tot_col |
+					 GRANT_ACL),
+					all_tables, 0, UINT_MAX, 0))
+	  goto error;
+        res= mysql_table_grant(thd, all_tables, lex->users_list,
+			       lex->columns, lex->grant,
+			       lex->sql_command == SQLCOM_REVOKE);
+      }
+      if (!res && mysql_bin_log.is_open())
       {
         thd->clear_error();
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
@@ -3705,17 +3719,23 @@ create_error:
   case SQLCOM_CREATE_SPFUNCTION:
   {
     uint namelen;
-    char *name;
+    char *name, *db;
     int result;
 
     DBUG_ASSERT(lex->sphead);
 
-    if (! lex->sphead->m_db.str)
+    if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str, 0, 0, 0))
     {
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
       delete lex->sphead;
       lex->sphead= 0;
       goto error;
+    }
+    
+    if (!lex->sphead->m_db.str || !lex->sphead->m_db.str[0])
+    {
+      lex->sphead->m_db.length= strlen(thd->db);
+      lex->sphead->m_db.str= strmake_root(thd->mem_root, thd->db, 
+      					   lex->sphead->m_db.length);
     }
 
     name= lex->sphead->name(&namelen);
@@ -3742,13 +3762,26 @@ create_error:
       goto error;
     }
 
+    name= thd->strdup(name); 
+    db= thd->strmake(lex->sphead->m_db.str, lex->sphead->m_db.length);
     res= (result= lex->sphead->create(thd));
     switch (result) {
     case SP_OK:
-      send_ok(thd);
       lex->unit.cleanup();
       delete lex->sphead;
       lex->sphead= 0;
+      /* only add privileges if really neccessary */
+      if (sp_automatic_privileges &&
+          check_procedure_access(thd, DEFAULT_CREATE_PROC_ACLS,
+      				 db, name, 1))
+      {
+        close_thread_tables(thd);
+        if (sp_grant_privileges(thd, db, name))
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+	  	       ER_PROC_AUTO_GRANT_FAIL,
+		       ER(ER_PROC_AUTO_GRANT_FAIL));
+      }
+      send_ok(thd);
       break;
     case SP_WRITE_ROW_FAILED:
       my_error(ER_SP_ALREADY_EXISTS, MYF(0), SP_TYPE_STRING(lex), name);
@@ -3815,7 +3848,26 @@ create_error:
 	}
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+	if (check_procedure_access(thd, EXECUTE_ACL, 
+				   sp->m_db.str, sp->m_name.str, 0))
+	{
+#ifndef EMBEDDED_LIBRARY
+	  thd->net.no_send_ok= nsok;
+#endif
+	  goto error;
+	}
 	sp_change_security_context(thd, sp, &save_ctx);
+	if (save_ctx.changed && 
+	    check_procedure_access(thd, EXECUTE_ACL, 
+				   sp->m_db.str, sp->m_name.str, 0))
+	{
+#ifndef EMBEDDED_LIBRARY
+	  thd->net.no_send_ok= nsok;
+#endif
+	  sp_restore_security_context(thd, sp, &save_ctx);
+	  goto error;
+	}
+
 #endif
 	select_limit= thd->variables.select_limit;
 	thd->variables.select_limit= HA_POS_ERROR;
@@ -3861,8 +3913,9 @@ create_error:
 	result= SP_KEY_NOT_FOUND;
       else
       {
-	if (check_sp_definer_access(thd, sp))
-          goto error;
+        if (check_procedure_access(thd, ALTER_PROC_ACL, sp->m_db.str, 
+				  sp->m_name.str, 0))
+	  goto error;
 	memcpy(&lex->sp_chistics, &chistics, sizeof(lex->sp_chistics));
 	if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
 	  result= sp_update_procedure(thd, lex->spname, &lex->sp_chistics);
@@ -3890,6 +3943,7 @@ create_error:
     {
       sp_head *sp;
       int result;
+      char *db, *name;
 
       if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
 	sp= sp_find_procedure(thd, lex->spname);
@@ -3898,8 +3952,17 @@ create_error:
       mysql_reset_errors(thd);
       if (sp)
       {
-	if (check_sp_definer_access(thd, sp))
+        db= thd->strdup(sp->m_db.str);
+	name= thd->strdup(sp->m_name.str);
+	if (check_procedure_access(thd, ALTER_PROC_ACL, db, name, 0))
           goto error;
+	if (sp_automatic_privileges &&
+	    sp_revoke_privileges(thd, db, name))
+	{
+	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+		       ER_PROC_AUTO_REVOKE_FAIL,
+		       ER(ER_PROC_AUTO_REVOKE_FAIL));
+	}
 	if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
 	  result= sp_drop_procedure(thd, lex->spname);
 	else
@@ -4208,7 +4271,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   /* grant_option is set if there exists a single table or column grant */
   if (db_access == want_access ||
       (grant_option && !dont_check_global_grants &&
-       !(want_access & ~(db_access | TABLE_ACLS))))
+       !(want_access & ~(db_access | TABLE_ACLS | PROC_ACLS))))
     DBUG_RETURN(FALSE);				/* Ok */
 
   DBUG_PRINT("error",("Access denied"));
@@ -4304,6 +4367,28 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 }
 
 
+bool
+check_procedure_access(THD *thd, ulong want_access,char *db, char *name,
+		       bool no_errors)
+{
+  TABLE_LIST tables[1];
+  
+  bzero((char *)tables, sizeof(TABLE_LIST));
+  tables->db= db;
+  tables->real_name= tables->alias= name;
+  
+  if ((thd->master_access & want_access) == want_access && !thd->db)
+    tables->grant.privilege= want_access;
+  else if (check_access(thd,want_access,db,&tables->grant.privilege,
+			0, no_errors))
+    return TRUE;
+  
+  if (grant_option)
+    return check_grant_procedure(thd, want_access, tables, no_errors);
+
+  return FALSE;
+}
+
 /*
   Check if the given table has any of the asked privileges
 
@@ -4374,40 +4459,6 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables)
     }
   }
   return FALSE;
-}
-
-
-/*
-  Check if the given SP is owned by thd->priv_user/host, or priv_user is root.
-  QQ This is not quite complete, but it will do as a basic security check
-     for now. The question is exactly which rights should 'root' have?
-     Should root have access regardless of host for instance?
-
-  SYNOPSIS
-    check_sp_definer_access()
-    thd		 Thread handler
-    sp           The SP pointer
-
-  RETURN
-    0  ok
-    1  error     Error message has been sent
-*/
-
-static bool
-check_sp_definer_access(THD *thd, sp_head *sp)
-{
-  LEX_STRING *usr, *hst;
-
-  if (strcmp("root", thd->priv_user) == 0)
-    return FALSE;		/* QQ Any root is ok now */
-  usr= &sp->m_definer_user;
-  hst= &sp->m_definer_host;
-  if (strncmp(thd->priv_user, usr->str, usr->length) == 0 &&
-      strncmp(thd->priv_host, hst->str, hst->length) == 0)
-    return FALSE;		/* Both user and host must match */
-
-  my_error(ER_SP_ACCESS_DENIED_ERROR, MYF(0), sp->m_qname.str);
-  return TRUE;			/* Not definer or root */
 }
 
 

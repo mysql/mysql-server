@@ -287,25 +287,25 @@ connect (con1,localhost,mysqltest_1,,mysqltest);
 connection con1;
 select * from t1;
 show create database mysqltest;
---error 1044
+--error 1142
 drop table t1;
 --error 1044
 drop database mysqltest;
 
 connect (con2,localhost,mysqltest_2,,test);
 connection con2;
---error 1044
+--error 1142
 select * from mysqltest.t1;
 --error 1044
 show create database mysqltest;
---error 1044
+--error 1142
 drop table mysqltest.t1;
 --error 1044
 drop database mysqltest;
 
 connect (con3,localhost,mysqltest_3,,test);
 connection con3;
---error 1044
+--error 1142
 select * from mysqltest.t1;
 --error 1044
 show create database mysqltest;
