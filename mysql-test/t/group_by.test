@@ -40,6 +40,7 @@ SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
 SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
 SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
+EXPLAIN SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
 drop table test.t1,test.t2;
 
 #
@@ -236,7 +237,7 @@ CREATE TABLE t1 (
   key (score)
 );
 
-INSERT INTO t1 VALUES (1,1,1),(2,2,2),(2,1,1),(3,3,3),(4,3,3),(5,3,3);
+INSERT INTO t1 VALUES (1,1,1),(2,2,2),(2,1,1),(3,3,3),(4,3,3),(5,3,3),(6,3,3),(7,3,3);
 explain select userid,count(*) from t1 group by userid desc;
 explain select userid,count(*) from t1 group by userid desc order by null;
 select userid,count(*) from t1 group by userid desc;
@@ -255,8 +256,6 @@ explain select sql_big_result score,count(*) from t1 group by score desc order b
 select sql_big_result score,count(*) from t1 group by score desc;
 drop table t1;
 
-#
-
 # not purely group_by bug, but group_by is involved...
 
 create table t1 (a date default null, b date default null);
@@ -265,7 +264,6 @@ select a,min(b) c,count(distinct rand()) from t1 group by a having c<a + interva
 drop table t1;
 
 # Compare with hash keys
-#
 
 CREATE TABLE t1 (a char(1));
 INSERT INTO t1 VALUES ('A'),('B'),('A'),('B'),('A'),('B'),(NULL),('a'),('b'),(NULL),('A'),('B'),(NULL);
@@ -401,15 +399,7 @@ drop table t1,t2;
 #
 
 create table t1 (a int, b int);
-insert into t1 values (1, 4);
-insert into t1 values (10, 40);
-insert into t1 values (1, 4);
-insert into t1 values (10, 43);
-insert into t1 values (1, 4);
-insert into t1 values (10, 41);
-insert into t1 values (1, 4);
-insert into t1 values (10, 43);
-insert into t1 values (1, 4);
+insert into t1 values (1, 4),(10, 40),(1, 4),(10, 43),(1, 4),(10, 41),(1, 4),(10, 43),(1, 4);
 select a, MAX(b), INTERVAL (MAX(b), 1,3,10,30,39,40,50,60,100,1000) from t1 group by a;
 select a, MAX(b), CASE MAX(b) when 4 then 4 when 43 then 43 else 0 end from t1 group by a;
 select a, MAX(b), FIELD(MAX(b), '43', '4', '5') from t1 group by a;
