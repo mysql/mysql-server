@@ -1274,7 +1274,8 @@ innobase_convert_and_store_changed_col(
 
 	if (len == UNIV_SQL_NULL) {
 		data = NULL;
-	} else if (col_type == DATA_VARCHAR) {
+	} else if (col_type == DATA_VARCHAR || col_type == DATA_BINARY
+		   || col_type == DATA_VARMYSQL) {
 	        /* Remove trailing spaces */
         	while (len > 0 && data[len - 1] == ' ') {
 	                len--;
@@ -1340,12 +1341,12 @@ calc_row_difference(
 	for (i = 0; i < n_fields; i++) {
 		field = table->field[i];
 
-		if (thd->query_id != field->query_id) {
+		/* if (thd->query_id != field->query_id) { */
 			/* TODO: check that these fields cannot have
 			changed! */
 
-			goto skip_field;
-		}
+		/*	goto skip_field;
+		}*/
 
 		o_ptr = (byte*) old_row + get_field_offset(table, field);
 		n_ptr = (byte*) new_row + get_field_offset(table, field);
@@ -1398,7 +1399,6 @@ calc_row_difference(
 					(prebuilt->table->cols + i)->clust_pos;
 			n_changed++;
 		}
-skip_field:
 		;
 	}
 
