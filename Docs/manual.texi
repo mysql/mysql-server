@@ -3823,23 +3823,21 @@ version yourself.  However, in this case we would like you to purchase
 * Contact information::         Contact information
 @end menu
 
-Our current license prices are shown below. These prices are now under
-review because of the change to a GPL copyright.  New prices and terms
-will be posted on the @strong{MySQL} web site at @uref{http://www.mysql.com/}
-as soon as they are ready.
+Our current license prices are shown below. To make a purchase, please visit
+@uref{https://order.mysql.com/}.
 
 If you pay by credit card, the currency is EURO (European Union Euro) so the
 prices will differ slightly.
 
 @multitable @columnfractions .3 .3 .3
 @item @strong{Number of licenses} @tab @strong{Per copy}
-@item 1-9                @tab 230.00 EURO
-@item 10-24              @tab 138.00 EURO
-@item 25-49              @tab 117.00 EURO
-@item 50-99              @tab 102.00 EURO
-@item 100-249            @tab  91.00 EURO
-@item 250-499            @tab  76.00 EURO
-@item 500-999            @tab  65.50 EURO
+@item 1-9                @tab 230 EURO
+@item 10-24              @tab 138 EURO
+@item 25-49              @tab 117 EURO
+@item 50-99              @tab 102 EURO
+@item 100-249            @tab  91 EURO
+@item 250-499            @tab  76 EURO
+@item 500-999            @tab  66 EURO
 @end multitable
 
 For high volume (OEM) purchases, please contact @email{sales@mysql.com}.
