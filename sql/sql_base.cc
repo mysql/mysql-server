@@ -1791,12 +1791,13 @@ bool rm_temporary_table(enum db_type base, char *path)
 
 Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
                            bool check_grants, bool allow_rowid, 
-                           int *cached_field_index_ptr)
+                           uint *cached_field_index_ptr)
 {
-  Field **field_ptr= 0, *field;
-  int cached_field_index= *cached_field_index_ptr;
+  Field **field_ptr, *field;
+  uint cached_field_index= *cached_field_index_ptr;
 
-  if (cached_field_index >= 0 && cached_field_index < table->fields &&
+  /* We assume here that table->field < NO_CACHED_FIELD_INDEX = UINT_MAX */
+  if (cached_field_index < table->fields &&
       !my_strcasecmp(system_charset_info, 
                      table->field[cached_field_index]->field_name, name))
       field_ptr= table->field + cached_field_index;
@@ -1805,14 +1806,11 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
                                     length);
   else
   {
-    if (!(field_ptr=table->field))
+    if (!(field_ptr= table->field))
       return (Field *)0;
-    while (*field_ptr)
-    {
+    for (; *field_ptr; ++field_ptr)
       if (!my_strcasecmp(system_charset_info, (*field_ptr)->field_name, name))
         break;
-      ++field_ptr;
-    }
   }
 
   if (field_ptr && *field_ptr)
@@ -1882,6 +1880,31 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   uint length=(uint) strlen(name);
   char name_buff[NAME_LEN+1];
 
+
+  if (item->cached_table)
+  {
+    /*
+      This shortcut is used by prepared statements. We assuming that 
+      TABLE_LIST *tables is not changed during query execution (which 
+      is true for all queries except RENAME but luckily RENAME doesn't 
+      use fields...) so we can rely on reusing pointer to its member.
+      With this optimisation we also miss case when addition of one more
+      field makes some prepared query ambiguous and so erronous, but we 
+      accept this trade off.
+    */
+    found= find_field_in_table(thd,tables->table,name,length,
+                               test(tables->table->grant.want_privilege),
+                               1, &(item->cached_field_index));
+
+    if (found)
+    {
+      (*where)= tables;
+      if (found == WRONG_GRANT)
+        return (Field*) 0;
+      return found;
+    }
+  }
+
   if (db && lower_case_table_names)
   {
     /*
@@ -1909,7 +1932,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 					1, &(item->cached_field_index));
 	if (find)
 	{
-	  (*where)= tables;
+	  (*where)= item->cached_table= tables;
 	  if (find == WRONG_GRANT)
 	    return (Field*) 0;
 	  if (db || !thd->where)
@@ -1968,7 +1991,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     {
       if (field == WRONG_GRANT)
 	return (Field*) 0;
-      (*where)= tables;
+      (*where)= item->cached_table= tables;
       if (found)
       {
 	if (!thd->where)			// Returns first found
@@ -2304,7 +2327,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
       thd->used_tables|=table->map;
       while ((field = *ptr++))
       {
-	Item_field *item= new Item_field(field);
+	Item_field *item= new Item_field(thd, field);
 	if (!found++)
 	  (void) it->replace(item);		// Replace '*'
 	else

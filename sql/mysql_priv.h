@@ -559,7 +559,7 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 			    TABLE_LIST **where, bool report_error);
 Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
                            bool check_grant,bool allow_rowid,
-                           int *cached_field_index_ptr);
+                           uint *cached_field_index_ptr);
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 struct st_des_keyblock
