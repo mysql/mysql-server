@@ -2382,7 +2382,7 @@ static int my_vsnprintf_ucs2(char *dst, uint n, const char* fmt, va_list ap)
       plen = (uint) strlen(par);
       if (left_len <= plen*2)
 	plen = left_len/2 - 1;
-      dst=strnmov(dst,par,plen);
+
       for ( ; plen ; plen--, dst++, par++)
       {
         dst[0]='\0';
@@ -2400,9 +2400,9 @@ static int my_vsnprintf_ucs2(char *dst, uint n, const char* fmt, va_list ap)
 	break;
       iarg = va_arg(ap, int);
       if (*fmt == 'd')
-	dst=int10_to_str((long) iarg, nbuf, -10);
+	int10_to_str((long) iarg, nbuf, -10);
       else
-	dst=int10_to_str((long) (uint) iarg,nbuf,10);
+	int10_to_str((long) (uint) iarg,nbuf,10);
 
       for (; pbuf[0]; pbuf++)
       {
