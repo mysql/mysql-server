@@ -4040,12 +4040,9 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
   }
   MI_CREATE_INFO create_info;
   bzero((char*) &create_info,sizeof(create_info));
-  if ((options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) !=
-      SELECT_SMALL_RESULT)
-  {
+  if ((options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
+      OPTION_BIG_TABLES)
     create_info.data_file_length= ~(ulonglong) 0;
-    create_info.max_rows= ~(ulonglong) 0;
-  }
 
   if ((error=mi_create(table->real_name,table->keys,&keydef,
 		       (uint) (param->recinfo-param->start_recinfo),
