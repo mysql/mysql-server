@@ -1370,19 +1370,37 @@ create_function_tail:
 	  RETURNS_SYM
 	  {
 	    LEX *lex= Lex;
-	    sp_head *sp= lex->sphead;
-
-	    sp->m_returns_begin= lex->tok_start;
-	    sp->m_returns_cs= lex->charset= NULL;
+	    lex->charset= NULL;
+	    lex->length= lex->dec= NULL;
+	    lex->interval_list.empty();
+	    lex->type= 0;
 	  }
 	  type
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
+            LEX_STRING cmt = { 0, 0 };
+	    create_field *new_field;
+	    uint unused1= 0;
+	    int unused2= 0;
 
-	    sp->m_returns_end= lex->tok_start;
-	    sp->m_returns= (enum enum_field_types)$8;
-	    sp->m_returns_cs= lex->charset;
+	    if (!(new_field= new_create_field(YYTHD, "", (enum enum_field_types)$8,
+			  lex->length, lex->dec, lex->type,
+			  (Item *)0, (Item *) 0, &cmt, 0, &lex->interval_list, 
+			  (lex->charset ? lex->charset : default_charset_info),
+			  lex->uint_geom_type)))
+	      YYABORT;
+
+	    if (prepare_create_field(new_field, unused1, unused2, unused2, 0))
+	      YYABORT;
+
+	    sp->m_returns= new_field->sql_type;
+	    sp->m_returns_cs= new_field->charset;
+	    sp->m_returns_len= new_field->length;
+	    sp->m_returns_pack= new_field->pack_flag;
+	    sp->m_returns_typelib= 
+              sp->create_typelib(&new_field->interval_list);
+
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  }
 	  sp_c_chistics

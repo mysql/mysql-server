@@ -5291,9 +5291,6 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 {
   register create_field *new_field;
   LEX  *lex= thd->lex;
-  uint allowed_type_modifier=0;
-  uint sign_len;
-  ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
   DBUG_ENTER("add_field_to_list");
 
   if (strlen(field_name) > NAME_LEN)
@@ -5354,9 +5351,38 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     my_error(ER_INVALID_ON_UPDATE, MYF(0), field_name);
     DBUG_RETURN(1);
   }
-    
-  if (!(new_field=new create_field()))
+
+  if (!(new_field= new_create_field(thd, field_name, type, length, decimals,
+		type_modifier, default_value, on_update_value,
+		comment, change, interval_list, cs, uint_geom_type)))
     DBUG_RETURN(1);
+
+  lex->create_list.push_back(new_field);
+  lex->last_field=new_field;
+  DBUG_RETURN(0);
+}
+
+/*****************************************************************************
+** Create field definition for create
+** Return 0 on failure, otherwise return create_field instance
+******************************************************************************/
+  
+create_field *
+new_create_field(THD *thd, char *field_name, enum_field_types type,
+		 char *length, char *decimals,
+		 uint type_modifier, 
+		 Item *default_value, Item *on_update_value,
+		 LEX_STRING *comment,
+		 char *change, List<String> *interval_list, CHARSET_INFO *cs,
+		 uint uint_geom_type)
+{
+  register create_field *new_field;
+  uint sign_len, allowed_type_modifier=0;
+  ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
+  DBUG_ENTER("new_create_field");
+  
+  if (!(new_field=new create_field()))
+    DBUG_RETURN(NULL);
   new_field->field=0;
   new_field->field_name=field_name;
   new_field->def= default_value;
@@ -5428,7 +5454,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
         new_field->length >= new_field->decimals)
       break;
     my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
-    DBUG_RETURN(1);
+    DBUG_RETURN(NULL);
   case MYSQL_TYPE_VARCHAR:
     /*
       Long VARCHAR's are automaticly converted to blobs in mysql_prepare_table
@@ -5451,7 +5477,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       {
 	my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0),
                  field_name); /* purecov: inspected */
-	DBUG_RETURN(1); /* purecov: inspected */
+	DBUG_RETURN(NULL);
       }
       new_field->def=0;
     }
@@ -5471,7 +5497,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       if (tmp_length > PRECISION_FOR_DOUBLE)
       {
 	my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
-	DBUG_RETURN(1);
+	DBUG_RETURN(NULL);
       }
       else if (tmp_length > PRECISION_FOR_FLOAT)
       {
@@ -5568,7 +5594,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       if (interval_list->elements > sizeof(longlong)*8)
       {
 	my_error(ER_TOO_BIG_SET, MYF(0), field_name); /* purecov: inspected */
-	DBUG_RETURN(1);				      /* purecov: inspected */
+	DBUG_RETURN(NULL);
       }
       new_field->pack_length= (interval_list->elements + 7) / 8;
       if (new_field->pack_length > 4)
@@ -5609,7 +5635,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       {
         my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), field_name,
                  MAX_BIT_FIELD_LENGTH);
-        DBUG_RETURN(1);
+        DBUG_RETURN(NULL);
       }
       new_field->pack_length= (new_field->length + 7) / 8;
       break;
@@ -5628,17 +5654,15 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   {
     my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0),
              field_name, max_field_charlength); /* purecov: inspected */
-    DBUG_RETURN(1);				/* purecov: inspected */
+    DBUG_RETURN(NULL);
   }
   type_modifier&= AUTO_INCREMENT_FLAG;
   if ((~allowed_type_modifier) & type_modifier)
   {
     my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
-    DBUG_RETURN(1);
+    DBUG_RETURN(NULL);
   }
-  lex->create_list.push_back(new_field);
-  lex->last_field=new_field;
-  DBUG_RETURN(0);
+  DBUG_RETURN(new_field);
 }
 
 
