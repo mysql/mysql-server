@@ -20,7 +20,7 @@
 #include "Configuration.hpp"
 #include <TransporterRegistry.hpp>
 
-#include "SimBlockList.hpp"
+#include "vm/SimBlockList.hpp"
 #include "ThreadConfig.hpp"
 #include <SignalLoggerManager.hpp>
 #include <NdbOut.hpp>
@@ -171,13 +171,29 @@ NDB_MAIN(ndb_kernel){
     NDB_ASSERT(0, "Illegal state globalData.theRestartFlag");
   }
 
+  SocketServer socket_server;
+
   globalTransporterRegistry.startSending();
   globalTransporterRegistry.startReceiving();
+  if (!globalTransporterRegistry.start_service(socket_server))
+    NDB_ASSERT(0, "globalTransporterRegistry.start_service() failed");
+
+  if (!globalTransporterRegistry.start_clients())
+    NDB_ASSERT(0, "globalTransporterRegistry.start_clients() failed");
+
   globalEmulatorData.theWatchDog->doStart();
   
+  socket_server.startServer();
+
   globalEmulatorData.theThreadConfig->ipControlLoop();
   
   NdbShutdown(NST_Normal);
+
+  socket_server.stopServer();
+  socket_server.stopSessions();
+
+  globalTransporterRegistry.stop_clients();
+
   return NRT_Default;
 }
 

@@ -21,6 +21,7 @@
 LocalConfig::LocalConfig(){
   ids = 0; size = 0; items = 0;
   error_line = 0; error_msg[0] = 0;
+  _ownNodeId= 0;
 }
 
 bool
@@ -93,6 +94,11 @@ LocalConfig::init(bool onlyNodeId,
       return true;
     }
     return false;
+  }
+
+  //7. Check
+  if(readConnectString("host=localhost:2200", onlyNodeId)){
+    return true;
   }
 
   setError(0, "");
