@@ -730,6 +730,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
   uchar *ptr=buff;
   uint	i, keys= (uint) state->header.keys,
 	key_blocks=state->header.max_block_size;
+  DBUG_ENTER("mi_state_info_write");
 
   memcpy_fixed(ptr,&state->header,sizeof(state->header));
   ptr+=sizeof(state->header);
@@ -780,10 +781,10 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
   }
 
   if (pWrite & 1)
-     return my_pwrite(file,(char*) buff, (uint) (ptr-buff), 0L,
-		      MYF(MY_NABP | MY_THREADSAFE));
-  else
-    return my_write(file,  (char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
+    DBUG_RETURN(my_pwrite(file,(char*) buff, (uint) (ptr-buff), 0L,
+			  MYF(MY_NABP | MY_THREADSAFE)));
+  DBUG_RETURN(my_write(file,  (char*) buff, (uint) (ptr-buff),
+		       MYF(MY_NABP)));
 }
 
 
