@@ -40,7 +40,7 @@
 
 int yylex(void *yylval, void *yythd);
 
-#define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(int*) (F))) { yyerror((char*) (A)); return 2; }
+#define yyoverflow(A,B,C,D,E,F) {ulong val= *(F); if(my_yyoverflow((B), (D), &val)) { yyerror((char*) (A)); return 2; } else { *(F)= (YYSIZE_T)val; }}
 
 #define WARN_DEPRECATED(A,B) \
   push_warning_printf(((THD *)yythd), MYSQL_ERROR::WARN_LEVEL_WARN, \
@@ -90,7 +90,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
 }
 
 %{
-bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
+bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %}
 
 %pure_parser					/* We have threads */
@@ -3530,9 +3530,9 @@ interval:
 	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
 
 date_time_type:
-	DATE_SYM		{$$=TIMESTAMP_DATE;}
-	| TIME_SYM		{$$=TIMESTAMP_TIME;}
-	| DATETIME		{$$=TIMESTAMP_DATETIME;};
+	DATE_SYM		{$$=MYSQL_TIMESTAMP_DATE;}
+	| TIME_SYM		{$$=MYSQL_TIMESTAMP_TIME;}
+	| DATETIME		{$$=MYSQL_TIMESTAMP_DATETIME;};
 
 table_alias:
 	/* empty */

@@ -368,6 +368,10 @@ SOURCE=.\row\row0vers.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\srv\srv0que.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\srv\srv0srv.c
 # End Source File
 # Begin Source File

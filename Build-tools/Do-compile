@@ -148,6 +148,7 @@ $ENV{'MYSQL_TCP_PORT'}= $mysql_tcp_port= 3334 + $opt_build_thread*2;
 $ENV{'MYSQL_UNIX_PORT'}=$mysql_unix_port="$opt_tmp/mysql$opt_suffix.build";
 $ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
 $slave_port=$mysql_tcp_port+16;
+$ndbcluster_port= 9350 + $opt_build_thread*2;
 $manager_port=$mysql_tcp_port+1;
 $mysqladmin_args="--no-defaults -u root --connect_timeout=5 --shutdown_timeout=20";
 
@@ -357,7 +358,7 @@ if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
   log_timestamp();
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
-  check_system("./mysql-test-run $flags --warnings --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+  check_system("./mysql-test-run $flags --warnings --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
 }
 
 #
@@ -474,6 +475,11 @@ $0 takes the following options:
 
 --bdb
 Compile with support for Berkeley DB tables
+
+--build-thread=<1,2,3...>
+When running several Do-compile runs in parallel, each build
+should have its own thread ID, so running the test suites
+does not cause conflicts with duplicate TCP port numbers.
 
 --config-env=<environment for configure>
 To set up the environment, like 'CC=cc CXX=gcc CXXFLAGS=-O3'

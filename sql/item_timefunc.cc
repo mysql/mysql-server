@@ -425,21 +425,21 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	str->append(month_names[l_time->month-1],3);
 	break;
       case 'W':
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	weekday= calc_weekday(calc_daynr(l_time->year,l_time->month,
 					 l_time->day),0);
 	str->append(day_names[weekday]);
 	break;
       case 'a':
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
 					l_time->day),0);
 	str->append(day_names[weekday],3);
 	break;
       case 'D':
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	length= int10_to_str(l_time->day, intbuff, 10) - intbuff;
 	str->append_with_prefill(intbuff, length, 1, '0');
@@ -507,7 +507,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 	str->append_with_prefill(intbuff, length, 2, '0');
 	break;
       case 'j':
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	length= int10_to_str(calc_daynr(l_time->year,l_time->month,
 					l_time->day) - 
@@ -555,7 +555,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
       case 'u':
       {
 	uint year;
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	length= int10_to_str(calc_week(l_time,
 				       (*ptr) == 'U' ?
@@ -569,7 +569,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
       case 'V':
       {
 	uint year;
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	length= int10_to_str(calc_week(l_time,
 				       ((*ptr) == 'V' ?
@@ -584,7 +584,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
       case 'X':
       {
 	uint year;
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	(void) calc_week(l_time,
 			 ((*ptr) == 'X' ?
@@ -596,7 +596,7 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
       }
       break;
       case 'w':
-	if (type == TIMESTAMP_TIME)
+	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
 					l_time->day),1);
@@ -1107,7 +1107,7 @@ int Item_date::save_in_field(Field *field, bool no_conversions)
   if (get_date(&ltime, TIME_FUZZY_DATE))
     return set_field_to_null(field);
   field->set_notnull();
-  field->store_time(&ltime, TIMESTAMP_DATE);
+  field->store_time(&ltime, MYSQL_TIMESTAMP_DATE);
   return 0;
 }
 
@@ -1129,7 +1129,7 @@ bool Item_func_from_days::get_date(TIME *ltime, uint fuzzy_date)
     return 1;
   bzero(ltime, sizeof(TIME));
   get_date_from_daynr((long) value, &ltime->year, &ltime->month, &ltime->day);
-  ltime->time_type= TIMESTAMP_DATE;
+  ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return 0;
 }
 
@@ -1144,7 +1144,7 @@ void Item_func_curdate::fix_length_and_dec()
   
   /* We don't need to set second_part and neg because they already 0 */
   ltime.hour= ltime.minute= ltime.second= 0;
-  ltime.time_type=TIMESTAMP_DATE;
+  ltime.time_type= MYSQL_TIMESTAMP_DATE;
   value= (longlong) TIME_to_ulonglong_date(&ltime);
 }
 
@@ -1308,7 +1308,7 @@ bool Item_func_now::get_date(TIME *res,
 int Item_func_now::save_in_field(Field *to, bool no_conversions)
 {
   to->set_notnull();
-  to->store_time(&ltime,TIMESTAMP_DATETIME);
+  to->store_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
   return 0;
 }
 
@@ -1494,7 +1494,9 @@ String *Item_func_date_format::val_str(String *str)
 
   /* Create the result string */
   if (!make_date_time(&date_time_format, &l_time,
-		      is_time_format ? TIMESTAMP_TIME : TIMESTAMP_DATE, str))
+                      is_time_format ? MYSQL_TIMESTAMP_TIME :
+                                       MYSQL_TIMESTAMP_DATE,
+                      str))
     return str;
 
 null_date:
@@ -1713,7 +1715,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
   case INTERVAL_DAY_HOUR:
   {
     longlong sec, days, daynr, microseconds, extra_sec;
-    ltime->time_type=TIMESTAMP_DATETIME;		// Return full date
+    ltime->time_type= MYSQL_TIMESTAMP_DATETIME; // Return full date
     microseconds= ltime->second_part + sign*interval.second_part;
     extra_sec= microseconds/1000000L;
     microseconds= microseconds%1000000L;
@@ -1798,7 +1800,7 @@ String *Item_date_add_interval::val_str(String *str)
   if (Item_date_add_interval::get_date(&ltime,0))
     return 0;
 
-  if (ltime.time_type == TIMESTAMP_DATE)
+  if (ltime.time_type == MYSQL_TIMESTAMP_DATE)
     format= DATE_ONLY;
   else if (ltime.second_part)
     format= DATE_TIME_MICROSECOND;
@@ -1821,7 +1823,7 @@ longlong Item_date_add_interval::val_int()
   if (Item_date_add_interval::get_date(&ltime,0))
     return (longlong) 0;
   date = (ltime.year*100L + ltime.month)*100L + ltime.day;
-  return ltime.time_type == TIMESTAMP_DATE ? date :
+  return ltime.time_type == MYSQL_TIMESTAMP_DATE ? date :
     ((date*100L + ltime.hour)*100L+ ltime.minute)*100L + ltime.second;
 }
 
@@ -2069,7 +2071,7 @@ String *Item_datetime_typecast::val_str(String *str)
 bool Item_time_typecast::get_time(TIME *ltime)
 {
   bool res= get_arg0_time(ltime);
-  ltime->time_type= TIMESTAMP_TIME;
+  ltime->time_type= MYSQL_TIMESTAMP_TIME;
   return res;
 }
 
@@ -2092,7 +2094,7 @@ String *Item_time_typecast::val_str(String *str)
 bool Item_date_typecast::get_date(TIME *ltime, uint fuzzy_date)
 {
   bool res= get_arg0_date(ltime,1);
-  ltime->time_type= TIMESTAMP_DATE;
+  ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return res;
 }
 
@@ -2198,17 +2200,17 @@ String *Item_func_add_time::val_str(String *str)
   {
     if (get_arg0_date(&l_time1,1) || 
         args[1]->get_time(&l_time2) ||
-        l_time1.time_type == TIMESTAMP_TIME || 
-        l_time2.time_type != TIMESTAMP_TIME)
+        l_time1.time_type == MYSQL_TIMESTAMP_TIME || 
+        l_time2.time_type != MYSQL_TIMESTAMP_TIME)
       goto null_date;
   }
   else                                // ADDTIME function
   {
     if (args[0]->get_time(&l_time1) || 
         args[1]->get_time(&l_time2) ||
-        l_time2.time_type == TIMESTAMP_DATETIME)
+        l_time2.time_type == MYSQL_TIMESTAMP_DATETIME)
       goto null_date;
-    is_time= (l_time1.time_type == TIMESTAMP_TIME);
+    is_time= (l_time1.time_type == MYSQL_TIMESTAMP_TIME);
     if (is_time && (l_time2.neg == l_time1.neg && l_time1.neg))
       l_time3.neg= 1;
   }
@@ -2324,7 +2326,7 @@ String *Item_func_timediff::val_str(String *str)
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
 
-  if (l_time1.time_type == TIMESTAMP_TIME)  // Time value
+  if (l_time1.time_type == MYSQL_TIMESTAMP_TIME) // Time value
     days= l_time1.day - l_sign*l_time2.day;
   else                                      // DateTime value
     days= (calc_daynr((uint) l_time1.year,
@@ -2466,13 +2468,13 @@ void Item_func_get_format::print(String *str)
   str->append('(');
 
   switch (type) {
-  case TIMESTAMP_DATE:
+  case MYSQL_TIMESTAMP_DATE:
     str->append("DATE, ");
     break;
-  case TIMESTAMP_DATETIME:
+  case MYSQL_TIMESTAMP_DATETIME:
     str->append("DATETIME, ");
     break;
-  case TIMESTAMP_TIME:
+  case MYSQL_TIMESTAMP_TIME:
     str->append("TIME, ");
     break;
   default:
@@ -2555,25 +2557,25 @@ void Item_func_str_to_date::fix_length_and_dec()
   decimals=0;
   cached_field_type= MYSQL_TYPE_STRING;
   max_length= MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
-  cached_timestamp_type= TIMESTAMP_NONE;
+  cached_timestamp_type= MYSQL_TIMESTAMP_NONE;
   if ((const_item= args[1]->const_item()))
   {
     format= args[1]->val_str(&format_str);
     cached_format_type= check_result_type(format->ptr(), format->length());
     switch (cached_format_type) {
     case DATE_ONLY:
-      cached_timestamp_type= TIMESTAMP_DATE;
+      cached_timestamp_type= MYSQL_TIMESTAMP_DATE;
       cached_field_type= MYSQL_TYPE_DATE; 
       max_length= MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
       break;
     case TIME_ONLY:
     case TIME_MICROSECOND:
-      cached_timestamp_type= TIMESTAMP_TIME;
+      cached_timestamp_type= MYSQL_TIMESTAMP_TIME;
       cached_field_type= MYSQL_TYPE_TIME; 
       max_length= MAX_TIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
       break;
     default:
-      cached_timestamp_type= TIMESTAMP_DATETIME;
+      cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
       cached_field_type= MYSQL_TYPE_DATETIME; 
       break;
     }
@@ -2599,7 +2601,7 @@ bool Item_func_str_to_date::get_date(TIME *ltime, uint fuzzy_date)
   if (extract_date_time(&date_time_format, val->ptr(), val->length(),
 			ltime, cached_timestamp_type))
     goto null_date;
-  if (cached_timestamp_type == TIMESTAMP_TIME && ltime->day)
+  if (cached_timestamp_type == MYSQL_TIMESTAMP_TIME && ltime->day)
   {
     /*
       Day part for time type can be nonzero value and so 
@@ -2640,6 +2642,6 @@ bool Item_func_last_day::get_date(TIME *ltime, uint fuzzy_date)
   ltime->day= days_in_month[month_idx];
   if ( month_idx == 1 && calc_days_in_year(ltime->year) == 366)
     ltime->day= 29;
-  ltime->time_type= TIMESTAMP_DATE;
+  ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return 0;
 }

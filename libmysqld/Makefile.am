@@ -33,7 +33,8 @@ noinst_LIBRARIES =	libmysqld_int.a
 pkglib_LIBRARIES =	libmysqld.a
 SUBDIRS =		. examples
 libmysqld_sources=	libmysqld.c lib_sql.cc emb_qcache.cc
-libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c
+libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
+                        my_time.c
 
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
