@@ -2153,6 +2153,12 @@ row_import_tablespace_for_mysql(
 	success = fil_reset_too_high_lsns(name, current_lsn);
 
 	if (!success) {
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Error: cannot reset lsn's in table ", stderr);
+		ut_print_name(stderr, trx, name);
+		fputs("\n"
+		"InnoDB: in ALTER TABLE ... IMPORT TABLESPACE\n", stderr);
+
 		err = DB_ERROR;
 
 		row_mysql_lock_data_dictionary(trx);
@@ -2168,6 +2174,14 @@ row_import_tablespace_for_mysql(
 	table = dict_table_get_low(name);
 
 	if (!table) {
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: table ", stderr);
+		ut_print_name(stderr, trx, name);
+		fputs("\n"
+"InnoDB: does not exist in the InnoDB data dictionary\n"
+"InnoDB: in ALTER TABLE ... IMPORT TABLESPACE\n",
+		stderr);
+
 		err = DB_TABLE_NOT_FOUND;
 
 		goto funct_exit;
@@ -2209,6 +2223,17 @@ row_import_tablespace_for_mysql(
 		table->ibd_file_missing = FALSE;
 		table->tablespace_discarded = FALSE;
 	} else {
+		if (table->ibd_file_missing) {
+			ut_print_timestamp(stderr);
+			fputs(
+"  InnoDB: cannot find of open in the database directory the .ibd file of\n"
+"InnoDB: table ", stderr);
+			ut_print_name(stderr, trx, name);
+			fputs("\n"
+"InnoDB: in ALTER TABLE ... IMPORT TABLESPACE\n",
+			stderr);
+		}
+
 		err = DB_ERROR;
 	}
 
