@@ -749,7 +749,10 @@ change:
 	  LEX *lex = Lex;
 	  lex->sql_command = SQLCOM_CHANGE_MASTER;
 	  bzero((char*) &lex->mi, sizeof(lex->mi));
-        } master_defs;
+        }
+       master_defs
+	{}
+       ;
 
 master_defs:
        master_def
@@ -811,7 +814,7 @@ create:
 	  THD *thd= YYTHD;
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
-	  if (!lex->select_lex.add_table_to_list($5,
+	  if (!lex->select_lex.add_table_to_list(thd,$5,
 						 ($2 &
 						  HA_LEX_CREATE_TMP_TABLE ?
 						  &tmp_table_alias :
@@ -830,12 +833,12 @@ create:
 	  lex->create_info.table_charset=thd->db_charset?thd->db_charset:default_charset_info;
 	}
 	create2
-
+	{}
 	| CREATE opt_unique_or_fulltext INDEX ident key_alg ON table_ident
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!lex->current_select->add_table_to_list($7,NULL,1))
+	    if (!lex->current_select->add_table_to_list(lex->thd, $7,NULL,1))
 	      YYABORT;
 	    lex->create_list.empty();
 	    lex->key_list.empty();
@@ -1055,7 +1058,7 @@ field_spec:
 	type opt_attribute
 	{
 	  LEX *lex=Lex;
-	  if (add_field_to_list($1.str,
+	  if (add_field_to_list(lex->thd, $1.str,
 				(enum enum_field_types) $3,
 				lex->length,lex->dec,lex->type,
 				lex->default_value, lex->comment,
@@ -1365,7 +1368,7 @@ alter:
 	  LEX *lex=&thd->lex;
 	  lex->sql_command = SQLCOM_ALTER_TABLE;
 	  lex->name=0;
-	  if (!lex->select_lex.add_table_to_list($4, NULL,1))
+	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,1))
 	    YYABORT;
 	  lex->drop_primary=0;
 	  lex->create_list.empty();
@@ -1382,8 +1385,9 @@ alter:
           lex->alter_keys_onoff=LEAVE_AS_IS;
           lex->simple_alter=1;
 	}
-	alter_list;
-
+	alter_list
+	{}
+	;
 	| ALTER DATABASE ident opt_db_default_character_set
 	  {
 	    LEX *lex=Lex;
@@ -1419,7 +1423,7 @@ alter_list_item:
           type opt_attribute
           {
             LEX *lex=Lex;
-            if (add_field_to_list($3.str,
+            if (add_field_to_list(lex->thd,$3.str,
                                   (enum enum_field_types) $5,
                                   lex->length,lex->dec,lex->type,
                                   lex->default_value, lex->comment,
@@ -1549,7 +1553,9 @@ repair:
 	   lex->sql_command = SQLCOM_REPAIR;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_repair_type;
+	table_list opt_mi_repair_type
+	{}
+	;
 
 opt_mi_repair_type:
 	/* empty */ { Lex->check_opt.flags = T_MEDIUM; }
@@ -1571,7 +1577,9 @@ analyze:
 	   lex->sql_command = SQLCOM_ANALYZE;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type;
+	table_list opt_mi_check_type
+	{}
+	;
 
 check:
 	CHECK_SYM table_or_tables
@@ -1580,7 +1588,9 @@ check:
 	   lex->sql_command = SQLCOM_CHECK;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type;
+	table_list opt_mi_check_type
+	{}
+	;
 
 opt_mi_check_type:
 	/* empty */ { Lex->check_opt.flags = T_MEDIUM; }
@@ -1604,14 +1614,18 @@ optimize:
 	   lex->sql_command = SQLCOM_OPTIMIZE;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type;
+	table_list opt_mi_check_type
+	{}
+	;
 
 rename:
 	RENAME table_or_tables
 	{
 	   Lex->sql_command=SQLCOM_RENAME_TABLE;
 	}
-	table_to_table_list;
+	table_to_table_list
+	{}
+	;
 
 table_to_table_list:
 	table_to_table
@@ -1620,9 +1634,10 @@ table_to_table_list:
 table_to_table:
 	table_ident TO_SYM table_ident
 	{
-	  SELECT_LEX_NODE *sl= Lex->current_select;
-	  if (!sl->add_table_to_list($1,NULL,1,TL_IGNORE) ||
-	      !sl->add_table_to_list($3,NULL,1,TL_IGNORE))
+	  LEX *lex=Lex;	  
+	  SELECT_LEX_NODE *sl= lex->current_select;
+	  if (!sl->add_table_to_list(lex->thd, $1,NULL,1,TL_IGNORE) ||
+	      !sl->add_table_to_list(lex->thd, $3,NULL,1,TL_IGNORE))
 	    YYABORT;
 	};
 
@@ -1642,7 +1657,7 @@ select_init:
 	  {
 	    LEX *lex= Lex;
             SELECT_LEX_NODE * sel= lex->current_select;
-	    if (sel->set_braces(true))
+	    if (sel->set_braces(1))
 	    {
 	      send_error(lex->thd, ER_SYNTAX_ERROR);
 	      YYABORT;
@@ -1656,7 +1671,7 @@ select_init2:
 	select_part2
         {
 	  LEX *lex= Lex;
-          if (lex->current_select->set_braces(false))
+          if (lex->current_select->set_braces(0))
 	  {
 	    send_error(lex->thd, ER_SYNTAX_ERROR);
 	    YYABORT;
@@ -1746,7 +1761,7 @@ select_item_list:
 	| select_item
 	| '*'
 	  {
-	    if (add_item_to_list(new Item_field(NULL,NULL,"*")))
+	    if (add_item_to_list(YYTHD, new Item_field(NULL,NULL,"*")))
 	      YYABORT;
 	  };
 
@@ -1754,7 +1769,7 @@ select_item_list:
 select_item:
 	  remember_name select_item2 remember_end select_alias
 	  {
-	    if (add_item_to_list($2))
+	    if (add_item_to_list(YYTHD, $2))
 	      YYABORT;
 	    if ($4.str)
 	      $2->set_name($4.str);
@@ -2461,7 +2476,8 @@ join_table:
 	{
 	  LEX *lex= Lex;
 	  SELECT_LEX_NODE *sel= lex->current_select;
-	  if (!($$= sel->add_table_to_list($2, $3, 0, lex->lock_option,
+	  if (!($$= sel->add_table_to_list(lex->thd, $2, $3, 0,
+					   lex->lock_option,
 					   sel->get_use_index(),
 					   sel->get_ignore_index())))
 	    YYABORT;
@@ -2474,7 +2490,7 @@ join_table:
 	  SELECT_LEX_UNIT *unit= lex->current_select->master_unit();
 	  lex->current_select= unit->outer_select();
 	  if (!($$= lex->current_select->
-                add_table_to_list(new Table_ident(unit), $5, 0,
+                add_table_to_list(lex->thd, new Table_ident(unit), $5, 0,
 				  lex->lock_option)))
 	    YYABORT;
 	};
@@ -2482,7 +2498,7 @@ join_table:
 select_derived:
         {
 	  LEX *lex= Lex;
-	  lex->derived_tables= true;
+	  lex->derived_tables= 1;
 	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE ||
               mysql_new_select(lex, 1))
 	    YYABORT;
@@ -2609,16 +2625,16 @@ group_clause:
 
 group_list:
 	group_list ',' order_ident order_dir
-	  { if (add_group_to_list($3,(bool) $4)) YYABORT; }
+	  { if (add_group_to_list(YYTHD, $3,(bool) $4)) YYABORT; }
 	| order_ident order_dir
-	  { if (add_group_to_list($1,(bool) $2)) YYABORT; };
+	  { if (add_group_to_list(YYTHD, $1,(bool) $2)) YYABORT; };
 
 olap_opt:
 	/* empty */ {}
 	| WITH CUBE_SYM
           {
 	    LEX *lex=Lex;
-	    lex->olap = true;
+	    lex->olap= 1;
 	    if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	    {
 	      net_printf(lex->thd, ER_WRONG_USAGE, "WITH CUBE",
@@ -2632,7 +2648,7 @@ olap_opt:
 	| WITH ROLLUP_SYM
           {
 	    LEX *lex= Lex;
-	    lex->olap= true;
+	    lex->olap= 1;
 	    if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	    {
 	      net_printf(lex->thd, ER_WRONG_USAGE, "WITH ROLLUP",
@@ -2670,9 +2686,9 @@ order_clause:
 
 order_list:
 	order_list ',' order_ident order_dir
-	  { if (add_order_to_list($3,(bool) $4)) YYABORT; }
+	  { if (add_order_to_list(YYTHD, $3,(bool) $4)) YYABORT; }
 	| order_ident order_dir
-	  { if (add_order_to_list($1,(bool) $2)) YYABORT; };
+	  { if (add_order_to_list(YYTHD, $1,(bool) $2)) YYABORT; };
 
 order_dir:
 	/* empty */ { $$ =  1; }
@@ -2699,6 +2715,7 @@ limit_clause:
 	    }
 	  }
 	  limit_options
+	  {}
 	;
 
 limit_options:
@@ -2760,7 +2777,7 @@ procedure_clause:
 	    lex->proc_list.elements=0;
 	    lex->proc_list.first=0;
 	    lex->proc_list.next= (byte**) &lex->proc_list.first;
-	    if (add_proc_to_list(new Item_field(NULL,NULL,$2.str)))
+	    if (add_proc_to_list(lex->thd, new Item_field(NULL,NULL,$2.str)))
 	      YYABORT;
 	    Lex->safe_to_cache_query=0;
 	  }
@@ -2778,10 +2795,11 @@ procedure_list2:
 procedure_item:
 	  remember_name expr
 	  {
-	    if (add_proc_to_list($2))
+	    LEX *lex= Lex;
+	    if (add_proc_to_list(lex->thd, $2))
 	      YYABORT;
 	    if (!$2->name)
-	      $2->set_name($1,(uint) ((char*) Lex->tok_end - $1));
+	      $2->set_name($1,(uint) ((char*) lex->tok_end - $1));
 	  }
           ;
 
@@ -2849,7 +2867,10 @@ do:	DO_SYM
 	  if (!(lex->insert_list = new List_item))
 	    YYABORT;
 	}
-	values;
+	values
+	{}
+	;
+
 /*
   Drop : delete tables or index
 */
@@ -2869,7 +2890,7 @@ drop:
 	     lex->drop_list.empty();
 	     lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
 						     $3.str));
-	     if (!lex->current_select->add_table_to_list($5,NULL, 1))
+	     if (!lex->current_select->add_table_to_list(lex->thd, $5,NULL, 1))
 	      YYABORT;
 	  }
 	| DROP DATABASE if_exists ident
@@ -2893,7 +2914,7 @@ table_list:
 
 table_name:
 	table_ident
-	{ if (!Select->add_table_to_list($1, NULL, 1)) YYABORT; };
+	{ if (!Select->add_table_to_list(YYTHD, $1, NULL, 1)) YYABORT; };
 
 if_exists:
 	/* empty */ { $$= 0; }
@@ -2935,6 +2956,8 @@ replace:
 	  Select->set_lock_for_tables($3);
 	}
 	insert_field_spec
+	{}
+	{}
 	;
 
 insert_lock_option:
@@ -3095,12 +3118,12 @@ update:
 update_list:
 	update_list ',' simple_ident equal expr
 	{
-	  if (add_item_to_list($3) || add_value_to_list($5))
+	  if (add_item_to_list(YYTHD, $3) || add_value_to_list(YYTHD, $5))
 	    YYABORT;
 	}
 	| simple_ident equal expr
 	  {
-	    if (add_item_to_list($1) || add_value_to_list($3))
+	    if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
 	      YYABORT;
 	  };
 
@@ -3125,17 +3148,19 @@ delete:
 single_multi:
  	FROM table_ident
 	{
-	  if (!Select->add_table_to_list($2, NULL, 1, Lex->lock_option))
+	  if (!Select->add_table_to_list(YYTHD, $2, NULL, 1, Lex->lock_option))
 	    YYABORT;
 	}
 	where_clause opt_order_clause
-	delete_limit_clause
+	delete_limit_clause {}
 	| table_wild_list
 	  { mysql_init_multi_delete(Lex); }
           FROM join_table_list where_clause
 	| FROM table_wild_list
 	  { mysql_init_multi_delete(Lex); }
-	  USING join_table_list where_clause;
+	  USING join_table_list where_clause
+	  {}
+	;
 
 table_wild_list:
 	  table_wild_one {}
@@ -3144,14 +3169,14 @@ table_wild_list:
 table_wild_one:
 	ident opt_wild
 	{
-	  if (!Select->add_table_to_list(new Table_ident($1), NULL, 1,
+	  if (!Select->add_table_to_list(YYTHD, new Table_ident($1), NULL, 1,
 	      Lex->lock_option))
 	    YYABORT;
         }
 	| ident '.' ident opt_wild
 	  {
-	    if (!Select->add_table_to_list(new Table_ident($1, $3, 0), NULL, 1,
-				    	   Lex->lock_option))
+	    if (!Select->add_table_to_list(YYTHD, new Table_ident($1, $3, 0),
+					   NULL, 1, Lex->lock_option))
 	      YYABORT;
 	  }
 	;
@@ -3191,7 +3216,9 @@ show:	SHOW
 	  lex->wild=0;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	}
-	show_param;
+	show_param
+	{}
+	;
 
 show_param:
 	DATABASES wild
@@ -3222,7 +3249,7 @@ show_param:
 	    Lex->sql_command= SQLCOM_SHOW_FIELDS;
 	    if ($5)
 	      $4->change_db($5);
-	    if (!Select->add_table_to_list($4, NULL, 0))
+	    if (!Select->add_table_to_list(YYTHD, $4, NULL, 0))
 	      YYABORT;
 	  }
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ
@@ -3255,7 +3282,7 @@ show_param:
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
 	    if ($4)
 	      $3->change_db($4);
-	    if (!Select->add_table_to_list($3, NULL, 0))
+	    if (!Select->add_table_to_list(YYTHD, $3, NULL, 0))
 	      YYABORT;
 	  }
 	| COLUMN_SYM TYPES_SYM
@@ -3313,7 +3340,7 @@ show_param:
         | CREATE TABLE_SYM table_ident
           {
 	    Lex->sql_command = SQLCOM_SHOW_CREATE;
-	    if(!Select->add_table_to_list($3, NULL,0))
+	    if(!Select->add_table_to_list(YYTHD, $3, NULL,0))
 	      YYABORT;
 	  }
         | MASTER_SYM STATUS_SYM
@@ -3358,16 +3385,16 @@ describe:
 	  lex->wild=0;
 	  lex->verbose=0;
 	  lex->sql_command=SQLCOM_SHOW_FIELDS;
-	  if (!Select->add_table_to_list($2, NULL,0))
+	  if (!Select->add_table_to_list(lex->thd, $2, NULL,0))
 	    YYABORT;
 	}
-	opt_describe_column
+	opt_describe_column {}
 	| describe_command { Lex->describe=1; } select
           {
 	    LEX *lex=Lex;
 	    lex->select_lex.options|= SELECT_DESCRIBE;
-	  };
-
+	  }
+	;
 
 describe_command:
 	DESC
@@ -3388,14 +3415,16 @@ flush:
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_FLUSH; lex->type=0;
 	}
-	flush_options;
+	flush_options
+	{}
+	;
 
 flush_options:
 	flush_options ',' flush_option
 	| flush_option;
 
 flush_option:
-	table_or_tables	{ Lex->type|= REFRESH_TABLES; } opt_table_list
+	table_or_tables	{ Lex->type|= REFRESH_TABLES; } opt_table_list {}
 	| TABLES WITH READ_SYM LOCK_SYM { Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK; }
 	| QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE_FREE; }
 	| HOSTS_SYM	{ Lex->type|= REFRESH_HOSTS; }
@@ -3416,7 +3445,10 @@ reset:
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_RESET; lex->type=0;
-	} reset_options;
+	} reset_options
+	{}
+	;
+
 reset_options:
 	reset_options ',' reset_option
 	| reset_option;
@@ -3477,14 +3509,14 @@ load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING
 	opt_duplicate INTO TABLE_SYM table_ident opt_field_term opt_line_term
 	opt_ignore_lines opt_field_spec
 	{
-	  if (!Select->add_table_to_list($11, NULL, 1))
+	  if (!Select->add_table_to_list(YYTHD, $11, NULL, 1))
 	    YYABORT;
 	}
         |
 	LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
-	  if (!Select->add_table_to_list($3, NULL, 1))
+	  if (!Select->add_table_to_list(YYTHD, $3, NULL, 1))
 	    YYABORT;
 
         }
@@ -3660,13 +3692,15 @@ ident_or_text:
 user:
 	ident_or_text
 	{
-	  if (!($$=(LEX_USER*) sql_alloc(sizeof(st_lex_user))))
+	  THD *thd= YYTHD;
+	  if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	    YYABORT;
 	  $$->user = $1; $$->host.str=NullS;
 	  }
 	| ident_or_text '@' ident_or_text
 	  {
-	  if (!($$=(LEX_USER*) sql_alloc(sizeof(st_lex_user))))
+	    THD *thd= YYTHD;
+	    if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
 	  };
@@ -3847,7 +3881,9 @@ set:
 	  lex->option_type=OPT_DEFAULT;
 	  lex->var_list.empty();
 	}
-	option_value_list;
+	option_value_list
+	{}
+	;
 
 opt_option:
 	/* empty */ {}
@@ -3911,7 +3947,7 @@ option_value:
 	  {
 	    THD *thd=YYTHD;
 	    LEX_USER *user;
-	    if (!(user=(LEX_USER*) sql_alloc(sizeof(LEX_USER))))
+	    if (!(user=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
 	      YYABORT;
 	    user->host.str=0;
 	    user->user.str=thd->priv_user;
@@ -3948,7 +3984,7 @@ text_or_password:
 	      $$=$3.str;
 	    else
 	    {
-	      char *buff=(char*) sql_alloc(HASH_PASSWORD_LENGTH+1);
+	      char *buff=(char*) YYTHD->alloc(HASH_PASSWORD_LENGTH+1);
 	      make_scrambled_password(buff,$3.str,opt_old_passwords,&current_thd->rand);
 	      $$=buff;
 	    }
@@ -3971,7 +4007,9 @@ lock:
 	{
 	  Lex->sql_command=SQLCOM_LOCK_TABLES;
 	}
-	table_lock_list;
+	table_lock_list
+	{}
+	;
 
 table_or_tables:
 	TABLE_SYM
@@ -3984,7 +4022,7 @@ table_lock_list:
 table_lock:
 	table_ident opt_table_alias lock_option
 	{
-	  if (!Select->add_table_to_list($1, $2, 0, (thr_lock_type) $3))
+	  if (!Select->add_table_to_list(YYTHD, $1, $2, 0, (thr_lock_type) $3))
 	   YYABORT;
 	}
         ;
@@ -4010,14 +4048,14 @@ handler:
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command = SQLCOM_HA_OPEN;
-	  if (!lex->current_select->add_table_to_list($2, $4, 0))
+	  if (!lex->current_select->add_table_to_list(lex->thd, $2, $4, 0))
 	    YYABORT;
 	}
 	| HANDLER_SYM table_ident CLOSE_SYM
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command = SQLCOM_HA_CLOSE;
-	  if (!lex->current_select->add_table_to_list($2, 0, 0))
+	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
 	}
 	| HANDLER_SYM table_ident READ_SYM
@@ -4027,7 +4065,7 @@ handler:
 	  lex->ha_rkey_mode= HA_READ_KEY_EXACT;	/* Avoid purify warnings */
 	  lex->current_select->select_limit= 1;
 	  lex->current_select->offset_limit= 0L;
-	  if (!lex->current_select->add_table_to_list($2, 0, 0))
+	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
         }
         handler_read_or_scan where_clause opt_limit_clause { }
@@ -4081,7 +4119,9 @@ revoke:
 	  lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
 	  bzero((char*) &lex->mqh, sizeof(lex->mqh));
 	}
-	grant_privileges ON opt_table FROM user_list;
+	grant_privileges ON opt_table FROM user_list
+	{}
+	;
 
 grant:
 	GRANT
@@ -4097,7 +4137,9 @@ grant:
 	  bzero(&(lex->mqh),sizeof(lex->mqh));
 	}
 	grant_privileges ON opt_table TO_SYM user_list
-	require_clause grant_options;
+	require_clause grant_options
+	{}
+	;
 
 grant_privileges:
 	grant_privilege_list {}
@@ -4110,10 +4152,10 @@ grant_privilege_list:
 	| grant_privilege_list ',' grant_privilege;
 
 grant_privilege:
-	SELECT_SYM 	{ Lex->which_columns = SELECT_ACL;} opt_column_list
-	| INSERT	{ Lex->which_columns = INSERT_ACL;} opt_column_list
-	| UPDATE_SYM	{ Lex->which_columns = UPDATE_ACL; } opt_column_list
-	| REFERENCES	{ Lex->which_columns = REFERENCES_ACL;} opt_column_list
+	SELECT_SYM 	{ Lex->which_columns = SELECT_ACL;} opt_column_list {}
+	| INSERT	{ Lex->which_columns = INSERT_ACL;} opt_column_list {}
+	| UPDATE_SYM	{ Lex->which_columns = UPDATE_ACL; } opt_column_list {}
+	| REFERENCES	{ Lex->which_columns = REFERENCES_ACL;} opt_column_list {}
 	| DELETE_SYM	{ Lex->grant |= DELETE_ACL;}
 	| USAGE		{}
 	| INDEX		{ Lex->grant |= INDEX_ACL;}
@@ -4218,7 +4260,7 @@ opt_table:
 	| table_ident
 	  {
 	    LEX *lex=Lex;
-	    if (!lex->current_select->add_table_to_list($1,NULL,0))
+	    if (!lex->current_select->add_table_to_list(lex->thd, $1,NULL,0))
 	      YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant =  TABLE_ACLS & ~GRANT_ACL;
@@ -4242,7 +4284,7 @@ grant_user:
 	   $$=$1; $1->password=$4;
 	   if ($4.length)
 	   {
-	     char *buff=(char*) sql_alloc(HASH_PASSWORD_LENGTH+1);
+	     char *buff=(char*) YYTHD->alloc(HASH_PASSWORD_LENGTH+1);
 	     if (buff)
 	     {
 	       make_scrambled_password(buff,$4.str,opt_old_passwords,&current_thd->rand);
@@ -4340,7 +4382,8 @@ grant_option:
         ;
 
 begin:
-	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work;
+	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work {}
+	;
 
 opt_work:
 	/* empty */ {}
@@ -4383,7 +4426,7 @@ union_list:
 	    YYABORT;
 	  lex->current_select->linkage=UNION_TYPE;
 	}
-	select_init
+	select_init {}
 	;
 
 union_opt:

@@ -195,13 +195,14 @@ static int check_user(THD *thd,enum_server_command command, const char *user,
   thd->db_length=0;
   USER_RESOURCES ur;
 
+  if (passwd[0] && strlen(passwd) != SCRAMBLE_LENGTH)
+    return 1;
   /* We shall avoid dupplicate user allocations here */
-  if (!(thd->user))
-    if (!(thd->user = my_strdup(user, MYF(0))))
-    {
-      send_error(thd,ER_OUT_OF_RESOURCES);
-      return 1;
-    }
+  if (!thd->user && !(thd->user = my_strdup(user, MYF(0))))
+  {
+    send_error(thd,ER_OUT_OF_RESOURCES);
+    return 1;
+  }
   thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
 				 passwd, thd->scramble, &thd->priv_user,
 				 protocol_version == 9 ||
@@ -434,7 +435,7 @@ end:
 }
 
 
-static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them=false)
+static void reset_mqh(THD *thd, LEX_USER *lu, bool get_them= 0)
 {
 
   (void) pthread_mutex_lock(&LOCK_user_conn);
@@ -2065,59 +2066,24 @@ mysql_execute_command(THD *thd)
       DBUG_VOID_RETURN;
     }
     {
-      multi_update  *result;
-      uint table_count;
-      TABLE_LIST *auxi;
-      const char *msg=0;
-
-      for (auxi= (TABLE_LIST*) tables, table_count=0 ; auxi ; auxi=auxi->next)
-	table_count++;
-
+      const char *msg= 0;
       if (select_lex->order_list.elements)
-	msg="ORDER BY";
+	msg= "ORDER BY";
       else if (select_lex->select_limit && select_lex->select_limit !=
 	       HA_POS_ERROR)
-	msg="LIMIT";
+	msg= "LIMIT";
       if (msg)
       {
 	net_printf(thd, ER_WRONG_USAGE, "UPDATE", msg);
 	res= 1;
 	break;
       }
-
-      tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
-      if ((res=open_and_lock_tables(thd,tables)))
-	break;
-      unit->select_limit_cnt= HA_POS_ERROR;
-      if (!setup_fields(thd,tables,select_lex->item_list,1,0,0) &&
-	  !setup_fields(thd,tables,lex->value_list,0,0,0) &&
-	  !thd->fatal_error &&
-	  (result=new multi_update(thd,tables,select_lex->item_list,
-				   lex->duplicates, table_count)))
-      {
-	List <Item> total_list;
-	List_iterator <Item> field_list(select_lex->item_list);
-	List_iterator <Item> value_list(lex->value_list);
-	Item *item;
-	while ((item=field_list++))
-	  total_list.push_back(item);
-	while ((item=value_list++))
-	  total_list.push_back(item);
-
-	res= mysql_select(thd, tables, total_list,
-			  select_lex->where,
-			  (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
-			  (ORDER *)NULL,
-			  select_lex->options | thd->options |
-			  SELECT_NO_JOIN_CACHE,
-			  result, unit, select_lex, 0);
-	delete result;
-	if (thd->net.report_error)
-	  res= -1;
-      }
-      else
-	res= -1;					// Error is not sent
-      close_thread_tables(thd);
+      res= mysql_multi_update(thd,tables,
+			      &select_lex->item_list,
+			      &lex->value_list,
+			      select_lex->where,
+			      select_lex->options,
+			      lex->duplicates, unit, select_lex);
     }
     break;
   case SQLCOM_REPLACE:
@@ -2256,7 +2222,7 @@ mysql_execute_command(THD *thd)
       walk->lock_type= auxi->lock_type;
       auxi->table_list=  walk;		// Remember corresponding table
     }
-    if (add_item_to_list(new Item_null()))
+    if (add_item_to_list(thd, new Item_null()))
     {
       res= -1;
       break;
@@ -3116,7 +3082,7 @@ void create_select_for_variable(const char *var_name)
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
-  add_item_to_list(get_system_var(OPT_SESSION, tmp));
+  add_item_to_list(lex->thd, get_system_var(OPT_SESSION, tmp));
   DBUG_VOID_RETURN;
 }
 
@@ -3176,29 +3142,18 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 }
 
 
-inline static void
-link_in_list(SQL_LIST *list,byte *element,byte **next)
-{
-  list->elements++;
-  (*list->next)=element;
-  list->next=next;
-  *next=0;
-}
-
-
 /*****************************************************************************
 ** Store field definition for create
 ** Return 0 if ok
 ******************************************************************************/
 
-bool add_field_to_list(char *field_name, enum_field_types type,
+bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 		       char *length, char *decimals,
 		       uint type_modifier,
 		       Item *default_value, Item *comment,
 		       char *change, TYPELIB *interval, CHARSET_INFO *cs)
 {
   register create_field *new_field;
-  THD	*thd=current_thd;
   LEX  *lex= &thd->lex;
   uint allowed_type_modifier=0;
   char warn_buff[MYSQL_ERRMSG_SIZE];
@@ -3498,18 +3453,18 @@ void store_position_for_column(const char *name)
 }
 
 bool
-add_proc_to_list(Item *item)
+add_proc_to_list(THD* thd, Item *item)
 {
   ORDER *order;
   Item	**item_ptr;
 
-  if (!(order = (ORDER *) sql_alloc(sizeof(ORDER)+sizeof(Item*))))
+  if (!(order = (ORDER *) thd->alloc(sizeof(ORDER)+sizeof(Item*))))
     return 1;
   item_ptr = (Item**) (order+1);
   *item_ptr= item;
   order->item=item_ptr;
   order->free_me=0;
-  link_in_list(&current_lex->proc_list,(byte*) order,(byte**) &order->next);
+  thd->lex.proc_list.link_in_list((byte*) order,(byte**) &order->next);
   return 0;
 }
 
@@ -3550,12 +3505,12 @@ static void remove_escape(char *name)
 ****************************************************************************/
 
 
-bool add_to_list(SQL_LIST &list,Item *item,bool asc)
+bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
 {
   ORDER *order;
   Item	**item_ptr;
   DBUG_ENTER("add_to_list");
-  if (!(order = (ORDER *) sql_alloc(sizeof(ORDER)+sizeof(Item*))))
+  if (!(order = (ORDER *) thd->alloc(sizeof(ORDER)+sizeof(Item*))))
     DBUG_RETURN(1);
   item_ptr = (Item**) (order+1);
   *item_ptr=item;
@@ -3563,12 +3518,13 @@ bool add_to_list(SQL_LIST &list,Item *item,bool asc)
   order->asc = asc;
   order->free_me=0;
   order->used=0;
-  link_in_list(&list,(byte*) order,(byte**) &order->next);
+  list.link_in_list((byte*) order,(byte**) &order->next);
   DBUG_RETURN(0);
 }
 
 
-TABLE_LIST *st_select_lex::add_table_to_list(Table_ident *table,
+TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
+					     Table_ident *table,
 					     LEX_STRING *alias,
 					     bool updating,
 					     thr_lock_type flags,
@@ -3576,7 +3532,6 @@ TABLE_LIST *st_select_lex::add_table_to_list(Table_ident *table,
 					     List<String> *ignore_index)
 {
   register TABLE_LIST *ptr;
-  THD	*thd=current_thd;
   char *alias_str;
   DBUG_ENTER("add_table_to_list");
 
@@ -3653,7 +3608,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(Table_ident *table,
       }
     }
   }
-  link_in_list(&table_list, (byte*) ptr, (byte**) &ptr->next);
+  table_list.link_in_list((byte*) ptr, (byte**) &ptr->next);
   DBUG_RETURN(ptr);
 }
 

@@ -227,9 +227,9 @@ public:
   void exclude();
 
   virtual st_select_lex* select_lex();
-  virtual bool add_item_to_list(Item *item);
-  bool add_order_to_list(Item *item, bool asc);
-  virtual bool add_group_to_list(Item *item, bool asc);
+  virtual bool add_item_to_list(THD *thd, Item *item);
+  bool add_order_to_list(THD *thd, Item *item, bool asc);
+  virtual bool add_group_to_list(THD *thd, Item *item, bool asc);
   virtual bool add_ftfunc_to_list(Item_func_match *func);
 
   virtual st_select_lex_unit* master_unit()= 0;
@@ -242,7 +242,7 @@ public:
   virtual List<Item>* get_item_list();
   virtual List<String>* get_use_index();
   virtual List<String>* get_ignore_index();
-  virtual TABLE_LIST *add_table_to_list(Table_ident *table,
+  virtual TABLE_LIST *add_table_to_list(THD *thd, Table_ident *table,
 					LEX_STRING *alias,
 					bool updating,
 					thr_lock_type flags= TL_UNLOCK,
@@ -363,15 +363,15 @@ public:
   uint get_in_sum_expr();
 
   st_select_lex* select_lex();
-  bool add_item_to_list(Item *item);
-  bool add_group_to_list(Item *item, bool asc);
+  bool add_item_to_list(THD *thd, Item *item);
+  bool add_group_to_list(THD *thd, Item *item, bool asc);
   bool add_ftfunc_to_list(Item_func_match *func);
 
   TABLE_LIST* get_table_list();
   List<Item>* get_item_list();
   List<String>* get_use_index();
   List<String>* get_ignore_index();
-  TABLE_LIST* add_table_to_list(Table_ident *table,
+  TABLE_LIST* add_table_to_list(THD *thd, Table_ident *table,
 				LEX_STRING *alias,
 				bool updating,
 				thr_lock_type flags= TL_UNLOCK,
