@@ -6878,6 +6878,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   SEL_ARG *cur_index_tree= NULL;
   ha_rows cur_quick_prefix_records= 0;
   uint cur_param_idx;
+  key_map cur_used_key_parts;
 
   for (uint cur_index= 0 ; cur_index_info != cur_index_info_end ;
        cur_index_info++, cur_index++)
@@ -6925,17 +6926,25 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     else if (join->select_distinct)
     {
       select_items_it.rewind();
+      cur_used_key_parts.clear_all();
       while ((item= select_items_it++))
       {
         item_field= (Item_field*) item; /* (SA5) already checked above. */
         /* Find the order of the key part in the index. */
         key_part_nr= get_field_keypart(cur_index_info, item_field->field);
+        /*
+          Check if this attribute was already present in the select list.
+          If it was present, then its corresponding key part was alredy used.
+        */
+        if (cur_used_key_parts.is_set(key_part_nr))
+          continue;
         if (key_part_nr < 1 || key_part_nr > join->fields_list.elements)
           goto next_index;
         cur_part= cur_index_info->key_part + key_part_nr - 1;
         cur_group_prefix_len+= cur_part->store_length;
+        cur_used_key_parts.set_bit(key_part_nr);
+        ++cur_group_key_parts;
       }
-      cur_group_key_parts= join->fields_list.elements;
     }
     else
       DBUG_ASSERT(FALSE);
