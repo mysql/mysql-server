@@ -19,9 +19,8 @@
 **  Internal header file for editline library.
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <ndb_global.h>
+
 #if	defined(SYS_UNIX)
 #include "unix.h"
 #endif	/* defined(SYS_UNIX) */

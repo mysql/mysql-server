@@ -9,7 +9,7 @@ A_LIB   := Y
 SO_LIB  := Y
 PIC_LIB := Y
 
-DIRS := test
+#DIRS := test
 
 LIB_TARGET := MGM_API
 LIB_TARGET_ARCHIVES := $(ARCHIVE_TARGET) general portlib

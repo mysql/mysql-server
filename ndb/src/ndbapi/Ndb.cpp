@@ -21,14 +21,17 @@
 Name:          Ndb.cpp
 ******************************************************************************/
 
+#include <ndb_global.h>
+#include <pthread.h>
+
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
 #include "NdbSchemaOp.hpp"
 #include "NdbSchemaCon.hpp" 
-#include "NdbOperation.hpp"
-#include "NdbConnection.hpp"
-#include "NdbEventOperation.hpp"
-#include "NdbRecAttr.hpp"
+#include <NdbOperation.hpp>
+#include <NdbConnection.hpp>
+#include <NdbEventOperation.hpp>
+#include <NdbRecAttr.hpp>
 #include <md5_hash.hpp>
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
@@ -1221,7 +1224,6 @@ Ndb::pollEvents(int aMillisecondNumber)
 
 #ifdef VM_TRACE
 #include <NdbMutex.h>
-#include <stdarg.h>
 static NdbMutex print_state_mutex = NDB_MUTEX_INITIALIZER;
 static bool
 checkdups(NdbConnection** list, unsigned no)
@@ -1243,7 +1245,7 @@ Ndb::printState(const char* fmt, ...)
   NdbMutex_Lock(&print_state_mutex);
   bool dups = false;
   ndbout << buf << " ndb=" << hex << this << dec;
-#ifdef NDB_LINUX
+#ifndef NDB_WIN32
   ndbout << " thread=" << (int)pthread_self();
 #endif
   ndbout << endl;

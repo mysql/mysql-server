@@ -24,7 +24,6 @@
 #include <NdbSleep.h>
 #include <NdbCondition.h>
 #include <NdbTimer.hpp>
-#include <assert.h>
 #include <Vector.hpp>
 #include <NdbDictionary.hpp>
 

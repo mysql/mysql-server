@@ -21,6 +21,5 @@
 
 #define CRLF		"\r\n"
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <ndb_global.h>
 #include <dirent.h>

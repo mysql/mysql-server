@@ -10,6 +10,8 @@
 in_rpm=0
 windows=0
 defaults=""
+tmp_file=/tmp/mysql_install_db.$$
+
 case "$1" in
     --no-defaults|--defaults-file=*|--defaults-extra-file=*)
       defaults="$1"; shift
@@ -212,9 +214,11 @@ then
     then
       echo "Fill help tables"
     fi
-    if ! (echo "use mysql;
-          " 
-          cat $fill_help_tables) | eval "$mysqld_install_cmd_line"
+    echo "use mysql;" > $tmp_file
+    cat $tmp_file $fill_help_tables | eval "$mysqld_install_cmd_line"
+    res=$?
+    rm $tmp_file
+    if test $res != 0
     then
       echo ""
       echo "WARNING: HELP FILES ARE NOT COMPLETELY INSTALLED!"

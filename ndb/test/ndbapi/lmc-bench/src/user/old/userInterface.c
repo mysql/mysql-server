@@ -18,10 +18,7 @@
 * I N C L U D E D   F I L E S                                  *
 ***************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/time.h>
+#include <ndb_global.h>
 
 #include "userInterface.h"
 #include "userHandle.h"

@@ -18,15 +18,7 @@ endif
 ifeq ($(NDB_OS), OSE)
 	SOURCES += NdbErrHnd.cpp
 endif
-ifdef NDB_STRDUP
-	SOURCES.c += strdup.c
-endif
-ifdef NDB_STRLCAT
-        SOURCES.c += strlcat.c
-endif
-ifdef NDB_STRLCPY
-        SOURCES.c += strlcpy.c
-endif
+	SOURCES.c += strdup.c strlcat.c strlcpy.c
 
 DIRS := testSimpleProperties
 

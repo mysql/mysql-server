@@ -14,13 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <errno.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <limits.h>
-
-#include <ndb_version.h>
+#include "CommandInterpreter.hpp"
 
 #include <mgmapi.h>
 #include <mgmapi_debug.h>
@@ -34,7 +28,6 @@
 
 #endif // HAVE_GLOBAL_REPLICATION
 #include "MgmtErrorReporter.hpp"
-#include "CommandInterpreter.hpp"
 #include "CpcClient.hpp"
 
 #ifdef NDB_SOLARIS      // XXX fix me

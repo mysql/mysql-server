@@ -17,7 +17,8 @@
 #ifndef NODELOGLEVEL_H
 #define NODELOGLEVEL_H
 
-#include <portlib/NdbConstant.hpp>
+#include <ndb_global.h>
+
 #include <signaldata/SetLogLevelOrd.hpp>
 
 /**

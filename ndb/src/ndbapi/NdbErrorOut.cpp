@@ -14,23 +14,32 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* 
- * NdbStdio.h - stdio.h for ndb
- *  
- *
+
+#include <ndb_global.h>
+
+#include <NdbOut.hpp>
+
+#include <NdbError.hpp>
+
+/**
+ * operators
  */
+NdbOut &
+operator<<(NdbOut & out, const NdbError & error){
+  if(error.message != 0)
+    out << error.code << ": " << error.message;
+  else
+    out << error.code << ": ";
+  return out;
+}
 
+NdbOut &
+operator<<(NdbOut & out, const NdbError::Status & status){
+  return out << ndberror_status_message((ndberror_status)status);
+}
 
-#if defined NDB_OSE || defined NDB_SOFTOSE
-/* On OSE Delta the snprintf is declare in outfmt.h */
-#include <outfmt.h>
-#endif
-
-#include <stdio.h>
-
-#ifdef NDB_WIN32
-#define snprintf _snprintf
-#define vsnprintf _vsnprintf
-#define strtok_r(s1, s2, l) strtok(s1, s2)
-#endif
+NdbOut &
+operator<<(NdbOut & out, const NdbError::Classification & classification){
+  return out << ndberror_classification_message((ndberror_classification)classification);
+}
 

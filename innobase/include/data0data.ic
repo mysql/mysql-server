@@ -93,12 +93,12 @@ void
 dfield_set_data(
 /*============*/
 	dfield_t* 	field,	/* in: field */
-	void*		data,	/* in: data */
+	const void*	data,	/* in: data */
 	ulint		len)	/* in: length or UNIV_SQL_NULL */
 {
 	ut_ad(field);
 
-	field->data = data;
+	field->data = (void*) data;
 	field->len = len;
 }
 

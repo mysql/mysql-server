@@ -97,11 +97,11 @@ void free_args(arg_list_t *);
 
 int sleep_until_file_exists(char *);
 int sleep_until_file_deleted(char *);
-int wait_for_server_start(char *, char *, char *, int);
+int wait_for_server_start(char *, char *, char *, int,char *);
 
 int spawn(char *, arg_list_t *, int, char *, char *, char *);
 
-int stop_server(char *, char *, char *, int, char *);
+int stop_server(char *, char *, char *, int, char *,char *);
 pid_t get_server_pid(char *);
 void kill_server(pid_t pid);
 

@@ -1140,9 +1140,6 @@ void Item_func_curdate::fix_length_and_dec()
 
   store_now_in_tm(current_thd->query_start(),&start);
   
-  value=(longlong) ((ulong) ((uint) start.tm_year+1900)*10000L+
-		    ((uint) start.tm_mon+1)*100+
-		    (uint) start.tm_mday);
   /* For getdate */
   ltime.year=	start.tm_year+1900;
   ltime.month=	start.tm_mon+1;
@@ -1153,6 +1150,7 @@ void Item_func_curdate::fix_length_and_dec()
   ltime.second_part=0;
   ltime.neg=0;
   ltime.time_type=TIMESTAMP_DATE;
+  value= (longlong) TIME_to_ulonglong_date(&ltime);
 }
 
 String *Item_func_curdate::val_str(String *str)
@@ -1211,15 +1209,12 @@ void Item_func_curtime::fix_length_and_dec()
 
   decimals=0; 
   store_now_in_tm(current_thd->query_start(),&start);
-  value=(longlong) ((ulong) ((uint) start.tm_hour)*10000L+
-		    (ulong) (((uint) start.tm_min)*100L+
-			     (uint) start.tm_sec));
-  ltime.day=	0;
   ltime.hour=	start.tm_hour;
   ltime.minute=	start.tm_min;
   ltime.second=	start.tm_sec;
   ltime.second_part= 0;
   ltime.neg= 0;
+  value= TIME_to_ulonglong_time(&ltime);
   make_time((DATE_TIME_FORMAT *) 0, &ltime, &tmp);
   max_length= buff_length= tmp.length();
 }
@@ -1262,23 +1257,12 @@ void Item_func_now::fix_length_and_dec()
   collation.set(&my_charset_bin);
 
   store_now_in_tm(current_thd->query_start(),&start);
-  value=((longlong) ((ulong) ((uint) start.tm_year+1900)*10000L+
-		     (((uint) start.tm_mon+1)*100+
-		      (uint) start.tm_mday))*(longlong) 1000000L+
-	 (longlong) ((ulong) ((uint) start.tm_hour)*10000L+
-		     (ulong) (((uint) start.tm_min)*100L+
-			    (uint) start.tm_sec)));
   
   /* For getdate */
-  ltime.year=	start.tm_year+1900;
-  ltime.month=	start.tm_mon+1;
-  ltime.day=	start.tm_mday;
-  ltime.hour=	start.tm_hour;
-  ltime.minute=	start.tm_min;
-  ltime.second=	start.tm_sec;
-  ltime.second_part= 0;
-  ltime.neg= 0;
+  localtime_to_TIME(&ltime, &start);
   ltime.time_type= TIMESTAMP_DATETIME;
+  
+  value= (longlong) TIME_to_ulonglong_datetime(&ltime);
 
   make_datetime((DATE_TIME_FORMAT *) 0, &ltime, &tmp);
   max_length= buff_length= tmp.length();
@@ -1463,10 +1447,10 @@ uint Item_func_date_format::format_length(const String *format)
 
 String *Item_func_date_format::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
   String *format;
   TIME l_time;
   uint size;
+  DBUG_ASSERT(fixed == 1);
 
   if (!is_time_format)
   {
@@ -1513,25 +1497,18 @@ null_date:
 
 String *Item_func_from_unixtime::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
-  struct tm tm_tmp,*start;
-  time_t tmp=(time_t) args[0]->val_int();
+  struct tm tm_tmp;
+  time_t tmp;
   TIME ltime;
   
+  DBUG_ASSERT(fixed == 1);
+  tmp= (time_t) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     goto null_date;
 
   localtime_r(&tmp,&tm_tmp);
-  start=&tm_tmp;
 
-  ltime.year= start->tm_year+1900;
-  ltime.month= start->tm_mon+1;
-  ltime.day= start->tm_mday;
-  ltime.hour= start->tm_hour;
-  ltime.minute= start->tm_min;
-  ltime.second= start->tm_sec;
-  ltime.second_part= 0;
-  ltime.neg=0;
+  localtime_to_TIME(&ltime, &tm_tmp);
 
   if (str->alloc(20*MY_CHARSET_BIN_MB_MAXLEN))
     goto null_date;
@@ -1546,19 +1523,17 @@ null_date:
 
 longlong Item_func_from_unixtime::val_int()
 {
+  TIME ltime;
+  struct tm tm_tmp;
+  time_t tmp;
   DBUG_ASSERT(fixed == 1);
-  time_t tmp=(time_t) (ulong) args[0]->val_int();
+
+  tmp= (time_t) (ulong) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     return 0;
-  struct tm tm_tmp,*start;
   localtime_r(&tmp,&tm_tmp);
-  start= &tm_tmp;
-  return ((longlong) ((ulong) ((uint) start->tm_year+1900)*10000L+
-		      (((uint) start->tm_mon+1)*100+
-		       (uint) start->tm_mday))*LL(1000000)+
-	  (longlong) ((ulong) ((uint) start->tm_hour)*10000L+
-		      (ulong) (((uint) start->tm_min)*100L+
-			       (uint) start->tm_sec)));
+  localtime_to_TIME(&ltime, &tm_tmp);
+  return (longlong) TIME_to_ulonglong_datetime(&ltime);
 }
 
 bool Item_func_from_unixtime::get_date(TIME *ltime,
@@ -1567,17 +1542,9 @@ bool Item_func_from_unixtime::get_date(TIME *ltime,
   time_t tmp=(time_t) (ulong) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     return 1;
-  struct tm tm_tmp,*start;
+  struct tm tm_tmp;
   localtime_r(&tmp,&tm_tmp);
-  start= &tm_tmp;
-  ltime->year=	start->tm_year+1900;
-  ltime->month=	start->tm_mon+1;
-  ltime->day=	start->tm_mday;
-  ltime->hour=	start->tm_hour;
-  ltime->minute=start->tm_min;
-  ltime->second=start->tm_sec;
-  ltime->second_part=0;
-  ltime->neg=0;
+  localtime_to_TIME(ltime, &tm_tmp);
   return 0;
 }
 
@@ -2054,7 +2021,7 @@ String *Item_date_typecast::val_str(String *str)
 
   if (!get_arg0_date(&ltime,1) && !str->alloc(11))
   {
-    make_date((DATE_TIME_FORMAT *) 0,&ltime, str);
+    make_date((DATE_TIME_FORMAT *) 0, &ltime, str);
     return str;
   }
 

@@ -874,11 +874,13 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
   return 0;
 }
 
+#include <help_start.h>
 
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s on %s\n",my_progname,ADMIN_VERSION,
 	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -920,6 +922,8 @@ static void usage(void)
   variables             Prints variables available\n\
   version		Get version info from server");
 }
+
+#include <help_end.h>
 
 static int drop_db(MYSQL *mysql, const char *db)
 {

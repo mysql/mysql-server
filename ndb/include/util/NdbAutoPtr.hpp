@@ -17,7 +17,7 @@
 #ifndef __NDB_AUTO_PTR_HPP
 #define __NDB_AUTO_PTR_HPP
 
-#include <stdlib.h>
+#include <ndb_global.h>
 
 template<typename T>
 class NdbAutoPtr {

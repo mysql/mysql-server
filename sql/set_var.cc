@@ -108,6 +108,7 @@ static void fix_max_connections(THD *thd, enum_var_type type);
 static int check_max_delayed_threads(THD *thd, set_var *var);
 static void fix_thd_mem_root(THD *thd, enum_var_type type);
 static void fix_trans_mem_root(THD *thd, enum_var_type type);
+static void fix_server_id(THD *thd, enum_var_type type);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
@@ -312,7 +313,7 @@ sys_query_cache_wlock_invalidate("query_cache_wlock_invalidate",
 				 &SV::query_cache_wlock_invalidate);
 #endif /* HAVE_QUERY_CACHE */
 sys_var_bool_ptr	sys_secure_auth("secure_auth", &opt_secure_auth);
-sys_var_long_ptr	sys_server_id("server_id",&server_id);
+sys_var_long_ptr	sys_server_id("server_id", &server_id, fix_server_id);
 sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 						      &opt_slave_compressed_protocol);
 #ifdef HAVE_REPLICATION
@@ -446,9 +447,7 @@ sys_var_thd_ulong               sys_group_concat_max_len("group_concat_max_len",
 
 sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
 /* Global read-only variable describing server license */
-sys_var_const_str		sys_license("license", LICENSE);
-
-
+sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
 
 /*
@@ -710,7 +709,7 @@ struct show_var_st init_vars[]= {
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
   {sys_low_priority_updates.name, (char*) &sys_low_priority_updates, SHOW_SYS},
-  {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_BOOL},
+  {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_MY_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_INT},
   {sys_max_allowed_packet.name,(char*) &sys_max_allowed_packet,	    SHOW_SYS},
   {sys_max_binlog_cache_size.name,(char*) &sys_max_binlog_cache_size, SHOW_SYS},
@@ -1145,6 +1144,13 @@ static void fix_trans_mem_root(THD *thd, enum_var_type type)
                         thd->variables.trans_prealloc_size);
 }
 
+
+static void fix_server_id(THD *thd, enum_var_type type)
+{
+  server_id_supplied = 1;
+}
+
+
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
@@ -1304,11 +1310,11 @@ bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
 
-  if ((ulonglong) tmp > max_system_variables.*offset)
+  if (tmp > max_system_variables.*offset)
     tmp= max_system_variables.*offset;
 
   if (option_limits)
-    tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
+    tmp= getopt_ull_limit_value(tmp, option_limits);
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */

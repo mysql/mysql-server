@@ -27,10 +27,12 @@
  * Documentation:
  * Adjust:  2000-06-12  UABRONM   First version.
  ****************************************************************************/
-#include "Ndb.hpp"
-#include "NdbConnection.hpp"
-#include "NdbOperation.hpp"
-#include "NdbScanOperation.hpp"
+#include <ndb_global.h>
+
+#include <Ndb.hpp>
+#include <NdbConnection.hpp>
+#include <NdbOperation.hpp>
+#include <NdbScanOperation.hpp>
 #include "NdbScanReceiver.hpp"
 #include "NdbApiSignal.hpp"
 #include "TransporterFacade.hpp"
@@ -41,7 +43,6 @@
 #include <signaldata/ScanTab.hpp>
 
 #include <NdbOut.hpp>
-#include <assert.h>
 
 // time out for next scan result (-1 is infinite)
 // XXX should change default only if non-trivial interpreted program is used

@@ -17,9 +17,7 @@
 #ifndef NDBT_STATS_HPP
 #define NDBT_STATS_HPP
 
-#include <math.h>
-#include <float.h>
-#include <assert.h>
+#include <ndb_global.h>
 
 class NDBT_Stats {
 public:

@@ -14,6 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+#include <ndb_version.h>
+
 #include <ConfigRetriever.hpp>
 
 #include "LocalConfig.hpp"
@@ -21,21 +24,15 @@
 #include <NdbOut.hpp>
 
 #include <NdbTCP.h>
-#include <string.h>
-#include <NdbStdio.h>
 #include <NdbEnv.h>
 #include "MgmtErrorReporter.hpp"
 
 #include <uucode.h>
 #include <Properties.hpp>
 
-#include <stdio.h>
-#include <NdbString.h>
-#include <sys/stat.h>
 #include <socket_io.h>
 #include <NdbConfig.h>
 
-#include <ndb_version.h>
 
 //****************************************************************************
 //****************************************************************************

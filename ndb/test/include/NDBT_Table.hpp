@@ -17,10 +17,10 @@
 #ifndef NDBT_TABLE_HPP
 #define NDBT_TABLE_HPP
 
+#include <ndb_global.h>
+
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
-
-#include <string.h>
 
 class NDBT_Attribute : public NdbDictionary::Column {
   friend class NdbOut& operator <<(class NdbOut&, const NDBT_Attribute &);

@@ -1294,7 +1294,7 @@ Grep::PSPart::execSUB_REMOVE_REF(Signal* signal)
   jamEntry();
   SubRemoveRef * const ref = (SubRemoveRef *)signal->getDataPtr();
   Uint32 subData           = ref->subscriberData;
-  GrepError::Code err      = (GrepError::Code)ref->err;
+  /*  GrepError::Code err      = (GrepError::Code)ref->err;*/
   SubscriptionPtr subPtr;
   c_subscriptions.getPtr(subPtr, subData);
   

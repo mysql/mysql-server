@@ -217,13 +217,10 @@ sym_tab_add_id(
 
 	node->common.type = QUE_NODE_SYMBOL;
 	
-	node->name = mem_heap_alloc(sym_tab->heap, len + 1);
 	node->resolved = FALSE;
 	node->indirection = NULL;
 
-	ut_memcpy(node->name, name, len);
-	node->name[len] = '\0';
-
+	node->name = mem_heap_strdupl(sym_tab->heap, name, len + 1);
 	node->name_len = len;
 
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);

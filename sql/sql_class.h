@@ -31,7 +31,7 @@ class sp_rcontext;
 class sp_cache;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
-enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY };
+enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_IGNORE, DUP_UPDATE };
 enum enum_log_type { LOG_CLOSED, LOG_TO_BE_OPENED, LOG_NORMAL, LOG_NEW, LOG_BIN};
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
@@ -233,6 +233,7 @@ public:
   const char *field_name;
   uint length;
   key_part_spec(const char *name,uint len=0) :field_name(name), length(len) {}
+  bool operator==(const key_part_spec& other) const;
 };
 
 
@@ -262,12 +263,16 @@ public:
   enum ha_key_alg algorithm;
   List<key_part_spec> columns;
   const char *name;
+  bool generated;
 
   Key(enum Keytype type_par, const char *name_arg, enum ha_key_alg alg_par,
-      List<key_part_spec> &cols)
-    :type(type_par), algorithm(alg_par), columns(cols), name(name_arg)
+      bool generated_arg, List<key_part_spec> &cols)
+    :type(type_par), algorithm(alg_par), columns(cols), name(name_arg),
+    generated(generated_arg)
   {}
   ~Key() {}
+  /* Equality comparison of keys (ignoring name) */
+  friend bool foreign_key_prefix(Key *a, Key *b);
 };
 
 class Table_ident;
@@ -285,7 +290,7 @@ public:
   foreign_key(const char *name_arg, List<key_part_spec> &cols,
 	      Table_ident *table,   List<key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
-    :Key(FOREIGN_KEY, name_arg, HA_KEY_ALG_UNDEF, cols),
+    :Key(FOREIGN_KEY, name_arg, HA_KEY_ALG_UNDEF, 0, cols),
     ref_table(table), ref_columns(cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
@@ -625,11 +630,29 @@ public:
   Protocol_prep protocol_prep;		// Binary protocol
   HASH    user_vars;			// hash for user variables
   String  packet;			// dynamic buffer for network I/O
+  String  convert_buffer;               // buffer for charset conversions
   struct  sockaddr_in remote;		// client socket address
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
-
+  /* 
+    Note that (A) if we set query = NULL, we must at the same time set
+    query_length = 0, and protect the whole operation with the
+    LOCK_thread_count mutex. And (B) we are ONLY allowed to set query to a
+    non-NULL value if its previous value is NULL. We do not need to protect
+    operation (B) with any mutex. To avoid crashes in races, if we do not
+    know that thd->query cannot change at the moment, one should print
+    thd->query like this:
+      (1) reserve the LOCK_thread_count mutex;
+      (2) check if thd->query is NULL;
+      (3) if not NULL, then print at most thd->query_length characters from
+      it. We will see the query_length field as either 0, or the right value
+      for it.
+    Assuming that the write and read of an n-bit memory field in an n-bit
+    computer is atomic, we can avoid races in the above way. 
+    This printing is needed at least in SHOW PROCESSLIST and SHOW INNODB
+    STATUS.
+  */
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map; 
   /*
@@ -955,6 +978,9 @@ public:
   bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
 		      const char *from, uint from_length,
 		      CHARSET_INFO *from_cs);
+
+  bool convert_string(String *s, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs);
+
   void add_changed_table(TABLE *table);
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
@@ -1211,7 +1237,6 @@ class select_union :public select_result {
   TABLE *table;
   COPY_INFO info;
   TMP_TABLE_PARAM tmp_table_param;
-  bool not_describe;
 
   select_union(TABLE *table_par);
   ~select_union();

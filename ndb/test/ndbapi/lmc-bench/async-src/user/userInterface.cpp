@@ -18,9 +18,7 @@
 * I N C L U D E D   F I L E S                                  *
 ***************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
+#include <ndb_global.h>
 #include <time.h>
 
 #include "ndb_schema.hpp"
@@ -31,7 +29,6 @@
 #include <NdbTick.h>
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
-#include <NdbStdio.h> 
 
 /***************************************************************
 * L O C A L   C O N S T A N T S                                *

@@ -15,18 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
 #include "NdbSleep.h"
-
-
-#ifdef NDB_SOLARIS
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
-#if defined NDB_LINUX || defined NDB_HPUX || defined NDB_MACOSX
-#include <time.h>
-#include <unistd.h>
-#endif
 
 int
 NdbSleep_MilliSleep(int milliseconds){

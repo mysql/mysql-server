@@ -109,7 +109,7 @@ MYSQL_MANAGER* manager=0;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest","client",0 };
-static char line_buffer[MAX_DELIMITER], *line_buffer_pos= line_buffer;;
+static char line_buffer[MAX_DELIMITER], *line_buffer_pos= line_buffer;
 
 static FILE* file_stack[MAX_INCLUDE_DEPTH];
 static FILE** cur_file;
@@ -179,6 +179,17 @@ typedef struct
   int int_dirty; /* do not update string if int is updated until first read */
   int alloced;
 } VAR;
+
+#ifdef __NETWARE__
+/*
+  Netware doesn't proved environment variable substitution that is done
+  by the shell in unix environments. We do this in the following function:
+*/
+
+static char *subst_env_var(const char *cmd);
+static int my_popen(const char *cmd, const char *mode);
+#define popen(A,B) my_popen((A),(B))
+#endif /* __NETWARE__ */
 
 VAR var_reg[10];
 /*Perl/shell-like variable registers */
@@ -906,7 +917,7 @@ int do_exec(struct st_query* q)
 
     while (fgets(buf, sizeof(buf), res_file))
       replace_dynstr_append_mem(ds, buf, strlen(buf));
-  
+
     if (glob_replace)
       free_replace();
 
@@ -928,6 +939,7 @@ int do_exec(struct st_query* q)
   
   DBUG_RETURN(error);
 }
+
 
 int var_query_set(VAR* v, const char* p, const char** p_end)
 {
@@ -3674,3 +3686,101 @@ static void get_replace_column(struct st_query *q)
   }
   my_free(start, MYF(0));
 }
+
+#ifdef __NETWARE__
+
+/*
+  Substitute environment variables with text.
+
+  SYNOPSIS
+    subst_env_var()
+    arg			String that should be substitute
+
+  DESCRIPTION
+    This function takes a string as an input and replaces the
+    environment variables, that starts with '$' character, with it value.
+
+  NOTES
+    Return string must be freed with my_free()
+
+  RETURN
+    String with environment variables replaced.
+*/
+
+static char *subst_env_var(const char *str)
+{
+  char *result;
+
+  result= pos= my_malloc(MAX_QUERY, MYF(MY_FAE));
+  while (*str)
+  {
+    /*
+      need this only when we want to provide the functionality of
+      escaping through \ 'backslash'
+      if ((result == pos && *str=='$') ||
+          (result != pos && *str=='$' && str[-1] !='\\'))
+    */
+    if (*str == '$')
+    {
+      char env_var[256], *env_pos= env_var, *subst;
+
+      /* Search for end of environment variable */
+      for (str++;
+           *str && !isspace(*str) && *str != '\\' && *str != '/' &&
+             *str != '$';
+           str++)
+        *env_pos++ *str;
+      *env_pos= 0;
+
+      if (!(subst= getenv(env_var)))
+      {
+        my_free(result, MYF(0));
+        die("MYSQLTEST.NLM: Environment variable %s is not defined\n",
+            env_var);
+      }
+
+      /* get the string to be substitued for env_var  */
+      pos= strmov(pos, subst);
+      /* Process delimiter in *str again */
+    }
+    else
+      *pos++= *str++;
+  }
+  *pos= 0;
+  return result;
+}
+
+
+/*
+  popen replacement for Netware
+
+  SYNPOSIS
+    my_popen()
+    name		Command to execute (with possible env variables)
+    mode		Mode for popen.
+
+  NOTES
+    Environment variable expansion does not take place for popen function
+    on NetWare, so we use this function to wrap around popen to do this.
+
+    For the moment we ignore 'mode' and always use 'r0'
+
+  RETURN
+    # >= 0	File handle
+    -1		Error
+*/
+
+#undef popen                                    /* Remove wrapper */
+
+int my_popen(const char *cmd, const char *mode __attribute__((unused)) t)
+{
+  char *subst_cmd;
+  int res_file;
+  
+  subst_cmd= subst_env_var(cmd);
+  res_file= popen(subst_cmd, "r0");
+  my_free(subst_cmd, MYF(0));
+  return res_file;
+}
+
+#endif /* __NETWARE__ */

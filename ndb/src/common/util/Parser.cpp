@@ -15,14 +15,14 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include "Parser.hpp"
-#include <stdio.h>
 #include <NdbOut.hpp>
-#include <string.h>
 #include <Properties.hpp>
-#include <assert.h>
 #include <Base64.hpp>
 
+#undef DEBUG
 #define DEBUG(x) ndbout << x << endl;
 
 static void trim(char * str);

@@ -1033,7 +1033,7 @@ ulong acl_get(const char *host, const char *ip,
   end=strmov((tmp_db=strmov(strmov(key, ip ? ip : "")+1,user)+1),db);
   if (lower_case_table_names)
   {
-    my_casedn_str(&my_charset_latin1, tmp_db);
+    my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
   }
   key_length=(uint) (end-key);
@@ -1812,8 +1812,8 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
   tname= strdup_root(&memex,t);
   if (lower_case_table_names)
   {
-    my_casedn_str(&my_charset_latin1, db);
-    my_casedn_str(&my_charset_latin1, tname);
+    my_casedn_str(files_charset_info, db);
+    my_casedn_str(files_charset_info, tname);
   }
   key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
   hash_key = (char*) alloc_root(&memex,key_length);
@@ -1847,8 +1847,8 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   }
   if (lower_case_table_names)
   {
-    my_casedn_str(&my_charset_latin1, db);
-    my_casedn_str(&my_charset_latin1, tname);
+    my_casedn_str(files_charset_info, db);
+    my_casedn_str(files_charset_info, tname);
   }
   key_length = ((uint) strlen(db) + (uint) strlen(user) +
                 (uint) strlen(tname) + 3);
@@ -1899,7 +1899,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
       }
       my_hash_insert(&hash_columns, (byte *) mem_check);
     } while (!col_privs->file->index_next(col_privs->record[0]) &&
-             !key_cmp(col_privs,key,0,key_len));
+             !key_cmp_if_same(col_privs,key,0,key_len));
   }
 }
 
@@ -1997,7 +1997,8 @@ static int replace_column_table(GRANT_TABLE *g_t,
     ulong privileges = xx->rights;
     bool old_row_exists=0;
     key_restore(table,key,0,key_length);
-    table->field[4]->store(xx->column.ptr(),xx->column.length(),&my_charset_latin1);
+    table->field[4]->store(xx->column.ptr(),xx->column.length(),
+                           &my_charset_latin1);
 
     if (table->file->index_read(table->record[0],(byte*) table->field[0]->ptr,
 				0, HA_READ_KEY_EXACT))
@@ -2010,9 +2011,10 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	continue; /* purecov: inspected */
       }
       old_row_exists = 0;
-      restore_record(table,default_values);				// Get empty record
+      restore_record(table,default_values);		// Get empty record
       key_restore(table,key,0,key_length);
-      table->field[4]->store(xx->column.ptr(),xx->column.length(), &my_charset_latin1);
+      table->field[4]->store(xx->column.ptr(),xx->column.length(),
+                             &my_charset_latin1);
     }
     else
     {
@@ -2120,7 +2122,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	}
       }
     } while (!table->file->index_next(table->record[0]) &&
-	     !key_cmp(table,key,0,key_length));
+	     !key_cmp_if_same(table,key,0,key_length));
   }
 
 end:
@@ -2493,7 +2495,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   if (lower_case_table_names && db)
   {
     strmov(tmp_db,db);
-    my_casedn_str(&my_charset_latin1, tmp_db);
+    my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
   }
 
@@ -3141,7 +3143,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
   /* Add first global access grants */
   {
-    String global(buff,sizeof(buff),&my_charset_latin1);
+    String global(buff,sizeof(buff),system_charset_info);
     global.length(0);
     global.append("GRANT ",6);
 
@@ -3166,7 +3168,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       }
     }
     global.append (" ON *.* TO '",12);
-    global.append(lex_user->user.str,lex_user->user.length);
+    global.append(lex_user->user.str, lex_user->user.length,
+		  system_charset_info);
     global.append ("'@'",3);
     global.append(lex_user->host.str,lex_user->host.length);
     global.append ('\'');
@@ -3254,7 +3257,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       want_access=acl_db->access;
       if (want_access)
       {
-	String db(buff,sizeof(buff),&my_charset_latin1);
+	String db(buff,sizeof(buff),system_charset_info);
 	db.length(0);
 	db.append("GRANT ",6);
 
@@ -3280,7 +3283,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	db.append (" ON ",4);
 	append_identifier(thd, &db, acl_db->db, strlen(acl_db->db));
 	db.append (".* TO '",7);
-	db.append(lex_user->user.str,lex_user->user.length);
+	db.append(lex_user->user.str, lex_user->user.length,
+		  system_charset_info);
 	db.append ("'@'",3);
 	db.append(lex_user->host.str, lex_user->host.length);
 	db.append ('\'');
@@ -3314,7 +3318,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
       ulong table_access= grant_table->privs;
       if ((table_access | grant_table->cols) != 0)
       {
-	String global(buff,sizeof(buff),&my_charset_latin1);
+	String global(buff, sizeof(buff), system_charset_info);
 	ulong test_access= (table_access | grant_table->cols) & ~GRANT_ACL;
 
 	global.length(0);
@@ -3368,7 +3372,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 		    else
 		      global.append(", ",2);
 		    global.append(grant_column->column,
-				  grant_column->key_length);
+				  grant_column->key_length,
+				  system_charset_info);
 		  }
 		}
 		if (found_col)
@@ -3384,7 +3389,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	append_identifier(thd, &global, grant_table->tname,
 			  strlen(grant_table->tname));
 	global.append(" TO '",5);
-	global.append(lex_user->user.str,lex_user->user.length);
+	global.append(lex_user->user.str, lex_user->user.length,
+		      system_charset_info);
 	global.append("'@'",3);
 	global.append(lex_user->host.str,lex_user->host.length);
 	global.append('\'');

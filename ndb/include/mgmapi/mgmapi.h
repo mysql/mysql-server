@@ -80,13 +80,13 @@ extern "C" {
    *   NDB Cluster node types
    */
   enum ndb_mgm_node_type {
-    NDB_MGM_NODE_TYPE_UNKNOWN = -1,         ///< Node type not known
-    NDB_MGM_NODE_TYPE_API     = 0,          ///< An application node (API)
-    NDB_MGM_NODE_TYPE_NDB     = 1,          ///< A database node (DB)
-    NDB_MGM_NODE_TYPE_MGM     = 2,          ///< A management server node (MGM)
+    NDB_MGM_NODE_TYPE_UNKNOWN = -1,         /*/< Node type not known*/
+    NDB_MGM_NODE_TYPE_API     = 0,          /*/< An application node (API)*/
+    NDB_MGM_NODE_TYPE_NDB     = 1,          /*/< A database node (DB)*/
+    NDB_MGM_NODE_TYPE_MGM     = 2,          /*/< A management server node (MGM)*/
 
-    NDB_MGM_NODE_TYPE_MIN     = 0,          ///< Min valid value
-    NDB_MGM_NODE_TYPE_MAX     = 2           ///< Max valid value
+    NDB_MGM_NODE_TYPE_MIN     = 0,          /*/< Min valid value*/
+    NDB_MGM_NODE_TYPE_MAX     = 2           /*/< Max valid value*/
   };
 
   /**

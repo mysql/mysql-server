@@ -15,8 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <stdio.h>
-
+#include <ndb_global.h>
+#include <kernel_types.h>
 
 #include "NdbDictionaryImpl.hpp"
 #include "API.hpp"
@@ -24,21 +24,12 @@
 #include <AttrType.hpp>
 #include "NdbApiSignal.hpp"
 #include "TransporterFacade.hpp"
-#include <signaldata/GetTabInfo.hpp>
-#include <signaldata/DictTabInfo.hpp>
-#include <signaldata/CreateTable.hpp>
-#include <signaldata/CreateIndx.hpp>
 #include <signaldata/CreateEvnt.hpp>
 #include <signaldata/SumaImpl.hpp>
-#include <signaldata/DropTable.hpp>
-#include <signaldata/DropIndx.hpp>
-#include <signaldata/ListTables.hpp>
 #include <SimpleProperties.hpp>
 #include <Bitmask.hpp>
 #include <AttributeHeader.hpp>
 #include <AttributeList.hpp>
-#include <ndb_types.h>
-#include <kernel_types.h>
 #include <NdbError.hpp>
 #include <BaseString.hpp>
 #include <UtilBuffer.hpp>

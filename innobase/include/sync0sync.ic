@@ -23,7 +23,7 @@ void
 mutex_spin_wait(
 /*============*/
         mutex_t*	mutex,  	/* in: pointer to mutex */
-	char*		file_name,/* in: file name where mutex requested */
+	const char*	file_name,/* in: file name where mutex requested */
 	ulint		line);	/* in: line where requested */
 #ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
@@ -241,9 +241,9 @@ UNIV_INLINE
 void
 mutex_enter_func(
 /*=============*/
-	mutex_t*	mutex,	/* in: pointer to mutex */
-	char*		file_name,/* in: file name where locked */
-	ulint		line)	/* in: line where locked */
+	mutex_t*	mutex,		/* in: pointer to mutex */
+	const char*	file_name, 	/* in: file name where locked */
+	ulint		line)		/* in: line where locked */
 {
 	ut_ad(mutex_validate(mutex));
 
