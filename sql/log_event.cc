@@ -659,9 +659,18 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
   }
   if (!ev || !ev->is_valid())
   {
-    *error= "Found invalid event in binary log";
     delete ev;
+#ifdef MYSQL_CLIENT
+    if (!force_opt)
+    {
+      *error= "Found invalid event in binary log";
+      return 0;
+    }
+    ev= new Unknown_log_event(buf, old_format);
+#else
+    *error= "Found invalid event in binary log";
     return 0;
+#endif
   }
   ev->cached_event_len = event_len;
   return ev;  
@@ -1694,6 +1703,17 @@ void Execute_load_log_event::pack_info(String* packet)
   net_store_data(packet, buf);
 }
 #endif
+
+#ifdef MYSQL_CLIENT
+void Unknown_log_event::print(FILE* file, bool short_form, char* last_db)
+{
+  if (short_form)
+    return;
+  print_header(file);
+  fputc('\n', file);
+  fprintf(file, "# %s", "Unknown event\n");
+}
+#endif  
 
 #ifndef MYSQL_CLIENT
 int Query_log_event::exec_event(struct st_relay_log_info* rli)

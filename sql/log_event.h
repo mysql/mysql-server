@@ -201,10 +201,10 @@ struct sql_ex_info
 
 enum Log_event_type
 {
-  START_EVENT = 1, QUERY_EVENT =2, STOP_EVENT=3, ROTATE_EVENT = 4,
-  INTVAR_EVENT=5, LOAD_EVENT=6, SLAVE_EVENT=7, CREATE_FILE_EVENT=8,
-  APPEND_BLOCK_EVENT=9, EXEC_LOAD_EVENT=10, DELETE_FILE_EVENT=11,
-  NEW_LOAD_EVENT=12, RAND_EVENT=13
+  UNKNOWN_EVENT = 0, START_EVENT = 1, QUERY_EVENT =2, STOP_EVENT=3,
+  ROTATE_EVENT = 4, INTVAR_EVENT=5, LOAD_EVENT=6, SLAVE_EVENT=7, 
+  CREATE_FILE_EVENT=8, APPEND_BLOCK_EVENT=9, EXEC_LOAD_EVENT=10,
+  DELETE_FILE_EVENT=11, NEW_LOAD_EVENT=12, RAND_EVENT=13
 };
 
 enum Int_event_type
@@ -713,5 +713,19 @@ public:
   bool is_valid() { return file_id != 0; }
   int write_data(IO_CACHE* file);
 };
+
+#ifdef MYSQL_CLIENT
+class Unknown_log_event: public Log_event
+{
+public:
+  Unknown_log_event(const char* buf, bool old_format):
+    Log_event(buf, old_format)
+  {}
+  ~Unknown_log_event() {}
+  void print(FILE* file, bool short_form= 0, char* last_db= 0);
+  Log_event_type get_type_code() { return UNKNOWN_EVENT;}
+  bool is_valid() { return 1; }
+};
+#endif  
 
 #endif /* _log_event_h */
