@@ -2682,7 +2682,11 @@ order_dir:
 
 opt_limit_clause:
 	/* empty */ {}
-	| LIMIT 
+	| limit_clause {}
+	;
+
+limit_clause:
+	LIMIT 
 	  {
 	    LEX *lex= Lex;
 	    if (lex->current_select->linkage != GLOBAL_OPTIONS_TYPE &&
@@ -4380,10 +4384,7 @@ union_opt:
 	;
 
 optional_order_or_limit:
-      	/* empty 
-           intentional reduce/reduce conflict here !!!
-           { code } below should not be executed
-           when neither ORDER BY nor LIMIT are used */ {}
+      	/* Empty */ {} 
 	|
 	  {
 	    LEX *lex=Lex;
@@ -4399,7 +4400,13 @@ optional_order_or_limit:
 	    lex->current_select->select_limit=
 	      lex->thd->variables.select_limit;
 	  }
-	opt_order_clause opt_limit_clause
+	order_or_limit
+	;
+
+order_or_limit:
+	order_clause opt_limit_clause
+	|
+	limit_clause
 	;
 
 union_option:
