@@ -1,3 +1,4 @@
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 select (select 2);
 (select 2)
 2
@@ -119,7 +120,6 @@ SELECT (SELECT 1.5,2,'a') = ROW(1.5,'c','a');
 SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 (SELECT 1.5,'c','a') = ROW(1.5,2,'a')
 0
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);
 create table t3 (a int);
@@ -310,7 +310,6 @@ W	1
 SELECT * FROM t3 WHERE b = (SELECT MIN(b) FROM t3);
 a	b
 W	a
-drop table if exists t8;
 CREATE TABLE `t8` (
 `pseudo` varchar(35) character set latin1 NOT NULL default '',
 `email` varchar(60) character set latin1 NOT NULL default '',
@@ -520,7 +519,6 @@ a	b
 0	10
 1	11
 drop table t1, t2;
-drop table if exists t11, t12, t2;
 create table t11 (a int NOT NULL, b int, primary key (a));
 create table t12 (a int NOT NULL, b int, primary key (a));
 create table t2 (a int NOT NULL, b int, primary key (a));
@@ -626,7 +624,6 @@ x	y
 drop table t1, t2, t3;
 SELECT * FROM (SELECT 1) b WHERE 1 IN (SELECT *);
 No tables used
-drop table if exists t;
 CREATE TABLE t (id int(11) default NULL, KEY id (id)) TYPE=MyISAM CHARSET=latin1;
 INSERT INTO t VALUES (1),(2);
 SELECT * FROM t WHERE id IN (SELECT 1);
@@ -809,45 +806,44 @@ a	(select a,b,c from t1 where t1.a=t2.a) = ROW(a,4,'c')	(select c from t1 where 
 2	0	b
 NULL	NULL	NULL
 drop table t1,t2;
-drop table if exists t;
-create table t (a int, b real, c varchar(10));
-insert into t values (1, 1, 'a'), (2,2,'b'), (NULL, 2, 'b');
-select ROW(1, 1, 'a') IN (select a,b,c from t);
-ROW(1, 1, 'a') IN (select a,b,c from t)
+create table t1 (a int, b real, c varchar(10));
+insert into t1 values (1, 1, 'a'), (2,2,'b'), (NULL, 2, 'b');
+select ROW(1, 1, 'a') IN (select a,b,c from t1);
+ROW(1, 1, 'a') IN (select a,b,c from t1)
 1
-select ROW(1, 2, 'a') IN (select a,b,c from t);
-ROW(1, 2, 'a') IN (select a,b,c from t)
+select ROW(1, 2, 'a') IN (select a,b,c from t1);
+ROW(1, 2, 'a') IN (select a,b,c from t1)
 NULL
-select ROW(1, 1, 'a') IN (select b,a,c from t);
-ROW(1, 1, 'a') IN (select b,a,c from t)
+select ROW(1, 1, 'a') IN (select b,a,c from t1);
+ROW(1, 1, 'a') IN (select b,a,c from t1)
 1
-select ROW(1, 1, 'a') IN (select a,b,c from t where a is not null);
-ROW(1, 1, 'a') IN (select a,b,c from t where a is not null)
+select ROW(1, 1, 'a') IN (select a,b,c from t1 where a is not null);
+ROW(1, 1, 'a') IN (select a,b,c from t1 where a is not null)
 1
-select ROW(1, 2, 'a') IN (select a,b,c from t where a is not null);
-ROW(1, 2, 'a') IN (select a,b,c from t where a is not null)
+select ROW(1, 2, 'a') IN (select a,b,c from t1 where a is not null);
+ROW(1, 2, 'a') IN (select a,b,c from t1 where a is not null)
 0
-select ROW(1, 1, 'a') IN (select b,a,c from t where a is not null);
-ROW(1, 1, 'a') IN (select b,a,c from t where a is not null)
+select ROW(1, 1, 'a') IN (select b,a,c from t1 where a is not null);
+ROW(1, 1, 'a') IN (select b,a,c from t1 where a is not null)
 1
-select ROW(1, 1, 'a') IN (select a,b,c from t where c='b' or c='a');
-ROW(1, 1, 'a') IN (select a,b,c from t where c='b' or c='a')
+select ROW(1, 1, 'a') IN (select a,b,c from t1 where c='b' or c='a');
+ROW(1, 1, 'a') IN (select a,b,c from t1 where c='b' or c='a')
 1
-select ROW(1, 2, 'a') IN (select a,b,c from t where c='b' or c='a');
-ROW(1, 2, 'a') IN (select a,b,c from t where c='b' or c='a')
+select ROW(1, 2, 'a') IN (select a,b,c from t1 where c='b' or c='a');
+ROW(1, 2, 'a') IN (select a,b,c from t1 where c='b' or c='a')
 NULL
-select ROW(1, 1, 'a') IN (select b,a,c from t where c='b' or c='a');
-ROW(1, 1, 'a') IN (select b,a,c from t where c='b' or c='a')
+select ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a');
+ROW(1, 1, 'a') IN (select b,a,c from t1 where c='b' or c='a')
 1
-select ROW(1, 1, 'a') IN (select b,a,c from t limit 2);
+select ROW(1, 1, 'a') IN (select b,a,c from t1 limit 2);
 This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
-drop table t;
-create table t (a int);
-insert into t values (1);
-do @a:=(SELECT a from t);
+drop table t1;
+create table t1 (a int);
+insert into t1 values (1);
+do @a:=(SELECT a from t1);
 select @a;
 @a
 1
-drop table t;
-do (SELECT a from t);
-Table 'test.t' doesn't exist
+drop table t1;
+do (SELECT a from t1);
+Table 'test.t1' doesn't exist

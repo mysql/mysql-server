@@ -527,7 +527,8 @@ int check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 /* sql_error.cc */
 void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,
 		  const char *msg);
-void store_warning(THD *thd, uint errcode, ...);
+void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
+			 uint code, const char *format, ...);
 void mysql_reset_errors(THD *thd);
 my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 

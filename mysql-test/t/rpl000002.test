@@ -1,5 +1,5 @@
 source include/master-slave.inc;
-drop table if exists t1;
+
 create table t1 (n int auto_increment primary key);
 set insert_id = 2000;
 insert into t1 values (NULL),(NULL),(NULL);
@@ -12,7 +12,6 @@ drop table t1;
 sync_slave_with_master;
 stop slave;
 connection master;
-drop table if exists t2;
 create table t2(id int auto_increment primary key, created datetime);
 set timestamp=12345;
 insert into t2 set created=now();

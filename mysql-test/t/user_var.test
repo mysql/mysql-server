@@ -1,11 +1,15 @@
-error 1054;
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+--error 1054
 set @a := foo;
 set @a := connection_id() + 3;
 select @a - connection_id();
 
 # Check using and setting variables with SELECT DISTINCT
 
-drop table if exists t1,t2;
 CREATE TABLE t1 ( i int not null, v int not null,index (i));
 insert into t1 values (1,1),(1,3),(2,1); 
 create table t2 (i int not null, unique (i));

@@ -1,3 +1,7 @@
+# Initialise
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
 #
 # test of IN (NULL)
 #
@@ -14,7 +18,7 @@ select NULL in (1.5,2.5,3.5);
 select 1.5 in (1.5,NULL,3.5);
 select 3.5 in (1.5,NULL,3.5);
 select 10.5 in (1.5,NULL,3.5);
-drop table if exists t1;
+
 CREATE TABLE t1 (a int, b int, c int);
 insert into t1 values (1,2,3), (1,NULL,3);
 select 1 in (a,b,c) from t1;

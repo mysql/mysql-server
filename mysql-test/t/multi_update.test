@@ -2,7 +2,10 @@
 # Test of update statement that uses many tables.
 #
 
+--disable_warnings
 drop table if exists t1,t2,t3;
+--enable_warnings
+
 create table t1(id1 int not null auto_increment primary key, t char(12));
 create table t2(id2 int not null, t char(12));
 create table t3(id3 int not null, t char(12), index(id3));
@@ -99,7 +102,7 @@ INSERT INTO t3 VALUES (1,'2002-02-04 00:00:00'),(3,'2002-05-12 00:00:00'),(5,'20
 00:00:00'),(7,'2002-07-22 00:00:00');
 delete t1,t2,t3 from t1,t2,t3 where to_days(now())-to_days(t3.mydate)>=30 and t3.id=t1.id and t3.id=t2.id;
 select * from t3;
-DROP TABLE IF EXISTS t1,t2,t3;
+DROP TABLE t1,t2,t3;
 
 CREATE TABLE IF NOT EXISTS `t1` (
   `id` int(11) NOT NULL auto_increment,
@@ -127,8 +130,7 @@ select * from t2;
 UPDATE t2, t1 SET t2.tst = t1.tst, t2.tst1 = t1.tst1 WHERE t2.ParId = t1.Id;
 
 select * from t2;
-
-drop table if exists t1, t2 ;
+drop table t1, t2 ;
 
 create table t1 (n numeric(10));
 create table t2 (n numeric(10));
@@ -220,7 +222,7 @@ DELETE t1, t2  FROM t1 a,t2 b where a.n=b.n;
 select * from t1;
 select * from t2;
 drop table t1,t2;
-drop table if exists t1,t2,t3;
+
 CREATE TABLE t1 ( broj int(4) unsigned NOT NULL default '0',  naziv char(25) NOT NULL default 'NEPOZNAT',  PRIMARY KEY  (broj)) TYPE=MyISAM;
 INSERT INTO t1 VALUES (1,'jedan'),(2,'dva'),(3,'tri'),(4,'xxxxxxxxxx'),(5,'a'),(10,''),(11,''),(12,''),(13,'');
 CREATE TABLE t2 ( broj int(4) unsigned NOT NULL default '0',  naziv char(25) NOT NULL default 'NEPOZNAT',  PRIMARY KEY  (broj)) TYPE=MyISAM;
@@ -229,4 +231,4 @@ CREATE TABLE t3 ( broj int(4) unsigned NOT NULL default '0',  naziv char(25) NOT
 INSERT INTO t3 VALUES (1,'jedan'),(2,'dva');
 update t1,t2 set t1.naziv="aaaa" where t1.broj=t2.broj;
 update t1,t2,t3 set t1.naziv="bbbb", t2.naziv="aaaa" where t1.broj=t2.broj and t2.broj=t3.broj;
-drop table if exists t1,t2,t3;
+drop table t1,t2,t3;

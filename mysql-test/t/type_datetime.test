@@ -2,7 +2,10 @@
 # testing different DATETIME ranges
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 create table t1 (t datetime);
 insert into t1 values(101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959);
 select * from t1;

@@ -2,7 +2,9 @@ connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 connection con1;
 set SQL_LOG_BIN=0;
-drop table if exists t1;
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
 create table t1(n int);
 --replace_result "errno = 2" "errno = X" "errno = 22" "errno = X" "errno = 23" "errno = X"
 backup table t1 to '../bogus';

@@ -2,6 +2,7 @@ flush query cache;
 flush query cache;
 reset query cache;
 flush status;
+drop database if exists mysqltest;
 drop table if exists t1,t2,t3,t11,t21, mysqltest.t1;
 create table t1 (a int not null);
 insert into t1 values (1),(2),(3);

@@ -512,7 +512,8 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
       file->app_private= (void*) (table->key_info+table->primary_key);
     if ((error= txn_begin(db_env, 0, (DB_TXN**) &transaction, 0)) ||
 	(error= (file->open(file, transaction,
-			    fn_format(name_buff, name, "", ha_berkeley_ext, 2 | 4),
+			    fn_format(name_buff, name, "", ha_berkeley_ext,
+				      2 | 4),
 			    "main", DB_BTREE, open_mode, 0))) ||
 	(error= transaction->commit(transaction, 0)))
     {
@@ -1950,10 +1951,13 @@ int ha_berkeley::rename_table(const char * from, const char * to)
   if ((error= db_create(&file, db_env, 0)))
     my_errno= error;
   else
+  {
+    /* On should not do a file->close() after rename returns */
     error= file->rename(file, 
 			fn_format(from_buff, from, "", ha_berkeley_ext, 2 | 4),
 			NULL, fn_format(to_buff, to, "", ha_berkeley_ext,
 					2 | 4), 0);
+  }
   return error;
 }
 

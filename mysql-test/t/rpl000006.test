@@ -5,12 +5,10 @@ source include/master-slave.inc;
 
 # Don't log table creating to the slave as we want to test LOAD TABLE
 set SQL_LOG_BIN=0,timestamp=200006;
-drop table if exists t1;
 create table t1(t timestamp not null,a char(1));
 insert into t1 ( a) values ('F');
 select unix_timestamp(t) from t1;
 connection slave;
-drop table if exists t1;
 load table t1 from master;
 select unix_timestamp(t) from t1;
 

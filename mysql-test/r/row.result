@@ -1,3 +1,4 @@
+drop table if exists t1;
 select row(1,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3));
 row(1,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3))
 1
@@ -88,7 +89,6 @@ ROW('test',2,ROW(3,33))=ROW('test',2,ROW(3,NULL))
 NULL
 SELECT ROW('test',2,ROW(3,33))=ROW('test',2,4);
 Cardinality error (more/less than 2 columns)
-drop table if exists t1;
 create table t1 ( a int, b int, c int);
 insert into t1 values (1,2,3), (2,3,1), (3,2,1), (1,2,NULL);
 select * from t1 where ROW(1,2,3)=ROW(a,b,c);
@@ -127,7 +127,6 @@ ROW(1,2,3) IN(row(a,b,c), row(1,2,3))
 drop table t1;
 select ROW(1,1);
 Cardinality error (more/less than 1 columns)
-drop table if exists t1;
 create table t1 (i int);
 select 1 from t1 where ROW(1,1);
 Cardinality error (more/less than 1 columns)

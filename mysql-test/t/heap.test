@@ -2,7 +2,10 @@
 # Test of heap tables.
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 create table t1 (a int not null,b int not null, primary key (a)) type=heap comment="testing heaps" avg_row_length=100 min_rows=1 max_rows=100;
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a=1 or a=0;

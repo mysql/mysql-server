@@ -2,7 +2,10 @@
 # Check some special create statements.
 #
 
+--disable_warnings
 drop table if exists t1,t2;
+--enable_warnings
+
 create table t1 (b char(0));
 insert into t1 values (""),(null);
 select * from t1;
@@ -12,7 +15,7 @@ create table t1 (b char(0) not null);
 create table if not exists t1 (b char(0) not null);
 insert into t1 values (""),(null);
 select * from t1;
-drop table if exists t1;
+drop table t1;
 
 #
 # Test of some CREATE TABLE'S that should fail
@@ -91,11 +94,14 @@ create table t2 (a int) select * from t1;
 describe t1;
 describe t2;
 drop table if exists t2;
-!$1060 create table t2 (a int, a float) select * from t1;               
+--error 1060
+create table t2 (a int, a float) select * from t1;               
 drop table if exists t2;
-!$1060 create table t2 (a int) select a as b, a+1 as b from t1;         
+--error 1060
+create table t2 (a int) select a as b, a+1 as b from t1;         
 drop table if exists t2;
-!$1060 create table t2 (b int) select a as b, a+1 as b from t1;         
+--error 1060
+create table t2 (b int) select a as b, a+1 as b from t1;         
 drop table if exists t1,t2;
 
 #
@@ -118,7 +124,6 @@ drop table if exists t1,t2;
 # Test for CREATE TABLE .. LIKE ..
 #
 
-drop table if exists t1, t2, t3;
 create table t1(id int not null, name char(20));
 insert into t1 values(10,'mysql'),(20,'monty- the creator');
 create table t2(id int not null);

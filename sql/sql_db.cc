@@ -333,7 +333,8 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     else
     {
-      store_warning(thd,ER_DB_DROP_EXISTS,db);
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db);
       if (!silent)
         send_ok(thd,0);
     }

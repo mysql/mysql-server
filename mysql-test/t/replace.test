@@ -4,7 +4,9 @@
 # Test of REPLACE with ISAM and MyISAM and HEAP
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 
 CREATE TABLE t1 (
   gesuchnr int(11) DEFAULT '0' NOT NULL,

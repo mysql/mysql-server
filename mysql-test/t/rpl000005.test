@@ -1,5 +1,5 @@
 source include/master-slave.inc;
-drop table if exists t1;
+
 CREATE TABLE t1 (name varchar(64), age smallint(3));
 INSERT INTO  t1 SET name='Andy', age=31;
 INSERT t1 SET name='Jacob', age=2;

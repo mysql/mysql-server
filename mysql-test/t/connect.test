@@ -41,7 +41,6 @@ show tables;
 #--error 1045
 
 
-
 # check if old password version also works
 update mysql.user set password=old_password("gambling2") where user="test";
 flush privileges;

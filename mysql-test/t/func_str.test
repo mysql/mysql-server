@@ -4,7 +4,9 @@
 # -----------
 # Testing string functions
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 
 select 'hello',"'hello'",'""hello""','''h''e''l''l''o''',"hel""lo",'hel\'lo';
 select 'hello' 'monty';

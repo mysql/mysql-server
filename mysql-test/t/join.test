@@ -1,7 +1,9 @@
 #
 # This failed for lia Perminov
 #
+--disable_warnings
 drop table if exists t1,t2,t3;
+--enable_warnings
 
 create table t1 (id int primary key);
 create table t2 (id int);

@@ -181,7 +181,6 @@ SELECT t1.usr_id,t1.uniq_id,t1.increment,t2.usr2_id,t2.c_amount,t2.max FROM t1 L
 usr_id	uniq_id	increment	usr2_id	c_amount	max
 3	4	84676	NULL	NULL	NULL
 drop table t1,t2;
-drop table if exists t1,t2,t3,t4;
 CREATE TABLE t1 (
 cod_asig int(11) DEFAULT '0' NOT NULL,
 desc_larga_cat varchar(80) DEFAULT '' NOT NULL,

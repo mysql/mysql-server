@@ -3,7 +3,10 @@
 # rows MySQL needs to use a merge during the sort phase.
 #
 
+--disable_warnings
 drop table if exists t1,t2;
+--enable_warnings
+
 CREATE TABLE `t1` (
   `id` int(11) NOT NULL default '0',
   `id2` int(11) NOT NULL default '0',

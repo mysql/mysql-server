@@ -1,3 +1,4 @@
+drop table if exists t1;
 select 1 in (1,2,3);
 1 in (1,2,3)
 1
@@ -34,7 +35,6 @@ select 3.5 in (1.5,NULL,3.5);
 select 10.5 in (1.5,NULL,3.5);
 10.5 in (1.5,NULL,3.5)
 NULL
-drop table if exists t1;
 CREATE TABLE t1 (a int, b int, c int);
 insert into t1 values (1,2,3), (1,NULL,3);
 select 1 in (a,b,c) from t1;

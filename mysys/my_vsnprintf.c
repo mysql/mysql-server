@@ -24,8 +24,11 @@
 int my_snprintf(char* to, size_t n, const char* fmt, ...)
 {
   va_list args;
+  int result;
   va_start(args,fmt);
-  return my_vsnprintf(to, n, fmt, args);
+  result= my_vsnprintf(to, n, fmt, args);
+  va_end(args);
+  return result;
 }
 
 int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)

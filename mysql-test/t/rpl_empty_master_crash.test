@@ -1,6 +1,7 @@
 source include/master-slave.inc;
-drop table if exists t1;
+
 show slave status;
+
 #
 # Load table should not succeed on the master as this is not a slave
 #

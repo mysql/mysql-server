@@ -1,7 +1,10 @@
 #
 # Check on condition on different length keys.
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 CREATE TABLE t1 (
   a char(5) NOT NULL,
   b char(4) NOT NULL,

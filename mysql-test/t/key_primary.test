@@ -2,7 +2,10 @@
 # test of primary key conversions
 #
 
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
+
 create table t1 (t1 char(3) primary key);
 insert into t1 values("ABC");
 insert into t1 values("ABA");

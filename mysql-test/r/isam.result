@@ -38,6 +38,8 @@ Incorrect table definition; There can only be one auto column and it must be def
 create table t1 (ordid int(8), unique (ordid)) type=isam;
 Column 'ordid' is used with UNIQUE or INDEX but is not defined as NOT NULL
 drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
 create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
 insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
 create table t2 type=isam select * from t1;

@@ -1,10 +1,18 @@
+# Initialise
+--disable_warnings
+drop table if exists t1,t2,t3;
+--enable_warnings
+
+#
+# Simple test without tables
+
 -- error 1111
 SELECT 1 FROM (SELECT 1) as a  GROUP BY SUM(1);
+
 #
 # Test of group (Failed for Lars Hoss <lh@pbm.de>)
 #
 
-drop table if exists t1,t2,t3;
 CREATE TABLE t1 (
   spID int(10) unsigned,
   userID int(10) unsigned,
@@ -40,7 +48,7 @@ INSERT INTO t2 VALUES (3,'name','pass','mail','Y','v','n','adr','1','1','1');
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
 SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
-drop table test.t1,test.t2;
+drop table t1,t2;
 
 #
 # Bug in GROUP BY, by Nikki Chumakov <nikki@saddam.cityline.ru>
@@ -288,7 +296,6 @@ SELECT 1 FROM t1 GROUP BY CONCAT(a, b);
 INSERT INTO t1 values ('hij','klm');
 SELECT CONCAT(a, b),count(*) FROM t1 GROUP BY 1;
 DROP TABLE t1;
-drop table if exists t1;
 
 #
 # Test problem with ORDER BY on a SUM() column

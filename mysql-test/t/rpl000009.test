@@ -1,36 +1,34 @@
-# This one assumes we are ignoring updates on tables in database foo, but doing
-# the ones in database bar
+# This one assumes we are ignoring updates on tables in database mysqltest2,
+# but doing the ones in database mysqltest
 
 source include/master-slave.inc;
-drop database if exists foo;
-create database foo;
-drop database if exists bar;
-create database bar;
+--disable_warnings
+drop database if exists mysqltest2;
+create database mysqltest2;
+drop database if exists mysqltest;
+create database mysqltest;
+--enable_warnings
+
 save_master_pos;
 connection slave;
 sync_with_master;
-drop table if exists foo.foo;
-create table foo.foo (n int);
-insert into foo.foo values(4);
+create table mysqltest2.foo (n int);
+insert into mysqltest2.foo values(4);
 connection master;
-drop table if exists foo.foo;
-create table foo.foo (n int);
-insert into foo.foo values(5);
-drop table if exists bar.bar;
-create table bar.bar (m int);
-insert into bar.bar values(15);
+create table mysqltest2.foo (n int);
+insert into mysqltest2.foo values(5);
+create table mysqltest.bar (m int);
+insert into mysqltest.bar values(15);
 save_master_pos;
 connection slave;
 sync_with_master;
-select foo.foo.n,bar.bar.m from foo.foo,bar.bar;
+select mysqltest2.foo.n,mysqltest.bar.m from mysqltest2.foo,mysqltest.bar;
 connection master;
-drop database if exists bar;
-drop database if exists foo;
+drop database mysqltest;
+drop database mysqltest2;
 save_master_pos;
 connection slave;
 sync_with_master;
-drop database if exists bar;
-drop database if exists foo;
 
 # Now let's test load data from master
 
@@ -38,19 +36,19 @@ drop database if exists foo;
 
 connection master;
 set sql_log_bin = 0;
-create database foo;
-create database bar;
+create database mysqltest2;
+create database mysqltest;
 show databases;
-create table foo.t1(n int, s char(20));
-create table foo.t2(n int, s text);
-insert into foo.t1 values (1, 'one'), (2, 'two'), (3, 'three'); 
-insert into foo.t2 values (11, 'eleven'), (12, 'twelve'), (13, 'thirteen'); 
+create table mysqltest2.t1(n int, s char(20));
+create table mysqltest2.t2(n int, s text);
+insert into mysqltest2.t1 values (1, 'one'), (2, 'two'), (3, 'three'); 
+insert into mysqltest2.t2 values (11, 'eleven'), (12, 'twelve'), (13, 'thirteen'); 
 
-create table bar.t1(n int, s char(20));
-create table bar.t2(n int, s text);
-insert into bar.t1 values (1, 'one bar'), (2, 'two bar'), (3, 'three bar'); 
-insert into bar.t2 values (11, 'eleven bar'), (12, 'twelve bar'),
- (13, 'thirteen bar'); 
+create table mysqltest.t1(n int, s char(20));
+create table mysqltest.t2(n int, s text);
+insert into mysqltest.t1 values (1, 'one test'), (2, 'two test'), (3, 'three test'); 
+insert into mysqltest.t2 values (11, 'eleven test'), (12, 'twelve test'),
+ (13, 'thirteen test'); 
 set sql_log_bin = 1;
 save_master_pos;
 connection slave;
@@ -62,26 +60,25 @@ load data from master;
 
 # Now let's check if we have the right tables and the right data in them
 show databases;
-use foo;
+use mysqltest2;
 show tables;
-use bar;
+use mysqltest;
 show tables;
-select * from bar.t1;
-select * from bar.t2;
+select * from mysqltest.t1;
+select * from mysqltest.t2;
 
 # Now let's see if replication works
 connection master;
-insert into bar.t1 values (4, 'four bar');
+insert into mysqltest.t1 values (4, 'four test');
 save_master_pos;
 connection slave;
 sync_with_master;
-select * from bar.t1;
+select * from mysqltest.t1;
 
 # Now time for cleanup
 connection master;
-drop database bar;
-drop database foo;
+drop database mysqltest;
+drop database mysqltest2;
 save_master_pos;
 connection slave;
 sync_with_master;
-

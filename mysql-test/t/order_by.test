@@ -2,7 +2,9 @@
 # Bug with order by
 #
 
+--disable_warnings
 drop table if exists t1,t2,t3;
+--enable_warnings
 
 CREATE TABLE t1 (
   id int(6) DEFAULT '0' NOT NULL,
@@ -168,7 +170,6 @@ drop table t1,t2,t3;
 
 #bug reported by Wouter de Jong
 
-drop table if exists t1;
 CREATE TABLE t1 (
   member_id int(11) NOT NULL auto_increment,
   inschrijf_datum varchar(20) NOT NULL default '',
