@@ -23,7 +23,6 @@ SimpleProperties::SP2StructMapping
 DictTabInfo::TableMapping[] = {
   DTIMAPS(Table, TableName, TableName, 0, MAX_TAB_NAME_SIZE),
   DTIMAP(Table, TableId, TableId),
-  DTIMAP(Table, SecondTableId, SecondTableId),
   DTIMAPS(Table, PrimaryTable, PrimaryTable, 0, MAX_TAB_NAME_SIZE),
   DTIMAP(Table, PrimaryTableId, PrimaryTableId),
   DTIMAP2(Table, TableLoggedFlag, TableLoggedFlag, 0, 1),
@@ -32,8 +31,6 @@ DictTabInfo::TableMapping[] = {
   DTIMAP2(Table, MaxLoadFactor, MaxLoadFactor,    25, 110),
   DTIMAP2(Table, FragmentTypeVal, FragmentType,       0, 3),
   DTIMAP2(Table, TableStorageVal, TableStorage,       0, 0),
-  DTIMAP2(Table, ScanOptimised, ScanOptimised,     0, 0),
-  DTIMAP2(Table, FragmentKeyTypeVal, FragmentKeyType, 0, 2),
   DTIMAP2(Table, TableTypeVal, TableType,         1, 3),
   DTIMAP(Table, NoOfKeyAttr, NoOfKeyAttr),
   DTIMAP2(Table, NoOfAttributes, NoOfAttributes, 1, MAX_ATTRIBUTES_IN_TABLE),
@@ -66,12 +63,8 @@ DictTabInfo::AttributeMapping[] = {
   DTIMAP2(Attribute, AttributeSize, AttributeSize,     3, 7),
   DTIMAP2(Attribute, AttributeArraySize, AttributeArraySize, 0, 65535),
   DTIMAP2(Attribute, AttributeKeyFlag, AttributeKeyFlag, 0, 1),
-  DTIMAP2(Attribute, AttributeStorage, AttributeStorage, 0, 0),
   DTIMAP2(Attribute, AttributeNullableFlag, AttributeNullableFlag, 0, 1),
-  DTIMAP2(Attribute, AttributeDGroup, AttributeDGroup, 0, 1),
   DTIMAP2(Attribute, AttributeDKey, AttributeDKey, 0, 1),
-  DTIMAP2(Attribute, AttributeStoredInd, AttributeStoredInd, 0, 1),
-  DTIMAP2(Attribute, AttributeGroup, AttributeGroup, 0, 0),
   DTIMAP(Attribute, AttributeExtType, AttributeExtType),
   DTIMAP(Attribute, AttributeExtPrecision, AttributeExtPrecision),
   DTIMAP(Attribute, AttributeExtScale, AttributeExtScale),
@@ -104,7 +97,6 @@ void
 DictTabInfo::Table::init(){
   memset(TableName, 0, sizeof(TableName));//TableName[0] = 0;
   TableId = ~0;
-  SecondTableId = ~0;
   memset(PrimaryTable, 0, sizeof(PrimaryTable));//PrimaryTable[0] = 0; // Only used when "index"
   PrimaryTableId = RNIL;
   TableLoggedFlag = 1;
@@ -118,8 +110,6 @@ DictTabInfo::Table::init(){
   KeyLength = 0;
   FragmentType = DictTabInfo::AllNodesSmallTable;
   TableStorage = 0;
-  ScanOptimised = 0;
-  FragmentKeyType = DictTabInfo::PrimaryKey;
   TableType = DictTabInfo::UndefTableType;
   TableVersion = 0;
   IndexState = ~0;
@@ -140,12 +130,8 @@ DictTabInfo::Attribute::init(){
   AttributeSize = DictTabInfo::a32Bit;
   AttributeArraySize = 1;
   AttributeKeyFlag = 0;
-  AttributeStorage = 1;
   AttributeNullableFlag = 0;
-  AttributeDGroup = 0;
   AttributeDKey = 0;
-  AttributeStoredInd = 1;
-  AttributeGroup = 0;
   AttributeExtType = 0,
   AttributeExtPrecision = 0,
   AttributeExtScale = 0,

@@ -33,7 +33,6 @@ private:
   static void setDGroup(Uint32 &, Uint32 dgroup);
   static void setDKey(Uint32 &, Uint32 dkey);
   static void setPrimaryKey(Uint32 &, Uint32 dkey);
-  static void setStoredInTup(Uint32 &, Uint32 storedInTup);
   static void setDynamic(Uint32 &, Uint32 dynamicInd);
   
   static Uint32 getType(const Uint32 &);
@@ -44,10 +43,8 @@ private:
   static Uint32 getArraySize(const Uint32 &);
   static Uint32 getOriginal(const Uint32 &);
   static Uint32 getNullable(const Uint32 &);
-  static Uint32 getDGroup(const Uint32 &);
   static Uint32 getDKey(const Uint32 &);
   static Uint32 getPrimaryKey(const Uint32 &);
-  static Uint32 getStoredInTup(const Uint32 &);
   static Uint32 getDynamic(const Uint32 &);
 };
 
@@ -58,18 +55,15 @@ private:
  * s = Attribute size        - 3  Bits -> Max 7  (Bit 4-6)
  * o = Original attribute    - 1  Bit 7
  * n = Nullable              - 1  Bit 8
- * ? = Stored in tup         - 1  Bit 9 
  * d = Disk based            - 1  Bit 10
- * g = Distribution Group Ind- 1  Bit 11
  * k = Distribution Key Ind  - 1  Bit 12
- * r = Distribution group sz - 1  Bit 13
  * p = Primary key attribute - 1  Bit 14
  * y = Dynamic attribute     - 1  Bit 15
  * z = Array size            - 16 Bits -> Max 65535 (Bit 16-31)
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- * aattsss n dgkrpyzzzzzzzzzzzzzzzz
+ * aattsss n d k pyzzzzzzzzzzzzzzzz
  *               
  */
 
@@ -89,11 +83,8 @@ private:
 
 #define AD_ORIGINAL_SHIFT   (8)
 #define AD_NULLABLE_SHIFT   (8)
-#define AD_TUP_STORED_SHIFT (9)
 
-#define AD_DISTR_GROUP_SHIFT (11)
 #define AD_DISTR_KEY_SHIFT   (12)
-#define AD_DISTR_GROUP_SZ    (13)
 #define AD_PRIMARY_KEY       (14)
 #define AD_DYNAMIC           (15)
 
@@ -142,13 +133,6 @@ AttributeDescriptor::setOriginal(Uint32 & desc, Uint32 original){
 
 inline
 void
-AttributeDescriptor::setDGroup(Uint32 & desc, Uint32 dgroup){
-  ASSERT_BOOL(dgroup, "AttributeDescriptor::setDGroup");
-  desc |= (dgroup << AD_DISTR_GROUP_SHIFT);
-}
-
-inline
-void
 AttributeDescriptor::setDKey(Uint32 & desc, Uint32 dkey){
   ASSERT_BOOL(dkey, "AttributeDescriptor::setDKey");
   desc |= (dkey << AD_DISTR_KEY_SHIFT);
@@ -159,13 +143,6 @@ void
 AttributeDescriptor::setPrimaryKey(Uint32 & desc, Uint32 dkey){
   ASSERT_BOOL(dkey, "AttributeDescriptor::setPrimaryKey");
   desc |= (dkey << AD_PRIMARY_KEY);
-}
-
-inline
-void
-AttributeDescriptor::setStoredInTup(Uint32 & desc, Uint32 storedInTup){
-  ASSERT_BOOL(storedInTup, "AttributeDescriptor::setStoredInTup");
-  desc |= (storedInTup << AD_TUP_STORED_SHIFT);
 }
 
 inline
@@ -231,12 +208,6 @@ AttributeDescriptor::getOriginal(const Uint32 & desc){
 
 inline
 Uint32
-AttributeDescriptor::getDGroup(const Uint32 & desc){
-  return (desc >> AD_DISTR_GROUP_SHIFT) & 1;
-}
-
-inline
-Uint32
 AttributeDescriptor::getDKey(const Uint32 & desc){
   return (desc >> AD_DISTR_KEY_SHIFT) & 1;
 }
@@ -251,12 +222,6 @@ inline
 Uint32
 AttributeDescriptor::getDynamic(const Uint32 & desc){
   return (desc >> AD_DYNAMIC) & 1;
-}
-
-inline
-Uint32
-AttributeDescriptor::getStoredInTup(const Uint32 & desc){
-  return (desc >> AD_TUP_STORED_SHIFT) & 1;
 }
 
 #endif

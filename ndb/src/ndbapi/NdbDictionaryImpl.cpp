@@ -1525,9 +1525,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     tmpAttr.AttributeId = i;
     tmpAttr.AttributeKeyFlag = col->m_pk;
     tmpAttr.AttributeNullableFlag = col->m_nullable;
-    tmpAttr.AttributeStoredInd = 1;
     tmpAttr.AttributeDKey = col->m_distributionKey;
-    tmpAttr.AttributeDGroup = 0;
 
     tmpAttr.AttributeExtType =
       getKernelConstant(col->m_type,
