@@ -1,0 +1,54 @@
+#
+# Index merge tests
+#
+-- source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1
+(
+  key1 int not null, 
+  key2 int not null, 
+  
+  INDEX i1(key1),
+  INDEX i2(key2),
+) type=innodb;
+
+--disable_query_log
+let $1=200;
+while ($1)
+{
+  eval insert into t1 values (200-$1, $1);
+  dec $1;
+}
+--enable_query_log
+
+# No primary key
+explain select * from t1 where key1 < 5 or key2 > 197;
+
+select * from t1 where key1 < 5 or key2 > 197;
+
+explain select * from t1 where key1 < 3 or key2 > 195;
+select * from t1 where key1 < 3 or key2 > 195;
+
+# Primary key as case-sensitive string with \0s.
+# also make primary key be longer then max. index length of MyISAM.
+alter table t1 add str1 char (255) not null, 
+                add zeroval int not null default 0,
+                add str2 char (255) not null,
+                add str3 char (255) not null;
+
+update t1 set str1='aaa', str2='bbb', str3=concat(key2, '-', key1 div 2, '_' ,if(key1 mod 2 = 0, 'a', 'A'));
+
+alter table t1 add primary key (str1, zeroval, str2, str3);
+                
+explain select * from t1 where key1 < 5 or key2 > 197;
+
+select * from t1 where key1 < 5 or key2 > 197;
+
+explain select * from t1 where key1 < 3 or key2 > 195;
+select * from t1 where key1 < 3 or key2 > 195;
+
+drop table t1;
