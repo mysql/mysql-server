@@ -9,7 +9,6 @@ Created 1/20/1994 Heikki Tuuri
 #ifndef univ_i
 #define univ_i
 
-
 #if (defined(_WIN32) || defined(_WIN64))
 #define __WIN__
 #include <windows.h>
@@ -28,6 +27,11 @@ be defined:
 #else
 /* The Unix version */
 
+/* Most C compilers other than gcc do not know 'extern inline' */ 
+#ifndef __GNUC__
+#define UNIV_MUST_NOT_INLINE
+#endif
+
 /* Include two header files from MySQL to make the Unix flavor used
 in compiling more Posix-compatible. We assume that 'innobase' is a
 subdirectory of 'mysql'. */
@@ -36,7 +40,6 @@ subdirectory of 'mysql'. */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.c */
 #include <sys/stat.h>
-
 
 #undef PACKAGE
 #undef VERSION
