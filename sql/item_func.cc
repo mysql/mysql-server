@@ -3578,7 +3578,7 @@ Item_func_sp::execute(Item **itp)
 #endif
 
   /*
-    We don't need to surpress senfing of ok packet here (by setting
+    We don't need to surpress sending of ok packet here (by setting
     thd->net.no_send_ok to true), because we are not allowing statements
     in functions now.
   */
