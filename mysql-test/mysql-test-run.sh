@@ -336,7 +336,9 @@ then
 fi
 
 
-MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent -v --tmpdir=$MYSQL_TMP_DIR"
+MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
+ --user=$DBUSER --password=$DBPASSWD --silent -v \
+ --tmpdir=$MYSQL_TMP_DIR"
 MYSQL_TEST_BIN=$MYSQL_TEST
 MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
 GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
@@ -521,6 +523,13 @@ start_manager()
  $MYSQL_MANAGER --log=$MYSQL_MANAGER_LOG --port=$MYSQL_MANAGER_PORT \
   --password-file=$MYSQL_MANAGER_PW_FILE
   abort_if_failed "Could not start MySQL manager"
+  mysqltest_manager_args="--manager-user=$MYSQL_MANAGER_USER \
+  --manager-password=$MYSQL_MANAGER_PW \
+  --manager-port=$MYSQL_MANAGER_PORT \
+  --manager-wait-timeout=$START_WAIT_TIMEOUT"
+  MYSQL_TEST="$MYSQL_TEST $mysqltest_manager_args"
+  MYSQL_TEST_ARGS="$MYSQL_TEST_ARGS $mysqltest_manager_args"
+  
 }
 
 stop_manager()
@@ -552,7 +561,7 @@ manager_term()
   shift
   $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
    --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
-stop_exec $ident $TERM_WAIT_TIMEOUT
+stop_exec $ident $STOP_WAIT_TIMEOUT
 EOF
  abort_if_failed "Could not execute manager command"
 }
@@ -561,14 +570,16 @@ EOF
 start_master()
 {
     [ x$MASTER_RUNNING = 1 ] && return
+    # Remove old berkeley db log files that can confuse the server
+    $RM -f $MASTER_MYDDIR/log.*
+    # Remove stale binary logs
+    $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
     #run master initialization shell script if one exists
     if [ -f "$master_init_script" ] ;
     then
         /bin/sh $master_init_script
     fi
     cd $BASEDIR # for gcov
-    # Remove old berkeley db log files that can confuse the server
-    $RM -f $MASTER_MYDDIR/log.*	
     #start master
     if [ -z "$DO_BENCH" ]
     then
@@ -629,6 +640,9 @@ start_slave()
 {
     [ x$SKIP_SLAVE = x1 ] && return
     [ x$SLAVE_RUNNING = 1 ] && return
+    
+    # Remove stale binary logs
+    $RM -f $MYSQL_TEST_DIR/var/log/slave-bin.*
     
     #run slave initialization shell script if one exists
     if [ -f "$slave_init_script" ] ;

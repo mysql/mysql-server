@@ -80,12 +80,23 @@
 			   * the server - to solve the problem, we try again
 			   * after some sleep if connection fails the first
 			   * time */
+#ifndef MYSQL_MANAGER_PORT
+#define MYSQL_MANAGER_PORT 23546
+#endif
+
+enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
+ OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT};
 
 static int record = 0, verbose = 0, silent = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
 const char* user = 0, *host = 0, *unix_sock = 0;
 static int port = 0, opt_big_test=0;
 static uint start_lineno, *lineno;
+const char* manager_user="root",*manager_host="localhost";
+char *manager_pass=0;
+int manager_port=MYSQL_MANAGER_PORT;
+int manager_wait_timeout=3;
+MYSQL_MANAGER* manager=0;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest","client",0 };
@@ -168,6 +179,7 @@ Q_PING,             Q_EVAL,
 Q_RPL_PROBE,        Q_ENABLE_RPL_PARSE,
 Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
 Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
+Q_SERVER_START, Q_SERVER_STOP,
 Q_UNKNOWN,                             /* Unknown command.   */
 Q_COMMENT,                             /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -200,6 +212,7 @@ const char *command_names[] = {
   "rpl_probe",        "enable_rpl_parse",
   "disable_rpl_parse", "eval_result",
   "enable_query_log", "disable_query_log",
+  "server_start", "server_stop",
   0
 };
 
@@ -243,6 +256,7 @@ static int initialize_replace_buffer(void);
 static void free_replace_buffer(void);
 static void do_eval(DYNAMIC_STRING* query_eval, const char* query);
 void str_to_file(const char* fname, char* str, int size);
+int do_server_op(struct st_query* q,const char* op);
 
 struct st_replace *glob_replace;
 static char *out_buff;
@@ -321,6 +335,8 @@ static void free_used_memory()
 {
   uint i;
   DBUG_ENTER("free_used_memory");
+  if (manager)
+    mysql_manager_close(manager);
   close_cons();
   close_files();
   hash_free(&var_hash);
@@ -576,6 +592,44 @@ int open_file(const char* name)
     die(NullS);
   cur_file++;
   *++lineno=1;
+
+  return 0;
+}
+
+int do_server_start(struct st_query* q)
+{
+  return do_server_op(q,"start");
+}
+
+int do_server_stop(struct st_query* q)
+{
+  return do_server_op(q,"stop");
+}
+
+int do_server_op(struct st_query* q,const char* op)
+{
+  char* p=q->first_argument;
+  char com_buf[256],*com_p;
+  com_p=strmov(com_buf,op);
+  com_p=strmov(com_p,"_exec ");
+  if (!*p)
+    die("Missing server name in server_%s\n",op);
+  while (*p && !isspace(*p))
+  {
+   *com_p++=*p++;
+  }
+  *com_p++=' ';
+  com_p=int10_to_str(manager_wait_timeout,com_p,10);
+  *com_p++ = '\n';
+  *com_p=0;
+  if (mysql_manager_command(manager,com_buf,(int)(com_p-com_buf)))
+    die("Error in command: %s(%d)",manager->last_error,manager->last_errno);
+  while (!manager->eof)
+  {
+    if (mysql_manager_fetch_line(manager,com_buf,sizeof(com_buf)))
+      die("Error fetching result line: %s(%d)", manager->last_error,
+	  manager->last_errno);
+  }
 
   return 0;
 }
@@ -1125,6 +1179,17 @@ char* safe_get_param(char* str, char** arg, const char* msg)
   DBUG_RETURN(str);
 }
 
+void init_manager()
+{
+  if (!(manager=mysql_manager_init(0)))
+    die("Failed in mysql_manager_init()");
+  if (!mysql_manager_connect(manager,manager_host,manager_user,
+			     manager_pass,manager_port))
+    die("Could not connect to MySQL manager: %s(%d)",manager->last_error,
+	manager->last_errno);
+
+}
+
 int safe_connect(MYSQL* con, const char* host, const char* user,
 		 const char* pass,
 		 const char* db, int port, const char* sock)
@@ -1519,7 +1584,6 @@ int read_query(struct st_query** q_ptr)
   return 0;
 }
 
-
 struct option long_options[] =
 {
   {"debug",       optional_argument, 0, '#'},
@@ -1527,6 +1591,11 @@ struct option long_options[] =
   {"big-test",	  no_argument,	     0, 'B'},
   {"help",        no_argument,       0, '?'},
   {"host",        required_argument, 0, 'h'},
+  {"manager-user",required_argument, 0, OPT_MANAGER_USER},
+  {"manager-host",required_argument, 0, OPT_MANAGER_HOST},
+  {"manager-password",required_argument,0,OPT_MANAGER_PASSWD},
+  {"manager-port",required_argument,0,OPT_MANAGER_PORT},
+  {"manager-wait-timeout",required_argument,0,OPT_MANAGER_WAIT_TIMEOUT},
   {"password",    optional_argument, 0, 'p'},
   {"port",        required_argument, 0, 'P'},
   {"quiet",       no_argument,       0, 'q'},
@@ -1603,6 +1672,23 @@ int parse_args(int argc, char **argv)
 	break;
       case 'r':
 	record = 1;
+	break;
+      case (int)OPT_MANAGER_WAIT_TIMEOUT:
+	manager_wait_timeout=atoi(optarg);
+	break;
+      case (int)OPT_MANAGER_PORT:
+	manager_port=atoi(optarg);
+	break;
+      case (int)OPT_MANAGER_HOST:
+	manager_host=optarg;
+	break;
+      case (int)OPT_MANAGER_USER:
+	manager_user=optarg;
+	break;
+      case (int)OPT_MANAGER_PASSWD:
+	my_free(manager_pass,MYF(MY_ALLOW_ZERO_PTR));
+	manager_pass=my_strdup(optarg,MYF(MY_FAE));
+        while (*optarg) *optarg++= 'x';		/* Destroy argument */
 	break;
       case 'u':
 	user = optarg;
@@ -2010,13 +2096,14 @@ int main(int argc, char** argv)
   if (!*cur_file)
     *cur_file = stdin;
   *lineno=1;
+  init_manager();
 
   if (!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");
   cur_con->name = my_strdup("default", MYF(MY_WME));
   if (!cur_con->name)
     die("Out of memory");
-
+  
   if (safe_connect(&cur_con->mysql, host,
 			 user, pass, db, port, unix_sock))
     die("Failed in mysql_real_connect(): %s", mysql_error(&cur_con->mysql));
@@ -2042,6 +2129,8 @@ int main(int argc, char** argv)
       case Q_DISABLE_QUERY_LOG: disable_query_log=1; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q); break;
+      case Q_SERVER_START: do_server_start(q); break;
+      case Q_SERVER_STOP: do_server_stop(q); break;
       case Q_INC: do_inc(q); break;
       case Q_DEC: do_dec(q); break;
       case Q_ECHO: do_echo(q); break;
