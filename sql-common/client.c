@@ -882,7 +882,7 @@ static const char *default_options[]=
   "connect-timeout", "local-infile", "disable-local-infile",
   "replication-probe", "enable-reads-from-master", "repl-parse-query",
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
-  "multi-results", "multi-queries", "secure-auth",
+  "multi-results", "multi-statements", "multi-queries", "secure-auth",
   NullS
 };
 
@@ -1088,9 +1088,10 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  options->client_flag|= CLIENT_MULTI_RESULTS;
 	  break;
 	case 31:
+	case 32:
 	  options->client_flag|= CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS;
 	  break;
-        case 32: /* secure-auth */
+        case 33: /* secure-auth */
           options->secure_auth= TRUE;
           break;
 	default:
