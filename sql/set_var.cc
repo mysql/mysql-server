@@ -378,6 +378,8 @@ sys_var_thd_bool	sys_innodb_table_locks("innodb_table_locks",
                                                &SV::innodb_table_locks);
 sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
 							&srv_auto_extend_increment);
+sys_var_long_ptr	sys_innodb_sync_spin_loops("innodb_sync_spin_loops",
+                                             &srv_n_spin_wait_rounds);
 #endif
 
 #ifdef HAVE_NDBCLUSTER_DB
@@ -651,6 +653,7 @@ sys_var *sys_variables[]=
   &sys_innodb_table_locks,
   &sys_innodb_max_purge_lag,
   &sys_innodb_autoextend_increment,
+  &sys_innodb_sync_spin_loops,
 #endif  
 #ifdef HAVE_NDBCLUSTER_DB
   &sys_ndb_autoincrement_prefetch_sz,
@@ -763,6 +766,7 @@ struct show_var_st init_vars[]= {
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
   {"innodb_open_files", (char*) &innobase_open_files, SHOW_LONG },
   {"innodb_thread_concurrency", (char*) &innobase_thread_concurrency, SHOW_LONG },
+  {sys_innodb_sync_spin_loops.name, (char*) &sys_innodb_sync_spin_loops, SHOW_SYS},
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
