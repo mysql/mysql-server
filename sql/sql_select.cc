@@ -1164,6 +1164,7 @@ JOIN::exec()
       DBUG_VOID_RETURN;
     }
   }
+  (void) result->prepare2(); // Currently, this cannot fail.
 
   if (!tables_list)
   {                                           // Only test of functions
@@ -13149,7 +13150,8 @@ bool JOIN::change_result(select_result *res)
 {
   DBUG_ENTER("JOIN::change_result");
   result= res;
-  if (!procedure && result->prepare(fields_list, select_lex->master_unit()))
+  if (!procedure && (result->prepare(fields_list, select_lex->master_unit()) ||
+                     result->prepare2()))
   {
     DBUG_RETURN(TRUE);
   }
