@@ -743,6 +743,14 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
 }
 
 
+ulong Query_cache::set_min_res_unit(ulong size)
+{
+  if (size < min_allocation_unit)
+    size= min_allocation_unit;
+  return (min_result_data_size= ALIGN_SIZE(size));
+}
+
+
 void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 {
   TABLE_COUNTER_TYPE local_tables;

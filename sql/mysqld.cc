@@ -363,7 +363,8 @@ ulong slave_net_timeout;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
 #ifdef HAVE_QUERY_CACHE
-ulong query_cache_limit=0;
+ulong query_cache_limit= 0;
+ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
 #endif
 arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
@@ -2148,6 +2149,7 @@ static int init_server_components()
   table_cache_init();
   hostname_cache_init();
   query_cache_result_size_limit(query_cache_limit);
+  query_cache_set_min_res_unit(query_cache_min_res_unit);
   query_cache_resize(query_cache_size);
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
   reset_floating_point_exceptions();
@@ -3443,7 +3445,7 @@ enum options
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
   OPT_OPEN_FILES_LIMIT,
-  OPT_QUERY_CACHE_LIMIT, OPT_QUERY_CACHE_SIZE,
+  OPT_QUERY_CACHE_LIMIT, OPT_QUERY_CACHE_MIN_RES_UNIT, OPT_QUERY_CACHE_SIZE,
   OPT_QUERY_CACHE_TYPE, OPT_RECORD_BUFFER,
   OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT,
   OPT_SLAVE_NET_TIMEOUT, OPT_SLAVE_COMPRESSED_PROTOCOL, OPT_SLOW_LAUNCH_TIME,
@@ -4206,6 +4208,11 @@ struct my_option my_long_options[] =
    "Don't cache results that are bigger than this.",
    (gptr*) &query_cache_limit, (gptr*) &query_cache_limit, 0, GET_ULONG,
    REQUIRED_ARG, 1024*1024L, 0, (longlong) ULONG_MAX, 0, 1, 0},
+  {"query_cache_min_res_unit", OPT_QUERY_CACHE_MIN_RES_UNIT,
+   "minimal size of unit in wich space for results is allocated (last unit will be trimed after writing all result data.",
+   (gptr*) &query_cache_min_res_unit, (gptr*) &query_cache_min_res_unit,
+   0, GET_ULONG, REQUIRED_ARG, QUERY_CACHE_MIN_RESULT_DATA_SIZE,
+   0, (longlong) ULONG_MAX, 0, 1, 0},
 #endif /*HAVE_QUERY_CACHE*/
   {"query_cache_size", OPT_QUERY_CACHE_SIZE,
    "The memory allocated to store results from old queries.",

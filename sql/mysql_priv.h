@@ -307,6 +307,7 @@ typedef compare_func_creator (*chooser_compare_func_creator)(bool invert);
 #define query_cache_destroy() query_cache.destroy()
 #define query_cache_result_size_limit(A) query_cache.result_size_limit(A)
 #define query_cache_resize(A) query_cache.resize(A)
+#define query_cache_set_min_res_unit(A) query_cache.set_min_res_unit(A)
 #define query_cache_invalidate3(A, B, C) query_cache.invalidate(A, B, C)
 #define query_cache_invalidate1(A) query_cache.invalidate(A)
 #define query_cache_send_result_to_client(A, B, C) \
@@ -318,6 +319,7 @@ typedef compare_func_creator (*chooser_compare_func_creator)(bool invert);
 #define query_cache_destroy()
 #define query_cache_result_size_limit(A)
 #define query_cache_resize(A)
+#define query_cache_set_min_res_unit(A)
 #define query_cache_invalidate3(A, B, C)
 #define query_cache_invalidate1(A)
 #define query_cache_send_result_to_client(A, B, C) 0
@@ -699,7 +701,8 @@ extern ulong filesort_rows, filesort_range_count, filesort_scan_count;
 extern ulong filesort_merge_passes;
 extern ulong select_range_check_count, select_range_count, select_scan_count;
 extern ulong select_full_range_join_count,select_full_join_count;
-extern ulong slave_open_temp_tables, query_cache_size;
+extern ulong slave_open_temp_tables;
+extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong thd_startup_options, slow_launch_threads, slow_launch_time;
 extern ulong server_id, concurrency;
 extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count;
