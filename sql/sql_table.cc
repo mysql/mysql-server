@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
 /* drop and alter of tables */
 
 #include "mysql_priv.h"
@@ -249,6 +248,21 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 	if (!(error=my_delete(path,MYF(MY_WME))))
 	  some_tables_deleted=1;
       }
+      if (error == HA_ERR_NO_SUCH_TABLE)
+      {
+        /* The table did not exist in engine */
+        if (if_exists)
+        {
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                              ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
+                              table->table_name);
+          error= 0;
+        }
+        /* Delete the table definition file */
+        strmov(end,reg_ext);
+        if (!(my_delete(path,MYF(MY_WME))))
+          some_tables_deleted=1;
+      }
     }
     if (error)
     {
@@ -275,9 +289,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       if (!error)
         thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length,
-                            tmp_table_deleted && !some_tables_deleted,
-			    FALSE);
+      Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
       mysql_bin_log.write(&qinfo);
     }
   }
@@ -1297,7 +1309,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     create_info		Create information (like MAX_ROWS)
     fields		List of fields to create
     keys		List of keys to create
-    tmp_table		Set to 1 if this is an internal temporary table
+    internal_tmp_table  Set to 1 if this is an internal temporary table
 			(From ALTER TABLE)
 
   DESCRIPTION
@@ -1316,7 +1328,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
                         List<create_field> &fields,
-                        List<Key> &keys,bool tmp_table,
+                        List<Key> &keys,bool internal_tmp_table,
                         uint select_field_count)
 {
   char		path[FN_REFLEN];
@@ -1385,7 +1397,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   }
 
   if (mysql_prepare_table(thd, create_info, fields,
-			  keys, tmp_table, db_options, file,
+			  keys, internal_tmp_table, db_options, file,
 			  key_info_buffer, &key_count,
 			  select_field_count))
     DBUG_RETURN(TRUE);
@@ -1419,7 +1431,7 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (wait_if_global_read_lock(thd, 0, 1))
     DBUG_RETURN(error);
   VOID(pthread_mutex_lock(&LOCK_open));
-  if (!tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+  if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     if (!access(path,F_OK))
     {
@@ -1486,13 +1498,10 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
     }
     thd->tmp_table_used= 1;
   }
-  if (!tmp_table && mysql_bin_log.is_open())
+  if (!internal_tmp_table && mysql_bin_log.is_open())
   {
     thd->clear_error();
-    Query_log_event qinfo(thd, thd->query, thd->query_length,
-                          test(create_info->options &
-                               HA_LEX_CREATE_TMP_TABLE),
-			  FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
     mysql_bin_log.write(&qinfo);
   }
   error= FALSE;
@@ -2473,10 +2482,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   if (mysql_bin_log.is_open())
   {
     thd->clear_error();
-    Query_log_event qinfo(thd, thd->query, thd->query_length,
-			  test(create_info->options &
-			       HA_LEX_CREATE_TMP_TABLE), 
-			  FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
     mysql_bin_log.write(&qinfo);
   }
   res= FALSE;
@@ -2586,7 +2592,7 @@ mysql_discard_or_import_tablespace(THD *thd,
     goto err;
   if (mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
     mysql_bin_log.write(&qinfo);
   }
 err:
@@ -2979,7 +2985,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error();
-	Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+	Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
 	mysql_bin_log.write(&qinfo);
       }
       if (do_send_ok)
@@ -3396,7 +3402,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (mysql_bin_log.is_open())
     {
       thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
       mysql_bin_log.write(&qinfo);
     }
     goto end_temporary;
@@ -3530,7 +3536,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (mysql_bin_log.is_open())
   {
     thd->clear_error();
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, FALSE, FALSE);
     mysql_bin_log.write(&qinfo);
   }
   VOID(pthread_cond_broadcast(&COND_refresh));

@@ -125,4 +125,5 @@ void ft_free_stopwords()
     my_free((char*) stopwords3,MYF(0));
     stopwords3=0;
   }
+  ft_stopword_file= 0;
 }
