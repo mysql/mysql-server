@@ -421,7 +421,7 @@ public:
   virtual int prepare(List<Item> &list) { return 0; }
   virtual bool send_fields(List<Item> &list,uint flag)=0;
   virtual bool send_data(List<Item> &items)=0;
-  virtual void initialize_tables (JOIN *join=0) {};
+  virtual void initialize_tables (JOIN *join=0) {}
   virtual void send_error(uint errcode,const char *err)=0;
   virtual bool send_eof()=0;
   virtual void abort() {}
@@ -475,14 +475,13 @@ public:
   bool send_eof();
 };
 class select_insert :public select_result {
- protected:
+ public:
   TABLE *table;
   List<Item> *fields;
   uint save_time_stamp;
   ulonglong last_insert_id;
   COPY_INFO info;
 
-public:
   select_insert(TABLE *table_par,List<Item> *fields_par,enum_duplicates duplic)
     :table(table_par),fields(fields_par), save_time_stamp(0),last_insert_id(0)
     {
