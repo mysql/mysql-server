@@ -67,8 +67,6 @@ link_dir_dirs()
 }
 
 link_dir_files 'heap'
-link_dir_files 'isam'
-link_dir_files 'merge'
 link_dir_files 'mysys'
 link_dir_files 'zlib'
 link_dir_files 'regex'
@@ -91,7 +89,6 @@ link_dir_dirs 'innobase'
 
 ln -s $SRCDIR/myisam/myisampack.c $SRCDIR/VC++Files/myisampack/
 ln -s $SRCDIR/client/mysqlbinlog.cc $SRCDIR/VC++Files/mysqlbinlog/mysqlbinlog.cpp
-ln -s $SRCDIR/isam/pack_isam.c $SRCDIR/VC++Files/pack_isam/pack_isam.c
 
 echo '/* added for win : */' >> $SRCDIR/config.h
 echo '#undef HAVE_SCHED_H' >> $SRCDIR/config.h
