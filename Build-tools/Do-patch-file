@@ -32,11 +32,11 @@ cd patch
 gtar xfz ../$NEWDIR/$NEW
 gtar xfz $RESULT_DIR/$OLD
 cd mysql-$PVER
-diff --context --new-file --recursive . ../mysql-$VER | gzip -9 > ../../$RESULT
+diff --unified --new-file --recursive . ../mysql-$VER | gzip -9 > ../../$RESULT
 cd ../..
 /bin/rm -rf patch
 chmod a+r,o-w $RESULT binary/*
 mv $RESULT $PATCH_DIR
-cp binary/mysqlcom-* /net/web/home/production/data/nweb/customer/
+cp binary/mysqlcom-* binary/mysql*win* /net/web/home/production/data/nweb/customer/Downloads
 rm binary/mysqlcom-*
 cp binary/* $RESULT_DIR

@@ -2,25 +2,26 @@
 
 use Getopt::Long;
 $opt_distribution=$opt_user=$opt_result=$opt_config_options=$opt_config_env="";
-$opt_dbd_options=$opt_perl_options="";
+$opt_dbd_options=$opt_perl_options=$opt_suffix="";
 $opt_tmp="";
-$opt_help=$opt_Information=$opt_no_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=0;
-GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","no-test","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip") || usage();
+$opt_help=$opt_Information=$opt_no_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_no_mysqltest=0;
+GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i") || usage();
 
 usage() if ($opt_help || $opt_Information);
 usage() if (!$opt_distribution);
 
 chomp($host=`hostname`);
-print "$host: Compiling MySQL at $host, stage: $opt_stage\n"  if ($opt_debug);
+$full_host_name=$host;
+print "$host: Compiling MySQL at $host$suffix, stage: $opt_stage\n"  if ($opt_debug);
+$connect_option= ($opt_tcpip ? "--host=$host" : "");
 $host =~ /^([^.-]*)/;
-$host=$1;
+$host=$1 . $opt_suffix;
 $email="$opt_user\@mysql.com";
 $pwd = `pwd`; chomp($pwd);
 $log="$pwd/Logs/$host.log";
 $opt_distribution =~ /(mysql-[^\/]*)\.tar/;
 $ver=$1;
 $gcc_version=which("gcc");
-$connect_option= ($opt_tcpip ? "--host=$host" : "");
 if (defined($gcc_version) && ! $opt_config_env)
 {
   $tmp=`$gcc_version -v 2>&1`;
@@ -33,14 +34,22 @@ if (defined($gcc_version) && ! $opt_config_env)
     $opt_config_env= 'CC=gcc CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti"';
   }
 }
+
+$new_opt_tmp=0;
 if ($opt_tmp)
 {
+  if (! -d $opt_tmp)
+  {
+    safe_system("mkdir $opt_tmp");
+    $new_opt_tmp=1;
+  }
   $ENV{'TMPDIR'}=$opt_tmp;
 }
 else
 {
   $opt_tmp="/tmp";
 }
+$bench_tmpdir="$opt_tmp/my_build-$host";
 $ENV{'PATH'}= "$pwd/$host/bin:" . $ENV{'PATH'}; 
 $rsh=which("rcmd","rsh");
 $make=which("gmake","make");	# Can't use -j here!
@@ -49,8 +58,8 @@ $sendmail=find("/usr/lib/sendmail","/usr/sbin/sendmail");
 $sur= $opt_sur ? "/my/local/bin/sur" : "";
 delete $ENV{'MYSQL_PWD'};	# Reset possibly password
 delete $ENV{'MY_BASEDIR_VERSION'};
-$ENV{'MYSQL_TCP_PORT'}="3334";
-$ENV{'MYSQL_UNIX_PORT'}=$mysql_unix_port="$opt_tmp/mysql.build";
+$ENV{'MYSQL_TCP_PORT'}= $mysql_tcp_port= 3334 + $opt_build_thread;
+$ENV{'MYSQL_UNIX_PORT'}=$mysql_unix_port="$opt_tmp/mysql$opt_suffix.build";
 $ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
 
 if ($opt_stage == 0)
@@ -61,6 +70,7 @@ if ($opt_stage == 0)
     log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
   }
   system("mkdir $host") if (! -d $host);
+  system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   system("touch $host/mysql-fix-for-glob");
   rm_all(<$host/mysql-*>);
   rm_all("$host/test");
@@ -114,9 +124,10 @@ if ($opt_stage <= 2)
 #
 if ($opt_stage <= 3)
 {
-  log_system("rm -fr mysql-* $pwd/$host/*.tar.gz");
+  log_system("rm -fr mysql-3* mysql-4* $pwd/$host/*.tar.gz");
+  log_system("nm -n sql/mysqld | gzip -9 -v 2>&1 > sql/mysqld.sym.gz | cat");
   log_system("strip sql/mysqld extra/comp_err client/mysql sql/mysqld client/mysqlshow extra/replace isam/isamchk client/mysqladmin client/mysqldump extra/perror");
-  check_system("scripts/make_binary_distribution $opt_tmp",".tar.gz created");
+  check_system("scripts/make_binary_distribution $opt_tmp $opt_suffix",".tar.gz created");
   safe_system("mv mysql*.tar.gz $pwd/$host");
   safe_system("cp client/mysqladmin $pwd/$host/bin");
   safe_system("$make clean") if ($opt_with_small_disk);
@@ -140,10 +151,12 @@ if ($opt_stage <= 4 && !$opt_no_test)
 
 $test_dir=<$pwd/$host/test/$ver-*>;
 
-if ($opt_stage <= 5 && !$opt_no_test)
+if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
-  safe_cd("$test_dir/mysql-test");
-  check_system("./mysql-test-run", "tests were successful");
+  my ($slave_port);
+  $slave_port=$mysql_tcp_port+16;
+  safe_cd("${test_dir}/mysql-test");
+  check_system("./mysql-test-run --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --sleep=10", "tests were successful");
 }
 
 if ($opt_stage <= 6 && !$opt_no_test)
@@ -210,7 +223,10 @@ if ($opt_stage <= 10 && $opt_result)
   safe_system("rcp $pwd/$host/*.tar.gz $opt_result");
 }
 
-log_system("$pwd/$host/$ver/client/mysqladmin --no-defaults -S $mysql_unix_port -u root shutdown");
+rm_all($bench_tmpdir);
+rm_all("$opt_tmp") if ($new_opt_tmp);
+
+log_system("$pwd/$host/bin/mysqladmin --no-defaults -S $mysql_unix_port -u root shutdown");
 print LOG "ok\n";
 close LOG;
 print "$host: ok\n";
@@ -280,7 +296,7 @@ sub abort
   {
     $mail_header_file="$opt_tmp/do-command.$$";
     open(TMP,">$mail_header_file");
-    print TMP "From: mysql\@$host.se\n";
+    print TMP "From: mysql\@$full_host_name\n";
     print TMP "To: $email\n";
     print TMP "Subject: MySQL compilation failed again\n\n";
     close TMP;
