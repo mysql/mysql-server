@@ -248,7 +248,7 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd)
 }
 
 bool
-TransporterRegistry::createTransporter(TCP_TransporterConfiguration *config) {
+TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
 #ifdef NDB_TCP_TRANSPORTER
 
   if(!nodeIdSpecified){
@@ -262,13 +262,15 @@ TransporterRegistry::createTransporter(TCP_TransporterConfiguration *config) {
     return false;
    
   TCP_Transporter * t = new TCP_Transporter(*this,
-					    config->sendBufferSize,
-					    config->maxReceiveSize,
+					    config->tcp.sendBufferSize,
+					    config->tcp.maxReceiveSize,
 					    config->localHostName,
 					    config->remoteHostName,
 					    config->port,
+					    config->isMgmConnection,
 					    localNodeId,
 					    config->remoteNodeId,
+					    config->serverNodeId,
 					    config->checksum,
 					    config->signalId);
   if (t == NULL) 
@@ -297,7 +299,7 @@ TransporterRegistry::createTransporter(TCP_TransporterConfiguration *config) {
 }
 
 bool
-TransporterRegistry::createTransporter(OSE_TransporterConfiguration *conf) {
+TransporterRegistry::createOSETransporter(TransporterConfiguration *conf) {
 #ifdef NDB_OSE_TRANSPORTER
 
   if(!nodeIdSpecified){
@@ -316,11 +318,12 @@ TransporterRegistry::createTransporter(OSE_TransporterConfiguration *conf) {
 				      localNodeId);
   }
   
-  OSE_Transporter * t = new OSE_Transporter(conf->prioASignalSize,
-					    conf->prioBSignalSize,
+  OSE_Transporter * t = new OSE_Transporter(conf->ose.prioASignalSize,
+					    conf->ose.prioBSignalSize,
 					    localNodeId,
 					    conf->localHostName,
 					    conf->remoteNodeId,
+					    conf->serverNodeId,
 					    conf->remoteHostName,
 					    conf->checksum,
 					    conf->signalId);
@@ -346,7 +349,7 @@ TransporterRegistry::createTransporter(OSE_TransporterConfiguration *conf) {
 }
 
 bool
-TransporterRegistry::createTransporter(SCI_TransporterConfiguration *config) {
+TransporterRegistry::createSCITransporter(TransporterConfiguration *config) {
 #ifdef NDB_SCI_TRANSPORTER
 
   if(!SCI_Transporter::initSCI())
@@ -366,13 +369,15 @@ TransporterRegistry::createTransporter(SCI_TransporterConfiguration *config) {
                                             config->localHostName,
                                             config->remoteHostName,
                                             config->port,
-                                            config->sendLimit, 
-					    config->bufferSize,
-					    config->nLocalAdapters,
-					    config->remoteSciNodeId0,
-					    config->remoteSciNodeId1,
+					    config->isMgmConnection,
+                                            config->sci.sendLimit, 
+					    config->sci.bufferSize,
+					    config->sci.nLocalAdapters,
+					    config->sci.remoteSciNodeId0,
+					    config->sci.remoteSciNodeId1,
 					    localNodeId,
 					    config->remoteNodeId,
+					    config->serverNodeId,
 					    config->checksum,
 					    config->signalId);
   
@@ -397,7 +402,7 @@ TransporterRegistry::createTransporter(SCI_TransporterConfiguration *config) {
 }
 
 bool
-TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
+TransporterRegistry::createSHMTransporter(TransporterConfiguration *config) {
   DBUG_ENTER("TransporterRegistry::createTransporter SHM");
 #ifdef NDB_SHM_TRANSPORTER
   if(!nodeIdSpecified){
@@ -408,7 +413,7 @@ TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
     return false;
   
   if (!g_ndb_shm_signum) {
-    g_ndb_shm_signum= config->signum;
+    g_ndb_shm_signum= config->shm.signum;
     DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
     /**
      * Make sure to block g_ndb_shm_signum
@@ -420,7 +425,7 @@ TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
     pthread_sigmask(SIG_BLOCK, &mask, 0);
   }
 
-  if(config->signum != g_ndb_shm_signum)
+  if(config->shm.signum != g_ndb_shm_signum)
     return false;
   
   if(theTransporters[config->remoteNodeId] != NULL)
@@ -430,12 +435,14 @@ TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
 					    config->localHostName,
 					    config->remoteHostName,
 					    config->port,
+					    config->isMgmConnection,
 					    localNodeId,
 					    config->remoteNodeId,
+					    config->serverNodeId,
 					    config->checksum,
 					    config->signalId,
-					    config->shmKey,
-					    config->shmSize
+					    config->shm.shmKey,
+					    config->shm.shmSize
 					    );
   if (t == NULL)
     return false;

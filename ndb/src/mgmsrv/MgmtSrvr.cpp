@@ -2883,6 +2883,11 @@ MgmtSrvr::getConnectionDbParameter(int node1,
   DBUG_RETURN(1);
 }
 
+void MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
+{
+  theFacade->get_registry()->connect_server(sockfd);
+}
+
 int MgmtSrvr::set_connect_string(const char *str)
 {
   return ndb_mgm_set_connectstring(m_config_retriever->get_mgmHandle(),str);

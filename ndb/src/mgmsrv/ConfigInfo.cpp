@@ -3132,8 +3132,8 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 
   const Properties * node;
   require(ctx.m_config->get("Node", id1, &node));
+
   BaseString hostname(hostName1);
-  //  require(node->get("HostName", hostname));
   
   if (hostname.c_str()[0] == 0) {
     ctx.reportError("Hostname required on nodeid %d since it will "
@@ -3142,6 +3142,19 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   }
 
   Uint32 port= 0;
+  const char * type1;
+  const char * type2;
+  const Properties * node2;
+
+  node->get("Type", &type1);
+  ctx.m_config->get("Node", id2, &node2);
+  node2->get("Type", &type2);
+
+  if(strcmp(type1, MGM_TOKEN)==0)
+    node->get("PortNumber",&port);
+  else if(strcmp(type2, MGM_TOKEN)==0)
+    node2->get("PortNumber",&port);
+
   if (!node->get("ServerPort", &port) &&
       !ctx.m_userProperties.get("ServerPort_", id1, &port)) {
     ctx.m_currentSection->put("PortNumber", port);
