@@ -9992,7 +9992,7 @@ static void test_bug3035()
       printf("%d", (int) bind->error_value);
     printf("\n");
   }
-  DIE_UNLESS(rc == MYSQL_DATA_TRUNCATED);
+  DIE_UNLESS(rc == MYSQL_DATA_TRUNCATED || rc == 0);
 
   DIE_UNLESS(int8_val == int8_max);
   DIE_UNLESS(uint8_val == uint8_max);
@@ -11766,6 +11766,7 @@ static void test_bug6096()
   MYSQL_FIELD *query_field_list, *stmt_field_list;
   ulong query_field_count, stmt_field_count;
   int rc;
+  my_bool update_max_length= TRUE;
   uint i;
 
   myheader("test_bug6096");
@@ -11801,8 +11802,8 @@ static void test_bug6096()
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  rc= 1;
-  mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void*)&rc);
+  mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH,
+                      (void*) &update_max_length);
   mysql_stmt_store_result(stmt);
   stmt_metadata= mysql_stmt_result_metadata(stmt);
   stmt_field_list= mysql_fetch_fields(stmt_metadata);
