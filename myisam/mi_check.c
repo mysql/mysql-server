@@ -200,21 +200,33 @@ int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag)
 	empty+=info->s->base.pack_reclength;
       }
     }
+    if (test_flag & T_VERBOSE)
+      puts("\n");
     if (empty != info->state->empty)
     {
-      if (test_flag & T_VERBOSE) puts("");
       mi_check_print_warning(param,
-			     "Not used space is supposed to be: %s but is: %s",
-			     llstr(info->state->empty,buff),
-			     llstr(empty,buff2));
-      info->state->empty=empty;
+			     "Found %s deleted space in delete link chain. Should be %s",
+			     llstr(empty,buff2),
+			     llstr(info->state->empty,buff));
     }
-    if (i != 0 || next_link != HA_OFFSET_ERROR)
+    if (next_link != HA_OFFSET_ERROR)
+    {
+      mi_check_print_error(param,
+			   "Found more than the expected %s deleted rows in delete link chain",
+			   llstr(info->state->del, buff));
       goto wrong;
-
-    if (test_flag & T_VERBOSE) puts("\n");
+    }
+    if (i != 0)
+    {
+      mi_check_print_error(param,
+			   "Found %s deleted rows in delete link chain. Should be %s",
+			   llstr(info->state->del - i, buff2),
+			   llstr(info->state->del, buff));
+      goto wrong;
+    }
   }
   DBUG_RETURN(0);
+
 wrong:
   param->testflag|=T_RETRY_WITHOUT_QUICK;
   if (test_flag & T_VERBOSE) puts("");
@@ -1040,6 +1052,13 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
     }
   }
 
+  if (del_length != info->state->empty)
+  {
+    mi_check_print_warning(param,
+			   "Found %s deleted space.   Should be %s",
+			   llstr(del_length,llbuff2),
+			   llstr(info->state->empty,llbuff));
+  }
   if (used+empty+del_length != info->state->data_file_length)
   {
     mi_check_print_warning(param,
