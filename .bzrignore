@@ -523,3 +523,5 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 extra/mysql_waitpid
+support-files/MacOSX/Description.plist
+support-files/MacOSX/Info.plist
