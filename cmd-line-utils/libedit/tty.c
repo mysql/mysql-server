@@ -784,15 +784,15 @@ tty_bind_char(EditLine *el, int force)
 		if (new[0] == old[0] && !force)
 			continue;
 		/* Put the old default binding back, and set the new binding */
-		key_clear(el, map, (char *)old);
+		el_key_clear(el, map, (char *)old);
 		map[old[0]] = dmap[old[0]];
-		key_clear(el, map, (char *)new);
+		el_key_clear(el, map, (char *)new);
 		/* MAP_VI == 1, MAP_EMACS == 0... */
 		map[new[0]] = tp->bind[el->el_map.type];
 		if (dalt) {
-			key_clear(el, alt, (char *)old);
+			el_key_clear(el, alt, (char *)old);
 			alt[old[0]] = dalt[old[0]];
-			key_clear(el, alt, (char *)new);
+			el_key_clear(el, alt, (char *)new);
 			alt[new[0]] = tp->bind[el->el_map.type + 1];
 		}
 	}
