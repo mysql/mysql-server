@@ -442,7 +442,7 @@ public:
     handler_tables - list of tables that were opened with HANDLER OPEN
      and are still in use by this thread
   */
-  TABLE   *open_tables,*temporary_tables, *handler_tables;
+  TABLE   *open_tables,*temporary_tables, *handler_tables, *derived_tables;
   // TODO: document the variables below
   MYSQL_LOCK	*lock;				/* Current locks */
   MYSQL_LOCK	*locked_tables;			/* Tables locked with LOCK */
