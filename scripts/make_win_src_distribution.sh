@@ -114,37 +114,16 @@ done
 # Convert argument file from unix to DOS text
 #
 
-if [ `which recode` ]
-then
+unix_to_dos()
+{
+  for arg do
+    print_debug "Replacing LF -> CRLF from '$arg'"
 
-  print_debug "Using 'recode' to convert from unix to dos text"
-
-  unix_to_dos()
-  {
-    for arg do
-      print_debug "Replacing LF -> CRLF from '$arg'"
-
-      chmod u+w $arg
-      recode lat1..ibmpc $arg
-    done
-  }
-
-else
-
-  print_debug "Using 'sed' to convert from unix to dos text"
-
-  unix_to_dos()
-  {
-    for arg do
-      print_debug "Replacing LF -> CRLF from '$arg'"
-
-      sed -e 's/$/\r/' $arg > $arg.tmp
-      rm -f $arg
-      mv $arg.tmp $arg
-    done
-  }
-
-fi
+    cat $arg | awk '{sub(/$/,"\r");print}' > $arg.tmp
+    rm -f $arg
+    mv $arg.tmp $arg
+  done
+}
 
 
 #
@@ -167,6 +146,28 @@ find $BASE \( -name "*.dsp" -o -name "*.dsw" \) -and -not -path \*SCCS\* -print
     unix_to_dos $v
   done
 )
+
+#
+# Process version tags in InstallShield files
+#
+
+vreplace()
+{
+  for arg do
+    unix_to_dos $arg
+    cat $arg | sed -e 's!@''VERSION''@!@VERSION@!' > $arg.tmp
+    rm -f $arg
+    mv $arg.tmp $arg
+  done
+}
+
+for d in 4.0.XX-gpl 4.0.XX-pro 4.0.XX-classic
+do
+  cd $BASE/InstallShield/$d/String\ Tables/0009-English
+  vreplace value.shl
+  cd ../../Setup\ Files/Compressed\ Files/Language\ Independent/OS\ Independent
+  vreplace infolist.txt
+done
 
 #
 # Move all error message files to root directory
