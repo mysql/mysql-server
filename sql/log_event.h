@@ -234,7 +234,7 @@ struct sql_ex_info
 /* these are codes, not offsets; not more than 256 values (1 byte). */
 #define Q_FLAGS2_CODE           0
 #define Q_SQL_MODE_CODE         1
-#ifdef TO_BE_DELETED
+#ifndef TO_BE_DELETED
 /*
   Q_CATALOG_CODE is catalog with end zero stored; it is used only by MySQL
   5.0.x where 0<=x<=3.
