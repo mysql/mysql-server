@@ -1,0 +1,20 @@
+# sel000031
+#
+# Versions
+# --------
+#   3.22
+#   3.23
+#
+# Description
+# -----------
+# test for a bug with elt() and order by
+
+drop table if exists elt_ck1,elt_ck2;
+create table elt_ck1 (id int(10) not null unique);
+create table elt_ck2 (id int(10) not null primary key,
+val int(10) not null);
+insert into elt_ck1 values (1),(2),(4);
+insert into elt_ck2 values (1,1),(2,1),(3,1),(4,2);
+
+@r/sel000031.result select one.id, elt(two.val,'one','two') from elt_ck1 one, elt_ck2 two where two.id=one.id order by one.id;
+

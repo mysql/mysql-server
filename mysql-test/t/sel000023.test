@@ -1,0 +1,14 @@
+# sel000023
+#
+# Versions
+# --------
+#   3.22
+#   3.23
+#
+# Description
+# -----------
+# Strings.
+# Testing string comparisons; LIKE, NOT LIKE, '%'.
+#
+
+@r/sel000023.result SELECT "abc" LIKE "a%", "abc" NOT LIKE "%d%", "a%" LIKE "a\%","abc%" LIKE "a%\%","abcd" LIKE "a%b_%d", "a" LIKE "%%a","abcde" LIKE "a%_e","abc" LIKE "abc%";
