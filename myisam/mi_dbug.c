@@ -132,8 +132,10 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
       break;
     }
 #endif
-    case HA_KEYTYPE_VARTEXT:			/* VARCHAR and TEXT */
-    case HA_KEYTYPE_VARBINARY:			/* VARBINARY and BLOB */
+    case HA_KEYTYPE_VARTEXT1:                   /* VARCHAR and TEXT */
+    case HA_KEYTYPE_VARTEXT2:                   /* VARCHAR and TEXT */
+    case HA_KEYTYPE_VARBINARY1:                 /* VARBINARY and BLOB */
+    case HA_KEYTYPE_VARBINARY2:                 /* VARBINARY and BLOB */
     {
       uint tmp_length;
       get_key_length(tmp_length,key);

@@ -4891,11 +4891,9 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     break;
   case MYSQL_TYPE_VARCHAR:
     /*
-      We can't use pack_length as this includes the field length
       Long VARCHAR's are automaticly converted to blobs in mysql_prepare_table
       if they don't have a default value
     */
-    new_field->key_length= new_field->length;
     max_field_charlength= MAX_FIELD_VARCHARLENGTH;
     break;
   case MYSQL_TYPE_STRING:
@@ -5096,15 +5094,11 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
     DBUG_RETURN(1);
   }
-  if (!new_field->pack_length)
-    new_field->pack_length= calc_pack_length(new_field->sql_type,
-                                             new_field->length);
-  if (!new_field->key_length)
-    new_field->key_length= new_field->pack_length;
   lex->create_list.push_back(new_field);
   lex->last_field=new_field;
   DBUG_RETURN(0);
 }
+
 
 /* Store position for column in ALTER TABLE .. ADD column */
 

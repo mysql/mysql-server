@@ -4657,7 +4657,19 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table)
 }
 
 /****************************************************************************
-** VARCHAR type  (Not available for the end user yet)
+  VARCHAR type
+  Data in field->ptr is stored as:
+    1 or 2 bytes length-prefix-header  (from Field_varstring::length_bytes)
+    data
+
+  NOTE:
+  When VARCHAR is stored in a key (for handler::index_read() etc) it's always
+  stored with a 2 byte prefix. (Just like blob keys).
+
+  Normally length_bytes is calculated as (field_length < 256 : 1 ? 2)
+  The exception is if there is a prefix key field that is part of a long
+  VARCHAR, in which case field_length for this may be 1 but the length_bytes
+  is 2.
 ****************************************************************************/
 
 
@@ -4686,8 +4698,11 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 						    from,from+length,
 						    field_length/
 						    field_charset->mbmaxlen);
-  memcpy(ptr + HA_KEY_BLOB_LENGTH, from, copy_length);
-  int2store(ptr, copy_length);
+  memcpy(ptr + length_bytes, from, copy_length);
+  if (length_bytes == 1)
+    *ptr= (uchar) copy_length;
+  else
+    int2store(ptr, copy_length);
   
   if (copy_length < length)
     error= 1;
@@ -4700,95 +4715,133 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 int Field_varstring::store(longlong nr)
 {
   char buff[64];
-  int  l;
-  CHARSET_INFO *cs=charset();
-  l= (cs->cset->longlong10_to_str)(cs,buff,sizeof(buff),-10,nr);
-  return Field_varstring::store(buff,(uint)l,cs);
+  uint  length;
+  length= (uint) (field_charset->cset->longlong10_to_str)(field_charset,
+                                                          buff,
+                                                          sizeof(buff),
+                                                          -10,nr);
+  return Field_varstring::store(buff, length, field_charset);
 }
 
 
 double Field_varstring::val_real(void)
 {
   int not_used;
-  uint length=uint2korr(ptr)+HA_KEY_BLOB_LENGTH;
-  CHARSET_INFO *cs=charset();
-  return my_strntod(cs, ptr+HA_KEY_BLOB_LENGTH, length, (char**)0, &not_used);
+  uint length= length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+  return my_strntod(field_charset, ptr+length_bytes, length, (char**) 0,
+                    &not_used);
 }
 
 
 longlong Field_varstring::val_int(void)
 {
   int not_used;
-  uint length=uint2korr(ptr)+HA_KEY_BLOB_LENGTH;
-  CHARSET_INFO *cs=charset();
-  return my_strntoll(cs,ptr+HA_KEY_BLOB_LENGTH,length,10,NULL, &not_used);
+  uint length= length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+  return my_strntoll(field_charset, ptr+length_bytes, length, 10, NULL,
+                     &not_used);
 }
 
 
 String *Field_varstring::val_str(String *val_buffer __attribute__((unused)),
 				 String *val_ptr)
 {
-  uint length=uint2korr(ptr);
-  val_ptr->set((const char*) ptr+HA_KEY_BLOB_LENGTH,length,field_charset);
+  uint length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+  val_ptr->set((const char*) ptr+length_bytes, length, field_charset);
   return val_ptr;
 }
 
 
 int Field_varstring::cmp(const char *a_ptr, const char *b_ptr)
 {
-  uint a_length=uint2korr(a_ptr);
-  uint b_length=uint2korr(b_ptr);
+  uint a_length, b_length;
   int diff;
+
+  if (length_bytes == 1)
+  {
+    a_length= (uint) (uchar) *a_ptr;
+    b_length= (uint) (uchar) *b_ptr;
+  }
+  else
+  {
+    a_length= uint2korr(a_ptr);
+    b_length= uint2korr(b_ptr);
+  }
   diff= field_charset->coll->strnncollsp(field_charset,
                                          (const uchar*) a_ptr+
-                                         HA_KEY_BLOB_LENGTH,
+                                         length_bytes,
                                          a_length,
                                          (const uchar*) b_ptr+
-                                         HA_KEY_BLOB_LENGTH,
+                                         length_bytes,
                                          b_length,0);
   return diff;
 }
 
 
+/*
+  NOTE: varstring and blob keys are ALWAYS stored with a 2 byte length prefix
+*/
+
 int Field_varstring::key_cmp(const byte *key_ptr, uint max_key_length)
 {
   char *blob1;
-  uint length= uint2korr(ptr);
-  CHARSET_INFO *cs= charset();
-  uint char_length= max_key_length / cs->mbmaxlen;
+  uint length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+  uint char_length= max_key_length / field_charset->mbmaxlen;
 
-  char_length= my_charpos(cs, ptr + HA_KEY_BLOB_LENGTH,
-                          ptr + HA_KEY_BLOB_LENGTH + length, char_length);
+  char_length= my_charpos(field_charset, ptr + length_bytes,
+                          ptr + length_bytes + length, char_length);
   set_if_smaller(length, char_length);
-  return cs->coll->strnncollsp(cs, 
-                               (const uchar*) ptr+2, length,
-                               (const uchar*) key_ptr+HA_KEY_BLOB_LENGTH,
-                               uint2korr(key_ptr), 0);
+  return field_charset->coll->strnncollsp(field_charset, 
+                                          (const uchar*) ptr + length_bytes,
+                                          length,
+                                          (const uchar*) key_ptr+
+                                          HA_KEY_BLOB_LENGTH,
+                                          uint2korr(key_ptr), 0);
 }
 
 
+/*
+  Compare to key segments (always 2 byte length prefix)
+
+  NOTE
+    This is used only to compare key segments created for index_read().
+    (keys are created and compared in key.cc)
+*/
+
 int Field_varstring::key_cmp(const byte *a,const byte *b)
 {
-  CHARSET_INFO *cs= charset();
-  return cs->coll->strnncollsp(cs,
-                               (const uchar*) a + HA_KEY_BLOB_LENGTH,
-                               uint2korr(a),
-                               (const uchar*) b + HA_KEY_BLOB_LENGTH,
-                               uint2korr(b),
-                               0);
+  return field_charset->coll->strnncollsp(field_charset,
+                                          (const uchar*) a +
+                                          HA_KEY_BLOB_LENGTH,
+                                          uint2korr(a),
+                                          (const uchar*) b +
+                                          HA_KEY_BLOB_LENGTH,
+                                          uint2korr(b),
+                                          0);
 }
 
 
 void Field_varstring::sort_string(char *to,uint length)
 {
-  uint tot_length= uint2korr(ptr);
+  uint tot_length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
   tot_length= my_strnxfrm(field_charset,
 			  (uchar*) to, length,
-			  (uchar*) ptr+HA_KEY_BLOB_LENGTH,
+			  (uchar*) ptr + length_bytes,
 			  tot_length);
   if (tot_length < length)
     field_charset->cset->fill(field_charset, to+tot_length,length-tot_length,
 			      binary() ? (char) 0 : ' ');
+}
+
+
+enum ha_base_keytype Field_varstring::key_type() const
+{
+  enum ha_base_keytype res;
+
+  if (binary())
+    res= length_bytes == 1 ? HA_KEYTYPE_VARBINARY1 : HA_KEYTYPE_VARBINARY2;
+  else
+    res= length_bytes == 1 ? HA_KEYTYPE_VARTEXT1 : HA_KEYTYPE_VARTEXT2;
+  return res;
 }
 
 
@@ -4809,12 +4862,101 @@ void Field_varstring::sql_type(String &res) const
 }
 
 
+/*
+  Functions to create a packed row.
+  Here the number of length bytes are depending on the given max_length
+*/
+
 char *Field_varstring::pack(char *to, const char *from, uint max_length)
 {
-  uint length=uint2korr(from);
+  uint length= length_bytes == 1 ? (uint) (uchar) *from : uint2korr(from);
   set_if_smaller(max_length, field_length);
   if (length > max_length)
     length=max_length;
+  *to++= (char) (length & 255);
+  if (max_length > 255)
+    *to++= (char) (length >> 8);
+  if (length)
+    memcpy(to, from+length_bytes, length);
+  return to+length;
+}
+
+
+char *Field_varstring::pack_key(char *to, const char *key, uint max_length)
+{
+  uint length=  length_bytes == 1 ? (uint) (uchar) *key : uint2korr(key);
+  uint char_length= ((field_charset->mbmaxlen > 1) ?
+                     max_length/field_charset->mbmaxlen : max_length);
+  key+= length_bytes;
+  if (length > char_length)
+  {
+    char_length= my_charpos(field_charset, key, key+length, char_length);
+    set_if_smaller(length, char_length);
+  }
+  *to++= (char) (length & 255);
+  if (max_length > 255)
+    *to++= (char) (length >> 8);
+  if (length)
+    memcpy(to, key, length);
+  return to+length;
+}
+
+
+/*
+  Unpack a key into a record buffer.
+
+  SYNOPSIS
+    unpack_key()
+    to                          Pointer into the record buffer.
+    key                         Pointer to the packed key.
+    max_length                  Key length limit from key description.
+
+  DESCRIPTION
+    A VARCHAR key has a maximum size of 64K-1.
+    In its packed form, the length field is one or two bytes long,
+    depending on 'max_length'.
+
+  RETURN
+    Pointer to end of 'key' (To the next key part if multi-segment key)
+*/
+
+const char *Field_varstring::unpack_key(char *to, const char *key,
+                                      uint max_length)
+{
+  /* get length of the blob key */
+  uint32 length= *((uchar*) key++);
+  if (max_length > 255)
+    length+= (*((uchar*) key++)) << 8;
+
+  /* put the length into the record buffer */
+  if (length_bytes == 1)
+    *ptr= (uchar) length;
+  else
+    int2store(ptr, length);
+  memcpy(ptr + length_bytes, key, length);
+  return key + length;
+}
+
+/*
+  Create a packed key that will be used for storage in the index tree
+
+  SYNOPSIS
+    pack_key_from_key_image()
+    to			Store packed key segment here
+    from		Key segment (as given to index_read())
+    max_length  	Max length of key
+
+  RETURN
+    end of key storage
+*/
+
+char *Field_varstring::pack_key_from_key_image(char *to, const char *from,
+                                               uint max_length)
+{
+  /* Key length is always stored as 2 bytes */
+  uint length= uint2korr(from);
+  if (length > max_length)
+    length= max_length;
   *to++= (char) (length & 255);
   if (max_length > 255)
     *to++= (char) (length >> 8);
@@ -4824,34 +4966,15 @@ char *Field_varstring::pack(char *to, const char *from, uint max_length)
 }
 
 
-char *Field_varstring::pack_key(char *to, const char *from, uint max_length)
-{
-  uint length=uint2korr(from);
-  uint char_length= ((field_charset->mbmaxlen > 1) ?
-                     max_length/field_charset->mbmaxlen : max_length);
-  from+= HA_KEY_BLOB_LENGTH;
-  if (length > char_length)
-  {
-    char_length= my_charpos(field_charset, from, from+length, char_length);
-    set_if_smaller(length, char_length);
-  }
-  *to++= (char) (length & 255);
-  if (max_length > 255)
-    *to++= (char) (length >> 8);
-  if (length)
-    memcpy(to, from, length);
-  return to+length;
-}
-
+/*
+  unpack field packed with Field_varstring::pack()
+*/
 
 const char *Field_varstring::unpack(char *to, const char *from)
 {
   uint length;
-  if (field_length <= 255)
-  {
+  if (length_bytes == 1)
     length= (uint) (uchar) (*to= *from++);
-    to[1]=0;
-  }
   else
   {
     length= uint2korr(from);
@@ -4859,7 +4982,7 @@ const char *Field_varstring::unpack(char *to, const char *from)
     to[1]= *from++;
   }
   if (length)
-    memcpy(to+HA_KEY_BLOB_LENGTH, from, length);
+    memcpy(to+ length_bytes, from, length);
   return from+length;
 }
 
@@ -4867,12 +4990,11 @@ const char *Field_varstring::unpack(char *to, const char *from)
 int Field_varstring::pack_cmp(const char *a, const char *b, uint key_length,
                               my_bool insert_or_update)
 {
-  uint a_length;
-  uint b_length;
+  uint a_length, b_length;
   if (key_length > 255)
   {
-    a_length=uint2korr(a); a+= HA_KEY_BLOB_LENGTH;
-    b_length=uint2korr(b); b+= HA_KEY_BLOB_LENGTH;
+    a_length=uint2korr(a); a+= 2;
+    b_length=uint2korr(b); b+= 2;
   }
   else
   {
@@ -4889,8 +5011,8 @@ int Field_varstring::pack_cmp(const char *a, const char *b, uint key_length,
 int Field_varstring::pack_cmp(const char *b, uint key_length,
                               my_bool insert_or_update)
 {
-  char *a= ptr+HA_KEY_BLOB_LENGTH;
-  uint a_length= uint2korr(ptr);
+  char *a= ptr+ length_bytes;
+  uint a_length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
   uint b_length;
   uint char_length= ((field_charset->mbmaxlen > 1) ?
                      key_length / field_charset->mbmaxlen : key_length);
@@ -4919,7 +5041,7 @@ int Field_varstring::pack_cmp(const char *b, uint key_length,
 uint Field_varstring::packed_col_length(const char *data_ptr, uint length)
 {
   if (length > 255)
-    return uint2korr(data_ptr)+HA_KEY_BLOB_LENGTH;
+    return uint2korr(data_ptr)+2;
   return (uint) ((uchar) *data_ptr)+1;
 }
 
@@ -4932,13 +5054,14 @@ uint Field_varstring::max_packed_col_length(uint max_length)
 
 void Field_varstring::get_key_image(char *buff, uint length, imagetype type)
 {
-  uint f_length= uint2korr(ptr);
+  uint f_length=  length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
   uint char_length= length / field_charset->mbmaxlen;
-  char_length= my_charpos(field_charset, ptr, ptr + HA_KEY_BLOB_LENGTH,
+  char_length= my_charpos(field_charset, ptr, ptr + length_bytes,
                           char_length);
   set_if_smaller(f_length, char_length);
+  /* Key is always stored with 2 bytes */
   int2store(buff,f_length);
-  memcpy(buff+HA_KEY_BLOB_LENGTH, ptr+HA_KEY_BLOB_LENGTH, f_length);
+  memcpy(buff+HA_KEY_BLOB_LENGTH, ptr+length_bytes, f_length);
   if (f_length < length)
   {
     /*
@@ -4952,15 +5075,9 @@ void Field_varstring::get_key_image(char *buff, uint length, imagetype type)
 
 void Field_varstring::set_key_image(char *buff,uint length)
 {
-  length=uint2korr(buff);			// Real length is here
+  length= uint2korr(buff);			// Real length is here
   (void) Field_varstring::store(buff+HA_KEY_BLOB_LENGTH, length,
                                 field_charset);
-}
-
-
-int Field_varstring::cmp_binary_offset(uint row_offset)
-{
-  return cmp_binary(ptr, ptr+row_offset);
 }
 
 
@@ -4971,13 +5088,41 @@ int Field_varstring::cmp_binary(const char *a_ptr, const char *b_ptr,
   uint diff;
   uint32 a_length,b_length;
 
-  a_length= uint2korr(a_ptr);
-  b_length= uint2korr(b_ptr);
+  if (length_bytes == 1)
+  {
+    a_length= (uint) (uchar) *a_ptr;
+    b_length= (uint) (uchar) *b_ptr;
+  }
+  else
+  {
+    a_length= uint2korr(a_ptr);
+    b_length= uint2korr(b_ptr);
+  }
   set_if_smaller(a_length, max_length);
   set_if_smaller(b_length, max_length);
   if (a_length != b_length)
     return 1;
-  return memcmp(a_ptr+2, b_ptr+2, a_length);
+  return memcmp(a_ptr+length_bytes, b_ptr+length_bytes, a_length);
+}
+
+
+Field *Field_varstring::new_field(MEM_ROOT *root, struct st_table *new_table)
+{
+  Field_varstring *res= (Field_varstring*) Field::new_field(root, new_table);
+  if (res)
+    res->length_bytes= length_bytes;
+  return res;
+}
+
+
+Field *Field_varstring::new_key_field(MEM_ROOT *root,
+                                      struct st_table *new_table)
+{
+  Field_varstring *res= (Field_varstring*) Field::new_field(root, new_table);
+  /* Keys length prefixes are always packed with 2 bytes */
+  if (res)
+    res->length_bytes= 2;
+  return res;
 }
 
 
@@ -5234,18 +5379,6 @@ int Field_blob::cmp(const char *a_ptr, const char *b_ptr)
 }
 
 
-int Field_blob::cmp_offset(uint row_offset)
-{
-  return Field_blob::cmp(ptr,ptr+row_offset);
-}
-
-
-int Field_blob::cmp_binary_offset(uint row_offset)
-{
-  return cmp_binary(ptr, ptr+row_offset);
-}
-
-
 int Field_blob::cmp_binary(const char *a_ptr, const char *b_ptr,
 			   uint32 max_length)
 {
@@ -5432,8 +5565,7 @@ const char *Field_blob::unpack(char *to, const char *from)
 int Field_blob::pack_cmp(const char *a, const char *b, uint key_length,
                          my_bool insert_or_update)
 {
-  uint a_length;
-  uint b_length;
+  uint a_length, b_length;
   if (key_length > 255)
   {
     a_length=uint2korr(a); a+=2;
@@ -5538,6 +5670,7 @@ const char *Field_blob::unpack_key(char *to, const char *from, uint max_length)
   /* point to first byte of next field in 'from' */
   return from + length;
 }
+
 
 /* Create a packed key that will be used for storage from a MySQL key */
 
@@ -6284,15 +6417,17 @@ void create_field::create_length_to_internal_length(void)
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
     length*= charset->mbmaxlen;
-    key_length*= charset->mbmaxlen;
+    key_length= length;
     pack_length= calc_pack_length(sql_type, length);
     break;
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
+    /* Pack_length already calculated in sql_parse.cc */
     length*= charset->mbmaxlen;
+    key_length= pack_length;
     break;
   default:
-    /* do nothing */
+    key_length= pack_length= calc_pack_length(sql_type, length);
     break;
   }
 }
@@ -6323,7 +6458,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
   case FIELD_TYPE_DECIMAL:     return (length);
-  case MYSQL_TYPE_VARCHAR:     return (length+HA_KEY_BLOB_LENGTH);
+  case MYSQL_TYPE_VARCHAR:     return (length + (length < 256 ? 1: 2));
   case FIELD_TYPE_YEAR:
   case FIELD_TYPE_TINY	: return 1;
   case FIELD_TYPE_SHORT : return 2;
@@ -6423,7 +6558,9 @@ Field *make_field(char *ptr, uint32 field_length,
                                 unireg_check, field_name, table,
                                 field_charset);
       if (field_type == MYSQL_TYPE_VARCHAR)
-        return new Field_varstring(ptr,field_length,null_pos,null_bit,
+        return new Field_varstring(ptr,field_length,
+                                   HA_VARCHAR_PACKLENGTH(field_length),
+                                   null_pos,null_bit,
                                    unireg_check, field_name, table,
                                    field_charset);
       return 0;                                 // Error
@@ -6573,9 +6710,8 @@ create_field::create_field(Field *old_field,Field *orig_field)
   case MYSQL_TYPE_SET:
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
-    /* These are corrected in create_length_to_internal_length */
+    /* This is corrected in create_length_to_internal_length */
     length= (length+charset->mbmaxlen-1) / charset->mbmaxlen;
-    key_length/= charset->mbmaxlen;
     break;
 #ifdef HAVE_SPATIAL
   case FIELD_TYPE_GEOMETRY:
