@@ -6,3 +6,17 @@ Full-text indexes	are called collections
 a	b
 Full-text indexes	are called collections
 Only MyISAM tables	support collections
+id
+id
+id
+3
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
+t2	1	tig	1	ticket	A	NULL	NULL	NULL	
+t2	1	tix	1	inhalt	A	NULL	1	NULL	FULLTEXT
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `ticket` int(11) default NULL,
+  `inhalt` text,
+  KEY `tig`(`ticket`),
+  FULLTEXT KEY `tix`(`inhalt`)
+) TYPE=MyISAM

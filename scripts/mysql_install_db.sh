@@ -10,7 +10,7 @@
 IN_RPM=0
 case "$1" in
     -IN-RPM)
-      IN_RPM="$1"; shift
+      IN_RPM="1"; shift
       ;;
 esac
 defaults=
