@@ -382,6 +382,8 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     bzero((char*) &param->unique_count,sizeof(param->unique_count));
     if ((!(param->testflag & T_SILENT)))
       printf ("- check data record references index: %d\n",key+1);
+    if (keyinfo->flag & HA_FULLTEXT)
+      full_text_keys++;
     if (share->state.key_root[key] == HA_OFFSET_ERROR &&
 	(info->state->records == 0 || keyinfo->flag & HA_FULLTEXT))
       continue;
@@ -432,8 +434,6 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
 	continue;
       }
     }
-    else
-      full_text_keys++;
     if ((uint) share->base.auto_key -1 == key)
     {
       /* Check that auto_increment key is bigger than max key value */
