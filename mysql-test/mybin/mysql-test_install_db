@@ -5,38 +5,21 @@
 # This scripts creates the privilege tables db, host, user, tables_priv,
 # columns_priv in the mysql database, as well as the func table.
 
-ldata=var/lib
-logdir=var/log
-mdata=$ldata/mysql
-execdir=../sql
-bindir=../client
 
-# Get mysqld/safe_mysqld options from /etc/my.cnf or ~/.my.cnf
-if test -w /
+if [ x$1 = x"-slave" ] 
 then
-  conf=@sysconfdir@/my.cnf
+ shift $#
+ ldata=var/slave-data
+ logdir=var/log
+ mdata=$ldata/mysql
+ execdir=../sql
+ bindir=../client
 else
-  conf=$HOME/.my.cnf
-fi
-
-if test -f "$conf"
-then
-  if grep "^datadir" $conf >/dev/null
-  then
-    ldata=`grep "^datadir" $conf | sed '.*=[ \t]*//`
-  fi
-  if grep "^execdir" $conf >/dev/null
-  then
-    execdir=`grep "^execdir" $conf | sed '.*=[ \t]*//`
-  fi
-  if grep "^bindir" $conf >/dev/null
-  then
-    bindir=`grep "^bindir" $conf | sed '.*=[ \t]*//`
-  fi
-  if grep "^user" $conf >/dev/null
-  then
-    user=`grep "^user" $conf | sed '.*=[ \t]*//`
-  fi
+ ldata=var/lib
+ logdir=var/log
+ mdata=$ldata/mysql
+ execdir=../sql
+ bindir=../client
 fi
 
 if test ! -x $execdir/mysqld
@@ -50,6 +33,7 @@ PATH=$PATH:/usr/bsd
 hostname=`hostname`		# Install this too in the user table
 
 resolved=127.0.0.1
+
 
 # Create database directories mysql & test
 if test ! -d $ldata; then (mkdir -p $ldata || exit 1) && \
@@ -207,8 +191,8 @@ then
   c_c="$c_c   comment='Column privileges';"
 fi
 
-if $execdir/mysqld --bootstrap --skip-grant-tables \
-    --basedir=. --datadir=$ldata "$@" << END_OF_DATA
+if $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
+    --basedir=. --datadir=$ldata  << END_OF_DATA
 use mysql;
 $c_d
 $i_d

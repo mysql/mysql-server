@@ -1,0 +1,11 @@
+source t/include/master-slave.inc;
+connection master;
+use test;
+drop table if exists x;
+create table x(n int auto_increment primary key);
+set insert_id = 2000;
+insert into x values (NULL),(NULL),(NULL);
+connection slave;
+use test;
+sleep 1;
+@r/3.23/rpl000002.result select * from x;
