@@ -70,6 +70,8 @@ Full-text search in MySQL	implements vector space model	0
 select * from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
 a	b
 Full-text indexes	are called collections
+select * from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+a	b
 select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search

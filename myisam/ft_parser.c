@@ -125,7 +125,7 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
   byte *doc=*start;
   int mwc;
 
-  param->yesno=(FTB_YES==' ')?1:0;
+  param->yesno=(FTB_YES==' ') ? 1 : (param->quot != 0);
   param->plusminus=param->pmsign=0;
 
   while (doc<end)
@@ -156,7 +156,7 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
         if (*doc == FTB_NEG ) { param->pmsign=!param->pmsign; continue; }
       }
       param->prev=*doc;
-      param->yesno=(param->quot != 0);
+      param->yesno=(FTB_YES==' ') ? 1 : (param->quot != 0);
       param->plusminus=param->pmsign=0;
     }
 
