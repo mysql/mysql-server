@@ -31895,7 +31895,7 @@ those listed in the entry for the @code{DATE_FORMAT()} function:
 @example
 mysql> select FROM_UNIXTIME(UNIX_TIMESTAMP(),
                             '%Y %D %M %h:%i:%s %x');
-        -> '1997 23rd December 03:43:30 x'
+        -> '1997 23rd December 03:43:30 1997'
 @end example
 
 @findex SEC_TO_TIME()
