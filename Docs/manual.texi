@@ -46927,7 +46927,10 @@ not yet 100% confident in this code.
 @node News-3.23.52, News-3.23.51, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.52
 @itemize @bullet
-@code
+@item
+Fixed bug when logging @code{LOAD DATA INFILE} to binary log with no 
+active database.
+@item
 Fixed a bug in range optimiser (causing crashes).
 @item
 Fixed possible problem in replication when doing @code{DROP DATABASE} on a

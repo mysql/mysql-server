@@ -234,8 +234,8 @@ public:
 		 List<Item>& fields_arg, enum enum_duplicates handle_dup ):
     Log_event(thd->start_time),data_buf(0),thread_id(thd->thread_id),
     num_fields(0),fields(0),field_lens(0),field_block_len(0),
-    table_name(table_name_arg),
-    db(db_arg),
+    table_name(table_name_arg ? table_name_arg : ""),
+    db(db_arg ? db_arg : ""),
     fname(ex->file_name),
     thd(thd)
   {
@@ -243,8 +243,8 @@ public:
     time(&end_time);
     exec_time = (ulong) (end_time  - thd->start_time);
     valid_exec_time = 1;
-    db_len = (db) ? (uint32) strlen(db) : 0;
-    table_name_len = (table_name) ? (uint32) strlen(table_name) : 0;
+    db_len = (uint32) strlen(db);
+    table_name_len = (uint32) strlen(table_name);
     fname_len = (fname) ? (uint) strlen(fname) : 0;
     sql_ex.field_term = (*ex->field_term)[0];
     sql_ex.enclosed = (*ex->enclosed)[0];
@@ -259,12 +259,11 @@ public:
 
     sql_ex.empty_flags = 0;
 
-    switch(handle_dup)
-      {
-      case DUP_IGNORE: sql_ex.opt_flags |= IGNORE_FLAG; break;
-      case DUP_REPLACE: sql_ex.opt_flags |= REPLACE_FLAG; break;
-      case DUP_ERROR: break;	
-      }
+    switch(handle_dup) {
+    case DUP_IGNORE:  sql_ex.opt_flags |= IGNORE_FLAG;  break;
+    case DUP_REPLACE: sql_ex.opt_flags |= REPLACE_FLAG; break;
+    case DUP_ERROR: break;	
+    }
 
     if(!ex->field_term->length())
       sql_ex.empty_flags |= FIELD_TERM_EMPTY;
