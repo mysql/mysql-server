@@ -42,7 +42,6 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     }
     ndbrequire(fragPtr.i != RNIL);
     Frag& frag = *fragPtr.p;
-    ndbrequire(frag.m_nodeList == RNIL);
     // must be normal DIH/TC fragment
     ndbrequire(frag.m_fragId < (1 << frag.m_fragOff));
     TreeHead& tree = frag.m_tree;
@@ -241,7 +240,6 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     debugOut << "NEXT_SCANREQ scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
-  ndbrequire(frag.m_nodeList == RNIL);
   // handle unlock previous and close scan
   switch (req->scanFlag) {
   case NextScanReq::ZSCAN_NEXT:
@@ -278,9 +276,9 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     if (scan.m_scanPos.m_loc != NullTupLoc) {
       jam();
       const TupLoc loc = scan.m_scanPos.m_loc;
-      NodeHandlePtr nodePtr;
-      selectNode(signal, frag, nodePtr, loc, AccHead);
-      unlinkScan(*nodePtr.p, scanPtr);
+      NodeHandle node(frag);
+      selectNode(signal, node, loc, AccHead);
+      unlinkScan(node, scanPtr);
       scan.m_scanPos.m_loc = NullTupLoc;
     }
     if (scan.m_lockwait) {
@@ -295,7 +293,6 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
       jamEntry();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       scan.m_state = ScanOp::Aborting;
-      commitNodes(signal, frag, true);
       return;
     }
     if (scan.m_state == ScanOp::Locked) {
@@ -350,7 +347,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     signal->theData[1] = true;
     EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
     jamEntry();
-    commitNodes(signal, frag, true);
     return;   // stop
   }
   if (scan.m_lockwait) {
@@ -365,7 +361,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     // if TC has ordered scan close, it will be detected here
     sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
         signal, signalLength, JBB);
-    commitNodes(signal, frag, true);
     return;     // stop
   }
   if (scan.m_state == ScanOp::First) {
@@ -444,7 +439,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         signal->theData[1] = true;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
         jamEntry();
-        commitNodes(signal, frag, true);
         return;  // stop
         break;
       case AccLockReq::Refused:
@@ -457,7 +451,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         signal->theData[1] = true;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
         jamEntry();
-        commitNodes(signal, frag, true);
         return;  // stop
         break;
       case AccLockReq::NoFreeOp:
@@ -470,7 +463,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         signal->theData[1] = true;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
         jamEntry();
-        commitNodes(signal, frag, true);
         return;  // stop
         break;
       default:
@@ -554,7 +546,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     scan.m_lastEnt = ent;
     // next time look for next entry
     scan.m_state = ScanOp::Next;
-    commitNodes(signal, frag, true);
     return;
   }
   // XXX in ACC this is checked before req->checkLcpStop
@@ -568,7 +559,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     unsigned signalLength = 3;
     sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
         signal, signalLength, JBB);
-    commitNodes(signal, frag, true);
     return;
   }
   ndbrequire(false);
@@ -707,7 +697,7 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
   }
   TreePos pos;
   pos.m_loc = tree.m_root;
-  NodeHandlePtr nodePtr;
+  NodeHandle node(frag);
   // unpack lower bound
   const ScanBound& bound = *scan.m_bound[0];
   ScanBoundIterator iter;
@@ -724,20 +714,20 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
   boundPar.m_dir = 0;
 loop: {
     jam();
-    selectNode(signal, frag, nodePtr, pos.m_loc, AccPref);
-    const unsigned occup = nodePtr.p->getOccup();
+    selectNode(signal, node, pos.m_loc, AccPref);
+    const unsigned occup = node.getOccup();
     ndbrequire(occup != 0);
     for (unsigned i = 0; i <= 1; i++) {
       jam();
       // compare prefix
-      boundPar.m_data2 = nodePtr.p->getPref(i);
+      boundPar.m_data2 = node.getPref(i);
       boundPar.m_len2 = tree.m_prefSize;
       int ret = cmpScanBound(frag, boundPar);
       if (ret == NdbSqlUtil::CmpUnknown) {
         jam();
         // read full value
         ReadPar readPar;
-        readPar.m_ent = nodePtr.p->getMinMax(i);
+        readPar.m_ent = node.getMinMax(i);
         readPar.m_first = 0;
         readPar.m_count = frag.m_numAttrs;
         readPar.m_data = 0;     // leave in signal data
@@ -750,7 +740,7 @@ loop: {
       }
       if (i == 0 && ret < 0) {
         jam();
-        const TupLoc loc = nodePtr.p->getLink(i);
+        const TupLoc loc = node.getLink(i);
         if (loc != NullTupLoc) {
           jam();
           // continue to left subtree
@@ -763,12 +753,12 @@ loop: {
         pos.m_dir = 3;
         scan.m_scanPos = pos;
         scan.m_state = ScanOp::Next;
-        linkScan(*nodePtr.p, scanPtr);
+        linkScan(node, scanPtr);
         return;
       }
       if (i == 1 && ret > 0) {
         jam();
-        const TupLoc loc = nodePtr.p->getLink(i);
+        const TupLoc loc = node.getLink(i);
         if (loc != NullTupLoc) {
           jam();
           // continue to right subtree
@@ -779,18 +769,18 @@ loop: {
         pos.m_dir = 1;
         scan.m_scanPos = pos;
         scan.m_state = ScanOp::Next;
-        linkScan(*nodePtr.p, scanPtr);
+        linkScan(node, scanPtr);
         return;
       }
     }
     // read rest of current node
-    accessNode(signal, frag, nodePtr, AccFull);
+    accessNode(signal, node, AccFull);
     // look for first entry
     ndbrequire(occup >= 2);
     for (unsigned j = 1; j < occup; j++) {
       jam();
       ReadPar readPar;
-      readPar.m_ent = nodePtr.p->getEnt(j);
+      readPar.m_ent = node.getEnt(j);
       readPar.m_first = 0;
       readPar.m_count = frag.m_numAttrs;
       readPar.m_data = 0;       // leave in signal data
@@ -808,7 +798,7 @@ loop: {
         pos.m_dir = 3;
         scan.m_scanPos = pos;
         scan.m_state = ScanOp::Next;
-        linkScan(*nodePtr.p, scanPtr);
+        linkScan(node, scanPtr);
         return;
       }
     }
@@ -868,11 +858,11 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   // use copy of position
   TreePos pos = scan.m_scanPos;
   // get and remember original node
-  NodeHandlePtr origNodePtr;
-  selectNode(signal, frag, origNodePtr, pos.m_loc, AccHead);
-  ndbrequire(islinkScan(*origNodePtr.p, scanPtr));
+  NodeHandle origNode(frag);
+  selectNode(signal, origNode, pos.m_loc, AccHead);
+  ndbrequire(islinkScan(origNode, scanPtr));
   // current node in loop
-  NodeHandlePtr nodePtr = origNodePtr;
+  NodeHandle node = origNode;
   while (true) {
     jam();
     if (pos.m_dir == 2) {
@@ -882,14 +872,14 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
       scan.m_state = ScanOp::Last;
       break;
     }
-    if (nodePtr.p->m_loc != pos.m_loc) {
+    if (node.m_loc != pos.m_loc) {
       jam();
-      selectNode(signal, frag, nodePtr, pos.m_loc, AccHead);
+      selectNode(signal, node, pos.m_loc, AccHead);
     }
     if (pos.m_dir == 4) {
       // coming down from parent proceed to left child
       jam();
-      TupLoc loc = nodePtr.p->getLink(0);
+      TupLoc loc = node.getLink(0);
       if (loc != NullTupLoc) {
         jam();
         pos.m_loc = loc;
@@ -909,10 +899,10 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     if (pos.m_dir == 3) {
       // within node
       jam();
-      unsigned occup = nodePtr.p->getOccup();
+      unsigned occup = node.getOccup();
       ndbrequire(occup >= 1);
       // access full node
-      accessNode(signal, frag, nodePtr, AccFull);
+      accessNode(signal, node, AccFull);
       // advance position
       if (! pos.m_match)
         pos.m_match = true;
@@ -920,7 +910,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
         pos.m_pos++;
       if (pos.m_pos < occup) {
         jam();
-        pos.m_ent = nodePtr.p->getEnt(pos.m_pos);
+        pos.m_ent = node.getEnt(pos.m_pos);
         pos.m_dir = 3;  // unchanged
         // XXX implement prefix optimization
         ReadPar readPar;
@@ -951,7 +941,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
         break;
       }
       // after node proceed to right child
-      TupLoc loc = nodePtr.p->getLink(1);
+      TupLoc loc = node.getLink(1);
       if (loc != NullTupLoc) {
         jam();
         pos.m_loc = loc;
@@ -964,8 +954,8 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     if (pos.m_dir == 1) {
       // coming from right child proceed to parent
       jam();
-      pos.m_loc = nodePtr.p->getLink(2);
-      pos.m_dir = nodePtr.p->getSide();
+      pos.m_loc = node.getLink(2);
+      pos.m_dir = node.getSide();
       continue;
     }
     ndbrequire(false);
@@ -974,16 +964,16 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   scan.m_scanPos = pos;
   // relink
   if (scan.m_state == ScanOp::Current) {
-    ndbrequire(pos.m_loc == nodePtr.p->m_loc);
-    if (origNodePtr.i != nodePtr.i) {
+    ndbrequire(pos.m_loc == node.m_loc);
+    if (origNode.m_loc != node.m_loc) {
       jam();
-      unlinkScan(*origNodePtr.p, scanPtr);
-      linkScan(*nodePtr.p, scanPtr);
+      unlinkScan(origNode, scanPtr);
+      linkScan(node, scanPtr);
     }
   } else if (scan.m_state == ScanOp::Last) {
     jam();
     ndbrequire(pos.m_loc == NullTupLoc);
-    unlinkScan(*origNodePtr.p, scanPtr);
+    unlinkScan(origNode, scanPtr);
   } else {
     ndbrequire(false);
   }
@@ -1043,7 +1033,6 @@ void
 Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
 {
   ScanOp& scan = *scanPtr.p;
-  Frag& frag = *c_fragPool.getPtr(scanPtr.p->m_fragPtrI);
   ndbrequire(! scan.m_lockwait && scan.m_accLockOp == RNIL);
   // unlock all not unlocked by LQH
   for (unsigned i = 0; i < MaxAccLockOps; i++) {
@@ -1068,7 +1057,6 @@ Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
   sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
       signal, signalLength, JBB);
   releaseScanOp(scanPtr);
-  commitNodes(signal, frag, true);
 }
 
 void
