@@ -229,6 +229,13 @@ void ha_myisammrg::info(uint flag)
 #else
   ref_length=4;					// Can't be > than my_off_t
 #endif
+  if (flag & HA_STATUS_CONST)
+  {
+    if (table->key_parts)
+      memcpy((char*) table->key_info[0].rec_per_key,
+	     (char*) info.rec_per_key,
+	     sizeof(table->key_info[0].rec_per_key)*table->key_parts);
+  }
 }
 
 
