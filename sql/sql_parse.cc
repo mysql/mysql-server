@@ -1475,6 +1475,18 @@ mysql_execute_command(void)
     res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
 		     init_vars);
     break;
+  case SQLCOM_SHOW_LOGS:
+#ifdef DONT_ALLOW_SHOW_COMMANDS
+    send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
+    DBUG_VOID_RETURN;
+#else
+    {
+      if (grant_option && check_access(thd, FILE_ACL, any_db))
+	goto error;
+      res= mysqld_show_logs(thd);
+      break;
+    }
+#endif
   case SQLCOM_SHOW_TABLES:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */

@@ -19895,6 +19895,7 @@ or SHOW INDEX FROM tbl_name [FROM db_name]
 or SHOW TABLE STATUS [FROM db_name] [LIKE wild]
 or SHOW STATUS [LIKE wild]
 or SHOW VARIABLES [LIKE wild]
+or SHOW LOGS
 or SHOW [FULL] PROCESSLIST
 or SHOW GRANTS FOR user
 or SHOW CREATE TABLE table_name
@@ -19916,6 +19917,7 @@ and @samp{_} wild-card characters.
 * SHOW TABLE STATUS::           
 * SHOW STATUS::                 
 * SHOW VARIABLES::              
+* SHOW LOGS::              
 * SHOW PROCESSLIST::            
 * SHOW GRANTS::                 
 * SHOW CREATE TABLE::           
@@ -20160,7 +20162,7 @@ your @code{mysqld} @code{sort_buffer} variables is probably too small.
 tables.
 @end itemize
 
-@node SHOW VARIABLES, SHOW PROCESSLIST, SHOW STATUS, SHOW
+@node SHOW VARIABLES, SHOW LOGS, SHOW STATUS, SHOW
 @subsection SHOW VARIABLES
 
 @code{SHOW VARIABLES} shows the values of some @strong{MySQL} system
@@ -20620,11 +20622,27 @@ closing it. See also @code{interactive_timeout}.
 The manual section that describes tuning @strong{MySQL} contains some
 information of how to tune the above variables. @xref{Server parameters}.
 
+@node SHOW LOGS, SHOW PROCESSLIST, SHOW VARIABLES, SHOW
+@subsection SHOW Information About Log Files
+@code{SHOW LOGS} shows you status information about existing log
+files.  It currently only displays information about Berkeley DB log
+files.
+
+@itemize @bullet
+@item @code{File} shows the full path to the log file
+@item @code{Type} shows the type of the log file (@code{BDB} for Berkeley
+DB log files)
+@item @code{Status} shows the status of the log file (@code{FREE} if the
+file can be removed, or @code{IN USE} if the file is needed by the transaction
+subsystem)
+@end itemize
+
+
 @cindex threads, display
 @cindex processes, display
 @findex threads
 @findex PROCESSLIST
-@node SHOW PROCESSLIST, SHOW GRANTS, SHOW VARIABLES, SHOW
+@node SHOW PROCESSLIST, SHOW GRANTS, SHOW LOGS, SHOW
 @subsection SHOW Information About Connected Threads (Processes)
 
 @code{SHOW PROCESSLIST} shows you which threads are running.  You can
@@ -39788,6 +39806,8 @@ Fixed bug in @code{REPLACE} with BDB tables.
 @item
 @code{LPAD()} and @code{RPAD()} will shorten the result string if it's longer
 than the length argument.
+@item
+Added @code{SHOW LOGS} command.
 @item
 Remove not used BDB logs on shutdown.
 @item

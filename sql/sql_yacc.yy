@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* sql_yacc.y */
+/* sql_yacc.yy */
 
 %{
 #define MYSQL_YACC
@@ -2179,6 +2179,8 @@ show_param:
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST; Lex->verbose=1; }
 	| VARIABLES wild
 	  { Lex->sql_command= SQLCOM_SHOW_VARIABLES; }
+	| LOGS_SYM
+	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
 	| GRANTS FOR_SYM user
 	  { Lex->sql_command= SQLCOM_SHOW_GRANTS;
 	    Lex->grant_user=$3; Lex->grant_user->password.str=NullS; }

@@ -24,6 +24,10 @@
 #include "sql_acl.h"
 #include <my_dir.h>
 
+#ifdef HAVE_BERKELEY_DB
+#include "ha_berkeley.h"			// For berkeley_show_logs
+#endif
+
 /* extern "C" pthread_mutex_t THR_LOCK_keycache; */
 
 static const char *grant_names[]={
@@ -402,6 +406,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild)
   restore_record(table,2);      // Get empty record
 
   Field **ptr,*field;
+  String *packet= &thd->packet;
   for (ptr=table->field; (field= *ptr) ; ptr++)
   {
     if (!wild || !wild[0] || !wild_case_compare(field->field_name,wild))
@@ -414,7 +419,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild)
       {
         byte *pos;
         uint flags=field->flags;
-        String *packet= &thd->packet,type(tmp,sizeof(tmp));
+        String type(tmp,sizeof(tmp));
         uint col_access;
         bool null_default_value=0;
 
@@ -526,6 +531,30 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 }
 
 
+#ifdef HAVE_BERKELEY_DB
+int
+mysqld_show_logs(THD *thd)
+{
+  DBUG_ENTER("mysqld_show_logs");
+
+  List<Item> field_list;
+  Item *item;
+  field_list.push_back(new Item_empty_string("File",FN_REFLEN));
+  field_list.push_back(new Item_empty_string("Type",10));
+  field_list.push_back(new Item_empty_string("Status",10));
+
+  if (send_fields(thd,field_list,1))
+    DBUG_RETURN(1);
+
+  if (berkeley_show_logs(thd))
+    DBUG_RETURN(1);
+
+  send_eof(&thd->net);
+  DBUG_RETURN(0);
+}
+#endif
+
+
 int
 mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
 {
@@ -562,13 +591,13 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(1);
 
+  String *packet= &thd->packet;
   KEY *key_info=table->key_info;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
   for (uint i=0 ; i < table->keys ; i++,key_info++)
   {
     KEY_PART_INFO *key_part= key_info->key_part;
     char *end;
-    String *packet= &thd->packet;
     for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
     {
       packet->length(0);
