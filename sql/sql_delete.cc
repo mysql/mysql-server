@@ -126,12 +126,15 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
 
     table->io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                              MYF(MY_FAE | MY_ZEROFILL));
-    if (setup_order(thd, 0, &tables, fields, all_fields, order) ||
-        !(sortorder=make_unireg_sortorder(order, &length)) ||
-        (table->found_records = filesort(thd, table, sortorder, length,
-                                        (SQL_SELECT *) 0, HA_POS_ERROR,
-					 &examined_rows))
-        == HA_POS_ERROR)
+      if (setup_ref_array(thd, &thd->lex.select_lex.ref_pointer_array,
+			all_fields.elements)||
+	  setup_order(thd, thd->lex.select_lex.ref_pointer_array, &tables, 
+		      fields, all_fields, order) ||
+	  !(sortorder=make_unireg_sortorder(order, &length)) ||
+	  (table->found_records = filesort(thd, table, sortorder, length,
+					   (SQL_SELECT *) 0, HA_POS_ERROR,
+					   &examined_rows))
+	  == HA_POS_ERROR)
     {
       delete select;
       free_underlaid_joins(thd, &thd->lex.select_lex);
