@@ -6,8 +6,12 @@ aclocal && autoheader && aclocal && automake && autoconf
 (cd bdb/dist && sh s_all)
 (cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
 
-CFLAGS="-Wimplicit -Wreturn-type -Wid-clash-51 -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings -Wunused  -DHAVE_purify -DEXTRA_DEBUG -O2" CXX=gcc CXXLD=g++ CXXFLAGS="-Wimplicit -Wreturn-type -Wid-clash-51 -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings -Woverloaded-virtual -Wextern-inline -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor -felide-constructors -fno-exceptions -fno-rtti  -DHAVE_purify -DEXTRA_DEBUG -O2" ./configure --prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-debug=full --with-berkeley-db --with-innodb
+CFLAGS="-Wimplicit -Wreturn-type -Wid-clash-51 -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings -Wunused  -DHAVE_purify -DEXTRA_DEBUG -O2" CXX=gcc CXXLD=g++ CXXFLAGS="-Wimplicit -Wreturn-type -Wid-clash-51 -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings -Woverloaded-virtual -Wextern-inline -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor -felide-constructors -fno-exceptions -fno-rtti  -DHAVE_purify -DEXTRA_DEBUG -O2" ./configure --prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-berkeley-db --with-innodb
 
 gmake -j 4
 
-cd sql ; rm mysqld ; make CXXLD="purify -best-effort g++"  mysqld
+cd sql ; rm mysqld ;
+make CXXLD="purify -best-effort g++"  mysqld ; mv mysqld mysqld-purify
+make CXXLD="quantify -best-effort g++"  mysqld ; mv mysqld mysqld-quantify
+make CXXLD="purecov -best-effort g++"  mysqld ; mv mysqld mysqld-purecov
+
