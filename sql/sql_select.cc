@@ -5305,7 +5305,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           if (!(tmp= add_found_match_trig_cond(first_inner_tab, tmp, 0)))
             DBUG_RETURN(1);
           tab->select_cond=sel->cond=tmp;
-	  if (current_thd->variables.engine_condition_pushdown)
+	  if (join->thd->variables.engine_condition_pushdown)
           {
             tab->table->file->pushed_cond= NULL;
 	    /* Push condition to handler */
@@ -5433,7 +5433,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 		join->thd->memdup((gptr) sel, sizeof(SQL_SELECT));
 	      tab->cache.select->cond=tmp;
 	      tab->cache.select->read_tables=join->const_table_map;
-	      if (current_thd->variables.engine_condition_pushdown &&
+	      if (join->thd->variables.engine_condition_pushdown &&
 		  (!tab->table->file->pushed_cond))
               {
 		/* Push condition to handler */
@@ -13008,7 +13008,21 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
             extra.append(')');
 	  }
 	  else if (tab->select->cond)
-            extra.append("; Using where");
+          {
+            const COND *pushed_cond= tab->table->file->pushed_cond;
+
+            if (thd->variables.engine_condition_pushdown && pushed_cond)
+            {
+              extra.append("; Using where with pushed condition");
+              if (thd->lex->describe & DESCRIBE_EXTENDED)
+              {
+                extra.append(": ");
+                ((COND *)pushed_cond)->print(&extra);
+              }
+            }
+            else
+              extra.append("; Using where");
+          }
 	}
 	if (key_read)
         {

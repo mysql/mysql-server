@@ -259,6 +259,7 @@ select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 
 set engine_condition_pushdown = on;
 
 # Test all types and compare operators
+explain
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
@@ -284,6 +285,61 @@ date_field = '1901-01-01' and
 year_field = '1901' and
 time_field = '01:01:01' and 
 date_time = '1901-01-01 01:01:01' 
+order by auto;
+
+select auto from t1 where 
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = 0xAAAA and 
+vbin = 0xAAAA and
+tiny = -1 and 
+short = -1 and 
+medium = -1 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+/* bits = b'001' and */
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01' 
+order by auto;
+
+explain
+select auto from t1 where 
+string != "aaaa" and 
+vstring != "aaaa" and 
+bin != 0xAAAA and 
+vbin != 0xAAAA and
+tiny != -1 and 
+short != -1 and 
+medium != -1 and 
+long_int != -1 and 
+longlong != -1 and 
+(real_float < 1.0 or real_float > 2.0) and 
+(real_double < 1.0 or real_double > 2.0) and
+(real_decimal < 1.0 or real_decimal > 2.0) and
+utiny != 1 and 
+ushort != 1 and 
+umedium != 1 and 
+ulong != 1 and 
+ulonglong != 1 and 
+/* bits != b'001' and */
+options != 'one' and 
+flags != 'one' and 
+date_field != '1901-01-01' and
+year_field != '1901' and
+time_field != '01:01:01' and 
+date_time != '1901-01-01 01:01:01' 
 order by auto;
 
 select auto from t1 where 
@@ -313,6 +369,7 @@ time_field != '01:01:01' and
 date_time != '1901-01-01 01:01:01' 
 order by auto;
 
+explain
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
@@ -338,6 +395,61 @@ date_field > '1901-01-01' and
 year_field > '1901' and
 time_field > '01:01:01' and
 date_time > '1901-01-01 01:01:01'
+order by auto;
+
+select auto from t1 where 
+string > "aaaa" and 
+vstring > "aaaa" and 
+bin > 0xAAAA and 
+vbin > 0xAAAA and
+tiny < -1 and 
+short < -1 and 
+medium < -1 and 
+long_int < -1 and 
+longlong < -1 and 
+real_float > 1.1 and 
+real_double > 1.1 and 
+real_decimal > 1.1 and 
+utiny > 1 and 
+ushort > 1 and 
+umedium > 1 and 
+ulong > 1 and 
+ulonglong > 1 and
+/* bits > b'001' and */
+(options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field > '1901-01-01' and
+year_field > '1901' and
+time_field > '01:01:01' and
+date_time > '1901-01-01 01:01:01'
+order by auto;
+
+explain
+select auto from t1 where 
+string >= "aaaa" and 
+vstring >= "aaaa" and 
+bin >= 0xAAAA and 
+vbin >= 0xAAAA and
+tiny <= -1 and 
+short <= -1 and 
+medium <= -1 and 
+long_int <= -1 and 
+longlong <= -1 and 
+real_float >= 1.0 and 
+real_double >= 1.0 and 
+real_decimal >= 1.0 and 
+utiny >= 1 and 
+ushort >= 1 and 
+umedium >= 1 and 
+ulong >= 1 and 
+ulonglong >= 1 and 
+/* bits >= b'001' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field >= '1901-01-01' and
+year_field >= '1901' and
+time_field >= '01:01:01' and 
+date_time >= '1901-01-01 01:01:01' 
 order by auto;
 
 select auto from t1 where 
@@ -367,6 +479,7 @@ time_field >= '01:01:01' and
 date_time >= '1901-01-01 01:01:01' 
 order by auto;
 
+explain
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
@@ -392,6 +505,61 @@ date_field < '1904-01-01' and
 year_field < '1904' and
 time_field < '04:04:04' and 
 date_time < '1904-04-04 04:04:04' 
+order by auto;
+
+select auto from t1 where 
+string < "dddd" and 
+vstring < "dddd" and 
+bin < 0xDDDD and 
+vbin < 0xDDDD and
+tiny > -4 and 
+short > -4 and 
+medium > -4 and 
+long_int > -4 and 
+longlong > -4 and 
+real_float < 4.4 and 
+real_double < 4.4 and
+real_decimal < 4.4 and
+utiny < 4 and 
+ushort < 4 and 
+umedium < 4 and 
+ulong < 4 and 
+ulonglong < 4 and 
+/* bits < b'100' and */
+(options = 'one' or options = 'two' or options = 'three') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three') and
+date_field < '1904-01-01' and
+year_field < '1904' and
+time_field < '04:04:04' and 
+date_time < '1904-04-04 04:04:04' 
+order by auto;
+
+explain
+select auto from t1 where 
+string <= "dddd" and 
+vstring <= "dddd" and 
+bin <= 0xDDDD and 
+vbin <= 0xDDDD and
+tiny >= -4 and 
+short >= -4 and 
+medium >= -4 and 
+long_int >= -4 and 
+longlong >= -4 and 
+real_float <= 4.5 and 
+real_double <= 4.5 and 
+real_decimal <= 4.5 and 
+utiny <= 4 - 1 + 1 and /* Checking function composition */
+ushort <= 4 and 
+umedium <= 4 and 
+ulong <= 4 and 
+ulonglong <= 4 and 
+/* bits <= b'100' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and 
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field <= '1904-04-04' and
+year_field <= '1904' and
+time_field <= '04:04:04' and 
+date_time <= '1904-04-04 04:04:04' 
 order by auto;
 
 select auto from t1 where 
@@ -425,6 +593,7 @@ order by auto;
 create index medium_index on t1(medium);
 
 # Test all types and compare operators
+explain
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
@@ -450,6 +619,61 @@ date_field = '1901-01-01' and
 year_field = '1901' and
 time_field = '01:01:01' and 
 date_time = '1901-01-01 01:01:01' 
+order by auto;
+
+select auto from t1 where 
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = 0xAAAA and 
+vbin = 0xAAAA and
+tiny = -1 and 
+short = -1 and 
+medium = -1 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+/* bits = b'001' and */
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01' 
+order by auto;
+
+explain
+select auto from t1 where 
+string != "aaaa" and 
+vstring != "aaaa" and 
+bin != 0xAAAA and 
+vbin != 0xAAAA and
+tiny != -1 and 
+short != -1 and 
+medium != -1 and 
+long_int != -1 and 
+longlong != -1 and 
+(real_float < 1.0 or real_float > 2.0) and 
+(real_double < 1.0 or real_double > 2.0) and
+(real_decimal < 1.0 or real_decimal > 2.0) and
+utiny != 1 and 
+ushort != 1 and 
+umedium != 1 and 
+ulong != 1 and 
+ulonglong != 1 and 
+/* bits != b'001' and */
+options != 'one' and 
+flags != 'one' and 
+date_field != '1901-01-01' and
+year_field != '1901' and
+time_field != '01:01:01' and 
+date_time != '1901-01-01 01:01:01' 
 order by auto;
 
 select auto from t1 where 
@@ -479,6 +703,7 @@ time_field != '01:01:01' and
 date_time != '1901-01-01 01:01:01' 
 order by auto;
 
+explain
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
@@ -504,6 +729,61 @@ date_field > '1901-01-01' and
 year_field > '1901' and
 time_field > '01:01:01' and
 date_time > '1901-01-01 01:01:01'
+order by auto;
+
+select auto from t1 where 
+string > "aaaa" and 
+vstring > "aaaa" and 
+bin > 0xAAAA and 
+vbin > 0xAAAA and
+tiny < -1 and 
+short < -1 and 
+medium < -1 and 
+long_int < -1 and 
+longlong < -1 and 
+real_float > 1.1 and 
+real_double > 1.1 and 
+real_decimal > 1.1 and 
+utiny > 1 and 
+ushort > 1 and 
+umedium > 1 and 
+ulong > 1 and 
+ulonglong > 1 and
+/* bits > b'001' and */
+(options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field > '1901-01-01' and
+year_field > '1901' and
+time_field > '01:01:01' and
+date_time > '1901-01-01 01:01:01'
+order by auto;
+
+explain
+select auto from t1 where 
+string >= "aaaa" and 
+vstring >= "aaaa" and 
+bin >= 0xAAAA and 
+vbin >= 0xAAAA and
+tiny <= -1 and 
+short <= -1 and 
+medium <= -1 and 
+long_int <= -1 and 
+longlong <= -1 and 
+real_float >= 1.0 and 
+real_double >= 1.0 and 
+real_decimal >= 1.0 and 
+utiny >= 1 and 
+ushort >= 1 and 
+umedium >= 1 and 
+ulong >= 1 and 
+ulonglong >= 1 and 
+/* bits >= b'001' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field >= '1901-01-01' and
+year_field >= '1901' and
+time_field >= '01:01:01' and 
+date_time >= '1901-01-01 01:01:01' 
 order by auto;
 
 select auto from t1 where 
@@ -533,6 +813,7 @@ time_field >= '01:01:01' and
 date_time >= '1901-01-01 01:01:01' 
 order by auto;
 
+explain
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
@@ -558,6 +839,61 @@ date_field < '1904-01-01' and
 year_field < '1904' and
 time_field < '04:04:04' and 
 date_time < '1904-04-04 04:04:04' 
+order by auto;
+
+select auto from t1 where 
+string < "dddd" and 
+vstring < "dddd" and 
+bin < 0xDDDD and 
+vbin < 0xDDDD and
+tiny > -4 and 
+short > -4 and 
+medium > -4 and 
+long_int > -4 and 
+longlong > -4 and 
+real_float < 4.4 and 
+real_double < 4.4 and
+real_decimal < 4.4 and
+utiny < 4 and 
+ushort < 4 and 
+umedium < 4 and 
+ulong < 4 and 
+ulonglong < 4 and 
+/* bits < b'100' and */
+(options = 'one' or options = 'two' or options = 'three') and
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three') and
+date_field < '1904-01-01' and
+year_field < '1904' and
+time_field < '04:04:04' and 
+date_time < '1904-04-04 04:04:04' 
+order by auto;
+
+explain
+select auto from t1 where 
+string <= "dddd" and 
+vstring <= "dddd" and 
+bin <= 0xDDDD and 
+vbin <= 0xDDDD and
+tiny >= -4 and 
+short >= -4 and 
+medium >= -4 and 
+long_int >= -4 and 
+longlong >= -4 and 
+real_float <= 4.5 and 
+real_double <= 4.5 and 
+real_decimal <= 4.5 and 
+utiny <= 4 - 1 + 1 and /* Checking function composition */
+ushort <= 4 and 
+umedium <= 4 and 
+ulong <= 4 and 
+ulonglong <= 4 and 
+/* bits <= b'100' and */
+(options = 'one' or options = 'two' or options = 'three' or options = 'four') and 
+(flags = 'one' or flags = 'one,two' or flags = 'one,two,three' or flags = 'one,two,three,four') and
+date_field <= '1904-04-04' and
+year_field <= '1904' and
+time_field <= '04:04:04' and 
+date_time <= '1904-04-04 04:04:04' 
 order by auto;
 
 select auto from t1 where 
@@ -588,11 +924,27 @@ date_time <= '1904-04-04 04:04:04'
 order by auto;
 
 # Test LIKE/NOT LIKE
+explain
 select auto from t1 where 
 string like "b%" and
 vstring like "b%" and
 bin like concat(0xBB, '%') and
 vbin like concat(0xBB, '%')
+order by auto;
+
+select auto from t1 where 
+string like "b%" and
+vstring like "b%" and
+bin like concat(0xBB, '%') and
+vbin like concat(0xBB, '%')
+order by auto;
+
+explain
+select auto from t1 where 
+string not like "b%" and
+vstring not like "b%" and
+bin not like concat(0xBB, '%') and
+vbin not like concat(0xBB, '%')
 order by auto;
 
 select auto from t1 where 
@@ -603,15 +955,34 @@ vbin not like concat(0xBB, '%')
 order by auto;
 
 # Various tests 
+explain 
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
+select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
+
+explain
 select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
+select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
+
+explain
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
+select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
+
+explain
 select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
+select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
+
+explain
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
+select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
+
+explain
+select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 
 # Some tests that are currently not supported and should not push condition
+explain
 select auto from t1 where string = "aaaa" collate latin1_general_ci order by auto;
+explain
 select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
 
 set engine_condition_pushdown = @old_ecpd;
