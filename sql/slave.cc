@@ -1426,7 +1426,6 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
     DBUG_RETURN(0);
   mi->mysql=0;
   mi->file_id=1;
-  mi->ignore_stop_event=0;
   fn_format(fname, master_info_fname, mysql_data_home, "", 4+32);
 
   /*
@@ -2746,6 +2745,8 @@ static int process_io_rotate(MASTER_INFO *mi, Rotate_log_event *rev)
 /*
   queue_old_event()
 
+  Writes a 3.23 event to the relay log.
+
   TODO: 
     Test this code before release - it has to be tested on a separate
     setup with 3.23 master 
@@ -2790,8 +2791,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
   ev->log_pos = mi->master_log_pos;
   switch (ev->get_type_code()) {
   case STOP_EVENT:
-    ignore_event= mi->ignore_stop_event;
-    mi->ignore_stop_event=0;
+    ignore_event= 1;
     inc_pos= event_len;
     break;
   case ROTATE_EVENT:
@@ -2801,7 +2801,6 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
       pthread_mutex_unlock(&mi->data_lock);
       DBUG_RETURN(1);
     }
-    mi->ignore_stop_event=1;
     inc_pos= 0;
     break;
   case CREATE_FILE_EVENT:
@@ -2817,7 +2816,6 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     DBUG_RETURN(error);
   }
   default:
-    mi->ignore_stop_event=0;
     inc_pos= event_len;
     break;
   }
@@ -2842,15 +2840,12 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
 /*
   queue_event()
 
-  TODO: verify the issue with stop events, see if we need them at all
-  in the relay log
 */
 
 int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
 {
   int error= 0;
   ulong inc_pos;
-  bool ignore_event= 0;
   RELAY_LOG_INFO *rli= &mi->rli;
   DBUG_ENTER("queue_event");
 
@@ -2861,39 +2856,77 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
 
   /*
     TODO: figure out if other events in addition to Rotate
-    require special processing
+    require special processing.
+    Guilhem 2003-06 : I don't think so.
   */
   switch (buf[EVENT_TYPE_OFFSET]) {
   case STOP_EVENT:
-    ignore_event= mi->ignore_stop_event;
-    mi->ignore_stop_event= 0;
-    inc_pos= event_len;
-    break;
+    /*
+      We needn't write this event to the relay log. Indeed, it just indicates a
+      master server shutdown. The only thing this does is cleaning. But cleaning
+      is already done on a per-master-thread basis (as the master server is
+      shutting down cleanly, it has written all DROP TEMPORARY TABLE and DO
+      RELEASE_LOCK; prepared statements' deletion are TODO).
+      
+      We don't even increment mi->master_log_pos, because we may be just after a
+      Rotate event. Btw, in a few milliseconds we are going to have a Start
+      event from the next binlog (unless the master is presently running without
+      --log-bin).
+    */
+    goto err;
   case ROTATE_EVENT:
   {
     Rotate_log_event rev(buf,event_len,0);
     if (unlikely(process_io_rotate(mi,&rev)))
     {
-      pthread_mutex_unlock(&mi->data_lock);
-      DBUG_RETURN(1);
+      error= 1;
+      goto err;
     }
-    mi->ignore_stop_event= 1;
+    /*
+      Now the I/O thread has just changed its mi->master_log_name, so
+      incrementing mi->master_log_pos is nonsense.
+    */
     inc_pos= 0;
     break;
   }
   default:
-    mi->ignore_stop_event= 0;
     inc_pos= event_len;
     break;
   }
-  
-  if (likely(!ignore_event &&
-	     !(error= rli->relay_log.appendv(buf,event_len,0))))
+
+  /* 
+     If this event is originating from this server, don't queue it. 
+     We don't check this for 3.23 events because it's simpler like this; 3.23
+     will be filtered anyway by the SQL slave thread which also tests the server
+     id (we must also keep this test in the SQL thread, in case somebody
+     upgrades a 4.0 slave which has a not-filtered relay log).
+
+     ANY event coming from ourselves can be ignored: it is obvious for queries;
+     for STOP_EVENT/ROTATE_EVENT/START_EVENT: these cannot come from ourselves
+     (--log-slave-updates would not log that) unless this slave is also its
+     direct master (an unsupported, useless setup!).
+  */
+
+  if (uint4korr(buf + SERVER_ID_OFFSET) == ::server_id)
   {
+    /*
+      Do not write it to the relay log.
+      We still want to increment, so that we won't re-read this event from the
+      master if the slave IO thread is now stopped/restarted (more efficient if
+      the events we are ignoring are big LOAD DATA INFILE).
+    */
     mi->master_log_pos+= inc_pos;
-    DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
-    rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-  }
+    DBUG_PRINT("info", ("master_log_pos: %d, event originating from the same server, ignored", (ulong) mi->master_log_pos));
+  }  
+  else /* write the event to the relay log */
+    if (likely(!(error= rli->relay_log.appendv(buf,event_len,0))))
+    {
+      mi->master_log_pos+= inc_pos;
+      DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
+      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
+    }
+
+err:
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
 }
