@@ -319,6 +319,7 @@ row_ins_dupl_error_with_rec(
 	ulint	matched_fields;
 	ulint	matched_bytes;
 	ulint	n_unique;
+	ulint   i;
 	
 	n_unique = dict_index_get_n_unique(index);
 
@@ -329,12 +330,26 @@ row_ins_dupl_error_with_rec(
 
 	if (matched_fields < n_unique) {
 
-			return(FALSE);
+	        return(FALSE);
+	}
+
+	/* In a unique secondary index we allow equal key values if they
+	contain SQL NULLs */
+
+	if (!(index->type & DICT_CLUSTERED)) {
+
+	        for (i = 0; i < n_unique; i++) {
+	                if (UNIV_SQL_NULL == dfield_get_len(
+                                         dtuple_get_nth_field(entry, i))) {
+
+	                        return(FALSE);
+	                }
+	        }
 	}
 
 	if (!rec_get_deleted_flag(rec)) {
 
-			return(TRUE);
+	        return(TRUE);
 	}
 
 	return(FALSE);
