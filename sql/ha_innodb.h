@@ -96,6 +96,11 @@ class ha_innobase: public handler
   	{
   	}
   	~ha_innobase() {}
+	/*
+	  Get the row type from the storage engine.  If this method returns
+	  ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be used.
+	*/
+	enum row_type get_row_type() const;
 
   	const char* table_type() const { return("InnoDB");}
 	const char *index_type(uint key_number) { return "BTREE"; }

@@ -70,15 +70,17 @@ public:
   NodeId getLocalNodeId() const;
 
   /**
-   * Get r_port we're connecting to
+   * Get port we're connecting to (signed)
    */
-  unsigned int get_r_port() { return m_r_port; };
+  int get_s_port() { return m_s_port; };
   
   /**
-   * Set r_port to connect to
+   * Set port to connect to (signed)
    */
-  void set_r_port(unsigned int port) {
-    m_r_port = port;
+  void set_s_port(int port) {
+    m_s_port = port;
+    if(port<0)
+      port= -port;
     if(m_socket_client)
       m_socket_client->set_port(port);
   };
@@ -88,7 +90,7 @@ protected:
 	      TransporterType,
 	      const char *lHostName,
 	      const char *rHostName, 
-	      int r_port,
+	      int s_port,
 	      bool isMgmConnection,
 	      NodeId lNodeId,
 	      NodeId rNodeId,
@@ -118,7 +120,7 @@ protected:
   struct in_addr remoteHostAddress;
   struct in_addr localHostAddress;
 
-  unsigned int m_r_port;
+  int m_s_port;
 
   const NodeId remoteNodeId;
   const NodeId localNodeId;
