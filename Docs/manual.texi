@@ -5247,7 +5247,7 @@ clients can connect to both @strong{MySQL} versions.
 
 The extended @strong{MySQL} binary distribution is marked with the
 @code{-max} suffix and is configured with the same options as
-@code{mysqld-max}. @xref{mysqld-max, @code{mysqld-max}}.
+@code{mysqld-max}. @xref{mysqld-max, , @code{mysqld-max}}.
 
 If you want to use the @code{MySQL-Max} RPM, you must first
 install the standard @code{MySQL} RPM.
@@ -5588,7 +5588,7 @@ indicates the type of operating system for which the distribution is intended
 @item
 If you see a binary distribution marked with the @code{-max} prefix, this
 means that the binary has support for transaction-safe tables and other
-features. @xref{mysqld-max, @code{mysqld-max}}.  Note that all binaries
+features. @xref{mysqld-max, , @code{mysqld-max}}.  Note that all binaries
 are built from the same @strong{MySQL} source distribution.
 
 @item
@@ -5712,7 +5712,7 @@ You can start the @strong{MySQL} server with the following command:
 shell> bin/safe_mysqld --user=mysql &
 @end example
 
-@xref{safe_mysqld, @code{safe_mysqld}}.
+@xref{safe_mysqld, , @code{safe_mysqld}}.
 
 @xref{Post-installation}.
 
@@ -5784,7 +5784,7 @@ installation, you may want to make a copy of your previously installed
 @strong{MySQL} startup file if you made any changes to it, so you don't lose
 your changes.)
 
-After installing the RPM file(s), the @file{mysqld} daemon should be running
+After installing the RPM file(s), the @code{mysqld} daemon should be running
 and you should now be able to start using @strong{MySQL}.
 @xref{Post-installation}.
 
@@ -5820,7 +5820,7 @@ files.
 
 The following sections indicate some of the issues that have been observed
 on particular systems when installing @strong{MySQL} from a binary
-distribution.
+distribution or from RPM files.
 
 @cindex binary distributions, on Linux
 @cindex Linux, binary distribution
@@ -7671,13 +7671,13 @@ To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV
 signal, you can start @code{mysqld} with the @code{--core-file} option.  Note
 that you also probably need to raise the @code{core file size} by adding
 @code{ulimit -c 1000000} to @code{safe_mysqld} or starting @code{safe_mysqld}
-with @code{--core-file-sizes=1000000}. @xref{safe_mysqld, @code{safe_mysqld}}.
+with @code{--core-file-sizes=1000000}. @xref{safe_mysqld, , @code{safe_mysqld}}.
 
 To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV signal, you can 
 start @code{mysqld} with the @code{--core-file} option.  Note that you also probably
 need to raise the @code{core file size} by adding @code{ulimit -c 1000000} to
 @code{safe_mysqld} or starting @code{safe_mysqld} with 
-@code{--core-file-sizes=1000000}.  @xref{safe_mysqld, @code{safe_mysqld}}.
+@code{--core-file-sizes=1000000}.  @xref{safe_mysqld, , @code{safe_mysqld}}.
 
 If you are linking your own @strong{MySQL} client and get the error:
 
@@ -8005,7 +8005,7 @@ shell> nohup mysqld [options] &
 @code{nohup} causes the command following it to ignore any @code{SIGHUP}
 signal sent from the terminal.  Alternatively, start the server by running
 @code{safe_mysqld}, which invokes @code{mysqld} using @code{nohup} for you.
-@xref{safe_mysqld, @code{safe_mysqld}}.
+@xref{safe_mysqld, , @code{safe_mysqld}}.
 
 If you get a problem when compiling mysys/get_opt.c, just remove the
 line #define _NO_PROTO from the start of that file!
@@ -8262,7 +8262,7 @@ FreeBSD is also known to have a very low default file handle limit.
 safe_mysqld or raise the limits for the @code{mysqld} user in /etc/login.conf
 (and rebuild it with cap_mkdb /etc/login.conf).  Also be sure you set the
 appropriate class for this user in the password file if you are not
-using the default (use: chpass mysqld-user-name).  @xref{safe_mysqld,
+using the default (use: chpass mysqld-user-name).  @xref{safe_mysqld, ,
 @code{safe_mysqld}}.
 
 If you get problems with the current date in @strong{MySQL}, setting the
@@ -9679,7 +9679,7 @@ mysqld: Can't find file: 'host.frm'
 
 The above may also happen with a binary @strong{MySQL} distribution if you
 don't start @strong{MySQL} by executing exactly @code{./bin/safe_mysqld}!
-@xref{safe_mysqld, @code{safe_mysqld}}.
+@xref{safe_mysqld, , @code{safe_mysqld}}.
 
 You might need to run @code{mysql_install_db} as @code{root}.  However,
 if you prefer, you can run the @strong{MySQL} server as an unprivileged
@@ -9980,7 +9980,7 @@ system startup and shutdown, and is described more fully in
 
 @item
 By invoking @code{safe_mysqld}, which tries to determine the proper options
-for @code{mysqld} and then runs it with those options. @xref{safe_mysqld,
+for @code{mysqld} and then runs it with those options. @xref{safe_mysqld, ,
 @code{safe_mysqld}}.
 
 @item
@@ -10230,7 +10230,7 @@ though.
 
 @item --core-file
 Write a core file if @code{mysqld} dies.  For some systems you must also
-specify @code{--core-file-size} to @code{safe_mysqld}. @xref{safe_mysqld,
+specify @code{--core-file-size} to @code{safe_mysqld}. @xref{safe_mysqld, ,
 @code{safe_mysqld}}.
 
 @item -h, --datadir=path
@@ -11953,9 +11953,10 @@ When running @strong{MySQL}, follow these guidelines whenever possible:
 @itemize @bullet
 @item
 DON'T EVER GIVE ANYONE (EXCEPT THE @strong{MySQL} ROOT USER) ACCESS TO THE
-mysql.user TABLE!  The encrypted password is the real password in
-@strong{MySQL}. If you know this for one user, you can easily log in as
-him if you have access to his 'host'.
+@code{user} TABLE IN THE @code{mysql} DATABASE!  The encrypted password
+is the real password in @strong{MySQL}. If you know the password listed in
+the @code{user} table for a given user, you can easily log in as that
+user if you have access to the host listed for that account.
 
 @item
 Learn the @strong{MySQL} access privilege system. The @code{GRANT} and
@@ -11984,15 +11985,15 @@ computer becomes compromised, the intruder can take the full list of
 passwords and use them. Instead use @code{MD5()} or another one-way
 hashing function.
 @item
-Do not use passwords from dictionaries. There are special programs to
+Do not choose passwords from dictionaries. There are special programs to
 break them. Even passwords like ``xfish98'' are very bad.  Much better is
 ``duag98'' which contains the same word ``fish'' but typed one key to the
 left on a standard QWERTY keyboard. Another method is to use ``Mhall'' which
 is taken from the first characters of each word in the sentence ``Mary had
-a little lamb.'' This is easy to remember and type, but hard to guess for
-someone who does not know it.
+a little lamb.'' This is easy to remember and type, but difficult to guess
+for someone who does not know it.
 @item
-Invest in a firewall. This protects from at least 50% of all types of
+Invest in a firewall. This protects you from at least 50% of all types of
 exploits in any software. Put @strong{MySQL} behind the firewall or in
 a demilitarized zone (DMZ).
 
@@ -12001,11 +12002,16 @@ Checklist:
 @item
 Try to scan your ports from the Internet using a tool such as
 @code{nmap}. @strong{MySQL} uses port 3306 by default. This port should
-be inaccessible from untrusted hosts. Another simple way to check whether or
-not your @strong{MySQL} port is open is to type @code{telnet
-server_host 3306} from some remote machine, where
-@code{server_host} is the hostname of your @strong{MySQL}
-server. If you get a connection and some garbage characters, the port is
+be inaccessible from untrusted hosts. Another simple way to check whether
+or not your @strong{MySQL} port is open is to try the following command
+from some remote machine, where @code{server_host} is the hostname of
+your @strong{MySQL} server:
+
+@example
+shell> telnet server_host 3306
+@end example
+
+If you get a connection and some garbage characters, the port is
 open, and should be closed on your firewall or router, unless you really
 have a good reason to keep it open. If @code{telnet} just hangs or the
 connection is refused, everything is OK; the port is blocked.
@@ -12112,15 +12118,15 @@ connection, however the encryption algorithm is not very strong, and
 with some effort a clever attacker can crack the password if he is able
 to sniff the traffic between the client and the server. If the
 connection between the client and the server goes through an untrusted
-network, you should use an @strong{SSH} tunnel to encrypt the
+network, you should use an SSH tunnel to encrypt the
 communication.
 
 All other information is transferred as text that can be read by anyone
 who is able to watch the connection.  If you are concerned about this,
 you can use the compressed protocol (in @strong{MySQL} Version 3.22 and above)
 to make things much harder.  To make things even more secure you should use 
-@code{ssh}.  You can find an open source ssh client at 
-@uref{http://www.openssh.org}, and a commercial ssh client at 
+@code{ssh}.  You can find an open source @code{ssh} client at 
+@uref{http://www.openssh.org}, and a commercial @code{ssh} client at 
 @uref{http://www.ssh.com}.  With this, you can get an encrypted TCP/IP 
 connection between a @strong{MySQL} server and a @strong{MySQL} client.
 
@@ -12145,21 +12151,31 @@ mysql> FLUSH PRIVILEGES;
 @end example
 
 @item
-Don't run the @strong{MySQL} daemon as the Unix @code{root} user.
-It is very dangerous as any user with @code{FILE} privileges will be able to
-create files
-as @code{root} (for example, @code{~root/.bashrc}). To prevent this
-@code{mysqld} will refuse to run as @code{root} unless it is specified
-directly via @code{--user=root} option.
+Don't run the @strong{MySQL} daemon as the Unix @code{root} user.  This is
+very dangerous, because any user with @code{FILE} privileges will be able
+to create files as @code{root} (for example, @code{~root/.bashrc}). To
+prevent this, @code{mysqld} will refuse to run as @code{root} unless it
+is specified directly using a @code{--user=root} option.
 
-@code{mysqld} can be run as any user instead.  You can also create a new
-Unix user @code{mysql} to make everything even more secure.  If you run
-@code{mysqld} as another Unix user, you don't need to change the
-@code{root} user name in the @code{user} table, because @strong{MySQL}
-user names have nothing to do with Unix user names.  You can edit the
-@code{mysql.server} script to start @code{mysqld} as another Unix user.
-Normally this is done with the @code{su} command.  For more details, see
-@ref{Changing MySQL user, , Changing @strong{MySQL} user}.
+@code{mysqld} can be run as an ordinary unprivileged user instead.
+You can also create a new Unix user @code{mysql} to make everything
+even more secure.  If you run @code{mysqld} as another Unix user,
+you don't need to change the @code{root} user name in the @code{user}
+table, because @strong{MySQL} user names have nothing to do with Unix
+user names.  To start @code{mysqld} as another Unix user, add a @code{user}
+line that specifies the user name to the @code{[mysqld]} group of the
+@file{/etc/my.cnf} option file or the @file{my.cnf} option file in the
+server's data directory. For example:
+
+@example
+[mysqld]
+user=mysql
+@end example
+
+This will cause the server to start as the designated user whether you
+start it manually or by using @code{safe_mysqld} or @code{mysql.server}.
+For more details, see @ref{Changing MySQL user, , Changing @strong{MySQL}
+user}.
 
 @item
 Don't support symlinks to tables (This can be disabled with the
@@ -12169,16 +12185,8 @@ directories could then delete any file in the system!
 @xref{Symbolic links to tables}.
 
 @item
-If you put a password for the Unix @code{root} user in the @code{mysql.server}
-script, make sure this script is readable only by @code{root}.
-
-@item
 Check that the Unix user that @code{mysqld} runs as is the only user with
 read/write privileges in the database directories.
-
-@item
-On Unix platforms, do not run @code{mysqld} as root unless you really
-need to. Consider creating a user named @code{mysql} for that purpose.
 
 @item
 Don't give the @strong{process} privilege to all users.  The output of
@@ -24351,7 +24359,7 @@ this.  @xref{Table handler support}.
 If you have downloaded a binary version of @strong{MySQL} that includes
 support for BerkeleyDB, simply follow the instructions for installing a 
 binary version of @strong{MySQL}.  
-@xref{Installing binary}.  @xref{mysqld-max, @code{mysqld-max}}.
+@xref{Installing binary}.  @xref{mysqld-max, , @code{mysqld-max}}.
 
 To compile @strong{MySQL} with Berkeley DB support, download @strong{MySQL}
 Version 3.23.34 or newer and configure @code{MySQL} with the 
@@ -25463,7 +25471,7 @@ binary.
 If you have downloaded a binary version of @strong{MySQL} that includes
 support for InnoDB (mysqld-max), simply follow the instructions for
 installing a binary version of @strong{MySQL}. @xref{Installing binary}.
-@xref{mysqld-max, @code{mysqld-max}}.
+@xref{mysqld-max, , @code{mysqld-max}}.
 
 To compile @strong{MySQL} with InnoDB support, download MySQL-3.23.37 or newer
 and configure @code{MySQL} with the @code{--with-innodb} option.
@@ -33110,7 +33118,7 @@ with the @code{-max} prefix. This makes it very easy to test out a
 another @code{mysqld} binary in an existing installation.  Just
 run @code{configure} with the options you want and then install the
 new @code{mysqld} binary as @code{mysqld-max} in the same directory
-where your old @code{mysqld} binary is. @xref{safe_mysqld, @code{safe_mysqld}}.
+where your old @code{mysqld} binary is. @xref{safe_mysqld, , @code{safe_mysqld}}.
 
 The @code{mysqld-max} RPM uses the above mentioned @code{safe_mysqld}
 feature. It just installs the @code{mysqld-max} executable and
@@ -33358,7 +33366,7 @@ MY_PWD=`pwd` Check if we are starting this relative (for the binary
 release) if test -d /data/mysql -a -f ./share/mysql/english/errmsg.sys
 -a -x ./bin/mysqld
 --------------------------------------------------------------------------
-@xref{safe_mysqld, @code{safe_mysqld}}.
+@xref{safe_mysqld, , @code{safe_mysqld}}.
 @end example
 The above test should be successful, or you may encounter problems.
 @item
@@ -33886,7 +33894,7 @@ server).  The dump will contain SQL statements to create the table
 and/or populate the table.
 
 If you are doing a backup on the server, you should consider using
-the @code{mysqlhotcopy} instead. @xref{mysqlhotcopy, @code{mysqlhotcopy}}.
+the @code{mysqlhotcopy} instead. @xref{mysqlhotcopy, , @code{mysqlhotcopy}}.
 
 @example
 shell> mysqldump [OPTIONS] database [tables]
@@ -38439,11 +38447,15 @@ user and use the @code{--user=user_name} option.  @code{mysqld} will switch
 to run as the Unix user @code{user_name} before accepting any connections.
 
 @item
-If you are using the @code{mysql.server} script to start @code{mysqld} when
-the system is rebooted, you should edit @code{mysql.server} to use @code{su}
-to run @code{mysqld} as user @code{user_name}, or to invoke @code{mysqld}
-with the @code{--user} option.  (No changes to @code{safe_mysqld} are
-necessary.)
+To start the server as the given user name automatically at system
+startup time, add a @code{user} line that specifies the user name to
+the @code{[mysqld]} group of the @file{/etc/my.cnf} option file or the
+@file{my.cnf} option file in the server's data directory. For example:
+
+@example
+[mysqld]
+user=user_name
+@end example
 @end enumerate
 
 At this point, your @code{mysqld} process should be running fine and dandy as
@@ -39091,8 +39103,8 @@ If you want to make a SQL level backup of a table, you can use
 TABLE}. @xref{SELECT}. @xref{BACKUP TABLE}.
 
 Another way to back up a database is to use the @code{mysqldump} program or
-the @code{mysqlhotcopy script}. @xref{mysqldump, @code{mysqldump}}.
-@xref{mysqlhotcopy, @code{mysqlhotcopy}}.
+the @code{mysqlhotcopy script}. @xref{mysqldump, , @code{mysqldump}}.
+@xref{mysqlhotcopy, , @code{mysqlhotcopy}}.
 
 @enumerate
 @item
@@ -39184,7 +39196,8 @@ be an Internet service provider that wants to provide independent
 
 If you want to run multiple servers, the easiest way is to compile the servers
 with different TCP/IP ports and socket files so they are not
-both listening to the same TCP/IP port or socket file. @xref{mysqld_multi}.
+both listening to the same TCP/IP port or socket file. @xref{mysqld_multi, ,
+@code{mysqld_multi}}.
 
 Assume an existing server is configured for the default port number and
 socket file.  Then configure the new server with a @code{configure} command
@@ -41554,7 +41567,7 @@ query string.)
 
 If you want to know if the query should return a result set or not, you can
 use @code{mysql_field_count()} to check for this.
-@xref{mysql_field_count, @code{mysql_field_count}}.
+@xref{mysql_field_count, , @code{mysql_field_count}}.
 
 @subsubheading Return Values
 
@@ -46342,7 +46355,7 @@ slave server restart.
 @item
 @code{SHOW KEYS} now shows whether or not key is @code{FULLTEXT}.
 @item
-New script @file{mysqld_multi}. @xref{mysqld_multi}.
+New script @file{mysqld_multi}. @xref{mysqld_multi, , @code{mysqld_multi}}.
 @item
 Added new script, @file{mysql-multi.server.sh}.  Thanks to
 Tim Bunce @email{Tim.Bunce@@ig.co.uk} for modifying @file{mysql.server} to
@@ -46395,7 +46408,7 @@ read by @code{mysql_options()}.
 Added new options @code{--pager[=...]}, @code{--no-pager},
 @code{--tee=...} and @code{--no-tee} to the @code{mysql} client.  The
 new corresponding interactive commands are @code{pager}, @code{nopager},
-@code{tee} and @code{notee}. @xref{mysql, @code{mysql}}, @code{mysql --help}
+@code{tee} and @code{notee}. @xref{mysql, , @code{mysql}}, @code{mysql --help}
 and the interactive help for more information.
 @item
 Fixed crash when automatic repair of @code{MyISAM} table failed.
