@@ -502,7 +502,7 @@ static struct my_option my_long_options[] =
    (gptr*) &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"column-names", OPT_COLUMN_NAMES, "Write column names in results.",
    (gptr*) &column_names, (gptr*) &column_names, 0, GET_BOOL,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
+   NO_ARG, 1, 0, 0, 0, 0, 0},
   {"skip-column-names", 'N',
    "Don't write column names in results. WARNING: -N is depricated, use long version of this options instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
