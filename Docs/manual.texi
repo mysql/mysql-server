@@ -13075,8 +13075,9 @@ The following programs support option files:  @code{mysql},
 @code{mysqldump}, @code{mysqlimport}, @code{mysqlshow}, @code{mysqlcheck},
 @code{myisamchk}, and @code{myisampack}.
 
-You can use option files to specify any long option that a program supports!
-Run the program with @code{--help} to get a list of available options.
+Any long option that may be given on the command line when running a MySQL
+program can be given in an option file as well (without the leading double
+dash).  Run the program with @code{--help} to get a list of available options.
 
 An option file can contain lines of the following forms:
 
