@@ -845,12 +845,12 @@ public:
   double val()
   {
     String *res;  res=val_str(&str_value);
-    return res ? atof(res->c_ptr()) : 0.0;
+    return res ? my_strntod(res->charset(),res->ptr(),res->length(),0) : 0.0;
   }
   longlong val_int()
   {
     String *res;  res=val_str(&str_value);
-    return res ? strtoll(res->c_ptr(),(char**) 0,10) : (longlong) 0;
+    return res ? my_strntoll(res->charset(),res->ptr(),res->length(),(char**) 0,10) : (longlong) 0;
   }
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();

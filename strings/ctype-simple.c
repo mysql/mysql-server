@@ -18,6 +18,8 @@
 #include "m_string.h"
 #include "m_ctype.h"
 #include "my_sys.h"			/* defines errno */
+#include <errno.h>
+
 #include "stdarg.h"
 #include "assert.h"
 
@@ -246,8 +248,6 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 }
 
 
-#define MY_ERRNO(y)
-
 long        my_strntol_8bit(CHARSET_INFO *cs,
 			   const char *nptr, uint l, char **endptr, int base)
 {
@@ -349,14 +349,14 @@ long        my_strntol_8bit(CHARSET_INFO *cs,
   
   if (overflow)
   {
-    MY_ERRNO(ERANGE);
+    my_errno=(ERANGE);
     return negative ? LONG_MIN : LONG_MAX;
   }
   
   return (negative ? -((long) i) : (long) i);
 
 noconv:
-  MY_ERRNO(EDOM);
+  my_errno=(EDOM);
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -455,14 +455,14 @@ ulong      my_strntoul_8bit(CHARSET_INFO *cs,
 
   if (overflow)
   {
-    MY_ERRNO(ERANGE);
+    my_errno=(ERANGE);
     return ((ulong)~0L);
   }
   
   return (negative ? -((long) i) : (long) i);
   
 noconv:
-  MY_ERRNO(EDOM);
+  my_errno=(EDOM);
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -570,14 +570,14 @@ longlong   my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
 
   if (overflow)
   {
-    MY_ERRNO(ERANGE);
+    my_errno=(ERANGE);
     return negative ? LONGLONG_MIN : LONGLONG_MAX;
   }
 
   return (negative ? -((longlong) i) : (longlong) i);
 
 noconv:
-  MY_ERRNO(EDOM);
+  my_errno=(EDOM);
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
@@ -677,14 +677,14 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
 
   if (overflow)
   {
-    MY_ERRNO(ERANGE);
+    my_errno=(ERANGE);
     return (~(ulonglong) 0);
   }
 
   return (negative ? -((longlong) i) : (longlong) i);
 
 noconv:
-  MY_ERRNO(EDOM);
+  my_errno=(EDOM);
   if (endptr != NULL)
     *endptr = (char *) nptr;
   return 0L;
