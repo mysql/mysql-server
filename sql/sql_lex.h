@@ -749,6 +749,7 @@ typedef struct st_lex
 
   bool can_be_merged();
   bool can_use_merged();
+  bool can_not_use_merged();
   bool only_view_structure();
 } LEX;
 

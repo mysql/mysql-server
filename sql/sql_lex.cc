@@ -1546,7 +1546,7 @@ bool st_lex::can_be_merged()
 }
 
 /*
-  check if command can use VIEW with MERGE algorithm
+  check if command can use VIEW with MERGE algorithm (for top VIEWs)
 
   SYNOPSIS
     st_lex::can_use_merged()
@@ -1570,6 +1570,29 @@ bool st_lex::can_use_merged()
   case SQLCOM_INSERT_SELECT:
   case SQLCOM_REPLACE:
   case SQLCOM_REPLACE_SELECT:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
+/*
+  check if command can't use merged views in any part of command
+
+  SYNOPSIS
+    st_lex::can_not_use_merged()
+
+  RETURN
+    FALSE - command can't use merged VIEWs
+    TRUE  - VIEWs with MERGE algorithms can be used
+*/
+
+bool st_lex::can_not_use_merged()
+{
+  switch (sql_command)
+  {
+  case SQLCOM_CREATE_VIEW:
+  case SQLCOM_SHOW_CREATE:
     return TRUE;
   default:
     return FALSE;

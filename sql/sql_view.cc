@@ -659,7 +659,8 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     if (table->algorithm != VIEW_ALGORITHM_TMEPTABLE &&
 	lex->can_be_merged() &&
         (table->select_lex->master_unit() != &old_lex->unit ||
-         old_lex->can_use_merged()))
+         old_lex->can_use_merged()) &&
+        !old_lex->can_not_use_merged())
     {
       /*
         TODO: support multi tables substitutions
@@ -672,6 +673,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
       DBUG_ASSERT(view_table != 0);
 
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
+      DBUG_PRINT("info", ("algorithm: MERGE"));
       table->updatable= (table->updatable_view != 0);
 
       if (old_next)
@@ -701,6 +703,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     }
 
     table->effective_algorithm= VIEW_ALGORITHM_TMEPTABLE;
+    DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
     lex->select_lex.linkage= DERIVED_TABLE_TYPE;
     table->updatable= 0;
 
