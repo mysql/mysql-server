@@ -1877,9 +1877,31 @@ then
       then
         bdb_conf_flags="$bdb_conf_flags --enable-debug --enable-diagnostic"
       fi
-      (cd $bdb && cd build_unix && sh ../dist/configure $bdb_conf_flags) \
-      || AC_MSG_ERROR([could not configure Berkeley DB])
+      # NOTICE: if you're compiling BDB, it needs to be a SUBDIR
+      # of $srcdir (i.e., you can 'cd $srcdir/$bdb').  It won't
+      # work otherwise.
+      if test -d "$bdb"; then :
+      else
+	# This should only happen when doing a VPATH build
+	echo "NOTICE: I have to make the BDB directory: `pwd`:$bdb"
+	mkdir "$bdb" || exit 1
+      fi
+      if test -d "$bdb"/build_unix; then :
+      else
+	# This should only happen when doing a VPATH build
+	echo "NOTICE: I have to make the build_unix directory: `pwd`:$bdb/build_unix"
+	mkdir "$bdb/build_unix" || exit 1
+      fi
+      rel_srcdir=
+      case "$srcdir" in
+	/* ) rel_srcdir="$srcdir" ;;
+	* )  rel_srcdir="../../$srcdir" ;;
+      esac
+      (cd $bdb/build_unix && \
+       sh $rel_srcdir/$bdb/dist/configure $bdb_conf_flags) || \
+	AC_MSG_ERROR([could not configure Berkeley DB])
 
+dnl       echo "bdb = '$bdb'; inc = '$bdb_includes', lib = '$bdb_libs'"
       echo "END OF BERKELEY DB CONFIGURATION"
     fi
 

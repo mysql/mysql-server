@@ -37,7 +37,7 @@ all:
 	cd $(bdb_build) && $(MAKE) all
 
 # May want to fix this, and MYSQL/configure, to install things
-install:
+install dvi check installcheck:
 
 distdir:
 	for s in $(subdirs); do \
@@ -47,3 +47,4 @@ distdir:
 	  test -f $(distdir)/$$f || cp -p $(srcdir)/$$f $(distdir)/$$f; \
 	done
 	mkdir $(distdir)/$(bdb_build)
+	cp -p $(srcdir)/$(bdb_build)/.IGNORE_ME $(distdir)/$(bdb_build)
