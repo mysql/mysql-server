@@ -1253,14 +1253,8 @@ bool select_dumpvar::send_data(List<Item> &items)
 
 bool select_dumpvar::send_eof()
 {
-  if (row_count)
-  {
-    ::send_ok(thd,row_count);
-    return 0;
-  }
-  else
-  {
-    my_error(ER_EMPTY_QUERY,MYF(0));
-    return 1;
-  }
+  if (! row_count)
+    send_warning(thd, ER_SP_FETCH_NO_DATA);
+  ::send_ok(thd,row_count);
+  return 0;
 }

@@ -362,6 +362,7 @@ public:
   SQL_LIST	      table_list, group_list;   /* FROM & GROUP BY clauses */
   List<Item>          item_list; /* list of fields & expressions */
   List<Item>          item_list_copy; /* For SPs */
+  byte                *table_list_first_copy; /* For SPs */
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
   /* 

@@ -137,7 +137,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CREATE
 %token	CROSS
 %token  CUBE_SYM
-%token  DEFINER
+%token  DEFINER_SYM
 %token	DELETE_SYM
 %token	DUAL_SYM
 %token	DO_SYM
@@ -167,6 +167,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SELECT_SYM
 %token	SHOW
 %token	SLAVE
+%token  SQL_SYM
 %token	SQL_THREAD
 %token	START_SYM
 %token	STD_SYM
@@ -270,7 +271,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  INOUT_SYM
 %token	INTO
 %token	IN_SYM
-%token  INVOKER
+%token  INVOKER_SYM
 %token	ISOLATION
 %token	JOIN_SYM
 %token	KEYS
@@ -364,7 +365,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ROW_FORMAT_SYM
 %token	ROW_SYM
 %token	RTREE_SYM
-%token  SECURITY
+%token  SECURITY_SYM
 %token	SET
 %token  SEPARATOR_SYM
 %token	SERIAL_SYM
@@ -1120,20 +1121,20 @@ create_function_tail:
 	;
 
 sp_comment:
-	  /* Empty */			{ $$.str=0; }
+	  /* Empty */			{ $$.str= 0; $$.length= 0; }
 	| COMMENT_SYM TEXT_STRING_sys	{ $$= $2; }
 	;
 
 sp_newname:
-	  /* Empty */			{ $$.str=0; }
+	  /* Empty */			{ $$.str= 0; $$.length= 0; }
 	| NAME_SYM ident		{ $$= $2; }
 	;
 
 
 sp_suid:
-	  /* Empty */			{ Lex->suid= IS_DEFAULT_SUID; }
-	| SECURITY DEFINER		{ Lex->suid= IS_SUID; }
-	| SECURITY INVOKER		{ Lex->suid= IS_NOT_SUID; }
+	  /* Empty */			    { Lex->suid= IS_DEFAULT_SUID; }
+	| SQL_SYM SECURITY_SYM DEFINER_SYM  { Lex->suid= IS_SUID; }
+	| SQL_SYM SECURITY_SYM INVOKER_SYM  { Lex->suid= IS_NOT_SUID; }
 	;
 
 call:
@@ -2603,30 +2604,35 @@ alter:
 	    lex->name=$3.str;
 	  }
 	| ALTER PROCEDURE ident sp_newname sp_comment sp_suid
-	  /* QQ Characteristics missing for now */
 	  opt_restrict
 	  {
+	    THD *thd= YYTHD;
 	    LEX *lex=Lex;
 
-	    /* This is essensially an no-op right now, since we haven't
-	       put the characteristics in yet. */
 	    lex->sql_command= SQLCOM_ALTER_PROCEDURE;
 	    lex->udf.name= $3;
 	    lex->name= $4.str;
-	    lex->comment= &$5;
+	    /* $5 is a yacc/bison internal struct, so we can't keep
+	       the pointer to it for use outside the parser. */
+	    lex->comment= (LEX_STRING *)thd->alloc(sizeof(LEX_STRING));
+	    lex->comment->str= $5.str;
+	    lex->comment->length= $5.length;
 	  }
 	| ALTER FUNCTION_SYM ident sp_newname sp_comment sp_suid
-	  /* QQ Characteristics missing for now */
 	  opt_restrict
 	  {
+	    THD *thd= YYTHD;
 	    LEX *lex=Lex;
 
-	    /* This is essensially an no-op right now, since we haven't
-	       put the characteristics in yet. */
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->udf.name= $3;
 	    lex->name= $4.str;
-	    lex->comment= &$5;
+	    /* $5 is a yacc/bison internal struct, so we can't keep
+	       the pointer to it for use outside the parser. */
+	    lex->comment= (LEX_STRING *)thd->alloc(sizeof(LEX_STRING));
+	    lex->comment= (LEX_STRING *)thd->alloc(sizeof(LEX_STRING));
+	    lex->comment->str= $5.str;
+	    lex->comment->length= $5.length;
 	  }
 	;
 
@@ -5612,7 +5618,7 @@ keyword:
 	| DATETIME		{}
 	| DATE_SYM		{}
 	| DAY_SYM		{}
-	| DEFINER		{}
+	| DEFINER_SYM		{}
 	| DELAY_KEY_WRITE_SYM	{}
 	| DES_KEY_FILE		{}
 	| DIRECTORY_SYM		{}
@@ -5648,7 +5654,7 @@ keyword:
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
-	| INVOKER		{}
+	| INVOKER_SYM		{}
 	| IMPORT		{}
 	| INDEXES		{}
 	| ISOLATION		{}
@@ -5735,7 +5741,7 @@ keyword:
 	| RTREE_SYM		{}
 	| SAVEPOINT_SYM		{}
 	| SECOND_SYM		{}
-	| SECURITY		{}
+	| SECURITY_SYM		{}
 	| SERIAL_SYM		{}
 	| SERIALIZABLE_SYM	{}
 	| SESSION_SYM		{}

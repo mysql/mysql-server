@@ -109,6 +109,29 @@ delete from t1|
 drop procedure locset|
 
 
+# Set things to null
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 ( d date, i int, f double, s varchar(32) )|
+
+create procedure nullset()
+begin
+  declare ld date;
+  declare li int;
+  declare lf double;
+  declare ls varchar(32);
+
+  set ld = null, li = null, lf = null, ls = null;
+  insert into t3 values (ld, li, lf, ls);
+end|
+
+call nullset()|
+select * from t3|
+drop table t3|
+drop procedure nullset|
+
+
 # The peculiar (non-standard) mixture of variables types in SET.
 create procedure mixset(x char(16), y int)
 begin
@@ -460,6 +483,52 @@ delete from t1|
 drop procedure into_test2|
 
 
+# SELECT * INTO ... (bug test)
+create procedure into_test3()
+begin
+  declare x char(16);
+  declare y int;
+
+  select * into x,y from test.t1 limit 1;
+  insert into test.t2 values (x, y, 0.0);
+end|
+
+insert into t1 values ("into3", 19)|
+delete from t2|
+# Two call needed for bug test
+call into_test3()|
+call into_test3()|
+select * from t2|
+delete from t1|
+delete from t2|
+drop procedure into_test3|
+
+
+# SELECT INTO with no data is a warning ("no data", which we will
+# not see normally). When not caught, execution proceeds.
+create procedure into_test4()
+begin
+  declare x int;
+
+  select data into x from test.t1 limit 1;
+  insert into test.t3 values ("into4", x);
+end|
+
+delete from t1|
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 ( s char(16), d int)|
+call into_test4()|
+select * from t3|
+insert into t1 values ("i4", 77)|
+call into_test4()|
+select * from t3|
+delete from t1|
+drop table t3|
+drop procedure into_test4|
+
+
 # These two (and the two procedures above) caused an assert() to fail in
 # sql_base.cc:lock_tables() at some point.
 
@@ -658,7 +727,7 @@ create procedure hndlr4()
 begin
   declare x int default 0;
   declare val int;	                           # No default
-  declare continue handler for sqlexception set x=1;
+  declare continue handler for 1306 set x=1;
 
   select data into val from test.t3 where id='z' limit 1;  # No hits
 
@@ -824,6 +893,28 @@ drop procedure bug1656|
 
 
 #
+# BUG#1862
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3(a int)|
+
+create procedure bug1862()
+begin
+  insert into t3 values(2);    
+  flush tables;
+end|
+
+call bug1862()|
+# the second call caused a segmentation
+call bug1862()|
+select * from t3|
+drop table t3|
+drop procedure bug1862|
+
+
+#
 # Some "real" examples
 #
 
@@ -946,16 +1037,17 @@ drop procedure ip|
 
 # Comment & suid
 create procedure bar(x char(16), y int)
- comment "111111111111" SECURITY INVOKER
+ comment "111111111111" sql security invoker
  insert into test.t1 values (x, y)|
 --replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
-alter procedure bar name bar2 comment "2222222222" SECURITY DEFINER|
+alter procedure bar name bar2 comment "2222222222" sql security definer|
 alter procedure bar2 name bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
 --replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
+drop procedure bar|
 
 delimiter ;|
 drop table t1;
