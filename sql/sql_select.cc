@@ -38,7 +38,7 @@ const key_map key_map_empty(0);
 const key_map key_map_full(~0);
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
-static bool make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
+static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, COND *conds,
 				 DYNAMIC_ARRAY *keyuse);
 static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
 				JOIN_TAB *join_tab,
@@ -250,6 +250,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result)
 */
 inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 			       TABLE_LIST *tables,
+			       TABLE_LIST *leaves,
 			       List<Item> &fields,
 			       List<Item> &all_fields,
 			       COND **conds,
@@ -262,7 +263,7 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 
   save_allow_sum_func= thd->allow_sum_func;
   thd->allow_sum_func= 0;
-  res= (setup_conds(thd, tables, conds) ||
+  res= (setup_conds(thd, tables, leaves, conds) ||
         setup_order(thd, ref_pointer_array, tables, fields, all_fields,
                     order) ||
         setup_group(thd, ref_pointer_array, tables, fields, all_fields,
@@ -309,13 +310,14 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   /* Check that all tables, fields, conds and order are ok */
 
-  if (setup_tables(thd, tables_list, &conds) ||
+  if (setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables, 0) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
 		   &all_fields, 1) ||
-      setup_without_group(thd, (*rref_pointer_array), tables_list, fields_list,
-			  all_fields, &conds, order, group_list, 
+      setup_without_group(thd, (*rref_pointer_array), tables_list,
+			  select_lex->leaf_tables, fields_list,
+			  all_fields, &conds, order, group_list,
 			  &hidden_group_fields))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
@@ -383,7 +385,9 @@ JOIN::prepare(Item ***rref_pointer_array,
       }
     }
     TABLE_LIST *table_ptr;
-    for (table_ptr= tables_list; table_ptr; table_ptr= table_ptr->next_local)
+    for (table_ptr= select_lex->leaf_tables;
+	 table_ptr;
+	 table_ptr= table_ptr->next_leaf)
       tables++;
   }
   {
@@ -585,7 +589,7 @@ JOIN::optimize()
       opt_sum_query() returns -1 if no rows match to the WHERE conditions,
       or 1 if all items were resolved, or 0, or an error number HA_ERR_...
     */
-    if ((res=opt_sum_query(tables_list, all_fields, conds)))
+    if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
     {
       if (res > 1)
       {
@@ -611,11 +615,11 @@ JOIN::optimize()
     DBUG_RETURN(0);
   }
   error= -1;					// Error is sent to client
-  sort_by_table= get_sort_by_table(order, group_list, tables_list);
+  sort_by_table= get_sort_by_table(order, group_list, select_lex->leaf_tables);
 
   /* Calculate how to do the join */
   thd->proc_info= "statistics";
-  if (make_join_statistics(this, tables_list, conds, &keyuse) ||
+  if (make_join_statistics(this, select_lex->leaf_tables, conds, &keyuse) ||
       thd->is_fatal_error)
   {
     DBUG_PRINT("error",("Error: make_join_statistics() failed"));
@@ -1077,7 +1081,7 @@ JOIN::reinit()
   if (tables_list)
   {
     tables_list->setup_is_done= 0;
-    if (setup_tables(thd, tables_list, &conds))
+    if (setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables, 1))
       DBUG_RETURN(1);
   }
 
@@ -1182,7 +1186,7 @@ JOIN::exec()
 
   if (zero_result_cause)
   {
-    (void) return_zero_rows(this, result, tables_list, fields_list,
+    (void) return_zero_rows(this, result, select_lex->leaf_tables, fields_list,
 			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
@@ -2089,7 +2093,7 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
 */
 
 static bool
-make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
+make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 		     DYNAMIC_ARRAY *keyuse_array)
 {
   int error;
@@ -2119,7 +2123,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 
   for (s= stat, i= 0;
        tables;
-       s++, tables= tables->next_local, i++)
+       s++, tables= tables->next_leaf, i++)
   {
     TABLE_LIST *embedding= tables->embedding;
     stat_vector[i]=s;
@@ -5078,6 +5082,7 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
 static void
 make_outerjoin_info(JOIN *join)
 {
+  DBUG_ENTER("make_outerjoin_info");
   for (uint i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
@@ -5121,6 +5126,7 @@ make_outerjoin_info(JOIN *join)
       nested_join->first_nested->last_inner= tab;
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -5223,7 +5229,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             in the ON part of an OUTER JOIN. In this case we want the code
             below to check if we should use 'quick' instead.
           */
+          DBUG_PRINT("info", ("Item_int"));
           tmp= new Item_int((longlong) 1,1);	// Always true
+          DBUG_PRINT("info", ("Item_int 0x%lx", (ulong)tmp));
         }
 
       }
@@ -5412,13 +5420,18 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
               Now add the guard turning the predicate off for 
               the null complemented row.
 	    */ 
+            DBUG_PRINT("info", ("Item_func_trig_cond"));
             tmp= new Item_func_trig_cond(tmp, 
                                          &first_inner_tab->not_null_compl);
+            DBUG_PRINT("info", ("Item_func_trig_cond 0x%lx", (ulong) tmp));
             if (tmp)
               tmp->quick_fix_field();
 	    /* Add the predicate to other pushed down predicates */
+            DBUG_PRINT("info", ("Item_cond_and"));
             cond_tab->select_cond= !cond_tab->select_cond ? tmp :
 	                          new Item_cond_and(cond_tab->select_cond,tmp);
+            DBUG_PRINT("info", ("Item_cond_and 0x%lx",
+                                (ulong)cond_tab->select_cond));
             if (!cond_tab->select_cond)
 	      DBUG_RETURN(1);
             cond_tab->select_cond->quick_fix_field();
@@ -5971,7 +5984,7 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
 
   if (send_row)
   {
-    for (TABLE_LIST *table= tables; table; table= table->next_local)
+    for (TABLE_LIST *table= tables; table; table= table->next_leaf)
       mark_as_null_row(table->table);		// All fields are NULL
     if (having && having->val_int() == 0)
       send_row=0;
@@ -8815,6 +8828,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	join->thd->send_kill_message();
 	return -2;				/* purecov: inspected */
       }
+      DBUG_PRINT("info", ("select cond 0x%lx", (ulong)select_cond));
       if (!select_cond || select_cond->val_int())
       {
         /* 
@@ -11580,7 +11594,7 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
   if (!map || (map & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT)))
     DBUG_RETURN(0);
 
-  for (; !(map & tables->table->map); tables= tables->next_local);
+  for (; !(map & tables->table->map); tables= tables->next_leaf);
   if (map != tables->table->map)
     DBUG_RETURN(0);				// More than one table
   DBUG_PRINT("exit",("sort by table: %d",tables->table->tablenr));
