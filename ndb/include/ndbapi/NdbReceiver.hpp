@@ -60,6 +60,7 @@ public:
   inline void next(NdbReceiver* next) { m_next = next;}
   inline NdbReceiver* next() { return m_next; }
   
+  void setErrorCode(int);
 private:
   Uint32 theMagicNumber;
   Ndb* m_ndb;

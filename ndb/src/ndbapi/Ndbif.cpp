@@ -249,6 +249,7 @@ Ndb::report_node_failure(Uint32 node_id)
    */
   the_release_ind[node_id] = 1;
   theWaiter.nodeFail(node_id);
+  return;
 }//Ndb::report_node_failure()
 
 
@@ -271,9 +272,10 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
   Uint32 tNoSentTransactions = theNoOfSentTransactions;
   for (int i = tNoSentTransactions - 1; i >= 0; i--) {
     NdbConnection* localCon = theSentTransactionsArray[i];
-    if (localCon->getConnectedNodeId() == aNodeId ) {
+    if (localCon->getConnectedNodeId() == aNodeId) {
       const NdbConnection::SendStatusType sendStatus = localCon->theSendStatus;
-      if (sendStatus == NdbConnection::sendTC_OP || sendStatus == NdbConnection::sendTC_COMMIT) {
+      if (sendStatus == NdbConnection::sendTC_OP || 
+	  sendStatus == NdbConnection::sendTC_COMMIT) {
         /*
         A transaction was interrupted in the prepare phase by a node
         failure. Since the transaction was not found in the phase
@@ -293,7 +295,7 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
         printState("abortTransactionsAfterNodeFailure %x", this);
         abort();
 #endif
-      }//
+      }
       /*
       All transactions arriving here have no connection to the kernel
       intact since the node was failing and they were aborted. Thus we
@@ -302,7 +304,11 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
       localCon->theCommitStatus = NdbConnection::Aborted;
       localCon->theReleaseOnClose = true;
       completedTransaction(localCon);
-    }//if
+    } 
+    else if(localCon->report_node_failure(aNodeId));
+    {
+      completedTransaction(localCon);
+    }
   }//for
   return;
 }//Ndb::abortTransactionsAfterNodeFailure()
