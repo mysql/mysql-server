@@ -29,7 +29,7 @@ int mysql_union(THD *thd, LEX *lex, select_result *result,
 {
   DBUG_ENTER("mysql_union");
   int res= 0;
-  if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK)))
+  if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK, "")))
     res= unit->exec();
   res|= unit->cleanup();
   DBUG_RETURN(res);
@@ -142,7 +142,8 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd)
 
 
 int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
-				ulong additional_options)
+				ulong additional_options,
+                                const char *tmp_table_alias)
 {
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select;
   SELECT_LEX *sl, *first_select;
@@ -252,7 +253,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       while ((item_tmp= it++))
       {
 	/* Error's in 'new' will be detected after loop */
-	types.push_back(new Item_type_holder(thd_arg, item_tmp, empty_table));
+	types.push_back(new Item_type_holder(thd_arg, item_tmp));
       }
 
       if (thd_arg->is_fatal_error)
@@ -271,8 +272,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       Item *type, *item_tmp;
       while ((type= tp++, item_tmp= it++))
       {
-        if (((Item_type_holder*)type)->join_types(thd_arg, item_tmp,
-                                                  empty_table))
+        if (((Item_type_holder*)type)->join_types(thd_arg, item_tmp))
 	  DBUG_RETURN(-1);
       }
     }
@@ -304,7 +304,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 				  (first_select_in_union()->options |
 				   thd_arg->options |
 				   TMP_TABLE_ALL_COLUMNS),
-				  HA_POS_ERROR, (char*) "")))
+				  HA_POS_ERROR, (char *) tmp_table_alias)))
       goto err;
     table->file->extra(HA_EXTRA_WRITE_CACHE);
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);

@@ -1079,7 +1079,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   thd->used_tables= 0;                        // Updated by setup_fields
 
   // JOIN::prepare calls
-  if (unit->prepare(thd, 0, 0))
+  if (unit->prepare(thd, 0, 0, ""))
   {
     send_error(thd);
     goto err_prep;
@@ -1228,7 +1228,7 @@ static int select_like_statement_test(Prepared_statement *stmt,
   thd->used_tables= 0;                        // Updated by setup_fields
 
   // JOIN::prepare calls
-  if (lex->unit.prepare(thd, 0, 0))
+  if (lex->unit.prepare(thd, 0, 0, ""))
   {
     res= thd->net.report_error ? -1 : 1;
   }
