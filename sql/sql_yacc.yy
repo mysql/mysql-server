@@ -4228,13 +4228,12 @@ show_param:
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_TABLES;
 	    lex->select_lex.db= $2;
-	    lex->select_lex.options= 0;
 	   }
 	| TABLE_SYM STATUS_SYM opt_db wild
 	  {
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_TABLES;
-	    lex->select_lex.options|= SELECT_DESCRIBE;
+	    lex->describe= DESCRIBE_EXTENDED;
 	    lex->select_lex.db= $3;
 	  }
 	| OPEN_SYM TABLES opt_db wild
@@ -4242,7 +4241,6 @@ show_param:
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_OPEN_TABLES;
 	    lex->select_lex.db= $3;
-	    lex->select_lex.options= 0;
 	  }
 	| ENGINE_SYM storage_engines 
 	  { Lex->create_info.db_type= $2; }

@@ -2938,7 +2938,7 @@ unsent_create_error:
 	goto error;
       }
       /* grant is checked in mysqld_show_tables */
-      if (select_lex->options & SELECT_DESCRIBE)
+      if (lex->describe)
         res= mysqld_extend_show_tables(thd,db,
 				       (lex->wild ? lex->wild->ptr() : NullS));
       else
