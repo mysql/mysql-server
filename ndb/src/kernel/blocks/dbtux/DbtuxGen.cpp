@@ -30,7 +30,7 @@ Dbtux::Dbtux(const Configuration& conf) :
 #endif
   c_internalStartPhase(0),
   c_typeOfStart(NodeState::ST_ILLEGAL_TYPE),
-  c_keyBuffer(0)
+  c_dataBuffer(0)
 {
   BLOCK_CONSTRUCTOR(Dbtux);
   // verify size assumptions (also when release-compiled)
@@ -195,7 +195,10 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
     new (indexPtr.p) Index();
   }
   // allocate buffers
-  c_keyBuffer = (Uint32*)allocRecord("c_keyBuffer", sizeof(Uint64), (MaxAttrDataSize + 1) >> 1);
+  c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxAttrDataSize + 1) >> 1);
+  c_keyAttrs = (Uint32*)allocRecord("c_keyAttrs", sizeof(Uint32), MaxIndexAttributes);
+  c_searchKey = (TableData)allocRecord("c_searchKey", sizeof(Uint32*), MaxIndexAttributes);
+  c_entryKey = (TableData)allocRecord("c_entryKey", sizeof(Uint32*), MaxIndexAttributes);
   // ack
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
