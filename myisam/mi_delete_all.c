@@ -52,6 +52,11 @@ int mi_delete_all_rows(MI_INFO *info)
   VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   if (my_chsize(info->dfile, 0, 0, MYF(MY_WME)))
     goto err;
+  /*
+    If we are using delayed keys or if the user has done changes to the tables
+    since it was locked then there may be key blocks in the key cache
+  */
+  flush_key_blocks(share->kfile, FLUSH_IGNORE_CHANGED);
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 

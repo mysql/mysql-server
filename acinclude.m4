@@ -746,7 +746,12 @@ AC_MSG_CHECKING(for OpenSSL)
     AC_DEFINE(HAVE_VIO)
     AC_MSG_RESULT(yes)
     openssl_libs="-L$OPENSSL_LIB -lssl -lcrypto"
-    openssl_includes="-I$OPENSSL_INCLUDE"
+    # Don't set openssl_includes to /usr/include as this gives us a lot of
+    # compiler warnings when using gcc 3.x
+    if test "$OPENSSL_INCLUDE" != "/usr/include"
+    then
+	openssl_includes="-I$OPENSSL_INCLUDE"
+    fi
     AC_DEFINE(HAVE_OPENSSL)
 
     # openssl-devel-0.9.6 requires dlopen() and we can't link staticly

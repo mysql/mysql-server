@@ -3649,46 +3649,6 @@ int
 ha_innobase::start_stmt(
 /*====================*/
 	              /* out: 0 or error code */
-        THD*    thd)  /* in: handle to the user thread */
-{
-  row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
-  trx_t*          trx;
-
-  update_thd(thd);
-
-  trx = prebuilt->trx;
-
-  innobase_release_stat_resources(trx);
-  trx_mark_sql_stat_end(trx);
-
-  auto_inc_counter_for_this_stat = 0;
-  prebuilt->sql_stat_start = TRUE;
-  prebuilt->hint_no_need_to_fetch_extra_cols = TRUE;
-  prebuilt->read_just_key = 0;
-
-  if (prebuilt->select_lock_type == LOCK_NONE) {
-          /* This handle is for a temporary table created inside
-          this same LOCK TABLES; since MySQL does NOT call external_lock
-          in this case, we must use x-row locks inside InnoDB to be
-          prepared for an update of a row */
-
-          prebuilt->select_lock_type = LOCK_X;
-  }
-
-  thd->transaction.all.innodb_active_trans = 1;
-
-  return(0);
-}
-
-/**********************************************************************
-When we create a temporary table inside MySQL LOCK TABLES, MySQL will
-not call external_lock for the temporary table when it uses it. Instead,
-it will call this function. */
-
-int
-ha_innobase::start_stmt(
-/*====================*/
-	              /* out: 0 or error code */
 	THD*    thd)  /* in: handle to the user thread */
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
