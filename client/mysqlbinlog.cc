@@ -21,6 +21,7 @@
 #include <m_string.h>
 #include <my_sys.h>
 #include <getopt.h>
+#include <my_pthread.h>
 #include <thr_alarm.h>
 #include <mysql.h>
 #include "log_event.h"

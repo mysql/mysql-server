@@ -247,10 +247,10 @@ static int eval_result = 0;
 
 /* Disable functions that only exist in MySQL 4.0 */
 #if MYSQL_VERSION_ID < 40000
-static void mysql_enable_rpl_parse(MYSQL* mysql) {}
-static void mysql_disable_rpl_parse(MYSQL* mysql) {}
-static int mysql_rpl_parse_enabled(MYSQL* mysql) { return 1; }
-static int mysql_rpl_probe(MYSQL *mysql) { return 1; }
+static void mysql_enable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
+static void mysql_disable_rpl_parse(MYSQL* mysql __attribute__((unused))) {}
+static int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
+static int mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
 
 
