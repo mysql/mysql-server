@@ -7962,7 +7962,7 @@ static void test_bug1500()
   MYSQL_BIND bind[3];
   int        rc;
   long       int_data[3]= {2,3,4}; 
-  char       *data;
+  const char *data;
 
   myheader("test_bug1500");
 
@@ -8021,7 +8021,7 @@ static void test_bug1500()
   
   data= "Dogs";
   bind[0].buffer_type= MYSQL_TYPE_STRING;
-  bind[0].buffer= data;
+  bind[0].buffer= (char *) data;
   bind[0].buffer_length= strlen(data);
   bind[0].is_null= 0;
   bind[0].length= 0;
@@ -8049,7 +8049,7 @@ static void test_bug1500()
   
   data= "Grave";
   bind[0].buffer_type= MYSQL_TYPE_STRING;
-  bind[0].buffer= data;
+  bind[0].buffer= (char *) data;
   bind[0].buffer_length= strlen(data);
   bind[0].is_null= 0;
   bind[0].length= 0;
