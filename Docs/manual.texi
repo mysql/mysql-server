@@ -13684,6 +13684,14 @@ Which returns:
 +----+---------+
 @end example
 
+You can retrieve the used @code{AUTO_INCREMENT} key with the
+@code{LAST_INSERT_ID()} SQL function or the @code{mysql_insert_id()} API
+function.
+Note: for a multi-row insert,
+@code{LAST_INSERT_ID()}/@code{mysql_insert_id()} will actually return the
+@code{AUTO_INCREMENT} key from the @strong{first} inserted row. This allows
+multi-row inserts to be reproduced on other servers.
+
 For MyISAM and BDB tables you can specify @code{AUTO_INCREMENT} on
 secondary column in a multi-column key.  In this case the generated
 value for the autoincrement column is calculated as
@@ -13694,6 +13702,7 @@ useful when you want to put data into ordered groups.
 CREATE TABLE animals (
              grp ENUM('fish','mammal','bird') NOT NULL,
              id MEDIUMINT NOT NULL AUTO_INCREMENT,
+             name CHAR(30) NOT NULL,
              PRIMARY KEY (grp,id)
              );
 INSERT INTO animals (grp,name) VALUES("mammal","dog"),("mammal","cat"),
@@ -13716,9 +13725,6 @@ Which returns:
 Note that in this case, the @code{AUTO_INCREMENT} value will be reused if you
 delete the row with the biggest @code{AUTO_INCREMENT} value in any group.
 
-You can get the used @code{AUTO_INCREMENT} key with the
-@code{LAST_INSERT_ID()} SQL function or the @code{mysql_insert_id()} API
-function.
 
 @node Batch mode, Twin, Examples, Tutorial
 @section Using @code{mysql} in Batch Mode
