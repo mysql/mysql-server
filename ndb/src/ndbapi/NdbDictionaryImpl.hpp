@@ -637,11 +637,9 @@ NdbDictionaryImpl::get_local_table_info(const char * internalTableName,
       return 0;
     }
   }
-  if (do_add_blob_tables &&
-      info->m_table_impl->m_noOfBlobs &&
-      addBlobTables(*(info->m_table_impl))) {
-    return 0;
-  }
+  if (do_add_blob_tables && info->m_table_impl->m_noOfBlobs)
+    addBlobTables(*(info->m_table_impl));
+  
   return info; // autoincrement already initialized
 }
 
