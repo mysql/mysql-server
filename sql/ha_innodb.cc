@@ -2439,7 +2439,14 @@ ha_innobase::store_key_val_for_row(
 				(byte*) (record
 				+ (ulint)get_field_offset(table, field)),
 				lenlen);
+
+			/* In a column prefix index, we may need to truncate
+			the stored value: */
 		
+			if (len > key_part->length) {
+			        len = key_part->length;
+			}
+
 			/* The length in a key value is always stored in 2
 			bytes */
 
@@ -2476,6 +2483,11 @@ ha_innobase::store_key_val_for_row(
 
 			ut_a(get_field_offset(table, field)
 						     == key_part->offset);
+
+			/* All indexes on BLOB and TEXT are column prefix
+			indexes, and we may need to truncate the data to be
+			stored in the kay value: */
+
 			if (blob_len > key_part->length) {
 			        blob_len = key_part->length;
 			}
@@ -2494,11 +2506,17 @@ ha_innobase::store_key_val_for_row(
 
 			buff += key_part->length;
 		} else {
+			/* Here we handle all other data types except the
+			true VARCHAR, BLOB and TEXT. Note that the column
+			value we store may be also in a column prefix
+			index. */
+
 		        if (is_null) {
 				 buff += key_part->length;
 				 
 				 continue;
 			}
+
 			memcpy(buff, record + key_part->offset,
 							key_part->length);
 			buff += key_part->length;
