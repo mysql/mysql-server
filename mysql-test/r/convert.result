@@ -1,0 +1,17 @@
+select @@convert_character_set;
+@@convert_character_set
+
+select @@global.convert_character_set;
+@@global.convert_character_set
+
+show variables like "%convert_character_set%";
+Variable_name	Value
+convert_character_set	
+SET CHARACTER SET cp1251_koi8;
+select @@convert_character_set;
+@@convert_character_set
+cp1251_koi8
+SET CHARACTER SET DEFAULT;
+select @@convert_character_set;
+@@convert_character_set
+
