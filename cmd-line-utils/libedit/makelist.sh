@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$NetBSD: makelist,v 1.7 2001/01/09 19:22:31 jdolecek Exp $
+#	$NetBSD: makelist,v 1.8 2003/03/10 21:21:10 christos Exp $
 #
 # Copyright (c) 1992, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -87,7 +87,6 @@ case $FLAG in
     cat $FILES | $AWK '
 	BEGIN {
 	    printf("/* Automatically generated file, do not edit */\n");
-	    printf("#include \"compat.h\"\n");
 	    printf("#include \"sys.h\"\n#include \"el.h\"\n");
 	    printf("private const struct el_bindings_t el_func_help[] = {\n");
 	    low = "abcdefghijklmnopqrstuvwxyz_";
@@ -170,7 +169,6 @@ case $FLAG in
     cat $FILES | $AWK '/el_action_t/ { print $3 }' | sort | $AWK '
 	BEGIN {
 	    printf("/* Automatically generated file, do not edit */\n");
-	    printf("#include \"compat.h\"\n");
 	    printf("#include \"sys.h\"\n#include \"el.h\"\n");
 	    printf("private const el_func_t el_func[] = {");
 	    maxlen = 80;
