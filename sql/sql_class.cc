@@ -84,7 +84,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   host=user=priv_user=db=query=ip=0;
   host_or_ip="unknown ip";
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
-    query_start_used=0;
+    query_start_used=safe_to_cache_query=0;
   query_length=col_access=0;
   query_error=0;
   next_insert_id=last_insert_id=0;
@@ -122,6 +122,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   server_status=SERVER_STATUS_AUTOCOMMIT;
   update_lock_default= low_priority_updates ? TL_WRITE_LOW_PRIORITY : TL_WRITE;
   options=thd_startup_options;
+  query_cache_type = (byte)query_cache_startup_type;
   sql_mode=(uint) opt_sql_mode;
   inactive_timeout=net_wait_timeout;
   open_options=ha_open_options;

@@ -2170,7 +2170,7 @@ bool Item_func_match::eq(const Item *item) const
 
 double Item_func_match::val()
 {
-  if (ft_handler==NULL)
+  if (ft_handler == NULL)
     return -1.0;
 
   if (join_key)
@@ -2184,10 +2184,10 @@ double Item_func_match::val()
   if (key == NO_SUCH_KEY)
   {
     String *a=concat->val_str(&value);
-    if (null_value=(a==0))
+    if ((null_value= (a==0)))
       return 0;
     return ft_handler->please->find_relevance(ft_handler,
-        (byte *)a->ptr(), a->length());
+					      (byte *)a->ptr(), a->length());
   }
   else
     return ft_handler->please->find_relevance(ft_handler, record, 0);

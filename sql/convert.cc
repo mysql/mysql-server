@@ -397,19 +397,19 @@ static unsigned char win1251ukr_koi8_ukr[256] = {
 ****************************************************************************/
 
 
-CONVERT conv_cp1251_koi8("cp1251_koi8", cp1251_koi8, koi8_cp1251);
+CONVERT conv_cp1251_koi8("cp1251_koi8", cp1251_koi8, koi8_cp1251, 1);
 #ifdef DEFINE_ALL_CHARACTER_SETS
-CONVERT conv_cp1250_latin2("cp1250_latin2", t1250_til2, til2_t1250);
-CONVERT conv_kam_latin2("kam_latin2", tkam_til2, til2_tkam);
-CONVERT conv_mac_latin2("mac_latin2", tmac_til2, til2_tmac);
-CONVERT conv_macce_latin2("macce_latin2", tmacce_til2, til2_tmacce);
-CONVERT conv_pc2_latin2("pc2_latin2", tpc2_til2, til2_tpc2);
-CONVERT conv_vga_latin2("vga_latin2", tvga_til2, til2_tvga);
-CONVERT conv_koi8_cp1251("koi8_cp1251", koi8_cp1251, cp1251_koi8);
+CONVERT conv_cp1250_latin2("cp1250_latin2", t1250_til2, til2_t1250, 2);
+CONVERT conv_kam_latin2("kam_latin2", tkam_til2, til2_tkam, 3);
+CONVERT conv_mac_latin2("mac_latin2", tmac_til2, til2_tmac, 4);
+CONVERT conv_macce_latin2("macce_latin2", tmacce_til2, til2_tmacce, 5);
+CONVERT conv_pc2_latin2("pc2_latin2", tpc2_til2, til2_tpc2, 6);
+CONVERT conv_vga_latin2("vga_latin2", tvga_til2, til2_tvga, 7);
+CONVERT conv_koi8_cp1251("koi8_cp1251", koi8_cp1251, cp1251_koi8, 8);
 CONVERT conv_win1251ukr_koi8_ukr("win1251ukr_koi8_ukr", win1251ukr_koi8_ukr,
-				 koi8_ukr_win1251ukr);
+				 koi8_ukr_win1251ukr, 9);
 CONVERT conv_koi8_ukr_win1251ukr("koi8_ukr_win1251ukr", koi8_ukr_win1251ukr,
-				 win1251ukr_koi8_ukr);
+				 win1251ukr_koi8_ukr, 10);
 #endif /* DEFINE_ALL_CHARACTER_SETS */
 
 CONVERT *convert_tables[]= {

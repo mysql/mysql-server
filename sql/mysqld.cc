@@ -270,6 +270,7 @@ ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
       open_files_limit=0, max_binlog_size, record_rnd_cache_size;
 ulong slave_net_timeout;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
+ulong query_cache_size=0, query_cache_limit=0, query_cache_startup_type=1; 
 volatile ulong cached_thread_count=0;
 
 // replication parameters, if master_host is not NULL, we are a slave
@@ -358,6 +359,8 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
                 LOCK_binlog_update, LOCK_slave, LOCK_server_id,
 		LOCK_user_conn, LOCK_slave_list;
+
+Query_cache query_cache;
 
 pthread_cond_t COND_refresh,COND_thread_count,COND_binlog_update,
   COND_slave_stopped, COND_slave_start;
@@ -732,7 +735,7 @@ void clean_up(bool print_message)
     return; /* purecov: inspected */
   acl_free(1);
   grant_free();
-  sql_cache_free();
+  query_cache.resize(0);
   table_cache_free();
   hostname_cache_free();
   item_user_lock_free();
@@ -1810,7 +1813,8 @@ int main(int argc, char **argv)
   server_init();
   table_cache_init();
   hostname_cache_init();
-  sql_cache_init();
+  query_cache.result_size_limit(query_cache_limit);
+  query_cache.resize(query_cache_size);
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
   reset_floating_point_exceptions();
   init_thr_lock();
@@ -2953,6 +2957,12 @@ CHANGEABLE_VAR changeable_vars[] = {
       0, 0, 65535, 0, 1},
   { "query_buffer_size",       (long*) &query_buff_size,
       0, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD, IO_SIZE },
+  { "query_cache_limit",       (long*) &query_cache_limit,
+     1024*1024L, 0, ULONG_MAX, 0, 1},
+  { "query_cache_size",        (long*) &query_cache_size,
+      0, 0, ULONG_MAX, 0, 1},
+  { "query_cache_startup_type",(long*) &query_cache_startup_type,
+      1, 0, 2, 0, 1},
   { "record_buffer",           (long*) &my_default_record_cache_size,
       128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
   { "record_rnd_buffer",           (long*) &record_rnd_cache_size,
@@ -3007,7 +3017,7 @@ struct show_var_st init_vars[]= {
   {"ft_min_word_len",         (char*) &ft_min_word_len,             SHOW_LONG},
   {"ft_max_word_len",         (char*) &ft_max_word_len,             SHOW_LONG},
   {"ft_max_word_len_for_sort",(char*) &ft_max_word_len_for_sort,    SHOW_LONG},
-  {"ft_boolean_syntax",       ft_boolean_syntax,           SHOW_CHAR},
+  {"ft_boolean_syntax",       (char*) ft_boolean_syntax,	    SHOW_CHAR},
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
@@ -3081,6 +3091,9 @@ struct show_var_st init_vars[]= {
   {"record_rnd_buffer",       (char*) &record_rnd_cache_size,	    SHOW_LONG},
   {"rpl_recovery_rank",       (char*) &rpl_recovery_rank,           SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
+  {"query_cache_limit",       (char*) &query_cache.query_cache_limit, SHOW_LONG},
+  {"query_cache_size",        (char*) &query_cache.query_cache_size, SHOW_LONG},
+  {"query_cache_startup_type",(char*) &query_cache_startup_type,    SHOW_LONG},
   {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
   {"server_id",               (char*) &server_id,		    SHOW_LONG},
   {"slave_net_timeout",       (char*) &slave_net_timeout,	    SHOW_LONG},
@@ -3144,8 +3157,13 @@ struct show_var_st status_vars[]= {
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_INT_CONST},
   {"Opened_tables",            (char*) &opened_tables,          SHOW_LONG},
   {"Questions",                (char*) 0,                       SHOW_QUESTION},
-  {"Rpl_status",               (char*) 0,
-   SHOW_RPL_STATUS},
+  {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache,
+   SHOW_LONG},
+  {"Qcache_inserts",           (char*) &query_cache.inserts,    SHOW_LONG},
+  {"Qcache_hits",              (char*) &query_cache.hits,       SHOW_LONG},
+  {"Qcache_not_cached",        (char*) &query_cache.refused,    SHOW_LONG},
+  {"Qcache_free_memory",       (char*) &query_cache.free_memory,SHOW_LONG},
+  {"Rpl_status",               (char*) 0,                 SHOW_RPL_STATUS},
   {"Select_full_join",         (char*) &select_full_join_count, SHOW_LONG},
   {"Select_full_range_join",   (char*) &select_full_range_join_count, SHOW_LONG},
   {"Select_range",             (char*) &select_range_count, 	SHOW_LONG},
@@ -3160,29 +3178,29 @@ struct show_var_st status_vars[]= {
   {"Sort_rows",		       (char*) &filesort_rows,	        SHOW_LONG},
   {"Sort_scan",		       (char*) &filesort_scan_count,    SHOW_LONG},
 #ifdef HAVE_OPENSSL
-  {"ssl_accepts",              (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT},
-  {"ssl_finished_accepts",     (char*) 0,  			SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
-  {"ssl_finished_connects",    (char*) 0,  			SHOW_SSL_CTX_SESS_CONNECT_GOOD},
-  {"ssl_accept_renegotiates",  (char*) 0, 			SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
-  {"ssl_connect_renegotiates", (char*) 0, 		        SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE},
-  {"ssl_callback_cache_hits",  (char*) 0,			SHOW_SSL_CTX_SESS_CB_HITS},
-  {"ssl_session_cache_hits",   (char*) 0,		 	SHOW_SSL_CTX_SESS_HITS},
-  {"ssl_session_cache_misses", (char*) 0,		 	SHOW_SSL_CTX_SESS_MISSES},
-  {"ssl_session_cache_timeouts", (char*) 0,		 	SHOW_SSL_CTX_SESS_TIMEOUTS},
-  {"ssl_used_session_cache_entries",(char*) 0,			SHOW_SSL_CTX_SESS_NUMBER},
-  {"ssl_client_connects",      (char*) 0,			SHOW_SSL_CTX_SESS_CONNECT},
-  {"ssl_session_cache_overflows", (char*) 0,		 	SHOW_SSL_CTX_SESS_CACHE_FULL},
-  {"ssl_session_cache_size",   (char*) 0,		 	SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
-  {"ssl_session_cache_mode",   (char*) 0,			SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
-  {"ssl_sessions_reused",      (char*) 0,			SHOW_SSL_SESSION_REUSED},
-  {"ssl_ctx_verify_mode",      (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_MODE},
-  {"ssl_ctx_verify_depth",     (char*) 0,			SHOW_SSL_CTX_GET_VERIFY_DEPTH},
-  {"ssl_verify_mode",          (char*) 0,			SHOW_SSL_GET_VERIFY_MODE},
-  {"ssl_verify_depth",         (char*) 0,			SHOW_SSL_GET_VERIFY_DEPTH},
-  {"ssl_version",   	       (char*) 0,  			SHOW_SSL_GET_VERSION},
-  {"ssl_cipher",               (char*) 0,  			SHOW_SSL_GET_CIPHER},
-  {"ssl_cipher_list",          (char*) 0,  			SHOW_SSL_GET_CIPHER_LIST},
-  {"ssl_default_timeout",      (char*) 0,  			SHOW_SSL_GET_DEFAULT_TIMEOUT},
+  {"ssl_accepts",              (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT},
+  {"ssl_finished_accepts",     (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
+  {"ssl_finished_connects",    (char*) 0,  	SHOW_SSL_CTX_SESS_CONNECT_GOOD},
+  {"ssl_accept_renegotiates",  (char*) 0, 	SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
+  {"ssl_connect_renegotiates", (char*) 0, 	SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE},
+  {"ssl_callback_cache_hits",  (char*) 0,	SHOW_SSL_CTX_SESS_CB_HITS},
+  {"ssl_session_cache_hits",   (char*) 0,	SHOW_SSL_CTX_SESS_HITS},
+  {"ssl_session_cache_misses", (char*) 0,	SHOW_SSL_CTX_SESS_MISSES},
+  {"ssl_session_cache_timeouts", (char*) 0,	SHOW_SSL_CTX_SESS_TIMEOUTS},
+  {"ssl_used_session_cache_entries",(char*) 0,	SHOW_SSL_CTX_SESS_NUMBER},
+  {"ssl_client_connects",      (char*) 0,	SHOW_SSL_CTX_SESS_CONNECT},
+  {"ssl_session_cache_overflows", (char*) 0,	SHOW_SSL_CTX_SESS_CACHE_FULL},
+  {"ssl_session_cache_size",   (char*) 0,	SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
+  {"ssl_session_cache_mode",   (char*) 0,	SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
+  {"ssl_sessions_reused",      (char*) 0,	SHOW_SSL_SESSION_REUSED},
+  {"ssl_ctx_verify_mode",      (char*) 0,	SHOW_SSL_CTX_GET_VERIFY_MODE},
+  {"ssl_ctx_verify_depth",     (char*) 0,	SHOW_SSL_CTX_GET_VERIFY_DEPTH},
+  {"ssl_verify_mode",          (char*) 0,	SHOW_SSL_GET_VERIFY_MODE},
+  {"ssl_verify_depth",         (char*) 0,	SHOW_SSL_GET_VERIFY_DEPTH},
+  {"ssl_version",   	       (char*) 0,  	SHOW_SSL_GET_VERSION},
+  {"ssl_cipher",               (char*) 0,  	SHOW_SSL_GET_CIPHER},
+  {"ssl_cipher_list",          (char*) 0,  	SHOW_SSL_GET_CIPHER_LIST},
+  {"ssl_default_timeout",      (char*) 0,  	SHOW_SSL_GET_DEFAULT_TIMEOUT},
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
@@ -3708,12 +3726,11 @@ static void get_options(int argc,char **argv)
       opt_slow_log=1;
       opt_slow_logname=optarg;
       break;
-    case (int)OPT_SKIP_SLAVE_START:
+    case (int) OPT_SKIP_SLAVE_START:
       opt_skip_slave_start = 1;
       break;
     case (int) OPT_SKIP_NEW:
       opt_specialflag|= SPECIAL_NO_NEW_FUNC;
-      default_table_type=DB_TYPE_ISAM;
       myisam_delay_key_write=0;
       myisam_concurrent_insert=0;
       myisam_recover_options= HA_RECOVER_NONE;
@@ -3721,6 +3738,7 @@ static void get_options(int argc,char **argv)
       my_use_symdir=0;
       have_symlink=SHOW_OPTION_DISABLED;
       ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
+      query_cache_size=0;
       break;
     case (int) OPT_SAFE:
       opt_specialflag|= SPECIAL_SAFE_MODE;

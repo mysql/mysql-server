@@ -158,13 +158,17 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       wrong_tables.append(String(table->real_name));
     }
   }
-  if (some_tables_deleted && !dont_log_query)
+  if (some_tables_deleted)
   {
-    mysql_update_log.write(thd, thd->query,thd->query_length);
-    if (mysql_bin_log.is_open())
+    query_cache.invalidate(tables);
+    if (!dont_log_query)
     {
-      Query_log_event qinfo(thd, thd->query);
-      mysql_bin_log.write(&qinfo);
+      mysql_update_log.write(thd, thd->query,thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+	Query_log_event qinfo(thd, thd->query);
+	mysql_bin_log.write(&qinfo);
+      }
     }
   }
   
@@ -700,7 +704,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(0);
     }
 
-    Field *field=create_tmp_field(&tmp_table,item,item->type(),
+    Field *field=create_tmp_field(thd, &tmp_table, item, item->type(),
 				  (Item_result_field***) 0, &tmp_field,0,0);
     if (!field ||
 	!(cr_field=new create_field(field,(item->type() == Item::FIELD_ITEM ?
@@ -1708,6 +1712,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   VOID(pthread_cond_broadcast(&COND_refresh));
   VOID(pthread_mutex_unlock(&LOCK_open));
+  table_list->table=0;				// Table is closed
+  query_cache.invalidate(table_list);
 
 end_temporary:
   sprintf(tmp_name,ER(ER_INSERT_INFO),(ulong) (copied+deleted),

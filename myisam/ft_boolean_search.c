@@ -86,7 +86,7 @@ typedef struct st_ft_info {
   MEM_ROOT   mem_root;
 } FTB;
 
-int FTB_WORD_cmp(void *v, byte *a, byte *b)
+int FTB_WORD_cmp(void *v __attribute__((unused)), byte *a, byte *b)
 {
   /* ORDER BY docid, ndepth DESC */
   int i=CMP_NUM(((FTB_WORD *)a)->docid, ((FTB_WORD *)b)->docid);
@@ -109,7 +109,7 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
     return;
 
   param.prev=' ';
-  while (res=ft_get_word(start,end,&w,&param))
+  while ((res=ft_get_word(start,end,&w,&param)))
   {
     byte  r=param.plusminus;
     float weight=(param.pmsign ? nwghts : wghts)[(r>5)?5:((r<-5)?-5:r)];
@@ -277,7 +277,7 @@ void _ftb_climb_the_tree(FTB_WORD *ftbw, my_off_t curdoc)
 
 int ft_boolean_read_next(FT_INFO *ftb, char *record)
 {
-  FTB_EXPR  *ftbe, *up;
+  FTB_EXPR  *ftbe;
   FTB_WORD  *ftbw;
   MI_INFO   *info=ftb->info;
   MI_KEYDEF *keyinfo=info->s->keyinfo+ftb->keynr;

@@ -460,7 +460,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   umask(((~my_umask) & 0666));
   table_cache_init();
   hostname_cache_init();
-  sql_cache_init();
+  /*sql_cache_init();*/
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
   reset_floating_point_exceptions();
   init_thr_lock();

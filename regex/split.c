@@ -27,7 +27,7 @@ char *sep;			/* "" white, "c" single char, "ab" [ab]+ */
 			continue;
 		p--;
 		trimtrail = 1;
-		sep = " \t";	/* note, code below knows this is 2 long */
+		sep = (char*) " \t";	/* note, code below knows this is 2 long */
 		sepc = ' ';
 	} else
 		trimtrail = 0;

@@ -47,7 +47,8 @@ static void find_best(JOIN *join,table_map rest_tables,uint index,
 static uint cache_record_length(JOIN *join,uint index);
 static double prev_record_reads(JOIN *join,table_map found_ref);
 static bool get_best_combination(JOIN *join);
-static store_key *get_store_key(KEYUSE *keyuse, table_map used_tables,
+static store_key *get_store_key(THD *thd,
+				KEYUSE *keyuse, table_map used_tables,
 				KEY_PART_INFO *key_part, char *key_buff,
 				uint maybe_null);
 static bool make_simple_join(JOIN *join,TABLE *tmp_table);
@@ -795,7 +796,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       (procedure && (procedure->flags & PROC_GROUP)))
   {
     alloc_group_fields(&join,group);
-    setup_copy_fields(&join.tmp_table_param,all_fields);
+    setup_copy_fields(thd, &join.tmp_table_param,all_fields);
     if (make_sum_func_list(&join,all_fields) || thd->fatal_error)
       goto err; /* purecov: inspected */
   }
@@ -2152,7 +2153,8 @@ get_best_combination(JOIN *join)
 	  if (!keyuse->used_tables &&
 	      !(join->select_options & SELECT_DESCRIBE))
 	  {					// Compare against constant
-	    store_key_item *tmp=new store_key_item(keyinfo->key_part[i].field,
+	    store_key_item *tmp=new store_key_item(thd,
+						   keyinfo->key_part[i].field,
 						   (char*)key_buff +
 						   maybe_null,
 						   maybe_null ?
@@ -2166,7 +2168,8 @@ get_best_combination(JOIN *join)
 	    tmp->copy();
 	  }
 	  else
-	    *ref_key++= get_store_key(keyuse,join->const_table_map,
+	    *ref_key++= get_store_key(join->thd,
+				      keyuse,join->const_table_map,
 				      &keyinfo->key_part[i],
 				      (char*) key_buff,maybe_null);
 	  key_buff+=keyinfo->key_part[i].store_length;
@@ -2208,25 +2211,28 @@ get_best_combination(JOIN *join)
 
 
 static store_key *
-get_store_key(KEYUSE *keyuse, table_map used_tables, KEY_PART_INFO *key_part,
-	      char *key_buff, uint maybe_null)
+get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
+	      KEY_PART_INFO *key_part, char *key_buff, uint maybe_null)
 {
   if (!((~used_tables) & keyuse->used_tables))		// if const item
   {
-    return new store_key_const_item(key_part->field,
+    return new store_key_const_item(thd,
+				    key_part->field,
 				    key_buff + maybe_null,
 				    maybe_null ? key_buff : 0,
 				    key_part->length,
 				    keyuse->val);
   }
   else if (keyuse->val->type() == Item::FIELD_ITEM)
-    return new store_key_field(key_part->field,
+    return new store_key_field(thd,
+			       key_part->field,
 			       key_buff + maybe_null,
 			       maybe_null ? key_buff : 0,
 			       key_part->length,
 			       ((Item_field*) keyuse->val)->field,
 			       keyuse->val->full_name());
-  return new store_key_item(key_part->field,
+  return new store_key_item(thd,
+			    key_part->field,
 			    key_buff + maybe_null,
 			    maybe_null ? key_buff : 0,
 			    key_part->length,
@@ -3159,6 +3165,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	  (thd->options & OPTION_AUTO_IS_NULL) &&
 	  thd->insert_id())
       {
+	query_cache_abort(&thd->net);
 	COND *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],
 					new Item_int("last_insert_id()",
@@ -3271,7 +3278,7 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 **	for send_fields
 ****************************************************************************/
 
-Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
+Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
 			bool group, bool modify_item)
 {
@@ -3313,7 +3320,7 @@ Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
 				 item->name,table,item->binary);
       }
     }
-    current_thd->fatal_error=1;
+    thd->fatal_error=1;
     return 0;					// Error
   }
   case Item::FIELD_ITEM:
@@ -3321,7 +3328,8 @@ Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
     Field *org_field=((Item_field*) item)->field,*new_field;
 
     *from_field=org_field;
-    if ((new_field= org_field->new_field(table))) // Should always be true
+    // The following should always be true
+    if ((new_field= org_field->new_field(&thd->mem_root,table)))
     {
       if (modify_item)
 	((Item_field*) item)->result_field= new_field;
@@ -3509,8 +3517,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	if (!arg->const_item())
 	{
 	  Field *new_field=
-	    create_tmp_field(table,arg,arg->type(),&copy_func,tmp_from_field,
-			     group != 0,not_all_columns);
+	    create_tmp_field(thd, table,arg,arg->type(),&copy_func,
+			     tmp_from_field, group != 0,not_all_columns);
 	  if (!new_field)
 	    goto err;					// Should be OOM
 	  tmp_from_field++;
@@ -3526,7 +3534,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     }
     else
     {
-      Field *new_field=create_tmp_field(table,item,type,&copy_func,
+      Field *new_field=create_tmp_field(thd, table, item,type, &copy_func,
 					tmp_from_field, group != 0,
 					not_all_columns);
       if (!new_field)
@@ -3707,7 +3715,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       if (!using_unique_constraint)
       {
 	group->buff=(char*) group_buff;
-	if (!(group->field=field->new_field(table)))
+	if (!(group->field=field->new_field(&thd->mem_root,table)))
 	  goto err; /* purecov: inspected */
 	if (maybe_null)
 	{
@@ -6409,7 +6417,7 @@ test_if_group_changed(List<Item_buff> &list)
 */
 
 bool
-setup_copy_fields(TMP_TABLE_PARAM *param,List<Item> &fields)
+setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields)
 {
   Item *pos;
   List_iterator<Item> li(fields);
@@ -6437,7 +6445,7 @@ setup_copy_fields(TMP_TABLE_PARAM *param,List<Item> &fields)
 
       /* set up save buffer and change result_field to point at saved value */
       Field *field= item->field;
-      item->result_field=field->new_field(field->table);
+      item->result_field=field->new_field(&thd->mem_root,field->table);
       char *tmp=(char*) sql_alloc(field->pack_length()+1);
       if (!tmp)
 	goto err;

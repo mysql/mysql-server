@@ -43,8 +43,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   pthread_mutex_lock(&share->intern_lock);
   if (share->kfile >= 0)		/* May only be false on windows */
   {
-    switch (lock_type)
-    {
+    switch (lock_type) {
     case F_UNLCK:
       if (info->lock_type == F_RDLCK)
 	count= --share->r_locks;
@@ -201,6 +200,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       }
       VOID(_mi_test_if_changed(info));
       info->lock_type=lock_type;
+      info->invalidator=info->s->invalidator;
       share->w_locks++;
       share->tot_locks++;
       break;
@@ -319,6 +319,7 @@ int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
     }
     if (check_keybuffer)
       VOID(_mi_test_if_changed(info));
+    info->invalidator=info->s->invalidator;
   }
   else if (lock_type == F_WRLCK && info->lock_type == F_RDLCK)
   {

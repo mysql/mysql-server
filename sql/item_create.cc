@@ -65,7 +65,9 @@ Item *create_func_ceiling(Item* a)
 
 Item *create_func_connection_id(void)
 {
-  return new Item_int("CONNECTION_ID()",(longlong) current_thd->thread_id,10);
+  THD *thd=current_thd;
+  thd->safe_to_cache_query=0;
+  return new Item_int("CONNECTION_ID()",(longlong) thd->thread_id,10);
 }
 
 Item *create_func_conv(Item* a, Item *b, Item *c)
@@ -131,7 +133,9 @@ Item *create_func_floor(Item* a)
 
 Item *create_func_found_rows(void)
 {
-  return new Item_int("FOUND_ROWS()",(longlong) current_thd->found_rows(),21);
+  THD *thd=current_thd;
+  thd->safe_to_cache_query=0;
+  return new Item_int("FOUND_ROWS()",(longlong) thd->found_rows(),21);
 }
 
 Item *create_func_from_days(Item* a)
@@ -141,6 +145,7 @@ Item *create_func_from_days(Item* a)
 
 Item *create_func_get_lock(Item* a, Item *b)
 {
+  current_thd->safe_to_cache_query=0;
   return new Item_func_get_lock(a, b);
 }
 
@@ -279,6 +284,7 @@ Item *create_func_radians(Item *a)
 
 Item *create_func_release_lock(Item* a)
 {
+  current_thd->safe_to_cache_query=0;
   return new Item_func_release_lock(a);
 }
 
@@ -379,10 +385,12 @@ Item *create_func_year(Item* a)
 
 Item *create_load_file(Item* a)
 {
+  current_thd->safe_to_cache_query=0;
   return new Item_load_file(a);
 }
 
 Item *create_wait_for_master_pos(Item* a, Item* b)
 {
+  current_thd->safe_to_cache_query=0;
   return new Item_master_pos_wait(a, b);
 }

@@ -206,14 +206,14 @@ public:
   Item_real(const char *str_arg,uint length) :value(atof(str_arg))
   {
     name=(char*) str_arg;
-    decimals=nr_of_decimals(str_arg);
+    decimals=(uint8) nr_of_decimals(str_arg);
     max_length=length;
   }
   Item_real(const char *str,double val_arg,uint decimal_par,uint length)
     :value(val_arg)
   {
     name=(char*) str;
-    decimals=decimal_par;
+    decimals=(uint8) decimal_par;
     max_length=length;
   }
   Item_real(double value_par) :value(value_par) {}

@@ -191,6 +191,8 @@ typedef struct st_columndef		/* column information */
 #endif
 } MI_COLUMNDEF;
 
+/* invalidator function reference for Query Cache */
+typedef void (* invalidator_by_filename)(const char * filename);
 
 extern my_string myisam_log_filename;		/* Name of logfile */
 extern uint myisam_block_size;

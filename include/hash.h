@@ -54,6 +54,7 @@ gptr hash_next(HASH *info,const byte *key,uint length);
 my_bool hash_insert(HASH *info,const byte *data);
 my_bool hash_delete(HASH *hash,byte *record);
 my_bool hash_update(HASH *hash,byte *record,byte *old_key,uint old_key_length);
+void hash_replace(HASH *hash, uint idx, byte *new_row);
 my_bool hash_check(HASH *hash);			/* Only in debug library */
 
 #define hash_clear(H) bzero((char*) (H),sizeof(*(H)))
