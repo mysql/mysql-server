@@ -572,8 +572,7 @@ my_decimal* Field_num::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(result_type() == INT_RESULT);
   longlong nr= val_int();
-  if (!is_null())
-    int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
+  int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
   return decimal_value;
 }
 
@@ -605,7 +604,7 @@ void Field_num::make_field(Send_field *field)
     d         value for storing
 
   NOTE
-    Field_str is the base class for fields like Field_date, and some
+    Field_str is the base class for fields like Field_enum, Field_date and some
     similar.  Some dates use fraction and also string value should be
     converted to floating point value according our rules, so we use double
     to store value of decimal in string
@@ -629,8 +628,7 @@ my_decimal *Field_str::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(result_type() == INT_RESULT);
   longlong nr= val_int();
-  if (is_null())
-    int2my_decimal(E_DEC_FATAL_ERROR, nr, 0, decimal_value);
+  int2my_decimal(E_DEC_FATAL_ERROR, nr, 0, decimal_value);
   return decimal_value;
 }
 
@@ -733,6 +731,7 @@ Field *Field::new_key_field(MEM_ROOT *root, struct st_table *new_table,
   return tmp;
 }
 
+
 /* 
   SYNOPSIS
   Field::quote_data()
@@ -749,43 +748,34 @@ Field *Field::new_key_field(MEM_ROOT *root, struct st_table *new_table,
     void      Upon prepending/appending quotes on each side of variable
 
 */
+
 bool Field::quote_data(String *unquoted_string)
 {
   char escaped_string[IO_SIZE];
   char *unquoted_string_buffer= (char *)(unquoted_string->ptr());
   uint need_quotes;
-  
   DBUG_ENTER("Field::quote_data");
+
   // this is the same call that mysql_real_escape_string() calls
   escape_string_for_mysql(&my_charset_bin, (char *)escaped_string,
     unquoted_string->ptr(), unquoted_string->length());
 
-
-  if (is_null())
-    DBUG_RETURN(0);
-
   need_quotes= needs_quotes();
 
   if (need_quotes == 0)
-  {
     DBUG_RETURN(0);
-  }
-  else
-  {
-    // reset string, then re-append with quotes and escaped values
-    unquoted_string->length(0);
-    if (unquoted_string->append("'"))
-      DBUG_RETURN(1);
-    if (unquoted_string->append((char *)escaped_string))
-      DBUG_RETURN(1);
-    if (unquoted_string->append("'"))
-      DBUG_RETURN(1);
-  }
-  //DBUG_PRINT("Field::quote_data",
-   // ("FINAL quote_flag %d unquoted_string %s escaped_string %s", 
-    //needs_quotes, unquoted_string->c_ptr_quick(), escaped_string));
+
+  // reset string, then re-append with quotes and escaped values
+  unquoted_string->length(0);
+  if (unquoted_string->append('\''))
+    DBUG_RETURN(1);
+  if (unquoted_string->append((char *)escaped_string))
+    DBUG_RETURN(1);
+  if (unquoted_string->append('\''))
+    DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
+
 
 /*
   Quote a field type if needed
@@ -802,6 +792,7 @@ bool Field::quote_data(String *unquoted_string)
       0   if value is of type NOT needing quotes
       1   if value is of type needing quotes
 */
+
 bool Field::needs_quotes(void)
 {
   DBUG_ENTER("Field::type_quote");
@@ -840,8 +831,8 @@ bool Field::needs_quotes(void)
   default: DBUG_RETURN(0);
   }
   DBUG_RETURN(0);
-
 }
+
 
 /****************************************************************************
   Field_null, a field that always return NULL
@@ -4646,8 +4637,6 @@ String *Field_newdate::val_str(String *val_buffer,
 
 bool Field_newdate::get_date(TIME *ltime,uint fuzzydate)
 {
-  if (is_null())
-    return 1;
   uint32 tmp=(uint32) uint3korr(ptr);
   ltime->day=   tmp & 31;
   ltime->month= (tmp >> 5) & 15;
@@ -5058,16 +5047,15 @@ int Field_string::store(longlong nr)
   return Field_string::store(buff,(uint)l,cs);
 }
 
+
 int Field_longstr::store_decimal(const my_decimal *d)
 {
-  uint buf_size= my_decimal_string_length(d);
-  char *buff= (char *)my_alloca(buf_size);
-  String str(buff, buf_size, &my_charset_bin);
+  char buff[DECIMAL_MAX_STR_LENGTH+1];
+  String str(buff, sizeof(buff), &my_charset_bin);
   my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
-  int result= store(str.ptr(), str.length(), str.charset());
-  my_afree(buff);
-  return result;
+  return store(str.ptr(), str.length(), str.charset());
 }
+
 
 double Field_string::val_real(void)
 {
