@@ -22,7 +22,6 @@ use Getopt::Long;
 Getopt::Long::Configure ("bundling");
 use Sys::Hostname;
 
-$opt_nobuild = undef;
 $opt_cc= undef;
 $opt_cflags= undef;
 $opt_clean= undef;
@@ -33,6 +32,9 @@ $opt_help= undef;
 $opt_log= undef;
 $opt_mail= "";
 $opt_verbose= undef;
+$opt_susebuild= undef;
+$opt_susebuildroot= undef;
+$opt_suserpms= undef;
 
 # Set a dummy version until we know the correct one
 $VERSION= "x.y.z";
@@ -49,13 +51,29 @@ GetOptions(
 	"help|h",
 	"log|l:s",
 	"mail|m=s",
-        "nobuild",
+	"susebuild|s",
+	"susebuildroot|r=s",
+	"suserpms=s",
 	"verbose|v",
 ) || &print_help;
 
 &print_help("") if ($opt_help);
 
 defined($SPECFILE=$ARGV[0]) || print_help("Please provide the spec file name!");
+
+&print_help("Please define the location of the RPM repository!") if $opt_susebuild && !($opt_suserpms || $ENV{BUILD_RPMS});
+
+unless ($opt_susebuildroot)
+{
+	if ($ENV{BUILD_ROOT})
+	{
+		$opt_susebuildroot= $ENV{BUILD_ROOT};
+	}
+	else
+	{
+		$opt_susebuildroot="/var/tmp/build-root";
+	}
+}
 
 # Include helper functions
 $PWD= cwd();
@@ -72,7 +90,7 @@ else
 $subject= "RPM build for $SPECFILE failed" if $opt_mail;
 
 # Open the spec file and extract the version number
-open(SPEC, $SPECFILE) or &abort("Unable to open \"$ARGV[0]\": $!");
+open(SPEC, $SPECFILE) or die "Unable to open \"$ARGV[0]\": $!";
 @spec= <SPEC>;
 close SPEC;
 
@@ -94,7 +112,7 @@ $HOST= hostname();
 $HOST=~ /^([^.-]*)/;
 $HOST= $1;
 $LOGFILE= "$PWD/Logs/Do-rpm-$HOST-$MAJOR.$MINOR.log";
-&logger("Using spec file for version: $VERSION");
+&logger("Logging to $LOGFILE");
 
 #
 # Override predefined Log file name
@@ -114,103 +132,149 @@ if (defined $opt_log)
 	}
 }
 
-#
-# Newer RPM versions ship with a separate tool "rpmbuild" to build RPMs
-#
-if (-x "/usr/bin/rpmbuild")
+&logger("Using spec file for version: $VERSION");
+
+if ($opt_susebuild)
 {
-	$RPM= "/usr/bin/rpmbuild";
-	$RMSOURCE= "--rmsource --rmspec";
+	&susebuild;
 }
 else
-{
-	$RPM= "/bin/rpm";
-	$RMSOURCE= "--rmspec";
+{	
+	&rpmbuild;
 }
-
-if ($RPM)
-{
-	&logger("Found rpm binary: $RPM");
-}
-else
-{
-	&abort("Unable to find RPM binary!");
-}
-
-#
-# determine some RPM settings for this host
-#
-chomp($RPMARCH= `$RPM --eval "%{_arch}" 2> /dev/null`);
-chomp($RPMDIR= `$RPM --eval "%{_rpmdir}" 2> /dev/null`);
-chomp($SOURCEDIR= `$RPM --eval "%{_sourcedir}" 2> /dev/null`);
-chomp($SPECDIR= `$RPM --eval "%{_specdir}" 2> /dev/null`);
-chomp($SRCRPMDIR= `$RPM --eval "%{_srcrpmdir}" 2> /dev/null`);
-
-$SOURCEFILE= glob "mysql*-$VERSION.tar.gz";
-
-unless($opt_nobuild) {
-
-  &logger("Starting RPM build of MySQL-$VERSION on $HOST");
-
-  foreach $file ($SOURCEFILE, $SPECFILE)
-  {
-    &abort("Unable to find $file!") unless (-f "$file");
-  }
-
-#
-# Install source and spec file
-#
-  &logger("Copying SOURCE and SPEC file to build directories.");
-  unless ($opt_dry_run)
-  {
-    copy($SOURCEFILE, $SOURCEDIR)
-      or &abort("Unable to copy $SOURCEFILE to $SOURCEDIR!");
-    copy($SPECFILE, $SPECDIR)
-      or &abort("Unable to copy $SPECFILE to $SPECDIR!");
-  }
-
-#
-# Set environment variables - these are being used in the
-# official MySQL RPM spec file
-#
-  &logger("Setting special build environment variables")
-    if ($opt_cc) or ($opt_cflags) or ($opt_cxxflags) or ($opt_cxx);
-  $ENV{MYSQL_BUILD_CC}=$opt_cc if ($opt_cc);
-  $ENV{MYSQL_BUILD_CFLAGS}=$opt_cflags if ($opt_cflags);
-  $ENV{MYSQL_BUILD_CXXFLAGS}=$opt_cxxflags if ($opt_cxxflags);
-  $ENV{MYSQL_BUILD_CXX}=$opt_cxx if ($opt_cxx);
-
-#
-# Build the RPMs
-#
-  $command= "$RPM";
-  $command.= " -v" if ($opt_verbose);
-  $command.= " -ba";
-  $command.= " --clean $RMSOURCE" if $opt_clean;
-  $command.= " $SPECDIR/";
-  $command.= basename($SPECFILE);
-  &logger("Building RPM.");
-  &run_command($command, "Error while building the RPMs!"); 
-}
-
-#
-# Move the resulting RPMs into the pwd
-#
-$command= "mv";
-$command.= " -v " if ($opt_verbose);
-$command.= " $SRCRPMDIR/MySQL*$VERSION_SRPM*.src.rpm $PWD";
-&logger("Moving source RPM to current dir.");
-&run_command($command, "Error moving source RPM!");
-
-$command= "mv";
-$command.= " -v " if ($opt_verbose);
-# $command.= " $RPMDIR/$RPMARCH/MySQL*$VERSION*.$RPMARCH.rpm $PWD";
-$command.= " $RPMDIR/$RPMARCH/MySQL*$VERSION_SRPM*.$RPMARCH.rpm $PWD";
-&logger("Moving binary RPMs to current dir.");
-&run_command($command, "Error moving binary RPMs!");
 
 &logger("SUCCESS: RPM files successfully created.") unless ($opt_dry_run);
 exit 0;
+
+#
+# Build using SUSE's "build" script
+#
+sub susebuild
+{
+	$BUILD= "/usr/bin/build";
+	( -x $BUILD) ? &logger("$BUILD found, proceeding.") : &abort("$BUILD could not be found!");
+	$command= "sudo $BUILD --clean";
+	$command.= " --root=$opt_susebuildroot";
+	$command.= " --rpms=$opt_suserpms" if $opt_suserpms;
+	$command.= " $SPECFILE";
+	&logger("Building RPMs using SUSE build.");
+	&run_command($command, "Error while running the SUSE RPM build!"); 
+
+	#
+	# Move the resulting RPMs into the pwd - we can use broad globs here
+	# as the build root has been cleaned up before so there should not be
+	# any residuals from previous build runs
+	#
+	$command= "cp";
+	$command.= " -v " if ($opt_verbose);
+	$command.= " $opt_susebuildroot/usr/src/packages/SRPMS/MySQL*.src.rpm $PWD";
+	&logger("Copying source RPM to current dir.");
+	&run_command($command, "Error moving source RPM!");
+
+	$command= "cp";
+	$command.= " -v " if ($opt_verbose);
+	$command.= " $opt_susebuildroot/usr/src/packages/RPMS/*/MySQL*.rpm $PWD";
+	&logger("Copying binary RPMs to current dir.");
+	&run_command($command, "Error moving binary RPMs!");
+}
+
+#
+# Build using "plain" RPM
+#
+sub rpmbuild
+{
+
+	#
+	# Newer RPM versions ship with a separate tool "rpmbuild" to build RPMs
+	#
+	if (-x "/usr/bin/rpmbuild")
+	{
+		$RPM= "/usr/bin/rpmbuild";
+		$RMSOURCE= "--rmsource --rmspec";
+	}
+	else
+	{
+		$RPM= "/bin/rpm";
+		$RMSOURCE= "--rmspec";
+	}
+
+	if ($RPM)
+	{
+		&logger("Found rpm binary: $RPM");
+	}
+	else
+	{
+		&abort("Unable to find RPM binary!");
+	}
+
+	#
+	# determine some RPM settings for this host
+	#
+	chomp($RPMARCH= `$RPM --eval "%{_arch}" 2> /dev/null`);
+	chomp($RPMDIR= `$RPM --eval "%{_rpmdir}" 2> /dev/null`);
+	chomp($SOURCEDIR= `$RPM --eval "%{_sourcedir}" 2> /dev/null`);
+	chomp($SPECDIR= `$RPM --eval "%{_specdir}" 2> /dev/null`);
+	chomp($SRCRPMDIR= `$RPM --eval "%{_srcrpmdir}" 2> /dev/null`);
+
+	$SOURCEFILE= glob "mysql*-$VERSION.tar.gz";
+
+	&logger("Starting RPM build of MySQL-$VERSION on $HOST");
+
+	foreach $file ($SOURCEFILE, $SPECFILE)
+	{
+		&abort("Unable to find $file!") unless (-f "$file");
+	}
+
+	#
+	# Install source and spec file
+	#
+	&logger("Copying SOURCE and SPEC file to build directories.");
+	unless ($opt_dry_run)
+	{
+		copy($SOURCEFILE, $SOURCEDIR)
+			or &abort("Unable to copy $SOURCEFILE to $SOURCEDIR!");
+		copy($SPECFILE, $SPECDIR)
+			or &abort("Unable to copy $SPECFILE to $SPECDIR!");
+	}
+
+	#
+	# Set environment variables - these are being used in the
+	# official MySQL RPM spec file
+	#
+	&logger("Setting special build environment variables")
+		if ($opt_cc) or ($opt_cflags) or ($opt_cxxflags) or ($opt_cxx);
+	$ENV{MYSQL_BUILD_CC}=$opt_cc if ($opt_cc);
+	$ENV{MYSQL_BUILD_CFLAGS}=$opt_cflags if ($opt_cflags);
+	$ENV{MYSQL_BUILD_CXXFLAGS}=$opt_cxxflags if ($opt_cxxflags);
+	$ENV{MYSQL_BUILD_CXX}=$opt_cxx if ($opt_cxx);
+
+	#
+	# Build the RPMs
+	#
+	$command= "$RPM";
+	$command.= " -v" if ($opt_verbose);
+	$command.= " -ba";
+	$command.= " --clean $RMSOURCE" if $opt_clean;
+	$command.= " $SPECDIR/";
+	$command.= basename($SPECFILE);
+	&logger("Building RPM.");
+	&run_command($command, "Error while building the RPMs!"); 
+
+	#
+	# Move the resulting RPMs into the pwd
+	#
+	$command= "mv";
+	$command.= " -v " if ($opt_verbose);
+	$command.= " $SRCRPMDIR/MySQL*$VERSION_SRPM*.src.rpm $PWD";
+	&logger("Moving source RPM to current dir.");
+	&run_command($command, "Error moving source RPM!");
+
+	$command= "mv";
+	$command.= " -v " if ($opt_verbose);
+	$command.= " $RPMDIR/$RPMARCH/MySQL*$VERSION_SRPM*.$RPMARCH.rpm $PWD";
+	&logger("Moving binary RPMs to current dir.");
+	&run_command($command, "Error moving binary RPMs!");
+}
 
 sub print_help
 {
@@ -218,7 +282,7 @@ sub print_help
 	if ($message ne "")
 	{
 		print "\n";
-		print "ERROR: $message\n\n}";
+		print "ERROR: $message\n\n";
 	}
 	print <<EOF;
 
@@ -241,12 +305,22 @@ Options:
 -t, --dry-run                 Dry run without executing
 -h, --help                    Print this help
 -l, --log[=<filename>]        Write a log file [to <filename>]
-                              (default is "$LOGFILE")
 -m, --mail=<address>          Mail a failure report to the given address
                               (and include a log file snippet, if logging
                               is enabled)
                               Note that the \@-Sign needs to be quoted!
                               Example: --mail=user\\\@domain.com
+-s, --susebuild               Use the SUSE "build" script instead of RPM
+                              directly (requires sudo privileges to run the
+                              /usr/bin/build command)
+-r, --susebuildroot=<root>    Use <root> as the build root directory for the
+                              SUSE "build" (default is /var/tmp/build-root
+                              or defined by the BUILD_ROOT environment
+                              variable)
+--suserpms=<path>             Path to the SUSE RPM repository to build up
+                              the build root (mandatory option when using
+                              --susebuild and the BUILD_RPMS environment
+                              variable is not set.)
 -v, --verbose                 Verbose execution
 
 Example:
