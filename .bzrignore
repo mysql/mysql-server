@@ -762,6 +762,7 @@ scripts/mysqldumpslow
 scripts/mysqlhotcopy
 scripts/safe_mysqld
 select_test
+server-tools/instance-manager/mysqlmanager
 sql-bench/Results-linux/ATIS-mysql_bdb-Linux_2.2.14_my_SMP_i686
 sql-bench/bench-count-distinct
 sql-bench/bench-init.pl
@@ -834,6 +835,7 @@ strings/conf_to_src
 strings/ctype_autoconf.c
 strings/ctype_extra_sources.c
 strings/str_test
+strings/test_decimal
 support-files/MacOSX/Description.plist
 support-files/MacOSX/Info.plist
 support-files/MacOSX/ReadMe.txt
@@ -920,4 +922,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-server-tools/instance-manager/mysqlmanager
