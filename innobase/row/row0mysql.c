@@ -44,6 +44,51 @@ struct row_mysql_drop_struct{
 UT_LIST_BASE_NODE_T(row_mysql_drop_t)	row_mysql_drop_list;
 ibool	row_mysql_drop_list_inited 	= FALSE;
 
+/* Magic table names for invoking various monitor threads */
+static const char S_innodb_monitor[] = "innodb_monitor";
+static const char S_innodb_lock_monitor[] = "innodb_lock_monitor";
+static const char S_innodb_tablespace_monitor[] = "innodb_tablespace_monitor";
+static const char S_innodb_table_monitor[] = "innodb_table_monitor";
+static const char S_innodb_mem_validate[] = "innodb_mem_validate";
+
+/* Name suffix for recovered orphaned temporary tables */
+static const char S_recover_innodb_tmp_table[] = "_recover_innodb_tmp_table";
+/***********************************************************************
+Determine if the given name ends in the suffix reserved for recovered
+orphaned temporary tables. */
+static
+ibool
+row_mysql_is_recovered_tmp_table(
+/*=============================*/
+				 /* out: TRUE if table name ends in
+				 the reserved suffix */
+	const char*	name)
+{
+	ulint	namelen	= strlen(name) + 1;
+	return(namelen >= sizeof S_recover_innodb_tmp_table
+		&& !memcmp(name + namelen -
+			sizeof S_recover_innodb_tmp_table,
+			S_recover_innodb_tmp_table,
+			sizeof S_recover_innodb_tmp_table));
+}
+
+/***********************************************************************
+Determine if the given name is a name reserved for MySQL system tables. */
+static
+ibool
+row_mysql_is_system_table(
+/*======================*/
+				 /* out: TRUE if name is a MySQL
+				 system table name */
+	const char*	name)
+{
+	if (memcmp(name, "mysql/", 6)) {
+		return(FALSE);
+	}
+	return(0 == strcmp(name + 6, "host")
+	    || 0 == strcmp(name + 6, "user")
+	    || 0 == strcmp(name + 6, "db"));
+}
 /***********************************************************************
 Reads a MySQL format variable-length field (like VARCHAR) length and
 returns pointer to the field data. */
@@ -900,11 +945,7 @@ row_update_for_mysql(
 	upd_node_t*	node;
 	dict_table_t*	table		= prebuilt->table;
 	trx_t*		trx		= prebuilt->trx;
-/*	mem_heap_t*	heap;
-	dtuple_t*	search_tuple;
-	dtuple_t*	row_tuple;
-	mtr_t		mtr; */
-	
+
 	ut_ad(prebuilt && trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	UT_NOT_USED(mysql_rec);
@@ -1147,34 +1188,30 @@ row_mysql_recover_tmp_table(
 	dict_table_t*	table,	/* in: table definition */
 	trx_t*		trx)	/* in: transaction handle */
 {
-	char*	ptr;
-	char	old_name[1000];
+	const char*	ptr	= strstr(table->name, "/rsql");
 
-	ut_memcpy(old_name, table->name, ut_strlen(table->name) + 1);
-
-	ptr = old_name;
-
-	for (;;) {
-		if (ptr >= old_name + ut_strlen(table->name) - 6) {
-			trx_commit_for_mysql(trx);
-
-			return(DB_ERROR);
-		}
-
-		if (0 == ut_memcmp(ptr, (char*)"/rsql", 5)) {
-			ptr++;
-			*ptr = '#';
-
-			break;
-		}
-
-		ptr++;
+	if (!ptr) {
+		/* table name does not begin with "/rsql" */
+		trx_commit_for_mysql(trx);
+		return(DB_ERROR);
 	}
-
-	old_name[ut_strlen(table->name)
-			- ut_strlen("_recover_innodb_tmp_table")] = '\0';
-
-	return(row_rename_table_for_mysql(old_name, table->name, trx));
+	else {
+		int	status;
+		int	namelen = strlen(table->name);
+		char*	old_name = mem_strdupl(table->name, namelen);
+		/* replace "rsql" with "#sql" */
+		old_name[ptr - table->name + 1] = '#';
+		/* remove "_recover_innodb_tmp_table" suffix */
+		ut_ad(namelen > (int) sizeof S_recover_innodb_tmp_table);
+		ut_ad(!strcmp(old_name + namelen + 1 -
+			sizeof S_recover_innodb_tmp_table,
+			S_recover_innodb_tmp_table));
+		old_name[namelen + 1 - sizeof S_recover_innodb_tmp_table] = 0;
+		status = row_rename_table_for_mysql(old_name,
+						table->name, trx);
+		mem_free(old_name);
+		return(status);
+	}
 }
 
 /*************************************************************************
@@ -1248,10 +1285,10 @@ row_mysql_unlock_data_dictionary(
 }
 
 /*************************************************************************
-Does a table creation operation for MySQL. If the name of the created
-table ends to characters INNODB_MONITOR, then this also starts
-printing of monitor output by the master thread. */
-
+Does a table creation operation for MySQL.  If the name of the table
+to be created is equal with one of the predefined magic table names,
+then this also starts printing the corresponding monitor output by
+the master thread. */
 int
 row_create_table_for_mysql(
 /*=======================*/
@@ -1263,7 +1300,6 @@ row_create_table_for_mysql(
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
 	ulint		namelen;
-	ulint		keywordlen;
 	ulint		err;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -1288,10 +1324,8 @@ row_create_table_for_mysql(
 
 	trx->op_info = (char *) "creating table";
 	
-	if (0 == ut_strcmp(table->name, (char*)"mysql/host")
-	    || 0 == ut_strcmp(table->name, (char*)"mysql/user")
-	    || 0 == ut_strcmp(table->name, (char*)"mysql/db")) {
-	    	
+	if (row_mysql_is_system_table(table->name)) {
+
 		fprintf(stderr,
     "InnoDB: Error: trying to create a MySQL system table %s of type InnoDB.\n"
     "InnoDB: MySQL system tables must be of the MyISAM type!\n",
@@ -1304,13 +1338,7 @@ row_create_table_for_mysql(
 
 	trx_start_if_not_started(trx);
 
-	namelen = ut_strlen(table->name);
-
-	keywordlen = ut_strlen("_recover_innodb_tmp_table");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
- 		     (char*)"_recover_innodb_tmp_table", keywordlen)) {
+	if (row_mysql_is_recovered_tmp_table(table->name)) {
 
 		/* MySQL prevents accessing of tables whose name begins
 		with #sql, that is temporary tables. If mysqld crashes in
@@ -1322,15 +1350,13 @@ row_create_table_for_mysql(
 		return(row_mysql_recover_tmp_table(table, trx));
 	}
 
-	namelen = ut_strlen(table->name);
+	namelen = strlen(table->name) + 1;
 
-	keywordlen = ut_strlen((char *) "innodb_monitor");
+	if (namelen == sizeof S_innodb_monitor
+			&& !memcmp(table->name, S_innodb_monitor,
+				sizeof S_innodb_monitor)) {
 
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
- 				(char *) "innodb_monitor", keywordlen)) {
-
-		/* Table name ends to characters innodb_monitor:
+		/* Table equals "innodb_monitor":
 		start monitor prints */
  				
 		srv_print_innodb_monitor = TRUE;
@@ -1339,47 +1365,28 @@ row_create_table_for_mysql(
 		of InnoDB monitor prints */
 
 		os_event_set(srv_lock_timeout_thread_event);
-	}
-
-	keywordlen = ut_strlen((char *) "innodb_lock_monitor");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
- 				(char *) "innodb_lock_monitor", keywordlen)) {
+	} else if (namelen == sizeof S_innodb_lock_monitor
+			&& !memcmp(table->name, S_innodb_lock_monitor,
+				sizeof S_innodb_lock_monitor)) {
 
 		srv_print_innodb_monitor = TRUE;
 		srv_print_innodb_lock_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
-	}
-
-	keywordlen = ut_strlen((char *) "innodb_tablespace_monitor");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
-				      (char *) "innodb_tablespace_monitor", 
-				      keywordlen)) {
+	} else if (namelen == sizeof S_innodb_tablespace_monitor
+			&& !memcmp(table->name, S_innodb_tablespace_monitor,
+				sizeof S_innodb_tablespace_monitor)) {
 
 		srv_print_innodb_tablespace_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
-	}
-
-	keywordlen = ut_strlen((char *) "innodb_table_monitor");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
-				      (char *) "innodb_table_monitor",
-				      keywordlen)) {
+	} else if (namelen == sizeof S_innodb_table_monitor
+			&& !memcmp(table->name, S_innodb_table_monitor,
+				sizeof S_innodb_table_monitor)) {
 
 		srv_print_innodb_table_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
-	}
-
-	keywordlen = ut_strlen("innodb_mem_validate");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
- 				(char*)"innodb_mem_validate", keywordlen)) {
-
+	} else if (namelen == sizeof S_innodb_mem_validate
+			&& !memcmp(table->name, S_innodb_mem_validate,
+				sizeof S_innodb_mem_validate)) {
 	        /* We define here a debugging feature intended for
 		developers */
 
@@ -1468,8 +1475,6 @@ row_create_index_for_mysql(
 	ind_node_t*	node;
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
-	ulint		namelen;
-	ulint		keywordlen;
 	ulint		err;
 	ulint		i, j;
 	
@@ -1482,7 +1487,7 @@ row_create_index_for_mysql(
 	trx->op_info = (char *) "creating index";
 
 	/* Check that the same column does not appear twice in the index.
-	Starting from 4.0.14 InnoDB should be able to cope with that, but
+	Starting from 4.0.14, InnoDB should be able to cope with that, but
 	safer not to allow them. */
 
 	for (i = 0; i < dict_index_get_n_fields(index); i++) {
@@ -1508,14 +1513,7 @@ row_create_index_for_mysql(
 
 	trx_start_if_not_started(trx);
 
-	namelen = ut_strlen(index->table_name);
-
-	keywordlen = ut_strlen("_recover_innodb_tmp_table");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(
-				index->table_name + namelen - keywordlen,
- 			(char*)"_recover_innodb_tmp_table", keywordlen)) {
+	if (row_mysql_is_recovered_tmp_table(index->table_name)) {
 
 		return(DB_SUCCESS);
 	}
@@ -1576,8 +1574,6 @@ row_table_add_foreign_constraints(
 	char*	name)		/* in: table full name in the normalized form
 				database_name/table_name */
 {
-	ulint	namelen;
-	ulint	keywordlen;
 	ulint	err;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1590,14 +1586,7 @@ row_table_add_foreign_constraints(
 
 	trx_start_if_not_started(trx);
 
-	namelen = ut_strlen(name);
-
-	keywordlen = ut_strlen("_recover_innodb_tmp_table");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(
-				name + namelen - keywordlen,
- 			(char*)"_recover_innodb_tmp_table", keywordlen)) {
+	if (row_mysql_is_recovered_tmp_table(name)) {
 
 		return(DB_SUCCESS);
 	}
@@ -1781,9 +1770,7 @@ row_add_table_to_background_drop_list(
 	
 	drop = mem_alloc(sizeof(row_mysql_drop_t));
 
-	drop->table_name = mem_alloc(1 + ut_strlen(table->name));
-
-	ut_memcpy(drop->table_name, table->name, 1 + ut_strlen(table->name));
+	drop->table_name = mem_strdup(table->name);
 
 	mutex_enter(&kernel_mutex);
 
@@ -1817,83 +1804,15 @@ row_drop_table_for_mysql(
 	que_thr_t*	thr;
 	que_t*		graph;
 	ulint		err;
-	char*		str1;
-	char*		str2;
-	ulint		len;
 	ulint		namelen;
-	ulint		keywordlen;
 	ibool		locked_dictionary	= FALSE;
-	char		buf[10000];
-
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-	ut_a(name != NULL);
-
-	if (srv_created_new_raw) {
-		fprintf(stderr,
-		"InnoDB: A new raw disk partition was initialized or\n"
-		"InnoDB: innodb_force_recovery is on: we do not allow\n"
-		"InnoDB: database modifications by the user. Shut down\n"
-		"InnoDB: mysqld and edit my.cnf so that newraw is replaced\n"
-		"InnoDB: with raw, and innodb_force_... is removed.\n");
-
-		return(DB_ERROR);
-	}
-
-	trx->op_info = (char *) "dropping table";
-
-	trx_start_if_not_started(trx);
-
-	namelen = ut_strlen(name);
-	keywordlen = ut_strlen((char *) "innodb_monitor");
-
-	if (namelen >= keywordlen
-	    && 0 == ut_memcmp(name + namelen - keywordlen,
-			      (char *) "innodb_monitor", keywordlen)) {
-
-		/* Table name ends to characters innodb_monitor:
-		stop monitor prints */
- 				
-		srv_print_innodb_monitor = FALSE;
-		srv_print_innodb_lock_monitor = FALSE;
-	}
-
-	keywordlen = ut_strlen((char *) "innodb_lock_monitor");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(name + namelen - keywordlen,
-				      (char *) "innodb_lock_monitor",
-				      keywordlen)) {
-
-		srv_print_innodb_monitor = FALSE;
-		srv_print_innodb_lock_monitor = FALSE;
-	}
-
-	keywordlen = ut_strlen((char *) "innodb_tablespace_monitor");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(name + namelen - keywordlen,
-				      (char *) "innodb_tablespace_monitor",
-				      keywordlen)) {
-
-		srv_print_innodb_tablespace_monitor = FALSE;
-	}
-
-	keywordlen = ut_strlen((char *) "innodb_table_monitor");
-
-	if (namelen >= keywordlen
-		    && 0 == ut_memcmp(name + namelen - keywordlen,
-				      (char *) "innodb_table_monitor",
-				      keywordlen)) {
-
-		srv_print_innodb_table_monitor = FALSE;
-	}
-
+	char*		quoted_name;
+	char*		sql;
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in deleting the dictionary data from system
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
 	frees the file segments of the B-tree associated with the index. */
-
-	str1 = (char *) 
+	static const char str1[] =
 	"PROCEDURE DROP_TABLE_PROC () IS\n"
 	"table_name CHAR;\n"
 	"sys_foreign_id CHAR;\n"
@@ -1902,10 +1821,9 @@ row_drop_table_for_mysql(
 	"foreign_id CHAR;\n"
 	"found INT;\n"
 	"BEGIN\n"
-	"table_name := '";
-	
-	str2 = (char *) 
-	"';\n"
+	"table_name := ";
+	static const char str2[] =
+	";\n"
 	"SELECT ID INTO table_id\n"
 	"FROM SYS_TABLES\n"
 	"WHERE NAME = table_name;\n"
@@ -1955,14 +1873,60 @@ row_drop_table_for_mysql(
 	"COMMIT WORK;\n"
 	"END;\n";
 
-	len = ut_strlen(str1);
+	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_a(name != NULL);
 
-	ut_memcpy(buf, str1, len);
-	ut_memcpy(buf + len, name, ut_strlen(name));
+	if (srv_created_new_raw) {
+		fputs(
+		"InnoDB: A new raw disk partition was initialized or\n"
+		"InnoDB: innodb_force_recovery is on: we do not allow\n"
+		"InnoDB: database modifications by the user. Shut down\n"
+		"InnoDB: mysqld and edit my.cnf so that newraw is replaced\n"
+		"InnoDB: with raw, and innodb_force_... is removed.\n",
+		stderr);
 
-	len += ut_strlen(name);
+		return(DB_ERROR);
+	}
 
-	ut_memcpy(buf + len, str2, ut_strlen(str2) + 1);
+	trx->op_info = (char *) "dropping table";
+
+	trx_start_if_not_started(trx);
+
+	namelen = strlen(name) + 1;
+
+	if (namelen == sizeof S_innodb_monitor
+			&& !memcmp(name, S_innodb_monitor,
+				sizeof S_innodb_monitor)) {
+
+		/* Table name equals "innodb_monitor":
+		stop monitor prints */
+ 				
+		srv_print_innodb_monitor = FALSE;
+		srv_print_innodb_lock_monitor = FALSE;
+	} else if (namelen == sizeof S_innodb_lock_monitor
+			&& !memcmp(name, S_innodb_lock_monitor,
+				sizeof S_innodb_lock_monitor)) {
+
+		srv_print_innodb_monitor = FALSE;
+		srv_print_innodb_lock_monitor = FALSE;
+	} else if (namelen == sizeof S_innodb_tablespace_monitor
+			&& !memcmp(name, S_innodb_tablespace_monitor,
+				sizeof S_innodb_tablespace_monitor)) {
+
+		srv_print_innodb_tablespace_monitor = FALSE;
+	} else if (namelen == sizeof S_innodb_table_monitor
+			&& !memcmp(name, S_innodb_table_monitor,
+				sizeof S_innodb_table_monitor)) {
+
+		srv_print_innodb_table_monitor = FALSE;
+	}
+
+	quoted_name = mem_strdupq(name, '\'');
+	namelen = strlen(quoted_name);
+	sql = mem_alloc((sizeof str1) + (sizeof str2) - 2 + 1 + namelen);
+	memcpy(sql, str1, (sizeof str1) - 1);
+	memcpy(sql + (sizeof str1) - 1, quoted_name, namelen);
+	memcpy(sql + (sizeof str1) - 1 + namelen, str2, sizeof str2);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -1981,9 +1945,10 @@ row_drop_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	
-	graph = pars_sql(buf);
+	graph = pars_sql(sql);
 
 	ut_a(graph);
+	mem_free(sql);
 
 	graph->trx = trx;
 	trx->graph = NULL;
@@ -2144,9 +2109,10 @@ loop:
 	row_mysql_lock_data_dictionary(trx);
 
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
-		ut_a(memcmp(table_name, name, strlen(name)) == 0);
+		ut_a(strcmp(table_name, name) == 0);
 
 		table = dict_table_get_low(table_name);
+fprintf(stderr, "drop %p:%s\n", table, table_name);
 
 		ut_a(table);
 
@@ -2197,19 +2163,11 @@ static
 ibool
 row_is_mysql_tmp_table_name(
 /*========================*/
-			/* out: TRUE if temporary table */
-	char*	name)	/* in: table name in the form 'database/tablename' */
+				/* out: TRUE if temporary table */
+	const char*	name)	/* in: table name in the form
+				'database/tablename' */
 {
-	ulint	i;
-
-	for (i = 0; i + 5 <= ut_strlen(name); i++) {
-		if (ut_memcmp(name + i, (char*)"/#sql", 5) == 0) {
-
-			return(TRUE);
-		}
-	}
-
-	return(FALSE);
+	return(strstr(name, "/#sql") != NULL);
 }
 
 /*************************************************************************
@@ -2227,79 +2185,11 @@ row_rename_table_for_mysql(
 	que_thr_t*	thr;
 	que_t*		graph			= NULL;
 	ulint		err;
-	char*		str1;
-	char*		str2;
-	char*		str3;
-	mem_heap_t*	heap			= NULL;
-	char**		constraints_to_drop	= NULL;
-	ulint		n_constraints_to_drop	= 0;
-        ibool           recovering_temp_table   = FALSE;
-        ulint           namelen;
-        ulint           keywordlen;
-	ulint		len;
-	ulint		i;
-	char*		db_name;
-	char		buf[10000];
-
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-	ut_a(old_name != NULL);
-	ut_a(new_name != NULL);
-
-	if (srv_created_new_raw || srv_force_recovery) {
-		fprintf(stderr,
-		"InnoDB: A new raw disk partition was initialized or\n"
-		"InnoDB: innodb_force_recovery is on: we do not allow\n"
-		"InnoDB: database modifications by the user. Shut down\n"
-		"InnoDB: mysqld and edit my.cnf so that newraw is replaced\n"
-		"InnoDB: with raw, and innodb_force_... is removed.\n");
-
-  		trx_commit_for_mysql(trx);
-		return(DB_ERROR);
-	}
-	
-	if (0 == ut_strcmp(new_name, (char*)"mysql/host")
-	    || 0 == ut_strcmp(new_name, (char*)"mysql/user")
-	    || 0 == ut_strcmp(new_name, (char*)"mysql/db")) {
-	    	
-		fprintf(stderr,
-    "InnoDB: Error: trying to create a MySQL system table %s of type InnoDB.\n"
-    "InnoDB: MySQL system tables must be of the MyISAM type!\n",
-		new_name);
-
-  		trx_commit_for_mysql(trx);
-		return(DB_ERROR);
-	}
-
-	trx->op_info = (char *) "renaming table";
-	trx_start_if_not_started(trx);
-
-        namelen = ut_strlen(new_name);
-
-        keywordlen = ut_strlen("_recover_innodb_tmp_table");
-
-        if (namelen >= keywordlen
-                    && 0 == ut_memcmp(new_name + namelen - keywordlen,
-                     (char*)"_recover_innodb_tmp_table", keywordlen)) {
-
-                recovering_temp_table = TRUE;
-        }
-
-	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations */
-
-	if (!recovering_temp_table) {		
-		row_mysql_lock_data_dictionary(trx);
-	}
-
-	table = dict_table_get_low(old_name);
-
-	if (!table) {
-		err = DB_TABLE_NOT_FOUND;
-
-		goto funct_exit;
-	}
-
-	str1 = (char *) 
+	/* We use the private SQL parser of Innobase to generate the
+	query graphs needed in deleting the dictionary data from system
+	tables in Innobase. Deleting a row from SYS_INDEXES table also
+	frees the file segments of the B-tree associated with the index. */
+	static const char str1[] =
 	"PROCEDURE RENAME_TABLE_PROC () IS\n"
 	"new_table_name CHAR;\n"
 	"old_table_name CHAR;\n"
@@ -2313,12 +2203,133 @@ row_rename_table_for_mysql(
 	"id_len INT;\n"
 	"found INT;\n"
 	"BEGIN\n"
-	"new_table_name :='";
-
-	str2 = (char *) 
+	"new_table_name := '";
+	static const char str2[] =
 	"';\nold_table_name := '";
+	static const char str3[] =
+	"';\n"
+	"UPDATE SYS_TABLES SET NAME = new_table_name\n"
+	"WHERE NAME = old_table_name;\n";
+	static const char str4a1[] = /* drop some constraints of tmp tables */
+	"DELETE FROM SYS_FOREIGN_COLS WHERE ID = '";
+	static const char str4a2[] = "';\n"
+	"DELETE FROM SYS_FOREIGN WHERE ID = '";
+	static const char str4a3[] = "';\n";
+	static const char str4b[] = /* rename all constraints */
+	"found := 1;\n"
+	"old_db_name_len := INSTR(old_table_name, '/') - 1;\n"
+	"new_db_name_len := INSTR(new_table_name, '/') - 1;\n"
+	"new_db_name := SUBSTR(new_table_name, 0, new_db_name_len);\n"
+	"old_t_name_len := LENGTH(old_table_name);\n"
+	"gen_constr_prefix := CONCAT(old_table_name, '_ibfk_');\n"
+	"WHILE found = 1 LOOP\n"
+	"	SELECT ID INTO foreign_id\n"
+	"	FROM SYS_FOREIGN\n"
+	"	WHERE FOR_NAME = old_table_name;\n"	
+	"	IF (SQL % NOTFOUND) THEN\n"
+	"	 found := 0;\n"
+	"	ELSE\n"
+	"	 UPDATE SYS_FOREIGN\n"
+	"	 SET FOR_NAME = new_table_name\n"
+	"	 WHERE ID = foreign_id;\n"
+	"	 id_len := LENGTH(foreign_id);\n"
+	"	 IF (INSTR(foreign_id, '/') > 0) THEN\n"
+	"	 	IF (INSTR(foreign_id,\n"
+	"				gen_constr_prefix) > 0)\n"
+	"		THEN\n"
+	"		  new_foreign_id :=\n"
+	"		    CONCAT(new_table_name,\n"
+	"			SUBSTR(foreign_id, old_t_name_len,\n"
+	"			      	 id_len - old_t_name_len));\n"
+	"		ELSE\n"
+	"		  new_foreign_id :=\n"
+	"		    CONCAT(new_db_name,\n"
+	"			SUBSTR(foreign_id,\n"
+	"				old_db_name_len,\n"
+	"				 id_len - old_db_name_len));\n"
+	"		END IF;\n"
+	"		UPDATE SYS_FOREIGN\n"
+	"		SET ID = new_foreign_id\n"
+	"		WHERE ID = foreign_id;\n"
+	"		UPDATE SYS_FOREIGN_COLS\n"
+	"		SET ID = new_foreign_id\n"
+	"		WHERE ID = foreign_id;\n"
+	"	 END IF;\n"
+	"	END IF;\n"
+	"END LOOP;\n"
+	"UPDATE SYS_FOREIGN SET REF_NAME = new_table_name\n"
+	"WHERE REF_NAME = old_table_name;\n";
+	static const char str5[] =
+	"END;\n";
+
+	mem_heap_t*	heap			= NULL;
+	const char**	constraints_to_drop	= NULL;
+	ulint		n_constraints_to_drop	= 0;
+        ibool           recovering_temp_table   = FALSE;
+	ulint		len;
+	ulint		i;
+	/* length of database name; 0 if not renaming to a temporary table */
+	ulint		db_name_len;
+	char*		sql;
+	char*		sqlend;
+
+	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_a(old_name != NULL);
+	ut_a(new_name != NULL);
+
+	if (srv_created_new_raw || srv_force_recovery) {
+		fputs(
+		"InnoDB: A new raw disk partition was initialized or\n"
+		"InnoDB: innodb_force_recovery is on: we do not allow\n"
+		"InnoDB: database modifications by the user. Shut down\n"
+		"InnoDB: mysqld and edit my.cnf so that newraw is replaced\n"
+		"InnoDB: with raw, and innodb_force_... is removed.\n",
+		stderr);
+
+  		trx_commit_for_mysql(trx);
+		return(DB_ERROR);
+	}
+	
+	if (row_mysql_is_system_table(new_name)) {
+	    	
+		fprintf(stderr,
+    "InnoDB: Error: trying to create a MySQL system table %s of type InnoDB.\n"
+    "InnoDB: MySQL system tables must be of the MyISAM type!\n",
+		new_name);
+
+  		trx_commit_for_mysql(trx);
+		return(DB_ERROR);
+	}
+
+	trx->op_info = (char *) "renaming table";
+	trx_start_if_not_started(trx);
+
+	if (row_mysql_is_recovered_tmp_table(new_name)) {
+
+                recovering_temp_table = TRUE;
+	}
+
+	/* Serialize data dictionary operations with dictionary mutex:
+	no deadlocks can occur then in these operations */
+
+	if (!recovering_temp_table) {
+		row_mysql_lock_data_dictionary(trx);
+	}
+
+	table = dict_table_get_low(old_name);
+
+	if (!table) {
+		err = DB_TABLE_NOT_FOUND;
+
+		goto funct_exit;
+	}
+
+	/* calculate the length of the SQL string */
+	len = (sizeof str1) + (sizeof str2) + (sizeof str3) + (sizeof str5) - 4
+		+ ut_strlenq(new_name, '\'') + ut_strlenq(old_name, '\'');
 
 	if (row_is_mysql_tmp_table_name(new_name)) {
+		db_name_len = dict_get_db_name_len(old_name) + 1;
 
 		/* MySQL is doing an ALTER TABLE command and it renames the
 		original table to a temporary table name. We want to preserve
@@ -2336,31 +2347,57 @@ row_rename_table_for_mysql(
 
 			goto funct_exit;
 		}
-		
-		str3 = mem_heap_alloc(heap,
-					1000 + 1000 * n_constraints_to_drop);
-		*str3 = '\0';
-		sprintf(str3,
-			"';\n"
-			"UPDATE SYS_TABLES SET NAME = new_table_name\n"
-			"WHERE NAME = old_table_name;\n");
 
-		db_name = mem_heap_alloc(heap, 1 + dict_get_db_name_len(
-								old_name));
-		ut_memcpy(db_name, old_name, dict_get_db_name_len(old_name));
-		db_name[dict_get_db_name_len(old_name)] = '\0';
+		/* reserve space for all database names */
+		len += 2 * n_constraints_to_drop
+			* (ut_strlenq(old_name, '\'')
+			- ut_strlenq(old_name + db_name_len, '\''));
 
+		for (i = 0; i < n_constraints_to_drop; i++) {
+			ulint	addlen
+				= 2 * ut_strlenq(constraints_to_drop[i], '\'')
+				+ ((sizeof str4a1) + (sizeof str4a2)
+				+ (sizeof str4a3) - 3);
+			if (!strchr(constraints_to_drop[i], '/')) {
+				addlen *= 2;
+			}
+			len += addlen;
+		}
+	} else {
+		db_name_len = 0;
+		len += (sizeof str4b) - 1;
+	}
+
+	sql = sqlend = mem_alloc(len + 1);
+	memcpy(sql, str1, (sizeof str1) - 1);
+	sqlend += (sizeof str1) - 1;
+	sqlend = ut_strcpyq(sqlend, '\'', new_name);
+	memcpy(sqlend, str2, (sizeof str2) - 1);
+	sqlend += (sizeof str2) - 1;
+	sqlend = ut_strcpyq(sqlend, '\'', old_name);
+	memcpy(sqlend, str3, (sizeof str3) - 1);
+	sqlend += (sizeof str3) - 1;
+
+	if (db_name_len) {
 		/* Internally, old format < 4.0.18 constraints have as the
 		constraint id <number>_<number>, while new format constraints
 		have <databasename>/<constraintname>. */
 
 		for (i = 0; i < n_constraints_to_drop; i++) {
-
-			sprintf(str3 + strlen(str3),
-			"DELETE FROM SYS_FOREIGN_COLS WHERE ID = '%s/%s';\n"
-			"DELETE FROM SYS_FOREIGN WHERE ID = '%s/%s';\n",
-				db_name, constraints_to_drop[i],
-				db_name, constraints_to_drop[i]);
+			memcpy(sqlend, str4a1, (sizeof str4a1) - 1);
+			sqlend += (sizeof str4a1) - 1;
+			sqlend = ut_memcpyq(sqlend, '\'',
+				old_name, db_name_len);
+			sqlend = ut_strcpyq(sqlend, '\'',
+				constraints_to_drop[i]);
+			memcpy(sqlend, str4a2, (sizeof str4a2) - 1);
+			sqlend += (sizeof str4a2) - 1;
+			sqlend = ut_memcpyq(sqlend, '\'',
+				old_name, db_name_len);
+                        sqlend = ut_strcpyq(sqlend, '\'',
+				constraints_to_drop[i]);
+			memcpy(sqlend, str4a3, (sizeof str4a3) - 1);
+			sqlend += (sizeof str4a3) - 1;
 
 			if (!strchr(constraints_to_drop[i], '/')) {
 				/* If this happens to be an old format
@@ -2368,90 +2405,33 @@ row_rename_table_for_mysql(
 				format constraints contain '/', it does no
 				harm to run these DELETEs anyway. */
 
-				sprintf(str3 + strlen(str3),
-			     "DELETE FROM SYS_FOREIGN_COLS WHERE ID = '%s';\n"
-			     "DELETE FROM SYS_FOREIGN WHERE ID = '%s';\n",
-				constraints_to_drop[i],
-				constraints_to_drop[i]);
+				memcpy(sqlend, str4a1, (sizeof str4a1) - 1);
+				sqlend += (sizeof str4a1) - 1;
+				sqlend = ut_strcpyq(sqlend, '\'',
+					constraints_to_drop[i]);
+				memcpy(sqlend, str4a2, (sizeof str4a2) - 1);
+				sqlend += (sizeof str4a2) - 1;
+                        	sqlend = ut_strcpyq(sqlend, '\'',
+					constraints_to_drop[i]);
+				memcpy(sqlend, str4a3, (sizeof str4a3) - 1);
+				sqlend += (sizeof str4a3) - 1;
 			}
 		}
-
-		sprintf(str3 + strlen(str3),
-			"END;\n");
-
-		ut_a(strlen(str3) < 1000 + 1000 * n_constraints_to_drop);
-	} else {
-		str3 = (char*)
-		"';\n"
-		"UPDATE SYS_TABLES SET NAME = new_table_name\n"
-		"WHERE NAME = old_table_name;\n"
-		"found := 1;\n"
-		"old_db_name_len := INSTR(old_table_name, '/') - 1;\n"
-		"new_db_name_len := INSTR(new_table_name, '/') - 1;\n"
-		"new_db_name := SUBSTR(new_table_name, 0, new_db_name_len);\n"
-		"old_t_name_len := LENGTH(old_table_name);\n"
-		"gen_constr_prefix := CONCAT(old_table_name, '_ibfk_');\n"
-		"WHILE found = 1 LOOP\n"
-		"	SELECT ID INTO foreign_id\n"
-		"	FROM SYS_FOREIGN\n"
-		"	WHERE FOR_NAME = old_table_name;\n"	
-		"	IF (SQL % NOTFOUND) THEN\n"
-		"	 found := 0;\n"
-		"	ELSE\n"
-		"	 UPDATE SYS_FOREIGN\n"
-		"	 SET FOR_NAME = new_table_name\n"
-		"	 WHERE ID = foreign_id;\n"
-		"	 id_len := LENGTH(foreign_id);\n"
-		"	 IF (INSTR(foreign_id, '/') > 0) THEN\n"
-		"	 	IF (INSTR(foreign_id,\n"
-		"				gen_constr_prefix) > 0)\n"
-		"		THEN\n"
-		"		  new_foreign_id :=\n"
-		"		    CONCAT(new_table_name,\n"
-		"			SUBSTR(foreign_id, old_t_name_len,\n"
-		"			      	 id_len - old_t_name_len));\n"
-		"		ELSE\n"
-		"		  new_foreign_id :=\n"
-		"		    CONCAT(new_db_name,\n"
-		"			SUBSTR(foreign_id,\n"
-		"				old_db_name_len,\n"
-		"				 id_len - old_db_name_len));\n"
-		"		END IF;\n"
-		"		UPDATE SYS_FOREIGN\n"
-		"		SET ID = new_foreign_id\n"
-		"		WHERE ID = foreign_id;\n"
-		"		UPDATE SYS_FOREIGN_COLS\n"
-		"		SET ID = new_foreign_id\n"
-		"		WHERE ID = foreign_id;\n"
-		"	 END IF;\n"
-		"	END IF;\n"
-		"END LOOP;\n"
-		"UPDATE SYS_FOREIGN SET REF_NAME = new_table_name\n"
-		"WHERE REF_NAME = old_table_name;\n"
-		"END;\n";
+	}
+	else {
+		memcpy(sqlend, str4b, (sizeof str4b) - 1);
+		sqlend += (sizeof str4b) - 1;
 	}
 
-	len = ut_strlen(str1);
+	memcpy(sqlend, str5, sizeof str5);
+	sqlend += sizeof str5;
 
-	ut_memcpy(buf, str1, len);
-
-	ut_memcpy(buf + len, new_name, ut_strlen(new_name));
-
-	len += ut_strlen(new_name);
-
-	ut_memcpy(buf + len, str2, ut_strlen(str2));
-
-	len += ut_strlen(str2);
-
-	ut_memcpy(buf + len, old_name, ut_strlen(old_name));
-
-	len += ut_strlen(old_name);
-
-	ut_memcpy(buf + len, str3, ut_strlen(str3) + 1);
+	ut_a(sqlend == sql + len + 1);
 	
-	graph = pars_sql(buf);
+	graph = pars_sql(sql);
 
 	ut_a(graph);
+	mem_free(sql);
 
 	graph->trx = trx;
 	trx->graph = NULL;
@@ -2609,7 +2589,7 @@ loop:
 	template */
 	
 	rec = buf + mach_read_from_4(buf);
-	
+
 	if (prev_entry != NULL) {
 		matched_fields = 0;
 		matched_bytes = 0;

@@ -274,8 +274,7 @@ recv_truncate_group(
 
 		len = ut_dulint_minus(end_lsn, start_lsn);
 		
-		log_group_write_buf(LOG_RECOVER, group, log_sys->buf, len,
-								start_lsn, 0);
+		log_group_write_buf(group, log_sys->buf, len, start_lsn, 0);
 		if (ut_dulint_cmp(end_lsn, finish_lsn) >= 0) {
 
 			return;
@@ -330,8 +329,7 @@ recv_copy_group(
 
 		len = ut_dulint_minus(end_lsn, start_lsn);
 		
-		log_group_write_buf(LOG_RECOVER, group, log_sys->buf, len,
-								start_lsn, 0);
+		log_group_write_buf(group, log_sys->buf, len, start_lsn, 0);
 		
 		if (ut_dulint_cmp(end_lsn, recovered_lsn) >= 0) {
 
@@ -523,7 +521,7 @@ recv_find_max_checkpoint(
 "InnoDB: the problem may be that during an earlier attempt you managed\n"
 "InnoDB: to create the InnoDB data files, but log file creation failed.\n"
 "InnoDB: If that is the case, please refer to section 3.1 of\n"
-"InnoDB: http://www.innodb.com/ibman.html\n");
+"InnoDB: http://www.innodb.com/ibman.php\n");
 
 		return(DB_ERROR);
 	}

@@ -1576,7 +1576,8 @@ ulint
 srv_lock_timeout_and_monitor_thread(
 /*================================*/
 			/* out: a dummy parameter */
-	void*	arg)	/* in: a dummy parameter required by
+	void*	arg __attribute__((unused)))
+			/* in: a dummy parameter required by
 			os_thread_create */
 {
 	srv_slot_t*	slot;
@@ -1593,7 +1594,6 @@ srv_lock_timeout_and_monitor_thread(
 	printf("Lock timeout thread starts, id %lu\n",
 			     os_thread_pf(os_thread_get_curr_id()));
 #endif
-	UT_NOT_USED(arg);
 	srv_last_monitor_time = time(NULL);
 	last_table_monitor_time = time(NULL);
 	last_monitor_time = time(NULL);
@@ -1738,7 +1738,7 @@ exit_func:
 
 	os_thread_exit(NULL);
 #ifndef __WIN__
-        return(NULL);
+	return(NULL);
 #else
 	return(0);
 #endif
@@ -1756,12 +1756,12 @@ ulint
 srv_error_monitor_thread(
 /*=====================*/
 			/* out: a dummy parameter */
-	void*	arg)	/* in: a dummy parameter required by
+	void*	arg __attribute__((unused)))
+			/* in: a dummy parameter required by
 			os_thread_create */
 {
 	ulint	cnt	= 0;
 
-	UT_NOT_USED(arg);
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	printf("Error monitor thread starts, id %lu\n",
 			      os_thread_pf(os_thread_get_curr_id()));
@@ -1801,7 +1801,7 @@ loop:
 	os_thread_exit(NULL);
 
 #ifndef __WIN__
-        return(NULL);
+	return(NULL);
 #else
 	return(0);
 #endif
@@ -1857,7 +1857,8 @@ ulint
 srv_master_thread(
 /*==============*/
 			/* out: a dummy parameter */
-	void*	arg)	/* in: a dummy parameter required by
+	void*	arg __attribute__((unused)))
+			/* in: a dummy parameter required by
 			os_thread_create */
 {
 	os_event_t	event;
@@ -1876,8 +1877,6 @@ srv_master_thread(
 	ibool		skip_sleep	= FALSE;
 	ulint		i;
 	
-	UT_NOT_USED(arg);
-
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	printf("Master thread starts, id %lu\n",
 			      os_thread_pf(os_thread_get_curr_id()));

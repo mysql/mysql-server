@@ -1745,8 +1745,6 @@ pars_sql(
 	sym_node_t*	sym_node;
 	mem_heap_t*	heap;
 	que_t*		graph;
-	ulint		len;
-	char*		buf;
 
 	ut_ad(str);
 
@@ -1758,12 +1756,8 @@ pars_sql(
 #endif /* UNIV_SYNC_DEBUG */
 	pars_sym_tab_global = sym_tab_create(heap);
 
-	len = ut_strlen(str);
-	buf = mem_heap_alloc(heap, len + 1);
-	ut_memcpy(buf, str, len + 1);
-
-	pars_sym_tab_global->sql_string = buf;
-	pars_sym_tab_global->string_len = len;
+	pars_sym_tab_global->sql_string = mem_heap_strdup(heap, str);
+	pars_sym_tab_global->string_len = strlen(str);
 	pars_sym_tab_global->next_char_pos = 0;
 	
 	yyparse();

@@ -159,17 +159,13 @@ srv_parse_data_file_paths_and_sizes(
 		        str++;
 		}
 
-	        if (strlen(str) >= ut_strlen(":autoextend")
-	            && 0 == ut_memcmp(str, (char*)":autoextend",
-						ut_strlen(":autoextend"))) {
+	        if (0 == memcmp(str, ":autoextend", (sizeof ":autoextend") - 1)) {
 
-			str += ut_strlen(":autoextend");
+			str += (sizeof ":autoextend") - 1;
 
-	        	if (strlen(str) >= ut_strlen(":max:")
-	            		&& 0 == ut_memcmp(str, (char*)":max:",
-						ut_strlen(":max:"))) {
+	        	if (0 == memcmp(str, ":max:", (sizeof ":max:") - 1)) {
 
-				str += ut_strlen(":max:");
+				str += (sizeof ":max:") - 1;
 
 				size = strtoul(str, &endp, 10);
 
@@ -198,10 +194,7 @@ srv_parse_data_file_paths_and_sizes(
 		  	str += 3;
 		}
 
-	        if (strlen(str) >= 3
-			   && *str == 'r'
-			   && *(str + 1) == 'a' 
-		           && *(str + 2) == 'w') {
+	        if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
 		  	str += 3;
 		}
 
@@ -263,19 +256,15 @@ srv_parse_data_file_paths_and_sizes(
 		(*data_file_names)[i] = path;
 		(*data_file_sizes)[i] = size;
 
-	        if (strlen(str) >= ut_strlen(":autoextend")
-	            && 0 == ut_memcmp(str, (char*)":autoextend",
-						ut_strlen(":autoextend"))) {
+	        if (0 == memcmp(str, ":autoextend", (sizeof ":autoextend") - 1)) {
 
 			*is_auto_extending = TRUE;
 
-			str += ut_strlen(":autoextend");
+			str += (sizeof ":autoextend") - 1;
 
-	        	if (strlen(str) >= ut_strlen(":max:")
-	            		&& 0 == ut_memcmp(str, (char*)":max:",
-						ut_strlen(":max:"))) {
+	        	if (0 == memcmp(str, ":max:", (sizeof ":max:") - 1)) {
 
-				str += ut_strlen(":max:");
+				str += (sizeof ":max:") - 1;
 
 				size = strtoul(str, &endp, 10);
 
@@ -309,10 +298,7 @@ srv_parse_data_file_paths_and_sizes(
 		  	(*data_file_is_raw_partition)[i] = SRV_NEW_RAW;
 		}
 
-	        if (strlen(str) >= 3
-			   && *str == 'r'
-			   && *(str + 1) == 'a' 
-		           && *(str + 2) == 'w') {
+		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
 		 	str += 3;
 		  
 		  	if ((*data_file_is_raw_partition)[i] == 0) {
@@ -454,12 +440,10 @@ srv_normalize_path_for_win(
 	char*	str __attribute__((unused)))	/* in/out: null-terminated character string */
 {
 #ifdef __WIN__
-	ulint	i;
+	for (; *str; str++) {
 
-	for (i = 0; i < ut_strlen(str); i++) {
-
-		if (str[i] == '/') {
-			str[i] = '\\';
+		if (*str == '/') {
+			*str = '\\';
 		}
 	}
 #endif
@@ -528,8 +512,6 @@ ulint
 open_or_create_log_file(
 /*====================*/
 					/* out: DB_SUCCESS or error code */
-	ibool	create_new_db,		/* in: TRUE if we should create a
-					new database */
 	ibool*	log_file_created,	/* out: TRUE if new log file
 					created */
 	ibool	log_file_has_been_opened,/* in: TRUE if a log file has been
@@ -543,8 +525,6 @@ open_or_create_log_file(
 	ulint	size;
 	ulint	size_high;
 	char	name[10000];
-
-	UT_NOT_USED(create_new_db);
 
 	*log_file_created = FALSE;
 
@@ -1149,8 +1129,7 @@ NetWare. */
 
 		for (i = 0; i < srv_n_log_files; i++) {
 
-			err = open_or_create_log_file(create_new_db,
-						&log_file_created,
+			err = open_or_create_log_file(&log_file_created,
 						log_opened, k, i);
 			if (err != DB_SUCCESS) {
 

@@ -32,20 +32,21 @@ Get the database name length in a table name. */
 ulint
 dict_get_db_name_len(
 /*=================*/
-			/* out: database name length */
-	char*	name);	/* in: table name in the form dbname '/' tablename */
+				/* out: database name length */
+	const char*	name);	/* in: table name in the form
+				dbname '/' tablename */
 /*************************************************************************
 Accepts a specified string. Comparisons are case-insensitive. */
 
-char*
+const char*
 dict_accept(
 /*========*/
-			/* out: if string was accepted, the pointer
-			is moved after that, else ptr is returned */
-	char*	ptr,	/* in: scan from this */
-	const char* string,/* in: accept only this string as the next
-			non-whitespace string */
-	ibool*	success);/* out: TRUE if accepted */
+				/* out: if string was accepted, the pointer
+				is moved after that, else ptr is returned */
+	const char*	ptr,	/* in: scan from this */
+	const char*	string,	/* in: accept only this string as the next
+				non-whitespace string */
+	ibool*		success);/* out: TRUE if accepted */
 /************************************************************************
 Decrements the count of open MySQL handles to a table. */
 
@@ -216,7 +217,7 @@ dict_foreign_parse_drop_constraints(
 	dict_table_t*	table,			/* in: table */
 	ulint*		n,			/* out: number of constraints
 						to drop */
-	char***		constraints_to_drop);	/* out: id's of the
+	const char***	constraints_to_drop);	/* out: id's of the
 						constraints to drop */
 /**************************************************************************
 Returns a table object and memoryfixes it. NOTE! This is a high-level
@@ -321,7 +322,7 @@ dict_table_print_by_name(
 /*=====================*/
 	char*	name);
 /**************************************************************************
-Sprintfs to a string info on foreign keys of a table. */
+Outputs info on foreign keys of a table. */
 
 void
 dict_print_info_on_foreign_keys(

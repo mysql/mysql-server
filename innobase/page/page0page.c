@@ -1604,7 +1604,7 @@ page_validate(
 	page_cur_set_before_first(page, &cur);
 
 	for (;;) {
-		rec = (&cur)->rec;
+		rec = cur.rec;
 
 		if (!page_rec_validate(rec)) {
 			goto func_exit;
@@ -1793,16 +1793,13 @@ page_find_rec_with_heap_no(
 	ulint	heap_no)/* in: heap number */
 {
 	page_cur_t	cur;
-	rec_t*		rec;
 
 	page_cur_set_before_first(page, &cur);
 
 	for (;;) {
-		rec = (&cur)->rec;
+		if (rec_get_heap_no(cur.rec) == heap_no) {
 
-		if (rec_get_heap_no(rec) == heap_no) {
-
-			return(rec);
+			return(cur.rec);
 		}
 
 		if (page_cur_is_after_last(&cur)) {

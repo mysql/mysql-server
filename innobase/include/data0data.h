@@ -294,6 +294,7 @@ dtuple_check_typed_no_assert(
 /*=========================*/
 				/* out: TRUE if ok */
 	dtuple_t*	tuple);	/* in: tuple */
+#ifdef UNIV_DEBUG
 /**************************************************************
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set. */
@@ -303,6 +304,7 @@ dtuple_validate(
 /*============*/
 				/* out: TRUE if ok */
 	dtuple_t*	tuple);	/* in: tuple */
+#endif /* UNIV_DEBUG */
 /*****************************************************************
 Pretty prints a dfield value according to its data type. */
 

@@ -48,3 +48,23 @@ ut_strcmp(void* str1, void* str2)
 	return(strcmp((char*)str1, (char*)str2));
 }
 
+/**************************************************************************
+Determine the length of a string when it is quoted with ut_strcpyq(). */
+UNIV_INLINE
+ulint
+ut_strlenq(
+/*=======*/
+				/* out: length of the string when quoted */
+	const char*	str,	/* in: null-terminated string */
+	char		q)	/* in: the quote character */
+{
+	ulint len;
+
+	for (len = 0; *str; len++, str++) {
+		if (*str == q) {
+			len++;
+		}
+	}
+
+	return(len);
+}

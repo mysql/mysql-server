@@ -76,6 +76,39 @@ int
 ut_strcmp(void* str1, void* str2);
 
 /**************************************************************************
+Determine the length of a string when it is quoted with ut_strcpyq(). */
+UNIV_INLINE
+ulint
+ut_strlenq(
+/*=======*/
+				/* out: length of the string when quoted */
+	const char*	str,	/* in: null-terminated string */
+	char		q);	/* in: the quote character */
+
+/**************************************************************************
+Make a quoted copy of a string. */
+
+char*
+ut_strcpyq(
+/*=======*/
+				/* out: pointer to end of dest */
+	char*		dest,	/* in: output buffer */
+	char		q,	/* in: the quote character */
+	const char*	src);	/* in: null-terminated string */
+
+/**************************************************************************
+Make a quoted copy of a fixed-length string. */
+
+char*
+ut_memcpyq(
+/*=======*/
+				/* out: pointer to end of dest */
+	char*		dest,	/* in: output buffer */
+	char		q,	/* in: the quote character */
+	const char*	src,	/* in: string to be quoted */
+	ulint		len);	/* in: length of src */
+
+/**************************************************************************
 Catenates two strings into newly allocated memory. The memory must be freed
 using mem_free. */
 

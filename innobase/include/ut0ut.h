@@ -28,7 +28,9 @@ ut_sprintf(
 /*=======*/
         char*       buf,     /* in/out: buffer where to print */
         const char* format,  /* in: format of prints */
-        ...);                /* in: arguments to be printed */
+			...)	/* in: arguments to be printed */
+	__attribute__((__format__ (__printf__, 2, 3)));
+
 /************************************************************
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
 but since there seem to be compiler bugs in both gcc and Visual C++,
