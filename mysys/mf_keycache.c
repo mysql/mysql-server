@@ -141,9 +141,9 @@ KEY_CACHE *dflt_key_cache= &dflt_key_cache_var;
 #define FLUSH_CACHE         2000            /* sort this many blocks at once */
 
 static int flush_all_key_blocks(KEY_CACHE *keycache);
-static inline void link_into_queue(KEYCACHE_WQUEUE *wqueue,
+static void link_into_queue(KEYCACHE_WQUEUE *wqueue,
                                    struct st_my_thread_var *thread);
-static inline void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
+static void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
                                      struct st_my_thread_var *thread);
 static void free_block(KEY_CACHE *keycache, BLOCK_LINK *block);
 static void test_key_cache(KEY_CACHE *keycache,
@@ -192,8 +192,8 @@ static long keycache_thread_id;
              KEYCACHE_DBUG_PRINT(l,("|thread %ld",keycache_thread_id))
 
 #define KEYCACHE_THREAD_TRACE_BEGIN(l)                                        \
-            { struct st_my_thread_var *thread_var =my_thread_var;             \
-              keycache_thread_id=my_thread_var->id;                           \
+            { struct st_my_thread_var *thread_var= my_thread_var;             \
+              keycache_thread_id= my_thread_var->id;                          \
               KEYCACHE_DBUG_PRINT(l,("[thread %ld",keycache_thread_id)) }
 
 #define KEYCACHE_THREAD_TRACE_END(l)                                          \
@@ -289,6 +289,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     keycache->key_cache_inited= 1;
     keycache->in_init= 0;
     pthread_mutex_init(&keycache->cache_lock, MY_MUTEX_INIT_FAST);
+    keycache->resize_queue.last_thread= NULL;
   }
 
   keycache->key_cache_mem_size= use_mem;
@@ -374,7 +375,6 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     keycache->cnt_for_resize_op= 0;
     keycache->resize_in_flush= 0;
     keycache->can_be_used= 1;
-    keycache->resize_queue.last_thread= NULL;
 
     keycache->waiting_for_hash_link.last_thread= NULL;
     keycache->waiting_for_block.last_thread= NULL;
@@ -464,7 +464,7 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
   keycache_pthread_mutex_lock(&keycache->cache_lock);
 
   wqueue= &keycache->resize_queue;
-  thread=my_thread_var;
+  thread= my_thread_var;
   link_into_queue(wqueue, thread);
 
   while (wqueue->last_thread->next != thread)
@@ -478,6 +478,7 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     /* TODO: if this happens, we should write a warning in the log file ! */
     keycache->resize_in_flush= 0;
     blocks= 0;
+    keycache->can_be_used= 0;
     goto finish;
   }
   keycache->resize_in_flush= 0;
@@ -497,8 +498,6 @@ finish:
   /* Signal for the next resize request to proceeed if any */
   if (wqueue->last_thread)
     keycache_pthread_cond_signal(&wqueue->last_thread->next->suspend);
-
-  keycache->can_be_used= blocks <= 0;
   keycache_pthread_mutex_unlock(&keycache->cache_lock);
   return blocks;
 }
@@ -733,8 +732,8 @@ static inline void add_to_queue(KEYCACHE_WQUEUE *wqueue,
 
 static void release_queue(KEYCACHE_WQUEUE *wqueue)
 {
-  struct st_my_thread_var *last=wqueue->last_thread;
-  struct st_my_thread_var *next=last->next;
+  struct st_my_thread_var *last= wqueue->last_thread;
+  struct st_my_thread_var *next= last->next;
   struct st_my_thread_var *thread;
   do
   {
@@ -1052,7 +1051,7 @@ static inline void remove_reader(BLOCK_LINK *block)
 
 static inline void wait_for_readers(KEY_CACHE *keycache, BLOCK_LINK *block)
 {
-  struct st_my_thread_var *thread=my_thread_var;
+  struct st_my_thread_var *thread= my_thread_var;
   while (block->hash_link->requests)
   {
     block->condvar= &thread->suspend;
