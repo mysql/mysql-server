@@ -227,6 +227,7 @@ int main()
      !mysql_real_connect(&sel, host, user, pass, db, 0,0,0 ) ||
      !mysql_real_connect(&del_ins, host, user, pass, db, 0,0,0 ))
     die("Error in mysql_real_connect(): %s", mysql_error(&lock));
+  lock.reconnect= sel.reconnect= del_ins.reconnect= 1;
 
   permute(order, num_queries);
   printf("count = %d\n", count);

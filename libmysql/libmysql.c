@@ -317,6 +317,7 @@ my_bool STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
   DBUG_ENTER("mysql_master_send_query");
   if (!master->net.vio && !mysql_real_connect(master,0,0,0,0,0,0,0))
     DBUG_RETURN(1);
+  master->reconnect= 1;
   mysql->last_used_con = master;
   DBUG_RETURN(simple_command(master, COM_QUERY, q, length, 1));
 }
@@ -351,6 +352,7 @@ my_bool STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
   if (!slave_to_use->net.vio && !mysql_real_connect(slave_to_use, 0,0,0,
 						    0,0,0,0))
     DBUG_RETURN(1);
+  slave_to_use->reconnect= 1;
   DBUG_RETURN(simple_command(slave_to_use, COM_QUERY, q, length, 1));
 }
 
@@ -448,6 +450,7 @@ static my_bool get_slaves_from_master(MYSQL* mysql)
     expand_error(mysql, CR_PROBE_MASTER_CONNECT);
     DBUG_RETURN(1);
   }
+  mysql->reconnect= 1;
 
   if (mysql_query(mysql, "SHOW SLAVE HOSTS") ||
       !(res = mysql_store_result(mysql)))
@@ -615,6 +618,7 @@ mysql_connect(MYSQL *mysql,const char *host,
       if (mysql->free_me)
 	my_free((gptr) mysql,MYF(0));
     }
+    mysql->reconnect= 1;
     DBUG_RETURN(res);
   }
 }

@@ -877,7 +877,10 @@ static void manager_exec_connect(struct manager_exec* e)
   {
     if (mysql_real_connect(&e->mysql,e->con_host,e->con_user,e->con_pass,0,
 			   e->con_port,e->con_sock,0))
+    {
+      e->mysql.reconnect= 1;
       return;
+    }
     sleep(1);
   }
   e->error="Could not connect to MySQL server withing the number of tries";

@@ -167,6 +167,7 @@ pthread_handler_decl(test_thread,arg)
     perror("");
     goto end;
   }
+  mysql.reconnect= 1;
   if (mysql_query(&mysql,"select 1") < 0)
   {
     fprintf(stderr,"Query failed (%s)\n",mysql_error(&mysql));
