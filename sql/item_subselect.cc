@@ -323,8 +323,6 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
   SELECT_LEX *select_lex= join->select_lex;
 
   /* Juggle with current arena only if we're in prepared statement prepare */
-  DBUG_PRINT("TANSF:", ("thd %p, select_lex->join->thd: %s",
-                        thd, select_lex->join->thd));
   Item_arena *arena= thd->current_arena;
   Item_arena backup;
   if (arena->is_conventional())
