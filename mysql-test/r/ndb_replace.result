@@ -11,7 +11,7 @@ insert into t1 (gesuchnr, benutzer_id) value (3,2);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 insert into t1 (gesuchnr,benutzer_id) values (1,1);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Duplicate entry '1-1' for key 1
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 select * from t1 order by gesuchnr;
 gesuchnr	benutzer_id
