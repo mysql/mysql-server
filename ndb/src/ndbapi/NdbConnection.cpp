@@ -1582,9 +1582,6 @@ from other transactions.
 	/**
 	 * There's always a TCKEYCONF when using IgnoreError
 	 */
-#ifdef VM_TRACE
-	ndbout_c("Not completing transaction 2");
-#endif
 	return -1;
       }
 /**********************************************************************/
@@ -1836,9 +1833,6 @@ NdbConnection::OpCompleteFailure(Uint8 abortOption, bool setFailure)
       /**
        * There's always a TCKEYCONF when using IgnoreError
        */
-#ifdef VM_TRACE
-      ndbout_c("Not completing transaction");
-#endif
       return -1;
     }
     
