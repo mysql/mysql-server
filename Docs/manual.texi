@@ -2356,7 +2356,7 @@ Alameda, CA USA
 @end example
 
 A SQL tutorial is available on the net at
-http://www.geocities.com/SiliconValley/Vista/2207/sql1.html.
+http://w3.one.net/~jhoffman/sqltut.htm
 
 @node Useful Links,  , General-SQL, Introduction
 @section Useful MySQL-related Links
