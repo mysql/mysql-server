@@ -3193,7 +3193,7 @@ static int sort_ft_key_write(MI_SORT_PARAM *sort_param, const void *a)
     }
 
     /* storing the key in the buffer. */
-    memcpy (ft_buf->buf, a+val_off, val_len);
+    memcpy (ft_buf->buf, (char *)a+val_off, val_len);
     ft_buf->buf+=val_len;
     if (ft_buf->buf < ft_buf->end)
       return 0;
