@@ -38,6 +38,7 @@ MASTER_INFO glob_mi;
 
 extern bool opt_log_slave_updates ;
 
+static inline void skip_load_data_infile(NET* net);
 static inline bool slave_killed(THD* thd);
 static int init_slave_thread(THD* thd);
 int init_master_info(MASTER_INFO* mi);
@@ -52,6 +53,15 @@ static inline bool slave_killed(THD* thd)
 {
   return abort_slave || abort_loop || thd->killed;
 }
+
+static inline void skip_load_data_infile(NET* net)
+{
+  (void)my_net_write(net, "\xfb/dev/null", 10);
+  (void)net_flush(net);
+  (void)my_net_read(net); // discard response
+  send_ok(net); // the master expects it
+}
+
 
 int db_ok(const char* db, I_List<i_string> &do_list,
 	  I_List<i_string> &ignore_list )
@@ -553,9 +563,26 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 {
   Log_event * ev = Log_event::read_log_event((const char*)net->read_pos + 1,
 					     event_len);
+  
   if (ev)
   {
-    switch(ev->get_type_code())
+    int type_code = ev->get_type_code();
+    if(ev->server_id == ::server_id)
+      {
+	if(type_code == LOAD_EVENT)
+	  skip_load_data_infile(net);
+	
+	mi->inc_pos(event_len);
+	flush_master_info(mi);
+	delete ev;     
+	return 0; // avoid infinite update loops
+      }
+  
+    thd->server_id = ev->server_id; // use the original server id for logging
+    thd->set_time(); // time the query
+    ev->when = time(NULL);
+    
+    switch(type_code)
     {
     case QUERY_EVENT:
     {
@@ -706,10 +733,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       else // we will just ask the master to send us /dev/null if we do not want to
 	// load the data :-)
       {
-	(void)my_net_write(net, "\xfb/dev/null", 10);
-	(void)net_flush(net);
-	(void)my_net_read(net); // discard response
-	send_ok(net); // the master expects it
+	skip_load_data_infile(net);
       }
 	    
       thd->net.vio = 0; 
@@ -799,14 +823,14 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   if(!server_id)
     {
      sql_print_error("Server id not set, will not start slave");
-     pthread_exit(1);
+     pthread_exit((void*)1);
     }
   
   pthread_mutex_lock(&LOCK_slave);
   if(slave_running)
     {
       pthread_mutex_unlock(&LOCK_slave);
-      pthread_exit(1);  // safety just in case
+      pthread_exit((void*)1);  // safety just in case
     }
   slave_running = 1;
   abort_slave = 0;
