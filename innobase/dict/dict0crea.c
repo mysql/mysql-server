@@ -1234,9 +1234,12 @@ loop:
 	que_graph_free(graph);
 
 	if (error != DB_SUCCESS) {
+	        fprintf(stderr,
+			"InnoDB: foreign constraint creation failed;\n"
+			"InnoDB: internal error number %lu\n", error);
+
 		ut_a(error == DB_OUT_OF_FILE_SPACE);
 
-		fprintf(stderr, "InnoDB: foreign constraint creation failed\n");
 		fprintf(stderr, "InnoDB: tablespace is full\n");
 
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
