@@ -1048,13 +1048,12 @@ Dbtc::handleFailedApiNode(Signal* signal,
     apiConnectptr.i++;
     if (apiConnectptr.i > ((capiConnectFilesize / 3) - 1)) {
       jam();
-      capiConnectClosing[TapiFailedNode]--;
       /**
        * Finished with scanning connection record
        *
        * Now scan markers
        */
-      removeMarkerForFailedAPI(signal, TapiFailedNode, RNIL); // RNIL = first 
+      removeMarkerForFailedAPI(signal, TapiFailedNode, 0);
       return;
     }//if
   } while (TloopCount++ < 256);
@@ -1069,15 +1068,26 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
                                Uint32 nodeId, 
                                Uint32 startBucket)
 {
-  CommitAckMarkerIterator iter;
-  if(startBucket == RNIL){
+  TcFailRecordPtr node_fail_ptr;
+  node_fail_ptr.i = 0;
+  ptrAss(node_fail_ptr, tcFailRecord);
+  if(node_fail_ptr.p->failStatus != FS_IDLE) {
     jam();
-    capiConnectClosing[nodeId]++;
-    m_commitAckMarkerHash.next(0, iter);
-  } else {
-    jam();
-    m_commitAckMarkerHash.next(startBucket, iter);
+    DEBUG("Restarting removeMarkerForFailedAPI");
+    /**
+     * TC take-over in progress
+     *   needs to restart as this
+     *   creates new markers
+     */
+    signal->theData[0] = TcContinueB::ZHANDLE_FAILED_API_NODE_REMOVE_MARKERS;
+    signal->theData[1] = nodeId;
+    signal->theData[2] = 0;
+    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 500, 3);
+    return;
   }
+
+  CommitAckMarkerIterator iter;
+  m_commitAckMarkerHash.next(startBucket, iter);
   
   const Uint32 RT_BREAK = 256;
   for(Uint32 i = 0; i<RT_BREAK || iter.bucket == startBucket; i++){ 
@@ -1108,7 +1118,6 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
       /**
        * Check so that the record is not still in use
        *
-       * (This can happen when NF and API Fail happens at the same time)
        */
       ApiConnectRecordPtr apiConnectPtr;
       apiConnectPtr.i = iter.curr.p->apiConnectPtr;
@@ -1120,9 +1129,8 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
          *
          * Don't remove it, but continueb instead
          */
-        break;
+	break;
       }
-      
       sendRemoveMarkers(signal, iter.curr.p);
       m_commitAckMarkerHash.release(iter.curr);
       
@@ -7327,24 +7335,22 @@ Dbtc::sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord * regApiPtr){
 }
 
 void 
-Dbtc::sendTCKEY_FAILCONF(Signal* signal, const ApiConnectRecord * regApiPtr){
+Dbtc::sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord * regApiPtr){
   jam();
   TcKeyFailConf * const failConf = (TcKeyFailConf *)&signal->theData[0];
   
-  if(regApiPtr->commitAckMarker == RNIL){
-    jam();
-    failConf->apiConnectPtr = regApiPtr->ndbapiConnect;
-  } else {
-    jam();
-    failConf->apiConnectPtr = regApiPtr->ndbapiConnect | 1;
+  const Uint32 ref = regApiPtr->ndbapiBlockref;
+  const Uint32 marker = regApiPtr->commitAckMarker;
+  if(ref != 0){
+    failConf->apiConnectPtr = regApiPtr->ndbapiConnect | (marker != RNIL);
+    failConf->transId1 = regApiPtr->transid[0];
+    failConf->transId2 = regApiPtr->transid[1];
+    
+    sendSignal(regApiPtr->ndbapiBlockref,
+	       GSN_TCKEY_FAILCONF, signal, TcKeyFailConf::SignalLength, JBB);
   }
-  failConf->transId1 = regApiPtr->transid[0];
-  failConf->transId2 = regApiPtr->transid[1];
-  
-  sendSignal(regApiPtr->ndbapiBlockref,
-	     GSN_TCKEY_FAILCONF, signal, TcKeyFailConf::SignalLength, JBB);
+  regApiPtr->commitAckMarker = RNIL;
 }
-
 
 /*------------------------------------------------------------*/
 /*       THIS PART HANDLES THE ABORT PHASE IN THE CASE OF A   */

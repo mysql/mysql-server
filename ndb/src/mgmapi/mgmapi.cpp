@@ -544,7 +544,7 @@ ndb_mgm_get_status(NdbMgmHandle handle)
     buf[strlen(buf)-1] = '\0';
 
   if(strcmp("node status", buf) != 0) {
-    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "");
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     return NULL;
   }
 
