@@ -1436,7 +1436,6 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
   mysql->options.ssl_ca=     strdup_if_not_null(ca);
   mysql->options.ssl_capath= strdup_if_not_null(capath);
   mysql->options.ssl_cipher= strdup_if_not_null(cipher);
-  mysql->options.use_ssl=    TRUE;
   mysql->connector_fd = (gptr) new_VioSSLConnectorFd(key, cert, ca, capath,
 						     cipher);
   DBUG_PRINT("info",("mysql_ssl_set, context: %p",
@@ -1808,6 +1807,10 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   client_flag|=CLIENT_CAPABILITIES;
 
 #ifdef HAVE_OPENSSL
+  if (mysql->options.ssl_key || mysql->options.ssl_cert ||
+      mysql->options.ssl_ca || mysql->options.ssl_capath ||
+      mysql->options.ssl_cipher)
+    mysql->options.use_ssl= 1;
   if (mysql->options.use_ssl)
     client_flag|=CLIENT_SSL;
 #endif /* HAVE_OPENSSL */

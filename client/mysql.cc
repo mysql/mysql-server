@@ -391,13 +391,6 @@ int main(int argc,char *argv[])
 sig_handler mysql_end(int sig)
 {
   mysql_close(&mysql);
-#ifdef HAVE_OPENSSL
-  my_free(opt_ssl_key,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(opt_ssl_cert,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(opt_ssl_ca,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(opt_ssl_capath,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(opt_ssl_cipher,MYF(MY_ALLOW_ZERO_PTR));
-#endif  
 #ifdef HAVE_READLINE
   if (!status.batch && !quick && !opt_html && !opt_xml)
   {
@@ -709,7 +702,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage(0);
     exit(0);
-#include "sslopt-case.h"
   }
   return 0;
 }
@@ -2209,6 +2201,9 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   if (using_opt_local_infile)
     mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
 #ifdef HAVE_OPENSSL
+  if (opt_ssl_key || opt_ssl_cert || opt_ssl_ca || opt_ssl_capath ||
+      opt_ssl_cipher)
+    opt_use_ssl= 1;
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
