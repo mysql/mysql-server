@@ -812,7 +812,7 @@ typedef union {
 #define float4get(V,M)   memcpy_fixed((byte*) &V,(byte*) (M),sizeof(float))
 #define float4store(V,M) memcpy_fixed((byte*) V,(byte*) (&M),sizeof(float))
 
-#if (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
+#if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
 #define doublestore(T,V)    { *(T)= ((byte *) &V)[4];\
                               *((T)+1)=(char) ((byte *) &V)[5];\
                               *((T)+2)=(char) ((byte *) &V)[6];\
