@@ -5124,8 +5124,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     interval=0;
   def=0;
   if (!old_field->is_real_null() && ! (flags & BLOB_FLAG) &&
-      old_field->type() != FIELD_TYPE_TIMESTAMP && old_field->ptr &&
-      orig_field)
+      old_field->ptr && orig_field)
   {
     char buff[MAX_FIELD_WIDTH],*pos;
     String tmp(buff,sizeof(buff));
