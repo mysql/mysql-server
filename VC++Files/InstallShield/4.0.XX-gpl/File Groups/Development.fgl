@@ -33,6 +33,7 @@ file16=C:\mysql\include\my_alloc.h
 file0=C:\mysql\include\raid.h
 file17=C:\mysql\include\my_getopt.h
 file1=C:\mysql\include\errmsg.h
+file18=C:\mysql\include\typelib.h
 file2=C:\mysql\include\Libmysql.def
 file3=C:\mysql\include\m_ctype.h
 file4=C:\mysql\include\m_string.h

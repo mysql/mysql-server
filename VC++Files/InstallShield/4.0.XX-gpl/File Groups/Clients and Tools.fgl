@@ -18,6 +18,7 @@ file20=C:\mysql\bin\winmysqladmin.exe
 file21=C:\mysql\bin\myisam_ftdump.exe
 file10=C:\mysql\bin\mysqlimport.exe
 fulldirectory=
+file22=C:\mysql\bin\libmySQL.dll
 file11=C:\mysql\bin\mysqlshow.exe
 file12=C:\mysql\bin\mysqlwatch.exe
 file13=C:\mysql\bin\pack_isam.exe
