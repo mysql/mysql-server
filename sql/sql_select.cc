@@ -7525,7 +7525,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       JOIN_TAB *tab=join->join_tab+i;
       TABLE *table=tab->table;
       char buff[512],*buff_ptr=buff;
-      char buff1[512], buff2[512], buff3[512];
+      char buff1[512], buff2[512];
       String tmp1(buff1,sizeof(buff1),default_charset_info);
       String tmp2(buff2,sizeof(buff2),default_charset_info);
       tmp1.length(0);
