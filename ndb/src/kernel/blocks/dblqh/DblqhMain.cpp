@@ -15278,14 +15278,11 @@ void Dblqh::srFourthComp(Signal* signal)
 
     if(cstartType == NodeState::ST_SYSTEM_RESTART){
       fragptr.i = c_redo_log_complete_frags;
-      ndbout_c("All fragment complete - ");
       while(fragptr.i != RNIL){
 	ptrCheckGuard(fragptr, cfragrecFileSize, fragrecord);
 	signal->theData[0] = fragptr.p->tabRef;
 	signal->theData[1] = fragptr.p->fragId;
 	sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
-	ndbout_c("table: %d fragment: %d", 
-		 fragptr.p->tabRef, fragptr.p->fragId);
 	fragptr.i = fragptr.p->nextFrag;
       }
     }
