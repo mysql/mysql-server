@@ -174,7 +174,7 @@ static int walk_and_push(FT_SUPERDOC *from,
 {
   DBUG_ENTER("walk_and_copy");
   from->doc.weight+=from->tmp_weight*from->word_ptr->weight;
-  set_if_smaller(best->elements, ft_query_expansion_limit-1)
+  set_if_smaller(best->elements, ft_query_expansion_limit-1);
   queue_insert(best, (byte *)& from->doc);
   DBUG_RETURN(0);
 }
