@@ -36,7 +36,7 @@ parse_arguments() {
       --basedir=*) MY_BASEDIR_VERSION=`echo "$arg" | sed -e "s;--basedir=;;"` ;;
       --datadir=*) DATADIR=`echo "$arg" | sed -e "s;--datadir=;;"` ;;
       --pid-file=*) pid_file=`echo "$arg" | sed -e "s;--pid-file=;;"` ;;
-      --user=*)    user=`echo "$arg" | sed -e "s;--user=;;"` ;;
+      --user=*)    user=`echo "$arg" | sed -e "s;--[^=]*=;;"` ; SET_USER=1 ;;
 
       # these two might have been set in a [mysqld_safe] section of my.cnf
       # they get passed via environment variables to mysqld_safe
@@ -113,6 +113,7 @@ fi
 # these rely on $DATADIR by default, so we'll set them later on
 pid_file=
 err_log=
+SET_USER=0
 
 # Get first arguments from the my.cnf file, groups [mysqld] and [mysqld_safe]
 # and then merge with the command line arguments
@@ -172,7 +173,10 @@ fi
 USER_OPTION=""
 if test -w /
 then
-  USER_OPTION="--user=$user"
+  if test "$user" != "root" -o $SET_USER = 1
+  then
+    USER_OPTION="--user=$user"
+  fi
   # If we are root, change the err log to the right user.
   touch $err_log; chown $user $err_log
   if test -n "$open_files"
