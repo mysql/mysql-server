@@ -2110,7 +2110,9 @@ static void get_actual_table_name(const char *old_table_name,
   char query[ NAME_LEN + 50 ];
   DBUG_ENTER("get_actual_table_name");
 
-  sprintf( query, "SHOW TABLES LIKE '%s'", old_table_name);
+  char show_name_buff[FN_REFLEN];
+  sprintf(query, "SHOW TABLES LIKE %s", 
+	  quote_for_like(old_table_name, show_name_buff));
   if (mysql_query_with_error_report(sock, 0, query))
   {
     safe_exit(EX_MYSQLERR);
