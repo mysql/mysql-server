@@ -1986,27 +1986,25 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     mysql_bin_log.write(&qinfo);
   }
   res= 0;
-
-err:
-  pthread_mutex_lock(&LOCK_open);
-  unlock_table_name(thd, &src_tables_list);
-  pthread_mutex_unlock(&LOCK_open);
-  DBUG_RETURN(res);
+  goto err;
   
 table_exists:
-  pthread_mutex_lock(&LOCK_open);
-  unlock_table_name(thd, &src_tables_list);
-  pthread_mutex_unlock(&LOCK_open);
   if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
   {
     char warn_buff[MYSQL_ERRMSG_SIZE];
     sprintf(warn_buff,ER(ER_TABLE_EXISTS_ERROR),table_name);
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
                  ER_TABLE_EXISTS_ERROR,warn_buff);
-    DBUG_RETURN(0);
+    res= 0;
   }
-  my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
-  DBUG_RETURN(-1);
+  else
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+
+err:
+  pthread_mutex_lock(&LOCK_open);
+  unlock_table_name(thd, &src_tables_list);
+  pthread_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(res);
 }
 
 
