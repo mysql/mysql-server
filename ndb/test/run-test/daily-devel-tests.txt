@@ -1,6 +1,6 @@
-max-time: 2500
+max-time: 25000
 cmd: atrt-mysql-test-run
-args: --do-test=ndb --force
+args: --force
 
 #
 # INDEX
