@@ -1,0 +1,34 @@
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (v varchar(30), c char(3), e enum('abc','def','ghi'), t text);
+system cp std_data/vchar.frm var/master-data/test/;
+truncate table vchar;
+show create table t1;
+show create table vchar;
+insert into t1 values ('abc', 'de', 'ghi', 'jkl');
+insert into t1 values ('abc ', 'de ', 'ghi', 'jkl ');
+insert into t1 values ('abc    ', 'd  ', 'ghi', 'jkl    ');
+insert into vchar values ('abc', 'de', 'ghi', 'jkl');
+insert into vchar values ('abc ', 'de ', 'ghi', 'jkl ');
+insert into vchar values ('abc    ', 'd  ', 'ghi', 'jkl    ');
+select length(v),length(c),length(e),length(t) from t1;
+select length(v),length(c),length(e),length(t) from vchar;
+alter table vchar add i int;
+show create table vchar;
+select length(v),length(c),length(e),length(t) from vchar;
+drop table t1, vchar;
+create table t1 (v varchar(20));
+insert into t1 values('a ');
+select v='a' from t1;
+select binary v='a' from t1;
+select binary v='a ' from t1;
+insert into t1 values('a');
+--error 1062
+alter table t1 add primary key (v);
+drop table t1;
+create table t1 (v varbinary(20));
+insert into t1 values('a');
+insert into t1 values('a ');
+alter table t1 add primary key (v);

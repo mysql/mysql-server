@@ -33,9 +33,9 @@ eval create table t9
   c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
   c13 date, c14 datetime, c15 timestamp(14), c16 time,
   c17 year, c18 bit, c19 bool, c20 char,
-  c21 char(10), c22 varchar(30), c23 char(100), c24 char(100),
-  c25 char(100), c26 char(100), c27 char(100), c28 char(100),
-  c29 char(100), c30 char(100), c31 enum('one', 'two', 'three'),
+  c21 char(10), c22 varchar(30), c23 varchar(100), c24 varchar(100),
+  c25 varchar(100), c26 varchar(100), c27 varchar(100), c28 varchar(100),
+  c29 varchar(100), c30 varchar(100), c31 enum('one', 'two', 'three'),
   c32 set('monday', 'tuesday', 'wednesday'),
   primary key(c1)
 ) engine = $type ;

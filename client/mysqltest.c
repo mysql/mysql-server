@@ -778,7 +778,7 @@ int var_set(const char *var_name, const char *var_name_end,
   }
   else
     v = var_reg + digit;
-  return eval_expr(v, var_val, (const char**)&var_val_end);
+  DBUG_RETURN(eval_expr(v, var_val, (const char**)&var_val_end));
 }
 
 

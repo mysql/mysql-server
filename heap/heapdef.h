@@ -86,7 +86,8 @@ extern ulong hp_mask(ulong hashnr,ulong buffmax,ulong maxlength);
 extern void hp_movelink(HASH_INFO *pos,HASH_INFO *next_link,
 			 HASH_INFO *newlink);
 extern int hp_rec_key_cmp(HP_KEYDEF *keydef,const byte *rec1,
-			  const byte *rec2);
+			  const byte *rec2,
+                          my_bool diff_if_only_endspace_difference);
 extern int hp_key_cmp(HP_KEYDEF *keydef,const byte *rec,
 		      const byte *key);
 extern void hp_make_key(HP_KEYDEF *keydef,byte *key,const byte *rec);
@@ -94,6 +95,7 @@ extern uint hp_rb_make_key(HP_KEYDEF *keydef, byte *key,
 			   const byte *rec, byte *recpos);
 extern uint hp_rb_key_length(HP_KEYDEF *keydef, const byte *key);
 extern uint hp_rb_null_key_length(HP_KEYDEF *keydef, const byte *key);
+extern uint hp_rb_var_key_length(HP_KEYDEF *keydef, const byte *key);
 extern my_bool hp_if_null_in_key(HP_KEYDEF *keyinfo, const byte *record);
 extern int hp_close(register HP_INFO *info);
 extern void hp_clear(HP_SHARE *info);

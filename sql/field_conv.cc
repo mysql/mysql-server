@@ -353,15 +353,16 @@ static void do_expand_string(Copy_field *copy)
 static void do_varstring(Copy_field *copy)
 {
   uint length=uint2korr(copy->from_ptr);
-  if (length > copy->to_length-2)
+  if (length > copy->to_length- HA_KEY_BLOB_LENGTH)
   {
-    length=copy->to_length-2;
+    length=copy->to_length-HA_KEY_BLOB_LENGTH;
     if (current_thd->count_cuted_fields)
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                                   ER_WARN_DATA_TRUNCATED, 1);
   }
   int2store(copy->to_ptr,length);
-  memcpy(copy->to_ptr+2, copy->from_ptr,length);
+  memcpy(copy->to_ptr+HA_KEY_BLOB_LENGTH, copy->from_ptr + HA_KEY_BLOB_LENGTH,
+         length);
 }
 
 /***************************************************************************
@@ -504,7 +505,7 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
       }
       else if (to->charset() != from->charset())
 	return do_field_string;
-      else if (to->real_type() == FIELD_TYPE_VAR_STRING && to_length !=
+      else if (to->real_type() == MYSQL_TYPE_VARCHAR && to_length !=
 	       from_length)
 	return do_varstring;
       else if (to_length < from_length)
@@ -571,7 +572,8 @@ void field_conv(Field *to,Field *from)
     Field_blob *blob=(Field_blob*) to;
     from->val_str(&blob->value);
     if (!blob->value.is_alloced() &&
-	from->real_type() != FIELD_TYPE_STRING)
+	from->real_type() != MYSQL_TYPE_STRING &&
+        from->real_type() != MYSQL_TYPE_VARCHAR)
       blob->value.copy();
     blob->store(blob->value.ptr(),blob->value.length(),from->charset());
     return;

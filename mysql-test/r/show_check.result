@@ -154,7 +154,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  `b` char(10) default NULL,
+  `b` varchar(10) default NULL,
   KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=10 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED COMMENT='test'
 alter table t1 MAX_ROWS=200 ROW_FORMAT=dynamic PACK_KEYS=0;

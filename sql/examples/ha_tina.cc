@@ -426,7 +426,7 @@ int ha_tina::write_row(byte * buf)
   int size;
   DBUG_ENTER("ha_tina::write_row");
 
-  statistic_increment(ha_write_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
 
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
@@ -462,7 +462,8 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
   int size;
   DBUG_ENTER("ha_tina::update_row");
 
-  statistic_increment(ha_update_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
+		      &LOCK_status);
 
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
@@ -489,7 +490,7 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
 int ha_tina::delete_row(const byte * buf)
 {
   DBUG_ENTER("ha_tina::delete_row");
-  statistic_increment(ha_delete_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_delete_count,&LOCK_status);
 
   if (chain_append())
     DBUG_RETURN(-1);
@@ -629,7 +630,8 @@ int ha_tina::rnd_next(byte *buf)
 {
   DBUG_ENTER("ha_tina::rnd_next");
 
-  statistic_increment(ha_read_rnd_next_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
+		      &LOCK_status);
 
   current_position= next_position;
   if (!share->mapped_file) 
@@ -666,7 +668,8 @@ void ha_tina::position(const byte *record)
 int ha_tina::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_tina::rnd_pos");
-  statistic_increment(ha_read_rnd_count,&LOCK_status);
+  statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
+		      &LOCK_status);
   current_position= ha_get_ptr(pos,ref_length);
   DBUG_RETURN(find_current_row(buf));
 }

@@ -91,7 +91,7 @@ public:
   Item_proc_string(const char *name_par,uint length) :Item_proc(name_par)
     { this->max_length=length; }
   enum Item_result result_type () const { return STRING_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
+  enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   void set(double nr) { str_value.set(nr, 2, default_charset()); }
   void set(longlong nr) { str_value.set(nr, default_charset()); }
   void set(const char *str, uint length, CHARSET_INFO *cs)
