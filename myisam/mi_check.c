@@ -1048,6 +1048,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
   mi_check_print_error(param,"got error: %d when reading datafile",my_errno);
  err2:
   my_afree((gptr) record);
+  param->retry_without_quick=1;
   DBUG_RETURN(1);
 } /* chk_data_link */
 
@@ -2052,6 +2053,7 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       {
 	if (param->read_cache.error)
 	  param->out_flag |= O_DATA_LOST;
+	param->retry_repair=param->retry_without_quick=1;
 	DBUG_RETURN(-1);
       }
       sort_info->start_recpos=sort_info->pos;
@@ -2076,7 +2078,10 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       found_record=block_info.second_read= 0;
       left_length=1;
       if (searching)
+      {
 	pos=MY_ALIGN(pos,MI_DYN_ALIGN_SIZE);
+	param->retry_without_quick=1;
+      }
       do
       {
 	if (pos > sort_info->max_pos)
@@ -2084,11 +2089,10 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	if (pos & (MI_DYN_ALIGN_SIZE-1))
 	{
 	  if ((param->testflag & T_VERBOSE) || searching == 0)
-	  {
 	    mi_check_print_info(param,"Wrong aligned block at %s",
 				llstr(pos,llbuff));
+	  if (searching)
 	    goto try_next;
-	  }
 	}
 	if (found_record && pos == param->search_after_block)
 	  mi_check_print_info(param,"Block: %s used by record at %s",
@@ -2110,6 +2114,7 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	if (searching && ! sort_info->fix_datafile)
 	{
 	  param->error_printed=1;
+	  param->retry_repair=param->retry_without_quick=1;
 	  DBUG_RETURN(1);	/* Something wrong with data */
 	}
 	if (((b_type=_mi_get_block_info(&block_info,-1,pos)) &
@@ -2230,7 +2235,7 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	    {
 	      mi_check_print_error(param,"Not enough memory for blob at %s",
 			  llstr(sort_info->start_recpos,llbuff));
-	      DBUG_RETURN(-1);
+	      DBUG_RETURN(1);
 	    }
 	  }
 	  else
@@ -2305,6 +2310,7 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       if (searching && ! sort_info->fix_datafile)
       {
 	param->error_printed=1;
+	param->retry_repair=param->retry_without_quick=1;
 	DBUG_RETURN(1);		/* Something wrong with data */
       }
       sort_info->start_recpos=sort_info->pos;
@@ -2958,6 +2964,7 @@ int update_state_info(MI_CHECK *param, MI_INFO *info,uint update)
     }
     if (mi_state_info_write(share->kfile,&share->state,1+2))
       goto err;
+    share->changed=0;
   }
   {						/* Force update of status */
     int error;

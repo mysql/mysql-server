@@ -196,7 +196,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.35 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.36 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
