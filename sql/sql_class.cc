@@ -1026,7 +1026,7 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
   if (it->assigned())
   {
-      my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
+    my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
     DBUG_RETURN(1);
   }
   if (unit->offset_limit_cnt)

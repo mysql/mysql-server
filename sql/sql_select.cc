@@ -301,7 +301,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   /* Check that all tables, fields, conds and order are ok */
 
-  if (setup_tables(tables_list) ||
+  if (setup_tables(tables_list, 0) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
@@ -1015,7 +1015,7 @@ JOIN::reinit()
   if (unit->select_limit_cnt == HA_POS_ERROR)
     select_lex->options&= ~OPTION_FOUND_ROWS;
   
-  if (setup_tables(tables_list))
+  if (setup_tables(tables_list, 1))
     DBUG_RETURN(1);
   
   /* Reset of sum functions */
@@ -1586,7 +1586,8 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   }
   else
   {
-    join= new JOIN(thd, fields, select_options, result);
+    if (!(join= new JOIN(thd, fields, select_options, result)))
+	DBUG_RETURN(-1);
     thd->proc_info="init";
     thd->used_tables=0;                         // Updated by setup_fields
     if (join->prepare(rref_pointer_array, tables, wild_num,

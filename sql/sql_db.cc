@@ -408,7 +408,7 @@ exit:
     when the slave is replicating a DROP DATABASE: 
     - garbage characters in the error message:
     "Error 'Can't drop database 'test2'; database doesn't exist' on query
-    'h4zI¿'"
+    'h4zI©'"
     - segfault
     - hang in "free(vio)" (yes!) in the I/O or SQL slave threads (so slave
     server hangs at shutdown etc).
@@ -417,7 +417,8 @@ exit:
   {
     if (!(thd->slave_thread)) /* a slave thread will free it itself */
       x_free(thd->db);
-    thd->db= 0; 
+    thd->db= 0;
+    thd->db_length= 0;
   }
 exit2:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
