@@ -150,13 +150,18 @@ find_prepared_statement(THD *thd, ulong id, const char *where)
 static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
 {
   NET *net= &stmt->thd->net;
-  char buff[9];
+  char buff[12];
+  uint tmp;
   DBUG_ENTER("send_prep_stmt");
 
   buff[0]= 0;                                   /* OK packet indicator */
   int4store(buff+1, stmt->id);
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
+  buff[9]= 0;                                   // Guard against a 4.1 client
+  tmp= min(stmt->thd->total_warn_count, 65535);
+  int2store(buff+10, tmp);
+
   /*
     Send types and names of placeholders to the client
     XXX: fix this nasty upcast from List<Item_param> to List<Item>
@@ -963,6 +968,9 @@ static int mysql_test_update(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   uint table_count= 0;
   SELECT_LEX *select= &stmt->lex->select_lex;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  uint		want_privilege;
+#endif
   DBUG_ENTER("mysql_test_update");
 
   if (update_precheck(thd, table_list))
@@ -985,17 +993,29 @@ static int mysql_test_update(Prepared_statement *stmt,
       return 2;
     }
 
+    /*
+      thd->fill_derived_tables() is false here for sure (because it is
+      preparation of PS, so we even do not check it
+    */
     if (lock_tables(thd, table_list, table_count) ||
-	mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
-	(thd->fill_derived_tables() &&
-	 mysql_handle_derived(thd->lex, &mysql_derived_filling)))
+	mysql_handle_derived(thd->lex, &mysql_derived_prepare))
       DBUG_RETURN(1);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  /* TABLE_LIST contain right privilages request */
+  want_privilege= table_list->grant.want_privilege;
+#endif
 
     if (!(res= mysql_prepare_update(thd, table_list,
 				    &select->where,
 				    select->order_list.elements,
 				    (ORDER *) select->order_list.first)))
     {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      table_list->grant.want_privilege=
+        table_list->table->grant.want_privilege=
+        want_privilege;
+#endif
       thd->lex->select_lex.no_wrap_view_item= 1;
       if (setup_fields(thd, 0, table_list, select->item_list, 1, 0, 0))
       {
@@ -1005,6 +1025,12 @@ static int mysql_test_update(Prepared_statement *stmt,
       else
       {
         thd->lex->select_lex.no_wrap_view_item= 0;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+        /* Check values */
+        table_list->grant.want_privilege=
+          table_list->table->grant.want_privilege=
+          (SELECT_ACL & ~table_list->table->grant.privilege);
+#endif
         if (setup_fields(thd, 0, table_list,
                          stmt->lex->value_list, 0, 0, 0))
           res= 1;
@@ -1386,12 +1412,39 @@ static int mysql_test_multidelete(Prepared_statement *stmt,
 
 
 /*
+  Wrapper for mysql_insert_select_prepare, to make change of local tables
+  after open_and_lock_tables() call.
+
+  SYNOPSIS
+    mysql_insert_select_prepare_tester()
+    thd     thread handler
+
+  NOTE: we need remove first local tables after open_and_lock_tables,
+  because mysql_handle_derived use local tables lists
+*/
+
+static bool mysql_insert_select_prepare_tester(THD *thd)
+{
+  SELECT_LEX *first_select= &thd->lex->select_lex;
+  /* Skip first table, which is the table we are inserting in */
+  first_select->table_list.first= (byte*)((TABLE_LIST*)first_select->
+                                          table_list.first)->next_local;
+  /*
+    insert/replace from SELECT give its SELECT_LEX for SELECT,
+    and item_list belong to SELECT
+  */
+  first_select->resolve_mode= SELECT_LEX::SELECT_MODE;
+  mysql_insert_select_prepare(thd);
+}
+
+
+/*
   Validate and prepare for execution INSERT ... SELECT statement
 
   SYNOPSIS
     mysql_test_insert_select()
     stmt	prepared statemen handler
-    tables	list of tables queries
+    tables	list of tables of query
 
   RETURN VALUE
     0   success
@@ -1406,26 +1459,23 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
   LEX *lex= stmt->lex;
   TABLE_LIST *first_local_table;
 
-  if ((res= insert_precheck(stmt->thd, tables)))
-    return res;
-  first_local_table= (TABLE_LIST *)lex->select_lex.table_list.first;
-  DBUG_ASSERT(first_local_table != 0);
-  /* Skip first table, which is the table we are inserting in */
-  lex->select_lex.table_list.first= (byte*) first_local_table->next_local;
   if (tables->table)
   {
     // don't allocate insert_values
     tables->table->insert_values=(byte *)1;
   }
 
-  /*
-    insert/replace from SELECT give its SELECT_LEX for SELECT,
-    and item_list belong to SELECT
-  */
-  lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
-  res= select_like_statement_test(stmt, tables, &mysql_insert_select_prepare,
+  if ((res= insert_precheck(stmt->thd, tables)))
+    return res;
+
+  /* store it, because mysql_insert_select_prepare_tester change it */
+  first_local_table= (TABLE_LIST *)lex->select_lex.table_list.first;
+  DBUG_ASSERT(first_local_table != 0);
+
+  res= select_like_statement_test(stmt, tables,
+                                  &mysql_insert_select_prepare_tester,
                                   OPTION_SETUP_TABLES_DONE);
-  /* revert changes*/
+  /* revert changes  made by mysql_insert_select_prepare_tester */
   lex->select_lex.table_list.first= (byte*) first_local_table;
   lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
   return res;

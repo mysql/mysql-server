@@ -1433,7 +1433,8 @@ insert into v1 values (1) on duplicate key update a=2;
 insert into v1 values (1) on duplicate key update a=2;
 ERROR HY000: CHECK OPTION failed 'test.v1'
 insert ignore into v1 values (1) on duplicate key update a=2;
-ERROR HY000: CHECK OPTION failed 'test.v1'
+Warnings:
+Error	1369	CHECK OPTION failed 'test.v1'
 select * from t1;
 a
 1

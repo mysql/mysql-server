@@ -698,6 +698,8 @@ ndb/examples/ndbapi_example2/ndbapi_example2
 ndb/examples/ndbapi_example3/ndbapi_example3
 ndb/examples/ndbapi_example5/ndbapi_example5
 ndb/examples/select_all/select_all
+ndb/include/ndb_global.h
+ndb/include/ndb_version.h
 ndb/lib/libMGM_API.so
 ndb/lib/libNDB_API.so
 ndb/lib/libNDB_ODBC.so
