@@ -186,6 +186,9 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_QUOTE_SHOW_CREATE OPTION_QUICK*2
 #define OPTION_INTERNAL_SUBTRANSACTIONS OPTION_QUOTE_SHOW_CREATE*2
 
+/* options for UNION set by the yacc parser (stored in unit->union_option) */
+#define UNION_ALL		1
+
 /* Set if we are updating a non-transaction safe table */
 #define OPTION_STATUS_NO_TRANS_UPDATE 	OPTION_INTERNAL_SUBTRANSACTIONS*2
 
