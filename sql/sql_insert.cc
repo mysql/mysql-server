@@ -482,7 +482,7 @@ public:
   COPY_INFO info;
   I_List<delayed_row> rows;
   uint group_count;
-  TABLE_LIST *table_list;			// Argument
+  TABLE_LIST table_list;			// Argument
 
   delayed_insert()
     :locks_in_memory(0),
@@ -511,10 +511,12 @@ public:
     delayed_row *row;
     while ((row=rows.get()))
       delete row;
-    pthread_mutex_destroy(&mutex);
     if (table)
       close_thread_tables(&thd);
     VOID(pthread_mutex_lock(&LOCK_thread_count));
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&cond);
+    pthread_cond_destroy(&cond_client);
     thd.unlink();				// Must be unlinked under lock
     x_free(thd.query);
     thd.user=thd.host=0;
@@ -609,7 +611,9 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	pthread_mutex_unlock(&LOCK_delayed_create);
 	DBUG_RETURN(0);
       }
-      tmp->table_list=table_list;			// Needed to open table
+      tmp->table_list= *table_list;			// Needed to open table
+      tmp->table_list.db= tmp->thd.db;
+      tmp->table_list.name= tmp->table_list.real_name=tmp->thd.query;
       tmp->lock();
       pthread_mutex_lock(&tmp->mutex);
       if ((error=pthread_create(&tmp->thd.real_id,&connection_attrib,
@@ -842,13 +846,11 @@ void kill_delayed_threads(void)
     if (tmp->thd.mysys_var)
     {
       pthread_mutex_lock(&tmp->thd.mysys_var->mutex);
-      if (tmp->thd.mysys_var->current_mutex)
+      if (tmp->thd.mysys_var->current_cond)
       {
-	if (&tmp->mutex != tmp->thd.mysys_var->current_mutex)
-	  pthread_mutex_lock(tmp->thd.mysys_var->current_mutex);
+	pthread_mutex_lock(tmp->thd.mysys_var->current_mutex);
 	pthread_cond_broadcast(tmp->thd.mysys_var->current_cond);
-	if (&tmp->mutex != tmp->thd.mysys_var->current_mutex)
-	  pthread_mutex_unlock(tmp->thd.mysys_var->current_mutex);
+	pthread_mutex_unlock(tmp->thd.mysys_var->current_mutex);
       }
       pthread_mutex_unlock(&tmp->thd.mysys_var->mutex);
     }
@@ -873,6 +875,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
   thd->thread_id=thread_id++;
   thd->end_time();
   threads.append(thd);
+  thd->killed=abort_loop;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   pthread_mutex_lock(&di->mutex);
@@ -903,7 +906,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
 
   /* open table */
 
-  if (!(di->table=open_ltable(thd,di->table_list,TL_WRITE_DELAYED)))
+  if (!(di->table=open_ltable(thd,&di->table_list,TL_WRITE_DELAYED)))
   {
     thd->fatal_error=1;				// Abort waiting inserts
     goto end;
@@ -911,7 +914,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
   if (di->table->file->has_transactions())
   {
     thd->fatal_error=1;
-    my_error(ER_ILLEGAL_HA, MYF(0), di->table_list->real_name);
+    my_error(ER_ILLEGAL_HA, MYF(0), di->table_list.real_name);
     goto end;
   }
   di->table->copy_blobs=1;
@@ -963,14 +966,12 @@ static pthread_handler_decl(handle_delayed_insert,arg)
 #endif
 
       /* Information for pthread_kill */
-      pthread_mutex_lock(&di->thd.mysys_var->mutex);
       di->thd.mysys_var->current_mutex= &di->mutex;
       di->thd.mysys_var->current_cond= &di->cond;
-      pthread_mutex_unlock(&di->thd.mysys_var->mutex);
       di->thd.proc_info=0;
 
       DBUG_PRINT("info",("Waiting for someone to insert rows"));
-      for ( ; ;)
+      while (!thd->killed)
       {
 	int error;
 #if (defined(HAVE_BROKEN_COND_TIMEDWAIT) || defined(HAVE_LINUXTHREADS))
@@ -994,10 +995,13 @@ static pthread_handler_decl(handle_delayed_insert,arg)
 	  break;
 	}
       }
+      /* We can't lock di->mutex and mysys_var->mutex at the same time */
+      pthread_mutex_unlock(&di->mutex);
       pthread_mutex_lock(&di->thd.mysys_var->mutex);
       di->thd.mysys_var->current_mutex= 0;
       di->thd.mysys_var->current_cond= 0;
       pthread_mutex_unlock(&di->thd.mysys_var->mutex);
+      pthread_mutex_lock(&di->mutex);
     }
 
     if (di->tables_in_use && ! thd->lock)

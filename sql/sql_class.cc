@@ -226,12 +226,12 @@ void THD::prepare_to_die()
       pthread_mutex_lock(&mysys_var->mutex);
       if (!system_thread)		// Don't abort locks
 	mysys_var->abort=1;
-      if (mysys_var->current_mutex)
-	{
-	  pthread_mutex_lock(mysys_var->current_mutex);
-	  pthread_cond_broadcast(mysys_var->current_cond);
-	  pthread_mutex_unlock(mysys_var->current_mutex);
-	}
+      if (mysys_var->current_cond)
+      {
+	pthread_mutex_lock(mysys_var->current_mutex);
+	pthread_cond_broadcast(mysys_var->current_cond);
+	pthread_mutex_unlock(mysys_var->current_mutex);
+      }
       pthread_mutex_unlock(&mysys_var->mutex);
     }
 }
