@@ -61,6 +61,9 @@ void Ndb_cluster_connection::connect_thread()
       printf("Ndb_cluster_connection::connect_thread error\n");
       DBUG_ASSERT(false);
       g_run_connect_thread= 0;
+    } else {
+      // Wait before making a new connect attempt
+      NdbSleep_SecSleep(1);
     }
   } while (g_run_connect_thread);
   if (m_connect_callback)
