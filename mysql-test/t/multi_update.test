@@ -7,7 +7,7 @@ eval select $BIG_TEST as using_big_test;
 
 drop table if exists t1,t2,t3;
 create table t1(id1 int not null auto_increment primary key, t char(12));
-create table t2(id2 int not null, t char(12), index(id2));
+create table t2(id2 int not null, t char(12));
 create table t3(id3 int not null, t char(12), index(id3));
 let $1 = 10000;
 while ($1)
