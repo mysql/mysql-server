@@ -29,7 +29,7 @@ INSERT INTO pt VALUES
 (101, PointFromText('POINT(10 10)')),
 (102, PointFromText('POINT(20 10)')),
 (103, PointFromText('POINT(20 20)')),
-(104, PointFromText('POINT(10 20)'));
+(104, PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))));
 
 INSERT INTO ls VALUES
 (105, LineFromText('LINESTRING(0 0,0 10,10 0)')),
@@ -140,3 +140,5 @@ SHOW FIELDS FROM g1;
 ALTER TABLE g1 ADD fid INT NOT NULL;
 SHOW FIELDS FROM g1;
 DROP TABLE g1;
+
+SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))));
