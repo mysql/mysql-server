@@ -2109,9 +2109,9 @@ all_or_any: ALL     { $$ = 1; }
 /* expressions that begin with 'expr' */
 expr_expr:
 	 expr IN_SYM '(' expr_list ')'
-	  { $$= new Item_func_in($1,*$4); }
+	  { $4->push_front($1); $$= new Item_func_in(*$4); }
 	| expr NOT IN_SYM '(' expr_list ')'
-	  { $$= new Item_func_not(new Item_func_in($1,*$5)); }
+	  { $5->push_front($1); $$= new Item_func_not(new Item_func_in(*$5)); }
         | expr IN_SYM in_subselect
           { $$= new Item_in_subselect(YYTHD, $1, $3); }
 	| expr NOT IN_SYM in_subselect
@@ -2211,9 +2211,9 @@ no_in_expr:
 /* expressions that begin with 'expr' that does NOT follow AND */
 no_and_expr:
 	  no_and_expr IN_SYM '(' expr_list ')'
-	  { $$= new Item_func_in($1,*$4); }
+	  { $4->push_front($1); $$= new Item_func_in(*$4); }
 	| no_and_expr NOT IN_SYM '(' expr_list ')'
-	  { $$= new Item_func_not(new Item_func_in($1,*$5)); }
+	  { $5->push_front($1); $$= new Item_func_not(new Item_func_in(*$5)); }
         | no_and_expr IN_SYM in_subselect
           { $$= new Item_in_subselect(YYTHD, $1, $3); }
 	| no_and_expr NOT IN_SYM in_subselect
@@ -2389,7 +2389,7 @@ simple_expr:
 	| DAY_SYM '(' expr ')'
 	  { $$= new Item_func_dayofmonth($3); }
 	| ELT_FUNC '(' expr ',' expr_list ')'
-	  { $$= new Item_func_elt($3, *$5); }
+	  { $5->push_front($3); $$= new Item_func_elt(*$5); }
 	| MAKE_SET_SYM '(' expr ',' expr_list ')'
 	  { $$= new Item_func_make_set($3, *$5); }
 	| ENCRYPT '(' expr ')'

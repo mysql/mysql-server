@@ -872,9 +872,9 @@ Item *Item_func_case::find_item(String *str)
   LINT_INIT(first_expr_real);
 
   // Compare every WHEN argument with it and return the first match
-  for (uint i=0 ; i < arg_count ; i+=2)
+  for (uint i=0 ; i < ncases ; i+=2)
   {
-    if (!first_expr)
+    if (first_expr_num == -1)
     {
       // No expression between CASE and first WHEN
       if (args[i]->val_int())
@@ -887,18 +887,12 @@ Item *Item_func_case::find_item(String *str)
       {
 	str_used=1;
 	// We can't use 'str' here as this may be overwritten
-	if (!(first_expr_str= first_expr->val_str(&str_value)))
-	  return else_expr;			// Impossible
+	if (!(first_expr_str= args[first_expr_num]->val_str(&str_value)))
+	  return else_expr_num != -1 ? args[else_expr_num] : 0;	// Impossible
       }
       if ((tmp=args[i]->val_str(str)))		// If not null
       {
-	/* QQ: COERCIBILITY */
-	if (first_expr_is_binary || (args[i]->charset()->state & MY_CS_BINSORT))
-	{
-	  if (sortcmp(tmp,first_expr_str,&my_charset_bin)==0)
-	    return args[i+1];
-	}
-	else if (sortcmp(tmp,first_expr_str,tmp->charset())==0)
+	if (sortcmp(tmp,first_expr_str,&my_charset_bin)==0)
 	  return args[i+1];
       }
       break;
@@ -906,9 +900,9 @@ Item *Item_func_case::find_item(String *str)
       if (!int_used)
       {
 	int_used=1;
-	first_expr_int= first_expr->val_int();
-	if (first_expr->null_value)
-	  return else_expr;
+	first_expr_int= args[first_expr_num]->val_int();
+	if (args[first_expr_num]->null_value)
+	  return else_expr_num != -1 ? args[else_expr_num] : 0;
       }
       if (args[i]->val_int()==first_expr_int && !args[i]->null_value) 
         return args[i+1];
@@ -917,9 +911,9 @@ Item *Item_func_case::find_item(String *str)
       if (!real_used)
       {
 	real_used=1;
-	first_expr_real= first_expr->val();
-	if (first_expr->null_value)
-	  return else_expr;
+	first_expr_real= args[first_expr_num]->val();
+	if (args[first_expr_num]->null_value)
+	  return else_expr_num != -1 ? args[else_expr_num] : 0;
       }
       if (args[i]->val()==first_expr_real && !args[i]->null_value) 
         return args[i+1];
@@ -932,7 +926,7 @@ Item *Item_func_case::find_item(String *str)
     }
   }
   // No, WHEN clauses all missed, return ELSE expression
-  return else_expr;
+  return else_expr_num != -1 ? args[else_expr_num] : 0;
 }
 
 
@@ -988,104 +982,74 @@ double Item_func_case::val()
   return res;
 }
 
-
-bool
-Item_func_case::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
+static void agg_result_type(Item_result *type, Item **items, uint nitems)
 {
-  if (first_expr && (first_expr->fix_fields(thd, tables, &first_expr) ||
-		     first_expr->check_cols(1)) ||
-      else_expr && (else_expr->fix_fields(thd, tables, &else_expr) ||
-		    else_expr->check_cols(1)))
-    return 1;
-  if (Item_func::fix_fields(thd, tables, ref))
-    return 1;
-  if (first_expr)
-  {
-    used_tables_cache|=(first_expr)->used_tables();
-    const_item_cache&= (first_expr)->const_item();
-    with_sum_func= with_sum_func || (first_expr)->with_sum_func;
-    first_expr_is_binary= first_expr->charset()->state & MY_CS_BINSORT;
-  }
-  if (else_expr)
-  {
-    used_tables_cache|=(else_expr)->used_tables();
-    const_item_cache&= (else_expr)->const_item();
-    with_sum_func= with_sum_func || (else_expr)->with_sum_func;
-  }
-  if (!else_expr || else_expr->maybe_null)
-    maybe_null=1;				// The result may be NULL
-  return 0;
+  uint i;
+  type[0]= items[0]->result_type();
+  for (i=1 ; i < nitems ; i++)
+    type[0]= item_store_type(type[0], items[i]->result_type());
 }
 
-
-void Item_func_case::split_sum_func(Item **ref_pointer_array,
-				    List<Item> &fields)
+static void agg_cmp_type(Item_result *type, Item **items, uint nitems)
 {
-  if (first_expr)
-  {
-    if (first_expr->with_sum_func && first_expr->type() != SUM_FUNC_ITEM)
-      first_expr->split_sum_func(ref_pointer_array, fields);
-    else if (first_expr->used_tables() || first_expr->type() == SUM_FUNC_ITEM)
-    {
-      uint el= fields.elements;
-      fields.push_front(first_expr);
-      ref_pointer_array[el]= first_expr;
-      first_expr= new Item_ref(ref_pointer_array + el, 0, first_expr->name);
-    }
-  }
-  if (else_expr)
-  {
-    if (else_expr->with_sum_func && else_expr->type() != SUM_FUNC_ITEM)
-      else_expr->split_sum_func(ref_pointer_array, fields);
-    else if (else_expr->used_tables() || else_expr->type() == SUM_FUNC_ITEM)
-    {
-      uint el= fields.elements;
-      fields.push_front(else_expr);
-      ref_pointer_array[el]= else_expr;
-      else_expr= new Item_ref(ref_pointer_array + el, 0, else_expr->name);
-    }
-  }
-  Item_func::split_sum_func(ref_pointer_array, fields);
+  uint i;
+  type[0]= items[0]->result_type();
+  for (i=1 ; i < nitems ; i++)
+    type[0]= item_cmp_type(type[0], items[i]->result_type());
 }
-
-
-void Item_func_case::set_outer_resolving()
-{
-  first_expr->set_outer_resolving();
-  else_expr->set_outer_resolving();
-  Item_func::set_outer_resolving();
-}
-
-void Item_func_case::update_used_tables()
-{
-  Item_func::update_used_tables();
-  if (first_expr)
-  {
-    used_tables_cache|=(first_expr)->used_tables();
-    const_item_cache&= (first_expr)->const_item();
-  }
-  if (else_expr)
-  {
-    used_tables_cache|=(else_expr)->used_tables();
-    const_item_cache&= (else_expr)->const_item();
-  }
-}
-
 
 void Item_func_case::fix_length_and_dec()
 {
+  Item **agg;
+  uint nagg;
+  
+  if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
+    return;
+  
+  // Aggregate all THEN and ELSE expression types
+  // and collations when string result
+  
+  for (nagg= 0 ; nagg < ncases/2 ; nagg++)
+    agg[nagg]= args[nagg*2+1];
+  
+  if (else_expr_num != -1)
+    agg[nagg++]= args[else_expr_num];
+  
+  agg_result_type(&cached_result_type, agg, nagg);
+  if ((cached_result_type == STRING_RESULT) &&
+      agg_arg_collations(collation, agg, nagg))
+    return;
+  
+  
+  //  Aggregate first expression and all THEN expression types
+  //  and collations when string comparison
+  if (first_expr_num != -1)
+  {
+    agg[0]= args[first_expr_num];
+    for (nagg= 0; nagg < ncases/2 ; nagg++)
+      agg[nagg+1]= args[nagg];
+    nagg++;
+    agg_cmp_type(&cmp_type, agg, nagg);
+    if ((cmp_type == STRING_RESULT) &&
+        agg_arg_collations_for_comparison(cmp_collation, agg, nagg))
+    return;
+  }
+  
+  if (!else_expr_num != -1 || args[else_expr_num]->maybe_null)
+    maybe_null=1;
+  
   max_length=0;
   decimals=0;
   cached_result_type = args[1]->result_type();
-  for (uint i=0 ; i < arg_count ; i+=2)
+  for (uint i=0 ; i < ncases ; i+=2)
   {
     set_if_bigger(max_length,args[i+1]->max_length);
     set_if_bigger(decimals,args[i+1]->decimals);
   }
-  if (else_expr != NULL) 
+  if (else_expr_num != -1) 
   {
-    set_if_bigger(max_length,else_expr->max_length);
-    set_if_bigger(decimals,else_expr->decimals);
+    set_if_bigger(max_length,args[else_expr_num]->max_length);
+    set_if_bigger(decimals,args[else_expr_num]->decimals);
   }
 }
 
@@ -1420,7 +1384,7 @@ int cmp_item_row::compare(cmp_item *c)
 bool Item_func_in::nulls_in_row()
 {
   Item **arg,**arg_end;
-  for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
+  for (arg= args+1, arg_end= args+arg_count; arg != arg_end ; arg++)
   {
     if ((*arg)->null_inside())
       return 1;
@@ -1437,42 +1401,43 @@ static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 
 void Item_func_in::fix_length_and_dec()
 {
+  Item **arg, **arg_end;
+  uint const_itm= 1;
+  
+  if ((args[0]->result_type() == STRING_RESULT) &&
+      (agg_arg_collations_for_comparison(cmp_collation, args, arg_count)))
+    return;
+  
+  for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
+    const_itm&= arg[0]->const_item();
+  
   /*
     Row item with NULLs inside can return NULL or FALSE => 
     they can't be processed as static
   */
-  if (const_item() && !nulls_in_row())
+  if (const_itm && !nulls_in_row())
   {
-    switch (item->result_type()) {
+    switch (args[0]->result_type()) {
     case STRING_RESULT:
       uint i;
-      cmp_collation.set(item->collation);
-      for (i=0 ; i<arg_count; i++)
-	if (cmp_collation.aggregate(args[i]->collation))
-	  break;
-      if (cmp_collation.derivation == DERIVATION_NONE)
-      {
-        my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),func_name());
-	return;
-      }
-      array=new in_string(arg_count,(qsort2_cmp) srtcmp_in, 
+      array=new in_string(arg_count-1,(qsort2_cmp) srtcmp_in, 
 			  cmp_collation.collation);
       break;
     case INT_RESULT:
-      array= new in_longlong(arg_count);
+      array= new in_longlong(arg_count-1);
       break;
     case REAL_RESULT:
-      array= new in_double(arg_count);
+      array= new in_double(arg_count-1);
       break;
     case ROW_RESULT:
-      array= new in_row(arg_count, item);
+      array= new in_row(arg_count-1, args[0]);
       break;
     default:
       DBUG_ASSERT(0);
       return;
     }
     uint j=0;
-    for (uint i=0 ; i < arg_count ; i++)
+    for (uint i=1 ; i < arg_count ; i++)
     {
       array->set(j,args[i]);
       if (!args[i]->null_value)			// Skip NULL values
@@ -1485,19 +1450,19 @@ void Item_func_in::fix_length_and_dec()
   }
   else
   {
-    in_item= cmp_item::get_comparator(item);
+    in_item= cmp_item::get_comparator(args[0]);
+    if (args[0]->result_type() == STRING_RESULT)
+      in_item->cmp_charset= cmp_collation.collation;
   }
-  maybe_null= item->maybe_null;
+  maybe_null= args[0]->maybe_null;
   max_length= 1;
-  used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
+  const_item_cache&=args[0]->const_item();
 }
 
 
 void Item_func_in::print(String *str)
 {
   str->append('(');
-  item->print(str);
   Item_func::print(str);
   str->append(')');
 }
@@ -1507,15 +1472,15 @@ longlong Item_func_in::val_int()
 {
   if (array)
   {
-    int tmp=array->find(item);
-    null_value=item->null_value || (!tmp && have_null);
+    int tmp=array->find(args[0]);
+    null_value=args[0]->null_value || (!tmp && have_null);
     return tmp;
   }
-  in_item->store_value(item);
-  if ((null_value=item->null_value))
+  in_item->store_value(args[0]);
+  if ((null_value=args[0]->null_value))
     return 0;
   have_null= 0;
-  for (uint i=0 ; i < arg_count ; i++)
+  for (uint i=1 ; i < arg_count ; i++)
   {
     if (!in_item->cmp(args[i]) && !args[i]->null_value)
       return 1;					// Would maybe be nice with i ?
@@ -1523,29 +1488,6 @@ longlong Item_func_in::val_int()
   }
   null_value= have_null;
   return 0;
-}
-
-
-void Item_func_in::update_used_tables()
-{
-  Item_func::update_used_tables();
-  item->update_used_tables();
-  used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
-}
-
-void Item_func_in::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
-{
-  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-    item->split_sum_func(ref_pointer_array, fields);
-  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
-  {
-    uint el= fields.elements;
-    fields.push_front(item);
-    ref_pointer_array[el]= item;
-    item= new Item_ref(ref_pointer_array + el, 0, item->name);
-  }  
-  Item_func::split_sum_func(ref_pointer_array, fields);
 }
 
 
