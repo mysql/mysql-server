@@ -25,10 +25,6 @@
 #include "ha_heap.h"
 #include "ha_myisam.h"
 #include "ha_myisammrg.h"
-#ifdef HAVE_ISAM
-#include "ha_isam.h"
-#include "ha_isammrg.h"
-#endif
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif

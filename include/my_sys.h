@@ -54,11 +54,10 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_FAE		8	/* Fatal if any error */
 #define MY_WME		16	/* Write message on error */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
-#define MY_RAID         64      /* Support for RAID (not the "Johnson&Johnson"-s one ;) */
-#define MY_FULL_IO     512      /* For my_read - loop intil I/O
-				   is complete
-				*/
-#define MY_DONT_CHECK_FILESIZE 128	/* Option to init_io_cache() */
+#define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
+#define MY_RAID         64      /* Support for RAID */
+#define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
+#define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
 #define MY_LINK_WARNING 32	/* my_redel() gives warning if links */
 #define MY_COPYTIME	64	/* my_redel() copys time */
 #define MY_DELETE_OLD	256	/* my_create_with_symlink() */
@@ -72,7 +71,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_FREE_ON_ERROR 128	/* my_realloc() ; Free old ptr on error */
 #define MY_HOLD_ON_ERROR 256	/* my_realloc() ; Return old ptr on error */
 #define MY_THREADSAFE	128	/* pread/pwrite:  Don't allow interrupts */
-#define MY_DONT_OVERWRITE_FILE 1024	/* my_copy; Don't overwrite file */
+#define MY_DONT_OVERWRITE_FILE 1024	/* my_copy: Don't overwrite file */
 
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/
