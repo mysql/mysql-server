@@ -116,7 +116,7 @@ int mysql_update(THD *thd,
   {
     // Don't set timestamp column if this is modified
     if (table->timestamp_field->query_id == thd->query_id)
-      table->timestamp_on_update_now= 0;
+      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
       table->timestamp_field->query_id=timestamp_query_id;
   }
@@ -526,7 +526,7 @@ int mysql_multi_update(THD *thd,
     // Only set timestamp column if this is not modified
     if (table->timestamp_field &&
         table->timestamp_field->query_id == thd->query_id)
-      table->timestamp_on_update_now= 0;
+      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     /* if table will be updated then check that it is unique */
     if (table->map & item_tables)

@@ -264,7 +264,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (!(error=test(read_info.error)))
   {
     if (use_timestamp)
-      table->timestamp_default_now= table->timestamp_on_update_now= 0;
+      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     table->next_number_field=table->found_next_number_field;
     if (handle_duplicates == DUP_IGNORE ||
