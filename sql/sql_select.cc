@@ -217,6 +217,16 @@ void fix_tables_pointers(SELECT_LEX *select_lex)
   }
 }
 
+void fix_tables_pointers(SELECT_LEX_UNIT *unit)
+{
+  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+  {
+    relink_tables(sl);
+    for(SELECT_LEX_UNIT *un= sl->first_inner_unit(); un; un= un->next_unit())
+      fix_tables_pointers(un);
+  }
+}
+
 
 /*
   Function to setup clauses without sum functions
@@ -720,8 +730,17 @@ JOIN::optimize()
 			   (order == 0 || skip_sort_order) ? select_limit :
 			   HA_POS_ERROR)))
       DBUG_RETURN(1);
-    
-    //thd->temporary_tables_should_be_free.push_front(exec_tmp_table1);
+
+    /*
+      We don't have to store rows in temp table that doesn't match HAVING if:
+      - we are sorting the table and writing complete group rows to the
+        temp table.
+      - We are using DISTINCT without resolving the distinct as a GROUP BY
+        on all columns.
+      
+      If having is not handled here, it will be checked before the row
+      is sent to the client.
+    */    
     if (having && 
 	(sort_and_group || (exec_tmp_table1->distinct && !group_list)))
       having= tmp_having;
@@ -938,17 +957,7 @@ JOIN::exec()
     if (tmp_join)
       curr_join= tmp_join;
     curr_tmp_table= exec_tmp_table1;
-    /*
-      TODO: move this comment on its place
-      We don't have to store rows in temp table that doesn't match HAVING if:
-      - we are sorting the table and writing complete group rows to the
-        temp table.
-      - We are using DISTINCT without resolving the distinct as a GROUP BY
-        on all columns.
-      
-      If having is not handled here, it will be checked before the row
-      is sent to the client.
-    */
+
     /* Copy data to the temporary table */
     thd->proc_info= "Copying to tmp table";
     
@@ -1058,7 +1067,6 @@ JOIN::exec()
 						1, curr_join->select_options,
 						HA_POS_ERROR)))
 	  DBUG_VOID_RETURN;
-	//thd->temporary_tables_should_be_free.push_front(exec_tmp_table2);
 	curr_join->exec_tmp_table2= exec_tmp_table2;
       }
       if (group_list)

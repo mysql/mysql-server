@@ -573,20 +573,14 @@ bool Item_ref_on_list_position::fix_fields(THD *thd,
 					   struct st_table_list *tables,
 					   Item ** reference)
 {
-  List_iterator<Item> li(list);
-  Item *item;
-  for (uint i= 0; (item= li++) && i < pos; i++);
-  if (item)
-  {
-    ref= li.ref();
-    return Item_ref_null_helper::fix_fields(thd, tables, reference);
-  }
-  else
+  if (select_lex->item_list.elements <= pos)
   {
     ref= 0;
     my_error(ER_CARDINALITY_COL, MYF(0), pos);
     return 1;
   }
+  ref= select_lex->ref_pointer_array + pos;
+  return Item_ref_null_helper::fix_fields(thd, tables, reference);
 }
 
 double Item_ref_null_helper::val()

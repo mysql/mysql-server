@@ -332,6 +332,22 @@ public:
   Item_std_field(Item_sum_std *item);
   enum Type type() const { return FIELD_STD_ITEM; }
   double val();
+};
+
+/*
+   standard_deviation(a) = sqrt(variance(a))
+*/
+
+class Item_sum_std :public Item_sum_variance
+{
+  public:
+  Item_sum_std(Item *item_par) :Item_sum_variance(item_par){}
+  enum Sumfunctype sum_func () const { return STD_FUNC; }
+  double val();
+  Item *result_item(Field *field)
+    { return new Item_std_field(this); }
+  const char *func_name() const { return "std"; }
+};
 
 // This class is a string or number function depending on num_func
 

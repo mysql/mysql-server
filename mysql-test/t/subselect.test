@@ -206,19 +206,22 @@ SELECT numeropost,maxnumrep FROM t1 WHERE exists (SELECT 1 FROM t2 WHERE (mot='j
 SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1 HAVING a=1) b;
 -- error 1054
 SELECT 1 IN (SELECT 1 FROM t2 HAVING a);
-SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY date);
-SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
+
+SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY topic);
+SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY topic HAVING topic < 4100);
 SELECT * from t2 where topic IN (SELECT SUM(topic) FROM t1);
-SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY date);
-SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
+SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY topic);
+SELECT * from t2 where topic = any (SELECT topic FROM t2 GROUP BY topic HAVING topic < 4100);
 SELECT * from t2 where topic = any (SELECT SUM(topic) FROM t1);
-SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY date);
-SELECT topic FROM t2 GROUP BY date;
-SELECT topic FROM t2 GROUP BY date HAVING topic < 4100;
-SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY date HAVING topic < 4100);
-SELECT *, date as fff from t2 where not (SELECT date FROM t2 GROUP BY date HAVING topic < 4100 and fff!=date);
+SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY topic);
+SELECT * from t2 where topic = all (SELECT topic FROM t2 GROUP BY topic HAVING topic < 4100);
+SELECT topic FROM t2 GROUP BY topic HAVING topic < 4100;
+SELECT *, topic = all (SELECT topic FROM t2 GROUP BY topic HAVING topic < 4100) from t2;
 SELECT * from t2 where topic = all (SELECT SUM(topic) FROM t2);
 SELECT * from t2 where topic <> any (SELECT SUM(topic) FROM t2);
+delete from t2 where topic=40143;
+SELECT *, topic = all (SELECT topic FROM t2 GROUP BY topic HAVING topic < 4100) from t2;
+SELECT *, topic as fff, exists (SELECT topic FROM t2 GROUP BY topic HAVING topic < 4100 and fff = topic) from t2;
 drop table t1,t2;
 
 #forumconthardwarefr7

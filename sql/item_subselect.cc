@@ -439,7 +439,6 @@ void Item_in_subselect::single_value_transformer(THD *thd,
 						 compare_func_creator func)
 {
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
-  THD *thd= current_thd;
 
   if (unit->global_parameters->select_limit != HA_POS_ERROR)
   {
@@ -488,9 +487,8 @@ void Item_in_subselect::single_value_transformer(THD *thd,
     {
       sl->item_list.push_back(item);
       setup_ref_array(thd, &sl->ref_pointer_array,
-		      1+ select_lex->with_sum_func +
-		      select_lex->order_list.elements +
-		      select_lex->group_list.elements);
+		      1 + sl->with_sum_func +
+		      sl->order_list.elements + sl->group_list.elements);
       item= (*func)(expr, new Item_ref_null_helper(this,
 						   sl->ref_pointer_array,
 						   (char *)"<no matter>",
@@ -597,9 +595,9 @@ void Item_in_subselect::row_value_transformer(THD *thd,
     for (uint i= 0; i < n; i++)
     {
       Item *func=
-	new Item_ref_on_list_position(this, sl->item_list, i,
-					       (char *) "<no matter>",
-					       (char *) "<list ref>");
+	new Item_ref_on_list_position(this, sl, i,
+				      (char *) "<no matter>",
+				      (char *) "<list ref>");
       func=
 	Item_bool_func2::eq_creator(new Item_ref((*optimizer->get_cache())->
 						 addr(i), 

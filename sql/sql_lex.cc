@@ -1245,15 +1245,17 @@ ulong st_select_lex_node::get_table_join_options() { return 0; }
 
 // interface
 bool st_select_lex_unit::create_total_list(THD *thd, st_lex *lex,
-					   TABLE_LIST **result)
+					   TABLE_LIST **result,
+					   bool check_derived)
 {
   *result= 0;
-  return create_total_list_n_last_return(thd, lex, &result);
+  return create_total_list_n_last_return(thd, lex, &result, check_derived);
 }
 
 // list creator
 bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
-							 TABLE_LIST ***result)
+							 TABLE_LIST ***result,
+							 bool check_derived)
 {
   TABLE_LIST *slave_list_first=0, **slave_list_last= &slave_list_first;
   TABLE_LIST **new_table_list= *result, *aux;
@@ -1266,13 +1268,13 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
       net_printf(thd,ER_WRONG_USAGE,"UNION","ORDER BY");
       return 1;
     }
-    if (sl->linkage == DERIVED_TABLE_TYPE && !sl->next_select())
+    if (sl->linkage == DERIVED_TABLE_TYPE && !check_derived)
       continue;
     for (SELECT_LEX_UNIT *inner=  sl->first_inner_unit();
 	 inner;
 	 inner= inner->next_unit())
       if (inner->create_total_list_n_last_return(thd, lex,
-						 &slave_list_last))
+						 &slave_list_last, 0))
 	return 1;
     if ((aux= (TABLE_LIST*) sl->table_list.first))
     {
