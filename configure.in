@@ -1933,9 +1933,9 @@ CHARSETS_AVAILABLE="armscii8 big5 cp1251 cp1257
                           croat czech danish dec8 dos estonia euc_kr gb2312 gbk
                           german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
                           latin1 latin1_de latin2 latin5 sjis swe7 tis620 ujis
-                          usa7 utf8 win1250 win1251ukr"
+                          usa7 utf8 win1250 win1250ch win1251ukr"
 CHARSETS_DEPRECATED="win1251"
-CHARSETS_COMPLEX="big5 czech euc_kr gb2312 gbk latin1_de sjis tis620 ujis utf8"
+CHARSETS_COMPLEX="big5 czech euc_kr gb2312 gbk latin1_de sjis tis620 ujis utf8 win1250ch"
 DEFAULT_CHARSET=latin1
 AC_DIVERT_POP
 
@@ -2070,6 +2070,9 @@ do
       ;;
     win1250)
       AC_DEFINE(HAVE_CHARSET_win1250)
+      ;;
+    win1250ch)
+      AC_DEFINE(HAVE_CHARSET_win1250ch)
       ;;
     win1251)
       AC_DEFINE(HAVE_CHARSET_win1251)

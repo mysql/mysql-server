@@ -2527,6 +2527,9 @@ static uchar sort_order_win1250[] = {
    88, 65, 65, 65, 65, 80, 69, 67, 68, 73, 73, 73, 73, 77, 77, 70,
    71, 83, 83, 85, 85, 85, 85,247, 88, 92, 92, 92, 92, 96, 91,255
 };
+#endif
+
+#if defined(HAVE_CHARSET_win1250)||defined(HAVE_CHARSET_win1250ch)
 
 static uint16 tab_cp1250_uni[256]={
      0,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
@@ -3780,6 +3783,36 @@ CHARSET_INFO compiled_charsets[] = {
     NULL,		/* mbcharlen */
     my_mb_wc_8bit,	/* mb_wc   */
     my_wc_mb_8bit,	/* wc_mb   */
+    my_caseup_str_8bit,
+    my_casedn_str_8bit,
+    my_caseup_8bit,
+    my_casedn_8bit,
+    my_strcasecmp_8bit,
+    my_strncasecmp_8bit,
+    0
+  },
+#endif
+
+#ifdef HAVE_CHARSET_win1250ch
+  {
+    34,				/* number */
+    "win1250ch",		/* name */
+    ctype_win1250ch,
+    to_lower_win1250ch,
+    to_upper_win1250ch,
+    sort_order_win1250ch,
+    tab_cp1250_uni,		/* tab_to_uni   */
+    idx_uni_cp1250,		/* tab_from_uni */
+    2,				/* strxfrm_multiply */
+    my_strnncoll_win1250ch,
+    my_strnxfrm_win1250ch,
+    my_like_range_win1250ch,
+    0,				/* mbmaxlen  */
+    NULL,			/* ismbchar  */
+    NULL,			/* ismbhead  */
+    NULL,			/* mbcharlen */
+    my_mb_wc_8bit,		/* mb_wc   */
+    my_wc_mb_8bit,		/* wc_mb   */
     my_caseup_str_8bit,
     my_casedn_str_8bit,
     my_caseup_8bit,

@@ -158,6 +158,21 @@ extern my_bool my_like_range_czech(CHARSET_INFO *,
                           char *, char *, uint *, uint *);
 #endif
 
+
+#ifdef HAVE_CHARSET_win1250ch
+/* declarations for the win1250ch character set */
+extern uchar ctype_win1250ch[];
+extern uchar to_lower_win1250ch[];
+extern uchar to_upper_win1250ch[];
+extern uchar sort_order_win1250ch[];
+extern int     my_strnncoll_win1250ch(CHARSET_INFO *, const uchar *, uint, const uchar *, uint);
+extern int     my_strnxfrm_win1250ch(CHARSET_INFO *, uchar *, uint, const uchar *, uint);
+extern my_bool my_like_range_win1250ch(CHARSET_INFO *, 
+                          const char *, uint, pchar, uint,
+                          char *, char *, uint *, uint *);
+#endif
+
+
 #ifdef HAVE_CHARSET_euc_kr
 /* declarations for the euc_kr character set */
 extern uchar ctype_euc_kr[], to_lower_euc_kr[], to_upper_euc_kr[], sort_order_euc_kr[];
