@@ -26,7 +26,8 @@
 #include "mysql_version.h"
 #include "lex.h"
 
-bool opt_search=0,opt_verbose=0;
+bool opt_search=0;
+int  opt_verbose=0;
 ulong opt_count=100000;
 
 #define max_allowed_array  8000	// Don't generate bigger arrays than this
@@ -473,7 +474,7 @@ int main(int argc,char **argv)
 
   MY_INIT(argv[0]);
 
-  start_value=4198729L; best_t1=6245075L;  best_t2=3686256L;  best_type=4; /* mode=5839  add=1  type: 0 */
+  start_value=1060872L; best_t1=7930739L;  best_t2=4311642L;  best_type=3; /* mode=5333  add=6  type: 0 */
   if (get_options(argc,(char **) argv))
     exit(1);
 
