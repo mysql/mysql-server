@@ -62,12 +62,18 @@ int mysql_update(THD *thd,
   TABLE		*table;
   SQL_SELECT	*select;
   READ_RECORD	info;
+  TABLE_LIST    *update_table_list= (TABLE_LIST*) 
+    thd->lex.select_lex.table_list.first;
   DBUG_ENTER("mysql_update");
   LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
-  if (!(table = open_ltable(thd,table_list,table_list->lock_type)))
-    DBUG_RETURN(-1); /* purecov: inspected */
+  table_list->lock_type= lock_type;
+  if ((open_and_lock_tables(thd, table_list)))
+    DBUG_RETURN(-1);
+  fix_tables_pointers(&thd->lex.select_lex);
+  table= table_list->table;
+
   save_time_stamp=table->time_stamp;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
@@ -77,8 +83,9 @@ int mysql_update(THD *thd,
   table->quick_keys=0;
   want_privilege=table->grant.want_privilege;
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
-  if (setup_tables(table_list) || setup_conds(thd,table_list,&conds)
-                               || setup_ftfuncs(&thd->lex.select_lex))
+  if (setup_tables(update_table_list) || 
+      setup_conds(thd,update_table_list,&conds)
+      || setup_ftfuncs(&thd->lex.select_lex))
     DBUG_RETURN(-1);				/* purecov: inspected */
   old_used_keys=table->used_keys;		// Keys used in WHERE
 
@@ -94,7 +101,7 @@ int mysql_update(THD *thd,
 
   /* Check the fields we are going to modify */
   table->grant.want_privilege=want_privilege;
-  if (setup_fields(thd,table_list,fields,1,0,0))
+  if (setup_fields(thd,update_table_list,fields,1,0,0))
     DBUG_RETURN(-1);				/* purecov: inspected */
   if (table->timestamp_field)
   {
@@ -107,7 +114,7 @@ int mysql_update(THD *thd,
 
   /* Check values */
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
-  if (setup_fields(thd,table_list,values,0,0,0))
+  if (setup_fields(thd,update_table_list,values,0,0,0))
   {
     table->time_stamp=save_time_stamp;		// Restore timestamp pointer
     DBUG_RETURN(-1);				/* purecov: inspected */
