@@ -7549,8 +7549,8 @@ typedef struct my_coll_rule_item_st
   USAGE
     
   RETURN VALUES
-    0 - OK
-    1 - ERROR, e.g. too many items.
+    A positive number means the number of rules loaded.
+   -1 means ERROR, e.g. too many items, syntax error, etc.
 */
 
 static int my_coll_rule_parse(MY_COLL_RULE *rule, size_t mitems,
@@ -7706,11 +7706,11 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
     return 1;
   }
   
-  if (!(newweights= (uint16**) alloc(256*sizeof(uint16*))))
+  if (!(newweights= (uint16**) (*alloc)(256*sizeof(uint16*))))
     return 1;
   bzero(newweights, 256*sizeof(uint16*));
   
-  if (!(newlengths= (uchar*) alloc(256)))
+  if (!(newlengths= (uchar*) (*alloc)(256)))
     return 1;
   
   memcpy(newlengths, deflengths, 256);
@@ -7747,7 +7747,7 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
       /* Alloc new page and copy the default UCA weights */
       uint size= 256*newlengths[pagec]*sizeof(uint16);
       
-      if (!(newweights[pagec]= (uint16*) alloc(size)))
+      if (!(newweights[pagec]= (uint16*) (*alloc)(size)))
         return 1;
       bzero((void*) newweights[pagec], size);
       
@@ -7774,8 +7774,10 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
   
   /* Copy non-overwritten pages from the default UCA weights */
   for (i= 0; i < 256 ; i++)
+  {
     if (!newweights[i])
       newweights[i]= defweights[i];
+  }
   
   cs->sort_order= newlengths;
   cs->sort_order_big= newweights;
@@ -7785,7 +7787,7 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(uint))
   if (ncontractions)
   {
     uint size= 0x40*0x40*sizeof(uint16); /* 8K, for basic latin letter only */
-    if (!(cs->contractions= (uint16*) alloc(size)))
+    if (!(cs->contractions= (uint16*) (*alloc)(size)))
         return 1;
     bzero((void*)cs->contractions, size);
     for (i=0; i < rc; i++)
