@@ -250,7 +250,7 @@ struct show_var_st innodb_status_variables[]= {
   {"rows_updated",
   (char*) &export_vars.innodb_rows_updated,               SHOW_LONG},
   {NullS, NullS, SHOW_LONG}};
-
+      
 /* General functions */
 
 /**********************************************************************
@@ -1150,7 +1150,6 @@ innobase_init(void)
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 
 	srv_lock_wait_timeout = (ulint) innobase_lock_wait_timeout;
-	srv_thread_concurrency = (ulint) innobase_thread_concurrency;
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
 	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
