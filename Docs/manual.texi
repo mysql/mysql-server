@@ -4149,6 +4149,12 @@ USA [LinuxWired/Scottsdale, AZ] @
 @uref{http://mysql.linuxwired.net/, WWW}
 @uref{ftp://ftp.linuxwired.net/pub/mirrors/mysql/, FTP}
 
+@item
+@c EMAIL: dan@surfsouth.com (Dan Muntz)
+@c @image{Flags/usa}
+USA [Venoma.Org/Valdosta, GA] @
+@uref{http://mysql.venoma.org/, WWW}
+
 @end itemize
 
 @strong{South America:}
@@ -4157,7 +4163,7 @@ USA [LinuxWired/Scottsdale, AZ] @
 
 @item
 @c Added 20001102
-@c nico@bannerlandia.com (Nicolas Moldavsky)
+@c EMAIL: nico@bannerlandia.com (Nicolas Moldavsky)
 @c @image{Flags/argentina}
 Argentina [bannerlandia.com] @
 @uref{http://mysql.bannerlandia.com.ar/, WWW}
