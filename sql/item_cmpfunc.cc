@@ -249,7 +249,8 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       We must set cmp_charset here as we may be called from for an automatic
       generated item, like in natural join
     */
-    if (cmp_collation.set((*a)->collation, (*b)->collation))
+    if (cmp_collation.set((*a)->collation, (*b)->collation) || 
+	cmp_collation.derivation == DERIVATION_NONE)
     {
       my_coll_agg_error((*a)->collation, (*b)->collation, owner->func_name());
       return 1;

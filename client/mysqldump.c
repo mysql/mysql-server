@@ -352,6 +352,11 @@ static void write_header(FILE *sql_file, char *db_name)
 	    mysql_get_server_info(&mysql_connection));
     if (!opt_set_names)
       fprintf(sql_file,"\n/*!40101 SET NAMES %s*/;\n",default_charset);
+    fprintf(md_result_file,"\
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;\n\
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;\n\
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE=NO_AUTO_VALUE_ON_ZERO */;\n\
+");
   }
   return;
 } /* write_header */
@@ -361,6 +366,14 @@ static void write_footer(FILE *sql_file)
 {
   if (opt_xml)
     fprintf(sql_file,"</mysqldump>");
+  else
+  {
+    fprintf(md_result_file,"\n
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n\
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;\n\
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;\n\
+");
+  }
   fputs("\n", sql_file);
 } /* write_footer */
 
