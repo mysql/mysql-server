@@ -4,6 +4,30 @@ SQL parser lexical analyzer: input file for the GNU Flex lexer generator
 (c) 1997 Innobase Oy
 
 Created 12/14/1997 Heikki Tuuri
+Published under the GPL version 2
+
+The InnoDB parser is frozen because MySQL takes care of SQL parsing.
+Therefore we normally keep the InnoDB parser C files as they are, and do
+not automatically generate them from pars0grm.y and pars0lex.l.
+
+How to make the InnoDB parser and lexer C files:
+
+1. First do
+        bison -d pars0grm.y
+   That generates pars0grm.tab.c and pars0grm.tab.h.
+
+2. Rename pars0grm.tab.c to pars0grm.c and pars0grm.tab.h to pars0grm.h.
+
+3. Copy pars0grm.h also to /innobase/include
+
+4. Do
+        flex pars0lex.l
+   That generates lex.yy.c.
+
+5. Rename lex.yy.c to lexyy.c.
+
+These instructions seem to work at least with bison-1.28 and flex-2.5.4 on
+Linux.
 *******************************************************/
 
 %{
@@ -19,11 +43,10 @@ Created 12/14/1997 Heikki Tuuri
 #define isatty(A)	0
 #define malloc(A)	mem_alloc(A)
 #define free(A)		mem_free(A)
-#define realloc(P, A)	mem_realloc(P, A)
+#define realloc(P, A)	mem_realloc(P, A, __FILE__, __LINE__)
 #define exit(A) 	ut_a(0)
 
-#define YY_INPUT(buf, result, max_size) pars_get_lex_chars(buf, &result,\
-								max_size)
+#define YY_INPUT(buf, result, max_size) pars_get_lex_chars(buf, &result, max_size)
 %}
 								
 DIGIT	[0-9]
