@@ -249,6 +249,10 @@ merge to completion before shutdown */
 
 ibool	srv_fast_shutdown	= FALSE;
 
+ibool	srv_very_fast_shutdown	= FALSE; /* if this TRUE, do not flush the
+					 buffer pool to data files at the
+					 shutdown; we effectively 'crash'
+					 InnoDB */
 /* Generate a innodb_status.<pid> file */
 ibool	srv_innodb_status	= FALSE;
 
@@ -2178,7 +2182,8 @@ loop:
 	/*****************************************************************/
 background_loop:
 	/* ---- In this loop we run background operations when the server
-	is quiet from user activity */
+	is quiet from user activity. Also in the case of a shutdown, we
+	loop here, flushing the buffer pool to the data files. */
 
 	/* The server has been quiet for a while: start running background
 	operations */
@@ -2251,7 +2256,16 @@ background_loop:
 	
 flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
-	n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
+
+	if (!srv_very_fast_shutdown) {
+		n_pages_flushed =
+			buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
+	} else {
+		/* In a 'very fast' shutdown we do not flush the buffer pool
+		to data files: we set n_pages_flushed to 0 artificially. */
+
+		n_pages_flushed = 0;
+	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
@@ -2304,7 +2318,10 @@ flush_loop:
 
 			/* If we are doing a fast shutdown (= the default)
 			we do not do purge or insert buffer merge. But we
-			flush the buffer pool completely to disk. */
+			flush the buffer pool completely to disk.
+			In a 'very fast' shutdown we do not flush the buffer
+			pool to data files: we have set n_pages_flushed to
+			0 artificially. */
 
 			goto background_loop;
 		}

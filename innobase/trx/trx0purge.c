@@ -1057,12 +1057,15 @@ trx_purge(void)
 			&& !UT_LIST_GET_LAST(trx_sys->view_list)) {
 		float	ratio = (float) trx_sys->rseg_history_len
 				/ srv_max_purge_lag;
-		if (ratio > 1) {
+		if (ratio > ULINT_MAX / 10000) {
+			/* Avoid overflow: maximum delay is 4295 seconds */
+			srv_dml_needed_delay = ULINT_MAX;
+		} else if (ratio > 1) {
 			/* If the history list length exceeds the
 			innodb_max_purge_lag, the
 			data manipulation statements are delayed
 			by at least 5000 microseconds. */
-			srv_dml_needed_delay = (ratio - .5) * 10000;
+			srv_dml_needed_delay = (ulint) ((ratio - .5) * 10000);
 		}
 	}
 
