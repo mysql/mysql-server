@@ -184,7 +184,7 @@ public:
 /**
  * CreateIndxRef.
  */
-class CreateIndxRef {
+struct CreateIndxRef {
   friend bool printCREATE_INDX_REF(FILE*, const Uint32*, Uint32, Uint16);
 
 public:
@@ -210,7 +210,6 @@ public:
     InvalidAttributeOrder = 4255
   };
 
-private:
   CreateIndxConf m_conf;
   //Uint32 m_userRef;
   //Uint32 m_connectionPtr;
