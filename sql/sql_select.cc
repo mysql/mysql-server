@@ -6463,11 +6463,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (error > 0)
 	  DBUG_RETURN(-1);			/* purecov: inspected */
 	if (end_of_records)
-	{
-	  if (!error)
-            join->send_records++;
 	  DBUG_RETURN(0);
-	}
 	if (join->send_records >= join->unit->select_limit_cnt &&
 	    join->do_send_rows)
 	{
