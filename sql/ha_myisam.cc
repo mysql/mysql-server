@@ -682,16 +682,23 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
         mi_extra(file, HA_EXTRA_NO_KEYS, 0);
       else
       {
-	/* Only disable old index if the table was empty */
-	if (file->state->records == 0)
+	/*
+	  Only disable old index if the table was empty and we are inserting
+	  a lot of rows.
+	  We should not do this for only a few rows as this is slower and
+	  we don't want to update the key statistics based of only a few rows.
+	*/
+	if (file->state->records == 0 &&
+	    rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT)
 	  mi_disable_non_unique_index(file,rows);
         else
         {
           mi_init_bulk_insert(file,
-              current_thd->variables.bulk_insert_buff_size, rows);
-	table->bulk_insert= 1;
+			      current_thd->variables.bulk_insert_buff_size,
+			      rows);
+	  table->bulk_insert= 1;
+	}
       }
-    }
     }
     enable_activate_all_index=1;
   }
