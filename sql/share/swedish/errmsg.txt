@@ -67,7 +67,7 @@ character-set=latin1
 "Kolumn '%-.64s' får inte vara NULL",
 "Okänd databas: '%-.64s'",
 "Tabellen '%-.64s' finns redan",
-"Okänd tabell '%-.64s'",
+"Okänd tabell '%-.180s'",
 "Kolumn '%-.64s' i %s är inte unik",
 "Servern går nu ned",
 "Okänd kolumn '%-.64s' i %s",
