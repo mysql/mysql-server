@@ -66,6 +66,7 @@ c_h="" i_h=""
 c_u="" i_u=""
 c_f="" i_f=""
 c_t="" c_c=""
+c_p=""
 
 # Check for old tables
 if test ! -f $mdata/db.frm
@@ -207,6 +208,16 @@ then
   c_c="$c_c   comment='Column privileges';"
 fi
 
+if test ! -f $mdata/proc.frm
+then
+  c_p="$c_p CREATE TABLE proc ("
+  c_p="$c_p   name char(64) binary DEFAULT '' NOT NULL,"
+  c_p="$c_p   body blob DEFAULT '' NOT NULL,"
+  c_p="$c_p   PRIMARY KEY (name)"
+  c_p="$c_p )"
+  c_p="$c_p   comment='Stored Procedures';"
+fi
+	      
 mysqld_boot=" $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
     --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $EXTRA_ARG"
 echo "running $mysqld_boot"
@@ -227,6 +238,9 @@ $i_f
 
 $c_t
 $c_c
+
+$c_p
+
 END_OF_DATA
 then
     exit 0
