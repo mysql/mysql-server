@@ -41,4 +41,12 @@ venue_id	venue_text	dt	name	entity_id
 select * from t1 left join t2 on venue_id = entity_id where match(name) against('aberdeen') and dt = '2003-05-23 19:30:00';
 venue_id	venue_text	dt	name	entity_id
 1	a1	2003-05-23 19:30:00	aberdeen town hall	1
+select * from t1 left join t2 on (venue_id = entity_id and match(name) against('aberdeen' in boolean mode)) where dt = '2003-05-23 19:30:00';
+venue_id	venue_text	dt	name	entity_id
+1	a1	2003-05-23 19:30:00	aberdeen town hall	1
+NULL	a2	2003-05-23 19:30:00	NULL	NULL
+select * from t1 left join t2 on (venue_id = entity_id and match(name) against('aberdeen')) where dt = '2003-05-23 19:30:00';
+venue_id	venue_text	dt	name	entity_id
+1	a1	2003-05-23 19:30:00	aberdeen town hall	1
+NULL	a2	2003-05-23 19:30:00	NULL	NULL
 drop table t1,t2;
