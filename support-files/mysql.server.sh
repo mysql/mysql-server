@@ -54,6 +54,17 @@ else
   bindir="$basedir/bin"
 fi
 
+#
+# Use LSB init script functions for printing messages, if possible
+#
+lsb_functions="/lib/lsb/init-functions"
+if test -f $lsb_functions ; then
+  source $lsb_functions
+else
+  alias log_success_msg="echo \ SUCCESS! "
+  alias log_failure_msg="echo \ ERROR! "
+fi
+
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:$basedir/bin
 export PATH
 
@@ -73,6 +84,20 @@ parse_arguments() {
       --pid-file=*) pid_file=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
     esac
   done
+}
+
+wait_for_pid () {
+  for((i=0; i<35; i++)); do
+    sleep 1
+    test -s $pid_file && i='' && break
+    echo $echo_n ".$echo_c"
+  done
+
+  if test -z "$i" ; then
+    log_success_msg
+  else
+    log_failure_msg
+  fi
 }
 
 # Get arguments from the my.cnf file,
@@ -151,14 +176,17 @@ case "$mode" in
     then
       # Give extra arguments to mysqld with the my.cnf file. This script may
       # be overwritten at next upgrade.
+      echo $echo_n "Starting MySQL"
       $bindir/mysqld_safe --datadir=$datadir --pid-file=$pid_file >/dev/null 2>&1 &
+      wait_for_pid
+      
       # Make lock for RedHat / SuSE
       if test -w /var/lock/subsys
       then
         touch /var/lock/subsys/mysql
       fi
     else
-      echo "Can't execute $bindir/mysqld_safe from dir $basedir"
+      log_failure_msg "Can't execute $bindir/mysqld_safe"
     fi
     ;;
 
@@ -168,29 +196,18 @@ case "$mode" in
     if test -s "$pid_file"
     then
       mysqld_pid=`cat $pid_file`
-      echo "Killing mysqld with pid $mysqld_pid"
+      echo $echo_n "Shutting down MySQL"
       kill $mysqld_pid
       # mysqld should remove the pid_file when it exits, so wait for it.
+      wait_for_pid
 
-      sleep 1
-      while [ -s $pid_file -a "$flags" != aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ]
-      do
-	[ -z "$flags" ] && echo $echo_n "Wait for mysqld to exit$echo_c" || echo $echo_n ".$echo_c"
-        flags=a$flags
-        sleep 1
-      done
-      if [ -s $pid_file ]
-         then echo " gave up waiting!"
-      elif [ -n "$flags" ]
-         then echo " done"
-      fi
       # delete lock for RedHat / SuSE
       if test -f /var/lock/subsys/mysql
       then
         rm -f /var/lock/subsys/mysql
       fi
     else
-      echo "No mysqld pid file found. Looked for $pid_file."
+      log_failure_msg "MySQL PID file could not be found!"
     fi
     ;;
 
@@ -199,11 +216,21 @@ case "$mode" in
     # running or not, start it again.
     $0 stop
     $0 start
-		;;
+  ;;
+
+  'reload')
+    if test -s "$pid_file" ; then
+      mysqld_pid=`cat $pid_file`
+      kill -HUP $mysqld_pid && log_success_msg "Reloading service MySQL"
+      touch $pid_file
+    else
+      log_failure_msg "MySQL PID file could not be found!"
+    fi
+  ;;
 
   *)
     # usage
-    echo "Usage: $0 start|stop|restart"
+    echo "Usage: $0 start|stop|restart|reload"
     exit 1
     ;;
 esac
