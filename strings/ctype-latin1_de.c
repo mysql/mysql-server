@@ -248,7 +248,7 @@ int my_strxfrm_latin1_de(uchar * dest, const uchar * src, int len)
  */
 
 #define min_sort_char ((char) 0)
-#define max_sort_char ((char) 255)
+#define max_sort_char ((char) 0xF7)
 #define wild_one '_'
 #define wild_many '%'
 
