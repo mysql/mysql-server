@@ -322,6 +322,7 @@ FTP (@uref{ftp://ftp.shellhung.org/pub/Mirror/mysql/})
 @item
 @image{Flags/indonesia} Indonesia [incaf.net] @@
 WWW (@uref{http://mysql.incaf.net/})
+FTP (@uref{ftp://mysql.incaf.net/})
 
 @item
 @image{Flags/indonesia} Indonesia [web.id] @@
