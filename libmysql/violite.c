@@ -39,6 +39,13 @@
 #include <sys/ioctl.h>
 #endif
 
+#if !defined(MSDOS) && !defined(__WIN__) && !defined(HAVE_BROKEN_NETINET_INCLUDES) && !defined(__BEOS__)
+#include <netinet/ip.h>
+#if !defined(alpha_linux_port)
+#include <netinet/tcp.h>
+#endif
+#endif
+
 #if defined(__EMX__) || defined(OS2)
 #define ioctlsocket ioctl
 #endif	/* defined(__EMX__) */
