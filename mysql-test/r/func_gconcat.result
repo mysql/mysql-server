@@ -149,16 +149,19 @@ grp	group_concat(c order by c)
 3	D,D,E
 4	
 5	NULL
-set group_concat_max_len = 5;
+set group_concat_max_len = 4;
 select grp,group_concat(c) from t1 group by grp;
 grp	group_concat(c)
 1	NULL
 2	b
-3	D,D,E
+3	D,D,
 4	
 5	NULL
+Warnings:
+Warning	1260	1 line(s) were cut by GROUP_CONCAT()
 show warnings;
 Level	Code	Message
+Warning	1260	1 line(s) were cut by GROUP_CONCAT()
 set group_concat_max_len = 1024;
 select group_concat(sum(a)) from t1 group by grp;
 ERROR HY000: Invalid use of group function

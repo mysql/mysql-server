@@ -34,6 +34,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "sync0sync.h"
 #include "thr0loc.h"
 #include "que0que.h"
+#include "srv0que.h"
 #include "log0recv.h"
 #include "pars0pars.h"
 #include "usr0sess.h"

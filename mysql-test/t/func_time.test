@@ -255,8 +255,6 @@ select date_add(date,INTERVAL "1 1" YEAR_MONTH) from t1;
 select date_add(date,INTERVAL "1:1:1" HOUR_SECOND) from t1;
 select date_add(date,INTERVAL "1 1:1" DAY_MINUTE) from t1;
 select date_add(date,INTERVAL "1 1:1:1" DAY_SECOND) from t1;
-
-# The following is not as one would expect...
 select date_add(time,INTERVAL 1 SECOND) from t1;
 drop table t1;
 

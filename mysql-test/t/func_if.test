@@ -47,3 +47,12 @@ create table t1 (x int, y int);
 insert into t1 values (0,6),(10,16),(20,26),(30,10),(40,46),(50,56);
 select min(if(y -x > 5,y,NULL)), max(if(y - x > 5,y,NULL)) from t1;
 drop table t1;
+
+#
+# BUG#3987
+#
+create table t1 (a int);
+insert t1 values (1),(2);
+select if(1>2,a,avg(a)) from t1;
+drop table t1;
+

@@ -80,9 +80,9 @@ ins_node_create(
 	node->trx_id = ut_dulint_zero;
 	
 	node->entry_sys_heap = mem_heap_create(128);
-#ifdef UNIV_DEBUG
-	node->magic_n = INS_NODE_MAGIC_N;
-#endif /* UNIV_DEBUG */
+
+	node->magic_n = INS_NODE_MAGIC_N;	
+	
 	return(node);
 }
 
@@ -194,7 +194,6 @@ ins_node_set_new_row(
 	ins_node_t*	node,	/* in: insert node */
 	dtuple_t*	row)	/* in: new row (or first row) for the node */
 {
-	ut_ad(node->magic_n == INS_NODE_MAGIC_N);
 	node->state = INS_NODE_SET_IX_LOCK;
 	node->index = NULL;
 	node->entry = NULL;
@@ -2014,7 +2013,6 @@ row_ins(
 	ulint	err;
 	
 	ut_ad(node && thr);
-	ut_ad(node->magic_n == INS_NODE_MAGIC_N);
 
 	if (node->state == INS_NODE_ALLOC_ROW_ID) {
 
@@ -2079,7 +2077,7 @@ row_ins_step(
 	trx_start_if_not_started(trx);
 	
 	node = thr->run_node;
-	ut_ad(node->magic_n == INS_NODE_MAGIC_N);
+
 	ut_ad(que_node_get_type(node) == QUE_NODE_INSERT);
 
 	parent = que_node_get_parent(node);
