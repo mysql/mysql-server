@@ -161,13 +161,16 @@ vreplace()
   done
 }
 
-for d in 4.0.XX-gpl 4.0.XX-pro 4.0.XX-classic
-do
-  cd $BASE/InstallShield/$d/String\ Tables/0009-English
-  vreplace value.shl
-  cd ../../Setup\ Files/Compressed\ Files/Language\ Independent/OS\ Independent
-  vreplace infolist.txt
-done
+if test -d $BASE/InstallShield
+then
+  for d in 4.1.XX-gpl 4.1.XX-pro 4.1.XX-classic
+  do
+    cd $BASE/InstallShield/$d/String\ Tables/0009-English
+    vreplace value.shl
+    cd ../../Setup\ Files/Compressed\ Files/Language\ Independent/OS\ Independent
+    vreplace infolist.txt
+  done
+fi
 
 #
 # Move all error message files to root directory
