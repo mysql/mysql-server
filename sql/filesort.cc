@@ -420,9 +420,6 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   next_pos=ref_pos;
   if (! indexfile && ! quick_select)
   {
-    file->reset();			// QQ; Shouldn't be needed
-    if (sort_form->key_read)		// QQ Can be removed after the reset
-      file->extra(HA_EXTRA_KEYREAD);	// QQ is removed
     next_pos=(byte*) 0;			/* Find records in sequence */
     file->ha_rnd_init(1);
     file->extra_opt(HA_EXTRA_CACHE,
