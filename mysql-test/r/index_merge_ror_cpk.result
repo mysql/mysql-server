@@ -74,7 +74,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index_merge	PRIMARY,key1,pktail2ok	pktail2ok,key1	8,4	NULL	199	Using sort_union(pktail2ok,key1); Using where
 explain select * from t1 where pktail3bad=1 and key1=10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	key1,pktail3bad	pktail3bad	4	const	98	Using where
+1	SIMPLE	t1	ref	key1,pktail3bad	pktail3bad	4	const	ROWS	Using where
 explain select * from t1 where pktail4bad=1 and key1=10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	key1,pktail4bad	pktail4bad	4	const	99	Using where

@@ -1696,7 +1696,7 @@ Variable_name	Value
 Innodb_rows_inserted	31706
 show status like "Innodb_rows_read";
 Variable_name	Value
-Innodb_rows_read	80161
+Innodb_rows_read	80178
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	29530
