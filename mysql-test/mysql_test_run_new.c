@@ -73,25 +73,25 @@ const char *TEST_IGNORE= "[ignore]";
 ******************************************************************************/
 
 #ifdef __NETWARE__
-static char base_dir[PATH_MAX]= "sys:/mysql";
+static char base_dir[FN_REFLEN]= "sys:/mysql";
 #else
-static char base_dir[PATH_MAX]= "..";
+static char base_dir[FN_REFLEN]= "..";
 #endif
-static char db[PATH_MAX]=       "test";
-static char user[PATH_MAX]=     "root";
-static char password[PATH_MAX]= "";
+static char db[FN_LEN]=       "test";
+static char user[FN_LEN]=     "root";
+static char password[FN_LEN]= "";
 
 int master_port= 9306;
 int slave_port=  9307;
 
 #if !defined(__NETWARE__) && !defined(__WIN__)
-static char master_socket[PATH_MAX]= "./var/tmp/master.sock";
-static char slave_socket[PATH_MAX]=  "./var/tmp/slave.sock";
+static char master_socket[FN_REFLEN]= "./var/tmp/master.sock";
+static char slave_socket[FN_REFLEN]=  "./var/tmp/slave.sock";
 #endif
 
 /* comma delimited list of tests to skip or empty string */
 #ifndef __WIN__
-static char skip_test[PATH_MAX]= " lowercase_table3 , system_mysql_db_fix ";
+static char skip_test[FN_REFLEN]= " lowercase_table3 , system_mysql_db_fix ";
 #else
 /*
   The most ignore testes contain the calls of system command
@@ -110,7 +110,7 @@ static char skip_test[PATH_MAX]= " lowercase_table3 , system_mysql_db_fix ";
   mysqldump contains a command system
   rpl000001 makes non-exit loop...temporary skiped
 */
-static char skip_test[PATH_MAX]=
+static char skip_test[FN_REFLEN]=
 " lowercase_table3 ,"
 " system_mysql_db_fix ,"
 " sp ,"
@@ -123,44 +123,44 @@ static char skip_test[PATH_MAX]=
 " mysqldump ,"
 " rpl000001 ";
 #endif
-static char ignore_test[PATH_MAX]= "";
+static char ignore_test[FN_REFLEN]= "";
 
-static char bin_dir[PATH_MAX];
-static char mysql_test_dir[PATH_MAX];
-static char test_dir[PATH_MAX];
-static char mysql_tmp_dir[PATH_MAX];
-static char result_dir[PATH_MAX];
-static char master_dir[PATH_MAX];
-static char slave_dir[PATH_MAX];
-static char lang_dir[PATH_MAX];
-static char char_dir[PATH_MAX];
+static char bin_dir[FN_REFLEN];
+static char mysql_test_dir[FN_REFLEN];
+static char test_dir[FN_REFLEN];
+static char mysql_tmp_dir[FN_REFLEN];
+static char result_dir[FN_REFLEN];
+static char master_dir[FN_REFLEN];
+static char slave_dir[FN_REFLEN];
+static char lang_dir[FN_REFLEN];
+static char char_dir[FN_REFLEN];
 
-static char mysqladmin_file[PATH_MAX];
-static char mysqld_file[PATH_MAX];
-static char mysqltest_file[PATH_MAX];
+static char mysqladmin_file[FN_REFLEN];
+static char mysqld_file[FN_REFLEN];
+static char mysqltest_file[FN_REFLEN];
 #ifndef __WIN__
-static char master_pid[PATH_MAX];
-static char slave_pid[PATH_MAX];
-static char sh_file[PATH_MAX]= "/bin/sh";
+static char master_pid[FN_REFLEN];
+static char slave_pid[FN_REFLEN];
+static char sh_file[FN_REFLEN]= "/bin/sh";
 #else
 static HANDLE master_pid;
 static HANDLE slave_pid;
 #endif
 
-static char master_opt[PATH_MAX]= "";
-static char slave_opt[PATH_MAX]= "";
+static char master_opt[FN_REFLEN]= "";
+static char slave_opt[FN_REFLEN]= "";
 
-static char slave_master_info[PATH_MAX]= "";
+static char slave_master_info[FN_REFLEN]= "";
 
-static char master_init_script[PATH_MAX]= "";
-static char slave_init_script[PATH_MAX]= "";
+static char master_init_script[FN_REFLEN]= "";
+static char slave_init_script[FN_REFLEN]= "";
 
 /* OpenSSL */
-static char ca_cert[PATH_MAX];
-static char server_cert[PATH_MAX];
-static char server_key[PATH_MAX];
-static char client_cert[PATH_MAX];
-static char client_key[PATH_MAX];
+static char ca_cert[FN_REFLEN];
+static char server_cert[FN_REFLEN];
+static char server_key[FN_REFLEN];
+static char client_cert[FN_REFLEN];
+static char client_key[FN_REFLEN];
 
 int total_skip= 0;
 int total_pass= 0;
@@ -254,18 +254,18 @@ void install_db(char *datadir)
 {
   arg_list_t al;
   int err;
-  char input[PATH_MAX];
-  char output[PATH_MAX];
-  char error[PATH_MAX];
+  char input[FN_REFLEN];
+  char output[FN_REFLEN];
+  char error[FN_REFLEN];
 
   /* input file */
 #ifdef __NETWARE__
-  snprintf(input, PATH_MAX, "%s/bin/init_db.sql", base_dir);
+  snprintf(input, FN_REFLEN, "%s/bin/init_db.sql", base_dir);
 #else
-  snprintf(input, PATH_MAX, "%s/mysql-test/init_db.sql", base_dir);
+  snprintf(input, FN_REFLEN, "%s/mysql-test/init_db.sql", base_dir);
 #endif
-  snprintf(output, PATH_MAX, "%s/install.out", datadir);
-  snprintf(error, PATH_MAX, "%s/install.err", datadir);
+  snprintf(output, FN_REFLEN, "%s/install.out", datadir);
+  snprintf(error, FN_REFLEN, "%s/install.err", datadir);
 
   /* args */
   init_args(&al);
@@ -302,10 +302,10 @@ void install_db(char *datadir)
 
 void mysql_install_db()
 {
-  char temp[PATH_MAX];
+  char temp[FN_REFLEN];
 
   /* var directory */
-  snprintf(temp, PATH_MAX, "%s/var", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var", mysql_test_dir);
 
   /* clean up old direcotry */
   del_tree(temp);
@@ -315,41 +315,41 @@ void mysql_install_db()
   mkdir(temp, S_IRWXU);
   /* create subdirectories */
   mlog("Creating test-suite folders...\n");
-  snprintf(temp, PATH_MAX, "%s/var/run", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/run", mysql_test_dir);
   mkdir(temp, S_IRWXU);
-  snprintf(temp, PATH_MAX, "%s/var/tmp", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/tmp", mysql_test_dir);
   mkdir(temp, S_IRWXU);
-  snprintf(temp, PATH_MAX, "%s/var/master-data", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/master-data", mysql_test_dir);
   mkdir(temp, S_IRWXU);
-  snprintf(temp, PATH_MAX, "%s/var/master-data/mysql", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/master-data/mysql", mysql_test_dir);
   mkdir(temp, S_IRWXU);
-  snprintf(temp, PATH_MAX, "%s/var/master-data/test", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/master-data/test", mysql_test_dir);
   mkdir(temp, S_IRWXU);
-  snprintf(temp, PATH_MAX, "%s/var/slave-data", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/slave-data", mysql_test_dir);
   mkdir(temp, S_IRWXU);
-  snprintf(temp, PATH_MAX, "%s/var/slave-data/mysql", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/slave-data/mysql", mysql_test_dir);
   mkdir(temp, S_IRWXU);
-  snprintf(temp, PATH_MAX, "%s/var/slave-data/test", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/slave-data/test", mysql_test_dir);
   mkdir(temp, S_IRWXU);
 #else
   mkdir(temp);
   /* create subdirectories */
   mlog("Creating test-suite folders...\n");
-  snprintf(temp, PATH_MAX, "%s/var/run", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/run", mysql_test_dir);
   mkdir(temp);
-  snprintf(temp, PATH_MAX, "%s/var/tmp", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/tmp", mysql_test_dir);
   mkdir(temp);
-  snprintf(temp, PATH_MAX, "%s/var/master-data", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/master-data", mysql_test_dir);
   mkdir(temp);
-  snprintf(temp, PATH_MAX, "%s/var/master-data/mysql", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/master-data/mysql", mysql_test_dir);
   mkdir(temp);
-  snprintf(temp, PATH_MAX, "%s/var/master-data/test", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/master-data/test", mysql_test_dir);
   mkdir(temp);
-  snprintf(temp, PATH_MAX, "%s/var/slave-data", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/slave-data", mysql_test_dir);
   mkdir(temp);
-  snprintf(temp, PATH_MAX, "%s/var/slave-data/mysql", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/slave-data/mysql", mysql_test_dir);
   mkdir(temp);
-  snprintf(temp, PATH_MAX, "%s/var/slave-data/test", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/var/slave-data/test", mysql_test_dir);
   mkdir(temp);
 #endif
 
@@ -372,10 +372,10 @@ void start_master()
 {
   arg_list_t al;
   int err;
-  char master_out[PATH_MAX];
-  char master_err[PATH_MAX];
-/*  char temp[PATH_MAX]; */
-  char temp2[PATH_MAX];
+  char master_out[FN_REFLEN];
+  char master_err[FN_REFLEN];
+/*  char temp[FN_REFLEN]; */
+  char temp2[FN_REFLEN];
 
   /* remove old berkeley db log files that can confuse the server */
   removef("%s/log.*", master_dir);
@@ -405,7 +405,7 @@ void start_master()
       FILE *fp;
 
       /* create an empty index file */
-      snprintf(temp, PATH_MAX, "%s/test/t1.MYI", master_dir);
+      snprintf(temp, FN_REFLEN, "%s/test/t1.MYI", master_dir);
       fp= fopen(temp, "wb+");
 
       fputs("1", fp);
@@ -418,19 +418,19 @@ void start_master()
   }
 
   /* redirection files */
-  snprintf(master_out, PATH_MAX, "%s/var/run/master%u.out",
+  snprintf(master_out, FN_REFLEN, "%s/var/run/master%u.out",
            mysql_test_dir, restarts);
-  snprintf(master_err, PATH_MAX, "%s/var/run/master%u.err",
+  snprintf(master_err, FN_REFLEN, "%s/var/run/master%u.err",
            mysql_test_dir, restarts);
 #ifndef __WIN__
-  snprintf(temp2,PATH_MAX,"%s/var",mysql_test_dir);
+  snprintf(temp2,FN_REFLEN,"%s/var",mysql_test_dir);
   mkdir(temp2,S_IRWXU);
-  snprintf(temp2,PATH_MAX,"%s/var/log",mysql_test_dir);
+  snprintf(temp2,FN_REFLEN,"%s/var/log",mysql_test_dir);
   mkdir(temp2,S_IRWXU);
 #else
-  snprintf(temp2,PATH_MAX,"%s/var",mysql_test_dir);
+  snprintf(temp2,FN_REFLEN,"%s/var",mysql_test_dir);
   mkdir(temp2);
-  snprintf(temp2,PATH_MAX,"%s/var/log",mysql_test_dir);
+  snprintf(temp2,FN_REFLEN,"%s/var/log",mysql_test_dir);
   mkdir(temp2);
 #endif
   /* args */
@@ -539,8 +539,8 @@ void start_slave()
 {
   arg_list_t al;
   int err;
-  char slave_out[PATH_MAX];
-  char slave_err[PATH_MAX];
+  char slave_out[FN_REFLEN];
+  char slave_err[FN_REFLEN];
 
   /* skip? */
   if (skip_slave) return;
@@ -568,7 +568,7 @@ void start_slave()
     if (strinstr(slave_init_script, "rpl000016-slave.sh") != 0)
     {
       /* create empty master.info file */
-      snprintf(temp, PATH_MAX, "%s/master.info", slave_dir);
+      snprintf(temp, FN_REFLEN, "%s/master.info", slave_dir);
       close(open(temp, O_WRONLY | O_CREAT,S_IRWXU|S_IRWXG|S_IRWXO));
     }
     else if (strinstr(slave_init_script, "rpl000017-slave.sh") != 0)
@@ -576,7 +576,7 @@ void start_slave()
       FILE *fp;
 
       /* create a master.info file */
-      snprintf(temp, PATH_MAX, "%s/master.info", slave_dir);
+      snprintf(temp, FN_REFLEN, "%s/master.info", slave_dir);
       fp= fopen(temp, "wb+");
 
       fputs("master-bin.000001\n", fp);
@@ -593,7 +593,7 @@ void start_slave()
     else if (strinstr(slave_init_script, "rpl_rotate_logs-slave.sh") != 0)
     {
       /* create empty master.info file */
-      snprintf(temp, PATH_MAX, "%s/master.info", slave_dir);
+      snprintf(temp, FN_REFLEN, "%s/master.info", slave_dir);
       close(open(temp, O_WRONLY | O_CREAT,S_IRWXU|S_IRWXG|S_IRWXO));
     }
 #elif !defined(__WIN__)
@@ -602,9 +602,9 @@ void start_slave()
   }
 
   /* redirection files */
-  snprintf(slave_out, PATH_MAX, "%s/var/run/slave%u.out",
+  snprintf(slave_out, FN_REFLEN, "%s/var/run/slave%u.out",
            mysql_test_dir, restarts);
-  snprintf(slave_err, PATH_MAX, "%s/var/run/slave%u.err",
+  snprintf(slave_err, FN_REFLEN, "%s/var/run/slave%u.err",
            mysql_test_dir, restarts);
 
   /* args */
@@ -859,14 +859,14 @@ int read_option(char *opt_file, char *opt)
 {
   int fd, err;
   char *p;
-  char buf[PATH_MAX];
+  char buf[FN_REFLEN];
 
   /* copy current option */
-  strncpy(buf, opt, PATH_MAX);
+  strncpy(buf, opt, FN_REFLEN);
 
   /* open options file */
   fd= open(opt_file, O_RDONLY);
-  err= read(fd, opt, PATH_MAX);
+  err= read(fd, opt, FN_REFLEN);
   close(fd);
 
   if (err > 0)
@@ -890,7 +890,7 @@ int read_option(char *opt_file, char *opt)
     /* check for $MYSQL_TEST_DIR */
     if ((p= strstr(opt, "$MYSQL_TEST_DIR")) != NULL)
     {
-      char temp[PATH_MAX];
+      char temp[FN_REFLEN];
 
       *p= 0;
 
@@ -925,7 +925,7 @@ int read_option(char *opt_file, char *opt)
 
 void run_test(char *test)
 {
-  char temp[PATH_MAX];
+  char temp[FN_REFLEN];
   const char *rstr;
   int skip= FALSE, ignore=FALSE;
   int restart= FALSE;
@@ -933,13 +933,13 @@ void run_test(char *test)
   struct stat info;
 
   /* skip tests in the skip list */
-  snprintf(temp, PATH_MAX, " %s ", test);
+  snprintf(temp, FN_REFLEN, " %s ", test);
   skip= (strinstr(skip_test, temp) != 0);
   if (skip == FALSE)
     ignore= (strinstr(ignore_test, temp) != 0);
 
-  snprintf(master_init_script, PATH_MAX, "%s/%s-master.sh", test_dir, test);
-  snprintf(slave_init_script, PATH_MAX, "%s/%s-slave.sh", test_dir, test);
+  snprintf(master_init_script, FN_REFLEN, "%s/%s-master.sh", test_dir, test);
+  snprintf(slave_init_script, FN_REFLEN, "%s/%s-slave.sh", test_dir, test);
 #ifdef __WIN__
   if (! stat(master_init_script, &info))
       skip= TRUE;
@@ -957,14 +957,14 @@ void run_test(char *test)
   }
   else if (!skip)     /* skip test? */
   {
-    char test_file[PATH_MAX];
-    char master_opt_file[PATH_MAX];
-    char slave_opt_file[PATH_MAX];
-    char slave_master_info_file[PATH_MAX];
-    char result_file[PATH_MAX];
-    char reject_file[PATH_MAX];
-    char out_file[PATH_MAX];
-    char err_file[PATH_MAX];
+    char test_file[FN_REFLEN];
+    char master_opt_file[FN_REFLEN];
+    char slave_opt_file[FN_REFLEN];
+    char slave_master_info_file[FN_REFLEN];
+    char result_file[FN_REFLEN];
+    char reject_file[FN_REFLEN];
+    char out_file[FN_REFLEN];
+    char err_file[FN_REFLEN];
     int err;
     arg_list_t al;
 #ifdef __WIN__
@@ -981,20 +981,20 @@ void run_test(char *test)
     if (flag != skip_slave) restart= TRUE;
 
     /* create files */
-    snprintf(master_opt_file, PATH_MAX, "%s/%s-master.opt", test_dir, test);
-    snprintf(slave_opt_file, PATH_MAX, "%s/%s-slave.opt", test_dir, test);
-    snprintf(slave_master_info_file, PATH_MAX, "%s/%s.slave-mi",
+    snprintf(master_opt_file, FN_REFLEN, "%s/%s-master.opt", test_dir, test);
+    snprintf(slave_opt_file, FN_REFLEN, "%s/%s-slave.opt", test_dir, test);
+    snprintf(slave_master_info_file, FN_REFLEN, "%s/%s.slave-mi",
              test_dir, test);
-    snprintf(reject_file, PATH_MAX, "%s/%s%s",
+    snprintf(reject_file, FN_REFLEN, "%s/%s%s",
              result_dir, test, REJECT_SUFFIX);
-    snprintf(out_file, PATH_MAX, "%s/%s%s", result_dir, test, OUT_SUFFIX);
-    snprintf(err_file, PATH_MAX, "%s/%s%s", result_dir, test, ERR_SUFFIX);
+    snprintf(out_file, FN_REFLEN, "%s/%s%s", result_dir, test, OUT_SUFFIX);
+    snprintf(err_file, FN_REFLEN, "%s/%s%s", result_dir, test, ERR_SUFFIX);
 
     /* netware specific files */
-    snprintf(test_file, PATH_MAX, "%s/%s%s", test_dir, test, NW_TEST_SUFFIX);
+    snprintf(test_file, FN_REFLEN, "%s/%s%s", test_dir, test, NW_TEST_SUFFIX);
     if (stat(test_file, &info))
     {
-      snprintf(test_file, PATH_MAX, "%s/%s%s", test_dir, test, TEST_SUFFIX);
+      snprintf(test_file, FN_REFLEN, "%s/%s%s", test_dir, test, TEST_SUFFIX);
       if (access(test_file,0))
       {
         printf("Invalid test name %s, %s file not found\n",test,test_file);
@@ -1002,11 +1002,11 @@ void run_test(char *test)
       }
     }
 
-    snprintf(result_file, PATH_MAX, "%s/%s%s",
+    snprintf(result_file, FN_REFLEN, "%s/%s%s",
              result_dir, test, NW_RESULT_SUFFIX);
     if (stat(result_file, &info))
     {
-      snprintf(result_file, PATH_MAX, "%s/%s%s",
+      snprintf(result_file, FN_REFLEN, "%s/%s%s",
                result_dir, test, RESULT_SUFFIX);
     }
 
@@ -1248,8 +1248,8 @@ void die(const char *msg)
 
 void setup(char *file __attribute__((unused)))
 {
-  char temp[PATH_MAX];
-  char file_path[PATH_MAX*2];
+  char temp[FN_REFLEN];
+  char file_path[FN_REFLEN*2];
   char *p;
   int position;
 
@@ -1257,14 +1257,14 @@ void setup(char *file __attribute__((unused)))
 #ifdef __WIN__
   _putenv( "TZ=GMT-3" );
 #else
-  setenv("TZ", "GMT-3", TRUE);
+  putenv((char *)"TZ=GMT-3");
 #endif
   /* find base dir */
 #ifdef __NETWARE__
   strcpy(temp, strlwr(file));
   while ((p= strchr(temp, '\\')) != NULL) *p= '/';
 #else
-  getcwd(temp, PATH_MAX);
+  getcwd(temp, FN_REFLEN);
   position= strlen(temp);
   temp[position]= '/';
   temp[position+1]= 0;
@@ -1284,100 +1284,100 @@ void setup(char *file __attribute__((unused)))
 
 #ifdef __NETWARE__
   /* setup paths */
-  snprintf(bin_dir, PATH_MAX, "%s/bin", base_dir);
-  snprintf(mysql_test_dir, PATH_MAX, "%s/mysql-test", base_dir);
-  snprintf(test_dir, PATH_MAX, "%s/t", mysql_test_dir);
-  snprintf(mysql_tmp_dir, PATH_MAX, "%s/var/tmp", mysql_test_dir);
-  snprintf(result_dir, PATH_MAX, "%s/r", mysql_test_dir);
-  snprintf(master_dir, PATH_MAX, "%s/var/master-data", mysql_test_dir);
-  snprintf(slave_dir, PATH_MAX, "%s/var/slave-data", mysql_test_dir);
-  snprintf(lang_dir, PATH_MAX, "%s/share/english", base_dir);
-  snprintf(char_dir, PATH_MAX, "%s/share/charsets", base_dir);
+  snprintf(bin_dir, FN_REFLEN, "%s/bin", base_dir);
+  snprintf(mysql_test_dir, FN_REFLEN, "%s/mysql-test", base_dir);
+  snprintf(test_dir, FN_REFLEN, "%s/t", mysql_test_dir);
+  snprintf(mysql_tmp_dir, FN_REFLEN, "%s/var/tmp", mysql_test_dir);
+  snprintf(result_dir, FN_REFLEN, "%s/r", mysql_test_dir);
+  snprintf(master_dir, FN_REFLEN, "%s/var/master-data", mysql_test_dir);
+  snprintf(slave_dir, FN_REFLEN, "%s/var/slave-data", mysql_test_dir);
+  snprintf(lang_dir, FN_REFLEN, "%s/share/english", base_dir);
+  snprintf(char_dir, FN_REFLEN, "%s/share/charsets", base_dir);
 
 #ifdef HAVE_OPENSSL
   use_openssl= TRUE;
 #endif /* HAVE_OPENSSL */
 
   /* OpenSSL paths */
-  snprintf(ca_cert, PATH_MAX, "%s/SSL/cacert.pem", base_dir);
-  snprintf(server_cert, PATH_MAX, "%s/SSL/server-cert.pem", base_dir);
-  snprintf(server_key, PATH_MAX, "%s/SSL/server-key.pem", base_dir);
-  snprintf(client_cert, PATH_MAX, "%s/SSL/client-cert.pem", base_dir);
-  snprintf(client_key, PATH_MAX, "%s/SSL/client-key.pem", base_dir);
+  snprintf(ca_cert, FN_REFLEN, "%s/SSL/cacert.pem", base_dir);
+  snprintf(server_cert, FN_REFLEN, "%s/SSL/server-cert.pem", base_dir);
+  snprintf(server_key, FN_REFLEN, "%s/SSL/server-key.pem", base_dir);
+  snprintf(client_cert, FN_REFLEN, "%s/SSL/client-cert.pem", base_dir);
+  snprintf(client_key, FN_REFLEN, "%s/SSL/client-key.pem", base_dir);
 
   /* setup files */
-  snprintf(mysqld_file, PATH_MAX, "%s/mysqld", bin_dir);
-  snprintf(mysqltest_file, PATH_MAX, "%s/mysqltest", bin_dir);
-  snprintf(mysqladmin_file, PATH_MAX, "%s/mysqladmin", bin_dir);
-  snprintf(master_pid, PATH_MAX, "%s/var/run/master.pid", mysql_test_dir);
-  snprintf(slave_pid, PATH_MAX, "%s/var/run/slave.pid", mysql_test_dir);
+  snprintf(mysqld_file, FN_REFLEN, "%s/mysqld", bin_dir);
+  snprintf(mysqltest_file, FN_REFLEN, "%s/mysqltest", bin_dir);
+  snprintf(mysqladmin_file, FN_REFLEN, "%s/mysqladmin", bin_dir);
+  snprintf(master_pid, FN_REFLEN, "%s/var/run/master.pid", mysql_test_dir);
+  snprintf(slave_pid, FN_REFLEN, "%s/var/run/slave.pid", mysql_test_dir);
 #elif __WIN__
   /* setup paths */
 #ifdef _DEBUG
-  snprintf(bin_dir, PATH_MAX, "%s/client_debug", base_dir);
+  snprintf(bin_dir, FN_REFLEN, "%s/client_debug", base_dir);
 #else
-  snprintf(bin_dir, PATH_MAX, "%s/client_release", base_dir);
+  snprintf(bin_dir, FN_REFLEN, "%s/client_release", base_dir);
 #endif
-  snprintf(mysql_test_dir, PATH_MAX, "%s/mysql-test", base_dir);
-  snprintf(test_dir, PATH_MAX, "%s/t", mysql_test_dir);
-  snprintf(mysql_tmp_dir, PATH_MAX, "%s/var/tmp", mysql_test_dir);
-  snprintf(result_dir, PATH_MAX, "%s/r", mysql_test_dir);
-  snprintf(master_dir, PATH_MAX, "%s/var/master-data", mysql_test_dir);
-  snprintf(slave_dir, PATH_MAX, "%s/var/slave-data", mysql_test_dir);
-  snprintf(lang_dir, PATH_MAX, "%s/share/english", base_dir);
-  snprintf(char_dir, PATH_MAX, "%s/share/charsets", base_dir);
+  snprintf(mysql_test_dir, FN_REFLEN, "%s/mysql-test", base_dir);
+  snprintf(test_dir, FN_REFLEN, "%s/t", mysql_test_dir);
+  snprintf(mysql_tmp_dir, FN_REFLEN, "%s/var/tmp", mysql_test_dir);
+  snprintf(result_dir, FN_REFLEN, "%s/r", mysql_test_dir);
+  snprintf(master_dir, FN_REFLEN, "%s/var/master-data", mysql_test_dir);
+  snprintf(slave_dir, FN_REFLEN, "%s/var/slave-data", mysql_test_dir);
+  snprintf(lang_dir, FN_REFLEN, "%s/share/english", base_dir);
+  snprintf(char_dir, FN_REFLEN, "%s/share/charsets", base_dir);
 
 #ifdef HAVE_OPENSSL
   use_openssl= TRUE;
 #endif /* HAVE_OPENSSL */
 
   /* OpenSSL paths */
-  snprintf(ca_cert, PATH_MAX, "%s/SSL/cacert.pem", base_dir);
-  snprintf(server_cert, PATH_MAX, "%s/SSL/server-cert.pem", base_dir);
-  snprintf(server_key, PATH_MAX, "%s/SSL/server-key.pem", base_dir);
-  snprintf(client_cert, PATH_MAX, "%s/SSL/client-cert.pem", base_dir);
-  snprintf(client_key, PATH_MAX, "%s/SSL/client-key.pem", base_dir);
+  snprintf(ca_cert, FN_REFLEN, "%s/SSL/cacert.pem", base_dir);
+  snprintf(server_cert, FN_REFLEN, "%s/SSL/server-cert.pem", base_dir);
+  snprintf(server_key, FN_REFLEN, "%s/SSL/server-key.pem", base_dir);
+  snprintf(client_cert, FN_REFLEN, "%s/SSL/client-cert.pem", base_dir);
+  snprintf(client_key, FN_REFLEN, "%s/SSL/client-key.pem", base_dir);
 
   /* setup files */
-  snprintf(mysqld_file, PATH_MAX, "%s/mysqld.exe", bin_dir);
-  snprintf(mysqltest_file, PATH_MAX, "%s/mysqltest.exe", bin_dir);
-  snprintf(mysqladmin_file, PATH_MAX, "%s/mysqladmin.exe", bin_dir);
+  snprintf(mysqld_file, FN_REFLEN, "%s/mysqld.exe", bin_dir);
+  snprintf(mysqltest_file, FN_REFLEN, "%s/mysqltest.exe", bin_dir);
+  snprintf(mysqladmin_file, FN_REFLEN, "%s/mysqladmin.exe", bin_dir);
 #else
   /* setup paths */
-  snprintf(bin_dir, PATH_MAX, "%s/client", base_dir);
-  snprintf(mysql_test_dir, PATH_MAX, "%s/mysql-test", base_dir);
-  snprintf(test_dir, PATH_MAX, "%s/t", mysql_test_dir);
-  snprintf(mysql_tmp_dir, PATH_MAX, "%s/var/tmp", mysql_test_dir);
-  snprintf(result_dir, PATH_MAX, "%s/r", mysql_test_dir);
-  snprintf(master_dir, PATH_MAX, "%s/var/master-data", mysql_test_dir);
-  snprintf(slave_dir, PATH_MAX, "%s/var/slave-data", mysql_test_dir);
-  snprintf(lang_dir, PATH_MAX, "%s/sql/share/english", base_dir);
-  snprintf(char_dir, PATH_MAX, "%s/sql/share/charsets", base_dir);
+  snprintf(bin_dir, FN_REFLEN, "%s/client", base_dir);
+  snprintf(mysql_test_dir, FN_REFLEN, "%s/mysql-test", base_dir);
+  snprintf(test_dir, FN_REFLEN, "%s/t", mysql_test_dir);
+  snprintf(mysql_tmp_dir, FN_REFLEN, "%s/var/tmp", mysql_test_dir);
+  snprintf(result_dir, FN_REFLEN, "%s/r", mysql_test_dir);
+  snprintf(master_dir, FN_REFLEN, "%s/var/master-data", mysql_test_dir);
+  snprintf(slave_dir, FN_REFLEN, "%s/var/slave-data", mysql_test_dir);
+  snprintf(lang_dir, FN_REFLEN, "%s/sql/share/english", base_dir);
+  snprintf(char_dir, FN_REFLEN, "%s/sql/share/charsets", base_dir);
 
 #ifdef HAVE_OPENSSL
   use_openssl= TRUE;
 #endif /* HAVE_OPENSSL */
 
   /* OpenSSL paths */
-  snprintf(ca_cert, PATH_MAX, "%s/SSL/cacert.pem", base_dir);
-  snprintf(server_cert, PATH_MAX, "%s/SSL/server-cert.pem", base_dir);
-  snprintf(server_key, PATH_MAX, "%s/SSL/server-key.pem", base_dir);
-  snprintf(client_cert, PATH_MAX, "%s/SSL/client-cert.pem", base_dir);
-  snprintf(client_key, PATH_MAX, "%s/SSL/client-key.pem", base_dir);
+  snprintf(ca_cert, FN_REFLEN, "%s/SSL/cacert.pem", base_dir);
+  snprintf(server_cert, FN_REFLEN, "%s/SSL/server-cert.pem", base_dir);
+  snprintf(server_key, FN_REFLEN, "%s/SSL/server-key.pem", base_dir);
+  snprintf(client_cert, FN_REFLEN, "%s/SSL/client-cert.pem", base_dir);
+  snprintf(client_key, FN_REFLEN, "%s/SSL/client-key.pem", base_dir);
 
   /* setup files */
-  snprintf(mysqld_file, PATH_MAX, "%s/sql/mysqld", base_dir);
-  snprintf(mysqltest_file, PATH_MAX, "%s/mysqltest", bin_dir);
-  snprintf(mysqladmin_file, PATH_MAX, "%s/mysqladmin", bin_dir);
-  snprintf(master_pid, PATH_MAX, "%s/var/run/master.pid", mysql_test_dir);
-  snprintf(slave_pid, PATH_MAX, "%s/var/run/slave.pid", mysql_test_dir);
+  snprintf(mysqld_file, FN_REFLEN, "%s/sql/mysqld", base_dir);
+  snprintf(mysqltest_file, FN_REFLEN, "%s/mysqltest", bin_dir);
+  snprintf(mysqladmin_file, FN_REFLEN, "%s/mysqladmin", bin_dir);
+  snprintf(master_pid, FN_REFLEN, "%s/var/run/master.pid", mysql_test_dir);
+  snprintf(slave_pid, FN_REFLEN, "%s/var/run/slave.pid", mysql_test_dir);
 
-  snprintf(master_socket,PATH_MAX, "%s/var/tmp/master.sock", mysql_test_dir);
-  snprintf(slave_socket,PATH_MAX, "%s/var/tmp/slave.sock", mysql_test_dir);
+  snprintf(master_socket,FN_REFLEN, "%s/var/tmp/master.sock", mysql_test_dir);
+  snprintf(slave_socket,FN_REFLEN, "%s/var/tmp/slave.sock", mysql_test_dir);
 
 #endif
   /* create log file */
-  snprintf(temp, PATH_MAX, "%s/mysql-test-run.log", mysql_test_dir);
+  snprintf(temp, FN_REFLEN, "%s/mysql-test-run.log", mysql_test_dir);
   if ((log_fd= fopen(temp, "w+")) == NULL)
   {
     log_errno("Unable to create log file.");
@@ -1386,46 +1386,47 @@ void setup(char *file __attribute__((unused)))
   /* prepare skip test list */
   while ((p= strchr(skip_test, ',')) != NULL) *p= ' ';
   strcpy(temp, strlwr(skip_test));
-  snprintf(skip_test, PATH_MAX, " %s ", temp);
+  snprintf(skip_test, FN_REFLEN, " %s ", temp);
 
   /* environment */
 #ifdef __NETWARE__
   setenv("MYSQL_TEST_DIR", mysql_test_dir, 1);
-  snprintf(file_path, PATH_MAX*2,
+  snprintf(file_path, FN_REFLEN*2,
            "%s/client/mysqldump --no-defaults -u root --port=%u",
            bin_dir, master_port);
   setenv("MYSQL_DUMP", file_path, 1);
-  snprintf(file_path, PATH_MAX*2,
+  snprintf(file_path, FN_REFLEN*2,
            "%s/client/mysqlbinlog --no-defaults --local-load=%s",
            bin_dir, mysql_tmp_dir);
   setenv("MYSQL_BINLOG", file_path, 1);
 #elif __WIN__
-  snprintf(file_path,MAX_PATH,"MYSQL_TEST_DIR=%s",mysql_test_dir);
+  snprintf(file_path,FN_REFLEN,"MYSQL_TEST_DIR=%s",mysql_test_dir);
   _putenv(file_path);
-  snprintf(file_path, PATH_MAX*2,
+  snprintf(file_path, FN_REFLEN*2,
            "MYSQL_DUMP=%s/mysqldump.exe --no-defaults -u root --port=%u",
            bin_dir, master_port);
   _putenv(file_path);
-  snprintf(file_path, PATH_MAX*2,
+  snprintf(file_path, FN_REFLEN*2,
            "MYSQL_BINLOG=%s/mysqlbinlog.exe --no-defaults --local-load=%s",
            bin_dir, mysql_tmp_dir);
   _putenv(file_path);
 #else
-  setenv("MYSQL_TEST_DIR", mysql_test_dir, 1);
-  snprintf(file_path, PATH_MAX*2,
-           "%s/mysqldump --no-defaults -u root --port=%u --socket=%s",
+  snprintf(file_path,FN_REFLEN,"MYSQL_TEST_DIR=%s",mysql_test_dir);
+  putenv(file_path);
+  snprintf(file_path, FN_REFLEN*2,
+           "MYSQL_DUMP=%s/mysqldump --no-defaults -u root --port=%u --socket=%s",
            bin_dir, master_port, master_socket);
-  setenv("MYSQL_DUMP", file_path, 1);
-  snprintf(file_path, PATH_MAX*2,
-           "%s/mysqlbinlog --no-defaults --local-load=%s",
+  putenv(file_path);
+  snprintf(file_path, FN_REFLEN*2,
+           "MYSQL_BINLOG=%s/mysqlbinlog --no-defaults --local-load=%s",
            bin_dir, mysql_tmp_dir);
-  setenv("MYSQL_BINLOG", file_path, 1);
+  putenv(file_path);
 #endif
 
 #ifndef __WIN__
-  setenv("MASTER_MYPORT", "9306", 1);
-  setenv("SLAVE_MYPORT", "9307", 1);
-  setenv("MYSQL_TCP_PORT", "3306", 1);
+  putenv((char *)"MASTER_MYPORT=9306");
+  putenv((char *)"SLAVE_MYPORT=9307");
+  putenv((char *)"MYSQL_TCP_PORT=3306");
 #else
   _putenv("MASTER_MYPORT=9306");
   _putenv("SLAVE_MYPORT=9307");
@@ -1461,7 +1462,7 @@ int main(int argc, char **argv)
     temp= strdup(strchr(argv[1],'=') + 1);
     for (token=str_tok(temp, ","); token != NULL; token=str_tok(NULL, ","))
     {
-      if (strlen(ignore_test) + strlen(token) + 2 <= PATH_MAX-1)
+      if (strlen(ignore_test) + strlen(token) + 2 <= FN_REFLEN-1)
         sprintf(ignore_test+strlen(ignore_test), " %s ", token);
       else
       {
@@ -1507,38 +1508,35 @@ int main(int argc, char **argv)
   {
     /* run all tests */
 #ifndef __WIN__
-    struct dirent **namelist;
-    int i,n;
-    char test[NAME_MAX];
-    char *p;
+    struct dirent *entry;
+    DIR *parent;
+    char test[FN_LEN];
     int position;
 
-    n= scandir(test_dir, &namelist, 0, alphasort);
-    if (n < 0)
+    /* FIXME are we sure the list is sorted if using readdir()? */
+    if ((parent= opendir(test_dir)) == NULL)    /* Not thread safe */
       die("Unable to open tests directory.");
     else
     {
-      for (i= 0; i < n; i++)
+      while ((entry= readdir(parent)) != NULL)  /* Not thread safe */
       {
-        strcpy(test, strlwr(namelist[i]->d_name));
+        strcpy(test, strlwr(entry->d_name));
         /* find the test suffix */
         if ((position= strinstr(test, TEST_SUFFIX)) != 0)
         {
-          p= test + position - 1;
           /* null terminate at the suffix */
-          *p= 0;
+          *(test + position - 1)= '\0';
           /* run test */
           run_test(test);
         }
-        free(namelist[n]);
       }
-      free(namelist);
+      closedir(parent);
     }
 #else
     struct _finddata_t dir;
     intptr_t handle;
-    char test[NAME_MAX];
-    char mask[PATH_MAX];
+    char test[FN_LEN];
+    char mask[FN_REFLEN];
     char *p;
     int position;
     char **names= 0;
@@ -1549,7 +1547,7 @@ int main(int argc, char **argv)
     /* single test */
     single_test= FALSE;
 
-    snprintf(mask,MAX_PATH,"%s/*.test",test_dir);
+    snprintf(mask,FN_REFLEN,"%s/*.test",test_dir);
 
     if ((handle=_findfirst(mask,&dir)) == -1L)
     {
@@ -1574,7 +1572,7 @@ int main(int argc, char **argv)
           *p= 0;
 
           /* insert test */
-          *names= malloc(PATH_MAX);
+          *names= malloc(FN_REFLEN);
           strcpy(*names,test);
           names++;
           name_index++;
