@@ -863,7 +863,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   SYNOPSIS
     mysql_test_insert()
     stmt	prepared statemen handler
-    tables	list of tables queries  
+    tables	global/local table list  
 
   RETURN VALUE
     0   ok
@@ -883,8 +883,6 @@ static int mysql_test_insert(Prepared_statement *stmt,
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
   int res= -1;
-  TABLE_LIST *insert_table_list=
-    (TABLE_LIST*) lex->select_lex.table_list.first;
   my_bool update= (lex->value_list.elements ? UPDATE_ACL : 0);
   DBUG_ENTER("mysql_test_insert");
 
@@ -907,9 +905,9 @@ static int mysql_test_insert(Prepared_statement *stmt,
     uint value_count;
     ulong counter= 0;
 
-    if ((res= mysql_prepare_insert(thd, table_list, insert_table_list,
-				   table_list->table, fields, values,
-				   update_fields, update_values, duplic)))
+    if ((res= mysql_prepare_insert(thd, table_list, table_list->table, 
+				   fields, values, update_fields,
+				   update_values, duplic)))
       goto error;
     
     value_count= values->elements;
@@ -925,7 +923,7 @@ static int mysql_test_insert(Prepared_statement *stmt,
 			MYF(0), counter);
         goto error;
       }
-      if (setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0))
+      if (setup_fields(thd, 0, table_list, *values, 0, 0, 0))
 	goto error;
     }
   }
@@ -972,16 +970,14 @@ static int mysql_test_update(Prepared_statement *stmt,
     res= -1;
   else
   {
-    TABLE_LIST *update_table_list= (TABLE_LIST *)select->table_list.first;
     if (!(res= mysql_prepare_update(thd, table_list,
-				    update_table_list,
 				    &select->where,
 				    select->order_list.elements,
 				    (ORDER *) select->order_list.first)))
     {
-      if (setup_fields(thd, 0, update_table_list,
+      if (setup_fields(thd, 0, table_list,
 		       select->item_list, 1, 0, 0) ||
-	  setup_fields(thd, 0, update_table_list,
+	  setup_fields(thd, 0, table_list,
 		       stmt->lex->value_list, 0, 0, 0))
 	res= -1;
     }
@@ -1219,8 +1215,9 @@ error:
 
   SYNOPSIS
     select_like_statement_test()
-      stmt	- prepared table handler
-      tables	- global list of tables
+      stmt              - prepared table handler
+      tables            - global list of tables
+      specific_prepare  - function of command specific prepare
 
   RETURN VALUE
     0   success
@@ -1228,7 +1225,8 @@ error:
    -1   error, not sent to client
 */
 static int select_like_statement_test(Prepared_statement *stmt,
-				      TABLE_LIST *tables)
+				      TABLE_LIST *tables,
+                                      int (*specific_prepare)(THD *thd))
 {
   DBUG_ENTER("select_like_statement_test");
   THD *thd= stmt->thd;
@@ -1240,6 +1238,9 @@ static int select_like_statement_test(Prepared_statement *stmt,
   */
   thd->allocate_temporary_memory_pool_for_ps_preparing();
   if (tables && (res= open_and_lock_tables(thd, tables)))
+    goto end;
+
+  if (specific_prepare && (res= (*specific_prepare)(thd)))
     goto end;
 
   thd->used_tables= 0;                        // Updated by setup_fields
@@ -1269,31 +1270,28 @@ end:
     1   error, sent to client
    -1   error, not sent to client
 */
-static int mysql_test_create_table(Prepared_statement *stmt,
-				   TABLE_LIST *tables)
+static int mysql_test_create_table(Prepared_statement *stmt)
 {
   DBUG_ENTER("mysql_test_create_table");
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX *select_lex= &lex->select_lex;
   int res= 0;
-
   /* Skip first table, which is the table we are creating */
-  TABLE_LIST *create_table, *create_table_local;
-  tables= lex->unlink_first_table(tables, &create_table,
-				  &create_table_local);
+  bool link_to_local;
+  TABLE_LIST *create_table= lex->unlink_first_table(&link_to_local);
+  TABLE_LIST *tables= lex->query_tables;
 
   if (!(res= create_table_precheck(thd, tables, create_table)) &&
       select_lex->item_list.elements)
   {
     select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
-    res= select_like_statement_test(stmt, tables);
+    res= select_like_statement_test(stmt, tables, 0);
     select_lex->resolve_mode= SELECT_LEX::NOMATTER_MODE;
   }
 
   /* put tables back for PS rexecuting */
-  tables= lex->link_first_table_back(tables, create_table,
-				     create_table_local);
+  lex->link_first_table_back(create_table, link_to_local);
   DBUG_RETURN(res);
 }
 
@@ -1317,7 +1315,7 @@ static int mysql_test_multiupdate(Prepared_statement *stmt,
   int res;
   if ((res= multi_update_precheck(stmt->thd, tables)))
     return res;
-  return select_like_statement_test(stmt, tables);
+  return select_like_statement_test(stmt, tables, &mysql_multi_update_prepare);
 }
 
 
@@ -1345,7 +1343,7 @@ static int mysql_test_multidelete(Prepared_statement *stmt,
   uint fake_counter;
   if ((res= multi_delete_precheck(stmt->thd, tables, &fake_counter)))
     return res;
-  return select_like_statement_test(stmt, tables);
+  return select_like_statement_test(stmt, tables, &mysql_multi_delete_prepare);
 }
 
 
@@ -1371,14 +1369,15 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
     return res;
   TABLE_LIST *first_local_table=
     (TABLE_LIST *)lex->select_lex.table_list.first;
+  DBUG_ASSERT(first_local_table != 0);
   /* Skip first table, which is the table we are inserting in */
-  lex->select_lex.table_list.first= (byte*) first_local_table->next;
+  lex->select_lex.table_list.first= (byte*) first_local_table->next_local;
   /*
     insert/replace from SELECT give its SELECT_LEX for SELECT,
     and item_list belong to SELECT
   */
   lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
-  res= select_like_statement_test(stmt, tables);
+  res= select_like_statement_test(stmt, tables, &mysql_insert_select_prepare);
   /* revert changes*/
   lex->select_lex.table_list.first= (byte*) first_local_table;
   lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
@@ -1400,7 +1399,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX *select_lex= &lex->select_lex;
-  TABLE_LIST *tables=(TABLE_LIST*) select_lex->table_list.first;
+  TABLE_LIST *tables;
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("send_prepare_results");
@@ -1408,11 +1407,9 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   DBUG_PRINT("enter",("command: %d, param_count: %ld",
                       sql_command, stmt->param_count));
 
-  if (select_lex != lex->all_selects_list &&
-      lex->unit.create_total_list(thd, lex, &tables))
-    DBUG_RETURN(1);
+  lex->first_lists_tables_same();
+  tables= lex->query_tables;
 
-  
   switch (sql_command) {
   case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
@@ -1438,7 +1435,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     DBUG_RETURN(0);
 
   case SQLCOM_CREATE_TABLE:
-    res= mysql_test_create_table(stmt, tables);
+    res= mysql_test_create_table(stmt);
     break;
   
   case SQLCOM_DO:
@@ -1666,6 +1663,11 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
 {
   SELECT_LEX *sl= lex->all_selects_list;
 
+  if (lex->empty_field_list_on_rset)
+  {
+    lex->field_list.empty();
+    lex->empty_field_list_on_rset= 0;
+  }
   for (; sl; sl= sl->next_select_in_list())
   {
     if (!sl->first_execution)
@@ -1687,22 +1689,10 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
       for (order= (ORDER *)sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
     }
-
-    /*
-      TODO: When the new table structure is ready, then have a status bit 
-      to indicate the table is altered, and re-do the setup_* 
-      and open the tables back.
-    */
-    for (TABLE_LIST *tables= (TABLE_LIST*) sl->table_list.first;
-	 tables;
-	 tables= tables->next)
     {
-      /*
-        Reset old pointers to TABLEs: they are not valid since the tables
-        were closed in the end of previous prepare or execute call.
-      */
-      tables->table= 0;
-      tables->table_list= 0;
+      TABLE_LIST *tables= (TABLE_LIST *)sl->table_list.first;
+      if (tables)
+        tables->setup_is_done= 0;
     }
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();
@@ -1711,6 +1701,22 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
       /* for derived tables & PS (which can't be reset by Item_subquery) */
       unit->reinit_exec_mechanism();
     }
+  }
+
+  /*
+    TODO: When the new table structure is ready, then have a status bit 
+    to indicate the table is altered, and re-do the setup_* 
+    and open the tables back.
+  */
+  for (TABLE_LIST *tables= lex->query_tables;
+	 tables;
+	 tables= tables->next_global)
+  {
+    /*
+      Reset old pointers to TABLEs: they are not valid since the tables
+      were closed in the end of previous prepare or execute call.
+    */
+    tables->table= 0;
   }
   lex->current_select= &lex->select_lex;
 }

@@ -20,6 +20,7 @@
 class Item;				/* Needed by ORDER */
 class GRANT_TABLE;
 class st_select_lex_unit;
+class st_select_lex;
 
 /* Order clause list element */
 
@@ -70,7 +71,7 @@ struct st_table {
   /* hash of field names (contains pointers to elements of field array) */
   HASH	name_hash;
   byte *record[2];			/* Pointer to records */
-  byte *default_values;          	/* Default values for INSERT */
+  byte *default_values;         	/* Default values for INSERT */
   byte *insert_values;                  /* used by INSERT ... UPDATE */
   uint fields;				/* field count */
   uint reclength;			/* Recordlength */
@@ -170,19 +171,53 @@ struct st_table {
 #define JOIN_TYPE_LEFT	1
 #define JOIN_TYPE_RIGHT	2
 
+#define VIEW_ALGORITHM_UNDEFINED	0
+#define VIEW_ALGORITHM_TMEPTABLE	1
+#define VIEW_ALGORITHM_MERGE		2
+
+struct st_lex;
+
 typedef struct st_table_list
 {
-  struct	st_table_list *next;
+  /* link in a local table list (used by SQL_LIST) */
+  struct st_table_list *next_local;
+  /* link in a global list of all queries tables */
+  struct st_table_list *next_global, **prev_global;
   char		*db, *alias, *real_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
   struct st_table_list *natural_join;	/* natural join on this table*/
   /* ... join ... USE INDEX ... IGNORE INDEX */
   List<String>	*use_index, *ignore_index;
-  TABLE          *table;      /* opened table */
-  st_table_list  *table_list; /* pointer to node of list of all tables */
-  class st_select_lex_unit *derived;	/* SELECT_LEX_UNIT of derived table */
- GRANT_INFO	grant;
+  TABLE         *table;                 /* opened table */
+  /*
+    Reference from aux_tables to local list entry of main select of
+    multi-delete statement:
+    delete t1 from t2,t1 where t1.a<'B' and t2.b=t1.b;
+    here it will be reference of first occurrence of t1 to second (as you
+    can see this lists can't be merged)
+  */
+  st_table_list	*correspondent_table;
+  st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
+  /* link to select_lex where this table was used */
+  st_select_lex	*select_lex;
+  st_lex	*view;			/* link on VIEW lex for merging */
+  Item		**field_translation;	/* array of VIEW fields */
+  /* ancestor of this table (VIEW merge algorithm) */
+  st_table_list	*ancestor;
+  Item          *where;                 /* VIEW WHERE clause condition */
+  LEX_STRING	query;			/* text of (CRETE/SELECT) statement */
+  LEX_STRING	md5;			/* md5 of query tesxt */
+  LEX_STRING	source;			/* source of CREATE VIEW */
+  LEX_STRING	view_db;		/* save view database */
+  LEX_STRING	view_name;		/* save view name */
+  LEX_STRING	timestamp;		/* GMT time stamp of last operation */
+  ulonglong	file_version;		/* version of file's field set */
+  ulonglong	revision;		/* revision control number */
+  ulonglong	updatable;		/* Is VIEW updateable */
+  ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
+  uint          effective_algorithm;    /* which algorithm was really used */
+  GRANT_INFO	grant;
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
   uint		shared;			/* Used in multi-upd */
@@ -197,11 +232,63 @@ typedef struct st_table_list
   st_table_list *embedding;             /* nested join containing the table */
   List<struct st_table_list> *join_list;/* join list the table belongs to   */
   bool		cacheable_table;	/* stop PS caching */
-  /* used in multi-upd privelege check */
-  bool		table_in_update_from_clause;
+  /* used in multi-upd/views privelege check */
+  bool		table_in_first_from_clause;
+  bool		skip_temporary;		/* this table shouldn't be temporary */
+  bool          setup_is_done;          /* setup_tables() is done */
+  /* do view contain auto_increment field */
+  bool          contain_auto_increment;
+  char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
 
+  void calc_md5(char *buffer);
+  void set_ancestor();
+  bool setup_ancestor(THD *thd, Item **conds);
+  bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
 } TABLE_LIST;
+
+class Item;
+
+class Field_iterator: public Sql_alloc
+{
+public:
+  virtual ~Field_iterator() {}
+  virtual void set(TABLE_LIST *)= 0;
+  virtual void next()= 0;
+  virtual bool end()= 0;
+  virtual const char *name()= 0;
+  virtual Item *item(THD *)= 0;
+  virtual Field *field()= 0;
+};
+
+
+class Field_iterator_table: public Field_iterator
+{
+  Field **ptr;
+public:
+  Field_iterator_table() :ptr(0) {}
+  void set(TABLE_LIST *table) { ptr= table->table->field; }
+  void set_table(TABLE *table) { ptr= table->field; }
+  void next() { ptr++; }
+  bool end() { return test(*ptr); }
+  const char *name();
+  Item *item(THD *thd);
+  Field *field() { return *ptr; }
+};
+
+
+class Field_iterator_view: public Field_iterator
+{
+  Item **ptr, **array_end;
+public:
+  Field_iterator_view() :ptr(0), array_end(0) {}
+  void set(TABLE_LIST *table);
+  void next() { ptr++; }
+  bool end() { return ptr < array_end; }
+  const char *name();
+  Item *item(THD *thd) { return *ptr; }
+  Field *field() { return 0; }
+};
 
 typedef struct st_nested_join
 {

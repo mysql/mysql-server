@@ -1,67 +1,67 @@
 show tables;
-Tables_in_mysql
-columns_priv
-db
-func
-help_category
-help_keyword
-help_relation
-help_topic
-host
-proc
-tables_priv
-time_zone
-time_zone_leap_second
-time_zone_name
-time_zone_transition
-time_zone_transition_type
-user
+Tables_in_mysql	Type
+columns_priv	table
+db	table
+func	table
+help_category	table
+help_keyword	table
+help_relation	table
+help_topic	table
+host	table
+proc	table
+tables_priv	table
+time_zone	table
+time_zone_leap_second	table
+time_zone_name	table
+time_zone_transition	table
+time_zone_transition_type	table
+user	table
 show tables;
-Tables_in_test
+Tables_in_test	Type
 grant ALL on *.* to test@localhost identified by "gambling";
 grant ALL on *.* to test@127.0.0.1 identified by "gambling";
 show tables;
-Tables_in_mysql
-columns_priv
-db
-func
-help_category
-help_keyword
-help_relation
-help_topic
-host
-proc
-tables_priv
-time_zone
-time_zone_leap_second
-time_zone_name
-time_zone_transition
-time_zone_transition_type
-user
+Tables_in_mysql	Type
+columns_priv	table
+db	table
+func	table
+help_category	table
+help_keyword	table
+help_relation	table
+help_topic	table
+host	table
+proc	table
+tables_priv	table
+time_zone	table
+time_zone_leap_second	table
+time_zone_name	table
+time_zone_transition	table
+time_zone_transition_type	table
+user	table
 show tables;
-Tables_in_test
+Tables_in_test	Type
 update mysql.user set password=old_password("gambling2") where user=_binary"test";
 flush privileges;
 set password=old_password('gambling3');
 show tables;
-Tables_in_mysql
-columns_priv
-db
-func
-help_category
-help_keyword
-help_relation
-help_topic
-host
-proc
-tables_priv
-time_zone
-time_zone_leap_second
-time_zone_name
-time_zone_transition
-time_zone_transition_type
-user
+Tables_in_mysql	Type
+columns_priv	table
+db	table
+func	table
+help_category	table
+help_keyword	table
+help_relation	table
+help_topic	table
+host	table
+proc	table
+tables_priv	table
+time_zone	table
+time_zone_leap_second	table
+time_zone_name	table
+time_zone_transition	table
+time_zone_transition_type	table
+user	table
 show tables;
-Tables_in_test
+Tables_in_test	Type
 delete from mysql.user where user=_binary"test";
 flush privileges;

@@ -89,7 +89,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
     where_tables= conds->used_tables();
 
   /* Don't replace expression on a table that is part of an outer join */
-  for (TABLE_LIST *tl=tables; tl ; tl= tl->next)
+  for (TABLE_LIST *tl= tables; tl; tl= tl->next_local)
   {
     if (tl->on_expr)
     {
@@ -128,7 +128,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
         {
           longlong count= 1;
           TABLE_LIST *table;
-          for (table=tables ; table ; table=table->next)
+          for (table= tables; table; table= table->next_local)
           {
             if (outer_tables || (table->table->file->table_flags() &
                                  HA_NOT_EXACT_COUNT))
