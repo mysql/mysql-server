@@ -1,0 +1,21 @@
+#!/bin/sh
+
+PATH=/bin:/usr/bin:/sbin:/usr/sbin:/usr/ucb:/usr/ccs/bin
+LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/lib
+export PATH
+export LD_LIBRARY_PATH
+
+if /usr/bin/test -x /etc/init.d/mysql ; then
+ /etc/init.d/mysql stop || true
+fi
+
+#----- user check
+P=`grep mysql /etc/passwd`
+G=`grep mysql /etc/group`
+
+if /usr/bin/test "x$G" = "x" ; then
+  /usr/sbin/groupadd mysql
+fi
+if /usr/bin/test "x$P" = "x" ; then
+  /usr/sbin/useradd -g mysql -d /usr/local/mysql-data -s /bin/false mysql  
+fi

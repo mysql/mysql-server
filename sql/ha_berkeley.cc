@@ -972,7 +972,7 @@ int ha_berkeley::index_read_idx(byte * buf, uint keynr, const byte * key,
   statistic_increment(ha_read_key_count,&LOCK_status);
   DBUG_ENTER("index_read_idx");
   current_row.flags=DB_DBT_REALLOC;
-  DBUG_RETURN(read_row(file->get(file, transaction,
+  DBUG_RETURN(read_row(file->get(key_file[keynr], transaction,
 				 pack_key(&last_key, keynr, key_buff, key,
 					  key_len),
 				 &current_row,0),

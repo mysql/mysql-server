@@ -1,0 +1,38 @@
+mysql for DEBIAN
+----------------------
+
+Comments regarding the Package
+
+* about patch files
+  if you want to make new patch,
+  write patch file and put it into debian/patches/.
+  debian/rules do patch debian/patches/* automatically.
+
+* about server packages
+  I use Debian alternative system, to switch next 3 type MySQL server.
+
+  mysql-server  :
+      this is static linked MySQL server(/usr/sbin/mysqld-static) and share/mysql/ files.
+  mysql-server-shared:
+      this is dynamic linked MySQL server only. (/usr/sbin/mysqld-shared)
+  mysql-server-debug:
+      --with-debug flag. mysqld only. (/usr/sbin/mysqld-debug)
+
+* about charset
+ I build MySQL server --with-extra-charsets=all
+
+* about location
+  server programs ......  /usr/sbin/
+  share files ..........  /usr/share/mysql/
+  client programs ......  /usr/bin/
+  MySQL data directory .  /var/mysql/data/
+  benchmark directory ..  /var/mysql/sql-bench/
+  socket file  .........  /tmp/mysql.sock
+  include files ........  /usr/include/mysql/
+  libraries  ...........  /usr/lib/  , /usr/lib/mysql/
+                          put libmysqlclient* into /usr/lib/ ,
+                          others, put /usr/lib/mysql/ .
+
+
+takeshi@SoftAgency.co.jp
+

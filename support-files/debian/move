@@ -1,0 +1,72 @@
+#!/bin/sh
+
+STAMPFILE="debian/stamp-move"
+
+if [ -e $STAMPFILE ]; then
+ exit
+fi
+
+#----------
+CLIENT1="msql2mysql mysql mysql_convert_table_format mysql_find_rows mysql_fix_privilege_tables mysql_setpermission mysql_zap mysqlaccess mysqladmin mysqlbug mysqldump mysqlhotcopy mysqlimport mysqlshow"
+
+# CLIENT2="add_file_priv add_func_table add_long_password make_binary_distribution"
+
+
+
+P=`pwd`
+
+#----------
+for CHAR in build
+do
+  #-----
+  cp -Rpd debian/${CHAR}/usr debian/mysql-server/
+  cp -Rpd debian/${CHAR}-shared/usr/lib/mysql/libmysqlclient.so.* debian/libmysqlclient9/usr/lib/
+
+  #----- mysql-server-shared ---
+  cp -Rpd debian/${CHAR}-shared/usr/sbin/mysqld debian/mysql-server-shared/usr/sbin/mysqld-shared
+
+  #----- mysql-server-debug ---
+  cp -Rpd debian/${CHAR}-debug/usr/sbin/mysqld debian/mysql-server-debug/usr/sbin/mysqld-debug
+
+  #----- mysql-server ---
+  mv debian/mysql-server/usr/sbin/mysqld debian/mysql-server/usr/sbin/mysqld-static
+
+  #----- mysql-client ----
+  cd ${P}/debian/mysql-server/usr/bin/ && mv $CLIENT1 ../../../mysql-client/usr/bin/
+  cd ${P}
+
+  mv -f debian/mysql-server/usr/{man,info} debian/mysql-client/usr/share/
+  mv debian/mysql-server/usr/share/mysql/my-example.cnf debian/mysql-client/usr/share/mysql/
+  mv -f debian/mysql-server/usr/bin/replace  debian/mysql-client/usr/bin/mysql_replace
+
+  #----- mysql-server ---
+  mv debian/mysql-server/usr/bin/* debian/mysql-server/usr/sbin/
+  mv debian/mysql-server/usr/sbin/my_print_defaults debian/mysql-server/usr/bin/
+  mv debian/mysql-server/usr/sbin/comp_err debian/mysql-server/usr/bin/
+  mv debian/mysql-server/usr/sbin/perror debian/mysql-server/usr/bin/mysql_perror
+  mv debian/mysql-server/usr/sbin/resolveip debian/mysql-server/usr/bin/mysql_resolveip
+
+  #----- mysql-dev ----
+  cp -Rpd debian/${CHAR}-shared/usr/lib/mysql/libmysqlclient.so debian/mysql-dev/usr/lib/
+  mv debian/mysql-server/usr/include  debian/mysql-dev/usr/
+  mv debian/mysql-server/usr/lib/mysql  debian/mysql-dev/usr/lib/
+
+  mv debian/mysql-dev/usr/lib/mysql/libmysqlclient.a debian/mysql-dev/usr/lib/
+  (cd debian/mysql-dev/usr/lib/mysql ; ln -sf "../libmysqlclient.a" )
+
+  #-----
+  cp debian/README.debian debian/copyright debian/changelog \
+     debian/mysql-client/usr/share/doc/mysql/
+
+done
+
+
+####################  
+### doc
+cp -r COPYING* MIRRORS README* Docs/* debian/mysql-doc/usr/share/doc/mysql/
+
+#### sql-bench
+mv debian/mysql-server/usr/sql-bench \
+   debian/mysql-bench/var/mysql/
+
+touch $STAMPFILE

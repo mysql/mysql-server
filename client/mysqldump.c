@@ -1046,7 +1046,7 @@ static char *getTableName(int reset)
   }
   if ((row = mysql_fetch_row(res)))
     return((char*) row[0]);
- 
+
   if (reset)
     mysql_data_seek(res,0);      /* We want to read again */
   else
@@ -1134,14 +1134,14 @@ static int dump_all_tables_in_db(char *database)
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
     if (numrows && mysql_real_query(sock, query.str, query.length-1))
-      DBerror(sock, "when using LOCK TABLES");  
+      DBerror(sock, "when using LOCK TABLES");
             /* We shall continue here, if --force was given */
     dynstr_free(&query);
   }
   if (flush_logs)
   {
     if (mysql_refresh(sock, REFRESH_LOG))
-      DBerror(sock, "when doing refresh"); 
+      DBerror(sock, "when doing refresh");
            /* We shall continue here, if --force was given */
   }
   while ((table = getTableName(0)))
@@ -1175,14 +1175,14 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
     if (mysql_real_query(sock, query.str, query.length-1))
-      DBerror(sock, "when doing LOCK TABLES"); 
+      DBerror(sock, "when doing LOCK TABLES");
        /* We shall countinue here, if --force was given */
     dynstr_free(&query);
   }
   if (flush_logs)
   {
     if (mysql_refresh(sock, REFRESH_LOG))
-      DBerror(sock, "when doing refresh"); 
+      DBerror(sock, "when doing refresh");
      /* We shall countinue here, if --force was given */
   }
   for (; tables > 0 ; tables-- , table_names++)
@@ -1258,7 +1258,7 @@ int main(int argc, char **argv)
   else if (argc > 1 && !opt_databases)
     dump_selected_tables(*argv, (argv + 1), (argc - 1));
   /* One or more databases, all tables */
-  else 
+  else
     dump_databases(argv);
 
   if (opt_first_slave)

@@ -1,0 +1,52 @@
+--- mysql-3.23.23.orig/scripts/mysql_install_db.sh
++++ mysql-3.23.23/scripts/mysql_install_db.sh
+@@ -11,6 +11,7 @@
+ ldata=@localstatedir@
+ execdir=@libexecdir@
+ bindir=@bindir@
++sbindir=@sbindir@
+ force=0
+ IN_RPM=0
+ defaults=
+@@ -47,6 +48,10 @@
+   then
+     bindir=`grep "^bindir" $conf | sed 's;^[^=]*=[ \t]*;;' | sed 's;[ \t]$;;'`
+   fi
++  if grep "^sbindir" $conf >/dev/null
++  then
++    sbindir=`grep "^sbindir" $conf | sed '.*=[ \t]*//`
++  fi
+   if grep "^user" $conf >/dev/null
+   then
+     user=`grep "^user" $conf | sed 's;^[^=]*=[ \t]*;;' | sed 's;[ \t]$;;'`
+@@ -56,7 +61,7 @@
+ for arg
+ do
+   case "$arg" in
+-  --basedir=*) basedir=`echo "$arg"|sed 's;^--basedir=;;'`; bindir="$basedir/bin"; execdir="$basedir/libexec" ;;
++  --basedir=*) basedir=`echo "$arg"|sed 's;^--basedir=;;'`; bindir="$basedir/bin"; sbindir="$basedir/sbin"; execdir="$basedir/libexec" ;;
+   --datadir=*) ldata=`echo "$arg"|sed 's;^--datadir=;;'` ;;
+   --user=*) user=`echo "$arg"|sed 's;^--user=;;'` ;;
+   esac
+@@ -82,10 +87,10 @@
+ # Check if hostname is valid
+ if test "$IN_RPM" -eq 0 -a $force -eq 0
+ then
+-  resolved=`$bindir/resolveip $hostname 2>&1`
++  resolved=`$bindir/mysql_resolveip $hostname 2>&1`
+   if [ $? -ne 0 ]
+   then
+-    resolved=`$bindir/resolveip localhost 2>&1`
++    resolved=`$bindir/mysql_resolveip localhost 2>&1`
+     if [ $? -eq 0 ]
+     then
+       echo "Sorry, the host '$hostname' could not be looked up."
+@@ -300,7 +305,7 @@
+   if test -z "$IN_RPM"
+   then
+     echo "You can start the MySQL demon with:"
+-    echo "cd @prefix@ ; $bindir/safe_mysqld &"
++    echo "cd @prefix@ ; $sbindir/safe_mysqld &"
+     echo
+     echo "You can test the MySQL demon with the benchmarks in the 'sql-bench' directory:"
+     echo "cd sql-bench ; run-all-tests"

@@ -1,0 +1,11 @@
+--- mysql-3.23.23.orig/sql/Makefile.in
++++ mysql-3.23.23/sql/Makefile.in
+@@ -366,7 +366,7 @@
+ 
+ mysqlbinlog: $(mysqlbinlog_OBJECTS) $(mysqlbinlog_DEPENDENCIES)
+ 	@rm -f mysqlbinlog
+-	$(CXXLINK) $(mysqlbinlog_LDFLAGS) $(mysqlbinlog_OBJECTS) $(mysqlbinlog_LDADD) $(LIBS)
++	$(CXXLINK) $(mysqld_LDFLAGS) $(mysqlbinlog_OBJECTS) $(mysqld_LDADD) $(LIBS)
+ 
+ mysqld: $(mysqld_OBJECTS) $(mysqld_DEPENDENCIES)
+ 	@rm -f mysqld

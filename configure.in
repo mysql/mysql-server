@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 3.23.23-beta)
+AM_INIT_AUTOMAKE(mysql, 3.23.24-beta)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -685,8 +685,8 @@ case $SYSTEM_TYPE in
     ;;
     *aix4.3*)
       echo "Adding defines for AIX"
-      CFLAGS="$CFLAGS -DUNDEF_HAVE_INITGROUPS"
-      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_INITGROUPS"
+      CFLAGS="$CFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS"
+      CXXFLAGS="$CXXFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS"
     ;;
 esac
 
@@ -789,6 +789,7 @@ then
     #
     elif test "$with_named_thread" = "no"
     then
+      AC_MSG_RESULT("no")
       AC_MSG_CHECKING("SCO UnixWare 7.1 native threads")
       if expr "$SYSTEM_TYPE" : ".*sco.*" > /dev/null
       then
@@ -807,6 +808,7 @@ then
           else
             AC_DEFINE(HAVE_UNIXWARE7_POSIX)
           fi
+          AC_MSG_RESULT("yes")
           # We must have cc
           AC_MSG_CHECKING("for gcc")
           if expr "$CC" : ".*gcc.*"
@@ -817,7 +819,6 @@ then
 	    CC="$CC -Kthread -DUNIXWARE_7";
 	    CXX="$CXX -Kthread -DUNIXWARE_7";
           fi
-          AC_MSG_RESULT("yes")
         else
           { echo "configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
         fi
