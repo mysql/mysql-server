@@ -12,37 +12,37 @@ drop table t1;
 select * from t1;
 n
 1
-drop database if exists foo;
-create database foo;
-drop database if exists foo;
-create database foo;
-create table foo.foo (n int);
-insert into foo.foo values (4);
-select * from foo.foo;
+drop database if exists mysqltest;
+create database mysqltest;
+drop database if exists mysqltest;
+create database mysqltest;
+create table mysqltest.mysqltest (n int);
+insert into mysqltest.mysqltest values (4);
+select * from mysqltest.mysqltest;
 n
 4
-drop database if exists foo;
-create database foo;
-drop database foo;
-drop database if exists foo;
+drop database if exists mysqltest;
+create database mysqltest;
+drop database mysqltest;
+drop database if exists mysqltest;
 flush tables with read lock;
-create database foo;
+create database mysqltest;
 Got one of the listed errors
 unlock tables;
-create database foo;
-show databases;
-Database
-foo
-mysql
-test
-flush tables with read lock;
-drop database foo;
-Got one of the listed errors
-unlock tables;
-drop database foo;
+create database mysqltest;
 show databases;
 Database
 mysql
+mysqltest
 test
-drop database foo;
-Can't drop database 'foo'. Database doesn't exist
+flush tables with read lock;
+drop database mysqltest;
+Got one of the listed errors
+unlock tables;
+drop database mysqltest;
+show databases;
+Database
+mysql
+test
+drop database mysqltest;
+Can't drop database 'mysqltest'. Database doesn't exist

@@ -848,16 +848,16 @@ id	name	value	uid
 3	three	three value	103
 6	two	other value	102
 drop table t1;
-create database test_$1;
-create table test_$1.t1 (a int not null) type= innodb;
-insert into test_$1.t1 values(1);
-create table test_$1.t2 (a int not null) type= myisam;
-insert into test_$1.t2 values(1);
-create table test_$1.t3 (a int not null) type= heap;
-insert into test_$1.t3 values(1);
+create database mysqltest;
+create table mysqltest.t1 (a int not null) type= innodb;
+insert into mysqltest.t1 values(1);
+create table mysqltest.t2 (a int not null) type= myisam;
+insert into mysqltest.t2 values(1);
+create table mysqltest.t3 (a int not null) type= heap;
+insert into mysqltest.t3 values(1);
 commit;
-drop database test_$1;
-show tables from test_$1;
+drop database mysqltest;
+show tables from mysqltest;
 Got one of the listed errors
 create table t1 (a int not null) type= innodb;
 insert into t1 values(1),(2);
@@ -900,8 +900,13 @@ explain select a,b,c from t1;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ALL	NULL	NULL	NULL	NULL	4	
 drop table t1;
-create table t1 (testint int not null default 1) type=innodb;
+create table t1 (t int not null default 1, key (t)) type=innodb;
 desc t1;
 Field	Type	Null	Key	Default	Extra
-testint	int(11)			1	
+t	int(11)		MUL	1	
+handler t1 open t1;
+Table handler for 't1' doesn't have this option
+handler t1 read t first;
+Unknown table 't1' in HANDLER
+handler t1 close;
 drop table t1;

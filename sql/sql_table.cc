@@ -430,7 +430,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 
     if (key->type == Key::FULLTEXT)
     {
-      if (file->option_flag() & HA_NO_FULLTEXT_KEY)
+      if (!(file->option_flag() & HA_CAN_FULLTEXT))
       {
         my_error(ER_TABLE_CANT_HANDLE_FULLTEXT, MYF(0));
         DBUG_RETURN(-1);

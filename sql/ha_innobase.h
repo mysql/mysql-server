@@ -79,7 +79,7 @@ class ha_innobase: public handler
 			  HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
 			  HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
 			  HA_LONGLONG_KEYS | HA_NULL_KEY |
-			  HA_NOT_EXACT_COUNT | HA_NO_FULLTEXT_KEY |
+			  HA_NOT_EXACT_COUNT |
 			  HA_NO_WRITE_DELAYED |
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
 			  HA_DROP_BEFORE_CREATE |
@@ -96,10 +96,12 @@ class ha_innobase: public handler
   	uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   	uint max_keys()          const { return MAX_KEY; }
   	uint max_key_parts()     const { return MAX_REF_PARTS; }
-				/* An InnoDB page must store >= 2 keys:
-				max key length is therefore set to 7000
-				bytes */
-  	uint max_key_length()    const { return 7000; }
+				/* An InnoDB page must store >= 2 keys;
+				a secondary key record must also contain the
+				primary key value:
+				max key length is therefore set to slightly
+				less than 1 / 4 of page size which is 16 kB */
+  	uint max_key_length()    const { return 3500; }
   	bool fast_key_read()	 { return 1;}
 	key_map keys_to_use_for_scanning() { return ~(key_map) 0; }
   	bool has_transactions()  { return 1;}

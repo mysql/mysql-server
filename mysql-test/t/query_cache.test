@@ -235,17 +235,17 @@ drop table t1,t2;
 #
 # noncachable ODBC work around (and prepare cache for drop database)
 #
-create database foo;
-create table foo.t1 (i int not null auto_increment, a int, primary key (i));
-insert into foo.t1 (a) values (1);
-select * from foo.t1 where i is null;
+create database mysqltest;
+create table mysqltest.t1 (i int not null auto_increment, a int, primary key (i));
+insert into mysqltest.t1 (a) values (1);
+select * from mysqltest.t1 where i is null;
 
 #
 # drop db
 #
-select * from foo.t1;
+select * from mysqltest.t1;
 show status like "Qcache_queries_in_cache";
-drop database foo;
+drop database mysqltest;
 show status like "Qcache_queries_in_cache";
 
 #
