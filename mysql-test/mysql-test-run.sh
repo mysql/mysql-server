@@ -463,7 +463,7 @@ start_master()
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
 	    --language=english \
-            --innobase_data_file_path=ibdata1:50M \
+            --innodb_data_file_path=ibdata1:50M \
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
     fi	     
