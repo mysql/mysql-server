@@ -155,6 +155,8 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
       // did we changed top item of WHERE condition
       if (unit->outer_select()->where == (*ref))
 	unit->outer_select()->where= substitution; // correct WHERE for PS
+      else if (unit->outer_select()->having == (*ref))
+	unit->outer_select()->having= substitution; // correct HAVING for PS
 
       (*ref)= substitution;
       substitution->name= name;
