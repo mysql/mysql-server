@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "13.1";
+const char *VER= "13.2";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -280,7 +280,8 @@ static void initialize_readline (char *name);
 #endif
 
 static COMMANDS *find_command (char *name,char cmd_name);
-static bool add_line(String &buffer,char *line,char *in_string);
+static bool add_line(String &buffer,char *line,char *in_string,
+                     bool *ml_comment);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
@@ -805,9 +806,10 @@ static int read_lines(bool execute_commands)
   char	*line;
   char	in_string=0;
   ulong line_number=0;
+  bool ml_comment= 0;  
   COMMANDS *com;
   status.exit_status=1;
-
+  
   for (;;)
   {
     if (status.batch || !execute_commands)
@@ -873,7 +875,7 @@ static int read_lines(bool execute_commands)
 #endif
       continue;
     }
-    if (add_line(glob_buffer,line,&in_string))
+    if (add_line(glob_buffer,line,&in_string,&ml_comment))
       break;
   }
   /* if in batch mode, send last query even if it doesn't end with \g or go */
@@ -934,7 +936,8 @@ static COMMANDS *find_command (char *name,char cmd_char)
 }
 
 
-static bool add_line(String &buffer,char *line,char *in_string)
+static bool add_line(String &buffer,char *line,char *in_string,
+                     bool *ml_comment)
 {
   uchar inchar;
   char buff[80],*pos,*out;
@@ -965,7 +968,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
 	continue;
     }
 #endif
-    if (inchar == '\\')
+    if (!*ml_comment && inchar == '\\')
     {					// mSQL or postgreSQL style command ?
       if (!(inchar = (uchar) *++pos))
 	break;				// readline adds one '\'
@@ -999,7 +1002,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
 	continue;
       }
     }
-    else if (inchar == ';' && !*in_string)
+    else if (!*ml_comment && inchar == ';' && !*in_string)
     {						// ';' is end of command
       if (out != line)
 	buffer.append(line,(uint) (out-line));	// Add this line
@@ -1019,17 +1022,33 @@ static bool add_line(String &buffer,char *line,char *in_string)
       buffer.length(0);
       out=line;
     }
-    else if (!*in_string && (inchar == '#' ||
-			     inchar == '-' && pos[1] == '-' &&
-			     my_isspace(system_charset_info,pos[2])))
+    else if (!*ml_comment && (!*in_string && (inchar == '#' ||
+			      inchar == '-' && pos[1] == '-' &&
+			      my_isspace(system_charset_info,pos[2]))))
       break;					// comment to end of line
+    else if (!*in_string && inchar == '/' && *(pos+1) == '*')
+    {
+      pos++;
+      *ml_comment= 1;
+      if (out != line)
+      {
+        buffer.append(line,(uint) (out-line));
+        out=line;
+      }
+    }
+    else if (*ml_comment && !*in_string && inchar == '*' && *(pos+1) == '/')
+    {
+      pos++;
+      *ml_comment= 0;
+    }      
     else
     {						// Add found char to buffer
       if (inchar == *in_string)
 	*in_string=0;
       else if (!*in_string && (inchar == '\'' || inchar == '"'))
 	*in_string=(char) inchar;
-      *out++ = (char) inchar;
+      if (!(*ml_comment))
+        *out++ = (char) inchar;
     }
   }
   if (out != line || !buffer.is_empty())
@@ -1038,7 +1057,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
     uint length=(uint) (out-line);
     if (buffer.length() + length >= buffer.alloced_length())
       buffer.realloc(buffer.length()+length+IO_SIZE);
-    if (buffer.append(line,length))
+    if (!(*ml_comment) && buffer.append(line,length))
       return 1;
   }
   return 0;
