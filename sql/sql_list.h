@@ -158,15 +158,6 @@ public:
       last= &first;
     return tmp->info;
   }
-  inline void concat(base_list *list)
-  {
-    if (!list->is_empty())
-    {
-      *last= list->first;
-      last= list->last;
-      elements+= list->elements;
-    }
-  }
   inline void disjoin(base_list *list)
   {
     list_node **prev= &first;
