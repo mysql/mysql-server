@@ -135,6 +135,10 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   }
 #endif
 
+  // copy global state map into thread
+  for(int x=0; x < 256; x++)
+    state_map[x] = global_state_map[x];
+
 #ifdef	__WIN__
   real_id = 0 ;
 #endif
