@@ -568,6 +568,24 @@ select count(*) from t1 where a is null;
 count(*)
 2
 drop table t1;
+create table t1 (c1 int, index(c1));
+create table t2 (c1 int, index(c1)) engine=merge union=(t1);
+insert into t1 values (1);
+flush tables;
+select * from t2;
+c1
+1
+flush tables;
+truncate table t1;
+insert into t1 values (1);
+flush tables;
+select * from t2;
+c1
+1
+truncate table t1;
+ERROR HY000: MyISAM table 't1' is in use (most likely by a MERGE table). Try FLUSH TABLES.
+insert into t1 values (1);
+drop table t1,t2;
 set storage_engine=MyISAM;
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
