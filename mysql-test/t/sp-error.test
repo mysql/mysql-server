@@ -388,6 +388,62 @@ call bug1653()|
 drop procedure bug1653|
 drop table t3|
 
+#
+# BUG#2259
+#
+# Note: When this bug existed, it did not necessarily cause a crash
+#       in all builds, but valgrind did give warnings.
+create procedure bug2259()
+begin
+  declare v1 int;
+  declare c1 cursor for select s1 from t10;
+
+  fetch c1 into v1;
+end|
+
+--error 1310
+call bug2259()|
+drop procedure bug2259|
+
+#
+# BUG#2272
+#
+create procedure bug2272()
+begin
+  declare v int;
+
+  update t1 set v = 42;
+end|
+
+insert into t1 values (666, 51.3)|
+--error 1054
+call bug2272()|
+delete from t1|
+drop procedure bug2272|
+
+#
+# BUG#2329
+#
+create procedure bug2329_1()
+begin
+  declare v int;
+
+  insert into t1 (v) values (5);
+end|
+
+create procedure bug2329_2()
+begin
+  declare v int;
+
+  replace t1 set v = 5;
+end|
+
+--error 1054
+call bug2329_1()|
+--error 1054
+call bug2329_2()|
+drop procedure bug2329_1|
+drop procedure bug2329_2|
 
 drop table t1|
 

@@ -205,7 +205,7 @@ class sp_cursor : public Sql_alloc
 public:
 
   sp_cursor(LEX *lex)
-    : m_lex(lex), m_isopen(0), m_current_row(NULL)
+    : m_lex(lex), m_prot(NULL), m_isopen(0), m_current_row(NULL)
   {
     /* Empty */
   }
@@ -220,7 +220,7 @@ public:
   LEX *
   pre_open(THD *thd);
   void
-  post_open(THD *thd, my_bool isopen);
+  post_open(THD *thd, my_bool was_opened);
 
   int
   close(THD *thd);

@@ -75,6 +75,20 @@ id	data
 locset	21
 delete from t1|
 drop procedure locset|
+create procedure setcontext()
+begin
+declare data int default 2;
+insert into t1 (id, data) values ("foo", 1);
+replace t1 set data = data, id = "bar";
+update t1 set id = "kaka", data = 3 where t1.data = data;
+end|
+call setcontext()|
+select * from t1|
+id	data
+foo	1
+kaka	3
+delete from t1|
+drop procedure setcontext|
 drop table if exists t3|
 create table t3 ( d date, i int, f double, s varchar(32) )|
 create procedure nullset()
@@ -893,6 +907,67 @@ avg	0	4.4
 delete from t1|
 delete from t2|
 drop procedure bug1874|
+create procedure bug2260()
+begin
+declare v1 int;
+declare continue handler for not found set @x2 = 1;
+declare c1 cursor for select data from t1;
+open c1;
+fetch c1 into v1;
+set @x2 = 2;
+close c1;
+end|
+call bug2260()|
+select @x2|
+@x2
+2
+drop procedure bug2260|
+create procedure bug2267_1()
+begin
+show procedure status;
+end|
+create procedure bug2267_2()
+begin
+show function status;
+end|
+create procedure bug2267_3()
+begin
+show create procedure bug2267_1;
+end|
+create procedure bug2267_4()
+begin
+show create function fac;
+end|
+call bug2267_1()|
+Name	Type	Definer	Modified	Created	Security_type	Comment
+bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+call bug2267_2()|
+Name	Type	Definer	Modified	Created	Security_type	Comment
+fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+call bug2267_3()|
+Procedure	Create Procedure
+bug2267_1	CREATE PROCEDURE `bug2267_1`()
+begin
+show procedure status;
+end
+call bug2267_4()|
+Function	Create Function
+fac	CREATE FUNCTION `fac`(n int unsigned) RETURNS bigint unsigned
+begin
+declare f bigint unsigned default 1;
+while n > 1 do
+set f = f * n;
+set n = n - 1;
+end while;
+return f;
+end
+drop procedure bug2267_1|
+drop procedure bug2267_2|
+drop procedure bug2267_3|
+drop procedure bug2267_4|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
