@@ -13997,8 +13997,8 @@ MySQL.
 
 Some of the examples use the table @code{shop} to hold the price of each
 article (item number) for certain traders (dealers).  Supposing that each
-trader has a single fixed price per article, then (@code{item},
-@code{trader}) is a primary key for the records.
+trader has a single fixed price per article, then (@code{article},
+@code{dealer}) is a primary key for the records.
 
 Start the command line tool @code{mysql} and select a database:
 
@@ -14207,7 +14207,7 @@ splitting of the concatenated column in the client.
 @subsection Using user variables
 
 You can use MySQL user variables to remember results without
-having to store them in a temporary variables in the client.
+having to store them in temporary variables in the client.
 @xref{Variables}.
 
 For example, to find the articles with the highest and lowest price you
