@@ -122,10 +122,10 @@ end while|
 
 # REPEAT
 create procedure b(x int)
-sprepeat
-  insert into test.t1 values ("b", x);
+repeat
+  insert into test.t1 values (repeat("b",3), x);
   set x = x-1;
-until x = 0 end sprepeat|
+until x = 0 end repeat|
 
 # Labelled WHILE with ITERATE (pointless really)
 create procedure c(x int)
