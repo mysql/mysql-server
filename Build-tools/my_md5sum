@@ -13,7 +13,7 @@ use strict;
 use Digest::MD5;
 use Getopt::Long;
 
-my $VER= "1.0";
+my $VER= "1.1";
 
 #
 # Strip the leading path info off the program name ($0). We want 'my_md5sum'
@@ -64,8 +64,9 @@ if ($opt_check)
 		my $digest= &mkmd5($checkfile);
 
 		# Check the fresh MD5 against what is recorded in the file
-		# Print an error message if they don't match
-		print "$0: MD5 check failed for '$checkfile'\n" if $digest ne $checksum;
+		# Print an error message if they don't match, else print OK
+		print "$checkfile: FAILED\n" if $digest ne $checksum;
+		print "$checkfile: OK\n" if $digest eq $checksum;
 	}
 }
 # Else generate the MD5 digest to STDOUT
