@@ -5,7 +5,7 @@
 # If you have a spare moment feel free to improve it - the right way is
 # to start mysqld yourself and run mysqltest -r
 
-RESULT_DIR=r/3.23
+RESULT_DIR=r
 if [ -z $EDITOR] ; then
  EDITOR=vi
 fi
@@ -32,7 +32,7 @@ result_file=$RESULT_DIR/$test_name.result
 
 touch $result_file
 echo "Running the test case against empty file, will fail, but don't worry"
-./mysql-test-run $test_name
+./mysql-test-run --do-test=$test_name
 
 reject_file=$result_file.reject
 

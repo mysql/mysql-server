@@ -22,9 +22,7 @@
 #include <m_ctype.h>
 #include <my_net.h>
 #include <my_sys.h>
-#ifndef SCO
 #include <m_string.h>
-#endif
 #include <sys/types.h>
 #include <sys/socket.h>
 #ifndef HAVE_BROKEN_NETINET_INCLUDES
@@ -34,9 +32,15 @@
 #include <netdb.h>
 #include <getopt.h>
 
+#ifdef SCO
+#undef h_errno
+#define h_errno errno
+#endif
+
 #if !defined(_AIX) && !defined(HAVE_UNIXWARE7_THREADS) && !defined(HAVE_UNIXWARE7_POSIX) && !defined(h_errno)
 extern int h_errno;
 #endif
+
 
 static int silent=0;
 

@@ -653,14 +653,14 @@ HANDLE_DECL(handle_stop_exec)
   e->th=pthread_self();
   if (!e->pid)
   {
-    e->th=0;
+    /* e->th=0; */	/* th may be a struct */
     pthread_mutex_unlock(&e->lock);
     error="Process not running";
     goto err;
   }
   if (mysql_shutdown(&e->mysql))
   {
-    e->th=0;
+    /* e->th=0; */	/* th may be a struct */
     pthread_mutex_unlock(&e->lock);
     error="Could not send shutdown command";
     goto err;
@@ -669,7 +669,7 @@ HANDLE_DECL(handle_stop_exec)
     pthread_cond_timedwait(&e->cond,&e->lock,&abstime);
   if (e->pid)
     error="Process failed to terminate within alotted time";
-  e->th=0;
+  /* e->th=0; */	/* th may be a struct */
   pthread_mutex_unlock(&e->lock);
   if (!error)
   {
@@ -1378,7 +1378,6 @@ static int run_server_loop()
   pthread_t th;
   struct manager_thd *thd;
   int client_sock;
-  uint len;
   Vio* vio;
   pthread_attr_t thr_attr;
   (void) pthread_attr_init(&thr_attr);
@@ -1389,7 +1388,7 @@ static int run_server_loop()
 
   for (;!shutdown_requested;)
   {
-    len=sizeof(struct sockaddr_in);
+    size_socket len=sizeof(struct sockaddr_in);
     if ((client_sock=accept(manager_sock,(struct sockaddr*)&manager_addr,
 			    &len)) <0)
     {

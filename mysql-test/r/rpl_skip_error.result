@@ -1,0 +1,15 @@
+slave stop;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+slave start;
+drop table if exists t1;
+create table t1 (n int not null primary key);
+insert into t1 values (1);
+insert into t1 values (1);
+insert into t1 values (2),(3);
+select * from t1;
+n
+1
+2
+3

@@ -4113,7 +4113,7 @@ Nothing;  We aim towards full ANSI 92 / ANSI 99 compliancy.
 
 
 @node Comparisons,  , TODO, Introduction
-@section How MySQL Compares to Other Open Source Databases
+@section How MySQL Compares to Other Databases
 
 @cindex databases, MySQL vs. others
 @cindex comparisons, MySQL vs. others
@@ -4124,9 +4124,10 @@ tests against @code{Oracle}, @code{DB/2}, @code{Microsoft SQL Server}
 and other commercial products. Due to legal reasons we are restricted
 from publishing some of those benchmarks in our reference manual.
 
-This section includes a comparison with @code{PostgreSQL} as it is
-also an Open Source database. If you have benchmark results that we
-can publish, please contact us at @email{benchmarks@@mysql.com}.
+This section includes a comparison with @code{mSQL} for historical
+reasons and with @code{PostgreSQL} as it is also an Open Source
+database. If you have benchmark results that we can publish, please
+contact us at @email{benchmarks@@mysql.com}.
 
 For comparative lists of all supported functions and types as well
 as measured operational limits of many different database systems,
@@ -4134,12 +4135,513 @@ see the @code{crash-me} web page at
 @uref{http://www.mysql.com/information/crash-me.php}.
 
 @menu
-* Compare PostgreSQL::          How MySQL Compares to PostgreSQL
+* Compare mSQL::                How MySQL compares to @code{mSQL}
+* Compare PostgreSQL::          How MySQL Compares to @code{PostgreSQL}
 @end menu
 
 
-@node Compare PostgreSQL,  , Comparisons, Comparisons
-@subsection How MySQL Compares to PostgreSQL
+@node Compare mSQL, Compare PostgreSQL, Comparisons, Comparisons
+@subsection How MySQL Compares to @code{mSQL}
+
+@cindex mSQL, MySQL vs mSQL, overview
+@table @strong
+@item Performance
+
+For a true comparison of speed, consult the growing MySQL benchmark
+suite. @xref{MySQL Benchmarks}.
+
+Because there is no thread creation overhead, a small parser, few
+features, and simple security, @code{mSQL} should be quicker at:
+
+@itemize @bullet
+@item
+Tests that perform repeated connects and disconnects, running a very
+simple query during each connection.
+
+@item
+@code{INSERT} operations into very simple tables with few columns and keys.
+
+@item
+@code{CREATE TABLE} and @code{DROP TABLE}.
+
+@item
+@code{SELECT} on something that isn't an index. (A table scan is very
+easy.)
+@end itemize
+
+Because these operations are so simple, it is hard to be better at
+them when you have a higher startup overhead. After the connection
+is established, MySQL should perform much better.
+
+On the other hand, MySQL is much faster than @code{mSQL} (and
+most other SQL implementations) on the following:
+
+@itemize @bullet
+@item
+Complex @code{SELECT} operations.
+
+@item
+Retrieving large results (MySQL has a better, faster, and safer
+protocol).
+
+@item
+Tables with variable-length strings, because MySQL has more efficient
+handling and can have indexes on @code{VARCHAR} columns.
+
+@item
+Handling tables with many columns.
+
+@item
+Handling tables with large record lengths.
+
+@item
+@code{SELECT} with many expressions.
+
+@item
+@code{SELECT} on large tables.
+
+@item
+Handling many connections at the same time. MySQL is fully
+multi-threaded. Each connection has its own thread, which means that
+no thread has to wait for another (unless a thread is modifying
+a table another thread wants to access). In @code{mSQL}, once one
+connection is established, all others must wait until the first has
+finished, regardless of whether the connection is running a query
+that is short or long. When the first connection terminates, the
+next can be served, while all the others wait again, etc.
+
+@item
+Joins.
+@code{mSQL} can become pathologically slow if you change the order of
+tables in a @code{SELECT}. In the benchmark suite, a time more than
+15000 times slower than MySQL was seen.  This is due to @code{mSQL}'s
+lack of a join optimiser to order tables in the optimal order.
+However, if you put the tables in exactly the right order in
+@code{mSQL}2 and the @code{WHERE} is simple and uses index columns,
+the join will be relatively fast!
+@xref{MySQL Benchmarks}.
+
+@item
+@code{ORDER BY} and @code{GROUP BY}.
+
+@item
+@code{DISTINCT}.
+
+@item
+Using @code{TEXT} or @code{BLOB} columns.
+@end itemize
+
+@item SQL Features
+
+@itemize @bullet
+@item @code{GROUP BY} and @code{HAVING}.
+@code{mSQL} does not support @code{GROUP BY} at all.
+MySQL supports a full @code{GROUP BY} with both @code{HAVING} and
+the following functions: @code{COUNT()}, @code{AVG()}, @code{MIN()},
+@code{MAX()}, @code{SUM()}, and @code{STD()}.  @code{COUNT(*)} is
+optimised to return very quickly if the @code{SELECT} retrieves from
+one table, no other columns are retrieved, and there is no
+@code{WHERE} clause.  @code{MIN()} and @code{MAX()} may take string
+arguments.
+
+@item @code{INSERT} and @code{UPDATE} with calculations.
+MySQL can do calculations in an @code{INSERT} or @code{UPDATE}.
+For example:
+
+@example
+mysql> UPDATE SET x=x*10+y WHERE x<20;
+@end example
+
+@item Aliasing.
+MySQL has column aliasing.
+
+@item Qualifying column names.
+In MySQL, if a column name is unique among the tables used in a
+query, you do not have to use the full qualifier.
+
+@item @code{SELECT} with functions.
+MySQL has many functions (too many to list here; see @ref{Functions}).
+
+@end itemize
+
+@item Disk Space Efficiency
+That is, how small can you make your tables?
+
+MySQL has very precise types, so you can create tables that take
+very little space. An example of a useful MySQL datatype is the
+@code{MEDIUMINT} that is 3 bytes long. If you have 100,000,000
+records, saving even one byte per record is very important.
+
+@code{mSQL2} has a more limited set of column types, so it is
+more difficult to get small tables.
+
+@item Stability
+This is harder to judge objectively. For a discussion of MySQL
+stability, see @ref{Stability}.
+
+We have no experience with @code{mSQL} stability, so we cannot say
+anything about that.
+
+@item Price
+Another important issue is the license. MySQL has a
+more flexible license than @code{mSQL}, and is also less expensive
+than @code{mSQL}.  Whichever product you choose to use, remember to
+at least consider paying for a license or e-mail support.
+
+@item Perl Interfaces
+MySQL has basically the same interfaces to Perl as @code{mSQL} with
+some added features.
+
+@item JDBC (Java)
+MySQL currently has a lot of different JDBC drivers:
+
+@itemize @bullet
+@item
+The mm driver: A type 4 JDBC driver by Mark Matthews
+@email{mmatthew@@ecn.purdue.edu}.  This is released under the LGPL.
+
+@item
+The Resin driver. This is a commercial JDBC driver released under open
+source.  @uref{http://www.caucho.com/projects/jdbc-mysql/index.xtp}
+
+@item
+The gwe driver: A Java interface by GWE technologies (not supported anymore).
+
+@item
+The jms driver: An improved gwe driver by Xiaokun Kelvin ZHU
+@email{X.Zhu@@brad.ac.uk} (not supported anymore).
+
+@item
+The twz driver: A type 4 JDBC driver by Terrence W. Zellers
+@email{zellert@@voicenet.com}.  This is commercial but is free for private
+and educational use (not supported anymore).
+@end itemize
+
+The recommended driver is the mm driver. The Resin driver may also be
+good (at least the benchmarks looks good), but we haven't received that
+much information about this yet.
+
+We know that @code{mSQL} has a JDBC driver, but we have too little
+experience with it to compare.
+
+@item Rate of Development
+MySQL has a small core team of developers, but we are quite
+used to coding C and C++ very rapidly. Because threads, functions,
+@code{GROUP BY}, and so on are still not implemented in @code{mSQL}, it
+has a lot of catching up to do. To get some perspective on this, you
+can view the @code{mSQL} @file{HISTORY} file for the last year and
+compare it with the News section of the MySQL Reference Manual
+(@pxref{News}). It should be pretty obvious which one has developed
+most rapidly.
+
+@item Utility Programs
+Both @code{mSQL} and MySQL have many interesting third-party
+tools. Because it is very easy to port upward (from @code{mSQL} to
+MySQL), almost all the interesting applications that are available for
+@code{mSQL} are also available for MySQL.
+
+MySQL comes with a simple @code{msql2mysql} program that fixes
+differences in spelling between @code{mSQL} and MySQL for the
+most-used C API functions.
+For example, it changes instances of @code{msqlConnect()} to
+@code{mysql_connect()}. Converting a client program from @code{mSQL} to
+MySQL usually requires only minor effort.
+@end table
+
+@menu
+* Using mSQL tools::            How to convert @code{mSQL} tools for MySQL
+* Protocol differences::        How @code{mSQL} and MySQL Client/Server Communications Protocols Differ
+* Syntax differences::          How @code{mSQL} 2.0 SQL Syntax Differs from MySQL
+@end menu
+
+
+@node Using mSQL tools, Protocol differences, Compare mSQL, Compare mSQL
+@subsubsection How to Convert @code{mSQL} Tools for MySQL
+
+@cindex MySQL tools, conversion
+@cindex converting, tools
+@cindex tools, converting
+
+According to our experience, it doesn't take long to convert tools
+such as @code{msql-tcl} and @code{msqljava} that use the
+@code{mSQL} C API so that they work with the MySQL C API.
+
+The conversion procedure is:
+
+@enumerate
+@item
+Run the shell script @code{msql2mysql} on the source. This requires
+the @code{replace} program, which is distributed with MySQL.
+
+@item
+Compile.
+
+@item
+Fix all compiler errors.
+@end enumerate
+
+Differences between the @code{mSQL} C API and the MySQL C API are:
+
+@itemize @bullet
+@item
+MySQL uses a @code{MYSQL} structure as a connection type (@code{mSQL}
+uses an @code{int}).
+
+@item
+@code{mysql_connect()} takes a pointer to a @code{MYSQL} structure as a
+parameter.  It is easy to define one globally or to use @code{malloc()}
+to get one.  @code{mysql_connect()} also takes two parameters for
+specifying the user and password.  You may set these to
+@code{NULL, NULL} for default use.
+
+@item
+@code{mysql_error()} takes the @code{MYSQL} structure as a parameter.
+Just add the parameter to your old @code{msql_error()} code if you are
+porting old code.
+
+@item
+MySQL returns an error number and a text error message for all
+errors. @code{mSQL} returns only a text error message.
+
+@item
+Some incompatibilities exist as a result of MySQL supporting
+multiple connections to the server from the same process.
+@end itemize
+
+
+@node Protocol differences, Syntax differences, Using mSQL tools, Compare mSQL
+@subsubsection How @code{mSQL} and MySQL Client/Server Communications Protocols Differ
+
+@cindex communications protocols
+@cindex mSQL vs. MySQL, protocol
+
+There are enough differences that it is impossible
+(or at least not easy) to support both.
+
+The most significant ways in which the MySQL protocol differs
+from the @code{mSQL} protocol are listed below:
+
+@itemize @bullet
+@item
+A message buffer may contain many result rows.
+
+@item
+The message buffers are dynamically enlarged if the query or the
+result is bigger than the current buffer, up to a configurable server
+and client limit.
+
+@item
+All packets are numbered to catch duplicated or missing packets.
+
+@item
+All column values are sent in ASCII. The lengths of columns and rows
+are sent in packed binary coding (1, 2, or 3 bytes).
+
+@item
+MySQL can read in the result unbuffered (without having to store the
+full set in the client).
+
+@item
+If a single read/write takes more than 30 seconds, the server closes
+the connection.
+
+@item
+If a connection is idle for 8 hours, the server closes the connection.
+@end itemize
+
+
+@node Syntax differences,  , Protocol differences, Compare mSQL
+@subsubsection How @code{mSQL} 2.0 SQL Syntax Differs from MySQL
+
+@noindent
+@strong{Column types}
+
+@table @code
+@item MySQL
+Has the following additional types (among others;
+@pxref{CREATE TABLE, , @code{CREATE TABLE}}):
+@itemize @bullet
+@item
+@c FIX bad lingo, needs rephrasing
+@code{ENUM} type for one of a set of strings.
+@item
+@c FIX bad lingo, needs rephrasing
+@code{SET} type for many of a set of strings.
+@item
+@code{BIGINT} type for 64-bit integers.
+@end itemize
+@item
+MySQL also supports
+the following additional type attributes:
+@itemize @bullet
+@item
+@code{UNSIGNED} option for integer columns.
+@item
+@code{ZEROFILL} option for integer columns.
+@item
+@code{AUTO_INCREMENT} option for integer columns that are a
+@code{PRIMARY KEY}.
+@xref{mysql_insert_id, , @code{mysql_insert_id()}}.
+@item
+@code{DEFAULT} value for all columns.
+@end itemize
+@item mSQL2
+@code{mSQL} column types correspond to the MySQL types shown below:
+@multitable @columnfractions .15 .85
+@item @code{mSQL} @strong{type} @tab @strong{Corresponding MySQL type}
+@item @code{CHAR(len)} @tab @code{CHAR(len)}
+@item @code{TEXT(len)} @tab @code{TEXT(len)}. @code{len} is the maximal length.
+And @code{LIKE} works.
+@item @code{INT} @tab @code{INT}. With many more options!
+@item @code{REAL} @tab @code{REAL}. Or @code{FLOAT}. Both 4- and 8-byte versions are available.
+@item @code{UINT} @tab @code{INT UNSIGNED}
+@item @code{DATE} @tab @code{DATE}. Uses ANSI SQL format rather than @code{mSQL}'s own format.
+@item @code{TIME} @tab @code{TIME}
+@item @code{MONEY} @tab @code{DECIMAL(12,2)}. A fixed-point value with two decimals.
+@end multitable
+@end table
+
+@noindent
+@strong{Index Creation}
+
+@table @code
+@item MySQL
+Indexes may be specified at table creation time with the @code{CREATE TABLE}
+statement.
+@item mSQL
+Indexes must be created after the table has been created, with separate
+@code{CREATE INDEX} statements.
+@end table
+
+@noindent
+@strong{To Insert a Unique Identifier into a Table}
+
+@table @code
+@item MySQL
+Use @code{AUTO_INCREMENT} as a column type
+specifier.
+@xref{mysql_insert_id, , @code{mysql_insert_id()}}.
+@item mSQL
+Create a @code{SEQUENCE} on a table and select the @code{_seq} column.
+@end table
+
+@noindent
+@strong{To Obtain a Unique Identifier for a Row}
+
+@table @code
+@item MySQL
+Add a @code{PRIMARY KEY} or @code{UNIQUE} key to the table and use this.
+New in Version 3.23.11: If the @code{PRIMARY} or @code{UNIQUE} key consists of only one
+column and this is of type integer, one can also refer to it as
+@code{_rowid}.
+@item mSQL
+Use the @code{_rowid} column. Observe that @code{_rowid} may change over time
+depending on many factors.
+@end table
+
+@noindent
+@strong{To Get the Time a Column Was Last Modified}
+
+@table @code
+@item MySQL
+Add a @code{TIMESTAMP} column to the table. This column is automatically set
+to the current date and time for @code{INSERT} or @code{UPDATE} statements if
+you don't give the column a value or if you give it a @code{NULL} value.
+
+@item mSQL
+Use the @code{_timestamp} column.
+@end table
+
+@noindent
+@strong{@code{NULL} Value Comparisons}
+
+@table @code
+@item MySQL
+MySQL follows
+ANSI SQL, and a comparison with @code{NULL} is always @code{NULL}.
+@item mSQL
+In @code{mSQL}, @code{NULL = NULL} is TRUE.  You
+must change @code{=NULL} to @code{IS NULL} and @code{<>NULL} to
+@code{IS NOT NULL} when porting old code from @code{mSQL} to MySQL.
+@end table
+
+@noindent
+@strong{String Comparisons}
+
+@table @code
+@item MySQL
+Normally, string comparisons are performed in case-independent fashion with
+the sort order determined by the current character set (ISO-8859-1 Latin1 by
+default).  If you don't like this, declare your columns with the
+@code{BINARY} attribute, which causes comparisons to be done according to the
+ASCII order used on the MySQL server host.
+@item mSQL
+All string comparisons are performed in case-sensitive fashion with
+sorting in ASCII order.
+@end table
+
+@noindent
+@strong{Case-insensitive Searching}
+
+@table @code
+@item MySQL
+@code{LIKE} is a case-insensitive or case-sensitive operator, depending on
+the columns involved. If possible, MySQL uses indexes if the
+@code{LIKE} argument doesn't start with a wild-card character.
+@item mSQL
+Use @code{CLIKE}.
+@end table
+
+@noindent
+@strong{Handling of Trailing Spaces}
+
+@table @code
+@item MySQL
+Strips all spaces at the end of @code{CHAR} and @code{VARCHAR}
+columns. Use a @code{TEXT} column if this behavior is not desired.
+@item mSQL
+Retains trailing space.
+@end table
+
+@noindent
+@strong{@code{WHERE} Clauses}
+
+@table @code
+@item MySQL
+MySQL correctly prioritises everything (@code{AND} is evaluated
+before @code{OR}). To get @code{mSQL} behavior in MySQL, use
+parentheses (as shown in an example below).
+@item mSQL
+Evaluates everything from left to right. This means that some logical
+calculations with more than three arguments cannot be expressed in any
+way. It also means you must change some queries when you upgrade to
+MySQL. You do this easily by adding parentheses.  Suppose you
+have the following @code{mSQL} query:
+@example
+mysql> SELECT * FROM table WHERE a=1 AND b=2 OR a=3 AND b=4;
+@end example
+To make MySQL evaluate this the way that @code{mSQL} would,
+you must add parentheses:
+@example
+mysql> SELECT * FROM table WHERE (a=1 AND (b=2 OR (a=3 AND (b=4))));
+@end example
+@end table
+
+@noindent
+@strong{Access Control}
+
+@table @code
+@item MySQL
+Has tables to store grant (permission) options per user, host, and
+database. @xref{Privileges}.
+@item mSQL
+Has a file @file{mSQL.acl} in which you can grant read/write privileges for
+users.
+@end table
+
+
+@node Compare PostgreSQL,  , Compare mSQL, Comparisons
+@subsection How MySQL Compares to @code{PostgreSQL}
 
 @cindex PostgreSQL vs. MySQL, overview
 
@@ -4166,6 +4668,7 @@ can offer, you should use @code{PostgreSQL}.
 @menu
 * MySQL-PostgreSQL goals::      MySQL and PostgreSQL development strategies
 * MySQL-PostgreSQL features::   Featurewise Comparison of MySQL and PostgreSQL
+* MySQL-PostgreSQL benchmarks::  Benchmarking MySQL and PostgreSQL
 @end menu
 
 
@@ -4211,7 +4714,7 @@ in our opinion, fewer bugs.  Because we are the authors of the MySQL server
 code, we are better able to coordinate new features and releases.
 
 
-@node MySQL-PostgreSQL features,  , MySQL-PostgreSQL goals, Compare PostgreSQL
+@node MySQL-PostgreSQL features, MySQL-PostgreSQL benchmarks, MySQL-PostgreSQL goals, Compare PostgreSQL
 @subsubsection Featurewise Comparison of MySQL and PostgreSQL
 
 @cindex PostgreSQL vs. MySQL, features
@@ -4468,6 +4971,252 @@ Much slower @code{INSERT}, @code{DELETE}, and @code{UPDATE}.
 
 For a complete list of drawbacks, you should also examine the first table
 in this section.
+
+
+@node MySQL-PostgreSQL benchmarks,  , MySQL-PostgreSQL features, Compare PostgreSQL
+@subsubsection Benchmarking MySQL and PostgreSQL
+
+@cindex PostgreSQL vs. MySQL, benchmarks
+
+The only open source benchmark that we know of that can be used to
+benchmark MySQL and PostgreSQL (and other databases) is our own. It can
+be found at @uref{http://www.mysql.com/information/benchmarks.html}.
+
+We have many times asked the PostgreSQL developers and some PostgreSQL
+users to help us extend this benchmark to make it the definitive benchmark
+for databases, but unfortunately we haven't gotten any feedback for this.
+
+We the MySQL developers have, because of this, spent a lot of hours to get
+maximum performance from PostgreSQL for the benchmarks, but because we 
+don't know PostgreSQL intimately, we are sure that there are things that 
+we have missed.  We have on the benchmark page documented exactly how we 
+did run the benchmark so that it should be easy for anyone to repeat and
+verify our results.
+
+The benchmarks are usually run with and without the @code{--fast} option.
+When run with @code{--fast} we are trying to use every trick the server can
+do to get the code to execute as fast as possible.  The idea is that the
+normal run should show how the server would work in a default setup and 
+the @code{--fast} run shows how the server would do if the application 
+developer would use extensions in the server to make his application run
+faster.
+
+When running with PostgreSQL and @code{--fast} we do a @code{VACUUM()}
+after every major table @code{UPDATE} and @code{DROP TABLE} to make the
+database in perfect shape for the following @code{SELECT}s.  The time for
+@code{VACUUM()} is measured separately.
+
+When running with PostgreSQL 7.1.1 we could, however, not run with
+@code{--fast} because during the @code{INSERT} test, the postmaster (the
+PostgreSQL deamon) died and the database was so corrupted that it was
+impossible to restart postmaster.   After this happened twice, we decided
+to postpone the @code{--fast} test until next PostgreSQL release.  The 
+details about the machine we run the benchmark can be found on the 
+benchmark page.
+
+Before going to the other benchmarks we know of, we would like to give
+some background on benchmarks:
+
+It's very easy to write a test that shows @strong{any} database to be the best
+database in the world, by just restricting the test to something the
+database is very good at and not testing anything that the database is
+not good at.  If one, after doing this, summarises the result with as
+a single figure, things are even easier.
+
+This would be like us measuring the speed of MySQL compared to PostgreSQL
+by looking at the summary time of the MySQL benchmarks on our web page.
+Based on this MySQL would be more than 40 times faster than PostgreSQL, 
+something that is of course not true.  We could make things even worse 
+by just taking the test where PostgreSQL performs worst and claim that 
+MySQL is more than 2000 times faster than PostgreSQL.
+
+The case is that MySQL does a lot of optimisations that PostgreSQL
+doesn't do. This is of course also true the other way around.  An SQL
+optimiser is a very complex thing, and a company could spend years on
+just making the optimiser faster and faster.
+
+When looking at the benchmark results you should look for things that
+you do in your application and just use these results to decide which
+database would be best suited for your application.  The benchmark
+results also shows things a particular database is not good at and should
+give you a notion about things to avoid and what you may have to do in
+other ways.
+
+We know of two benchmark tests that claims that PostgreSQL performs better 
+than MySQL.  These both where multi-user tests, a test that we here at 
+MySQL AB haven't had time to write and include in the benchmark suite, 
+mainly because it's a big task to do this in a manner that is fair against
+all databases.
+
+One is the benchmark paid for by Great Bridge, the company that for 16 months
+attempted to build a business based on PostgreSQL but now has ceased
+operations. This is the probably worst benchmark we have ever seen anyone
+conduct.  This was not only tuned to only test what PostgreSQL is absolutely
+best at, it was also totally unfair against every other database involved in
+the test.
+
+@strong{Note}:  We know that even some of the main PostgreSQL
+developers did not like the way Great Bridge conducted the benchmark, so we
+don't blame the PostgreSQL team for the way the benchmark was done.
+
+This benchmark has been condemned in a lot of postings and newsgroups so
+we will here just shortly repeat some things that were wrong with it.
+
+@itemize @bullet
+@item
+The tests were run with an expensive commercial tool, that makes it
+impossible for an open source company like us to verify the benchmarks,
+or even check how the benchmarks were really done.  The tool is not even
+a true benchmark tool, but an application/setup testing tool.  To refer
+this as a ``standard'' benchmark tool is to stretch the truth a long way.
+
+@item
+Great Bridge admitted that they had optimised the PostgreSQL database
+(with @code{VACUUM()} before the test) and tuned the startup for the tests,
+something they hadn't done for any of the other databases involved.  To
+say ``This process optimises indexes and frees up disk space a bit.  The
+optimised indexes boost performance by some margin.''  Our benchmarks
+clearly indicate that the difference in running a lot of selects on a
+database with and without @code{VACUUM()} can easily differ by a factor
+of ten.
+
+@item
+The test results were also strange.  The AS3AP test documentation
+mentions that the test does ``selections, simple joins, projections, 
+aggregates, one-tuple updates, and bulk updates''.
+
+PostgreSQL is good at doing @code{SELECT}s and @code{JOIN}s (especially 
+after a @code{VACUUM()}), but doesn't perform as well on @code{INSERT}s or
+@code{UPDATE}s.  The benchmarks seem to indicate that only @code{SELECT}s 
+were done (or very few updates).  This could easily explain they good results
+for PostgreSQL in this test.  The bad results for MySQL will be obvious a 
+bit down in this document.
+
+@item
+They did run the so-called benchmark from a Windows machine against a
+Linux machine over ODBC, a setup that no normal database user would ever
+do when running a heavy multi-user application.  This tested more the
+ODBC driver and the Windows protocol used between the clients than the
+database itself.
+
+@item
+When running the database against Oracle and MS-SQL (Great Bridge has
+indirectly indicated that the databases they used in the test), they 
+didn't use the native protocol but instead ODBC.  Anyone that has ever 
+used Oracle knows that all real application uses the native interface 
+instead of ODBC.  Doing a test through ODBC and claiming that the results
+had anything to do with using the database in a real-world situation can't
+be regarded as fair.  They should have done two tests with and without ODBC
+to provide the right facts (after having got experts to tune all involved
+databases of course).
+
+@item
+They refer to the TPC-C tests, but they don't mention anywhere that the
+test they did was not a true TPC-C test and they were not even allowed to
+call it a TPC-C test.  A TPC-C test can only be conducted by the rules
+approved by the TPC Council (@uref{http://www.tpc.org/}). Great Bridge 
+didn't do that.  By doing this they have both violated the TPC trademark
+and miscredited their own benchmarks.  The rules set by the TPC Council 
+are very strict to ensure that no one can produce false results or make
+unprovable statements.  Apparently Great Bridge wasn't interested in 
+doing this.
+
+@item
+After the first test, we contacted Great Bridge and mentioned to them
+some of the obvious mistakes they had done with MySQL: 
+
+@itemize @minus
+@item
+Running with a debug version of our ODBC driver
+
+@item
+Running on a Linux system that wasn't optimised for threads
+
+@item
+Using an old MySQL version when there was a recommended newer one available
+
+@item
+Not starting MySQL with the right options for heavy multi-user use (the 
+default installation of MySQL is tuned for minimal resource use). 
+@end itemize
+
+Great Bridge did run a new test, with our optimised ODBC driver and with 
+better startup options for MySQL, but refused to either use our updated 
+glibc library or our standard binary (used by 80% of our users), which was
+statically linked with a fixed glibc library.
+
+According to what we know, Great Bridge did nothing to ensure that the
+other databases were set up correctly to run well in their test
+environment.  We are sure however that they didn't contact Oracle or
+Microsoft to ask for their advice in this matter ;)
+
+@item
+The benchmark was paid for by Great Bridge, and they decided to publish
+only partial, chosen results (instead of publishing it all).
+@end itemize
+
+Tim Perdue, a long time PostgreSQL fan and a reluctant MySQL user
+published a comparison on PHPbuilder
+(@uref{http://www.phpbuilder.com/columns/tim20001112.php3}).
+
+When we became aware of the comparison, we phoned Tim Perdue about this
+because there were a lot of strange things in his results.  For example,
+he claimed that MySQL had a problem with five users in his tests, when we
+know that there are users with similar machines as his that are using
+MySQL with 2000 simultaneous connections doing 400 queries per second.
+(In this case the limit was the web bandwidth, not the database.)
+
+It sounded like he was using a Linux kernel that either had some
+problems with many threads, such as kernels before 2.4, which had a problem 
+with many threads on multi-CPU machines. We have documented in this manual
+how to fix this and Tim should be aware of this problem.
+
+The other possible problem could have been an old glibc library and
+that Tim didn't use a MySQL binary from our site, which is linked with
+a corrected glibc library, but had compiled a version of his own with.
+In any of the above cases, the symptom would have been exactly what Tim
+had measured.
+
+We asked Tim if we could get access to his data so that we could repeat
+the benchmark and if he could check the MySQL version on the machine to
+find out what was wrong and he promised to come back to us about this.
+He has not done that yet.
+
+Because of this we can't put any trust in this benchmark either :(
+
+Over time things also changes and the above benchmarks are not that
+relevant anymore.  MySQL now have a couple of different table handlers
+with different speed/concurrency tradeoffs.  @xref{Table types}. It
+would be interesting to see how the above tests would run with the
+different transactional table types in MySQL.  PostgreSQL has of course
+also got new features since the test was made.  As the above test are
+not publicly available there is no way for us to know how the
+database would preform in the same tests today.
+
+
+Conclusion:
+
+The only benchmarks that exist today that anyone can download and run
+against MySQL and PostgreSQL is the MySQL benchmarks.  We here at MySQL 
+believe that open source databases should be tested with open source tools!
+This is the only way to ensure that no one does tests that nobody can 
+reproduce and use this to claim that a database is better than another.
+Without knowing all the facts it's impossible to answer the claims of the
+tester.
+
+The thing we find strange is that every test we have seen about
+PostgreSQL, that is impossible to reproduce, claims that PostgreSQL is
+better in most cases while our tests, which anyone can reproduce,
+clearly shows otherwise.  With this we don't want to say that PostgreSQL
+isn't good at many things (it is!) or that it isn't faster than MySQL
+under certain conditions.  We would just like to see a fair test where
+they are very good so that we could get some friendly competition going!
+
+For more information about our benchmarks suite @xref{MySQL Benchmarks}. 
+
+We are working on an even better benchmark suite, including multi user
+tests, and a better documentation of what the individual tests really
+do and how to add more tests to the suite.
 
 
 @node Installing, Tutorial, Introduction, Top
@@ -8628,10 +9377,6 @@ connections.
 
 We plan to fix this problem when our Windows developers have figured out a
 nice workaround.
-
-@item UDF functions
-For the moment, MySQL-Windows does not support user-definable
-functions.
 
 @item @code{DROP DATABASE}
 You can't drop a database that is in use by some thread.
@@ -22706,6 +23451,33 @@ daisy-chain the slaves.
 Updates to a database with a different name than the original
 
 Example: @code{replicate-rewrite-db=master_db_name->slave_db_name}.
+
+@item @code{slave-skip-errors=err_code1,err_code2,..} @tab
+Available only in 3.23.47 and later. Tells the slave thread to continue
+replication when a query returns an error from the provided
+list. Normally, replication will discontinue when an error is
+encountered giving the user a chance to resolve the inconsistency in the
+data manually. Do not use this option unless you fully understand why
+you are getting the errors.  If there are no bugs in your 
+replication setup and client programs, and no bugs in MySQL itself, you
+should never get an abort with error.Indiscriminate use of this option
+will result in slaves being hopelessly out of sync with the master and
+you having no idea how the problem happened.
+
+For error codes, you should use the numbers provided by the error message in
+your slave error log and in the output of @code{SHOW SLAVE STATUS}. Full list
+of error messages can be found in the source distribution in
+@code{Docs/mysqld_error.txt}.
+
+You can ( but should not) also use a very non-recommended value of @code{all}
+which will ignore all error messages and keep barging along regardless.
+Needless to say, if you use it, we make no promises regarding your data
+integrity. Please do not complain if your data on the slave is not anywhere
+close to what it is on the master in this case - you have been warned.
+
+Example:
+
+@code{slave-skip-errors=1062,1053} or @code{slave-skip-errors=all}
 
 @item @code{skip-slave-start} @tab
 Tells the slave server not to start the slave on the startup.  The user
@@ -43046,7 +43818,8 @@ is not the case, you should run the script
 @cindex functions, user-definable, adding
 
 @menu
-* UDF calling sequences::       UDF Calling Sequences
+* UDF calling::                 UDF Calling Sequences
+* UDF aggr. calling::           UDF Calling Sequences for aggregate functions
 * UDF arguments::               Argument Processing
 * UDF return values::           Return Values and Error Handling
 * UDF compiling::               Compiling and Installing User-definable Functions
@@ -43124,6 +43897,38 @@ function @code{xxx()} is called once for each row.  After all rows have been
 processed, the deinitialisation function @code{xxx_deinit()} is called so it
 can perform any required cleanup.
 
+For aggregate functions (like @code{SUM()}), you must also provide the
+following functions:
+
+@table @asis
+@item @code{xxx_reset()} (required)
+Reset sum and insert the argument as the initial value for a new group.
+@item @code{xxx_add()} (required)
+Add the argument to the old sum.
+@end table
+
+When using aggregate UDF functions MySQL works the following way:
+
+@enumerate
+@item
+Call @code{xxx_init()} to let the aggregate function allocate the memory it
+will need to store results.
+@item
+Sort the table according to the @code{GROUP BY} expression.
+@item
+For the first row in a new group, call the @code{xxx_reset()} function.
+@item
+For each new row that belongs in the same group, call the
+@code{xxx_add()} function.
+@item
+When the group changes or after the last row has been processed,
+call @code{xxx()} to get the result for the aggregate.
+@item
+Repeat 3-5 until all rows has been processed
+@item
+Call @code{xxx_deinit()} to let the UDF free any memory it has allocated.
+@end enumerate
+
 All functions must be thread safe (not just the main function,
 but the initialisation and deinitialisation functions as well). This means
 that you are not allowed to allocate any global or static variables that
@@ -43131,10 +43936,10 @@ change!  If you need memory, you should allocate it in @code{xxx_init()}
 and free it in @code{xxx_deinit()}.
 
 
-@node UDF calling sequences, UDF arguments, Adding UDF, Adding UDF
-@subsubsection UDF Calling Sequences
+@node UDF calling, UDF aggr. calling , Adding UDF, Adding UDF
+@subsubsection UDF Calling Sequences for simple functions
 
-@cindex calling sequences, UDF
+@cindex calling sequences for simple functions, UDF
 
 The main function should be declared as shown below.  Note that the return
 type and parameters differ, depending on whether you will declare the SQL
@@ -43146,8 +43951,8 @@ For @code{STRING} functions:
 
 @example
 char *xxx(UDF_INIT *initid, UDF_ARGS *args,
-              char *result, unsigned long *length,
-              char *is_null, char *error);
+          char *result, unsigned long *length,
+          char *is_null, char *error);
 @end example
 
 @noindent
@@ -43219,13 +44024,68 @@ or deallocate the memory.
 @end table
 
 
-@node UDF arguments, UDF return values, UDF calling sequences, Adding UDF
+@node UDF aggr. calling , UDF arguments, UDF calling, Adding UDF
+@subsubsection UDF Calling Sequences for aggregate functions
+
+@cindex calling sequences for aggregate functions, UDF
+
+Here follows a description of the different functions you need to define
+when you want to create an aggregate UDF function.
+
+@example
+char *xxx_reset(UDF_INIT *initid, UDF_ARGS *args,
+                char *is_null, char *error);
+@end example
+
+This function is called when MySQL finds the first row in a new group.
+In the function you should reset any internal summary variables and then set
+the given argument as the first argument in the group.
+
+In many cases this is implemented internally by reseting all variables
+and then calling @code{xxx_add()}.
+
+@example
+char *xxx_add(UDF_INIT *initid, UDF_ARGS *args,
+              char *is_null, char *error);
+@end example
+
+This function is called for all rows that belongs to the same group,
+except for the first row. In this you should add the value in UDF_ARGS
+to your internal summary variable.
+
+The @code{xxx()} function should be declared identical as when you
+define a simple UDF function. @xref{UDF calling}.
+
+This function is called when all rows in the group has been processed.
+You should normally never access the @code{args} variable here but
+return your value based on your internal summary variables.
+
+All argument processing in @code{xxx_reset()} and @code{xxx_add()}
+should be done identically as for normal UDF functions. @xref{UDF
+arguments}.
+
+The return value handling in @code{xxx()} should be done identically as
+for a normal UDF. @xref{UDF return values}.
+
+The pointer argument to @code{is_null} and @code{error} is the same for
+all calls to @code{xxx_reset()}, @code{xxx_add()} and @code{xxx()}.
+You can use this to remember that you got an error or if the @code{xxx()}
+function should return @code{NULL}. Note that you should not store a string
+into @code{*error}!  This is just a 1 byte flag!
+
+@code{is_null} is reset for each group (before calling @code{xxx_reset()}.
+@code{error} is never reset.
+
+If @code{isnull} or @code{error} are set after @code{xxx()} then MySQL
+will return @code{NULL} as the result for the group function.
+
+@node UDF arguments, UDF return values, UDF aggr. calling , Adding UDF
 @subsubsection Argument Processing
 
 @cindex argument processing
 @cindex processing, arguments
 
-The @code{args} parameter points to a @code{UDF_ARGS} structure that thas the
+The @code{args} parameter points to a @code{UDF_ARGS} structure that has the
 members listed below:
 
 @table @code
@@ -43317,11 +44177,12 @@ real_val = *((double*) args->args[i]);
 
 @item unsigned long *lengths
 For the initialisation function, the @code{lengths} array indicates the
-maximum string length for each argument.  For each invocation of the main
-function, @code{lengths} contains the actual lengths of any string arguments
-that are passed for the row currently being processed.  For arguments of
-types @code{INT_RESULT} or @code{REAL_RESULT}, @code{lengths} still contains
-the maximum length of the argument (as for the initialisation function).
+maximum string length for each argument. You should not change these.
+For each invocation of the main function, @code{lengths} contains the
+actual lengths of any string arguments that are passed for the row
+currently being processed.  For arguments of types @code{INT_RESULT} or
+@code{REAL_RESULT}, @code{lengths} still contains the maximum length of
+the argument (as for the initialisation function).
 @end table
 
 
@@ -43362,7 +44223,7 @@ you must allocate the space for it with @code{malloc()} in your
 @code{xxx_init()} function or your @code{xxx()} function and free it in
 your @code{xxx_deinit()} function.  You can store the allocated memory
 in the @code{ptr} slot in the @code{UDF_INIT} structure for reuse by
-future @code{xxx()} calls.  @xref{UDF calling sequences}.
+future @code{xxx()} calls.  @xref{UDF calling}.
 
 To indicate a return value of @code{NULL} in the main function, set
 @code{is_null} to @code{1}:
@@ -46934,6 +47795,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed shutdown problem on HPUX.
+@item
 Added functions @code{des_encrypt()} and @code{des_decrypt()}.
 @item
 Added statement FLUSH DES_KEY_FILE.
@@ -47201,21 +48064,25 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
 @item
+Added @code{slave-skip-errors} option
+@item
 Added statistics variables for all MySQL commands. (@code{SHOW STATUS} is
 now much longer).
 @item
-Fix default values for InnoDB tables.
+Fixed default values for InnoDB tables.
 @item
 Fixed that @code{GROUP BY expr DESC} works.
 @item
 Fixed bug when using @code{t1 LEFT JOIN t2 ON t2.key=constant}.
 @item
-@code{mysqlconfig} now also work with binary (relocated) distributions.
+@code{mysql_config} now also work with binary (relocated) distributions.
 @end itemize
 
 @node News-3.23.46, News-3.23.45, News-3.23.47, News-3.23.x
 @appendixsubsec Changes in release 3.23.46
 @itemize @bullet
+@item
+Fixed problem with aliased temporary tables replication
 @item
 InnoDB and BDB tables will now use index when doing an @code{ORDER BY}
 on the whole table.
