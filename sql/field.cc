@@ -4275,9 +4275,12 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   /* Convert character set if nesessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
-    tmpstr.copy(from, length, cs, field_charset);
+    uint conv_errors;
+    tmpstr.copy(from, length, cs, field_charset, &conv_errors);
     from= tmpstr.ptr();
     length=  tmpstr.length();
+    if (conv_errors)
+      error= 1;
   }
 
   /* 
@@ -4300,11 +4303,11 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     from+= field_charset->cset->scan(field_charset, from, end,
 				     MY_SEQ_SPACES);
     if (from != end)
-    {
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
-      error=1;
-    }
+      error= 1;
   }
+  if (error)
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
+
   return error;
 }
 
@@ -4528,16 +4531,20 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
   /* Convert character set if nesessary */
   if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
-    tmpstr.copy(from, length, cs, field_charset);
+    uint conv_errors;
+    tmpstr.copy(from, length, cs, field_charset, &conv_errors);
     from= tmpstr.ptr();
     length=  tmpstr.length();
+    if (conv_errors)
+      error= 1;
   }
   if (length > field_length)
   {
     length=field_length;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
     error= 1;
   }
+  if (error)
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
   memcpy(ptr+HA_KEY_BLOB_LENGTH,from,length);
   int2store(ptr, length);
   return error;
@@ -4865,6 +4872,7 @@ void Field_blob::put_length(char *pos, uint32 length)
 
 int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 {
+  int error= 0;
   if (!length)
   {
     bzero(ptr,Field_blob::pack_length());
@@ -4881,9 +4889,12 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     if ((was_conversion= String::needs_conversion(length, cs, field_charset,
 						  &not_used)))
     { 
-      tmpstr.copy(from, length, cs, field_charset);
+      uint conv_errors;
+      tmpstr.copy(from, length, cs, field_charset, &conv_errors);
       from= tmpstr.ptr();
       length=  tmpstr.length();
+      if (conv_errors)
+        error= 1;
     }
     
     copy_length= max_data_length();
@@ -4897,8 +4908,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
 						      min(length, copy_length),
 						      copy_length);
     if (copy_length < length)
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
-    
+      error= 1;
     Field_blob::store_length(copy_length);
     if (was_conversion || table->copy_blobs || copy_length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
@@ -4910,6 +4920,8 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     }
     bmove(ptr+packlength,(char*) &from,sizeof(char*));
   }
+  if (error)
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED, 1);
   return 0;
 }
 
