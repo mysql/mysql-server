@@ -41,8 +41,8 @@
 #include <sys/wait.h>
 #endif
 
-#define MANAGER_VERSION "1.1"
-#define MANAGER_GREETING "MySQL Server Management Daemon v. 1.0" 
+#define MANAGER_VERSION "1.2"
+#define MANAGER_GREETING "MySQL Server Management Daemon v. 1.2" 
 
 #define LOG_ERR  1
 #define LOG_WARN 2
@@ -1332,11 +1332,8 @@ static int parse_args(int argc, char **argv)
   int ho_error;
   
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
-  {
-    printf("%s: handle_options() failed with error %d\n", my_progname,
-	   ho_error);
-    exit(1);
-  }
+    exit(ho_error);
+
   return 0;
 }
 
