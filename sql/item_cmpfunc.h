@@ -429,6 +429,7 @@ class Item_func_in :public Item_int_func
 
 class Item_func_isnull :public Item_bool_func
 {
+  longlong cached_value;
 public:
   Item_func_isnull(Item *a) :Item_bool_func(a) {}
   longlong val_int();
@@ -448,6 +449,12 @@ public:
     {
       args[0]->update_used_tables();
       used_tables_cache=args[0]->used_tables();
+    }
+    if (!used_tables_cache)
+    {
+      /* Remember if the value is always NULL or never NULL */
+      args[0]->val();
+      cached_value= args[0]->null_value ? (longlong) 1 : (longlong) 0;
     }
   }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
