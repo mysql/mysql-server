@@ -119,6 +119,7 @@ struct __db_dbt {
 	u_int32_t dlen;			/* RO: get/put record length. */
 	u_int32_t doff;			/* RO: get/put record offset. */
 
+	void	*app_private;		/* Application-private handle. */
 #define	DB_DBT_ISSET	0x001		/* Lower level calls set value. */
 #define	DB_DBT_MALLOC	0x002		/* Return in malloc'd memory. */
 #define	DB_DBT_PARTIAL	0x004		/* Partial put/get. */
