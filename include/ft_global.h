@@ -62,7 +62,7 @@ void ft_free_stopwords(void);
 #define FT_SORTED 2
 #define FT_EXPAND 4   /* query expansion */
 
-FT_INFO *ft_init_search(uint,void *, uint, byte *, uint, byte *);
+FT_INFO *ft_init_search(uint,void *, uint, byte *, uint,CHARSET_INFO *, byte *);
 my_bool ft_boolean_check_syntax_string(const byte *);
 
 #ifdef  __cplusplus
