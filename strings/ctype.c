@@ -3399,8 +3399,8 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     7,			/* number */
     MY_CS_COMPILED,	/* state      */
-    "koi8_r",		/* cs name    */
-    "koi8_r",		/* name */
+    "koi8r",		/* cs name    */
+    "koi8r",		/* name */
     "",			/* comment    */
     ctype_koi8_ru,
     to_lower_koi8_ru,
@@ -3444,8 +3444,8 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     22,			/* number */
     MY_CS_COMPILED,	/* state      */
-    "koi8_u",		/* cs name    */
-    "koi8_u",		/* name */
+    "koi8u",		/* cs name    */
+    "koi8u",		/* name */
     "",			/* comment    */
     ctype_koi8_ukr,
     to_lower_koi8_ukr,
