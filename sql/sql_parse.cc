@@ -884,6 +884,12 @@ bool do_command(THD *thd)
 			vio_description(net->vio) ));
     return TRUE;
   }
+  else if (!packet_length)
+  {
+    send_error(net,net->last_errno,NullS);
+    net->error=0;
+    DBUG_RETURN(FALSE);
+  }
   else
   {
     packet=(char*) net->read_pos;
