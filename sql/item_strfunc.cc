@@ -643,7 +643,12 @@ void Item_func_concat_ws::fix_length_and_dec()
   if (agg_arg_collations(collation, args, arg_count))
     return;
 
-  max_length= arg_count > 1 ? args[0]->max_length * (arg_count - 2) : 0;
+  /*
+     arg_count cannot be less than 2,
+     it is done on parser level in sql_yacc.yy
+     so, (arg_count - 2) is safe here.
+  */
+  max_length= args[0]->max_length * (arg_count - 2);
   for (uint i=1 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
 
