@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
    License as published by the Free Software Foundation; either
    version 2 of the License, or (at your option) any later version.
-   
+
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Library General Public License for more details.
-   
+
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
@@ -219,7 +219,7 @@ extern my_off_t mi_position(struct st_myisam_info *file);
 extern int mi_status(struct st_myisam_info *info, MI_ISAMINFO *x, uint flag);
 extern int mi_lock_database(struct st_myisam_info *file,int lock_type);
 extern int mi_create(const char *name,uint keys,MI_KEYDEF *keydef,
-		     uint columns, MI_COLUMNDEF *columndef, 
+		     uint columns, MI_COLUMNDEF *columndef,
 		     uint uniques, MI_UNIQUEDEF *uniquedef,
 		     MI_CREATE_INFO *create_info, uint flags);
 extern int mi_delete_table(const char *name);
@@ -295,16 +295,16 @@ typedef struct st_sort_info {
   struct st_mi_check_param *param;
   enum data_file_type new_data_file_type;
   SORT_KEY_BLOCKS *key_block,*key_block_end;
-  uint key,find_length;
+  uint key,find_length,real_key_length;
   my_off_t pos,max_pos,filepos,start_recpos,filelength,dupp,buff_length;
   ha_rows max_records;
   ulonglong unique[MI_MAX_KEY_SEG+1];
   my_bool fix_datafile;
   char *record,*buff;
+  void *wordlist, *wordptr;
   MI_KEYDEF *keyinfo;
   MI_KEYSEG *keyseg;
 } SORT_INFO;
-
 
 typedef struct st_mi_check_param
 {

@@ -1,0 +1,38 @@
+// -----------------------------------------------------------------------------
+// CorbaDS Module - Implement Kernel functionality in korbit
+// -----------------------------------------------------------------------------
+//
+// Main source of information: 
+//    http://www.cse.unsw.edu.au/~neilb/oss/linux-commentary/vfs.html
+//
+module CorbaFS {
+
+  struct dirent
+  {
+    long inode;           // inode number 
+    string name;          // file name (null-terminated)
+  };
+
+  typedef sequence<dirent> DirEntSeq;
+  typedef sequence<octet> Buffer;
+        
+  interface Inode {
+    void getStatus(out unsigned short mode, out unsigned long uid, out unsigned long gid, 
+                   out unsigned long size, out unsigned long inodeNum, out unsigned short numLinks, 
+                   out long atime, out long mtime, out long ctime);
+    void readpage(out Buffer buffer, in long size, in long offset);
+    void release();
+  };
+
+  interface FileSystem {  
+    Inode getInode(in string path);
+
+    // DirectoryInode  getStatus implementation must have S_IFDIR in the S_IFMT
+    // field of the mode value.
+    DirEntSeq readdir(in string path);
+
+    // SymlinkInode getStatus implementation must have S_IFLNK in the S_IFMT
+    // field of the mode value.
+    string readlink(in string filename);
+  };
+};

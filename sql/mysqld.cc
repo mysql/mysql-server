@@ -38,6 +38,13 @@
 #define ONE_THREAD
 #endif
 
+/* do stack traces are only supported on linux intel */
+#if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
+#define	HAVE_STACK_TRACE_ON_SEGV
+#include "../pstack/pstack.h"
+char pstack_file_name[80];
+#endif /* __linux__ */
+
 extern "C" {					// Because of SCO 3.2V4.2
 #include <errno.h>
 #include <sys/stat.h>
@@ -180,6 +187,7 @@ SHOW_COMP_OPTION have_ssl=SHOW_OPTION_NO;
 
 
 static bool opt_skip_slave_start = 0; // if set, slave is not autostarted
+static bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
 static my_socket unix_sock= INVALID_SOCKET,ip_sock= INVALID_SOCKET;
 static ulong back_log,connect_timeout,concurrency;
@@ -227,7 +235,7 @@ uint32 server_id = 0;
 bool server_id_supplied = 0;
 
 uint mysql_port;
-uint test_flags, select_errors=0, dropping_tables=0,ha_open_options=0;
+uint test_flags = 0, select_errors=0, dropping_tables=0,ha_open_options=0;
 uint volatile thread_count=0, thread_running=0, kill_cached_threads=0,
 	      wake_thread=0, global_read_lock=0;
 ulong thd_startup_options=(OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
@@ -1106,7 +1114,7 @@ static void start_signal_handler(void)
 #ifdef HAVE_LINUXTHREADS
 static sig_handler write_core(int sig);
 
-#ifdef __i386__
+#if defined(__i386__) && !defined(HAVE_STACK_TRACE_ON_SEGV)
 #define SIGRETURN_FRAME_COUNT  1
 #define PTR_SANE(p) ((char*)p >= heap_start && (char*)p <= heap_end)
 
@@ -1117,14 +1125,14 @@ inline __volatile__ void print_str(const char* name,
 				   const char* val, int max_len)
 {
   fprintf(stderr, "%s at %p ", name, val);
-  if(!PTR_SANE(val))
-    {
-      fprintf(stderr, " is invalid pointer\n");
-      return;
-    }
+  if (!PTR_SANE(val))
+  {
+    fprintf(stderr, " is invalid pointer\n");
+    return;
+  }
 
   fprintf(stderr, "= ");
-  for(; max_len && PTR_SANE(val) && *val; --max_len)
+  for (; max_len && PTR_SANE(val) && *val; --max_len)
     fputc(*val++, stderr);
   fputc('\n', stderr);
 }
@@ -1184,8 +1192,7 @@ New value of ebp failed sanity check, terminating backtrace!\n");
     ebp = new_ebp;
     ++frame_count;
   }
-
-  fprintf(stderr, "Stack trace successful, trying to get some variables.\n\
+  fprintf(stderr, "Stack trace successful, tryint to get some variables.\n\
 Some pointers may be invalid and cause the dump to abort...\n");
   heap_start = __bss_start; 
   heap_end = (char*)sbrk(0);
@@ -1198,7 +1205,7 @@ In some cases of really bad corruption, this value may be invalid\n",
   fprintf(stderr, "Please use the information above to create a repeatable\n\
 test case for the crash, and send it to bugs@lists.mysql.com\n");
 }
-#endif
+#endif /* HAVE_LINUXTHREADS */
 #endif
 
 static sig_handler handle_segfault(int sig)
@@ -1216,10 +1223,10 @@ The manual section 'Debugging a MySQL server' tells you how to use a\n\
 stack trace and/or the core file to produce a readable backtrace that may\n\
 help in finding out why mysqld died.\n",sig);
 #if defined(HAVE_LINUXTHREADS)
-#ifdef __i386__
+#if defined(__i386__) && !defined(HAVE_STACK_TRACE_ON_SEGV)
   trace_stack();
-  fflush(stderr);
-#endif /* __i386__ */
+  fflush(stderr); 
+#endif /* __i386__ && !HAVE_STACK_TRACE_ON_SEGV */
  if (test_flags & TEST_CORE_ON_SIGNAL)
    write_core(sig);
 #endif /* HAVE_LINUXTHREADS */
@@ -1354,6 +1361,13 @@ static void *signal_hand(void *arg __attribute__((unused)))
       (void) my_close(pidFile,MYF(0));
     }
   }
+#ifdef HAVE_STACK_TRACE_ON_SEGV
+  if (opt_do_pstack)
+  {
+    sprintf(pstack_file_name,"mysqld-%lu-%%d-%%d.backtrace", (ulong)getpid());
+    pstack_install_segv_action(pstack_file_name);
+  }
+#endif /* HAVE_STACK_TRACE_ON_SEGV */
 
   // signal to start_signal_handler that we are ready
   (void) pthread_mutex_lock(&LOCK_thread_count);
@@ -1761,7 +1775,7 @@ The server will not act as a slave.");
 	     LOG_BIN);
     using_update_log=1;
   }
-  
+
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
 	     LOG_NORMAL);
@@ -1783,7 +1797,7 @@ The server will not act as a slave.");
   }
 #else
   locked_in_memory=0;
-#endif    
+#endif
 
   if (opt_myisam_log)
     (void) mi_log( 1 );
@@ -2037,7 +2051,7 @@ static int bootstrap(FILE *file)
   if (pthread_create(&thd->real_id,&connection_attrib,handle_bootstrap,
 		     (void*) thd))
   {
-    sql_print_error("Warning: Can't create thread to handle bootstrap");    
+    sql_print_error("Warning: Can't create thread to handle bootstrap");
     return -1;
   }
   /* Wait for thread to die */
@@ -2475,7 +2489,7 @@ enum options {
                OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, 
                OPT_SAFE_SHOW_DB,
 	       OPT_GEMINI_SKIP, OPT_INNOBASE_SKIP,
-               OPT_TEMP_POOL, OPT_TX_ISOLATION,
+               OPT_TEMP_POOL, OPT_DO_PSTACK, OPT_TX_ISOLATION,
 	       OPT_GEMINI_FLUSH_LOG, OPT_GEMINI_RECOVER,
                OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
 };
@@ -2511,6 +2525,8 @@ static struct option long_options[] = {
   {"default-table-type",    required_argument, 0, (int) OPT_TABLE_TYPE},
   {"delay-key-write-for-all-tables",
                             no_argument,       0, (int) OPT_DELAY_KEY_WRITE},
+  {"do-pstack",
+                            no_argument,       0, (int) OPT_DO_PSTACK},
   {"enable-locking",        no_argument,       0, (int) OPT_ENABLE_LOCK},
   {"exit-info",             optional_argument, 0, 'T'},
   {"flush",                 no_argument,       0, (int) OPT_FLUSH},
@@ -2564,7 +2580,7 @@ static struct option long_options[] = {
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)
   {"safemalloc-mem-limit",  required_argument, 0, (int)
      OPT_SAFEMALLOC_MEM_LIMIT},
-#endif    
+#endif
   {"new",                   no_argument,       0, 'n'},
   {"old-protocol",          no_argument,       0, 'o'},
 #ifdef ONE_THREAD
@@ -2732,7 +2748,7 @@ CHANGEABLE_VAR changeable_vars[] = {
       16384, 1024, 1024*1024L, MALLOC_OVERHEAD, 1024 },
   { "net_retry_count",         (long*) &mysqld_net_retry_count,
       MYSQLD_NET_RETRY_COUNT, 1, ~0L, 0, 1 },
-  { "net_read_timeout",        (long*) &net_read_timeout, 
+  { "net_read_timeout",        (long*) &net_read_timeout,
       NET_READ_TIMEOUT, 1, 65535, 0, 1 },
   { "net_write_timeout",       (long*) &net_write_timeout,
       NET_WRITE_TIMEOUT, 1, 65535, 0, 1 },
@@ -2742,7 +2758,7 @@ CHANGEABLE_VAR changeable_vars[] = {
       0, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD, IO_SIZE },
   { "record_buffer",           (long*) &my_default_record_cache_size,
       128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
-  { "slow_launch_time",        (long*) &slow_launch_time, 
+  { "slow_launch_time",        (long*) &slow_launch_time,
       2L, 0L, ~0L, 0, 1 },
   { "sort_buffer",             (long*) &sortbuff_size,
       MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, ~0L, MALLOC_OVERHEAD, 1 },
@@ -2817,7 +2833,7 @@ struct show_var_st init_vars[]= {
   {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
   {"key_buffer_size",         (char*) &keybuff_size,                SHOW_LONG},
   {"language",                language,                             SHOW_CHAR},
-  {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},	
+  {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},
 #ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_BOOL},
 #endif
@@ -2949,7 +2965,7 @@ static void use_help(void)
 {
   print_version();
   printf("Use '--help' or '--no-defaults --help' for a list of available options\n");
-}  
+}
 
 static void usage(void)
 {
@@ -3220,11 +3236,11 @@ static void get_options(int argc,char **argv)
     case 'P':
       mysql_port= (unsigned int) atoi(optarg);
       break;
-#if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
+#if !defined(DBUG_OFF) && defined(SAFEMALLOC)
     case OPT_SAFEMALLOC_MEM_LIMIT:
       safemalloc_mem_limit = atoi(optarg);
       break;
-#endif      
+#endif
     case OPT_SOCKET:
       mysql_unix_port= optarg;
       break;
@@ -3294,14 +3310,14 @@ static void get_options(int argc,char **argv)
       break;
       // needs to be handled (as no-op) in non-debugging mode for test suite
     case (int)OPT_DISCONNECT_SLAVE_EVENT_COUNT:
-#ifndef DBUG_OFF      
+#ifndef DBUG_OFF
       disconnect_slave_event_count = atoi(optarg);
-#endif      
+#endif
       break;
     case (int)OPT_ABORT_SLAVE_EVENT_COUNT:
-#ifndef DBUG_OFF      
+#ifndef DBUG_OFF
       abort_slave_event_count = atoi(optarg);
-#endif      
+#endif
       break;
     case (int) OPT_LOG_SLAVE_UPDATES:
       opt_log_slave_updates = 1;
@@ -3642,11 +3658,11 @@ static void get_options(int argc,char **argv)
 #endif
       break;
     case OPT_INNOBASE_SKIP:
-#ifdef HAVE_INNOBASE_DB
+#ifdef HAVE_INNOBASE_DB 
       innobase_skip=1;
       have_innobase=SHOW_OPTION_DISABLED;
 #endif
-      break;
+    break;
     case OPT_INNOBASE_DATA_FILE_PATH:
 #ifdef HAVE_INNOBASE_DB
       innobase_data_file_path=optarg;
@@ -3669,6 +3685,9 @@ static void get_options(int argc,char **argv)
       innobase_flush_log_at_trx_commit= optarg ? test(atoi(optarg)) : 1;
       break;
 #endif /* HAVE_INNOBASE_DB */
+    case OPT_DO_PSTACK:
+      opt_do_pstack = 1;
+      break;
     case OPT_MYISAM_RECOVER:
     {
       if (!optarg || !optarg[0])

@@ -625,15 +625,20 @@ static void setup_key_functions(register MI_KEYDEF *keyinfo)
   }
   else if (keyinfo->flag & HA_VAR_LENGTH_KEY)
   {
-    keyinfo->bin_search=_mi_seq_search;
     keyinfo->get_key= _mi_get_pack_key;
     if (keyinfo->seg[0].flag & HA_PACK_KEY)
     {						/* Prefix compression */
+      if (!keyinfo->seg->charset || use_strcoll(keyinfo->seg->charset) ||
+          (keyinfo->seg->flag & HA_NULL_PART))
+        keyinfo->bin_search=_mi_seq_search;
+      else
+        keyinfo->bin_search=_mi_prefix_search;
       keyinfo->pack_key=_mi_calc_var_pack_key_length;
       keyinfo->store_key=_mi_store_var_pack_key;
     }
     else
     {
+      keyinfo->bin_search=_mi_seq_search;
       keyinfo->pack_key=_mi_calc_var_key_length; /* Variable length key */
       keyinfo->store_key=_mi_store_static_key;
     }

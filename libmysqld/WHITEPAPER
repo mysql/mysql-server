@@ -1,0 +1,16 @@
+LIBRARY VERSION DESIGN (EMBEDDED SERVER)
+
+
+- The library version of MySQL server is the client library that contains embedded server.
+
+- This client DLL has name : libmysqlclient_e (.la)
+
+- The client application that supposed to use MySQL LV need to be rebuilt against libmysqlclient_e.la. The rebuild process is necessary, because libmysqlclient_e is a LIBTOOL object, which has the different LIBS list compared to the original libmysqlclient.la.
+
+- The client and the server code run in the same process and the same thread;
+
+- The server code is invoked when client writes the command to the net, and when connection is established;
+
+
+
+

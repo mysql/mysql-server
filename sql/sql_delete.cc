@@ -119,8 +119,13 @@ int generate_table(THD *thd, TABLE_LIST *table_list, TABLE *locked_table)
 }
 
 
-int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
-		 thr_lock_type lock_type, ulong options)
+int mysql_delete(THD *thd,
+                 TABLE_LIST *table_list,
+                 COND *conds,
+                 ORDER *order,
+                 ha_rows limit,
+		 thr_lock_type lock_type,
+                 ulong options)
 {
   int		error;
   TABLE		*table;
@@ -191,8 +196,33 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   }
   (void) table->file->extra(HA_EXTRA_NO_READCHECK);
   if (options & OPTION_QUICK)
-    (void) table->file->extra(HA_EXTRA_QUICK);    
-  init_read_record(&info,thd,table,select,-1,1);
+    (void) table->file->extra(HA_EXTRA_QUICK);
+
+  if (order)
+  {
+    uint         length;
+    SORT_FIELD  *sortorder;
+    TABLE_LIST   tables;
+    List<Item>   fields;
+    List<Item>   all_fields;
+
+    bzero((char*) &tables,sizeof(tables));
+    tables.table = table;
+
+    table->io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
+                                             MYF(MY_FAE | MY_ZEROFILL));
+    if (setup_order(thd, &tables, fields, all_fields, order) ||
+        !(sortorder=make_unireg_sortorder(order, &length)) ||
+        (table->found_records = filesort(&table, sortorder, length,
+                                        (SQL_SELECT *) 0, 0L, HA_POS_ERROR))
+        == HA_POS_ERROR)
+    {
+      delete select;
+      DBUG_RETURN(-1);		// This will force out message
+    }
+  }
+
+  init_read_record(&info,thd,table,select,1,1);
   ulong deleted=0L;
   thd->proc_info="updating";
   while (!(error=info.read_record(&info)) && !thd->killed)
@@ -218,9 +248,10 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   }
   thd->proc_info="end";
   end_read_record(&info);
+  /* if (order) free_io_cache(table); */ /* QQ Should not be needed */
   (void) table->file->extra(HA_EXTRA_READCHECK);
   if (options & OPTION_QUICK)
-    (void) table->file->extra(HA_EXTRA_NORMAL);    
+    (void) table->file->extra(HA_EXTRA_NORMAL);
   using_transactions=table->file->has_transactions();
   if (deleted && (error <= 0 || !using_transactions))
   {

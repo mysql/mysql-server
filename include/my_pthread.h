@@ -25,6 +25,10 @@
 #define ETIME ETIMEDOUT				/* For FreeBSD */
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(__WIN__)
 
 typedef CRITICAL_SECTION pthread_mutex_t;
@@ -576,4 +580,8 @@ extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
 #endif /* SAFE_STATISTICS */
 #endif /* HAVE_ATOMIC_ADD */
 #endif /* thread_safe_increment */
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* _my_ptread_h */

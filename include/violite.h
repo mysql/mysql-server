@@ -52,6 +52,10 @@ Vio*		vio_new_win32pipe(HANDLE hPipe);
 #endif
 void		vio_delete(Vio* vio);
 
+#ifdef EMBEDDED_LIBRARY
+void vio_reset(Vio *vio);
+#endif
+
 /*
  * vio_read and vio_write should have the same semantics
  * as read(2) and write(2).
