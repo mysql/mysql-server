@@ -1439,7 +1439,9 @@ innobase_start_or_create_for_mysql(void)
 		fprintf(stderr,
 		"InnoDB: !!! innodb_force_recovery is set to %lu !!!\n",
 			srv_force_recovery);
-	}	
+	}
+
+	fflush(stderr);
 
 	return((int) DB_SUCCESS);
 }
