@@ -262,6 +262,7 @@ public:
 	   unireg_check_arg, field_name_arg, table_arg)
     { field_charset=charset; }
   Item_result result_type () const { return STRING_RESULT; }
+  void add_binary_or_charset(String &res) const;
   uint decimals() const { return NOT_FIXED_DEC; }
   void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
@@ -556,7 +557,7 @@ public:
   int cmp(const char *a, const char *b) { return 0;}
   void sort_string(char *buff, uint length)  {}
   uint32 pack_length() const { return 0; }
-  void sql_type(String &str) const { str.set("null",4,my_thd_charset); }
+  void sql_type(String &str) const;
   uint size_of() const { return sizeof(*this); }
 };
 

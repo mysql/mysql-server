@@ -199,7 +199,7 @@ void Field::copy_from_tmp(int row_offset)
 bool Field::send_binary(Protocol *protocol)
 {
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),default_charset_info);
+  String tmp(buff,sizeof(buff),charset());
   val_str(&tmp,&tmp);
   return protocol->store(tmp.ptr(), tmp.length());
 }
@@ -207,11 +207,17 @@ bool Field::send_binary(Protocol *protocol)
 
 void Field_num::add_zerofill_and_unsigned(String &res) const
 {
-  res.length((uint) strlen(res.ptr()));		// Fix length
-  if (unsigned_flag)
-    res.append(" unsigned");
-  if (zerofill)
-    res.append(" zerofill");
+  uint oldlen=res.length();
+  if (oldlen < res.alloced_length())
+  {
+    uint len=res.alloced_length()-oldlen;
+    char *end=(char*)(res.ptr()+oldlen);
+    CHARSET_INFO *cs=res.charset();
+    len=cs->snprintf(cs,end,len,"%s%s",
+			unsigned_flag ? " unsigned" : "",
+			zerofill      ? " zerofill" : "");
+    res.length(len+oldlen);
+  }
 }
 
 void Field_num::make_field(Send_field *field)
@@ -239,6 +245,22 @@ void Field_str::make_field(Send_field *field)
   field->type=type();
   field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
   field->decimals=0;
+}
+
+void Field_str::add_binary_or_charset(String &res) const
+{
+  uint oldlen=res.length();
+  if (oldlen < res.alloced_length())
+  {
+    CHARSET_INFO *cs=res.charset();
+    uint len=res.alloced_length() - oldlen;
+    char *end=(char*)(res.ptr()+oldlen);
+    if (binary())
+      len=cs->snprintf(cs,end,len," binary");
+    else
+      len=cs->snprintf(cs,end,len," character set %s",field_charset->name);
+    res.length(oldlen+len);
+  }
 }
 
 
@@ -316,6 +338,19 @@ bool Field::optimize_range(uint idx)
 {
   return test(table->file->index_flags(idx) & HA_READ_NEXT);
 }
+
+/****************************************************************************
+  Functions for the Field_null
+****************************************************************************/
+
+void Field_null::sql_type(String &res) const
+{
+  CHARSET_INFO *cs=res.charset();
+  uint len;
+  len=cs->snprintf(cs,(char*)res.ptr(),res.alloced_length(),"null");
+  res.length(len);
+}
+
 
 /****************************************************************************
   Functions for the Field_decimal class
@@ -889,12 +924,16 @@ void Field_decimal::sort_string(char *to,uint length)
 
 void Field_decimal::sql_type(String &res) const
 {
+  CHARSET_INFO *cs=res.charset();
   uint tmp=field_length;
+  uint len;
   if (!unsigned_flag)
     tmp--;
   if (dec)
     tmp--;
-  sprintf((char*) res.ptr(),"decimal(%d,%d)",tmp,dec);
+  len=cs->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
+		   "decimal(%d,%d)",tmp,dec);
+  res.length(len);
   add_zerofill_and_unsigned(res);
 }
 
@@ -1093,7 +1132,10 @@ void Field_tiny::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_tiny::sql_type(String &res) const
 {
-  sprintf((char*) res.ptr(),"tinyint(%d)",(int) field_length);
+  CHARSET_INFO *cs=res.charset();
+  uint len=cs->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
+			"tinyint(%d)",(int) field_length);
+  res.length(len);
   add_zerofill_and_unsigned(res);
 }
 
@@ -1364,7 +1406,10 @@ void Field_short::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_short::sql_type(String &res) const
 {
-  sprintf((char*) res.ptr(),"smallint(%d)",(int) field_length);
+  CHARSET_INFO *cs=res.charset();
+  uint len=cs->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
+			"smallint(%d)",(int) field_length);
+  res.length(len);
   add_zerofill_and_unsigned(res);
 }
 
@@ -1579,7 +1624,10 @@ void Field_medium::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_medium::sql_type(String &res) const
 {
-  sprintf((char*) res.ptr(),"mediumint(%d)",(int) field_length);
+  CHARSET_INFO *cs=res.charset();
+  uint len=cs->snprintf(cs,(char*) res.ptr(),res.alloced_length(), 
+			"mediumint(%d)",(int) field_length);
+  res.length(len);
   add_zerofill_and_unsigned(res);
 }
 
@@ -1840,7 +1888,10 @@ void Field_long::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_long::sql_type(String &res) const
 {
-  sprintf((char*) res.ptr(),"int(%d)",(int) field_length);
+  CHARSET_INFO *cs=res.charset();
+  uint len=cs->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
+			"int(%d)",(int) field_length);
+  res.length(len);
   add_zerofill_and_unsigned(res);
 }
 
@@ -2069,7 +2120,10 @@ void Field_longlong::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_longlong::sql_type(String &res) const
 {
-  sprintf((char*) res.ptr(),"bigint(%d)",(int) field_length);
+  CHARSET_INFO *cs=res.charset();
+  uint len=cs->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
+			"bigint(%d)",(int) field_length);
+  res.length(len);
   add_zerofill_and_unsigned(res);
 }
 
@@ -2333,10 +2387,18 @@ bool Field_float::send_binary(Protocol *protocol)
 
 void Field_float::sql_type(String &res) const
 {
+  CHARSET_INFO *cs=res.charset();
+  uint len;
   if (dec == NOT_FIXED_DEC)
-    strmov((char*) res.ptr(),"float");
+  {
+    len=cs->snprintf(cs,(char*) res.ptr(),res.alloced_length(),"float");
+  }
   else
-    sprintf((char*) res.ptr(),"float(%d,%d)",(int) field_length,dec);
+  {
+    len=cs->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
+		     "float(%d,%d)",(int) field_length,dec);
+  }
+  res.length(len);
   add_zerofill_and_unsigned(res);
 }
 
@@ -2585,10 +2647,18 @@ void Field_double::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_double::sql_type(String &res) const
 {
+  CHARSET_INFO *cs=res.charset();
+  uint len;
   if (dec == NOT_FIXED_DEC)
-    strmov((char*) res.ptr(),"double");
+  {
+    len=cs->snprintf(cs,(char*) res.ptr(),res.alloced_length(),"double");
+  }
   else
-    sprintf((char*) res.ptr(),"double(%d,%d)",(int) field_length,dec);
+  {
+    len=cs->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
+		     "double(%d,%d)",(int) field_length,dec);
+  }
+  res.length(len);
   add_zerofill_and_unsigned(res);
 }
 
@@ -2919,7 +2989,9 @@ void Field_timestamp::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_timestamp::sql_type(String &res) const
 {
-  res.set("timestamp", 9, default_charset_info);
+  CHARSET_INFO *cs=res.charset();
+  uint len=cs->snprintf(cs,(char*)res.ptr(),res.alloced_length(),"timestamp");
+  res.length(len);
 }
 
 
@@ -3111,7 +3183,9 @@ void Field_time::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_time::sql_type(String &res) const
 {
-  res.set("time",4,default_charset_info);
+  CHARSET_INFO *cs=res.charset();
+  uint len=cs->snprintf(cs,(char*)res.ptr(),res.alloced_length(),"time");
+  res.length(len);
 }
 
 /****************************************************************************
@@ -3201,9 +3275,10 @@ String *Field_year::val_str(String *val_buffer,
 
 void Field_year::sql_type(String &res) const
 {
-  ulong length=my_sprintf((char*) res.ptr(),
-			  ((char*) res.ptr(),"year(%d)",(int) field_length));
-  res.length(length);
+  CHARSET_INFO *cs=res.charset();
+  ulong len=cs->snprintf(cs,(char*)res.ptr(),res.alloced_length(),
+			 "year(%d)",(int) field_length);
+  res.length(len);
 }
 
 
@@ -3373,7 +3448,9 @@ void Field_date::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_date::sql_type(String &res) const
 {
-  res.set("date",4,default_charset_info);
+  CHARSET_INFO *cs=res.charset();
+  uint len=cs->snprintf(cs,(char*)res.ptr(),res.alloced_length(),"date");
+  res.length(len);
 }
 
 /****************************************************************************
@@ -3536,7 +3613,9 @@ void Field_newdate::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_newdate::sql_type(String &res) const
 {
-  res.set("date",4,default_charset_info);
+  CHARSET_INFO *cs=res.charset();
+  uint len=cs->snprintf(cs,(char*)res.ptr(),res.alloced_length(),"date");
+  res.length(len);
 }
 
 
@@ -3760,7 +3839,9 @@ void Field_datetime::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_datetime::sql_type(String &res) const
 {
-  res.set("datetime",8,default_charset_info);
+  CHARSET_INFO *cs=res.charset();
+  uint len=cs->snprintf(cs,(char*)res.ptr(),res.alloced_length(),"datetime");
+  res.length(len);
 }
 
 /****************************************************************************
@@ -3889,21 +3970,16 @@ void Field_string::sort_string(char *to,uint length)
 
 void Field_string::sql_type(String &res) const
 {
-  ulong length= my_sprintf((char*) res.ptr(),
-			   ((char*) res.ptr(), "%s(%d)",
+  CHARSET_INFO *cs=res.charset();
+  ulong length= cs->snprintf(cs,(char*) res.ptr(),
+			    res.alloced_length(), "%s(%d)",
 			    (field_length > 3 &&
 			     (table->db_options_in_use &
 			      HA_OPTION_PACK_RECORD) ?
 			     "varchar" : "char"),
-			    (int) field_length));
-  res.length((uint) length);
-  if (binary())
-    res.append(" binary");
-  else
-  {
-    res.append(" character set ");
-    res.append(field_charset->name);
-  }
+			    (int) field_length);
+  res.length(length);
+  add_binary_or_charset(res);
 }
 
 
@@ -4091,17 +4167,12 @@ void Field_varstring::sort_string(char *to,uint length)
 
 void Field_varstring::sql_type(String &res) const
 {
-  ulong length= my_sprintf((char*) res.ptr(),
-			   ((char*) res.ptr(),"varchar(%u)",
-			    field_length));
-  res.length((uint) length);
-  if (binary())
-    res.append(" binary");
-  else
-  {
-    res.append(" character set ");
-    res.append(field_charset->name);
-  }
+  CHARSET_INFO *cs=res.charset();
+  ulong length= cs->snprintf(cs,(char*) res.ptr(),
+			     res.alloced_length(),"varchar(%u)",
+			     field_length);
+  res.length(length);
+  add_binary_or_charset(res);
 }
 
 char *Field_varstring::pack(char *to, const char *from, uint max_length)
@@ -4597,20 +4668,22 @@ void Field_blob::sort_string(char *to,uint length)
 
 void Field_blob::sql_type(String &res) const
 {
+  CHARSET_INFO *cs=res.charset();
   const char *str;
+  uint len;
   switch (packlength) {
   default: str="tiny"; break;
   case 2:  str=""; break;
   case 3:  str="medium"; break;
   case 4:  str="long"; break;
   }
-  res.set(str,(uint) strlen(str),my_charset_latin1);
-  res.append(binary() ? "blob" : "text");
-  if (!binary())
-  {
-    res.append(" character set ");
-    res.append(field_charset->name);
-  }
+  
+  len=cs->snprintf(cs,(char*)res.ptr(),res.alloced_length(),"%s%s%s%s",
+		   str,
+		   binary() ? "blob" : "text",
+		   binary() ? "" : " character set ",
+		   binary() ? "" : field_charset->name);
+  res.length(len);
 }
 
 
@@ -4982,15 +5055,7 @@ void Field_enum::sql_type(String &res) const
     flag=1;
   }
   res.append(')');
-  if (binary())
-  {
-    res.append(" binary");
-  }
-  else
-  {
-    res.append(" character set ");
-    res.append(field_charset->name);
-  }
+  add_binary_or_charset(res);
 }
 
 
@@ -5112,15 +5177,7 @@ void Field_set::sql_type(String &res) const
     flag=1;
   }
   res.append(')');
-  if (binary())
-  {
-    res.append(" binary");
-  }
-  else
-  {
-    res.append(" character set ");
-    res.append(field_charset->name);
-  }
+  add_binary_or_charset(res);
 }
 
 /* returns 1 if the fields are equally defined */

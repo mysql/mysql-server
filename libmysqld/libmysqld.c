@@ -219,6 +219,27 @@ static const char *default_options[]=
 static TYPELIB option_types={array_elements(default_options)-1,
 			     "options",default_options};
 
+static int add_init_command(struct st_mysql_options *options, const char *cmd)
+{
+  char **ptr, *tmp;
+
+  if (!options->init_commands)
+  {
+    options->init_commands= (DYNAMIC_ARRAY*)my_malloc(sizeof(DYNAMIC_ARRAY),
+						      MYF(MY_WME));
+    init_dynamic_array(options->init_commands,sizeof(char*),0,5 CALLER_INFO);
+  }
+
+  if (!(tmp= my_strdup(cmd,MYF(MY_WME))) ||
+      insert_dynamic(options->init_commands, &tmp))
+  {
+    my_free(tmp, MYF(MY_ALLOW_ZERO_PTR));
+    return 1;
+  }
+
+  return 0;
+}
+
 static void mysql_read_default_options(struct st_mysql_options *options,
 				       const char *filename,const char *group)
 {
@@ -288,11 +309,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  }
 	  break;
 	case 8:				/* init-command */
-	  if (opt_arg)
-	  {
-	    my_free(options->init_command,MYF(MY_ALLOW_ZERO_PTR));
-	    options->init_command=my_strdup(opt_arg,MYF(MY_WME));
-	  }
+	  add_init_command(options,opt_arg);
 	  break;
 	case 9:				/* host */
 	  if (opt_arg)
@@ -589,7 +606,6 @@ mysql_close(MYSQL *mysql)
   DBUG_ENTER("mysql_close");
   if (mysql)					/* Some simple safety */
   {
-    my_free(mysql->options.init_command,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.user,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.host,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.password,MYF(MY_ALLOW_ZERO_PTR));
@@ -599,6 +615,11 @@ mysql_close(MYSQL *mysql)
     my_free(mysql->options.my_cnf_group,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
+    if (mysql->options.init_commands)
+    {
+      delete_dynamic(mysql->options.init_commands);
+      my_free((char*)mysql->options.init_commands,MYF(MY_WME));
+    }
     /* Clear pointers for better safety */
     bzero((char*) &mysql->options,sizeof(mysql->options));
 #ifdef HAVE_OPENSSL
@@ -1161,8 +1182,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
       mysql->options.client_flag&= ~CLIENT_LOCAL_FILES;
     break;
   case MYSQL_INIT_COMMAND:
-    my_free(mysql->options.init_command,MYF(MY_ALLOW_ZERO_PTR));
-    mysql->options.init_command=my_strdup(arg,MYF(MY_WME));
+    add_init_command(&mysql->options,arg);
     break;
   case MYSQL_READ_DEFAULT_FILE:
     my_free(mysql->options.my_cnf_file,MYF(MY_ALLOW_ZERO_PTR));
