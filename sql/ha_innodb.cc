@@ -3353,7 +3353,15 @@ create_table_def(
 	trx_t*		trx,		/* in: InnoDB transaction handle */
 	TABLE*		form,		/* in: information on table
 					columns and indexes */
-	const char*	table_name)	/* in: table name */
+	const char*	table_name,	/* in: table name */
+	const char*	path_of_temp_table)/* in: if this is a table explicitly
+					created by the user with the
+					TEMPORARY keyword, then this
+					parameter is the dir path where the
+					table should be placed if we create
+					an .ibd file for it (no .ibd extension
+					in the path, though); otherwise this
+					is NULL */
 {
 	Field*		field;
 	dict_table_t*	table;
@@ -3375,6 +3383,11 @@ create_table_def(
 	id where to store the table */
 
 	table = dict_mem_table_create((char*) table_name, 0, n_cols);
+
+	if (path_of_temp_table) {
+		table->dir_path_of_temp_table =
+			mem_heap_strdup(table->heap, path_of_temp_table);
+	}
 
 	for (i = 0; i < n_cols; i++) {
 		field = form->field[i];
@@ -3456,8 +3469,7 @@ create_index(
 
     	ind_type = 0;
 
-    	if (key_num == form->primary_key)
-	{
+    	if (key_num == form->primary_key) {
 		ind_type = ind_type | DICT_CLUSTERED;
 	}
 
@@ -3622,7 +3634,7 @@ ha_innobase::create(
 		srv_lower_case_table_names = FALSE;
 	}
 
-	fn_format(name2, name, "", "",2);	// Remove the .frm extension
+	fn_format(name2, name, "", "", 2);	// Remove the .frm extension
 
 	normalize_table_name(norm_name, name2);
 
@@ -3634,8 +3646,13 @@ ha_innobase::create(
 
 	/* Create the table definition in InnoDB */
 
-  	error = create_table_def(trx, form, norm_name);
-  	
+	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+
+  		error = create_table_def(trx, form, norm_name, name2);
+	} else {
+		error = create_table_def(trx, form, norm_name, NULL);
+	}
+
   	if (error) {
 		innobase_commit_low(trx);
 
@@ -3710,8 +3727,8 @@ ha_innobase::create(
   	}
 
 	if (current_thd->query != NULL) {
-
 		LEX_STRING q;
+
 		if (thd->convert_string(&q, system_charset_info,
 					current_thd->query,
 					current_thd->query_length,

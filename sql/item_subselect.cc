@@ -770,7 +770,6 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       we can use same item for all selects.
     */
     expr= new Item_ref((Item**)optimizer->get_cache(),
-		       NULL,
 		       (char *)"<no matter>",
 		       (char *)in_left_expr_name);
 
@@ -966,9 +965,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
 					   (char *) "<no matter>",
 					   (char *) "<list ref>");
       func=
-	eq_creator.create(new Item_ref((*optimizer->get_cache())->
-				       addr(i),
-				       NULL,
+	eq_creator.create(new Item_ref((*optimizer->get_cache())->addr(i),
 				       (char *)"<no matter>",
 				     (char *)in_left_expr_name),
 			  func);

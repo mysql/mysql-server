@@ -187,7 +187,7 @@ fi
 
 if [ $BASE_SYSTEM != "netware" ] ; then
   if [ -d tests ] ; then
-    $CP tests/*.res tests/*.tst tests/*.pl $BASE/tests
+    $CP tests/client_test tests/*.res tests/*.tst tests/*.pl $BASE/tests
   fi
   if [ -d man ] ; then
     $CP man/*.1 $BASE/man/man1

@@ -339,11 +339,13 @@ fil_rename_tablespace(
 	const char*	new_name);	/* in: new table name in the standard
 					databasename/tablename format
 					of InnoDB */
+
 /***********************************************************************
 Creates a new single-table tablespace to a database directory of MySQL.
 Database directories are under the 'datadir' of MySQL. The datadir is the
 directory of a running mysqld program. We can refer to it by simply the
-path '.'. */
+path '.'. Tables created with CREATE TEMPORARY TABLE we place in the temp
+dir of the mysqld server. */
 
 ulint
 fil_create_new_single_table_tablespace(
@@ -354,7 +356,10 @@ fil_create_new_single_table_tablespace(
 					otherwise output */
 	const char*	tablename,	/* in: the table name in the usual
 					databasename/tablename format
-					of InnoDB */
+					of InnoDB, or a dir path to a temp
+					table */
+	ibool		is_temp,	/* in: TRUE if a table created with
+					CREATE TEMPORARY TABLE */
 	ulint		size);		/* in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
@@ -446,7 +451,10 @@ fil_space_for_table_exists_in_mem(
 					exists in the memory cache */
 	ulint		id,		/* in: space id */
 	const char*	name,		/* in: table name in the standard
-					'databasename/tablename' format */
+					'databasename/tablename' format or
+					the dir path to a temp table */
+	ibool		is_temp,	/* in: TRUE if created with CREATE
+					TEMPORARY TABLE */
 	ibool		mark_space,	/* in: in crash recovery, at database
 					startup we mark all spaces which have
 					an associated table in the InnoDB

@@ -145,7 +145,7 @@ void Item_func_not_all::print(String *str)
   1	Item was replaced with an integer version of the item
 */
 
-static bool convert_constant_item(Field *field, Item **item)
+static bool convert_constant_item(THD *thd, Field *field, Item **item)
 {
   if ((*item)->const_item())
   {
@@ -153,7 +153,7 @@ static bool convert_constant_item(Field *field, Item **item)
     {
       Item *tmp=new Item_int_with_ref(field->val_int(), *item);
       if (tmp)
-	*item=tmp;
+        thd->change_item_tree(item, tmp);
       return 1;					// Item was replaced
     }
   }
@@ -164,6 +164,7 @@ static bool convert_constant_item(Field *field, Item **item)
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length= 1;				     // Function returns 0 or 1
+  THD *thd= current_thd;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -199,7 +200,6 @@ void Item_bool_func2::fix_length_and_dec()
         !coll.set(args[0]->collation, args[1]->collation, TRUE))
     {
       Item* conv= 0;
-      THD *thd= current_thd;
       Item_arena *arena= thd->current_arena, backup;
       strong= coll.strong;
       weak= strong ? 0 : 1;
@@ -245,7 +245,7 @@ void Item_bool_func2::fix_length_and_dec()
     Field *field=((Item_field*) args[0])->field;
     if (field->can_be_compared_as_longlong())
     {
-      if (convert_constant_item(field,&args[1]))
+      if (convert_constant_item(thd, field,&args[1]))
       {
 	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
 			 INT_RESULT);		// Works for all types.
@@ -258,7 +258,7 @@ void Item_bool_func2::fix_length_and_dec()
     Field *field=((Item_field*) args[1])->field;
     if (field->can_be_compared_as_longlong())
     {
-      if (convert_constant_item(field,&args[0]))
+      if (convert_constant_item(thd, field,&args[0]))
       {
 	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
 			 INT_RESULT); // Works for all types.
@@ -836,6 +836,7 @@ longlong Item_func_interval::val_int()
 void Item_func_between::fix_length_and_dec()
 {
    max_length= 1;
+   THD *thd= current_thd;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -858,9 +859,9 @@ void Item_func_between::fix_length_and_dec()
     Field *field=((Item_field*) args[0])->field;
     if (field->can_be_compared_as_longlong())
     {
-      if (convert_constant_item(field,&args[1]))
+      if (convert_constant_item(thd, field,&args[1]))
 	cmp_type=INT_RESULT;			// Works for all types.
-      if (convert_constant_item(field,&args[2]))
+      if (convert_constant_item(thd, field,&args[2]))
 	cmp_type=INT_RESULT;			// Works for all types.
     }
   }
@@ -2014,7 +2015,8 @@ bool Item_cond::walk(Item_processor processor, byte *arg)
   return Item_func::walk(processor, arg);
 }
 
-void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
+void Item_cond::split_sum_func(THD *thd, Item **ref_pointer_array,
+                               List<Item> &fields)
 {
   List_iterator<Item> li(list);
   Item *item;
@@ -2023,13 +2025,15 @@ void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
   while ((item=li++))
   {
     if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-      item->split_sum_func(ref_pointer_array, fields);
+      item->split_sum_func(thd, ref_pointer_array, fields);
     else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
     {
+      Item **ref= li.ref();
       uint el= fields.elements;
+      Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
       fields.push_front(item);
       ref_pointer_array[el]= item;
-      li.replace(new Item_ref(ref_pointer_array + el, li.ref(), 0, item->name));
+      thd->change_item_tree(ref, new_item);
     }
     item->update_used_tables();
     used_tables_cache|=item->used_tables();

@@ -427,6 +427,31 @@ show status like 'handler_discover%';
 
 drop table t6;
 
+#####################################################
+# Test that only tables in the current database shows 
+# up in SHOW TABLES
+#
+
+show tables;
+
+create table t1 (a int,b longblob) engine=ndb;
+show tables;
+create database test2;
+use test2;
+show tables;
+--error 1146
+select * from t1;
+create table t2 (b int,c longblob) engine=ndb;
+use test;
+select * from t1;
+show tables;
+drop table t1;
+use test2;
+drop table t2;
+drop database test2;
+show databases;
+use test;
+
 ######################################################
 # Note! This should always be the last step in this 
 # file, the table t9 will be used and dropped 
