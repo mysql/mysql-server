@@ -492,7 +492,10 @@ public:
   CHANGED_TABLE_LIST * changed_table_dup(TABLE *table);
 };
 
-
+/*
+  Used to hold information about file and file structure in exchainge 
+  via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
+*/
 class sql_exchange :public Sql_alloc
 {
 public:
