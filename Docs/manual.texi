@@ -38914,6 +38914,11 @@ Perl @code{DBD} module to access mSQL and @strong{MySQL} databases.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Data-ShowTable-3.3.tar.gz,  Data-ShowTable-3.3.tar.gz}
 Perl @code{Data-ShowTable} module.  Useful with @code{DBI}/@code{DBD} support.
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/HandySQL-1.1.tar.gz, HandySQL-1.1.tar.gz}
+HandySQL is a MySQL access module. It offers a C interface embedded in Perl and is
+approximately 20% faster than regular DBI.
+
 @end itemize
 
 @cindex JDBC
