@@ -3465,7 +3465,8 @@ enum options
   OPT_ERROR_LOG_FILE,
   OPT_ENABLE_SHARED_MEMORY,
   OPT_SHARED_MEMORY_BASE_NAME,
-  OPT_OLD_PASSWORDS
+  OPT_OLD_PASSWORDS,
+  OPT_DEFAULT_WEEK_FORMAT
 };
 
 
@@ -4282,6 +4283,11 @@ struct my_option my_long_options[] =
    (gptr*) &global_system_variables.net_wait_timeout,
    (gptr*) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
+  { "default-week-format", OPT_DEFAULT_WEEK_FORMAT,
+    "The default week format used by WEEK() functions.",
+    (gptr*) &global_system_variables.default_week_format, 
+    (gptr*) &max_system_variables.default_week_format, 
+    0, GET_ULONG, REQUIRED_ARG, 0, 0, 3L, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
