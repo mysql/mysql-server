@@ -1708,17 +1708,6 @@ pars_get_lex_chars(
 }
 
 /*****************************************************************
-Instructs the lexical analyzer to stop when it receives the EOF integer. */
-
-int
-yywrap(void)
-/*========*/
-		/* out: returns TRUE */
-{
-	return(1);
-}
-
-/*****************************************************************
 Called by yyparse on error. */
 
 void
