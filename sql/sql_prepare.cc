@@ -72,6 +72,7 @@ Long data handling:
 #include "sql_select.h" // for JOIN
 #include <m_ctype.h>  // for isspace()
 #include "sp_head.h"
+#include "sp.h"
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
 #include <mysql.h>
@@ -1409,6 +1410,20 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   lex->first_lists_tables_same();
   tables= lex->query_tables;
 
+  /*
+    Preopen 'proc' system table and cache all functions used in this
+    statement. We must do that before we open ordinary tables to avoid
+    deadlocks. We can't open and lock any table once query tables were
+    opened.
+  */
+  if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
+      lex->sql_command != SQLCOM_CREATE_SPFUNCTION)
+  {
+    /* the error is print inside */
+    if (sp_cache_functions(thd, lex))
+      DBUG_RETURN(1);
+  }
+
   switch (sql_command) {
   case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
@@ -1883,7 +1898,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   {
     if (stmt->cursor->is_open())
       stmt->cursor->init_from_thd(thd);
-    thd->set_item_arena(&thd->stmt_backup);
+    stmt->cursor->state= stmt->state;
   }
   else
   {
@@ -2029,6 +2044,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
 
   DBUG_ENTER("mysql_stmt_fetch");
 
+  thd->current_arena= stmt;
   if (!(stmt= thd->stmt_map.find(stmt_id)) ||
       !stmt->cursor ||
       !stmt->cursor->is_open())
@@ -2038,9 +2054,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
-  thd->stmt_backup.set_statement(thd);
-  thd->stmt_backup.set_item_arena(thd);
-  thd->set_statement(stmt);
+  thd->set_n_backup_statement(stmt, &thd->stmt_backup);
   stmt->cursor->init_thd(thd);
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -2055,11 +2069,8 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
 
   /* Restore THD state */
   stmt->cursor->reset_thd(thd);
-  thd->set_statement(&thd->stmt_backup);
-  thd->set_item_arena(&thd->stmt_backup);
-
-  if (error && error != -4)
-    send_error(thd, ER_OUT_OF_RESOURCES);
+  thd->restore_backup_statement(stmt, &thd->stmt_backup);
+  thd->current_arena= thd;
 
   DBUG_VOID_RETURN;
 }
@@ -2070,7 +2081,7 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   SYNOPSIS
     mysql_stmt_reset()
       thd       Thread handle
-      packet	Packet with stmt id 
+      packet	Packet with stmt id
 
   DESCRIPTION
     This function resets statement to the state it was right after prepare.

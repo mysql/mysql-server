@@ -456,3 +456,8 @@ PREPARE stmt FROM 'UPDATE t1 AS P1 INNER JOIN (SELECT N FROM t1 GROUP BY N HAVIN
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+create table t1 (a varchar(20));
+insert into t1 values ('foo');
+prepare stmt FROM 'SELECT char_length (a) FROM t1';
+ERROR 42000: FUNCTION test.char_length does not exist
+drop table t1;
