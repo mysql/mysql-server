@@ -1404,9 +1404,10 @@ static int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
   GROUP_CONCAT(DISTINCT expr,... ORDER BY col,... )
 */
 
-static int group_concat_key_cmp_with_distinct_and_order(void* arg, byte* key1, byte* key2)
+static int group_concat_key_cmp_with_distinct_and_order(void* arg,
+							byte* key1,
+							byte* key2)
 {
-  Item_func_group_concat* item= (Item_func_group_concat*)arg;
   if (!group_concat_key_cmp_with_distinct(arg,key1,key2))
     return 0;
   return(group_concat_key_cmp_with_order(arg,key1,key2));
@@ -1631,7 +1632,7 @@ void Item_func_group_concat::reset_field()
 bool
 Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  int i;			/* for loop variable */ 
+  uint i;			/* for loop variable */ 
 
   if (!thd->allow_sum_func)
   {
@@ -1641,11 +1642,11 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   
   thd->allow_sum_func= 0;
   maybe_null= 0;
-  for (uint ui= 0 ; ui < arg_count ; ui++)
+  for (i= 0 ; i < arg_count ; i++)
   {
-    if (args[ui]->fix_fields(thd, tables, args + ui) || args[ui]->check_cols(1))
+    if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
       return 1;
-    maybe_null |= args[ui]->maybe_null;
+    maybe_null |= args[i]->maybe_null;
   }
   for (i= 0 ; i < arg_count_field ; i++)
   {
