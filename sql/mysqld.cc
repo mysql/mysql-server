@@ -119,7 +119,7 @@ inline void reset_floating_point_exceptions()
 #else
 #include <my_pthread.h>			// For thr_setconcurency()
 #endif
-#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE) && !defined(__linux__) && !defined(HAVE_mit_thread)
+#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE) && !defined(HAVE_mit_thread)
 #define SET_RLIMIT_NOFILE
 #endif
 
