@@ -462,7 +462,7 @@ void handler::print_error(int error, myf errflag)
       char key[MAX_KEY_LENGTH];
       String str(key,sizeof(key));
       key_unpack(&str,table,(uint) key_nr);
-      uint max_length=MYSQL_ERRMSG_SIZE-strlen(ER(ER_DUP_ENTRY));
+      uint max_length=MYSQL_ERRMSG_SIZE-(uint) strlen(ER(ER_DUP_ENTRY));
       if (str.length() >= max_length)
       {
 	str.length(max_length-4);

@@ -39,7 +39,7 @@
 # "3-byte int" or "same as xxx".
 
 
-$version="1.47";
+$version="1.48";
 
 use DBI;
 use Getopt::Long;
@@ -276,6 +276,14 @@ if ($dbh->do("create table crash_q (a integer, b integer,c CHAR(10))"))
   report("Alter table rename table",'alter_rename_table',
 	 "alter table crash_q rename to crash_q1");
 }
+# Make sure both tables will be dropped, even if rename fails.
+$dbh->do("drop table crash_q1");
+$dbh->do("drop table crash_q");
+
+report("rename table","rename_table",
+       "create table crash_q (a integer, b integer,c CHAR(10))",
+       "rename table crash_q to crash_q1",
+       "drop table crash_q1");
 # Make sure both tables will be dropped, even if rename fails.
 $dbh->do("drop table crash_q1");
 $dbh->do("drop table crash_q");
@@ -905,6 +913,9 @@ try_and_report("Automatic rowid", "automatic_rowid",
    ["MIN on numbers","min","min(a)",1,0],
    ["MIN on strings","min_str","min(b)","a",1],
    ["SUM","sum","sum(a)",1,0],
+   ["ANY","any","any(a)",$logical_value,0],
+   ["EVERY","every","every(a)",$logical_value,0],
+   ["SOME","some","some(a)",$logical_value,0],
    );
 
 @extra_group_functions=

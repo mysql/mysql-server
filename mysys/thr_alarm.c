@@ -16,6 +16,8 @@
    MA 02111-1307, USA */
 
 #include <global.h>
+
+#if defined(THREAD) && !defined(DONT_USE_THR_ALARM)
 #include <errno.h>
 #include <my_pthread.h>
 #include <signal.h>
@@ -23,8 +25,6 @@
 #include <m_string.h>
 #include <queues.h>
 #include "thr_alarm.h"
-
-#ifdef THREAD
 
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>				/* AIX needs this for fd_set */
@@ -38,7 +38,6 @@ static my_bool alarm_aborted=1;
 my_bool thr_alarm_inited=0;
 
 #if !defined(__WIN__) && !defined(__OS2__)
-#ifndef DONT_USE_THR_ALARM			/* thr_alarm disabled */
 
 static pthread_mutex_t LOCK_alarm;
 static sigset_t full_signal_set;
@@ -455,10 +454,150 @@ static void *alarm_handler(void *arg __attribute__((unused)))
   pthread_exit(0);
   return 0;					/* Impossible */
 }
-#endif
+#endif /* USE_ALARM_THREAD */
 
+/*****************************************************************************
+**  thr_alarm for OS/2
+*****************************************************************************/
+
+#elif defined(__OS2__)
+
+#define INCL_BASE
+#define INCL_NOPMAPI
+#include <os2.h>
+
+bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
+{
+  APIRET rc;
+  if (alarm_aborted)
+  {
+    alrm->crono=0;
+    alrm->event=0;
+    return 1;
+  }
+  if (!(rc = DosCreateEventSem(NULL,(HEV *)&alrm->event,DC_SEM_SHARED,FALSE)))
+  {
+    printf("Error creating event semaphore! [%d] \n",rc);
+    alrm->crono=0;
+    alrm->event=0;
+    return 1;
+  }
+  if (!(rc = DosAsyncTimer((long) sec*1000L, (HSEM) alrm->event,(HTIMER *) &alrm->crono))) {
+    printf("Error starting async timer! [%d] \n",rc);
+    DosCloseEventSem((HEV) alrm->event);
+    alrm->crono=0;
+    alrm->event=0;
+    return 1;
+  } /* endif */
+
+  return 1;
+}
+
+
+bool thr_got_alarm(thr_alarm_t *alrm)
+{
+  APIRET rc;
+
+  if (alrm->crono)
+  {
+    rc = DosWaitEventSem((HEV) alrm->event, SEM_IMMEDIATE_RETURN);
+    if (rc == 0) {
+      DosCloseEventSem((HEV) alrm->event);
+      alrm->crono = 0;
+      alrm->event = 0;
+    } /* endif */
+  }
+  return !alrm->crono || alarm_aborted;
+}
+
+
+void thr_end_alarm(thr_alarm_t *alrm)
+{
+  if (alrm->crono)
+  {
+    DosStopTimer((HTIMER) alrm->crono);
+    DosCloseEventSem((HEV) alrm->event);
+    alrm->crono = 0;
+    alrm->event = 0;
+  }
+}
+
+void end_thr_alarm(void)
+{
+  DBUG_ENTER("end_thr_alarm");
+  alarm_aborted=1;				/* No more alarms */
+  DBUG_VOID_RETURN;
+}
+
+void init_thr_alarm(uint max_alarm)
+{
+  DBUG_ENTER("init_thr_alarm");
+  alarm_aborted=0;				/* Yes, Gimmie alarms */
+  DBUG_VOID_RETURN;
+}
+
+/*****************************************************************************
+**  thr_alarm for win95
+*****************************************************************************/
+
+#else /* __WIN__ */
+
+bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
+{
+  if (alarm_aborted)
+  {
+    alrm->crono=0;
+    return 1;
+  }
+  if (!(alrm->crono=SetTimer((HWND) NULL,0, sec*1000,(TIMERPROC) NULL)))
+    return 1;
+  return 0;
+}
+
+
+bool thr_got_alarm(thr_alarm_t *alrm)
+{
+  MSG msg;
+  if (alrm->crono)
+  {
+    PeekMessage(&msg,NULL,WM_TIMER,WM_TIMER,PM_REMOVE) ;
+    if (msg.message == WM_TIMER || alarm_aborted)
+    {
+      KillTimer(NULL, alrm->crono);
+      alrm->crono = 0;
+    }
+  }
+  return !alrm->crono || alarm_aborted;
+}
+
+
+void thr_end_alarm(thr_alarm_t *alrm)
+{
+  if (alrm->crono)
+  {
+    KillTimer(NULL, alrm->crono);
+    alrm->crono = 0;
+  }
+}
+
+void end_thr_alarm(void)
+{
+  DBUG_ENTER("end_thr_alarm");
+  alarm_aborted=1;				/* No more alarms */
+  DBUG_VOID_RETURN;
+}
+
+#endif /* __WIN__ */
+
+#endif /* THREAD */
+
+
+/****************************************************************************
+** Handling of MAIN
+***************************************************************************/
 
 #ifdef MAIN
+#if defined(THREAD) && !defined(DONT_USE_THR_ALARM)
 
 static pthread_cond_t COND_thread_count;
 static pthread_mutex_t LOCK_thread_count;
@@ -468,7 +607,7 @@ static uint thread_count;
 typedef int * fd_set_ptr;
 #else
 typedef fd_set * fd_set_ptr;
-#endif
+#endif /* HPUX */
 
 static void *test_thread(void *arg)
 {
@@ -567,8 +706,7 @@ static sig_handler print_signal_warning(int sig)
   if (sig == SIGALRM)
     alarm(2);					/* reschedule alarm */
 }
-#endif
-
+#endif /* USE_ONE_SIGNAL_HAND */
 
 
 static void *signal_hand(void *arg __attribute__((unused)))
@@ -718,157 +856,18 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   printf("Test succeeded\n");
   return 0;
 }
-#endif /* MAIN */
 
-#else /* DONT_USE_THR_ALARM */
+#else /* THREAD */
 
-#ifdef MAIN
 int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 {
+#ifndef THREAD
+  printf("thr_alarm disabled because we are not using threads\n");
+#else
   printf("thr_alarm disabled with DONT_USE_THR_ALARM\n");
+#endif
   exit(1);
 }
-#endif
-#endif
 
-/*****************************************************************************
-**  thr_alarm for OS/2
-*****************************************************************************/
-
-#elif defined(__OS2__)
-
-#define INCL_BASE
-#define INCL_NOPMAPI
-#include <os2.h>
-
-bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
-{
-  APIRET rc;
-  if (alarm_aborted)
-  {
-    alrm->crono=0;
-    alrm->event=0;
-    return 1;
-  }
-  if (!(rc = DosCreateEventSem(NULL,(HEV *)&alrm->event,DC_SEM_SHARED,FALSE)))
-  {
-    printf("Error creating event semaphore! [%d] \n",rc);
-    alrm->crono=0;
-    alrm->event=0;
-    return 1;
-  }
-  if (!(rc = DosAsyncTimer((long) sec*1000L, (HSEM) alrm->event,(HTIMER *) &alrm->crono))) {
-    printf("Error starting async timer! [%d] \n",rc);
-    DosCloseEventSem((HEV) alrm->event);
-    alrm->crono=0;
-    alrm->event=0;
-    return 1;
-  } /* endif */
-
-  return 1;
-}
-
-
-bool thr_got_alarm(thr_alarm_t *alrm)
-{
-  APIRET rc;
-
-  if (alrm->crono)
-  {
-    rc = DosWaitEventSem((HEV) alrm->event, SEM_IMMEDIATE_RETURN);
-    if (rc == 0) {
-      DosCloseEventSem((HEV) alrm->event);
-      alrm->crono = 0;
-      alrm->event = 0;
-    } /* endif */
-  }
-  return !alrm->crono || alarm_aborted;
-}
-
-
-void thr_end_alarm(thr_alarm_t *alrm)
-{
-  if (alrm->crono)
-  {
-    DosStopTimer((HTIMER) alrm->crono);
-    DosCloseEventSem((HEV) alrm->event);
-    alrm->crono = 0;
-    alrm->event = 0;
-  }
-}
-
-void end_thr_alarm(void)
-{
-  DBUG_ENTER("end_thr_alarm");
-  alarm_aborted=1;				/* No more alarms */
-  DBUG_VOID_RETURN;
-}
-
-void init_thr_alarm(uint max_alarm)
-{
-  DBUG_ENTER("init_thr_alarm");
-  alarm_aborted=0;				/* Yes, Gimmie alarms */
-  DBUG_VOID_RETURN;
-}
-
-#ifdef MAIN
-void main()
-{
-  printf("hello world\n");
-}
-#endif
-
-/*****************************************************************************
-**  thr_alarm for win95
-*****************************************************************************/
-
-#else /* __WIN__ */
-
-bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
-{
-  if (alarm_aborted)
-  {
-    alrm->crono=0;
-    return 1;
-  }
-  if (!(alrm->crono=SetTimer((HWND) NULL,0, sec*1000,(TIMERPROC) NULL)))
-    return 1;
-  return 0;
-}
-
-
-bool thr_got_alarm(thr_alarm_t *alrm)
-{
-  MSG msg;
-  if (alrm->crono)
-  {
-    PeekMessage(&msg,NULL,WM_TIMER,WM_TIMER,PM_REMOVE) ;
-    if (msg.message == WM_TIMER || alarm_aborted)
-    {
-      KillTimer(NULL, alrm->crono);
-      alrm->crono = 0;
-    }
-  }
-  return !alrm->crono || alarm_aborted;
-}
-
-
-void thr_end_alarm(thr_alarm_t *alrm)
-{
-  if (alrm->crono)
-  {
-    KillTimer(NULL, alrm->crono);
-    alrm->crono = 0;
-  }
-}
-
-void end_thr_alarm(void)
-{
-  DBUG_ENTER("end_thr_alarm");
-  alarm_aborted=1;				/* No more alarms */
-  DBUG_VOID_RETURN;
-}
-
-#endif /* __WIN__ */
-
-#endif
+#endif /* THREAD */
+#endif /* MAIN */

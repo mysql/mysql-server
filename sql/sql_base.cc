@@ -127,7 +127,7 @@ void table_cache_init(void)
 void table_cache_free(void)
 {
   DBUG_ENTER("table_cache_free");
-  close_cached_tables(0);
+  close_cached_tables((THD*) 0,0,(TABLE_LIST*) 0);
   if (!open_cache.records)			// Safety first
     hash_free(&open_cache);
   DBUG_VOID_RETURN;
@@ -373,7 +373,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
             else
               p = log_file_name;
 	   
-	    uint ident_len = strlen(p);
+	    uint ident_len = (uint) strlen(p);
 	    ulong event_len = ident_len + sizeof(header);
 	    int4store(header + 5, event_len);
 	    packet->append(header, sizeof(header));
@@ -433,8 +433,10 @@ send_fields(THD *thd,List<Item> &list,uint flag)
 
     if (convert)
     {
-      if (convert->store(packet,field.table_name,strlen(field.table_name)) ||
-	  convert->store(packet,field.col_name, strlen(field.col_name)) ||
+      if (convert->store(packet,field.table_name,
+			 (uint) strlen(field.table_name)) ||
+	  convert->store(packet,field.col_name,
+			 (uint) strlen(field.col_name)) ||
 	  packet->realloc(packet->length()+10))
 	goto err;
     }
@@ -531,35 +533,50 @@ void free_io_cache(TABLE *table)
 
 	/* Close all tables which aren't in use by any thread */
 
-bool close_cached_tables(bool if_wait_for_refresh)
+bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
+			 TABLE_LIST *tables)
 {
   bool result=0;
   DBUG_ENTER("close_cached_tables");
 
   VOID(pthread_mutex_lock(&LOCK_open));
-  while (unused_tables)
+  if (!tables)
   {
+    while (unused_tables)
+    {
 #ifdef EXTRA_DEBUG
-    if (hash_delete(&open_cache,(byte*) unused_tables))
-      printf("Warning: Couldn't delete open table from hash\n");
+      if (hash_delete(&open_cache,(byte*) unused_tables))
+	printf("Warning: Couldn't delete open table from hash\n");
 #else
-    VOID(hash_delete(&open_cache,(byte*) unused_tables));
+      VOID(hash_delete(&open_cache,(byte*) unused_tables));
 #endif
+    }
+    if (!open_cache.records)
+    {
+      end_key_cache();				/* No tables in memory */
+      key_cache_used=0;
+    }
+    refresh_version++;				// Force close of open tables
   }
-  if (!open_cache.records)
+  else
   {
-    end_key_cache();				/* No tables in memory */
-    key_cache_used=0;
+    bool found=0;
+    for (TABLE_LIST *table=tables ; table ; table=table->next)
+    {
+      if (remove_table_from_cache(thd, table->db, table->name))
+	found=1;
+    }
+    if (!found)
+      if_wait_for_refresh=0;			// Nothing to wait for
   }
-  refresh_version++;				// Force close of open tables
   if (if_wait_for_refresh)
   {
     /*
       If there is any table that has a lower refresh_version, wait until
       this is closed (or this thread is killed) before returning
     */
-    kill_delayed_threads();
-    THD *thd=current_thd;
+    if (!tables)
+      kill_delayed_threads();
     pthread_mutex_lock(&thd->mysys_var->mutex);
     thd->mysys_var->current_mutex= &LOCK_open;
     thd->mysys_var->current_cond= &COND_refresh;
@@ -737,7 +754,8 @@ bool rename_temporary_table(TABLE *table, const char *db,
 {
   char *key;
   if (!(key=(char*) alloc_root(&table->mem_root,
-			       strlen(db)+ strlen(table_name)+2)))
+			       (uint) strlen(db)+
+			       (uint) strlen(table_name)+2)))
     return 1;				/* purecov: inspected */
   table->key_length=(uint)
     (strmov((table->real_name=strmov(table->table_cache_key=key,
@@ -804,7 +822,7 @@ TABLE *unlink_open_table(THD *thd, TABLE *list, TABLE *find)
 
 /* 
    When we call the following function we must have a lock on
-   LOCK_OPEN ; This lock will be freed on return
+   LOCK_OPEN ; This lock will be unlocked on return.
 */
 
 void wait_for_refresh(THD *thd)
@@ -946,8 +964,8 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 	// remember the name of the non-existent table
 	// so we can try to download it from the master
       {
-	int table_name_len = strlen(table_name);
-	int db_len = strlen(db);
+	int table_name_len = (uint) strlen(table_name);
+	int db_len = (uint) strlen(db);
 	thd->last_nx_db = alloc_root(glob_alloc,db_len + table_name_len + 2);
 	if(thd->last_nx_db)
 	{
@@ -987,7 +1005,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   /* Fix alias if table name changes */
   if (strcmp(table->table_name,alias))
   {
-    uint length=strlen(alias)+1;
+    uint length=(uint) strlen(alias)+1;
     table->table_name= (char*) my_realloc(table->table_name,length,
 					  MYF(MY_WME));
     memcpy(table->table_name,alias,length);
@@ -1509,8 +1527,8 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 {
   TABLE *tmp_table;
   DBUG_ENTER("open_temporary_table");
-  if (!(tmp_table=(TABLE*) my_malloc(sizeof(*tmp_table)+strlen(db)+
-				     strlen(table_name)+2,
+  if (!(tmp_table=(TABLE*) my_malloc(sizeof(*tmp_table)+(uint) strlen(db)+
+				     (uint) strlen(table_name)+2,
 				     MYF(MY_WME))))
     DBUG_RETURN(0);				/* purecov: inspected */
 
@@ -1611,7 +1629,7 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
   const char *db=item->db_name;
   const char *table_name=item->table_name;
   const char *name=item->field_name;
-  uint length=strlen(name);
+  uint length=(uint) strlen(name);
 
   if (table_name)
   {						/* Qualified field */

@@ -264,7 +264,7 @@ bool Field::send(String *packet)
 
 void Field_num::add_zerofill_and_unsigned(String &res) const
 {
-  res.length(strlen(res.ptr()));		// Fix length
+  res.length((uint) strlen(res.ptr()));		// Fix length
   if (unsigned_flag)
     res.append(" unsigned");
   if (zerofill)
@@ -355,7 +355,7 @@ void Field::store_time(TIME *ltime,timestamp_type type)
   case TIMESTAMP_TIME:
     sprintf(buff, "%02d:%02d:%02d",
 	    ltime->hour,ltime->minute,ltime->second);
-    store(buff,strlen(buff));
+    store(buff,(uint) strlen(buff));
     break;
   }
 }
@@ -500,8 +500,13 @@ void Field_decimal::store(double nr)
   char buff[320];
 
   fyllchar = zerofill ? (char) '0' : (char) ' ';
+#ifdef HAVE_SNPRINTF_
+  buff[sizeof(buff)-1]=0;			// Safety
+  snprintf(buff,sizeof(buff)-1, "%.*f",(int) dec,nr);
+#else
   sprintf(buff,"%.*f",dec,nr);
-  length=strlen(buff);
+#endif
+  length=(uint) strlen(buff);
 
   if (length > field_length)
   {
@@ -1837,7 +1842,11 @@ String *Field_float::val_str(String *val_buffer,
     while (tmp_dec--)
       *to++= *pos++;
 #else
+#ifdef HAVE_SNPRINTF_
+    sprintf(to,val_buffer->length(),"%.*f",dec,nr);
+#else
     sprintf(to,"%.*f",dec,nr);
+#endif
     to=strend(to);
 #endif
   }
@@ -2067,7 +2076,8 @@ String *Field_double::val_str(String *val_buffer,
       *to++= *pos++;
 #else
 #ifdef HAVE_SNPRINTF
-    snprintf(to,to_length,"%.*f",dec,nr);
+    to[to_length-1]=0;			// Safety
+    snprintf(to,to_length-1,"%.*f",dec,nr);
 #else
     sprintf(to,"%.*f",dec,nr);
 #endif
@@ -2471,7 +2481,7 @@ void Field_timestamp::sort_string(char *to,uint length __attribute__((unused)))
 void Field_timestamp::sql_type(String &res) const
 {
   sprintf((char*) res.ptr(),"timestamp(%d)",(int) field_length);
-  res.length(strlen(res.ptr()));
+  res.length((uint) strlen(res.ptr()));
 }
 
 
@@ -2597,7 +2607,7 @@ String *Field_time::val_str(String *val_buffer,
   sprintf((char*) val_buffer->ptr(),"%s%02d:%02d:%02d",
 	  sign,(int) (tmp/10000), (int) (tmp/100 % 100),
 	  (int) (tmp % 100));
-  val_buffer->length(strlen(val_buffer->ptr()));
+  val_buffer->length((uint) strlen(val_buffer->ptr()));
   return val_buffer;
 }
 
@@ -2722,7 +2732,7 @@ String *Field_year::val_str(String *val_buffer,
 void Field_year::sql_type(String &res) const
 {
   sprintf((char*) res.ptr(),"year(%d)",(int) field_length);
-  res.length(strlen(res.ptr()));
+  res.length((uint) strlen(res.ptr()));
 }
 
 
@@ -3388,7 +3398,7 @@ void Field_string::sql_type(String &res) const
 	  (table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
 	  "varchar" : "char",
 	  (int) field_length);
-  res.length(strlen(res.ptr()));
+  res.length((uint) strlen(res.ptr()));
   if (binary_flag)
     res.append(" binary");
 }
@@ -3566,7 +3576,7 @@ void Field_varstring::sort_string(char *to,uint length)
 void Field_varstring::sql_type(String &res) const
 {
   sprintf((char*) res.ptr(),"varchar(%d)",(int) field_length);
-  res.length(strlen(res.ptr()));
+  res.length((uint) strlen(res.ptr()));
   if (binary_flag)
     res.append(" binary");
 }
@@ -3980,7 +3990,7 @@ void Field_blob::sql_type(String &res) const
   case 3:  str="medium"; break;
   case 4:  str="long"; break;
   }
-  res.set(str,strlen(str));
+  res.set(str,(uint) strlen(str));
   res.append(binary_flag ? "blob" : "text");
 }
 
@@ -4191,7 +4201,7 @@ String *Field_enum::val_str(String *val_buffer __attribute__((unused)),
     val_ptr->length(0);
   else
     val_ptr->set((const char*) typelib->type_names[tmp-1],
-		 strlen(typelib->type_names[tmp-1]));
+		 (uint) strlen(typelib->type_names[tmp-1]));
   return val_ptr;
 }
 
@@ -4309,7 +4319,7 @@ String *Field_set::val_str(String *val_buffer,
       if (val_buffer->length())
 	val_buffer->append(field_separator);
       String str(typelib->type_names[bitnr],
-		 strlen(typelib->type_names[bitnr]));
+		 (uint) strlen(typelib->type_names[bitnr]));
       val_buffer->append(str);
     }
     tmp>>=1;

@@ -458,7 +458,7 @@ int handle_bootstrap(THD *thd,FILE *file)
   char *buff= (char*) thd->net.buff;
   while (fgets(buff, thd->net.max_packet, file))
   {
-    uint length=strlen(buff);
+    uint length=(uint) strlen(buff);
     while (length && (isspace(buff[length-1]) || buff[length-1] == ';'))
       length--;
     buff[length]=0;
@@ -726,7 +726,7 @@ bool do_command(THD *thd)
       if (check_access(thd,RELOAD_ACL,any_db))
 	break;
       mysql_log.write(command,NullS);
-      if (reload_acl_and_cache(options))
+      if (reload_acl_and_cache(thd, options, (TABLE_LIST*) 0))
 	send_error(net,0);
       else
 	send_eof(net);
@@ -765,7 +765,7 @@ bool do_command(THD *thd)
       sprintf(strend(buff), "  Memory in use: %ldK  Max memory used: %ldK",
 	      (lCurMemory+1023L)/1024L,(lMaxMemory+1023L)/1024L);
  #endif
-    VOID(my_net_write(net, buff,strlen(buff)));
+    VOID(my_net_write(net, buff,(uint) strlen(buff)));
     VOID(net_flush(net));
     break;
   }
@@ -1131,15 +1131,32 @@ mysql_execute_command(void)
     }
 #endif
   case SQLCOM_RENAME_TABLE:
-    if (check_db_used(thd,tables) ||
-	check_table_access(thd,ALTER_ACL,tables))
+  {
+    TABLE_LIST *table;
+    if (check_db_used(thd,tables))
       goto error;
+    for (table=tables ; table ; table=table->next->next)
+    {
+      if (check_access(thd, ALTER_ACL, table->db, &table->grant.privilege) ||
+	  check_access(thd, INSERT_ACL | CREATE_ACL, table->next->db,
+		       &table->next->grant.privilege))
+	goto error;
+      if (grant_option)
+      {
+	if (check_grant(thd,ALTER_ACL,table) ||
+	    (!test_all_bits(table->next->grant.privilege,
+			   INSERT_ACL | CREATE_ACL) &&
+	     check_grant(thd,INSERT_ACL | CREATE_ACL, table->next)))
+	  goto error;
+      }
+    }
     if (mysql_rename_tables(thd,tables))
       res= -1;
     break;
-  case SQLCOM_SHOW_CREATE: /* SerG:show */
+  }
+  case SQLCOM_SHOW_CREATE:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
-    send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
+    send_error(&thd->net,ER_NOT_ALLOWED_COMMAND); /* purecov: inspected */
     DBUG_VOID_RETURN;
 #else
     {
@@ -1385,7 +1402,7 @@ mysql_execute_command(void)
       break;
     }
 #endif
-  case SQLCOM_SHOW_FIELDS: /* SerG:show */
+  case SQLCOM_SHOW_FIELDS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
     DBUG_VOID_RETURN;
@@ -1411,7 +1428,7 @@ mysql_execute_command(void)
       break;
     }
 #endif
-  case SQLCOM_SHOW_KEYS: /* SerG:show */
+  case SQLCOM_SHOW_KEYS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
     DBUG_VOID_RETURN;
@@ -1623,9 +1640,9 @@ mysql_execute_command(void)
      break;
    }
   case SQLCOM_FLUSH:
-    if (check_access(thd,RELOAD_ACL,any_db))
+    if (check_access(thd,RELOAD_ACL,any_db) || check_db_used(thd, tables))
       goto error;
-    if (reload_acl_and_cache(lex->type))
+    if (reload_acl_and_cache(thd, lex->type, tables))
       send_error(&thd->net,0);
     else
       send_ok(&thd->net);
@@ -2099,7 +2116,7 @@ bool add_field_to_list(char *field_name, enum_field_types type,
       new_field->interval=interval;
       new_field->length=0;
       for (const char **pos=interval->type_names; *pos ; pos++)
-	new_field->length+=strlen(*pos)+1;
+	new_field->length+=(uint) strlen(*pos)+1;
       new_field->length--;
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)
@@ -2120,10 +2137,10 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     {
       new_field->interval=interval;
       new_field->pack_length=interval->count < 256 ? 1 : 2; // Should be safe
-      new_field->length=strlen(interval->type_names[0]);
+      new_field->length=(uint) strlen(interval->type_names[0]);
       for (const char **pos=interval->type_names+1; *pos ; pos++)
       {
-	uint length=strlen(*pos);
+	uint length=(uint) strlen(*pos);
 	set_if_bigger(new_field->length,length);
       }
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
@@ -2196,7 +2213,7 @@ static void remove_escape(char *name)
 {
   char *to;
 #ifdef USE_MB
-  char *strend=name+strlen(name);
+  char *strend=name+(uint) strlen(name);
 #endif
   for (to=name; *name ; name++)
   {
@@ -2329,7 +2346,7 @@ static bool check_dup(THD *thd,const char *db,const char *name,
   return 0;
 }
 
-bool reload_acl_and_cache(uint options)
+bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables)
 {
   bool result=0;
 
@@ -2351,12 +2368,12 @@ bool reload_acl_and_cache(uint options)
   }
   if (options & (REFRESH_TABLES | REFRESH_READ_LOCK))
   {
-    if ((options & REFRESH_READ_LOCK) && ! current_thd->global_read_lock)
+    if ((options & REFRESH_READ_LOCK) && thd && ! thd->global_read_lock)
     {
-      current_thd->global_read_lock=1;
+      thd->global_read_lock=1;
       thread_safe_increment(global_read_lock,&LOCK_open);
     }
-    result=close_cached_tables((options & REFRESH_FAST) ? 0 : 1);
+    result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
   }
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();

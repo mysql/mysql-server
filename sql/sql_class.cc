@@ -266,7 +266,7 @@ select_export::prepare(List<Item> &list)
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
   option|=1;					// Force use of db directory
 #endif
-  if (strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
+  if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
     strmake(path,exchange->file_name,FN_REFLEN-1);
   (void) fn_format(path,exchange->file_name, thd->db ? thd->db : "", "",
 		   option);
