@@ -402,9 +402,22 @@ select count(*) from t1;
 count(*)
 1
 drop table t1;
+CREATE TABLE t1 ( a TEXT, FULLTEXT (a) );
+INSERT INTO t1 VALUES ('testing ft_nlq_find_relevance');
+SELECT MATCH(a) AGAINST ('nosuchword') FROM t1;
+MATCH(a) AGAINST ('nosuchword')
+0
+DROP TABLE t1;
 create table t1 (a int primary key, b text, fulltext(b));
 create table t2 (a int, b text);
 insert t1 values (1, "aaaa"), (2, "bbbb");
 insert t2 values (10, "aaaa"), (2, "cccc");
 replace t1 select * from t2;
 drop table t1, t2;
+CREATE TABLE t1 (t VARCHAR(200) CHARACTER SET utf8 COLLATE utf8_unicode_ci, FULLTEXT (t));
+SET NAMES latin1;
+INSERT INTO t1 VALUES('Mit freundlichem Grüß aus Osnabrück');
+SELECT COUNT(*) FROM t1 WHERE MATCH(t) AGAINST ('"osnabrück"' IN BOOLEAN MODE);
+COUNT(*)
+1
+DROP TABLE t1;

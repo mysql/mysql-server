@@ -109,7 +109,10 @@ NdbColumnImpl::init(Type t)
     m_length = 1;
     m_cs = NULL;
     break;
+  case Olddecimal:
+  case Olddecimalunsigned:
   case Decimal:
+  case Decimalunsigned:
     m_precision = 10;
     m_scale = 0;
     m_length = 1;
