@@ -234,6 +234,8 @@ set myisam_max_sort_file_size=100;
 ERROR HY000: Variable 'myisam_max_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
 set myisam_max_extra_sort_file_size=100;
 ERROR HY000: Variable 'myisam_max_extra_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
+set @@SQL_WARNINGS=NULL;
+ERROR HY000: Variable 'sql_warnings' can't be set to the value of 'NULL'
 set autocommit=1;
 set big_tables=1;
 select @@autocommit, @@big_tables;
