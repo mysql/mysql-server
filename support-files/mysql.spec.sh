@@ -153,7 +153,7 @@ Summary: MySQL - server with Berkeley BD, RAID and UDF support
 Group: Applications/Databases
 Provides: mysql-Max
 Obsoletes: mysql-Max
-Requires: MySQL >= 4.0
+Requires: MySQL-server >= 4.0
 
 %description Max 
 Optional MySQL server binary that supports additional features like
@@ -588,8 +588,13 @@ fi
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 
 # The spec file changelog only includes changes made to the spec file
-# itself
+# itself - note that they must be ordered by date (important when
+# merging BK trees)
 %changelog 
+* Thu Aug 26 2004 Lenz Grimmer <lenz@mysql.com>
+
+- MySQL-Max now requires MySQL-server instead of MySQL (BUG 3860)
+
 * Tue Aug 10 2004 Lenz Grimmer <lenz@mysql.com>
 
 - Added libmygcc.a to the devel subpackage (required to link applications
