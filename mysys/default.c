@@ -166,6 +166,12 @@ int load_defaults(const char *conf_file, const char **groups,
     if ((error= search_default_file(&args, &alloc, "",
 				    forced_default_file, "", &group)) < 0)
       goto err;
+    if (error > 0)
+    {
+      fprintf(stderr, "Could not open required defaults file: %s\n",
+              forced_default_file);
+      goto err;
+    }
   }
   else if (dirname_length(conf_file))
   {
@@ -473,6 +479,7 @@ static char *remove_end_comment(char *ptr)
   return ptr;
 }
 
+#include <help_start.h>
 
 void print_defaults(const char *conf_file, const char **groups)
 {
@@ -525,3 +532,5 @@ void print_defaults(const char *conf_file, const char **groups)
 --defaults-file=#	Only read default options from the given file #\n\
 --defaults-extra-file=# Read this file after the global files are read");
 }
+
+#include <help_end.h>

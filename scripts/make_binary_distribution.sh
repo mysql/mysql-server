@@ -17,6 +17,7 @@ DEBUG=0
 SILENT=0
 TMP=/tmp
 SUFFIX=""
+NDBCLUSTER=
 
 parse_arguments() {
   for arg do
@@ -26,6 +27,7 @@ parse_arguments() {
       --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
       --no-strip) STRIP=0 ;;
       --silent)   SILENT=1 ;;
+      --with-ndbcluster) NDBCLUSTER=1 ;;
       *)
 	echo "Unknown argument '$arg'"
 	exit 1
@@ -85,25 +87,8 @@ do
   fi
 done
 
-# Non platform-specific doc files:
-DOC_FILES=" \
-  COPYING README LICENSE.doc \
-  Docs/mysqlbug.txt \ 
-";
-
-# Platform-specific doc files:
-if [ $BASE_SYSTEM = "netware" ] ; then
-  DOC_FILES="$DOC_FILES \
-  README.NW \
-    ";
-# For all other platforms:
-else
-  DOC_FILES="$DOC_FILES \
-    Docs/INSTALL-BINARY MySQLEULA.txt \
-  ";
-fi
-
-for i in $DOC_FILES
+for i in COPYING COPYING.LIB README Docs/INSTALL-BINARY \
+         MySQLEULA.txt LICENSE.doc README.NW
 do
   if [ -f $i ]
   then
@@ -168,6 +153,7 @@ done
 
 if [ $BASE_SYSTEM = "netware" ] ; then
     $CP -r netware/*.pl $BASE/scripts
+    $CP scripts/mysqlhotcopy $BASE/scripts/mysqlhotcopy.pl
 fi
 
 for i in \
@@ -184,7 +170,7 @@ do
    fi
 done
 
-# convert the libs to .lib for NetWare
+# convert the .a to .lib for NetWare
 if [ $BASE_SYSTEM = "netware" ] ; then
     for i in $BASE/lib/*.a
     do
@@ -239,6 +225,7 @@ $CP mysql-test/t/*test mysql-test/t/*.opt mysql-test/t/*.slave-mi mysql-test/t/*
 $CP mysql-test/r/*result mysql-test/r/*.require $BASE/mysql-test/r
 
 if [ $BASE_SYSTEM != "netware" ] ; then
+  chmod a+x $BASE/bin/*
   $CP scripts/* $BASE/bin
   $BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ ./bin \@libexecdir\@ ./bin \@sbindir\@ ./bin \@prefix\@ . \@HOSTNAME\@ @HOSTNAME@ \@pkgdatadir\@ ./support-files < $SOURCE/scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
   $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \@MYSQLD_USER\@ root \@localstatedir\@ /usr/local/mysql/data \@HOSTNAME\@ @HOSTNAME@ < $SOURCE/support-files/mysql.server.sh > $BASE/support-files/mysql.server
@@ -252,6 +239,16 @@ fi
 
 rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution $BASE/bin/setsomevars $BASE/support-files/Makefile* $BASE/support-files/*.sh
 
+
+#
+# Remove system dependent files
+#
+if [ $BASE_SYSTEM = "netware" ] ; then
+    rm -f $BASE/MySQLEULA.txt
+else
+    rm -f $BASE/README.NW
+fi
+
 # Make safe_mysqld a symlink to mysqld_safe for backwards portability
 # To be removed in MySQL 4.1
 if [ $BASE_SYSTEM != "netware" ] ; then
@@ -262,6 +259,18 @@ fi
 if [ -d $BASE/sql-bench/SCCS ] ; then 
   find $BASE/share -name SCCS -print | xargs rm -r -f
   find $BASE/sql-bench -name SCCS -print | xargs rm -r -f
+fi
+
+# NDB Cluster
+if [ x$NDBCLUSTER = x1 ]; then
+  if [ ! -f ndb/BinDist.sh ]; then
+    echo "Missing ndb/BinDist.sh"; exit 1
+  fi
+  mkdir $BASE/ndb || exit 1
+  # assume we have cpio..
+  if (cd ndb && sh BinDist.sh | cpio -pdm $BASE/ndb); then :; else
+    echo "Copy failed - missing files in ndb/BinDist.sh ?"; exit 1
+  fi
 fi
 
 # Change the distribution to a long descriptive name
@@ -315,19 +324,7 @@ which_1 ()
   exit 1
 }
 
-cd $TMP
-  
-if [ $BASE_SYSTEM = "netware" ] ; then
-  
-  #
-  # Create a zip file for NetWare users
-  #
-  
-  if test -e "$SOURCE/$NEW_NAME.zip"; then rm $SOURCE/$NEW_NAME.zip; fi
-  zip -r $SOURCE/$NEW_NAME.zip $NEW_NAME
-  echo "$NEW_NAME.zip created"
-  
-else
+if [ $BASE_SYSTEM != "netware" ] ; then
 
   #
   # Create the result tar file
@@ -340,6 +337,7 @@ else
   fi
   
   echo "Using $tar to create archive"
+  cd $TMP
   
   OPT=cvf
   if [ x$SILENT = x1 ] ; then
@@ -348,15 +346,25 @@ else
   
   $tar $OPT $SOURCE/$NEW_NAME.tar $NEW_NAME
   cd $SOURCE
-  
   echo "Compressing archive"
+  rm -f $NEW_NAME.tar.gz
   gzip -9 $NEW_NAME.tar
+  echo "Removing temporary directory"
+  rm -r -f $BASE
   
   echo "$NEW_NAME.tar.gz created"
+else
+
+  #
+  # Create a zip file for NetWare users
+  #
+
+  cd $TMP
+  if test -e "$SOURCE/$NEW_NAME.zip"; then rm $SOURCE/$NEW_NAME.zip; fi
+  zip -r $SOURCE/$NEW_NAME.zip $NEW_NAME
+  echo "Removing temporary directory"
+  rm -r -f $BASE
+
+  echo "$NEW_NAME.zip created"
 
 fi
-
-echo "Removing temporary directory"
-rm -r -f $BASE
-
-

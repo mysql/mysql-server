@@ -77,15 +77,15 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
 */
 bool Item_sum::save_args_for_prepared_statements(THD *thd)
 {
-  if (thd->current_statement)
-    return save_args(thd->current_statement);
+  if (thd->current_arena && args_copy == 0)
+    return save_args(thd->current_arena);
   return 0;
 }
 
 
-bool Item_sum::save_args(Statement* stmt)
+bool Item_sum::save_args(Item_arena* arena)
 {
-  if (!(args_copy= (Item**) stmt->alloc(sizeof(Item*)*arg_count)))
+  if (!(args_copy= (Item**) arena->alloc(sizeof(Item*)*arg_count)))
     return 1;
   memcpy(args_copy, args, sizeof(Item*)*arg_count);
   return 0;
@@ -618,6 +618,14 @@ void Item_sum_variance::update_field()
 
 /* min & max */
 
+void Item_sum_hybrid::clear()
+{
+  sum= 0.0;
+  sum_int= 0;
+  value.length(0);
+  null_value= 1;
+}
+
 double Item_sum_hybrid::val()
 {
   DBUG_ASSERT(fixed == 1);
@@ -1057,7 +1065,7 @@ Item_sum_hybrid::min_max_update_str_field()
   if (!args[0]->null_value)
   {
     res_str->strip_sp();
-    result_field->val_str(&tmp_value,&tmp_value);
+    result_field->val_str(&tmp_value);
 
     if (result_field->is_null() ||
 	(cmp_sign * sortcmp(res_str,&tmp_value,cmp_charset)) < 0)
@@ -1766,8 +1774,7 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
                   Item_func_group_concat *item)
 {
   char buff[MAX_FIELD_WIDTH];
-  String tmp((char*)   &buff, sizeof(buff), default_charset_info);
-  String tmp2((char *) &buff, sizeof(buff), default_charset_info);
+  String tmp((char *)&buff,sizeof(buff),default_charset_info), tmp2;
   char *record= (char*) item->table->record[0];
 
   tmp.length(0);

@@ -634,8 +634,9 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
                     For example, '1.1' -> '1.100000'
 */
 
-bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
-                       uint count, long *values, bool transform_msec)
+static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
+                              uint count, ulonglong *values,
+                              bool transform_msec)
 {
   const char *end=str+length;
   uint i;
@@ -644,10 +645,10 @@ bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
 
   for (i=0 ; i < count ; i++)
   {
-    long value;
+    longlong value;
     const char *start= str;
     for (value=0; str != end && my_isdigit(cs,*str) ; str++)
-      value=value*10L + (long) (*str - '0');
+      value= value*LL(10) + (longlong) (*str - '0');
     if (transform_msec && i == count - 1) // microseconds always last
     {
       long msec_length= 6 - (str - start);
@@ -662,13 +663,14 @@ bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
       i++;
       /* Change values[0...i-1] -> values[0...count-1] */
       bmove_upp((char*) (values+count), (char*) (values+i),
-		sizeof(long)*i);
-      bzero((char*) values, sizeof(long)*(count-i));
+		sizeof(*values)*i);
+      bzero((char*) values, sizeof(*values)*(count-i));
       break;
     }
   }
   return (str != end);
 }
+
 
 longlong Item_func_period_add::val_int()
 {
@@ -929,7 +931,8 @@ longlong Item_func_time_to_sec::val_int()
 static bool get_interval_value(Item *args,interval_type int_type,
 			       String *str_value, INTERVAL *interval)
 {
-  long array[5],value;
+  ulonglong array[5];
+  longlong value;
   const char *str;
   uint32 length;
   CHARSET_INFO *cs=str_value->charset();
@@ -941,7 +944,7 @@ static bool get_interval_value(Item *args,interval_type int_type,
   bzero((char*) interval,sizeof(*interval));
   if ((int) int_type <= INTERVAL_MICROSECOND)
   {
-    value=(long) args->val_int();
+    value= args->val_int();
     if (args->null_value)
       return 1;
     if (value < 0)
@@ -971,22 +974,22 @@ static bool get_interval_value(Item *args,interval_type int_type,
 
   switch (int_type) {
   case INTERVAL_YEAR:
-    interval->year=value;
+    interval->year= (ulong) value;
     break;
   case INTERVAL_QUARTER:
     interval->month=value*3;
     break;
   case INTERVAL_MONTH:
-    interval->month=value;
+    interval->month= (ulong) value;
     break;
   case INTERVAL_WEEK:
     interval->day=value*7;
     break;
   case INTERVAL_DAY:
-    interval->day=value;
+    interval->day= (ulong) value;
     break;
   case INTERVAL_HOUR:
-    interval->hour=value;
+    interval->hour= (ulong) value;
     break;
   case INTERVAL_MICROSECOND:
     interval->second_part=value;
@@ -1000,78 +1003,78 @@ static bool get_interval_value(Item *args,interval_type int_type,
   case INTERVAL_YEAR_MONTH:			// Allow YEAR-MONTH YYYYYMM
     if (get_interval_info(str,length,cs,2,array,0))
       return (1);
-    interval->year=array[0];
-    interval->month=array[1];
+    interval->year=  (ulong) array[0];
+    interval->month= (ulong) array[1];
     break;
   case INTERVAL_DAY_HOUR:
     if (get_interval_info(str,length,cs,2,array,0))
       return (1);
-    interval->day=array[0];
-    interval->hour=array[1];
+    interval->day=  (ulong) array[0];
+    interval->hour= (ulong) array[1];
     break;
   case INTERVAL_DAY_MICROSECOND:
     if (get_interval_info(str,length,cs,5,array,1))
       return (1);
-    interval->day=array[0];
-    interval->hour=array[1];
-    interval->minute=array[2];
-    interval->second=array[3];
-    interval->second_part=array[4];
+    interval->day=    (ulong) array[0];
+    interval->hour=   (ulong) array[1];
+    interval->minute= array[2];
+    interval->second= array[3];
+    interval->second_part= array[4];
     break;
   case INTERVAL_DAY_MINUTE:
     if (get_interval_info(str,length,cs,3,array,0))
       return (1);
-    interval->day=array[0];
-    interval->hour=array[1];
-    interval->minute=array[2];
+    interval->day=    (ulong) array[0];
+    interval->hour=   (ulong) array[1];
+    interval->minute= array[2];
     break;
   case INTERVAL_DAY_SECOND:
     if (get_interval_info(str,length,cs,4,array,0))
       return (1);
-    interval->day=array[0];
-    interval->hour=array[1];
-    interval->minute=array[2];
-    interval->second=array[3];
+    interval->day=    (ulong) array[0];
+    interval->hour=   (ulong) array[1];
+    interval->minute= array[2];
+    interval->second= array[3];
     break;
   case INTERVAL_HOUR_MICROSECOND:
     if (get_interval_info(str,length,cs,4,array,1))
       return (1);
-    interval->hour=array[0];
-    interval->minute=array[1];
-    interval->second=array[2];
-    interval->second_part=array[3];
+    interval->hour=   (ulong) array[0];
+    interval->minute= array[1];
+    interval->second= array[2];
+    interval->second_part= array[3];
     break;
   case INTERVAL_HOUR_MINUTE:
     if (get_interval_info(str,length,cs,2,array,0))
       return (1);
-    interval->hour=array[0];
-    interval->minute=array[1];
+    interval->hour=   (ulong) array[0];
+    interval->minute= array[1];
     break;
   case INTERVAL_HOUR_SECOND:
     if (get_interval_info(str,length,cs,3,array,0))
       return (1);
-    interval->hour=array[0];
-    interval->minute=array[1];
-    interval->second=array[2];
+    interval->hour=   (ulong) array[0];
+    interval->minute= array[1];
+    interval->second= array[2];
     break;
   case INTERVAL_MINUTE_MICROSECOND:
     if (get_interval_info(str,length,cs,3,array,1))
       return (1);
-    interval->minute=array[0];
-    interval->second=array[1];
-    interval->second_part=array[2];
+    interval->minute= array[0];
+    interval->second= array[1];
+    interval->second_part= array[2];
     break;
   case INTERVAL_MINUTE_SECOND:
     if (get_interval_info(str,length,cs,2,array,0))
       return (1);
-    interval->minute=array[0];
-    interval->second=array[1];
+    interval->minute= array[0];
+    interval->second= array[1];
     break;
   case INTERVAL_SECOND_MICROSECOND:
     if (get_interval_info(str,length,cs,2,array,1))
       return (1);
-    interval->second=array[0];
-    interval->second_part=array[1];
+    interval->second= array[0];
+    interval->second_part= array[1];
     break;
   }
   return 0;
@@ -1137,9 +1140,6 @@ void Item_func_curdate::fix_length_and_dec()
 
   store_now_in_tm(current_thd->query_start(),&start);
   
-  value=(longlong) ((ulong) ((uint) start.tm_year+1900)*10000L+
-		    ((uint) start.tm_mon+1)*100+
-		    (uint) start.tm_mday);
   /* For getdate */
   ltime.year=	start.tm_year+1900;
   ltime.month=	start.tm_mon+1;
@@ -1150,6 +1150,7 @@ void Item_func_curdate::fix_length_and_dec()
   ltime.second_part=0;
   ltime.neg=0;
   ltime.time_type=TIMESTAMP_DATE;
+  value= (longlong) TIME_to_ulonglong_date(&ltime);
 }
 
 String *Item_func_curdate::val_str(String *str)
@@ -1208,15 +1209,12 @@ void Item_func_curtime::fix_length_and_dec()
 
   decimals=0; 
   store_now_in_tm(current_thd->query_start(),&start);
-  value=(longlong) ((ulong) ((uint) start.tm_hour)*10000L+
-		    (ulong) (((uint) start.tm_min)*100L+
-			     (uint) start.tm_sec));
-  ltime.day=	0;
   ltime.hour=	start.tm_hour;
   ltime.minute=	start.tm_min;
   ltime.second=	start.tm_sec;
   ltime.second_part= 0;
   ltime.neg= 0;
+  value= TIME_to_ulonglong_time(&ltime);
   make_time((DATE_TIME_FORMAT *) 0, &ltime, &tmp);
   max_length= buff_length= tmp.length();
 }
@@ -1259,23 +1257,12 @@ void Item_func_now::fix_length_and_dec()
   collation.set(&my_charset_bin);
 
   store_now_in_tm(current_thd->query_start(),&start);
-  value=((longlong) ((ulong) ((uint) start.tm_year+1900)*10000L+
-		     (((uint) start.tm_mon+1)*100+
-		      (uint) start.tm_mday))*(longlong) 1000000L+
-	 (longlong) ((ulong) ((uint) start.tm_hour)*10000L+
-		     (ulong) (((uint) start.tm_min)*100L+
-			    (uint) start.tm_sec)));
   
   /* For getdate */
-  ltime.year=	start.tm_year+1900;
-  ltime.month=	start.tm_mon+1;
-  ltime.day=	start.tm_mday;
-  ltime.hour=	start.tm_hour;
-  ltime.minute=	start.tm_min;
-  ltime.second=	start.tm_sec;
-  ltime.second_part= 0;
-  ltime.neg= 0;
+  localtime_to_TIME(&ltime, &start);
   ltime.time_type= TIMESTAMP_DATETIME;
+  
+  value= (longlong) TIME_to_ulonglong_datetime(&ltime);
 
   make_datetime((DATE_TIME_FORMAT *) 0, &ltime, &tmp);
   max_length= buff_length= tmp.length();
@@ -1460,10 +1447,10 @@ uint Item_func_date_format::format_length(const String *format)
 
 String *Item_func_date_format::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
   String *format;
   TIME l_time;
   uint size;
+  DBUG_ASSERT(fixed == 1);
 
   if (!is_time_format)
   {
@@ -1510,25 +1497,18 @@ null_date:
 
 String *Item_func_from_unixtime::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
-  struct tm tm_tmp,*start;
-  time_t tmp=(time_t) args[0]->val_int();
+  struct tm tm_tmp;
+  time_t tmp;
   TIME ltime;
   
+  DBUG_ASSERT(fixed == 1);
+  tmp= (time_t) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     goto null_date;
 
   localtime_r(&tmp,&tm_tmp);
-  start=&tm_tmp;
 
-  ltime.year= start->tm_year+1900;
-  ltime.month= start->tm_mon+1;
-  ltime.day= start->tm_mday;
-  ltime.hour= start->tm_hour;
-  ltime.minute= start->tm_min;
-  ltime.second= start->tm_sec;
-  ltime.second_part= 0;
-  ltime.neg=0;
+  localtime_to_TIME(&ltime, &tm_tmp);
 
   if (str->alloc(20*MY_CHARSET_BIN_MB_MAXLEN))
     goto null_date;
@@ -1543,19 +1523,17 @@ null_date:
 
 longlong Item_func_from_unixtime::val_int()
 {
+  TIME ltime;
+  struct tm tm_tmp;
+  time_t tmp;
   DBUG_ASSERT(fixed == 1);
-  time_t tmp=(time_t) (ulong) args[0]->val_int();
+
+  tmp= (time_t) (ulong) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     return 0;
-  struct tm tm_tmp,*start;
   localtime_r(&tmp,&tm_tmp);
-  start= &tm_tmp;
-  return ((longlong) ((ulong) ((uint) start->tm_year+1900)*10000L+
-		      (((uint) start->tm_mon+1)*100+
-		       (uint) start->tm_mday))*LL(1000000)+
-	  (longlong) ((ulong) ((uint) start->tm_hour)*10000L+
-		      (ulong) (((uint) start->tm_min)*100L+
-			       (uint) start->tm_sec)));
+  localtime_to_TIME(&ltime, &tm_tmp);
+  return (longlong) TIME_to_ulonglong_datetime(&ltime);
 }
 
 bool Item_func_from_unixtime::get_date(TIME *ltime,
@@ -1564,17 +1542,9 @@ bool Item_func_from_unixtime::get_date(TIME *ltime,
   time_t tmp=(time_t) (ulong) args[0]->val_int();
   if ((null_value=args[0]->null_value))
     return 1;
-  struct tm tm_tmp,*start;
+  struct tm tm_tmp;
   localtime_r(&tmp,&tm_tmp);
-  start= &tm_tmp;
-  ltime->year=	start->tm_year+1900;
-  ltime->month=	start->tm_mon+1;
-  ltime->day=	start->tm_mday;
-  ltime->hour=	start->tm_hour;
-  ltime->minute=start->tm_min;
-  ltime->second=start->tm_sec;
-  ltime->second_part=0;
-  ltime->neg=0;
+  localtime_to_TIME(ltime, &tm_tmp);
   return 0;
 }
 
@@ -1645,7 +1615,8 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
   case INTERVAL_DAY_SECOND:
   case INTERVAL_DAY_MINUTE:
   case INTERVAL_DAY_HOUR:
-    long sec,days,daynr,microseconds,extra_sec;
+  {
+    longlong sec, days, daynr, microseconds, extra_sec;
     ltime->time_type=TIMESTAMP_DATETIME;		// Return full date
     microseconds= ltime->second_part + sign*interval.second_part;
     extra_sec= microseconds/1000000L;
@@ -1653,41 +1624,45 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
 
     sec=((ltime->day-1)*3600*24L+ltime->hour*3600+ltime->minute*60+
 	 ltime->second +
-	 sign*(interval.day*3600*24L +
-	       interval.hour*3600+interval.minute*60+interval.second))+
-      extra_sec;
-
+	 sign* (longlong) (interval.day*3600*24L +
+                           interval.hour*LL(3600)+interval.minute*LL(60)+
+                           interval.second))+ extra_sec;
     if (microseconds < 0)
     {
-      microseconds+= 1000000L;	
+      microseconds+= LL(1000000);
       sec--;
     }
-    days=sec/(3600*24L); sec=sec-days*3600*24L;
+    days= sec/(3600*LL(24));
+    sec-= days*3600*LL(24);
     if (sec < 0)
     {
       days--;
-      sec+=3600*24L;
+      sec+= 3600*LL(24);
     }
-    ltime->second_part= microseconds;
-    ltime->second=sec % 60;
-    ltime->minute=sec/60 % 60;
-    ltime->hour=sec/3600;
+    ltime->second_part= (uint) microseconds;
+    ltime->second= (uint) (sec % 60);
+    ltime->minute= (uint) (sec/60 % 60);
+    ltime->hour=   (uint) (sec/3600);
     daynr= calc_daynr(ltime->year,ltime->month,1) + days;
-    get_date_from_daynr(daynr,&ltime->year,&ltime->month,&ltime->day);
-    if (daynr < 0 || daynr >= MAX_DAY_NUMBER) // Day number from year 0 to 9999-12-31
+    /* Day number from year 0 to 9999-12-31 */
+    if ((ulonglong) daynr >= MAX_DAY_NUMBER)
       goto null_date;
+    get_date_from_daynr((long) daynr, &ltime->year, &ltime->month,
+                        &ltime->day);
     break;
+  }
   case INTERVAL_DAY:
   case INTERVAL_WEEK:
-    period= calc_daynr(ltime->year,ltime->month,ltime->day) +
-      sign*interval.day;
-    if (period < 0 || period >= MAX_DAY_NUMBER) // Daynumber from year 0 to 9999-12-31
+    period= (calc_daynr(ltime->year,ltime->month,ltime->day) +
+             sign * (long) interval.day);
+    /* Daynumber from year 0 to 9999-12-31 */
+    if ((ulong) period >= MAX_DAY_NUMBER)
       goto null_date;
     get_date_from_daynr((long) period,&ltime->year,&ltime->month,&ltime->day);
     break;
   case INTERVAL_YEAR:
-    ltime->year += sign*interval.year;
-    if ((int) ltime->year < 0 || ltime->year >= 10000L)
+    ltime->year+= sign * (long) interval.year;
+    if ((ulong) ltime->year >= 10000L)
       goto null_date;
     if (ltime->month == 2 && ltime->day == 29 &&
 	calc_days_in_year(ltime->year) != 366)
@@ -1696,9 +1671,9 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
   case INTERVAL_YEAR_MONTH:
   case INTERVAL_QUARTER:
   case INTERVAL_MONTH:
-    period= (ltime->year*12 + sign*interval.year*12 +
-	     ltime->month-1 + sign*interval.month);
-    if (period < 0 || period >= 120000L)
+    period= (ltime->year*12 + sign * (long) interval.year*12 +
+	     ltime->month-1 + sign * (long) interval.month);
+    if ((ulong) period >= 120000L)
       goto null_date;
     ltime->year= (uint) (period / 12);
     ltime->month= (uint) (period % 12L)+1;
@@ -2046,7 +2021,7 @@ String *Item_date_typecast::val_str(String *str)
 
   if (!get_arg0_date(&ltime,1) && !str->alloc(11))
   {
-    make_date((DATE_TIME_FORMAT *) 0,&ltime, str);
+    make_date((DATE_TIME_FORMAT *) 0, &ltime, str);
     return str;
   }
 

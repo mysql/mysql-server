@@ -388,8 +388,8 @@ SELECT DISTINCTROW email, shipcode FROM t1, t2 WHERE t1.infoID=t2.infoID;
 email	shipcode
 test1@testdomain.com	Z001
 test2@testdomain.com	Z001
-test3@testdomain.com	Z001
 test2@testdomain.com	R002
+test3@testdomain.com	Z001
 SELECT DISTINCTROW email FROM t1 ORDER BY dateentered DESC;
 email
 test1@testdomain.com

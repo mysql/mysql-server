@@ -19,8 +19,6 @@ typedef struct mem_pool_struct	mem_pool_t;
 /* The common memory pool */
 extern mem_pool_t*	mem_comm_pool;
 
-extern ulint		mem_out_of_mem_err_msg_count;
-
 /* Memory area header */
 
 struct mem_area_struct{
@@ -85,6 +83,7 @@ Releases the mem pool mutex. */
 void
 mem_pool_mutex_exit(void);
 /*=====================*/
+#ifdef UNIV_DEBUG
 /************************************************************************
 Validates a memory pool. */
 
@@ -101,7 +100,7 @@ mem_pool_print_info(
 /*================*/
 	FILE*	        outfile,/* in: output file to write to */
 	mem_pool_t*	pool);	/* in: memory pool */
-
+#endif /* UNIV_DEBUG */
 
 #ifndef UNIV_NONINL
 #include "mem0pool.ic"

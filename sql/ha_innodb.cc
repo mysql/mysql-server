@@ -15,7 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* This file defines the InnoDB handler: the interface between MySQL and
-InnoDB */
+InnoDB
+NOTE: You can only use noninlined InnoDB functions in this file, because we
+have disables the InnoDB inlining in this file. */
 
 /* TODO list for the InnoDB handler in 4.1:
   - Check if the query_id is now right also in prepared and executed stats
@@ -74,6 +76,7 @@ extern "C" {
 #include "../innobase/include/btr0cur.h"
 #include "../innobase/include/btr0btr.h"
 #include "../innobase/include/fsp0fsp.h"
+#include "../innobase/include/sync0sync.h"
 #include "../innobase/include/fil0fil.h"
 }
 
@@ -321,70 +324,97 @@ convert_error_code_to_mysql(
     	}
 }
 
-extern "C" {
+/*****************************************************************
+If you want to print a thd that is not associated with the current thread,
+you must call this function before reserving the InnoDB kernel_mutex, to
+protect MySQL from setting thd->query NULL. If you print a thd of the current
+thread, we know that MySQL cannot modify thd->query, and it is not necessary
+to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
+the kernel_mutex.
+NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
+function! */
+extern "C"
+void
+innobase_mysql_prepare_print_arbitrary_thd(void)
+/*============================================*/
+{
+	VOID(pthread_mutex_lock(&LOCK_thread_count));
+}
+
+/*****************************************************************
+Relases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
+NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
+function! */
+extern "C"
+void
+innobase_mysql_end_print_arbitrary_thd(void)
+/*========================================*/
+{
+	VOID(pthread_mutex_unlock(&LOCK_thread_count));
+}
+
 /*****************************************************************
 Prints info of a THD object (== user session thread) to the
 standard output. NOTE that /mysql/innobase/trx/trx0trx.c must contain
 the prototype for this function! */
-
+extern "C"
 void
 innobase_mysql_print_thd(
 /*=====================*/
-	char*   buf,	/* in/out: buffer where to print, must be at least
-			400 bytes */
+	FILE*   f,	/* in: output stream */
         void*   input_thd)/* in: pointer to a MySQL THD object */
 {
-  	THD*    thd;
-	char*   old_buf = buf;
+	const THD*	thd;
+	const char*	s;
+	char		buf[301];
 
-        thd = (THD*) input_thd;
+        thd = (const THD*) input_thd;
 
-	/*  We cannot use the return value of normal sprintf() as this is
-	not portable to some old non-Posix Unixes, e.g., some old SCO
-	Unixes */
+  	fprintf(f, "MySQL thread id %lu, query id %lu",
+		thd->thread_id, thd->query_id);
+	if (thd->host) {
+		putc(' ', f);
+		fputs(thd->host, f);
+	}
 
-  	buf += my_sprintf(buf,
-			 (buf, "MySQL thread id %lu, query id %lu",
-			  thd->thread_id, thd->query_id));
-    	if (thd->host) {
-	        *buf = ' ';
-		buf++;
-	        buf = strnmov(buf, thd->host, 30);
-  	}
-
-  	if (thd->ip) {
-	        *buf = ' ';
-		buf++;
-	        buf=strnmov(buf, thd->ip, 20);
-  	}
+	if (thd->ip) {
+		putc(' ', f);
+		fputs(thd->ip, f);
+	}
 
   	if (thd->user) {
-	        *buf = ' ';
-		buf++;
-	        buf=strnmov(buf, thd->user, 20);
+		putc(' ', f);
+		fputs(thd->user, f);
   	}
 
-  	if (thd->proc_info) {
-	        *buf = ' ';
-		buf++;
-	        buf=strnmov(buf, thd->proc_info, 50);
-  	}
+	if ((s = thd->proc_info)) {
+		putc(' ', f);
+		fputs(s, f);
+	}
 
-  	if (thd->query) {
-	        *buf = '\n';
-		buf++;
-	        buf=strnmov(buf, thd->query, 150);
-  	}  
+	if ((s = thd->query)) {
+		/* determine the length of the query string */
+		uint32 i, len;
+		
+		len = thd->query_length;
 
-	buf[0] = '\n';
-	buf[1] = '\0'; /* Note that we must put a null character here to end
-		       the printed string */
+		if (len > 300) {
+			len = 300;	/* ADDITIONAL SAFETY: print at most
+					300 chars to reduce the probability of
+					a seg fault if there is a race in
+					thd->query_length in MySQL; after
+					May 14, 2004 probably no race any more,
+					but better be safe */
+		}
+		
+                /* Use strmake to reduce the timeframe
+                   for a race, compared to fwrite() */
+		i= (uint) (strmake(buf, s, len) - buf);
+		putc('\n', f);
+		fwrite(buf, 1, i, f);
+	}
 
-	/* We test the printed length did not overrun the buffer length of
-	400 bytes */
-
- 	ut_a(strlen(old_buf) < 400);
-}
+	putc('\n', f);
 }
 
 /*************************************************************************
@@ -627,12 +657,11 @@ innobase_query_caching_of_table_permitted(
 	return((my_bool)FALSE);
 }
 
-extern "C" {
 /*********************************************************************
 Invalidates the MySQL query cache for the table.
 NOTE that the exact prototype of this function has to be in
 /innobase/row/row0ins.c! */
-
+extern "C"
 void
 innobase_invalidate_query_cache(
 /*============================*/
@@ -652,6 +681,17 @@ innobase_invalidate_query_cache(
 					TRUE);
 #endif
 }
+
+/*********************************************************************
+Get the quote character to be used in SQL identifiers. */
+extern "C"
+char
+mysql_get_identifier_quote_char(void)
+/*=================================*/
+				/* out: quote character to be
+				used in SQL identifiers */
+{
+	return '`';
 }
 
 /*********************************************************************
@@ -2105,24 +2145,20 @@ ha_innobase::write_row(
 
 	if (prebuilt->trx !=
 			(trx_t*) current_thd->transaction.all.innobase_tid) {
-		char	err_buf[2000];
-		
 		fprintf(stderr,
 "InnoDB: Error: the transaction object for the table handle is at\n"
-"InnoDB: %lx, but for the current thread it is at %lx\n",
-			(ulong)prebuilt->trx,
-			(ulong)current_thd->transaction.all.innobase_tid);
-		
-		ut_sprintf_buf(err_buf, ((byte*)prebuilt) - 100, 200);
-		fprintf(stderr,
-"InnoDB: Dump of 200 bytes around prebuilt: %.1000s\n", err_buf);
-
-		ut_sprintf_buf(err_buf,
+"InnoDB: %p, but for the current thread it is at %p\n",
+			prebuilt->trx,
+			current_thd->transaction.all.innobase_tid);
+		fputs("InnoDB: Dump of 200 bytes around prebuilt: ", stderr);
+		ut_print_buf(stderr, ((const byte*)prebuilt) - 100, 200);
+		fputs("\n"
+			"InnoDB: Dump of 200 bytes around transaction.all: ",
+			stderr);
+		ut_print_buf(stderr,
 			((byte*)(&(current_thd->transaction.all))) - 100, 200);
-		fprintf(stderr,
-"InnoDB: Dump of 200 bytes around transaction.all: %.1000s\n", err_buf);
-
-		ut_a(0);
+		putc('\n', stderr);
+		ut_error;
 	}
 
   	statistic_increment(ha_write_count, &LOCK_status);
@@ -3393,12 +3429,9 @@ create_index(
 
 			field = form->field[j];
 
-			if (strlen(field->field_name)
-			    == strlen(key_part->field->field_name)
-			    && 0 == ut_cmp_in_lower_case(
+			if (0 == ut_cmp_in_lower_case(
 					(char*)field->field_name,
-					(char*)key_part->field->field_name,
-					strlen(field->field_name))) {
+					(char*)key_part->field->field_name)) {
 				/* Found the corresponding column */
 
 				break;
@@ -3765,7 +3798,8 @@ ha_innobase::delete_table(
 
   	/* Drop the table in InnoDB */
 
-  	error = row_drop_table_for_mysql(norm_name, trx);
+	error = row_drop_table_for_mysql(norm_name, trx,
+		thd->lex->sql_command == SQLCOM_DROP_DB);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -3804,7 +3838,7 @@ innobase_drop_database(
 	trx_t*	trx;
 	char*	ptr;
 	int	error;
-	char	namebuf[10000];
+	char*	namebuf;
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
@@ -3824,6 +3858,7 @@ innobase_drop_database(
 	}
 
 	ptr++;
+	namebuf = my_malloc(len + 2, MYF(0));
 
 	memcpy(namebuf, ptr, len);
 	namebuf[len] = '/';
@@ -3840,6 +3875,7 @@ innobase_drop_database(
 	}
 
   	error = row_drop_database_for_mysql(namebuf, trx);
+	my_free(namebuf, MYF(0));
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -3940,18 +3976,11 @@ ha_innobase::records_in_range(
 /*==========================*/
 						/* out: estimated number of
 						rows */
-	int 			keynr,		/* in: index number */
-	const mysql_byte*	start_key,	/* in: start key value of the
-						range, may also be empty */
-	uint 			start_key_len,	/* in: start key val len, may
-						also be 0 */
-	enum ha_rkey_function 	start_search_flag,/* in: start search condition
-						e.g., 'greater than' */
-	const mysql_byte*	end_key,	/* in: range end key val, may
-						also be empty */
-	uint 			end_key_len,	/* in: range end key val len,
-						may also be 0 */
-	enum ha_rkey_function 	end_search_flag)/* in: range end search cond */
+	uint 			keynr,		/* in: index number */
+        key_range		*min_key,	/* in: start key value of the
+                                                   range, may also be 0 */
+	key_range		*max_key)	/* in: range end key val, may
+                                                   also be 0 */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	KEY*		key;
@@ -3971,12 +4000,6 @@ ha_innobase::records_in_range(
 	void*           heap2;
 
    	DBUG_ENTER("records_in_range");
-
-	/* We do not know if MySQL can call this function before calling
-	external_lock(). To be safe, update the thd of the current table
-	handle. */
-
-	update_thd(current_thd);
 
 	prebuilt->trx->op_info = (char*)"estimating records in index range";
 
@@ -4001,17 +4024,21 @@ ha_innobase::records_in_range(
 				range_start, (byte*) key_val_buff,
 				(ulint)upd_and_key_val_buff_len,
 				index,
-				(byte*) start_key,
-				(ulint) start_key_len);
+				(byte*) (min_key ? min_key->key :
+                                         (const mysql_byte*) 0),
+				(ulint) (min_key ? min_key->length : 0));
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_end, (byte*) key_val_buff2,
 				buff2_len, index,
-				(byte*) end_key,
-				(ulint) end_key_len);
+				(byte*) (max_key ? max_key->key :
+                                         (const mysql_byte*) 0),
+				(ulint) (max_key ? max_key->length : 0));
 
-	mode1 = convert_search_mode_to_innobase(start_search_flag);
-	mode2 = convert_search_mode_to_innobase(end_search_flag);
+	mode1 = convert_search_mode_to_innobase(min_key ? min_key->flag :
+                                                HA_READ_KEY_EXACT);
+	mode2 = convert_search_mode_to_innobase(max_key ? max_key->flag :
+                                                HA_READ_KEY_EXACT);
 
 	n_rows = btr_estimate_n_rows_in_range(index, range_start,
 						mode1, range_end, mode2);
@@ -4364,14 +4391,17 @@ ha_innobase::update_table_comment(
 				info on foreign keys */
         const char*	comment)/* in: table comment defined by user */
 {
-	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
-  	uint 		length 	= strlen(comment);
-  	char*		str 	= my_malloc(length + 16500, MYF(0));
-  	char*		pos;
+	uint	length			= strlen(comment);
+	char*				str;
+	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
 
 	/* We do not know if MySQL can call this function before calling
 	external_lock(). To be safe, update the thd of the current table
 	handle. */
+
+	if(length > 64000 - 3) {
+		return((char*)comment); /* string too long */
+	}
 
 	update_thd(current_thd);
 
@@ -4381,37 +4411,47 @@ ha_innobase::update_table_comment(
 	possible adaptive hash latch to avoid deadlocks of threads */
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-   	
-	if (!str) {
-	        prebuilt->trx->op_info = (char*)"";
+	str = NULL;
 
-    		return((char*)comment);
-	}
+	if (FILE* file = tmpfile()) {
+		long	flen;
 
-	pos = str;
-  	if (length) {
-    		pos=strmov(str, comment);
-    		*pos++=';';
-    		*pos++=' ';
-  	}
+		/* output the data to a temporary file */
+		fprintf(file, "InnoDB free: %lu kB",
+      		   (ulong) fsp_get_available_space_in_free_extents(
+      					prebuilt->table->space));
 
-  	pos += my_sprintf(pos,
-			  (pos,"InnoDB free: %lu kB",
-			   (ulong) fsp_get_available_space_in_free_extents(
-						prebuilt->table->space)));
+		dict_print_info_on_foreign_keys(FALSE, file, prebuilt->table);
+		flen = ftell(file);
+		if(length + flen + 3 > 64000) {
+			flen = 64000 - 3 - length;
+		}
 
-	/* We assume 16000 - length bytes of space to print info; the limit
-        16000 bytes is arbitrary, and MySQL could handle at least 64000
-	bytes */
-  
-	if (length < 16000) {
-  		dict_print_info_on_foreign_keys(FALSE, pos, 16000 - length,
-							prebuilt->table);
+		ut_ad(flen > 0);
+
+		/* allocate buffer for the full string, and
+		read the contents of the temporary file */
+
+		str = my_malloc(length + flen + 3, MYF(0));
+
+		if (str) {
+			char* pos	= str + length;
+			if(length) {
+				memcpy(str, comment, length);
+				*pos++ = ';';
+				*pos++ = ' ';
+			}
+			rewind(file);
+			flen = fread(pos, 1, flen, file);
+			pos[flen] = 0;
+		}
+
+		fclose(file);
 	}
 
         prebuilt->trx->op_info = (char*)"";
 
-  	return(str);
+  	return(str ? str : (char*) comment);
 }
 
 /***********************************************************************
@@ -4425,7 +4465,7 @@ ha_innobase::get_foreign_key_create_info(void)
 			MUST be freed with ::free_foreign_key_create_info */
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
-	char*	str;
+	char*	str	= 0;
 
 	ut_a(prebuilt != NULL);
 
@@ -4435,23 +4475,47 @@ ha_innobase::get_foreign_key_create_info(void)
 
 	update_thd(current_thd);
 
-        prebuilt->trx->op_info = (char*)"getting info on foreign keys";
+	if (FILE* file = tmpfile()) {
+		long	flen;
 
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
+		prebuilt->trx->op_info = (char*)"getting info on foreign keys";
 
-	trx_search_latch_release_if_reserved(prebuilt->trx);
-	
-	str = (char*)ut_malloc(10000);
+		/* In case MySQL calls this in the middle of a SELECT query,
+		release possible adaptive hash latch to avoid
+		deadlocks of threads */
 
-	str[0] = '\0';
-	
-  	dict_print_info_on_foreign_keys(TRUE, str, 9000, prebuilt->table);
+		trx_search_latch_release_if_reserved(prebuilt->trx);
 
-        prebuilt->trx->op_info = (char*)"";
+		/* output the data to a temporary file */
+		dict_print_info_on_foreign_keys(TRUE, file, prebuilt->table);
+		prebuilt->trx->op_info = (char*)"";
+
+		flen = ftell(file);
+		if(flen > 64000 - 1) {
+			flen = 64000 - 1;
+		}
+
+		ut_ad(flen >= 0);
+
+		/* allocate buffer for the string, and
+		read the contents of the temporary file */
+
+		str = my_malloc(flen + 1, MYF(0));
+
+		if (str) {
+			rewind(file);
+			flen = fread(str, 1, flen, file);
+			str[flen] = 0;
+		}
+
+		fclose(file);
+	} else {
+		/* unable to create temporary file */
+          	str = my_malloc(1, MYF(MY_ZEROFILL));
+	}
 
   	return(str);
-}			
+}
 
 /***********************************************************************
 Checks if a table is referenced by a foreign key. The MySQL manual states that
@@ -4484,7 +4548,7 @@ ha_innobase::free_foreign_key_create_info(
 	char*	str)	/* in, own: create info string to free  */
 {
 	if (str) {
-		ut_free(str);
+		my_free(str, MYF(0));
 	}
 }
 
@@ -4541,16 +4605,6 @@ ha_innobase::extra(
 	}
 
 	return(0);
-}
-
-/**********************************************************************
-????????????? */
-
-int
-ha_innobase::reset(void)
-/*====================*/
-{
-  	return(0);
 }
 
 /**********************************************************************
@@ -4640,12 +4694,11 @@ the SQL statement in case of an error. */
 int
 ha_innobase::external_lock(
 /*=======================*/
-			        /* out: 0 or error code */
+			        /* out: 0 */
 	THD*	thd,		/* in: handle to the user thread */
 	int 	lock_type)	/* in: lock type */
 {
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
-	int 		error = 0;
 	trx_t*		trx;
 
   	DBUG_ENTER("ha_innobase::external_lock");
@@ -4713,11 +4766,21 @@ ha_innobase::external_lock(
 		}
 
 		if (prebuilt->select_lock_type != LOCK_NONE) {
+			if (thd->in_lock_tables) {
+				ulint	error;
+				error = row_lock_table_for_mysql(prebuilt);
+
+				if (error != DB_SUCCESS) {
+					error = convert_error_code_to_mysql(
+						error, user_thd);
+					DBUG_RETURN(error);
+				}
+			}
 
 		  	trx->mysql_n_tables_locked++;
 		}
 
-		DBUG_RETURN(error);
+		DBUG_RETURN(0);
 	}
 
 	/* MySQL is releasing a table lock */
@@ -4725,6 +4788,9 @@ ha_innobase::external_lock(
 	trx->n_mysql_tables_in_use--;
 	prebuilt->mysql_has_locked = FALSE;
 	auto_inc_counter_for_this_stat = 0;
+	if (trx->n_tables_locked) {
+		row_unlock_table_for_mysql(trx);
+	}
 
 	/* If the MySQL lock count drops to zero we know that the current SQL
 	statement has ended */
@@ -4756,7 +4822,7 @@ ha_innobase::external_lock(
 		}
 	}
 
-	DBUG_RETURN(error);
+	DBUG_RETURN(0);
 }
 
 /****************************************************************************
@@ -4768,7 +4834,6 @@ innodb_show_status(
 /*===============*/
 	THD*	thd)	/* in: the MySQL query thread of the caller */
 {
-        char*           buf;
         Protocol        *protocol= thd->protocol;
 	trx_t*		trx;
 
@@ -4785,34 +4850,56 @@ innodb_show_status(
 
 	innobase_release_stat_resources(trx);
 
-        /* We let the InnoDB Monitor to output at most 60 kB of text, add
-        a safety margin of 100 kB for buffer overruns */
+	/* We let the InnoDB Monitor to output at most 64000 bytes of text. */
 
-        buf = (char*)ut_malloc(160 * 1024);
+	long	flen;
+	char*	str;
 
-        srv_sprintf_innodb_monitor(buf, 60 * 1024);
+	mutex_enter_noninline(&srv_monitor_file_mutex);
+	rewind(srv_monitor_file);
+	srv_printf_innodb_monitor(srv_monitor_file);
+	flen = ftell(srv_monitor_file);
+	os_file_set_eof(srv_monitor_file);
+	if(flen > 64000 - 1) {
+		flen = 64000 - 1;
+	}
 
-        List<Item> field_list;
+	ut_ad(flen > 0);
 
-        field_list.push_back(new Item_empty_string("Status", strlen(buf)));
+	/* allocate buffer for the string, and
+	read the contents of the temporary file */
 
-        if (protocol->send_fields(&field_list, 1))
+	if (!(str = my_malloc(flen + 1, MYF(0))))
         {
-                ut_free(buf);
-                DBUG_RETURN(-1);
+          mutex_exit_noninline(&srv_monitor_file_mutex);
+          DBUG_RETURN(-1);
         }
 
-        protocol->prepare_for_resend();
-        protocol->store(buf, strlen(buf), system_charset_info);
+	rewind(srv_monitor_file);
+	flen = fread(str, 1, flen, srv_monitor_file);
 
-        ut_free(buf);
+	mutex_exit_noninline(&srv_monitor_file_mutex);
+
+	List<Item> field_list;
+
+	field_list.push_back(new Item_empty_string("Status", flen));
+
+	if (protocol->send_fields(&field_list, 1)) {
+
+		my_free(str, MYF(0));
+
+		DBUG_RETURN(-1);
+	}
+
+        protocol->prepare_for_resend();
+        protocol->store(str, flen, system_charset_info);
+        my_free(str, MYF(0));
 
         if (protocol->write())
           DBUG_RETURN(-1);
 
-        send_eof(thd);
-
-        DBUG_RETURN(0);
+	send_eof(thd);
+  	DBUG_RETURN(0);
 }
 
 /****************************************************************************

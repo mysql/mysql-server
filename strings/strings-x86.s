@@ -43,7 +43,9 @@ bmove_align:
 .ba_20:	pop	%esi
 	movl	%edx,%edi
 	ret
-	.size	 bmove_align,.end-bmove_align
+
+.bmove_align_end:	
+	.size	 bmove_align,.bmove_align_end-bmove_align
 
 	# Move a string from higher to lower
 	# Arg from_end+1,to_end+1,length
@@ -412,4 +414,4 @@ next_str:
 	movl	%edx,%ebx
 	ret
 .strxmov_end:
-	.size	 strxmov,strxmov_end-strxmov
+	.size	 strxmov,.strxmov_end-strxmov

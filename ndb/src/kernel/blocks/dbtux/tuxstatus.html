@@ -1,0 +1,120 @@
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<TITLE>NDB Ordered Index Status</TITLE>
+</HEAD>
+<BODY LINK="#0000ff" VLINK="#800080" BGCOLOR="#ffffff">
+<p>
+<h2>NDB Ordered Index Status</h2>
+<p>
+<h3>Alpha release Jan 30, 2004</h3> 
+<p>
+<ul>
+  <li>
+  Up to 32 index attributes of any type, possibly nullable.
+  <li>
+  Index build i.e. table need not be empty.
+  <li>
+  Logging NOT done, index rebuilt at system restart.
+  <li>
+  Single range scan with lower and upper bounds.
+  <li>
+  Scan with locking: read latest, read for update.
+  <li>
+  LIMITED number of parallel scans.
+  <li>
+  Total result set NOT in index key order.
+  <li>
+  NDB ODBC optimizer to use ordered index for equality but NOT for ranges.
+  <li>
+  MySQL optimizer to use ordered index for equality and ranges.
+</ul>
+<p>
+As an example, consider following index on integer attributes.
+<p>
+<tt>SQL&gt;create index X on T (A, B, C) nologging;</tt>
+<p>
+Single range scan means that bounds are set on
+an initial sequence of index keys, and all but last is an equality.
+<br>
+For example following scans are supported (the last 2 not via NDB ODBC).
+<p>
+<tt>SQL&gt;select * from T where A = 1;</tt>
+<br>
+<tt>SQL&gt;select * from T where A = 1 and B = 10 and C = 20;</tt>
+<br>
+<tt>SQL&gt;select * from T where A &lt; 10;</tt>
+<br>
+<tt>SQL&gt;select * from T where A = 1 and 10 &lt; B and B &lt; 20;</tt>
+<p>
+Following scans are NOT supported:
+<p>
+<tt>SQL&gt;select * from T where B = 1;</tt>
+<br>
+<tt>SQL&gt;select * from T where A &lt; 10 and B &lt; 20;</tt>
+<br>
+<h3>Features and dates</h3>
+[ Now = Jan 19 ]
+<p>
+<table border=1 cellpadding=1>
+<tr align="left">
+  <th width="40%">Feature</th>
+  <th width="15%">Now</th> <th width="15%">Jan 30</th> <th width="15%">Mar 01</th> <th width="15%">Never</th>
+</tr>
+<tr align=left>
+  <td>Index maintenance</td>
+  <td>X</td> <td>-</td> <td>-</td> <td>-</td>
+</tr>
+<tr align=left>
+  <td>Basic scan</td>
+  <td>X 1)</td> <td>-</td> <td>-</td> <td>-</td>
+</tr>
+<tr align=left>
+  <td>Scan bounds on nullable attributes</td>
+  <td>-</td> <td>X</td> <td>-</td> <td>-</td>
+</tr>
+<tr align=left>
+  <td>Scan with locking</td>
+  <td>-</td> <td>X</td> <td>-</td> <td>-</td>
+</tr>
+<tr align="left">
+  <td>NDB ODBC equality bounds</td>
+  <td>-</td> <td>X</td> <td>-</td> <td>-</td>
+</tr>
+<tr align="left">
+  <td>MySQL integration</td>
+  <td>-</td> <td>X</td> <td>-</td> <td>-</td>
+</tr>
+<tr align=left>
+  <td>Index build</td>
+  <td>2)</td> <td>X</td> <td>-</td> <td>-</td>
+</tr>
+<tr align=left>
+  <td>Unlimited number of scans</td>
+  <td>3)</td> <td>-</td> <td>X</td> <td>-</td>
+</tr>
+<tr align=left>
+  <td>Total ordering</td>
+  <td>-</td> <td>-</td> <td>X</td> <td>-</td>
+</tr>
+<tr align=left>
+  <td>Multiple range scan</td>
+  <td>-</td> <td>-</td> <td>X</td> <td>-</td>
+</tr>
+<tr align="left">
+  <td>NDB ODBC range bounds</td>
+  <td>-</td> <td>-</td> <td>-</td> <td>X</td>
+</tr>
+<tr align=left>
+  <td>Logging</td>
+  <td>-</td> <td>-</td> <td>-</td> <td>X</td>
+</tr>
+</table>
+<p>
+1) No locking and bounds must be on non-nullable key attributes.
+<br>
+2) Currently table must be empty when index is created.
+<br>
+3) Currently limited to 11 simultaneous per fragment.
+</BODY>
+</HTML>

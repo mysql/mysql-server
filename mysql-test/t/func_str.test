@@ -39,7 +39,7 @@ SELECT CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),r
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 select replace('aaaa','a','b'),replace('aaaa','aa','b'),replace('aaaa','a','bb'),replace('aaaa','','b'),replace('bbbb','a','c');
 select replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL') ;
-select soundex(''),soundex('he'),soundex('hello all folks');
+select soundex(''),soundex('he'),soundex('hello all folks'),soundex('#3556 in bugdb');
 select 'mood' sounds like 'mud';
 select 'Glazgo' sounds like 'Liverpool';
 select null sounds like 'null';
@@ -146,7 +146,7 @@ CREATE TABLE t1 (
   wid int(10) unsigned NOT NULL auto_increment,
   data_podp date default NULL,
   status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
-  PRIMARY KEY(wid),
+  PRIMARY KEY(wid)
 );
 
 INSERT INTO t1 VALUES (8,NULL,'real');
@@ -171,6 +171,15 @@ CREATE TABLE t1 (i int, j int);
 INSERT INTO t1 VALUES (1,1),(2,2);
 SELECT DISTINCT i, ELT(j, '345', '34') FROM t1;
 DROP TABLE t1;
+
+#
+# bug #3756: quote and NULL
+#
+
+create table t1(a char(4));
+insert into t1 values ('one'),(NULL),('two'),('four');
+select a, quote(a), isnull(quote(a)), quote(a) is null, ifnull(quote(a), 'n') from t1;
+drop table t1;
 
 #
 # Test collation and coercibility
@@ -358,21 +367,19 @@ select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),substring_index("1abcd
 explain extended select md5('hello'), sha('abc'), sha1('abc'), soundex(''), 'mood' sounds like 'mud', aes_decrypt(aes_encrypt('abc','1'),'1'),concat('*',space(5),'*'), reverse('abc'), rpad('a',4,'1'), lpad('a',4,'1'),  concat_ws(',','',NULL,'a'),make_set(255,_latin2'a',_latin2'b',_latin2'c'),elt(2,1),locate("a","b",2),format(130,10),char(0),conv(130,16,10),hex(130),binary 'HE', export_set(255,_latin2'y',_latin2'n',_latin2' '),FIELD('b' COLLATE latin1_bin,'A','B'),FIND_IN_SET(_latin1'B',_latin1'a,b,c,d'),collation(conv(130,16,10)), coercibility(conv(130,16,10)),length('\n\t\r\b\0\_\%\\'),bit_length('\n\t\r\b\0\_\%\\'),bit_length('\n\t\r\b\0\_\%\\'),concat('monty',' was here ','again'),length('hello'),char(ascii('h')),ord('h'),quote(1/0),crc32("123"),replace('aaaa','a','b'),insert('txs',2,1,'hi'),left(_latin2'a',1),right(_latin2'a',1),lcase(_latin2'a'),ucase(_latin2'a'),SUBSTR('abcdefg',3,2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),trim(_latin2' a '),ltrim(_latin2' a '),rtrim(_latin2' a '), decode(encode(repeat("a",100000),"monty"),"monty");
 
 #
-# Bug #2182
+# lpad returns incorrect result (Bug #2182)
 #
 
 SELECT lpad(12345, 5, "#");
 
 #
-# Bug #2972
+# Problem the the CONV() function (Bug #2972)
 #
  
 SELECT conv(71, 10, 36), conv('1Z', 36, 10);
 
-
-
 #
-# Bug #3089
+# Bug in SUBSTRING when mixed with CONCAT and ORDER BY (Bug #3089)
 #
 
 create table t1 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
@@ -382,3 +389,14 @@ insert into t2 values (1,'cccccccccc'), (2,'dddddddddd');
 select substring(concat(t1.str, t2.str), 1, 15) "name" from t1, t2 
 where t2.id=t1.id order by name;
 drop table t1, t2;
+
+#
+# Test case for conversion of long string value to integer (Bug #3472)
+#
+
+create table t1 (c1 INT, c2 INT UNSIGNED);
+insert into t1 values ('21474836461','21474836461');
+insert into t1 values ('-21474836461','-21474836461');
+show warnings;
+select * from t1;
+drop table t1;

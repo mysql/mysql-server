@@ -86,7 +86,7 @@ the count drops to zero. */
 /* When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
 directory, and we must set the base file path explicitly */
-char*	fil_path_to_mysql_datadir	= (char*)".";
+const char*	fil_path_to_mysql_datadir	= ".";
 
 ulint	fil_n_pending_log_flushes		= 0;
 ulint	fil_n_pending_tablespace_flushes	= 0;
@@ -390,16 +390,16 @@ Appends a new file to the chain of files of a space. File must be closed. */
 void
 fil_node_create(
 /*============*/
-	char*	name,	/* in: file name (file must be closed) */
-	ulint	size,	/* in: file size in database blocks, rounded downwards
-			to an integer */
-	ulint	id,	/* in: space id where to append */
-	ibool	is_raw)	/* in: TRUE if a raw device or a raw disk partition */
+	const char*	name,	/* in: file name (file must be closed) */
+	ulint		size,	/* in: file size in database blocks, rounded
+				downwards to an integer */
+	ulint		id,	/* in: space id where to append */
+	ibool		is_raw)	/* in: TRUE if a raw device or
+				a raw disk partition */
 {
 	fil_system_t*	system	= fil_system;
 	fil_node_t*	node;
 	fil_space_t*	space;
-	char*		name2;
 
 	ut_a(system);
 	ut_a(name);
@@ -408,11 +408,7 @@ fil_node_create(
 
 	node = mem_alloc(sizeof(fil_node_t));
 
-	name2 = mem_alloc(ut_strlen(name) + 1);
-
-	ut_strcpy(name2, name);
-
-	node->name = name2;
+	node->name = mem_strdup(name);
 	node->open = FALSE;
 
 	ut_a(!is_raw || srv_start_raw_disk_in_use);
@@ -433,7 +429,7 @@ fil_node_create(
 		fprintf(stderr,
 "  InnoDB: Error: Could not find tablespace %lu for\n"
 "InnoDB: file %s from the tablespace memory cache.\n", (ulong) id, name);
-		mem_free(name2);
+		mem_free(node->name);
 
 		mem_free(node);
 
@@ -809,14 +805,13 @@ there is an error, prints an error message to the .err log. */
 ibool
 fil_space_create(
 /*=============*/
-			/* out: TRUE if success */
-	char*	name,	/* in: space name */
-	ulint	id,	/* in: space id */
-	ulint	purpose)/* in: FIL_TABLESPACE, or FIL_LOG if log */
+				/* out: TRUE if success */
+	const char*	name,	/* in: space name */
+	ulint		id,	/* in: space id */
+	ulint		purpose)/* in: FIL_TABLESPACE, or FIL_LOG if log */
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	space;	
-	char*		name2;
 	ulint		namesake_id;
 try_again:
 	/*printf(
@@ -881,11 +876,7 @@ try_again:
 
 	space = mem_alloc(sizeof(fil_space_t));
 
-	name2 = mem_alloc(ut_strlen(name) + 1);
-
-	ut_strcpy(name2, name);
-
-	space->name = name2;
+	space->name = mem_strdup(name);
 	space->id = id;
 
 	system->tablespace_version++;
@@ -1552,16 +1543,18 @@ static
 void
 fil_op_write_log(
 /*=============*/
-	ulint	type,		/* in: MLOG_FILE_CREATE, MLOG_FILE_DELETE, or
-                        	MLOG_FILE_RENAME */
-	ulint	space_id,	/* in: space id */
-	char*	name,		/* in: table name in the familiar
-				'databasename/tablename' format, or the file
-				path in the case of MLOG_FILE_DELETE */ 
-	char*	new_name,	/* in: if type is MLOG_FILE_RENAME, the new
-				table name in the 'databasename/tablename'
-				format */
-	mtr_t*	mtr)		/* in: mini-transaction handle */
+	ulint		type,		/* in: MLOG_FILE_CREATE,
+					MLOG_FILE_DELETE, or
+					MLOG_FILE_RENAME */
+	ulint		space_id,	/* in: space id */
+	const char*	name,		/* in: table name in the familiar
+					'databasename/tablename' format, or
+					the file path in the case of
+					MLOG_FILE_DELETE */ 
+	const char*	new_name,	/* in: if type is MLOG_FILE_RENAME,
+					the new table name in the
+					'databasename/tablename' format */
+	mtr_t*		mtr)		/* in: mini-transaction handle */
 {
 	byte*	log_ptr;
 
@@ -1970,14 +1963,15 @@ tablespace memory cache. */
 ibool
 fil_rename_tablespace(
 /*==================*/
-				/* out: TRUE if success */
-	char*	old_name,	/* in: old table name in the standard
-				databasename/tablename format of InnoDB, or
-				NULL if we do the rename based on the space
-				id only */
-	ulint	id,		/* in: space id */
-	char*	new_name)	/* in: new table name in the standard
-				databasename/tablename format of InnoDB */
+					/* out: TRUE if success */
+	const char*	old_name,	/* in: old table name in the standard
+					databasename/tablename format of
+					InnoDB, or NULL if we do the rename
+					based on the space id only */
+	ulint		id,		/* in: space id */
+	const char*	new_name)	/* in: new table name in the standard
+					databasename/tablename format
+					of InnoDB */
 {
 	fil_system_t*	system		= fil_system;
 	ibool		success;
@@ -2134,15 +2128,16 @@ path '.'. */
 ulint
 fil_create_new_single_table_tablespace(
 /*===================================*/
-				/* out: DB_SUCCESS or error code */
-	ulint*	space_id,	/* in/out: space id; if this is != 0, then
-				this is an input parameter, otherwise
-				output */
-	char*	tablename,	/* in: the table name in the usual
-				databasename/tablename format of InnoDB */
-	ulint	size)		/* in: the initial size of the tablespace file
-				in pages, must be >= FIL_IBD_FILE_INITIAL_SIZE
-				*/
+					/* out: DB_SUCCESS or error code */
+	ulint*		space_id,	/* in/out: space id; if this is != 0,
+					then this is an input parameter,
+					otherwise output */
+	const char*	tablename,	/* in: the table name in the usual
+					databasename/tablename format
+					of InnoDB */
+	ulint		size)		/* in: the initial size of the
+					tablespace file in pages,
+					must be >= FIL_IBD_FILE_INITIAL_SIZE */
 {
 	os_file_t       file;
 	ibool		ret;
@@ -2303,12 +2298,12 @@ lsn's just by looking at that flush lsn. */
 ibool
 fil_reset_too_high_lsns(
 /*====================*/
-				/* out: TRUE if success */
-	char*	name,		/* in: table name in the databasename/tablename
-				format */
-	dulint	current_lsn)	/* in: reset lsn's if the lsn stamped to
-				FIL_PAGE_FILE_FLUSH_LSN in the first page is
-				too high */
+					/* out: TRUE if success */
+	const char*	name,		/* in: table name in the
+					databasename/tablename format */
+	dulint		current_lsn)	/* in: reset lsn's if the lsn stamped
+					to FIL_PAGE_FILE_FLUSH_LSN in the
+					first page is too high */
 {
 	os_file_t	file;
 	char*		filepath;
@@ -2443,10 +2438,10 @@ closes it after we have looked at the space id in it. */
 ibool
 fil_open_single_table_tablespace(
 /*=============================*/
-			/* out: TRUE if success */
-	ulint	id,	/* in: space id */
-	char*	name)	/* in: table name in the databasename/tablename
-			format */
+				/* out: TRUE if success */
+	ulint		id,	/* in: space id */
+	const char*	name)	/* in: table name in the
+				databasename/tablename format */
 {
 	os_file_t	file;
 	char*		filepath;
@@ -2737,7 +2732,7 @@ fil_load_single_table_tablespaces(void)
 
 	/* The datadir of MySQL is always the default directory of mysqld */
 
-	dir = os_file_opendir(fil_path_to_mysql_datadir, TRUE);
+	dir = os_file_opendir((char*) fil_path_to_mysql_datadir, TRUE);
 
 	if (dir == NULL) {
 
@@ -2749,7 +2744,7 @@ fil_load_single_table_tablespaces(void)
 	/* Scan all directories under the datadir. They are the database
 	directories of MySQL. */
 
-	ret = os_file_readdir_next_file(fil_path_to_mysql_datadir, dir,
+	ret = os_file_readdir_next_file((char*) fil_path_to_mysql_datadir, dir,
 								&dbinfo);
 	while (ret == 0) {
 		/* printf("Looking at %s in datadir\n", dbinfo.name); */
@@ -2810,7 +2805,7 @@ next_file_item:
 		}
 		
 next_datadir_item:
-		ret = os_file_readdir_next_file(fil_path_to_mysql_datadir,
+		ret = os_file_readdir_next_file((char*) fil_path_to_mysql_datadir,
 								dir, &dbinfo);
 	}
 
@@ -2947,20 +2942,22 @@ there may be many tablespaces which are not yet in the memory cache. */
 ibool
 fil_space_for_table_exists_in_mem(
 /*==============================*/
-				/* out: TRUE if a matching tablespace exists
-				in the memory cache */
-	ulint	id,		/* in: space id */
-	char*	name,		/* in: table name in the standard
-				'databasename/tablename' format */
-	ibool	mark_space,	/* in: in crash recovery, at database startup
-				we mark all spaces which have an associated
-				table in the InnoDB data dictionary, so that
-				we can print a warning about orphaned
-				tablespaces */
-	ibool	print_error_if_does_not_exist)
-				/* in: print detailed error information to
-				the .err log if a matching tablespace is
-				not found from memory */
+					/* out: TRUE if a matching tablespace
+					exists in the memory cache */
+	ulint		id,		/* in: space id */
+	const char*	name,		/* in: table name in the standard
+					'databasename/tablename' format */
+	ibool		mark_space,	/* in: in crash recovery, at database
+					startup we mark all spaces which have
+					an associated table in the InnoDB
+					data dictionary, so that
+					we can print a warning about orphaned
+					tablespaces */
+	ibool		print_error_if_does_not_exist)
+					/* in: print detailed error
+					information to the .err log if a
+					matching tablespace is not found from
+					memory */
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	namespace;
@@ -3726,7 +3723,7 @@ fil_aio_wait(
 	ut_ad(fil_validate());
 
 	if (os_aio_use_native_aio) {
-		srv_io_thread_op_info[segment] = (char *) "handle native aio";
+		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(segment, 0, (void**) &fil_node,
 					    &message, &type);
@@ -3737,7 +3734,7 @@ fil_aio_wait(
 		ut_error;
 #endif
 	} else {
-		srv_io_thread_op_info[segment] =(char *)"handle simulated aio";
+		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
 		ret = os_aio_simulated_handle(segment, (void**) &fil_node,
 	                                               &message, &type);
@@ -3745,7 +3742,7 @@ fil_aio_wait(
 	
 	ut_a(ret);
 
-	srv_io_thread_op_info[segment] = (char *) "complete io for fil node";
+	srv_set_io_thread_op_info(segment, "complete io for fil node");
 
 	mutex_enter(&(system->mutex));
 
@@ -3762,11 +3759,10 @@ fil_aio_wait(
 	open, and use a special i/o thread to serve insert buffer requests. */
 
 	if (buf_pool_is_block(message)) {
-		srv_io_thread_op_info[segment] =
-		  (char *) "complete io for buf page";
+		srv_set_io_thread_op_info(segment, "complete io for buf page");
 		buf_page_io_complete(message);
 	} else {
-		srv_io_thread_op_info[segment] =(char *) "complete io for log";
+		srv_set_io_thread_op_info(segment, "complete io for log");
 		log_io_complete(message);
 	}
 }
@@ -3847,7 +3843,9 @@ retry:
 
 			mutex_exit(&(system->mutex));
 
-			/* printf("Flushing to file %s\n", node->name); */
+			/* fprintf(stderr, "Flushing to file %s\n",
+				node->name); */
+
 			os_file_flush(file);		
 
 			mutex_enter(&(system->mutex));

@@ -212,6 +212,8 @@ EXTRA_MYSQL_TEST_OPT=""
 EXTRA_MYSQLDUMP_OPT=""
 EXTRA_MYSQLBINLOG_OPT=""
 USE_RUNNING_SERVER=""
+USE_NDBCLUSTER=""
+USE_RUNNING_NDBCLUSTER=""
 DO_GCOV=""
 DO_GDB=""
 MANUAL_GDB=""
@@ -241,6 +243,11 @@ while test $# -gt 0; do
       SLAVE_MYSQLD=`$ECHO "$1" | $SED -e "s;--slave-binary=;;"` ;;
     --local)   USE_RUNNING_SERVER="" ;;
     --extern)  USE_RUNNING_SERVER="1" ;;
+    --with-ndbcluster)
+      USE_NDBCLUSTER="--ndbcluster" ;;
+    --ndbconnectstring=*)
+      USE_NDBCLUSTER="--ndbcluster" ;
+      USE_RUNNING_NDBCLUSTER=`$ECHO "$1" | $SED -e "s;--ndbconnectstring=;;"` ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
       MASTER_MYPORT=3306;
@@ -274,6 +281,7 @@ while test $# -gt 0; do
     --skip-rpl) NO_SLAVE=1 ;;
     --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
     --do-test=*) DO_TEST=`$ECHO "$1" | $SED -e "s;--do-test=;;"`;;
+    --start-from=* ) START_FROM=`$ECHO "$1" | $SED -e "s;--start-from=;;"` ;;
     --warnings | --log-warnings)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --log-warnings"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --log-warnings"
@@ -670,7 +678,7 @@ report_stats () {
         $ECHO "The log files in $MY_LOG_DIR may give you some hint"
 	$ECHO "of what when wrong."
 	$ECHO "If you want to report this error, please read first the documentation at"
-        $ECHO "http://www.mysql.com/doc/M/y/MySQL_test_suite.html"
+        $ECHO "http://www.mysql.com/doc/en/MySQL_test_suite.html"
     fi
 
     if test -z "$USE_RUNNING_SERVER"
@@ -894,6 +902,7 @@ start_master()
           --local-infile \
           --exit-info=256 \
           --core \
+          $USE_NDBCLUSTER \
           --datadir=$MASTER_MYDDIR \
           --pid-file=$MASTER_MYPID \
           --socket=$MASTER_MYSOCK \
@@ -919,6 +928,7 @@ start_master()
           --character-sets-dir=$CHARSETSDIR \
           --default-character-set=$CHARACTER_SET \
           --core \
+          $USE_NDBCLUSTER \
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:50M \
@@ -1031,7 +1041,7 @@ start_slave()
           --core --init-rpl-role=slave \
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
-          --skip-innodb --skip-slave-start \
+          --skip-innodb --skip-ndbcluster --skip-slave-start \
           --slave-load-tmpdir=$SLAVE_LOAD_TMPDIR \
           --report-host=127.0.0.1 --report-user=root \
           --report-port=$slave_port \
@@ -1198,31 +1208,31 @@ run_testcase ()
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ "$USE_MANAGER" = 1 ] ; then
-  many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
+   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
+ fi
+ if $EXPR "$tname" '<' "$START_FROM" > /dev/null ; then
+   #skip_test $tname
+   return
  fi
 
- if [ -n "$SKIP_TEST" ] ; then
-   SKIP_THIS_TEST=`$EXPR \( $tname : "$SKIP_TEST" \) != 0`
-   if [ x$SKIP_THIS_TEST = x1 ] ;
-   then
-     skip_test $tname;
-     return;
+ if [ "$SKIP_TEST" ] ; then
+   if $EXPR \( "$tname" : "$SKIP_TEST" \) > /dev/null ; then
+     skip_test $tname
+     return
    fi
-  fi
+ fi
 
- if [ -n "$DO_TEST" ] ; then
-   DO_THIS_TEST=`$EXPR \( $tname : "$DO_TEST" \) != 0`
-   if [ x$DO_THIS_TEST = x0 ] ;
-   then
-     skip_test $tname;
-     return;
+ if [ "$DO_TEST" ] ; then
+   if $EXPR \( "$tname" : "$DO_TEST" \) > /dev/null ; then
+     : #empty command to keep some shells happy
+   else
+     #skip_test $tname
+     return
    fi
-  fi
+ fi
 
-
- if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ;
- then
-   skip_test $tname;
+ if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ; then
+   skip_test $tname
    return
  fi
 
@@ -1402,7 +1412,17 @@ then
     fi
   fi
 
+  if [ ! -z "$USE_NDBCLUSTER" ]
+  then
+  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
+  then
+    # Kill any running ndbcluster stuff
+    ./ndb/stop_ndbcluster
+  fi
+  fi
+
   # Remove files that can cause problems
+  $RM -rf $MYSQL_TEST_DIR/var/ndbcluster
   $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
 
   # Remove old berkeley db log files that can confuse the server
@@ -1412,6 +1432,20 @@ then
   wait_for_slave=$SLEEP_TIME_FOR_FIRST_SLAVE
   $ECHO "Installing Test Databases"
   mysql_install_db
+
+  if [ ! -z "$USE_NDBCLUSTER" ]
+  then
+  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
+  then
+    echo "Starting ndbcluster"
+    ./ndb/install_ndbcluster --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
+    export NDB_CONNECTSTRING=`cat Ndb.cfg`
+  else
+    export NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
+    echo "Using ndbcluster at $NDB_CONNECTSTRING"
+  fi
+  fi
+
   start_manager
 
 # Do not automagically start daemons if we are in gdb or running only one test
@@ -1490,6 +1524,15 @@ $ECHO
 if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
 then
     mysql_stop
+fi
+
+if [ ! -z "$USE_NDBCLUSTER" ]
+then
+if [ -z "$USE_RUNNING_NDBCLUSTER" ]
+then
+  # Kill any running ndbcluster stuff
+  ./ndb/stop_ndbcluster
+fi
 fi
 
 stop_manager

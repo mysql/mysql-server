@@ -569,7 +569,7 @@ replication has proceeded. */
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
-	char*		file_name,/* in: MySQL log file name */
+	const char*	file_name,/* in: MySQL log file name */
 	ib_longlong	offset,	/* in: position in that log file */
 	ulint		field,	/* in: offset of the MySQL log info field in
 				the trx sys header */
@@ -596,8 +596,7 @@ trx_sys_update_mysql_binlog_offset(
 				MLOG_4BYTES, mtr);
 	}
 
-	if (0 != ut_memcmp(sys_header + field + TRX_SYS_MYSQL_LOG_NAME,
-			file_name, 1 + ut_strlen(file_name))) {
+	if (0 != strcmp((char*) (sys_header + field + TRX_SYS_MYSQL_LOG_NAME), file_name)) {
 
 		mlog_write_string(sys_header + field
 					+ TRX_SYS_MYSQL_LOG_NAME,
@@ -620,8 +619,9 @@ trx_sys_update_mysql_binlog_offset(
 				MLOG_4BYTES, mtr);
 }
 
+#ifdef UNIV_HOTBACKUP
 /*********************************************************************
-Prints to stdout the MySQL binlog info in the system header if the
+Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
 
 void
@@ -638,7 +638,7 @@ trx_sys_print_mysql_binlog_offset_from_page(
 					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
 	   == TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
-		printf(
+		fprintf(stderr,
 	"ibbackup: Last MySQL binlog file position %lu %lu, file name %s\n",
 		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
 					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
@@ -647,6 +647,7 @@ trx_sys_print_mysql_binlog_offset_from_page(
 		sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME);
 	}
 }
+#endif /* UNIV_HOTBACKUP */
 
 /*********************************************************************
 Prints to stderr the MySQL binlog offset info in the trx system header if

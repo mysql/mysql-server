@@ -97,8 +97,6 @@ struct mem_pool_struct{
 /* The common memory pool */
 mem_pool_t*	mem_comm_pool	= NULL;
 
-ulint		mem_out_of_mem_err_msg_count	= 0;
-
 /* We use this counter to check that the mem pool mutex does not leak;
 this is to track a strange assertion failure reported at
 mysql@lists.mysql.com */
@@ -266,8 +264,6 @@ mem_pool_fill_free_list(
 	if (i >= 63) {
 		/* We come here when we have run out of space in the
 		memory pool: */
-
-		mem_out_of_mem_err_msg_count++;
      
 		return(FALSE);
 	}
@@ -461,17 +457,13 @@ mem_area_free(
 	ulint		size;
 	ulint		n;
 	
-	if (mem_out_of_mem_err_msg_count > 0) {
-		/* It may be that the area was really allocated from the
-		OS with regular malloc: check if ptr points within
-		our memory pool */
+	/* It may be that the area was really allocated from the OS with
+	regular malloc: check if ptr points within our memory pool */
 
-		if ((byte*)ptr < pool->buf
-				|| (byte*)ptr >= pool->buf + pool->size) {
-			ut_free(ptr);
+	if ((byte*)ptr < pool->buf || (byte*)ptr >= pool->buf + pool->size) {
+		ut_free(ptr);
 
-			return;
-		}
+		return;
 	}
 
 	area = (mem_area_t*) (((byte*)ptr) - MEM_AREA_EXTRA_SIZE);
@@ -567,6 +559,7 @@ mem_area_free(
 	ut_ad(mem_pool_validate(pool));
 }
 
+#ifdef UNIV_DEBUG
 /************************************************************************
 Validates a memory pool. */
 
@@ -644,6 +637,7 @@ mem_pool_print_info(
 						       (ulong) pool->reserved);
 	mutex_exit(&(pool->mutex));
 }
+#endif /* UNIV_DEBUG */
 
 /************************************************************************
 Returns the amount of reserved memory. */

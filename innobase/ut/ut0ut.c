@@ -19,226 +19,15 @@ Created 5/11/1994 Heikki Tuuri
 
 ibool	ut_always_false	= FALSE;
 
-/************************************************************
-On the 64-bit Windows we substitute the format string
-%l -> %I64
-because we define ulint as unsigned __int64 and lint as __int64 on Windows,
-and both the Microsoft and Intel C compilers require the format string
-%I64 in that case instead of %l. */
+/*********************************************************************
+Get the quote character to be used in SQL identifiers.
+This definition must match the one in sql/ha_innodb.cc! */
 
-int
-ut_printf(
-/*======*/
-			     /* out: the number of characters written, or
-			     negative in case of an error */
-        const char* format,  /* in: format of prints */
-        ...)                 /* in: arguments to be printed */
-{
-        va_list	args;
-	ulint	len;
-	char*	format_end;
-	char*	newformat;	
-	char*	ptr;
-	char*	newptr;
-	int	ret;
-	char	format_buf_in_stack[500];
-
-	len = strlen(format);
-
-	if (len > 250) {
-		newformat = malloc(2 * len);
-	} else {
-		newformat = format_buf_in_stack;
-	}
-
-	format_end = (char*)format + len;
-
-	ptr = (char*)format;
-	newptr = newformat;
-
-#if defined(__WIN__) && (defined(WIN64) || defined(_WIN64))
-	/* Replace %l with %I64 if it is not preceded with '\' */
-
-	while (ptr < format_end) {
-		if (*ptr == '%' && *(ptr + 1) == 'l'
-		    && (ptr == format || *(ptr - 1) != '\\')) {
-			
-			memcpy(newptr, "%I64", 4);
-			ptr += 2;
-			newptr += 4;
-		} else {
-			*newptr = *ptr;
-			ptr++;
-			newptr++;
-		}
-	}
-
-	*newptr = '\0';
-	
-	ut_a(newptr < newformat + 2 * len);
-#else
-	strcpy(newformat, format);
-#endif
-        va_start(args, format);
-
-        ret = vprintf((const char*)newformat, args);
-
-        va_end(args);
-
-	if (newformat != format_buf_in_stack) {
-		free(newformat);
-	}
-
-        return(ret);
-}
-
-/************************************************************
-On the 64-bit Windows we substitute the format string
-%l -> %I64
-because we define ulint as unsigned __int64 and lint as __int64 on Windows,
-and both the Microsoft and Intel C compilers require the format string
-%I64 in that case instead of %l. */
-
-int
-ut_sprintf(
-/*=======*/
-			     /* out: the number of characters written, or
-			     negative in case of an error */
-	char*	    buf,     /* in: buffer where to print */
-        const char* format,  /* in: format of prints */
-        ...)                 /* in: arguments to be printed */
-{
-        va_list	args;
-	ulint	len;
-	char*	format_end;
-	char*	newformat;	
-	char*	ptr;
-	char*	newptr;
-	int	ret;
-	char	format_buf_in_stack[500];
-
-	len = strlen(format);
-
-	if (len > 250) {
-		newformat = malloc(2 * len);
-	} else {
-		newformat = format_buf_in_stack;
-	}
-
-	format_end = (char*)format + len;
-
-	ptr = (char*)format;
-	newptr = newformat;
-
-#if defined(__WIN__) && (defined(WIN64) || defined(_WIN64))
-	/* Replace %l with %I64 if it is not preceded with '\' */
-
-	while (ptr < format_end) {
-		if (*ptr == '%' && *(ptr + 1) == 'l'
-		    && (ptr == format || *(ptr - 1) != '\\')) {
-			
-			memcpy(newptr, "%I64", 4);
-			ptr += 2;
-			newptr += 4;
-		} else {
-			*newptr = *ptr;
-			ptr++;
-			newptr++;
-		}
-	}
-
-	*newptr = '\0';
-	
-	ut_a(newptr < newformat + 2 * len);
-#else
-	strcpy(newformat, format);
-#endif
-        va_start(args, format);
-
-        ret = vsprintf(buf, (const char*)newformat, args);
-
-        va_end(args);
-
-	if (newformat != format_buf_in_stack) {
-		free(newformat);
-	}
-
-        return(ret);
-}
-
-/************************************************************
-On the 64-bit Windows we substitute the format string
-%l -> %I64
-because we define ulint as unsigned __int64 and lint as __int64 on Windows,
-and both the Microsoft and Intel C compilers require the format string
-%I64 in that case instead of %l. */
-
-int
-ut_fprintf(
-/*=======*/
-			     /* out: the number of characters written, or
-			     negative in case of an error */
-	FILE*	    stream,  /* in: stream where to print */
-        const char* format,  /* in: format of prints */
-        ...)                 /* in: arguments to be printed */
-{
-        va_list	args;
-	ulint	len;
-	char*	format_end;
-	char*	newformat;	
-	char*	ptr;
-	char*	newptr;
-	int	ret;
-	char	format_buf_in_stack[500];
-
-	len = strlen(format);
-
-	if (len > 250) {
-		newformat = malloc(2 * len);
-	} else {
-		newformat = format_buf_in_stack;
-	}
-
-	format_end = (char*)format + len;
-
-	ptr = (char*)format;
-	newptr = newformat;
-
-#if defined(__WIN__) && (defined(WIN64) || defined(_WIN64))
-	/* Replace %l with %I64 if it is not preceded with '\' */
-
-	while (ptr < format_end) {
-		if (*ptr == '%' && *(ptr + 1) == 'l'
-		    && (ptr == format || *(ptr - 1) != '\\')) {
-			
-			memcpy(newptr, "%I64", 4);
-			ptr += 2;
-			newptr += 4;
-		} else {
-			*newptr = *ptr;
-			ptr++;
-			newptr++;
-		}
-	}
-
-	*newptr = '\0';
-	
-	ut_a(newptr < newformat + 2 * len);
-#else
-	strcpy(newformat, format);
-#endif
-        va_start(args, format);
-
-        ret = vfprintf(stream, (const char*)newformat, args);
-
-        va_end(args);
-
-	if (newformat != format_buf_in_stack) {
-		free(newformat);
-	}
-
-        return(ret);
-}
+char
+mysql_get_identifier_quote_char(void);
+/*=================================*/
+				/* out: quote character to be
+				used in SQL identifiers */
 
 /************************************************************
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
@@ -337,7 +126,7 @@ ut_print_timestamp(
 }
 
 /**************************************************************
-Sprintfs a timestamp to a buffer. */
+Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
 
 void
 ut_sprintf_timestamp(
@@ -474,7 +263,7 @@ ut_delay(
 	}
 
 	if (ut_always_false) {
-		printf("%lu", (ulong) j);
+		ut_always_false = (ibool) j;
 	}
 	
 	return(j);
@@ -486,78 +275,29 @@ Prints the contents of a memory buffer in hex and ascii. */
 void
 ut_print_buf(
 /*=========*/
-	byte*	buf,	/* in: memory buffer */
-	ulint 	len)	/* in: length of the buffer */
+	FILE*		file,	/* in: file where to print */
+	const byte*	buf,	/* in: memory buffer */
+	ulint		len)	/* in: length of the buffer */
 {
-	byte*	data;
-	ulint	i;
+	const byte*	data;
+	ulint		i;
 
-	printf(" len %lu; hex ", (ulong) len);
-			
-	data = buf;
+	fprintf(file, " len %lu; hex ", len);
 
-	for (i = 0; i < len; i++) {
-		printf("%02lx", (ulong) *data);
-		data++;
+	for (data = buf, i = 0; i < len; i++) {
+		fprintf(file, "%02lx", (ulong)*data++);
 	}
 
-	printf("; asc ");
-
-	data = buf;
-
-	for (i = 0; i < len; i++) {
-		if (isprint((int)(*data))) {
-			printf("%c", (char)*data);
-		}
-		data++;
-	}
-
-	printf(";");
-}
-
-/*****************************************************************
-Prints the contents of a memory buffer in hex and ascii. */
-
-ulint
-ut_sprintf_buf(
-/*===========*/
-			/* out: printed length in bytes */
-	char*	str,	/* in: buffer to print to */
-	byte*	buf,	/* in: memory buffer */
-	ulint 	len)	/* in: length of the buffer */
-{
-	byte*	data;
-	ulint	n;
-	ulint	i;
-
-	n = 0;
-	
-	n += sprintf(str + n, " len %lu; hex ", (ulong) len);
-			
-	data = buf;
-
-	for (i = 0; i < len; i++) {
-		n += sprintf(str + n, "%02lx", (ulong) *data);
-		data++;
-	}
-
-	n += sprintf(str + n, "; asc ");
+	fputs("; asc ", file);
 
 	data = buf;
 
 	for (i = 0; i < len; i++) {
-		if (isprint((int)(*data))) {
-			n += sprintf(str + n, "%c", (char)*data);
-		} else {
-			n += sprintf(str + n, ".");
-		}
-		
-		data++;
+		int	c = (int) *data++;
+		putc(isprint(c) ? c : ' ', file);
 	}
 
-	n += sprintf(str + n, ";");
-
-	return(n);
+	putc(';', file);
 }
 
 /****************************************************************
@@ -593,3 +333,64 @@ ut_2_power_up(
 	return(res);
 }
 
+
+/**************************************************************************
+Outputs a NUL-terminated string, quoted as an SQL identifier. */
+
+void
+ut_print_name(
+/*==========*/
+	FILE*		f,	/* in: output stream */
+	const char*	name)	/* in: name to print */
+{
+	ut_print_namel(f, name, strlen(name));
+}
+
+/**************************************************************************
+Outputs a fixed-length string, quoted as an SQL identifier. */
+
+void
+ut_print_namel(
+/*==========*/
+	FILE*		f,	/* in: output stream */
+	const char*	name,	/* in: name to print */
+	ulint		namelen)/* in: length of name */
+{
+	const char*	s = name;
+	const char*	e = s + namelen;
+	char		q = mysql_get_identifier_quote_char();
+	putc(q, f);
+	while (s < e) {
+		int	c = *s++;
+		if (c == q) {
+			putc(c, f);
+		}
+		putc(c, f);
+	}
+	putc(q, f);
+}
+
+/**************************************************************************
+Catenate files. */
+
+void
+ut_copy_file(
+/*=========*/
+	FILE*	dest,	/* in: output file */
+	FILE*	src)	/* in: input file to be appended to output */
+{
+	long	len = ftell(src);
+	char	buf[4096];
+
+	rewind(src);
+	do {
+		size_t	maxs =
+			len < (long) sizeof buf ? (size_t) len : sizeof buf;
+		size_t	size = fread(buf, 1, maxs, src);
+		fwrite(buf, 1, size, dest);
+		len -= size;
+		if (size < maxs) {
+			break;
+		}
+	} while (len > 0);
+}

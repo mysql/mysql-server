@@ -36,6 +36,12 @@
 #define MYSQL_SERVICENAME "MySQL"
 #endif /* __WIN__ */
 
+#if defined(__WIN__) && !defined(MYSQL_SERVER) && !defined(MYSQL_CLIENT) && !defined(EMBEDDED_LIBRARY)
+#define dll_import_spec __declspec( dllimport )
+#else
+#define dll_import_spec
+#endif
+
 enum enum_server_command
 {
   COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_QUERY, COM_FIELD_LIST,
@@ -226,17 +232,6 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 #define FIELD_TYPE_INTERVAL    MYSQL_TYPE_ENUM
 #define FIELD_TYPE_GEOMETRY    MYSQL_TYPE_GEOMETRY
 
-#if TO_BE_INCLUDED_LATER
-/* For bind applications, to indicate unsigned buffers */
-#define MYSQL_TYPE_UTINY     -10
-#define MYSQL_TYPE_USHORT    -9
-#define MYSQL_TYPE_ULONG     -8
-#define MYSQL_TYPE_UFLOAT    -7
-#define MYSQL_TYPE_UDOUBLE   -6
-#define MYSQL_TYPE_ULONGLONG -5
-#define MYSQL_TYPE_UINT24    -4
-#endif
-
 /* options for mysql_set_option */
 enum enum_mysql_set_option
 {
@@ -322,8 +317,8 @@ typedef struct st_udf_init
 extern "C" {
 #endif
 
-extern unsigned long max_allowed_packet;
-extern unsigned long net_buffer_length;
+dll_import_spec extern unsigned long max_allowed_packet;
+dll_import_spec extern unsigned long net_buffer_length;
 
 /*
   These functions are used for authentication by client and server and
@@ -375,6 +370,6 @@ char *net_store_length(char *pkg, ulonglong length);
 
 #define NULL_LENGTH ((unsigned long) ~0) /* For net_store_length */
 #define MYSQL_STMT_HEADER       4
-#define	MYSQL_LONG_DATA_HEADER	6
+#define MYSQL_LONG_DATA_HEADER  6
 
 #endif

@@ -6,7 +6,7 @@ key2 int,
 filler char(200),
 filler2 char(200),  
 index(key1),
-index(key2),  
+index(key2)
 ) engine=innodb;
 select * from t1 where (key1 >= 2 and key1 <= 10) or (pk >= 4 and pk <=8 );
 pk	key1	key2	filler	filler2

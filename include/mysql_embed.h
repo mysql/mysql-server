@@ -26,10 +26,8 @@
 #undef HAVE_OPENSSL
 #undef HAVE_ISAM
 #undef HAVE_SMEM				/* No shared memory */
+#undef HAVE_NDBCLUSTER_DB /* No NDB cluster */
 
 #define DONT_USE_RAID
-
-#undef  MYSQL_SERVER_SUFFIX
-#define MYSQL_SERVER_SUFFIX "-embedded"
 
 #endif /* EMBEDDED_LIBRARY */

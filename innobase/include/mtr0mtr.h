@@ -198,11 +198,11 @@ mtr_read_dulint(
 	mtr_t*	mtr);	/* in: mini-transaction handle */
 /*************************************************************************
 This macro locks an rw-lock in s-mode. */
-#define mtr_s_lock(B, MTR)	mtr_s_lock_func((B), IB__FILE__, __LINE__,\
+#define mtr_s_lock(B, MTR)	mtr_s_lock_func((B), __FILE__, __LINE__,\
 						(MTR))
 /*************************************************************************
 This macro locks an rw-lock in x-mode. */
-#define mtr_x_lock(B, MTR)	mtr_x_lock_func((B), IB__FILE__, __LINE__,\
+#define mtr_x_lock(B, MTR)	mtr_x_lock_func((B), __FILE__, __LINE__,\
 						(MTR))
 /*************************************************************************
 NOTE! Use the macro above!
@@ -212,7 +212,7 @@ void
 mtr_s_lock_func(
 /*============*/
 	rw_lock_t*	lock,	/* in: rw-lock */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line number */
 	mtr_t*		mtr);	/* in: mtr */
 /*************************************************************************
@@ -223,7 +223,7 @@ void
 mtr_x_lock_func(
 /*============*/
 	rw_lock_t*	lock,	/* in: rw-lock */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line number */
 	mtr_t*		mtr);	/* in: mtr */
 
@@ -256,6 +256,7 @@ mtr_memo_contains(
 	mtr_t*	mtr,	/* in: mtr */
 	void*	object,	/* in: object to search */
 	ulint	type);	/* in: type of object */
+#ifdef UNIV_DEBUG
 /*************************************************************
 Prints info of an mtr handle. */
 
@@ -263,6 +264,7 @@ void
 mtr_print(
 /*======*/
 	mtr_t*	mtr);	/* in: mtr */
+#endif /* UNIV_DEBUG */
 /*######################################################################*/
 
 #define	MTR_BUF_MEMO_SIZE	200	/* number of slots in memo */

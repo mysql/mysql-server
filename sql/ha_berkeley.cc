@@ -1542,7 +1542,7 @@ int ha_berkeley::index_next_same(byte * buf, const byte *key, uint keylen)
   {
     error=read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT),
 		   (char*) buf, active_index, &row, &last_key, 1);
-    if (!error && ::key_cmp(table, key, active_index, keylen))
+    if (!error && ::key_cmp_if_same(table, key, active_index, keylen))
       error=HA_ERR_END_OF_FILE;
   }
   DBUG_RETURN(error);
@@ -1709,6 +1709,7 @@ int ha_berkeley::extra(enum ha_extra_function operation)
 
 int ha_berkeley::reset(void)
 {
+  ha_berkeley::extra(HA_EXTRA_RESET);
   key_read=0;					// Reset to state after open
   return 0;
 }
@@ -1986,11 +1987,8 @@ double ha_berkeley::scan_time()
   return rows2double(records/3);
 }
 
-ha_rows ha_berkeley::records_in_range(int keynr,
-				      const byte *start_key,uint start_key_len,
-				      enum ha_rkey_function start_search_flag,
-				      const byte *end_key,uint end_key_len,
-				      enum ha_rkey_function end_search_flag)
+ha_rows ha_berkeley::records_in_range(uint keynr, key_range *start_key,
+                                      key_range *end_key)
 {
   DBT key;
   DB_KEY_RANGE start_range, end_range;
@@ -1999,25 +1997,27 @@ ha_rows ha_berkeley::records_in_range(int keynr,
   DBUG_ENTER("records_in_range");
 
   if ((start_key && kfile->key_range(kfile,transaction,
-				     pack_key(&key, keynr, key_buff, start_key,
-					      start_key_len),
-				     &start_range,0)) ||
+                                     pack_key(&key, keynr, key_buff,
+                                              start_key->key,
+                                              start_key->length),
+                                     &start_range,0)) ||
       (end_key && kfile->key_range(kfile,transaction,
-				   pack_key(&key, keynr, key_buff, end_key,
-					    end_key_len),
+				   pack_key(&key, keynr, key_buff,
+                                            end_key->key,
+                                            end_key->length),
 				   &end_range,0)))
     DBUG_RETURN(HA_BERKELEY_RANGE_COUNT); // Better than returning an error /* purecov: inspected */
 
   if (!start_key)
-    start_pos=0.0;
-  else if (start_search_flag == HA_READ_KEY_EXACT)
+    start_pos= 0.0;
+  else if (start_key->flag == HA_READ_KEY_EXACT)
     start_pos=start_range.less;
   else
     start_pos=start_range.less+start_range.equal;
 
   if (!end_key)
-    end_pos=1.0;
-  else if (end_search_flag == HA_READ_BEFORE_KEY)
+    end_pos= 1.0;
+  else if (end_key->flag == HA_READ_BEFORE_KEY)
     end_pos=end_range.less;
   else
     end_pos=end_range.less+end_range.equal;

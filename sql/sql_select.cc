@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +48,25 @@ static int sort_keyuse(KEYUSE *a,KEYUSE *b);
 static void set_position(JOIN *join,uint index,JOIN_TAB *table,KEYUSE *key);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 			       table_map used_tables);
-static void find_best_combination(JOIN *join,table_map rest_tables);
+static void choose_plan(JOIN *join,table_map join_tables);
+
+static void best_access_path(JOIN *join, JOIN_TAB *s, THD *thd,
+                             table_map remaining_tables, uint idx,
+                             double record_count, double read_time);
+static void optimize_straight_join(JOIN *join, table_map join_tables);
+static void greedy_search(JOIN *join, table_map remaining_tables,
+                             uint depth, uint prune_level);
+static void best_extension_by_limited_search(JOIN *join,
+                                             table_map remaining_tables,
+                                             uint idx, double record_count,
+                                             double read_time, uint depth,
+                                             uint prune_level);
+static uint determine_search_depth(JOIN* join);
+static int join_tab_cmp(const void* ptr1, const void* ptr2);
+/*
+  TODO: 'find_best' is here only temporarily until 'greedy_search' is
+  tested and approved.
+*/
 static void find_best(JOIN *join,table_map rest_tables,uint index,
 		      double record_count,double read_time);
 static uint cache_record_length(JOIN *join,uint index);
@@ -262,15 +280,19 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 			       ORDER *order,
 			       ORDER *group, bool *hidden_group_fields)
 {
-  bool save_allow_sum_func= thd->allow_sum_func;
+  bool save_allow_sum_func;
+  int res;
+  DBUG_ENTER("setup_without_group");
+
+  save_allow_sum_func= thd->allow_sum_func;
   thd->allow_sum_func= 0;
-  int res= (setup_conds(thd, tables, conds) ||
-	    setup_order(thd, ref_pointer_array, tables, fields, all_fields,
-			order) ||
-	    setup_group(thd, ref_pointer_array, tables, fields, all_fields,
-			group, hidden_group_fields));
+  res= (setup_conds(thd, tables, conds) ||
+        setup_order(thd, ref_pointer_array, tables, fields, all_fields,
+                    order) ||
+        setup_group(thd, ref_pointer_array, tables, fields, all_fields,
+                    group, hidden_group_fields));
   thd->allow_sum_func= save_allow_sum_func;
-  return res;
+  DBUG_RETURN(res);
 }
 
 /*****************************************************************************
@@ -279,7 +301,7 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 *****************************************************************************/
 
 /*
-  Prepare of whole select (including subselect in future).
+  Prepare of whole select (including sub queries in future).
   return -1 on error
           0 on success
 */
@@ -345,7 +367,14 @@ JOIN::prepare(Item ***rref_pointer_array,
       Item_subselect::trans_res res;
       if ((res= subselect->select_transformer(this)) !=
 	  Item_subselect::RES_OK)
+      {
+        if (thd->current_arena && select_lex->first_execution)
+        {
+          select_lex->prep_where= select_lex->where;
+          select_lex->first_execution= 0;
+        }
 	DBUG_RETURN((res == Item_subselect::RES_ERROR));
+      }
     }
   }
 
@@ -369,7 +398,7 @@ JOIN::prepare(Item ***rref_pointer_array,
       {
 	if (item->with_sum_func)
 	  flag|=1;
-	else if (!(flag & 2) && !item->const_item())
+	else if (!(flag & 2) && !item->const_during_execution())
 	  flag|=2;
       }
       if (flag == 3)
@@ -440,7 +469,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     goto err;
   }
 #endif
-  if (!procedure && result->prepare(fields_list, unit_arg))
+  if (!procedure && result && result->prepare(fields_list, unit_arg))
     goto err;					/* purecov: inspected */
 
   if (select_lex->olap == ROLLUP_TYPE && rollup_init())
@@ -448,6 +477,11 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (alloc_func_list())
     goto err;
 
+  if (thd->current_arena && select_lex->first_execution)
+  {
+    select_lex->prep_where= select_lex->where;
+    select_lex->first_execution= 0;
+  }
   DBUG_RETURN(0); // All OK
 
 err:
@@ -667,7 +701,6 @@ JOIN::optimize()
     if (!order && org_order)
       skip_sort_order= 1;
   }
-  order= remove_const(this, order, conds, &simple_order);
   if (group_list || tmp_table_param.sum_func_count)
   {
     if (! hidden_group_fields)
@@ -1052,6 +1085,13 @@ JOIN::reinit()
   if (tmp_join)
     restore_tmp();
 
+  if (sum_funcs)
+  {
+    Item_sum *func, **func_ptr= sum_funcs;
+    while ((func= *(func_ptr++)))
+      func->clear();
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -1116,8 +1156,7 @@ JOIN::exec()
   if (zero_result_cause)
   {
     (void) return_zero_rows(this, result, tables_list, fields_list,
-			    tmp_table_param.sum_func_count != 0 &&
-			    !group_list,
+			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
 			    having, procedure,
@@ -1576,8 +1615,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
       if (select_lex->linkage != GLOBAL_OPTIONS_TYPE)
       {
 	//here is EXPLAIN of subselect or derived table
-	join->result= result;
-	if (!join->procedure && result->prepare(join->fields_list, unit))
+	if (join->change_result(result))
 	{
 	  DBUG_RETURN(-1);
 	}
@@ -1992,7 +2030,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   if (join->const_tables != join->tables)
   {
     optimize_keyuse(join, keyuse_array);
-    find_best_combination(join,all_table_map & ~join->const_table_map);
+    choose_plan(join, all_table_map & ~join->const_table_map);
   }
   else
   {
@@ -2569,7 +2607,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 }
 
 /*
-  Update some values in keyuse for faster find_best_combination() loop
+  Update some values in keyuse for faster choose_plan() loop
 */
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
@@ -2637,16 +2675,952 @@ set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
 }
 
 
+/*
+  Find the best access path for an extension of a partial execution plan and
+  add this path to the plan.
+
+  SYNOPSIS
+    best_access_path()
+    join             pointer to the structure providing all context info
+                     for the query
+    s                the table to be joined by the function
+    thd              thread for the connection that submitted the query
+    remaining_tables set of tables not included into the partial plan yet
+    idx              the length of the partial plan
+    record_count     estimate for the number of records returned by the partial
+                     plan
+    read_time        the cost of the partial plan
+
+  DESCRIPTION
+    The function finds the best access path to table 's' from the passed
+    partial plan where an access path is the general term for any means to
+    access the data in 's'. An access path may use either an index or a scan,
+    whichever is cheaper. The input partial plan is passed via the array
+    'join->positions' of length 'idx'. The chosen access method for 's' and its
+    cost are stored in 'join->positions[idx]'.
+
+  RETURN
+    None
+*/
+
 static void
-find_best_combination(JOIN *join, table_map rest_tables)
+best_access_path(JOIN      *join,
+                 JOIN_TAB  *s,
+                 THD       *thd,
+                 table_map remaining_tables,
+                 uint      idx,
+                 double    record_count,
+                 double    read_time)
 {
-  DBUG_ENTER("find_best_combination");
-  join->best_read=DBL_MAX;
-  find_best(join,rest_tables, join->const_tables,1.0,0.0);
+  KEYUSE *best_key=         0;
+  uint best_max_key_part=   0;
+  my_bool found_constraint= 0;
+  double best=              DBL_MAX;
+  double best_time=         DBL_MAX;
+  double records=           DBL_MAX;
+  double tmp;
+  ha_rows rec;
+
+  DBUG_ENTER("best_access_path");
+
+  if (s->keyuse)
+  {                                            /* Use key if possible */
+    TABLE *table= s->table;
+    KEYUSE *keyuse,*start_key=0;
+    double best_records= DBL_MAX;
+    uint max_key_part=0;
+
+    /* Test how we can use keys */
+    rec= s->records/MATCHING_ROWS_IN_OTHER_TABLE;  // Assumed records/key
+    for (keyuse=s->keyuse ; keyuse->table == table ;)
+    {
+      key_part_map found_part= 0;
+      table_map found_ref=     0;
+      uint found_ref_or_null=  0;
+      uint key=     keyuse->key;
+      KEY *keyinfo= table->key_info+key;
+      bool ft_key=  (keyuse->keypart == FT_KEYPART);
+
+      /* Calculate how many key segments of the current key we can use */
+      start_key= keyuse;
+      do
+      { /* for each keypart */
+        uint keypart= keyuse->keypart;
+        uint found_part_ref_or_null= KEY_OPTIMIZE_REF_OR_NULL;
+        do
+        {
+          if (!(remaining_tables & keyuse->used_tables) &&
+              !(found_ref_or_null & keyuse->optimize))
+          {
+            found_part|= keyuse->keypart_map;
+            found_ref|=  keyuse->used_tables;
+            if (rec > keyuse->ref_table_rows)
+              rec= keyuse->ref_table_rows;
+            found_part_ref_or_null&= keyuse->optimize;
+          }
+          keyuse++;
+          found_ref_or_null|= found_part_ref_or_null;
+        } while (keyuse->table == table && keyuse->key == key &&
+                 keyuse->keypart == keypart);
+      } while (keyuse->table == table && keyuse->key == key);
+
+      /*
+        Assume that that each key matches a proportional part of table.
+      */
+      if (!found_part && !ft_key)
+        continue;                               // Nothing usable found
+
+      if (rec < MATCHING_ROWS_IN_OTHER_TABLE)
+        rec= MATCHING_ROWS_IN_OTHER_TABLE;      // Fix for small tables
+
+      /*
+        ft-keys require special treatment
+      */
+      if (ft_key)
+      {
+        /*
+          Really, there should be records=0.0 (yes!)
+          but 1.0 would be probably safer
+        */
+        tmp= prev_record_reads(join, found_ref);
+        records= 1.0;
+      }
+      else
+      {
+        found_constraint= 1;
+        /*
+          Check if we found full key
+        */
+        if (found_part == PREV_BITS(uint,keyinfo->key_parts) &&
+            !found_ref_or_null)
+        {                                         /* use eq key */
+          max_key_part= (uint) ~0;
+          if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
+          {
+            tmp = prev_record_reads(join, found_ref);
+            records=1.0;
+          }
+          else
+          {
+            if (!found_ref)
+            {                                     /* We found a const key */
+              if (table->quick_keys.is_set(key))
+                records= (double) table->quick_rows[key];
+              else
+              {
+                /* quick_range couldn't use key! */
+                records= (double) s->records/rec;
+              }
+            }
+            else
+            {
+              if (!(records=keyinfo->rec_per_key[keyinfo->key_parts-1]))
+              {                                   /* Prefer longer keys */
+                records=
+                  ((double) s->records / (double) rec *
+                   (1.0 +
+                    ((double) (table->max_key_length-keyinfo->key_length) /
+                     (double) table->max_key_length)));
+                if (records < 2.0)
+                  records=2.0;               /* Can't be as good as a unique */
+              }
+            }
+            /* Limit the number of matched rows */
+            tmp = records;
+            set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
+            if (table->used_keys.is_set(key))
+            {
+              /* we can use only index tree */
+              uint keys_per_block= table->file->block_size/2/
+                (keyinfo->key_length+table->file->ref_length)+1;
+              tmp = record_count*(tmp+keys_per_block-1)/keys_per_block;
+            }
+            else
+              tmp = record_count*min(tmp,s->worst_seeks);
+          }
+        }
+        else
+        {
+          /*
+            Use as much key-parts as possible and a uniq key is better
+            than a not unique key
+            Set tmp to (previous record count) * (records / combination)
+          */
+          if ((found_part & 1) &&
+              (!(table->file->index_flags(key) & HA_ONLY_WHOLE_INDEX) ||
+               found_part == PREV_BITS(uint,keyinfo->key_parts)))
+          {
+            max_key_part=max_part_bit(found_part);
+            /*
+              Check if quick_range could determinate how many rows we
+              will match
+            */
+            if (table->quick_keys.is_set(key) &&
+                table->quick_key_parts[key] == max_key_part)
+              tmp= records= (double) table->quick_rows[key];
+            else
+            {
+              /* Check if we have statistic about the distribution */
+              if ((records = keyinfo->rec_per_key[max_key_part-1]))
+                tmp = records;
+              else
+              {
+                /*
+                  Assume that the first key part matches 1% of the file
+                  and that the hole key matches 10 (duplicates) or 1
+                  (unique) records.
+                  Assume also that more key matches proportionally more
+                  records
+                  This gives the formula:
+                  records = (x * (b-a) + a*c-b)/(c-1)
+
+                  b = records matched by whole key
+                  a = records matched by first key part (10% of all records?)
+                  c = number of key parts in key
+                  x = used key parts (1 <= x <= c)
+                */
+                double rec_per_key;
+                if (!(rec_per_key=(double)
+                      keyinfo->rec_per_key[keyinfo->key_parts-1]))
+                  rec_per_key=(double) s->records/rec+1;
+
+                if (!s->records)
+                  tmp = 0;
+                else if (rec_per_key/(double) s->records >= 0.01)
+                  tmp = rec_per_key;
+                else
+                {
+                  double a=s->records*0.01;
+                  tmp = (max_key_part * (rec_per_key - a) +
+                         a*keyinfo->key_parts - rec_per_key)/
+                    (keyinfo->key_parts-1);
+                  set_if_bigger(tmp,1.0);
+                }
+                records = (ulong) tmp;
+              }
+              /*
+                If quick_select was used on a part of this key, we know
+                the maximum number of rows that the key can match.
+              */
+              if (table->quick_keys.is_set(key) &&
+                  table->quick_key_parts[key] <= max_key_part &&
+                  records > (double) table->quick_rows[key])
+                tmp= records= (double) table->quick_rows[key];
+              else if (found_ref_or_null)
+              {
+                /* We need to do two key searches to find key */
+                tmp *= 2.0;
+                records *= 2.0;
+              }
+            }
+            /* Limit the number of matched rows */
+            set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
+            if (table->used_keys.is_set(key))
+            {
+              /* we can use only index tree */
+              uint keys_per_block= table->file->block_size/2/
+                (keyinfo->key_length+table->file->ref_length)+1;
+              tmp = record_count*(tmp+keys_per_block-1)/keys_per_block;
+            }
+            else
+              tmp = record_count*min(tmp,s->worst_seeks);
+          }
+          else
+            tmp = best_time;                    // Do nothing
+        }
+      } /* not ft_key */
+      if (tmp < best_time - records/(double) TIME_FOR_COMPARE)
+      {
+        best_time= tmp + records/(double) TIME_FOR_COMPARE;
+        best= tmp;
+        best_records= records;
+        best_key= start_key;
+        best_max_key_part= max_key_part;
+      }
+    }
+    records= best_records;
+  }
+
+  /*
+    Don't test table scan if it can't be better.
+    Prefer key lookup if we would use the same key for scanning.
+
+    Don't do a table scan on InnoDB tables, if we can read the used
+    parts of the row from any of the used index.
+    This is because table scans uses index and we would not win
+    anything by using a table scan.
+  */
+  if ((records >= s->found_records || best > s->read_time) &&
+      !(s->quick && best_key && s->quick->index == best_key->key &&
+        best_max_key_part >= s->table->quick_key_parts[best_key->key]) &&
+      !((s->table->file->table_flags() & HA_TABLE_SCAN_ON_INDEX) &&
+        ! s->table->used_keys.is_clear_all() && best_key) &&
+      !(s->table->force_index && best_key))
+  {                                             // Check full join
+    ha_rows rnd_records= s->found_records;
+    /*
+      If there is a restriction on the table, assume that 25% of the
+      rows can be skipped on next part.
+      This is to force tables that this table depends on before this
+      table
+    */
+    if (found_constraint)
+      rnd_records-= rnd_records/4;
+
+    /*
+      Range optimizer never proposes a RANGE if it isn't better
+      than FULL: so if RANGE is present, it's always preferred to FULL.
+      Here we estimate its cost.
+    */
+    if (s->quick)
+    {
+      /*
+        For each record we:
+        - read record range through 'quick'
+        - skip rows which does not satisfy WHERE constraints
+      */
+      tmp= record_count *
+        (s->quick->read_time +
+         (s->found_records - rnd_records)/(double) TIME_FOR_COMPARE);
+    }
+    else
+    {
+      /* Estimate cost of reading table. */
+      tmp= s->table->file->scan_time();
+      if (s->on_expr)                         // Can't use join cache
+      {
+        /*
+          For each record we have to:
+          - read the whole table record 
+          - skip rows which does not satisfy join condition
+        */
+        tmp= record_count *
+          (tmp +
+           (s->records - rnd_records)/(double) TIME_FOR_COMPARE);
+      }
+      else
+      {
+        /* We read the table as many times as join buffer becomes full. */
+        tmp*= (1.0 + floor((double) cache_record_length(join,idx) *
+                           record_count /
+                           (double) thd->variables.join_buff_size));
+        /* 
+            We don't make full cartesian product between rows in the scanned
+           table and existing records because we skip all rows from the
+           scanned table, which does not satisfy join condition when 
+           we read the table (see flush_cached_records for details). Here we
+           take into account cost to read and skip these records.
+        */
+        tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
+      }
+    }
+
+    /*
+      We estimate the cost of evaluating WHERE clause for found records
+      as record_count * rnd_records / TIME_FOR_COMPARE. This cost plus
+      tmp give us total cost of using TABLE SCAN
+    */
+    if (best == DBL_MAX ||
+        (tmp  + record_count/(double) TIME_FOR_COMPARE*rnd_records <
+         best + record_count/(double) TIME_FOR_COMPARE*records))
+    {
+      /*
+        If the table has a range (s->quick is set) make_join_select()
+        will ensure that this will be used
+      */
+      best= tmp;
+      records= rows2double(rnd_records);
+      best_key= 0;
+    }
+  }
+
+  /* Update the cost information for the current partial plan */
+  join->positions[idx].records_read= records;
+  join->positions[idx].read_time=    best;
+  join->positions[idx].key=          best_key;
+  join->positions[idx].table=        s;
+
+  if (!best_key &&
+      idx == join->const_tables &&
+      s->table == join->sort_by_table &&
+      join->unit->select_limit_cnt >= records)
+    join->sort_by_table= (TABLE*) 1;  // Must use temporary table
+
   DBUG_VOID_RETURN;
 }
 
 
+/*
+  Selects and invokes a search strategy for an optimal query plan.
+
+  SYNOPSIS
+    choose_plan()
+    join        pointer to the structure providing all context info for
+                the query
+    join_tables set of the tables in the query
+
+  DESCRIPTION
+    The function checks user-configurable parameters that control the search
+    strategy for an optimal plan, selects the search method and then invokes
+    it. Each specific optimization procedure stores the final optimal plan in
+    the array 'join->best_positions', and the cost of the plan in
+    'join->best_read'.
+
+  RETURN
+    None
+*/
+
+static void
+choose_plan(JOIN *join, table_map join_tables)
+{
+  uint search_depth= join->thd->variables.optimizer_search_depth;
+  uint prune_level=  join->thd->variables.optimizer_prune_level;
+
+  DBUG_ENTER("choose_plan");
+
+  if (join->select_options & SELECT_STRAIGHT_JOIN)
+  {
+    optimize_straight_join(join, join_tables);
+  }
+  else
+  {
+    /*
+      Heuristic: pre-sort all access plans with respect to the number of
+      records accessed.
+    */
+    qsort(join->best_ref + join->const_tables, join->tables - join->const_tables,
+          sizeof(JOIN_TAB*), join_tab_cmp);
+
+    if (search_depth == MAX_TABLES+2)
+    { /*
+        TODO: 'MAX_TABLES+2' denotes the old implementation of find_best before
+        the greedy version. Will be removed when greedy_search is approved.
+      */
+      join->best_read= DBL_MAX;
+      find_best(join, join_tables, join->const_tables, 1.0, 0.0);
+    } 
+    else
+    {
+      if (search_depth == 0)
+        /* Automatically determine a reasonable value for 'search_depth' */
+        search_depth= determine_search_depth(join);
+      greedy_search(join, join_tables, search_depth, prune_level);
+    }
+  }
+
+  /* Store the cost of this query into a user variable */
+  last_query_cost= join->best_read;
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Compare two JOIN_TAB objects based on the number of accessed records.
+
+  SYNOPSIS
+    join_tab_cmp()
+    ptr1 pointer to first JOIN_TAB object
+    ptr2 pointer to second JOIN_TAB object
+
+  RETURN
+    1  if first is bigger
+    -1 if second is bigger
+    0  if equal
+*/
+
+static int
+join_tab_cmp(const void* ptr1, const void* ptr2)
+{
+  JOIN_TAB *jt1= *(JOIN_TAB**) ptr1;
+  JOIN_TAB *jt2= *(JOIN_TAB**) ptr2;
+  if (jt1->found_records > jt2->found_records)
+    return 1;
+  else if (jt1->found_records < jt2->found_records)
+    return -1;
+  else
+    return 0;
+}
+
+
+/*
+  Heuristic procedure to automatically guess a reasonable degree of
+  exhaustiveness for the greedy search procedure.
+
+  SYNOPSIS
+    determine_search_depth()
+    join   pointer to the structure providing all context info for the query
+
+  DESCRIPTION
+    The procedure estimates the optimization time and selects a search depth
+    big enough to result in a near-optimal QEP, that doesn't take too long to
+    find. If the number of tables in the query exceeds some constant, then
+    search_depth is set to this constant.
+
+  NOTES
+    This is an extremely simplistic implementation that serves as a stub for a
+    more advanced analysis of the join. Ideally the search depth should be
+    determined by learning from previous query optimizations, because it will
+    depend on the CPU power (and other factors).
+
+  RETURN
+    A positive integer that specifies the search depth (and thus the
+    exhaustiveness) of the depth-first search algorithm used by
+    'greedy_search'.
+*/
+
+static uint
+determine_search_depth(JOIN *join)
+{
+  uint table_count=  join->tables - join->const_tables;
+  uint search_depth;
+  /* TODO: this value should be determined dynamically, based on statistics: */
+  uint max_tables_for_exhaustive_opt= 7;
+
+  if (table_count <= max_tables_for_exhaustive_opt)
+    search_depth= table_count+1; // use exhaustive for small number of tables
+  else
+    /*
+      TODO: this value could be determined by some mapping of the form:
+      depth : table_count -> [max_tables_for_exhaustive_opt..MAX_EXHAUSTIVE]
+    */
+    search_depth= max_tables_for_exhaustive_opt; // use greedy search
+
+  return search_depth;
+}
+
+
+/*
+  Select the best ways to access the tables in a query without reordering them.
+
+  SYNOPSIS
+    optimize_straight_join()
+    join          pointer to the structure providing all context info for
+                  the query
+    join_tables   set of the tables in the query
+
+  DESCRIPTION
+    Find the best access paths for each query table and compute their costs
+    according to their order in the array 'join->best_ref' (thus without
+    reordering the join tables). The function calls sequentially
+    'best_access_path' for each table in the query to select the best table
+    access method. The final optimal plan is stored in the array
+    'join->best_positions', and the corresponding cost in 'join->best_read'.
+
+  NOTES
+    This function can be applied to:
+    - queries with STRAIGHT_JOIN
+    - internally to compute the cost of an arbitrary QEP
+    Thus 'optimize_straight_join' can be used at any stage of the query
+    optimization process to finalize a QEP as it is.
+
+  RETURN
+    None
+*/
+
+static void
+optimize_straight_join(JOIN *join, table_map join_tables)
+{
+  JOIN_TAB *s;
+  uint idx= join->const_tables;
+  double    record_count= 1.0;
+  double    read_time=    0.0;
+
+  for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
+  {
+    /* Find the best access method from 's' to the current partial plan */
+    best_access_path(join, s, join->thd, join_tables, idx, record_count, read_time);
+    /* compute the cost of the new plan extended with 's' */
+    record_count*= join->positions[idx].records_read;
+    read_time+=    join->positions[idx].read_time;
+    join_tables&= ~(s->table->map);
+    ++idx;
+  }
+
+  read_time+= record_count / (double) TIME_FOR_COMPARE;
+  if (join->sort_by_table &&
+      join->sort_by_table != join->positions[join->const_tables].table->table)
+    read_time+= record_count;  // We have to make a temp table
+  memcpy((gptr) join->best_positions, (gptr) join->positions,
+         sizeof(POSITION)*idx);
+  join->best_read= read_time;
+}
+
+
+/*
+  Find a good, possibly optimal, query execution plan (QEP) by a greedy search.
+
+  SYNOPSIS
+    join             pointer to the structure providing all context info
+                     for the query
+    remaining_tables set of tables not included into the partial plan yet
+    search_depth     controlls the exhaustiveness of the search
+    prune_level      the pruning heuristics that should be applied during
+                     search
+
+  DESCRIPTION
+    The search procedure uses a hybrid greedy/exhaustive search with controlled
+    exhaustiveness. The search is performed in N = card(remaining_tables)
+    steps. Each step evaluates how promising is each of the unoptimized tables,
+    selects the most promising table, and extends the current partial QEP with
+    that table.  Currenly the most 'promising' table is the one with least
+    expensive extension.
+    There are two extreme cases:
+    1. When (card(remaining_tables) < search_depth), the estimate finds the best
+       complete continuation of the partial QEP. This continuation can be
+       used directly as a result of the search.
+    2. When (search_depth == 1) the 'best_extension_by_limited_search'
+       consideres the extension of the current QEP with each of the remaining
+       unoptimized tables.
+    All other cases are in-between these two extremes. Thus the parameter
+    'search_depth' controlls the exhaustiveness of the search. The higher the
+    value, the longer the optimizaton time and possibly the better the
+    resulting plan. The lower the value, the fewer alternative plans are
+    estimated, but the more likely to get a bad QEP.
+
+    All intermediate and final results of the procedure are stored in 'join':
+    join->positions      modified for every partial QEP that is explored
+    join->best_positions modified for the current best complete QEP
+    join->best_read      modified for the current best complete QEP
+    join->best_ref       might be partially reordered
+    The final optimal plan is stored in 'join->best_positions', and its
+    corresponding cost in 'join->best_read'.
+
+  NOTES
+    The following pseudocode describes the algorithm of 'greedy_search':
+
+    procedure greedy_search
+    input: remaining_tables
+    output: pplan;
+    {
+      pplan = <>;
+      do {
+        (t, a) = best_extension(pplan, remaining_tables);
+        pplan = concat(pplan, (t, a));
+        remaining_tables = remaining_tables - t;
+      } while (remaining_tables != {})
+      return pplan;
+    }
+
+    where 'best_extension' is a placeholder for a procedure that selects the
+    most "promising" of all tables in 'remaining_tables'.
+    Currently this estimate is performed by calling
+    'best_extension_by_limited_search' to evaluate all extensions of the
+    current QEP of size 'search_depth', thus the complexity of 'greedy_search'
+    mainly depends on that of 'best_extension_by_limited_search'.
+
+    If 'best_extension()' == 'best_extension_by_limited_search()', then the
+    worst-case complexity of this algorithm is <=
+    O(N*N^search_depth/search_depth). When serch_depth >= N, then the
+    complexity of greedy_search is O(N!).
+
+    In the future, 'greedy_search' might be extended to support other
+    implementations of 'best_extension', e.g. some simpler quadratic procedure.
+
+  RETURN
+    None
+*/
+
+static void
+greedy_search(JOIN      *join,
+              table_map remaining_tables,
+              uint      search_depth,
+              uint      prune_level)
+{
+  double    record_count= 1.0;
+  double    read_time=    0.0;
+  uint      idx= join->const_tables; // index into 'join->best_ref'
+  uint      best_idx;
+  uint      rem_size;    // cardinality of remaining_tables
+  POSITION  best_pos;
+  JOIN_TAB  *best_table; // the next plan node to be added to the curr QEP
+
+  DBUG_ENTER("greedy_search");
+
+  /* number of tables that remain to be optimized */
+  rem_size= my_count_bits(remaining_tables);
+
+  do {
+    /* Find the extension of the current QEP with the lowest cost */
+    join->best_read= DBL_MAX;
+    best_extension_by_limited_search(join, remaining_tables, idx, record_count,
+                                     read_time, search_depth, prune_level);
+
+    if (rem_size <= search_depth)
+    {
+      /*
+        'join->best_positions' contains a complete optimal extension of the
+        current partial QEP.
+      */
+      DBUG_EXECUTE("opt", print_plan(join, read_time, record_count,
+                                     join->tables, "optimal"););
+      DBUG_VOID_RETURN;
+    }
+
+    /* select the first table in the optimal extension as most promising */
+    best_pos= join->best_positions[idx];
+    best_table= best_pos.table;
+    /*
+      Each subsequent loop of 'best_extension_by_limited_search' uses
+      'join->positions' for cost estimates, therefore we have to update its
+      value.
+    */
+    join->positions[idx]= best_pos;
+
+    /* find the position of 'best_table' in 'join->best_ref' */
+    best_idx= idx;
+    JOIN_TAB *pos= join->best_ref[best_idx];
+    while (pos && best_table != pos)
+      pos= join->best_ref[++best_idx];
+    DBUG_ASSERT((pos != NULL)); // should always find 'best_table'
+    /* move 'best_table' at the first free position in the array of joins */
+    swap_variables(JOIN_TAB*, join->best_ref[idx], join->best_ref[best_idx]);
+
+    /* compute the cost of the new plan extended with 'best_table' */
+    record_count*= join->positions[idx].records_read;
+    read_time+=    join->positions[idx].read_time;
+
+    remaining_tables&= ~(best_table->table->map);
+    --rem_size;
+    ++idx;
+
+    DBUG_EXECUTE("opt",
+                 print_plan(join, read_time, record_count, idx, "extended"););
+  } while (TRUE);
+}
+
+
+/*
+  Find a good, possibly optimal, query execution plan (QEP) by a possibly
+  exhaustive search.
+
+  SYNOPSIS
+    best_extension_by_limited_search()
+    join             pointer to the structure providing all context info for
+                     the query
+    remaining_tables set of tables not included into the partial plan yet
+    idx              length of the partial QEP in 'join->positions';
+                     since a depth-first search is used, also corresponds to
+                     the current depth of the search tree;
+                     also an index in the array 'join->best_ref';
+    record_count     estimate for the number of records returned by the best
+                     partial plan
+    read_time        the cost of the best partial plan
+    search_depth     maximum depth of the recursion and thus size of the found
+                     optimal plan (0 < search_depth <= join->tables+1).
+    prune_level      pruning heuristics that should be applied during optimization
+                     (values: 0 = EXHAUSTIVE, 1 = PRUNE_BY_TIME_OR_ROWS)
+
+  DESCRIPTION
+    The procedure searches for the optimal ordering of the query tables in set
+    'remaining_tables' of size N, and the corresponding optimal access paths to each
+    table. The choice of a table order and an access path for each table
+    constitutes a query execution plan (QEP) that fully specifies how to
+    execute the query.
+   
+    The maximal size of the found plan is controlled by the parameter
+    'search_depth'. When search_depth == N, the resulting plan is complete and
+    can be used directly as a QEP. If search_depth < N, the found plan consists
+    of only some of the query tables. Such "partial" optimal plans are useful
+    only as input to query optimization procedures, and cannot be used directly
+    to execute a query.
+
+    The algorithm begins with an empty partial plan stored in 'join->positions'
+    and a set of N tables - 'remaining_tables'. Each step of the algorithm
+    evaluates the cost of the partial plan extended by all access plans for
+    each of the relations in 'remaining_tables', expands the current partial
+    plan with the access plan that results in lowest cost of the expanded
+    partial plan, and removes the corresponding relation from
+    'remaining_tables'. The algorithm continues until it either constructs a
+    complete optimal plan, or constructs an optimal plartial plan with size =
+    search_depth.
+
+    The final optimal plan is stored in 'join->best_positions'. The
+    corresponding cost of the optimal plan is in 'join->best_read'.
+
+  NOTES
+    The procedure uses a recursive depth-first search where the depth of the
+    recursion (and thus the exhaustiveness of the search) is controlled by the
+    parameter 'search_depth'.
+
+    The pseudocode below describes the algorithm of
+    'best_extension_by_limited_search'. The worst-case complexity of this
+    algorithm is O(N*N^search_depth/search_depth). When serch_depth >= N, then
+    the complexity of greedy_search is O(N!).
+
+    procedure best_extension_by_limited_search(
+      pplan in,             // in, partial plan of tables-joined-so-far
+      pplan_cost,           // in, cost of pplan
+      remaining_tables,     // in, set of tables not referenced in pplan
+      best_plan_so_far,     // in/out, best plan found so far
+      best_plan_so_far_cost,// in/out, cost of best_plan_so_far
+      search_depth)         // in, maximum size of the plans being considered
+    {
+      for each table T from remaining_tables
+      {
+        // Calculate the cost of using table T as above
+        cost = complex-series-of-calculations;
+
+        // Add the cost to the cost so far.
+        pplan_cost+= cost;
+
+        if (pplan_cost >= best_plan_so_far_cost)
+          // pplan_cost already too great, stop search
+          continue;
+
+        pplan= expand pplan by best_access_method;
+        remaining_tables= remaining_tables - table T;
+        if (remaining_tables is not an empty set
+            and
+            search_depth > 1)
+        {
+          best_extension_by_limited_search(pplan, pplan_cost,
+                                           remaining_tables,
+                                           best_plan_so_far,
+                                           best_plan_so_far_cost,
+                                           search_depth - 1);
+        }
+        else
+        {
+          best_plan_so_far_cost= pplan_cost;
+          best_plan_so_far= pplan;
+        }
+      }
+    }
+
+  IMPLEMENTATION
+    When 'best_extension_by_limited_search' is called for the first time,
+    'join->best_read' must be set to the largest possible value (e.g. DBL_MAX).
+    The actual implementation provides a way to optionally use pruning
+    heuristic (controlled by the parameter 'prune_level') to reduce the search
+    space by skipping some partial plans.
+    The parameter 'search_depth' provides control over the recursion
+    depth, and thus the size of the resulting optimal plan.
+
+  RETURN
+    None
+*/
+
+static void
+best_extension_by_limited_search(JOIN      *join,
+                                 table_map remaining_tables,
+                                 uint      idx,
+                                 double    record_count,
+                                 double    read_time,
+                                 uint      search_depth,
+                                 uint      prune_level)
+{
+  THD *thd= join->thd;
+  if (thd->killed)  // Abort
+    return;
+
+  DBUG_ENTER("best_extension_by_limited_search");
+
+  /* 
+     'join' is a partial plan with lower cost than the best plan so far,
+     so continue expanding it further with the tables in 'remaining_tables'.
+  */
+  JOIN_TAB *s;
+  double best_record_count= DBL_MAX;
+  double best_read_time=    DBL_MAX;
+
+  DBUG_EXECUTE("opt",
+               print_plan(join, read_time, record_count, idx, "part_plan"););
+
+  for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
+  {
+    table_map real_table_bit= s->table->map;
+    if ((remaining_tables & real_table_bit) && !(remaining_tables & s->dependent))
+    {
+      double current_record_count, current_read_time;
+
+      /* Find the best access method from 's' to the current partial plan */
+      best_access_path(join, s, thd, remaining_tables, idx, record_count, read_time);
+      /* Compute the cost of extending the plan with 's' */
+      current_record_count= record_count * join->positions[idx].records_read;
+      current_read_time=    read_time + join->positions[idx].read_time;
+
+      /* Expand only partial plans with lower cost than the best QEP so far */
+      if ((current_read_time +
+           current_record_count / (double) TIME_FOR_COMPARE) >= join->best_read)
+      {
+        DBUG_EXECUTE("opt", print_plan(join, read_time, record_count, idx,
+                                       "prune_by_cost"););
+        continue;
+      }
+
+      /*
+        Prune some less promising partial plans. This heuristic may miss
+        the optimal QEPs, thus it results in a non-exhaustive search.
+      */
+      if (prune_level == 1)
+      {
+        if (best_record_count > current_record_count ||
+            best_read_time > current_read_time ||
+            idx == join->const_tables &&  // 's' is the first table in the QEP
+            s->table == join->sort_by_table)
+        {
+          if (best_record_count >= current_record_count &&
+              best_read_time >= current_read_time &&
+              /* TODO: What is the reasoning behind this condition? */
+              (!(s->key_dependent & remaining_tables) ||
+               join->positions[idx].records_read < 2.0))
+          {
+            best_record_count= current_record_count;
+            best_read_time=    current_read_time;
+          }
+        }
+        else
+        {
+          DBUG_EXECUTE("opt", print_plan(join, read_time, record_count, idx,
+                                         "pruned_by_heuristic"););
+          continue;
+        }
+      }
+
+      if ( (search_depth > 1) && (remaining_tables & ~real_table_bit) )
+      { /* Recursively expand the current partial plan */
+        swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+        best_extension_by_limited_search(join,
+                                         remaining_tables & ~real_table_bit,
+                                         idx + 1,
+                                         current_record_count,
+                                         current_read_time,
+                                         search_depth - 1,
+                                         prune_level);
+        if (thd->killed)
+          DBUG_VOID_RETURN;
+        swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+      }
+      else
+      { /*
+          'join' is either the best partial QEP with 'search_depth' relations,
+          or the best complete QEP so far, whichever is smaller.
+        */
+        current_read_time+= current_record_count / (double) TIME_FOR_COMPARE;
+        if (join->sort_by_table &&
+            join->sort_by_table != join->positions[join->const_tables].table->table)
+          /* We have to make a temp table */
+          current_read_time+= current_record_count;
+        if ((search_depth == 1) || (current_read_time < join->best_read))
+        {
+          memcpy((gptr) join->best_positions, (gptr) join->positions,
+                 sizeof(POSITION) * (idx + 1));
+          join->best_read= current_read_time;
+        }
+        DBUG_EXECUTE("opt",
+                     print_plan(join, current_read_time, current_record_count, idx, "full_plan"););
+      }
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  TODO: this function is here only temporarily until 'greedy_search' is
+  tested and accepted.
+*/
 static void
 find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  double read_time)
@@ -2654,8 +3628,6 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
   ha_rows rec;
   double tmp;
   THD *thd= join->thd;
-  if (thd->killed)				// Abort
-    return;
 
   if (!rest_tables)
   {
@@ -3039,12 +4011,12 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  best_record_count=current_record_count;
 	  best_read_time=current_read_time;
 	}
-	swap(JOIN_TAB*,join->best_ref[idx],*pos);
+	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
 	find_best(join,rest_tables & ~real_table_bit,idx+1,
 		  current_record_count,current_read_time);
         if (thd->killed)
           return;
-	swap(JOIN_TAB*,join->best_ref[idx],*pos);
+	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
       }
       if (join->select_options & SELECT_STRAIGHT_JOIN)
 	break;				// Don't test all combinations
@@ -3631,6 +4603,12 @@ make_join_readinfo(JOIN *join, uint options)
       table->status=STATUS_NO_RECORD;
       tab->read_first_record= join_read_const;
       tab->read_record.read_record= join_no_more_records;
+      if (table->used_keys.is_set(tab->ref.key) &&
+          !table->no_keyread)
+      {
+        table->key_read=1;
+        table->file->extra(HA_EXTRA_KEYREAD);
+      }
       break;
     case JT_EQ_REF:
       table->status=STATUS_NO_RECORD;
@@ -3747,7 +4725,8 @@ make_join_readinfo(JOIN *join, uint options)
 	    table->key_read=1;
 	    table->file->extra(HA_EXTRA_KEYREAD);
 	  }
-	  else if (!table->used_keys.is_clear_all() && ! (tab->select && tab->select->quick))
+	  else if (!table->used_keys.is_clear_all() &&
+		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
 	    tab->index=find_shortest_key(table, & table->used_keys);
 	    tab->table->file->index_init(tab->index);
@@ -4116,11 +5095,6 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
     DBUG_RETURN(0);
   }
 
-  if (procedure)
-  {
-    if (result->prepare(fields, unit))		// This hasn't been done yet
-      DBUG_RETURN(-1);
-  }
   if (send_row)
   {
     for (TABLE_LIST *table=tables; table ; table=table->next)
@@ -4902,6 +5876,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   else // if we run out of slots or we are not using tempool
     sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
             thd->thread_id, thd->tmp_table++);
+  
+  if (lower_case_table_names)
+    my_casedn_str(files_charset_info, path);
 
   if (group)
   {
@@ -5540,6 +6517,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
     goto err2;
   if (open_tmp_table(&new_table))
     goto err1;
+  if (table->file->indexes_are_disabled())
+    new_table.file->disable_indexes(HA_KEY_SWITCH_ALL);
   table->file->index_end();
   table->file->rnd_init();
   if (table->no_rows)
@@ -5668,6 +6647,8 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       if (!(error=(*end_select)(join,join_tab,0)) || error == -3)
 	error=(*end_select)(join,join_tab,1);
     }
+    else if (join->send_row_on_empty_set())
+      error= join->result->send_data(*join->fields);
   }
   else
   {
@@ -5956,6 +6937,12 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   }
   else
   {
+    if (!table->key_read && table->used_keys.is_set(tab->ref.key) &&
+	!table->no_keyread)
+    {
+      table->key_read=1;
+      table->file->extra(HA_EXTRA_KEYREAD);
+    }
     if ((error=join_read_const(tab)))
     {
       tab->info="unique row not found";
@@ -6143,8 +7130,8 @@ join_read_prev_same(READ_RECORD *info)
 
   if ((error=table->file->index_prev(table->record[0])))
     return report_error(table, error);
-  if (key_cmp(table, tab->ref.key_buff, tab->ref.key,
-	      tab->ref.key_length))
+  if (key_cmp_if_same(table, tab->ref.key_buff, tab->ref.key,
+                      tab->ref.key_length))
   {
     table->status=STATUS_NOT_FOUND;
     error= -1;
@@ -6908,6 +7895,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
   key_part_end=key_part+table->key_info[idx].key_parts;
   key_part_map const_key_parts=table->const_key_parts[idx];
   int reverse=0;
+  DBUG_ENTER("test_if_order_by_key");
 
   for (; order ; order=order->next, const_key_parts>>=1)
   {
@@ -6918,24 +7906,23 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
       Skip key parts that are constants in the WHERE clause.
       These are already skipped in the ORDER BY by const_expression_in_where()
     */
-    while (const_key_parts & 1)
-    {
-      key_part++; const_key_parts>>=1;
-    }
+    for (; const_key_parts & 1 ; const_key_parts>>= 1)
+      key_part++; 
+
     if (key_part == key_part_end || key_part->field != field)
-      return 0;
+      DBUG_RETURN(0);
 
     /* set flag to 1 if we can use read-next on key, else to -1 */
-    flag=(order->asc == !(key_part->key_part_flag & HA_REVERSE_SORT))
-      ? 1 : -1;
+    flag= ((order->asc == !(key_part->key_part_flag & HA_REVERSE_SORT)) ? 1 : -1);
     if (reverse && flag != reverse)
-      return 0;
+      DBUG_RETURN(0);
     reverse=flag;				// Remember if reverse
     key_part++;
   }
   *used_key_parts= (uint) (key_part - table->key_info[idx].key_part);
-  return reverse;
+  DBUG_RETURN(reverse);
 }
+
 
 uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 {
@@ -6959,18 +7946,20 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 }
 
 /*
+  Test if a second key is the subkey of the first one.
+
   SYNOPSIS
     is_subkey()
-    key_part		- first key parts
-    ref_key_part	- second key parts
-    ref_key_part_end	- last+1 part of the second key
-  DESCRIPTION
-    Test if a second key is the subkey of the first one.
+    key_part		First key parts
+    ref_key_part	Second key parts
+    ref_key_part_end	Last+1 part of the second key
+
   NOTE
     Second key MUST be shorter than the first one.
+
   RETURN
-    1	- is the subkey
-    0	- otherwise
+    1	is a subkey
+    0	no sub key
 */
 
 inline bool 
@@ -6984,20 +7973,21 @@ is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
 }
 
 /*
+  Test if we can use one of the 'usable_keys' instead of 'ref' key for sorting
+
   SYNOPSIS
     test_if_subkey()
-    ref		- number of key, used for WHERE clause
-    usable_keys - keys for testing
-  DESCRIPTION
-    Test if we can use one of the 'usable_keys' instead of 'ref' key.
+    ref			Number of key, used for WHERE clause
+    usable_keys		Keys for testing
+
   RETURN
-    MAX_KEY			- if we can't use other key
-    the number of found key	- otherwise
+    MAX_KEY			If we can't use other key
+    the number of found key	Otherwise
 */
 
 static uint
 test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
-	       const key_map& usable_keys)
+	       const key_map *usable_keys)
 {
   uint nr;
   uint min_length= (uint) ~0;
@@ -7008,7 +7998,7 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
 
   for (nr= 0 ; nr < table->keys ; nr++)
   {
-    if (usable_keys.is_set(nr) &&
+    if (usable_keys->is_set(nr) &&
 	table->key_info[nr].key_length < min_length &&
 	table->key_info[nr].key_parts >= ref_key_parts &&
 	is_subkey(table->key_info[nr].key_part, ref_key_part,
@@ -7052,12 +8042,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     if ((*tmp_order->item)->type() != Item::FIELD_ITEM)
     {
       usable_keys.clear_all();
-      break;
+      DBUG_RETURN(0);
     }
-    usable_keys.intersect(
-        ((Item_field*) (*tmp_order->item))->field->part_of_sortkey);
+    usable_keys.intersect(((Item_field*) (*tmp_order->item))->
+			  field->part_of_sortkey);
     if (usable_keys.is_clear_all())
-      break;					// No usable keys
+      DBUG_RETURN(0);					// No usable keys
   }
 
   ref_key= -1;
@@ -7096,9 +8086,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	keys
       */
       if (table->used_keys.is_set(ref_key))
-	usable_keys.merge(table->used_keys);
+	usable_keys.intersect(table->used_keys);
       if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
-				       usable_keys)) < MAX_KEY)
+				       &usable_keys)) < MAX_KEY)
       {
 	/* Found key that can be used to retrieve data in sorted order */
 	if (tab->ref.key >= 0)
@@ -7165,6 +8155,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  /* fall through */
 	}
       }
+      else if (select && select->quick)
+	  select->quick->sorted= 1;
       DBUG_RETURN(1);			/* No need to sort */
     }
   }
@@ -7306,9 +8298,9 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 	For impossible ranges (like when doing a lookup on NULL on a NOT NULL
 	field, quick will contain an empty record set.
       */
-      if (!(select->quick= tab->type == JT_FT ?
-			   new FT_SELECT(thd, table, tab->ref.key) :
-			   get_quick_select_for_ref(thd, table, &tab->ref)))
+      if (!(select->quick= (tab->type == JT_FT ?
+			    new FT_SELECT(thd, table, tab->ref.key) :
+			    get_quick_select_for_ref(thd, table, &tab->ref))))
 	goto err;
     }
   }
@@ -9112,7 +10104,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   THD *thd=join->thd;
   select_result *result=join->result;
   Item *item_null= new Item_null();
-  CHARSET_INFO *cs= &my_charset_latin1;
+  CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("select_describe");
   DBUG_PRINT("info", ("Select 0x%lx, type %s, message %s",
 		      (ulong)join->select_lex, join->select_lex->type,
@@ -9123,12 +10115,77 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
   if (message)
   {
-    item_list.push_back(new Item_int((int32) join->select_lex->select_number));
+    item_list.push_back(new Item_int((int32)
+				     join->select_lex->select_number));
     item_list.push_back(new Item_string(join->select_lex->type,
 					strlen(join->select_lex->type), cs));
     for (uint i=0 ; i < 7; i++)
       item_list.push_back(item_null);
     item_list.push_back(new Item_string(message,strlen(message),cs));
+    if (result->send_data(item_list))
+      join->error= 1;
+  }
+  else if (join->select_lex == join->unit->fake_select_lex)
+  {
+    /* 
+      here we assume that the query will return at least two rows, so we
+      show "filesort" in EXPLAIN. Of course, sometimes we'll be wrong
+      and no filesort will be actually done, but executing all selects in
+      the UNION to provide precise EXPLAIN information will hardly be
+      appreciated :)
+    */
+    char table_name_buffer[NAME_LEN];
+    item_list.empty();
+    /* id */
+    item_list.push_back(new Item_null);
+    /* select_type */
+    item_list.push_back(new Item_string(join->select_lex->type,
+					strlen(join->select_lex->type),
+					cs));
+    /* table */
+    {
+      SELECT_LEX *sl= join->unit->first_select();
+      uint len= 6, lastop= 0;
+      memcpy(table_name_buffer, "<union", 6);
+      for (; sl && len + lastop + 5 < NAME_LEN; sl= sl->next_select())
+      {
+        len+= lastop;
+        lastop= my_snprintf(table_name_buffer + len, NAME_LEN - len,
+                            "%u,", sl->select_number);
+      }
+      if (sl || len + lastop >= NAME_LEN)
+      {
+        memcpy(table_name_buffer + len, "...>", 5);
+        len+= 4;
+      }
+      else
+      {
+        len+= lastop;
+        table_name_buffer[len - 1]= '>';  // change ',' to '>'
+      }
+      item_list.push_back(new Item_string(table_name_buffer, len, cs));
+    }
+    /* type */
+    item_list.push_back(new Item_string(join_type_str[JT_ALL],
+					  strlen(join_type_str[JT_ALL]),
+					  cs));
+    /* possible_keys */
+    item_list.push_back(item_null);
+    /* key*/
+    item_list.push_back(item_null);
+    /* key_len */
+    item_list.push_back(item_null);
+    /* ref */
+    item_list.push_back(item_null);
+    /* rows */
+    item_list.push_back(item_null);
+    /* extra */
+    if (join->unit->global_parameters->order_list.first)
+      item_list.push_back(new Item_string("Using filesort",
+					  14, cs));
+    else
+      item_list.push_back(new Item_string("", 0, cs));
+
     if (result->send_data(item_list))
       join->error= 1;
   }
@@ -9142,7 +10199,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       char buff[512],*buff_ptr=buff;
       char buff1[512], buff2[512], buff3[512];
       char keylen_str_buf[64];
-      char derived_name[64];
+      char table_name_buffer[NAME_LEN];
       String tmp1(buff1,sizeof(buff1),cs);
       String tmp2(buff2,sizeof(buff2),cs);
       String tmp3(buff3,sizeof(buff3),cs);
@@ -9151,8 +10208,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       tmp3.length(0);
 
       item_list.empty();
-      item_list.push_back(new Item_int((int32)
+      /* id */
+      item_list.push_back(new Item_uint((uint32)
 				       join->select_lex->select_number));
+      /* select_type */
       item_list.push_back(new Item_string(join->select_lex->type,
 					  strlen(join->select_lex->type),
 					  cs));
@@ -9164,22 +10223,25 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         else
 	  tab->type = JT_RANGE;
       }
+      /* table */
       if (table->derived_select_number)
       {
 	/* Derived table name generation */
-	int len= my_snprintf(derived_name, sizeof(derived_name)-1,
+	int len= my_snprintf(table_name_buffer, sizeof(table_name_buffer)-1,
 			     "<derived%u>",
 			     table->derived_select_number);
-	item_list.push_back(new Item_string(derived_name, len, cs));
+	item_list.push_back(new Item_string(table_name_buffer, len, cs));
       }
       else
 	item_list.push_back(new Item_string(table->table_name,
 					    strlen(table->table_name),
 					    cs));
+      /* type */
       item_list.push_back(new Item_string(join_type_str[tab->type],
 					  strlen(join_type_str[tab->type]),
 					  cs));
       uint j;
+      /* possible_keys */
       if (!tab->keys.is_clear_all())
       {
         for (j=0 ; j < table->keys ; j++)
@@ -9188,7 +10250,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           {
             if (tmp1.length())
               tmp1.append(',');
-            tmp1.append(table->key_info[j].name);
+            tmp1.append(table->key_info[j].name, 
+			strlen(table->key_info[j].name),
+			system_charset_info);
           }
         }
       }
@@ -9196,6 +10260,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_string(tmp1.ptr(),tmp1.length(),cs));
       else
 	item_list.push_back(item_null);
+      /* key key_len ref */
       if (tab->ref.key_parts)
       {
 	KEY *key_info=table->key_info+ tab->ref.key;
@@ -9211,7 +10276,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	{
 	  if (tmp2.length())
 	    tmp2.append(',');
-	  tmp2.append((*ref)->name());
+	  tmp2.append((*ref)->name(), strlen((*ref)->name()),
+		      system_charset_info);
 	}
 	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
       }
@@ -9280,11 +10346,14 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(item_null);
 	item_list.push_back(item_null);
       }
+      /* rows */
       item_list.push_back(new Item_int((longlong) (ulonglong)
 				       join->best_positions[i]. records_read,
 				       21));
+      /* extra */
       my_bool key_read=table->key_read;
-      if (tab->type == JT_NEXT && table->used_keys.is_set(tab->index))
+      if ((tab->type == JT_NEXT || tab->type == JT_CONST) &&
+          table->used_keys.is_set(tab->index))
 	key_read=1;
 
       if (tab->info)
@@ -9346,67 +10415,57 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   DBUG_ENTER("mysql_explain_union");
   int res= 0;
   SELECT_LEX *first= unit->first_select();
+
   for (SELECT_LEX *sl= first;
        sl;
        sl= sl->next_select())
   {
     // drop UNCACHEABLE_EXPLAIN, because it is for internal usage only
     uint8 uncacheable= (sl->uncacheable & ~UNCACHEABLE_EXPLAIN);
-
-    res= mysql_explain_select(thd, sl,
-			      (((&thd->lex->select_lex)==sl)?
-			       ((thd->lex->all_selects_list != sl) ? 
-				primary_key_name : "SIMPLE"):
-			       ((sl == first)?
-				((sl->linkage == DERIVED_TABLE_TYPE) ?
-				 "DERIVED":
-				((uncacheable & UNCACHEABLE_DEPENDENT) ?
-				 "DEPENDENT SUBQUERY":
-				 (uncacheable?"UNCACHEABLE SUBQUERY":
-				   "SUBQUERY"))):
-				((uncacheable & UNCACHEABLE_DEPENDENT) ?
-				 "DEPENDENT UNION":
-				 uncacheable?"UNCACHEABLE UNION":
-				  "UNION"))),
-			      result);
-    if (res)
-      break;
-
+    sl->type= (((&thd->lex->select_lex)==sl)?
+	       ((thd->lex->all_selects_list != sl) ? 
+		primary_key_name : "SIMPLE"):
+	       ((sl == first)?
+		((sl->linkage == DERIVED_TABLE_TYPE) ?
+		 "DERIVED":
+		 ((uncacheable & UNCACHEABLE_DEPENDENT) ?
+		  "DEPENDENT SUBQUERY":
+		  (uncacheable?"UNCACHEABLE SUBQUERY":
+		   "SUBQUERY"))):
+		((uncacheable & UNCACHEABLE_DEPENDENT) ?
+		 "DEPENDENT UNION":
+		 uncacheable?"UNCACHEABLE UNION":
+		 "UNION")));
+    sl->options|= SELECT_DESCRIBE;
+  }
+  if (first->next_select())
+  {
+    unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
+    unit->fake_select_lex->type= "UNION RESULT";
+    unit->fake_select_lex->options|= SELECT_DESCRIBE;
+    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
+      res= unit->exec();
+    res|= unit->cleanup();
+  }
+  else
+  {
+    thd->lex->current_select= first;
+    unit->set_limit(unit->global_parameters, first);
+    res= mysql_select(thd, &first->ref_pointer_array,
+			(TABLE_LIST*) first->table_list.first,
+			first->with_wild, first->item_list,
+			first->where,
+			first->order_list.elements +
+			first->group_list.elements,
+			(ORDER*) first->order_list.first,
+			(ORDER*) first->group_list.first,
+			first->having,
+			(ORDER*) thd->lex->proc_list.first,
+			first->options | thd->options | SELECT_DESCRIBE,
+			result, unit, first);
   }
   if (res > 0 || thd->net.report_error)
     res= -1; // mysql_explain_select do not report error
-  DBUG_RETURN(res);
-}
-
-
-int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type, 
-			 select_result *result)
-{
-  DBUG_ENTER("mysql_explain_select");
-  DBUG_PRINT("info", ("Select 0x%lx, type %s", (ulong)select_lex, type))
-  select_lex->type= type;
-  thd->lex->current_select= select_lex;
-  SELECT_LEX_UNIT *unit=  select_lex->master_unit();
-  if (select_lex == unit->global_parameters &&
-      unit->first_select()->next_select())
-  {
-    unit->offset_limit_cnt= 0;
-    unit->select_limit_cnt= HA_POS_ERROR;
-  }
-  else
-    unit->set_limit(select_lex, select_lex);
-  int res= mysql_select(thd, &select_lex->ref_pointer_array,
-			(TABLE_LIST*) select_lex->table_list.first,
-			select_lex->with_wild, select_lex->item_list,
-			select_lex->where,
-			select_lex->order_list.elements +
-			select_lex->group_list.elements,
-			(ORDER*) select_lex->order_list.first,
-			(ORDER*) select_lex->group_list.first,
-			select_lex->having,
-			(ORDER*) thd->lex->proc_list.first,
-			select_lex->options | thd->options | SELECT_DESCRIBE,
-			result, unit, select_lex);
   DBUG_RETURN(res);
 }
 
@@ -9421,23 +10480,23 @@ void st_select_lex::print(THD *thd, String *str)
   //options
   if (options & SELECT_STRAIGHT_JOIN)
     str->append("straight_join ", 14);
-  if ((thd->lex->lock_option & TL_READ_HIGH_PRIORITY) &&
+  if ((thd->lex->lock_option == TL_READ_HIGH_PRIORITY) &&
       (this == &thd->lex->select_lex))
     str->append("high_priority ", 14);
   if (options & SELECT_DISTINCT)
     str->append("distinct ", 9);
   if (options & SELECT_SMALL_RESULT)
-    str->append("small_result ", 13);
+    str->append("sql_small_result ", 17);
   if (options & SELECT_BIG_RESULT)
-    str->append("big_result ", 11);
+    str->append("sql_big_result ", 15);
   if (options & OPTION_BUFFER_RESULT)
-    str->append("buffer_result ", 14);
+    str->append("sql_buffer_result ", 18);
   if (options & OPTION_FOUND_ROWS)
-    str->append("calc_found_rows ", 16);
+    str->append("sql_calc_found_rows ", 20);
   if (!thd->lex->safe_to_cache_query)
-    str->append("no_cache ", 9);
+    str->append("sql_no_cache ", 13);
   if (options & OPTION_TO_QUERY_CACHE)
-    str->append("cache ", 6);
+    str->append("sql_cache ", 10);
 
   //Item List
   bool first= 1;
@@ -9564,4 +10623,28 @@ void st_select_lex::print(THD *thd, String *str)
   print_limit(thd, str);
 
   // PROCEDURE unsupported here
+}
+
+
+/*
+  change select_result object of JOIN
+
+  SYNOPSIS
+    JOIN::change_result()
+    res		new select_result object
+
+  RETURN
+    0 - OK
+    -1 - error
+*/
+
+int JOIN::change_result(select_result *res)
+{
+  DBUG_ENTER("JOIN::change_result");
+  result= res;
+  if (!procedure && result->prepare(fields_list, select_lex->master_unit()))
+  {
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
 }

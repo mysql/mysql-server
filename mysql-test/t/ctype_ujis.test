@@ -61,3 +61,15 @@ select @ujis2 = CONVERT(@utf82 USING ujis);
 select @ujis3 = CONVERT(@utf83 USING ujis);
 select @ujis4 = CONVERT(@utf84 USING ujis);
 
+#
+# Testing with '%' and index (Bug #3438)
+#
+
+drop table if exists t1;
+create table t1 (c1 varchar(8)) default character set 'ujis';
+insert into t1 values (0xA4A2),(0xA2A2),(0xA4A2);
+select c1 as 'no index' from t1 where c1 like cast(concat(0xA4A2, '%') as char character set ujis);
+create index idx_c1 on t1(c1);
+select c1 as 'using index' from t1 where c1 like cast(concat(0xA4A2, '%') as char character set ujis);
+select c1 as 'no index' from t1 where c1 like cast(concat('%',0xA4A2, '%') as char character set ujis);
+drop table t1;

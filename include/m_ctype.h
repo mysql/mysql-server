@@ -90,7 +90,7 @@ enum my_lex_states
   MY_LEX_CMP_OP, MY_LEX_LONG_CMP_OP, MY_LEX_STRING, MY_LEX_COMMENT, MY_LEX_END,
   MY_LEX_OPERATOR_OR_IDENT, MY_LEX_NUMBER_IDENT, MY_LEX_INT_OR_REAL,
   MY_LEX_REAL_OR_POINT, MY_LEX_BOOL, MY_LEX_EOL, MY_LEX_ESCAPE, 
-  MY_LEX_LONG_COMMENT, MY_LEX_END_LONG_COMMENT, MY_LEX_COLON, 
+  MY_LEX_LONG_COMMENT, MY_LEX_END_LONG_COMMENT, MY_LEX_SEMICOLON, 
   MY_LEX_SET_VAR, MY_LEX_USER_END, MY_LEX_HOSTNAME, MY_LEX_SKIP, 
   MY_LEX_USER_VARIABLE_DELIMITER, MY_LEX_SYSTEM_VAR,
   MY_LEX_IDENT_OR_KEYWORD,
@@ -188,7 +188,7 @@ typedef struct my_charset_handler_st
 } MY_CHARSET_HANDLER;
 
 extern MY_CHARSET_HANDLER my_charset_8bit_handler;
-
+extern MY_CHARSET_HANDLER my_charset_ucs2_handler;
 
 
 typedef struct charset_info_st
@@ -204,6 +204,7 @@ typedef struct charset_info_st
   uchar    *to_lower;
   uchar    *to_upper;
   uchar    *sort_order;
+  uint16   **sort_order_big;
   uint16      *tab_to_uni;
   MY_UNI_IDX  *tab_from_uni;
   uchar state_map[256];

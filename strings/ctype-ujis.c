@@ -8474,7 +8474,9 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
     sort_order_ujis,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    NULL,		/* sort_order_big*/
+    "",
+    "",
     1,			/* strxfrm_multiply */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
@@ -8498,7 +8500,9 @@ CHARSET_INFO my_charset_ujis_bin=
     sort_order_ujis,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    NULL,		/* sort_order_big*/
+    "",
+    "",
     1,			/* strxfrm_multiply */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */

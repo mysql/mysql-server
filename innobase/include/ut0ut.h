@@ -17,51 +17,6 @@ Created 1/20/1994 Heikki Tuuri
 
 typedef time_t	ib_time_t;
 
-
-/************************************************************
-On the 64-bit Windows we substitute the format string
-%l -> %I64
-because we define ulint as unsigned __int64 and lint as __int64 on Windows,
-and both the Microsoft and Intel C compilers require the format string
-%I64 in that case instead of %l. */
-
-int
-ut_printf(
-/*======*/
-			     /* out: the number of characters written, or
-			     negative in case of an error */
-        const char* format,  /* in: format of prints */
-        ...);                /* in: arguments to be printed */
-/************************************************************
-On the 64-bit Windows we substitute the format string
-%l -> %I64
-because we define ulint as unsigned __int64 and lint as __int64 on Windows,
-and both the Microsoft and Intel C compilers require the format string
-%I64 in that case instead of %l. */
-
-int
-ut_sprintf(
-/*=======*/
-			     /* out: the number of characters written, or
-			     negative in case of an error */
-	char*	    buf,     /* in: buffer where to print */
-        const char* format,  /* in: format of prints */
-        ...);                /* in: arguments to be printed */
-/************************************************************
-On the 64-bit Windows we substitute the format string
-%l -> %I64
-because we define ulint as unsigned __int64 and lint as __int64 on Windows,
-and both the Microsoft and Intel C compilers require the format string
-%I64 in that case instead of %l. */
-
-int
-ut_fprintf(
-/*=======*/
-			     /* out: the number of characters written, or
-			     negative in case of an error */
-	FILE*	    stream,  /* in: stream where to print */
-        const char* format,  /* in: format of prints */
-        ...);                /* in: arguments to be printed */
 /************************************************************
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
 but since there seem to be compiler bugs in both gcc and Visual C++,
@@ -200,7 +155,7 @@ ut_print_timestamp(
 /*===============*/
 	FILE*  file); /* in: file where to print */
 /**************************************************************
-Sprintfs a timestamp to a buffer. */
+Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
 
 void
 ut_sprintf_timestamp(
@@ -238,19 +193,37 @@ Prints the contents of a memory buffer in hex and ascii. */
 void
 ut_print_buf(
 /*=========*/
-	byte*	buf,    /* in: memory buffer */
-	ulint	len);   /* in: length of the buffer */
-/*****************************************************************
-Prints the contents of a memory buffer in hex and ascii. */
+	FILE*		file,	/* in: file where to print */
+	const byte*	buf,	/* in: memory buffer */
+	ulint		len);	/* in: length of the buffer */
 
-ulint
-ut_sprintf_buf(
-/*===========*/
-			/* out: printed length in bytes */
-	char*	str,	/* in: buffer to print to */
-	byte*	buf,	/* in: memory buffer */
-	ulint 	len);	/* in: length of the buffer */
+/**************************************************************************
+Outputs a NUL-terminated string, quoted as an SQL identifier. */
 
+void
+ut_print_name(
+/*==========*/
+	FILE*		f,	/* in: output stream */
+	const char*	name);	/* in: name to print */
+
+/**************************************************************************
+Outputs a fixed-length string, quoted as an SQL identifier. */
+
+void
+ut_print_namel(
+/*==========*/
+	FILE*		f,	/* in: output stream */
+	const char*	name,	/* in: name to print */
+	ulint		namelen);/* in: length of name */
+
+/**************************************************************************
+Catenate files. */
+
+void
+ut_copy_file(
+/*=========*/
+	FILE*	dest,	/* in: output file */
+	FILE*	src);	/* in: input file to be appended to output */
 
 #ifndef UNIV_NONINL
 #include "ut0ut.ic"

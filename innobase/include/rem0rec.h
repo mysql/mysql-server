@@ -390,16 +390,7 @@ Prints a physical record. */
 void
 rec_print(
 /*======*/
-	rec_t*	rec);	/* in: physical record */
-/*******************************************************************
-Prints a physical record to a buffer. */
-
-ulint
-rec_sprintf(
-/*========*/
-			/* out: printed length in bytes */
-	char*	buf,	/* in: buffer to print to */
-	ulint	buf_len,/* in: buffer length */
+	FILE*	file,	/* in: file where to print */
 	rec_t*	rec);	/* in: physical record */
 
 #define REC_INFO_BITS		6	/* This is single byte bit-field */

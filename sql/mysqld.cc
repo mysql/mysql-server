@@ -22,6 +22,7 @@
 #include "sql_repl.h"
 #include "repl_failsafe.h"
 #include "stacktrace.h"
+#include "mysqld_suffix.h"
 #include "mysys_err.h"
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
@@ -32,6 +33,9 @@
 #include "ha_myisam.h"
 #ifdef HAVE_ISAM
 #include "ha_isam.h"
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+#include "ha_ndbcluster.h"
 #endif
 #include <nisam.h>
 #include <thr_alarm.h>
@@ -137,10 +141,27 @@ int deny_severity = LOG_WARNING;
 #include <nks/vm.h>
 #include <library.h>
 #include <monitor.h>
+#include <zOmni.h>                              //For NEB
+#include <neb.h>                                //For NEB
+#include <nebpub.h>                             //For NEB
+#include <zEvent.h>                             //For NSS event structures
+#include <zPublics.h>
 
+static void *neb_consumer_id= NULL;             //For storing NEB consumer id
+static char datavolname[256]= {0};
+static VolumeID_t datavolid;
 static event_handle_t eh;
 static Report_t ref;
+static void *refneb= NULL;
+static int volumeid= -1;
+
+  /* NEB event callback */
+unsigned long neb_event_callback(struct EventBlock *eblock);
+static void registerwithneb();
+static void getvolumename();
+static void getvolumeID(BYTE *volumeName);
 #endif /* __NETWARE__ */
+  
 
 #ifdef _AIX41
 int initgroups(const char *,unsigned int);
@@ -190,22 +211,6 @@ inline void reset_floating_point_exceptions()
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
 #endif
-
-/* Set prefix for windows binary */
-#ifdef __WIN__
-#undef MYSQL_SERVER_SUFFIX
-#ifdef __NT__
-#if defined(HAVE_BERKELEY_DB)
-#define MYSQL_SERVER_SUFFIX "-max-nt"
-#else
-#define MYSQL_SERVER_SUFFIX "-nt"
-#endif /* ...DB */
-#elif defined(HAVE_BERKELEY_DB)
-#define MYSQL_SERVER_SUFFIX "-max"
-#else
-#define MYSQL_SERVER_SUFFIX ""
-#endif /* __NT__ */
-#endif /* __WIN__ */
 
 
 /* Constants */
@@ -264,7 +269,7 @@ my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
-my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
+my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam, opt_ndbcluster;
 my_bool opt_readonly, use_temp_pool, relay_log_purge;
 my_bool opt_sync_bdb_logs, opt_sync_frm;
 my_bool opt_secure_auth= 0;
@@ -309,6 +314,7 @@ ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
 ulong my_bind_addr;			/* the address we bind to */
 volatile ulong cached_thread_count= 0;
+double last_query_cost= -1; /* -1 denotes that no query was compiled yet */
 
 double log_10[32];			/* 10 potences */
 ulonglong log_10_int[20]=
@@ -329,13 +335,13 @@ char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file,
      *opt_init_connect, *opt_init_slave,
-     opt_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+     def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 
 const char *opt_date_time_formats[3];
 
 char *language_ptr, *default_collation_name, *default_character_set_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
-char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
+char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 char *my_bind_addr_str;
 const char **errmesg;			/* Error messages */
@@ -373,7 +379,8 @@ KEY_CACHE *sql_key_cache;
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 
-SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam;
+SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, 
+ have_ndbcluster, have_example_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_crypt, have_compress;
 
@@ -488,6 +495,7 @@ static void start_signal_handler(void);
 extern "C" pthread_handler_decl(signal_hand, arg);
 static void mysql_init_variables(void);
 static void get_options(int argc,char **argv);
+static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static void fix_paths(void);
@@ -1453,6 +1461,7 @@ static void start_signal_handler(void)
 static void check_data_home(const char *path)
 {}
 
+
 #elif defined(__NETWARE__)
 
 // down server event callback
@@ -1461,26 +1470,195 @@ void mysql_down_server_cb(void *, void *)
   kill_server(0);
 }
 
+
 // destroy callback resources
 void mysql_cb_destroy(void *)
 {
   UnRegisterEventNotification(eh);  // cleanup down event notification
   NX_UNWRAP_INTERFACE(ref);
+
+  /* Deregister NSS volume deactivation event */
+  NX_UNWRAP_INTERFACE(refneb);
+  if (neb_consumer_id)
+    UnRegisterConsumer(neb_consumer_id, NULL);	
 }
+
 
 // initialize callbacks
 void mysql_cb_init()
 {
   // register for down server event
   void *handle = getnlmhandle();
-  rtag_t rt = AllocateResourceTag(handle, "MySQL Down Server Callback",
-                                  EventSignature);
+  rtag_t rt= AllocateResourceTag(handle, "MySQL Down Server Callback",
+                                 EventSignature);
   NX_WRAP_INTERFACE((void *)mysql_down_server_cb, 2, (void **)&ref);
-  eh = RegisterForEventNotification(rt, EVENT_DOWN_SERVER,
-                                    EVENT_PRIORITY_APPLICATION,
-                                    NULL, ref, NULL);
+  eh= RegisterForEventNotification(rt, EVENT_PRE_DOWN_SERVER,
+                                   EVENT_PRIORITY_APPLICATION,
+                                   NULL, ref, NULL);
+
+  /*
+    Register for volume deactivation event
+    Wrap the callback function, as it is called by non-LibC thread
+  */
+  (void)NX_WRAP_INTERFACE(neb_event_callback, 1, &refneb);
+  registerwithneb();
+
   NXVmRegisterExitHandler(mysql_cb_destroy, NULL);  // clean-up
 }
+
+
+/ *To get the name of the NetWare volume having MySQL data folder */
+
+static void getvolumename()
+{
+  char *p;
+  /*
+    We assume that data path is already set.
+    If not it won't come here. Terminate after volume name
+  */
+  if ((p= strchr(mysql_real_data_home, ':')))
+    strmake(datavolname, mysql_real_data_home,
+            (uint) (p - mysql_real_data_home));
+}
+
+
+/*
+  Registering with NEB for NSS Volume Deactivation event
+*/
+
+static void registerwithneb()
+{
+
+  ConsumerRegistrationInfo reg_info;
+    
+  /* Clear NEB registration structure */
+  bzero((char*) &reg_info, sizeof(struct ConsumerRegistrationInfo));
+
+  /* Fill the NEB consumer information structure */
+  reg_info.CRIVersion= 1;  	            // NEB version
+  /* NEB Consumer name */
+  reg_info.CRIConsumerName= (BYTE *) "MySQL Database Server";
+  /* Event of interest */
+  reg_info.CRIEventName= (BYTE *) "NSS.ChangeVolState.Enter";
+  reg_info.CRIUserParameter= NULL;	    // Consumer Info
+  reg_info.CRIEventFlags= 0;	            // Event flags
+  /* Consumer NLM handle */
+  reg_info.CRIOwnerID= (LoadDefinitionStructure *)getnlmhandle();
+  reg_info.CRIConsumerESR= NULL;	    // No consumer ESR required
+  reg_info.CRISecurityToken= 0;	            // No security token for the event
+  reg_info.CRIConsumerFlags= 0;             // SMP_ENABLED_BIT;	
+  reg_info.CRIFilterName= 0;	            // No event filtering
+  reg_info.CRIFilterDataLength= 0;          // No filtering data
+  reg_info.CRIFilterData= 0;	            // No filtering data
+  /* Callback function for the event */
+  (void *)reg_info.CRIConsumerCallback= (void *) refneb;
+  reg_info.CRIOrder= 0;	                    // Event callback order
+  reg_info.CRIConsumerType= CHECK_CONSUMER; // Consumer type
+
+  /* Register for the event with NEB */
+  if (RegisterConsumer(&reg_info))
+  {
+    consoleprintf("Failed to register for NSS Volume Deactivation event \n");
+    return;
+  }
+  /* This ID is required for deregistration */
+  neb_consumer_id= reg_info.CRIConsumerID;
+
+  /* Get MySQL data volume name, stored in global variable datavolname */
+  getvolumename();
+
+  /*
+    Get the NSS volume ID of the MySQL Data volume.
+    Volume ID is stored in a global variable
+  */
+  getvolumeID((BYTE*) datavolname);	
+}
+
+
+/*
+  Callback for NSS Volume Deactivation event
+*/
+ulong neb_event_callback(struct EventBlock *eblock)
+{
+  EventChangeVolStateEnter_s *voldata;
+  voldata= (EventChangeVolStateEnter_s *)eblock->EBEventData;
+
+  /* Deactivation of a volume */
+  if ((voldata->oldState == 6 && voldata->newState == 2))
+  {
+    /*
+      Ensure that we bring down MySQL server only for MySQL data
+      volume deactivation
+    */
+    if (!memcmp(&voldata->volID, &datavolid, sizeof(VolumeID_t)))
+    {
+      consoleprintf("MySQL data volume is deactivated, shutting down MySQL Server \n");
+      kill_server(0);
+    }
+  }
+  return 0;
+}
+
+
+/*
+  Function to get NSS volume ID of the MySQL data
+*/
+
+#define ADMIN_VOL_PATH					"_ADMIN:/Volumes/"
+
+staticvoid getvolumeID(BYTE *volumeName)
+{
+  char path[zMAX_FULL_NAME];
+  Key_t rootKey= 0, fileKey= 0;
+  QUAD getInfoMask;
+  zInfo_s info;
+  STATUS status;
+
+  /* Get the  root key */
+  if ((status= zRootKey(0, &rootKey)) != zOK)
+  {
+    consoleprintf("\nGetNSSVolumeProperties - Failed to get root key, status: %d\n.", (int) status);
+    goto exit;
+  }
+
+  /*
+    Get the file key. This is the key to the volume object in the
+    NSS admin volumes directory.
+  */
+
+  strxmov(path, (const char *) ADMIN_VOL_PATH, (const char *) volumeName,
+          NullS);
+  if ((status= zOpen(rootKey, zNSS_TASK, zNSPACE_LONG|zMODE_UTF8, 
+                     (BYTE *) path, zRR_READ_ACCESS, &fileKey)) != zOK)
+  {
+    consoleprintf("\nGetNSSVolumeProperties - Failed to get file, status: %d\n.", (int) status);
+    goto exit;
+  }
+
+  getInfoMask= zGET_IDS | zGET_VOLUME_INFO ;
+  if ((status= zGetInfo(fileKey, getInfoMask, sizeof(info), 
+                        zINFO_VERSION_A, &info)) != zOK)
+  {
+    consoleprintf("\nGetNSSVolumeProperties - Failed in zGetInfo, status: %d\n.", (int) status);
+    goto exit;
+  }
+
+  /* Copy the data to global variable */
+  datavolid.timeLow= info.vol.volumeID.timeLow;
+  datavolid.timeMid= info.vol.volumeID.timeMid;
+  datavolid.timeHighAndVersion= info.vol.volumeID.timeHighAndVersion;
+  datavolid.clockSeqHighAndReserved= info.vol.volumeID.clockSeqHighAndReserved;
+  datavolid.clockSeqLow= info.vol.volumeID.clockSeqLow;
+  /* This is guranteed to be 6-byte length (but sizeof() would be better) */
+  memcpy(datavolid.node, info.vol.volumeID.node, (unsigned int) 6);
+		
+exit:
+  if (rootKey)
+    zClose(rootKey);
+  if (fileKey)
+    zClose(fileKey);
+}
+
 
 static void init_signals(void)
 {
@@ -1491,6 +1669,7 @@ static void init_signals(void)
   mysql_cb_init();  // initialize callbacks
 }
 
+
 static void start_signal_handler(void)
 {
   // Save vm id of this process
@@ -1500,7 +1679,12 @@ static void start_signal_handler(void)
 }
 
 
-/*  Warn if the data is on a Traditional volume */
+/*
+  Warn if the data is on a Traditional volume
+
+  NOTE
+    Already done by mysqld_safe
+*/
 
 static void check_data_home(const char *path)
 {
@@ -1950,6 +2134,7 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
   return 0;
 }
 
+
 int STDCALL handle_kill(ulong ctrl_type)
 {
   if (ctrl_type == CTRL_CLOSE_EVENT ||
@@ -2110,18 +2295,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
   strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
-#ifndef DBUG_OFF
-  if (!*(MYSQL_SERVER_SUFFIX))
-    strmov(strend(server_version),"-debug");
-  else
-#endif
-    strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
-
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
   get_options(argc,argv);
-  if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
-    strcat(server_version,"-log");
+  set_server_version();
+
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
@@ -2376,6 +2554,17 @@ with --log-bin instead.");
 Warning: you need to use --log-bin to make --log-slave-updates work. \
 Now disabling --log-slave-updates.");
   }
+
+#ifdef HAVE_REPLICATION
+  if (opt_log_slave_updates && replicate_same_server_id)
+  {
+    sql_print_error("\
+Error: using --replicate-same-server-id in conjunction with \
+--log-slave-updates is impossible, it would lead to infinite loops in this \
+server.");
+    unireg_abort(1);
+  }
+#endif
 
   if (opt_error_log)
   {
@@ -2641,14 +2830,14 @@ You should consider changing lower_case_table_names to 1 or 2",
     switch (server_id) {
     case 1:
       sql_print_error("\
-Warning: You have enabled the binary log, but you haven't set server-id:\n\
-Updates will be logged to the binary log, but connections to slaves will\n\
-not be accepted.");
+Warning: You have enabled the binary log, but you haven't set server-id to \
+a non-zero value: we force server id to 1; updates will be logged to the \
+binary log, but connections from slaves will not be accepted.");
       break;
     case 2:
       sql_print_error("\
-Warning: You should set server-id to a non-0 value if master_host is set.\n\
-The server will not act as a slave.");
+Warning: You should set server-id to a non-0 value if master_host is set; \
+we force server id to 2, but this MySQL server will not act as a slave.");
       break;
     }
 #endif
@@ -2836,7 +3025,8 @@ default_service_handling(char **argv,
 			 const char *servicename,
 			 const char *displayname,
 			 const char *file_path,
-			 const char *extra_opt)
+			 const char *extra_opt,
+			 const char *account_name)
 {
   char path_and_service[FN_REFLEN+FN_REFLEN+32], *pos, *end;
   end= path_and_service + sizeof(path_and_service)-3;
@@ -2855,12 +3045,12 @@ default_service_handling(char **argv,
 
   if (Service.got_service_option(argv, "install"))
   {
-    Service.Install(1, servicename, displayname, path_and_service);
+    Service.Install(1, servicename, displayname, path_and_service, account_name);
     return 0;
   }
   if (Service.got_service_option(argv, "install-manual"))
   {
-    Service.Install(0, servicename, displayname, path_and_service);
+    Service.Install(0, servicename, displayname, path_and_service, account_name);
     return 0;
   }
   if (Service.got_service_option(argv, "remove"))
@@ -2895,7 +3085,7 @@ int main(int argc, char **argv)
     if (argc == 2)
     {
       if (!default_service_handling(argv, MYSQL_SERVICENAME, MYSQL_SERVICENAME,
-				   file_path, ""))
+				   file_path, "", NULL))
 	return 0;
       if (Service.IsService(argv[1]))        /* Start an optional service */
       {
@@ -2914,7 +3104,7 @@ int main(int argc, char **argv)
     }
     else if (argc == 3) /* install or remove any optional service */
     {
-      if (!default_service_handling(argv, argv[2], argv[2], file_path, ""))
+      if (!default_service_handling(argv, argv[2], argv[2], file_path, "", NULL))
 	return 0;
       if (Service.IsService(argv[2]))
       {
@@ -2932,15 +3122,39 @@ int main(int argc, char **argv)
 	return 0;
       }
     }
-    else if (argc == 4)
+    else if (argc >= 4)
     {
-      /*
-	Install an optional service with optional config file
-	mysqld --install-manual mysqldopt --defaults-file=c:\miguel\my.ini
-      */
-      if (!default_service_handling(argv, argv[2], argv[2], file_path,
-				    argv[3]))
-	return 0;
+      const char *defaults_file = "--defaults-file";
+      const char *service = "--local-service";
+      char extra_opt[FN_REFLEN] = "";  
+      char *account_name = NULL;
+      char *option;
+      int index;
+      for (index = 3; index < argc; index++)
+      {
+        option= argv[index];
+        /* 
+          Install an optional service with optional config file
+          mysqld --install-manual mysqldopt --defaults-file=c:\miguel\my.ini
+        */
+        if (strncmp(option, defaults_file, strlen(defaults_file)) == 0)
+        {
+          strmov(extra_opt, option);	  
+        }
+        else
+        /* 
+          Install an optional service as local service
+          mysqld --install-manual mysqldopt --local-service
+        */
+        if (strncmp(option, service, strlen(service)) == 0)
+        {
+          account_name=(char*)malloc(27);
+          strmov(account_name, "NT AUTHORITY\\LocalService\0");
+        }
+      }
+
+      if (!default_service_handling(argv, argv[2], argv[2], file_path, extra_opt, account_name))
+        return 0;
     }
     else if (argc == 1 && Service.IsService(MYSQL_SERVICENAME))
     {
@@ -3665,7 +3879,7 @@ enum options_mysqld
   OPT_SKIP_SLAVE_START,        OPT_SKIP_INNOBASE,
   OPT_SAFEMALLOC_MEM_LIMIT,    OPT_REPLICATE_DO_TABLE,
   OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE,
-  OPT_REPLICATE_WILD_IGNORE_TABLE,
+  OPT_REPLICATE_WILD_IGNORE_TABLE, OPT_REPLICATE_SAME_SERVER_ID,
   OPT_DISCONNECT_SLAVE_EVENT_COUNT,
   OPT_ABORT_SLAVE_EVENT_COUNT,
   OPT_INNODB_DATA_HOME_DIR,
@@ -3678,7 +3892,7 @@ enum options_mysqld
   OPT_INNODB_FAST_SHUTDOWN,
   OPT_INNODB_FILE_PER_TABLE,
   OPT_SAFE_SHOW_DB,
-  OPT_INNODB, OPT_ISAM, OPT_SKIP_SAFEMALLOC,
+  OPT_INNODB, OPT_ISAM, OPT_NDBCLUSTER, OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
@@ -3710,7 +3924,7 @@ enum options_mysqld
   OPT_MAX_SEEKS_FOR_KEY, OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
   OPT_MAX_LENGTH_FOR_SORT_DATA,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
-  OPT_MAX_ERROR_COUNT,
+  OPT_MAX_ERROR_COUNT, OPT_MYISAM_DATA_POINTER_SIZE,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
@@ -3760,7 +3974,9 @@ enum options_mysqld
   OPT_DATE_FORMAT,
   OPT_TIME_FORMAT,
   OPT_DATETIME_FORMAT,
-  OPT_LOG_QUERIES_NOT_USING_INDEXES
+  OPT_LOG_QUERIES_NOT_USING_INDEXES,
+  OPT_OPTIMIZER_SEARCH_DEPTH,
+  OPT_OPTIMIZER_PRUNE_LEVEL
 };
 
 
@@ -4140,6 +4356,15 @@ master-ssl",
   {"replicate-rewrite-db", OPT_REPLICATE_REWRITE_DB,
    "Updates to a database with a different name than the original. Example: replicate-rewrite-db=master_db_name->slave_db_name.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_REPLICATION
+  {"replicate-same-server-id", OPT_REPLICATE_SAME_SERVER_ID,
+   "In replication, if set to 1, do not skip events having our server id. \
+Default value is 0 (to break infinite loops in circular replication). \
+Can't be set to 1 if --log-slave-updates is used.",
+   (gptr*) &replicate_same_server_id,
+   (gptr*) &replicate_same_server_id,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   // In replication, we may need to tell the other servers how to connect
   {"report-host", OPT_REPORT_HOST,
    "Hostname or IP of the slave to be reported to to the master during slave registration. Will appear in the output of SHOW SLAVE HOSTS. Leave unset if you do not want the slave to register itself with the master. Note that it is not sufficient for the master to simply read the IP of the slave off the socket once the slave connects. Due to NAT and other routing issues, that IP may not be valid for connecting to the slave from the master or other hosts.",
@@ -4193,7 +4418,7 @@ relay logs.",
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"show-slave-auth-info", OPT_SHOW_SLAVE_AUTH_INFO,
-   "Show user and password in SHOW SLAVE HOSTS.",
+   "Show user and password in SHOW SLAVE HOSTS on this master",
    (gptr*) &opt_show_slave_auth_info, (gptr*) &opt_show_slave_auth_info, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"concurrent-insert", OPT_CONCURRENT_INSERT,
@@ -4211,6 +4436,10 @@ Disable with --skip-innodb (will save memory).",
   {"isam", OPT_ISAM, "Enable isam (if this version of MySQL supports it). \
 Disable with --skip-isam.",
    (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   0, 0, 0},
+  {"ndbcluster", OPT_NDBCLUSTER, "Enable NDB Cluster (if this version of MySQL supports it). \
+Disable with --skip-ndbcluster (will save memory).",
+   (gptr*) &opt_ndbcluster, (gptr*) &opt_ndbcluster, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   {"skip-locking", OPT_SKIP_LOCK,
    "Deprecated option, use --skip-external-locking instead.",
@@ -4561,6 +4790,11 @@ The minimum value for this variable is 4096.",
    (gptr*) &opt_myisam_block_size, 0, GET_ULONG, REQUIRED_ARG,
    MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH,
    0, MI_MIN_KEY_BLOCK_LENGTH, 0},
+  {"myisam_data_pointer_size", OPT_MYISAM_DATA_POINTER_SIZE,
+   "Default pointer size to be used for MyISAM tables.",
+   (gptr*) &myisam_data_pointer_size,
+   (gptr*) &myisam_data_pointer_size, 0, GET_ULONG, REQUIRED_ARG,
+   4, 2, 7, 0, 1, 0},
   {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
    "Used to help MySQL to decide when to use the slow but safe key cache index create method.",
    (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,
@@ -4607,6 +4841,16 @@ The minimum value for this variable is 4096.",
    "If this is not 0, then mysqld will use this value to reserve file descriptors to use with setrlimit(). If this value is 0 then mysqld will reserve max_connections*5 or max_connections + table_cache*2 (whichever is larger) number of files.",
    (gptr*) &open_files_limit, (gptr*) &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, OS_FILE_LIMIT, 0, 1, 0},
+  {"optimizer_prune_level", OPT_OPTIMIZER_PRUNE_LEVEL,
+   "Controls the heuristic(s) applied during query optimization to prune less-promising partial plans from the optimizer search space. Meaning: 0 - do not apply any heuristic, thus perform exhaustive search; 1 - prune plans based on number of retrieved rows.",
+   (gptr*) &global_system_variables.optimizer_prune_level,
+   (gptr*) &max_system_variables.optimizer_prune_level,
+   0, GET_ULONG, OPT_ARG, 1, 0, 1, 0, 1, 0},
+  {"optimizer_search_depth", OPT_OPTIMIZER_SEARCH_DEPTH,
+   "Maximum depth of search performed by the query optimizer. Values larger than the number of relations in a query result in better query plans, but take longer to compile a query. Smaller values than the number of tables in a relation result in faster optimization, but may produce very bad query plans. If set to 0, the system will automatically pick a reasonable value; if set to MAX_TABLES+2, the optimizer will switch to the original find_best (used for testing/comparison).",
+   (gptr*) &global_system_variables.optimizer_search_depth,
+   (gptr*) &max_system_variables.optimizer_search_depth,
+   0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
    {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
     "The size of the buffer that is allocated when preloading indexes",
     (gptr*) &global_system_variables.preload_buff_size,
@@ -4882,10 +5126,13 @@ struct show_var_st status_vars[]= {
   {"Handler_rollback",         (char*) &ha_rollback_count,      SHOW_LONG},
   {"Handler_update",           (char*) &ha_update_count,        SHOW_LONG},
   {"Handler_write",            (char*) &ha_write_count,         SHOW_LONG},
+  {"Handler_discover",         (char*) &ha_discover_count,      SHOW_LONG},
   {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.global_blocks_changed,
    SHOW_KEY_CACHE_LONG},
-  {"Key_blocks_used",          (char*) &dflt_key_cache_var.global_blocks_used,
-   SHOW_KEY_CACHE_LONG},
+  {"Key_blocks_used",          (char*) &dflt_key_cache_var.blocks_used,
+   SHOW_KEY_CACHE_CONST_LONG},
+  {"Key_blocks_unused",        (char*) &dflt_key_cache_var.blocks_unused,
+   SHOW_KEY_CACHE_CONST_LONG},
   {"Key_read_requests",        (char*) &dflt_key_cache_var.global_cache_r_requests,
    SHOW_KEY_CACHE_LONG},
   {"Key_reads",                (char*) &dflt_key_cache_var.global_cache_read,
@@ -4894,6 +5141,7 @@ struct show_var_st status_vars[]= {
    SHOW_KEY_CACHE_LONG},
   {"Key_writes",               (char*) &dflt_key_cache_var.global_cache_write,
    SHOW_KEY_CACHE_LONG},
+  {"Last_query_cost",          (char*) &last_query_cost,        SHOW_DOUBLE},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_CONST},
@@ -4965,6 +5213,7 @@ struct show_var_st status_vars[]= {
 
 static void print_version(void)
 {
+  set_server_version();
   printf("%s  Ver %s for %s on %s (%s)\n",my_progname,
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
@@ -5174,6 +5423,16 @@ static void mysql_init_variables(void)
   have_isam=SHOW_OPTION_YES;
 #else
   have_isam=SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_EXAMPLE_DB
+  have_example_db= SHOW_OPTION_YES;
+#else
+  have_example_db= SHOW_OPTION_NO;
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  have_ndbcluster=SHOW_OPTION_DISABLED;
+#else
+  have_ndbcluster=SHOW_OPTION_NO;
 #endif
 #ifdef USE_RAID
   have_raid=SHOW_OPTION_YES;
@@ -5471,6 +5730,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_specialflag|=SPECIAL_NO_RESOLVE;
     break;
   case (int) OPT_SKIP_NETWORKING:
+#if defined(__NETWARE__)
+    sql_perror("Can't start server: skip-networking option is currently not supported on NetWare");
+    exit(1);
+#endif
     opt_disable_networking=1;
     mysqld_port=0;
     break;
@@ -5645,6 +5908,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_isam= SHOW_OPTION_DISABLED;
 #endif
     break;
+  case OPT_NDBCLUSTER:
+#ifdef HAVE_NDBCLUSTER_DB
+    if (opt_ndbcluster)
+      have_ndbcluster=SHOW_OPTION_YES;
+    else
+      have_ndbcluster=SHOW_OPTION_DISABLED;
+#endif
+    break;
   case OPT_INNODB:
 #ifdef HAVE_INNOBASE_DB
     if (opt_innodb)
@@ -5705,7 +5976,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Invalid ft-boolean-syntax string: %s\n", argument);
       exit(1);
     }
-    strmake(opt_ft_boolean_syntax, argument, sizeof(ft_boolean_syntax)-1);
+    strmake(ft_boolean_syntax, argument, sizeof(ft_boolean_syntax)-1);
     break;
   case OPT_SKIP_SAFEMALLOC:
 #ifdef SAFEMALLOC
@@ -5755,7 +6026,7 @@ static void get_options(int argc,char **argv)
   int ho_error;
 
   my_getopt_register_get_addr(mysql_getopt_value);
-  strmake(opt_ft_boolean_syntax, ft_boolean_syntax, 
+  strmake(def_ft_boolean_syntax, ft_boolean_syntax,
 	  sizeof(ft_boolean_syntax)-1);
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
@@ -5812,8 +6083,6 @@ static void get_options(int argc,char **argv)
   table_alias_charset= (lower_case_table_names ?
 			files_charset_info :
 			&my_charset_bin);
-  strmake(ft_boolean_syntax, opt_ft_boolean_syntax,
-	  sizeof(ft_boolean_syntax)-1);
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
@@ -5827,6 +6096,29 @@ static void get_options(int argc,char **argv)
       init_global_datetime_format(TIMESTAMP_DATETIME,
 				  &global_system_variables.datetime_format))
     exit(1);
+}
+
+
+/*
+  Create version name for running mysqld version
+  We automaticly add suffixes -debug, -embedded and -log to the version
+  name to make the version more descriptive.
+  (MYSQL_SERVER_SUFFIX is set by the compilation environment)
+*/
+
+static void set_server_version(void)
+{
+  char *end= strxmov(server_version, MYSQL_SERVER_VERSION,
+                     MYSQL_SERVER_SUFFIX_STR, NullS);
+#ifdef EMBEDDED_LIBRARY
+  end= strmov(end, "-embedded");
+#endif
+#ifndef DBUG_OFF
+  if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
+    end= strmov(end, "-debug");
+#endif
+  if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
+    strmov(end, "-log");                        // This may slow down system
 }
 
 

@@ -48,7 +48,7 @@ SYM_GROUP sym_group_rtree= {"RTree keys", "HAVE_RTREE_KEYS"};
 */
 
 static SYMBOL symbols[] = {
-  { "&&",		SYM(AND)},
+  { "&&",		SYM(AND_SYM)},
   { "<",		SYM(LT)},
   { "<=",		SYM(LE)},
   { "<>",		SYM(NE)},
@@ -67,7 +67,7 @@ static SYMBOL symbols[] = {
   { "ALL",		SYM(ALL)},
   { "ALTER",		SYM(ALTER)},
   { "ANALYZE",		SYM(ANALYZE_SYM)},
-  { "AND",		SYM(AND)},
+  { "AND",		SYM(AND_SYM)},
   { "ANY",              SYM(ANY_SYM)},
   { "AS",		SYM(AS)},
   { "ASC",		SYM(ASC)},
@@ -317,6 +317,8 @@ static SYMBOL symbols[] = {
   { "NAMES",		SYM(NAMES_SYM)},
   { "NATIONAL",		SYM(NATIONAL_SYM)},
   { "NATURAL",		SYM(NATURAL)},
+  { "NDB",              SYM(NDBCLUSTER_SYM)},
+  { "NDBCLUSTER",       SYM(NDBCLUSTER_SYM)},
   { "NCHAR",		SYM(NCHAR_SYM)},
   { "NEW",              SYM(NEW_SYM)},
   { "NEXT",		SYM(NEXT_SYM)},
@@ -334,7 +336,7 @@ static SYMBOL symbols[] = {
   { "OPTIMIZE",		SYM(OPTIMIZE)},
   { "OPTION",		SYM(OPTION)},
   { "OPTIONALLY",	SYM(OPTIONALLY)},
-  { "OR",		SYM(OR)},
+  { "OR",		SYM(OR_SYM)},
   { "ORDER",		SYM(ORDER_SYM)},
   { "OUT",              SYM(OUT_SYM)},
   { "OUTER",		SYM(OUTER)},

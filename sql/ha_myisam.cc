@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -810,69 +810,108 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
   }
 }
 
+
 /*
-  Deactive all not unique index that can be recreated fast
+  Disable indexes, making it persistent if requested.
 
   SYNOPSIS
-    deactivate_non_unique_index()
-    rows		Rows to be inserted
-			0 if we don't know
-			HA_POS_ERROR if we want to force disabling
-                        and make it permanent (save on disk)
+    disable_indexes()
+    mode        mode of operation:
+                HA_KEY_SWITCH_NONUNIQ      disable all non-unique keys
+                HA_KEY_SWITCH_ALL          disable all keys
+                HA_KEY_SWITCH_NONUNIQ_SAVE dis. non-uni. and make persistent
+                HA_KEY_SWITCH_ALL_SAVE     dis. all keys and make persistent
+
+  IMPLEMENTATION
+    HA_KEY_SWITCH_NONUNIQ       is not implemented.
+    HA_KEY_SWITCH_ALL_SAVE      is not implemented.
+
+  RETURN
+    0  ok
+    HA_ERR_WRONG_COMMAND  mode not implemented.
 */
 
-void ha_myisam::deactivate_non_unique_index(ha_rows rows)
+int ha_myisam::disable_indexes(uint mode)
 {
-  MYISAM_SHARE* share = file->s;
-  if (share->state.key_map == ((ulonglong) 1L << share->base.keys)-1)
+  int error;
+
+  if (mode == HA_KEY_SWITCH_ALL)
   {
-    if (!(specialflag & SPECIAL_SAFE_MODE))
-    {
-      if (rows == HA_POS_ERROR) // force disable and save it on disk!
-        mi_extra(file, HA_EXTRA_NO_KEYS, 0);
-      else
-      {
-	/*
-	  Only disable old index if the table was empty and we are inserting
-	  a lot of rows.
-	  We should not do this for only a few rows as this is slower and
-	  we don't want to update the key statistics based of only a few rows.
-	*/
-	if (file->state->records == 0 &&
-	    (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES))
-	  mi_disable_non_unique_index(file,rows);
-        else if (!file->bulk_insert &&
-		 (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
-          mi_init_bulk_insert(file,
-                              current_thd->variables.bulk_insert_buff_size,
-                              rows);
-      }
-    }
-    enable_activate_all_index=1;
-    info(HA_STATUS_CONST);			// Read new key info
+    /* call a storage engine function to switch the key map */
+    error= mi_disable_indexes(file);
+  }
+  else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE)
+  {
+    mi_extra(file, HA_EXTRA_NO_KEYS, 0);
+    info(HA_STATUS_CONST);                        // Read new key info
+    error= 0;
   }
   else
-    enable_activate_all_index=0;
+  {
+    /* mode not implemented */
+    error= HA_ERR_WRONG_COMMAND;
+  }
+  return error;
 }
 
 
-bool ha_myisam::activate_all_index(THD *thd)
-{
-  int error=0;
-  MI_CHECK param;
-  MYISAM_SHARE* share = file->s;
-  DBUG_ENTER("activate_all_index");
+/*
+  Enable indexes, making it persistent if requested.
 
-  mi_end_bulk_insert(file);
-  if (enable_activate_all_index &&
-     share->state.key_map != set_bits(ulonglong, share->base.keys))
+  SYNOPSIS
+    enable_indexes()
+    mode        mode of operation:
+                HA_KEY_SWITCH_NONUNIQ      enable all non-unique keys
+                HA_KEY_SWITCH_ALL          enable all keys
+                HA_KEY_SWITCH_NONUNIQ_SAVE en. non-uni. and make persistent
+                HA_KEY_SWITCH_ALL_SAVE     en. all keys and make persistent
+
+  DESCRIPTION
+    Enable indexes, which might have been disabled by disable_index() before.
+    The modes without _SAVE work only if both data and indexes are empty,
+    since the MyISAM repair would enable them persistently.
+    To be sure in these cases, call handler::delete_all_rows() before.
+
+  IMPLEMENTATION
+    HA_KEY_SWITCH_NONUNIQ       is not implemented.
+    HA_KEY_SWITCH_ALL_SAVE      is not implemented.
+
+  RETURN
+    0  ok
+    !=0  Error, among others:
+    HA_ERR_CRASHED  data or index is non-empty. Delete all rows and retry.
+    HA_ERR_WRONG_COMMAND  mode not implemented.
+*/
+
+int ha_myisam::enable_indexes(uint mode)
+{
+  int error;
+
+  if (file->s->state.key_map == set_bits(ulonglong, file->s->base.keys))
   {
+    /* All indexes are enabled already. */
+    return 0;
+  }
+
+  if (mode == HA_KEY_SWITCH_ALL)
+  {
+    error= mi_enable_indexes(file);
+    /*
+       Do not try to repair on error,
+       as this could make the enabled state persistent,
+       but mode==HA_KEY_SWITCH_ALL forbids it.
+    */
+  }
+  else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE)
+  {
+    THD *thd=current_thd;
+    MI_CHECK param;
     const char *save_proc_info=thd->proc_info;
     thd->proc_info="Creating index";
     myisamchk_init(&param);
     param.op_name = (char*) "recreating_index";
     param.testflag = (T_SILENT | T_REP_BY_SORT | T_QUICK |
-		      T_CREATE_MISSING_KEYS);
+                      T_CREATE_MISSING_KEYS);
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
     param.tmpdir=&mysql_tmpdir_list;
@@ -881,8 +920,85 @@ bool ha_myisam::activate_all_index(THD *thd)
     thd->proc_info=save_proc_info;
   }
   else
-    enable_activate_all_index=1;
-  DBUG_RETURN(error);
+  {
+    /* mode not implemented */
+    error= HA_ERR_WRONG_COMMAND;
+  }
+  return error;
+}
+
+
+/*
+  Test if indexes are disabled.
+
+
+  SYNOPSIS
+    indexes_are_disabled()
+      no parameters
+
+
+  RETURN
+    0  indexes are not disabled
+    1  all indexes are disabled
+   [2  non-unique indexes are disabled - NOT YET IMPLEMENTED]
+*/
+
+int ha_myisam::indexes_are_disabled(void)
+{
+  
+  return mi_indexes_are_disabled(file);
+}
+
+
+/*
+  prepare for a many-rows insert operation
+  e.g. - disable indexes (if they can be recreated fast) or
+  activate special bulk-insert optimizations
+
+  SYNOPSIS
+    start_bulk_insert(rows)
+    rows        Rows to be inserted
+                0 if we don't know
+*/
+
+void ha_myisam::start_bulk_insert(ha_rows rows)
+{
+  THD *thd=current_thd;
+  ulong size= min(thd->variables.read_buff_size, table->avg_row_length*rows);
+
+  /* don't enable row cache if too few rows */
+  if (!rows && rows >  MI_MIN_ROWS_TO_USE_WRITE_CACHE)
+    mi_extra(file, HA_EXTRA_WRITE_CACHE, (void*) &size);
+
+  can_enable_indexes= (file->s->state.key_map ==
+                       set_bits(ulonglong, file->s->base.keys));
+
+  if (!(specialflag & SPECIAL_SAFE_MODE))
+  {
+    /*
+      Only disable old index if the table was empty and we are inserting
+      a lot of rows.
+      We should not do this for only a few rows as this is slower and
+      we don't want to update the key statistics based of only a few rows.
+    */
+    if (file->state->records == 0 && can_enable_indexes &&
+        (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES))
+      mi_disable_non_unique_index(file,rows);
+    else
+    if (!file->bulk_insert &&
+        (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
+    {
+      mi_init_bulk_insert(file, thd->variables.bulk_insert_buff_size, rows);
+    }
+  }
+}
+
+int ha_myisam::end_bulk_insert()
+{
+  mi_end_bulk_insert(file);
+  int err=mi_extra(file, HA_EXTRA_NO_CACHE, 0);
+  return err ? err : can_enable_indexes ?
+                     enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE) : 0;
 }
 
 
@@ -1113,12 +1229,6 @@ int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_WRITE_CACHE)
     return 0;
   return mi_extra(file, operation, (void*) &cache_size);
-}
-
-
-int ha_myisam::reset(void)
-{
-  return mi_extra(file, HA_EXTRA_RESET, 0);
 }
 
 int ha_myisam::delete_all_rows()
@@ -1405,19 +1515,15 @@ longlong ha_myisam::get_auto_increment()
   SYNOPSIS
     records_in_range()
     inx			Index to use
-    start_key		Start of range.  Null pointer if from first key
-    start_key_len	Length of start key
-    start_search_flag	Flag if start key should be included or not
-    end_key		End of range. Null pointer if to last key
-    end_key_len		Length of end key
-    end_search_flag	Flag if start key should be included or not
+    min_key		Start of range.  Null pointer if from first key
+    max_key		End of range. Null pointer if to last key
 
   NOTES
-    start_search_flag can have one of the following values:
+    min_key.flag can have one of the following values:
       HA_READ_KEY_EXACT		Include the key in the range
       HA_READ_AFTER_KEY		Don't include key in range
 
-    end_search_flag can have one of the following values:  
+    max_key.flag can have one of the following values:  
       HA_READ_BEFORE_KEY	Don't include key in range
       HA_READ_AFTER_KEY		Include all 'end_key' values in the range
 
@@ -1428,18 +1534,10 @@ longlong ha_myisam::get_auto_increment()
 			the range.
 */
 
-ha_rows ha_myisam::records_in_range(int inx,
-				    const byte *start_key,uint start_key_len,
-				    enum ha_rkey_function start_search_flag,
-				    const byte *end_key,uint end_key_len,
-				    enum ha_rkey_function end_search_flag)
+ha_rows ha_myisam::records_in_range(uint inx, key_range *min_key,
+                                    key_range *max_key)
 {
-  return (ha_rows) mi_records_in_range(file,
-				       inx,
-				       start_key,start_key_len,
-				       start_search_flag,
-				       end_key,end_key_len,
-				       end_search_flag);
+  return (ha_rows) mi_records_in_range(file, (int) inx, min_key, max_key);
 }
 
 

@@ -1,0 +1,104 @@
+/* Copyright (C) 2003 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+#include <signaldata/PackedSignal.hpp>
+#include <signaldata/LqhKey.hpp>
+#include <debugger/DebuggerNames.hpp>
+
+bool
+printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
+  fprintf(output, "Signal data: ");
+  Uint32 i = 0;
+  while (i < len)
+    fprintf(output, "H\'%.8x ", theData[i++]);
+  fprintf(output,"\n");
+  fprintf(output, "--------- Begin Packed Signals --------\n");  
+  // Print each signal separately
+  for (i = 0; i < len;) {
+    switch (PackedSignal::getSignalType(theData[i])) {
+    case ZCOMMIT: {
+      Uint32 signalLength = 4;
+      fprintf(output, "--------------- Signal ----------------\n");
+      fprintf(output, "r.bn: %u \"%s\", length: %u \"COMMIT\"\n", 
+	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      fprintf(output, "Signal data: ");
+      for(Uint32 j = 0; j < signalLength; j++)
+	fprintf(output, "H\'%.8x ", theData[i++]);
+      fprintf(output,"\n");
+      break;
+    }
+    case ZCOMPLETE: {
+      Uint32 signalLength = 3;
+      fprintf(output, "--------------- Signal ----------------\n");
+      fprintf(output, "r.bn: %u \"%s\", length: %u \"COMPLETE\"\n",
+	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      fprintf(output, "Signal data: ");
+      for(Uint32 j = 0; j < signalLength; j++)
+	fprintf(output, "H\'%.8x ", theData[i++]);
+      fprintf(output,"\n");
+      break;
+    }    
+    case ZCOMMITTED: {
+      Uint32 signalLength = 3;
+      fprintf(output, "--------------- Signal ----------------\n");
+      fprintf(output, "r.bn: %u \"%s\", length: %u \"COMMITTED\"\n",
+	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      fprintf(output, "Signal data: ");
+      for(Uint32 j = 0; j < signalLength; j++)
+	fprintf(output, "H\'%.8x ", theData[i++]);
+      fprintf(output,"\n");
+      break;
+    }
+    case ZCOMPLETED: {
+      Uint32 signalLength = 3;
+      fprintf(output, "--------------- Signal ----------------\n");
+      fprintf(output, "r.bn: %u \"%s\", length: %u \"COMPLETED\"\n",
+	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      fprintf(output, "Signal data: ");
+      for(Uint32 j = 0; j < signalLength; j++)
+	fprintf(output, "H\'%.8x ", theData[i++]);
+      fprintf(output,"\n");
+      break;
+    }
+    case  ZLQHKEYCONF: {
+      Uint32 signalLength = LqhKeyConf::SignalLength;
+
+      fprintf(output, "--------------- Signal ----------------\n");
+      fprintf(output, "r.bn: %u \"%s\", length: %u \"LQHKEYCONF\"\n",
+	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      printLQHKEYCONF(output, theData + i, signalLength, receiverBlockNo);
+      i += signalLength;
+      break;
+    }
+    case ZREMOVE_MARKER: {
+      Uint32 signalLength = 2;
+      fprintf(output, "--------------- Signal ----------------\n");
+      fprintf(output, "r.bn: %u \"%s\", length: %u \"REMOVE_MARKER\"\n",
+	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      fprintf(output, "Signal data: ");
+      i++; // Skip first word!
+      for(Uint32 j = 0; j < signalLength; j++)
+	fprintf(output, "H\'%.8x ", theData[i++]);
+      fprintf(output,"\n");
+      break;
+    }
+    default:
+      fprintf(output, "Unknown signal type\n");
+    }
+  }//for
+  fprintf(output, "--------- End Packed Signals ----------\n");
+  return true;
+}

@@ -105,8 +105,8 @@ enum ha_extra_function {
   HA_EXTRA_NORMAL=0,			/* Optimize for space (def) */
   HA_EXTRA_QUICK=1,			/* Optimize for speed */
   HA_EXTRA_RESET=2,			/* Reset database to after open */
-  HA_EXTRA_CACHE=3,			/* Cash record in HA_rrnd() */
-  HA_EXTRA_NO_CACHE=4,			/* End cacheing of records (def) */
+  HA_EXTRA_CACHE=3,			/* Cache record in HA_rrnd() */
+  HA_EXTRA_NO_CACHE=4,			/* End caching of records (def) */
   HA_EXTRA_NO_READCHECK=5,		/* No readcheck on update */
   HA_EXTRA_READCHECK=6,			/* Use readcheck (def) */
   HA_EXTRA_KEYREAD=7,			/* Read only key to database */
@@ -191,7 +191,7 @@ enum ha_base_keytype {
 #define HA_UNIQUE_CHECK		256	/* Check the key for uniqueness */
 #define HA_SPATIAL		1024    /* For spatial search */
 #define HA_NULL_ARE_EQUAL	2048	/* NULL in key are cmp as equal */
-
+#define HA_GENERATED_KEY	8192	/* Automaticly generated key */
 
 	/* Automatic bits in key-flag */
 
@@ -287,6 +287,9 @@ enum ha_base_keytype {
 #define HA_ERR_ROW_IS_REFERENCED 152     /* Cannot delete a parent row */
 #define HA_ERR_NO_SAVEPOINT	 153     /* No savepoint with that name */
 #define HA_ERR_NON_UNIQUE_BLOCK_SIZE 154 /* Non unique key block size */
+#define HA_ERR_OLD_METADATA      155  /* The frm file on disk is old */
+#define HA_ERR_TABLE_EXIST       156  /* The table existed in storage engine */
+#define HA_ERR_NO_CONNECTION     157  /* Could not connect to storage engine */
 
 	/* Other constants */
 
@@ -346,6 +349,16 @@ enum data_file_type {
   STATIC_RECORD,DYNAMIC_RECORD,COMPRESSED_RECORD
 };
 
+/* For key ranges */
+
+typedef struct st_key_range
+{
+  const byte *key;
+  uint length;
+  enum ha_rkey_function flag;
+} key_range;
+
+
 /* For number of records */
 #ifdef BIG_TABLES
 #define rows2double(A)	ulonglong2double(A)
@@ -363,5 +376,8 @@ typedef ulong		ha_rows;
 #else
 #define MAX_FILE_SIZE	LONGLONG_MAX
 #endif
+
+/* Currently used for saying which interfaces a Storage Engine implements */
+#define HA_ERR_NOT_IMPLEMENTED -1
 
 #endif /* _my_base_h */

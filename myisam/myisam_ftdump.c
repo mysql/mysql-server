@@ -83,7 +83,7 @@ int main(int argc,char *argv[])
 
   {
     char *end;
-    inx= strtoll(argv[1], &end, 10);
+    inx= (uint) strtoll(argv[1], &end, 10);
     if (*end)
       usage();
   }
@@ -264,15 +264,18 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   return 0;
 }
 
+#include <help_start.h>
 
 static void usage()
 {
   printf("Use: myisam_ftdump <table_name> <index_num>\n");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
+  NETWARE_SET_SCREEN_MODE(1);
   exit(1);
 }
 
+#include <help_end.h>
 
 static void complain(int val) /* Kinda assert :-)  */
 {

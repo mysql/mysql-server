@@ -121,6 +121,13 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_ERRNO_EDOM		33
 #define MY_ERRNO_ERANGE		34
 
+	/* Bits for get_date timeflag */
+#define GETDATE_DATE_TIME	1
+#define GETDATE_SHORT_DATE	2
+#define GETDATE_HHMMSSTIME	4
+#define GETDATE_GMT		8
+#define GETDATE_FIXEDLENGTH	16
+
 	/* defines when allocating data */
 #ifdef SAFEMALLOC
 #define my_malloc(SZ,FLAG) _mymalloc((SZ), __FILE__, __LINE__, FLAG )
@@ -763,6 +770,8 @@ extern char *get_charsets_dir(char *buf);
 extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
 extern my_bool init_compiled_charsets(myf flags);
 extern void add_compiled_collation(CHARSET_INFO *cs);
+extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
+                                     const char *from, ulong length);
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */
