@@ -488,7 +488,6 @@ os_fast_mutex_free(
 
 	DeleteCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
-	UT_NOT_USED(fast_mutex);
-
+	pthread_mutex_destroy(fast_mutex);
 #endif
 }
