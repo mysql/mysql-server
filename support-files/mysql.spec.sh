@@ -16,7 +16,7 @@ Copyright:	GPL
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 Icon:		mysql.gif
 URL:		http://www.mysql.com/
-Packager:	Lenz Grimmer <lenz@mysql.com>
+Packager:	Lenz Grimmer <build@mysql.com>
 Vendor:		MySQL AB
 Requires: fileutils sh-utils
 Provides:	msqlormysql MySQL-server mysql
@@ -257,7 +257,6 @@ export PATH
 BuildMySQL "--enable-shared \
 		--with-berkeley-db \
 		--with-innodb \
-		--with-raid \
 		--with-server-suffix='-Max'"
 
 # Save everything for debug
@@ -535,6 +534,11 @@ fi
 %attr(644, root, root) /usr/lib/mysql/libmysqld.a
 
 %changelog 
+
+* Wed Apr 30 2003 Lenz Grimmer <lenz@mysql.com>
+
+- disabled MyISAM RAID (--with-raid) - it throws an assertion which
+  needs to be investigated first.
 
 * Mon Mar 10 2003 Lenz Grimmer <lenz@mysql.com>
 
