@@ -17,9 +17,8 @@
 /* Prototypes for the embedded version of MySQL */
 
 #include <my_global.h>
-#include <mysql_embed.h>
 #include <mysql.h>
-#include <mysql_version.h>
+#include <mysql_embed.h>
 #include <mysqld_error.h>
 #include <my_pthread.h>
 

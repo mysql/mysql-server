@@ -656,7 +656,7 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, File file_to_dup);
 int mi_open_keyfile(MYISAM_SHARE *share);
 void mi_setup_functions(register MYISAM_SHARE *share);
 
-int _mi_init_bulk_insert(MI_INFO *info);
+int _mi_init_bulk_insert(MI_INFO *info, ulong cache_size);
 
     /* Functions needed by mi_check */
 void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));

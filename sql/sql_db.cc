@@ -274,7 +274,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   }
   my_dirend(dirp);
 
-  if (thd->killed || (tot_list && mysql_rm_table_part2(thd, tot_list, 1, 1)))
+  if (thd->killed ||
+      (tot_list && mysql_rm_table_part2_with_lock(thd, tot_list, 1, 1)))
     DBUG_RETURN(-1);
 
   /*

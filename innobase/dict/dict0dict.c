@@ -1781,8 +1781,8 @@ char*
 dict_scan_to(
 /*=========*/
 			
-	char*	ptr,	/* in: scan from */
-	char*	string)	/* in: look for this */
+	char*	ptr,		/* in: scan from */
+	const char *string)	/* in: look for this */
 {
 	ibool	success;
 	ulint	i;
@@ -1820,7 +1820,7 @@ dict_accept(
 			/* out: if string was accepted, the pointer
 			is moved after that, else ptr is returned */
 	char*	ptr,	/* in: scan from this */
-	char*	string,	/* in: accept only this string as the next
+	const char* string,	/* in: accept only this string as the next
 			non-whitespace string */
 	ibool*	success)/* out: TRUE if accepted */
 {

@@ -59,6 +59,10 @@
 static my_bool	mysql_client_init=0;
 uint		mysql_port=0;
 my_string	mysql_unix_port=0;
+ulong 		net_buffer_length=8192;
+ulong		max_allowed_packet=16*1024*1024L;
+ulong		net_read_timeout=  NET_READ_TIMEOUT;
+ulong		net_write_timeout= NET_WRITE_TIMEOUT;
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS)
 
@@ -2888,6 +2892,18 @@ uint STDCALL mysql_thread_safe(void)
 /****************************************************************************
   Some support functions
 ****************************************************************************/
+
+/*
+  Functions called my my_net_init() to set some application specific variables
+*/
+
+void my_net_local_init(NET *net)
+{
+  net->max_packet=   (uint) net_buffer_length;
+  net->read_timeout= (uint) net_read_timeout;
+  net->write_timeout=(uint) net_write_timeout;
+  net->max_packet_size= max(net_buffer_length, max_allowed_packet);
+}
 
 /*
   Add escape characters to a string (blob?) to make it suitable for a insert

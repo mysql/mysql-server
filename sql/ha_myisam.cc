@@ -30,7 +30,6 @@
 #include "../myisam/myisamdef.h"
 #endif
 
-ulong myisam_sort_buffer_size;
 ulong myisam_recover_options= HA_RECOVER_NONE;
 
 /* bits in myisam_recover_options */
@@ -218,10 +217,10 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
     return (my_errno ? my_errno : -1);
 
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
-    VOID(mi_extra(file,HA_EXTRA_NO_WAIT_LOCK));
+    VOID(mi_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
-    VOID(mi_extra(file,HA_EXTRA_WAIT_LOCK));
+    VOID(mi_extra(file, HA_EXTRA_WAIT_LOCK, 0));
   if (!table->db_record_offset)
     int_table_flags|=HA_REC_NOT_IN_SEQ;
   return (0);
@@ -665,13 +664,16 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
   if (share->state.key_map == ((ulonglong) 1L << share->base.keys)-1)
   {
     if (!(specialflag & SPECIAL_SAFE_MODE))
-      if (rows==HA_POS_ERROR)
-        mi_extra(file, HA_EXTRA_NO_KEYS);
+    {
+      if (rows == HA_POS_ERROR)
+        mi_extra(file, HA_EXTRA_NO_KEYS, 0);
       else
       {
         mi_disable_non_unique_index(file,rows);
-        mi_extra(file, HA_EXTRA_BULK_INSERT_BEGIN);
+        ha_myisam::extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
+			     current_thd->variables.bulk_insert_buff_size);
       }
+    }
     enable_activate_all_index=1;
   }
   else
@@ -686,7 +688,7 @@ bool ha_myisam::activate_all_index(THD *thd)
   MYISAM_SHARE* share = file->s;
   DBUG_ENTER("activate_all_index");
 
-  mi_extra(file, HA_EXTRA_BULK_INSERT_END);
+  mi_extra(file, HA_EXTRA_BULK_INSERT_END, 0);
   if (enable_activate_all_index &&
      share->state.key_map != set_bits(ulonglong, share->base.keys))
   {
@@ -697,7 +699,7 @@ bool ha_myisam::activate_all_index(THD *thd)
     param.testflag = (T_SILENT | T_REP_BY_SORT | T_QUICK |
 		      T_CREATE_MISSING_KEYS);
     param.myf_rw&= ~MY_WAIT_IF_FULL;
-    param.sort_buffer_length=  myisam_sort_buffer_size;
+    param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
     param.tmpdir=mysql_tmpdir;
     error=repair(thd,param,0) != HA_ADMIN_OK;
     thd->proc_info=save_proc_info;
@@ -828,8 +830,7 @@ int ha_myisam::rnd_init(bool scan)
 {
   if (scan)
     return mi_scan_init(file);
-  else
-    return mi_extra(file,HA_EXTRA_RESET);
+  return mi_extra(file, HA_EXTRA_RESET, 0);
 }
 
 int ha_myisam::rnd_next(byte *buf)
@@ -921,17 +922,27 @@ void ha_myisam::info(uint flag)
 
 int ha_myisam::extra(enum ha_extra_function operation)
 {
-  if (((specialflag & SPECIAL_SAFE_MODE) || (test_flags & TEST_NO_EXTRA)) &&
+  if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_KEYREAD)
+    return 0;
+  return mi_extra(file, operation, 0);
+}
+
+
+/* To be used with WRITE_CACHE, EXTRA_CACHE and BULK_INSERT_BEGIN */
+
+int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
+{
+  if ((specialflag & SPECIAL_SAFE_MODE) &
       (operation == HA_EXTRA_WRITE_CACHE ||
-       operation == HA_EXTRA_KEYREAD ||
        operation == HA_EXTRA_BULK_INSERT_BEGIN))
     return 0;
-  return mi_extra(file,operation);
+  return mi_extra(file, operation, (void*) &cache_size);
 }
+
 
 int ha_myisam::reset(void)
 {
-  return mi_extra(file,HA_EXTRA_RESET);
+  return mi_extra(file, HA_EXTRA_RESET, 0);
 }
 
 int ha_myisam::delete_all_rows()

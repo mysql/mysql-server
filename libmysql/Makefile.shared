@@ -31,8 +31,8 @@ noinst_PROGRAMS = conf_to_src
 CHARSET_OBJS=@CHARSET_OBJS@
 LTCHARSET_OBJS= ${CHARSET_OBJS:.o=.lo}
 
-target_sources = libmysql.c net.c  password.c manager.c \
-			    get_password.c errmsg.c
+target_sources = 	libmysql.c password.c manager.c \
+			get_password.c errmsg.c
 
 mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 			strmake.lo strend.lo \
@@ -60,12 +60,13 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
                         mf_iocache2.lo my_seek.lo \
 			my_pread.lo mf_cache.lo my_vsnprintf.lo md5.lo \
 			my_getopt.lo my_gethostbyname.lo
+sqlobjects =		net.lo
 
 # Not needed in the minimum library
 mysysobjects2 =		my_lib.lo
 mysysobjects =		$(mysysobjects1) $(mysysobjects2)
 target_libadd =		$(mysysobjects) $(mystringsobjects) $(dbugobjects) \
- $(vio_objects)
+ $(vio_objects) $(sqlobjects)
 target_ldflags = -version-info @SHARED_LIB_VERSION@
 vio_objects= vio.lo viosocket.lo viossl.lo viosslfactories.lo
 CLEANFILES =		$(target_libadd) $(SHLIBOBJS) \
@@ -84,7 +85,7 @@ clean-local:
 	      `echo $(mysysobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(vio_objects) | sed "s;\.lo;.c;g"` \
 	       $(mystringsextra) $(mysysheaders) ctype_extra_sources.c \
-	       ../linked_client_sources
+		net.c ../linked_client_sources
 
 ctype_extra_sources.c: conf_to_src
 	./conf_to_src $(top_srcdir) @CHARSETS_NEED_SOURCE@ > \

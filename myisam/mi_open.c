@@ -66,7 +66,7 @@ static MI_INFO *test_if_reopen(char *filename)
 MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 {
   int lock_error,kfile,open_mode,save_errno;
-  uint i,j,len,errpos,head_length,base_pos,offset,info_length,extra,keys,
+  uint i,j,len,errpos,head_length,base_pos,offset,info_length,keys,
     key_parts,unique_key_parts,tmp_length,uniques;
   char name_buff[FN_REFLEN], org_name [FN_REFLEN], index_name[FN_REFLEN],
        data_name[FN_REFLEN];

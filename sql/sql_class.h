@@ -282,43 +282,61 @@ class delayed_insert;
 
 struct system_variables
 {
-  my_bool opt_local_infile;
-  my_bool opt_warnings;
+  ulonglong myisam_max_extra_sort_file_size;
+  ulonglong myisam_max_sort_file_size;
+  ulong bulk_insert_buff_size;
   ulong join_buff_size;
   ulong long_query_time;
+  ulong max_allowed_packet;
   ulong max_heap_table_size;
-  ulong max_item_sort_length;
+  ulong max_sort_length;
   ulong max_join_size;
   ulong max_tmp_tables;
-  ulong myisam_max_extra_sort_file_size;
-  ulong myisam_max_sort_file_size;
+  ulong myisam_sort_buff_size;
+  ulong net_buffer_length;
   ulong net_interactive_timeout;
+  ulong net_read_timeout;
   ulong net_wait_timeout;
-  ulong record_rnd_cache_size;
+  ulong net_write_timeout;
+  ulong query_cache_type;
+  ulong read_buff_size;
+  ulong read_rnd_buff_size;
+  ulong select_limit;
   ulong sortbuff_size;
   ulong tmp_table_size;
-}; /* system variables */
+  ulong tx_isolation;
+  ulong table_type;
+
+  my_bool log_warnings;
+  my_bool low_priority_updates; 
+
+  CONVERT *convert_set;
+};
 
 
-/* For each client connection we create a separate thread with THD serving as
-   a thread/connection descriptor */
+/*
+  For each client connection we create a separate thread with THD serving as
+  a thread/connection descriptor
+*/
 
 class THD :public ilink {
 public:
-  NET	  net; // client connection descriptor
-  LEX	  lex; // parse tree descriptor
-  MEM_ROOT mem_root; // 1 command-life memory allocation pool
-  HASH     user_vars; // hash for user variables
-  String  packet; // dynamic string buffer used for network I/O		
-  struct  sockaddr_in remote; // client socket address
-  struct  rand_struct rand; // used for authentication
-  struct  system_variables variables;
+  NET	  net;				// client connection descriptor
+  LEX	  lex;				// parse tree descriptor
+  MEM_ROOT mem_root;			// 1 command-life memory pool
+  HASH    user_vars;			// hash for user variables
+  String  packet;			// dynamic buffer for network I/O
+  struct  sockaddr_in remote;		// client socket address
+  struct  rand_struct rand;		// used for authentication
+  struct  system_variables variables;	// Changeable local variables
   
-  /* query points to the current query,
-     thread_stack is a pointer to the stack frame of handle_one_connection(),
-     which is called first in the thread for handling a client 
-   */
-  char	  *query,*thread_stack;
+  char	  *query;			// Points to the current query,
+  /*
+    A pointer to the stack frame of handle_one_connection(),
+    which is called first in the thread for handling a client
+  */
+  char	  *thread_stack;
+
   /*
     host - host of the client
     user - user of the client, set to NULL until the user has been read from
@@ -336,9 +354,9 @@ public:
   const char *host_or_ip;
  
   uint client_capabilities;		/* What the client supports */
-  ulong max_packet_length;		/* Max packet length for client */
   /* Determines if which non-standard SQL behaviour should be enabled */
   uint sql_mode;
+  uint max_client_packet_length;
   ulong master_access;			/* Global privileges from mysql.user */
   ulong db_access;			/* Privileges for current db */
 
@@ -358,7 +376,7 @@ public:
 #endif  
   struct st_my_thread_var *mysys_var;
   enum enum_server_command command;
-  uint32 server_id;
+  uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   const char *where;
   time_t     start_time,time_after_lock,user_time;
@@ -385,7 +403,6 @@ public:
     }
   } transaction;
   Item	     *free_list, *handler_items;
-  CONVERT    *convert_set;
   Field      *dupp_field;
 #ifndef __WIN__
   sigset_t signals,block_signals;
@@ -396,18 +413,19 @@ public:
 #endif  
   ulonglong  next_insert_id,last_insert_id,current_insert_id,
              limit_found_rows;
-  ha_rows    select_limit,offset_limit,default_select_limit,cuted_fields,
-             max_join_size, sent_row_count, examined_row_count;
+  ha_rows    select_limit, offset_limit, cuted_fields,
+             sent_row_count, examined_row_count;
   table_map  used_tables;
   USER_CONN *user_connect;
-  ulong	     query_id,version, inactive_timeout,options,thread_id, col_access;
+  ulong	     query_id,version, options,thread_id, col_access;
   long	     dbug_thread_id;
   pthread_t  real_id;
   uint	     current_tablenr,tmp_table,cond_count;
   uint	     server_status,open_options;
   uint32     query_length;
   uint32     db_length;
-  enum_tx_isolation tx_isolation, session_tx_isolation;
+  /* variables.transaction_isolation is reset to this after each commit */
+  enum_tx_isolation session_tx_isolation;
   char	     scramble[9];
   uint8	     query_cache_type;		// type of query cache processing
   bool       slave_thread;
@@ -432,6 +450,13 @@ public:
   NET*       slave_net;			// network connection from slave -> m.
   my_off_t   log_pos;
    
+  /* Used by the sys_var class to store temporary values */
+  union
+  {
+    my_bool my_bool_value;
+    long    long_value;
+  } sys_var_tmp;
+
   THD();
   ~THD();
   void cleanup(void);
@@ -452,11 +477,11 @@ public:
   inline void close_active_vio()
   {
     pthread_mutex_lock(&active_vio_lock);
-    if(active_vio)
-      {
-	vio_close(active_vio);
-        active_vio = 0;
-      }
+    if (active_vio)
+    {
+      vio_close(active_vio);
+      active_vio = 0;
+    }
     pthread_mutex_unlock(&active_vio_lock);
   }
 #endif  
