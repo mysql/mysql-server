@@ -119,21 +119,30 @@ Item::Type Item_subselect::type() const
 double Item_singleval_subselect::val () 
 {
   if (engine->exec())
+  {
+    assign_null();
     return 0;
+  }
   return real_value;
 }
 
 longlong Item_singleval_subselect::val_int () 
 {
   if (engine->exec())
+  {
+    assign_null();
     return 0;
+  }
   return int_value;
 }
 
 String *Item_singleval_subselect::val_str (String *str) 
 {
   if (engine->exec() || null_value)
+  {
+    assign_null();
     return 0;
+  }
   return &str_value;
 }
 
@@ -157,21 +166,30 @@ void Item_exists_subselect::fix_length_and_dec()
 double Item_exists_subselect::val () 
 {
   if (engine->exec())
+  {
+    assign_null();
     return 0;
+  }
   return (double) value;
 }
 
 longlong Item_exists_subselect::val_int () 
 {
   if (engine->exec())
+  {
+    assign_null();
     return 0;
+  }
   return value;
 }
 
 String *Item_exists_subselect::val_str(String *str)
 {
   if (engine->exec())
+  {
+    assign_null();
     return 0;
+  }
   str->set(value);
   return str;
 }
