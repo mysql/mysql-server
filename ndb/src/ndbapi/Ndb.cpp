@@ -330,7 +330,7 @@ Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
     {
       NdbConnection *trans= startTransactionLocal(aPriority, nodeId);
       DBUG_PRINT("exit",("start trans: 0x%x transid: 0x%llx",
-			 trans, trans->getTransactionId()));
+			 trans, trans ? trans->getTransactionId() : 0));
       DBUG_RETURN(trans);
     }
   } else {
