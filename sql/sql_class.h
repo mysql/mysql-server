@@ -1238,6 +1238,16 @@ class select_insert :public select_result_interceptor {
     bzero((char*) &info,sizeof(info));
     info.handle_duplicates=duplic;
   }
+  select_insert(TABLE *table_par, List<Item> *fields_par,
+		List<Item> *update_fields, List<Item> *update_values,
+		enum_duplicates duplic)
+    :table(table_par), fields(fields_par), last_insert_id(0)
+  {
+    bzero((char*) &info,sizeof(info));
+    info.handle_duplicates=duplic;
+    info.update_fields= update_fields;
+    info.update_values= update_values;
+  }
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
