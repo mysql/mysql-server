@@ -723,7 +723,7 @@ os_file_set_size(
 				    (ulint)(offset >> 32),
 				n_bytes);
 	        if (!ret) {
-			ut_free(buf);
+			ut_free(buf2);
 	         	goto error_handling;
 	        }
 	        offset += n_bytes;
@@ -2104,6 +2104,7 @@ os_aio_simulated_handle(
 	ulint		offs;
 	ulint		lowest_offset;
 	byte*		combined_buf;
+	byte*		combined_buf2;
 	ibool		ret;
 	ulint		n;
 	ulint		i;
@@ -2226,9 +2227,11 @@ consecutive_loop:
 		/* We can use the buffer of the i/o request */
 		combined_buf = slot->buf;
 	} else {
-		combined_buf = ut_malloc(total_len);
+		combined_buf2 = ut_malloc(total_len + UNIV_PAGE_SIZE);
 
-		ut_a(combined_buf);
+		ut_a(combined_buf2);
+
+		combined_buf = ut_align(combined_buf2, UNIV_PAGE_SIZE);
 	}
 	
 	/* We release the array mutex for the time of the i/o: NOTE that
@@ -2287,7 +2290,7 @@ consecutive_loop:
 	}
 
 	if (n_consecutive > 1) {
-		ut_free(combined_buf);
+		ut_free(combined_buf2);
 	}
 
 	os_mutex_enter(array->mutex);
