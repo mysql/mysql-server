@@ -13796,12 +13796,12 @@ privileges according to your identity and @strong{what you want to do}.
 MySQL considers both your hostname and user name in identifying you
 because there is little reason to assume that a given user name belongs to
 the same person everywhere on the Internet.  For example, the user
-@code{bill} who connects from @code{whitehouse.gov} need not be the same
-person as the user @code{bill} who connects from @code{microsoft.com}.
+@code{joe} who connects from @code{office.com} need not be the same
+person as the user @code{joe} who connects from @code{elsewhere.com}.
 MySQL handles this by allowing you to distinguish users on different
-hosts that happen to have the same name:  you can grant @code{bill} one set
-of privileges for connections from @code{whitehouse.gov}, and a different set
-of privileges for connections from @code{microsoft.com}.
+hosts that happen to have the same name:  you can grant @code{joe} one set
+of privileges for connections from @code{office.com}, and a different set
+of privileges for connections from @code{elsewhere.com}.
 
 MySQL access control involves two stages:
 
@@ -34043,7 +34043,7 @@ mysql> SELECT * FROM articles WHERE MATCH (title,body) AGAINST (
 This query retrieved all the rows that contain the word @code{MySQL}
 (note: 50% threshold is gone), but does @strong{not} contain the word
 @code{YourSQL}.  Note, that it does not auto-magically sort rows in
-derceasing relevance order (the last row has the highest relevance,
+decreasing relevance order (the last row has the highest relevance,
 as it contains @code{MySQL} twice). Boolean fulltext search can also
 work even without @code{FULLTEXT} index, but it would be @strong{slow}.
 
@@ -34086,11 +34086,11 @@ find rows that contain at least one of these words.
 ... word ``apple'', but rank it higher if it also contain ``macintosh''
 @item +apple -macintosh
 ... word ``apple'' but not ``macintosh''
-@item +gates +(>hell <bill)
-... ``hell'' and ``gates'', or ``bill'' and ``gates'' (in any
-order), but rank ``gates to hell'' higher than ``bill gates''.
+@item +apple +(>pie <strudel)
+... ``apple'' and ``pie'', or ``apple'' and ``strudel'' (in any
+order), but rank ``apple pie'' higher than ``apple strudel''.
 @item apple*
-... ``apple'', ``apples'', ``applesause'', and ``applet''
+... ``apple'', ``apples'', ``applesauce'', and ``applet''
 @end table
 
 @menu
