@@ -2,7 +2,7 @@ Next QMGR 1
 Next NDBCNTR 1000
 Next NDBFS 2000
 Next DBACC 3001
-Next DBTUP 4007
+Next DBTUP 4013
 Next DBLQH 5042
 Next DBDICT 6006
 Next DBDIH 7174
@@ -10,7 +10,7 @@ Next DBTC 8035
 Next CMVMI 9000
 Next BACKUP 10022
 Next DBUTIL 11002
-Next DBTUX 12001
+Next DBTUX 12007
 Next SUMA 13001
 
 TESTING NODE FAILURE, ARBITRATION
@@ -393,6 +393,12 @@ Failed Create Table:
 --------------------
 7173: Create table failed due to not sufficient number of fragment or
       replica records.
+4007 12001: Fail create 1st fragment
+4008 12002: Fail create 2nd fragment
+4009 12003: Fail create 1st attribute in 1st fragment
+4010 12004: Fail create last attribute in 1st fragment
+4011 12005: Fail create 1st attribute in 2nd fragment
+4012 12006: Fail create last attribute in 2nd fragment
 
 Drop Table/Index:
 -----------------

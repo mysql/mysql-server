@@ -395,7 +395,8 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     goto err;
   }
 
-  if (number_of_fields < 3 || l_time->month > 12 ||
+  if (number_of_fields < 3 ||
+      l_time->year > 9999 || l_time->month > 12 ||
       l_time->day > 31 || l_time->hour > 23 ||
       l_time->minute > 59 || l_time->second > 59 ||
       (!(flags & TIME_FUZZY_DATE) && (l_time->month == 0 ||
@@ -792,10 +793,10 @@ my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap)
 
 /* Set MYSQL_TIME structure to 0000-00-00 00:00:00.000000 */
 
-void set_zero_time(MYSQL_TIME *tm)
+void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type)
 {
   bzero((void*) tm, sizeof(*tm));
-  tm->time_type= MYSQL_TIMESTAMP_NONE;
+  tm->time_type= time_type;
 }
 
 

@@ -37,11 +37,10 @@ a	b
 32	6
 drop table t1;
 set @@session.auto_increment_increment=100, @@session.auto_increment_offset=10;
-show variables like "%auto%";
+show variables like "%auto_inc%";
 Variable_name	Value
 auto_increment_increment	100
 auto_increment_offset	10
-innodb_autoextend_increment	8
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
 insert into t1 values (NULL),(5),(NULL);
 insert into t1 values (250),(NULL);

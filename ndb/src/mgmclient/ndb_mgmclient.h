@@ -23,7 +23,7 @@ extern "C" {
 
 typedef void* Ndb_mgmclient_handle;
 Ndb_mgmclient_handle ndb_mgmclient_handle_create(const char *connect_string);
-int ndb_mgmclient_execute(Ndb_mgmclient_handle, int argc, const char** argv);
+int ndb_mgmclient_execute(Ndb_mgmclient_handle, int argc, char** argv);
 int ndb_mgmclient_handle_destroy(Ndb_mgmclient_handle);
 
 #ifdef __cplusplus
