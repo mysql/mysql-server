@@ -1384,7 +1384,7 @@ in this email @email{advertising@@mysql.com}.
 
 @item
 We are building a partner program to be able to provide @strong{MySQL}
-services in every country.  If you are interested in becomming a partner
+services in every country.  If you are interested in becoming a partner
 of @strong{MySQL AB} please visit
 @uref{http://www.mysql.com/information/partners.html} or email
 @email{partner@@mysql.com}.
@@ -7522,10 +7522,10 @@ experimentally discovered, will successfully unmap an already mapped region
 if you ask it to map out an address already in use, zeroing out the data
 on the entire page, instead of returning an error.  So, the safety of
 @code{mysqld} or any other threaded application depends on the "gentleman" 
-behaviour of the code that creates threads.  The user must take measures to 
+behavior of the code that creates threads.  The user must take measures to 
 make sure the number of running threads at any time is sufficiently low for 
 thread stacks to stay away from the global heap.  With @code{mysqld}, you 
-should enforce this "gentleman" behaviour by setting a reasonable value for 
+should enforce this "gentleman" behavior by setting a reasonable value for 
 the @code{max_connections} variable.
 
 If you build @strong{MySQL} yourself and do not what to mess with patching
@@ -7592,7 +7592,7 @@ you link @strong{MySQL} against unmodified @strong{LinuxThreads},
 removing processors from the machine improves @strong{MySQL} performance
 in many cases.  We have made a patch available for @strong{glibc 2.1.3},
 @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.1-patch,linuxthreads-2.1-patch}
-to correct this behaviour.
+to correct this behavior.
 
 With @strong{glibc-2.2.2}
 @strong{MySQL} version 3.23.36 will use the adaptive mutex, which is much
@@ -7600,7 +7600,7 @@ better than even the patched one in @strong{glibc-2.1.3}. Be warned, however,
 that under some conditions, the current mutex code in @strong{glibc-2.2.2}
 overspins, which hurts @strong{MySQL} performance. The chance of this
 condition can be reduced by renicing @code{mysqld} process to the highest
-priority. We have also been able to correct the overspin behaviour with
+priority. We have also been able to correct the overspin behavior with
 a patch, available @uref{http://www.mysql.com/Downloads/Linux/linuxthreads-2.2.2.patch,here}. It combines the correction of overspin, maximum number of
 threads, and stack spacing all in one. You will need to apply it in the
 @code{linuxthreads} directory with
@@ -23467,7 +23467,7 @@ SQL servers that supports different table types (like copying tables to
 a slave that is optimized for speed by not having transactional tables).
 This automatic table changing can however also be very confusing for new
 @strong{MySQL} users. We plan to fix this by introducing warnings in
-@strong{MySQL} 4.0 and giving a warning when a table type is automaticly
+@strong{MySQL} 4.0 and giving a warning when a table type is automatically
 changed.
 
 You can convert tables between different types with the @code{ALTER
@@ -30492,7 +30492,7 @@ In @strong{MySQL} Version 3.23.7 and above, you can insert rows into
 @code{MyISAM} tables at the same time other threads are reading from the
 table.  Note that currently this only works if there are no holes after
 deleted rows in the table at the time the insert is made. When all holes
-has been filled with new data, concurrent inserts will automaticly be
+has been filled with new data, concurrent inserts will automatically be
 enabled again.
 
 Table locking enables many threads to read from a table at the same
@@ -32052,7 +32052,7 @@ option. @xref{InnoDB start}.
 To get better performance for BDB tables, you should add some configuration
 options for these too. @xref{BDB start}.
 
-@code{safe_mysqld} will automaticly try to start any @code{mysqld} binary
+@code{safe_mysqld} will automatically try to start any @code{mysqld} binary
 with the @code{-max} prefix. This makes it very easy to test out a
 another @code{mysqld} binary in an existing installation.  Just
 run @code{configure} with the options you want and then install the
@@ -32061,7 +32061,7 @@ where your old @code{mysqld} binary is. @xref{safe_mysqld}.
 
 The @code{mysqld-max} RPM uses the above mentioned @code{safe_mysqld}
 feature. It just installs the @code{mysqld-max} executable and
-@code{safe_mysqld} will automaticly use this executable when
+@code{safe_mysqld} will automatically use this executable when
 @code{safe_mysqld} is restarted.
 
 The following table shows which table types our standard @strong{MySQL-Max}
@@ -38089,20 +38089,20 @@ home directory. @xref{Option files}.
 @node Log files, Clients, Common problems, Top
 @chapter The MySQL log files
 
-@strong{MySQL} has a lot of different log files which can help you find
+@strong{MySQL} has several different log files that can help you find
 out what's going on inside @code{mysqld}:
 
 @multitable @columnfractions .3 .7
 @item The error log @tab Problems encountering starting, running or stopping mysqld.
 @item The isam log @tab Logs all changes to the ISAM tables. Used only for debugging the isam code.
 @item The query log @tab Established connections and executed queries.
-@item The update log @tab Depricated: Stores all statements that changes data
+@item The update log @tab Deprecated: Stores all statements that changes data
 @item The binary log @tab Stores all statements that changes something. Used also for replication
 @item The slow log @tab Stores all queries that took more than @code{long_query_time} to execute or didn't use indexes.
 @end multitable
 
-All logs can be found in the @code{mysqld} database directory.  You can
-tell force mysqld to switch to reopen the log files (or in some cases
+All logs can be found in the @code{mysqld} data directory.  You can
+force @code{mysqld} to reopen the log files (or in some cases
 switch to a new log) by executing @code{FLUSH LOGS}. @xref{FLUSH}.
 
 @cindex error log
@@ -38123,16 +38123,16 @@ switch to a new log) by executing @code{FLUSH LOGS}. @xref{FLUSH}.
 @code{'hostname'.err}.  (On Windows, @code{mysqld} writes this directly
 to @file{mysql.err}).
 
-This contains information on when mysqld was started and stopped and
-also any critical errors found when running.  If @code{mysqld} dies
-unexpectedly and @code{safe_mysqld} needs to restart @code{mysqld},
+This contains information indicating when @code{mysqld} was started and
+stopped and also any critical errors found when running.  If @code{mysqld}
+dies unexpectedly and @code{safe_mysqld} needs to restart @code{mysqld},
 @code{safe_mysqld} will write a @code{restarted mysqld} row in this
 file.  This log also holds a warning if @code{mysqld} notices a table
 that needs to be automatically checked or repaired.
 
 On some operating systems, the error log will contain a stack trace
-for where mysqld died. This can be used to find out where mysqld died.
-@xref{Using stack trace}.
+for where @code{mysqld} died. This can be used to find out where
+@code{mysqld} died.  @xref{Using stack trace}.
 
 @cindex query log
 @cindex files, query log
@@ -38141,9 +38141,9 @@ for where mysqld died. This can be used to find out where mysqld died.
 
 If you want to know what happens within @code{mysqld}, you should start
 it with @code{--log[=file]}.  This will log all connections and queries
-to the log file (by default named 'hostname.log').  This log can
+to the log file (by default named @file{'hostname'.log}).  This log can
 be very useful when you suspect an error in a client and want to know
-exactly what @code{mysqld} thought the client send to it.
+exactly what @code{mysqld} thought the client sent to it.
 
 By default, the @code{mysql.server} script starts the @strong{MySQL}
 server with the @code{-l} option.  If you need better performance when
@@ -38153,7 +38153,7 @@ remove the @code{-l} option from @code{mysql.server} or change it to
 
 The entries in this log are written as @code{mysqld} receives the questions.
 This may be different than the order in which the statements are executed.
-This is in contrast to the update log and the binary log which is written
+This is in contrast to the update log and the binary log which are written
 after the query is executed, but before any locks are released.
 
 @cindex update log
@@ -49599,13 +49599,13 @@ Because @strong{MySQL} allows you to work with table types that don't
 support transactions, and thus can't @code{rollback} data, some things
 behave a little differently in @strong{MySQL} than in other SQL servers.
 This is just to ensure that @strong{MySQL} never need to do a rollback
-for a SQL command.  This may be a little akward at times as column
+for a SQL command.  This may be a little awkward at times as column
 values must be checked in the application, but this will actually give
 you a nice speed increase as it allows @strong{MySQL} to do some
 optimizations that otherwise would be very hard to do.
 
-If you set a column to a wrong value, @strong{MySQL} will, instead of doing
-a rollback, store the @code{best possible value} in the column:
+If you set a column to an incorrect value, @strong{MySQL} will, instead of
+doing a rollback, store the @code{best possible value} in the column:
 
 @itemize @bullet
 @item
@@ -49803,13 +49803,13 @@ Fail safe replication.
 Subqueries.
 @code{select id from t where grp in (select grp from g where u > 100)}
 @item
-Derieved tables.
+Derived tables.
 @example
 select a.col1, b.col2 from (select max(col1) as col1 from root_table ) a,
 other_table b where a.col1=b.col1
 @end example
 
-This could be done by automaticly create temporary tables for the
+This could be done by automatically creating temporary tables for the
 derived tables for the duration of the query.
 @item
 Add @code{PREPARE} of statements and sending of parameters to @code{mysqld}.
