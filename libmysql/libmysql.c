@@ -852,6 +852,7 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
 err:
   /* free up memory allocated with _init, usually */
   (*options->local_infile_end)(li_ptr);
+  my_free(buf, MYF(0));
   DBUG_RETURN(result);
 }
 
