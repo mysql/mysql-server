@@ -301,8 +301,11 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   }
 
   if (!(new_page = (uchar*)my_alloca((uint)keyinfo->block_length)))
-    return -1;
-
+  {
+    err_code= -1;
+    goto split_err;
+  }
+  
   stop = task + (max_keys + 1);
   cur1 = rt_PAGE_FIRST_KEY(page, nod_flag);
   cur2 = rt_PAGE_FIRST_KEY(new_page, nod_flag);
