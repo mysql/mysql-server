@@ -62,7 +62,7 @@
 #if !defined(HAVE_MEMCPY) && !defined(HAVE_MEMMOVE)
 # define memcpy(d, s, n)	bcopy ((s), (d), (n))
 # define memset(A,C,B)		bfill((A),(B),(C))
-# define memmove(d, s, n)	bmove ((s), (d), (n))
+# define memmove(d, s, n)	bmove ((d), (s), (n))
 #elif defined(HAVE_MEMMOVE)
 # define bmove(d, s, n)		memmove((d), (s), (n))
 #else
