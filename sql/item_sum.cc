@@ -993,7 +993,7 @@ int dump_leaf(byte* key, uint32 count __attribute__((unused)),
   int error;
   /*
     The first item->rec_offset bytes are taken care of with
-    restore_record(table,2) in setup()
+    restore_record(table,default_values) in setup()
   */
   memcpy(buf + item->rec_offset, key, item->tree->size_of_element);
   if ((error = item->table->file->write_row(buf)))
@@ -1075,7 +1075,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
     void* cmp_arg;
 
     // to make things easier for dump_leaf if we ever have to dump to MyISAM
-    restore_record(table,2);
+    restore_record(table,default_values);
 
     if (table->fields == 1)
     {
