@@ -336,7 +336,13 @@ while test $# -gt 0; do
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       ;;
     --valgrind)
-      VALGRIND="valgrind --alignment=8 --leak-check=yes --num-callers=16"
+      VALGRIND=`which valgrind` # this will print an error if not found
+      # Give good warning to the user and stop
+      if [ -z "$VALGRIND" ] ; then
+        $ECHO "You need to have the 'valgrind' program in your PATH to run mysql-test-run with option --valgrind. Valgrind's home page is http://developer.kde.org/~sewardj ."
+        exit 1
+      fi
+      VALGRIND="$VALGRIND --alignment=8 --leak-check=yes --num-callers=16"
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       SLEEP_TIME_AFTER_RESTART=10
