@@ -211,7 +211,7 @@ WWW (@uref{http://mysql.paco.net.ua/})
 FTP (@uref{ftp://mysql.paco.net.ua/})
 
 @item
-@image{Flags/yugoslavia} Yugoslavia [bolex.co.yu] @@
+@image{Flags/yugoslavia} Yugoslavia [Open Source Network of Yugoslavia] @@
 WWW (@uref{http://mysql.boa.org.yu/})
 FTP (@uref{ftp://ftp.linux.org.yu/pub/MySQL/})
 
@@ -393,6 +393,5 @@ WWW (@uref{http://www.mysql.mweb.co.za/})
 FTP (@uref{ftp://ftp.is.co.za/linux/mysql/})
 
 @end itemize
-
 
 
