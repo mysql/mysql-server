@@ -1115,7 +1115,7 @@ NetWare. */
 	srv_monitor_file_name = mem_alloc(
 			strlen(fil_path_to_mysql_datadir) +
 			20 + sizeof "/innodb_status.");
-	sprintf(srv_monitor_file_name, "%s/innodb.status.%lu",
+	sprintf(srv_monitor_file_name, "%s/innodb_status.%lu",
 		fil_path_to_mysql_datadir, os_proc_get_number());
 	srv_monitor_file = fopen(srv_monitor_file_name, "w+");
 	if (!srv_monitor_file) {
