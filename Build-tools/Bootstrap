@@ -252,7 +252,7 @@ if (defined $opt_changelog)
 	$msg= "Adding $target_dir/ChangeLog";
 	$msg.= " (down to revision $opt_changelog)" if $opt_changelog ne "";
 	&logger($msg);
-	$command= "bk changes -mv";
+	$command= "bk changes -v";
 	$command.= " -r" if ($opt_changelog ne "" || $opt_revision);
 	$command.= $opt_changelog if $opt_changelog ne "";
 	$command.= ".." if ($opt_changelog ne "" && !$opt_revision);
