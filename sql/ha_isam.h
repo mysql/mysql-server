@@ -34,7 +34,7 @@ class ha_isam: public handler
 		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
 		    HA_HAVE_KEY_READ_ONLY | HA_READ_NOT_EXACT_KEY |
 		    HA_LONGLONG_KEYS | HA_KEY_READ_WRONG_STR | HA_DUPP_POS |
-		    HA_NOT_DELETE_WITH_CACHE | HA_NO_FULLTEXT_KEY)
+		    HA_NOT_DELETE_WITH_CACHE)
     {}
   ~ha_isam() {}
   const char *table_type() const { return "ISAM"; }

@@ -22,8 +22,10 @@
 #define RAID_DEFAULT_CHUNKS 4
 #define RAID_DEFAULT_CHUNKSIZE 256*1024 /* 256kB */
 
-extern const char *raid_type_string[];
+C_MODE_START
 #define my_raid_type(raid_type)  raid_type_string[(int)(raid_type)]
+extern const char *raid_type_string[];
+C_MODE_END
 
 #if defined(USE_RAID) && !defined(DONT_USE_RAID)
 

@@ -72,8 +72,8 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
 		lock_tables=0,ignore_errors=0,flush_logs=0,replace=0,
 		ignore=0,opt_drop=0,opt_keywords=0,opt_lock=0,opt_compress=0,
                 opt_delayed=0,create_options=0,opt_quoted=0,opt_databases=0,
-	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0, 
-                opt_autocommit=0, opt_master_data, opt_xml=0;
+	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
+                opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -90,55 +90,56 @@ FILE  *md_result_file;
 static struct option long_options[] =
 {
   {"all-databases",     no_argument,    0,      'A'},
-  {"all",		no_argument,    0, 	'a'},
-  {"add-drop-table",	no_argument,    0, 	OPT_DROP},
-  {"add-locks",    	no_argument,    0,	OPT_LOCKS},
-  {"allow-keywords",	no_argument,    0, 	OPT_KEYWORDS},
+  {"all",		no_argument,    0,	'a'},
+  {"add-drop-table",	no_argument,    0,	OPT_DROP},
+  {"add-locks",         no_argument,    0,	OPT_LOCKS},
+  {"allow-keywords",	no_argument,    0,	OPT_KEYWORDS},
   {"character-sets-dir",required_argument,0,    OPT_CHARSETS_DIR},
-  {"complete-insert",	no_argument,    0, 	'c'},
-  {"compress",          no_argument,    0, 	'C'},
+  {"complete-insert",	no_argument,    0,	'c'},
+  {"compress",          no_argument,    0,	'C'},
   {"databases",         no_argument,    0,      'B'},
-  {"debug",		optional_argument, 	0, '#'},
+  {"debug",		optional_argument,	0, '#'},
   {"default-character-set", required_argument,  0, OPT_DEFAULT_CHARSET},
-  {"delayed-insert",	no_argument,    0, 	OPT_DELAYED},
-  {"extended-insert",   no_argument,    0, 	'e'},
+  {"delayed-insert",	no_argument,    0,	OPT_DELAYED},
+  {"extended-insert",   no_argument,    0,	'e'},
   {"fields-terminated-by", required_argument,   0, (int) OPT_FTB},
   {"fields-enclosed-by", required_argument,	0, (int) OPT_ENC},
   {"fields-optionally-enclosed-by", required_argument, 0, (int) OPT_O_ENC},
   {"fields-escaped-by", required_argument,	0, (int) OPT_ESC},
   {"first-slave",	no_argument,    0,	'x'},
   {"flush-logs",	no_argument,    0,	'F'},
-  {"force",    		no_argument,    0,	'f'},
-  {"help",   		no_argument,    0,	'?'},
-  {"host",    		required_argument,	0, 'h'},
+  {"force",		no_argument,    0,	'f'},
+  {"help",		no_argument,    0,	'?'},
+  {"host",		required_argument,	0, 'h'},
   {"lines-terminated-by", required_argument,    0, (int) OPT_LTB},
-  {"lock-tables",  	no_argument,    0, 	'l'},
-  {"master-data",  	no_argument,    0, 	OPT_MASTER_DATA},
+  {"lock-tables",       no_argument,    0,	'l'},
+  {"master-data",	no_argument,    0,	OPT_MASTER_DATA},
   {"no-autocommit",     no_argument,    0,      OPT_AUTOCOMMIT},
   {"no-create-db",      no_argument,    0,      'n'},
-  {"no-create-info", 	no_argument,    0, 	't'},
-  {"no-data",  		no_argument,    0, 	'd'},
-  {"opt",   		no_argument,    0, 	OPT_OPTIMIZE},
-  {"password",  	optional_argument, 	0, 'p'},
+  {"no-create-info",	no_argument,    0,	't'},
+  {"no-data",		no_argument,    0,	'd'},
+  {"no-disable-keys",   no_argument,    0,	'K'},
+  {"opt",		no_argument,    0,	OPT_OPTIMIZE},
+  {"password",          optional_argument,	0, 'p'},
 #ifdef __WIN__
-  {"pipe",		no_argument,	   	0, 'W'},
+  {"pipe",		no_argument,		0, 'W'},
 #endif
-  {"port",    		required_argument,	0, 'P'},
-  {"quick",    		no_argument,		0, 'q'},
+  {"port",		required_argument,	0, 'P'},
+  {"quick",		no_argument,		0, 'q'},
   {"quote-names",	no_argument,		0, 'Q'},
   {"result-file",       required_argument,      0, 'r'},
   {"set-variable",	required_argument,	0, 'O'},
-  {"socket",   		required_argument,	0, 'S'},
+  {"socket",		required_argument,	0, 'S'},
 #include "sslopt-longopts.h"
-  {"tab",    		required_argument,	0, 'T'},
+  {"tab",		required_argument,	0, 'T'},
   {"tables",            no_argument,            0, OPT_TABLES},
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user",    		required_argument,	0, 'u'},
+  {"user",		required_argument,	0, 'u'},
 #endif
-  {"verbose",    	no_argument,		0, 'v'},
-  {"version",    	no_argument,    	0, 'V'},
-  {"where",		required_argument, 	0, 'w'},
-  {"xml", 		no_argument, 		0, 'X'},
+  {"verbose",	        no_argument,		0, 'v'},
+  {"version",	        no_argument,	        0, 'V'},
+  {"where",		required_argument,	0, 'w'},
+  {"xml",		no_argument,		0, 'X'},
   {0, 0, 0, 0}
 };
 
@@ -214,6 +215,9 @@ static void usage(void)
 puts("\
   -l, --lock-tables     Lock all tables for read.\n\
   --no-autocommit       Wrap tables with autocommit/commit statements.\n\
+  -K, --no-disable-keys '/*!40000 ALTER TABLE tb_name DISABLE KEYS */;\n\
+                        and '/*!40000 ALTER TABLE tb_name ENABLE KEYS */;\n\
+                        will not be put in the output.\n\
   -n, --no-create-db    'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;'\n\
                         will not be put in the output. The above line will\n\
                         be added otherwise, if --databases or\n\
@@ -227,7 +231,7 @@ puts("\
   -p, --password[=...]	Password to use when connecting to server.\n\
                         If password is not given it's solicited on the tty.\n");
 #ifdef __WIN__
-  puts("-W, --pipe		Use named pipes to connect to server");
+  puts("-W, --pipe	Use named pipes to connect to server");
 #endif
   printf("\
   -P, --port=...	Port number to use for connection.\n\
@@ -305,7 +309,7 @@ static int get_options(int *argc,char ***argv)
   load_defaults("my",load_default_groups,argc,argv);
   set_all_changeable_vars(md_changeable_vars);
   while ((c=getopt_long(*argc,*argv,
-			"#::p::h:u:O:P:r:S:T:EBaAcCdefFlnqtvVw:?IxX",
+			"#::p::h:u:O:P:r:S:T:EBaAcCdefFKlnqtvVw:?IxX",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -340,6 +344,9 @@ static int get_options(int *argc,char ***argv)
     case 'h':
       my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
       current_host=my_strdup(optarg,MYF(MY_WME));
+      break;
+    case 'K':
+      opt_disable_keys=1;
       break;
     case 'n':
       opt_create_db = 1;
@@ -408,7 +415,7 @@ static int get_options(int *argc,char ***argv)
     case 'w':
       where=optarg;
       break;
-    case 'X': opt_xml = 1; break;
+    case 'X': opt_xml = 1; opt_disable_keys=1; break;
     case 'x':
       opt_first_slave=1;
       break;
@@ -618,9 +625,9 @@ static uint getTableStructure(char *table, char* db)
   MYSQL_ROW  row;
   my_bool    init=0;
   uint       numFields;
-  char 	     *strpos, *table_name;
+  char	     *strpos, *table_name;
   const char *delayed;
-  char 	     name_buff[NAME_LEN+3],table_buff[NAME_LEN+3];
+  char	     name_buff[NAME_LEN+3],table_buff[NAME_LEN+3];
   FILE       *sql_file = md_result_file;
   DBUG_ENTER("getTableStructure");
 
@@ -643,7 +650,7 @@ static uint getTableStructure(char *table, char* db)
       if (mysql_query(sock, buff))
       {
         fprintf(stderr, "%s: Can't get CREATE TABLE for table '%s' (%s)\n",
-  		      my_progname, table, mysql_error(sock));
+		      my_progname, table, mysql_error(sock));
         safe_exit(EX_MYSQLERR);
         DBUG_RETURN(0);
       }
@@ -653,7 +660,7 @@ static uint getTableStructure(char *table, char* db)
         char filename[FN_REFLEN], tmp_path[FN_REFLEN];
         convert_dirname(tmp_path,path,NullS);
         sql_file= my_fopen(fn_format(filename, table, tmp_path, ".sql", 4),
-  				 O_WRONLY, MYF(MY_WME));
+				 O_WRONLY, MYF(MY_WME));
         if (!sql_file)			/* If file couldn't be opened */
         {
 	  safe_exit(EX_MYSQLERR);
@@ -677,7 +684,7 @@ static uint getTableStructure(char *table, char* db)
     if (mysql_query(sock,insert_pat) || !(tableRes=mysql_store_result(sock)))
     {
       fprintf(stderr, "%s: Can't get info about table: '%s'\nerror: %s\n",
-  		    my_progname, table, mysql_error(sock));
+		    my_progname, table, mysql_error(sock));
       safe_exit(EX_MYSQLERR);
       DBUG_RETURN(0);
     }
@@ -883,6 +890,8 @@ static uint getTableStructure(char *table, char* db)
       fputs(";\n", sql_file);
     }
   }
+  if (!opt_disable_keys)
+    fprintf(sql_file,"\n/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",table_name);
   if (cFlag)
   {
     strpos=strmov(strpos,") VALUES ");
@@ -982,7 +991,7 @@ static void dumpTable(uint numFields, char *table)
     end= add_load_option(end, lines_terminated, " LINES TERMINATED BY");
     *end= '\0';
 
-    sprintf(buff," FROM %s",table);
+    sprintf(buff," FROM %s",quote_name(table,table_buff));
     end= strmov(end,buff);
     if (where)
       end= strxmov(end, " WHERE ",where,NullS);
@@ -1113,7 +1122,7 @@ static void dumpTable(uint numFields, char *table)
 	  if (row[i])
 	  {
 	    if (!IS_NUM_FIELD(field))
-	    {   
+	    {
 	      if (opt_xml)
 		print_quoted_xml(md_result_file, field->name, row[i],
 				 lengths[i]);
@@ -1173,7 +1182,7 @@ static void dumpTable(uint numFields, char *table)
 
     //XML - close table tag and supress regular output
     if (opt_xml)
-	fprintf(md_result_file, "\t</%s>\n", table); 
+	fprintf(md_result_file, "\t</%s>\n", table);
     else if (extended_insert && row_break)
       fputs(";\n", md_result_file);		/* If not empty table */
     fflush(md_result_file);
@@ -1189,6 +1198,9 @@ static void dumpTable(uint numFields, char *table)
       safe_exit(EX_CONSCHECK);
       return;
     }
+    if (!opt_disable_keys)
+      fprintf(md_result_file,"\n/*!40000 ALTER TABLE %s ENABLE KEYS */;\n",
+                                            quote_name(table,table_buff));
     if (opt_lock)
       fputs("UNLOCK TABLES;\n", md_result_file);
     if (opt_autocommit)
@@ -1270,7 +1282,7 @@ static int dump_databases(char **db_names)
 {
   int result=0;
   for ( ; *db_names ; db_names++)
-  { 
+  {
     //XML edit - add database element
     if (opt_xml)
       fprintf(md_result_file, "<%s>\n", *db_names);
@@ -1466,8 +1478,8 @@ int main(int argc, char **argv)
       {
 	my_printf_error(0, "Error: Couldn't execute 'SHOW MASTER STATUS': %s",
 			MYF(0), mysql_error(sock));
-      } 
-      else 
+      }
+      else
       {
 	row = mysql_fetch_row(master);
 	if(row[0] && row[1]) {

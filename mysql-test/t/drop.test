@@ -11,33 +11,33 @@ create table t1(n int);
 drop table t1;
 select * from t1;
 
-#now test for a bug in drop database - it is important that the name
-#of the table is the same as the name of the database - in the original
-#code this triggered a bug
-drop database if exists foo;
-create database foo;
-drop database if exists foo;
-create database foo;
-create table foo.foo (n int);
-insert into foo.foo values (4);
-select * from foo.foo;
-drop database if exists foo;
-create database foo;
-drop database foo;
+# now test for a bug in drop database - it is important that the name
+# of the table is the same as the name of the database - in the original
+# code this triggered a bug
+drop database if exists mysqltest;
+create database mysqltest;
+drop database if exists mysqltest;
+create database mysqltest;
+create table mysqltest.mysqltest (n int);
+insert into mysqltest.mysqltest values (4);
+select * from mysqltest.mysqltest;
+drop database if exists mysqltest;
+create database mysqltest;
+drop database mysqltest;
 
 # test drop/create database and FLUSH TABLES WITH READ LOCK
-drop database if exists foo;
+drop database if exists mysqltest;
 flush tables with read lock;
 --error 1209,1223;
-create database foo;
+create database mysqltest;
 unlock tables;
-create database foo;
+create database mysqltest;
 show databases;
 flush tables with read lock;
 --error 1208,1223;
-drop database foo;
+drop database mysqltest;
 unlock tables;
-drop database foo;
+drop database mysqltest;
 show databases;
 --error 1008
-drop database foo;
+drop database mysqltest;

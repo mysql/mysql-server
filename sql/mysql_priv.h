@@ -283,8 +283,9 @@ uint cached_tables(void);
 void kill_mysql(void);
 void close_connection(NET *net,uint errcode=0,bool lock=1);
 bool check_access(THD *thd,uint access,const char *db=0,uint *save_priv=0,
-		  bool no_grant=0);
-bool check_table_access(THD *thd,uint want_access, TABLE_LIST *tables);
+		  bool no_grant=0, bool no_errors=0);
+bool check_table_access(THD *thd,uint want_access, TABLE_LIST *tables,
+			bool no_errors=0);
 bool check_process_priv(THD *thd=0);
 
 int mysql_backup_table(THD* thd, TABLE_LIST* table_list);
@@ -435,7 +436,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables);
 
 /* sql_handler.cc */
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
-int mysql_ha_close(THD *thd, TABLE_LIST *tables);
+int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok=0);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
 

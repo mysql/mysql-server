@@ -8050,6 +8050,10 @@ version 4.0;
 
 @itemize @bullet
 @item
+To use @code{MATCH ... AGAINST (... IN BOOLEAN MODE)} with your tables,
+you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
+@strong{even} if they are of @code{MyISAM} type.
+@item
 @code{LOCATE()} and @code{INSTR()} are case sensitive if neither
 argument is a binary string.
 @item
@@ -22090,8 +22094,12 @@ is @code{localhost}.
 Lock all tables before starting the dump.  The tables are locked with
 @code{READ LOCAL} to allow concurrent inserts in the case of @code{MyISAM}
 tables.
+@item -K, --no-disable-keys.
+@code{/*!40000 ALTER TABLE tb_name DISABLE KEYS */;} and
+@code{/*!40000 ALTER TABLE tb_name ENABLE KEYS */;}
+will not be put in the output.
 @item -n, --no-create-db
-'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;' will not be put in the
+@code{CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;} will not be put in the
 output. The above line will be added otherwise, if --databases or
 --all-databases option was given.
 @item -t, --no-create-info
@@ -22140,6 +22148,10 @@ Verbose mode.  Print out more information on what the program does.
 Print version information and exit.
 @item -w, --where='where-condition'
 Dump only selected records. Note that quotes are mandatory:
+@item -X, --xml
+Dumps a database as well formed XML
+@item -x, --first-slave
+Locks all tables across all databases.
 
 @example
 "--where=user='jimf'" "-wuserid>1" "-wuserid<1"
@@ -34567,15 +34579,6 @@ options, MySQL simply renames the files that correspond to the table
 @xref{RENAME TABLE,, @code{RENAME TABLE}}.
 
 @item
-Since @strong{MySQL 4.0} the above feature can be activated explicitly.
-@code{ALTER TABLE ... DISABLE KEYS} makes MySQL to stop updating
-non-unique indexes for @code{MyISAM} table.
-@code{ALTER TABLE ... ENABLE KEYS} then should be used to recreate missing
-indexes. As MySQL does it with special algorithm which is much
-faster then inserting keys one by one, disabling keys could give a
-considerable speedup on bulk inserts.
-
-@item
 @code{create_definition} clauses use the same syntax for @code{ADD} and
 @code{CHANGE} as for @code{CREATE TABLE}.  Note that this syntax includes
 the column name, not just the column type.
@@ -34673,6 +34676,15 @@ performance.
 If you use @code{ALTER TABLE} on a @code{MyISAM} table, all non-unique
 indexes are created in a separate batch (like in @code{REPAIR}).
 This should make @code{ALTER TABLE} much faster when you have many indexes.
+
+@item
+Since @strong{MySQL 4.0} the above feature can be activated explicitly.
+@code{ALTER TABLE ... DISABLE KEYS} makes MySQL to stop updating
+non-unique indexes for @code{MyISAM} table.
+@code{ALTER TABLE ... ENABLE KEYS} then should be used to recreate missing
+indexes. As MySQL does it with special algorithm which is much
+faster then inserting keys one by one, disabling keys could give a
+considerable speedup on bulk inserts.
 
 @item
 @findex mysql_info()
@@ -35574,6 +35586,10 @@ In addition, a query may be seen as different if for instance one
 client is using a new communication protocol format or another
 character set than another client.
 
+Queries that uses different databases, uses different protocol versions
+or the uses different default character sets are considered different
+queries and cached separately.
+
 The cache does work for @code{SELECT CALC_ROWS ...} and
 @code{SELECT FOUND_ROWS() ...} type queries because the number of
 found rows is also stored in the cache.
@@ -35612,8 +35628,12 @@ of the form @code{SELECT * FROM AUTOINCREMENT_FIELD IS NULL}
 However, @code{FOUND ROWS()} will return the correct value,
 even if the preceding query was fetched from the cache.
 
-Queries that don't use any tables are not cached.
+Queries that don't use any tables or if the user has a column privilege for
+any of the involved tables are not cached.
 
+Before a query is fetched from the query cache, MySQL will check that
+the user has SELECT privilege to all the involved databases and
+tables. If this is not the case, the cached result will not be used.
 
 @node Query Cache Configuration, Query Cache in SELECT, Query Cache How, Query Cache
 @subsection Query Cache Configuration
@@ -46548,8 +46568,9 @@ variables.
 @cindex OLEDB
 @item OLEDB
 @itemize @bullet
-@item @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB.exe}
+@item MyOLEDB 2.5: @uref{http://www.mysql.com/Downloads/Win32/MyOLEDB.exe}
 OLEDB handler for MySQL. By SWsoft.
+@item MyOLEDB 3.0: @uref{http://old.sw.com.sg/products/myoledb/form/}
 @item @uref{http://www.mysql.com/Downloads/Win32/MySamples.zip}
 Examples and documentation for MyOLEDB. By SWsoft.
 @item @uref{http://www.mysql.com/Downloads/Win32/Myoledb.zip}
@@ -47827,6 +47848,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
+@item
+@code{mysqldump} now puts @code{ALTER TABLE table_name DISABLE KEYS} and
+@code{ALTER TABLE table_name DISABLE KEYS} in the sql dump.
+@item
+Added @code{mysql_fix_extensions} script
 @item
 Fixed stack overrun problem @code{LOAD DATA FROM MASTER} on OSF1.
 @item

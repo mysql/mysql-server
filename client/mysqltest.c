@@ -1248,7 +1248,8 @@ int close_connection(struct st_query* q)
 }
 
 
-/* this one now is a hack - we may want to improve in in the
+/*
+   This one now is a hack - we may want to improve in in the
    future to handle quotes. For now we assume that anything that is not
    a comma, a space or ) belongs to the argument. space is a chopper, comma or
    ) are delimiters/terminators
@@ -1291,8 +1292,7 @@ int safe_connect(MYSQL* con, const char* host, const char* user,
   int i;
   for (i = 0; i < MAX_CON_TRIES; ++i)
   {
-    if(mysql_real_connect(con, host,user, pass,
-			  db, port, sock, 0))
+    if (mysql_real_connect(con, host,user, pass, db, port, sock, 0))
     {
       con_error = 0;
       break;
@@ -1365,6 +1365,9 @@ int do_connect(struct st_query* q)
     con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
   if (!con_db[0])
     con_db=db;
+  /* Special database to allow one to connect without a database name */
+  if (!strcmp(con_db,"*NO-ONE*"))
+    con_db=0;
   if ((con_error = safe_connect(&next_con->mysql, con_host,
 				con_user, con_pass,
 				con_db, con_port, con_sock ? con_sock: 0)))
