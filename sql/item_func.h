@@ -1252,10 +1252,7 @@ class Item_func_sp :public Item_func
 private:
   sp_name *m_name;
   mutable sp_head *m_sp;
-  mutable struct {
-    TABLE table;
-    TABLE_SHARE share;
-  } dummy_table;
+  TABLE *dummy_table;
 
   int execute(Item **itp);
   Field *sp_result_field(void) const;
