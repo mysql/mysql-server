@@ -1,3 +1,5 @@
+# Grant tests not performed with embedded server
+-- source include/not_embedded.inc
 -- source include/have_query_cache.inc
 
 #
