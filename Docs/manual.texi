@@ -3681,12 +3681,12 @@ Poland [Sunsite] @
 @c @uref{http://mysql.leirianet.pt, WWW}
 @c @uref{ftp://ftp.leirianet.pt/pub/mysql/,FTP}
 
-@c @item
-@c Not ok 20000919; Old site (Matt)
+@item
 @c EMAIL: kuzmin@dn.ru (Roma Kuzmin)
-@c @image{Flags/russia} Russia [DirectNet] @
-@c @uref{http://mysql.directnet.ru/, WWW}
-@c @uref{ftp://ftp.dn.ru/pub/MySQL/, FTP}
+@c @image{Flags/russia}
+Russia [DirectNet] @
+@uref{http://mysql.directnet.ru/, WWW}
+@uref{ftp://ftp.dn.ru/pub/MySQL/, FTP}
 
 @c @item
 @c down 990113
@@ -3915,6 +3915,13 @@ USA [LinuxWired/Scottsdale, AZ] @
 @c jpabuyer@vision.cl
 @c @image{Flags/chile} Chile [Vision] @
 @c @uref{http://mysql.vision.cl/, WWW}
+
+@item
+@c EMAIL: bartschm@psi.com (Marcelo Bartsch)
+@c @image{Flags/chile}
+Chile [PSINet] @
+@uref{http://mysql.psinet.cl/, WWW}
+@uref{ftp://ftp.psinet.cl/pub/database/mysql/, FTP}
 
 @c @item
 @c Removed 990730
