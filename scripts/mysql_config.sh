@@ -18,11 +18,50 @@
 # This script reports various configuration settings that may be needed
 # when using the MySQL client library.
 
+which ()
+{
+  IFS="${IFS=   }"; save_ifs="$IFS"; IFS=':'
+  for file
+  do
+    for dir in $PATH
+    do
+      if test -f $dir/$file
+      then
+        echo "$dir/$file"
+        continue 2
+      fi
+    done
+    echo "which: no $file in ($PATH)"
+    exit 1
+  done
+  IFS="$save_ifs"
+}
+
+fix_path ()
+{
+  eval path=\$"$1"
+  if [ ! -f "$path" ] ;
+  then
+   eval "$1"=$basedir/$2
+  fi
+}
+
+abs_path=`expr \( substr $0 1 1 \) = '/'`
+if [ "x$abs_path" = "x1" ] ; then
+ me=$0
+else 
+ me=`which mysql_config`
+fi
+
+basedir=`echo $me | sed -e 's;/bin/mysql_config;;'`
+
 ldata='@localstatedir@'
 execdir='@libexecdir@'
 bindir='@bindir@'
 pkglibdir='@pkglibdir@'
+fix_path pkglibdir lib/mysql
 pkgincludedir='@pkgincludedir@'
+fix_path pkgincludedir include/mysql
 version='@VERSION@'
 socket='@MYSQL_UNIX_ADDR@'
 port='@MYSQL_TCP_PORT@'
