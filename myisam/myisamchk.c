@@ -340,7 +340,13 @@ static void usage(void)
                       this option is deprecated; you can set variables\n\
                       directly with '--variable-name=value'.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
-                      specified, separated by colon (:), they will be used\n\
+                      specified, separated by "
+#if defined( __WIN__) || defined(OS2)
+   "semicolon (;)"
+#else
+   "colon (:)"
+#endif
+                      ", they will be used\n\
                       in a round-robin fashion.\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
 		      myisamchk very silent\n\
