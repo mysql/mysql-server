@@ -24,9 +24,7 @@
 Ndb_local_table_info *
 Ndb_local_table_info::create(NdbTableImpl *table_impl, Uint32 sz)
 {
-  Uint32 tot_size= sizeof(NdbTableImpl *) + sz;
-  if (sz % 8 != 0)  
-    tot_size += sz % 8;  // round to Uint64
+  Uint32 tot_size= sizeof(NdbTableImpl *) + ((sz+7)>>3)<<3; // round to Uint64
   void *data= malloc(tot_size);
   if (data == 0)
     return 0;
