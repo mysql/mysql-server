@@ -293,7 +293,7 @@ int purge_master_logs(THD* thd, const char* to_log)
   char search_file_name[FN_REFLEN];
   if (!mysql_bin_log.is_open())
   {
-    send_ok(current_thd);
+    send_ok(thd);
     return 0;
   }
 
@@ -308,7 +308,7 @@ int purge_master_logs_before_date(THD* thd, time_t purge_time)
 {
   if (!mysql_bin_log.is_open())
   {
-    send_ok(current_thd);
+    send_ok(thd);
     return 0;
   }
   return purge_error_message(thd,
