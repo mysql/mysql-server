@@ -260,3 +260,19 @@ select * from t2;
 
 drop table t1, t2;
 
+#
+# Bug #1209
+#
+
+--disable_warnings
+drop database if exists test_$1;
+--enable_warnings
+create database test_$1;
+use test_$1;
+select database();
+drop database test_$1;
+select database();
+
+# Connect without a database
+connect (user4,localhost,mysqltest_1,,*NO-ONE*);
+select database();
