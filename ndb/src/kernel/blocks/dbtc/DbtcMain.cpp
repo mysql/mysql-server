@@ -9584,6 +9584,7 @@ void Dbtc::initApiConnect(Signal* signal)
   ndbrequire(tiacTmp > 0);
   guard4 = tiacTmp + 1;
   for (cachePtr.i = 0; cachePtr.i < guard4; cachePtr.i++) {
+    refresh_watch_dog();
     ptrAss(cachePtr, cacheRecord);
     cachePtr.p->firstAttrbuf = RNIL;
     cachePtr.p->lastAttrbuf = RNIL;
@@ -9598,6 +9599,7 @@ void Dbtc::initApiConnect(Signal* signal)
 
   guard4 = tiacTmp - 1;
   for (apiConnectptr.i = 0; apiConnectptr.i <= guard4; apiConnectptr.i++) {
+    refresh_watch_dog();
     jam();
     ptrAss(apiConnectptr, apiConnectRecord);
     apiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
@@ -9623,6 +9625,7 @@ void Dbtc::initApiConnect(Signal* signal)
   guard4 = (2 * tiacTmp) - 1;
   for (apiConnectptr.i = tiacTmp; apiConnectptr.i <= guard4; apiConnectptr.i++)
     {
+      refresh_watch_dog();
       jam();
       ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
       apiConnectptr.p->apiConnectstate = CS_RESTART;
@@ -9648,6 +9651,7 @@ void Dbtc::initApiConnect(Signal* signal)
   guard4 = (3 * tiacTmp) - 1;
   for (apiConnectptr.i = 2 * tiacTmp; apiConnectptr.i <= guard4; 
        apiConnectptr.i++) {
+    refresh_watch_dog();
     jam();
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
     setApiConTimer(apiConnectptr.i, 0, __LINE__);
@@ -9676,6 +9680,7 @@ void Dbtc::initattrbuf(Signal* signal)
 {
   ndbrequire(cattrbufFilesize > 0);
   for (attrbufptr.i = 0; attrbufptr.i < cattrbufFilesize; attrbufptr.i++) {
+    refresh_watch_dog();
     jam();
     ptrAss(attrbufptr, attrbufRecord);
     attrbufptr.p->attrbuf[ZINBUF_NEXT] = attrbufptr.i + 1;  /* NEXT ATTRBUF */
@@ -9690,6 +9695,7 @@ void Dbtc::initdatabuf(Signal* signal)
 {
   ndbrequire(cdatabufFilesize > 0);
   for (databufptr.i = 0; databufptr.i < cdatabufFilesize; databufptr.i++) {
+    refresh_watch_dog();
     ptrAss(databufptr, databufRecord);
     databufptr.p->nextDatabuf = databufptr.i + 1;
   }//for
@@ -9817,6 +9823,7 @@ void Dbtc::initialiseScanrec(Signal* signal)
   ScanRecordPtr scanptr;
   ndbrequire(cscanrecFileSize > 0);
   for (scanptr.i = 0; scanptr.i < cscanrecFileSize; scanptr.i++) {
+    refresh_watch_dog();
     jam();
     ptrAss(scanptr, scanRecord);
     new (scanptr.p) ScanRecord();
@@ -9843,6 +9850,7 @@ void Dbtc::initTable(Signal* signal)
 
   ndbrequire(ctabrecFilesize > 0);
   for (tabptr.i = 0; tabptr.i < ctabrecFilesize; tabptr.i++) {
+    refresh_watch_dog();
     ptrAss(tabptr, tableRecord);
     tabptr.p->currentSchemaVersion = 0;
     tabptr.p->storedTable = true;
@@ -9859,6 +9867,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
   // Place half of tcConnectptr's in cfirstfreeTcConnectFail list
   Uint32 titcTmp = ctcConnectFilesize / 2;
   for (tcConnectptr.i = 0; tcConnectptr.i < titcTmp; tcConnectptr.i++) {
+    refresh_watch_dog();
     jam();
     ptrAss(tcConnectptr, tcConnectRecord);
     tcConnectptr.p->tcConnectstate = OS_RESTART;
@@ -9874,6 +9883,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
   // Place other half in cfirstfreeTcConnect list
   for (tcConnectptr.i = titcTmp; tcConnectptr.i < ctcConnectFilesize; 
        tcConnectptr.i++) {
+    refresh_watch_dog();
     jam();
     ptrAss(tcConnectptr, tcConnectRecord);
     tcConnectptr.p->tcConnectstate = OS_RESTART;
