@@ -64,7 +64,7 @@ const char *command_name[]={
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed insert","Change user",
   "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
-  "Prepare", "Prepare Execute", "Long Data", "Close stmt",
+  "Prepare", "Execute", "Long Data", "Close stmt",
   "Reset stmt", "Set option",
   "Error"					// Last command number
 };
@@ -1547,7 +1547,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			packet, (uint) (pend-packet), thd->charset());
     table_list.alias= table_list.real_name= conv_name.str;
     packet= pend+1;
-    // command not cachable => no gap for data base name
+    thd->query_length= strlen(packet);       // for simplicity: don't optimize
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
