@@ -104,6 +104,11 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   UpgradeStartup::installEXEC(this);
 
   CLEAR_ERROR_INSERT_VALUE;
+
+#ifdef VM_TRACE
+  m_global_variables = new Ptr<void> * [1];
+  m_global_variables[0] = 0;
+#endif
 }
 
 SimulatedBlock::~SimulatedBlock()
@@ -111,6 +116,10 @@ SimulatedBlock::~SimulatedBlock()
   freeBat();
 #ifdef VM_TRACE_TIME
   printTimes(stdout);
+#endif
+
+#ifdef VM_TRACE
+  delete [] m_global_variables;
 #endif
 }
 
@@ -636,10 +645,10 @@ SimulatedBlock::getBatSize(Uint16 blockNo){
 }
 
 void* 
-SimulatedBlock::allocRecord(const char * type, size_t s, size_t n) 
+SimulatedBlock::allocRecord(const char * type, size_t s, size_t n, bool clear) 
 {
 
-  void* p = NULL;
+  void * p = NULL;
   size_t size = n*s;
   refresh_watch_dog(); 
   if (size > 0){
@@ -656,9 +665,23 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n)
       char buf1[255];
       char buf2[255];
       snprintf(buf1, sizeof(buf1), "%s could not allocate memory for %s", 
-	      getBlockName(number()), type);
-      snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", (Uint32)s, (Uint32)n, (Uint32)size);
+	       getBlockName(number()), type);
+      snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", 
+	       (Uint32)s, (Uint32)n, (Uint32)size);
       ERROR_SET(fatal, ERR_MEMALLOC, buf1, buf2);
+    }
+
+    if(clear){
+      char * ptr = (char*)p;
+      const Uint32 chunk = 128 * 1024;
+      while(size > chunk){
+	refresh_watch_dog(); 
+	memset(ptr, 0, chunk);
+	ptr += chunk;
+	size -= chunk;
+      }
+      refresh_watch_dog(); 
+      memset(ptr, 0, size);
     }
   }
   return p;
@@ -666,7 +689,7 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n)
 
 void 
 SimulatedBlock::deallocRecord(void ** ptr, 
-			      const char * type, size_t s, size_t n) const {
+			      const char * type, size_t s, size_t n){
   (void)type;
   (void)s;
   (void)n;
@@ -1757,3 +1780,25 @@ SimulatedBlock::execUPGRADE(Signal* signal){
     break;
   }
 }
+
+#ifdef VM_TRACE
+void
+SimulatedBlock::clear_global_variables(){
+  Ptr<void> ** tmp = m_global_variables;
+  while(* tmp != 0){
+    (* tmp)->i = RNIL;
+    (* tmp)->p = 0;
+    tmp++;
+  }
+}
+
+void
+SimulatedBlock::init_globals_list(void ** tmp, size_t cnt){
+  m_global_variables = new Ptr<void> * [cnt+1];
+  for(size_t i = 0; i<cnt; i++){
+    m_global_variables[i] = (Ptr<void>*)tmp[i];
+  }
+  m_global_variables[cnt] = 0;
+}
+
+#endif

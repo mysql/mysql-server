@@ -38,6 +38,9 @@
 #ifdef HAVE_ARCHIVE_DB
 #include "examples/ha_archive.h"
 #endif
+#ifdef HAVE_CSV_DB
+#include "examples/ha_tina.h"
+#endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
 #endif
@@ -91,6 +94,8 @@ struct show_table_type_st sys_table_types[]=
    "Example storage engine", DB_TYPE_EXAMPLE_DB},
   {"ARCHIVE",&have_archive_db,
    "Archive storage engine", DB_TYPE_ARCHIVE_DB},
+  {"CSV",&have_csv_db,
+   "CSV storage engine", DB_TYPE_CSV_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -195,6 +200,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #ifdef HAVE_ARCHIVE_DB
   case DB_TYPE_ARCHIVE_DB:
     return new ha_archive(table);
+#endif
+#ifdef HAVE_CSV_DB
+  case DB_TYPE_CSV_DB:
+    return new ha_tina(table);
 #endif
 #ifdef HAVE_NDBCLUSTER_DB
   case DB_TYPE_NDBCLUSTER:

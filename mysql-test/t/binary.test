@@ -38,6 +38,7 @@ select concat("-",a,"-",b,"-") from t1 where b="hello ";
 select concat("-",a,"-",b,"-") from t1 ignore index (b) where b="hello ";
 # blob test
 alter table t1 modify b tinytext not null, drop key b, add key (b(100));
+select concat("-",a,"-",b,"-") from t1;
 select concat("-",a,"-",b,"-") from t1 where b="hello ";
 select concat("-",a,"-",b,"-") from t1 ignore index (b) where b="hello ";
 drop table t1;

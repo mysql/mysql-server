@@ -293,6 +293,23 @@ Dbtc::Dbtc(const class Configuration & conf):
   addRecSignal(GSN_ALTER_TAB_REQ, &Dbtc::execALTER_TAB_REQ);
 
   initData();
+  
+#ifdef VM_TRACE
+  {
+    void* tmp[] = { &apiConnectptr, 
+		    &tcConnectptr,
+		    &cachePtr,
+		    &attrbufptr,
+		    &hostptr,
+		    &gcpPtr,
+		    &tmpApiConnectptr,
+		    &timeOutptr,
+		    &scanFragptr,
+		    &databufptr,
+		    &tmpDatabufptr }; 
+    init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+#endif
 }//Dbtc::Dbtc()
 
 Dbtc::~Dbtc() 
@@ -347,6 +364,4 @@ Dbtc::~Dbtc()
 }//Dbtc::~Dbtc()
 
 BLOCK_FUNCTIONS(Dbtc);
-
-
 

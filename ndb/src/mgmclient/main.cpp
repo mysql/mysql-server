@@ -24,8 +24,6 @@
 
 #include "CommandInterpreter.hpp"
 
-#include <signal.h>
-
 const char *progname = "ndb_mgm";
 
 
