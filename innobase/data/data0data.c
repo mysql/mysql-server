@@ -584,8 +584,7 @@ dtuple_convert_big_rec(
 					* sizeof(big_rec_field_t));
 
 	/* Decide which fields to shorten: the algorithm is to look for
-	the longest field which does not occur in the ordering part
-	of any index on the table */
+	the longest field whose type is DATA_BLOB */
 
 	n_fields = 0;
 
@@ -610,12 +609,9 @@ dtuple_convert_big_rec(
 				}
 			}
 				
-			/* Skip over fields which are ordering in some index */
-
-			if (!is_externally_stored &&
-			    dict_field_get_col(
-			    	dict_index_get_nth_field(index, i))
-			    ->ord_part == 0) {
+			if (!is_externally_stored
+			    && dict_index_get_nth_type(index, i)->mtype
+			       == DATA_BLOB) {
 
 				dfield = dtuple_get_nth_field(entry, i);
 
@@ -629,9 +625,13 @@ dtuple_convert_big_rec(
 			}
 		}
 	
-		if (longest < BTR_EXTERN_FIELD_REF_SIZE + 10
-						+ REC_1BYTE_OFFS_LIMIT) {
+		/* We do not store externally fields which are smaller than
+		DICT_MAX_COL_PREFIX_LEN */
 
+		ut_a(DICT_MAX_COL_PREFIX_LEN > REC_1BYTE_OFFS_LIMIT);
+
+		if (longest < BTR_EXTERN_FIELD_REF_SIZE + 10
+						+ DICT_MAX_COL_PREFIX_LEN) {
 			/* Cannot shorten more */
 
 			mem_heap_free(heap);
@@ -644,13 +644,19 @@ dtuple_convert_big_rec(
 		drop below 128 which is the limit for the 2-byte
 		offset storage format in a physical record. This
 		we accomplish by storing 128 bytes of data in entry
-		itself, and only the remaining part to big rec vec. */
+		itself, and only the remaining part to big rec vec.
+
+		We store the first bytes locally to the record. Then
+		we can calculate all ordering fields in all indexes
+		from locally stored data. */
 
 		dfield = dtuple_get_nth_field(entry, longest_i);
 		vector->fields[n_fields].field_no = longest_i;
 
+		ut_a(dfield->len > DICT_MAX_COL_PREFIX_LEN);
+		
 		vector->fields[n_fields].len = dfield->len
-						- REC_1BYTE_OFFS_LIMIT;
+						- DICT_MAX_COL_PREFIX_LEN;
 
 		vector->fields[n_fields].data = mem_heap_alloc(heap,
 						vector->fields[n_fields].len);

@@ -272,8 +272,8 @@ trx_undo_page_report_insert(
 	mach_write_to_2(undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_FREE,
 							ptr - undo_page);
 
-	/* Write the log entry to the REDO log of this change in the UNDO log */
-
+	/* Write the log entry to the REDO log of this change in the UNDO
+								 log */
 	trx_undof_page_add_undo_rec_log(undo_page, first_free,
 							ptr - undo_page, mtr);
 	return(first_free);	
@@ -492,7 +492,8 @@ trx_undo_page_report_modify(
 	/* Reserve 2 bytes for the pointer to the next undo log record */
 	ptr += 2;
 
-	/* Store first some general parameters to the undo log */ 		
+	/* Store first some general parameters to the undo log */
+
 	if (update) {
 		if (rec_get_deleted_flag(rec)) {
 			type_cmpl = TRX_UNDO_UPD_DEL_REC;
@@ -526,8 +527,7 @@ trx_undo_page_report_modify(
 	/* Store the values of the system columns */
 	trx_id = dict_index_rec_get_sys_col(index, DATA_TRX_ID, rec);
 
-	roll_ptr = dict_index_rec_get_sys_col(index, DATA_ROLL_PTR, rec);	
-
+	roll_ptr = dict_index_rec_get_sys_col(index, DATA_ROLL_PTR, rec);
 	len = mach_dulint_write_compressed(ptr, trx_id);
 	ptr += len;
 
@@ -632,7 +632,11 @@ trx_undo_page_report_modify(
 	columns which occur as ordering fields in any index. This info is used
 	in the purge of old versions where we use it to build and search the
 	delete marked index records, to look if we can remove them from the
-	index tree. */
+	index tree. Note that starting from 4.0.14 also externally stored
+	fields can be ordering in some index. But we always store at least
+	384 first bytes locally to the clustered index record, which means
+	we can construct the column prefix fields in the index from the
+	stored data. */
 
 	if (!update || !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {	    
 
@@ -1408,11 +1412,11 @@ trx_undo_prev_version_build(
 		return(DB_ERROR);
 	}
 
-	if (row_upd_changes_field_size(rec, index, update)) {
+	if (row_upd_changes_field_size_or_external(rec, index, update)) {
 
-		entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
-
-		row_upd_clust_index_replace_new_col_vals(entry, update);
+		entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec,
+								     heap);
+		row_upd_index_replace_new_col_vals(entry, index, update, heap);
 
 		buf = mem_heap_alloc(heap, rec_get_converted_size(entry));
 

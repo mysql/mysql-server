@@ -450,6 +450,18 @@ lock_rec_get_mutex_for_addr(
 	ulint	space,	/* in: space id */
 	ulint	page_no);/* in: page number */
 /*************************************************************************
+Checks that a transaction id is sensible, i.e., not in the future. */
+
+ibool
+lock_check_trx_id_sanity(
+/*=====================*/
+					/* out: TRUE if ok */
+	dulint		trx_id,		/* in: trx id */
+	rec_t*		rec,		/* in: user record */
+	dict_index_t*	index,		/* in: clustered index */
+	ibool		has_kernel_mutex);/* in: TRUE if the caller owns the
+					kernel mutex */
+/*************************************************************************
 Validates the lock queue on a single record. */
 
 ibool

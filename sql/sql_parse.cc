@@ -2536,8 +2536,22 @@ mysql_execute_command(void)
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     break;
+  case SQLCOM_ROLLBACK_TO_SAVEPOINT:
+    if (!ha_rollback_to_savepoint(thd, lex->savepoint_name))
+    {
+      if (thd->options & OPTION_STATUS_NO_TRANS_UPDATE)
+	send_warning(&thd->net,ER_WARNING_NOT_COMPLETE_ROLLBACK,0);
+      else
+	send_ok(&thd->net);
+    }
+    else
+      res= -1;
+    break;
   case SQLCOM_SAVEPOINT:
-    send_ok(&thd->net);
+    if (!ha_savepoint(thd, lex->savepoint_name))
+      send_ok(&thd->net);
+    else
+      res= -1;
     break;
   default:					/* Impossible */
     send_ok(&thd->net);

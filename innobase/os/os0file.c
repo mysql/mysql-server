@@ -60,6 +60,7 @@ struct os_aio_slot_struct{
 	ulint		pos;		/* index of the slot in the aio
 					array */
 	ibool		reserved;	/* TRUE if this slot is reserved */
+	time_t		reservation_time;/* time when reserved */
 	ulint		len;		/* length of the block to read or
 					write */
 	byte*		buf;		/* buffer used in i/o */
@@ -146,6 +147,12 @@ ulint	os_n_fsyncs_old		= 0;
 time_t	os_last_printout;
 
 ibool	os_has_said_disk_full	= FALSE;
+
+/* The mutex protecting the following counts of pending pread and pwrite
+operations */
+os_mutex_t os_file_count_mutex;
+ulint	os_file_n_pending_preads  = 0;
+ulint	os_file_n_pending_pwrites = 0;
 
 
 /***************************************************************************
@@ -364,6 +371,8 @@ os_io_init_simple(void)
 {
 	ulint	i;
 
+	os_file_count_mutex = os_mutex_create(NULL);
+
 	for (i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
 		os_file_seek_mutexes[i] = os_mutex_create(NULL);
 	}
@@ -415,9 +424,8 @@ try_again:
 
 	file = CreateFile(name,
 			access,
-			FILE_SHARE_READ | FILE_SHARE_WRITE,
-					/* file can be read and written
-					also by other processes */
+			FILE_SHARE_READ,/* file can be read also by other
+					processes */
 			NULL,	/* default security attributes */
 			create_flag,
 			attributes,
@@ -481,6 +489,101 @@ try_again:
 	return(file);	
 #endif
 }
+
+/********************************************************************
+A simple function to open or create a file. */
+
+os_file_t
+os_file_create_simple_no_error_handling(
+/*====================================*/
+			/* out, own: handle to the file, not defined if error,
+			error number can be retrieved with os_get_last_error */
+	char*	name,	/* in: name of the file or path as a null-terminated
+			string */
+	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
+			(if does not exist, error), or OS_FILE_CREATE if a new
+			file is created (if exists, error) */
+	ulint	access_type,/* in: OS_FILE_READ_ONLY or OS_FILE_READ_WRITE */
+	ibool*	success)/* out: TRUE if succeed, FALSE if error */
+{
+#ifdef __WIN__
+	os_file_t	file;
+	DWORD		create_flag;
+	DWORD		access;
+	DWORD		attributes	= 0;
+	
+	ut_a(name);
+
+	if (create_mode == OS_FILE_OPEN) {
+		create_flag = OPEN_EXISTING;
+	} else if (create_mode == OS_FILE_CREATE) {
+		create_flag = CREATE_NEW;
+	} else {
+		create_flag = 0;
+		ut_error;
+	}
+
+	if (access_type == OS_FILE_READ_ONLY) {
+		access = GENERIC_READ;
+	} else if (access_type == OS_FILE_READ_WRITE) {
+		access = GENERIC_READ | GENERIC_WRITE;
+	} else {
+		access = 0;
+		ut_error;
+	}
+
+	file = CreateFile(name,
+			access,
+			FILE_SHARE_READ,/* file can be read also by other
+					processes */
+			NULL,	/* default security attributes */
+			create_flag,
+			attributes,
+			NULL);	/* no template file */
+
+	if (file == INVALID_HANDLE_VALUE) {
+		*success = FALSE;
+	} else {
+		*success = TRUE;
+	}
+
+	return(file);
+#else
+	os_file_t	file;
+	int		create_flag;
+	
+	ut_a(name);
+
+	if (create_mode == OS_FILE_OPEN) {
+		if (access_type == OS_FILE_READ_ONLY) {
+			create_flag = O_RDONLY;
+		} else {
+			create_flag = O_RDWR;
+		}
+	} else if (create_mode == OS_FILE_CREATE) {
+		create_flag = O_RDWR | O_CREAT | O_EXCL;
+	} else {
+		create_flag = 0;
+		ut_error;
+	}
+
+	if (create_mode == OS_FILE_CREATE) {
+	        file = open(name, create_flag, S_IRUSR | S_IWUSR
+						| S_IRGRP | S_IWGRP);
+        } else {
+                file = open(name, create_flag);
+        }
+	
+	if (file == -1) {
+		*success = FALSE;
+	} else {
+		*success = TRUE;
+	}
+
+	return(file);	
+#endif
+}
+
 /********************************************************************
 Opens an existing file or creates a new. */
 
@@ -566,9 +669,14 @@ try_again:
 	file = CreateFile(name,
 			GENERIC_READ | GENERIC_WRITE, /* read and write
 							access */
-			FILE_SHARE_READ | FILE_SHARE_WRITE,
-					/* file can be read and written
-					also by other processes */
+			FILE_SHARE_READ,/* File can be read also by other
+					processes; we must give the read
+					permission because of ibbackup. We do
+					not give the write permission to
+					others because if one would succeed to
+					start 2 instances of mysqld on the
+					SAME files, that could cause severe
+					database corruption! */
 			NULL,	/* default security attributes */
 			create_flag,
 			attributes,
@@ -669,6 +777,41 @@ os_file_close(
 
 	if (ret == -1) {
 		os_file_handle_error(file, NULL, "close");
+		return(FALSE);
+	}
+
+	return(TRUE);
+#endif
+}
+
+/***************************************************************************
+Closes a file handle. */
+
+ibool
+os_file_close_no_error_handling(
+/*============================*/
+				/* out: TRUE if success */
+	os_file_t	file)	/* in, own: handle to a file */
+{
+#ifdef __WIN__
+	BOOL	ret;
+
+	ut_a(file);
+
+	ret = CloseHandle(file);
+
+	if (ret) {
+		return(TRUE);
+	}
+
+	return(FALSE);
+#else
+	int	ret;
+
+	ret = close(file);
+
+	if (ret == -1) {
+
 		return(FALSE);
 	}
 
@@ -896,6 +1039,7 @@ os_file_pread(
 				offset */
 {
         off_t	offs;
+	ssize_t	n_bytes;
 
 	ut_a((offset & 0xFFFFFFFF) == offset);
         
@@ -917,7 +1061,17 @@ os_file_pread(
 	os_n_file_reads++;
 
 #ifdef HAVE_PREAD
-	return(pread(file, buf, n, offs));
+        os_mutex_enter(os_file_count_mutex);
+	os_file_n_pending_preads++;
+        os_mutex_exit(os_file_count_mutex);
+
+        n_bytes = pread(file, buf, n, offs);
+
+        os_mutex_enter(os_file_count_mutex);
+	os_file_n_pending_preads--;
+        os_mutex_exit(os_file_count_mutex);
+
+	return(n_bytes);
 #else
 	{
 	ssize_t	ret;
@@ -982,7 +1136,15 @@ os_file_pwrite(
 	os_n_file_writes++;
 
 #ifdef HAVE_PWRITE
+        os_mutex_enter(os_file_count_mutex);
+	os_file_n_pending_pwrites++;
+        os_mutex_exit(os_file_count_mutex);
+
 	ret = pwrite(file, buf, n, offs);
+
+        os_mutex_enter(os_file_count_mutex);
+	os_file_n_pending_pwrites--;
+        os_mutex_exit(os_file_count_mutex);
 
 	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
 	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
@@ -1372,19 +1534,35 @@ os_aio_init(
 
 	os_io_init_simple();
 
+	for (i = 0; i < n_segments; i++) {
+	        srv_io_thread_op_info[i] = (char*)"not started yet";
+	}
+
 	n_per_seg = n / n_segments;
 	n_write_segs = (n_segments - 2) / 2;
 	n_read_segs = n_segments - 2 - n_write_segs;
 	
 	/* printf("Array n per seg %lu\n", n_per_seg); */
 
-	os_aio_read_array = os_aio_array_create(n_read_segs * n_per_seg,
-							n_read_segs);
-	os_aio_write_array = os_aio_array_create(n_write_segs * n_per_seg,
-							n_write_segs);
 	os_aio_ibuf_array = os_aio_array_create(n_per_seg, 1);
 
+	srv_io_thread_function[0] = (char*)"insert buffer thread";
+
 	os_aio_log_array = os_aio_array_create(n_per_seg, 1);
+
+	srv_io_thread_function[1] = (char*)"log thread";
+
+	os_aio_read_array = os_aio_array_create(n_read_segs * n_per_seg,
+							n_read_segs);
+	for (i = 2; i < 2 + n_read_segs; i++) {
+	        srv_io_thread_function[i] = (char*)"read thread";
+	}
+
+	os_aio_write_array = os_aio_array_create(n_write_segs * n_per_seg,
+							n_write_segs);
+	for (i = 2 + n_read_segs; i < n_segments; i++) {
+	        srv_io_thread_function[i] = (char*)"write thread";
+	}
 
 	os_aio_sync_array = os_aio_array_create(n_slots_sync, 1);
 
@@ -1677,6 +1855,7 @@ loop:
 	}
 	
 	slot->reserved = TRUE;
+	slot->reservation_time = time(NULL);
 	slot->message1 = message1;
 	slot->message2 = message2;
 	slot->file     = file;
@@ -2249,6 +2428,8 @@ os_aio_simulated_handle(
 	ulint		total_len;
 	ulint		offs;
 	ulint		lowest_offset;
+	ulint		biggest_age;
+	ulint		age;
 	byte*		combined_buf;
 	byte*		combined_buf2= 0;	/* Remove warning */
 	ibool		ret;
@@ -2301,22 +2482,55 @@ restart:
 
 	n_consecutive = 0;
 
-	/* Look for an i/o request at the lowest offset in the array
-	(we ignore the high 32 bits of the offset in these heuristics) */
+	/* If there are at least 2 seconds old requests, then pick the oldest
+	one to prevent starvation. If several requests have the same age,
+	then pick the one at the lowest offset. */
 
+	biggest_age = 0;
 	lowest_offset = ULINT_MAX;
-	
+
 	for (i = 0; i < n; i++) {
 		slot = os_aio_array_get_nth_slot(array, i + segment * n);
 
-		if (slot->reserved && slot->offset < lowest_offset) {
+		if (slot->reserved) {
+		        age = (ulint)difftime(time(NULL),
+						slot->reservation_time);
 
-			/* Found an i/o request */
-			consecutive_ios[0] = slot;
+			if ((age >= 2 && age > biggest_age)
+			    || (age >= 2 && age == biggest_age
+			        && slot->offset < lowest_offset)) {
 
-			n_consecutive = 1;
+			        /* Found an i/o request */
+				consecutive_ios[0] = slot;
 
-			lowest_offset = slot->offset;
+				n_consecutive = 1;
+
+				biggest_age = age;
+				lowest_offset = slot->offset;
+			}
+		}
+	}
+
+	if (n_consecutive == 0) {
+	        /* There were no old requests. Look for an i/o request at the
+		lowest offset in the array (we ignore the high 32 bits of the
+		offset in these heuristics) */
+
+		lowest_offset = ULINT_MAX;
+	
+		for (i = 0; i < n; i++) {
+		        slot = os_aio_array_get_nth_slot(array,
+							i + segment * n);
+
+			if (slot->reserved && slot->offset < lowest_offset) {
+
+			        /* Found an i/o request */
+				consecutive_ios[0] = slot;
+
+				n_consecutive = 1;
+
+				lowest_offset = slot->offset;
+			}
 		}
 	}
 
@@ -2422,7 +2636,7 @@ consecutive_loop:
 						+ FIL_PAGE_LSN + 4)
 				    != mach_read_from_4(combined_buf + len2
 				    		+ UNIV_PAGE_SIZE
-				    		- FIL_PAGE_END_LSN + 4)) {
+				    	- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
 				    	ut_print_timestamp(stderr);
 				    	fprintf(stderr,
 "  InnoDB: ERROR: The page to be written seems corrupt!\n");
@@ -2583,14 +2797,15 @@ os_aio_print(
 	double		avg_bytes_read;
 	ulint		i;
 
-	if (buf_end - buf < 1000) {
+	if (buf_end - buf < 1200) {
 
 		return;
 	}
 
 	for (i = 0; i < srv_n_file_io_threads; i++) {
-		buf += sprintf(buf, "I/O thread %lu state: %s\n", i,
-					srv_io_thread_op_info[i]);
+		buf += sprintf(buf, "I/O thread %lu state: %s (%s)\n", i,
+					srv_io_thread_op_info[i],
+					srv_io_thread_function[i]);
 	}
 
 	buf += sprintf(buf, "Pending normal aio reads:");
@@ -2664,6 +2879,12 @@ loop:
 	buf += sprintf(buf,
 		"%lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
 		os_n_file_reads, os_n_file_writes, os_n_fsyncs);
+
+	if (os_file_n_pending_preads != 0 || os_file_n_pending_pwrites != 0) {
+	        buf += sprintf(buf,
+		    "%lu pending preads, %lu pending pwrites\n",
+		    os_file_n_pending_preads, os_file_n_pending_pwrites);
+	}
 
 	if (os_n_file_reads == os_n_file_reads_old) {
 		avg_bytes_read = 0.0;

@@ -217,8 +217,8 @@ ins_node_set_new_row(
 }
 
 /***********************************************************************
-Does an insert operation by updating a delete marked existing record
-in the index. This situation can occur if the delete marked record is
+Does an insert operation by updating a delete-marked existing record
+in the index. This situation can occur if the delete-marked record is
 kept in the index for consistent reads. */
 static
 ulint
@@ -240,9 +240,9 @@ row_ins_sec_index_entry_by_modify(
 	ut_ad((cursor->index->type & DICT_CLUSTERED) == 0);
 	ut_ad(rec_get_deleted_flag(rec));
 	
-	/* We know that in the ordering entry and rec are identified.
-	But in their binary form there may be differences if there
-	are char fields in them. Therefore we have to calculate the
+	/* We know that in the alphabetical ordering, entry and rec are
+	identical. But in their binary form there may be differences if
+	there are char fields in them. Therefore we have to calculate the
 	difference and do an update-in-place if necessary. */
 	
 	heap = mem_heap_create(1024);
@@ -305,8 +305,8 @@ row_ins_clust_index_entry_by_modify(
 		/* Try optimistic updating of the record, keeping changes
 		within the page */
 
-		err = btr_cur_optimistic_update(0, cursor, update, 0, thr, mtr);
-
+		err = btr_cur_optimistic_update(0, cursor, update, 0, thr,
+								   mtr);
 		if (err == DB_OVERFLOW || err == DB_UNDERFLOW) {
 			err = DB_FAIL;
 		}
@@ -364,11 +364,17 @@ row_ins_cascade_calc_update_vec(
 					/* out: number of fields in the
 					calculated update vector; the value
 					can also be 0 if no foreign key
-					fields changed */
+					fields changed; the returned value
+					is ULINT_UNDEFINED if the column
+					type in the child table is too short
+					to fit the new value in the parent
+					table: that means the update fails */
 	upd_node_t*	node,		/* in: update node of the parent
 					table */
-	dict_foreign_t*	foreign)	/* in: foreign key constraint whose
+	dict_foreign_t*	foreign,	/* in: foreign key constraint whose
 					type is != 0 */
+	mem_heap_t*	heap)		/* in: memory heap to use as
+					temporary storage */
 {
 	upd_node_t*	cascade		= node->cascade_node;
 	dict_table_t*	table		= foreign->foreign_table;
@@ -381,14 +387,16 @@ row_ins_cascade_calc_update_vec(
 	upd_field_t*	parent_ufield;
 	ulint		n_fields_updated;
 	ulint           parent_field_no;
+	dtype_t*	type;
 	ulint		i;
 	ulint		j;
 	    	
 	ut_a(node && foreign && cascade && table && index);
 
 	/* Calculate the appropriate update vector which will set the fields
-	in the child index record to the same value as the referenced index
-	record will get in the update. */
+	in the child index record to the same value (possibly padded with 
+	spaces if the column is a fixed length CHAR or FIXBINARY column) as
+	the referenced index record will get in the update. */
 
 	parent_table = node->table;
 	ut_a(parent_table == foreign->referenced_table);
@@ -424,7 +432,56 @@ row_ins_cascade_calc_update_vec(
 					dict_table_get_nth_col_pos(table,
 					dict_index_get_nth_col_no(index, i));
 				ufield->exp = NULL;
+
 				ufield->new_val = parent_ufield->new_val;
+
+				type = dict_index_get_nth_type(index, i);
+
+				/* Do not allow a NOT NULL column to be
+				updated as NULL */
+
+				if (ufield->new_val.len == UNIV_SQL_NULL
+				    && (type->prtype & DATA_NOT_NULL)) {
+
+				        return(ULINT_UNDEFINED);
+				}
+
+				/* If the new value would not fit in the
+				column, do not allow the update */
+
+				if (ufield->new_val.len != UNIV_SQL_NULL
+				    && ufield->new_val.len
+				       > dtype_get_len(type)) {
+
+				        return(ULINT_UNDEFINED);
+				}
+
+				/* If the parent column type has a different
+				length than the child column type, we may
+				need to pad with spaces the new value of the
+				child column */
+
+				if (dtype_is_fixed_size(type)
+				    && ufield->new_val.len != UNIV_SQL_NULL
+				    && ufield->new_val.len
+				       < dtype_get_fixed_size(type)) {
+
+				        ufield->new_val.data =
+						mem_heap_alloc(heap,
+						  dtype_get_fixed_size(type));
+					ufield->new_val.len = 
+						dtype_get_fixed_size(type);
+					ut_a(dtype_get_pad_char(type)
+					     != ULINT_UNDEFINED);
+
+					memset(ufield->new_val.data,
+					       (byte)dtype_get_pad_char(type),
+					       dtype_get_fixed_size(type));
+					ut_memcpy(ufield->new_val.data,
+						parent_ufield->new_val.data,
+						parent_ufield->new_val.len);
+				}
+
 				ufield->extern_storage = FALSE;
 
 				n_fields_updated++;
@@ -570,9 +627,11 @@ row_ins_foreign_check_on_constraint(
 	dict_index_t*	clust_index;
 	dtuple_t*	ref;
 	mem_heap_t*	tmp_heap;
+	mem_heap_t*	upd_vec_heap	= NULL;
 	rec_t*		rec;
 	rec_t*		clust_rec;
 	upd_t*		update;
+	ulint		n_to_update;
 	ulint		err;
 	ulint		i;
 	char*		ptr;
@@ -597,8 +656,10 @@ row_ins_foreign_check_on_constraint(
 	*ptr = '\0';
 	
 	/* We call a function in ha_innodb.cc */
+#ifndef UNIV_HOTBACKUP
 	innobase_invalidate_query_cache(thr_get_trx(thr), table_name_buf,
 						ut_strlen(table->name) + 1);
+#endif
 	node = thr->run_node;
 
 	if (node->is_delete && 0 == (foreign->type &
@@ -828,7 +889,21 @@ row_ins_foreign_check_on_constraint(
 		/* Build the appropriate update vector which sets changing
 		foreign->n_fields first fields in rec to new values */
 
-		row_ins_cascade_calc_update_vec(node, foreign);
+		upd_vec_heap = mem_heap_create(256);
+
+		n_to_update = row_ins_cascade_calc_update_vec(node, foreign,
+							      upd_vec_heap);
+		if (n_to_update == ULINT_UNDEFINED) {
+		        err = DB_ROW_IS_REFERENCED;
+
+			row_ins_foreign_report_err(
+(char*)"Trying a cascaded update where the updated value in the child\n"
+"table would not fit in the length of the column, or the value would\n"
+"be NULL and the column is declared as not NULL in the child table,",
+			thr, foreign, btr_pcur_get_rec(pcur), entry);
+
+		       goto nonstandard_exit_func;
+		}
 
 		if (cascade->update->n_fields == 0) {
 
@@ -867,9 +942,17 @@ row_ins_foreign_check_on_constraint(
 	
 	btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
 
+	if (upd_vec_heap) {
+	        mem_heap_free(upd_vec_heap);
+	}
+
 	return(err);
 
 nonstandard_exit_func:
+
+	if (upd_vec_heap) {
+	        mem_heap_free(upd_vec_heap);
+	}
 
 	btr_pcur_store_position(pcur, mtr);
 
@@ -1275,6 +1358,11 @@ row_ins_unique_report_err(
 	dtuple_t*	entry,	/* in: index entry to insert in the index */
 	dict_index_t*	index)	/* in: index */
 {
+	UT_NOT_USED(thr);
+	UT_NOT_USED(rec);
+	UT_NOT_USED(entry);
+	UT_NOT_USED(index);
+
 #ifdef notdefined
         /* Disable reporting to test if the slowdown of REPLACE in 4.0.13 was
 	caused by this! */
@@ -1816,7 +1904,7 @@ row_ins_index_entry(
 	/* Try first optimistic descent to the B-tree */
 
 	err = row_ins_index_entry_low(BTR_MODIFY_LEAF, index, entry,
-						ext_vec, n_ext_vec, thr);	
+						ext_vec, n_ext_vec, thr);
 	if (err != DB_FAIL) {
 
 		return(err);
@@ -1832,13 +1920,15 @@ row_ins_index_entry(
 /***************************************************************
 Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row. */
-UNIV_INLINE
+static
 void
 row_ins_index_entry_set_vals(
 /*=========================*/
+	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry to make */
 	dtuple_t*	row)	/* in: row */
 {
+	dict_field_t*	ind_field;
 	dfield_t*	field;
 	dfield_t*	row_field;
 	ulint		n_fields;
@@ -1850,11 +1940,21 @@ row_ins_index_entry_set_vals(
 
 	for (i = 0; i < n_fields; i++) {
 		field = dtuple_get_nth_field(entry, i);
+		ind_field = dict_index_get_nth_field(index, i);
 
-		row_field = dtuple_get_nth_field(row, field->col_no);
+		row_field = dtuple_get_nth_field(row, ind_field->col->ind);
+
+		/* Check column prefix indexes */
+		if (ind_field->prefix_len > 0
+		    && dfield_get_len(row_field) != UNIV_SQL_NULL
+		    && dfield_get_len(row_field) > ind_field->prefix_len) {
+		    
+		        field->len = ind_field->prefix_len;
+		} else {
+		        field->len = row_field->len;
+		}
 
 		field->data = row_field->data;
-		field->len = row_field->len;
 	}
 }
 
@@ -1873,7 +1973,7 @@ row_ins_index_entry_step(
 
 	ut_ad(dtuple_check_typed(node->row));
 	
-	row_ins_index_entry_set_vals(node->entry, node->row);
+	row_ins_index_entry_set_vals(node->index, node->entry, node->row);
 	
 	ut_ad(dtuple_check_typed(node->entry));
 

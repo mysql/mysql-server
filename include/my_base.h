@@ -255,6 +255,7 @@ enum ha_base_keytype {
 #define HA_ERR_CANNOT_ADD_FOREIGN 150    /* Cannot add a foreign key constr. */
 #define HA_ERR_NO_REFERENCED_ROW 151     /* Cannot add a child row */
 #define HA_ERR_ROW_IS_REFERENCED 152     /* Cannot delete a parent row */
+#define HA_ERR_NO_SAVEPOINT	 153     /* No savepoint with that name */
 
 	/* Other constants */
 

@@ -301,6 +301,8 @@ dict_load_fields(
 	dtuple_t*	tuple;
 	dfield_t*	dfield;
 	char*		col_name;
+	ulint		pos_and_prefix_len;
+	ulint		prefix_len;
 	rec_t*		rec;
 	byte*		field;
 	ulint		len;
@@ -345,8 +347,28 @@ dict_load_fields(
 		ut_a(ut_memcmp(buf, field, len) == 0);
 
 		field = rec_get_nth_field(rec, 1, &len);
-		ut_ad(len == 4);
-		ut_a(i == mach_read_from_4(field));
+		ut_a(len == 4);
+
+		/* The next field stores the field position in the index
+		and a possible column prefix length if the index field
+		does not contain the whole column. The storage format is
+		like this: if there is at least one prefix field in the index,
+		then the HIGH 2 bytes contain the field number (== i) and the
+		low 2 bytes the prefix length for the field. Otherwise the
+		field number (== i) is contained in the 2 LOW bytes. */
+
+		pos_and_prefix_len = mach_read_from_4(field);
+
+		ut_a((pos_and_prefix_len & 0xFFFF) == i
+		     || (pos_and_prefix_len & 0xFFFF0000) == (i << 16));
+
+		if ((i == 0 && pos_and_prefix_len > 0)
+		    || (pos_and_prefix_len & 0xFFFF0000) > 0) {
+
+		        prefix_len = pos_and_prefix_len & 0xFFFF;
+		} else {
+		        prefix_len = 0;
+		}
 
 		ut_a(0 == ut_strcmp((char*) "COL_NAME",
 			dict_field_get_col(
@@ -359,7 +381,7 @@ dict_load_fields(
 		ut_memcpy(col_name, field, len);
 		col_name[len] = '\0';
 		
-		dict_mem_index_add_field(index, col_name, 0);
+		dict_mem_index_add_field(index, col_name, 0, prefix_len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	} 
