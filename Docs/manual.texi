@@ -7704,6 +7704,11 @@ also work. There have been some problems with the @code{glibc} RPMs from
 RedHat, so if you have problems, check whether or not there are any updates!
 The @code{glibc} 2.0.7-19 and 2.0.7-29 RPMs are known to work.
 
+If you are using gcc 3.0 and above to compile MySQL, you must install
+the @code{libstdc++v3} library before compiling MySQL; If you don't do
+this you will get an error about a missing @code{__cxa_pure_virtual}
+symbol during linking!
+
 On some older Linux distributions, @code{configure} may produce an error
 like this:
 
@@ -7757,7 +7762,7 @@ shell> CXX=gcc ./configure
 @end example
 
 If you are running gcc 3.0 and above, you can't use the above trick with
-CXX=gcc, but you have to install libstd++.
+setting to CXX=gcc.
 
 @node Linux-SPARC, Linux-Alpha, Linux-x86, Linux
 @subsubsection Linux SPARC Notes
