@@ -353,8 +353,6 @@ public:
   /**
    * Backup functionallity
    */
-  typedef void (* BackupCallback)(const BackupEvent& Event);
-  BackupCallback setCallback(BackupCallback);
   int startBackup(Uint32& backupId, bool waitCompleted = false);
   int abortBackup(Uint32 backupId);
   int performBackup(Uint32* backupId);
@@ -743,7 +741,6 @@ private:
   void signalRecvThreadRun();
   
   void backupCallback(BackupEvent &);
-  BackupCallback m_backupCallback;
   BackupEvent m_lastBackupEvent;
 
   Config *_props;
