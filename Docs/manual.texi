@@ -50257,6 +50257,9 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed bug in @code{SELECT DISTINCT ... FROM many_tables ORDER BY
+not-used-column}.
+@item
 Added @code{QUOTE()} function that performs SQL quoting to produce values
 that can be used as data values in queries.
 @item

@@ -17,6 +17,7 @@
 /* Functions to get threads more portable */
 
 #define DONT_REMAP_PTHREAD_FUNCTIONS
+
 #include "mysys_priv.h"
 #ifdef THREAD
 #include <signal.h>
@@ -372,16 +373,33 @@ int pthread_signal(int sig, void (*func)())
   sigaction(sig, &sact, (struct sigaction*) 0);
   return 0;
 }
-
 #endif
+
+/****************************************************************************
+ The following functions fixes that all pthread functions should work
+ according to latest posix standard
+****************************************************************************/
+
+/* Undefined wrappers set my_pthread.h so that we call os functions */
+#undef pthread_mutex_init
+#undef pthread_mutex_lock
+#undef pthread_mutex_unlock
+#undef pthread_mutex_destroy
+#undef pthread_mutex_wait
+#undef pthread_mutex_timedwait
+#undef pthread_mutex_t
+#undef pthread_cond_wait
+#undef pthread_cond_timedwait
+#undef pthread_mutex_trylock
+#undef pthread_mutex_t
+#undef pthread_cond_t
+
 
 /*****************************************************************************
 ** Patches for AIX and DEC OSF/1 3.2
 *****************************************************************************/
 
 #if (defined(HAVE_NONPOSIX_PTHREAD_MUTEX_INIT) && !defined(HAVE_UNIXWARE7_THREADS)) || defined(HAVE_DEC_3_2_THREADS)
-#undef pthread_mutex_init
-#undef pthread_cond_init
 
 #include <netdb.h>
 
@@ -419,7 +437,6 @@ int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
 ****************************************************************************/
 
 #if defined(HPUX) || defined(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT)
-#undef pthread_cond_timedwait
 
 int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 			      struct timespec *abstime)
@@ -462,13 +479,13 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
   RETURN VALUES
   0		If we are able successfully lock the mutex.
   EBUSY		Mutex was locked by another thread
-  !=		errno set by pthread_mutex_trylock()
+  #		Other error number returned by pthread_mutex_trylock()
+		(Not likely)  
 */
 
-#undef pthread_mutex_trylock
 int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
-  int error=pthread_mutex_trylock(mutex);
+  int error= pthread_mutex_trylock(mutex);
   if (error == 1)
     return 0;				/* Got lock on mutex */
   if (error == 0)			/* Someon else is locking mutex */

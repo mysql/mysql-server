@@ -3970,6 +3970,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     safemalloc_mem_limit = atoi(argument);
 #endif      
     break;
+#ifdef EMBEDDED_LIBRARY
+  case OPT_MAX_ALLOWED_PACKET:
+    max_allowed_packet= atoi(argument);
+    break;
+  case OPT_NET_BUFFER_LENGTH:
+    net_buffer_length=  atoi(argument);
+    break;
+#endif
   case 'v':
   case 'V':
     print_version();

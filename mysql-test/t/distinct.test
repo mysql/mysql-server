@@ -218,3 +218,27 @@ select * from t1 where a >= '1';
 select distinct a from t1 order by a desc;
 select distinct a from t1 where a >= '1' order by a desc;
 drop table t1;
+
+#
+# Test when using a not previously used column in ORDER BY
+#
+
+CREATE TABLE t1 (email varchar(50), infoID BIGINT, dateentered
+DATETIME);
+CREATE TABLE t2 (infoID BIGINT, shipcode varchar(10));
+
+INSERT INTO t1 (email, infoID, dateentered) VALUES
+      ('test1@testdomain.com', 1, '2002-07-30 22:56:38'),
+      ('test1@testdomain.com', 1, '2002-07-27 22:58:16'),
+      ('test2@testdomain.com', 1, '2002-06-19 15:22:19'),
+      ('test2@testdomain.com', 2, '2002-06-18 14:23:47'),
+      ('test3@testdomain.com', 1, '2002-05-19 22:17:32');
+
+INSERT INTO t2(infoID, shipcode) VALUES
+      (1, 'Z001'),
+      (2, 'R002');
+
+SELECT DISTINCTROW email, shipcode FROM t1, t2 WHERE t1.infoID=t2.infoID;
+SELECT DISTINCTROW email FROM t1 ORDER BY dateentered DESC;
+SELECT DISTINCTROW email, shipcode FROM t1, t2 WHERE t1.infoID=t2.infoID ORDER BY dateentered DESC;
+drop table t1,t2;

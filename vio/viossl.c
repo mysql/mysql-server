@@ -362,4 +362,14 @@ void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
   DBUG_VOID_RETURN;
 }
 
+
+int vio_ssl_blocking(Vio * vio __attribute__((unused)),
+		     my_bool set_blocking_mode,
+		     my_bool *old_mode)
+{
+  /* Return error if we try to change to non_blocking mode */
+  *old_mode=1;					/* Mode is always blocking */
+  return set_blocking_mode ? 0 : 1;
+}
+
 #endif /* HAVE_OPENSSL */

@@ -60,7 +60,7 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
     vio->vioclose	=vio_ssl_close;
     vio->peer_addr	=vio_ssl_peer_addr;
     vio->in_addr	=vio_ssl_in_addr;
-    vio->vioblocking	=vio_blocking;
+    vio->vioblocking	=vio_ssl_blocking;
     vio->is_blocking	=vio_is_blocking;
   }
   else					/* default is VIO_TYPE_TCPIP */
