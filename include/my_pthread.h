@@ -20,14 +20,14 @@
 #ifndef _my_pthread_h
 #define _my_pthread_h
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <errno.h>
 #ifndef ETIME
 #define ETIME ETIMEDOUT				/* For FreeBSD */
 #endif
+
+#ifdef  __cplusplus
+extern "C" {
+#endif /* __cplusplus */ 
 
 #if defined(__WIN__) || defined(OS2)
 
@@ -617,7 +617,7 @@ extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
 #endif /* HAVE_ATOMIC_ADD */
 #endif /* thread_safe_increment */
 
-#ifdef __cplusplus
+#ifdef  __cplusplus
 }
 #endif
 
