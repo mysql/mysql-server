@@ -25,14 +25,22 @@
    if QUERY_CACHE_MIN_ALLOCATION_UNIT == 0 then
    QUERY_CACHE_MIN_ALLOCATION_UNIT choosed automaticaly
 */
-#define QUERY_CACHE_MIN_ALLOCATION_UNIT		0
+#define QUERY_CACHE_MIN_ALLOCATION_UNIT		512
 
 /* inittial size of hashes */
 #define QUERY_CACHE_DEF_QUERY_HASH_SIZE		1024
 #define QUERY_CACHE_DEF_TABLE_HASH_SIZE		1024
 
 /* minimal result data size when data allocated */
-#define QUERY_CACHE_MIN_RESULT_DATA_SIZE	1024
+#define QUERY_CACHE_MIN_RESULT_DATA_SIZE	1024*4
+
+/* 
+   start estimation of first result block size only when number of queries
+   bigger then: 
+*/
+#define QUERY_CACHE_MIN_ESTIMATED_QUERIES_NUMBER 3
+
+
 
 /* memory bins size spacing (see at Query_cache::init_cache (sql_cache.cc)) */
 #define QUERY_CACHE_MEM_BIN_FIRST_STEP_PWR2	4
@@ -234,8 +242,7 @@ protected:
     query structure we locked an internal query block mutex.
     LOCK SEQUENCE (to prevent deadlocks):
       1. structure_guard_mutex
-      2. query block / table block / free block
-      3. results blocks (only when must become free).
+      2. query block (for operation inside query (query block/results))
   */
   pthread_mutex_t structure_guard_mutex;
   byte *cache;					// cache memory
@@ -271,7 +278,8 @@ protected:
   void free_query(Query_cache_block *point);
   my_bool allocate_data_chain(Query_cache_block **result_block,
 			      ulong data_len,
-			      Query_cache_block *query_block);
+			      Query_cache_block *query_block,
+			      my_bool first_block);
   void invalidate_table(TABLE_LIST *table);
   void invalidate_table(TABLE *table);
   void invalidate_table(Query_cache_block *table_block);
@@ -328,6 +336,8 @@ protected:
 			    Query_cache_block *parent,
 			    Query_cache_block::block_type
 			    type=Query_cache_block::RESULT);
+  inline ulong get_min_first_result_data_size();
+  inline ulong get_min_append_result_data_size();
   Query_cache_block *allocate_block(ulong len, my_bool not_less,
 				     ulong min,
 				     my_bool under_guard=0);
@@ -394,6 +404,9 @@ protected:
   my_bool check_integrity(bool not_locked);
   my_bool in_list(Query_cache_block * root, Query_cache_block * point,
 		  const char *name);
+  my_bool in_table_list(Query_cache_block_table * root,
+			Query_cache_block_table * point,
+			const char *name);
   my_bool in_blocks(Query_cache_block * point);
 };
 
