@@ -44,7 +44,6 @@ noinst_PROGRAMS = conf_to_src
 EXTRA_DIST =		ctype-big5.c ctype-czech.c ctype-euc_kr.c \
                         ctype-gb2312.c ctype-gbk.c ctype-sjis.c \
                         ctype-tis620.c ctype-ujis.c ctype-latin1_de.c \
-                        ctype_autoconf.c \
                         strto.c strings-x86.s longlong2str-x86.s \
 			strxmov.c bmove_upp.c strappend.c strcont.c strend.c \
 			strfill.c strcend.c is_prefix.c strstr.c strinstr.c \
@@ -63,11 +62,6 @@ OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			cdefs.h machdep.h signal.h __signal.h util.h
 
 libmystrings_a_LIBADD=	@CHARSET_OBJS@
-ctype.o:		ctype_extra_sources.c
-
-ctype_extra_sources.c: conf_to_src
-	./conf_to_src $(top_srcdir) @CHARSETS_NEED_SOURCE@ > \
-	              $(srcdir)/ctype_extra_sources.c
 conf_to_src_SOURCES = conf_to_src.c
 conf_to_src_LDADD=
 #force static linking of conf_to_src - essential when linking against
@@ -77,8 +71,6 @@ conf_to_src_LDFLAGS= @NOINST_LDFLAGS@
 # This is because the dependency tracking misses @FOO@ vars in sources.
 strtoull.o:		@CHARSET_OBJS@
 
-clean-local:
-	rm -f ctype_extra_sources.c
 
 if ASSEMBLER
 # On Linux gcc can compile the assembly files
