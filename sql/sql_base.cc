@@ -300,7 +300,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->proc_info="Flushing tables";
 
     close_old_data_files(thd,thd->open_tables,1,1);
-    mysql_ha_close_list(thd, tables);
+    mysql_ha_flush(thd, tables, MYSQL_HA_REOPEN_ON_USAGE | MYSQL_HA_FLUSH_ALL);
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
     DBUG_PRINT("info",
@@ -852,7 +852,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   }
 
   /* close handler tables which are marked for flush */
-  mysql_ha_close_list(thd, (TABLE_LIST*) NULL, /*flushed*/ 1);
+  mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE);
 
   for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
        table && table->in_use ;
@@ -936,6 +936,31 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     for (uint i=0 ; i < table->fields ; i++)
       table->field[i]->table_name=table->table_name;
   }
+#if MYSQL_VERSION_ID < 40100
+  /*
+    If per-connection "new" variable (represented by variables.new_mode)
+    is set then we should pretend that the length of TIMESTAMP field is 19.
+    The cheapest (from perfomance viewpoint) way to achieve that is to set
+    field_length of all Field_timestamp objects in a table after opening
+    it (to 19 if new_mode is true or to original field length otherwise).
+    We save value of new_mode variable in TABLE::timestamp_mode to
+    not perform this setup if new_mode value is the same between sequential
+    table opens.
+  */
+  my_bool new_mode= thd->variables.new_mode;
+  if (table->timestamp_mode != new_mode)
+  {
+    for (uint i=0 ; i < table->fields ; i++)
+    {
+      Field *field= table->field[i];
+
+      if (field->type() == FIELD_TYPE_TIMESTAMP)
+        field->field_length= new_mode ? 19 :
+                             ((Field_timestamp *)(field))->orig_field_length;
+    }
+    table->timestamp_mode= new_mode;
+  }
+#endif
   /* These variables are also set in reopen_table() */
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
@@ -945,7 +970,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   table->keys_in_use_for_query= table->keys_in_use;
   table->used_keys= table->keys_for_keyread;
   if (table->timestamp_field)
-    table->timestamp_field->set_timestamp_offsets();
+    table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
   DBUG_ASSERT(table->key_read == 0);
   DBUG_RETURN(table);
 }
@@ -1224,7 +1249,7 @@ bool wait_for_tables(THD *thd)
   {
     thd->some_tables_deleted=0;
     close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
-    mysql_ha_close_list(thd, (TABLE_LIST*) NULL, /*flushed*/ 1);
+    mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE);
     if (!table_is_used(thd->open_tables,1))
       break;
     (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -1343,7 +1368,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       */
       if (discover_retry_count++ != 0)
        goto err;
-      if (create_table_from_handler(db, name, true) != 0)
+      if (ha_create_table_from_engine(thd, db, name, true) != 0)
        goto err;
 
       thd->clear_error(); // Clear error message
@@ -1670,10 +1695,18 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
   uint counter;
   if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
     DBUG_RETURN(-1);				/* purecov: inspected */
-  /*
-    Let us propagate pointers to open tables from global table list
-    to table lists in particular selects if needed.
-  */
+  relink_tables_for_derived(thd);
+  DBUG_RETURN(mysql_handle_derived(thd->lex));
+}
+
+
+/*
+  Let us propagate pointers to open tables from global table list
+  to table lists in particular selects if needed.
+*/
+
+void relink_tables_for_derived(THD *thd)
+{
   if (thd->lex->all_selects_list->next_select_in_list() ||
       thd->lex->time_zone_tables_used)
   {
@@ -1686,7 +1719,6 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
         if (cursor->table_list)
           cursor->table= cursor->table_list->table;
   }
-  DBUG_RETURN(mysql_handle_derived(thd->lex));
 }
 
 
@@ -1726,7 +1758,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
       if (!table->derived)
 	*(ptr++)= table->table;
     }
-    if (!(thd->lock=mysql_lock_tables(thd,start,count)))
+    if (!(thd->lock=mysql_lock_tables(thd,start, (uint) (ptr - start))))
       return -1;				/* purecov: inspected */
   }
   else
@@ -2082,14 +2114,17 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 				return not_found_item, report other errors,
 				return 0
       IGNORE_ERRORS		Do not report errors, return 0 if error
-      
+    unaliased                   Set to true if item is field which was found
+                                by original field name and not by its alias
+                                in item list. Set to false otherwise.
+
   RETURN VALUES
     0			Item is not found or item is not unique,
 			error message is reported
     not_found_item	Function was called with
 			report_error == REPORT_EXCEPT_NOT_FOUND and
 			item was not found. No error message was reported
-    found field 
+                        found field
 */
 
 // Special Item pointer for find_item_in_list returning
@@ -2098,7 +2133,7 @@ const Item **not_found_item= (const Item**) 0x1;
 
 Item **
 find_item_in_list(Item *find, List<Item> &items, uint *counter,
-		  find_item_error_report_type report_error)
+                  find_item_error_report_type report_error, bool *unaliased)
 {
   List_iterator<Item> li(items);
   Item **found=0, **found_unaliased= 0, *item;
@@ -2107,6 +2142,9 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
   const char *table_name=0;
   bool found_unaliased_non_uniq= 0;
   uint unaliased_counter;
+
+  *unaliased= FALSE;
+
   if (find->type() == Item::FIELD_ITEM	|| find->type() == Item::REF_ITEM)
   {
     field_name= ((Item_ident*) find)->field_name;
@@ -2134,17 +2172,18 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         /*
           If table name is specified we should find field 'field_name' in
           table 'table_name'. According to SQL-standard we should ignore
-          aliases in this case. Note that we should prefer fields from the
-          select list over other fields from the tables participating in
-          this select in case of ambiguity.
+          aliases in this case.
+
+          Since we should NOT prefer fields from the select list over
+          other fields from the tables participating in this select in
+          case of ambiguity we have to do extra check outside this function.
 
           We use strcmp for table names and database names as these may be
-          case sensitive.
-          In cases where they are not case sensitive, they are always in lower
-          case.
+          case sensitive. In cases where they are not case sensitive, they
+          are always in lower case.
 
 	  item_field->field_name and item_field->table_name can be 0x0 if
-	  item is not fix fielded yet.
+	  item is not fix_field()'ed yet.
         */
         if (item_field->field_name && item_field->table_name &&
 	    !my_strcasecmp(system_charset_info, item_field->field_name,
@@ -2153,17 +2192,22 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
             (!db_name || (item_field->db_name &&
                           !strcmp(item_field->db_name, db_name))))
         {
-          if (found)
+          if (found_unaliased)
           {
-            if ((*found)->eq(item, 0))
-              continue;                         // Same field twice
+            if ((*found_unaliased)->eq(item, 0))
+              continue;
+            /*
+              Two matching fields in select list.
+              We already can bail out because we are searching through
+              unaliased names only and will have duplicate error anyway.
+            */
             if (report_error != IGNORE_ERRORS)
               my_printf_error(ER_NON_UNIQ_ERROR, ER(ER_NON_UNIQ_ERROR),
                               MYF(0), find->full_name(), current_thd->where);
             return (Item**) 0;
           }
-          found= li.ref();
-          *counter= i;
+          found_unaliased= li.ref();
+          unaliased_counter= i;
           if (db_name)
             break;                              // Perfect match
         }
@@ -2235,6 +2279,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     {
       found= found_unaliased;
       *counter= unaliased_counter;
+      *unaliased= TRUE;
     }
   }
   if (found)
@@ -2339,7 +2384,7 @@ int setup_fields(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
       *(ref++)= item;
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
-      item->split_sum_func(ref_pointer_array, *sum_func_list);
+      item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
     thd->used_tables|=item->used_tables();
   }
   DBUG_RETURN(test(thd->net.report_error));

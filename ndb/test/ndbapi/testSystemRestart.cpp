@@ -872,7 +872,7 @@ int runSystemRestart7(NDBT_Context* ctx, NDBT_Step* step){
 
   const Uint32 nodeCount = restarter.getNumDbNodes();
   if(nodeCount < 2){
-    g_info << "SR8 - Needs atleast 2 nodes to test" << endl;
+    g_info << "SR7 - Needs atleast 2 nodes to test" << endl;
     return NDBT_OK;
   }
 
@@ -1001,7 +1001,52 @@ int runSystemRestart8(NDBT_Context* ctx, NDBT_Step* step){
     i++;
   }
   
-  g_info << "runSystemRestart7 finished" << endl;  
+  g_info << "runSystemRestart8 finished" << endl;  
+
+  return result;
+}
+
+int runSystemRestart9(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  int timeout = 300;
+  Uint32 loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  Uint32 i = 1;
+  
+  Uint32 currentRestartNodeIndex = 1;
+  UtilTransactions utilTrans(*ctx->getTab());
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  int args[] = { DumpStateOrd::DihMaxTimeBetweenLCP };
+  int dump[] = { DumpStateOrd::DihStartLcpImmediately };
+  
+  do {
+    CHECK(restarter.dumpStateAllNodes(args, 1) == 0);
+    
+    HugoOperations ops(* ctx->getTab());
+    CHECK(ops.startTransaction(pNdb) == 0);
+    for(i = 0; i<10; i++){
+      CHECK(ops.pkInsertRecord(pNdb, i, 1, 1) == 0);
+      CHECK(ops.execute_NoCommit(pNdb) == 0);
+    }
+    for(i = 0; i<10; i++){
+      CHECK(ops.pkUpdateRecord(pNdb, i, 1) == 0);
+      CHECK(ops.execute_NoCommit(pNdb) == 0);
+    }
+    NdbSleep_SecSleep(10);
+    CHECK(restarter.dumpStateAllNodes(dump, 1) == 0);
+    NdbSleep_SecSleep(10);
+    CHECK(ops.execute_Commit(pNdb) == 0);  
+    
+    CHECK(restarter.restartAll() == 0);
+    CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHECK(pNdb->waitUntilReady(timeout) == 0);
+    ops.closeTransaction(pNdb);
+  } while(0);
+  
+  g_info << "runSystemRestart9 finished" << endl;  
 
   return result;
 }
@@ -1176,9 +1221,23 @@ TESTCASE("SR8",
   STEP(runSystemRestart8);
   FINALIZER(runClearTable);
 }
+TESTCASE("SR9", 
+	 "Perform partition win system restart with other nodes delayed\n"
+	 "* 1. Start transaction\n"
+	 "* 2. insert (1,1)\n"
+	 "* 3. update (1,2)\n"
+	 "* 4. start lcp\n"
+	 "* 5. commit\n"
+	 "* 6. restart\n"){
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runClearTable);
+  STEP(runSystemRestart9);
+  FINALIZER(runClearTable);
+}
 NDBT_TESTSUITE_END(testSystemRestart);
 
 int main(int argc, const char** argv){
+  ndb_init();
   return testSystemRestart.execute(argc, argv);
 }
 

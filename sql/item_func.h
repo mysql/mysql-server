@@ -121,7 +121,7 @@ public:
   void set_arguments(List<Item> &list);
   inline uint argument_count() const { return arg_count; }
   inline void remove_arguments() { arg_count=0; }
-  virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
+  void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   void print(String *str);
   void print_op(String *str);
   void print_args(String *str, uint from);

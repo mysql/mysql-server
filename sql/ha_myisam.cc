@@ -251,8 +251,8 @@ int ha_myisam::write_row(byte * buf)
   statistic_increment(ha_write_count,&LOCK_status);
 
   /* If we have a timestamp column, update it to the current time */
-  if (table->timestamp_default_now)
-    update_timestamp(buf+table->timestamp_default_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    table->timestamp_field->set_time();
 
   /*
     If we have an auto_increment column and we are writing a changed row
@@ -1070,8 +1070,8 @@ bool ha_myisam::is_crashed() const
 int ha_myisam::update_row(const byte * old_data, byte * new_data)
 {
   statistic_increment(ha_update_count,&LOCK_status);
-  if (table->timestamp_on_update_now)
-    update_timestamp(new_data+table->timestamp_on_update_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+    table->timestamp_field->set_time();
   return mi_update(file,old_data,new_data);
 }
 
@@ -1280,13 +1280,13 @@ int ha_myisam::delete_table(const char *name)
   return mi_delete_table(name);
 }
 
+
 int ha_myisam::external_lock(THD *thd, int lock_type)
 {
   return mi_lock_database(file, !table->tmp_table ?
 			  lock_type : ((lock_type == F_UNLCK) ?
 				       F_UNLCK : F_EXTRA_LCK));
 }
-
 
 THR_LOCK_DATA **ha_myisam::store_lock(THD *thd,
 				      THR_LOCK_DATA **to,

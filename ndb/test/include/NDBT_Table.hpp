@@ -33,10 +33,10 @@ public:
   {
     assert(_name != 0);
     
+    setType(_type);
+    setLength(_length);
     setNullable(_nullable);
     setPrimaryKey(_pk);
-    setLength(_length);
-    setType(_type);
   }
 };
 

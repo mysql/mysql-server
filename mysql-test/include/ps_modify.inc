@@ -14,12 +14,12 @@
 # several test cases.
 #
 # Please do not modify the structure (DROP/ALTER..) of the tables
-#     't1' and 't_many_col_types'. 
+#     't1' and 't9'. 
 #
 # But you are encouraged to use these two tables within your statements
-# whenever possible. 
-#     t1               - very simple table
-#     t_many_col_types - table with nearly all available column types
+# (DELETE/UPDATE/...) whenever possible. 
+#     t1  - very simple table
+#     t9  - table with nearly all available column types
 #
 # The structure and the content of these tables can be found in
 #     include/ps_create.inc  CREATE TABLE ...
@@ -124,17 +124,48 @@ set @arg04=2;
 --disable_warnings
 drop table if exists t2;
 --enable_warnings
+# t2 will be of table type 'MYISAM'
 create table t2 as select a,b from t1 ;
 prepare stmt1 from 'update t1 set a=? where b=?
                     and a in (select ? from t2
                               where b = ? or a = ?)';
+--enable_info
 execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04 ;
+--disable_info
 select a,b from t1 where a = @arg00 ;
 prepare stmt1 from 'update t1 set a=? where b=?
                     and a not in (select ? from t2
                               where b = ? or a = ?)';
+--enable_info
 execute stmt1 using @arg04, @arg01, @arg02, @arg03, @arg00 ;
-select a,b from t1 order by a;
+--disable_info
+select a,b from t1 order by a ;
+drop table t2 ;
+# t2 is now of table type '$type'
+# The test battery for table type 'MERGE' gets here only a 'MYISAM' table
+#
+# Test UPDATE with SUBQUERY in prepared mode
+#
+eval create table t2
+(
+  a int, b varchar(30),
+  primary key(a)
+) engine = $type ;
+insert into t2(a,b) select a, b from t1 ;
+prepare stmt1 from 'update t1 set a=? where b=?
+                    and a in (select ? from t2
+                              where b = ? or a = ?)';
+--enable_info
+execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04 ;
+--disable_info
+select a,b from t1 where a = @arg00 ;
+prepare stmt1 from 'update t1 set a=? where b=?
+                    and a not in (select ? from t2
+                              where b = ? or a = ?)';
+--enable_info
+execute stmt1 using @arg04, @arg01, @arg02, @arg03, @arg00 ;
+--disable_info
+select a,b from t1 order by a ;
 drop table t2 ;
 
 ## update with parameters in limit
@@ -179,6 +210,46 @@ set @arg01='eight' ;
 prepare stmt1 from 'insert into t1 values(?, ? )';
 execute stmt1 using @arg00, @arg01 ;
 select a,b from t1 where b = @arg01;
+# cases derived from client_test.c: test_null()
+set @NULL= null ;
+set @arg00= 'abc' ;
+# execute must fail, because first column is primary key (-> not null)
+--error 1048
+execute stmt1 using @NULL, @NULL ;
+--error 1048
+execute stmt1 using @NULL, @NULL ;
+--error 1048
+execute stmt1 using @NULL, @arg00 ;
+--error 1048
+execute stmt1 using @NULL, @arg00 ;
+let $1 = 2;
+while ($1)
+{
+  eval set @arg01= 10000 + $1 ;
+  execute stmt1 using @arg01, @arg00 ;
+  dec $1;
+}
+select * from t1 where a > 10000 order by a ;
+delete from t1 where a > 10000 ;
+let $1 = 2;
+while ($1)
+{
+  eval set @arg01= 10000 + $1 ;
+  execute stmt1 using @arg01, @NULL ;
+  dec $1;
+}
+select * from t1 where a > 10000 order by a ;
+delete from t1 where a > 10000 ;
+let $1 = 10;
+while ($1)
+{
+  eval set @arg01= 10000 + $1 ;
+  execute stmt1 using @arg01, @arg01 ;
+  dec $1;
+}
+select * from t1 where a > 10000 order by a ;
+delete from t1 where a > 10000 ;
+
 
 ## insert with two rows in values part
 set @arg00=81 ;
@@ -207,6 +278,22 @@ set @arg00=81 ;
 set @arg01=1 ;
 --error 1062
 execute stmt1 using @arg00, @arg01;
+
+## insert, autoincrement column and ' SELECT LAST_INSERT_ID() '
+# cases derived from client_test.c: test_bug3117()
+--disable_warnings
+drop table if exists t2 ;
+--enable_warnings
+# The test battery for table type 'MERGE' gets here only a 'MYISAM' table
+eval create table t2 (id int auto_increment primary key) 
+ENGINE= $type ;
+prepare stmt1 from ' select last_insert_id() ' ;
+insert into t2 values (NULL) ;
+execute stmt1 ;
+insert into t2 values (NULL) ;
+# bug#3117
+execute stmt1 ;
+drop table t2 ;
 
 ## many parameters
 set @1000=1000 ;
@@ -237,3 +324,34 @@ delete from t1 where a >= 1000 ;
 ## replace
 --error 1295
 prepare stmt1 from ' replace into t1 (a,b) select 100, ''hundred'' ';
+
+
+## multi table statements
+--disable_query_log
+select '------ multi table tests ------' as test_sequence ;
+--enable_query_log
+# cases derived from client_test.c: test_multi
+delete from t1 ;
+delete from t9 ;
+insert into t1(a,b) values (1, 'one'), (2, 'two'), (3, 'three') ;
+insert into t9 (c1,c21)
+  values (1, 'one'), (2, 'two'), (3, 'three') ;
+prepare stmt_delete from " delete t1, t9 
+  from t1, t9 where t1.a=t9.c1 and t1.b='updated' ";
+prepare stmt_update from " update t1, t9 
+  set t1.b='updated', t9.c21='updated'
+  where t1.a=t9.c1 and t1.a=? ";
+prepare stmt_select1 from " select a, b from t1 order by a" ;
+prepare stmt_select2 from " select c1, c21 from t9 order by c1" ;
+set @arg00= 1 ;
+let $1= 3 ;
+while ($1)
+{
+  execute stmt_update using @arg00 ;
+  execute stmt_delete ;
+  execute stmt_select1 ;
+  execute stmt_select2 ;
+  set @arg00= @arg00 + 1 ;
+  dec $1 ;
+}
+

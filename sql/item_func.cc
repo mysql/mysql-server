@@ -257,20 +257,22 @@ bool Item_func::walk (Item_processor processor, byte *argument)
   return (this->*processor)(argument);
 }
 
-void Item_func::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
+void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
+                               List<Item> &fields)
 {
   Item **arg, **arg_end;
   for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
   {
     Item *item=* arg;
     if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-      item->split_sum_func(ref_pointer_array, fields);
+      item->split_sum_func(thd, ref_pointer_array, fields);
     else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
     {
       uint el= fields.elements;
+      Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
       fields.push_front(item);
       ref_pointer_array[el]= item;
-      *arg= new Item_ref(ref_pointer_array + el, arg, 0, item->name);
+      thd->change_item_tree(arg, new_item);
     }
   }
 }
@@ -2735,6 +2737,8 @@ void Item_func_get_user_var::fix_length_and_dec()
       break;
     case STRING_RESULT:
       max_length= MAX_BLOB_WIDTH;
+      break;
+    case ROW_RESULT:                            // Keep compiler happy
       break;
     }
   }

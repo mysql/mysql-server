@@ -76,6 +76,7 @@ row_sel_sec_rec_is_for_clust_rec(
         ulint           clust_len;
         ulint           n;
         ulint           i;
+	dtype_t*	cur_type;
 
 	UT_NOT_USED(clust_index);
 
@@ -91,10 +92,15 @@ row_sel_sec_rec_is_for_clust_rec(
                 sec_field = rec_get_nth_field(sec_rec, i, &sec_len);
 
 		if (ifield->prefix_len > 0
-		    && clust_len != UNIV_SQL_NULL
-		    && clust_len > ifield->prefix_len) {
+		    && clust_len != UNIV_SQL_NULL) {
 
-		       clust_len = ifield->prefix_len;
+			cur_type = dict_col_get_type(
+				dict_field_get_col(ifield));
+
+			clust_len = dtype_get_at_most_n_mbchars(
+				cur_type,
+				ifield->prefix_len,
+				clust_len, clust_field);
 		}
 
                 if (0 != cmp_data_data(dict_col_get_type(col),
@@ -1942,7 +1948,8 @@ row_sel_convert_mysql_key_to_innobase(
 	ulint		buf_len,	/* in: buffer length */
 	dict_index_t*	index,		/* in: index of the key value */
 	byte*		key_ptr,	/* in: MySQL key value */
-	ulint		key_len)	/* in: MySQL key value length */
+	ulint		key_len,	/* in: MySQL key value length */
+	trx_t*		trx)		/* in: transaction */
 {
 	byte*		original_buf	= buf;
 	byte*		original_key_ptr = key_ptr;
@@ -2017,19 +2024,15 @@ row_sel_convert_mysql_key_to_innobase(
 
 			/* MySQL stores the actual data length to the first 2
 			bytes after the optional SQL NULL marker byte. The
-			storage format is little-endian. */
+			storage format is little-endian, that is, the most
+			significant byte at a higher address. In UTF-8, MySQL
+			seems to reserve field->prefix_len bytes for
+			storing this field in the key value buffer, even
+			though the actual value only takes data_len bytes
+			from the start. */
 
-			/* There are no key fields > 255 bytes currently in
-			MySQL */
-			if (key_ptr[data_offset + 1] != 0) {
-				ut_print_timestamp(stderr);
-				fputs(
-"  InnoDB: Error: BLOB or TEXT prefix > 255 bytes in query to table ", stderr);
-				ut_print_name(stderr, index->table_name);
-				putc('\n', stderr);
-			}
-
-			data_len = key_ptr[data_offset];
+			data_len = key_ptr[data_offset]
+				   + 256 * key_ptr[data_offset + 1];
 			data_field_len = data_offset + 2 + field->prefix_len;
 			data_offset += 2;
 			
@@ -2037,6 +2040,17 @@ row_sel_convert_mysql_key_to_innobase(
 					  store the column value like it would
 					  be a fixed char field */
 		} else if (field->prefix_len > 0) {
+			/* Looks like MySQL pads unused end bytes in the
+			prefix with space. Therefore, also in UTF-8, it is ok
+			to compare with a prefix containing full prefix_len
+			bytes, and no need to take at most prefix_len / 3
+			UTF-8 characters from the start.
+			If the prefix is used as the upper end of a LIKE
+			'abc%' query, then MySQL pads the end with chars
+			0xff. TODO: in that case does it any harm to compare
+			with the full prefix_len bytes. How do characters
+			0xff in UTF-8 behave? */
+
 		        data_len = field->prefix_len;
 			data_field_len = data_offset + data_len;
 		} else {
@@ -2069,11 +2083,13 @@ row_sel_convert_mysql_key_to_innobase(
 
 		        ut_print_timestamp(stderr);
 			
-			fprintf(stderr,
+			fputs(
   "  InnoDB: Warning: using a partial-field key prefix in search.\n"
-  "InnoDB: Table name %s, index name %s. Last data field length %lu bytes,\n"
+  "InnoDB: ", stderr);
+			dict_index_name_print(stderr, trx, index);
+			fprintf(stderr, ". Last data field length %lu bytes,\n"
   "InnoDB: key ptr now exceeds key end by %lu bytes.\n"
-  "InnoDB: Key value in the MySQL format:\n", index->table_name, index->name,
+  "InnoDB: Key value in the MySQL format:\n",
 					  (ulong) data_field_len,
 					  (ulong) (key_ptr - key_end));
 			fflush(stderr);
@@ -2116,7 +2132,7 @@ row_sel_store_row_id_to_prebuilt(
 	if (len != DATA_ROW_ID_LEN) {
 	        fprintf(stderr,
 "InnoDB: Error: Row id field is wrong length %lu in ", (ulong) len);
-		dict_index_name_print(stderr, index);
+		dict_index_name_print(stderr, prebuilt->trx, index);
 		fprintf(stderr, "\n"
 "InnoDB: Field number %lu, record:\n",
 			(ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID));
@@ -2275,7 +2291,11 @@ row_sel_store_mysql_rec(
 					ut_print_timestamp(stderr);
 					fprintf(stderr,
 "  InnoDB: Warning: could not allocate %lu + 1000000 bytes to retrieve\n"
-"InnoDB: a big column. Table name %s\n", (ulong) len, prebuilt->table->name);
+"InnoDB: a big column. Table name ", (ulong) len);
+					ut_print_name(stderr,
+						prebuilt->trx,
+						prebuilt->table->name);
+					putc('\n', stderr);
 
 					if (extern_field_heap) {
 						mem_heap_free(
@@ -2407,8 +2427,9 @@ row_sel_get_clust_rec_for_mysql(
 	trx_t*		trx;
 
 	*out_rec = NULL;
+	trx = thr_get_trx(thr);
 	
-	row_build_row_ref_in_tuple(prebuilt->clust_ref, sec_index, rec);
+	row_build_row_ref_in_tuple(prebuilt->clust_ref, sec_index, rec, trx);
 
 	clust_index = dict_table_get_first_index(sec_index->table);
 	
@@ -2441,7 +2462,7 @@ row_sel_get_clust_rec_for_mysql(
 			fputs("  InnoDB: error clustered record"
 				" for sec rec not found\n"
 				"InnoDB: ", stderr);
-			dict_index_name_print(stderr, sec_index);
+			dict_index_name_print(stderr, trx, sec_index);
 			fputs("\n"
 				"InnoDB: sec index record ", stderr);
 			rec_print(stderr, rec);
@@ -2449,7 +2470,7 @@ row_sel_get_clust_rec_for_mysql(
 				"InnoDB: clust index record ", stderr);
 			rec_print(stderr, clust_rec);
 			putc('\n', stderr);
-			trx_print(stderr, thr_get_trx(thr));
+			trx_print(stderr, trx);
 
 			fputs("\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
@@ -2476,8 +2497,6 @@ row_sel_get_clust_rec_for_mysql(
 	} else {
 		/* This is a non-locking consistent read: if necessary, fetch
 		a previous version of the record */
-
-		trx = thr_get_trx(thr);
 
 		old_vers = NULL;
 
@@ -2803,7 +2822,7 @@ row_search_for_mysql(
 		"InnoDB: Error: trying to free a corrupt\n"
 		"InnoDB: table handle. Magic n %lu, table name ",
 		(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, prebuilt->table->name);
+		ut_print_name(stderr, trx, prebuilt->table->name);
 		putc('\n', stderr);
 
 		mem_analyze_corruption((byte*)prebuilt);
@@ -3237,7 +3256,7 @@ rec_loop:
 				(ulong) (rec - buf_frame_align(rec)),
 				(ulong) next_offs,
 				(ulong) buf_frame_get_page_no(rec));
-			dict_index_name_print(stderr, index);
+			dict_index_name_print(stderr, trx, index);
 			fputs(". Run CHECK TABLE. You may need to\n"
 "InnoDB: restore from a backup, or dump + drop + reimport the table.\n",
 			      stderr);
@@ -3255,7 +3274,7 @@ rec_loop:
 			   (ulong) (rec - buf_frame_align(rec)),
 			   (ulong) next_offs,
 			   (ulong) buf_frame_get_page_no(rec));
-			dict_index_name_print(stderr, index);
+			dict_index_name_print(stderr, trx, index);
 			fputs(". We try to skip the rest of the page.\n",
 				stderr);
 
@@ -3274,7 +3293,7 @@ rec_loop:
 			   (ulong) (rec - buf_frame_align(rec)),
 			   (ulong) next_offs,
 			   (ulong) buf_frame_get_page_no(rec));
-			dict_index_name_print(stderr, index);
+			dict_index_name_print(stderr, trx, index);
 			fputs(". We try to skip the record.\n",
 				stderr);
 

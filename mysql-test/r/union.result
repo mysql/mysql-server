@@ -996,3 +996,40 @@ PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
 PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1);
 ID1	ID2	DATA1	DATA2	DATA3	ID	DATA1
 drop table t1,t2;
+create table t1 (a ENUM('Yes', 'No') NOT NULL);
+create table t2 (a ENUM('aaa', 'bbb') NOT NULL);
+insert into t1 values ('No');
+insert into t2 values ('bbb');
+create table t3 (a SET('Yes', 'No') NOT NULL);
+create table t4 (a SET('aaa', 'bbb') NOT NULL);
+insert into t3 values (1);
+insert into t4 values (3);
+select "1" as a union select a from t1;
+a
+1
+No
+select a as a from t1 union select "1";
+a
+No
+1
+select a as a from t2 union select a from t1;
+a
+bbb
+No
+select "1" as a union select a from t3;
+a
+1
+Yes
+select a as a from t3 union select "1";
+a
+Yes
+1
+select a as a from t4 union select a from t3;
+a
+aaa,bbb
+Yes
+select a as a from t1 union select a from t4;
+a
+No
+aaa,bbb
+drop table t1,t2,t3,t4;

@@ -105,7 +105,7 @@ public:
 	    separator->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
-  void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
+  void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   const char *func_name() const { return "concat_ws"; }
   bool walk(Item_processor processor, byte *arg)
   {
@@ -418,7 +418,7 @@ public:
 	    item->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
-  void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
+  void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "make_set"; }

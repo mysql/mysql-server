@@ -178,6 +178,7 @@ tellThreads(ThreadNdb* threadArrayP, const StartType what)
 NDB_COMMAND(flexHammer, "flexHammer", "flexHammer", "flexHammer", 65535)
 //main(int argc, const char** argv)
 {
+  ndb_init();
   ThreadNdb* pThreads = NULL; // Pointer to thread data array
   Ndb* pMyNdb = NULL;	      // Pointer to Ndb object
   int tLoops = 0;

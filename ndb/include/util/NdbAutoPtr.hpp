@@ -18,6 +18,7 @@
 #define __NDB_AUTO_PTR_HPP
 
 #include <ndb_global.h>
+#include <my_sys.h>
 
 template<typename T>
 class NdbAutoPtr {
@@ -44,6 +45,15 @@ public:
   NdbAutoObjArrayPtr(T * obj = 0){ m_obj = obj;}
   void reset(T * obj = 0) { if (m_obj) delete[] m_obj; m_obj = obj; }
   ~NdbAutoObjArrayPtr() { if (m_obj) delete[] m_obj;}
+};
+
+template<typename T>
+class My_auto_ptr {
+  T * m_obj;
+public:
+  My_auto_ptr(T * obj = 0){ m_obj = obj;}
+  void reset(T * obj = 0) { if (m_obj) my_free(m_obj,MYF(0)); m_obj = obj; }
+  ~My_auto_ptr() { if (m_obj) my_free(m_obj,MYF(0));}
 };
 
 #endif

@@ -59,6 +59,7 @@ public:
   virtual void endOfTuples();
   virtual void logEntry(const LogEntry &);
   virtual void endOfLogEntrys();
+  virtual bool finalize_table(const TableS &);
   void connectToMysql();
   Ndb * m_ndb;
   bool m_restore;

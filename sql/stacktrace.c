@@ -197,7 +197,7 @@ terribly wrong...\n");
   fprintf(stderr, "Stack trace seems successful - bottom reached\n");
 
 end:
-  fprintf(stderr, "Please read http://www.mysql.com/doc/en/Using_stack_trace.html and follow instructions on how to resolve the stack trace. Resolved\n\
+  fprintf(stderr, "Please read http://dev.mysql.com/doc/mysql/en/Using_stack_trace.html and follow instructions on how to resolve the stack trace. Resolved\n\
 stack trace is much more helpful in diagnosing the problem, so please do \n\
 resolve it\n");
 }

@@ -521,7 +521,7 @@ int mysql_union(THD *thd, LEX *lex, select_result *result,
 int mysql_handle_derived(LEX *lex);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
-			bool group,bool modify_item);
+			bool group, bool modify_item, uint convert_blob_length);
 int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 		       List<create_field> &fields,
 		       List<Key> &keys, uint &db_options, 
@@ -636,6 +636,7 @@ int mysqld_show_keys(THD *thd, TABLE_LIST *table);
 int mysqld_show_logs(THD *thd);
 void append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
+int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_dump_create_info(THD *thd, TABLE *table, int fd = -1);
 int mysqld_show_create(THD *thd, TABLE_LIST *table_list);
@@ -676,12 +677,15 @@ void mysql_reset_errors(THD *thd);
 my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 /* sql_handler.cc */
-int mysql_ha_open(THD *thd, TABLE_LIST *tables);
-int mysql_ha_close(THD *thd, TABLE_LIST *tables,
-                   bool dont_send_ok=0, bool dont_lock=0, bool no_alias=0);
-int mysql_ha_close_list(THD *thd, TABLE_LIST *tables, bool flushed=0);
+int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen= 0);
+int mysql_ha_close(THD *thd, TABLE_LIST *tables);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
+int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags);
+/* mysql_ha_flush mode_flags bits */
+#define MYSQL_HA_CLOSE_FINAL        0x00
+#define MYSQL_HA_REOPEN_ON_USAGE    0x01
+#define MYSQL_HA_FLUSH_ALL          0x02
 
 /* sql_base.cc */
 void set_item_name(Item *item,char *pos,uint length);
@@ -705,7 +709,8 @@ enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS};
 extern const Item **not_found_item;
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
-			  find_item_error_report_type report_error);
+                          find_item_error_report_type report_error,
+                          bool *unaliased);
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
@@ -724,6 +729,7 @@ void wait_for_refresh(THD *thd);
 int open_tables(THD *thd, TABLE_LIST *tables, uint *counter);
 int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
 int open_and_lock_tables(THD *thd,TABLE_LIST *tables);
+void relink_tables_for_derived(THD *thd);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
@@ -1003,8 +1009,6 @@ int openfrm(const char *name,const char *alias,uint filestat,uint prgflag,
 	    uint ha_open_flags, TABLE *outparam);
 int readfrm(const char *name, const void** data, uint* length);
 int writefrm(const char* name, const void* data, uint len);
-int create_table_from_handler(const char *db, const char *name,
-			      bool create_if_found);
 int closefrm(TABLE *table);
 db_type get_table_type(const char *name);
 int read_string(File file, gptr *to, uint length);

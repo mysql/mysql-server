@@ -52,7 +52,7 @@ public:
   NdbColumnImpl(NdbDictionary::Column &); // This is not a copy constructor
   ~NdbColumnImpl();
   NdbColumnImpl& operator=(const NdbColumnImpl&);
-  void init();
+  void init(Type t = Unsigned);
   
   int m_attrId;
   BaseString m_name;
@@ -60,6 +60,7 @@ public:
   int m_precision;
   int m_scale;
   int m_length;
+  CHARSET_INFO * m_cs;          // not const in MySQL
   
   bool m_pk;
   bool m_tupleKey;
@@ -82,6 +83,7 @@ public:
   Uint32 m_keyInfoPos;
   Uint32 m_extType;             // used by restore (kernel type in versin v2x)
   bool getInterpretableType() const ;
+  bool getCharType() const;
   bool getBlobType() const;
 
   /**
@@ -388,10 +390,11 @@ public:
   int stopSubscribeEvent(NdbEventImpl &);
 
   int listObjects(List& list, NdbDictionary::Object::Type type);
-  int listIndexes(List& list, const char * tableName);
+  int listIndexes(List& list, Uint32 indexId);
   
   NdbTableImpl * getTable(const char * tableName, void **data= 0);
-  Ndb_local_table_info * get_local_table_info(const char * internalName);
+  Ndb_local_table_info * get_local_table_info(const char * internalName,
+					      bool do_add_blob_tables);
   NdbIndexImpl * getIndex(const char * indexName,
 			  const char * tableName);
   NdbIndexImpl * getIndexImpl(const char * name, const char * internalName);
@@ -446,6 +449,14 @@ NdbColumnImpl::getInterpretableType() const {
 	  m_type == NdbDictionary::Column::Bigunsigned);
 }
 
+inline
+bool 
+NdbColumnImpl::getCharType() const {
+  return (m_type == NdbDictionary::Column::Char ||
+          m_type == NdbDictionary::Column::Varchar ||
+          m_type == NdbDictionary::Column::Text);
+}
+   
 inline
 bool 
 NdbColumnImpl::getBlobType() const {
@@ -603,8 +614,8 @@ inline
 NdbTableImpl * 
 NdbDictionaryImpl::getTable(const char * tableName, void **data)
 {
-  const char * internalTableName = m_ndb.internalizeTableName(tableName);
-  Ndb_local_table_info *info= get_local_table_info(internalTableName);
+  Ndb_local_table_info *info=
+    get_local_table_info(m_ndb.internalizeTableName(tableName), true);
   if (info == 0) {
     return 0;
   }
@@ -616,13 +627,22 @@ NdbDictionaryImpl::getTable(const char * tableName, void **data)
 
 inline
 Ndb_local_table_info * 
-NdbDictionaryImpl::get_local_table_info(const char * internalTableName)
+NdbDictionaryImpl::get_local_table_info(const char * internalTableName,
+					bool do_add_blob_tables)
 {
   Ndb_local_table_info *info= m_localHash.get(internalTableName);
-  if (info != 0) {
-    return info; // autoincrement already initialized
+  if (info == 0) {
+    info= fetchGlobalTableImpl(internalTableName);
+    if (info == 0) {
+      return 0;
+    }
   }
-  return fetchGlobalTableImpl(internalTableName);
+  if (do_add_blob_tables &&
+      info->m_table_impl->m_noOfBlobs &&
+      addBlobTables(*(info->m_table_impl))) {
+    return 0;
+  }
+  return info; // autoincrement already initialized
 }
 
 inline
@@ -637,10 +657,12 @@ NdbDictionaryImpl::getIndex(const char * indexName,
       if (t != 0)
         internalIndexName = m_ndb.internalizeIndexName(t, indexName);
     } else {
-      internalIndexName = m_ndb.internalizeTableName(indexName); // Index is also a table
+      internalIndexName =
+	m_ndb.internalizeTableName(indexName); // Index is also a table
     }
     if (internalIndexName) {
-      Ndb_local_table_info * info = get_local_table_info(internalIndexName);
+      Ndb_local_table_info * info = get_local_table_info(internalIndexName,
+							 false);
       if (info) {
 	NdbTableImpl * tab = info->m_table_impl;
         if (tab->m_index == 0)

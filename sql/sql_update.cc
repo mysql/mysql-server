@@ -116,7 +116,7 @@ int mysql_update(THD *thd,
   {
     // Don't set timestamp column if this is modified
     if (table->timestamp_field->query_id == thd->query_id)
-      table->timestamp_on_update_now= 0;
+      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     else
       table->timestamp_field->query_id=timestamp_query_id;
   }
@@ -303,6 +303,7 @@ int mysql_update(THD *thd,
 	else if (handle_duplicates != DUP_IGNORE ||
 		 error != HA_ERR_FOUND_DUPP_KEY)
 	{
+          thd->fatal_error();                   // Force error message
 	  table->file->print_error(error,MYF(0));
 	  error= 1;
 	  break;
@@ -449,6 +450,24 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 ***************************************************************************/
 
 /*
+  Get table map for list of Item_field
+*/
+
+static table_map get_table_map(List<Item> *items)
+{
+  List_iterator_fast<Item> item_it(*items);
+  Item_field *item;
+  table_map map= 0;
+
+  while ((item= (Item_field *) item_it++)) 
+    map|= item->used_tables();
+  DBUG_PRINT("info",("table_map: 0x%08x", map));
+  return map;
+}
+
+
+
+/*
   Setup multi-update handling and call SELECT to do the join
 */
 
@@ -465,107 +484,177 @@ int mysql_multi_update(THD *thd,
   multi_update *result;
   TABLE_LIST *tl;
   TABLE_LIST *update_list= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
-  table_map item_tables= 0, derived_tables= 0;
+  List<Item> total_list;
+  const bool using_lock_tables= thd->locked_tables != 0;
+  bool initialized_dervied= 0;
   DBUG_ENTER("mysql_multi_update");
-
- if ((res=open_and_lock_tables(thd,table_list)))
-    DBUG_RETURN(res);
 
   select_lex->select_limit= HA_POS_ERROR;
 
   /*
-    Ensure that we have update privilege for all tables and columns in the
-    SET part
+    The following loop is here to to ensure that we only lock tables
+    that we are going to update with a write lock
   */
-  for (tl= update_list; tl; tl= tl->next)
+  for (;;)
   {
-    TABLE *table= tl->table;
+    table_map update_tables, derived_tables=0;
+    uint tnr, table_count;
+
+    if ((res=open_tables(thd, table_list, &table_count)))
+      DBUG_RETURN(res);
+
+    /* Only need to call lock_tables if we are not using LOCK TABLES */
+    if (!using_lock_tables &&
+        ((res= lock_tables(thd, table_list, table_count))))
+      DBUG_RETURN(res);
+
+    if (!initialized_dervied)
+    {
+      initialized_dervied= 1;
+      relink_tables_for_derived(thd);
+      if ((res= mysql_handle_derived(thd->lex)))
+        DBUG_RETURN(res);
+    }
+
     /*
-      Update of derived tables is checked later
-      We don't check privileges here, becasue then we would get error
-      "UPDATE command denided .. for column N" instead of
-      "Target table ... is not updatable"
+      Ensure that we have update privilege for all tables and columns in the
+      SET part
+      While we are here, initialize the table->map field to check which
+      tables are updated and updatability of derived tables
     */
-    if (!tl->derived)
-      table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
-  }
-
-  /* Assign table map values to check updatability of derived tables */
-  {
-    uint tablenr=0;
-    for (TABLE_LIST *table_list= update_list;
-	 table_list;
-	 table_list= table_list->next, tablenr++)
+    for (tl= update_list, tnr=0 ; tl ; tl=tl->next)
     {
-      table_list->table->map= (table_map) 1 << tablenr;
+      TABLE *table= tl->table;
+      /*
+        Update of derived tables is checked later
+        We don't check privileges here, becasue then we would get error
+        "UPDATE command denided .. for column N" instead of
+        "Target table ... is not updatable"
+      */
+      if (!tl->derived)
+        table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
+      table->map= (table_map) 1 << (tnr++);
     }
-  }
 
-  if (setup_fields(thd, 0, update_list, *fields, 1, 0, 0))
-    DBUG_RETURN(-1);
+    if (setup_fields(thd, 0, update_list, *fields, 1, 0, 0))
+      DBUG_RETURN(-1);
 
-  /* Find tables used in items */
-  {
-    List_iterator_fast<Item> it(*fields);
-    Item *item;
-    while ((item= it++))
+    update_tables= get_table_map(fields);
+
+    /* Unlock the tables in preparation for relocking */
+    if (!using_lock_tables)
+    {      
+      mysql_unlock_tables(thd, thd->lock); 
+      thd->lock= 0;
+    }
+
+    /*
+      Count tables and setup timestamp handling
+      Set also the table locking strategy according to the update map
+    */
+    for (tl= update_list; tl; tl= tl->next)
     {
-      item_tables|= item->used_tables();
+      TABLE *table= tl->table;
+      /* if table will be updated then check that it is unique */
+      if (table->map & update_tables)
+      {
+        /*
+          Multi-update can't be constructed over-union => we always have
+          single SELECT on top and have to check underlaying SELECTs of it
+        */
+        if (select_lex->check_updateable_in_subqueries(tl->db,
+                                                       tl->real_name))
+        {
+          my_error(ER_UPDATE_TABLE_USED, MYF(0),
+                   tl->real_name);
+          DBUG_RETURN(-1);
+        }
+	DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
+	tl->lock_type= thd->lex->multi_lock_option;
+	tl->updating= 1;
+      }
+      else
+      {
+        DBUG_PRINT("info",("setting table `%s` for read-only", tl->alias));
+	tl->lock_type= TL_READ;
+	tl->updating= 0;
+      }
+      if (tl->derived)
+        derived_tables|= table->map;
+      else if (!using_lock_tables)
+	tl->table->reginfo.lock_type= tl->lock_type;
     }
+
+    if (thd->lex->derived_tables && (update_tables & derived_tables))
+    {
+      // find derived table which cause error
+      for (tl= update_list; tl; tl= tl->next)
+      {
+        if (tl->derived && (update_tables & tl->table->map))
+        {
+          my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
+                          MYF(0), tl->alias, "UPDATE");
+          DBUG_RETURN(-1);
+        }
+      }
+    }
+
+    /* Relock the tables with the correct modes */
+    res= lock_tables(thd, table_list, table_count);
+    if (using_lock_tables)
+    {
+      if (res)
+        DBUG_RETURN(res);
+      break;                                 // Don't have to do setup_field()
+    }
+
+    /*
+      We must setup fields again as the file may have been reopened
+      during lock_tables 
+    */
+    {
+      List_iterator_fast<Item> field_it(*fields);
+      Item_field *item;
+
+      while ((item= (Item_field *) field_it++)) 
+      {
+        item->field->query_id= 0;
+        item->cleanup();
+      }
+    }
+    if (setup_fields(thd, 0, update_list, *fields, 1, 0, 0))
+      DBUG_RETURN(-1);
+    /*
+      If lock succeded and the table map didn't change since the above lock
+      we can continue.
+    */
+    if (!res && update_tables == get_table_map(fields))
+      break;
+
+    /*
+      There was some very unexpected changes in the table definition between
+      open tables and lock tables. Close tables and try again.
+    */
+    close_thread_tables(thd);
   }
 
-  /*
-    Count tables and setup timestamp handling
-  */
+  /* Setup timestamp handling */
   for (tl= update_list; tl; tl= tl->next)
   {
     TABLE *table= tl->table;
+    /* Only set timestamp column if this is not modified */
+    if (table->timestamp_field &&
+        table->timestamp_field->query_id == thd->query_id)
+      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
     /* We only need SELECT privilege for columns in the values list */
     table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
-    // Only set timestamp column if this is not modified
-    if (table->timestamp_field &&
-        table->timestamp_field->query_id == thd->query_id)
-      table->timestamp_on_update_now= 0;
-
-    /* if table will be updated then check that it is unique */
-    if (table->map & item_tables)
-    {
-      /*
-	 Multi-update can't be constructed over-union => we always have
-	 single SELECT on top and have to check underlaying SELECTs of it
-      */
-      if (select_lex->check_updateable_in_subqueries(tl->db,
-                                                     tl->real_name))
-      {
-        my_error(ER_UPDATE_TABLE_USED, MYF(0),
-                 tl->real_name);
-        DBUG_RETURN(-1);
-      }
-    }
-
-    if (tl->derived)
-      derived_tables|= table->map;
-  }
-  if (thd->lex->derived_tables && (item_tables & derived_tables))
-  {
-    // find derived table which cause error
-    for (tl= update_list; tl; tl= tl->next)
-    {
-      if (tl->derived && (item_tables & tl->table->map))
-      {
-	my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
-			MYF(0), tl->alias, "UPDATE");
-	DBUG_RETURN(-1);
-      }
-    }
   }
 
   if (!(result=new multi_update(thd, update_list, fields, values,
 				handle_duplicates)))
     DBUG_RETURN(-1);
 
-  List<Item> total_list;
   res= mysql_select(thd, &select_lex->ref_pointer_array,
 		    select_lex->get_table_list(), select_lex->with_wild,
 		    total_list,
@@ -597,7 +686,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 {
   TABLE_LIST *table_ref;
   SQL_LIST update;
-  table_map tables_to_update= 0;
+  table_map tables_to_update;
   Item_field *item;
   List_iterator_fast<Item> field_it(*fields);
   List_iterator_fast<Item> value_it(*values);
@@ -608,8 +697,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   thd->cuted_fields=0L;
   thd->proc_info="updating main table";
 
-  while ((item= (Item_field *) field_it++))
-    tables_to_update|= item->used_tables();
+  tables_to_update= get_table_map(fields);
 
   if (!tables_to_update)
   {
@@ -672,7 +760,6 @@ int multi_update::prepare(List<Item> &not_used_values,
 
   /* Split fields into fields_for_table[] and values_by_table[] */
 
-  field_it.rewind();
   while ((item= (Item_field *) field_it++))
   {
     Item *value= value_it++;
@@ -918,9 +1005,14 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	if ((error=table->file->update_row(table->record[1],
 					   table->record[0])))
 	{
-	  table->file->print_error(error,MYF(0));
 	  updated--;
-	  DBUG_RETURN(1);
+	  if (handle_duplicates != DUP_IGNORE ||
+	      error != HA_ERR_FOUND_DUPP_KEY)
+	  {
+            thd->fatal_error();                 // Force error message
+	    table->file->print_error(error,MYF(0));
+	    DBUG_RETURN(1);
+	  }
 	}
       }
     }
@@ -985,7 +1077,6 @@ int multi_update::do_updates(bool from_send_error)
   ha_rows org_updated;
   TABLE *table, *tmp_table;
   DBUG_ENTER("do_updates");
-
 
   do_update= 0;					// Don't retry this function
   if (!found)
@@ -1074,7 +1165,10 @@ int multi_update::do_updates(bool from_send_error)
 
 err:
   if (!from_send_error)
+  {
+    thd->fatal_error();
     table->file->print_error(local_error,MYF(0));
+  }
 
   (void) table->file->ha_rnd_end();
   (void) tmp_table->file->ha_rnd_end();

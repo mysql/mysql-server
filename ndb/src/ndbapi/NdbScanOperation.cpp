@@ -47,11 +47,13 @@ NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
   m_sent_receivers = 0;
   m_receivers = 0;
   m_array = new Uint32[1]; // skip if on delete in fix_receivers
+  theSCAN_TABREQ = 0;
 }
 
 NdbScanOperation::~NdbScanOperation()
 {
   for(Uint32 i = 0; i<m_allocated_receivers; i++){
+    m_receivers[i]->release();
     theNdb->releaseNdbScanRec(m_receivers[i]);
   }
   delete[] m_array;
@@ -191,7 +193,7 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     return 0;
   }
   
-  theSCAN_TABREQ = theNdb->getSignal();
+  theSCAN_TABREQ = (!theSCAN_TABREQ ? theNdb->getSignal() : theSCAN_TABREQ);
   if (theSCAN_TABREQ == NULL) {
     setErrorCodeAbort(4000);
     return 0;
@@ -719,6 +721,12 @@ void NdbScanOperation::release()
   for(Uint32 i = 0; i<m_allocated_receivers; i++){
     m_receivers[i]->release();
   }
+  if(theSCAN_TABREQ)
+  {
+    theNdb->releaseSignal(theSCAN_TABREQ);
+    theSCAN_TABREQ = 0;
+  }
+  NdbOperation::release();
 }
 
 /***************************************************************************
@@ -1096,30 +1104,43 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
       theStatus == SetBound &&
       (0 <= type && type <= 4) &&
       len <= 8000) {
-    // bound type
-
+    // insert bound type
     insertATTRINFO(type);
-    // attribute header
     Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+    // normalize char bound
+    CHARSET_INFO* cs = tAttrInfo->m_cs;
+    Uint32 xfrmData[2000];
+    if (cs != NULL && aValue != NULL) {
+      // current limitation: strxfrm does not increase length
+      assert(cs->strxfrm_multiply == 1);
+      unsigned n =
+      (*cs->coll->strnxfrm)(cs,
+                            (uchar*)xfrmData, sizeof(xfrmData),
+                            (const uchar*)aValue, sizeInBytes);
+      while (n < sizeInBytes)
+        ((uchar*)xfrmData)[n++] = 0x20;
+      aValue = (char*)xfrmData;
+    }
     if (len != sizeInBytes && (len != 0)) {
       setErrorCodeAbort(4209);
       return -1;
     }
+    // insert attribute header
     len = aValue != NULL ? sizeInBytes : 0;
     Uint32 tIndexAttrId = tAttrInfo->m_attrId;
     Uint32 sizeInWords = (len + 3) / 4;
     AttributeHeader ah(tIndexAttrId, sizeInWords);
     insertATTRINFO(ah.m_value);
     if (len != 0) {
-      // attribute data
+      // insert attribute data
       if ((UintPtr(aValue) & 0x3) == 0 && (len & 0x3) == 0)
         insertATTRINFOloop((const Uint32*)aValue, sizeInWords);
       else {
-        Uint32 temp[2000];
-        memcpy(temp, aValue, len);
+        Uint32 tempData[2000];
+        memcpy(tempData, aValue, len);
         while ((len & 0x3) != 0)
-          ((char*)temp)[len++] = 0;
-        insertATTRINFOloop(temp, sizeInWords);
+          ((char*)tempData)[len++] = 0;
+        insertATTRINFOloop(tempData, sizeInWords);
       }
     }
 
@@ -1206,11 +1227,11 @@ NdbIndexScanOperation::compare(Uint32 skip, Uint32 cols,
     if((r1_null ^ (unsigned)r2->isNULL())){
       return (r1_null ? -1 : 1);
     }
-    Uint32 type = NdbColumnImpl::getImpl(* r1->m_column).m_extType;
+    const NdbColumnImpl & col = NdbColumnImpl::getImpl(* r1->m_column);
     Uint32 size = (r1->theAttrSize * r1->theArraySize + 3) / 4;
     if(!r1_null){
-      const NdbSqlUtil::Type& t = NdbSqlUtil::getType(type);
-      int r = (*t.m_cmp)(d1, d2, size, size);
+      const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(col.m_extType);
+      int r = (*sqlType.m_cmp)(col.m_cs, d1, d2, size, size);
       if(r){
 	assert(r != NdbSqlUtil::CmpUnknown);
 	return r;

@@ -209,6 +209,10 @@ net_printf(THD *thd, uint errcode, ...)
                       format,args);
   va_end(args);
 
+  /* Replication slave relies on net->last_* to see if there was error */
+  net->last_errno= errcode;
+  strmake(net->last_error, text_pos, sizeof(net->last_error)-1);
+
 #ifndef EMBEDDED_LIBRARY
   if (net->vio == 0)
   {

@@ -52,7 +52,6 @@ typedef enum ndb_index_type {
 typedef struct ndb_index_data {
   NDB_INDEX_TYPE type;
   void *index;
-  const char * unique_name;
   void *unique_index;
 } NDB_INDEX_DATA;
 
@@ -180,8 +179,6 @@ class ha_ndbcluster: public handler
   int build_index_list(TABLE *tab, enum ILBP phase);
   int get_metadata(const char* path);
   void release_metadata();
-  const char* get_index_name(uint idx_no) const;
-  const char* get_unique_index_name(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
   
@@ -210,7 +207,7 @@ class ha_ndbcluster: public handler
 		      uint fieldnr, const byte* field_ptr);
   int set_ndb_key(NdbOperation*, Field *field,
 		  uint fieldnr, const byte* field_ptr);
-  int set_ndb_value(NdbOperation*, Field *field, uint fieldnr);
+  int set_ndb_value(NdbOperation*, Field *field, uint fieldnr, bool *set_blob_value= 0);
   int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, byte*);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
@@ -225,6 +222,8 @@ class ha_ndbcluster: public handler
   longlong get_auto_increment();
   int ndb_err(NdbConnection*);
   bool uses_blob_value(bool all_fields);
+
+  int write_ndb_file();
 
  private:
   int check_ndb_connection();
@@ -259,11 +258,14 @@ class ha_ndbcluster: public handler
   uint32 blobs_buffer_size;
   uint dupkey;
 
+  void set_rec_per_key();
   void records_update();
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_init(THD *);
   void no_uncommitted_rows_reset(THD *);
+
+  friend int execute_no_commit(ha_ndbcluster*, NdbConnection*);
 };
 
 bool ndbcluster_init(void);
@@ -274,8 +276,11 @@ int ndbcluster_rollback(THD *thd, void* ndb_transaction);
 
 void ndbcluster_close_connection(THD *thd);
 
-int ndbcluster_discover(const char* dbname, const char* name,
+int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
 			const void** frmblob, uint* frmlen);
+int ndbcluster_find_files(THD *thd,const char *db,const char *path,
+			  const char *wild, bool dir, List<char> *files);
+int ndbcluster_table_exists(THD* thd, const char *db, const char *name);
 int ndbcluster_drop_database(const char* path);
 
 void ndbcluster_print_error(int error, const NdbOperation *error_op);

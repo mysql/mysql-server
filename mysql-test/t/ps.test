@@ -304,3 +304,42 @@ select * from t1;
 deallocate prepare stmt;
 drop table t1;
 
+# 
+# BUG#5688 "Upgraded 4.1.5 Server seg faults" # (prepared statements)
+# The test case speaks for itself.
+# Just another place where we used wrong memory root for Items created
+# during statement prepare.
+# 
+prepare stmt from "select 'abc' like convert('abc' using utf8)";
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+
+# 
+# BUG#5748 "Prepared statement with BETWEEN and bigint values crashes
+# mysqld". Just another place where an item tree modification must be 
+# rolled back.
+# 
+create table t1 ( a bigint );
+prepare stmt from 'select a from t1 where a between ? and ?';
+set @a=1;
+execute stmt using @a, @a;
+execute stmt using @a, @a;
+execute stmt using @a, @a;
+drop table t1;
+deallocate prepare stmt;
+
+#
+# Bug #5987 subselect in bool function crashes server (prepared statements):
+# don't overwrite transformed subselects with old arguments of a bool
+# function.
+#
+create table t1 (a int);
+prepare stmt from "select * from t1 where 1 > (1 in (SELECT * FROM t1))";
+execute stmt;
+execute stmt;
+execute stmt;
+drop table t1;
+deallocate prepare stmt;
+
+
