@@ -3870,7 +3870,7 @@ select_var_ident:  '@' ident_or_text
 into:
         INTO OUTFILE TEXT_STRING_sys
 	{
-	  LEX *lex= Lex;
+          LEX *lex= Lex;
           lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
           if (!(lex->exchange= new sql_exchange($3.str, 0)) ||
               !(lex->result= new select_export(lex->exchange)))
@@ -4724,17 +4724,17 @@ field_term:
           }
 	| OPTIONALLY ENCLOSED BY text_string
 	  {
-	    LEX *lex= Lex;
+            LEX *lex= Lex;
             DBUG_ASSERT(lex->exchange);
-	    lex->exchange->enclosed= $4;
-	    lex->exchange->opt_enclosed= 1;
+            lex->exchange->enclosed= $4;
+            lex->exchange->opt_enclosed= 1;
 	  }
-	| ENCLOSED BY text_string
+        | ENCLOSED BY text_string
           {
             DBUG_ASSERT(Lex->exchange);
             Lex->exchange->enclosed= $3;
           }
-	| ESCAPED BY text_string
+        | ESCAPED BY text_string
           {
             DBUG_ASSERT(Lex->exchange);
             Lex->exchange->escaped= $3;
@@ -4749,12 +4749,12 @@ line_term_list:
 	| line_term;
 
 line_term:
-	TERMINATED BY text_string
+        TERMINATED BY text_string
           {
             DBUG_ASSERT(Lex->exchange);
             Lex->exchange->line_term= $3;
           }
-	| STARTING BY text_string
+        | STARTING BY text_string
           {
             DBUG_ASSERT(Lex->exchange);
             Lex->exchange->line_start= $3;
@@ -4762,8 +4762,8 @@ line_term:
 
 opt_ignore_lines:
 	/* empty */
-	| IGNORE_SYM NUM LINES
-	  {
+        | IGNORE_SYM NUM LINES
+          {
             DBUG_ASSERT(Lex->exchange);
             Lex->exchange->skip_lines= atol($2.str);
           };
