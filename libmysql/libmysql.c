@@ -456,14 +456,23 @@ simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
 			length ? length : (ulong) strlen(arg)))
   {
     DBUG_PRINT("error",("Can't send command to server. Error: %d",socket_errno));
-    end_server(mysql);
-    if (mysql_reconnect(mysql) ||
-	net_write_command(net,(uchar) command,arg,
-			  length ? length : (ulong) strlen(arg)))
+    if (net->last_errno == ER_NET_PACKET_TOO_LARGE)
     {
-      net->last_errno=CR_SERVER_GONE_ERROR;
+      net->last_errno=CR_NET_PACKET_TOO_LARGE;
       strmov(net->last_error,ER(net->last_errno));
-      goto end;
+      return(packet_error);
+    }
+    else
+    {
+      end_server(mysql);
+      if (mysql_reconnect(mysql) ||
+	  net_write_command(net,(uchar) command,arg,
+			    length ? length : (ulong) strlen(arg)))
+      {
+	net->last_errno=CR_SERVER_GONE_ERROR;
+	strmov(net->last_error,ER(net->last_errno));
+	goto end;
+      }
     }
   }
   result=0;

@@ -2328,8 +2328,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
 	  if ((tab->keys & ~ tab->const_keys && i > 0) ||
 	      tab->const_keys && i == join->const_tables &&
-	      join->thd->select_limit < join->best_positions[i].records_read &&
-	      join->tables > 1)
+	      join->thd->select_limit < join->best_positions[i].records_read)
 	  {
 	    /* Join with outer join condition */
 	    COND *orig_cond=sel->cond;

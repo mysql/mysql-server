@@ -34,13 +34,18 @@
 #include <signal.h>
 #include <errno.h>
 #include <sys/types.h>
+#ifdef MYSQL_SERVER
+#include <violite.h>
+#endif
+
+#define MAX_PACKET_LENGTH (256L*256L*256L-1)
 
 #ifdef MYSQL_SERVER
 ulong max_allowed_packet=65536;
 extern ulong net_read_timeout,net_write_timeout;
 extern uint test_flags;
 #else
-ulong max_allowed_packet=16*1024*1024L-1;
+ulong max_allowed_packet=MAX_PACKET_LENGTH;
 ulong net_read_timeout=  NET_READ_TIMEOUT;
 ulong net_write_timeout= NET_WRITE_TIMEOUT;
 #endif
@@ -226,6 +231,12 @@ int
 my_net_write(NET *net,const char *packet,ulong len)
 {
   uchar buff[NET_HEADER_SIZE];
+  if (len >= MAX_PACKET_LENGTH)
+  {
+    net->error=1;
+    net->last_errno=ER_NET_PACKET_TOO_LARGE;
+    return 1;
+  }
   int3store(buff,len);
   buff[3]= (net->compress) ? 0 : (uchar) (net->pkt_nr++);
   if (net_write_buff(net,(char*) buff,NET_HEADER_SIZE))
@@ -238,7 +249,12 @@ net_write_command(NET *net,uchar command,const char *packet,ulong len)
 {
   uchar buff[NET_HEADER_SIZE+1];
   uint length=len+1;				/* 1 extra byte for command */
-
+  if (length >= MAX_PACKET_LENGTH)
+  {
+    net->error=1;
+    net->last_errno=ER_NET_PACKET_TOO_LARGE;
+    return 1;
+  }
   int3store(buff,length);
   buff[3]= (net->compress) ? 0 : (uchar) (net->pkt_nr++);
   buff[4]=command;
@@ -276,7 +292,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   int length;
   char *pos,*end;
   thr_alarm_t alarmed;
-#if !defined(__WIN__)
+#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
   ALARM alarm_buff;
 #endif
   uint retry_count=0;
