@@ -2,7 +2,7 @@ SUBDIRS = common mgmapi ndbapi . kernel mgmsrv mgmclient cw
 
 ndblib_LTLIBRARIES = libndbclient.la
 
-libndbclient_SOURCES =
+libndbclient_la_SOURCES =
 
 libndbclient_la_LIBADD =  \
               $(top_srcdir)/ndb/src/ndbapi/libndbapi.la \
