@@ -215,6 +215,8 @@ class ha_ndbcluster: public handler
 
   int write_ndb_file();
 
+  char *update_table_comment(const char * comment);
+
  private:
   int check_ndb_connection();
 
@@ -276,6 +278,8 @@ class ha_ndbcluster: public handler
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*);
 };
+
+extern struct show_var_st ndb_status_variables[];
 
 bool ndbcluster_init(void);
 bool ndbcluster_end(void);
