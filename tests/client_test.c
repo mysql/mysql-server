@@ -10593,7 +10593,6 @@ static void test_view_insert_fields()
 
 static void test_basic_cursors()
 {
-  myheader("test_basic_cursors");
   const char *basic_tables[]=
   {
     "DROP TABLE IF EXISTS t1, t2",
@@ -10620,14 +10619,15 @@ static void test_basic_cursors()
     "  (10, 'Azerbaijan'), (11, 'Afghanistan'), "
     "  (12, 'Burkina Faso'), (13, 'Faroe Islands')"
   };
-
-  fill_tables(basic_tables, sizeof(basic_tables)/sizeof(*basic_tables));
-
   const char *queries[]=
   {
     "SELECT * FROM t1",
     "SELECT * FROM t2"
   };
+
+  myheader("test_basic_cursors");
+
+  fill_tables(basic_tables, sizeof(basic_tables)/sizeof(*basic_tables));
 
   fetch_n(queries, sizeof(queries)/sizeof(*queries));
 }
@@ -10635,13 +10635,12 @@ static void test_basic_cursors()
 
 static void test_cursors_with_union()
 {
-  myheader("test_cursors_with_union");
-
   const char *queries[]=
   {
     "SELECT t1.name FROM t1 UNION SELECT t2.name FROM t2",
     "SELECT t1.id FROM t1 WHERE t1.id < 5"
   };
+  myheader("test_cursors_with_union");
   fetch_n(queries, sizeof(queries)/sizeof(*queries));
 }
 
