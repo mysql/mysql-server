@@ -65,7 +65,9 @@ struct st_table {
   Field **field;			/* Pointer to fields */
   Field_blob **blob_field;		/* Pointer to blob fields */
   HASH	name_hash;			/* hash of field names */
-  byte *record[3];			/* Pointer to records */
+  byte *record[2];			/* Pointer to records */
+  byte *default_values;                 /* record with default values for INSERT */
+  byte *insert_values;                  /* used by INSERT ... UPDATE */
   uint fields;				/* field count */
   uint reclength;			/* Recordlength */
   uint rec_buff_length;
@@ -144,10 +146,9 @@ struct st_table {
     struct st_table_list *pos_in_table_list;
   };
   /* number of select if it is derived table */
-  uint          derived_select_number;   
+  uint          derived_select_number;
   THD		*in_use;		/* Which thread uses this */
   struct st_table *next,*prev;
-  byte *default_values() { return record[2]; }
 };
 
 

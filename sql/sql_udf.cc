@@ -429,7 +429,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   if (!(table = open_ltable(thd,&tables,TL_WRITE)))
     goto err;
 
-  restore_record(table,2);		// Get default values for fields
+  restore_record(table,default_values);		// Get default values for fields
   table->field[0]->store(u_d->name.str, u_d->name.length, system_charset_info);
   table->field[1]->store((longlong) u_d->returns);
   table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl), system_charset_info);

@@ -30,7 +30,7 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
 static bool compare_record(TABLE *table, ulong query_id)
 {
   if (!table->blob_fields)
-    return cmp_record(table,1);
+    return cmp_record(table,record[1]);
   /* Compare null bits */
   if (memcmp(table->null_flags,
 	     table->null_flags+table->rec_buff_length,
@@ -288,7 +288,7 @@ int mysql_update(THD *thd,
   {
     if (!(select && select->skipp_record()))
     {
-      store_record(table,1);
+      store_record(table,record[1]);
       if (fill_record(fields,values) || thd->net.report_error)
 	break; /* purecov: inspected */
       found++;
@@ -731,7 +731,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
     if (table == table_to_update)
     {
       table->status|= STATUS_UPDATED;
-      store_record(table,1);
+      store_record(table,record[1]);
       if (fill_record(*fields_for_table[offset], *values_for_table[offset]))
 	DBUG_RETURN(1);
       found++;
@@ -863,7 +863,7 @@ int multi_update::do_updates(bool from_send_error)
       if ((local_error= table->file->rnd_pos(table->record[0], ref_pos)))
 	goto err;
       table->status|= STATUS_UPDATED;
-      store_record(table,1);
+      store_record(table,record[1]);
 
       /* Copy data from temporary table to current table */
       for (copy_field_ptr=copy_field;
