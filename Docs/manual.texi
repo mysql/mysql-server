@@ -22470,7 +22470,7 @@ The @code{mysqladmin status} command result has the following columns:
 @item Max memory used @tab Maximum memory allocated directly by the @code{mysqld} code (only available when MySQL is compiled with --with-debug=full).
 @end multitable
 
-If you do @code{myslqadmin shutdown} on a socket (in other words, on a
+If you do @code{mysqladmin shutdown} on a socket (in other words, on a
 the computer where @code{mysqld} is running), @code{mysqladmin} will
 wait until the MySQL @code{pid-file} is removed to ensure that
 the @code{mysqld} server has stopped properly.
