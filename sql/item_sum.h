@@ -156,7 +156,8 @@ class Item_sum_count_distinct :public Item_sum_int
   TMP_TABLE_PARAM *tmp_table_param;
   TREE tree;
   uint key_length;
-
+  CHARSET_INFO *key_charset;
+  
   // calculated based on max_heap_table_size. If reached,
   // walk the tree and dump it into MyISAM table
   uint max_elements_in_tree;
@@ -175,6 +176,8 @@ class Item_sum_count_distinct :public Item_sum_int
   int tree_to_myisam();
 
   friend int composite_key_cmp(void* arg, byte* key1, byte* key2);
+  friend int simple_str_key_cmp(void* arg, byte* key1, byte* key2);
+  friend int simple_raw_key_cmp(void* arg, byte* key1, byte* key2);
   friend int dump_leaf(byte* key, uint32 count __attribute__((unused)),
 		       Item_sum_count_distinct* item);
 

@@ -432,7 +432,7 @@ typedef struct st_lex
   create_field	      *last_field;
   Item *default_value, *comment;
   CONVERT *convert_set;
-  CONVERT *thd_convert_set;			// Set with SET CHAR SET
+  CHARSET_INFO *thd_charset;
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;

@@ -105,7 +105,6 @@ THD::THD():user_time(0), fatal_error(0),
   cond_count=0;
   warn_id= 0;
   db_charset=default_charset_info;
-  thd_charset=default_charset_info;
   mysys_var=0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
@@ -190,6 +189,7 @@ void THD::init(void)
 {
   pthread_mutex_lock(&LOCK_global_system_variables);
   variables= global_system_variables;
+  variables.thd_charset=default_charset_info;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   server_status= SERVER_STATUS_AUTOCOMMIT;
   options= thd_startup_options;
@@ -526,7 +526,7 @@ bool select_send::send_data(List<Item> &items)
   List_iterator_fast<Item> li(items);
   Protocol *protocol= thd->protocol;
   char buff[MAX_FIELD_WIDTH];
-  String buffer(buff, sizeof(buff), system_charset_info);
+  String buffer(buff, sizeof(buff), NULL);
   DBUG_ENTER("send_data");
 
   protocol->prepare_for_resend();
@@ -649,7 +649,7 @@ bool select_export::send_data(List<Item> &items)
   DBUG_ENTER("send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
   bool space_inited=0;
-  String tmp(buff,sizeof(buff),default_charset_info),*res;
+  String tmp(buff,sizeof(buff),NULL),*res;
   tmp.length(0);
 
   if (unit->offset_limit_cnt)
@@ -710,10 +710,11 @@ bool select_export::send_data(List<Item> &items)
 	     pos++)
 	{
 #ifdef USE_MB
-	  if (use_mb(default_charset_info))
+          CHARSET_INFO *res_charset=res->charset();
+	  if (use_mb(res_charset))
 	  {
 	    int l;
-	    if ((l=my_ismbchar(default_charset_info, pos, end)))
+	    if ((l=my_ismbchar(res_charset, pos, end)))
 	    {
 	      pos += l-1;
 	      continue;
@@ -856,7 +857,7 @@ bool select_dump::send_data(List<Item> &items)
 {
   List_iterator_fast<Item> li(items);
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),default_charset_info),*res;
+  String tmp(buff,sizeof(buff),NULL),*res;
   tmp.length(0);
   Item *item;
   DBUG_ENTER("send_data");

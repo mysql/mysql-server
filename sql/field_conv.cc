@@ -272,7 +272,7 @@ static void do_conv_blob(Copy_field *copy)
 static void do_save_blob(Copy_field *copy)
 {
   char buff[MAX_FIELD_WIDTH];
-  String res(buff,sizeof(buff),default_charset_info);
+  String res(buff,sizeof(buff),copy->tmp.charset());
   copy->from_field->val_str(&res,&res);
   copy->tmp.copy(res);
   ((Field_blob *) copy->to_field)->store(copy->tmp.ptr(),
@@ -284,7 +284,7 @@ static void do_save_blob(Copy_field *copy)
 static void do_field_string(Copy_field *copy)
 {
   char buff[MAX_FIELD_WIDTH];
-  copy->tmp.set_quick(buff,sizeof(buff),default_charset_info);
+  copy->tmp.set_quick(buff,sizeof(buff),copy->tmp.charset());
   copy->from_field->val_str(&copy->tmp,&copy->tmp);
   copy->to_field->store(copy->tmp.c_ptr_quick(),copy->tmp.length(),copy->tmp.charset());
 }
@@ -313,7 +313,7 @@ static void do_cut_string(Copy_field *copy)
        ptr != end ;
        ptr++)
   {
-    if (!my_isspace(system_charset_info, *ptr))
+    if (!my_isspace(system_charset_info, *ptr))	// QQ: ucs incompatible
     {
       current_thd->cuted_fields++;		// Give a warning
       break;
@@ -555,7 +555,7 @@ void field_conv(Field *to,Field *from)
       to->type() == FIELD_TYPE_DECIMAL)
   {
     char buff[MAX_FIELD_WIDTH];
-    String result(buff,sizeof(buff),default_charset_info);
+    String result(buff,sizeof(buff),from->charset());
     from->val_str(&result,&result);
     to->store(result.c_ptr_quick(),result.length(),to->charset());
     // QQ: what to do if "from" and "to" are of dirrent charsets?
