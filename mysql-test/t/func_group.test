@@ -30,7 +30,11 @@ select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a
 
 create table t2 (grp int, a bigint unsigned, c char(10));
 insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
+
+# REPLACE ... SELECT doesn't yet work with PS
+--disable_ps_protocol
 replace into t2 select grp, a, c from t1 limit 2,1;
+--enable_ps_protocol
 select * from t2;
 
 drop table t1,t2;

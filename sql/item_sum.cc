@@ -1693,8 +1693,7 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
 					       SQL_LIST *is_order,
 					       String *is_separator)
   :Item_sum(), tmp_table_param(0), max_elements_in_tree(0), warning(0),
-   warning_available(0), key_length(0),
-   tree_mode(0), distinct(is_distinct), warning_for_row(0),
+   key_length(0), tree_mode(0), distinct(is_distinct), warning_for_row(0),
    separator(is_separator), tree(&tree_base), table(0),
    order(0), tables_list(0),
    arg_count_order(0), arg_count_field(0),
@@ -1752,7 +1751,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   tmp_table_param(item->tmp_table_param),
   max_elements_in_tree(item->max_elements_in_tree),
   warning(item->warning),
-  warning_available(item->warning_available),
   key_length(item->key_length), 
   tree_mode(item->tree_mode),
   distinct(item->distinct),
@@ -1779,10 +1777,6 @@ void Item_func_group_concat::cleanup()
   DBUG_ENTER("Item_func_group_concat::cleanup");
   Item_sum::cleanup();
 
-  /* fix order list */
-  for (uint i= 0; i < arg_count_order ; i++)
-    order[i]->item= &order[i]->item_ptr;
-
   /*
     Free table and tree if they belong to this item (if item have not pointer
     to original item from which was made copy => it own its objects )
@@ -1802,6 +1796,13 @@ void Item_func_group_concat::cleanup()
       tree_mode= 0;
       delete_tree(tree); 
     }
+    if (warning)
+    {
+      char warn_buff[MYSQL_ERRMSG_SIZE];
+      sprintf(warn_buff, ER(ER_CUT_VALUE_GROUP_CONCAT), count_cut_values);
+      warning->set_msg(thd, warn_buff);
+      warning= 0;
+    }
   }
   DBUG_VOID_RETURN;
 }
@@ -1809,19 +1810,6 @@ void Item_func_group_concat::cleanup()
 
 Item_func_group_concat::~Item_func_group_concat()
 {
-  /*
-    Free table and tree if they belong to this item (if item have not pointer
-    to original item from which was made copy => it own its objects )
-  */
-  if (!original)
-  {
-    if (warning_available)
-    {
-      char warn_buff[MYSQL_ERRMSG_SIZE];
-      sprintf(warn_buff, ER(ER_CUT_VALUE_GROUP_CONCAT), count_cut_values);
-      warning->set_msg(current_thd, warn_buff);
-    }
-  }
 }
 
 
@@ -2072,12 +2060,10 @@ String* Item_func_group_concat::val_str(String* str)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  if (count_cut_values && !warning_available)
-  {
-    warning_available= TRUE;
+  if (count_cut_values && !warning)
     warning= push_warning(item_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                          ER_CUT_VALUE_GROUP_CONCAT, NULL);
-  }
+                          ER_CUT_VALUE_GROUP_CONCAT,
+                          ER(ER_CUT_VALUE_GROUP_CONCAT));
   if (result.length())
     return &result;
   if (tree_mode)

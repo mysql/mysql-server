@@ -3,6 +3,8 @@
 # 
 
 source include/master-slave.inc;
+# We disable this for now as PS doesn't handle redirection
+--disable_ps_protocol
 
 #first, make sure the slave has had enough time to register
 save_master_pos;

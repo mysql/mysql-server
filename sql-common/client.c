@@ -727,6 +727,7 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
 static void cli_flush_use_result(MYSQL *mysql)
 {
   /* Clear the current execution status */
+  DBUG_ENTER("cli_flush_use_result");
   DBUG_PRINT("warning",("Not all packets read, clearing them"));
   for (;;)
   {
@@ -744,6 +745,7 @@ static void cli_flush_use_result(MYSQL *mysql)
       break;                            /* End of data */
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 

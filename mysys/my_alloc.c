@@ -158,6 +158,8 @@ gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
   next->next= mem_root->used;
   next->size= Size;
   mem_root->used= next;
+  DBUG_PRINT("exit",("ptr: 0x%lx", (((char*) next)+
+                                    ALIGN_SIZE(sizeof(USED_MEM)))));
   DBUG_RETURN((gptr) (((char*) next)+ALIGN_SIZE(sizeof(USED_MEM))));
 #else
   uint get_size, block_size;

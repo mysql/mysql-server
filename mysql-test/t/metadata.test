@@ -6,6 +6,8 @@
 drop table if exists t1,t2;
 --enable_warnings
 --enable_metadata
+# PS protocol gives slightly different metadata
+--disable_ps_protocol
 
 #
 # First some simple tests
