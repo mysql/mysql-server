@@ -141,6 +141,10 @@ release savepoint `my_savepoint`;
 select n from t1;
 -- error 1305
 rollback to savepoint `my_savepoint`;
+insert into t1 values (8);
+savepoint sv;
+commit;
+savepoint sv;
 set autocommit=1;
 # nop
 rollback;
