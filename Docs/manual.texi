@@ -2723,15 +2723,8 @@ Almost any problem involving MySQL is important to us if it's
 important to you.  Typically customers seek help on how to get
 different commands and utilities to work, remove performance
 bottlenecks, restore crashed systems, understand operating system
-or networking impacts on MySQL, establish best practises for backup
+or networking impacts on MySQL, establish best practices for backup
 and recovery, utilize APIs, etc.
-
-We consider reliability to be crucial to MySQL's success, and
-fixing bugs is important to us.  If you discover a bug that can
-be repeated reliably, we will fix it in any case.  But if you pay
-for support we will also notify you about the fix status instead
-of just fixing it in a later release.
-@xref{Bug reports}.
 
 
 @node Copyright, Licensing policy, Support, Licensing and Support
