@@ -84,7 +84,7 @@ long my_gmt_sec(TIME *t)
     /* Get difference in days */
     int days= t->day - l_time->tm_mday;
     if (days < -1)
-      days= 1;					/* Month has wrapped */
+      days= 1;					// Month has wrapped
     else if (days > 1)
       days= -1;
     diff=(3600L*(long) (days*24+((int) t->hour - (int) l_time->tm_hour)) +
@@ -100,15 +100,15 @@ long my_gmt_sec(TIME *t)
   {
     int days= t->day - l_time->tm_mday;
     if (days < -1)
-      days=1;					/* Month has wrapped */
+      days=1;					// Month has wrapped
     else if (days > 1)
       days= -1;
     diff=(3600L*(long) (days*24+((int) t->hour - (int) l_time->tm_hour))+
 	  (long) (60*((int) t->minute - (int) l_time->tm_min)));
     if (diff == 3600)
-      tmp+=3600 - t->minute*60 - t->second;	/* Move to next hour */
+      tmp+=3600 - t->minute*60 - t->second;	// Move to next hour
     else if (diff == -3600)
-      tmp-=t->minute*60 + t->second;		/* Move to next hour */
+      tmp-=t->minute*60 + t->second;		// Move to next hour
   }
   if ((my_time_zone >=0 ? my_time_zone: -my_time_zone) > 3600L*12)
     my_time_zone=0;			/* Wrong date */
@@ -183,7 +183,7 @@ uint calc_week(TIME *l_time, bool with_year, bool sunday_first_day_of_week,
     /* Last week of the previous year */
     if (!with_year)
       return 0;
-    with_year=0;			/* Don't check the week again */
+    with_year=0;				// Don't check the week again
     (*year)--;
     first_daynr-= (days=calc_days_in_year(*year));
     weekday= (weekday + 53*7- days) % 7;
@@ -198,7 +198,7 @@ uint calc_week(TIME *l_time, bool with_year, bool sunday_first_day_of_week,
     /* Check if we are on the first week of the next year (or week 53) */
     weekday= (weekday + calc_days_in_year(*year)) % 7;
     if (weekday < 4)
-    {				/* We are at first week on next year */
+    {					// We are at first week on next year
       (*year)++;
       return 1;
     }
@@ -434,7 +434,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   DBUG_ENTER("str_to_TIME");
   DBUG_PRINT("enter",("str: %.*s",length,str));
 
-  for (; str != end && !isdigit(*str) ; str++) ; /* Skip garbage */
+  for (; str != end && !isdigit(*str) ; str++) ; // Skip garbage
   if (str == end)
     DBUG_RETURN(TIMESTAMP_NONE);
   /*
@@ -456,18 +456,18 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
     }
     date[i]=tmp_value;
     if (i == 2 && str != end && *str == 'T')
-      str++;				/* ISO8601:  CCYYMMDDThhmmss */
-    else if ( i != 5 ) 			/* Skip inter-field delimiters */
+      str++;					// ISO8601:  CCYYMMDDThhmmss
+    else if ( i != 5 ) 				// Skip inter-field delimiters 
     {
       while (str != end && (ispunct(*str) || isspace(*str)))
       {
-	/* Only allow space between days and hours */
+	// Only allow space between days and hours
 	if (isspace(*str) && i != 2)
 	  DBUG_RETURN(TIMESTAMP_NONE);
 	str++;
       }
     }
-    field_length=1;			/* Rest fields can only be 2 */
+    field_length=1;				// Rest fields can only be 2
   }
   /* Handle second fractions */
   if (i == 6 && (uint) (end-str) >= 2 && *str == '.' && isdigit(str[1]))
@@ -572,9 +572,9 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
 
   /* Check first if this is a full TIMESTAMP */
   if (length >= 12)
-  {					/* Probably full timestamp */
+  {						// Probably full timestamp
     if (str_to_TIME(str,length,l_time,1) == TIMESTAMP_FULL)
-      return 0;				/* Was an ok timestamp */
+      return 0;					// Was an ok timestamp
   }
 
   /* Not a timestamp. Try to get this as a DAYS_TO_SECOND string */
@@ -590,19 +590,19 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   LINT_INIT(state);
   found_days=found_hours=0;
   if ((uint) (end-str) > 1 && (*str == ' ' && isdigit(str[1])))
-  {						/* days ! */
+  {						// days !
     date[0]=value;
-    state=1;					/* Assume next is hours */
+    state=1;					// Assume next is hours
     found_days=1;
-    str++;					/* Skip space; */
+    str++;					// Skip space;
   }
   else if ((end-str) > 1 && *str == ':' && isdigit(str[1]))
   {
-    date[0]=0;					/* Assume we found hours */
+    date[0]=0;					// Assume we found hours
     date[1]=value;
     state=2;
     found_hours=1;
-    str++;					/* skip ':' */
+    str++;					// skip ':'
   }
   else
   {
@@ -623,11 +623,11 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
     date[state++]=value;
     if (state == 4 || (end-str) < 2 || *str != ':' || !isdigit(str[1]))
       break;
-    str++;					/* Skip ':' */
+    str++;					// Skip ':'
   }
 
   if (state != 4)
-  {						/* Not HH:MM:SS */
+  {						// Not HH:MM:SS
     /* Fix the date to assume that seconds was given */
     if (!found_hours && !found_days)
     {
