@@ -18,6 +18,7 @@
 #include <mysql.h>
 #include <m_ctype.h>
 #include "sql_acl.h"
+#include "slave.h"
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
@@ -179,7 +180,6 @@ static char *opt_ssl_capath = 0;
 static VioSSLAcceptorFd* ssl_acceptor_fd = 0;
 #endif /* HAVE_OPENSSL */
 
-extern bool slave_running;
 
 I_List <i_string_pair> replicate_rewrite_db;
 I_List<i_string> replicate_do_db, replicate_ignore_db;
@@ -2229,7 +2229,8 @@ enum options {
                OPT_BINLOG_IGNORE_DB,     OPT_WANT_CORE,
 	       OPT_SKIP_CONCURRENT_INSERT, OPT_MEMLOCK, OPT_MYISAM_RECOVER,
 	       OPT_REPLICATE_REWRITE_DB, OPT_SERVER_ID, OPT_SKIP_SLAVE_START,
-	       OPT_SKIP_INNOBASE,OPT_SAFEMALLOC_MEM_LIMIT
+	       OPT_SKIP_INNOBASE,OPT_SAFEMALLOC_MEM_LIMIT,
+	       OPT_REPLICATE_DO_TABLE, OPT_REPLICATE_IGNORE_TABLE
 };
 
 static struct option long_options[] = {
@@ -2297,7 +2298,12 @@ static struct option long_options[] = {
   {"pid-file",              required_argument, 0, (int) OPT_PID_FILE},
   {"port",                  required_argument, 0, 'P'},
   {"replicate-do-db",       required_argument, 0, (int) OPT_REPLICATE_DO_DB},
-  {"replicate-ignore-db",   required_argument, 0, (int) OPT_REPLICATE_IGNORE_DB},
+  {"replicate-do-table",       required_argument, 0,
+   (int) OPT_REPLICATE_DO_TABLE},
+  {"replicate-ignore-db",   required_argument, 0,
+   (int) OPT_REPLICATE_IGNORE_DB},
+  {"replicate-ignore-table",   required_argument, 0,
+   (int) OPT_REPLICATE_IGNORE_TABLE},
   {"replicate-rewrite-db",   required_argument, 0,
      (int) OPT_REPLICATE_REWRITE_DB},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
@@ -3744,4 +3750,5 @@ skipp: ;
 template class I_List<THD>;
 template class I_List_iterator<THD>;
 template class I_List<i_string>;
+template class I_List<i_string_pair>;
 #endif

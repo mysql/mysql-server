@@ -18,31 +18,20 @@
 #include "mysql_priv.h"
 #include <mysql.h>
 #include "mini_client.h"
+#include "slave.h"
 #include <thr_alarm.h>
 #include <my_dir.h>
 
-pthread_handler_decl(handle_slave,arg);
-extern bool volatile abort_loop, abort_slave;
-
-// the master variables are defaults read from my.cnf or command line
-extern uint master_port, master_connect_retry;
-extern my_string master_user, master_password, master_host,
-  master_info_file;
-
-extern I_List<i_string> replicate_do_db, replicate_ignore_db;
-extern I_List<i_string_pair> replicate_rewrite_db;
-extern I_List<THD> threads;
 bool slave_running = 0;
 pthread_t slave_real_id;
 MASTER_INFO glob_mi;
+HASH replicate_do_table, replicate_ignore_table;
+bool do_table_inited = 0, ignore_table_inited = 0;
 
-
-extern bool opt_log_slave_updates ;
 
 static inline void skip_load_data_infile(NET* net);
 static inline bool slave_killed(THD* thd);
 static int init_slave_thread(THD* thd);
-int init_master_info(MASTER_INFO* mi);
 static void safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
 static void safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
 static int safe_sleep(THD* thd, int sec);
@@ -50,6 +39,26 @@ static int request_table_dump(MYSQL* mysql, char* db, char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name);
 static inline char* rewrite_db(char* db);
+static void free_table_ent(TABLE_RULE_ENT* e)
+{
+  my_free((byte*)e, MYF(0));
+}
+
+static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
+			   my_bool not_used __attribute__((unused)))
+{
+  *len = e->key_len;
+  return (byte*)e->db;
+}
+
+
+void init_table_rule_hash(HASH* h, bool* h_inited)
+{
+  hash_init(h, TABLE_RULE_HASH_SIZE,0,0,
+	    (hash_get_key) get_table_key,
+	    (void (*)(void*)) free_table_ent, 0);
+  *h_inited = 1;
+}
 
 static inline bool slave_killed(THD* thd)
 {
