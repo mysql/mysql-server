@@ -155,7 +155,7 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         ftbw=(FTB_WORD *)alloc_root(&ftb->mem_root,
                                     sizeof(FTB_WORD) +
                                     (param.trunc ? MI_MAX_KEY_BUFF :
-                                     w.len+extra));
+                                     w.len*ftb->charset->mbmaxlen+extra));
         ftbw->len=w.len+1;
         ftbw->flags=0;
         ftbw->off=0;
