@@ -4546,6 +4546,7 @@ keyword:
 	| ESCAPE_SYM		{}
 	| EVENTS_SYM		{}
 	| EXECUTE_SYM		{}
+        | EXPANSION_SYM         {}
 	| EXTENDED_SYM		{}
 	| FAST_SYM		{}
 	| DISABLE_SYM		{}

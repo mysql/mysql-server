@@ -97,7 +97,8 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
 
 /* parses a document i.e. calls ft_parse for every keyseg */
 
-uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
+uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr,
+                  const byte *record, my_bool with_alloc)
 {
   FT_SEG_ITERATOR ftsi;
   DBUG_ENTER("_mi_ft_parse");
@@ -108,7 +109,7 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const byte *record)
   while (_mi_ft_segiterator(&ftsi))
   {
     if (ftsi.pos)
-      if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len))
+      if (ft_parse(parsed, (byte *)ftsi.pos, ftsi.len, with_alloc))
         DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -120,7 +121,7 @@ FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr, const byte *record)
   DBUG_ENTER("_mi_ft_parserecord");
 
   bzero((char*) &ptree, sizeof(ptree));
-  if (_mi_ft_parse(&ptree, info, keynr, record))
+  if (_mi_ft_parse(&ptree, info, keynr, record,0))
     DBUG_RETURN(NULL);
 
   DBUG_RETURN(ft_linearize(&ptree));
