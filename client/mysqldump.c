@@ -1080,7 +1080,7 @@ static void dumpTable(uint numFields, char *table)
     if (opt_lock)
       fprintf(md_result_file,"LOCK TABLES %s WRITE;\n", opt_quoted_table);
 
-    total_length=net_buffer_length;		/* Force row break */
+    total_length= opt_net_buffer_length;		/* Force row break */
     row_break=0;
     rownr=0;
     init_length=(uint) strlen(insert_pat)+4;
@@ -1225,7 +1225,7 @@ static void dumpTable(uint numFields, char *table)
 	ulong row_length;
 	dynstr_append(&extended_row,")");
         row_length = 2 + extended_row.length;
-        if (total_length + row_length < net_buffer_length)
+        if (total_length + row_length < opt_net_buffer_length)
         {
 	  total_length += row_length;
 	  fputc(',',md_result_file);		/* Always row break */

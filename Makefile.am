@@ -23,9 +23,8 @@ EXTRA_DIST =		INSTALL-SOURCE README COPYING
 SUBDIRS =		. include @docs_dirs@ @readline_dir@ \
 			@thread_dirs@ pstack @sql_client_dirs@ \
 			@sql_server_dirs@ scripts man tests \
-			BUILD @netware_dir@ os2 @libmysqld_dirs@ \
+			BUILD netware os2 @libmysqld_dirs@ \
 			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
-			
 
 # Relink after clean
 linked_sources = linked_client_sources linked_server_sources \
