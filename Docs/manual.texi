@@ -46212,7 +46212,7 @@ or deallocate the memory.
 @end table
 
 
-@node UDF aggr. calling , UDF arguments, UDF calling, Adding UDF
+@node UDF aggr. calling, UDF arguments, UDF calling, Adding UDF
 @subsubsection UDF Calling Sequences for aggregate functions
 
 @cindex calling sequences for aggregate functions, UDF
@@ -47681,7 +47681,7 @@ Otherwise, any user with an account on that machine can run @code{mysql -u
 root db_name} and do whatever he likes.
 
 
-@node File permissions ,  , Changing MySQL user, Installation Issues
+@node File permissions,  , Changing MySQL user, Installation Issues
 @appendixsubsec Problems with File Permissions
 
 @cindex files, permissions
