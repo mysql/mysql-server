@@ -2047,7 +2047,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
     size_t stack_size= 0;
     pthread_attr_getstacksize(&connection_attrib, &stack_size);
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
-    if (stack_size && stack_size != thread_stack)
+    if (stack_size && stack_size < thread_stack)
     {
       if (global_system_variables.log_warnings)
 	sql_print_error("Warning: Asked for %ld thread stack, but got %ld",
@@ -3484,7 +3484,8 @@ enum options
   OPT_SHARED_MEMORY_BASE_NAME,
   OPT_OLD_PASSWORDS,
   OPT_EXPIRE_LOGS_DAYS,
-  OPT_DEFAULT_WEEK_FORMAT
+  OPT_DEFAULT_WEEK_FORMAT,
+  OPT_GROUP_CONCAT_MAX_LEN
 };
 
 
@@ -3600,6 +3601,11 @@ struct my_option my_long_options[] =
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"flush", OPT_FLUSH, "Flush tables to disk between SQL commands", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "group_concat_max_len", OPT_GROUP_CONCAT_MAX_LEN,
+    "The maximum length of the result of function  group_concat.",
+    (gptr*) &global_system_variables.group_concat_max_len, 
+    (gptr*) &max_system_variables.group_concat_max_len, 0, GET_ULONG,
+    REQUIRED_ARG, 1024, 4, (long) ~0, 0, 1, 0},
   /* We must always support the next option to make scripts like mysqltest
      easier to do */
   {"init-rpl-role", OPT_INIT_RPL_ROLE, "Set the replication role", 0, 0, 0,
@@ -3626,7 +3632,7 @@ struct my_option my_long_options[] =
    "Set to 0 (write and flush once per second), 1 (write and flush at each commit) or 2 (write at commit, flush once per second)",
    (gptr*) &innobase_flush_log_at_trx_commit,
    (gptr*) &innobase_flush_log_at_trx_commit,
-   0, GET_UINT, OPT_ARG,  0, 0, 2, 0, 0, 0},
+   0, GET_UINT, OPT_ARG,  1, 0, 2, 0, 0, 0},
   {"innodb_flush_method", OPT_INNODB_FLUSH_METHOD,
    "With which method to flush data", (gptr*) &innobase_unix_file_flush_method,
    (gptr*) &innobase_unix_file_flush_method, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,

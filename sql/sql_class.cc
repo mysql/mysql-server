@@ -36,6 +36,12 @@
 #endif
 #include <mysys_err.h>
 
+/*
+  The following is used to initialise Table_ident with a internal
+  table name
+*/
+char internal_table_name[2]= "*";
+
 
 /*****************************************************************************
 ** Instansiate templates

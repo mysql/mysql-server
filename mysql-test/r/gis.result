@@ -43,27 +43,27 @@ INSERT INTO pt VALUES
 (101, PointFromText('POINT(10 10)')),
 (102, PointFromText('POINT(20 10)')),
 (103, PointFromText('POINT(20 20)')),
-(104, PointFromText('POINT(10 20)'));
+(104, PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))));
 INSERT INTO ls VALUES
 (105, LineFromText('LINESTRING(0 0,0 10,10 0)')),
 (106, LineStringFromText('LINESTRING(10 10,20 10,20 20,10 20,10 10)')),
-(107, GeometryFromWKB(LineString(Point(10, 10), Point(40, 10))));
+(107, LineStringFromWKB(LineString(Point(10, 10), Point(40, 10))));
 INSERT INTO p VALUES
 (108, PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),
 (109, PolyFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))')),
-(110, GeometryFromWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0)))));
+(110, PolyFromWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0)))));
 INSERT INTO mpt VALUES
 (111, MultiPointFromText('MULTIPOINT(0 0,10 10,10 20,20 20)')),
 (112, MPointFromText('MULTIPOINT(1 1,11 11,11 21,21 21)')),
-(113, GeometryFromWKB(MultiPoint(Point(3, 6), Point(4, 10))));
+(113, MPointFromWKB(MultiPoint(Point(3, 6), Point(4, 10))));
 INSERT INTO mls VALUES
 (114, MultiLineStringFromText('MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))')),
 (115, MLineFromText('MULTILINESTRING((10 48,10 21,10 0))')),
-(116, GeometryFromWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7)))));
+(116, MLineFromWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7)))));
 INSERT INTO mp VALUES
 (117, MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
 (118, MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
-(119, GeometryFromWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3))))));
+(119, MPolyFromWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3))))));
 INSERT INTO gc VALUES
 (120, GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
 (121, GeometryFromWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9)))));
@@ -388,3 +388,6 @@ gc	geometrycollection	binary	YES		NULL
 gm	geometry	binary	YES		NULL	
 fid	int(11)	binary			0	
 DROP TABLE g1;
+SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))));
+AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))
+POINT(1 4)

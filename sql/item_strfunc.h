@@ -665,6 +665,15 @@ public:
   void fix_length_and_dec();
 };
 
+class Item_func_as_wkb :public Item_str_func
+{
+public:
+  Item_func_as_wkb(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "aswkb"; }
+  String *val_str(String *);
+  void fix_length_and_dec();
+};
+
 class Item_func_geometry_type :public Item_str_func
 {
 public:

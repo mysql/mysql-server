@@ -380,11 +380,11 @@ static void netware_init()
     {
       if (*name == '\\')
       {
-	*name = '/';
+        *name = '/';
       }
       else
       {
-	*name = tolower(*name);
+        *name = tolower(*name);
       }
     }
   }
