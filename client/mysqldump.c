@@ -565,7 +565,8 @@ static int dbConnect(char *host, char *user,char *passwd)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
-  mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
+  if (!opt_set_names)
+    mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
          NULL,opt_mysql_port,opt_mysql_unix_port,
          0)))
