@@ -284,7 +284,7 @@ class Item_sum_avg :public Item_sum_num
   ulonglong count;
 
   public:
-  Item_sum_avg(Item *item_par) :Item_sum_num(item_par),count(0) {}
+  Item_sum_avg(Item *item_par) :Item_sum_num(item_par), sum(0.0), count(0) {}
   Item_sum_avg(THD *thd, Item_sum_avg *item)
     :Item_sum_num(thd, item), sum(item->sum), count(item->count) {}
   enum Sumfunctype sum_func () const {return AVG_FUNC;}
