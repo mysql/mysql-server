@@ -52,7 +52,6 @@ class ha_archive: public handler
   z_off_t current_position;  /* The position of the row we just read */
   byte byte_buffer[IO_SIZE]; /* Initial buffer for our string */
   String buffer;             /* Buffer used for blob storage */
-  uint version;              /* Used for recording version */
   ulonglong scan_rows;       /* Number of rows left in scan */
 
 public:
