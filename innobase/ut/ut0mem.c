@@ -81,8 +81,10 @@ ut_malloc_low(
 		"InnoDB: by InnoDB %lu bytes. Operating system errno: %d\n"
 		"InnoDB: Cannot continue operation!\n"
 		"InnoDB: Check if you should increase the swap file or\n"
-		"InnoDB: ulimits of your operating system.\n",
-		n, ut_total_allocated_memory, errno);
+		"InnoDB: ulimits of your operating system.\n"
+		"InnoDB: On FreeBSD check you have compiled the OS with\n"
+		"InnoDB: a big enough maximum process size.\n",
+		                  n, ut_total_allocated_memory, errno);
 
 	        os_fast_mutex_unlock(&ut_list_mutex);
 

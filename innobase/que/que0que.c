@@ -183,6 +183,8 @@ que_thr_create(
 	thr->common.type = QUE_NODE_THR;
 	thr->common.parent = parent;
 
+	thr->magic_n = QUE_THR_MAGIC_N;
+
 	thr->graph = parent->graph;
 
 	thr->state = QUE_THR_COMMAND_WAIT;
@@ -485,7 +487,6 @@ que_graph_free_recursive(
 	tab_node_t*	cre_tab;
 	ind_node_t*	cre_ind;
 	
-	
 	if (node == NULL) {
 
 		return;
@@ -508,6 +509,16 @@ que_graph_free_recursive(
 	case QUE_NODE_THR:
 
 		thr = node;
+
+		if (thr->magic_n != QUE_THR_MAGIC_N) {
+			fprintf(stderr,
+		"que_thr struct appears corrupt; magic n %lu\n",
+								thr->magic_n);
+			mem_analyze_corruption((byte*)thr);
+			ut_a(0);
+		}
+
+		thr->magic_n = QUE_THR_MAGIC_FREED;
 
 		que_graph_free_recursive(thr->child);
 
@@ -606,6 +617,10 @@ que_graph_free_recursive(
 
 		break;
 	default:
+		fprintf(stderr,
+		"que_node struct appears corrupt; type %lu\n",
+						que_node_get_type(node));
+		mem_analyze_corruption((byte*)node);
 		ut_a(0);
 	}
 }
@@ -1068,20 +1083,29 @@ que_thr_stop_for_mysql(
 	mutex_exit(&kernel_mutex);
 }
 
-
 /**************************************************************************
 Moves a thread from another state to the QUE_THR_RUNNING state. Increments
 the n_active_thrs counters of the query graph and transaction if thr was
 not active. */
+
 void
 que_thr_move_to_run_state_for_mysql(
 /*================================*/
 	que_thr_t*	thr,	/* in: an query thread */
 	trx_t*		trx)	/* in: transaction */
 {
+	if (thr->magic_n != QUE_THR_MAGIC_N) {
+		fprintf(stderr,
+	"que_thr struct appears corrupt; magic n %lu\n", thr->magic_n);
+
+		mem_analyze_corruption((byte*)thr);
+
+		ut_a(0);
+	}
+
 	if (!thr->is_active) {
 
-		(thr->graph)->n_active_thrs++;
+		thr->graph->n_active_thrs++;
 
 		trx->n_active_thrs++;
 
@@ -1097,6 +1121,7 @@ que_thr_move_to_run_state_for_mysql(
 /**************************************************************************
 A patch for MySQL used to 'stop' a dummy query thread used in MySQL
 select, when there is no error or lock wait. */
+
 void
 que_thr_stop_for_mysql_no_error(
 /*============================*/
@@ -1105,6 +1130,15 @@ que_thr_stop_for_mysql_no_error(
 {
 	ut_ad(thr->state == QUE_THR_RUNNING);
 		
+	if (thr->magic_n != QUE_THR_MAGIC_N) {
+		fprintf(stderr,
+	"que_thr struct appears corrupt; magic n %lu\n", thr->magic_n);
+
+		mem_analyze_corruption((byte*)thr);
+
+		ut_a(0);
+	}
+
 	thr->state = QUE_THR_COMPLETED;
 
 	thr->is_active = FALSE;

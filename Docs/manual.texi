@@ -48667,6 +48667,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.48::                Changes in release 3.23.48
 * News-3.23.47::                Changes in release 3.23.47
 * News-3.23.46::                Changes in release 3.23.46
 * News-3.23.45::                Changes in release 3.23.45
@@ -48718,7 +48719,18 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.47, News-3.23.46, News-3.23.x, News-3.23.x
+@node News-3.23.48, News-3.23.47, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.48
+@itemize @bullet
+@item
+Fixed bug in complicated join with @code{const} tables.
+@item
+Added internal safety checks for InnoDB.
+@item
+@code{SHOW GRANTS} now shows @code{REFERENCES} instead of @code{REFERENCE}.
+@end itemize
+
+@node News-3.23.47, News-3.23.46, News-3.23.48, News-3.23.x
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
 @item
