@@ -159,7 +159,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
             item->save_in_field(key_part->field);
             key_len+=key_part->store_length;
           }
-          if (!(key=sql_calloc(ALIGN_SIZE(key_len))))
+          if (!(key= (byte*) sql_calloc(ALIGN_SIZE(key_len))))
           {
             send_error(&thd->net,ER_OUTOFMEMORY);
             goto err; 

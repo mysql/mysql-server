@@ -36,14 +36,14 @@ mysqldump_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES)
 mysqlimport_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 insert_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 select_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
-mysqltest_SOURCES=			mysqltest.c
+mysqltest_SOURCES=		mysqltest.c
 mysqltest_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
-mysqlbinlog_SOURCES =   mysqlbinlog.cc 
+mysqlbinlog_SOURCES =		mysqlbinlog.cc 
 mysqlbinlog_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
-sql_src=log_event.h log_event.cc
+sql_src=			log_event.h log_event.cc
 
 # Fix for mit-threads
-DEFS =			-DUNDEF_THREADS_HACK
+DEFS=				-DUNDEF_THREADS_HACK
 
 link_sources:
 	for f in $(sql_src) ; do \

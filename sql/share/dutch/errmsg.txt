@@ -167,6 +167,8 @@
 "Communicatiepakket kon niet worden gedecomprimeerd",
 "Fout bij het lezen van communicatiepakketten"
 "Timeout bij het lezen van communicatiepakketten",
+"Got an error writing communication packets",
+"Got timeout writing communication packets",
 "Resultaat string is langer dan max_allowed_packet",
 "Het gebruikte tabel type ondersteunt geen BLOB/TEXT kolommen",
 "Het gebruikte tabel type ondersteunt geen AUTO_INCREMENT kolommen",
