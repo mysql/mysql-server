@@ -724,8 +724,8 @@ uint _mi_rec_pack(MI_INFO *info, register byte *to, register const byte *from)
 
 
 /*
-** Check if a record was correctly packed. Used only by isamchk
-** Returns 0 if record is ok.
+  Check if a record was correctly packed. Used only by myisamchk
+  Returns 0 if record is ok.
 */
 
 my_bool _mi_rec_check(MI_INFO *info,const char *record)
@@ -1090,39 +1090,12 @@ err:
   DBUG_RETURN(-1);
 }
 
-
-byte *mi_fix_rec_buff_for_blob(MI_INFO *info, ulong length)
-{
-  uint extra;
-
-  /* to simplify initial init of info->rec_buf in mi_open and mi_extra */
-  if (!length)
-      length=max(info->s->base.pack_reclength,info->s->base.max_key_length);
-
-  if (! info->rec_buff || length > info->alloced_rec_buff_length)
-  {
-    byte *newptr;
-    extra= ((info->s->options & HA_OPTION_PACK_RECORD) ?
-        ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
-        MI_DYN_DELETE_BLOCK_HEADER : 0);
-    if (!(newptr=(byte*) my_realloc((gptr) info->rec_alloc,length+extra+8,
-				    MYF(MY_ALLOW_ZERO_PTR))))
-      return (byte *)0;
-    info->rec_alloc=newptr;
-    info->rec_buff=newptr+(extra ?
-                   ALIGN_SIZE(MI_DYN_DELETE_BLOCK_HEADER) : 0);
-    info->alloced_rec_buff_length=length;
-  }
-  return info->rec_buff;
-}
-
-
 	/* compare unique constraint between stored rows */
 
 int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
 			   const byte *record, my_off_t pos)
 {
-  byte *rec_buff,*rec_alloc,*old_record;
+  byte *rec_buff,*old_record;
   uint alloced_rec_buff_length;
   int error;
   DBUG_ENTER("_mi_cmp_dynamic_unique");
@@ -1132,12 +1105,10 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
 
   /* Don't let the compare destroy blobs that may be in use */
   rec_buff=info->rec_buff;
-  rec_alloc=info->rec_alloc;
   alloced_rec_buff_length=info->alloced_rec_buff_length;
   if (info->s->base.blobs)
   {
     info->rec_buff=0;
-    info->rec_alloc=0;
     info->alloced_rec_buff_length=0;
   }
   error=_mi_read_dynamic_record(info,pos,old_record);
@@ -1145,9 +1116,8 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
     error=mi_unique_comp(def, record, old_record, def->null_are_equal);
   if (info->s->base.blobs)
   {
-    my_free(info->rec_alloc,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(mi_get_rec_buff_ptr(info, info->rec_buff), MYF(MY_ALLOW_ZERO_PTR));
     info->rec_buff=rec_buff;
-    info->rec_alloc=rec_alloc;
     info->alloced_rec_buff_length=alloced_rec_buff_length;
   }
   my_afree(old_record);

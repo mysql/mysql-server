@@ -101,7 +101,7 @@ int mi_close(register MI_INFO *info)
     error = my_errno;
 
   myisam_log_command(MI_LOG_CLOSE,info,NULL,0,error);
-  my_free((gptr) info->rec_alloc,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mi_get_rec_buff_ptr(info, info->rec_buff), MYF(MY_ALLOW_ZERO_PTR));
   my_free((gptr) info,MYF(0));
 
   if (error)
