@@ -40,6 +40,7 @@
 #include <signaldata/BackupImpl.hpp>
 #include <signaldata/BackupSignalData.hpp>
 #include <signaldata/BackupContinueB.hpp>
+#include <signaldata/EventReport.hpp>
 
 #include <signaldata/UtilSequence.hpp>
 
@@ -944,6 +945,11 @@ Backup::sendBackupRef(BlockReference senderRef, Signal *signal,
   ref->errorCode = errorCode;
   ref->masterRef = numberToRef(BACKUP, getMasterNodeId());
   sendSignal(senderRef, GSN_BACKUP_REF, signal, BackupRef::SignalLength, JBB);
+
+  signal->theData[0] = EventReport::BackupFailedToStart;
+  signal->theData[1] = senderRef;
+  signal->theData[2] = errorCode;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
 }
 
 void
@@ -1226,7 +1232,13 @@ Backup::defineBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
   conf->nodes = ptr.p->nodes;
   sendSignal(ptr.p->clientRef, GSN_BACKUP_CONF, signal, 
 	     BackupConf::SignalLength, JBB);
-
+  
+  signal->theData[0] = EventReport::BackupStarted;
+  signal->theData[1] = ptr.p->clientRef;
+  signal->theData[2] = ptr.p->backupId;
+  ptr.p->nodes.copyto(NdbNodeBitmask::Size, signal->theData+3);
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3+NdbNodeBitmask::Size, JBB);
+  
   ptr.p->masterData.state.setState(DEFINED);
   /**
    * Prepare Trig
@@ -2069,6 +2081,18 @@ Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
   rep->nodes = ptr.p->nodes;
   sendSignal(ptr.p->clientRef, GSN_BACKUP_COMPLETE_REP, signal,
 	     BackupCompleteRep::SignalLength, JBB);
+
+  signal->theData[0] = EventReport::BackupCompleted;
+  signal->theData[1] = ptr.p->clientRef;
+  signal->theData[2] = ptr.p->backupId;
+  signal->theData[3] = ptr.p->startGCP;
+  signal->theData[4] = ptr.p->stopGCP;
+  signal->theData[5] = ptr.p->noOfBytes;
+  signal->theData[6] = ptr.p->noOfRecords;
+  signal->theData[7] = ptr.p->noOfLogBytes;
+  signal->theData[8] = ptr.p->noOfLogRecords;
+  ptr.p->nodes.copyto(NdbNodeBitmask::Size, signal->theData+9);
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 9+NdbNodeBitmask::Size, JBB);
 }
 
 /*****************************************************************************
@@ -2259,6 +2283,12 @@ Backup::masterSendAbortBackup(Signal* signal, BackupRecordPtr ptr)
     rep->reason = ptr.p->errorCode;
     sendSignal(ptr.p->clientRef, GSN_BACKUP_ABORT_REP, signal, 
 	       BackupAbortRep::SignalLength, JBB);
+
+    signal->theData[0] = EventReport::BackupAborted;
+    signal->theData[1] = ptr.p->clientRef;
+    signal->theData[2] = ptr.p->backupId;
+    signal->theData[3] = ptr.p->errorCode;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
   }//if
   
   //  ptr.p->masterData.state.setState(INITIAL);

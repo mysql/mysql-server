@@ -96,7 +96,8 @@
 #define CFG_LOGLEVEL_ERROR        258
 #define CFG_LOGLEVEL_GREP         259
 #define CFG_LOGLEVEL_DEBUG        260
-#define CFG_MAX_LOGLEVEL          260
+#define CFG_LOGLEVEL_BACKUP       261
+#define CFG_MAX_LOGLEVEL          261
 
 #define CFG_MGM_PORT                  300
 

@@ -107,7 +107,13 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
 
   //Global replication
   { EventReport::GrepSubscriptionInfo,  LogLevel::llGrep, 7, Logger::LL_INFO},
-  { EventReport::GrepSubscriptionAlert, LogLevel::llGrep, 7, Logger::LL_ALERT}
+  { EventReport::GrepSubscriptionAlert, LogLevel::llGrep, 7, Logger::LL_ALERT},
+
+  // Backup
+  { EventReport::BackupStarted, LogLevel::llBackup, 7, Logger::LL_INFO },
+  { EventReport::BackupCompleted, LogLevel::llBackup, 7, Logger::LL_INFO },
+  { EventReport::BackupFailedToStart, LogLevel::llBackup, 7, Logger::LL_ALERT},
+  { EventReport::BackupAborted, LogLevel::llBackup, 7, Logger::LL_ALERT }
 };
 
 const Uint32 EventLoggerBase::matrixSize = sizeof(EventLoggerBase::matrix)/
@@ -790,472 +796,504 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 
 
   case EventReport::GrepSubscriptionInfo : 
-    {   
-      GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
-      switch(event) {
-      case GrepEvent::GrepSS_CreateSubIdConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::SSCoord: Created subscription id"
-		     " (subId=%d,SubKey=%d)"
-		     " Return code: %d.",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}      
-      case GrepEvent::GrepPS_CreateSubIdConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::PSCoord: Created subscription id" 
-		     " (subId=%d,SubKey=%d)"
-		     " Return code: %d.",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepSS_SubCreateConf: 
-	{
-	  const int subId   = theData[2];
-	  const int subKey  = theData[3];
-	  const int err     = theData[4];
-	  const int nodegrp = theData[5];
-	  ::snprintf(m_text, m_text_len, 
-		   "Grep::SSCoord: Created subscription using"
-		     " (subId=%d,SubKey=%d)" 
-		     " in primary system. Primary system has %d nodegroup(s)."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     nodegrp,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepPS_SubCreateConf: 
-	{
-	  const int subId   = theData[2];
-	  const int subKey  = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::PSCoord: All participants have created "
-		     "subscriptions"
-		     " using (subId=%d,SubKey=%d)."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}      
-      case GrepEvent::GrepSS_SubStartMetaConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::SSCoord: Logging started on meta data changes." 
-		     " using (subId=%d,SubKey=%d)"
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepPS_SubStartMetaConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::PSCoord: All participants have started " 
-		     "logging meta data" 
-		     " changes on the subscription subId=%d,SubKey=%d) "
-		     "(N.I yet)."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepSS_SubStartDataConf: {
-	const int subId  = theData[2];
-	const int subKey = theData[3];
-	const int err    = theData[4];
-	::snprintf(m_text, m_text_len, 
-		   "Grep::SSCoord: Logging started on table data changes " 
-		   " using (subId=%d,SubKey=%d)"
-		   " Return code: %d",
-		   subId,
-		   subKey,
-		   err);
-	break;
-      }
-      case GrepEvent::GrepPS_SubStartDataConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::PSCoord: All participants have started logging "
-		     "table data changes on the subscription " 
-		     "subId=%d,SubKey=%d)."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepPS_SubSyncMetaConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::PSCoord: All participants have started "
-		     " synchronization  on meta data (META SCAN) using "
-		     "(subId=%d,SubKey=%d)."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepSS_SubSyncMetaConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::SSCoord: Synchronization started (META SCAN) on "
-		     " meta data using (subId=%d,SubKey=%d)"
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepPS_SubSyncDataConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::PSCoord: All participants have started " 
-		     "synchronization "
-		     " on table data (DATA SCAN) using (subId=%d,SubKey=%d)."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
-      case GrepEvent::GrepSS_SubSyncDataConf: 
-	{
-	  const int subId   =  theData[2];
-	  const int subKey  =  theData[3];
-	  const int err     =  theData[4];
-	  const int gci     =  theData[5];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::SSCoord: Synchronization started (DATA SCAN) on "
-		     "table data using (subId=%d,SubKey=%d). GCI = %d"
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     gci,
-		     err);
-	  break;
-	}      
-      case GrepEvent::GrepPS_SubRemoveConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::PSCoord: All participants have removed "
-		     "subscription (subId=%d,SubKey=%d). I have cleaned "
-		     "up resources I've used."
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}	
-      case GrepEvent::GrepSS_SubRemoveConf: 
-	{
-	  const int subId  = theData[2];
-	  const int subKey = theData[3];
-	  const int err    = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::SSCoord: Removed subscription "
-		     "(subId=%d,SubKey=%d)"
-		     " Return code: %d",
-		     subId,
-		     subKey,
-		     err);
-	  break;
-	}
+  {   
+    GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
+    switch(event) {
+    case GrepEvent::GrepSS_CreateSubIdConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Created subscription id"
+		 " (subId=%d,SubKey=%d)"
+		 " Return code: %d.",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }      
+    case GrepEvent::GrepPS_CreateSubIdConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Created subscription id" 
+		 " (subId=%d,SubKey=%d)"
+		 " Return code: %d.",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepSS_SubCreateConf: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err     = theData[4];
+      const int nodegrp = theData[5];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Created subscription using"
+		 " (subId=%d,SubKey=%d)" 
+		 " in primary system. Primary system has %d nodegroup(s)."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 nodegrp,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepPS_SubCreateConf: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: All participants have created "
+		 "subscriptions"
+		 " using (subId=%d,SubKey=%d)."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }      
+    case GrepEvent::GrepSS_SubStartMetaConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Logging started on meta data changes." 
+		 " using (subId=%d,SubKey=%d)"
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepPS_SubStartMetaConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: All participants have started " 
+		 "logging meta data" 
+		 " changes on the subscription subId=%d,SubKey=%d) "
+		 "(N.I yet)."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepSS_SubStartDataConf: {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Logging started on table data changes " 
+		 " using (subId=%d,SubKey=%d)"
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepPS_SubStartDataConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: All participants have started logging "
+		 "table data changes on the subscription " 
+		 "subId=%d,SubKey=%d)."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepPS_SubSyncMetaConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: All participants have started "
+		 " synchronization  on meta data (META SCAN) using "
+		 "(subId=%d,SubKey=%d)."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepSS_SubSyncMetaConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Synchronization started (META SCAN) on "
+		 " meta data using (subId=%d,SubKey=%d)"
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepPS_SubSyncDataConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: All participants have started " 
+		 "synchronization "
+		 " on table data (DATA SCAN) using (subId=%d,SubKey=%d)."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
+    case GrepEvent::GrepSS_SubSyncDataConf: 
+    {
+      const int subId   =  theData[2];
+      const int subKey  =  theData[3];
+      const int err     =  theData[4];
+      const int gci     =  theData[5];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Synchronization started (DATA SCAN) on "
+		 "table data using (subId=%d,SubKey=%d). GCI = %d"
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 gci,
+		 err);
+      break;
+    }      
+    case GrepEvent::GrepPS_SubRemoveConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: All participants have removed "
+		 "subscription (subId=%d,SubKey=%d). I have cleaned "
+		 "up resources I've used."
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }	
+    case GrepEvent::GrepSS_SubRemoveConf: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Removed subscription "
+		 "(subId=%d,SubKey=%d)"
+		 " Return code: %d",
+		 subId,
+		 subKey,
+		 err);
+      break;
+    }
     default:
       ::snprintf(m_text, 
 		 m_text_len, 
 		 "%sUnknown GrepSubscriptonInfo event: %d",
 		 theNodeId,
 		 theData[1]);
-      }
-      break;
     }
-      
-  case EventReport::GrepSubscriptionAlert : 
-    {
-      GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
-      switch(event) 
-	{ 
-	case GrepEvent::GrepSS_CreateSubIdRef: 
-	  {
-	    const int subId    = theData[2];
-	    const int subKey   = theData[3];
-	    const int err      = theData[4];
-	    ::snprintf(m_text, m_text_len, 
-		       "Grep::SSCoord:Error code: %d Error message: %s"
-		       " (subId=%d,SubKey=%d)",
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err),
-		       subId,
-		       subKey);
-	    break;
-	  }
-	case GrepEvent::GrepSS_SubCreateRef: 
-	  {
-	    const int subId   = theData[2];
-	    const int subKey  = theData[3];
-	    const int err     = theData[4];
-	    ::snprintf(m_text, m_text_len, 
-		       "Grep::SSCoord: FAILED to Created subscription using"
-		       " (subId=%d,SubKey=%d)in primary system."
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-	case GrepEvent::GrepSS_SubStartMetaRef: 
-	  {
-	    const int subId  = theData[2];
-	    const int subKey = theData[3];
-	    const int err    = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::SSCoord: Logging failed to start on meta "
-		     "data changes." 
-		     " using (subId=%d,SubKey=%d)"
-		     " Error code: %d Error Message: %s",
-		     subId,
-		     subKey,
-		     err,
-		     GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-	case GrepEvent::GrepSS_SubStartDataRef: 
-	  {
-	    const int subId  = theData[2];
-	    const int subKey = theData[3];
-	    const int err    = theData[4];
-	    ::snprintf(m_text, m_text_len, 
-		       "Grep::SSCoord: Logging FAILED to start on table data "
-		       " changes using (subId=%d,SubKey=%d)"
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-	case GrepEvent::GrepSS_SubSyncMetaRef: 
-	  {
-	    const int subId   = theData[2];
-	    const int subKey  = theData[3];
-	    const int err     = theData[4];
-	    ::snprintf(m_text, m_text_len, 
-		       "Grep::SSCoord: Synchronization FAILED (META SCAN) on "
-		       " meta data using (subId=%d,SubKey=%d)"
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	}
-	case GrepEvent::GrepSS_SubSyncDataRef: 
-	  {
-	    const int subId   =  theData[2];
-	    const int subKey  =  theData[3];
-	    const int err     =  theData[4];
-	    const int gci     =  theData[5];
-	    ::snprintf(m_text, m_text_len, 
-		       "Grep::SSCoord: Synchronization FAILED (DATA SCAN) on "
-		       "table data using (subId=%d,SubKey=%d). GCI = %d"
-		       " Error code: %d Error Message: %s", 
-		       subId,
-		       subKey,
-		       gci,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-	case GrepEvent::GrepSS_SubRemoveRef: 
-	  {
-	    const int subId  = theData[2];
-	    const int subKey = theData[3];
-	    const int err    = theData[4];
-	    ::snprintf(m_text, m_text_len, 
-		     "Grep::SSCoord: Failed to remove subscription "
-		       "(subId=%d,SubKey=%d). "
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err)
-		       );
-	    break;
-	  }	
-	
-	case GrepEvent::GrepPS_CreateSubIdRef: 
-	  {
-	    const int subId  = theData[2];
-	    const int subKey = theData[3];
-	    const int err    = theData[4];
-	    ::snprintf(m_text, m_text_len, 
-		       "Grep::PSCoord: Error code: %d Error Message: %s"
-		       " (subId=%d,SubKey=%d)",
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err),
-		       subId,
-		       subKey);
-	    break;
-	  }
-	case GrepEvent::GrepPS_SubCreateRef: 
-	  {
-	    const int subId   = theData[2];
-	    const int subKey  = theData[3];
-	    const int err     = theData[4];
-	    ::snprintf(m_text, m_text_len, 
-		       "Grep::PSCoord: FAILED to Created subscription using"
-		       " (subId=%d,SubKey=%d)in primary system."
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-      case GrepEvent::GrepPS_SubStartMetaRef: 
-	{
-	  const int subId   = theData[2];
-	  const int subKey  = theData[3];
-	  const int err     = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::PSCoord: Logging failed to start on meta "
-		     "data changes." 
-		     " using (subId=%d,SubKey=%d)"
-		     " Error code: %d Error Message: %s",
-		     subId,
-		     subKey,		       
-		     err,
-		     GrepError::getErrorDesc((GrepError::Code)err));
-	  break;
-	}
-	case GrepEvent::GrepPS_SubStartDataRef: 
-	  {
-	    const int subId  = theData[2];
-	    const int subKey = theData[3];
-	    const int err    = theData[4];
-	    ::snprintf(m_text, m_text_len, 
-		       "Grep::PSCoord: Logging FAILED to start on table data "
-		       " changes using (subId=%d,SubKey=%d)"
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-	case GrepEvent::GrepPS_SubSyncMetaRef: 
-	{
-	  const int subId   = theData[2];
-	  const int subKey  = theData[3];
-	  const int err     = theData[4];
-	  ::snprintf(m_text, m_text_len, 
-		     "Grep::PSCoord: Synchronization FAILED (META SCAN) on "
-		     " meta data using (subId=%d,SubKey=%d)"
-		     " Error code: %d Error Message: %s",
-		     subId,
-		     subKey,
-		     err,
-		     GrepError::getErrorDesc((GrepError::Code)err));
-	  break;
-	}
-	case GrepEvent::GrepPS_SubSyncDataRef: 
-	  {
-	    const int subId   =  theData[2];
-	    const int subKey  =  theData[3];
-	    const int err     =  theData[4];
-	    const int gci     =  theData[5];
-	    ::snprintf(m_text, m_text_len, 
-		       "Grep::PSCoord: Synchronization FAILED (DATA SCAN) on "
-		       "table data using (subId=%d,SubKey=%d). GCI = %d. "
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       gci,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }
-	case GrepEvent::GrepPS_SubRemoveRef: 
-	  {
-	    const int subId  = theData[2];
-	    const int subKey = theData[3];
-	    const int err    = theData[4];
-	    ::snprintf(m_text, m_text_len, 
-		     "Grep::PSCoord: Failed to remove subscription "
-		       "(subId=%d,SubKey=%d)." 
-		       " Error code: %d Error Message: %s",
-		       subId,
-		       subKey,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }	
-	case GrepEvent::Rep_Disconnect:
-	  {
-	    const int err       = theData[4];
-	    const int nodeId    = theData[5];   
-	    ::snprintf(m_text, m_text_len, 
-		       "Rep: Node %d."
-		       " Error code: %d Error Message: %s",
-		       nodeId,
-		       err,
-		       GrepError::getErrorDesc((GrepError::Code)err));
-	    break;
-	  }	
-	
-	
-	default:
-	  ::snprintf(m_text, 
-		     m_text_len, 
-		     "%sUnknown GrepSubscriptionAlert event: %d",
-		     theNodeId,
-		     theData[1]);
-	break;
-	}
-      break;
-    }
+    break;
+  }
   
+  case EventReport::GrepSubscriptionAlert : 
+  {
+    GrepEvent::Subscription event  = (GrepEvent::Subscription)theData[1];
+    switch(event) 
+    { 
+    case GrepEvent::GrepSS_CreateSubIdRef: 
+    {
+      const int subId    = theData[2];
+      const int subKey   = theData[3];
+      const int err      = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord:Error code: %d Error message: %s"
+		 " (subId=%d,SubKey=%d)",
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err),
+		 subId,
+		 subKey);
+      break;
+    }
+    case GrepEvent::GrepSS_SubCreateRef: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err     = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: FAILED to Created subscription using"
+		 " (subId=%d,SubKey=%d)in primary system."
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepSS_SubStartMetaRef: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Logging failed to start on meta "
+		 "data changes." 
+		 " using (subId=%d,SubKey=%d)"
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepSS_SubStartDataRef: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Logging FAILED to start on table data "
+		 " changes using (subId=%d,SubKey=%d)"
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepSS_SubSyncMetaRef: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err     = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Synchronization FAILED (META SCAN) on "
+		 " meta data using (subId=%d,SubKey=%d)"
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepSS_SubSyncDataRef: 
+    {
+      const int subId   =  theData[2];
+      const int subKey  =  theData[3];
+      const int err     =  theData[4];
+      const int gci     =  theData[5];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Synchronization FAILED (DATA SCAN) on "
+		 "table data using (subId=%d,SubKey=%d). GCI = %d"
+		 " Error code: %d Error Message: %s", 
+		 subId,
+		 subKey,
+		 gci,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepSS_SubRemoveRef: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::SSCoord: Failed to remove subscription "
+		 "(subId=%d,SubKey=%d). "
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err)
+		 );
+      break;
+    }	
+	
+    case GrepEvent::GrepPS_CreateSubIdRef: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Error code: %d Error Message: %s"
+		 " (subId=%d,SubKey=%d)",
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err),
+		 subId,
+		 subKey);
+      break;
+    }
+    case GrepEvent::GrepPS_SubCreateRef: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err     = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: FAILED to Created subscription using"
+		 " (subId=%d,SubKey=%d)in primary system."
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepPS_SubStartMetaRef: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err     = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Logging failed to start on meta "
+		 "data changes." 
+		 " using (subId=%d,SubKey=%d)"
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,		       
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepPS_SubStartDataRef: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Logging FAILED to start on table data "
+		 " changes using (subId=%d,SubKey=%d)"
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepPS_SubSyncMetaRef: 
+    {
+      const int subId   = theData[2];
+      const int subKey  = theData[3];
+      const int err     = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Synchronization FAILED (META SCAN) on "
+		 " meta data using (subId=%d,SubKey=%d)"
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepPS_SubSyncDataRef: 
+    {
+      const int subId   =  theData[2];
+      const int subKey  =  theData[3];
+      const int err     =  theData[4];
+      const int gci     =  theData[5];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Synchronization FAILED (DATA SCAN) on "
+		 "table data using (subId=%d,SubKey=%d). GCI = %d. "
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 gci,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }
+    case GrepEvent::GrepPS_SubRemoveRef: 
+    {
+      const int subId  = theData[2];
+      const int subKey = theData[3];
+      const int err    = theData[4];
+      ::snprintf(m_text, m_text_len, 
+		 "Grep::PSCoord: Failed to remove subscription "
+		 "(subId=%d,SubKey=%d)." 
+		 " Error code: %d Error Message: %s",
+		 subId,
+		 subKey,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }	
+    case GrepEvent::Rep_Disconnect:
+    {
+      const int err       = theData[4];
+      const int nodeId    = theData[5];   
+      ::snprintf(m_text, m_text_len, 
+		 "Rep: Node %d."
+		 " Error code: %d Error Message: %s",
+		 nodeId,
+		 err,
+		 GrepError::getErrorDesc((GrepError::Code)err));
+      break;
+    }	
+	
+	
+    default:
+      ::snprintf(m_text, 
+		 m_text_len, 
+		 "%sUnknown GrepSubscriptionAlert event: %d",
+		 theNodeId,
+		 theData[1]);
+    break;
+    }
+    break;
+  }
+
+  case EventReport::BackupStarted:
+    ::snprintf(m_text,
+	       m_text_len,
+	       "%sBackup %d started from node %d", 
+	       theNodeId, theData[2], refToNode(theData[1]));
+  break;
+  case EventReport::BackupFailedToStart:
+    ::snprintf(m_text,
+	       m_text_len,
+	       "%sBackup request from %d failed to start. Error: %d", 
+	       theNodeId, refToNode(theData[1]), theData[2]);
+  break;
+  case EventReport::BackupCompleted:
+    ::snprintf(m_text,
+	       m_text_len,
+	       "%sBackup %d started from node %d completed\n" 
+	       " StartGCP: %d StopGCP: %d\n"
+	       " #Records: %d #LogRecords: %d\n"
+	       " Data: %d bytes Log: %d bytes",
+	       theNodeId, theData[2], refToNode(theData[1]),
+	       theData[3], theData[4], theData[6], theData[8],
+	       theData[5], theData[7]);
+  break;
+  case EventReport::BackupAborted:
+    ::snprintf(m_text,
+	       m_text_len,
+	       "%sBackup %d started from %d has been aborted. Error: %d",
+	       theNodeId, 
+	       theData[2], 
+	       refToNode(theData[1]), 
+	       theData[3]);
+  break;
   default:
     ::snprintf(m_text, 
 	       m_text_len, 
