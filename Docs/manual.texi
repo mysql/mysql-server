@@ -3731,9 +3731,9 @@ Better command line argument handling.
 @item
 New key cache, which will give better performance when using many threads.
 @item
-New table definition file format (@code{.frm} files) This will enable us
+New table definition file format (@file{.frm} files) This will enable us
 to not run out of bits when adding more table options.  One will still
-be able to use the old @code{.frm} file format with 4.0.  All newly created
+be able to use the old @file{.frm} file format with 4.0.  All newly created
 tables will, however, use the new format.
 
 The new file format will enable us to add new column types, more options
@@ -3785,7 +3785,7 @@ derived tables for the duration of the query.
 @item
 Allow @code{DELETE} on @code{MyISAM} tables to use the record cache.
 To do this, we need to update the threads record cache when we update
-the @code{.MYD} file.
+the @file{.MYD} file.
 @item
 When using @code{SET CHARACTER SET} we should translate the whole query
 at once and not only strings. This will enable users to use the translated
@@ -8321,8 +8321,8 @@ MySQL with the @code{CXXFLAGS=-DLIKE_CMP_TOUPPER} flag.
 
 @item
 When you check/repair tables you should use @code{CHECK TABLE}
-or @code{myisamchk} for @code{MyISAM} tables (@code{.MYI}) and
-@code{isamchk} for ISAM (@code{.ISM}) tables.
+or @code{myisamchk} for @code{MyISAM} tables (@file{.MYI}) and
+@code{isamchk} for ISAM (@file{.ISM}) tables.
 
 @item
 If you want your @code{mysqldump} files to be compatible between
@@ -8470,8 +8470,8 @@ There are some new reserved words. The most notable are @code{DATE},
 
 @cindex upgrading, different architecture
 
-If you are using MySQL Version 3.23, you can copy the @code{.frm},
-@code{.MYI}, and @code{.MYD} files between different architectures that
+If you are using MySQL Version 3.23, you can copy the @file{.frm},
+@file{.MYI}, and @file{.MYD} files between different architectures that
 support the same floating-point format.  (MySQL takes care of any
 byte swapping issues.)
 
@@ -14361,7 +14361,7 @@ This option is @emph{mandatory} when starting @code{mysqld} as root.
 Output version information and exit.
 
 @item -W, --warnings
-Print out warnings like @code{Aborted connection...} to the @code{.err} file.
+Print out warnings like @code{Aborted connection...} to the @file{.err} file.
 @xref{Communication errors}.
 @end table
 
@@ -14917,7 +14917,7 @@ that is based on the function of the same name in the MySQL C API.
 @item
 Users of MySQL C API:
 @itemize @bullet
-@item Check out the @code{mysql_escape_string()} API call.
+@item Check out the @code{mysql_real_escape_string()} API call.
 @end itemize
 @item
 Users of MySQL++:
@@ -17521,8 +17521,8 @@ BACKUP TABLE tbl_name[,tbl_name...] TO '/path/to/backup/directory'
 
 Make a copy of all the table files to the backup directory that are the
 minimum needed to restore it. Currenlty only works for @code{MyISAM}
-tables. For @code{MyISAM} table, copies @code{.frm} (definition)  and
-@code{.MYD} (data) files. The index file can be rebuilt from those two.
+tables. For @code{MyISAM} table, copies @file{.frm} (definition)  and
+@file{.MYD} (data) files. The index file can be rebuilt from those two.
 
 Before using this command, please see @ref{Backup}.
 
@@ -17725,9 +17725,9 @@ better than sorting on fixed-length keys if you have long @code{char()}
 keys that compress very good.
 
 As of MySQL 4.0.2 there is @code{USE_FRM} mode for @code{REPAIR}.
-Use it if @code{.MYI} file is missing or its header is corrupted.
+Use it if @file{.MYI} file is missing or its header is corrupted.
 In this mode MySQL will recreate the table, using information from
-@code{.frm} file. This kind of repair cannot be done with @code{myisamchk}.
+@file{.frm} file. This kind of repair cannot be done with @code{myisamchk}.
 
 @node Table maintenance, Maintenance regimen, REPAIR TABLE, Disaster Prevention
 @subsection Using @code{myisamchk} for Table Maintenance and Crash Recovery
@@ -17736,9 +17736,9 @@ Starting with MySQL Version 3.23.13, you can check MyISAM
 tables with the @code{CHECK TABLE} command. @xref{CHECK TABLE}.  You can
 repair tables with the @code{REPAIR TABLE} command. @xref{REPAIR TABLE}.
 
-To check/repair MyISAM tables (@code{.MYI} and @code{.MYD}) you should
+To check/repair MyISAM tables (@file{.MYI} and @file{.MYD}) you should
 use the @code{myisamchk} utility. To check/repair ISAM tables
-(@code{.ISM} and @code{.ISD}) you should use the @code{isamchk}
+(@file{.ISM} and @file{.ISD}) you should use the @code{isamchk}
 utility. @xref{Table types}.
 
 In the following text we will talk about @code{myisamchk}, but everything
@@ -18236,8 +18236,8 @@ print some informational statistics, too.
 @cindex repairing, tables
 
 In the following section we only talk about using @code{myisamchk} on
-@code{MyISAM} tables (extensions @code{.MYI} and @code{.MYD}).  If you
-are using @code{ISAM} tables (extensions @code{.ISM} and @code{.ISD}),
+@code{MyISAM} tables (extensions @file{.MYI} and @file{.MYD}).  If you
+are using @code{ISAM} tables (extensions @file{.ISM} and @file{.ISD}),
 you should use @code{isamchk} instead.
 
 Starting with MySQL Version 3.23.14, you can repair MyISAM
@@ -18735,10 +18735,10 @@ bytes. Most tables manage with 2 bytes, but this is calculated
 automatically by MySQL. It is always a block address.
 
 @item Max datafile length
-How long the table's data file (@code{.MYD} file) can become, in bytes.
+How long the table's data file (@file{.MYD} file) can become, in bytes.
 
 @item Max keyfile length
-How long the table's key file (@code{.MYI} file) can become, in bytes.
+How long the table's key file (@file{.MYI} file) can become, in bytes.
 
 @item Recordlength
 How much space each record takes, in bytes.
@@ -22470,7 +22470,7 @@ Overrides option --databases (-B).
 Creates a @code{table_name.sql} file, that contains the SQL CREATE commands,
 and a @code{table_name.txt} file, that contains the data, for each give table.
 @strong{NOTE}: This only works if @code{mysqldump} is run on the same
-machine as the @code{mysqld} daemon.  The format of the @code{.txt} file
+machine as the @code{mysqld} daemon.  The format of the @file{.txt} file
 is made according to the @code{--fields-xxx} and @code{--lines--xxx} options.
 @item -u user_name, --user=user_name
 The MySQL user name to use when connecting to the server. The
@@ -23518,7 +23518,7 @@ Note that the log format has changed in Version 3.23.26 so that
 pre-3.23.26 slaves will not be able to read it.
 @item
 If the query on the slave gets an error, the slave thread will
-terminate, and a message will appear in the @code{.err} file. You should
+terminate, and a message will appear in the @file{.err} file. You should
 then connect to the slave manually, fix the cause of the error (for
 example, non-existent table), and then run @code{SLAVE START} sql
 command (available starting in Version 3.23.16). In Version 3.23.15, you
@@ -27782,7 +27782,7 @@ A tab character.
 @findex (Control-Z) \z
 @item \z
 ASCII(26) (Control-Z).  This character can be encoded to allow you to
-go around the problem that ASCII(26) stands for END-OF-FILE on Windows.
+work around the problem that ASCII(26) stands for END-OF-FILE on Windows.
 (ASCII(26) will cause problems if you try to use
 @code{mysql database < filename}.)
 
@@ -27855,8 +27855,9 @@ lines |
 
 @cindex quoting binary data
 
-If you want to insert binary data into a @code{BLOB} column, the following
-characters must be represented by escape sequences:
+If you want to insert binary data into a string column (such as a
+@code{BLOB}), the following characters must be represented by escape
+sequences:
 @table @code
 @item NUL
 ASCII 0. You should represent this by @samp{\0} (a backslash and an ASCII @samp{0} character).
@@ -27870,10 +27871,10 @@ ASCII 34, double quote.  Represent this by @samp{\"}.
 
 @cindex quoting
 @cindex @code{BLOB}, inserting binary data
-@findex mysql_escape_string()
+@findex mysql_real_escape_string()
 @findex DBI->quote
 If you write C code, you can use the C API function
-@code{mysql_escape_string()} to escape characters for the @code{INSERT}
+@code{mysql_real_escape_string()} to escape characters for the @code{INSERT}
 statement.  @xref{C API function overview}.  In Perl, you can use the
 @code{quote} method of the @code{DBI} package to convert special
 characters to the proper escape sequences.  @xref{Perl DBI Class, , Perl
@@ -27881,6 +27882,11 @@ characters to the proper escape sequences.  @xref{Perl DBI Class, , Perl
 
 You should use an escape function on any string that might contain any of the
 special characters listed above!
+
+Alternatively, many MySQL APIs provide some sort of placeholder capability
+that allows you to insert special markers into a query string, and then bind
+data values to them when you issue the query.  In this case, the API takes
+case of escaping special characters in the values for you automatically.
 
 
 @node Number syntax, Hexadecimal values, String syntax, Literals
@@ -27921,7 +27927,7 @@ as the equivalent floating-point number.
 
 @tindex hexadecimal values
 
-MySQL supports hexadecimal values.  In number context these act
+MySQL supports hexadecimal values.  In numeric context these act
 like an integer (64-bit precision). In string context these act like a binary
 string where each pair of hex digits is converted to a character:
 
@@ -27934,9 +27940,9 @@ mysql> select 0x5061756c;
          -> Paul
 @end example
 
-The x'hexstring' syntax (new in 4.0) is based on ANSI SQL and the 0x
-syntax is based on ODBC.
-Hexadecimal strings are often used by ODBC to give values for BLOB columns.
+The @code{x'hexstring'} syntax (new in 4.0) is based on ANSI SQL and the
+@code{0x} syntax is based on ODBC.  Hexadecimal strings are often used by
+ODBC to supply values for @code{BLOB} columns.
 You can convert a string or a number to hexadecimal with the @code{HEX()}
 function.
 
@@ -27992,7 +27998,7 @@ Note that if the identifier is a restricted word or contains special characters
 you must always quote it with @code{`} when you use it:
 
 @example
-SELECT * from `select` where `select`.id > 100;
+mysql> SELECT * from `select` where `select`.id > 100;
 @end example
 
 In previous versions of MySQL, the name rules are as follows:
@@ -28007,8 +28013,8 @@ to @code{mysqld}.
 
 @item
 A name may start with any character that is legal in a name.  In particular,
-a name may start with a number (this differs from many other database
-systems!).  However, a name cannot consist @emph{only} of numbers.
+a name may start with a digit (this differs from many other database
+systems!).  However, a name cannot consist @emph{only} of digits.
 
 @item
 You cannot use the @samp{.} character in names because it is used to extend the
@@ -28065,8 +28071,10 @@ programs prefix table names with a @samp{.} character.
 In MySQL, databases and tables correspond to directories and files
 within those directories.  Consequently, the case sensitivity of the
 underlying operating system determines the case sensitivity of database and
-table names.  This means database and table names are case sensitive in Unix
-and case insensitive in Windows. @xref{Extensions to ANSI}.
+table names.  This means database and table names are case insensitive in
+Windows, and case sensitive in most varieties of Unix (Mac OS X being an
+exception).
+@xref{Extensions to ANSI}.
 
 @strong{NOTE:} Although database and table names are case insensitive for
 Windows, you should not refer to a given database or table using different
@@ -28077,7 +28085,7 @@ refers to a table both as @code{my_table} and as @code{MY_TABLE}:
 mysql> SELECT * FROM my_table WHERE MY_TABLE.col=1;
 @end example
 
-Column names are case insensitive in all cases.
+Column names and column aliases are case insensitive in all cases.
 
 Aliases on tables are case sensitive.  The following query would not work
 because it refers to the alias both as @code{a} and as @code{A}:
@@ -28087,9 +28095,7 @@ mysql> SELECT col_name FROM tbl_name AS a
     ->                 WHERE a.col_name = 1 OR A.col_name = 2;
 @end example
 
-Aliases on columns are case insensitive.
-
-If you have a problem remembering the used cases for a table names,
+If you have trouble remembering the lettercase for database and table names,
 adopt a consistent convention, such as always creating databases and
 tables using lowercase names.
 
@@ -28129,8 +28135,10 @@ SET @@variable= @{ integer expression | real expression | string expression @}
 [,@@variable= ...].
 @end example
 
-You can also set a variable in an expression with the @code{@@variable:=expr}
-syntax:
+You can also assign a value to a variable in statements other than @code{SET}.
+However, in this case the assignment operator is @code{:=} rather than
+@code{=}, because @code{=} is reserved for comparisons in non-@code{SET}
+statements:
 
 @example
 select @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
@@ -28141,16 +28149,13 @@ select @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
 +----------------------+------+------+------+
 @end example
 
-(We had to use the @code{:=} syntax here, because @code{=} was reserved for
-comparisons.)
-
 User variables may be used where expressions are allowed.  Note that
-this does not currently include use in contexts where a number is explicitly
+this does not currently include contexts where a number is explicitly
 required, such as in the @code{LIMIT} clause of a @code{SELECT} statement,
 or the @code{IGNORE number LINES} clause of a @code{LOAD DATA} statement.
 
-@strong{NOTE:}  In a @code{SELECT} statement, each expression is only
-evaluated when it's sent to the client.  This means that in the @code{HAVING},
+@strong{NOTE:}  In a @code{SELECT} statement, each expression is evaluated
+only when it's sent to the client.  This means that in the @code{HAVING},
 @code{GROUP BY}, or @code{ORDER BY} clause, you can't refer to an expression
 that involves variables that are set in the @code{SELECT} part. For example,
 the following statement will NOT work as expected:
@@ -28185,8 +28190,8 @@ multiple-line comment
 1;
 @end example
 
-Note that the @code{--} comment style requires you to have at least one space
-after the @code{--}!
+Note that the @code{--} (double-dash) comment style requires you to have at
+least one space after the second dash!
 
 Although the server understands the comment syntax just described,
 there are some limitations on the way that the @code{mysql} client
@@ -28210,8 +28215,8 @@ These limitations apply both when you run @code{mysql} interactively
 and when you put commands in a file and tell @code{mysql} to read its
 input from that file with @code{mysql < some-file}.
 
-MySQL only supports the @samp{--} ANSI SQL comment style if it is
-followed by a space. @xref{ANSI diff comments}.
+MySQL supports the @samp{--} ANSI SQL comment style only if the second dash
+is followed by a space. @xref{ANSI diff comments}.
 
 
 @node Reserved words,  , Comments, Language Structure
@@ -28224,12 +28229,12 @@ A common problem stems from trying to create a table with column names that
 use the names of datatypes or functions built into MySQL, such as
 @code{TIMESTAMP} or @code{GROUP}.  You're allowed to do it (for example,
 @code{ABS} is an allowed column name), but whitespace is not allowed between
-a function name and the @samp{(} when using functions whose names are also
-column names.
+a function name and the immediately following @samp{(} when using functions
+whose names are also column names.
 
 The following words are explicitly reserved in MySQL. Most of
 them are forbidden by ANSI SQL92 as column and/or table names
-(for example, @code{group}).
+(for example, @code{GROUP}).
 A few are reserved because MySQL needs them and is
 (currently) using a @code{yacc} parser:
 
@@ -28440,12 +28445,12 @@ A large integer. The signed range is @code{-9223372036854775808} to
 @code{9223372036854775807}. The unsigned range is @code{0} to
 @code{18446744073709551615}.
 
-Some things you should be aware about @code{BIGINT} columns:
+Some things you should be aware of with respect to @code{BIGINT} columns:
 
 @itemize @bullet
 @item
 @cindex rounding errors
-As all arithmetic is done using signed @code{BIGINT} or @code{DOUBLE}
+All arithmetic is done using signed @code{BIGINT} or @code{DOUBLE}
 values, so you shouldn't use unsigned big integers larger than
 @code{9223372036854775807} (63 bits) except with bit functions! If you
 do that, some of the last digits in the result may be wrong because of
@@ -28458,17 +28463,17 @@ Use integers to store big unsigned values in a @code{BIGINT} column.
 @item
 In @code{MIN(big_int_column)} and @code{MAX(big_int_column)}.
 @item
-When using operators (@code{+}, @code{-}, @code{*} etc) where
+When using operators (@code{+}, @code{-}, @code{*}, etc.) where
 both operands are integers.
 @end itemize
 
 @item
 You can always store an exact integer value in a @code{BIGINT} column by
-storing it as a string, as there is in this case there will be no
-intermediate double representation.
+storing it as a string.  In this case, MySQL will perform a string-to-number
+conversion that involves no intermediate double representation.
 @item
 @samp{-}, @samp{+}, and @samp{*} will use @code{BIGINT} arithmetic when
-both arguments are @code{INTEGER} values!  This means that if you
+both arguments are integer values!  This means that if you
 multiply two big integers (or results from functions that return
 integers) you may get unexpected results when the result is larger than
 @code{9223372036854775807}.
@@ -28504,7 +28509,7 @@ This syntax is provided for ODBC compatibility.
 A small (single-precision) floating-point number. Cannot be unsigned.
 Allowable values are @code{@w{-3.402823466E+38}} to
 @code{@w{-1.175494351E-38}}, @code{0}, and @code{@w{1.175494351E-38}} to
-@code{3.402823466E+38}.  The M is the display width and D is the
+@code{3.402823466E+38}.  The @code{M} is the display width and @code{D} is the
 number of decimals.  @code{FLOAT} without an argument or with an argument of
 <= 24 stands for a single-precision floating-point number.
 
@@ -28515,10 +28520,10 @@ number of decimals.  @code{FLOAT} without an argument or with an argument of
 A normal-size (double-precision) floating-point number. Cannot be
 unsigned. Allowable values are @code{@w{-1.7976931348623157E+308}} to
 @code{@w{-2.2250738585072014E-308}}, @code{0}, and
-@code{2.2250738585072014E-308} to @code{1.7976931348623157E+308}.  The M
-is the display width and D is the number of decimals.  @code{DOUBLE}
-without an argument or @code{FLOAT(X)} where 25 <= X <= 53 stands for a
-double-precision floating-point number.
+@code{2.2250738585072014E-308} to @code{1.7976931348623157E+308}.  The
+@code{M} is the display width and @code{D} is the number of decimals.
+@code{DOUBLE} without an argument or @code{FLOAT(X)} where 25 <= @code{X}
+<= 53 stands for a double-precision floating-point number.
 
 @tindex DOUBLE PRECISION
 @tindex REAL
@@ -28533,17 +28538,18 @@ These are synonyms for @code{DOUBLE}.
 An unpacked floating-point number.  Cannot be unsigned.  Behaves like a
 @code{CHAR} column: ``unpacked'' means the number is stored as a string,
 using one character for each digit of the value.  The decimal point and,
-for negative numbers, the @samp{-} sign, are not counted in M (but space
-for these are reserved). If @code{D} is 0, values will have no decimal
+for negative numbers, the @samp{-} sign, are not counted in @code{M} (but
+space for these is reserved). If @code{D} is 0, values will have no decimal
 point or fractional part.  The maximum range of @code{DECIMAL} values is
 the same as for @code{DOUBLE}, but the actual range for a given
 @code{DECIMAL} column may be constrained by the choice of @code{M} and
 @code{D}.
 
-If @code{D} is left out it's set to 0. If @code{M} is left out it's set to 10.
+If @code{D} is omitted, the default is 0.  If @code{M} is omitted, the
+default is 10.
 
-Note that in MySQL Version 3.22 the @code{M} argument had to
-includes the space needed for the sign and the decimal point.
+Prior to MySQL Version 3.23, the @code{M} argument must include the space
+needed for the sign and the decimal point.
 
 @tindex NUMERIC
 @item NUMERIC(M,D) [ZEROFILL]
@@ -28582,14 +28588,14 @@ recent operation if you don't give it a value yourself.  You can also set it
 to the current date and time by assigning it a @code{NULL} value.  @xref{Date
 and time types}.
 
-A @code{TIMESTAMP} is always stored in 4 bytes.  The @code{M} argument only
-affects how the @code{TIMESTAMP} column is displayed.
+The @code{M} argument affects only how a @code{TIMESTAMP} column is displayed;
+its values always are stored using 4 bytes each.
 
-Note that @code{TIMESTAMP(X)} columns where X is 8 or 14 are reported to
-be numbers while other @code{TIMESTAMP(X)} columns are reported to be
+Note that @code{TIMESTAMP(M)} columns where @code{M} is 8 or 14 are reported to
+be numbers while other @code{TIMESTAMP(M)} columns are reported to be
 strings.  This is just to ensure that one can reliably dump and restore
 the table with these types!
-@xref{DATETIME}.
+@xref{DATETIME, , @code{DATETIME}}.
 
 @tindex TIME
 @item TIME
@@ -28597,7 +28603,7 @@ the table with these types!
 A time.  The range is @code{'-838:59:59'} to @code{'838:59:59'}.
 MySQL displays @code{TIME} values in @code{'HH:MM:SS'} format, but
 allows you to assign values to @code{TIME} columns using either strings or
-numbers. @xref{TIME}.
+numbers. @xref{TIME, , @code{TIME}}.
 
 @tindex YEAR
 @item YEAR[(2|4)]
@@ -28607,7 +28613,7 @@ are @code{1901} to @code{2155}, @code{0000} in the 4-digit year format,
 and 1970-2069 if you use the 2-digit format (70-69).  MySQL displays
 @code{YEAR} values in @code{YYYY} format, but allows you to assign values to
 @code{YEAR} columns using either strings or numbers. (The @code{YEAR} type is
-new in MySQL Version 3.22.) @xref{YEAR}.
+unavailable prior to MySQL Version 3.22.) @xref{YEAR, , @code{YEAR}}.
 
 @tindex NATIONAL CHAR
 @tindex NCHAR
@@ -28616,14 +28622,15 @@ new in MySQL Version 3.22.) @xref{YEAR}.
 @item [NATIONAL] CHAR(M) [BINARY]
 
 A fixed-length string that is always right-padded with spaces to the
-specified length when stored. The range of @code{M} is 1 to 255 characters.
+specified length when stored. The range of @code{M} is 0 to 255 characters
+(1 to 255 prior to MySQL Version 3.23).
 Trailing spaces are removed when the value is retrieved. @code{CHAR} values
 are sorted and compared in case-insensitive fashion according to the
 default character set unless the @code{BINARY} keyword is given.
 
-@code{NATIONAL CHAR} (short form @code{NCHAR}) is the ANSI SQL way to
-define that a CHAR column should use the default CHARACTER set.  This is
-the default in MySQL.
+@code{NATIONAL CHAR} (or its equivalent short form, @code{NCHAR}) is the
+ANSI SQL way to define that a @code{CHAR} column should use the default
+CHARACTER set.  This is the default in MySQL.
 
 @code{CHAR} is a shorthand for @code{CHARACTER}.
 
@@ -28632,8 +28639,8 @@ MySQL allows you to create a column of type
 some old applications that depend on the existence of a column but that do not
 actually use the value.  This is also quite nice when you need a
 column that only can take 2 values: A @code{CHAR(0)}, that is not defined
-as @code{NOT NULL}, will only occupy one bit and can only take 2 values:
-@code{NULL} or @code{""}. @xref{CHAR}.
+as @code{NOT NULL}, will occupy only one bit and can take only 2 values:
+@code{NULL} or @code{""}. @xref{CHAR, , @code{CHAR}}.
 
 @tindex BOOL
 @tindex BIT
@@ -35026,7 +35033,7 @@ The options work for all table types, if not otherwise indicated:
 @item @code{MAX_ROWS} @tab Max number of rows you plan to store in the table.
 @item @code{MIN_ROWS} @tab Minimum number of rows you plan to store in the table.
 @item @code{PACK_KEYS} @tab Set this to 1 if you want to have a smaller index. This usually makes updates slower and reads faster (MyISAM, ISAM). Setting this to 0 will disable all packing of keys. Setting this to @code{DEFAULT} (MySQL 4.0) will tell the table handler to only pack long @code{CHAR}/@code{VARCHAR} columns.
-@item @code{PASSWORD} @tab Encrypt the @code{.frm} file with a password.  This option doesn't do anything in the standard MySQL version.
+@item @code{PASSWORD} @tab Encrypt the @file{.frm} file with a password.  This option doesn't do anything in the standard MySQL version.
 @item @code{DELAY_KEY_WRITE} @tab Set this to 1 if want to delay key table updates until the table is closed (MyISAM).
 @item @code{ROW_FORMAT} @tab Defines how the rows should be stored. Currently this option only works with MyISAM tables, which supports the @code{DYNAMIC} and @code{FIXED} row formats. @xref{MyISAM table formats}.
 @end multitable
@@ -36510,7 +36517,7 @@ or @code{BDB}), depending on how you compile it.
 
 When you create a new table, you can tell MySQL which table
 type it should use for the table.  MySQL will always create a
-@code{.frm} file to hold the table and column definitions.  Depending on
+@file{.frm} file to hold the table and column definitions.  Depending on
 the table type, the index and data will be stored in other files.
 
 Note that to use @code{InnoDB} tables you have to use at least
@@ -36583,8 +36590,8 @@ of both worlds.
 @code{MyISAM} is the default table type in MySQL Version 3.23. It's
 based on the @code{ISAM} code and has a lot of useful extensions.
 
-The index is stored in a file with the @code{.MYI} (MYIndex) extension,
-and the data is stored in a file with the @code{.MYD} (MYData) extension.
+The index is stored in a file with the @file{.MYI} (MYIndex) extension,
+and the data is stored in a file with the @file{.MYD} (MYData) extension.
 You can check/repair @code{MyISAM} tables with the @code{myisamchk}
 utility. @xref{Crash recovery}. You can compress @code{MyISAM} tables with
 @code{myisampack} to take up much less space. @xref{myisampack}.
@@ -37018,7 +37025,7 @@ case of this.  @xref{Reproduceable test case}.
 @node MyISAM table close,  , Corrupted MyISAM tables, MyISAM table problems
 @subsubsection Clients is using or hasn't closed the table properly
 
-Each @code{MyISAM} @code{.MYI} file has in the header a counter that can
+Each @code{MyISAM} @file{.MYI} file has in the header a counter that can
 be used to check if a table has been closed properly.
 
 If you get the following warning from @code{CHECK TABLE} or @code{myisamchk}:
@@ -37099,9 +37106,9 @@ columns are packed differently, doesn't have exactly the same columns or
 have the keys in different order.  Some of the tables can however be
 compressed with @code{myisampack}.  @xref{myisampack}.
 
-When you create a @code{MERGE} table, you will get a @code{.frm} table
-definition file and a @code{.MRG} table list file.  The @code{.MRG} just
-contains a list of the index files (@code{.MYI} files) that should
+When you create a @code{MERGE} table, you will get a @file{.frm} table
+definition file and a @file{.MRG} table list file.  The @file{.MRG} just
+contains a list of the index files (@file{.MYI} files) that should
 be used as one.  All used tables must be in the same database as the
 @code{MERGE} table itself.
 
@@ -37201,7 +37208,7 @@ Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
 @code{total} table as the key isn't going to be unique in the @code{total}
 table.
 
-Note that you can also manipulate the @code{.MRG} file directly from
+Note that you can also manipulate the @file{.MRG} file directly from
 the outside of the MySQL server:
 
 @example
@@ -37234,7 +37241,7 @@ To remap a @code{MERGE} table you can do one of the following:
 @item
 Use @code{ALTER TABLE table_name UNION(...)}
 @item
-Change the @code{.MRG} file and issue a @code{FLUSH TABLE} on the
+Change the @file{.MRG} file and issue a @code{FLUSH TABLE} on the
 @code{MERGE} table and all underlying tables to force the handler to
 read the new definition file.
 @end itemize
@@ -37293,8 +37300,8 @@ dropping the table.  We will fix this at the same time we introduce
 You can also use the deprecated @code{ISAM} table type. This will disappear
 rather soon (probably in MySQL 4.1) because @code{MyISAM} is a better
 implementation of the same thing. @code{ISAM} uses a @code{B-tree} index. The
-index is stored in a file with the @code{.ISM} extension, and the data
-is stored in a file with the @code{.ISD} extension.  You can
+index is stored in a file with the @file{.ISM} extension, and the data
+is stored in a file with the @file{.ISD} extension.  You can
 check/repair @code{ISAM} tables with the @code{isamchk} utility. @xref{Crash
 recovery}.
 
@@ -46655,7 +46662,7 @@ can restore it with the following procedure:
 @enumerate
 @item
 Take down the @code{mysqld} server by sending a @code{kill} (not @code{kill
--9}) to the @code{mysqld} server.  The pid is stored in a @code{.pid}
+-9}) to the @code{mysqld} server.  The pid is stored in a @file{.pid}
 file, which is normally in the MySQL database directory:
 
 @example
@@ -48605,7 +48612,7 @@ Active mailing list member.
 @item Luuk de Boer @email{luuk@@wxs.nl}
 Ported (and extended) the benchmark suite to @code{DBI}/@code{DBD}. Have
 been of great help with @code{crash-me} and running benchmarks. Some new
-date functions. The mysql_setpermissions script.
+date functions. The @code{mysql_setpermissions} script.
 @item Jay Flaherty @email{fty@@mediapulse.com}
 Big parts of the Perl @code{DBI}/@code{DBD} section in the manual.
 @item Paul Southworth @email{pauls@@etext.org}, Ray Loyzaga @email{yar@@cs.su.oz.au}
@@ -48636,7 +48643,7 @@ MySQL server.
 Configure updates for Tru64, large file support and better TCP wrappers
 support.
 @item John Birrell
-Emulation of pthread_mutex() for OS/2.
+Emulation of @code{pthread_mutex()} for OS/2.
 @item Benjamin Pflugmann
 Extended @code{MERGE} tables to handle @code{INSERTS}. Active member
 on the MySQL mailing lists.
@@ -49494,7 +49501,7 @@ hanging on @code{upgrading locks} without any apparent reasons.
 @item
 Fixed problem with @code{myisampack} and @code{BLOB}.
 @item
-Fixes problem when one edited @code{.MRG} tables by hand.
+Fixes problem when one edited @file{.MRG} tables by hand.
 (Patch from Benjamin Pflugmann).
 @item
 Enforce that all tables in a @code{MERGE} table come from the same
@@ -50634,23 +50641,23 @@ Added file mutexes to make @code{pwrite()} safe on Windows.
 
 @itemize @bullet
 @item
-Added @code{mysqld} variable @code{created_tmp_disk_tables}.
+Added @code{created_tmp_disk_tables} variable to @code{mysqld}.
 @item
 To make it possible to reliably dump and restore tables with
 @code{TIMESTAMP(X)} columns, MySQL now reports columns with @code{X}
 other than 14 or 8 to be strings.
 @item
 Changed sort order for latin1 as it was before MySQL Version 3.23.23.
-Any table with @code{CHAR} columns that may have characters with ASCII
-values greater than 128 that was created or modified with 3.23.22 must
-be repaired!
+Any table that was created or modified with 3.23.22 must be repaired if it has
+@code{CHAR} columns that may contain characters with ASCII values greater than
+128!
 @item
 Fixed small memory leak introduced from 3.23.22 when creating a
 temporary table.
 @item
-Fixed problem with BDB tables and reading on a unique (not primary) key.
+Fixed problem with @code{BDB} tables and reading on a unique (not primary) key.
 @item
-Restored the win1251 character set (it's now only marked deprecated).
+Restored the @code{win1251} character set (it's now only marked deprecated).
 @end itemize
 
 
@@ -50662,7 +50669,7 @@ Restored the win1251 character set (it's now only marked deprecated).
 Changed sort order for 'German';  All tables created with 'German' sortorder
 must be repaired with @code{REPAIR TABLE} or @code{myisamchk} before use!
 @item
-Added option @code{--core-file} to @code{mysqld} to get a core file on
+Added @code{--core-file} option to @code{mysqld} to get a core file on
 Linux if @code{mysqld} dies on the SIGSEGV signal.
 @item
 MySQL client @code{mysql} now starts with option
@@ -50685,7 +50692,7 @@ Fixed non-fatal @code{free()} bug in @code{mysqlimport}.
 Fixed bug in @code{MyISAM} index handling of
 @code{DECIMAL}/@code{NUMERIC} keys.
 @item
-Fixed a bug in concurrent insert in @code{MyISAM} tables; In some contexts,
+Fixed a bug in concurrent insert in @code{MyISAM} tables.  In some contexts,
 usage of @code{MIN(key_part)} or @code{MAX(key_part)} returned an empty set.
 @item
 Updated @code{mysqlhotcopy} to use the new @code{FLUSH TABLES table_list}
@@ -50695,11 +50702,11 @@ Changed behavior of @code{--enable-thread-safe-client} so
 that both non-threaded (@code{-lmysqlclient}) and threaded
 (@code{-lmysqlclient_r}) libraries are built.  Users who linked
 against a threaded @code{-lmysqlclient} will need to link against
-@code{libmysqlclient_r} now.
+@code{-lmysqlclient_r} now.
 @item
 Added atomic @code{RENAME TABLE} command.
 @item
-Don't count entries with @code{NULL} in @code{COUNT(DISTINCT ...)}.
+Don't count @code{NULL} values in @code{COUNT(DISTINCT ...)}.
 @item
 Changed @code{ALTER TABLE}, @code{LOAD DATA INFILE} on empty tables and
 @code{INSERT ... SELECT ...} on empty tables to create non-unique indexes
@@ -50720,19 +50727,20 @@ Fixed a lock in our thr_rwlock code, which could make selects that run
 at the same time as concurrent inserts crash. This only affects systems
 that don't have the @code{pthread_rwlock_rdlock} code.
 @item
-When deleting rows with a non-unique key in a HEAP table, all rows weren't
-always deleted.
+When deleting rows with a non-unique key in a @code{HEAP} table, all rows
+weren't always deleted.
 @item
-Fixed bug in range optimiser for HEAP tables for searches on a part index.
+Fixed bug in range optimiser for @code{HEAP} tables for searches on a part
+index.
 @item
-Fixed that @code{SELECT} on part keys works with BDB tables.
+Fixed @code{SELECT} on part keys to work with @code{BDB} tables.
 @item
-Fixed @code{INSERT INTO bdb_table ... SELECT} to work with BDB tables.
+Fixed @code{INSERT INTO bdb_table ... SELECT} to work with @code{BDB} tables.
 @item
 @code{CHECK TABLE} now updates key statistics for the table.
 @item
 @code{ANALYZE TABLE} will now only update tables that have been changed
-since thee last @code{ANALYZE}. Note that this is a new feature and tables
+since the last @code{ANALYZE}. Note that this is a new feature and tables
 will not be marked to be analysed until they are updated in any way with
 3.23.23 or newer.  For older tables, you have to do @code{CHECK TABLE}
 to update the key distribution.
@@ -50740,7 +50748,7 @@ to update the key distribution.
 Fixed some minor privilege problems with @code{CHECK}, @code{ANALYZE},
 @code{REPAIR} and @code{SHOW CREATE} commands.
 @item
-Added @code{CHANGE MASTER TO} command.
+Added @code{CHANGE MASTER TO} statement.
 @item
 Added @code{FAST}, @code{QUICK} @code{EXTENDED} check types to
 @code{CHECK TABLES}.
@@ -50760,7 +50768,7 @@ More variables in @code{SHOW SLAVE STATUS} and @code{SHOW MASTER STATUS}.
 @code{SLAVE STOP} now will not return until the slave thread actually exits.
 @item
 Full-text search via the @code{MATCH()} function and @code{FULLTEXT} index type
-(for MyISAM files).  This makes @code{FULLTEXT} a reserved word.
+(for @code{MyISAM} files).  This makes @code{FULLTEXT} a reserved word.
 @end itemize
 
 
@@ -50776,7 +50784,7 @@ Fixed that @code{MASTER} and @code{COLLECTION} are not reserved words.
 @item
 The log generated by @code{--slow-query-log} didn't contain the whole queries.
 @item
-Fixed that open transactions in BDB tables are rolled back if the
+Fixed that open transactions in @code{BDB} tables are rolled back if the
 connection is closed unexpectedly.
 @item
 Added workaround for a bug in @code{gcc} 2.96 (intel) and @code{gcc} 2.9
@@ -50790,8 +50798,8 @@ Optimised functions that manipulate the hours/minutes/seconds.
 Fixed bug when comparing the result of @code{DATE_ADD()}/@code{DATE_SUB()}
 against a number.
 @item
-Changed the meaning of @code{-F, --fast} for @code{myisamchk}. Added option
-@code{-C, --check-only-changed} to @code{myisamchk}.
+Changed the meaning of @code{-F, --fast} for @code{myisamchk}. Added
+@code{-C, --check-only-changed} option to @code{myisamchk}.
 @item
 Added @code{ANALYZE table_name} to update key statistics for tables.
 @item
@@ -50813,10 +50821,10 @@ Added @code{SHOW MASTER STATUS} and @code{SHOW SLAVE STATUS}.
 
 @itemize @bullet
 @item
-Added @code{mysql_character_set_name(MYSQL *mysql)} function to the
+Added @code{mysql_character_set_name()} function to the
 MySQL C API.
 @item
-Made the update log @code{ASCII 0} safe.
+Made the update log ASCII 0 safe.
 @item
 Added the @code{mysql_config} script.
 @item
@@ -50825,25 +50833,25 @@ partly indexed.
 @item
 One would get a core dump if the log file was not readable by the MySQL user.
 @item
-Changed @code{mysqladmin} to use the @code{CREATE DATABASE}/@code{DROP
-DATABASE} commands instead of the old deprecated API calls.
+Changed @code{mysqladmin} to use @code{CREATE DATABASE} and @code{DROP
+DATABASE} statements instead of the old deprecated API calls.
 @item
 Fixed @code{chown} warning in @code{safe_mysqld}.
 @item
 Fixed a bug in @code{ORDER BY} that was introduced in 3.23.19.
 @item
 Only optimise the @code{DELETE FROM tbl_name} to do a drop+create of
-the table if we are in @code{AUTOCOMMIT} mode (needed for BDB tables).
+the table if we are in @code{AUTOCOMMIT} mode (needed for @code{BDB} tables).
 @item
 Added extra checks to avoid index corruption when the @code{ISAM}/@code{MyISAM}
-index files gets full during an @code{INSERT}/@code{UPDATE}.
+index files get full during an @code{INSERT}/@code{UPDATE}.
 @item
 @code{myisamchk} didn't correctly update row checksum when used with
-@code{-ro} (this only gave an warning in subsequent runs).
+@code{-ro} (this only gave a warning in subsequent runs).
 @item
 Fixed bug in @code{REPAIR TABLE} so that it works with tables without indexes.
 @item
-Fixed buffer overrun in @code{DROP DATABASE}
+Fixed buffer overrun in @code{DROP DATABASE}.
 @item
 @code{LOAD TABLE FROM MASTER} is sufficiently bug-free to announce it as
 a feature.
@@ -50857,7 +50865,7 @@ a feature.
 
 @itemize @bullet
 @item
-Fixed bug in 3.23.19; @code{DELETE FROM tbl_name} removed the .frm file.
+Fixed bug in 3.23.19; @code{DELETE FROM tbl_name} removed the @file{.frm} file.
 @item
 Added @code{SHOW CREATE TABLE}.
 @end itemize
@@ -50869,7 +50877,7 @@ Added @code{SHOW CREATE TABLE}.
 @itemize @bullet
 @item
 Changed copyright for all files to GPL for the server code and utilities and
-LGPL for the client libraries.
+to LGPL for the client libraries.
 @item
 Fixed bug where all rows matching weren't updated on a @code{MyISAM} table
 when doing update based on key on a table with many keys and some key changed
@@ -50879,11 +50887,11 @@ The Linux MySQL RPM's and binaries are now statically linked with
 a linuxthread version that has faster mutex handling when used with
 MySQL.
 @item
-@code{ORDER BY} can now uses @code{REF} keys to find subset the rows
-that needs to be sorted.
+@code{ORDER BY} can now use @code{REF} keys to find subsets of the rows
+that need to be sorted.
 @item
-Changed name of @code{print_defaults} to @code{my_print_defaults} to avoid
-name confusion.
+Changed name of @code{print_defaults} program to @code{my_print_defaults}
+to avoid name confusion.
 @item
 Fixed @code{NULLIF()} to work according to ANSI SQL99.
 @item
@@ -50893,14 +50901,18 @@ parameters to @code{mysqld}.
 Fixed bug that destroyed index when doing @code{myisamchk --sort-records}
 on a table with prefix compressed index.
 @item
-Added pack_isam and myisampack to the standard MySQL distribution.
+Added @code{pack_isam} and @code{myisampack} to the standard MySQL
+distribution.
 @item
 Added the syntax @code{BEGIN WORK} (the same as @code{BEGIN}).
 @item
 Fixed core dump bug when using @code{ORDER BY} on a @code{CONV()} expression.
-@item Added @code{LOAD TABLE FROM MASTER}
-@item Added @code{FLUSH MASTER} and @code{FLUSH SLAVE}
-@item Fixed big/little endian problem in the replication
+@item
+Added @code{LOAD TABLE FROM MASTER}.
+@item
+Added @code{FLUSH MASTER} and @code{FLUSH SLAVE}.
+@item
+Fixed big/little endian problem in the replication.
 @end itemize
 
 
@@ -50911,18 +50923,18 @@ Fixed core dump bug when using @code{ORDER BY} on a @code{CONV()} expression.
 @item
 Fixed a problem from 3.23.17 when choosing character set on the client side.
 @item
-Added @code{FLUSH TABLES WITH READ LOCK} to make a global lock suitable to
-make a copy of MySQL data files.
+Added @code{FLUSH TABLES WITH READ LOCK} to make a global lock suitable for
+making a copy of MySQL data files.
 @item
 @code{CREATE TABLE ... SELECT ... PROCEDURE} now works.
 @item
-Internal temporary tables will now uses compressed index when using
+Internal temporary tables will now use compressed index when using
 @code{GROUP BY} on @code{VARCHAR/CHAR} columns.
 @item
 Fixed a problem when locking the same table with both a @code{READ} and a
 @code{WRITE} lock.
 @item
-Fixed problem with myisamchk and @code{RAID} tables.
+Fixed problem with @code{myisamchk} and @code{RAID} tables.
 @end itemize
 
 
@@ -50931,7 +50943,7 @@ Fixed problem with myisamchk and @code{RAID} tables.
 
 @itemize @bullet
 @item
-Fixed a bug in @code{find_in_set()} when the first argument was @code{NULL}.
+Fixed a bug in @code{FIND_IN_SET()} when the first argument was @code{NULL}.
 @item
 Added table locks to Berkeley DB.
 @item
@@ -50941,7 +50953,7 @@ table had only one matching row.
 Added 4 sample @code{my.cnf} example files in the @file{support-files}
 directory.
 @item
-Fixed @code{duplicated key} problem when doing big @code{GROUP BY}'s.
+Fixed @code{duplicated key} problem when doing big @code{GROUP BY} operations.
 (This bug was probably introduced in 3.23.15.)
 @item
 Changed syntax for @code{INNER JOIN} to match ANSI SQL.
@@ -50959,19 +50971,20 @@ Fixed that @code{USE INDEX} works with @code{PRIMARY} keys.
 @item
 Added @code{BEGIN} statement to start a transaction in @code{AUTOCOMMIT} mode.
 @item
-Added symbolic links support for Windows.
+Added support for symbolic links for Windows.
 @item
-Changed protocol to let client know if the server is in AUTOCOMMIT mode
-and if there is a pending transaction.  If there is a pending transaction
+Changed protocol to let client know if the server is in @code{AUTOCOMMIT} mode
+and if there is a pending transaction.  If there is a pending transaction,
 the client library will give an error before reconnecting to the server to
 let the client know that the server did a rollback.
-The protocol is still backward compatible with old clients
+The protocol is still backward compatible with old clients.
 @item
 @code{KILL} now works on a thread that is locked on a 'write' to a dead client.
 @item
 Fixed memory leak in the replication slave thread.
 @item
-Added new option @code{log-slave-updates} to allow daisy-chaining the slaves.
+Added new @code{log-slave-updates} option to @code{mysqld}, to allow
+daisy-chaining the slaves.
 @item
 Fixed compile error on FreeBSD and other systems where @code{pthread_t}
 is not the same as @code{int}.
@@ -50981,7 +50994,7 @@ Fixed master shutdown aborting the slave thread.
 Fixed a race condition in @code{INSERT DELAYED} code when doing
 @code{ALTER TABLE}.
 @item
-Added deadlock detection sanity checks to @code{INSERT DELAYED}
+Added deadlock detection sanity checks to @code{INSERT DELAYED}.
 @end itemize
 
 
@@ -50990,7 +51003,7 @@ Added deadlock detection sanity checks to @code{INSERT DELAYED}
 
 @itemize @bullet
 @item
-Added option @code{TYPE=QUICK} to @code{CHECK} and @code{REPAIR}.
+Added @code{TYPE=QUICK} option to @code{CHECK} and to @code{REPAIR}.
 @item
 Fixed bug in @code{REPAIR TABLE} when the table was in use by other threads.
 @item
@@ -51010,9 +51023,9 @@ Fixed bug in handling of masked IP numbers in the privilege tables.
 Fixed bug with @code{delayed_key_writes} tables and @code{CHECK TABLE}.
 @item
 Added @code{replicate-do-db} and @code{replicate-ignore-db} options to
-restrict which databases get replicated
+@code{mysqld}, to restrict which databases get replicated.
 @item
-Added @code{SQL_LOG_BIN} option
+Added @code{SQL_LOG_BIN} option.
 @end itemize
 
 
@@ -51047,9 +51060,9 @@ Don't write @code{INSERT DELAYED} to update log if @code{SQL_LOG_UPDATE=0}.
 @item
 Fixed problem with @code{REPLACE} on @code{HEAP} tables.
 @item
-Added possible character sets and time zone to @code{SHOW VARIABLES}.
+Added possible character sets and time zone to @code{SHOW VARIABLES} output.
 @item
-Fixed bug in locking code that could result it locking problems with
+Fixed bug in locking code that could result in locking problems with
 concurrent inserts under high load.
 @item
 Fixed a problem with @code{DELETE} of many rows on a table with
@@ -51061,14 +51074,14 @@ Fixed a bug in reconnect (at the client side) where it didn't free memory
 properly in some contexts.
 @item
 Fixed problems in update log when using @code{LAST_INSERT_ID()} to update
-a table with an auto_increment key.
+a table with an @code{AUTO_INCREMENT} key.
 @item
-Added function @code{NULLIF()}.
+Added @code{NULLIF()} function.
 @item
 Fixed bug when using @code{LOAD DATA INFILE} on a table with
 @code{BLOB/TEXT} columns.
 @item
-Optimised MyISAM to be faster when inserting keys in sorted order.
+Optimised @code{MyISAM} to be faster when inserting keys in sorted order.
 @item
 @code{EXPLAIN SELECT ...} now also prints out whether MySQL needs to
 create a temporary table or use file sorting when resolving the @code{SELECT}.
@@ -51076,15 +51089,15 @@ create a temporary table or use file sorting when resolving the @code{SELECT}.
 Added optimisation to skip @code{ORDER BY} parts where the part is a
 constant expression in the @code{WHERE} part.  Indexes can now be used
 even if the @code{ORDER BY} doesn't match the index exactly, as long as
-all the not used index parts and all the extra @code{ORDER BY}
+all the unused index parts and all the extra @code{ORDER BY}
 columns are constants in the @code{WHERE} clause.  @xref{MySQL indexes}.
 @item
-@code{UPDATE} and @code{DELETE} on a whole unique key in the @code{WHERE} part,
-is now faster than before.
+@code{UPDATE} and @code{DELETE} on a whole unique key in the @code{WHERE} part
+are now faster than before.
 @item
-Changed @code{RAID_CHUNKSIZE} to be in 1024 byte increments.
+Changed @code{RAID_CHUNKSIZE} to be in 1024-byte increments.
 @item
-Fixed coredump in LOAD_FILE(NULL).
+Fixed coredump in @code{LOAD_FILE(NULL)}.
 @end itemize
 
 
@@ -51112,7 +51125,8 @@ Fixed that @code{DROP TABLE} is logged in the update log.
 Fixed problem when searching on @code{DECIMAL()} key field
 where the column data contained leading zeros.
 @item
-Fix bug in @code{myisamchk} when the auto_increment isn't the first key.
+Fix bug in @code{myisamchk} when the @code{AUTO_INCREMENT} column isn't
+the first key.
 @item
 Allow @code{DATETIME} in ISO8601 format: 2000-03-12T12:00:00
 @item
@@ -51125,7 +51139,8 @@ Added @code{mysql_thread_safe()} function to the MySQL C API.
 @item
 Added the @code{UMASK_DIR} environment variable.
 @item
-Added function @code{CONNECTION_ID()}.
+Added @code{CONNECTION_ID()} function to return the client connection thread
+ID.
 @item
 When using @code{=} on @code{BLOB} or @code{VARCHAR BINARY} keys, where
 only a part of the column was indexed, the whole column of the result
@@ -51147,13 +51162,14 @@ Fixed problem when doing locks on the same table more than 2 times in
 the same @code{LOCK TABLE} command; This fixed the problem one got when running
 the test-ATIS test with @code{--fast} or @code{--check-only-changed}.
 @item
-Added option @code{SQL_BUFFER_RESULT} to @code{SELECT}.
+Added @code{SQL_BUFFER_RESULT} option to @code{SELECT}.
 @item
 Removed end space from double/float numbers in results from temporary
 tables.
+@item
 Added @code{CHECK TABLE} command.
 @item
-Added changes for MyISAM in 3.23.12 that didn't get into the source
+Added changes for @code{MyISAM} in 3.23.12 that didn't get into the source
 distribution because of CVS problems.
 @item
 Fixed bug so that @code{mysqladmin shutdown} will wait for the local server
@@ -51161,8 +51177,8 @@ to close down.
 @item
 Fixed a possible endless loop when calculating timestamp.
 @item
-Added @code{print_defaults} to the @file{.rpm} files. Removed @code{mysqlbug}
-from the client @file{.rpm} file.
+Added @code{print_defaults} program to the @file{.rpm} files. Removed
+@code{mysqlbug} from the client @file{.rpm} file.
 @end itemize
 
 
@@ -51174,7 +51190,8 @@ from the client @file{.rpm} file.
 Fixed bug in @code{MyISAM} involving @code{REPLACE ... SELECT ...} which could
 give a corrupted table.
 @item
-Fixed bug in @code{myisamchk} where it wrongly reset the auto_increment value.
+Fixed bug in @code{myisamchk} where it wrongly reset the @code{AUTO_INCREMENT}
+value.
 @item
 LOTS of patches for Linux Alpha. MySQL now appears to be relatively
 stable on Alpha.
@@ -51187,17 +51204,17 @@ addition, the new code is MUCH faster.
 @item
 Added patches to make MySQL compile on Mac OS X.
 @item
-Added option @code{IF NOT EXISTS} to @code{CREATE DATABASE}.
+Added @code{IF NOT EXISTS} clause to @code{CREATE DATABASE}.
 @item
-Added options @code{--all-databases} and @code{--databases} to @code{mysqldump}
+Added @code{--all-databases} and @code{--databases} options to @code{mysqldump}
 to allow dumping of many databases at the same time.
 @item
 Fixed bug in compressed @code{DECIMAL()} index in @code{MyISAM} tables.
 @item
 Fixed bug when storing 0 into a timestamp.
 @item
-When doing @code{mysqladmin shutdown} on a local connection, @code{mysqladmin} now
-waits until the pidfile is gone before terminating.
+When doing @code{mysqladmin shutdown} on a local connection, @code{mysqladmin}
+now waits until the PID file is gone before terminating.
 @item
 Fixed core dump with some @code{COUNT(DISTINCT ...)} queries.
 @item
@@ -51222,12 +51239,12 @@ parameters in @code{SELECT}.
 @item
 Allow the @code{ALTER TABLE tbl_name ADD (field_list)} syntax.
 @item
-Fixed problem with optimiser that could sometimes use wrong keys.
+Fixed problem with optimiser that could sometimes use incorrect keys.
 @item
 Fixed that @code{GRANT/REVOKE ALL PRIVILEGES} doesn't affect
 @code{GRANT OPTION}.
 @item
-Removed extra @code{)} from the output of @code{SHOW GRANTS}
+Removed extra @samp{)} from the output of @code{SHOW GRANTS}.
 @item
 Fixed problem when storing numbers in timestamps.
 @item
@@ -51240,11 +51257,11 @@ MySQL databases. By Tim Bunce.
 @item
 New more secure @code{mysqlaccess}. Thanks to Steve Harvey for this.
 @item
-Added options @code{--i-am-a-dummy} and @code{--safe-updates} to @code{mysql}.
+Added @code{--i-am-a-dummy} and @code{--safe-updates} options to @code{mysql}.
 @item
-Added variables @code{select_limit} and @code{max_join_size} to @code{mysql}.
+Added @code{select_limit} and @code{max_join_size} variables to @code{mysql}.
 @item
-Added sql variables: @code{SQL_MAX_JOIN_SIZE} and @code{SQL_SAFE_UPDATES}.
+Added @code{SQL_MAX_JOIN_SIZE} and @code{SQL_SAFE_UPDATES} options.
 @item
 Added @code{READ LOCAL} lock that doesn't lock the table for concurrent
 inserts. (This is used by @code{mysqldump}.)
@@ -51252,7 +51269,7 @@ inserts. (This is used by @code{mysqldump}.)
 Changed that @code{LOCK TABLES ... READ} doesn't anymore allow concurrent
 inserts.
 @item
-Added option @code{--skip-delay-key-write} to @code{mysqld}.
+Added @code{--skip-delay-key-write} option to @code{mysqld}.
 @item
 Fixed security problem in the protocol regarding password checking.
 @item
@@ -51269,7 +51286,7 @@ to make things safe for old clients.
 
 @itemize @bullet
 @item
-Fixed bug in 3.23.9 where memory wasn't properly freed when doing
+Fixed bug in 3.23.9 where memory wasn't properly freed when using
 @code{LOCK TABLES}.
 @end itemize
 
