@@ -32,7 +32,7 @@ a
 1
 SELECT 1 FROM (SELECT (SELECT a) b) c;
 Unknown column 'a' in 'field list'
-SELECT * FROM (SELECT 1 as id) b WHERE id IN (SELECT * FROM (SELECT 1 as id) c ORDER BY id LIMIT 1);
+SELECT * FROM (SELECT 1 as id) b WHERE id IN (SELECT * FROM (SELECT 1 as id) c ORDER BY id);
 id
 1
 SELECT * FROM (SELECT 1) a  WHERE 1 IN (SELECT 1,1);
@@ -704,4 +704,10 @@ NULL
 select 10.5 > ANY (SELECT * from t);
 10.5 > ANY (SELECT * from t)
 1
+drop table t;
+create table t (a float);
+select 10.5 IN (SELECT * from t LIMIT 1);
+This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+select 10.5 IN (SELECT * from t LIMIT 1 UNION SELECT 1.5);
+This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 drop table t;
