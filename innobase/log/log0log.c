@@ -407,7 +407,7 @@ log_pad_current_log_block(void)
 	log_close();
 	log_release();
 
-	ut_anp((ut_dulint_get_low(lsn) % OS_FILE_LOG_BLOCK_SIZE)
+	ut_a((ut_dulint_get_low(lsn) % OS_FILE_LOG_BLOCK_SIZE)
 						== LOG_BLOCK_HDR_SIZE);
 }
 
@@ -1117,8 +1117,8 @@ log_group_write_buf(
 	ulint	i;
 	
 	ut_ad(mutex_own(&(log_sys->mutex)));
-	ut_anp(len % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_anp(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_a(len % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_a(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	if (new_data_offset == 0) {
 		write_header = TRUE;
@@ -2190,11 +2190,11 @@ log_group_archive(
 
 	start_lsn = log_sys->archived_lsn;
 
-	ut_anp(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_a(ut_dulint_get_low(start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	end_lsn = log_sys->next_archived_lsn;
 
-	ut_anp(ut_dulint_get_low(end_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_a(ut_dulint_get_low(end_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
 	buf = log_sys->archive_buf;
 
@@ -2301,7 +2301,7 @@ loop:
 	group->next_archived_file_no = group->archived_file_no + n_files;
 	group->next_archived_offset = next_offset % group->file_size;
 
-	ut_anp(group->next_archived_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_a(group->next_archived_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 }
 
 /*********************************************************
@@ -2496,8 +2496,7 @@ loop:
 	start_lsn = log_sys->archived_lsn;
 	
 	if (calc_new_limit) {
-		ut_anp(log_sys->archive_buf_size % OS_FILE_LOG_BLOCK_SIZE
-								== 0);
+		ut_a(log_sys->archive_buf_size % OS_FILE_LOG_BLOCK_SIZE == 0);
 		limit_lsn = ut_dulint_add(start_lsn,
 						log_sys->archive_buf_size);
 

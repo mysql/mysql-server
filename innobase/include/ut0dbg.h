@@ -10,7 +10,6 @@ Created 1/30/1994 Heikki Tuuri
 #define ut0dbg_h
 
 #include "univ.i"
-#include <assert.h>
 #include <stdlib.h>
 #include "os0thread.h"
 
@@ -20,110 +19,46 @@ extern ibool	ut_dbg_stop_threads;
 
 extern ulint*	ut_dbg_null_ptr;
 
-#define ut_a(EXPR)\
-{\
-	ulint	dbg_i;\
-\
+extern const char*	ut_dbg_msg_assert_fail;
+extern const char*	ut_dbg_msg_trap;
+extern const char*	ut_dbg_msg_stop;
+
+#define ut_a(EXPR) do {\
 	if (!((ulint)(EXPR) + ut_dbg_zero)) {\
                 ut_print_timestamp(stderr);\
-	   	fprintf(stderr,\
-       "  InnoDB: Assertion failure in thread %lu in file %s line %lu\n",\
-		os_thread_pf(os_thread_get_curr_id()), IB__FILE__,\
+	   	fprintf(stderr, ut_dbg_msg_assert_fail,\
+		os_thread_pf(os_thread_get_curr_id()), __FILE__,\
                 (ulint)__LINE__);\
-		fprintf(stderr,\
-       "InnoDB: Failing assertion: " #EXPR);\
-	   	fprintf(stderr,\
-       "\nInnoDB: We intentionally generate a memory trap.\n");\
-                fprintf(stderr,\
-       "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n"\
-       "InnoDB: If you get repeated assertion failures or crashes, even\n"\
-       "InnoDB: immediately after the mysqld startup, there may be\n"\
-       "InnoDB: corruption in the InnoDB tablespace. See section 6.1 of\n"\
-       "InnoDB: http://www.innodb.com/ibman.php about forcing recovery.\n");\
+		fputs("InnoDB: Failing assertion: " #EXPR "\n", stderr);\
+		fputs(ut_dbg_msg_trap, stderr);\
 		ut_dbg_stop_threads = TRUE;\
-		dbg_i = *(ut_dbg_null_ptr);\
-	   	if (dbg_i) {\
-			ut_dbg_null_ptr = NULL;\
-		}\
+		if (*(ut_dbg_null_ptr)) ut_dbg_null_ptr = NULL;\
 	}\
 	if (ut_dbg_stop_threads) {\
-	        fprintf(stderr,\
-                     "InnoDB: Thread %lu stopped in file %s line %lu\n",\
-     os_thread_pf(os_thread_get_curr_id()), IB__FILE__, (ulint)__LINE__);\
+	        fprintf(stderr, ut_dbg_msg_stop,\
+     os_thread_pf(os_thread_get_curr_id()), __FILE__, (ulint)__LINE__);\
 		os_thread_sleep(1000000000);\
 	}\
-}
+} while (0)
 
-/* This can be used if there are % characters in the assertion formula:
-if we try to printf the formula gcc would complain of illegal print
-format characters */
-#define ut_anp(EXPR)\
-{\
-	ulint	dbg_i;\
-\
-	if (!((ulint)(EXPR) + ut_dbg_zero)) {\
-                ut_print_timestamp(stderr);\
-	   	fprintf(stderr,\
-       "  InnoDB: Assertion failure in thread %lu in file %s line %lu\n",\
-		os_thread_pf(os_thread_get_curr_id()), IB__FILE__,\
-                (ulint)__LINE__);\
-	   	fprintf(stderr,\
-       "\nInnoDB: We intentionally generate a memory trap.\n");\
-                fprintf(stderr,\
-       "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n"\
-       "InnoDB: If you get repeated assertion failures or crashes, even\n"\
-       "InnoDB: immediately after the mysqld startup, there may be\n"\
-       "InnoDB: corruption in the InnoDB tablespace. See section 6.1 of\n"\
-       "InnoDB: http://www.innodb.com/ibman.php about forcing recovery.\n");\
-		ut_dbg_stop_threads = TRUE;\
-		dbg_i = *(ut_dbg_null_ptr);\
-	   	if (dbg_i) {\
-			ut_dbg_null_ptr = NULL;\
-		}\
-	}\
-	if (ut_dbg_stop_threads) {\
-	        fprintf(stderr,\
-                     "InnoDB: Thread %lu stopped in file %s line %lu\n",\
-     os_thread_pf(os_thread_get_curr_id()), IB__FILE__, (ulint)__LINE__);\
-		os_thread_sleep(1000000000);\
-	}\
-}
-
-#define ut_error {\
-	ulint	dbg_i;\
-           ut_print_timestamp(stderr);\
-	   fprintf(stderr,\
-	  "  InnoDB: Assertion failure in thread %lu in file %s line %lu\n",\
- os_thread_pf(os_thread_get_curr_id()), IB__FILE__, (ulint)__LINE__);\
-	   fprintf(stderr,\
-		   "InnoDB: We intentionally generate a memory trap.\n");\
-           fprintf(stderr,\
-            "InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n"\
-       "InnoDB: If you get repeated assertion failures or crashes, even\n"\
-       "InnoDB: immediately after the mysqld startup, there may be\n"\
-       "InnoDB: corruption in the InnoDB tablespace. See section 6.1 of\n"\
-       "InnoDB: http://www.innodb.com/ibman.php about forcing recovery.\n");\
-	   ut_dbg_stop_threads = TRUE;\
-	   dbg_i = *(ut_dbg_null_ptr);\
-	   printf("%lu", dbg_i);\
-}
+#define ut_error do {\
+        ut_print_timestamp(stderr);\
+	fprintf(stderr, ut_dbg_msg_assert_fail,\
+	os_thread_pf(os_thread_get_curr_id()), __FILE__, (ulint)__LINE__);\
+	fprintf(stderr, ut_dbg_msg_trap);\
+	ut_dbg_stop_threads = TRUE;\
+	if (*(ut_dbg_null_ptr)) ut_dbg_null_ptr = NULL;\
+} while (0)
 
 #ifdef UNIV_DEBUG
-#define ut_ad(EXPR)  	ut_a(EXPR)
-#define ut_d(EXPR)	{EXPR;}
+# define ut_ad(EXPR)  	ut_a(EXPR)
+# define ut_d(EXPR)	do {EXPR;} while (0)
 #else
-#define ut_ad(EXPR)
-#define ut_d(EXPR)
+# define ut_ad(EXPR)
+# define ut_d(EXPR)
 #endif
 
-
 #define UT_NOT_USED(A)	A = A
-
-
-
-
-
-
 
 #endif
 
