@@ -867,10 +867,11 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
-    thd->query = (char*)query;
     thd->set_time((time_t)when);
     thd->current_tablenr = 0;
+    thd->query_length= q_len;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
+    thd->query = (char*)query;
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->query_error= 0;			// clear error
@@ -928,7 +929,9 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     else
     {
       // master could be inconsistent, abort and tell DBA to check/fix it
+      VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->db = thd->query = 0;
+      VOID(pthread_mutex_unlock(&LOCK_thread_count));
       thd->variables.convert_set = 0;
       close_thread_tables(thd);
       free_root(&thd->mem_root,0);
@@ -936,7 +939,9 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     }
   }
   thd->db= 0;				// prevent db from being freed
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query= 0;			// just to be sure
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   // assume no convert for next query unless set explictly
   thd->variables.convert_set = 0;
   close_thread_tables(thd);
@@ -1513,7 +1518,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 {
   init_sql_alloc(&thd->mem_root, 8192,0);
   thd->db = rewrite_db((char*)db);
-  thd->query = 0;
+  DBUG_ASSERT(thd->query == 0);
+  thd->query = 0;				// Should not be needed
   thd->query_error = 0;
 	    
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
