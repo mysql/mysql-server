@@ -558,8 +558,12 @@ int yylex(void *arg, void *yythd)
 	state= MY_LEX_HEX_NUMBER;
 	break;
       }
-      /* Fall through */
-    case MY_LEX_IDENT_OR_BIN:		// TODO: Add binary string handling
+    case MY_LEX_IDENT_OR_BIN:
+      if (yyPeek() == '\'')
+      {                                 // Found b'bin-number'
+        state= MY_LEX_BIN_NUMBER;
+        break;
+      }
     case MY_LEX_IDENT:
       uchar *start;
 #if defined(USE_MB) && defined(USE_MB_IDENT)
@@ -680,6 +684,20 @@ int yylex(void *arg, void *yythd)
 	}
 	yyUnget();
       }
+      else if (c == 'b' && (lex->ptr - lex->tok_start) == 2 &&
+               lex->tok_start[0] == '0' )
+      {						// b'bin-number'
+	while (my_isxdigit(cs,(c = yyGet()))) ;
+	if ((lex->ptr - lex->tok_start) >= 4 && !ident_map[c])
+	{
+	  yylval->lex_str= get_token(lex, yyLength());
+	  yylval->lex_str.str+= 2;		// Skip 0x
+	  yylval->lex_str.length-= 2;
+	  lex->yytoklen-= 2;
+	  return (BIN_NUM);
+	}
+	yyUnget();
+      }
       // fall through
     case MY_LEX_IDENT_START:			// We come here after '.'
       result_state= IDENT;
@@ -791,6 +809,19 @@ int yylex(void *arg, void *yythd)
       yylval->lex_str.length-=3;	// Don't count x' and last '
       lex->yytoklen-=3;
       return (HEX_NUM);
+
+    case MY_LEX_BIN_NUMBER:           // Found b'bin-string'
+      yyGet();                                // Skip '
+      while ((c= yyGet()) == '0' || c == '1');
+      length= (lex->ptr - lex->tok_start);    // Length of bin-num + 3
+      if (c != '\'')
+      return(ABORT_SYM);              // Illegal hex constant
+      yyGet();                        // get_token makes an unget
+      yylval->lex_str= get_token(lex, length);
+      yylval->lex_str.str+= 2;        // Skip b'
+      yylval->lex_str.length-= 3;     // Don't count b' and last '
+      lex->yytoklen-= 3;
+      return (BIN_NUM); 
 
     case MY_LEX_CMP_OP:			// Incomplete comparison operator
       if (state_map[yyPeek()] == MY_LEX_CMP_OP ||

@@ -182,7 +182,8 @@ enum ha_base_keytype {
   HA_KEYTYPE_UINT24=13,
   HA_KEYTYPE_INT8=14,
   HA_KEYTYPE_VARTEXT=15,		/* Key is sorted as letters */
-  HA_KEYTYPE_VARBINARY=16		/* Key is sorted as unsigned chars */
+  HA_KEYTYPE_VARBINARY=16,		/* Key is sorted as unsigned chars */
+  HA_KEYTYPE_BIT=17
 };
 
 #define HA_MAX_KEYTYPE	31		/* Must be log2-1 */

@@ -1583,6 +1583,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			packet, (uint) (pend-packet), thd->charset());
     table_list.alias= table_list.real_name= conv_name.str;
     packet= pend+1;
+
+    if (!my_strcasecmp(system_charset_info, table_list.db,
+                       information_schema_name.str))
+    {
+      ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, table_list.alias);
+      if (schema_table)
+        table_list.schema_table= schema_table;
+    }
+
     /*  command not cachable => no gap for data base name */
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
@@ -5050,6 +5059,19 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   case MYSQL_TYPE_VAR_STRING:
     DBUG_ASSERT(0);                             // Impossible
     break;
+  case MYSQL_TYPE_BIT:
+    {
+      if (!length)
+        new_field->length= 1;
+      if (new_field->length > MAX_BIT_FIELD_LENGTH)
+      {
+        my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), field_name,
+                 MAX_BIT_FIELD_LENGTH);
+        DBUG_RETURN(1);
+      }
+      new_field->pack_length= (new_field->length + 7) / 8;
+      break;
+    }
   }
 
   if (!(new_field->flags & BLOB_FLAG) &&
@@ -5245,7 +5267,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
                      information_schema_name.str))
   {
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->real_name);
-    if (!schema_table)
+    if (!schema_table ||
+        (schema_table->hidden && 
+         lex->orig_sql_command == SQLCOM_END))  // not a 'show' command
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0),
                ptr->real_name, information_schema_name.str);

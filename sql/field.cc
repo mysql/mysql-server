@@ -6048,6 +6048,227 @@ bool Field_num::eq_def(Field *field)
 }
 
 
+/*
+  Bit field.
+
+  We store the first 0 - 6 uneven bits among the null bits 
+  at the start of the record. The rest bytes are stored in 
+  the record itself.
+
+  For example:
+
+  CREATE TABLE t1 (a int, b bit(17), c bit(21) not null, d bit(8));
+  We would store data  as follows in the record:
+
+  Byte        Bit
+  1           7 - reserve for delete
+              6 - null bit for 'a'
+              5 - null bit for 'b'
+              4 - first (high) bit of 'b'
+              3 - first (high) bit of 'c'
+              2 - second bit of 'c'
+              1 - third bit of 'c'
+              0 - forth bit of 'c'
+  2           7 - firth bit of 'c'
+              6 - null bit for 'd'
+  3 - 6       four bytes for 'a'
+  7 - 8       two bytes for 'b'
+  9 - 10      two bytes for 'c'
+  11          one byte for 'd'
+*/
+
+void Field_bit::make_field(Send_field *field)
+{
+  /* table_cache_key is not set for temp tables */
+  field->db_name= (orig_table->table_cache_key ? orig_table->table_cache_key :
+		   "");
+  field->org_table_name= orig_table->real_name;
+  field->table_name= orig_table->table_name;
+  field->col_name= field->org_col_name= field_name;
+  field->charsetnr= charset()->number;
+  field->length= field_length;
+  field->type= type();
+  field->flags= table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
+  field->decimals= 0;
+}
+
+
+int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
+{
+  int delta;
+
+  for (; !*from && length; from++, length--);          // skip left 0's
+  delta= field_length - length;
+
+  if (delta < -1 ||
+      (delta == -1 && (uchar) *from > ((1 << bit_len) - 1)) ||
+      (!bit_len && delta < 0))
+  {
+    set_rec_bits(0xff, bit_ptr, bit_ofs, bit_len);
+    memset(ptr, 0xff, field_length);
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    return 1;
+  }
+  /* delta is >= -1 here */
+  if (delta > 0)
+  {
+    if (bit_len)
+      clr_rec_bits(bit_ptr, bit_ofs, bit_len);
+    bzero(ptr, delta);
+    memcpy(ptr + delta, from, length);
+  }
+  else if (delta == 0)
+  {
+    if (bit_len)
+      clr_rec_bits(bit_ptr, bit_ofs, bit_len);
+    memcpy(ptr, from, length);
+  }
+  else
+  {
+    if (bit_len)
+    {
+      set_rec_bits((uchar) *from, bit_ptr, bit_ofs, bit_len);
+      from++;
+    }
+    memcpy(ptr, from, field_length);
+  }
+  return 0;
+}
+
+
+int Field_bit::store(double nr)
+{
+  return (Field_bit::store((longlong) nr));
+}
+
+
+int Field_bit::store(longlong nr)
+{
+  char buf[8];
+
+  mi_int8store(buf, nr);
+  return store(buf, 8, NULL);
+}
+
+
+double Field_bit::val_real(void)
+{
+  return (double) Field_bit::val_int();
+}
+
+
+longlong Field_bit::val_int(void)
+{
+  ulonglong bits= 0;
+  if (bit_len)
+    bits= get_rec_bits(bit_ptr, bit_ofs, bit_len);
+  bits<<= (field_length * 8);
+
+  switch (field_length) {
+  case 0: return bits;
+  case 1: return bits | (ulonglong) (uchar) ptr[0];
+  case 2: return bits | mi_uint2korr(ptr);
+  case 3: return bits | mi_uint3korr(ptr);
+  case 4: return bits | mi_uint4korr(ptr);
+  case 5: return bits | mi_uint5korr(ptr);
+  case 6: return bits | mi_uint6korr(ptr);
+  case 7: return bits | mi_uint7korr(ptr);
+  default: return mi_uint8korr(ptr + field_length - sizeof(longlong));
+  }
+}  
+
+
+String *Field_bit::val_str(String *val_buffer,
+                           String *val_ptr __attribute__((unused)))
+{
+  uint length= min(pack_length(), sizeof(longlong));
+  ulonglong bits= val_int();
+
+  val_buffer->alloc(length);
+  memcpy_fixed((char*) val_buffer->ptr(), (char*) &bits, length);
+  val_buffer->length(length);
+  val_buffer->set_charset(&my_charset_bin);
+  return val_buffer;
+}
+
+
+int Field_bit::key_cmp(const byte *str, uint length)
+{
+  if (bit_len)
+  {
+    int flag;
+    uchar bits= get_rec_bits(bit_ptr, bit_ofs, bit_len);
+    if ((flag= (int) (bits - *str)))
+      return flag;
+    str++;
+    length--;
+  }
+  return bcmp(ptr, str, length);
+}
+
+
+int Field_bit::cmp_offset(uint row_offset)
+{
+  if (bit_len)
+  {
+    int flag;
+    uchar bits_a= get_rec_bits(bit_ptr, bit_ofs, bit_len);
+    uchar bits_b= get_rec_bits(bit_ptr + row_offset, bit_ofs, bit_len);
+    if ((flag= (int) (bits_a - bits_b)))
+      return flag;
+  }
+  return bcmp(ptr, ptr + row_offset, field_length);
+}
+
+
+void Field_bit::get_key_image(char *buff, uint length, imagetype type)
+{
+  if (bit_len)
+  {
+    uchar bits= get_rec_bits(bit_ptr, bit_ofs, bit_len);
+    *buff++= bits;
+    length--;
+  }
+  memcpy(buff, ptr, min(length, field_length));
+}
+
+
+void Field_bit::sql_type(String &res) const
+{
+  CHARSET_INFO *cs= res.charset();
+  ulong length= cs->cset->snprintf(cs, (char*) res.ptr(), res.alloced_length(),
+                                   "bit(%d)", 
+                                   (int) field_length * 8 + bit_len);
+  res.length((uint) length);
+}
+
+
+char *Field_bit::pack(char *to, const char *from, uint max_length)
+{
+  uint length= min(field_length + (bit_len > 0), max_length);
+  if (bit_len)
+  {
+    uchar bits= get_rec_bits(bit_ptr, bit_ofs, bit_len);
+    *to++= bits;
+    length--;
+  }
+  memcpy(to, from, length); 
+  return to + length;
+}
+
+
+const char *Field_bit::unpack(char *to, const char *from)
+{
+  if (bit_len)
+  {
+    set_rec_bits(*from, bit_ptr, bit_ofs, bit_len);
+    from++;
+  }
+  memcpy(to, from, field_length);
+  return from + field_length;
+}
+
+
 /*****************************************************************************
   Handling of field and create_field
 *****************************************************************************/
@@ -6124,6 +6345,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case FIELD_TYPE_GEOMETRY:	return 4+portable_sizeof_char_ptr;
   case FIELD_TYPE_SET:
   case FIELD_TYPE_ENUM: abort(); return 0;	// This shouldn't happen
+  case FIELD_TYPE_BIT: return length / 8;
   default: return 0;
   }
   return 0;					// Keep compiler happy
@@ -6154,10 +6376,29 @@ Field *make_field(char *ptr, uint32 field_length,
 		  const char *field_name,
 		  struct st_table *table)
 {
+  uchar *bit_ptr;
+  uchar bit_offset;
+  LINT_INIT(bit_ptr);
+  LINT_INIT(bit_offset);
+  if (field_type == FIELD_TYPE_BIT)
+  {
+    bit_ptr= null_pos;
+    bit_offset= null_bit;
+    if (f_maybe_null(pack_flag))         // if null field
+    {
+       bit_ptr+= (null_bit == 7);        // shift bit_ptr and bit_offset
+       bit_offset= (bit_offset + 1) & 7;
+    }
+  }
+
   if (!f_maybe_null(pack_flag))
   {
     null_pos=0;
     null_bit=0;
+  }
+  else
+  {
+    null_bit= ((uchar) 1) << null_bit;
   }
 
   switch (field_type)
@@ -6280,6 +6521,9 @@ Field *make_field(char *ptr, uint32 field_length,
 			      unireg_check, field_name, table, field_charset);
   case FIELD_TYPE_NULL:
     return new Field_null(ptr,field_length,unireg_check,field_name,table, field_charset);
+  case FIELD_TYPE_BIT:
+    return new Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
+                         bit_offset, unireg_check, field_name, table);
   default:					// Impossible (Wrong version)
     break;
   }
@@ -6338,6 +6582,9 @@ create_field::create_field(Field *old_field,Field *orig_field)
     geom_type= ((Field_geom*)old_field)->geom_type;
     break;
 #endif
+  case FIELD_TYPE_BIT:
+    length= ((Field_bit *) old_field)->bit_len + length * 8;
+    break;
   default:
     break;
   }
