@@ -4,7 +4,7 @@
 
 echo "Finding system information for a MySQL bug report"
 
-VERSION="@VERSION@"
+VERSION="@VERSION@@MYSQL_SERVER_SUFFIX@"
 COMPILATION_COMMENT="@COMPILATION_COMMENT@"
 BUGmysql="mysql@lists.mysql.com"
 # This is set by configure

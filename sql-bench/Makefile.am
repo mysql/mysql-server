@@ -78,6 +78,7 @@ SUFFIXES = .sh
 	  -e 's!@''libexecdir''@!$(libexecdir)!g' \
 	  -e 's!@''PERL''@!@PERL@!' \
 	  -e 's!@''VERSION''@!@VERSION@!' \
+	  -e 's!@''MYSQL_SERVER_SUFFIX''@!@MYSQL_SERVER_SUFFIX@!' \
 	  $< > $@-t
 	@CHMOD@ +x $@-t
 	@MV@ $@-t $@
