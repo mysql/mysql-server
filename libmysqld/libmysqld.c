@@ -289,6 +289,9 @@ void STDCALL mysql_close(MYSQL *mysql)
 #endif /* HAVE_OPENSSL */
     if (mysql->free_me)
       my_free((gptr) mysql,MYF(0));
+    
+    free_embedded_thd(mysql);
+
   }
   DBUG_VOID_RETURN;
 }
