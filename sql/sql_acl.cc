@@ -781,8 +781,8 @@ bool change_password(THD *thd, const char *host, const char *user,
   length=(uint) strlen(new_password);
   new_password[length & 16]=0;
 
-  if (!thd || strcmp(thd->user,user) ||
-      my_strcasecmp(host,thd->host ? thd->host : thd->ip))
+  if (!thd || (!thd->slave_thread && ( strcmp(thd->user,user) ||
+	       my_strcasecmp(host,thd->host ? thd->host : thd->ip))))
   {
     if (check_access(thd, UPDATE_ACL, "mysql",0,1))
       return 1;
