@@ -1478,19 +1478,19 @@ static bool show_status_array(THD *thd, const char *wild,
           end= int10_to_str((long) *(uint32*) value, buff, 10);
           break;
         case SHOW_HAVE:
-          {
-            SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
-            pos= show_comp_option_name[(int) tmp];
-            end= strend(pos);
-            break;
-          }
+        {
+          SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
+          pos= show_comp_option_name[(int) tmp];
+          end= strend(pos);
+          break;
+        }
         case SHOW_CHAR:
-          {
-            if (!(pos= value))
-              pos= "";
-            end= strend(pos);
-            break;
-          }
+        {
+          if (!(pos= value))
+            pos= "";
+          end= strend(pos);
+          break;
+        }
         case SHOW_STARTTIME:
           nr= (long) (thd->query_start() - start_time);
           end= int10_to_str(nr, buff, 10);
@@ -1503,29 +1503,29 @@ static bool show_status_array(THD *thd, const char *wild,
           end= strmov(buff, rpl_status_type[(int)rpl_status]);
           break;
         case SHOW_SLAVE_RUNNING:
-          {
-            pthread_mutex_lock(&LOCK_active_mi);
-            end= strmov(buff, (active_mi->slave_running &&
-                               active_mi->rli.slave_running) ? "ON" : "OFF");
-            pthread_mutex_unlock(&LOCK_active_mi);
-            break;
-          }
+        {
+          pthread_mutex_lock(&LOCK_active_mi);
+          end= strmov(buff, (active_mi->slave_running &&
+                             active_mi->rli.slave_running) ? "ON" : "OFF");
+          pthread_mutex_unlock(&LOCK_active_mi);
+          break;
+        }
 #endif /* HAVE_REPLICATION */
         case SHOW_OPENTABLES:
           end= int10_to_str((long) cached_tables(), buff, 10);
           break;
         case SHOW_CHAR_PTR:
-          {
-            if (!(pos= *(char**) value))
-              pos= "";
-            end= strend(pos);
-            break;
-          }
+        {
+          if (!(pos= *(char**) value))
+            pos= "";
+          end= strend(pos);
+          break;
+        }
         case SHOW_DOUBLE:
-          {
-            end= buff + sprintf(buff, "%f", *(double*) value);
-            break;
-          }
+        {
+          end= buff + sprintf(buff, "%f", *(double*) value);
+          break;
+        }
 #ifdef HAVE_OPENSSL
           /* First group - functions relying on CTX */
         case SHOW_SSL_CTX_SESS_ACCEPT:
