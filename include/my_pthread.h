@@ -674,11 +674,11 @@ extern pthread_t shutdown_th, main_th, signal_th;
 
 #ifndef thread_safe_increment
 #ifdef HAVE_ATOMIC_ADD
-#define thread_safe_increment(V,L) atomic_inc((atomic_t*) &V);
-#define thread_safe_decrement(V,L) atomic_dec((atomic_t*) &V);
-#define thread_safe_dec_and_test(V, L) atomic_dec_and_test((atomic_t*) &V);
-#define thread_safe_add(V,C,L)     atomic_add((C),(atomic_t*) &V);
-#define thread_safe_sub(V,C,L)     atomic_sub((C),(atomic_t*) &V);
+#define thread_safe_increment(V,L) atomic_inc((atomic_t*) &V)
+#define thread_safe_decrement(V,L) atomic_dec((atomic_t*) &V)
+#define thread_safe_dec_and_test(V, L) atomic_dec_and_test((atomic_t*) &V)
+#define thread_safe_add(V,C,L)     atomic_add((C),(atomic_t*) &V)
+#define thread_safe_sub(V,C,L)     atomic_sub((C),(atomic_t*) &V)
 #else
 #define thread_safe_increment(V,L) \
         (pthread_mutex_lock((L)), (V)++, pthread_mutex_unlock((L)))
