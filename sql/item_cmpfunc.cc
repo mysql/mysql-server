@@ -88,7 +88,6 @@ static bool convert_constant_item(Field *field, Item **item)
   return 0;
 }
 
-
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length=1;					// Function returns 0 or 1
@@ -130,20 +129,9 @@ void Item_bool_func2::fix_length_and_dec()
 int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 {
   owner= item;
-  switch (type)
+  func= comparator_matrix[type][owner->equal];
+  if (type == ROW_RESULT)
   {
-  case STRING_RESULT:
-    func= &Arg_comparator::compare_string;
-    break;
-  case REAL_RESULT:
-    func= &Arg_comparator::compare_real;
-    break;
-  case INT_RESULT:
-    func= &Arg_comparator::compare_int;
-    break;
-  case ROW_RESULT:
-  {
-    func= &Arg_comparator::compare_row;
     uint n= args[0]->cols();
     if (n != args[1]->cols())
     {
@@ -164,8 +152,6 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       current_thd->fatal_error= 1;
       return 1;
     }
-    break;
-  }
   }
   return 0;
 }
@@ -185,6 +171,18 @@ int Arg_comparator::compare_string()
   return -1;
 }
 
+int Arg_comparator::compare_e_string()
+{
+  String *res1,*res2;
+  res1= args[0]->val_str(&owner->tmp_value1);
+  res2= args[1]->val_str(&owner->tmp_value2);
+  if (!res1 || !res2)
+    return test(res1 == res2);
+  return (owner->binary() ? test(stringcmp(res1, res2) == 0) :
+	    test(sortcmp(res1, res2) == 0));
+}
+
+
 int Arg_comparator::compare_real()
 {
   double val1= args[0]->val();
@@ -203,6 +201,14 @@ int Arg_comparator::compare_real()
   return -1;
 }
 
+int Arg_comparator::compare_e_real()
+{
+  double val1= args[0]->val();
+  double val2= args[1]->val();
+  if (args[0]->null_value || args[1]->null_value)
+    return test(args[0]->null_value && args[1]->null_value);
+  return test(val1 == val2);
+}
 
 int Arg_comparator::compare_int()
 {
@@ -222,6 +228,16 @@ int Arg_comparator::compare_int()
   return -1;
 }
 
+int Arg_comparator::compare_e_int()
+{
+  longlong val1= args[0]->val_int();
+  longlong val2= args[1]->val_int();
+  if (args[0]->null_value || args[1]->null_value)
+    return test(args[0]->null_value && args[1]->null_value);
+  return test(val1 == val2);
+}
+
+
 int Arg_comparator::compare_row()
 {
   int res= 0;
@@ -236,6 +252,19 @@ int Arg_comparator::compare_row()
   return res;
 }
 
+int Arg_comparator::compare_e_row()
+{
+  int res= 0;
+  uint n= args[0]->cols();
+  for (uint i= 0; i<n; i++)
+  {
+    if ((res= comparators[i].compare()))
+      return 1;
+  }
+  return 1;
+}
+
+
 longlong Item_func_eq::val_int()
 {
   int value= arg_store.compare();
@@ -247,48 +276,14 @@ longlong Item_func_eq::val_int()
 void Item_func_equal::fix_length_and_dec()
 {
   Item_bool_func2::fix_length_and_dec();
-  cmp_result_type=item_cmp_type(args[0]->result_type(),args[1]->result_type());
   maybe_null=null_value=0;
+  set_cmp_func();
 }
 
 longlong Item_func_equal::val_int()
 {
-  switch (cmp_result_type) {
-  case STRING_RESULT:
-  {
-    String *res1,*res2;
-    res1=args[0]->val_str(&tmp_value1);
-    res2=args[1]->val_str(&tmp_value2);
-    if (!res1 || !res2)
-      return test(res1 == res2);
-    return (binary() ? test(stringcmp(res1,res2) == 0) :
-	    test(sortcmp(res1,res2) == 0));
-  }
-  case REAL_RESULT:
-  {
-    double val1=args[0]->val();
-    double val2=args[1]->val();
-    if (args[0]->null_value || args[1]->null_value)
-      return test(args[0]->null_value && args[1]->null_value);
-    return test(val1 == val2);
-  }
-  case INT_RESULT:
-  {
-    longlong val1=args[0]->val_int();
-    longlong val2=args[1]->val_int();
-    if (args[0]->null_value || args[1]->null_value)
-      return test(args[0]->null_value && args[1]->null_value);
-    return test(val1 == val2);
-  }
-  case ROW_RESULT:
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "row", "<=>");
-    return 0;
-  }
-  }
-  return 0;					// Impossible
+  return arg_store.compare();
 }
-
 
 longlong Item_func_ne::val_int()
 {

@@ -6,6 +6,8 @@ SELECT (1,2,3)>(1+1,2,3);
 SELECT (1,2,3)<=(1+1,2,3);
 SELECT (1,2,3)>=(1+1,2,3);
 SELECT (1,2,3)<>(1+1,2,3);
+SELECT (NULL,2,3)=(NULL,2,3);
+SELECT (NULL,2,3)<=>(NULL,2,3);
 SELECT (1,2,(3,4,5))=(1,2,(3,4,5));
 SELECT ('test',2,3.33)=('test',2,3.33);
 -- error 1239

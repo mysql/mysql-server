@@ -34,8 +34,9 @@ class Item_bool_func2 :public Item_int_func
 {						/* Bool with 2 string args */
 protected:
   String tmp_value1,tmp_value2;
+  bool equal;
 public:
-  Item_bool_func2(Item *a,Item *b) :Item_int_func(a,b) {}
+  Item_bool_func2(Item *a,Item *b) :Item_int_func(a,b), equal(0) {}
   void fix_length_and_dec();
   void set_cmp_func()
   {
@@ -85,11 +86,10 @@ public:
   const char *func_name() const { return "="; }
 };
 
-class Item_func_equal :public Item_bool_func2
+class Item_func_equal :public Item_bool_rowready_func2
 {
-  Item_result cmp_result_type;
 public:
-  Item_func_equal(Item *a,Item *b) :Item_bool_func2(a,b) { };
+  Item_func_equal(Item *a,Item *b) :Item_bool_rowready_func2(a,b) { equal=1; };
   longlong val_int();
   void fix_length_and_dec();
   enum Functype functype() const { return EQUAL_FUNC; }
