@@ -82,8 +82,8 @@ extern int _rl_find_next_mbchar PARAMS((char *, int, int, int));
 #ifdef HANDLE_MULTIBYTE
 
 extern int _rl_compare_chars PARAMS((char *, int, mbstate_t *, char *, int, mbstate_t *));
-extern int _rl_get_char_len PARAMS((char *, mbstate_t *));
-extern int _rl_adjust_point PARAMS((char *, int, mbstate_t *));
+extern int _rl_get_char_len PARAMS((const char *, mbstate_t *));
+extern int _rl_adjust_point PARAMS((const char *, int, mbstate_t *));
 
 extern int _rl_read_mbchar PARAMS((char *, int));
 extern int _rl_read_mbstring PARAMS((int, char *, int));
