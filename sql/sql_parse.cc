@@ -1273,7 +1273,7 @@ bool do_command(THD *thd)
   }
   else
   {
-    if (thd->killed == THD::KILL_QUERY)
+    if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
       thd->killed= THD::NOT_KILLED;
 
     packet=(char*) net->read_pos;
@@ -3185,8 +3185,6 @@ purposes internal to the MySQL server", MYF(0));
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
 
-
-
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
 #ifdef HAVE_QUERY_CACHE
@@ -4620,6 +4618,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   register create_field *new_field;
   LEX  *lex= thd->lex;
   uint allowed_type_modifier=0;
+  uint sign_len;
   char warn_buff[MYSQL_ERRMSG_SIZE];
   DBUG_ENTER("add_field_to_list");
 
@@ -4711,9 +4710,14 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     new_field->comment.str=   (char*) comment->str;
     new_field->comment.length=comment->length;
   }
+  /* Set flag if this field doesn't have a default value */
+  if (!default_value && !(type_modifier & AUTO_INCREMENT_FLAG) &&
+      (type_modifier & NOT_NULL_FLAG) && type != FIELD_TYPE_TIMESTAMP)
+    new_field->flags|= NO_DEFAULT_VALUE_FLAG;
+
   if (length && !(new_field->length= (uint) atoi(length)))
     length=0; /* purecov: inspected */
-  uint sign_len=type_modifier & UNSIGNED_FLAG ? 0 : 1;
+  sign_len=type_modifier & UNSIGNED_FLAG ? 0 : 1;
 
   if (new_field->length && new_field->decimals &&
       new_field->length < new_field->decimals+1 &&

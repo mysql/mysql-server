@@ -103,14 +103,30 @@ void mysql_reset_errors(THD *thd)
 MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, 
                           uint code, const char *msg)
 {
+  MYSQL_ERROR *err= NULL;
   DBUG_ENTER("push_warning");
+
   if (thd->query_id != thd->warn_id)
     mysql_reset_errors(thd);
 
-  MYSQL_ERROR *err= NULL;
-
-  if (thd->spcont && thd->spcont->find_handler(code))
+  if (thd->spcont &&
+      thd->spcont->find_handler(code,
+                                ((int) level >=
+                                 (int) MYSQL_ERROR::WARN_LEVEL_WARN &&
+                                 thd->really_abort_on_warning()) ?
+                                MYSQL_ERROR::WARN_LEVEL_ERROR : level))
+  {
     DBUG_RETURN(NULL);
+  }
+
+  /* Abort if we are using strict mode and we are not using IGNORE */
+  if ((int) level >= (int) MYSQL_ERROR::WARN_LEVEL_WARN &&
+      thd->really_abort_on_warning())
+  {
+    thd->killed= THD::KILL_BAD_DATA;
+    my_message(code, msg, MYF(0));
+    DBUG_RETURN(NULL);
+  }
 
   if (thd->warn_list.elements < thd->variables.max_error_count)
   {
@@ -120,8 +136,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
     */
     MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
     my_pthread_setspecific_ptr(THR_MALLOC, &thd->warn_root);
-    err= new MYSQL_ERROR(thd, code, level, msg);
-    if (err)
+    if ((err= new MYSQL_ERROR(thd, code, level, msg)))
       thd->warn_list.push_back(err);
     my_pthread_setspecific_ptr(THR_MALLOC, old_root);
   }

@@ -950,7 +950,7 @@ public:
   /* for user variables replication*/
   DYNAMIC_ARRAY user_var_events;
 
-  enum killed_state { NOT_KILLED=0, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
+  enum killed_state { NOT_KILLED=0, KILL_BAD_DATA=1, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
   killed_state volatile killed;
 
   /* scramble - random string sent to client on handshake */
@@ -967,7 +967,7 @@ public:
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       slow_command;
-
+  bool	     no_trans_update, abort_on_warning;
   longlong   row_count_func;	/* For the ROW_COUNT() function */
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
@@ -1125,11 +1125,18 @@ public:
   void update_charset();
   inline int killed_errno() const
   {
-    return killed;
+    return killed != KILL_BAD_DATA ? killed : 0;
   }
   inline void send_kill_message() const
   {
     my_error(killed_errno(), MYF(0));
+  }
+  /* return TRUE if we will abort query if we make a warning now */
+  inline bool really_abort_on_warning()
+  {
+    return (abort_on_warning &&
+            (!no_trans_update ||
+             (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
 };

@@ -1453,12 +1453,12 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 		      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
 		      thd->open_options, entry)) &&
       (error != 5 ||
-       fn_format(path, path, 0, reg_ext, MY_UNPACK_FILENAME),
-       open_new_frm(path, alias, db, name,
-		    (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-			    HA_GET_INDEX | HA_TRY_READ_ONLY),
-		    READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
-		    thd->open_options, entry, table_desc, mem_root)))
+       (fn_format(path, path, 0, reg_ext, MY_UNPACK_FILENAME),
+        open_new_frm(path, alias, db, name,
+                     (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
+                             HA_GET_INDEX | HA_TRY_READ_ONLY),
+                     READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                     thd->open_options, entry, table_desc, mem_root))))
 
   {
     if (!entry->crashed)
