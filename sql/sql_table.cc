@@ -32,7 +32,7 @@ static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
 				    List<create_field> &create,
 				    enum enum_duplicates handle_duplicates,
-				    ulong *copied,ulong *deleted);
+				    ha_rows *copied,ha_rows *deleted);
 
 /*****************************************************************************
 ** Remove all possbile tables and give a compact errormessage for all
@@ -992,7 +992,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN],
     *table_name,*db;
   bool use_timestamp=0;
-  ulong copied,deleted;
+  ha_rows copied,deleted;
+  ulonglong next_insert_id;
   uint save_time_stamp,db_create_options;
   enum db_type old_db_type,new_db_type;
   DBUG_ENTER("mysql_alter_table");
@@ -1333,11 +1334,13 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (use_timestamp)
     new_table->time_stamp=0;
   new_table->next_number_field=new_table->found_next_number_field;
-  thd->count_cuted_fields=1;			/* calc cuted fields */
+  thd->count_cuted_fields=1;			// calc cuted fields
   thd->cuted_fields=0L;
   thd->proc_info="copy to tmp table";
+  next_insert_id=thd->next_insert_id;		// Remember for loggin
   error=copy_data_between_tables(table,new_table,create_list,handle_duplicates,
 				 &copied,&deleted);
+  thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
   new_table->time_stamp=save_time_stamp;
 
@@ -1474,8 +1477,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   VOID(pthread_mutex_unlock(&LOCK_open));
 
 end_temporary:
-  sprintf(tmp_name,ER(ER_INSERT_INFO),copied+deleted,deleted,
-	  thd->cuted_fields);
+  sprintf(tmp_name,ER(ER_INSERT_INFO),(ulong) (copied+deleted),
+	  (ulong) deleted, thd->cuted_fields);
   send_ok(&thd->net,copied+deleted,0L,tmp_name);
   thd->some_tables_deleted=0;
   DBUG_RETURN(0);
@@ -1488,7 +1491,7 @@ end_temporary:
 static int
 copy_data_between_tables(TABLE *from,TABLE *to,List<create_field> &create,
 			 enum enum_duplicates handle_duplicates,
-			 ulong *copied,ulong *deleted)
+			 ha_rows *copied,ha_rows *deleted)
 {
   int error;
   Copy_field *copy,*copy_end;
