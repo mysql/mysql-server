@@ -328,7 +328,7 @@ while test $# -gt 0; do
       VALGRIND="valgrind --alignment=8 --leak-check=yes"
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc"
-      #SLEEP_TIME_AFTER_RESTART=120
+      SLEEP_TIME_AFTER_RESTART=10
       SLEEP_TIME_FOR_DELETE=120
       ;;
     --valgrind-options=*)
