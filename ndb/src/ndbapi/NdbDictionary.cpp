@@ -922,6 +922,9 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
   case NdbDictionary::Column::Undefined:
     out << "Undefined";
     break;
+  case NdbDictionary::Column::Bit:
+    out << "Bit(" << col.getLength() << ")";
+    break;
   default:
     out << "Type" << (Uint32)col.getType();
     break;
@@ -942,4 +945,4 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::COMMIT_COUNT = 0;
-
+const NdbDictionary::Column * NdbDictionary::Column::ROW_SIZE = 0;

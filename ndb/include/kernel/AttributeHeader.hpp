@@ -38,6 +38,8 @@ public:
   STATIC_CONST( ROW_COUNT    = 0xFFFD );
   STATIC_CONST( COMMIT_COUNT = 0xFFFC );
   
+  STATIC_CONST( ROW_SIZE     = 0xFFFA );
+
   /** Initialize AttributeHeader at location aHeaderPtr */
   static AttributeHeader& init(void* aHeaderPtr, Uint32 anAttributeId, 
 			       Uint32 aDataSize);

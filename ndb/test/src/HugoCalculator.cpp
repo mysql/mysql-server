@@ -137,13 +137,16 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
     if (i != m_updatesCol && id != m_idCol) {
       
       const NdbDictionary::Column* attr = m_tab.getColumn(i);      
+      Uint32 len = attr->getLength();
       switch (attr->getType()){
+      case NdbDictionary::Column::Bit:
+	len = 4 * ((len + 31) >> 5);
       case NdbDictionary::Column::Char:
       case NdbDictionary::Column::Varchar:
       case NdbDictionary::Column::Binary:
       case NdbDictionary::Column::Varbinary:{
 	int result = 0;	  
-	char* buf = new char[attr->getLength()+1];
+	char* buf = new char[len+1];
 	const char* res = calcValue(id, i, updates, buf);
 	if (res == NULL){
 	  if (!pRow->attributeStore(i)->isNULL()){
@@ -171,17 +174,16 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 	    g_err << endl;
 	    g_err << "|- Invalid data found in attribute " << i << ": \""
 		   << pRow->attributeStore(i)->aRef()
-		   << "\" != \"" << res << "\"" << endl
-		   << "Length of expected=" << (unsigned)strlen(res) << endl
-		   << "Lenght of read="
-		   << (unsigned)strlen(pRow->attributeStore(i)->aRef()) << endl;
+		  << "\" != \"" << res << "\"" << endl
+		  << "Length of expected=" << (unsigned)strlen(res) << endl
+		  << "Lenght of read="
+		  << (unsigned)strlen(pRow->attributeStore(i)->aRef()) << endl;
 	    g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
 	    result = -1;
 	  }
 	}
 	delete []buf;
-	if (result != 0)
-	  return result;
+	return result;
       }
 	break;
       case NdbDictionary::Column::Int:
@@ -190,11 +192,11 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 	Int32 val = pRow->attributeStore(i)->int32_value();
 	if (val != cval){
 	  g_err << "|- Invalid data found: \"" << val << "\" != \"" 
-		 << cval << "\"" << endl;
+		<< cval << "\"" << endl;
 	  g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
 	  return -1;
 	}
-	break;
+	return 0;
       }
       case NdbDictionary::Column::Bigint:
       case NdbDictionary::Column::Bigunsigned:{
@@ -202,11 +204,12 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 	Uint64 val = pRow->attributeStore(i)->u_64_value();
 	if (val != cval){
 	  g_err << "|- Invalid data found: \"" << val << "\" != \"" 
-		 << cval << "\"" 
-		 << endl;
+		<< cval << "\"" 
+		<< endl;
 	  g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
 	  return -1;
 	}
+	return 0;
       }
 	break;
       case NdbDictionary::Column::Float:{
@@ -218,17 +221,16 @@ HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
 	  g_err << "|- The row: \"" << (* pRow) << "\"" << endl;
 	  return -1;
 	}
+	return 0;
       }
 	break;
       case NdbDictionary::Column::Undefined:
-      default:
-	assert(false);
 	break;
       }
-      
     }
   }
-  return 0;
+  assert(0);
+  return -1;
 }
 
 int

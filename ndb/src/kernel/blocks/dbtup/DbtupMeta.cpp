@@ -344,6 +344,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 	  ljam();
 	  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
 	  fragOperPtr.p->currNullBit += bitCount;
+	  break;
 	}
       }
       default:
