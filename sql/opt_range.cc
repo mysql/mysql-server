@@ -712,8 +712,9 @@ QUICK_SELECT_I::QUICK_SELECT_I()
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc)
-  :dont_free(0),sorted(0),error(0),free_file(0),cur_range(NULL),range(0)
+  :dont_free(0),error(0),free_file(0),cur_range(NULL),range(0)
 {
+  sorted= 0;
   index= key_nr;
   head=  table;
   key_part_info= head->key_info[index].key_part;

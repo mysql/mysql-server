@@ -507,7 +507,7 @@ void Protocol::init(THD *thd_arg)
 */
 
 #ifndef EMBEDDED_LIBRARY
-bool Protocol::send_fields(List<Item> *list, int flags)
+bool Protocol::send_fields(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
   Item *item;

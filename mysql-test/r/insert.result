@@ -1,4 +1,4 @@
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 create table t1 (a int not null);
 insert into t1 values (1);
 insert into t1 values (a+2);
@@ -287,8 +287,7 @@ f_double_u	0
 f_float_u	0
 f_double_15_1_u	0.0
 f_float_3_1_u	0.0
-use test;
-drop table if exists t1,t2,t3;
+drop table t1;
 create table t1(id1 int not null auto_increment primary key, t char(12));
 create table t2(id2 int not null, t char(12));
 create table t3(id3 int not null, t char(12), index(id3));
@@ -299,4 +298,4 @@ insert into  t2 select t1.* from t1, t2 t, t3 where  t1.id1 = t.id2 and t.id2 = 
 select count(*) from t2;
 count(*)
 25500
-drop table if exists t1,t2,t3;
+drop table t1,t2,t3;

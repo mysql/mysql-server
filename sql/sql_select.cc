@@ -91,7 +91,7 @@ static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
 			    uint select_options, const char *info,
 			    Item *having, Procedure *proc,
 			    SELECT_LEX_UNIT *unit);
-static COND *build_equal_items(COND *cond,
+static COND *build_equal_items(THD *thd, COND *cond,
                                COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
                                COND_EQUAL **cond_equal_ref);
@@ -101,6 +101,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
 static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
                             COND *conds, bool top);
 static COND *optimize_cond(JOIN *join, COND *conds,
+                           List<TABLE_LIST> *join_list,
 			   Item::cond_result *cond_value);
 static bool resolve_nested_join (TABLE_LIST *table);
 static COND *remove_eq_conds(THD *thd, COND *cond, 
@@ -228,14 +229,11 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		      select_lex->options | thd->options,
 		      result, unit, select_lex);
   }
-
-  /* Don't set res if it's -1 as we may want this later */
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
 		     thd->net.report_error));
-  if (thd->net.report_error || res<0)
+  if (thd->net.report_error || res < 0)
   {
-    if (res > 0)
-      result->send_error(0, NullS);
+    result->send_error(0, NullS);
     result->abort();
     res= 1;					// Error sent to client
   }
@@ -556,17 +554,7 @@ JOIN::optimize()
       thd->restore_backup_item_arena(arena, &backup);
   }
 
-  /* 
-    Build all multiple equality predicates and eliminate equality
-    predicates that can be inferred from these multiple equalities.
-    For each reference of a field included into a multiple equality
-    that occurs in a function set a pointer to the multiple equality
-    predicate. Substitute a constant instead of this field if the
-    multiple equality contains a constant.
-  */ 
-  conds= build_equal_items(conds, NULL, join_list, &cond_equal);
-
-  conds= optimize_cond(this, conds,&cond_value);   
+  conds= optimize_cond(this, conds, join_list, &cond_value);   
   if (thd->net.report_error)
   {
     error= 1;
@@ -684,6 +672,7 @@ JOIN::optimize()
   {
     conds= substitute_for_best_equal_field(conds, cond_equal, map2table);
     conds->update_used_tables();
+    DBUG_EXECUTE("where", print_where(conds, "after substitute_best_equal"););
   }
   /*
     Permorm the the optimization on fields evaluation mentioned above
@@ -1723,11 +1712,10 @@ int
 Cursor::open(JOIN *join_arg)
 {
   join= join_arg;
-
   THD *thd= join->thd;
-
   /* First non-constant table */
   JOIN_TAB *join_tab= join->join_tab + join->const_tables;
+  DBUG_ENTER("Cursor::open");
 
   /*
     Send fields description to the client; server_status is sent
@@ -1749,7 +1737,9 @@ Cursor::open(JOIN *join_arg)
   join->fetch_limit= join->unit->offset_limit_cnt;
 
   /* Disable JOIN CACHE as it is not working with cursors yet */
-  for (JOIN_TAB *tab= join_tab; tab != join->join_tab + join->tables - 1; ++tab)
+  for (JOIN_TAB *tab= join_tab;
+       tab != join->join_tab + join->tables - 1;
+       tab++)
   {
     if (tab->next_select == sub_select_cache)
       tab->next_select= sub_select;
@@ -1763,7 +1753,7 @@ Cursor::open(JOIN *join_arg)
   */
   DBUG_ASSERT(join_tab->table->null_row == 0);
 
-  return join_tab->read_first_record(join_tab);
+  DBUG_RETURN(join_tab->read_first_record(join_tab));
 }
 
 
@@ -6028,7 +6018,7 @@ template class List_iterator<Item_func_match>;
     find_item_equal()
     cond_equal          multiple equalities to search in
     field               field to look for
-    inherited_fl  :out  set up to TRUE iff multiple equality is found
+    inherited_fl  :out  set up to TRUE if multiple equality is found
                         on upper levels (not on current level of cond_equal) 
 
   DESCRIPTION
@@ -6446,12 +6436,14 @@ static COND *build_equal_items_for_cond(COND *cond,
   return cond;
 }
 
+
 /* 
   Build multiple equalities for a condition and all on expressions that
   inherit these multiple equalities
 
   SYNOPSIS
     build_equal_items()
+    thd			Thread handler
     cond                condition to build the multiple equalities for
     inherited           path to all inherited multiple equality items
     join_list           list of join tables to which the condition refers to
@@ -6503,7 +6495,7 @@ static COND *build_equal_items_for_cond(COND *cond,
     pointer to the transformed condition containing multiple equalities
 */
    
-static COND *build_equal_items(COND *cond,
+static COND *build_equal_items(THD *thd, COND *cond,
                                COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
                                COND_EQUAL **cond_equal_ref)
@@ -6540,18 +6532,20 @@ static COND *build_equal_items(COND *cond,
     {
       if (table->on_expr)
       {
+        Item *expr;
         List<TABLE_LIST> *join_list= table->nested_join ?
 	                             &table->nested_join->join_list : NULL;
-        table->on_expr= build_equal_items(table->on_expr,
-                                          inherited,
-                                          join_list,
-                                          &table->cond_equal);
+        expr= build_equal_items(thd, table->on_expr, inherited, join_list,
+                                &table->cond_equal);
+        if (expr != table->on_expr)
+          thd->change_item_tree(&table->on_expr, expr);
       }
     }
   }
 
   return cond;
 }    
+
 
 /* 
   Compare field items by table order in the execution plan
@@ -6796,6 +6790,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
     cond->walk(&Item::replace_equal_field_processor, 0);
   return cond;
 }
+
 
 /*
   change field = field to field = const for each found field = const in the
@@ -7089,6 +7084,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       */
       if (table->on_expr)
       {
+        Item *expr;
         /* 
            If an on expression E is attached to the table, 
            check all null rejected predicates in this expression.
@@ -7097,8 +7093,9 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
            the outer join is converted to an inner join and
            the corresponding on expression is added to E. 
 	*/ 
-        table->on_expr= simplify_joins(join, &nested_join->join_list,
-                                       table->on_expr, FALSE);
+        expr= simplify_joins(join, &nested_join->join_list,
+                             table->on_expr, FALSE);
+        table->on_expr= expr;
       }
       nested_join->used_tables= (table_map) 0;
       nested_join->not_null_tables=(table_map) 0;
@@ -7207,8 +7204,10 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
   DBUG_RETURN(conds); 
 }
         
+
 static COND *
-optimize_cond(JOIN *join, COND *conds, Item::cond_result *cond_value)
+optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
+              Item::cond_result *cond_value)
 {
   THD *thd= join->thd;
   SELECT_LEX *select= thd->lex->current_select;    
@@ -7221,7 +7220,19 @@ optimize_cond(JOIN *join, COND *conds, Item::cond_result *cond_value)
   }
   else
   {
+    /* 
+      Build all multiple equality predicates and eliminate equality
+      predicates that can be inferred from these multiple equalities.
+      For each reference of a field included into a multiple equality
+      that occurs in a function set a pointer to the multiple equality
+      predicate. Substitute a constant instead of this field if the
+      multiple equality contains a constant.
+    */ 
     DBUG_EXECUTE("where", print_where(conds, "original"););
+    conds= build_equal_items(join->thd, conds, NULL, join_list,
+                             &join->cond_equal);
+    DBUG_EXECUTE("where",print_where(conds,"after equal_items"););
+
     /* change field = field to field = const for each found field = const */
     propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
     /*

@@ -165,6 +165,9 @@ THD::THD()
    in_lock_tables(0), bootstrap(0), spcont(NULL)
 {
   current_arena= this;
+#ifndef DBUG_OFF
+  backup_arena= 0;
+#endif
   host= user= priv_user= db= ip= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   host_or_ip= "connecting host";
@@ -795,10 +798,13 @@ void THD::rollback_item_tree_changes()
 {
   I_List_iterator<Item_change_record> it(change_list);
   Item_change_record *change;
+  DBUG_ENTER("rollback_item_tree_changes");
+
   while ((change= it++))
     *change->place= change->old_value;
   /* We can forget about changes memory: it's allocated in runtime memroot */
   change_list.empty();
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1585,16 +1591,24 @@ void THD::end_statement()
 void Item_arena::set_n_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
   DBUG_ENTER("Item_arena::set_n_backup_item_arena");
+  DBUG_ASSERT(backup_arena == 0);
   backup->set_item_arena(this);
   set_item_arena(set);
+#ifndef DBUG_OFF
+  backup_arena= 1;
+#endif
   DBUG_VOID_RETURN;
 }
 
 
 void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
 {
+  DBUG_ENTER("Item_arena::restore_backup_item_arena");
   set->set_item_arena(this);
   set_item_arena(backup);
+#ifndef DBUG_OFF
+  backup_arena= 0;
+#endif
 #ifdef NOT_NEEDED_NOW
   /*
     Reset backup mem_root to avoid its freeing.
@@ -1605,6 +1619,7 @@ void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
   */
   clear_alloc_root(&backup->mem_root);
 #endif
+  DBUG_VOID_RETURN;
 }
 
 void Item_arena::set_item_arena(Item_arena *set)
