@@ -177,12 +177,16 @@ typedef struct st_relay_log_info
   bool ignore_log_space_limit;
 
   /*
-    InnoDB internally stores the master log position it has processed
-    so far; the position to store is really the sum of 
-    pos + pending + event_len here since we must store the pos of the
-    END of the current log event
+    When it commits, InnoDB internally stores the master log position it has
+    processed so far; the position to store is the one of the end of the
+    committing event (the COMMIT query event, or the event if in autocommit
+    mode).
   */
-  int event_len;
+#if MYSQL_VERSION_ID < 40100
+  ulonglong future_master_log_pos;
+#else
+  ulonglong future_group_master_log_pos;
+#endif
 
   /*
     Needed for problems when slave stops and we want to restart it
