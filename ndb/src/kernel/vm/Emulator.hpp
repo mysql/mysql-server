@@ -25,6 +25,7 @@
 //
 //===========================================================================
 #include <kernel_types.h>
+#include <TransporterRegistry.hpp>
 
 extern class  JobTable            globalJobTable;
 extern class  TimeQueue           globalTimeQueue;
@@ -54,7 +55,8 @@ struct EmulatorData {
   class WatchDog      * theWatchDog;
   class ThreadConfig  * theThreadConfig;
   class SimBlockList  * theSimBlockList;
-  
+  class SocketServer  * m_socket_server;
+
   /**
    * Constructor
    *

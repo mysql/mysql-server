@@ -87,7 +87,8 @@ parse_line(EditLine *el, const char *line)
 	int argc;
 	Tokenizer *tok;
 
-	tok = tok_init(NULL);
+	if (!(tok = tok_init(NULL)))
+          return -1;
 	tok_line(tok, line, &argc, &argv);
 	argc = el_parse(el, argc, argv);
 	tok_end(tok);

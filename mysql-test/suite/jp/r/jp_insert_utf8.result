@@ -1,0 +1,905 @@
+drop table if exists `Ｔ１`;
+drop table if exists `Ｔ２`;
+drop table if exists `Ｔ３`;
+drop table if exists `Ｔ４`;
+drop table if exists `Ｔ５`;
+drop table if exists `Ｔ６`;
+drop table if exists `Ｔ７`;
+drop table if exists `Ｔ８`;
+drop table if exists `Ｔ９`;
+drop table if exists `Ｔ１０`;
+drop table if exists `Ｔ１１`;
+drop table if exists `Ｔ１２`;
+SET NAMES utf8;
+SET character_set_database = utf8;
+CREATE TABLE `Ｔ１` (`Ｃ１` char(5)) DEFAULT CHARSET = utf8 engine = innodb;
+CREATE TABLE `Ｔ２` (`Ｃ１` char(5)) DEFAULT CHARSET = utf8 engine = innodb;
+CREATE TABLE `Ｔ３` (`Ｃ１` char(5)) DEFAULT CHARSET = utf8 engine = innodb;
+CREATE TABLE `Ｔ４` (`Ｃ１` char(5)) DEFAULT CHARSET = utf8 engine = myisam;
+CREATE TABLE `Ｔ５` (`Ｃ１` char(5)) DEFAULT CHARSET = utf8 engine = myisam;
+CREATE TABLE `Ｔ６` (`Ｃ１` char(5)) DEFAULT CHARSET = utf8 engine = myisam;
+CREATE TABLE `Ｔ７` (`Ｃ１` char(5)) DEFAULT CHARSET = utf8 engine = heap;
+CREATE TABLE `Ｔ８` (`Ｃ１` char(5)) DEFAULT CHARSET = utf8 engine = heap;
+CREATE TABLE `Ｔ９` (`Ｃ１` char(5)) DEFAULT CHARSET = utf8 engine = heap;
+CREATE TABLE `Ｔ１０` (`Ｃ１` char(5)) DEFAULT CHARSET = utf8 engine = bdb;
+CREATE TABLE `Ｔ１１` (`Ｃ１` char(5)) DEFAULT CHARSET = utf8 engine = bdb;
+CREATE TABLE `Ｔ１２` (`Ｃ１` char(5)) DEFAULT CHARSET = utf8 engine = bdb;
+INSERT INTO `Ｔ１` VALUES ('ｱｲｳｴｵ');
+INSERT INTO `Ｔ２` VALUES ('あいうえお');
+INSERT INTO `Ｔ３` VALUES ('龔龖龗龞龡');
+INSERT INTO `Ｔ４` VALUES ('ｱｲｳｴｵ');
+INSERT INTO `Ｔ５` VALUES ('あいうえお');
+INSERT INTO `Ｔ６` VALUES ('龔龖龗龞龡');
+INSERT INTO `Ｔ７` VALUES ('ｱｲｳｴｵ');
+INSERT INTO `Ｔ８` VALUES ('あいうえお');
+INSERT INTO `Ｔ９` VALUES ('龔龖龗龞龡');
+INSERT INTO `Ｔ１０` VALUES ('ｱｲｳｴｵ');
+INSERT INTO `Ｔ１１` VALUES ('あいうえお');
+INSERT INTO `Ｔ１２` VALUES ('龔龖龗龞龡');
+SELECT INSERT(`Ｃ１`,1,1,'ｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,1,1,'ｶ')
+ｶｲｳｴｵ
+SELECT INSERT(`Ｃ１`,1,2,'ｶｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,1,2,'ｶｶ')
+ｶｶｳｴｵ
+SELECT INSERT(`Ｃ１`,1,3,'ｶｶｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,1,3,'ｶｶｶ')
+ｶｶｶｴｵ
+SELECT INSERT(`Ｃ１`,1,4,'ｶｶｶｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,1,4,'ｶｶｶｶ')
+ｶｶｶｶｵ
+SELECT INSERT(`Ｃ１`,1,5,'ｶｶｶｶｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,1,5,'ｶｶｶｶｶ')
+ｶｶｶｶｶ
+SELECT INSERT(`Ｃ１`,2,1,'ｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,2,1,'ｶ')
+ｱｶｳｴｵ
+SELECT INSERT(`Ｃ１`,2,2,'ｶｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,2,2,'ｶｶ')
+ｱｶｶｴｵ
+SELECT INSERT(`Ｃ１`,2,3,'ｶｶｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,2,3,'ｶｶｶ')
+ｱｶｶｶｵ
+SELECT INSERT(`Ｃ１`,2,4,'ｶｶｶｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,2,4,'ｶｶｶｶ')
+ｱｶｶｶｶ
+SELECT INSERT(`Ｃ１`,3,1,'ｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,3,1,'ｶ')
+ｱｲｶｴｵ
+SELECT INSERT(`Ｃ１`,3,2,'ｶｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,3,2,'ｶｶ')
+ｱｲｶｶｵ
+SELECT INSERT(`Ｃ１`,3,3,'ｶｶｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,3,3,'ｶｶｶ')
+ｱｲｶｶｶ
+SELECT INSERT(`Ｃ１`,4,1,'ｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,4,1,'ｶ')
+ｱｲｳｶｵ
+SELECT INSERT(`Ｃ１`,4,2,'ｶｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,4,2,'ｶｶ')
+ｱｲｳｶｶ
+SELECT INSERT(`Ｃ１`,5,1,'ｶ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,5,1,'ｶ')
+ｱｲｳｴｶ
+SELECT INSERT(`Ｃ１`,1,1,' ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,1,1,' ')
+ ｲｳｴｵ
+SELECT INSERT(`Ｃ１`,1,2,'  ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,1,2,'  ')
+  ｳｴｵ
+SELECT INSERT(`Ｃ１`,1,3,'   ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,1,3,'   ')
+   ｴｵ
+SELECT INSERT(`Ｃ１`,1,4,'    ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,1,4,'    ')
+    ｵ
+SELECT INSERT(`Ｃ１`,1,5,'     ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,1,5,'     ')
+     
+SELECT INSERT(`Ｃ１`,2,1,' ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,2,1,' ')
+ｱ ｳｴｵ
+SELECT INSERT(`Ｃ１`,2,2,'  ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,2,2,'  ')
+ｱ  ｴｵ
+SELECT INSERT(`Ｃ１`,2,3,'   ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,2,3,'   ')
+ｱ   ｵ
+SELECT INSERT(`Ｃ１`,2,4,'    ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,2,4,'    ')
+ｱ    
+SELECT INSERT(`Ｃ１`,3,1,' ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,3,1,' ')
+ｱｲ ｴｵ
+SELECT INSERT(`Ｃ１`,3,2,'  ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,3,2,'  ')
+ｱｲ  ｵ
+SELECT INSERT(`Ｃ１`,3,3,'   ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,3,3,'   ')
+ｱｲ   
+SELECT INSERT(`Ｃ１`,4,1,' ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,4,1,' ')
+ｱｲｳ ｵ
+SELECT INSERT(`Ｃ１`,4,2,'  ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,4,2,'  ')
+ｱｲｳ  
+SELECT INSERT(`Ｃ１`,5,1,' ') FROM `Ｔ１`;
+INSERT(`Ｃ１`,5,1,' ')
+ｱｲｳｴ 
+SELECT INSERT(`Ｃ１`,1,1,'か') FROM `Ｔ２`;
+INSERT(`Ｃ１`,1,1,'か')
+かいうえお
+SELECT INSERT(`Ｃ１`,1,2,'かか') FROM `Ｔ２`;
+INSERT(`Ｃ１`,1,2,'かか')
+かかうえお
+SELECT INSERT(`Ｃ１`,1,3,'かかか') FROM `Ｔ２`;
+INSERT(`Ｃ１`,1,3,'かかか')
+かかかえお
+SELECT INSERT(`Ｃ１`,1,4,'かかかか') FROM `Ｔ２`;
+INSERT(`Ｃ１`,1,4,'かかかか')
+かかかかお
+SELECT INSERT(`Ｃ１`,1,5,'かかかかか') FROM `Ｔ２`;
+INSERT(`Ｃ１`,1,5,'かかかかか')
+かかかかか
+SELECT INSERT(`Ｃ１`,2,1,'か') FROM `Ｔ２`;
+INSERT(`Ｃ１`,2,1,'か')
+あかうえお
+SELECT INSERT(`Ｃ１`,2,2,'かか') FROM `Ｔ２`;
+INSERT(`Ｃ１`,2,2,'かか')
+あかかえお
+SELECT INSERT(`Ｃ１`,2,3,'かかか') FROM `Ｔ２`;
+INSERT(`Ｃ１`,2,3,'かかか')
+あかかかお
+SELECT INSERT(`Ｃ１`,2,4,'かかかか') FROM `Ｔ２`;
+INSERT(`Ｃ１`,2,4,'かかかか')
+あかかかか
+SELECT INSERT(`Ｃ１`,3,1,'か') FROM `Ｔ２`;
+INSERT(`Ｃ１`,3,1,'か')
+あいかえお
+SELECT INSERT(`Ｃ１`,3,2,'かか') FROM `Ｔ２`;
+INSERT(`Ｃ１`,3,2,'かか')
+あいかかお
+SELECT INSERT(`Ｃ１`,3,3,'かかか') FROM `Ｔ２`;
+INSERT(`Ｃ１`,3,3,'かかか')
+あいかかか
+SELECT INSERT(`Ｃ１`,4,1,'か') FROM `Ｔ２`;
+INSERT(`Ｃ１`,4,1,'か')
+あいうかお
+SELECT INSERT(`Ｃ１`,4,2,'かか') FROM `Ｔ２`;
+INSERT(`Ｃ１`,4,2,'かか')
+あいうかか
+SELECT INSERT(`Ｃ１`,5,1,'か') FROM `Ｔ２`;
+INSERT(`Ｃ１`,5,1,'か')
+あいうえか
+SELECT INSERT(`Ｃ１`,1,1,'　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,1,1,'　')
+　いうえお
+SELECT INSERT(`Ｃ１`,1,2,'　　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,1,2,'　　')
+　　うえお
+SELECT INSERT(`Ｃ１`,1,3,'　　　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,1,3,'　　　')
+　　　えお
+SELECT INSERT(`Ｃ１`,1,4,'　　　　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,1,4,'　　　　')
+　　　　お
+SELECT INSERT(`Ｃ１`,1,5,'　　　　　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,1,5,'　　　　　')
+　　　　　
+SELECT INSERT(`Ｃ１`,2,1,'　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,2,1,'　')
+あ　うえお
+SELECT INSERT(`Ｃ１`,2,2,'　　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,2,2,'　　')
+あ　　えお
+SELECT INSERT(`Ｃ１`,2,3,'　　　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,2,3,'　　　')
+あ　　　お
+SELECT INSERT(`Ｃ１`,2,4,'　　　　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,2,4,'　　　　')
+あ　　　　
+SELECT INSERT(`Ｃ１`,3,1,'　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,3,1,'　')
+あい　えお
+SELECT INSERT(`Ｃ１`,3,2,'　　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,3,2,'　　')
+あい　　お
+SELECT INSERT(`Ｃ１`,3,3,'　　　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,3,3,'　　　')
+あい　　　
+SELECT INSERT(`Ｃ１`,4,1,'　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,4,1,'　')
+あいう　お
+SELECT INSERT(`Ｃ１`,4,2,'　　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,4,2,'　　')
+あいう　　
+SELECT INSERT(`Ｃ１`,5,1,'　') FROM `Ｔ２`;
+INSERT(`Ｃ１`,5,1,'　')
+あいうえ　
+SELECT INSERT(`Ｃ１`,1,1,'丂') FROM `Ｔ３`;
+INSERT(`Ｃ１`,1,1,'丂')
+丂龖龗龞龡
+SELECT INSERT(`Ｃ１`,1,2,'丂丂' ) FROM `Ｔ３`;
+INSERT(`Ｃ１`,1,2,'丂丂' )
+丂丂龗龞龡
+SELECT INSERT(`Ｃ１`,1,3,'丂丂丂' ) FROM `Ｔ３`;
+INSERT(`Ｃ１`,1,3,'丂丂丂' )
+丂丂丂龞龡
+SELECT INSERT(`Ｃ１`,1,4,'丂丂丂丂' ) FROM `Ｔ３`;
+INSERT(`Ｃ１`,1,4,'丂丂丂丂' )
+丂丂丂丂龡
+SELECT INSERT(`Ｃ１`,1,5,'丂丂丂丂丂' ) FROM `Ｔ３`;
+INSERT(`Ｃ１`,1,5,'丂丂丂丂丂' )
+丂丂丂丂丂
+SELECT INSERT(`Ｃ１`,2,1,'丂') FROM `Ｔ３`;
+INSERT(`Ｃ１`,2,1,'丂')
+龔丂龗龞龡
+SELECT INSERT(`Ｃ１`,2,2,'丂丂' ) FROM `Ｔ３`;
+INSERT(`Ｃ１`,2,2,'丂丂' )
+龔丂丂龞龡
+SELECT INSERT(`Ｃ１`,2,3,'丂丂丂' ) FROM `Ｔ３`;
+INSERT(`Ｃ１`,2,3,'丂丂丂' )
+龔丂丂丂龡
+SELECT INSERT(`Ｃ１`,2,4,'丂丂丂丂' ) FROM `Ｔ３`;
+INSERT(`Ｃ１`,2,4,'丂丂丂丂' )
+龔丂丂丂丂
+SELECT INSERT(`Ｃ１`,3,1,'丂') FROM `Ｔ３`;
+INSERT(`Ｃ１`,3,1,'丂')
+龔龖丂龞龡
+SELECT INSERT(`Ｃ１`,3,2,'丂丂' ) FROM `Ｔ３`;
+INSERT(`Ｃ１`,3,2,'丂丂' )
+龔龖丂丂龡
+SELECT INSERT(`Ｃ１`,3,3,'丂丂丂' ) FROM `Ｔ３`;
+INSERT(`Ｃ１`,3,3,'丂丂丂' )
+龔龖丂丂丂
+SELECT INSERT(`Ｃ１`,4,1,'丂') FROM `Ｔ３`;
+INSERT(`Ｃ１`,4,1,'丂')
+龔龖龗丂龡
+SELECT INSERT(`Ｃ１`,4,2,'丂丂' ) FROM `Ｔ３`;
+INSERT(`Ｃ１`,4,2,'丂丂' )
+龔龖龗丂丂
+SELECT INSERT(`Ｃ１`,5,1,'丂') FROM `Ｔ３`;
+INSERT(`Ｃ１`,5,1,'丂')
+龔龖龗龞丂
+SELECT INSERT(`Ｃ１`,1,1,'ｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,1,1,'ｶ')
+ｶｲｳｴｵ
+SELECT INSERT(`Ｃ１`,1,2,'ｶｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,1,2,'ｶｶ')
+ｶｶｳｴｵ
+SELECT INSERT(`Ｃ１`,1,3,'ｶｶｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,1,3,'ｶｶｶ')
+ｶｶｶｴｵ
+SELECT INSERT(`Ｃ１`,1,4,'ｶｶｶｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,1,4,'ｶｶｶｶ')
+ｶｶｶｶｵ
+SELECT INSERT(`Ｃ１`,1,5,'ｶｶｶｶｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,1,5,'ｶｶｶｶｶ')
+ｶｶｶｶｶ
+SELECT INSERT(`Ｃ１`,2,1,'ｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,2,1,'ｶ')
+ｱｶｳｴｵ
+SELECT INSERT(`Ｃ１`,2,2,'ｶｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,2,2,'ｶｶ')
+ｱｶｶｴｵ
+SELECT INSERT(`Ｃ１`,2,3,'ｶｶｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,2,3,'ｶｶｶ')
+ｱｶｶｶｵ
+SELECT INSERT(`Ｃ１`,2,4,'ｶｶｶｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,2,4,'ｶｶｶｶ')
+ｱｶｶｶｶ
+SELECT INSERT(`Ｃ１`,3,1,'ｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,3,1,'ｶ')
+ｱｲｶｴｵ
+SELECT INSERT(`Ｃ１`,3,2,'ｶｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,3,2,'ｶｶ')
+ｱｲｶｶｵ
+SELECT INSERT(`Ｃ１`,3,3,'ｶｶｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,3,3,'ｶｶｶ')
+ｱｲｶｶｶ
+SELECT INSERT(`Ｃ１`,4,1,'ｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,4,1,'ｶ')
+ｱｲｳｶｵ
+SELECT INSERT(`Ｃ１`,4,2,'ｶｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,4,2,'ｶｶ')
+ｱｲｳｶｶ
+SELECT INSERT(`Ｃ１`,5,1,'ｶ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,5,1,'ｶ')
+ｱｲｳｴｶ
+SELECT INSERT(`Ｃ１`,1,1,' ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,1,1,' ')
+ ｲｳｴｵ
+SELECT INSERT(`Ｃ１`,1,2,'  ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,1,2,'  ')
+  ｳｴｵ
+SELECT INSERT(`Ｃ１`,1,3,'   ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,1,3,'   ')
+   ｴｵ
+SELECT INSERT(`Ｃ１`,1,4,'    ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,1,4,'    ')
+    ｵ
+SELECT INSERT(`Ｃ１`,1,5,'     ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,1,5,'     ')
+     
+SELECT INSERT(`Ｃ１`,2,1,' ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,2,1,' ')
+ｱ ｳｴｵ
+SELECT INSERT(`Ｃ１`,2,2,'  ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,2,2,'  ')
+ｱ  ｴｵ
+SELECT INSERT(`Ｃ１`,2,3,'   ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,2,3,'   ')
+ｱ   ｵ
+SELECT INSERT(`Ｃ１`,2,4,'    ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,2,4,'    ')
+ｱ    
+SELECT INSERT(`Ｃ１`,3,1,' ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,3,1,' ')
+ｱｲ ｴｵ
+SELECT INSERT(`Ｃ１`,3,2,'  ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,3,2,'  ')
+ｱｲ  ｵ
+SELECT INSERT(`Ｃ１`,3,3,'   ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,3,3,'   ')
+ｱｲ   
+SELECT INSERT(`Ｃ１`,4,1,' ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,4,1,' ')
+ｱｲｳ ｵ
+SELECT INSERT(`Ｃ１`,4,2,'  ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,4,2,'  ')
+ｱｲｳ  
+SELECT INSERT(`Ｃ１`,5,1,' ') FROM `Ｔ４`;
+INSERT(`Ｃ１`,5,1,' ')
+ｱｲｳｴ 
+SELECT INSERT(`Ｃ１`,1,1,'か') FROM `Ｔ５`;
+INSERT(`Ｃ１`,1,1,'か')
+かいうえお
+SELECT INSERT(`Ｃ１`,1,2,'かか') FROM `Ｔ５`;
+INSERT(`Ｃ１`,1,2,'かか')
+かかうえお
+SELECT INSERT(`Ｃ１`,1,3,'かかか') FROM `Ｔ５`;
+INSERT(`Ｃ１`,1,3,'かかか')
+かかかえお
+SELECT INSERT(`Ｃ１`,1,4,'かかかか') FROM `Ｔ５`;
+INSERT(`Ｃ１`,1,4,'かかかか')
+かかかかお
+SELECT INSERT(`Ｃ１`,1,5,'かかかかか') FROM `Ｔ５`;
+INSERT(`Ｃ１`,1,5,'かかかかか')
+かかかかか
+SELECT INSERT(`Ｃ１`,2,1,'か') FROM `Ｔ５`;
+INSERT(`Ｃ１`,2,1,'か')
+あかうえお
+SELECT INSERT(`Ｃ１`,2,2,'かか') FROM `Ｔ５`;
+INSERT(`Ｃ１`,2,2,'かか')
+あかかえお
+SELECT INSERT(`Ｃ１`,2,3,'かかか') FROM `Ｔ５`;
+INSERT(`Ｃ１`,2,3,'かかか')
+あかかかお
+SELECT INSERT(`Ｃ１`,2,4,'かかかか') FROM `Ｔ５`;
+INSERT(`Ｃ１`,2,4,'かかかか')
+あかかかか
+SELECT INSERT(`Ｃ１`,3,1,'か') FROM `Ｔ５`;
+INSERT(`Ｃ１`,3,1,'か')
+あいかえお
+SELECT INSERT(`Ｃ１`,3,2,'かか') FROM `Ｔ５`;
+INSERT(`Ｃ１`,3,2,'かか')
+あいかかお
+SELECT INSERT(`Ｃ１`,3,3,'かかか') FROM `Ｔ５`;
+INSERT(`Ｃ１`,3,3,'かかか')
+あいかかか
+SELECT INSERT(`Ｃ１`,4,1,'か') FROM `Ｔ５`;
+INSERT(`Ｃ１`,4,1,'か')
+あいうかお
+SELECT INSERT(`Ｃ１`,4,2,'かか') FROM `Ｔ５`;
+INSERT(`Ｃ１`,4,2,'かか')
+あいうかか
+SELECT INSERT(`Ｃ１`,5,1,'か') FROM `Ｔ５`;
+INSERT(`Ｃ１`,5,1,'か')
+あいうえか
+SELECT INSERT(`Ｃ１`,1,1,'　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,1,1,'　')
+　いうえお
+SELECT INSERT(`Ｃ１`,1,2,'　　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,1,2,'　　')
+　　うえお
+SELECT INSERT(`Ｃ１`,1,3,'　　　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,1,3,'　　　')
+　　　えお
+SELECT INSERT(`Ｃ１`,1,4,'　　　　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,1,4,'　　　　')
+　　　　お
+SELECT INSERT(`Ｃ１`,1,5,'　　　　　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,1,5,'　　　　　')
+　　　　　
+SELECT INSERT(`Ｃ１`,2,1,'　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,2,1,'　')
+あ　うえお
+SELECT INSERT(`Ｃ１`,2,2,'　　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,2,2,'　　')
+あ　　えお
+SELECT INSERT(`Ｃ１`,2,3,'　　　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,2,3,'　　　')
+あ　　　お
+SELECT INSERT(`Ｃ１`,2,4,'　　　　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,2,4,'　　　　')
+あ　　　　
+SELECT INSERT(`Ｃ１`,3,1,'　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,3,1,'　')
+あい　えお
+SELECT INSERT(`Ｃ１`,3,2,'　　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,3,2,'　　')
+あい　　お
+SELECT INSERT(`Ｃ１`,3,3,'　　　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,3,3,'　　　')
+あい　　　
+SELECT INSERT(`Ｃ１`,4,1,'　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,4,1,'　')
+あいう　お
+SELECT INSERT(`Ｃ１`,4,2,'　　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,4,2,'　　')
+あいう　　
+SELECT INSERT(`Ｃ１`,5,1,'　') FROM `Ｔ５`;
+INSERT(`Ｃ１`,5,1,'　')
+あいうえ　
+SELECT INSERT(`Ｃ１`,1,1,'丂') FROM `Ｔ６`;
+INSERT(`Ｃ１`,1,1,'丂')
+丂龖龗龞龡
+SELECT INSERT(`Ｃ１`,1,2,'丂丂' ) FROM `Ｔ６`;
+INSERT(`Ｃ１`,1,2,'丂丂' )
+丂丂龗龞龡
+SELECT INSERT(`Ｃ１`,1,3,'丂丂丂' ) FROM `Ｔ６`;
+INSERT(`Ｃ１`,1,3,'丂丂丂' )
+丂丂丂龞龡
+SELECT INSERT(`Ｃ１`,1,4,'丂丂丂丂' ) FROM `Ｔ６`;
+INSERT(`Ｃ１`,1,4,'丂丂丂丂' )
+丂丂丂丂龡
+SELECT INSERT(`Ｃ１`,1,5,'丂丂丂丂丂' ) FROM `Ｔ６`;
+INSERT(`Ｃ１`,1,5,'丂丂丂丂丂' )
+丂丂丂丂丂
+SELECT INSERT(`Ｃ１`,2,1,'丂') FROM `Ｔ６`;
+INSERT(`Ｃ１`,2,1,'丂')
+龔丂龗龞龡
+SELECT INSERT(`Ｃ１`,2,2,'丂丂') FROM `Ｔ６`;
+INSERT(`Ｃ１`,2,2,'丂丂')
+龔丂丂龞龡
+SELECT INSERT(`Ｃ１`,2,3,'丂丂丂' ) FROM `Ｔ６`;
+INSERT(`Ｃ１`,2,3,'丂丂丂' )
+龔丂丂丂龡
+SELECT INSERT(`Ｃ１`,2,4,'丂丂丂丂' ) FROM `Ｔ６`;
+INSERT(`Ｃ１`,2,4,'丂丂丂丂' )
+龔丂丂丂丂
+SELECT INSERT(`Ｃ１`,3,1,'丂') FROM `Ｔ６`;
+INSERT(`Ｃ１`,3,1,'丂')
+龔龖丂龞龡
+SELECT INSERT(`Ｃ１`,3,2,'丂丂' ) FROM `Ｔ６`;
+INSERT(`Ｃ１`,3,2,'丂丂' )
+龔龖丂丂龡
+SELECT INSERT(`Ｃ１`,3,3,'丂丂丂' ) FROM `Ｔ６`;
+INSERT(`Ｃ１`,3,3,'丂丂丂' )
+龔龖丂丂丂
+SELECT INSERT(`Ｃ１`,4,1,'丂') FROM `Ｔ６`;
+INSERT(`Ｃ１`,4,1,'丂')
+龔龖龗丂龡
+SELECT INSERT(`Ｃ１`,4,2,'丂丂' ) FROM `Ｔ６`;
+INSERT(`Ｃ１`,4,2,'丂丂' )
+龔龖龗丂丂
+SELECT INSERT(`Ｃ１`,5,1,'丂') FROM `Ｔ６`;
+INSERT(`Ｃ１`,5,1,'丂')
+龔龖龗龞丂
+SELECT INSERT(`Ｃ１`,1,1,'ｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,1,1,'ｶ')
+ｶｲｳｴｵ
+SELECT INSERT(`Ｃ１`,1,2,'ｶｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,1,2,'ｶｶ')
+ｶｶｳｴｵ
+SELECT INSERT(`Ｃ１`,1,3,'ｶｶｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,1,3,'ｶｶｶ')
+ｶｶｶｴｵ
+SELECT INSERT(`Ｃ１`,1,4,'ｶｶｶｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,1,4,'ｶｶｶｶ')
+ｶｶｶｶｵ
+SELECT INSERT(`Ｃ１`,1,5,'ｶｶｶｶｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,1,5,'ｶｶｶｶｶ')
+ｶｶｶｶｶ
+SELECT INSERT(`Ｃ１`,2,1,'ｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,2,1,'ｶ')
+ｱｶｳｴｵ
+SELECT INSERT(`Ｃ１`,2,2,'ｶｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,2,2,'ｶｶ')
+ｱｶｶｴｵ
+SELECT INSERT(`Ｃ１`,2,3,'ｶｶｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,2,3,'ｶｶｶ')
+ｱｶｶｶｵ
+SELECT INSERT(`Ｃ１`,2,4,'ｶｶｶｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,2,4,'ｶｶｶｶ')
+ｱｶｶｶｶ
+SELECT INSERT(`Ｃ１`,3,1,'ｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,3,1,'ｶ')
+ｱｲｶｴｵ
+SELECT INSERT(`Ｃ１`,3,2,'ｶｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,3,2,'ｶｶ')
+ｱｲｶｶｵ
+SELECT INSERT(`Ｃ１`,3,3,'ｶｶｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,3,3,'ｶｶｶ')
+ｱｲｶｶｶ
+SELECT INSERT(`Ｃ１`,4,1,'ｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,4,1,'ｶ')
+ｱｲｳｶｵ
+SELECT INSERT(`Ｃ１`,4,2,'ｶｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,4,2,'ｶｶ')
+ｱｲｳｶｶ
+SELECT INSERT(`Ｃ１`,5,1,'ｶ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,5,1,'ｶ')
+ｱｲｳｴｶ
+SELECT INSERT(`Ｃ１`,1,1,' ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,1,1,' ')
+ ｲｳｴｵ
+SELECT INSERT(`Ｃ１`,1,2,'  ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,1,2,'  ')
+  ｳｴｵ
+SELECT INSERT(`Ｃ１`,1,3,'   ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,1,3,'   ')
+   ｴｵ
+SELECT INSERT(`Ｃ１`,1,4,'    ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,1,4,'    ')
+    ｵ
+SELECT INSERT(`Ｃ１`,1,5,'     ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,1,5,'     ')
+     
+SELECT INSERT(`Ｃ１`,2,1,' ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,2,1,' ')
+ｱ ｳｴｵ
+SELECT INSERT(`Ｃ１`,2,2,'  ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,2,2,'  ')
+ｱ  ｴｵ
+SELECT INSERT(`Ｃ１`,2,3,'   ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,2,3,'   ')
+ｱ   ｵ
+SELECT INSERT(`Ｃ１`,2,4,'    ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,2,4,'    ')
+ｱ    
+SELECT INSERT(`Ｃ１`,3,1,' ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,3,1,' ')
+ｱｲ ｴｵ
+SELECT INSERT(`Ｃ１`,3,2,'  ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,3,2,'  ')
+ｱｲ  ｵ
+SELECT INSERT(`Ｃ１`,3,3,'   ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,3,3,'   ')
+ｱｲ   
+SELECT INSERT(`Ｃ１`,4,1,' ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,4,1,' ')
+ｱｲｳ ｵ
+SELECT INSERT(`Ｃ１`,4,2,'  ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,4,2,'  ')
+ｱｲｳ  
+SELECT INSERT(`Ｃ１`,5,1,' ') FROM `Ｔ７`;
+INSERT(`Ｃ１`,5,1,' ')
+ｱｲｳｴ 
+SELECT INSERT(`Ｃ１`,1,1,'か') FROM `Ｔ８`;
+INSERT(`Ｃ１`,1,1,'か')
+かいうえお
+SELECT INSERT(`Ｃ１`,1,2,'かか') FROM `Ｔ８`;
+INSERT(`Ｃ１`,1,2,'かか')
+かかうえお
+SELECT INSERT(`Ｃ１`,1,3,'かかか') FROM `Ｔ８`;
+INSERT(`Ｃ１`,1,3,'かかか')
+かかかえお
+SELECT INSERT(`Ｃ１`,1,4,'かかかか') FROM `Ｔ８`;
+INSERT(`Ｃ１`,1,4,'かかかか')
+かかかかお
+SELECT INSERT(`Ｃ１`,1,5,'かかかかか') FROM `Ｔ８`;
+INSERT(`Ｃ１`,1,5,'かかかかか')
+かかかかか
+SELECT INSERT(`Ｃ１`,2,1,'か') FROM `Ｔ８`;
+INSERT(`Ｃ１`,2,1,'か')
+あかうえお
+SELECT INSERT(`Ｃ１`,2,2,'かか') FROM `Ｔ８`;
+INSERT(`Ｃ１`,2,2,'かか')
+あかかえお
+SELECT INSERT(`Ｃ１`,2,3,'かかか') FROM `Ｔ８`;
+INSERT(`Ｃ１`,2,3,'かかか')
+あかかかお
+SELECT INSERT(`Ｃ１`,2,4,'かかかか') FROM `Ｔ８`;
+INSERT(`Ｃ１`,2,4,'かかかか')
+あかかかか
+SELECT INSERT(`Ｃ１`,3,1,'か') FROM `Ｔ８`;
+INSERT(`Ｃ１`,3,1,'か')
+あいかえお
+SELECT INSERT(`Ｃ１`,3,2,'かか') FROM `Ｔ８`;
+INSERT(`Ｃ１`,3,2,'かか')
+あいかかお
+SELECT INSERT(`Ｃ１`,3,3,'かかか') FROM `Ｔ８`;
+INSERT(`Ｃ１`,3,3,'かかか')
+あいかかか
+SELECT INSERT(`Ｃ１`,4,1,'か') FROM `Ｔ８`;
+INSERT(`Ｃ１`,4,1,'か')
+あいうかお
+SELECT INSERT(`Ｃ１`,4,2,'かか') FROM `Ｔ８`;
+INSERT(`Ｃ１`,4,2,'かか')
+あいうかか
+SELECT INSERT(`Ｃ１`,5,1,'か') FROM `Ｔ８`;
+INSERT(`Ｃ１`,5,1,'か')
+あいうえか
+SELECT INSERT(`Ｃ１`,1,1,'　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,1,1,'　')
+　いうえお
+SELECT INSERT(`Ｃ１`,1,2,'　　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,1,2,'　　')
+　　うえお
+SELECT INSERT(`Ｃ１`,1,3,'　　　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,1,3,'　　　')
+　　　えお
+SELECT INSERT(`Ｃ１`,1,4,'　　　　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,1,4,'　　　　')
+　　　　お
+SELECT INSERT(`Ｃ１`,1,5,'　　　　　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,1,5,'　　　　　')
+　　　　　
+SELECT INSERT(`Ｃ１`,2,1,'　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,2,1,'　')
+あ　うえお
+SELECT INSERT(`Ｃ１`,2,2,'　　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,2,2,'　　')
+あ　　えお
+SELECT INSERT(`Ｃ１`,2,3,'　　　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,2,3,'　　　')
+あ　　　お
+SELECT INSERT(`Ｃ１`,2,4,'　　　　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,2,4,'　　　　')
+あ　　　　
+SELECT INSERT(`Ｃ１`,3,1,'　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,3,1,'　')
+あい　えお
+SELECT INSERT(`Ｃ１`,3,2,'　　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,3,2,'　　')
+あい　　お
+SELECT INSERT(`Ｃ１`,3,3,'　　　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,3,3,'　　　')
+あい　　　
+SELECT INSERT(`Ｃ１`,4,1,'　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,4,1,'　')
+あいう　お
+SELECT INSERT(`Ｃ１`,4,2,'　　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,4,2,'　　')
+あいう　　
+SELECT INSERT(`Ｃ１`,5,1,'　') FROM `Ｔ８`;
+INSERT(`Ｃ１`,5,1,'　')
+あいうえ　
+SELECT INSERT(`Ｃ１`,1,1,'丂') FROM `Ｔ９`;
+INSERT(`Ｃ１`,1,1,'丂')
+丂龖龗龞龡
+SELECT INSERT(`Ｃ１`,1,2,'丂丂' ) FROM `Ｔ９`;
+INSERT(`Ｃ１`,1,2,'丂丂' )
+丂丂龗龞龡
+SELECT INSERT(`Ｃ１`,1,3,'丂丂丂' ) FROM `Ｔ９`;
+INSERT(`Ｃ１`,1,3,'丂丂丂' )
+丂丂丂龞龡
+SELECT INSERT(`Ｃ１`,1,4,'丂丂丂丂' ) FROM `Ｔ９`;
+INSERT(`Ｃ１`,1,4,'丂丂丂丂' )
+丂丂丂丂龡
+SELECT INSERT(`Ｃ１`,1,5,'丂丂丂丂丂' ) FROM `Ｔ９`;
+INSERT(`Ｃ１`,1,5,'丂丂丂丂丂' )
+丂丂丂丂丂
+SELECT INSERT(`Ｃ１`,2,1,'丂') FROM `Ｔ９`;
+INSERT(`Ｃ１`,2,1,'丂')
+龔丂龗龞龡
+SELECT INSERT(`Ｃ１`,2,2,'丂丂' ) FROM `Ｔ９`;
+INSERT(`Ｃ１`,2,2,'丂丂' )
+龔丂丂龞龡
+SELECT INSERT(`Ｃ１`,2,3,'丂丂丂' ) FROM `Ｔ９`;
+INSERT(`Ｃ１`,2,3,'丂丂丂' )
+龔丂丂丂龡
+SELECT INSERT(`Ｃ１`,2,4,'丂丂丂丂' ) FROM `Ｔ９`;
+INSERT(`Ｃ１`,2,4,'丂丂丂丂' )
+龔丂丂丂丂
+SELECT INSERT(`Ｃ１`,3,1,'丂') FROM `Ｔ９`;
+INSERT(`Ｃ１`,3,1,'丂')
+龔龖丂龞龡
+SELECT INSERT(`Ｃ１`,3,2,'丂丂' ) FROM `Ｔ９`;
+INSERT(`Ｃ１`,3,2,'丂丂' )
+龔龖丂丂龡
+SELECT INSERT(`Ｃ１`,3,3,'丂丂丂' ) FROM `Ｔ９`;
+INSERT(`Ｃ１`,3,3,'丂丂丂' )
+龔龖丂丂丂
+SELECT INSERT(`Ｃ１`,4,1,'丂') FROM `Ｔ９`;
+INSERT(`Ｃ１`,4,1,'丂')
+龔龖龗丂龡
+SELECT INSERT(`Ｃ１`,4,2,'丂丂' ) FROM `Ｔ９`;
+INSERT(`Ｃ１`,4,2,'丂丂' )
+龔龖龗丂丂
+SELECT INSERT(`Ｃ１`,5,1,'丂') FROM `Ｔ９`;
+INSERT(`Ｃ１`,5,1,'丂')
+龔龖龗龞丂
+SELECT INSERT(`Ｃ１`,1,1,'ｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,1,1,'ｶ')
+ｶｲｳｴｵ
+SELECT INSERT(`Ｃ１`,1,2,'ｶｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,1,2,'ｶｶ')
+ｶｶｳｴｵ
+SELECT INSERT(`Ｃ１`,1,3,'ｶｶｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,1,3,'ｶｶｶ')
+ｶｶｶｴｵ
+SELECT INSERT(`Ｃ１`,1,4,'ｶｶｶｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,1,4,'ｶｶｶｶ')
+ｶｶｶｶｵ
+SELECT INSERT(`Ｃ１`,1,5,'ｶｶｶｶｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,1,5,'ｶｶｶｶｶ')
+ｶｶｶｶｶ
+SELECT INSERT(`Ｃ１`,2,1,'ｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,2,1,'ｶ')
+ｱｶｳｴｵ
+SELECT INSERT(`Ｃ１`,2,2,'ｶｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,2,2,'ｶｶ')
+ｱｶｶｴｵ
+SELECT INSERT(`Ｃ１`,2,3,'ｶｶｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,2,3,'ｶｶｶ')
+ｱｶｶｶｵ
+SELECT INSERT(`Ｃ１`,2,4,'ｶｶｶｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,2,4,'ｶｶｶｶ')
+ｱｶｶｶｶ
+SELECT INSERT(`Ｃ１`,3,1,'ｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,3,1,'ｶ')
+ｱｲｶｴｵ
+SELECT INSERT(`Ｃ１`,3,2,'ｶｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,3,2,'ｶｶ')
+ｱｲｶｶｵ
+SELECT INSERT(`Ｃ１`,3,3,'ｶｶｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,3,3,'ｶｶｶ')
+ｱｲｶｶｶ
+SELECT INSERT(`Ｃ１`,4,1,'ｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,4,1,'ｶ')
+ｱｲｳｶｵ
+SELECT INSERT(`Ｃ１`,4,2,'ｶｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,4,2,'ｶｶ')
+ｱｲｳｶｶ
+SELECT INSERT(`Ｃ１`,5,1,'ｶ') FROM `Ｔ１０`;
+INSERT(`Ｃ１`,5,1,'ｶ')
+ｱｲｳｴｶ
+SELECT INSERT(`Ｃ１`,1,1,'か') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,1,1,'か')
+かいうえお
+SELECT INSERT(`Ｃ１`,1,2,'かか') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,1,2,'かか')
+かかうえお
+SELECT INSERT(`Ｃ１`,1,3,'かかか') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,1,3,'かかか')
+かかかえお
+SELECT INSERT(`Ｃ１`,1,4,'かかかか') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,1,4,'かかかか')
+かかかかお
+SELECT INSERT(`Ｃ１`,1,5,'かかかかか') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,1,5,'かかかかか')
+かかかかか
+SELECT INSERT(`Ｃ１`,2,1,'か') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,2,1,'か')
+あかうえお
+SELECT INSERT(`Ｃ１`,2,2,'かか') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,2,2,'かか')
+あかかえお
+SELECT INSERT(`Ｃ１`,2,3,'かかか') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,2,3,'かかか')
+あかかかお
+SELECT INSERT(`Ｃ１`,2,4,'かかかか') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,2,4,'かかかか')
+あかかかか
+SELECT INSERT(`Ｃ１`,3,1,'か') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,3,1,'か')
+あいかえお
+SELECT INSERT(`Ｃ１`,3,2,'かか') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,3,2,'かか')
+あいかかお
+SELECT INSERT(`Ｃ１`,3,3,'かかか') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,3,3,'かかか')
+あいかかか
+SELECT INSERT(`Ｃ１`,4,1,'か') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,4,1,'か')
+あいうかお
+SELECT INSERT(`Ｃ１`,4,2,'かか') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,4,2,'かか')
+あいうかか
+SELECT INSERT(`Ｃ１`,5,1,'か') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,5,1,'か')
+あいうえか
+SELECT INSERT(`Ｃ１`,1,1,'　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,1,1,'　')
+　いうえお
+SELECT INSERT(`Ｃ１`,1,2,'　　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,1,2,'　　')
+　　うえお
+SELECT INSERT(`Ｃ１`,1,3,'　　　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,1,3,'　　　')
+　　　えお
+SELECT INSERT(`Ｃ１`,1,4,'　　　　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,1,4,'　　　　')
+　　　　お
+SELECT INSERT(`Ｃ１`,1,5,'　　　　　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,1,5,'　　　　　')
+　　　　　
+SELECT INSERT(`Ｃ１`,2,1,'　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,2,1,'　')
+あ　うえお
+SELECT INSERT(`Ｃ１`,2,2,'　　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,2,2,'　　')
+あ　　えお
+SELECT INSERT(`Ｃ１`,2,3,'　　　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,2,3,'　　　')
+あ　　　お
+SELECT INSERT(`Ｃ１`,2,4,'　　　　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,2,4,'　　　　')
+あ　　　　
+SELECT INSERT(`Ｃ１`,3,1,'　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,3,1,'　')
+あい　えお
+SELECT INSERT(`Ｃ１`,3,2,'　　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,3,2,'　　')
+あい　　お
+SELECT INSERT(`Ｃ１`,3,3,'　　　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,3,3,'　　　')
+あい　　　
+SELECT INSERT(`Ｃ１`,4,1,'　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,4,1,'　')
+あいう　お
+SELECT INSERT(`Ｃ１`,4,2,'　　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,4,2,'　　')
+あいう　　
+SELECT INSERT(`Ｃ１`,5,1,'　') FROM `Ｔ１１`;
+INSERT(`Ｃ１`,5,1,'　')
+あいうえ　
+SELECT INSERT(`Ｃ１`,1,1,'丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,1,1,'丂')
+丂龖龗龞龡
+SELECT INSERT(`Ｃ１`,1,2,'丂丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,1,2,'丂丂')
+丂丂龗龞龡
+SELECT INSERT(`Ｃ１`,1,3,'丂丂丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,1,3,'丂丂丂')
+丂丂丂龞龡
+SELECT INSERT(`Ｃ１`,1,4,'丂丂丂丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,1,4,'丂丂丂丂')
+丂丂丂丂龡
+SELECT INSERT(`Ｃ１`,1,5,'丂丂丂丂丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,1,5,'丂丂丂丂丂')
+丂丂丂丂丂
+SELECT INSERT(`Ｃ１`,2,1,'丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,2,1,'丂')
+龔丂龗龞龡
+SELECT INSERT(`Ｃ１`,2,2,'丂丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,2,2,'丂丂')
+龔丂丂龞龡
+SELECT INSERT(`Ｃ１`,2,3,'丂丂丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,2,3,'丂丂丂')
+龔丂丂丂龡
+SELECT INSERT(`Ｃ１`,2,4,'丂丂丂丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,2,4,'丂丂丂丂')
+龔丂丂丂丂
+SELECT INSERT(`Ｃ１`,3,1,'丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,3,1,'丂')
+龔龖丂龞龡
+SELECT INSERT(`Ｃ１`,3,2,'丂丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,3,2,'丂丂')
+龔龖丂丂龡
+SELECT INSERT(`Ｃ１`,3,3,'丂丂丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,3,3,'丂丂丂')
+龔龖丂丂丂
+SELECT INSERT(`Ｃ１`,4,1,'丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,4,1,'丂')
+龔龖龗丂龡
+SELECT INSERT(`Ｃ１`,4,2,'丂丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,4,2,'丂丂')
+龔龖龗丂丂
+SELECT INSERT(`Ｃ１`,5,1,'丂') FROM `Ｔ１２`;
+INSERT(`Ｃ１`,5,1,'丂')
+龔龖龗龞丂
+DROP TABLE `Ｔ１`;
+DROP TABLE `Ｔ２`;
+DROP TABLE `Ｔ３`;
+DROP TABLE `Ｔ４`;
+DROP TABLE `Ｔ５`;
+DROP TABLE `Ｔ６`;
+DROP TABLE `Ｔ７`;
+DROP TABLE `Ｔ８`;
+DROP TABLE `Ｔ９`;
+DROP TABLE `Ｔ１０`;
+DROP TABLE `Ｔ１１`;
+DROP TABLE `Ｔ１２`;

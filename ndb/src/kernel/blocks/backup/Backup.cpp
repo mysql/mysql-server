@@ -863,6 +863,13 @@ Backup::execBACKUP_REQ(Signal* signal)
     sendBackupRef(senderRef, signal, senderData, BackupRef::IAmNotMaster);
     return;
   }//if
+
+  if (m_diskless)
+  {
+    sendBackupRef(senderRef, signal, senderData, 
+		  BackupRef::CannotBackupDiskless);
+    return;
+  }
   
   if(dataLen32 != 0) {
     jam();
@@ -985,7 +992,11 @@ Backup::execUTIL_SEQUENCE_CONF(Signal* signal)
   }//if
   ndbrequire(ptr.p->masterData.state.getState() == DEFINING);
 
-  ptr.p->backupId = conf->sequenceValue[0];
+  {
+    Uint64 backupId;
+    memcpy(&backupId,conf->sequenceValue,8);
+    ptr.p->backupId= (Uint32)backupId;
+  }
   ptr.p->backupKey[0] = (getOwnNodeId() << 16) | (ptr.p->backupId & 0xFFFF);
   ptr.p->backupKey[1] = NdbTick_CurrentMillisecond();
 
@@ -1265,10 +1276,6 @@ Backup::createAttributeMask(TablePtr tabPtr,
     jam();
     AttributePtr attr;
     table.attributes.getPtr(attr, i);
-    if(attr.p->data.key != 0){
-      jam();
-      continue;
-    }
     mask.set(i);
   }
 }
@@ -2954,12 +2961,9 @@ Backup::parseTableDescription(Signal* signal, BackupRecordPtr ptr, Uint32 len)
 
   tabPtr.p->schemaVersion = tmpTab.TableVersion;
   tabPtr.p->noOfAttributes = tmpTab.NoOfAttributes;
-  tabPtr.p->noOfKeys = tmpTab.NoOfKeyAttr;
   tabPtr.p->noOfNull = 0;
   tabPtr.p->noOfVariable = 0; // Computed while iterating over attribs
-  tabPtr.p->sz_FixedKeys = 0; // Computed while iterating over attribs
   tabPtr.p->sz_FixedAttributes = 0; // Computed while iterating over attribs
-  tabPtr.p->variableKeyId = RNIL;   // Computed while iterating over attribs
   tabPtr.p->triggerIds[0] = ILLEGAL_TRIGGER_ID;
   tabPtr.p->triggerIds[1] = ILLEGAL_TRIGGER_ID;
   tabPtr.p->triggerIds[2] = ILLEGAL_TRIGGER_ID;
@@ -2994,7 +2998,6 @@ Backup::parseTableDescription(Signal* signal, BackupRecordPtr ptr, Uint32 len)
     
     attrPtr.p->data.nullable = tmp.AttributeNullableFlag;
     attrPtr.p->data.fixed = (tmp.AttributeArraySize != 0);
-    attrPtr.p->data.key = tmp.AttributeKeyFlag;
     attrPtr.p->data.sz32 = sz32;
 
     /**
@@ -3002,50 +3005,26 @@ Backup::parseTableDescription(Signal* signal, BackupRecordPtr ptr, Uint32 len)
      * 1) Fixed
      * 2) Nullable
      * 3) Variable
-     * 4) Fixed key
-     * 5) Variable key
      */
-    if(attrPtr.p->data.key == false) {
+    if(attrPtr.p->data.fixed == true && attrPtr.p->data.nullable == false) {
       jam();
-      
-      if(attrPtr.p->data.fixed == true && attrPtr.p->data.nullable == false) {
-	jam();
-	attrPtr.p->data.offset = tabPtr.p->sz_FixedAttributes;
-	tabPtr.p->sz_FixedAttributes += sz32;
-      }//if
-
-      if(attrPtr.p->data.fixed == true && attrPtr.p->data.nullable == true) {
-	jam();
-	attrPtr.p->data.offset = 0;
-
-	attrPtr.p->data.offsetNull = tabPtr.p->noOfNull;
-	tabPtr.p->noOfNull++;
-	tabPtr.p->noOfVariable++;
-      }//if
-      
-      if(attrPtr.p->data.fixed == false) {
-	jam();
-	tabPtr.p->noOfVariable++;
-	ndbrequire(0);
-      }//if
-      
-    } else if(attrPtr.p->data.key == true) {
+      attrPtr.p->data.offset = tabPtr.p->sz_FixedAttributes;
+      tabPtr.p->sz_FixedAttributes += sz32;
+    }//if
+    
+    if(attrPtr.p->data.fixed == true && attrPtr.p->data.nullable == true) {
       jam();
-      ndbrequire(attrPtr.p->data.nullable == false);
+      attrPtr.p->data.offset = 0;
       
-      if(attrPtr.p->data.fixed == true) { // Fixed key
-	jam();
-	tabPtr.p->sz_FixedKeys += sz32;
-      }//if
-      
-      if(attrPtr.p->data.fixed == false) { // Variable key
-	jam();
-	attrPtr.p->data.offset = 0;
-	tabPtr.p->noOfVariable++;
-	ndbrequire(tabPtr.p->variableKeyId == RNIL); // Only one variable key
-	tabPtr.p->variableKeyId = attrPtr.i;
-	ndbrequire(0);
-      }//if
+      attrPtr.p->data.offsetNull = tabPtr.p->noOfNull;
+      tabPtr.p->noOfNull++;
+      tabPtr.p->noOfVariable++;
+    }//if
+    
+    if(attrPtr.p->data.fixed == false) {
+      jam();
+      tabPtr.p->noOfVariable++;
+      ndbrequire(0);
     }//if
     
     it.next(); // Move Past EndOfAttribute
@@ -3222,7 +3201,7 @@ Backup::execSTART_BACKUP_REQ(Signal* signal)
 	return;
       }//if
 
-      tabPtr.p->triggerAllocated[i] = true;
+      tabPtr.p->triggerAllocated[j] = true;
       trigPtr.p->backupPtr = ptr.i;
       trigPtr.p->tableId = tabPtr.p->tableId;
       trigPtr.p->tab_ptr_i = tabPtr.i;
@@ -3355,7 +3334,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     Table & table = * tabPtr.p;
     ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
     const Uint32 parallelism = 16;
-    const Uint32 attrLen = 5 + table.noOfAttributes - table.noOfKeys;
+    const Uint32 attrLen = 5 + table.noOfAttributes;
 
     req->senderData = filePtr.i;
     req->resultRef = reference();
@@ -3366,7 +3345,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     req->tableId = table.tableId;
     ScanFragReq::setLockMode(req->requestInfo, 0);
     ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
-    ScanFragReq::setKeyinfoFlag(req->requestInfo, 1);
+    ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
     ScanFragReq::setAttrLen(req->requestInfo,attrLen); 
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
@@ -3381,7 +3360,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     signal->theData[2] = (BACKUP << 20) + (getOwnNodeId() << 8);
     
     // Return all
-    signal->theData[3] = table.noOfAttributes - table.noOfKeys;
+    signal->theData[3] = table.noOfAttributes;
     signal->theData[4] = 0;
     signal->theData[5] = 0;
     signal->theData[6] = 0;
@@ -3393,10 +3372,6 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
       jam();
       AttributePtr attr;
       table.attributes.getPtr(attr, i);
-      if(attr.p->data.key != 0) {
-	jam();
-	continue;
-      }//if
       
       AttributeHeader::init(&signal->theData[dataPos], i, 0);
       dataPos++;
@@ -3506,64 +3481,19 @@ Backup::execTRANSID_AI(Signal* signal)
   }
 }
 
-void
-Backup::execKEYINFO20(Signal* signal)
-{
-  jamEntry();
-  
-  const Uint32 filePtrI = signal->theData[0];
-  const Uint32 keyLen   = signal->theData[1];
-  //const Uint32 scanInfo = signal->theData[2];
-  //const Uint32 transId1 = signal->theData[3];
-  //const Uint32 transId2 = signal->theData[4];
-  const Uint32 dataLen  = signal->length() - 5;
-
-  BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, filePtrI);
-  
-  OperationRecord & op = filePtr.p->operation;
-  
-  /**
-   * Unpack data
-   */
-  ndbrequire(keyLen == dataLen);
-  const Uint32 * src = &signal->theData[5];
-  const Uint32 klFixed = op.getFixedKeySize();
-  ndbrequire(keyLen >= klFixed);
-  
-  Uint32 * dst = op.newKey();
-  memcpy(dst, src, klFixed << 2);
-  
-  const Uint32 szLeft = (keyLen - klFixed);
-  if(szLeft > 0) {
-    jam();
-    src += klFixed;
-    dst = op.newVariableKey(szLeft);
-    memcpy(dst, src, (szLeft << 2));
-    ndbrequire(0);
-  }//if
-  
-  if(op.finished()){
-    jam();
-    op.newRecord(op.dst);
-  }
-}
-
 void 
 Backup::OperationRecord::init(const TablePtr & ptr)
 {
   
   tablePtr = ptr.i;
-  noOfAttributes = (ptr.p->noOfAttributes - ptr.p->noOfKeys) + 1;
-  variableKeyId = ptr.p->variableKeyId;
+  noOfAttributes = ptr.p->noOfAttributes;
   
   sz_Bitmask = (ptr.p->noOfNull + 31) >> 5;
-  sz_FixedKeys = ptr.p->sz_FixedKeys;
   sz_FixedAttribs = ptr.p->sz_FixedAttributes;
 
   if(ptr.p->noOfVariable == 0) {
     jam();
-    maxRecordSize = 1 + sz_Bitmask + sz_FixedKeys + sz_FixedAttribs;
+    maxRecordSize = 1 + sz_Bitmask + sz_FixedAttribs;
   } else {
     jam();
     maxRecordSize = 

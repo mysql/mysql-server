@@ -11,4 +11,5 @@ INCLUDES += -I$(srcdir) -I$(top_srcdir)/include \
         -I$(top_srcdir)/ndb/include/util \
         -I$(top_srcdir)/ndb/include/portlib \
         -I$(top_srcdir)/ndb/test/include \
-        -I$(top_srcdir)/ndb/include/mgmapi
+        -I$(top_srcdir)/ndb/include/mgmapi \
+        -I$(top_srcdir)/ndb/include/kernel

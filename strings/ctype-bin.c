@@ -67,6 +67,13 @@ static uchar bin_char_array[] =
 };
 
 
+static my_bool 
+my_coll_init_8bit_bin(CHARSET_INFO *cs,
+                      void *(*alloc)(uint) __attribute__((unused)))
+{
+  cs->max_sort_char=255; 
+  return FALSE;
+}
 
 static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
                                const uchar *s, uint slen,
@@ -157,7 +164,7 @@ static int my_strnncollsp_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
   }
   if (a_length != b_length)
   {
-    int swap= 0;
+    int swap= 1;
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -172,7 +179,7 @@ static int my_strnncollsp_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
     for (end= a + a_length-length; a < end ; a++)
     {
       if (*a != ' ')
-	return ((int) *a - (int) ' ') ^ swap;
+	return (*a < ' ') ? -swap : swap;
     }
   }
   return 0;
@@ -341,13 +348,27 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
 
 
 static int my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
-			    uchar * dest, uint len,
-			    const uchar *src, 
-			    uint srclen __attribute__((unused)))
+                           uchar * dest, uint dstlen,
+                           const uchar *src, uint srclen)
 {
   if (dest != src)
-    memcpy(dest,src,len= min(len,srclen));
-  return len;
+    memcpy(dest, src, min(dstlen,srclen));
+  if (dstlen > srclen)
+    bfill(dest + srclen, dstlen - srclen, 0);
+  return dstlen;
+}
+
+
+static
+int my_strnxfrm_8bit_bin(CHARSET_INFO *cs __attribute__((unused)),
+                         uchar * dest, uint dstlen,
+                         const uchar *src, uint srclen)
+{
+  if (dest != src)
+    memcpy(dest, src, min(dstlen,srclen));
+  if (dstlen > srclen)
+    bfill(dest + srclen, dstlen - srclen, ' ');
+  return dstlen;
 }
 
 
@@ -414,10 +435,10 @@ skip:
 
 MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
 {
-    NULL,			/* init */
+    my_coll_init_8bit_bin,
     my_strnncoll_8bit_bin,
     my_strnncollsp_8bit_bin,
-    my_strnxfrm_bin,
+    my_strnxfrm_8bit_bin,
     my_like_range_simple,
     my_wildcmp_bin,
     my_strcasecmp_bin,

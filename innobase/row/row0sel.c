@@ -31,6 +31,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "pars0pars.h"
 #include "row0mysql.h"
 #include "read0read.h"
+#include "buf0lru.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -638,23 +639,24 @@ row_sel_get_clust_rec(
 	if (!node->read_view) {
 		/* Try to place a lock on the index record */
         
-          /* If innodb_locks_unsafe_for_binlog option is used, 
-             we lock only the record, i.e. next-key locking is
-             not used.
-	  */
-	  if ( srv_locks_unsafe_for_binlog )
-	    {
-		err = lock_clust_rec_read_check_and_lock(0, clust_rec, 
-                        index,node->row_lock_mode, LOCK_REC_NOT_GAP, thr);
-	    }
-	  else
-	    {		
-		err = lock_clust_rec_read_check_and_lock(0, clust_rec, index,
-				node->row_lock_mode, LOCK_ORDINARY, thr);
+		/* If innodb_locks_unsafe_for_binlog option is used, 
+		we lock only the record, i.e. next-key locking is
+		not used.
+		*/
 
-	    }
+		if (srv_locks_unsafe_for_binlog) {
+			err = lock_clust_rec_read_check_and_lock(0, 
+					clust_rec, 
+					index, node->row_lock_mode, 
+					LOCK_REC_NOT_GAP, thr);
+		} else {
+			err = lock_clust_rec_read_check_and_lock(0, 
+					clust_rec, 
+					index, node->row_lock_mode, 
+					LOCK_ORDINARY, thr);
+		}
 
-	    if (err != DB_SUCCESS) {
+		if (err != DB_SUCCESS) {
 
 			return(err);
 		}
@@ -729,7 +731,17 @@ sel_set_rec_lock(
 	ulint		type, 	/* in: LOCK_ORDINARY, LOCK_GAP, or LOC_REC_NOT_GAP */
 	que_thr_t*	thr)	/* in: query thread */	
 {
+	trx_t*	trx;
 	ulint	err;
+
+	trx = thr_get_trx(thr);	
+
+	if (UT_LIST_GET_LEN(trx->trx_locks) > 10000) {
+		if (buf_LRU_buf_pool_running_out()) {
+			
+			return(DB_LOCK_TABLE_FULL);
+		}
+	}
 
 	if (index->type & DICT_CLUSTERED) {
 		err = lock_clust_rec_read_check_and_lock(0, rec, index, mode,
@@ -1205,22 +1217,24 @@ rec_loop:
 		
 		if (!consistent_read) {
 
-		  /* If innodb_locks_unsafe_for_binlog option is used,
-                     we lock only the record, i.e. next-key locking is
-                     not used.
-		  */
+			/* If innodb_locks_unsafe_for_binlog option is used,
+			we lock only the record, i.e. next-key locking is
+			not used.
+			*/
 
-                  if ( srv_locks_unsafe_for_binlog )
-		    {
-			err = sel_set_rec_lock(page_rec_get_next(rec), index,
-				node->row_lock_mode, LOCK_REC_NOT_GAP, thr);
-		    } 
-                    else
-		    {
-			err = sel_set_rec_lock(page_rec_get_next(rec), index,
-				node->row_lock_mode, LOCK_ORDINARY, thr);
-		    }
-		    if (err != DB_SUCCESS) {
+			if (srv_locks_unsafe_for_binlog) {
+				err = sel_set_rec_lock(page_rec_get_next(rec), 
+							index,
+							node->row_lock_mode,
+							LOCK_REC_NOT_GAP, thr);
+			} else {
+				err = sel_set_rec_lock(page_rec_get_next(rec), 
+							index,
+							node->row_lock_mode, 
+							LOCK_ORDINARY, thr);
+			}
+
+			if (err != DB_SUCCESS) {
 				/* Note that in this case we will store in pcur
 				the PREDECESSOR of the record we are waiting
 				the lock for */
@@ -1245,21 +1259,18 @@ rec_loop:
 	if (!consistent_read) {
 		/* Try to place a lock on the index record */	
 
-		  /* If innodb_locks_unsafe_for_binlog option is used,
-                     we lock only the record, i.e. next-key locking is
-                     not used.
-		  */
+		/* If innodb_locks_unsafe_for_binlog option is used,
+		we lock only the record, i.e. next-key locking is
+		not used.
+		*/
 
-                  if ( srv_locks_unsafe_for_binlog )
-		    {
-		        err = sel_set_rec_lock(rec, index, node->row_lock_mode,
+		if (srv_locks_unsafe_for_binlog) {
+			err = sel_set_rec_lock(rec, index, node->row_lock_mode,
 						LOCK_REC_NOT_GAP, thr);
-		    } 
-		  else
-		    {
-		        err = sel_set_rec_lock(rec, index, node->row_lock_mode,
+		} else {
+			err = sel_set_rec_lock(rec, index, node->row_lock_mode,
 						LOCK_ORDINARY, thr);
-		    }
+		}
 
 		if (err != DB_SUCCESS) {
 
@@ -2193,9 +2204,6 @@ row_sel_field_store_in_mysql_format(
 		dest = row_mysql_store_var_len(dest, len);
 		ut_memcpy(dest, data, len);
 
-		/* Pad with trailing spaces */
-		memset(dest + len, ' ', col_len - len); 
-
 		/* ut_ad(col_len >= len + 2); No real var implemented in
 		MySQL yet! */
 		
@@ -2323,7 +2331,45 @@ row_sel_store_mysql_rec(
 				mysql_rec + templ->mysql_col_offset,
 				templ->mysql_col_len, data, len,
 				templ->type, templ->is_unsigned);
-				
+
+			if (templ->type == DATA_VARCHAR
+					|| templ->type == DATA_VARMYSQL
+					|| templ->type == DATA_BINARY) {
+				/* Pad with trailing spaces */
+				data = mysql_rec + templ->mysql_col_offset;
+
+				/* Handle UCS2 strings differently.  As no new
+				collations will be introduced in 4.1, we
+				hardcode the charset-collation codes here.
+				5.0 will use a different approach. */
+				if (templ->charset == 35
+						|| templ->charset == 90
+						|| (templ->charset >= 128
+						&& templ->charset <= 144)) {
+					/* space=0x0020 */
+					ulint	col_len = templ->mysql_col_len;
+
+					ut_a(!(col_len & 1));
+					if (len & 1) {
+						/* A 0x20 has been stripped
+						from the column.
+						Pad it back. */
+						goto pad_0x20;
+					}
+					/* Pad the rest of the string
+					with 0x0020 */
+					while (len < col_len) {
+						data[len++] = 0x00;
+					pad_0x20:
+						data[len++] = 0x20;
+					}
+				} else {
+					/* space=0x20 */
+					memset(data + len, 0x20,
+						templ->mysql_col_len - len);
+				}
+			}
+
 			/* Cleanup */
 			if (extern_field_heap) {
  				mem_heap_free(extern_field_heap);
@@ -2357,8 +2403,29 @@ row_sel_store_mysql_rec(
 				pad_char = '\0';
 			}
 
-			memset(mysql_rec + templ->mysql_col_offset, pad_char,
-							templ->mysql_col_len);
+			/* Handle UCS2 strings differently.  As no new
+			collations will be introduced in 4.1,
+			we hardcode the charset-collation codes here.
+			5.0 will use a different approach. */
+			if (templ->charset == 35
+					|| templ->charset == 90
+					|| (templ->charset >= 128
+					&& templ->charset <= 144)) {
+				/* There are two bytes per char, so the length
+				has to be an even number. */
+				ut_a(!(templ->mysql_col_len & 1));
+				data = mysql_rec + templ->mysql_col_offset;
+				len = templ->mysql_col_len;
+				/* Pad with 0x0020. */
+				while (len >= 2) {
+					*data++ = 0x00;
+					*data++ = 0x20;
+					len -= 2;
+				}
+			} else {
+				memset(mysql_rec + templ->mysql_col_offset,
+					pad_char, templ->mysql_col_len);
+			}
 		}
 	} 
 
@@ -2765,6 +2832,7 @@ row_search_for_mysql(
 					/* out: DB_SUCCESS,
 					DB_RECORD_NOT_FOUND, 
 					DB_END_OF_INDEX, DB_DEADLOCK,
+					DB_LOCK_TABLE_FULL, DB_CORRUPTION,
 					or DB_TOO_BIG_RECORD */
 	byte*		buf,		/* in/out: buffer for the fetched
 					row in the MySQL format */
@@ -2816,7 +2884,21 @@ row_search_for_mysql(
 	
 	ut_ad(index && pcur && search_tuple);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-		
+
+	if (prebuilt->table->ibd_file_missing) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB: Error:\n"
+"InnoDB: MySQL is trying to use a table handle but the .ibd file for\n"
+"InnoDB: table %s does not exist.\n"
+"InnoDB: Have you deleted the .ibd file from the database directory under\n"
+"InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
+"InnoDB: Look from\n"
+"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: how you can resolve the problem.\n",
+				prebuilt->table->name);
+		return(DB_ERROR);
+	}
+
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
 		fprintf(stderr,
 		"InnoDB: Error: trying to free a corrupt\n"
@@ -2830,14 +2912,19 @@ row_search_for_mysql(
 		ut_error;
 	}
 
-	if (trx->n_mysql_tables_in_use == 0) {
+	if (trx->n_mysql_tables_in_use == 0
+            && prebuilt->select_lock_type == LOCK_NONE) {
+		/* Note that if MySQL uses an InnoDB temp table that it
+		created inside LOCK TABLES, then n_mysql_tables_in_use can
+		be zero; in that case select_lock_type is set to LOCK_X in
+		::start_stmt. */
+
 		fputs(
 "InnoDB: Error: MySQL is trying to perform a SELECT\n"
 "InnoDB: but it has not locked any tables in ::external_lock()!\n",
                       stderr);
 		trx_print(stderr, trx);
                 fputc('\n', stderr);
-		ut_a(0);
 	}
 
 /*	fprintf(stderr, "Match mode %lu\n search tuple ", (ulong) match_mode);
@@ -3209,8 +3296,7 @@ rec_loop:
 			we do not lock gaps. Supremum record is really
 			a gap and therefore we do not set locks there. */
 			
-			if ( srv_locks_unsafe_for_binlog == FALSE )
-			{
+			if (srv_locks_unsafe_for_binlog == FALSE) {
 				err = sel_set_rec_lock(rec, index,
 						prebuilt->select_lock_type,
 						LOCK_ORDINARY, thr);
@@ -3312,11 +3398,18 @@ rec_loop:
 
 			if (prebuilt->select_lock_type != LOCK_NONE
 		    	    && set_also_gap_locks) {
-				/* Try to place a lock on the index record */
 
-				err = sel_set_rec_lock(rec, index,
+				/* Try to place a gap lock on the index 
+				record only if innodb_locks_unsafe_for_binlog
+				option is not set */
+
+				if (srv_locks_unsafe_for_binlog == FALSE) { 
+
+					err = sel_set_rec_lock(rec, index,
 						prebuilt->select_lock_type,
 						LOCK_GAP, thr);
+				}
+
 				if (err != DB_SUCCESS) {
 
 					goto lock_wait_or_error;
@@ -3338,11 +3431,18 @@ rec_loop:
 			
 			if (prebuilt->select_lock_type != LOCK_NONE
 			    && set_also_gap_locks) {
-				/* Try to place a lock on the index record */	
 
-				err = sel_set_rec_lock(rec, index,
+				/* Try to place a gap lock on the index 
+				record only if innodb_locks_unsafe_for_binlog
+				option is not set */
+
+				if (srv_locks_unsafe_for_binlog == FALSE) {
+
+					err = sel_set_rec_lock(rec, index,
 						prebuilt->select_lock_type,
 						LOCK_GAP, thr);
+				}
+
 				if (err != DB_SUCCESS) {
 
 					goto lock_wait_or_error;
@@ -3376,19 +3476,16 @@ rec_loop:
 						prebuilt->select_lock_type,
 						LOCK_REC_NOT_GAP, thr);
 		} else {
-                        /* If innodb_locks_unsafe_for_binlog option is used, 
-                           we lock only the record, i.e. next-key locking is
-                           not used.
-	                */
-	                if ( srv_locks_unsafe_for_binlog )
-	                {
-			    err = sel_set_rec_lock(rec, index,
+			/* If innodb_locks_unsafe_for_binlog option is used, 
+			we lock only the record, i.e. next-key locking is
+			not used. */
+
+			if (srv_locks_unsafe_for_binlog) {
+				err = sel_set_rec_lock(rec, index,
 						prebuilt->select_lock_type,
 						LOCK_REC_NOT_GAP, thr);
-			}
-			else
-			{
-			    err = sel_set_rec_lock(rec, index,
+			} else {
+				err = sel_set_rec_lock(rec, index,
 						prebuilt->select_lock_type,
 						LOCK_ORDINARY, thr);
 			}

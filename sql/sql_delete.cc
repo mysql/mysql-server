@@ -57,8 +57,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
     DBUG_RETURN(1);
   }
 
-  if (thd->lex->duplicates == DUP_IGNORE)
-    thd->lex->select_lex.no_error= 1;
+  thd->lex->select_lex.no_error= thd->lex->ignore;
 
   /* Test if the user wants to delete all rows */
   if (!using_limit && const_cond && (!conds || conds->val_int()) &&
@@ -118,6 +117,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
 
     bzero((char*) &tables,sizeof(tables));
     tables.table = table;
+    tables.alias = table_list->alias;
 
     table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                              MYF(MY_FAE | MY_ZEROFILL));
@@ -216,7 +216,7 @@ cleanup:
       if (error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed);
+			    log_delayed, FALSE);
       if (mysql_bin_log.write(&qinfo) && transactional_table)
 	error=1;
     }
@@ -565,7 +565,7 @@ bool multi_delete::send_eof()
       if (error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed);
+			    log_delayed, FALSE);
       if (mysql_bin_log.write(&qinfo) && !normal_tables)
 	local_error=1;  // Log write failed: roll back the SQL statement
     }
@@ -674,7 +674,7 @@ end:
       {
         thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      thd->tmp_table);
+			      thd->tmp_table, FALSE);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);		// This should return record count

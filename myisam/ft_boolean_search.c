@@ -155,7 +155,7 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         ftbw=(FTB_WORD *)alloc_root(&ftb->mem_root,
                                     sizeof(FTB_WORD) +
                                     (param.trunc ? MI_MAX_KEY_BUFF :
-                                     w.len+extra));
+                                     w.len*ftb->charset->mbmaxlen+extra));
         ftbw->len=w.len+1;
         ftbw->flags=0;
         ftbw->off=0;
@@ -164,9 +164,9 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         if (param.trunc)   ftbw->flags|=FTB_FLAG_TRUNC;
         ftbw->weight=weight;
         ftbw->up=up;
-        ftbw->docid[0]=ftbw->docid[1]=HA_POS_ERROR;
+        ftbw->docid[0]=ftbw->docid[1]=HA_OFFSET_ERROR;
         ftbw->ndepth= (param.yesno<0) + depth;
-        ftbw->key_root=HA_POS_ERROR;
+        ftbw->key_root=HA_OFFSET_ERROR;
         memcpy(ftbw->word+1, w.pos, w.len);
         ftbw->word[0]=w.len;
         if (param.yesno > 0) up->ythresh++;
@@ -181,7 +181,7 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         ftbe->weight=weight;
         ftbe->up=up;
         ftbe->ythresh=ftbe->yweaks=0;
-        ftbe->docid[0]=ftbe->docid[1]=HA_POS_ERROR;
+        ftbe->docid[0]=ftbe->docid[1]=HA_OFFSET_ERROR;
         if ((ftbe->quot=param.quot)) ftb->with_scan|=2;
         if (param.yesno > 0) up->ythresh++;
         _ftb_parse_query(ftb, start, end, ftbe, depth+1);
@@ -259,7 +259,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   {
     if (!ftbw->off || !(ftbw->flags & FTB_FLAG_TRUNC))
     {
-      ftbw->docid[0]=HA_POS_ERROR;
+      ftbw->docid[0]=HA_OFFSET_ERROR;
       if ((ftbw->flags & FTB_FLAG_YES) && ftbw->up->up==0)
       {
         /*
@@ -345,25 +345,27 @@ static void _ftb_init_index_search(FT_INFO *ftb)
         if (ftbe->flags & FTB_FLAG_NO ||                     /* 2 */
              ftbe->up->ythresh - ftbe->up->yweaks >1)        /* 1 */
         {
-          FTB_EXPR *top_ftbe=ftbe->up->up;
-          ftbw->docid[0]=HA_POS_ERROR;
-          for (ftbe=ftbw->up; ftbe != top_ftbe; ftbe=ftbe->up)
-            if (ftbe->flags & FTB_FLAG_YES)
-              ftbe->yweaks++;
+          FTB_EXPR *top_ftbe=ftbe->up;
+          ftbw->docid[0]=HA_OFFSET_ERROR;
+          for (ftbe=(FTB_EXPR *)ftbw;
+               ftbe != top_ftbe && !(ftbe->flags & FTB_FLAG_NO);
+               ftbe=ftbe->up)
+              ftbe->up->yweaks++;
           ftbe=0;
           break;
         }
       }
       if (!ftbe)
         continue;
-      /* 3 */
+      /* 4 */
       if (!is_tree_inited(& ftb->no_dupes))
         init_tree(& ftb->no_dupes,0,0,sizeof(my_off_t),
             _ftb_no_dupes_cmp,0,0,0);
       else
         reset_tree(& ftb->no_dupes);
     }
-     
+
+    ftbw->off=0; /* in case of reinit */
     if (_ft2_search(ftb, ftbw, 1))
       return;
   }
@@ -372,7 +374,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
 
 
 FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
-                                 uint query_len)
+                                 uint query_len, CHARSET_INFO *cs)
 {
   FTB       *ftb;
   FTB_EXPR  *ftbe;
@@ -384,10 +386,10 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftb->state=UNINITIALIZED;
   ftb->info=info;
   ftb->keynr=keynr;
-  ftb->charset= ((keynr==NO_SUCH_KEY) ?
-           default_charset_info : info->s->keyinfo[keynr].seg->charset);
+  ftb->charset=cs;
+  DBUG_ASSERT(keynr==NO_SUCH_KEY || cs == info->s->keyinfo[keynr].seg->charset);
   ftb->with_scan=0;
-  ftb->lastpos=HA_POS_ERROR;
+  ftb->lastpos=HA_OFFSET_ERROR;
   bzero(& ftb->no_dupes, sizeof(TREE));
 
   init_alloc_root(&ftb->mem_root, 1024, 1024);
@@ -410,7 +412,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftbe->quot=0;
   ftbe->up=0;
   ftbe->ythresh=ftbe->yweaks=0;
-  ftbe->docid[0]=ftbe->docid[1]=HA_POS_ERROR;
+  ftbe->docid[0]=ftbe->docid[1]=HA_OFFSET_ERROR;
   ftb->root=ftbe;
   _ftb_parse_query(ftb, &query, query+query_len, ftbe, 0);
   ftb->list=(FTB_WORD **)alloc_root(&ftb->mem_root,
@@ -433,32 +435,24 @@ static int _ftb_strstr(const byte *s0, const byte *e0,
                 const byte *s1, const byte *e1,
                 CHARSET_INFO *cs)
 {
-  const byte *p0, *p1;
-  my_bool s_after, e_before;
-
-  s_after=true_word_char(cs, s1[0]);
-  e_before=true_word_char(cs, e1[-1]);
-  p0=s0;
+  const byte *p0= s0;
+  my_bool s_after= true_word_char(cs, s1[0]);
+  my_bool e_before= true_word_char(cs, e1[-1]);
+  uint p0_len;
+  my_match_t m[2];
 
   while (p0 < e0)
   {
-    while (p0 < e0 && cs->to_upper[(uint) (uchar) *p0++] !=
-           cs->to_upper[(uint) (uchar) *s1])
-      /* no-op */;
-    if (p0 >= e0)
-      return 0;
-
-    if (s_after && p0-1 > s0 && true_word_char(cs, p0[-2]))
-      continue;
-
-    p1=s1+1;
-    while (p0 < e0 && p1 < e1 && cs->to_upper[(uint) (uchar) *p0] ==
-           cs->to_upper[(uint) (uchar) *p1])
-      p0++, p1++;
-    if (p1 == e1 && (!e_before || p0 == e0 || !true_word_char(cs, p0[0])))
-      return 1;
+    if (cs->coll->instr(cs, p0, e0 - p0, s1, e1 - s1, m, 2) != 2)
+      return(0);
+    if ((!s_after || p0 + m[1].beg == s0 || !true_word_char(cs, p0[m[1].beg-1])) &&
+        (!e_before || p0 + m[1].end == e0 || !true_word_char(cs, p0[m[1].end])))
+      return(1);
+    p0+= m[1].beg;
+    p0+= (p0_len= my_mbcharlen(cs, *(uchar *)p0)) ? p0_len : 1;
   }
-  return 0;
+
+  return(0);
 }
 
 
@@ -561,7 +555,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
 
   while (ftb->state == INDEX_SEARCH &&
          (curdoc=((FTB_WORD *)queue_top(& ftb->queue))->docid[0]) !=
-         HA_POS_ERROR)
+         HA_OFFSET_ERROR)
   {
     while (curdoc == (ftbw=(FTB_WORD *)queue_top(& ftb->queue))->docid[0])
     {
@@ -615,7 +609,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
   const byte *end;
   my_off_t  docid=ftb->info->lastpos;
 
-  if (docid == HA_POS_ERROR)
+  if (docid == HA_OFFSET_ERROR)
     return -2.0;
   if (!ftb->queue.elements)
     return 0;
@@ -627,9 +621,9 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
 
     for (i=0; i < ftb->queue.elements; i++)
     {
-      ftb->list[i]->docid[1]=HA_POS_ERROR;
+      ftb->list[i]->docid[1]=HA_OFFSET_ERROR;
       for (x=ftb->list[i]->up; x; x=x->up)
-        x->docid[1]=HA_POS_ERROR;
+        x->docid[1]=HA_OFFSET_ERROR;
     }
   }
 

@@ -24,7 +24,11 @@
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
+
 Transporter::Transporter(TransporterRegistry &t_reg,
+			 TransporterType _type,
 			 const char *lHostName,
 			 const char *rHostName, 
 			 int r_port,
@@ -35,8 +39,10 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   : m_r_port(r_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
     isServer(lNodeId < rNodeId),
     m_packer(_signalId, _checksum),
+    m_type(_type),
     m_transporter_registry(t_reg)
 {
+  DBUG_ENTER("Transporter::Transporter");
   if (rHostName && strlen(rHostName) > 0){
     strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
     Ndb_getInAddr(&remoteHostAddress, rHostName);
@@ -55,6 +61,11 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   if (strlen(lHostName) > 0)
     Ndb_getInAddr(&localHostAddress, lHostName);
 
+  DBUG_PRINT("info",("rId=%d lId=%d isServer=%d rHost=%s lHost=%s r_port=%d",
+		     remoteNodeId, localNodeId, isServer,
+		     remoteHostName, localHostName,
+		     r_port));
+
   byteOrder       = _byteorder;
   compressionUsed = _compression;
   checksumUsed    = _checksum;
@@ -67,7 +78,9 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     m_socket_client= 0;
   else
     m_socket_client= new SocketClient(remoteHostName, r_port,
-				      new SocketAuthSimple("ndbd", "ndbd passwd"));
+				      new SocketAuthSimple("ndbd",
+							   "ndbd passwd"));
+  DBUG_VOID_RETURN;
 }
 
 Transporter::~Transporter(){
@@ -77,8 +90,13 @@ Transporter::~Transporter(){
 
 bool
 Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
+  // all initial negotiation is done in TransporterRegistry::connect_server
+  DBUG_ENTER("Transporter::connect_server");
+
   if(m_connected)
-    return true; // TODO assert(0);
+  {
+    DBUG_RETURN(true); // TODO assert(0);
+  }
   
   bool res = connect_server_impl(sockfd);
   if(res){
@@ -86,7 +104,7 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
     m_errorCount = 0;
   }
 
-  return res;
+  DBUG_RETURN(res);
 }
 
 bool
@@ -95,30 +113,63 @@ Transporter::connect_client() {
     return true;
   NDB_SOCKET_TYPE sockfd = m_socket_client->connect();
   
-  if (sockfd < 0)
+  if (sockfd == NDB_INVALID_SOCKET)
     return false;
 
-  // send info about own id 
+  DBUG_ENTER("Transporter::connect_client");
+
+  // send info about own id
+  // send info about own transporter type
   SocketOutputStream s_output(sockfd);
-  s_output.println("%d", localNodeId);
+  s_output.println("%d %d", localNodeId, m_type);
   // get remote id
-  int nodeId;
+  int nodeId, remote_transporter_type= -1;
   SocketInputStream s_input(sockfd);
   char buf[256];
   if (s_input.gets(buf, 256) == 0) {
     NDB_CLOSE_SOCKET(sockfd);
-    return false;
+    DBUG_RETURN(false);
   }
-  if (sscanf(buf, "%d", &nodeId) != 1) {
+
+  int r= sscanf(buf, "%d %d", &nodeId, &remote_transporter_type);
+  switch (r) {
+  case 2:
+    break;
+  case 1:
+    // we're running version prior to 4.1.9
+    // ok, but with no checks on transporter configuration compatability
+    break;
+  default:
     NDB_CLOSE_SOCKET(sockfd);
-    return false;
+    DBUG_RETURN(false);
   }
+
+  DBUG_PRINT("info", ("nodeId=%d remote_transporter_type=%d",
+		      nodeId, remote_transporter_type));
+
+  if (remote_transporter_type != -1)
+  {
+    if (remote_transporter_type != m_type)
+    {
+      DBUG_PRINT("error", ("Transporter types mismatch this=%d remote=%d",
+			   m_type, remote_transporter_type));
+      NDB_CLOSE_SOCKET(sockfd);
+      g_eventLogger.error("Incompatible configuration: transporter type "
+			  "mismatch with node %d", nodeId);
+      DBUG_RETURN(false);
+    }
+  }
+  else if (m_type == tt_SHM_TRANSPORTER)
+  {
+    g_eventLogger.warning("Unable to verify transporter compatability with node %d", nodeId);
+  }
+
   bool res = connect_client_impl(sockfd);
   if(res){
     m_connected  = true;
     m_errorCount = 0;
   }
-  return res;
+  DBUG_RETURN(res);
 }
 
 void

@@ -88,10 +88,10 @@ int runTestMaxNdb(NDBT_Context* ctx, NDBT_Step* step){
     oldi = i;
       
     
-    for(size_t i = 0;  i < ndbVector.size(); i++){
-      delete ndbVector[i];
-      if(((i+1) % 250) == 0){
-	ndbout << "Deleted " << (Uint64) i << " ndb objects " << endl;
+    for(size_t j = 0;  j < ndbVector.size(); j++){
+      delete ndbVector[j];
+      if(((j+1) % 250) == 0){
+	ndbout << "Deleted " << (Uint64) j << " ndb objects " << endl;
       }
     }
     ndbVector.clear();
@@ -142,14 +142,22 @@ int runTestMaxTransaction(NDBT_Context* ctx, NDBT_Step* step){
 				      4);
 	break;
       case 2:
+	ndbout_c("startTransactionDGroup not supported");
+	abort();
+	/*	  
 	pCon = pNdb->startTransactionDGroup(1, 
 					    "TEST",
 					    0);
+	*/
 	break;
       case 3:      
+	ndbout_c("startTransactionDGroup not supported");
+	abort();
+	/*	  
 	pCon = pNdb->startTransactionDGroup(2, 
 					    "TEST",
 					    1);
+	*/
 	break;
 
       default:
@@ -178,8 +186,8 @@ int runTestMaxTransaction(NDBT_Context* ctx, NDBT_Step* step){
     oldi = i;
       
     
-    for(size_t i = 0; i < conVector.size(); i++){
-      pNdb->closeTransaction(conVector[i]);
+    for(size_t j = 0; j < conVector.size(); j++){
+      pNdb->closeTransaction(conVector[j]);
     }
     conVector.clear();
     l++;
@@ -537,8 +545,8 @@ int runTestDeleteNdb(NDBT_Context* ctx, NDBT_Step* step){
     }
     
     // Delete the ndb objects
-    for(size_t i = 0;  i < ndbVector.size(); i++)
-      delete ndbVector[i];
+    for(size_t j = 0;  j < ndbVector.size(); j++)
+      delete ndbVector[j];
     ndbVector.clear();
     l++;
   }

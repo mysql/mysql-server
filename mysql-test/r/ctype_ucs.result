@@ -1,4 +1,27 @@
 DROP TABLE IF EXISTS t1;
+SET NAMES latin1;
+SET character_set_connection=ucs2;
+select 'a' = 'a', 'a' = 'a ', 'a ' = 'a';
+'a' = 'a'	'a' = 'a '	'a ' = 'a'
+1	1	1
+select 'a\0' = 'a', 'a\0' < 'a', 'a\0' > 'a';
+'a\0' = 'a'	'a\0' < 'a'	'a\0' > 'a'
+0	1	0
+select 'a' = 'a\0', 'a' < 'a\0', 'a' > 'a\0';
+'a' = 'a\0'	'a' < 'a\0'	'a' > 'a\0'
+0	0	1
+select 'a\0' = 'a ', 'a\0' < 'a ', 'a\0' > 'a ';
+'a\0' = 'a '	'a\0' < 'a '	'a\0' > 'a '
+0	1	0
+select 'a ' = 'a\0', 'a ' < 'a\0', 'a ' > 'a\0';
+'a ' = 'a\0'	'a ' < 'a\0'	'a ' > 'a\0'
+0	0	1
+select 'a  a' > 'a', 'a  \0' < 'a';
+'a  a' > 'a'	'a  \0' < 'a'
+1	1
+select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
+binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
+1	1	1
 SET CHARACTER SET koi8r;
 CREATE TABLE t1 (word VARCHAR(64) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES (_koi8r'ò'), (X'2004');
@@ -480,3 +503,127 @@ a	0061
 b	0062
 c	0063
 drop table t1;
+set @ivar= 1234;
+set @str1 = 'select ?';
+set @str2 = convert(@str1 using ucs2);
+prepare stmt1 from @str2;
+execute stmt1 using @ivar;
+?
+1234
+SET TIMESTAMP=10000;
+create table t2 (c char(30)) charset=ucs2;
+set @v=convert('abc' using ucs2);
+reset master;
+insert into t2 values (@v);
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	User var	1	79	@`v`=_ucs2 0x006100620063 COLLATE ucs2_general_ci
+master-bin.000001	119	Query	1	119	use `test`; insert into t2 values (@v)
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+SET @`v`:=_ucs2 0x006100620063 COLLATE `ucs2_general_ci`;
+use test;
+SET TIMESTAMP=10000;
+insert into t2 values (@v);
+drop table t2;
+set names latin1;
+create table t1 (a enum('x','y','z') character set ucs2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('x','y','z') character set ucs2 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('x');
+insert into t1 values ('y');
+insert into t1 values ('z');
+select a, hex(a) from t1 order by a;
+a	hex(a)
+x	0078
+y	0079
+z	007A
+alter table t1 change a a enum('x','y','z','d','e','ä','ö','ü') character set ucs2;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('x','y','z','d','e','ä','ö','ü') character set ucs2 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('D');
+insert into t1 values ('E ');
+insert into t1 values ('Ä');
+insert into t1 values ('Ö');
+insert into t1 values ('Ü');
+select a, hex(a) from t1 order by a;
+a	hex(a)
+x	0078
+y	0079
+z	007A
+d	0064
+e	0065
+ä	00E4
+ö	00F6
+ü	00FC
+drop table t1;
+create table t1 (a set ('x','y','z','ä','ö','ü') character set ucs2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` set('x','y','z','ä','ö','ü') character set ucs2 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('x');
+insert into t1 values ('y');
+insert into t1 values ('z');
+insert into t1 values ('x,y');
+insert into t1 values ('x,y,z,Ä,Ö,Ü');
+select a, hex(a) from t1 order by a;
+a	hex(a)
+x	0078
+y	0079
+x,y	0078002C0079
+z	007A
+x,y,z,ä,ö,ü	0078002C0079002C007A002C00E4002C00F6002C00FC
+drop table t1;
+create table t1(a enum('a','b','c')) default character set ucs2;
+insert into t1 values('a'),('b'),('c');
+alter table t1 add b char(1);
+show warnings;
+Level	Code	Message
+select * from t1 order by a;
+a	b
+a	NULL
+b	NULL
+c	NULL
+drop table t1;
+SET collation_connection='ucs2_general_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+ucs2_general_ci	00610009
+ucs2_general_ci	0061
+ucs2_general_ci	00610020
+drop table t1;
+SET NAMES latin1;
+SET collation_connection='ucs2_bin';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+ucs2_bin	00610009
+ucs2_bin	0061
+ucs2_bin	00610020
+drop table t1;
+SET NAMES latin1;
+SET collation_connection='ucs2_swedish_ci';
+CREATE TABLE t1 (Field1 int(10) default '0');
+INSERT INTO t1 VALUES ('-1');
+SELECT * FROM t1;
+Field1
+-1
+DROP TABLE t1;
+CREATE TABLE t1 (Field1 int(10) unsigned default '0');
+INSERT INTO t1 VALUES ('-1');
+Warnings:
+Warning	1265	Data truncated for column 'Field1' at row 1
+DROP TABLE t1;
+SET NAMES latin1;

@@ -528,7 +528,9 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   CHARSET_INFO* cs = tAttrInfo->m_cs;
   // invalid data can crash kernel
   if (cs != NULL &&
-      (*cs->cset->well_formed_len)(cs,
+      // fast fix bug#7340
+      tAttrInfo->m_type != NdbDictionary::Column::Text &&
+     (*cs->cset->well_formed_len)(cs,
                                    aValue,
                                    aValue + sizeInBytes,
                                    sizeInBytes) != sizeInBytes) {

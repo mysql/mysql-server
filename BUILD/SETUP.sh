@@ -1,15 +1,20 @@
+#!/bin/sh
+
 if ! test -f sql/mysqld.cc
 then
   echo "You must run this script from the MySQL top-level directory"
   exit 1
 fi
 
+prefix_configs="--prefix=/usr/local/mysql"
 just_print=
 just_configure=
 full_debug=
 while test $# -gt 0
 do
   case "$1" in
+  --prefix=* ) prefix_configs="$1"; shift ;;
+  --with-debug=full ) full_debug="=full"; shift ;;
   -c | --just-configure ) just_configure=1; shift ;;
   -n | --just-print | --print ) just_print=1; shift ;;
   -h | --help ) cat <<EOF; exit 0 ;;
@@ -17,13 +22,15 @@ Usage: $0 [-h|-n] [configure-options]
   -h, --help              Show this help message.
   -n, --just-print        Don't actually run any commands; just print them.
   -c, --just-configure    Stop after running configure.
-
-Any other options will be passed directly to configure.
+  --with-debug=full       Build with full debug.
+  --prefix=path           Build with prefix 'path'.
 
 Note:  this script is intended for internal use by MySQL developers.
 EOF
-  --with-debug=full ) full_debug="=full"; shift ;;
-  * ) break ;;
+  * )
+    echo "Unknown option '$1'"
+    exit 1
+    break ;;
   esac
 done
 
@@ -41,8 +48,16 @@ global_warnings="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wch
 c_warnings="$global_warnings -Wunused"
 cxx_warnings="$global_warnings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor"
 
+base_max_configs="--with-innodb --with-bdb --with-ndbcluster --with-archive-storage-engine --with-raid --with-openssl --with-raid --with-vio"
+max_leave_isam_configs="--with-innodb --with-bdb --with-ndbcluster --with-archive-storage-engine --with-raid --with-openssl --with-raid --with-vio --with-embedded-server"
+max_no_es_configs="$max_leave_isam_configs --without-isam"
+max_configs="$max_no_es_configs --with-embedded-server"
+
 alpha_cflags="-mcpu=ev6 -Wa,-mev6"	# Not used yet
+amd64_cflags="-DBIG_TABLES"
 pentium_cflags="-mcpu=pentiumpro"
+pentium64_cflags="-mcpu=nocona -m64"
+ppc_cflags="-mpowerpc -mcpu=powerpc"
 sparc_cflags=""
 
 # be as fast as we can be without losing our ability to backtrace
@@ -52,11 +67,14 @@ fast_cflags="-O3 -fno-omit-frame-pointer"
 reckless_cflags="-O3 -fomit-frame-pointer "
 
 debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX"
+debug_extra_cflags="-O1 -Wuninitialized"
 
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
+amd64_cxxflags="-DBIG_TABLES"
 
-base_configs="--prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-readline"
+base_configs="$prefix_configs --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-readline"
 static_link="--with-mysqld-ldflags=-all-static --with-client-ldflags=-all-static"
+amd64_configs=""
 alpha_configs=""	# Not used yet
 pentium_configs=""
 sparc_configs=""
@@ -68,7 +86,7 @@ local_infile_configs="--enable-local-infile"
 debug_configs="--with-debug$full_debug"
 if [ -z "$full_debug" ]
 then
-	debug_cflags="$debug_cflags -O1 -Wuninitialized"
+  debug_cflags="$debug_cflags $debug_extra_cflags"
 fi
 
 if gmake --version > /dev/null 2>&1

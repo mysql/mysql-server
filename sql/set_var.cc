@@ -55,7 +55,6 @@
 #include "mysql_priv.h"
 #include <mysql.h>
 #include "slave.h"
-#include "sql_acl.h"
 #include <my_getopt.h>
 #include <thr_alarm.h>
 #include <myisam.h>
@@ -334,6 +333,14 @@ sys_var_thd_storage_engine sys_storage_engine("storage_engine",
 				       &SV::table_type);
 #ifdef HAVE_REPLICATION
 sys_var_sync_binlog_period sys_sync_binlog_period("sync_binlog", &sync_binlog_period);
+sys_var_thd_ulong	sys_sync_replication("sync_replication",
+                                               &SV::sync_replication);
+sys_var_thd_ulong	sys_sync_replication_slave_id(
+						"sync_replication_slave_id",
+                                               &SV::sync_replication_slave_id);
+sys_var_thd_ulong	sys_sync_replication_timeout(
+						"sync_replication_timeout",
+                                               &SV::sync_replication_timeout);
 #endif
 sys_var_bool_ptr	sys_sync_frm("sync_frm", &opt_sync_frm);
 sys_var_long_ptr	sys_table_cache_size("table_cache",
@@ -352,12 +359,25 @@ sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 #ifdef HAVE_INNOBASE_DB
 sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_pct",
                                                         &srv_max_buf_pool_modified_pct);
+sys_var_long_ptr	sys_innodb_max_purge_lag("innodb_max_purge_lag",
+							&srv_max_purge_lag);
 sys_var_thd_bool	sys_innodb_table_locks("innodb_table_locks",
                                                &SV::innodb_table_locks);
 sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
 							&srv_auto_extend_increment);
-sys_var_long_ptr	sys_innodb_max_purge_lag("innodb_max_purge_lag",
-							&srv_max_purge_lag);
+#endif
+
+#ifdef HAVE_NDBCLUSTER_DB
+/* ndb thread specific variable settings */
+sys_var_thd_ulong 
+sys_ndb_autoincrement_prefetch_sz("ndb_autoincrement_prefetch_sz",
+				  &SV::ndb_autoincrement_prefetch_sz);
+sys_var_thd_bool
+sys_ndb_force_send("ndb_force_send", &SV::ndb_force_send);
+sys_var_thd_bool
+sys_ndb_use_exact_count("ndb_use_exact_count", &SV::ndb_use_exact_count);
+sys_var_thd_bool
+sys_ndb_use_transactions("ndb_use_transactions", &SV::ndb_use_transactions);
 #endif
 
 /* Time/date/datetime formats */
@@ -403,6 +423,9 @@ static sys_var_thd_bit	sys_log_binlog("sql_log_bin",
 static sys_var_thd_bit	sys_sql_warnings("sql_warnings", 0,
 					 set_option_bit,
 					 OPTION_WARNINGS);
+static sys_var_thd_bit	sys_sql_notes("sql_notes", 0,
+					 set_option_bit,
+					 OPTION_SQL_NOTES);
 static sys_var_thd_bit	sys_auto_is_null("sql_auto_is_null", 0,
 					 set_option_bit,
 					 OPTION_AUTO_IS_NULL);
@@ -590,9 +613,13 @@ sys_var *sys_variables[]=
   &sys_sql_max_join_size,
   &sys_sql_mode,
   &sys_sql_warnings,
+  &sys_sql_notes,
   &sys_storage_engine,
 #ifdef HAVE_REPLICATION
   &sys_sync_binlog_period,
+  &sys_sync_replication,
+  &sys_sync_replication_slave_id,
+  &sys_sync_replication_timeout,
 #endif
   &sys_sync_frm,
   &sys_table_cache_size,
@@ -608,10 +635,17 @@ sys_var *sys_variables[]=
   &sys_os,
 #ifdef HAVE_INNOBASE_DB
   &sys_innodb_max_dirty_pages_pct,
+  &sys_innodb_max_purge_lag,
   &sys_innodb_table_locks,
   &sys_innodb_max_purge_lag,
   &sys_innodb_autoextend_increment,
-#endif    
+#endif  
+#ifdef HAVE_NDBCLUSTER_DB
+  &sys_ndb_autoincrement_prefetch_sz,
+  &sys_ndb_force_send,
+  &sys_ndb_use_exact_count,
+  &sys_ndb_use_transactions,
+#endif
   &sys_unique_checks,
   &sys_warning_count
 };
@@ -692,11 +726,11 @@ struct show_var_st init_vars[]= {
   {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_file_per_table", (char*) &innobase_file_per_table, SHOW_MY_BOOL},
-  {"innodb_locks_unsafe_for_binlog", (char*) &innobase_locks_unsafe_for_binlog, SHOW_MY_BOOL},
   {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_INT},
   {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
   {"innodb_force_recovery", (char*) &innobase_force_recovery, SHOW_LONG },
   {"innodb_lock_wait_timeout", (char*) &innobase_lock_wait_timeout, SHOW_LONG },
+  {"innodb_locks_unsafe_for_binlog", (char*) &innobase_locks_unsafe_for_binlog, SHOW_MY_BOOL},
   {"innodb_log_arch_dir",   (char*) &innobase_log_arch_dir, 	    SHOW_CHAR_PTR},
   {"innodb_log_archive",    (char*) &innobase_log_archive, 	    SHOW_MY_BOOL},
   {"innodb_log_buffer_size", (char*) &innobase_log_buffer_size, SHOW_LONG },
@@ -704,10 +738,10 @@ struct show_var_st init_vars[]= {
   {"innodb_log_files_in_group", (char*) &innobase_log_files_in_group,	SHOW_LONG},
   {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
   {sys_innodb_max_dirty_pages_pct.name, (char*) &sys_innodb_max_dirty_pages_pct, SHOW_SYS},
-  {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},
   {sys_innodb_max_purge_lag.name, (char*) &sys_innodb_max_purge_lag, SHOW_SYS},
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
   {"innodb_open_files", (char*) &innobase_open_files, SHOW_LONG },
+  {sys_innodb_table_locks.name, (char*) &sys_innodb_table_locks, SHOW_SYS},
   {"innodb_thread_concurrency", (char*) &innobase_thread_concurrency, SHOW_LONG },
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
@@ -771,6 +805,13 @@ struct show_var_st init_vars[]= {
 #ifdef __NT__
   {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_MY_BOOL},
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+  {sys_ndb_autoincrement_prefetch_sz.name,
+   (char*) &sys_ndb_autoincrement_prefetch_sz,                      SHOW_SYS},
+  {sys_ndb_force_send.name,   (char*) &sys_ndb_force_send,          SHOW_SYS},
+  {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
+  {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
+#endif
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},
   {sys_net_retry_count.name,  (char*) &sys_net_retry_count,	    SHOW_SYS},
@@ -822,8 +863,13 @@ struct show_var_st init_vars[]= {
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
   {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
+  {"sql_notes",               (char*) &sys_sql_notes,               SHOW_BOOL},
+  {"sql_warnings",            (char*) &sys_sql_warnings,            SHOW_BOOL},
 #ifdef HAVE_REPLICATION
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
+  {sys_sync_replication.name, (char*) &sys_sync_replication,        SHOW_SYS},
+  {sys_sync_replication_slave_id.name, (char*) &sys_sync_replication_slave_id,SHOW_SYS},
+  {sys_sync_replication_timeout.name, (char*) &sys_sync_replication_timeout,SHOW_SYS},
 #endif
   {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
 #ifdef HAVE_TZNAME
@@ -1163,7 +1209,7 @@ static void fix_max_connections(THD *thd, enum_var_type type)
 static void fix_thd_mem_root(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    reset_root_defaults(&thd->mem_root,
+    reset_root_defaults(thd->mem_root,
                         thd->variables.query_alloc_block_size,
                         thd->variables.query_prealloc_size);
 }
@@ -1183,6 +1229,12 @@ static void fix_server_id(THD *thd, enum_var_type type)
   server_id_supplied = 1;
 }
 
+bool sys_var_long_ptr::check(THD *thd, set_var *var)
+{
+  longlong v= var->value->val_int();
+  var->save_result.ulonglong_value= v < 0 ? 0 : v;
+  return 0;
+}
 
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
@@ -2148,7 +2200,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 
   if (!tmp)					// Zero size means delete
   {
-    if (key_cache == sql_key_cache)
+    if (key_cache == dflt_key_cache)
       goto end;					// Ignore default key cache
 
     if (key_cache->key_cache_inited)		// If initied
@@ -2162,7 +2214,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 					      base_name->length, &list);
       key_cache->in_init= 1;
       pthread_mutex_unlock(&LOCK_global_system_variables);
-      error= reassign_keycache_tables(thd, key_cache, sql_key_cache);
+      error= reassign_keycache_tables(thd, key_cache, dflt_key_cache);
       pthread_mutex_lock(&LOCK_global_system_variables);
       key_cache->in_init= 0;
     }
@@ -2412,8 +2464,15 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
 
 bool sys_var_thd_time_zone::update(THD *thd, set_var *var)
 {
-  /* We are using Time_zone object found during check() phase */ 
-  *get_tz_ptr(thd,var->type)= var->save_result.time_zone;
+  /* We are using Time_zone object found during check() phase. */
+  if (var->type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    global_system_variables.time_zone= var->save_result.time_zone;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+    thd->variables.time_zone= var->save_result.time_zone;
   return 0;
 }
 
@@ -2425,27 +2484,25 @@ byte *sys_var_thd_time_zone::value_ptr(THD *thd, enum_var_type type,
     We can use ptr() instead of c_ptr() here because String contaning
     time zone name is guaranteed to be zero ended.
   */
-  return (byte *)((*get_tz_ptr(thd,type))->get_name()->ptr());
-}
-
-
-Time_zone** sys_var_thd_time_zone::get_tz_ptr(THD *thd, 
-                                              enum_var_type type)
-{
   if (type == OPT_GLOBAL)
-    return &global_system_variables.time_zone;
+    return (byte *)(global_system_variables.time_zone->get_name()->ptr());
   else
-    return &thd->variables.time_zone;
+    return (byte *)(thd->variables.time_zone->get_name()->ptr());
 }
 
 
 void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
 {
+ pthread_mutex_lock(&LOCK_global_system_variables);
  if (type == OPT_GLOBAL)
  {
    if (default_tz_name)
    {
      String str(default_tz_name, &my_charset_latin1);
+     /*
+       We are guaranteed to find this time zone since its existence
+       is checked during start-up.
+     */
      global_system_variables.time_zone=
        my_tz_find(&str, thd->lex->time_zone_tables_used);
    }
@@ -2454,6 +2511,7 @@ void sys_var_thd_time_zone::set_default(THD *thd, enum_var_type type)
  }
  else
    thd->variables.time_zone= global_system_variables.time_zone;
+ pthread_mutex_unlock(&LOCK_global_system_variables);
 }
 
 /*
@@ -2693,21 +2751,25 @@ sys_var *find_sys_var(const char *str, uint length)
 
 int sql_set_variables(THD *thd, List<set_var_base> *var_list)
 {
-  int error= 0;
+  int error;
   List_iterator_fast<set_var_base> it(*var_list);
   DBUG_ENTER("sql_set_variables");
 
   set_var_base *var;
   while ((var=it++))
   {
-    if ((error=var->check(thd)))
-      DBUG_RETURN(error);
+    if ((error= var->check(thd)))
+      goto err;
   }
-  if (thd->net.report_error)
-    DBUG_RETURN(1);
-  it.rewind();
-  while ((var=it++))
-    error|= var->update(thd);			// Returns 0, -1 or 1
+  if (!(error= test(thd->net.report_error)))
+  {
+    it.rewind();
+    while ((var= it++))
+      error|= var->update(thd);         // Returns 0, -1 or 1
+  }
+
+err:
+  free_underlaid_joins(thd, &thd->lex->select_lex);
   DBUG_RETURN(error);
 }
 
@@ -2768,7 +2830,8 @@ int set_var::check(THD *thd)
     return 0;
   }
 
-  if (value->fix_fields(thd, 0, &value) || value->check_cols(1))
+  if ((!value->fixed && 
+       value->fix_fields(thd, 0, &value)) || value->check_cols(1))
     return -1;
   if (var->check_update_type(value->result_type()))
   {
@@ -2803,7 +2866,8 @@ int set_var::light_check(THD *thd)
   if (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL))
     return 1;
 
-  if (value && (value->fix_fields(thd, 0, &value) || value->check_cols(1)))
+  if (value && ((!value->fixed && value->fix_fields(thd, 0, &value)) ||
+                value->check_cols(1)))
     return -1;
   return 0;
 }
@@ -2880,8 +2944,8 @@ int set_var_password::check(THD *thd)
   if (!user->host.str)
     user->host.str= (char*) thd->host_or_ip;
   /* Returns 1 as the function sends error to client */
-  return check_change_password(thd, user->host.str, user->user.str, password) ?
-         1 : 0;
+  return check_change_password(thd, user->host.str, user->user.str,
+                               password, strlen(password)) ? 1 : 0;
 #else
   return 0;
 #endif
@@ -2912,9 +2976,11 @@ bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
 
   if (var->value->result_type() == STRING_RESULT)
   {
+    enum db_type db_type;
     if (!(res=var->value->val_str(&str)) ||
 	!(var->save_result.ulong_value=
-	 (ulong) ha_resolve_by_name(res->ptr(), res->length())))
+	 (ulong) (db_type= ha_resolve_by_name(res->ptr(), res->length()))) ||
+	ha_checktype(db_type) != db_type) 
     {
       value= res ? res->c_ptr() : "NULL";
       goto err;

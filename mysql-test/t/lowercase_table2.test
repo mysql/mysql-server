@@ -100,3 +100,31 @@ show tables like 'T1%';
 alter table t1 add index (A);
 show tables like 't1%';
 drop table t1;
+
+#
+# Bug #7261: Alter table loses temp table
+#
+
+create temporary table T1(a int(11), b varchar(8));
+insert into T1 values (1, 'abc');
+select * from T1;
+alter table T1 add index (a);
+select * from T1;
+drop table T1;
+
+#
+# Bug #8355: Tables not dropped from table cache on drop db
+#
+create database mysqltest_LC2;
+use mysqltest_LC2;
+create table myUC (i int);
+insert into myUC values (1),(2),(3);
+select * from myUC;
+use test;
+drop database mysqltest_LC2;
+create database mysqltest_LC2;
+use mysqltest_LC2;
+create table myUC (i int);
+select * from myUC;
+use test;
+drop database mysqltest_LC2;

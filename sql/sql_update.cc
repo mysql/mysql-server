@@ -21,7 +21,6 @@
 */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h"
 
 static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
@@ -55,9 +54,10 @@ int mysql_update(THD *thd,
                  COND *conds,
                  uint order_num, ORDER *order,
 		 ha_rows limit,
-		 enum enum_duplicates handle_duplicates)
+		 enum enum_duplicates handle_duplicates,
+                 bool ignore)
 {
-  bool 		using_limit=limit != HA_POS_ERROR;
+  bool		using_limit=limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
   int		error=0;
@@ -71,11 +71,10 @@ int mysql_update(THD *thd,
   TABLE		*table;
   SQL_SELECT	*select;
   READ_RECORD	info;
-  TABLE_LIST    *update_table_list= ((TABLE_LIST*) 
+  TABLE_LIST    *update_table_list= ((TABLE_LIST*)
 				     thd->lex->select_lex.table_list.first);
   DBUG_ENTER("mysql_update");
 
-  LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
   if ((open_and_lock_tables(thd, table_list)))
@@ -125,7 +124,7 @@ int mysql_update(THD *thd,
   /* Check values */
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
 #endif
-  if (setup_fields(thd, 0, update_table_list, values, 0, 0, 0))
+  if (setup_fields(thd, 0, update_table_list, values, 1, 0, 0))
   {
     free_underlaid_joins(thd, &thd->lex->select_lex);
     DBUG_RETURN(-1);				/* purecov: inspected */
@@ -160,14 +159,18 @@ int mysql_update(THD *thd,
   init_ftfuncs(thd, &thd->lex->select_lex, 1);
   /* Check if we are modifying a key that we are used to search with */
   if (select && select->quick)
+  {
+    used_index=select->quick->index;
     used_key_is_modified= (!select->quick->unique_key_range() &&
-			   check_if_key_used(table,
-					     (used_index=select->quick->index),
-					     fields));
+			   check_if_key_used(table, used_index, fields));
+  }
   else if ((used_index=table->file->key_used_on_scan) < MAX_KEY)
     used_key_is_modified=check_if_key_used(table, used_index, fields);
   else
+  {
     used_key_is_modified=0;
+    used_index= MAX_KEY;
+  }
   if (used_key_is_modified || order)
   {
     /*
@@ -175,7 +178,7 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-    if (old_used_keys.is_set(used_index))
+    if (used_index < MAX_KEY && old_used_keys.is_set(used_index))
     {
       table->key_read=1;
       table->file->extra(HA_EXTRA_KEYREAD);
@@ -275,7 +278,7 @@ int mysql_update(THD *thd,
     }
   }
 
-  if (handle_duplicates == DUP_IGNORE)
+  if (ignore)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   init_read_record(&info,thd,table,select,0,1);
 
@@ -300,8 +303,7 @@ int mysql_update(THD *thd,
 	{
 	  updated++;
 	}
-	else if (handle_duplicates != DUP_IGNORE ||
-		 error != HA_ERR_FOUND_DUPP_KEY)
+	else if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
 	{
           thd->fatal_error();                   // Force error message
 	  table->file->print_error(error,MYF(0));
@@ -344,7 +346,7 @@ int mysql_update(THD *thd,
       if (error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed);
+			    log_delayed, FALSE);
       if (mysql_bin_log.write(&qinfo) && transactional_table)
 	error=1;				// Rollback update
     }
@@ -466,30 +468,23 @@ static table_map get_table_map(List<Item> *items)
 }
 
 
-
 /*
-  Setup multi-update handling and call SELECT to do the join
+  Prepare tables for multi-update 
+  Analyse which tables need specific privileges and perform locking
+  as required
 */
 
-int mysql_multi_update(THD *thd,
-		       TABLE_LIST *table_list,
-		       List<Item> *fields,
-		       List<Item> *values,
-		       COND *conds,
-		       ulong options,
-		       enum enum_duplicates handle_duplicates,
-		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
+int mysql_multi_update_lock(THD *thd,
+			    TABLE_LIST *table_list,
+			    List<Item> *fields,
+			    SELECT_LEX *select_lex)
 {
   int res;
-  multi_update *result;
   TABLE_LIST *tl;
   TABLE_LIST *update_list= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
-  List<Item> total_list;
   const bool using_lock_tables= thd->locked_tables != 0;
   bool initialized_dervied= 0;
-  DBUG_ENTER("mysql_multi_update");
-
-  select_lex->select_limit= HA_POS_ERROR;
+  DBUG_ENTER("mysql_multi_update_lock");
 
   /*
     The following loop is here to to ensure that we only lock tables
@@ -543,8 +538,8 @@ int mysql_multi_update(THD *thd,
 
     /* Unlock the tables in preparation for relocking */
     if (!using_lock_tables)
-    {      
-      mysql_unlock_tables(thd, thd->lock); 
+    {
+      mysql_unlock_tables(thd, thd->lock);
       thd->lock= 0;
     }
 
@@ -554,7 +549,9 @@ int mysql_multi_update(THD *thd,
     */
     for (tl= update_list; tl; tl= tl->next)
     {
+      TABLE_LIST *save= tl->next;
       TABLE *table= tl->table;
+      uint wants;
       /* if table will be updated then check that it is unique */
       if (table->map & update_tables)
       {
@@ -572,17 +569,34 @@ int mysql_multi_update(THD *thd,
 	DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
 	tl->lock_type= thd->lex->multi_lock_option;
 	tl->updating= 1;
+	wants= UPDATE_ACL;
       }
       else
       {
         DBUG_PRINT("info",("setting table `%s` for read-only", tl->alias));
-	tl->lock_type= TL_READ;
+	// If we are using the binary log, we need TL_READ_NO_INSERT to get
+	// correct order of statements. Otherwise, we use a TL_READ lock to
+	// improve performance.
+	tl->lock_type= using_update_log ? TL_READ_NO_INSERT : TL_READ;
 	tl->updating= 0;
+	wants= SELECT_ACL;
       }
+
       if (tl->derived)
         derived_tables|= table->map;
-      else if (!using_lock_tables)
-	tl->table->reginfo.lock_type= tl->lock_type;
+      else 
+      {
+        tl->next= 0;
+        if (!using_lock_tables)
+	  tl->table->reginfo.lock_type= tl->lock_type;
+        if (check_access(thd, wants, tl->db, &tl->grant.privilege, 0, 0) ||
+            (grant_option && check_grant(thd, wants, tl, 0, 0, 0)))
+        {
+          tl->next= save;
+          DBUG_RETURN(1);
+        }
+        tl->next= save;
+      }
     }
 
     if (thd->lex->derived_tables && (update_tables & derived_tables))
@@ -602,11 +616,7 @@ int mysql_multi_update(THD *thd,
     /* Relock the tables with the correct modes */
     res= lock_tables(thd, table_list, table_count);
     if (using_lock_tables)
-    {
-      if (res)
-        DBUG_RETURN(res);
       break;                                 // Don't have to do setup_field()
-    }
 
     /*
       We must setup fields again as the file may have been reopened
@@ -637,6 +647,32 @@ int mysql_multi_update(THD *thd,
     */
     close_thread_tables(thd);
   }
+  
+  DBUG_RETURN(res);
+}
+
+/*
+  Setup multi-update handling and call SELECT to do the join
+*/
+
+int mysql_multi_update(THD *thd,
+		       TABLE_LIST *table_list,
+		       List<Item> *fields,
+		       List<Item> *values,
+		       COND *conds,
+		       ulong options,
+		       enum enum_duplicates handle_duplicates, bool ignore,
+		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
+{
+  int res;
+  TABLE_LIST *tl;
+  TABLE_LIST *update_list= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
+  List<Item> total_list;
+  multi_update *result;
+  DBUG_ENTER("mysql_multi_update");
+
+  if ((res= mysql_multi_update_lock(thd, table_list, fields, select_lex)))
+    DBUG_RETURN(res);
 
   /* Setup timestamp handling */
   for (tl= update_list; tl; tl= tl->next)
@@ -652,7 +688,7 @@ int mysql_multi_update(THD *thd,
   }
 
   if (!(result=new multi_update(thd, update_list, fields, values,
-				handle_duplicates)))
+				handle_duplicates, ignore)))
     DBUG_RETURN(-1);
 
   res= mysql_select(thd, &select_lex->ref_pointer_array,
@@ -669,11 +705,11 @@ int mysql_multi_update(THD *thd,
 
 multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
 			   List<Item> *field_list, List<Item> *value_list,
-			   enum enum_duplicates handle_duplicates_arg)
+			   enum enum_duplicates handle_duplicates_arg, bool ignore_arg)
   :all_tables(table_list), update_tables(0), thd(thd_arg), tmp_tables(0),
    updated(0), found(0), fields(field_list), values(value_list),
    table_count(0), copy_field(0), handle_duplicates(handle_duplicates_arg),
-   do_update(1), trans_safe(0), transactional_tables(1)
+   do_update(1), trans_safe(0), transactional_tables(1), ignore(ignore_arg)
 {}
 
 
@@ -1006,8 +1042,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
 					   table->record[0])))
 	{
 	  updated--;
-	  if (handle_duplicates != DUP_IGNORE ||
-	      error != HA_ERR_FOUND_DUPP_KEY)
+	  if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
 	  {
             thd->fatal_error();                 // Force error message
 	    table->file->print_error(error,MYF(0));
@@ -1139,8 +1174,7 @@ int multi_update::do_updates(bool from_send_error)
 	if ((local_error=table->file->update_row(table->record[1],
 						 table->record[0])))
 	{
-	  if (local_error != HA_ERR_FOUND_DUPP_KEY ||
-	      handle_duplicates != DUP_IGNORE)
+	  if (!ignore || local_error != HA_ERR_FOUND_DUPP_KEY)
 	    goto err;
 	}
 	updated++;
@@ -1221,7 +1255,7 @@ bool multi_update::send_eof()
       if (local_error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed);
+			    log_delayed, FALSE);
       if (mysql_bin_log.write(&qinfo) && trans_safe)
 	local_error= 1;				// Rollback update
     }

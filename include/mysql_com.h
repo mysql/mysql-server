@@ -130,6 +130,7 @@ enum enum_server_command
 #define SERVER_MORE_RESULTS_EXISTS 8    /* Multi query - next query exists */
 #define SERVER_QUERY_NO_GOOD_INDEX_USED 16
 #define SERVER_QUERY_NO_INDEX_USED      32
+#define SERVER_STATUS_DB_DROPPED        256 /* A database was dropped */
 
 #define MYSQL_ERRMSG_SIZE	512
 #define NET_READ_TIMEOUT	30		/* Timeout on read */
@@ -282,13 +283,7 @@ void	my_net_local_init(NET *net);
 void	net_end(NET *net);
 void	net_clear(NET *net);
 my_bool net_realloc(NET *net, unsigned long length);
-
-#ifndef EMBEDDED_LIBRARY /* To be removed by HF */
 my_bool	net_flush(NET *net);
-#else
-#define net_flush(A)
-#endif
-
 my_bool	my_net_write(NET *net,const char *packet,unsigned long len);
 my_bool	net_write_command(NET *net,unsigned char command,
 			  const char *header, unsigned long head_len,

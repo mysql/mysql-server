@@ -184,7 +184,7 @@ public:
 /**
  * CreateIndxRef.
  */
-class CreateIndxRef {
+struct CreateIndxRef {
   friend bool printCREATE_INDX_REF(FILE*, const Uint32*, Uint32, Uint16);
 
 public:
@@ -210,7 +210,6 @@ public:
     InvalidAttributeOrder = 4255
   };
 
-private:
   CreateIndxConf m_conf;
   //Uint32 m_userRef;
   //Uint32 m_connectionPtr;
@@ -221,8 +220,10 @@ private:
   //Uint32 m_indexVersion;
   Uint32 m_errorCode;
   Uint32 m_errorLine;
-  Uint32 m_errorNode;
-
+  union {
+    Uint32 m_errorNode;
+    Uint32 masterNodeId; // If NotMaster
+  };
 public:
   CreateIndxConf* getConf() {
     return &m_conf;

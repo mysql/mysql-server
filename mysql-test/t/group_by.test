@@ -457,6 +457,14 @@ SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
 explain SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
 DROP TABLE t1;
 
+#Test for BUG#6976: Aggregate functions have incorrect NULL-ness
+create table t1 (a int);
+insert into t1 values(null);
+select min(a) is null from t1;
+select min(a) is null or null from t1;
+select 1 and min(a) is null from t1;
+drop table t1;
+
 # Test for BUG#5400: GROUP_CONCAT returns everything twice.
 create table t1 ( col1 int, col2 int );
 insert into t1 values (1,1),(1,2),(1,3),(2,1),(2,2);
@@ -465,3 +473,19 @@ select group_concat( distinct col1 ) as alias from t1
 
 drop table t1;
 
+#
+# Test BUG#8216 when referring in HAVING to n alias which is rand() function
+#
+
+create table t1 (a integer, b integer, c integer);
+insert into t1 (a,b) values (1,2),(1,3),(2,5);
+select a, 0.1*0+1 r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2=1;
+# rand(100)*10 will be < 2 only for the first row (of 6)
+select a, round(rand(100)*10) r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2<=2;
+select a,sum(b) from t1 where a=1 group by c;
+select a*sum(b) from t1 where a=1 group by c;
+select sum(a)*sum(b) from t1 where a=1 group by c;
+select a,sum(b) from t1 where a=1 group by c having a=1;
+select a as d,sum(b) from t1 where a=1 group by c having d=1;
+select sum(a)*sum(b) as d from t1 where a=1 group by c having d > 0;
+drop table t1;

@@ -212,6 +212,10 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define OPTION_RELAXED_UNIQUE_CHECKS    (1L << 27)
 #define SELECT_NO_UNLOCK                (1L << 28)
 
+/* If set to 0, then the thread will ignore all warnings with level notes.
+   Set by executing SET SQL_NOTES=1 */
+#define OPTION_SQL_NOTES                (1L << 31)
+
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT      	1
 #define MODE_PIPES_AS_CONCAT    	2
@@ -350,7 +354,6 @@ inline THD *_current_thd(void)
 #include "sql_udf.h"
 class user_var_entry;
 #include "item.h"
-#include "tztime.h"
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -363,7 +366,6 @@ bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
 int multi_update_precheck(THD *thd, TABLE_LIST *tables);
 int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
-int insert_select_precheck(THD *thd, TABLE_LIST *tables);
 int update_precheck(THD *thd, TABLE_LIST *tables);
 int delete_precheck(THD *thd, TABLE_LIST *tables);
 int insert_precheck(THD *thd, TABLE_LIST *tables);
@@ -371,12 +373,15 @@ int create_table_precheck(THD *thd, TABLE_LIST *tables,
 			  TABLE_LIST *create_table);
 Item *negate_expression(THD *thd, Item *expr);
 #include "sql_class.h"
+#include "sql_acl.h"
+#include "tztime.h"
 #include "opt_range.h"
 
 #ifdef HAVE_QUERY_CACHE
 struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
+  unsigned int client_protocol_41:1;
   uint character_set_client_num;
   uint character_set_results_num;
   uint collation_connection_num;
@@ -538,6 +543,7 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      List<Key> &keys,
 		      uint order_num, ORDER *order,
 		      enum enum_duplicates handle_duplicates,
+                      bool ignore,
 		      ALTER_INFO *alter_info, bool do_send_ok=1);
 int mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 int mysql_create_like_table(THD *thd, TABLE_LIST *table,
@@ -557,12 +563,16 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds,
                  uint order_num, ORDER *order, ha_rows limit,
-		 enum enum_duplicates handle_duplicates);
+		 enum enum_duplicates handle_duplicates, bool ignore);
 int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
 		       List<Item> *fields, List<Item> *values,
 		       COND *conds, ulong options,
-		       enum enum_duplicates handle_duplicates,
+		       enum enum_duplicates handle_duplicates, bool ignore,
 		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex);
+int mysql_multi_update_lock(THD *thd,
+			    TABLE_LIST *table_list,
+			    List<Item> *fields,
+			    SELECT_LEX *select_lex);
 int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 			 TABLE_LIST *insert_table_list, TABLE *table,
 			 List<Item> &fields, List_item *values,
@@ -570,7 +580,7 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 			 List<Item> &update_values, enum_duplicates duplic);
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, List<Item> &update_fields,
-		 List<Item> &update_values, enum_duplicates flag);
+		 List<Item> &update_values, enum_duplicates flag, bool ignore);
 int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                  ha_rows rows, ulong options);
@@ -681,13 +691,15 @@ int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags);
 #define MYSQL_HA_FLUSH_ALL          0x02
 
 /* sql_base.cc */
+#define TMP_TABLE_KEY_EXTRA 8
 void set_item_name(Item *item,char *pos,uint length);
 bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
 		       Item *default_value, Item *on_update_value,
 		       LEX_STRING *comment,
-		       char *change, TYPELIB *interval,CHARSET_INFO *cs,
+		       char *change, List<String> *interval_list,
+		       CHARSET_INFO *cs,
 		       uint uint_geom_type);
 void store_position_for_column(const char *name);
 bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc=0);
@@ -722,6 +734,7 @@ void wait_for_refresh(THD *thd);
 int open_tables(THD *thd, TABLE_LIST *tables, uint *counter);
 int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
 int open_and_lock_tables(THD *thd,TABLE_LIST *tables);
+int open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables);
 void relink_tables_for_derived(THD *thd);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
@@ -741,7 +754,7 @@ bool close_temporary_table(THD *thd, const char *db, const char *table_name);
 void close_temporary(TABLE *table, bool delete_table=1);
 bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
-void remove_db_from_cache(const my_string db);
+void remove_db_from_cache(const char *db);
 void flush_tables();
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
 			     bool return_if_owned_by_thd=0);
@@ -757,6 +770,7 @@ bool eval_const_cond(COND *cond);
 /* sql_load.cc */
 int mysql_load(THD *thd,sql_exchange *ex, TABLE_LIST *table_list,
 	       List<Item> &fields, enum enum_duplicates handle_duplicates,
+               bool ignore,
 	       bool local_file,thr_lock_type lock_type);
 int write_record(TABLE *table,COPY_INFO *info);
 
@@ -813,6 +827,7 @@ ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
 uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
 uint find_type2(TYPELIB *lib, const char *find, uint length, CHARSET_INFO *cs);
+void unhex_type2(TYPELIB *lib);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
 
@@ -846,7 +861,7 @@ extern Gt_creator gt_creator;
 extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
-extern char language[LIBLEN],reg_ext[FN_EXTLEN];
+extern char language[FN_REFLEN], reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN];
@@ -909,7 +924,7 @@ extern char *default_tz_name;
 
 extern MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
 extern FILE *bootstrap_file;
-extern pthread_key(MEM_ROOT*,THR_MALLOC);
+extern pthread_key(MEM_ROOT**,THR_MALLOC);
 extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_thread_count,LOCK_mapped_file,LOCK_user_locks, LOCK_status,
        LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
@@ -932,7 +947,6 @@ extern SHOW_COMP_OPTION have_ndbcluster;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
-extern KEY_CACHE *sql_key_cache;
 
 extern const char *opt_date_time_formats[];
 extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
@@ -1195,6 +1209,23 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
+}
+
+
+/*
+  SYNOPSYS
+    hexchar_to_int()
+    convert a hex digit into number
+*/
+
+inline int hexchar_to_int(char c)
+{
+  if (c <= '9' && c >= '0')
+    return c-'0';
+  c|=32;
+  if (c <= 'f' && c >= 'a')
+    return c-'a'+10;
+  return -1;
 }
 
 

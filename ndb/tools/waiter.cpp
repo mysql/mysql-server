@@ -16,88 +16,89 @@
 
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
+
 #include <mgmapi.h>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
-#include <getarg.h>
 #include <kernel/ndb_limits.h>
-#include "../include/mgmcommon/LocalConfig.hpp"
 
 #include <NDBT.hpp>
 
 int 
-waitClusterStatus(const char* _addr, ndb_mgm_node_status _status, unsigned int _timeout);
+waitClusterStatus(const char* _addr, ndb_mgm_node_status _status,
+		  unsigned int _timeout);
 
-int main(int argc, const char** argv){
-  ndb_init();
+enum ndb_waiter_options {
+  OPT_WAIT_STATUS_NOT_STARTED = NDB_STD_OPTIONS_LAST
+};
+NDB_STD_OPTS_VARS;
 
+static int _no_contact = 0;
+static int _not_started = 0;
+static int _timeout = 120;
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndb_desc"),
+  { "no-contact", 'n', "Wait for cluster no contact",
+    (gptr*) &_no_contact, (gptr*) &_no_contact, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "not-started", OPT_WAIT_STATUS_NOT_STARTED, "Wait for cluster not started",
+    (gptr*) &_not_started, (gptr*) &_not_started, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "timeout", 't', "Timeout to wait",
+    (gptr*) &_timeout, (gptr*) &_timeout, 0,
+    GET_INT, REQUIRED_ARG, 120, 0, 0, 0, 0, 0 }, 
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+static void usage()
+{
+  ndb_std_print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  return ndb_std_get_one_option(optid, opt, argument ? argument :
+				"d:t:O,/tmp/ndb_drop_table.trace");
+}
+
+int main(int argc, char** argv){
+  NDB_INIT(argv[0]);
+  const char *load_default_groups[]= { "mysql_cluster",0 };
+  load_defaults("my",load_default_groups,&argc,&argv);
   const char* _hostName = NULL;
-  int _no_contact = 0;
-  int _help = 0;
-  int _timeout = 120;
-
-  struct getargs args[] = {
-    { "timeout", 0, arg_integer, &_timeout, "Timeout to wait", "#" },
-    { "no-contact", 0, arg_flag, &_no_contact, "Wait for cluster no contact", "" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
-  };
-
-  int num_args = sizeof(args) / sizeof(args[0]);
-  int optind = 0;
-  char desc[] = 
-    "hostname:port\n"\
-    "This program will connect to the mgmsrv of a NDB cluster.\n"\
-    "It will then wait for all nodes to be started\n";
-
-  if(getarg(args, num_args, argc, argv, &optind) || _help) {
-    arg_printusage(args, num_args, argv[0], desc);
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
-  }
 
   char buf[255];
-  _hostName = argv[optind];
+  _hostName = argv[0];
 
-  if (_hostName == NULL){
-    LocalConfig lcfg;
-    if(!lcfg.init())
-    {
-      lcfg.printError();
-      lcfg.printUsage();
-      g_err  << "Error parsing local config file" << endl;
-      return NDBT_ProgramExit(NDBT_FAILED);
-    }
+  if (_hostName == 0)
+    _hostName= opt_connect_str;
 
-    for (unsigned i = 0; i<lcfg.ids.size();i++)
-    {
-      MgmtSrvrId * m = &lcfg.ids[i];
-      
-      switch(m->type){
-      case MgmId_TCP:
-	snprintf(buf, 255, "%s:%d", m->name.c_str(), m->port);
-	_hostName = buf;
-	break;
-      case MgmId_File:
-	break;
-      default:
-	break;
-      }
-      if (_hostName != NULL)
-	break;
-    }
-    if (_hostName == NULL)
-    {
-      g_err << "No management servers configured in local config file" << endl;
-      return NDBT_ProgramExit(NDBT_FAILED);
-    }
+  enum ndb_mgm_node_status wait_status;
+  if (_no_contact)
+  {
+    wait_status= NDB_MGM_NODE_STATUS_NO_CONTACT;
+  }
+  else if (_not_started)
+  {
+    wait_status= NDB_MGM_NODE_STATUS_NOT_STARTED;
+  }
+  else 
+  {
+    wait_status= NDB_MGM_NODE_STATUS_STARTED;
   }
 
-  if (_no_contact) {
-    if (waitClusterStatus(_hostName, NDB_MGM_NODE_STATUS_NO_CONTACT, _timeout) != 0)
-      return NDBT_ProgramExit(NDBT_FAILED);
-  } else if (waitClusterStatus(_hostName, NDB_MGM_NODE_STATUS_STARTED, _timeout) != 0)
+  if (waitClusterStatus(_hostName, wait_status, _timeout) != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
-
   return NDBT_ProgramExit(NDBT_OK);
 }
 
@@ -183,13 +184,19 @@ waitClusterStatus(const char* _addr,
   int _nodes[MAX_NDB_NODES];
   int _num_nodes = 0;
 
-  handle = ndb_mgm_create_handle();   
+  handle = ndb_mgm_create_handle();
   if (handle == NULL){
     g_err << "handle == NULL" << endl;
     return -1;
   }
   g_info << "Connecting to mgmsrv at " << _addr << endl;
-  if (ndb_mgm_connect(handle, _addr) == -1) {
+  if (ndb_mgm_set_connectstring(handle, _addr))
+  {
+    MGMERR(handle);
+    g_err  << "Connectstring " << _addr << " invalid" << endl;
+    return -1;
+  }
+  if (ndb_mgm_connect(handle,0,0,1)) {
     MGMERR(handle);
     g_err  << "Connection to " << _addr << " failed" << endl;
     return -1;

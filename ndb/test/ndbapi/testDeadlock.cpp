@@ -459,7 +459,8 @@ wl1822_main(char scantx)
   static const unsigned thrcount = 2;
   // create threads for tx1 and tx2
   Thr* thrlist[2];
-  for (int n = 0; n < thrcount; n++) {
+  int n;
+  for (n = 0; n < thrcount; n++) {
     Thr& thr = *(thrlist[n] = new Thr(1 + n));
     CHK(thr.m_ret == 0);
   }
@@ -472,7 +473,7 @@ wl1822_main(char scantx)
       if (runstep != 0)
         thr.start(runstep);
     }
-    for (int n = 0; n < thrcount; n++) {
+    for (n = 0; n < thrcount; n++) {
       Thr& thr = *thrlist[n];
       Runstep runstep = wl1822_step[i][n];
       if (runstep != 0)
@@ -480,7 +481,7 @@ wl1822_main(char scantx)
     }
   }
   // delete threads
-  for (int n = 0; n < thrcount; n++) {
+  for (n = 0; n < thrcount; n++) {
     Thr& thr = *thrlist[n];
     thr.exit();
     thr.join();

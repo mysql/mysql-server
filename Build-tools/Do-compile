@@ -7,16 +7,17 @@ use Sys::Hostname;
 @config_options= ();
 @make_options= ();
 
-$opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
+$opt_comment=$opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
-$opt_bundled_zlib=$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_cluster=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
-$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=0;
+$opt_bundled_zlib=$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_one_error=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_archive=$opt_with_cluster=$opt_with_csv=$opt_with_example=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
+$opt_skip_embedded_test=$opt_skip_ps_test=$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=0;
 
 GetOptions(
 	"bdb",
 	"build-thread=i",
 	"bundled-zlib",
+	"comment=s",
 	"config-env=s" => \@config_env,
 	"config-extra-env=s" => \@config_extra_env,
 	"config-options=s" => \@config_options,
@@ -37,10 +38,13 @@ GetOptions(
 	"no-test",
 	"no-mysqltest",
 	"no-benchmark",
+	"one-error",
 	"perl-files=s",
 	"perl-options=s",
 	"raid",
 	"readline",
+	"skip-embedded-test",
+ 	"skip-ps-test",
 	"stage=i",
 	"static-client",
 	"static-perl",
@@ -52,7 +56,10 @@ GetOptions(
 	"use-old-distribution",
 	"user=s",
 	"version-suffix=s",
+	"with-archive",
 	"with-cluster",
+	"with-csv",
+	"with-example",
 	"with-debug",
 	"with-low-memory",
 	"with-other-libc=s",
@@ -104,6 +111,7 @@ $log="$pwd/Logs/$host-$major.$minor$opt_version_suffix.log";
 $opt_distribution =~ /(mysql[^\/]*)\.tar/;
 $ver=$1;
 $gcc_version=which("gcc");
+$opt_comment= "Official MySQL$opt_version_suffix binary" unless $opt_comment;
 if (defined($gcc_version) && ! $opt_config_env)
 {
   $tmp=`$gcc_version -v 2>&1`;
@@ -149,7 +157,7 @@ $ENV{'MYSQL_TCP_PORT'}= $mysql_tcp_port= 3334 + $opt_build_thread*2;
 $ENV{'MYSQL_UNIX_PORT'}=$mysql_unix_port="$opt_tmp/mysql$opt_suffix.build";
 $ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
 $slave_port=$mysql_tcp_port+16;
-$ndbcluster_port= 9350 + $opt_build_thread*2;
+$ndbcluster_port= 9350 + $opt_build_thread*4;
 $manager_port=$mysql_tcp_port+1;
 $mysqladmin_args="--no-defaults -u root --connect_timeout=5 --shutdown_timeout=20";
 
@@ -258,7 +266,8 @@ if ($opt_stage <= 1)
   $opt_config_options.= " --with-berkeley-db" if ($opt_bdb);
   $opt_config_options.= " --with-zlib-dir=bundled" if ($opt_bundled_zlib);
   $opt_config_options.= " --with-client-ldflags=-all-static" if ($opt_static_client);
-	$opt_config_options.= " --with-debug" if ($opt_with_debug);
+  $opt_config_options.= " --with-debug" if ($opt_with_debug);
+  $opt_config_options.= " --without-ndb-debug" if ($opt_with_debug && $opt_with_cluster);
   $opt_config_options.= " --with-libwrap" if ($opt_libwrap);
   $opt_config_options.= " --with-low-memory" if ($opt_with_low_memory);
   $opt_config_options.= " --with-mysqld-ldflags=-all-static" if ($opt_static_server);
@@ -272,7 +281,11 @@ if ($opt_stage <= 1)
 		$opt_config_options.= " --with-libedit";
 	}
   $opt_config_options.= " --with-embedded-server" unless ($opt_without_embedded);
+  $opt_skip_embedded_test= 1 if ($opt_without_embedded);
+  $opt_config_options.= " --with-archive-storage-engine" if ($opt_with_archive);
   $opt_config_options.= " --with-ndbcluster" if ($opt_with_cluster);
+  $opt_config_options.= " --with-csv-storage-engine" if ($opt_with_csv);
+  $opt_config_options.= " --with-example-storage-engine" if ($opt_with_example);
 
   # Only enable InnoDB when requested (required to be able to
   # build the "Classic" packages that do not include InnoDB)
@@ -292,7 +305,7 @@ if ($opt_stage <= 1)
   }
 
   $prefix="/usr/local/mysql";
-  check_system("$opt_config_env ./configure --prefix=$prefix --localstatedir=$prefix/data --libexecdir=$prefix/bin --with-comment=\"Official MySQL$opt_version_suffix binary\" --with-extra-charsets=complex --with-server-suffix=\"$opt_version_suffix\" --enable-thread-safe-client --enable-local-infile $opt_config_options","Thank you for choosing MySQL");
+  check_system("$opt_config_env ./configure --prefix=$prefix --localstatedir=$prefix/data --libexecdir=$prefix/bin --with-comment=\"$opt_comment\" --with-extra-charsets=complex --with-server-suffix=\"$opt_version_suffix\" --enable-thread-safe-client --enable-local-infile $opt_config_options","Thank you for choosing MySQL");
   if (-d "$pwd/$host/include-mysql")
   {
     safe_system("cp -r $pwd/$host/include-mysql/* $pwd/$host/$ver/include");
@@ -310,6 +323,7 @@ if ($opt_stage <= 2)
   $command=$make;
   $command.= " $opt_make_options" if (defined($opt_make_options) && $opt_make_options ne "");
   safe_system($command);
+  print LOG "Do-compile: Build successful\n";
 }
 
 #
@@ -373,10 +387,29 @@ if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
   my $flags= "";
   $flags.= " --with-ndbcluster" if ($opt_with_cluster);
+  $flags.= " --force" if (!$opt_one_error);
   log_timestamp();
+  info("Running test suite");
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
   check_system("./mysql-test-run $flags --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+
+  unless ($opt_skip_ps_test)
+  {
+    log_timestamp();
+    info("Running test suite using prepared statements");
+    check_system("./mysql-test-run $flags --ps-protocol --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+  }
+  
+  unless ($opt_skip_embedded_test)
+  {
+    log_timestamp();
+    info("Running embedded server test suite");
+    # Embedded server and NDB don't jive
+    $flags=~ s/ --with-ndbcluster//;
+    check_system("./mysql-test-run $flags --embedded-server --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+  }
+  # 'mysql-test-run' writes its own final message for log evaluation.
 }
 
 #
@@ -499,6 +532,10 @@ When running several Do-compile runs in parallel, each build
 should have its own thread ID, so running the test suites
 does not cause conflicts with duplicate TCP port numbers.
 
+--comment=<comment>
+Replace the default compilation comment that is embedded into
+the mysqld binary.
+
 --config-env=<environment for configure>
 To set up the environment, like 'CC=cc CXX=gcc CXXFLAGS=-O3'
 
@@ -555,7 +592,10 @@ Do not run any tests.
 Do not run the benchmark test (written in perl)
 
 --no-mysqltest
-Do not run the the mysql-test-run test (Same as 'make test')
+Do not run the mysql-test-run test (Same as 'make test')
+
+--one-error
+Terminate the mysql-test-run test after the first difference (default: use '--force')
 
 --no-perl
 Do not compile or install Perl modules, use the system installed ones
@@ -571,6 +611,12 @@ Compile with RAID support
 
 --readline
 Compile against readline library instead of libedit
+
+--skip-embedded-test
+Skip running the test suite against the embedded server
+
+--skip-ps-test
+Skip running the additional test run that uses the prepared statement protocol
 
 --stage=[1-6]
 Start script from some specific point.
@@ -601,8 +647,17 @@ If user is empty then no mail is sent.
 --version-suffix=suffix
 Set name suffix (e.g. 'com' or '-max') for a distribution
 
+--with archive
+Enable the Archive storage engine
+
 --with cluster
 Compile and test with NDB Cluster enabled
+
+--with-csv
+Enable the CSV storage engine
+
+--with-example
+Enable the Example storage engine
 
 --with-debug
 Build binaries with debug information (implies "--no-strip")
@@ -635,16 +690,20 @@ sub abort
 
   if ($opt_user)
   {
-    $mail_header_file="$opt_tmp/do-command.$$";
-    open(TMP,">$mail_header_file");
+    # Take the last 40 lines of the build log
+    open(LOG, "$log") or die $!;
+    my @log= <LOG>;
+    close LOG;
+    splice @log => 0, -40;
+    my $mail_file="$opt_tmp/do-command.$$";
+    open(TMP,">$mail_file") or die $!;
     print TMP "From: mysqldev\@$full_host_name\n";
     print TMP "To: $email\n";
     print TMP "Subject: $host($uname): $ver$opt_version_suffix compilation failed\n\n";
+    print TMP @log;
     close TMP;
-    system("tail -n 40 $log > $log.mail");
-    system("cat $mail_header_file $log.mail | $sendmail -t -f $email");
-    unlink($mail_header_file);
-    unlink("$log.mail");
+    system("$sendmail -t -f $email < $mail_file");
+    unlink($mail_file);
   }
   exit 1;
 }
@@ -747,7 +806,7 @@ sub find
 sub rm_all
 {
   my(@rm_files)=@_;
-  my($dir,$current_dir,@files,@dirs);
+  my($dir,$current_dir,@files,@dirs,$removed);
   $current_dir = `pwd`; chomp($current_dir);
 
   foreach $dir (@rm_files)
@@ -771,7 +830,9 @@ sub rm_all
       }
       if ($#files >= 0)
       {
-	system("rm -f " . join(" ",@files)) && abort("Can't remove files from $dir");
+	$removed= unlink @files;
+	print "rm_all : removed $removed files in $current_dir/$dir\n" if ($opt_debug);
+	abort("Can't remove all $#files+1 from $current_dir/$dir, just $removed") if $removed != $#files+1;
       }
       foreach $dir (@dirs)
       {

@@ -60,3 +60,38 @@ hex(c)
 9353
 9373
 drop table t1;
+SET NAMES sjis;
+CREATE TABLE t1 (
+c char(16) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=sjis;
+insert into t1 values(0xb1),(0xb2),(0xb3);
+select hex(c) from t1;
+hex(c)
+B1
+B2
+B3
+drop table t1;
+SET collation_connection='sjis_japanese_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+sjis_japanese_ci	6109
+sjis_japanese_ci	61
+sjis_japanese_ci	6120
+drop table t1;
+SET collation_connection='sjis_bin';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+sjis_bin	6109
+sjis_bin	61
+sjis_bin	6120
+drop table t1;
+SET NAMES sjis;
+SELECT HEX('ç≤ìëÅ@\å\') FROM DUAL;
+HEX('ç≤ìëÅ@Å_å\')
+8DB2939181408C5C

@@ -127,3 +127,41 @@ insert into t1 values (1),(2),(3);
 --exec rm $MYSQL_TEST_DIR/var/tmp/t1.sql
 --exec rm $MYSQL_TEST_DIR/var/tmp/t1.txt
 drop table t1;
+
+#
+# Bug #6101: create database problem
+#
+
+--exec $MYSQL_DUMP --skip-comments --databases test
+
+create database mysqldump_test_db character set latin2 collate latin2_bin;
+--exec $MYSQL_DUMP --skip-comments --databases mysqldump_test_db;
+drop database mysqldump_test_db;
+
+#
+# Bug #7020
+# Check that we don't dump in UTF8 in compatible mode by default,
+# but use the default compiled values, or the values given in
+# --default-character-set=xxx. However, we should dump in UTF8
+# if it is explicitely set.
+
+CREATE TABLE t1 (a  CHAR(10));
+INSERT INTO t1  VALUES (_latin1 'ÄÖÜß');
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments test t1
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --compatible=mysql323 test t1
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --compatible=mysql323 --default-character-set=cp850 test t1
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=cp850 --compatible=mysql323 test t1
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=utf8 --compatible=mysql323 test t1
+DROP TABLE t1;
+
+#
+# WL #2319: Exclude Tables from dump
+#
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (4),(5),(6);
+--exec $MYSQL_DUMP --skip-comments --ignore-table=test.t1 test
+DROP TABLE t1;
+DROP TABLE t2;

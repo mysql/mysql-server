@@ -188,7 +188,7 @@ public:
   NDBT_TestCase(NDBT_TestSuite* psuite, 
 		const char* name, 
 		const char* comment);
-  virtual ~NDBT_TestCase(){}
+  virtual ~NDBT_TestCase() {}
 
   // This is the default executor of a test case
   // When a test case is executed it will need to be suplied with a number of 
@@ -225,6 +225,8 @@ protected:
   void stopTimer(NDBT_Context*);
   void printTimer(NDBT_Context*);
 
+  BaseString _name;
+  BaseString _comment;
   const char* name;
   const char* comment;
   NDBT_TestSuite* suite;
@@ -392,10 +394,10 @@ C##suitname():NDBT_TestSuite(#suitname){ \
 
 // Add a number of equal steps to the testcase
 #define STEPS(stepfunc, num) \
-  for (int i = 0; i < num; i++){ \
+  { int i; for (i = 0; i < num; i++){ \
     pts = new NDBT_ParallelStep(pt, #stepfunc, stepfunc); \
     pt->addStep(pts);\
-  }
+  } }
 
 #define VERIFIER(stepfunc) \
   ptv = new NDBT_Verifier(pt, #stepfunc, stepfunc); \

@@ -107,3 +107,10 @@ SELECT * FROM t2;
 SELECT * FROM t3;
 
 DROP TABLE t1, t2, t3;
+
+# Test that setting YEAR to invalid string results in default value, not
+# 2000. (Bug #6067)
+CREATE TABLE t1 (y YEAR);
+INSERT INTO t1 VALUES ('abc');
+SELECT * FROM t1;
+DROP TABLE t1;

@@ -78,7 +78,9 @@ const char *client_errors[]=
   "Invalid connection handle",
   "Connection using old (pre-4.1.1) authentication protocol refused (client option 'secure_auth' enabled)",
   "Row retrieval was canceled by mysql_stmt_close() call",
-  "Attempt to read column without prior row fetch"
+  "Attempt to read column without prior row fetch",
+  "Prepared statement contains no metadata",
+  ""
 };
 
 /* Start of code added by Roberto M. Serqueira - martinsc@uol.com.br - 05.24.2001 */
@@ -137,7 +139,9 @@ const char *client_errors[]=
   "Invalid connection handle",
   "Connection using old (pre-4.1.1) authentication protocol refused (client option 'secure_auth' enabled)",
   "Row retrieval was canceled by mysql_stmt_close() call",
-  "Attempt to read column without prior row fetch"
+  "Attempt to read column without prior row fetch",
+  "Prepared statement contains no metadata",
+  ""
 };
 
 #else /* ENGLISH */
@@ -194,7 +198,9 @@ const char *client_errors[]=
   "Invalid connection handle",
   "Connection using old (pre-4.1.1) authentication protocol refused (client option 'secure_auth' enabled)",
   "Row retrieval was canceled by mysql_stmt_close() call",
-  "Attempt to read column without prior row fetch"
+  "Attempt to read column without prior row fetch",
+  "Prepared statement contains no metadata",
+  ""
 };
 #endif
 

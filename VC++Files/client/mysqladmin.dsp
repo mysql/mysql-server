@@ -115,7 +115,7 @@ LINK32=xilink6.exe
 # Name "mysqladmin - Win32 classic"
 # Begin Source File
 
-SOURCE=.\mysqladmin.c
+SOURCE=.\mysqladmin.cpp
 # End Source File
 # End Target
 # End Project

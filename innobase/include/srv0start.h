@@ -75,6 +75,10 @@ extern	dulint	srv_start_lsn;
 void set_panic_flag_for_netware(void);
 #endif
 
+#ifdef HAVE_DARWIN_THREADS
+extern	ibool	srv_have_fullfsync;
+#endif
+
 extern  ulint   srv_sizeof_trx_t_in_ha_innodb_cc;
 
 extern  ibool   srv_is_being_started;

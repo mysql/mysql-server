@@ -19,7 +19,6 @@
 
 #include "Logger.hpp"
 
-
 /**
  * This class is the base class for all log handlers. A log handler is 
  * responsible for formatting and writing log messages to a specific output.
@@ -68,7 +67,8 @@ public:
   /**
    * Append a log message to the output stream/file whatever.
    * append() will call writeHeader(), writeMessage() and writeFooter() for
-   * a child class and in that order.
+   * a child class and in that order. Append checks for repeated messages.
+   * append_impl() does not check for repeats.
    *
    * @param pCategory the category/name to tag the log entry with.
    * @param level the log level.
@@ -76,6 +76,8 @@ public:
    */
   void append(const char* pCategory, Logger::LoggerLevel level,
 	      const char* pMsg);
+  void append_impl(const char* pCategory, Logger::LoggerLevel level,
+		   const char* pMsg);
 
   /**
    * Returns a default formatted header. It currently has the
@@ -111,14 +113,6 @@ public:
    */
   void setDateTimeFormat(const char* pFormat);
   
-  /**
-   * Returns a string date and time string.
-   * 
-   * @param pStr a string.
-   * @return a string with date and time.
-   */
-  char* getTimeAsString(char* pStr) const;
-
   /**
    * Returns the error code.
    */
@@ -185,6 +179,15 @@ protected:
   virtual void writeFooter() = 0;
   
 private: 
+  /**
+   * Returns a string date and time string.
+   * @note does not update time, uses m_now as time
+   * @param pStr a string.
+   * @return a string with date and time.
+   */
+  char* getTimeAsString(char* pStr) const;
+  time_t m_now;
+
   /** Prohibit */
   LogHandler(const LogHandler&);
   LogHandler* operator = (const LogHandler&);
@@ -192,6 +195,14 @@ private:
 
   const char* m_pDateTimeFormat;
   int m_errorCode;
+
+  // for handling repeated messages
+  unsigned m_count_repeated_messages;
+  unsigned m_max_repeat_frequency;
+  time_t m_last_log_time;
+  char m_last_category[MAX_HEADER_LENGTH];
+  char m_last_message[MAX_LOG_MESSAGE_SIZE];
+  Logger::LoggerLevel m_last_level;
 };
 
 #endif

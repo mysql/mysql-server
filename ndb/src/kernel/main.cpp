@@ -19,7 +19,6 @@
 
 #include <ndb_version.h>
 #include "Configuration.hpp"
-#include <LocalConfig.hpp>
 #include <TransporterRegistry.hpp>
 
 #include "vm/SimBlockList.hpp"
@@ -53,15 +52,13 @@ extern "C" void handler_error(int signum);  // for process signal handling
 void systemInfo(const Configuration & conf,
 		const LogLevel & ll); 
 
-const char programName[] = "NDB Kernel";
-
-NDB_MAIN(ndb_kernel){
-
-  ndb_init();
+int main(int argc, char** argv)
+{
+  NDB_INIT(argv[0]);
   // Print to stdout/console
   g_eventLogger.createConsoleHandler();
   g_eventLogger.setCategory("NDB");
-  g_eventLogger.enable(Logger::LL_INFO, Logger::LL_ALERT); // Log INFO to ALERT
+  g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
 
   globalEmulatorData.create();
 
@@ -71,19 +68,14 @@ NDB_MAIN(ndb_kernel){
     return NRT_Default;
   }
   
-  LocalConfig local_config;
-  if (!local_config.init(theConfig->getConnectString(),0)){
-    local_config.printError();
-    local_config.printUsage();
-    return NRT_Default;
+  { // Do configuration
+#ifndef NDB_WIN32
+	signal(SIGPIPE, SIG_IGN);
+#endif
+    theConfig->fetch_configuration();
   }
 
-  { // Do configuration
-    signal(SIGPIPE, SIG_IGN);
-    theConfig->fetch_configuration(local_config);
-  }
-  
-  chdir(NdbConfig_get_path(0));
+  my_setwd(NdbConfig_get_path(0), MYF(0));
 
   if (theConfig->getDaemonMode()) {
     // Become a daemon
@@ -97,6 +89,7 @@ NDB_MAIN(ndb_kernel){
     }
   }
   
+#ifndef NDB_WIN32
   for(pid_t child = fork(); child != 0; child = fork()){
     /**
      * Parent
@@ -143,10 +136,13 @@ NDB_MAIN(ndb_kernel){
       exit(0);
     }
     g_eventLogger.info("Ndb has terminated (pid %d) restarting", child);
-    theConfig->fetch_configuration(local_config);
+    theConfig->fetch_configuration();
   }
 
   g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
+#else
+  g_eventLogger.info("Ndb started");
+#endif
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
   
@@ -184,11 +180,9 @@ NDB_MAIN(ndb_kernel){
     assert("Illegal state globalData.theRestartFlag" == 0);
   }
 
-  SocketServer socket_server;
-
   globalTransporterRegistry.startSending();
   globalTransporterRegistry.startReceiving();
-  if (!globalTransporterRegistry.start_service(socket_server)){
+  if (!globalTransporterRegistry.start_service(*globalEmulatorData.m_socket_server)){
     ndbout_c("globalTransporterRegistry.start_service() failed");
     exit(-1);
   }
@@ -200,18 +194,13 @@ NDB_MAIN(ndb_kernel){
 
   globalEmulatorData.theWatchDog->doStart();
   
-  socket_server.startServer();
+  globalEmulatorData.m_socket_server->startServer();
 
   //  theConfig->closeConfiguration();
 
   globalEmulatorData.theThreadConfig->ipControlLoop();
   
   NdbShutdown(NST_Normal);
-
-  socket_server.stopServer();
-  socket_server.stopSessions();
-
-  globalTransporterRegistry.stop_clients();
 
   return NRT_Default;
 }
@@ -278,7 +267,7 @@ systemInfo(const Configuration & config, const LogLevel & logLevel){
 
 void 
 catchsigs(bool ignore){
-#if ! defined NDB_SOFTOSE && !defined NDB_OSE 
+#if !defined NDB_WIN32 && !defined NDB_SOFTOSE && !defined NDB_OSE 
 
   static const int signals_shutdown[] = {
 #ifdef SIGBREAK
@@ -320,7 +309,6 @@ catchsigs(bool ignore){
     SIGTRAP
 #endif
   };
-#endif
 
   static const int signals_ignore[] = {
     SIGPIPE
@@ -333,6 +321,7 @@ catchsigs(bool ignore){
     handler_register(signals_error[i], handler_error, ignore);
   for(i = 0; i < sizeof(signals_ignore)/sizeof(signals_ignore[0]); i++)
     handler_register(signals_ignore[i], SIG_IGN, ignore);
+#endif
 }
 
 extern "C"
@@ -351,8 +340,10 @@ handler_error(int signum){
   if (thread_id != 0 && thread_id == my_thread_id())
   {
     // Shutdown thread received signal
-    signal(signum, SIG_DFL);
+#ifndef NDB_WIN32
+	signal(signum, SIG_DFL);
     kill(getpid(), signum);
+#endif
     while(true)
       NdbSleep_MilliSleep(10);
   }

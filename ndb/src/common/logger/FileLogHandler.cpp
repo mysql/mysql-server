@@ -198,7 +198,7 @@ FileLogHandler::setFilename(const BaseString &filename) {
   m_pLogFile = new File_class(filename.c_str(), "a+");
   open();
   return true;
-};
+}
 
 bool
 FileLogHandler::setMaxSize(const BaseString &size) {
@@ -206,15 +206,15 @@ FileLogHandler::setMaxSize(const BaseString &size) {
   long val = strtol(size.c_str(), &end, 0); /* XXX */
   if(size.c_str() == end)
     return false;
-  if(strncasecmp("M", end, 1) == 0)
+  if(end[0] == 'M')
     val *= 1024*1024;
-  if(strncasecmp("k", end, 1) == 0)
+  if(end[0] == 'k')
     val *= 1024;
 
   m_maxFileSize = val;
 
   return true;
-};
+}
 
 bool
 FileLogHandler::setMaxFiles(const BaseString &files) {
@@ -225,7 +225,7 @@ FileLogHandler::setMaxFiles(const BaseString &files) {
   m_maxNoFiles = val;
 
   return true;
-};
+}
 
 bool
 FileLogHandler::checkParams() {

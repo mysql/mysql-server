@@ -578,7 +578,7 @@ static MY_UNICASE_INFO plane04[]={
   {0x0412,0x0432,0x0412},  {0x0413,0x0433,0x0413},
   {0x0414,0x0434,0x0414},  {0x0415,0x0435,0x0415},
   {0x0416,0x0436,0x0416},  {0x0417,0x0437,0x0417},
-  {0x0418,0x0438,0x0418},  {0x0419,0x0439,0x0418},
+  {0x0418,0x0438,0x0418},  {0x0419,0x0439,0x0419},
   {0x041A,0x043A,0x041A},  {0x041B,0x043B,0x041B},
   {0x041C,0x043C,0x041C},  {0x041D,0x043D,0x041D},
   {0x041E,0x043E,0x041E},  {0x041F,0x043F,0x041F},
@@ -594,7 +594,7 @@ static MY_UNICASE_INFO plane04[]={
   {0x0412,0x0432,0x0412},  {0x0413,0x0433,0x0413},
   {0x0414,0x0434,0x0414},  {0x0415,0x0435,0x0415},
   {0x0416,0x0436,0x0416},  {0x0417,0x0437,0x0417},
-  {0x0418,0x0438,0x0418},  {0x0419,0x0439,0x0418},
+  {0x0418,0x0438,0x0418},  {0x0419,0x0439,0x0419},
   {0x041A,0x043A,0x041A},  {0x041B,0x043B,0x041B},
   {0x041C,0x043C,0x041C},  {0x041D,0x043D,0x041D},
   {0x041E,0x043E,0x041E},  {0x041F,0x043F,0x041F},
@@ -1545,31 +1545,33 @@ int my_wildcmp_unicode(CHARSET_INFO *cs,
   {
     while (1)
     {
+      my_bool escaped= 0;
       if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
                        (const uchar*)wildend)) <= 0)
         return 1;
-      
-      if (w_wc ==  (my_wc_t)escape)
-      {
-        wildstr+= scan;
-        if ((scan= mb_wc(cs,&w_wc, (const uchar*)wildstr,
-                         (const uchar*)wildend)) <= 0)
-          return 1;
-      }
-      
+
       if (w_wc == (my_wc_t)w_many)
       {
         result= 1;				/* Found an anchor char */
         break;
       }
-      
+
       wildstr+= scan;
+      if (w_wc ==  (my_wc_t)escape)
+      {
+        if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                         (const uchar*)wildend)) <= 0)
+          return 1;
+        wildstr+= scan;
+        escaped= 1;
+      }
+      
       if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
-                       (const uchar*)str_end)) <=0)
+                       (const uchar*)str_end)) <= 0)
         return 1;
       str+= scan;
       
-      if (w_wc == (my_wc_t)w_one)
+      if (!escaped && w_wc == (my_wc_t)w_one)
       {
         result= 1;				/* Found an anchor char */
       }
@@ -2075,7 +2077,7 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
 
   if (slen != tlen)
   {
-    int swap= 0;
+    int swap= 1;
     if (slen < tlen)
     {
       slen= tlen;
@@ -2096,7 +2098,7 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
     for ( ; s < se; s++)
     {
       if (*s != ' ')
-        return ((int)*s -  (int) ' ') ^ swap;
+	return (*s < ' ') ? -swap : swap;
     }
   }
   return 0;
@@ -2226,7 +2228,6 @@ static int my_strnxfrm_utf8(CHARSET_INFO *cs,
   int plane;
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
-  const uchar *dst_orig = dst;
 
   while( src < se && dst < de )
   {
@@ -2246,7 +2247,9 @@ static int my_strnxfrm_utf8(CHARSET_INFO *cs,
     }
     dst+=res;
   }
-  return dst - dst_orig;
+  if (dst < de)
+    bfill(dst, de - dst, ' ');
+  return dstlen;
 }
 
 static int my_ismbchar_utf8(CHARSET_INFO *cs,const char *b, const char *e)

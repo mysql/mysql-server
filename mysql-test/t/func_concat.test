@@ -34,3 +34,19 @@ create table t1 (a char(4), b double, c date, d tinyint(4));
 insert into t1 values ('AAAA', 105, '2003-03-01', 1);
 select * from t1 where concat(A,C,B,D) = 'AAAA2003-03-011051';
 drop table t1;
+
+# BUG#6825 
+select 'a' union select concat('a', -4);
+select 'a' union select concat('a', -4.5);
+
+select 'a' union select concat('a', -(4 + 1));
+select 'a' union select concat('a', 4 - 5);
+
+select 'a' union select concat('a', -'3');
+select 'a' union select concat('a', -concat('3',4));
+
+select 'a' union select concat('a', -0);
+
+--replace_result 'a-0.0' good 'a0.0' good
+select 'a' union select concat('a', -0.0);
+

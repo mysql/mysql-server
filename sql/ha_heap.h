@@ -27,9 +27,10 @@ class ha_heap: public handler
 {
   HP_INFO *file;
   key_map btree_keys;
-
- public:
-  ha_heap(TABLE *table): handler(table), file(0) {}
+  /* number of records changed since last statistics update */
+  uint    records_changed;
+public:
+  ha_heap(TABLE *table): handler(table), file(0), records_changed(0) {}
   ~ha_heap() {}
   const char *table_type() const { return "HEAP"; }
   const char *index_type(uint inx)
@@ -91,5 +92,6 @@ class ha_heap: public handler
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
-
+private:
+  void update_key_stats();
 };

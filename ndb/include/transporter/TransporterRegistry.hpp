@@ -87,6 +87,7 @@ public:
  */
 class TransporterRegistry {
   friend class OSE_Receiver;
+  friend class SHM_Transporter;
   friend class Transporter;
   friend class TransporterService;
 public:
@@ -98,7 +99,12 @@ public:
 		      unsigned sizeOfLongSignalMemory = 100);
   
   bool init(NodeId localNodeId);
-  
+
+  /**
+   * after a connect from client, perform connection using correct transporter
+   */
+  bool connect_server(NDB_SOCKET_TYPE sockfd);
+
   /**
    * Remove all transporters
    */
@@ -224,7 +230,7 @@ public:
     const char *m_interface;
   };
   Vector<Transporter_interface> m_transporter_interface;
-  void add_transporter_interface(const char *interface, unsigned short port);
+  void add_transporter_interface(const char *interf, unsigned short port);
 protected:
   
 private:
@@ -312,6 +318,8 @@ private:
   Uint32 poll_TCP(Uint32 timeOutMillis);
   Uint32 poll_SCI(Uint32 timeOutMillis);
   Uint32 poll_SHM(Uint32 timeOutMillis);
+
+  int m_shm_own_pid;
 };
 
 #endif // Define of TransporterRegistry_H

@@ -28,7 +28,9 @@
 /** Undefine this to remove backwards compatibility for "GET CONFIG". */
 #define MGM_GET_CONFIG_BACKWARDS_COMPAT
 
-class MgmApiSession : public SocketServer::Session {
+class MgmApiSession : public SocketServer::Session
+{
+  static void stop_session_if_not_connected(SocketServer::Session *_s, void *data);
 private:
   typedef Parser<MgmApiSession> Parser_t;
 
@@ -37,10 +39,13 @@ private:
   OutputStream *m_output;
   Parser_t *m_parser;
   MgmtSrvr::Allocated_resources *m_allocated_resources;
+  char m_err_str[1024];
 
   void getConfig_common(Parser_t::Context &ctx,
 			const class Properties &args,
 			bool compat = false);
+  const char *get_error_text(int err_no)
+  { return m_mgmsrv.getErrorText(err_no, m_err_str, sizeof(m_err_str)); }
 
 public:
   MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock);  
@@ -84,6 +89,9 @@ public:
 
   void setParameter(Parser_t::Context &ctx, const class Properties &args);
   void listen_event(Parser_t::Context &ctx, const class Properties &args);
+
+  void purge_stale_sessions(Parser_t::Context &ctx, const class Properties &args);
+  void check_connection(Parser_t::Context &ctx, const class Properties &args);
   
   void repCommand(Parser_t::Context &ctx, const class Properties &args);
 };
@@ -99,7 +107,7 @@ public:
     m_mgmsrv = mgmsrv;
   }
   
-  MgmApiSession * newSession(NDB_SOCKET_TYPE socket){
+  SocketServer::Session * newSession(NDB_SOCKET_TYPE socket){
     return new MgmApiSession(* m_mgmsrv, socket);
   }
 };

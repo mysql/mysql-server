@@ -19,15 +19,28 @@ BK_STATUS=$BK_STATUS$BK_COMMIT
 if [ "$BK_STATUS" = OK ]
 then 
 
+HAS_ACTUAL_CHANGES=`bk cset -r+ -d | grep -v "^#"`
+if [ "$HAS_ACTUAL_CHANGES" = "" ]
+then
+  echo ChangeSet had no real changes, not sending emails
+  exit
+fi
+
 CHANGESET=`bk -R prs -r+ -h -d':P:::I:' ChangeSet`
-BUG=`bk -R prs -r+ -h -d':C:' ChangeSet | sed -ne 's/^.*[Bb][Uu][Gg] *# *\([0-9][0-9]*\).*$/ BUG#\1/p'`
+BUG=`bk -R prs -r+ -h -d':C:' ChangeSet | sed -ne 's/^.*[Bb][Uu][Gg] *# *\([0-9][0-9]*\).*$/\1/p'`
 WL=`bk -R prs -r+ -h -d':C:' ChangeSet | sed -ne 's/^.*[Ww][Ll] *# *\([0-9][0-9]*\).*$/ WL#\1/p'`
 
 if [ "$BUG" = "" ]
 then
   TO=dev-public@mysql.com
+  BS=""
+  BH=""
 else
   TO=dev-bugs@mysql.com
+  BS=" BUG#$BUG"
+# need newline here
+  BH="X-Bug: $BUG
+"
 fi
 #++
 # dev-public@ / dev-bugs@
@@ -38,8 +51,8 @@ fi
 List-ID: <bk.mysql-$VERSION>
 From: $FROM
 To: $TO
-Subject: bk commit - $VERSION tree ($CHANGESET)${BUG}${WL}
-
+Subject: bk commit - $VERSION tree ($CHANGESET)${BS}${WL}
+$BH
 EOF
   bk changes -v -r+
   bk cset -r+ -d
@@ -54,14 +67,14 @@ EOF
 List-ID: <bk.mysql-$VERSION>
 From: $FROM
 To: $INTERNALS
-Subject: bk commit into $VERSION tree ($CHANGESET)
-
+Subject: bk commit into $VERSION tree ($CHANGESET)$BS
+$BH
 Below is the list of changes that have just been committed into a local
 $VERSION repository of $USER. When $USER does a push these changes will
 be propagated to the main repository and, within 24 hours after the
 push, to the public repository.
 For information on how to access the public repository
-see http://www.mysql.com/doc/I/n/Installing_source_tree.html
+see http://dev.mysql.com/doc/mysql/en/installing-source-tree.html
 
 EOF
   bk changes -v -r+
@@ -81,7 +94,7 @@ EOF
 List-ID: <bk.mysql-$VERSION>
 From: $FROM
 To: $DOCS
-Subject: bk commit - $VERSION tree (Manual) ($CHANGESET)
+Subject: bk commit - $VERSION tree (Manual) ($CHANGESET)$BS
 
 EOF
   bk changes -v -r+

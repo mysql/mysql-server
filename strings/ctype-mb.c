@@ -274,7 +274,7 @@ uint my_well_formed_len_mb(CHARSET_INFO *cs,
     my_wc_t wc;
     int mblen;
 
-    if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <0)
+    if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <= 0)
       break;
     b+= mblen;
     pos--;
@@ -389,7 +389,7 @@ static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
   }
   if (a_length != b_length)
   {
-    int swap= 0;
+    int swap= 1;
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -404,7 +404,7 @@ static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
     for (end= a + a_length-length; a < end ; a++)
     {
       if (*a != ' ')
-	return ((int) *a - (int) ' ') ^ swap;
+	return (*a < ' ') ? -swap : swap;
     }
   }
   return 0;
@@ -412,13 +412,14 @@ static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
 
 
 static int my_strnxfrm_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
-			    uchar * dest, uint len,
-			    const uchar *src, 
-			    uint srclen __attribute__((unused)))
+                              uchar * dest, uint dstlen,
+                              const uchar *src, uint srclen)
 {
   if (dest != src)
-    memcpy(dest,src,len= min(len,srclen));
-  return len;
+    memcpy(dest, src, min(dstlen, srclen));
+  if (dstlen > srclen)
+    bfill(dest + srclen, dstlen - srclen, ' ');
+  return dstlen;
 }
 
 
@@ -441,6 +442,37 @@ static void my_hash_sort_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
 	     ((uint)*pos)) + (nr1[0] << 8);
     nr2[0]+=3;
   }
+}
+
+
+/* 
+  Write max key: create a buffer with multibyte
+  representation of the max_sort_char character,
+  and copy it into max_str in a loop. 
+*/
+static void pad_max_char(CHARSET_INFO *cs, char *str, char *end)
+{
+  char buf[10];
+  char buflen= cs->cset->wc_mb(cs, cs->max_sort_char, (uchar*) buf,
+                               (uchar*) buf + sizeof(buf));
+  DBUG_ASSERT(buflen > 0);
+  do
+  {
+    if ((str + buflen) < end)
+    {
+      /* Enough space for the characer */
+      memcpy(str, buf, buflen);
+      str+= buflen;
+    }
+    else
+    {
+      /* 
+        There is no space for whole multibyte
+        character, then add trailing spaces.
+      */  
+      *str++= ' ';
+    }
+  } while (str < end);
 }
 
 /*
@@ -467,10 +499,15 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
 			 char *min_str,char *max_str,
 			 uint *min_length,uint *max_length)
 {
-  const char *end=ptr+ptr_length;
-  char *min_org=min_str;
-  char *min_end=min_str+res_length;
-  char *max_end=max_str+res_length;
+  const char *end;
+  char *min_org= min_str;
+  char *min_end= min_str + res_length;
+  char *max_end= max_str + res_length;
+  uint charlen= my_charpos(cs, ptr, ptr+ptr_length, res_length/cs->mbmaxlen);
+
+  if (charlen < ptr_length)
+    ptr_length= charlen;
+  end= ptr + ptr_length;
 
   for (; ptr != end && min_str != min_end ; ptr++)
   {
@@ -482,16 +519,14 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
     }
     if (*ptr == w_one || *ptr == w_many)	/* '_' and '%' in SQL */
     {
-      char buf[10];
-      uint buflen;
-      uint charlen= my_charpos(cs, min_org, min_str, res_length/cs->mbmaxlen);
+      charlen= my_charpos(cs, min_org, min_str, res_length/cs->mbmaxlen);
       
       if (charlen < (uint) (min_str - min_org))
         min_str= min_org + charlen;
       
       /* Write min key  */
       *min_length= (uint) (min_str - min_org);
-      *max_length=res_length;
+      *max_length= res_length;
       do
       {
 	*min_str++= (char) cs->min_sort_char;
@@ -502,27 +537,7 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
         representation of the max_sort_char character,
         and copy it into max_str in a loop. 
       */
-      buflen= cs->cset->wc_mb(cs, cs->max_sort_char, (uchar*) buf,
-                              (uchar*) buf + sizeof(buf));
-      DBUG_ASSERT(buflen > 0);
-      do
-      {
-        if ((max_str + buflen) <= max_end)
-        {
-          /* Enough space for max characer */
-          memcpy(max_str, buf, buflen);
-          max_str+= buflen;
-        }
-        else
-        {
-          /* 
-            There is no space for whole multibyte
-            character, then add trailing spaces.
-          */
-          
-	  *max_str++= ' ';
-	}
-      } while (max_str != max_end);
+      pad_max_char(cs, max_str, max_end);
       return 0;
     }
     *min_str++= *max_str++ = *ptr;
@@ -530,7 +545,8 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
   *min_length= *max_length = (uint) (min_str - min_org);
 
   while (min_str != min_end)
-    *min_str++ = *max_str++ = ' ';	/* Because if key compression */
+    *min_str++= ' ';		/* Because if key compression */
+  pad_max_char(cs, max_str, max_end);
   return 0;
 }
 

@@ -24,8 +24,8 @@
  */
 class GrepError {
 public:
-  enum Code {
-    NO_ERROR = 0,
+  enum GE_Code {
+    GE_NO_ERROR = 0,
     SUBSCRIPTION_ID_NOMEM = 1,
     SUBSCRIPTION_ID_NOT_FOUND = 2,
     SUBSCRIPTION_ID_NOT_UNIQUE = 3,
@@ -82,12 +82,12 @@ public:
   };
   
   struct ErrorDescription {
-    Code errCode;
+    GE_Code errCode;
     const char * name;
   };
   static const ErrorDescription errorDescriptions[];
   static const Uint32 noOfErrorDescs;
-  static const char * getErrorDesc(GrepError::Code err);
+  static const char * getErrorDesc(GrepError::GE_Code err);
   
 };
 

@@ -1663,7 +1663,7 @@ pr_tag_type (p, name, id, kind)
 {
   struct pr_handle *info = (struct pr_handle *) p;
   const char *t, *tag;
-  char idbuf[20];
+  char idbuf[30];
 
   switch (kind)
     {

@@ -296,16 +296,18 @@ static int my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)),
   int value;
   const uchar * p, * store;
   int pass = 0;
-  int totlen = 0;
+  uint totlen = 0;
   p = src;	store = src;
 
   do
   {
     NEXT_CMP_VALUE(src, p, store, pass, value, (int)srclen);
-    ADD_TO_RESULT(dest, (int)len, totlen, value);
+    ADD_TO_RESULT(dest, len, totlen, value);
   }
   while (value);
-  return totlen;
+  if (len > totlen)
+    bfill(dest + totlen, len - totlen, ' ');
+  return len;
 }
 
 #undef IS_END
@@ -589,12 +591,12 @@ static MY_COLLATION_HANDLER my_collation_latin2_czech_ci_handler =
 
 CHARSET_INFO my_charset_latin2_czech_ci =
 {
-    2,0,0,				/* number */
-    MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state      */
-    "latin2",				/* cs name    */
-    "latin2_czech_cs",			/* name */
-    "",					/* comment    */
-    NULL,				/* tailoring */
+    2,0,0,                                      /* number    */
+    MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_CSSORT, /* state     */
+    "latin2",                                   /* cs name   */
+    "latin2_czech_cs",                          /* name      */
+    "",                                         /* comment   */
+    NULL,                                       /* tailoring */
     ctype_czech,
     to_lower_czech,
     to_upper_czech,

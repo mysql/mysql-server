@@ -141,9 +141,9 @@ public:
     enum FragmentType { 
       FragUndefined = 0,      ///< Fragmentation type undefined or default
       FragSingle = 1,         ///< Only one fragment
-      FragAllSmall = 2,       ///< One fragment per node group
-      FragAllMedium = 3,      ///< Default value. Two fragments per node group.
-      FragAllLarge = 4        ///< Eight fragments per node group.
+      FragAllSmall = 2,       ///< One fragment per node, default
+      FragAllMedium = 3,      ///< two fragments per node
+      FragAllLarge = 4        ///< Four fragments per node.
     };
   };
 
@@ -179,15 +179,19 @@ public:
       Bigunsigned,   ///< 64 Bit. 8 byte signed integer, can be used in array
       Float,         ///< 32-bit float. 4 bytes float, can be used in array
       Double,        ///< 64-bit float. 8 byte float, can be used in array
-      Decimal,       ///< Precision, Scale are applicable
+      Olddecimal,    ///< MySQL < 5.0 signed decimal,  Precision, Scale
       Char,          ///< Len. A fixed array of 1-byte chars
       Varchar,       ///< Max len
       Binary,        ///< Len
       Varbinary,     ///< Max len
       Datetime,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
-      Timespec,    ///< Precision down to 1 nsec(sizeof(Datetime) == 12 bytes )
+      Date,        ///< Precision down to 1 day(sizeof(Date) == 4 bytes )
       Blob,        ///< Binary large object (see NdbBlob)
-      Text         ///< Text blob
+      Text,        ///< Text blob
+      Time = 25,   ///< Time without date
+      Year = 26,   ///< Year 1901-2155 (1 byte)
+      Timestamp = 27, ///< Unix time
+      Olddecimalunsigned = 28
     };
 
     /** 
@@ -273,25 +277,25 @@ public:
 
     /**
      * Set precision of column.
-     * @note Only applicable for builtin type Decimal
+     * @note Only applicable for decimal types
      */
     void setPrecision(int);
 
     /**
      * Get precision of column.
-     * @note Only applicable for builtin type Decimal
+     * @note Only applicable for decimal types
      */
     int getPrecision() const;
 
     /**
      * Set scale of column.
-     * @note Only applicable for builtin type Decimal
+     * @note Only applicable for decimal types
      */
     void setScale(int);
 
     /**
      * Get scale of column.
-     * @note Only applicable for builtin type Decimal
+     * @note Only applicable for decimal types
      */
     int getScale() const;
 
@@ -369,7 +373,7 @@ public:
      */
     bool getDistributionKey() const;
     /** @} *******************************************************************/
-    
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void setTupleKey(bool);
     bool getTupleKey() const;
@@ -485,6 +489,18 @@ public:
      * @return null if none existing name
      */
     const Column* getColumn(const char * name) const;
+    
+    /**
+     * Get column definition via index in table.
+     * @return null if none existing name
+     */
+    Column* getColumn(const int attributeId);
+
+    /**
+     * Get column definition via name.
+     * @return null if none existing name
+     */
+    Column* getColumn(const char * name);
     
     /**
      * Get column definition via index in table.
@@ -698,7 +714,7 @@ public:
     /**
      * Get a specific column in the index
      */
-    const NdbDictionary::Column * getColumn(unsigned no) const ;
+    const Column * getColumn(unsigned no) const ;
 
     /**
      * Get a specific column name in the index
@@ -969,13 +985,6 @@ public:
      * @return table if successful otherwise NULL.
      */
     const Table * getTable(const char * name);
-
-    /**
-     * Get table with given name for alteration.
-     * @param name   Name of table to alter
-     * @return table if successful. NULL if undefined
-     */
-    Table getTableForAlteration(const char * name);
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /**

@@ -202,7 +202,7 @@ character-set=cp1250
 "Greška u slanju mrežnih paketa na glavni server u klasteru",
 "Ne mogu da pronaðem 'FULLTEXT' indeks koli odgovara listi kolona",
 "Ne mogu da izvršim datu komandu zbog toga što su tabele zakljuèane ili je transakcija u toku",
-"Nepoznata sistemska promenljiva '%-.64'",
+"Nepoznata sistemska promenljiva '%-.64s'",
 "Tabela '%-.64s' je markirana kao ošteæena i trebala bi biti popravljena",
 "Tabela '%-.64s' je markirana kao ošteæena, a zadnja (automatska?) popravka je bila neuspela",
 "Upozorenje: Neke izmenjene tabele ne podržavaju komandu 'ROLLBACK'",

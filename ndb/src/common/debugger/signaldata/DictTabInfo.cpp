@@ -152,4 +152,4 @@ DictTabInfo::Attribute::init(){
   AttributeExtLength = 0,
   AttributeAutoIncrement = false;
   memset(AttributeDefaultValue, 0, sizeof(AttributeDefaultValue));//AttributeDefaultValue[0] = 0;
-};
+}

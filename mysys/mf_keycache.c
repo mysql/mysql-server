@@ -352,6 +352,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
                                                            MYF(0))))
           break;
         my_free_lock(keycache->block_mem, MYF(0));
+        keycache->block_mem= 0;
       }
       if (blocks < 8)
       {
@@ -1699,11 +1700,12 @@ byte *key_cache_read(KEY_CACHE *keycache,
 	keycache_pthread_mutex_unlock(&keycache->cache_lock);
 	goto no_key_cache;
       }
-      read_length= length > keycache->key_cache_block_size ?
-                   keycache->key_cache_block_size : length;
-      KEYCACHE_DBUG_ASSERT(read_length > 0);
       offset= (uint) (filepos & (keycache->key_cache_block_size-1));
       filepos-= offset;
+      read_length= length;
+      set_if_smaller(read_length, keycache->key_cache_block_size-offset);
+      KEYCACHE_DBUG_ASSERT(read_length > 0);
+
 #ifndef THREAD
       if (block_length > keycache->key_cache_block_size || offset)
 	return_buffer=0;
@@ -1773,7 +1775,7 @@ byte *key_cache_read(KEY_CACHE *keycache,
 	return (block->buffer);
 #endif
       buff+= read_length;
-      filepos+= read_length;
+      filepos+= read_length+offset;
 
     } while ((length-= read_length));
     DBUG_RETURN(start);
@@ -1835,12 +1837,12 @@ int key_cache_insert(KEY_CACHE *keycache,
 	keycache_pthread_mutex_unlock(&keycache->cache_lock);
 	DBUG_RETURN(0);
       }
-      read_length= length > keycache->key_cache_block_size ?
-                   keycache->key_cache_block_size : length;
-      KEYCACHE_DBUG_ASSERT(read_length > 0);
       offset= (uint) (filepos & (keycache->key_cache_block_size-1));
       /* Read data into key cache from buff in key_cache_block_size incr. */
       filepos-= offset;
+      read_length= length;
+      set_if_smaller(read_length, keycache->key_cache_block_size-offset);
+      KEYCACHE_DBUG_ASSERT(read_length > 0);
 
       inc_counter_for_resize_op(keycache);
       keycache->global_cache_r_requests++;
@@ -1882,7 +1884,7 @@ int key_cache_insert(KEY_CACHE *keycache,
         DBUG_RETURN(1);
 
       buff+= read_length;
-      filepos+= read_length;
+      filepos+= read_length+offset;
 
     } while ((length-= read_length));
   }
@@ -1959,12 +1961,12 @@ int key_cache_write(KEY_CACHE *keycache,
 	keycache_pthread_mutex_unlock(&keycache->cache_lock);
 	goto no_key_cache;
       }
-      read_length= length > keycache->key_cache_block_size ?
-	keycache->key_cache_block_size : length;
-      KEYCACHE_DBUG_ASSERT(read_length > 0);
       offset= (uint) (filepos & (keycache->key_cache_block_size-1));
       /* Write data in key_cache_block_size increments */
       filepos-= offset;
+      read_length= length;
+      set_if_smaller(read_length, keycache->key_cache_block_size-offset);
+      KEYCACHE_DBUG_ASSERT(read_length > 0);
 
       inc_counter_for_resize_op(keycache);
       keycache->global_cache_w_requests++;
@@ -2032,7 +2034,7 @@ int key_cache_write(KEY_CACHE *keycache,
 
     next_block:
       buff+= read_length;
-      filepos+= read_length;
+      filepos+= read_length+offset;
       offset= 0;
 
     } while ((length-= read_length));
@@ -2440,6 +2442,41 @@ static int flush_all_key_blocks(KEY_CACHE *keycache)
     }
   }
   return 0;
+}
+
+
+/*
+  Reset the counters of a key cache.
+
+  SYNOPSIS
+    reset_key_cache_counters()
+    name       the name of a key cache
+    key_cache  pointer to the key kache to be reset
+
+  DESCRIPTION
+   This procedure is used by process_key_caches() to reset the counters of all
+   currently used key caches, both the default one and the named ones.
+
+  RETURN
+    0 on success (always because it can't fail)
+*/
+
+int reset_key_cache_counters(const char *name, KEY_CACHE *key_cache)
+{
+  DBUG_ENTER("reset_key_cache_counters");
+  if (!key_cache->key_cache_inited)
+  {
+    DBUG_PRINT("info", ("Key cache %s not initialized.", name));
+    DBUG_RETURN(0);
+  }
+  DBUG_PRINT("info", ("Resetting counters for key cache %s.", name));
+
+  key_cache->global_blocks_changed= 0;   /* Key_blocks_not_flushed */
+  key_cache->global_cache_r_requests= 0; /* Key_read_requests */
+  key_cache->global_cache_read= 0;       /* Key_reads */
+  key_cache->global_cache_w_requests= 0; /* Key_write_requests */
+  key_cache->global_cache_write= 0;      /* Key_writes */
+  DBUG_RETURN(0);
 }
 
 

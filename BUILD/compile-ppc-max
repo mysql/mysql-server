@@ -1,0 +1,9 @@
+#! /bin/sh
+
+path=`dirname $0`
+. "$path/SETUP.sh"
+
+extra_flags="$ppc_cflags $fast_cflags $max_cflags -g"
+extra_configs="$extra_configs $max_configs"
+
+. "$path/FINISH.sh"

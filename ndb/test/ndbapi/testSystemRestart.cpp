@@ -452,7 +452,7 @@ int runSystemRestart3(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   Vector<int> nodeIds;
-  for(Uint32 i = 0; i<nodeCount; i++)
+  for(i = 0; i<nodeCount; i++)
     nodeIds.push_back(restarter.getDbNodeId(i));
   
   Uint32 currentRestartNodeIndex = 0;
@@ -561,7 +561,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   Vector<int> nodeIds;
-  for(Uint32 i = 0; i<nodeCount; i++)
+  for(i = 0; i<nodeCount; i++)
     nodeIds.push_back(restarter.getDbNodeId(i));
   
   Uint32 currentRestartNodeIndex = 0;
@@ -691,7 +691,7 @@ int runSystemRestart5(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   Vector<int> nodeIds;
-  for(Uint32 i = 0; i<nodeCount; i++)
+  for(i = 0; i<nodeCount; i++)
     nodeIds.push_back(restarter.getDbNodeId(i));
   
   Uint32 currentRestartNodeIndex = 0;
@@ -821,7 +821,7 @@ int runSystemRestart6(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   Vector<int> nodeIds;
-  for(Uint32 i = 0; i<nodeCount; i++)
+  for(i = 0; i<nodeCount; i++)
     nodeIds.push_back(restarter.getDbNodeId(i));
   
   Uint32 currentRestartNodeIndex = 0;
@@ -877,7 +877,7 @@ int runSystemRestart7(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   Vector<int> nodeIds;
-  for(Uint32 i = 0; i<nodeCount; i++)
+  for(i = 0; i<nodeCount; i++)
     nodeIds.push_back(restarter.getDbNodeId(i));
 
   int a_nodeIds[64];
@@ -952,7 +952,7 @@ int runSystemRestart8(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   Vector<int> nodeIds;
-  for(Uint32 i = 0; i<nodeCount; i++)
+  for(i = 0; i<nodeCount; i++)
     nodeIds.push_back(restarter.getDbNodeId(i));
 
   int a_nodeIds[64];

@@ -67,6 +67,7 @@ select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 
 select * from t1 where MATCH a,b AGAINST ('+(support collections) +foobar*' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('+(+(support collections)) +foobar*' IN BOOLEAN MODE);
+select * from t1 where MATCH a,b AGAINST ('+collections -supp* -foobar*' IN BOOLEAN MODE);
 select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 
 # bug#2708, bug#3870 crash
@@ -98,6 +99,8 @@ select * from t1 where match a against ("+aaa* +bbb*" in boolean mode);
 select * from t1 where match a against ("+aaa* +bbb1*" in boolean mode);
 select * from t1 where match a against ("+aaa* +ccc*" in boolean mode);
 select * from t1 where match a against ("+aaa10 +(bbb*)" in boolean mode);
+select * from t1 where match a against ("+(+aaa* +bbb1*)" in boolean mode);
+select * from t1 where match a against ("(+aaa* +bbb1*)" in boolean mode);
 drop table t1;
 
 #
@@ -253,8 +256,15 @@ select * from t1 join t2 using(`t1_id`) where match (t1.name, t2.name) against('
 # bug with many short (< ft_min_word_len) words in boolean search
 #
 select * from t2 where match name against ('a* b* c* d* e* f*' in boolean mode);
-
 drop table t1,t2;
+
+#
+# bug with repair-by-sort and incorrect records estimation
+#
+
+create table t1 (a text, fulltext key (a));
+insert into t1 select "xxxx yyyy zzzz";
+drop table t1;
 
 #
 # UTF8
@@ -272,7 +282,7 @@ SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 SET NAMES latin1;
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
-SELECT t, collation(t),MATCH t AGAINST ('Osnabruck') FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
+SELECT t, collation(t),FORMAT(MATCH t AGAINST ('Osnabruck'),6) FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
 #alter table t1 modify t text character set latin1 collate latin1_german2_ci not null;
 alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
@@ -287,4 +297,44 @@ CREATE TABLE t1 (s varchar(255), FULLTEXT (s)) DEFAULT CHARSET=utf8;
 insert into t1 (s) values ('pära para para'),('para para para');
 select * from t1 where match(s) against('para' in boolean mode);
 select * from t1 where match(s) against('par*' in boolean mode);
+DROP TABLE t1;
+
+#
+# icc -ip bug (ip = interprocedural optimization)
+# bug#5528
+#
+CREATE TABLE t1 (h text, FULLTEXT (h));
+INSERT INTO t1 VALUES ('Jesses Hasse Ling and his syncopators of Swing');
+REPAIR TABLE t1;
+select count(*) from t1;
+drop table t1;
+
+#
+# testing out of bounds memory access in ft_nlq_find_relevance()
+# (bug#8522); visible in valgrind.
+#
+CREATE TABLE t1 ( a TEXT, FULLTEXT (a) );
+INSERT INTO t1 VALUES ('testing ft_nlq_find_relevance');
+SELECT MATCH(a) AGAINST ('nosuchword') FROM t1;
+DROP TABLE t1;
+#
+# bug#6784
+# mi_flush_bulk_insert (on dup key error in mi_write)
+# was mangling info->dupp_key_pos
+#
+
+create table t1 (a int primary key, b text, fulltext(b));
+create table t2 (a int, b text);
+insert t1 values (1, "aaaa"), (2, "bbbb");
+insert t2 values (10, "aaaa"), (2, "cccc");
+replace t1 select * from t2;
+drop table t1, t2;
+
+#
+# bug#8351
+#
+CREATE TABLE t1 (t VARCHAR(200) CHARACTER SET utf8 COLLATE utf8_unicode_ci, FULLTEXT (t));
+SET NAMES latin1;
+INSERT INTO t1 VALUES('Mit freundlichem Grüß aus Osnabrück');
+SELECT COUNT(*) FROM t1 WHERE MATCH(t) AGAINST ('"osnabrück"' IN BOOLEAN MODE);
 DROP TABLE t1;

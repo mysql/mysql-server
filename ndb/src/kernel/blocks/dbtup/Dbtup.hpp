@@ -504,6 +504,7 @@ struct Fragoperrec {
   Uint32 noOfNewAttrCount;
   Uint32 charsetIndex;
   BlockReference lqhBlockrefFrag;
+  bool inUse;
 };
 typedef Ptr<Fragoperrec> FragoperrecPtr;
 
@@ -1936,6 +1937,7 @@ private:
   void setUpKeyArray(Tablerec* const regTabPtr);
   bool addfragtotab(Tablerec* const regTabPtr, Uint32 fragId, Uint32 fragIndex);
   void deleteFragTab(Tablerec* const regTabPtr, Uint32 fragId);
+  void abortAddFragOp(Signal* signal);
   void releaseTabDescr(Tablerec* const regTabPtr);
   void getFragmentrec(FragrecordPtr& regFragPtr, Uint32 fragId, Tablerec* const regTabPtr);
 

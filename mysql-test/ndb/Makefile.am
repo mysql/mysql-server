@@ -13,6 +13,8 @@ SUFFIXES = .sh
 .sh:
 	@RM@ -f $@ $@-t
 	@SED@ \
+	  -e 's!@''ndb_port''@!$(ndb_port)!g' \
+	  -e 's!@''ndb_port_base''@!$(ndb_port_base)!g' \
 	  -e 's!@''ndbbindir''@!$(ndbbindir)!g' \
 	  -e 's!@''ndbtoolsdir''@!$(ndbtoolsdir)!g' \
 	  $< > $@-t

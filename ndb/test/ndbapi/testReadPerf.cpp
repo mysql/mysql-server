@@ -99,7 +99,8 @@ main(int argc, const char** argv){
     { "verbose", 'v', arg_flag, &verbose, "Print verbose status", "verbose" }
   };
   const int num_args = 1 + P_MAX;
-  for(int i = 0; i<P_MAX; i++){
+  int i;
+  for(i = 0; i<P_MAX; i++){
     args[i+1].long_name = g_paramters[i].name;
     args[i+1].short_name = * g_paramters[i].name;
     args[i+1].type = arg_integer;
@@ -127,7 +128,7 @@ main(int argc, const char** argv){
     g_err << "Wait until ready failed" << endl;
     goto error;
   }
-  for(int i = optind; i<argc; i++){
+  for(i = optind; i<argc; i++){
     const char * T = argv[i];
     g_info << "Testing " << T << endl;
     BaseString::snprintf(g_table, sizeof(g_table), T);
@@ -390,8 +391,15 @@ run_read(){
 
 void
 print_result(){
+  int tmp = 1;
+  tmp *= g_paramters[P_RANGE].value;
+  tmp *= g_paramters[P_LOOPS].value;
+
+  int t, t2;
   for(int i = 0; i<P_OP_TYPES; i++){
-    g_err.println("%s avg: %u us/row", g_ops[i],
-		  (1000*g_times[i])/(g_paramters[P_RANGE].value*g_paramters[P_LOOPS].value));
+    g_err << g_ops[i] << " avg: "
+	  << (int)((1000*g_times[i])/tmp)
+	  << " us/row (" 
+	  << (1000 * tmp)/g_times[i] << " rows / sec)" << endl;
   }
 }

@@ -76,21 +76,27 @@ FastScheduler::activateSendPacked()
   globalData.loopMax = 2048;
 }//FastScheduler::activateSendPacked()
 
+//------------------------------------------------------------------------
+// sendPacked is executed at the end of the loop.
+// To ensure that we don't send any messages before executing all local
+// packed signals we do another turn in the loop (unless we have already
+// executed too many signals in the loop).
+//------------------------------------------------------------------------
 void 
 FastScheduler::doJob()
 {
+  Uint32 loopCount = 0;
+  Uint32 TminLoops = getBOccupancy() + EXTRA_SIGNALS_PER_DO_JOB;
+  Uint32 TloopMax = (Uint32)globalData.loopMax;
+  if (TminLoops < TloopMax) {
+    TloopMax = TminLoops;
+  }//if
+  if (TloopMax < MIN_NUMBER_OF_SIG_PER_DO_JOB) {
+    TloopMax = MIN_NUMBER_OF_SIG_PER_DO_JOB;
+  }//if
+  register Signal* signal = getVMSignals();
+  register Uint32 tHighPrio= globalData.highestAvailablePrio;
   do{
-    Uint32 loopCount = 0;
-    Uint32 TminLoops = getBOccupancy() + EXTRA_SIGNALS_PER_DO_JOB;
-    Uint32 TloopMax = (Uint32)globalData.loopMax;
-    if (TminLoops < TloopMax) {
-      TloopMax = TminLoops;
-    }//if
-    if (TloopMax < MIN_NUMBER_OF_SIG_PER_DO_JOB) {
-      TloopMax = MIN_NUMBER_OF_SIG_PER_DO_JOB;
-    }//if
-    register Uint32 tHighPrio = globalData.highestAvailablePrio;
-    register Signal* signal = getVMSignals();
     while ((tHighPrio < LEVEL_IDLE) && (loopCount < TloopMax)) {
       // signal->garbage_register(); 
       // To ensure we find bugs quickly
@@ -148,20 +154,27 @@ FastScheduler::doJob()
       }//if
       loopCount++;
     }//while
-    if (globalData.sendPackedActivated == 1) {
-      Uint32 t1 = theDoJobTotalCounter;
-      Uint32 t2 = theDoJobCallCounter;
-      t1 += loopCount;
-      t2++;
-      theDoJobTotalCounter = t1;
-      theDoJobCallCounter = t2;
-      if (t2 == 8192) {
-	reportDoJobStatistics(t1 >> 13);
-        theDoJobCallCounter = 0;
-        theDoJobTotalCounter = 0;
-      }//if
-    }//if
-  } while (getBOccupancy() > MAX_OCCUPANCY);
+    sendPacked();
+    tHighPrio = globalData.highestAvailablePrio;
+    if(getBOccupancy() > MAX_OCCUPANCY)
+    {
+      if(loopCount != TloopMax)
+	abort();
+      assert( loopCount == TloopMax );
+      TloopMax += 512;
+    }
+  } while ((getBOccupancy() > MAX_OCCUPANCY) ||
+           ((loopCount < TloopMax) &&
+            (tHighPrio < LEVEL_IDLE)));
+
+  theDoJobCallCounter ++;
+  theDoJobTotalCounter += loopCount;
+  if (theDoJobCallCounter == 8192) {
+    reportDoJobStatistics(theDoJobTotalCounter >> 13);
+    theDoJobCallCounter = 0;
+    theDoJobTotalCounter = 0;
+  }//if
+
 }//FastScheduler::doJob()
 
 void FastScheduler::sendPacked()

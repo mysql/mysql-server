@@ -173,7 +173,7 @@ character-set=latin2
 "Aveti o eroare in sintaxa RSQL",
 "Thread-ul pentru inserarea aminata nu a putut obtine lacatul (lock) pentru tabela %-.64s",
 "Prea multe threaduri aminate care sint in uz",
-"Conectie terminata %ld la baza de date: '%-.64s' utilizator: '%-32s' (%-.64s)",
+"Conectie terminata %ld la baza de date: '%-.64s' utilizator: '%-.32s' (%-.64s)",
 "Un packet mai mare decit 'max_allowed_packet' a fost primit",
 "Eroare la citire din cauza lui 'connection pipe'",
 "Eroare obtinuta de la fcntl()",

@@ -38,8 +38,10 @@ ut_malloc_low(
 /*==========*/
 	                     /* out, own: allocated memory */
         ulint   n,           /* in: number of bytes to allocate */
-	ibool   set_to_zero); /* in: TRUE if allocated memory should be set
+	ibool   set_to_zero, /* in: TRUE if allocated memory should be set
 			     to zero if UNIV_SET_MEM_TO_ZERO is defined */
+	ibool	assert_on_error); /* in: if TRUE, we crash mysqld if the memory
+				cannot be allocated */
 /**************************************************************************
 Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
 defined. */

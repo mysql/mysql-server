@@ -160,7 +160,7 @@ public:
 /**
  * DropIndxRef.
  */
-class DropIndxRef {
+struct DropIndxRef {
   friend bool printDROP_INDX_REF(FILE*, const Uint32*, Uint32, Uint16);
 
 public:
@@ -168,6 +168,7 @@ public:
     NoError = 0,
     InvalidIndexVersion = 241,
     Busy = 701,
+    NotMaster = 702,
     IndexNotFound = 4243,
     BadRequestType = 4247,
     InvalidName = 4248,
@@ -175,7 +176,6 @@ public:
   };
   STATIC_CONST( SignalLength = DropIndxConf::SignalLength + 3 );
 
-private:
   DropIndxConf m_conf;
   //Uint32 m_userRef;
   //Uint32 m_connectionPtr;
@@ -185,8 +185,10 @@ private:
   //Uint32 m_indexVersion;
   Uint32 m_errorCode;
   Uint32 m_errorLine;
-  Uint32 m_errorNode;
-
+  union {
+    Uint32 m_errorNode;
+    Uint32 masterNodeId;
+  };
 public:
   DropIndxConf* getConf() {
     return &m_conf;

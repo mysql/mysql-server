@@ -211,7 +211,7 @@ character-set=latin1
 "Erro de rede gravando no 'master'",
 "Não pode encontrar um índice para o texto todo que combine com a lista de colunas",
 "Não pode executar o comando dado porque você tem tabelas ativas travadas ou uma transação ativa",
-"Variável de sistema '%-.64' desconhecida",
+"Variável de sistema '%-.64s' desconhecida",
 "Tabela '%-.64s' está marcada como danificada e deve ser reparada",
 "Tabela '%-.64s' está marcada como danificada e a última reparação (automática?) falhou",
 "Aviso: Algumas tabelas não-transacionais alteradas não puderam ser reconstituídas (rolled back)",

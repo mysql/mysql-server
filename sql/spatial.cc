@@ -828,9 +828,7 @@ int Gis_polygon::centroid_xy(double *x, double *y) const
 
     if (!first_loop)
     {
-      double d_area= res_area - cur_area;
-      if (d_area <= 0)
-        return 1;
+      double d_area= fabs(res_area - cur_area);
       res_cx= (res_area * res_cx - cur_area * cur_cx) / d_area;
       res_cy= (res_area * res_cy - cur_area * cur_cy) / d_area;
     }

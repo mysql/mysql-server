@@ -1,5 +1,6 @@
 drop table if exists t1;
 drop database if exists mysqltest;
+drop database if exists client_test_db;
 drop table t1;
 ERROR 42S02: Unknown table 't1'
 create table t1(n int);

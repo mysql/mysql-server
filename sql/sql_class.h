@@ -29,7 +29,7 @@ class Slave_log_event;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
-enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_IGNORE, DUP_UPDATE };
+enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_log_type { LOG_CLOSED, LOG_TO_BE_OPENED, LOG_NORMAL, LOG_NEW, LOG_BIN};
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
@@ -131,7 +131,7 @@ public:
     DBUG_VOID_RETURN;
   }
   void set_max_size(ulong max_size_arg);
-  void signal_update() { pthread_cond_broadcast(&update_cond);}
+  void signal_update();
   void wait_for_update(THD* thd, bool master_or_slave);
   void set_need_start_event() { need_start_event = 1; }
   void init(enum_log_type log_type_arg,
@@ -201,7 +201,8 @@ typedef struct st_copy_info {
   ha_rows error_count;
   enum enum_duplicates handle_duplicates;
   int escape_char, last_errno;
-/* for INSERT ... UPDATE */
+  bool ignore;
+  /* for INSERT ... UPDATE */
   List<Item> *update_fields;
   List<Item> *update_values;
 } COPY_INFO;
@@ -396,9 +397,20 @@ struct system_variables
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
+#ifdef HAVE_REPLICATION
+  ulong sync_replication;
+  ulong sync_replication_slave_id;
+  ulong sync_replication_timeout;
+#endif /* HAVE_REPLICATION */
 #ifdef HAVE_INNOBASE_DB
   my_bool innodb_table_locks;
 #endif /* HAVE_INNOBASE_DB */
+#ifdef HAVE_NDBCLUSTER_DB
+  ulong ndb_autoincrement_prefetch_sz;
+  my_bool ndb_force_send;
+  my_bool ndb_use_exact_count;
+  my_bool ndb_use_transactions;
+#endif /* HAVE_NDBCLUSTER_DB */
   my_bool old_passwords;
   
   /* Only charset part of these variables is sensible */
@@ -429,7 +441,8 @@ public:
     itself to the list on creation (see Item::Item() for details))
   */
   Item *free_list;
-  MEM_ROOT mem_root;
+  MEM_ROOT main_mem_root;
+  MEM_ROOT *mem_root;                   // Pointer to current memroot
   enum enum_state 
   {
     INITIALIZED= 0, PREPARED= 1, EXECUTED= 3, CONVENTIONAL_EXECUTION= 2, 
@@ -468,24 +481,24 @@ public:
   { return state == PREPARED || state == EXECUTED; }
   inline bool is_conventional_execution() const
   { return state == CONVENTIONAL_EXECUTION; }
-  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
+  inline gptr alloc(unsigned int size) { return alloc_root(mem_root,size); }
   inline gptr calloc(unsigned int size)
   {
     gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size)))
+    if ((ptr=alloc_root(mem_root,size)))
       bzero((char*) ptr,size);
     return ptr;
   }
   inline char *strdup(const char *str)
-  { return strdup_root(&mem_root,str); }
+  { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, uint size)
-  { return strmake_root(&mem_root,str,size); }
+  { return strmake_root(mem_root,str,size); }
   inline char *memdup(const char *str, uint size)
-  { return memdup_root(&mem_root,str,size); }
+  { return memdup_root(mem_root,str,size); }
   inline char *memdup_w_gap(const char *str, uint size, uint gap)
   {
     gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size+gap)))
+    if ((ptr=alloc_root(mem_root,size+gap)))
       memcpy(ptr,str,size);
     return ptr;
   }
@@ -641,8 +654,8 @@ public:
   /* Erase all statements (calls Statement destructor) */
   void reset()
   {
-    hash_reset(&names_hash);
-    hash_reset(&st_hash);
+    my_hash_reset(&names_hash);
+    my_hash_reset(&st_hash);
     last_found_statement= 0;
   }
 
@@ -1052,11 +1065,26 @@ public:
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
 
+  inline Item_arena *change_arena_if_needed(Item_arena *backup)
+  {
+    /*
+      use new arena if we are in a prepared statements and we have not
+      already changed to use this arena.
+    */
+    if (current_arena->is_stmt_prepare() &&
+        mem_root != &current_arena->main_mem_root)
+    {
+      set_n_backup_item_arena(current_arena, backup);
+      return current_arena;
+    }
+    return 0;
+  }
+
   void change_item_tree(Item **place, Item *new_value)
   {
     /* TODO: check for OOM condition here */
     if (!current_arena->is_conventional_execution())
-      nocheck_register_item_tree_change(place, *place, &mem_root);
+      nocheck_register_item_tree_change(place, *place, mem_root);
     *place= new_value;
   }
   void nocheck_register_item_tree_change(Item **place, Item *old_value,
@@ -1069,6 +1097,12 @@ public:
   */
   void end_statement();
 };
+
+#define tmp_disable_binlog(A)       \
+  ulong save_options= (A)->options; \
+  (A)->options&= ~OPTION_BIN_LOG;
+
+#define reenable_binlog(A)          (A)->options= save_options;
 
 /* Flags for the THD::system_thread (bitmap) variable */
 #define SYSTEM_THREAD_DELAYED_INSERT 1
@@ -1204,15 +1238,28 @@ class select_insert :public select_result_interceptor {
   COPY_INFO info;
 
   select_insert(TABLE *table_par, List<Item> *fields_par,
-		enum_duplicates duplic)
+		enum_duplicates duplic, bool ignore)
     :table(table_par), fields(fields_par), last_insert_id(0)
   {
     bzero((char*) &info,sizeof(info));
+    info.ignore= ignore;
     info.handle_duplicates=duplic;
+  }
+  select_insert(TABLE *table_par, List<Item> *fields_par,
+		List<Item> *update_fields, List<Item> *update_values,
+		enum_duplicates duplic, bool ignore)
+    :table(table_par), fields(fields_par), last_insert_id(0)
+  {
+    bzero((char*) &info,sizeof(info));
+    info.ignore= ignore;
+    info.handle_duplicates= duplic;
+    info.update_fields= update_fields;
+    info.update_values= update_values;
   }
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
+  virtual void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
   /* not implemented: select_insert is never re-used in prepared statements */
@@ -1234,20 +1281,25 @@ public:
 		HA_CREATE_INFO *create_info_par,
 		List<create_field> &fields_par,
 		List<Key> &keys_par,
-		List<Item> &select_fields,enum_duplicates duplic)
-    :select_insert (NULL, &select_fields, duplic), db(db_name),
+		List<Item> &select_fields,enum_duplicates duplic, bool ignore)
+    :select_insert (NULL, &select_fields, duplic, ignore), db(db_name),
     name(table_name), extra_fields(&fields_par),keys(&keys_par),
     create_info(create_info_par), lock(0)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &values);
+  void store_values(List<Item> &values);
+  void send_error(uint errcode,const char *err);
   bool send_eof();
   void abort();
 };
 
 #include <myisam.h>
 
-/* Param to create temporary tables when doing SELECT:s */
+/* 
+  Param to create temporary tables when doing SELECT:s 
+  NOTE
+    This structure is copied using memcpy as a part of JOIN.
+*/
 
 class TMP_TABLE_PARAM :public Sql_alloc
 {
@@ -1259,7 +1311,6 @@ private:
 public:
   List<Item> copy_funcs;
   List<Item> save_copy_funcs;
-  List_iterator_fast<Item> copy_funcs_it;
   Copy_field *copy_field, *copy_field_end;
   Copy_field *save_copy_field, *save_copy_field_end;
   byte	    *group_buff;
@@ -1276,7 +1327,7 @@ public:
   uint  convert_blob_length; 
 
   TMP_TABLE_PARAM()
-    :copy_funcs_it(copy_funcs), copy_field(0), group_parts(0),
+    :copy_field(0), group_parts(0),
     group_length(0), group_null_parts(0), convert_blob_length(0)
   {}
   ~TMP_TABLE_PARAM()
@@ -1289,7 +1340,7 @@ public:
     if (copy_field)				/* Fix for Intel compiler */
     {
       delete [] copy_field;
-      copy_field=0;
+      save_copy_field= copy_field= 0;
     }
   }
 };
@@ -1338,6 +1389,7 @@ public:
   select_max_min_finder_subselect(Item_subselect *item, bool mx)
     :select_subselect(item), cache(0), fmax(mx)
   {}
+  void cleanup();
   bool send_data(List<Item> &items);
   bool cmp_real();
   bool cmp_int();
@@ -1485,11 +1537,11 @@ class multi_update :public select_result_interceptor
   uint table_count;
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
-  bool do_update, trans_safe, transactional_tables, log_delayed;
+  bool do_update, trans_safe, transactional_tables, log_delayed, ignore;
 
 public:
   multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> *fields,
-	       List<Item> *values, enum_duplicates handle_duplicates);
+	       List<Item> *values, enum_duplicates handle_duplicates, bool ignore);
   ~multi_update();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);

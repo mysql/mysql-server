@@ -107,8 +107,11 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
   client/mysqldump$BS client/mysqlimport$BS \
   client/mysqltest$BS client/mysqlcheck$BS \
-  client/mysqlbinlog$BS 
-";
+  client/mysqlbinlog$BS \
+  tests/mysql_client_test$BS \
+  libmysqld/examples/mysql_client_test_embedded$BS \
+  libmysqld/examples/mysqltest_embedded$BS \
+  ";
 
 # Platform-specific bin dir files:
 if [ $BASE_SYSTEM = "netware" ] ; then
@@ -127,6 +130,9 @@ else
     client/.libs/mysqltest client/.libs/mysqlcheck \
     client/.libs/mysqlbinlog client/.libs/mysqlmanagerc \
     client/.libs/mysqlmanager-pwgen tools/.libs/mysqlmanager \
+    tests/.libs/mysql_client_test \
+    libmysqld/examples/.libs/mysql_client_test_embedded \
+    libmysqld/examples/.libs/mysqltest_embedded \
   ";
 fi
 
@@ -187,7 +193,7 @@ fi
 
 if [ $BASE_SYSTEM != "netware" ] ; then
   if [ -d tests ] ; then
-    $CP tests/client_test tests/*.res tests/*.tst tests/*.pl $BASE/tests
+    $CP tests/*.res tests/*.tst tests/*.pl $BASE/tests
   fi
   if [ -d man ] ; then
     $CP man/*.1 $BASE/man/man1
@@ -214,7 +220,7 @@ $CP mysql-test/include/*.inc $BASE/mysql-test/include
 $CP mysql-test/std_data/*.dat mysql-test/std_data/*.*001 $BASE/mysql-test/std_data
 $CP mysql-test/std_data/des_key_file $BASE/mysql-test/std_data
 $CP mysql-test/t/*test mysql-test/t/*.opt mysql-test/t/*.slave-mi mysql-test/t/*.sh $BASE/mysql-test/t
-$CP mysql-test/r/*result mysql-test/r/*.require $BASE/mysql-test/r
+$CP mysql-test/r/*result mysql-test/r/*result.es mysql-test/r/*.require $BASE/mysql-test/r
 
 if [ $BASE_SYSTEM != "netware" ] ; then
   chmod a+x $BASE/bin/*
@@ -236,8 +242,12 @@ rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_
 # Copy system dependent files
 #
 if [ $BASE_SYSTEM = "netware" ] ; then
-  cp ./netware/static_init_db.sql ./netware/init_db.sql
-  ./scripts/fill_help_tables < ./Docs/manual.texi >> ./netware/init_db.sql
+echo "CREATE DATABASE mysql;" > $BASE/bin/init_db.sql
+  echo "CREATE DATABASE test;" >> $BASE/bin/init_db.sql
+  sh ./scripts/mysql_create_system_tables.sh real "" "%" 0 >> $BASE/bin/init_db.sql
+  sh ./scripts/mysql_create_system_tables.sh test "" "%" 0 > $BASE/bin/test_db.sql
+#  cp ./netware/static_init_db.sql ./netware/init_db.sql
+#  ./scripts/fill_help_tables < ./Docs/manual.texi >> ./netware/init_db.sql
 fi
 
 #
@@ -272,7 +282,7 @@ if [ x$NDBCLUSTER = x1 ]; then
   $CP $BASE/ndb-stage@bindir@/* $BASE/bin/.
   $CP $BASE/ndb-stage@libexecdir@/* $BASE/bin/.
   $CP $BASE/ndb-stage@pkglibdir@/* $BASE/lib/.
-  $CP -r $BASE/ndb-stage@pkgincludedir@/ndb $BASE/lib/.
+  $CP -r $BASE/ndb-stage@pkgincludedir@/ndb $BASE/include
   $CP -r $BASE/ndb-stage@prefix@/mysql-test/ndb $BASE/mysql-test/. || exit 1
   rm -rf $BASE/ndb-stage
 fi

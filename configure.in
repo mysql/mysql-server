@@ -4,7 +4,8 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.1.8)
+# remember to also change ndb version below and update version.c in ndb
+AM_INIT_AUTOMAKE(mysql, 4.1.11)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -13,16 +14,16 @@ DOT_FRM_VERSION=6
 SHARED_LIB_VERSION=14:0:0
 
 # ndb version
-NDB_VERSION_MAJOR=3
-NDB_VERSION_MINOR=5
-NDB_VERSION_BUILD=3
+NDB_VERSION_MAJOR=4
+NDB_VERSION_MINOR=1
+NDB_VERSION_BUILD=11
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
 MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|[[a-z]]*-.*$||"`
 MYSQL_BASE_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|\.[[^.]]*$||"`
-MYSQL_VERSION_ID=`echo $MYSQL_NO_DASH_VERSION. | sed -e 's/\./  /g; s/ \([[0-9]]\) / 0\\1 /g; s/ //g'`
+MYSQL_VERSION_ID=`echo $MYSQL_NO_DASH_VERSION. | sed -e 's/[[^0-9.]]//g; s/\./  /g; s/ \([[0-9]]\) / 0\\1 /g; s/ //g'`
 
 # The port should be constant for a LONG time
 MYSQL_TCP_PORT_DEFAULT=3306
@@ -31,7 +32,7 @@ MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
 # Remember to add a directory sql/share/LANGUAGE
 AVAILABLE_LANGUAGES="\
 czech danish dutch english estonian french german greek hungarian \
-italian japanese korean norwegian norwegian-ny polish portuguese \
+italian japanese japanese-sjis korean norwegian norwegian-ny polish portuguese \
 romanian russian serbian slovak spanish swedish ukrainian"
 
 # Generate make rules for all error messages
@@ -479,7 +480,7 @@ if $PS p $$ 2> /dev/null | grep $0 > /dev/null
 then
   FIND_PROC="$PS p \$\$PID | grep mysqld > /dev/null"
 # Solaris
-elif $PS -p $$ 2> /dev/null | grep $0 > /dev/null
+elif $PS -fp $$ 2> /dev/null | grep $0 > /dev/null
 then
   FIND_PROC="$PS -p \$\$PID | grep mysqld > /dev/null"
 # BSD style
@@ -770,7 +771,7 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
- sys/ioctl.h malloc.h sys/malloc.h linux/config.h)
+ sys/ioctl.h malloc.h sys/malloc.h linux/config.h sys/resource.h sys/param.h)
 
 #--------------------------------------------------------------------
 # Check for system libraries. Adds the library to $LIBS
@@ -923,9 +924,11 @@ if test "$ac_cv_header_termio_h" = "no" -a "$ac_cv_header_termios_h" = "no"
 then
   AC_CHECK_FUNC(gtty, , AC_CHECK_LIB(compat, gtty))
 fi
-# We make a special variable for client library's to avoid including
-# thread libs in the client.
-NON_THREADED_CLIENT_LIBS="$LIBS $ZLIB_LIBS"
+
+# We make a special variable for non-threaded version of LIBS to avoid
+# including thread libs into non-threaded version of MySQL client library.
+# Later in this script LIBS will be augmented with a threads library.
+NON_THREADED_LIBS="$LIBS"
 
 AC_MSG_CHECKING([for int8])
 case $SYSTEM_TYPE in
@@ -973,8 +976,11 @@ case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
     CFLAGS="$CFLAGS -DBIG_TABLES"
     CXXFLAGS="$CXXFLAGS -DBIG_TABLES"
     ;;
+  *) ;;
+esac
+case $SYSTEM_TYPE-$ac_cv_prog_gcc in
 # workaround for Sun Forte compile problem for ndb
-  *solaris2.10*-sparc-no)
+  *solaris*-no)
     ndb_cxxflags_fix="$ndb_cxxflags_fix -instances=static"
     ;;
   *) ;;
@@ -1035,8 +1041,8 @@ case $SYSTEM_TYPE in
     ;;
   *hpux11.*)
     echo "Enabling workarounds for hpux 11"
-    CFLAGS="$CFLAGS -DHPUX11 -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
-    CXXFLAGS="$CXXFLAGS -DHPUX11 -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
+    CFLAGS="$CFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
+    CXXFLAGS="$CXXFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
     if test "$with_named_thread" = "no"
     then 
       echo "Using --with-named-thread=-lpthread"
@@ -1142,9 +1148,10 @@ dnl Is this the right match for DEC OSF on alpha?
       fi
       echo "Adding defines for OSF1"
       # gethostbyname_r is deprecated and doesn't work ok on OSF1
-      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
-      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
-      ndb_cxxflags_fix="$ndb_cxxflags_fix -I/usr/include.dtk"
+      CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R -DSNPRINTF_RETURN_TRUNC"
+      CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R -DSNPRINTF_RETURN_TRUNC"
+      # fix to handle include of <stdint.h> correctly on OSF1 with cxx compiler
+      CXXFLAGS="$CXXFLAGS -I/usr/include/cxx -I/usr/include/cxx_cname -I/usr/include -I/usr/include.dtk"
     ;;
   *netware*)
     # No need for curses library so set it to null
@@ -1497,7 +1504,7 @@ then
   if test -f /usr/lib/libxnet.so -a "$SYSTEM_TYPE" = "sni-sysv4"
   then
     LIBS="-lxnet $LIBS"
-    NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS -lxnet"
+    NON_THREADED_LIBS="-lxnet $NON_THREADED_LIBS"
     with_named_thread="-Kthread $LDFLAGS -lxnet"
     LD_FLAGS=""
     CFLAGS="-Kthread $CFLAGS"
@@ -1531,14 +1538,11 @@ then
   fi
 fi
 
-TOOLS_LIBS="$NON_THREADED_CLIENT_LIBS"
-
 # Should we use named pthread library ?
 AC_MSG_CHECKING("named thread libs:")
 if test "$with_named_thread" != "no"
 then
   LIBS="$with_named_thread $LIBS $with_named_thread"
-  TOOLS_LIBS="$with_named_thread $TOOLS_LIBS $with_named_thread"
   with_posix_threads="yes"
   with_mit_threads="no"
   AC_MSG_RESULT("$with_named_thread")
@@ -1557,9 +1561,7 @@ else
     then
       AC_MSG_CHECKING("for pthread_create in -lpthread");
       ac_save_LIBS="$LIBS"
-      ac_save_TOOLS_LIBS="$TOOLS_LIBS"
       LIBS="$LIBS -lpthread"
-      TOOLS_LIBS="$TOOLS_LIBS -lpthread"
       AC_TRY_LINK(
       [#include <pthread.h>],
       [ (void) pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1568,7 +1570,6 @@ else
       if test "$with_posix_threads" = "no"
       then
         LIBS=" $ac_save_LIBS -lpthreads"
-        TOOLS_LIBS=" $ac_save_TOOLS_LIBS -lpthreads"
         AC_MSG_CHECKING("for pthread_create in -lpthreads");
         AC_TRY_LINK(
         [#include <pthread.h>],
@@ -1579,7 +1580,6 @@ else
         then
 	  # This is for FreeBSD
 	  LIBS="$ac_save_LIBS -pthread"
-	  TOOLS_LIBS="$ac_save_TOOLS_LIBS -pthread"
 	  AC_MSG_CHECKING("for pthread_create in -pthread");
 	  AC_TRY_LINK(
 	  [#include <pthread.h>],
@@ -1590,7 +1590,6 @@ else
 	  then
 	    with_mit_threads="yes"
 	    LIBS="$ac_save_LIBS"
-	    TOOLS_LIBS="$ac_save_TOOLS_LIBS"
 	  fi
 	fi
       fi
@@ -1676,12 +1675,12 @@ if test "$with_debug" = "yes"
 then
   # Medium debug.
   CFLAGS="$DEBUG_CFLAGS $DEBUG_OPTIMIZE_CC -DDBUG_ON -DSAFE_MUTEX $CFLAGS"
-  CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX -DSAFE_MUTEX $CXXFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX -DDBUG_ON -DSAFE_MUTEX $CXXFLAGS"
 elif test "$with_debug" = "full"
 then
   # Full debug. Very slow in some cases
-  CFLAGS="$DEBUG_CFLAGS -DDBUG_ON -DSAFE_MUTEX -DSAFEMALLOC $CFLAGS"
-  CXXFLAGS="$DEBUG_CXXFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CXXFLAGS"
+  CFLAGS="$DEBUG_CFLAGS -DDBUG_ON -DSAFE_MUTEX -DSAFEMALLOC -DUNIV_DEBUG $CFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS -DDBUG_ON -DSAFE_MUTEX -DSAFEMALLOC -DUNIV_DEBUG $CXXFLAGS"
 else
   # Optimized version. No debug
   CFLAGS="$OPTIMIZE_CFLAGS -DDBUG_OFF $CFLAGS"
@@ -1913,14 +1912,30 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
   getpwuid getrlimit getrusage getwd gmtime_r index initgroups isnan \
   localtime_r locking longjmp lrand48 madvise mallinfo memcpy memmove \
-  mkstemp mlockall perror poll pread pthread_attr_create clock_gettime \
+  mkstemp mlockall perror poll pread pthread_attr_create \
   pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
   pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
-  realpath rename rint rwlock_init setupterm sighold sigset sigthreadmask \
+  realpath rename rint rwlock_init setupterm \
+  shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
+  sighold sigset sigthreadmask \
   snprintf socket stpcpy strcasecmp strerror strnlen strpbrk strstr strtol \
   strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
+
+#
+#
+#
+case "$target" in
+ *-*-aix4* | *-*-sco*)
+	# (grr) aix 4.3 has a stub for clock_gettime, (returning ENOSYS)
+	# and using AC_TRY_RUN is hard when cross-compiling
+	# We also disable for SCO for the time being, the headers for the
+	# thread library we use conflicts with other headers.
+    ;;
+ *) AC_CHECK_FUNCS(clock_gettime)
+    ;;
+esac
 
 # isinf() could be a function or a macro (HPUX)
 AC_MSG_CHECKING(for isinf with <math.h>)
@@ -2695,7 +2710,7 @@ case $default_charset in
       ;;
     latin1)
       default_charset_default_collation="latin1_swedish_ci"
-      default_charset_collations="latin1_general_ci latin1_general_cs latin1_bin latin1_german1_ci latin1_german2_ci latin1_danish_ci latin1_swedish_ci"
+      default_charset_collations="latin1_general_ci latin1_general_cs latin1_bin latin1_german1_ci latin1_german2_ci latin1_danish_ci latin1_spanish_ci latin1_swedish_ci"
       ;;
     latin2)
       default_charset_default_collation="latin2_general_ci"
@@ -2796,6 +2811,24 @@ AC_DEFINE_UNQUOTED([MYSQL_DEFAULT_CHARSET_NAME], ["$default_charset"],
 AC_DEFINE_UNQUOTED([MYSQL_DEFAULT_COLLATION_NAME], ["$default_collation"],
                    [Define the default charset name])
 
+
+# Shall we build the UCA-based Unicode collations
+AC_ARG_WITH(uca,
+    [  --without-uca           Skip building of the national Unicode collations.],
+    [with_uca=$withval],
+    [with_uca=yes]
+)
+
+AC_MSG_CHECKING([whether to compile national Unicode collations])
+
+if test "$with_uca" = "yes"
+then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([HAVE_UCA_COLLATIONS], [1], [national Unicode collations])
+else
+  AC_MSG_RESULT(no)
+fi
+
 MYSQL_CHECK_ISAM
 MYSQL_CHECK_BDB
 MYSQL_CHECK_INNODB
@@ -2813,7 +2846,7 @@ dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
 sql_client_dirs="libmysql strings regex client"
 linked_client_targets="linked_libmysql_sources"
-CLIENT_LIBS=$NON_THREADED_CLIENT_LIBS
+
 if test "$THREAD_SAFE_CLIENT" != "no"
 then
   sql_client_dirs="libmysql_r $sql_client_dirs"
@@ -2821,9 +2854,11 @@ then
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should be client be thread safe])
 fi
 
-CLIENT_LIBS="$CLIENT_LIBS $STATIC_NSS_FLAGS"
+CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $STATIC_NSS_FLAGS"
 
 AC_SUBST(CLIENT_LIBS)
+AC_SUBST(NON_THREADED_LIBS)
+AC_SUBST(STATIC_NSS_FLAGS)
 AC_SUBST(sql_client_dirs)
 AC_SUBST(linked_client_targets)
 
@@ -2941,6 +2976,15 @@ EOF
     AC_CONFIG_SUBDIRS(innobase)
   fi
 
+case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc-$have_ndbcluster in
+  *solaris*-i?86-no-yes)
+  # ndb fail for whatever strange reason to link Sun Forte/x86
+  # unless using incremental linker
+  CXXFLAGS="$CXXFLAGS -xildon"
+  ;;
+  *) ;;
+esac
+
   if test X"$have_ndbcluster" = Xyes
   then
     if test X"$mysql_cv_compress" != Xyes
@@ -2993,6 +3037,20 @@ AC_SUBST(sql_server_dirs)
 AC_SUBST(thread_dirs)
 AC_SUBST(server_scripts)
 
+# Now that sql_client_dirs and sql_server_dirs are stable, determine the union.
+# Start with the (longer) server list, add each client item not yet present.
+sql_union_dirs=" $sql_server_dirs "
+for DIR in $sql_client_dirs
+do
+  if echo " $sql_union_dirs " | grep " $DIR " >/dev/null
+  then
+    :  # already present, skip
+  else
+    sql_union_dirs="$sql_union_dirs $DIR "
+  fi
+done
+AC_SUBST(sql_union_dirs)
+
 #if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
 #then
   # MIT pthreads does now support connecting with unix sockets
@@ -3002,8 +3060,6 @@ AC_SUBST(server_scripts)
 # Some usefull subst
 AC_SUBST(CC)
 AC_SUBST(GXX)
-#Remove TOOLS_LIBS, because this is included in LIBRARIES
-#AC_SUBST(TOOLS_LIBS)
 
 # Set configuration options for make_binary_distribution
 case $SYSTEM_TYPE in
@@ -3020,32 +3076,62 @@ then
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
 
   CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
-  if test "$with_debug" = "yes"
+  if test "$have_ndb_debug" = "default"
+  then
+    have_ndb_debug=$with_debug
+  fi
+
+  if test "$have_ndb_debug" = "yes"
   then
     # Medium debug.
     NDB_DEFS="-DNDB_DEBUG -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
-  elif test "$with_debug" = "full"
+  elif test "$have_ndb_debug" = "full"
   then
     NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   else
-    NDB_DEFS="-DNDEBUG"
+    # no extra ndb debug but still do asserts if debug version
+    if test "$with_debug" = "yes" -o "$with_debug" = "full"
+    then
+      NDB_DEFS=""
+    else
+      NDB_DEFS="-DNDEBUG"
+    fi
   fi
 
 AC_SUBST([NDB_DEFS])
 AC_SUBST([ndb_cxxflags_fix])
 
 
+if test X"$ndb_port" = Xdefault
+then
+  ndb_port="1186"
+fi
+AC_SUBST([ndb_port])
+
 if test X"$ndb_port_base" = Xdefault
 then
-  ndb_port_base="2200"
+  ndb_port_base="2202"
 fi
 AC_SUBST([ndb_port_base])
 
 ndb_transporter_opt_objs=""
-if test X"$have_ndb_shm" = Xyes
+if test "$ac_cv_func_shmget" = "yes" &&
+   test "$ac_cv_func_shmat" = "yes" &&
+   test "$ac_cv_func_shmdt" = "yes" &&
+   test "$ac_cv_func_shmctl" = "yes" &&
+   test "$ac_cv_func_sigaction" = "yes" &&
+   test "$ac_cv_func_sigemptyset" = "yes" &&
+   test "$ac_cv_func_sigaddset" = "yes" &&
+   test "$ac_cv_func_pthread_sigmask" = "yes"
 then
-  ndb_transporter_opt_objs="$ndb_transporter_opt_objs SHM_Transporter.lo SHM_Transporter.unix.lo"
+   AC_DEFINE([NDB_SHM_TRANSPORTER], [1],
+             [Including Ndb Cluster DB shared memory transporter])
+   AC_MSG_RESULT([Including ndb shared memory transporter])
+   ndb_transporter_opt_objs="$ndb_transporter_opt_objs SHM_Transporter.lo SHM_Transporter.unix.lo"
+else
+   AC_MSG_RESULT([Not including ndb shared memory transporter])
 fi
+
 if test X"$have_ndb_sci" = Xyes
 then
   ndb_transporter_opt_objs="$ndb_transporter_opt_objs SCI_Transporter.lo"
@@ -3076,7 +3162,6 @@ AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/common/logger/Makefile dnl
    ndb/src/common/transporter/Makefile dnl
    ndb/src/common/mgmcommon/Makefile dnl
-   ndb/src/common/editline/Makefile dnl
    ndb/src/kernel/Makefile dnl
    ndb/src/kernel/error/Makefile dnl
    ndb/src/kernel/blocks/Makefile dnl
@@ -3092,7 +3177,6 @@ AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/src/kernel/blocks/qmgr/Makefile dnl
    ndb/src/kernel/blocks/trix/Makefile dnl
    ndb/src/kernel/blocks/backup/Makefile dnl
-   ndb/src/kernel/blocks/backup/restore/Makefile dnl
    ndb/src/kernel/blocks/dbutil/Makefile dnl
    ndb/src/kernel/blocks/suma/Makefile dnl
    ndb/src/kernel/blocks/grep/Makefile dnl
@@ -3110,6 +3194,7 @@ AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
    ndb/test/ndbapi/bank/Makefile dnl
    ndb/test/tools/Makefile dnl
    ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
+   ndb/include/ndb_version.h ndb/include/ndb_global.h dnl
    )
 fi
 
@@ -3127,7 +3212,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  sql-common/Makefile SSL/Makefile dnl
  dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
- tests/Makefile Docs/Makefile support-files/Makefile dnl
+ tests/Makefile Docs/Makefile Docs/Images/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
  netware/Makefile dnl
  include/mysql_version.h dnl

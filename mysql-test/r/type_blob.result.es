@@ -684,8 +684,8 @@ id	txt
 3	NULL
 1	Chevy
 drop table t1;
-CREATE TABLE t1 ( i int(11) NOT NULL default '0',    c text NOT NULL, PRIMARY KEY  (i), KEY (c(1),c(1)));
-INSERT t1 VALUES (1,''),(2,''),(3,'asdfh'),(4,'');
+CREATE TABLE t1 ( i int(11) NOT NULL default '0',    c text NOT NULL, d varchar(1) NOT NULL DEFAULT ' ', PRIMARY KEY  (i), KEY (c(1),d));
+INSERT t1 (i, c) VALUES (1,''),(2,''),(3,'asdfh'),(4,'');
 select max(i) from t1 where c = '';
 max(i)
 4

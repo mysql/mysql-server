@@ -40,7 +40,6 @@ endif
 
 libmystrings_a_SOURCES = $(ASRCS) $(CSRCS)
 noinst_PROGRAMS = conf_to_src
-DISTCLEANFILES = ctype_autoconf.c
 # Default charset definitions
 EXTRA_DIST =		ctype-big5.c ctype-czech.c ctype-euc_kr.c ctype-win1250ch.c \
                         ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-utf8.c \

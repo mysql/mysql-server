@@ -498,11 +498,12 @@ alter table t1 disable keys;
 show keys from t1;
 create table t2 (a int);
 let $i=1000;
+set @@rand_seed1=31415926,@@rand_seed2=2718281828;
 --disable_query_log
 while ($i)
 {
   dec $i;
-  eval insert t2 values (rand()*100000);
+  insert t2 values (rand()*100000);
 }
 --enable_query_log
 insert t1 select * from t2;

@@ -100,4 +100,4 @@ Qmgr::~Qmgr()
 }//Qmgr::~Qmgr()
 
 
-BLOCK_FUNCTIONS(Qmgr);
+BLOCK_FUNCTIONS(Qmgr)

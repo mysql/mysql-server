@@ -132,9 +132,10 @@ class TupAddAttrConf {
   friend class Dblqh;
   friend class Dbtup;
 public:
-  STATIC_CONST( SignalLength = 1 );
+  STATIC_CONST( SignalLength = 2 );
 private:
   Uint32 userPtr;
+  Uint32 lastAttr; // bool: got last attr and closed frag op
 };
 
 class TupAddAttrRef {
@@ -171,9 +172,10 @@ class TuxAddAttrConf {
   friend class Dblqh;
   friend class Dbtux;
 public:
-  STATIC_CONST( SignalLength = 1 );
+  STATIC_CONST( SignalLength = 2 );
 private:
   Uint32 userPtr;
+  Uint32 lastAttr; // bool: got last attr and closed frag op
 };
 
 class TuxAddAttrRef {

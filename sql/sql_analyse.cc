@@ -59,6 +59,7 @@ int compare_ulonglong2(void* cmp_arg __attribute__((unused)),
   return compare_ulonglong(s,t);
 }
 
+static bool append_escaped(String *to_str, String *from_str);
 
 Procedure *
 proc_analyse_init(THD *thd, ORDER *param, select_result *result,
@@ -68,6 +69,9 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
   analyse *pc = new analyse(result);
   field_info **f_info;
   DBUG_ENTER("proc_analyse_init");
+
+  if (!pc)
+    DBUG_RETURN(0);
 
   if (!(param = param->next))
   {
@@ -80,33 +84,30 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
-      delete pc;
       my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
-      DBUG_RETURN(0);
+      goto err;
     }
     pc->max_tree_elements = (uint) (*param->item)->val_int();
     param = param->next;
     if (param->next)  // no third parameter possible
     {
       my_error(ER_WRONG_PARAMCOUNT_TO_PROCEDURE, MYF(0), proc_name);
-      DBUG_RETURN(0);
+      goto err;
     }
     // second parameter
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
-      delete pc;
       my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
-      DBUG_RETURN(0);
+      goto err;
     }
     pc->max_treemem = (uint) (*param->item)->val_int();
   }
   else if ((*param->item)->type() != Item::INT_ITEM ||
 	   (*param->item)->val() < 0)
   {
-    delete pc;
     my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
-    DBUG_RETURN(0);
+    goto err;
   }
   // if only one parameter was given, it will be the value of max_tree_elements
   else
@@ -115,34 +116,39 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     pc->max_treemem = MAX_TREEMEM;
   }
 
-  if (!pc || !(pc->f_info = (field_info**)
-	       sql_alloc(sizeof(field_info*)*field_list.elements)))
-    DBUG_RETURN(0);
+  if (!(pc->f_info=
+        (field_info**)sql_alloc(sizeof(field_info*)*field_list.elements)))
+    goto err;
   pc->f_end = pc->f_info + field_list.elements;
   pc->fields = field_list;
 
-  List_iterator_fast<Item> it(pc->fields);
-  f_info = pc->f_info;
-
-  Item *item;
-  while ((item = it++))
   {
-    if (item->result_type() == INT_RESULT)
+    List_iterator_fast<Item> it(pc->fields);
+    f_info = pc->f_info;
+
+    Item *item;
+    while ((item = it++))
     {
-      // Check if fieldtype is ulonglong
-      if (item->type() == Item::FIELD_ITEM &&
-	  ((Item_field*) item)->field->type() == FIELD_TYPE_LONGLONG &&
-	  ((Field_longlong*) ((Item_field*) item)->field)->unsigned_flag)
-	*f_info++ = new field_ulonglong(item, pc);
-      else
-	*f_info++ = new field_longlong(item, pc);
+      if (item->result_type() == INT_RESULT)
+      {
+        // Check if fieldtype is ulonglong
+        if (item->type() == Item::FIELD_ITEM &&
+            ((Item_field*) item)->field->type() == FIELD_TYPE_LONGLONG &&
+            ((Field_longlong*) ((Item_field*) item)->field)->unsigned_flag)
+          *f_info++ = new field_ulonglong(item, pc);
+        else
+          *f_info++ = new field_longlong(item, pc);
+      }
+      if (item->result_type() == REAL_RESULT)
+        *f_info++ = new field_real(item, pc);
+      if (item->result_type() == STRING_RESULT)
+        *f_info++ = new field_str(item, pc);
     }
-    if (item->result_type() == REAL_RESULT)
-      *f_info++ = new field_real(item, pc);
-    if (item->result_type() == STRING_RESULT)
-      *f_info++ = new field_str(item, pc);
   }
   DBUG_RETURN(pc);
+err:
+  delete pc;
+  DBUG_RETURN(0);
 }
 
 
@@ -890,7 +896,8 @@ int collect_string(String *element,
   else
     info->found = 1;
   info->str->append('\'');
-  info->str->append(*element);
+  if (append_escaped(info->str, element))
+    return 1;
   info->str->append('\'');
   return 0;
 } // collect_string
@@ -1025,3 +1032,57 @@ uint check_ulonglong(const char *str, uint length)
   while (*cmp && *cmp++ == *str++) ;
   return ((uchar) str[-1] <= (uchar) cmp[-1]) ? smaller : bigger;
 } /* check_ulonlong */
+
+
+/*
+  Quote special characters in a string.
+
+  SYNOPSIS
+   append_escaped(to_str, from_str)
+   to_str (in) A pointer to a String.
+   from_str (to) A pointer to an allocated string
+
+  DESCRIPTION
+    append_escaped() takes a String type variable, where it appends
+    escaped the second argument. Only characters that require escaping
+    will be escaped.
+
+  RETURN VALUES
+    0 Success
+    1 Out of memory
+*/
+
+static bool append_escaped(String *to_str, String *from_str)
+{
+  char *from, *end, c;
+
+  if (to_str->realloc(to_str->length() + from_str->length()))
+    return 1;
+
+  from= (char*) from_str->ptr();
+  end= from + from_str->length();
+  for (; from < end; from++)
+  {
+    c= *from;
+    switch (c) {
+    case '\0':
+      c= '0';
+      break;
+    case '\032':
+      c= 'Z';
+      break;
+    case '\\':
+    case '\'':
+      break;
+    default:
+      goto normal_character;
+    }
+    if (to_str->append('\\'))
+      return 1;
+
+  normal_character:
+    if (to_str->append(c))
+      return 1;
+  }
+  return 0;
+}

@@ -20,8 +20,10 @@ create TEMPORARY TABLE t2 engine=heap select * from t1;
 create TEMPORARY TABLE IF NOT EXISTS t2 (a int) engine=heap;
 
 # This should give errors
-!$1050 CREATE TEMPORARY TABLE t1 (a int not null, b char (10) not null);
-!$1050 ALTER TABLE t1 RENAME t2;
+--error 1050
+CREATE TEMPORARY TABLE t1 (a int not null, b char (10) not null);
+--error 1050
+ALTER TABLE t1 RENAME t2;
 
 select * from t2;
 alter table t2 add primary key (a,b);

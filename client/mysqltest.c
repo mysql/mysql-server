@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "2.3"
+#define MTEST_VERSION "2.4"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -227,7 +227,7 @@ typedef struct
   int alloced;
 } VAR;
 
-#ifdef __NETWARE__
+#if defined(__NETWARE__) || defined(__WIN__)
 /*
   Netware doesn't proved environment variable substitution that is done
   by the shell in unix environments. We do this in the following function:
@@ -243,6 +243,7 @@ VAR var_reg[10];
 HASH var_hash;
 my_bool disable_query_log=0, disable_result_log=0, disable_warnings=0;
 my_bool disable_info= 1;			/* By default off */
+my_bool abort_on_error= 1;
 
 struct connection cons[MAX_CONS];
 struct connection* cur_con, *next_con, *cons_end;
@@ -274,6 +275,7 @@ Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_ENABLE_METADATA, Q_DISABLE_METADATA,
 Q_EXEC, Q_DELIMITER,
+Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
 Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
 Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 Q_START_TIMER, Q_END_TIMER,
@@ -352,6 +354,8 @@ const char *command_names[]=
   "disable_metadata",
   "exec",
   "delimiter",
+  "disable_abort_on_error",
+  "enable_abort_on_error",
   "vertical_results",
   "horizontal_results",
   "query_vertical",
@@ -365,7 +369,7 @@ const char *command_names[]=
 };
 
 TYPELIB command_typelib= {array_elements(command_names),"",
-			  command_names};
+			  command_names, 0};
 
 DYNAMIC_STRING ds_res;
 static void die(const char *fmt, ...);
@@ -534,7 +538,6 @@ static void free_used_memory()
   mysql_server_end();
   if (ps_protocol)
     ps_free_reg();
-  my_end(MY_CHECK_ERROR);
   DBUG_VOID_RETURN;
 }
 
@@ -552,6 +555,7 @@ static void die(const char* fmt, ...)
   }
   va_end(args);
   free_used_memory();
+  my_end(MY_CHECK_ERROR);
   exit(1);
 }
 
@@ -564,6 +568,7 @@ static void abort_not_supported_test()
   if (!silent)
     printf("skipped\n");
   free_used_memory();
+  my_end(MY_CHECK_ERROR);
   exit(2);
 }
 
@@ -710,9 +715,10 @@ VAR* var_get(const char* var_name, const char** var_name_end, my_bool raw,
       die("Empty variable");
     }
     length= (uint) (var_name - save_var_name);
+    if (length >= MAX_VAR_NAME)
+      die("Too long variable name: %s", save_var_name);
 
-    if (!(v = (VAR*) hash_search(&var_hash, save_var_name, length)) &&
-        length < MAX_VAR_NAME)
+    if (!(v = (VAR*) hash_search(&var_hash, save_var_name, length)))
     {
       char buff[MAX_VAR_NAME+1];
       strmake(buff, save_var_name, length);
@@ -739,7 +745,7 @@ err:
   DBUG_RETURN(0);
 }
 
-static VAR* var_obtain(char* name, int len)
+static VAR *var_obtain(const char* name, int len)
 {
   VAR* v;
   if ((v = (VAR*)hash_search(&var_hash, name, len)))
@@ -749,27 +755,32 @@ static VAR* var_obtain(char* name, int len)
   return v;
 }
 
-int var_set(char* var_name, char* var_name_end, char* var_val,
-	    char* var_val_end)
+int var_set(const char *var_name, const char *var_name_end,
+            const char *var_val, const char *var_val_end)
 {
   int digit;
   VAR* v;
+  DBUG_ENTER("var_set");
+  DBUG_PRINT("enter", ("var_name: '%.*s' = '%.*s' (length: %d)",
+                       (int) (var_name_end - var_name), var_name,
+                       (int) (var_val_end - var_val), var_val,
+                       (int) (var_val_end - var_val)));
+
   if (*var_name++ != '$')
-    {
-      --var_name;
-      *var_name_end = 0;
-      die("Variable name in %s does not start with '$'", var_name);
-    }
+  {
+    var_name--;
+    die("Variable name in %s does not start with '$'", var_name);
+  }
   digit = *var_name - '0';
   if (!(digit < 10 && digit >= 0))
-    {
-      v = var_obtain(var_name, var_name_end - var_name);
-    }
+  {
+    v = var_obtain(var_name, (uint) (var_name_end - var_name));
+  }
   else
-   v = var_reg + digit;
-
+    v = var_reg + digit;
   return eval_expr(v, var_val, (const char**)&var_val_end);
 }
+
 
 int open_file(const char* name)
 {
@@ -940,7 +951,6 @@ static void do_exec(struct st_query* q)
     while (fgets(buf, sizeof(buf), res_file))
       replace_dynstr_append_mem(ds, buf, strlen(buf));
   }
-
   error= pclose(res_file);
 
   if (error != 0)
@@ -1239,6 +1249,22 @@ int do_let(struct st_query* q)
   return var_set(var_name, var_name_end, var_val_start, q->end);
 }
 
+
+/*
+  Store an integer (typically the returncode of the last SQL)
+  statement in the mysqltest builtin variable $mysql_errno, by
+  simulating of a user statement "let $mysql_errno= <integer>"
+*/
+
+int var_set_errno(int sql_errno)
+{
+  const char *var_name= "$mysql_errno";
+  char var_val[21];
+  uint length= my_sprintf(var_val, (var_val, "%d", sql_errno));
+  return var_set(var_name, var_name + 12, var_val, var_val + length);
+}
+
+
 int do_rpl_probe(struct st_query* q __attribute__((unused)))
 {
   DBUG_ENTER("do_rpl_probe");
@@ -1247,11 +1273,13 @@ int do_rpl_probe(struct st_query* q __attribute__((unused)))
   DBUG_RETURN(0);
 }
 
+
 int do_enable_rpl_parse(struct st_query* q __attribute__((unused)))
 {
   mysql_enable_rpl_parse(&cur_con->mysql);
   return 0;
 }
+
 
 int do_disable_rpl_parse(struct st_query* q __attribute__((unused)))
 {
@@ -1996,7 +2024,7 @@ int read_query(struct st_query** q_ptr)
   memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
 	 sizeof(global_expected_errno));
   q->expected_errors= global_expected_errors;
-  q->abort_on_error= global_expected_errors == 0;
+  q->abort_on_error= (global_expected_errors == 0 && abort_on_error);
   bzero((gptr) global_expected_errno, sizeof(global_expected_errno));
   global_expected_errors=0;
   if (p[0] == '-' && p[1] == '-')
@@ -2141,6 +2169,9 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+
+#include <help_start.h>
+
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,MTEST_VERSION,
@@ -2158,6 +2189,8 @@ void usage()
   printf("  --no-defaults       Don't read default options from any options file.\n");
   my_print_variables(my_long_options);
 }
+
+#include <help_end.h>
 
 
 static my_bool
@@ -2405,7 +2438,7 @@ static int run_query(MYSQL *mysql, struct st_query *q, int flags)
 
   if (ps_protocol_enabled && disable_info &&
       (flags & QUERY_SEND) && (flags & QUERY_REAP) && ps_match_re(q->query))
-    return run_query_stmt  (mysql, q, flags);
+    return run_query_stmt(mysql, q, flags);
   return run_query_normal(mysql, q, flags);
 }
 
@@ -2642,6 +2675,13 @@ end:
     dynstr_free(&ds_tmp);
   if (q->type == Q_EVAL)
     dynstr_free(&eval_query);
+
+  /*
+    We save the return code (mysql_errno(mysql)) from the last call sent
+    to the server into the mysqltest builtin variable $mysql_errno. This
+    variable then can be used from the test case itself.
+  */
+  var_set_errno(mysql_errno(mysql));
   DBUG_RETURN(error);
 }
 
@@ -2991,6 +3031,7 @@ end:
     dynstr_free(&ds_tmp);
   if (q->type == Q_EVAL)
     dynstr_free(&eval_query);
+  var_set_errno(mysql_stmt_errno(stmt));
   mysql_stmt_close(stmt);
   DBUG_RETURN(error);
 }
@@ -3298,7 +3339,7 @@ static VAR* var_from_env(const char *name, const char *def_val)
   if (!(tmp = getenv(name)))
     tmp = def_val;
 
-  v = var_init(0, name, 0, tmp, 0);
+  v = var_init(0, name, strlen(name), tmp, strlen(tmp));
   my_hash_insert(&var_hash, (byte*)v);
   return v;
 }
@@ -3317,7 +3358,8 @@ static void init_var_hash(MYSQL *mysql)
   my_hash_insert(&var_hash, (byte*) v);
   v= var_init(0,"SERVER_VERSION", 0, mysql_get_server_info(mysql), 0);
   my_hash_insert(&var_hash, (byte*) v);
-  
+  v= var_init(0,"DB", 2, db, 0);
+  my_hash_insert(&var_hash, (byte*) v);
   DBUG_VOID_RETURN;
 }
 
@@ -3395,6 +3437,13 @@ int main(int argc, char **argv)
 
   init_var_hash(&cur_con->mysql);
 
+  /*
+    Initialize $mysql_errno with -1, so we can
+    - distinguish it from valid values ( >= 0 ) and
+    - detect if there was never a command sent to the server
+  */
+  var_set_errno(-1);
+
   while (!read_query(&q))
   {
     int current_line_inc = 1, processed = 0;
@@ -3414,6 +3463,8 @@ int main(int argc, char **argv)
       case Q_DISABLE_RPL_PARSE:  do_disable_rpl_parse(q); break;
       case Q_ENABLE_QUERY_LOG:	 disable_query_log=0; break;
       case Q_DISABLE_QUERY_LOG:  disable_query_log=1; break;
+      case Q_ENABLE_ABORT_ON_ERROR:  abort_on_error=1; break;
+      case Q_DISABLE_ABORT_ON_ERROR: abort_on_error=0; break;
       case Q_ENABLE_RESULT_LOG:  disable_result_log=0; break;
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
@@ -3611,6 +3662,7 @@ int main(int argc, char **argv)
   if (!got_end_timer)
     timer_output();				/* No end_timer cmd, end it */
   free_used_memory();
+  my_end(MY_CHECK_ERROR);
   exit(error ? 1 : 0);
   return error ? 1 : 0;				/* Keep compiler happy */
   }
@@ -4472,8 +4524,7 @@ static void get_replace_column(struct st_query *q)
   my_free(start, MYF(0));
 }
 
-#ifdef __NETWARE__
-
+#if defined(__NETWARE__) || defined(__WIN__)
 /*
   Substitute environment variables with text.
 
@@ -4557,6 +4608,9 @@ static char *subst_env_var(const char *str)
 */
 
 #undef popen                                    /* Remove wrapper */
+#ifdef __WIN__ 
+#define popen _popen                           /* redefine for windows */
+#endif
 
 FILE *my_popen(const char *cmd, const char *mode __attribute__((unused)))
 {
@@ -4569,4 +4623,4 @@ FILE *my_popen(const char *cmd, const char *mode __attribute__((unused)))
   return res_file;
 }
 
-#endif /* __NETWARE__ */
+#endif /* __NETWARE__ or  __WIN__*/

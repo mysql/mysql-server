@@ -218,11 +218,78 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
   return t_is_prefix ? t-te : ((se-s) - (te-t));
 }
 
-static int my_strnncollsp_ucs2(CHARSET_INFO *cs, 
-                               const uchar *s, uint slen, 
+/*
+  Compare strings, discarding end space
+
+  SYNOPSIS
+    my_strnncollsp_ucs2()
+    cs                  character set handler
+    a                   First string to compare
+    a_length            Length of 'a'
+    b                   Second string to compare
+    b_length            Length of 'b'
+
+  IMPLEMENTATION
+    If one string is shorter as the other, then we space extend the other
+    so that the strings have equal length.
+
+    This will ensure that the following things hold:
+
+    "a"  == "a "
+    "a\0" < "a"
+    "a\0" < "a "
+
+  RETURN
+    < 0  a <  b
+    = 0  a == b
+    > 0  a > b
+*/
+
+static int my_strnncollsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+                               const uchar *s, uint slen,
                                const uchar *t, uint tlen)
 {
-  return my_strnncoll_ucs2(cs,s,slen,t,tlen,0);
+  const uchar *se, *te;
+  uint minlen;
+
+  /* extra safety to make sure the lengths are even numbers */
+  slen= (slen >> 1) << 1;
+  tlen= (tlen >> 1) << 1;
+
+  se= s + slen;
+  te= t + tlen;
+
+  for (minlen= min(slen, tlen); minlen; minlen-= 2)
+  {
+    int s_wc = uni_plane[s[0]] ? (int) uni_plane[s[0]][s[1]].sort :
+                                 (((int) s[0]) << 8) + (int) s[1];
+
+    int t_wc = uni_plane[t[0]] ? (int) uni_plane[t[0]][t[1]].sort : 
+                                 (((int) t[0]) << 8) + (int) t[1];
+    if ( s_wc != t_wc )
+      return  s_wc - t_wc;
+
+    s+= 2;
+    t+= 2;
+  }
+
+  if (slen != tlen)
+  {
+    int swap= 1;
+    if (slen < tlen)
+    {
+      s= t;
+      se= te;
+      swap= -1;
+    }
+
+    for ( ; s < se ; s+= 2)
+    {
+      if (s[0] || s[1] != ' ')
+        return (s[0] == 0 && s[1] < ' ') ? -swap : swap;
+    }
+  }
+  return 0;
 }
 
 
@@ -280,7 +347,6 @@ static int my_strnxfrm_ucs2(CHARSET_INFO *cs,
   int plane;
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
-  const uchar *dst_orig = dst;
 
   while( src < se && dst < de )
   {
@@ -300,7 +366,9 @@ static int my_strnxfrm_ucs2(CHARSET_INFO *cs,
     }
     dst+=res;
   }
-  return dst - dst_orig;
+  if (dst < de)
+    cs->cset->fill(cs, dst, de - dst, ' ');
+  return dstlen;
 }
 
 
@@ -878,13 +946,10 @@ double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
       break;					/* Can't be part of double */
     *b++= (char) wc;
   }
-  *b= 0;
 
-  errno= 0;
-  res=my_strtod(buf, endptr);
-  *err= errno;
-  if (endptr)
-    *endptr=(char*) (*endptr-buf+nptr);
+  *endptr= b;
+  res= my_strtod(buf, endptr, err);
+  *endptr= nptr + (uint) (*endptr- buf);
   return res;
 }
 
@@ -1310,7 +1375,9 @@ int my_strnxfrm_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
 {
   if (dst != src)
     memcpy(dst,src,srclen= min(dstlen,srclen));
-  return srclen;
+  if (dstlen > srclen)
+    cs->cset->fill(cs, dst + srclen, dstlen - srclen, ' ');
+  return dstlen;
 }
 
 
@@ -1410,6 +1477,29 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
   return 0;
 }
 
+
+ulong my_scan_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+                   const char *str, const char *end, int sequence_type)
+{
+  const char *str0= str;
+  end--; /* for easier loop condition, because of two bytes per character */
+  
+  switch (sequence_type)
+  {
+  case MY_SEQ_SPACES:
+    for ( ; str < end; str+= 2)
+    {
+      if (str[0] != '\0' || str[1] != ' ')
+        break;
+    }
+    return str - str0;
+  default:
+    return 0;
+  }
+}
+
+
+
 static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 {
     NULL,		/* init */
@@ -1464,7 +1554,7 @@ MY_CHARSET_HANDLER my_charset_ucs2_handler=
     my_strntoull_ucs2,
     my_strntod_ucs2,
     my_strtoll10_ucs2,
-    my_scan_8bit
+    my_scan_ucs2
 };
 
 

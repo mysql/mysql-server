@@ -622,10 +622,7 @@ static void make_sortkey(register SORTPARAM *param,
 	    }
 	    uint tmp_length=my_strnxfrm(cs,to,sort_field->length,
 					(unsigned char *) from, length);
-	    if (tmp_length < sort_field->length)
-	      cs->cset->fill(cs, (char*) to+tmp_length,
-			     sort_field->length-tmp_length,
-			     fill_char);
+            DBUG_ASSERT(tmp_length == sort_field->length);
           }
           else
           {
@@ -806,11 +803,16 @@ int merge_many_buff(SORTPARAM *param, uchar *sort_buffer,
     if (flush_io_cache(to_file))
       break;					/* purecov: inspected */
     temp=from_file; from_file=to_file; to_file=temp;
+    setup_io_cache(from_file);
+    setup_io_cache(to_file);
     *maxbuffer= (uint) (lastbuff-buffpek)-1;
   }
   close_cached_file(to_file);			// This holds old result
   if (to_file == t_file)
+  {
     *t_file=t_file2;				// Copy result file
+    setup_io_cache(t_file);
+  }
 
   DBUG_RETURN(*maxbuffer >= MERGEBUFF2);	/* Return 1 if interrupted */
 } /* merge_many_buff */
@@ -1125,7 +1127,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
       else
       {
 	sortorder->length=sortorder->field->pack_length();
-	if (use_strnxfrm((cs=sortorder->field->charset())))
+	if (use_strnxfrm((cs=sortorder->field->sort_charset())))
 	{
 	  sortorder->need_strxnfrm= 1;
 	  *multi_byte_charset= 1;

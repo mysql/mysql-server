@@ -18,7 +18,6 @@
 #define DBDIH_C
 #include "Dbdih.hpp"
 #include <ndb_limits.h>
-#include <new>
 
 #define DEBUG(x) { ndbout << "DIH::" << x << endl; }
 
@@ -314,7 +313,7 @@ Dbdih::~Dbdih()
 
 }//Dbdih::~Dbdih()
 
-BLOCK_FUNCTIONS(Dbdih);
+BLOCK_FUNCTIONS(Dbdih)
 
 
 

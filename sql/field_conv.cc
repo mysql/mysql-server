@@ -473,7 +473,7 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
 {
   if (to->flags & BLOB_FLAG)
   {
-    if (!(from->flags & BLOB_FLAG))
+    if (!(from->flags & BLOB_FLAG) || from->charset() != to->charset())
       return do_conv_blob;
     if (from_length != to_length ||
 	to->table->db_low_byte_first != from->table->db_low_byte_first)
@@ -559,6 +559,7 @@ void field_conv(Field *to,Field *from)
   if (to->real_type() == from->real_type())
   {
     if (to->pack_length() == from->pack_length() &&
+        !(to->flags & UNSIGNED_FLAG && !(from->flags & UNSIGNED_FLAG)) &&
 	to->real_type() != FIELD_TYPE_ENUM &&
 	to->real_type() != FIELD_TYPE_SET &&
         from->charset() == to->charset() &&

@@ -45,10 +45,10 @@ select_union::select_union(TABLE *table_par)
 {
   bzero((char*) &info,sizeof(info));
   /*
-    We can always use DUP_IGNORE because the temporary table will only
+    We can always use IGNORE because the temporary table will only
     contain a unique key if we are using not using UNION ALL
   */
-  info.handle_duplicates= DUP_IGNORE;
+  info.ignore= 1;
 }
 
 select_union::~select_union()
@@ -148,6 +148,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   SELECT_LEX *sl, *first_select;
   select_result *tmp_result;
   bool is_union;
+  TABLE *empty_table= 0;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   describe= test(additional_options & SELECT_DESCRIBE);
@@ -239,13 +240,21 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       goto err;
     if (sl == first_select)
     {
+      /*
+        We need to create an empty table object. It is used
+        to create tmp_table fields in Item_type_holder.
+        The main reason of this is that we can't create
+        field object without table.
+      */
+      DBUG_ASSERT(!empty_table);
+      empty_table= (TABLE*) thd->calloc(sizeof(TABLE));
       types.empty();
       List_iterator_fast<Item> it(sl->item_list);
       Item *item_tmp;
       while ((item_tmp= it++))
       {
 	/* Error's in 'new' will be detected after loop */
-	types.push_back(new Item_type_holder(thd_arg, item_tmp));
+	types.push_back(new Item_type_holder(thd_arg, item_tmp, empty_table));
       }
 
       if (thd_arg->is_fatal_error)
@@ -264,7 +273,8 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       Item *type, *item_tmp;
       while ((type= tp++, item_tmp= it++))
       {
-	if (((Item_type_holder*)type)->join_types(thd_arg, item_tmp))
+        if (((Item_type_holder*)type)->join_types(thd_arg, item_tmp,
+                                                  empty_table))
 	  DBUG_RETURN(-1);
       }
     }
@@ -313,24 +323,24 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
         We're in statement prepare or in execution
         of a conventional statement.
       */
-      Item_arena backup;
-      if (arena->is_stmt_prepare())
-	thd->set_n_backup_item_arena(arena, &backup);
+      Item_arena *tmp_arena,backup;
+      tmp_arena= thd->change_arena_if_needed(&backup);
+
       Field **field;
       for (field= table->field; *field; field++)
       {
 	Item_field *item= new Item_field(*field);
 	if (!item || item_list.push_back(item))
 	{
-          if (arena->is_stmt_prepare())
-	    thd->restore_backup_item_arena(arena, &backup);
+          if (tmp_arena)
+	    thd->restore_backup_item_arena(tmp_arena, &backup);
 	  DBUG_RETURN(-1);
 	}
       }
+      if (tmp_arena)
+        thd->restore_backup_item_arena(tmp_arena, &backup);
       if (arena->is_stmt_prepare())
       {
-	thd->restore_backup_item_arena(arena, &backup);
-
 	/* prepare fake select to initialize it correctly */
 	ulong options_tmp= init_prepare_fake_select_lex(thd);
 	if (!(fake_select_lex->join= new JOIN(thd, item_list, thd->options,
@@ -394,6 +404,8 @@ int st_select_lex_unit::exec()
   
   if (uncacheable || !item || !item->assigned() || describe)
   {
+    if (item)
+      item->reset_value_registration();
     if (optimized && item)
     {
       if (item->assigned())
@@ -464,11 +476,14 @@ int st_select_lex_unit::exec()
 	}
 	res= sl->join->error;
 	offset_limit_cnt= sl->offset_limit;
-	if (!res && union_result->flush())
+	if (!res)
 	{
-          examined_rows+= thd->examined_row_count;
-	  thd->lex->current_select= lex_select_save;
-	  DBUG_RETURN(1);
+	  examined_rows+= thd->examined_row_count;
+	  if (union_result->flush())
+	  {
+	    thd->lex->current_select= lex_select_save;
+	    DBUG_RETURN(1);
+	  }
 	}
       }
       if (res)

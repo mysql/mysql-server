@@ -92,8 +92,8 @@ Ndb::init(int aMaxNoOfTransactions)
   
   theDictionary->setTransporter(this, theFacade);
   
-  aNrOfCon = theNoOfDBnodes;
-  aNrOfOp = 2*theNoOfDBnodes;
+  aNrOfCon = theImpl->theNoOfDBnodes;
+  aNrOfOp = 2*theImpl->theNoOfDBnodes;
   
   // Create connection object in a linked list 
   if((createConIdleList(aNrOfCon)) == -1){
@@ -192,14 +192,14 @@ void Ndb::connected(Uint32 ref)
   }
   
   TransporterFacade * theFacade =  TransporterFacade::instance();
-  int i;
-  theNoOfDBnodes= 0;
+  int i, n= 0;
   for (i = 1; i < MAX_NDB_NODES; i++){
     if (theFacade->getIsDbNode(i)){
-      theDBnodes[theNoOfDBnodes] = i;
-      theNoOfDBnodes++;
+      theImpl->theDBnodes[n] = i;
+      n++;
     }
   }
+  theImpl->theNoOfDBnodes= n;
   theFirstTransId = ((Uint64)tBlockNo << 52)+
     ((Uint64)tmpTheNode << 40);
   theFirstTransId += theFacade->m_max_trans_id;
@@ -207,9 +207,8 @@ void Ndb::connected(Uint32 ref)
   DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id=%lx",
 		     theMyRef,
 		     tmpTheNode,
-		     theNoOfDBnodes,
+		     theImpl->theNoOfDBnodes,
 		     theFirstTransId));
-  startTransactionNodeSelectionData.init(theNoOfDBnodes, theDBnodes);
   theCommitAckSignal = new NdbApiSignal(theMyRef);
 
   theDictionary->m_receiver.m_reference= theMyRef;
@@ -247,8 +246,10 @@ Ndb::report_node_failure(Uint32 node_id)
    * 
    * This method is only called by ClusterMgr (via lots of methods)
    */
-  the_release_ind[node_id] = 1;
-  theWaiter.nodeFail(node_id);
+  theImpl->the_release_ind[node_id] = 1;
+  // must come after
+  theImpl->the_release_ind[0] = 1;
+  theImpl->theWaiter.nodeFail(node_id);
   return;
 }//Ndb::report_node_failure()
 
@@ -327,7 +328,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   NdbConnection* tCon;
   int tReturnCode = -1;
   const Uint32* tDataPtr = aSignal->getDataPtr();
-  const Uint32 tWaitState = theWaiter.m_state;
+  const Uint32 tWaitState = theImpl->theWaiter.m_state;
   const Uint32 tSignalNumber = aSignal->readSignalNumber();
   const Uint32 tFirstData = *tDataPtr;
   const Uint32 tLen = aSignal->getLength();
@@ -398,7 +399,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	  break;
 	case NdbReceiver::NDB_SCANRECEIVER:
 	  tCon->theScanningOp->receiver_delivered(tRec);
-	  theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+	  theImpl->theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
 			       (Uint32) NO_WAIT : tWaitState);
 	  break;
 	default:
@@ -595,7 +596,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       }//if
       tReturnCode = tCon->receiveTCSEIZECONF(aSignal);
       if (tReturnCode != -1) {
-	theWaiter.m_state = NO_WAIT;
+	theImpl->theWaiter.m_state = NO_WAIT;
       } else {
 	goto InvalidSignal;
       }//if
@@ -615,7 +616,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       }//if
       tReturnCode = tCon->receiveTCSEIZEREF(aSignal);
       if (tReturnCode != -1) {
-	theWaiter.m_state = NO_WAIT;
+	theImpl->theWaiter.m_state = NO_WAIT;
       } else {
         return;
       }//if
@@ -635,7 +636,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       }//if
       tReturnCode = tCon->receiveTCRELEASECONF(aSignal);
       if (tReturnCode != -1) {
-	theWaiter.m_state = NO_WAIT;
+	theImpl->theWaiter.m_state = NO_WAIT;
       }//if
       break;
     } 
@@ -653,7 +654,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       }//if
       tReturnCode = tCon->receiveTCRELEASEREF(aSignal);
       if (tReturnCode != -1) {
-	theWaiter.m_state = NO_WAIT;
+	theImpl->theWaiter.m_state = NO_WAIT;
       }//if
       break;
     }
@@ -705,7 +706,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	return;
       tReturnCode = tCon->receiveDIHNDBTAMPER(aSignal);
       if (tReturnCode != -1)
-	theWaiter.m_state = NO_WAIT;
+	theImpl->theWaiter.m_state = NO_WAIT;
       break;
     }
   case GSN_SCAN_TABCONF:
@@ -727,7 +728,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 				      tLen - ScanTabConf::SignalLength);
 	}
 	if (tReturnCode != -1 && tWaitState == WAIT_SCAN)
-	  theWaiter.m_state = NO_WAIT;
+	  theImpl->theWaiter.m_state = NO_WAIT;
 	break;
       } else {
 	goto InvalidSignal;
@@ -746,7 +747,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       if (tCon->checkMagicNumber() == 0){
 	tReturnCode = tCon->receiveSCAN_TABREF(aSignal);
 	if (tReturnCode != -1 && tWaitState == WAIT_SCAN){
-	  theWaiter.m_state = NO_WAIT;
+	  theImpl->theWaiter.m_state = NO_WAIT;
 	}
 	break;
       }
@@ -771,7 +772,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       switch(com){
       case 1:
 	tCon->theScanningOp->receiver_delivered(tRec);
-	theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+	theImpl->theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
 			      (Uint32) NO_WAIT : tWaitState);
 	break;
       case 0:
@@ -835,16 +836,16 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     goto InvalidSignal;
   }//switch
   
-  if (theWaiter.m_state == NO_WAIT) {
+  if (theImpl->theWaiter.m_state == NO_WAIT) {
     // Wake up the thread waiting for response
-    NdbCondition_Signal(theWaiter.m_condition);
+    NdbCondition_Signal(theImpl->theWaiter.m_condition);
   }//if
   return;
 
  InvalidSignal:
 #ifdef VM_TRACE
   ndbout_c("Ndbif: Error Ndb::handleReceivedSignal "
-	   "(GSN=%d, theWaiter.m_state=%d)"
+	   "(GSN=%d, theImpl->theWaiter.m_state=%d)"
 	   " sender = (Block: %d Node: %d)",
 	   tSignalNumber,
 	   tWaitState,
@@ -892,7 +893,7 @@ Ndb::completedTransaction(NdbConnection* aCon)
     if ((theMinNoOfEventsToWakeUp != 0) &&
         (theNoOfCompletedTransactions >= theMinNoOfEventsToWakeUp)) {
       theMinNoOfEventsToWakeUp = 0;
-      NdbCondition_Signal(theWaiter.m_condition);
+      NdbCondition_Signal(theImpl->theWaiter.m_condition);
       return;
     }//if
   } else {
@@ -1152,9 +1153,9 @@ void
 Ndb::waitCompletedTransactions(int aMilliSecondsToWait, 
 			       int noOfEventsToWaitFor)
 {
-  theWaiter.m_state = NO_WAIT; 
+  theImpl->theWaiter.m_state = NO_WAIT; 
   /**
-   * theWaiter.m_state = NO_WAIT; 
+   * theImpl->theWaiter.m_state = NO_WAIT; 
    * To ensure no messup with synchronous node fail handling
    * (see ReportFailure)
    */
@@ -1163,8 +1164,8 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
   theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
   do {
     if (waitTime < 1000) waitTime = 1000;
-    NdbCondition_WaitTimeout(theWaiter.m_condition,
-			     (NdbMutex*)theWaiter.m_mutex,
+    NdbCondition_WaitTimeout(theImpl->theWaiter.m_condition,
+			     (NdbMutex*)theImpl->theWaiter.m_mutex,
 			     waitTime);
     if (theNoOfCompletedTransactions >= (Uint32)noOfEventsToWaitFor) {
       break;
@@ -1270,23 +1271,23 @@ Ndb::receiveResponse(int waitTime){
   int tResultCode;
   TransporterFacade::instance()->checkForceSend(theNdbBlockNumber);
   
-  theWaiter.wait(waitTime);
+  theImpl->theWaiter.wait(waitTime);
   
-  if(theWaiter.m_state == NO_WAIT) {
+  if(theImpl->theWaiter.m_state == NO_WAIT) {
     tResultCode = 0;
   } else {
 
 #ifdef VM_TRACE
-    ndbout << "ERR: receiveResponse - theWaiter.m_state = ";
-    ndbout << theWaiter.m_state << endl;
+    ndbout << "ERR: receiveResponse - theImpl->theWaiter.m_state = ";
+    ndbout << theImpl->theWaiter.m_state << endl;
 #endif
 
-    if (theWaiter.m_state == WAIT_NODE_FAILURE){
+    if (theImpl->theWaiter.m_state == WAIT_NODE_FAILURE){
       tResultCode = -2;
     } else {
       tResultCode = -1;
     }
-    theWaiter.m_state = NO_WAIT;
+    theImpl->theWaiter.m_state = NO_WAIT;
   }
   return tResultCode;
 }//Ndb::receiveResponse()
@@ -1318,8 +1319,8 @@ Ndb::sendRecSignal(Uint16 node_id,
     if (tp->check_send_size(node_id, send_size)) {
       return_code = tp->sendSignal(aSignal, node_id);
       if (return_code != -1) {
-        theWaiter.m_node = node_id;
-        theWaiter.m_state = aWaitState;
+        theImpl->theWaiter.m_node = node_id;
+        theImpl->theWaiter.m_state = aWaitState;
         return_code = receiveResponse();
       } else {
 	return_code = -3;

@@ -300,7 +300,6 @@ TODO list:
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
-#include "sql_acl.h"
 #include "ha_myisammrg.h"
 #ifndef MASTER
 #include "../srclib/myisammrg/myrg_def.h"
@@ -375,7 +374,7 @@ inline Query_cache_block * Query_cache_block_table::block()
   return (Query_cache_block *)(((byte*)this) -
 			       ALIGN_SIZE(sizeof(Query_cache_block_table)*n) -
 			       ALIGN_SIZE(sizeof(Query_cache_block)));
-};
+}
 
 /*****************************************************************************
    Query_cache_block method(s)
@@ -777,6 +776,8 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
     flags.client_long_flag= (thd->client_capabilities & CLIENT_LONG_FLAG ?
 			     1 : 0);
+    flags.client_protocol_41= (thd->client_capabilities & CLIENT_PROTOCOL_41 ?
+			     1 : 0);
     flags.character_set_client_num=
       thd->variables.character_set_client->number;
     flags.character_set_results_num=
@@ -969,6 +970,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
   flags.client_long_flag= (thd->client_capabilities & CLIENT_LONG_FLAG ?
 			   1 : 0);
+  flags.client_protocol_41= (thd->client_capabilities & CLIENT_PROTOCOL_41 ?
+                           1 : 0);
   flags.character_set_client_num= thd->variables.character_set_client->number;
   flags.character_set_results_num=
     (thd->variables.character_set_results ?
@@ -1025,9 +1028,38 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   for (; block_table != block_table_end; block_table++)
   {
     TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
+    TABLE *tmptable;
 
     Query_cache_table *table = block_table->parent;
+
+    /*
+      Check that we have not temporary tables with same names of tables
+      of this query. If we have such tables, we will not send data from
+      query cache, because temporary tables hide real tables by which
+      query in query cache was made.
+    */
+    for (tmptable= thd->temporary_tables; tmptable ; tmptable= tmptable->next)
+    {
+      if (tmptable->key_length - TMP_TABLE_KEY_EXTRA == table->key_length() &&
+          !memcmp(tmptable->table_cache_key, table->data(),
+                  table->key_length()))
+      {
+        DBUG_PRINT("qcache",
+                   ("Temporary table detected: '%s.%s'",
+                    table_list.db, table_list.alias));
+        STRUCT_UNLOCK(&structure_guard_mutex);
+        /*
+          We should not store result of this query because it contain
+          temporary tables => assign following variable to make check
+          faster.
+        */
+        thd->lex->safe_to_cache_query=0;
+        BLOCK_UNLOCK_RD(query_block);
+        DBUG_RETURN(-1);
+      }
+    }
+
+    bzero((char*) &table_list,sizeof(table_list));
     table_list.db = table->db();
     table_list.alias= table_list.real_name= table->table();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1129,12 +1161,12 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 	DBUG_ASSERT(!using_transactions || tables_used->table!=0);
 	if (tables_used->derived)
 	  continue;
-	if (using_transactions && 
-	   (tables_used->table->file->table_cache_type() == 
+	if (using_transactions &&
+	   (tables_used->table->file->table_cache_type() ==
 	    HA_CACHE_TBL_TRANSACT))
-	  /* 
+	  /*
 	     Tables_used->table can't be 0 in transaction.
-	     Only 'drop' invalidate not opened table, but 'drop' 
+	     Only 'drop' invalidate not opened table, but 'drop'
 	     force transaction finish.
 	  */
 	  thd->add_changed_table(tables_used->table);
@@ -1182,7 +1214,7 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
 */
 void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
 {
-  DBUG_ENTER("Query_cache::invalidate (changed table list)");
+  DBUG_ENTER("Query_cache::invalidate_locked_for_write");
   if (query_cache_size > 0 && tables_used)
   {
     STRUCT_LOCK(&structure_guard_mutex);
@@ -1389,7 +1421,7 @@ ulong Query_cache::init_cache()
     init();
   approx_additional_data_size = (sizeof(Query_cache) +
 				 sizeof(gptr)*(def_query_hash_size+
-					       def_query_hash_size));
+					       def_table_hash_size));
   if (query_cache_size < approx_additional_data_size)
     goto err;
 

@@ -18,7 +18,6 @@
 #ifdef HAVE_REPLICATION
 
 #include "sql_repl.h"
-#include "sql_acl.h"
 #include "log_event.h"
 #include <my_dir.h>
 
@@ -247,7 +246,7 @@ bool log_in_use(const char* log_name)
     if ((linfo = tmp->current_linfo))
     {
       pthread_mutex_lock(&linfo->lock);
-      result = !memcmp(log_name, linfo->log_file_name, log_name_len);
+      result = !bcmp(log_name, linfo->log_file_name, log_name_len);
       pthread_mutex_unlock(&linfo->lock);
       if (result)
 	break;
@@ -683,7 +682,8 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
     thread_mask&= thd->lex->slave_thd_opt;
   if (thread_mask) //some threads are stopped, start them
   {
-    if (init_master_info(mi,master_info_file,relay_log_info_file, 0))
+    if (init_master_info(mi,master_info_file,relay_log_info_file, 0,
+			 thread_mask))
       slave_errno=ER_MASTER_INFO;
     else if (server_id_supplied && *mi->host)
     {
@@ -880,10 +880,10 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
   */
   init_master_info_with_options(mi);
   /* 
-     Reset errors, and master timestamp (the idea is that we forget about the
+     Reset errors (the idea is that we forget about the
      old master).
   */
-  clear_slave_error_timestamp(&mi->rli);
+  clear_slave_error(&mi->rli);
   clear_until_condition(&mi->rli);
   
   // close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
@@ -978,7 +978,8 @@ int change_master(THD* thd, MASTER_INFO* mi)
   thd->proc_info = "Changing master";
   LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
   // TODO: see if needs re-write
-  if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
+  if (init_master_info(mi, master_info_file, relay_log_info_file, 0,
+		       thread_mask))
   {
     send_error(thd, ER_MASTER_INFO);
     unlock_slave_threads(mi);
@@ -1142,8 +1143,8 @@ int change_master(THD* thd, MASTER_INFO* mi)
 
   pthread_mutex_lock(&mi->rli.data_lock);
   mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
-  /* Clear the errors, for a clean start, and master timestamp */
-  clear_slave_error_timestamp(&mi->rli);
+  /* Clear the errors, for a clean start */
+  clear_slave_error(&mi->rli);
   clear_until_condition(&mi->rli);
   /*
     If we don't write new coordinates to disk now, then old will remain in
@@ -1379,7 +1380,7 @@ err:
 
 int log_loaded_block(IO_CACHE* file)
 {
-  LOAD_FILE_INFO* lf_info;
+  LOAD_FILE_INFO *lf_info;
   uint block_len ;
 
   /* file->request_pos contains position where we started last read */
@@ -1401,7 +1402,7 @@ int log_loaded_block(IO_CACHE* file)
   {
     Create_file_log_event c(lf_info->thd,lf_info->ex,lf_info->db,
 			    lf_info->table_name, *lf_info->fields,
-			    lf_info->handle_dup, buffer,
+			    lf_info->handle_dup, lf_info->ignore, buffer,
 			    block_len, lf_info->log_delayed);
     mysql_bin_log.write(&c);
     lf_info->wrote_create_file = 1;

@@ -151,10 +151,10 @@ public:
 
     /*    Temporary record used during add/drop table */
     Uint32 myConnect;
-    
+#ifdef HAVE_TABLE_REORG    
     /*    Second table used by this table (for table reorg) */
     Uint32 secondTable;
-    
+#endif
     /*    Next record in Pool */
     Uint32 nextPool;
 
@@ -639,7 +639,7 @@ private:
       WRITE_ADD_TABLE_SLAVE = 2,
       WRITE_RESTART_FROM_MASTER = 3,
       WRITE_RESTART_FROM_OWN = 4,
-      CALLBACK = 5
+      TWR_CALLBACK = 5
     };
     TableWriteState tableWriteState;
     Callback m_callback;

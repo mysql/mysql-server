@@ -50,7 +50,7 @@ enum AbortOption {
   TryCommit = 0,                ///< <i>Missing explanation</i>
 #endif
   AbortOnError = 0,             ///< Abort transaction on failed operation
-  IgnoreError = 2               ///< Transaction continues on failed operation
+  AO_IgnoreError = 2               ///< Transaction continues on failed operation
 };
   
 typedef AbortOption CommitType;
@@ -526,7 +526,7 @@ private:
   int 	sendCOMMIT();                   // Send a TC_COMMITREQ signal;
   void	setGCI(int GCI);		// Set the global checkpoint identity
  
-  int	OpCompleteFailure(Uint8 abortoption);
+  int	OpCompleteFailure(Uint8 abortoption, bool setFailure = true);
   int	OpCompleteSuccess();
   void	CompletedOperations();	        // Move active ops to list of completed
  
@@ -552,7 +552,7 @@ private:
   void		setOperationErrorCode(int anErrorCode);	
 
   // Indicate something went wrong in the definition phase
-  void		setOperationErrorCodeAbort(int anErrorCode);
+  void		setOperationErrorCodeAbort(int anErrorCode, int abortOption = -1);
 
   int		checkMagicNumber();		       // Verify correct object
   NdbOperation* getNdbOperation(const class NdbTableImpl* aTable,
@@ -607,8 +607,8 @@ private:
   NdbOperation*	theLastExecOpInList;	    // Last executing operation in list.
 
 
-  NdbOperation*	theCompletedFirstOp;	    // First operation in completed 
-                                            // operation list.
+  NdbOperation*	theCompletedFirstOp;	    // First & last operation in completed 
+  NdbOperation*	theCompletedLastOp;         // operation list.
 
   Uint32	theNoOfOpSent;				// How many operations have been sent	    
   Uint32	theNoOfOpCompleted;			// How many operations have completed
@@ -687,6 +687,8 @@ private:
 
   void remove_list(NdbOperation*& head, NdbOperation*);
   void define_scan_op(NdbIndexScanOperation*);
+
+  friend class HugoOperations;
 };
 
 inline

@@ -86,7 +86,7 @@ parse_arguments() {
 
 MY_PWD=`pwd`
 # Check if we are starting this relative (for the binary release)
-if test -d $MY_PWD/data/mysql -a -f ./share/mysql/english/errmsg.sys -a \
+if test -f ./share/mysql/english/errmsg.sys -a \
  -x ./bin/mysqld
 then
   MY_BASEDIR_VERSION=$MY_PWD		# Where bin, share and data are
@@ -97,7 +97,7 @@ then
     defaults="--defaults-extra-file=$MY_BASEDIR_VERSION/data/my.cnf"
   fi
 # Check if this is a 'moved install directory'
-elif test -f ./var/mysql/db.frm -a -f ./share/mysql/english/errmsg.sys -a \
+elif test -f ./share/mysql/english/errmsg.sys -a \
  -x ./libexec/mysqld
 then
   MY_BASEDIR_VERSION=$MY_PWD		# Where libexec, share and var are
@@ -141,12 +141,12 @@ fi
 
 args=
 SET_USER=2
-parse_arguments `$print_defaults --loose-verbose $defaults mysqld server`
+parse_arguments `$print_defaults $defaults --loose-verbose mysqld server`
 if test $SET_USER -eq 2
 then
   SET_USER=0
 fi
-parse_arguments `$print_defaults --loose-verbose $defaults mysqld_safe safe_mysqld`
+parse_arguments `$print_defaults $defaults --loose-verbose mysqld_safe safe_mysqld`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 
@@ -315,20 +315,20 @@ do
     break
   fi
 
-  if test @IS_LINUX@ -a $KILL_MYSQLD -eq 1
+  if @IS_LINUX@ && test $KILL_MYSQLD -eq 1
   then
     # Test if one process was hanging.
     # This is only a fix for Linux (running as base 3 mysqld processes)
     # but should work for the rest of the servers.
     # The only thing is ps x => redhat 5 gives warnings when using ps -x.
     # kill -9 is used or the process won't react on the kill.
-    numofproces=`ps xa | grep -v "grep" | grep "$ledir/$MYSQLD\>" | grep -c "pid-file=$pid_file"`
+    numofproces=`ps xaww | grep -v "grep" | grep "$ledir/$MYSQLD\>" | grep -c "pid-file=$pid_file"`
 
     echo -e "\nNumber of processes running now: $numofproces" | tee -a $err_log
     I=1
     while test "$I" -le "$numofproces"
     do 
-      PROC=`ps xa | grep "$ledir/$MYSQLD\>" | grep -v "grep" | grep "pid-file=$pid_file" | sed -n '$p'` 
+      PROC=`ps xaww | grep "$ledir/$MYSQLD\>" | grep -v "grep" | grep "pid-file=$pid_file" | sed -n '$p'` 
 
       for T in $PROC
       do

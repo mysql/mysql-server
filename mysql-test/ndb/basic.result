@@ -1,0 +1,69 @@
+-- NDB Cluster -- Management Client --
+---------------------------------------------------------------------------
+ NDB Cluster -- Management Client -- Help
+---------------------------------------------------------------------------
+HELP                                   Print help text
+HELP SHOW                              Help for SHOW command
+HELP DEBUG                             Help for debug compiled version
+SHOW                                   Print information about cluster
+START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]
+                                       Start backup (default WAIT COMPLETED)
+ABORT BACKUP <backup id>               Abort backup
+SHUTDOWN                               Shutdown all processes in cluster
+CLUSTERLOG ON [<severity>] ...         Enable Cluster logging
+CLUSTERLOG OFF [<severity>] ...        Disable Cluster logging
+CLUSTERLOG TOGGLE [<severity>] ...     Toggle severity filter on/off
+CLUSTERLOG INFO                        Print cluster log information
+<id> START                             Start DB node (started with -n)
+<id> RESTART [-n] [-i]                 Restart DB node
+<id> STOP                              Stop DB node
+ENTER SINGLE USER MODE <api-node>      Enter single user mode
+EXIT SINGLE USER MODE                  Exit single user mode
+<id> STATUS                            Print status
+<id> CLUSTERLOG {<category>=<level>}+  Set log level for cluster log
+PURGE STALE SESSIONS                   Reset reserved nodeid's in the mgmt server
+CONNECT [<connectstring>]              Connect to management server (reconnect if already connected)
+QUIT                                   Quit management client
+
+<severity> = ALERT | CRITICAL | ERROR | WARNING | INFO | DEBUG
+<category> = STARTUP | SHUTDOWN | STATISTICS | CHECKPOINT | NODERESTART | CONNECTION | INFO | ERROR | GREP | DEBUG | BACKUP
+<level>    = 0 - 15
+<id>       = ALL | Any database node id
+
+Connected to Management Server at: localhost:1186
+Node 1: started (Version 4.1.9)
+Node 2: started (Version 4.1.9)
+
+Node 1: started (Version 4.1.9)
+
+Node 2: started (Version 4.1.9)
+
+Executing CLUSTERLOG on node 1 OK!
+Executing CLUSTERLOG on node 2 OK!
+
+Executing CLUSTERLOG on node 1 OK!
+Executing CLUSTERLOG on node 2 OK!
+
+Executing CLUSTERLOG on node 1 OK!
+Executing CLUSTERLOG on node 2 OK!
+
+Executing CLUSTERLOG on node 1 OK!
+Executing CLUSTERLOG on node 2 OK!
+
+Executing CLUSTERLOG on node 1 OK!
+Executing CLUSTERLOG on node 2 OK!
+
+Executing CLUSTERLOG on node 1 OK!
+Executing CLUSTERLOG on node 2 OK!
+
+Executing CLUSTERLOG on node 1 OK!
+Executing CLUSTERLOG on node 2 OK!
+
+Executing CLUSTERLOG on node 1 OK!
+Executing CLUSTERLOG on node 2 OK!
+
+Cluster logging is disabled
+Cluster logging is enabled.
+Cluster logging is disabled
+ALL disabled
+ALL enabled

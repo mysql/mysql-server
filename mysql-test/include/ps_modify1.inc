@@ -65,6 +65,9 @@ execute stmt1 using @1000, @duplicate, @5;
 select a,b from t1 where a >= 1000 order by a ;
 delete from t1 where a >= 1000 ;
 
+set @1=1 ;
+set @2=2 ;
+set @100=100 ;
 set @float=1.00;
 set @five='five' ;
 --disable_warnings

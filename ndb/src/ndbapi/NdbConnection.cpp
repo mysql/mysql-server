@@ -55,6 +55,7 @@ NdbConnection::NdbConnection( Ndb* aNdb ) :
   theFirstExecOpInList(NULL),
   theLastExecOpInList(NULL),
   theCompletedFirstOp(NULL),
+  theCompletedLastOp(NULL),
   theNoOfOpSent(0),
   theNoOfOpCompleted(0),
   theNoOfOpFetched(0),
@@ -82,7 +83,7 @@ NdbConnection::NdbConnection( Ndb* aNdb ) :
 {
   theListState = NotInList;
   theError.code = 0;
-  theId = theNdb->theNdbObjectIdMap->map(this);
+  theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
 
 #define CHECK_SZ(mask, sz) assert((sizeof(mask)/sizeof(mask[0])) == sz)
 
@@ -98,7 +99,7 @@ Remark:        Deletes the connection object.
 NdbConnection::~NdbConnection()
 {
   DBUG_ENTER("NdbConnection::~NdbConnection");
-  theNdb->theNdbObjectIdMap->unmap(theId, this);
+  theNdb->theImpl->theNdbObjectIdMap.unmap(theId, this);
   DBUG_VOID_RETURN;
 }//NdbConnection::~NdbConnection()
 
@@ -124,6 +125,7 @@ NdbConnection::init()
   theLastExecOpInList	  = NULL;
 
   theCompletedFirstOp	  = NULL;
+  theCompletedLastOp	  = NULL;
 
   theGlobalCheckpointId   = 0;
   theCommitStatus         = Started;
@@ -170,12 +172,14 @@ Remark:        Sets an error code on the connection object from an
                operation object. 
 *****************************************************************************/
 void
-NdbConnection::setOperationErrorCodeAbort(int error)
+NdbConnection::setOperationErrorCodeAbort(int error, int abortOption)
 {
   DBUG_ENTER("NdbConnection::setOperationErrorCodeAbort");
+  if (abortOption == -1)
+    abortOption = m_abortOption;
   if (theTransactionIsStarted == false) {
     theCommitStatus = Aborted;
-  } else if ((m_abortOption == AbortOnError) && 
+  } else if ((abortOption == AbortOnError) && 
 	     (theCommitStatus != Committed) &&
              (theCommitStatus != Aborted)) {
     theCommitStatus = NeedAbort;
@@ -254,6 +258,8 @@ NdbConnection::handleExecuteCompletion()
   if (tLastExecOp != NULL) {
     tLastExecOp->next(theCompletedFirstOp);
     theCompletedFirstOp = tFirstExecOp;
+    if (theCompletedLastOp == NULL)
+      theCompletedLastOp = tLastExecOp;
     theFirstExecOpInList = NULL;
     theLastExecOpInList = NULL;
   }//if
@@ -290,6 +296,8 @@ NdbConnection::execute(ExecType aTypeOfExec,
 
   ExecType tExecType;
   NdbOperation* tPrepOp;
+  NdbOperation* tCompletedFirstOp = NULL;
+  NdbOperation* tCompletedLastOp = NULL;
 
   int ret = 0;
   do {
@@ -312,6 +320,7 @@ NdbConnection::execute(ExecType aTypeOfExec,
       }
       tPrepOp = tPrepOp->next();
     }
+
     // save rest of prepared ops if batch
     NdbOperation* tRestOp= 0;
     NdbOperation* tLastOp= 0;
@@ -321,6 +330,7 @@ NdbConnection::execute(ExecType aTypeOfExec,
       tLastOp = theLastOpInList;
       theLastOpInList = tPrepOp;
     }
+
     if (tExecType == Commit) {
       NdbOperation* tOp = theCompletedFirstOp;
       while (tOp != NULL) {
@@ -335,8 +345,28 @@ NdbConnection::execute(ExecType aTypeOfExec,
         tOp = tOp->next();
       }
     }
+
+    // completed ops are in unspecified order
+    if (theCompletedFirstOp != NULL) {
+      if (tCompletedFirstOp == NULL) {
+        tCompletedFirstOp = theCompletedFirstOp;
+        tCompletedLastOp = theCompletedLastOp;
+      } else {
+        tCompletedLastOp->next(theCompletedFirstOp);
+        tCompletedLastOp = theCompletedLastOp;
+      }
+      theCompletedFirstOp = NULL;
+      theCompletedLastOp = NULL;
+    }
+
     if (executeNoBlobs(tExecType, abortOption, forceSend) == -1)
         ret = -1;
+#ifdef ndb_api_crash_on_complex_blob_abort
+    assert(theFirstOpInList == NULL && theLastOpInList == NULL);
+#else
+    theFirstOpInList = theLastOpInList = NULL;
+#endif
+
     {
       NdbOperation* tOp = theCompletedFirstOp;
       while (tOp != NULL) {
@@ -352,6 +382,7 @@ NdbConnection::execute(ExecType aTypeOfExec,
         tOp = tOp->next();
       }
     }
+
     // add saved prepared ops if batch
     if (tPrepOp != NULL && tRestOp != NULL) {
       if (theFirstOpInList == NULL)
@@ -360,8 +391,21 @@ NdbConnection::execute(ExecType aTypeOfExec,
         theLastOpInList->next(tRestOp);
       theLastOpInList = tLastOp;
     }
+    assert(theFirstOpInList == NULL || tExecType == NoCommit);
   } while (theFirstOpInList != NULL || tExecType != aTypeOfExec);
 
+  if (tCompletedFirstOp != NULL) {
+    tCompletedLastOp->next(theCompletedFirstOp);
+    theCompletedFirstOp = tCompletedFirstOp;
+    if (theCompletedLastOp == NULL)
+      theCompletedLastOp = tCompletedLastOp;
+  }
+#if ndb_api_count_completed_ops_after_blob_execute
+  { NdbOperation* tOp; unsigned n = 0;
+    for (tOp = theCompletedFirstOp; tOp != NULL; tOp = tOp->next()) n++;
+    ndbout << "completed ops: " << n << endl;
+  }
+#endif
   DBUG_RETURN(ret);
 }
 
@@ -883,6 +927,7 @@ NdbConnection::releaseOperations()
   releaseOps(theFirstExecOpInList);
 
   theCompletedFirstOp = NULL;
+  theCompletedLastOp = NULL;
   theFirstOpInList = NULL;
   theFirstExecOpInList = NULL;
   theLastOpInList = NULL;
@@ -898,6 +943,7 @@ NdbConnection::releaseCompletedOperations()
 {
   releaseOps(theCompletedFirstOp);
   theCompletedFirstOp = NULL;
+  theCompletedLastOp = NULL;
 }//NdbConnection::releaseOperations()
 
 /******************************************************************************
@@ -1075,8 +1121,11 @@ NdbConnection::getNdbIndexScanOperation(const NdbIndexImpl* index,
     if (indexTable != 0){
       NdbIndexScanOperation* tOp = 
 	getNdbScanOperation((NdbTableImpl *) indexTable);
-      tOp->m_currentTable = table;
-      if(tOp) tOp->m_cursor_type = NdbScanOperation::IndexCursor;
+      if(tOp)
+      {
+	tOp->m_currentTable = table;
+	tOp->m_cursor_type = NdbScanOperation::IndexCursor;
+      }
       return tOp;
     } else {
       setOperationErrorCodeAbort(theNdb->theError.code);
@@ -1567,13 +1616,10 @@ from other transactions.
                (theLastExecOpInList->theCommitIndicator == 1)){
 
 
-      if (m_abortOption == IgnoreError && theError.code != 0){
+      if (m_abortOption == AO_IgnoreError && theError.code != 0){
 	/**
 	 * There's always a TCKEYCONF when using IgnoreError
 	 */
-#ifdef VM_TRACE
-	ndbout_c("Not completing transaction 2");
-#endif
 	return -1;
       }
 /**********************************************************************/
@@ -1806,11 +1852,12 @@ Parameters:    aErrorCode: The error code.
 Remark:        An operation was completed with failure.
 *******************************************************************************/
 int 
-NdbConnection::OpCompleteFailure(Uint8 abortOption)
+NdbConnection::OpCompleteFailure(Uint8 abortOption, bool setFailure)
 {
   Uint32 tNoComp = theNoOfOpCompleted;
   Uint32 tNoSent = theNoOfOpSent;
-  theCompletionStatus = NdbConnection::CompletedFailure;
+  if (setFailure)
+    theCompletionStatus = NdbConnection::CompletedFailure;
   tNoComp++;
   theNoOfOpCompleted = tNoComp;
   if (tNoComp == tNoSent) {
@@ -1820,13 +1867,10 @@ NdbConnection::OpCompleteFailure(Uint8 abortOption)
     //decide the success of the whole transaction since a simple
     //operation is not really part of that transaction.
     //------------------------------------------------------------------------
-    if (abortOption == IgnoreError){
+    if (abortOption == AO_IgnoreError){
       /**
        * There's always a TCKEYCONF when using IgnoreError
        */
-#ifdef VM_TRACE
-      ndbout_c("Not completing transaction");
-#endif
       return -1;
     }
     

@@ -1,0 +1,12 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create database if not exists mysqltest;
+create temporary table mysqltest.t1 (n int);
+create temporary table mysqltest.t2 (n int);
+show status like 'Slave_open_temp_tables';
+Variable_name	Value
+Slave_open_temp_tables	0

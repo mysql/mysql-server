@@ -30,7 +30,8 @@ testSystemRestart \
 testTimeout \
 testTransactions \
 testDeadlock \
-test_event ndbapi_slow_select testReadPerf testLcp
+test_event ndbapi_slow_select testReadPerf testLcp \
+DbCreate DbAsyncGenerator
 
 #flexTimedAsynch
 #testBlobs
@@ -69,6 +70,8 @@ test_event_SOURCES = test_event.cpp
 ndbapi_slow_select_SOURCES = slow_select.cpp
 testReadPerf_SOURCES = testReadPerf.cpp
 testLcp_SOURCES = testLcp.cpp
+DbCreate_SOURCES= bench/mainPopulate.cpp bench/dbPopulate.cpp bench/userInterface.cpp
+DbAsyncGenerator_SOURCES= bench/mainAsyncGenerator.cpp bench/asyncGenerator.cpp bench/ndb_async2.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel
 
@@ -84,4 +87,65 @@ testBackup_LDADD = $(LDADD) bank/libbank.a
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
+windoze-dsp: flexBench.dsp testBasic.dsp testBlobs.dsp \
+             testScan.dsp
 
+flexBench.dsp: Makefile \
+               $(top_srcdir)/ndb/config/win-prg.am \
+               $(top_srcdir)/ndb/config/win-name \
+               $(top_srcdir)/ndb/config/win-includes \
+               $(top_srcdir)/ndb/config/win-sources \
+               $(top_srcdir)/ndb/config/win-libraries
+	cat $(top_srcdir)/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/ndb/config/win-name $@ flexBench
+	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/ndb/config/win-sources $@ $(flexBench_SOURCES)
+	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+
+testBasic.dsp: Makefile \
+               $(top_srcdir)/ndb/config/win-prg.am \
+               $(top_srcdir)/ndb/config/win-name \
+               $(top_srcdir)/ndb/config/win-includes \
+               $(top_srcdir)/ndb/config/win-sources \
+               $(top_srcdir)/ndb/config/win-libraries
+	cat $(top_srcdir)/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/ndb/config/win-name $@ testBasic
+	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/ndb/config/win-sources $@ $(testBasic_SOURCES)
+	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+
+testOIBasic.dsp: Makefile \
+               $(top_srcdir)/ndb/config/win-prg.am \
+               $(top_srcdir)/ndb/config/win-name \
+               $(top_srcdir)/ndb/config/win-includes \
+               $(top_srcdir)/ndb/config/win-sources \
+               $(top_srcdir)/ndb/config/win-libraries
+	cat $(top_srcdir)/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/ndb/config/win-name $@ testOIBasic
+	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/ndb/config/win-sources $@ $(testOIBasic_SOURCES)
+	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+
+testBlobs.dsp: Makefile \
+               $(top_srcdir)/ndb/config/win-prg.am \
+               $(top_srcdir)/ndb/config/win-name \
+               $(top_srcdir)/ndb/config/win-includes \
+               $(top_srcdir)/ndb/config/win-sources \
+               $(top_srcdir)/ndb/config/win-libraries
+	cat $(top_srcdir)/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/ndb/config/win-name $@ testBlobs
+	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/ndb/config/win-sources $@ $(testBlobs_SOURCES)
+	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)
+
+testScan.dsp: Makefile \
+               $(top_srcdir)/ndb/config/win-prg.am \
+               $(top_srcdir)/ndb/config/win-name \
+               $(top_srcdir)/ndb/config/win-includes \
+               $(top_srcdir)/ndb/config/win-sources \
+               $(top_srcdir)/ndb/config/win-libraries
+	cat $(top_srcdir)/ndb/config/win-prg.am > $@
+	@$(top_srcdir)/ndb/config/win-name $@ testScan
+	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/ndb/config/win-sources $@ $(testScan_SOURCES)
+	@$(top_srcdir)/ndb/config/win-libraries $@ LINK $(LDADD)

@@ -1,0 +1,10 @@
+# We run with different binaries for normal and --embedded-server
+#
+# If this test fails with "command "$MYSQL_CLIENT_TEST" failed",
+# you should either run mysql_client_test separartely against a running
+# server or run mysql-test-run --debug mysql_client_test and check
+# var/log/mysql_client_test.trace
+
+--disable_result_log
+--exec echo $MYSQL_CLIENT_TEST
+--exec $MYSQL_CLIENT_TEST

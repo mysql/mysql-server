@@ -22,7 +22,7 @@
 extern "C"
 int 
 Ndb_getInAddr(struct in_addr * dst, const char *address) {
-  DBUG_ENTER("Ndb_getInAddr");
+  //  DBUG_ENTER("Ndb_getInAddr");
   {
     int tmp_errno;
     struct hostent tmp_hostent, *hp;
@@ -33,7 +33,7 @@ Ndb_getInAddr(struct in_addr * dst, const char *address) {
     {
       memcpy(dst, hp->h_addr, min(sizeof(*dst), (size_t) hp->h_length));
       my_gethostbyname_r_free();
-      DBUG_RETURN(0);
+      return 0; //DBUG_RETURN(0);
     }
     my_gethostbyname_r_free();
   }
@@ -47,11 +47,11 @@ Ndb_getInAddr(struct in_addr * dst, const char *address) {
 #endif
       )
   {
-    DBUG_RETURN(0);
+    return 0; //DBUG_RETURN(0);
   }
-  DBUG_PRINT("error",("inet_addr(%s) - %d - %s",
-		      address, errno, strerror(errno)));
-  DBUG_RETURN(-1);
+  //  DBUG_PRINT("error",("inet_addr(%s) - %d - %s",
+  //		      address, errno, strerror(errno)));
+  return -1; //DBUG_RETURN(-1);
 }
 
 #if 0

@@ -36,16 +36,16 @@ create table t2 select * from t1 where 0=1 procedure analyse();
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `Field_name` char(255) NOT NULL default '',
-  `Min_value` char(255) default NULL,
-  `Max_value` char(255) default NULL,
+  `Field_name` binary(255) NOT NULL default '',
+  `Min_value` binary(255) default NULL,
+  `Max_value` binary(255) default NULL,
   `Min_length` bigint(11) NOT NULL default '0',
   `Max_length` bigint(11) NOT NULL default '0',
   `Empties_or_zeros` bigint(11) NOT NULL default '0',
   `Nulls` bigint(11) NOT NULL default '0',
-  `Avg_value_or_avg_length` char(255) NOT NULL default '',
-  `Std` char(255) default NULL,
-  `Optimal_fieldtype` char(64) NOT NULL default ''
+  `Avg_value_or_avg_length` binary(255) NOT NULL default '',
+  `Std` binary(255) default NULL,
+  `Optimal_fieldtype` binary(64) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1 where 0=1 procedure analyse();
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
@@ -55,16 +55,16 @@ create table t2 select * from t1 where 0=1 procedure analyse();
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `Field_name` char(255) NOT NULL default '',
-  `Min_value` char(255) default NULL,
-  `Max_value` char(255) default NULL,
+  `Field_name` binary(255) NOT NULL default '',
+  `Min_value` binary(255) default NULL,
+  `Max_value` binary(255) default NULL,
   `Min_length` bigint(11) NOT NULL default '0',
   `Max_length` bigint(11) NOT NULL default '0',
   `Empties_or_zeros` bigint(11) NOT NULL default '0',
   `Nulls` bigint(11) NOT NULL default '0',
-  `Avg_value_or_avg_length` char(255) NOT NULL default '',
-  `Std` char(255) default NULL,
-  `Optimal_fieldtype` char(64) NOT NULL default ''
+  `Avg_value_or_avg_length` binary(255) NOT NULL default '',
+  `Std` binary(255) default NULL,
+  `Optimal_fieldtype` binary(64) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t2;
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
@@ -78,16 +78,16 @@ create table t2 select * from t1 where 0=1 procedure analyse();
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `Field_name` char(255) NOT NULL default '',
-  `Min_value` char(255) default NULL,
-  `Max_value` char(255) default NULL,
+  `Field_name` binary(255) NOT NULL default '',
+  `Min_value` binary(255) default NULL,
+  `Max_value` binary(255) default NULL,
   `Min_length` bigint(11) NOT NULL default '0',
   `Max_length` bigint(11) NOT NULL default '0',
   `Empties_or_zeros` bigint(11) NOT NULL default '0',
   `Nulls` bigint(11) NOT NULL default '0',
-  `Avg_value_or_avg_length` char(255) NOT NULL default '',
-  `Std` char(255) default NULL,
-  `Optimal_fieldtype` char(64) NOT NULL default ''
+  `Avg_value_or_avg_length` binary(255) NOT NULL default '',
+  `Std` binary(255) default NULL,
+  `Optimal_fieldtype` binary(64) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t2;
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
@@ -96,3 +96,9 @@ select * from t2;
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
 test.t1.a	1	2	1	1	0	0	1.5000	0.5000	ENUM('1','2') NOT NULL
 drop table t1,t2;
+create table t1 (v varchar(128));
+insert into t1 values ('abc'),('abc\'def\\hij\"klm\0opq'),('\''),('\"'),('\\'),('a\0'),('b\''),('c\"'),('d\\'),('\'b'),('\"c'),('\\d'),('a\0\0\0b'),('a\'\'\'\'b'),('a\"\"\"\"b'),('a\\\\\\\\b'),('\'\0\\\"'),('\'\''),('\"\"'),('\\\\'),('The\ZEnd');
+select * from t1 procedure analyse();
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+test.t1.v	"	\\	1	19	0	0	3.7619	NULL	ENUM('"','""','"c','\'\0\\"','\'','\'\'','\'b','a\0\0\0b','a\0','a""""b','a\'\'\'\'b','abc','abc\'def\\hij"klm\0opq','a\\\\\\\\b','b\'','c"','d\\','The\ZEnd','\\','\\d','\\\\') NOT NULL
+drop table t1;

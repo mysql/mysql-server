@@ -278,15 +278,15 @@ convert_error_code_to_mysql(
 
  	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
 
- 		/* Since we rolled back the whole transaction, we must
- 		tell it also to MySQL so that MySQL knows to empty the
- 		cached binlog for this transaction */
+		/* Since we rolled back the whole transaction, we must
+		tell it also to MySQL so that MySQL knows to empty the
+		cached binlog for this transaction */
 
- 		if (thd) {
- 			ha_rollback(thd);
- 		}
+		if (thd) {
+			ha_rollback(thd);
+		}
 
-    		return(HA_ERR_LOCK_WAIT_TIMEOUT);
+   		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
  	} else if (error == (int) DB_NO_REFERENCED_ROW) {
 
@@ -331,6 +331,9 @@ convert_error_code_to_mysql(
   	} else if (error == (int) DB_NO_SAVEPOINT) {
 
     		return(HA_ERR_NO_SAVEPOINT);
+  	} else if (error == (int) DB_LOCK_TABLE_FULL) {
+
+    		return(HA_ERR_LOCK_TABLE_FULL);
     	} else {
     		return(-1);			// Unknown error
     	}
@@ -469,7 +472,7 @@ innobase_mysql_tmpfile(void)
 {
 	char	filename[FN_REFLEN];
 	int	fd2 = -1;
-	File	fd = create_temp_file(filename, NullS, "ib",
+	File	fd = create_temp_file(filename, mysql_tmpdir, "ib",
 #ifdef __WIN__
 				O_BINARY | O_TRUNC | O_SEQUENTIAL |
 				O_TEMPORARY | O_SHORT_LIVED |
@@ -1505,17 +1508,14 @@ innobase_close_connection(
 *****************************************************************************/
 
 /********************************************************************
-This function is not relevant since we store the tables and indexes
-into our own tablespace, not as files, whose extension this function would
-give. */
+Gives the file extension of an InnoDB single-table tablespace. */
 
 const char**
 ha_innobase::bas_ext() const
 /*========================*/
-				/* out: file extension strings, currently not
-				used */
+				/* out: file extension string */
 {
-	static const char* ext[] = {".InnoDB", NullS};
+	static const char* ext[] = {".ibd", NullS};
 
 	return(ext);
 }
@@ -2248,6 +2248,8 @@ build_template(
 
 		templ->mysql_col_len = (ulint) field->pack_length();
 		templ->type = get_innobase_type_from_mysql_type(field);
+		templ->charset = dtype_get_charset_coll_noninline(
+				index->table->cols[i].type.prtype);
 		templ->is_unsigned = (ulint) (field->flags & UNSIGNED_FLAG);
 
 		if (templ->type == DATA_BLOB) {
@@ -2314,6 +2316,72 @@ ha_innobase::write_row(
         if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
                 table->timestamp_field->set_time();
 
+	if (user_thd->lex->sql_command == SQLCOM_ALTER_TABLE
+	    && num_write_row >= 10000) {
+		/* ALTER TABLE is COMMITted at every 10000 copied rows.
+		The IX table lock for the original table has to be re-issued.
+		As this method will be called on a temporary table where the
+		contents of the original table is being copied to, it is
+		a bit tricky to determine the source table.  The cursor
+		position in the source table need not be adjusted after the
+		intermediate COMMIT, since writes by other transactions are
+		being blocked by a MySQL table lock TL_WRITE_ALLOW_READ. */
+
+		dict_table_t*	src_table;
+		ibool		mode;
+
+		num_write_row = 0;
+
+		/* Commit the transaction.  This will release the table
+		locks, so they have to be acquired again. */
+
+		/* Altering an InnoDB table */
+		/* Get the source table. */
+		src_table = lock_get_src_table(
+				prebuilt->trx, prebuilt->table, &mode);
+		if (!src_table) {
+		no_commit:
+			/* Unknown situation: do not commit */
+			/*
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB error: ALTER TABLE is holding lock"
+				" on %lu tables!\n",
+				prebuilt->trx->mysql_n_tables_locked);
+			*/
+			;
+		} else if (src_table == prebuilt->table) {
+			/* Source table is not in InnoDB format:
+			no need to re-acquire locks on it. */
+
+			/* Altering to InnoDB format */
+			innobase_commit(user_thd, prebuilt->trx);
+			/* Note that this transaction is still active. */
+			user_thd->transaction.all.innodb_active_trans = 1;
+			/* We will need an IX lock on the destination table. */
+		        prebuilt->sql_stat_start = TRUE;
+		} else {
+			/* Ensure that there are no other table locks than
+			LOCK_IX and LOCK_AUTO_INC on the destination table. */
+			if (!lock_is_table_exclusive(prebuilt->table,
+							prebuilt->trx)) {
+				goto no_commit;
+			}
+
+			/* Commit the transaction.  This will release the table
+			locks, so they have to be acquired again. */
+			innobase_commit(user_thd, prebuilt->trx);
+			/* Note that this transaction is still active. */
+			user_thd->transaction.all.innodb_active_trans = 1;
+			/* Re-acquire the table lock on the source table. */
+			row_lock_table_for_mysql(prebuilt, src_table, mode);
+			/* We will need an IX lock on the destination table. */
+		        prebuilt->sql_stat_start = TRUE;
+		}
+	}
+
+	num_write_row++;
+
 	if (last_query_id != user_thd->query_id) {
 	        prebuilt->sql_stat_start = TRUE;
                 last_query_id = user_thd->query_id;
@@ -2362,8 +2430,9 @@ ha_innobase::write_row(
 		same SQL statement! */
 
 		if (auto_inc == 0 && user_thd->next_insert_id != 0) {
-		        auto_inc = user_thd->next_insert_id;
-		        auto_inc_counter_for_this_stat = auto_inc;
+
+		        auto_inc_counter_for_this_stat
+						= user_thd->next_insert_id;
 		}
 
 		if (auto_inc == 0 && auto_inc_counter_for_this_stat) {
@@ -2371,14 +2440,14 @@ ha_innobase::write_row(
 			this SQL statement with SET INSERT_ID. We must
 			assign sequential values from the counter. */
 
-			auto_inc_counter_for_this_stat++;
-			incremented_auto_inc_for_stat = TRUE;
-
 			auto_inc = auto_inc_counter_for_this_stat;
 
 			/* We give MySQL a new value to place in the
 			auto-inc column */
 			user_thd->next_insert_id = auto_inc;
+
+			auto_inc_counter_for_this_stat++;
+			incremented_auto_inc_for_stat = TRUE;
 		}
 
 		if (auto_inc != 0) {
@@ -2464,7 +2533,7 @@ ha_innobase::write_row(
 		NOTE that a REPLACE command and LOAD DATA INFILE REPLACE
 		handles a duplicate key error
 		itself, and we must not decrement the autoinc counter
-		if we are performing a those statements.
+		if we are performing those statements.
 		NOTE 2: if there was an error, for example a deadlock,
 		which caused InnoDB to roll back the whole transaction
 		already in the call of row_insert_for_mysql(), we may no
@@ -3887,11 +3956,9 @@ ha_innobase::discard_or_import_tablespace(
 		err = row_import_tablespace_for_mysql(dict_table->name, trx);
 	}
 
-	if (err == DB_SUCCESS) {
-		DBUG_RETURN(0);
-	}
+	err = convert_error_code_to_mysql(err, NULL);
 
-	DBUG_RETURN(-1);
+	DBUG_RETURN(err);
 }
 
 /*********************************************************************
@@ -4605,11 +4672,11 @@ ha_innobase::update_table_comment(
 		dict_print_info_on_foreign_keys(FALSE, file,
 				prebuilt->trx, prebuilt->table);
 		flen = ftell(file);
-		if(length + flen + 3 > 64000) {
+		if (flen < 0) {
+			flen = 0;
+		} else if (length + flen + 3 > 64000) {
 			flen = 64000 - 3 - length;
 		}
-
-		ut_ad(flen > 0);
 
 		/* allocate buffer for the full string, and
 		read the contents of the temporary file */
@@ -4674,11 +4741,11 @@ ha_innobase::get_foreign_key_create_info(void)
 		prebuilt->trx->op_info = (char*)"";
 
 		flen = ftell(file);
-		if(flen > 64000 - 1) {
+		if (flen < 0) {
+			flen = 0;
+		} else if(flen > 64000 - 1) {
 			flen = 64000 - 1;
 		}
-
-		ut_ad(flen >= 0);
 
 		/* allocate buffer for the string, and
 		read the contents of the temporary file */
@@ -4922,19 +4989,6 @@ ha_innobase::external_lock(
 
 	update_thd(thd);
 
- 	if (prebuilt->table->ibd_file_missing && !current_thd->tablespace_op) {
-	        ut_print_timestamp(stderr);
-	        fprintf(stderr, "  InnoDB error:\n"
-"MySQL is trying to use a table handle but the .ibd file for\n"
-"table %s does not exist.\n"
-"Have you deleted the .ibd file from the database directory under\n"
-"the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
-"Look from section 15.1 of http://www.innodb.com/ibman.html\n"
-"how you can resolve the problem.\n",
-				prebuilt->table->name);
-		DBUG_RETURN(HA_ERR_CRASHED);
-	}
-
 	trx = prebuilt->trx;
 
 	prebuilt->sql_stat_start = TRUE;
@@ -4982,11 +5036,21 @@ ha_innobase::external_lock(
 			prebuilt->select_lock_type = LOCK_S;
 		}
 
+		/* Starting from 4.1.9, no InnoDB table lock is taken in LOCK
+		TABLES if AUTOCOMMIT=1. It does not make much sense to acquire
+		an InnoDB table lock if it is released immediately at the end
+		of LOCK TABLES, and InnoDB's table locks in that case cause
+		VERY easily deadlocks. */
+
 		if (prebuilt->select_lock_type != LOCK_NONE) {
+
 			if (thd->in_lock_tables &&
-			    thd->variables.innodb_table_locks) {
+			    thd->variables.innodb_table_locks &&
+			    (thd->options & OPTION_NOT_AUTOCOMMIT)) {
+
 				ulint	error;
-				error = row_lock_table_for_mysql(prebuilt);
+				error = row_lock_table_for_mysql(prebuilt,
+							NULL, LOCK_TABLE_EXP);
 
 				if (error != DB_SUCCESS) {
 					error = convert_error_code_to_mysql(
@@ -5078,11 +5142,11 @@ innodb_show_status(
 	srv_printf_innodb_monitor(srv_monitor_file);
 	flen = ftell(srv_monitor_file);
 	os_file_set_eof(srv_monitor_file);
-	if(flen > 64000 - 1) {
+	if (flen < 0) {
+		flen = 0;
+	} else if (flen > 64000 - 1) {
 		flen = 64000 - 1;
 	}
-
-	ut_ad(flen > 0);
 
 	/* allocate buffer for the string, and
 	read the contents of the temporary file */
@@ -5203,7 +5267,9 @@ ha_innobase::store_lock(
 	if ((lock_type == TL_READ && thd->in_lock_tables) ||
 	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
 	    lock_type == TL_READ_WITH_SHARED_LOCKS ||
-	    lock_type == TL_READ_NO_INSERT) {
+	    lock_type == TL_READ_NO_INSERT ||
+	    thd->lex->sql_command != SQLCOM_SELECT) {
+
 		/* The OR cases above are in this order:
 		1) MySQL is doing LOCK TABLES ... READ LOCAL, or
 		2) (we do not know when TL_READ_HIGH_PRIORITY is used), or
@@ -5211,10 +5277,32 @@ ha_innobase::store_lock(
 		4) we are doing a complex SQL statement like
 		INSERT INTO ... SELECT ... and the logical logging (MySQL
 		binlog) requires the use of a locking read, or
-		MySQL is doing LOCK TABLES ... READ. */
+		MySQL is doing LOCK TABLES ... READ.
+		5) we let InnoDB do locking reads for all SQL statements that
+		are not simple SELECTs; note that select_lock_type in this
+		case may get strengthened in ::external_lock() to LOCK_X. */
 
-		prebuilt->select_lock_type = LOCK_S;
-		prebuilt->stored_select_lock_type = LOCK_S;
+		if (srv_locks_unsafe_for_binlog &&
+		    prebuilt->trx->isolation_level != TRX_ISO_SERIALIZABLE &&
+		    (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
+		    thd->lex->sql_command != SQLCOM_SELECT &&
+		    thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
+		    thd->lex->sql_command != SQLCOM_DELETE_MULTI ) {
+
+			/* In case we have innobase_locks_unsafe_for_binlog
+			option set and isolation level of the transaction
+			is not set to serializable and MySQL is doing
+			INSERT INTO...SELECT without FOR UPDATE or IN
+			SHARE MODE we use consistent read for select. 
+			Similarly, in case of DELETE...SELECT and
+			UPDATE...SELECT when these are not multi table.*/
+
+			prebuilt->select_lock_type = LOCK_NONE;
+			prebuilt->stored_select_lock_type = LOCK_NONE;
+		} else {
+			prebuilt->select_lock_type = LOCK_S;
+			prebuilt->stored_select_lock_type = LOCK_S;
+		}
 
 	} else if (lock_type != TL_IGNORE) {
 

@@ -39,16 +39,17 @@ enum enum_vio_type
 
 Vio*	vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost);
 #ifdef __WIN__
-Vio*	vio_new_win32pipe(HANDLE hPipe);
-Vio*	vio_new_win32shared_memory(NET *net,HANDLE handle_file_map,
-				   HANDLE handle_map,
-				   HANDLE event_server_wrote,
-				   HANDLE event_server_read,
-				   HANDLE event_client_wrote,
-				   HANDLE event_client_read);
-int	vio_read_pipe(Vio *vio, gptr buf, int size);
-int	vio_write_pipe(Vio *vio, const gptr buf, int size);
-int	vio_close_pipe(Vio * vio);
+Vio* vio_new_win32pipe(HANDLE hPipe);
+Vio* vio_new_win32shared_memory(NET *net,HANDLE handle_file_map,
+                                HANDLE handle_map,
+                                HANDLE event_server_wrote,
+                                HANDLE event_server_read,
+                                HANDLE event_client_wrote,
+                                HANDLE event_client_read,
+                                HANDLE event_conn_closed);
+int vio_read_pipe(Vio *vio, gptr buf, int size);
+int vio_write_pipe(Vio *vio, const gptr buf, int size);
+int vio_close_pipe(Vio * vio);
 #else
 #define HANDLE void *
 #endif /* __WIN__ */
@@ -197,6 +198,7 @@ struct st_vio
   HANDLE  event_server_read;
   HANDLE  event_client_wrote;
   HANDLE  event_client_read;
+  HANDLE  event_conn_closed;
   long    shared_memory_remain;
   char    *shared_memory_pos;
   NET     *net;

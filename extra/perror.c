@@ -69,7 +69,7 @@ static HA_ERRORS ha_errlist[]=
 {
   { 120,"Didn't find key on read or update" },
   { 121,"Duplicate key on write or update" },
-  { 123,"Someone has changed the row since it was read; Update with is recoverable" },
+  { 123,"Someone has changed the row since it was read (while the table was locked to prevent it)" },
   { 124,"Wrong index given to function" },
   { 126,"Index file is crashed" },
   { 127,"Record-file is crashed" },
@@ -113,11 +113,14 @@ static HA_ERRORS ha_errlist[]=
 };
 
 
+#include <help_start.h>
+
 static void print_version(void)
 {
   printf("%s Ver %s, for %s (%s)\n",my_progname,PERROR_VERSION,
 	 SYSTEM_TYPE,MACHINE_TYPE);
 }
+
 
 static void usage(void)
 {
@@ -129,6 +132,8 @@ static void usage(void)
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
+
+#include <help_end.h>
 
 
 static my_bool
@@ -184,6 +189,7 @@ int main(int argc,char *argv[])
 {
   int error,code,found;
   const char *msg;
+  char *unknown_error = 0;
   MY_INIT(argv[0]);
 
   if (get_options(&argc,&argv))
@@ -212,7 +218,14 @@ int main(int argc,char *argv[])
       string 'Unknown Error'.  To avoid printing it we try to find the
       error string by asking for an impossible big error message.
     */
-    const char *unknown_error= strerror(10000);
+    msg= strerror(10000);
+
+    /*
+      Allocate a buffer for unknown_error since strerror always returns
+      the same pointer on some platforms such as Windows
+    */
+    unknown_error= malloc(strlen(msg)+1);
+    strmov(unknown_error, msg);
 
     for ( ; argc-- > 0 ; argv++)
     {
@@ -232,16 +245,17 @@ int main(int argc,char *argv[])
 	msg = strerror(code);
 
       /*
-        Don't print message for not existing error messages or for
-        unknown errors.  We test for 'Uknown Errors' just as an
-        extra safety for Netware
+        We don't print the OS error message if it is the same as the
+        unknown_error message we retrieved above, or it starts with
+        'Unknown Error' (without regard to case).
       */
-      if (msg && strcmp(msg, "Unknown Error") &&
+      if (msg &&
+          my_strnncoll(&my_charset_latin1, msg, 13, "Unknown Error", 13) &&
           (!unknown_error || strcmp(msg, unknown_error)))
       {
 	found=1;
 	if (verbose)
-	  printf("Error code %3d:  %s\n",code,msg);
+	  printf("OS error code %3d:  %s\n",code,msg);
 	else
 	  puts(msg);
       }
@@ -256,12 +270,17 @@ int main(int argc,char *argv[])
       else
       {
 	if (verbose)
-	  printf("MySQL error:  %3d = %s\n",code,msg);
+	  printf("MySQL error code %3d: %s\n",code,msg);
 	else
 	  puts(msg);
       }
     }
   }
+
+  /* if we allocated a buffer for unknown_error, free it now */
+  if (unknown_error)
+    free(unknown_error);
+
   exit(error);
   return error;
 }

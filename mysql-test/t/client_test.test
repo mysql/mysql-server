@@ -1,2 +1,0 @@
---disable_result_log
---exec $TESTS_BINDIR/client_test --testcase --user=root --socket=$MASTER_MYSOCK --port=$MYSQL_TCP_PORT

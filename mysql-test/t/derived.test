@@ -214,3 +214,25 @@ CREATE TABLE `t1` ( `itemid` int(11) NOT NULL default '0', `grpid` varchar(15) N
 insert into t1 values (128, 'rozn', 2, now(), 10),(128, 'rozn', 1, now(), 10);
 SELECT MIN(price) min, MAX(price) max, AVG(price) avg FROM (SELECT SUBSTRING( MAX(concat(date_,";",price)), 12) price FROM t1 WHERE itemid=128 AND  grpid='rozn' GROUP BY itemid, grpid, vendor) lastprices;
 DROP TABLE t1;
+
+#
+# DISTINCT over grouped select on subquery in the FROM clause
+#
+create table t1 (a integer, b integer);
+insert into t1 values (1,4), (2,2),(2,2), (4,1),(4,1),(4,1),(4,1);
+select distinct sum(b) from t1 group by a;
+select distinct sum(b) from (select a,b from t1) y group by a;
+drop table t1;
+
+#
+# test of union subquery in the FROM clause with complex distinct/all (BUG#6565)
+#
+create table t1(a int);
+create table t2(a int);
+create table t3(a int);
+insert into t1 values(1),(1);
+insert into t2 values(2),(2);
+insert into t3 values(3),(3);
+select * from t1 union distinct select * from t2 union all select * from t3;
+select * from (select * from t1 union distinct select * from t2 union all select * from t3) X;
+drop table t1, t2, t3;
