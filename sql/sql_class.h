@@ -482,27 +482,6 @@ public:
 };
 
 
-class MYSQL_ERROR: public Sql_alloc
-{
-public:
-  enum enum_warning_level
-  { WARN_LEVEL_NOTE, WARN_LEVEL_WARN, WARN_LEVEL_ERROR, WARN_LEVEL_END};
-
-  uint code;
-  enum_warning_level level;
-  char *msg;
-  
-  MYSQL_ERROR(THD *thd, uint code_arg, enum_warning_level level_arg,
-	      const char *msg_arg)
-    :code(code_arg), level(level_arg)
-  {
-    if (msg_arg)
-      set_msg(thd, msg_arg);
-  }
-  void set_msg(THD *thd, const char *msg_arg);
-};
-
-
 class delayed_insert;
 class select_result;
 
