@@ -216,7 +216,7 @@ int runDropTable(NDBT_Context* ctx, NDBT_Step* step){
 #include "bank/Bank.hpp"
 
 int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
-  Bank bank;
+  Bank bank(ctx->m_cluster_connection);
   int overWriteExisting = true;
   if (bank.createAndLoadBank(overWriteExisting, 10) != NDBT_OK)
     return NDBT_FAILED;
@@ -224,7 +224,7 @@ int runCreateBank(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runBankTimer(NDBT_Context* ctx, NDBT_Step* step){
-  Bank bank;
+  Bank bank(ctx->m_cluster_connection);
   int wait = 30; // Max seconds between each "day"
   int yield = 1; // Loops before bank returns 
 
@@ -235,7 +235,7 @@ int runBankTimer(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runBankTransactions(NDBT_Context* ctx, NDBT_Step* step){
-  Bank bank;
+  Bank bank(ctx->m_cluster_connection);
   int wait = 10; // Max ms between each transaction
   int yield = 100; // Loops before bank returns 
 
@@ -246,7 +246,7 @@ int runBankTransactions(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runBankGL(NDBT_Context* ctx, NDBT_Step* step){
-  Bank bank;
+  Bank bank(ctx->m_cluster_connection);
   int yield = 20; // Loops before bank returns 
   int result = NDBT_OK;
 
@@ -260,7 +260,7 @@ int runBankGL(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runBankSum(NDBT_Context* ctx, NDBT_Step* step){
-  Bank bank;
+  Bank bank(ctx->m_cluster_connection);
   int wait = 2000; // Max ms between each sum of accounts
   int yield = 1; // Loops before bank returns 
   int result = NDBT_OK;
@@ -275,7 +275,7 @@ int runBankSum(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runDropBank(NDBT_Context* ctx, NDBT_Step* step){
-  Bank bank;
+  Bank bank(ctx->m_cluster_connection);
   if (bank.dropBank() != NDBT_OK)
     return NDBT_FAILED;
   return NDBT_OK;
@@ -349,7 +349,7 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
     // To erase all tables from cache(s)
     // To be removed, maybe replaced by ndb.invalidate();
     {
-      Bank bank;
+      Bank bank(ctx->m_cluster_connection);
       
       if (bank.dropBank() != NDBT_OK){
 	result = NDBT_FAILED;
@@ -372,7 +372,7 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
     ndbout << "Backup " << backupId << " restored" << endl;
 
     // Let bank verify
-    Bank bank;
+    Bank bank(ctx->m_cluster_connection);
 
     int wait = 0;
     int yield = 1;
