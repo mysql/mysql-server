@@ -441,7 +441,7 @@ public:
     Uint32 startGCP;
     Uint32 currGCP;
     Uint32 stopGCP;
-    SLList<Table> tables;
+    DLList<Table> tables;
     SLList<TriggerRecord> triggers;
     
     SLList<BackupFile> files; 

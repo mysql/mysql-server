@@ -16,6 +16,7 @@
 
 #include "consumer_restore.hpp"
 #include <NdbSleep.h>
+#include <NdbDictionaryImpl.hpp>
 
 extern FilteredNdbOut err;
 extern FilteredNdbOut info;
@@ -141,7 +142,13 @@ BackupRestore::table(const TableS & table){
    */
   if(match_blob(name) >= 0)
     return true;
-
+  
+  const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* table.m_dictTable);
+  if(tmptab.m_indexType != NdbDictionary::Index::Undefined){
+    m_indexes.push_back(table.m_dictTable);
+    return true;
+  }
+  
   BaseString tmp(name);
   Vector<BaseString> split;
   if(tmp.split(split, "/") != 3){
@@ -175,6 +182,65 @@ BackupRestore::table(const TableS & table){
   const NdbDictionary::Table* null = 0;
   m_new_tables.fill(table.m_dictTable->getTableId(), null);
   m_new_tables[table.m_dictTable->getTableId()] = tab;
+  return true;
+}
+
+bool
+BackupRestore::endOfTables(){
+  if(!m_restore_meta)
+    return true;
+
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+  for(size_t i = 0; i<m_indexes.size(); i++){
+    const NdbTableImpl & indtab = NdbTableImpl::getImpl(* m_indexes[i]);
+
+    BaseString tmp(indtab.m_primaryTable.c_str());
+    Vector<BaseString> split;
+    if(tmp.split(split, "/") != 3){
+      err << "Invalid table name format " << indtab.m_primaryTable.c_str()
+	  << endl;
+      return false;
+    }
+    
+    m_ndb->setDatabaseName(split[0].c_str());
+    m_ndb->setSchemaName(split[1].c_str());
+    
+    const NdbDictionary::Table * prim = dict->getTable(split[2].c_str());
+    if(prim == 0){
+      err << "Unable to find base table \"" << split[2].c_str() 
+	  << "\" for index "
+	  << indtab.getName() << endl;
+      return false;
+    }
+    NdbTableImpl& base = NdbTableImpl::getImpl(*prim);
+    NdbIndexImpl* idx;
+    int id;
+    char idxName[255], buf[255];
+    if(sscanf(indtab.getName(), "%[^/]/%[^/]/%d/%s",
+	      buf, buf, &id, idxName) != 4){
+      err << "Invalid index name format " << indtab.getName() << endl;
+      return false;
+    }
+    if(NdbDictInterface::create_index_obj_from_table(&idx, &indtab, &base))
+    {
+      err << "Failed to create index " << idxName
+	  << " on " << split[2].c_str() << endl;
+	return false;
+    }
+    idx->setName(idxName);
+    if(dict->createIndex(* idx) != 0)
+    {
+      delete idx;
+      err << "Failed to create index " << idxName
+	  << " on " << split[2].c_str() << endl
+	  << dict->getNdbError() << endl;
+
+      return false;
+    }
+    delete idx;
+    info << "Successfully created index " << idxName
+	 << " on " << split[2].c_str() << endl;
+  }
   return true;
 }
 

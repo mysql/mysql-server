@@ -304,6 +304,10 @@ public:
 			    const Uint32 * data, Uint32 len,
 			    bool fullyQualifiedNames);
   
+  static int create_index_obj_from_table(NdbIndexImpl ** dst, 
+					 const NdbTableImpl*,
+					 const NdbTableImpl*);
+  
   NdbError & m_error;
 private:
   Uint32 m_reference;
