@@ -66,3 +66,49 @@ a	b
 3	row 3
 0	
 drop table t1;
+create table t1 (a int default 100, b int, c varchar(60));
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (a, @b) set b=@b+10, c=concat("b=",@b);
+select * from t1;
+a	b	c
+NULL	20	b=10
+NULL	25	b=15
+truncate table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (a, @b) set c= if(a is null,"oops",a);
+select * from t1;
+a	b	c
+NULL	NULL	oops
+NULL	NULL	oops
+truncate table t1;
+set @c:=123;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, b) set c= if(@a is null,@c,b);
+select * from t1;
+a	b	c
+100	10	123
+100	15	123
+load data infile '../../std_data/rpl_loaddata.dat' into table t1 (@a, @b);
+select * from t1;
+a	b	c
+100	10	123
+100	15	123
+100	NULL	NULL
+100	NULL	NULL
+select @a, @b;
+@a	@b
+NULL	15
+truncate table t1;
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c="Wow";
+select * from t1;
+a	b	c
+1	2	Wow
+3	4	Wow
+5	6	Wow
+truncate table t1;
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, b) set c=concat(a,"+",b,"+",@c,"+",b,"+",if(c is null,"NIL",c));
+select * from t1;
+a	b	c
+1	2	1+2+123+2+NIL
+3	4	3+4+123+4+NIL
+5	6	5+6+123+6+NIL
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (a, @b);
+ERROR HY000: Can't load value from file with fixed size rows to variable
+drop table t1;

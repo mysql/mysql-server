@@ -686,7 +686,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	text_string opt_gconcat_separator
 
 %type <num>
-	type int_type real_type order_dir opt_field_spec lock_option
+	type int_type real_type order_dir lock_option
 	udf_type if_exists opt_local opt_table_options table_options
         table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type
         opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
@@ -714,6 +714,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	signed_literal now_or_signed_literal opt_escape
 	sp_opt_default
 	simple_ident_nospvar simple_ident_q
+        field_or_var
 
 %type <item_num>
 	NUM_literal
@@ -809,6 +810,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         prepare prepare_src execute deallocate 
 	statement sp_suid opt_view_list view_list or_replace algorithm
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
+        load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -5703,11 +5705,6 @@ insert_field_spec:
 	   }
 	   ident_eq_list;
 
-opt_field_spec:
-	/* empty */	  { }
-	| '(' fields ')'  { }
-	| '(' ')'	  { };
-
 fields:
 	fields ',' insert_ident { Lex->field_list.push_back($3); }
 	| insert_ident		{ Lex->field_list.push_back($1); };
@@ -6409,34 +6406,49 @@ use:	USE_SYM ident
 
 /* import, export of files */
 
-load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING_sys
+load:   LOAD DATA_SYM 
+        {
+          LEX *lex=Lex;
+          lex->fname_start= lex->ptr;
+        }
+        load_data
+        {}
+        |
+        LOAD TABLE_SYM table_ident FROM MASTER_SYM
+        {
+          Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
+          if (!Select->add_table_to_list(YYTHD, $3, NULL, TL_OPTION_UPDATING))
+            YYABORT;
+        };
+
+load_data:
+	load_data_lock opt_local INFILE TEXT_STRING_sys
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_LOAD;
-	  lex->lock_option= $3;
-	  lex->local_file=  $4;
+	  lex->lock_option= $1;
+	  lex->local_file=  $2;
 	  lex->duplicates= DUP_ERROR;
 	  lex->ignore= 0;
-	  if (!(lex->exchange= new sql_exchange($6.str,0)))
+	  if (!(lex->exchange= new sql_exchange($4.str, 0)))
 	    YYABORT;
-	  lex->field_list.empty();
-	}
-	opt_duplicate INTO TABLE_SYM table_ident opt_field_term opt_line_term
-	opt_ignore_lines opt_field_spec
-	{
-	  if (!Select->add_table_to_list(YYTHD, $11, NULL, TL_OPTION_UPDATING))
-	    YYABORT;
-	}
-        |
-	LOAD TABLE_SYM table_ident FROM MASTER_SYM
-        {
-	  Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
-	  if (!Select->add_table_to_list(YYTHD, $3, NULL, TL_OPTION_UPDATING))
-	    YYABORT;
-
         }
+        opt_duplicate INTO
+        {
+	  LEX *lex=Lex;
+	  lex->fname_end= lex->ptr;
+	  lex->field_list.empty();
+	  lex->update_list.empty();
+	  lex->value_list.empty();
+	}
+	TABLE_SYM table_ident opt_field_term opt_line_term
+	opt_ignore_lines opt_field_or_var_spec opt_load_data_set_spec
+	{
+	  if (!Select->add_table_to_list(YYTHD, $10, NULL, TL_OPTION_UPDATING))
+	    YYABORT;
+	}
         |
-	LOAD DATA_SYM FROM MASTER_SYM
+	FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
         };
@@ -6515,6 +6527,29 @@ opt_ignore_lines:
             DBUG_ASSERT(Lex->exchange != 0);
             Lex->exchange->skip_lines= atol($2.str);
           };
+
+opt_field_or_var_spec:
+	/* empty */	          { }
+	| '(' fields_or_vars ')'  { }
+	| '(' ')'	          { };
+
+fields_or_vars:
+        fields_or_vars ',' field_or_var
+          { Lex->field_list.push_back($3); }
+        | field_or_var
+          { Lex->field_list.push_back($1); }
+        ;
+        
+field_or_var:
+        simple_ident_nospvar {$$= $1;}
+        | '@' ident_or_text
+          { $$= new Item_user_var_as_out_param($2); }
+        ;
+
+opt_load_data_set_spec:
+        /* empty */           { }
+        | SET insert_update_list  { };
+
 
 /* Common definitions */
 

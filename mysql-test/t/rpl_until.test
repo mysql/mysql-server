@@ -24,7 +24,7 @@ show binlog events;
 
 # try to replicate all queries until drop of t1
 connection slave;
-start slave until master_log_file='master-bin.000001', master_log_pos=304;
+start slave until master_log_file='master-bin.000001', master_log_pos=321;
 sleep 2;
 # here table should be still not deleted
 select * from t1;
@@ -42,7 +42,7 @@ sleep 2;
 show slave status;
 
 # try replicate all until second insert to t2;
-start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=710;
+start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=751;
 sleep 4;
 select * from t2;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
@@ -58,7 +58,7 @@ sync_with_master;
 stop slave;
 
 # this should stop immediately as we are already there
-start slave until master_log_file='master-bin.000001', master_log_pos=710;
+start slave until master_log_file='master-bin.000001', master_log_pos=783;
 # 2 is not enough when running with valgrind
 real_sleep 4
 # here the sql slave thread should be stopped
@@ -77,6 +77,6 @@ start slave until master_log_file='master-bin.000001';
 start slave until relay_log_file='slave-relay-bin.000002';
 --error 1277
 start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=561;
-
+# Warning should be given for second command
 start slave sql_thread;
-start slave until master_log_file='master-bin.000001', master_log_pos=710;
+start slave until master_log_file='master-bin.000001', master_log_pos=783;
