@@ -8,6 +8,7 @@ set -e
 
 path=`dirname $0`
 
+$path/compile-netware-src
 $path/compile-netware-standard
 $path/compile-netware-debug
 #$path/compile-netware-max

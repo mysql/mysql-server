@@ -85,8 +85,25 @@ do
   fi
 done
 
-for i in COPYING COPYING.LIB README Docs/INSTALL-BINARY \
-         MySQLEULA.txt LICENSE.doc README.NW 
+# Non platform-specific doc files:
+DOC_FILES=" \
+  COPYING COPYING.LIB README LICENSE.doc \
+  Docs/mysqlbug.txt \ 
+";
+
+# Platform-specific doc files:
+if [ $BASE_SYSTEM = "netware" ] ; then
+  DOC_FILES="$DOC_FILES \
+  README.NW \
+    ";
+# For all other platforms:
+else
+  DOC_FILES="$DOC_FILES \
+    Docs/INSTALL-BINARY MySQLEULA.txt \
+  ";
+fi
+
+for i in $DOC_FILES
 do
   if [ -f $i ]
   then
@@ -94,7 +111,7 @@ do
   fi
 done
 
-# Non platform-specific bin dir files:
+# Non platform-specific bin files:
 BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   extra/resolveip$BS extra/my_print_defaults$BS \
   extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
@@ -104,18 +121,18 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
   client/mysqldump$BS client/mysqlimport$BS \
   client/mysqltest$BS client/mysqlcheck$BS \
-  client/mysqlbinlog$BS 
+  client/mysqlbinlog$BS \ 
 ";
 
-# Platform-specific bin dir files:
+# Platform-specific bin files:
 if [ $BASE_SYSTEM = "netware" ] ; then
   BIN_FILES="$BIN_FILES \
     netware/mysqld_safe$BS netware/mysql_install_db$BS \
     netware/init_db.sql netware/test_db.sql netware/mysql_explain_log$BS \
-    netware/mysqlhotcopy$BS netware/libmysql$BS netware/init_secure_db.sql
+    netware/mysqlhotcopy$BS netware/libmysql$BS netware/init_secure_db.sql \
     ";
+# For all other platforms:
 else
-  # For all other platforms:
   BIN_FILES="$BIN_FILES \
     client/mysqlmanagerc \
     client/mysqlmanager-pwgen tools/mysqlmanager \
@@ -235,7 +252,9 @@ rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_
 
 # Make safe_mysqld a symlink to mysqld_safe for backwards portability
 # To be removed in MySQL 4.1
-(cd $BASE/bin ; ln -s mysqld_safe safe_mysqld )
+if [ $BASE_SYSTEM != "netware" ] ; then
+  (cd $BASE/bin ; ln -s mysqld_safe safe_mysqld )
+fi
 
 # Clean up if we did this from a bk tree
 if [ -d $BASE/sql-bench/SCCS ] ; then 
@@ -294,29 +313,48 @@ which_1 ()
   exit 1
 }
 
-#
-# Create the result tar file
-#
-
-tar=`which_1 gnutar gtar`
-if test "$?" = "1" -o "$tar" = ""
-then
-  tar=tar
-fi
-
-echo "Using $tar to create archive"
 cd $TMP
+  
+if [ $BASE_SYSTEM = "netware" ] ; then
+  
+  #
+  # Create a zip file for NetWare users
+  #
+  
+  if test -e "$SOURCE/$NEW_NAME.zip"; then rm $SOURCE/$NEW_NAME.zip; fi
+  zip -r $SOURCE/$NEW_NAME.zip $NEW_NAME
+  echo "$NEW_NAME.zip created"
+  
+else
 
-OPT=cvf
-if [ x$SILENT = x1 ] ; then
-  OPT=cf
+  #
+  # Create the result tar file
+  #
+  
+  tar=`which_1 gnutar gtar`
+  if test "$?" = "1" -o "$tar" = ""
+  then
+    tar=tar
+  fi
+  
+  echo "Using $tar to create archive"
+  
+  OPT=cvf
+  if [ x$SILENT = x1 ] ; then
+    OPT=cf
+  fi
+  
+  $tar $OPT $SOURCE/$NEW_NAME.tar $NEW_NAME
+  cd $SOURCE
+  
+  echo "Compressing archive"
+  gzip -9 $NEW_NAME.tar
+  
+  echo "$NEW_NAME.tar.gz created"
+
 fi
 
-$tar $OPT $SOURCE/$NEW_NAME.tar $NEW_NAME
-cd $SOURCE
-echo "Compressing archive"
-gzip -9 $NEW_NAME.tar
 echo "Removing temporary directory"
 rm -r -f $BASE
 
-echo "$NEW_NAME.tar.gz created"
+

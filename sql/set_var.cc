@@ -79,6 +79,7 @@ static void sys_set_default_charset(THD *thd, enum_var_type type);
 static bool set_option_bit(THD *thd, set_var *var);
 static bool set_option_autocommit(THD *thd, set_var *var);
 static bool set_log_update(THD *thd, set_var *var);
+static bool set_log_bin(THD *thd, set_var *var);
 static void fix_low_priority_updates(THD *thd, enum_var_type type);
 static void fix_tx_isolation(THD *thd, enum_var_type type);
 static void fix_net_read_timeout(THD *thd, enum_var_type type);
@@ -320,7 +321,7 @@ static sys_var_thd_bit	sys_log_update("sql_log_update",
 				       set_log_update,
 				       OPTION_UPDATE_LOG);
 static sys_var_thd_bit	sys_log_binlog("sql_log_bin",
-					set_log_update,
+					set_log_bin,
 					OPTION_BIN_LOG);
 static sys_var_thd_bit	sys_sql_warnings("sql_warnings",
 					 set_option_bit,
@@ -1355,7 +1356,7 @@ byte *sys_var_thd_enum::value_ptr(THD *thd, enum_var_type type,
 bool sys_var_thd_bit::update(THD *thd, set_var *var)
 {
   int res= (*update_func)(thd, var);
-  thd->lex.select_lex.options=thd->options;
+  thd->lex->select_lex.options=thd->options;
   return res;
 }
 
@@ -1948,12 +1949,37 @@ static bool set_option_autocommit(THD *thd, set_var *var)
 
 static bool set_log_update(THD *thd, set_var *var)
 {
+  /*
+    The update log is not supported anymore since 5.0.
+    See sql/mysqld.cc/, comments in function init_server_components() for an
+    explaination of the different warnings we send below
+  */
+    
+  if (opt_sql_bin_update)
+  {
+    ((sys_var_thd_bit*) var->var)->bit_flag|= (OPTION_BIN_LOG |
+					       OPTION_UPDATE_LOG);
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                 ER_UPDATE_LOG_DEPRECATED_TRANSLATED,
+                 ER(ER_UPDATE_LOG_DEPRECATED_TRANSLATED));
+  }
+  else
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                 ER_UPDATE_LOG_DEPRECATED_IGNORED,
+                 ER(ER_UPDATE_LOG_DEPRECATED_IGNORED));
+  set_option_bit(thd, var);
+  return 0;
+}
+
+static bool set_log_bin(THD *thd, set_var *var)
+{
   if (opt_sql_bin_update)
     ((sys_var_thd_bit*) var->var)->bit_flag|= (OPTION_BIN_LOG |
 					       OPTION_UPDATE_LOG);
   set_option_bit(thd, var);
   return 0;
 }
+
 
 static byte *get_warning_count(THD *thd)
 {

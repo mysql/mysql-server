@@ -1400,7 +1400,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->command=(int) tmp->command;
         if ((mysys_var= tmp->mysys_var))
           pthread_mutex_lock(&mysys_var->mutex);
-        thd_info->proc_info= (char*) (tmp->killed ? "Killed" : 0);
+        thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
 #ifndef EMBEDDED_LIBRARY
         thd_info->state_info= (char*) (tmp->locked ? "Locked" :
                                        tmp->net.reading_or_writing ?

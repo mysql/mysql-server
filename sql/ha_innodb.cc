@@ -2253,8 +2253,8 @@ ha_innobase::write_row(
 	        skip_auto_inc_decr = FALSE;
 
 	        if (error == DB_DUPLICATE_KEY
-		    && (user_thd->lex.sql_command == SQLCOM_REPLACE
-			|| user_thd->lex.sql_command
+		    && (user_thd->lex->sql_command == SQLCOM_REPLACE
+			|| user_thd->lex->sql_command
 			                 == SQLCOM_REPLACE_SELECT)) {
 
 		        skip_auto_inc_decr= TRUE;

@@ -8,6 +8,7 @@ help_keyword
 help_relation
 help_topic
 host
+proc
 tables_priv
 user
 show tables;
@@ -24,6 +25,7 @@ help_keyword
 help_relation
 help_topic
 host
+proc
 tables_priv
 user
 show tables;
@@ -41,6 +43,7 @@ help_keyword
 help_relation
 help_topic
 host
+proc
 tables_priv
 user
 show tables;

@@ -1,8 +1,30 @@
 drop table if exists t1,t2;
-set @`test`=1,@TEST=3,@select=2,@t5=1.23456;
-select @test,@`select`,@TEST,@not_used;
-@test	@`select`	@TEST	@not_used
-1	2	3	NULL
+set @`test`=1;
+select @test, @`test`, @TEST, @`TEST`, @"teSt";
+@test	@`test`	@TEST	@`TEST`	@"teSt"
+1	1	1	1	1
+set @TEST=2;
+select @test, @`test`, @TEST, @`TEST`, @"teSt";
+@test	@`test`	@TEST	@`TEST`	@"teSt"
+2	2	2	2	2
+set @"tEST"=3;
+select @test, @`test`, @TEST, @`TEST`, @"teSt";
+@test	@`test`	@TEST	@`TEST`	@"teSt"
+3	3	3	3	3
+set @`TeST`=4;
+select @test, @`test`, @TEST, @`TEST`, @"teSt";
+@test	@`test`	@TEST	@`TEST`	@"teSt"
+4	4	4	4	4
+select @`teST`:=5;
+@`teST`:=5
+5
+select @test, @`test`, @TEST, @`TEST`, @"teSt";
+@test	@`test`	@TEST	@`TEST`	@"teSt"
+5	5	5	5	5
+set @select=2,@t5=1.23456;
+select @`select`,@not_used;
+@`select`	@not_used
+2	NULL
 set @test_int=10,@test_double=1e-10,@test_string="abcdeghi",@test_string2="abcdefghij",@select=NULL;
 select @test_int,@test_double,@test_string,@test_string2,@select;
 @test_int	@test_double	@test_string	@test_string2	@select
@@ -322,6 +344,8 @@ set sql_buffer_result=1;
 set sql_log_bin=1;
 set sql_log_off=1;
 set sql_log_update=1;
+Warnings:
+Note	1291	The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored.
 set sql_low_priority_updates=1;
 set sql_max_join_size=200;
 select @@sql_max_join_size,@@max_join_size;

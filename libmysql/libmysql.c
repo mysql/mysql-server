@@ -3157,6 +3157,7 @@ MYSQL_DATA * STDCALL cli_read_binary_rows(MYSQL_STMT *stmt)
   if (pkt_len > 1)
   {
     mysql->warning_count= uint2korr(cp+1);
+    mysql->server_status= uint2korr(cp+3);
     DBUG_PRINT("info",("warning_count:  %ld", mysql->warning_count));
   }
   DBUG_PRINT("exit",("Got %d rows",result->rows));

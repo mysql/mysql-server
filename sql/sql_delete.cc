@@ -38,18 +38,18 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   bool		transactional_table, log_delayed, safe_update, const_cond; 
   ha_rows	deleted;
   TABLE_LIST    *delete_table_list= (TABLE_LIST*) 
-    thd->lex.select_lex.table_list.first;
+    thd->lex->select_lex.table_list.first;
   DBUG_ENTER("mysql_delete");
 
   if ((open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(-1);
-  fix_tables_pointers(thd->lex.all_selects_list);
+  fix_tables_pointers(thd->lex->all_selects_list);
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   table->map=1;
   if (setup_conds(thd, delete_table_list, &conds) || 
-      setup_ftfuncs(&thd->lex.select_lex))
+      setup_ftfuncs(&thd->lex->select_lex))
     DBUG_RETURN(-1);
   if (find_real_table_in_list(table_list->next, 
 			      table_list->db, table_list->real_name))
@@ -92,7 +92,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   if ((select && select->check_quick(thd, safe_update, limit)) || !limit)
   {
     delete select;
-    free_underlaid_joins(thd, &thd->lex.select_lex);
+    free_underlaid_joins(thd, &thd->lex->select_lex);
     send_ok(thd,0L);
     DBUG_RETURN(0);				// Nothing to delete
   }
@@ -100,11 +100,11 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   /* If running in safe sql mode, don't allow updates without keys */
   if (!table->quick_keys)
   {
-    thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
+    thd->lex->select_lex.options|=QUERY_NO_INDEX_USED;
     if (safe_update && !using_limit)
     {
       delete select;
-      free_underlaid_joins(thd, &thd->lex.select_lex);
+      free_underlaid_joins(thd, &thd->lex->select_lex);
       send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
       DBUG_RETURN(1);
     }
@@ -126,8 +126,8 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
 
     table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                              MYF(MY_FAE | MY_ZEROFILL));
-      if (thd->lex.select_lex.setup_ref_array(thd, 0) ||
-	  setup_order(thd, thd->lex.select_lex.ref_pointer_array, &tables, 
+      if (thd->lex->select_lex.setup_ref_array(thd, 0) ||
+	  setup_order(thd, thd->lex->select_lex.ref_pointer_array, &tables, 
 		      fields, all_fields, order) ||
 	  !(sortorder=make_unireg_sortorder(order, &length)) ||
 	  (table->sort.found_records = filesort(thd, table, sortorder, length,
@@ -136,14 +136,14 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
 	  == HA_POS_ERROR)
     {
       delete select;
-      free_underlaid_joins(thd, &thd->lex.select_lex);
+      free_underlaid_joins(thd, &thd->lex->select_lex);
       DBUG_RETURN(-1);		// This will force out message
     }
   }
 
   init_read_record(&info,thd,table,select,1,1);
   deleted=0L;
-  init_ftfuncs(thd, &thd->lex.select_lex, 1);
+  init_ftfuncs(thd, &thd->lex->select_lex, 1);
   thd->proc_info="updating";
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 !thd->net.report_error)
@@ -198,7 +198,6 @@ cleanup:
   log_delayed= (transactional_table || table->tmp_table);
   if (deleted && (error <= 0 || !transactional_table))
   {
-    mysql_update_log.write(thd,thd->query, thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length, 
@@ -221,9 +220,9 @@ cleanup:
     thd->lock=0;
   }
   delete select;
-  free_underlaid_joins(thd, &thd->lex.select_lex);
+  free_underlaid_joins(thd, &thd->lex->select_lex);
   if (error >= 0 || thd->net.report_error)
-    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN: 0);
+    send_error(thd,thd->killed_errno());
   else
   {
     send_ok(thd,deleted);
@@ -311,7 +310,7 @@ multi_delete::initialize_tables(JOIN *join)
 				  table->file->ref_length,
 				  MEM_STRIP_BUF_SIZE);
   }
-  init_ftfuncs(thd, thd->lex.current_select, 1);
+  init_ftfuncs(thd, thd->lex->current_select, 1);
   DBUG_RETURN(thd->is_fatal_error != 0);
 }
 
@@ -503,7 +502,6 @@ bool multi_delete::send_eof()
   */
   if (deleted && (error <= 0 || normal_tables))
   {
-    mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
@@ -615,7 +613,6 @@ end:
   {
     if (!error)
     {
-      mysql_update_log.write(thd,thd->query,thd->query_length);
       if (mysql_bin_log.is_open())
       {
 	Query_log_event qinfo(thd, thd->query, thd->query_length,

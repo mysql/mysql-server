@@ -222,7 +222,13 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	  else
 	    unit->exclude_tree();
 	  org_table_list->db= (char *)"";
-#ifndef DBUG_OFF
+#if 0
+	  /* QQ This was #ifndef DBUG_OFF, but that caused crashes with
+	   *    certain subselect args to SPs. Since ->derived is tested
+	   *    for non-null value in some places in the code, this seems
+	   *    to be the wrong way to do it. Simply letting derived be 0
+	   *    appears to work fine. /pem
+	   */
 	  /* Try to catch errors if this is accessed */
 	  org_table_list->derived=(SELECT_LEX_UNIT *) 1;
 #endif
