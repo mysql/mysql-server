@@ -301,6 +301,12 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     {
       uint next_field;
       user.access= get_access(table,3,&next_field) & GLOBAL_ACLS;
+      /*
+        if it is pre 5.0.1 privilege table then map CREATE privilege on
+        CREATE VIEW & SHOW VIEW privileges
+      */
+      if (table->fields <= 31 && (user.access & CREATE_ACL))
+        user.access|= (CREATE_VIEW_ACL | SHOW_VIEW_ACL);
       user.sort= get_sort(2,user.host.hostname,user.user);
       user.hostname_length= (user.host.hostname ?
                              (uint) strlen(user.host.hostname) : 0);
