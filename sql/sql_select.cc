@@ -1269,7 +1269,6 @@ JOIN::exec()
 	{
 	  DBUG_VOID_RETURN;
 	}
-	curr_join->group_list= 0;
       }
       
       thd->proc_info="Copying to group table";
@@ -1289,8 +1288,10 @@ JOIN::exec()
 	}
       }
       if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
-					1) ||
-	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
+					1))
+        DBUG_VOID_RETURN;
+      curr_join->group_list= 0;
+      if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
       {
 	error= tmp_error;

@@ -126,7 +126,7 @@ SELECT
 DROP TABLE user_day;
 
 #
-# Test for bug #8616: distinct sum with rollup
+# Tests for bugs #8616, #8615: distinct sum with rollup
 #
 
 CREATE TABLE t1 (a int, b int);
@@ -149,6 +149,9 @@ SELECT DISTINCT SUM(b), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
 SELECT SUM(b), COUNT(DISTINCT b), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
 SELECT DISTINCT SUM(b), COUNT(DISTINCT b), COUNT(*) FROM t1
   GROUP BY a WITH ROLLUP;
+
+SELECT a, sum(b) FROM t1 GROUP BY a,b WITH ROLLUP;
+SELECT DISTINCT a, sum(b) FROM t1 GROUP BY a,b WITH ROLLUP;
 
 DROP TABLE t1;
 
