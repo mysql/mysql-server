@@ -424,13 +424,14 @@ static const ulong index_type_flags[]=
   0,                         
 
   /* PRIMARY_KEY_INDEX */
-  HA_ONLY_WHOLE_INDEX |       
-  HA_WRONG_ASCII_ORDER | 
+  /* 
+     Enable HA_KEY_READ_ONLY when "sorted" indexes are supported, 
+     thus ORDERD BY clauses can be optimized by reading directly 
+     through the index.
+  */
   HA_NOT_READ_PREFIX_LAST,
 
   /* UNIQUE_INDEX */
-  HA_ONLY_WHOLE_INDEX |       
-  HA_WRONG_ASCII_ORDER | 
   HA_NOT_READ_PREFIX_LAST,
 
   /* ORDERED_INDEX */
@@ -475,6 +476,7 @@ inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const
 inline ulong ha_ndbcluster::index_flags(uint idx_no) const 
 { 
   DBUG_ENTER("index_flags");
+  DBUG_PRINT("info", ("idx_no: %d", idx_no));
   DBUG_ASSERT(get_index_type_from_table(idx_no) < index_flags_size);
   DBUG_RETURN(index_type_flags[get_index_type_from_table(idx_no)]);
 }
@@ -771,23 +773,23 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 		 NdbOperation::BoundLE))
     DBUG_RETURN(1);
 
-  if (end_key &&  
-      (start_key && start_key->flag != HA_READ_KEY_EXACT) &&
-      // MASV Is it a bug that end_key is not 0 
-      // if start flag is HA_READ_KEY_EXACT
-      
-      set_bounds(op, end_key, 
-		 (end_key->flag == HA_READ_AFTER_KEY) ? 
-		 NdbOperation::BoundGE : 
-		 NdbOperation::BoundGT))
-    DBUG_RETURN(1);
-
+  if (end_key)
+  {
+    if (start_key && start_key->flag == HA_READ_KEY_EXACT)
+      DBUG_PRINT("info", ("start_key is HA_READ_KEY_EXACT ignoring end_key"));
+    else if (set_bounds(op, end_key, 
+			(end_key->flag == HA_READ_AFTER_KEY) ? 
+			NdbOperation::BoundGE : 
+			NdbOperation::BoundGT))
+      DBUG_RETURN(1);    
+  }
   // Define attributes to read
   for (i= 0; i < no_fields; i++) 
   {
     Field *field= table->field[i];
     if ((thd->query_id == field->query_id) ||
-	(field->flags & PRI_KEY_FLAG))
+	(field->flags & PRI_KEY_FLAG) || 
+	retrieve_all_fields)
     {      
       if (get_ndb_value(op, i, field->ptr))
 	ERR_RETURN(op->getNdbError());
@@ -1515,30 +1517,34 @@ int ha_ndbcluster::read_range_first(const key_range *start_key,
 				    const key_range *end_key,
 				    bool sorted)
 {
-  int error= 1;
+  KEY* key_info;
+  int error= 1; 
+  byte* buf = table->record[0];
   DBUG_ENTER("ha_ndbcluster::read_range_first");
+  DBUG_PRINT("info", ("sorted: %d", sorted));
 
-  switch (get_index_type(active_index)){    
+  switch (get_index_type(active_index)){
   case PRIMARY_KEY_INDEX:
-    error= pk_read(start_key->key, start_key->length, 
-		   table->record[0]);
+    key_info= table->key_info + active_index;
+    if (start_key && 
+	start_key->length == key_info->key_length &&
+	start_key->flag == HA_READ_KEY_EXACT)
+      DBUG_RETURN(pk_read(start_key->key, start_key->length, buf));
     break;
-
   case UNIQUE_INDEX:
-    error= unique_index_read(start_key->key, start_key->length, 
-			     table->record[0]);
+    key_info= table->key_info + active_index;
+    if (start_key && 
+	start_key->length == key_info->key_length &&
+	start_key->flag == HA_READ_KEY_EXACT)
+      DBUG_RETURN(unique_index_read(start_key->key, start_key->length, buf));
     break;
-
-  case ORDERED_INDEX:
-    // Start the ordered index scan and fetch the first row
-    error= ordered_index_scan(start_key, end_key, sorted,
-			      table->record[0]);
-    break;
-
   default:
-  case UNDEFINED_INDEX:
     break;
   }
+
+  // Start the ordered index scan and fetch the first row
+  error= ordered_index_scan(start_key, end_key, sorted,
+			    buf);
   DBUG_RETURN(error);
 }
 
@@ -1780,7 +1786,7 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
 					 where field->query_id is the same as
 					 the current query id */
     DBUG_PRINT("info", ("HA_EXTRA_RETRIEVE_ALL_COLS"));
-    retrieve_all_fields = TRUE;
+    retrieve_all_fields= TRUE;
     break;
   case HA_EXTRA_PREPARE_FOR_DELETE:
     DBUG_PRINT("info", ("HA_EXTRA_PREPARE_FOR_DELETE"));
@@ -1834,9 +1840,9 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
     degrade if too many bytes are inserted, thus it's limited by this 
     calculation.   
   */
+  const int bytesperbatch = 8192;
   bytes= 12 + tab->getRowSizeInBytes() + 4 * tab->getNoOfColumns();
-  batch= (1024*256); // 1024 rows, with size 256
-  batch= batch/bytes;   // 
+  batch= bytesperbatch/bytes;
   batch= batch == 0 ? 1 : batch;
   DBUG_PRINT("info", ("batch: %d, bytes: %d", batch, bytes));
   bulk_insert_rows= batch;
@@ -1882,7 +1888,7 @@ const char **ha_ndbcluster::bas_ext() const
 
 double ha_ndbcluster::scan_time()
 {
-  return rows2double(records/3);
+  return rows2double(records*1000);
 }
 
 
@@ -2028,7 +2034,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       (NdbConnection*)thd->transaction.stmt.ndb_tid;
     DBUG_ASSERT(m_active_trans);
 
-    retrieve_all_fields = FALSE;
+    retrieve_all_fields= FALSE;
     
   } 
   else 
@@ -2081,7 +2087,7 @@ int ha_ndbcluster::start_stmt(THD *thd)
   }
   m_active_trans= trans;
 
-  retrieve_all_fields = FALSE;
+  retrieve_all_fields= FALSE;
   
   DBUG_RETURN(error);
 }
