@@ -64,7 +64,9 @@
 #define NDB_TYPE_YEAR                   26
 #define NDB_TYPE_TIMESTAMP              27
 #define NDB_TYPE_OLDDECIMALUNSIGNED     28
+#define NDB_TYPE_DECIMAL                29
+#define NDB_TYPE_DECIMALUNSIGNED        30
 
-#define NDB_TYPE_MAX                    29
+#define NDB_TYPE_MAX                    31
  
 #endif
