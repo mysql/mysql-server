@@ -462,5 +462,7 @@ create table t1 (a geometry not null);
 insert into t1 values (GeomFromText('Point(1 2)'));
 insert into t1 values ('Garbage');
 ERROR HY000: Unknown error
+insert IGNORE into t1 values ('Garbage');
+ERROR HY000: Unknown error
 alter table t1 add spatial index(a);
 drop table t1;
