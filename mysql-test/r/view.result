@@ -1744,6 +1744,9 @@ c1
 select * from v2;
 c1
 1
+select * from (select c1 from v2) X;
+c1
+1
 drop view v2, v1;
 drop table t1, t2;
 CREATE TABLE t1 (C1 INT, C2 INT);
