@@ -256,7 +256,7 @@ int main(int argc,char *argv[])
       else
       {
 	if (verbose)
-	  printf("MySql error:  %3d = %s\n",code,msg);
+	  printf("MySQL error:  %3d = %s\n",code,msg);
 	else
 	  puts(msg);
       }
