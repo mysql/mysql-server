@@ -118,7 +118,7 @@ from t1 where a=2;
 update t1 set d=null where a=1;
 commit;
 # FIXME now fails at random due to weird mixup between the 2 rows
-#select a from t1 where d is null;
+select a from t1 where d is null;
 
 # pk delete
 delete from t1 where a=1;
