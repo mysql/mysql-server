@@ -773,8 +773,10 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
 
   /* XXX should use constants for this value */
   if(level > 15) {
-    errorString.assign("Invalied loglevel");
-    goto error;
+    m_output->println("set cluster loglevel reply");
+    m_output->println("result: Invalid loglevel");
+    m_output->println("");
+    return;
   }
 
   EventSubscribeReq req;
@@ -785,11 +787,6 @@ MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
   
   m_output->println("set cluster loglevel reply");
   m_output->println("result: Ok");
-  m_output->println("");
-  return;
-error:
-  m_output->println("set cluster loglevel reply");
-  m_output->println("result: %s", errorString.c_str());
   m_output->println("");
 }
 
@@ -807,8 +804,10 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
 
   /* XXX should use constants for this value */
   if(level > 15) {
-    errorString.assign("Invalied loglevel");
-    goto error;
+    m_output->println("set loglevel reply");
+    m_output->println("result: Invalid loglevel", errorString.c_str());
+    m_output->println("");
+    return;
   }
 
   EventSubscribeReq req;
@@ -819,11 +818,6 @@ MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
   
   m_output->println("set loglevel reply");
   m_output->println("result: Ok");
-  m_output->println("");
-  return;
- error:
-  m_output->println("set loglevel reply");
-  m_output->println("result: %s", errorString.c_str());
   m_output->println("");
 }
 
