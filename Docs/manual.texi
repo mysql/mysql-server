@@ -146,1009 +146,6 @@ distribution for that version.
 * Function Index::              SQL command, type and function index
 * Concept Index::               Concept Index
 
-@detailmenu
- --- The Detailed Node Listing ---
-
-General Information About MySQL
-
-* MySQL and MySQL AB::          
-* MySQL Information Sources::   
-* Licensing and Support::       
-* Compatibility::               
-* Comparisons::                 
-* TODO::                        
-
-MySQL, MySQL AB, and Open Source
-
-* What-is::                     What is @strong{MySQL}?
-* What is MySQL AB::            What is @strong{MySQL AB}?
-* Manual-info::                 About this manual
-* Manual conventions::          Conventions used in this manual
-* History::                     History of @strong{MySQL}
-* Features::                    The main features of @strong{MySQL}
-* Stability::                   How stable is @strong{MySQL}?
-* Table size::                  
-* Year 2000 compliance::        Year 2000 compliance
-
-MySQL Information Sources
-
-* MySQL-Books::                 
-* General-SQL::                 
-* Useful Links::                
-* Questions::                   
-
-MySQL Mailing Lists
-
-* Mailing-list::                The @strong{MySQL} mailing lists
-* Asking questions::            Asking questions or reporting bugs
-* Bug reports::                 How to report bugs or problems
-* Answering questions::         Guidelines for answering questions on the mailing list
-
-MySQL Licensing and Support
-
-* Licensing policy::            @strong{MySQL} licensing policy
-* Copyright::                   Copyrights used by @strong{MySQL}
-* Licensing examples::          Example licensing situations
-* Cost::                        @strong{MySQL} licensing and support costs
-* Support::                     Types of commercial support
-
-Copyrights Used by MySQL
-
-* Copyright changes::           Possible future copyright changes
-
-Example Licensing Situations
-
-* Products that use MySQL::     Selling products that use @strong{MySQL}
-* ISP::                         ISP @strong{MySQL} services
-* Web server::                  Running a web server using @strong{MySQL}.
-
-MySQL Licensing and Support Costs
-
-* Payment information::         Payment information
-* Contact information::         Contact information
-
-Types of Commercial Support
-
-* Basic email support::         Basic email support
-* Extended email support::      Extended email support
-* Login support::               Login support
-* Extended login support::      Extended login support
-* Telephone support::           Telephone support
-* Table handler support::       Support for other table handlers
-
-How Standards-compatible Is MySQL?
-
-* Extensions to ANSI::          @strong{MySQL} extensions to ANSI SQL92
-* Differences from ANSI::       @strong{MySQL} differences compared to ANSI SQL92
-* ANSI mode::                   Running @strong{MySQL} in ANSI mode
-* Missing functions::           Functionality missing from @strong{MySQL}
-* Standards::                   What standards does @strong{MySQL} follow?
-* Commit-rollback::             How to cope without @code{COMMIT}-@code{ROLLBACK}
-* Bugs::                        
-
-Functionality Missing from MySQL
-
-* Missing Sub-selects::         Sub-selects
-* Missing SELECT INTO TABLE::   @code{SELECT INTO TABLE}
-* Missing Transactions::        Transactions
-* Missing Triggers::            Triggers
-* Missing Foreign Keys::        Foreign Keys
-* Broken Foreign KEY::          
-* Missing Views::               Views
-* Missing comments::            @samp{--} as the start of a comment
-
-Foreign Keys
-
-* Broken Foreign KEY::          Reasons NOT to use foreign keys constraints
-
-How MySQL Compares to Other Databases
-
-* Compare mSQL::                How @strong{MySQL} compares to @code{mSQL}
-* Protocol differences::        
-* Compare PostgreSQL::          How @strong{MySQL} compares with PostgreSQL
-* MySQL-PostgreSQL features::   
-
-How MySQL Compares to @code{mSQL}
-
-* Using mSQL tools::            How to convert @code{mSQL} tools for @strong{MySQL}
-
-How @code{mSQL} and MySQL Client/Server Communications Protocols Differ
-
-* Syntax differences::          
-
-How MySQL Compares to PostgreSQL
-
-* MySQL-PostgreSQL goals::      MySQL and PostgreSQL development strategies
-
-Featurevise Comparison of MySQL and PostgreSQL
-
-* MySQL-PostgreSQL benchmarks::  
-
-MySQL and the future (The TODO)
-
-* TODO MySQL 4.0::              Things that should be in Version 4.0
-* TODO future::                 Things that must be done in the near future
-* TODO sometime::               Things that have to be done sometime
-* TODO unplanned::              Some things we don't have any plans to do
-
-Installing MySQL
-
-* Getting MySQL::               How to get @strong{MySQL}
-* Which OS::                    Operating systems supported by @strong{MySQL}
-* Which version::               Which @strong{MySQL} version to use
-* Many versions::               How and when updates are released
-* Installation layouts::        Installation layouts
-* Installing binary::           Installing a @strong{MySQL} binary distribution
-* Installing source::           Installing a @strong{MySQL} source distribution
-* Installing source tree::      Installing @strong{MySQL} from development source tree
-* Compilation problems::        Problems compiling?
-* MIT-pthreads::                MIT-pthreads notes
-* Perl support::                Perl installation comments
-* Source install system issues::  System-specific issues
-* Windows::                     Windows notes
-* OS/2::                        OS/2 notes
-* MySQL binaries::              MySQL binaries
-* Post-installation::           Post-installation setup and testing
-* Installing many servers::     Installing many servers on the same machine
-* Upgrade::                     Upgrading/Downgrading MySQL
-
-Installing a MySQL Binary Distribution
-
-* Linux-RPM::                   Linux RPM files
-* Building clients::            Building client programs
-* Binary install system issues::  System-specific issues
-
-System-specific Issues
-
-* Binary notes-Linux::          Linux notes for binary distribution
-* Binary notes-HP-UX::          HP-UX notes for binary distribution
-
-Installing a MySQL Source Distribution
-
-* Quick install::               Quick installation overview
-* Applying patches::            Applying patches
-* configure options::           Typical @code{configure} options
-
-Perl Installation Comments
-
-* Perl installation::           Installing Perl on Unix
-* ActiveState Perl::            Installing ActiveState Perl on Windows
-* Windows Perl::                Installing the @strong{MySQL} Perl distribution on Windows
-* Perl support problems::       Problems using the Perl @code{DBI}/@code{DBD} interface
-
-System-specific Issues
-
-* Solaris::                     Solaris notes
-* Solaris 2.7::                 Solaris 2.7 / 2.8 notes
-* Solaris x86::                 Solaris x86 notes
-* SunOS::                       SunOS 4 notes
-* Linux::                       Linux notes (all Linux versions)
-* Alpha-DEC-UNIX::              Alpha-DEC-UNIX notes
-* Alpha-DEC-OSF1::              Alpha-DEC-OSF1 notes
-* SGI-Irix::                    SGI-Irix notes
-* FreeBSD::                     FreeBSD notes
-* NetBSD::                      NetBSD notes
-* OpenBSD::                     OpenBSD 2.5 notes
-* BSDI::                        BSD/OS notes
-* SCO::                         SCO notes
-* SCO Unixware::                SCO Unixware 7.0 notes
-* IBM-AIX::                     IBM-AIX notes
-* HP-UX 10.20::                 HP-UX 10.20 notes
-* HP-UX 11.x::                  HP-UX 11.x notes
-* Mac OS X::                    Mac OS X notes
-* BEOS::                        BeOS Notes
-
-Linux Notes (All Linux Versions)
-
-* Linux-x86::                   Linux-x86 notes
-* Linux-RedHat50::              RedHat 5.0 notes
-* Linux-RedHat51::              RedHat 5.1 notes
-* Linux-SPARC::                 Linux-SPARC notes
-* Linux-Alpha::                 Linux-Alpha notes
-* MKLinux::                     MkLinux notes
-* Qube2::                       Qube2 Linux notes
-* Linux-Ia64::                  Linux-Ia64 notes
-
-OpenBSD Notes
-
-* OpenBSD 2.5::                 OpenBSD 2.5 Notes
-* OpenBSD 2.8::                 OpenBSD 2.8 Notes
-
-BSD/OS Notes
-
-* BSDI2::                       BSD/OS 2.x notes
-* BSDI3::                       BSD/OS 3.x notes
-* BSDI4::                       BSD/OS 4.x notes
-
-Mac OS X Notes
-
-* Mac OS X Public Data::        
-* Mac OS X Server::             
-
-Windows Notes
-
-* Windows installation::        Installing @strong{MySQL} on Windows
-* Win95 start::                 Starting @strong{MySQL} on Win95 / Win98
-* NT start::                    Starting @strong{MySQL} on NT / Win2000
-* Windows running::             Running @strong{MySQL} on Windows
-* Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
-* Windows symbolic links::      Splitting data across different disks under Win32
-* Windows compiling::           Compiling MySQL clients on Windows.
-* Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
-
-Post-installation Setup and Testing
-
-* mysql_install_db::            Problems running @code{mysql_install_db}
-* Starting server::             Problems starting the @strong{MySQL} server
-* Automatic start::             Starting and stopping @strong{MySQL} automatically
-* Command-line options::        Command-line options
-* Option files::                Option files
-
-Upgrading/Downgrading MySQL
-
-* Upgrading-from-3.22::         Upgrading from a 3.22 version to 3.23
-* Upgrading-from-3.21::         Upgrading from a 3.21 version to 3.22
-* Upgrading-from-3.20::         Upgrading from a 3.20 version to 3.21
-* Upgrading-to-arch::           Upgrading to another architecture
-
-The MySQL Access Privilege System
-
-* General security::            General security
-* Security::                    How to make @strong{MySQL} secure against crackers
-* Privileges options::          
-* What Privileges::             What the privilege system does
-* User names::                  @strong{MySQL} user names and passwords
-* Connecting::                  Connecting to the @strong{MySQL} server
-* Password security::           Keeping your password secure
-* Privileges provided::         Privileges provided by @strong{MySQL}
-* Privileges::                  How the privilege system works
-* Connection access::           Access control, stage 1: Connection verification
-* Request access::              Access control, stage 2: Request verification
-* Privilege changes::           When privilege changes take effect
-* Default privileges::          Setting up the initial @strong{MySQL} privileges
-* Adding users::                Adding new users to @strong{MySQL}
-* Passwords::                   How to set up passwords
-* Access denied::               Causes of @code{Access denied} errors
-
-MySQL Language Reference
-
-* Literals::                    Literals: How to write strings and numbers
-* Variables::                   User variables
-* Column types::                Column types
-* Functions::                   Functions
-* CREATE DATABASE::             @code{CREATE DATABASE} syntax
-* DROP DATABASE::               @code{DROP DATABASE} syntax
-* CREATE TABLE::                @code{CREATE TABLE} syntax
-* ALTER TABLE::                 @code{ALTER TABLE} syntax
-* RENAME TABLE::                @code{RENAME TABLE} syntax
-* DROP TABLE::                  @code{DROP TABLE} syntax
-* OPTIMIZE TABLE::              @code{OPTIMIZE TABLE} syntax
-* CHECK TABLE::                 @code{CHECK TABLE} syntax
-* BACKUP TABLE::                @code{BACKUP TABLE} syntax
-* RESTORE TABLE::               @code{RESTORE TABLE} syntax
-* ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
-* REPAIR TABLE::                @code{REPAIR TABLE} syntax
-* DELETE::                      @code{DELETE} syntax
-* TRUNCATE::                    @code{TRUNCATE} syntax
-* SELECT::                      @code{SELECT} syntax
-* JOIN::                        @code{JOIN} syntax
-* INSERT::                      @code{INSERT} syntax
-* REPLACE::                     @code{REPLACE} syntax
-* LOAD DATA::                   @code{LOAD DATA INFILE} syntax
-* UPDATE::                      @code{UPDATE} syntax
-* USE::                         @code{USE} syntax
-* FLUSH::                       @code{FLUSH} syntax (clearing caches)
-* KILL::                        @code{KILL} syntax
-* SHOW::                        @code{SHOW} syntax (Get information about tables, columns, ...)
-* EXPLAIN::                     @code{EXPLAIN} syntax (Get information about a @code{SELECT})
-* DESCRIBE::                    @code{DESCRIBE} syntax (Get information about names of columns)
-* COMMIT::                      @code{BEGIN/COMMIT/ROLLBACK} syntax
-* LOCK TABLES::                 @code{LOCK TABLES/UNLOCK TABLES} syntax
-* SET OPTION::                  @code{SET OPTION} syntax
-* SET TRANSACTION::             @code{SET TRANSACTION} syntax
-* GRANT::                       @code{GRANT} and @code{REVOKE} syntax
-* CREATE INDEX::                @code{CREATE INDEX} syntax
-* DROP INDEX::                  @code{DROP INDEX} syntax
-* Comments::                    Comment syntax
-* CREATE FUNCTION::             @code{CREATE FUNCTION} syntax
-* Reserved words::              Is @strong{MySQL} picky about reserved words?
-
-Literals: How to Write Strings and Numbers
-
-* String syntax::               Strings
-* Number syntax::               Numbers
-* Hexadecimal values::          Hexadecimal values
-* NULL values::                 @code{NULL} values
-* Legal names::                 Database, Table, Index, Column, and Alias Names
-
-Database, Table, Index, Column, and Alias Names
-
-* Name case sensitivity::       Case sensitivity in names
-
-Column Types
-
-* Storage requirements::        Column type storage requirements
-* Numeric types::               Numeric types
-* Date and time types::         Date and time types
-* String types::                String types
-* Choosing types::              Choosing the right type for a column
-* Indexes::                     Column indexes
-* Multiple-column indexes::     Multiple-column indexes
-* Other-vendor column types::   Using column types from other database engines
-
-Date and Time Types
-
-* Y2K issues::                  Y2K issues and date types
-* DATETIME::                    The @code{DATETIME}, @code{DATE} and @code{TIMESTAMP} types
-* TIME::                        The @code{TIME} type
-* YEAR::                        The @code{YEAR} type
-
-String Types
-
-* CHAR::                        The @code{CHAR} and @code{VARCHAR} types
-* BLOB::                        The @code{BLOB} and @code{TEXT} types
-* ENUM::                        The @code{ENUM} type
-* SET::                         The @code{SET} type
-
-Functions for Use in @code{SELECT} and @code{WHERE} Clauses
-
-* Grouping functions::          Grouping functions
-* Arithmetic functions::        Normal arithmetic operations
-* Bit functions::               Bit functions
-* Logical functions::           Logical operations
-* Comparison functions::        Comparison operators
-* String comparison functions::  String comparison functions
-* Casts::                       Cast operators
-* Control flow functions::      Control flow functions
-* Mathematical functions::      Mathematical functions
-* String functions::            String functions
-* Date and time functions::     Date and time functions
-* Miscellaneous functions::     Miscellaneous functions
-* Group by functions::          Functions for @code{GROUP BY} clause
-
-@code{CREATE TABLE} Syntax
-
-* Silent column changes::       Silent column changes
-
-@code{INSERT} Syntax
-
-* INSERT SELECT::               
-* INSERT DELAYED::              
-
-@code{SHOW} Syntax
-
-* SHOW DATABASE INFO::          
-* SHOW TABLE STATUS::           
-* SHOW STATUS::                 
-* SHOW VARIABLES::              
-* SHOW LOGS::                   
-* SHOW PROCESSLIST::            
-* SHOW GRANTS::                 
-* SHOW CREATE TABLE::           
-
-MySQL Table Types
-
-* MyISAM::                      MyISAM tables
-* MERGE::                       MERGE tables
-* ISAM::                        ISAM tables
-* HEAP::                        HEAP tables
-* InnoDB::                      InnoDB tables
-* BDB::                         BDB or Berkeley_db tables
-
-MyISAM Tables
-
-* Key space::                   Space needed for keys
-* MyISAM table formats::        MyISAM table formats
-* MyISAM table problems::       
-
-MyISAM Table Formats
-
-* Static format::               Static (Fixed-length) table characteristics
-* Dynamic format::              Dynamic table characteristics
-* Compressed format::           Compressed table characteristics
-
-MyISAM table problems.
-
-* Corrupted MyISAM tables::     
-* MyISAM table close::          
-
-InnoDB Tables
-
-* InnoDB overview::             InnoDB tables overview
-* InnoDB start::                InnoDB startup options
-* InnoDB init::                 Creating InnoDB table space.
-* Using InnoDB tables::         Creating InnoDB tables
-* Adding and removing::         Adding and removing InnoDB data and log files
-* Backing up::                  Backing up and recovering an InnoDB database
-* Moving::                      Moving an InnoDB database to another machine
-* InnoDB transaction model::    InnoDB transaction model.
-* Implementation::              Implementation of multiversioning
-* Table and index::             Table and index structures
-* File space management::       File space management and disk i/o
-* Error handling::              Error handling
-* InnoDB restrictions::         Some restrictions on InnoDB tables
-* InnoDB contact information::  InnoDB contact information. 
-
-Creating InnoDB table space
-
-* Error creating InnoDB::       
-
-Backing up and recovering an InnoDB database
-
-* InnoDB checkpoints::          
-
-InnoDB transaction model
-
-* InnoDB consistent read::      
-* InnoDB locking reads::        
-* InnoDB Next-key locking::     
-* InnoDB Locks set::            
-* InnoDB Deadlock detection::   
-
-Table and index structures
-
-* InnoDB physical structure::   
-* InnoDB Insert buffering::     
-* InnoDB Adaptive hash::        
-* InnoDB Physical record::      
-
-File space management and disk i/o
-
-* InnoDB Disk i/o::             
-* InnoDB File space::           
-* InnoDB File Defragmenting::   
-
-BDB or Berkeley_DB Tables
-
-* BDB overview::                Overview of BDB Tables
-* BDB install::                 Installing BDB
-* BDB start::                   BDB startup options
-* BDB characteristic::          Some characteristic of @code{BDB} tables:
-* BDB TODO::                    Some things we need to fix for BDB in the near future:
-* BDB portability::             Operating systems supported by @strong{BDB}
-* BDB errors::                  Errors You May Get When Using BDB Tables
-
-MySQL Tutorial
-
-* Connecting-disconnecting::    Connecting to and disconnecting from the server
-* Entering queries::            Entering queries
-* Database use::                Creating and using a database
-* Getting information::         Getting information about databases and tables
-* Examples::                    Examples
-* Batch mode::                  Using @code{mysql} in batch mode
-* Twin::                        Queries from twin project
-
-Creating and Using a Database
-
-* Creating database::           Creating a database
-* Creating tables::             Creating a table
-* Loading tables::              Loading data into a table
-* Retrieving data::             Retrieving information from a table
-
-Retrieving Information from a Table
-
-* Selecting all::               Selecting all data
-* Selecting rows::              Selecting particular rows
-* Selecting columns::           Selecting particular columns
-* Sorting rows::                Sorting rows
-* Date calculations::           Date calculations
-* Working with NULL::           Working with @code{NULL} values
-* Pattern matching::            Pattern matching
-* Counting rows::               Counting rows
-* Multiple tables::             
-
-Examples of Common Queries
-
-* example-Maximum-column::      The maximum value for a column
-* example-Maximum-row::         The row holding the maximum of a certain column
-* example-Maximum-column-group::  Maximum of column per group
-* example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
-* example-user-variables::      Using user variables
-* example-Foreign keys::        Using foreign keys
-* Searching on two keys::       
-* Calculating days::            
-
-Queries from Twin Project
-
-* Twin pool::                   Find all non-distributed twins
-* Twin event::                  Show a table on twin pair status
-
-MySQL Server Functions
-
-* Languages::                   What languages are supported by @strong{MySQL}?
-
-What Languages Are Supported by MySQL?
-
-* Character sets::              The character set used for data and sorting
-* Adding character set::        Adding a new character set
-* Character arrays::            The character definition arrays
-* String collating::            String collating support
-* Multi-byte characters::       Multi-byte character support
-
-Replication in MySQL
-
-* Replication Intro::           Introduction
-* Replication Implementation::  Replication Implementation Overview
-* Replication HOWTO::           HOWTO
-* Replication Features::        Replication Features
-* Replication Options::         Replication Options in my.cnf
-* Replication SQL::             SQL Commands related to replication
-* Replication FAQ::             Frequently Asked Questions about replication
-* Replication Problems::        Troubleshooting Replication.
-
-MySQL Full-text Search
-
-* Fulltext Fine-tuning::        
-* Fulltext Features to Appear in MySQL 4.0::  
-* Fulltext TODO::               
-
-Getting Maximum Performance from MySQL
-
-* Optimize Basics::             Optimization overview
-* System::                      System/Compile time and startup parameter tuning
-* Data size::                   Get your data as small as possible
-* MySQL indexes::               How @strong{MySQL} uses indexes
-* Query Speed::                 Speed of queries that access or update data
-* Tips::                        Other optimization tips
-* Benchmarks::                  Using your own benchmarks
-* Design::                      Design choices
-* Design Limitations::          MySQL design limitations/tradeoffs
-* Portability::                 Portability
-* Internal use::                What have we used MySQL for?
-
-System/Compile Time and Startup Parameter Tuning
-
-* Compile and link options::    How compiling and linking affects the speed of MySQL
-* Disk issues::                 Disk issues
-* Symbolic links::              Using Symbolic Links
-* Server parameters::           Tuning server parameters
-* Table cache::                 How MySQL opens and closes tables
-* Creating many tables::        Drawbacks of creating large numbers of tables in the same database
-* Open tables::                 Why so many open tables?
-* Memory use::                  How MySQL uses memory
-* Internal locking::            How MySQL locks tables
-* Table locking::               Table locking issues
-* DNS::                         
-
-Using Symbolic Links
-
-* Symbolic links to database::  
-* Symbolic links to tables::    
-
-Speed of Queries that Access or Update Data
-
-* Estimating performance::      Estimating query performance
-* SELECT speed::                Speed of @code{SELECT} queries
-* Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* DISTINCT optimization::       How MySQL Optimizes @code{DISTINCT}
-* LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
-* LIMIT optimization::          How MySQL optimizes @code{LIMIT}
-* Insert speed::                Speed of @code{INSERT} queries
-* Update speed::                Speed of @code{UPDATE} queries
-* Delete speed::                Speed of @code{DELETE} queries
-
-MySQL Utilites
-
-* Programs::                    What do the executables do?
-* mysqld-max::                  mysqld-max, An extended mysqld server
-* safe_mysqld::                 safe_mysqld, the wrapper around mysqld
-* mysqld_multi::                Program for managing multiple @strong{MySQL} servers
-* mysql::                       The command line tool
-* mysqladmin::                  Administering a @strong{MySQL} server
-* mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
-* mysqlhotcopy::                Copying @strong{MySQL} Databases and Tables
-* mysqlimport::                 Importing data from text files
-* perror::                      Displaying error messages
-* mysqlshow::                   Showing databases, tables and columns
-* myisampack::                  The @strong{MySQL} compressed read-only table generator
-
-Maintaining a MySQL Installation
-
-* Table maintenance::           Table maintenance and crash recovery
-* Using mysqlcheck::            Using mysqlcheck for maintenance and recovery
-* Maintenance regimen::         Setting up a table maintenance regimen
-* Table-info::                  Getting information about a table
-* Crash recovery::              Using @code{myisamchk} for crash recovery
-* Log file maintenance::        Log file maintenance
-
-Using @code{myisamchk} for Table Maintenance and Crash Recovery
-
-* myisamchk syntax::            @code{myisamchk} invocation syntax
-* myisamchk memory::            @code{myisamchk} memory usage
-
-@code{myisamchk} Invocation Syntax
-
-* myisamchk general options::   
-* myisamchk check options::     
-* myisamchk repair options::    
-* myisamchk other options::     
-
-Using @code{myisamchk} for Crash Recovery
-
-* Check::                       How to check tables for errors
-* Repair::                      How to repair tables
-* Optimization::                Table optimization
-
-Adding New Functions to MySQL
-
-* Adding UDF::                  Adding a new user-definable function
-* Adding native function::      Adding a new native function
-
-Adding a New User-definable Function
-
-* UDF calling sequences::       UDF calling sequences
-* UDF arguments::               Argument processing
-* UDF return values::           Return values and error handling
-* UDF compiling::               Compiling and installing user-definable functions
-
-Adding New Procedures to MySQL
-
-* procedure analyse::           Procedure analyse
-* Writing a procedure::         Writing a procedure.
-
-MySQL ODBC Support
-
-* Installing MyODBC::           How to install MyODBC
-* ODBC administrator::          How to fill in the various fields in the ODBC administrator program
-* MyODBC connect parameters::   
-* ODBC Problems::               How to report problems with @strong{MySQL} ODBC
-* MyODBC clients::              Programs known to work with @strong{MyODBC}
-* ODBC and last_insert_id::     How to get the value of an @code{AUTO_INCREMENT} column in ODBC
-* MyODBC bug report::           Reporting problems with MyODBC
-
-Using MySQL with Some Common Programs
-
-* Apache::                      Using @strong{MySQL} with Apache
-* Borland C++::                 
-
-Problems and Common Errors
-
-* What is crashing::            How to determine what is causing problems
-* Crashing::                    What to do if @strong{MySQL} keeps crashing
-* Link errors::                 Problems when linking with the @strong{MySQL} client library
-* Common errors::               Some common errors when using @strong{MySQL}
-* Full disk::                   How @strong{MySQL} handles a full disk
-* Multiple sql commands::       How to run SQL commands from a text file
-* Temporary files::             Where @strong{MySQL} stores temporary files
-* Problems with mysql.sock::    How to protect @file{/tmp/mysql.sock}
-* Changing MySQL user::         How to run @strong{MySQL} as a normal user
-* Resetting permissions::       How to reset a forgotten password.
-* File permissions ::           Problems with file permissions
-* Not enough file handles::     File not found
-* Using DATE::                  Problems using @code{DATE} columns
-* Timezone problems::           Timezone problems
-* Case sensitivity::            Case sensitivity in searches
-* Problems with NULL::          Problems with @code{NULL} values
-* Problems with alias::         Problems with @code{alias}
-* Deleting from related tables::  Deleting rows from related tables
-* No matching rows::            Solving problems with no matching rows
-* ALTER TABLE problems::        Problems with @code{ALTER TABLE}.
-* Change column order::         How to change the order of columns in a table
-* Temporary table problems::    
-
-Some Common Errors When Using MySQL
-
-* Error Access denied::         @code{Access denied} Error
-* Gone away::                   @code{MySQL server has gone away} error
-* Can not connect to server::   @code{Can't connect to [local] MySQL server} error
-* Blocked host::                @code{Host '...' is blocked} error
-* Too many connections::        @code{Too many connections} error
-* Non-transactional tables::    @code{Some non-transactional changed tables couldn't be rolled back} Error
-* Out of memory::               @code{Out of memory} error
-* Packet too large::            @code{Packet too large} error
-* Communication errors::        Communication errors / Aborted connection
-* Full table::                  @code{The table is full} error
-* Cannot create::               @code{Can't create/write to file} Error
-* Commands out of sync::        @code{Commands out of sync} error in client
-* Ignoring user::               @code{Ignoring user} error
-* Cannot find table::           @code{Table 'xxx' doesn't exist} error
-* Cannot initialize character set::  
-
-Solving Some Common Problems with MySQL
-
-* Log Replication::             Database replication with update log
-* Backup::                      Database backups
-* Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
-
-The MySQL log files
-
-* Error log::                   
-* Query log::                   
-* Update log::                  
-* Binary log::                  
-* Slow query log::              
-
-MySQL APIs
-
-* C::                           @strong{MySQL} C API
-* Perl::                        @strong{MySQL} Perl API
-* Eiffel::                      @strong{MySQL} Eiffel wrapper
-* Java::                        @strong{MySQL} Java connectivity (JDBC)
-* PHP::                         @strong{MySQL} PHP API
-* Cplusplus::                   @strong{MySQL} C++ APIs
-* Python::                      @strong{MySQL} Python APIs
-* Tcl::                         @strong{MySQL} Tcl APIs
-
-MySQL C API
-
-* C API datatypes::             C API Datatypes
-* C API function overview::     C API Function Overview
-* C API functions::             C API Function Descriptions
-* C API problems::              
-* Thread-safe clients::         
-
-C API Function Descriptions
-
-* mysql_affected_rows::         @code{mysql_affected_rows()}
-* mysql_close::                 @code{mysql_close()}
-* mysql_connect::               @code{mysql_connect()}
-* mysql_change_user::           @code{mysql_change_user()}
-* mysql_character_set_name::    @code{mysql_character_set_name()}
-* mysql_create_db::             @code{mysql_create_db()}
-* mysql_data_seek::             @code{mysql_data_seek()}
-* mysql_debug::                 @code{mysql_debug()}
-* mysql_drop_db::               @code{mysql_drop_db()}
-* mysql_dump_debug_info::       @code{mysql_dump_debug_info()}
-* mysql_eof::                   @code{mysql_eof()}
-* mysql_errno::                 @code{mysql_errno()}
-* mysql_error::                 @code{mysql_error()}
-* mysql_escape_string::         @code{mysql_escape_string()}
-* mysql_fetch_field::           @code{mysql_fetch_field()}
-* mysql_fetch_fields::          @code{mysql_fetch_fields()}
-* mysql_fetch_field_direct::    @code{mysql_fetch_field_direct()}
-* mysql_fetch_lengths::         @code{mysql_fetch_lengths()}
-* mysql_fetch_row::             @code{mysql_fetch_row()}
-* mysql_field_count::           @code{mysql_field_count()}
-* mysql_field_seek::            @code{mysql_field_seek()}
-* mysql_field_tell::            @code{mysql_field_tell()}
-* mysql_free_result::           @code{mysql_free_result()}
-* mysql_get_client_info::       @code{mysql_get_client_info()}
-* mysql_get_host_info::         @code{mysql_get_host_info()}
-* mysql_get_proto_info::        @code{mysql_get_proto_info()}
-* mysql_get_server_info::       @code{mysql_get_server_info()}
-* mysql_info::                  @code{mysql_info()}
-* mysql_init::                  @code{mysql_init()}
-* mysql_insert_id::             @code{mysql_insert_id()}
-* mysql_kill::                  @code{mysql_kill()}
-* mysql_list_dbs::              @code{mysql_list_dbs()}
-* mysql_list_fields::           @code{mysql_list_fields()}
-* mysql_list_processes::        @code{mysql_list_processes()}
-* mysql_list_tables::           @code{mysql_list_tables()}
-* mysql_num_fields::            @code{mysql_num_fields()}
-* mysql_num_rows::              @code{mysql_num_rows()}
-* mysql_options::               @code{mysql_options()}
-* mysql_ping::                  @code{mysql_ping()}
-* mysql_query::                 @code{mysql_query()}
-* mysql_real_connect::          @code{mysql_real_connect()}
-* mysql_real_escape_string::    @code{mysql_real_escape_string()}
-* mysql_real_query::            @code{mysql_real_query()}
-* mysql_reload::                @code{mysql_reload()}
-* mysql_row_seek::              @code{mysql_row_seek()}
-* mysql_row_tell::              @code{mysql_row_tell()}
-* mysql_select_db::             @code{mysql_select_db()}
-* mysql_shutdown::              @code{mysql_shutdown()}
-* mysql_stat::                  @code{mysql_stat()}
-* mysql_store_result::          @code{mysql_store_result()}
-* mysql_thread_id::             @code{mysql_thread_id()}
-* mysql_use_result::            @code{mysql_use_result()}
-
-Common questions and problems when using the C API
-
-* NULL mysql_store_result::     
-* Query results::               
-* Getting unique ID::           
-* C API linking problems::      
-
-Why Is It that After @code{mysql_query()} Returns Success, @code{mysql_store_result()} Sometimes Returns @code{NULL?}
-
-* Query results::               
-* Getting unique ID::           
-* C API linking problems::      
-
-MySQL Perl API
-
-* DBI with DBD::                @code{DBI} with @code{DBD::mysql}
-* Perl DBI Class::              The @code{DBI} interface
-* DBI-info::                    More @code{DBI}/@code{DBD} information
-
-MySQL PHP API
-
-* PHP problems::                Common problems with MySQL and PHP
-
-MySQL Internals
-
-* MySQL threads::               MySQL threads
-* MySQL test suite::            MySQL test suite
-
-MySQL Test Suite
-
-* running mysqltest::           
-* extending mysqltest::         
-* Reporting mysqltest bugs::    
-
-Credits
-
-* Developers::                  
-* Contributors::                
-* Supporters::                  
-
-MySQL change history
-
-* News-4.0.x::                  Changes in release 4.0.x (Development; Alpha)
-* News-3.23.x::                 Changes in release 3.23.x (Stable)
-* News-3.22.x::                 Changes in release 3.22.x (Older; Still supported)
-* News-3.21.x::                 Changes in release 3.21.x
-* News-3.20.x::                 Changes in release 3.20.x
-* News-3.19.x::                 Changes in release 3.19.x
-
-Changes in release 4.0.x (Development; Alpha)
-
-* News-4.0.0::                  Changes in release 4.0.0
-
-Changes in release 3.23.x  (Stable)
-
-* News-3.23.40::                Changes in release 3.23.40
-* News-3.23.39::                Changes in release 3.23.39
-* News-3.23.38::                Changes in release 3.23.38
-* News-3.23.37::                Changes in release 3.23.37
-* News-3.23.36::                Changes in release 3.23.36
-* News-3.23.35::                Changes in release 3.23.35
-* News-3.23.34a::               Changes in release 3.23.34a
-* News-3.23.34::                Changes in release 3.23.34
-* News-3.23.33::                Changes in release 3.23.33
-* News-3.23.32::                Changes in release 3.23.32
-* News-3.23.31::                Changes in release 3.23.31
-* News-3.23.30::                Changes in release 3.23.30
-* News-3.23.29::                Changes in release 3.23.29
-* News-3.23.28::                Changes in release 3.23.28
-* News-3.23.27::                Changes in release 3.23.27
-* News-3.23.26::                Changes in release 3.23.26
-* News-3.23.25::                Changes in release 3.23.25
-* News-3.23.24::                Changes in release 3.23.24
-* News-3.23.23::                Changes in release 3.23.23
-* News-3.23.22::                Changes in release 3.23.22
-* News-3.23.21::                Changes in release 3.23.21
-* News-3.23.20::                Changes in release 3.23.20
-* News-3.23.19::                Changes in release 3.23.19
-* News-3.23.18::                Changes in release 3.23.18
-* News-3.23.17::                Changes in release 3.23.17
-* News-3.23.16::                Changes in release 3.23.16
-* News-3.23.15::                Changes in release 3.23.15
-* News-3.23.14::                Changes in release 3.23.14
-* News-3.23.13::                Changes in release 3.23.13
-* News-3.23.12::                Changes in release 3.23.12
-* News-3.23.11::                Changes in release 3.23.11
-* News-3.23.10::                Changes in release 3.23.10
-* News-3.23.9::                 Changes in release 3.23.9
-* News-3.23.8::                 Changes in release 3.23.8
-* News-3.23.7::                 Changes in release 3.23.7
-* News-3.23.6::                 Changes in release 3.23.6
-* News-3.23.5::                 Changes in release 3.23.5
-* News-3.23.4::                 Changes in release 3.23.4
-* News-3.23.3::                 Changes in release 3.23.3
-* News-3.23.2::                 Changes in release 3.23.2
-* News-3.23.1::                 Changes in release 3.23.1
-* News-3.23.0::                 Changes in release 3.23.0
-
-Changes in release 3.22.x (Older; Still supported)
-
-* News-3.22.35::                Changes in release 3.22.35
-* News-3.22.34::                Changes in release 3.22.34
-* News-3.22.33::                Changes in release 3.22.33
-* News-3.22.32::                Changes in release 3.22.32
-* News-3.22.31::                Changes in release 3.22.31
-* News-3.22.30::                Changes in release 3.22.30
-* News-3.22.29::                Changes in release 3.22.29
-* News-3.22.28::                Changes in release 3.22.28
-* News-3.22.27::                Changes in release 3.22.27
-* News-3.22.26::                Changes in release 3.22.26
-* News-3.22.25::                Changes in release 3.22.25
-* News-3.22.24::                Changes in release 3.22.24
-* News-3.22.23::                Changes in release 3.22.23
-* News-3.22.22::                Changes in release 3.22.22
-* News-3.22.21::                Changes in release 3.22.21
-* News-3.22.20::                Changes in release 3.22.20
-* News-3.22.19::                Changes in release 3.22.19
-* News-3.22.18::                Changes in release 3.22.18
-* News-3.22.17::                Changes in release 3.22.17
-* News-3.22.16::                Changes in release 3.22.16
-* News-3.22.15::                Changes in release 3.22.15
-* News-3.22.14::                Changes in release 3.22.14
-* News-3.22.13::                Changes in release 3.22.13
-* News-3.22.12::                Changes in release 3.22.12
-* News-3.22.11::                Changes in release 3.22.11
-* News-3.22.10::                Changes in release 3.22.10
-* News-3.22.9::                 Changes in release 3.22.9
-* News-3.22.8::                 Changes in release 3.22.8
-* News-3.22.7::                 Changes in release 3.22.7
-* News-3.22.6::                 Changes in release 3.22.6
-* News-3.22.5::                 Changes in release 3.22.5
-* News-3.22.4::                 Changes in release 3.22.4
-* News-3.22.3::                 Changes in release 3.22.3
-* News-3.22.2::                 Changes in release 3.22.2
-* News-3.22.1::                 Changes in release 3.22.1
-* News-3.22.0::                 Changes in release 3.22.0
-
-Changes in release 3.21.x
-
-* News-3.21.33::                Changes in release 3.21.33
-* News-3.21.32::                Changes in release 3.21.32
-* News-3.21.31::                Changes in release 3.21.31
-* News-3.21.30::                Changes in release 3.21.30
-* News-3.21.29::                Changes in release 3.21.29
-* News-3.21.28::                Changes in release 3.21.28
-* News-3.21.27::                Changes in release 3.21.27
-* News-3.21.26::                Changes in release 3.21.26
-* News-3.21.25::                Changes in release 3.21.25
-* News-3.21.24::                Changes in release 3.21.24
-* News-3.21.23::                Changes in release 3.21.23
-* News-3.21.22::                Changes in release 3.21.22
-* News-3.21.21a::               Changes in release 3.21.21a
-* News-3.21.21::                Changes in release 3.21.21
-* News-3.21.20::                Changes in release 3.21.20
-* News-3.21.19::                Changes in release 3.21.19
-* News-3.21.18::                Changes in release 3.21.18
-* News-3.21.17::                Changes in release 3.21.17
-* News-3.21.16::                Changes in release 3.21.16
-* News-3.21.15::                Changes in release 3.21.15
-* News-3.21.14b::               Changes in release 3.21.14b
-* News-3.21.14a::               Changes in release 3.21.14a
-* News-3.21.13::                Changes in release 3.21.13
-* News-3.21.12::                Changes in release 3.21.12
-* News-3.21.11::                Changes in release 3.21.11
-* News-3.21.10::                Changes in release 3.21.10
-* News-3.21.9::                 Changes in release 3.21.9
-* News-3.21.8::                 Changes in release 3.21.8
-* News-3.21.7::                 Changes in release 3.21.7
-* News-3.21.6::                 Changes in release 3.21.6
-* News-3.21.5::                 Changes in release 3.21.5
-* News-3.21.4::                 Changes in release 3.21.4
-* News-3.21.3::                 Changes in release 3.21.3
-* News-3.21.2::                 Changes in release 3.21.2
-* News-3.21.0::                 Changes in release 3.21.0
-
-Changes in release 3.20.x
-
-* News-3.20.18::                Changes in release 3.20.18
-* News-3.20.17::                Changes in release 3.20.17
-* News-3.20.16::                Changes in release 3.20.16
-* News-3.20.15::                Changes in release 3.20.15
-* News-3.20.14::                Changes in release 3.20.14
-* News-3.20.13::                Changes in release 3.20.13
-* News-3.20.11::                Changes in release 3.20.11
-* News-3.20.10::                Changes in release 3.20.10
-* News-3.20.9::                 Changes in release 3.20.9
-* News-3.20.8::                 Changes in release 3.20.8
-* News-3.20.7::                 Changes in release 3.20.7
-* News-3.20.6::                 Changes in release 3.20.6
-* News-3.20.3::                 Changes in release 3.20.3
-* News-3.20.0::                 Changes in releases 3.20.0
-
-Changes in release 3.19.x
-
-* News-3.19.5::                 Changes in release 3.19.5
-* News-3.19.4::                 Changes in release 3.19.4
-* News-3.19.3::                 Changes in release 3.19.3
-
-Comments on porting to other systems
-
-* Debugging server::            Debugging a @strong{MySQL} server
-* Debugging client::            Debugging a @strong{MySQL} client
-* The DBUG package::            The DBUG package
-* Locking methods::             Locking methods
-* RTS-threads::                 Comments about RTS threads
-* Thread packages::             Differences between different thread packages
-
-Debugging a MySQL server
-
-* Compiling for debugging::     
-* Making trace files::          
-* Using gdb on mysqld::         
-* Using stack trace::           
-* Using log files::             
-* Reproduceable test case::     
-
-@end detailmenu
 @end menu
 
 @cindex overview
@@ -10310,10 +9307,10 @@ You should also add /etc/my.cnf:
 
 @example
 [safe_mysqld]
-open_files_limit=8192
+open-files-limit=8192
 @end example
 
-The above should allow @strong{MySQL} to create up to 8192 connections/files.
+The above should allow @strong{MySQL} to create up to 8192 connections + files.
 
 The @code{STACK_SIZE} constant in LinuxThreads controls the spacing of thread
 stacks in the address space.  It needs to be large enough so that there will
@@ -24806,17 +23803,9 @@ are locked by the current thread are automatically unlocked when the
 thread issues another @code{LOCK TABLES}, or when the connection to the
 server is closed.
 
-The main reasons to use @code{LOCK TABLES} are:
-
-@itemize @bullet
-@item
-Emulate transactions with not transaction safe tables.
-@item
-To get more speed with @code{MyISAM} tables when inserting/updating data
-over many statements. The main reason this gives more speed is that
-@strong{MySQL} will not flush the key cache for the locked tables until
-@code{UNLOCK TABLES} is called.
-@end itemize
+The main reasons to use @code{LOCK TABLES} are for emulating transactions
+or getting more speed when updating tables.  This is explained in more
+detail later.
 
 If a thread obtains a @code{READ} lock on a table, that thread (and all other
 threads) can only read from the table. If a thread obtains a @code{WRITE}
@@ -24829,8 +23818,10 @@ execute while the lock is held.  This can't however be used if you are
 going to manipulate the database files outside @strong{MySQL} while you
 hold the lock.
 
-Each thread waits (without timing out) until it obtains all the locks it has
-requested.
+When you use @code{LOCK TABLES}, you must lock all tables that you are
+going to use and you must use the same alias that you are going to use
+in your queries!  If you are using a table multiple times in a query
+(with aliases), you must get a lock for each alias!
 
 @code{WRITE} locks normally have higher priority than @code{READ} locks, to
 ensure that updates are processed as soon as possible. This means that if one
@@ -24842,15 +23833,32 @@ locks while the thread is waiting for the @code{WRITE} lock. You should only
 use @code{LOW_PRIORITY WRITE} locks if you are sure that there will
 eventually be a time when no threads will have a @code{READ} lock.
 
-@code{LOCK TABLES} and @code{UNLOCK TABLES} both commits any active
-transactions.
+@code{LOCK TABLES} works as follows:
+@enumerate
+@item
+Sort all tables to be locked in a internally defined order (from the
+user standpoint the order is undefined).
+@item
+If a table is locked with a read and a write lock, put the write lock
+before the read lock.
+@item
+Lock one table at a time until the thread gets all locks.
+@end enumerate
 
-When you use @code{LOCK TABLES}, you must lock all tables that you are
-going to use and you must use the same alias that you are going to use
-in your queries!  If you are using a table multiple times in a query
-(with aliases), you must get a lock for each alias! This policy ensures
-that table locking is deadlock free and makes the locking code smaller,
-simpler and much faster.
+This policy ensures that table locking is deadlock free. There is
+however other things one needs to be aware of with this schema:
+
+If you are using a @code{LOW_PRIORITY_WRITE} lock for a table, this
+means only that @strong{MySQL} will wait for this particlar lock until
+there is no threads that wants a @code{READ} lock.  When the thread has
+got the @code{WRITE} lock and is waiting to get the lock for the next
+table in the lock table list, all other threads will wait for the
+@code{WRITE} lock to be released.  If this becomes a serious problem
+with your application, you should consider converting some of your
+tables to transactions safe tables.
+
+You can safely kill a thread that is waiting for a table lock with
+@code{KILL}.  @xref{KILL}.
 
 Note that you should @strong{NOT} lock any tables that you are using with
 @code{INSERT DELAYED}.  This is because that in this case the @code{INSERT}
@@ -24867,6 +23875,12 @@ If you are going to run many operations on a bunch of tables, it's much
 faster to lock the tables you are going to use.  The downside is, of course,
 that no other thread can update a @code{READ}-locked table and no other
 thread can read a @code{WRITE}-locked table.
+
+The reason some things are faster under @code{LOCK TABLES} is that
+@strong{MySQL} will not flush the key cache for the locked tables until
+@code{UNLOCK TABLES} is called (normally the key cache is flushed after
+each SQL statement). This speeds up inserting/updateing/deletes on
+@code{MyISAM} tables.
 @item
 If you are using a table handler in @strong{MySQL} that doesn't support 
 transactions, you must use @code{LOCK TABLES} if you want to ensure that 
@@ -24898,7 +23912,7 @@ table in the server and implemented with @code{pthread_mutex_lock()} and
 
 See @ref{Internal locking}, for more information on locking policy.
 
-You can also lock all tables in all databases with read locks with the
+You can lock all tables in all databases with read locks with the
 @code{FLUSH TABLES WITH READ LOCK} command. @xref{FLUSH}. This is very
 convenient way to get backups if you have a file system, like Veritas,
 that can take snapshots in time.
@@ -46299,8 +45313,6 @@ For making @code{mysqlaccess} more secure.
 @item Albert Chin-A-Young.
 Configure updates for Tru64, large file support and better TCP wrappers
 support.
-@item Valueclick Inc.
-For sponsoring the optimize section in this manual.
 @end table
 
 Other contributors, bugfinders, and testers: James H. Thompson, Maurizio
@@ -46496,6 +45508,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.41::                
 * News-3.23.40::                Changes in release 3.23.40
 * News-3.23.39::                Changes in release 3.23.39
 * News-3.23.38::                Changes in release 3.23.38
@@ -46540,7 +45553,15 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.40, News-3.23.39, News-3.23.x, News-3.23.x
+@node News-3.23.41, News-3.23.40, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.41
+@itemize @bullet
+@item
+Fixed optimizing bug in @code{ORDER BY} where some @code{ORDER BY} parts
+where wrongly removed.
+@end itemize
+
+@node News-3.23.40, News-3.23.39, News-3.23.41, News-3.23.x
 @appendixsubsec Changes in release 3.23.40
 @itemize @bullet
 @item
