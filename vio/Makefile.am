@@ -17,11 +17,17 @@
 INCLUDES =		-I$(srcdir)/../include -I../include $(openssl_includes)
 LDADD =			libvio.a $(openssl_libs) 
 pkglib_LIBRARIES =	libvio.a
-noinst_PROGRAMS	=	viotest-ssl
+noinst_PROGRAMS	=	test-ssl test-sslserver test-sslclient
 noinst_HEADERS =	
-viotest_ssl_SOURCES =   viotest-ssl.c
-viotest_ssl_LDADD =   	../dbug/libdbug.a libvio.a ../mysys/libmysys.a ../strings/libmystrings.a \
-			libvio.a $(openssl_libs)
+test_ssl_SOURCES =   test-ssl.c
+test_ssl_LDADD =   	../dbug/libdbug.a libvio.a ../mysys/libmysys.a \
+			../strings/libmystrings.a libvio.a $(openssl_libs)
+test_sslserver_SOURCES =   test-sslserver.c
+test_sslserver_LDADD =   	../dbug/libdbug.a libvio.a ../mysys/libmysys.a \
+			../strings/libmystrings.a libvio.a $(openssl_libs)
+test_sslclient_SOURCES =   test-sslclient.c
+test_sslclient_LDADD =   	../dbug/libdbug.a libvio.a ../mysys/libmysys.a \
+			../strings/libmystrings.a libvio.a $(openssl_libs)
 libvio_a_SOURCES =	vio.c viosocket.c viossl.c viosslfactories.c
 
 OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
