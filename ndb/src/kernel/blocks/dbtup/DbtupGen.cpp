@@ -132,9 +132,6 @@ Dbtup::Dbtup(const class Configuration & conf)
   addRecSignal(GSN_TUP_WRITELOG_REQ, &Dbtup::execTUP_WRITELOG_REQ);
 
   // Ordered index related
-  addRecSignal(GSN_TUP_READ_ATTRS, &Dbtup::execTUP_READ_ATTRS);
-  addRecSignal(GSN_TUP_QUERY_TH, &Dbtup::execTUP_QUERY_TH);
-  addRecSignal(GSN_TUP_STORE_TH, &Dbtup::execTUP_STORE_TH);
   addRecSignal(GSN_BUILDINDXREQ, &Dbtup::execBUILDINDXREQ);
 
   initData();
