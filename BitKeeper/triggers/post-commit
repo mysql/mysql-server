@@ -5,7 +5,7 @@ FROM=$USER@mysql.com
 INTERNALS=internals@lists.mysql.com
 DOCS=docs-commit@mysql.com
 LIMIT=10000
-VERSION="5.0"
+VERSION="5.1"
 
 if [ "$REAL_EMAIL" = "" ]
 then
