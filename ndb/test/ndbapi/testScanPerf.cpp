@@ -187,6 +187,7 @@ run_scan(){
   int sum_time= 0;
 
   int sample_rows = 0;
+  int tot_rows = 0;
   NDB_TICKS sample_start = NdbTick_CurrentMillisecond();
 
   Uint32 tot = g_paramters[P_ROWS].value;
@@ -308,6 +309,9 @@ run_scan(){
     }
     assert(check == 0);
 
+    if(g_paramters[P_RESET].value == 1)
+      g_paramters[P_RESET].value = 2;
+    
     for(int i = 0; i<g_table->getNoOfColumns(); i++){
       pOp->getValue(i);
     }
@@ -345,6 +349,7 @@ execute:
     int time_passed= (int)(stop - start1);
     sample_rows += rows;
     sum_time+= time_passed;
+    tot_rows+= rows;
     
     if(sample_rows >= tot)
     {
@@ -356,9 +361,8 @@ execute:
       sample_start = stop;
     }
   }
-
-  g_err.println("Avg time: %d ms = %u rows/sec",
-		sum_time/iter,
-                (1000*iter)/sum_time);
+  
+  g_err.println("Avg time: %d ms = %u rows/sec", sum_time/tot_rows,
+                (1000*tot_rows)/sum_time);
   return 0;
 }
