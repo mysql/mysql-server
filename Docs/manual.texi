@@ -11670,7 +11670,6 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to be able to run
 * GRANT::                       @code{GRANT} and @code{REVOKE} syntax
 * CREATE INDEX::                @code{CREATE INDEX} syntax
 * DROP INDEX::                  @code{DROP INDEX} syntax
-* CREATE COLLECTION::           @code{CREATE COLLECTION} syntax
 * Comments::                    Comment syntax
 * CREATE FUNCTION::             @code{CREATE FUNCTION} syntax
 * Reserved words::              Is @strong{MySQL} picky about reserved words?
@@ -13436,9 +13435,9 @@ mysql> CREATE TABLE test (
 For @code{BLOB} and @code{TEXT} columns, you must index a prefix of the
 column, you cannot index the entire thing.
 
-In @strong{MySQL} 3.23.23 or later, you can also create special indexes
-called @strong{collections}. They are used for full-text search. Only
-@code{MyISAM} table type supports collections. Collection can be created
+In @strong{MySQL} 3.23.23 or later, you can also create special
+@strong{fulltext} indexes. They are used for full-text search. Only
+@code{MyISAM} table type supports fulltext indexes. They can be created
 only from @code{VARCHAR}, @code{BLOB}, and @code{TEXT} columns.
 Indexing always happens over the entire column, partial indexing is not
 supported. See @ref{MySQL full-text search} for details of operation.
@@ -14165,7 +14164,7 @@ mysql> select STRCMP('text', 'text');
 relevance - similarity measure between the text in columns
 @code{(col1,col2,...)} and the query @code{expr}. Relevance is a
 positive floating point number. Zero relevance means no similarity.
-For @code{MATCH ... AGAINST()} to work, a @code{COLLECTION}
+For @code{MATCH ... AGAINST()} to work, a @strong{fulltext index}
 must be created first. @xref{CREATE TABLE, , @code{CREATE TABLE}}.
 @code{MATCH ... AGAINST()} is available in @code{MySQL} 3.23.23 or later.
 For details and usage examples see @xref{MySQL full-text search}.
@@ -16178,7 +16177,7 @@ create_definition:
   or    KEY [index_name] (index_col_name,...)
   or    INDEX [index_name] (index_col_name,...)
   or    UNIQUE [INDEX] [index_name] (index_col_name,...)
-  or    COLLECTION [collection_name] (collection_col_name,...)
+  or    FULLTEXT [INDEX] [index_name] (index_col_name,...)
   or    [CONSTRAINT symbol] FOREIGN KEY index_name (index_col_name,...)
             [reference_definition]
   or    CHECK (expr)
@@ -16422,10 +16421,10 @@ When you use @code{ORDER BY} or @code{GROUP BY} with a @code{TEXT} or
 @xref{BLOB,  , @code{BLOB}}.
 
 @item
-In @strong{MySQL} 3.23.23 or later, you can also create special indexes
-called @strong{collections}. They are used for full-text search. Only
-@code{MyISAM} table type supports collections. Collection can be created
-from any mix of @code{VARCHAR}, @code{BLOB}, and @code{TEXT} columns.
+In @strong{MySQL} 3.23.23 or later, you can also create special
+@strong{fulltext} indexes. They are used for full-text search. Only
+@code{MyISAM} table type supports fulltext indexes. They can be created
+only from @code{VARCHAR}, @code{BLOB}, and @code{TEXT} columns.
 Indexing always happens over the entire column, partial indexing is not
 supported. See @ref{MySQL full-text search} for details of operation.
 
@@ -16598,7 +16597,7 @@ alter_specification:
   or    ADD INDEX [index_name] (index_col_name,...)
   or    ADD PRIMARY KEY (index_col_name,...)
   or    ADD UNIQUE [index_name] (index_col_name,...)
-  or    ADD COLLECTION [collection_name] (collection_col_name,...)
+  or    ADD FULLTEXT [index_name] (index_col_name,...)
   or    ALTER [COLUMN] col_name @{SET DEFAULT literal | DROP DEFAULT@}
   or    CHANGE [COLUMN] old_col_name create_definition
   or    MODIFY [COLUMN] create_definition
@@ -19769,7 +19768,7 @@ dropped only with explicit @code{REVOKE} commands or by manipulating the
 @section @code{CREATE INDEX} syntax
 
 @example
-CREATE [UNIQUE] INDEX index_name ON tbl_name (col_name[(length)],... )
+CREATE [UNIQUE|FULLTEXT] INDEX index_name ON tbl_name (col_name[(length)],... )
 @end example
 
 The @code{CREATE INDEX} statement doesn't do anything in @strong{MySQL} prior
@@ -19803,15 +19802,19 @@ which could save a lot of disk space and might also speed up @code{INSERT}
 operations!
 
 Note that you can only add an index on a column that can have @code{NULL}
-values or on a @code{BLOB}/@code{TEXT} column if you are useing
+values or on a @code{BLOB}/@code{TEXT} column if you are using
 @strong{MySQL} version 3.23.2 or newer and are using the @code{MyISAM}
 table type.
 
 For more information about how @strong{MySQL} uses indexes, see
 @ref{MySQL indexes, , @strong{MySQL} indexes}.
 
+Fulltext indexes can index only @code{VARCHAR}, @code{BLOB}, and
+@code{TEXT} columns, and only in @code{MyISAM} tables. Fulltext indexes
+are available from @strong{MySQL} 3.23.23. @ref{MySQL full-text search}.
+
 @findex DROP INDEX
-@node DROP INDEX, CREATE COLLECTION, CREATE INDEX, Reference
+@node DROP INDEX, Comments, CREATE INDEX, Reference
 @section @code{DROP INDEX} syntax
 
 @example
@@ -19824,30 +19827,8 @@ prior to version 3.22.  In 3.22 or later, @code{DROP INDEX} is mapped to an
 @code{ALTER TABLE} statement to drop the index.
 @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
-@findex CREATE COLLECTION
-@node CREATE COLLECTION, Comments, DROP INDEX, Reference
-@section @code{CREATE COLLECTION} syntax
-
-@example
-CREATE COLLECTION collection_name ON tbl_name (col_name,... )
-@end example
-
-@code{CREATE COLLECTION} statement is mapped to an
-@code{ALTER TABLE} statement to create collections.
-@xref{ALTER TABLE, , @code{ALTER TABLE}}.
-
-A column list of the form @code{(col1,col2,...)} creates a
-multiple-column collection. Search in such a collection means a search
-over the concatenated columns that comprise the collection.
-
-There is no special @code{DROP COLLECTION} statement.
-@code{DROP INDEX} should be used to drop collections instead.
-
-Only @code{VARCHAR}, @code{BLOB}, and @code{TEXT} columns can be part
-of the collection. See @ref{MySQL full-text search} for details of operation.
-
 @findex Comment syntax
-@node Comments, CREATE FUNCTION, CREATE COLLECTION, Reference
+@node Comments, CREATE FUNCTION, DROP INDEX, Reference
 @section Comment syntax
 
 The @strong{MySQL} server supports the @code{# to end of line}, @code{--
@@ -34106,14 +34087,14 @@ DELAYED} threads.
 @section MySQL full-text search
 
 Since version 3.23.23, @strong{MySQL} has support for full-text indexing
-and searching. Full-text index in @strong{MySQL} is a special type of index
-called @strong{collection}. Collections can be created from @code{VARCHAR},
-@code{TEXT}, and @code{BLOB} columns at @code{CREATE TABLE}
-time or added later with @code{ALTER TABLE} or @code{CREATE COLLECTION}.
-Collection is queried with @code{MATCH} function.
+and searching. Full-text index in @strong{MySQL} is an
+index of type @code{FULLTEXT}. Fulltext indexes can be created from
+@code{VARCHAR}, @code{TEXT}, and @code{BLOB} columns at
+@code{CREATE TABLE} time or added later with @code{ALTER TABLE} or
+@code{CREATE INDEX}. Full-text search is performed with @code{MATCH} function.
 
 @example
-mysql> CREATE TABLE t (a VARCHAR(200), b TEXT, COLLECTION (a,b));
+mysql> CREATE TABLE t (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
 Query OK, 0 rows affected (0.00 sec)
 mysql> INSERT INTO t VALUES
     ->   ('MySQL has now support', 'for full-text search'),
@@ -34145,15 +34126,16 @@ mysql> SELECT *,MATCH a,b AGAINST ('collections support') as x FROM t;
 @end example
 
 Function @code{MATCH} matches a natural language query @code{AGAINST} a
-text collection. For every row in a table it returns relevance -
+text collection (which is simply the columns that are covered
+by fulltext index). For every row in a table it returns relevance -
 similarity measure between the text in that row (in the columns, that
-are part of the collection) and the query. When it used in a @code{WHERE}
-clause (see example above) the rows returned are automatically sorted
-with relevance decreasing. Relevance is a non-negative floating point
-number. Zero relevance means no similarity. Relevance is computed based
-on number of words in the row and number of unique words in that row,
-total number of words in the collection, number of documents (rows),
-that contain a particular word, etc.
+are part of the collection) and the query. When it used in a
+@code{WHERE} clause (see example above) the rows returned are
+automatically sorted with relevance decreasing. Relevance is a non-
+negative floating point number. Zero relevance means no similarity.
+Relevance is computed based on number of words in the row and number of
+unique words in that row, total number of words in the collection,
+number of documents (rows), that contain a particular word, etc.
 
 MySQL uses very simple parser to split text into words. "Word" is
 any sequence of letters, numbers, @code{'}, and @code{_}. Any "word"

@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -58,7 +58,7 @@ static int send_file(THD *thd)
   // the job
   old_timeout = thd->net.timeout;
   thd->net.timeout = thd->inactive_timeout;
-  
+
   // we need net_flush here because the client will not know it needs to send
   // us the file name until it has processed the load event entry
   if (net_flush(net) || (packet_len = my_net_read(net)) == packet_error)
@@ -67,16 +67,16 @@ static int send_file(THD *thd)
     goto err;
   }
 
-  fn_format(fname, (char*)net->read_pos + 1, "", "", 4); 
+  fn_format(fname, (char*)net->read_pos + 1, "", "", 4);
   if(!strcmp(fname,"/dev/null")) goto end; // this is needed to make replicate-ignore-db
   // work on the well-known system that does not have a /dev/null :-)
-  
+
   if ((fd = my_open(fname, O_RDONLY, MYF(MY_WME))) < 0)
   {
     errmsg = "Failed on my_open()";
     goto err;
   }
-  
+
   while ((bytes = (int) my_read(fd, (byte*) buf, sizeof(buf),
 				MYF(MY_WME))) > 0)
   {
@@ -87,7 +87,7 @@ static int send_file(THD *thd)
     }
   }
 
- end:  
+ end:
   if (my_net_write(net, "", 0) || net_flush(net) ||
       (my_net_read(net) == packet_error))
   {
@@ -95,7 +95,7 @@ static int send_file(THD *thd)
     goto err;
   }
   error = 0;
-  
+
  err:
   thd->net.timeout = old_timeout;
   if(fd >= 0)
@@ -104,7 +104,7 @@ static int send_file(THD *thd)
   {
     sql_print_error("failed in send_file() : %s", errmsg);
     DBUG_PRINT("error", (errmsg));
-  }  
+  }
   DBUG_RETURN(error);
 }
 
@@ -195,12 +195,12 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
       errmsg = "Binary log is not open";
       goto err;
     }
-  
+
   if(log_ident[0])
     mysql_bin_log.make_log_name(search_file_name, log_ident);
   else
     search_file_name[0] = 0;
-  
+
   if(mysql_bin_log.find_first_log(&linfo, search_file_name))
     {
       errmsg = "Could not find first log";
@@ -219,8 +219,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
       errmsg = "Error on fseek()";
       goto err;
     }
-  
-  
+
+
   packet->length(0);
   packet->append("\0", 1); // we need to start a packet with something other than 255
   // to distiquish it from error
@@ -251,7 +251,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 	  errmsg = "error reading log event";
 	  goto err;
 	}
-  
+
       if(!(flags & BINLOG_DUMP_NON_BLOCK) &&  mysql_bin_log.is_active(log_file_name))
 	// block until there is more data in the log
 	// unless non-blocking mode requested
@@ -267,10 +267,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 	  // if we did not miss anything, we just wait for other threads
 	  // to signal us
           {
-	    pthread_mutex_t *log_lock = mysql_bin_log.get_log_lock(); 
+	    pthread_mutex_t *log_lock = mysql_bin_log.get_log_lock();
 	    clearerr(log);
-	  
-            // tell the kill thread how to wake us up 	  
+
+            // tell the kill thread how to wake us up
 	    pthread_mutex_lock(&thd->mysys_var->mutex);
 	    thd->mysys_var->current_mutex = log_lock;
 	    thd->mysys_var->current_cond = &COND_binlog_update;
@@ -283,7 +283,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 	    pthread_mutex_lock(log_lock); // no one will update the log while we are reading
 	    // now, but we'll be quick and just read one record
 
-	    
+
 	    switch(Log_event::read_log_event(log, packet))
 	      {
 	      case 0:
@@ -300,7 +300,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 	      }
 
 	    pthread_mutex_unlock(log_lock);
-	    
+
 	    pthread_mutex_lock(&thd->mysys_var->mutex);
 	    thd->mysys_var->current_mutex= 0;
 	    thd->mysys_var->current_cond= 0;
@@ -314,7 +314,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 		errmsg = "Failed on my_net_write()";
 		goto err;
 	      }
-		
+
 	      if((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
 	      {
 		if(send_file(thd))
@@ -334,14 +334,14 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 		errmsg = "error reading log entry";
 	        goto err;
 	      }
-	    
+
 	    clearerr(log);
 	  }
 	}
       else
 	{
 	  bool loop_breaker = 0; // need this to break out of the for loop from switch
-	  
+
 	  switch(mysql_bin_log.find_next_log(&linfo))
 	    {
 	    case LOG_INFO_EOF:
@@ -367,12 +367,12 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 	    char header[9];
 	    memset(header, 0, 4); // when does not matter
 	    header[4] = ROTATE_EVENT;
-           char* p = strrchr(log_file_name, FN_LIBCHAR); // find the last slash 
+           char* p = strrchr(log_file_name, FN_LIBCHAR); // find the last slash
            if(p)
               p++;
             else
               p = log_file_name;
-	   
+
 	    uint ident_len = (uint) strlen(p);
 	    ulong event_len = ident_len + sizeof(header);
 	    int4store(header + 5, event_len);
@@ -388,9 +388,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 	  }
 	}
     }
-  
+
   (void)my_fclose(log, MYF(MY_WME));
-  
+
   send_eof(&thd->net);
   DBUG_VOID_RETURN;
  err:
@@ -646,7 +646,7 @@ void close_thread_tables(THD *thd, bool locked)
     VOID(pthread_mutex_lock(&LOCK_open));
 
   DBUG_PRINT("info", ("thd->open_tables=%p", thd->open_tables));
-  
+
   for (table=thd->open_tables ; table ; table=next)
   {
     next=table->next;
@@ -820,7 +820,7 @@ TABLE *unlink_open_table(THD *thd, TABLE *list, TABLE *find)
 }
 
 
-/* 
+/*
    When we call the following function we must have a lock on
    LOCK_OPEN ; This lock will be unlocked on return.
 */
@@ -957,7 +957,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     {
       MEM_ROOT* glob_alloc;
       LINT_INIT(glob_alloc);
-      
+
       if(errno == ENOENT &&
 	 (glob_alloc = my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC)))
 	// Sasha: needed for replication
@@ -1288,7 +1288,7 @@ bool wait_for_tables(THD *thd)
 
   while (table_is_used(thd->open_tables) && ! thd->killed)
   {
-    (void) pthread_cond_wait(&COND_refresh,&LOCK_open);    
+    (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
   }
 
   if (thd->killed)
@@ -1298,7 +1298,7 @@ bool wait_for_tables(THD *thd)
     /* Now we can open all tables without any interference */
     thd->proc_info="Reopen tables";
     result=reopen_tables(thd,0,0);
-  }    
+  }
   pthread_mutex_unlock(&LOCK_open);
   thd->proc_info=0;
   DBUG_RETURN(result);
@@ -1744,7 +1744,7 @@ find_item_in_list(Item *find,List<Item> &items)
 	}
       }
     }
-    else if (!table_name && (item->eq(find) || 
+    else if (!table_name && (item->eq(find) ||
 			     find->name &&
 			     !my_strcasecmp(item->name,find->name)))
     {
@@ -1824,7 +1824,7 @@ int setup_fields(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   }
   DBUG_RETURN(test(thd->fatal_error));
 }
- 
+
 
 static key_map get_key_map_from_key_list(THD *thd, TABLE *table,
 					 List<String> *index_list)
@@ -2172,18 +2172,22 @@ bool remove_table_from_cache(THD *thd, const char *db,const char *table_name)
   DBUG_RETURN(result);
 }
 
-/*
-   Will be used for ft-query optimization someday.
-   SerG.
- */
 int setup_ftfuncs(THD *thd,TABLE_LIST *tables, List<Item_func_match> &ftfuncs)
 {
-  List_iterator<Item_func_match> li(ftfuncs);
-  Item_func_match *ftf;
+  List_iterator<Item_func_match> li(ftfuncs), li2(ftfuncs);
+  Item_func_match *ftf, *ftf2;
 
   while ((ftf=li++))
+  {
     if (ftf->fix_index())
       return 1;
+    li2.rewind();
+    while ((ftf2=li2++) != ftf)
+    {
+      if (ftf->eq(ftf2) && !ftf2->master)
+        ftf2->master=ftf;
+    }
+  }
 
   return 0;
 }
