@@ -678,16 +678,17 @@ row_ins_foreign_check_on_constraint(
 		}
 	}
 
-	/* We do not allow cyclic cascaded updating of the same
-	table. Check that we are not updating the same table which
-	is already being modified in this cascade chain. We have to
-	check this because the modification of the indexes of a
-	'parent' table may still be incomplete, and we must avoid
-	seeing the indexes of the parent table in an inconsistent
-	state! In this way we also prevent possible infinite
-	update loops caused by cyclic cascaded updates. */
+	/* We do not allow cyclic cascaded updating of the same table, except
+	in the case the update is the action of ON DELETE SET NULL, which
+	cannot lead to an infinite cycle. Check that we are not updating the
+	same table which is already being modified in this cascade chain. We
+	have to check this because the modification of the indexes of a
+	'parent' table may still be incomplete, and we must avoid seeing the
+	indexes of the parent table in an inconsistent state! In this way we
+	also prevent possible infinite update loops caused by cyclic cascaded
+	updates. */
 
-	if (!cascade->is_delete
+	if (!node->is_delete
 	    && row_ins_cascade_ancestor_updates_table(cascade, table)) {
 
 	        /* We do not know if this would break foreign key
