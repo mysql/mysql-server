@@ -891,7 +891,7 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
     return field->store(str_value.ptr(), str_value.length(),
                         str_value.charset());
   case NULL_VALUE:
-    return set_field_to_null(field);
+    return set_field_to_null_with_conversions(field, no_conversions);
   case NO_VALUE:
   default:
     DBUG_ASSERT(0);
