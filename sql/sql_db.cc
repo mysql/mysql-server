@@ -502,6 +502,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     {
       if (find_type(extension, &known_extentions,1+2) <= 0)
 	found_other_files++;
+      else
+        deleted++;
       continue;
     }
     if (db && !my_strcasecmp(&my_charset_latin1,
@@ -519,6 +521,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       /* Link into list */
       (*tot_list_next)= table_list;
       tot_list_next= &table_list->next;
+      deleted++;
     }
     else
     {
