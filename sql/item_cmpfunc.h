@@ -66,11 +66,15 @@ public:
   int compare_binary_string();	 // compare args[0] & args[1]
   int compare_real();            // compare args[0] & args[1]
   int compare_int();             // compare args[0] & args[1]
+  int compare_int_signed_unsigned();
+  int compare_int_unsigned_signed();
+  int compare_int_unsigned();
   int compare_row();             // compare args[0] & args[1]
   int compare_e_string();	 // compare args[0] & args[1]
   int compare_e_binary_string(); // compare args[0] & args[1]
   int compare_e_real();          // compare args[0] & args[1]
   int compare_e_int();           // compare args[0] & args[1]
+  int compare_e_int_diff_signedness();
   int compare_e_row();           // compare args[0] & args[1]
 
   static arg_cmp_func comparator_matrix [4][2];
