@@ -1,10 +1,33 @@
 # Local macros for automake & autoconf
 
+
+AC_DEFUN(MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY,[
+    AC_CACHE_CHECK([HIST_ENTRY is declared in readline/readline.h], mysql_cv_hist_entry_declared,
+	AC_TRY_COMPILE(
+	    [
+		#include "stdio.h"
+		#undef __P // readline-4.2 declares own __P
+		#include "readline/readline.h"
+	    ],
+	    [ 
+		HIST_ENTRY entry;
+	    ],
+	    [
+		mysql_cv_hist_entry_declared=yes
+		AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, [1],
+                                   [HIST_ENTRY is defined in the outer libeditreadline])
+	    ],
+	    [mysql_cv_libedit_interface=no]
+        )
+    )
+])
+
 AC_DEFUN(MYSQL_CHECK_LIBEDIT_INTERFACE,[
     AC_CACHE_CHECK([libedit variant of rl_completion_entry_function], mysql_cv_libedit_interface,
 	AC_TRY_COMPILE(
 	    [
 		#include "stdio.h"
+		#undef __P // readline-4.2 declares own __P
 		#include "readline/readline.h"
 	    ],
 	    [ 
@@ -26,6 +49,7 @@ AC_DEFUN(MYSQL_CHECK_NEW_RL_INTERFACE,[
 	AC_TRY_COMPILE(
 	    [
 		#include "stdio.h"
+		#undef __P // readline-4.2 declares own __P
 		#include "readline/readline.h"
 	    ],
 	    [ 

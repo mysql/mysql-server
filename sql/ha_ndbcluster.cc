@@ -1423,7 +1423,8 @@ int ha_ndbcluster::write_row(byte *record)
   {
     Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
     DBUG_PRINT("info", 
-	       ("Trying to set next auto increment value to %u", next_val));
+	       ("Trying to set next auto increment value to %lu",
+                (ulong) next_val));
     if (m_ndb->setAutoIncrementValue((NDBTAB *) m_table, next_val, true))
       DBUG_PRINT("info", 
 		 ("Setting next auto increment value to %u", next_val));  
