@@ -132,7 +132,13 @@ static char skip_test[FN_REFLEN]=
 " repair ,"
 " rpl_trunc_binlog ,"
 " mysqldump ,"
-" rpl000001 ";
+" rpl000001 ,"
+
+" derived ,"
+" group_by ,"
+" select ,"
+" rpl000015 ,"
+" subselect ";
 #endif
 static char ignore_test[FN_REFLEN]= "";
 
@@ -143,6 +149,8 @@ static char mysql_tmp_dir[FN_REFLEN];
 static char result_dir[FN_REFLEN];
 static char master_dir[FN_REFLEN];
 static char slave_dir[FN_REFLEN];
+static char slave1_dir[FN_REFLEN];
+static char slave2_dir[FN_REFLEN];
 static char lang_dir[FN_REFLEN];
 static char char_dir[FN_REFLEN];
 
@@ -190,6 +198,8 @@ int restarts= 0;
 
 FILE *log_fd= NULL;
 
+static char argument[FN_REFLEN];
+
 /******************************************************************************
 
   functions
@@ -221,7 +231,7 @@ void log_info(const char *, ...);
 void log_error(const char *, ...);
 void log_errno(const char *, ...);
 void die(const char *);
-char *str_tok(char *string, const char *delim);
+char *str_tok(char* dest, char *string, const char *delim);
 #ifndef __WIN__
 void run_init_script(const char *script_name);
 #endif
@@ -289,11 +299,15 @@ void install_db(char *datadir)
   add_arg(&al, "--basedir=%s", base_dir);
   add_arg(&al, "--datadir=%s", datadir);
   add_arg(&al, "--skip-innodb");
+  add_arg(&al, "--skip-ndbcluster");
   add_arg(&al, "--skip-bdb");
 #ifndef __NETWARE__
   add_arg(&al, "--character-sets-dir=%s", char_dir);
   add_arg(&al, "--language=%s", lang_dir);
 #endif
+// added 
+  add_arg(&al, "--default-character-set=latin1");
+  add_arg(&al, "--innodb_data_file_path=ibdata1:50M");
 
   /* spawn */
   if ((err= spawn(mysqld_file, &al, TRUE, input, output, error, NULL)) != 0)
@@ -335,11 +349,26 @@ void mysql_install_db()
   mkdir(temp, S_IRWXU);
   snprintf(temp, FN_REFLEN, "%s/var/master-data/test", mysql_test_dir);
   mkdir(temp, S_IRWXU);
+  
   snprintf(temp, FN_REFLEN, "%s/var/slave-data", mysql_test_dir);
   mkdir(temp, S_IRWXU);
   snprintf(temp, FN_REFLEN, "%s/var/slave-data/mysql", mysql_test_dir);
   mkdir(temp, S_IRWXU);
   snprintf(temp, FN_REFLEN, "%s/var/slave-data/test", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  
+  snprintf(temp, FN_REFLEN, "%s/var/slave1-data", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  snprintf(temp, FN_REFLEN, "%s/var/slave1-data/mysql", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  snprintf(temp, FN_REFLEN, "%s/var/slave1-data/test", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  
+  snprintf(temp, FN_REFLEN, "%s/var/slave2-data", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  snprintf(temp, FN_REFLEN, "%s/var/slave2-data/mysql", mysql_test_dir);
+  mkdir(temp, S_IRWXU);
+  snprintf(temp, FN_REFLEN, "%s/var/slave2-data/test", mysql_test_dir);
   mkdir(temp, S_IRWXU);
 #else
   mkdir(temp);
@@ -368,6 +397,8 @@ void mysql_install_db()
   install_db(master_dir);
   mlog("Creating test databases for slave... \n");
   install_db(slave_dir);
+  install_db(slave1_dir);
+  install_db(slave2_dir);
 }
 
 /******************************************************************************
@@ -384,7 +415,6 @@ void start_master()
   int err;
   char master_out[FN_REFLEN];
   char master_err[FN_REFLEN];
-/*  char temp[FN_REFLEN]; */
   char temp2[FN_REFLEN];
 
   /* remove old berkeley db log files that can confuse the server */
@@ -463,6 +493,11 @@ void start_master()
   add_arg(&al, "--character-sets-dir=%s", char_dir);
   add_arg(&al, "--tmpdir=%s", mysql_tmp_dir);
   add_arg(&al, "--language=%s", lang_dir);
+ 
+  add_arg(&al, "--rpl-recovery-rank=1");
+  add_arg(&al, "--init-rpl-role=master");
+  add_arg(&al, "--default-character-set=latin1");
+//  add_arg(&al, "--innodb_data_file_path=ibdata1:50M");
 #ifdef DEBUG /* only for debug builds */
   add_arg(&al, "--debug");
 #endif
@@ -491,13 +526,13 @@ void start_master()
   {
     char *p;
 
-    p= (char *)str_tok(master_opt, " \t");
+    p= (char *)str_tok(argument, master_opt, " \t");
     if (!strstr(master_opt, "timezone"))
     {
       while (p)
       {
         add_arg(&al, "%s", p);
-        p= (char *)str_tok(NULL, " \t");
+        p= (char *)str_tok(argument, NULL, " \t");
       }
     }
   }
@@ -624,10 +659,10 @@ void start_slave()
   add_arg(&al, "--log-bin=slave-bin");
   add_arg(&al, "--relay_log=slave-relay-bin");
   add_arg(&al, "--basedir=%s", base_dir);
-  add_arg(&al, "--port=%u", slave_port);
 #if !defined(__NETWARE__) && !defined(__WIN__)
   add_arg(&al, "--socket=%s",slave_socket);
 #endif
+  add_arg(&al, "--port=%u", slave_port);
   add_arg(&al, "--datadir=%s", slave_dir);
 #ifndef __WIN__
   add_arg(&al, "--pid-file=%s", slave_pid);
@@ -651,10 +686,15 @@ void start_slave()
   add_arg(&al, "--master-retry-count=10");
   add_arg(&al, "-O");
   add_arg(&al, "slave_net_timeout=10");
+  add_arg(&al, "--log-slave-updates");
+  add_arg(&al, "--log=%s/var/log/slave.log", mysql_test_dir);
+  add_arg(&al, "--default-character-set=latin1");
+  add_arg(&al, "--skip-ndbcluster");
+  
 #ifdef DEBUG /* only for debug builds */
   add_arg(&al, "--debug");
-#endif
-
+#endif      
+	           
   if (use_openssl)
   {
     add_arg(&al, "--ssl-ca=%s", ca_cert);
@@ -667,12 +707,12 @@ void start_slave()
   {
     char *p;
 
-    p= (char *)str_tok(slave_master_info, " \t");
+    p= (char *)str_tok(argument, slave_master_info, " \t");
 
     while (p)
     {
       add_arg(&al, "%s", p);
-      p= (char *)str_tok(NULL, " \t");
+      p= (char *)str_tok(argument, NULL, " \t");
     }
   }
   else
@@ -700,13 +740,13 @@ void start_slave()
   {
     char *p;
 
-    p= (char *)str_tok(slave_opt, " \t");
+    p= (char *)str_tok(argument, slave_opt, " \t");
 
     while (p)
     {
       add_arg(&al, "%s", p);
-      p= (char *)str_tok(NULL, " \t");
-    }
+      p= (char *)str_tok(argument, NULL, " \t");
+    } 
   }
 
   /* remove the pid file if it exists */
@@ -753,9 +793,12 @@ void start_slave()
 
 void mysql_start()
 {
-/*  log_info("Starting the MySQL server(s): %u", ++restarts); */
+
+
+  printf("loading master...\r");
   start_master();
 
+  printf("loading slave...\r");
   start_slave();
 
   /* activate the test screen */
@@ -853,6 +896,7 @@ void mysql_restart()
   mysql_stop();
 
   mlog(DASH);
+  sleep(1);
 
   mysql_start();
 }
@@ -912,7 +956,7 @@ int read_option(char *opt_file, char *opt)
     if ((p= strstr(opt, "\\\\")) != NULL)
     {
       /* bmove is guranteed to work byte by byte */
-      bmove(p, p+1, strlen(p+1));
+      bmove(p, p+1, strlen(p)+1);
     }
   }
   else
@@ -977,14 +1021,6 @@ void run_test(char *test)
     char err_file[FN_REFLEN];
     int err;
     arg_list_t al;
-#ifdef __WIN__
-    /* Clean test database */
-    removef("%s/test/*.*", master_dir);
-    removef("%s/test/*.*", slave_dir);
-    removef("%s/mysqltest/*.*", master_dir);
-    removef("%s/mysqltest/*.*", slave_dir);
-
-#endif
     /* skip slave? */
     flag= skip_slave;
     skip_slave= (strncmp(test, "rpl", 3) != 0);
@@ -1045,9 +1081,6 @@ void run_test(char *test)
     if (!master_running) mysql_start();
       else if (restart) mysql_restart();
 
-    /* let the system stabalize */
-    sleep(1);
-
     /* show test */
     mlog("%-46s ", test);
 
@@ -1066,10 +1099,12 @@ void run_test(char *test)
     add_arg(&al, "--silent");
     add_arg(&al, "--basedir=%s/", mysql_test_dir);
     add_arg(&al, "--host=127.0.0.1");
+    add_arg(&al, "--skip-safemalloc");
     add_arg(&al, "-v");
     add_arg(&al, "-R");
     add_arg(&al, "%s", result_file);
-
+    
+    
     if (use_openssl)
     {
       add_arg(&al, "--ssl-ca=%s", ca_cert);
@@ -1079,7 +1114,6 @@ void run_test(char *test)
 
     /* spawn */
     err= spawn(mysqltest_file, &al, TRUE, test_file, out_file, err_file, NULL);
-
     /* free args */
     free_args(&al);
 
@@ -1259,7 +1293,9 @@ void die(const char *msg)
 void setup(char *file __attribute__((unused)))
 {
   char temp[FN_REFLEN];
+#if defined(__WIN__) || defined(__NETWARE__)  
   char file_path[FN_REFLEN*2];
+#endif  
   char *p;
   int position;
 
@@ -1349,7 +1385,11 @@ void setup(char *file __attribute__((unused)))
   snprintf(client_key, FN_REFLEN, "%s/SSL/client-key.pem", base_dir);
 
   /* setup files */
+#ifdef _DEBUG 
+  snprintf(mysqld_file, FN_REFLEN, "%s/mysqld-debug.exe", bin_dir);
+#else
   snprintf(mysqld_file, FN_REFLEN, "%s/mysqld.exe", bin_dir);
+#endif
   snprintf(mysqltest_file, FN_REFLEN, "%s/mysqltest.exe", bin_dir);
   snprintf(mysqladmin_file, FN_REFLEN, "%s/mysqladmin.exe", bin_dir);
 #else
@@ -1361,6 +1401,8 @@ void setup(char *file __attribute__((unused)))
   snprintf(result_dir, FN_REFLEN, "%s/r", mysql_test_dir);
   snprintf(master_dir, FN_REFLEN, "%s/var/master-data", mysql_test_dir);
   snprintf(slave_dir, FN_REFLEN, "%s/var/slave-data", mysql_test_dir);
+  snprintf(slave1_dir, FN_REFLEN, "%s/var/slave1-data", mysql_test_dir);
+  snprintf(slave2_dir, FN_REFLEN, "%s/var/slave2-data", mysql_test_dir);
   snprintf(lang_dir, FN_REFLEN, "%s/sql/share/english", base_dir);
   snprintf(char_dir, FN_REFLEN, "%s/sql/share/charsets", base_dir);
 
@@ -1413,30 +1455,147 @@ void setup(char *file __attribute__((unused)))
   snprintf(file_path,FN_REFLEN,"MYSQL_TEST_DIR=%s",mysql_test_dir);
   _putenv(file_path);
   snprintf(file_path, FN_REFLEN*2,
-           "MYSQL_DUMP=%s/mysqldump.exe --no-defaults -u root --port=%u",
+           "MYSQL_DUMP=%s/mysqldump.exe --no-defaults -uroot --port=%u",
            bin_dir, master_port);
   _putenv(file_path);
   snprintf(file_path, FN_REFLEN*2,
-           "MYSQL_BINLOG=%s/mysqlbinlog.exe --no-defaults --local-load=%s",
+          "MYSQL_BINLOG=%s/mysqlbinlog.exe --no-defaults --local-load=%s",
            bin_dir, mysql_tmp_dir);
   _putenv(file_path);
+    
+  snprintf(file_path, FN_REFLEN*2,
+          "TESTS_BINDIR=%s/tests", base_dir);
+  _putenv(file_path);
+
+  snprintf(file_path, FN_REFLEN*2,
+           "CHARSETSDIR=%s/sql/share/charsets", base_dir);
+  _putenv(file_path);
+
+  snprintf(file_path, FN_REFLEN*2,
+           "MYSQL=%s/mysql --port=%u ", 
+           bin_dir, master_port);
+  _putenv(file_path);
+    
+  snprintf(file_path, FN_REFLEN*2,
+           "MYSQL_FIX_SYSTEM_TABLES=%s/scripts/mysql_fix_privilege_tables --no-defaults "
+           "--host=localhost --port=%u "
+           "--basedir=%s --bindir=%s --verbose",
+           base_dir,master_port, base_dir, bin_dir);
+  _putenv(file_path);
+     
+  snprintf(file_path, FN_REFLEN*2,
+           "NDB_TOOLS_DIR=%s/ndb/tools", base_dir);
+  _putenv(file_path);
+    
+  snprintf(file_path, FN_REFLEN*2,
+           "CLIENT_BINDIR=%s", bin_dir);
+  _putenv(file_path);
+
+  snprintf(file_path, FN_REFLEN*2,
+             "MYSQL_CLIENT_TEST=%s/tests/mysql_client_test --no-defaults --testcase "
+	     "--user=root --port=%u --silent", 
+	     base_dir, master_port);
+  _putenv(file_path);
+
 #else
-  snprintf(file_path,FN_REFLEN,"MYSQL_TEST_DIR=%s",mysql_test_dir);
-  putenv(file_path);
-  snprintf(file_path, FN_REFLEN*2,
-           "MYSQL_DUMP=%s/mysqldump --no-defaults -u root --port=%u --socket=%s",
-           bin_dir, master_port, master_socket);
-  putenv(file_path);
-  snprintf(file_path, FN_REFLEN*2,
-           "MYSQL_BINLOG=%s/mysqlbinlog --no-defaults --local-load=%s",
-           bin_dir, mysql_tmp_dir);
-  putenv(file_path);
+  {
+    static char env_MYSQL_TEST_DIR[FN_REFLEN*2];
+    static char env_MYSQL_DUMP[FN_REFLEN*2];
+    static char env_MYSQL_BINLOG[FN_REFLEN*2];
+    static char env_MASTER_MYSOCK[FN_REFLEN*2];
+    static char env_TESTS_BINDIR[FN_REFLEN*2];
+    static char env_CHARSETSDIR[FN_REFLEN*2];
+    static char env_MYSQL[FN_REFLEN*2];
+    static char env_MYSQL_FIX_SYSTEM_TABLES[FN_REFLEN*2];
+    static char env_CLIENT_BINDIR[FN_REFLEN*2];
+    static char env_MYSQL_CLIENT_TEST[FN_REFLEN*2];
+    static char env_NDB_TOOLS_DIR[FN_REFLEN*2];
+    static char env_NDB_MGM[FN_REFLEN*2];
+    static char env_NDB_BACKUP_DIR[FN_REFLEN*2];
+    static char env_NDB_TOOLS_OUTPUT[FN_REFLEN*2];
+    
+    snprintf(env_MYSQL_TEST_DIR,FN_REFLEN*2,
+             "MYSQL_TEST_DIR=%s",mysql_test_dir);
+    putenv(env_MYSQL_TEST_DIR);
+    
+    snprintf(env_MYSQL_DUMP, FN_REFLEN*2,"MYSQL_DUMP=%s/mysqldump --no-defaults "
+             "-uroot --port=%u --socket=%s ", 
+             bin_dir, master_port, master_socket);    
+    putenv(env_MYSQL_DUMP);
+    
+    snprintf(env_MYSQL_BINLOG, FN_REFLEN*2,
+             "MYSQL_BINLOG=%s/mysqlbinlog --no-defaults --local-load=%s -uroot ",
+             bin_dir, mysql_tmp_dir);
+    putenv(env_MYSQL_BINLOG);
+    
+    snprintf(env_MASTER_MYSOCK, FN_REFLEN*2,
+             "MASTER_MYSOCK=%s", master_socket);
+    putenv(env_MASTER_MYSOCK);
+
+    snprintf(env_TESTS_BINDIR, FN_REFLEN*2,
+             "TESTS_BINDIR=%s/tests", base_dir);
+    putenv(env_TESTS_BINDIR);
+
+    snprintf(env_CHARSETSDIR, FN_REFLEN*2,
+             "CHARSETSDIR=%s/sql/share/charsets", base_dir);
+    putenv(env_CHARSETSDIR);
+
+    snprintf(env_MYSQL, FN_REFLEN*2,
+             "MYSQL=%s/mysql --port=%u --socket=%s -uroot ", 
+	     bin_dir, master_port, master_socket);
+    putenv(env_MYSQL);
+    
+    snprintf(env_MYSQL_FIX_SYSTEM_TABLES, FN_REFLEN*2,
+             "MYSQL_FIX_SYSTEM_TABLES=%s/scripts/mysql_fix_privilege_tables --no-defaults "
+	     "--host=localhost --port=%u --socket=%s "
+	     "--basedir=%s --bindir=%s --verbose -uroot ",
+	     base_dir,master_port, master_socket, base_dir, bin_dir);
+    putenv(env_MYSQL_FIX_SYSTEM_TABLES);
+     
+    
+    snprintf(env_CLIENT_BINDIR, FN_REFLEN*2,
+             "CLIENT_BINDIR=%s", bin_dir);
+    putenv(env_CLIENT_BINDIR);
+
+    snprintf(env_MYSQL_CLIENT_TEST, FN_REFLEN*2,
+             "MYSQL_CLIENT_TEST=%s/tests/mysql_client_test --no-defaults --testcase "
+	     "--user=root --socket=%s --port=%u --silent", 
+	     base_dir, master_socket, master_port);
+    putenv(env_MYSQL_CLIENT_TEST);
+    
+    // NDB
+    
+    snprintf(env_NDB_TOOLS_DIR, FN_REFLEN*2,
+             "NDB_TOOLS_DIR=%s/ndb/tools", base_dir);
+    putenv(env_NDB_TOOLS_DIR);
+  
+    snprintf(env_NDB_MGM, FN_REFLEN*2,
+             "NDB_MGM=%s/ndb/src/mgmclient/ndb_mgm", base_dir);
+    putenv(env_NDB_MGM);
+  
+    //NDBCLUSTER_PORT=9350
+    snprintf(env_NDB_BACKUP_DIR, FN_REFLEN*2,
+             "NDB_BACKUP_DIR=%s/var/ndbcluster-%i", mysql_test_dir, 9350);
+    putenv(env_NDB_BACKUP_DIR);
+  
+    snprintf(env_NDB_TOOLS_OUTPUT, FN_REFLEN*2,
+             "NDB_TOOLS_OUTPUT=%s/var/log/ndb_tools.log", mysql_test_dir);
+    putenv(env_NDB_TOOLS_OUTPUT);
+
+    putenv((char *)"NDB_STATUS_OK=1");
+  
+// NDB_MGM="$BASEDIR/ndb/src/mgmclient/ndb_mgm"
+// NDB_BACKUP_DIR=$MYSQL_TEST_DIR/var/ndbcluster-$NDBCLUSTER_PORT
+// NDB_TOOLS_OUTPUT=$MYSQL_TEST_DIR/var/log/ndb_tools.log
+  }
+  
 #endif
 
 #ifndef __WIN__
   putenv((char *)"MASTER_MYPORT=9306");
   putenv((char *)"SLAVE_MYPORT=9307");
   putenv((char *)"MYSQL_TCP_PORT=3306");
+
 #else
   _putenv("MASTER_MYPORT=9306");
   _putenv("SLAVE_MYPORT=9307");
@@ -1468,8 +1627,13 @@ int main(int argc, char **argv)
   char **testes= 0;
   int name_index;
   int index;
+  char var_dir[FN_REFLEN];
   /* setup */
   setup(argv[0]);
+  
+  /* delete all file in var */
+  snprintf(var_dir,FN_REFLEN,"%s/var",mysql_test_dir);
+  del_tree(var_dir);
 
   /*
     The --ignore option is comma saperated list of test cases to skip and
@@ -1484,7 +1648,8 @@ int main(int argc, char **argv)
   {
     char *temp, *token;
     temp= strdup(strchr(argv[1],'=') + 1);
-    for (token=str_tok(temp, ","); token != NULL; token=str_tok(NULL, ","))
+    for (token=str_tok(argument, temp, ","); token != NULL; 
+         token=str_tok(argument, NULL, ","))
     {
       if (strlen(ignore_test) + strlen(token) + 2 <= FN_REFLEN-1)
         sprintf(ignore_test+strlen(ignore_test), " %s ", token);
@@ -1508,7 +1673,7 @@ int main(int argc, char **argv)
 
   /* install test databases */
   mysql_install_db();
-
+  
   mlog("Starting Tests...\n");
 
   mlog("\n");
@@ -1671,105 +1836,70 @@ Arguments:
 Output:
   return the null terminated token of NULL.
 */
-
-char *str_tok(char *string, const char *delim)
+char *str_tok(char* dest, char *string, const char *delim)
 {
-  char *token;            /* current token received from strtok */
-  char *qt_token;         /* token delimeted by the matching pair of quote */
-  /*
-    if there are any quote chars found in the token then this variable
-    will hold the concatenated string to return to the caller
-  */
-  char *ptr_token=NULL;
-  /* pointer to the quote character in the token from strtok */
-  char *ptr_quote=NULL;
+  char *token;            
+  char *ptr_end_token= NULL;
+  char *ptr_quote= NULL;
+  char *ptr_token= NULL;
+  int count_quotes= 0;
 
-  /* See if the delimeter contains any quote character */
+  *dest = '\0';
   if (strchr(delim,'\'') || strchr(delim,'\"'))
     return NULL;
 
-  /* repeate till we are getting some token from strtok */
-  while ((token= (char*)strtok(string, delim) ) != NULL)
+  token= (char*)strtok(string, delim);
+  if (token) 
   {
-    /*
-      make the input string NULL so that next time onward strtok can
-      be called with NULL input string.
-    */
-    string= NULL;
-    /* We don't need to remove any quote character for Windows version */
+    /* double quote is found */
+    if (strchr(token,'\"'))
+    {
+      do
+      {
+        if (count_quotes & 1)
+        {
+	  if (*dest == '\0')
+            sprintf(dest,"%s", ptr_token);
+	  else
+            sprintf(dest,"%s %s", dest, ptr_token);
+          ptr_token= (char*)strtok(NULL, delim);
+          if (!ptr_token)
+            break;
+        }
+        else
+        {
+          ptr_token= token;
+        }
+        if (ptr_quote = strchr(ptr_token,'\"'))
+        {
+          ptr_end_token= ptr_token + strlen(ptr_token);
+          do
+          {
 #ifndef __WIN__
-    /* check if the current token contain double quote character*/
-    if ((ptr_quote= (char*)strchr(token,'\"')) != NULL)
-    {
-      /*
-        get the matching the matching double quote in the remaining
-        input string
-      */
-      qt_token= (char*)strtok(NULL,"\"");
-    }
-    /* check if the current token contain single quote character*/
-    else if ((ptr_quote= (char*)strchr(token,'\'')) != NULL)
-    {
-      /*
-        get the matching the matching single quote in the remaining
-        input string
-      */
-      qt_token= (char*)strtok(NULL,"\'");
-    }
+            bmove(ptr_quote, ptr_quote+1, ptr_end_token - ptr_quote);
 #endif
-    /*
-      if the current token does not contains any quote character then
-      return to the caller.
-    */
-    if (ptr_quote == NULL)
-    {
-      /*
-        if there is any earlier token i.e. ptr_token then append the
-        current token in it and return it else return the current
-        token directly
-      */
-      return ptr_token ? strcat(ptr_token,token) : token;
-    }
-
-    /*
-      remove the quote character i.e. make NULL so that the token will
-      be devided in two part and later both part can be concatenated
-      and hence quote will be removed
-    */
-    *ptr_quote= 0;
-
-    /* check if ptr_token has been initialized or not */
-    if (ptr_token == NULL)
-    {
-      /* initialize the ptr_token with current token */
-      ptr_token= token;
-      /* copy entire string between matching pair of quote*/
-      sprintf(ptr_token+strlen(ptr_token),"%s %s", ptr_quote+1, qt_token);
+            count_quotes++;
+          } while (ptr_quote != NULL && (ptr_quote = strchr(ptr_quote+1,'\"')));
+        }
+      /* there are unpair quotes we have to search next quote*/
+      } while (count_quotes & 1);
+      if (ptr_token != NULL)
+      {
+        if (*dest == '\0')
+          sprintf(dest,"%s", ptr_token);
+	else
+          sprintf(dest,"%s %s",dest,ptr_token);
+      }
     }
     else
     {
-      /*
-        copy the current token and entire string between matching pair
-        of quote
-      */
-      if (qt_token == NULL)
-      {
-        sprintf(ptr_token+strlen(ptr_token),"%s%s", token, ptr_quote+1);
-      }
-      else
-      {
-        sprintf(ptr_token+strlen(ptr_token),"%s%s %s", token, ptr_quote+1,
-                qt_token );
-      }
+      sprintf(dest,"%s",token);
     }
   }
-
-  /* return the concatenated token */
-  return ptr_token;
+  return token ? dest : NULL;
 }
 
 #ifndef __WIN__
-
 /*
  Synopsis:
   This function run scripts files on Linux and Netware
