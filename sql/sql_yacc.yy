@@ -1924,7 +1924,7 @@ sp_proc_stmt:
 	    sp_instr_set *i = new sp_instr_set(lex->sphead->instructions(),
 					       lex->spcont,
 	                                       offset, $2, MYSQL_TYPE_STRING);
-	    LEX_STRING dummy={"", 0};
+	    LEX_STRING dummy={(char*)"", 0};
 
 	    lex->spcont->push_pvar(&dummy, MYSQL_TYPE_STRING, sp_param_in);
 	    i->tables= lex->query_tables;
