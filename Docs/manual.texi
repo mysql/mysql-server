@@ -6461,7 +6461,7 @@ With the option @code{--with-extra-charset=LIST} you can define
 which additional character sets should be incompiled in the server.
 
 Here @code{LIST} is either a list of character set separated with space,
-@code{complex} to include all characters that can't be dynamicly loaded
+@code{complex} to include all characters that can't be dynamically loaded
 or @code{all} to include all character sets into the binaries.
 
 @item
@@ -12444,14 +12444,14 @@ mysql -u monty -p database_name
 
 Note that in the last example the password is @strong{NOT} 'database_name'.
 
-If you want to use the -p option to supply a password you should do like this:
+If you want to use the @code{-p} option to supply a password you should do like this:
 
 @example
 mysql -u monty -pguess database_name
 @end example
 
 On some system the library call that @strong{MySQL} uses to prompt for a
-password will automaticly cut the password to 8 characters. Internally
+password will automatically cut the password to 8 characters. Internally
 @strong{MySQL} doesn't have any limit for the length of the password.
 
 @node Connecting, Password security, User names, Privilege system
@@ -19861,7 +19861,7 @@ still get strange errors from a table when @strong{MySQL} tries to
 update a row or find a row by key (this is VERY unlikely to happen if a
 normal check has succeeded!).
 
-Some things reported by check table, can't be corrected automaticly:
+Some things reported by check table, can't be corrected automatically:
 
 @itemize @bullet
 @item
@@ -43560,7 +43560,7 @@ as well developers, to do regression tests on the @strong{MySQL} code. To
 address this problem, we have created a new test system that is included in
 the source and binary distributions starting in Version 3.23.29.
 
-The current set of test cases doesn't test everything in MySQL but, it
+The current set of test cases doesn't test everything in @strong{MySQL}, but it
 should catch most obvious bugs in the SQL processing code, OS/library
 issues, and is quite thorough in testing replication.  Our eventual goal
 is to have the tests cover 100% of the code.  We welcome contributions
@@ -45605,30 +45605,30 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @item
 Multi-table @code{DELETE}.
 @item
-Don't anymore support old client protocols prior to @strong{MySQL} 3.21.
+Don't support old client protocols prior to @strong{MySQL} 3.21 any more.
 @item
 Don't include the old C API functions @code{mysql_drop_db},
-@code{mysql_create_db} and @code{mysql_connect}, if not compiled with
+@code{mysql_create_db} and @code{mysql_connect}, unless compiled with
 @code{USE_OLD_FUNCTIONS}.
 @item
 Renamed @code{safe_mysqld} to @code{mysqld_safe}.
 @item
-Allow one to use @code{IN} instead of @code{FROM} in @code{SHOW} commands.
+Allow @code{IN} as a synonym for @code{FROM} in @code{SHOW} commands.
 @item
 @code{SHOW INDEXES} is now a synonym for @code{SHOW INDEX}.
 @item
 Added support for symbolic links to @code{MyISAM} tables. Symlink handling is
 now enabled by default for Windows.
 @item
-@code{LOAD DATA FROM MASTER} "auto-magically" sets up a slave.
+@code{LOAD DATA FROM MASTER} ``auto-magically'' sets up a slave.
 @item
 A new @code{HANDLER} interface to @code{MyISAM} tables.
 @item
 @code{COUNT(DISTINCT)} is about 30% faster.
 @item
-Creating full text indexes are now much faster.
+@code{FULLTEXT} index creation now is much faster.
 @item
-Searching on packed (@code{CHAR}/@code{VARCHAR}) keys are now much faster.
+Searching on packed (@code{CHAR}/@code{VARCHAR}) keys now is much faster.
 @item
 Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This makes it
 possible to know how many rows a query would have returned
@@ -45737,13 +45737,13 @@ not yet 100% confident in this code.
 Fixed problem with @code{--low-priority-updates} and @code{INSERT}'s.
 @item
 Fixed bug in slave thread when under some rare circumstances it could
-get 22 bytes ahead on the offset in the master
+get 22 bytes ahead on the offset in the master.
 @item
 Added @code{slave_wait_timeout} for replication.
 @item
-Fixed problem with @code{UPDATE} and BDB tables.
+Fixed problem with @code{UPDATE} and @code{BDB} tables.
 @item
-Fixed hard bug in BDB tables when using key parts.
+Fixed hard bug in @code{BDB} tables when using key parts.
 @item
 Fixed problem when using the @code{GRANT FILE ON database.* ...}; Previously
 we added the @code{DROP} privilege for the database.
@@ -45752,7 +45752,8 @@ Fixed @code{DELETE FROM table_name ... LIMIT 0} and
 @code{UPDATE FROM table_name ... LIMIT 0} acted as though the @code{LIMIT}
 clause was not present (they deleted or updated all selected rows).
 @item
-@code{CHECK TABLE} now checks if an auto_increment column contains the value 0.
+@code{CHECK TABLE} now checks if an @code{AUTO_INCREMENT} column contains
+the value 0.
 @item
 Sending a @code{SIGHUP} to @code{mysqld} will now only flush the logs,
 not reset the replication.
@@ -45767,11 +45768,11 @@ only prints the error @code{Aborted connection} if this option is used.
 Fixed problem with @code{SHOW CREATE TABLE} when you didn't have a
 @code{PRIMARY KEY}.
 @item
-Fixed properly the rename of @code{innodb_unix_file_flush_method} to
+Properly fixed the rename of @code{innodb_unix_file_flush_method} to
 @code{innodb_flush_method}.
 @item
 Fixed bug when converting @code{UNSIGNED BIGINT} to @code{DOUBLE}. This caused
-a problem when doing comparisons with @code{BIGINT}'s outside of the
+a problem when doing comparisons with @code{BIGINT} values outside of the
 signed range.
 @item
 Fixed bug in @code{BDB} tables when querying empty tables.
