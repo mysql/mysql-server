@@ -799,13 +799,13 @@ int runUpdateWithoutValues(NDBT_Context* ctx, NDBT_Step* step){
 
   // Dont' call any setValues
 
-  // Execute should not work
+  // Execute should work
   int check = pCon->execute(Commit);
   if (check == 0){
     ndbout << "execute worked" << endl;
-    result = NDBT_FAILED;
   } else {
     ERR(pCon->getNdbError());
+    result = NDBT_FAILED;
   }
   
   pNdb->closeTransaction(pCon);  
