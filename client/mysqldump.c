@@ -75,20 +75,20 @@ static ulong find_set(TYPELIB *lib, const char *x, uint length,
 
 static char *field_escape(char *to,const char *from,uint length);
 static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick= 1, extended_insert= 1,
-		lock_tables=1,ignore_errors=0,flush_logs=0,replace=0,
-		ignore=0,opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
+		lock_tables=1,ignore_errors=0,flush_logs=0,
+		opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
                 opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
                 opt_alldbs=0,opt_create_db=0,opt_first_slave=0,opt_set_charset,
 		opt_autocommit=0,opt_master_data,opt_disable_keys=1,opt_xml=0,
 		opt_delete_master_logs=0, tty_password=0,
 		opt_single_transaction=0, opt_comments= 0, opt_compact= 0,
-		opt_hex_blob=0;
+		opt_hex_blob=0, opt_order_by_primary=0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
              *lines_terminated=0, *enclosed=0, *opt_enclosed=0, *escaped=0,
-             *where=0,
+             *where=0, *order_by=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0;
 static char compatible_mode_normal_str[255];
@@ -287,6 +287,9 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"order-by-primary", OPT_ORDER_BY_PRIMARY,
+   "Sorts each table's rows by primary key, or first unique key, if such a key exists.  Useful if dump will be loaded into an InnoDB table.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"tab",'T',
    "Creates tab separated textfile for each table to given path. (creates .sql and .txt files). NOTE: This only works if mysqldump is run on the same machine as the mysqld daemon.",
@@ -336,6 +339,7 @@ static int dump_databases(char **);
 static int dump_all_databases();
 static char *quote_name(const char *name, char *buff, my_bool force);
 static const char *check_if_ignore_table(const char *table_name);
+static char *primary_key_fields(const char *table_name);
 
 #include <help_start.h>
 
@@ -539,6 +543,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_comments= opt_drop= opt_disable_keys= opt_lock= 0;
     opt_set_charset= 0;
   }
+  case (int) OPT_ORDER_BY_PRIMARY:
+    opt_order_by_primary = 1;
+    break;
   case (int) OPT_TABLES:
     opt_databases=0;
     break;
@@ -630,11 +637,6 @@ static int get_options(int *argc, char ***argv)
     fprintf(stderr, "%s: You can't use ..enclosed.. and ..optionally-enclosed.. at the same time.\n", my_progname);
     return(1);
   }
-  if (replace && ignore)
-  {
-    fprintf(stderr, "%s: You can't use --ignore (-i) and --replace (-r) at the same time.\n",my_progname);
-    return(1);
-  }
   if ((opt_databases || opt_alldbs) && path)
   {
     fprintf(stderr,
@@ -685,7 +687,6 @@ static void safe_exit(int error)
 
 /*
 ** dbConnect -- connects to the host and selects DB.
-**        Also checks whether the tablename is a valid table name.
 */
 static int dbConnect(char *host, char *user,char *passwd)
 {
@@ -820,7 +821,7 @@ static char *quote_for_like(const char *name, char *buff)
     len		- its length
     
   DESCRIPTION
-    Quote '<' '>' '&' '\"' singns and print a string to the xml_file.
+    Quote '<' '>' '&' '\"' chars and print a string to the xml_file.
 */
 
 static void print_quoted_xml(FILE *xml_file, const char *str, ulong len)
@@ -961,6 +962,10 @@ static uint getTableStructure(char *table, char* db)
 
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
+
+  if (opt_order_by_primary)
+    order_by = primary_key_fields(opt_quoted_table);
+
   if (!opt_xml && !mysql_query(sock,insert_pat))
   {
     /* using SHOW CREATE statement */
@@ -1387,10 +1392,6 @@ static void dumpTable(uint numFields, char *table)
     sprintf(query, "SELECT /*!40001 SQL_NO_CACHE */ * INTO OUTFILE '%s'",
 	    filename);
     end= strend(query);
-    if (replace)
-      end= strmov(end, " REPLACE");
-    if (ignore)
-      end= strmov(end, " IGNORE");
 
     if (fields_terminated || enclosed || opt_enclosed || escaped)
       end= strmov(end, " FIELDS");
@@ -1403,10 +1404,17 @@ static void dumpTable(uint numFields, char *table)
 
     sprintf(buff," FROM %s", result_table);
     end= strmov(end,buff);
-    if (where)
+    if (where || order_by)
     {
-      query= alloc_query_str((ulong) (strlen(where) + (end - query) + 10));
-      end= strxmov(query, query_buf, " WHERE ", where, NullS);
+      query = alloc_query_str((ulong) ((end - query) + 1 +
+                             (where ? strlen(where) + 7 : 0) +
+                             (order_by ? strlen(order_by) + 10 : 0)));
+      end = strmov(query, query_buf);
+
+      if (where)
+        end = strxmov(end, " WHERE ", where, NullS);
+      if (order_by)
+        end = strxmov(end, " ORDER BY ", order_by, NullS);
     }
     if (mysql_real_query(sock, query, (uint) (end - query)))
     {
@@ -1424,21 +1432,38 @@ static void dumpTable(uint numFields, char *table)
     }
     sprintf(query, "SELECT /*!40001 SQL_NO_CACHE */ * FROM %s",
 	    result_table);
-    if (where)
+    if (where || order_by)
     {
-      if (!opt_xml && opt_comments)
+      query = alloc_query_str((ulong) (strlen(query) + 1 +
+                             (where ? strlen(where) + 7 : 0) +
+                             (order_by ? strlen(order_by) + 10 : 0)));
+      end = strmov(query, query_buf);
+
+      if (where)
       {
-	fprintf(md_result_file,"-- WHERE:  %s\n",where);
-	check_io(md_result_file);
+        if (!opt_xml && opt_comments)
+        {
+          fprintf(md_result_file, "-- WHERE:  %s\n", where);
+          check_io(md_result_file);
+        }
+        end = strxmov(end, " WHERE ", where, NullS);
       }
-      query= alloc_query_str((ulong) (strlen(where) + strlen(query) + 10));
-      strxmov(query, query_buf, " WHERE ", where, NullS);
+      if (order_by)
+      {
+        if (!opt_xml && opt_comments)
+        {
+          fprintf(md_result_file, "-- ORDER BY:  %s\n", order_by);
+          check_io(md_result_file);
+        }
+        end = strxmov(end, " ORDER BY ", order_by, NullS);
+      }
     }
     if (!opt_xml && !opt_compact)
     {
       fputs("\n", md_result_file);
       check_io(md_result_file);
     }
+    fprintf(stderr, "-- [%s]\n", query);
     if (mysql_query(sock, query))
     {
       DBerror(sock, "when retrieving data from server");
@@ -1749,6 +1774,8 @@ static void dumpTable(uint numFields, char *table)
 err:
   if (query != query_buf)
     my_free(query, MYF(MY_ALLOW_ZERO_PTR));
+  if (order_by)
+    my_free(order_by, MYF(0));
   safe_exit(error);
   return;
 } /* dumpTable */
@@ -2088,6 +2115,80 @@ static const char *check_if_ignore_table(const char *table_name)
       strcmp(row[1], (result= "MRG_ISAM")))
     result= 0;
   mysql_free_result(res);  
+  return result;
+}
+
+/*
+  Get string of comma-separated primary key field names
+
+  SYNOPSIS
+    char *primary_key_fields(const char *table_name)
+    RETURNS     pointer to allocated buffer (must be freed by caller)
+    table_name  quoted table name
+
+  DESCRIPTION
+    Use SHOW KEYS FROM table_name, allocate a buffer to hold the
+    field names, and then build that string and return the pointer
+    to that buffer.
+
+    Returns NULL if there is no PRIMARY or UNIQUE key on the table,
+    or if there is some failure.  It is better to continue to dump
+    the table unsorted, rather than exit without dumping the data.
+*/
+static char *primary_key_fields(const char *table_name)
+{
+  MYSQL_RES  *res = NULL;
+  MYSQL_ROW  row;
+  /* SHOW KEYS FROM + table name * 2 (escaped) + 2 quotes + \0 */
+  char show_keys_buff[15 + 64 * 2 + 3];
+  uint result_length = 0, first_unique_pos = 0;
+  char *result = 0;
+
+  sprintf(show_keys_buff, "SHOW KEYS FROM %s", table_name);
+  if (mysql_query(sock, show_keys_buff) ||
+      !(res = mysql_store_result(sock)))
+  {
+    fprintf(stderr, "Warning: Couldn't read keys from table %s;"
+            " records are NOT sorted (%s)\n",
+            table_name, mysql_error(sock));
+    /* Don't exit, because it's better to print out unsorted records */
+    goto cleanup;
+  }
+
+  /* Figure out the length of the ORDER BY clause result */
+  while ((row = mysql_fetch_row(res)))
+  {
+    if (atoi(row[1]) == 0)      /* Key is unique */
+    {
+      do
+        result_length += strlen(row[4]) + 1;      /* + 1 for ',' or \0 */
+      while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1);
+
+      break;
+    }
+    ++first_unique_pos;
+  }
+
+  /* Build the ORDER BY clause result */
+  if (result_length) {
+    char *end;
+    /* result (terminating \0 is already in result_length) */
+    result = my_malloc(result_length + 10, MYF(MY_WME));
+    if (!result) {
+      fprintf(stderr, "Error: Not enough memory to store ORDER BY clause\n");
+      goto cleanup;
+    }
+    mysql_data_seek(res, first_unique_pos);
+    row = mysql_fetch_row(res);
+    end = strmov(result, row[4]);
+    while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1)
+      end = strxmov(end, ",", row[4], NullS);
+  }
+
+cleanup:
+  if (res)
+    mysql_free_result(res);
+
   return result;
 }
 
