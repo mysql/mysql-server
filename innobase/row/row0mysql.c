@@ -1686,15 +1686,16 @@ constraints which reference this table are ok. */
 int
 row_table_add_foreign_constraints(
 /*==============================*/
-				/* out: error code or DB_SUCCESS */
-	trx_t*	trx,		/* in: transaction */
-	char*	sql_string,	/* in: table create statement where
-				foreign keys are declared like:
+					/* out: error code or DB_SUCCESS */
+	trx_t*		trx,		/* in: transaction */
+	const char*	sql_string,	/* in: table create statement where
+					foreign keys are declared like:
 				FOREIGN KEY (a, b) REFERENCES table2(c, d),
-				table2 can be written also with the database
-				name before it: test.table2 */
-	char*	name)		/* in: table full name in the normalized form
-				database_name/table_name */
+					table2 can be written also with the
+					database name before it: test.table2 */
+	const char*	name)		/* in: table full name in the
+					normalized form
+					database_name/table_name */
 {
 	ulint	err;
 
@@ -1940,9 +1941,9 @@ discard ongoing operations. */
 int
 row_discard_tablespace_for_mysql(
 /*=============================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name,	/* in: table name */
-	trx_t*	trx)	/* in: transaction handle */
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: table name */
+	trx_t*		trx)	/* in: transaction handle */
 {
 	dulint		new_id;
 	dict_table_t*	table;
@@ -2071,9 +2072,9 @@ of the table in the data dictionary. */
 int
 row_import_tablespace_for_mysql(
 /*============================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name,	/* in: table name */
-	trx_t*	trx)	/* in: transaction handle */
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: table name */
+	trx_t*		trx)	/* in: transaction handle */
 {
 	dict_table_t*	table;
 	ibool		success;
@@ -2177,10 +2178,10 @@ the corresponding monitor output by the master thread. */
 int
 row_drop_table_for_mysql(
 /*=====================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name,	/* in: table name */
-	trx_t*	trx,	/* in: transaction handle */
-	ibool	drop_db)/* in: TRUE=dropping whole database */
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: table name */
+	trx_t*		trx,	/* in: transaction handle */
+	ibool		drop_db)/* in: TRUE=dropping whole database */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	table;
@@ -2519,9 +2520,9 @@ Drops a database for MySQL. */
 int
 row_drop_database_for_mysql(
 /*========================*/
-			/* out: error code or DB_SUCCESS */
-	char*	name,	/* in: database name which ends to '/' */
-	trx_t*	trx)	/* in: transaction handle */
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: database name which ends to '/' */
+	trx_t*		trx)	/* in: transaction handle */
 {
         dict_table_t* table;
 	char*	table_name;
@@ -2611,10 +2612,10 @@ Renames a table for MySQL. */
 int
 row_rename_table_for_mysql(
 /*=======================*/
-				/* out: error code or DB_SUCCESS */
-	char*	old_name,	/* in: old table name */
-	char*	new_name,	/* in: new table name */
-	trx_t*	trx)		/* in: transaction handle */
+					/* out: error code or DB_SUCCESS */
+	const char*	old_name,	/* in: old table name */
+	const char*	new_name,	/* in: new table name */
+	trx_t*		trx)		/* in: transaction handle */
 {
 	dict_table_t*	table;
 	que_thr_t*	thr;

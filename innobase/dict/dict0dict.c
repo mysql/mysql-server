@@ -70,7 +70,7 @@ dict_col_reposition_in_cache(
 /*=========================*/
 	dict_table_t*	table,		/* in: table */
 	dict_col_t*	col,		/* in: column */
-	char*		new_name);	/* in: new table name */
+	const char*	new_name);	/* in: new table name */
 /**************************************************************************
 Removes a column from the data dictionary hash table. */
 static
@@ -309,7 +309,7 @@ dict_table_get_index_noninline(
 /*===========================*/
 				/* out: index, NULL if does not exist */
 	dict_table_t*	table,	/* in: table */
-	char*		name)	/* in: index name */
+	const char*	name)	/* in: index name */
 {
 	return(dict_table_get_index(table, name));
 }
@@ -693,9 +693,10 @@ directory dict_table_get_low is usually the appropriate function. */
 dict_table_t*
 dict_table_get(
 /*===========*/
-				/* out: table, NULL if does not exist */
-	char*	table_name,	/* in: table name */
-	trx_t*	trx)		/* in: transaction handle or NULL */
+					/* out: table, NULL if
+					does not exist */
+	const char*	table_name,	/* in: table name */
+	trx_t*		trx)		/* in: transaction handle or NULL */
 {
 	dict_table_t*	table;
 
@@ -722,9 +723,10 @@ Returns a table object and increments MySQL open handle count on the table. */
 dict_table_t*
 dict_table_get_and_increment_handle_count(
 /*======================================*/
-				/* out: table, NULL if does not exist */
-	char*	table_name,	/* in: table name */
-	trx_t*	trx)		/* in: transaction handle or NULL */
+					/* out: table, NULL if
+					does not exist */
+	const char*	table_name,	/* in: table name */
+	trx_t*		trx)		/* in: transaction handle or NULL */
 {
 	dict_table_t*	table;
 
@@ -886,7 +888,7 @@ dict_table_rename_in_cache(
 /*=======================*/
 					/* out: TRUE if success */
 	dict_table_t*	table,		/* in: table */
-	char*		new_name,	/* in: new name */
+	const char*	new_name,	/* in: new name */
 	ibool		rename_also_foreigns)/* in: in ALTER TABLE we want
 					to preserve the original table name
 					in constraints which reference it */
@@ -1294,7 +1296,7 @@ dict_col_reposition_in_cache(
 /*=========================*/
 	dict_table_t*	table,		/* in: table */
 	dict_col_t*	col,		/* in: column */
-	char*		new_name)	/* in: new table name */
+	const char*	new_name)	/* in: new table name */
 {
 	ulint		fold;
 
@@ -2019,7 +2021,7 @@ dict_foreign_find_index(
 				column types must match */
 {
 	dict_index_t*	index;
-	char*		col_name;
+	const char*	col_name;
 	ulint		i;
 	
 	index = dict_table_get_first_index(table);
@@ -2564,14 +2566,14 @@ static
 char*
 dict_strip_comments(
 /*================*/
-				/* out, own: SQL string stripped from
-				comments; the caller must free this
-				with mem_free()! */
-	char*	sql_string)	/* in: SQL string */
+					/* out, own: SQL string stripped from
+					comments; the caller must free this
+					with mem_free()! */
+	const char*	sql_string)	/* in: SQL string */
 {
-	char*	str;
-	char*	sptr;
-	char*	ptr;
+	char*		str;
+	const char*	sptr;
+	char*		ptr;
 	
 	str = mem_alloc(strlen(sql_string) + 1);
 
@@ -2970,7 +2972,8 @@ col_loop1:
 	}
 
 	foreign->foreign_table = table;
-	foreign->foreign_table_name = table->name;
+	foreign->foreign_table_name = mem_heap_strdup(foreign->heap,
+							table->name);
 	foreign->foreign_index = index;
 	foreign->n_fields = i;
 	foreign->foreign_col_names = mem_heap_alloc(foreign->heap,
@@ -3244,16 +3247,19 @@ allowed to contain more fields than mentioned in the constraint. */
 ulint
 dict_create_foreign_constraints(
 /*============================*/
-				/* out: error code or DB_SUCCESS */
-	trx_t*	trx,		/* in: transaction */
-	char*	sql_string,	/* in: table create or ALTER TABLE
-				statement where foreign keys are declared like:
-				FOREIGN KEY (a, b) REFERENCES table2(c, d),
-				table2 can be written also with the database
-				name before it: test.table2; the default
-				database is the database of parameter name */
-	char*	name)		/* in: table full name in the normalized form
-				database_name/table_name */
+					/* out: error code or DB_SUCCESS */
+	trx_t*		trx,		/* in: transaction */
+	const char*	sql_string,	/* in: table create statement where
+					foreign keys are declared like:
+					FOREIGN KEY (a, b) REFERENCES
+					table2(c, d), table2 can be written
+					also with the database
+					name before it: test.table2; the
+					default database id the database of
+					parameter name */
+	const char*	name)		/* in: table full name in the
+					normalized form
+					database_name/table_name */
 {
 	char*		str;
 	ulint		err;
