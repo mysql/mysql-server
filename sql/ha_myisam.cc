@@ -841,14 +841,11 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
 	if (file->state->records == 0 &&
 	    (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES))
 	  mi_disable_non_unique_index(file,rows);
-        else
-        if (!file->bulk_insert &&
-            (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
-        {
+        else if (!file->bulk_insert &&
+		 (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
           mi_init_bulk_insert(file,
                               current_thd->variables.bulk_insert_buff_size,
                               rows);
-        }
       }
     }
     enable_activate_all_index=1;

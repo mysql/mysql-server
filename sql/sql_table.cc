@@ -628,15 +628,15 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         if (!timestamps)
         {
           sql_field->unireg_check= Field::TIMESTAMP_DNUN_FIELD;
-          ++timestamps_with_niladic;
+          timestamps_with_niladic++;
         }
         else
           sql_field->unireg_check= Field::NONE;
       }
-      else if(sql_field->unireg_check != Field::NONE)
-        ++timestamps_with_niladic;
+      else if (sql_field->unireg_check != Field::NONE)
+        timestamps_with_niladic++;
       
-      ++timestamps;
+      timestamps++;
       /* fall-through */
     default:
       sql_field->pack_flag=(FIELDFLAG_NUMBER |

@@ -663,9 +663,22 @@ static void make_sortkey(register SORTPARAM *param,
     for ( ; (field= addonf->field) ; addonf++)
     {
       if (addonf->null_bit && field->is_null())
+      {
         nulls[addonf->null_offset]|= addonf->null_bit;
+#ifdef HAVE_purify
+	bzero(to, addonf->length);
+#endif
+      }
       else
-        field->pack((char *) to, field->ptr);
+      {
+        uchar *end= (uchar*) field->pack((char *) to, field->ptr);
+#ifdef HAVE_purify
+	uint length= (uint) ((to + addonf->length) - end);
+	DBUG_ASSERT((int) length >= 0);
+	if (length)
+	  bzero(end, length);
+#endif
+      }
       to+= addonf->length;
     }
   }
