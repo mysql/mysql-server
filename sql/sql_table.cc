@@ -688,9 +688,10 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	'generated', and a generated key is a prefix of the other key. Then we
 	do not need the generated shorter key.
         */
-        if ((key2->type != Key::FOREIGN_KEY && !foreign_key_prefix(key, key2)))
+        if (key2->name != ignore_key && key2->type != Key::FOREIGN_KEY &&
+            !foreign_key_prefix(key, key2))
         {
-          /* TO DO: issue warning message */
+          /* TODO: issue warning message */
           /* mark that the generated key should be ignored */
           if (!key2->generated ||
               (key->generated && key->columns.elements <
@@ -698,17 +699,9 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
             key->name= ignore_key;
           else
           {
-            /*
-	    Remove the previous, generated key if it has not yet been
-	    removed. Note that if we have several identical generated keys,
-            the last one will remain and others get removed here.
-	    */
-            if (key2->name != ignore_key)
-            {
-              key2->name= ignore_key;
-              key_parts-= key2->columns.elements;
-              (*key_count)--;
-            }
+            key2->name= ignore_key;
+            key_parts-= key2->columns.elements;
+            (*key_count)--;
           }
           break;
         }
