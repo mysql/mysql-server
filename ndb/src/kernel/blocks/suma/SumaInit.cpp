@@ -94,9 +94,15 @@ SumaParticipant::SumaParticipant(const Configuration & conf) :
   /**
    * @todo: fix pool sizes
    */
+  Uint32 noTables;
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
+  ndbrequire(p != 0);
 
-  c_tablePool_.setSize(MAX_TABLES);
-  c_tables.setSize(MAX_TABLES);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES,  
+			    &noTables);
+
+  c_tablePool_.setSize(noTables);
+  c_tables.setSize(noTables);
   
   c_subscriptions.setSize(20); //10
   c_subscriberPool.setSize(64);
