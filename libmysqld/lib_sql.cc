@@ -100,7 +100,18 @@ emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
 {
   MYSQL_DATA *result= ((THD*)mysql->thd)->data;
   if (!result)
-    return NULL;
+  {
+    if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
+					 MYF(MY_WME | MY_ZEROFILL))))
+    {
+      NET *net = &mysql->net;
+      net->last_errno=CR_OUT_OF_MEMORY;
+      strmov(net->sqlstate, unknown_sqlstate);
+      strmov(net->last_error,ER(net->last_errno));
+      return NULL;
+    }    
+    return result;
+  }
   *result->prev_ptr= NULL;
   ((THD*)mysql->thd)->data= NULL;
   return result;
@@ -126,6 +137,16 @@ static my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
     stmt->fields= mysql->fields;
     stmt->mem_root= mysql->field_alloc;
   }
+
+  if (!(stmt->bind= 
+	(MYSQL_BIND *) alloc_root(&stmt->mem_root,
+				  sizeof(MYSQL_BIND)*stmt->field_count)))
+  {
+    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    return 1;
+  }
+  stmt->params= NULL; // we don't need parameter's buffer in embedded library
+
   return 0;
 }
 
@@ -154,6 +175,23 @@ static my_bool STDCALL emb_mysql_read_query_result(MYSQL *mysql)
   return 0;
 }
 
+static int STDCALL emb_stmt_execute(MYSQL_STMT *stmt)
+{
+  DBUG_ENTER("emb_stmt_execute");
+  THD *thd= (THD*)stmt->mysql->thd;
+  thd->client_param_count= stmt->param_count;
+  thd->client_parameters= stmt->params;
+  if (emb_advanced_command(stmt->mysql, COM_EXECUTE,0,0,
+			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),1)
+      || emb_mysql_read_query_result(stmt->mysql))
+  {
+    NET *net= &stmt->mysql->net;
+    set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
+    DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
 MYSQL_METHODS embedded_methods= 
 {
   emb_mysql_read_query_result,
@@ -162,7 +200,8 @@ MYSQL_METHODS embedded_methods=
   mysql_store_result,
   emb_fetch_lengths, 
   emb_list_fields,
-  emb_read_prepare_result
+  emb_read_prepare_result,
+  emb_stmt_execute
 };
 
 C_MODE_END
