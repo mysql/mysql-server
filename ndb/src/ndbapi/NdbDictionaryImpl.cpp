@@ -144,6 +144,8 @@ NdbColumnImpl::init(Type t)
     m_cs = default_cs;
     break;
   case Time:
+  case Year:
+  case Timestamp:
     m_precision = 0;
     m_scale = 0;
     m_length = 1;
