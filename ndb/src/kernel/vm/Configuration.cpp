@@ -590,9 +590,11 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   it2.set(CFG_DB_NO_TABLES, noOfTables);
   it2.set(CFG_DB_NO_ATTRIBUTES, noOfAttributes);
   {
-    Uint32 neededNoOfTriggers =
-      3 * (noOfUniqueHashIndexes + NDB_MAX_ACTIVE_EVENTS)+
-      noOfOrderedIndexes;
+    Uint32 neededNoOfTriggers =   /* types: Insert/Update/Delete/Custom */
+      3 * noOfUniqueHashIndexes + /* for unique hash indexes, I/U/D */
+      3 * NDB_MAX_ACTIVE_EVENTS + /* for events in suma, I/U/D */
+      3 * noOfTables +            /* for backup, I/U/D */
+      noOfOrderedIndexes;         /* for ordered indexes, C */
     if (noOfTriggers < neededNoOfTriggers)
     {
       noOfTriggers= neededNoOfTriggers;
