@@ -1526,11 +1526,6 @@ int ha_ndbcluster::write_row(byte *record)
   if (table->timestamp_default_now)
     update_timestamp(record+table->timestamp_default_now-1);
   has_auto_increment= (table->next_number_field && record == table->record[0]);
-  skip_auto_increment=
-    table->next_number_field &&
-    table->next_number_field->val_int() != 0 ||
-    table->auto_increment_field_not_null &&
-    current_thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO;
 
   if (!(op= trans->getNdbOperation((const NDBTAB *) m_table)))
     ERR_RETURN(trans->getNdbError());
@@ -1550,8 +1545,12 @@ int ha_ndbcluster::write_row(byte *record)
   {
     int res;
 
-    if (has_auto_increment)
+    if (has_auto_increment) 
+    {
+      skip_auto_increment= false;
       update_auto_increment();
+      skip_auto_increment= !auto_increment_column_changed;
+    }
 
     if ((res= set_primary_key(op)))
       return res;
