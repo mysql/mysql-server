@@ -249,6 +249,7 @@ Ndb_item::Ndb_item(NDB_ITEM_TYPE item_type,
     break;
   }
   case(NDB_FUNCTION):
+  case(NDB_END_COND):
     break;
   }
 }
@@ -265,10 +266,7 @@ Ndb_item::Ndb_item(double real_value) : type(NDB_VALUE)
   value.real_value= real_value; 
 }
 
-Ndb_item::Ndb_item(): type(NDB_VALUE)
-{
-  qualification.value_type= Item::NULL_ITEM;
-}
+Ndb_item::Ndb_item(NDB_ITEM_TYPE item_type): type(item_type) {}
 
 Ndb_item::Ndb_item(Field *field, int column_no) : type(NDB_FIELD)
 {
@@ -1839,6 +1837,9 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if (res)
       DBUG_RETURN(res);
   }
+
+  if (!restart && generate_scan_filter(m_cond_stack, op))
+    DBUG_RETURN(ndb_err(trans));
   
   if (!restart && (res= define_read_attrs(buf, op)))
   {
@@ -1961,7 +1962,8 @@ int ha_ndbcluster::full_table_scan(byte *buf)
       op->readTuples(lm, 0, parallelism))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= op;
-  generate_scan_filter(m_cond_stack, op);
+  if (generate_scan_filter(m_cond_stack, op))
+    DBUG_RETURN(ndb_err(trans));
   if((res= define_read_attrs(buf, op)))
     DBUG_RETURN(res);
 
@@ -5247,6 +5249,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 	}
 	else if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) 
 		 &&!scanOp->readTuples(lm, 0, parallelism, sorted, false, true)
+		 &&!generate_scan_filter(m_cond_stack, scanOp)
 		 &&!define_read_attrs(end_of_buffer-reclength, scanOp))
 	{
 	  m_multi_cursor= scanOp;
@@ -5258,6 +5261,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 		     m_active_trans->getNdbError());
 	}
       }
+
       const key_range *keys[2]= { &multi_range_curr->start_key, 
 				  &multi_range_curr->end_key };
       if ((res= set_bounds(scanOp, keys, multi_range_curr-ranges)))
@@ -5533,7 +5537,11 @@ void ndb_serialize_cond(const Item *item, void *arg)
       ndb_stack->ndb_cond= curr_cond;
     curr_cond->prev= prev_cond;
     if (prev_cond) prev_cond->next= curr_cond;
-    
+
+    if (!item)
+      // End marker for condition group
+      curr_cond->ndb_item= new Ndb_item(NDB_END_COND);
+    else
     switch(item->type()) {
     case(Item::FIELD_ITEM): {
       Item_field *field_item= (Item_field *) item;
@@ -5753,8 +5761,8 @@ ha_ndbcluster::serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond)
   DBUG_RETURN(supported);
 }
 
-Ndb_cond *
-ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond, 
+int
+ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond, 
 					   NdbScanFilter *filter)
 {
   DBUG_ENTER("build_scan_filter_predicate");  
@@ -5780,11 +5788,14 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
       DBUG_PRINT("info", ("Generating EQ filter"));
       longlong int_value= value->get_int_value();
 
-      filter->cmp(NdbScanFilter::COND_EQ, 
-		  field->get_field_no(),
-		  (void *) &int_value,
-		  field->pack_length());
-      DBUG_RETURN(cond->next->next->next);
+      if (filter->cmp(NdbScanFilter::COND_EQ, 
+		      field->get_field_no(),
+		      (void *) &int_value,
+		      field->pack_length()) == -1)
+	DBUG_RETURN(1);
+
+      cond= cond->next->next->next;
+      DBUG_RETURN(0);
     }
     case(Item_func::NE_FUNC): {
       if (!cond->next->next)
@@ -5802,11 +5813,14 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
       DBUG_PRINT("info", ("Generating NE filter"));
       longlong int_value= value->get_int_value();
 
-      filter->cmp(NdbScanFilter::COND_NE, 
-		  field->get_field_no(),
-		  (void *) &int_value,
-		  field->pack_length());
-      DBUG_RETURN(cond->next->next->next);
+      if (filter->cmp(NdbScanFilter::COND_NE, 
+		      field->get_field_no(),
+		      (void *) &int_value,
+		      field->pack_length()) == -1)
+	DBUG_RETURN(1);
+
+      cond= cond->next->next->next;
+      DBUG_RETURN(0);
     }
     case(Item_func::LT_FUNC): {
       if (!cond->next->next)
@@ -5826,19 +5840,23 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
 
       if (a == field)
       {
-	filter->cmp(NdbScanFilter::COND_LT, 
-		    field->get_field_no(),
-		    (void *) &int_value,
-		    field->pack_length());
+	if (filter->cmp(NdbScanFilter::COND_LT, 
+			field->get_field_no(),
+			(void *) &int_value,
+			field->pack_length()) == -1)
+	  DBUG_RETURN(1);
       }
       else
       {
-	filter->cmp(NdbScanFilter::COND_GT, 
-		    field->get_field_no(),
-		    (void *) &int_value,
-		    field->pack_length());
+	if (filter->cmp(NdbScanFilter::COND_GT, 
+			field->get_field_no(),
+			(void *) &int_value,
+			field->pack_length()) == -1)
+	  DBUG_RETURN(1);
       }
-      DBUG_RETURN(cond->next->next->next);
+
+      cond= cond->next->next->next;
+      DBUG_RETURN(0);
     }
     case(Item_func::LE_FUNC): {
       if (!cond->next->next)
@@ -5858,19 +5876,23 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
 
       if (a == field)
       {
-	filter->cmp(NdbScanFilter::COND_LE, 
-		    field->get_field_no(),
-		     (void *) &int_value,
-		    field->pack_length());
+	if (filter->cmp(NdbScanFilter::COND_LE, 
+			field->get_field_no(),
+			(void *) &int_value,
+			field->pack_length()) == -1)
+	  DBUG_RETURN(1);	  
       }
       else
       {
-	filter->cmp(NdbScanFilter::COND_GE, 
-		    field->get_field_no(),
-		    (void *) &int_value,
-		    field->pack_length());
+	if (filter->cmp(NdbScanFilter::COND_GE, 
+			field->get_field_no(),
+			(void *) &int_value,
+			field->pack_length()) == -1)
+	  DBUG_RETURN(1);
       }
-      DBUG_RETURN(cond->next->next->next);
+
+      cond= cond->next->next->next;
+      DBUG_RETURN(0);
     }
     case(Item_func::GE_FUNC): {
       if (!cond->next->next)
@@ -5890,19 +5912,23 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
 
       if (a == field)
       {
-	filter->cmp(NdbScanFilter::COND_GE, 
-		    field->get_field_no(),
-		    (void *) &int_value,
-		    field->pack_length());
+	if (filter->cmp(NdbScanFilter::COND_GE, 
+			field->get_field_no(),
+			(void *) &int_value,
+			field->pack_length()) == -1)
+	  DBUG_RETURN(1);
       }
       else
       {
-	filter->cmp(NdbScanFilter::COND_LE, 
-		    field->get_field_no(),
-		    (void *) &int_value,
-		    field->pack_length());
+	if (filter->cmp(NdbScanFilter::COND_LE, 
+			field->get_field_no(),
+			(void *) &int_value,
+			field->pack_length()) == -1)
+	  DBUG_RETURN(1);
       }
-      DBUG_RETURN(cond->next->next->next);
+
+      cond= cond->next->next->next;
+      DBUG_RETURN(0);
     }
     case(Item_func::GT_FUNC): {
       if (!cond->next->next)
@@ -5922,19 +5948,23 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
 
       if (a == field)
       {
-	filter->cmp(NdbScanFilter::COND_GT, 
-		    field->get_field_no(),
-		    (void *) &int_value,
-		    field->pack_length());
+	if (filter->cmp(NdbScanFilter::COND_GT, 
+			field->get_field_no(),
+			(void *) &int_value,
+			field->pack_length()) == -1)
+	  DBUG_RETURN(1);
       }
       else
       {
-	filter->cmp(NdbScanFilter::COND_LT, 
-		    field->get_field_no(),
-		    (void *) &int_value,
-		    field->pack_length());
+	if (filter->cmp(NdbScanFilter::COND_LT, 
+			field->get_field_no(),
+			(void *) &int_value,
+			field->pack_length()) == -1)
+	  DBUG_RETURN(1);
       }
-      DBUG_RETURN(cond->next->next->next);
+
+      cond= cond->next->next->next;
+      DBUG_RETURN(0);
     }
     case(Item_func::LIKE_FUNC): {
       if (!cond->next->next)
@@ -5952,9 +5982,11 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
       if (value->qualification.value_type != Item::STRING_ITEM) break;
       String *str= value->get_string_value();
       DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%d)", field->get_field_no(), str->ptr(), str->length()));
-      //filter->like(field->get_field_no(),
-      //		   str->ptr(), str->length(), TRUE);
-      DBUG_RETURN(cond->next->next->next);
+      //if (filter->like(field->get_field_no(),
+      //                 str->ptr(), str->length(), TRUE) == -1)
+      //   DBUG_RETURN(1);
+      cond= cond->next->next->next;
+      DBUG_RETURN(0);
     }
     case(Item_func::NOTLIKE_FUNC): {
       if (!cond->next->next)
@@ -5972,22 +6004,28 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
       if (value->qualification.value_type != Item::STRING_ITEM) break;
       String *str= value->get_string_value();
       DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", field->get_field_no(), str->ptr(), str->length()));
-      //filter->notlike(field->get_field_no(),
-      //		      str->ptr(), str->length());
-      DBUG_RETURN(cond->next->next->next);
+      //if (filter->notlike(field->get_field_no(),
+      //		    str->ptr(), str->length()) == -1)
+      //    DBUG_RETURN(1);
+      cond= cond->next->next->next;
+      DBUG_RETURN(0);
     }
     case(Item_func::ISNULL_FUNC):
       if (a->type == NDB_FIELD) {
 	DBUG_PRINT("info", ("Generating ISNULL filter"));
-	filter->isnull(a->get_field_no());
+	if (filter->isnull(a->get_field_no()) == -1)
+	  DBUG_RETURN(1);
       }
-      DBUG_RETURN(cond->next->next);
+      cond= cond->next->next;
+      DBUG_RETURN(0);
     case(Item_func::ISNOTNULL_FUNC): {
       if (a->type == NDB_FIELD) {
 	DBUG_PRINT("info", ("Generating ISNOTNULL filter"));
-	filter->isnotnull(a->get_field_no());
+	if (filter->isnotnull(a->get_field_no()) == -1)
+	  DBUG_RETURN(1);	  
       }
-      DBUG_RETURN(cond->next->next);
+      cond= cond->next->next;
+      DBUG_RETURN(0);
     }
     default:
       break;
@@ -5998,11 +6036,11 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond *cond,
     break;
   }
   DBUG_PRINT("info", ("Found illegal condition"));
-  DBUG_RETURN(NULL);
+  DBUG_RETURN(1);
 }
 
-Ndb_cond *
-ha_ndbcluster::build_scan_filter_group(Ndb_cond *cond, NdbScanFilter *filter)
+int
+ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
 {
   DBUG_ENTER("build_scan_filter_group");
   switch(cond->ndb_item->type) {
@@ -6010,24 +6048,39 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond *cond, NdbScanFilter *filter)
     switch(cond->ndb_item->qualification.function_type) {
     case(Item_func::COND_AND_FUNC): {
       DBUG_PRINT("info", ("Generating AND group"));
-      filter->begin(NdbScanFilter::AND);
+      if (filter->begin(NdbScanFilter::AND) == -1)
+	DBUG_RETURN(1);
       cond= cond->next;
-      cond= build_scan_filter_group(cond, filter);
-      cond= build_scan_filter_group(cond, filter);
-      filter->end();
+      do
+      {
+	if (build_scan_filter_group(cond, filter))
+	  DBUG_RETURN(1);
+      } while (cond && cond->ndb_item->type != NDB_END_COND);
+      if (cond) cond= cond->next;
+      if (filter->end() == -1)
+	DBUG_RETURN(1);
+      DBUG_PRINT("info", ("End of AND group"));
       break;
     }
     case(Item_func::COND_OR_FUNC): {
       DBUG_PRINT("info", ("Generating OR group"));
-      filter->begin(NdbScanFilter::OR);
+      if (filter->begin(NdbScanFilter::OR) == -1)
+	DBUG_RETURN(1);
       cond= cond->next;
-      cond= build_scan_filter_group(cond, filter);
-      cond= build_scan_filter_group(cond, filter);
-      filter->end();
+      do
+      {
+	if (build_scan_filter_group(cond, filter))
+	  DBUG_RETURN(1);
+      } while (cond && cond->ndb_item->type != NDB_END_COND);
+      if (cond) cond= cond->next;
+      if (filter->end() == -1)
+	DBUG_RETURN(1);
+      DBUG_PRINT("info", ("End of OR group"));
       break;
     }
     default:
-      cond= build_scan_filter_predicate(cond, filter);     
+      if (build_scan_filter_predicate(cond, filter))
+	DBUG_RETURN(1);
     }
     break;
   default: {
@@ -6035,11 +6088,11 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond *cond, NdbScanFilter *filter)
   }
   }
   
-  DBUG_RETURN(cond);
+  DBUG_RETURN(0);
 }
 
-void 
-ha_ndbcluster::build_scan_filter(Ndb_cond *cond, NdbScanFilter *filter)
+int
+ha_ndbcluster::build_scan_filter(Ndb_cond * &cond, NdbScanFilter *filter)
 {
   bool simple_cond= TRUE;
   DBUG_ENTER("build_scan_filter");  
@@ -6054,14 +6107,17 @@ ha_ndbcluster::build_scan_filter(Ndb_cond *cond, NdbScanFilter *filter)
   default:
     break;
   }
-  if (simple_cond) filter->begin();
-  build_scan_filter_group(cond, filter);
-  if (simple_cond) filter->end();
+  if (simple_cond && filter->begin() == -1)
+    DBUG_RETURN(1);
+  if (build_scan_filter_group(cond, filter))
+    DBUG_RETURN(1);
+  if (simple_cond && filter->end() == -1)
+    DBUG_RETURN(1);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
-void
+int
 ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
 				    NdbScanOperation *op)
 {
@@ -6073,22 +6129,30 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
     // Wrap an AND group around multiple conditions
     if (ndb_cond_stack->next) {
       multiple_cond= TRUE;
-      filter.begin();
+      if (filter.begin() == -1)
+	DBUG_RETURN(1);	
     }
     for (Ndb_cond_stack *stack= ndb_cond_stack; 
 	 (stack); 
 	 stack= stack->next)
       {
-	build_scan_filter(stack->ndb_cond, &filter);
+	Ndb_cond *cond= stack->ndb_cond;
+
+	if (build_scan_filter(cond, &filter))
+	{
+	  DBUG_PRINT("info", ("build_scan_filter failed"));
+	  DBUG_RETURN(1);
+	}
       }
-    if (multiple_cond) filter.end();
+    if (multiple_cond && filter.end() == -1)
+      DBUG_RETURN(1);
   }
   else
   {  
     DBUG_PRINT("info", ("Empty stack"));
   }
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 #endif /* HAVE_NDBCLUSTER_DB */
