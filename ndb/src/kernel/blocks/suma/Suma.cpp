@@ -338,6 +338,7 @@ SumaParticipant::execCONTINUEB(Signal* signal)
 void Suma::execAPI_FAILREQ(Signal* signal) 
 {
   jamEntry();
+  DBUG_ENTER("Suma::execAPI_FAILREQ");
   Uint32 failedApiNode = signal->theData[0];
   //BlockReference retRef = signal->theData[1];
 
@@ -348,11 +349,13 @@ void Suma::execAPI_FAILREQ(Signal* signal)
     jam();
     c_failedApiNodes.clear(failedApiNode);
   }
+  DBUG_VOID_RETURN;
 }//execAPI_FAILREQ()
 
 bool
 SumaParticipant::removeSubscribersOnNode(Signal *signal, Uint32 nodeId)
 {
+  DBUG_ENTER("SumaParticipant::removeSubscribersOnNode");
   bool found = false;
 
   SubscriberPtr i_subbPtr;
@@ -372,19 +375,14 @@ SumaParticipant::removeSubscribersOnNode(Signal *signal, Uint32 nodeId)
     jam();
     sendSubStopReq(signal);
   }
-  return found;
+  DBUG_RETURN(found);
 }
 
 void
 SumaParticipant::sendSubStopReq(Signal *signal){
+  DBUG_ENTER("SumaParticipant::sendSubStopReq");
   static bool remove_lock = false;
   jam();
-
-  if(remove_lock) {
-    jam();
-    return;
-  }
-  remove_lock = true;
 
   SubscriberPtr subbPtr;
   c_removeDataSubscribers.first(subbPtr);
@@ -398,8 +396,14 @@ SumaParticipant::sendSubStopReq(Signal *signal){
     c_failedApiNodes.clear();
 
     remove_lock = false;
-    return;
+    DBUG_VOID_RETURN;
   }
+
+  if(remove_lock) {
+    jam();
+    DBUG_VOID_RETURN;
+  }
+  remove_lock = true;
 
   SubscriptionPtr subPtr;
   c_subscriptions.getPtr(subPtr, subbPtr.p->m_subPtrI);
@@ -414,6 +418,7 @@ SumaParticipant::sendSubStopReq(Signal *signal){
   req->part = SubscriptionData::TableData;
 
   sendSignal(SUMA_REF, GSN_SUB_STOP_REQ, signal, SubStopReq::SignalLength, JBB);
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -452,6 +457,8 @@ SumaParticipant::execSUB_STOP_REF(Signal* signal){
   jamEntry();
   SubStopRef * const ref = (SubStopRef*)signal->getDataPtr();
 
+  DBUG_ENTER("SumaParticipant::execSUB_STOP_REF");
+
   Uint32 subscriptionId = ref->subscriptionId;
   Uint32 subscriptionKey = ref->subscriptionKey;
   Uint32 part = ref->part;
@@ -471,11 +478,14 @@ SumaParticipant::execSUB_STOP_REF(Signal* signal){
   req->part = part;
 
   sendSignal(SUMA_REF, GSN_SUB_STOP_REQ, signal, SubStopReq::SignalLength, JBB);
+
+  DBUG_VOID_RETURN;
 }
 
 void
 Suma::execNODE_FAILREP(Signal* signal){
   jamEntry();
+  DBUG_ENTER("Suma::execNODE_FAILREP");
 
   NodeFailRep * const rep = (NodeFailRep*)signal->getDataPtr();
   
@@ -541,6 +551,7 @@ Suma::execNODE_FAILREP(Signal* signal){
       c_aliveNodes.clear(nodePtr.p->nodeId); // this has to be done after the loop above
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -1451,7 +1462,7 @@ SumaParticipant::execDIGETPRIMCONF(Signal* signal){
 void
 SumaParticipant::execCREATE_TRIG_CONF(Signal* signal){
   jamEntry();
-
+  DBUG_ENTER("SumaParticipant::execCREATE_TRIG_CONF");
   CRASH_INSERTION(13009);
 
   CreateTrigConf * const conf = (CreateTrigConf*)signal->getDataPtr();
@@ -1464,6 +1475,7 @@ SumaParticipant::execCREATE_TRIG_CONF(Signal* signal){
    * dodido
    * @todo: I (Johan) dont know what to do here. Jonas, what do you mean?
    */
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -1475,7 +1487,7 @@ SumaParticipant::execCREATE_TRIG_REF(Signal* signal){
 void
 SumaParticipant::execDROP_TRIG_CONF(Signal* signal){
   jamEntry();
-
+  DBUG_ENTER("SumaParticipant::execDROP_TRIG_CONF");
   CRASH_INSERTION(13010);
 
   DropTrigConf * const conf = (DropTrigConf*)signal->getDataPtr();
@@ -1483,17 +1495,19 @@ SumaParticipant::execDROP_TRIG_CONF(Signal* signal){
   const Uint32 senderData = conf->getConnectionPtr();
   SyncRecord* tmp = c_syncPool.getPtr(senderData);
   tmp->runDROP_TRIG_CONF(signal);
+  DBUG_VOID_RETURN;
 }
 
 void
 SumaParticipant::execDROP_TRIG_REF(Signal* signal){
   jamEntry();
-
+  DBUG_ENTER("SumaParticipant::execDROP_TRIG_CONF");
   DropTrigRef * const ref = (DropTrigRef*)signal->getDataPtr();
 
   const Uint32 senderData = ref->getConnectionPtr();
   SyncRecord* tmp = c_syncPool.getPtr(senderData);
   tmp->runDROP_TRIG_CONF(signal);
+  DBUG_VOID_RETURN;
 }
 
 /*************************************************************************
@@ -2821,7 +2835,7 @@ SumaParticipant::decideWhoToSend(Uint32 nBucket, Uint32 gci){
 void
 SumaParticipant::execFIRE_TRIG_ORD(Signal* signal){
   jamEntry();
-
+  DBUG_ENTER("SumaParticipant::execFIRE_TRIG_ORD");
   CRASH_INSERTION(13016);
   FireTrigOrd* const trg = (FireTrigOrd*)signal->getDataPtr();
   const Uint32 trigId    = trg->getTriggerId();
@@ -2982,6 +2996,8 @@ SumaParticipant::execFIRE_TRIG_ORD(Signal* signal){
    */
   f_bufferLock = 0;
   b_bufferLock = 0;
+
+  DBUG_VOID_RETURN;
 }
 
 void
