@@ -475,6 +475,12 @@ Item *create_func_is_free_lock(Item* a)
   return new Item_func_is_free_lock(a);
 }
 
+Item *create_func_is_used_lock(Item* a)
+{
+  current_thd->lex.uncacheable();
+  return new Item_func_is_used_lock(a);
+}
+
 Item *create_func_quote(Item* a)
 {
   return new Item_func_quote(a);
