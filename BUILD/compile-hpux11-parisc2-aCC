@@ -20,7 +20,7 @@ release_flags="-fast +O3"
 #                note on pointers below.
 cflags="-g -z +O0"
 cxxflags="-g0 -z +O0"
-debug_conigure_options="--with-debug"
+debug_configure_options="--with-debug"
 
 while [ "$#" != 0 ]; do 
   case "$1" in
@@ -40,23 +40,23 @@ while [ "$#" != 0 ]; do
     --release)
       echo "Building release binary"
       cflags="$release_flags"
-			cxxflags="$release_flags"
-			debug_configure_options=""
+      cxxflags="$release_flags"
+      debug_configure_options=""
       ;;
-	  -32)	
-		  echo "Building 32-bit binary"
-			;;
-	  -64)
-		  echo "Building 64-bit binary"
+    -32)
+      echo "Building 32-bit binary"
+      ;;
+    -64)
+      echo "Building 64-bit binary"
       cflags="$cflags +DA2.0W +DD64"
       cxxflags="$cxxflags +DA2.0W +DD64"
-			;;
+      ;;
     *)
       echo "$0: invalid option '$1'; use --help to show usage"
       exit 1
       ;;
   esac
-	shift
+  shift
 done
 
 

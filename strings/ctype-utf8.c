@@ -2059,7 +2059,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_strnncoll_utf8,
     my_strnncollsp_utf8,
     my_strnxfrm_utf8,
-    my_like_range_simple,
+    my_like_range_mb,
     my_wildcmp_mb,
     my_strcasecmp_utf8,
     my_instr_mb,
@@ -2119,7 +2119,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
     1,                  /* mbminlen     */
     3,                  /* mbmaxlen     */
     0,                  /* min_sort_char */
-    255,                /* max_sort_char */
+    0xFFFF,             /* max_sort_char */
     &my_charset_utf8_handler,
     &my_collation_ci_handler
 };
