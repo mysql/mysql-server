@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "1.27"
+#define MTEST_VERSION "1.28"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -523,8 +523,12 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname)
 
   if (!my_stat(eval_file, &stat_info, MYF(MY_WME)))
     die(NullS);
-  if (!eval_result && stat_info.st_size != ds->length)
+  if (!eval_result && (uint) stat_info.st_size != ds->length)
+  {
+    DBUG_PRINT("info",("Size differs:  result size: %u  file size: %u",
+		       ds->length, stat_info.st_size));
     DBUG_RETURN(2);
+  }
   if (!(tmp = (char*) my_malloc(stat_info.st_size + 1, MYF(MY_WME))))
     die(NullS);
 
@@ -1804,34 +1808,34 @@ int read_query(struct st_query** q_ptr)
 
 static struct my_option my_long_options[] =
 {
-  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use.", (gptr*) &db, (gptr*) &db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"basedir", 'b', "Basedir for tests", (gptr*) &opt_basedir,
+  {"basedir", 'b', "Basedir for tests.", (gptr*) &opt_basedir,
    (gptr*) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"big-test", 'B', "Define BIG_TEST to 1", (gptr*) &opt_big_test,
+  {"big-test", 'B', "Define BIG_TEST to 1.", (gptr*) &opt_big_test,
    (gptr*) &opt_big_test, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"compress", 'C', "Use the compressed server/client protocol",
+  {"compress", 'C', "Use the compressed server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (gptr*) &host, (gptr*) &host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"manager-user", OPT_MANAGER_USER, "Undocumented: Used for debugging",
+  {"manager-user", OPT_MANAGER_USER, "Undocumented: Used for debugging.",
    (gptr*) &manager_user, (gptr*) &manager_user, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
-  {"manager-host", OPT_MANAGER_HOST, "Undocumented: Used for debugging",
+  {"manager-host", OPT_MANAGER_HOST, "Undocumented: Used for debugging.",
    (gptr*) &manager_host, (gptr*) &manager_host, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"manager-password", OPT_MANAGER_PASSWD, "Undocumented: Used for debugging",
+  {"manager-password", OPT_MANAGER_PASSWD, "Undocumented: Used for debugging.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"manager-port", OPT_MANAGER_PORT, "Undocumented: Used for debugging",
+  {"manager-port", OPT_MANAGER_PORT, "Undocumented: Used for debugging.",
    (gptr*) &manager_port, (gptr*) &manager_port, 0, GET_INT, REQUIRED_ARG,
    MYSQL_MANAGER_PORT, 0, 0, 0, 0, 0},
   {"manager-wait-timeout", OPT_MANAGER_WAIT_TIMEOUT,
-   "Undocumented: Used for debugging", (gptr*) &manager_wait_timeout,
+   "Undocumented: Used for debugging.", (gptr*) &manager_wait_timeout,
    (gptr*) &manager_wait_timeout, 0, GET_INT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -1844,16 +1848,16 @@ static struct my_option my_long_options[] =
   {"result-file", 'R', "Read/Store result from/in this file.",
    (gptr*) &result_file, (gptr*) &result_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"server-arg", 'A', "Send enbedded server this as a paramenter",
+  {"server-arg", 'A', "Send enbedded server this as a paramenter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"server-file", 'F', "Read embedded server arguments from file",
+  {"server-file", 'F', "Read embedded server arguments from file.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
    (gptr*) &silent, (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
-   "Don't use the memory allocation checking", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"sleep", 'T', "Sleep always this many seconds on sleep commands",
+  {"sleep", 'T', "Sleep always this many seconds on sleep commands.",
    (gptr*) &opt_sleep, (gptr*) &opt_sleep, 0, GET_INT, REQUIRED_ARG, 0, 0, 0,
    0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
@@ -1862,7 +1866,7 @@ static struct my_option my_long_options[] =
 #include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"tmpdir", 't', "Temporary directory where sockets are put",
+  {"tmpdir", 't', "Temporary directory where sockets are put.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User for login.", (gptr*) &user, (gptr*) &user, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1872,7 +1876,6 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
 
 static void print_version(void)
 {
@@ -2147,6 +2150,10 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	  if (i == 0 && q->expected_errors == 1)
 	  {
 	    /* Only log error if there is one possible error */
+	    dynstr_append_mem(ds,"ERROR ",6);
+	    replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
+				      strlen(mysql_sqlstate(mysql)));
+	    dynstr_append_mem(ds,": ",2);
 	    replace_dynstr_append_mem(ds,mysql_error(mysql),
 				      strlen(mysql_error(mysql)));
 	    dynstr_append_mem(ds,"\n",1);

@@ -219,8 +219,8 @@ _bmove	ENDP
 	; Args: to,from,length
 	;
 
-	PUBLIC	_bmove_allign
-_bmove_allign	PROC
+	PUBLIC	_bmove_align
+_bmove_align	PROC
 	mov	bx,bp
 	mov	dx,di
 	mov	ax,si
@@ -238,7 +238,7 @@ _bmove_allign	PROC
 	mov	di,dx
 	mov	bp,bx
 	ret
-_bmove_allign	ENDP
+_bmove_align	ENDP
 
 	;
 	; Move a string from higher to lower
@@ -656,9 +656,9 @@ _bmove	ENDP
 	; Args: to,from,length
 	;
 
-	begcode	bmove_allign
-	public	_bmove_allign
-_bmove_allign	proc near
+	begcode	bmove_align
+	public	_bmove_align
+_bmove_align	proc near
 	fix_es	1
 	mov	edx,edi
 	mov	eax,esi
@@ -671,8 +671,8 @@ _bmove_allign	proc near
 	mov	esi,eax
 	mov	edi,edx
 	ret
-_bmove_allign	ENDP
-	endcode bmove_allign
+_bmove_align	ENDP
+	endcode bmove_align
 
 	;
 	; Move a string from higher to lower

@@ -39,13 +39,15 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  coercibility=COER_IMPLICIT;
+  set_charset(&my_charset_bin, DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
   THD *thd= current_thd;
   next= thd->free_list;			// Put in free list
   thd->free_list= this;
   loop_id= 0;
+  if (thd->lex.current_select->parsing_place == SELECT_LEX_NODE::SELECT_LIST)
+    thd->lex.current_select->select_items++;
 }
 
 /*
@@ -65,7 +67,7 @@ Item::Item(THD *thd, Item &item):
   unsigned_flag(item.unsigned_flag),
   with_sum_func(item.with_sum_func),
   fixed(item.fixed),
-  coercibility(item.coercibility)
+  collation(item.collation)
 {
   next=thd->free_list;			// Put in free list
   thd->free_list= this;
@@ -117,7 +119,9 @@ void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
 
 
 /*
-  This function is only called when comparing items in the WHERE clause
+  This function is called when:
+  - Comparing items in the WHERE clause (when doing where optimization)
+  - When trying to find an ORDER BY/GROUP BY item in the SELECT part
 */
 
 bool Item::eq(const Item *item, bool binary_cmp) const
@@ -179,44 +183,61 @@ CHARSET_INFO * Item::default_charset() const
   return current_thd->variables.collation_connection;
 }
 
-bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
-		       CHARSET_INFO *cs2, enum coercion co2)
+bool DTCollation::aggregate(DTCollation &dt)
 {
-  if (cs1 == &my_charset_bin || cs2 == &my_charset_bin)
+  if (collation == &my_charset_bin || dt.collation == &my_charset_bin)
   {
-    set_charset(&my_charset_bin, COER_NOCOLL);
+    collation= &my_charset_bin;
+    derivation= derivation > dt.derivation ? derivation : dt.derivation;
     return 0;
   }
-
-  if (!my_charset_same(cs1,cs2))
-    return 1;
-
-  if (co1 < co2)
+  
+  if (!my_charset_same(collation, dt.collation))
   {
-    set_charset(cs1, co1);
-  }
-  else if (co2 < co1)
-  {
-    set_charset(cs2, co2);
-  }
-  else  // co2 == co1
-  {
-    if (cs1 != cs2)
+    /* 
+       We do allow to use binary strings (like BLOBS)
+       together with character strings.
+       Binaries have more precedance
+    */
+    if ((derivation <= dt.derivation) && (collation == &my_charset_bin))
     {
-      if (co1 == COER_EXPLICIT)
-      {
-        return 1;
-      }
-      else
-      {
-        CHARSET_INFO *bin= get_charset_by_csname(cs1->csname, MY_CS_BINSORT,MYF(0));
-        if (!bin)
-	  return 1;
-        set_charset(bin, COER_NOCOLL);
-      }
+      // Do nothing
+    }
+    else if ((dt.derivation <= derivation) && (dt.collation==&my_charset_bin))
+    {
+      set(dt);
     }
     else
-      set_charset(cs2, co2);
+    {
+      set(0, DERIVATION_NONE);
+      return 1; 
+    }
+  }
+  else if (derivation < dt.derivation)
+  {
+    // Do nothing
+  }
+  else if (dt.derivation < derivation)
+  {
+    set(dt);
+  }
+  else
+  { 
+    if (collation == dt.collation)
+    {
+      // Do nothing
+    }
+    else 
+    {
+      if (derivation == DERIVATION_EXPLICIT)
+      {
+	set(0, DERIVATION_NONE);
+	return 1;
+      }
+      CHARSET_INFO *bin= get_charset_by_csname(collation->csname, 
+					       MY_CS_BINSORT,MYF(0));
+      set(bin, DERIVATION_NONE);
+    }
   }
   return 0;
 }
@@ -224,7 +245,7 @@ bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 {
   set_field(f);
-  coercibility= COER_IMPLICIT;
+  set_charset(DERIVATION_IMPLICIT);
   fixed= 1; // This item is not needed in fix_fields
 }
 
@@ -233,7 +254,7 @@ Item_field::Item_field(THD *thd, Item_field &item):
   Item_ident(thd, item),
   field(item.field),
   result_field(item.result_field)
-{ coercibility= COER_IMPLICIT; }
+{ set_charset(DERIVATION_IMPLICIT); }
 
 void Item_field::set_field(Field *field_par)
 {
@@ -243,8 +264,9 @@ void Item_field::set_field(Field *field_par)
   decimals= field->decimals();
   table_name=field_par->table_name;
   field_name=field_par->field_name;
+  db_name=field_par->table->table_cache_key;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
-  set_charset(field_par->charset(), COER_IMPLICIT);
+  set_charset(field_par->charset(), DERIVATION_IMPLICIT);
 }
 
 const char *Item_ident::full_name() const
@@ -344,9 +366,34 @@ longlong Item_field::val_int_result()
   return result_field->val_int();
 }
 
+
 bool Item_field::eq(const Item *item, bool binary_cmp) const
 {
-  return item->type() == FIELD_ITEM && ((Item_field*) item)->field == field;
+  if (item->type() != FIELD_ITEM)
+    return 0;
+  
+  Item_field *item_field= (Item_field*) item;
+  if (item_field->field)
+    return item_field->field == field;
+  /*
+    We may come here when we are trying to find a function in a GROUP BY
+    clause from the select list.
+    In this case the '100 % correct' way to do this would be to first
+    run fix_fields() on the GROUP BY item and then retry this function, but
+    I think it's better to relax the checking a bit as we will in
+    most cases do the correct thing by just checking the field name.
+    (In cases where we would choose wrong we would have to generate a
+    ER_NON_UNIQ_ERROR).
+  */
+  return (!my_strcasecmp(system_charset_info, item_field->name,
+			 field_name) &&
+	  (!item_field->table_name ||
+	   (!my_strcasecmp(table_alias_charset, item_field->table_name,
+			   table_name) &&
+	    (!item_field->db_name ||
+	     (item_field->db_name && !my_strcasecmp(table_alias_charset,
+						    item_field->db_name,
+						    db_name))))));
 }
 
 table_map Item_field::used_tables() const
@@ -837,7 +884,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  return rf->fix_fields(thd, tables, ref) ||  rf->check_cols(1);
 	}
       }
-    } 
+    }
     else if (!tmp)
       return -1;
 
@@ -1070,7 +1117,7 @@ Item_varbinary::Item_varbinary(const char *str, uint str_length)
     str+=2;
   }
   *ptr=0;					// Keep purify happy
-  coercibility= COER_COERCIBLE;
+  set_charset(&my_charset_bin, DERIVATION_COERCIBLE);
 }
 
 longlong Item_varbinary::val_int()
@@ -1450,7 +1497,7 @@ bool Item_insert_value::fix_fields(THD *thd, struct st_table_list *table_list, I
     Field *field=field_arg->field;
     /* charset doesn't matter here, it's to avoid sigsegv only */
     set_field(new Field_null(0,0,Field::NONE,field->field_name,field->table,
-          default_charset_info));
+          &my_charset_bin));
   }
   return 0;
 }

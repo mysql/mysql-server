@@ -28,7 +28,6 @@ uchar *days_in_month= (uchar*) "\037\034\037\036\037\036\037\037\036\037\036\037
 	/* Currently only my_time_zone is inited */
 
 static long my_time_zone=0;
-pthread_mutex_t LOCK_timezone;
 
 void init_time(void)
 {
@@ -39,14 +38,14 @@ void init_time(void)
   seconds= (time_t) time((time_t*) 0);
   localtime_r(&seconds,&tm_tmp);
   l_time= &tm_tmp;
-  my_time_zone=0;
+  my_time_zone=		3600;		/* Comp. for -3600 in my_gmt_sec */
   my_time.year=		(uint) l_time->tm_year+1900;
   my_time.month=	(uint) l_time->tm_mon+1;
   my_time.day=		(uint) l_time->tm_mday;
   my_time.hour=		(uint) l_time->tm_hour;
   my_time.minute=	(uint) l_time->tm_min;
-  my_time.second=		(uint) l_time->tm_sec;
-  VOID(my_gmt_sec(&my_time));		/* Init my_time_zone */
+  my_time.second=	(uint) l_time->tm_sec;
+  my_gmt_sec(&my_time, &my_time_zone);	/* Init my_time_zone */
 }
 
 /*
@@ -57,26 +56,39 @@ void init_time(void)
 
 */
 
-long my_gmt_sec(TIME *t)
+long my_gmt_sec(TIME *t, long *my_timezone)
 {
   uint loop;
   time_t tmp;
   struct tm *l_time,tm_tmp;
-  long diff;
+  long diff, current_timezone;
 
   if (t->hour >= 24)
   {					/* Fix for time-loop */
     t->day+=t->hour/24;
     t->hour%=24;
   }
-  pthread_mutex_lock(&LOCK_timezone);
-  tmp=(time_t) ((calc_daynr((uint) t->year,(uint) t->month,(uint) t->day) -
-		 (long) days_at_timestart)*86400L + (long) t->hour*3600L +
-		(long) (t->minute*60 + t->second)) + (time_t) my_time_zone;
+
+  /*
+    Calculate the gmt time based on current time and timezone
+    The -1 on the end is to ensure that if have a date that exists twice
+    (like 2002-10-27 02:00:0 MET), we will find the initial date.
+
+    By doing -3600 we will have to call localtime_r() several times, but
+    I couldn't come up with a better way to get a repeatable result :(
+
+    We can't use mktime() as it's buggy on many platforms and not thread safe.
+  */
+  tmp=(time_t) (((calc_daynr((uint) t->year,(uint) t->month,(uint) t->day) -
+		  (long) days_at_timestart)*86400L + (long) t->hour*3600L +
+		 (long) (t->minute*60 + t->second)) + (time_t) my_time_zone -
+		3600);
+  current_timezone= my_time_zone;
+
   localtime_r(&tmp,&tm_tmp);
   l_time=&tm_tmp;
   for (loop=0;
-       loop < 3 &&
+       loop < 2 &&
 	 (t->hour != (uint) l_time->tm_hour ||
 	  t->minute != (uint) l_time->tm_min);
        loop++)
@@ -89,14 +101,16 @@ long my_gmt_sec(TIME *t)
       days= -1;
     diff=(3600L*(long) (days*24+((int) t->hour - (int) l_time->tm_hour)) +
 	  (long) (60*((int) t->minute - (int) l_time->tm_min)));
-    my_time_zone+=diff;
-    tmp+=(time_t) diff;
+    current_timezone+= diff+3600;		// Compensate for -3600 above
+    tmp+= (time_t) diff;
     localtime_r(&tmp,&tm_tmp);
     l_time=&tm_tmp;
   }
-  /* Fix that if we are in the not existing daylight saving time hour
-     we move the start of the next real hour */
-  if (loop == 3 && t->hour != (uint) l_time->tm_hour)
+  /*
+    Fix that if we are in the not existing daylight saving time hour
+    we move the start of the next real hour
+  */
+  if (loop == 2 && t->hour != (uint) l_time->tm_hour)
   {
     int days= t->day - l_time->tm_mday;
     if (days < -1)
@@ -108,11 +122,9 @@ long my_gmt_sec(TIME *t)
     if (diff == 3600)
       tmp+=3600 - t->minute*60 - t->second;	// Move to next hour
     else if (diff == -3600)
-      tmp-=t->minute*60 + t->second;		// Move to next hour
+      tmp-=t->minute*60 + t->second;		// Move to previous hour
   }
-  if ((my_time_zone >=0 ? my_time_zone: -my_time_zone) > 3600L*12)
-    my_time_zone=0;			/* Wrong date */
-  pthread_mutex_unlock(&LOCK_timezone);
+  *my_timezone= current_timezone;
   return (long) tmp;
 } /* my_gmt_sec */
 
@@ -428,6 +440,8 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
 time_t str_to_timestamp(const char *str,uint length)
 {
   TIME l_time;
+  long not_used;
+
   if (str_to_TIME(str,length,&l_time,0) == TIMESTAMP_NONE)
     return(0);
   if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR)
@@ -435,7 +449,7 @@ time_t str_to_timestamp(const char *str,uint length)
     current_thd->cuted_fields++;
     return(0);
   }
-  return(my_gmt_sec(&l_time));
+  return(my_gmt_sec(&l_time, &not_used));
 }
 
 

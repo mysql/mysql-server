@@ -64,7 +64,7 @@ concat_ws(NULL,'a')	concat_ws(',',NULL,'')
 NULL	
 select concat_ws(',','',NULL,'a');
 concat_ws(',','',NULL,'a')
-a
+,a
 SELECT CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),repeat('d',100)), '"');
 CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),repeat('d',100)), '"')
 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
@@ -249,6 +249,51 @@ INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
 SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
 1
 DROP TABLE t1;
+select POSITION(_latin1'B' IN _latin1'abcd');
+POSITION(_latin1'B' IN _latin1'abcd')
+2
+select POSITION(_latin1'B' IN _latin1'abcd' COLLATE latin1_bin);
+POSITION(_latin1'B' IN _latin1'abcd' COLLATE latin1_bin)
+0
+select POSITION(_latin1'B' COLLATE latin1_bin IN _latin1'abcd');
+POSITION(_latin1'B' COLLATE latin1_bin IN _latin1'abcd')
+0
+select POSITION(_latin1'B' COLLATE latin1_general_ci IN _latin1'abcd' COLLATE latin1_bin);
+ERROR HY000: Illegal mix of collations (latin1_bin,EXPLICIT) and (latin1_general_ci,EXPLICIT) for operation 'locate'
+select POSITION(_latin1'B' IN _latin2'abcd');
+ERROR HY000: Illegal mix of collations (latin2_general_ci,COERCIBLE) and (latin1_swedish_ci,COERCIBLE) for operation 'locate'
+select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d');
+FIND_IN_SET(_latin1'B',_latin1'a,b,c,d')
+2
+select FIND_IN_SET(_latin1'B' COLLATE latin1_general_ci,_latin1'a,b,c,d' COLLATE latin1_bin);
+ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'find_in_set'
+select FIND_IN_SET(_latin1'B',_latin2'a,b,c,d');
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'find_in_set'
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd',2);
+SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd',2)
+abcdabc
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2'd',2);
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'substr_index'
+select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_general_ci,_latin1'd' COLLATE latin1_bin,2);
+ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'substr_index'
+select collation(bin(130)), coercibility(bin(130));
+collation(bin(130))	coercibility(bin(130))
+latin1_swedish_ci	3
+select collation(oct(130)), coercibility(oct(130));
+collation(oct(130))	coercibility(oct(130))
+latin1_swedish_ci	3
+select collation(conv(130,16,10)), coercibility(conv(130,16,10));
+collation(conv(130,16,10))	coercibility(conv(130,16,10))
+latin1_swedish_ci	3
+select collation(hex(130)), coercibility(hex(130));
+collation(hex(130))	coercibility(hex(130))
+latin1_swedish_ci	3
+select collation(char(130)), coercibility(hex(130));
+collation(char(130))	coercibility(hex(130))
+binary	3
+select collation(format(130,10)), coercibility(format(130,10));
+collation(format(130,10))	coercibility(format(130,10))
+latin1_swedish_ci	3
 select collation(lcase(_latin2'a')), coercibility(lcase(_latin2'a'));
 collation(lcase(_latin2'a'))	coercibility(lcase(_latin2'a'))
 latin2_general_ci	3
@@ -267,27 +312,127 @@ latin2_general_ci	3
 select collation(concat(_latin2'a',_latin2'b')), coercibility(concat(_latin2'a',_latin2'b'));
 collation(concat(_latin2'a',_latin2'b'))	coercibility(concat(_latin2'a',_latin2'b'))
 latin2_general_ci	3
+select collation(lpad(_latin2'a',4,_latin2'b')), coercibility(lpad(_latin2'a',4,_latin2'b'));
+collation(lpad(_latin2'a',4,_latin2'b'))	coercibility(lpad(_latin2'a',4,_latin2'b'))
+binary	3
+select collation(rpad(_latin2'a',4,_latin2'b')), coercibility(rpad(_latin2'a',4,_latin2'b'));
+collation(rpad(_latin2'a',4,_latin2'b'))	coercibility(rpad(_latin2'a',4,_latin2'b'))
+latin2_general_ci	3
 select collation(concat_ws(_latin2'a',_latin2'b')), coercibility(concat_ws(_latin2'a',_latin2'b'));
 collation(concat_ws(_latin2'a',_latin2'b'))	coercibility(concat_ws(_latin2'a',_latin2'b'))
 latin2_general_ci	3
+select collation(make_set(255,_latin2'a',_latin2'b',_latin2'c')), coercibility(make_set(255,_latin2'a',_latin2'b',_latin2'c'));
+collation(make_set(255,_latin2'a',_latin2'b',_latin2'c'))	coercibility(make_set(255,_latin2'a',_latin2'b',_latin2'c'))
+latin2_general_ci	3
+select collation(export_set(255,_latin2'y',_latin2'n',_latin2' ')), coercibility(export_set(255,_latin2'y',_latin2'n',_latin2' '));
+collation(export_set(255,_latin2'y',_latin2'n',_latin2' '))	coercibility(export_set(255,_latin2'y',_latin2'n',_latin2' '))
+binary	3
+select collation(trim(_latin2' a ')), coercibility(trim(_latin2' a '));
+collation(trim(_latin2' a '))	coercibility(trim(_latin2' a '))
+latin2_general_ci	3
+select collation(ltrim(_latin2' a ')), coercibility(ltrim(_latin2' a '));
+collation(ltrim(_latin2' a '))	coercibility(ltrim(_latin2' a '))
+latin2_general_ci	3
+select collation(rtrim(_latin2' a ')), coercibility(rtrim(_latin2' a '));
+collation(rtrim(_latin2' a '))	coercibility(rtrim(_latin2' a '))
+latin2_general_ci	3
+select collation(trim(LEADING _latin2' ' FROM _latin2'a')), coercibility(trim(LEADING _latin2'a' FROM _latin2'a'));
+collation(trim(LEADING _latin2' ' FROM _latin2'a'))	coercibility(trim(LEADING _latin2'a' FROM _latin2'a'))
+latin2_general_ci	3
+select collation(trim(TRAILING _latin2' ' FROM _latin2'a')), coercibility(trim(TRAILING _latin2'a' FROM _latin2'a'));
+collation(trim(TRAILING _latin2' ' FROM _latin2'a'))	coercibility(trim(TRAILING _latin2'a' FROM _latin2'a'))
+latin2_general_ci	3
+select collation(trim(BOTH _latin2' ' FROM _latin2'a')), coercibility(trim(BOTH _latin2'a' FROM _latin2'a'));
+collation(trim(BOTH _latin2' ' FROM _latin2'a'))	coercibility(trim(BOTH _latin2'a' FROM _latin2'a'))
+latin2_general_ci	3
+select collation(repeat(_latin2'a',10)), coercibility(repeat(_latin2'a',10));
+collation(repeat(_latin2'a',10))	coercibility(repeat(_latin2'a',10))
+latin2_general_ci	3
+select collation(reverse(_latin2'ab')), coercibility(reverse(_latin2'ab'));
+collation(reverse(_latin2'ab'))	coercibility(reverse(_latin2'ab'))
+latin2_general_ci	3
+select collation(quote(_latin2'ab')), coercibility(quote(_latin2'ab'));
+collation(quote(_latin2'ab'))	coercibility(quote(_latin2'ab'))
+latin2_general_ci	3
+select collation(soundex(_latin2'ab')), coercibility(soundex(_latin2'ab'));
+collation(soundex(_latin2'ab'))	coercibility(soundex(_latin2'ab'))
+latin2_general_ci	3
+select collation(substring(_latin2'ab',1)), coercibility(substring(_latin2'ab',1));
+collation(substring(_latin2'ab',1))	coercibility(substring(_latin2'ab',1))
+latin2_general_ci	3
+select collation(insert(_latin2'abcd',2,3,_latin2'ef')), coercibility(insert(_latin2'abcd',2,3,_latin2'ef'));
+collation(insert(_latin2'abcd',2,3,_latin2'ef'))	coercibility(insert(_latin2'abcd',2,3,_latin2'ef'))
+latin2_general_ci	3
+select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
+collation(replace(_latin2'abcd',_latin2'b',_latin2'B'))	coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'))
+latin2_general_ci	3
 create table t1 
 select
+bin(130),
+oct(130),
+conv(130,16,10),
+hex(130),
+char(130),
+format(130,10),
 left(_latin2'a',1),
 right(_latin2'a',1), 
 lcase(_latin2'a'), 
 ucase(_latin2'a'),
 substring(_latin2'a',1,1),
 concat(_latin2'a',_latin2'b'),
-concat_ws(_latin2'a',_latin2'b');
+lpad(_latin2'a',4,_latin2'b'),
+rpad(_latin2'a',4,_latin2'b'),
+concat_ws(_latin2'a',_latin2'b'),
+make_set(255,_latin2'a',_latin2'b',_latin2'c'),
+export_set(255,_latin2'y',_latin2'n',_latin2' '),
+trim(_latin2' a '),
+ltrim(_latin2' a '),
+rtrim(_latin2' a '),
+trim(LEADING _latin2' ' FROM _latin2' a '),
+trim(TRAILING _latin2' ' FROM _latin2' a '),
+trim(BOTH _latin2' ' FROM _latin2' a '),
+repeat(_latin2'a',10),
+reverse(_latin2'ab'),
+quote(_latin2'ab'),
+soundex(_latin2'ab'),
+substring(_latin2'ab',1),
+insert(_latin2'abcd',2,3,_latin2'ef'),
+replace(_latin2'abcd',_latin2'b',_latin2'B')
+;
+Warnings:
+Warning	1263	Data truncated for column 'format(130,10)' at row 1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
+  `bin(130)` char(64) NOT NULL default '',
+  `oct(130)` char(64) NOT NULL default '',
+  `conv(130,16,10)` char(64) NOT NULL default '',
+  `hex(130)` char(6) NOT NULL default '',
+  `char(130)` char(1) NOT NULL default '',
+  `format(130,10)` char(4) NOT NULL default '',
   `left(_latin2'a',1)` char(1) character set latin2 NOT NULL default '',
   `right(_latin2'a',1)` char(1) character set latin2 NOT NULL default '',
   `lcase(_latin2'a')` char(1) character set latin2 NOT NULL default '',
   `ucase(_latin2'a')` char(1) character set latin2 NOT NULL default '',
   `substring(_latin2'a',1,1)` char(1) character set latin2 NOT NULL default '',
   `concat(_latin2'a',_latin2'b')` char(2) character set latin2 NOT NULL default '',
-  `concat_ws(_latin2'a',_latin2'b')` char(1) character set latin2 NOT NULL default ''
+  `lpad(_latin2'a',4,_latin2'b')` char(4) character set latin2 NOT NULL default '',
+  `rpad(_latin2'a',4,_latin2'b')` char(4) character set latin2 NOT NULL default '',
+  `concat_ws(_latin2'a',_latin2'b')` char(1) character set latin2 NOT NULL default '',
+  `make_set(255,_latin2'a',_latin2'b',_latin2'c')` char(5) character set latin2 NOT NULL default '',
+  `export_set(255,_latin2'y',_latin2'n',_latin2' ')` char(127) character set latin2 NOT NULL default '',
+  `trim(_latin2' a ')` char(3) character set latin2 NOT NULL default '',
+  `ltrim(_latin2' a ')` char(3) character set latin2 NOT NULL default '',
+  `rtrim(_latin2' a ')` char(3) character set latin2 NOT NULL default '',
+  `trim(LEADING _latin2' ' FROM _latin2' a ')` char(3) character set latin2 NOT NULL default '',
+  `trim(TRAILING _latin2' ' FROM _latin2' a ')` char(3) character set latin2 NOT NULL default '',
+  `trim(BOTH _latin2' ' FROM _latin2' a ')` char(3) character set latin2 NOT NULL default '',
+  `repeat(_latin2'a',10)` char(10) character set latin2 NOT NULL default '',
+  `reverse(_latin2'ab')` char(2) character set latin2 NOT NULL default '',
+  `quote(_latin2'ab')` char(6) character set latin2 NOT NULL default '',
+  `soundex(_latin2'ab')` char(4) character set latin2 NOT NULL default '',
+  `substring(_latin2'ab',1)` char(2) character set latin2 NOT NULL default '',
+  `insert(_latin2'abcd',2,3,_latin2'ef')` char(6) character set latin2 NOT NULL default '',
+  `replace(_latin2'abcd',_latin2'b',_latin2'B')` char(4) character set latin2 NOT NULL default ''
 ) TYPE=MyISAM CHARSET=latin1
 drop table t1;

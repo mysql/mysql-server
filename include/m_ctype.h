@@ -62,9 +62,9 @@ typedef struct unicase_info_st
 #define MY_CS_PRIMARY	32     /* if primary collation           */
 #define MY_CS_STRNXFRM	64     /* if strnxfrm is used for sort   */
 #define MY_CS_UNICODE	128    /* is a charset is full unicode   */
+#define MY_CS_NONTEXT	256    /* if a charset is not sprintf() compatible */
 
 #define MY_CHARSET_UNDEFINED 0
-#define MY_CHARSET_CURRENT (default_charset_info->number)
 
 
 typedef struct my_uni_idx_st

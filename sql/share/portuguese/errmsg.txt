@@ -262,3 +262,5 @@
 "%d linha(s) foi(foram) cortada(s) por group_concat()",
 "Usando engine de armazenamento %s para tabela '%s'",
 "Combinação ilegal de collations (%s,%s) e (%s,%s) para operação '%s'",
+"Can't drop one or more of the requested users"
+"Can't revoke all privileges, grant for one or more of the requested users"

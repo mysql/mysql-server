@@ -7,6 +7,6 @@ start slave;
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
 load table t1 from master;
-Error connecting to master: Master is not configured
+ERROR 08S01: Error connecting to master: Master is not configured
 load table t1 from master;
-Error from master: 'Table 'test.t1' doesn't exist'
+ERROR HY000: Error from master: 'Table 'test.t1' doesn't exist'

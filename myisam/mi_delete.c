@@ -33,7 +33,7 @@ static int underflow(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *anc_buff,
 static uint remove_key(MI_KEYDEF *keyinfo,uint nod_flag,uchar *keypos,
 		       uchar *lastkey,uchar *page_end,
 		       my_off_t *next_block);
-static int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
+static int _mi_ck_real_delete(register MI_INFO *info,MI_KEYDEF *keyinfo,
 			      uchar *key, uint key_length, my_off_t *root);
 
 
@@ -188,6 +188,7 @@ static int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
   }
 err:
   my_afree((gptr) root_buff);
+  DBUG_PRINT("exit",("Return: %d",error));
   DBUG_RETURN(error);
 } /* _mi_ck_real_delete */
 
@@ -234,6 +235,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     if (subkeys >= 0)
     {
       /* normal word, one-level tree structure */
+      DBUG_PRINT("info",("FT1"));
       flag=(*keyinfo->bin_search)(info,keyinfo,anc_buff,key,USE_WHOLE_KEY,
                                   comp_flag, &keypos, lastkey, &last_key);
       /* fall through to normal delete */
@@ -250,13 +252,15 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       if (subkeys == -1)
       {
         /* the last entry in sub-tree */
+        DBUG_PRINT("info",("FT2: the last entry"));
         _mi_dispose(info, keyinfo, root);
         /* fall through to normal delete */
       }
       else
       {
+        DBUG_PRINT("info",("FT2: going down"));
         keyinfo=&info->s->ft2_keyinfo;
-        kpos-=keyinfo->keylength; /* we'll modify key entry 'in vivo' */
+        kpos-=keyinfo->keylength+nod_flag; /* we'll modify key entry 'in vivo' */
         key+=off;
         ret_value=_mi_ck_real_delete(info, &info->s->ft2_keyinfo,
             key, HA_FT_WLEN, &root);
@@ -265,6 +269,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
         ft_intXstore(kpos, subkeys);
         if (!ret_value)
           ret_value=_mi_write_keypage(info,keyinfo,page,anc_buff);
+        DBUG_PRINT("exit",("Return: %d",ret_value));
         DBUG_RETURN(ret_value);
       }
     }
@@ -279,6 +284,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     {
       DBUG_PRINT("error",("Couldn't allocate memory"));
       my_errno=ENOMEM;
+      DBUG_PRINT("exit",("Return: %d",-1));
       DBUG_RETURN(-1);
     }
     if (!_mi_fetch_keypage(info,keyinfo,leaf_page,leaf_buff,0))
@@ -304,14 +310,20 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     tmp=remove_key(keyinfo,nod_flag,keypos,lastkey,anc_buff+length,
 		   &next_block);
     if (tmp == 0)
+    {
+      DBUG_PRINT("exit",("Return: %d",0));
       DBUG_RETURN(0);
+    }
     length-= tmp;
 
     mi_putint(anc_buff,length,nod_flag);
     if (!nod_flag)
     {						/* On leaf page */
       if (_mi_write_keypage(info,keyinfo,page,anc_buff))
+      {
+        DBUG_PRINT("exit",("Return: %d",-1));
 	DBUG_RETURN(-1);
+      }
       /* Page will be update later if we return 1 */
       DBUG_RETURN(test(length <= (info->quick_mode ? MI_MIN_KEYBLOCK_LENGTH :
 				  (uint) keyinfo->underflow_block_length)));
@@ -348,6 +360,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     DBUG_DUMP("page",(byte*) anc_buff,mi_getint(anc_buff));
   }
   my_afree((byte*) leaf_buff);
+  DBUG_PRINT("exit",("Return: %d",ret_value));
   DBUG_RETURN(ret_value);
 err:
   my_afree((byte*) leaf_buff);

@@ -174,6 +174,7 @@ typedef struct st_table_list
   bool		straight;		/* optimize with prev table */
   bool          updating;               /* for replicate-do/ignore table */
   bool		force_index;		/* Prefer index over table scan */
+  bool          ignore_leaves;          /* Preload only non-leaf nodes */
 } TABLE_LIST;
 
 typedef struct st_changed_table_list

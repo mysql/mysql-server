@@ -19,7 +19,10 @@
 #undef CRAY_STACKSEG_END
 
 /* Define the default charset name */
-#undef DEFAULT_CHARSET_NAME
+#undef MYSQL_DEFAULT_CHARSET_NAME
+
+/* Define the default charset name */
+#undef MYSQL_DEFAULT_COLLATION_NAME
 
 /* Version of .frm files */
 #undef DOT_FRM_VERSION

@@ -335,7 +335,7 @@ bool Field::optimize_range(uint idx)
 
 void Field_null::sql_type(String &res) const
 {
-  res.set_latin1("null", 4);
+  res.set_ascii("null", 4);
 }
 
 
@@ -856,7 +856,7 @@ String *Field_decimal::val_str(String *val_buffer __attribute__((unused)),
   if (field_length < tmp_length)		// Error in data
     val_ptr->length(0);
   else
-    val_ptr->set_latin1((const char*) str, field_length-tmp_length);
+    val_ptr->set_ascii((const char*) str, field_length-tmp_length);
   return val_ptr;
 }
 
@@ -2389,7 +2389,7 @@ void Field_float::sql_type(String &res) const
 {
   if (dec == NOT_FIXED_DEC)
   {
-    res.set_latin1("float", 5);
+    res.set_ascii("float", 5);
   }
   else
   {
@@ -2647,7 +2647,7 @@ void Field_double::sql_type(String &res) const
   CHARSET_INFO *cs=res.charset();
   if (dec == NOT_FIXED_DEC)
   {
-    res.set_latin1("double",6);
+    res.set_ascii("double",6);
   }
   else
   {
@@ -2755,6 +2755,7 @@ int Field_timestamp::store(longlong nr)
 
   if ((nr=fix_datetime(nr)))
   {
+    long not_used;
     part1=(long) (nr/LL(1000000));
     part2=(long) (nr - (longlong) part1*LL(1000000));
     l_time.year=  (int) (part1/10000L);  part1%=10000L;
@@ -2763,7 +2764,7 @@ int Field_timestamp::store(longlong nr)
     l_time.hour=  (int) (part2/10000L);  part2%=10000L;
     l_time.minute=(int) part2 / 100;
     l_time.second=(int) part2 % 100; 
-    timestamp=my_gmt_sec(&l_time);
+    timestamp=my_gmt_sec(&l_time, &not_used);
   }
   else
     timestamp=0;
@@ -2987,7 +2988,7 @@ void Field_timestamp::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_timestamp::sql_type(String &res) const
 {
-  res.set_latin1("timestamp", 9);
+  res.set_ascii("timestamp", 9);
 }
 
 
@@ -3186,7 +3187,7 @@ void Field_time::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_time::sql_type(String &res) const
 {
-  res.set_latin1("time", 4);
+  res.set_ascii("time", 4);
 }
 
 /****************************************************************************
@@ -3467,7 +3468,7 @@ void Field_date::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_date::sql_type(String &res) const
 {
-  res.set_latin1("date", 4);
+  res.set_ascii("date", 4);
 }
 
 /****************************************************************************
@@ -3637,7 +3638,7 @@ void Field_newdate::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_newdate::sql_type(String &res) const
 {
-  res.set_latin1("date", 4);
+  res.set_ascii("date", 4);
 }
 
 
@@ -3870,7 +3871,7 @@ void Field_datetime::sort_string(char *to,uint length __attribute__((unused)))
 
 void Field_datetime::sql_type(String &res) const
 {
-  res.set_latin1("datetime", 8);
+  res.set_ascii("datetime", 8);
 }
 
 /****************************************************************************
@@ -4615,7 +4616,7 @@ void Field_blob::sql_type(String &res) const
   case 3:  str="medium"; length= 6; break;
   case 4:  str="long";  length=4; break;
   }
-  res.set_latin1(str,length);
+  res.set_ascii(str,length);
   if (charset() == &my_charset_bin)
     res.append("blob");
   else

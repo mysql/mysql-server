@@ -69,7 +69,10 @@ public:
     Alloced_length=str.Alloced_length; alloced=0; 
     str_charset=str.str_charset;
   }
-  static void *operator new(size_t size) { return (void*) sql_alloc((uint) size); }
+  static void *operator new(size_t size)
+  { return (void*) sql_alloc((uint) size); }
+  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr_arg,size_t size) /*lint -e715 */
     { sql_element_free(ptr_arg); }
   ~String() { free(); }
@@ -117,7 +120,7 @@ public:
     Ptr=(char*) str; str_length=arg_length; Alloced_length=0 ; alloced=0;
     str_charset=cs;
   }
-  bool set_latin1(const char *str, uint32 arg_length);
+  bool set_ascii(const char *str, uint32 arg_length);
   inline void set_quick(char *str,uint32 arg_length, CHARSET_INFO *cs)
   {
     if (!alloced)

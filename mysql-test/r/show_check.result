@@ -26,7 +26,7 @@ t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE
 t1	1	b	1	b	A	1	NULL	NULL		BTREE	
 t1	1	b	2	c	A	5	NULL	NULL		BTREE	
 insert into t1 values (5,5,5);
-Duplicate entry '5' for key 1
+ERROR 23000: Duplicate entry '5' for key 1
 optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
@@ -155,13 +155,13 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (a decimal(9,2), b decimal (9,0), e double(9,2), f double(5,0), h float(3,2), i float(3,0));
 show columns from t1;
-Field	Type	Collation	Null	Key	Default	Extra
-a	decimal(9,2)	NULL	YES		NULL	
-b	decimal(9,0)	NULL	YES		NULL	
-e	double(9,2)	NULL	YES		NULL	
-f	double(5,0)	NULL	YES		NULL	
-h	float(3,2)	NULL	YES		NULL	
-i	float(3,0)	NULL	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+a	decimal(9,2)	YES		NULL	
+b	decimal(9,0)	YES		NULL	
+e	double(9,2)	YES		NULL	
+f	double(5,0)	YES		NULL	
+h	float(3,2)	YES		NULL	
+i	float(3,0)	YES		NULL	
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 a	decimal(9,2)	NULL	YES		NULL		select,insert,update,references	
@@ -229,16 +229,16 @@ type_bool	type_tiny	type_short	type_mediumint	type_bigint	type_decimal	type_nume
 drop table t1;
 create table t1 (c decimal, d double, f float, r real);
 show columns from t1;
-Field	Type	Collation	Null	Key	Default	Extra
-c	decimal(10,0)	NULL	YES		NULL	
-d	double	NULL	YES		NULL	
-f	float	NULL	YES		NULL	
-r	double	NULL	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+c	decimal(10,0)	YES		NULL	
+d	double	YES		NULL	
+f	float	YES		NULL	
+r	double	YES		NULL	
 drop table t1;
 create table t1 (c decimal(3,3), d double(3,3), f float(3,3));
 show columns from t1;
-Field	Type	Collation	Null	Key	Default	Extra
-c	decimal(4,3)	NULL	YES		NULL	
-d	double(4,3)	NULL	YES		NULL	
-f	float(4,3)	NULL	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+c	decimal(4,3)	YES		NULL	
+d	double(4,3)	YES		NULL	
+f	float(4,3)	YES		NULL	
 drop table t1;

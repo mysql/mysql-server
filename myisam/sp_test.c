@@ -96,7 +96,7 @@ int run_test(const char *filename)
   keyinfo[0].seg[0].length=1; /* Spatial ignores it anyway */
   keyinfo[0].seg[0].null_bit= null_fields ? 2 : 0;
   keyinfo[0].seg[0].null_pos=0;
-  keyinfo[0].seg[0].language=MY_CHARSET_CURRENT;
+  keyinfo[0].seg[0].language=default_charset_info->number;
   keyinfo[0].seg[0].bit_start=4; /* Long BLOB */
   
   

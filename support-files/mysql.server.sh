@@ -19,7 +19,7 @@
 # Required-Start: $local_fs $network $remote_fs
 # Required-Stop: $local_fs $network $remote_fs
 # Default-Start:  2 3 4 5
-# Default-Stop: 2 3 4 5
+# Default-Stop: 0 1 6
 # Short-Description: start and stop MySQL
 # Description: MySQL is a very fast and reliable SQL database engine.
 ### END INIT INFO
@@ -129,7 +129,7 @@ then
   extra_args="-e $datadir/my.cnf"
 fi
 
-parse_arguments `$print_defaults $extra_args mysqld mysql_server mysql.server`
+parse_arguments `$print_defaults $extra_args mysqld server mysql_server mysql.server`
 
 # Safeguard (relative paths, core dumps..)
 cd $basedir

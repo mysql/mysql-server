@@ -610,17 +610,13 @@ public:
 class Item_func_locate :public Item_int_func
 {
   String value1,value2;
-  bool binary_cmp;
+  DTCollation cmp_collation;
 public:
   Item_func_locate(Item *a,Item *b) :Item_int_func(a,b) {}
   Item_func_locate(Item *a,Item *b,Item *c) :Item_int_func(a,b,c) {}
   const char *func_name() const { return "locate"; }
   longlong val_int();
-  void fix_length_and_dec()
-  {
-    maybe_null=0; max_length=11;
-    binary_cmp = args[0]->binary() || args[1]->binary();
-  }
+  void fix_length_and_dec();
 };
 
 
@@ -684,6 +680,7 @@ class Item_func_find_in_set :public Item_int_func
   String value,value2;
   uint enum_value;
   ulonglong enum_bit;
+  DTCollation cmp_collation;
 public:
   Item_func_find_in_set(Item *a,Item *b) :Item_int_func(a,b),enum_value(0) {}
   longlong val_int();
@@ -943,7 +940,7 @@ public:
   longlong val_int();
   String *val_str(String *str);
   void update_hash(void *ptr, uint length, enum Item_result type, 
-  		   CHARSET_INFO *cs, enum coercion coercibility);
+  		   CHARSET_INFO *cs, Derivation dv);
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
@@ -1034,101 +1031,6 @@ public:
   bool fix_index();
   void init_search(bool no_order);
   void set_outer_resolving();
-};
-
-
-class Item_func_dimension :public Item_int_func
-{
-  String value;
-public:
-  Item_func_dimension(Item *a) :Item_int_func(a) {}
-  longlong val_int();
-  const char *func_name() const { return "dimension"; }
-  void fix_length_and_dec() { max_length=10; }
-};
-
-
-class Item_func_x :public Item_real_func
-{
-  String value;
-public:
-  Item_func_x(Item *a) :Item_real_func(a) {}
-  double val();
-  const char *func_name() const { return "x"; }
-};
-
-
-class Item_func_y :public Item_real_func
-{
-  String value;
-public:
-  Item_func_y(Item *a) :Item_real_func(a) {}
-  double val();
-  const char *func_name() const { return "y"; }
-};
-
-
-class Item_func_numgeometries :public Item_int_func
-{
-  String value;
-public:
-  Item_func_numgeometries(Item *a) :Item_int_func(a) {}
-  longlong val_int();
-  const char *func_name() const { return "numgeometries"; }
-  void fix_length_and_dec() { max_length=10; }
-};
-
-
-class Item_func_numinteriorring :public Item_int_func
-{
-  String value;
-public:
-  Item_func_numinteriorring(Item *a) :Item_int_func(a) {}
-  longlong val_int();
-  const char *func_name() const { return "numinteriorring"; }
-  void fix_length_and_dec() { max_length=10; }
-};
-
-
-class Item_func_numpoints :public Item_int_func
-{
-  String value;
-public:
-  Item_func_numpoints(Item *a) :Item_int_func(a) {}
-  longlong val_int();
-  const char *func_name() const { return "numpoints"; }
-  void fix_length_and_dec() { max_length=10; }
-};
-
-
-class Item_func_area :public Item_real_func
-{
-  String value;
-public:
-  Item_func_area(Item *a) :Item_real_func(a) {}
-  double val();
-  const char *func_name() const { return "area"; }
-};
-
-
-class Item_func_glength :public Item_real_func
-{
-  String value;
-public:
-  Item_func_glength(Item *a) :Item_real_func(a) {}
-  double val();
-  const char *func_name() const { return "glength"; }
-};
-
-
-class Item_func_srid: public Item_int_func
-{
-  String value;
-public:
-  Item_func_srid(Item *a): Item_int_func(a) {}
-  longlong val_int();
-  const char *func_name() const { return "srid"; }
-  void fix_length_and_dec() { max_length= 10; }
 };
 
 

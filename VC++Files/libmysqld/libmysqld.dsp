@@ -43,7 +43,8 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "LIBMYSQLD_EXPORTS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../sql" /I "../bdb/build_win32" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /FR /FD /mktyplib203 /win32 # ADD BASE MTL /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../sql" /I "../regex" /I "../bdb/build_win32" /I "../zlib" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /FR /FD /c
+# ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
 # ADD RSC /l 0x416 /d "NDEBUG"
@@ -68,7 +69,8 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "LIBMYSQLD_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MT /W3 /Gm /Zi /Od /I "../include" /I "../sql" /I "../regex" /I "../bdb/build_win32" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "HAVE_BERKELEY_DB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "USE_TLS" /D "__WIN__" /FD /GZ /mktyplib203 /win32 # ADD BASE MTL /c
+# ADD CPP /nologo /MT /W3 /Gm /Zi /Od /I "../include" /I "../sql" /I "../regex" /I "../bdb/build_win32" /I "../zlib" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "HAVE_BERKELEY_DB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "USE_TLS" /D "__WIN__" /FD /GZ /c
+# ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x416 /d "_DEBUG"
 # ADD RSC /l 0x416 /d "_DEBUG"
@@ -87,7 +89,11 @@ LINK32=link.exe
 # Name "libmysqld - Win32 Debug"
 # Begin Source File
 
-SOURCE=..\sql\convert.cpp
+SOURCE="..\strings\ctype-latin1.c"
+# End Source File
+# Begin Source File
+
+SOURCE=..\mysys\default.c
 # End Source File
 # Begin Source File
 
@@ -111,7 +117,7 @@ SOURCE=..\sql\filesort.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\libmysql\get_password.c
+SOURCE=..\client\get_password.c
 # End Source File
 # Begin Source File
 
@@ -159,6 +165,10 @@ SOURCE=..\sql\init.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\strings\int2str.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\sql\item.cpp
 # End Source File
 # Begin Source File
@@ -177,6 +187,10 @@ SOURCE=..\sql\item_create.cpp
 
 SOURCE=..\sql\item_func.cpp
 # ADD CPP /I "../zlib"
+# End Source File
+# Begin Source File
+
+SOURCE=.\item_geofunc.cpp
 # End Source File
 # Begin Source File
 
@@ -236,7 +250,11 @@ SOURCE=..\sql\mf_iocache.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\sql\mini_client.cpp
+SOURCE=..\mysys\my_alloc.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\mysys\my_getopt.c
 # End Source File
 # Begin Source File
 
@@ -253,6 +271,10 @@ SOURCE=..\sql\opt_range.cpp
 # Begin Source File
 
 SOURCE=..\sql\opt_sum.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\libmysql\pack.c
 # End Source File
 # Begin Source File
 
@@ -380,6 +402,10 @@ SOURCE=..\sql\sql_show.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\sql\sql_state.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\sql\sql_string.cpp
 # End Source File
 # Begin Source File
@@ -405,6 +431,26 @@ SOURCE=..\sql\sql_update.cpp
 # Begin Source File
 
 SOURCE=..\sql\sql_yacc.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\str2int.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\strcend.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\strcont.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\strinstr.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\strxnmov.c
 # End Source File
 # Begin Source File
 

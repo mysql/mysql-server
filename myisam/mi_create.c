@@ -441,7 +441,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   mi_int2store(share.state.header.base_info_length,MI_BASE_INFO_SIZE);
   mi_int2store(share.state.header.base_pos,base_pos);
   share.state.header.language= (ci->language ?
-				ci->language : MY_CHARSET_CURRENT);
+				ci->language : default_charset_info->number);
   share.state.header.max_block_size=max_key_block_length/MI_MIN_KEY_BLOCK_LENGTH;
 
   share.state.dellink = HA_OFFSET_ERROR;
