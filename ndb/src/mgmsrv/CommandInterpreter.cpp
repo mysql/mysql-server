@@ -104,7 +104,6 @@ int CommandInterpreter::readAndExecute() {
     int processId;
     if (! convert(firstToken, processId)) {
       ndbout << "Invalid command: " << _line << "." << endl;
-      ndbout << "Type HELP for help." << endl << endl;
       return true;
     }
     if (processId < 0) {
@@ -120,20 +119,9 @@ int CommandInterpreter::readAndExecute() {
 
 
 static const CommandInterpreter::CommandFunctionPair commands[] = {
-  { "START", &CommandInterpreter::executeStart }
-  ,{ "RESTART", &CommandInterpreter::executeRestart }
-  ,{ "STOP", &CommandInterpreter::executeStop }
-#ifdef ERROR_INSERT
-  ,{ "ERROR", &CommandInterpreter::executeError }
-#endif
-  ,{ "TRACE", &CommandInterpreter::executeTrace }
-  ,{ "LOG", &CommandInterpreter::executeLog }
-  ,{ "LOGIN", &CommandInterpreter::executeLogIn }
+  { "LOGIN", &CommandInterpreter::executeLogIn }
   ,{ "LOGOUT", &CommandInterpreter::executeLogOut }
   ,{ "LOGOFF", &CommandInterpreter::executeLogOff }
-  ,{ "TESTON", &CommandInterpreter::executeTestOn }
-  ,{ "TESTOFF", &CommandInterpreter::executeTestOff }
-  ,{ "DUMP", &CommandInterpreter::executeDumpState }
 };
 
 
@@ -170,16 +158,14 @@ CommandInterpreter::analyseAfterFirstToken(int processId,
   
   if(fun == 0){
     ndbout << "Invalid command: " << secondToken << "." << endl;
-    ndbout << "Type HELP for help." << endl << endl;
     return;
   }
   
   if(processId == -1){
     executeForAll(command, fun, allAfterSecondToken);
   } else {
-    if(strcmp(command, "STATUS") != 0)
-      ndbout << "Executing " << command << " on node: " 
-	     << processId << endl << endl;
+    ndbout << "Executing " << command << " on node: " 
+	   << processId << endl << endl;
     (this->*fun)(processId, allAfterSecondToken, false);
     ndbout << endl;
   }
@@ -190,18 +176,11 @@ CommandInterpreter::executeForAll(const char * cmd, ExecuteFunction fun,
 				  const char * allAfterSecondToken){
 
   NodeId nodeId = 0;
-  if(strcmp(cmd, "STOP") == 0 ||
-     strcmp(cmd, "RESTART") == 0){
-    ndbout << "Executing " << cmd << " on all nodes" << endl << "\n";
+  while(_mgmtSrvr.getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)){
+    ndbout << "Executing " << cmd << " on node: " 
+	   << nodeId << endl << endl;
     (this->*fun)(nodeId, allAfterSecondToken, true);
-  } else {
-    while(_mgmtSrvr.getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)){
-      if(strcmp(cmd, "STATUS") != 0)
-	ndbout << "Executing " << cmd << " on node: " 
-	       << nodeId << endl << endl;
-      (this->*fun)(nodeId, allAfterSecondToken, true);
-      ndbout << endl;
-    } // for
+    ndbout << endl;
   }
 }
 
@@ -271,233 +250,6 @@ bool CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
   return true;
 }
 
-//*****************************************************************************
-//*****************************************************************************
-
-void
-stopCallback(int nodeId, void * anyData, int errCode){
-  if(errCode == 0){
-    if(nodeId == 0)
-      ndbout << "\nCluster has shutdown" << endl;
-    else
-      ndbout << "\nNode " << nodeId << " has shutdown" << endl;
-  } else {
-    MgmtSrvr * mgm = (MgmtSrvr *)anyData;
-    char err_str[1024];
-    ndbout << "Node " << nodeId << " has not shutdown: " 
-	   << mgm->getErrorText(errCode,err_str,sizeof(err_str)) << endl;
-  }
-}
-
-//*****************************************************************************
-//*****************************************************************************
-void CommandInterpreter::executeStop(int processId, 
-				     const char* parameters, bool all) {
-  
-  (void)parameters;  // Don't want compiler warning  
-
-  int result = 0;
-  if(all)
-    result = _mgmtSrvr.stop((int *)0, false, stopCallback, this);
-  else
-    result = _mgmtSrvr.stopNode(processId, false, stopCallback, this);
-  
-  if(result != 0)
-    ndbout << get_error_text(result) << endl;
-}
-
-
-void CommandInterpreter::executeStart(int processId, const char* parameters,
-				      bool all) {
-  (void)all;  // Don't want compiler warning
-
-  if (! emptyString(parameters)) {
-    ndbout << "No parameters expected to this command." << endl;
-    return;
-  }
-  
-  int result = _mgmtSrvr.start(processId);
-  if (result != 0) {
-    ndbout << get_error_text(result) << endl;
-  }
-}
-
-void
-CommandInterpreter::executeRestart(int processId, const char* parameters,
-				   bool all) {
-  
-  bool nostart = false;
-  bool initialstart = false;
-
-  if(parameters != 0 && strlen(parameters) != 0){
-    char * tmpString = strdup(parameters);
-    char * tmpPtr = 0;
-    char * item = strtok_r(tmpString, " ", &tmpPtr);
-    while(item != NULL){
-      if(strcmp(item, "-N") == 0)
-	nostart = true;
-      if(strcmp(item, "-I") == 0)
-	initialstart = true;
-      item = strtok_r(NULL, " ", &tmpPtr);
-    }
-    free(tmpString);
-  }
-  int result;
-  if(all)
-    result = _mgmtSrvr.restart(nostart, initialstart, false, 
-			       0, stopCallback, this);
-  else
-    result = _mgmtSrvr.restartNode(processId, nostart, initialstart, false, 
-			       stopCallback,
-			       this);
-  if (result != 0) {
-    ndbout << get_error_text(result) << endl;
-  }
-}
-
-void
-CommandInterpreter::executeDumpState(int processId, const char* parameters,
-				     bool all) {
-  
-  (void)all;  // Don't want compiler warning 
-
-  if(parameters == 0 || strlen(parameters) == 0){
-    ndbout << "Expected argument" << endl;
-    return;
-  }
-
-  Uint32 no = 0;
-  Uint32 pars[25];
-  
-  char * tmpString = strdup(parameters);
-  char * tmpPtr = 0;
-  char * item = strtok_r(tmpString, " ", &tmpPtr);
-  int error;
-  while(item != NULL){
-	  if (0x0 <= my_strtoll10(item, NULL, &error) && my_strtoll10(item, NULL, &error) <= 0xffffffff) {
-      pars[no] = my_strtoll10(item, NULL, &error); 
-    } else {
-      ndbout << "Illegal value in argument to signal." << endl
-	     << "(Value must be between 0 and 0xffffffff.)" 
-	     << endl;
-      return;
-    }
-    no++;
-    item = strtok_r(NULL, " ", &tmpPtr);
-  }
-  ndbout << "Sending dump signal with data:" << endl;
-  for (Uint32 i=0; i<no; i++) {
-    ndbout.setHexFormat(1) << pars[i] << " ";
-    if (!(i+1 & 0x3)) ndbout << endl;
-  }
-  free(tmpString);
-  int result = _mgmtSrvr.dumpState(processId, pars, no);
-  if (result != 0) {
-    ndbout << get_error_text(result) << endl;
-  }
-}
-
-//*****************************************************************************
-//*****************************************************************************
-void CommandInterpreter::executeError(int processId, 
-				      const char* parameters, bool all) {
-
-  (void)all;  // Don't want compiler warning
-
-  if (emptyString(parameters)) {
-    ndbout << "Missing error number." << endl;
-    return;
-  }
-  // Copy parameters since strtok will modify it
-  char* newpar = strdup(parameters); 
-  char* firstParameter = strtok(newpar, " ");
-
-  int errorNo;
-  if (! convert(firstParameter, errorNo)) {
-    ndbout << "Expected an integer." << endl;
-    free(newpar);
-    return;
-  }
-
-  char* allAfterFirstParameter = strtok(NULL, "\0");
-  if (! emptyString(allAfterFirstParameter)) {
-    ndbout << "Nothing expected after error number." << endl;
-    free(newpar);
-    return;
-  }
-
-  int result = _mgmtSrvr.insertError(processId, errorNo);
-  if (result != 0) {
-    ndbout << get_error_text(result) << endl;
-  }
-  free(newpar);
-}
-
-
-
-//******************************************************************************
-//******************************************************************************
-void CommandInterpreter::executeTrace(int processId, 
-				      const char* parameters, bool all) {
-
-  (void)all;  // Don't want compiler warning
-
-  if (emptyString(parameters)) {
-    ndbout << "Missing trace number." << endl;
-    return;
-  }
-
-  char* newpar = strdup(parameters);
-  char* firstParameter = strtok(newpar, " ");
-
-
-  int traceNo;
-  if (! convert(firstParameter, traceNo)) {
-    ndbout << "Expected an integer." << endl;
-    free(newpar);
-    return;
-  }
-
-  char* allAfterFirstParameter = strtok(NULL, "\0");  
-
-  if (! emptyString(allAfterFirstParameter)) {
-    ndbout << "Nothing expected after trace number." << endl;
-    free(newpar);
-    return;
-  }
-
-  int result = _mgmtSrvr.setTraceNo(processId, traceNo);
-  if (result != 0) {
-    ndbout << get_error_text(result) << endl;
-  }
-  free(newpar);
-}
-
-
-
-//******************************************************************************
-//******************************************************************************
-void CommandInterpreter::executeLog(int processId, 
-				    const char* parameters, bool all) {
-  
-  (void)all;  // Don't want compiler warning
-
-  Vector<BaseString> blocks;
-  if (! parseBlockSpecification(parameters, blocks)) {
-    return;
-  }
-  
-  int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::InOut, blocks);
-  if (result != 0) {
-    ndbout << get_error_text(result) << endl;
-  }
-
-}
-
-
-
-//******************************************************************************
-//******************************************************************************
 void CommandInterpreter::executeLogIn(int processId, 
 				      const char* parameters, bool all) {
 
@@ -549,44 +301,6 @@ void CommandInterpreter::executeLogOff(int processId,
 
 
   int result = _mgmtSrvr.setSignalLoggingMode(processId, MgmtSrvr::Off, blocks);
-  if (result != 0) {
-    ndbout << get_error_text(result) << endl;
-  }
-
-}
-
-//******************************************************************************
-//******************************************************************************
-void CommandInterpreter::executeTestOn(int processId, 
-				       const char* parameters, bool all) {
-
-  (void)all;  // Don't want compiler warning
-
-  if (! emptyString(parameters)) {
-    ndbout << "No parameters expected to this command." << endl;
-    return;
-  }
-
-  int result = _mgmtSrvr.startSignalTracing(processId);
-  if (result != 0) {
-    ndbout << get_error_text(result) << endl;
-  }
-
-}
-
-//******************************************************************************
-//******************************************************************************
-void CommandInterpreter::executeTestOff(int processId, 
-					const char* parameters, bool all) {
-
-  (void)all;  // Don't want compiler warning 
-
-  if (! emptyString(parameters)) {
-    ndbout << "No parameters expected to this command." << endl;
-    return;
-  }
-
-  int result = _mgmtSrvr.stopSignalTracing(processId);
   if (result != 0) {
     ndbout << get_error_text(result) << endl;
   }
