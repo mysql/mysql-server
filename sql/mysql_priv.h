@@ -299,6 +299,10 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
   use strictly more than 64 bits by adding one more define above, you should
   contact the replication team because the replication code should then be
   updated (to store more bytes on disk).
+
+  NOTE: When adding new SQL_MODE types, make sure to also add them to
+  ../scripts/mysql_create_system_tables.sh and
+  ../scripts/mysql_fix_privilege_tables.sql
 */
 
 #define RAID_BLOCK_SIZE 1024
@@ -817,7 +821,7 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint 
                           const char *msg);
 void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
 			 uint code, const char *format, ...);
-void mysql_reset_errors(THD *thd);
+void mysql_reset_errors(THD *thd, bool force= false);
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 /* sql_handler.cc */
@@ -1033,7 +1037,7 @@ extern Le_creator le_creator;
 extern char language[FN_REFLEN], reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
-extern char log_error_file[FN_REFLEN];
+extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
 extern double last_query_cost;
 extern double log_10[32];
 extern ulonglong log_10_int[20];

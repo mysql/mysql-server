@@ -387,6 +387,7 @@ TABLE *create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			ORDER *group, bool distinct, bool save_sum_fields,
 			ulong select_options, ha_rows rows_limit,
 			char* alias);
+TABLE *create_virtual_tmp_table(THD *thd, List<create_field> &field_list);
 void free_tmp_table(THD *thd, TABLE *entry);
 void count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
 		       bool reset_with_sum_func);

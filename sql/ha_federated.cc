@@ -414,6 +414,99 @@ bool federated_db_end()
   return FALSE;
 }
 
+
+/*
+ Check (in create) whether the tables exists, and that it can be connected to
+
+  SYNOPSIS
+    check_foreign_data_source()
+      share               pointer to FEDERATED share
+
+  DESCRIPTION
+    This method first checks that the connection information that parse url
+    has populated into the share will be sufficient to connect to the foreign
+    table, and if so, does the foreign table exist.
+*/
+
+static int check_foreign_data_source(FEDERATED_SHARE *share)
+{
+  char escaped_table_base_name[IO_SIZE];
+  MYSQL *mysql;
+  MYSQL_RES *result=0;
+  uint error_code;
+  char query_buffer[IO_SIZE];
+  char error_buffer[IO_SIZE];
+  String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
+  DBUG_ENTER("ha_federated::check_foreign_data_source");
+  query.length(0);
+
+  /* error out if we can't alloc memory for mysql_init(NULL) (per Georg) */
+  if (! (mysql= mysql_init(NULL)))
+  {
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  }
+  /* check if we can connect */
+  if (!mysql_real_connect(mysql,
+                          share->hostname,
+                          share->username,
+                          share->password,
+                          share->database,
+                          share->port,
+                          share->socket, 0))
+  {
+    my_sprintf(error_buffer,
+               (error_buffer,
+                "unable to connect to database '%s' on host '%s as user '%s' !",
+               share->database, share->hostname, share->username));
+    error_code= ER_CONNECT_TO_MASTER;
+    goto error;
+  }
+  else
+  {
+    /* 
+      Note: I am not using INORMATION_SCHEMA because this needs to work with < 5.0
+      if we can connect, then make sure the table exists 
+    */
+    query.append("SHOW TABLES LIKE '");
+    escape_string_for_mysql(&my_charset_bin, (char *)escaped_table_base_name,
+                            share->table_base_name,
+                            share->table_base_name_length);
+    query.append(escaped_table_base_name);
+    query.append("'");
+
+    error_code= ER_QUERY_ON_MASTER;
+    if (mysql_real_query(mysql, query.ptr(), query.length()))
+      goto error;
+
+    result= mysql_store_result(mysql);
+    if (! result)
+      goto error;
+
+    /* if ! mysql_num_rows, the table doesn't exist, send error */
+    if (! mysql_num_rows(result))
+    {
+      my_sprintf(error_buffer,
+                 (error_buffer, "foreign table '%s' does not exist!",
+                  share->table_base_name));
+      goto error;
+    }
+    mysql_free_result(result);
+    result= 0;
+    mysql_close(mysql);
+
+  }
+  DBUG_RETURN(0);
+
+error:
+    if (result)
+      mysql_free_result(result);
+    mysql_close(mysql);
+    my_error(error_code, MYF(0), error_buffer);
+    DBUG_RETURN(error_code);
+
+}
+
+
 /*
   Parse connection info from table->s->comment
 
@@ -521,6 +614,8 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
         }
         else
           goto error;
+
+        share->table_base_name_length= strlen(share->table_base_name);
       }
       else
         goto error;
@@ -545,6 +640,17 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
                   share->scheme, share->username, share->password,
                   share->hostname, share->port, share->database,
                   share->table_base_name));
+
+      /* If creation, check first if we can connect and that the table exists */
+      /*if (table_create_flag)
+      {
+        if (check_foreign_data_source(share))
+          goto error;
+      */
+        /* free share->schema even if no error, since this is a create */
+      /*
+        my_free((gptr) share->scheme, MYF(0));
+        }*/
     }
     else
       goto error;
@@ -560,6 +666,7 @@ error:
     DBUG_RETURN(1);
 
 }
+
 
 /*
   Convert MySQL result set row to handler internal format
@@ -778,15 +885,14 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
                                                table_name_length)))
   {
     query.set_charset(system_charset_info);
-    query.append("SELECT * FROM ");
-    query.append(table_base_name);
+    query.append("SELECT * FROM `");
 
     if (!(share= (FEDERATED_SHARE *)
           my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
                           &share, sizeof(*share),
                           &tmp_table_name, table_name_length + 1,
-                          &tmp_table_base_name, table_base_name_length + 1,
-                          &select_query, query.length() + 1, NullS)))
+                          &select_query, query.length() +
+                          strlen(table->s->comment) + 1,  NullS)))
     {
       pthread_mutex_unlock(&federated_mutex);
       return NULL;
@@ -795,14 +901,13 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     if (parse_url(share, table, 0))
       goto error;
 
+    query.append(share->table_base_name);
+    query.append("`");
     share->use_count= 0;
     share->table_name_length= table_name_length;
     share->table_name= tmp_table_name;
-    share->table_base_name_length= table_base_name_length;
-    share->table_base_name= tmp_table_base_name;
     share->select_query= select_query;
     strmov(share->table_name, table_name);
-    strmov(share->table_base_name, table_base_name);
     strmov(share->select_query, query.ptr());
     DBUG_PRINT("ha_federated::get_share",
                ("share->select_query %s", share->select_query));
@@ -820,7 +925,6 @@ error:
   pthread_mutex_unlock(&federated_mutex);
   if (share->scheme)
     my_free((gptr) share->scheme, MYF(0));
-  VOID(pthread_mutex_destroy(&share->mutex));
   my_free((gptr) share, MYF(0));
 
   return NULL;
@@ -1016,6 +1120,8 @@ int ha_federated::write_row(byte *buf)
   insert_field_value_string.length(0);
 
   DBUG_ENTER("ha_federated::write_row");
+  DBUG_PRINT("ha_federated::write_row", ("table charset name %s csname %s",
+                                         table->s->table_charset->name, table->s->table_charset->csname));
 
   statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
@@ -1031,8 +1137,9 @@ int ha_federated::write_row(byte *buf)
                                          current_query_id));
 
   /* start off our string */
-  insert_string.append("INSERT INTO ");
+  insert_string.append("INSERT INTO `");
   insert_string.append(share->table_base_name);
+  insert_string.append("`");
   /* start both our field and field values strings */
   insert_string.append(" (");
   values_string.append(" VALUES (");
@@ -1056,7 +1163,7 @@ int ha_federated::write_row(byte *buf)
   for (field= table->field; *field; field++, x++)
   {
     DBUG_PRINT("ha_federated::write_row", ("field type %d", (*field)->type()));
-    // if there is a query id and if it's equal to the current query id
+    /* if there is a query id and if it's equal to the current query id */
     if (((*field)->query_id && (*field)->query_id == current_query_id)
         || all_fields_have_same_query_id)
     {
@@ -1076,8 +1183,7 @@ int ha_federated::write_row(byte *buf)
                     current_query_id, (*field)->query_id));
         (*field)->val_str(&insert_field_value_string);
         /* quote these fields if they require it */
-        (*field)->quote_data(&insert_field_value_string);
-      }
+        (*field)->quote_data(&insert_field_value_string); }
       /* append the field name */
       insert_string.append((*field)->field_name);
 
@@ -1162,20 +1268,19 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   /* stores the value to be replaced of the field were are updating */
   String old_field_value(old_field_value_buffer, sizeof(old_field_value_buffer),
                          &my_charset_bin);
-  old_field_value.length(0);
   /* stores the new value of the field */
   String new_field_value(new_field_value_buffer, sizeof(new_field_value_buffer),
                          &my_charset_bin);
-  new_field_value.length(0);
   /* stores the update query */
   String update_string(update_buffer, sizeof(update_buffer), &my_charset_bin);
-  update_string.length(0);
   /* stores the WHERE clause */
   String where_string(where_buffer, sizeof(where_buffer), &my_charset_bin);
-  where_string.length(0);
 
   DBUG_ENTER("ha_federated::update_row");
-
+  old_field_value.length(0);
+  new_field_value.length(0);
+  update_string.length(0);
+  where_string.length(0);
 
   has_a_primary_key= (table->s->primary_key == 0 ? 1 : 0);
   primary_key_field_num= has_a_primary_key ?
@@ -1183,8 +1288,9 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   if (has_a_primary_key)
     DBUG_PRINT("ha_federated::update_row", ("has a primary key"));
 
-  update_string.append("UPDATE ");
+  update_string.append("UPDATE `");
   update_string.append(share->table_base_name);
+  update_string.append("`");
   update_string.append(" SET ");
 
 /*
@@ -1312,8 +1418,9 @@ int ha_federated::delete_row(const byte *buf)
 
   DBUG_ENTER("ha_federated::delete_row");
 
-  delete_string.append("DELETE FROM ");
+  delete_string.append("DELETE FROM `");
   delete_string.append(share->table_base_name);
+  delete_string.append("`");
   delete_string.append(" WHERE ");
 
   for (Field **field= table->field; *field; field++, x++)
@@ -1395,6 +1502,7 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
   sql_query.length(0);
 
   DBUG_ENTER("ha_federated::index_read_idx");
+
   statistic_increment(table->in_use->status_var.ha_read_key_count,
                       &LOCK_status);
 
@@ -1576,6 +1684,16 @@ int ha_federated::rnd_next(byte *buf)
   MYSQL_ROW row;
   DBUG_ENTER("ha_federated::rnd_next");
 
+  if (result == 0)
+  {
+    /*
+      Return value of rnd_init is not always checked (see records.cc),
+      so we can get here _even_ if there is _no_ pre-fetched result-set!
+      TODO: fix it.
+      */
+    DBUG_RETURN(1);
+  }
+ 
   /* Fetch a row, insert it back in a row format. */
   current_position= result->data_cursor;
   DBUG_PRINT("ha_federated::rnd_next",
@@ -1716,8 +1834,9 @@ int ha_federated::delete_all_rows()
   query.length(0);
 
   query.set_charset(system_charset_info);
-  query.append("TRUNCATE ");
+  query.append("TRUNCATE `");
   query.append(share->table_base_name);
+  query.append("`");
 
   if (mysql_real_query(mysql, query.ptr(), query.length()))
   {
@@ -1803,14 +1922,28 @@ THR_LOCK_DATA **ha_federated::store_lock(THD *thd,
 int ha_federated::create(const char *name, TABLE *table_arg,
                          HA_CREATE_INFO *create_info)
 {
+  int connection_error=0;
   FEDERATED_SHARE tmp;
   DBUG_ENTER("ha_federated::create");
+
   if (parse_url(&tmp, table_arg, 1))
   {
-    my_error(ER_CANT_CREATE_TABLE, MYF(0));
-    DBUG_RETURN(ER_CANT_CREATE_TABLE);
+    my_error(ER_CANT_CREATE_TABLE, MYF(0), name, 1);
+    goto error;
   }
+  if ((connection_error= check_foreign_data_source(&tmp)))
+  {
+    my_error(connection_error, MYF(0), name, 1);
+    goto error;
+  }
+  
   my_free((gptr) tmp.scheme, MYF(0));
   DBUG_RETURN(0);
+  
+error:
+  DBUG_PRINT("ha_federated::create", ("errors, returning %d", ER_CANT_CREATE_TABLE));
+  my_free((gptr) tmp.scheme, MYF(0));
+  DBUG_RETURN(ER_CANT_CREATE_TABLE);
+
 }
 #endif /* HAVE_FEDERATED_DB */
