@@ -2111,6 +2111,7 @@ start_transaction_opts:
         {
            $$= MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT;
         }
+        ;
 
 slave_thread_opts:
 	{ Lex->slave_thd_opt= 0; }
