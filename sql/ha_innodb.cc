@@ -4927,7 +4927,9 @@ ha_innobase::store_lock(
 	if ((lock_type == TL_READ && thd->in_lock_tables) ||
 	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
 	    lock_type == TL_READ_WITH_SHARED_LOCKS ||
-	    lock_type == TL_READ_NO_INSERT) {
+	    lock_type == TL_READ_NO_INSERT ||
+	    thd->lex.sql_command != SQLCOM_SELECT) {
+
 		/* The OR cases above are in this order:
 		1) MySQL is doing LOCK TABLES ... READ LOCAL, or
 		2) (we do not know when TL_READ_HIGH_PRIORITY is used), or
@@ -4935,7 +4937,10 @@ ha_innobase::store_lock(
 		4) we are doing a complex SQL statement like
 		INSERT INTO ... SELECT ... and the logical logging (MySQL
 		binlog) requires the use of a locking read, or
-		MySQL is doing LOCK TABLES ... READ. */
+		MySQL is doing LOCK TABLES ... READ.
+		5) we let InnoDB do locking reads for all SQL statements that
+		are not simple SELECTs; note that select_lock_type in this
+		case may get strengthened in ::external_lock() to LOCK_X. */
 
 		prebuilt->select_lock_type = LOCK_S;
 		prebuilt->stored_select_lock_type = LOCK_S;
