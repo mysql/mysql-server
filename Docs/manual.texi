@@ -26712,7 +26712,7 @@ the maximum size for a table. The minimum tablespace size is 10 MB.
 Contact information of Innobase Oy, producer of the InnoDB engine:
 
 @example
-Website: www.innobase.fi
+Website: www.innodb.com
 Heikki.Tuuri@@innobase.inet.fi
 phone: 358-9-6969 3250 (office) 358-40-5617367 (mobile)
 InnoDB Oy Inc.

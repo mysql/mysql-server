@@ -1199,8 +1199,16 @@ page_rec_validate(
 	n_owned = rec_get_n_owned(rec);
 	heap_no = rec_get_heap_no(rec);
 
-	ut_a(n_owned <= PAGE_DIR_SLOT_MAX_N_OWNED);
-	ut_a(heap_no < page_header_get_field(page, PAGE_N_HEAP));
+	if (!(n_owned <= PAGE_DIR_SLOT_MAX_N_OWNED)) {
+		fprintf(stderr, "Dir slot n owned too big %lu\n", n_owned);
+		return(FALSE);
+	}
+
+	if (!(heap_no < page_header_get_field(page, PAGE_N_HEAP))) {
+		fprintf(stderr, "Heap no too big %lu %lu\n", heap_no,
+				page_header_get_field(page, PAGE_N_HEAP));
+		return(FALSE);
+	}
 	
 	return(TRUE);
 }
@@ -1216,20 +1224,21 @@ page_validate(
 	dict_index_t*	index)	/* in: data dictionary index containing
 				the page record type definition */
 {
+	page_dir_slot_t* slot;
 	mem_heap_t*	heap;
+	page_cur_t 	cur;
 	byte*		buf;
 	ulint		i;
 	ulint		count;
 	ulint		own_count;
 	ulint		slot_no;
 	ulint		data_size;
-	page_cur_t 	cur;
 	rec_t*		rec;
 	rec_t*		old_rec	= NULL;
-	page_dir_slot_t* slot;
 	ulint		offs;
 	ulint		n_slots;
-
+	ibool		ret	= FALSE;
+	
 	heap = mem_heap_create(UNIV_PAGE_SIZE);
 	
 	/* The following buffer is used to check that the
@@ -1244,8 +1253,16 @@ page_validate(
 	overlap. */
 
 	n_slots = page_dir_get_n_slots(page);
-	ut_ad(page_header_get_ptr(page, PAGE_HEAP_TOP) <=
-		page_dir_get_nth_slot(page, n_slots - 1));
+
+	if (!(page_header_get_ptr(page, PAGE_HEAP_TOP) <=
+			page_dir_get_nth_slot(page, n_slots - 1))) {
+		fprintf(stderr,
+       	"Record heap and dir overlap on a page in index %s, %lu, %lu\n",
+       		index->name, page_header_get_ptr(page, PAGE_HEAP_TOP),
+       		page_dir_get_nth_slot(page, n_slots - 1));
+
+       		goto func_exit;
+       	}
 
 	/* Validate the record list in a loop checking also that
 	it is consistent with the directory. */
@@ -1259,11 +1276,20 @@ page_validate(
 
 	for (;;) {
 		rec = (&cur)->rec;
-		page_rec_validate(rec);
+
+		if (!page_rec_validate(rec)) {
+			goto func_exit;
+		}
 		
 		/* Check that the records are in the ascending order */
 		if ((count >= 2) && (!page_cur_is_after_last(&cur))) {
-			ut_a(1 == cmp_rec_rec(rec, old_rec, index));
+			if (!(1 == cmp_rec_rec(rec, old_rec, index))) {
+				fprintf(stderr,
+				"Records in wrong order in index %s\n",
+				index->name);
+
+				goto func_exit;
+			}
 		}
 
 		if ((rec != page_get_supremum_rec(page))
@@ -1275,16 +1301,38 @@ page_validate(
 		offs = rec_get_start(rec) - page;
 		
 		for (i = 0; i < rec_get_size(rec); i++) {
-			ut_a(buf[offs + i] == 0); /* No other record may
-						  overlap this */
+			if (!buf[offs + i] == 0) {
+				/* No other record may overlap this */
+
+				fprintf(stderr,
+				"Record overlaps another in index %s \n",
+				index->name);
+
+				goto func_exit;
+			}
+				
 			buf[offs + i] = 1;
 		}
 		
 		if (rec_get_n_owned(rec) != 0) {
 			/* This is a record pointed to by a dir slot */
-			ut_a(rec_get_n_owned(rec) == own_count);
+			if (rec_get_n_owned(rec) != own_count) {
+				fprintf(stderr,
+				"Wrong owned count %lu, %lu, in index %s\n",
+				rec_get_n_owned(rec), own_count,
+				index->name);
 
-			ut_a(page_dir_slot_get_rec(slot) == rec);
+				goto func_exit;
+			}
+
+			if (page_dir_slot_get_rec(slot) != rec) {
+				fprintf(stderr,
+				"Dir slot does not point to right rec in %s\n",
+				index->name);
+
+				goto func_exit;
+			}
+			
 			page_dir_slot_check(slot);
 			
 			own_count = 0;
@@ -1297,45 +1345,89 @@ page_validate(
 		if (page_cur_is_after_last(&cur)) {
 			break;
 		}
-		
-		count++;
+
+		if (rec_get_next_offs(rec) < FIL_PAGE_DATA
+				|| rec_get_next_offs(rec) >= UNIV_PAGE_SIZE) {
+			fprintf(stderr,
+			  "Next record offset wrong %lu in index %s\n",
+			  rec_get_next_offs(rec), index->name);
+
+			goto func_exit;
+		}
+
+		count++;		
 		page_cur_move_to_next(&cur);
 		own_count++;
 		old_rec = rec;
 	}
 	
-	ut_a(rec_get_n_owned(rec) != 0);
-	ut_a(slot_no == n_slots - 1);
-	ut_a(page_header_get_field(page, PAGE_N_RECS) + 2 == count + 1);
+	if (rec_get_n_owned(rec) == 0) {
+		fprintf(stderr, "n owned is zero in index %s\n", index->name);
+
+		goto func_exit;
+	}
+		
+	if (slot_no != n_slots - 1) {
+		fprintf(stderr, "n slots wrong %lu %lu in index %s\n",
+			slot_no, n_slots - 1, index->name);
+		goto func_exit;
+	}		
+
+	if (page_header_get_field(page, PAGE_N_RECS) + 2 != count + 1) {
+		fprintf(stderr, "n recs wrong %lu %lu in index %s\n",
+		page_header_get_field(page, PAGE_N_RECS) + 2,  count + 1,
+		index->name);
+
+		goto func_exit;
+	}
 
 	if (data_size != page_get_data_size(page)) {
-		printf("Summed data size %lu, returned by func %lu\n",
+		fprintf(stderr, "Summed data size %lu, returned by func %lu\n",
 			data_size, page_get_data_size(page));
-		ut_error;
+		goto func_exit;
 	}
 
 	/* Check then the free list */
 	rec = page_header_get_ptr(page, PAGE_FREE);
 
 	while (rec != NULL) {
-		page_rec_validate(rec);
+		if (!page_rec_validate(rec)) {
+
+			goto func_exit;
+		}
 		
 		count++;	
 		offs = rec_get_start(rec) - page;
 		
 		for (i = 0; i < rec_get_size(rec); i++) {
-			ut_a(buf[offs + i] == 0);
+
+			if (buf[offs + i] != 0) {
+				fprintf(stderr,
+	                "Record overlaps another in free list, index %s \n",
+				index->name);
+
+				goto func_exit;
+			}
+				
 			buf[offs + i] = 1;
 		}
 		
 		rec = page_rec_get_next(rec);
 	}
 	
-	ut_a(page_header_get_field(page, PAGE_N_HEAP) == count + 1);
-	
+	if (page_header_get_field(page, PAGE_N_HEAP) != count + 1) {
+
+		fprintf(stderr, "N heap is wrong %lu %lu in index %s\n",
+		page_header_get_field(page, PAGE_N_HEAP), count + 1,
+		index->name);
+	}
+
+	ret = TRUE;	
+
+func_exit:
 	mem_heap_free(heap);
 
-	return(TRUE);			  
+	return(ret);			  
 }
 
 /*******************************************************************
