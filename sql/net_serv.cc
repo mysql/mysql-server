@@ -833,7 +833,7 @@ my_net_read(NET *net)
 
     if (net->remain_in_buf)
     {
-      buf_length= net->buf_length;		// Data left in old packet
+      buf_length= net->buf_length;		/* Data left in old packet */
       first_packet_offset= start_of_packet= (net->buf_length -
 					     net->remain_in_buf);
       /* Restore the character that was overwritten by the end 0 */
