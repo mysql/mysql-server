@@ -3811,7 +3811,10 @@ select:
 select_init:
 	SELECT_SYM select_init2
 	|
-	'(' SELECT_SYM select_part2 ')'
+	'(' select_paren ')' union_opt;
+
+select_paren:
+	SELECT_SYM select_part2
 	  {
 	    LEX *lex= Lex;
             SELECT_LEX * sel= lex->current_select;
@@ -3830,7 +3833,8 @@ select_init:
 	    if (sel->master_unit()->fake_select_lex)
               sel->master_unit()->global_parameters=
                  sel->master_unit()->fake_select_lex;
-          } union_opt;
+          }
+	| '(' select_paren ')';
 
 select_init2:
 	select_part2
@@ -4990,7 +4994,7 @@ table_factor:
           }
 	| '{' ident table_ref LEFT OUTER JOIN_SYM table_ref ON expr '}'
 	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
-        | '(' SELECT_SYM select_derived ')' opt_table_alias
+	| '(' select_derived union_opt ')' opt_table_alias
 	{
 	  LEX *lex=Lex;
 	  SELECT_LEX_UNIT *unit= lex->current_select->master_unit();
@@ -5003,6 +5007,24 @@ table_factor:
 	    YYABORT;
           lex->current_select->add_joined_table($$);           
 	};
+
+
+select_derived:
+	SELECT_SYM select_derived2
+	| '(' select_derived ')'
+	  {
+            SELECT_LEX *sel= Select;
+	    if (sel->set_braces(1))
+	    {
+	      yyerror(ER(ER_SYNTAX_ERROR));
+	      YYABORT;
+	    }
+            /* select in braces, can't contain global parameters */
+	    if (sel->master_unit()->fake_select_lex)
+              sel->master_unit()->global_parameters=
+                 sel->master_unit()->fake_select_lex;
+	  }
+ 	;
 
 select_derived:
         {
@@ -5026,7 +5048,7 @@ select_derived:
 	{
 	  Select->parsing_place= NO_MATTER;
 	}
-	opt_select_from union_opt
+	opt_select_from
         ;
 
 opt_outer:
