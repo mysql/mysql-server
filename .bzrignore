@@ -983,3 +983,5 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
+extra/mysqld_error.h
+extra/sql_state.h
