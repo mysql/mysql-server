@@ -68,6 +68,8 @@ struct TCP_TransporterConfiguration {
  */
 struct SHM_TransporterConfiguration {
   Uint32 port; 
+  const char *remoteHostName;
+  const char *localHostName;
   NodeId remoteNodeId;
   NodeId localNodeId;
   bool checksum;

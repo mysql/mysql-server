@@ -358,8 +358,8 @@ TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
     return false;
 
   SHM_Transporter * t = new SHM_Transporter(*this,
-					    "localhost",
-					    "localhost",
+					    config->localHostName,
+					    config->remoteHostName,
 					    config->port,
 					    localNodeId,
 					    config->remoteNodeId,
