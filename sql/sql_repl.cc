@@ -522,7 +522,7 @@ Increase max_allowed_packet on master";
 
 	case LOG_READ_EOF:
 	  DBUG_PRINT("wait",("waiting for data in binary log"));
-	  if (thd->server_id==0)
+	  if (thd->server_id==0) // for mysqlbinlog (mysqlbinlog.server_id==0)
 	  {
 	    pthread_mutex_unlock(log_lock);
 	    goto end;
