@@ -2383,7 +2383,7 @@ static int my_vsnprintf_ucs2(char *dst, uint n, const char* fmt, va_list ap)
       if (left_len <= plen*2)
 	plen = left_len/2 - 1;
 
-      for ( ; plen ; plen--, dst++, par++)
+      for ( ; plen ; plen--, dst+=2, par++)
       {
         dst[0]='\0';
         dst[1]=par[0];
