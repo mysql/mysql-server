@@ -14,7 +14,7 @@ CMD="\
    ./configure --host=i686-pc-netware $* \
    --without-docs \
    --enable-local-infile \
-   --with-extra-charsets=all \
+   --with-extra-charsets=latin1_de \
    --prefix=N:/mysql \
    "
 #rm -f config.cache config.log config.status

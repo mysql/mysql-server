@@ -823,7 +823,6 @@ static void __cdecl kill_server(int sig_ptr)
   pthread_exit(0);				/* purecov: deadcode */
 #endif /* __NETWARE__ */
 
-pthread_exit(0);				/* purecov: deadcode */
 #endif /* EMBEDDED_LIBRARY */
   RETURN_FROM_KILL_SERVER;
 }
