@@ -2942,10 +2942,12 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       }
       break;
     default:
-      if (!(item= new Item_string("", fields_info->field_length, cs)))
+      /* this should be changed when Item_empty_string is fixed(in 4.1) */
+      if (!(item= new Item_empty_string("", 0, cs)))
       {
         DBUG_RETURN(0);
       }
+      item->max_length= fields_info->field_length * cs->mbmaxlen;
       item->set_name(fields_info->field_name,
                      strlen(fields_info->field_name), cs);
       break;
