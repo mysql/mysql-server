@@ -166,6 +166,8 @@ sys_var_thd_ulong       sys_pseudo_thread_id("pseudo_thread_id",
 sys_var_thd_ha_rows	sys_max_join_size("max_join_size",
 					  &SV::max_join_size,
 					  fix_max_join_size);
+sys_var_thd_ulong   sys_max_length_for_sort_data("max_length_for_sort_data",
+                        &SV::max_length_for_sort_data);
 #ifndef TO_BE_DELETED	/* Alias for max_join_size */
 sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
@@ -380,6 +382,7 @@ sys_var *sys_variables[]=
   &sys_max_error_count,
   &sys_max_heap_table_size,
   &sys_max_join_size,
+  &sys_max_length_for_sort_data,
   &sys_max_prep_stmt_count,
   &sys_max_sort_length,
   &sys_max_tmp_tables,
@@ -533,6 +536,9 @@ struct show_var_st init_vars[]= {
   {sys_max_delayed_threads.name,(char*) &sys_max_delayed_threads,   SHOW_SYS},
   {sys_max_heap_table_size.name,(char*) &sys_max_heap_table_size,   SHOW_SYS},
   {sys_max_join_size.name,	(char*) &sys_max_join_size,	    SHOW_SYS},
+  {sys_max_length_for_sort_data.name,
+   (char*) &sys_max_length_for_sort_data,
+   SHOW_SYS},
   {sys_max_prep_stmt_count.name,(char*) &sys_max_prep_stmt_count,   SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},

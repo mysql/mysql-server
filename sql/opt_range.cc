@@ -349,13 +349,13 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
   select->head=head;
   select->cond=conds;
 
-  if (head->io_cache)
+  if (head->sort.io_cache)
   {
-    select->file= *head->io_cache;
+    select->file= *head->sort.io_cache;
     select->records=(ha_rows) (select->file.end_of_file/
 			       head->file->ref_length);
-    my_free((gptr) (head->io_cache),MYF(0));
-    head->io_cache=0;
+    my_free((gptr) (head->sort.io_cache),MYF(0));
+    head->sort.io_cache=0;
   }
   DBUG_RETURN(select);
 }

@@ -95,12 +95,12 @@ bool Unique::flush()
 bool Unique::get(TABLE *table)
 {
   SORTPARAM sort_param;
-  table->found_records=elements+tree.elements_in_tree;
+  table->sort.found_records=elements+tree.elements_in_tree;
 
   if (my_b_tell(&file) == 0)
   {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
-    if ((record_pointers=table->record_pointers= (byte*)
+    if ((record_pointers=table->sort.record_pointers= (byte*)
 	 my_malloc(tree.size_of_element * tree.elements_in_tree, MYF(0))))
     {
       (void) tree_walk(&tree, (tree_walk_action) unique_write_to_ptrs,
@@ -112,7 +112,7 @@ bool Unique::get(TABLE *table)
   if (flush())
     return 1;
 
-  IO_CACHE *outfile=table->io_cache;
+  IO_CACHE *outfile=table->sort.io_cache;
   BUFFPEK *file_ptr= (BUFFPEK*) file_ptrs.buffer;
   uint maxbuffer= file_ptrs.elements - 1;
   uchar *sort_buffer;
@@ -120,8 +120,8 @@ bool Unique::get(TABLE *table)
   bool error=1;
 
       /* Open cached file if it isn't open */
-  outfile=table->io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
-						MYF(MY_ZEROFILL));
+  outfile=table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE), 
+                                MYF(MY_ZEROFILL));
 
   if (!outfile || ! my_b_inited(outfile) &&
       open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,
