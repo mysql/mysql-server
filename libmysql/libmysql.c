@@ -2131,17 +2131,6 @@ mysql_stmt_param_metadata(MYSQL_STMT *stmt)
  Prepare-execute, and param handling
 *********************************************************************/
 
-/*
-  Store the buffer type
-*/
-
-static void store_param_type(NET *net, uint type)
-{
-  int2store(net->write_pos, type);
-  net->write_pos+=2;
-}
-
-
 /****************************************************************************
   Functions to store parameter data from a prepared statement.
 
@@ -2389,7 +2378,11 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
 	that is sent to the server.
       */
       for (param= stmt->params;	param < param_end ; param++)
-	store_param_type(net, (uint) param->buffer_type);
+      {
+        uint typecode= param->buffer_type | (param->is_unsigned ? 32768 : 0);
+        int2store(net->write_pos, typecode);
+        net->write_pos+= 2;
+      }
     }
 
     for (param= stmt->params; param < param_end; param++)
@@ -3217,28 +3210,28 @@ static void fetch_results(MYSQL_BIND *param, MYSQL_FIELD *field, uchar **row)
 
 static void fetch_result_tinyint(MYSQL_BIND *param, uchar **row)
 {
-  *param->buffer= (uchar) **row;
+  *param->buffer= **row;
   (*row)++;
 }
 
 static void fetch_result_short(MYSQL_BIND *param, uchar **row)
 {
   short value = (short)sint2korr(*row);
-  int2store(param->buffer, value);
+  shortstore(param->buffer, value);
   *row+= 2;
 }
 
 static void fetch_result_int32(MYSQL_BIND *param, uchar **row)
 {
   int32 value= (int32)sint4korr(*row);
-  int4store(param->buffer, value);
+  longstore(param->buffer, value);
   *row+= 4;
 }
 
 static void fetch_result_int64(MYSQL_BIND *param, uchar **row)
 {  
   longlong value= (longlong)sint8korr(*row);
-  int8store(param->buffer, value);
+  longlongstore(param->buffer, value);
   *row+= 8;
 }
 
@@ -3246,7 +3239,7 @@ static void fetch_result_float(MYSQL_BIND *param, uchar **row)
 {
   float value;
   float4get(value,*row);
-  float4store(param->buffer, value);
+  floatstore(param->buffer, value);
   *row+= 4;
 }
 
@@ -3254,7 +3247,7 @@ static void fetch_result_double(MYSQL_BIND *param, uchar **row)
 {
   double value;
   float8get(value,*row);
-  float8store(param->buffer, value);
+  doublestore(param->buffer, value);
   *row+= 8;
 }
 
@@ -3325,8 +3318,7 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
     stmt->bind was initialized in mysql_stmt_prepare
    */
   
-  memcpy((char*) stmt->bind, (char*) bind,
-	 sizeof(MYSQL_BIND)*bind_count);
+  memcpy((char*) stmt->bind, (char*) bind, sizeof(MYSQL_BIND) * bind_count);
 
   for (param= stmt->bind, end= param+bind_count; param < end ; param++)
   {
@@ -3443,10 +3435,20 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
        bind++, field++)
   {         
     if (*null_ptr & bit)
-      *bind->is_null= bind->null_field= 1;
+    {
+      /*
+        We should set both inter_buffer and is_null to be able to see
+        nulls in mysql_stmt_fetch_column. This is because is_null may point
+        to user data which can be overwritten between mysql_stmt_fetch and
+        mysql_stmt_fetch_column, and in this case nullness of column will be
+        lost. See mysql_stmt_fetch_column for details.
+      */
+      bind->inter_buffer= NULL;
+      *bind->is_null= 1;
+    }
     else
     { 
-      *bind->is_null= bind->null_field= 0;
+      *bind->is_null= 0;
       bind->inter_buffer= row;
       if (field->type == bind->buffer_type)
         (*bind->fetch_result)(bind, &row);
@@ -3530,14 +3532,8 @@ int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind,
     DBUG_RETURN(1);
   }
 
-
-  if (param->null_field)
+  if (param->inter_buffer)
   {
-    if (bind->is_null)
-      *bind->is_null= 1;
-  }
-  else
-  {    
     MYSQL_FIELD *field= stmt->fields+column; 
     uchar *row= param->inter_buffer;
     bind->offset= offset;
@@ -3548,6 +3544,11 @@ int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind,
     else
       bind->length= &param->internal_length;	/* Needed for fetch_result() */
     fetch_results(bind, field, &row);
+  }
+  else
+  {
+    if (bind->is_null)
+      *bind->is_null= 1;
   }
   DBUG_RETURN(0);
 }

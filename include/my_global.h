@@ -964,10 +964,15 @@ do { doubleget_union _tmp; \
 #define float4get(V,M) do { *((long *) &(V)) = *((long*) (M)); } while(0)
 #define float8get(V,M) doubleget((V),(M))
 #define float4store(V,M) memcpy((byte*) V,(byte*) (&M),sizeof(float))
+#define floatstore(T,V) memcpy((byte*)(T), (byte*)(&V), sizeof(float))
 #define float8store(V,M) doublestore((V),(M))
 #endif /* __i386__ */
 
 #ifndef sint2korr
+/*
+  We're here if it's not a IA-32 architecture (Win32 and UNIX IA-32 defines
+  were done before)
+*/
 #define sint2korr(A)	(int16) (((int16) ((uchar) (A)[0])) +\
 				 ((int16) ((int16) (A)[1]) << 8))
 #define sint3korr(A)	((int32) ((((uchar) (A)[2]) & 128) ? \
@@ -1121,6 +1126,7 @@ do { doubleget_union _tmp; \
                              *((T)+1)=(((A) >> 16));\
                              *((T)+0)=(((A) >> 24)); } while(0)
 
+#define floatstore(T,V) memcpy_fixed((byte*)(T), (byte*)(&V), sizeof(float))
 #define doubleget(V,M)	 memcpy_fixed((byte*) &V,(byte*) (M),sizeof(double))
 #define doublestore(T,V) memcpy_fixed((byte*) (T),(byte*) &V,sizeof(double))
 #define longlongget(V,M) memcpy_fixed((byte*) &V,(byte*) (M),sizeof(ulonglong))
@@ -1134,6 +1140,9 @@ do { doubleget_union _tmp; \
 #define ulongget(V,M)   do { V = uint4korr(M); } while(0)
 #define shortstore(T,V) int2store(T,V)
 #define longstore(T,V)	int4store(T,V)
+#ifndef floatstore
+#define floatstore(T,V) memcpy_fixed((byte*)(T), (byte*)(&V), sizeof(float))
+#endif
 #ifndef doubleget
 #define doubleget(V,M)	 memcpy_fixed((byte*) &V,(byte*) (M),sizeof(double))
 #define doublestore(T,V) memcpy_fixed((byte*) (T),(byte*) &V,sizeof(double))
