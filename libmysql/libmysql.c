@@ -1589,7 +1589,7 @@ static my_bool my_realloc_str(NET *net, ulong length)
 ********************************************************************/
 
 /*
-  Read the prepare statement results ..
+  Read the prepared statement results ..
 
   NOTE
     This is only called for connection to servers that supports
@@ -1815,7 +1815,7 @@ static void store_param_type(NET *net, uint type)
 /****************************************************************************
   Functions to store parameter data from a prepared statement.
 
-  All functions has the following characteristics:
+  All functions have the following characteristics:
 
   SYNOPSIS
     store_param_xxx()
@@ -1997,7 +1997,7 @@ static my_bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param)
 
 
 /*
-  Send the prepare query to server for execution
+  Send the prepared query to server for execution
 */
 
 static my_bool execute(MYSQL_STMT * stmt, char *packet, ulong length)
@@ -2087,7 +2087,7 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
 }
 
 /*
-  Execute the prepare query
+  Execute the prepared query
 */
 
 int STDCALL mysql_execute(MYSQL_STMT *stmt)
@@ -2332,7 +2332,7 @@ mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
 /****************************************************************************
   Functions to fetch data to application buffers
 
-  All functions has the following characteristics:
+  All functions have the following characteristics:
 
   SYNOPSIS
     fetch_result_xxx()
@@ -3059,12 +3059,12 @@ no_data:
 
 
 /*
-  Fetch datat for one specified column data
+  Fetch data for one specified column data
 
   SYNOPSIS
     mysql_fetch_column()
     stmt		Prepared statement handler
-    bind		Where date should be placed. Should be filled in as
+    bind		Where data should be placed. Should be filled in as
 			when calling mysql_bind_param()
     column		Column to fetch (first column is 0)
     ulong offset	Offset in result data (to fetch blob in pieces)
@@ -3491,8 +3491,8 @@ my_bool STDCALL mysql_autocommit(MYSQL * mysql, my_bool auto_mode)
 *********************************************************************/
 
 /*
-  Returns if there are any more query results exists to be read using 
-  mysql_next_result()
+  Returns true/false to indicate whether any more query results exist
+  to be read using mysql_next_result()
 */
 
 my_bool STDCALL mysql_more_results(MYSQL *mysql)
