@@ -81,7 +81,7 @@ static int find_uniq_filename(char *name)
 
 MYSQL_LOG::MYSQL_LOG(): last_time(0), query_start(0),index_file(-1),
 			name(0), log_type(LOG_CLOSED),write_error(0),
-			inited(0), log_seq(1), no_rotate(0)
+			inited(0), log_seq(1), file_id(1),no_rotate(0)
 {
   /*
     We don't want to intialize LOCK_Log here as the thread system may
@@ -722,6 +722,15 @@ err:
     new_file(1); // inside mutex
   VOID(pthread_mutex_unlock(&LOCK_log));
   return error;
+}
+
+uint MYSQL_LOG::next_file_id()
+{
+  uint res;
+  pthread_mutex_lock(&LOCK_log);
+  res = file_id++;
+  pthread_mutex_unlock(&LOCK_log);
+  return res;
 }
 
 /*

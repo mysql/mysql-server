@@ -45,6 +45,7 @@ static void pretty_print_char(FILE* file, int c)
 
 #ifndef MYSQL_CLIENT
 
+
 static void pretty_print_char(String* packet, int c)
 {
   packet->append('\'');
@@ -1106,7 +1107,7 @@ Create_file_log_event::Create_file_log_event(THD* thd_arg, sql_exchange* ex,
 			char* block_arg, uint block_len_arg):
   Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup),
  fake_base(0),block(block_arg),block_len(block_len_arg),
-  file_id(thd_arg->file_id = thd_arg->query_id)
+  file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
 {
 }
 #endif

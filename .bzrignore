@@ -375,3 +375,4 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 tmp/*
+vio/viotest-ssl

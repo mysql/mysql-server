@@ -65,6 +65,8 @@ class MYSQL_LOG {
   bool write_error,inited;
   uint32 log_seq; // current event sequence number
   // needed this for binlog
+  uint file_id; // current file sequence number for load data infile
+  // binary logging
   bool no_rotate; // for binlog - if log name can never change
   // we should not try to rotate it or write any rotation events
   // the user should use FLUSH MASTER instead of FLUSH LOGS for
@@ -99,6 +101,7 @@ public:
   int find_first_log(LOG_INFO* linfo, const char* log_name);
   int find_next_log(LOG_INFO* linfo);
   int get_current_log(LOG_INFO* linfo);
+  uint next_file_id();
 
   inline bool is_open() { return log_type != LOG_CLOSED; }
   char* get_index_fname() { return index_file_name;}
