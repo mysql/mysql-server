@@ -1003,8 +1003,8 @@ static int replace_user_table(TABLE *table, const LEX_USER &combo,
 	my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),
 			MYF(0),combo.user.str,combo.host.str);
       else
-	my_printf_error(ER_NO_PERMISSON_TO_CREATE_USER,
-			ER(ER_NO_PERMISSON_TO_CREATE_USER),
+	my_printf_error(ER_NO_PERMISSION_TO_CREATE_USER,
+			ER(ER_NO_PERMISSION_TO_CREATE_USER),
 			MYF(0),thd->user,
 			thd->host ? thd->host : thd->ip ? thd->ip: "");
       error= -1;

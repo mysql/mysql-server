@@ -23,7 +23,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.22"
+#define ADMIN_VERSION "8.23"
 #define MAX_MYSQL_VAR 64
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -1130,7 +1130,7 @@ static void wait_pidfile(char *pidfile)
 
   system_filename(buff,pidfile);
   while ((fd = my_open(buff, O_RDONLY, MYF(0))) >= 0 &&
-	 count++ < opt_shutdown_timeout)
+	 count++ < opt_shutdown_timeout && !interrupted)
   {
     my_close(fd,MYF(0));
     sleep(1);

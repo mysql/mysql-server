@@ -248,8 +248,10 @@ longlong Item_func_unix_timestamp::val_int()
 longlong Item_func_time_to_sec::val_int()
 {
   TIME ltime;
+  longlong seconds;
   (void) get_arg0_time(&ltime);
-  return ltime.hour*3600L+ltime.minute*60+ltime.second;
+  seconds=ltime.hour*3600L+ltime.minute*60+ltime.second;
+  return ltime.neg ? -seconds : seconds;
 }
 
 
