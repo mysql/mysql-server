@@ -27645,6 +27645,12 @@ flag again, the @code{SQL_MAX_JOIN_SIZE} variable will be ignored.
 You can set a default value for this variable by starting @code{mysqld} with
 @code{-O max_join_size=#}.
 
+Note that if the result of the query is in the query cache, the above
+check will not be made, but MySQL will instead send the result to the
+client. We regard this as a feature as in this case the query result is
+already computed and it will not cause any big burden for the server to
+send the result to the client.
+
 @item SQL_QUERY_CACHE_TYPE = OFF | ON | DEMAND
 @item SQL_QUERY_CACHE_TYPE = 0   | 1  | 2
 Set query cache setting for this thread.

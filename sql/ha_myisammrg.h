@@ -35,9 +35,14 @@ class ha_myisammrg: public handler
   ulong table_flags() const
   {
     return (HA_REC_NOT_IN_SEQ | HA_READ_RND_SAME |
-	    HA_HAVE_KEY_READ_ONLY | HA_KEYPOS_TO_RNDPOS |
-	    HA_LASTKEY_ORDER |
+	    HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
 	    HA_NULL_KEY | HA_BLOB_KEY);
+  }
+  ulong index_flags(uint inx) const
+  {
+    ulong flags=(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER);
+    return (flags | ((table->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
+		     0 : HA_KEY_READ_ONLY));
   }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return MI_MAX_KEY; }

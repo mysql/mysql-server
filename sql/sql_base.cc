@@ -730,7 +730,8 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   table->const_table=0;
   table->outer_join=table->null_row=table->maybe_null=0;
   table->status=STATUS_NO_RECORD;
-  table->keys_in_use_for_query=table->used_keys= table->keys_in_use;
+  table->keys_in_use_for_query= table->keys_in_use;
+  table->used_keys= table->keys_for_keyread;
   DBUG_RETURN(table);
 }
 
@@ -884,7 +885,8 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   table->const_table=0;
   table->outer_join=table->null_row=table->maybe_null=0;
   table->status=STATUS_NO_RECORD;
-  table->keys_in_use_for_query=table->used_keys= table->keys_in_use;
+  table->keys_in_use_for_query= table->keys_in_use;
+  table->used_keys= table->keys_for_keyread;
   DBUG_ASSERT(table->key_read == 0);
   DBUG_RETURN(table);
 }
@@ -950,7 +952,8 @@ bool reopen_table(TABLE *table,bool locked)
   tmp.null_row=		table->null_row;
   tmp.maybe_null=	table->maybe_null;
   tmp.status=		table->status;
-  tmp.keys_in_use_for_query=tmp.used_keys=tmp.keys_in_use;
+  tmp.keys_in_use_for_query= tmp.keys_in_use;
+  tmp.used_keys= 	tmp.keys_for_keyread;
 
   /* Get state */
   tmp.key_length=	table->key_length;
@@ -1578,7 +1581,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     {
       field->query_id=thd->query_id;
       table->used_fields++;
-      table->used_keys&=field->part_of_key;
+      table->used_keys&= field->part_of_key;
     }
     else
       thd->dupp_field=field;
@@ -1783,7 +1786,8 @@ bool setup_tables(TABLE_LIST *tables)
     table->const_table=0;
     table->outer_join=table->null_row=0;
     table->status=STATUS_NO_RECORD;
-    table->keys_in_use_for_query=table->used_keys= table->keys_in_use;
+    table->keys_in_use_for_query= table->keys_in_use;
+    table->used_keys= table->keys_for_keyread;
     table->maybe_null=test(table->outer_join=table_list->outer_join);
     table->tablenr=tablenr;
     table->map= (table_map) 1 << tablenr;
@@ -1873,7 +1877,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 	if (field->query_id == thd->query_id)
 	  thd->dupp_field=field;
 	field->query_id=thd->query_id;
-	table->used_keys&=field->part_of_key;
+	table->used_keys&= field->part_of_key;
       }
       /* All fields are used */
       table->used_fields=table->fields;

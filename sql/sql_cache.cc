@@ -3063,8 +3063,8 @@ my_bool Query_cache::check_integrity(bool not_locked)
     DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
 			  (ulong) block, (uint) block->type));  
     // Check allignment
-    if ((((ulonglong)block) % (ulonglong)ALIGN_SIZE(1)) !=
-	(((ulonglong)first_block) % (ulonglong)ALIGN_SIZE(1)))
+    if ((((long)block) % (long) ALIGN_SIZE(1)) !=
+	(((long)first_block) % (long)ALIGN_SIZE(1)))
     {
       DBUG_PRINT("error",
 		 ("block 0x%lx do not aligned by %d", (ulong) block,

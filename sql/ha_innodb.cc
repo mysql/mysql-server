@@ -356,13 +356,12 @@ ha_innobase::update_thd(
 /*************************************************************************
 Opens an InnoDB database. */
 
-char current_lib[3];				// Set if using current lib
-
 bool
 innobase_init(void)
 /*===============*/
 			/* out: TRUE if error */
 {
+	static char current_lib[3];		// Set if using current lib
 	int		err;
 	bool		ret;
 	char 	        *default_path;

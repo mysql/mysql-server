@@ -48,7 +48,6 @@
 #define HA_TABLE_SCAN_ON_INDEX  4	/* No separate data/index file */
 #define HA_REC_NOT_IN_SEQ	8	/* ha_info don't return recnumber;
 					   It returns a position to ha_r_rnd */
-#define HA_HAVE_KEY_READ_ONLY	16	/* Can read only keys (no record) */
 #define HA_NO_INDEX		32	/* No index needed for next/prev */
 #define HA_KEY_READ_WRONG_STR	64	/* keyread returns converted strings */
 #define HA_NULL_KEY		128	/* One can have keys with NULL */
@@ -83,6 +82,7 @@
 #define HA_READ_ORDER		8	/* Read through record-keys in order */
 #define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
 #define HA_NOT_READ_PREFIX_LAST	32
+#define HA_KEY_READ_ONLY	64	/* Support HA_EXTRA_KEYREAD */
 
 /*
   Parameters for open() (in register form->filestat)
@@ -321,7 +321,7 @@ public:
   virtual ulong table_flags(void) const =0;
   virtual ulong index_flags(uint idx) const
   {
-    return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER);
+    return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEY_READ_ONLY);
   }
   virtual uint max_record_length() const =0;
   virtual uint max_keys() const =0;
