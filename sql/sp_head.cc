@@ -94,8 +94,10 @@ eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 sp_head::sp_head(LEX_STRING *name, LEX *lex)
   : Sql_alloc(), m_simple_case(FALSE)
 {
+  DBUG_ENTER("sp_head::sp_head");
   const char *dstr = (const char*)lex->buf;
 
+  DBUG_PRINT("info", ("name: %s", name->str));
   m_name.length= name->length;
   m_name.str= name->str;
   m_defstr.length= lex->end_of_query - lex->buf;
@@ -103,6 +105,7 @@ sp_head::sp_head(LEX_STRING *name, LEX *lex)
   m_pcont= lex->spcont;
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
   m_backpatch.empty();
+  DBUG_VOID_RETURN;
 }
 
 int
@@ -128,8 +131,11 @@ sp_head::create(THD *thd)
 void
 sp_head::destroy()
 {
+  DBUG_ENTER("sp_head::destroy");
+  DBUG_PRINT("info", ("name: %s", m_name.str));
   delete_dynamic(&m_instr);
   m_pcont->destroy();
+  DBUG_VOID_RETURN;
 }
 
 int
