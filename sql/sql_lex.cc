@@ -1421,7 +1421,7 @@ bool st_select_lex_unit::check_updateable(char *db, char *table)
 */
 bool st_select_lex::check_updateable(char *db, char *table)
 {
-  if (find_real_table_in_local_list(get_table_list(), db, table))
+  if (find_table_in_local_list(get_table_list(), db, table))
     return 1;
 
   for (SELECT_LEX_UNIT *un= first_inner_unit();
@@ -1655,14 +1655,16 @@ void st_select_lex_unit::set_limit(SELECT_LEX *values,
 
   SYNOPSIS
     unlink_first_table()
-    link_to_local	do we need link this table to local
+    link_to_local	Set to 1 if caller should link this table to local
 
   NOTES
     We rely on fact that first table in both list are same or local list
     is empty
 
   RETURN
+    0	If 'query_tables' == 0
     unlinked table
+      In this case link_to_local is set.
 
 */
 TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
@@ -1716,11 +1718,11 @@ void st_lex::first_lists_tables_same()
   TABLE_LIST *first_table= (TABLE_LIST*) select_lex.table_list.first;
   if (query_tables != first_table && first_table != 0)
   {
+    TABLE_LIST *next;
     if (query_tables_last == &first_table->next_global)
       query_tables_last= first_table->prev_global;
-    TABLE_LIST *next= *first_table->prev_global= first_table->next_global;
-    first_table->next_global= 0;
-    if (next)
+    
+    if ((next= *first_table->prev_global= first_table->next_global))
       next->prev_global= first_table->prev_global;
     /* include in new place */
     first_table->next_global= query_tables;

@@ -225,24 +225,17 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		     thd->net.report_error));
   if (thd->net.report_error)
     res= 1;
-  if (res > 0)
+  if (unlikely(res))
   {
     if (result)
     {
-      result->send_error(0, NullS);
+      if (res > 0)
+        result->send_error(0, NullS);
       result->abort();
     }
-    else
+    else if (res > 0)
       send_error(thd, 0, NullS);
     res= 1;					// Error sent to client
-  }
-  if (res < 0)
-  {
-    if (result)
-    {
-      result->abort();
-    }
-    res= 1;
   }
   if (result != lex->result)
     delete result;
@@ -348,9 +341,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     if ((subselect= select_lex->master_unit()->item))
     {
       Item_subselect::trans_res res;
-      if ((res= ((!thd->lex->view_prepare_mode) ?
-		 subselect->select_transformer(this) :
-		 subselect->no_select_transform())) !=
+      if ((res= subselect->select_transformer(this)) !=
 	  Item_subselect::RES_OK)
       {
         select_lex->fix_prepare_information(thd, &conds);
@@ -11568,7 +11559,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   SYNOPSIS
     print_join()
     thd     thread handler
-    str     string where table should bbe printed
+    str     string where table should be printed
     tables  list of tables in join
 */
 
@@ -11624,36 +11615,39 @@ void st_table_list::print(THD *thd, String *str)
     print_join(thd, str, &nested_join->join_list);
     str->append(')');
   }
-  else if (view_name.str)
-  {
-    append_identifier(thd, str, view_db.str, view_db.length);
-    str->append('.');
-    append_identifier(thd, str, view_name.str, view_name.length);
-    if (my_strcasecmp(table_alias_charset, view_name.str, alias))
-    {
-      str->append(' ');
-      append_identifier(thd, str, alias, strlen(alias));
-    }
-  }
-  else if (derived)
-  {
-    str->append('(');
-    derived->print(str);
-    str->append(") ", 2);
-    append_identifier(thd, str, alias, strlen(alias));
-  }
   else
   {
-    append_identifier(thd, str, db, db_length);
-    str->append('.');
-    append_identifier(thd, str, real_name, real_name_length);
-    if (my_strcasecmp(table_alias_charset, real_name, alias))
+    const char *cmp_name;                         // Name to compare with alias
+    if (view_name.str)
     {
+      append_identifier(thd, str, view_db.str, view_db.length);
+      str->append('.');
+      append_identifier(thd, str, view_name.str, view_name.length);
+      cmp_name= view_name.str;
+    }
+    else if (derived)
+    {
+      str->append('(');
+      derived->print(str);
+      str->append(')');
+      cmp_name= "";                               // Force printing of alias
+    }
+    else
+    {
+      append_identifier(thd, str, db, db_length);
+      str->append('.');
+      append_identifier(thd, str, real_name, real_name_length);
+      cmp_name= real_name;
+    }
+    if (my_strcasecmp(table_alias_charset, cmp_name, alias))
+    {
+   {
       str->append(' ');
       append_identifier(thd, str, alias, strlen(alias));
     }
   }
 }
+
 
 
 void st_select_lex::print(THD *thd, String *str)

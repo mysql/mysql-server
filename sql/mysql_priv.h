@@ -398,8 +398,9 @@ void free_items(Item *item);
 void cleanup_items(Item *item);
 class THD;
 void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
-int check_one_table_access(THD *thd, ulong privilege,
+bool check_one_table_access(THD *thd, ulong privilege,
 			   TABLE_LIST *tables);
+bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
 bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
 int multi_update_precheck(THD *thd, TABLE_LIST *tables);
@@ -767,12 +768,10 @@ void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
-TABLE_LIST * find_real_table_in_list(TABLE_LIST *table,
-				     const char *db_name,
-				     const char *table_name);
-TABLE_LIST * find_real_table_in_local_list(TABLE_LIST *table,
-					   const char *db_name,
-					   const char *table_name);
+TABLE_LIST *find_table_in_list(TABLE_LIST *table,
+                               uint offset_to_list,
+                               const char *db_name,
+                               const char *table_name);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
 void close_temporary(TABLE *table, bool delete_table=1);
@@ -787,6 +786,23 @@ void copy_field_from_tmp_record(Field *field,int offset);
 int fill_record(List<Item> &fields,List<Item> &values, bool ignore_errors);
 int fill_record(Field **field,List<Item> &values, bool ignore_errors);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild);
+
+inline TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
+                                             const char *db_name,
+                                             const char *table_name)
+{
+  return find_table_in_list(table, offsetof(TABLE_LIST, next_global),
+                            db_name, table_name);
+}
+
+inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
+                                            const char *db_name,
+                                            const char *table_name)
+{
+  return find_table_in_list(table, offsetof(TABLE_LIST, next_local),
+                            db_name, table_name);
+}
+
 
 /* sql_calc.cc */
 bool eval_const_cond(COND *cond);

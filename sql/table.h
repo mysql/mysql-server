@@ -179,7 +179,7 @@ struct st_table {
 #define JOIN_TYPE_RIGHT	2
 
 #define VIEW_ALGORITHM_UNDEFINED	0
-#define VIEW_ALGORITHM_TMEPTABLE	1
+#define VIEW_ALGORITHM_TMPTABLE	1
 #define VIEW_ALGORITHM_MERGE		2
 
 struct st_lex;
@@ -267,7 +267,7 @@ public:
   virtual ~Field_iterator() {}
   virtual void set(TABLE_LIST *)= 0;
   virtual void next()= 0;
-  virtual bool end()= 0;
+  virtual bool end_of_fields()= 0;              /* Return 1 at end of list */
   virtual const char *name()= 0;
   virtual Item *item(THD *)= 0;
   virtual Field *field()= 0;
@@ -282,7 +282,7 @@ public:
   void set(TABLE_LIST *table) { ptr= table->table->field; }
   void set_table(TABLE *table) { ptr= table->field; }
   void next() { ptr++; }
-  bool end() { return test(*ptr); }
+  bool end_of_fields() { return *ptr == 0; }
   const char *name();
   Item *item(THD *thd);
   Field *field() { return *ptr; }
@@ -296,7 +296,7 @@ public:
   Field_iterator_view() :ptr(0), array_end(0) {}
   void set(TABLE_LIST *table);
   void next() { ptr++; }
-  bool end() { return ptr < array_end; }
+  bool end_of_fields() { return ptr == array_end; }
   const char *name();
   Item *item(THD *thd) { return *ptr; }
   Field *field() { return 0; }
