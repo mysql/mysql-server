@@ -14,6 +14,7 @@ SILENT=0
 SUFFIX=""
 DIRNAME=""
 OUTTAR=0
+OUTZIP=0
 
 #
 # This script must run from MySQL top directory
@@ -62,7 +63,8 @@ show_usage()
   echo "  --suffix  Suffix name for the package"
   echo "  --dirname Directory name to copy files (intermediate)"
   echo "  --silent  Do not list verbosely files processed"
-  echo "  --tar     Create tar.gz package instead of .zip"
+  echo "  --tar     Create tar.gz package"
+  echo "  --zip     Create zip package"
   echo "  --help    Show this help message"
 
   exit 0
@@ -75,12 +77,14 @@ show_usage()
 parse_arguments() {
   for arg do
     case "$arg" in
+      --add-tar)  ADDTAR=1 ;;
       --debug)    DEBUG=1;;
       --tmp=*)    TMP=`echo "$arg" | sed -e "s;--tmp=;;"` ;;
       --suffix=*) SUFFIX=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
       --dirname=*) DIRNAME=`echo "$arg" | sed -e "s;--dirname=;;"` ;;
       --silent)   SILENT=1 ;;
       --tar)      OUTTAR=1 ;;
+      --zip)      OUTZIP=1 ;;
       --help)     show_usage ;;
       *)
   echo "Unknown argument '$arg'"
@@ -359,6 +363,10 @@ which_1 ()
 # Create the result zip/tar file
 #
 
+if [ [ "$OUTTAR" = "0" ] && [ "$OUTZIP" = "0" ] ]; then
+  OUTZIP=1
+fi
+
 set_tarzip_options()
 {
   for arg
@@ -385,43 +393,60 @@ set_tarzip_options()
   done
 }
 
-if [ "$OUTTAR" = "1" ]; then
-  set_tarzip_options 'tar'
-else
-  set_tarzip_options 'zip'
-fi
-
-tar=`which_1 $ZIPFILE1 $ZIPFILE2`
-if test "$?" = "1" -o "$tar" = ""
-then
-  print_debug "Search failed for '$ZIPFILE1', '$ZIPFILE2', using default 'tar'"
-  tar=tar
-  set_tarzip_options 'tar'
-fi
 
 #
 # Create the archive
 #
+create_archive()
+{
 
-print_debug "Using $tar to create archive"
+  print_debug "Using $tar to create archive"
 
-cd $TMP
+  cd $TMP
 
-rm -f $SOURCE/$NEW_NAME$EXT
-$tar $OPT $SOURCE/$NEW_NAME$EXT $NEW_DIR_NAME
-cd $SOURCE
+  rm -f $SOURCE/$NEW_NAME$EXT
+  $tar $OPT $SOURCE/$NEW_NAME$EXT $NEW_DIR_NAME
+  cd $SOURCE
 
-if [ "$NEED_COMPRESS" = "1" ]
-then
-  print_debug "Compressing archive"
-  gzip -9 $NEW_NAME$EXT
-  EXT="$EXT.gz"
+  if [ "$NEED_COMPRESS" = "1" ]
+  then
+    print_debug "Compressing archive"
+    gzip -9 $NEW_NAME$EXT
+    EXT="$EXT.gz"
+  fi
+
+  if [ "$SILENT" = "0" ] ; then
+    echo "$NEW_NAME$EXT created successfully !!"
+  fi
+}
+
+if [ "$OUTTAR" = "1" ]; then
+  set_tarzip_options 'tar'
+
+  tar=`which_1 $ZIPFILE1 $ZIPFILE2`
+  if test "$?" = "1" -o "$tar" = ""
+  then
+    print_debug "Search failed for '$ZIPFILE1', '$ZIPFILE2', using default 'tar'"
+    tar=tar
+    set_tarzip_options 'tar'
+  fi
+  
+  create_archive 
+fi
+
+if [ "$OUTZIP" = "1" ]; then
+  set_tarzip_options 'zip'
+
+  tar=`which_1 $ZIPFILE1 $ZIPFILE2`
+  if test "$?" = "1" -o "$tar" = ""
+  then
+    echo "Search failed for '$ZIPFILE1', '$ZIPFILE2', cannot create zip!"
+  fi
+ 
+  create_archive
 fi
 
 print_debug "Removing temporary directory"
 rm -r -f $BASE
 
-if [ "$SILENT" = "0" ] ; then
-  echo "$NEW_NAME$EXT created successfully !!"
-fi
 # End of script
