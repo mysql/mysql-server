@@ -4,6 +4,8 @@
 TO=dev@mysql.com
 FROM=$USER@mysql.com
 
+BK_STATUS=$BK_STATUS$BK_COMMIT
+
 if [ "$BK_STATUS" = OK ]
 then 
  echo "Commit successful, notifying developers at $TO"
