@@ -26,6 +26,23 @@
 /* Intern key cache variables */
 extern "C" pthread_mutex_t THR_LOCK_keycache;
 
+static const char *lock_descriptions[] =
+{
+  "No lock",
+  "Low priority read lock",
+  "Shared Read lock",
+  "High priority read lock",
+  "Read lock  without concurrent inserts",
+  "Write lock that allows other writers",
+  "Write lock, but allow reading",
+  "Concurrent insert lock",
+  "Lock Used by delayed insert",
+  "Low priority write lock",
+  "High priority write lock",
+  "Highest priority write lock"
+};
+
+
 #ifndef DBUG_OFF
 
 void
@@ -45,28 +62,10 @@ print_where(COND *cond,const char *info)
     DBUG_UNLOCK_FILE;
   }
 }
-
 	/* This is for debugging purposes */
 
 extern HASH open_cache;
 extern TABLE *unused_tables;
-
-static const char *lock_descriptions[] =
-{
-  "No lock",
-  "Low priority read lock",
-  "Shared Read lock",
-  "High priority read lock",
-  "Read lock  without concurrent inserts",
-  "Write lock that allows other writers",
-  "Write lock, but allow reading",
-  "Concurrent insert lock",
-  "Lock Used by delayed insert",
-  "Low priority write lock",
-  "High priority write lock",
-  "Highest priority write lock"
-};
-
 
 void print_cached_tables(void)
 {
@@ -203,6 +202,99 @@ TEST_join(JOIN *join)
 
 #endif
 
+typedef struct st_debug_lock
+{
+  ulong thread_id;
+  char table_name[FN_REFLEN];
+  bool waiting;
+  const char *lock_text;
+  enum thr_lock_type type;
+} TABLE_LOCK_INFO;
+
+static int dl_compare(TABLE_LOCK_INFO *a,TABLE_LOCK_INFO *b)
+{
+  if (a->thread_id > b->thread_id)
+    return 1;
+  if (a->thread_id < b->thread_id)
+    return -1;
+  if (a->waiting == b->waiting)
+    return 0;
+  else if (a->waiting)
+    return -1;
+  return 1;
+}
+
+static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data, bool wait, const char *text)
+{
+  if (data)
+  {
+    TABLE *table=(TABLE *)data->debug_print_param;
+    if (table && table->tmp_table == NO_TMP_TABLE)
+    {
+      TABLE_LOCK_INFO table_lock_info;
+      table_lock_info.thread_id=table->in_use->thread_id;
+      memcpy(table_lock_info.table_name, table->table_cache_key, table->key_length);
+      table_lock_info.table_name[strlen(table_lock_info.table_name)]='.';
+      table_lock_info.waiting=wait;
+      table_lock_info.lock_text=text;
+      table_lock_info.type=table->reginfo.lock_type; // obtainable also from THR_LOCK_DATA
+      VOID(push_dynamic(ar,(gptr) &table_lock_info));
+    }
+  }
+}
+/* 
+   Regarding MERGE tables:
+
+For now, the best option is to use the common TABLE *pointer for all
+cases;  The drawback is that for MERGE tables we will see many locks
+for the merge tables even if some of them are for individual tables.
+
+The way to solve this is to add to 'THR_LOCK' structure a pointer to
+the filename and use this when printing the data.
+(We can for now ignore this and just print the same name for all merge
+table parts;  Please add the above as a comment to the display_lock
+function so that we can easily add this if we ever need this.
+
+*/
+
+static void display_table_locks (void) 
+{
+  LIST *list;
+  DYNAMIC_ARRAY saved_table_locks;
+
+  VOID(my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO),open_cache.records + 20,50));
+  VOID(pthread_mutex_lock(&THR_LOCK_lock));
+  for (list=thr_lock_thread_list ; list ; list=rest(list))
+  {
+    THR_LOCK *lock=(THR_LOCK*) list->data;
+
+    VOID(pthread_mutex_lock(&lock->mutex));
+    push_locks_into_array(&saved_table_locks, lock->write.data, false, "Locked - write");
+    push_locks_into_array(&saved_table_locks, lock->write_wait.data, true, "Waiting - write");
+    push_locks_into_array(&saved_table_locks, lock->read.data, false, "Locked - read");
+    push_locks_into_array(&saved_table_locks, lock->read_wait.data, true, "Waiting - read");
+    VOID(pthread_mutex_unlock(&lock->mutex));
+  }
+  VOID(pthread_mutex_unlock(&THR_LOCK_lock));
+  if (!saved_table_locks.elements) goto end;
+  
+  qsort((gptr) dynamic_element(&saved_table_locks,0,TABLE_LOCK_INFO *),saved_table_locks.elements,sizeof(TABLE_LOCK_INFO),(qsort_cmp) dl_compare);
+  freeze_size(&saved_table_locks);
+
+  puts("\nThread database.table_name          Locked/Waiting        Lock_type\n");
+  
+  for (uint i=0 ; i < saved_table_locks.elements ; i++)
+  {
+    TABLE_LOCK_INFO *dl_ptr=dynamic_element(&saved_table_locks,i,TABLE_LOCK_INFO*);
+    printf("%-8ld%-28.28s%-22s%s\n",
+	   dl_ptr->thread_id,dl_ptr->table_name,dl_ptr->lock_text,lock_descriptions[(int)dl_ptr->type]);
+  }
+  puts("\n\n");
+end:
+  delete_dynamic(&saved_table_locks);
+}
+
+
 void mysql_print_status(THD *thd)
 {
   char current_dir[FN_REFLEN];
@@ -268,6 +360,7 @@ Next alarm time: %lu\n",
 	 alarm_info.max_used_alarms,
 	 alarm_info.next_alarm_time);
 #endif
+  display_table_locks();
   fflush(stdout);
   if (thd)
     thd->proc_info="malloc";
