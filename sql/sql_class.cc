@@ -1244,21 +1244,27 @@ void Statement::set_statement(Statement *stmt)
   mem_root=       stmt->mem_root;
 }
 
+
 void Statement::set_n_backup_item_arena(Statement *set, Statement *backup)
 {
-  backup->mem_root= mem_root;
-  backup->free_list= free_list;
+  backup->set_item_arena(this);
   set_item_arena(set);
 }
 
+
+void Statement::restore_backup_item_arena(Statement *set, Statement *backup)
+{
+  set->set_item_arena(this);
+  set_item_arena(backup);
+  // reset backup mem_root to avoid its freeing
+  init_alloc_root(&backup->mem_root, 0, 0);
+}
 
 void Statement::set_item_arena(Statement *set)
 {
   mem_root= set->mem_root;
   free_list= set->free_list;
 }
-
-
 
 Statement::~Statement()
 {

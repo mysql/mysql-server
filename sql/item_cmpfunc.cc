@@ -445,7 +445,6 @@ bool Item_in_optimizer::fix_left(THD *thd,
 }
 
 
-
 bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
 				   Item ** ref)
 {
@@ -471,6 +470,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   return 0;
 }
 
+
 longlong Item_in_optimizer::val_int()
 {
   cache->store(args[0]);
@@ -484,13 +484,23 @@ longlong Item_in_optimizer::val_int()
   return tmp;
 }
 
+
+void Item_in_optimizer::keep_top_level_cache()
+{
+  cache->keep_array();
+  save_cache= 1;
+}
+
+
 void Item_in_optimizer::cleanup()
 {
   DBUG_ENTER("Item_in_optimizer::cleanup");
   Item_bool_func::cleanup();
-  cache= 0;
+  if (!save_cache)
+    cache= 0;
   DBUG_VOID_RETURN;
 }
+
 
 bool Item_in_optimizer::is_null()
 {
@@ -498,11 +508,13 @@ bool Item_in_optimizer::is_null()
   return (null_value= (cache->null_value || args[1]->is_null()));
 }
 
+
 longlong Item_func_eq::val_int()
 {
   int value= cmp.compare();
   return value == 0 ? 1 : 0;
 }
+
 
 /* Same as Item_func_eq, but NULL = NULL */
 

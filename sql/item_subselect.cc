@@ -322,14 +322,14 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 	goto err;
     }
     if (stmt)
-      thd->restore_backup_item_arena(&backup);
+      thd->restore_backup_item_arena(stmt, &backup);
     return RES_REDUCE;
   }
   return RES_OK;
   
 err:
   if (stmt)
-    thd->restore_backup_item_arena(&backup);
+    thd->restore_backup_item_arena(stmt, &backup);
   return RES_ERROR;
 }
 
@@ -789,7 +789,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
 	if (stmt)
-	  thd->set_item_arena(&backup);
+	  thd->restore_backup_item_arena(stmt, &backup);
 	DBUG_RETURN(RES_REDUCE);
       }
     }
@@ -797,12 +797,12 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 
 ok:
   if (stmt)
-    thd->restore_backup_item_arena(&backup);
+    thd->restore_backup_item_arena(stmt, &backup);
   DBUG_RETURN(RES_OK);
 
 err:
   if (stmt)
-    thd->restore_backup_item_arena(&backup);
+    thd->restore_backup_item_arena(stmt, &backup);
   DBUG_RETURN(RES_ERROR);
 }
 
@@ -845,6 +845,10 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       thd->lex->current_select= current;
       goto err;
     }
+
+    // we will refer to apper level cache array => we have to save it in PS
+    optimizer->keep_top_level_cache();
+
     thd->lex->current_select= current;
     unit->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
@@ -892,12 +896,12 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       goto err;
   }
   if (stmt)
-    thd->restore_backup_item_arena(&backup);
+    thd->restore_backup_item_arena(stmt, &backup);
   DBUG_RETURN(RES_OK);
 
 err:
   if (stmt)
-    thd->restore_backup_item_arena(&backup);
+    thd->restore_backup_item_arena(stmt, &backup);
   DBUG_RETURN(RES_ERROR);
 }
 
@@ -975,6 +979,7 @@ void subselect_single_select_engine::cleanup()
 {
   DBUG_ENTER("subselect_single_select_engine::cleanup");
   prepared= optimized= executed= 0;
+  join= 0;
   DBUG_VOID_RETURN;
 }
 

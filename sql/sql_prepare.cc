@@ -630,8 +630,13 @@ static bool mysql_test_insert_fields(Prepared_statement *stmt,
     uint value_count;
     ulong counter= 0;
     
+    thd->ps_setup_prepare_memory();
     if (check_insert_fields(thd,table,fields,*values,1))
+    {
+      thd->ps_setup_free_memory();
       DBUG_RETURN(1);
+    }
+    thd->ps_setup_free_memory();
 
     value_count= values->elements;
     its.rewind();
@@ -679,10 +684,16 @@ static bool mysql_test_upd_fields(Prepared_statement *stmt,
 #endif
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(1);
+
+  thd->ps_setup_prepare_memory();
   if (setup_tables(table_list, 0) ||
-      setup_fields(thd, 0, table_list, fields, 1, 0, 0) || 
-      setup_conds(thd, table_list, &conds) || thd->net.report_error)      
+      setup_fields(thd, 0, table_list, fields, 1, 0, 0) ||
+      setup_conds(thd, table_list, &conds) || thd->net.report_error)
+  {
+    thd->ps_setup_free_memory();
     DBUG_RETURN(1);
+  }
+  thd->ps_setup_free_memory();
 
   /* 
      Currently return only column list info only, and we are not
@@ -753,28 +764,26 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
     }
 
     thd->used_tables= 0;	// Updated by setup_fields  
-    Statement backup;
-    /*
-      we do not want to have in statement memory all that junk,
-      which will be created by preparation => substitute memory
-      from original thread pool
-    */
-    thd->set_n_backup_item_arena(&thd->stmt_backup, &backup);
-    if ((unit->prepare(thd, result, 0)))
+    thd->ps_setup_prepare_memory();
+
+    if (unit->prepare(thd, result, 0))
     {
-      thd->restore_backup_item_arena(&backup);
+      unit->cleanup();
+      thd->ps_setup_free_memory();
       DBUG_RETURN(1);
     }
-    thd->restore_backup_item_arena(&backup);
    
     if (send_prep_stmt(stmt, fields.elements) ||
         thd->protocol_simple.send_fields(&fields, 0)
 #ifndef EMBEDDED_LIBRARY
-         || net_flush(&thd->net)
+	|| net_flush(&thd->net)
 #endif
-       )
+	)
+    {
       DBUG_RETURN(1);
+    }
     unit->cleanup();
+    thd->ps_setup_free_memory();
   }
   DBUG_RETURN(0);  
 }
@@ -933,7 +942,6 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
     sl->prep_where= sl->where;
   }
 
-  cleanup_items(thd->free_list);
   stmt->set_statement(thd);
   thd->set_statement(&thd->stmt_backup);
   thd->current_statement= 0;
@@ -953,6 +961,7 @@ init_param_err:
 alloc_query_err:
   /* Statement map deletes statement on erase */
   thd->stmt_map.erase(stmt);
+  thd->current_statement= 0;
   DBUG_RETURN(1);
 insert_stmt_err:
   thd->current_statement= 0;
@@ -1034,15 +1043,17 @@ void mysql_stmt_execute(THD *thd, char *packet)
       tables->table= 0; // safety - nasty init
       tables->table_list= 0;
     }
+
+    sl->master_unit()->unclean();
   }
 
 
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count && setup_params_data(stmt))
-    DBUG_VOID_RETURN;
+    goto end;
 #else
   if (stmt->param_count && (*stmt->setup_params_data)(stmt))
-    DBUG_VOID_RETURN;
+    goto end;
 #endif
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1065,6 +1076,7 @@ void mysql_stmt_execute(THD *thd, char *packet)
   cleanup_items(stmt->free_list);
   free_root(&thd->mem_root, MYF(0));
   thd->set_statement(&thd->stmt_backup);
+end:
   thd->current_statement= 0;
   DBUG_VOID_RETURN;
 }

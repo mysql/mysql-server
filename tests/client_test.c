@@ -8366,7 +8366,8 @@ int main(int argc, char **argv)
     client_use_result();    /* usage of mysql_use_result() */  
     test_tran_bdb();        /* transaction test on BDB table type */
     test_tran_innodb();     /* transaction test on InnoDB table type */ 
-    test_prepare_ext();     /* test prepare with all types conversion -- TODO */
+    test_prepare_ext();     /* test prepare with all types
+			       conversion -- TODO */
     test_prepare_syntax();  /* syntax check for prepares */
     test_field_names();     /* test for field names */
     test_field_flags();     /* test to help .NET provider team */
