@@ -238,10 +238,6 @@ get_options(int *argc,char ***argv)
       break;
 #endif
     case 'P':
-      if(!host) {
-        my_free(host, MYF(MY_ALLOW_ZERO_PTR));
-        host=my_strdup("127.0.0.1", MYF(MY_WME));
-      };
       opt_mysql_port= (unsigned int) atoi(optarg);
       break;
     case 'S':
