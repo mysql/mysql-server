@@ -98,6 +98,7 @@ public:
 
   void set(String &str,uint32 offset,uint32 arg_length)
   {
+    DBUG_ASSERT(&str != this);
     free();
     Ptr=(char*) str.ptr()+offset; str_length=arg_length; alloced=0;
     if (str.Alloced_length)
