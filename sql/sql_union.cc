@@ -35,7 +35,6 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   int res;
   bool found_rows_for_union=false;
   TABLE_LIST result_table_list;
-  TABLE_LIST *first_table=(TABLE_LIST *)lex->select_lex.table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
   select_union *union_result;
   DBUG_ENTER("mysql_union");
@@ -127,8 +126,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       sl->options&= ~OPTION_FOUND_ROWS;
 
     res= mysql_select(thd, 
-		      (describe && sl->linkage==GLOBAL_OPTIONS_TYPE) ? 
-		      first_table :  (TABLE_LIST*) sl->table_list.first,
+		      (TABLE_LIST*) sl->table_list.first,
 		      sl->item_list,
 		      sl->where,
 		      (sl->braces) ? 
