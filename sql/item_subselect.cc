@@ -1098,7 +1098,11 @@ int subselect_indexsubquery_engine::exec()
 	  null_finding= 1;
 	  /* Check if there exists a row with a null value in the index */
 	  if ((error= safe_index_read(tab)))
+	  {
+	    if (error < 0)
+	      error= 0;				// Key not found
 	    break;
+	  }
 	}
       }
     }
