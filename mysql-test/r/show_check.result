@@ -87,14 +87,21 @@ t2	CREATE TEMPORARY TABLE `t2` (
 drop table t2;
 create table t1 (
 test_set set( 'val1', 'val2', 'val3' ) not null default '',
-name char(20) default 'O''Brien'
+name char(20) default 'O''Brien' comment 'O''Brien as default',
+c int not null comment 'int column'
   ) comment = 'it\'s a table' ;
 show create table t1 ;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test_set` set('val1','val2','val3') NOT NULL default '',
-  `name` char(20) default 'O''Brien'
+  `name` char(20) default 'O''Brien' COMMENT 'O''Brien as default',
+  `c` int(11) NOT NULL default '0' COMMENT 'int column'
 ) TYPE=MyISAM COMMENT='it''s a table'
+show full columns from t1;
+Field	Type	Null	Key	Default	Extra	Privileges	Comment
+test_set	set('val1','val2','val3')					select,insert,update,references	
+name	char(20)	YES		O'Brien		select,insert,update,references	O'Brien as default
+c	int(11)			0		select,insert,update,references	int column
 drop table t1;
 create table t1 (a int not null, unique aa (a));
 show create table t1;
@@ -155,6 +162,14 @@ e	double(9,2)	YES		NULL
 f	double(5,0)	YES		NULL	
 h	float(3,2)	YES		NULL	
 i	float(3,0)	YES		NULL	
+show full columns from t1;
+Field	Type	Null	Key	Default	Extra	Privileges	Comment
+a	decimal(9,2)	YES		NULL		select,insert,update,references	
+b	decimal(9,0)	YES		NULL		select,insert,update,references	
+e	double(9,2)	YES		NULL		select,insert,update,references	
+f	double(5,0)	YES		NULL		select,insert,update,references	
+h	float(3,2)	YES		NULL		select,insert,update,references	
+i	float(3,0)	YES		NULL		select,insert,update,references	
 drop table t1;
 create table t1 (c decimal, d double, f float, r real);
 show columns from t1;

@@ -1147,7 +1147,7 @@ references:
 	};
 	
 opt_ref_list:
-	/* empty */ {}
+	/* empty */ opt_on_delete {}
 	| '(' ref_list ')' opt_on_delete {};
 
 ref_list:
@@ -1273,11 +1273,24 @@ alter_list_item:
 	     lex->change= $3.str; lex->simple_alter=0;
 	  }
           field_spec opt_place
-	| MODIFY_SYM opt_column field_spec
-	  {
-            Lex->simple_alter=0;
-	  }
-	  opt_place
+        | MODIFY_SYM opt_column field_ident
+          {
+            LEX *lex=Lex;
+            lex->length=lex->dec=0; lex->type=0; lex->interval=0;
+            lex->default_value=lex->comment=0;
+            lex->simple_alter=0;
+          }
+          type opt_attribute
+          {
+            LEX *lex=Lex;
+            if (add_field_to_list($3.str,
+                                  (enum enum_field_types) $5,
+                                  lex->length,lex->dec,lex->type,
+                                  lex->default_value, lex->comment,
+				  $3.str, lex->interval))
+	       YYABORT;
+          }
+          opt_place
 	| DROP opt_column field_ident opt_restrict
 	  {
 	    LEX *lex=Lex;

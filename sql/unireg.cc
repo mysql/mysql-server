@@ -28,7 +28,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 
-#define FCOMP			11		/* Byte for packed field */
+#define FCOMP			15		/* Bytes for a packed field */
 
 static uchar * pack_screens(List<create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
@@ -246,7 +246,7 @@ static uchar * pack_screens(List<create_field> &create_fields,
 static uint pack_keys(uchar *keybuff,uint key_count,KEY *keyinfo)
 {
   uint key_parts,length;
-  uchar *pos, *keyname_pos, *key_alg_pos;
+  uchar *pos, *keyname_pos;
   KEY *key,*end;
   KEY_PART_INFO *key_part,*key_part_end;
   DBUG_ENTER("pack_keys");
@@ -259,6 +259,7 @@ static uint pack_keys(uchar *keybuff,uint key_count,KEY *keyinfo)
     int2store(pos+2,key->key_length);
     pos[4]= (uchar) key->key_parts;
     pos[5]= (uchar) key->algorithm;
+    pos[6]=pos[7]=0;				// For the future
     pos+=8;
     key_parts+=key->key_parts;
     DBUG_PRINT("loop",("flags: %d  key_parts: %d at %lx",
@@ -295,7 +296,7 @@ static uint pack_keys(uchar *keybuff,uint key_count,KEY *keyinfo)
   keybuff[1]=(uchar) key_parts;
   length=(uint) (keyname_pos-keybuff);
   int2store(keybuff+2,length);
-  length=(uint) (key_alg_pos-keyname_pos);
+  length=(uint) (pos-keyname_pos);
   int2store(keybuff+4,length);
   DBUG_RETURN((uint) (pos-keybuff));
 } /* pack_keys */
@@ -309,8 +310,8 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
 			handler *file)
 {
   uint length,int_count,int_length,no_empty, int_parts;
-  uint time_stamp_pos,null_fields, com_length;
-  ulong reclength,totlength,n_length;
+  uint time_stamp_pos,null_fields;
+  ulong reclength, totlength, n_length, com_length;
   DBUG_ENTER("pack_header");
 
   if (create_fields.elements > MAX_FIELDS)
@@ -460,7 +461,7 @@ static bool pack_fields(File file,List<create_field> &create_fields)
     buff[11]= (uchar) field->sql_type; 
     buff[12]= (uchar) (field->charset ? field->charset->number :
 		       default_charset_info->number);
-    int2store(buff, field->comment.length);
+    int2store(buff+13, field->comment.length);
     comment_length+= field->comment.length;
     set_if_bigger(int_count,field->interval_id);
     if (my_write(file,(byte*) buff,FCOMP,MYF_RW))

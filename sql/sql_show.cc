@@ -1180,7 +1180,8 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
   pthread_mutex_lock(&LOCK_status);
   for (i=0; variables[i].name; i++)
   {
-    if (!(wild && wild[0] && wild_case_compare(variables[i].name,wild)))
+    if (!(wild && wild[0] && wild_case_compare(system_charset_info,
+					       variables[i].name,wild)))
     {
       packet2.length(0);
       net_store_data(&packet2,convert,variables[i].name);

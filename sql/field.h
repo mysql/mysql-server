@@ -190,6 +190,7 @@ public:
   uint fill_cache_field(struct st_cache_field *copy);
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
+  virtual CHARSET_INFO *charset(void) { return 0; }
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -249,10 +250,10 @@ public:
     { field_charset=charset; }
   Item_result result_type () const { return STRING_RESULT; }
   uint decimals() const { return NOT_FIXED_DEC; }
-  friend class create_field;
   void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
-  inline CHARSET_INFO *charset() const { return field_charset; }
+  CHARSET_INFO *charset(void) { return field_charset; }
+
   inline void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
   inline int cmp_image(char *buff,uint length)
     {
@@ -261,7 +262,7 @@ public:
       else
 	return my_strncasecmp(field_charset,ptr,buff,length);
   }
-
+  friend class create_field;
 };
 
 

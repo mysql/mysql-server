@@ -748,7 +748,7 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 int wild_compare(const char *str,const char *str_end,
 		 const char *wildstr,const char *wildend,char escape);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *str_end,
-		 const char *wildstr,const char *wildend,char escape);
+		      const char *wildstr,const char *wildend,char escape);
 
 /* from hostname.cc */
 struct in_addr;
