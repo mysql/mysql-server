@@ -2258,7 +2258,20 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     {
       JOIN_TAB *tab=join->join_tab+i;
       table_map current_map= tab->table->map;
+      bool use_quick_range=0;
       used_tables|=current_map;
+
+      if (tab->type == JT_REF && tab->quick &&
+	  tab->ref.key_length < tab->quick->max_used_key_length)
+      {
+	/* Range uses longer key;  Use this instead of ref on key */
+	tab->type=JT_ALL;
+	use_quick_range=1;
+	tab->use_quick=1;
+	tab->ref.key_parts=0;		// Don't use ref key.
+	join->best_positions[i].records_read=tab->quick->records;
+      }
+
       COND *tmp=make_cond_for_table(cond,used_tables,current_map);
       if (!tmp && tab->quick)
       {						// Outer join
@@ -2301,7 +2314,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  if (tab->const_keys && tab->table->reginfo.impossible_range)
 	    DBUG_RETURN(1);
 	}
-	else if (tab->type == JT_ALL)
+	else if (tab->type == JT_ALL && ! use_quick_range)
 	{
 	  if (tab->const_keys &&
 	      tab->table->reginfo.impossible_range)
@@ -2355,15 +2368,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	      tab->cache.select->read_tables=join->const_table_map;
 	    }
 	  }
-	}
-	if (tab->type == JT_REF && sel->quick &&
-	    tab->ref.key_length < sel->quick->max_used_key_length)
-	{
-	  /* Range uses longer key;  Use this instead of ref on key */
-	  tab->type=JT_ALL;
-	  tab->use_quick=1;
-	  tab->ref.key_parts=0;		// Don't use ref key.
-	  join->best_positions[i].records_read=sel->quick->records;
 	}
       }
     }

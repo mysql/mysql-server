@@ -46854,6 +46854,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.43
 @itemize @bullet
 @item
+Fixed unlikely bug, which returned not matching rows, in SELECT with
+many tables and multi-column indexes and 'range' type.
+@item
 Fixed a unlikely core-dump bug when doing @code{EXPLAIN SELECT} when using
 many tables and @code{ORDER BY}.
 @item
