@@ -347,3 +347,22 @@ show global variables like 'log_warnings';
 set global log_warnings = @tstlw;
 show global variables like 'log_warnings';
 
+#
+# BUG#4788 show create table provides incorrect statement
+#
+# What default width have numeric types?
+create table t1 (
+  c1 tinyint,
+  c2 smallint,
+  c3 mediumint,
+  c4 int,
+  c5 bigint);
+show create table t1;
+drop table t1;
+#
+# What types and widths have variables?
+set @arg00= 8, @arg01= 8.8, @arg02= 'a string';
+create table t1 as select @arg00 as c1, @arg01 as c2, @arg02 as c3;
+show create table t1;
+drop table t1;
+

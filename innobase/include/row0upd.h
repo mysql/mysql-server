@@ -55,7 +55,8 @@ upd_field_set_field_no(
 	upd_field_t*	upd_field,	/* in: update vector field */
 	ulint		field_no,	/* in: field number in a clustered
 					index */
-	dict_index_t*	index);		/* in: index */
+	dict_index_t*	index,		/* in: index */
+	trx_t*		trx);		/* in: transaction */
 /*************************************************************************
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record. */
@@ -149,6 +150,7 @@ row_upd_build_sec_rec_difference_binary(
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: entry to insert */
 	rec_t*		rec,	/* in: secondary index record */
+	trx_t*		trx,	/* in: transaction */
 	mem_heap_t*	heap);	/* in: memory heap from which allocated */
 /*******************************************************************
 Builds an update vector from those fields, excluding the roll ptr and
@@ -166,6 +168,7 @@ row_upd_build_difference_binary(
 				externally stored fields in entry, or NULL */
 	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	rec_t*		rec,	/* in: clustered index record */
+	trx_t*		trx,	/* in: transaction */
 	mem_heap_t*	heap);	/* in: memory heap from which allocated */
 /***************************************************************
 Replaces the new column values stored in the update vector to the index entry

@@ -83,7 +83,8 @@ public:
   void configChange(Parser_t::Context &ctx, const class Properties &args);
 
   void setParameter(Parser_t::Context &ctx, const class Properties &args);
-
+  void listen_event(Parser_t::Context &ctx, const class Properties &args);
+  
   void repCommand(Parser_t::Context &ctx, const class Properties &args);
 };
 
@@ -103,28 +104,4 @@ public:
   }
 };
 
-class MgmStatService : public SocketServer::Service, 
-		       public MgmtSrvr::StatisticsListner
-{
-  class MgmtSrvr * m_mgmsrv;
-  MutexVector<NDB_SOCKET_TYPE> m_sockets;
-public:
-  MgmStatService() : m_sockets(5) {
-    m_mgmsrv = 0;
-  }
-  
-  void setMgm(class MgmtSrvr * mgmsrv){
-    m_mgmsrv = mgmsrv;
-  }
-  
-  SocketServer::Session * newSession(NDB_SOCKET_TYPE socket){
-    m_sockets.push_back(socket);
-    m_mgmsrv->startStatisticEventReporting(5);
-    return 0;
-  }
-  
-  void stopSessions();
-  
-  void println_statistics(const BaseString &line);
-};
 #endif

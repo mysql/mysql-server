@@ -32,7 +32,6 @@ void Dbacc::initData()
   crootfragmentsize = ZROOTFRAGMENTSIZE;
   cdirrangesize = ZDIRRANGESIZE;
   coverflowrecsize = ZOVERFLOWRECSIZE;
-  cundopagesize = ZUNDOPAGESIZE;
   cfsConnectsize = ZFS_CONNECTSIZE;
   cfsOpsize = ZFS_OPSIZE;
   cscanRecSize = ZSCAN_REC_SIZE;
@@ -136,7 +135,24 @@ void Dbacc::initRecords()
 Dbacc::Dbacc(const class Configuration & conf):
   SimulatedBlock(DBACC, conf)
 {
+  Uint32 log_page_size= 0;
   BLOCK_CONSTRUCTOR(Dbacc);
+
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ndb_mgm_get_int_parameter(p, CFG_DB_UNDO_INDEX_BUFFER,  
+			    &log_page_size);
+
+  /**
+   * Always set page size in half MBytes
+   */
+  cundopagesize= (log_page_size / sizeof(Undopage));
+  Uint32 mega_byte_part= cundopagesize & 15;
+  if (mega_byte_part != 0) {
+    jam();
+    cundopagesize+= (16 - mega_byte_part);
+  }
 
   // Transit signals
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbacc::execDUMP_STATE_ORD);
@@ -148,6 +164,7 @@ Dbacc::Dbacc(const class Configuration & conf):
   addRecSignal(GSN_ACC_OVER_REC, &Dbacc::execACC_OVER_REC);
   addRecSignal(GSN_ACC_SAVE_PAGES, &Dbacc::execACC_SAVE_PAGES);
   addRecSignal(GSN_NEXTOPERATION, &Dbacc::execNEXTOPERATION);
+  addRecSignal(GSN_READ_PSUEDO_REQ, &Dbacc::execREAD_PSUEDO_REQ);
 
   // Received signals
   addRecSignal(GSN_STTOR, &Dbacc::execSTTOR);

@@ -207,6 +207,7 @@ alter table t1 change a a text character set cp1251;
 select a,hex(a) from t1;
 alter table t1 change a a char(10) character set koi8r;
 select a,hex(a) from t1;
+delete from t1;
 
 #
 # Test ALTER TABLE .. CHARACTER SET ..

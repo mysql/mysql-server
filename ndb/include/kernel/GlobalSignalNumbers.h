@@ -23,13 +23,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-
-
-
 const GlobalSignalNumber MAX_GSN = 712;
-
-
-
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -84,7 +78,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_SCAN_NEXTREQ                28
 #define GSN_SCAN_TABCONF                29
-// 30 unused
+/* 30 unused */
 #define GSN_SCAN_TABREF                 31
 #define GSN_SCAN_TABREQ                 32
 #define GSN_KEYINFO20                   33
@@ -97,42 +91,42 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TCSEIZEREF                  38
 #define GSN_TCSEIZEREQ                  39
 
-// 40 unused
-// 41 unused
-// 42 unused
-// 43 unused
-// 44 unused
-// 45 unused
-// 46 unused
-// 47 unused
-// 48 unused
-// 49 unused
-// 50 unused
-// 51 unused
-// 52 unused
-// 53 unused
-// 54 unused
-// 55 unused
-// 56 unused
-// 57 unused
-// 58 unused
-// 59 unused
-// 60 unused
-// 61 unused
-// 62 unused
-// 63 unused
-// 64 unused
-// 65 unused
-// 66 unused
+/* 40 unused */
+/* 41 unused */
+/* 42 unused */
+/* 43 unused */
+/* 44 unused */
+/* 45 unused */
+/* 46 unused */
+/* 47 unused */
+/* 48 unused */
+/* 49 unused */
+/* 50 unused */
+/* 51 unused */
+/* 52 unused */
+/* 53 unused */
+/* 54 unused */
+/* 55 unused */
+/* 56 unused */
+/* 57 unused */
+/* 58 unused */
+/* 59 unused */
+/* 60 unused */
+/* 61 unused */
+/* 62 unused */
+/* 63 unused */
+/* 64 unused */
+/* 65 unused */
+/* 66 unused */
 
 /**
  * These are used only by kernel
  */
 
 #define GSN_ACC_ABORTCONF               67
-// 68 unused
-// 69 unused
-// 70 unused
+/* 68 unused */
+/* 69 unused */
+/* 70 unused */
 #define GSN_ACC_ABORTREQ                71
 #define GSN_ACC_CHECK_SCAN              72
 #define GSN_ACC_COMMITCONF              73
@@ -178,42 +172,42 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_API_FAILCONF                113
 #define GSN_API_FAILREQ                 114
 #define GSN_CNTR_START_REQ              115
-// 116 not unused
+/* 116 not unused */
 #define GSN_CNTR_START_REF              117
 #define GSN_CNTR_START_CONF             118
 #define GSN_CNTR_START_REP              119
-// 120 unused
-// 121 unused
-// 122 unused
-// 123 unused
-// 124 unused
+/* 120 unused */
+/* 121 unused */
+/* 122 unused */
+/* 123 unused */
+/* 124 unused */
 #define GSN_CHECK_LCP_STOP              125
-#define GSN_CLOSE_COMCONF               126 // local
-#define GSN_CLOSE_COMREQ                127 // local
-#define GSN_CM_ACKADD                   128 // distr.
-// 129 unused
-#define GSN_CM_ADD                      130 // distr.
-// 131 unused
-// 132 not unused
-// 133 not unused
-#define GSN_CM_HEARTBEAT                134 // distr.
-// 135 unused
-// 136 unused
-// 137 unused
-#define GSN_CM_NODEINFOCONF             138 // distr.
-#define GSN_CM_NODEINFOREF              139 // distr.
-#define GSN_CM_NODEINFOREQ              140 // distr.
-#define GSN_CM_REGCONF                  141 // distr.
-#define GSN_CM_REGREF                   142 // distr.
-#define GSN_CM_REGREQ                   143 // distr.
-// 144 unused
-// 145 unused
-// 146 unused
-#define GSN_CM_ADD_REP                  147 // local
-// 148 unused 
-// 149 unused 
-// 150 unused 
-#define GSN_CNTR_WAITREP                151 // distr.
+#define GSN_CLOSE_COMCONF               126 /* local */
+#define GSN_CLOSE_COMREQ                127 /* local */
+#define GSN_CM_ACKADD                   128 /* distr. */
+/* 129 unused */
+#define GSN_CM_ADD                      130 /* distr. */
+/* 131 unused */
+/* 132 not unused */
+/* 133 not unused */
+#define GSN_CM_HEARTBEAT                134 /* distr. */
+/* 135 unused */
+/* 136 unused */
+/* 137 unused */
+#define GSN_CM_NODEINFOCONF             138 /* distr. */
+#define GSN_CM_NODEINFOREF              139 /* distr. */
+#define GSN_CM_NODEINFOREQ              140 /* distr. */
+#define GSN_CM_REGCONF                  141 /* distr. */
+#define GSN_CM_REGREF                   142 /* distr. */
+#define GSN_CM_REGREQ                   143 /* distr. */
+/* 144 unused */
+/* 145 unused */
+/* 146 unused */
+#define GSN_CM_ADD_REP                  147 /* local */
+/* 148 unused  */
+/* 149 unused  */
+/* 150 unused  */
+#define GSN_CNTR_WAITREP                151 /* distr. */
 #define GSN_COMMIT                      152
 #define GSN_COMMIT_FAILCONF             153
 #define GSN_COMMIT_FAILREQ              154
@@ -226,7 +220,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_COMPLETEREQ                 162
 #define GSN_CONNECT_REP                 163
 #define GSN_CONTINUEB                   164
-// 165 not unused
+/* 165 not unused */
 #define GSN_COPY_ACTIVECONF             166
 #define GSN_COPY_ACTIVEREF              167
 #define GSN_COPY_ACTIVEREQ              168
@@ -249,9 +243,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DIADDTABCONF                185
 #define GSN_DIADDTABREF                 186
 #define GSN_DIADDTABREQ                 187
-// 188 not unused
-// 189 not unused
-// 190 not unused
+/* 188 not unused */
+/* 189 not unused */
+/* 190 not unused */
 #define GSN_DICTSTARTCONF               191
 #define GSN_DICTSTARTREQ                192
 
@@ -307,9 +301,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DIH_RESTARTREF              218
 #define GSN_DIH_RESTARTREQ              219
 
-// 220 not unused
-// 221 not unused
-// 222 not unused
+/* 220 not unused */
+/* 221 not unused */
+/* 222 not unused */
 
 #define GSN_EMPTY_LCP_REQ               223
 #define GSN_EMPTY_LCP_CONF              224
@@ -321,8 +315,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_MASTER_GCPREF               228
 #define GSN_MASTER_GCPREQ               229
 
-// 230 not unused
-// 231 not unused
+/* 230 not unused */
+/* 231 not unused */
 
 #define GSN_DIRELEASECONF               232
 #define GSN_DIRELEASEREF                233
@@ -394,8 +388,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_LCP_HOLDOPREQ               299
 #define GSN_SHRINKCHECK2                301
 #define GSN_GET_SCHEMA_INFOREQ          302
-// 303 not unused
-// 304 not unused
+/* 303 not unused */
+/* 304 not unused */
 #define GSN_LQH_RESTART_OP              305
 #define GSN_LQH_TRANSCONF               306
 #define GSN_LQH_TRANSREQ                307
@@ -427,12 +421,12 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_NEXT_SCANREQ                332
 #define GSN_NEXTOPERATION               333
 
-#define GSN_READ_CONFIG_REQ             334 // new name for sizealt, local
-#define GSN_READ_CONFIG_CONF            335 // new name for sizealt, local
+#define GSN_READ_CONFIG_REQ             334 /* new name for sizealt, local */
+#define GSN_READ_CONFIG_CONF            335 /* new name for sizealt, local */
 
-// 336 unused
-// 337 unused
-// 338 unused
+/* 336 unused */
+/* 337 unused */
+/* 338 unused */
 #define GSN_OPEN_COMCONF                339
 #define GSN_OPEN_COMREF                 340
 #define GSN_OPEN_COMREQ                 341
@@ -458,7 +452,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUP_ALLOCREQ                360
 #define GSN_TUP_DEALLOCREQ              361
 
-// 362 not unused
+/* 362 not unused */
 
 #define GSN_TUP_WRITELOG_REQ            363
 #define GSN_LQH_WRITELOG_REQ            364
@@ -513,16 +507,16 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TEST_ORD                    407
 #define GSN_TESTSIG                     408
 #define GSN_TIME_SIGNAL                 409
-// 410 unused 
-// 411 unused 
-// 412 unused
+/* 410 unused  */
+/* 411 unused  */
+/* 412 unused */
 #define GSN_TUP_ABORTREQ                414
 #define GSN_TUP_ADD_ATTCONF             415
 #define GSN_TUP_ADD_ATTRREF             416
 #define GSN_TUP_ADD_ATTRREQ             417
 #define GSN_TUP_ATTRINFO                418
 #define GSN_TUP_COMMITREQ               419
-// 420 unused
+/* 420 unused */
 #define GSN_TUP_LCPCONF                 421
 #define GSN_TUP_LCPREF                  422
 #define GSN_TUP_LCPREQ                  423
@@ -559,8 +553,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_STATISTICS_CONF             454
 
 #define GSN_START_ORD                   455
-// 456 unused
-// 457 unused
+/* 456 unused */
+/* 457 unused */
 
 #define GSN_EVENT_SUBSCRIBE_REQ         458
 #define GSN_EVENT_SUBSCRIBE_CONF        459
@@ -582,7 +576,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_CHECKNODEGROUPSREQ          471
 #define GSN_CHECKNODEGROUPSCONF         472
 
-// 473 unused
+/* 473 unused */
 #define GSN_ARBIT_PREPREQ               474
 #define GSN_ARBIT_PREPCONF              475
 #define GSN_ARBIT_PREPREF               476
@@ -618,7 +612,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_WAIT_GCP_REF                500
 #define GSN_WAIT_GCP_CONF               501
 
-// 502 not used
+/* 502 not used */
 
 /**
  * Trigger and index signals
@@ -738,7 +732,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SUB_STOP_REQ                572
 #define GSN_SUB_STOP_REF                573
 #define GSN_SUB_STOP_CONF               574
-//                                      575 unused
+/*                                      575 unused */
 #define GSN_SUB_CREATE_REQ              576
 #define GSN_SUB_CREATE_REF              577
 #define GSN_SUB_CREATE_CONF             578
@@ -838,7 +832,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_GREP_REMOVE_REF             654
 #define GSN_GREP_REMOVE_CONF            655
 
-// Start Global Replication
+/* Start Global Replication */
 #define GSN_GREP_REQ                    656
 
 /**
@@ -897,9 +891,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_MAINT_CONF              678
 #define GSN_TUX_MAINT_REF               679
 
-// not used                             680
-// not used                             712
-// not used                             681
+/* not used                             680 */
+/* not used                             681 */
 
 /**
  * from mgmtsrvr to  NDBCNTR
@@ -910,10 +903,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_API_VERSION_REQ             697
 #define GSN_API_VERSION_CONF            698
 
-// not used                             686
-// not used                             687
-// not used                             689
-// not used                             690
+/* not used                             686 */
+/* not used                             687 */
+/* not used                             689 */
+/* not used                             690 */
 
 /**
  * SUMA restart protocol
@@ -922,9 +915,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SUMA_HANDOVER_REQ           692
 #define GSN_SUMA_HANDOVER_CONF          693
 
-// not used                             694
-// not used                             695
-// not used                             696
+/* not used                             694 */
+/* not used                             695 */
+/* not used                             696 */
 
 /**
  * GREP restart protocol
@@ -951,6 +944,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_BOUND_INFO		710
 
 #define GSN_ACC_LOCKREQ			711
-
+#define GSN_READ_PSUEDO_REQ             712
 
 #endif

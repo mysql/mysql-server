@@ -24,23 +24,30 @@
 
 #include "TransporterInternalDefinitions.hpp" 
 #include <TransporterCallback.hpp> 
- 
+
+#include <InputStream.hpp>
+#include <OutputStream.hpp> 
+
 #define FLAGS 0  
- 
-SCI_Transporter::SCI_Transporter(Uint32 packetSize,         
+#define DEBUG_TRANSPORTER 
+SCI_Transporter::SCI_Transporter(TransporterRegistry &t_reg,
+                                 const char *lHostName,
+                                 const char *rHostName,
+                                 int r_port,
+                                 Uint32 packetSize,         
 				 Uint32 bufferSize,       
 				 Uint32 nAdapters, 
 				 Uint16 remoteSciNodeId0,        
 				 Uint16 remoteSciNodeId1, 
 				 NodeId _localNodeId,      
 				 NodeId _remoteNodeId,     
-				 int byte_order, 
-				 bool compr,  
 				 bool chksm,  
 				 bool signalId, 
 				 Uint32 reportFreq) :  
-  Transporter(_localNodeId, _remoteNodeId, byte_order, compr, chksm, signalId) 
-{ 
+  Transporter(t_reg, lHostName, rHostName, r_port, _localNodeId,
+              _remoteNodeId, 0, false, chksm, signalId) 
+{
+  DBUG_ENTER("SCI_Transporter::SCI_Transporter");
   m_PacketSize = (packetSize + 3)/4 ; 
   m_BufferSize = bufferSize; 
   m_sendBuffer.m_buffer = NULL;
@@ -56,10 +63,6 @@ SCI_Transporter::SCI_Transporter(Uint32 packetSize,
  
    
   m_initLocal=false; 
-  m_remoteNodes= new Uint16[m_numberOfRemoteNodes]; 
-  if(m_remoteNodes == NULL) { 
-    //DO WHAT?? 
-  } 
   m_swapCounter=0; 
   m_failCounter=0; 
   m_remoteNodes[0]=remoteSciNodeId0; 
@@ -94,20 +97,19 @@ SCI_Transporter::SCI_Transporter(Uint32 packetSize,
  i4096=0; 
  i4097=0; 
 #endif
-   
+  DBUG_VOID_RETURN;
 } 
  
  
  
 void SCI_Transporter::disconnectImpl() 
 { 
+  DBUG_ENTER("SCI_Transporter::disconnectImpl");
   sci_error_t err; 
   if(m_mapped){ 
     setDisconnect(); 
-#ifdef DEBUG_TRANSPORTER 
-    ndbout << "DisconnectImpl " << getConnectionStatus() << endl; 
-    ndbout << "remote node " << remoteNodeId << endl; 
-#endif 
+    DBUG_PRINT("info", ("connect status = %d, remote node = %d",
+    (int)getConnectionStatus(), remoteNodeId)); 
     disconnectRemote(); 
     disconnectLocal(); 
   } 
@@ -124,65 +126,56 @@ void SCI_Transporter::disconnectImpl()
       SCIClose(sciAdapters[i].scidesc, FLAGS, &err);  
       
       if(err != SCI_ERR_OK)  { 
-	reportError(callbackObj, localNodeId, TE_SCI_UNABLE_TO_CLOSE_CHANNEL); 
-#ifdef DEBUG_TRANSPORTER 
-	fprintf(stderr,  
-		"\nCannot close channel to the driver. Error code 0x%x",  
-		err); 
-#endif
-	  } 
+	report_error(TE_SCI_UNABLE_TO_CLOSE_CHANNEL); 
+        DBUG_PRINT("error", ("Cannot close channel to the driver. Error code 0x%x",  
+		    err)); 
+      } 
     } 
   } 
   m_sciinit=false; 
    
 #ifdef DEBUG_TRANSPORTER 
-    ndbout << "total: " <<  i1024+ i10242048 + i2048+i2049 << endl; 
+      ndbout << "total: " <<  i1024+ i10242048 + i2048+i2049 << endl; 
       ndbout << "<1024: " << i1024 << endl; 
       ndbout << "1024-2047: " << i10242048 << endl; 
       ndbout << "==2048: " << i2048 << endl; 
       ndbout << "2049-4096: " << i20484096 << endl; 
       ndbout << "==4096: " << i4096 << endl; 
       ndbout << ">4096: " << i4097 << endl; 
-   
 #endif 
-  
+  DBUG_VOID_RETURN;  
 }  
  
  
 bool SCI_Transporter::initTransporter() { 
-  if(m_BufferSize < (2*MAX_MESSAGE_SIZE)){ 
-    m_BufferSize = 2 * MAX_MESSAGE_SIZE; 
+  DBUG_ENTER("SCI_Transporter::initTransporter");
+  if(m_BufferSize < (2*MAX_MESSAGE_SIZE + 4096)){ 
+    m_BufferSize = 2 * MAX_MESSAGE_SIZE + 4096; 
   } 
 
-  // Allocate buffers for sending 
-  Uint32 sz = 0;
-  if(m_BufferSize < (m_PacketSize * 4)){
-    sz = m_BufferSize + MAX_MESSAGE_SIZE;
-  } else {
-    /**
-     * 3 packages
-     */
-    sz = (m_PacketSize * 4) * 3 + MAX_MESSAGE_SIZE;
-  }
+  // Allocate buffers for sending, send buffer size plus 2048 bytes for avoiding
+  // the need to send twice when a large message comes around. Send buffer size is
+  // measured in words. 
+  Uint32 sz = 4 * m_PacketSize + MAX_MESSAGE_SIZE;;
   
-  m_sendBuffer.m_bufferSize = 4 * ((sz + 3) / 4); 
-  m_sendBuffer.m_buffer = new Uint32[m_sendBuffer.m_bufferSize / 4];
+  m_sendBuffer.m_sendBufferSize = 4 * ((sz + 3) / 4); 
+  m_sendBuffer.m_buffer = new Uint32[m_sendBuffer.m_sendBufferSize / 4];
   m_sendBuffer.m_dataSize = 0;
-  
+ 
+  DBUG_PRINT("info", ("Created SCI Send Buffer with buffer size %d and packet size %d",
+              m_sendBuffer.m_sendBufferSize, m_PacketSize * 4));
   if(!getLinkStatus(m_ActiveAdapterId) ||  
-     !getLinkStatus(m_StandbyAdapterId)) { 
-#ifdef DEBUG_TRANSPORTER 
-    ndbout << "The link is not fully operational. " << endl; 
-    ndbout << "Check the cables and the switches" << endl; 
-#endif 
+     (m_adapters > 1 &&
+     !getLinkStatus(m_StandbyAdapterId))) { 
+    DBUG_PRINT("error", ("The link is not fully operational. Check the cables and the switches")); 
     //reportDisconnect(remoteNodeId, 0); 
     //doDisconnect(); 
     //NDB should terminate 
-    reportError(callbackObj, localNodeId, TE_SCI_LINK_ERROR); 
-    return false; 
+    report_error(TE_SCI_LINK_ERROR); 
+    DBUG_RETURN(false); 
   } 
   
-  return true; 
+  DBUG_RETURN(true); 
 } // initTransporter()  
 
  
@@ -218,10 +211,8 @@ bool SCI_Transporter::getLinkStatus(Uint32 adapterNo)
   SCIQuery(SCI_Q_ADAPTER,(void*)(&queryAdapter),(Uint32)NULL,&error); 
    
   if(error != SCI_ERR_OK) { 
-#ifdef DEBUG_TRANSPORTER 
-    ndbout << "error querying adapter " << endl; 
-#endif 
-	return false; 
+    DBUG_PRINT("error", ("error %d querying adapter", error)); 
+    return false; 
   } 
   if(linkstatus<=0) 
     return false; 
@@ -231,6 +222,7 @@ bool SCI_Transporter::getLinkStatus(Uint32 adapterNo)
  
  
 sci_error_t SCI_Transporter::initLocalSegment() { 
+  DBUG_ENTER("SCI_Transporter::initLocalSegment");
   Uint32 segmentSize = m_BufferSize; 
   Uint32 offset  = 0; 
   sci_error_t err; 
@@ -238,16 +230,12 @@ sci_error_t SCI_Transporter::initLocalSegment() {
     for(Uint32 i=0; i<m_adapters ; i++) { 
       SCIOpen(&(sciAdapters[i].scidesc), FLAGS, &err); 
       sciAdapters[i].localSciNodeId=getLocalNodeId(i); 
-#ifdef DEBUG_TRANSPORTER 
-      ndbout_c("SCInode iD %d  adapter %d\n",  
-	       sciAdapters[i].localSciNodeId, i); 
-#endif 
+      DBUG_PRINT("info", ("SCInode iD %d  adapter %d\n",  
+	         sciAdapters[i].localSciNodeId, i)); 
       if(err != SCI_ERR_OK) { 
-#ifdef DEBUG_TRANSPORTER 
-	ndbout_c("\nCannot open an SCI virtual device. Error code 0x%x", 
-		 err); 
-#endif 
-	return err; 
+        DBUG_PRINT("error", ("Cannot open an SCI virtual device. Error code 0x%x", 
+		   err)); 
+	DBUG_RETURN(err); 
       } 
     } 
   } 
@@ -264,12 +252,11 @@ sci_error_t SCI_Transporter::initLocalSegment() {
 		   &err);             
    
   if(err != SCI_ERR_OK) { 
-    return err; 
+    DBUG_PRINT("error", ("Error creating segment, err = 0x%x", err));
+    DBUG_RETURN(err); 
   } else { 
-#ifdef DEBUG_TRANSPORTER 
-    ndbout << "created segment id : "  
-	   <<  hostSegmentId(localNodeId, remoteNodeId) << endl; 
-#endif 
+    DBUG_PRINT("info", ("created segment id : %d",
+	       hostSegmentId(localNodeId, remoteNodeId))); 
   } 
    
   /** Prepare the segment*/ 
@@ -280,11 +267,9 @@ sci_error_t SCI_Transporter::initLocalSegment() {
 		      &err); 
      
     if(err != SCI_ERR_OK) { 
-#ifdef DEBUG_TRANSPORTER 
-      ndbout_c("Local Segment is not accessible by an SCI adapter."); 
-      ndbout_c("Error code 0x%x\n", err); 
-#endif 
-      return err; 
+      DBUG_PRINT("error", ("Local Segment is not accessible by an SCI adapter. Error code 0x%x\n",
+                  err)); 
+      DBUG_RETURN(err); 
     } 
   } 
  
@@ -301,14 +286,10 @@ sci_error_t SCI_Transporter::initLocalSegment() {
  
  
   if(err != SCI_ERR_OK) { 
-	   
-#ifdef DEBUG_TRANSPORTER 
-    fprintf(stderr, "\nCannot map area of size %d. Error code 0x%x", 
-	    segmentSize,err); 
-    ndbout << "initLocalSegment does a disConnect" << endl; 
-#endif 
+    DBUG_PRINT("error", ("Cannot map area of size %d. Error code 0x%x", 
+	        segmentSize,err)); 
     doDisconnect(); 
-    return err; 
+    DBUG_RETURN(err); 
   } 
   
   
@@ -320,18 +301,16 @@ sci_error_t SCI_Transporter::initLocalSegment() {
 			   &err); 
      
     if(err != SCI_ERR_OK) { 
-#ifdef DEBUG_TRANSPORTER 
-      ndbout_c("\nLocal Segment is not available for remote connections."); 
-      ndbout_c("Error code 0x%x\n", err); 
-#endif 
-      return err; 
+      DBUG_PRINT("error", ("Local Segment is not available for remote connections. Error code 0x%x\n",
+                 err)); 
+      DBUG_RETURN(err); 
     } 
   } 
   
   
   setupLocalSegment(); 
   
-  return err; 
+  DBUG_RETURN(err); 
    
 } // initLocalSegment() 
  
@@ -345,7 +324,7 @@ bool SCI_Transporter::doSend() {
   Uint32 retry=0; 
  
   const char * const sendPtr = (char*)m_sendBuffer.m_buffer;
-  const Uint32 sizeToSend    = m_sendBuffer.m_dataSize;
+  const Uint32 sizeToSend    = 4 * m_sendBuffer.m_dataSize; //Convert to number of bytes
   
   if (sizeToSend > 0){
 #ifdef DEBUG_TRANSPORTER 
@@ -363,15 +342,19 @@ bool SCI_Transporter::doSend() {
       i4097++; 
 #endif
     if(startSequence(m_ActiveAdapterId)!=SCI_ERR_OK) { 
-#ifdef DEBUG_TRANSPORTER 
-      ndbout << "Start sequence failed" << endl; 
-#endif 
-      reportError(callbackObj, remoteNodeId, TE_SCI_UNABLE_TO_START_SEQUENCE); 
+      DBUG_PRINT("error", ("Start sequence failed")); 
+      report_error(TE_SCI_UNABLE_TO_START_SEQUENCE); 
       return false; 
     } 
     
       
-  tryagain:		 
+  tryagain:
+    retry++;
+    if (retry > 3) { 
+      DBUG_PRINT("error", ("SCI Transfer failed"));
+      report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
+      return false; 
+    } 
     Uint32 * insertPtr = (Uint32 *) 
       (m_TargetSegm[m_ActiveAdapterId].writer)->getWritePtr(sizeToSend); 
     
@@ -390,44 +373,37 @@ bool SCI_Transporter::doSend() {
 		&err);   
       
       
+      if (err != SCI_ERR_OK) { 
       if(err == SCI_ERR_OUT_OF_RANGE) { 
-#ifdef DEBUG_TRANSPORTER 
-	ndbout << "Data transfer : out of range error \n" << endl; 
-#endif 
+        DBUG_PRINT("error", ("Data transfer : out of range error")); 
 	goto tryagain; 
       } 
       if(err == SCI_ERR_SIZE_ALIGNMENT) { 
-#ifdef DEBUG_TRANSPORTER 
-	ndbout << "Data transfer : aligne\n" << endl; 
-#endif 
+        DBUG_PRINT("error", ("Data transfer : alignment error")); 
+        DBUG_PRINT("info", ("sendPtr 0x%x, sizeToSend = %d", sendPtr, sizeToSend));
 	goto tryagain; 
       } 
       if(err == SCI_ERR_OFFSET_ALIGNMENT) { 
-#ifdef DEBUG_TRANSPORTER           
-	ndbout << "Data transfer : offset alignment\n" << endl; 
-#endif 
+        DBUG_PRINT("error", ("Data transfer : offset alignment")); 
 	goto tryagain; 
-      }    
+      }   
       if(err == SCI_ERR_TRANSFER_FAILED) { 
 	//(m_TargetSegm[m_StandbyAdapterId].writer)->heavyLock(); 
 	if(getLinkStatus(m_ActiveAdapterId)) { 
-	  retry++; 
-	  if(retry>3) { 
-	    reportError(callbackObj, 
-			remoteNodeId, TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
-	    return false; 
-	  } 
 	  goto tryagain; 
 	}
+        if (m_adapters == 1) {
+          DBUG_PRINT("error", ("SCI Transfer failed"));
+          report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
+	  return false; 
+        }
 	m_failCounter++; 
 	Uint32 temp=m_ActiveAdapterId;	    	     
 	switch(m_swapCounter) { 
 	case 0:  
 	  /**swap from active (0) to standby (1)*/ 
 	  if(getLinkStatus(m_StandbyAdapterId)) { 
-#ifdef DEBUG_TRANSPORTER	 
-	    ndbout << "Swapping from 0 to 1 " << endl; 
-#endif 
+            DBUG_PRINT("error", ("Swapping from adapter 0 to 1")); 
 	    failoverShmWriter();		 
 	    SCIStoreBarrier(m_TargetSegm[m_StandbyAdapterId].sequence,0); 
 	    m_ActiveAdapterId=m_StandbyAdapterId; 
@@ -436,26 +412,21 @@ bool SCI_Transporter::doSend() {
 			      FLAGS,  
 			      &err); 
 	    if(err!=SCI_ERR_OK) { 
-	      reportError(callbackObj, 
-			  remoteNodeId, TE_SCI_UNABLE_TO_REMOVE_SEQUENCE); 
+	      report_error(TE_SCI_UNABLE_TO_REMOVE_SEQUENCE); 
+              DBUG_PRINT("error", ("Unable to remove sequence"));
 	      return false; 
 	    } 
 	    if(startSequence(m_ActiveAdapterId)!=SCI_ERR_OK) { 
-#ifdef DEBUG_TRANSPORTER 
-	      ndbout << "Start sequence failed" << endl; 
-#endif 
-	      reportError(callbackObj, 
-			  remoteNodeId, TE_SCI_UNABLE_TO_START_SEQUENCE); 
+              DBUG_PRINT("error", ("Start sequence failed")); 
+	      report_error(TE_SCI_UNABLE_TO_START_SEQUENCE); 
 	      return false; 
 	    } 
 	    m_swapCounter++; 
-#ifdef DEBUG_TRANSPORTER 
-	    ndbout << "failover complete.." << endl; 
-#endif 
+            DBUG_PRINT("info", ("failover complete")); 
 	    goto tryagain; 
 	  }  else {
-	    reportError(callbackObj, 
-			remoteNodeId, TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
+	    report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
+            DBUG_PRINT("error", ("SCI Transfer failed")); 
 	    return false;
 	  }
 	  return false; 
@@ -468,20 +439,15 @@ bool SCI_Transporter::doSend() {
 	    failoverShmWriter(); 
 	    m_ActiveAdapterId=m_StandbyAdapterId; 
 	    m_StandbyAdapterId=temp; 
-#ifdef DEBUG_TRANSPORTER 
-	    ndbout << "Swapping from 1 to 0 " << endl;	 
-#endif 
+            DBUG_PRINT("info", ("Swapping from 1 to 0"));	 
 	    if(createSequence(m_ActiveAdapterId)!=SCI_ERR_OK) { 
-	      reportError(callbackObj, 
-			  remoteNodeId, TE_SCI_UNABLE_TO_CREATE_SEQUENCE); 
+              DBUG_PRINT("error", ("Unable to create sequence"));
+	      report_error(TE_SCI_UNABLE_TO_CREATE_SEQUENCE); 
 	      return false; 
 	    } 
 	    if(startSequence(m_ActiveAdapterId)!=SCI_ERR_OK) { 
-#ifdef DEBUG_TRANSPORTER 
-	      ndbout << "startSequence failed... disconnecting" << endl; 
-#endif 
-	      reportError(callbackObj, 
-			  remoteNodeId, TE_SCI_UNABLE_TO_START_SEQUENCE); 
+              DBUG_PRINT("error", ("startSequence failed... disconnecting")); 
+	      report_error(TE_SCI_UNABLE_TO_START_SEQUENCE); 
 	      return false; 
 	    } 
 	    
@@ -489,37 +455,36 @@ bool SCI_Transporter::doSend() {
 			      , FLAGS,  
 			      &err); 
 	    if(err!=SCI_ERR_OK) { 
-	      reportError(callbackObj, 
-			  remoteNodeId, TE_SCI_UNABLE_TO_REMOVE_SEQUENCE); 
+              DBUG_PRINT("error", ("Unable to remove sequence"));
+	      report_error(TE_SCI_UNABLE_TO_REMOVE_SEQUENCE); 
 	      return false;
 	    } 
 	    
 	    if(createSequence(m_StandbyAdapterId)!=SCI_ERR_OK) { 
-	      reportError(callbackObj, 
-			  remoteNodeId, TE_SCI_UNABLE_TO_CREATE_SEQUENCE); 
+              DBUG_PRINT("error", ("Unable to create sequence on standby"));
+	      report_error(TE_SCI_UNABLE_TO_CREATE_SEQUENCE); 
 	      return false; 
 	    } 
 	    
 	    m_swapCounter=0; 
 	    
-#ifdef DEBUG_TRANSPORTER 
-	    ndbout << "failover complete.." << endl; 
-#endif 
+            DBUG_PRINT("info", ("failover complete..")); 
 	    goto tryagain; 
 	    
 	  } else {
-	    reportError(callbackObj, 
-			remoteNodeId, TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
+            DBUG_PRINT("error", ("Unrecoverable data transfer error")); 
+	    report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
 	    return false;
 	  }
 	  
 	  break; 
 	default: 
-	  reportError(callbackObj, 
-		      remoteNodeId, TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR); 
+          DBUG_PRINT("error", ("Unrecoverable data transfer error")); 
+	  report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR); 
 	  return false; 
 	  break; 
 	}  
+      }
       } else { 
 	SHM_Writer * writer = (m_TargetSegm[m_ActiveAdapterId].writer);
 	writer->updateWritePtr(sizeToSend); 
@@ -535,13 +500,10 @@ bool SCI_Transporter::doSend() {
       /** 
        * If we end up here, the SCI segment is full.  
        */ 
-#ifdef DEBUG_TRANSPORTER 
-      ndbout << "the segment is full for some reason" << endl; 
-#endif 
+      DBUG_PRINT("error", ("the segment is full for some reason")); 
       return false; 
     } //if  
   } 
-  
   return true; 
 } // doSend() 
 
@@ -557,11 +519,8 @@ void SCI_Transporter::failoverShmWriter() {
  
 void SCI_Transporter::setupLocalSegment()   
 { 
- 
+   DBUG_ENTER("SCI_Transporter::setupLocalSegment"); 
    Uint32 sharedSize = 0; 
-   sharedSize += 16; //SHM_Reader::getSharedSize(); 
-   sharedSize += 16; //SHM_Writer::getSharedSize(); 
-   sharedSize += 32; //SHM_Writer::getSharedSize(); 
    sharedSize =4096;   //start of the buffer is page aligend 
     
    Uint32 sizeOfBuffer = m_BufferSize; 
@@ -570,27 +529,15 @@ void SCI_Transporter::setupLocalSegment()
  
    Uint32 * localReadIndex =  
      (Uint32*)m_SourceSegm[m_ActiveAdapterId].mappedMemory;  
-   Uint32 * localWriteIndex =  
-     (Uint32*)(localReadIndex+ 1); 
-    
-   Uint32 * localEndOfDataIndex = (Uint32*) 
-     (localReadIndex + 2); 
- 
+   Uint32 * localWriteIndex =  (Uint32*)(localReadIndex+ 1); 
    m_localStatusFlag = (Uint32*)(localReadIndex + 3); 
- 
-   Uint32 * sharedLockIndex = (Uint32*) 
-     (localReadIndex + 4); 
- 
-   Uint32 * sharedHeavyLock = (Uint32*) 
-     (localReadIndex + 5); 
  
    char * localStartOfBuf = (char*)  
      ((char*)m_SourceSegm[m_ActiveAdapterId].mappedMemory+sharedSize); 
  
-     
-   * localReadIndex = * localWriteIndex = 0; 
-   * localEndOfDataIndex = sizeOfBuffer -1; 
- 
+   * localReadIndex = 0; 
+   * localWriteIndex = 0; 
+
    const Uint32 slack = MAX_MESSAGE_SIZE;
 
    reader = new SHM_Reader(localStartOfBuf,  
@@ -599,178 +546,240 @@ void SCI_Transporter::setupLocalSegment()
 			   localReadIndex, 
 			   localWriteIndex);
     
-   * localReadIndex = 0; 
-   * localWriteIndex = 0; 
-    
    reader->clear(); 
+   DBUG_VOID_RETURN;
 } //setupLocalSegment 
  
  
  
 void SCI_Transporter::setupRemoteSegment()   
 { 
+   DBUG_ENTER("SCI_Transporter::setupRemoteSegment");
    Uint32 sharedSize = 0; 
-   sharedSize += 16; //SHM_Reader::getSharedSize(); 
-   sharedSize += 16; //SHM_Writer::getSharedSize(); 
-   sharedSize += 32;    
-   sharedSize =4096;   //start of the buffer is page aligend 
+   sharedSize =4096;   //start of the buffer is page aligned 
  
  
    Uint32 sizeOfBuffer = m_BufferSize; 
+   const Uint32 slack = MAX_MESSAGE_SIZE;
    sizeOfBuffer -= sharedSize; 
-   Uint32 * segPtr = (Uint32*) m_TargetSegm[m_StandbyAdapterId].mappedMemory ; 
-    
-   Uint32 * remoteReadIndex2 = (Uint32*)segPtr;  
-   Uint32 * remoteWriteIndex2 = (Uint32*) (segPtr + 1); 
-   Uint32 * remoteEndOfDataIndex2 = (Uint32*) (segPtr + 2); 
-   Uint32 * sharedLockIndex2 = (Uint32*) (segPtr + 3); 
-   m_remoteStatusFlag2 = (Uint32*)(segPtr + 4); 
-   Uint32 * sharedHeavyLock2 = (Uint32*) (segPtr + 5); 
-    
-    
-   char * remoteStartOfBuf2 = ( char*)((char *)segPtr+sharedSize); 
-    
-   segPtr = (Uint32*) m_TargetSegm[m_ActiveAdapterId].mappedMemory ;   
+
+   Uint32 *segPtr = (Uint32*) m_TargetSegm[m_ActiveAdapterId].mappedMemory ;   
     
    Uint32 * remoteReadIndex = (Uint32*)segPtr;  
-   Uint32 * remoteWriteIndex = (Uint32*) (segPtr + 1); 
-   Uint32 * remoteEndOfDataIndex = (Uint32*) (segPtr + 2); 
-   Uint32 * sharedLockIndex = (Uint32*) (segPtr + 3); 
-   m_remoteStatusFlag = (Uint32*)(segPtr + 4); 
-   Uint32 * sharedHeavyLock = (Uint32*) (segPtr + 5); 
+   Uint32 * remoteWriteIndex = (Uint32*)(segPtr + 1); 
+   m_remoteStatusFlag = (Uint32*)(segPtr + 3);
     
    char * remoteStartOfBuf = ( char*)((char*)segPtr+(sharedSize)); 
     
-   * remoteReadIndex = * remoteWriteIndex = 0; 
-   * remoteReadIndex2 = * remoteWriteIndex2 = 0; 
-   * remoteEndOfDataIndex = sizeOfBuffer - 1; 
-   * remoteEndOfDataIndex2 = sizeOfBuffer - 1; 
- 
-   /** 
-    * setup two writers. writer2 is used to mirror the changes of 
-    * writer on the standby 
-    * segment, so that in the case of a failover, we can switch 
-    * to the stdby seg. quickly.* 
-    */ 
-   const Uint32 slack = MAX_MESSAGE_SIZE;
- 
    writer = new SHM_Writer(remoteStartOfBuf,  
 			   sizeOfBuffer, 
 			   slack,
 			   remoteReadIndex, 
 			   remoteWriteIndex);
    
-   writer2 = new SHM_Writer(remoteStartOfBuf2,  
-			    sizeOfBuffer, 
-			    slack,
-			    remoteReadIndex2, 
-			    remoteWriteIndex2);
- 
-   * remoteReadIndex = 0; 
-   * remoteWriteIndex = 0; 
-    
    writer->clear(); 
-   writer2->clear(); 
     
    m_TargetSegm[0].writer=writer; 
-   m_TargetSegm[1].writer=writer2; 
  
    m_sendBuffer.m_forceSendLimit = writer->getBufferSize();
     
    if(createSequence(m_ActiveAdapterId)!=SCI_ERR_OK) { 
-     reportThreadError(remoteNodeId, TE_SCI_UNABLE_TO_CREATE_SEQUENCE); 
+     report_error(TE_SCI_UNABLE_TO_CREATE_SEQUENCE); 
+     DBUG_PRINT("error", ("Unable to create sequence on active"));
      doDisconnect(); 
    } 
-   if(createSequence(m_StandbyAdapterId)!=SCI_ERR_OK) { 
-     reportThreadError(remoteNodeId, TE_SCI_UNABLE_TO_CREATE_SEQUENCE); 
-     doDisconnect(); 
-   } 
-   
- 
+   if (m_adapters > 1) {
+     segPtr = (Uint32*) m_TargetSegm[m_StandbyAdapterId].mappedMemory ; 
+    
+     Uint32 * remoteReadIndex2 = (Uint32*)segPtr;  
+     Uint32 * remoteWriteIndex2 = (Uint32*) (segPtr + 1); 
+     m_remoteStatusFlag2 = (Uint32*)(segPtr + 3);
+    
+     char * remoteStartOfBuf2 = ( char*)((char *)segPtr+sharedSize); 
+    
+     /** 
+      * setup a writer. writer2 is used to mirror the changes of 
+      * writer on the standby 
+      * segment, so that in the case of a failover, we can switch 
+      * to the stdby seg. quickly.* 
+      */ 
+     writer2 = new SHM_Writer(remoteStartOfBuf2,  
+                              sizeOfBuffer, 
+                              slack,
+                              remoteReadIndex2, 
+                              remoteWriteIndex2);
+
+     * remoteReadIndex = 0; 
+     * remoteWriteIndex = 0; 
+     writer2->clear(); 
+     m_TargetSegm[1].writer=writer2; 
+     if(createSequence(m_StandbyAdapterId)!=SCI_ERR_OK) { 
+       report_error(TE_SCI_UNABLE_TO_CREATE_SEQUENCE); 
+       DBUG_PRINT("error", ("Unable to create sequence on standby"));
+       doDisconnect(); 
+     } 
+   }
+   DBUG_VOID_RETURN; 
 } //setupRemoteSegment 
- 
- 
-bool SCI_Transporter::connectImpl(Uint32 timeout) { 
- 
-  sci_error_t err; 
-  Uint32 offset      = 0; 
- 
+
+bool
+SCI_Transporter::init_local()
+{
+  DBUG_ENTER("SCI_Transporter::init_local");
   if(!m_initLocal) { 
     if(initLocalSegment()!=SCI_ERR_OK){ 
-      NdbSleep_MilliSleep(timeout); 
+      NdbSleep_MilliSleep(10);
       //NDB SHOULD TERMINATE AND COMPUTER REBOOTED! 
-      reportThreadError(localNodeId, TE_SCI_CANNOT_INIT_LOCALSEGMENT); 
-      return false; 
+      report_error(TE_SCI_CANNOT_INIT_LOCALSEGMENT);
+      DBUG_RETURN(false);
     } 
-    m_initLocal=true; 
+    m_initLocal=true;
   } 
- 
-  if(!m_mapped ) { 
- 
-    for(Uint32 i=0; i < m_adapters ; i++) { 
-      m_TargetSegm[i].rhm[i].remoteHandle=0; 
-      SCIConnectSegment(sciAdapters[i].scidesc, 
-			&(m_TargetSegm[i].rhm[i].remoteHandle), 
-			m_remoteNodes[i],
-			remoteSegmentId(localNodeId, remoteNodeId),          
-			i,          
-			0,
-			0,
-			0, 
-			0,
-			&err); 
-      
-      if(err != SCI_ERR_OK) { 
-	NdbSleep_MilliSleep(timeout); 
-	return false; 
-      } 
-      
-    } 
-    
-    
-    // Map the remote memory segment into program space  
-    for(Uint32 i=0; i < m_adapters ; i++) { 
-      m_TargetSegm[i].mappedMemory =  
-	SCIMapRemoteSegment((m_TargetSegm[i].rhm[i].remoteHandle), 
-			    &(m_TargetSegm[i].rhm[i].map), 
-			    offset,    
-			    m_BufferSize,   
-			    NULL, 
-			    FLAGS, 
-			    &err); 
-      
-      
-	if(err!= SCI_ERR_OK) { 
-#ifdef DEBUG_TRANSPORTER 
-	  ndbout_c("\nCannot map a segment to the remote node %d.");  
-	  ndbout_c("Error code 0x%x",m_RemoteSciNodeId, err); 
-#endif 
-	  //NDB SHOULD TERMINATE AND COMPUTER REBOOTED! 
-	  reportThreadError(remoteNodeId, TE_SCI_CANNOT_MAP_REMOTESEGMENT); 
-	  return false; 
-	} 
-	
- 
-    } 
-    m_mapped=true; 
-    setupRemoteSegment(); 
-    setConnected(); 
-#ifdef DEBUG_TRANSPORTER 
-    ndbout << "connected and mapped to segment : " << endl; 
-    ndbout << "remoteNode: " << m_remoteNodes[0] << endl; 
-    ndbout << "remoteNode: " << m_remotenodes[1] << endl; 
-    ndbout << "remoteSegId: "  
-	   << remoteSegmentId(localNodeId, remoteNodeId)  
-	   << endl; 
-#endif 
-    return true; 
-  } 
-  else { 
-    return getConnectionStatus(); 
-  } 
-} // connectImpl() 
- 
+  DBUG_RETURN(true);
+}
 
+bool
+SCI_Transporter::init_remote()
+{
+  DBUG_ENTER("SCI_Transporter::init_remote");
+  sci_error_t err; 
+  Uint32 offset = 0;
+  if(!m_mapped ) {
+    DBUG_PRINT("info", ("Map remote segments"));
+    for(Uint32 i=0; i < m_adapters ; i++) {
+      m_TargetSegm[i].rhm[i].remoteHandle=0;
+      SCIConnectSegment(sciAdapters[i].scidesc,
+                        &(m_TargetSegm[i].rhm[i].remoteHandle),
+                        m_remoteNodes[i],
+                        remoteSegmentId(localNodeId, remoteNodeId),
+                        i,
+                        0,
+                        0,
+                        0,
+                        0,
+                        &err);
+
+      if(err != SCI_ERR_OK) {
+        NdbSleep_MilliSleep(10);
+        DBUG_PRINT("error", ("Error connecting segment, err 0x%x", err));
+        DBUG_RETURN(false);
+      }
+
+    }
+    // Map the remote memory segment into program space  
+    for(Uint32 i=0; i < m_adapters ; i++) {
+      m_TargetSegm[i].mappedMemory =
+        SCIMapRemoteSegment((m_TargetSegm[i].rhm[i].remoteHandle),
+                            &(m_TargetSegm[i].rhm[i].map),
+                            offset,
+                            m_BufferSize,
+                            NULL,
+                            FLAGS,
+                            &err);
+
+
+        if(err!= SCI_ERR_OK) {
+          DBUG_PRINT("error", ("Cannot map a segment to the remote node %d. Error code 0x%x",m_RemoteSciNodeId, err));
+          //NDB SHOULD TERMINATE AND COMPUTER REBOOTED! 
+          report_error(TE_SCI_CANNOT_MAP_REMOTESEGMENT);
+          DBUG_RETURN(false);
+        }
+    }
+    m_mapped=true;
+    setupRemoteSegment();
+    setConnected();
+    DBUG_PRINT("info", ("connected and mapped to segment, remoteNode: %d",
+               remoteNodeId));
+    DBUG_PRINT("info", ("remoteSegId: %d",
+               remoteSegmentId(localNodeId, remoteNodeId)));
+    DBUG_RETURN(true);
+  } else {
+    DBUG_RETURN(getConnectionStatus());
+  }
+}
+
+bool
+SCI_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
+{
+  SocketInputStream s_input(sockfd);
+  SocketOutputStream s_output(sockfd);
+  char buf[256];
+  DBUG_ENTER("SCI_Transporter::connect_client_impl");
+  // Wait for server to create and attach
+  if (s_input.gets(buf, 256) == 0) {
+    DBUG_PRINT("error", ("No initial response from server in SCI"));
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(false);
+  }
+
+  if (!init_local()) {
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(false);
+  }
+
+  // Send ok to server
+  s_output.println("sci client 1 ok");
+
+  if (!init_remote()) {
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(false);
+  }
+  // Wait for ok from server
+  if (s_input.gets(buf, 256) == 0) {
+    DBUG_PRINT("error", ("No second response from server in SCI"));
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(false);
+  }
+  // Send ok to server
+  s_output.println("sci client 2 ok");
+
+  NDB_CLOSE_SOCKET(sockfd);
+  DBUG_PRINT("info", ("Successfully connected client to node %d",
+              remoteNodeId));
+  DBUG_RETURN(true);
+}
+
+bool
+SCI_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
+{
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream s_input(sockfd);
+  char buf[256];
+  DBUG_ENTER("SCI_Transporter::connect_server_impl");
+
+  if (!init_local()) {
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(false);
+  }
+  // Send ok to client
+  s_output.println("sci server 1 ok");
+
+  // Wait for ok from client
+  if (s_input.gets(buf, 256) == 0) {
+    DBUG_PRINT("error", ("No response from client in SCI"));
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(false);
+  }
+
+  if (!init_remote()) {
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(false);
+  }
+  // Send ok to client
+  s_output.println("sci server 2 ok");
+  // Wait for ok from client
+  if (s_input.gets(buf, 256) == 0) {
+    DBUG_PRINT("error", ("No second response from client in SCI"));
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(false);
+  }
+
+  NDB_CLOSE_SOCKET(sockfd);
+  DBUG_PRINT("info", ("Successfully connected server to node %d",
+              remoteNodeId));
+  DBUG_RETURN(true);
+}
+ 
 sci_error_t SCI_Transporter::createSequence(Uint32 adapterid) { 
   sci_error_t err; 
   SCICreateMapSequence((m_TargetSegm[adapterid].rhm[adapterid].map),  
@@ -795,13 +804,14 @@ sci_error_t SCI_Transporter::startSequence(Uint32 adapterid) {
    
    
   // If there still is an error then data cannot be safely send 
-	return err; 
+  return err; 
 } // startSequence() 
  
    
  
 bool SCI_Transporter::disconnectLocal()  
-{ 
+{
+  DBUG_ENTER("SCI_Transporter::disconnectLocal"); 
   sci_error_t err; 
   m_ActiveAdapterId=0; 
  
@@ -809,31 +819,28 @@ bool SCI_Transporter::disconnectLocal()
    */ 
  
   SCIUnmapSegment(m_SourceSegm[0].lhm[0].map,0,&err); 
-  	if(err!=SCI_ERR_OK) { 
-		reportError(callbackObj, 
-			    remoteNodeId, TE_SCI_UNABLE_TO_UNMAP_SEGMENT); 
-		return false; 
-	} 
+  if(err!=SCI_ERR_OK) { 
+    report_error(TE_SCI_UNABLE_TO_UNMAP_SEGMENT); 
+    DBUG_PRINT("error", ("Unable to unmap segment"));
+    DBUG_RETURN(false); 
+  } 
  
   SCIRemoveSegment((m_SourceSegm[m_ActiveAdapterId].localHandle), 
 		   FLAGS, 
 		   &err); 
   
   if(err!=SCI_ERR_OK) { 
-    reportError(callbackObj, remoteNodeId, TE_SCI_UNABLE_TO_REMOVE_SEGMENT); 
-    return false; 
+    report_error(TE_SCI_UNABLE_TO_REMOVE_SEGMENT); 
+    DBUG_PRINT("error", ("Unable to remove segment"));
+    DBUG_RETURN(false); 
   } 
-  
-  if(err == SCI_ERR_OK) { 
-#ifdef DEBUG_TRANSPORTER 
-    printf("Local memory segment is unmapped and removed\n" ); 
-#endif
-  } 
-  return true; 
+  DBUG_PRINT("info", ("Local memory segment is unmapped and removed")); 
+  DBUG_RETURN(true); 
 } // disconnectLocal() 
  
  
 bool SCI_Transporter::disconnectRemote()  { 
+  DBUG_ENTER("SCI_Transporter::disconnectRemote");
   sci_error_t err; 
   for(Uint32 i=0; i<m_adapters; i++) { 
     /** 
@@ -841,35 +848,32 @@ bool SCI_Transporter::disconnectRemote()  {
      */   
     SCIUnmapSegment(m_TargetSegm[i].rhm[i].map,0,&err); 
     if(err!=SCI_ERR_OK) { 
-		reportError(callbackObj, 
-			    remoteNodeId, TE_SCI_UNABLE_TO_DISCONNECT_SEGMENT); 
-		return false; 
-	} 
+      report_error(TE_SCI_UNABLE_TO_UNMAP_SEGMENT); 
+      DBUG_PRINT("error", ("Unable to unmap segment"));
+      DBUG_RETURN(false); 
+    } 
 	 
     SCIDisconnectSegment(m_TargetSegm[i].rhm[i].remoteHandle, 
 			 FLAGS, 
 			 &err); 
     if(err!=SCI_ERR_OK) { 
-      reportError(callbackObj, 
-		  remoteNodeId, TE_SCI_UNABLE_TO_DISCONNECT_SEGMENT); 
-      return false; 
+      report_error(TE_SCI_UNABLE_TO_DISCONNECT_SEGMENT); 
+      DBUG_PRINT("error", ("Unable to disconnect segment"));
+      DBUG_RETURN(false); 
     } 
-#ifdef DEBUG_TRANSPORTER 
-    ndbout_c("Remote memory segment is unmapped and disconnected\n" ); 
-#endif 
+    DBUG_PRINT("info", ("Remote memory segment is unmapped and disconnected")); 
   } 
-  return true; 
+  DBUG_RETURN(true); 
 } // disconnectRemote() 
 
 
 SCI_Transporter::~SCI_Transporter() { 
+  DBUG_ENTER("SCI_Transporter::~SCI_Transporter");
   // Close channel to the driver 
-#ifdef DEBUG_TRANSPORTER 
-  ndbout << "~SCITransporter does a disConnect" << endl; 
-#endif 
   doDisconnect(); 
   if(m_sendBuffer.m_buffer != NULL)
     delete[] m_sendBuffer.m_buffer;
+  DBUG_VOID_RETURN;
 } // ~SCI_Transporter() 
  
  
@@ -878,7 +882,7 @@ SCI_Transporter::~SCI_Transporter() {
 void SCI_Transporter::closeSCI() { 
   // Termination of SCI 
   sci_error_t err; 
-  printf("\nClosing SCI Transporter...\n"); 
+  DBUG_ENTER("SCI_Transporter::closeSCI");
    
   // Disconnect and remove remote segment 
   disconnectRemote(); 
@@ -890,26 +894,41 @@ void SCI_Transporter::closeSCI() {
   // Closes an SCI virtual device 
   SCIClose(activeSCIDescriptor, FLAGS, &err);  
    
-  if(err != SCI_ERR_OK)  
-    fprintf(stderr,  
-	    "\nCannot close SCI channel to the driver. Error code 0x%x",  
-	   err); 
+  if(err != SCI_ERR_OK) {
+    DBUG_PRINT("error", ("Cannot close SCI channel to the driver. Error code 0x%x",  
+	        err)); 
+  }
   SCITerminate(); 
+  DBUG_VOID_RETURN;
 } // closeSCI() 
  
 Uint32 *
-SCI_Transporter::getWritePtr(Uint32 lenBytes, Uint32 prio){
+SCI_Transporter::getWritePtr(Uint32 lenBytes, Uint32 prio)
+{
 
-  if(m_sendBuffer.full()){
-    /**------------------------------------------------- 
-     * Buffer was completely full. We have severe problems. 
-     * ------------------------------------------------- 
-     */ 
-    if(!doSend()){ 
+  Uint32 sci_buffer_remaining = m_sendBuffer.m_forceSendLimit;
+  Uint32 send_buf_size = m_sendBuffer.m_sendBufferSize;
+  Uint32 curr_data_size = m_sendBuffer.m_dataSize << 2;
+  Uint32 new_curr_data_size = curr_data_size + lenBytes;
+  if ((curr_data_size >= send_buf_size) ||
+      (curr_data_size >= sci_buffer_remaining)) {
+    /**
+     * The new message will not fit in the send buffer. We need to
+     * send the send buffer before filling it up with the new
+     * signal data. If current data size will spill over buffer edge
+     * we will also send to ensure correct operation.
+     */  
+    if (!doSend()) { 
+      /**
+       * We were not successfull sending, report 0 as meaning buffer full and
+       * upper levels handle retries and other recovery matters.
+       */
       return 0;
     }
   }
-
+  /**
+   * New signal fits, simply fill it up with more data.
+   */
   Uint32 sz = m_sendBuffer.m_dataSize;
   return &m_sendBuffer.m_buffer[sz];
 }
@@ -918,10 +937,11 @@ void
 SCI_Transporter::updateWritePtr(Uint32 lenBytes, Uint32 prio){
   
   Uint32 sz = m_sendBuffer.m_dataSize;
-  sz += (lenBytes / 4);
+  Uint32 packet_size = m_PacketSize;
+  sz += ((lenBytes + 3) >> 2);
   m_sendBuffer.m_dataSize = sz;
   
-  if(sz > m_PacketSize) { 
+  if(sz > packet_size) { 
     /**------------------------------------------------- 
      * Buffer is full and we are ready to send. We will 
      * not wait since the signal is already in the buffer. 
@@ -944,7 +964,8 @@ bool
 SCI_Transporter::getConnectionStatus() { 
   if(*m_localStatusFlag == SCICONNECTED &&  
      (*m_remoteStatusFlag == SCICONNECTED || 
-      *m_remoteStatusFlag2 == SCICONNECTED)) 
+     ((m_adapters > 1) &&
+      *m_remoteStatusFlag2 == SCICONNECTED))) 
     return true; 
   else 
     return false; 
@@ -954,7 +975,9 @@ SCI_Transporter::getConnectionStatus() {
 void  
 SCI_Transporter::setConnected() { 
   *m_remoteStatusFlag = SCICONNECTED; 
-  *m_remoteStatusFlag2 = SCICONNECTED; 
+  if (m_adapters > 1) {
+    *m_remoteStatusFlag2 = SCICONNECTED; 
+  }
   *m_localStatusFlag = SCICONNECTED; 
 } 
  
@@ -963,8 +986,10 @@ void
 SCI_Transporter::setDisconnect() { 
   if(getLinkStatus(m_ActiveAdapterId)) 
     *m_remoteStatusFlag = SCIDISCONNECT; 
-  if(getLinkStatus(m_StandbyAdapterId)) 
-    *m_remoteStatusFlag2 = SCIDISCONNECT; 
+  if (m_adapters > 1) {
+    if(getLinkStatus(m_StandbyAdapterId)) 
+      *m_remoteStatusFlag2 = SCIDISCONNECT; 
+  }
 } 
  
  
@@ -981,20 +1006,20 @@ static bool init = false;
  
 bool  
 SCI_Transporter::initSCI() { 
+  DBUG_ENTER("SCI_Transporter::initSCI");
   if(!init){ 
     sci_error_t error; 
     // Initialize SISCI library 
     SCIInitialize(0, &error); 
     if(error != SCI_ERR_OK)  { 
-#ifdef DEBUG_TRANSPORTER 
-      ndbout_c("\nCannot initialize SISCI library."); 
-      ndbout_c("\nInconsistency between SISCI library and SISCI driver.Error code 0x%x", error); 
-#endif 
-      return false; 
+      DBUG_PRINT("error", ("Cannot initialize SISCI library."));
+      DBUG_PRINT("error", ("Inconsistency between SISCI library and SISCI driver. Error code 0x%x",
+                 error)); 
+      DBUG_RETURN(false);
     } 
     init = true; 
   } 
-  return true; 
+  DBUG_RETURN(true);
 } 
  
  

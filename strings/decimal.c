@@ -579,18 +579,44 @@ int decimal2bin(decimal *from, char *to, int precision, int frac)
 {
   dec1 mask=from->sign ? -1 : 0, *buf1=from->buf, *stop1;
   int error=E_DEC_OK, intg=precision-frac,
+      isize1, intg1, intg1x=from->intg,
       intg0=intg/DIG_PER_DEC1,
       frac0=frac/DIG_PER_DEC1,
       intg0x=intg-intg0*DIG_PER_DEC1,
       frac0x=frac-frac0*DIG_PER_DEC1,
-      intg1=from->intg/DIG_PER_DEC1,
       frac1=from->frac/DIG_PER_DEC1,
-      intg1x=from->intg-intg1*DIG_PER_DEC1,
       frac1x=from->frac-frac1*DIG_PER_DEC1,
       isize0=intg0*sizeof(dec1)+dig2bytes[intg0x],
       fsize0=frac0*sizeof(dec1)+dig2bytes[frac0x],
-      isize1=intg1*sizeof(dec1)+dig2bytes[intg1x],
       fsize1=frac1*sizeof(dec1)+dig2bytes[frac1x];
+
+  /* removing leading zeroes */
+  intg1=((intg1x-1) % DIG_PER_DEC1)+1;
+  while (intg1x > 0 && *buf1 == 0)
+  {
+    intg1x-=intg1;
+    intg1=DIG_PER_DEC1;
+    buf1++;
+  }
+  if (intg1x > 0)
+  {
+    for (intg1=(intg1x-1) % DIG_PER_DEC1; *buf1 < powers10[intg1--]; intg1x--) ;
+    DBUG_ASSERT(intg1x > 0);
+  }
+  else
+    intg1x=0;
+
+  if (unlikely(intg1x+fsize1==0))
+  {
+    mask=0; /* just in case */
+    intg=1;
+    buf1=&mask;
+  }
+
+  intg1=intg1x/DIG_PER_DEC1;
+  intg1x=intg1x-intg1*DIG_PER_DEC1;
+  isize1=intg1*sizeof(dec1)+dig2bytes[intg1x];
+
   if (isize0 < isize1)
   {
     buf1+=intg1-intg0+(intg1x>0)-(intg0x>0);
@@ -819,11 +845,20 @@ int decimal_bin_size(int precision, int scale)
 int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode)
 {
   int frac0=scale>0 ? ROUND_UP(scale) : scale/DIG_PER_DEC1,
-      frac1=ROUND_UP(from->frac),
+      frac1=ROUND_UP(from->frac), round_digit,
       intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len;
   dec1 *buf0=from->buf, *buf1=to->buf, x, y, carry=0;
 
   sanity(to);
+
+  switch (mode) {
+  case HALF_UP:
+  case HALF_EVEN:       round_digit=5; break;
+  case CEILING:         round_digit= from->sign ? 10 : 0; break;
+  case FLOOR:           round_digit= from->sign ? 0 : 10; break;
+  case TRUNCATE:        round_digit=10; break;
+  default: DBUG_ASSERT(0);
+  }
 
   if (unlikely(frac0+intg0 > len))
   {
@@ -865,26 +900,20 @@ int decimal_round(decimal *from, decimal *to, int scale, decimal_round_mode mode
   buf1+=intg0+frac0-1;
   if (scale == frac0*DIG_PER_DEC1)
   {
-    if (mode != TRUNCATE)
-    {
-      x=buf0[1]/DIG_MASK;
-      if (x > 5 || (x == 5 && (mode == HALF_UP || *buf0 & 1)))
-        (*buf1)++;
-    }
+    x=buf0[1]/DIG_MASK;
+    if (x > round_digit ||
+        (round_digit == 5 && x == 5 && (mode == HALF_UP || *buf0 & 1)))
+      (*buf1)++;
   }
   else
   {
     int pos=frac0*DIG_PER_DEC1-scale-1;
-    if (mode != TRUNCATE)
-    {
-      x=*buf1 / powers10[pos];
-      y=x % 10;
-      if (y > 5 || (y == 5 && (mode == HALF_UP || (x/10) & 1)))
-        x+=10;
-      *buf1=powers10[pos]*(x-y);
-    }
-    else
-      *buf1=(*buf1/powers10[pos+1])*powers10[pos+1];
+    x=*buf1 / powers10[pos];
+    y=x % 10;
+    if (y > round_digit ||
+        (round_digit == 5 && y == 5 && (mode == HALF_UP || (x/10) & 1)))
+      x+=10;
+    *buf1=powers10[pos]*(x-y);
   }
   if (*buf1 >= DIG_BASE)
   {
@@ -1820,12 +1849,13 @@ void test_md(char *s1, char *s2)
   printf("\n");
 }
 
+char *round_mode[]={"TRUNCATE", "HALF_EVEN", "HALF_UP", "CEILING", "FLOOR"};
+
 void test_ro(char *s1, int n, decimal_round_mode mode)
 {
   char s[100];
   int res;
-  sprintf(s, "%s('%s', %d)", (mode == TRUNCATE ? "truncate" : "round"),
-                             s1, n);
+  sprintf(s, "'%s', %d, %s", s1, n, round_mode[mode]);
   string2decimal(s1, &a, 0);
   res=decimal_round(&a, &b, n, mode);
   printf("%-40s => res=%d    ", s, res);
@@ -1953,33 +1983,6 @@ main()
   test_dv("1", "1");
   test_dv("0.0123456789012345678912345", "9999999999");
 
-  printf("==== decimal_round ====\n");
-  test_ro("15.1",0,HALF_UP);
-  test_ro("15.5",0,HALF_UP);
-  test_ro("15.5",0,HALF_UP);
-  test_ro("15.9",0,HALF_UP);
-  test_ro("-15.1",0,HALF_UP);
-  test_ro("-15.5",0,HALF_UP);
-  test_ro("-15.9",0,HALF_UP);
-  test_ro("15.1",1,HALF_UP);
-  test_ro("-15.1",1,HALF_UP);
-  test_ro("15.17",1,HALF_UP);
-  test_ro("15.4",-1,HALF_UP);
-  test_ro("-15.4",-1,HALF_UP);
-  test_ro("5678.123451",-4,TRUNCATE);
-  test_ro("5678.123451",-3,TRUNCATE);
-  test_ro("5678.123451",-2,TRUNCATE);
-  test_ro("5678.123451",-1,TRUNCATE);
-  test_ro("5678.123451",0,TRUNCATE);
-  test_ro("5678.123451",1,TRUNCATE);
-  test_ro("5678.123451",2,TRUNCATE);
-  test_ro("5678.123451",3,TRUNCATE);
-  test_ro("5678.123451",4,TRUNCATE);
-  test_ro("5678.123451",5,TRUNCATE);
-  test_ro("5678.123451",6,TRUNCATE);
-  test_ro("-5678.123451",-4,TRUNCATE);
-  test_ro("99999999999999999999999999999999999999",-31,TRUNCATE);
-
   printf("==== decimal_mod ====\n");
   test_md("234","10");
   test_md("234.567","10.555");
@@ -2008,6 +2011,41 @@ main()
   test_dc("0","12");
   test_dc("-10","0");
   test_dc("4","4");
+
+  printf("==== decimal_round ====\n");
+  test_ro("5678.123451",-4,TRUNCATE);
+  test_ro("5678.123451",-3,TRUNCATE);
+  test_ro("5678.123451",-2,TRUNCATE);
+  test_ro("5678.123451",-1,TRUNCATE);
+  test_ro("5678.123451",0,TRUNCATE);
+  test_ro("5678.123451",1,TRUNCATE);
+  test_ro("5678.123451",2,TRUNCATE);
+  test_ro("5678.123451",3,TRUNCATE);
+  test_ro("5678.123451",4,TRUNCATE);
+  test_ro("5678.123451",5,TRUNCATE);
+  test_ro("5678.123451",6,TRUNCATE);
+  test_ro("-5678.123451",-4,TRUNCATE);
+  test_ro("99999999999999999999999999999999999999",-31,TRUNCATE);
+  test_ro("15.1",0,HALF_UP);
+  test_ro("15.5",0,HALF_UP);
+  test_ro("15.9",0,HALF_UP);
+  test_ro("-15.1",0,HALF_UP);
+  test_ro("-15.5",0,HALF_UP);
+  test_ro("-15.9",0,HALF_UP);
+  test_ro("15.1",1,HALF_UP);
+  test_ro("-15.1",1,HALF_UP);
+  test_ro("15.17",1,HALF_UP);
+  test_ro("15.4",-1,HALF_UP);
+  test_ro("-15.4",-1,HALF_UP);
+  test_ro("15.1",0,HALF_EVEN);
+  test_ro("15.5",0,HALF_EVEN);
+  test_ro("14.5",0,HALF_EVEN);
+  test_ro("15.9",0,HALF_EVEN);
+  test_ro("15.1",0,CEILING);
+  test_ro("-15.1",0,CEILING);
+  test_ro("15.1",0,FLOOR);
+  test_ro("-15.1",0,FLOOR);
+
   return 0;
 }
 #endif

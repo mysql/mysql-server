@@ -24,11 +24,13 @@ public:
   virtual ~BackupConsumer() { }
   virtual bool init() { return true;}
   virtual bool table(const TableS &){return true;}
+  virtual bool endOfTables() { return true; }
   virtual void tuple(const TupleS &){}
   virtual void tuple_free(){}
   virtual void endOfTuples(){}
   virtual void logEntry(const LogEntry &){}
   virtual void endOfLogEntrys(){}
+  virtual bool finalize_table(const TableS &){return true;}
 };
 
 #endif

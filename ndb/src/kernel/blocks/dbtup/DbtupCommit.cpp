@@ -224,7 +224,8 @@ void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr)
 /* ---------------------------------------------------------------- */
 /* INITIALIZATION OF ONE CONNECTION RECORD TO PREPARE FOR NEXT OP.  */
 /* ---------------------------------------------------------------- */
-void Dbtup::initOpConnection(Operationrec* const regOperPtr)
+void Dbtup::initOpConnection(Operationrec* regOperPtr,
+			     Fragrecord * fragPtrP)
 {
   Uint32 RinFragList = regOperPtr->inFragList;
   regOperPtr->transstate = IDLE;
@@ -244,22 +245,18 @@ void Dbtup::initOpConnection(Operationrec* const regOperPtr)
     regOperPtr->inFragList = ZFALSE;
     if (tropPrevLinkPtr.i == RNIL) {
       ljam();
-      FragrecordPtr regFragPtr;
-      regFragPtr.i = regOperPtr->fragmentPtr;
-      ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
-      regFragPtr.p->firstusedOprec = tropNextLinkPtr.i;
+      fragPtrP->firstusedOprec = tropNextLinkPtr.i;
     } else {
       ljam();
       ptrCheckGuard(tropPrevLinkPtr, cnoOfOprec, operationrec);
       tropPrevLinkPtr.p->nextOprecInList = tropNextLinkPtr.i;
     }//if
     if (tropNextLinkPtr.i == RNIL) {
-      ;
+      fragPtrP->lastusedOprec = tropPrevLinkPtr.i;
     } else {
-      ljam();
       ptrCheckGuard(tropNextLinkPtr, cnoOfOprec, operationrec);
       tropNextLinkPtr.p->prevOprecInList = tropPrevLinkPtr.i;
-    }//if
+    }
     regOperPtr->prevOprecInList = RNIL;
     regOperPtr->nextOprecInList = RNIL;
   }//if
@@ -336,7 +333,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     commitUpdate(signal, regOperPtr.p, regFragPtr.p, regTabPtr.p);
     removeActiveOpList(regOperPtr.p);
   }//if
-  initOpConnection(regOperPtr.p);
+  initOpConnection(regOperPtr.p, regFragPtr.p);
 }//execTUP_COMMITREQ()
 
 void

@@ -12,7 +12,14 @@ test_SCRIPTS=atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
 
 atrt_SOURCES = main.cpp
 INCLUDES_LOC = -I$(top_srcdir)/ndb/src/mgmclient
-LDADD_LOC = $(top_builddir)/ndb/src/mgmclient/CpcClient.o $(top_builddir)/ndb/src/libndbclient.la
+LDADD_LOC = $(top_builddir)/ndb/src/mgmclient/CpcClient.o \
+	    $(top_builddir)/ndb/src/libndbclient.la \
+            $(top_builddir)/dbug/libdbug.a \
+            $(top_builddir)/mysys/libmysys.a \
+            $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
+
+wrappersdir=$(prefix)/bin
+wrappers_SCRIPTS=atrt-testBackup atrt-mysql-test-run
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

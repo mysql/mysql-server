@@ -236,7 +236,7 @@ public:
      * Once per scan frag (next) req/conf
      */
     bool newScan();
-    bool scanConf(Uint32 noOfOps, Uint32 opLen[]);
+    bool scanConf(Uint32 noOfOps, Uint32 opLen);
     
     /**
      * Per record
@@ -268,7 +268,7 @@ public:
 
     Uint32 opNoDone;
     Uint32 opNoConf;
-    Uint32 attrLen[16];
+    Uint32 opLen;
 
   public:
     Uint32* dst;
@@ -441,7 +441,7 @@ public:
     Uint32 startGCP;
     Uint32 currGCP;
     Uint32 stopGCP;
-    SLList<Table> tables;
+    DLList<Table> tables;
     SLList<TriggerRecord> triggers;
     
     SLList<BackupFile> files; 
@@ -713,7 +713,7 @@ Backup::OperationRecord::finished(){
     return false;
   }
   
-  attrLen[opNoDone] = attrSzTotal + sz_FixedKeys;
+  opLen += attrSzTotal + sz_FixedKeys;
   opNoDone++;
   
   scanStop = dst = (Uint32 *)dst_VariableData;

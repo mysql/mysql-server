@@ -46,6 +46,7 @@
 
 // Used here only to print event reports on stdout/console.
 EventLogger g_eventLogger;
+extern int simulate_error_during_shutdown;
 
 Cmvmi::Cmvmi(const Configuration & conf) :
   SimulatedBlock(CMVMI, conf)
@@ -53,6 +54,16 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   ,subscribers(subscriberPool)
 {
   BLOCK_CONSTRUCTOR(Cmvmi);
+
+  Uint32 long_sig_buffer_size;
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  ndb_mgm_get_int_parameter(p, CFG_DB_LONG_SIGNAL_BUFFER,  
+			    &long_sig_buffer_size);
+
+  long_sig_buffer_size= long_sig_buffer_size / 256;
+  g_sectionSegmentPool.setSize(long_sig_buffer_size);
 
   // Add received signals
   addRecSignal(GSN_CONNECT_REP, &Cmvmi::execCONNECT_REP);
@@ -86,7 +97,7 @@ Cmvmi::Cmvmi(const Configuration & conf) :
   const ndb_mgm_configuration_iterator * db = theConfig.getOwnConfigIterator();
   for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
     Uint32 logLevel;
-    if(!ndb_mgm_get_int_parameter(db, LogLevel::MIN_LOGLEVEL_ID+j, &logLevel)){
+    if(!ndb_mgm_get_int_parameter(db, CFG_MIN_LOGLEVEL+j, &logLevel)){
       clogLevel.setLogLevel((LogLevel::EventCategory)j, 
 			    logLevel);
     }
@@ -138,6 +149,16 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
   if(ERROR_INSERTED(9997)){
     ndbrequire(false);
   }
+
+  if(ERROR_INSERTED(9996)){
+    simulate_error_during_shutdown= SIGSEGV;
+    ndbrequire(false);
+  }
+
+  if(ERROR_INSERTED(9995)){
+    simulate_error_during_shutdown= SIGSEGV;
+    kill(getpid(), SIGABRT);
+  }
 }//execNDB_TAMPER()
 
 void Cmvmi::execSET_LOGLEVELORD(Signal* signal) 
@@ -148,9 +169,9 @@ void Cmvmi::execSET_LOGLEVELORD(Signal* signal)
   jamEntry();
 
   for(unsigned int i = 0; i<llOrd->noOfEntries; i++){
-    category = (LogLevel::EventCategory)llOrd->theCategories[i];
-    level = llOrd->theLevels[i];
-
+    category = (LogLevel::EventCategory)(llOrd->theData[i] >> 16);
+    level = llOrd->theData[i] & 0xFFFF;
+    
     clogLevel.setLogLevel(category, level);
   }
 }//execSET_LOGLEVELORD()
@@ -175,10 +196,10 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   Uint32 threshold = 16;
   LogLevel::EventCategory eventCategory = (LogLevel::EventCategory)0;
   
-  for(unsigned int i = 0; i< EventLogger::matrixSize; i++){
-    if(EventLogger::matrix[i].eventType == eventType){
-      eventCategory = EventLogger::matrix[i].eventCategory;
-      threshold     = EventLogger::matrix[i].threshold;
+  for(unsigned int i = 0; i< EventLoggerBase::matrixSize; i++){
+    if(EventLoggerBase::matrix[i].eventType == eventType){
+      eventCategory = EventLoggerBase::matrix[i].eventCategory;
+      threshold     = EventLoggerBase::matrix[i].threshold;
       break;
     }
   }
@@ -229,17 +250,7 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
       sendSignal(subReq->blockRef, GSN_EVENT_SUBSCRIBE_REF, signal, 1, JBB);
       return;
     }
-    /**
-     * If it's a new subscription, clear the loglevel
-     *
-     * Clear only if noOfEntries is 0, this is needed beacuse we set
-     * the default loglevels for the MGMT nodes during the inital connect phase.
-     * See reportConnected().
-     */
-    if (subReq->noOfEntries == 0){
-      ptr.p->logLevel.clear();
-    }
-
+    ptr.p->logLevel.clear();
     ptr.p->blockRef = subReq->blockRef;    
   }
   
@@ -255,10 +266,9 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
     LogLevel::EventCategory category;
     Uint32 level = 0;
     for(Uint32 i = 0; i<subReq->noOfEntries; i++){
-      category = (LogLevel::EventCategory)subReq->theCategories[i];
-      level = subReq->theLevels[i];
-      ptr.p->logLevel.setLogLevel(category,
-                                  level);
+      category = (LogLevel::EventCategory)(subReq->theData[i] >> 16);
+      level = subReq->theData[i] & 0xFFFF;
+      ptr.p->logLevel.setLogLevel(category, level);
     }
   }
   
@@ -363,11 +373,6 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
       
       globalTransporterRegistry.setIOState(i, HaltIO);
       globalTransporterRegistry.do_disconnect(i);
-
-      /**
-       * Cancel possible event subscription
-       */
-      cancelSubscription(i);
     }
   }
   if (failNo != 0) {
@@ -473,6 +478,8 @@ void Cmvmi::execDISCONNECT_REP(Signal *signal)
     globalTransporterRegistry.do_connect(hostId);
   }
 
+  cancelSubscription(hostId);
+
   signal->theData[0] = EventReport::Disconnected;
   signal->theData[1] = hostId;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
@@ -518,20 +525,6 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
   if(type == NodeInfo::MGM){
     jam();
     globalTransporterRegistry.setIOState(hostId, NoHalt);
-    
-    EventSubscribeReq* dst = (EventSubscribeReq *)&signal->theData[0];
-    
-    for (Uint32 i = 0; i < EventLogger::defEventLogMatrixSize; i++) {
-      dst->theCategories[i] = EventLogger::defEventLogMatrix[i].eventCategory;
-      dst->theLevels[i]     = EventLogger::defEventLogMatrix[i].threshold;
-    }
-
-    dst->noOfEntries = EventLogger::defEventLogMatrixSize;
-    /* The BlockNumber is hardcoded as 1 in MgmtSrvr */
-    dst->blockRef = numberToRef(MIN_API_BLOCK_NO, hostId); 
-    
-    execEVENT_SUBSCRIBE_REQ(signal);
-    
   }
 
   //------------------------------------------

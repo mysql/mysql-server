@@ -58,6 +58,10 @@ ulint	srv_activity_count	= 0;
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
 
+/* How much data manipulation language (DML) statements need to be delayed,
+in microseconds, in order to reduce the lagging of the purge thread. */
+ulint	srv_dml_needed_delay = 0;
+
 ibool	srv_lock_timeout_and_monitor_active = FALSE;
 ibool	srv_error_monitor_active = FALSE;
 
@@ -92,6 +96,9 @@ ulint	srv_last_file_size_max	= 0;		 /* if != 0, this tells
 						 the max size auto-extending
 						 may increase the last data
 						 file size */
+ulint	srv_auto_extend_increment = 8;		 /* If the last data file is
+						 auto-extended, we add this
+						 many pages to it at a time */
 ulint*  srv_data_file_is_raw_partition = NULL;
 
 /* If the following is TRUE we do not allow inserts etc. This protects
@@ -242,6 +249,10 @@ merge to completion before shutdown */
 
 ibool	srv_fast_shutdown	= FALSE;
 
+ibool	srv_very_fast_shutdown	= FALSE; /* if this TRUE, do not flush the
+					 buffer pool to data files at the
+					 shutdown; we effectively 'crash'
+					 InnoDB */
 /* Generate a innodb_status.<pid> file */
 ibool	srv_innodb_status	= FALSE;
 
@@ -255,6 +266,8 @@ disable adaptive hash indexes */
 ibool	srv_use_awe			= FALSE;
 ibool	srv_use_adaptive_hash_indexes 	= TRUE;
 
+/* Maximum allowable purge history length.  <=0 means 'infinite'. */
+ulint	srv_max_purge_lag		= 0;
 
 /*-------------------------------------------*/
 ulint	srv_n_spin_wait_rounds	= 20;
@@ -938,7 +951,13 @@ retry:
 
 		trx->op_info = "sleeping before joining InnoDB queue";
 
-		os_thread_sleep(50000);
+		/* Peter Zaitsev suggested that we take the sleep away
+		altogether. But the sleep may be good in pathological
+		situations of lots of thread switches. Simply put some
+		threads aside for a while to reduce the number of thread
+		switches. */
+
+		os_thread_sleep(10000);
 
 		trx->op_info = "";
 
@@ -1801,7 +1820,8 @@ srv_error_monitor_thread(
 			/* in: a dummy parameter required by
 			os_thread_create */
 {
-	ulint	cnt	= 0;
+	/* number of successive fatal timeouts observed */
+	ulint	fatal_cnt	= 0;
 	dulint	old_lsn;
 	dulint	new_lsn;
 
@@ -1813,8 +1833,6 @@ srv_error_monitor_thread(
 #endif
 loop:
 	srv_error_monitor_active = TRUE;
-
-	cnt++;
 
 	/* Try to track a strange bug reported by Harald Fuchs and others,
 	where the lsn seems to decrease at times */
@@ -1842,7 +1860,20 @@ loop:
 		srv_refresh_innodb_monitor_stats();
 	}
 
-	sync_array_print_long_waits();
+	if (sync_array_print_long_waits()) {
+		fatal_cnt++;
+		if (fatal_cnt > 5) {
+
+			fprintf(stderr,
+"InnoDB: Error: semaphore wait has lasted > %lu seconds\n"
+"InnoDB: We intentionally crash the server, because it appears to be hung.\n",
+				srv_fatal_semaphore_wait_threshold);
+
+			ut_error;
+		}
+	} else {
+		fatal_cnt = 0;
+	}
 
 	/* Flush stderr so that a database user gets the output
 	to possible MySQL error file */
@@ -2169,7 +2200,8 @@ loop:
 	/*****************************************************************/
 background_loop:
 	/* ---- In this loop we run background operations when the server
-	is quiet from user activity */
+	is quiet from user activity. Also in the case of a shutdown, we
+	loop here, flushing the buffer pool to the data files. */
 
 	/* The server has been quiet for a while: start running background
 	operations */
@@ -2242,7 +2274,16 @@ background_loop:
 	
 flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
-	n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
+
+	if (!srv_very_fast_shutdown) {
+		n_pages_flushed =
+			buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
+	} else {
+		/* In a 'very fast' shutdown we do not flush the buffer pool
+		to data files: we set n_pages_flushed to 0 artificially. */
+
+		n_pages_flushed = 0;
+	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
@@ -2295,7 +2336,10 @@ flush_loop:
 
 			/* If we are doing a fast shutdown (= the default)
 			we do not do purge or insert buffer merge. But we
-			flush the buffer pool completely to disk. */
+			flush the buffer pool completely to disk.
+			In a 'very fast' shutdown we do not flush the buffer
+			pool to data files: we have set n_pages_flushed to
+			0 artificially. */
 
 			goto background_loop;
 		}

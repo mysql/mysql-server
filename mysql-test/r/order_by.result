@@ -680,6 +680,9 @@ order by col;
 ERROR 23000: Column 'col' in order clause is ambiguous
 select col1 from t1, t2 where t1.col1=t2.col2 order by col;
 ERROR 23000: Column 'col' in order clause is ambiguous
+select t1.col as t1_col, t2.col2 from t1, t2 where t1.col1=t2.col2
+order by col;
+ERROR 23000: Column 'col' in order clause is ambiguous
 select t1.col as t1_col, t2.col from t1, t2 where t1.col1=t2.col2
 order by col;
 t1_col	col
@@ -696,12 +699,6 @@ col	col2
 1	3
 2	2
 3	1
-select t1.col as t1_col, t2.col2 from t1, t2 where t1.col1=t2.col2
-order by col;
-t1_col	col2
-1	1
-2	2
-3	3
 select t2.col2, t2.col, t2.col from t2 order by col;
 col2	col	col
 3	1	1
@@ -723,3 +720,16 @@ col2	col	col
 2	2	2
 1	3	3
 drop table t1, t2;
+create table t1 (a char(25));
+insert into t1 set a = repeat('x', 20);
+insert into t1 set a = concat(repeat('x', 19), 'z');
+insert into t1 set a = concat(repeat('x', 19), 'ab');
+insert into t1 set a = concat(repeat('x', 19), 'aa');
+set max_sort_length=20;
+select a from t1 order by a;
+a
+xxxxxxxxxxxxxxxxxxxab
+xxxxxxxxxxxxxxxxxxxaa
+xxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxz
+drop table t1;

@@ -971,6 +971,7 @@ void ShowHelp(const char* szCmd)
 
 int main(int argc, char* argv[])
 {
+    ndb_init();
     int iRes = -1;
     g_nNumThreads = 0;
     g_nMaxCallsPerSecond = 0;

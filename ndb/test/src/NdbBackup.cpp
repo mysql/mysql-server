@@ -64,12 +64,16 @@ NdbBackup::start(unsigned int & _backup_id){
 
 
 const char * 
-NdbBackup::getFileSystemPathForNode(int _node_id){
+NdbBackup::getBackupDataDirForNode(int _node_id){
 
   /**
    * Fetch configuration from management server
    */
-  ConfigRetriever cr(0, NODE_TYPE_API);
+  LocalConfig lc;
+  if (!lc.init(0,0)) {
+    abort();
+  }
+  ConfigRetriever cr(lc, 0, NODE_TYPE_API);
   ndb_mgm_configuration * p = 0;
 
   BaseString tmp; tmp.assfmt("%s:%d", host.c_str(), port);
@@ -106,8 +110,8 @@ NdbBackup::getFileSystemPathForNode(int _node_id){
   }  
   
   const char * path;
-  if (iter.get(CFG_DB_FILESYSTEM_PATH, &path)){
-    ndbout << "FileSystemPath not found" << endl;
+  if (iter.get(CFG_DB_BACKUP_DATADIR, &path)){
+    ndbout << "BackupDataDir not found" << endl;
     return NULL;
   }
 
@@ -123,9 +127,9 @@ NdbBackup::execRestore(bool _restore_data,
   const int buf_len = 1000;
   char buf[buf_len];
 
-  ndbout << "getFileSystemPathForNode "<< _node_id <<endl;
+  ndbout << "getBackupDataDir "<< _node_id <<endl;
 
-  const char* path = getFileSystemPathForNode(_node_id);
+  const char* path = getBackupDataDirForNode(_node_id);
   if (path == NULL)
     return -1;  
 
@@ -139,17 +143,19 @@ NdbBackup::execRestore(bool _restore_data,
    * Copy  backup files to local dir
    */ 
 
-  snprintf(buf, buf_len,
-	   "scp %s:%s/BACKUP/BACKUP-%d/* .",
+  BaseString::snprintf(buf, buf_len,
+	   "scp %s:%s/BACKUP/BACKUP-%d/BACKUP-%d*.%d.* .",
 	   host, path,
-	   _backup_id);
+	   _backup_id,
+	   _backup_id,
+	   _node_id);
 
   ndbout << "buf: "<< buf <<endl;
   int res = system(buf);  
   
-  ndbout << "res: " << res << endl;
+  ndbout << "scp res: " << res << endl;
   
-  snprintf(buf, 255, "%sndb_restore -c \"host=%s\" -n %d -b %d %s %s .", 
+  BaseString::snprintf(buf, 255, "%sndb_restore -c \"host=%s\" -n %d -b %d %s %s .", 
 #if 1
 	   "",
 #else
@@ -162,9 +168,9 @@ NdbBackup::execRestore(bool _restore_data,
 	   _restore_meta?"-m":"");
 
   ndbout << "buf: "<< buf <<endl;
-  res = system(buf);  
+  res = system(buf);
 
-  ndbout << "res: " << res << endl;
+  ndbout << "ndb_restore res: " << res << endl;
 
   return res;
   
@@ -180,20 +186,13 @@ NdbBackup::restore(unsigned _backup_id){
     return -1;
 
   int res; 
-  if ( ndbNodes.size() == 1) {
-    // restore metadata and data in one call
-      res = execRestore(true, true, ndbNodes[0].node_id, _backup_id);
-  } else {
-    assert(ndbNodes.size() > 1);
 
-    // restore metadata first
-    res = execRestore(false, true, ndbNodes[0].node_id, _backup_id);
-    
+  // restore metadata first and data for first node
+  res = execRestore(true, true, ndbNodes[0].node_id, _backup_id);
 
-    // Restore data once for each node
-    for(size_t i = 0; i < ndbNodes.size(); i++){     
-      res = execRestore(true, false, ndbNodes[i].node_id, _backup_id);
-    }
+  // Restore data once for each node
+  for(size_t i = 1; i < ndbNodes.size(); i++){
+    res = execRestore(true, false, ndbNodes[i].node_id, _backup_id);
   }
   
   return 0;

@@ -45,7 +45,7 @@ LogHandler::getDefaultHeader(char* pStr, const char* pCategory,
 			     Logger::LoggerLevel level) const
 {
   char time[MAX_DATE_TIME_HEADER_LENGTH];
-  ::snprintf(pStr, MAX_HEADER_LENGTH, "%s [%s] %s -- ", 
+  BaseString::snprintf(pStr, MAX_HEADER_LENGTH, "%s [%s] %s -- ", 
 	     getTimeAsString((char*)time),
 	     pCategory,
 	     Logger::LoggerLevelNames[level]);
@@ -84,7 +84,7 @@ LogHandler::getTimeAsString(char* pStr) const
   tm_now = ::localtime(&now); //uses the "current" timezone
 #endif
 
-  ::snprintf(pStr, MAX_DATE_TIME_HEADER_LENGTH, 
+  BaseString::snprintf(pStr, MAX_DATE_TIME_HEADER_LENGTH, 
 	     m_pDateTimeFormat, 
 	     tm_now->tm_year + 1900, 
 	     tm_now->tm_mon + 1, //month is [0,11]. +1 -> [1,12]

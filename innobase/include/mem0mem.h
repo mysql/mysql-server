@@ -136,10 +136,8 @@ void
 mem_heap_free_func(
 /*===============*/
 	mem_heap_t*   	heap,  		/* in, own: heap to be freed */
-	const char*	file_name __attribute__((unused)),
-					/* in: file name where freed */
-	ulint    	line  __attribute__((unused)));
-					/* in: line where freed */
+	const char*	file_name, 	/* in: file name where freed */
+	ulint    	line);		/* in: line where freed */
 /*******************************************************************
 Allocates n bytes of memory from a memory heap. */
 UNIV_INLINE
@@ -295,7 +293,7 @@ mem_strdupq(
 
 /**************************************************************************
 Duplicates a NUL-terminated string, allocated from a memory heap. */
-UNIV_INLINE
+
 char*
 mem_heap_strdup(
 /*============*/

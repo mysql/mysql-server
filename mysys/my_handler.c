@@ -309,6 +309,11 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
     case HA_KEYTYPE_FLOAT:
       mi_float4get(f_1,a);
       mi_float4get(f_2,b);
+      /*
+        The following may give a compiler warning about floating point
+        comparison not being safe, but this is ok in this context as
+        we are bascily doing sorting
+      */
       if (piks && (flag = CMP_NUM(f_1,f_2)))
         return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
       a=  end;
@@ -317,6 +322,11 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
     case HA_KEYTYPE_DOUBLE:
       mi_float8get(d_1,a);
       mi_float8get(d_2,b);
+      /*
+        The following may give a compiler warning about floating point
+        comparison not being safe, but this is ok in this context as
+        we are bascily doing sorting
+      */
       if (piks && (flag = CMP_NUM(d_1,d_2)))
         return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
       a=  end;

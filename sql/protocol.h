@@ -52,7 +52,7 @@ public:
   void init(THD* thd_arg);
 
   enum { SEND_NUM_ROWS= 1, SEND_DEFAULTS= 2, SEND_EOF= 4 };
-  virtual bool send_fields(List<Item> *list, int flags);
+  virtual bool send_fields(List<Item> *list, uint flags);
 
   bool send_records_num(List<Item> *list, ulonglong records);
   bool store(I_List<i_string> *str_list);
@@ -166,7 +166,7 @@ public:
     prev_record= &data;
     return Protocol_simple::prepare_for_send(item_list);
   }
-  bool send_fields(List<Item> *list, int flags);
+  bool send_fields(List<Item> *list, uint flags);
   bool write();
   uint get_field_count() { return field_count; }
 };

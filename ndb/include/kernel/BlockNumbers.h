@@ -20,13 +20,13 @@
 #include <kernel_types.h>
 #include <RefConvert.hpp>
 
-// 240
+/* 240 */
 #define MIN_API_BLOCK_NO  0x8000
 
-// 2047
+/* 2047 */
 #define API_PACKED     0x07ff
 
-// 4002
+/* 4002 */
 #define API_CLUSTERMGR 0x0FA2
 
 #define BACKUP      0xF4
