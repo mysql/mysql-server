@@ -481,6 +481,7 @@ int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
 				   bool log_query);
 int quick_rm_table(enum db_type base,const char *db,
 		   const char *table_name);
+void close_cached_table(THD *thd, TABLE *table);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
@@ -622,6 +623,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                  ha_rows rows, ulong options);
 int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok);
+int mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
 		  bool *refresh);
@@ -650,6 +652,10 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
                     bool check_grants_table, bool check_grants_view,
                     bool allow_rowid,
                     uint *cached_field_index_ptr);
+Field *
+find_field_in_real_table(THD *thd, TABLE *table, const char *name,
+                         uint length, bool check_grants, bool allow_rowid,
+                         uint *cached_field_index_ptr);
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 struct st_des_keyblock
@@ -692,7 +698,8 @@ int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 		enum enum_var_type value_type,
-		pthread_mutex_t *mutex);
+		pthread_mutex_t *mutex,
+		struct system_status_var *status_var);
 int mysql_find_files(THD *thd,List<char> *files, const char *db,
                 const char *path, const char *wild, bool dir);
 int mysqld_show_charsets(THD *thd,const char *wild);
@@ -701,6 +708,7 @@ int mysqld_show_storage_engines(THD *thd);
 int mysqld_show_privileges(THD *thd);
 int mysqld_show_column_types(THD *thd);
 int mysqld_help (THD *thd, const char *text);
+void calc_sum_of_all_status(STATUS_VAR *to);
 
 /* sql_prepare.cc */
 int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length, 
@@ -756,7 +764,8 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
-		   List_iterator<Item> *it, bool any_privileges);
+		   List_iterator<Item> *it, bool any_privileges,
+                   bool allocate_view_names);
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
@@ -782,6 +791,7 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                uint offset_to_list,
                                const char *db_name,
                                const char *table_name);
+TABLE_LIST *unique_table(TABLE_LIST *table, TABLE_LIST *table_list);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
 void close_temporary(TABLE *table, bool delete_table=1);
@@ -918,36 +928,28 @@ extern double last_query_cost;
 extern double log_10[32];
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
-extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables;
-extern ulong created_tmp_tables, created_tmp_disk_tables, bytes_sent;
+extern ulong refresh_version,flush_version, thread_id,query_id;
 extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong aborted_threads,aborted_connects;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
 extern ulong delayed_insert_threads, delayed_insert_writes;
 extern ulong delayed_rows_in_use,delayed_insert_errors;
-extern ulong filesort_rows, filesort_range_count, filesort_scan_count;
-extern ulong filesort_merge_passes;
-extern ulong select_range_check_count, select_range_count, select_scan_count;
-extern ulong select_full_range_join_count,select_full_join_count;
 extern ulong slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong thd_startup_options, slow_launch_threads, slow_launch_time;
 extern ulong server_id, concurrency;
-extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count;
-extern ulong ha_read_key_count, ha_read_next_count, ha_read_prev_count;
-extern ulong ha_read_first_count, ha_read_last_count;
-extern ulong ha_read_rnd_count, ha_read_rnd_next_count, ha_discover_count;
-extern ulong ha_commit_count, ha_rollback_count,table_cache_size;
+extern ulong ha_read_count, ha_discover_count;
+extern ulong table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout;
 extern ulong max_user_connections;
-extern ulong long_query_count, what_to_log,flush_time;
+extern ulong what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack,thread_stack_min;
 extern ulong binlog_cache_size, max_binlog_cache_size, open_files_limit;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong rpl_recovery_rank, thread_cache_size;
-extern ulong com_stat[(uint) SQLCOM_END], com_other, back_log;
+extern ulong back_log;
 extern ulong specialflag, current_pid;
 extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog;
@@ -997,6 +999,7 @@ extern SHOW_COMP_OPTION have_berkeley_db;
 extern SHOW_COMP_OPTION have_ndbcluster;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
+extern struct system_status_var global_status_var;
 extern struct rand_struct sql_rand;
 extern KEY_CACHE *sql_key_cache;
 

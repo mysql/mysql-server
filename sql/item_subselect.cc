@@ -272,7 +272,8 @@ Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
   DBUG_VOID_RETURN;
 }
 
-Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
+Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
+                                             Item_subselect *parent,
 					     st_select_lex *select_lex,
 					     bool max_arg)
   :Item_singlerow_subselect()
@@ -290,6 +291,12 @@ Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
   */
   used_tables_cache= parent->get_used_tables_cache();
   const_item_cache= parent->get_const_item_cache();
+
+  /*
+    this subquery alwais creates during preparation, so we can assign
+    thd here
+  */
+  thd= thd_param;
 
   DBUG_VOID_RETURN;
 }
@@ -316,9 +323,11 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
   SELECT_LEX *select_lex= join->select_lex;
 
   /* Juggle with current arena only if we're in prepared statement prepare */
-  Item_arena *arena= join->thd->current_arena;
+  DBUG_PRINT("TANSF:", ("thd %p, select_lex->join->thd: %s",
+                        thd, select_lex->join->thd));
+  Item_arena *arena= thd->current_arena;
   Item_arena backup;
-  if (!arena->is_stmt_prepare())
+  if (arena->is_conventional())
     arena= 0;                                   // For easier test
 
   if (!select_lex->master_unit()->first_select()->next_select() &&
@@ -337,11 +346,11 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
   {
 
     have_to_be_excluded= 1;
-    if (join->thd->lex->describe)
+    if (thd->lex->describe)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
-      push_warning(join->thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		   ER_SELECT_REDUCED, warn_buff);
     }
     substitution= select_lex->item_list.head();
@@ -367,9 +376,9 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
       if (!(substitution= new Item_func_if(cond, substitution,
 					   new Item_null())))
 	goto err;
+      if (arena)
+	thd->restore_backup_item_arena(arena, &backup);
     }
-    if (arena)
-      thd->restore_backup_item_arena(arena, &backup);
     return RES_REDUCE;
   }
   return RES_OK;
@@ -654,11 +663,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   }
 
   SELECT_LEX *select_lex= join->select_lex;
-  Item_arena *arena= join->thd->current_arena, backup;
+  Item_arena *arena= thd->current_arena, backup;
 
   thd->where= "scalar IN/ALL/ANY subquery";
 
-  if (!arena->is_stmt_prepare())
+  if (arena->is_conventional())
     arena= 0;                                   // For easier test
   else
     thd->set_n_backup_item_arena(arena, &backup);
@@ -723,7 +732,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       // remove LIMIT placed  by ALL/ANY subquery
       select_lex->master_unit()->global_parameters->select_limit=
 	HA_POS_ERROR;
-      subs= new Item_maxmin_subselect(this, select_lex, func->l_op());
+      subs= new Item_maxmin_subselect(thd, this, select_lex, func->l_op());
     }
     // left expression belong to outer select
     SELECT_LEX *current= thd->lex->current_select, *up;
@@ -899,8 +908,8 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   }
   thd->where= "row IN/ALL/ANY subquery";
 
-  Item_arena *arena= join->thd->current_arena, backup;
-  if (!arena->is_stmt_prepare())
+  Item_arena *arena= thd->current_arena, backup;
+  if (arena->is_conventional())
     arena= 0;
   else
     thd->set_n_backup_item_arena(arena, &backup);
@@ -1192,17 +1201,17 @@ void subselect_uniquesubquery_engine::fix_length_and_dec(Item_cache **row)
 int subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
-  char const *save_where= join->thd->where;
-  SELECT_LEX *save_select= join->thd->lex->current_select;
-  join->thd->lex->current_select= select_lex;
+  char const *save_where= thd->where;
+  SELECT_LEX *save_select= thd->lex->current_select;
+  thd->lex->current_select= select_lex;
   if (!optimized)
   {
     optimized=1;
     if (join->optimize())
     {
-      join->thd->where= save_where;
+      thd->where= save_where;
       executed= 1;
-      join->thd->lex->current_select= save_select;
+      thd->lex->current_select= save_select;
       DBUG_RETURN(join->error ? join->error : 1);
     }
     if (item->engine_changed)
@@ -1214,8 +1223,8 @@ int subselect_single_select_engine::exec()
   {
     if (join->reinit())
     {
-      join->thd->where= save_where;
-      join->thd->lex->current_select= save_select;
+      thd->where= save_where;
+      thd->lex->current_select= save_select;
       DBUG_RETURN(1);
     }
     item->reset();
@@ -1225,20 +1234,20 @@ int subselect_single_select_engine::exec()
   {
     join->exec();
     executed= 1;
-    join->thd->where= save_where;
-    join->thd->lex->current_select= save_select;
+    thd->where= save_where;
+    thd->lex->current_select= save_select;
     DBUG_RETURN(join->error||thd->is_fatal_error);
   }
-  join->thd->where= save_where;
-  join->thd->lex->current_select= save_select;
+  thd->where= save_where;
+  thd->lex->current_select= save_select;
   DBUG_RETURN(0);
 }
 
 int subselect_union_engine::exec()
 {
-  char const *save_where= unit->thd->where;
+  char const *save_where= thd->where;
   int res= unit->exec();
-  unit->thd->where= save_where;
+  thd->where= save_where;
   return res;
 }
 

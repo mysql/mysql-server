@@ -485,4 +485,13 @@ create procedure bug4344() drop procedure bug4344|
 ERROR HY000: Can't drop a PROCEDURE from within another stored routine
 create procedure bug4344() drop function bug4344|
 ERROR HY000: Can't drop a FUNCTION from within another stored routine
+drop procedure if exists bug3294|
+create procedure bug3294()
+begin
+declare continue handler for sqlexception drop table t5;
+drop table t5;
+end|
+call bug3294()|
+ERROR 42S02: Unknown table 't5'
+drop procedure bug3294|
 drop table t1|

@@ -232,8 +232,6 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
     result->abort();
     res= 1;					// Error sent to client
   }
-  if (result != lex->result)
-    delete result;
   DBUG_RETURN(res);
 }
 
@@ -5145,6 +5143,7 @@ static void
 make_join_readinfo(JOIN *join, uint options)
 {
   uint i;
+
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   DBUG_ENTER("make_join_readinfo");
 
@@ -5243,7 +5242,8 @@ make_join_readinfo(JOIN *join, uint options)
 	join->thd->server_status|=SERVER_QUERY_NO_GOOD_INDEX_USED;
 	tab->read_first_record= join_init_quick_read_record;
 	if (statistics)
-	  statistic_increment(select_range_check_count, &LOCK_status);
+	  statistic_increment(join->thd->status_var.select_range_check_count,
+			      &LOCK_status);
       }
       else
       {
@@ -5253,13 +5253,15 @@ make_join_readinfo(JOIN *join, uint options)
 	  if (tab->select && tab->select->quick)
 	  {
 	    if (statistics)
-	      statistic_increment(select_range_count, &LOCK_status);
+	      statistic_increment(join->thd->status_var.select_range_count,
+				  &LOCK_status);
 	  }
 	  else
 	  {
 	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
 	    if (statistics)
-	      statistic_increment(select_scan_count, &LOCK_status);
+	      statistic_increment(join->thd->status_var.select_scan_count,
+				  &LOCK_status);
 	  }
 	}
 	else
@@ -5267,13 +5269,15 @@ make_join_readinfo(JOIN *join, uint options)
 	  if (tab->select && tab->select->quick)
 	  {
 	    if (statistics)
-	      statistic_increment(select_full_range_join_count, &LOCK_status);
+	      statistic_increment(join->thd->status_var.select_full_range_join_count,
+				  &LOCK_status);
 	  }
 	  else
 	  {
 	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
 	    if (statistics)
-	      statistic_increment(select_full_join_count, &LOCK_status);
+	      statistic_increment(join->thd->status_var.select_full_join_count,
+				  &LOCK_status);
 	  }
 	}
 	if (!table->no_keyread)
@@ -6156,16 +6160,21 @@ optimize_cond(JOIN *join, COND *conds, Item::cond_result *cond_value)
       MEMROOT for prepared statements and stored procedures.
     */
 
-    Item_arena *arena=thd->current_arena, backup;
-    select->first_cond_optimization= 0;
+    Item_arena *arena= thd->current_arena, backup;
+    if (arena->is_conventional())
+      arena= 0;                                   // For easier test
+    else
+      thd->set_n_backup_item_arena(arena, &backup);
 
-    thd->set_n_backup_item_arena(arena, &backup);
+    select->first_cond_optimization= 0;
 
     /* Convert all outer joins to inner joins if possible */
     conds= simplify_joins(join, join->join_list, conds, TRUE);
 
     select->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
-    thd->restore_backup_item_arena(arena, &backup);
+
+    if (arena)
+      thd->restore_backup_item_arena(arena, &backup);
   }
 
   if (!conds)
@@ -6649,7 +6658,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		      (int) distinct, (int) save_sum_fields,
 		      (ulong) rows_limit,test(group)));
 
-  statistic_increment(created_tmp_tables, &LOCK_status);
+  statistic_increment(thd->status_var.created_tmp_tables, &LOCK_status);
 
   if (use_temp_pool)
     temp_pool_slot = bitmap_set_next(&temp_pool);
@@ -7235,7 +7244,8 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
     table->db_stat=0;
     goto err;
   }
-  statistic_increment(created_tmp_disk_tables, &LOCK_status);
+  statistic_increment(table->in_use->status_var.created_tmp_disk_tables,
+		      &LOCK_status);
   table->db_record_offset=1;
   DBUG_RETURN(0);
  err:

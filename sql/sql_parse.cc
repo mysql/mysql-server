@@ -1327,6 +1327,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     this so that they will not get logged to the slow query log
   */
   thd->slow_command=FALSE;
+  thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id=query_id;
@@ -1342,7 +1343,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_INIT_DB:
   {
     LEX_STRING tmp;
-    statistic_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_status);
+    statistic_increment(thd->status_var.com_stat[SQLCOM_CHANGE_DB],
+			&LOCK_status);
     thd->convert_string(&tmp, system_charset_info,
 			packet, strlen(packet), thd->charset());
     if (!mysql_change_db(thd, tmp.str))
@@ -1363,7 +1365,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint db_len= *(uchar*) packet;
     uint tbl_len= *(uchar*) (packet + db_len + 1);
 
-    statistic_increment(com_other, &LOCK_status);
+    statistic_increment(thd->status_var.com_other, &LOCK_status);
     thd->slow_command= TRUE;
     db= thd->alloc(db_len + tbl_len + 2);
     tbl_name= strmake(db, packet + 1, db_len)+1;
@@ -1377,7 +1379,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->change_user();
     thd->clear_error();                         // if errors from rollback
 
-    statistic_increment(com_other, &LOCK_status);
+    statistic_increment(thd->status_var.com_other, &LOCK_status);
     char *user= (char*) packet;
     char *passwd= strend(user)+1;
     /* 
@@ -1544,7 +1546,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     TABLE_LIST table_list;
     LEX_STRING conv_name;
 
-    statistic_increment(com_stat[SQLCOM_SHOW_FIELDS],&LOCK_status);
+    statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS],
+			&LOCK_status);
     bzero((char*) &table_list,sizeof(table_list));
     if (!(table_list.db=thd->db))
     {
@@ -1570,7 +1573,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (grant_option &&
 	check_grant(thd, SELECT_ACL, &table_list, 2, UINT_MAX, 0))
       break;
+    /* switch on VIEW optimisation: do not fill temporary tables */
+    thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
+    /* init structures for VIEW processing */
+    table_list.select_lex= &(thd->lex->select_lex);
+    mysql_init_query(thd, (uchar*)"", 0);
+    thd->lex->
+      select_lex.table_list.link_in_list((byte*) &table_list,
+                                         (byte**) &table_list.next_local);
+
     mysqld_list_fields(thd,&table_list,fields);
+    thd->lex->unit.cleanup();
     thd->cleanup_after_query();
     break;
   }
@@ -1586,7 +1599,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       char *db=thd->strdup(packet), *alias;
 
-      statistic_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_status);
+      statistic_increment(thd->status_var.com_stat[SQLCOM_CREATE_DB],
+			  &LOCK_status);
       // null test to handle EOM
       if (!db || !(alias= thd->strdup(db)) || check_db_name(db))
       {
@@ -1601,7 +1615,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_DROP_DB:				// QQ: To be removed
     {
-      statistic_increment(com_stat[SQLCOM_DROP_DB],&LOCK_status);
+      statistic_increment(thd->status_var.com_stat[SQLCOM_DROP_DB],
+			  &LOCK_status);
       char *db=thd->strdup(packet), *alias;
       /*  null test to handle EOM */
       if (!db || !(alias= thd->strdup(db)) || check_db_name(db))
@@ -1623,7 +1638,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_BINLOG_DUMP:
     {
-      statistic_increment(com_other,&LOCK_status);
+      statistic_increment(thd->status_var.com_other,&LOCK_status);
       thd->slow_command = TRUE;
       if (check_global_access(thd, REPL_SLAVE_ACL))
 	break;
@@ -1649,7 +1664,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_REFRESH:
     {
-      statistic_increment(com_stat[SQLCOM_FLUSH],&LOCK_status);
+      statistic_increment(thd->status_var.com_stat[SQLCOM_FLUSH],
+			  &LOCK_status);
       ulong options= (ulong) (uchar) packet[0];
       if (check_global_access(thd,RELOAD_ACL))
 	break;
@@ -1663,7 +1679,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
-    statistic_increment(com_other,&LOCK_status);
+    statistic_increment(thd->status_var.com_other, &LOCK_status);
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
     /*
@@ -1702,7 +1718,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_STATISTICS:
   {
     mysql_log.write(thd,command,NullS);
-    statistic_increment(com_stat[SQLCOM_SHOW_STATUS],&LOCK_status);
+    statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS],
+			&LOCK_status);
 #ifndef EMBEDDED_LIBRARY
     char buff[200];
 #else
@@ -1712,8 +1729,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     sprintf((char*) buff,
 	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %ld  Opens: %ld  Flush tables: %ld  Open tables: %u  Queries per second avg: %.3f",
 	    uptime,
-	    (int) thread_count,thd->query_id,long_query_count,
-	    opened_tables,refresh_version, cached_tables(),
+	    (int) thread_count,thd->query_id,thd->status_var.long_query_count,
+	    thd->status_var.opened_tables,refresh_version, cached_tables(),
 	    uptime ? (float)thd->query_id/(float)uptime : 0);
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC
@@ -1728,11 +1745,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_PING:
-    statistic_increment(com_other,&LOCK_status);
+    statistic_increment(thd->status_var.com_other, &LOCK_status);
     send_ok(thd);				// Tell client we are alive
     break;
   case COM_PROCESS_INFO:
-    statistic_increment(com_stat[SQLCOM_SHOW_PROCESSLIST],&LOCK_status);
+    statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST],
+			&LOCK_status);
     if (!thd->priv_user[0] && check_global_access(thd,PROCESS_ACL))
       break;
     mysql_log.write(thd,command,NullS);
@@ -1742,14 +1760,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_KILL:
   {
-    statistic_increment(com_stat[SQLCOM_KILL],&LOCK_status);
+    statistic_increment(thd->status_var.com_stat[SQLCOM_KILL], &LOCK_status);
     ulong id=(ulong) uint4korr(packet);
     kill_one_thread(thd,id,false);
     break;
   }
   case COM_SET_OPTION:
   {
-    statistic_increment(com_stat[SQLCOM_SET_OPTION], &LOCK_status);
+    statistic_increment(thd->status_var.com_stat[SQLCOM_SET_OPTION],
+			&LOCK_status);
     enum_mysql_set_option command= (enum_mysql_set_option) uint2korr(packet);
     switch (command) {
     case MYSQL_OPTION_MULTI_STATEMENTS_ON:
@@ -1767,7 +1786,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_DEBUG:
-    statistic_increment(com_other,&LOCK_status);
+    statistic_increment(thd->status_var.com_other, &LOCK_status);
     if (check_global_access(thd, SUPER_ACL))
       break;					/* purecov: inspected */
     mysql_print_status(thd);
@@ -1806,7 +1825,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	  (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
 	 (specialflag & SPECIAL_LOG_QUERIES_NOT_USING_INDEXES)))
     {
-      long_query_count++;
+      thd->status_var.long_query_count++;
       mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
     }
   }
@@ -1983,7 +2002,8 @@ mysql_execute_command(THD *thd)
     DBUG_RETURN(-1);
   }
 
-  statistic_increment(com_stat[lex->sql_command],&LOCK_status);
+  statistic_increment(thd->status_var.com_stat[lex->sql_command],
+		      &LOCK_status);
   switch (lex->sql_command) {
   case SQLCOM_SELECT:
   {
@@ -2392,31 +2412,6 @@ mysql_execute_command(THD *thd)
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
-      /*
-        Is table which we are changing used somewhere in other parts
-        of query
-      */
-      if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-	  find_table_in_global_list(select_tables, create_table->db,
-                                    create_table->real_name))
-      {
-	net_printf(thd, ER_UPDATE_TABLE_USED, create_table->real_name);
-	goto create_error;
-      }
-      if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
-      {
-        TABLE_LIST *tab;
-        for (tab= select_tables; tab; tab= tab->next_local)
-        {
-          if (find_table_in_local_list((TABLE_LIST*) lex->create_info.
-                                       merge_list.first,
-                                       select_tables->db, tab->real_name))
-          {
-            net_printf(thd, ER_UPDATE_TABLE_USED, tab->real_name);
-            goto create_error;
-          }
-        }  
-      }    
 
       if (select_tables &&
 	  check_table_access(thd, SELECT_ACL, select_tables, 0))
@@ -2426,6 +2421,32 @@ mysql_execute_command(THD *thd)
 
       if (!(res= open_and_lock_tables(thd, select_tables)))
       {
+        /*
+          Is table which we are changing used somewhere in other parts
+          of query
+        */
+        if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+            unique_table(create_table, select_tables))
+        {
+          net_printf(thd, ER_UPDATE_TABLE_USED, create_table->real_name);
+          goto create_error;
+        }
+        /* If we create merge table, we have to test tables in merge, too */
+        if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
+        {
+          TABLE_LIST *tab;
+          for (tab= (TABLE_LIST*) lex->create_info.merge_list.first;
+               tab;
+               tab= tab->next_local)
+          {
+            if (unique_table(tab, select_tables))
+            {
+              net_printf(thd, ER_UPDATE_TABLE_USED, tab->real_name);
+              goto create_error;
+            }
+          }
+        }
+
         if ((result= new select_create(create_table,
 				       &lex->create_info,
 				       lex->create_list,
@@ -2781,30 +2802,33 @@ unsent_create_error:
     select_result *result;
     unit->set_limit(select_lex, select_lex);
 
-    // is table which we are changing used somewhere in other parts of query
-    if (find_table_in_global_list(all_tables->next_global,
-				  first_table->db, first_table->real_name))
+    if (!(res= open_and_lock_tables(thd, all_tables)))
     {
-      /* Using same table for INSERT and SELECT */
-      select_lex->options |= OPTION_BUFFER_RESULT;
-    }
-
-    if (!(res= open_and_lock_tables(thd, all_tables)) &&
-        !(res= mysql_insert_select_prepare(thd)) &&
-        (result= new select_insert(first_table, first_table->table,
-                                   &lex->field_list, lex->duplicates)))
-    {
-      /* Skip first table, which is the table we are inserting in */
-      lex->select_lex.table_list.first= (byte*) first_table->next_local;
       /*
-        insert/replace from SELECT give its SELECT_LEX for SELECT,
-        and item_list belong to SELECT
+        Is table which we are changing used somewhere in other parts of
+        query
       */
-      lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
-      res= handle_select(thd, lex, result);
-      lex->select_lex.table_list.first= (byte*) first_table;
-      lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
-      delete result;
+      if (unique_table(first_table, all_tables->next_independent()))
+      {
+        /* Using same table for INSERT and SELECT */
+        select_lex->options |= OPTION_BUFFER_RESULT;
+      }
+
+      if ((res= mysql_insert_select_prepare(thd)))
+        break;
+      if ((result= new select_insert(first_table, first_table->table,
+                                     &lex->field_list, lex->duplicates)))
+	/* Skip first table, which is the table we are inserting in */
+	lex->select_lex.table_list.first= (byte*) first_table->next_local;
+        /*
+          insert/replace from SELECT give its SELECT_LEX for SELECT,
+          and item_list belong to SELECT
+        */
+	lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
+	res= handle_select(thd, lex, result);
+	/* revert changes for SP */
+	lex->select_lex.table_list.first= (byte*) first_table;
+	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
       if (thd->net.report_error)
         res= -1;
     }
@@ -2960,13 +2984,23 @@ unsent_create_error:
     res= mysqld_show_column_types(thd);
     break;
   case SQLCOM_SHOW_STATUS:
-    res= mysqld_show(thd,(lex->wild ? lex->wild->ptr() : NullS),status_vars,
-		     OPT_GLOBAL, &LOCK_status);
+    STATUS_VAR tmp;
+    if (lex->option_type == OPT_GLOBAL)
+    {
+      pthread_mutex_lock(&LOCK_status);
+      calc_sum_of_all_status(&tmp);
+    }
+    res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
+		     status_vars, OPT_GLOBAL, &LOCK_status,
+		     (lex->option_type == OPT_GLOBAL ? 
+		      &tmp: &thd->status_var));
+    if (lex->option_type == OPT_GLOBAL)
+      pthread_mutex_unlock(&LOCK_status);
     break;
   case SQLCOM_SHOW_VARIABLES:
     res= mysqld_show(thd, (lex->wild ? lex->wild->ptr() : NullS),
 		     init_vars, lex->option_type,
-		     &LOCK_global_system_variables);
+		     &LOCK_global_system_variables, 0);
     break;
   case SQLCOM_SHOW_LOGS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
@@ -3861,6 +3895,20 @@ purposes internal to the MySQL server", MYF(0));
       res= mysql_drop_view(thd, first_table, thd->lex->drop_mode);
       break;
     }
+  case SQLCOM_CREATE_TRIGGER:
+  {
+    /* We don't care much about trigger body at that point */
+    delete lex->sphead;
+    lex->sphead= 0;
+
+    res= mysql_create_or_drop_trigger(thd, all_tables, 1);
+    break;
+  }
+  case SQLCOM_DROP_TRIGGER:
+  {
+    res= mysql_create_or_drop_trigger(thd, all_tables, 0);
+    break;
+  }
   default:					/* Impossible */
     send_ok(thd);
     break;
@@ -5125,8 +5173,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   /* Link table in local list (list for current select) */
   table_list.link_in_list((byte*) ptr, (byte**) &ptr->next_local);
   /* Link table in global list (all used tables) */
-  *(ptr->prev_global= lex->query_tables_last)= ptr;
-  lex->query_tables_last= &ptr->next_global;
+  lex->add_to_query_tables(ptr);
   DBUG_RETURN(ptr);
 }
 
@@ -5135,9 +5182,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   Initialize a new table list for a nested join
 
   SYNOPSIS
-    init_table_list() 
+    init_table_list()
     thd         current thread
-  
+
   DESCRIPTION
     The function initializes a structure of the TABLE_LIST type
     for a nested join. It sets up its nested join list as empty.
@@ -5157,7 +5204,7 @@ bool st_select_lex::init_nested_join(THD *thd)
   TABLE_LIST *ptr;
   NESTED_JOIN *nested_join;
   DBUG_ENTER("init_nested_join");
-  
+
   if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))) ||
       !(nested_join= ptr->nested_join=
                     (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
@@ -5182,7 +5229,7 @@ bool st_select_lex::init_nested_join(THD *thd)
   DESCRIPTION
     The function returns to the previous join nest level.
     If the current level contains only one member, the function
-    moves it one level up, eliminating the nest. 
+    moves it one level up, eliminating the nest.
 
   RETURN VALUE
     Pointer to TABLE_LIST element added to the total table list, if success
@@ -5214,7 +5261,7 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
   Nest last join operation
 
   SYNOPSIS
-    nest_last_join() 
+    nest_last_join()
     thd         current thread
 
   DESCRIPTION
@@ -5230,7 +5277,7 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
   TABLE_LIST *ptr;
   NESTED_JOIN *nested_join;
   DBUG_ENTER("nest_last_join");
-  
+
   if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))) ||
       !(nested_join= ptr->nested_join=
                     (NESTED_JOIN *) thd->calloc(sizeof(NESTED_JOIN))))
@@ -5254,7 +5301,7 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
 
 /*
   Save names for a join with using clase
-   
+
   SYNOPSIS
     save_names_for_using_list
     tab1      left table in join
@@ -5262,11 +5309,11 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
 
   DESCRIPTION
     The function saves the full names of the tables in st_select_lex
-    to be able to build later an on expression to replace the using clause.   
-  
+    to be able to build later an on expression to replace the using clause.
+
   RETURN VALUE
-    None  
-*/    
+    None
+*/
 
 void st_select_lex::save_names_for_using_list(TABLE_LIST *tab1,
                                               TABLE_LIST *tab2)
@@ -5288,7 +5335,7 @@ void st_select_lex::save_names_for_using_list(TABLE_LIST *tab1,
   db2= tab2->db;
   table2= tab2->alias;
 }
-  
+
 
 /*
   Add a table to the current join list
@@ -5323,9 +5370,9 @@ void st_select_lex::add_joined_table(TABLE_LIST *table)
   SYNOPSIS
     convert_right_join()
     thd         current thread
-  
-  DESCRIPTION 
-    The function takes the current join list t[0],t[1] ... and 
+
+  DESCRIPTION
+    The function takes the current join list t[0],t[1] ... and
     effectively converts it into the list t[1],t[0] ...
     Although the outer_join flag for the new nested table contains
     JOIN_TYPE_RIGHT, it will be handled as the inner table of a left join
@@ -5349,10 +5396,10 @@ void st_select_lex::add_joined_table(TABLE_LIST *table)
     0, otherwise
 */
 
-TABLE_LIST *st_select_lex::convert_right_join() 
+TABLE_LIST *st_select_lex::convert_right_join()
 {
   TABLE_LIST *tab2= join_list->pop();
-  TABLE_LIST *tab1= join_list->pop(); 
+  TABLE_LIST *tab1= join_list->pop();
   DBUG_ENTER("convert_right_join");
 
   join_list->push_front(tab2);
@@ -5416,7 +5463,7 @@ void add_join_on(TABLE_LIST *b,Item *expr)
     add_join_natural()
     a			Table to do normal join with
     b			Do normal join with this table
-  
+
   IMPLEMENTATION
     This function just marks that table b should be joined with a.
     The function setup_cond() will create in b->on_expr a list
@@ -5636,6 +5683,13 @@ static void refresh_status(void)
 		    (uint) ((char*) (ptr->value) -
 			    (char*) &dflt_key_cache_var));
       *(ulong*) value= 0;
+    }
+    else if (ptr->type == SHOW_LONG_STATUS)
+    {
+      THD *thd= current_thd;
+      /* We must update the global status before cleaning up the thread */
+      add_to_status(&global_status_var, &thd->status_var);
+      bzero((char*) &thd->status_var, sizeof(thd->status_var));
     }
   }
   pthread_mutex_unlock(&LOCK_status);
