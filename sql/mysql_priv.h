@@ -632,10 +632,11 @@ int mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
 int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
-			bool group, bool modify_item, uint convert_blob_length);
+			bool group, bool modify_item,
+                        uint convert_blob_length);
 int prepare_create_field(create_field *sql_field, 
-			 uint &blob_columns, 
-			 int &timestamps, int &timestamps_with_niladic,
+			 uint *blob_columns, 
+			 int *timestamps, int *timestamps_with_niladic,
 			 uint table_flags);
 int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 		       List<create_field> &fields,
@@ -661,7 +662,7 @@ bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        uint order_num, ORDER *order,
                        enum enum_duplicates handle_duplicates,
                        bool ignore,
-                       ALTER_INFO *alter_info, bool do_send_ok=1);
+                       ALTER_INFO *alter_info, bool do_send_ok);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              HA_CREATE_INFO *create_info,
@@ -705,7 +706,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
 		  bool *refresh);
 TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table);
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
-bool reopen_table(TABLE *table,bool locked=0);
+bool reopen_table(TABLE *table,bool locked);
 bool reopen_tables(THD *thd,bool get_locks,bool in_refresh);
 void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
 			  bool send_refresh);
@@ -769,7 +770,7 @@ void append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
-int mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd = -1);
+int mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd);
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);
 bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 
@@ -790,7 +791,7 @@ void calc_sum_of_all_status(STATUS_VAR *to);
 extern LEX_STRING information_schema_name;
 LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
                             const char* str, uint length,
-                            bool allocate_lex_string= 0);
+                            bool allocate_lex_string);
 ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name);
 ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx);
 int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
@@ -806,7 +807,7 @@ bool get_schema_tables_result(JOIN *join);
 
 /* sql_prepare.cc */
 bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length, 
-                        LEX_STRING *name=NULL);
+                        LEX_STRING *name);
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length);
 void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name);
 void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length);
@@ -821,11 +822,11 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint 
                           const char *msg);
 void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
 			 uint code, const char *format, ...);
-void mysql_reset_errors(THD *thd, bool force= false);
+void mysql_reset_errors(THD *thd, bool force);
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 /* sql_handler.cc */
-bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen= 0);
+bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen);
 bool mysql_ha_close(THD *thd, TABLE_LIST *tables);
 bool mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                    List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
@@ -854,15 +855,15 @@ create_field * new_create_field(THD *thd, char *field_name, enum_field_types typ
 				List<String> *interval_list, CHARSET_INFO *cs,
 				uint uint_geom_type);
 void store_position_for_column(const char *name);
-bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc=0);
+bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b);
 bool add_proc_to_list(THD *thd, Item *item);
 TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
-			table_map read_tables, COND *conds, int *error,
-                        bool allow_null_cond= false);
+			table_map read_tables, COND *conds,
+                        bool allow_null_cond,  int *error);
 extern Item **not_found_item;
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
                           find_item_error_report_type report_error,
@@ -905,13 +906,13 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 TABLE_LIST *unique_table(TABLE_LIST *table, TABLE_LIST *table_list);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
-void close_temporary(TABLE *table, bool delete_table=1);
+void close_temporary(TABLE *table, bool delete_table);
 bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 void remove_db_from_cache(const char *db);
 void flush_tables();
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
-			     bool return_if_owned_by_thd=0);
+			     bool return_if_owned_by_thd);
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
 bool fill_record(THD *thd, List<Item> &fields, List<Item> &values,
@@ -1170,7 +1171,7 @@ void unlock_table_name(THD *thd, TABLE_LIST *table_list);
 bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list);
 void unlock_table_names(THD *thd, TABLE_LIST *table_list,
-			TABLE_LIST *last_table= 0);
+			TABLE_LIST *last_table);
 
 
 /* old unireg functions */

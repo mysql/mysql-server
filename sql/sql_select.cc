@@ -675,8 +675,8 @@ JOIN::optimize()
     /* Handle the case where we have an OUTER JOIN without a WHERE */
     conds=new Item_int((longlong) 1,1);	// Always true
   }
-  select=make_select(*table, const_table_map,
-		     const_table_map, conds, &error, true);
+  select= make_select(*table, const_table_map,
+                      const_table_map, conds, 1, &error);
   if (error)
   {						/* purecov: inspected */
     error= -1;					/* purecov: inspected */
@@ -2398,7 +2398,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
       select= make_select(s->table, found_const_table_map,
 			  found_const_table_map,
 			  *s->on_expr_ref ? *s->on_expr_ref : conds,
-			  &error, true);
+			  1, &error);
       if (!select)
         DBUG_RETURN(1);
       records= get_quick_record_count(join->thd, select, s->table,
@@ -12495,7 +12495,8 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     error=(int) cond->add(join_tab->select->cond);
     join_tab->select_cond=join_tab->select->cond=cond;
   }
-  else if ((join_tab->select=make_select(join_tab->table, 0, 0, cond,&error)))
+  else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,
+                                          &error)))
     join_tab->select_cond=cond;
 
   DBUG_RETURN(error ? TRUE : FALSE);

@@ -633,7 +633,7 @@ void close_temporary_tables(THD *thd)
                     table->s->table_name,"`,", NullS);
     }
     next=table->next;
-    close_temporary(table);
+    close_temporary(table, 1);
   }
   if (query && found_user_tables && mysql_bin_log.is_open())
   {
@@ -798,7 +798,7 @@ bool close_temporary_table(THD *thd, const char *db, const char *table_name)
     return 1;
   table= *prev;
   *prev= table->next;
-  close_temporary(table);
+  close_temporary(table, 1);
   if (thd->slave_thread)
     --slave_open_temp_tables;
   return 0;
@@ -1606,7 +1606,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       if (ha_create_table_from_engine(thd, db, name, TRUE) != 0)
        goto err;
 
-      mysql_reset_errors(thd, true); // Clear warnings
+      mysql_reset_errors(thd, 1);    // Clear warnings
       thd->clear_error();            // Clear error message
       continue;
     }

@@ -2575,7 +2575,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       "data truncated" warning but which is absorbed and never gets to the
       error log); still we init it to avoid a Valgrind message.
     */
-    mysql_reset_errors(thd);
+    mysql_reset_errors(thd, 0);
 
     TABLE_LIST tables;
     bzero((char*) &tables,sizeof(tables));
