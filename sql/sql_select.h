@@ -108,6 +108,8 @@ typedef struct st_join_table {
   TABLE_REF	ref;
   JOIN_CACHE	cache;
   JOIN		*join;
+
+  void cleanup();
 } JOIN_TAB;
 
 
