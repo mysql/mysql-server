@@ -4136,14 +4136,18 @@ expr_or_default:
 opt_insert_update:
         /* empty */
         | ON DUPLICATE_SYM
-          { /* for simplisity, let's forget about
-               INSERT ... SELECT ... UPDATE
-               for a moment */
-	    if (Lex->sql_command != SQLCOM_INSERT)
+          { 
+            LEX *lex= Lex;
+            /*
+              For simplicity, let's forget about INSERT ... SELECT ... UPDATE
+              for a moment.
+            */
+	    if (lex->sql_command != SQLCOM_INSERT)
             {
 	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
+            lex->duplicates= DUP_UPDATE;
           }
           KEY_SYM UPDATE_SYM update_list
         ;
