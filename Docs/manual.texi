@@ -46054,16 +46054,16 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Fixed slave to replicate from 3.23 master
+Fixed slave to replicate from 3.23 master.
 @item
-Misc replication fixes/cleanup
+Miscellaneous replication fixes/cleanup.
 @item
-Got shutdown to work on MacOS X
+Got shutdown to work on Mac OS X.
 @item
 Added @file{myisam/ft_dump} utility for low-level inspection
 of @code{FULLTEXT} indexes.
 @item
-Fixed bug in @code{DELETE ... WHERE ... MATCH ...}
+Fixed bug in @code{DELETE ... WHERE ... MATCH ...}.
 @item
 Added support for @code{MATCH ... AGAINST(... IN BOOLEAN MODE)}.
 @strong{Note: you have to rebuild your tables with
