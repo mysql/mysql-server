@@ -7188,11 +7188,13 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
     for (nr=0; nr < table->keys ; nr++)
     {
-      uint not_used;
+      uint used_key_parts;
       if (keys.is_set(nr))
       {
 	int flag;
-	if ((flag=test_if_order_by_key(order, table, nr, &not_used)))
+	if ((flag=test_if_order_by_key(order, table, nr, &used_key_parts)) > 0 ||
+	    ((flag < 0) && (table->file->index_flags(nr,used_key_parts-1, 1)
+			    & HA_READ_PREV)))
 	{
 	  if (!no_changes)
 	  {
