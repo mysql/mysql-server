@@ -150,7 +150,7 @@ then
     INSERT INTO user (host,user) values ('$hostname','');"
   else
     i_u="INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);"
-    if test "$windows" -eq 0
+    if test "$windows" = "0"
     then
       i_u="$i_u 
            INSERT INTO user VALUES ('$hostname','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0);

@@ -1474,6 +1474,7 @@ static void print_help_item(MYSQL_ROW *cur, int num_name, int num_cat, char *las
   tee_fprintf(PAGER, "   %s\n", (*cur)[num_name]);
 }
 
+
 static int com_server_help(String *buffer __attribute__((unused)),
 			   char *line __attribute__((unused)), char *help_arg)
 {
@@ -1575,23 +1576,19 @@ com_help(String *buffer __attribute__((unused)),
   char * help_arg= strchr(line,' ');
 
   if (help_arg)
-  {
     return com_server_help(buffer,line,help_arg+1);
-  }
-  else
+
+  put_info("\nFor the complete MySQL Manual online visit:\n   http://www.mysql.com/documentation\n", INFO_INFO);
+  put_info("For info on technical support from MySQL developers visit:\n   http://www.mysql.com/support\n", INFO_INFO);
+  put_info("For info on MySQL books, utilities, consultants, etc. visit:\n   http://www.mysql.com/portal\n", INFO_INFO);
+  put_info("List of all MySQL commands:", INFO_INFO);
+  if (!named_cmds)
+    put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
+  for (i = 0; commands[i].name; i++)
   {
-    put_info("\nFor the complete MySQL Manual online visit:\n   http://www.mysql.com/documentation\n", INFO_INFO);
-    put_info("For info on technical support from MySQL developers visit:\n   http://www.mysql.com/support\n", INFO_INFO);
-    put_info("For info on MySQL books, utilities, consultants, etc. visit:\n   http://www.mysql.com/portal\n", INFO_INFO);
-    put_info("List of all MySQL commands:", INFO_INFO);
-    if (!named_cmds)
-      put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
-    for (i = 0; commands[i].name; i++)
-    {
-      if (commands[i].func)
-        tee_fprintf(stdout, "%s\t(\\%c)\t%s\n", commands[i].name,
-		    commands[i].cmd_char, commands[i].doc);
-    }
+    if (commands[i].func)
+      tee_fprintf(stdout, "%s\t(\\%c)\t%s\n", commands[i].name,
+		  commands[i].cmd_char, commands[i].doc);
   }
   if (connected && mysql_get_server_version(&mysql) >= 40100)
     put_info("\nFor server side help, type 'help all'\n", INFO_INFO);
