@@ -59,6 +59,19 @@ row_mysql_read_var_ref_noninline(
 }
 
 /***********************************************************************
+Frees the blob heap in prebuilt when no longer needed. */
+
+void
+row_mysql_prebuilt_free_blob_heap(
+/*==============================*/
+	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct of a
+					ha_innobase:: table handle */
+{
+	mem_heap_free(prebuilt->blob_heap);
+	prebuilt->blob_heap = NULL;
+}
+
+/***********************************************************************
 Stores a reference to a BLOB in the MySQL format. */
 
 void

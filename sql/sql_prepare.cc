@@ -628,7 +628,7 @@ static bool parse_prepare_query(PREP_STMT *stmt,
   Initialize parameter items in statement
 */
 
-static bool init_param_items( PREP_STMT *stmt)
+static bool init_param_items(PREP_STMT *stmt)
 {
   List<Item> &params= stmt->thd->lex.param_list;
   Item_param **to;
@@ -640,6 +640,24 @@ static bool init_param_items( PREP_STMT *stmt)
   List_iterator<Item> param_iterator(params);
   while ((*(to++) = (Item_param *)param_iterator++));
   return 0;
+}
+
+/*
+  Initialize stmt execution
+*/
+
+static void init_stmt_execute(PREP_STMT *stmt)
+{
+  THD *thd= stmt->thd;
+  TABLE_LIST *tables=(TABLE_LIST*) thd->lex.select_lex.table_list.first;
+  
+  /*
+  TODO: When the new table structure is ready, then have a status bit 
+        to indicate the table is altered, and re-do the setup_* 
+        and open the tables back.
+  */
+  if (tables)
+    tables->table=0; //safety - nasty init
 }
 
 /*
@@ -721,6 +739,8 @@ void mysql_stmt_execute(THD *thd, char *packet)
     send_error(thd, stmt->last_errno, stmt->last_error);
     DBUG_VOID_RETURN;
   }
+
+  init_stmt_execute(stmt);
 
   if (stmt->param_count && setup_params_data(stmt))
     DBUG_VOID_RETURN;

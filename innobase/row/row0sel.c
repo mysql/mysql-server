@@ -2039,9 +2039,12 @@ Note that the template in prebuilt may advise us to copy only a few
 columns to mysql_rec, other columns are left blank. All columns may not
 be needed in the query. */
 static
-void
+ibool
 row_sel_store_mysql_rec(
 /*====================*/
+					/* out: TRUE if success, FALSE
+					if could not allocate memory for a
+					BLOB */
 	byte*		mysql_rec,	/* out: row in the MySQL format */
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
 	rec_t*		rec)		/* in: Innobase record in the index
@@ -2092,7 +2095,19 @@ row_sel_store_mysql_rec(
 			if (templ->type == DATA_BLOB) {
 
 				ut_a(prebuilt->templ_contains_blob);
-				
+
+				/* A heuristic test that we can allocate
+				the memory for a big BLOB. We have a safety
+				margin of 1000000 bytes. Since the test
+				takes some CPU time, we do not use for small
+				BLOBs. */
+
+				if (len > 2000000
+				    && !ut_test_malloc(len + 1000000)) {
+
+					return(FALSE);
+				}
+
 				/* Copy the BLOB data to the BLOB
 				heap of prebuilt */
 
@@ -2142,6 +2157,8 @@ row_sel_store_mysql_rec(
 			}
 		}
 	} 
+
+	return(TRUE);
 }
 
 /*************************************************************************
@@ -2526,7 +2543,8 @@ row_search_for_mysql(
 /*=================*/
 					/* out: DB_SUCCESS,
 					DB_RECORD_NOT_FOUND, 
-					DB_END_OF_INDEX, or DB_DEADLOCK */
+					DB_END_OF_INDEX, DB_DEADLOCK,
+					or DB_TOO_BIG_RECORD */
 	byte*		buf,		/* in/out: buffer for the fetched
 					row in the MySQL format */
 	ulint		mode,		/* in: search mode PAGE_CUR_L, ... */
@@ -2758,7 +2776,12 @@ row_search_for_mysql(
 #ifdef UNIV_SEARCH_DEBUG
 				ut_a(0 == cmp_dtuple_rec(search_tuple, rec));
 #endif 
-				row_sel_store_mysql_rec(buf, prebuilt, rec);
+				if (!row_sel_store_mysql_rec(buf, prebuilt,
+								rec)) {
+ 					err = DB_TOO_BIG_RECORD;
+
+ 					goto lock_wait_or_error;
+				}
 	
  				mtr_commit(&mtr);
 
@@ -3200,7 +3223,11 @@ rec_loop:
 						rec_get_size(rec));
 			mach_write_to_4(buf, rec_get_extra_size(rec) + 4);
 		} else {
-			row_sel_store_mysql_rec(buf, prebuilt, rec);
+			if (!row_sel_store_mysql_rec(buf, prebuilt, rec)) {
+				err = DB_TOO_BIG_RECORD;
+
+				goto lock_wait_or_error;
+			}
 		}
 
 		if (prebuilt->clust_index_was_generated) {
