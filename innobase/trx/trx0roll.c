@@ -116,11 +116,11 @@ trx_rollback_for_mysql(
 		return(DB_SUCCESS);
 	}
 
-	trx->op_info = (char *) "rollback";
+	trx->op_info = "rollback";
 	
 	err = trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return(err);
 }	
@@ -141,14 +141,14 @@ trx_rollback_last_sql_stat_for_mysql(
 		return(DB_SUCCESS);
 	}
 
-	trx->op_info = (char *) "rollback of SQL statement";
+	trx->op_info = "rollback of SQL statement";
 	
 	err = trx_general_rollback_for_mysql(trx, TRUE,
 						&(trx->last_sql_stat_start));
 	/* The following call should not be needed, but we play safe: */
 	trx_mark_sql_stat_end(trx);
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 	
 	return(err);
 }
@@ -239,7 +239,7 @@ trx_rollback_to_savepoint_for_mysql(
 
 	*mysql_binlog_cache_pos = savep->mysql_binlog_cache_pos;
 
-	trx->op_info = (char *) "rollback to a savepoint";
+	trx->op_info = "rollback to a savepoint";
 	
 	err = trx_general_rollback_for_mysql(trx, TRUE, &(savep->savept));
 
@@ -248,7 +248,7 @@ trx_rollback_to_savepoint_for_mysql(
 
 	trx_mark_sql_stat_end(trx);
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return(err);
 }
@@ -343,7 +343,7 @@ trx_rollback_or_clean_all_without_sess(void)
 	trx_t*		trx;
 	dict_table_t*	table;
 	ib_longlong	rows_to_undo;
-	char*		unit		= (char*)"";
+	const char*	unit		= "";
 	int		err;
 
 	mutex_enter(&kernel_mutex);
@@ -421,7 +421,7 @@ loop:
 	rows_to_undo = trx_roll_max_undo_no;
 	if (rows_to_undo > 1000000000) {
 		rows_to_undo = rows_to_undo / 1000000;
-		unit = (char*)"M";
+		unit = "M";
 	}
 
 	fprintf(stderr,

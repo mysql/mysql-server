@@ -530,7 +530,7 @@ pars_retrieve_table_def(
 /*====================*/
 	sym_node_t*	sym_node)	/* in: table node */
 {
-	char*	table_name;
+	const char*	table_name;
 
 	ut_a(sym_node);
 	ut_a(que_node_get_type(sym_node) == QUE_NODE_SYMBOL);
@@ -538,7 +538,7 @@ pars_retrieve_table_def(
 	sym_node->resolved = TRUE;
 	sym_node->token_type = SYM_TABLE;
 
-	table_name = (char*) sym_node->name;
+	table_name = (const char*) sym_node->name;
 	
 	sym_node->table = dict_table_get_low(table_name);
 
