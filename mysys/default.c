@@ -164,8 +164,11 @@ int load_defaults(const char *conf_file, const char **groups,
   if (forced_default_file)
   {
     if ((error= search_default_file(&args, &alloc, "",
-				    forced_default_file, "", &group)) < 0)
+				    forced_default_file, "", &group)))
+    {
+      fprintf(stderr, "Error reading '%s' file.\n", forced_default_file);
       goto err;
+    }
   }
   else if (dirname_length(conf_file))
   {
@@ -199,8 +202,11 @@ int load_defaults(const char *conf_file, const char **groups,
       else if (defaults_extra_file)
       {
 	if (search_default_file(&args, &alloc, NullS, defaults_extra_file,
-				default_ext, &group) < 0)
+				default_ext, &group))
+        {
+          fprintf(stderr, "Error reading '%s' file.\n", defaults_extra_file);
 	  goto err;				/* Fatal error */
+        }
       }
     }
   }
