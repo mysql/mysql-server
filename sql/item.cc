@@ -265,8 +265,9 @@ CHARSET_INFO *Item::default_charset()
   return current_thd->variables.collation_connection;
 }
 
-bool DTCollation::aggregate(DTCollation &dt)
+bool DTCollation::aggregate(DTCollation &dt, bool superset_conversion)
 {
+  nagg++;
   if (!my_charset_same(collation, dt.collation))
   {
     /* 
@@ -280,14 +281,38 @@ bool DTCollation::aggregate(DTCollation &dt)
       if (derivation <= dt.derivation)
 	; // Do nothing
       else
-	set(dt);
+      {
+	set(dt); 
+        strong= nagg;
+      }
     }
     else if (dt.collation == &my_charset_bin)
     {
       if (dt.derivation <= derivation)
+      {
         set(dt);
+        strong= nagg;
+      }
       else
        ; // Do nothing
+    }
+    else if (superset_conversion)
+    {
+      if (derivation < dt.derivation &&
+          collation->state & MY_CS_UNICODE)
+        ; // Do nothing
+      else if (dt.derivation < derivation &&
+               dt.collation->state & MY_CS_UNICODE)
+      {
+        set(dt);
+        strong= nagg;
+      }
+      else
+      {
+        // Cannot convert to superset
+        set(0, DERIVATION_NONE);
+        return 1;
+      }
     }
     else
     {
@@ -302,6 +327,7 @@ bool DTCollation::aggregate(DTCollation &dt)
   else if (dt.derivation < derivation)
   {
     set(dt);
+    strong= nagg;
   }
   else
   { 
