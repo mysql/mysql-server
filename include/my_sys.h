@@ -845,7 +845,8 @@ extern char *get_charsets_dir(char *buf);
 extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
 extern my_bool init_compiled_charsets(myf flags);
 extern void add_compiled_collation(CHARSET_INFO *cs);
-extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
+extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info,
+                                     char *to, ulong to_length,
                                      const char *from, ulong length);
 
 extern void thd_increment_bytes_sent(ulong length);

@@ -1575,14 +1575,14 @@ mysql_hex_string(char *to, const char *from, ulong length)
 ulong STDCALL
 mysql_escape_string(char *to,const char *from,ulong length)
 {
-  return escape_string_for_mysql(default_charset_info, to, from, length);
+  return escape_string_for_mysql(default_charset_info, to, 0, from, length);
 }
 
 ulong STDCALL
 mysql_real_escape_string(MYSQL *mysql, char *to,const char *from,
 			 ulong length)
 {
-  return escape_string_for_mysql(mysql->charset, to, from, length);
+  return escape_string_for_mysql(mysql->charset, to, 0, from, length);
 }
 
 
