@@ -454,7 +454,7 @@ struct show_var_st init_vars[]= {
   {"log",                     (char*) &opt_log,                     SHOW_BOOL},
   {"log_update",              (char*) &opt_update_log,              SHOW_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
-  {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_BOOL},
+  {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_MY_BOOL},
   {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_BOOL},
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
@@ -481,7 +481,7 @@ struct show_var_st init_vars[]= {
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
   {sys_myisam_sort_buffer_size.name, (char*) &sys_myisam_sort_buffer_size, SHOW_SYS},
 #ifdef __NT__
-  {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_BOOL},
+  {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_MY_BOOL},
 #endif
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},
@@ -1208,7 +1208,8 @@ void set_var_free()
 
 sys_var *find_sys_var(const char *str, uint length)
 {
-  sys_var *var= (sys_var*) hash_search(&system_variable_hash, str,
+  sys_var *var= (sys_var*) hash_search(&system_variable_hash,
+				       (byte*) str,
 				       length ? length :
 				       strlen(str));
   if (!var)
