@@ -1259,11 +1259,12 @@ int STDCALL mysql_rpl_probe(MYSQL* mysql)
     return 1;
   }
 
-  if (!(row = mysql_fetch_row(res)))
-    goto err;
-
-  /* check master host for emptiness/NULL */
-  if (row[0] && *(row[0]))
+  row= mysql_fetch_row(res);
+  /*
+    Check master host for emptiness/NULL
+    For MySQL 4.0 it's enough to check for row[0]
+  */
+  if (row && row[0] && *(row[0]))
   {
     /* this is a slave, ask it for the master */
     if (get_master(mysql, res, row) || get_slaves_from_master(mysql))

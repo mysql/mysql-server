@@ -706,12 +706,12 @@ void kill_mysql(void)
 #elif defined(OS2)
   pthread_cond_signal( &eventShutdown);		// post semaphore
 #elif defined(HAVE_PTHREAD_KILL)
-  if (pthread_kill(signal_thread,SIGTERM))	/* End everything nicely */
+  if (pthread_kill(signal_thread, MYSQL_KILL_SIGNAL))
   {
     DBUG_PRINT("error",("Got error %d from pthread_kill",errno)); /* purecov: inspected */
   }
 #elif !defined(SIGNALS_DONT_BREAK_READ)
-  kill(current_pid,SIGTERM);
+  kill(current_pid, MYSQL_KILL_SIGNAL);
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
   shutdown_in_progress=1;			// Safety if kill didn't work
@@ -1459,8 +1459,8 @@ static void init_signals(void)
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGTERM);
   sigaddset(&set,SIGHUP);
-  signal(SIGTERM,SIG_DFL);			// If it's blocked by parent
-  signal(SIGHUP,SIG_DFL);			// If it's blocked by parent
+  sigset(SIGTERM, print_signal_warning);	// If it's blocked by parent
+  sigset(SIGHUP, print_signal_warning);		// If it's blocked by parent
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
@@ -1560,7 +1560,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
     int error;					// Used when debugging
     if (shutdown_in_progress && !abort_loop)
     {
-      sig=SIGTERM;
+      sig= SIGTERM;
       error=0;
     }
     else

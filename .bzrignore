@@ -493,3 +493,4 @@ sql-bench/innotest2a
 sql-bench/innotest2b
 myisam/test2.MYD
 myisam/test2.MYI
+libmysqld/set_var.cc

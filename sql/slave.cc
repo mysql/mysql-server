@@ -1411,36 +1411,38 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   if (send_fields(thd, field_list, 1))
     DBUG_RETURN(-1);
 
-  String* packet = &thd->packet;
-  packet->length(0);
+  if (mi->host[0])
+  {
+    String *packet= &thd->packet;
+    packet->length(0);
   
-  pthread_mutex_lock(&mi->data_lock);
-  pthread_mutex_lock(&mi->rli.data_lock);
-  net_store_data(packet, mi->host);
-  net_store_data(packet, mi->user);
-  net_store_data(packet, (uint32) mi->port);
-  net_store_data(packet, (uint32) mi->connect_retry);
-  net_store_data(packet, mi->master_log_name);
-  net_store_data(packet, (longlong) mi->master_log_pos);
-  net_store_data(packet, mi->rli.relay_log_name +
-		 dirname_length(mi->rli.relay_log_name));
-  net_store_data(packet, (longlong) mi->rli.relay_log_pos);
-  net_store_data(packet, mi->rli.master_log_name);
-  net_store_data(packet, mi->slave_running ? "Yes":"No");
-  net_store_data(packet, mi->rli.slave_running ? "Yes":"No");
-  net_store_data(packet, &replicate_do_db);
-  net_store_data(packet, &replicate_ignore_db);
-  net_store_data(packet, (uint32)mi->rli.last_slave_errno);
-  net_store_data(packet, mi->rli.last_slave_error);
-  net_store_data(packet, mi->rli.slave_skip_counter);
-  net_store_data(packet, (longlong) mi->rli.master_log_pos);
-  net_store_data(packet, (longlong) mi->rli.log_space_total);
-  pthread_mutex_unlock(&mi->rli.data_lock);
-  pthread_mutex_unlock(&mi->data_lock);
+    pthread_mutex_lock(&mi->data_lock);
+    pthread_mutex_lock(&mi->rli.data_lock);
+    net_store_data(packet, mi->host);
+    net_store_data(packet, mi->user);
+    net_store_data(packet, (uint32) mi->port);
+    net_store_data(packet, (uint32) mi->connect_retry);
+    net_store_data(packet, mi->master_log_name);
+    net_store_data(packet, (longlong) mi->master_log_pos);
+    net_store_data(packet, mi->rli.relay_log_name +
+		   dirname_length(mi->rli.relay_log_name));
+    net_store_data(packet, (longlong) mi->rli.relay_log_pos);
+    net_store_data(packet, mi->rli.master_log_name);
+    net_store_data(packet, mi->slave_running ? "Yes":"No");
+    net_store_data(packet, mi->rli.slave_running ? "Yes":"No");
+    net_store_data(packet, &replicate_do_db);
+    net_store_data(packet, &replicate_ignore_db);
+    net_store_data(packet, (uint32)mi->rli.last_slave_errno);
+    net_store_data(packet, mi->rli.last_slave_error);
+    net_store_data(packet, mi->rli.slave_skip_counter);
+    net_store_data(packet, (longlong) mi->rli.master_log_pos);
+    net_store_data(packet, (longlong) mi->rli.log_space_total);
+    pthread_mutex_unlock(&mi->rli.data_lock);
+    pthread_mutex_unlock(&mi->data_lock);
   
-  if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
-    DBUG_RETURN(-1);
-
+    if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
+      DBUG_RETURN(-1);
+  }
   send_eof(&thd->net);
   DBUG_RETURN(0);
 }
@@ -1484,22 +1486,20 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
       return -1;
     }
     DBUG_ASSERT(*master_log_name || master_log_pos == 0);
+    cmp_result = 0;
     if (*master_log_name)
     {
       /*
-	We should use dirname_length() here when we have a version of
-	this that doesn't modify the argument */
-      char *basename = strrchr(master_log_name, FN_LIBCHAR);
-      if (basename)
-	++basename;
-      else
-	basename = master_log_name;
+	TODO:
+	Replace strncmp() with a comparison function that
+	can handle comparison of the following files:
+	mysqlbin.999
+	mysqlbin.1000
+      */
+      char *basename= master_log_name + dirname_length(master_log_name);
       cmp_result =  strncmp(basename, log_name->ptr(),
 			    log_name->length());
     }
-    else
-      cmp_result = 0;
-      
     pos_reached = ((!cmp_result && master_log_pos >= log_pos) ||
 		   cmp_result > 0);
     if (pos_reached || thd->killed)

@@ -118,8 +118,12 @@ if ($opt_stage == 0 && ! $opt_use_old_distribution)
   safe_system("gunzip < $opt_distribution | $tar xf -");
 
   # Fix file times; This is needed because the time for files may be
-  # in the future
-  system("touch timestamp; find . -newer timestamp -print | xargs touch; rm -f timestamp");
+  # in the future.  The following is done this way to ensure that
+  # we don't get any errors from xargs touch
+  system("touch timestamp");
+  sleep(2);
+  system("touch timestamp2");
+  system("find . -newer timestamp -print | xargs touch; rm -f timestamp");
   sleep(2);
   # Ensure that files we don't want to rebuild are newer than other files
   safe_cd($ver);
