@@ -5,7 +5,7 @@
 
 # We don't package all files installed into the build root by intention -
 # See BUG#998 for details.
-%_unpackaged_files_terminate_build 0
+%define _unpackaged_files_terminate_build 0
 
 %define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
 
