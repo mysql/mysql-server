@@ -1710,6 +1710,7 @@ TABLE_LIST *st_lex::link_first_table_back(TABLE_LIST *tables,
   st_select_lex::print is in sql_select.h
 
   st_select_lex_unit::prepare, st_select_lex_unit::exec,
-  st_select_lex_unit::cleanup, st_select_lex_unit::reinit_exec_mechanism
+  st_select_lex_unit::cleanup, st_select_lex_unit::reinit_exec_mechanism,
+  st_select_lex_unit::change_result
   are in sql_union.cc
 */
