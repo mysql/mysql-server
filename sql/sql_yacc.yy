@@ -2155,21 +2155,22 @@ join_table:
         | '(' SELECT_SYM select_part3 ')' opt_table_alias 
 	{
 	  LEX *lex=Lex;
-	  lex->select=lex->select->prev;
-	  if (!($$=add_table_to_list(new Table_ident(Lex->last_select),$5,0,TL_UNLOCK)))
+	  SELECT_LEX_UNIT *unit= (SELECT_LEX_UNIT*) lex->select->master;
+	  lex->select= (SELECT_LEX*) unit->master;
+	  if (!($$= add_table_to_list(new Table_ident(unit),
+	                              $5,0,TL_UNLOCK)))
 	    YYABORT;
 	}
 
 select_part3:
         {
-	  LEX *lex=Lex;
-	  lex->derived_tables=true;
-	  SELECT_LEX *tmp=lex->select;
-	  if (lex->select->linkage == NOT_A_SELECT || mysql_new_select(lex))
+	  LEX *lex= Lex;
+	  lex->derived_tables= true;
+	  if (lex->select->linkage == GLOBAL_OPTIONS_TYPE || 
+              mysql_new_select(lex, 1))
 	    YYABORT;
 	  mysql_init_select(lex);
-	  lex->select->linkage=DERIVED_TABLE_TYPE;
-	  lex->select->prev=tmp;
+	  lex->select->linkage= DERIVED_TABLE_TYPE;
 	}
         select_options select_item_list select_intoto
 
@@ -3809,7 +3810,8 @@ union_list:
        net_printf(&lex->thd->net, ER_WRONG_USAGE,"UNION","INTO");
        YYABORT;
     } 
-    if (lex->select->linkage == NOT_A_SELECT || mysql_new_select(lex))
+    if (lex->select->linkage == GLOBAL_OPTIONS_TYPE || 
+	mysql_new_select(lex, 0))
       YYABORT;
     lex->select->linkage=UNION_TYPE;
   } 
@@ -3824,10 +3826,10 @@ optional_order_or_limit:
   |
   {
     LEX *lex=Lex;
-    if (!lex->select->braces || mysql_new_select(lex))
+    if (!lex->select->braces || mysql_new_select(lex, 0))
      YYABORT;
     mysql_init_select(lex);
-    lex->select->linkage=NOT_A_SELECT;
+    lex->select->linkage= GLOBAL_OPTIONS_TYPE;
     lex->select->select_limit=lex->thd->default_select_limit;
   }
   opt_order_clause limit_clause

@@ -43,8 +43,8 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   /* Fix tables 'to-be-unioned-from' list to point at opened tables */
   last_sl= &lex->select_lex;
   for (sl= last_sl;
-       sl && sl->linkage != NOT_A_SELECT;
-       last_sl=sl, sl=sl->next)
+       sl && sl->linkage != GLOBAL_OPTIONS_TYPE;
+       last_sl= sl, sl= (SELECT_LEX *) sl->next)
   {
     for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
 	 cursor;
@@ -133,7 +133,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   }
   union_result->save_time_stamp=!describe;
 
-  for (sl= &lex->select_lex; sl; sl=sl->next)
+  for (sl= &lex->select_lex; sl; sl= (SELECT_LEX*) sl->next)
   {
     lex->select=sl;
     thd->offset_limit=sl->offset_limit;
@@ -143,15 +143,19 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     if (thd->select_limit == HA_POS_ERROR)
       sl->options&= ~OPTION_FOUND_ROWS;
 
-    res=mysql_select(thd, (describe && sl->linkage==NOT_A_SELECT) ? first_table :  (TABLE_LIST*) sl->table_list.first,
-		     sl->item_list,
-		     sl->where,
-		     (sl->braces) ? (ORDER *)sl->order_list.first : (ORDER *) 0,
-		     (ORDER*) sl->group_list.first,
-		     sl->having,
-		     (ORDER*) NULL,
-		     sl->options | thd->options | SELECT_NO_UNLOCK | ((describe) ? SELECT_DESCRIBE : 0),
-		     union_result);
+    res= mysql_select(thd, 
+		      (describe && sl->linkage==GLOBAL_OPTIONS_TYPE) ? 
+		      first_table :  (TABLE_LIST*) sl->table_list.first,
+		      sl->item_list,
+		      sl->where,
+		      (sl->braces) ? 
+		      (ORDER *)sl->order_list.first : (ORDER *) 0,
+		      (ORDER*) sl->group_list.first,
+		      sl->having,
+		      (ORDER*) NULL,
+		      sl->options | thd->options | 
+		      SELECT_NO_UNLOCK | ((describe) ? SELECT_DESCRIBE : 0),
+		      union_result);
     if (res)
       goto exit;
   }

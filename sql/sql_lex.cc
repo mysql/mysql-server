@@ -879,3 +879,118 @@ int yylex(void *arg)
     }
   }
 }
+
+/*
+  st_select_lex structures initialisations
+*/
+
+void st_select_lex_node::init_query()
+{
+  next= master= slave= link_next= 0;
+  prev= link_prev= 0;
+}
+
+void st_select_lex_node::init_select()
+{
+  order_list.elements= 0;
+  order_list.first= 0;
+  order_list.next= (byte**) &order_list.first;
+  select_limit= offset_limit= 0; 
+}
+
+void st_select_lex_unit::init_query()
+{
+  st_select_lex_node::init_query();
+  global_parameters= this;
+  select_limit_cnt= offset_limit_cnt= 0;
+}
+
+void st_select_lex::init_query()
+{
+  st_select_lex_node::init_query();
+  table_list.elements= 0;
+  table_list.first= 0; 
+  table_list.next= (byte**) &table_list.first;
+  item_list.empty();
+}
+
+void st_select_lex::init_select()
+{
+  st_select_lex_node::init_select();
+  group_list.elements= 0;
+  group_list.first= 0;
+  group_list.next= (byte**) &group_list.first;
+  options= 0;
+  where= having= 0;
+  when_list.empty(); 
+  expr_list.empty();
+  interval_list.empty(); 
+  use_index.empty();
+  ftfunc_list.empty();
+  linkage=UNSPECIFIED_TYPE;
+}
+
+/*
+  st_select_lex structures linking
+*/
+
+/* include on level down */
+void st_select_lex_node::include_down(st_select_lex_node *upper)
+{
+  if ((next= upper->slave))
+    next->prev= &next;
+  prev= &upper->slave;
+  upper->slave= this;
+  master= upper;
+}
+
+/* include neighbour (on same level) */
+void st_select_lex_node::include_neighbour(st_select_lex_node *before)
+{
+  if ((next= before->next))
+    next->prev= &next;
+  prev= &before->next;
+  before->next= this;
+  master= before->master;
+}
+
+/* including in global SELECT_LEX list */
+void st_select_lex_node::include_global(st_select_lex_node **plink)
+{
+  if ((link_next= *plink))
+    link_next->link_prev= &link_next;
+  link_prev= plink;
+  *plink= this;
+}
+
+//excluding from global list (internal function)
+void st_select_lex_node::fast_exclude()
+{
+  if(link_prev)
+  {
+    if ((*link_prev= link_next))
+      link_next->link_prev= link_prev;
+    // Remove slave structure
+    for (; slave; slave= slave->next)
+      slave->fast_exclude();
+  }
+}
+
+/*
+  excluding select_lex structure (except first (first select can't be
+  deleted, because it is most upper select))
+*/
+void st_select_lex_node::exclude()
+{
+  //exclude from global list
+  fast_exclude();
+  //exclude from other structures
+  if ((*prev= next))
+    next->prev= prev;
+  /* 
+     We do not need following statements, because prev pointer of first 
+     list element point to master->slave
+     if (master->slave == this)
+       master->slave= next;
+  */
+}
