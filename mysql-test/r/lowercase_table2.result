@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS t1,t2,T1,T2,t3,T3,tT;
+DROP TABLE IF EXISTS t1,t2,T1,T2,t3,T3;
 DROP DATABASE IF EXISTS `TEST_$1`;
 DROP DATABASE IF EXISTS `test_$1`;
 CREATE TABLE T1 (a int);
@@ -131,13 +131,13 @@ show tables like 't1%';
 Tables_in_test (t1%)
 t1
 drop table t1;
-create temporary table tT(a int(11), b varchar(8));
-insert into tT values (1, 'abc');
-select * from tT;
+create temporary table T1(a int(11), b varchar(8));
+insert into T1 values (1, 'abc');
+select * from T1;
 a	b
 1	abc
-alter table tT add index (a);
-select * from tT;
+alter table T1 add index (a);
+select * from T1;
 a	b
 1	abc
-drop table tT;
+drop table T1;
