@@ -388,12 +388,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
     return 1;
   if (args[0]->maybe_null)
     maybe_null=1;
-  /*
-    TODO: Check if following is right
-    (set_charset set type of result, not how compare should be used)
-  */
-  if (args[0]->binary())
-    set_charset(&my_charset_bin);
+
   with_sum_func= args[0]->with_sum_func;
   used_tables_cache= args[0]->used_tables();
   const_item_cache= args[0]->const_item();
@@ -938,7 +933,7 @@ Item *Item_func_case::find_item(String *str)
       if ((tmp=args[i]->val_str(str)))		// If not null
       {
 	/* QQ: COERCIBILITY */
-	if (first_expr_is_binary || args[i]->binary())
+	if (first_expr_is_binary || (args[i]->charset()->state & MY_CS_BINSORT))
 	{
 	  if (sortcmp(tmp,first_expr_str,&my_charset_bin)==0)
 	    return args[i+1];
@@ -1049,7 +1044,7 @@ Item_func_case::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     used_tables_cache|=(first_expr)->used_tables();
     const_item_cache&= (first_expr)->const_item();
     with_sum_func= with_sum_func || (first_expr)->with_sum_func;
-    first_expr_is_binary= first_expr->binary();
+    first_expr_is_binary= first_expr->charset()->state & MY_CS_BINSORT;
   }
   if (else_expr)
   {

@@ -303,14 +303,40 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
   return to;
 }
 
+
+/* Find out database name and table name from a filename */
+
+static void split_file_name(const char *file_name,
+			    LEX_STRING *db, LEX_STRING *name)
+{
+  uint name_length, dir_length, prefix_length;
+  char buff[FN_REFLEN];
+
+  db->length= 0;
+  name_length= (uint) (strmake(buff, file_name, sizeof(buff)-1) - buff);
+  dir_length= dirname_length(buff);
+  if (dir_length > 1)
+  {
+    /* Get database */
+    buff[dir_length-1]= 0;			// Remove end '/'
+    prefix_length= dirname_length(buff);
+    db->str= (char*) file_name+ prefix_length;
+    db->length= dir_length - prefix_length -1;
+  }
+  name->str= (char*) file_name+ dir_length;
+  name->length= (uint) (fn_ext(name->str) - name->str);
+}
+
+
 void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 {
-  // [phi] auto_increment stuff is missing (but currently not needed)
   DBUG_ENTER("ha_myisammrg::update_create_info");
+
   if (!(create_info->used_fields & HA_CREATE_USED_UNION))
   {
     MYRG_TABLE *open_table;
     THD *thd=current_thd;
+
     create_info->merge_list.next= &create_info->merge_list.first;
     create_info->merge_list.elements=0;
 
@@ -318,14 +344,17 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 	 open_table != file->end_table ;
 	 open_table++)
     {
-      char *name=open_table->table->filename;
-      char buff[FN_REFLEN];
       TABLE_LIST *ptr;
+      LEX_STRING db, name;
+
       if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
 	goto err;
-      fn_format(buff,name,"","",3);
-      if (!(ptr->real_name=thd->strdup(buff)))
+      split_file_name(open_table->table->filename, &db, &name);
+      if (!(ptr->real_name= thd->strmake(name.str, name.length)))
 	goto err;
+      if (db.length && !(ptr->db= thd->strmake(db.str, db.length)))
+	goto err;
+
       create_info->merge_list.elements++;
       (*create_info->merge_list.next) = (byte*) ptr;
       create_info->merge_list.next= (byte**) &ptr->next;
@@ -344,37 +373,34 @@ err:
   DBUG_VOID_RETURN;
 }
 
+
 int ha_myisammrg::create(const char *name, register TABLE *form,
 			 HA_CREATE_INFO *create_info)
 {
   char buff[FN_REFLEN],**table_names,**pos;
   TABLE_LIST *tables= (TABLE_LIST*) create_info->merge_list.first;
+  THD *thd= current_thd;
   DBUG_ENTER("ha_myisammrg::create");
 
-  if (!(table_names= (char**) sql_alloc((create_info->merge_list.elements+1)*
-					sizeof(char*))))
+  if (!(table_names= (char**) thd->alloc((create_info->merge_list.elements+1)*
+					 sizeof(char*))))
     DBUG_RETURN(1);
   for (pos=table_names ; tables ; tables=tables->next)
   {
     char *table_name;
+    TABLE **tbl= 0;
     if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+      tbl= find_temporary_table(thd, tables->db, tables->real_name);
+    if (!tbl)
     {
-      TABLE **tbl=find_temporary_table(current_thd,
-          tables->db, tables->real_name);
-      if (!tbl)
-      {
-        table_name=sql_alloc(1+
-            my_snprintf(buff,FN_REFLEN,"%s/%s/%s",mysql_real_data_home,
-                        tables->db, tables->real_name));
-        if (!table_name)
-          DBUG_RETURN(1);
-        strcpy(table_name, buff);
-      }
-      else
-        table_name=(*tbl)->path;
+      uint length= my_snprintf(buff,FN_REFLEN,"%s%s/%s",
+			       mysql_real_data_home,
+			       tables->db, tables->real_name);
+      if (!(table_name= thd->strmake(buff, length)))
+	DBUG_RETURN(1);
     }
     else
-      table_name=tables->real_name;
+      table_name=(*tbl)->path;
     *pos++= table_name;
   }
   *pos=0;
@@ -384,9 +410,13 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
                           (my_bool) 0));
 }
 
+
 void ha_myisammrg::append_create_info(String *packet)
 {
-  char buff[FN_REFLEN];
+  const char *current_db;
+  uint db_length;
+  THD *thd= current_thd;
+
   if (file->merge_insert_method != MERGE_INSERT_DISABLED)
   {
     packet->append(" INSERT_METHOD=",15);
@@ -395,15 +425,26 @@ void ha_myisammrg::append_create_info(String *packet)
   packet->append(" UNION=(",8);
   MYRG_TABLE *open_table,*first;
 
+  current_db= table->table_cache_key;
+  db_length=  strlen(current_db);
+
   for (first=open_table=file->open_tables ;
        open_table != file->end_table ;
        open_table++)
   {
-    char *name= open_table->table->filename;
-    fn_format(buff,name,"","",3);
+    LEX_STRING db, name;
+    split_file_name(open_table->table->filename, &db, &name);
     if (open_table != first)
       packet->append(',');
-    packet->append(buff,(uint) strlen(buff));
+    /* Report database for mapped table if it isn't in current database */
+    if (db.length &&
+	(db_length != db.length ||
+	 strncmp(current_db, db.str, db.length)))
+    {
+      append_identifier(thd, packet, db.str, db.length);
+      packet->append('.');
+    }
+    append_identifier(thd, packet, name.str, name.length);
   }
   packet->append(')');
 }

@@ -187,8 +187,6 @@ public:
     collation.collation= collation_arg->collation; 
     collation.derivation= collation_arg->derivation;
   }
-  bool binary() const
-  { return charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
 
   virtual bool walk(Item_processor processor, byte *arg)
   {

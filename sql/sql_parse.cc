@@ -1057,6 +1057,11 @@ bool do_command(THD *thd)
 
   net= &thd->net;
   thd->current_tablenr=0;
+  /*
+    indicator of uninitialized lex => normal flow of errors handling
+    (see my_message_sql)
+  */
+  thd->lex.current_select= 0;
 
   packet=0;
   old_timeout=net->read_timeout;
@@ -3388,11 +3393,6 @@ static bool check_merge_table_access(THD *thd, char *db,
     {
       if (!tmp->db || !tmp->db[0])
 	tmp->db=db;
-      else if (strcmp(tmp->db,db))
-      {
-	send_error(thd,ER_UNION_TABLES_IN_DIFFERENT_DIR);
-	return 1;
-      }
     }
     error=check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
 			     table_list);
@@ -4438,6 +4438,7 @@ static bool append_file_to_dir(THD *thd, char **filename_ptr, char *table_name)
   strxmov(ptr,buff,table_name,NullS);
   return 0;
 }
+
 
 /*
   Check if the select is a simple select (not an union)

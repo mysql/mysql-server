@@ -111,11 +111,16 @@ insert into t1 set i = null;
 select last_insert_id();
 last_insert_id()
 255
+insert into t1 set i = 254;
+ERROR 23000: Duplicate entry '254' for key 1
+select last_insert_id();
+last_insert_id()
+255
 insert into t1 set i = null;
 ERROR 23000: Duplicate entry '255' for key 1
 select last_insert_id();
 last_insert_id()
-255
+0
 drop table t1;
 create table t1 (i tinyint unsigned not null auto_increment, key (i));
 insert into t1 set i = 254;

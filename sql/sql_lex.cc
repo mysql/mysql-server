@@ -122,6 +122,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
   lex->sql_command=SQLCOM_END;
+  lex->duplicates= DUP_ERROR;
   return lex;
 }
 
@@ -965,7 +966,7 @@ void st_select_lex_node::init_query()
 {
   options= 0;
   linkage= UNSPECIFIED_TYPE;
-  no_table_names_allowed= uncacheable= dependent= 0;
+  no_error= no_table_names_allowed= uncacheable= dependent= 0;
 }
 
 void st_select_lex_node::init_select()
