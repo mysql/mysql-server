@@ -42,8 +42,13 @@
 int main()
 {
   NdbMgmHandle h;
-  NdbLogEventHandle l;
-  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
+  NdbLogEventHandle le;
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
+		   15, NDB_MGM_EVENT_CATEGORY_CONNECTION,
+		   15, NDB_MGM_EVENT_CATEGORY_NODE_RESTART,
+		   15, NDB_MGM_EVENT_CATEGORY_STARTUP,
+		   15, NDB_MGM_EVENT_CATEGORY_ERROR,
+		   0 };
   struct ndb_logevent event;
 
   ndb_init();
@@ -56,48 +61,79 @@ int main()
   }
   if (ndb_mgm_connect(h,0,0,0)) MGMERROR(h);
 
-  l= ndb_mgm_create_logevent_handle(h, filter);
-  if ( l == 0 )  MGMERROR(h);
+  le= ndb_mgm_create_logevent_handle(h, filter);
+  if ( le == 0 )  MGMERROR(h);
 
   while (1)
   {
     int timeout= 5000;
-    int r= ndb_logevent_get_next(l,&event,timeout);
+    int r= ndb_logevent_get_next(le,&event,timeout);
     if (r == 0)
       printf("No event within %d milliseconds\n", timeout);
     else if (r < 0)
-      LOGEVENTERROR(l)
+      LOGEVENTERROR(le)
     else
     {
-      printf("Event %d from node ID %d\n",
-	     event.type,
-	     event.source_nodeid);
-      printf("Category %d, severity %d, level %d\n",
-	     event.category,
-	     event.severity,
-	     event.level);
       switch (event.type) {
       case NDB_LE_BackupStarted:
-	printf("BackupStartded\n");
-	printf("Starting node ID: %d\n", event.BackupStarted.starting_node);
-	printf("Backup ID: %d\n", event.BackupStarted.backup_id);
+	printf("Node %d: BackupStarted\n", event.source_nodeid);
+	printf("  Starting node ID: %d\n", event.BackupStarted.starting_node);
+	printf("  Backup ID: %d\n", event.BackupStarted.backup_id);
 	break;
       case NDB_LE_BackupCompleted:
-	printf("BackupCompleted\n");
-	printf("Backup ID: %d\n", event.BackupStarted.backup_id);
+	printf("Node %d: BackupCompleted\n", event.source_nodeid);
+	printf("  Backup ID: %d\n", event.BackupStarted.backup_id);
 	break;
       case NDB_LE_BackupAborted:
+	printf("Node %d: BackupAborted\n", event.source_nodeid);
 	break;
       case NDB_LE_BackupFailedToStart:
+	printf("Node %d: BackupFailedToStart\n", event.source_nodeid);
 	break;
+
+      case NDB_LE_NodeFailCompleted:
+	printf("Node %d: NodeFailCompleted\n", event.source_nodeid);
+	break;
+      case NDB_LE_ArbitResult:
+	printf("Node %d: ArbitResult\n", event.source_nodeid);
+	printf("  code %d, arbit_node %d\n",
+	       event.ArbitResult.code & 0xffff,
+	       event.ArbitResult.arbit_node);
+	break;
+      case NDB_LE_DeadDueToHeartbeat:
+	printf("Node %d: DeadDueToHeartbeat\n", event.source_nodeid);
+	printf("  node %d\n", event.DeadDueToHeartbeat.node);
+	break;
+
+      case NDB_LE_Connected:
+	printf("Node %d: Connected\n", event.source_nodeid);
+	printf("  node %d\n", event.Connected.node);
+	break;
+      case NDB_LE_Disconnected:
+	printf("Node %d: Disconnected\n", event.source_nodeid);
+	printf("  node %d\n", event.Disconnected.node);
+	break;
+      case NDB_LE_NDBStartCompleted:
+	printf("Node %d: StartCompleted\n", event.source_nodeid);
+	printf("  version %d.%d.%d\n",
+	       event.NDBStartCompleted.version >> 16 & 0xff,
+	       event.NDBStartCompleted.version >> 8 & 0xff,
+	       event.NDBStartCompleted.version >> 0 & 0xff);
+	break;
+      case NDB_LE_ArbitState:
+	printf("Node %d: ArbitState\n", event.source_nodeid);
+	printf("  code %d, arbit_node %d\n",
+	       event.ArbitState.code & 0xffff,
+	       event.ArbitResult.arbit_node);
+	break;
+
       default:
-	printf("Unexpected event\n");
 	break;
       }
     }
   }
       
-  ndb_mgm_destroy_logevent_handle(&l);
+  ndb_mgm_destroy_logevent_handle(&le);
   ndb_mgm_destroy_handle(&h);
   ndb_end(0);
   return 0;
