@@ -47,7 +47,7 @@ This is a manual about @strong{MySQL} internals.
 @menu
 @end menu
 
-@node caching
+@node caching,,,
 @chapter How MySQL handles caching
 
 @strong{MySQL} has the following caches:
@@ -89,7 +89,7 @@ found rows are cached in a join cache.  One SELECT query can use many
 join caches in the worst case.
 @end itemize
 
-@node flush tables
+@node flush tables,,,
 @chapter How MySQL handles flush tables
 
 @itemize @bullet
@@ -134,7 +134,7 @@ After this it will give other threads a chance to open the same tables.
 
 @end itemize
 
-@node Filesort
+@node Filesort,,,
 @chapter How MySQL does sorting (filesort)
 
 @itemize @bullet
@@ -174,7 +174,7 @@ and then we read the rows in the sorted order into a row buffer
 
 @end itemize
 
-@node Coding guidelines
+@node Coding guidelines,,,
 @chapter Coding guidelines
 
 @itemize @bullet
@@ -289,7 +289,7 @@ Use pointers rather than array indexing when operating on strings.
 
 @end itemize
 
-@node mysys functions
+@node mysys functions,,,
 @chapter mysys functions
 
 Functions i mysys: (For flags se my_sys.h)
@@ -432,6 +432,205 @@ Functions i mysys: (For flags se my_sys.h)
 
  void end_key_cache _A((void));
 	- End key-cacheing.
+
+@node protocol,,,
+@chapter MySQL client/server protocol
+
+Raw packet without compression
+============================== 	
+-------------------------------------------------
+| Packet Length	| Packet no 	| Data		|
+| 3 Bytes	| 1 Byte 	| n Bytes	|
+-------------------------------------------------
+
+3 Byte packet length
+  The length is calculated with int3store
+  See include/global.h for details.
+  The max packetsize can be 16 MB.
+1 Byte packet no
+
+If no compression is used the first 4 bytes of each paket
+is the header of the paket.
+The packet number is incremented for each sent packet. The first
+packet starts with 0		
+
+n Byte data 
+
+The packet length can be recalculated with:
+length = byte1 + (256 * byte2) + (256 * 256 * byte3)
+		
+Raw packet with compression
+=========================== 	
+-----------------------------------------------------
+| Packet Length	| Packet no | Uncomp. Packet Length |
+| 3 Bytes	| 1 Byte    | 3 Bytes		    |
+-----------------------------------------------------
+
+3 Byte packet length
+  The length is calculated with int3store
+  See include/global.h for details.
+  The max packetsize can be 16 MB.
+1 Byte packet no
+3 Byte uncompressed packet length
+
+If compression is used the first 7 bytes of each paket
+is the header of the paket.
+		
+Basic packets
+==============
+OK-packet	
+	For details see sql/net_pkg.cc
+	function send_ok
+	-------------------------------------------------
+	| Header	| No of Rows 	| Affected Rows |
+	| 		| 1 Byte 	| 1-8 Byte	|
+	-------------------------------------------------
+	| ID (last_insert_id)	| Status | Length 	|
+	| 1-8 Byte		| 2 Byte | 1-8 Byte	|
+	-------------------------------------------------
+	| Messagetext					|
+	| n Byte					|
+	-------------------------------------------------
+
+	Header
+	1 byte number of rows ? (always 0 ?)
+	1-8 bytes affected rows
+	1-8 byte id (last_insert_id) 
+	2 byte Status (usually 0)
+	If the OK-packege includes a message:
+	1-8 bytes length of message
+	n bytes messagetext
+
+Error-packet	
+	-------------------------------------------------
+	| Header	| Statuscode	| Error no	|
+	| 		| 1 Byte 	| 2 Byte	|
+	-------------------------------------------------
+	| Messagetext			       | 0x00	|
+	| n Byte			       | 1 Byte |
+	-------------------------------------------------
+	
+	Header
+	1 byte status code (0xFF = ERROR)
+	2 byte error number (is only sent to new 3.23 clients.
+	n byte errortext
+	1 byte 0x00
+
+
+
+The communication
+=================
+
+> Packet from server to client
+< Paket from client tor server
+
+	Login
+	------
+		> 1. packet	
+		Header
+		1 byte protocolversion
+		n byte serverversion
+		1 byte 0x00
+		4 byte threadnumber 
+		8 byte crypt seed 
+		1 byte 0x00
+		2 byte CLIENT_xxx options (see include/mysql_com.h
+			that is supported by the server
+		1 byte number of current server charset
+		2 byte server status variables (SERVER_STATUS_xxx flags)
+		13 byte 0x00 (not used yet).
+
+		< 2. packet	
+		Header
+		2 byte CLIENT_xxx options
+		3 byte max_allowed_packet for the client
+		n byte username
+		1 byte 0x00
+		8 byte crypted password
+		1 byte 0x00
+		n byte databasename
+		1 byte 0x00 
+
+		> 3. packet	
+		OK-packet
+
+
+	Command
+	--------
+		< 1. packet	
+		Header
+		1 byte command type (e.g.0x03 = query)
+		n byte query
+
+	Result set (after command)
+	--------------------------
+		> 2. packet	
+		Header
+		1-8 byte field_count (packed with net_store_length())
+		
+		If field_count == 0 (command): 
+		1-8 byte affected rows
+		1-8 byte insert id
+		2 bytes server_status (SERVER_STATUS_xx) 		
+		
+		If field_count == NULL_LENGTH (251)
+		LOAD DATA LOCAL INFILE
+
+		If field_count > 0 Result Set:
+
+		> n packets	
+		Header Info
+		Column description: 5 data object /column
+		(See code in unpack_fields())
+		
+		Columninfo for each column:
+			1 data block table_name
+			    1 byte length of block
+			    n byte data
+			1 data block field_name
+			    1 byte length of block...
+			    n byte data
+			1 data block display length of field
+			    1 byte length of block
+			    3 bytes display length of filed
+			1 data block type field of type (enum_field_types)
+			    1 byte length of block
+			    1 bytexs field of type
+			1 data block flags
+			    1 byte length of block
+			    2 byte flags for the columns (NOT_NULL_FLAG, ZEROFILL_FLAG....)
+			    1 byte decimals
+
+		if table definition:
+			1 data block default value
+
+		Actual result (one packet per row):
+		4 byte header
+		1-8 byte length of data
+		n data
+		
+ 
+Fieldtype Codes:
+================
+
+		display_length 	|enum_field_type	|flags
+		----------------------------------------------------
+Blob		03 FF FF 00	|01 FC			|03 90 00 00
+Mediumblob	03 FF FF FF	|01 FC			|03 90 00 00
+Tinyblob	03 FF 00 00	|01 FC			|03 90 00 00
+Text		03 FF FF 00	|01 FC			|03 10 00 00
+Mediumtext	03 FF FF FF	|01 FC			|03 10 00 00
+Tinytext	03 FF 00 00	|01 FC			|03 10 00 00
+Integer		03 0B 00 00	|01 03			|03 03 42 00
+Mediumint	03 09 00 00 	|01 09			|03 00 00 00
+Smallint	03 06 00 00	|01 02			|03 00 00 00
+Tinyint		03 04 00 00	|01 01			|03 00 00 00
+Varchar		03 XX 00 00	|01 FD			|03 00 00 00
+Enum		03 05 00 00	|01 FE			|03 00 01 00
+Datetime	03 13 00 00	|01 0C			|03 00 00 00
+Timestamp	03 0E 00 00	|01 07			|03 61 04 00
+Time		03 08 00 00	|01 0B			|03 00 00 00
+Date		03 0A 00 00	|01 0A			|03 00 00 00
 
 
 @c The Index was empty, and ugly, so I removed it. (jcole, Sep 7, 2000)

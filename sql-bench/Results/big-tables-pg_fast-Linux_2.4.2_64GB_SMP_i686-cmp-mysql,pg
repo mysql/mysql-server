@@ -1,0 +1,25 @@
+Testing server 'PostgreSQL version 7.1.2' at 2001-06-11 17:55:39
+
+Testing of some unusual tables
+All tests are done 1000 times with 1000 fields
+
+Testing table with 1000 fields
+Time for book-keeping (1):  1 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.01 CPU)
+
+Testing select * from table with 1 record
+Time to select_many_fields(1000): 353 wallclock secs ( 3.56 usr  0.31 sys +  0.00 cusr  0.00 csys =  3.87 CPU)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(1000): 470 wallclock secs ( 3.80 usr  0.24 sys +  0.00 cusr  0.00 csys =  4.04 CPU)
+
+Testing insert VALUES()
+Time to insert_many_fields(1000): 229 wallclock secs ( 0.38 usr  0.07 sys +  0.00 cusr  0.00 csys =  0.45 CPU)
+
+Time for book-keeping (1):  4 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(1000): 296 wallclock secs ( 0.63 usr  0.11 sys +  0.00 cusr  0.00 csys =  0.74 CPU)
+
+Time for book-keeping (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Total time: 1356 wallclock secs ( 8.41 usr  0.76 sys +  0.00 cusr  0.00 csys =  9.17 CPU)

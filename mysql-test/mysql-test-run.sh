@@ -158,6 +158,7 @@ while test $# -gt 0; do
     --mysqld=*)
        TMP=`$ECHO "$1" | $SED -e "s;--mysqld-=;"`
        EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $TMP"
+       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT $TMP"
        ;;
     --gcov )
       if [ x$BINARY_DIST = x1 ] ; then
@@ -385,10 +386,8 @@ report_stats () {
 	$ECHO ""
         $ECHO "The log files in $MYSQL_TEST_DIR/var/log may give you some hint"
 	$ECHO "of what when wrong."
-	$ECHO ""
-	$ECHO "Please follow the instructions outlined at"
-	$ECHO "http://www.mysql.com/doc/R/e/Reporting_mysqltest_bugs.html"
-	$ECHO "to find the reason to this problem and how to report this."
+	$ECHO "If you want to report this error, please read first the documentation at"
+        $ECHO "http://www.mysql.com/doc/M/y/MySQL_test_suite.html"
     fi
 }
 
@@ -475,7 +474,6 @@ start_master()
 	    --pid-file=$MASTER_MYPID \
 	    --socket=$MASTER_MYSOCK \
             --log=$MASTER_MYLOG --default-character-set=latin1 \
-	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
 	    --language=english \
             --innodb_data_file_path=ibdata1:50M \
