@@ -130,6 +130,9 @@ a	b
 select * from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
+select * from t1 where MATCH a,b AGAINST ('"now   support"' IN BOOLEAN MODE);
+a	b
+MySQL has now support	for full-text search
 select * from t1 where MATCH a,b AGAINST ('"text search"  "now support"' IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
@@ -151,8 +154,6 @@ a	b
 select * from t1 where MATCH a,b AGAINST ('+collections -supp* -foobar*' IN BOOLEAN MODE);
 a	b
 Full-text indexes	are called collections
-select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
-a	b
 select * from t1 where MATCH a,b AGAINST('"space model' IN BOOLEAN MODE);
 a	b
 Full-text search in MySQL	implements vector space model

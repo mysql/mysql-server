@@ -44,10 +44,6 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"length", 'l', "Report length distribution.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef DISABLED
-  {"execute", 'e', "Execute given query.", (gptr*) &query, (gptr*) &query, 0,
-   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"help", 'h', "Display help and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Synonym for -h.",
@@ -108,119 +104,116 @@ int main(int argc,char *argv[])
 
   mi_lock_database(info, F_EXTRA_LCK);
 
-  if (query)
+  info->lastpos= HA_OFFSET_ERROR;
+  info->update|= HA_STATE_PREV_FOUND;
+
+  while (!(error=mi_rnext(info,NULL,inx)))
   {
-#if 0
-    FT_DOCLIST *result;
-    int i;
+    keylen=*(info->lastkey);
 
-    ft_init_stopwords(ft_precompiled_stopwords);
-
-    result=ft_nlq_init_search(info,inx,query,strlen(query),1);
-    if(!result)
-      goto err;
-
-    if (verbose)
-      printf("%d rows matched\n",result->ndocs);
-
-    for(i=0 ; i<result->ndocs ; i++)
-      printf("%9lx %20.7f\n",(ulong)result->doc[i].dpos,result->doc[i].weight);
-
-    ft_nlq_close_search(result);
-#else
-    printf("-e option is disabled\n");
-#endif
-  }
-  else
-  {
-    info->lastpos= HA_OFFSET_ERROR;
-    info->update|= HA_STATE_PREV_FOUND;
-
-    while (!(error=mi_rnext(info,NULL,inx)))
-    {
-      keylen=*(info->lastkey);
-
-      subkeys=ft_sintXkorr(info->lastkey+keylen+1);
-      if (subkeys >= 0)
-        weight=*(float*)&subkeys;
+    subkeys=ft_sintXkorr(info->lastkey+keylen+1);
+    if (subkeys >= 0)
+      weight=*(float*)&subkeys;
 
 #ifdef HAVE_SNPRINTF
-      snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);
+    snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);
 #else
-      sprintf(buf,"%.*s",(int) keylen,info->lastkey+1);
+    sprintf(buf,"%.*s",(int) keylen,info->lastkey+1);
 #endif
-      my_casedn_str(default_charset_info,buf);
-      total++;
-      lengths[keylen]++;
+    my_casedn_str(default_charset_info,buf);
+    total++;
+    lengths[keylen]++;
 
-      if (count || stats)
+    if (count || stats)
+    {
+      doc_cnt++;
+      if (strcmp(buf, buf2))
       {
-        doc_cnt++;
-        if (strcmp(buf, buf2))
+        if (*buf2)
         {
-          if (*buf2)
+          uniq++;
+          avg_gws+=gws=GWS_IN_USE;
+          if (count)
+            printf("%9u %20.7f %s\n",doc_cnt,gws,buf2);
+          if (maxlen<keylen2)
           {
-            uniq++;
-            avg_gws+=gws=GWS_IN_USE;
-            if (count)
-              printf("%9u %20.7f %s\n",doc_cnt,gws,buf2);
-            if (maxlen<keylen2)
-            {
-              maxlen=keylen2;
-              strmov(buf_maxlen, buf2);
-            }
-            if (max_doc_cnt < doc_cnt)
-            {
-              max_doc_cnt=doc_cnt;
-              strmov(buf_min_gws, buf2);
-              min_gws=gws;
-            }
+            maxlen=keylen2;
+            strmov(buf_maxlen, buf2);
           }
-          strmov(buf2, buf);
-          keylen2=keylen;
-          doc_cnt=0;
+          if (max_doc_cnt < doc_cnt)
+          {
+            max_doc_cnt=doc_cnt;
+            strmov(buf_min_gws, buf2);
+            min_gws=gws;
+          }
         }
+        strmov(buf2, buf);
+        keylen2=keylen;
+        doc_cnt=0;
       }
-      if (dump)
-      {
-        if (subkeys>=0)
-          printf("%9lx %20.7f %s\n", (long) info->lastpos,weight,buf);
-        else
-          printf("%9lx => %17d %s\n",(long) info->lastpos,-subkeys,buf);
-      }
-      if (verbose && (total%HOW_OFTEN_TO_WRITE)==0)
-        printf("%10ld\r",total);
     }
-    mi_lock_database(info, F_UNLCK);
+    if (dump)
+    {
+      if (subkeys>=0)
+        printf("%9lx %20.7f %s\n", (long) info->lastpos,weight,buf);
+      else
+        printf("%9lx => %17d %s\n",(long) info->lastpos,-subkeys,buf);
+    }
+    if (verbose && (total%HOW_OFTEN_TO_WRITE)==0)
+      printf("%10ld\r",total);
+  }
+  mi_lock_database(info, F_UNLCK);
 
-    if (stats)
+  if (count || stats)
+  {
+    doc_cnt++;
+    if (*buf2)
     {
-      count=0;
-      for (inx=0;inx<256;inx++)
+      uniq++;
+      avg_gws+=gws=GWS_IN_USE;
+      if (count)
+        printf("%9u %20.7f %s\n",doc_cnt,gws,buf2);
+      if (maxlen<keylen2)
       {
-        count+=lengths[inx];
-        if ((ulong) count >= total/2)
-          break;
+        maxlen=keylen2;
+        strmov(buf_maxlen, buf2);
       }
-      printf("Total rows: %lu\nTotal words: %lu\n"
-             "Unique words: %lu\nLongest word: %lu chars (%s)\n"
-             "Median length: %u\n"
-             "Average global weight: %f\n"
-             "Most common word: %lu times, weight: %f (%s)\n",
-             (long) info->state->records, total, uniq, maxlen, buf_maxlen,
-             inx, avg_gws/uniq, max_doc_cnt, min_gws, buf_min_gws);
+      if (max_doc_cnt < doc_cnt)
+      {
+        max_doc_cnt=doc_cnt;
+        strmov(buf_min_gws, buf2);
+        min_gws=gws;
+      }
     }
-    if (lstats)
+  }
+
+  if (stats)
+  {
+    count=0;
+    for (inx=0;inx<256;inx++)
     {
-      count=0;
-      for (inx=0; inx<256; inx++)
-      {
-        count+=lengths[inx];
-        if (count && lengths[inx])
-          printf("%3u: %10lu %5.2f%% %20lu %4.1f%%\n", inx,
-		 (ulong) lengths[inx],100.0*lengths[inx]/total,(ulong) count,
-		 100.0*count/total);
-      }
+      count+=lengths[inx];
+      if ((ulong) count >= total/2)
+        break;
+    }
+    printf("Total rows: %lu\nTotal words: %lu\n"
+           "Unique words: %lu\nLongest word: %lu chars (%s)\n"
+           "Median length: %u\n"
+           "Average global weight: %f\n"
+           "Most common word: %lu times, weight: %f (%s)\n",
+           (long) info->state->records, total, uniq, maxlen, buf_maxlen,
+           inx, avg_gws/uniq, max_doc_cnt, min_gws, buf_min_gws);
+  }
+  if (lstats)
+  {
+    count=0;
+    for (inx=0; inx<256; inx++)
+    {
+      count+=lengths[inx];
+      if (count && lengths[inx])
+        printf("%3u: %10lu %5.2f%% %20lu %4.1f%%\n", inx,
+               (ulong) lengths[inx],100.0*lengths[inx]/total,(ulong) count,
+               100.0*count/total);
     }
   }
 
@@ -253,9 +246,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'l':
     lstats=1;
     complain(query!=0);
-    break;
-  case 'e':
-    complain(dump || count || stats);
     break;
   case '?':
   case 'h':
