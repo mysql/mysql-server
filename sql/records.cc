@@ -128,6 +128,13 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
       VOID(table->file->extra_opt(HA_EXTRA_CACHE,
 				  thd->variables.read_buff_size));
   }
+  /* Condition pushdown to storage engine */
+  if (thd->variables.engine_condition_pushdown && 
+      select && select->cond && 
+      select->cond->used_tables() & table->map &&
+      !(select->quick || table->file->pushed_cond))
+    table->file->cond_push(select->cond);
+
   DBUG_VOID_RETURN;
 } /* init_read_record */
 
