@@ -103,15 +103,16 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
-  if (!my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
-    return(enum db_type) current_thd->variables.table_type;
+  THD *thd=current_thd;
+  if (thd && !my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
+    return (enum db_type) thd->variables.table_type;
   }
   
   show_table_type_st *types;
   for (types= sys_table_types; types->type; types++)
   {
     if (!my_strcasecmp(&my_charset_latin1, name, types->type))
-      return(enum db_type)types->db_type;
+      return (enum db_type) types->db_type;
   }
   return DB_TYPE_UNKNOWN;
 }
