@@ -80,8 +80,7 @@ void my_init(void)
 #ifndef __WIN__
   sigfillset(&my_signals);		/* signals blocked by mf_brkhant */
 #endif
-  pthread_mutex_init(&LOCK_bitmap, NULL);
-#endif
+#endif /* THREAD */
   {
     DBUG_ENTER("my_init");
     DBUG_PROCESS(my_progname ? my_progname : (char*) "unknown");

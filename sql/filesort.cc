@@ -932,8 +932,13 @@ void change_double_for_sort(double nr,byte *to)
 #else
     {
       uchar *ptr= (uchar*) &nr;
+#if (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
+      tmp[0]= ptr[3]; tmp[1]=ptr[2]; tmp[2]= ptr[1]; tmp[3]=ptr[0];
+      tmp[4]= ptr[7]; tmp[5]=ptr[6]; tmp[6]= ptr[5]; tmp[7]=ptr[4];
+#else
       tmp[0]= ptr[7]; tmp[1]=ptr[6]; tmp[2]= ptr[5]; tmp[3]=ptr[4];
       tmp[4]= ptr[3]; tmp[5]=ptr[2]; tmp[6]= ptr[1]; tmp[7]=ptr[0];
+#endif
     }
 #endif
     if (tmp[0] & 128)				/* Negative */

@@ -284,8 +284,8 @@ I_List<THD> threads,thread_cache;
 time_t start_time;
 
 
-uchar temp_pool[TEMP_POOL_SIZE];
-bool use_temp_pool;
+BITMAP temp_pool;
+bool use_temp_pool=0;
 
 pthread_key(MEM_ROOT*,THR_MALLOC);
 pthread_key(THD*, THR_THD);
@@ -646,6 +646,7 @@ void clean_up(void)
   free_defaults(defaults_argv);
   my_free(mysql_tmpdir,MYF(0));
   x_free(opt_bin_logname);
+  bitmap_free(&temp_pool);
 #ifndef __WIN__
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
@@ -1073,7 +1074,7 @@ static void init_signals(void)
   signal(SIGBREAK,SIG_IGN);
   signal_thread = pthread_self();
 }
-#else
+#else /* if ! __WIN__ && ! __EMX__ */
 
 #ifdef HAVE_LINUXTHREADS
 static sig_handler write_core(int sig);
@@ -1085,8 +1086,8 @@ static sig_handler write_core(int sig);
 extern char* __bss_start;
 static char* heap_start, *heap_end;
 
-inline static __volatile__ void print_str(const char* name,
-					  const char* val, int max_len)
+inline __volatile__ void print_str(const char* name,
+				   const char* val, int max_len)
 {
   fprintf(stderr, "%s at %p ", name, val);
   if(!PTR_SANE(val))
@@ -1101,7 +1102,7 @@ inline static __volatile__ void print_str(const char* name,
   fputc('\n', stderr);
 }
 
-inline static __volatile__ void  trace_stack()
+inline __volatile__ void  trace_stack()
 {
   uchar **stack_bottom;
   uchar** ebp;
@@ -1227,7 +1228,9 @@ static void init_signals(void)
    sa.sa_handler=handle_segfault;
 #endif
   sigaction(SIGSEGV, &sa, NULL);
+#ifdef SIGBUS
   sigaction(SIGBUS, &sa, NULL);
+#endif
   sigaction(SIGILL, &sa, NULL);
   (void) sigemptyset(&set);
 #ifdef THREAD_SPECIFIC_SIGPIPE
@@ -1532,9 +1535,6 @@ int main(int argc, char **argv)
   if (!mysql_tmpdir || !mysql_tmpdir[0])
     mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
 
-  bzero(temp_pool, TEMP_POOL_SIZE);
-  use_temp_pool = 0;
-
   set_options();
 #ifdef __WIN__
   /* service parameters can be overwritten by options */
@@ -1641,6 +1641,8 @@ int main(int argc, char **argv)
 #endif
   select_thread=pthread_self();
   select_thread_in_use=1;
+  if (use_temp_pool && bitmap_init(&temp_pool,1024))
+    unireg_abort(1);
 
   /*
   ** We have enough space for fiddling with the argv, continue

@@ -811,6 +811,28 @@ typedef union {
 #else
 #define float4get(V,M)   memcpy_fixed((byte*) &V,(byte*) (M),sizeof(float))
 #define float4store(V,M) memcpy_fixed((byte*) V,(byte*) (&M),sizeof(float))
+
+#if (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
+#define doublestore(T,V)    { *(T)= ((byte *) &V)[4];\
+                              *((T)+1)=(char) ((byte *) &V)[5];\
+                              *((T)+2)=(char) ((byte *) &V)[6];\
+                              *((T)+3)=(char) ((byte *) &V)[7];\
+                              *((T)+4)=(char) ((byte *) &V)[0];\
+                              *((T)+5)=(char) ((byte *) &V)[1];\
+                              *((T)+6)=(char) ((byte *) &V)[2];\
+                              *((T)+7)=(char) ((byte *) &V)[3]; }
+#define doubleget(V,M) { double def_temp;\
+                              ((byte*) &def_temp)[0]=(M)[4];\
+                              ((byte*) &def_temp)[1]=(M)[5];\
+                              ((byte*) &def_temp)[2]=(M)[6];\
+                              ((byte*) &def_temp)[3]=(M)[7];\
+                              ((byte*) &def_temp)[4]=(M)[0];\
+                              ((byte*) &def_temp)[5]=(M)[1];\
+                              ((byte*) &def_temp)[6]=(M)[2];\
+                              ((byte*) &def_temp)[7]=(M)[3];\
+			      (V) = def_temp; }
+#endif /* __FLOAT_WORD_ORDER */
+
 #define float8get(V,M)   doubleget((V),(M))
 #define float8store(V,M) doublestore((V),(M))
 #endif /* WORDS_BIGENDIAN */
@@ -863,7 +885,7 @@ typedef union {
 #ifndef doubleget
 #define doubleget(V,M)	 memcpy_fixed((byte*) &V,(byte*) (M),sizeof(double))
 #define doublestore(T,V) memcpy_fixed((byte*) (T),(byte*) &V,sizeof(double))
-#endif
+#endif /* doubleget */
 #define longlongget(V,M) memcpy_fixed((byte*) &V,(byte*) (M),sizeof(ulonglong))
 #define longlongstore(T,V) memcpy_fixed((byte*) (T),(byte*) &V,sizeof(ulonglong))
 

@@ -2106,8 +2106,14 @@ int Field_double::cmp(const char *a_ptr, const char *b_ptr)
   else
 #endif
   {
+/* could this ALWAYS be 2 calls to doubleget() ?? */
+#if (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
+    doubleget(a, a_ptr);
+    doubleget(b, b_ptr);
+#else
     memcpy_fixed(&a,a_ptr,sizeof(double));
     memcpy_fixed(&b,b_ptr,sizeof(double));
+#endif
   }
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
@@ -2127,7 +2133,12 @@ void Field_double::sort_string(char *to,uint length __attribute__((unused)))
   }
   else
 #endif
+/* could this ALWAYS be 2 calls to doubleget() ?? */
+#if (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
+    doubleget(nr,ptr);
+#else
     memcpy_fixed(&nr,ptr,sizeof(nr));
+#endif
   change_double_for_sort(nr, (byte*) to);
 }
 

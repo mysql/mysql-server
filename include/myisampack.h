@@ -167,6 +167,28 @@
 			      ((byte*) &def_temp)[3]=(M)[0];\
 			      (V)=def_temp; }
 
+#if (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
+#define mi_float8store(T,V) { *(T)= ((byte *) &V)[3];\
+			      *((T)+1)=(char) ((byte *) &V)[2];\
+			      *((T)+2)=(char) ((byte *) &V)[1];\
+			      *((T)+3)=(char) ((byte *) &V)[0];\
+			      *((T)+4)=(char) ((byte *) &V)[7];\
+			      *((T)+5)=(char) ((byte *) &V)[6];\
+			      *((T)+6)=(char) ((byte *) &V)[5];\
+			      *((T)+7)=(char) ((byte *) &V)[4];}
+
+#define mi_float8get(V,M)   { double def_temp;\
+			      ((byte*) &def_temp)[0]=(M)[3];\
+			      ((byte*) &def_temp)[1]=(M)[2];\
+			      ((byte*) &def_temp)[2]=(M)[1];\
+			      ((byte*) &def_temp)[3]=(M)[0];\
+			      ((byte*) &def_temp)[4]=(M)[7];\
+			      ((byte*) &def_temp)[5]=(M)[6];\
+			      ((byte*) &def_temp)[6]=(M)[5];\
+			      ((byte*) &def_temp)[7]=(M)[4];\
+			      (V)=def_temp; }
+
+#else
 #define mi_float8store(T,V) { *(T)= ((byte *) &V)[7];\
 			      *((T)+1)=(char) ((byte *) &V)[6];\
 			      *((T)+2)=(char) ((byte *) &V)[5];\
@@ -186,7 +208,8 @@
 			      ((byte*) &def_temp)[6]=(M)[1];\
 			      ((byte*) &def_temp)[7]=(M)[0];\
 			      (V)=def_temp; }
-#endif
+#endif /* __FLOAT_WORD_ORDER */
+#endif /* WORDS_BIGENDIAN */
 
 /* Fix to avoid warnings when sizeof(ha_rows) == sizeof(long) */
 
