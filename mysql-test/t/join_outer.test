@@ -588,6 +588,12 @@ INSERT INTO t2 VALUES("0", "SV", "0-SV");
 INSERT INTO t2 VALUES("10", "EN", "10-EN");
 INSERT INTO t2 VALUES("10", "SV", "10-SV");
 
+SELECT t1.id, t1.text_id, t2.text_data
+  FROM t1 LEFT JOIN t2
+               ON t1.text_id = t2.text_id
+                  AND t2.language_id = 'SV'
+  WHERE (t1.id LIKE '%' OR t2.text_data LIKE '%');
+
 DROP TABLE t1, t2;
 
 # Test for bug #5896  
