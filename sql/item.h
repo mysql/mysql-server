@@ -90,6 +90,53 @@ public:
 };
 
 
+/*
+  Wrapper base class
+*/
+
+class Item_wrapper :public Item
+{
+protected:
+  Item *item;
+public:
+  /* 
+     Following methods should not be used, because fix_fields exclude this 
+     item (it assign '*ref' with field 'item' in derived classes)
+  */
+  enum Type type() const         { return item->type(); }
+  double val()                   { return item->val(); }
+  longlong val_int()             { return item->val_int(); }
+  String* val_str(String* s)     { return item->val_str(s); }
+  void make_field(Send_field* f) { item->make_field(f); }
+};
+
+
+/*
+  Save context of name resolution for Item, used in subselect transformer.
+*/
+class Item_outer_select_context_saver :public Item_wrapper
+{
+public:
+  Item_outer_select_context_saver(Item *i)
+  {
+    item= i;
+  }
+  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
+};
+
+/*
+  To resolve '*' field moved to condition
+*/
+class Item_asterisk_remover :public Item_wrapper
+{
+public:
+  Item_asterisk_remover(Item *i)
+  {
+    item= i;
+  }
+  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
+};
+
 class st_select_lex;
 class Item_ident :public Item
 {

@@ -424,6 +424,53 @@ bool Item::fix_fields(THD *thd,
   return 0;
 }
 
+bool Item_outer_select_context_saver::fix_fields(THD *thd,
+						 struct st_table_list *list,
+						 Item ** ref)
+{
+  DBUG_ENTER("Item_outer_select_context_saver::fix_fields");
+  bool res= item->fix_fields(thd,
+			     0, // do not show current subselect fields
+			     &item);
+  *ref= item;
+  DBUG_RETURN(res);
+}
+
+bool Item_asterisk_remover::fix_fields(THD *thd,
+				       struct st_table_list *list,
+				       Item ** ref)
+{
+  DBUG_ENTER("Item_asterisk_remover::fix_fields");
+  
+  bool res;
+  if (item)
+    if (item->type() == Item::FIELD_ITEM &&
+	((Item_field*) item)->field_name[0] == '*')
+    {
+      List<Item> fields;
+      fields.push_back(item);
+      List_iterator<Item> it(fields);
+      it++;
+      uint elem=fields.elements;
+      if (insert_fields(thd, list, ((Item_field*) item)->db_name,
+			((Item_field*) item)->table_name, &it))
+	res= -1;
+      else
+	if (fields.elements > 1)
+	{
+	  my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
+	  res= -1;
+	}
+    }
+    else
+      res= item->fix_fields(thd, list, &item);
+  else
+    res= -1;
+  *ref= item;
+  DBUG_RETURN(res);
+}
+
+
 bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   if (!field)					// If field is not checked

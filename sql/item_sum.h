@@ -34,23 +34,28 @@ public:
   uint arg_count;
   bool quick_group;			/* If incremental update of fields */
 
-  Item_sum() : arg_count(0),quick_group(1) { with_sum_func=1; }
+  Item_sum() : arg_count(0),quick_group(1) 
+  {
+    mark_as_sum_func();
+  }
   Item_sum(Item *a) :quick_group(1)
   {
     arg_count=1;
     args=tmp_args;
     args[0]=a;
-    with_sum_func = 1;
+    mark_as_sum_func();
   }
   Item_sum( Item *a, Item *b ) :quick_group(1)
   {
     arg_count=2;
     args=tmp_args;
     args[0]=a; args[1]=b;
-    with_sum_func=1;
+    mark_as_sum_func();
   }
   Item_sum(List<Item> &list);
   ~Item_sum() { result_field=0; }
+  inline void mark_as_sum_func();
+
   enum Type type() const { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func () const=0;
   virtual void reset()=0;

@@ -200,6 +200,7 @@ public:
   List<List_item>     expr_list;
   List<List_item>     when_list;      /* WHEN clause (expression) */
   ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
+  bool with_sum_func;
   bool	create_refs;
   bool dependent;	/* dependent from outer select subselect */
 
