@@ -1,0 +1,8 @@
+Roughly the same as "Linux Kernel Coding Style", which is
+included in file LinuxKernelCodingStyle.
+
+Some methods are meant to be used as set/get, for example, there
+are:
+virtual bool Vio::blocking();
+virtual int Vio::blocking(bool block);
+
