@@ -42919,7 +42919,7 @@ The specified group in the option file may contain the following options:
 
 @multitable @columnfractions .3 .7
 @item @strong{Option} @tab @strong{Description}
-@item @code{connect_timeout} @tab Connect timeout in seconds. On Linux this timeout is also used for waiting for the first answer from the server.
+@item @code{connect-timeout} @tab Connect timeout in seconds. On Linux this timeout is also used for waiting for the first answer from the server.
 @item @code{compress} @tab Use the compressed client/server protocol.
 @item @code{database} @tab Connect to this database if no database was specified in the connect command.
 @item @code{debug} @tab Debug options.
@@ -42927,7 +42927,7 @@ The specified group in the option file may contain the following options:
 @item @code{host} @tab Default host name.
 @item @code{init-command} @tab Command to execute when connecting to MySQL server. Will automatically be re-executed when reconnecting.
 @item @code{interactive-timeout} @tab Same as specifying @code{CLIENT_INTERACTIVE} to @code{mysql_real_connect()}. @xref{mysql_real_connect}.
-@item @code{local-infile[(=0|1)]} @tab If no argument or argument != 0 then enable use of @code{LOAD DATA LOCAL}.
+@item @code{local-infile[=(0|1)]} @tab If no argument or argument != 0 then enable use of @code{LOAD DATA LOCAL}.
 @item @code{password} @tab Default password.
 @item @code{pipe} @tab Use named pipes to connect to a MySQL server on NT.
 @item @code{port} @tab Default port number.
@@ -42936,7 +42936,7 @@ The specified group in the option file may contain the following options:
 @item @code{user} @tab Default user.
 @end multitable
 
-Note that @code{timeout} has been replaced by @code{connect_timeout}, but
+Note that @code{timeout} has been replaced by @code{connect-timeout}, but
 @code{timeout} will still work for a while.
 
 For more information about option files, see @ref{Option files}.
@@ -46277,7 +46277,7 @@ This means one of the following things:
 
 @itemize @bullet
 @item
-The character set is a multi-byte character set and you have not support
+The character set is a multi-byte character set and you have no support
 for the character set in the client.
 
 In this case you need to recompile the client with
@@ -46290,7 +46290,7 @@ all multi-byte character sets. @xref{Character sets}.
 
 @item
 The character set is a simple character set which is not compiled into
-@code{mysqld} and the character set definition files is not in the place
+@code{mysqld} and the character set definition files are not in the place
 where the client expect to find them.
 
 In this case you need to:
@@ -46301,10 +46301,10 @@ Recompile the client with support for the character set.
 @xref{configure options}.
 @item
 Specify to the client where the character set definition files are. For many
-client you can do this with the
+clients you can do this with the
 @code{--character-sets-dir=path-to-charset-dir} option.
 @item
-Copy the character definition files to the path where the client expect them
+Copy the character definition files to the path where the client expects them
 to be.
 @end itemize
 @end itemize
