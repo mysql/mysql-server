@@ -81,7 +81,8 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     // if the read hits eof, we must report it as eof
     // so the caller will know it can go into cond_wait to be woken up
     // on the next update to the log
-    return file->error >= 0 ? LOG_READ_EOF: LOG_READ_IO;
+    if(!file->error) return LOG_READ_EOF;
+    return file->error > 0 ? LOG_READ_TRUNC: LOG_READ_IO;
   }
   data_len = uint4korr(buf + EVENT_LEN_OFFSET);
   if (data_len < LOG_EVENT_HEADER_LEN || data_len > MAX_EVENT_LEN)
