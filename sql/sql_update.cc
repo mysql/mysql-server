@@ -444,7 +444,7 @@ multi_update::prepare(List<Item> &values)
     else
       *int_ptr++=counter;
   }
-  if (!num_updated)
+  if (!num_updated--)
   {
     net_printf(&thd->net, ER_NOT_SUPPORTED_YET, "SET CLAUSE MUST CONTAIN TABLE.FIELD REFERENCE");
     DBUG_RETURN(1);
@@ -454,11 +454,11 @@ multi_update::prepare(List<Item> &values)
     Here, I have to allocate the array of temporary tables
     I have to treat a case of num_updated=1 differently in send_data() method.
   */
-  if (num_updated > 1)
+  if (num_updated)
   {
-    tmp_tables = (TABLE **) sql_calloc(sizeof(TABLE *) * (num_updated - 1));
-    infos = (COPY_INFO *) sql_calloc(sizeof(COPY_INFO) * (num_updated - 1));
-    fields_by_tables = (List_item **)sql_calloc(sizeof(List_item *) * num_updated);
+    tmp_tables = (TABLE **) sql_calloc(sizeof(TABLE *) * num_updated);
+    infos = (COPY_INFO *) sql_calloc(sizeof(COPY_INFO) * num_updated);
+    fields_by_tables = (List_item **)sql_calloc(sizeof(List_item *) * (num_updated + 1));
     unsigned int counter;
     List<Item> *temp_fields;
     for (table_ref=update_tables, counter = 0;  table_ref; table_ref=table_ref->next)
@@ -551,7 +551,7 @@ multi_update::~multi_update()
       table->time_stamp=save_time_stamps[counter];
   }
   if (tmp_tables)
-    for (uint counter = 0; counter < num_updated-1; counter++)
+    for (uint counter = 0; counter < num_updated; counter++)
       if (tmp_tables[counter])
 	free_tmp_table(thd,tmp_tables[counter]);
 }
@@ -563,7 +563,7 @@ bool multi_update::send_data(List<Item> &values)
   for (uint counter = 0; counter < fields.elements; counter++)
     real_values.pop();
   // We have skipped fields ....
-  if (num_updated == 1)
+  if (!num_updated)
   {
     for (table_being_updated=update_tables ;
 	 table_being_updated ;
@@ -681,7 +681,7 @@ void multi_update::send_error(uint errcode,const char *err)
   if ((table_being_updated->table->file->has_transactions() &&
        table_being_updated == update_tables) || !not_trans_safe)
     ha_rollback_stmt(thd);
-  else if (do_update && num_updated > 1)
+  else if (do_update && num_updated)
     VOID(do_updates(true));
 }
 
@@ -768,7 +768,7 @@ bool multi_update::send_eof()
   thd->proc_info="updating the  reference tables";
 
   /* Does updates for the last n - 1 tables, returns 0 if ok */
-  int error = (num_updated > 1) ? do_updates(false) : 0;   /* do_updates returns 0 if success */
+  int error = (num_updated) ? do_updates(false) : 0;   /* do_updates returns 0 if success */
 
   /* reset used flags */
 #ifndef NOT_USED
