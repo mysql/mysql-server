@@ -23,10 +23,23 @@
  */
 
 #define DONT_USE_RAID
-#if defined(__WIN__) || defined(WIN32)
+#if defined(__WIN__)
 #include <winsock.h>
 #include <odbcinst.h>
+/* Disable alarms */
+typedef my_bool ALARM;
+#define thr_alarm_init(A) (*(A))=0
+#define thr_alarm_in_use(A) (*(A))
+#define thr_end_alarm(A)
+#define thr_alarm(A,B,C) local_thr_alarm((A),(B),(C))
+inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __attribute__((unused)))
+{
+  *A=1;
+  return 0;
+}
+#define thr_got_alarm(A) 0
 #endif
+
 #include <global.h>
 #include <my_sys.h>
 #include <mysys_err.h>
@@ -62,7 +75,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
 #endif
-#if defined(THREAD) && !defined(__WIN__)
+#if defined(THREAD)
 #include <my_pthread.h>				/* because of signal()	*/
 #include <thr_alarm.h>
 #endif
@@ -486,9 +499,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   uint		pkt_length;
   NET		*net= &mysql->net;
   thr_alarm_t   alarmed;
-#if !defined(__WIN__)
   ALARM alarm_buff;
-#endif
 
 #ifdef __WIN__
   HANDLE	hPipe=INVALID_HANDLE_VALUE;
