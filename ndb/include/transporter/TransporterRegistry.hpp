@@ -312,6 +312,8 @@ private:
   Uint32 poll_TCP(Uint32 timeOutMillis);
   Uint32 poll_SCI(Uint32 timeOutMillis);
   Uint32 poll_SHM(Uint32 timeOutMillis);
+  
+  int m_shm_own_pid;
 };
 
 #endif // Define of TransporterRegistry_H

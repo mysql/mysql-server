@@ -1273,10 +1273,8 @@ TransporterRegistry::startReceiving()
 #endif
 
 #ifdef NDB_SHM_TRANSPORTER
-  if(nSHMTransporters)
-  {
-    signal(SIGUSR1, shm_sig_handler);
-  }
+  m_shm_own_pid = getpid();
+  signal(SIGUSR1, shm_sig_handler);
 #endif
 }
 
