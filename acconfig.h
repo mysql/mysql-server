@@ -115,6 +115,9 @@
 /* Builds Example DB */
 #undef HAVE_EXAMPLE_DB
 
+/* Builds Archive Storage Engine */
+#undef HAVE_ARCHIVE_DB
+
 /* fp_except from ieeefp.h */
 #undef HAVE_FP_EXCEPT
 
