@@ -40,7 +40,6 @@ extern "C" void* runProducer(void*arg)
         NdbSleep_MilliSleep(i);
       i++;
     }
-  NdbThread_Exit(0);
   return NULL;
 }
 
@@ -58,7 +57,6 @@ extern "C" void* runConsumer(void* arg)
       delete p;
       
     }
-  NdbThread_Exit(0);
   return NULL;
 }
 
@@ -92,7 +90,6 @@ extern "C" void* runProducer2(void*arg)
       NdbSleep_MilliSleep(i);
       i++;
     }
-  NdbThread_Exit(0);
   return NULL;
 }
 
@@ -111,7 +108,6 @@ extern "C" void* runConsumer2(void* arg)
       delete p;
     }
   ndbout << "Consumer2: " << count << " received" << endl;
-  NdbThread_Exit(0);
   return NULL;
 }
 
