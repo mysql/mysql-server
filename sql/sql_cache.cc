@@ -787,6 +787,9 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
       thd->variables.collation_connection->number;
     flags.limit= thd->variables.select_limit;
     flags.time_zone= thd->variables.time_zone;
+    flags.sql_mode= thd->variables.sql_mode;
+    flags.max_sort_length= thd->variables.max_sort_length;
+    flags.group_concat_max_len= thd->variables.group_concat_max_len;
     STRUCT_LOCK(&structure_guard_mutex);
 
     if (query_cache_size == 0)
@@ -974,8 +977,11 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   flags.collation_connection_num= thd->variables.collation_connection->number;
   flags.limit= thd->variables.select_limit;
   flags.time_zone= thd->variables.time_zone;
+  flags.sql_mode= thd->variables.sql_mode;
+  flags.max_sort_length= thd->variables.max_sort_length;
+  flags.group_concat_max_len= thd->variables.group_concat_max_len;
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
- 	 &flags, QUERY_CACHE_FLAGS_SIZE);
+	 &flags, QUERY_CACHE_FLAGS_SIZE);
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
 						   tot_length);
   /* Quick abort on unlocked data */
