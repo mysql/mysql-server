@@ -512,8 +512,10 @@ NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
   {
     setPartitionHash(value, len);
   }
-  else 
+  else if(tSignal->readSignalNumber() == GSN_TCKEYREQ)
   {
+    // No support for combined distribution key and scan
+
     /**
      * Copy distribution key to linear memory
      */
