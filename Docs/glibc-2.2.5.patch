@@ -1,12 +1,4 @@
-Only in glibc-2.2.4-new: bits
-Only in glibc-2.2.4-new: config.cache
-Only in glibc-2.2.4-new: config.h
-Only in glibc-2.2.4-new: config.log
-Only in glibc-2.2.4-new: config.make
-Only in glibc-2.2.4-new: config.status
-Only in glibc-2.2.4-new: glibcbug
-Only in glibc-2.2.4-new/iconv: strtab.o
-diff -r -c glibc-2.2.4/linuxthreads/internals.h glibc-2.2.4-new/linuxthreads/internals.h
+diff -r -c --exclude=*.info* glibc-2.2.4/linuxthreads/internals.h glibc-2.2.4-new/linuxthreads/internals.h
 *** glibc-2.2.4/linuxthreads/internals.h	Mon Jul 23 20:54:13 2001
 --- glibc-2.2.4-new/linuxthreads/internals.h	Tue Apr 16 15:08:03 2002
 ***************
@@ -26,8 +18,7 @@ diff -r -c glibc-2.2.4/linuxthreads/internals.h glibc-2.2.4-new/linuxthreads/int
   #endif
   
   /* The initial size of the thread stack.  Must be a multiple of PAGE_SIZE.  */
-Only in glibc-2.2.4-new/linuxthreads: internals.h.rej
-diff -r -c glibc-2.2.4/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h glibc-2.2.4-new/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h
+diff -r -c --exclude=*.info* glibc-2.2.4/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h glibc-2.2.4-new/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h
 *** glibc-2.2.4/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h	Fri Jun  9 22:17:35 2000
 --- glibc-2.2.4-new/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h	Tue Apr 16 15:10:38 2002
 ***************
@@ -47,97 +38,59 @@ diff -r -c glibc-2.2.4/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h gli
   
   /* Maximum amount by which a process can descrease its asynchronous I/O
      priority level.  */
-Only in glibc-2.2.4-new/linuxthreads/sysdeps/unix/sysv/linux/bits: local_lim.h.rej
-Only in glibc-2.2.4-new/manual: chapters.texi
-Only in glibc-2.2.4/manual: dir-add.info
-Only in glibc-2.2.4/manual: libc.info
-Only in glibc-2.2.4/manual: libc.info-1
-Only in glibc-2.2.4/manual: libc.info-10
-Only in glibc-2.2.4/manual: libc.info-11
-Only in glibc-2.2.4/manual: libc.info-12
-Only in glibc-2.2.4/manual: libc.info-13
-Only in glibc-2.2.4/manual: libc.info-14
-Only in glibc-2.2.4/manual: libc.info-15
-Only in glibc-2.2.4/manual: libc.info-16
-Only in glibc-2.2.4/manual: libc.info-17
-Only in glibc-2.2.4/manual: libc.info-18
-Only in glibc-2.2.4/manual: libc.info-19
-Only in glibc-2.2.4/manual: libc.info-2
-Only in glibc-2.2.4/manual: libc.info-20
-Only in glibc-2.2.4/manual: libc.info-21
-Only in glibc-2.2.4/manual: libc.info-22
-Only in glibc-2.2.4/manual: libc.info-23
-Only in glibc-2.2.4/manual: libc.info-24
-Only in glibc-2.2.4/manual: libc.info-25
-Only in glibc-2.2.4/manual: libc.info-26
-Only in glibc-2.2.4/manual: libc.info-27
-Only in glibc-2.2.4/manual: libc.info-28
-Only in glibc-2.2.4/manual: libc.info-29
-Only in glibc-2.2.4/manual: libc.info-3
-Only in glibc-2.2.4/manual: libc.info-30
-Only in glibc-2.2.4/manual: libc.info-31
-Only in glibc-2.2.4/manual: libc.info-32
-Only in glibc-2.2.4/manual: libc.info-33
-Only in glibc-2.2.4/manual: libc.info-34
-Only in glibc-2.2.4/manual: libc.info-35
-Only in glibc-2.2.4/manual: libc.info-36
-Only in glibc-2.2.4/manual: libc.info-37
-Only in glibc-2.2.4/manual: libc.info-38
-Only in glibc-2.2.4/manual: libc.info-39
-Only in glibc-2.2.4/manual: libc.info-4
-Only in glibc-2.2.4/manual: libc.info-40
-Only in glibc-2.2.4/manual: libc.info-41
-Only in glibc-2.2.4/manual: libc.info-42
-Only in glibc-2.2.4/manual: libc.info-43
-Only in glibc-2.2.4/manual: libc.info-44
-Only in glibc-2.2.4/manual: libc.info-45
-Only in glibc-2.2.4/manual: libc.info-46
-Only in glibc-2.2.4/manual: libc.info-47
-Only in glibc-2.2.4/manual: libc.info-48
-Only in glibc-2.2.4/manual: libc.info-49
-Only in glibc-2.2.4/manual: libc.info-5
-Only in glibc-2.2.4/manual: libc.info-50
-Only in glibc-2.2.4/manual: libc.info-51
-Only in glibc-2.2.4/manual: libc.info-52
-Only in glibc-2.2.4/manual: libc.info-53
-Only in glibc-2.2.4/manual: libc.info-54
-Only in glibc-2.2.4/manual: libc.info-55
-Only in glibc-2.2.4/manual: libc.info-56
-Only in glibc-2.2.4/manual: libc.info-57
-Only in glibc-2.2.4/manual: libc.info-58
-Only in glibc-2.2.4/manual: libc.info-59
-Only in glibc-2.2.4/manual: libc.info-6
-Only in glibc-2.2.4/manual: libc.info-60
-Only in glibc-2.2.4/manual: libc.info-7
-Only in glibc-2.2.4/manual: libc.info-8
-Only in glibc-2.2.4/manual: libc.info-9
-Only in glibc-2.2.4-new/manual: stamp-summary
-Only in glibc-2.2.4-new/manual: summary.texi
-Only in glibc-2.2.4-new/manual: texis
-Only in glibc-2.2.4-new/manual: top-menu.texi
-Only in glibc-2.2.4-new/nss: nsswitch-org.c
-diff -r -c glibc-2.2.4/nss/nsswitch.c glibc-2.2.4-new/nss/nsswitch.c
+diff -r -c --exclude=*.info* glibc-2.2.4/nss/nsswitch.c glibc-2.2.4-new/nss/nsswitch.c
 *** glibc-2.2.4/nss/nsswitch.c	Mon Jul 23 20:54:48 2001
---- glibc-2.2.4-new/nss/nsswitch.c	Tue Apr 16 15:43:32 2002
+--- glibc-2.2.4-new/nss/nsswitch.c	Fri May  3 04:17:44 2002
 ***************
-*** 510,515 ****
---- 510,523 ----
+*** 496,501 ****
+--- 496,502 ----
+      {
+        service_user *new_service;
+        const char *name;
++       int name_alloc_len;
+  
+        while (isspace (line[0]))
+  	++line;
+***************
+*** 510,522 ****
         if (name == line)
   	return result;
   
+  
+        new_service = (service_user *) malloc (sizeof (service_user)
+! 					     + (line - name + 1));
+        if (new_service == NULL)
+  	return result;
+  
+!       *((char *) __mempcpy (new_service->name, name, line - name)) = '\0';
+  
+        /* Set default actions.  */
+        new_service->actions[2 + NSS_STATUS_TRYAGAIN] = NSS_ACTION_CONTINUE;
+--- 511,533 ----
+        if (name == line)
+  	return result;
+  
++       name_alloc_len = line - name + 1;
++ 
 + #ifdef DO_STATIC_NSS
-+       if (!(((line-name) == 5 && strncmp(name,"files",5) == 0) ||
-+ 	    ((line-name) == 3 && strncmp(name,"dns",3) == 0)))
++       if (!((name_alloc_len == 6 && strncmp(name,"files",5) == 0) ||
++ 	    (name_alloc_len == 4 && strncmp(name,"dns",3) == 0)))
 +       {
 + 	name = (char*) "files";
-+ 	line = (char*) name+5;
++         name_alloc_len=6;
 +       }
 + #endif      
   
         new_service = (service_user *) malloc (sizeof (service_user)
-  					     + (line - name + 1));
-Only in glibc-2.2.4-new: skr
-diff -r -c glibc-2.2.4/time/Makefile glibc-2.2.4-new/time/Makefile
+! 					     + name_alloc_len);
+        if (new_service == NULL)
+  	return result;
+  
+!       *((char *) __mempcpy (new_service->name, name, name_alloc_len)) = '\0';
+  
+        /* Set default actions.  */
+        new_service->actions[2 + NSS_STATUS_TRYAGAIN] = NSS_ACTION_CONTINUE;
+diff -r -c --exclude=*.info* glibc-2.2.4/time/Makefile glibc-2.2.4-new/time/Makefile
 *** glibc-2.2.4/time/Makefile	Fri Aug 10 22:12:07 2001
 --- glibc-2.2.4-new/time/Makefile	Tue Apr 16 15:11:09 2002
 ***************
@@ -159,7 +112,7 @@ diff -r -c glibc-2.2.4/time/Makefile glibc-2.2.4-new/time/Makefile
   	    -DTZDEFRULES='"$(posixrules-file)"'
   
   CFLAGS-tzfile.c = $(tz-cflags)
-diff -r -c glibc-2.2.4/timezone/Makefile glibc-2.2.4-new/timezone/Makefile
+diff -r -c --exclude=*.info* glibc-2.2.4/timezone/Makefile glibc-2.2.4-new/timezone/Makefile
 *** glibc-2.2.4/timezone/Makefile	Mon Jul 23 20:58:05 2001
 --- glibc-2.2.4-new/timezone/Makefile	Tue Apr 16 15:11:09 2002
 ***************
