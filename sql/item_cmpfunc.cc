@@ -2289,6 +2289,21 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
   if (check_stack_overrun(thd, buff))
     return TRUE;				// Fatal error flag is set!
+  /*
+    The following optimization reduces the depth of an AND-OR tree.
+    E.g. a WHERE clause like
+      F1 AND (F2 AND (F2 AND F4))
+    is parsed into a tree with the same nested structure as defined
+    by braces. This optimization will transform such tree into
+      AND (F1, F2, F3, F4).
+    Trees of OR items are flattened as well:
+      ((F1 OR F2) OR (F3 OR F4))   =>   OR (F1, F2, F3, F4)
+    Items for removed AND/OR levels will dangle until the death of the
+    entire statement.
+    The optimization is currently prepared statements and stored procedures
+    friendly as it doesn't allocate any memory and its effects are durable
+    (i.e. do not depend on PS/SP arguments).
+  */
   while ((item=li++))
   {
     table_map tmp_table_map;
@@ -3265,6 +3280,7 @@ Item_equal::Item_equal(Item *c, Item_field *f)
   const_item= c;
 }
 
+
 Item_equal::Item_equal(Item_equal *item_equal)
   : Item_bool_func(), eval_item(0), cond_false(0)
 {
@@ -3301,12 +3317,7 @@ void Item_equal::add(Item_field *f)
 
 uint Item_equal::members()
 {
-  uint count= 0;
-  List_iterator_fast<Item_field> li(fields);
-  Item_field *item;
-  while ((item= li++))
-    count++;
-  return count;
+  return fields.elements;
 }
 
 
