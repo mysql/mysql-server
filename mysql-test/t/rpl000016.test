@@ -50,6 +50,7 @@ connection slave;
 sync_with_master;
 
 #the slave may have already stopped, so we ignore the error
+--error 0,1199
 !slave stop;
 
 #restart slave skipping one event

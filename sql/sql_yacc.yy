@@ -56,6 +56,7 @@ inline Item *or_or_concat(Item* A, Item* B)
   Key::Keytype key_type;
   enum db_type db_type;
   enum row_type row_type;
+  enum ha_rkey_function ha_rkey_mode;
   enum enum_tx_isolation tx_isolation;
   String *string;
   key_part_spec *key_part;
@@ -531,6 +532,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <tx_isolation> tx_isolation isolation_types
 
+%type <ha_rkey_mode> handler_rkey_mode
+
 %type <udf_type> udf_func_type
 
 %type <symbol> FUNC_ARG0 FUNC_ARG1 FUNC_ARG2 FUNC_ARG3 keyword
@@ -561,7 +564,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
 	table_to_table_list table_to_table opt_table_list opt_as
-	handler_rkey_function handler_rkey_mode handler_read_or_scan
+	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild union union_list
 	precision union_option
 END_OF_INPUT
@@ -3209,7 +3212,9 @@ handler:
 	}
 	| HANDLER_SYM table_ident READ_SYM handler_read_or_scan
 	{
-	  Lex->sql_command = SQLCOM_HA_READ;
+	  LEX *lex=Lex;
+	  lex->sql_command = SQLCOM_HA_READ;
+	  lex->ha_rkey_mode= HA_READ_KEY_EXACT;	/* Avoid purify warnings */
 	  if (!add_table_to_list($2,0,0))
 	    YYABORT;
         }
@@ -3232,16 +3237,17 @@ handler_rkey_function:
 	{
 	  LEX *lex=Lex;
 	  lex->ha_read_mode = RKEY;
+	  lex->ha_rkey_mode=$1;
 	  if (!(lex->insert_list = new List_item))
 	    YYABORT;
 	} '(' values ')' { }
 
 handler_rkey_mode:
-	  EQ     { Lex->ha_rkey_mode=HA_READ_KEY_EXACT;   }
-	| GE     { Lex->ha_rkey_mode=HA_READ_KEY_OR_NEXT; }
-	| LE     { Lex->ha_rkey_mode=HA_READ_KEY_OR_PREV; }
-	| GT_SYM { Lex->ha_rkey_mode=HA_READ_AFTER_KEY;   }
-	| LT     { Lex->ha_rkey_mode=HA_READ_BEFORE_KEY;  }
+	  EQ     { $$=HA_READ_KEY_EXACT;   }
+	| GE     { $$=HA_READ_KEY_OR_NEXT; }
+	| LE     { $$=HA_READ_KEY_OR_PREV; }
+	| GT_SYM { $$=HA_READ_AFTER_KEY;   }
+	| LT     { $$=HA_READ_BEFORE_KEY;  }
 
 /* GRANT / REVOKE */
 
