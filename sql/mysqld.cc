@@ -273,11 +273,13 @@ my_bool opt_secure_auth= 0;
 my_bool opt_short_log_format= 0;
 my_bool opt_log_queries_not_using_indexes= 0;
 my_bool lower_case_file_system= 0;
+my_bool opt_innodb_safe_binlog;
 volatile bool mqh_used = 0;
 
 uint mysqld_port, test_flags, select_errors, dropping_tables, ha_open_options;
 uint delay_key_write_options, protocol_version;
 uint lower_case_table_names;
+uint opt_crash_binlog_innodb;
 uint volatile thread_count, thread_running, kill_cached_threads, wake_thread;
 
 ulong back_log, connect_timeout, concurrency;
@@ -2550,6 +2552,16 @@ server.");
   if (opt_myisam_log)
     (void) mi_log(1);
 
+  /*
+    Now that InnoDB is initialized, we can know the last good binlog position
+    and cut the binlog if needed. This function does nothing if there was no
+    crash recovery by InnoDB.
+  */
+  if (opt_innodb_safe_binlog)
+    /* not fatal if fails (but print errors) */
+    mysql_bin_log.cut_spurious_tail();
+  mysql_bin_log.report_pos_in_innodb();
+
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
   /* We must set dflt_key_cache in case we are using ISAM tables */
@@ -3824,8 +3836,8 @@ enum options_mysqld
   OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT,
   OPT_INNODB_FLUSH_METHOD,
   OPT_INNODB_FAST_SHUTDOWN,
-  OPT_INNODB_FILE_PER_TABLE,
-  OPT_SAFE_SHOW_DB,
+  OPT_INNODB_FILE_PER_TABLE, OPT_CRASH_BINLOG_INNODB,
+  OPT_SAFE_SHOW_DB, OPT_INNODB_SAFE_BINLOG,
   OPT_INNODB, OPT_ISAM, OPT_NDBCLUSTER, OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4506,6 +4518,12 @@ replicating a LOAD DATA INFILE command.",
    "The number of seconds the mysqld server is waiting for a connect packet before responding with 'Bad handshake'.",
     (gptr*) &connect_timeout, (gptr*) &connect_timeout,
    0, GET_ULONG, REQUIRED_ARG, CONNECT_TIMEOUT, 2, LONG_TIMEOUT, 0, 1, 0 },
+#ifdef HAVE_REPLICATION
+  {"crash_binlog_innodb", OPT_CRASH_BINLOG_INNODB,
+   "Used only for testing, to crash when writing Nth event to binlog.",
+   (gptr*) &opt_crash_binlog_innodb, (gptr*) &opt_crash_binlog_innodb,
+   0, GET_UINT, REQUIRED_ARG, 0, 0, ~(uint)0, 0, 1, 0},
+#endif
   {"delayed_insert_timeout", OPT_DELAYED_INSERT_TIMEOUT,
    "How long a INSERT DELAYED thread should wait for INSERT statements before terminating.",
    (gptr*) &delayed_insert_timeout, (gptr*) &delayed_insert_timeout, 0,
@@ -4585,6 +4603,20 @@ replicating a LOAD DATA INFILE command.",
    "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back.",
    (gptr*) &innobase_lock_wait_timeout, (gptr*) &innobase_lock_wait_timeout,
    0, GET_LONG, REQUIRED_ARG, 50, 1, 1024 * 1024 * 1024, 0, 1, 0},
+#ifdef HAVE_REPLICATION
+  /*
+    innodb_safe_binlog is not a variable, just an option. Does not make
+    sense to make it a variable, as it is only used at startup (and so the
+    value would be lost at next startup, so setting it on the fly would have no
+    effect).
+  */
+  {"innodb_safe_binlog", OPT_INNODB_SAFE_BINLOG,
+   "After a crash recovery by InnoDB, truncate the binary log to the last \
+InnoDB committed transaction. Use only if this server updates only InnoDB \
+tables.",
+   (gptr*) &opt_innodb_safe_binlog, (gptr*) &opt_innodb_safe_binlog,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+#endif
   {"innodb_thread_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
    "Helps in performance tuning in heavily concurrent environments.",
    (gptr*) &innobase_thread_concurrency, (gptr*) &innobase_thread_concurrency,

@@ -5213,4 +5213,19 @@ innobase_store_binlog_offset_and_flush_log(
 	/* Syncronous flush of the log buffer to disk */
 	log_buffer_flush_to_disk();
 }
+
+char *ha_innobase::get_mysql_bin_log_name()
+{
+  return trx_sys_mysql_bin_log_name;
+}
+
+ulonglong ha_innobase::get_mysql_bin_log_pos()
+{
+  /*
+    trx... is ib_longlong, which is a typedef for a 64-bit integer (__int64 or
+    longlong) so it's ok to cast it to ulonglong.
+  */
+  return trx_sys_mysql_bin_log_pos;
+}
+
 #endif /* HAVE_INNOBASE_DB */

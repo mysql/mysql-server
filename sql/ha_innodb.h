@@ -183,6 +183,9 @@ class ha_innobase: public handler
 	void init_table_handle_for_HANDLER(); 
 	longlong get_auto_increment();
         uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
+
+        static char      *get_mysql_bin_log_name();
+        static ulonglong get_mysql_bin_log_pos();
 };
 
 extern uint innobase_init_flags, innobase_lock_type;
