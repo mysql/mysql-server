@@ -87,10 +87,12 @@ parse_arguments() {
 }
 
 wait_for_pid () {
-  for((i=0; i<35; i++)); do
+  i=0
+  while test $i -lt 35 ; do
     sleep 1
     test -s $pid_file && i='' && break
     echo $echo_n ".$echo_c"
+    i=`expr $i + 1`
   done
 
   if test -z "$i" ; then
