@@ -515,8 +515,6 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 		      host ? host : "(Null)",
 		      db ? db : "(Null)",
 		      user ? user : "(Null)"));
-  thr_alarm_init(&alarmed);
-  thr_alarm(&alarmed,(uint) net_read_timeout,&alarm_buff);
 
   bzero((char*) &mysql->options,sizeof(mysql->options));
   net->vio = 0;				/* If something goes wrong */
@@ -598,7 +596,11 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
       host=LOCAL_HOST;
     sprintf(host_info=buff,ER(CR_TCP_CONNECTION),host);
     DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host,port));
-    if ((sock = socket(AF_INET,SOCK_STREAM,0)) == SOCKET_ERROR)
+    thr_alarm_init(&alarmed);
+    thr_alarm(&alarmed, net_read_timeout, &alarm_buff);
+    sock = (my_socket) socket(AF_INET,SOCK_STREAM,0);
+    thr_end_alarm(&alarmed);
+    if (sock == SOCKET_ERROR)
     {
       net->last_errno=CR_IPSOCK_ERROR;
       sprintf(net->last_error,ER(net->last_errno),socket_errno);
@@ -641,12 +643,8 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 			  socket_errno,host));
       net->last_errno= CR_CONN_HOST_ERROR;
       sprintf(net->last_error ,ER(CR_CONN_HOST_ERROR), host, socket_errno);
-      if (thr_alarm_in_use(&alarmed))
-	thr_end_alarm(&alarmed);
       goto error;
     }
-    if (thr_alarm_in_use(&alarmed))
-      thr_end_alarm(&alarmed);
   }
 
   if (!net->vio || my_net_init(net, net->vio))

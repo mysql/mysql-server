@@ -160,6 +160,8 @@ public:
       *new_list.last=current->next;
       current->info=new_list.first->info;
       current->next=new_list.first->next;
+      if (list->last == &current->next && new_list.elements > 1)
+	list->last= new_list.last;
       list->elements+=new_list.elements-1;
     }
     return ret_value;				// return old element
