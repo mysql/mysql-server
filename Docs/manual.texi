@@ -863,6 +863,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
+* News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
 * News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
@@ -40840,6 +40841,13 @@ Fixed several timing bugs in the test suite.
 @item
 Extended @code{mysqltest} to take care of the timing issues in the test
 suite.
+@item
+Added --temp-pool option to mysqld.  Using this option will cause most
+temporary files created to use a small set of names, rather than a unique
+name for each new file.  This is to work around a problem in the Linux
+kernel dealing with creating a bunch of new files with different names.
+With the old behavior, Linux seems to "leak" memory, as it's being allocated
+to the directory entry cache instead of the disk cache.
 @end itemize
 
 @node News-3.23.32, News-3.23.31, News-3.23.33, News-3.23.x
