@@ -74,7 +74,7 @@ const char *command_name[]={
   "Drop DB", "Refresh", "Shutdown", "Statistics", "Processlist",
   "Connect","Kill","Debug","Ping","Time","Delayed_insert","Change user",
   "Binlog Dump","Table Dump",  "Connect Out", "Register Slave",
-  "Prepare", "Prepare Execute", "Long Data"
+  "Prepare", "Prepare Execute", "Long Data", "Close stmt"
 };
 
 static char empty_c_string[1]= {0};		// Used for not defined 'db'
@@ -1002,6 +1002,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_PREPARE:
   {
     mysql_stmt_prepare(thd, packet, packet_length);
+    break;
+  }
+  case COM_CLOSE_STMT:
+  {
+    mysql_stmt_free(thd, packet);
     break;
   }
   case COM_QUERY:
