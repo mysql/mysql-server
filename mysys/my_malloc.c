@@ -24,26 +24,26 @@
 
 	/* My memory allocator */
 
-gptr my_malloc(unsigned int Size, myf MyFlags)
+gptr my_malloc(unsigned int size, myf my_flags)
 {
   gptr point;
   DBUG_ENTER("my_malloc");
-  DBUG_PRINT("my",("Size: %u  MyFlags: %d",Size, MyFlags));
+  DBUG_PRINT("my",("size: %u  my_flags: %d",size, my_flags));
 
-  if (!Size)
-    Size=1;					/* Safety */
-  if ((point = (char*)malloc(Size)) == NULL)
+  if (!size)
+    size=1;					/* Safety */
+  if ((point = (char*)malloc(size)) == NULL)
   {
     my_errno=errno;
-    if (MyFlags & MY_FAE)
+    if (my_flags & MY_FAE)
       error_handler_hook=fatal_error_handler_hook;
-    if (MyFlags & (MY_FAE+MY_WME))
-      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG),Size);
-    if (MyFlags & MY_FAE)
+    if (my_flags & (MY_FAE+MY_WME))
+      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG),size);
+    if (my_flags & MY_FAE)
       exit(1);
   }
-  else if (MyFlags & MY_ZEROFILL)
-    bzero(point,Size);
+  else if (my_flags & MY_ZEROFILL)
+    bzero(point,size);
   DBUG_PRINT("exit",("ptr: %lx",point));
   DBUG_RETURN(point);
 } /* my_malloc */
@@ -64,29 +64,29 @@ void my_no_flags_free(gptr ptr)
 
 	/* malloc and copy */
 
-gptr my_memdup(const byte *from, uint length, myf MyFlags)
+gptr my_memdup(const byte *from, uint length, myf my_flags)
 {
   gptr ptr;
-  if ((ptr=my_malloc(length,MyFlags)) != 0)
+  if ((ptr=my_malloc(length,my_flags)) != 0)
     memcpy((byte*) ptr, (byte*) from,(size_t) length);
   return(ptr);
 }
 
 
-char *my_strdup(const char *from, myf MyFlags)
+char *my_strdup(const char *from, myf my_flags)
 {
   gptr ptr;
   uint length=(uint) strlen(from)+1;
-  if ((ptr=my_malloc(length,MyFlags)) != 0)
+  if ((ptr=my_malloc(length,my_flags)) != 0)
     memcpy((byte*) ptr, (byte*) from,(size_t) length);
   return((my_string) ptr);
 }
 
 
-char *my_strdup_with_length(const byte *from, uint length, myf MyFlags)
+char *my_strdup_with_length(const byte *from, uint length, myf my_flags)
 {
   gptr ptr;
-  if ((ptr=my_malloc(length+1,MyFlags)) != 0)
+  if ((ptr=my_malloc(length+1,my_flags)) != 0)
   {
     memcpy((byte*) ptr, (byte*) from,(size_t) length);
     ((char*) ptr)[length]=0;
