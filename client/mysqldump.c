@@ -1067,10 +1067,22 @@ static void dumpTable(uint numFields, char *table)
 	      }
 	      else
 	      {
-		/* change any strings ("inf","nan",..) into NULL */
+		/* change any strings ("inf", "-inf", "nan") into NULL */
 		char *ptr = row[i];
-		dynstr_append(&extended_row,
-			      (!isalpha(*ptr)) ? ptr : "NULL");
+		if (isalpha(*ptr) || (*ptr == '-' && *(ptr+1) == 'i'))
+		  dynstr_append(&extended_row, "NULL");
+		else
+		{
+		  if (field->type == FIELD_TYPE_DECIMAL)
+		  {
+		    /* add " signs around */
+		    dynstr_append(&extended_row, "\"");
+		    dynstr_append(&extended_row, ptr);
+		    dynstr_append(&extended_row, "\"");
+		  }
+		  else
+		    dynstr_append(&extended_row, ptr);
+		}
 	      }
 	    }
 	    else
@@ -1098,13 +1110,25 @@ static void dumpTable(uint numFields, char *table)
 	    }
 	    else
 	    {
-	      /* change any strings ("inf","nan",..) into NULL */
+	      /* change any strings ("inf", "-inf", "nan") into NULL */
 	      char *ptr = row[i];
 	      if (opt_xml)
 		fprintf(md_result_file, "\t\t<field name=\"%s\">%s</field>\n",
 			field->name,!isalpha(*ptr) ?ptr: "NULL");
+	      else if (isalpha(*ptr) || (*ptr == '-' && *(ptr+1) == 'i'))
+	        fputs("NULL", md_result_file);
 	      else
-		fputs((!isalpha(*ptr)) ? ptr : "NULL", md_result_file);
+	      {
+		if (field->type == FIELD_TYPE_DECIMAL)
+		{
+		  /* add " signs around */
+		  fputs("\"", md_result_file);
+		  fputs(ptr, md_result_file);
+		  fputs("\"", md_result_file);
+		}
+		else
+		  fputs(ptr, md_result_file);
+	      }
 	    }
 	  }
 	  else
