@@ -83,7 +83,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc \
 			mini_client.cc mini_client_errors.c \
-			md5.c stacktrace.c
+			md5.c stacktrace.c sql_unions.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc mini_client.cc net_serv.cc \
