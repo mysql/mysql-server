@@ -277,8 +277,7 @@ String *Item_func_concat::val_str(String *str)
 			    current_thd->variables.max_allowed_packet);
 	goto null;
       }
-      if (!args[0]->const_item() && 
-          res->alloced_length() >= res->length()+res2->length())
+      if (res->alloced_length() >= res->length()+res2->length())
       {						// Use old buffer
 	res->append(*res2);
       }

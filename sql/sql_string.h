@@ -177,6 +177,10 @@ public:
       }
     }
   }
+  inline void shrink_to_length()
+  {
+    Alloced_length= str_length;
+  }
   bool is_alloced() { return alloced; }
   inline String& operator = (const String &s)
   {
