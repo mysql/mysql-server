@@ -1997,10 +1997,10 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 }
 
 
-int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
-		       List <LEX_USER> &user_list,
-		       List <LEX_COLUMN> &columns, ulong rights,
-		       bool revoke_grant)
+int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
+		      List <LEX_USER> &user_list,
+		      List <LEX_COLUMN> &columns, ulong rights,
+		      bool revoke_grant)
 {
   ulong column_priv = 0;
   List_iterator <LEX_USER> str_list (user_list);
@@ -2374,7 +2374,7 @@ my_bool grant_init(THD *org_thd)
 	mem_check->ok() && hash_insert(&hash_tables,(byte*) mem_check))
     {
       /* This could only happen if we are out memory */
-      grant_option = FALSE;			/* purecov: deadcode */
+      grant_option= FALSE;			/* purecov: deadcode */
       goto end_unlock;
     }
   }
@@ -2404,7 +2404,8 @@ end:
 
 void grant_reload(THD *thd)
 {
-  HASH old_hash_tables;bool old_grant_option;
+  HASH old_hash_tables;
+  bool old_grant_option;
   MEM_ROOT old_mem;
   DBUG_ENTER("grant_reload");
 
@@ -2413,14 +2414,14 @@ void grant_reload(THD *thd)
   pthread_mutex_lock(&LOCK_grant);
   grant_version++;
   old_hash_tables=hash_tables;
-  old_grant_option = grant_option;
+  old_grant_option= grant_option;
   old_mem = memex;
 
   if (grant_init(thd))
   {						// Error. Revert to old hash
     grant_free();				/* purecov: deadcode */
     hash_tables=old_hash_tables;		/* purecov: deadcode */
-    grant_option = old_grant_option;		/* purecov: deadcode */
+    grant_option= old_grant_option;		/* purecov: deadcode */
     memex = old_mem;				/* purecov: deadcode */
   }
   else
