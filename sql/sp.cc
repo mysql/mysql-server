@@ -608,7 +608,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
 
       tables is not VIEW for sure => we can pass 0 as condition
     */
-    setup_tables(thd, &tables, 0, &leaves, 0);
+    setup_tables(thd, &tables, 0, &leaves, FALSE, FALSE);
     for (used_field= &used_fields[0];
 	 used_field->field_name;
 	 used_field++)

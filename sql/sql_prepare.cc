@@ -944,23 +944,36 @@ static int mysql_test_update(Prepared_statement *stmt,
 {
   int res;
   THD *thd= stmt->thd;
+  uint table_count= 0;
   SELECT_LEX *select= &stmt->lex->select_lex;
   DBUG_ENTER("mysql_test_update");
 
   if (update_precheck(thd, table_list))
     DBUG_RETURN(1);
 
-  if (!(res=open_and_lock_tables(thd, table_list)))
+  if (!open_tables(thd, table_list, &table_count))
   {
-    if (table_list->table == 0)
+    if (table_list->ancestor && table_list->ancestor->next_local)
     {
-      DBUG_ASSERT(table_list->view &&
-                  table_list->ancestor && table_list->ancestor->next_local);
-      stmt->lex->sql_command= SQLCOM_UPDATE_MULTI;
-      DBUG_PRINT("info", ("Switch to multi-update (command replaced)"));
+      DBUG_ASSERT(table_list->view);
+      DBUG_PRINT("info", ("Switch to multi-update"));
+      /* pass counter value */
+      thd->lex->table_count= table_count;
+      /*
+	give correct value to multi_lock_option, because it will be used
+	in multiupdate
+      */
+      thd->lex->multi_lock_option= table_list->lock_type;
       /* convert to multiupdate */
       return 2;
     }
+
+    if (lock_tables(thd, table_list, table_count) ||
+	mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
+	(thd->fill_derived_tables() &&
+	 mysql_handle_derived(thd->lex, &mysql_derived_filling)))
+      DBUG_RETURN(1);
+
     if (!(res= mysql_prepare_update(thd, table_list,
 				    &select->where,
 				    select->order_list.elements,
@@ -982,6 +995,8 @@ static int mysql_test_update(Prepared_statement *stmt,
     }
     stmt->lex->unit.cleanup();
   }
+  else
+    res= 1;
   /* TODO: here we should send types of placeholders to the client. */ 
   DBUG_RETURN(res);
 }

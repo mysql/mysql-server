@@ -2030,6 +2030,7 @@ bool
 mysql_execute_command(THD *thd)
 {
   bool	res= FALSE;
+  int result= 0;
   LEX	*lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= &lex->select_lex;
@@ -2874,33 +2875,33 @@ create_error:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
-    res= mysql_update(thd, all_tables,
-                      select_lex->item_list,
-                      lex->value_list,
-                      select_lex->where,
-		      select_lex->order_list.elements,
-                      (ORDER *) select_lex->order_list.first,
-                      select_lex->select_limit,
-                      lex->duplicates);
-    if (res != 2)
+    res= (result= mysql_update(thd, all_tables,
+                               select_lex->item_list,
+                               lex->value_list,
+                               select_lex->where,
+                               select_lex->order_list.elements,
+                               (ORDER *) select_lex->order_list.first,
+                               select_lex->select_limit,
+                               lex->duplicates));
+    if (result != 2)
       break;
   case SQLCOM_UPDATE_MULTI:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (res != 2)
     {
-      if ((res= multi_update_precheck(thd, all_tables)))
-        break;
-    }
-    else
-      res= 0;
+      DBUG_ASSERT(first_table == all_tables && first_table != 0);
+      if (result != 2)
+      {
+        if ((res= multi_update_precheck(thd, all_tables)))
+          break;
+      }
+      else
+        res= 0;
 
-    res= mysql_multi_update(thd, all_tables,
-			    &select_lex->item_list,
-			    &lex->value_list,
-			    select_lex->where,
-			    select_lex->options,
-			    lex->duplicates, unit, select_lex);
+      res= mysql_multi_update(thd, all_tables,
+                              &select_lex->item_list,
+                              &lex->value_list,
+                              select_lex->where,
+                              select_lex->options,
+                              lex->duplicates, unit, select_lex);
     break;
   }
   case SQLCOM_REPLACE:

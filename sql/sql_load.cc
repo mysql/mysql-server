@@ -122,7 +122,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
   if (setup_tables(thd, table_list, &unused_conds,
-		   &thd->lex->select_lex.leaf_tables, 0))
+		   &thd->lex->select_lex.leaf_tables, FALSE, FALSE))
      DBUG_RETURN(-1);
   if (!table_list->table ||               // do not suport join view
       !table_list->updatable ||           // and derived tables
@@ -147,8 +147,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     /* TODO: use this conds for 'WITH CHECK OPTIONS' */
     Item *unused_conds= 0;
     TABLE_LIST *leaves= 0;
-    if (setup_tables(thd, table_list, &unused_conds, &leaves, 0) ||
-	setup_fields(thd, 0, table_list, fields, 1, 0, 0))
+    if (setup_fields(thd, 0, table_list, fields, 1, 0, 0))
       DBUG_RETURN(TRUE);
     if (thd->dupp_field)
     {
