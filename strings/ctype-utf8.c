@@ -1518,6 +1518,161 @@ MY_UNICASE_INFO *uni_plane[256]={
 
 };
 
+
+/*
+** Compare string against string with wildcard
+** This function is used in UTF8 and UCS2
+**
+**	0 if matched
+**	-1 if not matched with wildcard
+**	 1 if matched with wildcard
+*/
+
+int my_wildcmp_unicode(CHARSET_INFO *cs,
+		       const char *str,const char *str_end,
+		       const char *wildstr,const char *wildend,
+		       int escape, int w_one, int w_many,
+		       MY_UNICASE_INFO **weights)
+{
+  int result= -1;			/* Not found, using wildcards */
+  my_wc_t s_wc, w_wc;
+  int scan, plane;
+  int (*mb_wc)(struct charset_info_st *cs, my_wc_t *wc,
+               const unsigned char *s,const unsigned char *e);
+  mb_wc= cs->cset->mb_wc;
+  
+  while (wildstr != wildend)
+  {
+    while (1)
+    {
+      if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                       (const uchar*)wildend)) <= 0)
+        return 1;
+      
+      if (w_wc ==  (my_wc_t)escape)
+      {
+        wildstr+= scan;
+        if ((scan= mb_wc(cs,&w_wc, (const uchar*)wildstr,
+                         (const uchar*)wildend)) <= 0)
+          return 1;
+      }
+      
+      if (w_wc == (my_wc_t)w_many)
+      {
+        result= 1;				/* Found an anchor char */
+        break;
+      }
+      
+      wildstr+= scan;
+      if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
+                       (const uchar*)str_end)) <=0)
+        return 1;
+      str+= scan;
+      
+      if (w_wc == (my_wc_t)w_one)
+      {
+        result= 1;				/* Found an anchor char */
+      }
+      else
+      {
+        if (weights)
+        {
+          plane=(s_wc>>8) & 0xFF;
+          s_wc = weights[plane] ? weights[plane][s_wc & 0xFF].sort : s_wc;
+          plane=(w_wc>>8) & 0xFF;
+          w_wc = weights[plane] ? weights[plane][w_wc & 0xFF].sort : w_wc;
+        }
+        if (s_wc != w_wc)
+          return 1;				/* No match */
+      }
+      if (wildstr == wildend)
+	return (str != str_end);		/* Match if both are at end */
+    }
+    
+    
+    if (w_wc == (my_wc_t)w_many)
+    {						/* Found w_many */
+    
+      /* Remove any '%' and '_' from the wild search string */
+      for ( ; wildstr != wildend ; )
+      {
+        if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                         (const uchar*)wildend)) <= 0)
+          return 1;
+        
+	if (w_wc == (my_wc_t)w_many)
+	{
+	  wildstr+= scan;
+	  continue;
+	} 
+	
+	if (w_wc == (my_wc_t)w_one)
+	{
+	  wildstr+= scan;
+          if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
+                           (const uchar*)str_end)) <=0)
+            return 1;
+          str+= scan;
+	  continue;
+	}
+	break;					/* Not a wild character */
+      }
+      
+      if (wildstr == wildend)
+	return 0;				/* Ok if w_many is last */
+      
+      if (str == str_end)
+	return -1;
+      
+      if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                       (const uchar*)wildend)) <=0)
+        return 1;
+      
+      if (w_wc ==  (my_wc_t)escape)
+      {
+        wildstr+= scan;
+        if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
+                         (const uchar*)wildend)) <=0)
+          return 1;
+      }
+      
+      while (1)
+      {
+        /* Skip until the first character from wildstr is found */
+        while (str != str_end)
+        {
+          if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
+                           (const uchar*)str_end)) <=0)
+            return 1;
+          if (weights)
+          {
+            plane=(s_wc>>8) & 0xFF;
+            s_wc = weights[plane] ? weights[plane][s_wc & 0xFF].sort : s_wc;
+            plane=(w_wc>>8) & 0xFF;
+            w_wc = weights[plane] ? weights[plane][w_wc & 0xFF].sort : w_wc;
+          }
+          
+          if (s_wc == w_wc)
+            break;
+          str+= scan;
+        }
+        if (str == str_end)
+          return -1;
+        
+        result= my_wildcmp_unicode(cs, str, str_end, wildstr, wildend,
+                                   escape, w_one, w_many,
+                                   weights);
+        
+        if (result <= 0)
+          return result;
+        
+        str+= scan;
+      } 
+    }
+  }
+  return (str != str_end ? 1 : 0);
+}
+
 #endif
 
 
@@ -1992,6 +2147,17 @@ static int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
   return  my_strncasecmp_utf8(cs, s, t, len);
 }
 
+static
+int my_wildcmp_utf8(CHARSET_INFO *cs,
+		    const char *str,const char *str_end,
+		    const char *wildstr,const char *wildend,
+		    int escape, int w_one, int w_many)
+{
+  return my_wildcmp_unicode(cs,str,str_end,wildstr,wildend,
+                            escape,w_one,w_many,uni_plane); 
+}
+
+
 static int my_strnxfrm_utf8(CHARSET_INFO *cs,
                             uchar *dst, uint dstlen,
                             const uchar *src, uint srclen)
@@ -2060,7 +2226,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_strnncollsp_utf8,
     my_strnxfrm_utf8,
     my_like_range_mb,
-    my_wildcmp_mb,
+    my_wildcmp_utf8,
     my_strcasecmp_utf8,
     my_instr_mb,
     my_hash_sort_utf8
