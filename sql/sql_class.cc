@@ -148,6 +148,7 @@ THD::~THD()
   close_temporary_tables(this);
 #ifdef USING_TRANSACTIONS
   close_cached_file(&transaction.trans_log);
+  ha_close_connection(this);
 #endif
   if (global_read_lock)
   {

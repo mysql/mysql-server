@@ -178,6 +178,7 @@ int quick_rm_table(enum db_type base,const char *db,
   if (my_delete(path,MYF(0)))
     error=1; /* purecov: inspected */
   sprintf(path,"%s/%s/%s",mysql_data_home,db,table_name);
+  unpack_filename(path,path);
   return ha_delete_table(base,path) || error;
 }
 
