@@ -141,12 +141,12 @@ fi
 
 args=
 SET_USER=2
-parse_arguments `$print_defaults --loose-verbose $defaults mysqld server`
+parse_arguments `$print_defaults $defaults --loose-verbose mysqld server`
 if test $SET_USER -eq 2
 then
   SET_USER=0
 fi
-parse_arguments `$print_defaults --loose-verbose $defaults mysqld_safe safe_mysqld`
+parse_arguments `$print_defaults $defaults --loose-verbose mysqld_safe safe_mysqld`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 
