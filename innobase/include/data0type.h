@@ -370,7 +370,13 @@ dtype_print(
 /*========*/
 	dtype_t*	type);	/* in: type */
 
-/* Structure for an SQL data type */
+/* Structure for an SQL data type.
+If you add fields to this structure, be sure to initialize them everywhere.
+This structure is initialized in the following functions:
+dtype_set()
+dtype_read_for_order_and_null_size()
+dtype_new_read_for_order_and_null_size()
+sym_tab_add_null_lit() */
 
 struct dtype_struct{
 	ulint	mtype;		/* main data type */

@@ -541,8 +541,8 @@ NOTE that the exact prototype of this function has to be in
 /innobase/data/data0type.ic! */
 extern "C"
 void
-innobase_get_mb_cset(
-/*=================*/
+innobase_get_cset_width(
+/*====================*/
 	ulint	cset,		/* in: MySQL charset-collation code */
 	ulint*	mbminlen,	/* out: minimum length of a char (in bytes) */
 	ulint*	mbmaxlen)	/* out: maximum length of a char (in bytes) */
