@@ -206,7 +206,7 @@ int runTimeoutTrans2(NDBT_Context* ctx, NDBT_Step* step){
 
       // Expect that transaction has timed-out
       res = hugoOps.execute_Commit(pNdb);
-      if(op1 != 0 && res != 237){
+      if(op1 != 0 && res != 266){
 	g_err << stepNo << ": Fail: " << res << "!= 237, op1=" 
 	      << op1 << ", op2=" << op2 << endl;
 	return NDBT_FAILED;
@@ -299,9 +299,11 @@ int runBuddyTransNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
       
       for (int i = 0; i < 10; i++){
 	// Perform buddy scan reads
-	CHECK(hugoOps.scanReadRecords(pNdb) == 0);
-	CHECK(hugoOps.executeScanRead(pNdb) == 0);
-
+	NdbResultSet* rs = 0;
+	CHECK((rs = hugoOps.scanReadRecords(pNdb)) != 0);
+	CHECK(hugoOps.execute_NoCommit(pNdb) == 0); 
+	CHECK(hugoOps.readTuples(rs) == 0);
+	
 	int sleep = myRandom48(maxSleep);   	
 	ndbout << "Sleeping for " << sleep << " milliseconds" << endl;
 	NdbSleep_MilliSleep(sleep);
