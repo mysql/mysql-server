@@ -66,6 +66,8 @@ void send_error(THD *thd, uint sql_errno, const char *err)
   else
   {
     length=(uint) strlen(err);
+    set_if_smaller(length,MYSQL_ERRMSG_SIZE-1);
+  }
   VOID(net_write_command(net,(uchar) 255, "", 0, (char*) err,length));
   thd->fatal_error=0;			// Error message is given
   thd->net.report_error= 0;
