@@ -50,7 +50,7 @@ mysql_cv_btype_last_arg_accept=none
 ],
 [int a = accept(1, (struct sockaddr *) 0, (socklen_t *) 0); return (a != 0);],
 mysql_cv_btype_last_arg_accept=socklen_t)]
-if test $mysql_cv_btype_last_arg_accept = none; then
+if test "$mysql_cv_btype_last_arg_accept" = "none"; then
 [AC_TRY_COMPILE([#if defined(inline)
 #undef inline
 #endif
@@ -61,7 +61,7 @@ if test $mysql_cv_btype_last_arg_accept = none; then
 [int a = accept(1, (struct sockaddr *) 0, (size_t *) 0); return (a != 0);],
 mysql_cv_btype_last_arg_accept=size_t)]
 fi
-if test $mysql_cv_btype_last_arg_accept = none; then
+if test "$mysql_cv_btype_last_arg_accept" = "none"; then
 mysql_cv_btype_last_arg_accept=int
 fi)
 AC_LANG_RESTORE
@@ -353,11 +353,11 @@ AC_CACHE_VAL(mysql_cv_termcap_lib,
 	[AC_CHECK_LIB(termcap, tgetent, mysql_cv_termcap_lib=libtermcap,
 	    mysql_cv_termcap_lib=NOT_FOUND)])])])
 AC_MSG_CHECKING(for termcap functions library)
-if test $mysql_cv_termcap_lib = NOT_FOUND; then
+if test "$mysql_cv_termcap_lib" = "NOT_FOUND"; then
 AC_MSG_ERROR([No curses/termcap library found])
-elif test $mysql_cv_termcap_lib = libtermcap; then
+elif test "$mysql_cv_termcap_lib" = "libtermcap"; then
 TERMCAP_LIB=-ltermcap
-elif test $mysql_cv_termcap_lib = libncurses; then
+elif test "$mysql_cv_termcap_lib" = "libncurses"; then
 TERMCAP_LIB=-lncurses
 else
 TERMCAP_LIB=-lcurses
@@ -413,7 +413,7 @@ AC_CACHE_VAL(mysql_cv_can_redecl_getpw,
 extern struct passwd *getpwent();], [struct passwd *z; z = getpwent();],
   mysql_cv_can_redecl_getpw=yes,mysql_cv_can_redecl_getpw=no)])
 AC_MSG_RESULT($mysql_cv_can_redecl_getpw)
-if test $mysql_cv_can_redecl_getpw = no; then
+if test "$mysql_cv_can_redecl_getpw" = "no"; then
 AC_DEFINE(HAVE_GETPW_DECLS)
 fi
 ])
@@ -425,7 +425,7 @@ AC_CACHE_VAL(mysql_cv_tiocgwinsz_in_ioctl,
 #include <sys/ioctl.h>], [int x = TIOCGWINSZ;],
   mysql_cv_tiocgwinsz_in_ioctl=yes,mysql_cv_tiocgwinsz_in_ioctl=no)])
 AC_MSG_RESULT($mysql_cv_tiocgwinsz_in_ioctl)
-if test $mysql_cv_tiocgwinsz_in_ioctl = yes; then   
+if test "$mysql_cv_tiocgwinsz_in_ioctl" = "yes"; then   
 AC_DEFINE(GWINSZ_IN_SYS_IOCTL)
 fi
 ])
@@ -437,7 +437,7 @@ AC_CACHE_VAL(mysql_cv_fionread_in_ioctl,
 #include <sys/ioctl.h>], [int x = FIONREAD;],
   mysql_cv_fionread_in_ioctl=yes,mysql_cv_fionread_in_ioctl=no)])
 AC_MSG_RESULT($mysql_cv_fionread_in_ioctl)
-if test $mysql_cv_fionread_in_ioctl = yes; then   
+if test "$mysql_cv_fionread_in_ioctl" = "yes"; then   
 AC_DEFINE(FIONREAD_IN_SYS_IOCTL)
 fi
 ])
@@ -449,7 +449,7 @@ AC_CACHE_VAL(mysql_cv_tiocstat_in_ioctl,
 #include <sys/ioctl.h>], [int x = TIOCSTAT;],
   mysql_cv_tiocstat_in_ioctl=yes,mysql_cv_tiocstat_in_ioctl=no)])
 AC_MSG_RESULT($mysql_cv_tiocstat_in_ioctl)
-if test $mysql_cv_tiocstat_in_ioctl = yes; then   
+if test "$mysql_cv_tiocstat_in_ioctl" = "yes"; then   
 AC_DEFINE(TIOCSTAT_IN_SYS_IOCTL)
 fi
 ])
@@ -482,7 +482,7 @@ AC_CACHE_VAL(mysql_cv_dirent_has_dino,
 struct dirent d; int z; z = d.d_ino;
 ], mysql_cv_dirent_has_dino=yes, mysql_cv_dirent_has_dino=no)])
 AC_MSG_RESULT($mysql_cv_dirent_has_dino)
-if test $mysql_cv_dirent_has_dino = yes; then
+if test "$mysql_cv_dirent_has_dino" = "yes"; then
 AC_DEFINE(STRUCT_DIRENT_HAS_D_INO)
 fi
 ])
@@ -501,7 +501,7 @@ extern "C"
 void (*signal ()) ();],
 [int i;], mysql_cv_void_sighandler=yes, mysql_cv_void_sighandler=no)])dnl
 AC_MSG_RESULT($mysql_cv_void_sighandler)
-if test $mysql_cv_void_sighandler = yes; then
+if test "$mysql_cv_void_sighandler" = "yes"; then
 AC_DEFINE(VOID_SIGHANDLER)
 fi
 ])
@@ -560,7 +560,7 @@ then
  AC_CACHE_CHECK([for working alloca.h], ac_cv_header_alloca_h,
  [AC_TRY_LINK([#include <alloca.h>], [char *p = alloca(2 * sizeof(int));],
    ac_cv_header_alloca_h=yes, ac_cv_header_alloca_h=no)])
- if test $ac_cv_header_alloca_h = yes
+ if test "$ac_cv_header_alloca_h" = "yes"
  then
 	AC_DEFINE(HAVE_ALLOCA)
  fi
@@ -584,11 +584,11 @@ then
  #endif
  ], [char *p = (char *) alloca(1);],
    ac_cv_func_alloca_works=yes, ac_cv_func_alloca_works=no)])
- if test $ac_cv_func_alloca_works = yes; then
+ if test "$ac_cv_func_alloca_works" = "yes"; then
    AC_DEFINE(HAVE_ALLOCA)
  fi
  
- if test $ac_cv_func_alloca_works = no; then
+ if test "$ac_cv_func_alloca_works" = "no"; then
    # The SVR3 libPW and SVR4 libucb both contain incompatible functions
    # that cause trouble.  Some versions do not even contain alloca or
    # contain a buggy version.  If you still want to use their alloca,
@@ -604,7 +604,7 @@ then
  wenotbecray
  #endif
  ], ac_cv_os_cray=yes, ac_cv_os_cray=no)])
- if test $ac_cv_os_cray = yes; then
+ if test "$ac_cv_os_cray" = "yes"; then
  for ac_func in _getb67 GETB67 getb67; do
    AC_CHECK_FUNC($ac_func, [AC_DEFINE_UNQUOTED(CRAY_STACKSEG_END, $ac_func)
    break])
@@ -812,7 +812,7 @@ AC_MSG_CHECKING(for OpenSSL)
     case "$CLIENT_EXTRA_LDFLAGS $MYSQLD_EXTRA_LDFLAGS" in
 	*-all-static*) using_static="yes" ;;
     esac
-    if test $using_static = "yes"
+    if test "$using_static" = "yes"
     then
       echo "You can't use the --all-static link option when using openssl."
       exit 1
