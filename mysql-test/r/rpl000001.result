@@ -33,27 +33,12 @@ select sum(length(word)) from t1;
 sum(length(word))
 1022
 drop table t1,t3;
+create table t1 (n int) engine=myisam;
 reset master;
 stop slave;
 reset slave;
-create table t1(n int);
-select get_lock("hold_slave",10);
-get_lock("hold_slave",10)
-1
-explain extended select get_lock("hold_slave",10);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Note	1003	select sql_no_cache get_lock(_latin1'hold_slave',10) AS `get_lock("hold_slave",10)`
+lock tables t1 read;
 start slave;
-select release_lock("hold_slave");
-release_lock("hold_slave")
-1
-explain extended select release_lock("hold_slave");
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Note	1003	select sql_no_cache release_lock(_latin1'hold_slave') AS `release_lock("hold_slave")`
 unlock tables;
 create table t2(id int);
 insert into t2 values(connection_id());
