@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2556,14 +2556,14 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	VOID(pthread_mutex_lock(&LOCK_open));
 	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
 	VOID(pthread_mutex_unlock(&LOCK_open));
-	error= table->file->enable_indexes();
+	error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
 	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       case DISABLE:
 	VOID(pthread_mutex_lock(&LOCK_open));
 	wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
 	VOID(pthread_mutex_unlock(&LOCK_open));
-	error=table->file->disable_indexes(0, 1);
+	error=table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
 	/* COND_refresh will be signaled in close_thread_tables() */
 	break;
       }
