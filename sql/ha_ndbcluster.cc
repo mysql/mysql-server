@@ -583,7 +583,7 @@ int ha_ndbcluster::get_ndb_blobs_value(NdbBlob *last_ndb_blob)
           char *buf= m_blobs_buffer + offset;
           uint32 len= 0xffffffff;  // Max uint32
           DBUG_PRINT("value", ("read blob ptr=%x len=%u",
-                               (uint)buf, (uint)blob_len));
+                               (UintPtr)buf, (uint)blob_len));
           if (ndb_blob->readData(buf, len) != 0)
             DBUG_RETURN(-1);
           DBUG_ASSERT(len == blob_len);
@@ -3169,7 +3169,7 @@ int ha_ndbcluster::start_stmt(THD *thd)
     
     NdbConnection *tablock_trans= 
       (NdbConnection*)thd->transaction.all.ndb_tid;
-    DBUG_PRINT("info", ("tablock_trans: %x", (uint)tablock_trans));
+    DBUG_PRINT("info", ("tablock_trans: %x", (UintPtr)tablock_trans));
     DBUG_ASSERT(tablock_trans);
 //    trans= ndb->hupp(tablock_trans);
     trans= ndb->startTransaction();
