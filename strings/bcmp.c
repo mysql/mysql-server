@@ -26,6 +26,7 @@
 #include "m_string.h"
 
 #ifdef HAVE_purify
+#undef bcmp
 #undef HAVE_BCMP
 #endif
 

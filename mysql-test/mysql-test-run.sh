@@ -51,6 +51,7 @@ sleep_until_file_deleted ()
   do
     if [ ! -e $file ]
     then
+      sleep $SLEEP_TIME_AFTER_RESTART
       return
     fi
     loop=`expr $loop - 1`
@@ -172,10 +173,11 @@ DO_GDB=""
 MANUAL_GDB=""
 DO_DDD=""
 DO_CLIENT_GDB=""
+SLEEP_TIME_AFTER_RESTART=1
 SLEEP_TIME_FOR_DELETE=10
-SLEEP_TIME_FOR_FIRST_MASTER=200		# Enough time to create innodb tables
+SLEEP_TIME_FOR_FIRST_MASTER=400		# Enough time to create innodb tables
 SLEEP_TIME_FOR_SECOND_MASTER=30
-SLEEP_TIME_FOR_FIRST_SLAVE=30
+SLEEP_TIME_FOR_FIRST_SLAVE=400
 SLEEP_TIME_FOR_SECOND_SLAVE=30
 CHARACTER_SET=latin1
 DBUSER=""
@@ -214,9 +216,9 @@ while test $# -gt 0; do
     --start-and-exit)
      START_AND_EXIT=1
      ;;
-    --skip-innobase)
-     EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-innobase"
-     EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-innobase" ;;
+    --skip-innodb)
+     EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-innodb"
+     EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-innodb" ;;
     --skip-bdb)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-bdb"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-bdb" ;;
@@ -239,6 +241,7 @@ while test $# -gt 0; do
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
+      SLEEP_TIME_AFTER_RESTART="$1"
       ;;
     --mysqld=*)
        TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
