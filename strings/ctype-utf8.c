@@ -1986,11 +1986,11 @@ CHARSET_INFO my_charset_utf8 =
     my_hash_sort_utf8,	/* hash_sort    */
     0,
     my_snprintf_8bit,
-    my_strtol_8bit,
-    my_strtoul_8bit,
-    my_strtoll_8bit,
-    my_strtoull_8bit,
-    my_strtod_8bit
+    my_strntol_8bit,
+    my_strntoul_8bit,
+    my_strntoll_8bit,
+    my_strntoull_8bit,
+    my_strntod_8bit
 };
 
 
@@ -2439,34 +2439,34 @@ static int my_snprintf_ucs2(CHARSET_INFO *cs __attribute__((unused))
 }
 
 
-static long my_strtol_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+static long my_strntol_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, uint l, char **e, int base)
 {
-  return strtol(s,e,base);
+  return 0;
 }
 
-static ulong my_strtoul_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+static ulong my_strntoul_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, uint l, char **e, int base)
 {
-  return strtoul(s,e,base);
+  return 0;
 }
 
-static longlong my_strtoll_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+static longlong my_strntoll_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, uint l, char **e, int base)
 {
-  return strtoll(s,e,base);
+  return 0;
 }
 
-static ulonglong my_strtoull_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e, int base)
+static ulonglong my_strntoull_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, uint l, char **e, int base)
 {
-  return strtoul(s,e,base);
+  return 0;
 }
 
-double my_strtod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
-			   const char *s, char **e)
+double my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, uint l, char **e)
 {
-  return strtod(s,e);
+  return 0;
 }
 
 
@@ -2504,11 +2504,11 @@ CHARSET_INFO my_charset_ucs2 =
     my_hash_sort_ucs2,	/* hash_sort    */
     0,
     my_snprintf_ucs2,
-    my_strtol_ucs2,
-    my_strtoul_ucs2,
-    my_strtoll_ucs2,
-    my_strtoull_ucs2,
-    my_strtod_ucs2
+    my_strntol_ucs2,
+    my_strntoul_ucs2,
+    my_strntoll_ucs2,
+    my_strntoull_ucs2,
+    my_strntod_ucs2
 };
 
 
