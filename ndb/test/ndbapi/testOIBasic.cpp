@@ -54,6 +54,7 @@ struct Opt {
   unsigned m_samples;
   unsigned m_scanbat;
   unsigned m_scanpar;
+  unsigned m_scanstop;
   unsigned m_seed;
   unsigned m_subloop;
   const char* m_table;
@@ -80,6 +81,7 @@ struct Opt {
     m_samples(0),
     m_scanbat(0),
     m_scanpar(0),
+    m_scanstop(0),
     m_seed(0),
     m_subloop(4),
     m_table(0),
@@ -708,6 +710,7 @@ struct Con {
   int nextScanResult(bool fetchAllowed, bool& deadlock);
   int updateScanTuple(Con& con2);
   int deleteScanTuple(Con& con2);
+  void closeScan();
   void closeTransaction();
   void printerror(NdbOut& out);
 };
@@ -895,11 +898,21 @@ Con::deleteScanTuple(Con& con2)
 }
 
 void
+Con::closeScan()
+{
+  assert(m_resultset != 0);
+  m_resultset->close();
+  m_scanop = 0, m_indexscanop = 0, m_resultset = 0;
+
+}
+
+void
 Con::closeTransaction()
 {
   assert(m_ndb != 0 && m_tx != 0);
   m_ndb->closeTransaction(m_tx);
   m_tx = 0, m_op = 0;
+  m_scanop = 0, m_indexscanop = 0, m_resultset = 0;
 }
 
 void
@@ -2538,6 +2551,10 @@ scanupdatetable(Par par)
       LL1("scanupdatetable: stop on deadlock");
       break;
     }
+    if (par.m_scanstop != 0 && urandom(par.m_scanstop) == 0) {
+      con.closeScan();
+      break;
+    }
     do {
       unsigned i = (unsigned)-1;
       CHK(set2.getkey(par, &i) == 0);
@@ -2616,6 +2633,10 @@ scanupdateindex(Par par, const ITab& itab, const BSet& bset)
       break;
     if (deadlock) {
       LL1("scanupdateindex: stop on deadlock");
+      break;
+    }
+    if (par.m_scanstop != 0 && urandom(par.m_scanstop) == 0) {
+      con.closeScan();
       break;
     }
     do {
@@ -2782,6 +2803,7 @@ mixedoperations(Par par)
 {
   par.m_dups = true;
   par.m_deadlock = true;
+  par.m_scanstop = par.m_totrows;       // randomly close scans
   unsigned sel = urandom(10);
   if (sel < 2) {
     CHK(pkdelete(par) == 0);
