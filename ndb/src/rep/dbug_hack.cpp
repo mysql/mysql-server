@@ -25,6 +25,7 @@ int replogEnabled;
 /**
  * @todo  This should be implemented using MySQLs dbug library
  */
+#if 0
 extern "C"
 void 
 DBUG_PRINT(const char * fmt, ...)
@@ -40,6 +41,7 @@ DBUG_PRINT(const char * fmt, ...)
   va_end(ap);
 #endif
 }
+#endif
 
 extern "C"
 void 

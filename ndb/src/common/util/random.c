@@ -18,16 +18,8 @@
 * I N C L U D E D   F I L E S                                  *
 ***************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <sys/types.h>
+#include <ndb_global.h>
 
-#ifndef NDB_WIN32
-#include <sys/time.h>
-#endif
-
-#include <ndb_types.h>
 #include <NdbOut.hpp>
 
 #include <random.h>

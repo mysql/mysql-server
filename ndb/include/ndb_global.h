@@ -1,3 +1,6 @@
 #include <my_global.h>
-/*#include <my_config.h>*/
-
+#include <m_string.h>
+#include <m_ctype.h>
+#include <ndb_types.h>
+#include <ctype.h>
+#include <sys/param.h>

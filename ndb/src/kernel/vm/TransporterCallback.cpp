@@ -14,12 +14,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #include <TransporterCallback.hpp>
 #include <TransporterRegistry.hpp>
 #include <FastScheduler.hpp>
 #include <Emulator.hpp>
 #include <ErrorHandlingMacros.hpp>
-#include <stdio.h>
 
 #include "LongSignal.hpp"
 

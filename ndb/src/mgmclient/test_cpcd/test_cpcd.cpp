@@ -15,10 +15,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
 #include "../CpcClient.hpp"
 #include <Vector.hpp>
 #include <assert.h>
-#include <stdlib.h>
 
 SimpleCpcClient g_client("localhost", 1234);
 Vector<SimpleCpcClient::Process> g_procs;

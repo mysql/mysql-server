@@ -22,9 +22,8 @@
 // Author: Peter Lind
 //*****************************************************************************
 
+#include <ndb_global.h>
 #include <NdbStdio.h>
-#include <ndb_types.h>
-#include <stdlib.h>
 #include <Vector.hpp>
 #include <editline/editline.h>
 

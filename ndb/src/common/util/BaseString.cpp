@@ -15,11 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* -*- c-basic-offset: 4; -*- */
-#include <string.h>
-#include <NdbStdio.h>
+#include <ndb_global.h>
+#include <BaseString.hpp>
 #include <stdarg.h>
-#include "BaseString.hpp"
-#include <stdlib.h>
 
 BaseString::BaseString()
 {

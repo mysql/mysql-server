@@ -15,10 +15,11 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <ndberror.h>
-#include <stdio.h>
+#include <ndb_global.h>
 #include <stdarg.h>
 #include <assert.h>
+
+#include <ndberror.h>
 
 typedef struct ErrorBundle {
   int code;
@@ -575,10 +576,10 @@ const char *ndberror_classification_message(ndberror_classification classificati
   return empty_string;
 }
 
-int ndb_error_string(int err_no, char *str, size_t size)
+int ndb_error_string(int err_no, char *str, unsigned int size)
 {
   ndberror_struct error;
-  size_t len;
+  unsigned int len;
 
   error.code = err_no;
   ndberror_update(&error);

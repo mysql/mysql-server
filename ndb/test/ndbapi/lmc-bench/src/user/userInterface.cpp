@@ -18,9 +18,7 @@
 * I N C L U D E D   F I L E S                                  *
 ***************************************************************/
 
-#include <NdbStdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
+#include <ndb_global.h>
 #ifndef NDB_WIN32
 #include <sys/time.h>
 #endif

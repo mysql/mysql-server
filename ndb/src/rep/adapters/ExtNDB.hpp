@@ -17,12 +17,13 @@
 #ifndef EXTNDB_HPP
 #define EXTNDB_HPP
 
+#include <ndb_global.h>
+
 #include <TransporterDefinitions.hpp>
 #include <TransporterFacade.hpp>
 #include <ClusterMgr.hpp>
 #include <API.hpp>
 #include <Vector.hpp>
-#include <stdio.h>
 
 #include <signaldata/RepImpl.hpp>
 #include <signaldata/GrepImpl.hpp>

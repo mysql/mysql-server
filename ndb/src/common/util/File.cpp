@@ -16,8 +16,6 @@
 
 #include <File.hpp>
 
-#include <errno.h>
-#include <string.h> 
 #include <sys/stat.h> 
 
 #if defined NDB_OSE || defined NDB_SOFTOSE

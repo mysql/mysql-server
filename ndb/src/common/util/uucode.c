@@ -15,8 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <stdio.h>
-#include <string.h>
+#include <ndb_global.h>
 
 /* ENC is the basic 1 character encoding function to make a char printing */
 /* DEC is single character decode */

@@ -17,10 +17,8 @@
 #ifndef FS_BUFFER_HPP
 #define FS_BUFFER_HPP
 
+#include <ndb_global.h>
 #include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ndb_types.h>
 
 #define DEBUG(x)
 

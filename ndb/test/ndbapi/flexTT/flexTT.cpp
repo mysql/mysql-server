@@ -15,7 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include "NdbApi.hpp"
+#include <ndb_global.h>
+
+#include <NdbApi.hpp>
 #include <NdbMain.h>
 #include <md5_hash.hpp>
 
@@ -24,9 +26,6 @@
 #include <NdbTick.h>
 #include <NdbOut.hpp>
 #include <NdbTimer.hpp>
-#include <string.h>
-#include <NdbStdio.h>
-#include <stdlib.h>
 
 #include <NdbTest.hpp>
 #include <NDBT_Error.hpp>

@@ -14,8 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
 #include <ndb_limits.h>
-#include "AttrType.hpp"
+#include <AttrType.hpp>
 #include "TransporterFacade.hpp"
 #include "ClusterMgr.hpp"
 #include <IPCConfig.hpp>
@@ -32,7 +33,6 @@
 #include <NdbConfig.h>
 #include <ndb_version.h>
 #include <SignalLoggerManager.hpp>
-#include <stdlib.h>
 
 #if !defined NDB_OSE && !defined NDB_SOFTOSE
 #include <signal.h>

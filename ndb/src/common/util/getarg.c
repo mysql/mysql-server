@@ -33,11 +33,7 @@
  */
 
 #include <ndb_global.h>
-#include <ndb_types.h>
 
-#include <NdbStdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <time.h>
 #include <ctype.h>
 #include "getarg.h"

@@ -14,28 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "NdbDaemon.h"
+#include <ndb_global.h>
 #include <assert.h>
-
-#ifdef NDB_LINUX
-#include <sys/types.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
 #include <fcntl.h>
-#include <errno.h>
-#endif
-
-#ifdef NDB_SOLARIS
-#include <sys/types.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <errno.h>
-#endif
+#include "NdbDaemon.h"
 
 #define NdbDaemon_ErrorSize 500
 #if defined(NDB_LINUX) || defined(NDB_SOLARIS)

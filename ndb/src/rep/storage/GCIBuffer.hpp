@@ -18,7 +18,7 @@
 #define GCI_BUFFER_HPP
 
 #include "GCIPage.hpp"
-#include "Vector.hpp"
+#include <Vector.hpp>
 #include <TransporterDefinitions.hpp>
 
 #include <signaldata/RepImpl.hpp>

@@ -25,11 +25,13 @@ Version:       1.2
 Description:   
 Documentation:
 ***************************************************************************/
-#include "NdbOperation.hpp"
-#include "NdbConnection.hpp"
+#include <assert.h>
+
+#include <NdbOperation.hpp>
+#include <NdbConnection.hpp>
 #include "NdbApiSignal.hpp"
-#include "Ndb.hpp"
-#include "NdbRecAttr.hpp"
+#include <Ndb.hpp>
+#include <NdbRecAttr.hpp>
 #include "NdbUtil.hpp"
 
 #include "Interpreter.hpp"

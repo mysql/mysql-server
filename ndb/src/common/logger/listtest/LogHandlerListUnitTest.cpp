@@ -14,6 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+#include <assert.h>
+
 #include "LogHandlerListUnitTest.hpp"
 
 #include <ConsoleLogHandler.hpp>
@@ -21,9 +24,6 @@
 #include <SysLogHandler.hpp>
 
 #include <NdbOut.hpp>
-
-#include <stdio.h>
-#include <assert.h>
 
 typedef bool (*TESTFUNC)(const char*);
 typedef struct
