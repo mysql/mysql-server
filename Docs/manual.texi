@@ -1010,11 +1010,18 @@ values).
 
 @cindex MySQL AB, defined
 
-@code{MySQL AB} is the company of the MySQL founders and main developers
-behind the MySQL database and this manual. We are dedicated to developing
-MySQL and spreading our database to new users.
-MySQL AB owns the copyright to the MySQL source code, the MySQL logo and
-trademark and this manual. @xref{What-is}.
+@code{MySQL AB} is the company of the MySQL founders and main
+developers. MySQL AB was originally established in Sweden by David
+Axmark, Allan Larsson and Michael @code{Monty} Widenius.
+
+All the developers of the MySQL server are employed by the company.
+We are a virtual organisation with people in a dozen countries around
+the world. We communicate extensively over the net every day with each
+other and with our users, supporters and partners.
+
+We are dedicated to developing MySQL and spreading our database to new 
+users. MySQL AB owns the copyright to the MySQL source code, the MySQL
+logo and trademark and this manual. @xref{What-is}.
 
 @menu
 * MySQL AB business model and services::  The Business Model and Services of MySQL AB
@@ -1090,90 +1097,111 @@ business model and build a basis for sustainable growth.
 MySQL AB is run and owned by the founders and main developers of the MySQL
 database. The developers are committed to giving support to customers and
 other users in order to stay in touch with their needs and problems. All
-our support is given by qualified developers, not through call centers or
-dedicated support staff. Really tricky questions are even answered by
-Michael @code{Monty} Widenius himself, the author of the MySQL server.
+our support is given by qualified developers. Really tricky questions are
+answered by Michael @code{Monty} Widenius, principal author of the MySQL
+server.
 @xref{Support}.
 
-To order support at different levels, please visit the order section at
-@uref{http://www.mysql.com/support/}. If you have restricted access to the
+To order support at various levels, please visit the order section at
+@uref{https://order.mysql.com/}. If you have restricted access to the
 Internet, please contact our sales staff at @email{sales@@mysql.com}.
 
 
 @node Business Services Training, Business Services Consulting, Business Services Support, MySQL AB business model and services
 @subsubsection Training
-MySQL AB offers training on different levels all over the world.
-The trainers are backed by the development team to guarantee quality and
-continous development and also that no questions raised during the courses
-remain unanswered.
+MySQL AB and its authorized training partners offer  MySQL and related
+training on various levels all over the world. Our training material
+uses the same example databases as our documentation and our sample
+applications, and it is always updated to reflect the latest MySQL
+version. Our trainers are backed by the development team to guarantee
+the quality of the training and the continuous development of the
+course material. Also, this ensures that no questions raised during
+the courses remain unanswered."
 
-If you're interested in participating in our courses, please visit the
-training section at @uref{http://www.mysql.com/training/}. If you have
-restricted access to the Internet, please contact our training staff at
-@email{training@@mysql.com}.
+If you're interested in our training as a potential participant or
+training partner, please visit the training section at
+@uref{http://www.mysql.com/training/}.
+If you have restricted access to the Internet, please contact our
+training staff at @email{training@@mysql.com}.
 
 
 @node Business Services Consulting, Business Services Commercial licenses, Business Services Training, MySQL AB business model and services
 @subsubsection Consulting
-MySQL AB offers consulting on different levels, all over the world.
-Consulting covers all questions affecting database performance such as
-database design, table design, query constructions, parameter tuning,
-hardware tuning, migration issues, replication, transactions etc.
-Our consultants are backed by the development team to guarantee quality
-work.
+MySQL AB offers consulting services to users of MySQL and to those who
+embed MySQL in their own software, all over the world. Our consultants
+can help you design and tune your databases, construct efficient
+queries, tune your platform for optimal performance, resolve migration
+issues, set up replication, build robust transactional applications,
+and more.
+We also help customers embed MySQL in their products and applications
+for large-scale deployment. Our consultants work in close collaboration
+with our development team which ensures the technical quality of our
+professional services.
+Consulting assignments range from 2-day power start sessions to
+projects that span weeks and months. Our expertise does not only cover
+MySQL, but extends into programming and scripting languages such as
+PHP, Perl and more.
 
-If you're interested in consulting, please visit the consulting section
-at @uref{http://www.mysql.com/consulting/}. If you have restricted access
-to the Internet, please contact our consulting staff at
-@email{consulting@@mysql.com}.
+If you're interested in our consulting services or want to become a
+consulting partner, please visit the consulting section at
+@uref{http://www.mysql.com/consulting/}.
+If you have restricted access to the Internet, please contact our
+consulting staff at @email{consulting@@mysql.com}.
 
 
 @node Business Services Commercial licenses, Business Services Partnering, Business Services Consulting, MySQL AB business model and services
 @subsubsection Commercial Licenses
 The MySQL database is released under the @code{GNU General Public License}
-(@code{GPL}). This means that it may often be used for free, but for
-certain uses you are required to purchase commercial licenses from
-MySQL AB at @uref{http://www.mysql.com/}.
-Since MySQL AB owns the copyright of the MySQL server, we are able to
-sell commercial licenses (this is called @code{Dual Licensing}). This
-does not in any way affect the @code{Open Source} commitment of MySQL AB.
+(@code{GPL}). This means that MySQL can be used free of charge under the
+GPL. If you do not want to be bound by the GPL terms (like the requirement
+that your own application becomes GPL as well), you may purchase a
+commercial license for the same product from MySQL AB at
+@uref{https://order.mysql.com/}.
+Since MySQL AB owns the copyright to the MySQL server, we are able to
+employ @code{Dual Licensing} which means that the same product is
+available both under GPL and under a commercial license. This does not
+in any way affect the @code{Open Source} commitment of MySQL AB.
 For details about when a commercial license is required, please see
 @ref{MySQL server licenses}.
 
-We also aim to offer commercial license packages covering both the MySQL
-database and closely connected third party software. Currently we have
-such an arrangement with the author of the @code{InnoDB} transactional
-table handler.
+We also sell commercial licenses of third-party Open Source GPL software
+that adds value to MySQL. A good example is the @code{InnoDB}
+transactional table handler that offers ACID support, row-level locking,
+crash recovery, multiversioning, foreign key support, and more.
 
 
 @node Business Services Partnering, Business Services Advertising, Business Services Commercial licenses, MySQL AB business model and services
 @subsubsection Partnering
 @cindex partnering with MySQL
+MySQL AB has a worldwide partner program that covers training courses,
+support, consulting, solutions, publications plus reselling and
+distributing MySQL and related products. Partners get visibility on the
+@uref{http://www.mysql.com/} website and the right to use special
+versions of the MySQL trademarks to identify their products and promote
+their business.
+
+If you are interested in becoming a MySQL AB partner, please mail to
+@email{partner@@mysql.com}.
+
 The word @code{MySQL} and the MySQL dolphin logo are trademarks of
 MySQL AB. @xref{MySQL AB Logos and Trademarks}.
 These trademarks represent a significant value that the MySQL
 founders have built over the years.
 
-We have a partner programme whereby companies worldwide can offer
-value-added MySQL services or products and resell our products and
-services against a partner fee and a royalty. Partners also get to
-use special versions of the MySQL trademark to indentify these
-products and promote their business.
-
-If you are interested in becoming a MySQL AB partner, please mail to
-@email{partner@@mysql.com}.
-
 
 @node Business Services Advertising,  , Business Services Partnering, MySQL AB business model and services
 @subsubsection Advertising
-The MySQL website (@uref{http://www.mysql.com/}) is highly popular among
-people who make purchase decisions or recommendations. The website has
-more than 10 million page views per month (October 2001).
+The MySQL website (@uref{http://www.mysql.com/}) immensely popular among
+developers and users. In October 2001, we served 10 million page views.
+Our visitors represent a group that makes purchase decisions and
+recommendations for both software and hardware. Twelve per cent of our
+visitors authorize purchase decisions, and only nine per cent are not
+involved in purchase decisions at all. More than 65% have made one or
+more online business purchase within the last half-year, and 70% plan
+to make one in the next months.
 
-Banners on @uref{http://www.mysql.com/} will be viewed by numerous
-potential buyers who maintain or set up websites and other database
-applications. For more information, please send an email to
-@email{advertising@@mysql.com}.
+If you are interested in placing banner ads on our website, please send
+an email to @email{advertising@@mysql.com}.
 
 
 @node Contact information,  , MySQL AB business model and services, What is MySQL AB
@@ -1189,13 +1217,12 @@ applications. For more information, please send an email to
 @uref{http://www.mysql.com/, The MySQL website}
 provides the latest information about MySQL and MySQL AB.
 
-For timely, precise answers to technical questions about MySQL,
-consider ordering a @uref{https://order.mysql.com/, support contract}
-from MySQL AB. MySQL support by MySQL is provided directly by the
-MySQL developers so the standard is extremely high. If you have
-restricted access to the Internet, please contact the MySQL AB sales
-staff at @email{sales@@mysql.com}.
-@xref{Support}.
+If you have a valid support contract with MySQL AB; you will get
+timely, precise answers to your technical questions about MySQL.
+For more information, see @ref{Support}.
+You can order your support contract at
+@uref{https://order.mysql.com/}, or send an email to
+@email{sales@@mysql.com}.
 
 For information about MySQL training, please visit the training
 section at @uref{http://www.mysql.com/training/}. If you have
@@ -1209,9 +1236,13 @@ restricted access to the Internet, please contact the MySQL AB
 consulting staff at @email{consulting@@mysql.com}.
 @xref{Business Services Consulting}.
 
-For commercial licensing, please contact the MySQL AB licensing team
-via e-mail at @email{licensing@@mysql.com}. Fax is also possible but
-handling of these may take much longer (Fax +46-8-729 69 05).
+Commercial licenses may be purchased online at
+@uref{https://order.mysql.com/}. There you will also find information
+on how to fax your purchase order to MySQL AB. If you have questions
+regarding licensing or you want a quote for a high-volume license
+deal, please fill in the contact form on our website or send an email
+to @email{licensing@@mysql.com} (for licensing questions) or to 
+@email{sales@@mysql.com} (for sales inquiries).
 @xref{MySQL server licenses}.
 
 If you represent a business that is interested in partnering with
@@ -1223,9 +1254,16 @@ website (@uref{http://www.mysql.com/}), please send e-mail to
 @email{advertising@@mysql.com}.
 @xref{Business Services Advertising}.
 
+For more information on the MySQL trademark policy, refer to
+@uref{http://www.mysql.com/company/trademark.html} or email
+@email{trademark@@mysql.com}.
+@xref{MySQL AB Logos and Trademarks}.
+
 If you are interested in any of the MySQL AB jobs listed in our
-@uref{http://www.mysql.com/development/jobs/, jobs} section,
+jobs section (@uref{http://www.mysql.com/development/jobs/}),
 please send an e-mail to @email{jobs@@mysql.com}.
+Please do not send your cv as an attachment, but rather as plain text
+at the end of your email.
 
 For general discussion amongst our many users, please direct your
 attention to the appropriate mailing list.
@@ -1243,6 +1281,11 @@ manual, please send them to the manual team at @email{docs@@mysql.com}.
 
 For questions or comments about the workings or content of the Website,
 please send e-mail to @email{webmaster@@mysql.com}.
+
+MySQL AB has a privacy policy, which can be read at
+@uref{http://www.mysql.com/company/privacy.html}.
+For any queries regarding this policy, please e-mail
+@email{privacy@@mysql.com}.
 
 For all other inquires, please send e-mail to @email{info@@mysql.com}.
 
@@ -1334,11 +1377,10 @@ Our support covers only the MySQL server and our own utilities, not
 third-party products that access MySQL, though we try to help with
 these where we can.
 
-Detailed information about our different support options is given at
-@uref{http://www.mysql.com/support/}. Support contracts can also be
-ordered online at @uref{https://order.mysql.com/}. If you have
-restricted access to the Internet, contact our sales staff at
-@email{sales@@mysql.com}.
+Detailed information about our various support options is given at
+@uref{https://order.mysql.com/} where support contracts can also be
+ordered online. If you have restricted access to the Internet, contact
+our sales staff at @email{sales@@mysql.com}.
 
 Technical support is like life insurance. You can live happily
 without it for years, but when your hour arrives it becomes
@@ -1427,8 +1469,7 @@ in any way.
 To purchase commercial licenses and support, please visit the order section
 of our website at @uref{https://order.mysql.com/}. If you have restricted
 access to the Internet, please contact our sales staff at
-@email{sales@@mysql.com}. Fax is also possible but the handling of these
-may take much longer (Fax +46-8-729 69 05).
+@email{sales@@mysql.com}.
 
 
 @node Using the MySQL server for free under GPL,  , Using the MySQL server under a commercial license, MySQL server licenses
@@ -1830,896 +1871,14 @@ checklist of very demanding buyers.
 @cindex books, about MySQL
 
 @menu
+* Questions::                   MySQL Mailing Lists
 * MySQL-Books::                 Books About MySQL
 * General-SQL::                 General SQL Information and Tutorials
 * Useful Links::                Useful MySQL-related Links
-* Questions::                   MySQL Mailing Lists
 @end menu
 
 
-@node MySQL-Books, General-SQL, MySQL Information Sources, MySQL Information Sources
-@subsection Books About MySQL
-
-For the latest book information, with user comments, please visit
-@uref{http://www.mysql.com/portal/books/html/index.html}.
-
-While this manual is still the right place for up to date technical
-information, its primary goal is to contain everything there is to know
-about MySQL.  It is sometimes nice to have a bound book to read
-in bed or while you travel.  Here is a list of books about MySQL and
-related subjects (in English).
-
-By purchasing a book through these hyperlinks provided herein, you are
-contributing to the development of MySQL.
-
-@emph{MySQL}
-@multitable @columnfractions .3 .7
-@item Available	@tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0735709211&bfmtype=book, Barnes and Noble}
-@item Publisher	@tab		New Riders
-@item Author	@tab		Paul DuBois
-@item Pub Date	@tab		1st Edition December 1999
-@item ISBN	@tab		0735709211
-@item Pages	@tab		800
-@item Price	@tab		$49.99 US
-@item Downloadable examples  @tab
- @uref{http://www.kitebird.com/mysql-book/, @code{samp_db} distribution}
-@item Errata  @tab
-@uref{http://www.kitebird.com/mysql-book/errata.html, are available here}
-@end multitable
-
-Foreword by Michael ``Monty'' Widenius, MySQL Moderator.
-@*
-
-In @emph{MySQL}, Paul DuBois provides you with a comprehensive guide to
-one of the most popular relational database systems.  Paul has
-contributed to the online documentation for MySQL and is an
-active member of the MySQL community.  The principal MySQL
-developer, Monty Widenius, and a network of his fellow developers
-reviewed the manuscript, and provided Paul with the kind of insight
-no one else could supply.
-@*
-
-Instead of merely giving you a general overview of MySQL, Paul
-teaches you how to make the most of its capabilities.  Through two
-sample database applications that run throughout the book, he
-gives you solutions to problems you're sure to face.  He helps you
-integrate MySQL efficiently with third-party tools, such as PHP
-and Perl, enabling you to generate dynamic Web pages through
-database queries.  He teaches you to write programs that access
-MySQL databases, and also provides a comprehensive set of
-references to column types, operators, functions, SQL syntax,
-MySQL programming, C API, Perl @code{DBI}, and PHP API.
-@emph{MySQL} simply gives you the kind of information you won't find
-anywhere else.
-@*
-
-If you use MySQL, this book provides you with:
-@itemize @bullet
-@item
-An introduction to MySQL and SQL.
-@item
-Coverage of MySQL's data types and how to use them.
-@item
-Thorough treatment of how to write client programs in C.
-@item
-A guide to using the Perl @code{DBI} and PHP APIs for developing
-command-line and Web-based applications.
-@item
-Tips on administrative issues such as user accounts, backup,
-crash recovery, and security.
-@item
-Help in choosing an ISP for MySQL access.
-@item
-A comprehensive reference for MySQL's data types, operators,
-functions, and SQL statements and utilities.
-@item
-Complete reference guides for MySQL's C API, the Perl @code{DBI} API,
-and PHP's MySQL-related functions.
-@end itemize
-@*
-
-@emph{MySQL & mSQL}
-@multitable @columnfractions .3 .7
-@item Available	@tab		@uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=1565924347&bfmtype=book, Barnes and Noble}
-@item Publisher	@tab		O'Reilly
-@item Authors	@tab		Randy Jay Yarger, George Reese & Tim King
-@item Pub Date	@tab		1st Edition July 1999
-@item ISBN	@tab		1-56592-434-7, Order Number: 4347
-@item Pages	@tab		506
-@item Price	@tab		$34.95
-@end multitable
-
-This book teaches you how to use MySQL and @code{mSQL}, two popular
-and robust database products that support key subsets of SQL on both Linux
-and Unix systems.  Anyone who knows basic C, Java, Perl, or Python can
-write a program to interact with a database, either as a stand-alone
-application or through a Web page.  This book takes you through the
-whole process, from installation and configuration to programming
-interfaces and basic administration.  Includes plenty of tutorial
-material.
-@*
-
-@emph{Sams' Teach Yourself MySQL in 21 Days}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0672319144&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Sams
-@item Authors   @tab            Mark Maslakowski and Tony Butcher
-@item Pub Date  @tab            June 2000
-@item ISBN      @tab            0672319144
-@item Pages     @tab            650
-@item Price     @tab            $39.99
-@end multitable
-
-Sams' @emph{Teach Yourself MySQL in 21 Days} is for intermediate Linux users
-who want to move into databases.  A large share of the audience is Web 
-developers who need a database to store large amounts of information that 
-can be retrieved via the Web.
-
-Sams' @emph{Teach Yourself MySQL in 21 Days} is a practical, step-by-step
-tutorial.  The reader will learn to design and employ this open source
-database technology into his or her Website using practical, hands-on 
-examples to follow.
-@*
-
-@emph{E-Commerce Solutions with MySQL}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0761524452&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Prima Communications, Inc.
-@item Authors   @tab            N/A
-@item Pub Date  @tab            January 2000
-@item ISBN      @tab            0761524452
-@item Pages     @tab            500
-@item Price     @tab            $39.99
-@end multitable
-
-No description available.
-@*
-
-@emph{MySQL and PHP from Scratch}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0789724405&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Que
-@item Authors   @tab            N/A
-@item Pub Date  @tab            September 2000
-@item ISBN      @tab            0789724405
-@item Pages     @tab            550
-@item Price     @tab            $34.99
-@end multitable
-
-This book puts together information on installing, setting up, and
-troubleshooting Apache, MySQL, PHP3, and IMP into one complete
-volume.  You also learn how each piece is part of a whole by learning,
-step-by-step, how to create a web-based e-mail system.  Learn to run
-the equivalent of Active Server Pages (ASP) using PHP3, set up an
-e-commerce site using a database and the Apache web server, and create
-a data entry system (such as sales, product quality tracking, customer
-preferences, etc) that no installation in the PC.
-@*
-
-@emph{Professional MySQL Programming}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=1861005164, Barnes and Noble}
-@item Publisher @tab            Wrox Press, Inc.
-@item Authors   @tab            N/A
-@item Pub Date  @tab            Late 2001
-@item ISBN      @tab            1861005164
-@item Pages     @tab            1000
-@item Price     @tab            $49.99
-@end multitable
-
-No description available.
-@*
-
-@emph{Professional Linux Programming}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=1861003013&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Wrox Press, Inc.
-@item Authors   @tab            N/A
-@item Pub Date  @tab            September 2000
-@item ISBN      @tab            1861003013
-@item Pages     @tab            1155
-@item Price     @tab            $47.99
-@end multitable
-
-In this follow-up to the best-selling @emph{Beginning Linux Programming},
-you will learn from the authors' real-world knowledge and experience of
-developing software for Linux; you'll be taken through the development
-of a sample 'DVD Store' application, with 'theme' chapters addressing
-different aspects of its implementation.  Meanwhile, individual
-``take-a-break'' chapters cover important topics that go beyond the
-bounds of the central theme.  All focus on the practical aspects of
-programming, showing how crucial it is to choose the right tools for
-the job, use them as they should be used, and get things right first
-time.
-@*
-
-@emph{PHP and MySQL Web Development}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0672317842&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Sams
-@item Authors   @tab            Luke Welling, Laura Thomson
-@item Pub Date  @tab            March 2001
-@item ISBN      @tab            0672317842
-@item Pages     @tab            700
-@item Price     @tab            $49.99
-@end multitable
-
-@emph{PHP and MySQL Web Development} introduces you to the advantages
-of implementing both MySQL and PHP.  These advantages are detailed
-through the provision of both statistics and several case studies.  A
-practical web application is developed throughout the book, providing
-you with the tools necessary to implement a functional online
-database.  Each function is developed separately, allowing you the
-choice to incorporate only those parts that you would like to
-implement.  Programming concepts of the PHP language are highlighted,
-including functions which tie MySQL support into a PHP script and
-advanced topics regarding table manipulation.
-@*
-
-@strong{Books recommended by the MySQL Developers}
-
-@emph{SQL-99 Complete, Really}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0879305681&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            CMP Books
-@item Authors   @tab            Peter Gulutzan, Trudy Pelzer
-@item Pub Date  @tab            April 1999
-@item ISBN      @tab            0879305681
-@item Pages     @tab            1104
-@item Price     @tab            $55.96
-@end multitable
-
-This book contains complete descriptions of the new standards for
-syntax, data structures, and retrieval processes of SQL databases.  As
-an example-based reference manual, it includes all of the CLI
-functions, information, schema tables, and status codes, as well as a
-working SQL database provided on the companion disk.
-@*
-
-@emph{C, A reference manual}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0133262243&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Prentice Hall
-@item Authors   @tab            Samuel P. Harbison, Guy L. Steele
-@item Pub Date  @tab            September 1994
-@item ISBN      @tab            0133262243
-@item Pages     @tab            480
-@item Price     @tab            $35.99
-@end multitable
-
-A new and improved revision of the bestselling C language
-reference.  This manual introduces the notion of "Clean C", writing C
-code that can be compiled as a C++ program, C programming style that
-emphasizes correctness, portability, maintainability, and
-incorporates the ISO C Amendment 1 (1994) which specifies new
-facilities for writing portable, international programs in C.
-@*
-
-@emph{C++ for Real Programmers}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0120499428&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Academic Press, Incorporated
-@item Authors   @tab            Jeff Alger, Jim Keogh
-@item Pub Date  @tab            February 1998
-@item ISBN      @tab            0120499428
-@item Pages     @tab            388
-@item Price     @tab            $39.95
-@end multitable
-
-@emph{C++ For Real Programmers} bridges the gap between C++ as described
-in beginner and intermediate-level books and C++ as it is practiced by
-experts.  Numerous valuable techniques are described, organized into
-three simple themes: indirection, class hierarchies, and memory
-management.  It also provides in-depth coverage of template creation,
-exception handling, pointers and optimization techniques.  The focus of
-the book is on ANSI C++ and, as such, is compiler independent. 
-
-@emph{C++ For Real Programmers} is a revision of 
-@emph{Secrets of the C++ Masters} and includes a new appendix comparing C++ 
-with Java.  The book comes with a 3.5" disk for Windows with source code.
-@*
-
-@emph{Algorithms in C}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0201514257&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Addison Wesley Longman, Inc.
-@item Authors   @tab            Robert Sedgewick
-@item Pub Date  @tab            April 1990
-@item ISBN      @tab            0201514257
-@item Pages     @tab            648
-@item Price     @tab            $45.75
-@end multitable
-
-@emph{Algorithms in C} describes a variety of algorithms in a number of
-areas of interest, including: sorting, searching, string-processing, and
-geometric, graph and mathematical algorithms.  The book emphasizes
-fundamental techniques, providing readers with the tools to confidently 
-implement, run, and debug useful algorithms.
-@*
-
-@emph{Multithreaded Programming with Pthreads}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0136807291&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            Prentice Hall
-@item Authors   @tab            Bil Lewis, Daniel J. Berg
-@item Pub Date  @tab            October 1997
-@item ISBN      @tab            0136807291
-@item Pages     @tab            432
-@item Price     @tab            $34.95
-@end multitable
-
-Based on the best-selling @emph{Threads Primer}, 
-@emph{Multithreaded Programming with Pthreads} gives you a solid 
-understanding of Posix threads: what they are, how they work, when to use 
-them, and how to optimize them. It retains the clarity and humor of 
-@emph{Threads Primer}, but includes expanded comparisons to Win32 and OS/2
-implementations.  Code examples tested on all of the major UNIX platforms 
-are featured along with detailed explanations of how and why they use threads.
-@*
-
-@emph{Programming the PERL DBI: Database Programming with PERL}
-@multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=1565926994&bfmtype=book, Barnes and Noble}
-@item Publisher @tab            O'Reilly & Associates, Incorporated
-@item Authors   @tab            Alligator Descartes, Tim Bunce
-@item Pub Date  @tab            February 2000
-@item ISBN      @tab            1565926994
-@item Pages     @tab            400
-@item Price     @tab            $27.96
-@end multitable
-
-@emph{Programming the Perl DBI} is coauthored by Alligator Descartes, one
-of the most active members of the DBI community, and by Tim Bunce, the
-inventor of DBI.  For the uninitiated, the book explains the architecture
-of DBI and shows you how to write DBI-based programs.  For the experienced
-DBI dabbler, this book explains DBI's nuances and the peculiarities of each
-individual DBD.
-
-The book includes:
-@itemize @bullet
-@item
-An introduction to DBI and its design.
-@item
-How to construct queries and bind parameters.
-@item
-Working with database, driver, and statement handles.
-@item
-Debugging techniques.
-@item
-Coverage of each existing DBD.
-@item
-A complete reference to DBI.
-@end itemize
-@*
-
-
-@node General-SQL, Useful Links, MySQL-Books, MySQL Information Sources
-@subsection General SQL Information and Tutorials
-
-The MySQL book portal is split into different sections to make it easy
-to locate books for various purposes.
-@uref{http://www.mysql.com/portal/books/html/index.html}
-
-Tutorials can be found at:
-@uref{http://www.mysql.com/portal/development/html/development-61-1.html}
-
-@node Useful Links, Questions, General-SQL, MySQL Information Sources
-@subsection Useful MySQL-related Links
-
-The MySQL development portal is the ultimate source of MySQL related
-links. @uref{http://www.mysql.com/portal/development/html/index.html}
-
-Apart from the following links, you can find and download a lot of
-MySQL programs, tools and APIs from the
-@uref{http://www.mysql.com/Downloads/Contrib/, Contrib directory}.
-@cindex @code{Contrib} directory
-
-@cindex URLs to MySQL information
-@cindex MySQL related information URLs
-@subheading Tutorials and Manuals
-
-@table @asis
-@item @uref{http://michael.bacarella.com/research/mysqlmyths.html, MySQL Myths Debunked}
-MySQL used in the real world.
-
-@item @uref{http://www.4t2.com/mysql}
-Information about the German MySQL mailing list.
-
-@item @uref{http://www2.rent-a-database.de/mysql/}
-MySQL handbook in German.
-
-@item @uref{http://www.bitmover.com:8888//home/bk/mysql}
-Web access to the MySQL BitKeeper repository.
-
-@item @uref{http://www.analysisandsolutions.com/code/mybasic.htm}
-Beginners MySQL Tutorial on how to install and set up
-MySQL on a Windows machine.
-
-@item @uref{http://www.devshed.com/Server_Side/MySQL/}
-A lot of MySQL tutorials.
-
-@item @uref{http://mysql.hitstar.com/}
-MySQL manual in Chinese.
-
-@item @uref{http://www.linuxplanet.com/linuxplanet/tutorials/1046/1/}
-Setting Up a MySQL-based website.
-
-@item @uref{http://www.hotwired.com/webmonkey/backend/tutorials/tutorial1.html}
-MySQL-Perl tutorial.
-
-@item @uref{http://www.iserver.com/support/contrib/perl5/modules.html}
-Installing new Perl modules that require locally installed modules.
-
-@item @uref{http://www.hotwired.com/webmonkey/databases/tutorials/tutorial4.html}
-PHP/MySQL Tutorial.
-
-@item @uref{http://www.useractive.com/}
-Hands on tutorial for MySQL.
-@end table
-
-@subheading Porting MySQL/Using MySQL on Different Systems
-
-@table @asis
-@item @uref{http://www.entropy.ch/software/macosx/mysql/}
-Binary of MySQL for Mac OS X Client.  Includes information of how to
-build and use MySQL on Mac OS X.
-
-@item @uref{http://xclave.macnn.com/MySQL/}
-The Mac OS Xclave.  Running MySQL on Mac OS X.
-
-@item @uref{http://www.prnet.de/RegEx/mysql.html}
-MySQL for Mac OS X Server.
-
-@item @uref{http://www.latencyzero.com/macosx/mysql.html}
-Building MySQL for Mac OS X.
-
-@item @uref{http://www.essencesw.com/Software/mysqllib.html}
-New Client libraries for the Mac OS Classic (Macintosh).
-
-@item @uref{http://www.lilback.com/macsql/}
-Client libraries for Mac OS Classic (Macintosh).
-
-@item @uref{http://sixk.maniasys.com/index_en.html}
-MySQL for Amiga
-@end table
-
-@subheading Perl-related Links
-
-@table @asis
-@item @uref{http://dbimysql.photoflux.com/}
-Perl DBI with MySQL FAQ.
-@end table
-
-@subheading MySQL Discussion Forums
-
-@table @asis
-@item @uref{http://www.weberdev.com/}
-Examples using MySQL; (check Top 20)
-
-@item @uref{http://futurerealm.com/forum/futureforum.htm}
-FutureForum Web Discussion Software.
-@end table
-
-@c FIX We should get longer descriptions for things in this category!
-@subheading Commercial Applications that Support MySQL
-
-@table @asis
-@item @uref{http://www.supportwizard.com/}
-SupportWizard; Interactive helpdesk on the Web. This product includes a
-licensed copy of MySQL.
-
-@item @uref{http://www.sonork.com/}
-Sonork,  Instant Messenger that is not only Internet oriented.  It's 
-focused on private networks and on small to medium companies.  Client
-is free, server is free for up to 5 seats.
-
-@item @uref{http://www.stweb.org/}
-StWeb - Stratos Web and Application server - An easy-to-use, cross
-platform, Internet/Intranet development and deployment system for
-development of web-enabled applications.  The standard version of StWeb
-has a native interface to MySQL database.
-
-@item @uref{http://www.rightnowtech.com/}
-Right Now Web; Web automation for customer service.
-
-@item @uref{http://www.icaap.org/Bazaar/}
-Bazaar; Interactive Discussion Forums with Web interface.
-
-@cindex PhoneSweep
-@item @uref{http://www.phonesweep.com/}
-PhoneSweepT is the world's first commercial Telephone Scanner.  Many break-ins
-in recent years have come not through the Internet, but through unauthorized
-dial-up modems.  PhoneSweep lets you find these modems by repeatedly placing
-phone calls to every phone number that your organization
-controls.  PhoneSweep has a built-in expert system that can recognize
-more than 250 different kinds of remote-access programs, including
-Carbon Copy(TM), pcANYWHERE(TM), and Windows NT RAS.  All information is stored
-in the SQL database.  It then generates a comprehensive report detailing
-which services were discovered on which dial-up numbers in your organization.
-@end table
-
-@subheading SQL Clients and Report Writers
-
-@table @asis
-@item @uref{http://www.urbanresearch.com/software/utils/urbsql/index.html, urSQL}
-SQL Editor and Query Utility. Custom syntax highlighting, editable
-results grid, exportable result-sets, basic MySQL admin functions,
-Etc.. For Windows.
-
-@item @uref{http://www.edatanew.com/, MySQL Data Manager}
-MySQL Data Manager * is platform independent web client
-(written in perl) for MySQL server over TCP/IP.
-
-@item @uref{http://ksql.sourceforge.net/}
-KDE MySQL client.
-
-@item @uref{http://www.ecker-software.de}
-A Windows GUI client by David Ecker.
-
-@item @uref{http://www.icaap.org/software/kiosk/}
-Kiosk; a MySQL client for database management.  Written in Perl.
-Will be a part of Bazaar.
-
-@item @uref{http://www.casestudio.com/}
-Db design tool that supports MySQL 3.23.
-
-@item @uref{http://home.skif.net/~voland/zeos/eng/index.html}
-Zeos - A client that supports MySQL, Interbase and PostgreSQL.
-
-@item @uref{http://www.geocities.com/SiliconValley/Ridge/4280/GenericReportWriter/grwhome.html}
-A free report writer in Java
-
-@item @uref{http://www.javaframework.de}
-MySQLExport - Export of MySQL create statements and data in a lot of
-different formats (SQL, HTML, CVS, text, ZIP, GZIP...).
-
-@item @uref{http://dlabs.4t2.com}
-M2D, a MySQL Administration client for Windows.  M2D supports 
-administration of MySQL databases, creation of new databases and 
-tables, editing, and more.
-
-@item @uref{http://dlabs.4t2.com}
-Dexter, a small server written in Perl which can be used as a proxy server for
-MySQL or as a database extender.
-
-@item @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp}
-Mascon is a powerful Win32 GUI for administering MySQL databases.
-
-@item @uref{http://www.rtlabs.com/}
-MacSQL Monitor.  GUI for MySQL, ODBC, and JDBC databases for the Mac OS.
-@end table
-
-@subheading Distributions that Include MySQL
-
-@c FIX add the rest (at least a couple more Linuxes)
-
-@table @asis
-@item @uref{http://www.suse.com/}
-SuSE Linux (6.1 and above)
-
-@item @uref{http://www.redhat.com/}
-RedHat Linux (7.0 and above)
-
-@item @uref{http://distro.conectiva.com.br}
-Conectiva Linux (4.0 and above)
-@end table
-
-@subheading Web Development Tools that Support MySQL
-
-@table @asis
-@item @uref{http://www.php.net/}
-PHP: A server-side HTML-embedded scripting language.
-
-@item @uref{http://www.midgard-project.org}
-The Midgard Application Server; a powerful Web development environment
-based on MySQL and PHP.
-
-@cindex dbServ
-@item @uref{http://www.dbServ.de/}
-dbServ is an extension to a web server to integrate database output into
-your HTML code.  You may use any HTML function in your output.  Only the
-client will stop you.  It works as standalone server or as Java servlet.
-
-@item @uref{http://www.chilisoft.com/}
-Platform independent ASP from Chili!Soft
-
-@item @uref{http://www.voicenet.com/~zellert/tjFM}
-A JDBC driver for MySQL.
-
-@item @uref{http://www.wernhart.priv.at/php/}
-MySQL + PHP demos.
-
-@item @uref{http://www.dbwww.com/}
-ForwardSQL: HTML interface to manipulate MySQL databases.
-
-@item @uref{http://www.daa.com.au/~james/www-sql/}
-WWW-SQL: Display database information.
-
-@item @uref{http://www.heitml.com/}
-HeiTML: A server-side extension of HTML and a 4GL language at the same time.
-
-@item @uref{http://hawkeye.net/}
-Hawkeye Internet Server Suite.
-
-@item @uref{http://www.webgroove.com/}
-WebGroove Script: HTML compiler and server-side scripting language.
-
-@item @uref{http://www.ihtml.com/}
-A server-side website scripting language.
-
-@item @uref{ftp://ftp.igc.apc.org/pub/myodbc/README}
-How to use MySQL with ColdFusion on Solaris.
-
-@item @uref{http://calistra.com/MySQL/}
-Calistra's ODBC MySQL Administrator.
-
-@item @uref{http://phpclub.net/}
-PHPclub - Tips and tricks for PHP.
-
-@item @uref{http://www.widgetchuck.com}
-The Widgetchuck; Website Tools and Gadgets
-
-@item @uref{http://www.adcycle.com/}
-AdCycle - advertising management software.
-
-@cindex pwPage
-@item @uref{http://sourceforge.net/projects/pwpage/}
-pwPage - provides an extremely fast and simple approach to the creation 
-of database forms.  That is, if a database table exists and an HTML page 
-has been constructed using a few simple guidelines, pwPage can be 
-immediately used for table data selections, insertions, updates, deletions 
-and selectable table content reviewing.
-
-@item @uref{http://www.omnis-software.com/products/studio/studio.html}
-OMNIS Studio is a rapid application development (RAD) tool.
-@end table
-
-@subheading Database Design Tools with MySQL Support
-
-@table @asis
-@item @uref{http://www.mysql.com/documentation/dezign/}
-"DeZign for databases" is a database development tool that uses an
-entity relationship diagram (ERD).
-@end table
-
-@subheading Web Servers with MySQL Tools
-
-@table @asis
-@item @uref{ftp://ftp.kcilink.com/pub/}
-mod_auth_mysql, An Apache authentication module.
-
-@item @uref{http://www.roxen.com/}
-The Roxen Challenger Web server.
-@end table
-
-@subheading Extensions for Other Programs
-
-@table @asis
-@item @uref{http://www.seawood.org/msql_bind/}
-MySQL support for BIND (The Internet Domain Name Server).
-
-@item @uref{http://www.inet-interactive.com/sendmail/}
-MySQL support for Sendmail and Procmail.
-@end table
-
-@subheading Using MySQL with Other Programs
-
-@table @asis
-@item @uref{http://www.iserver.com/support/addonhelp/database/mysql/msaccess.html}
-Using MySQL with Access.
-
-@item @uref{http://www.iserver.com/support/contrib/perl5/modules.html}
-Installing new Perl modules that require locally installed modules.
-@end table
-
-@subheading ODBC-related Links
-
-@table @asis
-@item @uref{http://www.iodbc.org/}
-Popular iODBC Driver Manager (libiodbc) now available as Open Source.
-
-@item @uref{http://users.ids.net/~bjepson/freeODBC/}
-The FreeODBC Pages.
-
-@item @uref{http://genix.net/unixODBC/}
-The unixODBC Project goals are to develop and promote unixODBC to be the
-definitive standard for ODBC on the Linux platform.  This is to include GUI
-support for KDE.
-
-@item @uref{http://www.sw-soft.com/products/BtrieveODBC/}
-A MySQL-based ODBC driver for Btrieve.
-@end table
-
-@subheading @strong{API}-related Links
-
-@table @asis
-@item @uref{http://www.jppp.com/}
-Partially implemented TDataset-compatible components for MySQL.
-
-@item @uref{http://www.riverstyx.net/qpopmysql/}
-qpopmysql - A patch to allow POP3 authentication from a MySQL
-database.  There's also a link to Paul Khavkine's patch for Procmail to
-allow any MTA to deliver to users in a MySQL database.
-
-@item @uref{http://www.essencesw.com/Software/mysqllib.html}
-New Client libraries for the Mac OS Classic (Macintosh).
-
-@item @uref{http://www.lilback.com/macsql/}
-Client libraries for the Macintosh.
-
-@item @uref{http://www.essencesw.com/Plugins/mysqlplug.html}
-Plugin for REALbasic (for Macintosh)
-
-@item @uref{http://www.iis.ee.ethz.ch/~neeri/macintosh/gusi-qa.html}
-A library that emulates BSD sockets and pthreads on Macintosh.  This can
-be used if you want to compile the MySQL client library on Mac.
-It could probably even be sued to port MySQL to Macintosh, but we
-don't know of anyone that has tried that.
-
-@cindex SCMDB
-@item @uref{http://www.dedecker.net/jessie/scmdb/}
-SCMDB - an add-on for SCM that ports the MySQL C library to scheme
-(SCM).  With this library scheme developers can make connections to a
-MySQL database and use embedded SQL in their programs.
-@end table
-
-@subheading Other MySQL-related Links
-
-@table @asis
-@item @uref{http://www.satisoft.com/, SAT}
-The Small Application Toolkit (SAT) is a collection of utilities
-intended to simplify the development of small, multi-user, GUI based
-applications in a (Microsoft -or- X) Windows Client / Unix Server
-environment.
-
-@item @uref{http://www.wix.com/mysql-hosting/}
-Registry of Web providers who support MySQL.
-
-@item @uref{http://www.softagency.co.jp/mysql/index.en.html}
-Links about using MySQL in Japan/Asia.
-
-@item @uref{http://abattoir.cc.ndsu.nodak.edu/~nem/mysql/udf/}
-MySQL UDF Registry.
-
-@item @uref{http://www.open.com.au/products.html}
-Commercial Web defect tracking system.
-
-@item @uref{http://www.stonekeep.com/pts/}
-PTS: Project Tracking System.
-
-@item @uref{http://tomato.nvgc.vt.edu/~hroberts/mot}
-Job and software tracking system.
-
-@item @uref{http://www.cynergi.net/exportsql/}
-ExportSQL: A script to export data from Access95+.
-
-@item @uref{http://SAL.KachinaTech.COM/H/1/MYSQL.html}
-SAL (Scientific Applications on Linux) MySQL entry.
-
-@item @uref{http://www.infotech-nj.com/itech/index.shtml}
-A consulting company which mentions MySQL in the right company.
-
-@item @uref{http://www.pmpcs.com/}
-PMP Computer Solutions.  Database developers using MySQL and
-@code{mSQL}.
-
-@item @uref{http://www.dedserius.com/y2kmatrix/}
-Y2K tester.
-@end table
-
-@subheading SQL and Database Interfaces
-
-@table @asis
-@item @uref{http://java.sun.com/products/jdbc/}
-The JDBC database access API.
-
-@item @uref{http://www.gagme.com/mysql}
-Patch for @code{mSQL} Tcl.
-
-@item @uref{http://www.amsoft.ru/easysql/}
-EasySQL: An ODBC-like driver manager.
-
-@item @uref{http://www.lightlink.com/hessling/rexxsql.html}
-A REXX interface to SQL databases.
-
-@c @item @uref{http://www.mytcl.cx/}
-@c Tcl interface based on tcl-sql with many bugfixes.
-
-@item @uref{http://www.binevolve.com/~tdarugar/tcl-sql/}
-Tcl interface for MySQL.
-
-@item @uref{http://www.contrib.andrew.cmu.edu/~shadow/sql.html}
-SQL Reference Page with a lot of interesting links.
-
-@end table
-
-@subheading Examples of MySQL Use
-
-@table @asis
-@c Added 990601
-@c EMAIL: thuss@little6.com (Todd Huss)
-@item @uref{http://www.little6.com/about/linux/}
-Little6 Inc., An online contract and job finding site that is powered by
-MySQL, PHP3, and Linux.
-
-@c Added 990521
-@c EMAIL: info@worldrecords.com (Jim Rota)
-@item @uref{http://www.worldrecords.com}
-World Records - A search engine for information about music that uses
-MySQL and PHP.
-
-@item @uref{http://www.webtechniques.com/archives/1998/01/note/}
-A Contact Database using MySQL and PHP.
-
-@item @uref{http://modems.rosenet.net/mysql/}
-Web based interface and Community Calendar with PHP.
-
-@item @uref{http://www.odbsoft.com/cook/sources.htm}
-Perl package to generate html from a SQL table structure and for generating
-SQL statements from an html form.
-
-@item @uref{http://www.gusnet.cx/proj/telsql/}
-Basic telephone database using @code{DBI}/@code{DBD}.
-
-@item @uref{http://tecfa.unige.ch/guides/java/staf2x/ex/jdbc/coffee-break}
-JDBC examples by Daniel K. Schneider.
-
-@item @uref{http://www.ooc.com/}
-Object Oriented Concepts Inc; CORBA applications with examples in source.
-
-@c EMAIL: paul@sword.damocles.com (Paul Bannister)
-@item @uref{http://www.stopbit.com/}
-Stopbit - A technology news site using MySQL and PHP.
-
-@item @uref{http://www.penguinservices.com/scripts}
-Online shopping cart system.
-
-@c Added 990928 from editor@city-gallery.com
-@cindex Old Photo Album
-@item @uref{http://www.city-gallery.com/album/}
-Old Photo Album - The album is a collaborative popular history of photography
-project that generates all pages from data stored in a MySQL
-database.  Pages are dynamically generated through a php3 interface to the
-database content.  Users contribute images and descriptions.  Contributed 
-images are stored on the web server to avoid storing them in the database 
-as BLOBs.  All other information is stored on the shared MySQL server.
-@end table
-
-@subheading General Database Links
-
-@table @asis
-@item @uref{http://black.hole-in-the.net/guy/webdb/}
-Homepage of the webdb-l (Web Databases) mailing list.
-
-@item @uref{http://www.symbolstone.org/technology/perl/DBI/index.html}
-Perl @code{DBI}/@code{DBD} modules homepage.
-
-@item @uref{http://www.student.uni-koeln.de/cygwin/}
-Cygwin tools.  Unix on top of Windows.
-
-@cindex Tek-Tips forums
-@cindex forums, Tek-Tips
-@item @uref{http://www.tek-tips.com/}
-Tek-Tips Forums are 800+ independent peer-to-peer non-commercial support
-forums for Computer Professionals.  Features include automatic e-mail
-notification of responses, a links library, and member confidentiality
-guaranteed.
-
-@item @uref{http://www.public.asu.edu/~peterjn/btree/}
-B-Trees: Balanced Tree Data Structures.
-
-@item @uref{http://www.fit.qut.edu.au/~maire/baobab/lecture/sld001.htm}
-A lecture about B-Trees.
-@end table
-
-There are also many Web pages that use MySQL.  @xref{Users}. 
-Send any additions to this list to @email{webmaster@@mysql.com}. We now
-require that you show a MySQL logo somewhere if you wish your 
-site to be added.  It is okay to have it on a ``used tools'' page or 
-something similar.
-
-
-@node Questions,  , Useful Links, MySQL Information Sources
+@node Questions, MySQL-Books, MySQL Information Sources, MySQL Information Sources
 @subsection MySQL Mailing Lists
 
 @cindex reporting, errors
@@ -3249,6 +2408,888 @@ obliged to quote the entire original message.
 
 Please don't post mail messages from your browser with HTML mode turned on!
 Many users don't read mail with a browser!
+
+
+@node MySQL-Books, General-SQL, Questions, MySQL Information Sources
+@subsection Books About MySQL
+
+For the latest book information, with user comments, please visit
+@uref{http://www.mysql.com/portal/books/html/index.html}.
+
+While this manual is still the right place for up to date technical
+information, its primary goal is to contain everything there is to know
+about MySQL.  It is sometimes nice to have a bound book to read
+in bed or while you travel.  Here is a list of books about MySQL and
+related subjects (in English).
+
+By purchasing a book through these hyperlinks provided herein, you are
+contributing to the development of MySQL.
+
+@emph{MySQL}
+@multitable @columnfractions .3 .7
+@item Available	@tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0735709211&bfmtype=book, Barnes and Noble}
+@item Publisher	@tab		New Riders
+@item Author	@tab		Paul DuBois
+@item Pub Date	@tab		1st Edition December 1999
+@item ISBN	@tab		0735709211
+@item Pages	@tab		800
+@item Price	@tab		$49.99 US
+@item Downloadable examples  @tab
+ @uref{http://www.kitebird.com/mysql-book/, @code{samp_db} distribution}
+@item Errata  @tab
+@uref{http://www.kitebird.com/mysql-book/errata.html, are available here}
+@end multitable
+
+Foreword by Michael ``Monty'' Widenius, MySQL Moderator.
+@*
+
+In @emph{MySQL}, Paul DuBois provides you with a comprehensive guide to
+one of the most popular relational database systems.  Paul has
+contributed to the online documentation for MySQL and is an
+active member of the MySQL community.  The principal MySQL
+developer, Monty Widenius, and a network of his fellow developers
+reviewed the manuscript, and provided Paul with the kind of insight
+no one else could supply.
+@*
+
+Instead of merely giving you a general overview of MySQL, Paul
+teaches you how to make the most of its capabilities.  Through two
+sample database applications that run throughout the book, he
+gives you solutions to problems you're sure to face.  He helps you
+integrate MySQL efficiently with third-party tools, such as PHP
+and Perl, enabling you to generate dynamic Web pages through
+database queries.  He teaches you to write programs that access
+MySQL databases, and also provides a comprehensive set of
+references to column types, operators, functions, SQL syntax,
+MySQL programming, C API, Perl @code{DBI}, and PHP API.
+@emph{MySQL} simply gives you the kind of information you won't find
+anywhere else.
+@*
+
+If you use MySQL, this book provides you with:
+@itemize @bullet
+@item
+An introduction to MySQL and SQL.
+@item
+Coverage of MySQL's data types and how to use them.
+@item
+Thorough treatment of how to write client programs in C.
+@item
+A guide to using the Perl @code{DBI} and PHP APIs for developing
+command-line and Web-based applications.
+@item
+Tips on administrative issues such as user accounts, backup,
+crash recovery, and security.
+@item
+Help in choosing an ISP for MySQL access.
+@item
+A comprehensive reference for MySQL's data types, operators,
+functions, and SQL statements and utilities.
+@item
+Complete reference guides for MySQL's C API, the Perl @code{DBI} API,
+and PHP's MySQL-related functions.
+@end itemize
+@*
+
+@emph{MySQL & mSQL}
+@multitable @columnfractions .3 .7
+@item Available	@tab		@uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=1565924347&bfmtype=book, Barnes and Noble}
+@item Publisher	@tab		O'Reilly
+@item Authors	@tab		Randy Jay Yarger, George Reese & Tim King
+@item Pub Date	@tab		1st Edition July 1999
+@item ISBN	@tab		1-56592-434-7, Order Number: 4347
+@item Pages	@tab		506
+@item Price	@tab		$34.95
+@end multitable
+
+This book teaches you how to use MySQL and @code{mSQL}, two popular
+and robust database products that support key subsets of SQL on both Linux
+and Unix systems.  Anyone who knows basic C, Java, Perl, or Python can
+write a program to interact with a database, either as a stand-alone
+application or through a Web page.  This book takes you through the
+whole process, from installation and configuration to programming
+interfaces and basic administration.  Includes plenty of tutorial
+material.
+@*
+
+@emph{Sams' Teach Yourself MySQL in 21 Days}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0672319144&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Sams
+@item Authors   @tab            Mark Maslakowski and Tony Butcher
+@item Pub Date  @tab            June 2000
+@item ISBN      @tab            0672319144
+@item Pages     @tab            650
+@item Price     @tab            $39.99
+@end multitable
+
+Sams' @emph{Teach Yourself MySQL in 21 Days} is for intermediate Linux users
+who want to move into databases.  A large share of the audience is Web 
+developers who need a database to store large amounts of information that 
+can be retrieved via the Web.
+
+Sams' @emph{Teach Yourself MySQL in 21 Days} is a practical, step-by-step
+tutorial.  The reader will learn to design and employ this open source
+database technology into his or her Website using practical, hands-on 
+examples to follow.
+@*
+
+@emph{E-Commerce Solutions with MySQL}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0761524452&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Prima Communications, Inc.
+@item Authors   @tab            N/A
+@item Pub Date  @tab            January 2000
+@item ISBN      @tab            0761524452
+@item Pages     @tab            500
+@item Price     @tab            $39.99
+@end multitable
+
+No description available.
+@*
+
+@emph{MySQL and PHP from Scratch}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0789724405&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Que
+@item Authors   @tab            N/A
+@item Pub Date  @tab            September 2000
+@item ISBN      @tab            0789724405
+@item Pages     @tab            550
+@item Price     @tab            $34.99
+@end multitable
+
+This book puts together information on installing, setting up, and
+troubleshooting Apache, MySQL, PHP3, and IMP into one complete
+volume.  You also learn how each piece is part of a whole by learning,
+step-by-step, how to create a web-based e-mail system.  Learn to run
+the equivalent of Active Server Pages (ASP) using PHP3, set up an
+e-commerce site using a database and the Apache web server, and create
+a data entry system (such as sales, product quality tracking, customer
+preferences, etc) that no installation in the PC.
+@*
+
+@emph{Professional MySQL Programming}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=1861005164, Barnes and Noble}
+@item Publisher @tab            Wrox Press, Inc.
+@item Authors   @tab            N/A
+@item Pub Date  @tab            Late 2001
+@item ISBN      @tab            1861005164
+@item Pages     @tab            1000
+@item Price     @tab            $49.99
+@end multitable
+
+No description available.
+@*
+
+@emph{Professional Linux Programming}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=1861003013&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Wrox Press, Inc.
+@item Authors   @tab            N/A
+@item Pub Date  @tab            September 2000
+@item ISBN      @tab            1861003013
+@item Pages     @tab            1155
+@item Price     @tab            $47.99
+@end multitable
+
+In this follow-up to the best-selling @emph{Beginning Linux Programming},
+you will learn from the authors' real-world knowledge and experience of
+developing software for Linux; you'll be taken through the development
+of a sample 'DVD Store' application, with 'theme' chapters addressing
+different aspects of its implementation.  Meanwhile, individual
+``take-a-break'' chapters cover important topics that go beyond the
+bounds of the central theme.  All focus on the practical aspects of
+programming, showing how crucial it is to choose the right tools for
+the job, use them as they should be used, and get things right first
+time.
+@*
+
+@emph{PHP and MySQL Web Development}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0672317842&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Sams
+@item Authors   @tab            Luke Welling, Laura Thomson
+@item Pub Date  @tab            March 2001
+@item ISBN      @tab            0672317842
+@item Pages     @tab            700
+@item Price     @tab            $49.99
+@end multitable
+
+@emph{PHP and MySQL Web Development} introduces you to the advantages
+of implementing both MySQL and PHP.  These advantages are detailed
+through the provision of both statistics and several case studies.  A
+practical web application is developed throughout the book, providing
+you with the tools necessary to implement a functional online
+database.  Each function is developed separately, allowing you the
+choice to incorporate only those parts that you would like to
+implement.  Programming concepts of the PHP language are highlighted,
+including functions which tie MySQL support into a PHP script and
+advanced topics regarding table manipulation.
+@*
+
+@strong{Books recommended by the MySQL Developers}
+
+@emph{SQL-99 Complete, Really}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0879305681&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            CMP Books
+@item Authors   @tab            Peter Gulutzan, Trudy Pelzer
+@item Pub Date  @tab            April 1999
+@item ISBN      @tab            0879305681
+@item Pages     @tab            1104
+@item Price     @tab            $55.96
+@end multitable
+
+This book contains complete descriptions of the new standards for
+syntax, data structures, and retrieval processes of SQL databases.  As
+an example-based reference manual, it includes all of the CLI
+functions, information, schema tables, and status codes, as well as a
+working SQL database provided on the companion disk.
+@*
+
+@emph{C, A reference manual}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0133262243&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Prentice Hall
+@item Authors   @tab            Samuel P. Harbison, Guy L. Steele
+@item Pub Date  @tab            September 1994
+@item ISBN      @tab            0133262243
+@item Pages     @tab            480
+@item Price     @tab            $35.99
+@end multitable
+
+A new and improved revision of the bestselling C language
+reference.  This manual introduces the notion of "Clean C", writing C
+code that can be compiled as a C++ program, C programming style that
+emphasizes correctness, portability, maintainability, and
+incorporates the ISO C Amendment 1 (1994) which specifies new
+facilities for writing portable, international programs in C.
+@*
+
+@emph{C++ for Real Programmers}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0120499428&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Academic Press, Incorporated
+@item Authors   @tab            Jeff Alger, Jim Keogh
+@item Pub Date  @tab            February 1998
+@item ISBN      @tab            0120499428
+@item Pages     @tab            388
+@item Price     @tab            $39.95
+@end multitable
+
+@emph{C++ For Real Programmers} bridges the gap between C++ as described
+in beginner and intermediate-level books and C++ as it is practiced by
+experts.  Numerous valuable techniques are described, organized into
+three simple themes: indirection, class hierarchies, and memory
+management.  It also provides in-depth coverage of template creation,
+exception handling, pointers and optimization techniques.  The focus of
+the book is on ANSI C++ and, as such, is compiler independent. 
+
+@emph{C++ For Real Programmers} is a revision of 
+@emph{Secrets of the C++ Masters} and includes a new appendix comparing C++ 
+with Java.  The book comes with a 3.5" disk for Windows with source code.
+@*
+
+@emph{Algorithms in C}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0201514257&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Addison Wesley Longman, Inc.
+@item Authors   @tab            Robert Sedgewick
+@item Pub Date  @tab            April 1990
+@item ISBN      @tab            0201514257
+@item Pages     @tab            648
+@item Price     @tab            $45.75
+@end multitable
+
+@emph{Algorithms in C} describes a variety of algorithms in a number of
+areas of interest, including: sorting, searching, string-processing, and
+geometric, graph and mathematical algorithms.  The book emphasizes
+fundamental techniques, providing readers with the tools to confidently 
+implement, run, and debug useful algorithms.
+@*
+
+@emph{Multithreaded Programming with Pthreads}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0136807291&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Prentice Hall
+@item Authors   @tab            Bil Lewis, Daniel J. Berg
+@item Pub Date  @tab            October 1997
+@item ISBN      @tab            0136807291
+@item Pages     @tab            432
+@item Price     @tab            $34.95
+@end multitable
+
+Based on the best-selling @emph{Threads Primer}, 
+@emph{Multithreaded Programming with Pthreads} gives you a solid 
+understanding of Posix threads: what they are, how they work, when to use 
+them, and how to optimize them. It retains the clarity and humor of 
+@emph{Threads Primer}, but includes expanded comparisons to Win32 and OS/2
+implementations.  Code examples tested on all of the major UNIX platforms 
+are featured along with detailed explanations of how and why they use threads.
+@*
+
+@emph{Programming the PERL DBI: Database Programming with PERL}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=1565926994&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            O'Reilly & Associates, Incorporated
+@item Authors   @tab            Alligator Descartes, Tim Bunce
+@item Pub Date  @tab            February 2000
+@item ISBN      @tab            1565926994
+@item Pages     @tab            400
+@item Price     @tab            $27.96
+@end multitable
+
+@emph{Programming the Perl DBI} is coauthored by Alligator Descartes, one
+of the most active members of the DBI community, and by Tim Bunce, the
+inventor of DBI.  For the uninitiated, the book explains the architecture
+of DBI and shows you how to write DBI-based programs.  For the experienced
+DBI dabbler, this book explains DBI's nuances and the peculiarities of each
+individual DBD.
+
+The book includes:
+@itemize @bullet
+@item
+An introduction to DBI and its design.
+@item
+How to construct queries and bind parameters.
+@item
+Working with database, driver, and statement handles.
+@item
+Debugging techniques.
+@item
+Coverage of each existing DBD.
+@item
+A complete reference to DBI.
+@end itemize
+@*
+
+
+@node General-SQL, Useful Links, MySQL-Books, MySQL Information Sources
+@subsection General SQL Information and Tutorials
+
+The MySQL book portal is split into different sections to make it easy
+to locate books for various purposes.
+@uref{http://www.mysql.com/portal/books/html/index.html}
+
+Tutorials can be found at:
+@uref{http://www.mysql.com/portal/development/html/development-61-1.html}
+
+@node Useful Links,  , General-SQL, MySQL Information Sources
+@subsection Useful MySQL-related Links
+
+The MySQL development portal is the ultimate source of MySQL related
+links. @uref{http://www.mysql.com/portal/development/html/index.html}
+
+Apart from the following links, you can find and download a lot of
+MySQL programs, tools and APIs from the
+@uref{http://www.mysql.com/Downloads/Contrib/, Contrib directory}.
+@cindex @code{Contrib} directory
+
+@cindex URLs to MySQL information
+@cindex MySQL related information URLs
+@subheading Tutorials and Manuals
+
+@table @asis
+@item @uref{http://michael.bacarella.com/research/mysqlmyths.html, MySQL Myths Debunked}
+MySQL used in the real world.
+
+@item @uref{http://www.4t2.com/mysql}
+Information about the German MySQL mailing list.
+
+@item @uref{http://www2.rent-a-database.de/mysql/}
+MySQL handbook in German.
+
+@item @uref{http://www.bitmover.com:8888//home/bk/mysql}
+Web access to the MySQL BitKeeper repository.
+
+@item @uref{http://www.analysisandsolutions.com/code/mybasic.htm}
+Beginners MySQL Tutorial on how to install and set up
+MySQL on a Windows machine.
+
+@item @uref{http://www.devshed.com/Server_Side/MySQL/}
+A lot of MySQL tutorials.
+
+@item @uref{http://mysql.hitstar.com/}
+MySQL manual in Chinese.
+
+@item @uref{http://www.linuxplanet.com/linuxplanet/tutorials/1046/1/}
+Setting Up a MySQL-based website.
+
+@item @uref{http://www.hotwired.com/webmonkey/backend/tutorials/tutorial1.html}
+MySQL-Perl tutorial.
+
+@item @uref{http://www.iserver.com/support/contrib/perl5/modules.html}
+Installing new Perl modules that require locally installed modules.
+
+@item @uref{http://www.hotwired.com/webmonkey/databases/tutorials/tutorial4.html}
+PHP/MySQL Tutorial.
+
+@item @uref{http://www.useractive.com/}
+Hands on tutorial for MySQL.
+@end table
+
+@subheading Porting MySQL/Using MySQL on Different Systems
+
+@table @asis
+@item @uref{http://www.entropy.ch/software/macosx/mysql/}
+Binary of MySQL for Mac OS X Client.  Includes information of how to
+build and use MySQL on Mac OS X.
+
+@item @uref{http://xclave.macnn.com/MySQL/}
+The Mac OS Xclave.  Running MySQL on Mac OS X.
+
+@item @uref{http://www.prnet.de/RegEx/mysql.html}
+MySQL for Mac OS X Server.
+
+@item @uref{http://www.latencyzero.com/macosx/mysql.html}
+Building MySQL for Mac OS X.
+
+@item @uref{http://www.essencesw.com/Software/mysqllib.html}
+New Client libraries for the Mac OS Classic (Macintosh).
+
+@item @uref{http://www.lilback.com/macsql/}
+Client libraries for Mac OS Classic (Macintosh).
+
+@item @uref{http://sixk.maniasys.com/index_en.html}
+MySQL for Amiga
+@end table
+
+@subheading Perl-related Links
+
+@table @asis
+@item @uref{http://dbimysql.photoflux.com/}
+Perl DBI with MySQL FAQ.
+@end table
+
+@subheading MySQL Discussion Forums
+
+@table @asis
+@item @uref{http://www.weberdev.com/}
+Examples using MySQL; (check Top 20)
+
+@item @uref{http://futurerealm.com/forum/futureforum.htm}
+FutureForum Web Discussion Software.
+@end table
+
+@c FIX We should get longer descriptions for things in this category!
+@subheading Commercial Applications that Support MySQL
+
+@table @asis
+@item @uref{http://www.supportwizard.com/}
+SupportWizard; Interactive helpdesk on the Web. This product includes a
+licensed copy of MySQL.
+
+@item @uref{http://www.sonork.com/}
+Sonork,  Instant Messenger that is not only Internet oriented.  It's 
+focused on private networks and on small to medium companies.  Client
+is free, server is free for up to 5 seats.
+
+@item @uref{http://www.stweb.org/}
+StWeb - Stratos Web and Application server - An easy-to-use, cross
+platform, Internet/Intranet development and deployment system for
+development of web-enabled applications.  The standard version of StWeb
+has a native interface to MySQL database.
+
+@item @uref{http://www.rightnowtech.com/}
+Right Now Web; Web automation for customer service.
+
+@item @uref{http://www.icaap.org/Bazaar/}
+Bazaar; Interactive Discussion Forums with Web interface.
+
+@cindex PhoneSweep
+@item @uref{http://www.phonesweep.com/}
+PhoneSweepT is the world's first commercial Telephone Scanner.  Many break-ins
+in recent years have come not through the Internet, but through unauthorized
+dial-up modems.  PhoneSweep lets you find these modems by repeatedly placing
+phone calls to every phone number that your organization
+controls.  PhoneSweep has a built-in expert system that can recognize
+more than 250 different kinds of remote-access programs, including
+Carbon Copy(TM), pcANYWHERE(TM), and Windows NT RAS.  All information is stored
+in the SQL database.  It then generates a comprehensive report detailing
+which services were discovered on which dial-up numbers in your organization.
+@end table
+
+@subheading SQL Clients and Report Writers
+
+@table @asis
+@item @uref{http://www.urbanresearch.com/software/utils/urbsql/index.html, urSQL}
+SQL Editor and Query Utility. Custom syntax highlighting, editable
+results grid, exportable result-sets, basic MySQL admin functions,
+Etc.. For Windows.
+
+@item @uref{http://www.edatanew.com/, MySQL Data Manager}
+MySQL Data Manager * is platform independent web client
+(written in perl) for MySQL server over TCP/IP.
+
+@item @uref{http://ksql.sourceforge.net/}
+KDE MySQL client.
+
+@item @uref{http://www.ecker-software.de}
+A Windows GUI client by David Ecker.
+
+@item @uref{http://www.icaap.org/software/kiosk/}
+Kiosk; a MySQL client for database management.  Written in Perl.
+Will be a part of Bazaar.
+
+@item @uref{http://www.casestudio.com/}
+Db design tool that supports MySQL 3.23.
+
+@item @uref{http://home.skif.net/~voland/zeos/eng/index.html}
+Zeos - A client that supports MySQL, Interbase and PostgreSQL.
+
+@item @uref{http://www.geocities.com/SiliconValley/Ridge/4280/GenericReportWriter/grwhome.html}
+A free report writer in Java
+
+@item @uref{http://www.javaframework.de}
+MySQLExport - Export of MySQL create statements and data in a lot of
+different formats (SQL, HTML, CVS, text, ZIP, GZIP...).
+
+@item @uref{http://dlabs.4t2.com}
+M2D, a MySQL Administration client for Windows.  M2D supports 
+administration of MySQL databases, creation of new databases and 
+tables, editing, and more.
+
+@item @uref{http://dlabs.4t2.com}
+Dexter, a small server written in Perl which can be used as a proxy server for
+MySQL or as a database extender.
+
+@item @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp}
+Mascon is a powerful Win32 GUI for administering MySQL databases.
+
+@item @uref{http://www.rtlabs.com/}
+MacSQL Monitor.  GUI for MySQL, ODBC, and JDBC databases for the Mac OS.
+@end table
+
+@subheading Distributions that Include MySQL
+
+@c FIX add the rest (at least a couple more Linuxes)
+
+@table @asis
+@item @uref{http://www.suse.com/}
+SuSE Linux (6.1 and above)
+
+@item @uref{http://www.redhat.com/}
+RedHat Linux (7.0 and above)
+
+@item @uref{http://distro.conectiva.com.br}
+Conectiva Linux (4.0 and above)
+@end table
+
+@subheading Web Development Tools that Support MySQL
+
+@table @asis
+@item @uref{http://www.php.net/}
+PHP: A server-side HTML-embedded scripting language.
+
+@item @uref{http://www.midgard-project.org}
+The Midgard Application Server; a powerful Web development environment
+based on MySQL and PHP.
+
+@cindex dbServ
+@item @uref{http://www.dbServ.de/}
+dbServ is an extension to a web server to integrate database output into
+your HTML code.  You may use any HTML function in your output.  Only the
+client will stop you.  It works as standalone server or as Java servlet.
+
+@item @uref{http://www.chilisoft.com/}
+Platform independent ASP from Chili!Soft
+
+@item @uref{http://www.voicenet.com/~zellert/tjFM}
+A JDBC driver for MySQL.
+
+@item @uref{http://www.wernhart.priv.at/php/}
+MySQL + PHP demos.
+
+@item @uref{http://www.dbwww.com/}
+ForwardSQL: HTML interface to manipulate MySQL databases.
+
+@item @uref{http://www.daa.com.au/~james/www-sql/}
+WWW-SQL: Display database information.
+
+@item @uref{http://www.heitml.com/}
+HeiTML: A server-side extension of HTML and a 4GL language at the same time.
+
+@item @uref{http://hawkeye.net/}
+Hawkeye Internet Server Suite.
+
+@item @uref{http://www.webgroove.com/}
+WebGroove Script: HTML compiler and server-side scripting language.
+
+@item @uref{http://www.ihtml.com/}
+A server-side website scripting language.
+
+@item @uref{ftp://ftp.igc.apc.org/pub/myodbc/README}
+How to use MySQL with ColdFusion on Solaris.
+
+@item @uref{http://calistra.com/MySQL/}
+Calistra's ODBC MySQL Administrator.
+
+@item @uref{http://phpclub.net/}
+PHPclub - Tips and tricks for PHP.
+
+@item @uref{http://www.widgetchuck.com}
+The Widgetchuck; Website Tools and Gadgets
+
+@item @uref{http://www.adcycle.com/}
+AdCycle - advertising management software.
+
+@cindex pwPage
+@item @uref{http://sourceforge.net/projects/pwpage/}
+pwPage - provides an extremely fast and simple approach to the creation 
+of database forms.  That is, if a database table exists and an HTML page 
+has been constructed using a few simple guidelines, pwPage can be 
+immediately used for table data selections, insertions, updates, deletions 
+and selectable table content reviewing.
+
+@item @uref{http://www.omnis-software.com/products/studio/studio.html}
+OMNIS Studio is a rapid application development (RAD) tool.
+@end table
+
+@subheading Database Design Tools with MySQL Support
+
+@table @asis
+@item @uref{http://www.mysql.com/documentation/dezign/}
+"DeZign for databases" is a database development tool that uses an
+entity relationship diagram (ERD).
+@end table
+
+@subheading Web Servers with MySQL Tools
+
+@table @asis
+@item @uref{ftp://ftp.kcilink.com/pub/}
+mod_auth_mysql, An Apache authentication module.
+
+@item @uref{http://www.roxen.com/}
+The Roxen Challenger Web server.
+@end table
+
+@subheading Extensions for Other Programs
+
+@table @asis
+@item @uref{http://www.seawood.org/msql_bind/}
+MySQL support for BIND (The Internet Domain Name Server).
+
+@item @uref{http://www.inet-interactive.com/sendmail/}
+MySQL support for Sendmail and Procmail.
+@end table
+
+@subheading Using MySQL with Other Programs
+
+@table @asis
+@item @uref{http://www.iserver.com/support/addonhelp/database/mysql/msaccess.html}
+Using MySQL with Access.
+
+@item @uref{http://www.iserver.com/support/contrib/perl5/modules.html}
+Installing new Perl modules that require locally installed modules.
+@end table
+
+@subheading ODBC-related Links
+
+@table @asis
+@item @uref{http://www.iodbc.org/}
+Popular iODBC Driver Manager (libiodbc) now available as Open Source.
+
+@item @uref{http://users.ids.net/~bjepson/freeODBC/}
+The FreeODBC Pages.
+
+@item @uref{http://genix.net/unixODBC/}
+The unixODBC Project goals are to develop and promote unixODBC to be the
+definitive standard for ODBC on the Linux platform.  This is to include GUI
+support for KDE.
+
+@item @uref{http://www.sw-soft.com/products/BtrieveODBC/}
+A MySQL-based ODBC driver for Btrieve.
+@end table
+
+@subheading @strong{API}-related Links
+
+@table @asis
+@item @uref{http://www.jppp.com/}
+Partially implemented TDataset-compatible components for MySQL.
+
+@item @uref{http://www.riverstyx.net/qpopmysql/}
+qpopmysql - A patch to allow POP3 authentication from a MySQL
+database.  There's also a link to Paul Khavkine's patch for Procmail to
+allow any MTA to deliver to users in a MySQL database.
+
+@item @uref{http://www.essencesw.com/Software/mysqllib.html}
+New Client libraries for the Mac OS Classic (Macintosh).
+
+@item @uref{http://www.lilback.com/macsql/}
+Client libraries for the Macintosh.
+
+@item @uref{http://www.essencesw.com/Plugins/mysqlplug.html}
+Plugin for REALbasic (for Macintosh)
+
+@item @uref{http://www.iis.ee.ethz.ch/~neeri/macintosh/gusi-qa.html}
+A library that emulates BSD sockets and pthreads on Macintosh.  This can
+be used if you want to compile the MySQL client library on Mac.
+It could probably even be sued to port MySQL to Macintosh, but we
+don't know of anyone that has tried that.
+
+@cindex SCMDB
+@item @uref{http://www.dedecker.net/jessie/scmdb/}
+SCMDB - an add-on for SCM that ports the MySQL C library to scheme
+(SCM).  With this library scheme developers can make connections to a
+MySQL database and use embedded SQL in their programs.
+@end table
+
+@subheading Other MySQL-related Links
+
+@table @asis
+@item @uref{http://www.satisoft.com/, SAT}
+The Small Application Toolkit (SAT) is a collection of utilities
+intended to simplify the development of small, multi-user, GUI based
+applications in a (Microsoft -or- X) Windows Client / Unix Server
+environment.
+
+@item @uref{http://www.wix.com/mysql-hosting/}
+Registry of Web providers who support MySQL.
+
+@item @uref{http://www.softagency.co.jp/mysql/index.en.html}
+Links about using MySQL in Japan/Asia.
+
+@item @uref{http://abattoir.cc.ndsu.nodak.edu/~nem/mysql/udf/}
+MySQL UDF Registry.
+
+@item @uref{http://www.open.com.au/products.html}
+Commercial Web defect tracking system.
+
+@item @uref{http://www.stonekeep.com/pts/}
+PTS: Project Tracking System.
+
+@item @uref{http://tomato.nvgc.vt.edu/~hroberts/mot}
+Job and software tracking system.
+
+@item @uref{http://www.cynergi.net/exportsql/}
+ExportSQL: A script to export data from Access95+.
+
+@item @uref{http://SAL.KachinaTech.COM/H/1/MYSQL.html}
+SAL (Scientific Applications on Linux) MySQL entry.
+
+@item @uref{http://www.infotech-nj.com/itech/index.shtml}
+A consulting company which mentions MySQL in the right company.
+
+@item @uref{http://www.pmpcs.com/}
+PMP Computer Solutions.  Database developers using MySQL and
+@code{mSQL}.
+
+@item @uref{http://www.dedserius.com/y2kmatrix/}
+Y2K tester.
+@end table
+
+@subheading SQL and Database Interfaces
+
+@table @asis
+@item @uref{http://java.sun.com/products/jdbc/}
+The JDBC database access API.
+
+@item @uref{http://www.gagme.com/mysql}
+Patch for @code{mSQL} Tcl.
+
+@item @uref{http://www.amsoft.ru/easysql/}
+EasySQL: An ODBC-like driver manager.
+
+@item @uref{http://www.lightlink.com/hessling/rexxsql.html}
+A REXX interface to SQL databases.
+
+@c @item @uref{http://www.mytcl.cx/}
+@c Tcl interface based on tcl-sql with many bugfixes.
+
+@item @uref{http://www.binevolve.com/~tdarugar/tcl-sql/}
+Tcl interface for MySQL.
+
+@item @uref{http://www.contrib.andrew.cmu.edu/~shadow/sql.html}
+SQL Reference Page with a lot of interesting links.
+
+@end table
+
+@subheading Examples of MySQL Use
+
+@table @asis
+@c Added 990601
+@c EMAIL: thuss@little6.com (Todd Huss)
+@item @uref{http://www.little6.com/about/linux/}
+Little6 Inc., An online contract and job finding site that is powered by
+MySQL, PHP3, and Linux.
+
+@c Added 990521
+@c EMAIL: info@worldrecords.com (Jim Rota)
+@item @uref{http://www.worldrecords.com}
+World Records - A search engine for information about music that uses
+MySQL and PHP.
+
+@item @uref{http://www.webtechniques.com/archives/1998/01/note/}
+A Contact Database using MySQL and PHP.
+
+@item @uref{http://modems.rosenet.net/mysql/}
+Web based interface and Community Calendar with PHP.
+
+@item @uref{http://www.odbsoft.com/cook/sources.htm}
+Perl package to generate html from a SQL table structure and for generating
+SQL statements from an html form.
+
+@item @uref{http://www.gusnet.cx/proj/telsql/}
+Basic telephone database using @code{DBI}/@code{DBD}.
+
+@item @uref{http://tecfa.unige.ch/guides/java/staf2x/ex/jdbc/coffee-break}
+JDBC examples by Daniel K. Schneider.
+
+@item @uref{http://www.ooc.com/}
+Object Oriented Concepts Inc; CORBA applications with examples in source.
+
+@c EMAIL: paul@sword.damocles.com (Paul Bannister)
+@item @uref{http://www.stopbit.com/}
+Stopbit - A technology news site using MySQL and PHP.
+
+@item @uref{http://www.penguinservices.com/scripts}
+Online shopping cart system.
+
+@c Added 990928 from editor@city-gallery.com
+@cindex Old Photo Album
+@item @uref{http://www.city-gallery.com/album/}
+Old Photo Album - The album is a collaborative popular history of photography
+project that generates all pages from data stored in a MySQL
+database.  Pages are dynamically generated through a php3 interface to the
+database content.  Users contribute images and descriptions.  Contributed 
+images are stored on the web server to avoid storing them in the database 
+as BLOBs.  All other information is stored on the shared MySQL server.
+@end table
+
+@subheading General Database Links
+
+@table @asis
+@item @uref{http://black.hole-in-the.net/guy/webdb/}
+Homepage of the webdb-l (Web Databases) mailing list.
+
+@item @uref{http://www.symbolstone.org/technology/perl/DBI/index.html}
+Perl @code{DBI}/@code{DBD} modules homepage.
+
+@item @uref{http://www.student.uni-koeln.de/cygwin/}
+Cygwin tools.  Unix on top of Windows.
+
+@cindex Tek-Tips forums
+@cindex forums, Tek-Tips
+@item @uref{http://www.tek-tips.com/}
+Tek-Tips Forums are 800+ independent peer-to-peer non-commercial support
+forums for Computer Professionals.  Features include automatic e-mail
+notification of responses, a links library, and member confidentiality
+guaranteed.
+
+@item @uref{http://www.public.asu.edu/~peterjn/btree/}
+B-Trees: Balanced Tree Data Structures.
+
+@item @uref{http://www.fit.qut.edu.au/~maire/baobab/lecture/sld001.htm}
+A lecture about B-Trees.
+@end table
+
+There are also many Web pages that use MySQL.  @xref{Users}. 
+Send any additions to this list to @email{webmaster@@mysql.com}. We now
+require that you show a MySQL logo somewhere if you wish your 
+site to be added.  It is okay to have it on a ``used tools'' page or 
+something similar.
 
 
 @node Compatibility, Comparisons, MySQL Information Sources, Introduction
@@ -4507,7 +4548,7 @@ For platform-specific bugs, see the sections about compiling and porting.
 * Compare PostgreSQL::          How MySQL compares with PostgreSQL
 @end menu
 
-This section compares MySQL to other popular databases.  
+This section compares MySQL to other databases.  
 
 This section has been written by the MySQL developers, so it
 should be read with that in mind.  There are no factual errors contained
