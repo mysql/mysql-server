@@ -80,7 +80,6 @@ extern "C" {
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_INNOBASE_RANGE_COUNT	  100
 
-bool 	innodb_skip 		= 0;
 uint 	innobase_init_flags 	= 0;
 ulong 	innobase_cache_size 	= 0;
 
@@ -4758,7 +4757,7 @@ innodb_show_status(
 
         DBUG_ENTER("innodb_show_status");
 
-        if (innodb_skip) {
+        if (have_innodb != SHOW_OPTION_YES) {
                 my_message(ER_NOT_SUPPORTED_YET,
           "Cannot call SHOW INNODB STATUS because skip-innodb is defined",
                            MYF(0));

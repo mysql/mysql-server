@@ -82,4 +82,3 @@ class ha_isam: public handler
 			     enum thr_lock_type lock_type);
 };
 
-extern bool isam_skip;

@@ -34,7 +34,6 @@
 ** isam tables
 *****************************************************************************/
 
-bool isam_skip;
 
 const char **ha_isam::bas_ext() const
 { static const char *ext[]= { ".ISM",".ISD", NullS }; return ext; }
