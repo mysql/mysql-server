@@ -2031,7 +2031,6 @@ mysql_execute_command(THD *thd)
                                           lex->prepared_stmt_code.length))
           && entry->value)
       {
-        String *pstr;
         my_bool is_var_null;
         pstr= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
         /*
