@@ -502,7 +502,6 @@ drop table t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
-create table t1 (a int);
 show global variables like "query_cache_min_res_unit";
 Variable_name	Value
 query_cache_min_res_unit	4096
@@ -562,6 +561,7 @@ set GLOBAL query_cache_min_res_unit=default;
 show global variables like "query_cache_min_res_unit";
 Variable_name	Value
 query_cache_min_res_unit	4096
+create table t1 (a int);
 set GLOBAL query_cache_size=1000;
 show global variables like "query_cache_size";
 Variable_name	Value
