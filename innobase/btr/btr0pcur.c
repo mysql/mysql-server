@@ -246,6 +246,12 @@ btr_pcur_restore_position(
 		&& btr_pcur_is_on_user_rec(cursor, mtr)
 		&& (0 == cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor)))) {
 
+	        /* We have to store the NEW value for the modify clock, since
+	        the cursor can now be on a different page! */
+
+	        cursor->modify_clock = buf_frame_get_modify_clock(
+				    buf_frame_align(
+						    btr_pcur_get_rec(cursor)));
 		mem_heap_free(heap);
 
 		return(TRUE);
