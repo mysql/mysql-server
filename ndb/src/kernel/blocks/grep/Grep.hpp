@@ -148,7 +148,7 @@ private:
  */
 class Grep : public SimulatedBlock //GrepParticipant
 {
-  //BLOCK_DEFINES(Grep);
+  BLOCK_DEFINES(Grep);
 
 public:
   Grep(const Configuration & conf);
@@ -519,19 +519,6 @@ public:
   typedef void (Grep::* ExecSignalLocal1) (Signal* signal); 
   typedef void (Grep::PSCoord::* ExecSignalLocal2) (Signal* signal); 
   typedef void (Grep::PSPart::* ExecSignalLocal4) (Signal* signal); 
-
-  void 
-  addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal1 f, bool force = false){
-    addRecSignalImpl(gsn, (ExecFunction)f, force);
-  }
-  void 
-  addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal2 f, bool force = false){
-    addRecSignalImpl(gsn, (ExecFunction)f, force);
-  }
-  void 
-  addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal4 f, bool force = false){
-    addRecSignalImpl(gsn, (ExecFunction)f, force);
-  }
 };
 
 
