@@ -542,8 +542,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  ASENSITIVE_SYM
 %token  INSENSITIVE_SYM
 %token  SENSITIVE_SYM
-/* QQ This is a dummy, until we have solved the SET syntax problem. */
-%token  SPSET_SYM
 
 %token  ISSUER_SYM
 %token  SUBJECT_SYM
@@ -1126,27 +1124,6 @@ sp_proc_stmt:
 	      sp_instr_jump *i= new sp_instr_jump(ip, lab->ip); /* Jump back */
 
               lex->sphead->add_instr(i);
-	    }
-	  }
-	|
-	  /* QQ Dummy. We need to fix the old SET syntax to make it work for
-	     local SP variables as well. */
-	  SPSET_SYM ident EQ expr
-	  {
-	    LEX *lex= Lex;
-            sp_pcontext *spc= lex->spcont;
-	    sp_pvar_t *spv;
-
-	    if (!spc || !(spv = spc->find_pvar(&$2)))
-	      YYABORT;	/* Unknow variable */
-	    else
-	    {
-	      /* QQ Check type match! */
-	      sp_instr_set *i = new sp_instr_set(lex->sphead->instructions(),
-	                                         spv->offset, $4, spv->type);
-
-	      lex->sphead->add_instr(i);
-	      spv->isset= TRUE;
 	    }
 	  }
 	;
@@ -4467,15 +4444,12 @@ opt_var_ident_type:
 	;
 
 option_value:
-	'@' ident_or_text equal expr
-	{
-	  Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
-	}
-	| internal_variable_name equal set_expr_or_default
+	  '@' ident_or_text equal expr
 	  {
-	    LEX *lex=Lex;
-	    lex->var_list.push_back(new set_var(lex->option_type, $1, $3));
+	    Lex->var_list.push_back(new set_var_user(new Item_func_set_user_var($2,$4)));
 	  }
+	| internal_or_splocal
+	  {}
 	| '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
 	  {
 	    LEX *lex=Lex;
@@ -4489,12 +4463,12 @@ option_value:
 						new Item_int((int32) $4)));
 	  }
 	| CHAR_SYM SET opt_equal set_expr_or_default
-	{
-	  LEX *lex=Lex;
-	  lex->var_list.push_back(new set_var(lex->option_type,
-					      find_sys_var("convert_character_set"),
-					      $4));
-	}
+	  {
+	    LEX *lex=Lex;
+	    lex->var_list.push_back(new set_var(lex->option_type,
+	    			                find_sys_var("convert_character_set"),
+						$4));
+	  }
 	| PASSWORD equal text_or_password
 	  {
 	    THD *thd=YYTHD;
@@ -4520,6 +4494,32 @@ internal_variable_name:
 	  $$=tmp;
 	}
         ;
+
+internal_or_splocal:
+	ident equal set_expr_or_default
+	{
+	  LEX *lex= Lex;
+          sp_pcontext *spc= lex->spcont;
+	  sp_pvar_t *spv;
+
+	  if (!spc || !(spv = spc->find_pvar(&$1)))
+	  { /* Not an SP local variable */
+	    sys_var *tmp= find_sys_var($1.str, $1.length);
+
+	    if (!tmp)
+	      YYABORT;
+	    lex->var_list.push_back(new set_var(lex->option_type, tmp, $3));
+	  }
+	  else
+	  { /* An SP local variable */
+	    sp_instr_set *i= new sp_instr_set(lex->sphead->instructions(),
+	                                      spv->offset, $3, spv->type);
+
+	    lex->sphead->add_instr(i);
+	    spv->isset= TRUE;
+	  }
+	}
+	;
 
 isolation_types:
 	READ_SYM UNCOMMITTED_SYM	{ $$= ISO_READ_UNCOMMITTED; }
