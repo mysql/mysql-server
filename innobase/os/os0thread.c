@@ -30,9 +30,6 @@ os_thread_get_curr_id(void)
 #endif
 }
 
-/* Define a function pointer type to use in a typecast */
-typedef void* (*os_posix_f_t) (void*);
-
 /********************************************************************
 Creates a new thread of execution. The execution starts from
 the function given. The start function takes a void* parameter
@@ -42,8 +39,12 @@ os_thread_t
 os_thread_create(
 /*=============*/
 						/* out: handle to the thread */
+#ifndef __WIN__
+		 os_posix_f_t            start_f,
+#else
 	ulint (*start_f)(void*),		/* in: pointer to function
 						from which to start */
+#endif
 	void*			arg,		/* in: argument to start
 						function */
 	os_thread_id_t*		thread_id)	/* out: id of created
@@ -65,11 +66,7 @@ os_thread_create(
 	int		ret;
 	os_thread_t	pthread;
 
-	/* Note that below we cast the start function returning an integer
-	to a function returning a pointer: this may cause error
-	if the return value is used somewhere! */
-
-	ret = pthread_create(&pthread, NULL, (os_posix_f_t) start_f, arg);
+	ret = pthread_create(&pthread, NULL, start_f, arg);
 
 	return(pthread);
 #endif

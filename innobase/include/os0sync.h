@@ -13,8 +13,7 @@ Created 9/6/1995 Heikki Tuuri
 
 #ifdef __WIN__
 
-#include <windows.h>
-typedef CRITICAL_SECTION	os_fast_mutex_t;
+#define os_fast_mutex_t CRITICAL_SECTION
 typedef void*			os_event_t;
 
 #else
@@ -190,9 +189,9 @@ os_fast_mutex_free(
 /*===============*/
 	os_fast_mutex_t*	fast_mutex);	/* in: mutex to free */
 #endif
-
+	
 #ifndef UNIV_NONINL
 #include "os0sync.ic"
 #endif
 
-#endif
+#endif 

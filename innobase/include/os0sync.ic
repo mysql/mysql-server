@@ -25,7 +25,7 @@ os_fast_mutex_trylock(
 #ifdef __WIN__	
 	int	ret;
 
-	/* TryEnterCriticalSection is probably not found from
+	/* TODO: TryEnterCriticalSection is probably not found from
 	NT versions < 4! */
 	ret = TryEnterCriticalSection(fast_mutex);
 

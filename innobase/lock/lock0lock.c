@@ -3177,7 +3177,7 @@ lock_rec_print(
 	page = buf_page_get_gen(space, page_no, RW_NO_LATCH,
 					NULL, BUF_GET_IF_IN_POOL,
 #ifdef UNIV_SYNC_DEBUG
-					__FILE__, __LINE__,
+					IB__FILE__, __LINE__,
 #endif
 				&mtr);
 	if (page) {

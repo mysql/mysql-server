@@ -774,7 +774,7 @@ com_shm_create_or_open(
 
 	ut_memcpy(buf, name, len);
 
-	ut_strcpy(buf + len, "_IBSHM");
+	ut_strcpy(buf + len, (char*)"_IBSHM");
 
 	shm = os_shm_create(sizeof(com_shm_info_t) + COM_MAX_ADDR_LEN +
 			    		com_shm_endpoint_get_size(ep), buf);
@@ -791,13 +791,13 @@ com_shm_create_or_open(
 		return(COM_ERR_NOT_SPECIFIED);
 	}
 
-	ut_strcpy(buf + len, "_IBSHM_EV_NE"),
+	ut_strcpy(buf + len, (char*)"_IBSHM_EV_NE"),
 
 	event_ne = os_event_create_auto(buf);
 
 	ut_ad(event_ne);
 
-	ut_strcpy(buf + len, "_IBSHM_EV_EM"),
+	ut_strcpy(buf + len, (char*)"_IBSHM_EV_EM"),
 
 	event_em = os_event_create_auto(buf);
 
@@ -843,7 +843,7 @@ com_shm_open(
 	/* Open the interprocess mutex to protect the shared memory area */
 
 	ut_memcpy(buf, name, len);
-	ut_strcpy(buf + len, "_IBSHM_MTX");
+	ut_strcpy(buf + len, (char*)"_IBSHM_MTX");
 	
 	ret = ip_mutex_open(com_shm_get_ip_mutex(map), buf, &ip_hdl);
 	
@@ -890,7 +890,7 @@ com_shm_bind(
 	/* Create the interprocess mutex to protect the shared memory area */
 
 	ut_memcpy(buf, name, len);
-	ut_strcpy(buf + len, "_IBSHM_MTX");
+	ut_strcpy(buf + len, (char*)"_IBSHM_MTX");
 	
 	ret = ip_mutex_create(com_shm_get_ip_mutex(map), buf, &ip_hdl);
 	

@@ -64,7 +64,7 @@ heap creation. */
 #ifdef UNIV_MEM_DEBUG
 #define mem_heap_create(N)    mem_heap_create_func(\
 						(N), NULL, MEM_HEAP_DYNAMIC,\
-						__FILE__, __LINE__)
+						IB__FILE__, __LINE__)
 #else
 #define mem_heap_create(N)    mem_heap_create_func(N, NULL, MEM_HEAP_DYNAMIC)
 #endif
@@ -74,7 +74,7 @@ heap creation. */
 #ifdef UNIV_MEM_DEBUG
 #define mem_heap_create_in_buffer(N)	mem_heap_create_func(\
 						(N), NULL, MEM_HEAP_BUFFER,\
-						__FILE__, __LINE__)
+						IB__FILE__, __LINE__)
 #else
 #define mem_heap_create_in_buffer(N)	mem_heap_create_func(N, NULL,\
 						MEM_HEAP_BUFFER)
@@ -86,7 +86,7 @@ heap creation. */
 #define mem_heap_create_in_btr_search(N) mem_heap_create_func(\
 					(N), NULL, MEM_HEAP_BTR_SEARCH |\
 						MEM_HEAP_BUFFER,\
-						__FILE__, __LINE__)
+						IB__FILE__, __LINE__)
 #else
 #define mem_heap_create_in_btr_search(N) mem_heap_create_func(N, NULL,\
 				MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER)
@@ -99,7 +99,7 @@ mem_heap_free. See the parameter comment in mem_heap_create_func below. */
 #ifdef UNIV_MEM_DEBUG
 #define mem_heap_fast_create(N, B)	mem_heap_create_func(\
 						(N), (B), MEM_HEAP_DYNAMIC,\
-						__FILE__, __LINE__)
+						IB__FILE__, __LINE__)
 #else
 #define mem_heap_fast_create(N, B)    	mem_heap_create_func(N, (B),\
 						MEM_HEAP_DYNAMIC)
@@ -109,7 +109,7 @@ Use this macro instead of the corresponding function! Macro for memory
 heap freeing. */
 #ifdef  UNIV_MEM_DEBUG
 #define mem_heap_free(heap) mem_heap_free_func(\
-					  (heap), __FILE__, __LINE__)
+					  (heap), IB__FILE__, __LINE__)
 #else
 #define mem_heap_free(heap) mem_heap_free_func(heap)
 #endif
@@ -226,7 +226,7 @@ Use this macro instead of the corresponding function!
 Macro for memory buffer allocation */
 #ifdef UNIV_MEM_DEBUG
 #define mem_alloc(N)    mem_alloc_func(\
-					  (N), __FILE__, __LINE__)
+					  (N), IB__FILE__, __LINE__)
 #else
 #define mem_alloc(N)    mem_alloc_func(N)
 #endif
@@ -235,7 +235,7 @@ Use this macro instead of the corresponding function!
 Macro for memory buffer allocation */
 #ifdef UNIV_MEM_DEBUG
 #define mem_alloc_noninline(N)    mem_alloc_func_noninline(\
-					  (N), __FILE__, __LINE__)
+					  (N), IB__FILE__, __LINE__)
 #else
 #define mem_alloc_noninline(N)    mem_alloc_func_noninline(N)
 #endif
@@ -278,7 +278,7 @@ Use this macro instead of the corresponding function!
 Macro for memory buffer freeing */
 #ifdef  UNIV_MEM_DEBUG
 #define mem_free(PTR)   mem_free_func(\
-					  (PTR), __FILE__, __LINE__)
+					  (PTR), IB__FILE__, __LINE__)
 #else
 #define mem_free(PTR)   mem_free_func(PTR)
 #endif

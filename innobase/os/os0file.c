@@ -166,6 +166,8 @@ os_file_handle_error(
 	int	input_char;
 	ulint	err;
 
+	UT_NOT_USED(file);
+
 	err = os_file_get_last_error();
 	
 	if (err == OS_FILE_DISK_FULL) {
@@ -316,8 +318,11 @@ try_again:
 	UT_NOT_USED(purpose);
 
 	if (create_mode == OS_FILE_CREATE) {
-	        file = open(name, create_flag, S_IRUSR | S_IRGRP | S_IROTH
-			                     | S_IWUSR | S_IWGRP | S_IWOTH);
+#ifndef S_IRWXU
+                file = open(name, create_flag);
+#else
+	        file = open(name, create_flag, S_IRWXU | S_IRWXG | S_IRWXO);
+#endif
         } else {
                 file = open(name, create_flag);
         }
@@ -445,6 +450,8 @@ try_again:
 	low = size;
 #if (UNIV_WORD_SIZE == 8)
 	low = low + (size_high << 32);
+#else
+	UT_NOT_USED(size_high);
 #endif
 	while (offset < low) {
 	        if (low - offset < UNIV_PAGE_SIZE * 64) {
@@ -478,6 +485,8 @@ error_handling:
 	}
 	
 	ut_error;
+
+	return(FALSE);
 }
 
 /***************************************************************************
@@ -660,6 +669,8 @@ try_again:
 	
 #if (UNIV_WORD_SIZE == 8)
 	offset = offset + (offset_high << 32);
+#else
+	UT_NOT_USED(offset_high);
 #endif	
 try_again:
 	/* Protect the seek / read operation with a mutex */
@@ -669,7 +680,7 @@ try_again:
 
 	ret = os_file_pread(file, buf, n, (off_t) offset);
 
-	if (ret == n) {
+	if ((ulint)ret == n) {
 		os_mutex_exit(os_file_seek_mutexes[i]);
 
 		return(TRUE);
@@ -751,16 +762,17 @@ try_again:
 	
 #if (UNIV_WORD_SIZE == 8)
 	offset = offset + (offset_high << 32);
+#else
+	UT_NOT_USED(offset_high);
 #endif	
 try_again:
 	ret = pwrite(file, buf, n, (off_t) offset);
 
-	if (ret == n) {
+	if ((ulint)ret == n) {
 		return(TRUE);
 	}
 #endif
-		
-error_handling:
+error_handling:		
 	retry = os_file_handle_error(file, name); 
 
 	if (retry) {
@@ -1411,7 +1423,6 @@ try_again:
 		return(TRUE);
 	}
 
-error_handling:	
 	os_aio_array_free_slot(array, slot);
 
 	retry = os_file_handle_error(file, name);
@@ -1908,7 +1919,8 @@ loop:
 		if (slot->reserved) {
 			n_reserved++;
 			printf("Reserved slot, messages %lx %lx\n",
-					slot->message1, slot->message2);
+					(ulint)slot->message1,
+					(ulint)slot->message2);
 			ut_a(slot->len > 0);
 		}
 	}
