@@ -20,14 +20,5 @@ LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../mysys/libmysys.a \
 bin_PROGRAMS =		replace comp_err perror resolveip my_print_defaults \
 resolve_stack_dump mysql_install
 
-OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
-			__math.h time.h __time.h unistd.h __unistd.h types.h \
-			xtypes.h ac-types.h posix.h string.h __string.h \
-			errno.h socket.h inet.h dirent.h netdb.h \
-			cleanup.h cond.h debug_out.h fd.h kernel.h mutex.h \
-			prio_queue.h pthread_attr.h pthread_once.h queue.h\
-			sleep.h specific.h version.h pwd.h timers.h uio.h \
-			cdefs.h machdep.h signal.h __signal.h
-
 # Don't update the files from bitkeeper
 %::SCCS/s.%

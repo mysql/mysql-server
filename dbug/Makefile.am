@@ -24,15 +24,6 @@ EXTRA_DIST =		example1.c example2.c example3.c \
 			user.r monty.doc readme.prof \
 			main.c factorial.c dbug_analyze.c
 
-OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
-			__math.h time.h __time.h unistd.h __unistd.h types.h \
-			xtypes.h ac-types.h posix.h string.h __string.h \
-			errno.h socket.h inet.h dirent.h netdb.h \
-			cleanup.h cond.h debug_out.h fd.h kernel.h mutex.h \
-			prio_queue.h pthread_attr.h pthread_once.h queue.h\
-			sleep.h specific.h version.h pwd.h timers.h uio.h \
-			cdefs.h machdep.h signal.h __signal.h util.h
-
 # Must be linked with libs that are not compiled yet
 extra_progs: factorial dbug_analyze
 

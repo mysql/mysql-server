@@ -38,7 +38,7 @@ CSRCS		= strxmov.c bmove_upp.c strappend.c strcont.c strend.c strfill.c strcend.
 endif
 endif
 
-libmystrings_a_SOURCES = @CHARSET_SRCS@ $(ASRCS) $(CSRCS)
+libmystrings_a_SOURCES = $(ASRCS) $(CSRCS)
 noinst_PROGRAMS = conf_to_src
 # Default charset definitions
 EXTRA_DIST =		ctype-big5.c ctype-czech.c ctype-euc_kr.c \
@@ -53,15 +53,6 @@ EXTRA_DIST =		ctype-big5.c ctype-czech.c ctype-euc_kr.c \
 			strinstr-sparc.s strmake-sparc.s strmov-sparc.s \
 			strnmov-sparc.s strstr-sparc.s strxmov-sparc.s \
                         t_ctype.h
-
-OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
-			__math.h time.h __time.h unistd.h __unistd.h types.h \
-			xtypes.h ac-types.h posix.h string.h __string.h \
-			errno.h socket.h inet.h dirent.h netdb.h \
-			cleanup.h cond.h debug_out.h fd.h kernel.h mutex.h \
-			prio_queue.h pthread_attr.h pthread_once.h queue.h\
-			sleep.h specific.h version.h pwd.h timers.h uio.h \
-			cdefs.h machdep.h signal.h __signal.h util.h
 
 libmystrings_a_LIBADD=	@CHARSET_OBJS@
 ctype.o:		ctype_extra_sources.c

@@ -1997,12 +1997,12 @@ irix5* | irix6*)
   ;;
 
 # No shared lib support for Linux oldld, aout, or coff.
-linux-gnuoldld* | linux-gnuaout* | linux-gnucoff*)
+linux*oldld* | linux*aout* | linux*coff*)
   dynamic_linker=no
   ;;
 
 # This must be Linux ELF.
-linux-gnu*)
+linux*)
   version_type=linux
   need_lib_prefix=no
   need_version=no
