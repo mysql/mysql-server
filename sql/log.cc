@@ -858,7 +858,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
       {
 	/* For slow query log */
 	if (my_b_printf(&log_file,
-			"# Time: %lu  Lock_time: %lu  Rows_sent: %lu  Rows_examined: %lu\n",
+			"# Query_time: %lu  Lock_time: %lu  Rows_sent: %lu  Rows_examined: %lu\n",
 			(ulong) (current_time - query_start),
 			(ulong) (thd->time_after_lock - query_start),
 			(ulong) thd->sent_row_count,
