@@ -1636,6 +1636,10 @@ err:
   DBUG_RETURN(1);
 } /* sort_record_index */
 
+volatile bool *killed_ptr(MI_CHECK *param)
+{
+  return (bool *)(param->thd); /* always NULL */
+}
 
 	/* print warnings and errors */
 	/* VARARGS */
