@@ -38,7 +38,7 @@ class Item_sum_unique_users :public Item_sum_num
 public:
   Item_sum_unique_users(Item *name_arg,int start,int end,Item *item_arg)
     :Item_sum_num(item_arg) {}
-  Item_sum_unique_users(THD *thd, Item_sum_unique_users &item)
+  Item_sum_unique_users(THD *thd, Item_sum_unique_users *item)
     :Item_sum_num(thd, item) {}
   double val() { return 0.0; }  
   enum Sumfunctype sum_func () const {return UNIQUE_USERS_FUNC;}
@@ -53,7 +53,7 @@ public:
   }
   Item *copy_or_same(THD* thd)
   {
-    return new Item_sum_unique_users(thd, *this);
+    return new Item_sum_unique_users(thd, this);
   }
   void print(String *str) { str->append("0.0", 3); }
 };

@@ -133,13 +133,13 @@ Item_func::Item_func(List<Item> &list)
   set_arguments(list);
 }
 
-Item_func::Item_func(THD *thd, Item_func &item)
+Item_func::Item_func(THD *thd, Item_func *item)
   :Item_result_field(thd, item),
-   allowed_arg_cols(item.allowed_arg_cols),
-   arg_count(item.arg_count),
-   used_tables_cache(item.used_tables_cache),
-   not_null_tables_cache(item.not_null_tables_cache),
-   const_item_cache(item.const_item_cache)
+   allowed_arg_cols(item->allowed_arg_cols),
+   arg_count(item->arg_count),
+   used_tables_cache(item->used_tables_cache),
+   not_null_tables_cache(item->not_null_tables_cache),
+   const_item_cache(item->const_item_cache)
 {
   if (arg_count)
   {
@@ -150,7 +150,7 @@ Item_func::Item_func(THD *thd, Item_func &item)
       if (!(args=(Item**) thd->alloc(sizeof(Item*)*arg_count)))
 	return;
     }
-    memcpy((char*) args, (char*) item.args, sizeof(Item*)*arg_count);
+    memcpy((char*) args, (char*) item->args, sizeof(Item*)*arg_count);
   }
 }
 
@@ -255,7 +255,7 @@ void Item_func::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
       uint el= fields.elements;
       fields.push_front(item);
       ref_pointer_array[el]= item;
-      *arg= new Item_ref(ref_pointer_array + el, 0, item->name);
+      *arg= new Item_ref(ref_pointer_array + el, arg, 0, item->name);
     }
   }
 }
@@ -1071,7 +1071,8 @@ String *Item_func_min_max::val_str(String *str)
 	}
       }
     }
-    res->set_charset(collation.collation);
+    if (res)					// If !NULL
+      res->set_charset(collation.collation);
     return res;
   }
   case ROW_RESULT:
@@ -1561,7 +1562,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
     if ((error=(uchar) init(&initid, &f_args, thd->net.last_error)))
     {
       my_printf_error(ER_CANT_INITIALIZE_UDF,ER(ER_CANT_INITIALIZE_UDF),MYF(0),
-		      u_d->name,thd->net.last_error);
+		      u_d->name.str, thd->net.last_error);
       free_udf(u_d);
       DBUG_RETURN(1);
     }
@@ -1574,7 +1575,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
   if (error)
   {
     my_printf_error(ER_CANT_INITIALIZE_UDF,ER(ER_CANT_INITIALIZE_UDF),MYF(0),
-		    u_d->name, ER(ER_UNKNOWN_ERROR));
+		    u_d->name.str, ER(ER_UNKNOWN_ERROR));
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2173,6 +2174,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
      is different from query_id).
   */
   entry->update_query_id= thd->query_id;
+  entry->collation.set(args[0]->collation);
   cached_result_type= args[0]->result_type();
   return 0;
 }
@@ -2184,6 +2186,7 @@ Item_func_set_user_var::fix_length_and_dec()
   maybe_null=args[0]->maybe_null;
   max_length=args[0]->max_length;
   decimals=args[0]->decimals;
+  collation.set(args[0]->collation);
 }
 
 
@@ -2498,6 +2501,9 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   if (!(var_entry= get_variable(&thd->user_vars, name, 0)))
     null_value= 1;
+  else
+    collation.set(var_entry->collation);
+  
   if (!(opt_bin_log && is_update_query(thd->lex->sql_command)))
     return;
 
@@ -2623,6 +2629,7 @@ longlong Item_func_inet_aton::val_int()
   const char *p,* end;
   char c = '.'; // we mark c to indicate invalid IP in case length is 0
   char buff[36];
+  int dot_count= 0;
 
   String *s,tmp(buff,sizeof(buff),&my_charset_bin);
   if (!(s = args[0]->val_str(&tmp)))		// If null value
@@ -2641,6 +2648,7 @@ longlong Item_func_inet_aton::val_int()
     }
     else if (c == '.')
     {
+      dot_count++;
       result= (result << 8) + (ulonglong) byte_result;
       byte_result = 0;
     }
@@ -2648,7 +2656,19 @@ longlong Item_func_inet_aton::val_int()
       goto err;					// Invalid character
   }
   if (c != '.')					// IP number can't end on '.'
+  {
+    /*
+      Handle short-forms addresses according to standard. Examples:
+      127		-> 0.0.0.127
+      127.1		-> 127.0.0.1
+      127.2.1		-> 127.2.0.1
+    */
+    switch (dot_count) {
+    case 1: result<<= 8; /* Fall through */
+    case 2: result<<= 8; /* Fall through */
+    }
     return (result << 8) + (ulonglong) byte_result;
+  }
 
 err:
   null_value=1;

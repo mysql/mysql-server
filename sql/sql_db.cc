@@ -25,8 +25,6 @@
 #include <direct.h>
 #endif
 
-#define MY_DB_OPT_FILE "db.opt"
-
 const char *del_exts[]= {".frm", ".BAK", ".TMD",".opt", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts};
@@ -92,7 +90,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 
 */
 
-static bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
+bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 {
   File file;
   char buf[256];
@@ -269,11 +267,8 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not alter database if another thread is holding read lock
-  if (wait_if_global_read_lock(thd,0))
-  {
-    error= -1;
+  if ((error=wait_if_global_read_lock(thd,0)))
     goto exit2;
-  }
 
   /* Check directory */
   (void)sprintf(path,"%s/%s/%s", mysql_data_home, db, MY_DB_OPT_FILE);
@@ -305,7 +300,7 @@ exit:
   start_waiting_global_read_lock(thd);
 exit2:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
-  DBUG_RETURN(error);
+  DBUG_RETURN(error ? -1 : 0); /* -1 to delegate send_error() */
 }
 
 
@@ -408,7 +403,7 @@ exit:
     when the slave is replicating a DROP DATABASE: 
     - garbage characters in the error message:
     "Error 'Can't drop database 'test2'; database doesn't exist' on query
-    'h4zI¿'"
+    'h4zI©'"
     - segfault
     - hang in "free(vio)" (yes!) in the I/O or SQL slave threads (so slave
     server hangs at shutdown etc).
@@ -417,7 +412,8 @@ exit:
   {
     if (!(thd->slave_thread)) /* a slave thread will free it itself */
       x_free(thd->db);
-    thd->db= 0; 
+    thd->db= 0;
+    thd->db_length= 0;
   }
 exit2:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
@@ -667,90 +663,3 @@ bool mysql_change_db(THD *thd, const char *name)
   DBUG_RETURN(0);
 }
 
-
-int mysqld_show_create_db(THD *thd, char *dbname,
-			  HA_CREATE_INFO *create_info)
-{
-  int length;
-  char	path[FN_REFLEN], *to;
-  uint db_access;
-  bool found_libchar;
-  HA_CREATE_INFO create;
-  uint create_options = create_info ? create_info->options : 0;
-  Protocol *protocol=thd->protocol;
-  DBUG_ENTER("mysql_show_create_db");
-
-  if (check_db_name(dbname))
-  {
-    net_printf(thd,ER_WRONG_DB_NAME, dbname);
-    DBUG_RETURN(1);
-  }
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (test_all_bits(thd->master_access,DB_ACLS))
-    db_access=DB_ACLS;
-  else
-    db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
-		thd->master_access);
-  if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
-  {
-    net_printf(thd,ER_DBACCESS_DENIED_ERROR,
-	       thd->priv_user,
-	       thd->host_or_ip,
-	       dbname);
-    mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-		    thd->priv_user,
-		    thd->host_or_ip,
-		    dbname);
-    DBUG_RETURN(1);
-  }
-#endif
-
-  (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
-  length=unpack_dirname(path,path);		// Convert if not unix
-  found_libchar= 0;
-  if (length && path[length-1] == FN_LIBCHAR)
-  {
-    found_libchar= 1;
-    path[length-1]=0;				// remove ending '\'
-  }
-  if (access(path,F_OK))
-  {
-    net_printf(thd,ER_BAD_DB_ERROR,dbname);
-    DBUG_RETURN(1);
-  }
-  if (found_libchar)
-    path[length-1]= FN_LIBCHAR;
-  strmov(path+length, MY_DB_OPT_FILE);
-  load_db_opt(thd, path, &create);
-  
-  List<Item> field_list;
-  field_list.push_back(new Item_empty_string("Database",NAME_LEN));
-  field_list.push_back(new Item_empty_string("Create Database",1024));
-  
-  if (protocol->send_fields(&field_list,1))
-    DBUG_RETURN(1);
-  
-  protocol->prepare_for_resend();
-  protocol->store(dbname, strlen(dbname), system_charset_info);
-  to= strxmov(path, "CREATE DATABASE ", NullS);
-  if (create_options & HA_LEX_CREATE_IF_NOT_EXISTS)
-    to= strxmov(to,"/*!32312 IF NOT EXISTS*/ ", NullS);
-  to=strxmov(to,"`",dbname,"`", NullS);
-  
-  if (create.default_table_charset)
-  {
-    int cl= (create.default_table_charset->state & MY_CS_PRIMARY) ? 0 : 1;
-    to= strxmov(to," /*!40100"
-		" DEFAULT CHARACTER SET ",create.default_table_charset->csname,
-		cl ? " COLLATE " : "",
-		cl ? create.default_table_charset->name : "",
-		" */",NullS);
-  }
-  protocol->store(path, (uint) (to-path), system_charset_info);
-  
-  if (protocol->write())
-    DBUG_RETURN(1);
-  send_eof(thd);
-  DBUG_RETURN(0);
-}

@@ -21,7 +21,6 @@
 
 #include "myisamdef.h"
 #if defined(MSDOS) || defined(__WIN__)
-#include <errno.h>
 #include <fcntl.h>
 #ifndef __WIN__
 #include <process.h>

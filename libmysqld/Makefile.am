@@ -33,10 +33,10 @@ INCLUDES=		@MT_INCLUDES@ @bdb_includes@ -I$(top_srcdir)/include \
 noinst_LIBRARIES =	libmysqld_int.a
 pkglib_LIBRARIES =	libmysqld.a
 SUBDIRS =		. examples
-libmysqld_sources=	libmysqld.c lib_sql.cc
+libmysqld_sources=	libmysqld.c lib_sql.cc emb_qcache.cc
 libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c
 
-noinst_HEADERS =	embedded_priv.h
+noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
 sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	ha_innodb.cc ha_berkeley.cc ha_heap.cc ha_isam.cc ha_isammrg.cc \
@@ -46,7 +46,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
 	item_geofunc.cc item_uniq.cc item_subselect.cc item_row.cc\
 	key.cc lock.cc log.cc log_event.cc sql_state.c \
-	protocol.cc net_serv.cc opt_ft.cc opt_range.cc \
+	protocol.cc net_serv.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc sql_acl.cc \
 	sql_load.cc sql_olap.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
@@ -75,7 +75,6 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/mysys/libmysys.a \
 		$(top_builddir)/strings/libmystrings.a \
 		$(top_builddir)/dbug/libdbug.a \
-		$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/vio/libvio.a
 
 #

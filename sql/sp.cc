@@ -504,7 +504,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
     }
 
     /* Init fields */
-    setup_tables(&tables);
+    setup_tables(&tables, 0);
     for (used_field= &used_fields[0];
 	 used_field->field_name;
 	 used_field++)

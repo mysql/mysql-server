@@ -4055,44 +4055,45 @@ void Field_datetime::sql_type(String &res) const
 
 	/* Copy a string and fill with space */
 
-static bool use_conversion(CHARSET_INFO *cs1, CHARSET_INFO *cs2)
-{
-  return (cs1 != &my_charset_bin) && (cs2 != &my_charset_bin) && (cs1!=cs2);
-}
-
 int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
+  uint32 not_used;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
+  uint copy_length;
+
   /* Convert character set if nesessary */
-  if (use_conversion(cs, field_charset))
+  if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
     length=  tmpstr.length();
   }
-  if (length <= field_length)
-  {
-    memcpy(ptr,from,length);
-    if (length < field_length)
-      field_charset->cset->fill(field_charset,ptr+length,field_length-length,
-				' ');
-  }
-  else
-  {
-    memcpy(ptr,from,field_length);
-    if (current_thd->count_cuted_fields)
-    {						// Check if we loosed some info
-      const char *end=from+length;
-      from+= field_length;
-      from+= field_charset->cset->scan(field_charset, from, end,
-				       MY_SEQ_SPACES);
-      if (from != end)
-      {
-        set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-	error=1;
-      }
+
+  /* 
+    Make sure we don't break a multibyte sequence
+    as well as don't copy a malformed data.
+  */
+  copy_length= field_charset->cset->wellformedlen(field_charset,
+						  from,from+length,
+						  field_length/
+						  field_charset->mbmaxlen);
+  memcpy(ptr,from,copy_length);
+  if (copy_length < field_length)	// Append spaces if shorter
+    field_charset->cset->fill(field_charset,ptr+copy_length,
+			      field_length-copy_length,' ');
+  
+  if ((copy_length < length) && current_thd->count_cuted_fields)
+  {					// Check if we loosed some info
+    const char *end=from+length;
+    from+= copy_length;
+    from+= field_charset->cset->scan(field_charset, from, end,
+				     MY_SEQ_SPACES);
+    if (from != end)
+    {
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
+      error=1;
     }
   }
   return error;
@@ -4251,10 +4252,12 @@ uint Field_string::max_packed_col_length(uint max_length)
 int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
+  uint32 not_used;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
+
   /* Convert character set if nesessary */
-  if (use_conversion(cs, field_charset))
+  if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -4470,7 +4473,7 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
   :Field_str(ptr_arg, (1L << min(blob_pack_length,3)*8)-1L,
 	     null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
 	     table_arg, cs),
-   geom_flag(true), packlength(blob_pack_length)
+   packlength(blob_pack_length)
 {
   flags|= BLOB_FLAG;
   if (table)
@@ -4482,19 +4485,9 @@ void Field_blob::store_length(uint32 number)
 {
   switch (packlength) {
   case 1:
-    if (number > 255)
-    {
-      number=255;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-    }
     ptr[0]= (uchar) number;
     break;
   case 2:
-    if (number > (uint16) ~0)
-    {
-      number= (uint16) ~0;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-    }
 #ifdef WORDS_BIGENDIAN
     if (table->db_low_byte_first)
     {
@@ -4505,11 +4498,6 @@ void Field_blob::store_length(uint32 number)
       shortstore(ptr,(unsigned short) number);
     break;
   case 3:
-    if (number > (uint32) (1L << 24))
-    {
-      number= (uint32) (1L << 24)-1L;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-    }
     int3store(ptr,number);
     break;
   case 4:
@@ -4567,21 +4555,36 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
   }
   else
   {
+    bool was_conversion;
     char buff[80];
     String tmpstr(buff,sizeof(buff), &my_charset_bin);
+    uint copy_length;
+    uint32 not_used;
+
     /* Convert character set if nesessary */
-    if (use_conversion(cs, field_charset))
+    if ((was_conversion= String::needs_conversion(length, cs, field_charset,
+						  &not_used)))
     { 
       tmpstr.copy(from, length, cs, field_charset);
       from= tmpstr.ptr();
       length=  tmpstr.length();
     }
-    Field_blob::store_length(length);
-    if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
+    
+    copy_length= max_data_length();
+    if (copy_length > length)
+      copy_length= length;
+    copy_length= field_charset->cset->wellformedlen(field_charset,
+                                                    from,from+copy_length,
+                                                    field_length);
+    if (copy_length < length)
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
+    
+    Field_blob::store_length(copy_length);
+    if (was_conversion || table->copy_blobs || copy_length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
       if (from != value.ptr())			// For valgrind
       {
-	value.copy(from,length,charset());
+	value.copy(from,copy_length,charset());
 	from=value.ptr();
       }
     }
@@ -4705,6 +4708,7 @@ void Field_blob::get_key_image(char *buff,uint length,
   uint32 blob_length= get_length(ptr);
   char *blob;
 
+#ifdef HAVE_SPATIAL
   if (type == itMBR)
   {
     if (!blob_length)
@@ -4721,6 +4725,7 @@ void Field_blob::get_key_image(char *buff,uint length,
     float8store(buff+24, mbr.ymax);
     return;
   }
+#endif /*HAVE_SPATIAL*/
 
   if ((uint32) length > blob_length)
   {
@@ -4930,6 +4935,7 @@ uint Field_blob::max_packed_col_length(uint max_length)
   return (max_length > 255 ? 2 : 1)+max_length;
 }
 
+#ifdef HAVE_SPATIAL
 
 void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
 			       imagetype type)
@@ -5013,6 +5019,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
   return 0;
 }
 
+#endif /*HAVE_SPATIAL*/
 
 /****************************************************************************
 ** enum type.
@@ -5077,10 +5084,12 @@ void Field_enum::store_type(ulonglong value)
 int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int err= 0;
+  uint32 not_used;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
+
   /* Convert character set if nesessary */
-  if (use_conversion(cs, field_charset))
+  if (String::needs_conversion(length, cs, field_charset, &not_used))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -5257,11 +5266,12 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
   int err= 0;
   char *not_used;
   uint not_used2;
+  uint32 not_used_offset;
   char buff[80];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
 
   /* Convert character set if nesessary */
-  if (use_conversion(cs, field_charset))
+  if (String::needs_conversion(length, cs, field_charset, &not_used_offset))
   { 
     tmpstr.copy(from, length, cs, field_charset);
     from= tmpstr.ptr();
@@ -5488,10 +5498,12 @@ Field *make_field(char *ptr, uint32 field_length,
 				      f_packtype(pack_flag),
 				      field_length);
 
+#ifdef HAVE_SPATIAL
     if (f_is_geom(pack_flag))
       return new Field_geom(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
 			    pack_length, geom_type);
+#endif
     if (f_is_blob(pack_flag))
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
@@ -5609,16 +5621,16 @@ create_field::create_field(Field *old_field,Field *orig_field)
         case  3: sql_type= FIELD_TYPE_MEDIUM_BLOB; break;
         default: sql_type= FIELD_TYPE_LONG_BLOB; break;
       }
-      length /= charset->mbmaxlen;		// QQ: Probably not needed
+      length=(length+charset->mbmaxlen-1)/charset->mbmaxlen; // QQ: Probably not needed
       break;
     case FIELD_TYPE_STRING:
     case FIELD_TYPE_VAR_STRING:
-      length /= charset->mbmaxlen;
+      length=(length+charset->mbmaxlen-1)/charset->mbmaxlen;
       break;
     default:
       break;
   }
-  
+
   decimals= old_field->decimals();
   if (sql_type == FIELD_TYPE_STRING)
   {
@@ -5651,10 +5663,12 @@ create_field::create_field(Field *old_field,Field *orig_field)
       def=new Item_string(pos,tmp.length(), charset);
     }
   }
+#ifdef HAVE_SPATIAL
   if (sql_type == FIELD_TYPE_GEOMETRY)
   {
     geom_type= ((Field_geom*)old_field)->geom_type;
   }
+#endif
 }
 
 

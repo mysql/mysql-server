@@ -224,7 +224,7 @@ int load_defaults(const char *conf_file, const char **groups,
   if (*argc >= 2 && !strcmp(argv[0][1],"--print-defaults"))
   {
     found_print_defaults=1;
-    --*argc; ++*argv;				/* skipp argument */
+    --*argc; ++*argv;				/* skip argument */
   }
 
   if (*argc)
@@ -461,7 +461,8 @@ static char *remove_end_comment(char *ptr)
       else if (quote == *ptr)
 	quote= 0;
     }
-    if (!quote && *ptr == '#') /* We are not inside a comment */
+    /* We are not inside a comment */
+    if (!quote && *ptr == '#')
     {
       *ptr= 0;
       return ptr;

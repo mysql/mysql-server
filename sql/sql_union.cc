@@ -29,7 +29,7 @@ int mysql_union(THD *thd, LEX *lex, select_result *result,
 {
   DBUG_ENTER("mysql_union");
   int res= 0;
-  if (!(res= unit->prepare(thd, result)))
+  if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK)))
     res= unit->exec();
   res|= unit->cleanup();
   DBUG_RETURN(res);
@@ -106,7 +106,8 @@ bool select_union::flush()
 }
 
 
-int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result)
+int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
+				ulong additional_options)
 {
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select;
   SELECT_LEX *sl, *first_select;
@@ -145,8 +146,9 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result)
 
   for (;sl; sl= sl->next_select())
   {
+    sl->options|=  SELECT_NO_UNLOCK;
     JOIN *join= new JOIN(thd_arg, sl->item_list, 
-			 sl->options | thd_arg->options | SELECT_NO_UNLOCK,
+			 sl->options | thd_arg->options | additional_options,
 			 tmp_result);
     thd_arg->lex->current_select= sl;
     offset_limit_cnt= sl->offset_limit;
@@ -440,9 +442,16 @@ int st_select_lex_unit::cleanup()
   int error= 0;
   DBUG_ENTER("st_select_lex_unit::cleanup");
 
+  if (cleaned)
+  {
+    DBUG_RETURN(0);
+  }
+  cleaned= 0;
+
   if (union_result)
   {
     delete union_result;
+    union_result=0; // Safety
     if (table)
       free_tmp_table(thd, table);
     table= 0; // Safety

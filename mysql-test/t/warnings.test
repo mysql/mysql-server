@@ -1,9 +1,9 @@
 #
 # Test some warnings
 #
---disable-warnings
+--disable_warnings
 drop table if exists t1, t2;
---enable-warnings
+--enable_warnings
 SET SQL_WARNINGS=1;
 
 create table t1 (a int);

@@ -52,7 +52,7 @@ static byte* acl_entry_get_key(acl_entry *entry,uint *length,
   return (byte*) entry->key;
 }
 
-#define IP_ADDR_STRLEN
+#define IP_ADDR_STRLEN (3+1+3+1+3+1+3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN+1+NAME_LEN+1+USERNAME_LENGTH+1)
 
 static DYNAMIC_ARRAY acl_hosts,acl_users,acl_dbs;
@@ -173,7 +173,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
   tables[0].db=tables[1].db=tables[2].db=thd->db;
 
-  if (open_tables(thd,tables))
+  uint counter;
+  if (open_tables(thd, tables, &counter))
   {
     sql_print_error("Fatal error: Can't open privilege tables: %s",
 		    thd->net.last_error);
@@ -1174,8 +1175,8 @@ bool check_change_password(THD *thd, const char *host, const char *user)
 {
   if (!initialized)
   {
-    send_error(thd, ER_PASSWORD_NOT_ALLOWED); /* purecov: inspected */
-    return(1); /* purecov: inspected */
+    send_error(thd, ER_SKIP_GRANT_TABLES); /* purecov: inspected */
+    return(1);                             /* purecov: inspected */
   }
   if (!thd->slave_thread &&
       (strcmp(thd->user,user) ||
@@ -1649,8 +1650,14 @@ static int replace_db_table(TABLE *table, const char *db,
   char what= (revoke_grant) ? 'N' : 'Y';
   DBUG_ENTER("replace_db_table");
 
+  if (!initialized)
+  {
+    my_error(ER_SKIP_GRANT_TABLES, MYF(0));
+    DBUG_RETURN(-1);
+  }
+
   /* Check if there is such a user in user table in memory? */
-  if (!initialized || !find_acl_user(combo.host.str,combo.user.str))
+  if (!find_acl_user(combo.host.str,combo.user.str))
   {
     my_error(ER_PASSWORD_NO_MATCH,MYF(0));
     DBUG_RETURN(-1);
@@ -2226,7 +2233,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   if (!initialized)
   {
-    send_error(thd, ER_UNKNOWN_COM_ERROR);	/* purecov: inspected */
+    send_error(thd, ER_SKIP_GRANT_TABLES);	/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
   if (rights & ~TABLE_ACLS)
@@ -2300,7 +2307,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
 #endif
 
-  if (open_and_lock_tables(thd,tables))
+  if (simple_open_n_lock_tables(thd,tables))
   {						// Should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
     DBUG_RETURN(-1);				/* purecov: deadcode */
@@ -2436,8 +2443,8 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   DBUG_ENTER("mysql_grant");
   if (!initialized)
   {
-    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));	/* purecov: tested */
-    return -1;					/* purecov: tested */
+    my_error(ER_SKIP_GRANT_TABLES, MYF(0));	/* purecov: tested */
+    DBUG_RETURN(-1);				/* purecov: tested */
   }
 
   if (lower_case_table_names && db)
@@ -2448,7 +2455,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 
   /* open the mysql.user and mysql.db tables */
-
+  bzero((char*) &tables,sizeof(tables));
   tables[0].alias=tables[0].real_name=(char*) "user";
   tables[1].alias=tables[1].real_name=(char*) "db";
   tables[0].next=tables+1;
@@ -2474,7 +2481,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 #endif
 
-  if (open_and_lock_tables(thd,tables))
+  if (simple_open_n_lock_tables(thd,tables))
   {						// This should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
     DBUG_RETURN(-1);				/* purecov: deadcode */
@@ -2570,14 +2577,15 @@ my_bool grant_init(THD *org_thd)
   thd->store_globals();
   thd->db= my_strdup("mysql",MYF(0));
   thd->db_length=5;				// Safety
-  bzero((char*) &tables,sizeof(tables));
+  bzero((char*) &tables, sizeof(tables));
   tables[0].alias=tables[0].real_name= (char*) "tables_priv";
   tables[1].alias=tables[1].real_name= (char*) "columns_priv";
   tables[0].next=tables+1;
   tables[0].lock_type=tables[1].lock_type=TL_READ;
   tables[0].db=tables[1].db=thd->db;
 
-  if (open_tables(thd,tables))
+  uint counter;
+  if (open_tables(thd, tables, &counter))
     goto end;
 
   TABLE *ptr[2];				// Lock tables for quick update
@@ -2602,7 +2610,7 @@ my_bool grant_init(THD *org_thd)
   do
   {
     GRANT_TABLE *mem_check;
-    if (!(mem_check=new GRANT_TABLE(t_table,c_table)) || mem_check->ok())
+    if (!(mem_check=new GRANT_TABLE(t_table,c_table)) || !mem_check->ok())
     {
       /* This could only happen if we are out memory */
       grant_option= FALSE;			/* purecov: deadcode */
@@ -3041,8 +3049,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   LINT_INIT(acl_user);
   if (!initialized)
   {
-    send_error(thd, ER_UNKNOWN_COM_ERROR);
-    DBUG_RETURN(-1);
+    send_error(thd, ER_SKIP_GRANT_TABLES);
+    DBUG_RETURN(1);
   }
   if (lex_user->host.length > HOSTNAME_LENGTH ||
       lex_user->user.length > USERNAME_LENGTH)
@@ -3394,7 +3402,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
 
   if (!initialized)
   {
-    send_error(thd, ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES));
+    send_error(thd, ER_SKIP_GRANT_TABLES);
     DBUG_RETURN(-1);
   }
 
@@ -3429,7 +3437,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
   }
 #endif
 
-  if (open_and_lock_tables(thd, tables))
+  if (simple_open_n_lock_tables(thd, tables))
   {						// This should never happen
     close_thread_tables(thd);
     DBUG_RETURN(-1);
@@ -3475,7 +3483,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
   DBUG_ENTER("mysql_drop_user");
 
   if ((result= open_grant_tables(thd, tables)))
-    DBUG_RETURN(result == 1 ? 0 : -1);
+    DBUG_RETURN(result == 1 ? 0 : 1);
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -3588,7 +3596,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   DBUG_ENTER("mysql_revoke_all");
 
   if ((result= open_grant_tables(thd, tables)))
-    DBUG_RETURN(result == 1 ? 0 : -1);
+    DBUG_RETURN(result == 1 ? 0 : 1);
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));

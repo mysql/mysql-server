@@ -2866,7 +2866,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       rli->is_until_satisfied()) 
   {
     sql_print_error("Slave SQL thread stopped because it reached its"
-                    " UNTIL position");
+                    " UNTIL position %ld", (long) rli->until_pos());
     /* 
       Setting abort_slave flag because we do not want additional message about
       error in query execution to be printed.
@@ -3342,6 +3342,7 @@ slave_begin:
     sql_print_error("Failed during slave thread initialization");
     goto err;
   }
+  thd->init_for_queries();
   rli->sql_thd= thd;
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   pthread_mutex_lock(&LOCK_thread_count);

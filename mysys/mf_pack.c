@@ -146,7 +146,7 @@ uint cleanup_dirname(register my_string to, const char *from)
     if (*pos == FN_LIBCHAR)
     {
       if ((uint) (pos-start) > length && bcmp(pos-length,parent,length) == 0)
-      {						/* If .../../; skipp prev */
+      {						/* If .../../; skip prev */
 	pos-=length;
 	if (pos != start)
 	{					 /* not /../ */

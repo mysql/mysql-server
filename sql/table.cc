@@ -405,8 +405,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       // charset and geometry_type share the same byte in frm
       if (field_type == FIELD_TYPE_GEOMETRY)
       {
+#ifdef HAVE_SPATIAL
 	geom_type= (Field::geometry_type) strpos[14];
 	charset= &my_charset_bin;
+#else
+	error= 4;  // unsupported field type
+	goto err_not_open;
+#endif
       }
       else
       {
@@ -481,8 +486,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   /* Fix key->name and key_part->field */
   if (key_parts)
   {
-    uint primary_key=(uint) (find_type((char*) "PRIMARY",&outparam->keynames,
-				       3)-1);
+    uint primary_key=(uint) (find_type((char*) primary_key_name,
+				       &outparam->keynames, 3) - 1);
     uint ha_option=outparam->file->table_flags();
     keyinfo=outparam->key_info;
     key_part=keyinfo->key_part;

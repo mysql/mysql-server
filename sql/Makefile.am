@@ -52,7 +52,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			field.h handler.h \
 			ha_isammrg.h ha_isam.h ha_myisammrg.h\
 			ha_heap.h ha_myisam.h ha_berkeley.h ha_innodb.h \
-			opt_range.h opt_ft.h protocol.h \
+			opt_range.h protocol.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h sql_repl.h slave.h \
@@ -76,7 +76,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			procedure.cc item_uniq.cc sql_test.cc \
 			log.cc log_event.cc init.cc derror.cc sql_acl.cc \
 			unireg.cc des_key_file.cc \
-			time.cc opt_range.cc opt_sum.cc opt_ft.cc \
+			time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
 	                ha_berkeley.cc ha_innodb.cc \

@@ -2154,8 +2154,12 @@ static int init_common_variables(const char *conf_file_name, int argc,
   {
     CHARSET_INFO *default_collation;
     default_collation= get_charset_by_name(default_collation_name, MYF(0));
-    if (!default_collation || !my_charset_same(default_charset_info,
-					       default_collation))
+    if (!default_collation)
+    {
+      sql_print_error(ER(ER_UNKNOWN_COLLATION), default_collation_name);
+      return 1;
+    }
+    if (!my_charset_same(default_charset_info, default_collation))
     {
       sql_print_error(ER(ER_COLLATION_CHARSET_MISMATCH),
 		      default_collation_name,
@@ -4386,7 +4390,7 @@ log and this option does nothing anymore.",
    (gptr*) 0,
    0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
    1, 100, 0, 1, 0},
-  {"key_cache_division_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
+  {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
    (gptr*) &dflt_key_cache_var.param_age_threshold,
    (gptr*) 0,
@@ -4606,7 +4610,7 @@ The minimum value for this variable is 4096.",
    "Use compression on master/slave protocol.",
    (gptr*) &opt_slave_compressed_protocol,
    (gptr*) &opt_slave_compressed_protocol,
-   0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"slave_net_timeout", OPT_SLAVE_NET_TIMEOUT,
    "Number of seconds to wait for more data from a master/slave connection before aborting the read.",
    (gptr*) &slave_net_timeout, (gptr*) &slave_net_timeout, 0,
@@ -4669,7 +4673,7 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
   {"expire_logs_days", OPT_EXPIRE_LOGS_DAYS,
-   "Logs will be rotated after expire-log-days days ",
+   "Binary logs will be rotated after expire-log-days days ",
    (gptr*) &expire_logs_days,
    (gptr*) &expire_logs_days, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 99, 0, 1, 0},
@@ -5816,8 +5820,9 @@ static void fix_paths(void)
   {
     strxnmov(mysql_charsets_dir, sizeof(mysql_charsets_dir)-1, buff,
 	     CHARSET_DIR, NullS);
-    charsets_dir=mysql_charsets_dir;
   }
+  (void) my_load_path(mysql_charsets_dir, mysql_charsets_dir, buff);
+  charsets_dir=mysql_charsets_dir;
 
   if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir))
     exit(1);
@@ -5968,7 +5973,7 @@ static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
       {
 	if (my_toupper(mysqld_charset,*i++) !=
             my_toupper(mysqld_charset,*j++))
-	  goto skipp;
+	  goto skip;
       }
       found_int=bit;
       if (! *i)
@@ -5980,7 +5985,7 @@ static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
       {
 	found_count++;				// Could be one of two values
       }
-skipp: ;
+skip: ;
     }
     if (found_count != 1)
       DBUG_RETURN(~(ulong) 0);				// No unique value

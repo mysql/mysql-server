@@ -1002,6 +1002,17 @@ uint my_charpos_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 static
+uint my_wellformedlen_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+		     const char *b,
+		     const char *e,
+		     uint nchars)
+{
+  uint nbytes= (e-b) & ~ (uint)1;
+  nchars*= 2;
+  return nbytes < nchars ? nbytes : nchars;
+}
+
+static
 void my_fill_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 		   char *s, uint l, int fill)
 {
@@ -1044,14 +1055,13 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
       scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
       if (scan <= 0)
         return 1;
-      wildstr+= scan;
       
       if (w_wc ==  (my_wc_t)escape)
       {
+        wildstr+= scan;
         scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
         if (scan <= 0)
           return 1;
-        wildstr+= scan;
       }
       
       if (w_wc == (my_wc_t)w_many)
@@ -1060,6 +1070,7 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
         break;
       }
       
+      wildstr+= scan;
       scan= my_ucs2_uni(cs, &s_wc, (const uchar*)str, (const uchar*)str_end);
       if (scan <=0)
         return 1;
@@ -1095,13 +1106,16 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
         scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
         if (scan <= 0)
           return 1;
-        wildstr+= scan;
         
 	if (w_wc == (my_wc_t)w_many)
+	{
+	  wildstr+= scan;
 	  continue;
+	} 
 	
 	if (w_wc == (my_wc_t)w_one)
 	{
+	  wildstr+= scan;
 	  scan= my_ucs2_uni(cs, &s_wc, (const uchar*)str, (const uchar*)str_end);
           if (scan <=0)
             return 1;
@@ -1120,17 +1134,16 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
       scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
       if (scan <= 0)
         return 1;
-      wildstr+= scan;
       
       if (w_wc ==  (my_wc_t)escape)
       {
+        wildstr+= scan;
         scan= my_ucs2_uni(cs,&w_wc, (const uchar*)wildstr, (const uchar*)wildend);
         if (scan <= 0)
           return 1;
-        wildstr+= scan;
       }
       
-      do
+      while (1)
       {
         /* Skip until the first character from wildstr is found */
         while (str != str_end)
@@ -1138,8 +1151,6 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
           scan= my_ucs2_uni(cs,&s_wc, (const uchar*)str, (const uchar*)str_end);
           if (scan <= 0)
             return 1;
-          str+= scan;
-          
           if (weights)
           {
             plane=(s_wc>>8) & 0xFF;
@@ -1150,17 +1161,19 @@ int my_wildcmp_ucs2(CHARSET_INFO *cs,
           
           if (s_wc == w_wc)
             break;
+          str+= scan;
         }
         if (str == str_end)
           return -1;
         
         result= my_wildcmp_ucs2(cs,str,str_end,wildstr,wildend,escape,
                                 w_one,w_many,weights);
+        
         if (result <= 0)
           return result;
         
-      } while (str != str_end && w_wc != (my_wc_t)w_many);
-      return -1;
+        str+= scan;
+      } 
     }
   }
   return (str != str_end ? 1 : 0);
@@ -1285,6 +1298,7 @@ static MY_CHARSET_HANDLER my_charset_ucs2_handler=
     my_mbcharlen_ucs2,	/* mbcharlen    */
     my_numchars_ucs2,
     my_charpos_ucs2,
+    my_wellformedlen_ucs2,
     my_lengthsp_ucs2,
     my_ucs2_uni,	/* mb_wc        */
     my_uni_ucs2,	/* wc_mb        */
@@ -1322,6 +1336,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     "",
     "",
     1,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
     2,			/* mbmaxlen     */
     0,
     &my_charset_ucs2_handler,
@@ -1345,6 +1360,7 @@ CHARSET_INFO my_charset_ucs2_bin=
     "",
     "",
     1,			/* strxfrm_multiply */
+    2,			/* mbminlen     */
     2,			/* mbmaxlen     */
     0,
     &my_charset_ucs2_handler,
