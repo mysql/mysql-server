@@ -38,7 +38,21 @@ owner=my
 
 # Hard path!!
 bpath=`/bin/pwd`
-rpmdir="/usr/src/redhat"
+
+for d in /usr/src/redhat /usr/src/packages ; do
+if test -d "$d"
+then
+  rpmdir=$d
+fi  
+done
+
+if test -z "$rpmdir"
+then
+ echo "Could not find suitable rpmdir on this system"
+ exit 1
+fi
+ 
+
 logdir="$bpath/Logs"
 
 ###### Perl STUFF #####

@@ -186,26 +186,36 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
 
 # Use the build root for temporary storage of the shared libraries.
 
+OTHER_LIBC_DIR=/usr/local/mysql-glibc
 RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 if test -z "$RBR" -o "$RBR" = "/"
 then
-	echo "RPM_BUILD_ROOT has stupid value"
+	echo "RPM_BUILD_ROOT has insecure value"
 	exit 1
 fi
 rm -rf $RBR
 mkdir -p $RBR
 
-# Build the shared libraries and mysqld-max
+# We need to build shared libraries separate from mysqld-max because we
+# are using --with-other-libc
 
-BuildMySQL "--enable-shared --enable-thread-safe-client --with-berkeley-db --with-innodb --with-mysqld-ldflags='-all-static' --with-server-suffix='-Max'"
+BuildMySQL "--disable-shared --with-other-libc=$OTHER_LIBC_DIR --with-berkeley-db --with-innodb --with-mysqld-ldflags='-all-static' --with-server-suffix='-Max'"
 
 # Save everything for debug
 # tar cf $RBR/all.tar .
 
-# Save shared libraries and mysqld-max
+# Save mysqld-max
 mv sql/mysqld sql/mysqld-max
 nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
+
+# Save manual to avoid rebuilding
+mv Docs/manual.ps Docs/manual.ps.save
+make distclean
+mv Docs/manual.ps.save Docs/manual.ps
+
+#now build and save shared libraries
+BuildMySQL "--enable-shared --enable-thread-safe-client --without-server "
 (cd libmysql/.libs; tar cf $RBR/shared-libs.tar *.so*)
 (cd libmysql_r/.libs; tar rf $RBR/shared-libs.tar *.so*)
 
@@ -220,6 +230,7 @@ automake
 BuildMySQL "--disable-shared" \
 	   "--with-mysqld-ldflags='-all-static'" \
 	   "--with-client-ldflags='-all-static'" \
+  	   "--with-other-libc=$OTHER_LIBC_DIR" \
 	   "--without-berkeley-db --without-innodb"
 nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
@@ -415,6 +426,10 @@ fi
 %attr(644, root, root) /usr/lib/mysql/mysqld-max.sym
 
 %changelog 
+
+* Fri Feb 15 2002 Sasha
+
+- changed build to use --with-other-libc
 
 * Fri Apr 13 2001 Monty
 
