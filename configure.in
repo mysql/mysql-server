@@ -2255,6 +2255,12 @@ AC_ARG_WITH(charset,
    [default_charset="$withval"],
    [default_charset="$DEFAULT_CHARSET"])
 
+AC_ARG_WITH(collation,
+   [  --with-collation=COLLATION
+                          Default collation],
+   [default_collation="$withval"],
+   [default_collation="default"])
+
 
 AC_ARG_WITH(extra-charsets,
   [  --with-extra-charsets=CHARSET[,CHARSET,...]
@@ -2280,7 +2286,6 @@ else
   EXTRA_CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
   CHARSETS="$CHARSETS $EXTRA_CHARSETS"
 fi
-
 
 for cs in $CHARSETS
 do
@@ -2404,11 +2409,169 @@ do
 done
 
 
-AC_SUBST(default_charset)
-AC_DEFINE_UNQUOTED(DEFAULT_CHARSET_NAME,"$default_charset")
+      default_charset_collations=""
 
-AC_MSG_RESULT([default: $default_charset; compiled in: $CHARSETS])
+case $default_charset in 
+    armscii8)
+      default_charset_default_collation="armscii8_general_ci"
+      default_charset_collations="armscii8_general_ci armscii_bin"
+      ;;
+    ascii)
+      default_charset_default_collation="ascii_general_ci"
+      default_charset_collations="ascii_general_ci ascii_bin"
+      ;;
+    big5)
+      default_charset_default_collation="big5_chinese_ci"
+      default_charset_collations="big5_chinese_ci big5_bin"
+      ;;
+    cp1250)
+      default_charset_default_collation="cp1250_general_ci"
+      default_charset_collations="cp1250_general_ci cp1250_czech_ci cp1250_bin"
+      ;;
+    cp1251)
+      default_charset_default_collation="cp1251_general_ci"
+      default_charset_collations="cp1251_general_ci cp1251_general_cs cp1251_bin cp1251_bulgarian_ci cp1251_ukrainian_ci"
+      ;;
+    cp1256)
+      default_charset_default_collation="cp1256_general_ci"
+      default_charset_collations="cp1256_general_ci cp1256_bin"
+      ;;
+    cp1257)
+      default_charset_default_collation="cp1257_general_ci"
+      default_charset_collations="cp1257_general_ci cp1257_lithuanian_ci cp1257_bin"
+      ;;
+    cp850)
+      default_charset_default_collation="cp850_general_ci"
+      default_charset_collations="cp850_general_ci cp850_bin"
+      ;;
+    cp852)
+      default_charset_default_collation="cp852_general_ci"
+      default_charset_collations="cp852_general_ci cp852_bin"
+      ;;
+    cp866)
+      default_charset_default_collation="cp866_general_ci"
+      default_charset_collations="cp866_general_ci cp866_bin"
+      ;;
+    dec8)
+      default_charset_default_collation="dec8_swedish_ci"
+      default_charset_collations="dec8_swedish_ci dec8_bin"
+      ;;
+    euckr)
+      default_charset_default_collation="euckr_korean_ci"
+      default_charset_collations="euckr_korean_ci euckr_bin"
+      ;;
+    gb2312)
+      default_charset_default_collation="gb2312_chinese_ci"
+      default_charset_collations="gb2312_chinese_ci gb2312_bin"
+      ;;
+    gbk)
+      default_charset_default_collation="gbk_chinese_ci"
+      default_charset_collations="gbk_chinese_ci gbk_bin"
+      ;;
+    greek)
+      default_charset_default_collation="greek_general_ci"
+      default_charset_collations="greek_general_ci greek_bin"
+      ;;
+    hebrew)
+      default_charset_default_collation="hebrew_general_ci"
+      default_charset_collations="hebrew_general_ci hebrew_bin"
+      ;;
+    hp8)
+      default_charset_default_collation="hp8_english_ci"
+      default_charset_collations="hp8_english_ci hp8_bin"
+      ;;
+    keybcs2)
+      default_charset_default_collation="keybcs2_general_ci"
+      default_charset_collations="keybcs2_general_ci keybcs2_bin"
+      ;;
+    koi8r)
+      default_charset_default_collation="koi8r_general_ci"
+      default_charset_collations="koi8r_general_ci koi8r_bin"
+      ;;
+    koi8u)
+      default_charset_default_collation="koi8u_general_ci"
+      default_charset_collations="koi8u_general_ci koi8u_bin"
+      ;;
+    latin1)
+      default_charset_default_collation="latin1_swedish_ci"
+      default_charset_collations="latin1_general_ci latin1_general_cs latin1_bin latin1_german1_ci latin1_german2_ci latin1_danish_ci latin1_swedish_ci"
+      ;;
+    latin2)
+      default_charset_default_collation="latin2_general_ci"
+      default_charset_collations="latin2_general_ci latin2_bin latin2_czech_ci latin2_hungarian_ci latin2_croatian_ci"
+      ;;
+    latin5)
+      default_charset_default_collation="latin5_turkish_ci"
+      default_charset_collations="latin5_turkish_ci latin5_bin"
+      ;;
+    latin7)
+      default_charset_default_collation="latin7_general_ci"
+      default_charset_collations="latin7_general_ci latin7_general_cs latin7_bin latin7_estonian_cs"
+      ;;
+    macce)
+      default_charset_default_collation="macce_general_ci"
+      default_charset_collations="macce_general_ci macce_bin"
+      ;;
+    macroman)
+      default_charset_default_collation="macroman_general_ci"
+      default_charset_collations="macroman_general_ci macroman_bin"
+      ;;
+    sjis)
+      default_charset_default_collation="sjis_japanese_ci"
+      default_charset_collations="sjis_japanese_ci sjis_bin"
+      ;;
+    swe7)
+      default_charset_default_collation="swe7_swedish_ci"
+      default_charset_collations="swe7_swedish_ci swe7_bin"
+      ;;
+    tis620)
+      default_charset_default_collation="tis620_thai_ci"
+      default_charset_collations="tis620_thai_ci tis620_bin"
+      ;;
+    ucs2)
+      default_charset_default_collation="ucs2_general_ci"
+      default_charset_collations="ucs2_general_ci ucs2_bin"
+      ;;
+    ujis)
+      default_charset_default_collation="ujis_japanese_ci"
+      default_charset_collations="ujis_japanese_ci ujis_bin"
+      ;;
+    utf8)
+      default_charset_default_collation="utf8_general_ci"
+      default_charset_collations="utf8_general_ci utf8_bin"
+      ;;
+    *)
+      AC_MSG_ERROR([Charset $cs not available. (Available are: $CHARSETS_AVAILABLE).
+      See the Installation chapter in the Reference Manual.]);
+esac
 
+if test "$default_collation" = default; then
+  default_collation=$default_charset_default_collation
+fi
+
+valid_default_collation=no
+for cl in $default_charset_collations
+do
+  if test x"$cl" = x"$default_collation"
+  then
+    valid_default_collation=yes
+    break
+  fi
+done
+
+if test x$valid_default_collation = xyes
+then
+  AC_MSG_RESULT([default: $default_charset, collation: $default_collation; compiled in: $CHARSETS])
+else
+  AC_MSG_ERROR([
+      Collation $default_collation is not valid for character set $default_charset.
+      Valid collations are: $default_charset_collations.
+      See the Installation chapter in the Reference Manual.
+  ]);
+fi
+
+AC_DEFINE_UNQUOTED(MYSQL_DEFAULT_CHARSET_NAME,"$default_charset")
+AC_DEFINE_UNQUOTED(MYSQL_DEFAULT_COLLATION_NAME,"$default_collation")
 
 MYSQL_CHECK_ISAM
 MYSQL_CHECK_BDB
