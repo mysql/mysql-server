@@ -92,7 +92,7 @@ static char *db = 0, *pass=0;
 const char* user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
 static int port = 0, opt_big_test=0, opt_compress=0;
 static uint start_lineno, *lineno;
-const char* manager_user="root",*manager_host="localhost";
+const char* manager_user="root",*manager_host=0;
 char *manager_pass=0;
 int manager_port=MYSQL_MANAGER_PORT;
 int manager_wait_timeout=3;
@@ -655,6 +655,10 @@ int do_server_op(struct st_query* q,const char* op)
 {
   char* p=q->first_argument;
   char com_buf[256],*com_p;
+  if (!manager)
+  {
+    die("Manager is not initialized, manager commands are not possible");
+  }
   com_p=strmov(com_buf,op);
   com_p=strmov(com_p,"_exec ");
   if (!*p)
@@ -2195,8 +2199,9 @@ int main(int argc, char** argv)
   if (cur_file == file_stack)
     *++cur_file = stdin;
   *lineno=1;
-#ifndef EMBEDDED_LIBRARY  
-  init_manager();
+#ifndef EMBEDDED_LIBRARY
+  if (manager_host)
+    init_manager();
 #endif
   if (!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");

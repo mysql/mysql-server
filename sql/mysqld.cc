@@ -2598,7 +2598,7 @@ enum options {
 	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
                OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
-	       OPT_RPL_RECOVERY_RANK
+	       OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE
 };
 
 static struct option long_options[] = {
@@ -2634,6 +2634,7 @@ static struct option long_options[] = {
   {"enable-pstack",         no_argument,       0, (int) OPT_DO_PSTACK},
   {"exit-info",             optional_argument, 0, 'T'},
   {"flush",                 no_argument,       0, (int) OPT_FLUSH},
+  {"init-rpl-role",         required_argument, 0, (int) OPT_INIT_RPL_ROLE},
   /* We must always support this option to make scripts like mysqltest easier
      to do */
   {"innodb_data_file_path", required_argument, 0,
@@ -3502,7 +3503,7 @@ static void get_options(int argc,char **argv)
 	fprintf(stderr, "Unknown replication role: %s\n", optarg);
 	exit(1);
       }
-      rpl_status = (rpl_role == 1) ?  RPL_AUTH_MASTER : RPL_IDLE_SLAVE;
+      rpl_status = (role == 1) ?  RPL_AUTH_MASTER : RPL_IDLE_SLAVE;
       break;
     }
     case (int)OPT_REPLICATE_IGNORE_DB:

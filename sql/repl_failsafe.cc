@@ -23,9 +23,9 @@ RPL_STATUS rpl_status=RPL_NULL;
 pthread_mutex_t LOCK_rpl_status;
 pthread_cond_t COND_rpl_status;
 
-const char *rpl_role_type[] = {"","MASTER","SLAVE",NullS};
-TYPELIB rpl_role_typelib = {array_elements(rpl_role_type)-4,"",
-			    rpl_role_type+1};
+const char *rpl_role_type[] = {"MASTER","SLAVE",NullS};
+TYPELIB rpl_role_typelib = {array_elements(rpl_role_type)-1,"",
+			    rpl_role_type};
 
 const char* rpl_status_type[] = {"AUTH_MASTER","ACTIVE_SLAVE","IDLE_SLAVE",
 				 "LOST_SOLDIER","TROOP_SOLDIER",
