@@ -5009,6 +5009,8 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	regApiPtr->lqhkeyreqrec--; // Compensate for extra during read
 	tcKeyRef->connectPtr = indexOp;
 	EXECUTE_DIRECT(DBTC, GSN_TCKEYREF, signal, TcKeyRef::SignalLength);
+	apiConnectptr.i = regTcPtr->apiConnect;
+	apiConnectptr.p = regApiPtr;
       } else {
         jam();
 	tcKeyRef->connectPtr = clientData;
