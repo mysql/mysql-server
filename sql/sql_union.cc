@@ -208,19 +208,6 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     }
   }
 
-  for (tmp_order= (ORDER*) global_parameters->order_list.first;
-       tmp_order ;
-       tmp_order= tmp_order->next)
-  {
-    Item *item= *tmp_order->item;
-    if (((item->type() == Item::FIELD_ITEM) &&
-	 ((class Item_field*) item)->table_name))
-    {
-      my_error(ER_BAD_FIELD_ERROR,MYF(0),item->full_name(),"ORDER BY");
-      DBUG_RETURN(-1);
-    }
-  }
-
   item_list.empty();
   // it is not single select
   if (first_select->next_select())

@@ -26,6 +26,7 @@ class st_select_lex_unit;
 typedef struct st_order {
   struct st_order *next;
   Item	 **item;			/* Point at item in select fields */
+  Item	 *item_ptr;			/* Storage for initial item */
   bool	 asc;				/* true if ascending */
   bool	 free_me;			/* true if item isn't shared  */
   bool	 in_field_list;			/* true if in select field list */
@@ -192,6 +193,7 @@ typedef struct st_table_list
   bool          updating;               /* for replicate-do/ignore table */
   bool		force_index;		/* Prefer index over table scan */
   bool          ignore_leaves;          /* Preload only non-leaf nodes */
+  bool		non_cachable_table;	/* stop PS caching */
 } TABLE_LIST;
 
 typedef struct st_changed_table_list

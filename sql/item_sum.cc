@@ -24,8 +24,8 @@
 #include "mysql_priv.h"
 
 Item_sum::Item_sum(List<Item> &list)
+  :args_copy(0), arg_count(list.elements)
 {
-  arg_count=list.elements;
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
   {
     uint i=0;
@@ -43,22 +43,66 @@ Item_sum::Item_sum(List<Item> &list)
 
 // Constructor used in processing select with temporary tebles
 Item_sum::Item_sum(THD *thd, Item_sum *item):
-  Item_result_field(thd, item), quick_group(item->quick_group)
+  Item_result_field(thd, item), arg_count(item->arg_count),
+  quick_group(item->quick_group)
 {
-  arg_count= item->arg_count;
   if (arg_count <= 2)
     args=tmp_args;
   else
-    if (!(args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
+    if (!(args= (Item**) thd->alloc(sizeof(Item*)*arg_count)))
       return;
-  for (uint i= 0; i < arg_count; i++)
-    args[i]= item->args[i];
+  memcpy(args, item->args, sizeof(Item*)*arg_count);
+  if (item->args_copy != 0)
+    save_args(thd);
+  else
+    args_copy= 0;
 }
+
+
+/*
+  Save copy of arguments if we are prepare prepared statement
+  (arguments can be rewritten in get_tmp_table_item())
+
+  SYNOPSIS
+    Item_sum::save_args_for_prepared_statements()
+    thd		- thread handler
+
+  RETURN
+    0 - OK
+    1 - Error
+*/
+bool Item_sum::save_args_for_prepared_statements(THD *thd)
+{
+  if (thd->current_statement)
+    return save_args(thd->current_statement);
+  return 0;
+}
+
+
+bool Item_sum::save_args(Statement* stmt)
+{
+  if (!(args_copy= (Item**) stmt->alloc(sizeof(Item*)*arg_count)))
+    return 1;
+  memcpy(args_copy, args, sizeof(Item*)*arg_count);
+  return 0;
+}
+
 
 void Item_sum::mark_as_sum_func()
 {
   current_thd->lex->current_select->with_sum_func= 1;
   with_sum_func= 1;
+}
+
+
+void Item_sum::cleanup()
+{
+  DBUG_ENTER("Item_sum::cleanup");
+  Item_result_field::cleanup();
+  if (args_copy != 0)
+    memcpy(args, args_copy, sizeof(Item*)*arg_count);
+  result_field=0;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -165,6 +209,10 @@ bool
 Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
+
+  if (save_args_for_prepared_statements(thd))
+    return 1;
+  
   if (!thd->allow_sum_func)
   {
     my_error(ER_INVALID_GROUP_FUNC_USE,MYF(0));
@@ -195,6 +243,10 @@ bool
 Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
+
+  if (save_args_for_prepared_statements(thd))
+    return 1;
+
   Item *item= args[0];
   if (!thd->allow_sum_func)
   {
@@ -1131,15 +1183,6 @@ void Item_sum_count_distinct::cleanup()
 }
 
 
-bool Item_sum_count_distinct::fix_fields(THD *thd, TABLE_LIST *tables,
-					 Item **ref)
-{
-  DBUG_ASSERT(fixed == 0);
-  if (Item_sum_num::fix_fields(thd, tables, ref))
-    return 1;
-  return 0;
-}
-
 /* This is used by rollup to create a separate usable copy of the function */
 
 void Item_sum_count_distinct::make_unique()
@@ -1705,6 +1748,11 @@ void Item_func_group_concat::cleanup()
 {
   DBUG_ENTER("Item_func_group_concat::cleanup");
   Item_sum::cleanup();
+
+  /* fix order list */
+  for (uint i= 0; i < arg_count_order ; i++)
+    order[i]->item= &order[i]->item_ptr;
+
   /*
     Free table and tree if they belong to this item (if item have not pointer
     to original item from which was made copy => it own its objects )
@@ -1821,6 +1869,10 @@ bool
 Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
+
+  if (save_args_for_prepared_statements(thd))
+    return 1;
+
   uint i;			/* for loop variable */ 
 
   if (!thd->allow_sum_func)
