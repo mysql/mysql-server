@@ -1922,13 +1922,13 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   close_thread_tables(thd);
   if (thd->query_error)
   {
-    int sql_error = thd->net.last_errno;
+    int sql_error= thd->net.last_errno;
     if (!sql_error)
-      sql_error = ER_UNKNOWN_ERROR;
-		
+      sql_error= ER_UNKNOWN_ERROR;
     slave_print_error(rli,sql_error,
-		      "Slave: Error '%s' running load data infile ",
-		      ER_SAFE(sql_error));
+		      "Error '%s' running load data infile",
+		      sql_error ? thd->net.last_error :
+		      ER_SAFE(ER_UNKNOWN_ERROR));
     free_root(&thd->mem_root,0);
     return 1;
   }
@@ -1936,7 +1936,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 	    
   if (thd->fatal_error)
   {
-    sql_print_error("Slave: Fatal error running LOAD DATA INFILE ");
+    sql_print_error("Fatal error running LOAD DATA INFILE ");
     return 1;
   }
 
