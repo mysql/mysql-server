@@ -157,7 +157,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   if (read_string(file,(gptr*) &disk_buff,key_info_length))
     goto err_not_open; /* purecov: inspected */
   outparam->keys=keys=   disk_buff[0];
-  outparam->keys_for_keyread= outparam->keys_in_use= set_bits(key_map, keys);
+  outparam->keys_for_keyread.init().set_prefix(keys);
+  outparam->keys_in_use.init().set_prefix(keys);
+  outparam->read_only_keys.init().clear_all();
+  outparam->quick_keys.init();
+  outparam->used_keys.init();
+  outparam->keys_in_use_for_query.init();
 
   outparam->key_parts=key_parts=disk_buff[1];
   n_length=keys*sizeof(KEY)+key_parts*sizeof(KEY_PART_INFO);
@@ -486,8 +491,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       index_flags=outparam->file->index_flags(key);
       if (!(index_flags & HA_KEY_READ_ONLY))
       {
-	outparam->read_only_keys|=    ((key_map) 1 << key);
-	outparam->keys_for_keyread&= ~((key_map) 1 << key);
+	outparam->read_only_keys.set_bit(key);
+	outparam->keys_for_keyread.clear_bit(key);
       }
 
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
@@ -547,7 +552,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	       field->key_length() ==
 	       keyinfo->key_length ? UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
 	  if (i == 0)
-	    field->key_start|= ((key_map) 1 << key);
+	    field->key_start.set_bit(key);
 	  if (field->key_length() == key_part->length &&
 	      !(field->flags & BLOB_FLAG))
 	  {
@@ -555,11 +560,11 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 		(field->key_type() != HA_KEYTYPE_TEXT ||
 		 (!(ha_option & HA_KEY_READ_WRONG_STR) &&
 		  !(keyinfo->flags & HA_FULLTEXT))))
-	      field->part_of_key|= ((key_map) 1 << key);
+	      field->part_of_key.set_bit(key);
 	    if ((field->key_type() != HA_KEYTYPE_TEXT ||
 		 !(keyinfo->flags & HA_FULLTEXT)) &&
 		!(index_flags & HA_WRONG_ASCII_ORDER))
-	      field->part_of_sortkey|= ((key_map) 1 << key);
+	      field->part_of_sortkey.set_bit(key);
 	  }
 	  if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
 	      usable_parts == i)
@@ -602,7 +607,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       keyinfo->usable_key_parts=usable_parts; // Filesort
     }
     if (primary_key < MAX_KEY &&
-	(outparam->keys_in_use & ((key_map) 1 << primary_key)))
+	(outparam->keys_in_use.is_set(primary_key)))
     {
       outparam->primary_key=primary_key;
       /*

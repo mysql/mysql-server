@@ -174,10 +174,11 @@ TEST_join(JOIN *join)
 	    tab->ref.key_length);
     if (tab->select)
     {
+      char buf[MAX_KEY/8+1];
       if (tab->use_quick == 2)
 	fprintf(DBUG_FILE,
-		"                  quick select checked for each record (keys: %d)\n",
-		(int) tab->select->quick_keys);
+		"                  quick select checked for each record (keys: %s)\n",
+		tab->select->quick_keys.print(buf));
       else if (tab->select->quick)
 	fprintf(DBUG_FILE,"                  quick select used on key %s, length: %d\n",
 		form->key_info[tab->select->quick->index].name,

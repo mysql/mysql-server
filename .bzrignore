@@ -636,3 +636,4 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
+sql/udf_example.so

@@ -85,7 +85,7 @@ int mysql_update(THD *thd,
 
   /* Calculate "table->used_keys" based on the WHERE */
   table->used_keys=table->keys_in_use;
-  table->quick_keys=0;
+  table->quick_keys.clear_all();
   want_privilege=table->grant.want_privilege;
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
 
@@ -143,7 +143,7 @@ int mysql_update(THD *thd,
   }
 
   // Don't count on usage of 'only index' when calculating which key to use
-  table->used_keys=0;
+  table->used_keys.clear_all();
   select=make_select(table,0,0,conds,&error);
   if (error ||
       (select && select->check_quick(safe_update, limit)) || !limit)
@@ -158,7 +158,7 @@ int mysql_update(THD *thd,
     DBUG_RETURN(0);
   }
   /* If running in safe sql mode, don't allow updates without keys */
-  if (!table->quick_keys)
+  if (table->quick_keys.is_clear_all())
   {
     thd->lex.select_lex.options|=QUERY_NO_INDEX_USED;
     if (safe_update && !using_limit)
@@ -186,7 +186,7 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     table->file->extra(HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE);
-    if (old_used_keys & ((key_map) 1 << used_index))
+    if (old_used_keys.is_set(used_index))
     {
       table->key_read=1;
       table->file->extra(HA_EXTRA_KEYREAD);
@@ -524,7 +524,7 @@ int multi_update::prepare(List<Item> &not_used_values, SELECT_LEX_UNIT *unit)
       update.link_in_list((byte*) tl, (byte**) &tl->next);
       tl->shared= table_count++;
       table->no_keyread=1;
-      table->used_keys=0;
+      table->used_keys.clear_all();
       table->pos_in_table_list= tl;
     }
   }

@@ -799,11 +799,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	not_found_field)
     {
       /*
-	We can't find table field in table list of current select, 
+	We can't find table field in table list of current select,
 	consequently we have to find it in outer subselect(s).
-	We can't join lists of outer & current select, because of scope 
-	of view rules. For example if both tables (outer & current) have 
-	field 'field' it is not mistake to refer to this field without 
+	We can't join lists of outer & current select, because of scope
+	of view rules. For example if both tables (outer & current) have
+	field 'field' it is not mistake to refer to this field without
 	mention of table name, but if we join tables in one list it will
 	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
       */
@@ -832,8 +832,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 					 0)) != not_found_field)
 	    break;
 	  if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
-	      (refer= find_item_in_list(this, sl->item_list, &counter, 
-					 REPORT_EXCEPT_NOT_FOUND)) != 
+	      (refer= find_item_in_list(this, sl->item_list, &counter,
+					 REPORT_EXCEPT_NOT_FOUND)) !=
 	       (Item **) not_found_item)
 	    break;
 	  if (sl->master_unit()->first_select()->linkage ==
@@ -897,7 +897,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     TABLE *table=field->table;
     field->query_id=thd->query_id;
     table->used_fields++;
-    table->used_keys&=field->part_of_key;
+    table->used_keys.intersect(field->part_of_key);
   }
   fixed= 1;
   return 0;
@@ -906,14 +906,14 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
 void Item::init_make_field(Send_field *tmp_field,
 			   enum enum_field_types field_type)
-{  
+{
   char *empty_name= (char*) "";
-  tmp_field->db_name=	 	empty_name;
+  tmp_field->db_name=		empty_name;
   tmp_field->org_table_name=	empty_name;
   tmp_field->org_col_name=	empty_name;
   tmp_field->table_name=	empty_name;
   tmp_field->col_name=		name;
-  tmp_field->charsetnr= 	collation.collation->number;
+  tmp_field->charsetnr=         collation.collation->number;
   tmp_field->flags=maybe_null ? 0 : NOT_NULL_FLAG;
   tmp_field->type=field_type;
   tmp_field->length=max_length;
