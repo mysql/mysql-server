@@ -1883,7 +1883,7 @@ longlong Item_func_set_last_insert_id::val_int()
 longlong Item_func_benchmark::val_int()
 {
   char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff), default_charset_info);
+  String tmp(buff,sizeof(buff), NULL);
   THD *thd=current_thd;
 
   for (ulong loop=0 ; loop < loop_count && !thd->killed; loop++)
@@ -2029,7 +2029,7 @@ Item_func_set_user_var::update()
   case STRING_RESULT:
   {
     char buffer[MAX_FIELD_WIDTH];
-    String tmp(buffer,sizeof(buffer),default_charset_info);
+    String tmp(buffer,sizeof(buffer),NULL);
     (void) val_str(&tmp);
     break;
   }
@@ -2221,7 +2221,7 @@ longlong Item_func_inet_aton::val_int()
   char c = '.'; // we mark c to indicate invalid IP in case length is 0
   char buff[36];
 
-  String *s,tmp(buff,sizeof(buff),default_charset_info);
+  String *s,tmp(buff,sizeof(buff),NULL);
   if (!(s = args[0]->val_str(&tmp)))		// If null value
     goto err;
   null_value=0;
@@ -2275,7 +2275,7 @@ void Item_func_match::init_search(bool no_order)
 
   String *ft_tmp= 0;
   char tmp1[FT_QUERY_MAXLEN];
-  String tmp2(tmp1,sizeof(tmp1),default_charset_info);
+  String tmp2(tmp1,sizeof(tmp1),NULL);
 
   // MATCH ... AGAINST (NULL) is meaningless, but possible
   if (!(ft_tmp=key_item()->val_str(&tmp2)))

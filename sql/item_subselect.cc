@@ -318,6 +318,13 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
 						 compare_func_creator func)
 {
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
+  if (select_lex->master_unit()->global_parameters->select_limit != 
+      HA_POS_ERROR)
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+	     "LIMIT & IN/ALL/ANY/SOME subquery");
+    DBUG_VOID_RETURN;
+  }
   Item_in_optimizer *optimizer;
   substitution= optimizer= new Item_in_optimizer(left_expr, this);
   if (!optimizer)
@@ -334,6 +341,13 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
   select_lex->master_unit()->dependent= 1;
   for (SELECT_LEX * sl= select_lex; sl; sl= sl->next_select())
   {
+    if (select_lex->select_limit != HA_POS_ERROR)
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+	       "LIMIT & IN/ALL/ANY/SOME subquery");
+      DBUG_VOID_RETURN;
+    }
+
     select_lex->dependent= 1;
     Item *item;
     if (sl->item_list.elements > 1)

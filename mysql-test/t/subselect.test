@@ -15,7 +15,7 @@ SELECT (SELECT 1), a;
 SELECT 1 as a FROM (SELECT 1) as b HAVING (SELECT a)=1;
 -- error 1054
 SELECT 1 FROM (SELECT (SELECT a) b) c;
-SELECT * FROM (SELECT 1 as id) b WHERE id IN (SELECT * FROM (SELECT 1 as id) c ORDER BY id LIMIT 1);
+SELECT * FROM (SELECT 1 as id) b WHERE id IN (SELECT * FROM (SELECT 1 as id) c ORDER BY id);
 -- error 1239
 SELECT * FROM (SELECT 1) a  WHERE 1 IN (SELECT 1,1);
 SELECT 1 IN (SELECT 1);
@@ -408,4 +408,12 @@ select 1.5 > ALL (SELECT * from t);
 select 10.5 > ALL (SELECT * from t);
 select 1.5 > ANY (SELECT * from t);
 select 10.5 > ANY (SELECT * from t);
+drop table t;
+
+#LIMIT is not supported now
+create table t (a float);
+-- error 1235
+select 10.5 IN (SELECT * from t LIMIT 1);
+-- error 1235
+select 10.5 IN (SELECT * from t LIMIT 1 UNION SELECT 1.5);
 drop table t;

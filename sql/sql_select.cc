@@ -6645,12 +6645,14 @@ store_record_in_cache(JOIN_CACHE *cache)
     {
       if (last_record)
       {
-	copy->blob_field->get_image((char*) pos,copy->length+sizeof(char*));
+	copy->blob_field->get_image((char*) pos,copy->length+sizeof(char*), 
+				    copy->blob_field->charset());
 	pos+=copy->length+sizeof(char*);
       }
       else
       {
-	copy->blob_field->get_image((char*) pos,copy->length); // blob length
+	copy->blob_field->get_image((char*) pos,copy->length, // blob length
+				    copy->blob_field->charset());
 	memcpy(pos+copy->length,copy->str,copy->blob_length);  // Blob data
 	pos+=copy->length+copy->blob_length;
       }
@@ -6707,7 +6709,8 @@ read_cached_record(JOIN_TAB *tab)
     {
       if (last_record)
       {
-	copy->blob_field->set_image((char*) pos,copy->length+sizeof(char*));
+	copy->blob_field->set_image((char*) pos,copy->length+sizeof(char*),
+				    copy->blob_field->charset());
 	pos+=copy->length+sizeof(char*);
       }
       else
