@@ -234,6 +234,7 @@ public:
   enum ErrorCode {
     NoError = 0,
     Busy = 701,
+    NotMaster = 702,
     BadRequestType = 4247,
     InvalidPrimaryTable = 4249,
     InvalidIndexType = 4250,

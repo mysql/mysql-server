@@ -6053,11 +6053,21 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
       jam();
       if (getOwnNodeId() != c_masterNodeId) {
         jam();
-        // forward to DICT master
-        sendSignal(calcDictBlockRef(c_masterNodeId), GSN_CREATE_INDX_REQ,
-            signal, signal->getLength(), JBB);
-        return;
+	
+	releaseSections(signal);
+	OpCreateIndex opBusy;
+	opPtr.p = &opBusy;
+	opPtr.p->save(req);
+	opPtr.p->m_isMaster = (senderRef == reference());
+	opPtr.p->key = 0;
+	opPtr.p->m_requestType = CreateIndxReq::RT_DICT_PREPARE;
+	opPtr.p->m_errorCode = CreateIndxRef::NotMaster;
+	opPtr.p->m_errorLine = __LINE__;
+	opPtr.p->m_errorNode = c_masterNodeId;
+	createIndex_sendReply(signal, opPtr, true);
+	return;
       }
+      
       // forward initial request plus operation key to all
       req->setOpKey(++c_opRecordSequence);
       NodeReceiverGroup rg(DBDICT, c_aliveNodes);
@@ -6588,10 +6598,9 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
       jam();
       if (getOwnNodeId() != c_masterNodeId) {
         jam();
-        // forward to DICT master
-        sendSignal(calcDictBlockRef(c_masterNodeId), GSN_DROP_INDX_REQ,
-            signal, signal->getLength(), JBB);
-        return;
+
+	err = DropIndxRef::NotMaster;
+	goto error;
       }
       // forward initial request plus operation key to all
       Uint32 indexId= req->getIndexId();
@@ -6679,6 +6688,7 @@ error:
   opPtr.p->save(req);
   opPtr.p->m_errorCode = (DropIndxRef::ErrorCode)err;
   opPtr.p->m_errorLine = __LINE__;
+  opPtr.p->m_errorNode = c_masterNodeId;
   dropIndex_sendReply(signal, opPtr, true);
 }
 
@@ -9117,9 +9127,15 @@ Dbdict::execALTER_INDX_REQ(Signal* signal)
       jam();
       if (! isLocal && getOwnNodeId() != c_masterNodeId) {
         jam();
-        // forward to DICT master
-        sendSignal(calcDictBlockRef(c_masterNodeId), GSN_ALTER_INDX_REQ,
-            signal, signal->getLength(), JBB);
+
+	releaseSections(signal);
+	OpAlterIndex opBad;
+	opPtr.p = &opBad;
+	opPtr.p->save(req);
+	opPtr.p->m_errorCode = AlterIndxRef::NotMaster;
+	opPtr.p->m_errorLine = __LINE__;
+	opPtr.p->m_errorNode = c_masterNodeId;
+	alterIndex_sendReply(signal, opPtr, true);
         return;
       }
       // forward initial request plus operation key to all
@@ -9797,9 +9813,15 @@ Dbdict::execBUILDINDXREQ(Signal* signal)
       jam();
       if (getOwnNodeId() != c_masterNodeId) {
         jam();
-        // forward to DICT master
-        sendSignal(calcDictBlockRef(c_masterNodeId), GSN_BUILDINDXREQ,
-            signal, signal->getLength(), JBB);
+
+	releaseSections(signal);
+	OpBuildIndex opBad;
+	opPtr.p = &opBad;
+	opPtr.p->save(req);
+	opPtr.p->m_errorCode = BuildIndxRef::NotMaster;
+	opPtr.p->m_errorLine = __LINE__;
+	opPtr.p->m_errorNode = c_masterNodeId;
+	buildIndex_sendReply(signal, opPtr, true);
         return;
       }
       // forward initial request plus operation key to all
@@ -10263,9 +10285,15 @@ Dbdict::execCREATE_TRIG_REQ(Signal* signal)
       jam();
       if (! isLocal && getOwnNodeId() != c_masterNodeId) {
         jam();
-        // forward to DICT master
-        sendSignal(calcDictBlockRef(c_masterNodeId), GSN_CREATE_TRIG_REQ,
-            signal, signal->getLength(), JBB);
+
+	releaseSections(signal);
+	OpCreateTrigger opBad;
+	opPtr.p = &opBad;
+	opPtr.p->save(req);
+	opPtr.p->m_errorCode = CreateTrigRef::NotMaster;
+	opPtr.p->m_errorLine = __LINE__;
+	opPtr.p->m_errorNode = c_masterNodeId;
+	createTrigger_sendReply(signal,  opPtr, true);
         return;
       }
       // forward initial request plus operation key to all
