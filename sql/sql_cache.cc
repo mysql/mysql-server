@@ -1218,6 +1218,7 @@ ulong Query_cache::init_cache()
   uint mem_bin_count, num, step;
   ulong mem_bin_size, prev_size, inc;
   ulong additional_data_size, max_mem_bin_size, approx_additional_data_size;
+  int align;
 
   DBUG_ENTER("Query_cache::init_cache");
   if (!initialized)
@@ -1228,8 +1229,8 @@ ulong Query_cache::init_cache()
   if (query_cache_size < approx_additional_data_size)
     goto err;
 
-  query_cache_size -= approx_additional_data_size;
-  int align= query_cache_size % ALIGN_SIZE(1);
+  query_cache_size-= approx_additional_data_size;
+  align= query_cache_size % ALIGN_SIZE(1);
   if (align)
   {
     query_cache_size-= align;
