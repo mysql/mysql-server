@@ -1067,7 +1067,9 @@ JOIN::exec()
       else
 	error=(int) result->send_eof();
     }
-    thd->limit_found_rows= thd->examined_row_count= 0;
+    /* Single select (without union and limit) always returns 1 row */
+    thd->limit_found_rows= 1;
+    thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
   thd->limit_found_rows= thd->examined_row_count= 0;
