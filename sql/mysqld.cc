@@ -3339,7 +3339,7 @@ struct my_option my_long_options[] =
 #ifdef USE_SYMDIR
   {"use-symbolic-links", 's', "Enable symbolic link support",
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
-   USE_PURIFY(0,1), 0, 0, 0, 0, 0},
+   IF_PURIFY(0,1), 0, 0, 0, 0, 0},
 #endif
   {"user", 'u', "Run mysqld daemon as user", (gptr*) &mysqld_user,
    (gptr*) &mysqld_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
