@@ -609,8 +609,12 @@ row_sel_get_clust_rec(
 
 	clust_rec = btr_pcur_get_rec(&(plan->clust_pcur));
 
-	if (btr_pcur_get_low_match(&(plan->clust_pcur))
-	    < dict_index_get_n_unique(index)) {
+	/* Note: only if the search ends up on a non-infimum record is the
+	low_match value the real match to the search tuple */
+
+	if (!page_rec_is_user_rec(clust_rec)
+            || btr_pcur_get_low_match(&(plan->clust_pcur))
+	       < dict_index_get_n_unique(index)) {
 	
 		ut_a(rec_get_deleted_flag(rec));
 		ut_a(node->read_view);
@@ -2322,8 +2326,12 @@ row_sel_get_clust_rec_for_mysql(
 
 	clust_rec = btr_pcur_get_rec(prebuilt->clust_pcur);
 
-	if (btr_pcur_get_low_match(prebuilt->clust_pcur)
-	    < dict_index_get_n_unique(clust_index)) {
+	/* Note: only if the search ends up on a non-infimum record is the
+	low_match value the real match to the search tuple */
+
+	if (!page_rec_is_user_rec(clust_rec)
+	    || btr_pcur_get_low_match(prebuilt->clust_pcur)
+	       < dict_index_get_n_unique(clust_index)) {
 	
 		/* In a rare case it is possible that no clust rec is found
 		for a delete-marked secondary index record: if in row0umod.c

@@ -792,8 +792,10 @@ row_ins_foreign_check_on_constraint(
 
 		clust_rec = btr_pcur_get_rec(cascade->pcur);
 
-		if (btr_pcur_get_low_match(cascade->pcur)
-		    < dict_index_get_n_unique(clust_index)) {
+		if (!page_rec_is_user_rec(clust_rec)
+		    || btr_pcur_get_low_match(cascade->pcur)
+		       < dict_index_get_n_unique(clust_index)) {
+
 		        fprintf(stderr,
 			"InnoDB: error in cascade of a foreign key op\n"
 		  	"InnoDB: index %s table %s\n", index->name,
