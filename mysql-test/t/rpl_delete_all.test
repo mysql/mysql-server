@@ -6,7 +6,8 @@ connection master;
 drop database if exists test1;
 sync_slave_with_master;
 # can't read dir
-error 12;
+--replace_result "Errcode: 1" "Errcode: X" "Errcode: 2" "Errcode: X"
+--error 12
 show tables from test1;
 
 connection slave;
@@ -15,7 +16,7 @@ connection master;
 drop table if exists t1;
 sync_slave_with_master;
 # table does not exist
-error 1146;
+--error 1146
 select * from t1;
 
 connection master;
