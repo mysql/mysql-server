@@ -30,3 +30,31 @@ INSERT INTO t1 VALUES (-9e999999);
 --replace_result (-1.79769313486232e+308) (RES) (NULL) (RES)
 --exec $MYSQL_DUMP --skip-comments test t1
 DROP TABLE t1;
+
+#
+# Bug #3361 mysqldum quotes DECIMAL values
+#
+
+CREATE TABLE t1 (a DECIMAL(10,5), b FLOAT);
+
+# check at first how mysql work with quoted decimal
+
+INSERT INTO t1 VALUES (1.2345, 2.3456);
+INSERT INTO t1 VALUES ('1.2345', 2.3456);
+INSERT INTO t1 VALUES ("1.2345", 2.3456);
+
+# The code below should be uncommented in mysql-4.1 to fix 
+# behaviour of quoting DECIMAL fields with different 
+# values of sql_mode
+########
+#SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ANSI_QUOTES';
+#INSERT INTO t1 VALUES (1.2345, 2.3456);
+#INSERT INTO t1 VALUES ('1.2345', 2.3456);
+#--error 1054
+#INSERT INTO t1 VALUES ("1.2345", 2.3456);
+#SET SQL_MODE=@OLD_SQL_MODE;
+########
+
+# check how mysqldump make quoting
+--exec $MYSQL_DUMP --skip-comments test t1
+DROP TABLE t1;
