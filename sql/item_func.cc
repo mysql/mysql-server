@@ -194,8 +194,8 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
     }
     if ((*arg)->type() == FIELD_ITEM)
       ((Item_field *)(*arg))->no_const_subst= 1;
-    conv->fix_fields(thd, 0, &conv);
     *arg= conv;
+    conv->fix_fields(thd, 0, arg);
   }
   if (arena)
     thd->restore_backup_item_arena(arena, &backup);

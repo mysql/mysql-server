@@ -428,6 +428,7 @@ public:
   bool end_of_fields() { return ptr == array_end; }
   const char *name();
   Item *item(THD *thd) { return ptr->item; }
+  Item **item_ptr() {return &ptr->item; }
   Field *field() { return 0; }
 };
 
