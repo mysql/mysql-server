@@ -2756,11 +2756,12 @@ subject line and the body of the message are ignored.
 
 @c the last two addresses in this paragraph are NOT @email because they
 @c shouldn't be live links.
-If your reply address is not valid, you can specify your address explicitly.
-Adding a hyphen to the subscribe or unsubscribe command word, followed by
-your address with the @samp{@@} character in your address replaced by a
-@samp{=}.  For example, to subscribe @code{john@@host.domain}, send a message
-to @code{mysql-subscribe-john=host.domain@@lists.mysql.com}.
+If your reply address is not valid, you can specify your address
+explicitly.  Adding a hyphen to the subscribe or unsubscribe command
+word, followed by your address with the @samp{@@} character in your
+address replaced by a @samp{=}.  For example, to subscribe
+@code{your_name@@host.domain}, send a message to
+@code{mysql-subscribe-your_name=host.domain@@lists.mysql.com}.
 
 Mail to @email{mysql-subscribe@@lists.mysql.com} or
 @email{mysql-unsubscribe@@lists.mysql.com} is handled automatically by the
