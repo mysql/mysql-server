@@ -64,7 +64,7 @@ concat_ws(NULL,'a')	concat_ws(',',NULL,'')
 NULL	
 select concat_ws(',','',NULL,'a');
 concat_ws(',','',NULL,'a')
-a
+,a
 SELECT CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),repeat('d',100)), '"');
 CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),repeat('d',100)), '"')
 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
