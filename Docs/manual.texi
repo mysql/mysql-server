@@ -3627,12 +3627,12 @@ Greece [NTUA, Athens] @
 @c @uref{http://xenia.sote.hu/ftp/mirrors/www.mysql.com/, WWW}
 @c @uref{ftp://xenia.sote.hu/pub/mirrors/www.mysql.com/,FTP}
 
-@c @item
-@c Not ok 20000919; Old site (Matt)
+@item
 @c EMAIL: mirrors@gm.is (Tomas Edwardsson)
-@c @image{Flags/iceland} Island [GM] @
-@c @uref{http://mysql.gm.is/, WWW}
-@c @uref{ftp://ftp.gm.is/pub/mysql, WWW}
+@c @image{Flags/iceland}
+Island [GM] @
+@uref{http://mysql.gm.is/, WWW}
+@uref{ftp://ftp.gm.is/pub/mysql, WWW}
 
 @c @item
 @c Out of date 990906
@@ -3750,12 +3750,12 @@ Switzerland [Sunsite] @
 @c @image{Flags/great-britain} UK [Oyster/UK] @
 @c @uref{ftp://ftp.oyster.co.uk/pub/mysql, FTP}
 
-@c @item
-@c Not ok 20000919; Old site (Matt)
+@item
 @c gareth@omnipotent.net (Gareth Watts)
-@c @image{Flags/great-britain} UK [Omnipotent/UK] @
-@c @uref{http://mysql.omnipotent.net/, WWW}
-@c @uref{ftp://mysql.omnipotent.net/, FTP}
+@c @image{Flags/great-britain}
+UK [Omnipotent/UK] @
+@uref{http://mysql.omnipotent.net/, WWW}
+@uref{ftp://mysql.omnipotent.net/, FTP}
 
 @item
 @c keet@mordor.plig.net (Christiaan Keet)
@@ -4001,11 +4001,11 @@ Singapore [HJC] @
 @c @image{Flags/taiwan} Taiwan [HT] @
 @c @uref{http://mysql.ht.net.tw, WWW}
 
-@c @item
-@c Not ok 20000919; Old site (Matt)
+@item
 @c EMAIL: linda@ttn.com.tw (Linda Hu)
-@c @image{Flags/taiwan} Taiwan [TTN] @
-@c @uref{http://mysql.ttn.net, WWW}
+@c @image{Flags/taiwan}
+Taiwan [TTN] @
+@uref{http://mysql.ttn.net, WWW}
 
 @c @item
 @c Ok 980321 No connect -> removed 990730
