@@ -135,3 +135,16 @@ ALTER TABLE host
 ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
 
+alter table db change Db Db char(64) binary DEFAULT '' NOT NULL;
+alter table host change Db Db char(64) binary DEFAULT '' NOT NULL;
+alter table user change password Password char(16) binary NOT NULL, change max_questions max_questions int(11) unsigned DEFAULT 0  NOT NULL;
+alter table tables_priv change Db Db char(64) binary DEFAULT '' NOT NULL, change Host Host char(60) binary DEFAULT '' NOT NULL, change User User char(16) binary DEFAULT '' NOT NULL, change Table_name Table_name char(64) binary DEFAULT '' NOT NULL;
+alter table tables_priv add KEY Grantor (Grantor);
+alter table columns_priv change Db Db char(64) binary DEFAULT '' NOT NULL, change Host Host char(60) binary DEFAULT '' NOT NULL, change User User char(16) binary DEFAULT '' NOT NULL, change Table_name Table_name char(64) binary DEFAULT '' NOT NULL, change Column_name Column_name char(64) binary DEFAULT '' NOT NULL;
+
+alter table db comment='Database privileges';
+alter table host comment='Host privileges;  Merged with database privileges';
+alter table user comment='Users and global privileges';
+alter table func comment='User defined functions';
+alter table tables_priv comment='Table privileges';
+alter table columns_priv comment='Column privileges';
