@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <my_pthread.h>
 
 #include "MgmtSrvr.hpp"
 #include "EventLogger.hpp"
@@ -97,12 +98,19 @@ extern EventLogger g_EventLogger;
 
 extern int global_mgmt_server_check;
 int _print_version = 0;
+#ifndef DBUG_OFF
+const char *debug_option= 0;
+#endif
 
 struct getargs args[] = {
   { "version", 'v', arg_flag, &_print_version,
     "Print ndb_mgmd version"},
   { "config-file", 'c', arg_string, &glob.config_filename,
     "Specify cluster configuration file", "filename" },
+#ifndef DBUG_OFF
+  { "debug", 0, arg_string, &debug_option,
+    "Specify debug option", "options" },
+#endif
   { "daemon", 'd', arg_flag, &glob.daemon,
     "Run ndb_mgmd in daemon mode" },
   { NULL, 'l', arg_string, &glob.local_config_filename,
@@ -134,6 +142,12 @@ NDB_MAIN(mgmsrv){
     arg_printusage(args, num_args, progname, "");
     exit(1);
   }
+
+  my_thread_global_init();
+#ifndef DBUG_OFF
+  if (debug_option)
+    DBUG_PUSH(debug_option);
+#endif
 
   if (_print_version) {
     ndbPrintVersion();
