@@ -379,8 +379,8 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     scanNext(signal, scanPtr);
   }
   // for reading tuple key in Current or Locked state
-  ReadPar keyPar;
-  keyPar.m_data = 0;   // indicates not yet done
+  Data pkData = c_dataBuffer;
+  unsigned pkSize = 0; // indicates not yet done
   if (scan.m_state == ScanOp::Current) {
     // found an entry to return
     jam();
@@ -389,9 +389,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       jam();
       const TreeEnt ent = scan.m_scanPos.m_ent;
       // read tuple key
-      keyPar.m_ent = ent;
-      keyPar.m_data = c_dataBuffer;
-      tupReadKeys(signal, frag, keyPar);
+      readTablePk(frag, ent, pkSize, pkData);
       // get read lock or exclusive lock
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
@@ -403,9 +401,9 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       lockReq->tableId = scan.m_tableId;
       lockReq->fragId = frag.m_fragId | (ent.m_fragBit << frag.m_fragOff);
       lockReq->fragPtrI = frag.m_accTableFragPtrI[ent.m_fragBit];
-      const Uint32* const buf32 = static_cast<Uint32*>(keyPar.m_data);
+      const Uint32* const buf32 = static_cast<Uint32*>(pkData);
       const Uint64* const buf64 = reinterpret_cast<const Uint64*>(buf32);
-      lockReq->hashValue = md5_hash(buf64, keyPar.m_size);
+      lockReq->hashValue = md5_hash(buf64, pkSize);
       lockReq->tupAddr = getTupAddr(frag, ent);
       lockReq->transId1 = scan.m_transId1;
       lockReq->transId2 = scan.m_transId2;
@@ -480,11 +478,9 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     const TreeEnt ent = scan.m_scanPos.m_ent;
     if (scan.m_keyInfo) {
       jam();
-      if (keyPar.m_data == 0) {
+      if (pkSize == 0) {
         jam();
-        keyPar.m_ent = ent;
-        keyPar.m_data = c_dataBuffer;
-        tupReadKeys(signal, frag, keyPar);
+        readTablePk(frag, ent, pkSize, pkData);
       }
     }
     // conf signal
@@ -510,10 +506,10 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     // add key info
     if (scan.m_keyInfo) {
       jam();
-      conf->keyLength = keyPar.m_size;
+      conf->keyLength = pkSize;
       // piggy-back first 4 words of key data
       for (unsigned i = 0; i < 4; i++) {
-        conf->key[i] = i < keyPar.m_size ? keyPar.m_data[i] : 0;
+        conf->key[i] = i < pkSize ? pkData[i] : 0;
       }
       signalLength = 11;
     }
@@ -525,18 +521,18 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
     }
     // send rest of key data
-    if (scan.m_keyInfo && keyPar.m_size > 4) {
+    if (scan.m_keyInfo && pkSize > 4) {
       unsigned total = 4;
-      while (total < keyPar.m_size) {
+      while (total < pkSize) {
         jam();
-        unsigned length = keyPar.m_size - total;
+        unsigned length = pkSize - total;
         if (length > 20)
           length = 20;
         signal->theData[0] = scan.m_userPtr;
         signal->theData[1] = 0;
         signal->theData[2] = 0;
         signal->theData[3] = length;
-        memcpy(&signal->theData[4], &keyPar.m_data[total], length << 2);
+        memcpy(&signal->theData[4], &pkData[total], length << 2);
         sendSignal(scan.m_userRef, GSN_ACC_SCAN_INFO24,
             signal, 4 + length, JBB);
         total += length;
@@ -895,35 +891,25 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
 bool
 Dbtux::scanVisible(Signal* signal, ScanOpPtr scanPtr, TreeEnt ent)
 {
-  TupQueryTh* const req = (TupQueryTh*)signal->getDataPtrSend();
   const ScanOp& scan = *scanPtr.p;
   const Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
-  /* Assign table, fragment, tuple address + version */
-  Uint32 tableId = frag.m_tableId;
   Uint32 fragBit = ent.m_fragBit;
+  Uint32 tableFragPtrI = frag.m_tupTableFragPtrI[fragBit];
   Uint32 fragId = frag.m_fragId | (fragBit << frag.m_fragOff);
   Uint32 tupAddr = getTupAddr(frag, ent);
   Uint32 tupVersion = ent.m_tupVersion;
-  /* Check for same tuple twice in row */
+  // check for same tuple twice in row
   if (scan.m_lastEnt.m_tupLoc == ent.m_tupLoc &&
       scan.m_lastEnt.m_fragBit == fragBit) {
     jam();
     return false;
   }
-  req->tableId = tableId;
-  req->fragId = fragId;
-  req->tupAddr = tupAddr;
-  req->tupVersion = tupVersion;
-  /* Assign transaction info, trans id + savepoint id */
   Uint32 transId1 = scan.m_transId1;
   Uint32 transId2 = scan.m_transId2;
   Uint32 savePointId = scan.m_savePointId;
-  req->transId1 = transId1;
-  req->transId2 = transId2;
-  req->savePointId = savePointId;
-  EXECUTE_DIRECT(DBTUP, GSN_TUP_QUERY_TH, signal, TupQueryTh::SignalLength);
+  bool ret = c_tup->tuxQueryTh(tableFragPtrI, tupAddr, tupVersion, transId1, transId2, savePointId);
   jamEntry();
-  return (bool)req->returnCode;
+  return ret;
 }
 
 /*

@@ -152,10 +152,10 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tu
   const Uint32* tupleHeader = &pagePtr.p->pageWord[pageOffset];
   for (Uint32 i = 0; i < numAttrs; i++) {
     AttributeHeader ah(attrIds[i]);
-    Uint32 attrId = ah.getAttributeId();
-    Uint32 index = tabDescriptor + (attrId << ZAD_LOG_SIZE);
-    Uint32 desc1 = tableDescriptor[index].tabDescr;
-    Uint32 desc2 = tableDescriptor[index + 1].tabDescr;
+    const Uint32 attrId = ah.getAttributeId();
+    const Uint32 index = tabDescriptor + (attrId << ZAD_LOG_SIZE);
+    const Uint32 desc1 = tableDescriptor[index].tabDescr;
+    const Uint32 desc2 = tableDescriptor[index + 1].tabDescr;
     if (AttributeDescriptor::getNullable(desc1)) {
       Uint32 offset = AttributeOffset::getNullFlagOffset(desc2);
       ndbrequire(offset < tablePtr.p->tupNullWords);
@@ -171,9 +171,78 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tu
   }
 }
 
-void    // under construction
-Dbtup::tuxReadKeys()
+void
+Dbtup::tuxReadKeys(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* pkSize, Uint32* pkData)
 {
+  ljamEntry();
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr tablePtr;
+  tablePtr.i = fragPtr.p->fragTableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  PagePtr pagePtr;
+  pagePtr.i = pageId;
+  ptrCheckGuard(pagePtr, cnoOfPage, page);
+  const Uint32 tabDescriptor = tablePtr.p->tabDescriptor;
+  const Uint32 numAttrs = tablePtr.p->noOfKeyAttr;
+  const Uint32* attrIds = &tableDescriptor[tablePtr.p->readKeyArray].tabDescr;
+  const Uint32* tupleHeader = &pagePtr.p->pageWord[pageOffset];
+  Uint32 size = 0;
+  for (Uint32 i = 0; i < numAttrs; i++) {
+    AttributeHeader ah(attrIds[i]);
+    const Uint32 attrId = ah.getAttributeId();
+    const Uint32 index = tabDescriptor + (attrId << ZAD_LOG_SIZE);
+    const Uint32 desc1 = tableDescriptor[index].tabDescr;
+    const Uint32 desc2 = tableDescriptor[index + 1].tabDescr;
+    ndbrequire(! AttributeDescriptor::getNullable(desc1));
+    const Uint32 attrSize = AttributeDescriptor::getSizeInWords(desc1);
+    const Uint32* attrData = tupleHeader + AttributeOffset::getOffset(desc2);
+    for (Uint32 j = 0; j < attrSize; j++) {
+      pkData[size + j] = attrData[j];
+    }
+    size += attrSize;
+  }
+  *pkSize = size;
+}
+
+bool
+Dbtup::tuxQueryTh(Uint32 fragPtrI, Uint32 tupAddr, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, Uint32 savePointId)
+{
+  ljamEntry();
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr tablePtr;
+  tablePtr.i = fragPtr.p->fragTableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  // get page
+  PagePtr pagePtr;
+  Uint32 fragPageId = tupAddr >> MAX_TUPLES_BITS;
+  Uint32 pageIndex = tupAddr & ((1 << MAX_TUPLES_BITS ) - 1);
+  // use temp op rec
+  Operationrec tempOp;
+  tempOp.fragPageId = fragPageId;
+  tempOp.pageIndex = pageIndex;
+  tempOp.transid1 = transId1;
+  tempOp.transid2 = transId2;
+  tempOp.savePointId = savePointId;
+  tempOp.optype = ZREAD;
+  tempOp.dirtyOp = 1;
+  if (getPage(pagePtr, &tempOp, fragPtr.p, tablePtr.p)) {
+    /*
+    * We use the normal getPage which will return the tuple to be used
+    * for this transaction and savepoint id.  If its tuple version
+    * equals the requested then we have a visible tuple otherwise not.
+    */
+    ljam();
+    Uint32 read_tupVersion = pagePtr.p->pageWord[tempOp.pageOffset + 1];
+    if (read_tupVersion == tupVersion) {
+      ljam();
+      return true;
+    }
+  }
+  return false;
 }
 
 // deprecated signal interfaces
