@@ -384,7 +384,7 @@ void table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
 void kill_mysql(void);
-void close_connection(NET *net,uint errcode=0,bool lock=1);
+void close_connection(THD *thd, uint errcode, bool lock);
 bool check_access(THD *thd, ulong access, const char *db=0, ulong *save_priv=0,
 		  bool no_grant=0, bool no_errors=0);
 bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
