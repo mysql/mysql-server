@@ -45,7 +45,7 @@ File my_create_with_symlink(const char *linkname, const char *filename,
   else
   {
     if (linkname)
-      my_realpath(&abs_linkname, linkname, MYF(0));
+      my_realpath(abs_linkname, linkname, MYF(0));
     create_link= (linkname && strcmp(abs_linkname,filename));
   }
 

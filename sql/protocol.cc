@@ -60,7 +60,7 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   char buff[MYSQL_ERRMSG_SIZE+2], *pos;
 #endif
   NET *net= &thd->net;
-  bool generate_warning= 1;
+  bool generate_warning= thd->killed != THD::KILL_CONNECTION;
   DBUG_ENTER("net_send_error");
   DBUG_PRINT("enter",("sql_errno: %d  err: %s", sql_errno,
 		      err ? err : net->last_error[0] ?
@@ -252,8 +252,9 @@ net_printf_error(THD *thd, uint errcode, ...)
   strmake(net->last_error, text_pos, length);
   strmake(net->sqlstate, mysql_errno_to_sqlstate(errcode), SQLSTATE_LENGTH);
 #endif
-  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, errcode,
-	       text_pos ? text_pos : ER(errcode));
+  if (thd->killed != THD::KILL_CONNECTION)
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, errcode,
+                 text_pos ? text_pos : ER(errcode));
   thd->is_fatal_error=0;			// Error message is given
   DBUG_VOID_RETURN;
 }
