@@ -1273,10 +1273,24 @@ String *Item_func_password::val_str(String *str)
     return 0;
   if (res->length() == 0)
     return &empty_string;
-  make_scrambled_password(tmp_value,res->c_ptr());
-  str->set(tmp_value,get_password_length(),res->charset());
+  make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords);
+  str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
   return str;
 }
+
+String *Item_func_old_password::val_str(String *str)
+{
+  String *res  =args[0]->val_str(str);
+  if ((null_value=args[0]->null_value))
+    return 0;
+  if (res->length() == 0)
+    return &empty_string;
+  make_scrambled_password(tmp_value,res->c_ptr(),1);
+  str->set(tmp_value,16,res->charset());
+  return str;
+}
+
+
 
 #define bin_to_ascii(c) ((c)>=38?((c)-38+'a'):(c)>=12?((c)-12+'A'):(c)+'.')
 

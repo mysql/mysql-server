@@ -63,7 +63,8 @@ public:
   uint hostname_length;
   USER_RESOURCES user_resource;
   char *user,*password;
-  ulong salt[2];
+  ulong salt[6]; // New password has longer length
+  uint8 pversion; // password version 
   enum SSL_type ssl_type;
   const char *ssl_cipher, *x509_issuer, *x509_subject;
 };
@@ -231,7 +232,7 @@ my_bool acl_init(bool dont_read_acl_tables)
 		      "Found old style password for user '%s'. Ignoring user. (You may want to restart mysqld using --old-protocol)",
 		      user.user ? user.user : ""); /* purecov: tested */
     }
-    else if (length % 8)		// This holds true for passwords
+    else if (length % 8 && length!=45)		// This holds true for passwords
     {
       sql_print_error(
 		      "Found invalid password for user: '%s@%s'; Ignoring user",
@@ -240,6 +241,7 @@ my_bool acl_init(bool dont_read_acl_tables)
       continue;					/* purecov: tested */
     }
     get_salt_from_password(user.salt,user.password);
+    user.pversion=get_password_version(user.password);
     user.access=get_access(table,3) & GLOBAL_ACLS;
     user.sort=get_sort(2,user.host.hostname,user.user);
     user.hostname_length= (user.host.hostname ?
@@ -671,6 +673,7 @@ static void acl_update_user(const char *user, const char *host,
 	  {
 	    acl_user->password=(char*) "";	// Just point at something
 	    get_salt_from_password(acl_user->salt,password);
+	    acl_user->pversion=get_password_version(acl_user->password);
 	  }
 	}
 	break;
@@ -706,6 +709,7 @@ static void acl_insert_user(const char *user, const char *host,
   {
     acl_user.password=(char*) "";		// Just point at something
     get_salt_from_password(acl_user.salt,password);
+    acl_user.pversion=get_password_version(acl_user.password);
   }
 
   VOID(push_dynamic(&acl_users,(gptr) &acl_user));
@@ -1052,9 +1056,11 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (check_change_password(thd, host, user))
     DBUG_RETURN(1);
 
-  /* password should always be 0 or 16 chars; simple hack to avoid cracking */
+  /* password should always be 0,16 or 45 chars; simple hack to avoid cracking */
   length=(uint) strlen(new_password);
-  new_password[length & 16]=0;
+  
+  if (length!=45)
+    new_password[length & 16]=0;
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
   ACL_USER *acl_user;
@@ -1074,6 +1080,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     DBUG_RETURN(1); /* purecov: deadcode */
   }
   get_salt_from_password(acl_user->salt,new_password);
+  acl_user->pversion=get_password_version(new_password);
   if (!new_password[0])
     acl_user->password=0;
   else
@@ -1081,7 +1088,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   acl_cache->clear(1);				// Clear locked hostname cache
   VOID(pthread_mutex_unlock(&acl_cache->lock));
 
-  char buff[460];
+  char buff[512]; /* Extend with extended password length*/
   ulong query_length=
     my_sprintf(buff,
 	       (buff,"SET PASSWORD FOR \"%-.120s\"@\"%-.120s\"=\"%-.120s\"",
