@@ -1343,3 +1343,16 @@ a
 2
 drop view v3,v2,v1;
 drop table t1;
+create table t1 (a int, primary key (a));
+create view v1 as select * from t1 where a < 2 with check option;
+insert into v1 values (1) on duplicate key update a=2;
+insert into v1 values (1) on duplicate key update a=2;
+ERROR HY000: CHECK OPTION failed
+insert ignore into v1 values (1) on duplicate key update a=2;
+Warnings:
+Error	1359	CHECK OPTION failed
+select * from t1;
+a
+1
+drop view v1;
+drop table t1;

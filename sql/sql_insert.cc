@@ -242,6 +242,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   info.handle_duplicates=duplic;
   info.update_fields=&update_fields;
   info.update_values=&update_values;
+  info.check_option= table_list->check_option;
+  info.ignore= thd->lex->duplicates == DUP_IGNORE;
   /*
     Count warnings for all inserts.
     For single line insert, generate an error if try to set a NOT NULL field
@@ -714,6 +716,24 @@ int write_record(TABLE *table,COPY_INFO *info)
         restore_record(table,record[1]);
         if (fill_record(*info->update_fields, *info->update_values, 0))
           goto err;
+
+        /* CHECK OPTION for VIEW ... ON DUPLICATE KEY UPDATE ... */
+        if (info->check_option &&
+            info->check_option->val_int() == 0)
+        {
+          if (info->ignore)
+          {
+            push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                         ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED));
+            break;
+          }
+          else
+          {
+            my_error(ER_VIEW_CHECK_FAILED, MYF(0));
+            goto err;
+          }
+        }
+
         if ((error=table->file->update_row(table->record[1],table->record[0])))
           goto err;
         info->updated++;
@@ -1630,6 +1650,21 @@ int mysql_insert_select_prepare(THD *thd)
                                        &lex->select_lex.where))
     DBUG_RETURN(-1);
   DBUG_RETURN(0);
+}
+
+
+select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
+                             List<Item> *fields_par, enum_duplicates duplic,
+                             bool ignore_check_option_errors)
+  :table_list(table_list_par), table(table_par), fields(fields_par),
+   last_insert_id(0),
+   insert_into_view(table_list_par && table_list_par->view != 0)
+{
+  bzero((char*) &info,sizeof(info));
+  info.handle_duplicates=duplic;
+  if (table_list_par)
+    info.check_option= table_list_par->check_option;
+  info.ignore= ignore_check_option_errors;
 }
 
 
