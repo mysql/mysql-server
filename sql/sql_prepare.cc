@@ -887,7 +887,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 {
   LEX *lex;
   Prepared_statement *stmt= new Prepared_statement(thd);
-
+  SELECT_LEX *sl;
   DBUG_ENTER("mysql_stmt_prepare");
 
   if (stmt == 0)
@@ -918,7 +918,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
     my_pthread_setprio(pthread_self(),WAIT_PRIOR);
 
   // save WHERE clause pointers to avoid damaging they by optimisation
-  for (SELECT_LEX *sl= thd->lex->all_selects_list;
+  for (sl= thd->lex->all_selects_list;
        sl;
        sl= sl->next_select_in_list())
   {

@@ -128,7 +128,7 @@ public:
   virtual ~Item() { name=0; cleanup(); }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
-  virtual void cleanup() {}
+  virtual void cleanup() { fixed=0; }
   virtual void make_field(Send_field *field);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
   virtual int save_in_field(Field *field, bool no_conversions);
