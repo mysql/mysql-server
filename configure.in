@@ -1315,11 +1315,11 @@ AC_CHECK_LIB(pthread,strtok_r)
 LIBS="$my_save_LIBS"
 if test "$ac_cv_lib_pthread_strtok_r" = "no"
 then
-  my_save_LIBS="$LIBS"
   AC_CHECK_LIB(c_r,strtok_r)
   case "$with_osf32_threads---$target_os" in
     # Don't keep -lc_r in LIBS; -pthread handles it magically
-    yes---* | *---freebsd* ) LIBS="$my_save_LIBS" ;;
+    yes---* | *---freebsd* | *---hpux*) LIBS="$my_save_LIBS" ;;
+
   esac
   AC_CHECK_FUNCS(strtok_r pthread_init)
 else
