@@ -746,8 +746,8 @@ Very fast B-tree disk tables with index compression.
 
 @item
 Up to 32 indexes per table are allowed.  Each index may consist of 1 to 16
-columns or parts of columns.  The maximum index length is 500 bytes (this
-may be changed when compiling MySQL).  An index may use a prefix
+columns or parts of columns.  The maximum index width is 500 bytes
+(this may be changed when compiling MySQL).  An index may use a prefix
 of a @code{CHAR} or @code{VARCHAR} field.
 
 @item

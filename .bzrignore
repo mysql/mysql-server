@@ -421,3 +421,4 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 Docs/#manual.texi#
+Docs/texi2dvi.out
