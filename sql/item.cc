@@ -893,6 +893,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 					 table_list, &where,
 					 0)) != not_found_field)
 	  {
+	    if (!tmp)
+	      return -1;
 	    prev_subselect_item->used_tables_cache|= tmp->table->map;
 	    prev_subselect_item->const_item_cache= 0;
 	    break;
