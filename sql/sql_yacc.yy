@@ -106,6 +106,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SELECT_SYM
 %token  MASTER_SYM
 %token	REPAIR
+%token  RESET_SYM
 %token  SLAVE
 %token  START_SYM
 %token  STOP_SYM
@@ -491,7 +492,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <NONE>
 	query verb_clause create change select drop insert replace insert2
 	insert_values update delete show describe load alter optimize flush
-	begin commit rollback slave master_def master_defs
+	reset begin commit rollback slave master_def master_defs
 	repair restore backup analyze check rename
 	field_list field_list_item field_spec kill
 	select_item_list select_item values_list no_braces
@@ -550,6 +551,7 @@ verb_clause:
 	| rename
         | repair
 	| replace
+	| reset
 	| restore
 	| revoke
 	| rollback
@@ -2231,6 +2233,17 @@ opt_table_list:
 	/* empty */  {}
 	| table_list {}
 
+reset:
+	RESET_SYM {Lex->sql_command= SQLCOM_RESET; Lex->type=0; } reset_options
+
+reset_options:
+	reset_options ',' reset_option
+	| reset_option
+
+reset_option:
+        SLAVE           { Lex->type|= REFRESH_SLAVE; }
+        | MASTER_SYM    { Lex->type|= REFRESH_MASTER; }
+
 /* kill threads */
 
 kill:
@@ -2482,6 +2495,7 @@ keyword:
 	| RAID_TYPE		{}
 	| RELOAD		{}
 	| REPAIR		{}
+	| RESET_SYM		{}
 	| RESTORE_SYM		{}
 	| ROLLBACK_SYM		{}
 	| ROWS_SYM		{}

@@ -1674,6 +1674,7 @@ mysql_execute_command(void)
      break;
    }
   case SQLCOM_FLUSH:
+  case SQLCOM_RESET:
     if (check_access(thd,RELOAD_ACL,any_db) || check_db_used(thd, tables))
       goto error;
     if (reload_acl_and_cache(thd, lex->type, tables))
