@@ -1488,7 +1488,14 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 		   "forward reference in item list");
 	  return -1;
 	}
-
+        /*
+          Here, a subset of actions performed by Item_ref::set_properties
+          is not enough. So we pass ptr to NULL into Item_[direct]_ref
+          constructor, so no initialization is performed, and call 
+          fix_fields() below.
+        */
+        Item *save= last->ref_pointer_array[counter];
+        last->ref_pointer_array[counter]= NULL;
 	Item_ref *rf= (place == IN_HAVING ?
                        new Item_ref(last->ref_pointer_array + counter,
                                     (char *)table_name,
@@ -1499,6 +1506,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (!rf)
 	  return 1;
         thd->change_item_tree(ref, rf);
+        last->ref_pointer_array[counter]= save;
 	/*
 	  rf is Item_ref => never substitute other items (in this case)
 	  during fix_fields() => we can use rf after fix_fields()
@@ -2221,18 +2229,23 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	      "forward reference in item list"));
     return 1;
   }
-  max_length= (*ref)->max_length;
-  maybe_null= (*ref)->maybe_null;
-  decimals=   (*ref)->decimals;
-  collation.set((*ref)->collation);
-  with_sum_func= (*ref)->with_sum_func;
-  fixed= 1;
+
+  set_properties();
 
   if (ref && (*ref)->check_cols(1))
     return 1;
   return 0;
 }
 
+void Item_ref::set_properties()
+{
+  max_length= (*ref)->max_length;
+  maybe_null= (*ref)->maybe_null;
+  decimals=   (*ref)->decimals;
+  collation.set((*ref)->collation);
+  with_sum_func= (*ref)->with_sum_func;
+  fixed= 1;
+}
 
 void Item_ref::print(String *str)
 {
@@ -2279,7 +2292,7 @@ bool Item_default_value::fix_fields(THD *thd,
     fixed= 1;
     return 0;
   }
-  if (arg->fix_fields(thd, table_list, &arg))
+  if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
     return 1;
   
   if (arg->type() == REF_ITEM)
@@ -2326,7 +2339,7 @@ bool Item_insert_value::fix_fields(THD *thd,
 				   Item **items)
 {
   DBUG_ASSERT(fixed == 0);
-  if (arg->fix_fields(thd, table_list, &arg))
+  if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
     return 1;
 
   if (arg->type() == REF_ITEM)

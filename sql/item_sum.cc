@@ -1918,7 +1918,9 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
   for (i=0 ; i < arg_count ; i++)  
   {
-    if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
+    if ((!args[i]->fixed && 
+         args[i]->fix_fields(thd, tables, args + i)) ||
+        args[i]->check_cols(1))
       return 1;
     if (i < arg_count_field)
       maybe_null|= args[i]->maybe_null;

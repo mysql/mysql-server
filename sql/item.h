@@ -827,14 +827,36 @@ public:
 
 class Item_ref :public Item_ident
 {
+protected:
+  void set_properties();
 public:
   Field *result_field;			 /* Save result here */
   Item **ref;
   Item_ref(const char *db_par, const char *table_name_par,
            const char *field_name_par)
     :Item_ident(db_par, table_name_par, field_name_par), ref(0) {}
+  /*
+    This constructor is used in two scenarios:
+    A) *item = NULL
+      No initialization is performed, fix_fields() call will be necessary.
+      
+    B) *item points to an Item this Item_ref will refer to. This is 
+      used for GROUP BY. fix_fields() will not be called in this case,
+      so we call set_properties to make this item "fixed". set_properties
+      performs a subset of action Item_ref::fix_fields does, and this subset
+      is enough for Item_ref's used in GROUP BY.
+    
+    TODO we probably fix a superset of problems like in BUG#6658. Check this 
+         with Bar, and if we have a more broader set of problems like this.
+  */
   Item_ref(Item **item, const char *table_name_par, const char *field_name_par)
-    :Item_ident(NullS, table_name_par, field_name_par), ref(item) {}
+    :Item_ident(NullS, table_name_par, field_name_par), ref(item)
+  {
+    DBUG_ASSERT(item);
+    if (*item)
+      set_properties();
+  }
+
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item) :Item_ident(thd, item), ref(item->ref) {}
   enum Type type() const		{ return REF_ITEM; }
@@ -842,29 +864,34 @@ public:
   { return ref && (*ref)->eq(item, binary_cmp); }
   double val()
   {
+    DBUG_ASSERT(fixed);
     double tmp=(*ref)->val_result();
     null_value=(*ref)->null_value;
     return tmp;
   }
   longlong val_int()
   {
+    DBUG_ASSERT(fixed);
     longlong tmp=(*ref)->val_int_result();
     null_value=(*ref)->null_value;
     return tmp;
   }
   String *val_str(String* tmp)
   {
+    DBUG_ASSERT(fixed);
     tmp=(*ref)->str_result(tmp);
     null_value=(*ref)->null_value;
     return tmp;
   }
   bool is_null()
   {
+    DBUG_ASSERT(fixed);
     (void) (*ref)->val_int_result();
     return (*ref)->null_value;
   }
   bool get_date(TIME *ltime,uint fuzzydate)
   {
+    DBUG_ASSERT(fixed);
     return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
   }
   bool send(Protocol *prot, String *tmp){ return (*ref)->send(prot, tmp); }
@@ -902,6 +929,7 @@ public:
     :Item_ref(item, table_name_par, field_name_par) {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
+
   double val()
   {
     double tmp=(*ref)->val();
@@ -933,6 +961,7 @@ public:
 
 
 class Item_in_subselect;
+
 class Item_ref_null_helper: public Item_ref
 {
 protected:
