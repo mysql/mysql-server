@@ -4383,4 +4383,26 @@ template class I_List_iterator<i_string>;
 template class I_List_iterator<i_string_pair>;
 #endif
 
+
+#ifdef __WIN__
+extern "C" void clear_slave_vio( MYSQL* mysql )
+{
+	if (active_mi->mysql == mysql)
+		active_mi->io_thd->clear_active_vio();
+	/* TODO: use code like below when multi-master is in place */
+	/*	LIST *cur = &master_list;
+	if (((MASTER_INFO*)cur->data)->mysql == mysql)
+	{
+		MASTER_INFO *mi = (MASTER_INFO*)cur->data;
+		mi->io_thd->clear_active_vio();
+		return;
+	}
+	else
+		cur = cur->next;*/
+}
+#endif
+
+
+
+
 #endif /* HAVE_REPLICATION */
