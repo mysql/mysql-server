@@ -61,12 +61,8 @@
 #include "client_settings.h"
 
 #ifdef EMBEDDED_LIBRARY
-#ifdef net_flush
 #undef net_flush
-#endif
-
 my_bool	net_flush(NET *net);
-
 #endif
 
 #if defined(MSDOS) || defined(__WIN__)

@@ -64,8 +64,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
 		     const char *arg, ulong arg_length, my_bool skip_check);
 
-/*FROM client.c
- */
+/* From client.c */
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
 MYSQL * STDCALL 

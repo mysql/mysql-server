@@ -41,9 +41,7 @@
 
 #ifdef EMBEDDED_LIBRARY
 
-#ifdef MYSQL_SERVER
 #undef MYSQL_SERVER
-#endif
 
 #ifndef MYSQL_CLIENT
 #define MYSQL_CLIENT
@@ -51,9 +49,7 @@
 
 #define CLI_MYSQL_REAL_CONNECT cli_mysql_real_connect
 
-#ifdef net_flush
 #undef net_flush
-#endif
 my_bool	net_flush(NET *net);
 
 #else  /*EMBEDDED_LIBRARY*/
