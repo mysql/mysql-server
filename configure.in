@@ -452,6 +452,9 @@ then
   FIND_PROC="$PS \$\$PID | grep mysqld > /dev/null"
 else
   case $SYSTEM_TYPE in
+    *freebsd*)
+      FIND_PROC="$PS p \$\$PID | grep mysqld > /dev/null"
+      ;;
     *darwin*)
       FIND_PROC="$PS -uaxww | grep mysqld | grep \" \$\$PID \" > /dev/null"
       ;;
