@@ -1624,3 +1624,18 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
     return false;
   }
 }
+
+longlong Item_cond_xor::val_int()
+{
+  List_iterator<Item> li(list);
+  Item *item;
+  int result=0;	
+  null_value=1;
+  while ((item=li++))
+  {
+    result ^= (item->val_int() != 0);
+    if (!item->null_value)
+      null_value=0;
+  }
+  return result;
+}
