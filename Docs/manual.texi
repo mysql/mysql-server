@@ -19980,7 +19980,7 @@ Is ON if we only allow local (socket) connections.
 
 @item @code{skip_show_databases}
 This prevents people from doing @code{SHOW DATABASES} if they don't have
-the @code{PROCESS_PRIV} privilege. This can improve security if you're
+the @code{Process_priv} privilege. This can improve security if you're
 concerned about people being able to see what databases other users
 have. See also @code{safe_show_databases}.
 
@@ -30424,11 +30424,12 @@ value, then the result after @code{ELSE} is returned. If there is no
 @code{ELSE} part then @code{NULL} is returned:
 
 @example
-mysql> SELECT CASE 1 WHEN 1 THEN "one" WHEN 2 THEN "two" ELSE "more" END;
+mysql> SELECT CASE 1 WHEN 1 THEN "one"
+           WHEN 2 THEN "two" ELSE "more" END;
        -> "one"
 mysql> SELECT CASE WHEN 1>0 THEN "true" ELSE "false" END;
        -> "true"
-mysql> SELECT CASE BINARY "B" when "a" then 1 when "b" then 2 END;
+mysql> SELECT CASE BINARY "B" WHEN "a" THEN 1 WHEN "b" THEN 2 END;
        -> NULL
 @end example
 @end table
@@ -30471,12 +30472,12 @@ See also the @code{ORD()} function.
 
 @findex ORD()
 @item ORD(str)
-If the leftmost character of the string str is a multi-byte character,
-returns the code of multi-byte character by returning the ASCII code value
-of the character in the format of:
+If the leftmost character of the string @code{str} is a multi-byte character,
+returns the code for that character, calculated from the ASCII code values
+of its constituent characters using this formula:
 @code{((first byte ASCII code)*256+(second byte ASCII code))[*256+third byte ASCII code...]}.
 If the leftmost character is not a multi-byte character, returns the same
-value as the like @code{ASCII()} function does:
+value that the @code{ASCII()} function does:
 
 @example
 mysql> select ORD('2');
@@ -32553,12 +32554,12 @@ The given @code{key_string} will be used to crypt @code{string_to_encrypt}.
 @end multitable
 
 The return string will be a binary string where the first character
-will be @code{CHAR(128 | key-number)}.
+will be @code{CHAR(128 | key_number)}.
 
 The 128 is added to make it easier to recognize an encrypted key.
-If one uses a string key, @code{key-number} will be 127.
+If you use a string key, @code{key_number} will be 127.
 
-On error, this function returns NULL.
+On error, this function returns @code{NULL}.
 
 The string length for the result will be
 @code{new_length= org_length + (8-(org_length % 8))+1}.
@@ -32566,26 +32567,27 @@ The string length for the result will be
 The @code{des-key-file} has the following format:
 
 @example
-key-number key-string
-key-number key-string
+key_number des_key_string
+key_number des_key_string
 @end example
 
-The @code{key-number} must be a number between 0-9. The numbers may be
-in any order.  @code{des-key-string} is string that will be used to
-encrypt the message. Between the number and the key there should be at
+Each @code{key_number} must be a number in the range from 0 to 9.  Lines in
+the file may be in any order.  @code{des_key_string} is string that will be
+used to encrypt the message. Between the number and the key there should be at
 least one space.  The first key is the default key that will be used
-if you don't specify a key to @code{DES_ENCRYPT()}
+if you don't specify any key argument to @code{DES_ENCRYPT()}
 
 You can tell MySQL to read new key values from the key file with the
-@code{FLUSH DES_KEY_FILE} command.
+@code{FLUSH DES_KEY_FILE} command.  This requires the @code{Reload_priv}
+privilege.
 
-One benefit with having a set of default keys on can use is that it
-gives applications a way to check for existence of encrypted column,
-without giving the end user the right to decrypt the data.
+One benefit of having a set of default keys is that it gives applications
+a way to check for existence of encrypted column values, without giving
+the end user the right to decrypt those values.
 
 @example
-SELECT customer_address FROM customer_table WHERE
-crypted_credit_card = DES_ENCRYPT("credit_card_number");
+mysql> SELECT customer_address FROM customer_table WHERE
+       crypted_credit_card = DES_ENCRYPT("credit_card_number");
 @end example
 
 @findex DES_DECRYPT()
@@ -32596,17 +32598,19 @@ Decrypts a string encrypted with @code{DES_ENCRYPT()}.
 Note that this function only works if you have configured MySQL with
 SSL support. @xref{Secure connections}.
 
-If one only gives this a string argument, then it will use the right key
+If no @code{key_string} argument is given, @code{DES_DECRYPT()} examines
+the first byte of the encrypted string to determine the DES key number
+that was used to encrypt the original string, then reads the key
 from the @code{des-key-file} to decrypt the message.  For this to work
-the user must have the @code{PROCESS_PRIV} privilege.
+the user must have the @code{Process_priv} privilege.
 
-If one calls this function with 2 arguments, the second argument is
-used to decrypt the message.
+If one calls this function with a @code{key_string} argument, that string
+is used as the key for decrypting the message.
 
 If the @code{string_to_decrypt} doesn't look like an encrypted string, MySQL
 will return the given @code{string_to_decrypt}.
 
-On error, this function returns NULL.
+On error, this function returns @code{NULL}.
 
 @findex LAST_INSERT_ID([expr])
 @item LAST_INSERT_ID([expr])
@@ -32764,7 +32768,8 @@ server machine is.
 
 @findex INET_NTOA()
 @item INET_NTOA(expr)
-Returns the network address (4 or 8 byte) for the numeric expression:
+Given a numeric network address (4 or 8 byte), returns the dotted-quad
+representation of the address as a string:
 
 @example
 mysql> select INET_NTOA(3520061480);
@@ -32773,7 +32778,8 @@ mysql> select INET_NTOA(3520061480);
 
 @findex INET_ATON()
 @item INET_ATON(expr)
-Returns an integer that represents the numeric value for a network address.
+Given the dotted-quad representation of a network address as a string,
+returns an integer that represents the numeric value of the address.
 Addresses may be 4 or 8 byte addresses:
 
 @example
@@ -32786,15 +32792,15 @@ above number is calculated as @code{209*256^3 + 207*256^2 + 224*256 +40}.
 
 @findex MASTER_POS_WAIT()
 @item MASTER_POS_WAIT(log_name, log_pos)
-Blocks until the slave reaches the specified position in the master log during
-replication. If master information is not initialised, returns NULL. If the
-slave is not running, will block and wait until it is started and goes to or
-past
-the specified position. If the slave is already past the specified position,
-returns immediately. The return value is the number of log events it had to
-wait to get to the specified position, or NULL in case of error. Useful for
-control of master-slave synchronisation, but was originally written to
-facilitate replication testing.
+Blocks until the slave reaches the specified position in the master
+log during replication. If master information is not initialised,
+returns @code{NULL}. If the slave is not running, will block and wait
+until it is started and goes to or past the specified position. If the
+slave is already past the specified position, returns immediately. The
+return value is the number of log events it had to wait to get to the
+specified position, or @code{NULL} in case of error. Useful for control
+of master-slave synchronisation, but was originally written to facilitate
+replication testing.
 
 @findex FOUND_ROWS()
 @findex LIMIT
@@ -32803,16 +32809,18 @@ Returns the number of rows that the last @code{SELECT SQL_CALC_FOUND_ROWS ...}
 command would have returned, if wasn't restricted with @code{LIMIT}.
 
 @example
-SELECT SQL_CALC_FOUND_ROWS * FROM table_name WHERE id > 100 LIMIT 10;
-SELECT FOUND_ROWS();
+mysql> SELECT SQL_CALC_FOUND_ROWS * FROM table_name
+       WHERE id > 100 LIMIT 10;
+mysql> SELECT FOUND_ROWS();
 @end example
 
-The second select will return how many rows the SELECT should have
-returned if we would remove the @code{LIMIT} clause.
+The second @code{SELECT} will return a number indicating how many rows the
+first @code{SELECT} would have returned had it been written without the
+@code{LIMIT} clause.
 
 Note that if you are using @code{SELECT SQL_CALC_FOUND_ROWS ...} MySQL has
-to calculate all rows in the result set.  This is however faster than
-if you would not use @code{LIMIT} as the result set doesn't have to be sent
+to calculate all rows in the result set.  However, this is faster than
+if you would not use @code{LIMIT}, as the result set doesn't have to be sent
 to the client.
 @end table
 
@@ -52831,7 +52839,7 @@ Changed optimiser to make it better at deciding when to do a full join
 and when using keys.
 @item
 You can now use @code{mysqladmin proc} to display information about your own
-threads. Only users with the @strong{Process_priv} privilege can get
+threads. Only users with the @code{Process_priv} privilege can get
 information about all threads.
 @item
 Added handling of formats @code{YYMMDD}, @code{YYYYMMDD},
@@ -54779,9 +54787,9 @@ New commands: @code{ALTER TABLE}, @code{SELECT ... INTO OUTFILE} and
 @item
 New function: @code{NOW()}.
 @item
-Added new field @strong{file_priv} to @code{mysql/user} table.
+Added new field @code{File_priv} to @code{mysql/user} table.
 @item
-New script @code{add_file_priv} which adds the new field @strong{file_priv}
+New script @code{add_file_priv} which adds the new field @code{File_priv}
 to the @code{user} table. This script must be executed if you want to
 use the new @code{SELECT ... INTO} and @code{LOAD DATA INFILE ...} commands
 with a version of MySQL earlier than 3.20.7.
