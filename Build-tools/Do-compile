@@ -536,7 +536,7 @@ sub abort
     print TMP "To: $email\n";
     print TMP "Subject: $ver$opt_version_suffix compilation failed\n\n";
     close TMP;
-    system("tail -40 $log > $log.mail");
+    system("tail -n 40 $log > $log.mail");
     system("cat $mail_header_file $log.mail | $sendmail -t -f $email");
     unlink($mail_header_file);
     unlink("$log.mail");
@@ -612,7 +612,7 @@ sub which
   my(@progs)=@_;
   foreach $prog (@progs)
   {
-    chomp($found=`which $prog | head -1`);
+    chomp($found=`which $prog | head -n 1`);
     if ($? == 0 && $found ne "" && index($found," ") == -1)
     {
       $found =~ s|/+|/|g;	# Make nicer output
