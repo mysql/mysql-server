@@ -440,14 +440,16 @@ static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
 	    left_length < part->store_length ||
 	    (table->file->index_flags(idx) & HA_WRONG_ASCII_ORDER))
 	  break;
+	uint store_length= part->store_length;
 	// Save found constant
 	if (part->null_bit)
+	{
 	  *key_ptr++= (byte) test(part->field->is_null());
-	part->field->get_key_image((char*) key_ptr,
-				   (part->field->type() == FIELD_TYPE_BLOB) ? 
-				   part->length + HA_KEY_BLOB_LENGTH : part->length);
-	key_ptr+=part->store_length - test(part->null_bit);
-	left_length-=part->store_length;
+	  store_length--;
+	}
+	part->field->get_key_image((char*) key_ptr, store_length);
+	key_ptr+= store_length;
+	left_length-= part->store_length;
       }
       if (part == part_end && part->field == field)
       {
