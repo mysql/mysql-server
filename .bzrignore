@@ -641,3 +641,5 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 INSTALL-WIN-SOURCE
+libmysqld/item_subselect.cc
+libmysqld/sql_derived.cc
