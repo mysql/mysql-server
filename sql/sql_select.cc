@@ -1717,6 +1717,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 {
   ulong rec;
   double tmp;
+  THD *thd= current_thd;
 
   if (!rest_tables)
   {
@@ -1983,7 +1984,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  tmp=(double) s->read_time;
 	  /* Calculate time to read through cache */
 	  tmp*=(1.0+floor((double) cache_record_length(join,idx)*
-			  record_count/(double) join_buff_size));
+			  record_count /
+			  (double) thd->variables.join_buff_size));
 	}
 	if (best == DBL_MAX ||
 	    (tmp  + record_count/(double) TIME_FOR_COMPARE*s->found_records <
@@ -3774,12 +3776,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   param->recinfo=recinfo;
   store_record(table,2);			// Make empty default record
 
-  if (tmp_table_size == ~(ulong) 0)		// No limit
+  if (thd->variables.tmp_table_size == ~(ulong) 0)		// No limit
     table->max_rows= ~(ha_rows) 0;
   else
     table->max_rows=(((table->db_type == DB_TYPE_HEAP) ?
-		      min(tmp_table_size, max_heap_table_size) :
-		      tmp_table_size)/ table->reclength);
+		      min(thd->variables.tmp_table_size,
+			  thd->variables.max_heap_table_size) :
+		      thd->variables.tmp_table_size)/ table->reclength);
   set_if_bigger(table->max_rows,1);		// For dummy start options
   keyinfo=param->keyinfo;
 
@@ -5760,6 +5763,8 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
   int error;
   ulong reclength,offset;
   uint field_count;
+  THD *thd= current_thd;
+
   DBUG_ENTER("remove_duplicates");
 
   entry->reginfo.lock_type=TL_WRITE;
@@ -5788,7 +5793,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
   if (entry->db_type == DB_TYPE_HEAP ||
       (!entry->blob_fields &&
        ((ALIGN_SIZE(reclength) +sizeof(HASH_LINK)) * entry->file->records <
-	sortbuff_size)))
+	thd->variables.sortbuff_size)))
     error=remove_dup_with_hash_index(join->thd, entry,
 				     field_count, first_field,
 				     reclength, having);
@@ -6109,7 +6114,7 @@ join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
   cache->length=length+blobs*sizeof(char*);
   cache->blobs=blobs;
   *blob_ptr=0;					/* End sequentel */
-  size=max(join_buff_size,cache->length);
+  size=max(thd->variables.join_buff_size, cache->length);
   if (!(cache->buff=(uchar*) my_malloc(size,MYF(0))))
     DBUG_RETURN(1);				/* Don't use cache */ /* purecov: inspected */
   cache->end=cache->buff+size;

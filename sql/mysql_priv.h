@@ -468,7 +468,8 @@ int mysqld_show_create(THD *thd, TABLE_LIST *table_list);
 void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
-int mysqld_show(THD *thd, const char *wild, show_var_st *variables);
+int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
+		struct system_variables *variable_values);
 
 /* sql_handler.cc */
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
@@ -550,8 +551,6 @@ int write_record(TABLE *table,COPY_INFO *info);
 extern ulong volatile manager_status;
 extern bool volatile manager_thread_in_use, mqh_used;
 extern pthread_t manager_thread;
-extern pthread_mutex_t LOCK_manager;
-extern pthread_cond_t COND_manager;
 pthread_handler_decl(handle_manager, arg);
 
 /* sql_test.cc */
@@ -611,12 +610,13 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_thread_count,LOCK_mapped_file,LOCK_user_locks, LOCK_status,
        LOCK_grant, LOCK_error_log, LOCK_delayed_insert,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
-       LOCK_server_id, LOCK_slave_list, LOCK_active_mi;
-extern pthread_cond_t COND_refresh,COND_thread_count;
+       LOCK_server_id, LOCK_slave_list, LOCK_active_mi, LOCK_manager,
+       LOCK_global_system_variables;
+extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
+
 extern pthread_attr_t connection_attrib;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory,
             opt_using_transactions, use_temp_pool, mysql_embedded;
-extern my_bool opt_local_infile;
 extern char f_fyllchar;
 extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 	     ha_read_key_count, ha_read_next_count, ha_read_prev_count,
@@ -628,27 +628,27 @@ extern uchar *days_in_month;
 extern DATE_FORMAT dayord;
 extern double log_10[32];
 extern uint protocol_version,dropping_tables;
-extern ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
-	     max_join_size,join_buff_size,tmp_table_size,
-	     max_connections,max_connect_errors,long_query_time,
+extern ulong keybuff_size,table_cache_size,
+	     max_connections,max_connect_errors,
 	     max_insert_delayed_threads, max_user_connections,
-	     long_query_count,net_wait_timeout,net_interactive_timeout,
-	     net_read_timeout,net_write_timeout,
+	     long_query_count,
+             net_read_timeout,net_write_timeout,
 	     what_to_log,flush_time,opt_sql_mode,
-	     max_tmp_tables,max_heap_table_size,query_buff_size,
-	     lower_case_table_names,thread_stack,thread_stack_min,
-	     binlog_cache_size, max_binlog_cache_size, record_rnd_cache_size;
+	     query_buff_size, lower_case_table_names,
+	     thread_stack,thread_stack_min,
+	     binlog_cache_size, max_binlog_cache_size;
 extern ulong com_stat[(uint) SQLCOM_END], com_other;
 extern ulong specialflag, current_pid;
 extern bool low_priority_updates, using_update_log;
-extern bool opt_sql_bin_update, opt_safe_show_db, opt_warnings,
-					     opt_safe_user_create, opt_no_mix_types;
+extern bool opt_sql_bin_update, opt_safe_show_db,
+	    opt_safe_user_create, opt_no_mix_types;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN],blob_newline;
 extern const char **errmesg;			/* Error messages */
 extern const char *default_tx_isolation_name;
 extern String empty_string;
 extern struct show_var_st init_vars[];
 extern struct show_var_st status_vars[];
+extern struct system_variables global_system_variables;
 extern enum db_type default_table_type;
 extern enum enum_tx_isolation default_tx_isolation;
 extern char glob_hostname[FN_REFLEN];

@@ -519,7 +519,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <num>
 	type int_type real_type order_dir opt_field_spec set_option lock_option
 	udf_type if_exists opt_local opt_table_options table_options
-	table_option opt_if_not_exists 
+	table_option opt_if_not_exists opt_var_type
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -2621,8 +2621,15 @@ show_param:
 	  { Lex->sql_command= SQLCOM_SHOW_STATUS; }
 	| opt_full PROCESSLIST_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
-	| VARIABLES wild
-	  { Lex->sql_command= SQLCOM_SHOW_VARIABLES; }
+	| opt_var_type VARIABLES wild
+	{
+	    THD *thd= current_thd;
+	    thd->lex.sql_command= SQLCOM_SHOW_VARIABLES;
+	    if ($1)
+	      thd->lex.variable_values= &thd->variables;
+	    else
+	      thd->lex.variable_values= &global_system_variables;
+	  }
 	| LOGS_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; }
 	| GRANTS FOR_SYM user
@@ -2658,6 +2665,12 @@ wild:
 opt_full:
 	/* empty */ { Lex->verbose=0; }
 	| FULL	    { Lex->verbose=1; };
+
+opt_var_type:
+	/* empty */	{ $$=1; /* local variable */ }
+	| LOCAL_SYM	{ $$=1; }
+	| GLOBAL_SYM	{ $$=0; }
+	;
 
 from_or_in:
 	FROM
