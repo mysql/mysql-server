@@ -725,7 +725,7 @@ void key_restore(TABLE *form,byte *key,uint index,uint key_length);
 int key_cmp(TABLE *form,const byte *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
 bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);
-void init_errmessage(void);
+bool init_errmessage(void);
 
 void sql_perror(const char *message);
 void sql_print_error(const char *format,...)
@@ -919,7 +919,11 @@ void calc_time_from_sec(TIME *to, long seconds, long microseconds);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
+#ifndef EMBEDDED_LIBRARY
 extern "C" void unireg_abort(int exit_code);
+#else
+#define unireg_abort(exit_code) DBUG_RETURN(exit_code)
+#endif
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select,
 		      int use_record_cache, bool print_errors);
