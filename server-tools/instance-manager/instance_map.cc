@@ -19,10 +19,11 @@
 #endif
 
 #include "instance_map.h"
+
 #include "buffer.h"
 #include "instance.h"
+
 #include <m_ctype.h>
-#include <my_sys.h>
 #include <mysql_com.h>
 #include <m_string.h>
 
