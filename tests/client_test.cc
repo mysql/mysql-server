@@ -857,19 +857,6 @@ Stmt_fetch::~Stmt_fetch()
   mysql_stmt_close(stmt);
 }
 
-/* We need these to compile without libstdc++ */
-
-void *operator new[] (size_t sz)
-{
-  return (void *) malloc (sz ? sz : 1);
-}
-
-void operator delete[] (void *ptr) throw ()
-{
-  if (ptr)
-    free(ptr);
-}
-
 /*
   For given array of queries, open query_count cursors and fetch
   from them in simultaneous manner.
