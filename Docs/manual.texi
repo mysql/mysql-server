@@ -566,7 +566,8 @@ a commercial memory leakage detector.
 @item
 Works on many different platforms.  @xref{Which OS}.
 @item
-Uses GNU Automake, Autoconf (Ver 2.52 or newer), and Libtool for portability.
+Uses GNU Automake (1.4), Autoconf (Ver 2.52 or newer), and Libtool for
+portability.
 @item
 APIs for C, C++, Eiffel, Java, Perl, PHP, Python and Tcl.  @xref{Clients}.
 @item
@@ -7015,11 +7016,10 @@ The initial download of the source tree may take a while, depending on the
 speed of your connection; be patient.
 
 @item
-You will need GNU @code{autoconf 2.13}, @code{automake 1.4},
+You will need GNU @code{autoconf 2.52}, @code{automake 1.4},
 @code{libtool}, and @code{m4} to run the next set of commands.
 
-If you are using the 3.23 tree the new versions of @code{autoconf}
-(2.52) and @code{automake} (1.5) will not work.
+@code{automake} (1.5) doesn't yet work.
 
 If you get some strange error during this stage, check that you really
 have @code{libtool} installed!
@@ -13707,6 +13707,13 @@ tell @code{mysql} to read its input from the file:
 shell> mysql < batch-file
 @end example
 
+If you are running @code{mysql} under windows and have some special
+characters in the file that causes problems, you can do:
+
+@example
+dos> mysql -e "source batch-file"
+@end example
+
 If you need to specify connection parameters on the command line, the
 command might look like this:
 
@@ -13717,6 +13724,9 @@ Enter password: ********
 
 When you use @code{mysql} this way, you are creating a script file, then
 executing the script.
+
+If you want the script to continue even if you have errors, you should
+use the @code{--force} command line option.
 
 Why use a script?  Here are a few reasons:
 
@@ -13791,6 +13801,12 @@ If you want to get the interactive output format in batch mode, use
 @code{mysql -t}.  To echo to the output the commands that are executed, use
 @code{mysql -vvv}.
 
+You can also use scripts in the @code{mysql} command line prompt by
+using the @code{source} command:
+
+@example
+mysql> source filename
+@end example
 
 @node Twin, Apache, Batch mode, Tutorial
 @section Queries from Twin Project
