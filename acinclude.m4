@@ -167,31 +167,93 @@ then
 fi
 ])
 
-AC_DEFUN(MYSQL_CHECK_ZLIB_WITH_COMPRESS, [
-save_LIBS="$LIBS"
-LIBS="-l$1 $LIBS"
-AC_CACHE_CHECK([if libz with compress], mysql_cv_compress,
-[AC_TRY_RUN([#include <zlib.h>
-#ifdef __cplusplus
-extern "C"
-#endif
-int main(int argv, char **argc)
-{
-  return 0;
-}
 
-int link_test()
-{
-  return compress(0, (unsigned long*) 0, "", 0);
-}
-], mysql_cv_compress=yes, mysql_cv_compress=no)])
-if test "$mysql_cv_compress" = "yes"
-then
-  AC_DEFINE([HAVE_COMPRESS], [1], [ZLIB and compress])
-else
-  LIBS="$save_LIBS"
-fi
+dnl MYSQL_CHECK_ZLIB_WITH_COMPRESS
+dnl ------------------------------------------------------------------------
+dnl @synopsis MYSQL_CHECK_ZLIB_WITH_COMPRESS
+dnl
+dnl Provides the following configure options:
+dnl --with-zlib-dir   - custom location of compression library.
+dnl                     MySQL needs both header file (zlib.h) and the library
+dnl                     (libz.a). Given location prefix, the macro expects
+dnl                     to find the library headers in $prefix/include,
+dnl                     and binaries in $prefix/lib. If DIR is "no", 
+dnl                     compression and all dependent functions will be 
+dnl                     disabled.
+dnl The call checks presense of 'zlib' compression library in default or
+dnl given location. If there is no default library, the macro falls
+dnl back to use zlib bundled along with MySQL sources. But if configure is
+dnl called with custom name/path, and there is no library at given place,
+dnl the macro bails out with error.
+dnl 
+dnl If the library was found, this function #defines HAVE_COMPRESS
+dnl and configure variables ZLIB_INCLUDES (i.e. -I/path/to/zlib/include) and
+dnl ZLIB_LIBS (i. e. -L/path/to/zlib/lib -lz).
+dnl
+dnl Exception is Novell Netware, where we assume zlib is always present.
+
+AC_DEFUN([MYSQL_CHECK_ZLIB_WITH_COMPRESS], [
+AC_MSG_CHECKING([for zlib compression library])
+case $SYSTEM_TYPE in
+  *netware* | *modesto*)
+     AC_MSG_RESULT(ok)
+    ;;
+  *)
+    AC_ARG_WITH([zlib-dir],
+                AC_HELP_STRING([--with-zlib-dir=DIR],
+                               [Provide MySQL with a custom location of
+                               compression library. Given DIR, zlib binary is 
+                               assumed to be in $DIR/lib and header files
+                               in $DIR/include.]),
+                [mysql_zlib_dir=${withval}],
+                [mysql_zlib_dir=""])
+    if test "$mysql_zlib_dir" = "no"; then
+      mysql_cv_compress="no"
+      AC_MSG_RESULT([disabled])
+    else
+      if test "$mysql_zlib_dir" = ""; then
+        ZLIB_INCLUDES=""
+        ZLIB_LIBS="-lz"
+      else
+        if test -f "$mysql_zlib_dir/lib/libz.a" -a \ 
+                -f "$mysql_zlib_dir/include/zlib.h"; then
+          true
+        else
+          AC_MSG_ERROR([headers or binaries were not found in $mysql_zlib_dir/{include,lib}])
+        fi
+        ZLIB_INCLUDES="-I$mysql_zlib_dir/include"
+        ZLIB_LIBS="-L$mysql_zlib_dir/lib -lz"
+      fi
+      save_INCLUDES="$INCLUDES"
+      save_LIBS="$LIBS"
+      INCLUDES="$ZLIB_INCLUDES"
+      LIBS="$ZLIB_LIBS"
+      AC_CACHE_VAL([mysql_cv_compress],
+                   [AC_TRY_LINK([#include <zlib.h>],
+                                [int link_test() { return compress(0, (unsigned long*) 0, "", 0); }],
+                   [mysql_cv_compress="yes"
+                    AC_MSG_RESULT(ok)],
+                   [if test "$mysql_zlib_dir" = ""; then
+                      AC_MSG_RESULT([system-wide zlib not found, using one bundled with MySQL])
+                      ZLIB_INCLUDES="-I\$(top_srcdir)/zlib"
+                      ZLIB_LIBS="-L\$(top_builddir)/zlib -lz"
+                      zlib_dir="zlib"
+                      AC_SUBST([zlib_dir])
+                      mysql_cv_compress="yes"
+                    else
+                      AC_MSG_ERROR([not found in $mysql_zlib_dir])
+                    fi])])
+      INCLUDES="$save_INCLUDES"
+      LIBS="$save_LIBS"
+      AC_DEFINE([HAVE_COMPRESS], [1], [Define if zlib is present])
+      AC_SUBST([ZLIB_LIBS])
+      AC_SUBST([ZLIB_INCLUDES])
+    fi
+    ;;
+esac
 ])
+
+dnl ------------------------------------------------------------------------
 
 #---START: Used in for client configure
 AC_DEFUN(MYSQL_CHECK_ULONG,
