@@ -1089,7 +1089,6 @@ public:
 
   void get_key_image(char *buff,uint length, CHARSET_INFO *cs,imagetype type);
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
-  uint32 max_length() { return field_length; }
   field_cast_enum field_cast_type() { return FIELD_CAST_GEOM; }
 };
 #endif /*HAVE_SPATIAL*/

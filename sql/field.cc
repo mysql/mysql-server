@@ -3380,7 +3380,10 @@ bool Field_time::get_date(TIME *ltime, uint fuzzydate)
   long tmp;
   if (!fuzzydate)
   {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+    push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_DATA_OUT_OF_RANGE,
+                        ER(ER_WARN_DATA_OUT_OF_RANGE), field_name,
+                        table->in_use->row_count);
     return 1;
   }
   tmp=(long) sint3korr(ptr);
@@ -5984,7 +5987,7 @@ uint32 Field_blob::max_length()
   case 3:
     return 16777215;
   case 4:
-    return (uint32)4294967295;
+    return (uint32) 4294967295U;
   default:
     DBUG_ASSERT(0); // we should never go here
     return 0;
