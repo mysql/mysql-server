@@ -94,7 +94,7 @@ ConfigRetriever::do_connect(int exit_on_connect_failure){
   while(retry < retry_max){
     Uint32 type = CR_ERROR;
     BaseString tmp;
-    for (int i = 0; i<_localConfig.ids.size(); i++){
+    for (unsigned int i = 0; i<_localConfig.ids.size(); i++){
       MgmtSrvrId * m = &_localConfig.ids[i];
       switch(m->type){
       case MgmId_TCP:
@@ -139,7 +139,7 @@ ConfigRetriever::getConfig() {
   if(m_handle != 0){
     p = getConfig(m_handle);
   } else {
-    for (int i = 0; i<_localConfig.ids.size(); i++){
+    for (unsigned int i = 0; i<_localConfig.ids.size(); i++){
       MgmtSrvrId * m = &_localConfig.ids[i];
       switch(m->type){
       case MgmId_File:
