@@ -501,7 +501,8 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
   {
     thd->where="having clause";
     thd->allow_sum_func=1;
-    if (having->fix_fields(thd, tables, &having) || thd->fatal_error)
+    if (having->check_cols(1) || having->fix_fields(thd, tables, &having)
+	|| thd->fatal_error)
       DBUG_RETURN(1);				
     if (having->with_sum_func)
       having->split_sum_func(all_fields);

@@ -63,7 +63,7 @@ bool Item::check_cols(uint c)
 {
   if (c != 1)
   {
-    my_error(ER_CARDINALITY_COL, MYF(0), 1);
+    my_error(ER_CARDINALITY_COL, MYF(0), c);
     return 1;
   }
   return 0;
@@ -570,8 +570,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (!r)
 	  return 1;
 	int res;
-	if ((res= r->fix_fields(thd, tables, ref)))
-	  return res;
+	if (r->check_cols(1) || r->fix_fields(thd, tables, ref))
+	  return 1;
 	r->depended_from= last;
 	thd->lex.current_select->mark_as_dependent(last);
 	thd->add_possible_loop(r);
@@ -606,7 +606,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 		       (char *)field_name);
     if (!*ref)
       return 1;
-    return (*ref)->fix_fields(thd, tables, ref);
+    return (*ref)->check_cols(1) || (*ref)->fix_fields(thd, tables, ref);
   }
   fixed= 1;
   return 0;
