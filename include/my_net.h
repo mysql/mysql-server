@@ -72,6 +72,11 @@ C_MODE_START
 #define in_addr_t uint32
 #endif
 
+/* On some operating systems (e.g. Solaris) INADDR_NONE is not defined */
+#ifndef INADDR_NONE
+#define INADDR_NONE -1                          /* Error value from inet_addr */
+#endif
+
 /* Thread safe or portable version of some functions */
 
 void my_inet_ntoa(struct in_addr in, char *buf);

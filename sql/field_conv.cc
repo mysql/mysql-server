@@ -485,6 +485,9 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
   }
   else
   {
+    if (to->real_type() == FIELD_TYPE_BIT ||
+        from->real_type() == FIELD_TYPE_BIT)
+      return do_field_int;
     // Check if identical fields
     if (from->result_type() == STRING_RESULT)
     {

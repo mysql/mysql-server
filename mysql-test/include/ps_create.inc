@@ -34,7 +34,7 @@ eval create table t9
   c5  integer, c6  bigint, c7  float, c8  double,
   c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
   c13 date, c14 datetime, c15 timestamp(14), c16 time,
-  c17 year, c18 bit, c19 bool, c20 char,
+  c17 year, c18 tinyint, c19 bool, c20 char,
   c21 char(10), c22 varchar(30), c23 tinyblob, c24 tinytext,
   c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
   c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
