@@ -290,6 +290,7 @@ static void dump_remote_table(NET* net, const char* db, const char* table)
 static void dump_remote_log_entries(const char* logname)
 {
   char buf[128];
+  char last_db[FN_REFLEN+1] = "";
   uint len;
   NET* net = &mysql->net;
   if(!position) position = 4; // protect the innocent from spam
@@ -323,7 +324,7 @@ Unfortunately, no sweepstakes today, adjusted position to 4\n");
 					  len - 1);
     if(ev)
     {
-      ev->print(stdout, short_form);
+      ev->print(stdout, short_form, last_db);
       if(ev->get_type_code() == LOAD_EVENT)
 	dump_remote_file(net, ((Load_log_event*)ev)->fname);
       delete ev;
@@ -338,6 +339,7 @@ static void dump_local_log_entries(const char* logname)
   File fd = -1;
   IO_CACHE cache,*file= &cache;
   ulonglong rec_count = 0;
+  char last_db[FN_REFLEN+1] = "";
 
   if (logname && logname[0] != '-')
   {
@@ -397,7 +399,7 @@ Could not read entry at offset %s : Error in log format or read error",
       if (!short_form)
         printf("# at %s\n",llstr(old_off,llbuff));
 
-      ev->print(stdout, short_form);
+      ev->print(stdout, short_form, last_db);
     }
     rec_count++;
     delete ev;
