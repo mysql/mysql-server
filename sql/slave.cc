@@ -678,6 +678,7 @@ static int init_slave_thread(THD* thd)
   thd->system_thread = thd->bootstrap = 1;
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
+  thd->net.timeout = slave_net_timeout;
   thd->max_packet_length=thd->net.max_packet;
   thd->master_access= ~0;
   thd->priv_user = 0;
