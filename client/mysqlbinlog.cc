@@ -449,12 +449,17 @@ static void dump_log_entries(const char* logname)
     dump_local_log_entries(logname);  
 }
 
-static int check_master_version(MYSQL* mysql)
+/*
+  This is not as smart as check_header() (used for local log); it will not work
+  for a binlog which mixes format. TODO: fix this.
+*/
+static int check_master_version(MYSQL* mysql,
+                                Format_description_log_event
+                                **description_event)
 {
   MYSQL_RES* res = 0;
   MYSQL_ROW row;
   const char* version;
-  int old_format = 0;
 
   if (mysql_query(mysql, "SELECT VERSION()") ||
       !(res = mysql_store_result(mysql)))
@@ -479,11 +484,18 @@ static int check_master_version(MYSQL* mysql)
 
   switch (*version) {
   case '3':
-    old_format = 1;
+    *description_event= new Format_description_log_event(1);
     break;
   case '4':
+    *description_event= new Format_description_log_event(3);
   case '5':
-    old_format = 0;
+    /*
+      The server is soon going to send us its Format_description log
+      event, unless it is a 5.0 server with 3.23 or 4.0 binlogs.
+      So we first assume that this is 4.0 (which is enough to read the
+      Format_desc event if one comes).
+    */
+    *description_event= new Format_description_log_event(3);
     break;
   default:
     sql_print_error("Master reported unrecognized MySQL version '%s'",
@@ -493,24 +505,29 @@ static int check_master_version(MYSQL* mysql)
     return 1;
   }
   mysql_free_result(res);
-  return old_format;
+  return 0;
 }
 
 
 /*
-  TODO fix this for new format (like local log); this will be done when 4.0 is
-  merged here (Victor's fixes are needed to make dump_remote_log_entries()
-  work).
+  I thought I'd wait for both dump_*_log_entries to be merged, but it's not
+  yet, so I must update this one too.
 */
 
 static void dump_remote_log_entries(const char* logname)
+
 {
   char buf[128];
   LAST_EVENT_INFO last_event_info;
   uint len;
   NET* net = &mysql->net;
   int old_format;
-  old_format = check_master_version(mysql);
+  Format_description_log_event* description_event; 
+
+  if (check_master_version(mysql, &description_event))
+    die("Could not find server version");
+  if (!description_event || !description_event->is_valid())
+    die("Invalid Format_description log event; could be out of memory");
 
   if (!position)
     position = BIN_LOG_HEADER_SIZE;
@@ -538,18 +555,41 @@ static void dump_remote_log_entries(const char* logname)
     DBUG_PRINT("info",( "len= %u, net->read_pos[5] = %d\n",
 			len, net->read_pos[5]));
     Log_event *ev = Log_event::read_log_event((const char*) net->read_pos + 1 ,
-					      len - 1, &error, 0);
-    //TODO this ,0) : we need to store the description_event like for local_log
+					      len - 1, &error, description_event);
     if (ev)
     {
-      ev->print(result_file, short_form, &last_event_info);
-      if (ev->get_type_code() == LOAD_EVENT)
-	dump_remote_file(net, ((Load_log_event*)ev)->fname);
-      delete ev;
+      switch (ev->get_type_code())
+      {
+      case FORMAT_DESCRIPTION_EVENT:
+        delete description_event;
+        description_event= (Format_description_log_event*) ev;
+        ev->print(result_file, short_form, &last_event_info);
+        break;
+      case ROTATE_EVENT:
+        /* see comments in sql/slave.cc:process_io_rotate() */
+        if (description_event->binlog_version >= 4)
+        {
+          delete description_event;
+          /* start from format 3 (MySQL 4.0) again */
+          description_event= new Format_description_log_event(3);
+          if (!description_event || !description_event->is_valid())
+            die("Invalid Format_description log event; could be out of memory");
+        }
+        ev->print(result_file, short_form, &last_event_info);
+        delete ev;
+        break;
+      case LOAD_EVENT:
+        dump_remote_file(net, ((Load_log_event*)ev)->fname);
+        /* fall through */
+      default:
+        ev->print(result_file, short_form, &last_event_info);
+        delete ev;
+      }
     }
     else
       die("Could not construct log event object");
   }
+  delete description_event;
 }
 
 
@@ -694,7 +734,7 @@ static void dump_local_log_entries(const char* logname)
     file->seek_not_done=0;
   }
 
-  if (!description_event->is_valid())
+  if (!description_event || !description_event->is_valid())
     die("Invalid Format_description log event; could be out of memory");
 
   if (!position)
@@ -792,7 +832,19 @@ Create_file event for file_id: %u\n",exv->file_id);
       case FORMAT_DESCRIPTION_EVENT:
         delete description_event;
         description_event= (Format_description_log_event*) ev;
- 	ev->print(result_file, short_form, &last_event_info);
+	ev->print(result_file, short_form, &last_event_info);
+        break;
+      case ROTATE_EVENT:
+        /* see comments in sql/slave.cc:process_io_rotate() */
+        if (description_event->binlog_version >= 4)
+        {
+          delete description_event;
+          /* start from format 3 (MySQL 4.0) again */
+          description_event= new Format_description_log_event(3);
+          if (!description_event || !description_event->is_valid())
+            die("Invalid Format_description log event; could be out of memory");
+        }
+	ev->print(result_file, short_form, &last_event_info);
         break;
       default:
 	ev->print(result_file, short_form, &last_event_info);

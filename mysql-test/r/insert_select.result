@@ -73,9 +73,9 @@ reset master;
 insert into t1 select * from t2;
 ERROR 23000: Duplicate entry '2' for key 1
 show binlog events;
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000001	4	Start	1	4	Server ver: VERSION, Binlog ver: 3
-master-bin.000001	79	Query	1	79	use `test`; insert into t1 select * from t2
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	95	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	95	Query	1	183	use `test`; insert into t1 select * from t2
 select * from t1;
 a
 1

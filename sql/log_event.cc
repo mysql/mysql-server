@@ -865,6 +865,12 @@ void Log_event::set_log_pos(MYSQL_LOG* log)
     my_b_safe_tell().
     Note that this raises a question on the correctness of all these
     DBUG_ASSERT(my_b_tell()=rli->event_relay_log_pos).
+    If in a transaction, the log_pos which we calculate below is not very good
+    (because then my_b_safe_tell() returns start position of the BEGIN, so it's
+    like the statement was at the BEGIN's place), but it's not a very serious
+    problem (as the slave, when it is in a transaction, does not take those
+    end_log_pos into account (as it calls inc_event_relay_log_pos()). To be
+    fixed later, so that it looks less strange. But not bug.
   */
   if (!log_pos)
     log_pos = my_b_safe_tell(&log->log_file)+get_event_len();
