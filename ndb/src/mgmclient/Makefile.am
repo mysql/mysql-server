@@ -11,7 +11,7 @@ include $(top_srcdir)/ndb/config/type_ndbapi.mk.am
 
 INCLUDES += -I$(top_srcdir)/ndb/include/mgmapi -I$(top_srcdir)/ndb/src/common/mgmcommon
 
-LDADD_LOC = $(top_srcdir)/ndb/src/libndbclient.la \
+LDADD_LOC = $(top_srcdir)/ndb/src/.libs/libndbclient.a \
             $(top_srcdir)/ndb/src/common/editline/libeditline.a \
             @TERMCAP_LIB@
 
