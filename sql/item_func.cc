@@ -214,8 +214,7 @@ String *Item_real_func::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0; /* purecov: inspected */
-  else
-    str->set(nr,decimals);
+  str->set(nr,decimals);
   return str;
 }
 
@@ -227,7 +226,7 @@ String *Item_num_func::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0; /* purecov: inspected */
-    else if (!unsigned_flag)
+    if (!unsigned_flag)
       str->set(nr);
     else
       str->set((ulonglong) nr);
@@ -237,8 +236,7 @@ String *Item_num_func::val_str(String *str)
     double nr=val();
     if (null_value)
       return 0; /* purecov: inspected */
-    else
-      str->set(nr,decimals);
+    str->set(nr,decimals);
   }
   return str;
 }
@@ -257,7 +255,7 @@ String *Item_int_func::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  else if (!unsigned_flag)
+  if (!unsigned_flag)
     str->set(nr);
   else
     str->set((ulonglong) nr);
@@ -286,7 +284,7 @@ String *Item_num_op::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0; /* purecov: inspected */
-    else if (!unsigned_flag)
+    if (!unsigned_flag)
       str->set(nr);
     else
       str->set((ulonglong) nr);
@@ -296,8 +294,7 @@ String *Item_num_op::val_str(String *str)
     double nr=val();
     if (null_value)
       return 0; /* purecov: inspected */
-    else
-      str->set(nr,decimals);
+    str->set(nr,decimals);
   }
   return str;
 }
@@ -799,7 +796,7 @@ String *Item_func_min_max::val_str(String *str)
     longlong nr=val_int();
     if (null_value)
       return 0;
-    else if (!unsigned_flag)
+    if (!unsigned_flag)
       str->set(nr);
     else
       str->set((ulonglong) nr);
@@ -810,8 +807,7 @@ String *Item_func_min_max::val_str(String *str)
     double nr=val();
     if (null_value)
       return 0; /* purecov: inspected */
-    else
-      str->set(nr,decimals);
+    str->set(nr,decimals);
     return str;
   }
   case STRING_RESULT:
@@ -1392,8 +1388,7 @@ String *Item_func_udf_float::val_str(String *str)
   double nr=val();
   if (null_value)
     return 0;					/* purecov: inspected */
-  else
-    str->set(nr,decimals);
+  str->set(nr,decimals);
   return str;
 }
 
@@ -1413,7 +1408,7 @@ String *Item_func_udf_int::val_str(String *str)
   longlong nr=val_int();
   if (null_value)
     return 0;
-  else if (!unsigned_flag)
+  if (!unsigned_flag)
     str->set(nr);
   else
     str->set((ulonglong) nr);

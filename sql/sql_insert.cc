@@ -1409,18 +1409,15 @@ bool select_insert::send_eof()
     ::send_error(&thd->net);
     return 1;
   }
+  char buff[160];
+  if (info.handle_duplicates == DUP_IGNORE)
+    sprintf(buff,ER(ER_INSERT_INFO),info.records,info.records-info.copied,
+            thd->cuted_fields);
   else
-  {
-    char buff[160];
-    if (info.handle_duplicates == DUP_IGNORE)
-      sprintf(buff,ER(ER_INSERT_INFO),info.records,info.records-info.copied,
-	      thd->cuted_fields);
-    else
-      sprintf(buff,ER(ER_INSERT_INFO),info.records,info.deleted,
-	      thd->cuted_fields);
-    ::send_ok(&thd->net,info.copied+info.deleted,last_insert_id,buff);
-    return 0;
-  }
+    sprintf(buff,ER(ER_INSERT_INFO),info.records,info.deleted,
+            thd->cuted_fields);
+  ::send_ok(&thd->net,info.copied+info.deleted,last_insert_id,buff);
+  return 0;
 }
 
 

@@ -694,10 +694,9 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 {
   if (a == STRING_RESULT && b == STRING_RESULT)
     return STRING_RESULT;
-  else if (a == INT_RESULT && b == INT_RESULT)
+  if (a == INT_RESULT && b == INT_RESULT)
     return INT_RESULT;
-  else
-    return REAL_RESULT;
+  return REAL_RESULT;
 }
 
 

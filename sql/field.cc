@@ -848,7 +848,7 @@ int Field_decimal::cmp(const char *a_ptr,const char *b_ptr)
     return 0;
   if (*a_ptr == '-')
     return -1;
-  else if (*b_ptr == '-')
+  if (*b_ptr == '-')
     return 1;
 
   while (a_ptr != end)
@@ -3018,7 +3018,7 @@ void Field_year::store(const char *from, uint len)
     current_thd->cuted_fields++;
     return;
   }
-  else if (current_thd->count_cuted_fields && !test_if_int(from,len))
+  if (current_thd->count_cuted_fields && !test_if_int(from,len))
     current_thd->cuted_fields++;
   if (nr != 0 || len != 4)
   {

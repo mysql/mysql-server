@@ -1043,7 +1043,7 @@ static void set_user(const char *user)
     }
     return;
   }
-  else if (!user)
+  if (!user)
   {
     if (!opt_bootstrap)
     {

@@ -220,8 +220,7 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
 	info->is_float = 1;	     // we can't use variable decimals here
 	return 1;
       }
-      else
-	return 0;
+      return 0;
     }
     for (str++; *(end - 1) == '0'; end--);  // jump over zeros at the end
     if (str == end)		     // number was something like '123.000'
@@ -236,11 +235,8 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
       info->dval = atod(begin);
       return 1;
     }
-    else
-      return 0;
   }
-  else
-    return 0;
+  return 0;
 }
 
 
