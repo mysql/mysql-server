@@ -822,7 +822,7 @@ create_select:
           SELECT_SYM
           {
 	    LEX *lex=Lex;
-	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
+	    lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
 	    if (lex->sql_command == SQLCOM_INSERT)
 	      lex->sql_command= SQLCOM_INSERT_SELECT;
 	    else if (lex->sql_command == SQLCOM_REPLACE)
@@ -1532,7 +1532,7 @@ select_part2:
 	{
 	  LEX *lex=Lex;
 	  lex->lock_option=TL_READ;
-	   mysql_init_select(lex);
+          mysql_init_select(lex);
 	}
 	select_options select_item_list select_into select_lock_type;
 
