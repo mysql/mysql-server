@@ -920,6 +920,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
 	Item_ref *rf;
 	*ref= rf= new Item_ref(last->ref_pointer_array + counter,
+			       ref,
 			       (char *)table_name,
 			       (char *)field_name);
 	if (!rf)
@@ -936,7 +937,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
-	  *ref= rf= new Item_ref((where->db[0]?where->db:0), 
+	  *ref= rf= new Item_ref(ref, this,
+				 (where->db[0]?where->db:0), 
 				 (char *)where->alias,
 				 (char *)field_name);
 	  if (!rf)
@@ -962,6 +964,12 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
+void Item_field::cleanup()
+{
+  Item_ident::cleanup();
+  field= 0;
+  result_field= 0;
+}
 
 void Item::init_make_field(Send_field *tmp_field,
 			   enum enum_field_types field_type)
@@ -1598,6 +1606,14 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (ref && (*ref)->check_cols(1))
     return 1;
   return 0;
+}
+
+
+void Item_ref::cleanup()
+{
+  Item_ident::cleanup();
+  if (hook_ptr)
+    *hook_ptr= orig_item;
 }
 
 

@@ -34,10 +34,14 @@ public:
     with_null(0)
   {}
 
-  ~Item_row()
+  void cleanup()
   {
     if (array_holder && items)
+    {
       sql_element_free(items);
+      items= 0;
+      array_holder= 0;
+    }
   }
 
   enum Type type() const { return ROW_ITEM; };
