@@ -2141,6 +2141,7 @@ void Item_ref::cleanup()
 {
   DBUG_ENTER("Item_ref::cleanup");
   Item_ident::cleanup();
+  result_field= 0;
   if (hook_ptr)
     *hook_ptr= orig_item;
   DBUG_VOID_RETURN;
@@ -2161,6 +2162,43 @@ bool Item_ref::send(Protocol *prot, String *tmp)
   if (result_field)
     return prot->store(result_field);
   return (*ref)->send(prot, tmp);
+}
+
+
+double Item_ref::val_result()
+{
+  if (result_field)
+  {
+    if ((null_value= result_field->is_null()))
+      return 0.0;
+    return result_field->val_real();
+  }
+  return val();
+}
+
+
+longlong Item_ref::val_int_result()
+{
+  if (result_field)
+  {
+    if ((null_value= result_field->is_null()))
+      return 0.0;
+    return result_field->val_int();
+  }
+  return val_int();
+}
+
+
+String *Item_ref::str_result(String* str)
+{
+  if (result_field)
+  {
+    if ((null_value= result_field->is_null()))
+      return 0;
+    str->set_charset(str_value.charset());
+    return result_field->val_str(str, &str_value);
+  }
+  return val_str(str);
 }
 
 

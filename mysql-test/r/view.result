@@ -1132,5 +1132,22 @@ select distinct a from t1 limit 2;
 a
 1
 2
+prepare stmt1 from "select distinct a from v1 limit 2";
+execute stmt1;
+a
+1
+2
+execute stmt1;
+a
+1
+2
+deallocate prepare stmt1;
+drop view v1;
+drop table t1;
+create table t1 (tg_column bigint);
+create view v1 as select count(tg_column) as vg_column from t1;
+select avg(vg_column) from v1;
+avg(vg_column)
+0.0000
 drop view v1;
 drop table t1;

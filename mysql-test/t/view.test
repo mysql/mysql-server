@@ -1076,5 +1076,18 @@ create view v1 as select a from t1;
 select distinct a from v1;
 select distinct a from v1 limit 2;
 select distinct a from t1 limit 2;
+prepare stmt1 from "select distinct a from v1 limit 2";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+drop view v1;
+drop table t1;
+
+#
+# aggregate function of aggregate function
+#
+create table t1 (tg_column bigint);
+create view v1 as select count(tg_column) as vg_column from t1;
+select avg(vg_column) from v1;
 drop view v1;
 drop table t1;
