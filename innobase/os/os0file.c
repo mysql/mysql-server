@@ -368,7 +368,7 @@ os_file_handle_error(
 
 #undef USE_FILE_LOCK
 #define USE_FILE_LOCK
-#if defined(UNIV_HOTBACKUP) || defined(__WIN__) || defined(__FreeBSD__)
+#if defined(UNIV_HOTBACKUP) || defined(__WIN__) || defined(__FreeBSD__) || defined(__NETWARE__)
 /* InnoDB Hot Backup does not lock the data files.
  * On Windows, mandatory locking is used.
  * On FreeBSD with LinuxThreads, advisory locking does not work properly.

@@ -36,7 +36,6 @@ LIBS =			@CLIENT_LIBS@
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
 client_test_LDADD=      $(LDADD) $(CXXLDFLAGS)
 client_test_SOURCES=    client_test.c
-client_test_DEPENDENCIES= $(LIBRARIES) $(pkglib_LTLIBRARIES)
 insert_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 select_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 

@@ -33,12 +33,13 @@ At the present, the comparison functions return 0 in the case,
 where two records disagree only in the way that one 
 has more fields than the other. */
 
+#ifdef UNIV_DEBUG
 /*****************************************************************
 Used in debug checking of cmp_dtuple_... .
 This function is used to compare a data tuple to a physical record. If
 dtuple has n fields then rec must have either m >= n fields, or it must
 differ from dtuple in some of the m fields rec has. */
-
+static
 int
 cmp_debug_dtuple_rec_with_match(
 /*============================*/	
@@ -54,6 +55,7 @@ cmp_debug_dtuple_rec_with_match(
 				completely  matched fields; when function
 				returns, contains the value for current
 				comparison */
+#endif /* UNIV_DEBUG */
 /*****************************************************************
 This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
@@ -962,13 +964,14 @@ order_resolved:
 	return(ret);
 }
 
+#ifdef UNIV_DEBUG
 /*****************************************************************
 Used in debug checking of cmp_dtuple_... .
 This function is used to compare a data tuple to a physical record. If
 dtuple has n fields then rec must have either m >= n fields, or it must
 differ from dtuple in some of the m fields rec has. If encounters an
 externally stored field, returns 0. */
-
+static
 int
 cmp_debug_dtuple_rec_with_match(
 /*============================*/	
@@ -1064,3 +1067,4 @@ order_resolved:
 
 	return(ret);
 }
+#endif /* UNIV_DEBUG */
