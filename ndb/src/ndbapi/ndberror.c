@@ -426,7 +426,8 @@ ErrorBundle ErrorCodes[] = {
   { 4267, IE, "Corrupted blob value" },
   { 4268, IE, "Error in blob head update forced rollback of transaction" },
   { 4268, IE, "Unknown blob error" },
-  { 4269, IE, "No connection to ndb management server" }
+  { 4269, IE, "No connection to ndb management server" },
+  { 4335, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" }
 };
 
 static
