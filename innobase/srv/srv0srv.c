@@ -1754,7 +1754,8 @@ srv_error_monitor_thread(
 			/* in: a dummy parameter required by
 			os_thread_create */
 {
-	ulint	cnt	= 0;
+	/* number of successive fatal timeouts observed */
+	ulint	fatal_cnt	= 0;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Error monitor thread starts, id %lu\n",
@@ -1762,8 +1763,6 @@ srv_error_monitor_thread(
 #endif
 loop:
 	srv_error_monitor_active = TRUE;
-
-	cnt++;
 
 	os_thread_sleep(2000000);
 
@@ -1774,7 +1773,20 @@ loop:
 		srv_refresh_innodb_monitor_stats();
 	}
 
-	sync_array_print_long_waits();
+	if (sync_array_print_long_waits()) {
+		fatal_cnt++;
+		if (fatal_cnt > 5) {
+
+			fprintf(stderr,
+"InnoDB: Error: semaphore wait has lasted > %lu seconds\n"
+"InnoDB: We intentionally crash the server, because it appears to be hung.\n",
+				srv_fatal_semaphore_wait_threshold);
+
+			ut_error;
+		}
+	} else {
+		fatal_cnt = 0;
+	}
 
 	/* Flush stderr so that a database user gets the output
 	to possible MySQL error file */
