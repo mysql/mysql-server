@@ -150,6 +150,14 @@ struct st_table {
 	*found_next_number_field,	/* Set on open */
         *rowid_field;
   Field_timestamp *timestamp_field;
+#if MYSQL_VERSION_ID < 40100
+  /*
+    Indicates whenever we have to set field_length members of all TIMESTAMP
+    fields to 19 (to honour 'new_mode' variable) or to original
+    field_length values.
+  */
+  my_bool timestamp_mode;
+#endif
   my_string comment;			/* Comment about table */
   CHARSET_INFO *table_charset;		/* Default charset of string fields */
   REGINFO reginfo;			/* field connections */

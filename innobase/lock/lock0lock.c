@@ -373,7 +373,29 @@ lock_rec_get_nth_bit(
 /*=================*/
 			/* out: TRUE if bit set */
 	lock_t*	lock,	/* in: record lock */
-	ulint	i);	/* in: index of the bit */
+	ulint	i)	/* in: index of the bit */
+{
+	ulint	byte_index;
+	ulint	bit_index;
+	ulint	b;
+
+	ut_ad(lock);
+	ut_ad(lock_get_type(lock) == LOCK_REC);
+
+	if (i >= lock->un_member.rec_lock.n_bits) {
+
+		return(FALSE);
+	}
+
+	byte_index = i / 8;
+	bit_index = i % 8;
+
+	b = (ulint)*((byte*)lock + sizeof(lock_t) + byte_index);
+
+	return(ut_bit_get_nth(b, bit_index));
+}	
+
+/*************************************************************************/
 
 #define lock_mutex_enter_kernel()	mutex_enter(&kernel_mutex)
 #define lock_mutex_exit_kernel()	mutex_exit(&kernel_mutex)
@@ -882,36 +904,6 @@ lock_rec_get_n_bits(
 {
 	return(lock->un_member.rec_lock.n_bits);
 }
-
-/*************************************************************************
-Gets the nth bit of a record lock. */
-UNIV_INLINE
-ibool
-lock_rec_get_nth_bit(
-/*=================*/
-			/* out: TRUE if bit set */
-	lock_t*	lock,	/* in: record lock */
-	ulint	i)	/* in: index of the bit */
-{
-	ulint	byte_index;
-	ulint	bit_index;
-	ulint	b;
-
-	ut_ad(lock);
-	ut_ad(lock_get_type(lock) == LOCK_REC);
-
-	if (i >= lock->un_member.rec_lock.n_bits) {
-
-		return(FALSE);
-	}
-
-	byte_index = i / 8;
-	bit_index = i % 8;
-
-	b = (ulint)*((byte*)lock + sizeof(lock_t) + byte_index);
-
-	return(ut_bit_get_nth(b, bit_index));
-}	
 
 /**************************************************************************
 Sets the nth bit of a record lock to TRUE. */

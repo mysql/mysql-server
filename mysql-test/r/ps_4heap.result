@@ -166,26 +166,26 @@ execute stmt1 using @arg00 ;
 substr('MySQL',1,?)
 MyS
 set @arg00='MySQL' ;
-select a , concat(@arg00,b) from t1 ;
+select a , concat(@arg00,b) from t1 order by a;
 a	concat(@arg00,b)
 1	MySQLone
 2	MySQLtwo
 3	MySQLthree
 4	MySQLfour
-prepare stmt1 from ' select a , concat(?,b) from t1 ' ;
+prepare stmt1 from ' select a , concat(?,b) from t1 order by a ' ;
 execute stmt1 using @arg00;
 a	concat(?,b)
 1	MySQLone
 2	MySQLtwo
 3	MySQLthree
 4	MySQLfour
-select a , concat(b,@arg00) from t1 ;
+select a , concat(b,@arg00) from t1 order by a ;
 a	concat(b,@arg00)
 1	oneMySQL
 2	twoMySQL
 3	threeMySQL
 4	fourMySQL
-prepare stmt1 from ' select a , concat(b,?) from t1 ' ;
+prepare stmt1 from ' select a , concat(b,?) from t1 order by a ' ;
 execute stmt1 using @arg00;
 a	concat(b,?)
 1	oneMySQL
@@ -193,23 +193,23 @@ a	concat(b,?)
 3	threeMySQL
 4	fourMySQL
 set @arg00='MySQL' ;
-select group_concat(@arg00,b) from t1 
+select group_concat(@arg00,b order by a) from t1 
 group by 'a' ;
-group_concat(@arg00,b)
+group_concat(@arg00,b order by a)
 MySQLone,MySQLtwo,MySQLthree,MySQLfour
-prepare stmt1 from ' select group_concat(?,b) from t1
+prepare stmt1 from ' select group_concat(?,b order by a) from t1
 group by ''a'' ' ;
 execute stmt1 using @arg00;
-group_concat(?,b)
+group_concat(?,b order by a)
 MySQLone,MySQLtwo,MySQLthree,MySQLfour
-select group_concat(b,@arg00) from t1 
+select group_concat(b,@arg00 order by a) from t1 
 group by 'a' ;
-group_concat(b,@arg00)
+group_concat(b,@arg00 order by a)
 oneMySQL,twoMySQL,threeMySQL,fourMySQL
-prepare stmt1 from ' select group_concat(b,?) from t1
+prepare stmt1 from ' select group_concat(b,? order by a) from t1
 group by ''a'' ' ;
 execute stmt1 using @arg00;
-group_concat(b,?)
+group_concat(b,? order by a)
 oneMySQL,twoMySQL,threeMySQL,fourMySQL
 set @arg00='first' ;
 set @arg01='second' ;
@@ -235,14 +235,14 @@ create table t5 (id1 int(11) not null default '0',
 value2 varchar(100), value1 varchar(100)) ;
 insert into t5 values (1,'hh','hh'),(2,'hh','hh'),
 (1,'ii','ii'),(2,'ii','ii') ;
-prepare stmt1 from ' select id1,value1 from t5 where id1=? or value1=? ' ;
+prepare stmt1 from ' select id1,value1 from t5 where id1=? or value1=? order by id1,value1 ' ;
 set @arg00=1 ;
 set @arg01='hh' ;
 execute stmt1 using @arg00, @arg01 ;
 id1	value1
 1	hh
-2	hh
 1	ii
+2	hh
 drop table t5 ;
 drop table if exists t5 ;
 create table t5(session_id  char(9) not null) ;
@@ -308,11 +308,11 @@ execute stmt1 using @arg00 ;
 a
 set @arg00=2 ;
 set @arg01=3 ;
-select a FROM t1 where a in (@arg00,@arg01);
+select a FROM t1 where a in (@arg00,@arg01) order by a;
 a
 2
 3
-prepare stmt1 from ' select a FROM t1 where a in (?,?) ';
+prepare stmt1 from ' select a FROM t1 where a in (?,?) order by a ';
 execute stmt1 using @arg00, @arg01;
 a
 2
@@ -320,7 +320,7 @@ a
 set @arg00= 'one' ;
 set @arg01= 'two' ;
 set @arg02= 'five' ;
-prepare stmt1 from ' select b FROM t1 where b in (?,?,?) ' ;
+prepare stmt1 from ' select b FROM t1 where b in (?,?,?) order by b ' ;
 execute stmt1 using @arg00, @arg01, @arg02 ;
 b
 one
@@ -386,13 +386,13 @@ a	b
 4	four
 set @arg00='two' ;
 select a,b FROM t1 where a is not NULL
-AND b is not NULL having b <> @arg00 ;
+AND b is not NULL having b <> @arg00 order by a ;
 a	b
 1	one
 3	three
 4	four
 prepare stmt1 from ' select a,b FROM t1 where a is not NULL
-AND b is not NULL having b <> ? ' ;
+AND b is not NULL having b <> ? order by a ' ;
 execute stmt1 using @arg00 ;
 a	b
 1	one
@@ -440,7 +440,7 @@ set @arg00=0 ;
 execute stmt1 using @arg00;
 ERROR 42S22: Unknown column '?' in 'order clause'
 set @arg00=1;
-prepare stmt1 from ' select a,b from t1
+prepare stmt1 from ' select a,b from t1 order by a
 limit 1 ';
 execute stmt1 ;
 a	b
@@ -471,7 +471,7 @@ test_sequence
 ------ join tests ------
 select first.a as a1, second.a as a2 
 from t1 first, t1 second
-where first.a = second.a ;
+where first.a = second.a order by a1 ;
 a1	a2
 1	1
 2	2
@@ -479,7 +479,7 @@ a1	a2
 4	4
 prepare stmt1 from ' select first.a as a1, second.a as a2 
         from t1 first, t1 second
-        where first.a = second.a ';
+        where first.a = second.a order by a1 ';
 execute stmt1 ;
 a1	a2
 1	1
@@ -518,17 +518,17 @@ a	?	a
 4	ABC	4
 drop table if exists t2 ;
 create table t2 as select * from t1 ;
-set @query1= 'SELECT * FROM t2 join t1 on (t1.a=t2.a) ' ;
-set @query2= 'SELECT * FROM t2 natural join t1 ' ;
-set @query3= 'SELECT * FROM t2 join t1 using(a) ' ;
-set @query4= 'SELECT * FROM t2 left join t1 on(t1.a=t2.a) ' ;
-set @query5= 'SELECT * FROM t2 natural left join t1 ' ;
-set @query6= 'SELECT * FROM t2 left join t1 using(a) ' ;
-set @query7= 'SELECT * FROM t2 right join t1 on(t1.a=t2.a) ' ;
-set @query8= 'SELECT * FROM t2 natural right join t1 ' ;
-set @query9= 'SELECT * FROM t2 right join t1 using(a) ' ;
+set @query1= 'SELECT * FROM t2 join t1 on (t1.a=t2.a) order by t2.a ' ;
+set @query2= 'SELECT * FROM t2 natural join t1 order by t2.a ' ;
+set @query3= 'SELECT * FROM t2 join t1 using(a) order by t2.a ' ;
+set @query4= 'SELECT * FROM t2 left join t1 on(t1.a=t2.a) order by t2.a ' ;
+set @query5= 'SELECT * FROM t2 natural left join t1 order by t2.a ' ;
+set @query6= 'SELECT * FROM t2 left join t1 using(a) order by t2.a ' ;
+set @query7= 'SELECT * FROM t2 right join t1 on(t1.a=t2.a) order by t2.a ' ;
+set @query8= 'SELECT * FROM t2 natural right join t1 order by t2.a ' ;
+set @query9= 'SELECT * FROM t2 right join t1 using(a) order by t2.a ' ;
 the join statement is:
-SELECT * FROM t2 right join t1 using(a) 
+SELECT * FROM t2 right join t1 using(a) order by t2.a 
 prepare stmt1 from @query9  ;
 execute stmt1 ;
 a	b	a	b
@@ -549,7 +549,7 @@ a	b	a	b
 3	three	3	three
 4	four	4	four
 the join statement is:
-SELECT * FROM t2 natural right join t1 
+SELECT * FROM t2 natural right join t1 order by t2.a 
 prepare stmt1 from @query8 ;
 execute stmt1 ;
 a	b	a	b
@@ -570,7 +570,7 @@ a	b	a	b
 3	three	3	three
 4	four	4	four
 the join statement is:
-SELECT * FROM t2 right join t1 on(t1.a=t2.a) 
+SELECT * FROM t2 right join t1 on(t1.a=t2.a) order by t2.a 
 prepare stmt1 from @query7 ;
 execute stmt1 ;
 a	b	a	b
@@ -591,7 +591,7 @@ a	b	a	b
 3	three	3	three
 4	four	4	four
 the join statement is:
-SELECT * FROM t2 left join t1 using(a) 
+SELECT * FROM t2 left join t1 using(a) order by t2.a 
 prepare stmt1 from @query6 ;
 execute stmt1 ;
 a	b	a	b
@@ -612,7 +612,7 @@ a	b	a	b
 3	three	3	three
 4	four	4	four
 the join statement is:
-SELECT * FROM t2 natural left join t1 
+SELECT * FROM t2 natural left join t1 order by t2.a 
 prepare stmt1 from @query5 ;
 execute stmt1 ;
 a	b	a	b
@@ -633,7 +633,7 @@ a	b	a	b
 3	three	3	three
 4	four	4	four
 the join statement is:
-SELECT * FROM t2 left join t1 on(t1.a=t2.a) 
+SELECT * FROM t2 left join t1 on(t1.a=t2.a) order by t2.a 
 prepare stmt1 from @query4 ;
 execute stmt1 ;
 a	b	a	b
@@ -654,7 +654,7 @@ a	b	a	b
 3	three	3	three
 4	four	4	four
 the join statement is:
-SELECT * FROM t2 join t1 using(a) 
+SELECT * FROM t2 join t1 using(a) order by t2.a 
 prepare stmt1 from @query3 ;
 execute stmt1 ;
 a	b	a	b
@@ -675,7 +675,7 @@ a	b	a	b
 3	three	3	three
 4	four	4	four
 the join statement is:
-SELECT * FROM t2 natural join t1 
+SELECT * FROM t2 natural join t1 order by t2.a 
 prepare stmt1 from @query2 ;
 execute stmt1 ;
 a	b
@@ -696,7 +696,7 @@ a	b
 3	three
 4	four
 the join statement is:
-SELECT * FROM t2 join t1 on (t1.a=t2.a) 
+SELECT * FROM t2 join t1 on (t1.a=t2.a) order by t2.a 
 prepare stmt1 from @query1 ;
 execute stmt1 ;
 a	b	a	b
@@ -770,7 +770,7 @@ execute stmt1 using @arg00, @arg01, @arg02, @arg03 ;
 a	?	b
 2	1	two
 prepare stmt1 from ' select a, b FROM t1 outer_table where
-   a = (select a from t1 where b = outer_table.b ) ';
+   a = (select a from t1 where b = outer_table.b ) order by a ';
 execute stmt1 ;
 a	b
 1	one

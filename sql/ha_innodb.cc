@@ -812,6 +812,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
         if the trx isolation level would have been specified as SERIALIZABLE */
 
         prebuilt->select_lock_type = LOCK_NONE;
+        prebuilt->stored_select_lock_type = LOCK_NONE;
 
         /* Always fetch all columns in the index record */
 
@@ -3171,7 +3172,7 @@ ha_innobase::index_last(
 {
 	int	error;
 
-  	DBUG_ENTER("index_first");
+  	DBUG_ENTER("index_last");
   	statistic_increment(ha_read_last_count, &LOCK_status);
 
   	error = index_read(buf, NULL, 0, HA_READ_BEFORE_KEY);
@@ -3523,10 +3524,6 @@ create_index(
 			}
 		} else {
 		        prefix_len = 0;
-		}
-
-		if (prefix_len >= DICT_MAX_COL_PREFIX_LEN) {
-			DBUG_RETURN(-1);
 		}
 
 		/* We assume all fields should be sorted in ascending
@@ -4259,7 +4256,7 @@ ha_innobase::info(
 
         if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
-                return;
+                DBUG_VOID_RETURN;
         }
 
 	/* We do not know if MySQL can call this function before calling
@@ -4820,6 +4817,7 @@ ha_innobase::external_lock(
 		/* If this is a SELECT, then it is in UPDATE TABLE ...
 		or SELECT ... FOR UPDATE */
 		prebuilt->select_lock_type = LOCK_X;
+		prebuilt->stored_select_lock_type = LOCK_X;
 	}
 
 	if (lock_type != F_UNLCK) {
@@ -5071,14 +5069,22 @@ ha_innobase::store_lock(
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 
-	if (lock_type == TL_READ_WITH_SHARED_LOCKS ||
+	if ((lock_type == TL_READ && thd->in_lock_tables) ||
+	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
+	    lock_type == TL_READ_WITH_SHARED_LOCKS ||
 	    lock_type == TL_READ_NO_INSERT) {
-		/* This is a SELECT ... IN SHARE MODE, or
-		we are doing a complex SQL statement like
+		/* The OR cases above are in this order:
+		1) MySQL is doing LOCK TABLES ... READ LOCAL, or
+		2) (we do not know when TL_READ_HIGH_PRIORITY is used), or
+		3) this is a SELECT ... IN SHARE MODE, or
+		4) we are doing a complex SQL statement like
 		INSERT INTO ... SELECT ... and the logical logging (MySQL
-		binlog) requires the use of a locking read */
+		binlog) requires the use of a locking read, or
+		MySQL is doing LOCK TABLES ... READ. */
 
 		prebuilt->select_lock_type = LOCK_S;
+		prebuilt->stored_select_lock_type = LOCK_S;
+
 	} else if (lock_type != TL_IGNORE) {
 
 	        /* In ha_berkeley.cc there is a comment that MySQL
@@ -5089,6 +5095,7 @@ ha_innobase::store_lock(
 		here even if this would be SELECT ... FOR UPDATE */
 
 		prebuilt->select_lock_type = LOCK_NONE;
+		prebuilt->stored_select_lock_type = LOCK_NONE;
 	}
 
 	if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
@@ -5333,39 +5340,32 @@ innobase_get_at_most_n_mbchars(
 	/* If the charset is multi-byte, then we must find the length of the
 	first at most n chars in the string. If the string contains less
 	characters than n, then we return the length to the end of the last
-	full character. */
+	character. */
 
 	if (charset->mbmaxlen > 1) {
-/*		ulint	right_value; */
-
 		/* my_charpos() returns the byte length of the first n_chars
-		characters, or the end of the last full character */
+		characters, or a value bigger than the length of str, if
+		there were not enough full characters in str.
+
+		Why does the code below work:
+		Suppose that we are looking for n UTF-8 characters.
+
+		1) If the string is long enough, then the prefix contains at
+		least n complete UTF-8 characters + maybe some extra
+		characters + an incomplete UTF-8 character. No problem in
+		this case. The function returns the pointer to the
+		end of the nth character.
+
+		2) If the string is not long enough, then the string contains
+		the complete value of a column, that is, only complete UTF-8
+		characters, and we can store in the column prefix index the
+		whole string. */
 
 		char_length = my_charpos(charset, str,
 						str + data_len, n_chars);
-	
-		/*################################################*/
-		/* TODO: my_charpos sometimes returns a non-sensical value
-		that is BIGGER than data_len: try to fix this bug partly with
-		these heuristics. This is NOT a complete bug fix! */
-
 		if (char_length > data_len) {
 			char_length = data_len;
 		}		
-		/*################################################*/
-
-/*		printf("data_len %lu, n_chars %lu, char_len %lu\n",
-				data_len, n_chars, char_length);
-		if (data_len < n_chars) {
-			right_value = data_len;
-		} else {
-			right_value = n_chars;
-		}
-
-		if (right_value != char_length) {
-			printf("ERRRRRROOORRRRRRRRRRRR!!!!!!!!!\n");
-		}
-*/
 	} else {
 		if (data_len < prefix_len) {
 			char_length = data_len;

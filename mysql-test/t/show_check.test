@@ -5,6 +5,10 @@
 --disable_warnings
 drop table if exists t1,t2;
 drop database if exists mysqltest;
+
+delete from mysql.user where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+delete from mysql.db where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+flush privileges;
 --enable_warnings
 
 create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));

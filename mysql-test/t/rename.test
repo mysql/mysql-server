@@ -5,7 +5,7 @@
 --disable_warnings
 drop table if exists t0,t1,t2,t3,t4;
 # Clear up from other tests (to ensure that SHOW TABLES below is right)
-drop table if exists t0,t5,t6,t7,t8,t9;
+drop table if exists t0,t5,t6,t7,t8,t9,t1_1,t1_2,t9_1,t9_2;
 --enable_warnings
 
 create table t0 SELECT 1,"table 1";
