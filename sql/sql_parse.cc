@@ -3730,7 +3730,10 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   TABLE_LIST *org_tables=tables;
   for (; tables ; tables=tables->next)
   {
-    if (tables->derived || (tables->table && (int)tables->table->tmp_table))
+    if (tables->derived ||
+        (tables->table && (int)tables->table->tmp_table) ||
+        my_tz_check_n_skip_implicit_tables(&tables,
+                                           thd->lex->time_zone_tables_used))
       continue;
     if ((thd->master_access & want_access) == (want_access & ~EXTRA_ACL) &&
 	thd->db)
