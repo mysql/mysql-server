@@ -30,6 +30,8 @@
   flush_io_cache().  
 */
 
+#ifndef EMBEDDED_LIBRARY
+
 #define MAP_TO_USE_RAID
 #include "mysql_priv.h"
 #ifdef HAVE_AIOWAIT
@@ -81,3 +83,6 @@ int _my_b_net_read(register IO_CACHE *info, byte *Buffer,
 }
 
 } /* extern "C" */
+#endif /* EMBEDDED_LIBRARY */
+
+

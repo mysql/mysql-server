@@ -680,7 +680,7 @@ int mysqld_show_create_db(THD *thd, const char *dbname, HA_CREATE_INFO *create_i
   
   net_store_data(packet, convert, path, (uint) (to-path));
   
-  if (my_net_write(&thd->net,(char*) packet->ptr(), packet->length()))
+  if (SEND_ROW(thd, field_list.elements, (char*) packet->ptr(), packet->length()))
     DBUG_RETURN(1);
   
   send_eof(thd);

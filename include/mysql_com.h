@@ -121,16 +121,15 @@ typedef struct st_vio Vio;
 #define MAX_BLOB_WIDTH		8192	/* Default width for blob */
 
 typedef struct st_net {
+#ifndef EMBEDDED_LIBRARY
   Vio* vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;					/* For Perl DBI/dbd */
   unsigned long max_packet,max_packet_size;
-  unsigned int last_errno,pkt_nr,compress_pkt_nr;
+  unsigned int pkt_nr,compress_pkt_nr;
   unsigned int write_timeout, read_timeout, retry_count;
   int fcntl;
-  char last_error[MYSQL_ERRMSG_SIZE];
-  unsigned char error;
-  my_bool return_errno,compress;
+  my_bool compress;
   /*
     The following variable is set if we are doing several queries in one
     command ( as in LOAD TABLE ... FROM MASTER ),
@@ -140,13 +139,18 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool report_error; /* We should report error (we have unreported error) */
   my_bool no_send_ok;
   /*
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
   */
+#endif
+  char last_error[MYSQL_ERRMSG_SIZE];
+  unsigned int last_errno;
+  unsigned char error;
   gptr query_cache_query;
+  my_bool report_error; /* We should report error (we have unreported error) */
+  my_bool return_errno;
 } NET;
 
 #define packet_error (~(unsigned long) 0)

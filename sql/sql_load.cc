@@ -77,6 +77,8 @@ static int read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 			  String &enclosed);
 
 
+#ifndef EMBEDDED_LIBRARY
+
 int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       List<Item> &fields, enum enum_duplicates handle_duplicates,
 	       bool read_file_from_client,thr_lock_type lock_type)
@@ -156,12 +158,14 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (read_file_from_client && handle_duplicates == DUP_ERROR)
     handle_duplicates=DUP_IGNORE;
 
+#ifndef EMBEDDED_LIBRARY
   if (read_file_from_client)
   {
     (void)net_request_file(&thd->net,ex->file_name);
     file = -1;
   }
   else
+#endif
   {
     read_file_from_client=0;
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
@@ -329,6 +333,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   DBUG_RETURN(error);
 }
 
+#endif /* EMBEDDED_LIBRARY */
 
 /****************************************************************************
 ** Read of rows of fixed size + optional garage + optonal newline
@@ -563,9 +568,11 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, String &field_term,
 	cache.read_function = _my_b_net_read;
 
       need_end_io_cache = 1;
+#ifndef EMBEDDED_LIBRARY
       if (!opt_old_rpl_compat && mysql_bin_log.is_open())
 	cache.pre_read = cache.pre_close =
 	  (IO_CACHE_CALLBACK) log_loaded_block;
+#endif
     }
   }
 }

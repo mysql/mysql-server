@@ -871,6 +871,7 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx)	/* in: transaction handle */
 {
+#ifndef EMBEDDED_LIBRARY
         if (current_thd->slave_thread) {
                 /* Update the replication position info inside InnoDB */
 #ifdef NEED_TO_BE_FIXED	  
@@ -884,6 +885,7 @@ innobase_commit_low(
 					  active_mi->rli.event_len +
 					  active_mi->rli.pending));
         }
+#endif /* EMBEDDED_LIBRARY */
         trx_commit_for_mysql(trx);
 }
 
@@ -3953,8 +3955,7 @@ innodb_show_status(
   
   	net_store_data(packet, buf);
   
-  	if (my_net_write(&thd->net, (char*)thd->packet.ptr(),
-						packet->length())) {
+  	if (SEND_ROW(thd, field_list.elements, (char*)thd->packet.ptr(), packet->length())) {
 		ut_free(buf);
 	
     		DBUG_RETURN(-1);

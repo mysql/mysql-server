@@ -314,10 +314,6 @@ int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
 my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
 
-#ifdef EMBEDDED_LIBRARY
-#define mysql_send_query mysql_real_query
-#endif
-
 #define MAX_SERVER_ARGS 20
 
 static int embedded_server_arg_count=0;
@@ -1325,6 +1321,7 @@ int close_connection(struct st_query* q)
   {
     if (!strcmp(con->name, name))
     {
+#ifndef EMBEDDED_LIBRARY
       if (q->type == Q_DIRTY_CLOSE)
       {
 	if (con->mysql.net.vio)
@@ -1333,7 +1330,7 @@ int close_connection(struct st_query* q)
 	  con->mysql.net.vio = 0;
 	}
       }
-
+#endif
       mysql_close(&con->mysql);
       DBUG_RETURN(0);
     }

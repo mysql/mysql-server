@@ -268,7 +268,8 @@ int berkeley_show_logs(THD *thd)
       else
 	net_store_data(packet, SHOW_LOG_STATUS_INUSE);
 
-      if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+
+      if (SEND_ROW(thd, 3, (char*) packet->ptr(),packet->length()))
       {
 	error=1;
 	goto err;

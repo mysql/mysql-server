@@ -761,7 +761,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   if ((local_tables = is_cacheable(thd, thd->query_length,
 			     thd->query, &thd->lex, tables_used)))
   {
-    NET *net = &thd->net;
+    NET *net= &thd->net;
     byte flags = (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
     STRUCT_LOCK(&structure_guard_mutex);
 
@@ -1022,11 +1022,13 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 			ALIGN_SIZE(sizeof(Query_cache_result))));
 
     Query_cache_result *result = result_block->result();
+#ifndef EMBEDDED_LIBRARY
     if (net_real_write(&thd->net, result->data(),
 		       result_block->used -
 		       result_block->headers_len() -
 		       ALIGN_SIZE(sizeof(Query_cache_result))))
       break;					// Client aborted
+#endif
     result_block = result_block->next;
   } while (result_block != first_result_block);
 

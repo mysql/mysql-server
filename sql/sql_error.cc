@@ -183,7 +183,7 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     net_store_data(&thd->packet,warning_level_names[err->level]);
     net_store_data(&thd->packet,(uint32) err->code);
     net_store_data(&thd->packet,err->msg);
-    if (my_net_write(&thd->net,(char*)thd->packet.ptr(),thd->packet.length()))
+    if (SEND_ROW(thd, field_list.elements, (char*)thd->packet.ptr(),thd->packet.length()))
       DBUG_RETURN(1);
     if (!--limit)
       break;

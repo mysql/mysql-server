@@ -231,7 +231,7 @@ int send_variant_2_list(THD *thd, List<String> *names, my_bool is_category)
     packet->length(0);
     net_store_data(packet, cur_name->ptr());
     net_store_data(packet, is_category ? "Y" : "N");
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+    if (SEND_ROW(thd,2,(char*) packet->ptr(),packet->length()))
       DBUG_RETURN(-1);
   }
 
@@ -316,7 +316,7 @@ int send_answer_1(THD *thd, const char *s1, const char *s2,
   net_store_data(packet, s3);
   net_store_data(packet, s4);
   
-  if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+  if (SEND_ROW(thd,field_list.elements,(char*) packet->ptr(),packet->length()))
     DBUG_RETURN(-1);
 
   DBUG_RETURN(0);

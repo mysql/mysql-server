@@ -109,8 +109,10 @@ THD::THD():user_time(0), fatal_error(0),
   mysys_var=0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
-#endif  
+#endif
+#ifndef EMBEDDED_LIBRARY  
   net.vio=0;
+#endif
   net.last_error[0]=0;				// If error on boot
   ull=0;
   system_thread=cleanup_done=0;
@@ -263,11 +265,13 @@ THD::~THD()
   pthread_mutex_unlock(&LOCK_delete);
 
   /* Close connection */
+#ifndef EMBEDDED_LIBRARY  
   if (net.vio)
   {
     vio_delete(net.vio);
     net_end(&net); 
   }
+#endif
   if (!cleanup_done)
     cleanup();
 #ifdef USING_TRANSACTIONS

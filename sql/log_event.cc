@@ -80,12 +80,14 @@ static void pretty_print_str(FILE* file, char* str, int len)
   ignored_error_code()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 inline int ignored_error_code(int err_code)
 {
   return use_slave_mask && bitmap_is_set(&slave_error_mask, err_code);
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
@@ -122,6 +124,7 @@ static void pretty_print_str(String* packet, char* str, int len)
   slave_load_file_stem()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 static inline char* slave_load_file_stem(char*buf, uint file_id,
 					 int event_server_id)
@@ -135,6 +138,7 @@ static inline char* slave_load_file_stem(char*buf, uint file_id,
   return int10_to_str(file_id, buf, 10);
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
@@ -148,6 +152,7 @@ static inline char* slave_load_file_stem(char*buf, uint file_id,
     Easily fixable by adding server_id as a prefix to the log files.
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 static void cleanup_load_tmpdir()
 {
@@ -167,6 +172,7 @@ static void cleanup_load_tmpdir()
   my_dirend(dirp);
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
@@ -284,6 +290,7 @@ Log_event::Log_event(const char* buf, bool old_format)
 
 
 #ifndef MYSQL_CLIENT
+#ifndef EMBEDDED_LIBRARY
 
 /*****************************************************************************
 
@@ -310,6 +317,7 @@ void Log_event::pack_info(String* packet)
 {
   net_store_data(packet, "", 0);
 }
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
@@ -333,6 +341,7 @@ void Log_event::init_show_field_list(List<Item>* field_list)
   Only called by SHOW BINLOG EVENTS
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 int Log_event::net_send(THD* thd_arg, const char* log_name, my_off_t pos)
 {
   String* packet = &thd_arg->packet;
@@ -349,8 +358,9 @@ int Log_event::net_send(THD* thd_arg, const char* log_name, my_off_t pos)
   net_store_data(packet, server_id);
   net_store_data(packet, (longlong) log_pos);
   pack_info(packet);
-  return my_net_write(&thd_arg->net, (char*) packet->ptr(), packet->length());
+  return SEND_ROW(thd_arg, 5, (char*) packet->ptr(), packet->length());
 }
+#endif /* EMBEDDED_LIBRARY */
 #endif // !MYSQL_CLIENT
 
 /*****************************************************************************
@@ -558,9 +568,11 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
   case ROTATE_EVENT:
     ev = new Rotate_log_event(buf, event_len, old_format);
     break;
+#ifndef EMBEDDED_LIBRARY
   case SLAVE_EVENT:
     ev = new Slave_log_event(buf, event_len);
     break;
+#endif /* EMBEDDED_LIBRARY */
   case CREATE_FILE_EVENT:
     ev = new Create_file_log_event(buf, event_len, old_format);
     break;
@@ -576,9 +588,11 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len,
   case START_EVENT:
     ev = new Start_log_event(buf, old_format);
     break;
+#ifndef EMBEDDED_LIBRARY
   case STOP_EVENT:
     ev = new Stop_log_event(buf, old_format);
     break;
+#endif /* EMBEDDED_LIBRARY */
   case INTVAR_EVENT:
     ev = new Intvar_log_event(buf, old_format);
     break;
@@ -665,6 +679,7 @@ void Log_event::set_log_pos(MYSQL_LOG* log)
  *****************************************************************************
  ****************************************************************************/
 
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 /*****************************************************************************
 
@@ -688,6 +703,7 @@ void Query_log_event::pack_info(String* packet)
   net_store_data(packet, (char*)tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
@@ -820,6 +836,7 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
   Query_log_event::exec_event()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -909,6 +926,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   return Log_event::exec_event(rli); 
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -924,6 +942,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   Start_log_event::pack_info()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 void Start_log_event::pack_info(String* packet)
 {
@@ -939,6 +958,7 @@ void Start_log_event::pack_info(String* packet)
   net_store_data(packet, tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
@@ -1007,6 +1027,7 @@ int Start_log_event::write_data(IO_CACHE* file)
       In this case we should stop the slave.
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 int Start_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -1020,6 +1041,7 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
   return Log_event::exec_event(rli);
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -1035,6 +1057,7 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
   Load_log_event::pack_info()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 void Load_log_event::pack_info(String* packet)
 {
@@ -1112,6 +1135,7 @@ void Load_log_event::pack_info(String* packet)
   net_store_data(packet, tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
@@ -1415,6 +1439,7 @@ void Load_log_event::set_fields(List<Item> &field_list)
   Load_log_event::exec_event()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 {
@@ -1526,6 +1551,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
   return Log_event::exec_event(rli); 
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -1541,6 +1567,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
   Rotate_log_event::pack_info()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 void Rotate_log_event::pack_info(String* packet)
 {
@@ -1555,6 +1582,7 @@ void Rotate_log_event::pack_info(String* packet)
   net_store_data(packet, tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
@@ -1647,6 +1675,7 @@ int Rotate_log_event::write_data(IO_CACHE* file)
     0	ok
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -1664,6 +1693,7 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
   DBUG_RETURN(0);
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -1679,6 +1709,7 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
   Intvar_log_event::pack_info()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 void Intvar_log_event::pack_info(String* packet)
 {
@@ -1691,6 +1722,7 @@ void Intvar_log_event::pack_info(String* packet)
   net_store_data(packet, tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
@@ -1769,6 +1801,7 @@ void Intvar_log_event::print(FILE* file, bool short_form, char* last_db)
   Intvar_log_event::exec_event()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -1785,6 +1818,7 @@ int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
   return 0;
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -1800,6 +1834,7 @@ int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
   Rand_log_event::pack_info()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 void Rand_log_event::pack_info(String* packet)
 {
@@ -1811,6 +1846,7 @@ void Rand_log_event::pack_info(String* packet)
   net_store_data(packet, buf1, (uint) (pos-buf1));
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
@@ -1863,6 +1899,7 @@ void Rand_log_event::print(FILE* file, bool short_form, char* last_db)
   Rand_log_event::exec_event()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -1872,6 +1909,7 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
   return 0;
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -1887,6 +1925,8 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
   Slave_log_event::pack_info()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
+
 #ifndef MYSQL_CLIENT
 void Slave_log_event::pack_info(String* packet)
 {
@@ -2110,6 +2150,7 @@ int Stop_log_event::exec_event(struct st_relay_log_info* rli)
   return 0;
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -2235,6 +2276,7 @@ void Create_file_log_event::print(FILE* file, bool short_form,
   Create_file_log_event::pack_info()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 void Create_file_log_event::pack_info(String* packet)
 {
@@ -2254,12 +2296,14 @@ void Create_file_log_event::pack_info(String* packet)
   net_store_data(packet, (char*) tmp.ptr(), tmp.length());
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
   Create_file_log_event::exec_event()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -2318,6 +2362,7 @@ err:
   return error ? 1 : Log_event::exec_event(rli);
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -2394,6 +2439,7 @@ void Append_block_log_event::print(FILE* file, bool short_form,
   Append_block_log_event::pack_info()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 void Append_block_log_event::pack_info(String* packet)
 {
@@ -2405,12 +2451,14 @@ void Append_block_log_event::pack_info(String* packet)
   net_store_data(packet, buf, (int32) length);
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
   Append_block_log_event::exec_event()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -2440,6 +2488,7 @@ err:
   return error ? error : Log_event::exec_event(rli);
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -2509,6 +2558,7 @@ void Delete_file_log_event::print(FILE* file, bool short_form,
   Delete_file_log_event::pack_info()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 void Delete_file_log_event::pack_info(String* packet)
 {
@@ -2518,12 +2568,14 @@ void Delete_file_log_event::pack_info(String* packet)
   net_store_data(packet, buf, (int32) length);
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
   Delete_file_log_event::exec_event()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 int Delete_file_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -2538,6 +2590,7 @@ int Delete_file_log_event::exec_event(struct st_relay_log_info* rli)
   return Log_event::exec_event(rli);
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -2608,6 +2661,7 @@ void Execute_load_log_event::print(FILE* file, bool short_form,
   Execute_load_log_event::pack_info()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 void Execute_load_log_event::pack_info(String* packet)
 {
@@ -2617,12 +2671,14 @@ void Execute_load_log_event::pack_info(String* packet)
   net_store_data(packet, buf, (int32) length);
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 /*****************************************************************************
 
   Execute_load_log_event::exec_event()
 
  ****************************************************************************/
+#ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_CLIENT
 int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -2683,6 +2739,7 @@ err:
   return error ? error : Log_event::exec_event(rli);
 }
 #endif // !MYSQL_CLIENT
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*****************************************************************************
@@ -2772,10 +2829,5 @@ char* sql_ex_info::init(char* buf,char* buf_end,bool use_new_format)
   }
   return buf;
 }
-
-
-
-
-
 
 

@@ -2464,7 +2464,9 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     return -1;					// Retryable
   }
   connected=1;
+#ifndef EMBEDDED_LIBRARY
   mysql.reconnect=info_flag ? 1 : 0; // We want to know if this happens
+#endif
 #ifdef HAVE_READLINE
   build_completion_hash(rehash, 1);
 #endif
@@ -2558,12 +2560,14 @@ com_status(String *buffer __attribute__((unused)),
   tee_fprintf(stdout, "Client characterset:\t%s\n",
 	      system_charset_info->name);
   tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->name);
+#ifndef EMBEDDED_LIBRARY
   if (strstr(mysql_get_host_info(&mysql),"TCP/IP") || ! mysql.unix_socket)
     tee_fprintf(stdout, "TCP port:\t\t%d\n", mysql.port);
   else
     tee_fprintf(stdout, "UNIX socket:\t\t%s\n", mysql.unix_socket);
   if (mysql.net.compress)
     tee_fprintf(stdout, "Protocol:\t\tCompressed\n");
+#endif
 
   if ((status=mysql_stat(&mysql)) && !mysql_error(&mysql)[0])
   {
@@ -2829,11 +2833,13 @@ static const char* construct_prompt()
 	break;
       }
       case 'p':
+#ifndef EMBEDDED_LIBRARY
 	if (strstr(mysql_get_host_info(&mysql),"TCP/IP") ||
 	    ! mysql.unix_socket)
 	  add_int_to_prompt(mysql.port);
 	else
 	  processed_prompt.append(strrchr(mysql.unix_socket,'/')+1);
+#endif
 	break;
       case 'U':
 	if (!full_username)
@@ -2974,5 +2980,4 @@ void sql_element_free(void *ptr)
   my_free((gptr) ptr,MYF(0));
 }
 #endif /* EMBEDDED_LIBRARY */
-
 
