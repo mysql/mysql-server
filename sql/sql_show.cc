@@ -2909,12 +2909,13 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
     0	                  Can't create table
 */
 
-TABLE *create_schema_table(THD *thd, ST_SCHEMA_TABLE *schema_table)
+TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
 {
   int field_count= 0;
   Item *item;
   TABLE *table;
   List<Item> field_list;
+  ST_SCHEMA_TABLE *schema_table= table_list->schema_table;
   ST_FIELD_INFO *fields_info= schema_table->fields_info;
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("create_schema_table");
@@ -2959,8 +2960,7 @@ TABLE *create_schema_table(THD *thd, ST_SCHEMA_TABLE *schema_table)
                                 field_list, (ORDER*) 0, 0, 0, 
                                 (select_lex->options | thd->options |
                                  TMP_TABLE_ALL_COLUMNS),
-                                HA_POS_ERROR,
-                                (char *) schema_table->table_name)))
+                                HA_POS_ERROR, table_list->real_name)))
     DBUG_RETURN(0);
   DBUG_RETURN(table);
 }
@@ -3130,8 +3130,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
 {
   TABLE *table;
   DBUG_ENTER("mysql_schema_table");
-  if (!(table= table_list->schema_table->
-	create_table(thd, table_list->schema_table)))
+  if (!(table= table_list->schema_table->create_table(thd, table_list)))
   {
     DBUG_RETURN(1);
   }
@@ -3292,7 +3291,7 @@ ST_FIELD_INFO columns_fields_info[]=
   {"ORDINAL_POSITION", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
   {"COLUMN_DEFAULT", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Default"},
   {"IS_NULLABLE", 3, MYSQL_TYPE_STRING, 0, 0, "Null"},
-  {"DATA_TYPE", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DATA_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CHARACTER_MAXIMUM_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
   {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
   {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
