@@ -889,12 +889,12 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     {
       if (share->db_type == DB_TYPE_HEAP &&
 	  key_info->algorithm == HA_KEY_ALG_BTREE)
-	packet->append(" TYPE BTREE", 11);
+	packet->append(" USING BTREE", 12);
       
       // +BAR: send USING only in non-default case: non-spatial rtree
       if ((key_info->algorithm == HA_KEY_ALG_RTREE) &&
 	  !(key_info->flags & HA_SPATIAL))
-	packet->append(" TYPE RTREE", 11);
+	packet->append(" USING RTREE", 12);
     }
     packet->append(" (", 2);
 
