@@ -36,7 +36,7 @@ static double _wghts[11]={
   3.375000000000000,
   5.062500000000000,
   7.593750000000000};
-static double *wghts=_wghts+5; // wghts[i] = 1.5**i
+static double *wghts=_wghts+5; /* wghts[i] = 1.5**i */
 
 static double _nwghts[11]={
  -0.065843621399177,
@@ -50,7 +50,7 @@ static double _nwghts[11]={
  -1.687500000000000,
  -2.531250000000000,
  -3.796875000000000};
-static double *nwghts=_nwghts+5; // nwghts[i] = -0.5*1.5**i
+static double *nwghts=_nwghts+5; /* nwghts[i] = -0.5*1.5**i */
 
 typedef struct st_ftb_expr FTB_EXPR;
 struct st_ftb_expr {
@@ -114,20 +114,7 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
     byte  r=param.plusminus;
     float weight=(param.pmsign ? nwghts : wghts)[(r>5)?5:((r<-5)?-5:r)];
     switch (res) {
-      case FTB_LBR:
-        ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
-        ftbe->yesno=param.yesno;
-        ftbe->weight=weight;
-        ftbe->up=up;
-        ftbe->ythresh=0;
-        ftbe->docid=HA_POS_ERROR;
-        if (ftbe->yesno > 0) up->ythresh++;
-        _ftb_parse_query(ftb, start, end, ftbe, depth+1,
-                         (param.yesno<0 ? depth+1 : ndepth));
-        break;
-      case FTB_RBR:
-        return;
-      case 1:
+      case 1: /* word found */
         ftbw=(FTB_WORD *)alloc_root(&ftb->mem_root,
             sizeof(FTB_WORD) + (param.trunc ? MI_MAX_KEY_BUFF : w.len+extra));
         ftbw->len=w.len+1;
@@ -142,6 +129,19 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         if (ftbw->yesno > 0) up->ythresh++;
         queue_insert(& ftb->queue, (byte *)ftbw);
         break;
+      case 2: /* left bracket */
+        ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
+        ftbe->yesno=param.yesno;
+        ftbe->weight=weight;
+        ftbe->up=up;
+        ftbe->ythresh=0;
+        ftbe->docid=HA_POS_ERROR;
+        if (ftbe->yesno > 0) up->ythresh++;
+        _ftb_parse_query(ftb, start, end, ftbe, depth+1,
+                         (param.yesno<0 ? depth+1 : ndepth));
+        break;
+      case 3: /* right bracket */
+        return;
     }
   }
   return;
@@ -339,7 +339,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
       /* curdoc matched ! */
       info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED); /* why is this ? */
 
-      /* info->lastpos=curdoc; */ /* do I need this ? */
+      info->lastpos=curdoc;
       if (!(*info->read_record)(info,curdoc,record))
       {
         info->update|= HA_STATE_AKTIV;          /* Record is read */
@@ -348,6 +348,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
       return my_errno;
     }
   }
+  ftb->state=INDEX_DONE;
   return my_errno=HA_ERR_END_OF_FILE;
 }
 
@@ -359,17 +360,33 @@ float ft_boolean_find_relevance(FT_INFO *ftb, my_off_t docid, byte *record)
   FTB_EXPR *ftbe;
   uint      i;
 
-  if (ftb->state == READY)
+  if (ftb->state == READY || ftb->state == INDEX_DONE)
   {
+    for (i=1; i<=ftb->queue.elements; i++)
+    {
+      ftbw=(FTB_WORD *)(ftb->queue.root[i]);
+      ftbw->docid=HA_POS_ERROR;
+      for (ftbe=ftbw->up; ftbe; ftbe=ftbe->up)
+      {
+        if (ftbe->docid != HA_POS_ERROR)
+        {
+          ftbe->cur_weight=ftbe->yesses=ftbe->nos=0;
+          ftbe->docid=HA_POS_ERROR;
+        }
+        else
+          break;
+      }
+    }
+
     queue_fix(& ftb->queue);
     ftb->state=SCAN;
   }
   else if (ftb->state != SCAN)
-    return -1.0;
+    return -2.0;
 
   bzero(&ptree, sizeof(ptree));
   if (_mi_ft_parse(& ptree, ftb->info, ftb->keynr, record))
-    return -1.0;
+    return -3.0;
 
   for (i=1; i<=ftb->queue.elements; i++)
   {

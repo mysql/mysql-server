@@ -29,7 +29,7 @@ public:
   TABLE_REF *ref;
 
   FT_SELECT(TABLE *table, TABLE_REF *tref) :
-      QUICK_SELECT (table,tref->key,1), ref(tref) {}
+      QUICK_SELECT (table,tref->key,1), ref(tref) { init(); }
 
   int init() { return error=file->ft_init(); }
   int get_next() { return error=file->ft_read(record); }
