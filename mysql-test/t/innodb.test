@@ -578,17 +578,11 @@ explain select a,b,c from t1;
 drop table t1;
 
 #
-# Check describe & handler
+# Check describe
 #
 
 create table t1 (t int not null default 1, key (t)) type=innodb;
 desc t1;
---error 1031
-handler t1 open t1;
---error 1109
-handler t1 read t first;
---error 1109
-handler t1 close;
 drop table t1;
 
 #
