@@ -158,7 +158,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
             (flag=mi_compare_text(keyseg->charset,a,a_length,b,b_length,
 				  (my_bool) ((nextflag & SEARCH_PREFIX) &&
 					     next_key_length <= 0),
-				  !(nextflag & SEARCH_PREFIX))))
+				  (my_bool)!(nextflag & SEARCH_PREFIX))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a+=a_length;
         b+=b_length;
@@ -171,7 +171,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
             (flag= mi_compare_text(keyseg->charset, a, a_length, b, b_length,
 				   (my_bool) ((nextflag & SEARCH_PREFIX) &&
 					      next_key_length <= 0),
-				   !(nextflag & SEARCH_PREFIX))))
+				   (my_bool)!(nextflag & SEARCH_PREFIX))))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a=end;
         b+=length;

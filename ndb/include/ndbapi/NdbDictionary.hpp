@@ -144,6 +144,8 @@ public:
       FragAllLarge = 4        ///< Eight fragments per node group.
     };
   };
+
+  class Table; // forward declaration
   
   /**
    * @class Column
@@ -183,7 +185,7 @@ public:
       Datetime,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
       Timespec,    ///< Precision down to 1 nsec(sizeof(Datetime) == 12 bytes )
       Blob,        ///< Binary large object (see NdbBlob)
-      Clob         ///< Text blob
+      Text         ///< Text blob
     };
 
     /** 
@@ -309,7 +311,8 @@ public:
 
     /**
      * For blob, set or get "part size" i.e. number of bytes to store in
-     * each tuple of the "blob table".  Must be less than 64k.
+     * each tuple of the "blob table".  Can be set to zero to omit parts
+     * and to allow only inline bytes ("tinyblob").
      */
     void setPartSize(int size) { setScale(size); }
     int getPartSize() const { return getScale(); }
@@ -324,7 +327,7 @@ public:
     /**
      * Get size of element
      */
-    int Column::getSize() const;
+    int getSize() const;
 
     /** 
      * Set distribution key
@@ -363,6 +366,8 @@ public:
     
     void setIndexOnlyStorage(bool);
     bool getIndexOnlyStorage() const;
+
+    const Table * getBlobTable() const;
 
     /** 
      * @name ODBC Specific methods 
@@ -1060,6 +1065,6 @@ public:
   };
 };
 
-class NdbOut& operator <<(class NdbOut& ndbout, const NdbDictionary::Column::Type type);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Column& col);
 
 #endif

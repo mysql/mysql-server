@@ -84,6 +84,8 @@ static NdbSchemaCon* tcon = 0;
 static NdbSchemaOp* top = 0;
 static NdbConnection* con = 0;
 static NdbOperation* op = 0;
+static NdbScanOperation* sop = 0;
+static NdbResultSet* rs = 0;
 
 static int
 ndberror(char const* fmt, ...)
@@ -438,9 +440,9 @@ testcase(int flag)
 	int newkey = 0;
 	if ((con = ndb->startTransaction()) == 0)
 	    return ndberror("startTransaction key=%d", key);
-	if ((op = con->getNdbOperation(tab)) == 0)
+	if ((op = sop = con->getNdbScanOperation(tab)) == 0)
 	    return ndberror("getNdbOperation key=%d", key);
-	if (op->openScanRead(1) < 0)
+	if ((rs = sop->readTuples(1)) == 0)
 	    return ndberror("openScanRead key=%d", key);
 	{
 	    col& c = ccol[0];
@@ -481,10 +483,10 @@ testcase(int flag)
 		}
 	    }
 	}
-	if (con->executeScan() < 0)
+	if (con->execute(NoCommit) < 0)
 	    return ndberror("executeScan key=%d", key);
 	int ret, cnt = 0;
-	while ((ret = con->nextScanResult()) == 0) {
+	while ((ret = rs->nextResult()) == 0) {
 	    if (key != newkey)
 		return ndberror("unexpected key=%d newkey=%d", key, newkey);
 	    for (int i = 1; i < attrcnt; i++) {

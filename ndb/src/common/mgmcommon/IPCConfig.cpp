@@ -339,12 +339,13 @@ IPCConfig::getNodeType(NodeId id) const {
   return out;
 }
 
+#include <mgmapi.h>
 Uint32
 IPCConfig::configureTransporters(Uint32 nodeId,
 				 const class ndb_mgm_configuration & config,
 				 class TransporterRegistry & tr){
 
-  Uint32 noOfTransportersCreated = 0;
+  Uint32 noOfTransportersCreated= 0, server_port= 0;
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_CONNECTION);
   
   for(iter.first(); iter.valid(); iter.next()){
@@ -364,6 +365,16 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     Uint32 type = ~0;
     if(iter.get(CFG_TYPE_OF_SECTION, &type)) continue;
 
+    Uint32 tmp_server_port= 0;
+    if(iter.get(CFG_CONNECTION_SERVER_PORT, &tmp_server_port)) break;
+    if (nodeId <= nodeId1 && nodeId <= nodeId2) {
+      if (server_port && server_port != tmp_server_port) {
+	ndbout << "internal error in config setup of server ports line= " << __LINE__ << endl;
+	exit(-1);
+      }
+      server_port= tmp_server_port;
+    }
+
     switch(type){
     case CONNECTION_TYPE_SHM:{
       SHM_TransporterConfiguration conf;
@@ -377,6 +388,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       if(iter.get(CFG_SHM_KEY, &conf.shmKey)) break;
       if(iter.get(CFG_SHM_BUFFER_MEM, &conf.shmSize)) break;
       
+      conf.port= tmp_server_port;
+
       if(!tr.createTransporter(&conf)){
 	ndbout << "Failed to create SHM Transporter from: " 
 	       << conf.localNodeId << " to: " << conf.remoteNodeId << endl;
@@ -428,10 +441,10 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       if(iter.get(CFG_TCP_HOSTNAME_1, &host1)) break;
       if(iter.get(CFG_TCP_HOSTNAME_2, &host2)) break;
       
-      if(iter.get(CFG_TCP_SERVER_PORT, &conf.port)) break;
       if(iter.get(CFG_TCP_SEND_BUFFER_SIZE, &conf.sendBufferSize)) break;
       if(iter.get(CFG_TCP_RECEIVE_BUFFER_SIZE, &conf.maxReceiveSize)) break;
       
+      conf.port= tmp_server_port;
       const char * proxy;
       if (!iter.get(CFG_TCP_PROXY, &proxy)) {
 	if (strlen(proxy) > 0 && nodeId2 == nodeId) {
@@ -490,6 +503,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     }
   }
   
+  tr.m_service_port= server_port;
+
   return noOfTransportersCreated;
 }
   

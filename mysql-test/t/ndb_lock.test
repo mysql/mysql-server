@@ -1,0 +1,41 @@
+-- source include/have_ndb.inc
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
+--enable_warnings
+
+#
+# Transaction lock test to show that the NDB 
+# table handler is working properly with
+# transaction locks
+#
+
+#
+# Testing of scan isolation
+#
+connection con1;
+create table t1 (x integer not null primary key, y varchar(32)) engine = ndb;
+insert into t1 values (1,'one'), (2,'two');
+select * from t1 order by x;
+
+connection con2;
+select * from t1 order by x;
+
+connection con1;
+start transaction; 
+insert into t1 values (3,'three'); 
+select * from t1 order by x;
+
+connection con2;
+start transaction; 
+select * from t1 order by x;
+
+connection con1;
+commit;
+
+connection con2;
+select * from t1 order by x;
+commit;

@@ -391,6 +391,7 @@ Packer::pack(Uint32 * insertPtr,
 	     const SignalHeader * header, 
 	     const Uint32 * theData,
 	     const LinearSectionPtr ptr[3]) const {
+  Uint32 i;
   
   Uint32 dataLen32 = header->theLength;
   Uint32 no_segs = header->m_noOfSections;
@@ -400,7 +401,7 @@ Packer::pack(Uint32 * insertPtr,
     checksumUsed + signalIdUsed + (sizeof(Protocol6)/4);
   
 
-  for(Uint32 i = 0; i<no_segs; i++){
+  for(i = 0; i<no_segs; i++){
     len32 += ptr[i].sz;
   }
   
@@ -429,12 +430,12 @@ Packer::pack(Uint32 * insertPtr,
   memcpy(tmpInserPtr, theData, 4 * dataLen32);
 
   tmpInserPtr += dataLen32;
-  for(Uint32 i = 0; i<no_segs; i++){
+  for(i = 0; i<no_segs; i++){
     tmpInserPtr[i] = ptr[i].sz;
   }
 
   tmpInserPtr += no_segs;
-  for(Uint32 i = 0; i<no_segs; i++){
+  for(i = 0; i<no_segs; i++){
     import(tmpInserPtr, ptr[i]);
   }
   
@@ -450,6 +451,7 @@ Packer::pack(Uint32 * insertPtr,
 	     const Uint32 * theData,
 	     class SectionSegmentPool & thePool,
 	     const SegmentedSectionPtr ptr[3]) const {
+  Uint32 i;
   
   Uint32 dataLen32 = header->theLength;
   Uint32 no_segs = header->m_noOfSections;
@@ -458,7 +460,7 @@ Packer::pack(Uint32 * insertPtr,
     dataLen32 + no_segs + 
     checksumUsed + signalIdUsed + (sizeof(Protocol6)/4);
   
-  for(Uint32 i = 0; i<no_segs; i++){
+  for(i = 0; i<no_segs; i++){
     len32 += ptr[i].sz;
   }
   
@@ -487,12 +489,12 @@ Packer::pack(Uint32 * insertPtr,
   memcpy(tmpInserPtr, theData, 4 * dataLen32);
   
   tmpInserPtr += dataLen32;
-  for(Uint32 i = 0; i<no_segs; i++){
+  for(i = 0; i<no_segs; i++){
     tmpInserPtr[i] = ptr[i].sz;
   }
 
   tmpInserPtr += no_segs;
-  for(Uint32 i = 0; i<no_segs; i++){
+  for(i = 0; i<no_segs; i++){
     copy(tmpInserPtr, thePool, ptr[i]);
   }
   

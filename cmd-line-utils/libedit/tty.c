@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.c,v 1.15 2001/05/17 01:02:17 christos Exp $	*/
+/*	$NetBSD: tty.c,v 1.16 2002/03/18 16:01:01 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -36,12 +36,18 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: tty.c,v 1.16 2002/03/18 16:01:01 christos Exp $");
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * tty.c: tty interface stuff
  */
-#include "sys.h"
 #include "tty.h"
 #include "el.h"
 
@@ -54,7 +60,7 @@ typedef struct ttymodes_t {
 typedef struct ttymap_t {
 	int nch, och;		/* Internal and termio rep of chars */
 	el_action_t bind[3];	/* emacs, vi, and vi-cmd */
-}        ttymap_t;
+} ttymap_t;
 
 
 private const ttyperm_t ttyperm = {
@@ -778,15 +784,15 @@ tty_bind_char(EditLine *el, int force)
 		if (new[0] == old[0] && !force)
 			continue;
 		/* Put the old default binding back, and set the new binding */
-		key_clear(el, map, (char *)old);
+		el_key_clear(el, map, (char *)old);
 		map[old[0]] = dmap[old[0]];
-		key_clear(el, map, (char *)new);
+		el_key_clear(el, map, (char *)new);
 		/* MAP_VI == 1, MAP_EMACS == 0... */
 		map[new[0]] = tp->bind[el->el_map.type];
 		if (dalt) {
-			key_clear(el, alt, (char *)old);
+			el_key_clear(el, alt, (char *)old);
 			alt[old[0]] = dalt[old[0]];
-			key_clear(el, alt, (char *)new);
+			el_key_clear(el, alt, (char *)new);
 			alt[new[0]] = tp->bind[el->el_map.type + 1];
 		}
 	}
@@ -1039,9 +1045,8 @@ tty_stty(EditLine *el, int argc __attribute__((unused)), const char **argv)
 {
 	const ttymodes_t *m;
 	char x;
-	const char *d;
 	int aflag = 0;
-	const char *s;
+	const char *s, *d;
 	const char *name;
 	int z = EX_IO;
 

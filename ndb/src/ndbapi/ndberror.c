@@ -91,6 +91,9 @@ ErrorBundle ErrorCodes[] = {
   { 4029, NR, "Node failure caused abort of transaction" },
   { 4031, NR, "Node failure caused abort of transaction" },
   { 4033, NR, "Send to NDB failed" },
+  { 4115, NR, 
+   "Transaction was committed but all read information was not "
+   "received due to node crash" },
 
   /**
    * Node shutdown
@@ -114,9 +117,6 @@ ErrorBundle ErrorCodes[] = {
    "Time-out, most likely caused by simple read or cluster failure" }, 
   { 4024, UR, 
    "Time-out, most likely caused by simple read or cluster failure" }, 
-  { 4115, UR, 
-   "Transaction was committed but all read information was not "
-   "received due to node crash" },
 
   /**
    * TemporaryResourceError
@@ -404,7 +404,6 @@ ErrorBundle ErrorCodes[] = {
   { 4243, AE, "Index not found" },
   { 4244, AE, "Index or table with given name already exists" },
   { 4245, AE, "Index attribute must be defined as stored, i.e. the StorageAttributeType must be defined as NormalStorageAttribute"},
-  { 4246, AE, "Combined index attributes are not allowed to be NULL attributes" },
   { 4247, AE, "Illegal index/trigger create/drop/alter request" },
   { 4248, AE, "Trigger/index name invalid" },
   { 4249, AE, "Invalid table" },

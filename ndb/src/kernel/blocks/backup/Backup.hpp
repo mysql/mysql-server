@@ -696,6 +696,7 @@ Uint32 *
 Backup::OperationRecord::newVariableKey(Uint32 sz){
   attrLeft--;
   attrSzLeft = 0;
+  attrSzTotal += sz;
   
   dst = &dst_VariableData->Data[0];
   dst_VariableData->Sz = htonl(sz);
@@ -712,7 +713,7 @@ Backup::OperationRecord::finished(){
     return false;
   }
   
-  attrLen[opNoDone] = attrSzTotal;
+  attrLen[opNoDone] = attrSzTotal + sz_FixedKeys;
   opNoDone++;
   
   scanStop = dst = (Uint32 *)dst_VariableData;

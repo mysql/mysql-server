@@ -15,7 +15,7 @@ create view v1 (c,d) as select a,b from t1;
 
 create temporary table t1 (a int, b int);
 #view on temporary table
--- error 1351
+-- error 1352
 create view v1 (c) as select b+1 from t1;
 drop table t1;
 
@@ -23,7 +23,7 @@ create table t1 (a int, b int);
 insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
 
 #view with variable
--- error 1350
+-- error 1351
 create view v1 (c,d) as select a,b+@@global.max_user_connections from t1;
 
 # simple view
@@ -38,7 +38,7 @@ select * from t1;
 select c from v1;
 show create table v1;
 show create view v1;
--- error 1346
+-- error 1347
 show create view t1;
 drop table t1;
 
@@ -131,7 +131,7 @@ show grants for test@localhost;
 drop view v100;
 
 #try to drop table with DROP VIEW
--- error 1346
+-- error 1347
 drop view t1;
 
 #try to drop VIEW with DROP TABLE
@@ -265,21 +265,21 @@ select c from mysqltest.v4;
 show columns from mysqltest.v1;
 show columns from mysqltest.v2;
 # but explain/show do not
--- error 1344
+-- error 1345
 explain select c from mysqltest.v1;
--- error 1344
+-- error 1345
 show create table mysqltest.v1;
--- error 1344
+-- error 1345
 explain select c from mysqltest.v2;
--- error 1344
+-- error 1345
 show create table mysqltest.v2;
--- error 1344
+-- error 1345
 explain select c from mysqltest.v3;
--- error 1344
+-- error 1345
 show create table mysqltest.v3;
--- error 1344
+-- error 1345
 explain select c from mysqltest.v4;
--- error 1344
+-- error 1345
 show create table mysqltest.v4;
 
 # allow to see one of underlaing table
@@ -292,13 +292,13 @@ show create table mysqltest.v1;
 explain select c from mysqltest.v2;
 show create table mysqltest.v2;
 # but other EXPLAINs do not
--- error 1344
+-- error 1345
 explain select c from mysqltest.v3;
--- error 1344
+-- error 1345
 show create table mysqltest.v3;
--- error 1344
+-- error 1345
 explain select c from mysqltest.v4;
--- error 1344
+-- error 1345
 show create table mysqltest.v4;
 
 # allow to see any view in mysqltest database
@@ -445,7 +445,7 @@ insert into t1 values (10,2), (20,3), (30,4), (40,5), (50,10);
 create view v1 (a,c) as select a, b+1 from t1;
 create algorithm=temptable view v2 (a,c) as select a, b+1 from t1;
 # try to update expression
--- error 1347
+-- error 1348
 update v1 set c=a+c;
 # try to update VIEW with forced TEMPORARY TABLE algorithm
 -- error 1288
@@ -467,7 +467,7 @@ insert into t2 values (10), (20);
 create view v1 (a,c) as select a, b+1 from t1;
 create algorithm=temptable view v2 (a,c) as select a, b+1 from t1;
 # try to update expression
--- error 1347
+-- error 1348
 update t2,v1 set v1.c=v1.a+v1.c where t2.x=v1.a;
 # try to update VIEW with forced TEMPORARY TABLE algorithm
 -- error 1288
@@ -798,7 +798,7 @@ connection user1;
 create view v1 as select * from mysqltest.t1;
 create view v2 as select b from mysqltest.t2;
 # There are not rights on mysqltest.v1
---error 1142
+-- error 1142
 create view mysqltest.v1 as select * from mysqltest.t1;
 # There are not any rights on mysqltest.t2.a
 -- error 1143
@@ -888,10 +888,10 @@ create table t1 (col1 char(5),col2 char(5));
 create view v1 as select * from t1;
 drop table t1;
 create table t1 (col1 char(5),newcol2 char(5));
--- error 1355
+-- error 1356
 insert into v1 values('a','aa');
 drop table t1;
--- error 1355
+-- error 1356
 select * from v1;
 drop view v1;
 
@@ -907,7 +907,7 @@ create view v1 (a,a) as select 'a','a';
 delimiter //;
 create procedure p1 () begin declare v int; create view v1 as select v; end;//
 delimiter ;//
--- error 1350
+-- error 1351
 call p1();
 drop procedure p1;
 
@@ -993,7 +993,7 @@ drop view v1;
 #
 create table t1 (col1 int,col2 char(22));
 create view v1 as select * from t1;
--- error 1346
+-- error 1347
 create index i1 on v1 (col1);
 drop view v1;
 drop table t1;
@@ -1153,7 +1153,7 @@ create function x1 () returns int return 5;
 create table t1 (s1 int);
 create view v1 as select x1() from t1;
 drop function x1;
--- error 1304
+-- error 1305
 select * from v1;
 --replace_column 12 # 13 #
 show table status;
@@ -1211,12 +1211,12 @@ drop view v4, v3, v2, v1;
 #
 # VIEW over SELECT with prohibited clauses
 #
--- error 1349
+-- error 1350
 create view v1 as select 5 into @w;
--- error 1349
+-- error 1350
 create view v1 as select 5 into outfile 'ttt';
 create table t1 (a int);
--- error 1349
+-- error 1350
 create view v1 as select a from t1 procedure analyse();
 drop table t1;
 
