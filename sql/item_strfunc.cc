@@ -328,8 +328,12 @@ void Item_func_concat::fix_length_and_dec()
   for (uint i=0 ; i < arg_count ; i++)
   {
     max_length+=args[i]->max_length;
-    set_charset(charset(), coercibility,
-		args[i]->charset(), args[i]->coercibility);
+    if (set_charset(charset(), coercibility,
+		args[i]->charset(), args[i]->coercibility))
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      break;
+    }
   }
 
   if (max_length > MAX_BLOB_WIDTH)

@@ -180,13 +180,10 @@ bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
     set_charset(&my_charset_bin, COER_NOCOLL);
     return 0;
   }
-  
+
   if (!my_charset_same(cs1,cs2))
-  {
-    set_charset(&my_charset_bin, COER_NOCOLL);
-    return 0;
-  }
-  
+    return 1;
+
   if (co1 < co2)
   {
     set_charset(cs1, co1);
@@ -198,7 +195,12 @@ bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
   else  // co2 == co1
   {
     if (cs1 != cs2)
-      set_charset(&my_charset_bin, COER_NOCOLL);
+    {
+      CHARSET_INFO *bin= get_charset_by_csname(cs1->csname, MY_CS_BINSORT,MYF(0));
+      if (!bin)
+	return 1;
+      set_charset(bin, COER_NOCOLL);
+    }
     else
       set_charset(cs2, co2);
   }
