@@ -3270,6 +3270,7 @@ insert:
 	  lex->sql_command = SQLCOM_INSERT;
 	  /* for subselects */
           lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
+	  lex->select_lex.insert_select= 1;
 	} insert_lock_option
 	opt_ignore insert2
 	{
@@ -3285,6 +3286,7 @@ replace:
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_REPLACE;
 	  lex->duplicates= DUP_REPLACE;
+	  lex->select_lex.insert_select= 1;
 	}
 	replace_lock_option insert2
 	{
@@ -3349,6 +3351,11 @@ insert_values:
 				SQLCOM_INSERT_SELECT : SQLCOM_REPLACE_SELECT);
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	    mysql_init_select(lex);
+	    /*
+	      it is not simple select => table list will be
+              preprocessed before passing to handle_select
+	    */
+	    lex->select_lex.insert_select= 0;
 	  }
 	  select_options select_item_list opt_select_from select_lock_type
           union_clause {}

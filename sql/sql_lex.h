@@ -352,6 +352,14 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
+  /* 
+     TRUE for primary st_select_lex structure of simple INSERT/REPLACE
+     (used for name resolution, see Item_fiels & Item_ref fix_fields,
+     FALSE for INSERT/REPLACE ... SELECT, because it's
+     st_select_lex->table_list will be preprocessed (first table removed)
+     before passing to handle_select)
+  */
+  bool insert_select;
 
   void init_query();
   void init_select();
