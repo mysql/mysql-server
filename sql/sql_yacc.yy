@@ -45,7 +45,7 @@ int yylex(void *yylval, void *yythd);
 
 inline Item *or_or_concat(THD *thd, Item* A, Item* B)
 {
-  return (thd->sql_mode & MODE_PIPES_AS_CONCAT ?
+  return (thd->variables.sql_mode & MODE_PIPES_AS_CONCAT ?
           (Item*) new Item_func_concat(A,B) : (Item*) new Item_cond_or(A,B));
 }
 
@@ -1129,7 +1129,7 @@ type:
 	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
 	| TIMESTAMP
 	  {
-	    if (YYTHD->sql_mode & MODE_SAPDB)
+	    if (YYTHD->variables.sql_mode & MODE_SAPDB)
 	      $$=FIELD_TYPE_DATETIME;
 	    else
 	      $$=FIELD_TYPE_TIMESTAMP;
@@ -1200,7 +1200,7 @@ int_type:
 	| BIGINT	{ $$=FIELD_TYPE_LONGLONG; };
 
 real_type:
-	REAL		{ $$= YYTHD->sql_mode & MODE_REAL_AS_FLOAT ?
+	REAL		{ $$= YYTHD->variables.sql_mode & MODE_REAL_AS_FLOAT ?
 			      FIELD_TYPE_FLOAT : FIELD_TYPE_DOUBLE; }
 	| DOUBLE_SYM	{ $$=FIELD_TYPE_DOUBLE; }
 	| DOUBLE_SYM PRECISION { $$=FIELD_TYPE_DOUBLE; };

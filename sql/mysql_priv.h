@@ -209,6 +209,11 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define MODE_MSSQL			512
 #define MODE_DB2			1024
 #define MODE_SAPDB			2048
+#define MODE_NO_KEY_OPTIONS             4096
+#define MODE_NO_TABLE_OPTIONS           8192
+#define MODE_NO_FIELD_OPTIONS          16384
+#define MODE_MYSQL323                  32768
+#define MODE_MYSQL40                   65536
 
 #define RAID_BLOCK_SIZE 1024
 

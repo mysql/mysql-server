@@ -248,7 +248,15 @@ void Field_str::add_binary_or_charset(String &res) const
 {
   if (binary())
     res.append(" binary");
-  else  if (field_charset != table->table_charset)
+  else  if (field_charset != table->table_charset &&
+	    !(current_thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS) &&
+	    !(current_thd->variables.sql_mode & MODE_MYSQL323) &&
+	    !(current_thd->variables.sql_mode & MODE_MYSQL40) &&
+	    !(current_thd->variables.sql_mode & MODE_POSTGRESQL) &&
+	    !(current_thd->variables.sql_mode & MODE_ORACLE) &&
+	    !(current_thd->variables.sql_mode & MODE_MSSQL) &&
+	    !(current_thd->variables.sql_mode & MODE_DB2) &&
+	    !(current_thd->variables.sql_mode & MODE_SAPDB))
   {
     res.append(" character set ");
     res.append(field_charset->csname);
@@ -5037,38 +5045,52 @@ void Field_enum::sql_type(String &res) const
 }
 
 
-/****************************************************************************
-** set type.
-** This is a string which can have a collection of different values.
-** Each string value is separated with a ','.
-** For example "One,two,five"
-** If one uses this string in a number context one gets the bits as a longlong
-** number.
-****************************************************************************/
+/*
+   set type.
+   This is a string which can have a collection of different values.
+   Each string value is separated with a ','.
+   For example "One,two,five"
+   If one uses this string in a number context one gets the bits as a longlong
+   number.
 
-ulonglong find_set(TYPELIB *lib,const char *x,uint length)
+   If there was a value in string that wasn't in set, the 'err_pos' points to
+   the last invalid value found. 'err_len' will be set to length of the
+   error string.
+*/
+
+ulonglong find_set(TYPELIB *lib, const char *x, uint length, char **err_pos,
+                   uint *err_len)
 {
-  const char *end=x+length;
+  const char *end= x + length;
+  *err_pos= 0;                  // No error yet
   while (end > x && my_isspace(system_charset_info, end[-1]))
     end--;
 
-  ulonglong found=0;
+  *err_len= 0;
+  ulonglong found= 0;
   if (x != end)
   {
-    const char *start=x;
+    const char *start= x;
     bool error= 0;
     for (;;)
     {
-      const char *pos=start;
-      for (; pos != end && *pos != field_separator ; pos++) ;
-      uint find=find_enum(lib,start,(uint) (pos-start));
+      const char *pos= start;
+      uint var_len;
+
+      for (; pos != end && *pos != field_separator; pos++) ;
+      var_len= (uint) (pos - start);
+      uint find= find_enum(lib, start, var_len);
       if (!find)
-	error=1;
+      {
+        *err_pos= (char*) start;
+        *err_len= var_len;
+        error= 1;
+      }
       else
-	found|= ((longlong) 1 << (find-1));
+        found|= ((longlong) 1 << (find - 1));
       if (pos == end)
-	break;
-      start=pos+1;
+        break;
+      start= pos + 1;
     }
     if (error)
       current_thd->cuted_fields++;
@@ -5080,7 +5102,10 @@ ulonglong find_set(TYPELIB *lib,const char *x,uint length)
 int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
-  ulonglong tmp=find_set(typelib,from,length);
+  char *not_used;
+  uint not_used2;
+
+  ulonglong tmp= find_set(typelib, from, length, &not_used, &not_used2);
   if (!tmp && length && length < 22)
   {
     /* This is for reading numbers with LOAD DATA INFILE */

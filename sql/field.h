@@ -1095,7 +1095,8 @@ uint32 calc_pack_length(enum_field_types type,uint32 length);
 bool set_field_to_null(Field *field);
 bool set_field_to_null_with_conversions(Field *field, bool no_conversions);
 uint find_enum(TYPELIB *typelib,const char *x, uint length);
-ulonglong find_set(TYPELIB *typelib,const char *x, uint length);
+ulonglong find_set(TYPELIB *typelib,const char *x, uint length,
+		   char **err_pos, uint *err_len);
 bool test_if_int(const char *str, int length, const char *int_end,
 		 CHARSET_INFO *cs);
 
