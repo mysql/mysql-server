@@ -303,8 +303,8 @@ public:
 			    bool fullyQualifiedNames);
   
   static int create_index_obj_from_table(NdbIndexImpl ** dst, 
-					 const NdbTableImpl*,
-					 const NdbTableImpl*);
+					 NdbTableImpl* index_table,
+					 const NdbTableImpl* primary_table);
   
   NdbError & m_error;
 private:
