@@ -6923,7 +6923,10 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
     reverse=flag;				// Remember if reverse
     key_part++;
   }
-  *used_key_parts= (uint) (key_part - table->key_info[idx].key_part);
+  uint tmp= (uint) (key_part - table->key_info[idx].key_part);
+  if (reverse == -1 && !(table->file->index_flags(idx,tmp-1, 1) & HA_READ_PREV))
+    DBUG_RETURN(0);
+  *used_key_parts= tmp;
   DBUG_RETURN(reverse);
 }
 
@@ -7120,10 +7123,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  */
 	  if (!select->quick->reverse_sorted())
 	  {
-            // here used_key_parts >0
-            if (!(table->file->index_flags(ref_key,used_key_parts-1, 1)
-                  & HA_READ_PREV))
-              DBUG_RETURN(0);			// Use filesort
 	    // ORDER BY range_key DESC
 	    QUICK_SELECT_DESC *tmp=new QUICK_SELECT_DESC(select->quick,
 							 used_key_parts);
@@ -7144,9 +7143,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	    Use a traversal function that starts by reading the last row
 	    with key part (A) and then traverse the index backwards.
 	  */
-          if (!(table->file->index_flags(ref_key,used_key_parts-1, 1)
-                & HA_READ_PREV))
-            DBUG_RETURN(0);			// Use filesort
 	  tab->read_first_record=       join_read_last_key;
 	  tab->read_record.read_record= join_read_prev_same;
 	  /* fall through */
@@ -7188,13 +7184,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
     for (nr=0; nr < table->keys ; nr++)
     {
-      uint used_key_parts;
+      uint not_used;
       if (keys.is_set(nr))
       {
 	int flag;
-	if ((flag=test_if_order_by_key(order, table, nr, &used_key_parts)) > 0 ||
-	    ((flag < 0) && (table->file->index_flags(nr,used_key_parts-1, 1)
-			    & HA_READ_PREV)))
+	if (flag=test_if_order_by_key(order, table, nr, &not_used))
 	{
 	  if (!no_changes)
 	  {
