@@ -1127,6 +1127,7 @@ void subselect_single_select_engine::cleanup()
   DBUG_ENTER("subselect_single_select_engine::cleanup");
   prepared= optimized= executed= 0;
   join= 0;
+  result->cleanup();
   DBUG_VOID_RETURN;
 }
 
@@ -1135,6 +1136,7 @@ void subselect_union_engine::cleanup()
 {
   DBUG_ENTER("subselect_union_engine::cleanup");
   unit->reinit_exec_mechanism();
+  result->cleanup();
   DBUG_VOID_RETURN;
 }
 
@@ -1142,6 +1144,10 @@ void subselect_union_engine::cleanup()
 void subselect_uniquesubquery_engine::cleanup()
 {
   DBUG_ENTER("subselect_uniquesubquery_engine::cleanup");
+  /*
+    subselect_uniquesubquery_engine have not 'result' assigbed, so we do not
+    cleanup() it
+  */
   DBUG_VOID_RETURN;
 }
 
