@@ -146,6 +146,12 @@ void load_defaults(const char *conf_file, const char **groups,
 			    &group))
       goto err;
 #endif
+#ifdef __EMX__
+    if (getenv("ETC") &&
+        search_default_file(&args, &alloc, getenv("ETC"), conf_file, 
+                            default_ext, &group))
+      goto err;
+#endif
     for (dirs=default_directories ; *dirs; dirs++)
     {
       int error=0;
@@ -356,6 +362,10 @@ void print_defaults(const char *conf_file, const char **groups)
 #ifdef __WIN__
     GetWindowsDirectory(name,sizeof(name));
     printf("%s\\%s%s ",name,conf_file,have_ext ? "" : windows_ext);
+#endif
+#ifdef __EMX__
+    if (getenv("ETC"))
+      printf("%s\\%s%s ", getenv("ETC"), conf_file, default_ext);
 #endif
     for (dirs=default_directories ; *dirs; dirs++)
     {

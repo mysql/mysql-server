@@ -1,3 +1,7 @@
+2000-11-27  Michael Widenius  <monty@mysql.com>
+
+* Changed mi_create.c to use less stack.
+
 2000-08-23  Michael Widenius  <monty@mysql.com>
 
 * Fixed bug when comparing DECIMAL/NUMERIC key parts.

@@ -21,7 +21,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-
 class Query_log_event;
 class Load_log_event;
 

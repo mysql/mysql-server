@@ -199,11 +199,11 @@ err:
   return error;
 }
 
+	/* Name is here without an extension */
+
 int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 {
-  char name_buff[FN_REFLEN];
-  if (!(file=mi_open(fn_format(name_buff,name,"","",2 | 4), mode,
-		     test_if_locked)))
+  if (!(file=mi_open(name, mode, test_if_locked)))
     return (my_errno ? my_errno : -1);
 
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
