@@ -2,9 +2,9 @@ drop table if exists t1;
 drop table if exists t2;
 drop table if exists t3;
 drop table if exists t4;
-set names eucjp_ms;
-set character_set_database = eucjp_ms;
-CREATE TABLE t1(c1 CHAR(1)) DEFAULT CHARACTER SET = eucjp_ms;
+set names eucjpms;
+set character_set_database = eucjpms;
+CREATE TABLE t1(c1 CHAR(1)) DEFAULT CHARACTER SET = eucjpms;
 INSERT INTO t1 VALUES
 (0x5C),(0x7E),(0xA1B1),(0xA1BD),(0xA1C0),(0xA1C1),(0xA1C2),(0xA1DD),(0xA1F1),(0xA1F2),(0xA1EF),(0xA2CC),(0x8FA2B7),(0x8FA2C3);
 INSERT INTO t1 VALUES
@@ -5045,7 +5045,7 @@ E754
 E755
 E756
 E757
-CREATE TABLE t3 SELECT CONVERT(c1 USING eucjp_ms) AS c1 FROM t2;
+CREATE TABLE t3 SELECT CONVERT(c1 USING eucjpms) AS c1 FROM t2;
 SELECT HEX(c1) FROM t3;
 HEX(c1)
 5C
@@ -9781,3 +9781,7 @@ F9F9
 F9FA
 F9FB
 F9FC
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;

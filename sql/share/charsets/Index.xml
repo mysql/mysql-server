@@ -569,18 +569,18 @@ To make maintaining easier please:
   </collation>
 </charset>
 
-<charset name="eucjp_ms">
+<charset name="eucjpms">
   <family>Japanese</family>
   <description>UJIS for Windows Japanese</description>
   <alias>eucjpms</alias>
   <alias>eucJP_ms</alias>
   <alias>ujis_ms</alias>
   <alias>ujis_cp932</alias>
-  <collation name="eucjp_ms_japanese_ci"    id="97" order="Japanese">
+  <collation name="eucjpms_japanese_ci"    id="97" order="Japanese">
     <flag>primary</flag>
     <flag>compiled</flag>
   </collation>
-  <collation name="eucjp_ms_bin"    id="98" order="Japanese">
+  <collation name="eucjpms_bin"    id="98" order="Japanese">
     <flag>binary</flag>
     <flag>compiled</flag>
   </collation>
