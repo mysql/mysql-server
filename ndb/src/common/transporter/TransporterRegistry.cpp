@@ -1500,7 +1500,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
      */
     cs= (char*)malloc((strlen(sc->get_server_name())+20)*sizeof(char));
     if(!cs)
-      return -1;
+      return NDB_INVALID_SOCKET;
     d= true;
   }
   else
@@ -1512,7 +1512,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
   ndb_mgm_set_connectstring(h, cs);
 
   if(ndb_mgm_connect(h, 0, 0, 0)<0)
-    return -1;
+    return NDB_INVALID_SOCKET;
   
   for(unsigned int i=0;i < m_transporter_interface.size();i++)
     ndb_mgm_set_connection_int_parameter(h,
