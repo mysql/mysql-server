@@ -268,7 +268,7 @@ C_MODE_END
 #endif
 #include <errno.h>				/* Recommended by debian */
 /* We need the following to go around a problem with openssl on solaris */
-#if defined(HAVE_CRYPT)
+#if defined(HAVE_CRYPT_H)
 #include <crypt.h>
 #endif
 
