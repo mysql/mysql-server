@@ -290,11 +290,7 @@ int mysql_delete(THD *thd,
 ** delete multiple tables from join 
 ***************************************************************************/
 
-#ifndef DBUG_OFF
-#define MEM_STRIP_BUF_SIZE 2048
-#else
-#define MEM_STRIP_BUF_SIZE sortbuffer_size
-#endif
+#define MEM_STRIP_BUF_SIZE sortbuff_size
 
 #ifndef SINISAS_STRIP
 int refposcmp2(void* arg, const void *a,const void *b)

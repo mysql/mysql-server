@@ -5153,9 +5153,11 @@ part_of_refkey(TABLE *table,Field *field)
 ** Returns: 1 if key is ok.
 **	    0 if key can't be used
 **	    -1 if reverse key can be used
+**          used_key_parts is set to key parts used if length != 0
 *****************************************************************************/
 
-static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx)
+static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
+				uint *used_key_parts)
 {
   KEY_PART_INFO *key_part,*key_part_end;
   key_part=table->key_info[idx].key_part;
@@ -5187,6 +5189,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx)
     reverse=flag;				// Remember if reverse
     key_part++;
   }
+  *used_key_parts= (uint) (key_part - table->key_info[idx].key_part);
   return reverse;
 }
 
@@ -5249,16 +5252,37 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   if (ref_key >= 0)
   {
     int order_direction;
+    uint used_key_parts;
     /* Check if we get the rows in requested sorted order by using the key */
     if ((usable_keys & ((key_map) 1 << ref_key)) &&
-	(order_direction = test_if_order_by_key(order,table,ref_key)))
+	(order_direction = test_if_order_by_key(order,table,ref_key,
+						&used_key_parts)))
     {
-      if (order_direction == -1 && select && select->quick)
+      if (order_direction == -1)
       {
-	// ORDER BY ref_key DESC
-	select->quick = new QUICK_SELECT_DESC(select->quick);
-	if (select->quick->error)
+	if (select && select->quick)
+	{
+	  // ORDER BY ref_key DESC
+	  QUICK_SELECT_DESC *tmp=new QUICK_SELECT_DESC(select->quick,
+						       used_key_parts);
+	  if (!tmp || tmp->error)
+	  {
+	    delete tmp;
+	    DBUG_RETURN(0);		// Reverse sort not supported
+	  }
+	  select->quick=tmp;
+	  DBUG_RETURN(1);
+	}
+	if (tab->ref.key_parts < used_key_parts)
+	{
+	  /*
+	    SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
+	    TODO:
+	    Add a new traversal function to read last matching row and
+	    traverse backwards.
+	  */
 	  DBUG_RETURN(0);
+	}
       }
       DBUG_RETURN(1);			/* No need to sort */
     }
@@ -5280,10 +5304,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
     for (nr=0; keys ; keys>>=1, nr++)
     {
+      uint not_used;
       if (keys & 1)
       {
 	int flag;
-	if ((flag=test_if_order_by_key(order,table,nr)))
+	if ((flag=test_if_order_by_key(order, table, nr, &not_used)))
 	{
 	  if (!no_changes)
 	  {
