@@ -802,6 +802,9 @@ struct show_var_st init_vars[]= {
   {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
 #endif
   {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
+#ifdef HAVE_TZNAME
+  {"system_time_zone",        system_time_zone,                     SHOW_CHAR},
+#endif
   {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
   {sys_table_type.name,	      (char*) &sys_table_type,	            SHOW_SYS},
   {sys_thread_cache_size.name,(char*) &sys_thread_cache_size,       SHOW_SYS},
@@ -810,9 +813,6 @@ struct show_var_st init_vars[]= {
 #endif
   {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
   {sys_time_format.name,      (char*) &sys_time_format,		    SHOW_SYS},
-#ifdef HAVE_TZNAME
-  {"system_time_zone",        system_time_zone,                     SHOW_CHAR},
-#endif
   {"time_zone",               (char*) &sys_time_zone,               SHOW_SYS},
   {sys_tmp_table_size.name,   (char*) &sys_tmp_table_size,	    SHOW_SYS},
   {"tmpdir",                  (char*) &opt_mysql_tmpdir,            SHOW_CHAR_PTR},
