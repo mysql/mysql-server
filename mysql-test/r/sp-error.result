@@ -47,6 +47,11 @@ iterate bar;
 end loop;
 ERROR HY000: ITERATE with no matching label: bar
 create procedure foo()
+foo: begin
+iterate foo;
+end;
+ERROR HY000: ITERATE with no matching label: foo
+create procedure foo()
 foo: loop
 foo: loop
 set @x=2;
@@ -219,4 +224,30 @@ end;
 call p();
 ERROR HY000: Wrong number of FETCH variables
 drop procedure p;
+create procedure p(in x int, x char(10))
+begin
+end;
+ERROR HY000: Duplicate parameter: x
+create function p(x int, x char(10))
+begin
+end;
+ERROR HY000: Duplicate parameter: x
+create procedure p()
+begin
+declare x float;
+declare x int;
+end;
+ERROR HY000: Duplicate parameter: x
+create procedure p()
+begin
+declare c condition for 1064;
+declare c condition for 1065;
+end;
+ERROR HY000: Duplicate condition: c
+create procedure p()
+begin
+declare c cursor for select * from t1;
+declare c cursor for select field from t1;
+end;
+ERROR HY000: Duplicate cursor: c
 drop table t1;

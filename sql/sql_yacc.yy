@@ -371,6 +371,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SPATIAL_SYM
 %token  SPECIFIC_SYM
 %token  SQLEXCEPTION_SYM
+%token  SQLSTATE_SYM
 %token  SQLWARNING_SYM
 %token  SSL_SYM
 %token	STARTING
@@ -618,7 +619,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component
-        SP_FUNC ident_or_spfunc
+        SP_FUNC ident_or_spfunc sp_opt_label
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -1149,7 +1150,15 @@ sp_fdparams:
 sp_fdparam:
 	  ident type sp_opt_locator
 	  {
-	    Lex->spcont->push_pvar(&$1, (enum enum_field_types)$2, sp_param_in);
+	    LEX *lex= Lex;
+	    sp_pcontext *spc= lex->spcont;
+
+	    if (spc->find_pvar(&$1, TRUE))
+	    {
+	      net_printf(YYTHD, ER_SP_DUP_THING, "parameter", $1.str);
+	      YYABORT;
+	    }
+	    spc->push_pvar(&$1, (enum enum_field_types)$2, sp_param_in);
 	  }
 	;
 
@@ -1167,9 +1176,16 @@ sp_pdparams:
 sp_pdparam:
 	  sp_opt_inout ident type sp_opt_locator
 	  {
-	    Lex->spcont->push_pvar(&$2,
-	                           (enum enum_field_types)$3,
-			           (sp_param_mode_t)$1);
+	    LEX *lex= Lex;
+	    sp_pcontext *spc= lex->spcont;
+
+	    if (spc->find_pvar(&$2, TRUE))
+	    {
+	      net_printf(YYTHD, ER_SP_DUP_THING, "parameter", $2.str);
+	      YYABORT;
+	    }
+	    spc->push_pvar(&$2, (enum enum_field_types)$3,
+			   (sp_param_mode_t)$1);
 	  }
 	;
 
@@ -1186,7 +1202,7 @@ sp_opt_locator:
 	;
 
 sp_proc_stmts:
-	  sp_proc_stmt ';'
+	  /* Empty */ {}
 	| sp_proc_stmts sp_proc_stmt ';'
 	;
 
@@ -1231,6 +1247,14 @@ sp_decl:
 	  }
 	| DECLARE_SYM ident CONDITION_SYM FOR_SYM sp_cond
 	  {
+	    LEX *lex= Lex;
+	    sp_pcontext *spc= lex->spcont;
+
+	    if (spc->find_cond(&$2, TRUE))
+	    {
+	      net_printf(YYTHD, ER_SP_DUP_THING, "condition", $2.str);
+	      YYABORT;
+	    }
 	    YYTHD->lex->spcont->push_cond(&$2, $5);
 	    $$.vars= $$.hndlrs= $$.curs= 0;
 	    $$.conds= 1;
@@ -1272,8 +1296,16 @@ sp_decl:
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
-	    sp_instr_cpush *i= new sp_instr_cpush(sp->instructions(), $5);
+	    sp_pcontext *spc= lex->spcont;
+	    uint offp;
+	    sp_instr_cpush *i;
 
+	    if (spc->find_cursor(&$2, &offp, TRUE))
+	    {
+	      net_printf(YYTHD, ER_SP_DUP_THING, "cursor", $2.str);
+	      YYABORT;
+	    }
+            i= new sp_instr_cpush(sp->instructions(), $5);
 	    sp->add_instr(i);
 	    lex->spcont->push_cursor(&$2);
 	    $$.vars= $$.conds= $$.hndlrs= 0;
@@ -1344,16 +1376,21 @@ sp_cond:
 	    $$->type= sp_cond_type_t::number;
 	    $$->mysqlerr= $1;
 	  }
-	| TEXT_STRING_literal
+	| SQLSTATE_SYM opt_value TEXT_STRING_literal
 	  {		/* SQLSTATE */
-	    uint len= ($1.length < sizeof($$->sqlstate)-1 ?
-                       $1.length : sizeof($$->sqlstate)-1);
+	    uint len= ($3.length < sizeof($$->sqlstate)-1 ?
+                       $3.length : sizeof($$->sqlstate)-1);
 
 	    $$= (sp_cond_type_t *)YYTHD->alloc(sizeof(sp_cond_type_t));
 	    $$->type= sp_cond_type_t::state;
-	    memcpy($$->sqlstate, $1.str, len);
+	    memcpy($$->sqlstate, $3.str, len);
 	    $$->sqlstate[len]= '\0';
 	  }
+	;
+
+opt_value:
+	  /* Empty */  {}
+	| VALUE_SYM    {}
 	;
 
 sp_hcond:
@@ -1390,12 +1427,28 @@ sp_hcond:
 sp_decl_idents:
 	  ident
 	  {
-	    Lex->spcont->push_pvar(&$1, (enum_field_types)0, sp_param_in);
+	    LEX *lex= Lex;
+	    sp_pcontext *spc= lex->spcont;
+
+	    if (spc->find_pvar(&$1, TRUE))
+	    {
+	      net_printf(YYTHD, ER_SP_DUP_THING, "parameter", $1.str);
+	      YYABORT;
+	    }
+	    spc->push_pvar(&$1, (enum_field_types)0, sp_param_in);
 	    $$= 1;
 	  }
 	| sp_decl_idents ',' ident
 	  {
-	    Lex->spcont->push_pvar(&$3, (enum_field_types)0, sp_param_in);
+	    LEX *lex= Lex;
+	    sp_pcontext *spc= lex->spcont;
+
+	    if (spc->find_pvar(&$3, TRUE))
+	    {
+	      net_printf(YYTHD, ER_SP_DUP_THING, "parameter", $3.str);
+	      YYABORT;
+	    }
+	    spc->push_pvar(&$3, (enum_field_types)0, sp_param_in);
 	    $$= $1 + 1;
 	  }
 	;
@@ -1532,7 +1585,7 @@ sp_proc_stmt:
 	    LEX *lex= Lex;
 	    sp_label_t *lab= lex->spcont->find_label($2.str);
 
-	    if (! lab)
+	    if (! lab || lab->isbegin)
 	    {
 	      net_printf(YYTHD, ER_SP_LILABEL_MISMATCH, "ITERATE", $2.str);
 	      YYABORT;
@@ -1736,23 +1789,30 @@ sp_labeled_control:
 	                              lex->sphead->instructions());
 	    }
 	  }
-	  sp_unlabeled_control IDENT
+	  sp_unlabeled_control sp_opt_label
 	  {
 	    LEX *lex= Lex;
-	    sp_label_t *lab= lex->spcont->find_label($5.str);
 
-	    if (!lab ||
-	        my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
+	    if ($5.str)
 	    {
-	      net_printf(YYTHD, ER_SP_LABEL_MISMATCH, $5.str);
-	      YYABORT;
+	      sp_label_t *lab= lex->spcont->find_label($5.str);
+
+	      if (!lab ||
+	          my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
+	      {
+	        net_printf(YYTHD, ER_SP_LABEL_MISMATCH, $5.str);
+	        YYABORT;
+	      }
 	    }
-	    else
-	    {
-	      lex->spcont->pop_label();
-	      lex->sphead->backpatch(lab);
-	    }
+	    lex->sphead->backpatch(lex->spcont->pop_label());
 	  }
+	;
+
+sp_opt_label:
+	  /* Empty  */
+	  { $$.str= NULL; $$.length= 0; }
+	| IDENT
+	  { $$= $1; }
 	;
 
 sp_unlabeled_control:
@@ -1760,8 +1820,12 @@ sp_unlabeled_control:
 	  { /* QQ This is just a dummy for grouping declarations and statements
 	       together. No [[NOT] ATOMIC] yet, and we need to figure out how
 	       make it coexist with the existing BEGIN COMMIT/ROLLBACK. */
+	    LEX *lex= Lex;
+	    sp_label_t *lab= lex->spcont->last_label();
 
-            Lex->spcont->push_label((char *)"", 0); /* For end of block */
+	    lab->isbegin= TRUE;
+	    /* Scope duplicate checking */
+	    lex->spcont->push_scope();
 	  }
 	  sp_decls
 	  sp_proc_stmts
@@ -1771,7 +1835,7 @@ sp_unlabeled_control:
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= lex->spcont;
 
-  	    sp->backpatch(ctx->pop_label());
+  	    sp->backpatch(ctx->last_label());	/* We always has a label */
 	    ctx->pop_pvar($3.vars);
 	    ctx->pop_cond($3.conds);
 	    ctx->pop_cursor($3.curs);
@@ -1779,6 +1843,7 @@ sp_unlabeled_control:
 	      sp->add_instr(new sp_instr_hpop(sp->instructions(),$3.hndlrs));
 	    if ($3.curs)
 	      sp->add_instr(new sp_instr_cpop(sp->instructions(), $3.curs));
+	    ctx->pop_scope();
 	  }
 	| LOOP_SYM
 	  sp_proc_stmts END LOOP_SYM

@@ -32,6 +32,7 @@ sp_pcontext::sp_pcontext()
   VOID(my_init_dynamic_array(&m_pvar, sizeof(sp_pvar_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cond, sizeof(sp_cond_type_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cursor, sizeof(LEX_STRING), 16, 8));
+  VOID(my_init_dynamic_array(&m_scopes, sizeof(sp_scope_t), 16, 8));
   m_label.empty();
 }
 
@@ -41,7 +42,25 @@ sp_pcontext::destroy()
   delete_dynamic(&m_pvar);
   delete_dynamic(&m_cond);
   delete_dynamic(&m_cursor);
+  delete_dynamic(&m_scopes);
   m_label.empty();
+}
+
+void
+sp_pcontext::push_scope()
+{
+  sp_scope_t s;
+
+  s.vars= m_pvar.elements;
+  s.conds= m_cond.elements;
+  s.curs= m_cursor.elements;
+  insert_dynamic(&m_scopes, (gptr)&s);
+}
+
+void
+sp_pcontext::pop_scope()
+{
+  (void)pop_dynamic(&m_scopes);
 }
 
 
@@ -50,14 +69,25 @@ sp_pcontext::destroy()
 ** It's possible to have a more efficient allocation and search method,
 ** but it might not be worth it. The typical number of parameters and
 ** variables will in most cases be low (a handfull).
-** And this is only called during parsing.
+** ...and, this is only called during parsing.
 */
 sp_pvar_t *
-sp_pcontext::find_pvar(LEX_STRING *name)
+sp_pcontext::find_pvar(LEX_STRING *name, my_bool scoped)
 {
   uint i = m_pvar.elements;
+  uint limit;
 
-  while (i-- > 0)
+  if (! scoped || m_scopes.elements == 0)
+    limit= 0;
+  else
+  {
+    sp_scope_t s;
+
+    get_dynamic(&m_scopes, (gptr)&s, m_scopes.elements-1);
+    limit= s.vars;
+  }
+      
+  while (i-- > limit)
   {
     sp_pvar_t *p;
 
@@ -101,6 +131,7 @@ sp_pcontext::push_label(char *name, uint ip)
   {
     lab->name= name;
     lab->ip= ip;
+    lab->isbegin= FALSE;
     m_label.push_front(lab);
   }
   return lab;
@@ -137,11 +168,22 @@ sp_pcontext::push_cond(LEX_STRING *name, sp_cond_type_t *val)
  * See comment for find_pvar() above
  */
 sp_cond_type_t *
-sp_pcontext::find_cond(LEX_STRING *name)
+sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
 {
   uint i = m_cond.elements;
+  uint limit;
 
-  while (i-- > 0)
+  if (! scoped || m_scopes.elements == 0)
+    limit= 0;
+  else
+  {
+    sp_scope_t s;
+
+    get_dynamic(&m_scopes, (gptr)&s, m_scopes.elements-1);
+    limit= s.conds;
+  }
+      
+  while (i-- > limit)
   {
     sp_cond_t *p;
 
@@ -172,11 +214,22 @@ sp_pcontext::push_cursor(LEX_STRING *name)
  * See comment for find_pvar() above
  */
 my_bool
-sp_pcontext::find_cursor(LEX_STRING *name, uint *poff)
+sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
 {
   uint i = m_cursor.elements;
+  uint limit;
 
-  while (i-- > 0)
+  if (! scoped || m_scopes.elements == 0)
+    limit= 0;
+  else
+  {
+    sp_scope_t s;
+
+    get_dynamic(&m_scopes, (gptr)&s, m_scopes.elements-1);
+    limit= s.curs;
+  }
+      
+  while (i-- > limit)
   {
     LEX_STRING n;
 
