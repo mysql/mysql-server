@@ -82,13 +82,13 @@ VioFd::keepalive(boolonoff)
 bool
 VioFd::fcntl() const
 {
-  return false;
+  return FALSE;
 }
 
 bool
 VioFd::should_retry() const
 {
-  return false;
+  return FALSE;
 }
 
 int

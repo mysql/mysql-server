@@ -338,13 +338,14 @@ if ($limits->{'group_functions'})
 
   $loop_time=new Benchmark;
   $rows=$estimated=$count=0;
-  for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
+  $test_count=$opt_medium_loop_count/10;
+  for ($i=0 ; $i < $test_count ; $i++)
   {
     $count++;
     $rows+=fetch_all_rows($dbh,"select idn,count(distinct region) from bench1 group by idn");
     $end_time=new Benchmark;
     last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i+1,
-					   $opt_medium_loop_count));
+					   $test_count));
   }
   print_time($estimated);
   print " for count_distinct_big ($count:$rows): " .

@@ -172,7 +172,7 @@ static char **defaults_argv,time_zone[30];
 static const char *default_table_type_name;
 
 #ifdef HAVE_OPENSSL
-static bool opt_use_ssl = false;
+static bool opt_use_ssl = FALSE;
 static char *opt_ssl_key = 0;
 static char *opt_ssl_cert = 0;
 static char *opt_ssl_ca = 0;

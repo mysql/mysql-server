@@ -73,7 +73,7 @@ VIO_NS_BEGIN
 
 VioSocket::VioSocket(vio_socket	sd, enum_vio_type type, bool localhost)
 :sd_(sd), localhost_(localhost), fcntl_(0),
- fcntl_set_(false), cipher_description_(0)
+ fcntl_set_(FALSE), cipher_description_(0)
 {
   DBUG_ENTER("VioSocket::VioSocket");
   DBUG_PRINT("enter", ("sd=%d", sd));

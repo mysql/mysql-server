@@ -703,7 +703,7 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 	VOID(pthread_mutex_unlock(&LOCK_log));
 	return;
       }
-      if (specialflag & SPECIAL_LONG_LOG_FORMAT)
+      if ((specialflag & SPECIAL_LONG_LOG_FORMAT) || query_start)
       {
 	current_time=time(NULL);
 	if (current_time != last_time)
@@ -724,28 +724,26 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 	  if (my_b_write(&log_file, (byte*) buff,24))
 	    error=errno;
 	}
-	if (my_b_printf(&log_file, "# User@Host: %s [%s] @ %s [%s]\n",
+	if (my_b_printf(&log_file, "# User@Host: %s[%s] @ %s [%s]\n",
 			thd->priv_user,
 			thd->user,
 			thd->host ? thd->host : "",
-			thd->ip ? thd->ip : ""))
+			thd->ip ? thd->ip : "") == (uint) -1)
 	  error=errno;
       }
       if (query_start)
       {
 	/* For slow query log */
-	if (!(specialflag & SPECIAL_LONG_LOG_FORMAT))
-	  current_time=time(NULL);
 	if (my_b_printf(&log_file,
 			"# Time: %lu  Lock_time: %lu  Rows_sent: %lu\n",
 			(ulong) (current_time - query_start),
 			(ulong) (thd->time_after_lock - query_start),
-			(ulong) thd->sent_row_count))
+			(ulong) thd->sent_row_count) == (uint) -1)
 	    error=errno;
       }
       if (thd->db && strcmp(thd->db,db))
       {						// Database changed
-	if (my_b_printf(&log_file,"use %s;\n",thd->db))
+	if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
 	  error=errno;
 	strmov(db,thd->db);
       }

@@ -48,7 +48,7 @@ report_errors()
 VioSSL::VioSSL(int fd,
 	       vio_ptr	ssl_context,
 	       int state)
-  : bio_(0), ssl_con_(0), open_(false), sd_(new VioSocket(fd))
+  : bio_(0), ssl_con_(0), open_(FALSE), sd_(new VioSocket(fd))
 {
   DBUG_ENTER("VioSSL::VioSSL");
   DBUG_PRINT("enter", ("this=%p, fd=%d, ssl_context=%p, state=%d",
@@ -66,7 +66,7 @@ VioSSL::VioSSL(int fd,
 VioSSL::VioSSL(VioSocket* sd,
 	       vio_ptr	 ssl_context,
 	       int state)
-  :bio_(0), ssl_con_(0), open_(false), sd_(sd)
+  :bio_(0), ssl_con_(0), open_(FALSE), sd_(sd)
 {
   DBUG_ENTER("VioSSL::VioSSL");
   DBUG_PRINT("enter",

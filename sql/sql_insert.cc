@@ -118,11 +118,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     if we are told to replace duplicates, the insert cannot be concurrent
     delayed insert changed to regular in slave thread
    */
-  if (lock_type == TL_WRITE_DELAYED &&
-      ((specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) ||
-       thd->slave_thread
-       ) ||
-      lock_type == TL_WRITE_CONCURRENT_INSERT && duplic == DUP_REPLACE)
+  if ((lock_type == TL_WRITE_DELAYED &&
+       ((specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) ||
+	thd->slave_thread)) ||
+      (lock_type == TL_WRITE_CONCURRENT_INSERT && duplic == DUP_REPLACE))
     lock_type=TL_WRITE;
 
   if (lock_type == TL_WRITE_DELAYED)
