@@ -394,7 +394,7 @@ drop table t1;
 # syntax compatibility
 #
 create table t1 (a int);
--- error 1364
+-- error 1368
 create view v1 as select distinct a from t1 WITH CHECK OPTION;
 create view v1 as select a from t1 WITH CHECK OPTION;
 create view v2 as select a from t1 WITH CASCADED CHECK OPTION;
@@ -1318,7 +1318,7 @@ create table t1 (a int);
 create view v1 as select * from t1 where a < 2 with check option;
 # simple insert
 insert into v1 values(1);
--- error 1365
+-- error 1369
 insert into v1 values(3);
 # simple insert with ignore
 insert ignore into v1 values (2),(3),(0);
@@ -1327,7 +1327,7 @@ select * from t1;
 delete from t1;
 # INSERT SELECT test
 insert into v1 SELECT 1;
--- error 1365
+-- error 1369
 insert into v1 SELECT 3;
 # prepare data for next check
 create table t2 (a int);
@@ -1337,7 +1337,7 @@ insert ignore into v1 SELECT a from t2;
 select * from t1;
 #simple UPDATE test
 update v1 set a=-1 where a=0;
--- error 1365
+-- error 1369
 update v1 set a=2 where a=1;
 select * from t1;
 # prepare data for next check
@@ -1364,12 +1364,12 @@ create view v2 as select * from v1 where a > 0 with local check option;
 create view v3 as select * from v1 where a > 0 with cascaded check option;
 insert into v2 values (1);
 insert into v3 values (1);
--- error 1365
+-- error 1369
 insert into v2 values (0);
--- error 1365
+-- error 1369
 insert into v3 values (0);
 insert into v2 values (2);
--- error 1365
+-- error 1369
 insert into v3 values (2);
 select * from t1;
 drop view v3,v2,v1;
@@ -1381,7 +1381,7 @@ drop table t1;
 create table t1 (a int, primary key (a));
 create view v1 as select * from t1 where a < 2 with check option;
 insert into v1 values (1) on duplicate key update a=2;
--- error 1365
+-- error 1369
 insert into v1 values (1) on duplicate key update a=2;
 insert ignore into v1 values (1) on duplicate key update a=2;
 select * from t1;
