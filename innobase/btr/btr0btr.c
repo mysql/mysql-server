@@ -2239,11 +2239,92 @@ btr_check_node_ptr(
 }
 
 /****************************************************************
+Checks the size and number of fields in a record based on the definition of
+the index. */
+static
+ibool
+btr_index_rec_validate(
+/*====================*/
+				/* out: TRUE if ok */
+	rec_t*		rec,	/* in: index record */
+	dict_index_t*	index)	/* in: index */
+{
+	dtype_t* type;
+	byte*	data;
+	ulint	len;
+	ulint	n;
+	ulint	i;
+	
+	n = dict_index_get_n_fields(index);
+
+	if (rec_get_n_fields(rec) != n) {
+		fprintf(stderr, "Record has %lu fields, should have %lu\n",
+				rec_get_n_fields(rec), n);
+
+		return(FALSE);
+	}
+
+	for (i = 0; i < n; i++) {
+		data = rec_get_nth_field(rec, i, &len);
+
+		type = dict_index_get_nth_type(index, i);
+		
+		if (len != UNIV_SQL_NULL && dtype_is_fixed_size(type)
+		    && len != dtype_get_fixed_size(type)) {
+			fprintf(stderr,
+			"Record field %lu len is %lu, should be %lu\n",
+				i, len, dtype_get_fixed_size(type));
+
+			return(FALSE);
+		}
+	}
+
+	return(TRUE);			
+}
+
+/****************************************************************
+Checks the size and number of fields in records based on the definition of
+the index. */
+static
+ibool
+btr_index_page_validate(
+/*====================*/
+				/* out: TRUE if ok */
+	page_t*		page,	/* in: index page */
+	dict_index_t*	index)	/* in: index */
+{
+	rec_t*		rec;
+	page_cur_t 	cur;
+	ibool		ret	= TRUE;
+	
+	page_cur_set_before_first(page, &cur);
+	page_cur_move_to_next(&cur);
+
+	for (;;) {
+		rec = (&cur)->rec;
+
+		if (page_cur_is_after_last(&cur)) {
+			break;
+		}
+
+		if (!btr_index_rec_validate(rec, index)) {
+
+			ret = FALSE;
+		}
+
+		page_cur_move_to_next(&cur);
+	}
+
+	return(ret);	
+}
+
+/****************************************************************
 Validates index tree level. */
 static
-void
+ibool
 btr_validate_level(
 /*===============*/
+				/* out: TRUE if ok */
 	dict_tree_t*	tree,	/* in: index tree */
 	ulint		level)	/* in: level number */
 {
@@ -2260,7 +2341,9 @@ btr_validate_level(
 	page_cur_t	cursor;
 	mem_heap_t*	heap;
 	dtuple_t*	node_ptr_tuple;
-
+	ibool		ret	= TRUE;
+	dict_index_t*	index;
+	
 	mtr_start(&mtr);
 
 	page = btr_root_get(tree, &mtr);
@@ -2278,13 +2361,31 @@ btr_validate_level(
 		page = btr_node_ptr_get_child(node_ptr, &mtr);
 	}
 
+	index = UT_LIST_GET_FIRST(tree->tree_indexes);
+	
 	/* Now we are on the desired level */
 loop:
 	mtr_x_lock(dict_tree_get_lock(tree), &mtr);
 
-	/* Check ordering of records */
-	page_validate(page, UT_LIST_GET_FIRST(tree->tree_indexes));
+	/* Check ordering etc. of records */
 
+	if (!page_validate(page, index)) {
+		fprintf(stderr, "Error in page %lu in index %s\n",
+			buf_frame_get_page_no(page), index->name);
+
+		ret = FALSE;
+	}
+
+	if (level == 0) {
+		if (!btr_index_page_validate(page, index)) {
+ 			fprintf(stderr,
+			"Error in page %lu in index %s\n",
+				buf_frame_get_page_no(page), index->name);
+
+			ret = FALSE;
+		}
+	}
+	
 	ut_a(btr_page_get_level(page, &mtr) == level);
 
 	right_page_no = btr_page_get_next(page, &mtr);
@@ -2374,14 +2475,17 @@ loop:
 
 		goto loop;
 	}
+
+	return(ret);
 }
 
 /******************************************************************
 Checks the consistency of an index tree. */
 
-void
+ibool
 btr_validate_tree(
 /*==============*/
+				/* out: TRUE if ok */
 	dict_tree_t*	tree)	/* in: tree */
 {
 	mtr_t	mtr;
@@ -2397,8 +2501,15 @@ btr_validate_tree(
 
 	for (i = 0; i <= n; i++) {
 		
-		btr_validate_level(tree, n - i);
+		if (!btr_validate_level(tree, n - i)) {
+
+			mtr_commit(&mtr);
+
+			return(FALSE);
+		}
 	}
 
 	mtr_commit(&mtr);
+
+	return(TRUE);
 }

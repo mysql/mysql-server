@@ -142,7 +142,7 @@ class ha_innobase: public handler
 					HA_CREATE_INFO *create_info);
   	int delete_table(const char *name);
 	int rename_table(const char* from, const char* to);
-
+	int check(THD* thd, HA_CHECK_OPT* check_opt);
         char* update_table_comment(const char* comment);
 
   	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,

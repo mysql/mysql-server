@@ -1,0 +1,36 @@
+Testing server 'PostgreSQL version ???' at 2001-06-03 16:37:16
+
+Testing the speed of selecting on keys that consist of many parts
+The test-table has 10000 rows and the test is done with 500 ranges.
+
+Creating table
+Inserting 10000 rows
+Time to insert (10000): 10 wallclock secs ( 2.96 usr  0.39 sys +  0.00 cusr  0.00 csys =  3.35 CPU)
+
+Test if the database has a query cache
+Time for select_query_cache (10000): 2549 wallclock secs ( 3.25 usr  0.52 sys +  0.00 cusr  0.00 csys =  3.77 CPU)
+
+Time for select_query_cache2 (10000): 2547 wallclock secs ( 3.04 usr  0.53 sys +  0.00 cusr  0.00 csys =  3.57 CPU)
+
+Testing big selects on the table
+Time for select_big (70:17207):  1 wallclock secs ( 0.17 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.17 CPU)
+Time for select_range (410:1057904): 465 wallclock secs (10.41 usr  0.63 sys +  0.00 cusr  0.00 csys = 11.04 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+11326 queries in 1618 loops of 10000 loops took 601 seconds
+Estimated time for min_max_on_key (70000): 3714 wallclock secs (20.15 usr  3.46 sys +  0.00 cusr  0.00 csys = 23.61 CPU)
+Note: Query took longer then time-limit: 600
+Estimating end time based on:
+17320 queries in 3464 loops of 10000 loops took 601 seconds
+Estimated time for count_on_key (50000): 1734 wallclock secs (15.76 usr  1.99 sys +  0.00 cusr  0.00 csys = 17.75 CPU)
+
+Time for count_group_on_key_parts (1000:100000): 331 wallclock secs ( 1.13 usr  0.06 sys +  0.00 cusr  0.00 csys =  1.19 CPU)
+Testing count(distinct) on the table
+Time for count_distinct_key_prefix (1000:1000): 179 wallclock secs ( 0.28 usr  0.07 sys +  0.00 cusr  0.00 csys =  0.35 CPU)
+Time for count_distinct (1000:1000): 132 wallclock secs ( 0.31 usr  0.06 sys +  0.00 cusr  0.00 csys =  0.37 CPU)
+Time for count_distinct_2 (1000:1000): 213 wallclock secs ( 0.37 usr  0.03 sys +  0.00 cusr  0.00 csys =  0.40 CPU)
+Time for count_distinct_group_on_key (1000:6000): 488 wallclock secs ( 0.41 usr  0.03 sys +  0.00 cusr  0.00 csys =  0.44 CPU)
+Time for count_distinct_group_on_key_parts (1000:100000): 383 wallclock secs ( 1.10 usr  0.07 sys +  0.00 cusr  0.00 csys =  1.17 CPU)
+Time for count_distinct_group (1000:100000): 384 wallclock secs ( 1.07 usr  0.08 sys +  0.00 cusr  0.00 csys =  1.15 CPU)
+Time for count_distinct_big (100:1000000): 65 wallclock secs ( 7.88 usr  0.25 sys +  0.00 cusr  0.00 csys =  8.13 CPU)
+Estimated total time: 13197 wallclock secs (68.30 usr  8.18 sys +  0.00 cusr  0.00 csys = 76.48 CPU)

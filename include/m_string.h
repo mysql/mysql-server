@@ -69,10 +69,6 @@
 # define memmove(d, s, n)	bmove((d), (s), (n)) /* our bmove */
 #endif
 
-#if defined(HAVE_STPCPY) && !defined(HAVE_mit_thread)
-#define strmov(A,B) stpcpy((A),(B))
-#endif
-
 /* Unixware 7 */
 #if !defined(HAVE_BFILL)
 # define bfill(A,B,C)           memset((A),(C),(B))
@@ -88,6 +84,13 @@
 
 #ifdef	__cplusplus
 extern "C" {
+#endif
+
+#if defined(HAVE_STPCPY) && !defined(HAVE_mit_thread)
+#define strmov(A,B) stpcpy((A),(B))
+#ifndef stpcpy
+extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
+#endif
 #endif
 
 extern char NEAR _dig_vec[];		/* Declared in int2str() */
@@ -148,7 +151,7 @@ extern	void bchange(char *dst,uint old_len,const char *src,
 		     uint new_len,uint tot_len);
 extern	void strappend(char *s,uint len,pchar fill);
 extern	char *strend(const char *s);
-extern char *strcend(const char *, pchar);
+extern  char *strcend(const char *, pchar);
 extern	char *strfield(char *src,int fields,int chars,int blanks,
 			   int tabch);
 extern	char *strfill(my_string s,uint len,pchar fill);
