@@ -656,12 +656,18 @@ static void make_sortkey(register SORTPARAM *param,
 	  to[3]= (uchar) (value >> 32);
 	  to[2]= (uchar) (value >> 40);
 	  to[1]= (uchar) (value >> 48);
-	  to[0]= (uchar) (value >> 56) ^ 128;	// Fix sign
+          if (item->unsigned_flag)                    /* Fix sign */
+            to[0]= (uchar) (value >> 56);
+          else
+            to[0]= (uchar) (value >> 56) ^ 128;	/* Reverse signbit */
 #else
 	  to[3]= (uchar) value;
 	  to[2]= (uchar) (value >> 8);
 	  to[1]= (uchar) (value >> 16);
-	  to[0]= (uchar) (value >> 24) ^ 128;	// Fix sign
+          if (item->unsigned_flag)                    /* Fix sign */
+            to[0]= (uchar) (value >> 24);
+          else
+            to[0]= (uchar) (value >> 24) ^ 128;	/* Reverse signbit */
 #endif
 	  break;
 	}
