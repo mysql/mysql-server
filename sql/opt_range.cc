@@ -749,16 +749,20 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
   DBUG_ENTER("QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT");
   if (!dont_free)
   {
-    range_end();
-    file->extra(HA_EXTRA_NO_KEYREAD);
-    delete_dynamic(&ranges); /* ranges are allocated in alloc */
-    if (free_file)
+    /* file is NULL for CPK scan on covering ROR-intersection */
+    if (file) 
     {
-      DBUG_PRINT("info", ("Freeing separate handler %p (free=%d)", file,
-                          free_file));
-      file->reset();
-      file->close();
+      range_end();
+      file->extra(HA_EXTRA_NO_KEYREAD);
+      if (free_file)
+      {
+        DBUG_PRINT("info", ("Freeing separate handler %p (free=%d)", file,
+                            free_file));
+        file->reset();
+        file->close();
+      }
     }
+    delete_dynamic(&ranges); /* ranges are allocated in alloc */
     free_root(&alloc,MYF(0));
   }
   DBUG_VOID_RETURN;
@@ -1666,7 +1670,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
             objects are not allowed so don't use ROR-intersection for
             table deletes.
           */
-          if (thd->lex->sql_command != SQLCOM_DELETE)
+          if ((thd->lex->sql_command != SQLCOM_DELETE) )//&& 
+//              (thd->lex->sql_command != SQLCOM_UPDATE))
           {
             /*
               Get best non-covering ROR-intersection plan and prepare data for
@@ -3096,6 +3101,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
         delete quick_intrsect;
         DBUG_RETURN(NULL);
       }
+      quick->file= NULL; 
       quick_intrsect->cpk_quick= quick;
     }
     quick_intrsect->records= records;
