@@ -4463,9 +4463,7 @@ For platform-specific bugs, see the sections about compiling and porting.
 
 @menu
 * Compare mSQL::                How @strong{MySQL} compares to @code{mSQL}
-* Protocol differences::        
 * Compare PostgreSQL::          How @strong{MySQL} compares with PostgreSQL
-* MySQL-PostgreSQL features::   
 @end menu
 
 This section compares @strong{MySQL} to other popular databases.  
@@ -4479,7 +4477,7 @@ For a list of all supported limits, functions, and types, see the
 @code{crash-me} Web page at 
 @uref{http://www.mysql.com/information/crash-me.php}.
 
-@node Compare mSQL, Protocol differences, Comparisons, Comparisons
+@node Compare mSQL, Compare PostgreSQL, Comparisons, Comparisons
 @subsection How MySQL Compares to @code{mSQL}
 
 @table @strong
@@ -4667,9 +4665,11 @@ For example, it changes instances of @code{msqlConnect()} to
 
 @menu
 * Using mSQL tools::            How to convert @code{mSQL} tools for @strong{MySQL}
+* Protocol differences::        
+* Syntax differences::          
 @end menu
 
-@node Using mSQL tools,  , Compare mSQL, Compare mSQL
+@node Using mSQL tools, Protocol differences, Compare mSQL, Compare mSQL
 @subsubsection How to Convert @code{mSQL} Tools for MySQL
 
 @cindex MySQL tools, conversion
@@ -4714,7 +4714,7 @@ Some incompatibilities exist as a result of @strong{MySQL} supporting
 multiple connections to the server from the same process.
 @end itemize
 
-@node Protocol differences, Compare PostgreSQL, Compare mSQL, Comparisons
+@node Protocol differences, Syntax differences, Using mSQL tools, Compare mSQL
 @subsubsection How @code{mSQL} and MySQL Client/Server Communications Protocols Differ
 
 @cindex communications protocols
@@ -4752,7 +4752,7 @@ If a connection is idle for 8 hours, the server closes the connection.
 * Syntax differences::          
 @end menu
 
-@node Syntax differences,  , Protocol differences, Protocol differences
+@node Syntax differences,  , Protocol differences, Compare mSQL
 @subsubsection How @code{mSQL} 2.0 SQL Syntax Differs from MySQL
 
 @noindent
@@ -4941,7 +4941,7 @@ users.
 @end table
 
 
-@node Compare PostgreSQL, MySQL-PostgreSQL features, Protocol differences, Comparisons
+@node Compare PostgreSQL,  , Compare mSQL, Comparisons
 @subsection How MySQL Compares to PostgreSQL
 
 @cindex PostgreSQL vs. MySQL, overview
@@ -4970,9 +4970,11 @@ can offer, you should use @code{PostgreSQL}.
 @cindex PostgreSQL/MySQL, strategies
 @menu
 * MySQL-PostgreSQL goals::      MySQL and PostgreSQL development strategies
+* MySQL-PostgreSQL features::   
+* MySQL-PostgreSQL benchmarks::  
 @end menu
 
-@node MySQL-PostgreSQL goals,  , Compare PostgreSQL, Compare PostgreSQL
+@node MySQL-PostgreSQL goals, MySQL-PostgreSQL features, Compare PostgreSQL, Compare PostgreSQL
 @subsubsection MySQL and PostgreSQL development strategies
 
 When adding things to MySQL we take pride to do an optimal, definite
@@ -5014,7 +5016,7 @@ authors of the @strong{MySQL} server code we are better able to
 coordinate new features and releases.
 
 
-@node MySQL-PostgreSQL features,  , Compare PostgreSQL, Comparisons
+@node MySQL-PostgreSQL features, MySQL-PostgreSQL benchmarks, MySQL-PostgreSQL goals, Compare PostgreSQL
 @subsubsection Featurewise Comparison of MySQL and PostgreSQL
 
 @cindex PostgreSQL/MySQL, features
@@ -5239,7 +5241,7 @@ in this section.
 * MySQL-PostgreSQL benchmarks::  
 @end menu
 
-@node MySQL-PostgreSQL benchmarks,  , MySQL-PostgreSQL features, MySQL-PostgreSQL features
+@node MySQL-PostgreSQL benchmarks,  , MySQL-PostgreSQL features, Compare PostgreSQL
 @subsubsection Benchmarking MySQL and PostgreSQL
 
 @cindex PostgreSQL vs. MySQL, benchmarks
