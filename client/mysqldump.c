@@ -34,6 +34,7 @@
 ** XML by Gary Huntress <ghuntress@mediaone.net> 10/10/01, cleaned up
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
+** 10 Jun 2003: SET NAMES and --no-set-names by Alexander Barkov
 */
 
 #define DUMP_VERSION "10.2"
@@ -434,6 +435,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       char buff[255];
 
       opt_quoted= 1;
+      opt_set_names= 1;
       opt_compatible_mode_str= argument;
       opt_compatible_mode= find_set(&compatible_mode_typelib,
 				    argument, strlen(argument),
@@ -563,7 +565,8 @@ static int dbConnect(char *host, char *user,char *passwd)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
-  mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
+  if (!opt_set_names)
+    mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
          NULL,opt_mysql_port,opt_mysql_unix_port,
          0)))
