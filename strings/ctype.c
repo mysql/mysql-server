@@ -1975,7 +1975,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -1996,7 +1997,8 @@ CHARSET_INFO compiled_charsets[] = {
     2,      /* mbmaxlen */
     ismbchar_big5,
     ismbhead_big5,
-    mbcharlen_big5
+    mbcharlen_big5,
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2017,7 +2019,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2038,7 +2041,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2059,7 +2063,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2080,7 +2085,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2101,7 +2107,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2122,7 +2129,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2143,7 +2151,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2164,7 +2173,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2185,7 +2195,8 @@ CHARSET_INFO compiled_charsets[] = {
     2,      /* mbmaxlen */
     ismbchar_euc_kr,
     ismbhead_euc_kr,
-    mbcharlen_euc_kr
+    mbcharlen_euc_kr,
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2206,7 +2217,8 @@ CHARSET_INFO compiled_charsets[] = {
     2,      /* mbmaxlen */
     ismbchar_gb2312,
     ismbhead_gb2312,
-    mbcharlen_gb2312
+    mbcharlen_gb2312,
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2227,7 +2239,8 @@ CHARSET_INFO compiled_charsets[] = {
     2,      /* mbmaxlen */
     ismbchar_gbk,
     ismbhead_gbk,
-    mbcharlen_gbk
+    mbcharlen_gbk,
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2248,7 +2261,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2269,7 +2283,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2290,7 +2305,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2311,7 +2327,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2332,7 +2349,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2353,7 +2371,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2374,7 +2393,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2395,7 +2415,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2416,7 +2437,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2437,7 +2459,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2458,7 +2481,8 @@ CHARSET_INFO compiled_charsets[] = {
     2,      /* mbmaxlen */
     ismbchar_sjis,
     ismbhead_sjis,
-    mbcharlen_sjis
+    mbcharlen_sjis,
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2479,7 +2503,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2500,7 +2525,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2521,7 +2547,8 @@ CHARSET_INFO compiled_charsets[] = {
     3,      /* mbmaxlen */
     ismbchar_ujis,
     ismbhead_ujis,
-    mbcharlen_ujis
+    mbcharlen_ujis,
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2542,7 +2569,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2563,7 +2591,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2584,7 +2613,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2605,7 +2635,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2626,7 +2657,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,          /* mbmaxlen  */
     NULL,       /* ismbchar  */
     NULL,       /* ismbhead  */
-    NULL        /* mbcharlen */
+    NULL,       /* mbcharlen */
+    NULL,NULL,NULL,NULL,NULL,NULL
   },
 #endif
 
@@ -2646,7 +2678,8 @@ CHARSET_INFO compiled_charsets[] = {
     0,
     NULL,
     NULL,
-    NULL
+    NULL,
+    NULL,NULL,NULL,NULL,NULL,NULL
   }
 };
 

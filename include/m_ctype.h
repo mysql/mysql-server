@@ -26,6 +26,76 @@
 extern "C" {
 #endif
 
+
+#define CHARSET_DIR	"charsets/"
+
+typedef struct charset_info_st
+{
+    uint      number;
+    const char *name;
+    uchar    *ctype;
+    uchar    *to_lower;
+    uchar    *to_upper;
+    uchar    *sort_order;
+
+    uint      strxfrm_multiply;
+    int     (*strcoll)(const uchar *, const uchar *);
+    int     (*strxfrm)(uchar *, const uchar *, int);
+    int     (*strnncoll)(const uchar *, int, const uchar *, int);
+    int     (*strnxfrm)(uchar *, const uchar *, int, int);
+    my_bool (*like_range)(const char *, uint, pchar, uint,
+                          char *, char *, uint *, uint *);
+
+    uint      mbmaxlen;
+    int     (*ismbchar)(const char *, const char *);
+    my_bool (*ismbhead)(uint);
+    int     (*mbcharlen)(uint);
+
+    /* Functions for case convertion */
+    void    (*caseup_str)(struct charset_info_st *, uchar *);
+    void    (*casedn_str)(struct charset_info_st *, uchar *);
+    void    (*caseup)(struct charset_info_st *, uchar *, uint);
+    void    (*casedn)(struct charset_info_st *, uchar *, uint);
+    
+    /* Functions for case comparison */
+    int  (*strcasecmp)(struct charset_info_st *, const uchar *, const uchar *);
+    int  (*strncasecmp)(struct charset_info_st *, const uchar *, const uchar *, uint);
+    
+} CHARSET_INFO;
+
+/* strings/ctype.c */
+extern CHARSET_INFO *default_charset_info;
+extern CHARSET_INFO *find_compiled_charset(uint cs_number);
+extern CHARSET_INFO *find_compiled_charset_by_name(const char *name);
+extern CHARSET_INFO  compiled_charsets[];
+extern uint compiled_charset_number(const char *name);
+extern const char *compiled_charset_name(uint charset_number);
+
+#define MY_CHARSET_UNDEFINED 0
+#define MY_CHARSET_CURRENT (default_charset_info->number)
+
+/* declarations for simple charsets */
+extern int  my_strnxfrm_simple(CHARSET_INFO *, uchar *, const uchar *, int, int); 
+extern int  my_strnncoll_simple(CHARSET_INFO *, const uchar *, int, const uchar *, int);
+
+/* Functions for 8bit */
+extern void my_caseup_str_8bit(CHARSET_INFO *, uchar *);
+extern void my_casedn_str_8bit(CHARSET_INFO *, uchar *);
+extern void my_caseup_8bit(CHARSET_INFO *, uchar *, uint);
+extern void my_casedn_8bit(CHARSET_INFO *, uchar *, uint);
+
+extern int my_strcasecmp_8bit(CHARSET_INFO * cs, const uchar *, const uchar *);
+extern int my_strncasecmp_8bit(CHARSET_INFO * cs, const uchar *, const uchar *, uint);
+
+/* Functions for multibyte charsets */
+extern void my_caseup_str_mb(CHARSET_INFO *, uchar *);
+extern void my_casedn_str_mb(CHARSET_INFO *, uchar *);
+extern void my_caseup_mb(CHARSET_INFO *, uchar *, uint);
+extern void my_casedn_mb(CHARSET_INFO *, uchar *, uint);
+
+extern int my_strcasecmp_mb(CHARSET_INFO * cs,const uchar *, const uchar *);
+extern int my_strncasecmp_mb(CHARSET_INFO * cs,const uchar *, const uchar *t, uint);
+
 /* declarations for the big5 character set */
 extern uchar ctype_big5[], to_lower_big5[], to_upper_big5[], sort_order_big5[];
 extern int     my_strcoll_big5(const uchar *, const uchar *);
@@ -107,42 +177,6 @@ extern int     ismbchar_ujis(const char *, const char *);
 extern my_bool ismbhead_ujis(uint);
 extern int     mbcharlen_ujis(uint);
 
-
-#define CHARSET_DIR	"charsets/"
-
-typedef struct charset_info_st
-{
-    uint      number;
-    const char *name;
-    uchar    *ctype;
-    uchar    *to_lower;
-    uchar    *to_upper;
-    uchar    *sort_order;
-
-    uint      strxfrm_multiply;
-    int     (*strcoll)(const uchar *, const uchar *);
-    int     (*strxfrm)(uchar *, const uchar *, int);
-    int     (*strnncoll)(const uchar *, int, const uchar *, int);
-    int     (*strnxfrm)(uchar *, const uchar *, int, int);
-    my_bool (*like_range)(const char *, uint, pchar, uint,
-                          char *, char *, uint *, uint *);
-
-    uint      mbmaxlen;
-    int     (*ismbchar)(const char *, const char *);
-    my_bool (*ismbhead)(uint);
-    int     (*mbcharlen)(uint);
-} CHARSET_INFO;
-
-/* strings/ctype.c */
-extern CHARSET_INFO *default_charset_info;
-extern CHARSET_INFO *find_compiled_charset(uint cs_number);
-extern CHARSET_INFO *find_compiled_charset_by_name(const char *name);
-extern CHARSET_INFO  compiled_charsets[];
-extern uint compiled_charset_number(const char *name);
-extern const char *compiled_charset_name(uint charset_number);
-
-#define MY_CHARSET_UNDEFINED 0
-#define MY_CHARSET_CURRENT (default_charset_info->number)
 
 /* Don't include std ctype.h when this is included */
 #define _CTYPE_H
