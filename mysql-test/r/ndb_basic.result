@@ -303,26 +303,26 @@ insert into t7 values
 ("Street Road 78", 3, 92, 3),
 ("Main street 89C", 5, 71, 4),
 (NULL, 8, NULL, 12);
-select * from t7;
+select * from t7 order by a;
 adress	a	b	c
-Street Road 78	3	92	3
 Highway 3456	1	23	2
-NULL	8	NULL	12
+Street Road 78	3	92	3
 Main street 89C	5	71	4
-select a, b from t7;
+NULL	8	NULL	12
+select a, b from t7 order by a;
 a	b
-3	92
 1	23
-8	NULL
+3	92
 5	71
+8	NULL
 update t7 set adress="End of road 09" where a=3;
 update t7 set adress="Gatuvägen 90C" where a=5 and c=4;
 update t7 set adress="No adress" where adress is NULL;
-select * from t7;
+select * from t7 order by a;
 adress	a	b	c
-Gatuvägen 90C	5	71	4
-End of road 09	3	92	3
 Highway 3456	1	23	2
+End of road 09	3	92	3
+Gatuvägen 90C	5	71	4
 No adress	8	NULL	12
 select * from t7 where a=1 and c=2;
 adress	a	b	c

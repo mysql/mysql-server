@@ -23,6 +23,47 @@ select * from t1 where b = 4 order by a;
 
 drop table t1;
 
+
+#
+# Show use of UNIQUE USING HASH indexes 
+#
+
+CREATE TABLE t2 (
+  a int unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned not null,
+  UNIQUE USING HASH (b, c)	
+) engine=ndbcluster;
+
+insert t2 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t2 where a = 3;
+select * from t2 where b = 4;
+select * from t2 where c = 6;
+insert into t2 values(7,8,3);
+select * from t2 where b = 4 order by a;
+
+drop table t2;
+
+#
+# Show use of PRIMARY KEY USING HASH indexes 
+#
+
+CREATE TABLE t3 (
+  a int unsigned NOT NULL,
+  b int unsigned not null,
+  c int unsigned,
+  PRIMARY KEY USING HASH (a, b)	
+) engine=ndbcluster;
+
+insert t3 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t3 where a = 3;
+select * from t3 where b = 4;
+select * from t3 where c = 6;
+insert into t3 values(7,8,3);
+select * from t3 where b = 4 order by a;
+
+drop table t3;
+
 #
 # More complex tables
 #
