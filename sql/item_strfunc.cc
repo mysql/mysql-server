@@ -326,7 +326,10 @@ void Item_func_concat::fix_length_and_dec()
     if (set_charset(charset(), coercibility,
 		args[i]->charset(), args[i]->coercibility))
     {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     charset()->name,coercion_name(coercibility),
+	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
+	     func_name());
       break;
     }
   }
@@ -630,7 +633,10 @@ void Item_func_concat_ws::fix_length_and_dec()
     if (set_charset(charset(), coercibility,
 		args[i]->charset(), args[i]->coercibility))
     {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     charset()->name,coercion_name(coercibility),
+	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
+	     func_name());
       break;
     }
   }
@@ -1624,7 +1630,10 @@ void Item_func_elt::fix_length_and_dec()
       if (set_charset(charset(), coercibility,
 		      args[i]->charset(), args[i]->coercibility))
       {
-        my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+        my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     charset()->name,coercion_name(coercibility),
+	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
+	     func_name());
         break;
       }
     }

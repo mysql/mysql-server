@@ -170,7 +170,10 @@ void Item_bool_func2::fix_length_and_dec()
   if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
 		      args[1]->charset(), args[1]->coercibility))
   {
-    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
+	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
+	     func_name());
     return;
   }
   set_cmp_func();
@@ -652,7 +655,10 @@ Item_func_ifnull::fix_length_and_dec()
     decimals= 0;
   if (set_charset(args[0]->charset(),args[0]->coercibility,
 		  args[1]->charset(),args[1]->coercibility))
-    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
+	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
+	     func_name());
 }
 
 
@@ -731,7 +737,10 @@ Item_func_if::fix_length_and_dec()
     if (set_charset(args[1]->charset(), args[1]->coercibility,
 		args[2]->charset(), args[2]->coercibility))
     {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
+	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
+	     func_name());
       return;
     }
   }
@@ -1878,7 +1887,10 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
   if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
 		      args[1]->charset(), args[1]->coercibility))
   {
-    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
+	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
+	     func_name());
     return 1;
   }
 
