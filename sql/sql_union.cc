@@ -281,7 +281,7 @@ int st_select_lex_unit::exec()
 	  */
 	  sl->options|= found_rows_for_union;
 	}
-	
+	sl->join->select_options=sl->options;
 	/*
 	  As far as union share table space we should reassign table map,
 	  which can be spoiled by 'prepare' of JOIN of other UNION parts
@@ -311,6 +311,7 @@ int st_select_lex_unit::exec()
 	records_at_start= table->file->records;
 	sl->join->exec();
 	res= sl->join->error;
+	offset_limit_cnt= sl->offset_limit;
 	if (!res && union_result->flush())
 	{
 	  thd->lex.current_select= lex_select_save;
@@ -332,7 +333,7 @@ int st_select_lex_unit::exec()
 	  We get this from the difference of between total number of possible
 	  rows and actual rows added to the temporary table.
 	*/
-	add_rows+= (ha_rows) (thd->limit_found_rows - (ulonglong)
+	add_rows+= (ulonglong) (thd->limit_found_rows - (ulonglong)
 			      ((table->file->records -  records_at_start)));
       }
     }
