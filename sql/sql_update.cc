@@ -575,6 +575,7 @@ multi_update::initialize_tables(JOIN *join)
   {
     TABLE *table=table_ref->table;
     uint cnt= table_ref->shared;
+    Item_field *If;
     List<Item> temp_fields= *fields_for_table[cnt];
     ORDER     group;
 
@@ -598,7 +599,10 @@ multi_update::initialize_tables(JOIN *join)
     /* ok to be on stack as this is not referenced outside of this func */
     Field_string offset(table->file->ref_length, 0, "offset",
 			table, 1);
-    if (temp_fields.push_front(new Item_field(((Field *) &offset))))
+    if (!(If=new Item_field(((Field *) &offset))))
+      DBUG_RETURN(1);
+    If->maybe_null=0;
+    if (temp_fields.push_front(If))
       DBUG_RETURN(1);
 
     /* Make an unique key over the first field to avoid duplicated updates */
