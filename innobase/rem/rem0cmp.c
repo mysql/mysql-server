@@ -295,14 +295,18 @@ This function is used to compare a data tuple to a physical record.
 Only dtuple->n_fields_cmp first fields are taken into account for
 the the data tuple! If we denote by n = n_fields_cmp, then rec must
 have either m >= n fields, or it must differ from dtuple in some of
-the m fields rec has. */
+the m fields rec has. If rec has an externally stored field we do not
+compare it but return with value 0 if such a comparison should be
+made. */
 
 int
 cmp_dtuple_rec_with_match(
 /*======================*/	
 				/* out: 1, 0, -1, if dtuple is greater, equal, 
 				less than rec, respectively, when only the 
-				common first fields are compared */
+				common first fields are compared, or
+				until the first externally stored field in
+				rec */
 	dtuple_t*	dtuple,	/* in: data tuple */
 	rec_t*		rec,	/* in: physical record which differs from
 				dtuple in some of the common fields, or which
@@ -344,7 +348,8 @@ cmp_dtuple_rec_with_match(
 	ut_ad(cur_field <= dtuple_get_n_fields_cmp(dtuple));
 	ut_ad(cur_field <= rec_get_n_fields(rec));
 
-	/* Match fields in a loop; stop if we run out of fields in dtuple */
+	/* Match fields in a loop; stop if we run out of fields in dtuple
+	or find an externally stored field */
 
 	while (cur_field < dtuple_get_n_fields_cmp(dtuple)) {
 
@@ -357,7 +362,8 @@ cmp_dtuple_rec_with_match(
 
 		/* If we have matched yet 0 bytes, it may be that one or
 		both the fields are SQL null, or the record or dtuple may be
-		the predefined minimum record */
+		the predefined minimum record, or the field is externally
+		stored */
 
 		if (cur_bytes == 0) {
 			if (cur_field == 0) {
@@ -382,6 +388,15 @@ cmp_dtuple_rec_with_match(
 
 					goto order_resolved;
 				}
+			}
+
+			if (rec_get_nth_field_extern_bit(rec, cur_field)) {
+				/* We do not compare to an externally
+				stored field */
+
+				ret = 0;
+
+				goto order_resolved;
 			}
 
 		    	if (dtuple_f_len == UNIV_SQL_NULL
@@ -604,7 +619,8 @@ cmp_dtuple_rec_prefix_equal(
 
 /*****************************************************************
 This function is used to compare two physical records. Only the common
-first fields are compared. */
+first fields are compared, and if an externally stored field is
+encountered, then 0 is returned. */
 
 int
 cmp_rec_rec_with_match(
@@ -688,8 +704,18 @@ cmp_rec_rec_with_match(
 	
 					goto order_resolved;
 				}
-			} 
+			}
 
+			if (rec_get_nth_field_extern_bit(rec1, cur_field)
+			    || rec_get_nth_field_extern_bit(rec2, cur_field)) {
+				/* We do not compare to an externally
+				stored field */
+
+				ret = 0;
+
+				goto order_resolved;
+			}
+			
 		    	if (rec1_f_len == UNIV_SQL_NULL
 		            || rec2_f_len == UNIV_SQL_NULL) {
 
@@ -812,7 +838,8 @@ order_resolved:
 Used in debug checking of cmp_dtuple_... .
 This function is used to compare a data tuple to a physical record. If
 dtuple has n fields then rec must have either m >= n fields, or it must
-differ from dtuple in some of the m fields rec has. */
+differ from dtuple in some of the m fields rec has. If encounters an
+externally stored field, returns 0. */
 static
 int
 cmp_debug_dtuple_rec_with_match(
@@ -881,6 +908,14 @@ cmp_debug_dtuple_rec_with_match(
 		dtuple_f_len = dfield_get_len(dtuple_field);
 		
 		rec_f_data = rec_get_nth_field(rec, cur_field, &rec_f_len);
+
+		if (rec_get_nth_field_extern_bit(rec, cur_field)) {
+			/* We do not compare to an externally stored field */
+
+			ret = 0;
+
+			goto order_resolved;
+		}
 
 		ret = cmp_data_data(cur_type, dtuple_f_data, dtuple_f_len,
 							rec_f_data, rec_f_len);

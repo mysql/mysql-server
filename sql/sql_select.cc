@@ -2701,12 +2701,12 @@ static void update_depend_map(JOIN *join)
     for (i=0 ; i < ref->key_parts ; i++,item++)
       depend_map|=(*item)->used_tables();
     ref->depend_map=depend_map;
-    for (JOIN_TAB *join_tab2=join->join_tab;
+    for (JOIN_TAB **tab=join->map2table;
 	 depend_map ;
-	 join_tab2++,depend_map>>=1 )
+	 tab++,depend_map>>=1 )
     {
       if (depend_map & 1)
-	ref->depend_map|=join_tab2->ref.depend_map;
+	ref->depend_map|=(*tab)->ref.depend_map;
     }
   }
 }
@@ -2723,12 +2723,12 @@ static void update_depend_map(JOIN *join, ORDER *order)
     order->depend_map=depend_map=order->item[0]->used_tables();
     if (!(order->depend_map & RAND_TABLE_BIT))	// Not item_sum() or RAND()
     {
-      for (JOIN_TAB *join_tab=join->join_tab;
+      for (JOIN_TAB **tab=join->map2table;
 	   depend_map ;
-	   join_tab++, depend_map>>=1)
+	   tab++, depend_map>>=1)
       {
 	if (depend_map & 1)
-	  order->depend_map|=join_tab->ref.depend_map;
+	  order->depend_map|=(*tab)->ref.depend_map;
       }
     }
   }
@@ -5552,6 +5552,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     {
       if ((error=file->delete_row(record)))
 	goto err;
+      error=file->rnd_next(record);
       continue;
     }
     if (copy_blobs(first_field))
@@ -6063,7 +6064,7 @@ setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
   if (!order)
     return 0;				/* Everything is ok */
 
-  if (thd->options & OPTION_ANSI_MODE)
+  if (thd->sql_mode & MODE_ONLY_FULL_GROUP_BY)
   {
     Item *item;
     List_iterator<Item> li(fields);
@@ -6085,7 +6086,7 @@ setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
       return 1;
     }
   }
-  if (thd->options & OPTION_ANSI_MODE)
+  if (thd->sql_mode & MODE_ONLY_FULL_GROUP_BY)
   {
     /* Don't allow one to use fields that is not used in GROUP BY */
     Item *item;

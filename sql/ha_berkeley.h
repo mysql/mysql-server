@@ -69,8 +69,7 @@ class ha_berkeley: public handler
 		  int key_length = MAX_KEY_LENGTH);
   DBT *pack_key(DBT *key, uint keynr, char *buff, const byte *key_ptr,
 		uint key_length);
-  int remove_key(DB_TXN *trans, uint keynr, const byte *record,
-		 DBT *packed_record, DBT *prim_key);
+  int remove_key(DB_TXN *trans, uint keynr, const byte *record, DBT *prim_key);
   int remove_keys(DB_TXN *trans,const byte *record, DBT *new_record,
 		  DBT *prim_key, key_map keys);
   int restore_keys(DB_TXN *trans, key_map changed_keys, uint primary_key,

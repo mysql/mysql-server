@@ -1019,16 +1019,16 @@ page_cur_delete_rec(
 	page_cur_t*  	cursor,	/* in: a page cursor */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
+	page_dir_slot_t* cur_dir_slot;
+	page_dir_slot_t* prev_slot;
 	page_t*		page;
 	rec_t*		current_rec;
 	rec_t*		prev_rec	= NULL;
 	rec_t*		next_rec;
 	ulint		cur_slot_no;
-	page_dir_slot_t* cur_dir_slot;
-	page_dir_slot_t* prev_slot;
 	ulint		cur_n_owned;
 	rec_t*		rec;
-
+	
 	ut_ad(cursor && mtr);
 	
 	page = page_cur_get_page(cursor);
@@ -1037,7 +1037,7 @@ page_cur_delete_rec(
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(current_rec != page_get_supremum_rec(page));	
 	ut_ad(current_rec != page_get_infimum_rec(page));	
-
+	
 	/* Save to local variables some data associated with current_rec */
 	cur_slot_no = page_dir_find_owner_slot(current_rec);
 	cur_dir_slot = page_dir_get_nth_slot(page, cur_slot_no);

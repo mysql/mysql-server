@@ -242,11 +242,12 @@ row_undo_ins_parse_undo_rec(
 	dulint		table_id;
 	ulint		type;
 	ulint		dummy;
+	ibool		dummy_extern;
 
 	ut_ad(node && thr);
 	
-	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy, &undo_no,
-								&table_id);
+	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy,
+					&dummy_extern, &undo_no, &table_id);
 	ut_ad(type == TRX_UNDO_INSERT_REC);
 	node->rec_type = type;
 
@@ -284,9 +285,9 @@ row_undo_ins(
 	row_undo_ins_parse_undo_rec(node, thr);
 
 	if (node->table == NULL) {
-	  found = FALSE;
+	  	found = FALSE;
 	} else {
-	  found = row_undo_search_clust_to_pcur(node, thr);
+	  	found = row_undo_search_clust_to_pcur(node, thr);
 	}
 
 	if (!found) {

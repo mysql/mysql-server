@@ -27,6 +27,9 @@ extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
 extern ulint*   srv_data_file_is_raw_partition;
 
+#define SRV_NEW_RAW    1
+#define SRV_OLD_RAW    2
+
 extern char**	srv_log_group_home_dirs;
 
 extern ulint	srv_n_log_groups;
@@ -52,10 +55,14 @@ extern ulint	srv_lock_wait_timeout;
 extern char*    srv_unix_file_flush_method_str;
 extern ulint    srv_unix_file_flush_method;
 
+extern ibool	srv_use_doublewrite_buf;
+
 extern ibool    srv_set_thread_priorities;
 extern int      srv_query_thread_priority;
 
 /*-------------------------------------------*/
+
+extern ibool	srv_print_innodb_monitor;
 extern ulint	srv_n_spin_wait_rounds;
 extern ulint	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
@@ -104,26 +111,13 @@ typedef struct srv_sys_struct	srv_sys_t;
 /* The server system */
 extern srv_sys_t*	srv_sys;
 
-/* Alternatives for file flush option in Unix; see the InnoDB manual about
+/* Alternatives for fiel flush option in Unix; see the InnoDB manual about
 what these mean */
 #define SRV_UNIX_FDATASYNC   1
 #define SRV_UNIX_O_DSYNC     2
 #define SRV_UNIX_LITTLESYNC  3
 #define SRV_UNIX_NOSYNC      4
 
-/* Raw partition flags */
-#define SRV_OLD_RAW 1
-#define SRV_NEW_RAW 2
-
-void
-srv_mysql_thread_release(void);
-/*==========================*/
-os_event_t
-srv_mysql_thread_event_get(void);
-void
-srv_mysql_thread_slot_free(
-/*==========================*/
-			   os_event_t event);
 /*************************************************************************
 Boots Innobase server. */
 

@@ -15,6 +15,7 @@ Created 3/26/1996 Heikki Tuuri
 /* Memory objects */
 typedef struct trx_struct	trx_t;
 typedef struct trx_sys_struct	trx_sys_t;
+typedef struct trx_doublewrite_struct	trx_doublewrite_t;
 typedef struct trx_sig_struct	trx_sig_t;
 typedef struct trx_rseg_struct	trx_rseg_t;
 typedef struct trx_undo_struct	trx_undo_t;

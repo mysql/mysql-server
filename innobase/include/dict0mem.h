@@ -143,7 +143,7 @@ struct dict_col_struct{
 	ulint		clust_pos;/* position of the column in the
 				clustered index */
 	ulint		ord_part;/* count of how many times this column
-				appears in an ordering fields of an index */
+				appears in ordering fields of an index */
 	char*		name;	/* name */
 	dtype_t		type;	/* data type */
 	dict_table_t*	table;	/* back pointer to table of this column */

@@ -59,6 +59,10 @@ log. */
 #define	OS_FILE_AIO			61
 #define	OS_FILE_NORMAL			62
 
+/* Types for file create */
+#define	OS_DATA_FILE			100
+#define OS_LOG_FILE			101
+
 /* Error codes from os_file_get_last_error */
 #define	OS_FILE_NOT_FOUND		71
 #define	OS_FILE_DISK_FULL		72
@@ -125,6 +129,7 @@ os_file_create(
 			if a new file is created or an old overwritten */
 	ulint	purpose,/* in: OS_FILE_AIO, if asynchronous, non-buffered i/o
 			is desired, OS_FILE_NORMAL, if any normal file */
+	ulint	type,	/* in: OS_DATA_FILE or OS_LOG_FILE */
 	ibool*	success);/* out: TRUE if succeed, FALSE if error */
 /***************************************************************************
 Closes a file handle. In case of error, error number can be retrieved with
@@ -263,6 +268,13 @@ os_aio(
 				operation); if mode is OS_AIO_SYNC, these
 				are ignored */
 	void*		message2);
+/****************************************************************************
+Waits until there are no pending writes in os_aio_write_array. There can
+be other, synchronous, pending writes. */
+
+void
+os_aio_wait_until_no_pending_writes(void);
+/*=====================================*/
 /**************************************************************************
 Wakes up simulated aio i/o-handler threads if they have something to do. */
 
@@ -298,7 +310,8 @@ os_aio_windows_handle(
 				the aio operation failed, these output
 				parameters are valid and can be used to
 				restart the operation, for example */
-	void**	message2);
+	void**	message2,
+	ulint*	type);		/* out: OS_FILE_WRITE or ..._READ */
 #endif
 #ifdef POSIX_ASYNC_IO
 /**************************************************************************
@@ -335,7 +348,8 @@ os_aio_simulated_handle(
 				the aio operation failed, these output
 				parameters are valid and can be used to
 				restart the operation, for example */
-	void**	message2);
+	void**	message2,
+	ulint*	type);		/* out: OS_FILE_WRITE or ..._READ */
 /**************************************************************************
 Validates the consistency of the aio system. */
 

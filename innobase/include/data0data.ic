@@ -307,12 +307,13 @@ dtuple_create(
 
 /**************************************************************
 The following function returns the sum of data lengths of a tuple. The space
-occupied by the field structs or the tuple struct is not counted. */
+occupied by the field structs or the tuple struct is not counted. Neither
+is possible space in externally stored parts of the field. */
 UNIV_INLINE
 ulint
 dtuple_get_data_size(
 /*=================*/
-				/* out: sum of data lens */
+				/* out: sum of data lengths */
 	dtuple_t*	tuple)	/* in: typed data tuple */
 {
 	dfield_t*	field;
@@ -382,7 +383,7 @@ dtuple_datas_are_equal(
 
 		field2 = dtuple_get_nth_field(tuple2, i);
 		data2 = (byte*) dfield_get_data(field2);
-		len2 = dfield_get_len(field2);	
+		len2 = dfield_get_len(field2);
 
 		if (len1 != len2) {
 

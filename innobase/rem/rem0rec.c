@@ -1,7 +1,7 @@
 /************************************************************************
 Record manager
 
-(c) 1994-1996 Innobase Oy
+(c) 1994-2001 Innobase Oy
 
 Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
@@ -12,6 +12,9 @@ Created 5/30/1994 Heikki Tuuri
 #include "rem0rec.ic"
 #endif
 
+#include "mtr0mtr.h"
+#include "mtr0log.h"
+
 /*			PHYSICAL RECORD
 			===============
 
@@ -21,7 +24,10 @@ found in index pages of the database, has the following format
 represented on a higher text line):
 
 | offset of the end of the last field of data, the most significant
-  bit is set to 1 if and only if the field is SQL-null | 
+  bit is set to 1 if and only if the field is SQL-null,
+  if the offset is 2-byte, then the second most significant
+  bit is set to 1 if the field is stored on another page:
+  mostly this will occur in the case of big BLOB fields |
 ... 
 | offset of the end of the first field of data + the SQL-null bit |
 | 4 bits used to delete mark a record, and mark a predefined
@@ -122,7 +128,8 @@ rec_get_nth_field(
 			return(rec + os);
 		}
 
-		next_os = next_os & ~REC_2BYTE_SQL_NULL_MASK;
+		next_os = next_os & ~(REC_2BYTE_SQL_NULL_MASK
+						| REC_2BYTE_EXTERN_MASK);
 	}
 	
 	*len = next_os - os;
@@ -168,6 +175,60 @@ rec_set_nth_field_null_bit(
 	}
 
 	rec_2_set_field_end_info(rec, i, info);
+}
+
+/***************************************************************
+Sets the value of the ith field extern storage bit. */
+
+void
+rec_set_nth_field_extern_bit(
+/*=========================*/
+	rec_t*	rec,	/* in: record */
+	ulint	i,	/* in: ith field */
+	ibool	val,	/* in: value to set */
+	mtr_t*	mtr)	/* in: mtr holding an X-latch to the page where
+			rec is, or NULL; in the NULL case we do not
+			write to log about the change */
+{
+	ulint	info;
+
+	ut_a(!rec_get_1byte_offs_flag(rec));
+	ut_a(i < rec_get_n_fields(rec));
+	
+	info = rec_2_get_field_end_info(rec, i);
+
+	if (val) {
+		info = info | REC_2BYTE_EXTERN_MASK;
+	} else {
+		info = info & ~REC_2BYTE_EXTERN_MASK;
+	}
+
+	if (mtr) {
+		mlog_write_ulint(rec - REC_N_EXTRA_BYTES - 2 * (i + 1), info,
+							MLOG_2BYTES, mtr);
+	} else {
+		rec_2_set_field_end_info(rec, i, info);
+	}
+}
+
+/***************************************************************
+Sets TRUE the extern storage bits of fields mentioned in an array. */
+
+void
+rec_set_field_extern_bits(
+/*======================*/
+	rec_t*	rec,		/* in: record */
+	ulint*	vec,		/* in: array of field numbers */
+	ulint	n_fields,	/* in: number of fields numbers */
+	mtr_t*	mtr)		/* in: mtr holding an X-latch to the page
+				where rec is, or NULL; in the NULL case we
+				do not write to log about the change */
+{
+	ulint	i;
+	
+	for (i = 0; i < n_fields; i++) {
+		rec_set_nth_field_extern_bit(rec, vec[i], TRUE, mtr);
+	}
 }
 
 /*************************************************************** 

@@ -678,6 +678,8 @@ trx_purge_choose_next_log(void)
 
 	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
 
+	min_trx_no = ut_dulint_max;
+
 	min_rseg = NULL;
 	
 	while (rseg) {
@@ -692,6 +694,9 @@ trx_purge_choose_next_log(void)
 				min_rseg = rseg;
 				min_trx_no = rseg->last_trx_no;
 				space = rseg->space;
+				ut_a(space == 0); /* We assume in purge of
+						externally stored fields
+						that space id == 0 */
 				page_no = rseg->last_page_no;
 				offset = rseg->last_offset;
 			}
@@ -820,6 +825,10 @@ trx_purge_get_next_rec(
 		}	    		
 
 		cmpl_info = trx_undo_rec_get_cmpl_info(rec2);
+
+		if (trx_undo_rec_get_extern_storage(rec2)) {
+			break;
+		}
 		
 		if ((type == TRX_UNDO_UPD_EXIST_REC)
 				&& !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {

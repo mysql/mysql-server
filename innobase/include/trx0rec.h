@@ -45,6 +45,14 @@ trx_undo_rec_get_cmpl_info(
 					/* out: compiler info */
 	trx_undo_rec_t*	undo_rec);	/* in: undo log record */
 /**************************************************************************
+Returns TRUE if an undo log record contains an extern storage field. */
+UNIV_INLINE
+ibool
+trx_undo_rec_get_extern_storage(
+/*============================*/
+					/* out: TRUE if extern */
+	trx_undo_rec_t*	undo_rec);	/* in: undo log record */
+/**************************************************************************
 Reads the undo log record number. */
 UNIV_INLINE
 dulint
@@ -65,6 +73,8 @@ trx_undo_rec_get_pars(
 					TRX_UNDO_INSERT_REC, ... */
 	ulint*		cmpl_info,	/* out: compiler info, relevant only
 					for update type records */
+	ibool*		updated_extern,	/* out: TRUE if we updated an
+					externally stored fild */
 	dulint*		undo_no,	/* out: undo log record number */
 	dulint*		table_id);	/* out: table id */
 /***********************************************************************
@@ -272,7 +282,11 @@ record */
 					do not change */
 #define	TRX_UNDO_CMPL_INFO_MULT	16	/* compilation info is multiplied by
 					this and ORed to the type above */
-					
+#define TRX_UNDO_UPD_EXTERN	128	/* This bit can be ORed to type_cmpl
+					to denote that we updated external
+					storage fields: used by purge to
+					free the external storage */
+
 /* Operation type flags used in trx_undo_report_row_operation */
 #define TRX_UNDO_INSERT_OP	1
 #define TRX_UNDO_MODIFY_OP	2

@@ -11,8 +11,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #include "univ.i"
 #include <time.h>
-#include <m_ctype.h>
-
+#include <ctype.h>
 
 typedef time_t	ib_time_t;
 

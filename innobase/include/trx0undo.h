@@ -341,7 +341,9 @@ struct trx_undo_struct{
 					have delete marked records, because of
 					a delete of a row or an update of an
 					indexed field; purge is then
-					necessary. */
+					necessary; also TRUE if the transaction
+					has updated an externally stored
+					field */
 	dulint		trx_id;		/* id of the trx assigned to the undo
 					log */
 	ibool		dict_operation;	/* TRUE if a dict operation trx */
