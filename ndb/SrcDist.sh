@@ -1,5 +1,5 @@
 #
-# Invoked from scripts/make_binary_distribution as "sh BinDist.sh".
+# Invoked from make distdir.
 # Prints list of dirs and files to include under mysql/ndb.
 #
 
@@ -29,35 +29,35 @@ __END__
 
 # docs
 
-#find docs/*.html docs/*.pdf -print | sort -t/
+#find docs/*.html docs/*.pdf -print 
 
 # include
 
-find include -print | grep -v /SCCS | sort -t/
+find include -print | grep -v /SCCS 
 
 # config
 
-find config -print | grep -v /SCCS | sort -t/
+find config -print | grep -v /SCCS 
 
 # tools
 
-find tools -print | grep -v /SCCS | grep -v '\.o' | grep -v tools/ndbsql | sort -t/
+find tools -print | grep -v /SCCS | grep -v '\.o' | grep -v '\.depend' | grep -v tools/ndbsql 
 
 # home
 
-find home -print | grep -v /SCCS | sort -t/
+find home -print | grep -v /SCCS 
 
 # test
 
-find test -print | grep -v /SCCS | grep -v '\.o' | grep -v test/odbc | sort -t/
+find test -print | grep -v /SCCS | grep -v '\.o' | grep -v '\.depend' | grep -v test/odbc 
 
 # src
 
-find src -print | grep -v /SCCS | grep -v '\.o' | grep -v src/client/odbc | grep -v cpcc-win32 | sort -t/
+find src -print | grep -v /SCCS | grep -v '\.o' | grep -v '\.depend' | grep -v src/client/odbc | grep -v cpcc-win32 
 
 # demos
 
-find demos -print | grep -v /SCCS | grep -v '\.o' | sort -t/
+find demos -print | grep -v /SCCS | grep -v '\.o' | grep -v '\.depend' 
 
 # examples
 
