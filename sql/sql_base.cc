@@ -1707,7 +1707,7 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
     if (!found_table && report_error)
     {
       char buff[NAME_LEN*2+1];
-      if (db)
+      if (db && db[0])
       {
 	strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
 	table_name=buff;
