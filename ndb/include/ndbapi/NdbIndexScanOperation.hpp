@@ -114,6 +114,12 @@ public:
    *   sent on next execute
    */
   int reset_bounds();
+
+  /**
+   * Set new bound on operation,
+   *  used when batching index reads
+   */
+  int set_new_bound();
   
   bool getSorted() const { return m_ordered; }
 private:
@@ -132,6 +138,9 @@ private:
   int compare(Uint32 key, Uint32 cols, const NdbReceiver*, const NdbReceiver*);
 
   Uint32 m_sort_columns;
+  
+  Uint32 m_this_bound_start;
+  Uint32 * m_first_bound_word;
 };
 
 #endif
