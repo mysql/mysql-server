@@ -670,7 +670,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	opt_table_alias
 
 %type <table>
-	table_ident table_ident_nodb references from_table_ident
+	table_ident table_ident_nodb references
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
@@ -5902,14 +5902,14 @@ show_param:
 	| ENGINE_SYM storage_engines 
 	  { Lex->create_info.db_type= $2; }
 	  show_engine_param
-	| opt_full COLUMNS ext_select_item_list from_table_ident opt_db wild_and_where
+	| opt_full COLUMNS ext_select_item_list from_or_in table_ident opt_db wild_and_where
 	  {
  	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SELECT;
 	    lex->orig_sql_command= SQLCOM_SHOW_FIELDS;
-	    if ($5)
-	      $4->change_db($5);
-	    if (prepare_schema_table(YYTHD, lex, $4, SCH_COLUMNS))
+	    if ($6)
+	      $5->change_db($6);
+	    if (prepare_schema_table(YYTHD, lex, $5, SCH_COLUMNS))
 	      YYABORT;
 	  }
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ
@@ -5935,14 +5935,14 @@ show_param:
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_BINLOG_EVENTS;
           } opt_limit_clause_init
-        | keys_or_index ext_select_item_list from_table_ident opt_db where_clause
+        | keys_or_index ext_select_item_list from_or_in table_ident opt_db where_clause
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SELECT;
             lex->orig_sql_command= SQLCOM_SHOW_KEYS;
-	    if ($4)
-	      $3->change_db($4);
-            if (prepare_schema_table(YYTHD, lex, $3, SCH_STATISTICS))
+	    if ($5)
+	      $4->change_db($5);
+            if (prepare_schema_table(YYTHD, lex, $4, SCH_STATISTICS))
               YYABORT;
 	  }
 	| COLUMN_SYM TYPES_SYM
@@ -6158,11 +6158,6 @@ binlog_in:
 binlog_from:
 	/* empty */ { Lex->mi.pos = 4; /* skip magic number */ }
         | FROM ulonglong_num { Lex->mi.pos = $2; };
-
-from_table_ident:
-      /* empty */       { $$= 0; }
-      | from_or_in table_ident  { $$= $2; }
-      ;
 
 wild_and_where:
       /* empty */

@@ -32,6 +32,7 @@ unlock tables;
 create database mysqltest;
 show databases;
 Database
+information_schema
 mysql
 mysqltest
 test
@@ -42,6 +43,7 @@ unlock tables;
 drop database mysqltest;
 show databases;
 Database
+information_schema
 mysql
 test
 drop database mysqltest;
