@@ -1180,3 +1180,15 @@ select count(*) from t1 where x = 18446744073709551601;
 
 drop table t1;
 
+#
+# Test varchar
+#
+
+#let $default=`select @@storage_engine`;
+#set storage_engine=INNODB;
+#source include/varchar.inc;
+#eval set storage_engine=$default;
+
+# InnoDB specific varchar tests
+--error 1074
+create table t1 (v varchar(16384)) engine=innodb;

@@ -7484,7 +7484,8 @@ static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
   Field *new_field;
 
   if (convert_blob_length && org_field->flags & BLOB_FLAG)
-    new_field= new Field_varstring(convert_blob_length, org_field->maybe_null(),
+    new_field= new Field_varstring(convert_blob_length,
+                                   org_field->maybe_null(),
                                    org_field->field_name, table,
                                    org_field->charset());
   else
@@ -7497,7 +7498,8 @@ static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
       new_field->field_name= item->name;
     if (org_field->maybe_null())
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
-    if (org_field->type() == FIELD_TYPE_VAR_STRING)
+    if (org_field->type() == MYSQL_TYPE_VAR_STRING ||
+        org_field->type() == MYSQL_TYPE_VARCHAR)
       table->db_create_options|= HA_OPTION_PACK_RECORD;
   }
   return new_field;
@@ -7704,6 +7706,11 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   for send_fields
 */
 
+#define STRING_TOTAL_LENGTH_TO_PACK_ROWS 128
+#define AVG_STRING_LENGTH_TO_PACK_ROWS   64
+#define RATIO_TO_PACK_ROWS	       2
+#define MIN_STRING_LENGTH_TO_PACK_ROWS   10
+
 TABLE *
 create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
@@ -7711,10 +7718,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		 char *table_alias)
 {
   TABLE *table;
-  uint	i,field_count,reclength,null_count,null_pack_length,
-        hidden_null_count, hidden_null_pack_length, hidden_field_count,
-	blob_count,group_null_items;
-  bool	using_unique_constraint=0;
+  uint	i,field_count,null_count,null_pack_length;
+  uint  hidden_null_count, hidden_null_pack_length, hidden_field_count;
+  uint  blob_count,group_null_items, string_count;
+  uint  temp_pool_slot=MY_BIT_NONE;
+  ulong reclength, string_total_length;
+  bool  using_unique_constraint= 0;
+  bool  use_packed_rows= 0;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
   char	*tmpname,path[FN_REFLEN];
   byte	*pos,*group_buff;
@@ -7725,8 +7735,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   KEY_PART_INFO *key_part_info;
   Item **copy_func;
   MI_COLUMNDEF *recinfo;
-  uint temp_pool_slot=MY_BIT_NONE;
-
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
 		      (int) distinct, (int) save_sum_fields,
@@ -7819,7 +7827,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 
   /* Calculate which type of fields we will store in the temporary table */
 
-  reclength=blob_count=null_count=hidden_null_count=group_null_items=0;
+  reclength= string_total_length= 0;
+  blob_count= string_count= null_count= hidden_null_count= group_null_items= 0;
   param->using_indirect_summary_function=0;
 
   List_iterator_fast<Item> li(fields);
@@ -7866,6 +7875,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    *blob_field++= new_field;
 	    blob_count++;
 	  }
+          if (new_field->real_type() == MYSQL_TYPE_STRING ||
+              new_field->real_type() == MYSQL_TYPE_VARCHAR)
+          {
+            string_count++;
+            string_total_length+= new_field->pack_length();
+          }
           thd->change_item_tree(argp, new Item_field(new_field));
 	  if (!(new_field->flags & NOT_NULL_FLAG))
           {
@@ -7959,6 +7974,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   reclength+=null_pack_length;
   if (!reclength)
     reclength=1;				// Dummy select
+  /* Use packed rows if there is blobs or a lot of space to gain */
+  if (blob_count ||
+      string_total_length >= STRING_TOTAL_LENGTH_TO_PACK_ROWS &&
+      (reclength / string_total_length <= RATIO_TO_PACK_ROWS ||
+       string_total_length / string_count >= AVG_STRING_LENGTH_TO_PACK_ROWS))
+    use_packed_rows= 1;
 
   table->fields=field_count;
   table->reclength=reclength;
@@ -8033,10 +8054,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     recinfo->length=length;
     if (field->flags & BLOB_FLAG)
       recinfo->type= (int) FIELD_BLOB;
-    else if (!field->zero_pack() &&
-	     (field->type() == FIELD_TYPE_STRING ||
-	      field->type() == FIELD_TYPE_VAR_STRING) &&
-	     length >= 10 && blob_count)
+    else if (use_packed_rows &&
+             field->real_type() == MYSQL_TYPE_STRING &&
+	     length >= MIN_STRING_LENGTH_TO_PACK_ROWS)
       recinfo->type=FIELD_SKIP_ENDSPACE;
     else
       recinfo->type=FIELD_NORMAL;
@@ -8110,6 +8130,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	}
 	else
 	  group->field->move_field((char*) group_buff);
+        /* In GROUP BY 'a' and 'a ' are equal for VARCHAR fields */
+        key_part_info->key_part_flag|= HA_END_SPACE_ARE_EQUAL;
 	group_buff+= key_part_info->length;
       }
       keyinfo->key_length+=  key_part_info->length;
@@ -8280,12 +8302,10 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
       }
       else
       {
-	seg->type=
-	  ((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
-	   HA_KEYTYPE_BINARY : HA_KEYTYPE_TEXT);
-	if (!(field->flags & ZEROFILL_FLAG) &&
-	    (field->type() == FIELD_TYPE_STRING ||
-	     field->type() == FIELD_TYPE_VAR_STRING) &&
+	seg->type= ((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
+                    HA_KEYTYPE_BINARY : HA_KEYTYPE_TEXT);
+        /* Tell handler if it can do suffic space compression */
+	if (field->real_type() == MYSQL_TYPE_STRING &&
 	    keyinfo->key_part[i].length > 4)
 	  seg->flag|=HA_SPACE_PACK;
       }
@@ -9790,6 +9810,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   DBUG_RETURN(0);
 }
 
+
 /* Like end_update, but this is done with unique constraints instead of keys */
 
 static int
@@ -9937,11 +9958,11 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
 	/*
 	  We can remove binary fields and numerical fields except float,
 	  as float comparison isn't 100 % secure
-	  We have to keep binary strings to be able to check for end spaces
+	  We have to keep normal strings to be able to check for end spaces
 	*/
 	if (field->binary() &&
-	    field->real_type() != FIELD_TYPE_STRING &&
-	    field->real_type() != FIELD_TYPE_VAR_STRING &&
+	    field->real_type() != MYSQL_TYPE_STRING &&
+	    field->real_type() != MYSQL_TYPE_VARCHAR &&
 	    (field->type() != FIELD_TYPE_FLOAT || field->decimals() == 0))
 	{
 	  return !store_val_in_field(field,right_item);

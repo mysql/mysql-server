@@ -98,10 +98,12 @@
       implementation-defined.
 */
 
-#include <decimal.h>
+#include <my_global.h>
 #include <m_ctype.h>
 #include <myisampack.h>
 #include <my_sys.h> /* for my_alloca */
+#include <m_string.h>
+#include <decimal.h>
 
 typedef decimal_digit dec1;
 typedef longlong      dec2;
@@ -308,7 +310,7 @@ static int str2dec(char *from, decimal *to, char **end, my_bool fixed)
   char *s=from, *s1;
   int i, intg, frac, error, intg1, frac1;
   dec1 x,*buf;
-
+  LINT_INIT(error);
   sanity(to);
 
   while (my_isspace(&my_charset_latin1, *s))
@@ -366,6 +368,7 @@ static int str2dec(char *from, decimal *to, char **end, my_bool fixed)
         intg=intg1*DIG_PER_DEC1;
     }
   }
+  /* Error is guranteed to be set here */
   to->intg=intg;
   to->frac=frac;
 
@@ -1309,6 +1312,8 @@ static int do_div_mod(decimal *from1, decimal *from2,
   dec1 *buf0, *buf1=from1->buf, *buf2=from2->buf, *tmp1,
        *start2, *stop2, *stop1, *stop0, norm2, carry, *start1;
   dec2 norm_factor, x, guess, y;
+
+  LINT_INIT(error);
 
   if (mod)
     to=mod;

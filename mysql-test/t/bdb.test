@@ -929,3 +929,12 @@ SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterb");
 SELECT id FROM t1 WHERE (list_id = 1) AND (term = "lettera");
 SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterd");
 DROP TABLE t1;
+
+#
+# Test varchar
+#
+
+let $default=`select @@storage_engine`;
+set storage_engine=bdb;
+source include/varchar.inc;
+eval set storage_engine=$default;

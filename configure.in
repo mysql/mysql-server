@@ -2826,7 +2826,6 @@ AC_DEFINE_UNQUOTED([MYSQL_DEFAULT_CHARSET_NAME], ["$default_charset"],
 AC_DEFINE_UNQUOTED([MYSQL_DEFAULT_COLLATION_NAME], ["$default_collation"],
                    [Define the default charset name])
 
-MYSQL_CHECK_ISAM
 MYSQL_CHECK_BDB
 MYSQL_CHECK_INNODB
 MYSQL_CHECK_EXAMPLEDB
@@ -2888,12 +2887,6 @@ then
   #
   # Configuration for optional table handlers
   #
-
-  if test X"$have_isam" != Xno
-  then
-    sql_server_dirs="$sql_server_dirs isam merge"
-    AC_CONFIG_FILES(isam/Makefile merge/Makefile)
-  fi
 
   if test X"$have_berkeley_db" != Xno; then
     if test X"$have_berkeley_db" != Xyes; then

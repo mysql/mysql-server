@@ -4,17 +4,19 @@ show columns from t1;
 Field	Type	Null	Key	Default	Extra
 a	blob	YES		NULL	
 b	text	YES		NULL	
-c	blob	YES		NULL	
+c	tinyblob	YES		NULL	
 d	mediumtext	YES		NULL	
 e	longtext	YES		NULL	
-CREATE TABLE t2 (a char(257), b varbinary(70000), c varchar(70000000));
+CREATE TABLE t2 (a char(255), b varbinary(70000), c varchar(70000000));
 Warnings:
-Note	1246	Converting column 'a' from CHAR to TEXT
-Note	1246	Converting column 'b' from CHAR to BLOB
-Note	1246	Converting column 'c' from CHAR to TEXT
+Note	1246	Converting column 'b' from VARCHAR to BLOB
+Note	1246	Converting column 'c' from VARCHAR to TEXT
+CREATE TABLE t4 (c varchar(65530) character set utf8 not null);
+Warnings:
+Note	1246	Converting column 'c' from VARCHAR to TEXT
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
-a	text	YES		NULL	
+a	char(255)	YES		NULL	
 b	mediumblob	YES		NULL	
 c	longtext	YES		NULL	
 create table t3 (a long, b long byte);
@@ -24,10 +26,18 @@ t3	CREATE TABLE `t3` (
   `a` mediumtext,
   `b` mediumblob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1,t2,t3
-#;
+show create TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c` mediumtext character set utf8 NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1,t2,t3,t4;
 CREATE TABLE t1 (a char(257) default "hello");
 ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB instead
+CREATE TABLE t2 (a char(256));
+ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB instead
+CREATE TABLE t1 (a varchar(70000) default "hello");
+ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB instead
 CREATE TABLE t2 (a blob default "hello");
 ERROR 42000: BLOB/TEXT column 'a' can't have a default value
 drop table if exists t1,t2;
@@ -71,16 +81,16 @@ lock tables t1 READ;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 t	text	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-c	varchar(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
+c	char(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 b	blob	NULL	YES		NULL		select,insert,update,references	
-d	varbinary(10)	NULL	YES		NULL		select,insert,update,references	
+d	binary(10)	NULL	YES		NULL		select,insert,update,references	
 lock tables t1 WRITE;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 t	text	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-c	varchar(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
+c	char(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 b	blob	NULL	YES		NULL		select,insert,update,references	
-d	varbinary(10)	NULL	YES		NULL		select,insert,update,references	
+d	binary(10)	NULL	YES		NULL		select,insert,update,references	
 unlock tables;
 select t from t1 where t like "hello";
 t
@@ -520,6 +530,11 @@ load_file('../../std_data/words.dat')	longblob	NULL	YES		NULL		select,insert,upd
 drop table t1;
 create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20)));
 insert into t1 (txt) values ('Chevy'), ('Chevy ');
+ERROR 23000: Duplicate entry 'Chevy ' for key 2
+insert into t1 (txt) values ('Chevy'), ('CHEVY');
+ERROR 23000: Duplicate entry 'Chevy' for key 2
+alter table t1 drop index txt_index, add index txt_index (txt(20));
+insert into t1 (txt) values ('Chevy ');
 select * from t1 where txt='Chevy';
 id	txt
 1	Chevy
@@ -589,7 +604,7 @@ id	txt
 2	Chevy 
 3	Ford
 drop table t1;
-create table t1 (id integer primary key auto_increment, txt text, unique index txt_index (txt (20)));
+create table t1 (id integer primary key auto_increment, txt text, index txt_index (txt (20)));
 insert into t1 (txt) values ('Chevy'), ('Chevy '), (NULL);
 select * from t1 where txt='Chevy' or txt is NULL;
 id	txt

@@ -1195,7 +1195,7 @@ int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
   uint len=item->key_length;
   return cs->coll->strnncollsp(cs, 
 			       (const uchar*) key1, len, 
-			       (const uchar*) key2, len);
+			       (const uchar*) key2, len, 0);
 }
 
 /*
@@ -1345,10 +1345,9 @@ bool Item_sum_count_distinct::setup(THD *thd)
 	about other fields
       */
       Field* field = table->field[0];
-      switch(field->type())
-      {
-      case FIELD_TYPE_STRING:
-      case FIELD_TYPE_VAR_STRING:
+      switch (field->type()) {
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_VAR_STRING:
 	if (field->binary())
 	{
 	  compare_key = (qsort_cmp2)simple_raw_key_cmp;

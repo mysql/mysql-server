@@ -311,7 +311,7 @@ prepare stmt4 from ' show engine bdb logs ';
 execute stmt4;
 --enable_result_log
 prepare stmt4 from ' show full processlist ';
---replace_column 1 number
+--replace_column 1 number 6 seconds
 execute stmt4;
 prepare stmt4 from ' show grants for user ';
 --error 1295

@@ -408,8 +408,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 select concat(a,'.') from t1 where a='aaa';
 concat(a,'.')
-aaa.
 aaa   .
+aaa.
 select concat(a,'.') from t1 where binary a='aaa';
 concat(a,'.')
 aaa.
@@ -461,20 +461,27 @@ concat(a,'.')
 a .
 drop table t1;
 create table t1 (a int not null auto_increment primary key, b text not null, unique b (b(20)));
-insert into t1 (b) values ('a'),('a '),('a  ');
+insert into t1 (b) values ('a'),('b'),('c');
 select concat(b,'.') from t1;
 concat(b,'.')
 a.
-a .
-a  .
+b.
+c.
 update t1 set b='b ' where a=2;
 update t1 set b='b  ' where a > 1;
 ERROR 23000: Duplicate entry 'b  ' for key 2
+insert into t1 (b) values ('b');
+ERROR 23000: Duplicate entry 'b' for key 2
+select * from t1;
+a	b
+1	a
+2	b  
+3	c
 delete from t1 where b='b';
 select a,concat(b,'.') from t1;
 a	concat(b,'.')
 1	a.
-3	a  .
+3	c.
 drop table t1;
 create table t1 (a int not null);
 create table t2 (a int not null, primary key (a));
@@ -506,18 +513,18 @@ insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
 insert t2 select * from t1;
 checksum table t1, t2, t3 quick;
 Table	Checksum
-test.t1	968604391
+test.t1	272226711
 test.t2	NULL
 test.t3	NULL
 checksum table t1, t2, t3;
 Table	Checksum
-test.t1	968604391
-test.t2	968604391
+test.t1	272226711
+test.t2	272226711
 test.t3	NULL
 checksum table t1, t2, t3 extended;
 Table	Checksum
-test.t1	968604391
-test.t2	968604391
+test.t1	272226711
+test.t2	272226711
 test.t3	NULL
 drop table t1,t2;
 create table t1 (a int, key (a));
@@ -554,3 +561,384 @@ select count(*) from t1 where a is null;
 count(*)
 2
 drop table t1;
+set storage_engine=MyISAM;
+drop table if exists t1,t2,t3;
+--- Testing varchar ---
+--- Testing varchar ---
+create table t1 (v varchar(10), c char(10), t text);
+insert into t1 values('+ ', '+ ', '+ ');
+set @a=repeat(' ',20);
+insert into t1 values (concat('+',@a),concat('+',@a),concat('+',@a));
+Warnings:
+Warning	1265	Data truncated for column 'v' at row 1
+select concat('*',v,'*',c,'*',t,'*') from t1;
+concat('*',v,'*',c,'*',t,'*')
+*+ *+*+ *
+*+         *+*+                    *
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) default NULL,
+  `c` char(10) default NULL,
+  `t` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t2 like t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `v` varchar(10) default NULL,
+  `c` char(10) default NULL,
+  `t` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t3 select * from t1;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `v` varchar(10) default NULL,
+  `c` char(10) default NULL,
+  `t` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 modify c varchar(10);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) default NULL,
+  `c` varchar(10) default NULL,
+  `t` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 modify v char(10);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` char(10) default NULL,
+  `c` varchar(10) default NULL,
+  `t` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 modify t varchar(10);
+Warnings:
+Warning	1265	Data truncated for column 't' at row 2
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` char(10) default NULL,
+  `c` varchar(10) default NULL,
+  `t` varchar(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select concat('*',v,'*',c,'*',t,'*') from t1;
+concat('*',v,'*',c,'*',t,'*')
+*+*+*+ *
+*+*+*+         *
+drop table t1,t2,t3;
+create table t1 (v varchar(10), c char(10), t text, key(v), key(c), key(t(10)));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) default NULL,
+  `c` char(10) default NULL,
+  `t` text,
+  KEY `v` (`v`),
+  KEY `c` (`c`),
+  KEY `t` (`t`(10))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select count(*) from t1;
+count(*)
+270
+insert into t1 values(concat('a',char(1)),concat('a',char(1)),concat('a',char(1)));
+select count(*) from t1 where v='a';
+count(*)
+10
+select count(*) from t1 where c='a';
+count(*)
+10
+select count(*) from t1 where t='a';
+count(*)
+10
+select count(*) from t1 where v='a  ';
+count(*)
+10
+select count(*) from t1 where c='a  ';
+count(*)
+10
+select count(*) from t1 where t='a  ';
+count(*)
+10
+select count(*) from t1 where v between 'a' and 'a ';
+count(*)
+10
+select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+count(*)
+10
+select count(*) from t1 where v like 'a%';
+count(*)
+11
+select count(*) from t1 where c like 'a%';
+count(*)
+11
+select count(*) from t1 where t like 'a%';
+count(*)
+11
+select count(*) from t1 where v like 'a %';
+count(*)
+9
+explain select count(*) from t1 where v='a  ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v	v	13	const	9	Using where; Using index
+explain select count(*) from t1 where c='a  ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c	c	11	const	9	Using where; Using index
+explain select count(*) from t1 where t='a  ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	t	t	13	NULL	9	Using where
+explain select count(*) from t1 where v like 'a%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	13	NULL	10	Using where; Using index
+explain select count(*) from t1 where v between 'a' and 'a ';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	13	NULL	9	Using where; Using index
+explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	v	v	13	NULL	9	Using where; Using index
+alter table t1 add unique(v);
+ERROR 23000: Duplicate entry '{ ' for key 1
+alter table t1 add key(v);
+select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
+qq
+*a*a*a*
+*a *a*a *
+*a  *a*a  *
+*a   *a*a   *
+*a    *a*a    *
+*a     *a*a     *
+*a      *a*a      *
+*a       *a*a       *
+*a        *a*a        *
+*a         *a*a         *
+explain select * from t1 where v='a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	v,v_2	v_2	13	const	7	Using where
+select v,count(*) from t1 group by v limit 10;
+v	count(*)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select v,count(c) from t1 group by v limit 10;
+v	count(c)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result v,count(t) from t1 group by v limit 10;
+v	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result v,count(c) from t1 group by v limit 10;
+v	count(c)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select c,count(*) from t1 group by c limit 10;
+c	count(*)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select c,count(t) from t1 group by c limit 10;
+c	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result c,count(t) from t1 group by c limit 10;
+c	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select t,count(*) from t1 group by t limit 10;
+t	count(*)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select t,count(t) from t1 group by t limit 10;
+t	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+select sql_big_result t,count(t) from t1 group by t limit 10;
+t	count(t)
+a	1
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
+h	10
+i	10
+drop table t1;
+create table t1 (a char(10), unique (a));
+insert into t1 values ('a   ');
+insert into t1 values ('a ');
+ERROR 23000: Duplicate entry 'a' for key 1
+alter table t1 modify a varchar(10);
+insert into t1 values ('a '),('a  '),('a   '),('a         ');
+ERROR 23000: Duplicate entry 'a ' for key 1
+insert into t1 values ('a     ');
+ERROR 23000: Duplicate entry 'a     ' for key 1
+insert into t1 values ('a          ');
+ERROR 23000: Duplicate entry 'a         ' for key 1
+insert into t1 values ('a ');
+ERROR 23000: Duplicate entry 'a ' for key 1
+update t1 set a='a  ' where a like 'a%';
+select concat(a,'.') from t1;
+concat(a,'.')
+a  .
+update t1 set a='abc    ' where a like 'a ';
+select concat(a,'.') from t1;
+concat(a,'.')
+a  .
+update t1 set a='a      ' where a like 'a %';
+select concat(a,'.') from t1;
+concat(a,'.')
+a      .
+update t1 set a='a  ' where a like 'a      ';
+select concat(a,'.') from t1;
+concat(a,'.')
+a  .
+drop table t1;
+create table t1 (v varchar(10), c char(10), t text, key(v(5)), key(c(5)), key(t(5)));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) default NULL,
+  `c` char(10) default NULL,
+  `t` text,
+  KEY `v` (`v`(5)),
+  KEY `c` (`c`(5)),
+  KEY `t` (`t`(5))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (v char(10) character set utf8);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` char(10) character set utf8 default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (v varchar(10), c char(10)) row_format=fixed;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) default NULL,
+  `c` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
+insert into t1 values('a','a'),('a ','a ');
+select concat('*',v,'*',c,'*') from t1;
+concat('*',v,'*',c,'*')
+*a*a*
+*a *a*
+drop table t1;
+create table t1 (v varchar(65530), key(v(10)));
+insert into t1 values(repeat('a',65530));
+select length(v) from t1 where v=repeat('a',65530);
+length(v)
+65530
+drop table t1;
+create table t1 (v varchar(65530), key(v));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+drop table if exists t1;
+create table t1 (v varchar(65536));
+Warnings:
+Note	1246	Converting column 'v' from VARCHAR to TEXT
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` mediumtext
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (v varchar(65530) character set utf8);
+Warnings:
+Note	1246	Converting column 'v' from VARCHAR to TEXT
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` mediumtext character set utf8
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+set storage_engine=MyISAM;
+create table t1 (v varchar(65535));
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs

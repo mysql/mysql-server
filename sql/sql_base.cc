@@ -1053,31 +1053,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     for (uint i=0 ; i < table->fields ; i++)
       table->field[i]->table_name=table->table_name;
   }
-#if MYSQL_VERSION_ID < 40100
-  /*
-    If per-connection "new" variable (represented by variables.new_mode)
-    is set then we should pretend that the length of TIMESTAMP field is 19.
-    The cheapest (from perfomance viewpoint) way to achieve that is to set
-    field_length of all Field_timestamp objects in a table after opening
-    it (to 19 if new_mode is true or to original field length otherwise).
-    We save value of new_mode variable in TABLE::timestamp_mode to
-    not perform this setup if new_mode value is the same between sequential
-    table opens.
-  */
-  my_bool new_mode= thd->variables.new_mode;
-  if (table->timestamp_mode != new_mode)
-  {
-    for (uint i=0 ; i < table->fields ; i++)
-    {
-      Field *field= table->field[i];
-
-      if (field->type() == FIELD_TYPE_TIMESTAMP)
-        field->field_length= new_mode ? 19 :
-                             ((Field_timestamp *)(field))->orig_field_length;
-    }
-    table->timestamp_mode= new_mode;
-  }
-#endif
   /* These variables are also set in reopen_table() */
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;

@@ -106,7 +106,7 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *record,
   custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
   if (keyinfo->flag & HA_NOSAME)
   {
-    custom_arg.search_flag= SEARCH_FIND | SEARCH_SAME;
+    custom_arg.search_flag= SEARCH_FIND | SEARCH_SAME | SEARCH_UPDATE;
     keyinfo->rb_tree.flag= TREE_NO_DUPS;
   }
   else
@@ -293,7 +293,7 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
       pos=empty;
       do
       {
-	if (! hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec))
+	if (! hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec, 1))
 	{
 	  DBUG_RETURN(my_errno=HA_ERR_FOUND_DUPP_KEY);
 	}

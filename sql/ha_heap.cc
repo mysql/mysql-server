@@ -427,16 +427,20 @@ int ha_heap::create(const char *name, TABLE *table_arg,
     {
       uint flag=    key_part->key_type;
       Field *field= key_part->field;
+
       if (pos->algorithm == HA_KEY_ALG_BTREE)
 	seg->type= field->key_type();
       else
       {
-        if ((seg->type = field->key_type()) != (int) HA_KEYTYPE_TEXT)
+        if ((seg->type = field->key_type()) != (int) HA_KEYTYPE_TEXT &&
+            seg->type != HA_KEYTYPE_VARTEXT &&
+            seg->type != HA_KEYTYPE_VARBINARY)
           seg->type= HA_KEYTYPE_BINARY;
       }
       seg->start=   (uint) key_part->offset;
       seg->length=  (uint) key_part->length;
-      seg->flag =   0;
+      seg->flag=    key_part->key_part_flag;
+
       seg->charset= field->charset();
       if (field->null_ptr)
       {

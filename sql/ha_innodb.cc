@@ -1869,11 +1869,12 @@ innobase_mysql_cmp(
 	switch (mysql_tp) {
 
 	case FIELD_TYPE_STRING:
-	case FIELD_TYPE_VAR_STRING:
+	case MYSQL_TYPE_VAR_STRING:
 	case FIELD_TYPE_TINY_BLOB:
 	case FIELD_TYPE_MEDIUM_BLOB:
 	case FIELD_TYPE_BLOB:
 	case FIELD_TYPE_LONG_BLOB:
+        case MYSQL_TYPE_VARCHAR:
 		/* Use the charset number to pick the right charset struct for
 		the comparison. Since the MySQL function get_charset may be
 		slow before Bar removes the mutex operation there, we first
@@ -1901,7 +1902,7 @@ innobase_mysql_cmp(
 
                 ret = charset->coll->strnncollsp(charset,
                                   a, a_length,
-                                  b, b_length);
+                                                 b, b_length, 0);
 		if (ret < 0) {
 		        return(-1);
 		} else if (ret > 0) {
@@ -1930,17 +1931,11 @@ get_innobase_type_from_mysql_type(
 	8 bits: this is used in ibuf and also when DATA_NOT_NULL is ORed to
 	the type */
 
-	DBUG_ASSERT((ulint)FIELD_TYPE_STRING < 256);
-	DBUG_ASSERT((ulint)FIELD_TYPE_VAR_STRING < 256);
-	DBUG_ASSERT((ulint)FIELD_TYPE_DOUBLE < 256);
-	DBUG_ASSERT((ulint)FIELD_TYPE_FLOAT < 256);
-	DBUG_ASSERT((ulint)FIELD_TYPE_DECIMAL < 256);
-
 	switch (field->type()) {
 	        /* NOTE that we only allow string types in DATA_MYSQL
 		and DATA_VARMYSQL */
-		case FIELD_TYPE_VAR_STRING: if (field->binary()) {
-
+                case MYSQL_TYPE_VAR_STRING:
+                case MYSQL_TYPE_VARCHAR: if (field->binary()) {
 						return(DATA_BINARY);
 					} else if (strcmp(
 						  field->charset()->name,
@@ -2463,12 +2458,12 @@ innobase_convert_and_store_changed_col(
 
 	if (len == UNIV_SQL_NULL) {
 		data = NULL;
-	} else if (col_type == DATA_VARCHAR || col_type == DATA_BINARY
-		   || col_type == DATA_VARMYSQL) {
-	        /* Remove trailing spaces */
-        	while (len > 0 && data[len - 1] == ' ') {
-	                len--;
-	        }
+        } else if (col_type == DATA_VARCHAR || col_type == DATA_BINARY
+                   || col_type == DATA_VARMYSQL) {
+                /* Remove trailing spaces */
+                while (len > 0 && data[len - 1] == ' ') {
+                        len--;
+                }
 	} else if (col_type == DATA_INT) {
 		/* Store integer data in InnoDB in a big-endian
 		format, sign bit negated, if signed */

@@ -47,16 +47,16 @@ alter table t1 modify text1 text not null, pack_keys=1;
 select concat('|', text1, '|') from t1 where text1='teststring';
 select concat('|', text1, '|') from t1 where text1='teststring ';
 explain select concat('|', text1, '|') from t1 where text1='teststring ';
-select * from t1 where text1 like 'teststring_%';
-select * from t1 where text1='teststring' or text1 like 'teststring_%';
+select concat('|', text1, '|') from t1 where text1 like 'teststring_%';
+select concat('|', text1, '|') from t1 where text1='teststring' or text1 like 'teststring_%';
 select concat('|', text1, '|') from t1 where text1='teststring' or text1 > 'teststring\t';
 select concat('|', text1, '|') from t1 order by text1;
 drop table t1;
 
 create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) pack_keys=0;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
-select * from t1 where text1='teststring' or text1 like 'teststring_%';
-select * from t1 where text1='teststring' or text1 >= 'teststring\t';
+select concat('|', text1, '|') from t1 where text1='teststring' or text1 like 'teststring_%';
+select concat('|', text1, '|') from t1 where text1='teststring' or text1 >= 'teststring\t';
 drop table t1;
 
 # Test HEAP tables (with BTREE keys)

@@ -39,7 +39,7 @@ libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
 sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
-	ha_innodb.cc ha_berkeley.cc ha_heap.cc ha_isam.cc ha_isammrg.cc \
+	ha_innodb.cc ha_berkeley.cc ha_heap.cc \
 	ha_myisam.cc ha_myisammrg.cc handler.cc sql_handler.cc \
 	hostname.cc init.cc password.c \
 	item.cc item_buff.cc item_cmpfunc.cc item_create.cc \

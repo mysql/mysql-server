@@ -563,12 +563,14 @@ DROP TABLE t1;
 
 # Testing INSERT with CHAR/VARCHAR
 
-CREATE TABLE t1 (col1 CHAR(5), col2 VARCHAR(5));
-INSERT INTO t1 VALUES ('hello', 'hello'),('he', 'he'),('hello   ', 'hello   ');
+CREATE TABLE t1 (col1 CHAR(5), col2 VARCHAR(6));
+INSERT INTO t1 VALUES ('hello', 'hello'),('he', 'he'),('hello   ', 'hello ');
 --error 1265
 INSERT INTO t1 (col1) VALUES ('hellobob');
 --error 1265
 INSERT INTO t1 (col2) VALUES ('hellobob');
+--error 1265
+INSERT INTO t1 (col2) VALUES ('hello  ');
 --error 1265
 UPDATE t1 SET col1 ='hellobob' WHERE col1 ='he';
 --error 1265

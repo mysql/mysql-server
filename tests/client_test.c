@@ -7614,13 +7614,13 @@ static void test_logs()
 
   if (!opt_silent)
   {
-    fprintf(stdout, "\n id    : %d", id);
-    fprintf(stdout, "\n name  : %s(%ld)", data, length);
+    fprintf(stdout, "id    : %d\n", id);
+    fprintf(stdout, "name  : %s(%ld)\n", data, length);
   }
 
   DIE_UNLESS(id == 9876);
-  DIE_UNLESS(length == 19); /* Due to VARCHAR(20) */
-  DIE_UNLESS(strcmp(data, "MySQL - Open Source") == 0);
+  DIE_UNLESS(length == 19 || length == 20); /* Due to VARCHAR(20) */
+  DIE_UNLESS(is_prefix(data, "MySQL - Open Source") == 1);
 
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
