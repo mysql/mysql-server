@@ -215,6 +215,7 @@ CHARSET_INFO my_charset_latin1=
     NULL,		/* tab_from_uni */
     "","",
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     1,			/* mbmaxlen  */
     0,
     &my_charset_handler,
@@ -410,6 +411,7 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   NULL,					/* tab_from_uni */
   "","",
   2,					/* strxfrm_multiply */
+  1,					/* mbminlen   */
   1,					/* mbmaxlen  */
   0,
   &my_charset_handler,
@@ -433,6 +435,7 @@ CHARSET_INFO my_charset_latin1_bin=
   "",
   "",
   1,					/* strxfrm_multiply */
+  1,					/* mbminlen   */
   1,					/* mbmaxlen  */
   0,
   &my_charset_handler,

@@ -206,8 +206,9 @@ typedef struct charset_info_st
   uchar state_map[256];
   uchar ident_map[256];
   uint      strxfrm_multiply;
+  uint      mbminlen;
   uint      mbmaxlen;
-  char    max_sort_char; /* For LIKE optimization */
+  char      max_sort_char; /* For LIKE optimization */
   
   MY_CHARSET_HANDLER *cset;
   MY_COLLATION_HANDLER *coll;
