@@ -20,6 +20,7 @@
 #include <myisam.h>
 #include "mini_client.h"
 #include "slave.h"
+#include "sql_repl.h"
 #include <thr_alarm.h>
 #include <my_dir.h>
 
@@ -55,7 +56,7 @@ static int init_slave_thread(THD* thd);
 static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
 static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi);
 static int safe_sleep(THD* thd, int sec);
-static int request_table_dump(MYSQL* mysql, char* db, char* table);
+static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name);
 inline char* rewrite_db(char* db);
@@ -344,7 +345,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   thd->proc_info = "Creating table from master dump";
   // save old db in case we are creating in a different database
   char* save_db = thd->db;
-  thd->db = thd->last_nx_db;
+  thd->db = (char*)db;
   mysql_parse(thd, thd->query, packet_len); // run create table
   thd->db = save_db; // leave things the way the were before
   
@@ -400,31 +401,39 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   return error; 
 }
 
-int fetch_nx_table(THD* thd, MASTER_INFO* mi)
+int fetch_nx_table(THD* thd, const char* db_name, const char* table_name,
+		   MASTER_INFO* mi, MYSQL* mysql)
 {
-  MYSQL* mysql = mc_mysql_init(NULL);
   int error = 1;
   int nx_errno = 0;
-  if(!mysql)
+  bool called_connected = (mysql != NULL);
+  if(!called_connected && !(mysql = mc_mysql_init(NULL)))
     {
       sql_print_error("fetch_nx_table: Error in mysql_init()");
       nx_errno = ER_GET_ERRNO;
       goto err;
     }
 
-  safe_connect(thd, mysql, mi);
-  if(slave_killed(thd))
-    goto err;
-
-  if(request_table_dump(mysql, thd->last_nx_db, thd->last_nx_table))
+  if(!called_connected)
+  {
+    if(connect_to_master(thd, mysql, mi))
+    {
+      sql_print_error("Could not connect to master while fetching table\
+ '%-64s.%-64s'", db_name, table_name);
+      nx_errno = ER_CONNECT_TO_MASTER;
+      goto err;
+    }
+  }
+  
+  if(request_table_dump(mysql, db_name, table_name))
     {
       nx_errno = ER_GET_ERRNO;
       sql_print_error("fetch_nx_table: failed on table dump request ");
       goto err;
     }
 
-  if(create_table_from_dump(thd, &mysql->net, thd->last_nx_db,
-			    thd->last_nx_table))
+  if(create_table_from_dump(thd, &mysql->net, db_name,
+			    table_name))
     {
       // create_table_from_dump will have sent the error alread
       sql_print_error("fetch_nx_table: failed on create table ");
@@ -434,7 +443,7 @@ int fetch_nx_table(THD* thd, MASTER_INFO* mi)
   error = 0;
 
  err:
-  if (mysql)
+  if (mysql && !called_connected)
     mc_mysql_close(mysql);
   if (nx_errno && thd->net.vio)
     send_error(&thd->net, nx_errno, "Error in fetch_nx_table");
@@ -764,7 +773,7 @@ static int request_dump(MYSQL* mysql, MASTER_INFO* mi)
   return 0;
 }
 
-static int request_table_dump(MYSQL* mysql, char* db, char* table)
+static int request_table_dump(MYSQL* mysql, const char* db, const char* table)
 {
   char buf[1024];
   char * p = buf;
@@ -901,7 +910,6 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	VOID(pthread_mutex_lock(&LOCK_thread_count));
 	thd->query_id = query_id++;
 	VOID(pthread_mutex_unlock(&LOCK_thread_count));
-	thd->last_nx_table = thd->last_nx_db = 0;
 	thd->query_error = 0;			// clear error
 	thd->net.last_errno = 0;
 	thd->net.last_error[0] = 0;

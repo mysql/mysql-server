@@ -2401,6 +2401,11 @@ load:	LOAD DATA_SYM opt_low_priority opt_local INFILE TEXT_STRING
 	    YYABORT;
 
         }
+        |
+	LOAD DATA_SYM FROM MASTER_SYM
+        {
+	  Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
+        }
 
 opt_local:
 	/* empty */	{ $$=0;}
