@@ -431,6 +431,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  SQL_BUFFER_RESULT
 %token	SQL_WARNINGS
 %token	SQL_AUTO_IS_NULL
+%token  SQL_CALC_FOUND_ROWS
 %token	SQL_SAFE_UPDATES
 %token  SQL_QUOTE_SHOW_CREATE
 %token  SQL_SLAVE_SKIP_COUNTER
@@ -1274,6 +1275,7 @@ select_option:
 	| SQL_SMALL_RESULT { Lex->options|= SELECT_SMALL_RESULT; }
 	| SQL_BIG_RESULT { Lex->options|= SELECT_BIG_RESULT; }
 	| SQL_BUFFER_RESULT { Lex->options|= OPTION_BUFFER_RESULT; }
+	| SQL_CALC_FOUND_ROWS { Lex->options|= OPTION_FOUND_ROWS; }
 	| ALL		{}
 
 select_lock_type:

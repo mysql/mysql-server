@@ -161,7 +161,7 @@ byte ft_get_word(byte **start, byte *end, FT_WORD *word, FTB_PARAM *param)
 
     param->prev='A'; // be sure *prev is true_word_char
     word->len= (uint)(doc-word->pos) - mwc;
-    if (param->trunc=(doc<end && *doc == FTB_TRUNC))
+    if ((param->trunc=(doc<end && *doc == FTB_TRUNC)))
       doc++;
 
     if (word->len >= MIN_WORD_LEN && word->len < MAX_WORD_LEN &&
@@ -221,7 +221,6 @@ int is_boolean(byte *q, uint len)
 TREE * ft_parse(TREE *wtree, byte *doc, int doclen)
 {
   byte   *end=doc+doclen;
-  int     res;
   FT_WORD w;
 
   if (!is_tree_inited(wtree))
@@ -229,7 +228,7 @@ TREE * ft_parse(TREE *wtree, byte *doc, int doclen)
     init_tree(wtree,0,sizeof(FT_WORD),(qsort_cmp)&FT_WORD_cmp,0,NULL);
   }
 
-  while (res=ft_simple_get_word(&doc,end,&w))
+  while (ft_simple_get_word(&doc,end,&w))
   {
     if (!tree_insert(wtree, &w, 0))
       goto err;

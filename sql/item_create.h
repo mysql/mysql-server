@@ -37,6 +37,7 @@ Item *create_func_degrees(Item *);
 Item *create_func_exp(Item* a);
 Item *create_func_find_in_set(Item* a, Item *b);
 Item *create_func_floor(Item* a);
+Item *create_func_found_rows(void);
 Item *create_func_from_days(Item* a);
 Item *create_func_get_lock(Item* a, Item *b);
 Item *create_func_hex(Item *a);

@@ -145,9 +145,9 @@ void kill_one_thread(THD *thd, ulong id);
 #define SELECT_DESCRIBE		4
 #define SELECT_SMALL_RESULT	8
 #define SELECT_BIG_RESULT	16
+#define OPTION_FOUND_ROWS	32
 #define SELECT_HIGH_PRIORITY	64		/* Intern */
 #define SELECT_USE_CACHE	256		/* Intern */
-#define SELECT_COUNT_DISTINCT	512		/* Intern */
 
 #define OPTION_BIG_TABLES	512		/* for SQL OPTION */
 #define OPTION_BIG_SELECTS	1024		/* for SQL OPTION */
