@@ -4815,13 +4815,13 @@ existing programs than PostgreSQL.  @xref{Contrib}.
 @item
 MySQL Server works on 24/7 heavy duty systems.  In most circumstances
 you never have to run any cleanups on MySQL Server.  PostgreSQL doesn't
-yet support 24/7 systems because you have to run @code{VACUUM()}
+yet support 24/7 systems because you have to run @code{VACUUM}
 once in a while to reclaim space from @code{UPDATE} and @code{DELETE}
 commands and to perform statistics analyses that are critical to get
-good performance with PostgreSQL.  @code{VACUUM()} is also needed after
+good performance with PostgreSQL.  @code{VACUUM} is also needed after
 adding a lot of new rows to a table.  On a busy system with lots of changes,
-@code{VACUUM()} must be run very frequently, in the worst cases even
-many times a day.  During the @code{VACUUM()} run, which may take hours
+@code{VACUUM} must be run very frequently, in the worst cases even
+many times a day.  During the @code{VACUUM} run, which may take hours
 if the database is big, the database is from a production standpoint,
 practically dead. Please note: In PostgreSQL version 7.2, basic vacuuming
 no longer locks tables, thus allowing normal user access during the vacuum.
@@ -5023,7 +5023,7 @@ Drawbacks with PostgreSQL compared to MySQL Server:
 
 @itemize @bullet
 @item
-@code{VACUUM()} makes PostgreSQL hard to use in a 24/7 environment.
+@code{VACUUM} makes PostgreSQL hard to use in a 24/7 environment.
 
 @item
 Only transactional tables.
@@ -5064,10 +5064,10 @@ the @code{--fast} run shows how the server would do if the application
 developer would use extensions in the server to make his application run
 faster.
 
-When running with PostgreSQL and @code{--fast} we do a @code{VACUUM()}
+When running with PostgreSQL and @code{--fast} we do a @code{VACUUM}
 after every major table @code{UPDATE} and @code{DROP TABLE} to make the
 database in perfect shape for the following @code{SELECT}s.  The time for
-@code{VACUUM()} is measured separately.
+@code{VACUUM} is measured separately.
 
 When running with PostgreSQL 7.1.1 we could, however, not run with
 @code{--fast} because during the @code{INSERT} test, the postmaster (the
@@ -5135,12 +5135,12 @@ this as a ``standard'' benchmark tool is to stretch the truth a long way.
 
 @item
 Great Bridge admitted that they had optimised the PostgreSQL database
-(with @code{VACUUM()} before the test) and tuned the startup for the tests,
+(with @code{VACUUM} before the test) and tuned the startup for the tests,
 something they hadn't done for any of the other databases involved.  To
 say ``This process optimises indexes and frees up disk space a bit.  The
 optimised indexes boost performance by some margin.''  Our benchmarks
 clearly indicate that the difference in running a lot of selects on a
-database with and without @code{VACUUM()} can easily differ by a factor
+database with and without @code{VACUUM} can easily differ by a factor
 of ten.
 
 @item
@@ -5149,7 +5149,7 @@ mentions that the test does ``selections, simple joins, projections,
 aggregates, one-tuple updates, and bulk updates''.
 
 PostgreSQL is good at doing @code{SELECT}s and @code{JOIN}s (especially
-after a @code{VACUUM()}), but doesn't perform as well on @code{INSERT}s or
+after a @code{VACUUM}, but doesn't perform as well on @code{INSERT}s or
 @code{UPDATE}s.  The benchmarks seem to indicate that only @code{SELECT}s
 were done (or very few updates).  This could easily explain they good results
 for PostgreSQL in this test.  The bad results for MySQL will be obvious a
