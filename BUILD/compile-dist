@@ -42,5 +42,6 @@ fi
   --with-embedded-server \
   --with-berkeley-db \
   --with-innodb \
-  --enable-thread-safe-client
+  --enable-thread-safe-client \
+  --with-ndbcluster
 make
