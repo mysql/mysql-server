@@ -145,19 +145,36 @@ struct st_query
   uint expected_errno[MAX_EXPECTED_ERRORS];
   char record_file[FN_REFLEN];
   /* Add new commands before Q_UNKNOWN */
-  enum { Q_CONNECTION=1, Q_QUERY, Q_CONNECT,
-	 Q_SLEEP, Q_INC, Q_DEC,Q_SOURCE,
-	 Q_DISCONNECT,Q_LET, Q_ECHO, Q_WHILE, Q_END_BLOCK,
-	 Q_SYSTEM, Q_RESULT, Q_REQUIRE, Q_SAVE_MASTER_POS,
-	 Q_SYNC_WITH_MASTER, Q_ERROR, Q_SEND, Q_REAP, Q_DIRTY_CLOSE,
-	 Q_REPLACE,
-	 Q_UNKNOWN, Q_COMMENT, Q_COMMENT_WITH_COMMAND} type;
+  enum { Q_CONNECTION=1,     Q_QUERY, 
+         Q_CONNECT,          Q_SLEEP, 
+         Q_INC,              Q_DEC,
+         Q_SOURCE,           Q_DISCONNECT,
+         Q_LET,              Q_ECHO, 
+         Q_WHILE,            Q_END_BLOCK,
+         Q_SYSTEM,           Q_RESULT, 
+         Q_REQUIRE,          Q_SAVE_MASTER_POS,
+         Q_SYNC_WITH_MASTER, Q_ERROR, 
+         Q_SEND,             Q_REAP, 
+         Q_DIRTY_CLOSE,      Q_REPLACE,
+         Q_UNKNOWN,                             /* Unknown command.   */
+         Q_COMMENT,                             /* Comments, ignored. */
+         Q_COMMENT_WITH_COMMAND
+  } type;
 };
 
 const char *command_names[] = {
-"connection", "query","connect","sleep","inc","dec","source","disconnect",
-"let","echo","while","end","system","result", "require", "save_master_pos",
- "sync_with_master", "error", "send", "reap", "dirty_close", "replace_result", 0
+  "connection",       "query",
+  "connect",          "sleep",
+  "inc",              "dec",
+  "source",           "disconnect",
+  "let",              "echo",
+  "while",            "end",
+  "system",           "result",
+  "require",          "save_master_pos",
+  "sync_with_master", "error",
+  "send",             "reap", 
+  "dirty_close",      "replace_result",
+  0
 };
 
 TYPELIB command_typelib= {array_elements(command_names),"",
@@ -873,9 +890,9 @@ int do_connect(struct st_query* q)
   p = safe_get_param(p, &con_pass, "missing connection password");
   p = safe_get_param(p, &con_db, "missing connection db");
   p = safe_get_param(p, &con_port_str, "missing connection port");
-  p = safe_get_param(p, &con_sock, "missing connection scoket");
+  p = safe_get_param(p, &con_sock, "missing connection socket");
   if (next_con == cons_end)
-    die("Connection limit exhausted - incread MAX_CONS in mysqltest.c");
+    die("Connection limit exhausted - increase MAX_CONS in mysqltest.c");
 
   if (!mysql_init(&next_con->mysql))
     die("Failed on mysql_init()");
@@ -914,7 +931,7 @@ int do_while(struct st_query* q)
   char* expr_start, *expr_end;
   VAR v;
   if (cur_block == block_stack_end)
-	die("Nesting too deep");
+	die("Nesting too deeply");
   if (!block_ok)
     {
       ++false_block_depth;
@@ -1204,23 +1221,23 @@ int read_query(struct st_query** q_ptr)
 
 struct option long_options[] =
 {
-  {"debug",    optional_argument, 0, '#'},
-  {"database", required_argument, 0, 'D'},
-  {"help", no_argument, 0, '?'},
-  {"host", required_argument, 0, 'h'},
-  {"password", optional_argument, 0, 'p'},
-  {"port", required_argument, 0, 'P'},
-  {"quiet", no_argument, 0, 'q'},
-  {"record", no_argument, 0, 'r'},
+  {"debug",       optional_argument, 0, '#'},
+  {"database",    required_argument, 0, 'D'},
+  {"help",        no_argument,       0, '?'},
+  {"host",        required_argument, 0, 'h'},
+  {"password",    optional_argument, 0, 'p'},
+  {"port",        required_argument, 0, 'P'},
+  {"quiet",       no_argument,       0, 'q'},
+  {"record",      no_argument,       0, 'r'},
   {"result-file", required_argument, 0, 'R'},
-  {"silent", no_argument, 0, 'q'},
-  {"sleep",  required_argument, 0, 'T'},
-  {"socket", required_argument, 0, 'S'},
-  {"tmpdir", required_argument, 0, 't'},
-  {"user", required_argument, 0, 'u'},
-  {"verbose", no_argument, 0, 'v'},
-  {"version", no_argument, 0, 'V'},
-  {0, 0,0,0}
+  {"silent",      no_argument,       0, 'q'},
+  {"sleep",       required_argument, 0, 'T'},
+  {"socket",      required_argument, 0, 'S'},
+  {"tmpdir",      required_argument, 0, 't'},
+  {"user",        required_argument, 0, 'u'},
+  {"verbose",     no_argument,       0, 'v'},
+  {"version",     no_argument,       0, 'V'},
+  {0, 0, 0, 0}
 };
 
 

@@ -193,8 +193,8 @@ int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
 extern int init_master_info(MASTER_INFO* mi);
 
-// if sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync, and are
-// treated as aliases for each other
+// if sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync,
+// and are treated as aliases for each other
 
 static bool kill_in_progress=FALSE;
 static struct rand_struct sql_rand;
@@ -1110,9 +1110,9 @@ inline __volatile__ void  trace_stack()
   LINT_INIT(stack_bottom);
 
   fprintf(stderr,
-"Attemping backtrace. You can use the following information to find out\n\
+"Attempting backtrace. You can use the following information to find out\n\
 where mysqld died.  If you see no messages after this, something went\n\
-terribly wrong\n");
+terribly wrong...\n");
   THD* thd = current_thd;
   uint frame_count = 0;
   __asm __volatile__ ("movl %%ebp,%0"
@@ -1121,12 +1121,12 @@ terribly wrong\n");
   if (!ebp)
   {
     fprintf(stderr, "frame pointer (ebp) is NULL, did you compile with\n\
--fomit-frame-pointer? Aborting backtrace\n");
+-fomit-frame-pointer? Aborting backtrace!\n");
     return;
   }
   if (!thd)
   {
-    fprintf(stderr, "Cannot determine thread, ebp=%p, backtrace may not be correct\n", ebp);
+    fprintf(stderr, "Cannot determine thread, ebp=%p, backtrace may not be correct.\n", ebp);
     /* Assume that the stack starts at the previous even 65K */
     ulong tmp= min(0x10000,thread_stack);
     stack_bottom= (uchar**) (((ulong) &stack_bottom + tmp) &
@@ -1137,11 +1137,11 @@ terribly wrong\n");
   if (ebp > stack_bottom || ebp < stack_bottom - thread_stack)
   {
     fprintf(stderr,
-	    "Bogus stack limit or frame pointer, aborting backtrace\n");
+	    "Bogus stack limit or frame pointer, aborting backtrace.\n");
     return;
   }
 
-  fprintf(stderr, "stack range sanity check, ok, backtrace follows\n");
+  fprintf(stderr, "Stack range sanity check OK, backtrace follows:\n");
   
   while (ebp < stack_bottom)
   {
@@ -1151,22 +1151,22 @@ terribly wrong\n");
     if (new_ebp <= ebp )
     {
       fprintf(stderr, "\
-New value of ebp failed sanity check terminating backtrace\n");
+New value of ebp failed sanity check, terminating backtrace!\n");
       return;
     }
     ebp = new_ebp;
     ++frame_count;
   }
 
-  fprintf(stderr, "stack trace successful, now will try to get some\n\
-variables. Some pointers may be invalid and cause dump abort\n");
+  fprintf(stderr, "Stack trace successful, tryint to get some variables.\n\
+Some pointers may be invalid and cause the dump to abort...\n");
   heap_start = __bss_start; 
   heap_end = (char*)sbrk(0);
   print_str("thd->query", thd->query, 1024);
   fprintf(stderr, "thd->thread_id = %ld\n", thd->thread_id);
-  fprintf(stderr, "successfully dumped variables, if you ran with --log\n \
+  fprintf(stderr, "Successfully dumped variables, if you ran with --log,\n\
 take a look at the details of what thread %ld did to cause the crash.\n\
-In some cases of really bad corruption, this value can be invalid \n",
+In some cases of really bad corruption, this value may be invalid\n",
 	  thd->thread_id);
   fprintf(stderr, "Please use the information above to create a repeatable\n\
 test case for the crash, and send it to bugs@lists.mysql.com\n");
@@ -1187,7 +1187,7 @@ static sig_handler handle_segfault(int sig)
 mysqld got signal %d;\n\
 The manual section 'Debugging a MySQL server' tells you how to use a\n\
 stack trace and/or the core file to produce a readable backtrace that may\n\
-help in finding out why mysqld died\n",sig);
+help in finding out why mysqld died.\n",sig);
 #if defined(HAVE_LINUXTHREADS)
 #ifdef __i386__
   trace_stack();
@@ -1676,13 +1676,14 @@ int main(int argc, char **argv)
 #ifdef EXTRA_DEBUG
     case 1:
       sql_print_error("\
-Warning: one should set server-id to a non-0 value if log-bin is enabled.\n\
-mysqld log updates to binary log, but will not accept connections from slaves.");
+Warning: You should set server-id to a non-0 value if log-bin is enabled.\n\
+mysqld will log updates to the binary log, but will not accept connections\n\
+from slaves.");
       break;
 #endif
     case 2:
       sql_print_error("\
-Warning: one should set server-id to a non-0 value if master_host is set.\n\
+Warning: You should set server-id to a non-0 value if master_host is set.\n\
 The server will not act as a slave.");
       break;
     }
@@ -2019,7 +2020,7 @@ static void create_new_thread(THD *thd)
   /* don't allow too many connections */
   if (thread_count - delayed_insert_threads >= max_connections+1 || abort_loop)
   {
-    DBUG_PRINT("error",("too many connections"));
+    DBUG_PRINT("error",("Too many connections"));
     close_connection(net,ER_CON_COUNT_ERROR);
     delete thd;
     DBUG_VOID_RETURN;
@@ -2372,43 +2373,48 @@ pthread_handler_decl(handle_connections_namedpipes,arg)
 ******************************************************************************/
 
 enum options {
-               OPT_ISAM_LOG=256,         OPT_SKIP_NEW, 
-               OPT_SKIP_GRANT,           OPT_SKIP_LOCK, 
-               OPT_ENABLE_LOCK,          OPT_USE_LOCKING,
-               OPT_SOCKET,               OPT_UPDATE_LOG, 
-               OPT_BIN_LOG,              OPT_SKIP_RESOLVE, 
-               OPT_SKIP_NETWORKING,      OPT_BIN_LOG_INDEX,
-               OPT_BIND_ADDRESS,         OPT_PID_FILE,
-               OPT_SKIP_PRIOR,           OPT_BIG_TABLES,    
-               OPT_STANDALONE,           OPT_ONE_THREAD,
-               OPT_CONSOLE,              OPT_LOW_PRIORITY_UPDATES,
-               OPT_SKIP_HOST_CACHE,      OPT_LONG_FORMAT,   
-               OPT_FLUSH,                OPT_SAFE, 
-               OPT_BOOTSTRAP,            OPT_SKIP_SHOW_DB,
-               OPT_TABLE_TYPE,           OPT_INIT_FILE,   
-               OPT_DELAY_KEY_WRITE,      OPT_SLOW_QUERY_LOG, 
-               OPT_SKIP_DELAY_KEY_WRITE, OPT_CHARSETS_DIR,
-               OPT_BDB_HOME,             OPT_BDB_LOG,  
-               OPT_BDB_TMP,              OPT_BDB_NOSYNC,
-               OPT_BDB_LOCK,             OPT_BDB_SKIP, 
-               OPT_BDB_NO_RECOVER,	 OPT_BDB_SHARED,
-	       OPT_MASTER_HOST,  
-               OPT_MASTER_USER,          OPT_MASTER_PASSWORD,
-               OPT_MASTER_PORT,          OPT_MASTER_INFO_FILE,
-               OPT_MASTER_CONNECT_RETRY, OPT_SQL_BIN_UPDATE_SAME,
-               OPT_REPLICATE_DO_DB,      OPT_REPLICATE_IGNORE_DB, 
-               OPT_LOG_SLAVE_UPDATES,    OPT_BINLOG_DO_DB, 
-               OPT_BINLOG_IGNORE_DB,     OPT_WANT_CORE,
-	       OPT_SKIP_CONCURRENT_INSERT, OPT_MEMLOCK, OPT_MYISAM_RECOVER,
-	       OPT_REPLICATE_REWRITE_DB, OPT_SERVER_ID, OPT_SKIP_SLAVE_START,
-	       OPT_SKIP_INNOBASE,OPT_SAFEMALLOC_MEM_LIMIT,
-	       OPT_REPLICATE_DO_TABLE, OPT_REPLICATE_IGNORE_TABLE,
-	       OPT_REPLICATE_WILD_DO_TABLE, OPT_REPLICATE_WILD_IGNORE_TABLE,
-	       OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_ABORT_SLAVE_EVENT_COUNT,
-	       OPT_INNOBASE_DATA_HOME_DIR,OPT_INNOBASE_DATA_FILE_PATH,
-	       OPT_INNOBASE_LOG_GROUP_HOME_DIR,
-	       OPT_INNOBASE_LOG_ARCH_DIR, OPT_INNOBASE_LOG_ARCHIVE,
-	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, OPT_SAFE_SHOW_DB,
+               OPT_ISAM_LOG=256,            OPT_SKIP_NEW, 
+               OPT_SKIP_GRANT,              OPT_SKIP_LOCK, 
+               OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
+               OPT_SOCKET,                  OPT_UPDATE_LOG, 
+               OPT_BIN_LOG,                 OPT_SKIP_RESOLVE, 
+               OPT_SKIP_NETWORKING,         OPT_BIN_LOG_INDEX,
+               OPT_BIND_ADDRESS,            OPT_PID_FILE,
+               OPT_SKIP_PRIOR,              OPT_BIG_TABLES,    
+               OPT_STANDALONE,              OPT_ONE_THREAD,
+               OPT_CONSOLE,                 OPT_LOW_PRIORITY_UPDATES,
+               OPT_SKIP_HOST_CACHE,         OPT_LONG_FORMAT,   
+               OPT_FLUSH,                   OPT_SAFE, 
+               OPT_BOOTSTRAP,               OPT_SKIP_SHOW_DB,
+               OPT_TABLE_TYPE,              OPT_INIT_FILE,   
+               OPT_DELAY_KEY_WRITE,         OPT_SLOW_QUERY_LOG, 
+               OPT_SKIP_DELAY_KEY_WRITE,    OPT_CHARSETS_DIR,
+               OPT_BDB_HOME,                OPT_BDB_LOG,  
+               OPT_BDB_TMP,                 OPT_BDB_NOSYNC,
+               OPT_BDB_LOCK,                OPT_BDB_SKIP, 
+               OPT_BDB_NO_RECOVER,	    OPT_BDB_SHARED,
+	       OPT_MASTER_HOST,             OPT_MASTER_USER,
+               OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
+               OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
+               OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,      
+               OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
+               OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
+               OPT_WANT_CORE,               OPT_SKIP_CONCURRENT_INSERT,
+               OPT_MEMLOCK,                 OPT_MYISAM_RECOVER,
+               OPT_REPLICATE_REWRITE_DB,    OPT_SERVER_ID, 
+               OPT_SKIP_SLAVE_START,        OPT_SKIP_INNOBASE,
+               OPT_SAFEMALLOC_MEM_LIMIT,    OPT_REPLICATE_DO_TABLE, 
+               OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE, 
+               OPT_REPLICATE_WILD_IGNORE_TABLE, 
+               OPT_DISCONNECT_SLAVE_EVENT_COUNT, 
+               OPT_ABORT_SLAVE_EVENT_COUNT,
+	       OPT_INNOBASE_DATA_HOME_DIR,
+               OPT_INNOBASE_DATA_FILE_PATH,
+	       OPT_INNOBASE_LOG_GROUP_HOME_DIR, 
+               OPT_INNOBASE_LOG_ARCH_DIR, 
+               OPT_INNOBASE_LOG_ARCHIVE, 
+               OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, 
+               OPT_SAFE_SHOW_DB,
 	       OPT_GEMINI_SKIP, OPT_INNOBASE_SKIP,
                OPT_TEMP_POOL
 };
@@ -2527,7 +2533,7 @@ static struct option long_options[] = {
   {"skip-name-resolve",     no_argument,       0, (int) OPT_SKIP_RESOLVE},
   {"skip-new",              no_argument,       0, (int) OPT_SKIP_NEW},
   {"skip-show-database",    no_argument,       0, (int) OPT_SKIP_SHOW_DB},
-  {"skip-slave-start",    no_argument,       0, (int) OPT_SKIP_SLAVE_START},
+  {"skip-slave-start",      no_argument,       0, (int) OPT_SKIP_SLAVE_START},
   {"skip-networking",       no_argument,       0, (int) OPT_SKIP_NETWORKING},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
   {"sql-bin-update-same",   no_argument,       0, (int) OPT_SQL_BIN_UPDATE_SAME},
@@ -2560,11 +2566,11 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "bdb_lock_max",            (long*) &berkeley_max_lock, 
       10000, 0, (long) ~0, 0, 1 },
 #endif
-  { "binlog_cache_size", 	(long*) &binlog_cache_size,
+  { "binlog_cache_size",       (long*) &binlog_cache_size,
       32*1024L, IO_SIZE, ~0L, 0, IO_SIZE },
   { "connect_timeout",         (long*) &connect_timeout,
       CONNECT_TIMEOUT, 2, 65535, 0, 1 },
-  { "delayed_insert_timeout", (long*) &delayed_insert_timeout, 
+  { "delayed_insert_timeout",  (long*) &delayed_insert_timeout, 
       DELAYED_WAIT_TIMEOUT, 1, ~0L, 0, 1 },
   { "delayed_insert_limit",    (long*) &delayed_insert_limit, 
       DELAYED_LIMIT, 1, ~0L, 0, 1 },
@@ -2609,7 +2615,7 @@ CHANGEABLE_VAR changeable_vars[] = {
       1024*1024L, 80, 64*1024*1024L, MALLOC_OVERHEAD, 1024 },
   { "max_binlog_cache_size",   (long*) &max_binlog_cache_size,
       ~0L, IO_SIZE, ~0L, 0, IO_SIZE },
-  { "max_binlog_size",           (long*) &max_binlog_size,
+  { "max_binlog_size",         (long*) &max_binlog_size,
       1024*1024L*1024L, 1024, 1024*1024L*1024L, 0, 1 },
   { "max_connections",         (long*) &max_connections,
       100, 1, 16384, 0, 1 },
@@ -3180,7 +3186,7 @@ static void get_options(int argc,char **argv)
 	if (!p)
 	  {
 	    fprintf(stderr,
-		    "bad syntax in replicate-rewrite-db - missing ->\n");
+		    "Bad syntax in replicate-rewrite-db - missing '->'!\n");
 	    exit(1);
 	  }
 	val = p--;
@@ -3188,7 +3194,7 @@ static void get_options(int argc,char **argv)
 	if(p == optarg)
 	  {
 	    fprintf(stderr,
-		    "bad syntax in replicate-rewrite-db - empty FROM db\n");
+		    "Bad syntax in replicate-rewrite-db - empty FROM db!\n");
 	    exit(1);
 	  }
 	*val = 0;
@@ -3197,7 +3203,7 @@ static void get_options(int argc,char **argv)
 	if (!*val)
 	  {
 	    fprintf(stderr,
-		    "bad syntax in replicate-rewrite-db - empty TO db\n");
+		    "Bad syntax in replicate-rewrite-db - empty TO db!\n");
 	    exit(1);
 	  }
 
@@ -3224,7 +3230,7 @@ static void get_options(int argc,char **argv)
 	  init_table_rule_hash(&replicate_do_table, &do_table_inited);
 	if(add_table_rule(&replicate_do_table, optarg))
 	  {
-	    fprintf(stderr, "could not add do table rule '%s'\n", optarg);
+	    fprintf(stderr, "Could not add do table rule '%s'!\n", optarg);
 	    exit(1);
 	  }
 	table_rules_on = 1;
@@ -3237,7 +3243,7 @@ static void get_options(int argc,char **argv)
 				&wild_do_table_inited);
 	if(add_wild_table_rule(&replicate_wild_do_table, optarg))
 	  {
-	    fprintf(stderr, "could not add do table rule '%s'\n", optarg);
+	    fprintf(stderr, "Could not add do table rule '%s'!\n", optarg);
 	    exit(1);
 	  }
 	table_rules_on = 1;
@@ -3250,7 +3256,7 @@ static void get_options(int argc,char **argv)
 				&wild_ignore_table_inited);
 	if(add_wild_table_rule(&replicate_wild_ignore_table, optarg))
 	  {
-	    fprintf(stderr, "could not add do table rule '%s'\n", optarg);
+	    fprintf(stderr, "Could not add ignore table rule '%s'!\n", optarg);
 	    exit(1);
 	  }
 	table_rules_on = 1;
@@ -3262,7 +3268,7 @@ static void get_options(int argc,char **argv)
 	  init_table_rule_hash(&replicate_ignore_table, &ignore_table_inited);
 	if(add_table_rule(&replicate_ignore_table, optarg))
 	  {
-	    fprintf(stderr, "could not add ignore table rule '%s'\n", optarg);
+	    fprintf(stderr, "Could not add ignore table rule '%s'!\n", optarg);
 	    exit(1);
 	  }
 	table_rules_on = 1;

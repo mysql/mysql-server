@@ -369,7 +369,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
 				  MI_NAME_DEXT, 4), MYF(MY_WME)))
   {
     error = HA_ADMIN_FAILED;
-    errmsg = "failed in my_copy( Error %d)";
+    errmsg = "Failed in my_copy (Error %d)";
     goto err;
   }
 
@@ -402,7 +402,7 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
   
   if (!fn_format(dst_path, table_name, backup_dir, reg_ext, 4 + 64))
     {
-      errmsg = "failed in fn_format() for .frm file: errno=%d";
+      errmsg = "Failed in fn_format() for .frm file: errno = %d";
       error = HA_ADMIN_INVALID;
       goto err;
     }
@@ -418,7 +418,7 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 
   if (!fn_format(dst_path, table_name, backup_dir, MI_NAME_DEXT, 4 + 64))
     {
-      errmsg = "failed in fn_format() for .MYD file: errno=%d";
+      errmsg = "Failed in fn_format() for .MYD file: errno = %d";
       error = HA_ADMIN_INVALID;
       goto err;
     }
@@ -470,7 +470,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
     if (param.retry_without_quick && param.opt_rep_quick)
     {
       param.opt_rep_quick=0;
-      sql_print_error("Warning: Retrying repair of:  '%s' without quick",
+      sql_print_error("Warning: Retrying repair of: '%s' without quick",
 		      table->path);
       continue;
     }
@@ -478,7 +478,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
     if ((param.testflag & T_REP_BY_SORT))
     {
       param.testflag= (param.testflag & ~T_REP_BY_SORT) | T_REP;
-      sql_print_error("Warning: Retrying repair of:  '%s' with keycache",
+      sql_print_error("Warning: Retrying repair of: '%s' with keycache",
 		      table->path);
       continue;
     }
@@ -579,7 +579,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
       error = chk_key(&param, file);
     }
   }
-  thd->proc_info="saving state";
+  thd->proc_info="Saving state";
   if (!error)
   {
     if ((share->state.changed & STATE_CHANGED) || mi_is_crashed(file))
@@ -636,7 +636,7 @@ bool ha_myisam::activate_all_index(THD *thd)
   if (share->state.key_map != ((ulonglong) 1L << share->base.keys)-1)
   {
     const char *save_proc_info=thd->proc_info;
-    thd->proc_info="creating index";
+    thd->proc_info="Creating index";
     myisamchk_init(&param);
     param.op_name = (char*) "recreating_index";
     param.testflag = (T_SILENT | T_REP_BY_SORT |

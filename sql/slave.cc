@@ -379,7 +379,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   check_opt.init();
   check_opt.flags|= T_VERY_SILENT;
   check_opt.quick = 1;
-  thd->proc_info = "rebuilding the index on master dump table";
+  thd->proc_info = "Rebuilding the index on master dump table";
   Vio* save_vio = thd->net.vio;
   // we do not want repair() to spam us with messages
   // just send them to the error log, and report the failure in case of
@@ -1027,7 +1027,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	if(!sql_error)
 	  sql_error = ER_UNKNOWN_ERROR;
 		
-	sql_print_error("Slave:  error '%s' running load data infile ",
+	sql_print_error("Slave: Error '%s' running load data infile ",
 			ER(sql_error));
 	delete ev;
         free_root(&thd->mem_root,0);
@@ -1106,8 +1106,10 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
   }
   else
   {
-    sql_print_error("Could not parse log event entry, check the master for binlog corruption\n\
- This may also be a network problem, or just a bug in the master or slave code");
+    sql_print_error("\
+Could not parse log event entry, check the master for binlog corruption\n\
+This may also be a network problem, or just a bug in the master or slave code.\
+");
     return 1;
   }
   return 0;	  
@@ -1173,7 +1175,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
     goto err;
   }
   
-  thd->proc_info = "connecting to master";
+  thd->proc_info = "Connecting to master";
 #ifndef DBUG_OFF  
   sql_print_error("Slave thread initialized");
 #endif
@@ -1189,14 +1191,14 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   
   while (!slave_killed(thd))
   {
-      thd->proc_info = "requesting binlog dump";
+      thd->proc_info = "Requesting binlog dump";
       if(request_dump(mysql, &glob_mi))
 	{
 	  sql_print_error("Failed on request_dump()");
 	  if(slave_killed(thd))
            goto err;
 	  
-	  thd->proc_info = "waiting to reconnect after a failed dump request";
+	  thd->proc_info = "Waiting to reconnect after a failed dump request";
 	  if(mysql->net.vio)
 	    vio_close(mysql->net.vio);
 	  // first time retry immediately, assuming that we can recover
@@ -1210,7 +1212,7 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 	  if(slave_killed(thd))
 	      goto err;
 
-	  thd->proc_info = "reconnecting after a failed dump request";
+	  thd->proc_info = "Reconnecting after a failed dump request";
           sql_print_error("Slave: failed dump request, reconnecting to \
 try again, log '%s' at postion %ld", RPL_LOG_NAME,
 			  last_failed_pos = glob_mi.pos );
@@ -1223,14 +1225,14 @@ try again, log '%s' at postion %ld", RPL_LOG_NAME,
 
       while(!slave_killed(thd))
 	{
-	  thd->proc_info = "reading master update";
+	  thd->proc_info = "Reading master update";
 	  uint event_len = read_event(mysql, &glob_mi);
 	  if(slave_killed(thd))
 	    goto err;
 	  
 	  if (event_len == packet_error)
 	  {
-	    thd->proc_info = "waiting to reconnect after a failed read";
+	    thd->proc_info = "Waiting to reconnect after a failed read";
 	    if(mysql->net.vio)
  	      vio_close(mysql->net.vio);
 	    if(retried_once) // punish repeat offender with sleep
@@ -1240,7 +1242,7 @@ try again, log '%s' at postion %ld", RPL_LOG_NAME,
 	    
 	    if(slave_killed(thd))
 	      goto err;
-	    thd->proc_info = "reconnecting after a failed read";
+	    thd->proc_info = "Reconnecting after a failed read";
 	    sql_print_error("Slave: Failed reading log event, \
 reconnecting to retry, log '%s' position %ld", RPL_LOG_NAME,
 			    last_failed_pos = glob_mi.pos);
@@ -1249,7 +1251,7 @@ reconnecting to retry, log '%s' position %ld", RPL_LOG_NAME,
 	    break;
 	  }
 	  
-	  thd->proc_info = "processing master log event"; 
+	  thd->proc_info = "Processing master log event"; 
 	  if(exec_event(thd, &mysql->net, &glob_mi, event_len))
 	    {
 	      sql_print_error("\
@@ -1303,7 +1305,7 @@ position %ld",
   thd->query = thd->db = 0; // extra safety
   if(mysql)
       mc_mysql_close(mysql);
-  thd->proc_info = "waiting for slave mutex on exit";
+  thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&LOCK_slave);
   slave_running = 0;
   abort_slave = 0;

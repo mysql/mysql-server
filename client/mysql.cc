@@ -2212,14 +2212,14 @@ com_status(String *buffer __attribute__((unused)),
   if (safe_updates)
   {
     vidattr(A_BOLD);
-    tee_fprintf(stdout, "\nNote that we are running in safe_update_mode:\n");
+    tee_fprintf(stdout, "\nNote that you are running in safe_update_mode:\n");
     vidattr(A_NORMAL);
     tee_fprintf(stdout, "\
-UPDATE and DELETE that doesn't use a key in the WHERE clause are not allowed\n\
-(One can force UPDATE/DELETE by adding LIMIT # at the end of the command)\n\
-SELECT has an automatic 'LIMIT %lu' if LIMIT is not used\n\
+UPDATEs and DELETEs that don't use a key in the WHERE clause are not allowed.\n\
+(One can force an UPDATE/DELETE by adding LIMIT # at the end of the command.)\n\
+SELECT has an automatic 'LIMIT %lu' if LIMIT is not used.\n\
 Max number of examined row combination in a join is set to: %lu\n\n",
-select_limit,max_join_size);
+select_limit, max_join_size);
   }
   tee_puts("--------------\n", stdout);
   return 0;
