@@ -62,9 +62,14 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
   if (thd->lex->duplicates == DUP_IGNORE)
     thd->lex->select_lex.no_error= 1;
 
-  /* Test if the user wants to delete all rows */
+  /*
+    Test if the user wants to delete all rows and deletion doesn't have
+    any side-effects (because of triggers), so we can use optimized
+    handler::delete_all_rows() method.
+  */
   if (!using_limit && const_cond && (!conds || conds->val_int()) &&
-      !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)))
+      !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
+      !(table->triggers && table->triggers->has_delete_triggers()))
   {
     deleted= table->file->records;
     if (!(error=table->file->delete_all_rows()))
