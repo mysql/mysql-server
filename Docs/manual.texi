@@ -20268,7 +20268,7 @@ old @code{mysql_escape_string()} function, except that it takes the @code{MYSQL}
 connection handle as the first parameter.
 
 If the client is compiled with different paths than where the server is
-installed and the user who configured MySQL didn't included all
+installed and the user who configured MySQL didn't include all
 character sets in the MySQL binary, one must specify for
 the client where it can find the additional character sets it will need
 if the server runs with a different character set than the client.
@@ -20280,8 +20280,8 @@ One can specify this by putting in a MySQL option file:
 character-sets-dir=/usr/local/mysql/share/mysql/charsets
 @end example
 
-where the path points to where the dynamic MySQL character sets
-are stored.
+where the path points to the directory in which the dynamic MySQL character
+sets are stored.
 
 One can force the client to use specific character set by specifying:
 
