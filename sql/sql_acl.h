@@ -70,8 +70,8 @@
 
 /* prototypes */
 
-int  acl_init(bool dont_read_acl_tables);
-void acl_reload(void);
+my_bool  acl_init(bool dont_read_acl_tables);
+void acl_reload(THD *thd);
 void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip, const char *bin_ip,
 	      const char *user, const char *db);
@@ -87,7 +87,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
 int mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
 		      List <LEX_COLUMN> &column_list, ulong rights,
 		      bool revoke);
-int  grant_init(void);
+my_bool grant_init(void);
 void grant_free(void);
 void grant_reload(void);
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,

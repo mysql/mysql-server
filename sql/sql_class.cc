@@ -92,6 +92,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   query_error=0;
   next_insert_id=last_insert_id=0;
   open_tables=temporary_tables=handler_tables=0;
+  current_tablenr=0;
   handler_items=0;
   tmp_table=0;
   lock=locked_tables=0;
@@ -136,6 +137,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   command=COM_CONNECT;
   set_query_id=1;
   db_access=NO_ACCESS;
+  version=refresh_version;			// For boot
 
   /* Initialize sub structures */
   bzero((char*) &mem_root,sizeof(mem_root));
@@ -268,9 +270,13 @@ void THD::awake(bool prepare_to_die)
 
 bool THD::store_globals()
 {
-  return (my_pthread_setspecific_ptr(THR_THD,  this) ||
-	  my_pthread_setspecific_ptr(THR_MALLOC, &mem_root) ||
-	  my_pthread_setspecific_ptr(THR_NET,  &net));
+  if (my_pthread_setspecific_ptr(THR_THD,  this) ||
+      my_pthread_setspecific_ptr(THR_MALLOC, &mem_root) ||
+      my_pthread_setspecific_ptr(THR_NET,  &net))
+    return 1;
+  mysys_var=my_thread_var;
+  dbug_thread_id=my_thread_id();
+  return 0;
 }
 
 
