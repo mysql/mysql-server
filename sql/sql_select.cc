@@ -371,7 +371,7 @@ JOIN::optimize()
 #endif
 
   conds=optimize_cond(conds,&cond_value);
-  if (thd->fatal_error)				// Out of memory
+  if (thd->fatal_error || thd->net.report_error)
   {
     delete procedure;
     error = 0;
@@ -7251,16 +7251,18 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   select_result *result=join->result;
   Item *item_null= new Item_null();
   DBUG_ENTER("select_describe");
-
+  DBUG_PRINT("info", ("Select 0x%lx, type %s, message %s", 
+		      (ulong)join->select_lex, join->select_lex->type,
+		      message));
   /* Don't log this into the slow query log */
   select_lex->options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
   join->unit->offset_limit_cnt= 0;
 
   if (message)
   {
-    item_list.push_back(new Item_int((int32) thd->lex.select->select_number));
-    item_list.push_back(new Item_string(thd->lex.select->type,
-					strlen(thd->lex.select->type),
+    item_list.push_back(new Item_int((int32) join->select_lex->select_number));
+    item_list.push_back(new Item_string(join->select_lex->type,
+					strlen(join->select_lex->type),
 					default_charset_info));
     Item *empty= new Item_empty_string("",0);
     for (uint i=0 ; i < 7; i++)
@@ -7285,9 +7287,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       tmp2.length(0);
 
       item_list.empty();
-      item_list.push_back(new Item_int((int32) thd->lex.select->select_number));
-      item_list.push_back(new Item_string(thd->lex.select->type,
-					  strlen(thd->lex.select->type),
+      item_list.push_back(new Item_int((int32) 
+				       join->select_lex->select_number));
+      item_list.push_back(new Item_string(join->select_lex->type,
+					  strlen(join->select_lex->type),
 					  default_charset_info));
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
 	tab->type= JT_RANGE;
@@ -7445,6 +7448,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
 int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 {
+  DBUG_ENTER("mysql_explain_union");
   int res= 0;
   SELECT_LEX *first= unit->first_select();
   for (SELECT_LEX *sl= first;
@@ -7467,12 +7471,14 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   }
   if (res > 0)
     res= -res; // mysql_explain_select do not report error
-  return res;
+  DBUG_RETURN(res);
 }
 
 int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type, 
 			 select_result *result)
 {
+  DBUG_ENTER("mysql_explain_select");
+  DBUG_PRINT("info", ("Select 0x%lx, type %s", (ulong)select_lex, type))
   select_lex->type= type;
   thd->lex.select= select_lex;
   SELECT_LEX_UNIT *unit=  select_lex->master_unit();
@@ -7485,6 +7491,6 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
 			(ORDER*) thd->lex.proc_list.first,
 			select_lex->options | thd->options | SELECT_DESCRIBE,
 			result, unit, select_lex, 0);
-  return res;
+  DBUG_RETURN(res);
 }
   
