@@ -212,6 +212,7 @@ Thd_ndb::~Thd_ndb()
 {
   if (ndb)
     delete ndb;
+  ndb= 0;
 }
 
 inline
@@ -2686,7 +2687,6 @@ void ha_ndbcluster::info(uint flag)
   if (flag & HA_STATUS_ERRKEY)
   {
     DBUG_PRINT("info", ("HA_STATUS_ERRKEY"));
-    errkey= m_dupkey;
     errkey= m_dupkey;
   }
   if (flag & HA_STATUS_AUTO)
