@@ -145,6 +145,10 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
       memcpy_fixed(&pos2,pos2+keyseg->bit_start,sizeof(char*));
       set_if_smaller(len2,keyseg->length);
     }
+    else /* fixed length key */
+    {
+      len1=len2=keyseg->length;
+    }
     if ((len1 != len2) || memcmp(pos1, pos2, len1))
       return THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT;
   }
