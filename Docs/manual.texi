@@ -28292,8 +28292,7 @@ completion. This gives a quicker start of mysql.
 Print results with a tab as separator, each row on a new line. Doesn't use
 history file.
 @cindex character sets option
-@item
---character-sets-dir=...
+@item --character-sets-dir=...
 Directory where character sets are located.
 @cindex compress option.
 @item -C, --compress
@@ -28302,11 +28301,11 @@ Use compression in server/client protocol.
 @item -#, --debug[=...]
 Debug log. Default is 'd:t:o,/tmp/mysql.trace'.
 @cindex database option
-@item -D, --database=..
+@item -D, --database=...
 Database to use. This is mainly useful in the @code{my.cnf} file.
 @cindex default character set option
-@item
---default-character-set=...    Set the default character set.
+@item --default-character-set=...
+Set the default character set.
 @cindex execute option
 @item -e, --execute=...
 Execute command and quit. (Output like with --batch)
