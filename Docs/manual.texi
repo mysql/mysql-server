@@ -19703,50 +19703,58 @@ The following columns are returned:
 below, though the format and numbers probably differ:
 
 @example
-+--------------------------+-------+
-| Variable_name            | Value |
-+--------------------------+-------+
-| Aborted_clients          | 0     |
-| Aborted_connects         | 0     |
-| Bytes_received           | 100   |
-| Bytes_sent               | 2106  |
-| Connections              | 4     |
-| Created_tmp_tables       | 0     |
-| Delayed_insert_threads   | 0     |
-| Delayed_writes           | 0     |
-| Delayed_errors           | 0     |
-| Flush_commands           | 1     |
-| Handler_delete           | 0     |
-| Handler_read_first       | 1     |
-| Handler_read_key         | 0     |
-| Handler_read_next        | 2     |
-| Handler_read_prev        | 0     |
-| Handler_read_rnd         | 0     |
-| Handler_read_rnd_next    | 25    |
-| Handler_update           | 0     |
-| Handler_write            | 0     |
-| Key_blocks_used          | 1     |
-| Key_read_requests        | 2     |
-| Key_reads                | 1     |
-| Key_write_requests       | 0     |
-| Key_writes               | 0     |
-| Max_used_connections     | 0     |
-| Not_flushed_key_blocks   | 0     |
-| Not_flushed_delayed_rows | 0     |
-| Open_tables              | 0     |
-| Open_files               | 0     |
-| Open_streams             | 0     |
-| Opened_tables            | 6     |
-| Questions                | 4     |
-| Slow_launch_threads      | 0     |
-| Slow_queries             | 0     |
-| Slave_running            | OFF   |
-| Threads_cached           | 0     |
-| Threads_connected        | 1     |
-| Threads_running          | 1     |
-| Uptime                   | 1256  |
-+--------------------------+-------+
-
++--------------------------+------------+
+| Variable_name            | Value      |
++--------------------------+------------+
+| Aborted_clients          | 0          |
+| Aborted_connects         | 0          |
+| Bytes_received           | 142160923  |
+| Bytes_sent               | 1161910370 |
+| Connections              | 30022      |
+| Created_tmp_disk_tables  | 0          |
+| Created_tmp_tables       | 8988       |
+| Delayed_insert_threads   | 0          |
+| Delayed_writes           | 0          |
+| Delayed_errors           | 0          |
+| Flush_commands           | 1          |
+| Handler_delete           | 462604     |
+| Handler_read_first       | 95882      |
+| Handler_read_key         | 27681068   |
+| Handler_read_next        | 265008218  |
+| Handler_read_prev        | 3022500    |
+| Handler_read_rnd         | 36900998   |
+| Handler_read_rnd_next    | 252097176  |
+| Handler_update           | 16945404   |
+| Handler_write            | 66826676   |
+| Key_blocks_used          | 14955      |
+| Key_read_requests        | 90131960   |
+| Key_reads                | 163268     |
+| Key_write_requests       | 7573912    |
+| Key_writes               | 3780151    |
+| Max_used_connections     | 0          |
+| Not_flushed_key_blocks   | 0          |
+| Not_flushed_delayed_rows | 0          |
+| Open_tables              | 0          |
+| Open_files               | 0          |
+| Open_streams             | 0          |
+| Opened_tables            | 44598      |
+| Questions                | 1866024    |
+| Select_full_join         | 0          |
+| Select_full_range_join   | 0          |
+| Select_range             | 68187      |
+| Select_range_check       | 0          |
+| Select_scan              | 31440      |
+| Slave_running            | OFF        |
+| Slow_launch_threads      | 0          |
+| Slow_queries             | 0          |
+| Sort_range               | 0          |
+| Sort_rows                | 36650500   |
+| Sort_scan                | 5298       |
+| Threads_cached           | 0          |
+| Threads_connected        | 1          |
+| Threads_running          | 1          |
+| Uptime                   | 39613      |
++--------------------------+------------+
 @end example
 
 @cindex variables, status
@@ -38003,8 +38011,8 @@ Raw port of an SQL mode for XEmacs. Supports completion. Original by
 Peter D. Pezaris @email{pez@@atlantic2.sbi.com} and partial
 @strong{MySQL} port by David Axmark.
 
-@item @uref{http://www.mysql.com/Downloads/Win32/myaccess97_1_3.zip, MyAccess97 1.3}
-@item @uref{http://www.mysql.com/Downloads/Win32/myaccess2000_1_3.zip, MyAccess2000 1.3}
+@item @uref{http://www.mysql.com/Downloads/Win32/myaccess97_1_4.zip, MyAccess97 1.4}
+@item @uref{http://www.mysql.com/Downloads/Win32/myaccess2000_1_4.zip, MyAccess2000 1.4}
 
 MyAccess is an AddIn for MS Access 97/2000 which allows you to manage MySQL databases from within Access. Main functions are:
 @itemize @bullet
@@ -38013,9 +38021,10 @@ MyAccess is an AddIn for MS Access 97/2000 which allows you to manage MySQL data
 @item Extract "Create Table-Scripts' from MySQL
 @item Import/Export tables from Access to MySQL and vice versa
 @item Log Changes
+@item Show a "Database Definition Report
 @end itemize
 
-Written by Hubertus Hiden. @uref{http://myaccess.fsn.net, MyAccess homepage}.
+Written by Hubertus Hiden. @uref{http://www.accessmysql.com, MyAccess homepage}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/radius-0.3.tar.gz, radius-0.3.tar.gz}
 Patches for @code{radiusd} to make it support @strong{MySQL}. By Wim Bonis,
