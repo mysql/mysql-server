@@ -62,14 +62,14 @@ select count(*) from t2 where id2;
 select count(*) from t3 where id3;
 
 drop table t1,t2,t3;
-create table t1(id1 int not null auto_increment primary key, t varchar(100));
-create table t2(id2 int not null, t varchar(100), index(id2));
+create table t1(id1 int not null  primary key, t varchar(100)) pack_keys = 1;
+create table t2(id2 int not null, t varchar(100), index(id2)) pack_keys = 1;
 disable_query_log;
 let $1 = 1000;
 while ($1)
  {
   let $2 = 5;
-  eval insert into t1(t) values ('aaaaaaaaaaaaaaaaaaaa'); 
+  eval insert into t1 values ($1,'aaaaaaaaaaaaaaaaaaaa'); 
   while ($2)
    {
      eval insert into t2(id2,t) values ($1,'bbbbbbbbbbbbbbbbb'); 
@@ -78,5 +78,5 @@ while ($1)
   dec $1;
  }
 enable_query_log;
-delete t1, t2  from t2,t1 where t1.id1 = t2.id2 and t1.id1 > 100;
+delete t1  from t1,t2 where t1.id1 = t2.id2 and t1.id1 > 500;
 drop table t1,t2;
