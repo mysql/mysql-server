@@ -331,13 +331,10 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   mi_putint(new_page, 2 + n2 * full_length, nod_flag);
 
   *new_page_offs=_mi_new(info, keyinfo);
-  _mi_write_keypage(info, keyinfo, *new_page_offs, new_page);
+  err_code= _mi_write_keypage(info, keyinfo, *new_page_offs, new_page);
   my_afree((byte*)new_page);
 
 split_err:
   my_afree((byte*)coord_buf);
   return err_code;
 }
-
-
-
