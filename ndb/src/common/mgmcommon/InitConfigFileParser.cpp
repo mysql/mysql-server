@@ -43,10 +43,10 @@ InitConfigFileParser::~InitConfigFileParser() {
 //  Read Config File
 //****************************************************************************
 InitConfigFileParser::Context::Context(const ConfigInfo * info)
-  : m_configValues(1000, 20) {
+  : m_configValues(1000, 20), m_userProperties(true) {
 
-  m_config = new Properties();
-  m_defaults = new Properties();
+  m_config = new Properties(true);
+  m_defaults = new Properties(true);
 }
 
 InitConfigFileParser::Context::~Context(){
@@ -115,7 +115,7 @@ InitConfigFileParser::parseConfig(FILE * file) {
       snprintf(ctx.fname, sizeof(ctx.fname), section); free(section);
       ctx.type             = InitConfigFileParser::DefaultSection;
       ctx.m_sectionLineno  = ctx.m_lineno;
-      ctx.m_currentSection = new Properties();
+      ctx.m_currentSection = new Properties(true);
       ctx.m_userDefaults   = NULL;
       ctx.m_currentInfo    = m_info->getInfo(ctx.fname);
       ctx.m_systemDefaults = m_info->getDefaults(ctx.fname);
@@ -137,7 +137,7 @@ InitConfigFileParser::parseConfig(FILE * file) {
       free(section);
       ctx.type             = InitConfigFileParser::Section;
       ctx.m_sectionLineno  = ctx.m_lineno;      
-      ctx.m_currentSection = new Properties();
+      ctx.m_currentSection = new Properties(true);
       ctx.m_userDefaults   = getSection(ctx.fname, ctx.m_defaults);
       ctx.m_currentInfo    = m_info->getInfo(ctx.fname);
       ctx.m_systemDefaults = m_info->getDefaults(ctx.fname);
