@@ -1051,6 +1051,13 @@ JOIN::reinit()
   if (tmp_join)
     restore_tmp();
 
+  if (sum_funcs)
+  {
+    Item_sum *func, **func_ptr= sum_funcs;
+    while ((func= *(func_ptr++)))
+      func->clear();
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -1115,6 +1122,7 @@ JOIN::exec()
   if (zero_result_cause)
   {
     (void) return_zero_rows(this, result, tables_list, fields_list,
+			    do_send_rows &&
 			    tmp_table_param.sum_func_count != 0 &&
 			    !group_list,
 			    select_options,
@@ -5666,6 +5674,9 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       if (!(error=(*end_select)(join,join_tab,0)) || error == -3)
 	error=(*end_select)(join,join_tab,1);
     }
+    else if (join->do_send_rows && join->tmp_table_param.sum_func_count != 0 &&
+	     !join->group_list)
+      error= join->result->send_data(*join->fields);
   }
   else
   {
