@@ -577,7 +577,6 @@ int sortcmp(const String *x,const String *y)
   const char *t= y->ptr();
   uint32 x_len=x->length(),y_len=y->length(),len=min(x_len,y_len);
 
-#ifdef USE_STRCOLL
   if (use_strnxfrm(x->str_charset))
   {
 #ifndef CMP_ENDSPACE
@@ -591,7 +590,6 @@ int sortcmp(const String *x,const String *y)
   }
   else
   {
-#endif /* USE_STRCOLL */
     x_len-=len;					// For easy end space test
     y_len-=len;
     if (x->str_charset->sort_order)
@@ -634,9 +632,7 @@ int sortcmp(const String *x,const String *y)
 #else
     return (int) (x_len-y_len);
 #endif /* CMP_ENDSPACE */
-#ifdef USE_STRCOLL
   }
-#endif
 }
 
 
