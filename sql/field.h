@@ -277,6 +277,7 @@ public:
   virtual bool get_date(TIME *ltime,uint fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
+  virtual CHARSET_INFO *sort_charset(void) const { return charset(); }
   virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset) { }
   bool set_warning(const unsigned int level, const unsigned int code, 
@@ -1152,6 +1153,8 @@ public:
   bool optimize_range(uint idx, uint part) { return 0; }
   bool eq_def(Field *field);
   bool has_charset(void) const { return TRUE; }
+  /* enum and set are sorted as integers */
+  CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
   field_cast_enum field_cast_type() { return FIELD_CAST_ENUM; }
 };
 

@@ -7622,8 +7622,8 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 {
   byte *key_buffer, *key_pos, *record=table->record[0];
   int error;
-  handler *file=table->file;
-  ulong extra_length=ALIGN_SIZE(key_length)-key_length;
+  handler *file= table->file;
+  ulong extra_length= ALIGN_SIZE(key_length)-key_length;
   uint *field_lengths,*field_length;
   HASH hash;
   DBUG_ENTER("remove_dup_with_hash_index");
@@ -7637,22 +7637,34 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 		       NullS))
     DBUG_RETURN(1);
 
+  {
+    Field **ptr;
+    ulong total_length= 0;
+    for (ptr= first_field, field_length=field_lengths ; *ptr ; ptr++)
+    {
+      uint length= (*ptr)->pack_length();
+      (*field_length++)= length;
+      total_length+= length;
+    }
+    DBUG_PRINT("info",("field_count: %u  key_length: %lu  total_length: %lu",
+                       field_count, key_length, total_length));
+    DBUG_ASSERT(total_length <= key_length);
+    key_length= total_length;
+    extra_length= ALIGN_SIZE(key_length)-key_length;
+  }
+
   if (hash_init(&hash, &my_charset_bin, (uint) file->records, 0, 
-		key_length,(hash_get_key) 0, 0, 0))
+		key_length, (hash_get_key) 0, 0, 0))
   {
     my_free((char*) key_buffer,MYF(0));
     DBUG_RETURN(1);
-  }
-  {
-    Field **ptr;
-    for (ptr= first_field, field_length=field_lengths ; *ptr ; ptr++)
-      (*field_length++)= (*ptr)->pack_length();
   }
 
   file->ha_rnd_init(1);
   key_pos=key_buffer;
   for (;;)
   {
+    byte *org_key_pos;
     if (thd->killed)
     {
       my_error(ER_SERVER_SHUTDOWN,MYF(0));
@@ -7675,6 +7687,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     }
 
     /* copy fields to key buffer */
+    org_key_pos= key_pos;
     field_length=field_lengths;
     for (Field **ptr= first_field ; *ptr ; ptr++)
     {
@@ -7682,14 +7695,14 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
       key_pos+= *field_length++;
     }
     /* Check if it exists before */
-    if (hash_search(&hash,key_pos-key_length,key_length))
+    if (hash_search(&hash, org_key_pos, key_length))
     {
       /* Duplicated found ; Remove the row */
       if ((error=file->delete_row(record)))
 	goto err;
     }
     else
-      (void) my_hash_insert(&hash, key_pos-key_length);
+      (void) my_hash_insert(&hash, org_key_pos);
     key_pos+=extra_length;
   }
   my_free((char*) key_buffer,MYF(0));
