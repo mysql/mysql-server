@@ -393,6 +393,7 @@ struct row_prebuilt_struct {
 					an SQL statement: we may have to set
 					an intention lock on the table,
 					create a consistent read view etc. */
+        ibool           mysql_has_locked;
 	ibool		clust_index_was_generated;
 					/* if the user did not define a
 					primary key in MySQL, then Innobase
