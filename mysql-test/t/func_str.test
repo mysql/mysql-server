@@ -361,6 +361,13 @@ explain extended select md5('hello'), sha('abc'), sha1('abc'), soundex(''), 'moo
 
 SELECT lpad(12345, 5, "#");
 
+#
+# Bug #2972
+#
+ 
+SELECT conv(71, 10, 36), conv('1Z', 36, 10);
+
+
 
 #
 # Bug #3089

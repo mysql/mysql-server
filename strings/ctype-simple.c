@@ -262,9 +262,9 @@ long my_strntol_8bit(CHARSET_INFO *cs,
   {
     if (c>='0' && c<='9')
       c -= '0';
-    else if (c>='A' && c<='F')
+    else if (c>='A' && c<='Z')
       c = c - 'A' + 10;
-    else if (c>='a' && c<='f')
+    else if (c>='a' && c<='z')
       c = c - 'a' + 10;
     else
       break;
@@ -384,9 +384,9 @@ ulong my_strntoul_8bit(CHARSET_INFO *cs,
   {
     if (c>='0' && c<='9')
       c -= '0';
-    else if (c>='A' && c<='F')
+    else if (c>='A' && c<='Z')
       c = c - 'A' + 10;
-    else if (c>='a' && c<='f')
+    else if (c>='a' && c<='z')
       c = c - 'a' + 10;
     else
       break;
@@ -499,9 +499,9 @@ longlong my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   {
     if (c>='0' && c<='9')
       c -= '0';
-    else if (c>='A' && c<='F')
+    else if (c>='A' && c<='Z')
       c = c - 'A' + 10;
-    else if (c>='a' && c<='f')
+    else if (c>='a' && c<='z')
       c = c - 'a' + 10;
     else
       break;
@@ -622,9 +622,9 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   {
     if (c>='0' && c<='9')
       c -= '0';
-    else if (c>='A' && c<='F')
+    else if (c>='A' && c<='Z')
       c = c - 'A' + 10;
-    else if (c>='a' && c<='f')
+    else if (c>='a' && c<='z')
       c = c - 'a' + 10;
     else
       break;

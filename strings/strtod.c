@@ -26,8 +26,12 @@
 
  */
 
-#include "my_base.h"
+#include "my_base.h"				/* Includes errno.h */
 #include "m_ctype.h"
+
+#ifndef EOVERFLOW
+#define EOVERFLOW 84
+#endif
 
 static double scaler10[] = {
   1.0, 1e10, 1e20, 1e30, 1e40, 1e50, 1e60, 1e70, 1e80, 1e90
@@ -35,6 +39,7 @@ static double scaler10[] = {
 static double scaler1[] = {
   1.0, 10.0, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
 };
+
 
 double my_strtod(const char *str, char **end)
 {
@@ -92,10 +97,10 @@ double my_strtod(const char *str, char **end)
       }
       if (exp >= 1000)
       {
-        if (neg)
-          result= 0.0;
-        else
-          overflow=1;
+	if (neg)
+	  result= 0.0;
+	else
+          overflow= 1;
         goto done;
       }
       while (exp >= 100)
@@ -115,10 +120,10 @@ done:
   if (end)
     *end = (char *)str;
 
-  if (overflow || ((overflow=isinf(result))))
+  if (overflow || isinf(result))
   {
-    result=DBL_MAX;
-    errno=EOVERFLOW;
+    result= DBL_MAX;
+    errno= EOVERFLOW;
   }
 
   return negative ? -result : result;

@@ -365,9 +365,6 @@ void check_duplicates_in_interval(const char *set_or_name,
   unsigned int old_count= typelib->count;
   const char **old_type_names= typelib->type_names;
 
-  if (typelib->count <= 1)
-    return;
-
   old_count= typelib->count;
   old_type_names= typelib->type_names;
   const char **cur_value= typelib->type_names;
@@ -377,7 +374,7 @@ void check_duplicates_in_interval(const char *set_or_name,
     typelib->count--;
     if (find_type((char*)*cur_value,typelib,1))
     {
-      push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+      push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_DUPLICATED_VALUE_IN_TYPE,
 			  ER(ER_DUPLICATED_VALUE_IN_TYPE),
 			  name,*cur_value,set_or_name);
@@ -2979,12 +2976,10 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
         /* calculating table's checksum */
         ha_checksum crc= 0;
 
-	if (t->db_type == DB_TYPE_INNODB) {
-	  /* InnoDB must be told explicitly to retrieve all columns, because
-	  this function does not set field->query_id in the columns to the
-	  current query id */
-	  t->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-	}
+        /* InnoDB must be told explicitly to retrieve all columns, because
+        this function does not set field->query_id in the columns to the
+        current query id */
+        t->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
 
         if (t->file->rnd_init(1))
           protocol->store_null();

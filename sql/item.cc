@@ -517,7 +517,33 @@ String *Item_null::val_str(String *str)
 { null_value=1; return 0;}
 
 
-/* Item_param related */
+/*********************** Item_param related ******************************/
+
+/* 
+  Default function of Item_param::set_param_func, so in case
+  of malformed packet the server won't SIGSEGV
+*/
+
+static void
+default_set_param_func(Item_param *param,
+                       uchar **pos __attribute__((unused)),
+                       ulong len __attribute__((unused)))
+{
+  param->set_null();
+}
+
+Item_param::Item_param(unsigned position) :
+  value_is_set(FALSE),
+  item_result_type(STRING_RESULT),
+  item_type(STRING_ITEM),
+  item_is_time(FALSE),
+  long_data_supplied(FALSE),
+  pos_in_query(position),
+  set_param_func(default_set_param_func)
+{
+  name= (char*) "?";
+}
+
 void Item_param::set_null()
 {
   DBUG_ENTER("Item_param::set_null");
