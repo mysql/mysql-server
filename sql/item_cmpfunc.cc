@@ -1177,7 +1177,10 @@ Item_cond::fix_fields(THD *thd,TABLE_LIST *tables)
 {
   List_iterator<Item> li(list);
   Item *item;
+#ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
   char buff[sizeof(char*)];			// Max local vars in function
+#endif
+
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 0;
   /*

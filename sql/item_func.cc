@@ -59,7 +59,10 @@ bool
 Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
 {
   Item **arg,**arg_end;
+#ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
+#endif
+
   binary=0;
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
@@ -1159,7 +1162,9 @@ bool
 udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
 			uint arg_count, Item **arguments)
 {
+#ifndef EMBEDDED_LIBRARY			// Avoid compiler warning
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
+#endif
   DBUG_ENTER("Item_udf_func::fix_fields");
 
   if (thd)

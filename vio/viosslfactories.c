@@ -14,14 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
+#include "vio_priv.h"
 
 #ifdef HAVE_OPENSSL
-
-#include <mysql_com.h>
-#include <my_sys.h>
-#include <violite.h>
-
 
 static bool     ssl_algorithms_added    = FALSE;
 static bool     ssl_error_strings_loaded= FALSE;
@@ -203,8 +198,8 @@ new_VioSSLConnectorFd(const char* key_file,
 	     my_malloc(sizeof(struct st_VioSSLConnectorFd),MYF(0)))))
     DBUG_RETURN(0);
 
-  ptr->ssl_context_= 0;
-  ptr->ssl_method_=  0;
+  ptr->ssl_context= 0;
+  ptr->ssl_method=  0;
   /* FIXME: constants! */
 
   if (!ssl_algorithms_added)
@@ -219,10 +214,10 @@ new_VioSSLConnectorFd(const char* key_file,
     ssl_error_strings_loaded = TRUE;
     SSL_load_error_strings();
   }
-  ptr->ssl_method_ = TLSv1_client_method();
-  ptr->ssl_context_ = SSL_CTX_new(ptr->ssl_method_);
-  DBUG_PRINT("info", ("ssl_context_: %p",ptr->ssl_context_));
-  if (ptr->ssl_context_ == 0)
+  ptr->ssl_method = TLSv1_client_method();
+  ptr->ssl_context = SSL_CTX_new(ptr->ssl_method);
+  DBUG_PRINT("info", ("ssl_context: %p",ptr->ssl_context));
+  if (ptr->ssl_context == 0)
   {
     DBUG_PRINT("error", ("SSL_CTX_new failed"));
     report_errors();
@@ -234,20 +229,20 @@ new_VioSSLConnectorFd(const char* key_file,
    */
   if (cipher)
   {
-    result=SSL_CTX_set_cipher_list(ptr->ssl_context_, cipher);
+    result=SSL_CTX_set_cipher_list(ptr->ssl_context, cipher);
     DBUG_PRINT("info",("SSL_set_cipher_list() returned %d",result));
   }
-  SSL_CTX_set_verify(ptr->ssl_context_, verify, vio_verify_callback);
-  if (vio_set_cert_stuff(ptr->ssl_context_, cert_file, key_file) == -1)
+  SSL_CTX_set_verify(ptr->ssl_context, verify, vio_verify_callback);
+  if (vio_set_cert_stuff(ptr->ssl_context, cert_file, key_file) == -1)
   {
     DBUG_PRINT("error", ("vio_set_cert_stuff failed"));
     report_errors();
     goto ctor_failure;
   }
-  if (SSL_CTX_load_verify_locations( ptr->ssl_context_, ca_file,ca_path) == 0)
+  if (SSL_CTX_load_verify_locations( ptr->ssl_context, ca_file,ca_path) == 0)
   {
     DBUG_PRINT("warning", ("SSL_CTX_load_verify_locations failed"));
-    if (SSL_CTX_set_default_verify_paths(ptr->ssl_context_) == 0)
+    if (SSL_CTX_set_default_verify_paths(ptr->ssl_context) == 0)
     {
       DBUG_PRINT("error", ("SSL_CTX_set_default_verify_paths failed"));
       report_errors();
@@ -257,7 +252,7 @@ new_VioSSLConnectorFd(const char* key_file,
 
   /* DH stuff */
   dh=get_dh512();
-  SSL_CTX_set_tmp_dh(ptr->ssl_context_,dh);
+  SSL_CTX_set_tmp_dh(ptr->ssl_context,dh);
   DH_free(dh);
 
   DBUG_RETURN(ptr);
@@ -292,10 +287,10 @@ new_VioSSLAcceptorFd(const char *key_file,
 
   ptr= ((struct st_VioSSLAcceptorFd*)
 	my_malloc(sizeof(struct st_VioSSLAcceptorFd),MYF(0)));
-  ptr->ssl_context_=0;
-  ptr->ssl_method_=0;
+  ptr->ssl_context=0;
+  ptr->ssl_method=0;
   /* FIXME: constants! */
-  ptr->session_id_context_ = ptr;
+  ptr->session_id_context= ptr;
 
   if (!ssl_algorithms_added)
   {
@@ -310,9 +305,9 @@ new_VioSSLAcceptorFd(const char *key_file,
     ssl_error_strings_loaded = TRUE;
     SSL_load_error_strings();
   }
-  ptr->ssl_method_=  TLSv1_server_method();
-  ptr->ssl_context_= SSL_CTX_new(ptr->ssl_method_);
-  if (ptr->ssl_context_ == 0)
+  ptr->ssl_method=  TLSv1_server_method();
+  ptr->ssl_context= SSL_CTX_new(ptr->ssl_method);
+  if (ptr->ssl_context == 0)
   {
     DBUG_PRINT("error", ("SSL_CTX_new failed"));
     report_errors();
@@ -320,31 +315,31 @@ new_VioSSLAcceptorFd(const char *key_file,
   }
   if (cipher)
   {
-    result=SSL_CTX_set_cipher_list(ptr->ssl_context_, cipher);
+    result=SSL_CTX_set_cipher_list(ptr->ssl_context, cipher);
     DBUG_PRINT("info",("SSL_set_cipher_list() returned %d",result));
   }
   /* SSL_CTX_set_quiet_shutdown(ctx,1); */
-  SSL_CTX_sess_set_cache_size(ptr->ssl_context_,128);
+  SSL_CTX_sess_set_cache_size(ptr->ssl_context,128);
 
   /* DH? */
-  SSL_CTX_set_verify(ptr->ssl_context_, verify, vio_verify_callback);
-  SSL_CTX_set_session_id_context(ptr->ssl_context_,
-				 (const uchar*) &(ptr->session_id_context_),
-				 sizeof(ptr->session_id_context_));
+  SSL_CTX_set_verify(ptr->ssl_context, verify, vio_verify_callback);
+  SSL_CTX_set_session_id_context(ptr->ssl_context,
+				 (const uchar*) &(ptr->session_id_context),
+				 sizeof(ptr->session_id_context));
 
   /*
     SSL_CTX_set_client_CA_list(ctx,SSL_load_client_CA_file(CAfile));
   */
-  if (vio_set_cert_stuff(ptr->ssl_context_, cert_file, key_file) == -1)
+  if (vio_set_cert_stuff(ptr->ssl_context, cert_file, key_file) == -1)
   {
     DBUG_PRINT("error", ("vio_set_cert_stuff failed"));
     report_errors();
     goto ctor_failure;
   }
-  if (SSL_CTX_load_verify_locations( ptr->ssl_context_, ca_file, ca_path) == 0)
+  if (SSL_CTX_load_verify_locations( ptr->ssl_context, ca_file, ca_path) == 0)
   {
     DBUG_PRINT("warning", ("SSL_CTX_load_verify_locations failed"));
-    if (SSL_CTX_set_default_verify_paths(ptr->ssl_context_)==0)
+    if (SSL_CTX_set_default_verify_paths(ptr->ssl_context)==0)
     {
       DBUG_PRINT("error", ("SSL_CTX_set_default_verify_paths failed"));
       report_errors();
@@ -353,7 +348,7 @@ new_VioSSLAcceptorFd(const char *key_file,
   }
   /* DH stuff */
   dh=get_dh512();
-  SSL_CTX_set_tmp_dh(ptr->ssl_context_,dh);
+  SSL_CTX_set_tmp_dh(ptr->ssl_context,dh);
   DH_free(dh);
   DBUG_RETURN(ptr);
 
@@ -362,6 +357,4 @@ ctor_failure:
   my_free((gptr) ptr,MYF(0));
   DBUG_RETURN(0);
 }
-
-
 #endif /* HAVE_OPENSSL */
