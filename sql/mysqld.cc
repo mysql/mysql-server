@@ -2028,7 +2028,7 @@ void create_named_pipe_thread()
       (!have_tcpip || opt_disable_networking))
   {
     sql_print_error("TCP/IP or --enable-named-pipe should be configured on NT OS");
-	unireg_abort(1);
+    unireg_abort(1);
   }
   else
   {
