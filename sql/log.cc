@@ -380,7 +380,7 @@ void MYSQL_LOG::cleanup()
 
 
 int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
-{      
+{
   fn_format(new_name,log_name,mysql_data_home,"",4);
   if (log_type != LOG_NORMAL)
   {
@@ -421,6 +421,67 @@ void MYSQL_LOG::init_pthread_objects()
   (void) pthread_cond_init(&update_cond, 0);
 }
 
+const char *MYSQL_LOG::generate_name(const char *log_name,
+                                     const char *suffix,
+                                     bool strip_ext, char *buff)
+{
+  DBUG_ASSERT(!strip_ext || (log_name && log_name[0]));
+  if (!log_name || !log_name[0])
+  {
+    /*
+      TODO: The following should be using fn_format();  We just need to
+      first change fn_format() to cut the file name if it's too long.
+    */
+    strmake(buff,glob_hostname,FN_REFLEN-5);
+    strmov(fn_ext(buff),suffix);
+    return (const char *)buff;
+  }
+  // get rid of extension if the log is binary to avoid problems
+  if (strip_ext)
+  {
+    char *p = fn_ext(log_name);
+    uint length=(uint) (p-log_name);
+    strmake(buff,log_name,min(length,FN_REFLEN));
+    return (const char*)buff;
+  }
+  return log_name;
+}
+
+bool MYSQL_LOG::open_index_file(const char *index_file_name_arg,
+                                const char *log_name)
+{
+  File index_file_nr= -1;
+  DBUG_ASSERT(!my_b_inited(&index_file));
+
+  /*
+    First open of this class instance
+    Create an index file that will hold all file names uses for logging.
+    Add new entries to the end of it.
+  */
+  myf opt= MY_UNPACK_FILENAME;
+  if (!index_file_name_arg)
+  {
+    index_file_name_arg= log_name;    // Use same basename for index file
+    opt= MY_UNPACK_FILENAME | MY_REPLACE_EXT;
+  }
+  fn_format(index_file_name, index_file_name_arg, mysql_data_home,
+            ".index", opt);
+  if ((index_file_nr= my_open(index_file_name,
+                              O_RDWR | O_CREAT | O_BINARY ,
+                              MYF(MY_WME))) < 0 ||
+       my_sync(index_file_nr, MYF(MY_WME)) ||
+       init_io_cache(&index_file, index_file_nr,
+                     IO_SIZE, WRITE_CACHE,
+                     my_seek(index_file_nr,0L,MY_SEEK_END,MYF(0)),
+                     0, MYF(MY_WME)))
+  {
+    if (index_file_nr >= 0)
+      my_close(index_file_nr,MYF(0));
+    return TRUE;
+  }
+  return FALSE;
+}
+
 
 /*
   Open a (new) log file.
@@ -436,31 +497,35 @@ void MYSQL_LOG::init_pthread_objects()
     1	error
 */
 
-bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
-		     const char *new_name, const char *index_file_name_arg,
-		     enum cache_type io_cache_type_arg,
-		     bool no_auto_events_arg,
+bool MYSQL_LOG::open(const char *log_name,
+                     enum_log_type log_type_arg,
+                     const char *new_name,
+                     enum cache_type io_cache_type_arg,
+                     bool no_auto_events_arg,
                      ulong max_size_arg,
                      bool null_created_arg)
 {
-  char buff[512];
-  File file= -1, index_file_nr= -1;
+  char buff[FN_REFLEN];
+  File file= -1;
   int open_flags = O_CREAT | O_BINARY;
   DBUG_ENTER("MYSQL_LOG::open");
-  DBUG_PRINT("enter",("log_type: %d",(int) log_type));
+  DBUG_PRINT("enter",("log_type: %d",(int) log_type_arg));
 
   last_time=query_start=0;
   write_error=0;
 
   init(log_type_arg,io_cache_type_arg,no_auto_events_arg,max_size_arg);
-  
+
   if (!(name=my_strdup(log_name,MYF(MY_WME))))
+  {
+    name= (char *)log_name; // for the error message
     goto err;
+  }
   if (new_name)
     strmov(log_file_name,new_name);
   else if (generate_new_name(log_file_name, name))
     goto err;
-  
+
   if (io_cache_type == SEQ_READ_APPEND)
     open_flags |= O_RDWR | O_APPEND;
   else
@@ -521,13 +586,6 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   {
     bool write_file_name_to_index_file=0;
 
-    myf opt= MY_UNPACK_FILENAME;
-    if (!index_file_name_arg)
-    {
-      index_file_name_arg= name;	// Use same basename for index file
-      opt= MY_UNPACK_FILENAME | MY_REPLACE_EXT;
-    }
-
     if (!my_b_filelength(&log_file))
     {
       /*
@@ -543,31 +601,9 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       write_file_name_to_index_file= 1;
     }
 
-    if (!my_b_inited(&index_file))
-    {
-      /*
-	First open of this class instance
-	Create an index file that will hold all file names uses for logging.
-	Add new entries to the end of it.
-      */
-      fn_format(index_file_name, index_file_name_arg, mysql_data_home,
-		".index", opt);
-      if ((index_file_nr= my_open(index_file_name,
-				  O_RDWR | O_CREAT | O_BINARY ,
-				  MYF(MY_WME))) < 0 ||
-          my_sync(index_file_nr, MYF(MY_WME)) ||
-	  init_io_cache(&index_file, index_file_nr,
-			IO_SIZE, WRITE_CACHE,
-			my_seek(index_file_nr,0L,MY_SEEK_END,MYF(0)),
-			0, MYF(MY_WME)))
-	goto err;
-    }
-    else
-    {
-      safe_mutex_assert_owner(&LOCK_index);
-      reinit_io_cache(&index_file, WRITE_CACHE, my_b_filelength(&index_file),
-		      0, 0);
-    }
+    DBUG_ASSERT(my_b_inited(&index_file));
+    reinit_io_cache(&index_file, WRITE_CACHE,
+                    my_b_filelength(&index_file), 0, 0);
     if (need_start_event && !no_auto_events)
     {
       /*
@@ -609,7 +645,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       description_event_for_queue->created= 0;
       /* Don't set log_pos in event header */
       description_event_for_queue->artificial_event=1;
-      
+
       if (description_event_for_queue->write(&log_file))
         goto err;
       bytes_written+= description_event_for_queue->data_written;
@@ -644,11 +680,9 @@ err:
   sql_print_error("Could not use %s for logging (error %d). \
 Turning logging off for the whole duration of the MySQL server process. \
 To turn it on again: fix the cause, \
-shutdown the MySQL server and restart it.", log_name, errno);
+shutdown the MySQL server and restart it.", name, errno);
   if (file >= 0)
     my_close(file,MYF(0));
-  if (index_file_nr >= 0)
-    my_close(index_file_nr,MYF(0));
   end_io_cache(&log_file);
   end_io_cache(&index_file);
   safeFree(name);
@@ -754,8 +788,8 @@ int MYSQL_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   DBUG_PRINT("enter",("log_name: %s", log_name ? log_name : "NULL"));
 
   /*
-    Mutex needed because we need to make sure the file pointer does not move
-    from under our feet
+    Mutex needed because we need to make sure the file pointer does not
+    move from under our feet
   */
   if (need_lock)
     pthread_mutex_lock(&LOCK_index);
@@ -907,11 +941,12 @@ bool MYSQL_LOG::reset_logs(THD* thd)
   my_delete(index_file_name, MYF(MY_WME));	// Reset (open will update)
   if (!thd->slave_thread)
     need_start_event=1;
-  open(save_name, save_log_type, 0, index_file_name,
+  open_index_file(index_file_name, 0);
+  open(save_name, save_log_type, 0,
        io_cache_type, no_auto_events, max_size, 0);
   my_free((gptr) save_name, MYF(0));
 
-err:  
+err:
   pthread_mutex_unlock(&LOCK_index);
   pthread_mutex_unlock(&LOCK_log);
   DBUG_RETURN(error);
@@ -930,7 +965,7 @@ err:
                  rli->group_relay_log_name are deleted ; if true, the latter is
                  deleted too (i.e. all relay logs
                  read by the SQL slave thread are deleted).
-    
+
   NOTE
     - This is only called from the slave-execute thread when it has read
       all commands from a relay log and want to switch to a new relay log.
@@ -1281,7 +1316,7 @@ void MYSQL_LOG::new_file(bool need_lock)
   if (generate_new_name(new_name, name))
     goto end;
   new_name_ptr=new_name;
-  
+
   if (log_type == LOG_BIN)
   {
     if (!no_auto_events)
@@ -1300,28 +1335,28 @@ void MYSQL_LOG::new_file(bool need_lock)
       log rotation should give the waiting thread a signal to
       discover EOF and move on to the next log.
     */
-    signal_update(); 
+    signal_update();
   }
   old_name=name;
   save_log_type=log_type;
   name=0;				// Don't free name
   close(LOG_CLOSE_TO_BE_OPENED);
 
-  /* 
+  /*
      Note that at this point, log_type != LOG_CLOSED (important for is_open()).
   */
 
-  /* 
+  /*
      new_file() is only used for rotation (in FLUSH LOGS or because size >
-     max_binlog_size or max_relay_log_size). 
+     max_binlog_size or max_relay_log_size).
      If this is a binary log, the Format_description_log_event at the beginning of
      the new file should have created=0 (to distinguish with the
      Format_description_log_event written at server startup, which should
      trigger temp tables deletion on slaves.
-  */ 
+  */
 
-  open(old_name, save_log_type, new_name_ptr, index_file_name, io_cache_type,
-       no_auto_events, max_size, 1);
+  open(old_name, save_log_type, new_name_ptr,
+       io_cache_type, no_auto_events, max_size, 1);
   my_free(old_name,MYF(0));
 
 end:
@@ -2028,11 +2063,11 @@ void MYSQL_LOG::wait_for_update(THD* thd, bool master_or_slave)
 
   SYNOPSIS
     close()
-    exiting	Bitmask for one or more of the following bits:
-    		LOG_CLOSE_INDEX if we should close the index file
-		LOG_CLOSE_TO_BE_OPENED if we intend to call open
-		at once after close.
-		LOG_CLOSE_STOP_EVENT write a 'stop' event to the log
+    exiting     Bitmask for one or more of the following bits:
+                LOG_CLOSE_INDEX if we should close the index file
+                LOG_CLOSE_TO_BE_OPENED if we intend to call open
+                at once after close.
+                LOG_CLOSE_STOP_EVENT write a 'stop' event to the log
 
   NOTES
     One can do an open on the object at once after doing a close.
@@ -2433,7 +2468,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   bool crashed=FALSE;
   PAGE *pg;
 
-  DBUG_ASSERT(total_ha_2pc);
+  DBUG_ASSERT(total_ha_2pc > 1);
   DBUG_ASSERT(opt_name && opt_name[0]);
 
 #ifdef HAVE_GETPAGESIZE
@@ -2824,6 +2859,18 @@ err1:
   return 1;
 }
 
+/*
+  Perform heuristic recovery, if --tc-heuristic-recover was used
+
+  RETURN VALUE
+    0	no heuristic recovery was requested
+    1   heuristic recovery was performed
+
+  NOTE
+    no matter whether heuristic recovery was successful or not
+    mysqld must exit. So, return value is the same in both cases.
+*/
+
 int TC_LOG::using_heuristic_recover()
 {
   if (!tc_heuristic_recover)
@@ -2848,10 +2895,11 @@ int TC_LOG::using_heuristic_recover()
 
 int TC_LOG_BINLOG::open(const char *opt_name)
 {
-  LOG_INFO log_info, new_log_info;
-  int      error;
+  LOG_INFO log_info;
+  int      error= 1;
 
   DBUG_ASSERT(total_ha_2pc > 1);
+  DBUG_ASSERT(opt_name && opt_name[0]);
 
   pthread_mutex_init(&LOCK_prep_xids, MY_MUTEX_INIT_FAST);
   pthread_cond_init (&COND_prep_xids, 0);
@@ -2859,21 +2907,15 @@ int TC_LOG_BINLOG::open(const char *opt_name)
   if (using_heuristic_recover())
     return 1;
 
-  /*
-    read index file to get a last but one binlog filename
-    note - there's no need to lock any mutex, mysqld is only starting
-    up, no other threads are running yet.
-    still, there's safe_mutex_assert_owner() in binlog code, so
-    let's keep it happy.
-  */
-
-  if ((error= find_log_pos(&new_log_info, NullS, 1)))
+  if ((error= find_log_pos(&log_info, NullS, 1)))
   {
-    sql_print_error("find_log_pos() failed (error: %d)", error);
-    goto err;                           // er ? where's the current entry ?
+    if (error != LOG_INFO_EOF)
+      sql_print_error("find_log_pos() failed (error: %d)", error);
+    else
+      error= 0;
+    goto err;
   }
 
-  if (strcmp(log_file_name, new_log_info.log_file_name))
   {
     const char *errmsg;
     char        last_event_type=UNKNOWN_EVENT;
@@ -2881,23 +2923,22 @@ int TC_LOG_BINLOG::open(const char *opt_name)
     File        file;
     Log_event  *ev=0;
     Format_description_log_event fdle(BINLOG_VERSION);
+    char        log_name[FN_REFLEN];
 
     if (! fdle.is_valid())
       goto err;
 
-    do
+    for (error= 0; !error ;)
     {
-      log_info.index_file_offset=new_log_info.index_file_offset;
-      log_info.index_file_start_offset=new_log_info.index_file_offset;
-      strcpy(log_info.log_file_name, new_log_info.log_file_name);
-      if ((error= find_next_log(&new_log_info, 1)))
+      strnmov(log_name, log_info.log_file_name, sizeof(log_name));
+      if ((error= find_next_log(&log_info, 1)) != LOG_INFO_EOF)
       {
         sql_print_error("find_log_pos() failed (error: %d)", error);
-        goto err;                  // er ? where's the current entry ?
+        goto err;
       }
-    } while (strcmp(log_file_name, new_log_info.log_file_name));
+    }
 
-    if ((file= open_binlog(&log, log_info.log_file_name, &errmsg)) < 0)
+    if ((file= open_binlog(&log, log_name, &errmsg)) < 0)
     {
       sql_print_error("%s", errmsg);
       goto err;
@@ -2921,10 +2962,8 @@ int TC_LOG_BINLOG::open(const char *opt_name)
       goto err;
   }
 
-  return 0;
-
 err:
-  return 1;
+  return error;
 }
 
 /* this is called on shutdown, after ha_panic */

@@ -255,7 +255,7 @@ public:
   {
 #ifndef DBUG_OFF
     char buf1[22],buf2[22];
-#endif	
+#endif
     DBUG_ENTER("harvest_bytes_written");
     (*counter)+=bytes_written;
     DBUG_PRINT("info",("counter: %s  bytes_written: %s", llstr(*counter,buf1),
@@ -272,11 +272,29 @@ public:
 	    bool no_auto_events_arg, ulong max_size);
   void init_pthread_objects();
   void cleanup();
-  bool open(const char *log_name,enum_log_type log_type,
-	    const char *new_name, const char *index_file_name_arg,
+  bool open(const char *log_name,
+            enum_log_type log_type,
+            const char *new_name,
 	    enum cache_type io_cache_type_arg,
 	    bool no_auto_events_arg, ulong max_size,
             bool null_created);
+  const char *generate_name(const char *log_name, const char *suffix,
+                            bool strip_ext, char *buff);
+  /* simplified open_xxx wrappers for the gigantic open above */
+  bool open_query_log(const char *log_name)
+  {
+    char buf[FN_REFLEN];
+    return open(generate_name(log_name, ".log", 0, buf),
+                LOG_NORMAL, 0, WRITE_CACHE, 0, 0, 0);
+  }
+  bool open_slow_log(const char *log_name)
+  {
+    char buf[FN_REFLEN];
+    return open(generate_name(log_name, "-slow.log", 0, buf),
+                LOG_NORMAL, 0, WRITE_CACHE, 0, 0, 0);
+  }
+  bool open_index_file(const char *index_file_name_arg,
+                       const char *log_name);
   void new_file(bool need_lock= 1);
   bool write(THD *thd, enum enum_server_command command,
 	     const char *format,...);
@@ -291,7 +309,7 @@ public:
   */
   bool appendv(const char* buf,uint len,...);
   bool append(Log_event* ev);
-  
+
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);

@@ -8052,7 +8052,7 @@ xa: XA_SYM begin_or_start xid opt_join_or_resume
     ;
 
 xid: ident_or_text              { Lex->ident=$1; }
-     ;
+    ;
 
 begin_or_start:   BEGIN_SYM {}
     |             START_SYM {}

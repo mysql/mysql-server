@@ -2289,44 +2289,13 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
 #endif
 
 
-const char *load_default_groups[]= { 
+const char *load_default_groups[]= {
 #ifdef HAVE_NDBCLUSTER_DB
 "mysql_cluster",
 #endif
-"mysqld","server",MYSQL_BASE_VERSION,0,0};
+"mysqld","server", MYSQL_BASE_VERSION, 0, 0};
 static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
-
-bool open_log(MYSQL_LOG *log, const char *hostname,
-	      const char *opt_name, const char *extension,
-	      const char *index_file_name,
-	      enum_log_type type, bool read_append,
-	      bool no_auto_events, ulong max_size)
-{
-  char tmp[FN_REFLEN];
-  if (!opt_name || !opt_name[0])
-  {
-    /*
-      TODO: The following should be using fn_format();  We just need to
-      first change fn_format() to cut the file name if it's too long.
-    */
-    strmake(tmp,hostname,FN_REFLEN-5);
-    strmov(fn_ext(tmp),extension);
-    opt_name=tmp;
-  }
-  // get rid of extension if the log is binary to avoid problems
-  if (type == LOG_BIN)
-  {
-    char *p = fn_ext(opt_name);
-    uint length=(uint) (p-opt_name);
-    strmake(tmp,opt_name,min(length,FN_REFLEN));
-    opt_name=tmp;
-  }
-  return log->open(opt_name, type, 0, index_file_name,
-		   (read_append) ? SEQ_READ_APPEND : WRITE_CACHE,
-		   no_auto_events, max_size, 0);
-}
-
 
 /*
   Initialize one of the global date/time format variables
@@ -2335,7 +2304,7 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
     init_global_datetime_format()
     format_type		What kind of format should be supported
     var_ptr		Pointer to variable that should be updated
-  
+
   NOTES
     The default value is taken from either opt_date_time_formats[] or
     the ISO format (ANSI SQL)
@@ -2617,8 +2586,7 @@ static int init_server_components()
 #endif
   /* Setup log files */
   if (opt_log)
-    open_log(&mysql_log, glob_hostname, opt_logname, ".log", NullS,
-	     LOG_NORMAL, 0, 0, 0);
+    mysql_log.open_query_log(opt_logname);
   if (opt_update_log)
   {
     /*
@@ -2671,20 +2639,13 @@ version 5.0 and above. It is replaced by the binary log. Now starting MySQL \
 with --log-bin instead.");
     }
   }
-  if (opt_bin_log)
-  {
-    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     opt_binlog_index_name, LOG_BIN, 0, 0, max_binlog_size);
-    using_update_log=1;
-  }
-  else if (opt_log_slave_updates)
+  if (opt_log_slave_updates && !opt_bin_log)
       sql_print_warning("\
-you need to use --log-bin to make --log-slave-updates work. \
+You need to use --log-bin to make --log-slave-updates work. \
 Now disabling --log-slave-updates.");
 
   if (opt_slow_log)
-    open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
-             NullS, LOG_NORMAL, 0, 0, 0);
+    mysql_slow_log.open_slow_log(opt_slow_logname);
 
 #ifdef HAVE_REPLICATION
   if (opt_log_slave_updates && replicate_same_server_id)
@@ -2716,12 +2677,25 @@ server.");
     }
   }
 
+  if (opt_bin_log)
+  {
+    char buf[FN_REFLEN];
+    const char *ln;
+    ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", 1, buf);
+    if (ln == buf)
+    {
+      my_free(opt_bin_logname, MYF(0));
+      opt_bin_logname=my_strdup(buf, MYF(0));
+    }
+    mysql_bin_log.open_index_file(opt_binlog_index_name, ln);
+    using_update_log=1;
+  }
+
   if (ha_init())
     {
     sql_print_error("Can't init databases");
     unireg_abort(1);
   }
-
   tc_log= total_ha_2pc > 1 ? opt_bin_log  ?
                  (TC_LOG *)&mysql_bin_log :
                  (TC_LOG *)&tc_log_mmap   :
@@ -2732,6 +2706,10 @@ server.");
     sql_print_error("Can't init tc log");
     unireg_abort(1);
   }
+
+  if (opt_bin_log)
+    mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
+                       WRITE_CACHE, 0, max_binlog_size, 0);
 
 #ifdef HAVE_REPLICATION
   if (opt_bin_log && expire_logs_days)
