@@ -6446,7 +6446,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{ http://mysql.borsen.dk/, WWW}
 
 @item
-@c EMAIL: mkp@socsci.auc.dk (Martin Kasper Petersen)
+@c EMAIL: mirror@sunsite.dk (Mirror Admin Team)
 @image{Flags/denmark} Denmark [SunSITE] @
 @uref{http://mirrors.sunsite.dk/mysql/, WWW}
 @uref{ftp://sunsite.dk/mirrors/mysql/, FTP}
