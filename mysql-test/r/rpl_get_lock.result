@@ -17,4 +17,7 @@ get_lock("lock",3)
 select * from t1;
 n
 1
+select check_lock("lock");
+check_lock("lock")
+1
 drop table t1;

@@ -407,15 +407,15 @@ public:
   String fields_buf;
   
   Load_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
-			       const char* table_name_arg,
+		 const char* table_name_arg,
 		 List<Item>& fields_arg, enum enum_duplicates handle_dup);
   void set_fields(List<Item> &fields_arg);
   void pack_info(String* packet);
   const char* get_db() { return db; }
   int exec_event(struct st_relay_log_info* rli)
-    {
-      return exec_event(thd->slave_net,rli);
-    }
+  {
+    return exec_event(thd->slave_net,rli);
+  }
   int exec_event(NET* net, struct st_relay_log_info* rli);
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
@@ -423,8 +423,7 @@ public:
 
   Load_log_event(const char* buf, int event_len, bool old_format);
   ~Load_log_event()
-  {
-  }
+  {}
   Log_event_type get_type_code() { return sql_ex.new_format() ?
 				     NEW_LOAD_EVENT: LOAD_EVENT; }
   int write_data_header(IO_CACHE* file); 
