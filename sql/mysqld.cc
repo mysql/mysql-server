@@ -423,7 +423,7 @@ Query_cache query_cache;
 #endif
 #ifdef HAVE_SMEM
 char *shared_memory_base_name= default_shared_memory_base_name;
-my_bool opt_enable_shared_memory;
+bool opt_enable_shared_memory;
 #endif
 
 #include "sslopt-vars.h"
@@ -471,7 +471,6 @@ static void close_connections(void)
 #ifdef EXTRA_DEBUG
   int count=0;
 #endif
-  NET net;
   DBUG_ENTER("close_connections");
 
   /* Clear thread cache */

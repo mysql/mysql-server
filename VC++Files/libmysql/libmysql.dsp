@@ -215,10 +215,6 @@ SOURCE=.\libmysql.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\pack.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\Libmysql.def
 # End Source File
 # Begin Source File
@@ -403,15 +399,15 @@ SOURCE=..\sql\net_serv.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\pack.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\password.c
 # End Source File
 # Begin Source File
 
 SOURCE=..\mysys\safemalloc.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\client\select_test.c
 # End Source File
 # Begin Source File
 
