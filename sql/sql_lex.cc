@@ -126,7 +126,12 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->sql_command=SQLCOM_END;
   lex->sphead= NULL;
   lex->spcont= NULL;
-  lex->spfuns.empty();
+
+  extern byte *sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first);
+  hash_free(&lex->spfuns);
+  hash_init(&lex->spfuns, system_charset_info, 0, 0, 0,
+	    sp_lex_spfuns_key, 0, 0);
+
   return lex;
 }
 

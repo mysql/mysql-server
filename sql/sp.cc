@@ -26,7 +26,7 @@
  *
  */
 
-// *openeed=true means we opened ourselves
+// *opened=true means we opened ourselves
 static int
 db_find_routine_aux(THD *thd, int type, char *name, uint namelen,
 		    enum thr_lock_type ltype, TABLE **tablep, bool *opened)
@@ -99,7 +99,6 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
   char buff[65];
   String str(buff, sizeof(buff), &my_charset_bin);
 
-  // QQ Set up our own mem_root here???
   ret= db_find_routine_aux(thd, type, name, namelen, TL_READ, &table, &opened);
   if (ret != SP_OK)
     goto done;
@@ -109,7 +108,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     goto done;
   }
 
-  //Get additional information
+  // Get additional information
   if ((creator= get_field(&thd->mem_root, table->field[3])) == NULL)
   {
     ret= SP_GET_FIELD_FAILED;
@@ -377,74 +376,75 @@ sp_function_exists(THD *thd, LEX_STRING *name)
 }
 
 
+byte *
+sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first)
+{
+  LEX_STRING *lsp= (LEX_STRING *)ptr;
+  *plen= lsp->length;
+  return (byte *)lsp->str;
+}
+
 void
 sp_add_fun_to_lex(LEX *lex, LEX_STRING fun)
 {
-  List_iterator_fast<char> li(lex->spfuns);
-  char *fn;
-
-  while ((fn= li++))
+  if (! hash_search(&lex->spfuns, (byte *)fun.str, fun.length))
   {
-    uint len= strlen(fn);
+    LEX_STRING *ls= (LEX_STRING *)sql_alloc(sizeof(LEX_STRING));
+    ls->str= sql_strmake(fun.str, fun.length);
+    ls->length= fun.length;
 
-    if (my_strnncoll(system_charset_info,
-		     (const uchar *)fn, len,
-		     (const uchar *)fun.str, fun.length) == 0)
-      break;
-  }
-  if (! fn)
-  {
-    char *s= sql_strmake(fun.str, fun.length);
-    lex->spfuns.push_back(s);
+    hash_insert(&lex->spfuns, (byte *)ls);
   }
 }
 
 void
 sp_merge_funs(LEX *dst, LEX *src)
 {
-  List_iterator_fast<char> li(src->spfuns);
-  char *fn;
-
-  while ((fn= li++))
+  for (uint i=0 ; i < src->spfuns.records ; i++)
   {
-    LEX_STRING lx;
+    LEX_STRING *ls= (LEX_STRING *)hash_element(&src->spfuns, i);
 
-    lx.str= fn; lx.length= strlen(fn);
-    sp_add_fun_to_lex(dst, lx);
+    if (! hash_search(&dst->spfuns, (byte *)ls->str, ls->length))
+      hash_insert(&dst->spfuns, (byte *)ls);
   }
 }
 
-/* QQ Not terribly efficient right now, but it'll do for starters.
-      We should actually open the mysql.proc table just once. */
 int
 sp_cache_functions(THD *thd, LEX *lex)
 {
-  List_iterator<char> li(lex->spfuns);
-  char *fn;
-  enum_sql_command cmd= lex->sql_command;
+  HASH *h= &lex->spfuns;
   int ret= 0;
 
-  while ((fn= li++))
+  for (uint i=0 ; i < h->records ; i++)
   {
-    sp_head *sp;
-    int len= strlen(fn);
+    LEX_STRING *ls= (LEX_STRING *)hash_element(h, i);
 
-    if (thd->sp_func_cache->lookup(fn, len))
-      continue;
-
-    if (db_find_routine(thd, TYPE_ENUM_FUNCTION, fn, len, &sp) == SP_OK)
+    if (! thd->sp_func_cache->lookup(ls->str, ls->length))
     {
-      ret= sp_cache_functions(thd, thd->lex);
-      if (ret)
+      sp_head *sp;
+      LEX *oldlex= thd->lex;
+      LEX *newlex= new st_lex;
+
+      thd->lex= newlex;
+      if (db_find_routine(thd, TYPE_ENUM_FUNCTION, ls->str, ls->length, &sp)
+	  == SP_OK)
+      {
+	ret= sp_cache_functions(thd, newlex);
+	delete newlex;
+	thd->lex= oldlex;
+	if (ret)
+	  break;
+	thd->sp_func_cache->insert(sp);
+      }
+      else
+      {
+	delete newlex;
+	thd->lex= oldlex;
+	net_printf(thd, ER_SP_DOES_NOT_EXIST, "FUNCTION", ls->str);
+	ret= 1;
 	break;
-      thd->sp_func_cache->insert(sp);
-    }
-    else
-    {
-      send_error(thd, ER_SP_DOES_NOT_EXIST);
-      ret= 1;
+      }
     }
   }
-  lex->sql_command= cmd;
   return ret;
 }
