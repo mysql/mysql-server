@@ -74,5 +74,10 @@ DROP TABLE user;
 DROP TABLE func;
 DROP TABLE tables_priv;
 DROP TABLE columns_priv;
+DROP TABLE help_category;
+DROP TABLE help_keyword;
+DROP TABLE help_relation;
+DROP TABLE help_topic;
 
 -- enable_query_log
+

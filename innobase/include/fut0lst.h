@@ -181,7 +181,6 @@ flst_validate(
 					/* out: TRUE if ok */
 	flst_base_node_t*	base,	/* in: pointer to base node of list */
 	mtr_t*			mtr1);	/* in: mtr */
-#ifdef UNIV_DEBUG
 /************************************************************************
 Prints info of a file-based list. */
 
@@ -190,7 +189,7 @@ flst_print(
 /*=======*/
 	flst_base_node_t*	base,	/* in: pointer to base node of list */
 	mtr_t*			mtr);	/* in: mtr */
-#endif /* UNIV_DEBUG */
+
 
 #ifndef UNIV_NONINL
 #include "fut0lst.ic"

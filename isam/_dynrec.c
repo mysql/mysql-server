@@ -430,7 +430,7 @@ uint _nisam_rec_pack(N_INFO *info, register byte *to, register const byte *from)
 	  to+=length+blob->length;
 	}
 	blob++;
-	from+=sizeof(char*);			/* Skipp blob-pointer */
+	from+=sizeof(char*);			/* Skip blob-pointer */
       }
       else if (type == FIELD_SKIP_ZERO)
       {
@@ -633,7 +633,7 @@ uint _nisam_rec_unpack(register N_INFO *info, register byte *to, byte *from,
     if ((type = (enum en_fieldtype) rec->base.type) != FIELD_NORMAL)
     {
       if (type == FIELD_ZERO)
-	continue;				/* Skipp this */
+	continue;				/* Skip this */
       if (flag & bit)
       {
 	if (type == FIELD_BLOB)
@@ -747,7 +747,7 @@ uint _calc_blob_length(uint length, const byte *pos)
       return (uint) (unsigned short) j;
     }
 #ifdef MSDOS
-    break;					/* skipp microsoft warning */
+    break;					/* skip microsoft warning */
 #endif
   case 3:
     return uint3korr(pos);

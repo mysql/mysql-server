@@ -18,12 +18,14 @@
 #ifndef _rt_index_h
 #define _rt_index_h
 
+#ifdef HAVE_RTREE_KEYS
+
 #define rt_PAGE_FIRST_KEY(page, nod_flag) (page + 2 + nod_flag)
 #define rt_PAGE_NEXT_KEY(key, key_length, nod_flag) (key + key_length + \
               (nod_flag ? nod_flag : info->s->base.rec_reflength))
 #define rt_PAGE_END(page) (page + mi_getint(page))
 
-#define rt_PAGE_MIN_SIZE(block_length) ((uint)(block_length) / 2)
+#define rt_PAGE_MIN_SIZE(block_length) ((uint)(block_length) / 3)
 
 int rtree_insert(MI_INFO *info, uint keynr, uchar *key, uint key_length);
 int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length);
@@ -41,4 +43,5 @@ ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key,
 int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key, 
                     uint key_length, my_off_t *new_page_offs);
 
+#endif /*HAVE_RTREE_KEYS*/
 #endif /* _rt_index_h */

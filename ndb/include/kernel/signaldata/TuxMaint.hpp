@@ -39,7 +39,7 @@ public:
     SearchError = 895,  // add + found or remove + not found
     NoMemError = 827
   };
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 8 );
 private:
   /*
    * Error code set by TUX.  Zero means no error.
@@ -52,10 +52,11 @@ private:
   Uint32 indexId;
   Uint32 fragId;
   /*
-   * Tuple version identified by logical address of "original" tuple and
-   * version number.
+   * Tuple version identified by physical address of "original" tuple
+   * and version number.
    */
-  Uint32 tupAddr;
+  Uint32 pageId;
+  Uint32 pageOffset;
   Uint32 tupVersion;
   /*
    * Operation code and flags.

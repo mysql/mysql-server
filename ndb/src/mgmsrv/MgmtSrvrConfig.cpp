@@ -275,31 +275,30 @@ MgmtSrvr::readConfig() {
   Config *conf = NULL;
   if(m_configFilename.length() != 0) {
     /* Use config file */
-    InitConfigFileParser parser(m_configFilename.c_str());
-
-    if(!parser.readConfigFile()) {
+    InitConfigFileParser parser;
+    conf = parser.parseConfig(m_configFilename.c_str());
+    
+    if(conf == NULL) {
       /* Try to get configuration from other MGM server */
-      ConfigRetriever cr;
-      cr.setLocalConfigFileName(m_localNdbConfigFilename.c_str());
-      conf = new Config(*cr.getConfig("MGM", NDB_VERSION));
-    } else {
-      conf = new Config(*parser.getConfig());
+      return fetchConfig();
     }
-
-    if(conf == NULL)
-      return NULL;
   }
   return conf;
 }
 
 Config *
 MgmtSrvr::fetchConfig() {
-  Config *conf = NULL;
   ConfigRetriever cr;
   cr.setLocalConfigFileName(m_localNdbConfigFilename.c_str());
-  conf = new Config(*cr.getConfig("MGM", NDB_VERSION));
+  struct ndb_mgm_configuration * tmp = cr.getConfig(NDB_VERSION,
+						    NODE_TYPE_MGM);
+  if(tmp != 0){
+    Config * conf = new Config();
+    conf->m_configValues = tmp;
+    return conf;
+  }
 
-  return conf;
+  return 0;
 }
 
 bool

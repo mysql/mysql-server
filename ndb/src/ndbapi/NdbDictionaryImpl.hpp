@@ -81,6 +81,7 @@ public:
   Uint32 m_keyInfoPos;
   Uint32 m_extType;             // used by restore (kernel type in versin v2x)
   bool getInterpretableType() const ;
+  bool getBlobType() const;
 
   /**
    * Equality/assign
@@ -141,6 +142,8 @@ public:
    * Aggregates
    */
   Uint32 m_noOfKeys;
+  unsigned short m_sizeOfKeysInWords;
+  unsigned short m_noOfBlobs;
 
   /**
    * Equality/assign
@@ -283,17 +286,18 @@ public:
   int stopSubscribeEvent(class Ndb & ndb, NdbEventImpl &);
   int stopSubscribeEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
   
-  int listObjects(NdbDictionary::Dictionary::List& list, Uint32 requestData);
+  int listObjects(NdbDictionary::Dictionary::List& list, Uint32 requestData, bool fullyQualifiedNames);
   int listObjects(NdbApiSignal* signal);
   
-  NdbTableImpl * getTable(int tableId);
-  NdbTableImpl * getTable(const char * name);
+  NdbTableImpl * getTable(int tableId, bool fullyQualifiedNames);
+  NdbTableImpl * getTable(const char * name, bool fullyQualifiedNames);
   NdbTableImpl * getTable(class NdbApiSignal * signal, 
 			  LinearSectionPtr ptr[3],
-			  Uint32 noOfSections);
+			  Uint32 noOfSections, bool fullyQualifiedNames);
 
   static int parseTableInfo(NdbTableImpl ** dst, 
-			    const Uint32 * data, Uint32 len);
+			    const Uint32 * data, Uint32 len,
+			    bool fullyQualifiedNames);
   
   NdbError & m_error;
 private:
@@ -352,13 +356,12 @@ public:
   bool setTransporter(class Ndb * ndb, class TransporterFacade * tf);
   bool setTransporter(class TransporterFacade * tf);
   
-  int createTable(NdbTableImpl &t) 
-  { 
-    return m_receiver.createTable(m_ndb, t);
-  }
+  int createTable(NdbTableImpl &t);
+  int createBlobTables(NdbTableImpl &);
   int alterTable(NdbTableImpl &t);
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);
+  int dropBlobTables(NdbTableImpl &);
   int invalidateObject(NdbTableImpl &);
   int removeCachedObject(NdbTableImpl &);
 
@@ -429,6 +432,13 @@ bool
 NdbColumnImpl::getInterpretableType() const {
   return (m_type == NdbDictionary::Column::Unsigned ||
 	  m_type == NdbDictionary::Column::Bigunsigned);
+}
+
+inline
+bool 
+NdbColumnImpl::getBlobType() const {
+  return (m_type == NdbDictionary::Column::Blob ||
+	  m_type == NdbDictionary::Column::Clob);
 }
 
 inline
@@ -601,7 +611,7 @@ NdbDictionaryImpl::getTableImpl(const char * internalTableName)
   m_globalHash->unlock();
 
   if (ret == 0){
-    ret = m_receiver.getTable(internalTableName);
+    ret = m_receiver.getTable(internalTableName, m_ndb.usingFullyQualifiedNames());
     
     m_globalHash->lock();
     m_globalHash->put(internalTableName, ret);
@@ -624,7 +634,7 @@ NdbIndexImpl *
 NdbDictionaryImpl::getIndex(const char * indexName,
 			    const char * tableName)
 {
-  if (tableName || Ndb::usingFullyQualifiedNames()) {
+  if (tableName || m_ndb.usingFullyQualifiedNames()) {
     const char * internalIndexName = 0;
     if (tableName) {
       NdbTableImpl * t = getTable(tableName);

@@ -996,6 +996,31 @@ public:
   Dbtup(const class Configuration &);
   virtual ~Dbtup();
 
+  /*
+   * TUX uses logical tuple address when talking to ACC and LQH.
+   */
+  void tuxGetTupAddr(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32& tupAddr);
+
+  /*
+   * TUX index in TUP has single Uint32 array attribute which stores an
+   * index node.  TUX reads and writes the node directly via pointer.
+   */
+  int tuxAllocNode(Signal* signal, Uint32 fragPtrI, Uint32& pageId, Uint32& pageOffset, Uint32*& node);
+  void tuxFreeNode(Signal* signal, Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* node);
+  void tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& node);
+
+  /*
+   * TUX reads primary table attributes for index keys.  Input is
+   * attribute ids in AttributeHeader format.  Output is pointers to
+   * attribute data within tuple or 0 for NULL value.
+   */
+  void tuxReadAttrs(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, Uint32 numAttrs, const Uint32* attrIds, const Uint32** attrData);
+
+  /*
+   * TUX reads primary key for md5 summing and when returning keyinfo.
+   */
+  void tuxReadKeys();   // under construction
+
 private:
   BLOCK_DEFINES(Dbtup);
 
@@ -1029,7 +1054,7 @@ private:
   void execFSREADCONF(Signal* signal);
   void execFSREADREF(Signal* signal);
   void execNDB_STTOR(Signal* signal);
-  void execSIZEALT_REP(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execSET_VAR_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   void execALTER_TAB_REQ(Signal* signal);
@@ -1900,7 +1925,7 @@ private:
   void releaseTabDescr(Tablerec* const regTabPtr);
   void getFragmentrec(FragrecordPtr& regFragPtr, Uint32 fragId, Tablerec* const regTabPtr);
 
-  void initialiseRecordsLab(Signal* signal, Uint32 switchData);
+  void initialiseRecordsLab(Signal* signal, Uint32 switchData, Uint32, Uint32);
   void initializeAttrbufrec();
   void initializeCheckpointInfoRec();
   void initializeDiskBufferSegmentRecord();

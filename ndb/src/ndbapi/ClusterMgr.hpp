@@ -40,7 +40,7 @@ class ClusterMgr {
 public:
   ClusterMgr(class TransporterFacade &);
   ~ClusterMgr();
-  void init(const IPCConfig & config);
+  void init(struct ndb_mgm_configuration_iterator & config);
   
   void reportConnected(NodeId nodeId);
   void reportDisconnected(NodeId nodeId);
@@ -114,7 +114,7 @@ ClusterMgr::getNoOfConnectedNodes() const {
   return noOfConnectedNodes;
 }
 
-/******************************************************************************/
+/*****************************************************************************/
 
 /**
  * @class ArbitMgr

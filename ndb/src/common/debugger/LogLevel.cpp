@@ -17,13 +17,14 @@
 #include <LogLevel.hpp>
 
 const LogLevel::LogLevelCategoryName LogLevel::LOGLEVEL_CATEGORY_NAME[] = {
-  {"LogLevelStartup"},
-  {"LogLevelShutdown"},
-  {"LogLevelStatistic"},
-  {"LogLevelCheckpoint"},
-  {"LogLevelNodeRestart"},
-  {"LogLevelConnection"},
-  {"LogLevelError"},
-  {"LogLevelInfo"},
-  {"LogLevelGrep"}
+  { "LogLevelStartup" },
+  { "LogLevelShutdown" },
+  { "LogLevelStatistic" },
+  { "LogLevelCheckpoint" },
+  { "LogLevelNodeRestart" },
+  { "LogLevelConnection" },
+  { "LogLevelError" },
+  { "LogLevelWarning" },
+  { "LogLevelInfo" },
+  { "LogLevelGrep" }
 };

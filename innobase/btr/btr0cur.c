@@ -2937,7 +2937,7 @@ btr_cur_mark_dtuple_inherited_extern(
 		if (!is_updated) {
 			dfield = dtuple_get_nth_field(entry, ext_vec[i]);
 
-			data = dfield_get_data(dfield);
+			data = (byte*) dfield_get_data(dfield);
 			len = dfield_get_len(dfield);
 		
 			len -= BTR_EXTERN_FIELD_REF_SIZE;
@@ -2997,7 +2997,7 @@ btr_cur_unmark_dtuple_extern_fields(
 	for (i = 0; i < n_ext_vec; i++) {
 		dfield = dtuple_get_nth_field(entry, ext_vec[i]);
 
-		data = dfield_get_data(dfield);
+		data = (byte*) dfield_get_data(dfield);
 		len = dfield_get_len(dfield);
 		
 		len -= BTR_EXTERN_FIELD_REF_SIZE;

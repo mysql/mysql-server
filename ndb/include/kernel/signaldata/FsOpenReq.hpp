@@ -39,6 +39,7 @@ class FsOpenReq {
   friend class Backup;
   friend class Dbdict;
   friend class Ndbcntr;       // For initial start...
+  friend class Dbdih;
 
   /**
    * For printing

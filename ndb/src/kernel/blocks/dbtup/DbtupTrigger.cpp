@@ -962,7 +962,8 @@ Dbtup::executeTuxInsertTriggers(Signal* signal,
   // fill in constant part
   req->tableId = regOperPtr->tableRef;
   req->fragId = regOperPtr->fragId;
-  req->tupAddr = (regOperPtr->fragPageId << MAX_TUPLES_BITS) | regOperPtr->pageIndex;
+  req->pageId = regOperPtr->realPageId;
+  req->pageOffset = regOperPtr->pageOffset;
   req->tupVersion = tupVersion;
   req->opInfo = TuxMaintReq::OpAdd;
   // loop over index list
@@ -1000,7 +1001,8 @@ Dbtup::executeTuxUpdateTriggers(Signal* signal,
   // fill in constant part
   req->tableId = regOperPtr->tableRef;
   req->fragId = regOperPtr->fragId;
-  req->tupAddr = (regOperPtr->fragPageId << MAX_TUPLES_BITS) | regOperPtr->pageIndex;
+  req->pageId = regOperPtr->realPageId;
+  req->pageOffset = regOperPtr->pageOffset;
   req->tupVersion = tupVersion;
   req->opInfo = TuxMaintReq::OpAdd;
   // loop over index list
@@ -1009,7 +1011,6 @@ Dbtup::executeTuxUpdateTriggers(Signal* signal,
   triggerList.first(triggerPtr);
   while (triggerPtr.i != RNIL) {
     ljam();
-    req->tupAddr = (regOperPtr->fragPageId << MAX_TUPLES_BITS) | regOperPtr->pageIndex;
     req->indexId = triggerPtr.p->indexId;
     req->errorCode = RNIL;
     EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
@@ -1074,7 +1075,8 @@ Dbtup::executeTuxCommitTriggers(Signal* signal,
   // fill in constant part
   req->tableId = regOperPtr->tableRef;
   req->fragId = regOperPtr->fragId;
-  req->tupAddr = (regOperPtr->fragPageId << MAX_TUPLES_BITS) | regOperPtr->pageIndex;
+  req->pageId = regOperPtr->realPageId;
+  req->pageOffset = regOperPtr->pageOffset;
   req->tupVersion = tupVersion;
   req->opInfo = TuxMaintReq::OpRemove;
   // loop over index list
@@ -1117,7 +1119,8 @@ Dbtup::executeTuxAbortTriggers(Signal* signal,
   // fill in constant part
   req->tableId = regOperPtr->tableRef;
   req->fragId = regOperPtr->fragId;
-  req->tupAddr = (regOperPtr->fragPageId << MAX_TUPLES_BITS) | regOperPtr->pageIndex;
+  req->pageId = regOperPtr->realPageId;
+  req->pageOffset = regOperPtr->pageOffset;
   req->tupVersion = tupVersion;
   req->opInfo = TuxMaintReq::OpRemove;
   // loop over index list

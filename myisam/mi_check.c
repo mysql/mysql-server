@@ -142,6 +142,8 @@ int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag)
     empty=0;
     for (i= info->state->del ; i > 0L && next_link != HA_OFFSET_ERROR ; i--)
     {
+      if (*killed_ptr(param))
+        DBUG_RETURN(1);
       if (test_flag & T_VERBOSE)
 	printf(" %9s",llstr(next_link,buff));
       if (next_link >= info->state->data_file_length)
@@ -233,6 +235,8 @@ static int check_k_link(MI_CHECK *param, register MI_INFO *info, uint nr)
   records= (ha_rows) (info->state->key_file_length / block_size);
   while (next_link != HA_OFFSET_ERROR && records > 0)
   {
+    if (*killed_ptr(param))
+      DBUG_RETURN(1);
     if (param->testflag & T_VERBOSE)
       printf("%16s",llstr(next_link,llbuff));
     if (next_link > info->state->key_file_length ||
@@ -307,7 +311,7 @@ int chk_size(MI_CHECK *param, register MI_INFO *info)
 #endif
   if (skr != size)
   {
-    info->state->data_file_length=size;	/* Skipp other errors */
+    info->state->data_file_length=size;	/* Skip other errors */
     if (skr > size && skr != size + MEMMAP_EXTRA_MARGIN)
     {
       error=1;
@@ -592,6 +596,8 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   }
   for ( ;; )
   {
+    if (*killed_ptr(param))
+      goto err;
     memcpy((char*) info->lastkey,(char*) key,key_length);
     info->lastkey_length=key_length;
     if (nod_flag)
@@ -782,6 +788,8 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
   bzero((char*) key_checksum, info->s->base.keys * sizeof(key_checksum[0]));
   while (pos < info->state->data_file_length)
   {
+    if (*killed_ptr(param))
+      goto err2;
     switch (info->s->data_file_type) {
     case STATIC_RECORD:
       if (my_b_read(&param->read_cache,(byte*) record,
@@ -3672,7 +3680,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
       if (param->language)
 	keyseg->language=param->language;	/* change language */
     }
-    keyseg++;					/* Skipp end pointer */
+    keyseg++;					/* Skip end pointer */
   }
 
   /* Copy the unique definitions and change them to point at the new key

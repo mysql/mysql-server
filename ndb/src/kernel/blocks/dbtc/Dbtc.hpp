@@ -955,7 +955,6 @@ public:
     LqhTransState lqhTransStatus;
     TakeOverState takeOverStatus;
     bool  inPackedList;
-    UintR ndbVersion;
     UintR noOfPackedWordsLqh;
     UintR packedWordsLqh[26];
     UintR noOfWordsTCKEYCONF;
@@ -1336,7 +1335,7 @@ private:
   void execSCAN_TABINFO(Signal* signal);
   void execSCAN_FRAGCONF(Signal* signal);
   void execSCAN_FRAGREF(Signal* signal);
-  void execSIZEALT_REP(Signal* signal);
+  void execREAD_CONFIG_REQ(Signal* signal);
   void execLQH_TRANSCONF(Signal* signal);
   void execCOMPLETECONF(Signal* signal);
   void execCOMMITCONF(Signal* signal);
@@ -1496,7 +1495,6 @@ private:
                     AttrbufRecord * const regAttrPtr,
                     UintR TBref);
   void sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr);
-  void sendInitialiseRecords(Signal* signal, UintR Tnext);
   void sendKeyinfo(Signal* signal, BlockReference TBRef, Uint32 len);
   void sendlqhkeyreq(Signal* signal, BlockReference TBRef);
   void sendSystemError(Signal* signal);
@@ -1613,7 +1611,6 @@ private:
   void scanCompletedLab(Signal* signal);
   void scanFragError(Signal* signal, Uint32 errorCode);
   void diverify010Lab(Signal* signal);
-  void returnInitialiseRecordsLab(Signal* signal);
   void intstartphase2x010Lab(Signal* signal);
   void intstartphase3x010Lab(Signal* signal);
   void sttorryLab(Signal* signal);
@@ -1627,7 +1624,7 @@ private:
   void completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd);
   void completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd);
   void timeOutLoopStartLab(Signal* signal, Uint32 apiConnectPtr);
-  void initialiseRecordsLab(Signal* signal, UintR Tdata0);
+  void initialiseRecordsLab(Signal* signal, UintR Tdata0, Uint32, Uint32);
   void tckeyreq020Lab(Signal* signal);
   void intstartphase2x020Lab(Signal* signal);
   void intstartphase1x010Lab(Signal* signal);

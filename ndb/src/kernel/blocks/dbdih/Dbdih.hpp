@@ -312,7 +312,6 @@ public:
     Bitmask<1> m_nodefailSteps;
     Uint32 activeTabptr;
     Uint32 nextNode;
-    Uint32 ndbversion;
     Uint32 nodeGroup;
 
     SignalCounter m_NF_COMPLETE_REP;
@@ -663,7 +662,7 @@ private:
   void execSTOP_ME_REF(Signal *);
   void execSTOP_ME_CONF(Signal *);
 
-  void execSIZEALT_REP(Signal *);
+  void execREAD_CONFIG_REQ(Signal *);
   void execUNBLO_DICTCONF(Signal *);
   void execCOPY_ACTIVECONF(Signal *);
   void execTAB_COMMITREQ(Signal *);
@@ -685,7 +684,6 @@ private:
   void execNDB_STARTREQ(Signal *);
   void execGETGCIREQ(Signal *);
   void execDIH_RESTARTREQ(Signal *);
-  void execCNTR_CHANGEREP(Signal *);
   void execSTART_RECCONF(Signal *);
   void execSTART_FRAGCONF(Signal *);
   void execADD_FRAGCONF(Signal *);
@@ -798,6 +796,7 @@ private:
   void closeFileDelete(Signal *, FileRecordPtr regFilePtr);
   void createFileRw(Signal *, FileRecordPtr regFilePtr);
   void openFileRw(Signal *, FileRecordPtr regFilePtr);
+  void openFileRo(Signal *, FileRecordPtr regFilePtr);
   void seizeFile(FileRecordPtr& regFilePtr);
   void releaseFile(Uint32 fileIndex);
 
@@ -969,7 +968,7 @@ private:
   void checkCopyTab(NodeRecordPtr failedNodePtr);
 
   void initCommonData();
-  void initialiseRecordsLab(Signal *, Uint32 stepNo);
+  void initialiseRecordsLab(Signal *, Uint32 stepNo, Uint32, Uint32);
 
   void findReplica(ReplicaRecordPtr& regReplicaPtr,
                    Fragmentstore* fragPtrP, Uint32 nodeId);
@@ -1409,7 +1408,6 @@ private:
     Uint32 startNode;
     Uint32 wait;
     Uint32 failNr;
-    Uint32 ndbVersion;
     bool activeState;
     bool blockLcp;
     bool blockGcp;

@@ -6,7 +6,7 @@ explain extended select (select 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1249	Select 2 was reduced during optimisation
+Note	1249	Select 2 was reduced during optimization
 Note	1003	select 2 AS `(select 2)`
 SELECT (SELECT 1) UNION SELECT (SELECT 2);
 (SELECT 1)
@@ -18,8 +18,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union1,3>	ALL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1249	Select 2 was reduced during optimisation
-Note	1249	Select 4 was reduced during optimisation
+Note	1249	Select 2 was reduced during optimization
+Note	1249	Select 4 was reduced during optimization
 Note	1003	select 1 AS `(SELECT 1)` union select 2 AS `(SELECT 2)`
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
 (SELECT (SELECT 0 UNION SELECT 0))
@@ -31,7 +31,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1249	Select 2 was reduced during optimisation
+Note	1249	Select 2 was reduced during optimization
 Note	1003	select (select 0 AS `0` union select 0 AS `0`) AS `(SELECT (SELECT 0 UNION SELECT 0))`
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
 ERROR 42S22: Reference 'a' not supported (forward reference in item list)
@@ -73,7 +73,7 @@ SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
 1
 1
 select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
-ERROR HY000: Wrong usage of PROCEDURE and subquery
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
 ERROR HY000: Incorrect parameters to procedure 'ANALYSE'
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
@@ -328,13 +328,13 @@ patient_uq	clinic_uq
 explain extended select * from t6 where exists (select * from t7 where uq = clinic_uq);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t6	ALL	NULL	NULL	NULL	NULL	4	Using where
-2	DEPENDENT SUBQUERY	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.clinic_uq	1	
+2	DEPENDENT SUBQUERY	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.clinic_uq	1	Using index
 Warnings:
 Note	1276	Field or reference 'clinic_uq' of SELECT #2 was resolved in SELECT #1
-Note	1003	select test.t6.patient_uq AS `patient_uq`,test.t6.clinic_uq AS `clinic_uq` from test.t6 where exists(select test.t7.uq AS `uq`,test.t7.name AS `name` from test.t7 where (test.t7.uq = test.t6.clinic_uq))
+Note	1003	select test.t6.patient_uq AS `patient_uq`,test.t6.clinic_uq AS `clinic_uq` from test.t6 where exists(select 1 AS `Not_used` from test.t7 where (test.t7.uq = test.t6.clinic_uq))
 select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
-ERROR 23000: Column: 'a' in field list is ambiguous
-drop table if exists t1,t2,t3;
+ERROR 23000: Column 'a' in field list is ambiguous
+drop table t1,t2,t3;
 CREATE TABLE t3 (a varchar(20),b char(1) NOT NULL default '0');
 INSERT INTO t3 VALUES ('W','a'),('A','c'),('J','b');
 CREATE TABLE t2 (a varchar(20),b int NOT NULL default '0');
@@ -720,7 +720,7 @@ EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ref	id	id	5	const	1	Using where; Using index
 Warnings:
-Note	1249	Select 2 was reduced during optimisation
+Note	1249	Select 2 was reduced during optimization
 Note	1003	select test.t2.id AS `id` from test.t2 where (test.t2.id = 1)
 SELECT * FROM t2 WHERE id IN (SELECT 1 UNION SELECT 3);
 id
@@ -732,8 +732,8 @@ EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ref	id	id	5	const	1	Using where; Using index
 Warnings:
-Note	1249	Select 3 was reduced during optimisation
-Note	1249	Select 2 was reduced during optimisation
+Note	1249	Select 3 was reduced during optimization
+Note	1249	Select 2 was reduced during optimization
 Note	1003	select test.t2.id AS `id` from test.t2 where (test.t2.id = (1 + 1))
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1 UNION SELECT 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -867,7 +867,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
 Warnings:
 Note	1276	Field or reference 'a' of SELECT #2 was resolved in SELECT #1
-Note	1249	Select 2 was reduced during optimisation
+Note	1249	Select 2 was reduced during optimization
 Note	1003	select (test.t1.a + 1) AS `(select a+1)` from test.t1
 select (select a+1) from t1;
 (select a+1)
@@ -984,7 +984,7 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 CREATE TABLE t1 (a int, KEY(a));
 HANDLER t1 OPEN;
 HANDLER t1 READ a=((SELECT 1));
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1))' at line 1
 HANDLER t1 CLOSE;
 drop table t1;
 create table t1 (a int);
@@ -1083,24 +1083,24 @@ CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(1) NOT NULL default '0',
-  `(SELECT 1)` bigint(1) NOT NULL default '0'
+  `a` bigint(20) NOT NULL default '0',
+  `(SELECT 1)` bigint(20) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(1) NOT NULL default '0',
-  `(SELECT a)` bigint(1) NOT NULL default '0'
+  `a` bigint(20) NOT NULL default '0',
+  `(SELECT a)` bigint(20) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(1) NOT NULL default '0',
-  `(SELECT a+0)` bigint(17) NOT NULL default '0'
+  `a` bigint(20) NOT NULL default '0',
+  `(SELECT a+0)` bigint(20) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
@@ -1110,7 +1110,7 @@ a
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(17) NOT NULL default '0'
+  `a` bigint(20) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a int);
@@ -1722,7 +1722,7 @@ create table t1(id int);
 create table t2(id int);
 create table t3(flag int);
 select (select * from t3 where id not null) from t1, t2;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'null) from t1, t2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null) from t1, t2' at line 1
 drop table t1,t2,t3;
 CREATE TABLE t1 (id INT);
 CREATE TABLE t2 (id INT);
@@ -1825,3 +1825,77 @@ a
 1
 3
 DROP TABLE t1;
+create table t1 (a int, b int);
+insert into t1 values (1,2),(3,4);
+select * from t1 up where exists (select * from t1 where t1.a=up.a);
+a	b
+1	2
+3	4
+explain extended select * from t1 up where exists (select * from t1 where t1.a=up.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	up	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+Warnings:
+Note	1276	Field or reference 'up.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	select test.up.a AS `a`,test.up.b AS `b` from test.t1 up where exists(select 1 AS `Not_used` from test.t1 where (test.t1.a = test.up.a))
+drop table t1;
+CREATE TABLE t1 (t1_a int);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (t2_a int, t2_b int, PRIMARY KEY (t2_a, t2_b));
+INSERT INTO t2 VALUES (1, 1), (1, 2);
+SELECT * FROM t1, t2 table2 WHERE t1_a = 1 AND table2.t2_a = 1
+HAVING table2.t2_b = (SELECT MAX(t2_b) FROM t2 WHERE t2_a = table2.t2_a);
+t1_a	t2_a	t2_b
+1	1	2
+DROP TABLE t1, t2;
+CREATE TABLE t1 (id int(11) default NULL,name varchar(10) default NULL);
+INSERT INTO t1 VALUES (1,'Tim'),(2,'Rebecca'),(3,NULL);
+CREATE TABLE t2 (id int(11) default NULL, pet varchar(10) default NULL);
+INSERT INTO t2 VALUES (1,'Fido'),(2,'Spot'),(3,'Felix');
+SELECT a.*, b.* FROM (SELECT * FROM t1) AS a JOIN t2 as b on a.id=b.id;
+id	name	id	pet
+1	Tim	1	Fido
+2	Rebecca	2	Spot
+3	NULL	3	Felix
+drop table t1,t2;
+CREATE TABLE t1 ( a int, b int );
+CREATE TABLE t2 ( c int, d int );
+INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
+SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+abc	b
+1	2
+2	3
+3	4
+INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+select * from t2;
+c	d
+1	2
+2	3
+3	4
+CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+select * from t3;
+abc	b
+1	2
+2	3
+3	4
+prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+execute stmt1;
+deallocate prepare stmt1;
+select * from t2;
+c	d
+1	2
+2	3
+3	4
+1	2
+2	3
+3	4
+drop table t3;
+prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+execute stmt1;
+select * from t3;
+abc	b
+1	2
+2	3
+3	4
+deallocate prepare stmt1;
+DROP TABLE t1, t2, t3;

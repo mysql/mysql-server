@@ -729,7 +729,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 int QUICK_RANGE_SELECT::init()
 {
   DBUG_ENTER("QUICK_RANGE_SELECT::init");
-  DBUG_RETURN(error= file->index_init(index));
+  DBUG_RETURN(error= file->ha_index_init(index));
 }
 
 QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
@@ -737,7 +737,8 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
   DBUG_ENTER("QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT");
   if (!dont_free)
   {
-    file->index_end();
+    if (file->inited)
+      file->ha_index_end();
     file->extra(HA_EXTRA_NO_KEYREAD);
     delete_dynamic(&ranges); /* ranges are allocated in alloc */ 
     if (free_file) 
@@ -1514,7 +1515,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 				  table_map prev_tables,
 				  ha_rows limit, bool force_quick_range)
 {
-  uint basflag;
   uint idx;
   double scan_time;
   DBUG_ENTER("test_quick_select");
@@ -1529,14 +1529,13 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   if (!cond || (specialflag & SPECIAL_SAFE_MODE) && ! force_quick_range ||
       !limit)
     DBUG_RETURN(0); /* purecov: inspected */
-  if (!((basflag= head->file->table_flags()) & HA_KEYPOS_TO_RNDPOS) &&
-      keys_to_use.is_set_all() || keys_to_use.is_clear_all())
-    DBUG_RETURN(0);				/* Not smart database */
+  if (keys_to_use.is_clear_all())
+    DBUG_RETURN(0);
   records=head->file->records;
   if (!records)
     records++;					/* purecov: inspected */
   scan_time=(double) records / TIME_FOR_COMPARE+1;
-  read_time=(double) head->file->scan_time()+ scan_time + 1.0;
+  read_time=(double) head->file->scan_time()+ scan_time + 1.1;
   if (head->force_index)
     scan_time= read_time= DBL_MAX;
   if (limit < records)
@@ -1557,7 +1556,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
     /* set up parameter that is passed to all functions */
     param.thd= thd;
-    param.baseflag=basflag;
+    param.baseflag=head->file->table_flags();
     param.prev_tables=prev_tables | const_tables;
     param.read_tables=read_tables;
     param.current_table= head->map;
@@ -2971,7 +2970,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       }
       if (found_records != HA_POS_ERROR && found_records > 2 &&
           read_index_only &&
-          (param->table->file->index_flags(keynr) & HA_KEY_READ_ONLY) &&
+          (param->table->file->index_flags(keynr) & HA_KEYREAD_ONLY) &&
           !(pk_is_clustered && keynr == param->table->primary_key))
       {
         /* We can resolve this by only reading through this key. */
@@ -2988,6 +2987,8 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 						        found_records)+
 			  (double) found_records / TIME_FOR_COMPARE);
       }
+      DBUG_PRINT("info",("read_time: %g  found_read_time: %g",
+                         read_time, found_read_time));
       if (read_time > found_read_time && found_records != HA_POS_ERROR
           /*|| read_time == DBL_MAX*/ )
       {        
@@ -3991,7 +3992,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
     {
       swap_variables(SEL_ARG *,key1,key2);
     }
-    else if (!(key1=key1->clone_tree()))
+    if (key1->use_count > 0 || !(key1=key1->clone_tree()))
       return 0;					// OOM
   }
 
@@ -4060,10 +4061,10 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
 	  SEL_ARG *next=key2->next;		// Keys are not overlapping
 	  if (key2_shared)
 	  {
-	    SEL_ARG *tmp= new SEL_ARG(*key2);	// Must make copy
-	    if (!tmp)
+	    SEL_ARG *cpy= new SEL_ARG(*key2);	// Must make copy
+	    if (!cpy)
 	      return 0;				// OOM
-	    key1=key1->insert(tmp);
+	    key1=key1->insert(cpy);
 	    key2->increment_use_count(key1->use_count+1);
 	  }
 	  else
@@ -4299,8 +4300,17 @@ SEL_ARG::find_range(SEL_ARG *key)
 
 
 /*
-** Remove a element from the tree
-** This also frees all sub trees that is used by the element
+  Remove a element from the tree
+
+  SYNOPSIS
+    tree_delete()
+    key		Key that is to be deleted from tree (this)
+    
+  NOTE
+    This also frees all sub trees that is used by the element
+
+  RETURN
+    root of new tree (with key deleted)
 */
 
 SEL_ARG *
@@ -4308,7 +4318,10 @@ SEL_ARG::tree_delete(SEL_ARG *key)
 {
   enum leaf_color remove_color;
   SEL_ARG *root,*nod,**par,*fix_par;
-  root=this; this->parent= 0;
+  DBUG_ENTER("tree_delete");
+
+  root=this;
+  this->parent= 0;
 
   /* Unlink from list */
   if (key->prev)
@@ -4355,7 +4368,7 @@ SEL_ARG::tree_delete(SEL_ARG *key)
   }
 
   if (root == &null_element)
-    return 0;					// Maybe root later
+    DBUG_RETURN(0);				// Maybe root later
   if (remove_color == BLACK)
     root=rb_delete_fixup(root,nod,fix_par);
   test_rb_tree(root,root->parent);
@@ -4363,7 +4376,7 @@ SEL_ARG::tree_delete(SEL_ARG *key)
   root->use_count=this->use_count;		// Fix root counters
   root->elements=this->elements-1;
   root->maybe_flag=this->maybe_flag;
-  return root;
+  DBUG_RETURN(root);
 }
 
 
@@ -5223,7 +5236,6 @@ bool QUICK_ROR_UNION_SELECT::check_if_keys_used(List<Item> *fields)
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, 
                                              TABLE_REF *ref)
 {
-  table->file->index_end();			// Remove old cursor
   QUICK_RANGE_SELECT *quick=new QUICK_RANGE_SELECT(thd, table, ref->key, 1);  
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
@@ -5719,22 +5731,13 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
                                      uint used_key_parts)
  : QUICK_RANGE_SELECT(*q), rev_it(rev_ranges)
 {
-  bool not_read_after_key = file->table_flags() & HA_NOT_READ_AFTER_KEY;
   QUICK_RANGE *r;
   
   QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
   QUICK_RANGE **last_range= pr + ranges.elements;
-  for (; pr!=last_range; ++pr)
-  {
-    r= *pr;
-    rev_ranges.push_front(r);
-    if (not_read_after_key && range_reads_after_key(r))
-    {
-      error = HA_ERR_UNSUPPORTED;
-      dont_free=1;				// Don't free memory from 'q'
-      return;
-    }
-  }
+  for (; pr!=last_range; pr++)
+    rev_ranges.push_front(*pr);
+
   /* Remove EQ_RANGE flag for keys that are not using the full key */
   for (r = rev_it++; r; r = rev_it++)
   {
@@ -5803,29 +5806,10 @@ int QUICK_SELECT_DESC::get_next()
     else
     {
       DBUG_ASSERT(range->flag & NEAR_MAX || range_reads_after_key(range));
-#ifndef NOT_IMPLEMENTED_YET
       result=file->index_read(record, (byte*) range->max_key,
 			      range->max_length,
 			      ((range->flag & NEAR_MAX) ?
 			       HA_READ_BEFORE_KEY : HA_READ_PREFIX_LAST_OR_PREV));
-#else
-      /*
-	Heikki changed Sept 11, 2002: since InnoDB does not store the cursor
-	position if READ_KEY_EXACT is used to a primary key with all
-	key columns specified, we must use below HA_READ_KEY_OR_NEXT,
-	so that InnoDB stores the cursor position and is able to move
-	the cursor one step backward after the search.
-      */
-      /*
-	Note: even if max_key is only a prefix, HA_READ_AFTER_KEY will
-	do the right thing - go past all keys which match the prefix
-      */
-      result=file->index_read(record, (byte*) range->max_key,
-			      range->max_length,
-			      ((range->flag & NEAR_MAX) ?
-			       HA_READ_KEY_OR_NEXT : HA_READ_AFTER_KEY));
-      result = file->index_prev(record);
-#endif
     }
     if (result)
     {

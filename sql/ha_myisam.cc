@@ -60,13 +60,11 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
   DBUG_PRINT(msg_type,("message: %s",msgbuf));
 
-#ifndef EMBEDDED_LIBRARY
-  if (thd->net.vio == 0)
+  if (!thd->vio_ok())
   {
     sql_print_error(msgbuf);
     return;
   }
-#endif
 
   if (param->testflag & (T_CREATE_MISSING_KEYS | T_SAFE_REPAIR |
 			 T_AUTO_REPAIR))
@@ -1006,8 +1004,10 @@ bool ha_myisam::check_and_repair(THD *thd)
 {
   int error=0;
   int marked_crashed;
+  char *old_query;
+  uint old_query_length;
   HA_CHECK_OPT check_opt;
-  DBUG_ENTER("ha_myisam::auto_check_and_repair");
+  DBUG_ENTER("ha_myisam::check_and_repair");
 
   check_opt.init();
   check_opt.flags= T_MEDIUM | T_AUTO_REPAIR;
@@ -1015,7 +1015,15 @@ bool ha_myisam::check_and_repair(THD *thd)
   if (!file->state->del && (myisam_recover_options & HA_RECOVER_QUICK))
     check_opt.flags|=T_QUICK;
   sql_print_error("Warning: Checking table:   '%s'",table->path);
-  if ((marked_crashed=mi_is_crashed(file)) || check(thd, &check_opt))
+
+  old_query= thd->query;
+  old_query_length= thd->query_length;
+  pthread_mutex_lock(&LOCK_thread_count);
+  thd->query= table->real_name;
+  thd->query_length= strlen(table->real_name);
+  pthread_mutex_unlock(&LOCK_thread_count);
+
+  if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
     sql_print_error("Warning: Recovering table: '%s'",table->path);
     check_opt.flags=
@@ -1026,6 +1034,10 @@ bool ha_myisam::check_and_repair(THD *thd)
     if (repair(thd, &check_opt))
       error=1;
   }
+  pthread_mutex_lock(&LOCK_thread_count);
+  thd->query= old_query;
+  thd->query_length= old_query_length;
+  pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_RETURN(error);
 }
 
@@ -1052,6 +1064,7 @@ int ha_myisam::delete_row(const byte * buf)
 int ha_myisam::index_read(byte * buf, const byte * key,
 			  uint key_len, enum ha_rkey_function find_flag)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_key_count,&LOCK_status);
   int error=mi_rkey(file,buf,active_index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1069,6 +1082,7 @@ int ha_myisam::index_read_idx(byte * buf, uint index, const byte * key,
 
 int ha_myisam::index_read_last(byte * buf, const byte * key, uint key_len)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_key_count,&LOCK_status);
   int error=mi_rkey(file,buf,active_index, key, key_len, HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1077,6 +1091,7 @@ int ha_myisam::index_read_last(byte * buf, const byte * key, uint key_len)
 
 int ha_myisam::index_next(byte * buf)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_next_count,&LOCK_status);
   int error=mi_rnext(file,buf,active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1085,6 +1100,7 @@ int ha_myisam::index_next(byte * buf)
 
 int ha_myisam::index_prev(byte * buf)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_prev_count,&LOCK_status);
   int error=mi_rprev(file,buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1093,6 +1109,7 @@ int ha_myisam::index_prev(byte * buf)
 
 int ha_myisam::index_first(byte * buf)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_first_count,&LOCK_status);
   int error=mi_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1101,6 +1118,7 @@ int ha_myisam::index_first(byte * buf)
 
 int ha_myisam::index_last(byte * buf)
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_last_count,&LOCK_status);
   int error=mi_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1111,6 +1129,7 @@ int ha_myisam::index_next_same(byte * buf,
 			       const byte *key __attribute__((unused)),
 			       uint length __attribute__((unused)))
 {
+  DBUG_ASSERT(inited==INDEX);
   statistic_increment(ha_read_next_count,&LOCK_status);
   int error=mi_rnext_same(file,buf);
   table->status=error ? STATUS_NOT_FOUND: 0;

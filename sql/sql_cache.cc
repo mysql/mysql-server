@@ -786,6 +786,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.collation_connection_num=
       thd->variables.collation_connection->number;
     flags.limit= thd->variables.select_limit;
+    flags.time_zone= thd->variables.time_zone;
     STRUCT_LOCK(&structure_guard_mutex);
 
     if (query_cache_size == 0)
@@ -977,6 +978,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
      UINT_MAX);
   flags.collation_connection_num= thd->variables.collation_connection->number;
   flags.limit= thd->variables.select_limit;
+  flags.time_zone= thd->variables.time_zone;
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
  	 &flags, QUERY_CACHE_FLAGS_SIZE);
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
@@ -1047,9 +1049,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       goto err_unlock;				// Parse query
     }
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
-    if (check_tables && !handler::caching_allowed(thd, table->db(), 
-						  table->key_length(),
-						  table->type()))
+    if (check_tables && !ha_caching_allowed(thd, table->db(), 
+                                         table->key_length(),
+                                         table->type()))
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    table_list.db, table_list.alias));
@@ -2690,9 +2692,9 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
   for (; tables_used; tables_used= tables_used->next)
   {
     TABLE *table= tables_used->table;
-    if (!handler::caching_allowed(thd, table->table_cache_key,
-				  table->key_length,
-				  table->file->table_cache_type()))
+    if (!ha_caching_allowed(thd, table->table_cache_key,
+                         table->key_length,
+                         table->file->table_cache_type()))
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    tables_used->db, tables_used->alias));
@@ -3236,9 +3238,10 @@ void Query_cache::queries_dump()
       Query_cache_query_flags flags;
       memcpy(&flags, str+len, QUERY_CACHE_FLAGS_SIZE);
       str[len]= 0; // make zero ending DB name
-      DBUG_PRINT("qcache", ("F:%u C:%u L:%lu (%u) '%s' '%s'",
+      DBUG_PRINT("qcache", ("F:%u C:%u L:%lu T:'%s' (%u) '%s' '%s'",
 			    flags.client_long_flag,
-			    flags.character_set_client_num, (ulong)flags.limit,
+			    flags.character_set_client_num, 
+                            (ulong)flags.limit, flags.time_zone->get_name(),
 			    len, str, strend(str)+1));
       DBUG_PRINT("qcache", ("-b- 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", (ulong) block,
 			    (ulong) block->next, (ulong) block->prev,

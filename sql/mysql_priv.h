@@ -24,10 +24,10 @@
 #ifndef MYSQL_CLIENT
 
 #include <my_global.h>
-#include <assert.h>
 #include <mysql_version.h>
 #include <mysql_embed.h>
 #include <my_sys.h>
+#include <my_time.h>
 #include <m_string.h>
 #include <hash.h>
 #include <signal.h>
@@ -388,7 +388,9 @@ inline THD *_current_thd(void)
 #include "field.h"				/* Field definitions */
 #include "protocol.h"
 #include "sql_udf.h"
+class user_var_entry;
 #include "item.h"
+#include "tztime.h"
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 /* sql_parse.cc */
 void free_items(Item *item);
@@ -418,6 +420,7 @@ struct Query_cache_query_flags
   uint character_set_results_num;
   uint collation_connection_num;
   ha_rows limit;
+  Time_zone *time_zone;
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
 #include "sql_cache.h"
@@ -570,7 +573,8 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      List<Key> &keys,
 		      uint order_num, ORDER *order,
 		      enum enum_duplicates handle_duplicates,
-		      ALTER_INFO *alter_info);
+		      ALTER_INFO *alter_info, bool do_send_ok=1);
+int mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 int mysql_create_like_table(THD *thd, TABLE_LIST *table,
                             HA_CREATE_INFO *create_info,
                             Table_ident *src_table);
@@ -679,8 +683,10 @@ int mysqld_show_column_types(THD *thd);
 int mysqld_help (THD *thd, const char *text);
 
 /* sql_prepare.cc */
-void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length);
+int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length, 
+                       LEX_STRING *name=NULL);
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length);
+void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name);
 void mysql_stmt_free(THD *thd, char *packet);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
@@ -698,8 +704,9 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 /* sql_handler.cc */
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
-int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok=0);
-int mysql_ha_closeall(THD *thd, TABLE_LIST *tables);
+int mysql_ha_close(THD *thd, TABLE_LIST *tables,
+                   bool dont_send_ok=0, bool dont_lock=0, bool no_alias=0);
+int mysql_ha_close_list(THD *thd, TABLE_LIST *tables, bool flushed=0);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
 
@@ -862,7 +869,7 @@ extern Le_creator le_creator;
 extern uchar *days_in_month;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
-extern char pidfile_name[FN_REFLEN], time_zone[30], *opt_init_file;
+extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char log_error_file[FN_REFLEN];
 extern double last_query_cost;
 extern double log_10[32];
@@ -899,8 +906,8 @@ extern ulong max_binlog_size, max_relay_log_size;
 extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong com_stat[(uint) SQLCOM_END], com_other, back_log;
 extern ulong specialflag, current_pid;
-extern ulong expire_logs_days;
-extern my_bool relay_log_purge;
+extern ulong expire_logs_days, sync_binlog_period, sync_binlog_counter;
+extern my_bool relay_log_purge, opt_innodb_safe_binlog;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options, lower_case_table_names;
@@ -918,8 +925,10 @@ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm;
 extern my_bool opt_secure_auth;
+extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
+extern char *default_tz_name;
 
 extern MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
 extern FILE *bootstrap_file;
@@ -960,9 +969,11 @@ extern struct my_option my_long_options[];
 
 /* optional things, have_* variables */
 
-extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db, have_example_db;
+extern SHOW_COMP_OPTION have_isam, have_innodb, have_berkeley_db;
+extern SHOW_COMP_OPTION have_example_db, have_archive_db;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink;
 extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
+extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
 
@@ -1028,12 +1039,13 @@ uint calc_days_in_year(uint year);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 void init_time(void);
-long my_gmt_sec(TIME *, long *current_timezone);
-time_t str_to_timestamp(const char *str,uint length);
-bool str_to_time(const char *str,uint length,TIME *l_time);
-longlong str_to_datetime(const char *str,uint length, uint fuzzy_date);
-timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
-			   uint flags);
+my_time_t my_system_gmt_sec(const TIME *, long *current_timezone, bool *not_exist);
+my_time_t TIME_to_timestamp(THD *thd, const TIME *t, bool *not_exist);
+bool str_to_time_with_warn(const char *str,uint length,TIME *l_time);
+timestamp_type str_to_datetime_with_warn(const char *str, uint length,
+                                         TIME *l_time, uint flags);
+longlong number_to_TIME(longlong nr, TIME *time_res, bool fuzzy_date,
+                        int *was_cut);
 void localtime_to_TIME(TIME *to, struct tm *from);
 void calc_time_from_sec(TIME *to, long seconds, long microseconds);
 
@@ -1112,6 +1124,9 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 		     LEX_STRING component);
 Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
 		     uint length, const char *item_name);
+/* item_func.cc */
+int get_var_with_binlog(THD *thd, LEX_STRING &name,
+                        user_var_entry **out_entry);
 /* log.cc */
 bool flush_error_log(void);
 

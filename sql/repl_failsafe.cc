@@ -63,6 +63,11 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
 static int init_failsafe_rpl_thread(THD* thd)
 {
   DBUG_ENTER("init_failsafe_rpl_thread");
+  /*
+    thd->bootstrap is to report errors barely to stderr; if this code is
+    enable again one day, one should check if bootstrap is still needed (maybe
+    this thread has no other error reporting method).
+  */
   thd->system_thread = thd->bootstrap = 1;
   thd->host_or_ip= "";
   thd->client_capabilities = 0;

@@ -22,8 +22,14 @@
 #include <NdbOut.hpp>
 #include <ndb_limits.h>
 
-#ifdef USE_EMULATED_JAM
+#ifdef NO_EMULATED_JAM
 
+#define jam()
+#define jamLine(line)
+#define jamEntry()
+#define jamEntryLine(line)
+
+#else
 #ifdef NDB_WIN32
 
 #define jam() { \
@@ -72,11 +78,6 @@
 
 #endif
 
-#else
-#define jam()
-#define jamLine(line)
-#define jamEntry()
-#define jamEntryLine(line)
 #endif
 #ifndef NDB_OPT
 #define ptrCheck(ptr, limit, rec) if (ptr.i < (limit)) ptr.p = &rec[ptr.i]; else ptr.p = NULL
@@ -115,12 +116,6 @@
 #define ptrGuard(ptr)
 #define arrGuard(ind, size)
 #endif
-
-// ------- EVENT STATES OF A NODE -----------------------------
-#define ZADD 0			/* New application added                 */
-#define ZREMOVE 1		/* An application has been removed       */
-#define ZSTART 2 		/* An application is ready to start      */
-#define ZRUN 3 			/* An application has started to run     */
 
 // -------- ERROR INSERT MACROS -------
 #ifdef ERROR_INSERT
@@ -190,7 +185,7 @@
  *
  * NOTE these may only be used within blocks
  */
-#if defined VM_TRACE || defined NDB_DEBUG
+#if defined VM_TRACE
 #define ndbassert(check) \
   if((check)){ \
   } else {     \

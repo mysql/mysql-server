@@ -656,3 +656,31 @@ select stddev(2) from t1;
 stddev(2)
 NULL
 drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(2);
+prepare stmt1 from 'SELECT COUNT(*) FROM t1';
+execute stmt1;
+COUNT(*)
+2
+execute stmt1;
+COUNT(*)
+2
+execute stmt1;
+COUNT(*)
+2
+deallocate prepare stmt1;
+drop table t1;
+create table t1 (a int, primary key(a));
+insert into t1 values (1),(2);
+prepare stmt1 from 'SELECT max(a) FROM t1';
+execute stmt1;
+max(a)
+2
+execute stmt1;
+max(a)
+2
+execute stmt1;
+max(a)
+2
+deallocate prepare stmt1;
+drop table t1;

@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
+
 #define DBDICT_C
 #include "Dbdict.hpp"
 
@@ -25,7 +27,6 @@
 #include <SimpleProperties.hpp>
 #include <AttributeHeader.hpp>
 #include <signaldata/DictSchemaInfo.hpp>
-#include <signaldata/DictSizeAltReq.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/DropTabFile.hpp>
 
@@ -110,7 +111,7 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
 {
   jamEntry();
 
-#ifdef NDB_DEBUG
+#ifdef VM_TRACE
   if(signal->theData[0] == 1222){
     const Uint32 tab = signal->theData[1];
     PrepDropTabReq* req = (PrepDropTabReq*)signal->getDataPtr();
@@ -1040,10 +1041,10 @@ Dbdict::Dbdict(const class Configuration & conf):
 {
   BLOCK_CONSTRUCTOR(Dbdict);
   
-  const Properties * p = conf.getOwnProperties();
+  const ndb_mgm_configuration_iterator * p = conf.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-  p->get("MaxNoOfTriggers", &c_maxNoOfTriggers);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, &c_maxNoOfTriggers);
   // Transit signals
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbdict::execDUMP_STATE_ORD);
   addRecSignal(GSN_GET_TABINFOREQ, &Dbdict::execGET_TABINFOREQ);
@@ -1159,7 +1160,7 @@ Dbdict::Dbdict(const class Configuration & conf):
   addRecSignal(GSN_LQHADDATTREF, &Dbdict::execLQHADDATTREF);
   addRecSignal(GSN_LQHFRAGREF, &Dbdict::execLQHFRAGREF);
   addRecSignal(GSN_NDB_STTOR, &Dbdict::execNDB_STTOR);
-  addRecSignal(GSN_SIZEALT_REP, &Dbdict::execSIZEALT_REP);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Dbdict::execREAD_CONFIG_REQ, true);
   addRecSignal(GSN_STTOR, &Dbdict::execSTTOR);
   addRecSignal(GSN_TC_SCHVERCONF, &Dbdict::execTC_SCHVERCONF);
   addRecSignal(GSN_NODE_FAILREP, &Dbdict::execNODE_FAILREP);
@@ -1522,7 +1523,6 @@ void Dbdict::execSTTOR(Signal* signal)
   c_startPhase = signal->theData[1];
   switch (c_startPhase) {
   case 1:
-    initCommonData();
     break;
   case 3:
     c_restartType = signal->theData[7];         /* valid if 3 */
@@ -1549,14 +1549,22 @@ void Dbdict::sendSTTORRY(Signal* signal)
 /* ---------------------------------------------------------------- */
 // We receive information about sizes of records.
 /* ---------------------------------------------------------------- */
-void Dbdict::execSIZEALT_REP(Signal* signal) 
+void Dbdict::execREAD_CONFIG_REQ(Signal* signal) 
 {
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+  ndbrequire(req->noOfParameters == 0);
+
   jamEntry();
-  BlockReference tblockref;
-  tblockref        = signal->theData[DictSizeAltReq::IND_BLOCK_REF];
-  Uint32 attributesize   = signal->theData[DictSizeAltReq::IND_ATTRIBUTE];
-//  Uint32 connectsize     = signal->theData[DictSizeAltReq::IND_CONNECT];
-  Uint32 tablerecSize    = signal->theData[DictSizeAltReq::IND_TABLE];
+ 
+  const ndb_mgm_configuration_iterator * p = 
+    theConfiguration.getOwnConfigIterator();
+  ndbrequire(p != 0);
+  
+  Uint32 attributesize, tablerecSize;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_ATTRIBUTE,&attributesize));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &tablerecSize));
 
   c_attributeRecordPool.setSize(attributesize);
   c_attributeRecordHash.setSize(64);
@@ -1592,9 +1600,14 @@ void Dbdict::execSIZEALT_REP(Signal* signal)
   bat[1].bits.q = ZLOG_SIZE_OF_PAGES_IN_WORDS; // 2**13 = 8192 elements
   bat[1].bits.v = 5;  // 32 bits per element
 
+  initCommonData();
   initRecords();
-  signal->theData[0] = DBDICT_REF;
-  sendSignal(tblockref, GSN_SIZEALT_ACK, signal, 2, JBB);
+
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
+	     ReadConfigConf::SignalLength, JBB);
 }//execSIZEALT_REP()
 
 /* ---------------------------------------------------------------- */
@@ -2388,7 +2401,7 @@ Dbdict::execGET_TABINFO_CONF(Signal* signal){
   
   SegmentedSectionPtr tabInfoPtr;
   signal->getSection(tabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
-  
+
   CreateTableRecordPtr createTabPtr;  
   ndbrequire(c_opCreateTable.find(createTabPtr, senderData));
   ndbrequire(!createTabPtr.isNull());
@@ -2410,7 +2423,10 @@ Dbdict::execGET_TABINFO_CONF(Signal* signal){
   callback.m_callbackFunction = 
     safe_cast(&Dbdict::restartCreateTab_writeTableConf);
   
+  signal->header.m_noOfSections = 0;
   writeTableFile(signal, createTabPtr.p->m_tablePtrI, tabInfoPtr, &callback);
+  signal->setSection(tabInfoPtr, 0);
+  releaseSections(signal);
 }
 
 void
@@ -3818,15 +3834,15 @@ Dbdict::execCREATE_TAB_REQ(Signal* signal){
   CreateTabReq::RequestType rt = (CreateTabReq::RequestType)req->requestType;
   switch(rt){
   case CreateTabReq::CreateTablePrepare:
-    CRASH_INSERTION2(14000, getOwnNodeId() != c_masterNodeId);
+    CRASH_INSERTION2(6003, getOwnNodeId() != c_masterNodeId);
     createTab_prepare(signal, req);
     return;
   case CreateTabReq::CreateTableCommit:
-    CRASH_INSERTION2(14001, getOwnNodeId() != c_masterNodeId);
+    CRASH_INSERTION2(6004, getOwnNodeId() != c_masterNodeId);
     createTab_commit(signal, req);
     return;
   case CreateTabReq::CreateTableDrop:
-    CRASH_INSERTION2(14002, getOwnNodeId() != c_masterNodeId);
+    CRASH_INSERTION2(6005, getOwnNodeId() != c_masterNodeId);
     createTab_drop(signal, req);
     return;
   }
@@ -3926,9 +3942,9 @@ Dbdict::createTab_writeSchemaConf1(Signal* signal,
   
   SegmentedSectionPtr tabInfoPtr;
   getSection(tabInfoPtr, createTabPtr.p->m_tabInfoPtrI);
-  
   writeTableFile(signal, createTabPtr.p->m_tablePtrI, tabInfoPtr, &callback);
 
+  createTabPtr.p->m_tabInfoPtrI = RNIL;
   signal->setSection(tabInfoPtr, 0);
   releaseSections(signal);
 }
@@ -5703,7 +5719,7 @@ void Dbdict::sendGET_TABINFOREF(Signal* signal,
 }//sendGET_TABINFOREF()
 
 Uint32 convertEndian(Uint32 in) {
-#ifdef _BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
   Uint32 ut = 0;
   ut += ((in >> 24) & 255);
   ut += (((in >> 16) & 255) << 8);
@@ -7760,8 +7776,9 @@ Dbdict::createEventComplete_RT_USER_GET(Signal* signal,
 #endif
 
   NodeReceiverGroup rg(DBDICT, c_aliveNodes);
-  evntRecPtr.p->m_reqTracker.init<CreateEvntRef>
-    (c_counterMgr, rg, GSN_CREATE_EVNT_REF, evntRecPtr.i);
+  RequestTracker & p = evntRecPtr.p->m_reqTracker;
+  p.init<CreateEvntRef>(c_counterMgr, rg, GSN_CREATE_EVNT_REF, evntRecPtr.i);
+
   sendSignal(rg, GSN_CREATE_EVNT_REQ, signal, CreateEvntReq::SignalLength, JBB);
 }
 
@@ -8109,7 +8126,8 @@ void Dbdict::execSUB_START_REQ(Signal* signal)
     
     subbPtr.p->m_senderRef = origSenderRef; // not sure if API sets correctly
     NodeReceiverGroup rg(DBDICT, c_aliveNodes);
-    subbPtr.p->m_reqTracker.init<SubStartRef>(c_counterMgr, rg, GSN_SUB_START_REF, subbPtr.i);
+    RequestTracker & p = subbPtr.p->m_reqTracker;
+    p.init<SubStartRef>(c_counterMgr, rg, GSN_SUB_START_REF, subbPtr.i);
     
     SubStartReq* req = (SubStartReq*) signal->getDataPtrSend();
     
@@ -8322,7 +8340,8 @@ void Dbdict::execSUB_STOP_REQ(Signal* signal)
 #endif
     subbPtr.p->m_senderRef = origSenderRef; // not sure if API sets correctly
     NodeReceiverGroup rg(DBDICT, c_aliveNodes);
-    subbPtr.p->m_reqTracker.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF, subbPtr.i);
+    RequestTracker & p = subbPtr.p->m_reqTracker;
+    p.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF, subbPtr.i);
 
     SubStopReq* req = (SubStopReq*) signal->getDataPtrSend();
 
@@ -8609,7 +8628,8 @@ Dbdict::dropEventUTIL_EXECUTE_READ(Signal* signal,
   parseReadEventSys(signal, evntRecPtr.p->m_eventRec);
 
   NodeReceiverGroup rg(DBDICT, c_aliveNodes);
-  evntRecPtr.p->m_reqTracker.init<SubRemoveRef>(c_counterMgr, rg, GSN_SUB_REMOVE_REF,
+  RequestTracker & p = evntRecPtr.p->m_reqTracker;
+  p.init<SubRemoveRef>(c_counterMgr, rg, GSN_SUB_REMOVE_REF,
 						evntRecPtr.i);
 
   SubRemoveReq* req = (SubRemoveReq*) signal->getDataPtrSend();
@@ -11492,7 +11512,7 @@ Dbdict::initSchemaFile(SchemaFile * sf, Uint32 fileSz){
   ndbrequire(noEntries > MAX_TABLES);
 
   sf->NoOfTableEntries = noEntries;
-  memset(sf->TableEntries, 0, sizeof(noEntries*sizeof(SchemaFile::TableEntry)));
+  memset(sf->TableEntries, 0, noEntries*sizeof(SchemaFile::TableEntry));
   memset(&(sf->TableEntries[noEntries]), 0, slack);
   computeChecksum(sf);
 }

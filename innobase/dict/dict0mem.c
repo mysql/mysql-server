@@ -87,9 +87,9 @@ dict_mem_table_create(
 	mutex_set_level(&(table->autoinc_mutex), SYNC_DICT_AUTOINC_MUTEX);
 
 	table->autoinc_inited = FALSE;
-#ifdef UNIV_DEBUG
+
 	table->magic_n = DICT_TABLE_MAGIC_N;
-#endif /* UNIV_DEBUG */
+	
 	return(table);
 }
 
@@ -205,9 +205,7 @@ dict_mem_index_create(
 	index->stat_n_diff_key_vals = NULL;
 
 	index->cached = FALSE;
-#ifdef UNIV_DEBUG
 	index->magic_n = DICT_INDEX_MAGIC_N;
-#endif /* UNIV_DEBUG */
 
 	return(index);
 }
