@@ -15,18 +15,21 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-#include <global.h>
-#include <my_sys.h>
+#ifndef _my_bitmap_h_
+#define _my_bitmap_h_
 
-#ifdef USE_SYSTEM_WRAPPERS
-#include "system_wrappers.h"
+#define MY_BIT_NONE ~(uint)0
+
+#ifdef	__cplusplus
+extern "C" {
 #endif
 
-#ifdef THREAD
-extern pthread_mutex_t THR_LOCK_malloc,THR_LOCK_open,THR_LOCK_keycache,
-  THR_LOCK_lock,THR_LOCK_isam,THR_LOCK_net,THR_LOCK_charset;
-extern pthread_mutex_t LOCK_bitmap;
-#else /* THREAD */
-#define pthread_mutex_lock(A)
-#define pthread_mutex_unlock(A)
+  extern void bitmap_set_bit(uchar *bitmap, uint bitmap_size, uint bitmap_bit);
+  extern uint bitmap_set_next(uchar *bitmap, uint bitmap_size);
+  extern void bitmap_clear_bit(uchar *bitmap,uint bitmap_size,uint bitmap_bit);
+
+#ifdef	__cplusplus
+}
+#endif
+
 #endif

@@ -863,6 +863,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
+* News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
 * News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
@@ -7581,14 +7582,29 @@ To compile on NetBSD you need GNU @code{make}. Otherwise the compile will crash
 when @code{make} tries to run @code{lint} on C++ files.
 
 @node OpenBSD, BSDI, NetBSD, Source install system issues
-@subsection OpenBSD 2.5 Notes
+@subsection OpenBSD Notes
 
+@menu
+* OpenBSD 2.5::                 OpenBSD 2.5 Notes
+* OpenBSD 2.8::                 OpenBSD 2.8 Notes
+@end menu
+
+@node OpenBSD 2.5
+@subsubsection OpenBSD 2.5 Notes
 On OpenBSD Version 2.5, you can compile @strong{MySQL} with native threads
 with the following options:
 
 @example
 CFLAGS=-pthread CXXFLAGS=-pthread ./configure --with-mit-threads=no
 @end example
+
+@node OpenBSD 2.8
+@subsubsection OpenBSD 2.8 Notes
+Our users have reported that OpenBSD 2.8 has a threading bug which causes
+problems with MySQL.  The OpenBSD Developers have fixed the problem, but as
+of January 25th, 2001, it's only available in the ``-current'' branch.  The
+symptoms of this threading bug are: slow response, high load, high cpu usage,
+and crashes.
 
 @node BSDI, SCO, OpenBSD, Source install system issues
 @subsection BSD/OS Notes
@@ -40852,8 +40868,14 @@ Fixed several timing bugs in the test suite.
 @item
 Extended @code{mysqltest} to take care of the timing issues in the test
 suite.
+@item
+Added --temp-pool option to mysqld.  Using this option will cause most
+temporary files created to use a small set of names, rather than a unique
+name for each new file.  This is to work around a problem in the Linux
+kernel dealing with creating a bunch of new files with different names.
+With the old behavior, Linux seems to "leak" memory, as it's being allocated
+to the directory entry cache instead of the disk cache.
 @end itemize
-
 
 @node News-3.23.32, News-3.23.31, News-3.23.33, News-3.23.x
 @appendixsubsec Changes in release 3.23.32
