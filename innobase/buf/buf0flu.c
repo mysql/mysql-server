@@ -448,7 +448,8 @@ buf_flush_init_for_writing(
 	/* Store the new formula checksum */
 
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
-					buf_calc_page_new_checksum(page));
+					srv_use_checksums ?
+                  buf_calc_page_new_checksum(page) : BUF_NO_CHECKSUM_MAGIC);
 
 	/* We overwrite the first 4 bytes of the end lsn field to store
 	the old formula checksum. Since it depends also on the field
@@ -456,7 +457,8 @@ buf_flush_init_for_writing(
 	new formula checksum. */
 
 	mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
-					buf_calc_page_old_checksum(page));
+					srv_use_checksums ?
+                  buf_calc_page_old_checksum(page) : BUF_NO_CHECKSUM_MAGIC);
 }
 
 /************************************************************************
