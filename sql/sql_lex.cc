@@ -1203,23 +1203,60 @@ TABLE_LIST *st_select_lex_node::add_table_to_list(THD *thd, Table_ident *table,
 }
 ulong st_select_lex_node::get_table_join_options() { return 0; }
 
-/*
-  This is used for UNION & subselect to create a new table list of all used 
-  tables.
-  The table_list->table entry in all used tables are set to point
-  to the entries in this list.
-*/
 
-// interface
+/*  
+  Interface method of table list creation for query
+  
+  SYNOPSIS
+    st_select_lex_unit::create_total_list()
+    thd            THD pointer
+    result         pointer on result list of tables pointer
+    check_derived  force derived table chacking (used for creating 
+                   table list for derived query)
+  DESCRIPTION
+    This is used for UNION & subselect to create a new table list of all used 
+    tables.
+    The table_list->table entry in all used tables are set to point
+    to the entries in this list.
+
+  RETURN
+    0 - OK
+    !0 - error
+*/
 bool st_select_lex_unit::create_total_list(THD *thd, st_lex *lex,
 					   TABLE_LIST **result,
 					   bool check_derived)
 {
   *result= 0;
-  return create_total_list_n_last_return(thd, lex, &result, check_derived);
+  for (SELECT_LEX_UNIT *unit= this; unit; unit= unit->next_unit())
+  {
+    if ((res= unit->create_total_list_n_last_return(thd, lex, &result,
+						    check_derived)))
+      return res;
+  }
+  return 0;
 }
 
-// list creator
+/*  
+  Table list creation for query
+  
+  SYNOPSIS
+    st_select_lex_unit::create_total_list()
+    thd            THD pointer
+    lex            pointer on LEX stricture
+    result         pointer on pointer on result list of tables pointer
+    check_derived  force derived table chacking (used for creating 
+                   table list for derived query)
+  DESCRIPTION
+    This is used for UNION & subselect to create a new table list of all used 
+    tables.
+    The table_list->table entry in all used tables are set to point
+    to the entries in this list.
+
+  RETURN
+    0 - OK
+    !0 - error
+*/
 bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
 							 TABLE_LIST ***result,
 							 bool check_derived)
