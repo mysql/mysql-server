@@ -266,12 +266,12 @@ select * from t1;
 drop table t1;
 
 #
-# Test for bug #4491, TIMESTAMP(19) should be possible to create and not
-# only read in 4.0
+# Let us test behavior of ALTER TABLE when it converts columns 
+# containing NULL to TIMESTAMP columns.
 #
-create table t1 (ts timestamp(19));
-show create table t1;
-set TIMESTAMP=1000000000;
-insert into t1 values ();
+create table t1 (a bigint, b bigint);
+insert into t1 values (NULL, NULL), (20030101000000, 20030102000000);
+set timestamp=1000000019;
+alter table t1 modify a timestamp, modify b timestamp;
 select * from t1;
 drop table t1;
