@@ -290,8 +290,6 @@ int init_master_info(MASTER_INFO* mi)
   char fname[FN_REFLEN+128];
   fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
   
-  if(!mi->inited)
-   pthread_mutex_init(&mi->lock, NULL);
 
   // we need a mutex while we are changing master info parameters to
   // keep other threads from reading bogus info
@@ -353,7 +351,7 @@ int init_master_info(MASTER_INFO* mi)
 			    master_connect_retry);
       
     }
-
+  
   mi->inited = 1;
   pthread_mutex_unlock(&mi->lock);
   

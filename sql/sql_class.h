@@ -64,9 +64,17 @@ typedef struct st_master_info
   uint connect_retry;
   pthread_mutex_t lock;
   bool inited;
-
+  
   st_master_info():inited(0),pending(0)
-  { host[0] = 0; user[0] = 0; password[0] = 0;}
+  {
+    host[0] = 0; user[0] = 0; password[0] = 0;
+    pthread_mutex_init(&lock, NULL);
+  }
+
+  ~st_master_info()
+  {
+    pthread_mutex_destroy(&lock);
+  }
   
   inline void inc_pending(ulonglong val)
   {
