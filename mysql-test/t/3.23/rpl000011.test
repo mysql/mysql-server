@@ -1,0 +1,18 @@
+source t/include/master-slave.inc;
+connection master;
+use test;
+drop table if exists foo;
+create table foo (n int);
+insert into foo values(1);
+connection slave;
+#give slave some breathing room to get started
+sleep 1; 
+slave stop;
+slave start;
+connection master;
+insert into foo values(2);
+connection slave;
+#let slave catch up
+sleep 1;
+@r/3.23/rpl000011.result select * from foo;
+
