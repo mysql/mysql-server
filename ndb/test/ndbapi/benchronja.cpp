@@ -984,7 +984,6 @@ void* ThreadExec(void* ThreadData){
 		delete pMyNdb;
 		pMyNdb = NULL ;
 		ThreadReady[thread_no] = 1;
-		NdbThread_Exit(0) ;
 		return 0 ;
     }//if
 
@@ -1197,7 +1196,6 @@ void* ThreadExec(void* ThreadData){
   } // for(;;)
   
   delete pMyNdb ;
-  NdbThread_Exit(0) ;
-  return 0 ; // Compiler is happy now
+  return 0 ;
 }
 
