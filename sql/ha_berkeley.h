@@ -31,7 +31,8 @@ typedef struct st_berkeley_share {
   THR_LOCK lock;
   pthread_mutex_t mutex;
   char *table_name;
-  DB *status_block;
+  DB *status_block, *file, **key_file;
+  u_int32_t *key_type;
   uint table_name_length,use_count;
   uint status,version;
 } BDB_SHARE;
