@@ -295,6 +295,7 @@ public:
   void update_timestamp(byte *record);
   void update_auto_increment();
   virtual void print_error(int error, myf errflag);
+  virtual const char* get_error_message(int *error, bool *temporary);
   uint get_dup_key(int error);
   void change_table_ptr(TABLE *table_arg) { table=table_arg; }
   virtual double scan_time()

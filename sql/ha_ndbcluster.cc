@@ -41,6 +41,14 @@
 static const int parallelism= 240;
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
+
+/*
+  All error messages returned from ha_ndbcluster that are 
+  not mapped to the corresponding handler(HA_ERR_*) error code
+  have NDB_ERR_CODE_OFFSET added to it so that it does not clash with 
+  the handler error codes. The error number is then "restored"
+  to the original error number when get_error_message is called.
+*/
 #define NDB_ERR_CODE_OFFSET 30000
 
 #define ERR_PRINT(err) \
@@ -161,27 +169,28 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
 
 
 /*
-  Override the default print_error in order to add the 
+  Override the default get_error_message in order to add the 
   error message of NDB 
  */
 
-void ha_ndbcluster::print_error(int error, myf errflag)
+const char* ha_ndbcluster::get_error_message(int *org_error, 
+						     bool *temporary)
 {
-  DBUG_ENTER("ha_ndbcluster::print_error");
-  DBUG_PRINT("enter", ("error: %d, errflag: %d", error, errflag));
+  DBUG_ENTER("ha_ndbcluster::get_error_message");
+  DBUG_PRINT("enter", ("error: %d", *org_error));
 
-  if (error >= NDB_ERR_CODE_OFFSET)
-  {
-    error-= NDB_ERR_CODE_OFFSET;
-    const NdbError err= g_ndb->getNdbError(error);
-    int textno= (err.status==NdbError::TemporaryError) ?
-      ER_NDB_TEMPORARY_ERROR : ER_NDB_ERROR;
-    my_error(textno,MYF(0),error,err.message);
-    DBUG_VOID_RETURN;
-  }
-    
-  handler::print_error(error, errflag);
-  DBUG_VOID_RETURN;
+  int error= *org_error;
+  if (error < NDB_ERR_CODE_OFFSET)
+    DBUG_RETURN(NULL);
+
+  error-= NDB_ERR_CODE_OFFSET;
+  DBUG_ASSERT(m_ndb); // What should be done if not m_ndb is available?
+  const NdbError err= m_ndb->getNdbError(error);
+  *temporary= (err.status==NdbError::TemporaryError);
+
+  *org_error= error;
+  DBUG_PRINT("exit", ("error: %d, msg: %s", error, err.message));
+  DBUG_RETURN(err.message);
 }
 
 
@@ -756,8 +765,8 @@ inline int ha_ndbcluster::next_result(byte *buf)
   } while (check == 2);
     
   table->status= STATUS_NOT_FOUND;
-  if (ndb_err(trans))
-    ERR_RETURN(trans->getNdbError());
+  if (check == -1)
+    DBUG_RETURN(ndb_err(trans));
 
   // No more records
   DBUG_PRINT("info", ("No more records"));
@@ -1499,28 +1508,26 @@ int ha_ndbcluster::index_read(byte *buf,
     
   switch (get_index_type(active_index)){    
   case PRIMARY_KEY_INDEX:
-#ifdef USE_EXTRA_ORDERED_INDEX
     key_info= table->key_info + active_index;
-    if (key_len < key_info->key_length ||
-	find_flag != HA_READ_KEY_EXACT)
+    if (key_len == key_info->key_length &&
+	find_flag == HA_READ_KEY_EXACT)
+      error= pk_read(key, key_len, buf);
+    else 
     {
       key_range start_key;
       start_key.key=    key;
       start_key.length= key_len;
       start_key.flag=   find_flag;
-      error= ordered_index_scan(&start_key, 0, false, buf);
-      break;
-    
+      error= ordered_index_scan(&start_key, 0, false, buf);    
     }
-#endif
-    error= pk_read(key, key_len, buf);
     break;
     
   case UNIQUE_INDEX:
-#ifdef USE_EXTRA_ORDERED_INDEX
     key_info= table->key_info + active_index;
-    if (key_len < key_info->key_length ||
-	find_flag != HA_READ_KEY_EXACT)
+    if (key_len == key_info->key_length &&
+	find_flag == HA_READ_KEY_EXACT)
+      error= unique_index_read(key, key_len, buf);
+    else
     {
       key_range start_key;
       start_key.key=    key;
@@ -1529,8 +1536,6 @@ int ha_ndbcluster::index_read(byte *buf,
       error= ordered_index_scan(&start_key, 0, false, buf);
       break;
     }
-#endif
-    error= unique_index_read(key, key_len, buf);
     break;
 
   case ORDERED_INDEX:
@@ -3105,6 +3110,13 @@ ha_ndbcluster::records_in_range(int inx,
     I.e. the ordered index are used instead of the hash indexes for 
     these queries.
    */
+  NDB_INDEX_TYPE idx_type= get_index_type(inx);  
+  if ((idx_type == UNIQUE_INDEX || idx_type == PRIMARY_KEY_INDEX) && 
+      start_key_len == key_length)
+  {
+    // this is a "const" table which returns only one record!
+    records= 1;
+  }
 #endif
   DBUG_RETURN(records);
 }
