@@ -686,10 +686,9 @@ bool MYSQL_LOG::write(IO_CACHE *cache)
     uint length;
     my_off_t start_pos=my_b_tell(&log_file);
 
-    if (reinit_io_cache(cache, WRITE_CACHE, 0, 0, 0))
+    if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
     {
-      if (!write_error)
-	sql_print_error(ER(ER_ERROR_ON_WRITE), cache->file_name, errno);
+      sql_print_error(ER(ER_ERROR_ON_WRITE), cache->file_name, errno);
       goto err;
     }
     while ((length=my_b_fill(cache)))
@@ -710,8 +709,7 @@ bool MYSQL_LOG::write(IO_CACHE *cache)
     }
     if (cache->error)				// Error on read
     {
-      if (!write_error)
-	sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name, errno);
+      sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name, errno);
       goto err;
     }
   }

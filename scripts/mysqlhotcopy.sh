@@ -37,9 +37,11 @@ WARNING: THIS IS VERY MUCH A FIRST-CUT ALPHA. Comments/patches welcome.
 # Documentation continued at end of file
 
 my $VERSION = "1.9";
-my $opt_tmpdir= $main::env{TMPDIR};
+my $opt_tmpdir= $main::ENV{TMPDIR};
 
 my $OPTIONS = <<"_OPTIONS";
+
+$0 Ver $VERSION
 
 Usage: $0 db_name [new_db_name | directory]
 
@@ -115,6 +117,8 @@ GetOptions( \%opt,
 my @db_desc = ();
 my $tgt_name = undef;
 
+usage("") if ($opt{help});
+
 if ( $opt{regexp} || $opt{suffix} || @ARGV > 2 ) {
     $tgt_name   = pop @ARGV unless ( exists $opt{suffix} );
     @db_desc = map { s{^([^\.]+)\./(.+)/$}{$1}; { 'src' => $_, 't_regex' => ( $2 ? $2 : '.*' ) } } @ARGV;
@@ -133,10 +137,9 @@ else {
     }
 }
 
-my $mysqld_help;
 my %mysqld_vars;
 my $start_time = time;
-my $opt_tmpdir= $opt{tempdir} ? $opt{tmpdir} : $main::env{TMPDIR};
+my $opt_tmpdir= $opt{tmpdir} ? $opt{tmpdir} : $main::ENV{TMPDIR};
 $0 = $1 if $0 =~ m:/([^/]+)$:;
 $opt{quiet} = 0 if $opt{debug};
 $opt{allowold} = 1 if $opt{keepold};
@@ -310,15 +313,19 @@ print Dumper( \@db_desc ) if ( $opt{debug} );
 
 die "No tables to hot-copy" unless ( length $hc_locks );
 
-# --- create target directories ---
+# --- create target directories if we are using 'cp' ---
 
 my @existing = ();
-foreach my $rdb ( @db_desc ) {
-    push @existing, $rdb->{target} if ( -d  $rdb->{target} );
-}
 
-die "Can't hotcopy to '", join( "','", @existing ), "' because already exist and --allowold option not given.\n"
-  if ( @existing && !$opt{allowold} );
+if ($opt{method} =~ /^cp\b/)
+{
+  foreach my $rdb ( @db_desc ) {
+    push @existing, $rdb->{target} if ( -d  $rdb->{target} );
+  }
+
+  die "Can't hotcopy to '", join( "','", @existing ), "' because already exist and --allowold option not given.\n"
+    if ( @existing && !$opt{allowold} );
+}
 
 retire_directory( @existing ) if ( @existing );
 
@@ -385,54 +392,11 @@ foreach my $rdb ( @db_desc )
   push @failed, "$rdb->{src} -> $rdb->{target} failed: $@"
     if ( $@ );
   
-  @files = map { "$datadir/$rdb->{src}/$_" } @{$rdb->{index}};
+  @files = @{$rdb->{index}};
   if ($rdb->{index})
   {
-    #
-    # Copy only the header of the index file
-    #
-
-    my $tmpfile="$opt_tmpdir/mysqlhotcopy$$";
-    foreach my $file ($rdb->{index})
-    {
-      my $from="$datadir/$rdb->{src}/$file";
-      my $to="$rdb->{target}/$file";
-      my $buff;
-      open(INPUT, $from) || die "Can't open file $from: $!\n";
-      my $length=read INPUT, $buff, 2048;
-      die "Can't read index header from $from\n" if ($length <= 1024);
-      close INPUT;
-
-      if ( $opt{dryrun} )
-      {
-	print '$opt{method}-header $from $to\n';
-      }
-      elsif ($opt{method} eq 'cp')
-      {
-	!open(OUTPUT,$to)   || die "Can\'t create file $to: $!\n";
-	if (write(OUTPUT,$buff) != length($buff))
-	{
-          die "Error when writing data to $to: $!\n";
-        }
-	close OUTPUT	   || die "Error on close of $to: $!\n";
-      }
-      elsif ($opt{method} eq 'scp')
-      {
- 	my $tmp=$tmpfile;
-	open(OUTPUT,"$tmp") || die "Can\'t create file $tmp: $!\n";
-	if (write(OUTPUT,$buff) != length($buff))
-	{
-          die "Error when writing data to $tmp: $!\n";
-        }
-	close OUTPUT	     || die "Error on close of $tmp: $!\n";
-	safe_system('scp $tmp $to');
-      }
-      else
-      {
-	die "Can't use unsupported method '$opt{method}'\n";
-      }
-    }
-    unlink "$opt_tmpdir/mysqlhotcopy$$";
+    copy_index($opt{method}, \@files,
+	       "$datadir/$rdb->{src}", $rdb->{target} );
   }
   
   if ( $opt{checkpoint} ) {
@@ -534,9 +498,62 @@ sub copy_files {
     safe_system (@cmd);
 }
 
+#
+# Copy only the header of the index file
+#
+
+sub copy_index
+{
+  my ($method, $files, $source, $target) = @_;
+  my $tmpfile="$opt_tmpdir/mysqlhotcopy$$";
+  
+  print "Copying indices for ".@$files." files...\n" unless $opt{quiet};  
+  foreach my $file (@$files)
+  {
+    my $from="$source/$file";
+    my $to="$target/$file";
+    my $buff;
+    open(INPUT, "<$from") || die "Can't open file $from: $!\n";
+    my $length=read INPUT, $buff, 2048;
+    die "Can't read index header from $from\n" if ($length < 1024);
+    close INPUT;
+    
+    if ( $opt{dryrun} )
+    {
+      print "$opt{method}-header $from $to\n";
+    }
+    elsif ($opt{method} eq 'cp')
+    {
+      open(OUTPUT,">$to")   || die "Can\'t create file $to: $!\n";
+      if (syswrite(OUTPUT,$buff) != length($buff))
+      {
+	die "Error when writing data to $to: $!\n";
+      }
+      close OUTPUT	   || die "Error on close of $to: $!\n";
+    }
+    elsif ($opt{method} eq 'scp')
+    {
+      my $tmp=$tmpfile;
+      open(OUTPUT,">$tmp") || die "Can\'t create file $tmp: $!\n";
+      if (syswrite(OUTPUT,$buff) != length($buff))
+      {
+	die "Error when writing data to $tmp: $!\n";
+      }
+      close OUTPUT	     || die "Error on close of $tmp: $!\n";
+      safe_system("scp $tmp $to");
+    }
+    else
+    {
+      die "Can't use unsupported method '$opt{method}'\n";
+    }
+  }
+  unlink "$tmpfile" if  ($opt{method} eq 'scp');
+}
+
+
 sub safe_system
 {
-  my @cmd=shift;
+  my @cmd= @_;
 
   if ( $opt{dryrun} )
   {
@@ -546,7 +563,7 @@ sub safe_system
 
   ## for some reason system fails but backticks works ok for scp...
   print "Executing '@cmd'\n" if $opt{debug};
-  my $cp_status = system @cmd;
+  my $cp_status = system "@cmd > /dev/null";
   if ($cp_status != 0) {
     warn "Burp ('scuse me). Trying backtick execution...\n" if $opt{debug}; #'
     ## try something else
@@ -680,7 +697,9 @@ UNIX domain socket to use when connecting to local server
 
 =item  --noindices          
 
-don't include index files in copy
+Don\'t include index files in copy. Only up to the first 2048 bytes
+are copied;  You can restore the indexes with isamchk -r or myisamchk -r
+on the backup.
 
 =item  --method=#           
 
@@ -689,9 +708,10 @@ method for copy (only "cp" currently supported). Alpha support for
 will vary with your ability to understand how scp works. 'man scp'
 and 'man ssh' are your friends.
 
-The destination directory _must exist_ on the target machine using
-the scp method. Liberal use of the --debug option will help you figure
-out what's really going on when you do an scp.
+The destination directory _must exist_ on the target machine using the
+scp method. --keepold and --allowold are meeningless with scp.
+Liberal use of the --debug option will help you figure out what\'s
+really going on when you do an scp.
 
 Note that using scp will lock your tables for a _long_ time unless
 your network connection is _fast_. If this is unacceptable to you,
@@ -755,3 +775,4 @@ Ralph Corderoy - added synonyms for commands
 Scott Wiersdorf - added table regex and scp support
 
 Monty - working --noindex (copy only first 2048 bytes of index file)
+        Fixes for --method=scp

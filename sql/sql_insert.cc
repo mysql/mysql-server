@@ -256,7 +256,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     else if (table->next_number_field)
       id=table->next_number_field->val_int();	// Return auto_increment value
     using_transactions=table->file->has_transactions();
-    if ((info.copied || info.deleted) && (error == 0 || !using_transactions))
+    if ((info.copied || info.deleted) && (error <= 0 || !using_transactions))
     {
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())

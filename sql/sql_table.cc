@@ -110,24 +110,25 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
 
     table_type=get_table_type(path);
 
-    if (my_delete(path,MYF(0)))    /* Delete the table definition file */
+    if (access(path,F_OK))
     {
-      if (errno != ENOENT || !if_exists)
-      {
+      if (!if_exists)
 	error=1;
-	if (errno != ENOENT)
-	{
-	  my_error(ER_CANT_DELETE_FILE,MYF(0),path,errno);
-	}
-      }
     }
     else
     {
-      some_tables_deleted=1;
-      *fn_ext(path)=0;				// Remove extension;
+      char *end;
+      *(end=fn_ext(path))=0;			// Remove extension
       error=ha_delete_table(table_type, path);
       if (error == ENOENT && if_exists)
 	error = 0;
+      if (!error || error == ENOENT)
+      {
+	/* Delete the table definition file */
+	strmov(end,reg_ext);
+	if (!(error=my_delete(path,MYF(MY_WME))))
+	  some_tables_deleted=1;
+      }
     }
     if (error)
     {
@@ -1427,17 +1428,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
   new_table->time_stamp=save_time_stamp;
 
-#if defined( __WIN__) || defined( __EMX__)
-  /*
-    We must do the COMMIT here so that we can close and rename the
-    temporary table (as windows can't rename open tables)
-  */
-  if (ha_commit_stmt(thd))
-    error=1;
-  if (ha_commit(thd))
-    error=1;
-#endif
-
   if (table->tmp_table)
   {
     /* We changed a temporary table */
@@ -1556,7 +1546,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
 
-#if !(defined( __WIN__) || defined( __EMX__))
   /* The ALTER TABLE is always in it's own transaction */
   error = ha_commit_stmt(thd);
   if (ha_commit(thd))
@@ -1567,7 +1556,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(pthread_mutex_unlock(&LOCK_open));
     goto err;
   }
-#endif
 
   thd->proc_info="end";
   mysql_update_log.write(thd, thd->query,thd->query_length);
