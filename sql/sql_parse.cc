@@ -1523,6 +1523,14 @@ restore_user:
   thread_running--;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
+
+  /*
+    Clear the SP function cache after each statement (QQ this is a temporary
+    solution; caching will be rehacked later).
+    Note: Must do this before we free_root.
+  */
+  sp_clear_function_cache(thd);
+
   free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
   DBUG_RETURN(error);
 }
@@ -1587,11 +1595,6 @@ mysql_execute_command(THD *thd)
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
 
-  /*
-    Clear the SP function cache before each statement (QQ this is a temporary
-    solution; caching will be rehacked later), and the new ones.
-  */
-  sp_clear_function_cache(thd);
   if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
       lex->sql_command != SQLCOM_CREATE_SPFUNCTION)
   {
@@ -3009,6 +3012,9 @@ mysql_execute_command(THD *thd)
       }
 #endif
       res= lex->sphead->create(thd);
+
+      lex->sphead->destroy();	// QQ Free memory. Remove this when caching!!!
+
       switch (res)
       {
       case SP_OK:

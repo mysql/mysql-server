@@ -373,13 +373,11 @@ sp_cache_functions(THD *thd, LEX *lex)
 void
 sp_clear_function_cache(THD *thd)
 {
-  //QQ This doesn't work for some completely mysterious reason, but since this
-  //QQ is tempoarary code anyway, we just ignore it for now.
-  //QQ List_iterator_fast<sp_head> li(thd->spfuns);
-  //QQ  sp_head *sp;
+  List_iterator_fast<sp_head> li(thd->spfuns);
+  sp_head *sp;
 
-  //QQ  while ((sp= li++))
-  //QQ    sp->destroy();
+  while ((sp= li++))
+    sp->destroy();
   thd->spfuns.empty();
 }
 
