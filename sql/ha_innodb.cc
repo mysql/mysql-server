@@ -302,7 +302,7 @@ convert_error_code_to_mysql(
 
         } else if (error == (int) DB_CANNOT_DROP_CONSTRAINT) {
 
-    		return(HA_ERR_CANNOT_ADD_FOREIGN); /* TODO: This is a bit
+    		return(HA_ERR_ROW_IS_REFERENCED); /* TODO: This is a bit
 						misleading, a new MySQL error
 						code should be introduced */
         } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
@@ -4958,7 +4958,8 @@ ha_innobase::external_lock(
 		}
 
 		if (prebuilt->select_lock_type != LOCK_NONE) {
-			if (thd->in_lock_tables) {
+			if (thd->in_lock_tables &&
+			    thd->variables.innodb_table_locks) {
 				ulint	error;
 				error = row_lock_table_for_mysql(prebuilt);
 
