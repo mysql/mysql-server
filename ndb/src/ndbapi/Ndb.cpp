@@ -1365,7 +1365,8 @@ Ndb::pollEvents(int aMillisecondNumber)
 
 #ifdef VM_TRACE
 #include <NdbMutex.h>
-static NdbMutex print_state_mutex = NDB_MUTEX_INITIALIZER;
+extern NdbMutex *ndb_print_state_mutex;
+
 static bool
 checkdups(NdbConnection** list, unsigned no)
 {
@@ -1383,7 +1384,7 @@ Ndb::printState(const char* fmt, ...)
   va_start(ap, fmt);
   vsprintf(buf, fmt, ap);
   va_end(ap);
-  NdbMutex_Lock(&print_state_mutex);
+  NdbMutex_Lock(ndb_print_state_mutex);
   bool dups = false;
   ndbout << buf << " ndb=" << hex << this << dec;
 #ifndef NDB_WIN32
@@ -1421,7 +1422,7 @@ Ndb::printState(const char* fmt, ...)
   }
   for (unsigned i = 0; i < theNoOfCompletedTransactions; i++)
     theCompletedTransactionsArray[i]->printState();
-  NdbMutex_Unlock(&print_state_mutex);
+  NdbMutex_Unlock(ndb_print_state_mutex);
 }
 #endif
 

@@ -101,6 +101,7 @@ public:
     MgmtSrvr &m_mgmsrv;
     NodeBitmask m_reserved_nodes;
   };
+  NdbMutex *m_node_id_mutex;
 
   /**
    * Start/initate the event log.
