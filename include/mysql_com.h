@@ -132,8 +132,13 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
+  my_bool report_error; /* We should report error (we have unreported error) */
   my_bool no_send_ok;
-  gptr query_cache_query;
+  /* 
+    Pointer to query object in query cache, do not equal NULL (0) for 
+    queries in cache that have not stored its results yet 
+  */
+  gptr query_cache_query; 
 } NET;
 
 #define packet_error (~(unsigned long) 0)

@@ -99,7 +99,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 		       (ORDER*) sl->group_list.first,
 		       sl->having, (ORDER*) NULL,
 		       sl->options | thd->options | SELECT_NO_UNLOCK,
-		       derived_result, unit);
+		       derived_result, unit, 0);
       if (!res)
       {
 // Here we entirely fix both TABLE_LIST and list of SELECT's as there were no derived tables
