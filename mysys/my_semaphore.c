@@ -21,6 +21,7 @@
 
 #include <my_global.h>
 #include <my_semaphore.h>
+#include <errno.h>
 
 #if !defined(__WIN__) && !defined(HAVE_SEMAPHORE_H)
 

@@ -1476,7 +1476,7 @@ mysql_execute_command(void)
       /* Check that the first table has CREATE privilege */
       TABLE_LIST *tmp_table_list=tables->next;
       tables->next=0;
-      bool error=check_grant(thd,CREATE_ACL,tables);
+      bool error=check_grant(thd, want_priv, tables);
       tables->next=tmp_table_list;
       if (error)
 	goto error;
