@@ -37,3 +37,6 @@ select * from (select 1);
 select a from (select 1 as a);
 a
 1
+select 1 from (select 1);
+1
+1

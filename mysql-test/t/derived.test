@@ -21,3 +21,4 @@ SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1  HAVING a=1);
 drop table if exists  t1.t2,t3;
 select * from (select 1);
 select a from (select 1 as a);
+select 1 from (select 1);
