@@ -33,11 +33,13 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysql_explain_log \
 			mysql_tableinfo \
 			mysqld_multi \
-			make_win_src_distribution
+			make_win_src_distribution \
+			make_win_binary_distribution
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			make_sharedlib_distribution.sh \
 			make_win_src_distribution.sh \
+			make_win_binary_distribution.sh \
 			msql2mysql.sh \
 			mysql_config.sh \
 			mysql_fix_privilege_tables.sh \
