@@ -89,7 +89,7 @@ public:
       Date = NDB_TYPE_DATE,
       Blob = NDB_TYPE_BLOB,
       Text = NDB_TYPE_TEXT,
-      Bit = NDB_TYPE_BIT
+      Bit = NDB_TYPE_BIT,
       Longvarchar = NDB_TYPE_LONG_VARCHAR,
       Longvarbinary = NDB_TYPE_LONG_VARBINARY,
       Time = NDB_TYPE_TIME
