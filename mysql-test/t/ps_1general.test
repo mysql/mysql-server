@@ -294,12 +294,14 @@ execute stmt4;
 prepare stmt4 from ' show table status from test like ''t2%'' ';
 # egalize date and time values
 --replace_column 12 # 13 # 14 #
+--replace_result 2147483647 64424509439
 # Bug#4288 : prepared statement 'show table status ..', wrong output on execute
 execute stmt4;
 # try the same with the big table
 prepare stmt4 from ' show table status from test like ''t9%'' ';
 # egalize date and time values
 --replace_column 12 # 13 # 14 #
+--replace_result 2147483647 4294967295
 # Bug#4288
 execute stmt4;
 prepare stmt4 from ' show status like ''Threads_running'' ';
