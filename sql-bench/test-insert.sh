@@ -281,6 +281,57 @@ if ($limits->{'unique_index'})
 
 select_test:
 
+# ----------------- prepared+executed/prepared*executed tests
+
+print "Test of prepared+execute/once prepared many execute selects\n";
+$loop_time=new Benchmark;
+
+for ($i=1 ; $i <= $opt_loop_count ; $i++)
+{
+  my ($key_value)=$random[$i];
+  my ($query)= "select * from bench1 where id=$key_value";  
+  print "$query\n" if ($opt_debug);
+  $sth = $dbh->prepare($query);
+  if (! $sth)
+    {
+      die "error in prepare select with id = $key_value : $DBI::errstr";
+    };
+  if (! $sth->execute)  
+   {
+      die "cannot execute prepare select with id = $key_value : $DBI::errstr";      
+   }
+  while ($sth->fetchrow_arrayref) { };      
+  $sth->finish;
+};
+$end_time=new Benchmark;
+print "Time for prepared_select ($opt_loop_count): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+$loop_time=new Benchmark;
+$query= "select * from bench1 where id=?";  
+$sth = $dbh->prepare($query);
+if (! $sth)
+{
+  die "cannot prepare select: $DBI::errstr";
+};
+
+for ($i=1 ; $i <= $opt_loop_count ; $i++)
+{
+  my ($key_value)=$random[$i];
+  $sth->bind_param(1,$key_value);
+  print "$query , id = $key_value\n" if ($opt_debug);
+  if (! $sth->execute)  
+   {
+      die "cannot execute prepare select with id = $key_value : $DBI::errstr";      
+   }
+  while ($sth->fetchrow_arrayref) { };      
+};
+$sth->finish;
+$end_time=new Benchmark;
+print "Time for once_prepared_select ($opt_loop_count): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+
 print "Retrieving data from the table\n";
 $loop_time=new Benchmark;
 $error=0;
