@@ -1530,6 +1530,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 	      ha_open_options,
 	      tmp_table))
   {
+    my_free((char*) tmp_table,MYF(0));
     DBUG_RETURN(0);
   }
 
