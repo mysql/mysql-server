@@ -803,6 +803,7 @@ int
 NDBT_Tables::createAllTables(Ndb* pNdb, bool _temp, bool existsOk){
   
   for (int i=0; i < NDBT_Tables::getNumTables(); i++){
+    pNdb->getDictionary()->dropTable(NDBT_Tables::getTable(i)->getName());
     int ret= createTable(pNdb, 
 			 NDBT_Tables::getTable(i)->getName(), _temp, existsOk);
     if(ret)
