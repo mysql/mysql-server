@@ -127,7 +127,7 @@ drop table t1;
 set @a=_latin2'test';
 select charset(@a),collation(@a),coercibility(@a);
 charset(@a)	collation(@a)	coercibility(@a)
-latin2	latin2_general_ci	3
+latin2	latin2_general_ci	2
 select @a=_latin2'TEST';
 @a=_latin2'TEST'
 1
@@ -137,12 +137,13 @@ select @a=_latin2'TEST' collate latin2_bin;
 set @a=_latin2'test' collate latin2_general_ci;
 select charset(@a),collation(@a),coercibility(@a);
 charset(@a)	collation(@a)	coercibility(@a)
-latin2	latin2_general_ci	0
+latin2	latin2_general_ci	2
 select @a=_latin2'TEST';
 @a=_latin2'TEST'
 1
 select @a=_latin2'TEST' collate latin2_bin;
-ERROR HY000: Illegal mix of collations (latin2_general_ci,EXPLICIT) and (latin2_bin,EXPLICIT) for operation '='
+@a=_latin2'TEST' collate latin2_bin
+0
 select charset(@a:=_latin2'test');
 charset(@a:=_latin2'test')
 latin2
@@ -151,21 +152,22 @@ collation(@a:=_latin2'test')
 latin2_general_ci
 select coercibility(@a:=_latin2'test');
 coercibility(@a:=_latin2'test')
-3
+2
 select collation(@a:=_latin2'test' collate latin2_bin);
 collation(@a:=_latin2'test' collate latin2_bin)
 latin2_bin
 select coercibility(@a:=_latin2'test' collate latin2_bin);
 coercibility(@a:=_latin2'test' collate latin2_bin)
-0
+2
 select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST';
 (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST'
 0
 select charset(@a),collation(@a),coercibility(@a);
 charset(@a)	collation(@a)	coercibility(@a)
-latin2	latin2_bin	0
+latin2	latin2_bin	2
 select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST' collate latin2_general_ci;
-ERROR HY000: Illegal mix of collations (latin2_bin,EXPLICIT) and (latin2_general_ci,EXPLICIT) for operation '='
+(@a:=_latin2'test' collate latin2_bin) = _latin2'TEST' collate latin2_general_ci
+1
 create table t1 (a varchar(50));
 reset master;
 SET TIMESTAMP=10000;
