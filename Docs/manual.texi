@@ -2098,7 +2098,7 @@ A digest version of the @code{java} list.
 
 @item @email{win32-subscribe@@lists.mysql.com} win32
 All things concerning the MySQL software on Microsoft operating systems
-such as Win95, Win98, NT, and Win2000.
+such as Windows 9x/Me/NT/2000/XP.
 
 @item @email{win32-digest-subscribe@@lists.mysql.com} win32-digest
 A digest version of the @code{win32} list.
@@ -4804,7 +4804,7 @@ was released, whereas until recently PostgreSQL was unsupported.
 
 @item
 MySQL Server works better on Windows than PostgreSQL does.  MySQL Server
-runs as a native Windows application (a service on NT/Win2000/WinXP),
+runs as a native Windows application (a service on NT/2000/XP),
 while PostgreSQL is run under the @code{Cygwin} emulation.  We have
 heard that PostgreSQL is not yet that stable on Windows but we haven't
 been able to verify this ourselves.
@@ -5438,8 +5438,8 @@ Generally speaking, you should use the binary distribution.
 You will need the following:
 @itemize @bullet
 @item
-A Windows 32 bits Operational System of the family Win9x, ME,
-NT and Win 2000. The NT family permits running the MySQL server
+A 32 bits Windows Operational System such as 9x, Me, NT, 2000 or XP.
+The NT family (NT, Windows 2000 and XP) permits running the MySQL server
 as a service. @xref{NT start}.
 
 If you want to use tables bigger than 4G, you should install MySQL
@@ -5476,7 +5476,7 @@ will also need the @code{MyODBC} driver. @xref{ODBC}.
 
 @enumerate
 @item
-If you are working on an NT or Win2000 server, logon as a user with
+If you are working on an NT/2000/XP server, logon as a user with
 with administrator privileges.
 @item
 If you are doing an upgrade of an earlier MySQL installation,
@@ -5494,7 +5494,7 @@ C:\mysql\bin> mysqladmin -u root shutdown
 @end example
 
 @item
-On NT/Win2000 machines, if you want to change the server executable
+On NT/2000/XP machines, if you want to change the server executable
 (e.g. -max or -nt), it is also necessary to remove the service:
 
 @example
@@ -5528,9 +5528,9 @@ checking, symbolic links, InnoDB and BDB tables.
 @item @code{mysqld-opt} @tab
 Optimised binary with no support for transactional tables.
 @item @code{mysqld-nt} @tab
-Optimised binary for NT with support for named pipes. You can
-run this version on Win98, but in this case no named pipes are
-created and you must have TCP/IP installed.
+Optimised binary for NT/2000/XP with support for named pipes.
+You can run this version on Windows 9x/Me, but in this case no
+named pipes are created and you must have TCP/IP installed.
 @item @code{mysqld-max} @tab
 Optimised binary with support for symbolic links,
 InnoDB and BDB tables.
@@ -5767,7 +5767,7 @@ SCO UnixWare 7.0.1.  @xref{SCO Unixware}.
 @item
 Tru64 Unix
 @item
-Win95, Win98, NT, and Win2000.  @xref{Windows}.
+Windows 9x, Me, NT, 2000 and XP.  @xref{Windows}.
 @end itemize
 
 Note that not all platforms are suited equally well for running
@@ -7889,7 +7889,7 @@ for @code{mysqld} and then runs it with those options. @xref{safe_mysqld, ,
 @code{safe_mysqld}}.
 
 @item
-For Windows NT/2000, please see @ref{NT start}.
+For Windows NT/2000/XP, please see @ref{NT start}.
 
 @item
 By invoking @code{mysqld} directly.
@@ -9120,8 +9120,8 @@ is also provided in the @file{README} file that comes with the
 MySQL Windows distribution. @xref{Windows installation}.
 
 @menu
-* Win95 start::                 Starting MySQL on Win95 / Win98
-* NT start::                    Starting MySQL on NT / Win2000
+* Win95 start::                 Starting MySQL on Windows 9x / Me
+* NT start::                    Starting MySQL on Windows NT / 2000 / XP
 * Windows running::             Running MySQL on Windows
 * Windows and SSH::             Connecting to a remote MySQL from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
@@ -9131,7 +9131,7 @@ MySQL Windows distribution. @xref{Windows installation}.
 
 
 @node Win95 start, NT start, Windows, Windows
-@subsubsection Starting MySQL on Windows 95 or Windows 98
+@subsubsection Starting MySQL on Windows 95, Windows 98 or Windows Me
 
 MySQL uses TCP/IP to connect a client to a server. (This will
 allow any machine on your network to connect to your MySQL
@@ -9139,11 +9139,11 @@ server.)  Because of this, you must install TCP/IP on your
 machine before starting MySQL.  You can find TCP/IP on your
 Windows CD-ROM.
 
-Note that if you are using an old Win95 release (for example
+Note that if you are using an old Windows 95 release (for example
 OSR2), it's likely that you have an old Winsock package;
 MySQL requires Winsock 2! You can get the newest Winsock from
-@uref{http://www.microsoft.com/}.  Win98 has the new Winsock 2
-library, so the above doesn't apply for Win98.
+@uref{http://www.microsoft.com/}.  Windows 98 has the new Winsock 2
+library, so the above doesn't apply there.
 
 To start the @code{mysqld} server, you should start an MS-DOS
 window and type:
@@ -9165,11 +9165,11 @@ is the default Administrator in the MySQL grant system. Please
 note that the MySQL grant system is wholly independent from any
 login users under Windows.
 
-Note that Win95 and Win98 don't support creation of named pipes.
-On Win95 and Win98, you can only use named pipes to connect to a
-remote MySQL server running on a Windows NT/2000 server host.
+Note that Windows 95/98/Me don't support creation of named pipes.
+So on those platforms, you can only use named pipes to connect to a
+remote MySQL server running on a Windows NT/2000/XP server host.
 (The MySQL server must also support named pipes, of course.
-For example, using @code{mysqld-opt} under NT/2000 will not
+For example, using @code{mysqld-opt} under NT/2000/XP will not
 allow named pipe connections.  You should use either
 @code{mysqld-nt} or @code{mysqld-max-nt}.)
 
@@ -9191,12 +9191,12 @@ Use @code{mysqld --help} to display all the options that
 
 
 @node NT start, Windows running, Win95 start, Windows
-@subsubsection Starting MySQL on Windows NT or Windows 2000
+@subsubsection Starting MySQL on Windows NT, 2000 or XP
 
 To get MySQL to work with TCP/IP on Windows NT 4, you must install
 service pack 3 (or newer)!
 
-Normally you should install MySQL as a service on NT/Win2000.
+Normally you should install MySQL as a service on Windows NT/2000/XP.
 In case the server was already running, first stop it using
 the following command:
 
@@ -9256,7 +9256,7 @@ shutdown to complete. If you notice this is not enough for your
 intallation, it is safest to run the MySQL server not as a service, but
 from the Command prompt, and shut it down with @code{mysqladmin shutdown}.
 
-There is a problem that Windows NT (but not Windows 2000) by default only
+There is a problem that Windows NT (but not Windows 2000/XP) by default only
 waits 20 seconds for a service to shut down, and after that kills the
 service process. You can increase this default by opening the Registry
 Editor @file{\winnt\system32\regedt32.exe} and editing the value of
@@ -9303,15 +9303,15 @@ The last method gives you a debug trace in
 @cindex named pipes
 
 MySQL supports TCP/IP on all Windows platforms and named pipes on
-NT/2000. The default is to use named pipes for local connections
-on NT/2000 and TCP/IP for all other cases if the client has TCP/IP
+NT/2000/XP. The default is to use named pipes for local connections
+on NT/2000/XP and TCP/IP for all other cases if the client has TCP/IP
 installed. The host name specifies which protocol is used:
 
 @multitable @columnfractions .3 .7
 @item @strong{Host name} @tab @strong{Protocol}
 @item NULL (none) @tab
-On NT/2000, try named pipes first; if that doesn't work, use TCP/IP.
-On Win95/Win98, TCP/IP is used.
+On NT/2000/XP, try named pipes first; if that doesn't work, use TCP/IP.
+On 9x/Me, TCP/IP is used.
 @item . @tab Named pipes
 @item localhost @tab
 TCP/IP to current host
@@ -9333,11 +9333,11 @@ C:\> C:\mysql\bin\mysqladmin version status proc
 C:\> C:\mysql\bin\mysql test
 @end example
 
-If @code{mysqld} is slow to answer to connections on Win95/Win98, there is
+If @code{mysqld} is slow to answer to connections on Windows 9x/Me, there is
 probably a problem with your DNS.  In this case, start @code{mysqld} with
 @code{--skip-name-resolve} and use only @code{localhost} and IP numbers in
 the MySQL grant tables.  You can also avoid DNS when connecting to a
-@code{mysqld-nt} MySQL server running on NT by using the
+@code{mysqld-nt} MySQL server running on NT/2000/XP by using the
 @code{--pipe} argument to specify use of named pipes.  This works for most
 MySQL clients.
 
@@ -9509,21 +9509,22 @@ of MySQL has the same features as the corresponding Unix version
 with the following exceptions:
 
 @table @strong
-@item Win95 and threads
-Win95 leaks about 200 bytes of main memory for each thread creation.
+@item Windows 95 and threads
+Windows 95 leaks about 200 bytes of main memory for each thread creation.
 Each connection in MySQL creates a new thread, so you shouldn't
-run @code{mysqld} for an extended time on Win95 if your server handles
-many connections!  WinNT and Win98 don't suffer from this bug.
+run @code{mysqld} for an extended time on Windows 95 if your server handles
+many connections!  Other versions of Windows don't suffer from this bug.
 
 @item Concurrent reads
 MySQL depends on the @code{pread()} and @code{pwrite()} calls to be
 able to mix @code{INSERT} and @code{SELECT}.  Currently we use mutexes
 to emulate @code{pread()}/@code{pwrite()}.  We will, in the long run,
 replace the file level interface with a virtual interface so that we can
-use the @code{readfile()}/@code{writefile()} interface on NT to get more speed.
+use the @code{readfile()}/@code{writefile()} interface on NT/2000/XP to
+get more speed.
 The current implementation limits the number of open files MySQL
 can use to 1024, which means that you will not be able to run as many
-concurrent threads on NT as on Unix.
+concurrent threads on NT/2000/XP as on Unix.
 
 @item Blocking read
 MySQL uses a blocking read for each connection.
@@ -9554,7 +9555,7 @@ You can't drop a database that is in use by some thread.
 
 @item Killing MySQL from the task manager
 You can't kill MySQL from the task manager or with the shutdown
-utility in Win95.  You must take it down with @code{mysqladmin shutdown}.
+utility in Windows 95.  You must take it down with @code{mysqladmin shutdown}.
 
 @item Case-insensitive names
 Filenames are case insensitive on Windows, so database and table names
@@ -9563,8 +9564,8 @@ restriction is that database and table names must be specified using the same
 case throughout a given statement.  @xref{Name case sensitivity}.
 
 @item The @samp{\} directory character
-Pathname components in Win95 are separated by the @samp{\} character, which is
-also the escape character in MySQL.  If you are using @code{LOAD
+Pathname components in Windows 95 are separated by the @samp{\} character,
+which is also the escape character in MySQL.  If you are using @code{LOAD
 DATA INFILE} or @code{SELECT ... INTO OUTFILE}, you must double the @samp{\}
 character:
 
@@ -19657,7 +19658,7 @@ option.
 @item @code{flush_time}
 If this is set to a non-zero value, then every @code{flush_time} seconds all
 tables will be closed (to free up resources and sync things to disk). We
-only recommend this option on Win95, Win98, or on systems where you have
+only recommend this option on Windows 9x/Me, or on systems where you have
 very little resources.
 
 @item @code{ft_min_word_len}
@@ -40162,8 +40163,8 @@ are known to work with @strong{MyODBC}.
 
 @strong{MyODBC} is a 32-bit ODBC (2.50) level 0 (with level 1 and
 level 2 features) driver for connecting an ODBC-aware application
-to MySQL.  @strong{MyODBC} works on Windows95, Windows98, NT, 2000
-and on most Unix platforms.
+to MySQL.  @strong{MyODBC} works on Windows 9x/Me/NT/2000/XP
+and most Unix platforms.
 
 @strong{MyODBC} is in public domain, and you can find the newest
 version at @uref{http://www.mysql.com/downloads/api-myodbc.html}.
@@ -40181,11 +40182,11 @@ an @strong{ODBC} manager.  @strong{MyODBC} is known to work with
 most of the Unix ODBC managers.  @xref{Portals}.
 
 To install @strong{MyODBC} on Windows, you should download the
-appropriate @strong{MyODBC} .zip file (for Windows or NT/Win2000),
-unpack it with @code{WINZIP}, or some similar program, and execute the
-@code{SETUP.EXE} file.
+appropriate @strong{MyODBC} .zip file,
+unpack it with @code{WINZIP} or some similar program,
+and execute the @code{SETUP.EXE} file.
 
-On Windows/NT you may get the following error when trying to install
+On Windows/NT/XP you may get the following error when trying to install
 @strong{MyODBC}:
 
 @example
@@ -45669,13 +45670,13 @@ be used when connecting to a server on the same computer.  Unix sockets
 are used if you don't specify a hostname or if you specify the special
 hostname @code{localhost}.
 
-On Windows you can connect only with TCP/IP if the @code{mysqld} server
-is running on Win95/Win98. If it's running on NT, you can also connect
-with named pipes.  The name of the named pipe is MySQL.  If you
-don't give a hostname when connecting to @code{mysqld}, a MySQL client
-will first try to connect to the named pipe, and if this doesn't work it
-will connect to the TCP/IP port.  You can force the use of named pipes
-on Windows by using @code{.} as the hostname.
+On Windows, if the @code{mysqld} server is running on 9x/Me, you can
+connect only via TCP/IP. If the server is running on NT/2000/XP, you
+can also connect with named pipes. The name of the named pipe is MySQL.
+If you don't give a hostname when connecting to @code{mysqld}, a MySQL
+client will first try to connect to the named pipe, and if this doesn't
+work it will connect to the TCP/IP port.  You can force the use of named
+pipes on Windows by using @code{.} as the hostname.
 
 The error (2002) @code{Can't connect to ...} normally means that there
 isn't a MySQL server running on the system or that you are
@@ -52492,7 +52493,7 @@ Added a lot more output to @code{mysqladmin debug}.
 @item
 You can now start @code{mysqld} on Windows with the @code{--flush} option.
 This will flush all tables to disk after each update.  This makes things
-much safer on NT/Win98 but also @strong{much} slower.
+much safer on the Windows platforms but also @strong{much} slower.
 @end itemize
 
 
@@ -53724,8 +53725,8 @@ option.
 Added @code{SET OPTION CHARACTER SET cp1251_koi8} to enable conversions of
 data to/from cp1251_koi8.
 @item
-Lots of changes for Win95 port. In theory, this version should now be
-easily portable to Win95.
+Lots of changes for Windows 95 port. In theory, this version should now be
+easily portable to Windows 95.
 @item
 Changed the @code{CREATE COLUMN} syntax of @code{NOT NULL} columns to be after
 the @code{DEFAULT} value, as specified in the ANSI SQL standard. This will
