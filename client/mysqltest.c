@@ -847,7 +847,7 @@ int do_source(struct st_query* q)
 static void do_exec(struct st_query* q)
 {
   int error;
-  DYNAMIC_STRING *ds = NULL;			/* Assign just to avoid warning */
+  DYNAMIC_STRING *ds= NULL;			/* Assign just to avoid warning */
   DYNAMIC_STRING ds_tmp;
   char buf[1024];
   FILE *res_file;
@@ -889,7 +889,7 @@ static void do_exec(struct st_query* q)
   error= pclose(res_file);
 
   if (error != 0)
-    die("command \"%s\" failed: %s", cmd, errno);
+    die("command \"%s\" failed", cmd);
 
   if (!disable_result_log)
   {

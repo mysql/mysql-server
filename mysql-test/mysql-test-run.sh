@@ -208,6 +208,7 @@ MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 MYSQL_MANAGER_USER=root
 NO_SLAVE=0
 USER_TEST=
+FAILED_CASES=
 
 EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
@@ -1376,7 +1377,7 @@ run_testcase ()
    	 fi
 	 exit 1
 	fi
-
+	FAILED_CASES="$FAILED_CASES $tname"
         if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
 	then
 	  mysql_restart
@@ -1562,4 +1563,10 @@ $ECHO
 [ "$DO_GCOV" ] && gcov_collect # collect coverage information
 [ "$DO_GPROF" ] && gprof_collect # collect coverage information
 
-exit 0
+if [ $TOT_FAIL -ne 0 ]; then
+  $ECHO "mysql-test-run: *** Failing the test(s):$FAILED_CASES"
+  $ECHO
+  exit 1
+else
+  exit 0
+fi
