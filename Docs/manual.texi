@@ -17800,7 +17800,7 @@ The different check types stand for the following:
 @item @code{QUICK} @tab Don't scan the rows to check for wrong links.
 @item @code{FAST}  @tab Only check tables which haven't been closed properly.
 @item @code{CHANGED} @tab Only check tables which have been changed since last check or haven't been closed properly.
-@item @code{MEDIUM} @tab Scan rows to verify that deleted links are okay. This also calculates a key checksum for the rows and verifies this with a calcualted checksum for the keys.
+@item @code{MEDIUM} @tab Scan rows to verify that deleted links are okay. This also calculates a key checksum for the rows and verifies this with a calculated checksum for the keys.
 @item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This ensures that the table is 100% consistent, but will take a long time!
 @end multitable
 
@@ -40550,7 +40550,7 @@ You may also want to change @code{binlog_cache_size} and
 @item
 To be able to rollback transactions BDB maintain log files.  For maximum
 performance you should place these on another disk than your databases
-by using the @code{--bdb_log_dir} options.
+by using the @code{--bdb-logdir} option.
 @item
 MySQL performs a checkpoint each time a new BDB log
 file is started, and removes any log files that are not needed for
