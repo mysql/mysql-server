@@ -1245,7 +1245,7 @@ String *Item_func_ltrim::val_str(String *str)
   {
     const char *r_ptr=remove_str->ptr();
     end-=remove_length;
-    while (ptr < end && !memcmp(ptr,r_ptr,remove_length))
+    while (ptr <= end && !memcmp(ptr, r_ptr, remove_length))
       ptr+=remove_length;
     end+=remove_length;
   }
@@ -1317,8 +1317,8 @@ String *Item_func_rtrim::val_str(String *str)
     else
 #endif /* USE_MB */
     {
-      while (ptr + remove_length < end &&
-	     !memcmp(end-remove_length,r_ptr,remove_length))
+      while (ptr + remove_length <= end &&
+	     !memcmp(end-remove_length, r_ptr, remove_length))
 	end-=remove_length;
     }
   }

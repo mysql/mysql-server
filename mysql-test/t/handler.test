@@ -138,3 +138,207 @@ handler t1 read a=(1) where b=1;
 handler t1 close;
 drop table t1;
 
+#
+# Check if two database names beginning the same are seen as different.
+#
+# This database begins like the usual 'test' database.
+#
+--disable_warnings
+drop database if exists test_test;
+--enable_warnings
+create database test_test;
+use test_test;
+create table t1(table_id char(20) primary key);
+insert into t1 values ('test_test.t1');
+insert into t1 values ('');
+handler t1 open;
+handler t1 read first limit 9;
+create table t2(table_id char(20) primary key);
+insert into t2 values ('test_test.t2');
+insert into t2 values ('');
+handler t2 open;
+handler t2 read first limit 9;
+#
+# This is the usual 'test' database.
+#
+use test;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1(table_id char(20) primary key);
+insert into t1 values ('test.t1');
+insert into t1 values ('');
+--error 1066
+handler t1 open;
+#
+# Check accesibility of all the tables.
+#
+use test;
+--error 1109;
+handler test.t1 read first limit 9;
+handler test_test.t1 read first limit 9;
+handler t1 read first limit 9;
+handler test_test.t2 read first limit 9;
+handler t2 read first limit 9;
+#
+# Cleanup.
+#
+
+handler test_test.t1 close;
+--error 1109;
+handler t1 close;
+drop table test_test.t1;
+handler test_test.t2 close;
+--error 1109;
+handler t2 close;
+drop table test_test.t2;
+drop database test_test;
+#
+use test;
+--error 1109;
+handler test.t1 close;
+--error 1109;
+handler t1 close;
+drop table test.t1;
+
+#
+# BUG#4335
+#
+--disable_warnings
+drop database if exists test_test;
+drop table if exists t1;
+drop table if exists t2;
+drop table if exists t3;
+--enable_warnings
+create database test_test;
+use test_test;
+create table t1 (c1 char(20));
+insert into t1 values ('test_test.t1');
+create table t3 (c1 char(20));
+insert into t3 values ('test_test.t3');
+handler t1 open;
+handler t1 read first limit 9;
+handler t1 open h1;
+handler h1 read first limit 9;
+use test;
+create table t1 (c1 char(20));
+create table t2 (c1 char(20));
+create table t3 (c1 char(20));
+insert into t1 values ('t1');
+insert into t2 values ('t2');
+insert into t3 values ('t3');
+--error 1066
+handler t1 open;
+--error 1066
+handler t2 open t1;
+--error 1066
+handler t3 open t1;
+handler t1 read first limit 9;
+--error 1109
+handler test.t1 close;
+--error 1066
+handler test.t1 open h1;
+--error 1066
+handler test_test.t1 open h1;
+handler test_test.t3 open h3;
+handler test.t1 open h2;
+handler t1 read first limit 9;
+handler h1 read first limit 9;
+handler h2 read first limit 9;
+handler h3 read first limit 9;
+handler test.h2 read first limit 9;
+--error 1109
+handler test.h1 close;
+handler test_test.t1 close;
+handler test_test.h1 close;
+handler h2 close;
+--error 1109
+handler t1 read first limit 9;
+--error 1109
+handler h1 read first limit 9;
+--error 1109
+handler h2 read first limit 9;
+handler h3 read first limit 9;
+handler test_test.h3 read first limit 9;
+use test_test;
+handler h3 read first limit 9;
+--error 1109
+handler test.h3 read first limit 9;
+handler test_test.h3 close;
+use test;
+drop table t3;
+drop table t2;
+drop table t1;
+drop database test_test;
+
+#
+# Test if fix for BUG#4286 correctly closes handler tables.
+#
+create table t1 (c1 char(20));
+insert into t1 values ("t1");
+handler t1 open as h1;
+handler h1 read first limit 9;
+create table t2 (c1 char(20));
+insert into t2 values ("t2");
+handler t2 open as h2;
+handler h2 read first limit 9;
+create table t3 (c1 char(20));
+insert into t3 values ("t3");
+handler t3 open as h3;
+handler h3 read first limit 9;
+create table t4 (c1 char(20));
+insert into t4 values ("t4");
+handler t4 open as h4;
+handler h4 read first limit 9;
+create table t5 (c1 char(20));
+insert into t5 values ("t5");
+handler t5 open as h5;
+handler h5 read first limit 9;
+# close first
+alter table t1 engine=MyISAM;
+--error 1109;
+handler h1 read first limit 9;
+handler h2 read first limit 9;
+handler h3 read first limit 9;
+handler h4 read first limit 9;
+handler h5 read first limit 9;
+# close last
+alter table t5 engine=MyISAM;
+--error 1109;
+handler h1 read first limit 9;
+handler h2 read first limit 9;
+handler h3 read first limit 9;
+handler h4 read first limit 9;
+--error 1109;
+handler h5 read first limit 9;
+# close middle
+alter table t3 engine=MyISAM;
+--error 1109;
+handler h1 read first limit 9;
+handler h2 read first limit 9;
+--error 1109;
+handler h3 read first limit 9;
+handler h4 read first limit 9;
+--error 1109;
+handler h5 read first limit 9;
+handler h2 close;
+handler h4 close;
+# close all depending handler tables
+handler t1 open as h1_1;
+handler t1 open as h1_2;
+handler t1 open as h1_3;
+handler h1_1 read first limit 9;
+handler h1_2 read first limit 9;
+handler h1_3 read first limit 9;
+alter table t1 engine=MyISAM;
+--error 1109;
+handler h1_1 read first limit 9;
+--error 1109;
+handler h1_2 read first limit 9;
+--error 1109;
+handler h1_3 read first limit 9;
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+drop table t5;

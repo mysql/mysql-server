@@ -2118,8 +2118,7 @@ static void check_data_home(const char *path)
 
 
 /* ARGSUSED */
-extern "C" int my_message_sql(uint error, const char *str,
-			      myf MyFlags __attribute__((unused)))
+! extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
 {
   THD *thd;
   DBUG_ENTER("my_message_sql");
@@ -2147,7 +2146,7 @@ extern "C" int my_message_sql(uint error, const char *str,
       }
     }
   }
-  else
+  if (!thd || MyFlags & ME_NOREFRESH)
     sql_print_error("%s: %s",my_progname,str); /* purecov: inspected */
   DBUG_RETURN(0);
 }

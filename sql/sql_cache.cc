@@ -1945,7 +1945,6 @@ inline ulong Query_cache::get_min_append_result_data_size()
 /*
   Allocate one or more blocks to hold data
 */
-
 my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
 					 ulong data_len,
 					 Query_cache_block *query_block,

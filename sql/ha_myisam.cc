@@ -1280,13 +1280,13 @@ int ha_myisam::delete_table(const char *name)
   return mi_delete_table(name);
 }
 
+
 int ha_myisam::external_lock(THD *thd, int lock_type)
 {
   return mi_lock_database(file, !table->tmp_table ?
 			  lock_type : ((lock_type == F_UNLCK) ?
 				       F_UNLCK : F_EXTRA_LCK));
 }
-
 
 THR_LOCK_DATA **ha_myisam::store_lock(THD *thd,
 				      THR_LOCK_DATA **to,
