@@ -155,7 +155,7 @@ static struct my_option my_long_options[] =
   {"analyze", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'a', 0, 0, 0, 0, 0, 0, 0},
   {"block-search", "", 0, 0, 0, GET_LONG, REQUIRED_ARG, 'b', 0, 0, 0, 0, 0, 0, 0},
   {"backup", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'B', 0, 0, 0, 0, 0, 0, 0},
-  {"character-sets-dir", "", 0, 0, 0, GET_STR, REQUIRED_ARG, OPT_CHARSETS_DIR, 0, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", "", (gptr*) &set_charset_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0, 0, 1},
 
   {"check", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'c', 0, 0, 0, 0, 0, 0, 0},
   {"check-only-changed", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'C', 0, 0, 0, 0, 0, 0, 0},
@@ -191,6 +191,7 @@ static struct my_option my_long_options[] =
   {"verbose", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'v', 0, 0, 0, 0, 0, 0, 0},
   {"version", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'V', 0, 0, 0, 0, 0, 0, 0},
   {"wait", "", 0, 0, 0, GET_NO_ARG, NO_ARG, 'w', 0, 0, 0, 0, 0, 0, 0},
+
   /* variables begin here */
   { "key_buffer_size", "", (gptr*) &check_param.use_buffers, (gptr*) &check_param.use_buffers, 0, GET_LONG, REQUIRED_ARG, OPT_KEY_BUFFER_SIZE, (long) USE_BUFFER_INIT, (long) MALLOC_OVERHEAD, (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0, 1}, 
   { "myisam_block_size", "", (gptr*) &opt_myisam_block_size, (gptr*) &opt_myisam_block_size, 0, GET_LONG, REQUIRED_ARG, OPT_MYISAM_BLOCK_SIZE, MI_KEY_BLOCK_LENGTH, MI_MIN_KEY_BLOCK_LENGTH, MI_MAX_KEY_BLOCK_LENGTH, 0, MI_MIN_KEY_BLOCK_LENGTH, 0, 1}, 
@@ -202,7 +203,7 @@ static struct my_option my_long_options[] =
   { "ft_min_word_len", "", (gptr*) &ft_min_word_len, (gptr*) &ft_min_word_len, 0, GET_LONG, REQUIRED_ARG, OPT_FT_MIN_WORD_LEN, 4, 1, HA_FT_MAXLEN, 0, 1, 0, 1},
   { "ft_max_word_len", "", (gptr*) &ft_max_word_len, (gptr*) &ft_max_word_len, 0, GET_LONG, REQUIRED_ARG, OPT_FT_MAX_WORD_LEN, HA_FT_MAXLEN, 10, HA_FT_MAXLEN, 0, 1, 0, 1},
   { "ft_max_word_len_for_sort", "", (gptr*) &ft_max_word_len_for_sort, (gptr*) &ft_max_word_len_for_sort, 0, GET_LONG, REQUIRED_ARG, OPT_FT_MAX_WORD_LEN_FOR_SORT, 20, 4, HA_FT_MAXLEN, 0, 1, 0, 1},
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
 
@@ -297,27 +298,29 @@ static void usage(void)
 		      (It may be VERY slow to do a sort the first time!)");
 
   print_defaults("my",load_default_groups);
-  printf("\nPossible variables for option --set-variable (-O) are:\n");
+  printf("\nThe variables you can set are:\n");
   for (i=0; my_long_options[i].name ; i++)
   {
     if (!my_long_options[i].opt_is_var)
       continue;
+#ifdef TO_BE_FIXED
     printf("%-20s  current value: %lu\n", my_long_options[i].name, 
 	   *my_long_options[i].value);
+#endif
   }
-
 }
 
 
 	 /* Read options */
 
-static my_bool get_one_option(int optid, const struct my_option *opt,
-			      char *argument)
+static my_bool
+get_one_option(int optid,
+	       const struct my_option *opt __attribute__((unused)),
+	       char *argument)
 {
   uint old_testflag;
-  char buff[255], *end;
 
-  switch(optid) {
+  switch (optid) {
   case 'a':
     check_param.testflag|= T_STATISTICS;
     break;
@@ -428,13 +431,10 @@ static my_bool get_one_option(int optid, const struct my_option *opt,
     print_version();
     exit(0);
   case OPT_CORRECT_CHECKSUM:
-    check_param.testflag|=T_CALC_CHECKSUM;
-    break;
-  case OPT_CHARSETS_DIR:
-    charsets_dir= argument;
-    break;
-  case OPT_SET_CHARSET:
-    set_charset_name= argument;
+    if (*argument && *argument == '0')
+      check_param.testflag&= ~T_CALC_CHECKSUM;
+    else
+      check_param.testflag|=T_CALC_CHECKSUM;
     break;
 #ifdef DEBUG					/* Only useful if debugging */
   case OPT_START_CHECK_POS:
@@ -445,13 +445,12 @@ static my_bool get_one_option(int optid, const struct my_option *opt,
     usage();
     exit(0);
   }
+  return 0;
 }
 
 
 static void get_options(register int *argc,register char ***argv)
 {
-  int c, option_index=0;
-
   load_defaults("my", load_default_groups, argc, argv);
   default_argv= *argv;
   if (isatty(fileno(stdout)))

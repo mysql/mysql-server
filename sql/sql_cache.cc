@@ -3001,7 +3001,7 @@ my_bool Query_cache::check_integrity(bool not_locked)
   uint i;
   DBUG_ENTER("check_integrity");
 
-  if (!initialized )
+  if (query_cache_size == 0)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     DBUG_RETURN(0);

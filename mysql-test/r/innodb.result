@@ -168,9 +168,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	error	The handler for the table doesn't support check/repair
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	id	A	87	NULL	NULL		BTREE	
-t1	1	parent_id	1	parent_id	A	21	NULL	NULL		BTREE	
-t1	1	level	1	level	A	4	NULL	NULL		BTREE	
+t1	0	PRIMARY	1	id	A	NULL	NULL	NULL		BTREE	
+t1	1	parent_id	1	parent_id	A	NULL	NULL	NULL		BTREE	
+t1	1	level	1	level	A	NULL	NULL	NULL		BTREE	
 drop table t1;
 CREATE TABLE t1 (
 gesuchnr int(11) DEFAULT '0' NOT NULL,
@@ -211,7 +211,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	error	The handler for the table doesn't support check/repair
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	skr	1	a	A	1	NULL	NULL	YES	BTREE	
+t1	1	skr	1	a	A	NULL	NULL	NULL	YES	BTREE	
 drop table t1;
 create table t1 (a int,b varchar(20),key(a)) type=innodb;
 insert into t1 values (1,""), (2,"testing");
@@ -727,7 +727,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	error	The handler for the table doesn't support check/repair
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	a	A	1	NULL	NULL		BTREE	
+t1	0	PRIMARY	1	a	A	NULL	NULL	NULL		BTREE	
 drop table t1;
 create table t1 (i int, j int ) TYPE=innodb;
 insert into t1 values (1,2);
@@ -859,6 +859,7 @@ commit;
 drop database mysqltest;
 show tables from mysqltest;
 Got one of the listed errors
+set autocommit=0;
 create table t1 (a int not null) type= innodb;
 insert into t1 values(1),(2);
 truncate table t1;
@@ -872,6 +873,21 @@ delete from t1;
 select * from t1;
 a
 commit;
+drop table t1;
+set autocommit=1;
+create table t1 (a int not null) type= innodb;
+insert into t1 values(1),(2);
+truncate table t1;
+insert into t1 values(1),(2);
+select * from t1;
+a
+1
+2
+truncate table t1;
+insert into t1 values(1),(2);
+delete from t1;
+select * from t1;
+a
 drop table t1;
 create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) type=innodb;
 insert into t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
@@ -911,3 +927,65 @@ Unknown table 't1' in HANDLER
 handler t1 close;
 Unknown table 't1' in HANDLER
 drop table t1;
+CREATE TABLE t1 (
+number bigint(20) NOT NULL default '0',
+cname char(15) NOT NULL default '',
+carrier_id smallint(6) NOT NULL default '0',
+privacy tinyint(4) NOT NULL default '0',
+last_mod_date timestamp(14) NOT NULL,
+last_mod_id smallint(6) NOT NULL default '0',
+last_app_date timestamp(14) NOT NULL,
+last_app_id smallint(6) default '-1',
+version smallint(6) NOT NULL default '0',
+assigned_scps int(11) default '0',
+status tinyint(4) default '0'
+) TYPE=InnoDB;
+INSERT INTO t1 VALUES (4077711111,'SeanWheeler',90,2,20020111112846,500,00000000000000,-1,2,3,1);
+INSERT INTO t1 VALUES (9197722223,'berry',90,3,20020111112809,500,20020102114532,501,4,10,0);
+INSERT INTO t1 VALUES (650,'San Francisco',0,0,20011227111336,342,00000000000000,-1,1,24,1);
+INSERT INTO t1 VALUES (302467,'Sue\'s Subshop',90,3,20020109113241,500,20020102115111,501,7,24,0);
+INSERT INTO t1 VALUES (6014911113,'SudzCarwash',520,1,20020102115234,500,20020102115259,501,33,32768,0);
+INSERT INTO t1 VALUES (333,'tubs',99,2,20020109113440,501,20020109113440,500,3,10,0);
+CREATE TABLE t2 (
+number bigint(20) NOT NULL default '0',
+cname char(15) NOT NULL default '',
+carrier_id smallint(6) NOT NULL default '0',
+privacy tinyint(4) NOT NULL default '0',
+last_mod_date timestamp(14) NOT NULL,
+last_mod_id smallint(6) NOT NULL default '0',
+last_app_date timestamp(14) NOT NULL,
+last_app_id smallint(6) default '-1',
+version smallint(6) NOT NULL default '0',
+assigned_scps int(11) default '0',
+status tinyint(4) default '0'
+) TYPE=InnoDB;
+INSERT INTO t2 VALUES (4077711111,'SeanWheeler',0,2,20020111112853,500,00000000000000,-1,2,3,1);
+INSERT INTO t2 VALUES (9197722223,'berry',90,3,20020111112818,500,20020102114532,501,4,10,0);
+INSERT INTO t2 VALUES (650,'San Francisco',90,0,20020109113158,342,00000000000000,-1,1,24,1);
+INSERT INTO t2 VALUES (333,'tubs',99,2,20020109113453,501,20020109113453,500,3,10,0);
+select * from t1;
+number	cname	carrier_id	privacy	last_mod_date	last_mod_id	last_app_date	last_app_id	version	assigned_scps	status
+4077711111	SeanWheeler	90	2	20020111112846	500	00000000000000	-1	2	3	1
+9197722223	berry	90	3	20020111112809	500	20020102114532	501	4	10	0
+650	San Francisco	0	0	20011227111336	342	00000000000000	-1	1	24	1
+302467	Sue's Subshop	90	3	20020109113241	500	20020102115111	501	7	24	0
+6014911113	SudzCarwash	520	1	20020102115234	500	20020102115259	501	33	32768	0
+333	tubs	99	2	20020109113440	501	20020109113440	500	3	10	0
+select * from t2;
+number	cname	carrier_id	privacy	last_mod_date	last_mod_id	last_app_date	last_app_id	version	assigned_scps	status
+4077711111	SeanWheeler	0	2	20020111112853	500	00000000000000	-1	2	3	1
+9197722223	berry	90	3	20020111112818	500	20020102114532	501	4	10	0
+650	San Francisco	90	0	20020109113158	342	00000000000000	-1	1	24	1
+333	tubs	99	2	20020109113453	501	20020109113453	500	3	10	0
+delete t1, t2 from t1 left join t2 on t1.number=t2.number where (t1.carrier_id=90 and t1.number=t2.number) or (t2.carrier_id=90 and t1.number=t2.number) or  (t1.carrier_id=90 and t2.number is null);
+select * from t1;
+number	cname	carrier_id	privacy	last_mod_date	last_mod_id	last_app_date	last_app_id	version	assigned_scps	status
+6014911113	SudzCarwash	520	1	20020102115234	500	20020102115259	501	33	32768	0
+333	tubs	99	2	20020109113440	501	20020109113440	500	3	10	0
+select * from t2;
+number	cname	carrier_id	privacy	last_mod_date	last_mod_id	last_app_date	last_app_id	version	assigned_scps	status
+333	tubs	99	2	20020109113453	501	20020109113453	500	3	10	0
+select * from t2;
+number	cname	carrier_id	privacy	last_mod_date	last_mod_id	last_app_date	last_app_id	version	assigned_scps	status
+333	tubs	99	2	20020109113453	501	20020109113453	500	3	10	0
+drop table t1,t2;

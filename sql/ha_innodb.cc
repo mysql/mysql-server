@@ -1020,18 +1020,20 @@ have moved .frm files to another database?",
 		primary_key = 0;
 		key_used_on_scan = 0;
 
- 		/* MySQL allocates the buffer for ref */
+ 		/*
+		  MySQL allocates the buffer for ref.
+		  This includes all keys + one byte for each column
+		  that may be NULL.
+		  The ref_length must be exact as possible as
+		  all reference buffers are allocated based on this.
+		*/
 
-  		ref_length = table->key_info->key_length
-  				+ table->key_info->key_parts + 10;
-
-  		/* One byte per key field is consumed to the SQL NULL
-		info of the field; we add also 10 bytes of safety margin */
+  		ref_length = table->key_info->key_length;
 	} else {
 		((row_prebuilt_t*)innobase_prebuilt)
 				->clust_index_was_generated = TRUE;
 
-  		ref_length = DATA_ROW_ID_LEN + 10;
+  		ref_length = DATA_ROW_ID_LEN;
 
 		DBUG_ASSERT(key_used_on_scan == MAX_KEY);
 	}
@@ -1312,7 +1314,12 @@ ha_innobase::store_key_val_for_row(
 		buff += key_part->length;
   	}
 
-	DBUG_RETURN(buff - buff_start);
+	/*
+	  We have to zero-fill the buffer to be able to compare two
+	  keys to see if they are equal
+	*/
+	bzero(buff, (ref_length- (uint) (buff - buff_start)));
+	return ref_length;
 }
 
 /******************************************************************
@@ -2107,7 +2114,7 @@ ha_innobase::change_active_index(
   KEY*		key;
 
   statistic_increment(ha_read_key_count, &LOCK_status);
-  DBUG_ENTER("index_read_idx");
+  DBUG_ENTER("change_active_index");
 
   active_index = keynr;
 
@@ -2394,8 +2401,9 @@ ha_innobase::rnd_pos(
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	int		error;
 	uint		keynr	= active_index;
-
 	DBUG_ENTER("rnd_pos");
+	DBUG_DUMP("key", pos, ref_stored_len);
+
 	statistic_increment(ha_read_rnd_count, &LOCK_status);
 
 	if (prebuilt->clust_index_was_generated) {
@@ -2410,11 +2418,15 @@ ha_innobase::rnd_pos(
 	}
 
 	if (error) {
+	        DBUG_PRINT("error",("Got error: %ld",error));
 		DBUG_RETURN(error);
 	}
 
 	error = index_read(buf, pos, ref_stored_len, HA_READ_KEY_EXACT);
-
+	if (error)
+	{
+	  DBUG_PRINT("error",("Got error: %ld",error));
+	}
 	change_active_index(keynr);
 
   	DBUG_RETURN(error);
@@ -2449,8 +2461,7 @@ ha_innobase::position(
 		len = store_key_val_for_row(primary_key, (char*) ref, record);
 	}
 
-	DBUG_ASSERT(len <= ref_length);
-
+	DBUG_ASSERT(len == ref_length);
 	ref_stored_len = len;
 }
 
@@ -2580,7 +2591,8 @@ create_index(
 
     	ind_type = 0;
 
-    	if (strcmp(key->name, "PRIMARY") == 0) {
+    	if (key_num == form->primary_key)
+	{
 		ind_type = ind_type | DICT_CLUSTERED;
 	}
 
@@ -2652,7 +2664,7 @@ ha_innobase::create(
 	int		error;
 	dict_table_t*	innobase_table;
 	trx_t*		trx;
-	int		primary_key_no	= -1;
+	int		primary_key_no;
 	KEY*		key;
 	uint		i;
 	char		name2[FN_REFLEN];
@@ -2668,7 +2680,7 @@ ha_innobase::create(
 
   	/* Create the table definition in InnoDB */
 
-  	if (error = create_table_def(trx, form, norm_name)) {
+  	if ((error = create_table_def(trx, form, norm_name))) {
 
 		trx_commit_for_mysql(trx);
 
@@ -2679,13 +2691,9 @@ ha_innobase::create(
 
 	/* Look for a primary key */
 
-	for (i = 0; i < form->keys; i++) {
-		key = form->key_info + i;
-
-    		if (strcmp(key->name, "PRIMARY") == 0) {
-    			primary_key_no = (int) i;
-    		}
-	}
+	primary_key_no= (table->primary_key != MAX_KEY ?
+			 (int) table->primary_key : 
+			 -1);
 
 	/* Our function row_get_mysql_key_number_for_index assumes
 	the primary key is always number 0, if it exists */
@@ -3057,7 +3065,7 @@ ha_innobase::estimate_number_of_rows(void)
 		prebuilt->trx->op_info = (char*) "";
 	}
 
-	return((ha_rows) estimate);
+	DBUG_RETURN((ha_rows) estimate);
 }
 
 /*************************************************************************
@@ -3328,6 +3336,7 @@ ha_innobase::external_lock(
 				 & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN))) {
 
 		    		innobase_commit(thd, trx);
+				thd->transaction.all.innodb_active_trans=0;
 		  	}
 		}
 	}

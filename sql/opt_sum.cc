@@ -299,7 +299,8 @@ static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
   uint idx=0;
 
   /* Check if some key has field as first key part */
-  if (field->key_start && (! cond || ! (cond->used_tables() & table->map)))
+  if ((field->key_start & field->table->keys_in_use_for_query) &&A
+      (! cond || ! (cond->used_tables() & table->map)))
   {
     for (key_map key=field->key_start ; !(key & 1) ; idx++)
       key>>=1;

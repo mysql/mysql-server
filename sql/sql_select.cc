@@ -1296,11 +1296,13 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
     else
     {
       JOIN_TAB *stat=field->table->reginfo.join_tab;
-      stat[0].keys|=field->key_start;		// Add possible keys
+      key_map possible_keys= (field->key_start &
+			      field->table->keys_in_use_for_query);
+      stat[0].keys|= possible_keys;		// Add possible keys
 
       if (!value)
       {						// Probably BETWEEN or IN
-	stat[0].const_keys |= field->key_start;
+	stat[0].const_keys |= possible_keys;
 	return;					// Can't be used as eq key
       }
 
@@ -1314,7 +1316,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
       */
       stat[0].key_dependent|=used_tables;
       if (value->const_item())
-	stat[0].const_keys |= field->key_start;
+	stat[0].const_keys |= possible_keys;
 
       /* We can't always use indexes when comparing a string index to a
 	 number. cmp_type() is checked to allow compare of dates to numbers */
@@ -4235,7 +4237,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       my_errno=tmp;
       error= -1;
     }
-    if (table->file->index_end())
+    if ((tmp=table->file->index_end()))
     {
       my_errno=tmp;
       error= -1;

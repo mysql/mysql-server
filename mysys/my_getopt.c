@@ -39,8 +39,10 @@ static void init_variables(const struct my_option *options);
 #define ERR_UNKNOWN_VARIABLE      6
 #define ERR_MUST_BE_VARIABLE      7
 #define ERR_UNKNOWN_SUFFIX        8
+#define ERR_NO_PTR_TO_VARIABLE	  9
 
-static char *special_opt_prefix[]= {"skip", "disable", "enable", "maximum", 0};
+static const char *special_opt_prefix[]=
+{"skip", "disable", "enable", "maximum", 0};
 
 
 /* 
@@ -52,11 +54,12 @@ static char *special_opt_prefix[]= {"skip", "disable", "enable", "maximum", 0};
   or unknown option. Check that option was given an argument if it requires
   one. Call function 'get_one_option()' once for each option.
 */
-extern int handle_options (int *argc, char ***argv, 
-			   const struct my_option *longopts, 
-			   my_bool (*get_one_option)(int,
-						     const struct my_option *,
-						     char *))
+
+int handle_options(int *argc, char ***argv, 
+		   const struct my_option *longopts, 
+		   my_bool (*get_one_option)(int,
+					     const struct my_option *,
+					     char *))
 {
   uint opt_found, argvpos= 0, length, spec_len, i;
   int err;
@@ -70,13 +73,13 @@ extern int handle_options (int *argc, char ***argv,
   for (pos= *argv; *pos; pos++)
   {
     char *cur_arg= *pos;
-    if (*cur_arg == '-' && *(cur_arg + 1) && !end_of_options) // must be opt.
+    if (*cur_arg == '-' && *(cur_arg + 1) && !end_of_options) /* must be opt */
     {
       char *argument= 0;
       must_be_var= 0;
       set_maximum_value= 0;
 
-      // check for long option, or --set-variable (-O)
+      /* check for long option, or --set-variable (-O) */
       if (*(cur_arg + 1) == '-' || *(cur_arg + 1) == 'O')
       {
 	if (*(cur_arg + 1) == 'O' || 
@@ -89,7 +92,7 @@ extern int handle_options (int *argc, char ***argv,
 	    cur_arg+= 2;
 	    if (!(*cur_arg))
 	    {
-	      // the argument must be in next argv
+	      /* the argument must be in next argv */
 	      if (!(*(pos + 1)))
 	      {
 		fprintf(stderr, "%s: Option '-O' requires an argument\n",
@@ -101,7 +104,7 @@ extern int handle_options (int *argc, char ***argv,
 	      (*argc)--;
 	    }
 	  }
-	  else // Option argument begins with string '--set-variable'
+	  else /* Option argument begins with string '--set-variable' */
 	  {
 	    cur_arg+= 14;
 	    if (*cur_arg == '=')
@@ -115,14 +118,14 @@ extern int handle_options (int *argc, char ***argv,
 		return ERR_ARGUMENT_REQUIRED;
 	      }
 	    }
-	    else if (*cur_arg) // garbage, or another option. break out
+	    else if (*cur_arg) /* garbage, or another option. break out */
 	    {
 	      cur_arg-= 14;
 	      must_be_var= 0;
 	    }
 	    else
 	    {
-	      // the argument must be in next argv
+	      /* the argument must be in next argv */
 	      if (!(*(pos + 1)))
 	      {
 		fprintf(stderr,
@@ -138,13 +141,14 @@ extern int handle_options (int *argc, char ***argv,
 	}
 	else if (!must_be_var)
 	{
-	  if (!*(cur_arg + 2))  // '--' means end of options, look no further
+	  /* '--' means end of options, look no further */
+	  if (!*(cur_arg + 2))
 	  {
 	    end_of_options= 1;
 	    (*argc)--;
 	    continue;
 	  }
-	  cur_arg+= 2;          // skip the double dash
+	  cur_arg+= 2;          /* skip the double dash */
 	}
 	for (optend= cur_arg; *optend && *optend != '='; optend++) ;
 	length= optend - cur_arg;
@@ -169,7 +173,9 @@ extern int handle_options (int *argc, char ***argv,
 	      if (!compare_strings(special_opt_prefix[i], cur_arg, spec_len) &&
 		  cur_arg[spec_len] == '-')
 	      {
-		// We were called with a special prefix, we can reuse opt_found
+		/*
+		  We were called with a special prefix, we can reuse opt_found
+		*/
 		cur_arg += (spec_len + 1);
 		if ((opt_found= findopt(cur_arg, length - (spec_len + 1),
 					&optp, &prev_found)))
@@ -183,15 +189,15 @@ extern int handle_options (int *argc, char ***argv,
 		    return ERR_AMBIGUOUS_OPTION;
 		  }
 		  if (i < DISABLE_OPTION_COUNT)
-		    optend= "=0";
+		    optend= (char*) "=0";
 		  else if (!compare_strings(special_opt_prefix[i],"enable",6))
-		    optend= "=1";
+		    optend= (char*) "=1";
 		  else if (!compare_strings(special_opt_prefix[i],"maximum",7))
 		  {
 		    set_maximum_value= 1;
 		    must_be_var= 1;
 		  }
-		  break; // note break from the inner loop, main loop continues
+		  break; /* break from the inner loop, main loop continues */
 		}
 	      }
 	    }
@@ -229,8 +235,8 @@ extern int handle_options (int *argc, char ***argv,
 	}
 	if (must_be_var && !optp->opt_is_var)
 	{
-	  fprintf(stderr, "%s: the argument to -O must be a variable\n",
-		  progname);
+	  fprintf(stderr, "%s: the argument '%s' is not an variable\n",
+		  progname, *pos);
 	  return ERR_MUST_BE_VARIABLE;
 	}
 	if (optp->arg_type == NO_ARG && *optend == '=')
@@ -253,9 +259,9 @@ extern int handle_options (int *argc, char ***argv,
 	  (*argc)--;
 	}
 	else if (*optend == '=')
-	  argument= *(optend + 1) ? optend + 1 : "";
+	  argument= *(optend + 1) ? optend + 1 : (char*) "";
       }
-      else  // must be short option
+      else  /* must be short option */
       {
 	my_bool skip;
 	for (skip= 0, optend= (cur_arg + 1); *optend && !skip; optend++)
@@ -290,8 +296,12 @@ extern int handle_options (int *argc, char ***argv,
 		  (*argc)--;
 		}
 	      }
-	      else if (*(optend + 1)) // we are hitting many options in 1 argv
-		get_one_option(optp->id, optp, 0);
+	      else
+	      {
+		/* we are hitting many options in 1 argv */
+		if (*(optend + 1))
+		  get_one_option(optp->id, optp, 0);
+	      }
 	      break;
 	    }
 	  }
@@ -301,6 +311,12 @@ extern int handle_options (int *argc, char ***argv,
       {
 	gptr *result_pos= (set_maximum_value) ?
 	  optp->u_max_value : optp->value;
+	if (!result_pos)
+	{
+	  fprintf(stderr,
+		  "%s: Can't set a value for %s\n", progname, optp->name);
+	  return ERR_NO_PTR_TO_VARIABLE;
+	}
 	if (optp->var_type == GET_LONG)
 	 *((long*) result_pos)= (long) getopt_ll(argument, optp, &err);
 	else if (optp->var_type == GET_LL)
@@ -313,9 +329,9 @@ extern int handle_options (int *argc, char ***argv,
       else
 	get_one_option(optp->id, optp, argument);
 
-      (*argc)--; // option handled (short or long), decrease argument count
+      (*argc)--; /* option handled (short or long), decrease argument count */
     }
-    else // non-option found
+    else /* non-option found */
       (*argv)[argvpos++]= cur_arg;
   }
   return 0;
@@ -340,14 +356,14 @@ static int findopt (char *optpat, uint length,
   int count;
   struct my_option *opt= (struct my_option *) *opt_res;
 
-  for (count= 0; opt->id; opt++)
+  for (count= 0; opt->name; opt++)
   {
-    if (!compare_strings(opt->name, optpat, length)) // match found
+    if (!compare_strings(opt->name, optpat, length)) /* match found */
     {
       (*opt_res)= opt;
       if (!count)
-	*ffname= (char *) opt->name;     // we only need to know one prev
-      if (length == strlen(opt->name))   // exact match
+	*ffname= (char *) opt->name;     /* we only need to know one prev */
+      if (length == strlen(opt->name))   /* exact match */
 	return 1;
       count++;
     }
