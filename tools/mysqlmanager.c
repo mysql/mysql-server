@@ -1170,8 +1170,8 @@ static char* read_line(struct manager_thd* thd)
     {
       if (vio_should_retry(thd->vio) && retry_count++ < MAX_RETRY_COUNT)
 	continue;
-      log_err("Error reading command from client (Error: %d)",
-	      vio_errno(thd->vio));
+      log_err("Error reading command from client (len: %d  Error: %d)",
+	      len, vio_errno(thd->vio));
       thd->fatal=1;
       return 0;
     }
