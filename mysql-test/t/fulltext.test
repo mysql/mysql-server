@@ -237,11 +237,16 @@ INSERT t1 VALUES ('Mit freundlichem GrЭъ'), ('aus OsnabrЭck');
 SET NAMES koi8r;
 INSERT t1 VALUES ("Это мы - опилки"),("Отлезь, гнида!"),
                 ("Не влезай, убьет!"),("и будет прав!");
-SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('ОПИЛКИ');
-SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('ПрА*' IN BOOLEAN MODE);
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ОПИЛКИ');
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('ПрА*' IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH t AGAINST ('это' IN BOOLEAN MODE);
-SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
 SET NAMES latin1;
-SELECT t, charset(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
+#alter table t1 modify t text character set latin1 collate latin1_german2_ci not null;
+alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('OsnabrЭck');
+SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
 DROP TABLE t1;
 
