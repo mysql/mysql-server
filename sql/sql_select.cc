@@ -8714,8 +8714,9 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   *table= new_table;
   table->s= &table->share_not_to_be_used;
   table->file->change_table_ptr(table);
-  thd->proc_info= (!strcmp(save_proc_info,"Copying to tmp table") ?
-		   "Copying to tmp table on disk" : save_proc_info);
+  if (save_proc_info)
+    thd->proc_info= (!strcmp(save_proc_info,"Copying to tmp table") ?
+                     "Copying to tmp table on disk" : save_proc_info);
   DBUG_RETURN(0);
 
  err:

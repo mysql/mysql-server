@@ -427,8 +427,8 @@ static void usage(void)
 		      can't fix the data file.\n\
   --character-sets-dir=...\n\
                       Directory where character sets are.\n\
-  --set-character-set=name\n\
- 		      Change the character set used by the index.\n\
+  --set-collation=name\n\
+ 		      Change the collation used by the index.\n\
   -q, --quick         Faster repair by not modifying the data file.\n\
                       One can give a second '-q' to force myisamchk to\n\
 		      modify the original datafile in case of duplicate keys.\n\
