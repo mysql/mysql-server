@@ -46854,6 +46854,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.43
 @itemize @bullet
 @item
+Fixed a bug in @code{INSERT DELAYED} and @code{FLUSH TABLES} introduced
+in 3.23.42.
+@item
 Fixed unlikely bug, which returned not matching rows, in SELECT with
 many tables and multi-column indexes and 'range' type.
 @item
