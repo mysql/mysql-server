@@ -117,7 +117,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   switch (opCode) {
   case TuxMaintReq::OpAdd:
     jam();
-    searchToAdd(signal, frag, c_searchKey, ent, treePos);
+    searchToAdd(frag, c_searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
       debugOut << treePos << (treePos.m_match ? " - error" : "") << endl;
@@ -133,8 +133,8 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
       break;
     }
     /*
-     * At most one new node is inserted in the operation.  We keep one
-     * free node pre-allocated so the operation cannot fail.
+     * At most one new node is inserted in the operation.  Pre-allocate
+     * it so that the operation cannot fail.
      */
     if (frag.m_freeLoc == NullTupLoc) {
       jam();
@@ -144,14 +144,16 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
         jam();
         break;
       }
+      // link to freelist
+      node.setLink(0, frag.m_freeLoc);
       frag.m_freeLoc = node.m_loc;
       ndbrequire(frag.m_freeLoc != NullTupLoc);
     }
-    treeAdd(signal, frag, treePos, ent);
+    treeAdd(frag, treePos, ent);
     break;
   case TuxMaintReq::OpRemove:
     jam();
-    searchToRemove(signal, frag, c_searchKey, ent, treePos);
+    searchToRemove(frag, c_searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
       debugOut << treePos << (! treePos.m_match ? " - error" : "") << endl;
@@ -166,7 +168,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
       }
       break;
     }
-    treeRemove(signal, frag, treePos);
+    treeRemove(frag, treePos);
     break;
   default:
     ndbrequire(false);
