@@ -3672,7 +3672,15 @@ ha_innobase::start_stmt(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_no_need_to_fetch_extra_cols = TRUE;
 	prebuilt->read_just_key = 0;
-	prebuilt->select_lock_type = LOCK_NONE;
+
+	if (prebuilt->select_lock_type == LOCK_NONE) {
+	        /* This handle is for a temporary table created inside
+	        this same LOCK TABLES; since MySQL does NOT call external_lock
+	        in this case, we must use x-row locks inside InnoDB to be
+	        prepared for an update of a row */
+	  
+	        prebuilt->select_lock_type = LOCK_X;
+	}
 
 	thd->transaction.all.innodb_active_trans = 1;
 
