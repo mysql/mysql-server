@@ -49,7 +49,7 @@
 #define MAX_SYS_VAR_LENGTH 32
 #define MAX_KEY 32				/* Max used keys */
 #define MAX_REF_PARTS 16			/* Max parts used as ref */
-#define MAX_KEY_LENGTH 500			/* max possible key */
+#define MAX_KEY_LENGTH 1024			/* max possible key */
 #if SIZEOF_OFF_T > 4
 #define MAX_REFLENGTH 8				/* Max length for record ref */
 #else
