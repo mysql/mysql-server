@@ -2290,8 +2290,32 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       char tmp[MAX_FIELD_WIDTH];
       char tmp1[MAX_FIELD_WIDTH];
       String type(tmp,sizeof(tmp), system_charset_info);
+      char *end= tmp;
       count++;
       restore_record(table, s->default_values);
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      uint col_access;
+      check_access(thd,SELECT_ACL | EXTRA_ACL, base_name,
+                   &tables->grant.privilege, 0, 0);
+      col_access= get_column_grant(thd, &tables->grant, tables->db,
+                                   tables->table_name,
+                                   field->field_name) & COL_ACLS;
+      if (lex->orig_sql_command != SQLCOM_SHOW_FIELDS  && !col_access)
+        continue;
+      for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
+      {
+        if (col_access & 1)
+        {
+          *end++=',';
+          end=strmov(end,grant_types.type_names[bitnr]);
+        }
+      }
+#else
+      end=strmov(end,"");
+#endif
+      table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
+
       table->field[1]->store(base_name, strlen(base_name), cs);
       table->field[2]->store(file_name, strlen(file_name), cs);
       table->field[3]->store(field->field_name, strlen(field->field_name),
@@ -2398,31 +2422,12 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
                    (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
       table->field[15]->store((const char*) pos,
                               strlen((const char*) pos), cs);
-      char *end= tmp;
+      end= tmp;
       if (field->unireg_check == Field::NEXT_NUMBER)
         end=strmov(tmp,"auto_increment");
       table->field[16]->store(tmp, (uint) (end-tmp), cs);
 
       end=tmp;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-      uint col_access;
-      check_access(thd,SELECT_ACL | EXTRA_ACL, base_name,
-                   &tables->grant.privilege, 0, 0);
-      col_access= get_column_grant(thd, &tables->grant, tables->db,
-                                   tables->table_name,
-                                   field->field_name) & COL_ACLS;
-      for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
-      {
-        if (col_access & 1)
-        {
-          *end++=',';
-          end=strmov(end,grant_types.type_names[bitnr]);
-        }
-      }
-#else
-      end=strmov(end,"");
-#endif
-      table->field[17]->store(tmp+1,end == tmp ? 0 : (uint) (end-tmp-1), cs);
       table->field[18]->store(field->comment.str, field->comment.length, cs);
       if (schema_table_store_record(thd, table))
         DBUG_RETURN(1);
