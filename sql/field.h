@@ -883,21 +883,6 @@ public:
   }
   char *pack(char *to, const char *from, uint max_length= ~(uint) 0);
   const char *unpack(char *to, const char *from);
-#ifdef HAVE_GEMINI_DB
-  char *pack_id(char *to, const char *from, ulonglong id, 
-                uint max_length= ~(uint) 0);
-  ulonglong get_id(const char *from);
-  const char *unpack_id(char *to, const char *from, const char *bdata);
-  inline void get_ptr_from_key_image(char **str,char *key_str)
-  {
-     *str = key_str + sizeof(uint16);
-  }
-  inline uint get_length_from_key_image(char *key_str)
-  {
-    return uint2korr(key_str);
-  }
-  enum_field_types blobtype() { return (packlength == 1 ? FIELD_TYPE_TINY_BLOB : FIELD_TYPE_BLOB);}
-#endif
   char *pack_key(char *to, const char *from, uint max_length);
   char *pack_key_from_key_image(char* to, const char *from, uint max_length);
   int pack_cmp(const char *a, const char *b, uint key_length);

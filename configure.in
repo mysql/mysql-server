@@ -2077,7 +2077,6 @@ AC_MSG_RESULT([default: $default_charset; compiled in: $CHARSETS])
 
 MYSQL_CHECK_BDB
 MYSQL_CHECK_INNODB
-MYSQL_CHECK_GEMINI
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=
@@ -2195,17 +2194,6 @@ EOF
     || AC_MSG_ERROR([could not configure INNODB])
 
     echo "END OF INNODB CONFIGURATION"
-  fi
-
-  if test "X$have_gemini_db" = "Xyes"; then 
-    sql_server_dirs="gemini $sql_server_dirs"
-    echo "CONFIGURING FOR GEMINI DB"
-    (cd gemini && sh ./configure) \
-    || AC_MSG_ERROR([could not configure Gemini DB])
-
-    echo "END OF GEMINI DB CONFIGURATION"
-
-    AC_DEFINE(HAVE_GEMINI_DB)
   fi
 
   if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"

@@ -174,7 +174,6 @@ typedef struct st_lex {
   HA_CREATE_INFO create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   ulong thread_id,type;
-  ulong gemini_spin_retries;
   enum_sql_command sql_command;
   enum lex_states next_state;
   enum enum_duplicates duplicates;

@@ -1897,11 +1897,6 @@ mysql_execute_command(void)
 			       TL_WRITE_LOW_PRIORITY : TL_WRITE);
     thd->default_select_limit=select_lex->select_limit;
     thd->tx_isolation=lex->tx_isolation;
-    if (thd->gemini_spin_retries != lex->gemini_spin_retries)
-    {
-      thd->gemini_spin_retries= lex->gemini_spin_retries;
-      ha_set_spin_retries(thd->gemini_spin_retries);
-    }
     DBUG_PRINT("info",("options: %ld  limit: %ld",
 		       thd->options,(long) thd->default_select_limit));
 

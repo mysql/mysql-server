@@ -148,7 +148,7 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
 *****************************************************************************/
 
 int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
-		    uint timeout)
+	       uint timeout)
 {
 #if defined(__WIN__) || defined(OS2)
   return connect(s, (struct sockaddr*) name, namelen);
