@@ -1722,7 +1722,10 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     else if (group_by_ref)
       return group_by_ref;
     else
+    {
       DBUG_ASSERT(FALSE);
+      return NULL; /* So there is no compiler warning. */
+    }
   }
   else
     return (Item**) not_found_item;
