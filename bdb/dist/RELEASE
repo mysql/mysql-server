@@ -16,7 +16,7 @@ DB_VERSION_STRING="Sleepycat Software: Berkeley DB $DB_VERSION: ($DB_RELEASE_DAT
 # bitkeeper doesn't like somebody to mess with permissions!
 chmod()
 {
-  #echo "chmod $1 $2"
+  echo "chmod $1 $2" >/dev/null
 }
 
 # useful trick to find auto-generated files
