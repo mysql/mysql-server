@@ -6,6 +6,8 @@ SELECT (SELECT 1 FROM (SELECT 1) HAVING a=1) as a;
 -- error 1245
 SELECT (SELECT 1 FROM (SELECT 1) HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) HAVING a=1) as b;
 SELECT (SELECT 1),MAX(1) FROM (SELECT 1);
+-- error 1245
+SELECT (SELECT a) as a;
 drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
 create table t1 (a int);
 create table t2 (a int, b int);

@@ -403,8 +403,8 @@ public:
     :Item_ident(NullS,table_name_par,field_name_par),ref(item) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
-  { return (*ref)->eq(item, binary_cmp); }
-  ~Item_ref() { if (ref) delete *ref; }
+  { return ref && (*ref)->eq(item, binary_cmp); }
+  ~Item_ref() { if (ref && (*ref) != this) delete *ref; }
   double val()
   {
     double tmp=(*ref)->val_result();
