@@ -582,6 +582,16 @@ void close_temporary_tables(THD *thd)
     /* The -1 is to remove last ',' */
     thd->clear_error();
     Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0);
+    /*
+      Imagine the thread had created a temp table, then was doing a SELECT, and
+      the SELECT was killed. Then it's not clever to mark the statement above as
+      "killed", because it's not really a statement updating data, and there
+      are 99.99% chances it will succeed on slave.
+      If a real update (one updating a persistent table) was killed on the
+      master, then this real update will be logged with error_code=killed,
+      rightfully causing the slave to stop.
+    */
+    qinfo.error_code= 0;
     mysql_bin_log.write(&qinfo);
   }
   thd->temporary_tables=0;
