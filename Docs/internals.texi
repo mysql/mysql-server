@@ -215,11 +215,14 @@ If you can write it in fewer lines, do it (as long as the code will not
 be slower or much harder to read).
 
 @item
+Don't use two commands on the same line.
+
+@item
 Do not check the same pointer for @code{NULL} more than once.
 
 @item
-Use long function and variable names in English;  This makes your
-code easier to read.
+Use long function and variable names in English; This makes your code
+easier to read.  Use the 'varible_name' style instead of 'VariableName'.
 
 @item
 Think assembly - make it easier for the compiler to optimize your code.
@@ -267,6 +270,25 @@ Any @code{#define}'s are in all-caps.
 Matching @samp{@{} are in the same column.
 
 @item
+Put the @samp{@{} after a 'switch' on the same line
+
+@example
+switch (arg) {
+@end example
+
+Because this gives better overall indentation for the switch statement.
+
+@item
+In all other cases, @{ and @} should be on their own line, except
+if there is nothing inside @{ @}.
+
+@item
+Have a space after 'if'
+
+@item
+Put a space after ',' for function arguments
+
+@item
 Functions return 0 on success, and non-zero on error, so you can do:
 
 @example
@@ -288,6 +310,32 @@ Do not instantiate a class if you do not have to.
 Use pointers rather than array indexing when operating on strings.
 
 @end itemize
+
+Suggested mode in emacs:
+
+@example
+(load "cc-mode")
+(setq c-mode-common-hook '(lambda ()
+			    (turn-on-font-lock)
+			    (setq comment-column 48)))
+(setq c-style-alist
+      (cons
+       '("MY"
+	 (c-basic-offset . 2)
+	 (c-comment-only-line-offset . 0)
+	 (c-offsets-alist . ((statement-block-intro . +)
+			     (knr-argdecl-intro . 0)
+			     (substatement-open . 0)
+			     (label . -)
+			     (statement-cont . +)
+			     (arglist-intro . c-lineup-arglist-intro-after-paren)
+			     (arglist-close . c-lineup-arglist)
+			     ))
+	 )
+       c-style-alist))
+(c-set-style "MY")
+(setq c-default-style "MY")
+@end example
 
 @node mysys functions,,,
 @chapter mysys functions
