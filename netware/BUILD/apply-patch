@@ -1,0 +1,41 @@
+#! /bin/sh
+
+# debug
+#set -x
+
+# stop on errors
+set -e
+
+# repository directory
+repo_dir=`pwd`
+
+# show usage
+show_usage()
+{
+	cat << EOF
+
+usage: apply-patch
+
+Imports netware/current-changes.patch so that current changes
+for the platform are present on the local repository.
+
+Use from the root directory of the repository, with BitKeeper
+installed.
+
+EOF
+	exit 0;
+}
+
+if test $1 || test -z $BK_USER
+then
+	show_usage
+fi
+
+echo "starting patch..."
+
+echo "user: $BK_USER"
+
+# import patch
+# Note: In future this should be changed to check whether
+#       the repo already has this patch
+bk import -tpatch $repo_dir/netware/current-changes.patch $repo_dir
