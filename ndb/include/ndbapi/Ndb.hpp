@@ -1236,16 +1236,17 @@ public:
    *       The transaction must be closed independent of its outcome, i.e.
    *       even if there is an error.
    *
-   * @param  prio     Not implemented
-   * @param  keyData  Pointer to partition key to be used for deciding
+   * @param  table    Pointer to table object used for deciding 
    *                  which node to run the Transaction Coordinator on
+   * @param  keyData  Pointer to partition key corresponding to
+   *                  <var>table</var>
    * @param  keyLen   Length of partition key expressed in bytes
    * 
    * @return NdbTransaction object, or NULL on failure.
    */
-  NdbTransaction* startTransaction(Uint32        prio = 0, 
-				  const char *  keyData = 0, 
-				  Uint32        keyLen = 0);
+  NdbTransaction* startTransaction(const NdbDictionary::Table *table= 0,
+				   const char  *keyData = 0, 
+				   Uint32       keyLen = 0);
 
   /**
    * Close a transaction.
