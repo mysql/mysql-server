@@ -5,8 +5,8 @@ typedef struct st_master_info
 {
   char log_file_name[FN_REFLEN];
   ulonglong pos,pending;
-  FILE* file; // we keep the file open, so we need to remember the file pointer
-
+  File fd; // we keep the file open, so we need to remember the file pointer
+  IO_CACHE file;
   // the variables below are needed because we can change masters on the fly
   char host[HOSTNAME_LENGTH+1];
   char user[USERNAME_LENGTH+1];
@@ -16,7 +16,7 @@ typedef struct st_master_info
   pthread_mutex_t lock;
   bool inited;
   
-  st_master_info():pending(0),inited(0)
+  st_master_info():pending(0),fd(-1),inited(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
     pthread_mutex_init(&lock, NULL);

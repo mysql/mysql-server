@@ -32,7 +32,7 @@ static int send_file(THD *thd)
   NET* net = &thd->net;
   int fd = -1,bytes, error = 1;
   char fname[FN_REFLEN+1];
-  char buf[IO_SIZE*15];
+  char *buf;
   const char *errmsg = 0;
   int old_timeout;
   DBUG_ENTER("send_file");
@@ -41,6 +41,13 @@ static int send_file(THD *thd)
   // the job
   old_timeout = thd->net.timeout;
   thd->net.timeout = thd->inactive_timeout;
+
+  // spare the stack
+  if(!(buf = alloc_root(&thd->mem_root,IO_SIZE)))
+    {
+      errmsg = "Out of memory";
+      goto err;
+    }
 
   // we need net_flush here because the client will not know it needs to send
   // us the file name until it has processed the load event entry
@@ -62,7 +69,7 @@ static int send_file(THD *thd)
     goto err;
   }
 
-  while ((bytes = (int) my_read(fd, (byte*) buf, sizeof(buf),
+  while ((bytes = (int) my_read(fd, (byte*) buf, IO_SIZE,
 				MYF(MY_WME))) > 0)
   {
     if (my_net_write(net, buf, bytes))
