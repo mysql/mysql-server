@@ -905,8 +905,9 @@ public:
 
 class Item_func_isnotnull :public Item_bool_func
 {
+  bool abort_on_null;
 public:
-  Item_func_isnotnull(Item *a) :Item_bool_func(a) {}
+  Item_func_isnotnull(Item *a) :Item_bool_func(a), abort_on_null(0) {}
   longlong val_int();
   enum Functype functype() const { return ISNOTNULL_FUNC; }
   void fix_length_and_dec()
@@ -915,10 +916,11 @@ public:
   }
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
-  table_map not_null_tables() const { return used_tables(); }
+  table_map not_null_tables() const { return abort_on_null ? used_tables() : 0; }
   Item *neg_transformer(THD *thd);
   void print(String *str);
   CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
+  void top_level_item() { abort_on_null=1; }
 };
 
 
@@ -1004,7 +1006,7 @@ public:
   /* Item_cond() is only used to create top level items */
   Item_cond(): Item_bool_func(), abort_on_null(1)
   { const_item_cache=0; }
-  Item_cond(Item *i1,Item *i2) 
+  Item_cond(Item *i1,Item *i2)
     :Item_bool_func(), abort_on_null(0)
   {
     list.push_back(i1);
