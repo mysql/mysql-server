@@ -205,7 +205,8 @@ ulong query_id=1L,long_query_count,long_query_time,aborted_threads,
       aborted_connects,delayed_insert_timeout,delayed_insert_limit,
       delayed_queue_size,delayed_insert_threads,delayed_insert_writes,
       delayed_rows_in_use,delayed_insert_errors,flush_time;
-ulong specialflag=0,opened_tables=0,created_tmp_tables=0;
+ulong specialflag=0,opened_tables=0,created_tmp_tables=0,
+      created_tmp_disk_tables=0;
 ulong max_connections,max_insert_delayed_threads,max_used_connections,
       max_connect_errors;
 ulong thread_id=1L,current_pid;
@@ -2411,6 +2412,7 @@ struct show_var_st status_vars[]= {
   {"Bytes_received",           (char*) &bytes_received,         SHOW_LONG},
   {"Bytes_sent",               (char*) &bytes_sent,             SHOW_LONG},
   {"Connections",              (char*) &thread_id,              SHOW_LONG_CONST},
+  {"Created_tmp_disk_tables",  (char*) &created_tmp_disk_tables,SHOW_LONG},
   {"Created_tmp_tables",       (char*) &created_tmp_tables,     SHOW_LONG},
   {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG},
   {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
