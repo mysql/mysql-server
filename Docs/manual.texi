@@ -30991,7 +30991,8 @@ mysql> select ATAN(-2);
 @end example
 
 @findex ATAN2()
-@item ATAN2(Y,X)
+@item ATAN(Y,X)
+@itemx ATAN2(Y,X)
 Returns the arc tangent of the two variables @code{X} and @code{Y}. It is
 similar to calculating the arc tangent of @code{Y / X}, except that the
 signs of both arguments are used to determine the quadrant of the
@@ -30999,7 +31000,7 @@ result:
 @example
 mysql> select ATAN(-2,2);
         -> -0.785398
-mysql> select ATAN(PI(),0);
+mysql> select ATAN2(PI(),0);
         -> 1.570796
 @end example
 
@@ -32204,6 +32205,18 @@ MySQL will also, in this case, prefer sorting to doing a
 temporary table with a key on the @code{GROUP BY} elements.
 
 @item
+@code{SQL_BUFFER_RESULT} will force the result to be put into a temporary
+table. This will help MySQL free the table locks early and will help
+in cases where it takes a long time to send the result set to the client.
+
+@item
+@code{SQL_SMALL_RESULT}, a MySQL-specific option, can be used
+with @code{GROUP BY} or @code{DISTINCT} to tell the optimizer that the
+result set will be small.  In this case, MySQL will use fast
+temporary tables to store the resulting table instead of using sorting. In
+MySQL Version 3.23 this shouldn't normally be needed.
+
+@item
 @cindex @code{GROUP BY}, extensions to ANSI SQL
 If you use @code{GROUP BY}, the output rows will be sorted according to the
 @code{GROUP BY} as if you would have had an @code{ORDER BY} over all the fields
@@ -32220,18 +32233,6 @@ select fields which are not mentioned in the @code{GROUP BY} clause.
 If you are not getting the results you expect from your query, please
 read the @code{GROUP BY} description.
 @xref{Group by functions}.
-
-@item
-@code{SQL_BUFFER_RESULT} will force the result to be put into a temporary
-table. This will help MySQL free the table locks early and will help
-in cases where it takes a long time to send the result set to the client.
-
-@item
-@code{SQL_SMALL_RESULT}, a MySQL-specific option, can be used
-with @code{GROUP BY} or @code{DISTINCT} to tell the optimizer that the
-result set will be small.  In this case, MySQL will use fast
-temporary tables to store the resulting table instead of using sorting. In
-MySQL Version 3.23 this shouldn't normally be needed.
 
 @item
 @code{STRAIGHT_JOIN} forces the optimizer to join the tables in the order in
