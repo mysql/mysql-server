@@ -21,13 +21,13 @@
 #include "mysql_priv.h"
 #include "ha_example.h"
 
-/* Stuff for shares */
+/* Variables for example share methods */
 extern pthread_mutex_t LOCK_mysql_create_db;
 pthread_mutex_t example_mutex;
 static HASH example_open_tables;
 static int example_init= 0;
 
-static byte* example_get_key(EXAMLPE_SHARE *share,uint *length,
+static byte* example_get_key(EXAMPLE_SHARE *share,uint *length,
                              my_bool not_used __attribute__((unused)))
 {
   *length=share->table_name_length;
@@ -36,11 +36,11 @@ static byte* example_get_key(EXAMLPE_SHARE *share,uint *length,
 
 
 /*
-  Simple lock controls.
+  Example of simple lock controls.
 */
-static EXAMLPE_SHARE *get_share(const char *table_name, TABLE *table)
+static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
 {
-  EXAMLPE_SHARE *share;
+  EXAMPLE_SHARE *share;
   uint length;
   char *tmp_name;
 
@@ -60,10 +60,10 @@ static EXAMLPE_SHARE *get_share(const char *table_name, TABLE *table)
   pthread_mutex_lock(&example_mutex);
   length=(uint) strlen(table_name);
 
-  if (!(share=(EXAMLPE_SHARE*) hash_search(&example_open_tables,
+  if (!(share=(EXAMPLE_SHARE*) hash_search(&example_open_tables,
                                            (byte*) table_name,
                                            length))){
-    if (!(share=(EXAMLPE_SHARE *)
+    if (!(share=(EXAMPLE_SHARE *)
           my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
                           &share, sizeof(*share),
                           &tmp_name, length+1,
@@ -104,10 +104,11 @@ error:
 /* 
   Free lock controls.
 */
-static int free_share(EXAMLPE_SHARE *share)
+static int free_share(EXAMPLE_SHARE *share)
 {
   pthread_mutex_lock(&example_mutex);
-  if (!--share->use_count){
+  if (!--share->use_count)
+  {
     hash_delete(&example_open_tables, (byte*) share);
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
@@ -120,13 +121,12 @@ static int free_share(EXAMLPE_SHARE *share)
 
 
 const char **ha_example::bas_ext() const
-{ static const char *ext[]= { ".CSV", NullS }; return ext; }
+{ static const char *ext[]= { NullS }; return ext; }
 
 
 int ha_example::open(const char *name, int mode, uint test_if_locked)
 {
   DBUG_ENTER("ha_example::open");
-  DBUG_PRINT("ha_example", ("MODE :%d:", mode));
 
   if (!(share = get_share(name, table)))
     DBUG_RETURN(1);
@@ -144,20 +144,20 @@ int ha_example::close(void)
 int ha_example::write_row(byte * buf)
 {
   DBUG_ENTER("ha_example::write_row");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 int ha_example::update_row(const byte * old_data, byte * new_data)
 {
 
   DBUG_ENTER("ha_example::update_row");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 int ha_example::delete_row(const byte * buf)
 {
   DBUG_ENTER("ha_example::delete_row");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 int ha_example::index_read(byte * buf, const byte * key,
@@ -166,7 +166,7 @@ int ha_example::index_read(byte * buf, const byte * key,
                            __attribute__((unused)))
 {
   DBUG_ENTER("ha_example::index_read");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 int ha_example::index_read_idx(byte * buf, uint index, const byte * key,
@@ -175,38 +175,38 @@ int ha_example::index_read_idx(byte * buf, uint index, const byte * key,
                                __attribute__((unused)))
 {
   DBUG_ENTER("ha_example::index_read_idx");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 
 int ha_example::index_next(byte * buf)
 {
   DBUG_ENTER("ha_example::index_next");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 int ha_example::index_prev(byte * buf)
 {
   DBUG_ENTER("ha_example::index_prev");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 int ha_example::index_first(byte * buf)
 {
   DBUG_ENTER("ha_example::index_first");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 int ha_example::index_last(byte * buf)
 {
   DBUG_ENTER("ha_example::index_last");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 int ha_example::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_example::rnd_init");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 int ha_example::rnd_next(byte *buf)
@@ -224,7 +224,7 @@ void ha_example::position(const byte *record)
 int ha_example::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_example::rnd_pos");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED));
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED));
 }
 
 void ha_example::info(uint flag)
@@ -249,7 +249,7 @@ int ha_example::reset(void)
 int ha_example::delete_all_rows()
 {
   DBUG_ENTER("ha_example::delete_all_rows");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 int ha_example::external_lock(THD *thd, int lock_type)
@@ -271,13 +271,13 @@ THR_LOCK_DATA **ha_example::store_lock(THD *thd,
 int ha_example::delete_table(const char *name)
 {
   DBUG_ENTER("ha_example::delete_table");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 int ha_example::rename_table(const char * from, const char * to)
 {
   DBUG_ENTER("ha_example::rename_table ");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 ha_rows ha_example::records_in_range(int inx,
@@ -287,12 +287,12 @@ ha_rows ha_example::records_in_range(int inx,
                                      enum ha_rkey_function end_search_flag)
 {
   DBUG_ENTER("ha_example::records_in_range ");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
 
 
 int ha_example::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("ha_example::create");
-  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  DBUG_RETURN(HA_ERR_NOT_IMPLEMENTED);
 }
