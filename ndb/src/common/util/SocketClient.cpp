@@ -70,19 +70,21 @@ SocketClient::connect()
       return -1;
     }
   }
-
   const int r = ::connect(m_sockfd, (struct sockaddr*) &m_servaddr, sizeof(m_servaddr));
-  if (r == -1)
+  if (r == -1) {
+    NDB_CLOSE_SOCKET(m_sockfd);
+    m_sockfd= -1;
     return -1;
+  }
 
-  if (m_auth)
+  if (m_auth) {
     if (!m_auth->client_authenticate(m_sockfd))
     {
       NDB_CLOSE_SOCKET(m_sockfd);
       m_sockfd= -1;
       return -1;
     }
-
+  }
   NDB_SOCKET_TYPE sockfd= m_sockfd;
   m_sockfd= -1;
 
