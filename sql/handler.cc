@@ -801,6 +801,9 @@ void handler::print_error(int error, myf errflag)
 
   int textno=ER_GET_ERRNO;
   switch (error) {
+  case EACCES:
+    textno=ER_OPEN_AS_READONLY;
+    break;
   case EAGAIN:
     textno=ER_FILE_USED;
     break;
