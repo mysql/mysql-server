@@ -18,8 +18,8 @@
 #define SIGNAL_DATA_H
 
 #include <ndb_global.h>
-#include <ndb_limits.h>
-#include <kernel_types.h>
+#include <kernel/ndb_limits.h>
+#include <kernel/kernel_types.h>
 #include <BaseString.hpp>
 
 #define ASSERT_BOOL(flag, message) assert(flag<=1)
