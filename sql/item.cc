@@ -48,10 +48,10 @@ void item_init(void)
 /*
 TODO: make this functions class dependent
 */
+
 bool Item::val_bool()
 {
-  switch(result_type())
-  {
+  switch(result_type()) {
   case INT_RESULT:
     return val_int();
   case DECIMAL_RESULT:
@@ -68,6 +68,7 @@ bool Item::val_bool()
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
+    return 0;                                   // Wrong (but safe)
   }
 }
 
@@ -991,8 +992,7 @@ bool Item_field::val_bool_result()
 {
   if ((null_value= result_field->is_null()))
     return FALSE;
-  switch (result_field->result_type())
-  {
+  switch (result_field->result_type()) {
   case INT_RESULT:
     return result_field->val_int();
   case DECIMAL_RESULT:
@@ -1060,8 +1060,9 @@ Item *Item_field::get_tmp_table_item(THD *thd)
 
 
 /*
-  Create an item from a string we KNOW points to a valid longlong/ulonglong
-  end \0 terminated number string
+  Create an item from a string we KNOW points to a valid longlong
+  end \0 terminated number string.
+  This is always 'signed'. Unsigned values are created with Item_uint()
 */
 
 Item_int::Item_int(const char *str_arg, uint length)
@@ -1071,7 +1072,6 @@ Item_int::Item_int(const char *str_arg, uint length)
   value= my_strtoll10(str_arg, &end_ptr, &error);
   max_length= (uint) (end_ptr - str_arg);
   name= (char*) str_arg;
-  unsigned_flag= value > 0;
   fixed= 1;
 }
 
@@ -2436,8 +2436,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	  rf is Item_ref => never substitute other items (in this case)
 	  during fix_fields() => we can use rf after fix_fields()
 	*/
-        if (!rf->fixed &&
-            rf->fix_fields(thd, tables, reference) || rf->check_cols(1))
+        DBUG_ASSERT(!rf->fixed);                // Assured by Item_ref()
+        if (rf->fix_fields(thd, tables, reference) || rf->check_cols(1))
 	  return TRUE;
 
 	mark_as_dependent(thd, last, current_sel, rf);
@@ -2458,8 +2458,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	    rf is Item_ref => never substitute other items (in this case)
 	    during fix_fields() => we can use rf after fix_fields()
 	  */
-          return (!rf->fixed &&
-                  rf->fix_fields(thd, tables, reference) ||  rf->check_cols(1));
+          DBUG_ASSERT(!rf->fixed);                // Assured by Item_ref()
+          return (rf->fix_fields(thd, tables, reference) || rf->check_cols(1));
 	}
       }
     }
@@ -2706,8 +2706,7 @@ void Item_empty_string::make_field(Send_field *tmp_field)
 
 enum_field_types Item::field_type() const
 {
-  switch (result_type())
-  {
+  switch (result_type()) {
   case STRING_RESULT:  return MYSQL_TYPE_VARCHAR;
   case INT_RESULT:     return FIELD_TYPE_LONGLONG;
   case DECIMAL_RESULT: return FIELD_TYPE_NEWDECIMAL;
@@ -2715,8 +2714,8 @@ enum_field_types Item::field_type() const
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
-    return FIELD_TYPE_VAR_STRING;
-  };
+    return MYSQL_TYPE_VARCHAR;
+  }
 }
 
 
@@ -3662,18 +3661,17 @@ bool Item_ref::val_bool_result()
   {
     if ((null_value= result_field->is_null()))
       return 0;
-    switch (result_field->result_type())
-    {
+    switch (result_field->result_type()) {
     case INT_RESULT:
       return result_field->val_int();
     case DECIMAL_RESULT:
-      {
-        my_decimal decimal_value;
-        my_decimal *val= result_field->val_decimal(&decimal_value);
-        if (val)
-          return !my_decimal_is_zero(val);
-        return 0;
-      }
+    {
+      my_decimal decimal_value;
+      my_decimal *val= result_field->val_decimal(&decimal_value);
+      if (val)
+        return !my_decimal_is_zero(val);
+      return 0;
+    }
     case REAL_RESULT:
     case STRING_RESULT:
       return result_field->val_real() != 0.0;
@@ -4049,8 +4047,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 				     item->result_type());
   char *name=item->name;			// Alloced by sql_alloc
 
-  switch (res_type)
-  {
+  switch (res_type) {
   case STRING_RESULT:
   {
     char buff[MAX_FIELD_WIDTH];
@@ -4146,8 +4143,7 @@ bool field_is_equal_to_item(Field *field,Item *item)
 
 Item_cache* Item_cache::get_cache(Item_result type)
 {
-  switch (type)
-  {
+  switch (type) {
   case INT_RESULT:
     return new Item_cache_int();
   case REAL_RESULT:
@@ -4617,8 +4613,7 @@ uint32 Item_type_holder::real_length(Item *item)
   if (item->type() == Item::FIELD_ITEM)
     return ((Item_field *)item)->max_disp_length();
 
-  switch (item->result_type())
-  {
+  switch (item->result_type()) {
   case STRING_RESULT:
   case DECIMAL_RESULT:
     return item->max_length;
