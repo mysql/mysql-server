@@ -213,3 +213,4 @@
 "CREATE DATABASE não permitido enquanto uma 'thread' está mantendo um travamento global de leitura",
 "Argumentos errados para %s",
 "Não é permitido a %-.32s@%-.64s criar novos usuários",
+"Incorrect table definition; All MERGE tables must be in the same database",

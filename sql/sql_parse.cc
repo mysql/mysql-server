@@ -2178,10 +2178,18 @@ static bool check_merge_table_access(THD *thd, char *db,
   int error=0;
   if (table_list)
   {
-    /* Force all tables to use the current database */
+    /* Check that all tables use the current database */
     TABLE_LIST *tmp;
     for (tmp=table_list; tmp ; tmp=tmp->next)
-      tmp->db=db;
+    {
+      if (!tmp->db || !tmp->db[0])
+	tmp->db=db;
+      else if (!strcmp(tmp->db,db))
+      {
+	send_error(&thd->net,ER_UNION_TABLES_IN_DIFFERENT_DIR);
+	return 1;
+      }
+    }
     error=check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
 			     table_list);
   }
