@@ -1000,6 +1000,7 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
 }
 
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;
+const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT_MEMORY = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::COMMIT_COUNT = 0;
 const NdbDictionary::Column * NdbDictionary::Column::ROW_SIZE = 0;
