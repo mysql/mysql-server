@@ -25,7 +25,7 @@
 #include "sql_select.h"
 #include "sql_acl.h"
 
-static const char *any_db="*any*";	// Special symbol for check_access
+extern  const char *any_db;	// Special symbol for check_access
 
 /*
   Resolve derived tables in all queries
