@@ -40,7 +40,7 @@ static MYSQL mysql_connection, *sock = 0;
 static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_compress = 0, opt_databases = 0, opt_fast = 0,
                opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
-               ignore_errors = 0;
+               opt_silent = 0, ignore_errors = 0;
 static uint verbose = 0, opt_mysql_port=0;
 static my_string opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, *default_charset = 0,
@@ -78,6 +78,7 @@ static struct option long_options[] =
   {"port",    		    required_argument, 0, 'P'},
   {"quick",    		    no_argument,       0, 'q'},
   {"repair",	            no_argument,       0, 'r'},
+  {"silent",                no_argument,       0, 's'},
   {"socket",   		    required_argument, 0, 'S'},
 #include "sslopt-longopts.h"
   {"tables",                no_argument,       0, OPT_TABLES},
@@ -183,6 +184,7 @@ static void usage(void)
                         the fastest repair method for a table.\n\
   -r, --repair          Can fix almost anything except unique keys that aren't\n\
                         unique.\n\
+  -s, --silent          Print only error messages.\n\
   -S, --socket=...	Socket file to use for connection.\n\
   --tables              Overrides option --databases (-B).\n");
 #include "sslopt-usage.h"
@@ -203,7 +205,7 @@ static int get_options(int *argc, char ***argv)
   my_bool tty_password = 0;
 
   load_defaults("my", load_default_groups, argc, argv);
-  while ((c = getopt_long(*argc, *argv, "#::p::h:u:P:S:BaAcCdeFfmqorvVw:?I1",
+  while ((c = getopt_long(*argc, *argv, "#::p::h:u:P:S:BaAcCdeFfmqorsvVw:?I1",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -288,6 +290,9 @@ static int get_options(int *argc, char ***argv)
       break;
     case 'S':
       opt_mysql_unix_port = optarg;
+     break;
+    case 's':
+      opt_silent = 1;
       break;
     case 'W':
 #ifdef __WIN__
@@ -520,8 +525,10 @@ static void print_result()
   prev[0] = '\0';
   for (i = 0; (row = mysql_fetch_row(res)); i++)
   {
-    int changed=strcmp(prev, row[0]);
-    int status= !strcmp(row[2], "status");
+    int changed = strcmp(prev, row[0]);
+    int status = !strcmp(row[2], "status");
+    if (opt_silent && status)
+      continue;
     if (status && changed)
       printf("%-50s %s", row[0], row[3]);
     else if (!status && changed)
@@ -529,13 +536,13 @@ static void print_result()
     else
       printf("%-9s: %s", row[2], row[3]);
     strmov(prev, row[0]);
-    printf("\n");
+    putchar('\n');
   }
   mysql_free_result(res);
 }
 
 
-static int dbConnect(char *host, char *user,char *passwd)
+static int dbConnect(char *host, char *user, char *passwd)
 {
   DBUG_ENTER("dbConnect");
   if (verbose)
