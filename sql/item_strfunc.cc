@@ -2201,6 +2201,7 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
   const_item_cache=args[0]->const_item();
   fix_length_and_dec();
   fixed= 1;
+  coercibility= COER_EXPLICIT;
   return 0;
 }
 
