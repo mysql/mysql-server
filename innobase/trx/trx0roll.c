@@ -332,11 +332,19 @@ trx_savept_take(
 Rollback or clean up transactions which have no user session. If the
 transaction already was committed, then we clean up a possible insert
 undo log. If the transaction was not yet committed, then we roll it back. 
-Note: this is done in a background thread */
+Note: this is done in a background thread. */
 
-void *
-trx_rollback_or_clean_all_without_sess(void *i)
-/*========================================*/
+#ifndef __WIN__
+void*
+#else
+ulint
+#endif
+trx_rollback_or_clean_all_without_sess(
+/*===================================*/
+                        /* out: a dummy parameter */
+        void*   arg __attribute__((unused)))
+                        /* in: a dummy parameter required by
+                        os_thread_create */
 {
 	mem_heap_t*	heap;
 	que_fork_t*	fork;
@@ -361,9 +369,9 @@ trx_rollback_or_clean_all_without_sess(void *i)
 	if (UT_LIST_GET_FIRST(trx_sys->trx_list)) {
 
 		fprintf(stderr,
-		"InnoDB: Starting rollback of uncommitted transactions\n");
+"InnoDB: Starting in background the rollback of uncommitted transactions\n");
 	} else {		
-		os_thread_exit(i);
+		goto leave_function;
 	}
 loop:
 	heap = mem_heap_create(512);
@@ -373,7 +381,6 @@ loop:
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 	while (trx) {
-
 		if ((trx->sess || (trx->conc_state == TRX_NOT_STARTED))) {
 			trx = UT_LIST_GET_NEXT(trx_list, trx);
 		} else if (trx->conc_state == TRX_PREPARED) {
@@ -386,17 +393,17 @@ loop:
 	mutex_exit(&kernel_mutex);
 
 	if (trx == NULL) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-		"InnoDB: Rollback of uncommitted transactions completed\n");
+		"  InnoDB: Rollback of uncommitted transactions completed\n");
 
  		mem_heap_free(heap);
-		
-		os_thread_exit(i);
+
+		goto leave_function;
 	}
 
 	trx->sess = trx_dummy_sess;
 
-	
 	if (trx->conc_state == TRX_COMMITTED_IN_MEMORY) {	
 		fprintf(stderr, "InnoDB: Cleaning up trx with id %lu %lu\n",
 					(ulong) ut_dulint_get_high(trx->id),
@@ -428,13 +435,15 @@ loop:
 	trx_roll_max_undo_no = ut_conv_dulint_to_longlong(trx->undo_no);
 	trx_roll_progress_printed_pct = 0;
 	rows_to_undo = trx_roll_max_undo_no;
+
 	if (rows_to_undo > 1000000000) {
 		rows_to_undo = rows_to_undo / 1000000;
 		unit = "M";
 	}
 
+	ut_print_timestamp(stderr);
 	fprintf(stderr,
-"InnoDB: Rolling back trx with id %lu %lu, %lu%s rows to undo",
+"  InnoDB: Rolling back trx with id %lu %lu, %lu%s rows to undo",
 					(ulong) ut_dulint_get_high(trx->id),
 					(ulong) ut_dulint_get_low(trx->id),
 					(ulong) rows_to_undo, unit);
@@ -454,7 +463,7 @@ loop:
 
 		fprintf(stderr,
 		"InnoDB: Waiting for rollback of trx id %lu to end\n",
-						(ulong) ut_dulint_get_low(trx->id));
+					(ulong) ut_dulint_get_low(trx->id));
 		os_thread_sleep(100000);
 
 		mutex_enter(&kernel_mutex);
@@ -495,7 +504,19 @@ loop:
 
 	goto loop;
 
-	os_thread_exit(i); /* not reached */
+leave_function:
+	/* We count the number of threads in os_thread_exit(). A created
+	thread should always use that to exit and not use return() to exit. */
+
+	os_thread_exit(NULL);
+
+	/* The following is dummy code to keep the compiler happy: */
+
+#ifndef __WIN__
+        return(NULL);
+#else
+        return(0);
+#endif
 }
 	
 /***********************************************************************
@@ -856,16 +877,17 @@ try_again:
 	ut_ad(ut_dulint_cmp(ut_dulint_add(undo_no, 1), trx->undo_no) == 0);
 
 	/* We print rollback progress info if we are in a crash recovery
-	and the transaction has at least 1000 row operations to undo */
+	and the transaction has at least 1000 row operations to undo.
+	Transactions in crash recovery have sess == NULL. */
 
-	if (srv_is_being_started && trx_roll_max_undo_no > 1000) {
-	  progress_pct = 100 - (ulint)
+	if (trx->sess == NULL && trx_roll_max_undo_no > 1000) {
+	  	progress_pct = 100 - (ulint)
 				((ut_conv_dulint_to_longlong(undo_no) * 100)
 				/ trx_roll_max_undo_no);
 		if (progress_pct != trx_roll_progress_printed_pct) {
 			if (trx_roll_progress_printed_pct == 0) {
 				fprintf(stderr,
-			"\nInnoDB: Progress in percents: %lu", (ulong) progress_pct);
+"\nInnoDB: Progress in percents: %lu", (ulong) progress_pct);
 			} else {
 				fprintf(stderr,
 				" %lu", (ulong) progress_pct);
