@@ -198,5 +198,8 @@ explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1
 # equation propagation
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
+# testing IN
+explain select count(*) from t1 where x in (1);
+explain select count(*) from t1 where x in (1,2);
 drop table t1;
 
