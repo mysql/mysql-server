@@ -2269,7 +2269,7 @@ enum_field_types Item::field_type() const
 
 Field *Item::make_string_field(TABLE *table)
 {
-  if (max_length > MAX_FIELD_WIDTH)
+  if (max_length > CONVERT_IF_BIGGER_TO_BLOB)
     return new Field_blob(max_length, maybe_null, name, table,
                           collation.collation);
   if (max_length > 0)
