@@ -61,8 +61,6 @@ NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
   case(NdbDictionary::Index::UniqueHashIndex):
     break;
   case(NdbDictionary::Index::Undefined):
-  case(NdbDictionary::Index::HashIndex):
-  case(NdbDictionary::Index::UniqueOrderedIndex):
   case(NdbDictionary::Index::OrderedIndex):
     setErrorCodeAbort(4003);
     return -1;

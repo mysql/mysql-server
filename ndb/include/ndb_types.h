@@ -56,5 +56,6 @@ typedef unsigned long long Uint64;
 typedef   signed long long Int64;
 #endif
 
+#include "ndb_constants.h"
 
 #endif

@@ -85,8 +85,7 @@ int main(int argc, const char** argv){
     if(!pIdx)
       ndbout << " Index " << argv[optind+1] << " not found" << endl;
     else
-      if(pIdx->getType() != NdbDictionary::Index::UniqueOrderedIndex &&
-	 pIdx->getType() != NdbDictionary::Index::OrderedIndex)
+      if(pIdx->getType() != NdbDictionary::Index::OrderedIndex)
       {
 	ndbout << " Index " << argv[optind+1] << " is not scannable" << endl;
 	pIdx = 0;
