@@ -155,11 +155,13 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0), current_arena(this), is_fatal_error(0),
-	   last_insert_id_used(0),
-           insert_id_used(0), rand_used(0), time_zone_used(0),
-           in_lock_tables(0), global_read_lock(0), bootstrap(0)
+THD::THD()
+  :user_time(0), global_read_lock(0), is_fatal_error(0),
+   last_insert_id_used(0),
+   insert_id_used(0), rand_used(0), time_zone_used(0),
+   in_lock_tables(0), bootstrap(0)
 {
+  current_arena= this;
   host= user= priv_user= db= ip=0;
   host_or_ip= "connecting host";
   locked=some_tables_deleted=no_errors=password= 0;
@@ -439,10 +441,13 @@ void THD::awake(bool prepare_to_die)
       it is the true value but maybe current_mutex is not yet non-zero (we're
       in the middle of enter_cond() and there is a "memory order
       inversion"). So we test the mutex too to not lock 0.
+
       Note that there is a small chance we fail to kill. If victim has locked
-      current_mutex, and hasn't entered enter_cond(), then we don't know it's
-      going to wait on cond. Then victim goes into its cond "forever" (until
-      we issue a second KILL). True we have set its thd->killed but it may not
+      current_mutex, but hasn't yet entered enter_cond() (which means that
+      current_cond and current_mutex are 0), then the victim will not get
+      a signal and it may wait "forever" on the cond (until
+      we issue a second KILL or the status it's waiting for happens).
+      It's true that we have set its thd->killed but it may not
       see it immediately and so may have time to reach the cond_wait().
     */
     if (mysys_var->current_cond && mysys_var->current_mutex)
