@@ -4225,7 +4225,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (!mysqld_user)
       mysqld_user= argument;
     else
-      fprintf(stderr, "Warning: Ignoring user change to '%s' becasue the user is set to '%s' earlier on the command line\n", argument, mysqld_user);
+      fprintf(stderr, "Warning: Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
     break;
   case 'L':
     strmake(language, argument, sizeof(language)-1);

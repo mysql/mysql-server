@@ -330,7 +330,7 @@ while test $# -gt 0; do
       USE_RUNNING_SERVER=""
       ;;
     --valgrind)
-      VALGRIND="valgrind --alignment=8 --leak-check=yes"
+      VALGRIND="valgrind --alignment=8 --leak-check=yes --num-callers=16"
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc"
       SLEEP_TIME_AFTER_RESTART=10

@@ -4469,7 +4469,11 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     error=0;
     if (!table)					// If sending data to client
     {
-      join_free(join);				// Unlock all cursors
+      /*
+	The following will unlock all cursors if the command wasn't an
+	update command
+      */
+      join_free(join);
       if (join->result->send_eof())
 	error= 1;				// Don't send error
     }
