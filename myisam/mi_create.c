@@ -228,7 +228,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   if (uniques)
   {
     max_key_block_length= myisam_block_size;
-    max_key_length=	  MI_UNIQUE_HASH_LENGTH;
+    max_key_length=	  MI_UNIQUE_HASH_LENGTH + pointer;
   }
 
   for (i=0, keydef=keydefs ; i < keys ; i++ , keydef++)
@@ -449,7 +449,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   share.base.keystart = share.state.state.key_file_length=
     MY_ALIGN(info_length, myisam_block_size);
   share.base.max_key_block_length=max_key_block_length;
-  share.base.max_key_length=ALIGN_SIZE(max_key_length+4);
+  share.base.max_key_length=ALIGN_SIZE(max_key_length[+4);
   share.base.records=ci->max_rows;
   share.base.reloc=  ci->reloc_rows;
   share.base.reclength=real_reclength;

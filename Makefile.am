@@ -21,10 +21,10 @@ AUTOMAKE_OPTIONS =	foreign
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE README \
 			COPYING COPYING.LIB
-SUBDIRS =		include @docs_dirs@ @readline_dir@ \
+SUBDIRS =		. include @docs_dirs@ @readline_dir@ \
 			@thread_dirs@ pstack @sql_client_dirs@ \
-			@sql_server_dirs@ @libmysqld_dirs@ scripts man \
-			tests BUILD os2 \
+			@sql_server_dirs@ scripts man tests \
+			BUILD os2 libmysql_r @libmysqld_dirs@ \
 			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
 
 # Relink after clean

@@ -279,7 +279,7 @@ fi
 dnl Sparc/gcc: SunOS, Solaris
 dnl The sparc/gcc code doesn't always work, specifically, I've seen assembler
 dnl failures from the stbar instruction on SunOS 4.1.4/sun4c and gcc 2.7.2.2.
-if test "$db_cv_mutex" = DOESNT_WORK; then
+if test "$db_cv_mutex" = no; then
 AC_TRY_RUN([main(){
 #if defined(__sparc__)
 #if defined(__GNUC__)
