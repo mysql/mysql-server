@@ -91,9 +91,9 @@ class TupleS {
 private:
   friend class RestoreDataIterator;
   
-  const TableS *m_currentTable;
+  TableS *m_currentTable;
   AttributeData *allAttrData;
-  bool prepareRecord(const TableS &);
+  bool prepareRecord(TableS &);
   
 public:
   TupleS() {
@@ -108,7 +108,7 @@ public:
   TupleS(const TupleS& tuple); // disable copy constructor
   TupleS & operator=(const TupleS& tuple);
   int getNoOfAttributes() const;
-  const TableS * getTable() const;
+  TableS * getTable() const;
   const AttributeDesc * getDesc(int i) const;
   AttributeData * getData(int i) const;
 }; // class TupleS
@@ -129,6 +129,9 @@ class TableS {
   
   Uint32 m_noOfNullable;
   Uint32 m_nullBitmaskSize;
+
+  Uint32 m_auto_val_id;
+  Uint64 m_max_auto_val;
 
   int pos;
 
@@ -170,6 +173,42 @@ public:
     return allAttributesDesc.size();
   };
   
+  bool have_auto_inc() const {
+    return m_auto_val_id != ~(Uint32)0;
+  };
+
+  bool have_auto_inc(Uint32 id) const {
+    return m_auto_val_id == id;
+  };
+
+  Uint64 get_max_auto_val() const {
+    return m_max_auto_val;
+  };
+
+  void update_max_auto_val(const char *data, int size) {
+    Uint64 val= 0;
+    switch(size){
+    case 8:
+      val= *(Uint8*)data;
+      break;
+    case 16:
+      val= *(Uint16*)data;
+      break;
+    case 24:
+      val= (0xffffff)&*(Uint32*)data;
+      break;
+    case 32:
+      val= *(Uint32*)data;
+      break;
+    case 64:
+      val= *(Uint64*)data;
+      break;
+    default:
+      return;
+    };
+    if(val > m_max_auto_val)
+      m_max_auto_val= val;
+  };
   /**
    * Get attribute descriptor
    */
@@ -245,7 +284,7 @@ public:
   Uint32 getNoOfTables() const { return allTables.size();}
   
   const TableS * operator[](int i) const { return allTables[i];}
-  const TableS * getTable(Uint32 tableId) const;
+  TableS * getTable(Uint32 tableId) const;
 
   Uint32 getStopGCP() const;
 }; // RestoreMetaData
@@ -254,7 +293,7 @@ public:
 class RestoreDataIterator : public BackupFile {
   const RestoreMetaData & m_metaData;
   Uint32 m_count;
-  const TableS* m_currentTable;
+  TableS* m_currentTable;
   TupleS m_tuple;
 
 public:
@@ -278,7 +317,7 @@ public:
     LE_UPDATE
   };
   EntryType m_type;
-  const TableS * m_table;  
+  TableS * m_table;  
   Vector<AttributeS*> m_values;
   Vector<AttributeS*> m_values_e;
   AttributeS *add_attr() {
