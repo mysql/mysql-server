@@ -148,3 +148,22 @@ alter table t1 type=MyISAM;
 handler t2 read first;
 ERROR 42S02: Unknown table 't2' in HANDLER
 drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5),(6);
+delete from t1 limit 2;
+handler t1 open;
+handler t1 read first;
+a
+3
+handler t1 read first limit 1,1;
+a
+4
+handler t1 read first limit 2,2;
+a
+5
+6
+delete from t1 limit 3;
+handler t1 read first;
+a
+6
+drop table t1;
