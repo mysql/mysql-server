@@ -1030,7 +1030,14 @@ how you can resolve the problem.\n",
 	        if (primary_key != MAX_KEY) {
 	                fprintf(stderr,
 		    "InnoDB: Error: table %s has no primary key in InnoDB\n"
-		    "InnoDB: data dictionary, but has one in MySQL!\n", name);
+		    "InnoDB: data dictionary, but has one in MySQL!\n"
+		    "InnoDB: If you created the table with a MySQL\n"
+                    "InnoDB: version < 3.23.54 and did not define a primary\n"
+                    "InnoDB: key, but defined a unique key with all non-NULL\n"
+                    "InnoDB: columns, then MySQL internally treats that key\n"
+                    "InnoDB: as the primary key. You can fix this error by\n"
+		    "InnoDB: dump + DROP + CREATE + reimport of the table.\n",
+				name);
 		}
 
 		((row_prebuilt_t*)innobase_prebuilt)
