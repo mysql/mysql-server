@@ -18,6 +18,7 @@ hash_get_nth_cell(
 	hash_table_t* 	table,	/* in: hash table */
 	ulint 		n)	/* in: cell index */
 {
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ut_ad(n < table->n_cells);
 
 	return(table->array + n);
@@ -32,6 +33,7 @@ hash_get_n_cells(
 				/* out: number of cells */
 	hash_table_t*	table)	/* in: table */
 {
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	return(table->n_cells);
 }
 
@@ -45,6 +47,7 @@ hash_calc_hash(
 	ulint		fold,	/* in: folded value */
 	hash_table_t*	table)	/* in: hash table */
 {
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	return(ut_hash_ulint(fold, table->n_cells));
 }
 
@@ -58,6 +61,7 @@ hash_get_mutex_no(
 	hash_table_t* 	table,	/* in: hash table */
 	ulint 		fold)	/* in: fold */
 {
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	return(ut_2pow_remainder(fold, table->n_mutexes));
 }
 
@@ -71,6 +75,7 @@ hash_get_nth_heap(
 	hash_table_t* 	table,	/* in: hash table */
 	ulint 		i)	/* in: index of the heap */
 {
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ut_ad(i < table->n_mutexes);
 
 	return(table->heaps[i]);
@@ -87,6 +92,8 @@ hash_get_heap(
 	ulint 		fold)	/* in: fold */
 {
 	ulint	i;
+
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
 	if (table->heap) {
 		return(table->heap);
@@ -107,6 +114,7 @@ hash_get_nth_mutex(
 	hash_table_t* 	table,	/* in: hash table */
 	ulint 		i)	/* in: index of the mutex */
 {
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ut_ad(i < table->n_mutexes);
 	
 	return(table->mutexes + i);

@@ -198,10 +198,11 @@ struct dict_tree_struct{
 				the list; if the tree is of the mixed
 				type, the first index in the list is the
 				index of the cluster which owns the tree */
+#ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
-};
-
 #define	DICT_TREE_MAGIC_N	7545676
+#endif /* UNIV_DEBUG */
+};
 
 /* Data structure for an index */
 struct dict_index_struct{
@@ -247,7 +248,10 @@ struct dict_index_struct{
 	ulint		stat_n_leaf_pages;
 				/* approximate number of leaf pages in the
 				index tree */
+#ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
+#define	DICT_INDEX_MAGIC_N	76789786
+#endif /* UNIV_DEBUG */
 };
 
 /* Data structure for a foreign key constraint; an example:
@@ -297,9 +301,6 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_UPDATE_SET_NULL	8
 #define DICT_FOREIGN_ON_DELETE_NO_ACTION 16
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32
-
-
-#define	DICT_INDEX_MAGIC_N	76789786
 
 /* Data structure for a database table */
 struct dict_table_struct{
@@ -412,10 +413,12 @@ struct dict_table_struct{
 				inited; MySQL gets the init value by executing
 				SELECT MAX(auto inc column) */
 	ib_longlong	autoinc;/* autoinc counter value to give to the
-				next inserted row */	
+				next inserted row */
+#ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
-};
 #define	DICT_TABLE_MAGIC_N	76333786
+#endif /* UNIV_DEBUG */
+};
 					
 /* Data structure for a stored procedure */
 struct dict_proc_struct{

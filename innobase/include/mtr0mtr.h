@@ -290,7 +290,12 @@ struct mtr_memo_slot_struct{
 
 /* Mini-transaction handle and buffer */
 struct mtr_struct{
+#ifdef UNIV_DEBUG
 	ulint		state;	/* MTR_ACTIVE, MTR_COMMITTING, MTR_COMMITTED */
+#define MTR_ACTIVE		12231
+#define MTR_COMMITTING		56456
+#define MTR_COMMITTED		34676
+#endif /* UNIV_DEBUG */
 	dyn_array_t	memo;	/* memo stack for locks etc. */
 	dyn_array_t	log;	/* mini-transaction log */
 	ibool		modifications;
@@ -305,15 +310,12 @@ struct mtr_struct{
 				this mtr */
 	dulint		end_lsn;/* end lsn of the possible log entry for
 				this mtr */
+#ifdef UNIV_DEBUG
 	ulint		magic_n;
+#define	MTR_MAGIC_N		54551
+#endif /* UNIV_DEBUG */
 };
 
-#define	MTR_MAGIC_N		54551
-
-#define MTR_ACTIVE		12231
-#define MTR_COMMITTING		56456
-#define MTR_COMMITTED		34676
-	
 #ifndef UNIV_NONINL
 #include "mtr0mtr.ic"
 #endif
