@@ -882,7 +882,7 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
   }
   case REAL_RESULT:
   {
-    double result= int_op();
+    double result= (double)int_op();
     double2my_decimal(E_DEC_FATAL_ERROR, result, decimal_value);
     break;
   }

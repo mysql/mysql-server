@@ -47,7 +47,7 @@ class ha_innobase: public handler
 	THD*		user_thd;	/* the thread handle of the user
 					currently using the handle; this is
 					set in external_lock function */
-	ulong           last_query_id;  /* the latest query id where the
+	query_id_t      last_query_id;  /* the latest query id where the
 					handle was used */
   	THR_LOCK_DATA 	lock;
 	INNOBASE_SHARE  *share;

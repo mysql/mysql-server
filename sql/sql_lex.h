@@ -892,6 +892,8 @@ struct st_lex_local: public st_lex
   }
   static void operator delete(void *ptr,size_t size)
   { TRASH(ptr, size); }
+  static void operator delete(void *ptr, MEM_ROOT *mem_root)
+  { /* Never called */ }
 };
 
 void lex_init(void);

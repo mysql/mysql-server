@@ -6646,7 +6646,6 @@ static COND *build_equal_items(THD *thd, COND *cond,
     {
       if (table->on_expr)
       {
-        Item *expr;
         List<TABLE_LIST> *join_list= table->nested_join ?
 	                             &table->nested_join->join_list : NULL;
         /*
@@ -8545,7 +8544,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 	seg->type=
 	((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
 	 HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2);
-	seg->bit_start= field->pack_length() - table->s->blob_ptr_size;
+	seg->bit_start= (uint8)(field->pack_length() - table->s->blob_ptr_size);
 	seg->flag= HA_BLOB_PART;
 	seg->length=0;			// Whole blob in unique constraint
       }
