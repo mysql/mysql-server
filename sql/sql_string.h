@@ -46,6 +46,7 @@ public:
   String(uint32 length_arg)
   { 
     alloced=0; Alloced_length=0; (void) real_alloc(length_arg); 
+    str_charset=default_charset_info;
   }
   String(const char *str, CHARSET_INFO *cs)
   { 

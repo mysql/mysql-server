@@ -203,6 +203,7 @@ bool String::copy(const String &str)
   str_length=str.str_length;
   bmove(Ptr,str.Ptr,str_length);		// May be overlapping
   Ptr[str_length]=0;
+  str_charset=str.str_charset;
   return FALSE;
 }
 
