@@ -1830,10 +1830,14 @@ mysql_execute_command(THD *thd)
     }
     else // regular create
     {
-      res = mysql_create_table(thd,tables->db ? tables->db : thd->db,
-			       tables->real_name, &lex->create_info,
-			       lex->create_list,
-			       lex->key_list,0,0,0); // do logging
+      if (lex->name)
+        res= mysql_create_like_table(thd, tables, &lex->create_info, 
+                                     (Table_ident *)lex->name); 
+      else
+        res= mysql_create_table(thd,tables->db ? tables->db : thd->db,
+			         tables->real_name, &lex->create_info,
+			         lex->create_list,
+			         lex->key_list,0,0,0); // do logging
       if (!res)
 	send_ok(thd);
     }
