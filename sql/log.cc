@@ -966,14 +966,6 @@ void MYSQL_LOG::new_file(bool need_lock)
 	THD* thd = current_thd;
 	Rotate_log_event r(thd,new_name+dirname_length(new_name));
 	r.set_log_pos(this);
-
-	/*
-	  Because this log rotation could have been initiated by a master of
-	  the slave running with log-bin, we set the flag on rotate
-	  event to prevent infinite log rotation loop
-	*/
-	if (thd->slave_thread)
-	  r.flags|= LOG_EVENT_FORCED_ROTATE_F;
 	r.write(&log_file);
 	bytes_written += r.get_event_len();
       }

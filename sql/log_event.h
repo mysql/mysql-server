@@ -34,14 +34,20 @@
 #define LOG_READ_TOO_LARGE -7
 
 #define LOG_EVENT_OFFSET 4
+
 #define BINLOG_VERSION    3
 
 /*
  We could have used SERVER_VERSION_LENGTH, but this introduces an
  obscure dependency - if somebody decided to change SERVER_VERSION_LENGTH
- this would have broke the replication protocol
+ this would have broken the replication protocol
 */
 #define ST_SERVER_VER_LEN 50
+
+/*
+  These are flags and structs to handle all the LOAD DATA INFILE options (LINES
+  TERMINATED etc).
+*/
 
 #define DUMPFILE_FLAG		0x1
 #define OPT_ENCLOSED_FLAG	0x2
@@ -121,11 +127,17 @@ struct sql_ex_info
 
   See the #defines below for the format specifics.
 
+  The events which really update data are Query_log_event and
+  Load_log_event/Create_file_log_event/Execute_load_log_event (these 3 act
+  together to replicate LOAD DATA INFILE, with the help of
+  Append_block_log_event which prepares temporary files to load into the table).
+
  ****************************************************************************/
 
+#define LOG_EVENT_HEADER_LEN 19     /* the fixed header length */
+#define OLD_HEADER_LEN       13     /* the fixed header length in 3.23 */
+
 /* event-specific post-header sizes */
-#define LOG_EVENT_HEADER_LEN 19
-#define OLD_HEADER_LEN       13
 #define QUERY_HEADER_LEN     (4 + 4 + 1 + 2)
 #define LOAD_HEADER_LEN      (4 + 4 + 4 + 1 +1 + 4)
 #define START_HEADER_LEN     (2 + ST_SERVER_VER_LEN + 4)
@@ -135,7 +147,10 @@ struct sql_ex_info
 #define EXEC_LOAD_HEADER_LEN   4
 #define DELETE_FILE_HEADER_LEN 4
 
-/* event header offsets */
+/* 
+   Event header offsets; 
+   these point to places inside the fixed header.
+*/
 
 #define EVENT_TYPE_OFFSET    4
 #define SERVER_ID_OFFSET     5
@@ -149,7 +164,7 @@ struct sql_ex_info
 #define ST_SERVER_VER_OFFSET  2
 #define ST_CREATED_OFFSET     (ST_SERVER_VER_OFFSET + ST_SERVER_VER_LEN)
 
-/* slave event post-header */
+/* slave event post-header (this event is never written) */
 
 #define SL_MASTER_PORT_OFFSET   8
 #define SL_MASTER_POS_OFFSET    0
@@ -197,14 +212,20 @@ struct sql_ex_info
 #define R_POS_OFFSET       0
 #define R_IDENT_OFFSET     8
 
+/* CF to DF handle LOAD DATA INFILE */
+
+/* CF = "Create File" */
 #define CF_FILE_ID_OFFSET  0
 #define CF_DATA_OFFSET     CREATE_FILE_HEADER_LEN
 
+/* AB = "Append Block" */
 #define AB_FILE_ID_OFFSET  0
 #define AB_DATA_OFFSET     APPEND_BLOCK_HEADER_LEN
 
+/* EL = "Execute Load" */
 #define EL_FILE_ID_OFFSET  0
 
+/* DF = "Delete File" */
 #define DF_FILE_ID_OFFSET  0
 
 #define QUERY_EVENT_OVERHEAD	(LOG_EVENT_HEADER_LEN+QUERY_HEADER_LEN)
@@ -217,13 +238,31 @@ struct sql_ex_info
 #define EXEC_LOAD_EVENT_OVERHEAD (LOG_EVENT_HEADER_LEN+EXEC_LOAD_HEADER_LEN)
 #define APPEND_BLOCK_EVENT_OVERHEAD (LOG_EVENT_HEADER_LEN+APPEND_BLOCK_HEADER_LEN)
 
-
+/* 4 bytes which all binlogs should begin with */
 #define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
 
+/*
+  The 2 flags below were useless :
+  - the first one was never set
+  - the second one was set in all Rotate events on the master, but not used for
+  anything useful.
+  So they are now removed and their place may later be reused for other
+  flags. Then one must remember that Rotate events in 4.x have
+  LOG_EVENT_FORCED_ROTATE_F set, so one should not rely on the value of the
+  replacing flag when reading a Rotate event. 
+  I keep the defines here just to remember what they were.
+*/
+#ifdef TO_BE_REMOVED
 #define LOG_EVENT_TIME_F            0x1
-#define LOG_EVENT_FORCED_ROTATE_F   0x2
-#define LOG_EVENT_THREAD_SPECIFIC_F 0x4 /* query depends on thread  
-                                           (for example: TEMPORARY TABLE) */
+#define LOG_EVENT_FORCED_ROTATE_F   0x2 
+#endif
+/* 
+   If the query depends on the thread (for example: TEMPORARY TABLE).
+   Currently this is used by mysqlbinlog to know it must print
+   SET @@PSEUDO_THREAD_ID=xx; before the query (it would not hurt to print it
+   for every query but this would be slow).
+*/
+#define LOG_EVENT_THREAD_SPECIFIC_F 0x4 
 
 enum Log_event_type
 {
@@ -258,30 +297,81 @@ struct st_relay_log_info;
 class Log_event
 {
 public:
+  /* 
+     The offset in the log where this event originally appeared (it is preserved
+     in relay logs, making SHOW SLAVE STATUS able to print coordinates of the
+     event in the master's binlog). Note: when a transaction is written by the
+     master to its binlog (wrapped in BEGIN/COMMIT) the log_pos of all the
+     queries it contains is the one of the BEGIN (this way, when one does SHOW
+     SLAVE STATUS it sees the offset of the BEGIN, which is logical as rollback
+     may occur), except the COMMIT query which has its real offset.
+  */
   my_off_t log_pos;
-  char *temp_buf;
+  /* 
+     A temp buffer for read_log_event; it is later analysed according to the
+     event's type, and its content is distributed in the event-specific fields.
+  */
+  char *temp_buf; 
+  /*
+    Timestamp on the master(for debugging and replication of NOW()/TIMESTAMP). 
+    It is important for queries and LOAD DATA INFILE. This is set at the event's
+    creation time, except for Query and Load (et al.) events where this is set
+    at the query's execution time, which guarantees good replication (otherwise,
+    we could have a query and its event with different timestamps).
+  */
   time_t when;
+  /* The number of seconds the query took to run on the master. */
   ulong exec_time;
+  /* 
+     The master's server id (is preserved in the relay log; used to prevent from
+     infinite loops in circular replication). 
+  */
   uint32 server_id;
   uint cached_event_len;
+
+  /*
+    Some 16 flags. Only one is really used now; look above for
+    LOG_EVENT_TIME_F, LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F
+    for notes.
+  */
   uint16 flags;
+
   bool cache_stmt;
 #ifndef MYSQL_CLIENT
   THD* thd;
 
   Log_event(THD* thd_arg, uint16 flags_arg, bool cache_stmt);
   Log_event();
+  /*
+    read_log_event() functions read an event from a binlog or relay log; used by
+    SHOW BINLOG EVENTS, the binlog_dump thread on the master (reads master's
+    binlog), the slave IO thread (reads the event sent by binlog_dump), the
+    slave SQL thread (reads the event from the relay log).
+  */
   // if mutex is 0, the read will proceed without mutex
   static Log_event* read_log_event(IO_CACHE* file,
 				   pthread_mutex_t* log_lock,
 				   bool old_format);
   static int read_log_event(IO_CACHE* file, String* packet,
 			    pthread_mutex_t* log_lock);
+  /* set_log_pos() is used to fill log_pos with tell(log). */
   void set_log_pos(MYSQL_LOG* log);
+  /*
+    init_show_field_list() prepares the column names and types for the output of
+    SHOW BINLOG EVENTS; it is used only by SHOW BINLOG EVENTS.
+  */
   static void init_show_field_list(List<Item>* field_list);
 #ifdef HAVE_REPLICATION
   int net_send(Protocol *protocol, const char* log_name, my_off_t pos);
+  /*
+    pack_info() is used by SHOW BINLOG EVENTS; as print() it prepares and sends
+    a string to display to the user, so it resembles print().
+  */
   virtual void pack_info(Protocol *protocol);
+  /*
+    The SQL slave thread calls exec_event() to execute the event; this is where
+    the slave's data is modified.
+  */
   virtual int exec_event(struct st_relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
   virtual const char* get_db()
@@ -291,6 +381,7 @@ public:
 #else
  // avoid having to link mysqlbinlog against libpthread
   static Log_event* read_log_event(IO_CACHE* file, bool old_format);
+  /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, bool short_form = 0, char* last_db = 0) = 0;
   void print_timestamp(FILE* file, time_t *ts = 0);
   void print_header(FILE* file);
@@ -336,6 +427,7 @@ public:
   }
   static Log_event* read_log_event(const char* buf, int event_len,
 				   const char **error, bool old_format);
+  /* returns the human readable name of the event's type */
   const char* get_type_str();
 };
 
@@ -403,6 +495,8 @@ public:
 /*****************************************************************************
 
   Slave Log Event class
+  Note that this class is currently not used at all; no code writes a
+  Slave_log_event (though some code in repl_failsafe.cc reads Slave_log_event).
 
  ****************************************************************************/
 class Slave_log_event: public Log_event
@@ -593,7 +687,7 @@ public:
 
   Rand Log Event class
 
-  Logs random seed used by the next RAND()
+  Logs random seed used by the next RAND(), and by PASSWORD() in 4.1.
 
  ****************************************************************************/
 class Rand_log_event: public Log_event
@@ -625,6 +719,9 @@ class Rand_log_event: public Log_event
 /*****************************************************************************
 
   User var Log Event class
+
+  Every time a query uses the value of a user variable, a User_var_log_event is
+  written before the Query_log_event, to set the user variable.
 
  ****************************************************************************/
 class User_var_log_event: public Log_event
