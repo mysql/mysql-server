@@ -793,9 +793,19 @@ int yylex(void *arg)
       }
       break;
     case STATE_USER_END:		// end '@' of user@hostname
-      if (state_map[yyPeek()] != STATE_STRING &&
-	  state_map[yyPeek()] != STATE_USER_VARIABLE_DELIMITER)
-	lex->next_state=STATE_HOSTNAME;	// Mark for next loop     
+      switch (state_map[yyPeek()])
+      {
+      case STATE_STRING:
+      case STATE_USER_VARIABLE_DELIMITER:
+	break;
+      case STATE_USER_END:
+	lex->next_state=STATE_USER_END;
+	yySkip();
+	break;
+      default:
+	lex->next_state=STATE_HOSTNAME;
+	break;
+      }
       yylval->lex_str.str=(char*) lex->ptr;
       yylval->lex_str.length=1;
       return((int) '@');
