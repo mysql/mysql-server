@@ -8123,7 +8123,7 @@ on all ISAM tables.
 @item
 Ensure that you don't have any MySQL clients that uses shared libraries
 (like the perl Msql-Mysql-modules). If you have, you should recompile
-them as structures used in libmysqlclient.so has changed.
+them as structures used in libmysqlclient.so have changed.
 @end itemize
 
 MySQL 4.0 will work even if you don't do the above, but you will not be
@@ -25640,11 +25640,11 @@ where to place the new index and normally 2 seeks to update the index
 and write the row.
 
 Note that the above doesn't mean that your application will slowly
-degenerate by N log N!  As long as everything is cached by the OS or SQL
+degenerate by log N!  As long as everything is cached by the OS or SQL
 server things will only go marginally slower while the table gets
 bigger. After the data gets too big to be cached, things will start to
 go much slower until your applications is only bound by disk-seeks
-(which increase by N log N). To avoid this, increase the index cache as
+(which increase by log N). To avoid this, increase the index cache as
 the data grows. @xref{Server parameters}.
 
 
@@ -26095,7 +26095,7 @@ where the numbers are somewhat proportional to the overall time. This
 does not take into consideration the initial overhead to open tables
 (which is done once for each concurrently running query).
 
-The size of the table slows down the insertion of indexes by N log N
+The size of the table slows down the insertion of indexes by log N
 (B-trees).
 
 Some ways to speed up inserts:
