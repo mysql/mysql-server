@@ -1478,8 +1478,9 @@ NdbScanOperation::restart(){
   
   if(m_ordered){
     m_current_api_receiver = parallell;
+    m_api_receivers_count = parallell;
   }
-
+  
   if (doSendScan(nodeId) == -1)
     return -1;
   
