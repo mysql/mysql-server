@@ -1551,6 +1551,15 @@ drop procedure bug2564_2|
 drop function bug2564_3|
 drop function bug2564_4|
 
+#
+# BUG#3132
+#
+create function bug3132(s char(20)) returns char(50)
+  return concat('Hello, ', s, '!')|
+
+select bug3132('Bob') union all select bug3132('Judy')|
+drop function bug3132|
+
 
 #
 # Some "real" examples

@@ -3320,7 +3320,7 @@ Item_func_sp::fix_length_and_dec()
     switch (m_sp->result()) {
     case STRING_RESULT:
       maybe_null= 1;
-      max_length= 0;
+      max_length= MAX_BLOB_WIDTH;
       break;
     case REAL_RESULT:
       decimals= NOT_FIXED_DEC;
