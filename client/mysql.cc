@@ -402,7 +402,7 @@ CHANGEABLE_VAR changeable_vars[] = {
 
 static void usage(int version)
 {
-  printf("%s  Ver 10.10 Distrib %s, for %s (%s)\n",
+  printf("%s  Ver 10.11 Distrib %s, for %s (%s)\n",
 	 my_progname, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
@@ -435,9 +435,10 @@ static void usage(int version)
   -g, --no-named-commands\n\
 			Named commands are disabled. Use \\* form only, or\n\
                         use named commands only in the beginning of a line\n\
-                        ending with a semicolon (;)\n\
-                        Since version 10.9 the client now starts with this\n\
-                        option ENABLED by default! Disable with '-G'\n\
+                        ending with a semicolon (;) Since version 10.9 the\n\
+                        client now starts with this option ENABLED by\n\
+                        default! Disable with '-G'. Long format commands\n\
+                        still work from the first line.\n\
   -i, --ignore-space	Ignore space after function names.\n\
   -h, --host=...	Connect to host.\n\
   -H, --html		Produce HTML output.\n\
@@ -690,12 +691,12 @@ static int read_lines(bool execute_commands)
     if (!in_string && (line[0] == '#' ||
 		       (line[0] == '-' && line[1] == '-') ||
 		       line[0] == 0))
-      continue;					// Skipp comment lines
+      continue;					// Skip comment lines
 
     /* Check if line is a mysql command line */
     /* (We want to allow help, print and clear anywhere at line start */
-    if (execute_commands && !no_named_cmds && !in_string &&
-        (com=find_command(line,0)))
+    if (execute_commands && (!no_named_cmds || glob_buffer.is_empty()) 
+	&& !in_string && (com=find_command(line,0)))
     {
       if ((*com->func)(&glob_buffer,line) > 0)
 	break;

@@ -28,7 +28,7 @@
 int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
             uint key_len, enum ha_rkey_function search_flag)
 {
-  uchar *key_buff;
+  byte *key_buff;
   uint pack_key_length;
   MYRG_TABLE *table;
   MI_INFO *mi;
@@ -45,7 +45,7 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
     if (table == info->open_tables)
     {
       err=mi_rkey(mi,buf,inx,key,key_len,search_flag);
-      key_buff=mi->lastkey+mi->s->base.max_key_length;
+      key_buff=(byte*) mi->lastkey+mi->s->base.max_key_length;
       pack_key_length=mi->last_rkey_length;
     }
     else

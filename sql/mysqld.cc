@@ -2460,11 +2460,15 @@ static void usage(void)
   --log-isam[=file]	Log all isam changes to file\n\
   --log-long-format	Log some extra information to update log\n\
   --low-priority-updates INSERT/DELETE/UPDATE has lower priority than selects\n\
+  --log-slow-queries=[file]\n\
+			Log slow queries to this log file\n\
   --pid-file=path	Pid file used by safe_mysqld\n\
   -P, --port=...	Port number to use for connection\n\
   -n, --new		Use very new possible 'unsafe' functions\n\
   -o, --old-protocol	Use the old (3.20) protocol\n\
-  --one-thread		Only use one thread (for debugging under Linux)\n\
+  --one-thread		Only use one thread (for debugging under Linux)\n");
+  /* We have to break the string here because of VC++ limits */
+  puts("\
   -O, --set-variable var=option\n\
 			Give a variable an value. --help lists variables\n\
   -Sg, --skip-grant-tables\n\
