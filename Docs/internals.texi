@@ -3553,7 +3553,7 @@ raw-flags  --   more country flags, all .gif files
 @item
 support  --  various files for generating texinfo/docbook documentation
 @item
-to-be-included...  --  an empty subdirectory
+to-be-included...  --  contains a MySQL-for-dummies file
 @item
 translations  --  some Portuguese myodbc documentation
 @end itemize
@@ -3609,7 +3609,11 @@ produces) have files with similar names and functions. Thus, this
 (for the MyISAM table handler). Such duplicates have been marked with
 an "*" in the following list. For example, you will find that
 \heap\hp_extra.c has a close equivalent in the myisam directory
-(\myisam\mi_extra.c) with the same descriptive comment.
+(\myisam\mi_extra.c) with the same descriptive comment. (Some of the 
+differences arise because HEAP has different structures. HEAP does not 
+need to use the sort of B-tree indexing that ISAM and MyISAM use; instead 
+there is a hash index. Most importantly, HEAP is entirely in memory.
+File-I/O routines lose some of their vitality in such a context.)
 @*@*
 
 @itemize
