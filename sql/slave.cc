@@ -348,7 +348,7 @@ int init_master_info(MASTER_INFO* mi)
   // keep other threads from reading bogus info
 
   pthread_mutex_lock(&mi->lock);
-  
+  mi->pending = 0;
   
   if(!my_stat(fname, &stat_area, MYF(0))) // we do not want any messages
     // if the file does not exist
