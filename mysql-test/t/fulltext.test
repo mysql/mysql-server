@@ -2,7 +2,7 @@
 # Test of fulltext index
 #
 
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 
 CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
 INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),('Full-text indexes', 'are called collections'),('Only MyISAM tables','support collections'),('Function MATCH ... AGAINST()','is used to do a search'),('Full-text search in MySQL', 'implements vector space model');
@@ -61,4 +61,23 @@ select * from t2 where MATCH inhalt AGAINST (NULL);
 select * from t2 where  MATCH inhalt AGAINST ('foobar');
 select * from t2 having MATCH inhalt AGAINST ('foobar');
 
-drop table t1,t2;
+#
+# check of fulltext errors
+#
+
+CREATE TABLE t3 (
+  ticket int(11),
+  inhalt text,
+  KEY tig (ticket),
+  fulltext index tix (inhalt)
+);
+
+--error 1210
+select * from t2 having MATCH inhalt AGAINST (t1.id);
+--error 1210
+select * from t2 having MATCH ticket AGAINST ('foobar');
+--error 1210
+select * from t2,t3 having MATCH (t2.inhalt,t3.inhalt) AGAINST ('foobar');
+
+drop table t1,t2,t3;
+

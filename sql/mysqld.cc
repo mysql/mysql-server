@@ -1481,7 +1481,7 @@ static void open_log(MYSQL_LOG *log, const char *hostname,
   // get rid of extention if the log is binary to avoid problems
   if (type == LOG_BIN)
   {
-    char* p = strrchr(opt_name, FN_EXTCHAR);
+    char* p = strrchr((char*) opt_name, FN_EXTCHAR);
     if (p)
       *p = 0;
   }
