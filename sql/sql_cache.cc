@@ -769,8 +769,17 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     STRUCT_LOCK(&structure_guard_mutex);
 
     if (query_cache_size == 0)
+    {
+      STRUCT_UNLOCK(&structure_guard_mutex);
       DBUG_VOID_RETURN;
+    }
     DUMP(this);
+
+    if (ask_handler_allowance(thd, tables_used))
+    {
+      STRUCT_UNLOCK(&structure_guard_mutex);
+      DBUG_VOID_RETURN;
+    }
 
     /* Key is query + database + flag */
     if (thd->db_length)
@@ -2545,6 +2554,39 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 	      OPTION_TO_QUERY_CACHE,
 	      lex->select_lex.options,
 	      (int) thd->variables.query_cache_type));
+  DBUG_RETURN(0);
+}
+
+/*
+  Check handler allowence to cache query with this tables
+
+  SYNOPSYS
+    Query_cache::ask_handler_allowance()
+    thd - thread handlers
+    tables_used - tables list used in query
+
+  RETURN
+    0 - caching allowed
+    1 - caching disallowed
+*/
+my_bool Query_cache::ask_handler_allowance(THD *thd,
+					   TABLE_LIST *tables_used)
+{
+  DBUG_ENTER("Query_cache::is_cacheable");
+
+  for (; tables_used; tables_used= tables_used->next)
+  {
+    TABLE *table= tables_used->table;
+    if (!handler::caching_allowed(thd, table->table_cache_key,
+				  table->key_length,
+				  table->file->table_cache_type()))
+    {
+      DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
+			    tables_used->db, tables_used->alias));
+      thd->lex.safe_to_cache_query= 0;          // Don't try to cache this
+      DBUG_RETURN(1);
+    }
+  }
   DBUG_RETURN(0);
 }
 
