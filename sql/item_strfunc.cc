@@ -1136,7 +1136,7 @@ String *Item_func_ltrim::val_str(String *str)
     return 0;					/* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),res->charset());
-  String *remove_str=args[1]->val_str(&tmp);
+  String *remove_str= (arg_count==2) ? args[1]->val_str(&tmp) : &remove;
   uint remove_length;
   LINT_INIT(remove_length);
 
@@ -1174,7 +1174,7 @@ String *Item_func_rtrim::val_str(String *str)
     return 0; /* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),res->charset());
-  String *remove_str=args[1]->val_str(&tmp);
+  String *remove_str= (arg_count==2) ? args[1]->val_str(&tmp) : &remove;
   uint remove_length;
   LINT_INIT(remove_length);
 
@@ -1246,7 +1246,7 @@ String *Item_func_trim::val_str(String *str)
     return 0;					/* purecov: inspected */
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),res->charset());
-  String *remove_str=args[1]->val_str(&tmp);
+  String *remove_str= (arg_count==2) ? args[1]->val_str(&tmp) : &remove;
   uint remove_length;
   LINT_INIT(remove_length);
 
@@ -1290,6 +1290,29 @@ String *Item_func_trim::val_str(String *str)
   tmp_value.set(*res,(uint) (ptr - res->ptr()),(uint) (end-ptr));
   return &tmp_value;
 }
+
+void Item_func_trim::fix_length_and_dec()
+{
+  max_length= args[0]->max_length;
+  if (arg_count == 1)
+  {
+    set_charset(args[0]->charset(), args[0]->coercibility);
+    remove.set_charset(charset());
+    remove.set_ascii(" ",1);
+  }
+  else
+  if (set_charset(args[1]->charset(), args[1]->coercibility,
+		  args[0]->charset(), args[0]->coercibility))
+  {
+    my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     args[1]->charset()->name,coercion_name(args[1]->coercibility),
+	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
+	     func_name());
+  }
+}
+
+
+
 
 void Item_func_password::fix_length_and_dec()
 {

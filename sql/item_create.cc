@@ -266,7 +266,7 @@ Item *create_func_lpad(Item* a, Item *b, Item *c)
 
 Item *create_func_ltrim(Item* a)
 {
-  return new Item_func_ltrim(a,new Item_string(" ",1,default_charset_info));
+  return new Item_func_ltrim(a);
 }
 
 Item *create_func_md5(Item* a)
@@ -365,7 +365,7 @@ Item *create_func_rpad(Item* a, Item *b, Item *c)
 
 Item *create_func_rtrim(Item* a)
 {
-  return new Item_func_rtrim(a,new Item_string(" ",1,default_charset_info));
+  return new Item_func_rtrim(a);
 }
 
 Item *create_func_sec_to_time(Item* a)
