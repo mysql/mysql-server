@@ -1137,16 +1137,21 @@ mysql_execute_command(void)
       goto error;
     for (table=tables ; table ; table=table->next->next)
     {
-      if (check_access(thd, ALTER_ACL, table->db, &table->grant.privilege) ||
+      if (check_access(thd, ALTER_ACL | DROP_ACL, table->db,
+		       &table->grant.privilege) ||
 	  check_access(thd, INSERT_ACL | CREATE_ACL, table->next->db,
 		       &table->next->grant.privilege))
 	goto error;
       if (grant_option)
       {
-	if (check_grant(thd,ALTER_ACL,table) ||
+	TABLE_LIST old_list,new_list;
+	old_list=table[0];
+	new_list=table->next[0];
+	old_list.next=new_list.next=0;
+	if (check_grant(thd,ALTER_ACL,&old_list) ||
 	    (!test_all_bits(table->next->grant.privilege,
 			   INSERT_ACL | CREATE_ACL) &&
-	     check_grant(thd,INSERT_ACL | CREATE_ACL, table->next)))
+	     check_grant(thd,INSERT_ACL | CREATE_ACL, &new_list)))
 	  goto error;
       }
     }

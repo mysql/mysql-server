@@ -147,3 +147,26 @@ void _mi_print_key(FILE *stream, register MI_KEYSEG *keyseg,
   VOID(fputs("\"\n",stream));
   return;
 } /* print_key */
+
+
+#ifdef EXTRA_DEBUG 
+
+my_bool check_table_is_closed(const char *name, const char *where)
+{
+  char filename[FN_REFLEN];
+  LIST *pos;
+
+  (void) fn_format(filename,name,"",MI_NAME_IEXT,4+16+32);
+  for (pos=myisam_open_list ; pos ; pos=pos->next)
+  {
+    MI_INFO *info=(MI_INFO*) pos->data;
+    MYISAM_SHARE *share=info->s;
+    if (!strcmp(share->filename,filename))
+    {
+      fprintf(stderr,"Warning:  Table: %s is open on %s\n", name,where);
+      return 1;
+    }
+  }
+  return 0;
+}
+#endif /* EXTRA_DEBUG */

@@ -232,7 +232,7 @@ static int mc_sock_connect(my_socket s, const struct sockaddr *name,
   return connect(s, (struct sockaddr*) name, namelen);
 #else
   int flags, res, s_err;
-  socklen_t s_err_size = sizeof(uint);
+  size_socket s_err_size = sizeof(uint);
   fd_set sfds;
   struct timeval tv;
 

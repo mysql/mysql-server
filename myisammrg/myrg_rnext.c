@@ -24,7 +24,7 @@ int myrg_rnext(MYRG_INFO *info, byte *buf, int inx)
 {
   MYRG_TABLE *table;
   MI_INFO *mi;
-  uchar *key_buff;
+  byte *key_buff;
   uint pack_key_length;
   int err;
 
@@ -50,7 +50,7 @@ int myrg_rnext(MYRG_INFO *info, byte *buf, int inx)
   if (table < info->end_table)
   {
     mi=info->last_used_table->table;
-    key_buff=mi->lastkey+mi->s->base.max_key_length;
+    key_buff=(byte*) mi->lastkey+mi->s->base.max_key_length;
     pack_key_length=mi->last_rkey_length;
     for (; table < info->end_table ; table++)
     {
