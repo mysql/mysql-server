@@ -62,7 +62,7 @@ const char *ndbcluster_connectstring= 0;
 
 // Typedefs for long names
 typedef NdbDictionary::Column NDBCOL;
-typedef NdbDictionary::Table  NDBTAB;
+typedef NdbDictionary::Table NDBTAB;
 typedef NdbDictionary::Index  NDBINDEX;
 typedef NdbDictionary::Dictionary  NDBDICT;
 
@@ -841,7 +841,7 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
   DBUG_PRINT("enter", ("key_len: %u", key_len));
   DBUG_DUMP("key", (char*)key, key_len);
 
-  if (!(op= trans->getNdbOperation((NDBTAB *) m_table)) || 
+  if (!(op= trans->getNdbOperation((const NDBTAB *) m_table)) || 
       op->readTuple() != 0)
     ERR_RETURN(trans->getNdbError());
 
@@ -910,7 +910,7 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
     // We have allready retrieved all fields, nothing to complement
     DBUG_RETURN(0);
 
-  if (!(op= trans->getNdbOperation((NDBTAB *) m_table)) || 
+  if (!(op= trans->getNdbOperation((const NDBTAB *) m_table)) || 
       op->readTuple() != 0)
     ERR_RETURN(trans->getNdbError());
 
@@ -964,7 +964,7 @@ int ha_ndbcluster::unique_index_read(const byte *key,
   
   if (!(op= trans->getNdbIndexOperation((NDBINDEX *) 
 					m_index[active_index].unique_index, 
-                                        (NDBTAB *) m_table)) ||
+                                        (const NDBTAB *) m_table)) ||
       op->readTuple() != 0)
     ERR_RETURN(trans->getNdbError());
   
@@ -1185,7 +1185,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   index_name= get_index_name(active_index);
   if (!(op= trans->getNdbIndexScanOperation((NDBINDEX *)
         				    m_index[active_index].index, 
-					    (NDBTAB *) m_table)))
+					    (const NDBTAB *) m_table)))
     ERR_RETURN(trans->getNdbError());
 
   NdbScanOperation::LockMode lm= (NdbScanOperation::LockMode)
@@ -1248,7 +1248,7 @@ int ha_ndbcluster::filtered_scan(const byte *key, uint key_len,
   DBUG_PRINT("info", ("Starting a new filtered scan on %s",
 		      m_tabname));
 
-  if (!(op= trans->getNdbScanOperation((NDBTAB *) m_table)))
+  if (!(op= trans->getNdbScanOperation((const NDBTAB *) m_table)))
     ERR_RETURN(trans->getNdbError());
   NdbScanOperation::LockMode lm= (NdbScanOperation::LockMode)
                                  get_ndb_lock_type(m_lock.type);
@@ -1319,7 +1319,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
   DBUG_ENTER("full_table_scan");  
   DBUG_PRINT("enter", ("Starting new scan on %s", m_tabname));
 
-  if (!(op=trans->getNdbScanOperation((NDBTAB *) m_table)))
+  if (!(op=trans->getNdbScanOperation((const NDBTAB *) m_table)))
     ERR_RETURN(trans->getNdbError());  
   NdbScanOperation::LockMode lm= (NdbScanOperation::LockMode)
                                  get_ndb_lock_type(m_lock.type);
@@ -1361,7 +1361,7 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
     // Scanning table with no primary key
     int hidden_no= table->fields;      
 #ifndef DBUG_OFF
-    const NDBTAB *tab= (NDBTAB *) m_table;    
+    const NDBTAB *tab= (const NDBTAB *) m_table;    
     if (!tab->getColumn(hidden_no))
       DBUG_RETURN(1);
 #endif
@@ -1394,7 +1394,7 @@ int ha_ndbcluster::write_row(byte *record)
   has_auto_increment= (table->next_number_field && record == table->record[0]);
   skip_auto_increment= table->auto_increment_field_not_null;
 
-  if (!(op= trans->getNdbOperation((NDBTAB *) m_table)))
+  if (!(op= trans->getNdbOperation((const NDBTAB *) m_table)))
     ERR_RETURN(trans->getNdbError());
 
   res= (m_use_write) ? op->writeTuple() :op->insertTuple(); 
@@ -1404,7 +1404,7 @@ int ha_ndbcluster::write_row(byte *record)
   if (table->primary_key == MAX_KEY) 
   {
     // Table has hidden primary key
-    Uint64 auto_value= m_ndb->getAutoIncrementValue((NDBTAB *) m_table);
+    Uint64 auto_value= m_ndb->getAutoIncrementValue((const NDBTAB *) m_table);
     if (set_hidden_key(op, table->fields, (const byte*)&auto_value))
       ERR_RETURN(op->getNdbError());
   } 
@@ -1475,7 +1475,7 @@ int ha_ndbcluster::write_row(byte *record)
     DBUG_PRINT("info", 
 	       ("Trying to set next auto increment value to %lu",
                 (ulong) next_val));
-    if (m_ndb->setAutoIncrementValue((NDBTAB *) m_table, next_val, true))
+    if (m_ndb->setAutoIncrementValue((const NDBTAB *) m_table, next_val, true))
       DBUG_PRINT("info", 
 		 ("Setting next auto increment value to %u", next_val));  
   }
@@ -1588,7 +1588,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   }
   else
   {  
-    if (!(op= trans->getNdbOperation((NDBTAB *) m_table)) ||
+    if (!(op= trans->getNdbOperation((const NDBTAB *) m_table)) ||
 	op->updateTuple() != 0)
       ERR_RETURN(trans->getNdbError());  
     
@@ -1666,7 +1666,7 @@ int ha_ndbcluster::delete_row(const byte *record)
   else
   {
     
-    if (!(op=trans->getNdbOperation((NDBTAB *) m_table)) || 
+    if (!(op=trans->getNdbOperation((const NDBTAB *) m_table)) || 
 	op->deleteTuple() != 0)
       ERR_RETURN(trans->getNdbError());
     
@@ -1747,7 +1747,7 @@ void ha_ndbcluster::unpack_record(byte* buf)
   {
     // Table with hidden primary key
     int hidden_no= table->fields;
-    const NDBTAB *tab= (NDBTAB *) m_table;
+    const NDBTAB *tab= (const NDBTAB *) m_table;
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     NdbRecAttr* rec= m_value[hidden_no].rec;
     DBUG_ASSERT(rec);
@@ -1765,7 +1765,7 @@ void ha_ndbcluster::unpack_record(byte* buf)
 
 void ha_ndbcluster::print_results()
 {
-  const NDBTAB *tab= (NDBTAB*) m_table;
+  const NDBTAB *tab= (const NDBTAB*) m_table;
   DBUG_ENTER("print_results");
 
 #ifndef DBUG_OFF
@@ -2190,7 +2190,7 @@ void ha_ndbcluster::position(const byte *record)
     DBUG_PRINT("info", ("Getting hidden key"));
     int hidden_no= table->fields;
     NdbRecAttr* rec= m_value[hidden_no].rec;
-    const NDBTAB *tab= (NDBTAB *) m_table;  
+    const NDBTAB *tab= (const NDBTAB *) m_table;  
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     DBUG_ASSERT(hidden_col->getPrimaryKey() && 
                 hidden_col->getAutoIncrement() &&
@@ -2363,7 +2363,7 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
 void ha_ndbcluster::start_bulk_insert(ha_rows rows)
 {
   int bytes, batch;
-  const NDBTAB *tab= (NDBTAB *) m_table;    
+  const NDBTAB *tab= (const NDBTAB *) m_table;    
 
   DBUG_ENTER("start_bulk_insert");
   DBUG_PRINT("enter", ("rows: %d", (int)rows));
@@ -3165,8 +3165,8 @@ longlong ha_ndbcluster::get_auto_increment()
     : autoincrement_prefetch;
   Uint64 auto_value= 
     (skip_auto_increment) ? 
-    m_ndb->readAutoIncrementValue((NDBTAB *) m_table)
-    : m_ndb->getAutoIncrementValue((NDBTAB *) m_table, cache_size);
+    m_ndb->readAutoIncrementValue((const NDBTAB *) m_table)
+    : m_ndb->getAutoIncrementValue((const NDBTAB *) m_table, cache_size);
   DBUG_RETURN((longlong)auto_value);
 }
 

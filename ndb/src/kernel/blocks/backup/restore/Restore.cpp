@@ -240,6 +240,7 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 
   debug << "Pushing table " << table->getTableName() << endl;
   debug << "   with " << table->getNoOfAttributes() << " attributes" << endl;
+  
   allTables.push_back(table);
 
   return true;
@@ -683,8 +684,8 @@ RestoreDataIterator::validateFragmentFooter() {
 AttributeDesc::AttributeDesc(NdbDictionary::Column *c)
   : m_column(c)
 {
-  size = c->getSize()*8;
-  arraySize = c->getLength();
+  size = 8*NdbColumnImpl::getImpl(* c).m_attrSize;
+  arraySize = NdbColumnImpl::getImpl(* c).m_arraySize;
 }
 
 void TableS::createAttr(NdbDictionary::Column *column)

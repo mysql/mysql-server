@@ -442,13 +442,13 @@ public:
   int executePendingBlobOps(Uint8 flags = 0xFF);
 
   // Fast path calls for MySQL ha_ndbcluster
-  NdbOperation* getNdbOperation(NdbDictionary::Table * table);
-  NdbIndexOperation* getNdbIndexOperation(NdbDictionary::Index * index,
-					  NdbDictionary::Table * table);
-  NdbScanOperation* getNdbScanOperation(NdbDictionary::Table * table);
-  NdbIndexScanOperation* getNdbIndexScanOperation(NdbDictionary::Index * index,
-						  NdbDictionary::Table * table);
-
+  NdbOperation* getNdbOperation(const NdbDictionary::Table * table);
+  NdbIndexOperation* getNdbIndexOperation(const NdbDictionary::Index *,
+					  const NdbDictionary::Table * table);
+  NdbScanOperation* getNdbScanOperation(const NdbDictionary::Table * table);
+  NdbIndexScanOperation* getNdbIndexScanOperation(const NdbDictionary::Index * index,
+						  const NdbDictionary::Table * table);
+  
 private:						
   /**
    * Release completed operations
@@ -556,14 +556,14 @@ private:
   void		setOperationErrorCodeAbort(int anErrorCode);
 
   int		checkMagicNumber();		       // Verify correct object
-  NdbOperation* getNdbOperation(class NdbTableImpl* aTable,
+  NdbOperation* getNdbOperation(const class NdbTableImpl* aTable,
                                 NdbOperation* aNextOp = 0);
-  NdbIndexScanOperation* getNdbScanOperation(class NdbTableImpl* aTable);
-  NdbIndexOperation* getNdbIndexOperation(class NdbIndexImpl* anIndex, 
-                                          class NdbTableImpl* aTable,
+  NdbIndexScanOperation* getNdbScanOperation(const class NdbTableImpl* aTable);
+  NdbIndexOperation* getNdbIndexOperation(const class NdbIndexImpl* anIndex, 
+                                          const class NdbTableImpl* aTable,
                                           NdbOperation* aNextOp = 0);
-  NdbIndexScanOperation* getNdbIndexScanOperation(NdbIndexImpl* index,
-						  NdbTableImpl* table);
+  NdbIndexScanOperation* getNdbIndexScanOperation(const NdbIndexImpl* index,
+						  const NdbTableImpl* table);
   
   void		handleExecuteCompletion();
   

@@ -110,7 +110,7 @@ protected:
   int executeCursor(int ProcessorId);
 
   // Overloaded private methods from NdbOperation
-  int init(NdbTableImpl* tab, NdbConnection* myConnection);
+  int init(const NdbTableImpl* tab, NdbConnection* myConnection);
   int prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId);
   int doSend(int ProcessorId);
 

@@ -1363,15 +1363,6 @@ public:
    */
   static void setConnectString(const char * connectString);
 
-  /**
-   * useFullyQualifiedNames
-   * Enables unique name space for different databases and schemas
-   * by defining table names as DATABASENAME/SCHEMANAME/TABLENAME and
-   * index names as DATABASENAME/SCHEMANAME/TABLENAME/INDEXNAME
-   * @param turnNamingOn bool true - turn naming on, false - turn naming off
-   */
-  void useFullyQualifiedNames(bool turnNamingOn = true);
-
   bool usingFullyQualifiedNames();
 
   /** @} *********************************************************************/
@@ -1422,13 +1413,13 @@ public:
    */
   Uint64 getAutoIncrementValue(const char* aTableName, 
 			       Uint32 cacheSize = 1);
-  Uint64 getAutoIncrementValue(NdbDictionary::Table * aTable, 
+  Uint64 getAutoIncrementValue(const NdbDictionary::Table * aTable, 
 			       Uint32 cacheSize = 1);
   Uint64 readAutoIncrementValue(const char* aTableName);
-  Uint64 readAutoIncrementValue(NdbDictionary::Table * aTable);
+  Uint64 readAutoIncrementValue(const NdbDictionary::Table * aTable);
   bool setAutoIncrementValue(const char* aTableName, Uint64 val, 
 			     bool increase = false);
-  bool setAutoIncrementValue(NdbDictionary::Table * aTable, Uint64 val, 
+  bool setAutoIncrementValue(const NdbDictionary::Table * aTable, Uint64 val, 
 			     bool increase = false);
   Uint64 getTupleIdFromNdb(const char* aTableName, 
 			   Uint32 cacheSize = 1000);

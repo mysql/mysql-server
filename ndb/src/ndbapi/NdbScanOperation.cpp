@@ -95,7 +95,7 @@ NdbScanOperation::setErrorCodeAbort(int aErrorCode){
  * Remark:        Initiates operation record after allocation.
  *****************************************************************************/
 int
-NdbScanOperation::init(NdbTableImpl* tab, NdbConnection* myConnection)
+NdbScanOperation::init(const NdbTableImpl* tab, NdbConnection* myConnection)
 {
   m_transConnection = myConnection;
   //NdbConnection* aScanConnection = theNdb->startTransaction(myConnection);
@@ -386,8 +386,8 @@ NdbIndexScanOperation::saveBoundATTRINFO()
     Uint32 cnt = m_accessTable->getNoOfColumns() - 1;
     m_sort_columns = cnt - i;
     for(; i<cnt; i++){
-      NdbColumnImpl* key = m_accessTable->m_index->m_columns[i];
-      NdbColumnImpl* col = m_currentTable->getColumn(key->m_keyInfoPos);
+      const NdbColumnImpl* key = m_accessTable->m_index->m_columns[i];
+      const NdbColumnImpl* col = m_currentTable->getColumn(key->m_keyInfoPos);
       NdbRecAttr* tmp = NdbScanOperation::getValue_impl(col, (char*)-1);
       UintPtr newVal = UintPtr(tmp);
       theTupleKeyDefined[i][0] = FAKE_PTR;
@@ -1169,8 +1169,8 @@ NdbIndexScanOperation::fix_get_values(){
   Uint32 cnt = m_accessTable->getNoOfColumns() - 1;
   assert(cnt <  NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY);
   
-  NdbIndexImpl * idx = m_accessTable->m_index;
-  NdbTableImpl * tab = m_currentTable;
+  const NdbIndexImpl * idx = m_accessTable->m_index;
+  const NdbTableImpl * tab = m_currentTable;
   for(Uint32 i = 0; i<cnt; i++){
     Uint32 val = theTupleKeyDefined[i][0];
     switch(val){
