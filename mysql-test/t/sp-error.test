@@ -22,47 +22,47 @@ create function func1() returns int
   return 42|
 
 # Can't create recursively
---error 1250
+--error 1254
 create procedure foo()
   create procedure bar() set @x=3|
---error 1250
+--error 1254
 create procedure foo()
   create function bar() returns double return 2.3|
 
 # Already exists
---error 1251
+--error 1255
 create procedure proc1()
   set @x = 42|
---error 1251
+--error 1255
 create function func1() returns int
   return 42|
 
 # Does not exist
---error 1252
+--error 1256
 alter procedure foo|
---error 1252
+--error 1256
 alter function foo|
---error 1252
+--error 1256
 drop procedure foo|
---error 1252
+--error 1256
 drop function foo|
---error 1252
+--error 1256
 call foo()|
 
 # LEAVE/ITERATE with no match
---error 1255
+--error 1259
 create procedure foo()
 foo: loop
   leave bar;
 end loop|
---error 1255
+--error 1259
 create procedure foo()
 foo: loop
   iterate bar;
 end loop|
 
 # Redefining label
---error 1256
+--error 1260
 create procedure foo()
 foo: loop
   foo: loop
@@ -71,14 +71,14 @@ foo: loop
 end loop foo|
 
 # End label mismatch
---error 1257
+--error 1261
 create procedure foo()
 foo: loop
   set @x=2;
 end loop bar|
 
 # Referring to undef variable
---error 1258
+--error 1262
 create procedure foo(out x int)
 begin
   declare y int;
@@ -86,17 +86,17 @@ begin
 end|
 
 # We require INTO in SELECTs (for now; this might change in the future)
---error 1259
+--error 1263
 create procedure foo(x int)
   select * from test.t1|
 
 # RETURN in FUNCTION only
---error 1260
+--error 1264
 create procedure foo()
   return 42|
 
 # Doesn't allow queries in FUNCTIONs (for now :-( )
---error 1261
+--error 1265
 create function foo() returns int
 begin
   declare x int;
