@@ -20,6 +20,27 @@
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 export PATH
 
+# Set some defaults
+datadir=@localstatedir@
+basedir=
+pid_file=
+if test -z "$basedir"
+then
+  basedir=@prefix@
+  bindir=@bindir@
+else
+  bindir="$basedir/bin"
+fi
+if test -z "$pid_file"
+then
+  pid_file=$datadir/`@HOSTNAME@`.pid
+else
+  case "$pid_file" in
+    /* ) ;;
+    * )  pid_file="$datadir/$pid_file" ;;
+  esac
+fi
+
 mode=$1    # start or stop
 
 parse_arguments() {
@@ -36,12 +57,12 @@ parse_arguments() {
 if test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
-elif test -x @bindir@/my_print_defaults
+elif test -x $bindir/my_print_defaults
 then
-  print_defaults="@bindir@/my_print_defaults"
-elif test -x @bindir@/mysql_print_defaults
+  print_defaults="$bindir/my_print_defaults"
+elif test -x $bindir/mysql_print_defaults
 then
-  print_defaults="@bindir@/mysql_print_defaults"
+  print_defaults="$bindir/mysql_print_defaults"
 else
   # Try to find basedir in /etc/my.cnf
   conf=/etc/my.cnf
@@ -70,27 +91,7 @@ else
   test -z "$print_defaults" && print_defaults="my_print_defaults"
 fi
 
-datadir=@localstatedir@
-basedir=
-pid_file=
 parse_arguments `$print_defaults $defaults mysqld mysql_server`
-
-if test -z "$basedir"
-then
-  basedir=@prefix@
-  bindir=@bindir@
-else
-  bindir="$basedir/bin"
-fi
-if test -z "$pid_file"
-then
-  pid_file=$datadir/`@HOSTNAME@`.pid
-else
-  case "$pid_file" in
-    /* ) ;;
-    * )  pid_file="$datadir/$pid_file" ;;
-  esac
-fi
 
 # Safeguard (relative paths, core dumps..)
 cd $basedir
@@ -105,7 +106,7 @@ case "$mode" in
       # be overwritten at next upgrade.
       $bindir/safe_mysqld --datadir=$datadir --pid-file=$pid_file &
       # Make lock for RedHat / SuSE
-      if test -d /var/lock/subsys
+      if test -w /var/lock/subsys
       then
         touch /var/lock/subsys/mysql
       fi
