@@ -3390,12 +3390,8 @@ of contributing to the MySQL development while getting something useful
  in return, is to purchase support directly from MySQL AB.
 @end itemize
 
-For examples of situations when a commercial license is needed, please
-visit the online manual at @uref{http://www.mysql.com/doc/}.
-
 For buying commercial licenses and support, please visit the order section
 at @uref{https://order.mysql.com/}.
-
 
 @node Using the MySQL server for free under GPL,  , Using the MySQL server under a commercial license, MySQL server licenses
 @subsection Using the MySQL Server for Free Under GPL
@@ -14663,6 +14659,7 @@ mysql> SELECT * FROM shop;
 * example-Foreign keys::        Using foreign keys
 * Searching on two keys::       Searching on Two Keys
 * Calculating days::            Calculating visits per day
+* example-AUTO_INCREMENT::      Using AUTO_INCREMENT
 @end menu
 
 
@@ -14961,7 +14958,7 @@ DROP TABLE tmp;
 The above way to solve this query is in effect a @code{UNION} of two queries.
 
 
-@node Calculating days,  , Searching on two keys, Examples
+@node Calculating days, example-AUTO_INCREMENT, Searching on two keys, Examples
 @subsection Calculating visits per day
 
 @findex BIT_OR
@@ -14991,6 +14988,67 @@ Which returns:
 The above calculates how many different days was used for a given
 year/month combination, with automatic removal of duplicate entries.
 
+
+@node example-AUTO_INCREMENT,  , Calculating days, Examples
+@subsection Using AUTO_INCREMENT
+
+@cindex AUTO_INCREMENT
+The @code{AUTO_INCREMENT} attribute can be used to generate an unique
+identity for new rows:
+
+@example
+CREATE TABLE animals (id mediumint not null auto_increment,
+name char(30) not null,
+primary key (id));
+INSERT INTO animals (name) values ("dog"),("cat"),("penguin"),("lax"),("whale");
+SELECT * FROM animals;
+
+Which returns:
+
++----+---------+
+| id | name    |
++----+---------+
+|  1 | dog     |
+|  2 | cat     |
+|  3 | penguin |
+|  4 | lax     |
+|  5 | whale    |
++----+---------+
+@end example
+
+For MyISAM and BDB tables you can specify @code{AUTO_INCREMENT} on
+secondary column in a multi-column key.  In this case the generated
+value for the autoincrement column is calculated as
+@code{MAX(auto_increment_column)+1) WHERE prefix=given-prefix}.  This is
+useful when you want to put data into ordered groups.
+
+@example
+CREATE TABLE animals (grp enum ('fish','mammal','bird') not null,
+id mediumint not null auto_increment,
+name char(30) not null,
+primary key (grp,id));
+INSERT INTO animals (grp,name) values ("mammal","dog"),("mammal","cat"),("bird","penguin"),("fish","lax"),("mammal","whale");
+SELECT * FROM animals order by grp,id;
+
+Which returns:
+
++--------+----+---------+
+| grp    | id | name    |
++--------+----+---------+
+| fish   |  1 | lax     |
+| mammal |  1 | dog     |
+| mammal |  2 | cat     |
+| mammal |  3 | whale   |
+| bird   |  1 | penguin |
++--------+----+---------+
+@end example
+
+Note that in this case, the auto_increment value will be reused if you
+delete the row with the biggest auto_increment value in any group.
+
+You can get the used @code{AUTO_INCREMENT} key with the
+@code{LAST_INSERT_ID()} SQL function or the @code{mysql_insert_id()} API
+function.
 
 @node Batch mode, Twin, Examples, Tutorial
 @section Using @code{mysql} in Batch Mode
@@ -35072,6 +35130,9 @@ values. Inserting a negative number is regarded as inserting a very large
 positive number.  This is done to avoid precision problems when
 numbers 'wrap' over from positive to negative and also to ensure that one
 doesn't accidentally get an auto_increment column that contains 0.
+
+In MyISAM and BDB tables you can specify @code{AUTO_INCREMENT} secondary
+column in a multi-column key.  @xref{example-AUTO_INCREMENT}.
 
 @cindex ODBC compatibility
 @cindex compatibility, with ODBC

@@ -3,5 +3,5 @@ make -k clean
 /bin/rm -f config.cache
 aclocal; autoheader; aclocal; automake; autoconf
 
-CFLAGS=-O6 CXX=gcc CXXFLAGS="-O6 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-debug
+CFLAGS=-O6 CXX=gcc CXXFLAGS="-O6 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-debug --with-extra-charsets=complex
 make
