@@ -1737,6 +1737,7 @@ static int stmt_read_row_no_data(MYSQL_STMT *stmt, unsigned char **row);
   STMT_ATTR_UPDATE_MAX_LENGTH attribute is set.
 */
 static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
+static bool setup_one_fetch_function(MYSQL_BIND *bind, MYSQL_FIELD *field);
 
 /*
   Maximum sizes of MYSQL_TYPE_DATE, MYSQL_TYPE_TIME, MYSQL_TYPE_DATETIME
@@ -1759,6 +1760,20 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data);
 #define MAX_DATETIME_REP_LENGTH 12
 
 #define MAX_DOUBLE_STRING_REP_LENGTH 331
+
+/* A macro to check truncation errors */
+
+#define IS_TRUNCATED(value, is_unsigned, min, max, umax) \
+        ((is_unsigned) ? (((value) > (umax) || (value) < 0) ? 1 : 0) : \
+                         (((value) > (max)  || (value) < (min)) ? 1 : 0))
+
+#define BIND_RESULT_DONE 1
+/*
+  We report truncations only if at least one of MYSQL_BIND::error
+  pointers is set. In this case stmt->bind_result_done |-ed with
+  this flag.
+*/
+#define REPORT_DATA_TRUNCATION 2
 
 /**************** Misc utility functions ****************************/
 
@@ -2121,6 +2136,7 @@ static void update_stmt_fields(MYSQL_STMT *stmt)
   MYSQL_FIELD *field= stmt->mysql->fields;
   MYSQL_FIELD *field_end= field + stmt->field_count;
   MYSQL_FIELD *stmt_field= stmt->fields;
+  MYSQL_BIND *bind= stmt->bind_result_done ? stmt->bind : 0;
 
   DBUG_ASSERT(stmt->field_count == stmt->mysql->field_count);
 
@@ -2131,6 +2147,11 @@ static void update_stmt_fields(MYSQL_STMT *stmt)
     stmt_field->type     = field->type;
     stmt_field->flags    = field->flags;
     stmt_field->decimals = field->decimals;
+    if (bind)
+    {
+      /* Ignore return value: it should be 0 if bind_result succeeded. */
+      (void) setup_one_fetch_function(bind++, stmt_field);
+    }
   }
 }
 
@@ -3407,6 +3428,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
 {
   char *buffer= (char *)param->buffer;
   int err= 0;
+  char *endptr;
 
   /*
     This function should support all target buffer types: the rest
@@ -3417,42 +3439,54 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     break;
   case MYSQL_TYPE_TINY:
   {
-    uchar data= (uchar) my_strntol(&my_charset_latin1, value, length, 10,
-                                   NULL, &err);
-    *buffer= data;
+    longlong data= my_strntoll(&my_charset_latin1, value, length, 10,
+                                 &endptr, &err);
+    *param->error= (IS_TRUNCATED(data, param->is_unsigned,
+                                 INT8_MIN, INT8_MAX, UINT8_MAX) |
+                    test(err));
+    *buffer= (uchar) data;
     break;
   }
   case MYSQL_TYPE_SHORT:
   {
-    short data= (short) my_strntol(&my_charset_latin1, value, length, 10,
-                                   NULL, &err);
-    shortstore(buffer, data);
+    longlong data= my_strntoll(&my_charset_latin1, value, length, 10,
+                               &endptr, &err);
+    *param->error= (IS_TRUNCATED(data, param->is_unsigned,
+                                 INT16_MIN, INT16_MAX, UINT16_MAX) |
+                    test(err));
+    shortstore(buffer, (short) data);
     break;
   }
   case MYSQL_TYPE_LONG:
   {
-    int32 data= (int32)my_strntol(&my_charset_latin1, value, length, 10,
-                                  NULL, &err);
-    longstore(buffer, data);
+    longlong data= my_strntoll(&my_charset_latin1, value, length, 10,
+                               &endptr, &err);
+    *param->error= (IS_TRUNCATED(data, param->is_unsigned,
+                                 INT32_MIN, INT32_MAX, UINT32_MAX) |
+                    test(err));
+    longstore(buffer, (int32) data);
     break;
   }
   case MYSQL_TYPE_LONGLONG:
   {
     longlong data= my_strntoll(&my_charset_latin1, value, length, 10,
-                               NULL, &err);
+                               &endptr, &err);
+    *param->error= test(err);
     longlongstore(buffer, data);
     break;
   }
   case MYSQL_TYPE_FLOAT:
   {
-    float data = (float) my_strntod(&my_charset_latin1, value, length,
-                                    NULL, &err);
-    floatstore(buffer, data);
+    double data= my_strntod(&my_charset_latin1, value, length, &endptr, &err);
+    float fdata= (float) data;
+    *param->error= (fdata != data) | test(err);
+    floatstore(buffer, fdata);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data= my_strntod(&my_charset_latin1, value, length, NULL, &err);
+    double data= my_strntod(&my_charset_latin1, value, length, &endptr, &err);
+    *param->error= test(err);
     doublestore(buffer, data);
     break;
   }
@@ -3460,6 +3494,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   {
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
     str_to_time(value, length, tm, &err);
+    *param->error= test(err);
     break;
   }
   case MYSQL_TYPE_DATE:
@@ -3467,7 +3502,9 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   case MYSQL_TYPE_TIMESTAMP:
   {
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
-    str_to_datetime(value, length, tm, 0, &err);
+    (void) str_to_datetime(value, length, tm, 0, &err);
+    *param->error= test(err) && (param->buffer_type == MYSQL_TYPE_DATE &&
+                                 tm->time_type != MYSQL_TIMESTAMP_DATE);
     break;
   }
   case MYSQL_TYPE_TINY_BLOB:
@@ -3494,6 +3531,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
       copy_length= 0;
     if (copy_length < param->buffer_length)
       buffer[copy_length]= '\0';
+    *param->error= copy_length > param->buffer_length;
     /*
       param->length will always contain length of entire column;
       number of copied bytes may be way different:
@@ -3525,29 +3563,64 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_NULL: /* do nothing */
     break;
   case MYSQL_TYPE_TINY:
+    *param->error= IS_TRUNCATED(value, param->is_unsigned,
+                                INT8_MIN, INT8_MAX, UINT8_MAX);
     *(uchar *)param->buffer= (uchar) value;
     break;
   case MYSQL_TYPE_SHORT:
-    shortstore(buffer, value);
+    *param->error= IS_TRUNCATED(value, param->is_unsigned,
+                                INT16_MIN, INT16_MAX, UINT16_MAX);
+    shortstore(buffer, (short) value);
     break;
   case MYSQL_TYPE_LONG:
-    longstore(buffer, value);
+    *param->error= IS_TRUNCATED(value, param->is_unsigned,
+                                INT32_MIN, INT32_MAX, UINT32_MAX);
+    longstore(buffer, (int32) value);
     break;
   case MYSQL_TYPE_LONGLONG:
     longlongstore(buffer, value);
     break;
   case MYSQL_TYPE_FLOAT:
   {
-    float data= field_is_unsigned ? (float) ulonglong2double(value) :
-                                    (float) value;
+    float data;
+    if (field_is_unsigned)
+    {
+      data= (float) ulonglong2double(value);
+      *param->error= (ulonglong) data != (ulonglong) value;
+    }
+    else
+    {
+      data= (float) value;
+      /*       printf("%lld, %f\n", value, data); */
+      *param->error= value != ((longlong) data);
+    }
     floatstore(buffer, data);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double data= field_is_unsigned ? ulonglong2double(value) :
-                                     (double) value;
+    double data;
+    if (field_is_unsigned)
+    {
+      data= ulonglong2double(value);
+      *param->error= (ulonglong) data != (ulonglong) value;
+    }
+    else
+    {
+      data= value;
+      *param->error= (longlong) data != value;
+    }
     doublestore(buffer, data);
+    break;
+  }
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+  {
+    int error;
+    value= number_to_datetime(value, (MYSQL_TIME *) buffer, 1, &error);
+    *param->error= test(error);
     break;
   }
   default:
@@ -3592,23 +3665,73 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_NULL: /* do nothing */
     break;
   case MYSQL_TYPE_TINY:
-    *buffer= (uchar)value;
+  {
+    if (param->is_unsigned)
+    {
+      int8 data= (int8) value;
+      *param->error= (double) data != value;
+      *buffer= (uchar) data;
+    }
+    else
+    {
+      uchar data= (uchar) value;
+      *param->error= (double) data != value;
+      *buffer= data;
+    }
     break;
+  }
   case MYSQL_TYPE_SHORT:
-    shortstore(buffer, (short)value);
+  {
+    if (param->is_unsigned)
+    {
+      ushort data= (ushort) value;
+      *param->error= (double) data != value;
+      shortstore(buffer, data);
+    }
+    else
+    {
+      short data= (short) value;
+      *param->error= (double) data != value;
+      shortstore(buffer, data);
+    }
     break;
+  }
   case MYSQL_TYPE_LONG:
-    longstore(buffer, (long)value);
+  {
+    if (param->is_unsigned)
+    {
+      uint32 data= (uint32) value;
+      *param->error= (double) data != value;
+      longstore(buffer, data);
+    }
+    else
+    {
+      int32 data= (int32) value;
+      *param->error= (double) data != value;
+      longstore(buffer, data);
+    }
     break;
+  }
   case MYSQL_TYPE_LONGLONG:
   {
-    longlong val= (longlong) value;
-    longlongstore(buffer, val);
+    if (param->is_unsigned)
+    {
+      ulonglong data= (ulonglong) value;
+      *param->error= (double) data != value;
+      longlongstore(buffer, data);
+    }
+    else
+    {
+      longlong data= (longlong) value;
+      *param->error= (double) data != value;
+      longlongstore(buffer, data);
+    }
     break;
   }
   case MYSQL_TYPE_FLOAT:
   {
     float data= (float) value;
+    *param->error= data != value;
     floatstore(buffer, data);
     break;
   }
@@ -3663,18 +3786,45 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
 */
 
 static void fetch_datetime_with_conversion(MYSQL_BIND *param,
+                                           MYSQL_FIELD *field,
                                            MYSQL_TIME *time)
 {
   switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
     break;
   case MYSQL_TYPE_DATE:
+    *(MYSQL_TIME *)(param->buffer)= *time;
+    *param->error= time->time_type != MYSQL_TIMESTAMP_DATE;
+    break;
   case MYSQL_TYPE_TIME:
+    *(MYSQL_TIME *)(param->buffer)= *time;
+    *param->error= time->time_type != MYSQL_TIMESTAMP_TIME;
+    break;
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
-    /* XXX: should we copy only relevant members here? */
     *(MYSQL_TIME *)(param->buffer)= *time;
+    /* No error: time and date are compatible with datetime */
     break;
+  case MYSQL_TYPE_YEAR:
+    shortstore(param->buffer, time->year);
+    *param->error= 1;
+    break;
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+  {
+    ulonglong value= TIME_to_ulonglong(time);
+    return fetch_float_with_conversion(param, field,
+                                       ulonglong2double(value), DBL_DIG);
+  }
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  {
+    longlong value= (longlong) TIME_to_ulonglong(time);
+    return fetch_long_with_conversion(param, field, value);
+  }
   default:
   {
     /*
@@ -3772,7 +3922,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     MYSQL_TIME tm;
 
     read_binary_date(&tm, row);
-    fetch_datetime_with_conversion(param, &tm);
+    fetch_datetime_with_conversion(param, field, &tm);
     break;
   }
   case MYSQL_TYPE_TIME:
@@ -3780,7 +3930,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     MYSQL_TIME tm;
 
     read_binary_time(&tm, row);
-    fetch_datetime_with_conversion(param, &tm);
+    fetch_datetime_with_conversion(param, field, &tm);
     break;
   }
   case MYSQL_TYPE_DATETIME:
@@ -3789,7 +3939,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     MYSQL_TIME tm;
 
     read_binary_datetime(&tm, row);
-    fetch_datetime_with_conversion(param, &tm);
+    fetch_datetime_with_conversion(param, field, &tm);
     break;
   }
   default:
@@ -3822,34 +3972,51 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     none
 */
 
-static void fetch_result_tinyint(MYSQL_BIND *param, uchar **row)
+static void fetch_result_tinyint(MYSQL_BIND *param, MYSQL_FIELD *field,
+                                 uchar **row)
 {
-  *(uchar *)param->buffer= **row;
+  my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
+  uchar data= **row;
+  *(uchar *)param->buffer= data;
+  *param->error= param->is_unsigned != field_is_unsigned && data > INT8_MAX;
   (*row)++;
 }
 
-static void fetch_result_short(MYSQL_BIND *param, uchar **row)
+static void fetch_result_short(MYSQL_BIND *param, MYSQL_FIELD *field,
+                               uchar **row)
 {
-  short value = (short)sint2korr(*row);
-  shortstore(param->buffer, value);
+  my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
+  ushort data= (ushort) sint2korr(*row);
+  shortstore(param->buffer, data);
+  *param->error= param->is_unsigned != field_is_unsigned && data > INT16_MAX;
   *row+= 2;
 }
 
-static void fetch_result_int32(MYSQL_BIND *param, uchar **row)
+static void fetch_result_int32(MYSQL_BIND *param,
+                               MYSQL_FIELD *field __attribute__((unused)),
+                               uchar **row)
 {
-  int32 value= (int32)sint4korr(*row);
-  longstore(param->buffer, value);
+  my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
+  uint32 data= (uint32) sint4korr(*row);
+  longstore(param->buffer, data);
+  *param->error= param->is_unsigned != field_is_unsigned && data > INT32_MAX;
   *row+= 4;
 }
 
-static void fetch_result_int64(MYSQL_BIND *param, uchar **row)
+static void fetch_result_int64(MYSQL_BIND *param,
+                               MYSQL_FIELD *field __attribute__((unused)),
+                               uchar **row)
 {
-  longlong value= (longlong)sint8korr(*row);
-  longlongstore(param->buffer, value);
+  my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
+  ulonglong data= (ulonglong) sint8korr(*row);
+  *param->error= param->is_unsigned != field_is_unsigned && data > INT64_MAX;
+  longlongstore(param->buffer, data);
   *row+= 8;
 }
 
-static void fetch_result_float(MYSQL_BIND *param, uchar **row)
+static void fetch_result_float(MYSQL_BIND *param,
+                               MYSQL_FIELD *field __attribute__((unused)),
+                               uchar **row)
 {
   float value;
   float4get(value,*row);
@@ -3857,7 +4024,9 @@ static void fetch_result_float(MYSQL_BIND *param, uchar **row)
   *row+= 4;
 }
 
-static void fetch_result_double(MYSQL_BIND *param, uchar **row)
+static void fetch_result_double(MYSQL_BIND *param,
+                                MYSQL_FIELD *field __attribute__((unused)),
+                                uchar **row)
 {
   double value;
   float8get(value,*row);
@@ -3865,34 +4034,45 @@ static void fetch_result_double(MYSQL_BIND *param, uchar **row)
   *row+= 8;
 }
 
-static void fetch_result_time(MYSQL_BIND *param, uchar **row)
+static void fetch_result_time(MYSQL_BIND *param,
+                              MYSQL_FIELD *field __attribute__((unused)),
+                              uchar **row)
 {
   MYSQL_TIME *tm= (MYSQL_TIME *)param->buffer;
   read_binary_time(tm, row);
 }
 
-static void fetch_result_date(MYSQL_BIND *param, uchar **row)
+static void fetch_result_date(MYSQL_BIND *param,
+                              MYSQL_FIELD *field __attribute__((unused)),
+                              uchar **row)
 {
   MYSQL_TIME *tm= (MYSQL_TIME *)param->buffer;
   read_binary_date(tm, row);
 }
 
-static void fetch_result_datetime(MYSQL_BIND *param, uchar **row)
+static void fetch_result_datetime(MYSQL_BIND *param,
+                                  MYSQL_FIELD *field __attribute__((unused)),
+                                  uchar **row)
 {
   MYSQL_TIME *tm= (MYSQL_TIME *)param->buffer;
   read_binary_datetime(tm, row);
 }
 
-static void fetch_result_bin(MYSQL_BIND *param, uchar **row)
+static void fetch_result_bin(MYSQL_BIND *param,
+                             MYSQL_FIELD *field __attribute__((unused)),
+                             uchar **row)
 {
   ulong length= net_field_length(row);
   ulong copy_length= min(length, param->buffer_length);
   memcpy(param->buffer, (char *)*row, copy_length);
   *param->length= length;
+  *param->error= copy_length < length;
   *row+= length;
 }
 
-static void fetch_result_str(MYSQL_BIND *param, uchar **row)
+static void fetch_result_str(MYSQL_BIND *param,
+                             MYSQL_FIELD *field __attribute__((unused)),
+                             uchar **row)
 {
   ulong length= net_field_length(row);
   ulong copy_length= min(length, param->buffer_length);
@@ -3901,6 +4081,7 @@ static void fetch_result_str(MYSQL_BIND *param, uchar **row)
   if (copy_length != param->buffer_length)
     ((uchar *)param->buffer)[copy_length]= '\0';
   *param->length= length;			/* return total length */
+  *param->error= copy_length < length;
   *row+= length;
 }
 
@@ -3942,6 +4123,214 @@ static void skip_result_string(MYSQL_BIND *param __attribute__((unused)),
 
 
 /*
+  Check that two field types are binary compatible i. e.
+  have equal representation in the binary protocol and
+  require client-side buffers of the same type.
+
+  SYNOPSIS
+    is_binary_compatible()
+    type1   parameter type supplied by user
+    type2   field type, obtained from result set metadata
+
+  RETURN
+    TRUE or FALSE
+*/
+
+static my_bool is_binary_compatible(enum enum_field_types type1,
+                                    enum enum_field_types type2)
+{
+  static const enum enum_field_types
+    range1[]= { MYSQL_TYPE_SHORT, MYSQL_TYPE_YEAR, 0 },
+    range2[]= { MYSQL_TYPE_INT24, MYSQL_TYPE_LONG, 0 },
+    range3[]= { MYSQL_TYPE_DATETIME, MYSQL_TYPE_TIMESTAMP, 0 },
+    range4[]= { MYSQL_TYPE_ENUM, MYSQL_TYPE_SET, MYSQL_TYPE_TINY_BLOB,
+                MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB,
+                MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_STRING, MYSQL_TYPE_GEOMETRY,
+                MYSQL_TYPE_DECIMAL, 0 },
+   *range_list[]= { range1, range2, range3, range4 },
+   **range_list_end= range_list + sizeof(range_list)/sizeof(*range_list);
+   enum enum_field_types **range, *type;
+
+  if (type1 == type2)
+    return TRUE;
+  for (range= range_list; range != range_list_end; ++range)
+  {
+    /* check that both type1 and type2 are in the same range */
+    bool type1_found= FALSE, type2_found= FALSE;
+    for (type= *range; *type; type++)
+    {
+      type1_found|= type1 == *type;
+      type2_found|= type2 == *type;
+    }
+    if (type1_found || type2_found)
+      return type1_found && type2_found;
+  }
+  return FALSE;
+}
+
+
+/*
+  Setup a fetch function for one column of a result set.
+
+  SYNOPSIS
+    setup_one_fetch_function()
+    param    output buffer descriptor
+    field    column descriptor
+
+  DESCRIPTION
+    When user binds result set buffers or when result set
+    metadata is changed, we need to setup fetch (and possibly
+    conversion) functions for all columns of the result set.
+    In addition to that here we set up skip_result function, used
+    to update result set metadata in case when
+    STMT_ATTR_UPDATE_MAX_LENGTH attribute is set.
+    Notice that while fetch_result is chosen depending on both
+    field->type and param->type, skip_result depends on field->type
+    only.
+
+  RETURN
+    TRUE   fetch function for this typecode was not found (typecode
+          is not supported by the client library)
+    FALSE  success
+*/
+
+static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
+{
+  /* Setup data copy functions for the different supported types */
+  switch (param->buffer_type) {
+  case MYSQL_TYPE_NULL: /* for dummy binds */
+    /*
+      It's not binary compatible with anything the server can return:
+      no need to setup fetch_result, as it'll be reset anyway
+    */
+    *param->length= 0;
+    break;
+  case MYSQL_TYPE_TINY:
+    param->fetch_result= fetch_result_tinyint;
+    *param->length= 1;
+    break;
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_YEAR:
+    param->fetch_result= fetch_result_short;
+    *param->length= 2;
+    break;
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+    param->fetch_result= fetch_result_int32;
+    *param->length= 4;
+    break;
+  case MYSQL_TYPE_LONGLONG:
+    param->fetch_result= fetch_result_int64;
+    *param->length= 8;
+    break;
+  case MYSQL_TYPE_FLOAT:
+    param->fetch_result= fetch_result_float;
+    *param->length= 4;
+    break;
+  case MYSQL_TYPE_DOUBLE:
+    param->fetch_result= fetch_result_double;
+    *param->length= 8;
+    break;
+  case MYSQL_TYPE_TIME:
+    param->fetch_result= fetch_result_time;
+    *param->length= sizeof(MYSQL_TIME);
+    break;
+  case MYSQL_TYPE_DATE:
+    param->fetch_result= fetch_result_date;
+    *param->length= sizeof(MYSQL_TIME);
+    break;
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    param->fetch_result= fetch_result_datetime;
+    *param->length= sizeof(MYSQL_TIME);
+    break;
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+    DBUG_ASSERT(param->buffer_length != 0);
+    param->fetch_result= fetch_result_bin;
+    break;
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+    DBUG_ASSERT(param->buffer_length != 0);
+    param->fetch_result= fetch_result_str;
+    break;
+  default:
+    return TRUE;
+  }
+  if (! is_binary_compatible(param->buffer_type, field->type))
+    param->fetch_result= fetch_result_with_conversion;
+
+  /* Setup skip_result functions (to calculate max_length) */
+  param->skip_result= skip_result_fixed;
+  switch (field->type) {
+  case MYSQL_TYPE_NULL: /* for dummy binds */
+    param->pack_length= 0;
+    field->max_length= 0;
+    break;
+  case MYSQL_TYPE_TINY:
+    param->pack_length= 1;
+    field->max_length= 4;                     /* as in '-127' */
+    break;
+  case MYSQL_TYPE_YEAR:
+  case MYSQL_TYPE_SHORT:
+    param->pack_length= 2;
+    field->max_length= 6;                     /* as in '-32767' */
+    break;
+  case MYSQL_TYPE_INT24:
+    field->max_length= 9;  /* as in '16777216' or in '-8388607' */
+    param->pack_length= 4;
+    break;
+  case MYSQL_TYPE_LONG:
+    field->max_length= 11;                    /* '-2147483647' */
+    param->pack_length= 4;
+    break;
+  case MYSQL_TYPE_LONGLONG:
+    field->max_length= 21;                    /* '18446744073709551616' */
+    param->pack_length= 8;
+    break;
+  case MYSQL_TYPE_FLOAT:
+    param->pack_length= 4;
+    field->max_length= MAX_DOUBLE_STRING_REP_LENGTH;
+    break;
+  case MYSQL_TYPE_DOUBLE:
+    param->pack_length= 8;
+    field->max_length= MAX_DOUBLE_STRING_REP_LENGTH;
+    break;
+  case MYSQL_TYPE_TIME:
+    field->max_length= 15;                    /* 19:23:48.123456 */
+    param->skip_result= skip_result_with_length;
+  case MYSQL_TYPE_DATE:
+    field->max_length= 10;                    /* 2003-11-11 */
+    param->skip_result= skip_result_with_length;
+    break;
+    break;
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_TIMESTAMP:
+    param->skip_result= skip_result_with_length;
+    field->max_length= MAX_DATE_STRING_REP_LENGTH;
+    break;
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+    param->skip_result= skip_result_string;
+    break;
+  default:
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+/*
   Setup the bind buffers for resultset processing
 */
 
@@ -3951,6 +4340,7 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   MYSQL_FIELD *field;
   ulong       bind_count= stmt->field_count;
   uint        param_count= 0;
+  uchar       report_data_truncation= 0;
   DBUG_ENTER("mysql_stmt_bind_result");
   DBUG_PRINT("enter",("field_count: %d", bind_count));
 
@@ -3981,144 +4371,29 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
       This is to make the execute code easier
     */
     if (!param->is_null)
-      param->is_null= &param->internal_is_null;
+      param->is_null= &param->is_null_value;
 
     if (!param->length)
-      param->length= &param->internal_length;
+      param->length= &param->length_value;
+
+    if (!param->error)
+      param->error= &param->error_value;
+    else
+      report_data_truncation= REPORT_DATA_TRUNCATION;
 
     param->param_number= param_count++;
     param->offset= 0;
 
-    /* Setup data copy functions for the different supported types */
-    switch (param->buffer_type) {
-    case MYSQL_TYPE_NULL: /* for dummy binds */
-      *param->length= 0;
-      break;
-    case MYSQL_TYPE_TINY:
-      param->fetch_result= fetch_result_tinyint;
-      *param->length= 1;
-      break;
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_YEAR:
-      param->fetch_result= fetch_result_short;
-      *param->length= 2;
-      break;
-    case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_LONG:
-      param->fetch_result= fetch_result_int32;
-      *param->length= 4;
-      break;
-    case MYSQL_TYPE_LONGLONG:
-      param->fetch_result= fetch_result_int64;
-      *param->length= 8;
-      break;
-    case MYSQL_TYPE_FLOAT:
-      param->fetch_result= fetch_result_float;
-      *param->length= 4;
-      break;
-    case MYSQL_TYPE_DOUBLE:
-      param->fetch_result= fetch_result_double;
-      *param->length= 8;
-      break;
-    case MYSQL_TYPE_TIME:
-      param->fetch_result= fetch_result_time;
-      *param->length= sizeof(MYSQL_TIME);
-      break;
-    case MYSQL_TYPE_DATE:
-      param->fetch_result= fetch_result_date;
-      *param->length= sizeof(MYSQL_TIME);
-      break;
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      param->fetch_result= fetch_result_datetime;
-      *param->length= sizeof(MYSQL_TIME);
-      break;
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_BLOB:
-      DBUG_ASSERT(param->buffer_length != 0);
-      param->fetch_result= fetch_result_bin;
-      break;
-    case MYSQL_TYPE_VARCHAR:
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-      DBUG_ASSERT(param->buffer_length != 0);
-      param->fetch_result= fetch_result_str;
-      break;
-    default:
+    if (setup_one_fetch_function(param, field))
+    {
       strmov(stmt->sqlstate, unknown_sqlstate);
       sprintf(stmt->last_error,
-	      ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
-	      param->buffer_type, param_count);
-      DBUG_RETURN(1);
-    }
-
-    /* Setup skip_result functions (to calculate max_length) */
-    param->skip_result= skip_result_fixed;
-    switch (field->type) {
-    case MYSQL_TYPE_NULL: /* for dummy binds */
-      param->pack_length= 0;
-      field->max_length= 0;
-      break;
-    case MYSQL_TYPE_TINY:
-      param->pack_length= 1;
-      field->max_length= 4;                     /* as in '-127' */
-      break;
-    case MYSQL_TYPE_YEAR:
-    case MYSQL_TYPE_SHORT:
-      param->pack_length= 2;
-      field->max_length= 6;                     /* as in '-32767' */
-      break;
-    case MYSQL_TYPE_INT24:
-      field->max_length= 9;  /* as in '16777216' or in '-8388607' */
-      param->pack_length= 4;
-      break;
-    case MYSQL_TYPE_LONG:
-      field->max_length= 11;                    /* '-2147483647' */
-      param->pack_length= 4;
-      break;
-    case MYSQL_TYPE_LONGLONG:
-      field->max_length= 21;                    /* '18446744073709551616' */
-      param->pack_length= 8;
-      break;
-    case MYSQL_TYPE_FLOAT:
-      param->pack_length= 4;
-      field->max_length= MAX_DOUBLE_STRING_REP_LENGTH;
-      break;
-    case MYSQL_TYPE_DOUBLE:
-      param->pack_length= 8;
-      field->max_length= MAX_DOUBLE_STRING_REP_LENGTH;
-      break;
-    case MYSQL_TYPE_TIME:
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      param->skip_result= skip_result_with_length;
-      field->max_length= MAX_DATE_STRING_REP_LENGTH;
-      break;
-    case MYSQL_TYPE_DECIMAL:
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
-    case MYSQL_TYPE_GEOMETRY:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_VARCHAR:
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-      param->skip_result= skip_result_string;
-      break;
-    default:
-      strmov(stmt->sqlstate, unknown_sqlstate);
-      sprintf(stmt->last_error,
-	      ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
-	      field->type, param_count);
+              ER(stmt->last_errno= CR_UNSUPPORTED_PARAM_TYPE),
+              field->type, param_count);
       DBUG_RETURN(1);
     }
   }
-  stmt->bind_result_done= TRUE;
+  stmt->bind_result_done= BIND_RESULT_DONE | report_data_truncation;
   DBUG_RETURN(0);
 }
 
@@ -4132,6 +4407,7 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
   MYSQL_BIND  *bind, *end;
   MYSQL_FIELD *field;
   uchar *null_ptr, bit;
+  int truncation_count= 0;
   /*
     Precondition: if stmt->field_count is zero or row is NULL, read_row_*
     function must return no data.
@@ -4154,26 +4430,25 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
        bind < end ;
        bind++, field++)
   {
+    *bind->error= 0;
     if (*null_ptr & bit)
     {
       /*
-        We should set both inter_buffer and is_null to be able to see
+        We should set both row_ptr and is_null to be able to see
         nulls in mysql_stmt_fetch_column. This is because is_null may point
         to user data which can be overwritten between mysql_stmt_fetch and
         mysql_stmt_fetch_column, and in this case nullness of column will be
         lost. See mysql_stmt_fetch_column for details.
       */
-      bind->inter_buffer= NULL;
+      bind->row_ptr= NULL;
       *bind->is_null= 1;
     }
     else
     {
       *bind->is_null= 0;
-      bind->inter_buffer= row;
-      if (field->type == bind->buffer_type)
-        (*bind->fetch_result)(bind, &row);
-      else
-        fetch_result_with_conversion(bind, field, &row);
+      bind->row_ptr= row;
+      (*bind->fetch_result)(bind, field, &row);
+      truncation_count+= *bind->error;
     }
     if (!((bit<<=1) & 255))
     {
@@ -4181,6 +4456,8 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
       null_ptr++;
     }
   }
+  if (truncation_count && (stmt->bind_result_done & REPORT_DATA_TRUNCATION))
+    return MYSQL_DATA_TRUNCATED;
   return 0;
 }
 
@@ -4207,7 +4484,7 @@ int STDCALL mysql_stmt_fetch(MYSQL_STMT *stmt)
   DBUG_ENTER("mysql_stmt_fetch");
 
   if ((rc= (*stmt->read_row_func)(stmt, &row)) ||
-      (rc= stmt_fetch_row(stmt, row)))
+      ((rc= stmt_fetch_row(stmt, row)) && rc != MYSQL_DATA_TRUNCATED))
   {
     stmt->state= MYSQL_STMT_PREPARE_DONE;       /* XXX: this is buggy */
     stmt->read_row_func= stmt_read_row_no_data;
@@ -4254,17 +4531,20 @@ int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind,
     DBUG_RETURN(1);
   }
 
-  if (param->inter_buffer)
+  if (!bind->error)
+    bind->error= &bind->error_value;
+  *bind->error= 0;
+  if (param->row_ptr)
   {
     MYSQL_FIELD *field= stmt->fields+column;
-    uchar *row= param->inter_buffer;
+    uchar *row= param->row_ptr;
     bind->offset= offset;
     if (bind->is_null)
       *bind->is_null= 0;
     if (bind->length) /* Set the length if non char/binary types */
       *bind->length= *param->length;
     else
-      bind->length= &param->internal_length;	/* Needed for fetch_result() */
+      bind->length= &param->length_value;       /* Needed for fetch_result() */
     fetch_result_with_conversion(bind, field, &row);
   }
   else
