@@ -74,11 +74,11 @@ int main(int argc, const char** argv){
       ndbout << "-- Indexes -- " << endl;
       ndbout << "PRIMARY KEY(";
       unsigned j;
-      for (j= 0; j < pTab->getNoOfPrimaryKeys(); j++)
+      for (j= 0; (int)j < pTab->getNoOfPrimaryKeys(); j++)
       {
 	const NdbDictionary::Column * col = pTab->getColumn(j);
 	ndbout << col->getName();
-	if (j < pTab->getNoOfPrimaryKeys()-1)
+	if ((int)j < pTab->getNoOfPrimaryKeys()-1)
 	  ndbout << ", ";       
       }
       ndbout << ") - UniqueHashIndex" << endl;
