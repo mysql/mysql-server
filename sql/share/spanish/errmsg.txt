@@ -95,7 +95,7 @@
 "No puede borrar todos los campos con ALTER TABLE. Usa DROP TABLE para hacerlo",
 "No puedo ELIMINAR '%-.64s'. compuebe que el campo/clave existe",
 "Registros: %ld  Duplicados: %ld  Peligros: %ld",
-"INSERT TABLE '%-.64s' no esta permitido en FROM tabla lista",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Identificador del thread: %lu  desconocido",
 "Tu no eres el propietario del thread%lu",
 "No ha tablas usadas",

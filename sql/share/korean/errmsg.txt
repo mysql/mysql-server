@@ -94,7 +94,7 @@
 "ALTER TABLE 명령으로는 모든 칼럼을 지울 수 없습니다. DROP TABLE 명령을 이용하세요.",
 "'%-.64s'를 DROP할 수 없습니다. 칼럼이나 키가 존재하는지 채크하세요.",
 "레코드: %ld개  중복: %ld개  경고: %ld개",
-"INSERT TABLE '%-.64s' 는 FROM 테이블 list에서 허가되지 않았습니다.",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "알수 없는 쓰레드 id: %lu",
 "쓰레드(Thread) %lu의 소유자가 아닙니다.",
 "어떤 테이블도 사용되지 않았습니다.",

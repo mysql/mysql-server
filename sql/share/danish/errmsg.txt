@@ -97,7 +97,7 @@
 "Man kan ikke slette alle felter med ALTER TABLE. Brug DROP TABLE i stedet.",
 "Kan ikke udføre DROP '%-.64s'. Undersøg om feltet/nøglen eksisterer.",
 "Poster: %ld  Ens: %ld  Advarsler: %ld",
-"INSERT TABLE '%-.64s' er ikke tilladt i FROM tabel liste",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "Ukendt tråd id: %lu",
 "Du er ikke ejer af tråden %lu",
 "Ingen tabeller i brug",

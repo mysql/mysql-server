@@ -54,7 +54,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   if (find_real_table_in_list(table_list->next, 
 			      table_list->db, table_list->real_name))
   {
-    my_error(ER_INSERT_TABLE_USED, MYF(0), table_list->real_name);
+    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
   }
 

@@ -94,7 +94,7 @@
 "Você não pode deletar todas as colunas com ALTER TABLE. Use DROP TABLE em seu lugar",
 "Não se pode fazer DROP '%-.64s'. Confira se esta coluna/chave existe",
 "Registros: %ld - Duplicados: %ld - Avisos: %ld",
-"INSERT TABLE '%-.64s' não é permitido na lista de tabelas contidas em FROM",
+"You can't specify target table '%-.64s' for update in FROM clause",
 "'Id' de 'thread' %lu desconhecido",
 "Você não é proprietário da 'thread' %lu",
 "Nenhuma tabela usada",
