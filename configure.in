@@ -559,7 +559,7 @@ AC_ARG_WITH(mysqld-user,
     [  --with-mysqld-user=username   
                           What user the mysqld daemon shall be run as.],
     [ MYSQLD_USER=$withval ],
-    [ MYSQLD_USER=root ]
+    [ MYSQLD_USER=mysql ]
     )
 AC_SUBST(MYSQLD_USER)
 
