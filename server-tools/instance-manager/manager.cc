@@ -30,6 +30,23 @@
 #include "log.h"
 #include "guardian.h"
 
+static int create_pid_file(const char *pid_file_name)
+{
+  if (FILE *pid_file= my_fopen(pid_file_name,
+                               O_WRONLY | O_CREAT | O_BINARY, MYF(0)))
+    {
+      fprintf(pid_file, "%d\n", (int) getpid());
+      my_fclose(pid_file, MYF(0));
+    }
+    else
+    {
+      log_error("can't create pid file %s: errno=%d, %s",
+                pid_file_name, errno, strerror(errno));
+      return 1;
+    }
+  return 0;
+}
+
 
 /*
   manager - entry point to the main instance manager process: start
@@ -53,32 +70,24 @@ void manager(const Options &options)
                                   &instance_map,
                                   options.monitoring_interval);
 
+  Listener_thread_args listener_args(thread_registry, options, user_map,
+                                     instance_map);
+
   instance_map.mysqld_path= options.default_mysqld_path;
   instance_map.user= options.default_admin_user;
   instance_map.password= options.default_admin_password;
   instance_map.guardian= &guardian_thread;
-  instance_map.load();
 
-  Listener_thread_args listener_args(thread_registry, options, user_map,
-                                     instance_map);
 
+  if (instance_map.load())
+    return;
 
   if (user_map.load(options.password_file_name))
     return;
 
   /* write pid file */
-  if (FILE *pid_file= my_fopen(options.pid_file_name,
-                               O_WRONLY | O_CREAT | O_BINARY, MYF(0)))
-  {
-    fprintf(pid_file, "%d\n", (int) getpid());
-    my_fclose(pid_file, MYF(0));
-  }
-  else
-  {
-    log_error("can't create pid file %s: errno=%d, %s",
-              options.pid_file_name, errno, strerror(errno));
+  if (create_pid_file(options.pid_file_name))
     return;
-  }
 
   /* block signals */
   sigset_t mask;

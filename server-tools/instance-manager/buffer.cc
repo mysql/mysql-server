@@ -26,15 +26,15 @@
   Puts the given string to the buffer.
 
   SYNOPSYS
-    put_to_buffer()
-    start_pos         start position in the buffer
+    append()
+    position         start position in the buffer
     string            string to be put in the buffer
     len_arg           the length of the string. This way we can avoid some
                       strlens.
 
   DESCRIPTION
 
-    The method puts a string into the buffer, starting from start_pos .
+    The method puts a string into the buffer, starting from position .
     In the case when the buffer is too small it reallocs the buffer. The
     total size of the buffer is restricted with 16.
 
@@ -43,12 +43,12 @@
     1 - The buffer came to 16Mb barrier
 */
 
-int Buffer::put_to_buffer(char *start_pos, const char *string, uint len_arg)
+int Buffer::append(char *position, const char *string, uint len_arg)
 {
-  if (check_and_add(start_pos - buffer, len_arg))
+  if (reserve(position - buffer, len_arg))
     return 1;
 
-  strnmov(start_pos, string, len_arg);
+  strnmov(position, string, len_arg);
   return 0;
 }
 
@@ -58,7 +58,7 @@ int Buffer::put_to_buffer(char *start_pos, const char *string, uint len_arg)
   "len_arg" starting from "position" and reallocs it if no.
 
   SYNOPSYS
-    check_and_add()
+    reserve()
     position          the number starting byte on the buffer to store a buffer
     len_arg           the length of the string.
 
@@ -74,7 +74,7 @@ int Buffer::put_to_buffer(char *start_pos, const char *string, uint len_arg)
     1 - The buffer came to 16Mb barrier
 */
 
-int Buffer::check_and_add(uint position, uint len_arg)
+int Buffer::reserve(uint position, uint len_arg)
 {
   if (position + len_arg >= MAX_BUFFER_SIZE)
     return 1;
@@ -83,9 +83,9 @@ int Buffer::check_and_add(uint position, uint len_arg)
   {
     buffer= (char *) realloc(buffer,
                              min(MAX_BUFFER_SIZE,
-                                 max((uint) buffer_size*1.5,
+                                 max((uint) (buffer_size*1.5),
                                      position + len_arg)));
-    buffer_size= (uint) buffer_size*1.5;
+    buffer_size= (uint) (buffer_size*1.5);
   }
   return 0;
 }
