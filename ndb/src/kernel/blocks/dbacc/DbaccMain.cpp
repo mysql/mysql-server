@@ -4385,7 +4385,8 @@ void Dbacc::commitOperation(Signal* signal)
   Uint32 tmp2Olq;
 
   if ((operationRecPtr.p->commitDeleteCheckFlag == ZFALSE) &&
-      (operationRecPtr.p->operation != ZSCAN_OP)) {
+      (operationRecPtr.p->operation != ZSCAN_OP) &&
+      (operationRecPtr.p->operation != ZREAD)) {
     jam();
     /*  This method is used to check whether the end result of the transaction
         will be to delete the tuple. In this case all operation will be marked
