@@ -2004,7 +2004,6 @@ mysql_execute_command(THD *thd)
     {
       /* This is PREPARE stmt FROM @var. */
       String str;
-      String *pstr;
       CHARSET_INFO *to_cs= thd->variables.collation_connection;
       bool need_conversion;
       user_var_entry *entry;
@@ -2614,7 +2613,6 @@ unsent_create_error:
 
   case SQLCOM_OPTIMIZE:
   {
-    HA_CREATE_INFO create_info;
     if (check_db_used(thd,tables) ||
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables,0))
       goto error; /* purecov: inspected */
