@@ -60,11 +60,9 @@ export PATH
 mode=$1    # start or stop
 
 case `echo "testing\c"`,`echo -n testing` in
-    *c,*)  echo_n=-n echo_c= ;;
-    *,-n*) echo_n= echo_c='\c' ;;
-    *)     echo_n= echo_c='
-'
-;;
+    *c*,-n*) echo_n= echo_c='';;
+    *c*,*)   echo_n=-n echo_c= ;;
+    *)     echo_n= echo_c='\c';;
 esac                                                                            
 	                                                                                    
 parse_arguments() {
@@ -177,7 +175,7 @@ case "$mode" in
       sleep 1
       while [ -s $pid_file -a "$flags" != aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ]
       do
-	[ -z "$flags" ] && echo $echo_n "Wait for mysqld to exit$echo_c" || echo $echo_n ".echo_c"
+	[ -z "$flags" ] && echo $echo_n "Wait for mysqld to exit$echo_c" || echo $echo_n ".$echo_c"
         flags=a$flags
         sleep 1
       done
