@@ -1252,8 +1252,9 @@ MgmStatService::log(int eventType, const Uint32* theData, NodeId nodeId){
   
   Uint32 threshold = 0;
   LogLevel::EventCategory cat;
-  
-  for(unsigned i = 0; i<EventLogger::matrixSize; i++){
+  int i;
+
+  for(i = 0; (unsigned)i<EventLogger::matrixSize; i++){
     if(EventLogger::matrix[i].eventType == eventType){
       cat = EventLogger::matrix[i].eventCategory;
       threshold = EventLogger::matrix[i].threshold;
@@ -1266,7 +1267,6 @@ MgmStatService::log(int eventType, const Uint32* theData, NodeId nodeId){
 
   Vector<NDB_SOCKET_TYPE> copy; 
   m_clients.lock();
-  int i;
   for(i = m_clients.size() - 1; i >= 0; i--){
     if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat)){
       if(m_clients[i].m_socket >= 0 &&
@@ -1279,14 +1279,14 @@ MgmStatService::log(int eventType, const Uint32* theData, NodeId nodeId){
   }
   m_clients.unlock();
   
-  for(i = 0; (unsigned)i<copy.size(); i++){
+  for(i = 0; (unsigned)i < copy.size(); i++){
     NDB_CLOSE_SOCKET(copy[i]);
   }
 
   if(copy.size()){
     LogLevel tmp; tmp.clear();
     m_clients.lock();
-    for(i = 0; i < m_clients.size(); i++){
+    for(i = 0; (unsigned)i < m_clients.size(); i++){
       tmp.set_max(m_clients[i].m_logLevel);
     }
     m_clients.unlock();
