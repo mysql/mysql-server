@@ -20285,59 +20285,64 @@ The following columns are returned:
 below, though the format and numbers probably differ:
 
 @example
-+--------------------------+------------+
-| Variable_name            | Value      |
-+--------------------------+------------+
-| Aborted_clients          | 0          |
-| Aborted_connects         | 0          |
-| Bytes_received           | 142160923  |
-| Bytes_sent               | 1161910370 |
-| Connections              | 30022      |
-| Created_tmp_disk_tables  | 0          |
-| Created_tmp_tables       | 8988       |
-| Delayed_insert_threads   | 0          |
-| Delayed_writes           | 0          |
-| Delayed_errors           | 0          |
-| Flush_commands           | 1          |
-| Handler_delete           | 462604     |
-| Handler_read_first       | 95882      |
-| Handler_read_key         | 27681068   |
-| Handler_read_next        | 265008218  |
-| Handler_read_prev        | 3022500    |
-| Handler_read_rnd         | 36900998   |
-| Handler_read_rnd_next    | 252097176  |
-| Handler_update           | 16945404   |
-| Handler_write            | 66826676   |
-| Key_blocks_used          | 14955      |
-| Key_read_requests        | 90131960   |
-| Key_reads                | 163268     |
-| Key_write_requests       | 7573912    |
-| Key_writes               | 3780151    |
-| Max_used_connections     | 0          |
-| Not_flushed_key_blocks   | 0          |
-| Not_flushed_delayed_rows | 0          |
-| Open_tables              | 0          |
-| Open_files               | 0          |
-| Open_streams             | 0          |
-| Opened_tables            | 44598      |
-| Questions                | 1866024    |
-| Select_full_join         | 0          |
-| Select_full_range_join   | 0          |
-| Select_range             | 68187      |
-| Select_range_check       | 0          |
-| Select_scan              | 31440      |
-| Slave_running            | OFF        |
-| Slow_launch_threads      | 0          |
-| Slow_queries             | 0          |
-| Sort_range               | 0          |
-| Sort_rows                | 36650500   |
-| Sort_scan                | 5298       |
-| Threads_cached           | 0          |
-| Threads_connected        | 1          |
-| Threads_created          | 30022      |
-| Threads_running          | 1          |
-| Uptime                   | 39613      |
-+--------------------------+------------+
++--------------------------+--------+
+| Variable_name            | Value  |
++--------------------------+--------+
+| Aborted_clients          | 0      |
+| Aborted_connects         | 0      |
+| Bytes_received           | 629539 |
+| Bytes_sent               | 736394 |
+| Connections              | 62     |
+| Created_tmp_disk_tables  | 0      |
+| Created_tmp_tables       | 0      |
+| Created_tmp_files        | 0      |
+| Delayed_insert_threads   | 0      |
+| Delayed_writes           | 0      |
+| Delayed_errors           | 0      |
+| Flush_commands           | 1      |
+| Handler_delete           | 0      |
+| Handler_read_first       | 1      |
+| Handler_read_key         | 9201   |
+| Handler_read_next        | 0      |
+| Handler_read_prev        | 0      |
+| Handler_read_rnd         | 0      |
+| Handler_read_rnd_next    | 45     |
+| Handler_update           | 5998   |
+| Handler_write            | 0      |
+| Key_blocks_used          | 407    |
+| Key_read_requests        | 27683  |
+| Key_reads                | 407    |
+| Key_write_requests       | 0      |
+| Key_writes               | 0      |
+| Max_used_connections     | 60     |
+| Not_flushed_key_blocks   | 0      |
+| Not_flushed_delayed_rows | 0      |
+| Open_tables              | 60     |
+| Open_files               | 66     |
+| Open_streams             | 0      |
+| Opened_tables            | 66     |
+| Questions                | 9308   |
+| Select_full_join         | 0      |
+| Select_full_range_join   | 0      |
+| Select_range             | 0      |
+| Select_range_check       | 0      |
+| Select_scan              | 0      |
+| Slave_running            | OFF    |
+| Slave_open_temp_tables   | 0      |
+| Slow_launch_threads      | 0      |
+| Slow_queries             | 0      |
+| Sort_merge_passes        | 0      |
+| Sort_range               | 0      |
+| Sort_rows                | 0      |
+| Sort_scan                | 0      |
+| Table_locks_immediate    | 3183   |
+| Table_locks_waited       | 6030   |
+| Threads_cached           | 30     |
+| Threads_created          | 61     |
+| Threads_connected        | 31     |
+| Threads_running          | 31     |
+| Uptime                   | 135    |
++--------------------------+--------+                                          
 @end example
 
 @cindex variables, status
@@ -20400,6 +20405,12 @@ open by the slave thread
 @item @code{Sort_range} @tab Number of sorts that where done with ranges.
 @item @code{Sort_rows}  @tab Number of sorted rows.
 @item @code{Sort_scan}  @tab Number of sorts that where done by scanning the table.
+@item @code{Table_locks_immediate} @tab Number of times a table lock was
+acquired immediately. Available after 3.23.33.
+@item @code{Table_locks_waited} @tab Number of times a table lock could not
+be acquired immediately and a wait was needed. If this is high, and you
+have performance problems, you should first optimize your queries, and then
+either split your table(s) or use replication. Available after 3.23.33.
 @item @code{Threads_cached} @tab Number of threads in the thread cache.
 @item @code{Threads_connected} @tab Number of currently open connections.
 @item @code{Threads_created} @tab Number of threads created to handle connections.
@@ -40814,6 +40825,9 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.33
 @itemize bullet
 @item
+Added @code{Table_locks_immediate} and @code{Table_locks_waited} status
+variables
+@item
 Fixed bug in replication that broke slave server start with existing
 @code{master.info}. This fixes a bug introduced in 3.23.32.
 @item
@@ -46638,10 +46652,15 @@ for @code{BDB} tables. @xref{Internal locking}.  With @code{MyISAM}
 tables one can freely mix @code{INSERT} and @code{SELECT} without locks
 (@code{Versioning}).
 
+Starting in version 3.23.33, you can analyze the table lock contention
+on your system by checkining @code{Table_locks_waited} and
+@code{Table_locks_immediate} environemt variables.
+
 Some database users claim that @strong{MySQL} cannot support near the
 number of concurrent users because it lacks row-level locking.  This is
 a may be true for some specific applications, but is' not generally
-true. As always this depends totally on what the application does and what is the access/update pattern of the data.
+true. As always this depends totally on what the application does and what
+is the access/update pattern of the data. 
 
 Pros for row locking:
 

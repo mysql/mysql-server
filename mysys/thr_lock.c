@@ -387,7 +387,7 @@ static my_bool wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   else
   {
     result=0;
-    ++locks_waited;
+    statistic_increment(locks_waited, &THR_LOCK_lock);
     if (data->lock->get_status)
       (*data->lock->get_status)(data->status_param);
     check_locks(data->lock,"got wait_for_lock",0);
