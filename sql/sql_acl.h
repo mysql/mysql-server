@@ -82,3 +82,4 @@ bool check_grant_db(THD *thd,const char *db);
 uint get_table_grant(THD *thd, TABLE_LIST *table);
 uint get_column_grant(THD *thd, TABLE_LIST *table, Field *field);
 int mysql_show_grants(THD *thd, LEX_USER *user);
+uint get_mqh(const char *user, const char *host);
