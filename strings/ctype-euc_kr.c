@@ -8688,6 +8688,7 @@ CHARSET_INFO my_charset_euckr_korean_ci=
     to_lower_euc_kr,
     to_upper_euc_kr,
     sort_order_euc_kr,
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
@@ -8715,6 +8716,7 @@ CHARSET_INFO my_charset_euckr_bin=
     to_lower_euc_kr,
     to_upper_euc_kr,
     sort_order_euc_kr,
+    NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
