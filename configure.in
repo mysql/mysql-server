@@ -2833,6 +2833,7 @@ then
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
 
   CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
+fi
 
   NDB_UTIL_INCLUDES="-I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
         -I\$(top_srcdir)/ndb/include/util \
@@ -2881,12 +2882,21 @@ then
   AC_SUBST(NDB_NDBAPICLIENT_INCLUDES)
   AC_SUBST(NDB_MGMAPICLIENT_INCLUDES)
 
+  #NDB_TYPE_COMMON="include \$(top_srcdir)/ndb/config/common.mk.am"
+  #NDB_TYPE_NDBAPI="include \$(top_srcdir)/ndb/config/type_ndbapi.mk.am"
+  #NDB_TYPE_NDBAPI="include \$(top_srcdir)/ndb/config/type_ndbapitest.mk.am"
+  #NDB_TYPE_KERNEL="include \$(top_srcdir)/ndb/config/type_kernel.mk.am"
+  #NDB_TYPE_UTIL="include \$(top_srcdir)/ndb/config/type_util.mk.am"
+  #AC_SUBST(NDB_TYPE_COMMON)
+  #AC_SUBST(NDB_TYPE_NDBAPI)
+  #AC_SUBST(NDB_TYPE_NDBAPITEST)
+  #AC_SUBST(NDB_TYPE_KERNEL)
+  #AC_SUBST(NDB_TYPE_UTIL)
+
   define(NDB_MAKEFILES, [ dnl
-   ndb/Makefile ndb/src/Makefile ndb/src/common/Makefile dnl
-   ndb/src/common/portlib/Makefile dnl
-   ndb/src/common/portlib/unix/Makefile dnl
-   ndb/src/common/debugger/Makefile dnl
-   ndb/src/common/debugger/signaldata/Makefile dnl
+   ndb/Makefile ndb/include/Makefile ndb/src/Makefile ndb/src/common/Makefile dnl
+   ndb/tools/Makefile dnl
+   ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
    ndb/src/common/util/Makefile dnl
    ndb/src/common/logger/Makefile dnl
    ndb/src/common/transporter/Makefile dnl
@@ -2923,14 +2933,14 @@ then
    ndb/test/Makefile dnl
    ndb/test/src/Makefile dnl
    ndb/test/ndbapi/Makefile dnl
-   ndb/test/ndbapi/flexBench/Makefile dnl
+   ndb/test/ndbapi/bank/Makefile dnl
+   ndb/test/tools/Makefile dnl
+   ndb/test/run-test/Makefile dnl
    ])
-fi
 
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
-ifdef([NDB_MAKEFILES],,[define(NDB_MAKEFILES, [])])
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  NDB_MAKEFILES dnl
  strings/Makefile regex/Makefile heap/Makefile dnl
