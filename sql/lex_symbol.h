@@ -20,11 +20,17 @@
 #ifndef _lex_symbol_h
 #define _lex_symbol_h
 
+typedef struct st_sym_group {
+  const char *name;
+  const char *needed_define;
+} SYM_GROUP;
+
 typedef struct st_symbol {
   const char *name;
   uint	tok;
   uint length;
   void *create_func;
+  SYM_GROUP *group;
 } SYMBOL;
 
 typedef struct st_lex_symbol

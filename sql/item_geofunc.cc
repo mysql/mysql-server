@@ -17,6 +17,8 @@
 
 /* This file defines all spatial functions */
 
+#ifdef HAVE_SPATIAL
+
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -651,3 +653,5 @@ longlong Item_func_srid::val_int()
   uint32 res= uint4korr(swkb->ptr());
   return (longlong) res;
 }
+
+#endif /*HAVE_SPATIAL*/
