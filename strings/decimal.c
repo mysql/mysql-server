@@ -806,7 +806,7 @@ internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
   if (s < end_of_string && *s=='.')
   {
     endp= s+1;
-    while (s < end_of_string && my_isdigit(&my_charset_latin1, *endp))
+    while (endp < end_of_string && my_isdigit(&my_charset_latin1, *endp))
       endp++;
     frac= endp - s - 1;
   }
