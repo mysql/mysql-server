@@ -160,7 +160,8 @@ class ha_ndbcluster: public handler
   void release_metadata();
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
-  
+  int check_index_fields_not_null(uint index_no);
+
   int pk_read(const byte *key, uint key_len, byte *buf);
   int complemented_pk_read(const byte *old_data, byte *new_data);
   int peek_row();
