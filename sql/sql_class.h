@@ -454,22 +454,22 @@ public:
   LEX     main_lex;
 public:
   /*
-    Uniquely identifies each statement object in scope of thread.
-    Can't be const at the moment because of substitute() method
+    Uniquely identifies each statement object in thread scope; change during
+    statement lifetime.
   */
-  /* const */ ulong id;
+   ulong id;
 
   /*
-    Id of current query. Statement can be reused to execute several queries
+    Id of current query. Statement can be reused to execute several queries.
     query_id is global in context of the whole MySQL server.
-    ID is automatically generated from mutex-protected counter.
+    Id is automatically generated from mutex-protected counter.
     It's used in handler code for various purposes: to check which columns
     from table are necessary for this select, to check if it's necessary to
     update auto-updatable fields (like auto_increment and timestamp).
   */
   ulong query_id;
   /*
-    - if set_query_id=1, we set field->query_id for all fields. In that case 
+    - if set_query_id == 1, we set field->query_id for all fields. In that case 
     field list can not contain duplicates.
   */
   bool set_query_id;
@@ -487,8 +487,8 @@ public:
   */
   bool allow_sum_func;
   /*
-    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from 
-    first byte of the packet in do_command()
+    Type of current query: COM_PREPARE, COM_QUERY, etc. Set from the
+    first byte of the incoming packet in do_command()
   */
   enum enum_server_command command;
 
@@ -508,6 +508,10 @@ public:
   MEM_ROOT mem_root;
 
 protected:
+  /*
+    This constructor is called when statement is a subobject of THD:
+    some variables are initialized in THD::init due to locking problems
+  */
   Statement();
 public:
   Statement(THD *thd);
@@ -529,7 +533,7 @@ public:
   {
     return my_hash_insert(&st_hash, (byte *) statement);
   }
-  Statement *seek(ulonglong id)
+  Statement *seek(ulong id)
   {
     return (Statement *) hash_search(&st_hash, (byte *) &id, sizeof(id));
   }
@@ -685,6 +689,12 @@ public:
   USER_CONN *user_connect;
   CHARSET_INFO *db_charset;
   List<TABLE> temporary_tables_should_be_free; // list of temporary tables
+  /*
+    FIXME: this, and some other variables like 'count_cuted_fields'
+    maybe should be statement/cursor local, that is, moved to Statement
+    class.  With current implementation warnings produced in each prepared
+    statement/ cursor settle here.
+  */
   List	     <MYSQL_ERROR> warn_list;
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
   uint	     total_warn_count;
