@@ -21,7 +21,9 @@
 #endif
 #include  "mysql_priv.h"
 #include "slave.h"
+#include "table_filter.h"
 #include <my_dir.h>
+extern Table_filter *rpl_filter;
 #endif /* MYSQL_CLIENT */
 
 #define log_cs	&my_charset_latin1
@@ -1370,7 +1372,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   */
   thd->catalog= (char*) catalog;
   thd->db_length= db_len;
-  thd->db= (char*) rewrite_db(db, &thd->db_length);
+  thd->db= (char *) rpl_filter->get_rewrite_db(db, &thd->db_length);
   thd->variables.auto_increment_increment= auto_increment_increment;
   thd->variables.auto_increment_offset=    auto_increment_offset;
 
@@ -1389,7 +1391,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 
   clear_all_errors(thd, rli);
 
-  if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
+  if (rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
     thd->query_length= q_len;
@@ -2449,7 +2451,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 {
   char *load_data_query= 0;
   thd->db_length= db_len;
-  thd->db= (char*) rewrite_db(db, &thd->db_length);
+  thd->db= (char *) rpl_filter->get_rewrite_db(db, &thd->db_length);
   DBUG_ASSERT(thd->query == 0);
   thd->query_length= 0;                         // Should not be needed
   thd->query_error= 0;
@@ -2478,7 +2480,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     al. Another way is do the filtering in the I/O thread (more efficient: no
     disk writes at all).
   */
-  if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
+  if (rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
     VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -2500,7 +2502,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     tables.updating= 1;
 
     // the table will be opened in mysql_load    
-    if (table_rules_on && !tables_ok(thd, &tables))
+    if (rpl_filter->is_on() && !rpl_filter->tables_ok(thd->db, &tables))
     {
       // TODO: this is a bug - this needs to be moved to the I/O thread
       if (net)
