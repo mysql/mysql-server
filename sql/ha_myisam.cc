@@ -566,7 +566,6 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   }
 
   if (!optimize ||
-      memcmp(file->state, & share->state.state, sizeof(MI_STATUS_INFO)) ||
       ((file->state->del || share->state.split != file->state->records) &&
        (!(param.testflag & T_QUICK) ||
 	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
@@ -625,7 +624,16 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 			       STATE_CRASHED_ON_REPAIR);
       file->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     }
-    file->save_state=file->s->state.state;
+    /* Here we need to make file->save_state and file->s->state.state
+       equal. Unfortunately, sometime table comes locked here (so
+       file->save_state represents actual table state), and sometime
+       unlocked (and actual is file->s->state.state instead). This all
+       is very confusing, and should be streamlined (TODO).
+     */
+    if (file->state == & file->save_state)
+      file->s->state.state=file->save_state;
+    else
+      file->save_state=file->s->state.state;
     if (file->s->base.auto_key)
       update_auto_increment_key(&param, file, 1);
     if (optimize_done)
