@@ -514,3 +514,13 @@ insert into t3 values(1), (2);
 select cast(min(ifl) as decimal(5,2)) from t3;
 
 drop table t1, t2, t3;
+
+
+#
+# BUG#3190, WL#1639: Standard Deviation STDDEV - 2 different calculations
+#
+
+CREATE TABLE t1 (id int(11),value1 float(10,2));
+INSERT INTO t1 VALUES (1,0.00),(1,1.00), (1,2.00), (2,10.00), (2,11.00), (2,12.00), (2,13.00);
+select id, stddev_pop(value1), var_pop(value1), stddev_samp(value1), var_samp(value1) from t1 group by id;
+DROP TABLE t1;
