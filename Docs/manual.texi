@@ -46928,6 +46928,8 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.52
 @itemize @bullet
 @item
+Changed initialisation of @code{RND()} to make it less predicatable.
+@item
 Fixed problem with @code{GROUP BY} on result with expression that created a
 @code{BLOB} field.
 @item
