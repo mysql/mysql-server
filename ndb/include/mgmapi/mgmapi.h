@@ -395,6 +395,14 @@ extern "C" {
   const char * ndb_mgm_get_node_type_string(enum ndb_mgm_node_type type);
 
   /**
+   * Convert an ndb_mgm_node_type to a alias string
+   *
+   * @param   type          Node type.
+   * @return                NULL if invalid id.
+   */
+  const char * ndb_mgm_get_node_type_alias_string(enum ndb_mgm_node_type type, const char **str);
+
+  /**
    * Convert a string to a ndb_mgm_node_status
    *
    * @param   status        NDB node status string.

@@ -179,7 +179,7 @@ public:
    *   @return true if succeeded, otherwise false
    */
   bool check_start(); // may be run before start to check that some things are ok
-  bool start();
+  bool start(BaseString &error_string);
 
   ~MgmtSrvr();
 
@@ -467,7 +467,8 @@ public:
    */
   bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
   bool alloc_node_id(NodeId * _nodeId, enum ndb_mgm_node_type type,
-		     struct sockaddr *client_addr, SOCKET_SIZE_TYPE *client_addr_len);
+		     struct sockaddr *client_addr, SOCKET_SIZE_TYPE *client_addr_len,
+		     BaseString &error_string);
   
   /**
    *
