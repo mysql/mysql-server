@@ -40846,6 +40846,8 @@ Changed clients to use TCP/IP when -P or --port option is specified.
 Fixed bug in handling @code{STOP} event after @code{ROTATE} event in
 replication
 @item
+Fixed buffer overrun in @code{libmysqlclient} library.
+@item
 Fixed another buffer overrun in @code{DROP DATABASE}
 @item
 Added @code{Table_locks_immediate} and @code{Table_locks_waited} status
