@@ -3070,8 +3070,7 @@ create_index(
 		/* We assume all fields should be sorted in ascending
 		order, hence the '0': */
 		dict_mem_index_add_field(index,
-				(char*) key_part->field->field_name,
-				0, prefix_len);
+				(char*) key_part->field->field_name, 0);
 	}
 
 	error = row_create_index_for_mysql(index, trx);
