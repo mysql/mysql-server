@@ -179,3 +179,13 @@ select group_concat(c order by (select mid(group_concat(c order by a),1,5) from 
 
 select a,c,(select group_concat(c order by a) from t2 where a=t1.a) as grp from t1 order by grp;
 drop table t1,t2;
+
+#
+# group_concat of expression with GROUP BY and external GROUP BY
+#
+CREATE TABLE t1 ( a int );
+CREATE TABLE t2 ( a int );
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+SELECT GROUP_CONCAT(t1.a*t2.a ORDER BY t1.a) FROM t1, t2 GROUP BY t1.a;
+DROP TABLE t1, t2;
