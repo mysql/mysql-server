@@ -218,7 +218,8 @@ public:
     a constant expression
   */
   virtual bool basic_const_item() const { return 0; }
-  virtual Item *new_item() { return 0; }	/* Only for const items */
+  /* cloning of constant items (0 if it is not const) */
+  virtual Item *new_item() { return 0; }
   virtual cond_result eq_cmp_result() const { return COND_OK; }
   inline uint float_length(uint decimals_par) const
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
@@ -236,17 +237,29 @@ public:
   virtual void print(String *str_arg) { str_arg->append(full_name()); }
   void print_item_w_name(String *);
   virtual void update_used_tables() {}
-  virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields) {}
+  virtual void split_sum_func(THD *thd, Item **ref_pointer_array,
+                              List<Item> &fields) {}
   virtual bool get_date(TIME *ltime,uint fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool get_date_result(TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   virtual bool is_null() { return 0; }
+  /*
+    it is "top level" item of WHERE clause and we do not need correct NULL
+    handling
+  */
   virtual void top_level_item() {}
+  /*
+    set field of temporary table for Item which can be switched on temporary
+    table during query processing (groupping and so on)
+  */
   virtual void set_result_field(Field *field) {}
   virtual bool is_result_field() { return 0; }
   virtual bool is_bool_func() { return 0; }
   virtual void save_in_result_field(bool no_conversions) {}
+  /*
+    set value of aggegate function in case of no rows for groupping were found
+  */
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
   virtual Item *copy_andor_structure(THD *thd) { return this; }
@@ -305,7 +318,6 @@ class Item_ident :public Item
   const char *orig_db_name;
   const char *orig_table_name;
   const char *orig_field_name;
-  Item **changed_during_fix_field;
 public:
   const char *db_name;
   const char *table_name;
@@ -328,8 +340,6 @@ public:
   Item_ident(THD *thd, Item_ident *item);
   const char *full_name() const;
   void cleanup();
-  void register_item_tree_changing(Item **ref)
-    { changed_during_fix_field= ref; }
   bool remove_dependence_processor(byte * arg);
 };
 
@@ -764,6 +774,7 @@ public:
   {
     save_in_field(result_field, no_conversions);
   }
+  void cleanup();
 };
 
 
@@ -772,20 +783,13 @@ class Item_ref :public Item_ident
 public:
   Field *result_field;			 /* Save result here */
   Item **ref;
-  Item **hook_ptr;                       /* These two to restore  */
-  Item *orig_item;                       /* things in 'cleanup()' */
-  Item_ref(Item **hook, Item *original,const char *db_par,
-	   const char *table_name_par, const char *field_name_par)
-    :Item_ident(db_par,table_name_par,field_name_par),ref(0), hook_ptr(hook),
-    orig_item(original) {}
-  Item_ref(Item **item, Item **hook, 
-	   const char *table_name_par, const char *field_name_par)
-    :Item_ident(NullS,table_name_par,field_name_par),
-    ref(item), hook_ptr(hook), orig_item(hook ? *hook:0) {}
-  // Constructor need to process subselect with temporary tables (see Item)
-  Item_ref(THD *thd, Item_ref *item, Item **hook)
-    :Item_ident(thd, item), ref(item->ref), 
-    hook_ptr(hook), orig_item(hook ? *hook : 0) {}
+  Item_ref(const char *db_par, const char *table_name_par,
+           const char *field_name_par)
+    :Item_ident(db_par, table_name_par, field_name_par), ref(0) {}
+  Item_ref(Item **item, const char *table_name_par, const char *field_name_par)
+    :Item_ident(NullS, table_name_par, field_name_par), ref(item) {}
+  /* Constructor need to process subselect with temporary tables (see Item) */
+  Item_ref(THD *thd, Item_ref *item) :Item_ident(thd, item), ref(item->ref) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { return ref && (*ref)->eq(item, binary_cmp); }
@@ -836,7 +840,6 @@ public:
   }
   Item *real_item() { return *ref; }
   void print(String *str);
-  void cleanup();
 };
 
 class Item_in_subselect;
@@ -847,7 +850,7 @@ protected:
 public:
   Item_ref_null_helper(Item_in_subselect* master, Item **item,
 		       const char *table_name_par, const char *field_name_par):
-    Item_ref(item, NULL, table_name_par, field_name_par), owner(master) {}
+    Item_ref(item, table_name_par, field_name_par), owner(master) {}
   double val();
   longlong val_int();
   String* val_str(String* s);
@@ -1221,5 +1224,5 @@ public:
 
 extern Item_buff *new_Item_buff(Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
-extern Item *resolve_const_item(Item *item,Item *cmp_item);
+extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern bool field_is_equal_to_item(Field *field,Item *item);

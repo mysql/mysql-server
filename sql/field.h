@@ -179,7 +179,14 @@ public:
   virtual void make_field(Send_field *)=0;
   virtual void sort_string(char *buff,uint length)=0;
   virtual bool optimize_range(uint idx, uint part);
-  virtual bool store_for_compare() { return 0; }
+  /*
+    This should be true for fields which, when compared with constant
+    items, can be casted to longlong. In this case we will at 'fix_fields'
+    stage cast the constant items to longlongs and at the execution stage
+    use field->val_int() for comparison.  Used to optimize clauses like
+    'a_column BETWEEN date_const, date_const'.
+  */
+  virtual bool can_be_compared_as_longlong() const { return FALSE; }
   virtual void free() {}
   Field *new_field(MEM_ROOT *root, struct st_table *new_table)
   {
@@ -566,7 +573,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 8; }
   void sql_type(String &str) const;
-  bool store_for_compare() { return 1; }
+  bool can_be_compared_as_longlong() const { return TRUE; }
   uint32 max_length() { return 20; }
   field_cast_enum field_cast_type() { return FIELD_CAST_LONGLONG; }
 };
@@ -676,6 +683,7 @@ public:
 class Field_timestamp :public Field_str {
 public:
   Field_timestamp(char *ptr_arg, uint32 len_arg,
+                  uchar *null_ptr_arg, uchar null_bit_arg,
 		  enum utype unireg_check_arg, const char *field_name_arg,
 		  struct st_table *table_arg,
 		  CHARSET_INFO *cs);
@@ -694,7 +702,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 4; }
   void sql_type(String &str) const;
-  bool store_for_compare() { return 1; }
+  bool can_be_compared_as_longlong() const { return TRUE; }
   bool zero_pack() const { return 0; }
   void set_time();
   virtual void set_default()
@@ -705,8 +713,11 @@ public:
     else
       Field::set_default();
   }
-  inline long get_timestamp()
+  /* Get TIMESTAMP field value as seconds since begging of Unix Epoch */
+  inline long get_timestamp(my_bool *null_value)
   {
+    if ((*null_value= is_null()))
+      return 0;
 #ifdef WORDS_BIGENDIAN
     if (table->db_low_byte_first)
       return sint4korr(ptr);
@@ -718,7 +729,7 @@ public:
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
   field_cast_enum field_cast_type() { return FIELD_CAST_TIMESTAMP; }
-  void set_timestamp_offsets();
+  timestamp_auto_set_type get_auto_set_type() const;
 };
 
 
@@ -740,7 +751,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   void sql_type(String &str) const;
-  bool store_for_compare() { return 1; }
+  bool can_be_compared_as_longlong() const { return TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_YEAR; }
 };
 
@@ -772,7 +783,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 4; }
   void sql_type(String &str) const;
-  bool store_for_compare() { return 1; }
+  bool can_be_compared_as_longlong() const { return TRUE; }
   bool zero_pack() const { return 1; }
   field_cast_enum field_cast_type() { return FIELD_CAST_DATE; }
 };
@@ -802,7 +813,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
-  bool store_for_compare() { return 1; }
+  bool can_be_compared_as_longlong() const { return TRUE; }
   bool zero_pack() const { return 1; }
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
@@ -839,7 +850,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
-  bool store_for_compare() { return 1; }
+  bool can_be_compared_as_longlong() const { return TRUE; }
   bool zero_pack() const { return 1; }
   field_cast_enum field_cast_type() { return FIELD_CAST_TIME; }
 };
@@ -875,7 +886,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 8; }
   void sql_type(String &str) const;
-  bool store_for_compare() { return 1; }
+  bool can_be_compared_as_longlong() const { return TRUE; }
   bool zero_pack() const { return 1; }
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);

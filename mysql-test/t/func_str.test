@@ -182,6 +182,13 @@ select a, quote(a), isnull(quote(a)), quote(a) is null, ifnull(quote(a), 'n') fr
 drop table t1;
 
 #
+# Bug #5498: TRIM fails with LEADING or TRAILING if remstr = str
+#
+
+select trim(trailing 'foo' from 'foo');
+select trim(leading 'foo' from 'foo');
+
+#
 # Test collation and coercibility
 #
 

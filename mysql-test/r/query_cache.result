@@ -901,6 +901,8 @@ set group_concat_max_len=10;
 select group_concat(a) FROM t1 group by b;
 group_concat(a)
 1234567890
+Warnings:
+Warning	1260	1 line(s) were cut by GROUP_CONCAT()
 set group_concat_max_len=1024;
 select group_concat(a) FROM t1 group by b;
 group_concat(a)

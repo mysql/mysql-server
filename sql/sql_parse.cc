@@ -4056,6 +4056,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
     }
     thd->proc_info="freeing items";
     thd->end_statement();
+    DBUG_ASSERT(thd->change_list.is_empty());
   }
   DBUG_VOID_RETURN;
 }
@@ -4142,7 +4143,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     }
     else if (default_value->type() == Item::NULL_ITEM)
     {
-      default_value=0;
+      default_value= 0;
       if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==
 	  NOT_NULL_FLAG)
       {
@@ -4334,7 +4335,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->length=((new_field->length+1)/2)*2; /* purecov: inspected */
       new_field->length= min(new_field->length,14); /* purecov: inspected */
     }
-    new_field->flags|= ZEROFILL_FLAG | UNSIGNED_FLAG | NOT_NULL_FLAG;
+    new_field->flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
     if (default_value)
     {
       /* Grammar allows only NOW() value for ON UPDATE clause */
@@ -4355,13 +4356,24 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     }
     else
     {
-      /* 
-        We are setting TIMESTAMP_OLD_FIELD here only temporary, we will 
-        replace this value by TIMESTAMP_DNUN_FIELD or NONE later when 
+      /*
+        If we have default TIMESTAMP NOT NULL column without explicit DEFAULT
+        or ON UPDATE values then for the sake of compatiblity we should treat
+        this column as having DEFAULT NOW() ON UPDATE NOW() (when we don't
+        have another TIMESTAMP column with auto-set option before this one)
+        or DEFAULT 0 (in other cases).
+        So here we are setting TIMESTAMP_OLD_FIELD only temporary, and will
+        replace this value by TIMESTAMP_DNUN_FIELD or NONE later when
         information about all TIMESTAMP fields in table will be availiable.
+
+        If we have TIMESTAMP NULL column without explicit DEFAULT value
+        we treat it as having DEFAULT NULL attribute.
       */
-      new_field->unireg_check= on_update_value?Field::TIMESTAMP_UN_FIELD:
-                                               Field::TIMESTAMP_OLD_FIELD;
+      new_field->unireg_check= on_update_value ?
+                               Field::TIMESTAMP_UN_FIELD :
+                               (new_field->flags & NOT_NULL_FLAG ?
+                                Field::TIMESTAMP_OLD_FIELD:
+                                Field::NONE);
     }
     break;
   case FIELD_TYPE_DATE:				// Old date type

@@ -145,6 +145,7 @@ trx_undo_update_rec_get_update(
 	dulint		trx_id,	/* in: transaction id from this undorecord */
 	dulint		roll_ptr,/* in: roll pointer from this undo record */
 	ulint		info_bits,/* in: info bits from this undo record */
+	trx_t*		trx,	/* in: transaction */
 	mem_heap_t*	heap,	/* in: memory heap from which the memory
 				needed is allocated */
 	upd_t**		upd);	/* out, own: update vector */

@@ -205,6 +205,8 @@ dict_build_table_def_step(
 	dict_table_t*	cluster_table;
 	dtuple_t*	row;
 	ulint		error;
+	const char*	path_or_name;
+	ibool		is_path;
 	mtr_t		mtr;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -245,8 +247,19 @@ dict_build_table_def_step(
 	
 		table->space = 0;	/* reset to zero for the call below */
 
+		if (table->dir_path_of_temp_table) {
+			/* We place tables created with CREATE TEMPORARY
+			TABLE in the tmp dir of mysqld server */
+
+			path_or_name = table->dir_path_of_temp_table;
+			is_path = TRUE;
+		} else {
+			path_or_name = table->name;
+			is_path = FALSE;
+		}
+
 		error = fil_create_new_single_table_tablespace(
-					&(table->space), table->name,
+					&(table->space), path_or_name, is_path,
 					FIL_IBD_FILE_INITIAL_SIZE);
 		if (error != DB_SUCCESS) {
 
@@ -501,10 +514,13 @@ dict_build_index_def_step(
 	dict_table_t*	table;
 	dict_index_t*	index;
 	dtuple_t*	row;
+	trx_t*		trx;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
+
+	trx = thr_get_trx(thr);
 
 	index = node->index;
 
@@ -514,7 +530,7 @@ dict_build_index_def_step(
 		return(DB_TABLE_NOT_FOUND);
 	}
 
-	thr_get_trx(thr)->table_id = table->id;
+	trx->table_id = table->id;
 
 	node->table = table;
 
@@ -1264,9 +1280,9 @@ loop:
 		ut_print_timestamp(ef);
 		fputs(" Error in foreign key constraint creation for table ",
 			ef);
-		ut_print_name(ef, table->name);
+		ut_print_name(ef, trx, table->name);
 		fputs(".\nA foreign key constraint of name ", ef);
-		ut_print_name(ef, foreign->id);
+		ut_print_name(ef, trx, foreign->id);
 		fputs("\nalready exists."
 			"  (Note that internally InnoDB adds 'databasename/'\n"
 			"in front of the user-defined constraint name).\n",
@@ -1286,7 +1302,7 @@ loop:
 		ut_print_timestamp(ef);
 		fputs(" Internal error in foreign key constraint creation"
 			" for table ", ef);
-		ut_print_name(ef, table->name);
+		ut_print_name(ef, trx, table->name);
 		fputs(".\n"
 	"See the MySQL .err log in the datadir for more information.\n", ef);
 		mutex_exit(&dict_foreign_err_mutex);

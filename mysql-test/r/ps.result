@@ -289,3 +289,32 @@ execute stmt using @var;
 select * from t1;
 deallocate prepare stmt;
 drop table t1;
+prepare stmt from "select 'abc' like convert('abc' using utf8)";
+execute stmt;
+'abc' like convert('abc' using utf8)
+1
+execute stmt;
+'abc' like convert('abc' using utf8)
+1
+deallocate prepare stmt;
+create table t1 ( a bigint );
+prepare stmt from 'select a from t1 where a between ? and ?';
+set @a=1;
+execute stmt using @a, @a;
+a
+execute stmt using @a, @a;
+a
+execute stmt using @a, @a;
+a
+drop table t1;
+deallocate prepare stmt;
+create table t1 (a int);
+prepare stmt from "select * from t1 where 1 > (1 in (SELECT * FROM t1))";
+execute stmt;
+a
+execute stmt;
+a
+execute stmt;
+a
+drop table t1;
+deallocate prepare stmt;

@@ -178,19 +178,31 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
     descAttr.m_attrDesc = req->attrDescriptor;
     descAttr.m_primaryAttrId = req->primaryAttrId;
     descAttr.m_typeId = req->extTypeInfo & 0xFF;
+    descAttr.m_charset = (req->extTypeInfo >> 16);
 #ifdef VM_TRACE
     if (debugFlags & DebugMeta) {
       debugOut << "Add frag " << fragPtr.i << " attr " << attrId << " " << descAttr << endl;
     }
 #endif
-    // check if type is valid and has a comparison method
-    const NdbSqlUtil::Type& type = NdbSqlUtil::getType(descAttr.m_typeId);
+    // check that type is valid and has a binary comparison method
+    const NdbSqlUtil::Type& type = NdbSqlUtil::getTypeBinary(descAttr.m_typeId);
     if (type.m_typeId == NdbSqlUtil::Type::Undefined ||
         type.m_cmp == 0) {
       jam();
       errorCode = TuxAddAttrRef::InvalidAttributeType;
       break;
     }
+#ifdef dbtux_uses_charset
+    if (descAttr.m_charset != 0) {
+      CHARSET_INFO *cs = get_charset(descAttr.m_charset, MYF(0));
+      // here use the non-binary type
+      if (! NdbSqlUtil::usable_in_ordered_index(descAttr.m_typeId, cs)) {
+        jam();
+        errorCode = TuxAddAttrRef::InvalidCharset;
+        break;
+      }
+    }
+#endif
     if (indexPtr.p->m_numAttrs == fragOpPtr.p->m_numAttrsRecvd) {
       jam();
       // initialize tree header

@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3,t4;
+drop table if exists t1_1,t1_2,t9_1,t9_2;
 CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL

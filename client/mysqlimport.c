@@ -25,7 +25,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "3.4"
+#define IMPORT_VERSION "3.5"
 
 #include "client_priv.h"
 #include "mysql_version.h"
@@ -191,6 +191,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1]=0;				/* Cut length of argument */
+      tty_password= 0;
     }
     else
       tty_password= 1;
@@ -267,10 +268,8 @@ static int write_to_table(char *filename, MYSQL *sock)
   DBUG_ENTER("write_to_table");
   DBUG_PRINT("enter",("filename: %s",filename));
 
-  local_file= sock->unix_socket == 0 || opt_local_file;
-
   fn_format(tablename, filename, "", "", 1 | 2); /* removes path & ext. */
-  if (local_file)
+  if (! opt_local_file)
     strmov(hard_path,filename);
   else
     my_load_path(hard_path, filename, NULL); /* filename includes the path */
@@ -289,7 +288,7 @@ static int write_to_table(char *filename, MYSQL *sock)
   to_unix_path(hard_path);
   if (verbose)
   {
-    if (local_file)
+    if (opt_local_file)
       fprintf(stdout, "Loading data from LOCAL file: %s into %s\n",
 	      hard_path, tablename);
     else
@@ -298,7 +297,7 @@ static int write_to_table(char *filename, MYSQL *sock)
   }
   sprintf(sql_statement, "LOAD DATA %s %s INFILE '%s'",
 	  opt_low_priority ? "LOW_PRIORITY" : "",
-	  local_file ? "LOCAL" : "", hard_path);
+	  opt_local_file ? "LOCAL" : "", hard_path);
   end= strend(sql_statement);
   if (replace)
     end= strmov(end, " REPLACE");

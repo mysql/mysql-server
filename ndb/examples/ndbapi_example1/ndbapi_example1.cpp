@@ -44,6 +44,7 @@
 
 int main()
 {
+  ndb_init();
   Ndb* myNdb = new Ndb( "TEST_DB_1" );  // Object representing the database
   NdbDictionary::Table myTable;
   NdbDictionary::Column myColumn;
@@ -78,16 +79,16 @@ int main()
   myTable.setName("MYTABLENAME");
   
   myColumn.setName("ATTR1");
-  myColumn.setPrimaryKey(true);
   myColumn.setType(NdbDictionary::Column::Unsigned);
   myColumn.setLength(1);
+  myColumn.setPrimaryKey(true);
   myColumn.setNullable(false);
   myTable.addColumn(myColumn);
 
   myColumn.setName("ATTR2");
-  myColumn.setPrimaryKey(false);
   myColumn.setType(NdbDictionary::Column::Unsigned);
   myColumn.setLength(1);
+  myColumn.setPrimaryKey(false);
   myColumn.setNullable(false);
   myTable.addColumn(myColumn);
 

@@ -2699,10 +2699,11 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 {
   TABLE_LIST *table;
   char *user = thd->priv_user;
+  DBUG_ENTER("check_grant");
 
   want_access &= ~thd->master_access;
   if (!want_access)
-    return 0;					// ok
+    DBUG_RETURN(0);                             // ok
 
   rw_rdlock(&LOCK_grant);
   for (table= tables; table && number--; table= table->next)
@@ -2739,7 +2740,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     }
   }
   rw_unlock(&LOCK_grant);
-  return 0;
+  DBUG_RETURN(0);
 
 err:
   rw_unlock(&LOCK_grant);
@@ -2770,7 +2771,7 @@ err:
 	       thd->host_or_ip,
 	       table ? table->real_name : "unknown");
   }
-  return 1;
+  DBUG_RETURN(1);
 }
 
 
@@ -3622,7 +3623,7 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }
 
     /* Remove db access privileges */
-    for (counter= 0 ; counter < acl_dbs.elements ; counter++)
+    for (counter= 0 ; counter < acl_dbs.elements ; )
     {
       const char *user,*host;
 
@@ -3637,11 +3638,14 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       {
 	if (replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
 	  result= -1;
+	else
+	  continue;
       }
+      ++counter;
     }
 
     /* Remove column access */
-    for (counter= 0 ; counter < column_priv_hash.records ; counter++)
+    for (counter= 0 ; counter < column_priv_hash.records ; )
     {
       const char *user,*host;
       GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
@@ -3660,19 +3664,26 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 				~0, 0, 1))
 	{
 	  result= -1;
-	  continue;
 	}
-	if (grant_table->cols)
+	else
 	{
-	  List<LEX_COLUMN> columns;
-	  if (replace_column_table(grant_table,tables[3].table, *lex_user,
-				   columns,
-				   grant_table->db,
-				   grant_table->tname,
-				   ~0, 1))
-	    result= -1;
+	  if (grant_table->cols)
+	  {
+	    List<LEX_COLUMN> columns;
+	    if (replace_column_table(grant_table,tables[3].table, *lex_user,
+				     columns,
+				     grant_table->db,
+				     grant_table->tname,
+				     ~0, 1))
+	      result= -1;
+	    else
+	      continue;
+	  }
+	  else
+	    continue;
 	}
       }
+      ++counter;
     }
   }
 

@@ -1614,6 +1614,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   cleanup_items(stmt->free_list);
   close_thread_tables(thd);
   free_items(thd->free_list);
+  thd->rollback_item_tree_changes();
   thd->free_list= 0;
   thd->current_arena= thd;
 
@@ -1870,8 +1871,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
     transformations of the query tree (i.e. negations elimination).
     This should be done permanently on the parse tree of this statement.
   */
-  if (stmt->state == Item_arena::PREPARED)
-    thd->current_arena= stmt;
+  thd->current_arena= stmt;
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
@@ -1884,11 +1884,10 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   free_items(thd->free_list);
   thd->free_list= 0;
   if (stmt->state == Item_arena::PREPARED)
-  {
-    thd->current_arena= thd;
     stmt->state= Item_arena::EXECUTED;
-  }
+  thd->current_arena= thd;
   cleanup_items(stmt->free_list);
+  thd->rollback_item_tree_changes();
   reset_stmt_params(stmt);
   close_thread_tables(thd);                    // to close derived tables
   thd->set_statement(&thd->stmt_backup);

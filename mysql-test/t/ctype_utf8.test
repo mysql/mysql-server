@@ -219,6 +219,27 @@ drop table t1;
 
 #
 # Bug 4521: unique key prefix interacts poorly with utf8
+# InnoDB: keys with prefix compression, case insensitive collation.
+#
+create table t1 (c varchar(30) character set utf8, unique(c(10))) engine=innodb;
+insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
+insert into t1 values ('aaaaaaaaaa');
+--error 1062
+insert into t1 values ('aaaaaaaaaaa');
+--error 1062
+insert into t1 values ('aaaaaaaaaaaa');
+insert into t1 values (repeat('b',20));
+select c c1 from t1 where c='1';
+select c c2 from t1 where c='2';
+select c c3 from t1 where c='3';
+select c cx from t1 where c='x';
+select c cy from t1 where c='y';
+select c cz from t1 where c='z';
+select c ca10 from t1 where c='aaaaaaaaaa';
+select c cb20 from t1 where c=repeat('b',20);
+drop table t1;
+#
+# Bug 4521: unique key prefix interacts poorly with utf8
 # MYISAM: fixed length keys, case insensitive collation
 #
 create table t1 (c char(3) character set utf8, unique (c(2)));
@@ -244,7 +265,33 @@ insert into t1 values ('ꪪꪪ');
 --error 1062
 insert into t1 values ('ꪪꪪꪪ');
 drop table t1;
-
+#
+# Bug 4521: unique key prefix interacts poorly with utf8
+# InnoDB: fixed length keys, case insensitive collation
+#
+create table t1 (c char(3) character set utf8, unique (c(2))) engine=innodb;
+insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
+insert into t1 values ('a');
+insert into t1 values ('aa');
+--error 1062
+insert into t1 values ('aaa');
+insert into t1 values ('b');
+insert into t1 values ('bb');
+--error 1062
+insert into t1 values ('bbb');
+insert into t1 values ('а');
+insert into t1 values ('аа');
+--error 1062
+insert into t1 values ('ааа');
+insert into t1 values ('б');
+insert into t1 values ('бб');
+--error 1062
+insert into t1 values ('ббб');
+insert into t1 values ('ꪪ');
+insert into t1 values ('ꪪꪪ');
+--error 1062
+insert into t1 values ('ꪪꪪꪪ');
+drop table t1;
 #
 # Bug 4531: unique key prefix interacts poorly with utf8
 # Check HEAP+HASH, case insensitive collation
@@ -454,6 +501,18 @@ INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
 drop table t1;
 
+# Bug#4594: column index make = failed for gbk, but like works
+# Check InnoDB
+#
+create table t1 (
+  str varchar(255) character set utf8 not null,
+  key str  (str(2))
+) engine=innodb;
+INSERT INTO t1 VALUES ('str');
+INSERT INTO t1 VALUES ('str2');
+select * from t1 where str='str';
+drop table t1;
+
 # the same for HEAP+BTREE
 #
 
@@ -498,4 +557,38 @@ drop table t1;
 CREATE TABLE t1 (a varchar(32) BINARY) CHARACTER SET utf8;
 INSERT INTO t1 VALUES ('test');
 SELECT a FROM t1 WHERE a LIKE '%te';
+DROP TABLE t1;
+
+#
+# Bug #5723: length(<varchar utf8 field>) returns varying results
+#
+SET NAMES utf8;
+CREATE TABLE t1 (
+  subject varchar(255) character set utf8 collate utf8_unicode_ci,
+  p varchar(15) character set utf8
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('谷川俊二と申しますが、インターネット予約の会員登録をしましたところ、メールアドレスを間違えてしまい会員ＩＤが受け取ることが出来ませんでした。間違えアドレスはtani-shun@n.vodafone.ne.jpを書き込みました。どうすればよいですか？ その他、住所等は間違えありません。連絡ください。よろしくお願いします。m(__)m','040312-000057');
+INSERT INTO t1 VALUES ('aaa','bbb');
+SELECT length(subject) FROM t1;
+SELECT length(subject) FROM t1 ORDER BY 1;
+DROP TABLE t1;
+
+#
+# Bug #5832 SELECT doesn't return records in some cases
+#
+CREATE TABLE t1 (
+    id       int unsigned NOT NULL auto_increment,
+    list_id  smallint unsigned NOT NULL,
+    term     TEXT NOT NULL,
+    PRIMARY KEY(id),
+    INDEX(list_id, term(4))
+) ENGINE=MYISAM CHARSET=utf8;
+INSERT INTO t1 SET list_id = 1, term = "letterc";
+INSERT INTO t1 SET list_id = 1, term = "letterb";
+INSERT INTO t1 SET list_id = 1, term = "lettera";
+INSERT INTO t1 SET list_id = 1, term = "letterd";
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterc");
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterb");
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "lettera");
+SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterd");
 DROP TABLE t1;

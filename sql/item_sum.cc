@@ -24,7 +24,7 @@
 #include "mysql_priv.h"
 
 Item_sum::Item_sum(List<Item> &list)
-  :args_copy(0), arg_count(list.elements)
+  :arg_count(list.elements)
 {
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
   {
@@ -56,39 +56,6 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
     if (!(args= (Item**) thd->alloc(sizeof(Item*)*arg_count)))
       return;
   memcpy(args, item->args, sizeof(Item*)*arg_count);
-  if (item->args_copy != 0)
-    save_args(thd);
-  else
-    args_copy= 0;
-}
-
-
-/*
-  Save copy of arguments if we prepare prepared statement
-  (arguments can be rewritten in get_tmp_table_item())
-
-  SYNOPSIS
-    Item_sum::save_args_for_prepared_statement()
-    thd		- thread handler
-
-  RETURN
-    0 - OK
-    1 - Error
-*/
-bool Item_sum::save_args_for_prepared_statement(THD *thd)
-{
-  if (thd->current_arena->is_stmt_prepare())
-    return save_args(thd->current_arena);
-  return 0;
-}
-
-
-bool Item_sum::save_args(Item_arena* arena)
-{
-  if (!(args_copy= (Item**) arena->alloc(sizeof(Item*)*arg_count)))
-    return 1;
-  memcpy(args_copy, args, sizeof(Item*)*arg_count);
-  return 0;
 }
 
 
@@ -96,17 +63,6 @@ void Item_sum::mark_as_sum_func()
 {
   current_thd->lex->current_select->with_sum_func= 1;
   with_sum_func= 1;
-}
-
-
-void Item_sum::cleanup()
-{
-  DBUG_ENTER("Item_sum::cleanup");
-  Item_result_field::cleanup();
-  if (args_copy != 0)
-    memcpy(args, args_copy, sizeof(Item*)*arg_count);
-  result_field=0;
-  DBUG_VOID_RETURN;
 }
 
 
@@ -214,9 +170,6 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
 
-  if (save_args_for_prepared_statement(thd))
-    return 1;
-  
   if (!thd->allow_sum_func)
   {
     my_error(ER_INVALID_GROUP_FUNC_USE,MYF(0));
@@ -247,9 +200,6 @@ bool
 Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-
-  if (save_args_for_prepared_statement(thd))
-    return 1;
 
   Item *item= args[0];
   if (!thd->allow_sum_func)
@@ -1921,16 +1871,20 @@ bool Item_func_group_concat::add()
   }
 
   null_value= FALSE;
+
+  TREE_ELEMENT *el= 0;                          // Only for safety
   if (tree_mode)
-  {
-    if (!tree_insert(tree, table->record[0], 0, tree->custom_arg))
-      return 1;
-  }
-  else
-  {
-    if (result.length() <= group_concat_max_len && !warning_for_row)
-      dump_leaf_key(table->record[0], 1, this);
-  }
+    el= tree_insert(tree, table->record[0], 0, tree->custom_arg);
+  /*
+    If the row is not a duplicate (el->count == 1)
+    we can dump the row here in case of GROUP_CONCAT(DISTINCT...)
+    instead of doing tree traverse later.
+  */
+  if (result.length() <= group_concat_max_len && 
+      !warning_for_row &&
+      (!tree_mode || (el->count == 1 && distinct && !arg_count_order)))
+    dump_leaf_key(table->record[0], 1, this);
+
   return 0;
 }
 
@@ -1947,9 +1901,6 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   uint i;			/* for loop variable */ 
   DBUG_ASSERT(fixed == 0);
-
-  if (save_args_for_prepared_statement(thd))
-    return 1;
 
   if (!thd->allow_sum_func)
   {
@@ -1979,6 +1930,8 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   thd->allow_sum_func= 1;			
   if (!(tmp_table_param= new TMP_TABLE_PARAM))
     return 1;
+  /* We'll convert all blobs to varchar fields in the temporary table */
+  tmp_table_param->convert_blob_length= group_concat_max_len;
   tables_list= tables;
   fixed= 1;
   return 0;
@@ -2076,9 +2029,7 @@ bool Item_func_group_concat::setup(THD *thd)
     }
     else
     {
-       compare_key= NULL;
-      if (distinct)
-        compare_key= (qsort_cmp2) group_concat_key_cmp_with_distinct;
+      compare_key= (qsort_cmp2) group_concat_key_cmp_with_distinct;
     }
     /*
       Create a tree of sort. Tree is used for a sort and a remove double 
@@ -2121,18 +2072,18 @@ String* Item_func_group_concat::val_str(String* str)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
+  if (count_cut_values && !warning_available)
+  {
+    warning_available= TRUE;
+    warning= push_warning(item_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_CUT_VALUE_GROUP_CONCAT, NULL);
+  }
   if (result.length())
     return &result;
   if (tree_mode)
   {
     tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,
               left_root_right);
-  }
-  if (count_cut_values && !warning_available)
-  {
-    warning_available= TRUE;
-    warning= push_warning(item_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                           ER_CUT_VALUE_GROUP_CONCAT, NULL);
   }
   return &result;
 }

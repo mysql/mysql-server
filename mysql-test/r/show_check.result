@@ -1,5 +1,8 @@
 drop table if exists t1,t2;
 drop database if exists mysqltest;
+delete from mysql.user where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+delete from mysql.db where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+flush privileges;
 create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
 insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
 check table t1 fast;

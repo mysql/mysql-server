@@ -976,7 +976,7 @@ AC_DEFUN([MYSQL_FIND_OPENSSL], [
 AC_DEFUN([MYSQL_CHECK_OPENSSL], [
 AC_MSG_CHECKING(for OpenSSL)
   AC_ARG_WITH([openssl],
-              [  --with-openssl          Include the OpenSSL support],
+              [  --with-openssl[=DIR]    Include the OpenSSL support],
               [openssl="$withval"],
               [openssl=no])
 
@@ -994,8 +994,19 @@ AC_MSG_CHECKING(for OpenSSL)
               [openssl_libs="$withval"],
               [openssl_libs=""])
 
-  if test "$openssl" = "yes"
+  if test "$openssl" != "no"
   then
+	if test "$openssl" != "yes"
+	then
+		if test -z "$openssl_includes" 
+		then
+			openssl_includes="$openssl/include"
+		fi
+		if test -z "$openssl_libs" 
+		then
+			openssl_libs="$openssl/lib"
+		fi
+	fi
     MYSQL_FIND_OPENSSL([$openssl_includes], [$openssl_libs])
     #force VIO use
     vio_dir="vio"
@@ -1031,6 +1042,14 @@ AC_MSG_CHECKING(for OpenSSL)
     NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS $openssl_libs"
   else
     AC_MSG_RESULT(no)
+	if test ! -z "$openssl_includes"
+	then
+		AC_MSG_ERROR(Can't have --with-openssl-includes without --with-openssl);
+	fi
+	if test ! -z "$openssl_libs"
+	then
+		AC_MSG_ERROR(Can't have --with-openssl-libs without --with-openssl);
+	fi
   fi
   AC_SUBST(openssl_libs)
   AC_SUBST(openssl_includes)
@@ -1548,16 +1567,43 @@ dnl Sets HAVE_NDBCLUSTER_DB if --with-ndbcluster is used
 dnl ---------------------------------------------------------------------------
                                                                                 
 AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
+  AC_ARG_WITH([ndb-sci],
+              AC_HELP_STRING([--with-ndb-sci=DIR],
+                             [Provide MySQL with a custom location of
+                             sci library. Given DIR, sci library is 
+                             assumed to be in $DIR/lib and header files
+                             in $DIR/include.]),
+              [mysql_sci_dir=${withval}],
+              [mysql_sci_dir=""])
+
+  case "$mysql_sci_dir" in
+    "no" )
+      have_ndb_sci=no
+      AC_MSG_RESULT([-- not including sci transporter])
+      ;;
+    * )
+      if test -f "$mysql_sci_dir/lib/libsisci.a" -a \ 
+              -f "$mysql_sci_dir/include/sisci_api.h"; then
+        NDB_SCI_INCLUDES="-I$mysql_sci_dir/include"
+        NDB_SCI_LIBS="-L$mysql_sci_dir/lib -lsisci"
+        AC_MSG_RESULT([-- including sci transporter])
+        AC_DEFINE([NDB_SCI_TRANSPORTER], [1],
+                  [Including Ndb Cluster DB sci transporter])
+        AC_SUBST(NDB_SCI_INCLUDES)
+        AC_SUBST(NDB_SCI_LIBS)
+        have_ndb_sci="yes"
+        AC_MSG_RESULT([found sci transporter in $mysql_sci_dir/{include, lib}])
+      else
+        AC_MSG_RESULT([could not find sci transporter in $mysql_sci_dir/{include, lib}])
+      fi
+      ;;
+  esac
+
   AC_ARG_WITH([ndb-shm],
               [
   --with-ndb-shm        Include the NDB Cluster shared memory transporter],
               [ndb_shm="$withval"],
               [ndb_shm=no])
-  AC_ARG_WITH([ndb-sci],
-              [
-  --with-ndb-sci        Include the NDB Cluster sci transporter],
-              [ndb_sci="$withval"],
-              [ndb_sci=no])
   AC_ARG_WITH([ndb-test],
               [
   --with-ndb-test       Include the NDB Cluster ndbapi test programs],
@@ -1587,19 +1633,6 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
     * )
       AC_MSG_RESULT([-- not including shared memory transporter])
-      ;;
-  esac
-
-  have_ndb_sci=no
-  case "$ndb_sci" in
-    yes )
-      AC_MSG_RESULT([-- including sci transporter])
-      AC_DEFINE([NDB_SCI_TRANSPORTER], [1],
-                [Including Ndb Cluster DB sci transporter])
-      have_ndb_sci="yes"
-      ;;
-    * )
-      AC_MSG_RESULT([-- not including sci transporter])
       ;;
   esac
 
