@@ -61,7 +61,7 @@ DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
                         @DEFS@
 
-getopt1.o:		@THREAD_LOBJECTS@
+#getopt1.o:		@THREAD_LOBJECTS@
 
 OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			__math.h time.h __time.h unistd.h __unistd.h types.h \

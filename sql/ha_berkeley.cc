@@ -1150,7 +1150,7 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
     /* read of partial key */
     pack_key(&last_key, active_index, key_buff, key, key_len);
     /* Store for compare */
-    memcpy(key_buff2, key_buff, last_key.size);
+    memcpy(key_buff2, key_buff, (key_len=last_key.size));
     key_info->handler.bdb_return_if_eq= -1;
     error=read_row(cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE),
 		   buf, active_index, &row, (DBT*) 0, 0);
