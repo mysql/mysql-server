@@ -532,7 +532,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 
     while ((ifm=li++))
     {
-      ifm->init_search();
+      ifm->init_search(test(order));
     }
   }
   /* Create a tmp table if distinct or if the sort is too complicated */

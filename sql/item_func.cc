@@ -1846,43 +1846,46 @@ double Item_func_match::val()
 
   if (join_key)
   {
-    return ft_get_relevance(ft_handler);
+    if (table->file->ft_handler)
+      return ft_get_relevance(ft_handler);
+
+    join_key=0; // Magic here ! See ha_myisam::ft_read()
   }
-  else
+
+  /* we'll have to find ft_relevance manually in ft_handler array */
+
+  int a,b,c;
+  FT_DOC  *docs=ft_handler->doc;
+  my_off_t docid=table->file->row_position();
+
+  if ((null_value=(docid==HA_OFFSET_ERROR)))
+    return 0.0;
+
+  // Assuming docs[] is sorted by dpos...
+
+  for (a=0, b=ft_handler->ndocs, c=(a+b)/2; b-a>1; c=(a+b)/2)
   {
-    /* we'll have to find ft_relevance manually in ft_handler array */
-
-    int a,b,c;
-    FT_DOC  *docs=ft_handler->doc;
-    my_off_t docid=table->file->row_position();
-
-    if ((null_value=(docid==HA_OFFSET_ERROR)))
-      return 0.0;
-
-    // Assuming docs[] is sorted by dpos...
-
-    for (a=0, b=ft_handler->ndocs, c=(a+b)/2; b-a>1; c=(a+b)/2)
-    {
-      if (docs[c].dpos > docid)
-        b=c;
-      else
-        a=c;
-    }
-    if (docs[a].dpos == docid)
-      return docs[a].weight;
+    if (docs[c].dpos > docid)
+      b=c;
     else
-      return 0.0;
+      a=c;
   }
+  if (docs[a].dpos == docid)
+    return docs[a].weight;
+  else
+    return 0.0;
+
 }
 
-void Item_func_match::init_search()
+void Item_func_match::init_search(bool no_order)
 {
   if (ft_handler)
     return;
 
   if (master)
   {
-    master->init_search();
+    join_key=master->join_key=join_key|master->join_key;
+    master->init_search(no_order);
     ft_handler=master->ft_handler;
     join_key=master->join_key;
     return;
@@ -1894,7 +1897,8 @@ void Item_func_match::init_search()
 
   ft_tmp=key_item()->val_str(&tmp2);
   ft_handler=(FT_DOCLIST *)
-     table->file->ft_init_ext(key, (byte*) ft_tmp->ptr(), ft_tmp->length(), join_key);
+     table->file->ft_init_ext(key, (byte*) ft_tmp->ptr(), ft_tmp->length(),
+                              join_key && !no_order);
 
   if (join_key)
   {
