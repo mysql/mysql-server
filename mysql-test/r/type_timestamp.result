@@ -92,9 +92,6 @@ date	date_time	time_stamp
 2005-01-01	2005-01-01 00:00:00	2005-01-01 00:00:00
 2030-01-01	2030-01-01 00:00:00	2030-01-01 00:00:00
 drop table t1;
-show variables like 'new';
-Variable_name	Value
-new	OFF
 create table t1 (t2 timestamp(2), t4 timestamp(4), t6 timestamp(6),
 t8 timestamp(8), t10 timestamp(10), t12 timestamp(12),
 t14 timestamp(14));
@@ -106,7 +103,6 @@ select * from t1;
 t2	t4	t6	t8	t10	t12	t14
 0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00
 1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59
-set new=1;
 select * from t1;
 t2	t4	t6	t8	t10	t12	t14
 0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00
@@ -409,15 +405,20 @@ a	b
 NULL	NULL
 NULL	2003-01-01 00:00:00
 drop table t1;
-create table t1 (ts timestamp(19));
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `ts` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-set TIMESTAMP=1000000000;
-insert into t1 values ();
+create table t1 (a bigint, b bigint);
+insert into t1 values (NULL, NULL), (20030101000000, 20030102000000);
+set timestamp=1000000019;
+alter table t1 modify a timestamp, modify b timestamp;
 select * from t1;
-ts
-2001-09-09 04:46:40
+a	b
+2001-09-09 04:46:59	2001-09-09 04:46:59
+2003-01-01 00:00:00	2003-01-02 00:00:00
+drop table t1;
+create table t1 (a char(2), t timestamp);
+insert into t1 values ('a', '2004-01-01 00:00:00'), ('a', '2004-01-01 01:00:00'),
+('b', '2004-02-01 00:00:00');
+select max(t) from t1 group by a;
+max(t)
+2004-01-01 01:00:00
+2004-02-01 00:00:00
 drop table t1;

@@ -610,8 +610,8 @@ btr_page_get_father_for_rec(
 		fputs(
 "InnoDB: You should dump + drop + reimport the table to fix the\n"
 "InnoDB: corruption. If the crash happens at the database startup, see\n"
-"InnoDB: section 6.1 of http://www.innodb.com/ibman.php about forcing\n"
-"InnoDB: recovery. Then dump + drop + reimport.\n", stderr);
+"InnoDB: http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html about\n"
+"InnoDB: forcing recovery. Then dump + drop + reimport.\n", stderr);
 	}
 
 	ut_a(btr_node_ptr_get_child_page_no(node_ptr) ==

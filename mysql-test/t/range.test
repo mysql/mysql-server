@@ -423,6 +423,9 @@ select count(*) from t1 where x=0;
 select count(*) from t1 where x<0;
 select count(*) from t1 where x < -16;
 select count(*) from t1 where x = -16;
+# The following query returns wrong value because the range optimizer can't
+# handle search on a signed value for an unsigned parameter. This will be fixed in
+# 5.0
 select count(*) from t1 where x > -16;
 select count(*) from t1 where x = 18446744073709551601;
 
