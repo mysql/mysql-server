@@ -3021,9 +3021,11 @@ calc_row_difference(
 						col_pack_len,
 						prebuilt->table->comp);
 				ufield->new_val.data =
-						dfield_get_data(&dfield);
+						dfield_get_data_noninline(
+								&dfield);
 				ufield->new_val.len =
-						dfield_get_len(&dfield);
+						dfield_get_len_noninline(
+								&dfield);
 			} else {
 				ufield->new_val.data = NULL;
 				ufield->new_val.len = UNIV_SQL_NULL;
