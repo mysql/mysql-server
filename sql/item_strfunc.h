@@ -547,6 +547,7 @@ public:
   Item_func_binary(Item *a) :Item_str_func(a) {}
   String *val_str(String *a)
   {
+    DBUG_ASSERT(fixed == 1);
     String *tmp=args[0]->val_str(a);
     null_value=args[0]->null_value;
     if (tmp)

@@ -204,7 +204,7 @@ bool Item_subselect::const_item() const
 Item *Item_subselect::get_tmp_table_item(THD *thd)
 {
   if (!with_sum_func && !const_item())
-    return new Item_field(result_field);
+    return new Item_field(result_field, 1);
   return copy_or_same(thd);
 }
 
@@ -399,6 +399,7 @@ void Item_singlerow_subselect::bring_value()
 
 double Item_singlerow_subselect::val() 
 {
+  DBUG_ASSERT(fixed == 1);
   if (!exec() && !value->null_value)
   {
     null_value= 0;
@@ -413,6 +414,7 @@ double Item_singlerow_subselect::val()
 
 longlong Item_singlerow_subselect::val_int() 
 {
+  DBUG_ASSERT(fixed == 1);
   if (!exec() && !value->null_value)
   {
     null_value= 0;
@@ -521,6 +523,7 @@ void Item_exists_subselect::fix_length_and_dec()
 
 double Item_exists_subselect::val()
 {
+  DBUG_ASSERT(fixed == 1);
   if (exec())
   {
     reset();
@@ -531,6 +534,7 @@ double Item_exists_subselect::val()
 
 longlong Item_exists_subselect::val_int() 
 {
+  DBUG_ASSERT(fixed == 1);
   if (exec())
   {
     reset();
@@ -541,6 +545,7 @@ longlong Item_exists_subselect::val_int()
 
 String *Item_exists_subselect::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   if (exec())
   {
     reset();
@@ -552,6 +557,7 @@ String *Item_exists_subselect::val_str(String *str)
 
 double Item_in_subselect::val()
 {
+  DBUG_ASSERT(fixed == 1);
   if (exec())
   {
     reset();
@@ -565,6 +571,7 @@ double Item_in_subselect::val()
 
 longlong Item_in_subselect::val_int() 
 {
+  DBUG_ASSERT(fixed == 1);
   if (exec())
   {
     reset();
@@ -578,6 +585,7 @@ longlong Item_in_subselect::val_int()
 
 String *Item_in_subselect::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   if (exec())
   {
     reset();

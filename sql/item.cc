@@ -301,7 +301,7 @@ bool DTCollation::aggregate(DTCollation &dt)
   return 0;
 }
 
-Item_field::Item_field(Field *f)
+Item_field::Item_field(Field *f, bool already_fixed)
   :Item_ident(NullS, f->table_name, f->field_name)
 #ifndef DBUG_OFF
   ,double_fix(0)
@@ -309,6 +309,7 @@ Item_field::Item_field(Field *f)
 {
   set_field(f);
   collation.set(DERIVATION_IMPLICIT);
+  fixed= already_fixed;
 }
 
 // Constructor need to process subselect with temporary tables (see Item)
@@ -359,6 +360,7 @@ const char *Item_ident::full_name() const
 /* ARGSUSED */
 String *Item_field::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   if ((null_value=field->is_null()))
     return 0;
   str->set_charset(str_value.charset());
@@ -367,6 +369,7 @@ String *Item_field::val_str(String *str)
 
 double Item_field::val()
 {
+  DBUG_ASSERT(fixed == 1);
   if ((null_value=field->is_null()))
     return 0.0;
   return field->val_real();
@@ -374,6 +377,7 @@ double Item_field::val()
 
 longlong Item_field::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   if ((null_value=field->is_null()))
     return 0;
   return field->val_int();
@@ -483,6 +487,7 @@ Item *Item_field::get_tmp_table_item(THD *thd)
 
 String *Item_int::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   str->set(value, &my_charset_bin);
   return str;
 }
@@ -497,6 +502,7 @@ void Item_int::print(String *str)
 
 String *Item_uint::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   str->set((ulonglong) value, &my_charset_bin);
   return str;
 }
@@ -512,6 +518,7 @@ void Item_uint::print(String *str)
 
 String *Item_real::val_str(String *str)
 {
+  DBUG_ASSERT(fixed == 1);
   str->set(value,decimals,&my_charset_bin);
   return str;
 }
@@ -528,11 +535,25 @@ void Item_string::print(String *str)
 
 bool Item_null::eq(const Item *item, bool binary_cmp) const
 { return item->type() == type(); }
-double Item_null::val() { null_value=1; return 0.0; }
-longlong Item_null::val_int() { null_value=1; return 0; }
+double Item_null::val()
+{
+  // NULL can be used without fix_fields
+  null_value=1;
+  return 0.0;
+}
+longlong Item_null::val_int()
+{
+  // NULL can be used without fix_fields
+  null_value=1;
+  return 0;
+}
 /* ARGSUSED */
 String *Item_null::val_str(String *str)
-{ null_value=1; return 0;}
+{
+  // NULL can be used without fix_fields
+  null_value=1;
+  return 0;
+}
 
 
 /*********************** Item_param related ******************************/
@@ -668,6 +689,7 @@ bool Item_param::get_time(TIME *res)
 
 double Item_param::val() 
 {
+  DBUG_ASSERT(fixed == 1);
   int err;
   switch (item_result_type) {
   case STRING_RESULT:
@@ -683,8 +705,9 @@ double Item_param::val()
 
 longlong Item_param::val_int() 
 { 
- int err;
- switch (item_result_type) {
+  DBUG_ASSERT(fixed == 1);
+  int err;
+  switch (item_result_type) {
   case STRING_RESULT:
     return my_strntoll(str_value.charset(),
 		       str_value.ptr(),str_value.length(),10,
@@ -699,6 +722,7 @@ longlong Item_param::val_int()
 
 String *Item_param::val_str(String* str) 
 { 
+  DBUG_ASSERT(fixed == 1);
   switch (item_result_type) {
   case INT_RESULT:
     str->set(int_value, &my_charset_bin);
@@ -717,7 +741,8 @@ String *Item_param::val_str(String* str)
 */
 
 String *Item_param::query_val_str(String* str) 
-{ 
+{
+  DBUG_ASSERT(fixed == 1);
   switch (item_result_type) {
   case INT_RESULT:
   case REAL_RESULT:
@@ -790,6 +815,7 @@ void Item_copy_string::copy()
 /* ARGSUSED */
 String *Item_copy_string::val_str(String *str)
 {
+  // Item_copy_string is used without fix_fields call
   if (null_value)
     return (String*) 0;
   return &str_value;
@@ -806,29 +832,39 @@ bool Item::fix_fields(THD *thd,
 {
 
   // We do not check fields which are fixed during construction
-  DBUG_ASSERT(fixed == 0 || type() == INT_ITEM || type() == CACHE_ITEM);
+  DBUG_ASSERT(fixed == 0 || type() == INT_ITEM || type() == CACHE_ITEM ||
+	      type() == STRING_ITEM || type() == MYSQL_TYPE_DATETIME);
   fixed= 1;
   return 0;
 }
 
 double Item_ref_null_helper::val()
 {
+  DBUG_ASSERT(fixed == 1);
   double tmp= (*ref)->val_result();
   owner->was_null|= null_value= (*ref)->null_value;
   return tmp;
 }
+
+
 longlong Item_ref_null_helper::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   longlong tmp= (*ref)->val_int_result();
   owner->was_null|= null_value= (*ref)->null_value;
   return tmp;
 }
+
+
 String* Item_ref_null_helper::val_str(String* s)
 {
+  DBUG_ASSERT(fixed == 1);
   String* tmp= (*ref)->str_result(s);
   owner->was_null|= null_value= (*ref)->null_value;
   return tmp;
 }
+
+
 bool Item_ref_null_helper::get_date(TIME *ltime, uint fuzzydate)
 {  
   return (owner->was_null|= null_value= (*ref)->get_date(ltime, fuzzydate));
@@ -1352,6 +1388,7 @@ Item_varbinary::Item_varbinary(const char *str, uint str_length)
 
 longlong Item_varbinary::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   char *end=(char*) str_value.ptr()+str_value.length(),
        *ptr=end-min(str_value.length(),sizeof(longlong));
 
@@ -1612,7 +1649,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       {
 	ref= 0; // To prevent "delete *ref;" on ~Item_erf() of this item
 	Item_field* fld;
-	if (!((*reference)= fld= new Item_field(tmp)))
+	if (!((*reference)= fld= new Item_field(tmp, 1)))
 	  return 1;
 	register_item_tree_changing(reference);
 	mark_as_dependent(thd, last, thd->lex->current_select, fld);
@@ -1728,7 +1765,10 @@ bool Item_default_value::fix_fields(THD *thd,
 {
   DBUG_ASSERT(fixed == 0);
   if (!arg)
+  {
+    fixed= 1;
     return 0;
+  }
   if (arg->fix_fields(thd, table_list, &arg))
     return 1;
   
@@ -1749,6 +1789,7 @@ bool Item_default_value::fix_fields(THD *thd,
   def_field->move_field(def_field->table->default_values -
                         def_field->table->record[0]);
   set_field(def_field);
+  fixed= 1;
   return 0;
 }
 
@@ -1806,6 +1847,7 @@ bool Item_insert_value::fix_fields(THD *thd,
     set_field(new Field_null(0, 0, Field::NONE, tmp_field->field_name,
 			     tmp_field->table, &my_charset_bin));
   }
+  fixed= 1;
   return 0;
 }
 
@@ -1969,7 +2011,8 @@ void Item_cache_str::store(Item *item)
 
 
 double Item_cache_str::val()
-{ 
+{
+  DBUG_ASSERT(fixed == 1);
   int err;
   if (value)
     return my_strntod(value->charset(), (char*) value->ptr(),
@@ -1981,6 +2024,7 @@ double Item_cache_str::val()
 
 longlong Item_cache_str::val_int()
 {
+  DBUG_ASSERT(fixed == 1);
   int err;
   if (value)
     return my_strntoll(value->charset(), value->ptr(),

@@ -155,7 +155,7 @@ public:
   Item_real_func(Item *a,Item *b) :Item_func(a,b) {}
   Item_real_func(List<Item> &list) :Item_func(list) {}
   String *val_str(String*str);
-  longlong val_int() { return (longlong) val(); }
+  longlong val_int() { DBUG_ASSERT(fixed == 1); return (longlong) val(); }
   enum Item_result result_type () const { return REAL_RESULT; }
   void fix_length_and_dec() { decimals=NOT_FIXED_DEC; max_length=float_length(decimals); }
 };
@@ -169,7 +169,7 @@ public:
   Item_num_func(Item *a) :Item_func(a),hybrid_type(REAL_RESULT) {}
   Item_num_func(Item *a,Item *b) :Item_func(a,b),hybrid_type(REAL_RESULT) {}
   String *val_str(String*str);
-  longlong val_int() { return (longlong) val(); }
+  longlong val_int() { DBUG_ASSERT(fixed == 1); return (longlong) val(); }
   enum Item_result result_type () const { return hybrid_type; }
   void fix_length_and_dec() { fix_num_length_and_dec(); }
   bool is_null() { (void) val(); return null_value; }
@@ -200,7 +200,7 @@ public:
   Item_int_func(Item *a,Item *b,Item *c) :Item_func(a,b,c) { max_length=21; }
   Item_int_func(List<Item> &list) :Item_func(list) { max_length=21; }
   Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item) {}
-  double val() { return (double) val_int(); }
+  double val() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() {}
@@ -285,7 +285,7 @@ class Item_func_int_div :public Item_num_op
 public:
   Item_func_int_div(Item *a,Item *b) :Item_num_op(a,b)
   { hybrid_type=INT_RESULT; }
-  double val() { return (double) val_int(); }
+  double val() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   longlong val_int();
   const char *func_name() const { return "DIV"; }
   void fix_length_and_dec();
@@ -584,7 +584,8 @@ class Item_func_bit_length :public Item_func_length
 {
 public:
   Item_func_bit_length(Item *a) :Item_func_length(a) {}
-  longlong val_int() { return Item_func_length::val_int()*8; }
+  longlong val_int()
+    { DBUG_ASSERT(fixed == 1); return Item_func_length::val_int()*8; }
   const char *func_name() const { return "bit_length"; }
 };
 
@@ -783,7 +784,8 @@ class Item_func_udf_float :public Item_udf_func
   Item_func_udf_float(udf_func *udf_arg) :Item_udf_func(udf_arg) {}
   Item_func_udf_float(udf_func *udf_arg, List<Item> &list)
     :Item_udf_func(udf_arg,list) {}
-  longlong val_int() { return (longlong) Item_func_udf_float::val(); }
+  longlong val_int()
+    { DBUG_ASSERT(fixed == 1); return (longlong) Item_func_udf_float::val(); }
   double val();
   String *val_str(String *str);
   void fix_length_and_dec() { fix_num_length_and_dec(); }
@@ -834,7 +836,7 @@ class Item_func_udf_float :public Item_real_func
  public:
   Item_func_udf_float(udf_func *udf_arg) :Item_real_func() {}
   Item_func_udf_float(udf_func *udf_arg, List<Item> &list) :Item_real_func(list) {}
-  double val() { return 0.0; }
+  double val() { DBUG_ASSERT(fixed == 1); return 0.0; }
 };
 
 
@@ -843,7 +845,7 @@ class Item_func_udf_int :public Item_int_func
 public:
   Item_func_udf_int(udf_func *udf_arg) :Item_int_func() {}
   Item_func_udf_int(udf_func *udf_arg, List<Item> &list) :Item_int_func(list) {}
-  longlong val_int() { return 0; }
+  longlong val_int() { DBUG_ASSERT(fixed == 1); return 0; }
 };
 
 
@@ -852,9 +854,10 @@ class Item_func_udf_str :public Item_func
 public:
   Item_func_udf_str(udf_func *udf_arg) :Item_func() {}
   Item_func_udf_str(udf_func *udf_arg, List<Item> &list)  :Item_func(list) {}
-  String *val_str(String *) { null_value=1; return 0; }
-  double val() { null_value=1; return 0.0; }
-  longlong val_int() { null_value=1; return 0; }
+  String *val_str(String *)
+    { DBUG_ASSERT(fixed == 1); null_value=1; return 0; }
+  double val() { DBUG_ASSERT(fixed == 1); null_value=1; return 0.0; }
+  longlong val_int() { DBUG_ASSERT(fixed == 1); null_value=1; return 0; }
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec() { maybe_null=1; max_length=0; }
 };
@@ -1023,7 +1026,7 @@ public:
   table_map not_null_tables() const { return 0; }
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   bool eq(const Item *, bool binary_cmp) const;
-  longlong val_int() { return val()!=0.0; }
+  longlong val_int() { DBUG_ASSERT(fixed == 1); return val()!=0.0; }
   double val();
   void print(String *str);
 
