@@ -60,3 +60,9 @@ bin-dist:		all
 	$(top_builddir)/scripts/make_binary_distribution
 
 .PHONY:		init-db bin-dist
+
+# Test installation
+
+test:
+	cd mysql-test
+	./mysql-test-run
