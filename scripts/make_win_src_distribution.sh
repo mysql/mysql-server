@@ -249,17 +249,32 @@ touch $BASE/innobase/ib_config.h
 #
 
 cd $SOURCE
-for i in COPYING ChangeLog README \
+for i in COPYING COPYING.LIB ChangeLog README \
          INSTALL-SOURCE INSTALL-WIN \
          INSTALL-WIN-SOURCE \
          Docs/manual_toc.html  Docs/manual.html \
-         Docs/mysqld_error.txt Docs/INSTALL-BINARY 
+         Docs/manual.txt Docs/mysqld_error.txt \
+         Docs/INSTALL-BINARY 
          
 do
   print_debug "Copying file '$i'"
   if [ -f $i ] 
   then
     $CP $i $BASE/$i
+  fi
+done
+
+#
+# Raw dirs from source tree
+#
+
+for i in Docs/Flags scripts sql-bench SSL \
+         tests tools
+do
+  print_debug "Copying directory '$i'"
+  if [ -d $i ]
+  then
+    $CP -R $i $BASE/$i
   fi
 done
 
