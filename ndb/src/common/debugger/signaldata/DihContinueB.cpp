@@ -18,7 +18,10 @@
 #include <signaldata/DihContinueB.hpp>
 
 bool
-printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData, Uint32 len){
+printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
+		     Uint32 len, Uint16 not_used){
+
+  (void)not_used;
 
   switch (theData[0]) {
   case DihContinueB::ZPACK_TABLE_INTO_PAGES:
