@@ -51,6 +51,7 @@ public:
   void getConfig_old(Parser_t::Context &ctx);
 #endif /* MGM_GET_CONFIG_BACKWARDS_COMPAT */
 
+  void get_nodeid(Parser_t::Context &ctx, const class Properties &args);
   void getVersion(Parser_t::Context &ctx, const class Properties &args);
   void getStatus(Parser_t::Context &ctx, const class Properties &args);
   void getInfoClusterLog(Parser_t::Context &ctx, const class Properties &args);

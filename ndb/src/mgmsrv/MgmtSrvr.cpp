@@ -43,7 +43,7 @@
 #include <DebuggerNames.hpp>
 #include <ndb_version.h>
 
-#include "SocketServer.hpp"
+#include <SocketServer.hpp>
 #include "NodeLogLevel.hpp"
 #include <NdbConfig.h>
 
@@ -391,6 +391,95 @@ MgmtSrvr::getNodeCount(enum ndb_mgm_node_type type) const
 }
 
 int 
+MgmtSrvr::getPort() const {
+  const Properties *mgmProps;
+  
+  ndb_mgm_configuration_iterator * iter = 
+    ndb_mgm_create_configuration_iterator(_config->m_configValues, 
+					  CFG_SECTION_NODE);
+  if(iter == 0)
+    return 0;
+
+  if(ndb_mgm_find(iter, CFG_NODE_ID, getOwnNodeId()) != 0){
+    ndbout << "Could not retrieve configuration for Node " 
+	   << getOwnNodeId() << " in config file." << endl 
+	   << "Have you set correct NodeId for this node?" << endl;
+    ndb_mgm_destroy_iterator(iter);
+    return 0;
+  }
+
+  unsigned type;
+  if(ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, &type) != 0 ||
+     type != NODE_TYPE_MGM){
+    ndbout << "Local node id " << getOwnNodeId()
+	   << " is not defined as management server" << endl
+	   << "Have you set correct NodeId for this node?" << endl;
+    return 0;
+  }
+  
+  Uint32 port = 0;
+  if(ndb_mgm_get_int_parameter(iter, CFG_MGM_PORT, &port) != 0){
+    ndbout << "Could not find PortNumber in the configuration file." << endl;
+    return 0;
+  }
+  
+  /*****************
+   * Set Stat Port *
+   *****************/
+#if 0
+  if (!mgmProps->get("PortNumberStats", &tmp)){
+    ndbout << "Could not find PortNumberStats in the configuration file." 
+	   << endl;
+    return false;
+  }
+  glob.port_stats = tmp;
+#endif
+
+#if 0
+  const char * host;
+  if(ndb_mgm_get_string_parameter(iter, mgmProps->get("ExecuteOnComputer", host)){
+    ndbout << "Failed to find \"ExecuteOnComputer\" for my node" << endl;
+    ndbout << "Unable to verify own hostname" << endl;
+    return false;
+  }
+
+  const char * hostname;
+  {
+    const Properties * p;
+    char buf[255];
+    snprintf(buf, sizeof(buf), "Computer_%s", host.c_str());
+    if(!glob.cluster_config->get(buf, &p)){
+      ndbout << "Failed to find computer " << host << " in config" << endl;
+      ndbout << "Unable to verify own hostname" << endl;
+      return false;
+    }
+    if(!p->get("HostName", &hostname)){
+      ndbout << "Failed to find \"HostName\" for computer " << host 
+	     << " in config" << endl;
+      ndbout << "Unable to verify own hostname" << endl;
+      return false;
+    }
+    if(NdbHost_GetHostName(buf) != 0){
+      ndbout << "Unable to get own hostname" << endl;
+      ndbout << "Unable to verify own hostname" << endl;
+      return false;
+    }
+  }
+  
+  const char * ip_address;
+  if(mgmProps->get("IpAddress", &ip_address)){
+    glob.use_specific_ip = true;
+    glob.interface_name = strdup(ip_address);
+    return true;
+  }
+  
+  glob.interface_name = strdup(hostname);
+#endif
+
+  return port;
+}
+
+int 
 MgmtSrvr::getStatPort() const {
 #if 0
   const Properties *mgmProps;
@@ -419,7 +508,6 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   theWaitState(WAIT_SUBSCRIBE_CONF),
   theConfCount(0) {
 
-  _ownNodeId  = nodeId;
   _config     = NULL;
   _isStatPortActive = false;
   _isClusterLogStatActive = false;
@@ -428,6 +516,8 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _logLevelThread      = NULL;
   _logLevelThreadSleep = 500;
   _startedNodeId       = 0;
+
+  theFacade = 0;
 
   m_newConfig = NULL;
   m_configFilename = configFilename;
@@ -486,6 +576,15 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _clusterLogLevelList = new NodeLogLevelList();
 
   _props = NULL;
+
+  _ownNodeId= 0;
+  NodeId tmp= nodeId > 0 ? nodeId-1 : 0;
+  if (getNextFreeNodeId(&tmp, NDB_MGM_NODE_TYPE_MGM)){
+    _ownNodeId= tmp;
+    if (nodeId != 0 && nodeId != tmp)
+      _ownNodeId= 0; // did not get nodeid requested
+  } else
+    NDB_ASSERT(0, "Unable to retrieve own node id");
 }
 
 
@@ -510,8 +609,7 @@ MgmtSrvr::start()
       return false;
   }
   theFacade = TransporterFacade::start_instance
-    (_ownNodeId, 
-     (ndb_mgm_configuration*)_config->m_configValues);
+    (_ownNodeId,(ndb_mgm_configuration*)_config->m_configValues);
   
   if(theFacade == 0) {
     DEBUG("MgmtSrvr.cpp: theFacade is NULL.");
@@ -1896,6 +1994,7 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
   int returnCode;
 
   int gsn = signal->readSignalNumber();
+
   switch (gsn) {
   case GSN_API_VERSION_CONF: {
     if (theWaitState == WAIT_VERSION) {
@@ -2185,6 +2284,36 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
     return (enum ndb_mgm_node_type)-1;
   
   return nodeTypes[nodeId];
+}
+
+bool
+MgmtSrvr::getNextFreeNodeId(NodeId * nodeId,
+			    enum ndb_mgm_node_type type) const 
+{
+#if 0
+  ndbout << "MgmtSrvr::getNextFreeNodeId type=" << type
+	 << " *nodeid=" << *nodeId << endl;
+#endif
+
+  NodeId tmp= *nodeId;
+  if (theFacade && theFacade->theClusterMgr) {
+    while(getNextNodeId(&tmp, type)){
+      if (theFacade->theClusterMgr->m_connected_nodes.get(tmp))
+	continue;
+#if 0
+      ndbout << "MgmtSrvr::getNextFreeNodeId ret=" << tmp << endl;
+#endif
+      *nodeId= tmp;
+      return true;
+    }
+  } else if (getNextNodeId(&tmp, type)){
+#if 0
+    ndbout << "MgmtSrvr::getNextFreeNodeId (theFacade==0) ret=" << tmp << endl;
+#endif
+    *nodeId= tmp;
+    return true;
+  }
+  return false;
 }
 
 bool
