@@ -38,6 +38,12 @@ typedef struct
   my_bool isset;
 } sp_pvar_t;
 
+typedef struct
+{
+  char *name;
+  uint ip;			// Instruction index
+} sp_label_t;
+
 class sp_pcontext : public Sql_alloc
 {
   sp_pcontext(const sp_pcontext &); /* Prevent use of these */
@@ -89,6 +95,7 @@ class sp_pcontext : public Sql_alloc
   void
   push(LEX_STRING *name, enum enum_field_types type, sp_param_mode_t mode);
 
+  // Pop the last 'num' slots of the frame
   inline void
   pop(uint num = 1)
   {
@@ -109,6 +116,21 @@ class sp_pcontext : public Sql_alloc
     return m_pvar+i;
   }
 
+  void
+  push_label(char *name, uint ip);
+
+  void
+  push_gen_label(uint ip);
+
+  sp_label_t *
+  find_label(char *name);
+
+  inline void
+  pop_label()
+  {
+    m_label.pop();
+  }
+
 private:
 
   uint m_params;		// The number of parameters
@@ -120,6 +142,9 @@ private:
 
   void
   grow();
+
+  List<sp_label_t> m_label;	// The label list
+  uint m_genlab;		// Gen. label counter
 
 }; // class sp_pcontext : public Sql_alloc
 

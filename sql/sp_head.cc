@@ -59,9 +59,9 @@ eval_func_item(Item *it, enum enum_field_types type)
     {
       char buffer[MAX_FIELD_WIDTH];
       String tmp(buffer, sizeof(buffer), default_charset_info);
+      String *s= it->val_str(&tmp);
 
-      (void)it->val_str(&tmp);
-      it= new Item_string(buffer, sizeof(buffer), default_charset_info);
+      it= new Item_string(s->c_ptr_quick(), s->length(), default_charset_info);
       break;
     }
   case MYSQL_TYPE_NULL:
@@ -149,15 +149,21 @@ sp_head::execute(THD *thd)
     {
       sp_pvar_t *pvar = pctx->find_pvar(i);
 
-      // QQ Passing an argument is, in a sense, a "SET". We have to evaluate
-      //    any expression at this point.
-      nctx->push_item(it->this_item());
-      // Note: If it's OUT or INOUT, it must be a variable.
-      // QQ: Need to handle "global" user/host variables too!!!
-      if (!pvar || pvar->mode == sp_param_in)
-	nctx->set_oindex(i, -1);
+      if (! pvar)
+	nctx->set_oindex(i, -1); // Shouldn't happen
       else
-	nctx->set_oindex(i, static_cast<Item_splocal *>(it)->get_offset());
+      {
+	if (pvar->mode == sp_param_out)
+	  nctx->push_item(it->this_item()); // OUT
+	else
+	  nctx->push_item(eval_func_item(it, pvar->type)); // IN or INOUT
+	// Note: If it's OUT or INOUT, it must be a variable.
+	// QQ: Need to handle "global" user/host variables too!!!
+	if (pvar->mode == sp_param_in)
+	  nctx->set_oindex(i, -1); // IN
+	else			// OUT or INOUT
+	  nctx->set_oindex(i, static_cast<Item_splocal *>(it)->get_offset());
+      }
     }
     // The rest of the frame are local variables which are all IN.
     // QQ We haven't found any hint of what the value is when unassigned,
@@ -176,14 +182,12 @@ sp_head::execute(THD *thd)
 
     while (ret == 0)
     {
-      int offset;
       sp_instr *i;
 
       i = get_instr(ip);	// Returns NULL when we're done.
       if (i == NULL)
 	break;
-      ret= i->execute(thd, &offset);
-      ip += offset;
+      ret= i->execute(thd, &ip);
     }
 
     thd->net.no_send_ok= nsok;
@@ -249,6 +253,27 @@ sp_head::restore_lex(THD *thd)
   // QQ Append tables, fields, etc. from the current lex to mine
   memcpy(&thd->lex, &m_lex, sizeof(LEX)); // Restore lex
 }
+
+void
+sp_head::push_backpatch(uint ip)
+{
+  (void)m_backpatch.push_front(&ip);
+}
+
+void
+sp_head::backpatch(uint dest)
+{
+  while (! m_backpatch.is_empty())
+  {
+    uint *ip= m_backpatch.pop();
+    sp_instr_jump *i= static_cast<sp_instr_jump *>(get_instr(*ip));
+
+    i->set_destination(dest);
+  }
+}
+
+
+// ------------------------------------------------------------------
 
 // Finds the SP 'name'. Currently this always reads from the database
 // and prepares (parse) it, but in the future it will first look in
@@ -350,12 +375,13 @@ sp_drop(THD *thd, char *name, uint namelen)
 }
 
 
+// ------------------------------------------------------------------
 
 //
 // sp_instr_stmt
 //
 int
-sp_instr_stmt::execute(THD *thd, int *offsetp)
+sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
   LEX olex;			// The other lex
 
@@ -368,7 +394,7 @@ sp_instr_stmt::execute(THD *thd, int *offsetp)
 
   memcpy(&thd->lex, &olex, sizeof(LEX)); // Restore the other lex
 
-  *offsetp = 1;
+  *nextp = m_ip+1;
   return 0;
 }
 
@@ -376,9 +402,41 @@ sp_instr_stmt::execute(THD *thd, int *offsetp)
 // sp_instr_set
 //
 int
-sp_instr_set::execute(THD *thd, int *offsetp)
+sp_instr_set::execute(THD *thd, uint *nextp)
 {
   thd->spcont->set_item(m_offset, eval_func_item(m_value, m_type));
-  *offsetp = 1;
+  *nextp = m_ip+1;
+  return 0;
+}
+
+//
+// sp_instr_jump_if
+//
+
+int
+sp_instr_jump_if::execute(THD *thd, uint *nextp)
+{
+  Item *it= eval_func_item(m_expr, MYSQL_TYPE_TINY);
+
+  if (it->val_int())
+    *nextp = m_dest;
+  else
+    *nextp = m_ip+1;
+  return 0;
+}
+
+//
+// sp_instr_jump_if_not
+//
+
+int
+sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
+{
+  Item *it= eval_func_item(m_expr, MYSQL_TYPE_TINY);
+
+  if (! it->val_int())
+    *nextp = m_dest;
+  else
+    *nextp = m_ip+1;
   return 0;
 }

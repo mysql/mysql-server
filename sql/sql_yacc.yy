@@ -526,6 +526,16 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SQL_SMALL_RESULT
 %token  SQL_BUFFER_RESULT
 
+%token  CURSOR_SYM
+%token  ELSEIF_SYM
+%token  ITERATE_SYM
+%token  LEAVE_SYM
+%token  LOOP_SYM
+%token  UNTIL_SYM
+%token  WHILE_SYM
+%token  ASENSITIVE_SYM
+%token  INSENSITIVE_SYM
+%token  SENSITIVE_SYM
 /* QQ This is a dummy, until we have solved the SET syntax problem. */
 %token  SPSET_SYM
 
@@ -680,7 +690,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	statement
 END_OF_INPUT
 
-%type <NONE> call sp_proc_body sp_proc_stmts sp_proc_stmt
+%type <NONE> call sp_proc_stmts sp_proc_stmt
 %type <num>  sp_decls sp_decl sp_decl_idents sp_opt_inout
 
 %type <NONE>
@@ -906,7 +916,7 @@ create:
 	  {
 	    Lex->spcont->set_params();
 	  }
-	  sp_proc_body
+	  sp_proc_stmt
 	  {
 	    Lex->sql_command= SQLCOM_CREATE_PROCEDURE;
 	  } 
@@ -974,26 +984,9 @@ sp_opt_locator:
 	| AS LOCATOR_SYM
 	;
 
-sp_proc_body:
-	  {
-	    Lex->sphead->reset_lex(YYTHD);
-	  }
-	  sp_proc_stmt
-	  {
-	    Lex->sphead->restore_lex(YYTHD);
-	  }
-	| begin
-	    sp_decls
-	    sp_proc_stmts
-	  END
-	  {
-	    Lex->spcont->pop($2);
-	  }
-	;
-
 sp_proc_stmts:
-	  sp_proc_body ';'
-	| sp_proc_stmts sp_proc_body ';'
+	  sp_proc_stmt ';'
+	| sp_proc_stmts sp_proc_stmt ';'
 	;
 
 sp_decls:
@@ -1037,14 +1030,69 @@ sp_decl_idents:
 
 /* Dummy for the spset thing. Will go away when the SET problem is fixed. */
 sp_proc_stmt:
+	  {
+	    Lex->sphead->reset_lex(YYTHD);
+	  }
 	  statement
 	  {
 	    LEX *lex= Lex;
-	    sp_instr_stmt *i= new sp_instr_stmt();
+	    sp_instr_stmt *i= new sp_instr_stmt(lex->sphead->instructions());
 
 	    i->set_lex(lex);
 	    lex->sphead->add_instr(i);
+	    lex->sphead->restore_lex(YYTHD);
           }
+/*	| sp_if
+	| sp_case */
+	| sp_labeled_control
+	  {}
+	| { /* Unlabeled controls get a secret label. */
+	    LEX *lex= Lex;
+
+	    Lex->spcont->push_gen_label(lex->sphead->instructions());
+	  }
+	  sp_unlabeled_control
+	  {
+	    /* QQ backpatch here */
+	    Lex->spcont->pop_label();
+	  }
+	| LEAVE_SYM IDENT
+	  {
+	    LEX *lex= Lex;
+	    sp_label_t *lab= lex->spcont->find_label($2.str);
+
+	    if (! lab)
+	    {
+	      printf("QQ LEAVE with no matching label\n");
+	      YYABORT;
+	    }
+	    else
+	    {
+	      uint ip= lex->sphead->instructions();
+	      sp_instr_jump *i= new sp_instr_jump(ip, 0);
+
+	      lex->sphead->push_backpatch(ip);
+              lex->sphead->add_instr(i);
+	    }
+	  }
+	| ITERATE_SYM IDENT
+	  {
+	    LEX *lex= Lex;
+	    sp_label_t *lab= lex->spcont->find_label($2.str);
+
+	    if (! lab)
+	    {
+	      printf("QQ ITERATE with no matching label\n");
+	      YYABORT;
+	    }
+	    else
+	    {
+	      uint ip= lex->sphead->instructions();
+	      sp_instr_jump *i= new sp_instr_jump(ip, lab->ip);
+
+              lex->sphead->add_instr(i);
+	    }
+	  }
 	|
 	  /* QQ Dummy. We need to fix the old SET syntax to make it work for
 	     local SP variables as well. */
@@ -1059,12 +1107,70 @@ sp_proc_stmt:
 	    else
 	    {
 	      /* QQ Check type match! */
-	      sp_instr_set *i = new sp_instr_set(spv->offset, $4, spv->type);
+	      sp_instr_set *i = new sp_instr_set(lex->sphead->instructions(),
+	                                         spv->offset, $4, spv->type);
 
 	      lex->sphead->add_instr(i);
 	      spv->isset= TRUE;
 	    }
 	  }
+	;
+
+sp_labeled_control:
+	  IDENT ':'
+	  {
+	    LEX *lex= Lex;
+	    sp_label_t *lab= lex->spcont->find_label($1.str);
+
+	    if (lab)
+	    {
+	      printf("QQ Redefining label\n");
+	      YYABORT;
+	    }
+	    else
+	      lex->spcont->push_label($1.str,
+	                              lex->sphead->instructions());
+	  }
+	  sp_unlabeled_control IDENT
+	  {
+	    LEX *lex= Lex;
+	    sp_label_t *lab= lex->spcont->find_label($5.str);
+
+	    if (! lab)
+	    {
+	      printf("QQ end-label without match\n");
+	      YYABORT;
+	    }
+	    else if (strcasecmp($5.str, lab->name) != 0)
+	    {
+	      printf("QQ mismatching labels\n");
+	      YYABORT;
+	    }
+	    else
+	    {
+	      /* QQ backpatch here */
+	      lex->spcont->pop_label();
+	    }
+	  }
+	;
+
+sp_unlabeled_control:
+	  begin
+	    sp_decls
+	    sp_proc_stmts
+	  END
+	  {
+	    Lex->spcont->pop($2);
+	  }
+	| LOOP_SYM
+	    sp_proc_stmts
+	  END LOOP_SYM
+	| WHILE_SYM expr DO_SYM
+	    sp_proc_stmts
+	  END WHILE_SYM
+	| FUNC_ARG2		/* "REPEAT" actually... */
+	    sp_proc_stmts
+	  UNTIL_SYM expr END FUNC_ARG2
 	;
 
 create2:
