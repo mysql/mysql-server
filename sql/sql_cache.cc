@@ -653,10 +653,6 @@ void query_cache_abort(NET *net)
 void query_cache_end_of_result(THD *thd)
 {
   DBUG_ENTER("query_cache_end_of_result");
-#ifdef EMBEDDED_LIBRARY
-    query_cache_insert(&thd->net, (byte*)thd, 
-		       emb_count_querycache_size(thd));
-#endif
 
 #ifndef DBUG_OFF
   // Check if we have called query_cache.wreck() (which disables the cache)
@@ -665,6 +661,10 @@ void query_cache_end_of_result(THD *thd)
 
   if (thd->net.query_cache_query != 0)	// Quick check on unlocked structure
   {
+#ifdef EMBEDDED_LIBRARY
+    query_cache_insert(&thd->net, (byte*)thd, 
+		       emb_count_querycache_size(thd));
+#endif
     STRUCT_LOCK(&query_cache.structure_guard_mutex);
     Query_cache_block *query_block = ((Query_cache_block*)
 				      thd->net.query_cache_query);
