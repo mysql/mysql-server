@@ -12962,7 +12962,7 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
   {
     TABLE_LIST *curr= *tbl;
     if (curr->outer_join)
-      str->append(" left join ", 11); // MySQL converg right to left joins
+      str->append(" left join ", 11); // MySQL converts right to left joins
     else if (curr->straight)
       str->append(" straight_join ", 15);
     else
