@@ -1,6 +1,6 @@
-#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
-#define INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
-/* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_H
+#define INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_H
+/* Copyright (C) 2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-class Options;
+#include "factory.h"
 
-void manager(const Options &options);
+Command *parse_command(Command_factory *factory, const char  *text);
 
-#endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MANAGER_H
+#endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_PARSE_H */

@@ -1,5 +1,5 @@
-#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_LISTENER_H
-#define INCLUDES_MYSQL_INSTANCE_MANAGER_LISTENER_H
+#ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_MYSQL_CONNECTION_H
+#define INCLUDES_MYSQL_INSTANCE_MANAGER_MYSQL_CONNECTION_H
 /* Copyright (C) 2003 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
@@ -26,31 +26,35 @@
 
 C_MODE_START
 
-pthread_handler_decl(listener, arg);
+pthread_handler_decl(mysql_connection, arg);
 
 C_MODE_END
 
+
 class Thread_registry;
-class Options;
 class User_map;
 class Instance_map;
+struct st_vio;
 
-struct Listener_thread_args
+struct Mysql_connection_thread_args
 {
+  struct st_vio *vio;
   Thread_registry &thread_registry;
-  const Options &options;
   const User_map &user_map;
+  ulong connection_id;
   Instance_map &instance_map;
 
-  Listener_thread_args(Thread_registry &thread_registry_arg,
-                       const Options &options_arg,
-                       const User_map &user_map_arg,
-                       Instance_map &instance_map_arg) :
-    thread_registry(thread_registry_arg)
-    ,options(options_arg)
+  Mysql_connection_thread_args(struct st_vio *vio_arg,
+                               Thread_registry &thread_registry_arg,
+                               const User_map &user_map_arg,
+                               ulong connection_id_arg,
+                               Instance_map &instance_map_arg) :
+    vio(vio_arg)
+    ,thread_registry(thread_registry_arg)
     ,user_map(user_map_arg)
+    ,connection_id(connection_id_arg)
     ,instance_map(instance_map_arg)
   {}
 };
 
-#endif // INCLUDES_MYSQL_INSTANCE_MANAGER_LISTENER_H
+#endif // INCLUDES_MYSQL_INSTANCE_MANAGER_MYSQL_CONNECTION_H
