@@ -118,6 +118,21 @@ connection slave;
 sync_with_master;
 select * from mysqltest.t1;
 
+# Check that LOAD DATA FROM MASTER is able to create master.info
+# if needed (if RESET SLAVE was used before), before writing to it (BUG#2922).
+
+stop slave;
+reset slave;
+load data from master;
+start slave;
+# see if replication coordinates were restored fine
+connection master;
+insert into mysqltest.t1 values (5, 'five bar');
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from mysqltest.t1;
+
 # Check that LOAD DATA FROM MASTER reports the error if it can't drop a
 # table to be overwritten.
 # DISABLED FOR NOW AS chmod IS NOT PORTABLE ON NON-UNIX

@@ -308,6 +308,10 @@ TODO list:
 #include "../myisammrg/myrg_def.h"
 #endif
 
+#ifdef EMBEDDED_LIBRARY
+#include "emb_qcache.h"
+#endif
+
 #if defined(EXTRA_DEBUG) && !defined(DBUG_OFF)
 #define MUTEX_LOCK(M) { DBUG_PRINT("lock", ("mutex lock 0x%lx", (ulong)(M))); \
   pthread_mutex_lock(M);}
@@ -597,7 +601,6 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
     if (!query_cache.append_result_data(&result, length, (gptr) packet,
 					query_block))
     {
-      query_cache.refused++;
       DBUG_PRINT("warning", ("Can't append data"));
       header->result(result);
       DBUG_PRINT("qcache", ("free query 0x%lx", (ulong) query_block));
@@ -646,7 +649,7 @@ void query_cache_abort(NET *net)
 }
 
 
-void query_cache_end_of_result(NET *net)
+void query_cache_end_of_result(THD *thd)
 {
   DBUG_ENTER("query_cache_end_of_result");
 
@@ -655,11 +658,15 @@ void query_cache_end_of_result(NET *net)
   if (query_cache.query_cache_size == 0) DBUG_VOID_RETURN;
 #endif
 
-  if (net->query_cache_query != 0)	// Quick check on unlocked structure
+  if (thd->net.query_cache_query != 0)	// Quick check on unlocked structure
   {
+#ifdef EMBEDDED_LIBRARY
+    query_cache_insert(&thd->net, (char*)thd, 
+		       emb_count_querycache_size(thd));
+#endif
     STRUCT_LOCK(&query_cache.structure_guard_mutex);
     Query_cache_block *query_block = ((Query_cache_block*)
-				      net->query_cache_query);
+				      thd->net.query_cache_query);
     if (query_block)
     {
       DUMP(&query_cache);
@@ -691,7 +698,7 @@ void query_cache_end_of_result(NET *net)
       // Cache was flushed or resized and query was deleted => do nothing
       STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
     }
-    net->query_cache_query=0;
+    thd->net.query_cache_query=0;
     DBUG_EXECUTE("check_querycache",query_cache.check_integrity(0););
   }
   DBUG_VOID_RETURN;
@@ -773,10 +780,13 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.character_set_client_num=
       thd->variables.character_set_client->number;
     flags.character_set_results_num=
-      thd->variables.character_set_results->number;
+      (thd->variables.character_set_results ?
+       thd->variables.character_set_results->number :
+       UINT_MAX);
     flags.collation_connection_num=
       thd->variables.collation_connection->number;
     flags.limit= thd->variables.select_limit;
+    flags.time_zone= thd->variables.time_zone;
     STRUCT_LOCK(&structure_guard_mutex);
 
     if (query_cache_size == 0)
@@ -788,6 +798,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
     if (ask_handler_allowance(thd, tables_used))
     {
+      refused++;
       STRUCT_UNLOCK(&structure_guard_mutex);
       DBUG_VOID_RETURN;
     }
@@ -876,7 +887,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
       DBUG_PRINT("qcache", ("Another thread process same query"));
     }
   }
-  else
+  else if (thd->lex->sql_command == SQLCOM_SELECT)
     statistic_increment(refused, &structure_guard_mutex);
 
 end:
@@ -962,9 +973,12 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 			   1 : 0);
   flags.character_set_client_num= thd->variables.character_set_client->number;
   flags.character_set_results_num=
-    thd->variables.character_set_results->number;
+    (thd->variables.character_set_results ?
+     thd->variables.character_set_results->number :
+     UINT_MAX);
   flags.collation_connection_num= thd->variables.collation_connection->number;
   flags.limit= thd->variables.select_limit;
+  flags.time_zone= thd->variables.time_zone;
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
  	 &flags, QUERY_CACHE_FLAGS_SIZE);
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
@@ -1021,7 +1035,6 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       DBUG_PRINT("qcache",
 		 ("probably no SELECT access to %s.%s =>  return to normal processing",
 		  table_list.db, table_list.alias));
-      refused++;				// This is actually a hit
       STRUCT_UNLOCK(&structure_guard_mutex);
       thd->lex->safe_to_cache_query=0;		// Don't try to cache this
       BLOCK_UNLOCK_RD(query_block);
@@ -1036,9 +1049,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       goto err_unlock;				// Parse query
     }
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
-    if (check_tables && !handler::caching_allowed(thd, table->db(), 
-						  table->key_length(),
-						  table->type()))
+    if (check_tables && !ha_caching_allowed(thd, table->db(), 
+                                         table->key_length(),
+                                         table->type()))
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    table_list.db, table_list.alias));
@@ -1057,23 +1070,29 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   /*
     Send cached result to client
   */
+#ifndef EMBEDDED_LIBRARY
   do
   {
     DBUG_PRINT("qcache", ("Results  (len %lu, used %lu, headers %lu)",
-			result_block->length, result_block->used,
-			result_block->headers_len()+
-			ALIGN_SIZE(sizeof(Query_cache_result))));
-
+			  result_block->length, result_block->used,
+			  result_block->headers_len()+
+			  ALIGN_SIZE(sizeof(Query_cache_result))));
+    
     Query_cache_result *result = result_block->result();
-#ifndef EMBEDDED_LIBRARY   /* TODO query cache in embedded library*/
     if (net_real_write(&thd->net, result->data(),
 		       result_block->used -
 		       result_block->headers_len() -
 		       ALIGN_SIZE(sizeof(Query_cache_result))))
       break;					// Client aborted
-#endif
     result_block = result_block->next;
   } while (result_block != first_result_block);
+#else
+  {
+    Querycache_stream qs(result_block, result_block->headers_len() +
+			 ALIGN_SIZE(sizeof(Query_cache_result)));
+    emb_load_querycache_result(thd, &qs);
+  }
+#endif /*!EMBEDDED_LIBRARY*/
 
   thd->limit_found_rows = query->found_rows();
 
@@ -1104,7 +1123,7 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 
       using_transactions = using_transactions &&
 	(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
-      for (; tables_used; tables_used=tables_used->next)
+      for (; tables_used; tables_used= tables_used->next_local)
       {
 	DBUG_ASSERT(!using_transactions || tables_used->table!=0);
 	if (tables_used->derived)
@@ -1136,12 +1155,43 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
     if (query_cache_size > 0)
     {
       DUMP(this);
-      for (; tables_used; tables_used=tables_used->next)
+      for (; tables_used; tables_used= tables_used->next)
       {
 	invalidate_table((byte*) tables_used->key, tables_used->key_length);
 	DBUG_PRINT("qcache", (" db %s, table %s", tables_used->key,
 			      tables_used->key+
 			      strlen(tables_used->key)+1));
+      }
+    }
+    STRUCT_UNLOCK(&structure_guard_mutex);
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Invalidate locked for write
+
+  SYNOPSIS
+    Query_cache::invalidate_locked_for_write()
+    tables_used - table list
+
+  NOTE
+    can be used only for opened tables
+*/
+void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
+{
+  DBUG_ENTER("Query_cache::invalidate (changed table list)");
+  if (query_cache_size > 0 && tables_used)
+  {
+    STRUCT_LOCK(&structure_guard_mutex);
+    if (query_cache_size > 0)
+    {
+      DUMP(this);
+      for (; tables_used; tables_used= tables_used->next_local)
+      {
+	if (tables_used->lock_type & (TL_WRITE_LOW_PRIORITY | TL_WRITE))
+	  invalidate_table(tables_used->table);
       }
     }
     STRUCT_UNLOCK(&structure_guard_mutex);
@@ -1469,13 +1519,28 @@ ulong Query_cache::init_cache()
   VOID(hash_init(&queries, &my_charset_bin, def_query_hash_size, 0, 0,
 		 query_cache_query_get_key, 0, 0));
 #ifndef FN_NO_CASE_SENCE
+  /*
+    If lower_case_table_names!=0 then db and table names are already 
+    converted to lower case and we can use binary collation for their 
+    comparison (no matter if file system case sensitive or not).
+    If we have case-sensitive file system (like on most Unixes) and
+    lower_case_table_names == 0 then we should distinguish my_table
+    and MY_TABLE cases and so again can use binary collation.
+  */
   VOID(hash_init(&tables, &my_charset_bin, def_table_hash_size, 0, 0,
 		 query_cache_table_get_key, 0, 0));
 #else
-  // windows, OS/2 or other case insensitive file names work around
+  /*
+    On windows, OS/2, MacOS X with HFS+ or any other case insensitive 
+    file system if lower_case_table_names!=0 we have same situation as 
+    in previous case, but if lower_case_table_names==0 then we should 
+    not distinguish cases (to be compatible in behavior with underlaying 
+    file system) and so should use case insensitive collation for 
+    comparison.
+  */
   VOID(hash_init(&tables,
 		 lower_case_table_names ? &my_charset_bin :
-		 system_charset_info,
+		 files_charset_info,
 		 def_table_hash_size, 0, 0,query_cache_table_get_key, 0, 0));
 #endif
 
@@ -1640,6 +1705,12 @@ void Query_cache::free_query(Query_cache_block *query_block)
   */
   if (result_block != 0)
   {
+    if (result_block->type != Query_cache_block::RESULT)
+    {
+      // removing unfinished query
+      refused++;
+      inserts--;
+    }
     Query_cache_block *block = result_block;
     do
     {
@@ -1647,6 +1718,12 @@ void Query_cache::free_query(Query_cache_block *query_block)
       block = block->next;
       free_memory_block(current);
     } while (block != result_block);
+  }
+  else
+  {
+    // removing unfinished query
+    refused++;
+    inserts--;
   }
 
   query->unlock_n_destroy();
@@ -1805,22 +1882,27 @@ my_bool Query_cache::write_result_data(Query_cache_block **result_block,
   {
     // It is success (nobody can prevent us write data)
     STRUCT_UNLOCK(&structure_guard_mutex);
-    byte *rest = (byte*) data;
-    Query_cache_block *block = *result_block;
     uint headers_len = (ALIGN_SIZE(sizeof(Query_cache_block)) +
 			ALIGN_SIZE(sizeof(Query_cache_result)));
+#ifndef EMBEDDED_LIBRARY
+    Query_cache_block *block= *result_block;
+    byte *rest= (byte*) data;
     // Now fill list of blocks that created by allocate_data_chain
     do
     {
       block->type = type;
       ulong length = block->used - headers_len;
       DBUG_PRINT("qcache", ("write %lu byte in block 0x%lx",length,
-			  (ulong)block));
+			    (ulong)block));
       memcpy((void*)(((byte*) block)+headers_len), (void*) rest, length);
       rest += length;
       block = block->next;
       type = Query_cache_block::RES_CONT;
     } while (block != *result_block);
+#else
+    Querycache_stream qs(*result_block, headers_len);
+    emb_store_querycache_result(&qs, (THD*)data);
+#endif /*!EMBEDDED_LIBRARY*/
   }
   else
   {
@@ -1993,7 +2075,9 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 
   Query_cache_block_table *block_table = block->table(0);
 
-  for (n=0; tables_used; tables_used=tables_used->next, n++, block_table++)
+  for (n= 0;
+       tables_used;
+       tables_used= tables_used->next_global, n++, block_table++)
   {
     DBUG_PRINT("qcache",
 	       ("table %s, db %s, openinfo at 0x%lx, keylen %u, key at 0x%lx",
@@ -2540,7 +2624,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 			lex->select_lex.options,
 			(int) thd->variables.query_cache_type));
 
-    for (; tables_used; tables_used= tables_used->next)
+    for (; tables_used; tables_used= tables_used->next_global)
     {
       table_count++;
       DBUG_PRINT("qcache", ("table %s, db %s, type %u",
@@ -2548,23 +2632,19 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 			  tables_used->db, tables_used->table->db_type));
       *tables_type|= tables_used->table->file->table_cache_type();
 
-      if (tables_used->table->db_type == DB_TYPE_MRG_ISAM ||
-	  tables_used->table->tmp_table != NO_TMP_TABLE ||
+      /*
+	table_alias_charset used here because it depends of
+	lower_case_table_names variable
+      */
+      if (tables_used->table->tmp_table != NO_TMP_TABLE ||
+	  (*tables_type & HA_CACHE_TBL_NOCACHE) ||
 	  (tables_used->db_length == 5 &&
-#ifdef FN_NO_CASE_SENCE
-	   my_strnncoll(system_charset_info, (uchar*)tables_used->db, 6,
-					     (uchar*)"mysql",6) == 0
-#else
-	   tables_used->db[0]=='m' &&
-	   tables_used->db[1]=='y' &&
-	   tables_used->db[2]=='s' &&
-	   tables_used->db[3]=='q' &&
-	   tables_used->db[4]=='l'
-#endif
-	   ))
+	   my_strnncoll(table_alias_charset, (uchar*)tables_used->db, 6,
+			(uchar*)"mysql",6) == 0))
       {
 	DBUG_PRINT("qcache", 
-		   ("select not cacheable: used MRG_ISAM, temporary or system table(s)"));
+		   ("select not cacheable: temporary, system or \
+other non-cacheable table(s)"));
 	DBUG_RETURN(0);
       }
       if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)
@@ -2611,12 +2691,12 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
 {
   DBUG_ENTER("Query_cache::ask_handler_allowance");
 
-  for (; tables_used; tables_used= tables_used->next)
+  for (; tables_used; tables_used= tables_used->next_global)
   {
     TABLE *table= tables_used->table;
-    if (!handler::caching_allowed(thd, table->table_cache_key,
-				  table->key_length,
-				  table->file->table_cache_type()))
+    if (!ha_caching_allowed(thd, table->table_cache_key,
+                         table->key_length,
+                         table->file->table_cache_type()))
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    tables_used->db, tables_used->alias));
@@ -3160,9 +3240,10 @@ void Query_cache::queries_dump()
       Query_cache_query_flags flags;
       memcpy(&flags, str+len, QUERY_CACHE_FLAGS_SIZE);
       str[len]= 0; // make zero ending DB name
-      DBUG_PRINT("qcache", ("F:%u C:%u L:%lu (%u) '%s' '%s'",
+      DBUG_PRINT("qcache", ("F:%u C:%u L:%lu T:'%s' (%u) '%s' '%s'",
 			    flags.client_long_flag,
-			    flags.character_set_client_num, (ulong)flags.limit,
+			    flags.character_set_client_num, 
+                            (ulong)flags.limit, flags.time_zone->get_name(),
 			    len, str, strend(str)+1));
       DBUG_PRINT("qcache", ("-b- 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx", (ulong) block,
 			    (ulong) block->next, (ulong) block->prev,

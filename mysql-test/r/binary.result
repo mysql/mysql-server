@@ -59,10 +59,8 @@ concat("-",a,"-",b,"-")
 -hello-hello-
 select concat("-",a,"-",b,"-") from t1 where b="hello ";
 concat("-",a,"-",b,"-")
--hello-hello-
 select concat("-",a,"-",b,"-") from t1 ignore index (b) where b="hello ";
 concat("-",a,"-",b,"-")
--hello-hello-
 alter table t1 modify b tinytext not null, drop key b, add key (b(100));
 select concat("-",a,"-",b,"-") from t1 where b="hello ";
 concat("-",a,"-",b,"-")
@@ -80,4 +78,35 @@ b
 NULL
 select b from t1 having binary b like '';
 b
+drop table t1;
+create table t1 (a char(15) binary, b binary(15));
+insert into t1 values ('aaa','bbb'),('AAA','BBB');
+select upper(a),upper(b) from t1;
+upper(a)	upper(b)
+AAA	bbb
+AAA	BBB
+select lower(a),lower(b) from t1;
+lower(a)	lower(b)
+aaa	bbb
+aaa	BBB
+select * from t1 where upper(a)='AAA';
+a	b
+aaa	bbb
+AAA	BBB
+select * from t1 where lower(a)='aaa';
+a	b
+aaa	bbb
+AAA	BBB
+select * from t1 where upper(b)='BBB';
+a	b
+AAA	BBB
+select * from t1 where lower(b)='bbb';
+a	b
+aaa	bbb
+select charset(a), charset(b), charset(binary 'ccc') from t1 limit 1;
+charset(a)	charset(b)	charset(binary 'ccc')
+latin1	binary	latin1
+select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
+collation(a)	collation(b)	collation(binary 'ccc')
+latin1_bin	binary	latin1_bin
 drop table t1;

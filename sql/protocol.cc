@@ -27,6 +27,8 @@
 #include "sp_rcontext.h"
 #include <stdarg.h>
 
+static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
+
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const char *from, uint length)
 #else
@@ -128,7 +130,7 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 
   /* Abort multi-result sets */
   thd->lex->found_colon= 0;
-  thd->server_status= ~SERVER_MORE_RESULTS_EXISTS;
+  thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
   DBUG_VOID_RETURN;
 }
 
@@ -175,10 +177,10 @@ net_printf(THD *thd, uint errcode, ...)
   const char *format;
 #ifndef EMBEDDED_LIBRARY
   const char *text_pos;
+  int head_length= NET_HEADER_SIZE;
 #else
   char text_pos[1024];
 #endif
-  int head_length= NET_HEADER_SIZE;
   NET *net= &thd->net;
 
   DBUG_ENTER("net_printf");
@@ -326,6 +328,7 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
   DBUG_VOID_RETURN;
 }
 
+static char eof_buff[1]= { (char) 254 };        /* Marker for end of fields */
 
 /*
   Send eof (= end of result set) to the client
@@ -352,12 +355,11 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
 void
 send_eof(THD *thd, bool no_flush)
 {
-  static char eof_buff[1]= { (char) 254 };	/* Marker for end of fields */
   NET *net= &thd->net;
   DBUG_ENTER("send_eof");
   if (net->vio != 0 && !net->no_send_eof)
   {
-    if (!no_flush && (thd->client_capabilities & CLIENT_PROTOCOL_41))
+    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
       uchar buff[5];
       uint tmp= min(thd->total_warn_count, 65535);
@@ -369,7 +371,7 @@ send_eof(THD *thd, bool no_flush)
 	other queries (see the if test in dispatch_command / COM_QUERY)
       */
       if (thd->is_fatal_error)
-	thd->server_status= ~SERVER_MORE_RESULTS_EXISTS;
+	thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
       int2store(buff+3, thd->server_status);
       VOID(my_net_write(net,(char*) buff,5));
       VOID(net_flush(net));
@@ -397,9 +399,8 @@ send_eof(THD *thd, bool no_flush)
 
 bool send_old_password_request(THD *thd)
 {
-  static char buff[1]= { (char) 254 };
   NET *net= &thd->net;
-  return my_net_write(net, buff, 1) || net_flush(net);
+  return my_net_write(net, eof_buff, 1) || net_flush(net);
 }
 
 #endif /* EMBEDDED_LIBRARY */
@@ -469,6 +470,7 @@ void Protocol::init(THD *thd_arg)
 {
   thd=thd_arg;
   packet= &thd->packet;
+  convert= &thd->convert_buffer;
 #ifndef DEBUG_OFF
   field_types= 0;
 #endif
@@ -485,6 +487,7 @@ void Protocol::init(THD *thd_arg)
     flag	Bit mask with the following functions:
 		1 send number of rows
 		2 send default values
+                4 don't write eof packet
 
   DESCRIPTION
     Sum fields has table name empty and field_name.
@@ -495,7 +498,7 @@ void Protocol::init(THD *thd_arg)
 */
 
 #ifndef EMBEDDED_LIBRARY
-bool Protocol::send_fields(List<Item> *list, uint flag)
+bool Protocol::send_fields(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
   Item *item;
@@ -506,7 +509,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   CHARSET_INFO *thd_charset= thd->variables.character_set_results;
   DBUG_ENTER("send_fields");
 
-  if (flag & 1)
+  if (flags & SEND_NUM_ROWS)
   {				// Packet with number of elements
     char *pos=net_store_length(buff, (uint) list->elements);
     (void) my_net_write(&thd->net, buff,(uint) (pos-buff));
@@ -544,7 +547,10 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       /* Store fixed length fields */
       pos= (char*) local_packet->ptr()+local_packet->length();
       *pos++= 12;				// Length of packed fields
-      int2store(pos, field.charsetnr);
+      if (item->collation.collation == &my_charset_bin || thd_charset == NULL)
+        int2store(pos, field.charsetnr);
+      else
+        int2store(pos, thd_charset->number);      
       int4store(pos+2, field.length);
       pos[6]= field.type;
       int2store(pos+7,field.flags);
@@ -589,7 +595,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       }
     }
     local_packet->length((uint) (pos - local_packet->ptr()));
-    if (flag & 2)
+    if (flags & SEND_DEFAULTS)
       item->send(&prot, &tmp);			// Send default value
     if (prot.write())
       break;					/* purecov: inspected */
@@ -598,7 +604,8 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 #endif
   }
 
-  send_eof(thd, 1);
+  if (flags & SEND_EOF)
+    my_net_write(&thd->net, eof_buff, 1);
   DBUG_RETURN(prepare_for_send(list));
 
 err:
@@ -697,9 +704,29 @@ bool Protocol_simple::store_null()
 #endif
   char buff[1];
   buff[0]= (char)251;
-  return packet->append(buff, sizeof(buff), PACKET_BUFFET_EXTRA_ALLOC);
+  return packet->append(buff, sizeof(buff), PACKET_BUFFER_EXTRA_ALLOC);
 }
 #endif
+
+
+/*
+  Auxilary function to convert string to the given character set
+  and store in network buffer.
+*/
+
+bool Protocol::store_string_aux(const char *from, uint length,
+                                CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+{
+  /* 'tocs' is set 0 when client issues SET character_set_results=NULL */
+  if (tocs && !my_charset_same(fromcs, tocs) &&
+      fromcs != &my_charset_bin &&
+      tocs != &my_charset_bin)
+  {
+    return convert->copy(from, length, fromcs, tocs) ||
+           net_store_data(convert->ptr(), convert->length());
+  }
+  return net_store_data(from, length);
+}
 
 
 bool Protocol_simple::store(const char *from, uint length,
@@ -712,15 +739,7 @@ bool Protocol_simple::store(const char *from, uint length,
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
 #endif
-  if (tocs && !my_charset_same(fromcs, tocs) &&
-      (fromcs != &my_charset_bin) &&
-      (tocs   != &my_charset_bin))
-  {
-    convert.copy(from, length, fromcs, tocs);
-    return net_store_data(convert.ptr(), convert.length());
-  }
-  else
-    return net_store_data(from, length);
+  return store_string_aux(from, length, fromcs, tocs);
 }
 
 
@@ -735,15 +754,7 @@ bool Protocol_simple::store(const char *from, uint length,
 	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
 #endif
-  if (tocs && !my_charset_same(fromcs, tocs) &&
-      (fromcs != &my_charset_bin) &&
-      (tocs   != &my_charset_bin))
-  {
-    convert.copy(from, length, fromcs, tocs);
-    return net_store_data(convert.ptr(), convert.length());
-  }
-  else
-    return net_store_data(from, length);
+  return store_string_aux(from, length, fromcs, tocs);
 }
 
 
@@ -836,16 +847,8 @@ bool Protocol_simple::store(Field *field)
   String str(buff,sizeof(buff), &my_charset_bin);
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 
-  field->val_str(&str,&str);
-  if (tocs && !my_charset_same(field->charset(), tocs) &&
-      (field->charset() != &my_charset_bin) &&
-      (tocs != &my_charset_bin))
-  {
-    convert.copy(str.ptr(), str.length(), str.charset(), tocs);
-    return net_store_data(convert.ptr(), convert.length());
-  }
-  else
-    return net_store_data(str.ptr(), str.length());
+  field->val_str(&str);
+  return store_string_aux(str.ptr(), str.length(), str.charset(), tocs);
 }
 
 
@@ -958,29 +961,18 @@ void Protocol_prep::prepare_for_resend()
 }
 
 
-bool Protocol_prep::store(const char *from,uint length, CHARSET_INFO *cs)
+bool Protocol_prep::store(const char *from, uint length, CHARSET_INFO *fromcs)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
-	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
-	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
-#endif
+  CHARSET_INFO *tocs= thd->variables.character_set_results;
   field_pos++;
-  return net_store_data(from, length);
+  return store_string_aux(from, length, fromcs, tocs);
 }
 
 bool Protocol_prep::store(const char *from,uint length,
 			  CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
-	      (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
-	       field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
-#endif
   field_pos++;
-  return net_store_data(from, length);
+  return store_string_aux(from, length, fromcs, tocs);
 }
 
 bool Protocol_prep::store_null()
@@ -996,26 +988,17 @@ bool Protocol_prep::store_null()
 
 bool Protocol_prep::store_tiny(longlong from)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_TINY);
-#endif
   char buff[1];
   field_pos++;
   buff[0]= (uchar) from;
-  return packet->append(buff, sizeof(buff), PACKET_BUFFET_EXTRA_ALLOC);
+  return packet->append(buff, sizeof(buff), PACKET_BUFFER_EXTRA_ALLOC);
 }
 
 
 bool Protocol_prep::store_short(longlong from)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-        field_types[field_pos] == MYSQL_TYPE_SHORT ||
-        field_types[field_pos] == MYSQL_TYPE_YEAR);
-#endif
   field_pos++;
-  char *to= packet->prep_append(2, PACKET_BUFFET_EXTRA_ALLOC);
+  char *to= packet->prep_append(2, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
     return 1;
   int2store(to, (int) from);
@@ -1025,13 +1008,8 @@ bool Protocol_prep::store_short(longlong from)
 
 bool Protocol_prep::store_long(longlong from)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_INT24 ||
-	      field_types[field_pos] == MYSQL_TYPE_LONG);
-#endif
   field_pos++;
-  char *to= packet->prep_append(4, PACKET_BUFFET_EXTRA_ALLOC);
+  char *to= packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
     return 1;
   int4store(to, from);
@@ -1041,12 +1019,8 @@ bool Protocol_prep::store_long(longlong from)
 
 bool Protocol_prep::store_longlong(longlong from, bool unsigned_flag)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_LONGLONG);
-#endif
   field_pos++;
-  char *to= packet->prep_append(8, PACKET_BUFFET_EXTRA_ALLOC);
+  char *to= packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
     return 1;
   int8store(to, from);
@@ -1056,12 +1030,8 @@ bool Protocol_prep::store_longlong(longlong from, bool unsigned_flag)
 
 bool Protocol_prep::store(float from, uint32 decimals, String *buffer)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_FLOAT);
-#endif
   field_pos++;
-  char *to= packet->prep_append(4, PACKET_BUFFET_EXTRA_ALLOC);
+  char *to= packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
     return 1;
   float4store(to, from);
@@ -1071,12 +1041,8 @@ bool Protocol_prep::store(float from, uint32 decimals, String *buffer)
 
 bool Protocol_prep::store(double from, uint32 decimals, String *buffer)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_DOUBLE);
-#endif
   field_pos++;
-  char *to= packet->prep_append(8, PACKET_BUFFET_EXTRA_ALLOC);
+  char *to= packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
     return 1;
   float8store(to, from);
@@ -1098,12 +1064,6 @@ bool Protocol_prep::store(Field *field)
 
 bool Protocol_prep::store(TIME *tm)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_DATETIME ||
-	      field_types[field_pos] == MYSQL_TYPE_DATE ||
-	      field_types[field_pos] == MYSQL_TYPE_TIMESTAMP);
-#endif
   char buff[12],*pos;
   uint length;
   field_pos++;
@@ -1125,7 +1085,7 @@ bool Protocol_prep::store(TIME *tm)
   else
     length=0;
   buff[0]=(char) length;			// Length is stored first
-  return packet->append(buff, length+1, PACKET_BUFFET_EXTRA_ALLOC);
+  return packet->append(buff, length+1, PACKET_BUFFER_EXTRA_ALLOC);
 }
 
 bool Protocol_prep::store_date(TIME *tm)
@@ -1138,11 +1098,7 @@ bool Protocol_prep::store_date(TIME *tm)
 
 bool Protocol_prep::store_time(TIME *tm)
 {
-#ifndef DEBUG_OFF
-  DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_TIME);
-#endif
-  char buff[15],*pos;
+  char buff[13], *pos;
   uint length;
   field_pos++;
   pos= buff+1;
@@ -1153,11 +1109,11 @@ bool Protocol_prep::store_time(TIME *tm)
   pos[7]= (uchar) tm->second;
   int4store(pos+8, tm->second_part);
   if (tm->second_part)
-    length=11;
+    length=12;
   else if (tm->hour || tm->minute || tm->second || tm->day)
     length=8;
   else
     length=0;
   buff[0]=(char) length;			// Length is stored first
-  return packet->append(buff, length+1, PACKET_BUFFET_EXTRA_ALLOC);
+  return packet->append(buff, length+1, PACKET_BUFFER_EXTRA_ALLOC);
 }

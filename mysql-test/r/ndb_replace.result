@@ -1,0 +1,21 @@
+drop table if exists t1;
+CREATE TABLE t1 (
+gesuchnr int(11) DEFAULT '0' NOT NULL,
+benutzer_id int(11) DEFAULT '0' NOT NULL,
+PRIMARY KEY (gesuchnr,benutzer_id)
+) engine=ndbcluster;
+replace into t1 (gesuchnr,benutzer_id) values (2,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+insert into t1 (gesuchnr, benutzer_id) value (3,2);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+insert into t1 (gesuchnr,benutzer_id) values (1,1);
+ERROR 23000: Can't write; duplicate key in table 't1'
+replace into t1 (gesuchnr,benutzer_id) values (1,1);
+select * from t1 order by gesuchnr;
+gesuchnr	benutzer_id
+1	1
+2	1
+3	2
+drop table t1;

@@ -5688,6 +5688,7 @@ my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_simple,  /* strnncoll  */
   my_strnncollsp_simple,
   my_strnxfrm_simple,	/* strnxfrm   */
@@ -5700,10 +5701,12 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+  NULL,			/* init */
   ismbchar_gb2312,
   mbcharlen_gb2312,
   my_numchars_mb,
   my_charpos_mb,
+  my_well_formed_len_mb,
   my_lengthsp_8bit,
   my_mb_wc_gb2312,	/* mb_wc      */
   my_wc_mb_gb2312,	/* wc_mb      */
@@ -5731,17 +5734,22 @@ CHARSET_INFO my_charset_gb2312_chinese_ci=
     "gb2312",		/* cs name    */
     "gb2312_chinese_ci",/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_gb2312,
     to_lower_gb2312,
     to_upper_gb2312,
     sort_order_gb2312,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     2,			/* mbmaxlen   */
-    0,
+    0,			/* min_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -5753,17 +5761,22 @@ CHARSET_INFO my_charset_gb2312_bin=
     "gb2312",		/* cs name    */
     "gb2312_bin",	/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_gb2312,
     to_lower_gb2312,
     to_upper_gb2312,
     sort_order_gb2312,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     2,			/* mbmaxlen   */
-    0,
+    0,			/* min_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

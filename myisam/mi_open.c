@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -327,9 +327,14 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	}
 	if (share->keyinfo[i].flag & HA_SPATIAL)
 	{
+#ifdef HAVE_SPATIAL
 	  uint sp_segs=SPDIMS*2;
 	  share->keyinfo[i].seg=pos-sp_segs;
 	  share->keyinfo[i].keysegs--;
+#else
+	  my_errno=HA_ERR_UNSUPPORTED;
+	  goto err;
+#endif
 	}
         else if (share->keyinfo[i].flag & HA_FULLTEXT)
 	{
@@ -726,8 +731,12 @@ static void setup_key_functions(register MI_KEYDEF *keyinfo)
 {
   if (keyinfo->key_alg == HA_KEY_ALG_RTREE)
   {
+#ifdef HAVE_RTREE_KEYS
     keyinfo->ck_insert = rtree_insert;
     keyinfo->ck_delete = rtree_delete;
+#else
+    DBUG_ASSERT(0); /* mi_open should check it never happens */
+#endif
   }
   else
   {
@@ -1151,3 +1160,84 @@ int mi_open_keyfile(MYISAM_SHARE *share)
     return 1;
   return 0;
 }
+
+
+/*
+  Disable all indexes.
+
+  SYNOPSIS
+    mi_disable_indexes()
+    info        A pointer to the MyISAM storage engine MI_INFO struct.
+
+  DESCRIPTION
+    Disable all indexes.
+
+  RETURN
+    0  ok
+*/
+
+int mi_disable_indexes(MI_INFO *info)
+{
+  MYISAM_SHARE *share= info->s;
+
+  share->state.key_map= 0;
+  return 0;
+}
+
+
+/*
+  Enable all indexes
+
+  SYNOPSIS
+    mi_enable_indexes()
+    info        A pointer to the MyISAM storage engine MI_INFO struct.
+
+  DESCRIPTION
+    Enable all indexes. The indexes might have been disabled
+    by mi_disable_index() before.
+    The function works only if both data and indexes are empty,
+    otherwise a repair is required.
+    To be sure, call handler::delete_all_rows() before.
+
+  RETURN
+    0  ok
+    HA_ERR_CRASHED data or index is non-empty.
+*/
+
+int mi_enable_indexes(MI_INFO *info)
+{
+  int error= 0;
+  MYISAM_SHARE *share= info->s;
+
+  if (share->state.state.data_file_length ||
+      (share->state.state.key_file_length != share->base.keystart))
+    error= HA_ERR_CRASHED;
+  else
+    share->state.key_map= ((ulonglong) 1L << share->base.keys) - 1;
+  return error;
+}
+
+
+/*
+  Test if indexes are disabled.
+
+  SYNOPSIS
+    mi_indexes_are_disabled()
+    info        A pointer to the MyISAM storage engine MI_INFO struct.
+
+  DESCRIPTION
+    Test if indexes are disabled.
+
+  RETURN
+    0  indexes are not disabled
+    1  all indexes are disabled
+   [2  non-unique indexes are disabled - NOT YET IMPLEMENTED]
+*/
+
+int mi_indexes_are_disabled(MI_INFO *info)
+{
+  MYISAM_SHARE *share= info->s;
+
+  return (! share->state.key_map && share->base.keys);
+}
+

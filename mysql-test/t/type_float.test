@@ -31,6 +31,14 @@ select a from t1 order by a;
 select min(a) from t1;
 drop table t1;
 
+create table t1 (c1 double, c2 varchar(20));
+insert t1 values (121,"16");
+select c1 + c1 * (c2 / 100) as col from t1;
+create table t2 select c1 + c1 * (c2 / 100) as col from t1;
+select * from t2;
+show create table t2;
+drop table t1,t2;
+
 # Bug #1022: When a table contains a 'float' field, 
 # and one of the functions MAX, MIN, or AVG is used on that field,
 # the system crashes.
@@ -52,6 +60,12 @@ create table t1 (a  decimal(7,3) not null, key (a));
 insert into t1 values ("0"),("-0.00"),("-0.01"),("-0.002"),("1");
 select a from t1 order by a;
 select min(a) from t1;
+drop table t1;
+
+create table t1 (a float(200,100), b double(200,100));
+insert t1 values (1.0, 2.0);
+select * from t1;
+show create table t1;
 drop table t1;
 
 # Errors

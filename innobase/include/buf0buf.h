@@ -130,7 +130,7 @@ to improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed
 in LA! */
 #define buf_page_get(SP, OF, LA, MTR)    buf_page_get_gen(\
 				SP, OF, LA, NULL,\
-				BUF_GET, IB__FILE__, __LINE__, MTR)
+				BUF_GET, __FILE__, __LINE__, MTR)
 /******************************************************************
 Use these macros to bufferfix a page with no latching. Remember not to
 read the contents of the page unless you know it is safe. Do not modify
@@ -139,19 +139,19 @@ error-prone programming not to set a latch, and it should be used
 with care. */
 #define buf_page_get_with_no_latch(SP, OF, MTR)    buf_page_get_gen(\
 				SP, OF, RW_NO_LATCH, NULL,\
-				BUF_GET_NO_LATCH, IB__FILE__, __LINE__, MTR)
+				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of buf_page_get_gen, to
 improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
 #define buf_page_get_nowait(SP, OF, LA, MTR)    buf_page_get_gen(\
 				SP, OF, LA, NULL,\
-				BUF_GET_NOWAIT, IB__FILE__, __LINE__, MTR)
+				BUF_GET_NOWAIT, __FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of
 buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
 RW_X_LATCH are allowed as LA! */
 #define buf_page_optimistic_get(LA, BL, G, MC, MTR) buf_page_optimistic_get_func(\
-				LA, BL, G, MC, IB__FILE__, __LINE__, MTR)
+				LA, BL, G, MC, __FILE__, __LINE__, MTR)
 /************************************************************************
 This is the general function used to get optimistic access to a database
 page. */
@@ -166,7 +166,7 @@ buf_page_optimistic_get_func(
 				frames */
 	dulint		modify_clock,/* in: modify clock value if mode is
 				..._GUESS_ON_CLOCK */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
@@ -199,7 +199,7 @@ buf_page_get_known_nowait(
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH */
 	buf_frame_t*	guess,	/* in: the known page frame */
 	ulint		mode,	/* in: BUF_MAKE_YOUNG or BUF_KEEP_OLD */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
@@ -215,7 +215,7 @@ buf_page_get_gen(
 	buf_frame_t*	guess,	/* in: guessed frame or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
 				BUF_GET_NO_LATCH */
-	char*		file,	/* in: file name */
+	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
@@ -507,8 +507,7 @@ Prints info of the buffer i/o. */
 void
 buf_print_io(
 /*=========*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end);/* in: buffer end */
+	FILE*	file);	/* in: file where to print */
 /*************************************************************************
 Returns the ratio in percents of modified pages in the buffer pool /
 database pages in the buffer pool. */
@@ -562,11 +561,11 @@ buf_awe_map_page_to_frame(
 					we need to map the page should also
 					add the block to the
 					awe_LRU_free_mapped list */
+#ifdef UNIV_SYNC_DEBUG
 /*************************************************************************
 Adds latch level info for the rw-lock protecting the buffer frame. This
 should be called in the debug version after a successful latching of a
-page if we know the latching order level of the acquired latch. If
-UNIV_SYNC_DEBUG is not defined, compiles to an empty function. */
+page if we know the latching order level of the acquired latch. */
 UNIV_INLINE
 void
 buf_page_dbg_add_level(
@@ -574,6 +573,7 @@ buf_page_dbg_add_level(
 	buf_frame_t*	frame,	/* in: buffer page where we have acquired
 				a latch */
 	ulint		level);	/* in: latching order level */
+#endif /* UNIV_SYNC_DEBUG */
 /*************************************************************************
 Gets a pointer to the memory frame of a block. */
 UNIV_INLINE

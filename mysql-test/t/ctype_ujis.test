@@ -41,3 +41,45 @@ select _ujis 0xa1a2a1a3 like concat(_ujis'%',_ujis 0xa2a1, _ujis'%') collate uji
 select 'a' like 'a';
 select 'A' like 'a';
 select 'A' like 'a' collate ujis_bin;
+
+#
+# Bug 3290: Hald-width Katakana conversion problem.
+# Check ujis-utf8-ujis round trip.
+#
+set @ujis1= _ujis     0x8EA18EA28EA38EA48EA58EA68EA78EA88EA98EAA8EAB8EAC8EAD8EAE8EAF;
+set @ujis2= _ujis 0x8EB08EB18EB28EB38EB48EB58EB68EB78EB88EB98EBA8EBB8EBC8EBD8EBE8EBF;
+set @ujis3= _ujis 0x8EC08EC18EC28EC38EC48EC58EC68EC78EC88EC98ECA8ECB8ECC8ECD8ECE8ECF;
+set @ujis4= _ujis 0x8ED08ED18ED28ED38ED48ED58ED68ED78ED88ED98EDA8EDB8EDC8EDD8EDE8EDF;
+
+select hex(@utf81:= CONVERT(@ujis1 USING utf8));
+select hex(@utf82:= CONVERT(@ujis2 USING utf8));
+select hex(@utf83:= CONVERT(@ujis3 USING utf8));
+select hex(@utf84:= CONVERT(@ujis4 USING utf8));
+
+select @ujis1 = CONVERT(@utf81 USING ujis);
+select @ujis2 = CONVERT(@utf82 USING ujis);
+select @ujis3 = CONVERT(@utf83 USING ujis);
+select @ujis4 = CONVERT(@utf84 USING ujis);
+
+#
+# Testing with '%' and index (Bug #3438)
+#
+
+drop table if exists t1;
+create table t1 (c1 varchar(8)) default character set 'ujis';
+insert into t1 values (0xA4A2),(0xA2A2),(0xA4A2);
+select c1 as 'no index' from t1 where c1 like cast(concat(0xA4A2, '%') as char character set ujis);
+create index idx_c1 on t1(c1);
+select c1 as 'using index' from t1 where c1 like cast(concat(0xA4A2, '%') as char character set ujis);
+select c1 as 'no index' from t1 where c1 like cast(concat('%',0xA4A2, '%') as char character set ujis);
+drop table t1;
+
+
+# Bug 2077
+CREATE TABLE t1 (
+  a char(1) NOT NULL default '',
+  b enum('¤¢','¤¤') default NULL
+) CHARACTER SET ujis;
+SHOW CREATE TABLE t1;
+SHOW COLUMNS FROM t1;
+DROP TABLE t1;

@@ -49,6 +49,16 @@ create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
 
 #
+# Some wrong defaults, so these creates should fail too
+#
+--error 1067
+create table test (a datetime default now());
+--error 1294
+create table test (a datetime on update now());
+--error 1067
+create table test (a int default 100 auto_increment);
+
+#
 # test of dummy table names
 #
 
@@ -74,7 +84,7 @@ create table `` (a int);
 drop table if exists ``;
 --error 1166
 create table t1 (`` int);
---error 1279
+--error 1280
 create table t1 (i int, index `` (i)); 
 
 #
@@ -157,7 +167,7 @@ SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
---error 1285
+--error 1286
 SET SESSION storage_engine="gemini";
 SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
@@ -220,6 +230,30 @@ select * from t1;
 drop table t1;
 
 #
+# Test for Bug #2985 
+#   "Table truncated when creating another table name with Spaces"
+#
+
+--error 1103
+create table `t1 `(a int);
+--error 1102
+create database `db1 `;
+--error 1166;
+create table t1(`a ` int);
+
+#
+# Test for Bug #3481 
+#   "Parser permits multiple commas without syntax error"
+#
+
+--error 1064
+create table t1 (a int,);
+--error 1064
+create table t1 (a int,,b int);
+--error 1064
+create table t1 (,b int);
+
+#
 # Test create with foreign keys
 #
 
@@ -277,7 +311,7 @@ SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
---error 1285
+--error 1286
 SET SESSION storage_engine="gemini";
 SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
@@ -347,6 +381,15 @@ describe t2;
 drop table t1, t2;
 
 #
+# test for bug #1427 "enum allows duplicate values in the list"
+#
+
+create table t1(cenum enum('a'), cset set('b'));
+create table t2(cenum enum('a','a'), cset set('b','b'));
+create table t3(cenum enum('a','A','a','c','c'), cset set('b','B','b','d','d'));
+drop table t1, t2, t3;
+
+#
 # Bug #1209
 #
 
@@ -359,3 +402,47 @@ select database();
 # Connect without a database
 connect (user4,localhost,mysqltest_1,,*NO-ONE*);
 select database();
+
+#
+# Test for Bug 856 'Naming a key "Primary" causes trouble'
+#
+
+use test;
+--error 1280
+create table t1 (a int, index `primary` (a));
+--error 1280
+create table t1 (a int, index `PRIMARY` (a));
+
+create table t1 (`primary` int, index(`primary`));
+show create table t1;
+create table t2 (`PRIMARY` int, index(`PRIMARY`));
+show create table t2;
+
+create table t3 (a int);
+--error 1280
+alter table t3 add index `primary` (a);
+--error 1280
+alter table t3 add index `PRIMARY` (a);
+
+create table t4 (`primary` int);
+alter table t4 add index(`primary`);
+show create table t4;
+create table t5 (`PRIMARY` int);
+alter table t5 add index(`PRIMARY`);
+show create table t5;
+
+drop table t1, t2, t3, t4, t5;
+
+#
+# bug #3266 TEXT in CREATE TABLE SELECT
+#
+
+CREATE TABLE t1(id varchar(10) NOT NULL PRIMARY KEY, dsc longtext);
+INSERT INTO t1 VALUES ('5000000001', NULL),('5000000003', 'Test'),('5000000004', NULL);
+CREATE TABLE t2(id varchar(15) NOT NULL, proc varchar(100) NOT NULL, runID varchar(16) NOT NULL, start datetime NOT NULL, PRIMARY KEY  (id,proc,runID,start));
+
+INSERT INTO t2 VALUES ('5000000001', 'proc01', '20031029090650', '2003-10-29 13:38:40'),('5000000001', 'proc02', '20031029090650', '2003-10-29 13:38:51'),('5000000001', 'proc03', '20031029090650', '2003-10-29 13:38:11'),('5000000002', 'proc09', '20031024013310', '2003-10-24 01:33:11'),('5000000002', 'proc09', '20031024153537', '2003-10-24 15:36:04'),('5000000004', 'proc01', '20031024013641', '2003-10-24 01:37:29'),('5000000004', 'proc02', '20031024013641', '2003-10-24 01:37:39');
+
+CREATE TABLE t3  SELECT t1.dsc,COUNT(DISTINCT t2.id) AS countOfRuns  FROM t1 LEFT JOIN t2 ON (t1.id=t2.id) GROUP BY t1.id;
+SELECT * FROM t3;
+drop table t1, t2, t3;

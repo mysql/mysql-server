@@ -122,7 +122,8 @@ static uint hash_rec_mask(HASH *hash,HASH_LINK *pos,uint buffmax,
 
 
 
-#ifndef __SUNPRO_C				/* SUNPRO can't handle this */
+/* for compilers which can not handle inline */
+#if !defined(__SUNPRO_C) && !defined(__USLC__) && !defined(__sgi)
 inline
 #endif
 unsigned int rec_hashnr(HASH *hash,const byte *record)
@@ -215,9 +216,9 @@ static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)
 {
   uint rec_keylength;
   byte *rec_key= (byte*) hash_key(hash,pos->data,&rec_keylength,1);
-  return (length && length != rec_keylength) ||
-     my_strnncoll(hash->charset, (uchar*) rec_key, rec_keylength,
-		  (uchar*) key, length);
+  return ((length && length != rec_keylength) ||
+	  my_strnncoll(hash->charset, (uchar*) rec_key, rec_keylength,
+		       (uchar*) key, length));
 }
 
 

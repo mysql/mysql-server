@@ -87,6 +87,58 @@ use mysqltest;
 create table t1 (c int);
 insert into mysqltest.t1 set mysqltest.t1.c = '1';
 drop database mysqltest;
+
+#
+# Test of wrong values for float data (bug #2082)
+#
+
+use test;
+create table t1(number int auto_increment primary key, original_value varchar(50), f_double double, f_float float, f_double_7_2 double(7,2), f_float_4_3 float (4,3), f_double_u double unsigned, f_float_u float unsigned, f_double_15_1_u double(15,1) unsigned, f_float_3_1_u float (3,1) unsigned);
+
+set @value= "aa";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--query_vertical select * from t1 where number =last_insert_id()
+
+set @value= "1aa";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--query_vertical select * from t1 where number =last_insert_id()
+
+set @value= "aa1";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--query_vertical select * from t1 where number =last_insert_id()
+
+set @value= "1e+1111111111a";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--query_vertical select * from t1 where number =last_insert_id()
+
+set @value= "-1e+1111111111a";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--query_vertical select * from t1 where number =last_insert_id()
+
+set @value= 1e+1111111111;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--query_vertical select * from t1 where number =last_insert_id()
+
+set @value= -1e+1111111111;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--query_vertical select * from t1 where number =last_insert_id()
+
+set @value= 1e+111;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--query_vertical select * from t1 where number =last_insert_id()
+
+set @value= -1e+111;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--query_vertical select * from t1 where number =last_insert_id()
+
+set @value= 1;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--query_vertical select * from t1 where number =last_insert_id()
+
+set @value= -1;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+--query_vertical select * from t1 where number =last_insert_id()
+
 use test;
 --disable_warnings
 drop table if exists t1,t2,t3;

@@ -1,14 +1,14 @@
 #! /bin/sh
 
-# WINE_BUILD_DIR, BUILD_DIR, and VERSION must be correct before compiling
+# F:/mydev, /home/kp/mydev, and 4.0.21 must be correct before compiling
 # This values are normally changed by the nwbootstrap script
 
 # the default is "F:/mydev"
-export MYDEV="WINE_BUILD_DIR"
+export MYDEV="F:/mydev"
 
-export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV/zlib-1.1.4"
-export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/mysql-VERSION/netware/BUILD;$MYDEV/zlib-1.1.4"
-export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib;knetware.imp;libz.a"
+export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV/fs64/headers;$MYDEV/zlib-1.1.4;$MYDEV"
+export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/fs64/imports;$MYDEV/zlib-1.1.4;$MYDEV/openssl;$MYDEV/mysql-VERSION/netware/BUILD"
+export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib;libz.a;neb.imp;zPublics.imp;knetware.imp"
 
 export WINEPATH="$MYDEV/mw/bin"
 
@@ -19,11 +19,10 @@ export AR='mwldnlm'
 export AR_FLAGS='-type library -o'
 export AS='mwasmnlm'
 export CC='mwccnlm -gccincludes'
-export CFLAGS='-align 8 -proc 686 -relax_pointers -dialect c'
+export CFLAGS='-O3 -align 8 -proc 686 -relax_pointers -dialect c'
 export CXX='mwccnlm -gccincludes'
-export CXXFLAGS='-align 8 -proc 686 -relax_pointers -dialect c++ -bool on -wchar_t on -D_WCHAR_T'
+export CXXFLAGS='-O3 -align 8 -proc 686 -relax_pointers -dialect c++ -bool on -wchar_t on -D_WCHAR_T'
 export LD='mwldnlm'
-export LDFLAGS='-entry _LibCPrelude -exit _LibCPostlude -flags pseudopreemption'
+export LDFLAGS='-entry _LibCPrelude -exit _LibCPostlude -map -flags pseudopreemption'
 export RANLIB=:
 export STRIP=:
-

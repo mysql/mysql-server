@@ -118,7 +118,7 @@ drop table t1;
 
 CREATE TABLE t1 (
   t1ID int(10) unsigned NOT NULL auto_increment,
-  art char(1) binary NOT NULL default '',
+  art binary(1) NOT NULL default '',
   KNR char(5) NOT NULL default '',
   RECHNR char(6) NOT NULL default '',
   POSNR char(2) NOT NULL default '',
@@ -197,12 +197,11 @@ drop table t1;
 #
 # bug #1172
 #
-CREATE TABLE t1 (key1 int(11) NOT NULL default '0', KEY i1 (key1), KEY i2 (key1));
+CREATE TABLE t1 (key1 int(11) NOT NULL default '0', KEY i1 (key1));
 INSERT INTO t1 VALUES (0),(0),(1),(1);
 CREATE TABLE t2 (keya int(11) NOT NULL default '0', KEY j1 (keya));
 INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
-explain select * from t1 force index(i2), t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 DROP TABLE t1,t2;
 
 #
@@ -229,7 +228,7 @@ SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
 DROP TABLE t1;
 
 #
-# Test error with 
+# Test problem with range optimzer and sub ranges
 #
 
 CREATE TABLE t1 (a int, b int, c int, INDEX (c,a,b));
@@ -240,7 +239,50 @@ SELECT COUNT(*) FROM t1 WHERE (c=0 and a=1) or (c=0 and b=1);
 SELECT COUNT(*) FROM t1 WHERE (c=0 and b=1) or (c=0 and a=1);
 DROP TABLE t1;
 
+#
+# Test problem with range optimization over overlapping ranges (#2448)
+#
+
+CREATE TABLE t1 ( a int not null, b int not null, INDEX ab(a,b) );
+INSERT INTO t1 VALUES (47,1), (70,1), (15,1), (15, 4);
+SELECT * FROM t1
+WHERE
+(
+    ( b =1 AND a BETWEEN 14 AND 21 ) OR
+    ( b =2 AND a BETWEEN 16 AND 18 ) OR
+    ( b =3 AND a BETWEEN 15 AND 19 ) OR
+    (a BETWEEN 19 AND 47)
+);
+DROP TABLE t1;
+
+#
+# Test of problem with IN on many different keyparts. (Bug #4157)
+#
+
+CREATE TABLE t1 (
+id int( 11 ) unsigned NOT NULL AUTO_INCREMENT ,
+line int( 5 ) unsigned NOT NULL default '0',
+columnid int( 3 ) unsigned NOT NULL default '0',
+owner int( 3 ) unsigned NOT NULL default '0',
+ordinal int( 3 ) unsigned NOT NULL default '0',
+showid smallint( 6 ) unsigned NOT NULL default '1',
+tableid int( 1 ) unsigned NOT NULL default '1',
+content int( 5 ) unsigned NOT NULL default '188',
+PRIMARY KEY ( owner, id ) ,
+KEY menu( owner, showid, columnid ) ,
+KEY `COLUMN` ( owner, columnid, line ) ,
+KEY `LINES` ( owner, tableid, content, id ) ,
+KEY recount( owner, line ) 
+) ENGINE = MYISAM;
+
+INSERT into t1 (owner,id,columnid,line) values (11,15,15,1),(11,13,13,5);
+
+SELECT id, columnid, tableid, content, showid, line, ordinal FROM t1 WHERE owner=11 AND ((columnid IN ( 15, 13, 14 ) AND line IN ( 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 31 )) OR (columnid IN ( 13, 14 ) AND line IN ( 15 ))) LIMIT 0 , 30;
+drop table t1;
+
+#
 # test for a bug with in() and unique key
+#
 
 create  table t1 (id int(10) primary key);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9);

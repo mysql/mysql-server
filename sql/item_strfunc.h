@@ -95,12 +95,12 @@ class Item_func_concat_ws :public Item_str_func
 public:
   Item_func_concat_ws(Item *a,List<Item> &list) 
     :Item_str_func(list),separator(a) {}
-  ~Item_func_concat_ws() { delete separator; }
   String *val_str(String *);
   void fix_length_and_dec();
   void update_used_tables();
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
+    DBUG_ASSERT(fixed == 0);
     return (separator->fix_fields(thd, tlist, &separator) ||
 	    separator->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
@@ -154,7 +154,7 @@ class Item_str_conv :public Item_str_func
 public:
   Item_str_conv(Item *item) :Item_str_func(item) {}
   void fix_length_and_dec()
-  { 
+  {
     collation.set(args[0]->collation);
     max_length = args[0]->max_length;
   }
@@ -359,9 +359,10 @@ class Item_func_database :public Item_str_func
 public:
   Item_func_database() { collation.set(system_charset_info,DERIVATION_IMPLICIT); }
   String *val_str(String *);
-  void fix_length_and_dec() 
-  { 
+  void fix_length_and_dec()
+  {
     max_length= MAX_FIELD_NAME * system_charset_info->mbmaxlen;
+    maybe_null=1;
   }
   const char *func_name() const { return "database"; }
 };
@@ -409,10 +410,10 @@ class Item_func_make_set :public Item_str_func
 
 public:
   Item_func_make_set(Item *a,List<Item> &list) :Item_str_func(list),item(a) {}
-  ~Item_func_make_set() { delete item; }
   String *val_str(String *str);
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
+    DBUG_ASSERT(fixed == 0);
     return (item->fix_fields(thd, tlist, &item) ||
 	    item->check_cols(1) ||
 	    Item_func::fix_fields(thd, tlist, ref));
@@ -502,10 +503,10 @@ public:
   Item_func_conv(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
   const char *func_name() const { return "conv"; }
   String *val_str(String *);
-  void fix_length_and_dec() 
-  { 
+  void fix_length_and_dec()
+  {
     collation.set(default_charset());
-    decimals=0; max_length=64; 
+    decimals=0; max_length=64;
   }
 };
 
@@ -517,10 +518,26 @@ public:
   Item_func_hex(Item *a) :Item_str_func(a) {}
   const char *func_name() const { return "hex"; }
   String *val_str(String *);
-  void fix_length_and_dec() 
-  { 
+  void fix_length_and_dec()
+  {
     collation.set(default_charset());
-    decimals=0; max_length=args[0]->max_length*2;
+    decimals=0;
+    max_length=args[0]->max_length*2*collation.collation->mbmaxlen;
+  }
+};
+
+class Item_func_unhex :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_unhex(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "unhex"; }
+  String *val_str(String *);
+  void fix_length_and_dec()
+  {
+    collation.set(&my_charset_bin);
+    decimals=0;
+    max_length=(1+args[0]->max_length)/2;
   }
 };
 
@@ -531,16 +548,17 @@ public:
   Item_func_binary(Item *a) :Item_str_func(a) {}
   String *val_str(String *a)
   {
+    DBUG_ASSERT(fixed == 1);
     String *tmp=args[0]->val_str(a);
     null_value=args[0]->null_value;
     if (tmp)
       tmp->set_charset(&my_charset_bin);
     return tmp;
   }
-  void fix_length_and_dec() 
-  { 
-    collation.set(&my_charset_bin); 
-    max_length=args[0]->max_length; 
+  void fix_length_and_dec()
+  {
+    collation.set(&my_charset_bin);
+    max_length=args[0]->max_length;
   }
   void print(String *str);
 };
@@ -554,7 +572,7 @@ public:
   String *val_str(String *);
   const char *func_name() const { return "load_file"; }
   void fix_length_and_dec()
-  { 
+  {
     collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
     maybe_null=1;
     max_length=MAX_BLOB_WIDTH;
@@ -590,10 +608,10 @@ public:
   Item_func_quote(Item *a) :Item_str_func(a) {}
   const char *func_name() const { return "quote"; }
   String *val_str(String *);
-  void fix_length_and_dec() 
-  { 
+  void fix_length_and_dec()
+  {
     collation.set(args[0]->collation);
-    max_length= args[0]->max_length * 2 + 2; 
+    max_length= args[0]->max_length * 2 + 2;
   }
 };
 
@@ -601,7 +619,7 @@ class Item_func_conv_charset :public Item_str_func
 {
   CHARSET_INFO *conv_charset;
 public:
-  Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a) 
+  Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a)
   { conv_charset=cs; }
   String *val_str(String *);
   void fix_length_and_dec();
@@ -620,26 +638,16 @@ public:
   void print(String *str) { print_op(str); }
 };
 
-class Item_func_conv_charset3 :public Item_str_func
-{
-public:
-  Item_func_conv_charset3(Item *arg1,Item *arg2,Item *arg3)
-    :Item_str_func(arg1,arg2,arg3) {}
-  String *val_str(String *);
-  void fix_length_and_dec();
-  const char *func_name() const { return "convert"; }
-};
-
 class Item_func_charset :public Item_str_func
 {
 public:
   Item_func_charset(Item *a) :Item_str_func(a) {}
   String *val_str(String *);
   const char *func_name() const { return "charset"; }
-  void fix_length_and_dec() 
+  void fix_length_and_dec()
   {
-     max_length=40; // should be enough
      collation.set(system_charset_info);
+     max_length= 64 * collation.collation->mbmaxlen; // should be enough
   };
 };
 
@@ -651,8 +659,8 @@ public:
   const char *func_name() const { return "collation"; }
   void fix_length_and_dec()
   {
-     max_length=40; // should be enough
      collation.set(system_charset_info);
+     max_length= 64 * collation.collation->mbmaxlen; // should be enough
   };
 };
 
@@ -700,5 +708,18 @@ public:
   void fix_length_and_dec(){max_length= MAX_BLOB_WIDTH;}
   const char *func_name() const{return "uncompress";}
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
+};
+
+#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
+class Item_func_uuid: public Item_str_func
+{
+public:
+  Item_func_uuid(): Item_str_func() {}
+  void fix_length_and_dec() {
+    collation.set(system_charset_info);
+    max_length= UUID_LENGTH;
+  }
+  const char *func_name() const{ return "uuid"; }
+  String *val_str(String *);
 };
 

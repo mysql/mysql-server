@@ -19,6 +19,8 @@ CFG=myisam - Win32 Debug
 !MESSAGE
 !MESSAGE "myisam - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "myisam - Win32 Debug" (based on "Win32 (x86) Static Library")
+!MESSAGE "myisam - Win32 TLS_DEBUG" (based on "Win32 (x86) Static Library")
+!MESSAGE "myisam - Win32 TLS" (based on "Win32 (x86) Static Library")
 !MESSAGE
 
 # Begin Project
@@ -41,7 +43,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -74,12 +76,60 @@ LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_Debug\myisam.lib"
 
+!ELSEIF  "$(CFG)" == "myisam - Win32 TLS_DEBUG"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 1
+# PROP BASE Output_Dir "myisam___Win32_TLS_DEBUG"
+# PROP BASE Intermediate_Dir "myisam___Win32_TLS_DEBUG"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 1
+# PROP Output_Dir "myisam___Win32_TLS_DEBUG"
+# PROP Intermediate_Dir "myisam___Win32_TLS_DEBUG"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /Fo".\Debug/" /Fd".\Debug/" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /Fo".\Debug/" /Fd".\Debug/" /FD /c
+# ADD BASE RSC /l 0x409 /d "_DEBUG"
+# ADD RSC /l 0x409 /d "_DEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=link.exe -lib
+# ADD BASE LIB32 /nologo /out:"..\lib_Debug\myisam_tls.lib"
+# ADD LIB32 /nologo /out:"..\lib_Debug\myisam_tls.lib"
+
+!ELSEIF  "$(CFG)" == "myisam - Win32 TLS"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "myisam___Win32_TLS"
+# PROP BASE Intermediate_Dir "myisam___Win32_TLS"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "myisam___Win32_TLS"
+# PROP Intermediate_Dir "myisam___Win32_TLS"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /D "USE_TLS" /FD /c
+# ADD BASE RSC /l 0x409 /d "NDEBUG"
+# ADD RSC /l 0x409 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=link.exe -lib
+# ADD BASE LIB32 /nologo /out:"..\lib_release\myisam_tls.lib"
+# ADD LIB32 /nologo /out:"..\lib_release\myisam_tls.lib"
+
 !ENDIF
 
 # Begin Target
 
 # Name "myisam - Win32 Release"
 # Name "myisam - Win32 Debug"
+# Name "myisam - Win32 TLS_DEBUG"
+# Name "myisam - Win32 TLS"
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"

@@ -49,7 +49,7 @@ int wild_compare(register const char *str, register const char *wildstr,
     if (*wildstr++ == wild_one)
     {
       if (! *str || (str_is_pattern && *str == wild_many))
-        DBUG_RETURN(1);                     /* One char; skipp */
+        DBUG_RETURN(1);                     /* One char; skip */
       if (*str++ == wild_prefix && str_is_pattern && *str)
         str++;
     }

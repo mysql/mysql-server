@@ -32,14 +32,12 @@ class ha_isammrg: public handler
   ~ha_isammrg() {}
   const char *table_type() const { return "MRG_ISAM"; }
   const char **bas_ext() const;
-  ulong table_flags() const { return (HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS |
-				      HA_REC_NOT_IN_SEQ); }
-  ulong index_flags(uint idx) const { return HA_NOT_READ_PREFIX_LAST; }
+  ulong table_flags() const { return (HA_READ_RND_SAME |
+				      HA_REC_NOT_IN_SEQ | HA_FILE_BASED); }
+  ulong index_flags(uint idx, uint part, bool all_parts) const
+  { DBUG_ASSERT(0); return 0; }
 
-  uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return 0; }
-  uint max_key_parts()     const { return 0; }
-  uint max_key_length()    const { return 0; }
+  uint max_supported_keys()          const { return 0; }
   bool low_byte_first()	   const { return 0; }
   uint min_record_length(uint options) const;
 
@@ -56,17 +54,16 @@ class ha_isammrg: public handler
   int index_prev(byte * buf);
   int index_first(byte * buf);
   int index_last(byte * buf);
-  int rnd_init(bool scan=1);
+  int rnd_init(bool scan);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   void position(const byte *record);
-  my_off_t row_position() { return mrg_position(file); }
   void info(uint);
   int extra(enum ha_extra_function operation);
-  int reset(void);
   int external_lock(THD *thd, int lock_type);
   uint lock_count(void) const;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
+  uint8 table_cache_type() { return HA_CACHE_TBL_NOCACHE; }
 };

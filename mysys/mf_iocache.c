@@ -55,7 +55,6 @@ TODO:
 #include "mysys_err.h"
 static void my_aiowait(my_aio_result *result);
 #endif
-#include <assert.h>
 #include <errno.h>
 
 #ifdef THREAD
@@ -152,6 +151,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->alloced_buffer = 0;
   info->buffer=0;
   info->seek_not_done= test(file >= 0);
+  info->disk_writes= 0;
 #ifdef THREAD
   info->share=0;
 #endif
@@ -506,7 +506,8 @@ static int lock_io_cache(IO_CACHE *info, my_off_t pos)
   while (!s->active || s->active->pos_in_file < pos)
     pthread_cond_wait(&s->cond, &s->mutex);
 
-  if (s->total < total)
+  if (s->total < total &&
+      (!s->active || s->active->pos_in_file < pos))
     return 1;
 
   pthread_mutex_unlock(&s->mutex);
@@ -798,7 +799,7 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
     {						/* Fix if skipped bytes */
       if (info->aio_read_pos + read_length < info->pos_in_file)
       {
-	read_length=0;				/* Skipp block */
+	read_length=0;				/* Skip block */
 	next_pos_in_file=info->pos_in_file;
       }
       else
@@ -829,7 +830,7 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
     next_pos_in_file=(info->pos_in_file+ (uint)
 		      (info->read_end - info->request_pos));
 
-	/* If reading large blocks, or first read or read with skipp */
+	/* If reading large blocks, or first read or read with skip */
   if (Count)
   {
     if (next_pos_in_file == info->end_of_file)
@@ -892,7 +893,7 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
     if (aioread(info->file,read_buffer,(int) max_length,
 		(my_off_t) next_pos_in_file,MY_SEEK_SET,
 		&info->aio_result.result))
-    {						/* Skipp async io */
+    {						/* Skip async io */
       my_errno=errno;
       DBUG_PRINT("error",("got error: %d, aio_result: %d from aioread, async skipped",
 			  errno, info->aio_result.result.aio_errno));
@@ -987,7 +988,7 @@ int my_b_append(register IO_CACHE *info, const byte *Buffer, uint Count)
   Buffer+=rest_length;
   Count-=rest_length;
   info->write_pos+=rest_length;
-  if (_flush_io_cache(info,0))
+  if (my_b_flush_io_cache(info,0))
   {
     unlock_append_buffer(info);
     return 1;
@@ -1094,12 +1095,12 @@ int my_block_write(register IO_CACHE *info, const byte *Buffer, uint Count,
 #endif
 
 
-int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
+int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
 {
   uint length;
   my_bool append_cache;
   my_off_t pos_in_file;
-  DBUG_ENTER("_flush_io_cache");
+  DBUG_ENTER("my_b_flush_io_cache");
 
   if (!(append_cache = (info->type == SEQ_READ_APPEND)))
     need_append_buffer_lock=0;
@@ -1152,6 +1153,7 @@ int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
       }
 
       info->append_read_pos=info->write_pos=info->write_buffer;
+      ++info->disk_writes;
       UNLOCK_APPEND_BUFFER;
       DBUG_RETURN(info->error);
     }
@@ -1175,8 +1177,8 @@ int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
     info		IO_CACHE Handle to free
 
   NOTES
-    It's currently safe to call this if one has called io_cache_init()
-    on the 'info' object, even if io_cache_init() failed.
+    It's currently safe to call this if one has called init_io_cache()
+    on the 'info' object, even if init_io_cache() failed.
     This function is also safe to call twice with the same handle.
 
   RETURN

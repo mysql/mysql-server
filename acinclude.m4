@@ -777,14 +777,15 @@ AC_DEFUN(MYSQL_FIND_OPENSSL, [
     ---)
       for d in /usr/ssl/include /usr/local/ssl/include /usr/include \
 /usr/include/ssl /opt/ssl/include /opt/openssl/include \
-/usr/local/ssl/include /usr/local/include ; do
+/usr/local/ssl/include /usr/local/include /usr/freeware/include ; do
        if test -f $d/openssl/ssl.h  ; then
          OPENSSL_INCLUDE=-I$d
        fi
       done
 
       for d in /usr/ssl/lib /usr/local/ssl/lib /usr/lib/openssl \
-/usr/lib /usr/lib64 /opt/ssl/lib /opt/openssl/lib /usr/local/lib/ ; do
+/usr/lib /usr/lib64 /opt/ssl/lib /opt/openssl/lib \
+/usr/freeware/lib32 /usr/local/lib/ ; do
       if test -f $d/libssl.a || test -f $d/libssl.so || test -f $d/libssl.dylib ; then
         OPENSSL_LIB=$d
       fi
@@ -1252,7 +1253,6 @@ dnl Some libs are listed several times, in order for gcc to sort out
 dnl circular references.
       innodb_libs="\
  \$(top_builddir)/innobase/usr/libusr.a\
- \$(top_builddir)/innobase/odbc/libodbc.a\
  \$(top_builddir)/innobase/srv/libsrv.a\
  \$(top_builddir)/innobase/dict/libdict.a\
  \$(top_builddir)/innobase/que/libque.a\
@@ -1276,7 +1276,6 @@ dnl circular references.
  \$(top_builddir)/innobase/page/libpage.a\
  \$(top_builddir)/innobase/rem/librem.a\
  \$(top_builddir)/innobase/thr/libthr.a\
- \$(top_builddir)/innobase/com/libcom.a\
  \$(top_builddir)/innobase/sync/libsync.a\
  \$(top_builddir)/innobase/data/libdata.a\
  \$(top_builddir)/innobase/mach/libmach.a\
@@ -1303,6 +1302,183 @@ dnl circular references.
 dnl ---------------------------------------------------------------------------
 dnl END OF MYSQL_CHECK_INNODB SECTION
 dnl ---------------------------------------------------------------------------
+
+dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_CHECK_EXAMPLEDB
+dnl Sets HAVE_EXAMPLE_DB if --with-example-storage-engine is used
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([MYSQL_CHECK_EXAMPLEDB], [
+  AC_ARG_WITH([example-storage-engine],
+              [
+  --with-example-storage-engine
+                          Enable the Example Storage Engine],
+              [exampledb="$withval"],
+              [exampledb=no])
+  AC_MSG_CHECKING([for example storage engine])
+
+  case "$exampledb" in
+    yes )
+      AC_DEFINE(HAVE_EXAMPLE_DB)
+      AC_MSG_RESULT([yes])
+      [exampledb=yes]
+      ;;
+    * )
+      AC_MSG_RESULT([no])
+      [exampledb=no]
+      ;;
+  esac
+
+])
+dnl ---------------------------------------------------------------------------
+dnl END OF MYSQL_CHECK_EXAMPLE SECTION
+dnl ---------------------------------------------------------------------------
+
+dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_CHECK_ARCHIVEDB
+dnl Sets HAVE_ARCHIVE_DB if --with-archive-storage-engine is used
+dnl ---------------------------------------------------------------------------
+AC_DEFUN([MYSQL_CHECK_ARCHIVEDB], [
+  AC_ARG_WITH([archive-storage-engine],
+              [
+  --with-archive-storage-engine
+                          Enable the Archive Storage Engine],
+              [archivedb="$withval"],
+              [archivedb=no])
+  AC_MSG_CHECKING([for archive storage engine])
+
+  case "$archivedb" in
+    yes )
+      AC_DEFINE(HAVE_ARCHIVE_DB)
+      AC_MSG_RESULT([yes])
+      [archivedb=yes]
+      ;;
+    * )
+      AC_MSG_RESULT([no])
+      [archivedb=no]
+      ;;
+  esac
+
+])
+dnl ---------------------------------------------------------------------------
+dnl END OF MYSQL_CHECK_ARCHIVE SECTION
+dnl ---------------------------------------------------------------------------
+
+dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_CHECK_NDBCLUSTER
+dnl Sets HAVE_NDBCLUSTER_DB if --with-ndbcluster is used
+dnl ---------------------------------------------------------------------------
+                                                                                
+AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
+  AC_ARG_WITH([ndb-shm],
+              [
+  --with-ndb-shm        Include the NDB Cluster shared memory transporter],
+              [ndb_shm="$withval"],
+              [ndb_shm=no])
+  AC_ARG_WITH([ndb-sci],
+              [
+  --with-ndb-sci        Include the NDB Cluster sci transporter],
+              [ndb_sci="$withval"],
+              [ndb_sci=no])
+  AC_ARG_WITH([ndb-test],
+              [
+  --with-ndb-test       Include the NDB Cluster ndbapi test programs],
+              [ndb_test="$withval"],
+              [ndb_test=no])
+  AC_ARG_WITH([ndb-docs],
+              [
+  --with-ndb-docs       Include the NDB Cluster ndbapi and mgmapi documentation],
+              [ndb_docs="$withval"],
+              [ndb_docs=no])
+                                                                                
+  AC_MSG_CHECKING([for NDB Cluster options])
+  AC_MSG_RESULT([])
+                                                                                
+  have_ndb_shm=no
+  case "$ndb_shm" in
+    yes )
+      AC_MSG_RESULT([-- including shared memory transporter])
+      AC_DEFINE(NDB_SHM_TRANSPORTER)
+      have_ndb_shm="yes"
+      ;;
+    * )
+      AC_MSG_RESULT([-- not including shared memory transporter])
+      ;;
+  esac
+
+  have_ndb_sci=no
+  case "$ndb_sci" in
+    yes )
+      AC_MSG_RESULT([-- including sci transporter])
+      AC_DEFINE(NDB_SCI_TRANSPORTER)
+      have_ndb_sci="yes"
+      ;;
+    * )
+      AC_MSG_RESULT([-- not including sci transporter])
+      ;;
+  esac
+
+  have_ndb_test=no
+  case "$ndb_test" in
+    yes )
+      AC_MSG_RESULT([-- including ndbapi test programs])
+      have_ndb_test="yes"
+      ;;
+    * )
+      AC_MSG_RESULT([-- not including ndbapi test programs])
+      ;;
+  esac
+
+  have_ndb_docs=no
+  case "$ndb_docs" in
+    yes )
+      AC_MSG_RESULT([-- including ndbapi and mgmapi documentation])
+      have_ndb_docs="yes"
+      ;;
+    * )
+      AC_MSG_RESULT([-- not including ndbapi and mgmapi documentation])
+      ;;
+  esac
+
+  AC_MSG_RESULT([done.])
+])
+
+AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
+  AC_ARG_WITH([ndbcluster],
+              [
+  --with-ndbcluster        Include the NDB Cluster table handler],
+              [ndbcluster="$withval"],
+              [ndbcluster=no])
+                                                                                
+  AC_MSG_CHECKING([for NDB Cluster])
+                                                                                
+  have_ndbcluster=no
+  ndbcluster_includes=
+  ndbcluster_libs=
+  case "$ndbcluster" in
+    yes )
+      AC_MSG_RESULT([Using NDB Cluster])
+      AC_DEFINE(HAVE_NDBCLUSTER_DB)
+      have_ndbcluster="yes"
+      ndbcluster_includes="-I../ndb/include -I../ndb/include/ndbapi"
+      ndbcluster_libs="\$(top_builddir)/ndb/src/.libs/libndbclient.a"
+      ndbcluster_system_libs=""
+      MYSQL_CHECK_NDB_OPTIONS
+      ;;
+    * )
+      AC_MSG_RESULT([Not using NDB Cluster])
+      ;;
+  esac
+
+  AM_CONDITIONAL([HAVE_NDBCLUSTER_DB], [ test "$have_ndbcluster" = "yes" ])
+  AC_SUBST(ndbcluster_includes)
+  AC_SUBST(ndbcluster_libs)
+  AC_SUBST(ndbcluster_system_libs)
+])
+                                                                                
+dnl ---------------------------------------------------------------------------
+dnl END OF MYSQL_CHECK_NDBCLUSTER SECTION
+dnl ---------------------------------------------------------------------------
+
 
 dnl By default, many hosts won't let programs access large files;
 dnl one must use special compiler options to get large-file access to work.

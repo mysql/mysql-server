@@ -81,7 +81,9 @@ ha_search(
 {
 	ha_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	node = ha_chain_get_first(table, fold);
 
@@ -111,7 +113,9 @@ ha_search_and_get_data(
 {
 	ha_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	node = ha_chain_get_first(table, fold);
 
@@ -119,35 +123,6 @@ ha_search_and_get_data(
 		if (node->fold == fold) {
 
 			return(node->data);
-		}
-
-		node = ha_chain_get_next(node);
-	}
-
-	return(NULL);
-}
-
-/*****************************************************************
-Returns the next matching hash table node in chain. */
-UNIV_INLINE
-ha_node_t*
-ha_next(
-/*====*/
-				/* out: pointer to the next hash table node
-				in chain with the fold value, NULL if not
-				found */
-	ha_node_t*	node)	/* in: hash table node */
-{
-	ulint	fold;
-
-	fold = node->fold;
-
-	node = ha_chain_get_next(node);
-
-	while (node) {
-		if (node->fold == fold) {
-
-			return(node);
 		}
 
 		node = ha_chain_get_next(node);
@@ -170,7 +145,9 @@ ha_search_with_data(
 {
 	ha_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	node = ha_chain_get_first(table, fold);
 
@@ -200,7 +177,9 @@ ha_search_and_delete_if_found(
 {
 	ha_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	node = ha_search_with_data(table, fold, data);
 

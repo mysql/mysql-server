@@ -31,6 +31,7 @@ Item *create_func_char_length(Item* a);
 Item *create_func_cast(Item *a, Cast_target cast_type, int len, CHARSET_INFO *cs);
 Item *create_func_connection_id(void);
 Item *create_func_conv(Item* a, Item *b, Item *c);
+Item *create_func_convert_tz(Item* a, Item *b, Item *c);
 Item *create_func_cos(Item* a);
 Item *create_func_cot(Item* a);
 Item *create_func_crc32(Item* a);
@@ -91,12 +92,16 @@ Item *create_func_time_format(Item *a, Item *b);
 Item *create_func_time_to_sec(Item* a);
 Item *create_func_to_days(Item* a);
 Item *create_func_ucase(Item* a);
+Item *create_func_unhex(Item* a);
+Item *create_func_uuid(void);
 Item *create_func_version(void);
 Item *create_func_weekday(Item* a);
 Item *create_load_file(Item* a);
 Item *create_func_is_free_lock(Item* a);
 Item *create_func_is_used_lock(Item* a);
 Item *create_func_quote(Item* a);
+
+#ifdef HAVE_SPATIAL
 
 Item *create_func_geometry_from_text(Item *a);
 Item *create_func_as_wkt(Item *a);
@@ -136,6 +141,8 @@ Item *create_func_numinteriorring(Item *a);
 Item *create_func_numgeometries(Item *a);
 
 Item *create_func_point(Item *a, Item *b);
+
+#endif /*HAVE_SPATIAL*/
 
 Item *create_func_compress(Item *a);
 Item *create_func_uncompress(Item *a);

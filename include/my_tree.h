@@ -22,7 +22,9 @@ extern "C" {
 
 #include "my_base.h"		/* get 'enum ha_rkey_function' */
 
-#define MAX_TREE_HEIGHT	40	/* = max 1048576 leafs in tree */
+/* Worst case tree is half full. This gives use 2^(MAX_TREE_HEIGHT/2) leafs */
+#define MAX_TREE_HEIGHT	64
+
 #define ELEMENT_KEY(tree,element)\
 (tree->offset_to_key ? (void*)((byte*) element+tree->offset_to_key) :\
 			*((void**) (element+1)))

@@ -31,3 +31,68 @@ EXPLAIN SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+create table t1 (a int not null);
+create table t2 select * from t1 where 0=1 procedure analyse();
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `Field_name` char(255) NOT NULL default '',
+  `Min_value` char(255) default NULL,
+  `Max_value` char(255) default NULL,
+  `Min_length` bigint(11) NOT NULL default '0',
+  `Max_length` bigint(11) NOT NULL default '0',
+  `Empties_or_zeros` bigint(11) NOT NULL default '0',
+  `Nulls` bigint(11) NOT NULL default '0',
+  `Avg_value_or_avg_length` char(255) NOT NULL default '',
+  `Std` char(255) default NULL,
+  `Optimal_fieldtype` char(64) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t1 where 0=1 procedure analyse();
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+insert into t1 values(1);
+drop table t2;
+create table t2 select * from t1 where 0=1 procedure analyse();
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `Field_name` char(255) NOT NULL default '',
+  `Min_value` char(255) default NULL,
+  `Max_value` char(255) default NULL,
+  `Min_length` bigint(11) NOT NULL default '0',
+  `Max_length` bigint(11) NOT NULL default '0',
+  `Empties_or_zeros` bigint(11) NOT NULL default '0',
+  `Nulls` bigint(11) NOT NULL default '0',
+  `Avg_value_or_avg_length` char(255) NOT NULL default '',
+  `Std` char(255) default NULL,
+  `Optimal_fieldtype` char(64) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t2;
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+insert into t2 select * from t1 procedure analyse();
+select * from t2;
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+test.t1.a	1	1	1	1	0	0	1.0000	0.0000	ENUM('1') NOT NULL
+insert into t1 values(2);
+drop table t2;
+create table t2 select * from t1 where 0=1 procedure analyse();
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `Field_name` char(255) NOT NULL default '',
+  `Min_value` char(255) default NULL,
+  `Max_value` char(255) default NULL,
+  `Min_length` bigint(11) NOT NULL default '0',
+  `Max_length` bigint(11) NOT NULL default '0',
+  `Empties_or_zeros` bigint(11) NOT NULL default '0',
+  `Nulls` bigint(11) NOT NULL default '0',
+  `Avg_value_or_avg_length` char(255) NOT NULL default '',
+  `Std` char(255) default NULL,
+  `Optimal_fieldtype` char(64) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select * from t2;
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+insert into t2 select * from t1 procedure analyse();
+select * from t2;
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+test.t1.a	1	2	1	1	0	0	1.5000	0.5000	ENUM('1','2') NOT NULL
+drop table t1,t2;

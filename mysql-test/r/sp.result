@@ -1,3 +1,4 @@
+reset master;
 use test;
 drop table if exists t1;
 drop table if exists t2;
@@ -18,17 +19,6 @@ id	data
 foo	42
 delete from t1;
 drop procedure foo42;
-create procedure u()
-use sptmp;
-drop database if exists sptmp;
-create database sptmp;
-use test;
-call u();
-select database();
-database()
-test
-drop database sptmp;
-drop procedure u;
 create procedure bar(x char(16), y int)
 insert into test.t1 values (x, y);
 call bar("bar", 666);
@@ -75,6 +65,20 @@ id	data
 locset	21
 delete from t1|
 drop procedure locset|
+create procedure setcontext()
+begin
+declare data int default 2;
+insert into t1 (id, data) values ("foo", 1);
+replace t1 set data = data, id = "bar";
+update t1 set id = "kaka", data = 3 where t1.data = data;
+end|
+call setcontext()|
+select * from t1|
+id	data
+foo	1
+kaka	3
+delete from t1|
+drop procedure setcontext|
 drop table if exists t3|
 create table t3 ( d date, i int, f double, s varchar(32) )|
 create procedure nullset()
@@ -657,12 +661,12 @@ drop table t3|
 drop procedure hndlr4|
 create procedure cur1()
 begin
-declare done int default 0;
-declare continue handler for sqlstate '02000' set done = 1;
-declare c cursor for select * from test.t2;
 declare a char(16);
 declare b int;
 declare c double;
+declare done int default 0;
+declare c cursor for select * from test.t2;
+declare continue handler for sqlstate '02000' set done = 1;
 open c;
 repeat
 fetch c into a, b, c;
@@ -685,9 +689,9 @@ create table t3 ( s char(16), i int )|
 create procedure cur2()
 begin
 declare done int default 0;
-declare continue handler for sqlstate '02000' set done = 1;
 declare c1 cursor for select id,data from test.t1;
 declare c2 cursor for select i from test.t2;
+declare continue handler for sqlstate '02000' set done = 1;
 open c1;
 open c2;
 repeat
@@ -731,8 +735,8 @@ chistics	1
 delete from t1|
 alter procedure chistics sql security invoker name chistics2|
 show create procedure chistics2|
-Procedure	Create Procedure
-chistics2	CREATE PROCEDURE `chistics2`()
+Procedure	sql_mode	Create Procedure
+chistics2		CREATE PROCEDURE `test`.`chistics2`()
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
 insert into t1 values ("chistics", 1)
@@ -748,8 +752,8 @@ chistics()
 42
 alter function chistics name chistics2 comment 'Characteristics function test'|
 show create function chistics2|
-Function	Create Function
-chistics2	CREATE FUNCTION `chistics2`() RETURNS int
+Function	sql_mode	Create Function
+chistics2		CREATE FUNCTION `test`.`chistics2`() RETURNS int
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics function test'
@@ -761,8 +765,8 @@ create procedure modes(out c1 int, out c2 int)
 begin
 declare done int default 0;
 declare x int;
-declare continue handler for sqlstate '02000' set done = 1;
 declare c cursor for select data from t1;
+declare continue handler for sqlstate '02000' set done = 1;
 select 1 || 2 into c1;
 set c2 = 0;
 open c;
@@ -783,6 +787,49 @@ select @c1, @c2|
 12	3
 delete from t1|
 drop procedure modes|
+create database sp_db1|
+drop database sp_db1|
+create database sp_db2|
+use sp_db2|
+create table t3 ( s char(4), t int )|
+insert into t3 values ("abcd", 42), ("dcba", 666)|
+use test|
+drop database sp_db2|
+create database sp_db3|
+use sp_db3|
+create procedure dummy(out x int)
+set x = 42|
+use test|
+drop database sp_db3|
+select type,db,name from mysql.proc where db = 'sp_db3'|
+type	db	name
+create procedure rc()
+begin
+delete from t1;
+insert into t1 values ("a", 1), ("b", 2), ("c", 3);
+end|
+call rc()|
+select row_count()|
+row_count()
+3
+update t1 set data=42 where id = "b";
+select row_count()|
+row_count()
+1
+delete from t1|
+select row_count()|
+row_count()
+3
+delete from t1|
+select row_count()|
+row_count()
+0
+select * from t1|
+id	data
+select row_count()|
+row_count()
+-1
+drop procedure rc|
 create procedure bug822(a_id char(16), a_data int)
 begin
 declare n int;
@@ -896,8 +943,8 @@ drop procedure bug1874|
 create procedure bug2260()
 begin
 declare v1 int;
-declare continue handler for not found set @x2 = 1;
 declare c1 cursor for select data from t1;
+declare continue handler for not found set @x2 = 1;
 open c1;
 fetch c1 into v1;
 set @x2 = 2;
@@ -908,6 +955,644 @@ select @x2|
 @x2
 2
 drop procedure bug2260|
+create procedure bug2267_1()
+begin
+show procedure status;
+end|
+create procedure bug2267_2()
+begin
+show function status;
+end|
+create procedure bug2267_3()
+begin
+show create procedure bug2267_1;
+end|
+create procedure bug2267_4()
+begin
+show create function fac;
+end|
+call bug2267_1()|
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	bug2267_1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	bug2267_2	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	bug2267_3	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	bug2267_4	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+call bug2267_2()|
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+call bug2267_3()|
+Procedure	sql_mode	Create Procedure
+bug2267_1		CREATE PROCEDURE `test`.`bug2267_1`()
+begin
+show procedure status;
+end
+call bug2267_4()|
+Function	sql_mode	Create Function
+fac		CREATE FUNCTION `test`.`fac`(n int unsigned) RETURNS bigint unsigned
+begin
+declare f bigint unsigned default 1;
+while n > 1 do
+set f = f * n;
+set n = n - 1;
+end while;
+return f;
+end
+drop procedure bug2267_1|
+drop procedure bug2267_2|
+drop procedure bug2267_3|
+drop procedure bug2267_4|
+create procedure bug2227(x int)
+begin
+declare y float default 2.6;
+declare z char(16) default "zzz";
+select 1.3, x, y, 42, z;
+end|
+call bug2227(9)|
+1.3	x	y	42	z
+1.3	9	2.6	42	zzz
+drop procedure bug2227|
+create procedure bug2614()
+begin
+drop table if exists t3;
+create table t3 (id int default '0' not null);
+insert into t3 select 12;
+insert into t3 select * from t3;
+end|
+call bug2614()|
+call bug2614()|
+drop table t3|
+drop procedure bug2614|
+create function bug2674 () returns int
+return @@sort_buffer_size|
+set @osbs = @@sort_buffer_size|
+set @@sort_buffer_size = 262000|
+select bug2674()|
+bug2674()
+262000
+drop function bug2674|
+set @@sort_buffer_size = @osbs|
+create procedure bug3259_1 () begin end|
+create procedure BUG3259_2 () begin end|
+create procedure Bug3259_3 () begin end|
+call BUG3259_1()|
+call BUG3259_1()|
+call bug3259_2()|
+call Bug3259_2()|
+call bug3259_3()|
+call bUG3259_3()|
+drop procedure bUg3259_1|
+drop procedure BuG3259_2|
+drop procedure BUG3259_3|
+create function bug2772() returns char(10) character set latin2
+return 'a'|
+select bug2772()|
+bug2772()
+a
+drop function bug2772|
+create procedure bug2776_1(out x int)
+begin
+declare v int;
+set v = default;
+set x = v;
+end|
+create procedure bug2776_2(out x int)
+begin
+declare v int default 42;
+set v = default;
+set x = v;
+end|
+set @x = 1|
+call bug2776_1(@x)|
+select @x|
+@x
+NULL
+call bug2776_2(@x)|
+select @x|
+@x
+42
+drop procedure bug2776_1|
+drop procedure bug2776_2|
+drop table if exists t3|
+create table t3 (s1 smallint)|
+insert into t3 values (123456789012)|
+Warnings:
+Warning	1264	Data truncated; out of range for column 's1' at row 1
+create procedure bug2780()
+begin
+declare exit handler for sqlwarning set @x = 1; 
+set @x = 0;
+insert into t3 values (123456789012);
+insert into t3 values (0);
+end|
+call bug2780()|
+select @x|
+@x
+1
+select * from t3|
+s1
+32767
+32767
+drop procedure bug2780|
+drop table t3|
+drop table if exists t3|
+create table t3 (content varchar(10) )|
+insert into t3 values ("test1")|
+insert into t3 values ("test2")|
+drop table if exists t4|
+create table t4 (f1 int, rc int, t3 int)|
+create procedure bug1863(in1 int)
+begin 
+declare ind int default 0;
+declare t1 int;
+declare t2 int;
+declare t3 int;
+declare rc int default 0;
+declare continue handler for 1065 set rc = 1;
+drop table if exists temp_t1;
+create temporary table temp_t1 (
+f1 int auto_increment, f2 varchar(20), primary key (f1)
+);
+insert into temp_t1 (f2) select content from t3;
+select f2 into t3 from temp_t1 where f1 = 10;
+if (rc) then
+insert into t4 values (1, rc, t3);
+end if;
+insert into t4 values (2, rc, t3);
+end|
+call bug1863(10)|
+Warnings:
+call bug1863(10)|
+Warnings:
+select * from t4|
+f1	rc	t3
+2	0	NULL
+2	0	NULL
+drop procedure bug1863|
+drop table t3, t4|
+drop table if exists t3, t4|
+create table t3 ( 
+OrderID  int not null,
+MarketID int,
+primary key (OrderID)
+)|
+create table t4 ( 
+MarketID int not null,
+Market varchar(60),
+Status char(1),
+primary key (MarketID)
+)|
+insert t3 (OrderID,MarketID) values (1,1)|
+insert t3 (OrderID,MarketID) values (2,2)|
+insert t4 (MarketID,Market,Status) values (1,"MarketID One","A")|
+insert t4 (MarketID,Market,Status) values (2,"MarketID Two","A")|
+create procedure bug2656_1()
+begin 
+select
+m.Market
+from  t4 m JOIN t3 o 
+ON o.MarketID != 1 and o.MarketID = m.MarketID;
+end |
+create procedure bug2656_2()
+begin 
+select
+m.Market
+from  
+t4 m, t3 o
+where       
+m.MarketID != 1 and m.MarketID = o.MarketID;
+end |
+call bug2656_1()|
+Market
+MarketID Two
+call bug2656_1()|
+Market
+MarketID Two
+call bug2656_2()|
+Market
+MarketID Two
+call bug2656_2()|
+Market
+MarketID Two
+drop procedure bug2656_1|
+drop procedure bug2656_2|
+drop table t3, t4|
+create procedure bug3426(in_time int unsigned, out x int)
+begin
+if in_time is null then
+set @stamped_time=10;
+set x=1;
+else
+set @stamped_time=in_time;
+set x=2;
+end if;
+end|
+call bug3426(1000, @i)|
+select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
+@i	time
+2	01-01-1970 03:16:40
+call bug3426(NULL, @i)|
+select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
+@i	time
+1	01-01-1970 03:00:10
+alter procedure bug3426 sql security invoker|
+call bug3426(NULL, @i)|
+select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
+@i	time
+1	01-01-1970 03:00:10
+call bug3426(1000, @i)|
+select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
+@i	time
+2	01-01-1970 03:16:40
+drop procedure bug3426|
+drop table if exists t3, t4|
+create table t3 (
+a int primary key, 
+ach char(1)
+) engine = innodb|
+create table t4 (
+b int  primary key , 
+bch char(1)
+) engine = innodb|
+insert into t3 values (1 , 'aCh1' ) , ('2' , 'aCh2')|
+Warnings:
+Warning	1265	Data truncated for column 'ach' at row 1
+Warning	1265	Data truncated for column 'ach' at row 2
+insert into t4 values (1 , 'bCh1' )|
+Warnings:
+Warning	1265	Data truncated for column 'bch' at row 1
+create procedure bug3448()
+select * from t3 inner join t4 on t3.a = t4.b|
+select * from t3 inner join t4 on t3.a = t4.b|
+a	ach	b	bch
+1	a	1	b
+call bug3448()|
+a	ach	b	bch
+1	a	1	b
+call bug3448()|
+a	ach	b	bch
+1	a	1	b
+drop procedure bug3448|
+drop table t3, t4|
+drop table if exists t3|
+create table t3 (
+id int unsigned auto_increment not null primary key,
+title VARCHAR(200),
+body text,
+fulltext (title,body)
+)|
+insert into t3 (title,body) values
+('MySQL Tutorial','DBMS stands for DataBase ...'),
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...')|
+create procedure bug3734 (param1 varchar(100))
+select * from t3 where match (title,body) against (param1)|
+call bug3734('database')|
+id	title	body
+5	MySQL vs. YourSQL	In the following database comparison ...
+1	MySQL Tutorial	DBMS stands for DataBase ...
+call bug3734('Security')|
+id	title	body
+6	MySQL Security	When configured properly, MySQL ...
+drop procedure bug3734|
+drop table t3|
+create procedure bug3863()
+begin
+set @a = 0;
+while @a < 5 do
+set @a = @a + 1;
+end while;
+end|
+call bug3863()|
+select @a|
+@a
+5
+call bug3863()|
+select @a|
+@a
+5
+drop procedure bug3863|
+drop table if exists t3|
+create table t3 (
+id int(10) unsigned not null default 0,
+rid int(10) unsigned not null default 0,
+msg text not null,
+primary key (id),
+unique key rid (rid, id)
+)|
+create procedure bug2460_1(in v int)
+begin
+( select n0.id from t3 as n0 where n0.id = v )
+union
+( select n0.id from t3 as n0, t3 as n1
+where n0.id = n1.rid and n1.id = v )
+union
+( select n0.id from t3 as n0, t3 as n1, t3 as n2
+where n0.id = n1.rid and n1.id = n2.rid and n2.id = v );
+end|
+call bug2460_1(2)|
+id
+call bug2460_1(2)|
+id
+insert into t3 values (1, 1, 'foo'), (2, 1, 'bar'), (3, 1, 'zip zap')|
+call bug2460_1(2)|
+id
+2
+1
+call bug2460_1(2)|
+id
+2
+1
+create procedure bug2460_2()
+begin
+drop table if exists t3;
+create table t3 (s1 int);
+insert into t3 select 1 union select 1;
+end|
+call bug2460_2()|
+call bug2460_2()|
+select * from t3|
+s1
+1
+drop procedure bug2460_1|
+drop procedure bug2460_2|
+drop table t3|
+set @@sql_mode = ''|
+create procedure bug2564_1()
+comment 'Joe''s procedure'
+  insert into `t1` values ("foo", 1)|
+set @@sql_mode = 'ANSI_QUOTES'|
+create procedure bug2564_2()
+insert into "t1" values ('foo', 1)|
+set @@sql_mode = ''$
+create function bug2564_3(x int, y int) returns int
+return x || y$
+set @@sql_mode = 'ANSI'$
+create function bug2564_4(x int, y int) returns int
+return x || y$
+set @@sql_mode = ''|
+show create procedure bug2564_1|
+Procedure	sql_mode	Create Procedure
+bug2564_1		CREATE PROCEDURE `test`.`bug2564_1`()
+    COMMENT 'Joe''s procedure'
+insert into `t1` values ("foo", 1)
+show create procedure bug2564_2|
+Procedure	sql_mode	Create Procedure
+bug2564_2	ANSI_QUOTES	CREATE PROCEDURE "test"."bug2564_2"()
+insert into "t1" values ('foo', 1)
+show create function bug2564_3|
+Function	sql_mode	Create Function
+bug2564_3		CREATE FUNCTION `test`.`bug2564_3`(x int, y int) RETURNS int
+return x || y
+show create function bug2564_4|
+Function	sql_mode	Create Function
+bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	CREATE FUNCTION "test"."bug2564_4"(x int, y int) RETURNS int
+return x || y
+drop procedure bug2564_1|
+drop procedure bug2564_2|
+drop function bug2564_3|
+drop function bug2564_4|
+create function bug3132(s char(20)) returns char(50)
+return concat('Hello, ', s, '!')|
+select bug3132('Bob') union all select bug3132('Judy')|
+bug3132('Bob')
+Hello, Bob!
+Hello, Judy!
+drop function bug3132|
+create procedure bug3843()
+analyze table t1|
+call bug3843()|
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+call bug3843()|
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+select 1+2|
+1+2
+3
+drop procedure bug3843|
+drop table if exists t3|
+create table t3 ( s1 char(10) )|
+insert into t3 values ('a'), ('b')|
+create procedure bug3368(v char(10))
+begin
+select group_concat(v) from t3;
+end|
+call bug3368('x')|
+group_concat(v)
+x,x
+call bug3368('yz')|
+group_concat(v)
+yz,yz
+drop procedure bug3368|
+drop table t3|
+drop table if exists t3|
+create table t3 (f1 int, f2 int);
+insert into t3 values (1,1);
+create procedure bug4579_1 ()
+begin
+declare sf1 int;
+select f1 into sf1 from t3 where f1=1 and f2=1;
+update t3 set f2 = f2 + 1 where f1=1 and f2=1;
+call bug4579_2();
+end|
+create procedure bug4579_2 ()
+begin
+end|
+call bug4579_1()|
+call bug4579_1()|
+Warnings:
+call bug4579_1()|
+Warnings:
+drop procedure bug4579_1|
+drop procedure bug4579_2|
+drop table t3|
+drop table if exists t3|
+create table t3 (f1 int, f2 int, f3 int)|
+insert into t3 values (1,1,1)|
+create procedure bug4726()
+begin
+declare tmp_o_id INT;
+declare tmp_d_id INT default 1;
+while tmp_d_id <= 2 do
+begin
+select f1 into tmp_o_id from t3 where f2=1 and f3=1;
+set tmp_d_id = tmp_d_id + 1;
+end;
+end while;
+end|
+call bug4726()|
+call bug4726()|
+call bug4726()|
+drop procedure bug4726|
+drop table t3|
+drop table if exists t3|
+create table t3 (s1 int)|
+insert into t3 values (3), (4)|
+create procedure bug4318()
+handler t3 read next|
+handler t3 open|
+call bug4318()|
+s1
+3
+call bug4318()|
+s1
+4
+handler t3 close|
+drop procedure bug4318|
+drop table t3|
+create procedure bug4902()
+begin
+show charset like 'foo';
+show collation like 'foo';
+show column types;
+show create table t1;
+show create database test;
+show databases like 'foo';
+show errors;
+show columns from t1;
+show grants for 'root'@'localhost';
+show keys from t1;
+show master status;
+show open tables like 'foo';
+show privileges;
+show slave hosts;
+show slave status;
+show status like 'foo';
+show tables like 'foo';
+show variables like 'foo';
+show warnings;
+end|
+call bug4902()|
+Charset	Description	Default collation	Maxlen
+Collation	Charset	Id	Default	Compiled	Sortlen
+Type	Size	Min_Value	Max_Value	Prec	Scale	Nullable	Auto_Increment	Unsigned	Zerofill	Searchable	Case_Sensitive	Default	Comment
+tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
+tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` char(16) NOT NULL default '',
+  `data` int(11) NOT NULL default '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+Database	Create Database
+test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET latin1 */
+Database (foo)
+Level	Code	Message
+Field	Type	Null	Key	Default	Extra
+id	char(16)				
+data	int(11)			0	
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	22185		
+Database	Table	In_use	Name_locked
+Privilege	Context	Comment
+Alter	Tables	To alter the table
+Create	Databases,Tables,Indexes	To create new databases and tables
+Create temporary tables	Databases	To use CREATE TEMPORARY TABLE
+Create view	Tables	To create new views
+Delete	Tables	To delete existing rows
+Drop	Databases,Tables	To drop databases, tables, and views
+File	File access on server	To read and write files on the server
+Grant option	Databases,Tables	To give to other users those privileges you possess
+Index	Tables	To create or drop indexes
+Insert	Tables	To insert data into tables
+Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
+Process	Server Admin	To view the plain text of currently executing queries
+References	Databases,Tables	To have references on tables
+Reload	Server Admin	To reload or refresh tables, logs and privileges
+Replication client	Server Admin	To ask where the slave or master servers are
+Replication slave	Server Admin	To read binary log events from the master
+Select	Tables	To retrieve rows from table
+Show databases	Server Admin	To see all databases with SHOW DATABASES
+Show view	Tables	To see views with SHOW CREATE VIEW
+Shutdown	Server Admin	To shut down the server
+Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
+Update	Tables	To update existing rows
+Usage	Server Admin	No privileges - allow connect only
+Server_id	Host	Port	Rpl_recovery_rank	Master_id
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+Variable_name	Value
+Tables_in_test (foo)	table_type
+Variable_name	Value
+Level	Code	Message
+call bug4902()|
+Charset	Description	Default collation	Maxlen
+Collation	Charset	Id	Default	Compiled	Sortlen
+Type	Size	Min_Value	Max_Value	Prec	Scale	Nullable	Auto_Increment	Unsigned	Zerofill	Searchable	Case_Sensitive	Default	Comment
+tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
+tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` char(16) NOT NULL default '',
+  `data` int(11) NOT NULL default '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+Database	Create Database
+test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET latin1 */
+Database (foo)
+Level	Code	Message
+Field	Type	Null	Key	Default	Extra
+id	char(16)				
+data	int(11)			0	
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	22185		
+Database	Table	In_use	Name_locked
+Privilege	Context	Comment
+Alter	Tables	To alter the table
+Create	Databases,Tables,Indexes	To create new databases and tables
+Create temporary tables	Databases	To use CREATE TEMPORARY TABLE
+Create view	Tables	To create new views
+Delete	Tables	To delete existing rows
+Drop	Databases,Tables	To drop databases, tables, and views
+File	File access on server	To read and write files on the server
+Grant option	Databases,Tables	To give to other users those privileges you possess
+Index	Tables	To create or drop indexes
+Insert	Tables	To insert data into tables
+Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
+Process	Server Admin	To view the plain text of currently executing queries
+References	Databases,Tables	To have references on tables
+Reload	Server Admin	To reload or refresh tables, logs and privileges
+Replication client	Server Admin	To ask where the slave or master servers are
+Replication slave	Server Admin	To read binary log events from the master
+Select	Tables	To retrieve rows from table
+Show databases	Server Admin	To see all databases with SHOW DATABASES
+Show view	Tables	To see views with SHOW CREATE VIEW
+Shutdown	Server Admin	To shut down the server
+Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
+Update	Tables	To update existing rows
+Usage	Server Admin	No privileges - allow connect only
+Server_id	Host	Port	Rpl_recovery_rank	Master_id
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+Variable_name	Value
+Tables_in_test (foo)	table_type
+Variable_name	Value
+Level	Code	Message
+drop procedure bug4902|
+create procedure bug4902_2()
+begin
+show processlist;
+end|
+call bug4902_2()|
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	0	NULL	call bug4902_2()
+call bug4902_2()|
+Id	User	Host	db	Command	Time	State	Info
+#	root	localhost	test	Query	0	NULL	call bug4902_2()
+drop procedure bug4902_2|
+drop table if exists t3|
+create procedure bug4904()
+begin
+declare continue handler for sqlstate 'HY000' begin end;
+create table t2 as select * from t;
+end|
+call bug4904()|
+drop procedure bug4904|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
@@ -948,12 +1633,12 @@ n	f
 20	2432902008176640000
 drop table fac|
 show function status like '%f%'|
-Name	Type	Definer	Modified	Created	Security_type	Comment
-fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 drop procedure ifac|
 drop function fac|
 show function status like '%f%'|
-Name	Type	Definer	Modified	Created	Security_type	Comment
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 drop table if exists primes|
 create table primes (
 i int unsigned not null primary key,
@@ -1013,8 +1698,8 @@ end;
 end while;
 end|
 show create procedure opp|
-Procedure	Create Procedure
-opp	CREATE PROCEDURE `opp`(n bigint unsigned, out pp bool)
+Procedure	sql_mode	Create Procedure
+opp		CREATE PROCEDURE `test`.`opp`(n bigint unsigned, out pp bool)
 begin
 declare r double;
 declare b, s bigint unsigned default 0;
@@ -1041,9 +1726,9 @@ end if;
 end loop;
 end
 show procedure status like '%p%'|
-Name	Type	Definer	Modified	Created	Security_type	Comment
-ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
-opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+test	opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 call ip(200)|
 select * from primes where i=45 or i=100 or i=199|
 i	p
@@ -1054,7 +1739,7 @@ drop table primes|
 drop procedure opp|
 drop procedure ip|
 show procedure status like '%p%'|
-Name	Type	Definer	Modified	Created	Security_type	Comment
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
 drop table if exists fib|
 create table fib ( f bigint unsigned not null )|
 insert into fib values (1), (1)|
@@ -1104,19 +1789,29 @@ create procedure bar(x char(16), y int)
 comment "111111111111" sql security invoker
 insert into test.t1 values (x, y)|
 show procedure status like 'bar'|
-Name	Type	Definer	Modified	Created	Security_type	Comment
-bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	111111111111
 alter procedure bar name bar2 comment "2222222222" sql security definer|
 alter procedure bar2 name bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
-Procedure	Create Procedure
-bar	CREATE PROCEDURE `bar`(x char(16), y int)
+Procedure	sql_mode	Create Procedure
+bar		CREATE PROCEDURE `test`.`bar`(x char(16), y int)
     COMMENT '3333333333'
 insert into test.t1 values (x, y)
 show procedure status like 'bar'|
-Name	Type	Definer	Modified	Created	Security_type	Comment
-bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+test	bar	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	3333333333
 drop procedure bar|
 drop table t1;
 drop table t2;
+create procedure p1 () select (select s1 from t1) from t1;
+create table t1 (s1 int);
+call p1();
+(select s1 from t1)
+insert into t1 values (1);
+call p1();
+(select s1 from t1)
+1
+drop procedure p1;
+drop table t1;

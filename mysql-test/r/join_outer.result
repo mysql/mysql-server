@@ -106,11 +106,11 @@ grp	a	c	id	a	c	d	a
 3	6	D	3	6	C	6	6
 NULL	NULL		NULL	NULL	NULL	NULL	NULL
 explain select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t1.a=t3.a);
-ERROR 42000: Cross dependency found in OUTER JOIN.  Examine your ON conditions
+ERROR 42000: Cross dependency found in OUTER JOIN; examine your ON conditions
 select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t1.a=t3.a);
-ERROR 42000: Cross dependency found in OUTER JOIN.  Examine your ON conditions
+ERROR 42000: Cross dependency found in OUTER JOIN; examine your ON conditions
 select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
-ERROR 42000: Cross dependency found in OUTER JOIN.  Examine your ON conditions
+ERROR 42000: Cross dependency found in OUTER JOIN; examine your ON conditions
 select t1.*,t2.* from t1 inner join t2 using (a);
 grp	a	c	id	a	c	d
 1	1	a	1	1	a	1
@@ -124,8 +124,8 @@ grp	a	c	id	a	c	d
 3	5	C	3	5	B	5
 3	6	D	3	6	C	6
 select t1.*,t2.* from t1 natural join t2;
-grp	a	c	id	a	c	d
-1	1	a	1	1	a	1
+grp	a	c	id	d
+1	1	a	1	1
 drop table t1,t2;
 CREATE TABLE t1 (
 usr_id INT unsigned NOT NULL,
@@ -356,13 +356,7 @@ select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id =
 name	name	id	owner	id
 Antonio Paz	El Gato	1	1	1
 Antonio Paz	Perrito	2	1	1
-Lilliana Angelovska	NULL	NULL	NULL	1
-Thimble Smith	NULL	NULL	NULL	1
-Antonio Paz	NULL	NULL	NULL	2
-Lilliana Angelovska	NULL	NULL	NULL	2
-Thimble Smith	NULL	NULL	NULL	2
-Antonio Paz	NULL	NULL	NULL	3
-Lilliana Angelovska	NULL	NULL	NULL	3
+NULL	NULL	NULL	NULL	2
 Thimble Smith	Happy	3	3	3
 drop table t1,t2;
 create table t1 (id int not null, str char(10), index(str));
@@ -406,7 +400,7 @@ insert into t3 values (1);
 insert into t4 values (1,1);
 insert into t5 values (1,1);
 explain select * from t3 left join t4 on t4.seq_1_id = t2.t2_id left join t1 on t1.t1_id = t4.seq_0_id left join t5 on t5.seq_0_id = t1.t1_id left join t2 on t2.t2_id = t5.seq_1_id where t3.t3_id = 23;
-ERROR 42000: Cross dependency found in OUTER JOIN.  Examine your ON conditions
+ERROR 42000: Cross dependency found in OUTER JOIN; examine your ON conditions
 drop table t1,t2,t3,t4,t5;
 create table t1 (n int, m int, o int, key(n));
 create table t2 (n int not null, m int, o int, primary key(n));
@@ -467,10 +461,10 @@ count	color
 15	white
 7	green
 select * from t2 natural join t1;
-count	color	color	name
-10	green	green	lime
-7	green	green	lime
-5	black	black	grape
+count	color	name
+10	green	lime
+7	green	lime
+5	black	grape
 select t2.count, t1.name from t2 natural join t1;
 count	name
 10	lime
@@ -634,7 +628,7 @@ insert into t2 values (10,1),(20,2),(30,3);
 explain select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	3	Using index
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	2	const	1	Using where; Using index
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	2	const	1	Using index
 select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 fooID	barID	fooID
 10	1	NULL

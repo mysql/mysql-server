@@ -68,16 +68,6 @@ row_build_index_entry(
 	dict_index_t*	index, 	/* in: index on the table */
 	mem_heap_t*	heap);	/* in: memory heap from which the memory for
 				the index entry is allocated */
-/*********************************************************************
-Builds an index entry from a row. */
-
-void
-row_build_index_entry_to_tuple(
-/*===========================*/
-	dtuple_t*	entry,	/* in/out: index entry; the dtuple must have
-				enough fields for the index! */
-	dtuple_t*	row, 	/* in: row */
-	dict_index_t*	index); /* in: index on the table */
 /***********************************************************************
 An inverse function to dict_row_build_index_entry. Builds a row from a
 record in a clustered index. */
@@ -102,21 +92,6 @@ row_build(
 				as long as the row dtuple is used! */
 	mem_heap_t*	heap);	/* in: memory heap from which the memory
 				needed is allocated */
-/***********************************************************************
-An inverse function to dict_row_build_index_entry. Builds a row from a
-record in a clustered index. */
-
-void
-row_build_to_tuple(
-/*===============*/
-	dtuple_t*	row,	/* in/out: row built; see the NOTE below! */
-	dict_index_t*	index,	/* in: clustered index */
-	rec_t*		rec);	/* in: record in the clustered index;
-				NOTE: the data fields in the row will point
-				directly into this record, therefore,
-				the buffer page of this record must be
-				at least s-latched and the latch held
-				as long as the row dtuple is used! */
 /***********************************************************************
 Converts an index record to a typed data tuple. */
 

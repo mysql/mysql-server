@@ -46,9 +46,9 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
-                                Field* field, COND *cond,
-                                uint *range_fl, uint *key_prefix_length);
+static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref, Field* field,
+                                COND *cond, uint *range_fl,
+                                uint *key_prefix_length);
 static int reckey_in_range(bool max_fl, TABLE_REF *ref, Field* field,
                             COND *cond, uint range_fl, uint prefix_len);
 static int maxmin_in_range(bool max_fl, Field* field, COND *cond);
@@ -89,7 +89,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
     where_tables= conds->used_tables();
 
   /* Don't replace expression on a table that is part of an outer join */
-  for (TABLE_LIST *tl=tables; tl ; tl= tl->next)
+  for (TABLE_LIST *tl= tables; tl; tl= tl->next_local)
   {
     if (tl->on_expr)
     {
@@ -128,7 +128,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
         {
           longlong count= 1;
           TABLE_LIST *table;
-          for (table=tables ; table ; table=table->next)
+          for (table= tables; table; table= table->next_local)
           {
             if (outer_tables || (table->table->file->table_flags() &
                                  HA_NOT_EXACT_COUNT))
@@ -166,11 +166,6 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           Item_field *item_field= ((Item_field*) expr);
           TABLE *table= item_field->field->table;
 
-	  if ((table->file->table_flags() & HA_NOT_READ_AFTER_KEY))
-	  {
-	    const_result=0;
-	    break;
-	  }
           /* 
             Look for a partial key that can be used for optimization.
             If we succeed, ref.key_length will contain the length of
@@ -186,7 +181,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             const_result= 0;
             break;
           }
-          error= table->file->index_init((uint) ref.key);
+          error= table->file->ha_index_init((uint) ref.key);
 
           if (!ref.key_length)
             error= table->file->index_first(table->record[0]);
@@ -206,7 +201,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             table->key_read= 0;
             table->file->extra(HA_EXTRA_NO_KEYREAD);
           }
-          table->file->index_end();
+          table->file->ha_index_end();
           if (error)
 	  {
 	    if (error == HA_ERR_KEY_NOT_FOUND || error == HA_ERR_END_OF_FILE)
@@ -260,12 +255,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             const_result= 0;
             break;
           }
-          if ((table->file->table_flags() & HA_NOT_READ_AFTER_KEY))
-          {
-            const_result= 0;
-            break;
-          }
-          error= table->file->index_init((uint) ref.key);
+          error= table->file->ha_index_init((uint) ref.key);
 
           if (!ref.key_length)
             error= table->file->index_last(table->record[0]);
@@ -285,7 +275,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             table->key_read=0;
             table->file->extra(HA_EXTRA_NO_KEYREAD);
           }
-          table->file->index_end();
+          table->file->ha_index_end();
           if (error)
           {
 	    if (error == HA_ERR_KEY_NOT_FOUND || error == HA_ERR_END_OF_FILE)
@@ -639,7 +629,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
   if (!(field->flags & PART_KEY_FLAG))
     return 0;                                        // Not key field
   *prefix_len= 0;
-  
+
   TABLE *table= field->table;
   uint idx= 0;
 
@@ -647,16 +637,17 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
   for (keyinfo= table->key_info, keyinfo_end= keyinfo+table->keys ;
        keyinfo != keyinfo_end;
        keyinfo++,idx++)
-  {      
-    if (table->file->index_flags(idx) & HA_WRONG_ASCII_ORDER)
-      break;
-
+  {
     KEY_PART_INFO *part,*part_end;
     key_part_map key_part_to_use= 0;
+    uint jdx= 0;
     for (part= keyinfo->key_part, part_end= part+keyinfo->key_parts ;
          part != part_end ;
-         part++, key_part_to_use= (key_part_to_use << 1) | 1)
+         part++, jdx++, key_part_to_use= (key_part_to_use << 1) | 1)
     {
+      if (!(table->file->index_flags(idx, jdx, 0) & HA_READ_ORDER))
+        return 0;
+
       if (field->eq(part->field))
       {
         ref->key= idx;
@@ -716,7 +707,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
 static int reckey_in_range(bool max_fl, TABLE_REF *ref, Field* field,
                             COND *cond, uint range_fl, uint prefix_len)
 {
-  if (key_cmp(field->table, ref->key_buff, ref->key, prefix_len))
+  if (key_cmp_if_same(field->table, ref->key_buff, ref->key, prefix_len))
     return 1;
   if (!cond || (range_fl & (max_fl ? NO_MIN_RANGE : NO_MAX_RANGE)))
     return 0;

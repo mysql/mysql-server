@@ -109,7 +109,7 @@ static void do_outer_field_to_null_str(Copy_field *copy)
 }
 
 
-bool
+int
 set_field_to_null(Field *field)
 {
   if (field->real_maybe_null())
@@ -121,13 +121,14 @@ set_field_to_null(Field *field)
   field->reset();
   if (current_thd->count_cuted_fields == CHECK_FIELD_WARN)
   {
-    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,ER_WARN_DATA_TRUNCATED);
+    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                       ER_WARN_DATA_TRUNCATED, 1);
     return 0;
   }
   if (!current_thd->no_errors)
     my_printf_error(ER_BAD_NULL_ERROR,ER(ER_BAD_NULL_ERROR),MYF(0),
 		    field->field_name);
-  return 1;
+  return -1;
 }
 
 
@@ -145,11 +146,11 @@ set_field_to_null(Field *field)
 
   RETURN VALUES
     0		Field could take 0 or an automatic conversion was used
-    1		Field could not take NULL and no conversion was used.
+    -1		Field could not take NULL and no conversion was used.
 		If no_conversion was not set, an error message is printed
 */
 
-bool
+int
 set_field_to_null_with_conversions(Field *field, bool no_conversions)
 {
   if (field->real_maybe_null())
@@ -159,7 +160,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     return 0;
   }
   if (no_conversions)
-    return 1;
+    return -1;
 
   /*
     Check if this is a special type, which will get a special walue
@@ -173,18 +174,19 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   field->reset();
   if (field == field->table->next_number_field)
   {
-    field->table->auto_increment_field_not_null= false;
+    field->table->auto_increment_field_not_null= FALSE;
     return 0;					// field is set in handler.cc
   }
   if (current_thd->count_cuted_fields == CHECK_FIELD_WARN)
   {
-    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,ER_WARN_NULL_TO_NOTNULL);
+    field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
+                       ER_WARN_NULL_TO_NOTNULL, 1);
     return 0;
   }
   if (!current_thd->no_errors)
     my_printf_error(ER_BAD_NULL_ERROR,ER(ER_BAD_NULL_ERROR),MYF(0),
 		    field->field_name);
-  return 1;
+  return -1;
 }
 
 
@@ -229,7 +231,7 @@ static void do_copy_not_null(Copy_field *copy)
   if (*copy->from_null_ptr & copy->from_bit)
   {
     copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-      ER_WARN_DATA_TRUNCATED);
+                                ER_WARN_DATA_TRUNCATED, 1);
     copy->to_field->reset();
   }
   else
@@ -274,7 +276,7 @@ static void do_copy_blob(Copy_field *copy)
 
 static void do_conv_blob(Copy_field *copy)
 {
-  copy->from_field->val_str(&copy->tmp,&copy->tmp);
+  copy->from_field->val_str(&copy->tmp);
   ((Field_blob *) copy->to_field)->store(copy->tmp.ptr(),
 					 copy->tmp.length(),
 					 copy->tmp.charset());
@@ -286,7 +288,7 @@ static void do_save_blob(Copy_field *copy)
 {
   char buff[MAX_FIELD_WIDTH];
   String res(buff,sizeof(buff),copy->tmp.charset());
-  copy->from_field->val_str(&res,&res);
+  copy->from_field->val_str(&res);
   copy->tmp.copy(res);
   ((Field_blob *) copy->to_field)->store(copy->tmp.ptr(),
 					 copy->tmp.length(),
@@ -298,7 +300,7 @@ static void do_field_string(Copy_field *copy)
 {
   char buff[MAX_FIELD_WIDTH];
   copy->tmp.set_quick(buff,sizeof(buff),copy->tmp.charset());
-  copy->from_field->val_str(&copy->tmp,&copy->tmp);
+  copy->from_field->val_str(&copy->tmp);
   copy->to_field->store(copy->tmp.c_ptr_quick(),copy->tmp.length(),copy->tmp.charset());
 }
 
@@ -329,7 +331,7 @@ static void do_cut_string(Copy_field *copy)
     if (!my_isspace(system_charset_info, *ptr))	// QQ: ucs incompatible
     {
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-        ER_WARN_DATA_TRUNCATED);
+                                  ER_WARN_DATA_TRUNCATED, 1);
       break;
     }
   }
@@ -350,7 +352,7 @@ static void do_varstring(Copy_field *copy)
     length=copy->to_length-2;
     if (current_thd->count_cuted_fields)
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
-      ER_WARN_DATA_TRUNCATED);
+                                  ER_WARN_DATA_TRUNCATED, 1);
   }
   int2store(copy->to_ptr,length);
   memcpy(copy->to_ptr+2, copy->from_ptr,length);
@@ -559,7 +561,7 @@ void field_conv(Field *to,Field *from)
   if (to->type() == FIELD_TYPE_BLOB)
   {						// Be sure the value is stored
     Field_blob *blob=(Field_blob*) to;
-    from->val_str(&blob->value,&blob->value);
+    from->val_str(&blob->value);
     if (!blob->value.is_alloced() &&
 	from->real_type() != FIELD_TYPE_STRING)
       blob->value.copy();
@@ -574,7 +576,7 @@ void field_conv(Field *to,Field *from)
   {
     char buff[MAX_FIELD_WIDTH];
     String result(buff,sizeof(buff),from->charset());
-    from->val_str(&result,&result);
+    from->val_str(&result);
     to->store(result.c_ptr_quick(),result.length(),from->charset());
   }
   else if (from->result_type() == REAL_RESULT)

@@ -35,7 +35,7 @@ uint r_strinstr(reg1 my_string str,int from, reg4 my_string search)
   /* pointer to the last char of search */
   my_string	search_end = search + len - 1;
 
- skipp:
+ skip:
   while (start >= str)		/* Cant be != because the first char */
   {
     if (*start-- == *search_end)
@@ -43,7 +43,7 @@ uint r_strinstr(reg1 my_string str,int from, reg4 my_string search)
       i = start; j = search_end - 1;
       while (j >= search && start > str)
 	if (*i-- != *j--)
-	  goto skipp;
+	  goto skip;
       return (uint) ((start - len) - str + 3);
     }
   }

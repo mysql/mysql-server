@@ -1,0 +1,221 @@
+drop table if exists t1,t2;
+create table t1
+(
+a int primary key,
+b char(10)
+);
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+insert into t1 values (3,'three');
+insert into t1 values (4,'four');
+set @a=2;
+prepare stmt1 from 'select * from t1 where a <= ?';
+execute stmt1 using @a;
+a	b
+1	one
+2	two
+set @a=3;
+execute stmt1 using @a;
+a	b
+1	one
+2	two
+3	three
+deallocate prepare no_such_statement;
+ERROR HY000: Unknown prepared statement handler (no_such_statement) given to DEALLOCATE PREPARE
+execute stmt1;
+ERROR HY000: Incorrect arguments to EXECUTE
+prepare stmt2 from 'prepare nested_stmt from "select 1"';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"select 1"' at line 1
+prepare stmt2 from 'execute stmt1';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'stmt1' at line 1
+prepare stmt2 from 'deallocate prepare z';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'z' at line 1
+prepare stmt3 from 'insert into t1 values (?,?)';
+set @arg1=5, @arg2='five';
+execute stmt3 using @arg1, @arg2;
+select * from t1 where a>3;
+a	b
+4	four
+5	five
+prepare stmt4 from 'update t1 set a=? where b=?';
+set @arg1=55, @arg2='five';
+execute stmt4 using @arg1, @arg2;
+select * from t1 where a>3;
+a	b
+4	four
+55	five
+prepare stmt4 from 'create table t2 (a int)';
+execute stmt4;
+prepare stmt4 from 'drop table t2';
+execute stmt4;
+execute stmt4;
+ERROR 42S02: Unknown table 't2'
+prepare stmt5 from 'select ? + a from t1';
+set @a=1;
+execute stmt5 using @a;
+? + a
+2
+3
+4
+5
+56
+execute stmt5 using @no_such_var;
+? + a
+NULL
+NULL
+NULL
+NULL
+NULL
+set @nullvar=1;
+set @nullvar=NULL;
+execute stmt5 using @nullvar;
+? + a
+NULL
+NULL
+NULL
+NULL
+NULL
+set @nullvar2=NULL;
+execute stmt5 using @nullvar2;
+? + a
+NULL
+NULL
+NULL
+NULL
+NULL
+prepare stmt6 from 'select 1; select2';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '; select2' at line 1
+prepare stmt6 from 'insert into t1 values (5,"five"); select2';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '; select2' at line 1
+explain prepare stmt6 from 'insert into t1 values (5,"five"); select2';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'from 'insert into t1 values (5,"five"); select2'' at line 1
+create table t2
+(
+a int
+);
+insert into t2 values (0);
+set @arg00=NULL ;
+prepare stmt1 from 'select 1 FROM t2 where a=?' ;
+execute stmt1 using @arg00 ;
+1
+prepare stmt1 from @nosuchvar;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL' at line 1
+set @ivar= 1234;
+prepare stmt1 from @ivar;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1234' at line 1
+set @fvar= 123.4567;
+prepare stmt1 from @fvar;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '123.4567' at line 1
+set @str1 = 'select ?';
+set @str2 = convert(@str1 using ucs2);
+prepare stmt1 from @str2;
+execute stmt1 using @ivar;
+?
+1234
+drop table t1,t2;
+PREPARE stmt1 FROM "select _utf8 'A' collate utf8_bin = ?";
+set @var='A';
+EXECUTE stmt1 USING @var;
+_utf8 'A' collate utf8_bin = ?
+1
+DEALLOCATE PREPARE stmt1;
+create table t1 (id int);
+prepare stmt1 from "select FOUND_ROWS()";
+select SQL_CALC_FOUND_ROWS * from t1;
+id
+execute stmt1;
+FOUND_ROWS()
+0
+insert into t1 values (1);
+select SQL_CALC_FOUND_ROWS * from t1;
+id
+1
+execute stmt1;
+FOUND_ROWS()
+1
+execute stmt1;
+FOUND_ROWS()
+0
+deallocate prepare stmt1;
+drop table t1;
+create table t1 
+(
+c1  tinyint, c2  smallint, c3  mediumint, c4  int,
+c5  integer, c6  bigint, c7  float, c8  double,
+c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
+c13 date, c14 datetime, c15 timestamp(14), c16 time,
+c17 year, c18 bit, c19 bool, c20 char,
+c21 char(10), c22 varchar(30), c23 tinyblob, c24 tinytext,
+c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
+c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
+c32 set('monday', 'tuesday', 'wednesday')
+) engine = MYISAM ;
+create table t2 like t1;
+set @stmt= ' explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25 ' ;
+prepare stmt1 from @stmt ;
+execute stmt1 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+5	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+4	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+3	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+execute stmt1 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+5	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+4	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+3	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+5	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+4	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+3	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+deallocate prepare stmt1;
+drop tables t1,t2;
+set @arg00=1;
+prepare stmt1 from ' create table t1 (m int) as select 1 as m ' ;
+execute stmt1 ;
+select m from t1;
+m
+1
+drop table t1;
+prepare stmt1 from ' create table t1 (m int) as select ? as m ' ;
+execute stmt1 using @arg00;
+select m from t1;
+m
+1
+deallocate prepare stmt1;
+drop table t1;
+create table t1 (id int(10) unsigned NOT NULL default '0',
+name varchar(64) NOT NULL default '',
+PRIMARY KEY  (id), UNIQUE KEY `name` (`name`));
+insert into t1 values (1,'1'),(2,'2'),(3,'3'),(4,'4'),(5,'5'),(6,'6'),(7,'7');
+prepare stmt1 from 'select name from t1 where id=? or id=?';
+set @id1=1,@id2=6;
+execute stmt1 using @id1, @id2;
+name
+1
+6
+select name from t1 where id=1 or id=6;
+name
+1
+6
+deallocate prepare stmt1;
+drop table t1;
+create table t1 ( a int primary key, b varchar(30)) engine = MYISAM ;
+prepare stmt1 from ' show table status from test like ''t1%'' ';
+execute stmt1;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Dynamic	0	0	0	4294967295	1024	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+show table status from test like 't1%' ;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Dynamic	0	0	0	4294967295	1024	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+deallocate prepare stmt1 ;
+drop table t1;

@@ -25,6 +25,7 @@ extern "C" {
 MYSQL_FIELD *unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 			   my_bool default_value, uint server_capabilities);
 void free_rows(MYSQL_DATA *cur);
+void flush_use_result(MYSQL *mysql);
 my_bool mysql_autenticate(MYSQL *mysql, const char *passwd);
 void free_old_query(MYSQL *mysql);
 void end_server(MYSQL *mysql);
@@ -38,6 +39,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
 void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
 		     const char *sqlstate);
+void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate);
 #ifdef	__cplusplus
 }
 #endif

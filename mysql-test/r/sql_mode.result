@@ -70,7 +70,7 @@ t1	CREATE TABLE `t1` (
   `email` varchar(60) NOT NULL default '',
   PRIMARY KEY  (`a`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=HEAP ROW_FORMAT=DYNAMIC
+) TYPE=HEAP ROW_FORMAT=DYNAMIC
 set sql_mode="postgresql,oracle,mssql,db2,maxdb";
 select @@sql_mode;
 @@sql_mode
@@ -85,3 +85,252 @@ t1	CREATE TABLE "t1" (
   UNIQUE KEY "email" ("email")
 )
 drop table t1;
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='';
+show local variables like 'SQL_MODE';
+Variable_name	Value
+sql_mode	
+CREATE TABLE t1 (p int not null auto_increment, a varchar(20), primary key(p));
+INSERT t1 (a) VALUES 
+('\\'),
+('\n'),
+('\b'),
+('\r'),
+('\t'),
+('\x'),
+('\a'),
+('\aa'),
+('\\a'),
+('\\aa'),
+('_'),
+('\_'),
+('\\_'),
+('\\\_'),
+('\\\\_'),
+('%'),
+('\%'),
+('\\%'),
+('\\\%'),
+('\\\\%')
+;
+SELECT p, hex(a) FROM t1;
+p	hex(a)
+1	5C
+2	0A
+3	08
+4	0D
+5	09
+6	78
+7	61
+8	6161
+9	5C61
+10	5C6161
+11	5F
+12	5C5F
+13	5C5F
+14	5C5C5F
+15	5C5C5F
+16	25
+17	5C25
+18	5C25
+19	5C5C25
+20	5C5C25
+delete from t1 where a in ('\n','\r','\t', '\b');
+select
+masks.p,
+masks.a as mask,
+examples.a as example
+from
+t1 as masks
+left join t1 as examples on examples.a LIKE masks.a
+order by masks.p, example;
+p	mask	example
+1	\	\
+6	x	x
+7	a	a
+8	aa	aa
+9	\a	a
+10	\aa	aa
+11	_	%
+11	_	a
+11	_	x
+11	_	\
+11	_	_
+12	\_	_
+13	\_	_
+14	\\_	\%
+14	\\_	\%
+14	\\_	\a
+14	\\_	\_
+14	\\_	\_
+15	\\_	\%
+15	\\_	\%
+15	\\_	\a
+15	\\_	\_
+15	\\_	\_
+16	%	%
+16	%	a
+16	%	aa
+16	%	x
+16	%	\
+16	%	\%
+16	%	\%
+16	%	\a
+16	%	\aa
+16	%	\\%
+16	%	\\%
+16	%	\\_
+16	%	\\_
+16	%	\_
+16	%	\_
+16	%	_
+17	\%	%
+18	\%	%
+19	\\%	\
+19	\\%	\%
+19	\\%	\%
+19	\\%	\a
+19	\\%	\aa
+19	\\%	\\%
+19	\\%	\\%
+19	\\%	\\_
+19	\\%	\\_
+19	\\%	\_
+19	\\%	\_
+20	\\%	\
+20	\\%	\%
+20	\\%	\%
+20	\\%	\a
+20	\\%	\aa
+20	\\%	\\%
+20	\\%	\\%
+20	\\%	\\_
+20	\\%	\\_
+20	\\%	\_
+20	\\%	\_
+DROP TABLE t1;
+SET @@SQL_MODE='NO_BACKSLASH_ESCAPES';
+show local variables like 'SQL_MODE';
+Variable_name	Value
+sql_mode	NO_BACKSLASH_ESCAPES
+CREATE TABLE t1 (p int not null auto_increment, a varchar(20), primary key(p));
+INSERT t1 (a) VALUES 
+('\\'),
+('\n'),
+('\b'),
+('\r'),
+('\t'),
+('\x'),
+('\a'),
+('\aa'),
+('\\a'),
+('\\aa'),
+('_'),
+('\_'),
+('\\_'),
+('\\\_'),
+('\\\\_'),
+('%'),
+('\%'),
+('\\%'),
+('\\\%'),
+('\\\\%')
+;
+SELECT p, hex(a) FROM t1;
+p	hex(a)
+1	5C5C
+2	5C6E
+3	5C62
+4	5C72
+5	5C74
+6	5C78
+7	5C61
+8	5C6161
+9	5C5C61
+10	5C5C6161
+11	5F
+12	5C5F
+13	5C5C5F
+14	5C5C5C5F
+15	5C5C5C5C5F
+16	25
+17	5C25
+18	5C5C25
+19	5C5C5C25
+20	5C5C5C5C25
+delete from t1 where a in ('\n','\r','\t', '\b');
+select 
+masks.p,
+masks.a as mask,
+examples.a as example
+from
+t1 as masks
+left join t1 as examples on examples.a LIKE masks.a
+order by masks.p, example;
+p	mask	example
+1	\\	\\
+6	\x	\x
+7	\a	\a
+8	\aa	\aa
+9	\\a	\\a
+10	\\aa	\\aa
+11	_	%
+11	_	_
+12	\_	\%
+12	\_	\a
+12	\_	\x
+12	\_	\\
+12	\_	\_
+13	\\_	\\%
+13	\\_	\\a
+13	\\_	\\_
+14	\\\_	\\\%
+14	\\\_	\\\_
+15	\\\\_	\\\\%
+15	\\\\_	\\\\_
+16	%	%
+16	%	\%
+16	%	\a
+16	%	\aa
+16	%	\x
+16	%	\\
+16	%	\\%
+16	%	\\a
+16	%	\\aa
+16	%	\\\%
+16	%	\\\\%
+16	%	\\\\_
+16	%	\\\_
+16	%	\\_
+16	%	\_
+16	%	_
+17	\%	\%
+17	\%	\a
+17	\%	\aa
+17	\%	\x
+17	\%	\\
+17	\%	\\%
+17	\%	\\a
+17	\%	\\aa
+17	\%	\\\%
+17	\%	\\\\%
+17	\%	\\\\_
+17	\%	\\\_
+17	\%	\\_
+17	\%	\_
+18	\\%	\\
+18	\\%	\\%
+18	\\%	\\a
+18	\\%	\\aa
+18	\\%	\\\%
+18	\\%	\\\\%
+18	\\%	\\\\_
+18	\\%	\\\_
+18	\\%	\\_
+19	\\\%	\\\%
+19	\\\%	\\\\%
+19	\\\%	\\\\_
+19	\\\%	\\\_
+20	\\\\%	\\\\%
+20	\\\\%	\\\\_
+DROP TABLE t1;
+SET @@SQL_MODE=@OLD_SQL_MODE;

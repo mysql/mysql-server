@@ -21,6 +21,8 @@
     Sasha Pachev <sasha@mysql.com>
 */
 
+#ifndef __NETWARE__
+
 #include <my_global.h>
 #include <my_pthread.h>
 #include <mysql.h>
@@ -355,7 +357,7 @@ LOG_MSG_FUNC(log_info,LOG_INFO)
 #ifndef DBUG_OFF
 LOG_MSG_FUNC(log_debug,LOG_DEBUG)
 #else
-void log_debug(const char* __attribute__((unused)) fmt,...) {}
+void log_debug(const char* fmt __attribute__((unused)),...) {}
 #endif
 
 static void handle_sigterm(int sig __attribute__((unused)))
@@ -685,7 +687,7 @@ HANDLE_DECL(handle_stop_exec)
     error="Process not running";
     goto err;
   }
-  if (mysql_shutdown(&e->mysql))
+  if (mysql_shutdown(&e->mysql, SHUTDOWN_DEFAULT))
   {
     /* e->th=0; */	/* th may be a struct */
     pthread_mutex_unlock(&e->lock);
@@ -1850,3 +1852,16 @@ int main(int argc, char** argv)
   else
     return daemonize();
 }
+
+#else
+
+#include <stdio.h>
+
+int main(void)
+{
+  fprintf(stderr,"This tool has not been ported to NetWare\n");
+  return 0;
+}
+
+#endif /* __NETWARE__ */
+

@@ -1,12 +1,11 @@
 #!/bin/sh
 
 #shift
-TO=dev-public@mysql.com
 FROM=$USER@mysql.com
 INTERNALS=internals@lists.mysql.com
 DOCS=docs-commit@mysql.com
 LIMIT=10000
-REPOV=5.0
+VERSION="5.0"
 
 if [ "$REAL_EMAIL" = "" ]
 then
@@ -21,17 +20,24 @@ if [ "$BK_STATUS" = OK ]
 then 
 
 CHANGESET=`bk -R prs -r+ -h -d':P:::I:' ChangeSet`
+BUG=`bk -R prs -r+ -h -d':C:' ChangeSet | sed -ne 's/^.*[Bb][Uu][Gg] *# *\([0-9][0-9]*\).*$/ BUG#\1/p'`
 
+if [ "$BUG" = "" ]
+then
+  TO=dev-public@mysql.com
+else
+  TO=dev-bugs@mysql.com
+fi
 #++
-# dev-public@
+# dev-public@ / dev-bugs@
 #--
  echo "Commit successful, notifying developers at $TO"
  (
    cat <<EOF
-List-ID: <bk.mysql-$REPOV>
+List-ID: <bk.mysql-$VERSION>
 From: $FROM
 To: $TO
-Subject: bk commit - $REPOV tree ($CHANGESET)
+Subject: bk commit - $VERSION tree ($CHANGESET)$BUG
 
 EOF
   bk changes -v -r+
@@ -44,13 +50,13 @@ EOF
  echo "Notifying internals list at $INTERNALS"
  (
    cat <<EOF
-List-ID: <bk.mysql-$REPOV>
+List-ID: <bk.mysql-$VERSION>
 From: $FROM
 To: $INTERNALS
-Subject: bk commit into $REPOV tree ($CHANGESET)
+Subject: bk commit into $VERSION tree ($CHANGESET)
 
 Below is the list of changes that have just been committed into a local
-$REPOV repository of $USER. When $USER does a push these changes will
+$VERSION repository of $USER. When $USER does a push these changes will
 be propagated to the main repository and, within 24 hours after the
 push, to the public repository.
 For information on how to access the public repository
@@ -71,10 +77,10 @@ EOF
   echo "Notifying docs list at $DOCS"
   (
     cat <<EOF
-List-ID: <bk.mysql-$REPOV>
+List-ID: <bk.mysql-$VERSION>
 From: $FROM
 To: $DOCS
-Subject: bk commit - $REPOV tree (Manual) ($CHANGESET)
+Subject: bk commit - $VERSION tree (Manual) ($CHANGESET)
 
 EOF
   bk changes -v -r+

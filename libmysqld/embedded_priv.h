@@ -23,9 +23,11 @@
 #include <my_pthread.h>
 
 C_MODE_START
-extern void lib_connection_phase(NET *net, int phase);
-extern void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db);
-extern void *create_embedded_thd(int client_flag, char *db);
-extern MYSQL_METHODS embedded_methods;
+void lib_connection_phase(NET *net, int phase);
+void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db);
+void *create_embedded_thd(int client_flag, char *db);
+int check_embedded_connection(MYSQL *mysql);
 void free_old_query(MYSQL *mysql);
+void embedded_get_error(MYSQL *mysql);
+extern MYSQL_METHODS embedded_methods;
 C_MODE_END

@@ -17,12 +17,12 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES ('aaaabbbbccccdddd','aaaabbbbccccdddd','aaaabbbbccccdddd');
 Warnings:
-Warning	1264	Data truncated for column 'c1' at row 1
-Warning	1264	Data truncated for column 'c2' at row 1
-Warning	1264	Data truncated for column 'c3' at row 1
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
+Warning	1265	Data truncated for column 'c3' at row 1
 SELECT * FROM t1;
 c1	c2	c3
-aaaabbbbcccc	aaaabbbbcccc	aaaabbbbcccc
+aaaa	aaaa	aaaa
 DROP TABLE t1;
 CREATE TABLE t1 (a CHAR(4) CHARACTER SET utf8, KEY key_a(a(3)));
 SHOW CREATE TABLE t1;

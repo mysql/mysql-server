@@ -19,6 +19,7 @@ CFG=perror - Win32 Debug
 !MESSAGE
 !MESSAGE "perror - Win32 Release" (based on "Win32 (x86) Application")
 !MESSAGE "perror - Win32 Debug" (based on "Win32 (x86) Application")
+!MESSAGE "perror - Win32 classic" (based on "Win32 (x86) Application")
 !MESSAGE
 
 # Begin Project
@@ -43,7 +44,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "NDEBUG" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
@@ -85,12 +86,44 @@ LINK32=xilink6.exe
 # ADD LINK32 kernel32.lib user32.lib wsock32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /incremental:no /debug /machine:I386 /pdbtype:sept
 # SUBTRACT LINK32 /pdb:none
 
+!ELSEIF  "$(CFG)" == "perror - Win32 classic"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "perror___Win32_classic"
+# PROP BASE Intermediate_Dir "perror___Win32_classic"
+# PROP BASE Ignore_Export_Lib 0
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "classic"
+# PROP Intermediate_Dir "classic"
+# PROP Ignore_Export_Lib 0
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "NDEBUG" /FD /c
+# SUBTRACT BASE CPP /YX
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "WIN32" /D "_WINDOWS" /D LICENSE=Commercial /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FD /c
+# SUBTRACT CPP /YX
+# ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
+# ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
+# ADD BASE RSC /l 0x409 /d "NDEBUG"
+# ADD RSC /l 0x409 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LINK32=xilink6.exe
+# ADD BASE LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386 /out:"../client_release/perror.exe"
+# SUBTRACT BASE LINK32 /pdb:none
+# ADD LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib /nologo /subsystem:console /machine:I386 /out:"../client_classic/perror.exe" /libpath:"..\lib_release\\"
+# SUBTRACT LINK32 /pdb:none
+
 !ENDIF
 
 # Begin Target
 
 # Name "perror - Win32 Release"
 # Name "perror - Win32 Debug"
+# Name "perror - Win32 classic"
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"

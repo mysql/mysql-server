@@ -8,28 +8,28 @@ Created 5/30/1994 Heikki Tuuri
 
 UNIV_INLINE
 void*
-ut_memcpy(void* dest, void* sour, ulint n)
+ut_memcpy(void* dest, const void* sour, ulint n)
 {
 	return(memcpy(dest, sour, n)); 
 }
 
 UNIV_INLINE
 void*
-ut_memmove(void* dest, void* sour, ulint n)
+ut_memmove(void* dest, const void* sour, ulint n)
 {
 	return(memmove(dest, sour, n));
 }
 
 UNIV_INLINE
 int
-ut_memcmp(void* str1, void* str2, ulint n)
+ut_memcmp(const void* str1, const void* str2, ulint n)
 {
 	return(memcmp(str1, str2, n));
 }
 
 UNIV_INLINE
 char*
-ut_strcpy(char* dest, char* sour)
+ut_strcpy(char* dest, const char* sour)
 {
 	return(strcpy(dest, sour));
 }
@@ -43,8 +43,28 @@ ut_strlen(const char* str)
 
 UNIV_INLINE
 int
-ut_strcmp(void* str1, void* str2)
+ut_strcmp(const void* str1, const void* str2)
 {
-	return(strcmp((char*)str1, (char*)str2));
+	return(strcmp((const char*)str1, (const char*)str2));
 }
 
+/**************************************************************************
+Determine the length of a string when it is quoted with ut_strcpyq(). */
+UNIV_INLINE
+ulint
+ut_strlenq(
+/*=======*/
+				/* out: length of the string when quoted */
+	const char*	str,	/* in: null-terminated string */
+	char		q)	/* in: the quote character */
+{
+	ulint len;
+
+	for (len = 0; *str; len++, str++) {
+		if (*str == q) {
+			len++;
+		}
+	}
+
+	return(len);
+}

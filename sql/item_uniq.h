@@ -27,7 +27,7 @@ class Item_func_unique_users :public Item_real_func
 public:
   Item_func_unique_users(Item *name_arg,int start,int end,List<Item> &list)
     :Item_real_func(list) {}
-  double val() { return 0.0; }
+  double val() { DBUG_ASSERT(fixed == 1); return 0.0; }
   void fix_length_and_dec() { decimals=0; max_length=6; }
   void print(String *str) { str->append("0.0", 3); }
 };
@@ -38,9 +38,9 @@ class Item_sum_unique_users :public Item_sum_num
 public:
   Item_sum_unique_users(Item *name_arg,int start,int end,Item *item_arg)
     :Item_sum_num(item_arg) {}
-  Item_sum_unique_users(THD *thd, Item_sum_unique_users &item)
+  Item_sum_unique_users(THD *thd, Item_sum_unique_users *item)
     :Item_sum_num(thd, item) {}
-  double val() { return 0.0; }  
+  double val() { DBUG_ASSERT(fixed == 1); return 0.0; }  
   enum Sumfunctype sum_func () const {return UNIQUE_USERS_FUNC;}
   void clear() {}
   bool add() { return 0; }
@@ -48,12 +48,13 @@ public:
   void update_field() {}
   bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
+    DBUG_ASSERT(fixed == 0);
     fixed= 1;
     return 0;
   }
   Item *copy_or_same(THD* thd)
   {
-    return new Item_sum_unique_users(thd, *this);
+    return new Item_sum_unique_users(thd, this);
   }
   void print(String *str) { str->append("0.0", 3); }
 };

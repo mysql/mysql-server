@@ -177,7 +177,7 @@ character-set=latin1
 "Zeitüberschreitung beim Lesen eines Kommunikationspakets",
 "Fehler beim Schreiben eines Kommunikationspakets",
 "Zeitüberschreitung beim Schreiben eines Kommunikationspakets",
-"Ergebnis ist länger als max_allowed_packet",
+"Ergebnis ist länger als 'max_allowed_packet'",
 "Der verwendete Tabellentyp unterstützt keine BLOB- und TEXT-Spalten",
 "Der verwendete Tabellentyp unterstützt keine AUTO_INCREMENT-Spalten",
 "INSERT DELAYED kann nicht auf Tabelle '%-.64s' angewendet werden, da diese mit LOCK TABLES gesperrt ist",
@@ -216,7 +216,7 @@ character-set=latin1
 "Diese Operation kann nicht bei einem aktiven Slave durchgeführt werden. Bitte zuerst STOP SLAVE ausführen",
 "Diese Operation benötigt einen aktiven Slave. Bitte Slave konfigurieren und mittels START SLAVE aktivieren",
 "Der Server ist nicht als Slave konfiguriert. Bitte in der Konfigurationsdatei oder mittels CHANGE MASTER TO beheben",
-"Konnte Master-Info-Struktur nicht initialisieren. Bitte Berechtigungen von master.info prüfen",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Konnte keinen Slave-Thread starten. Bitte System-Ressourcen überprüfen",
 "Benutzer '%-.64s' hat mehr als max_user_connections aktive Verbindungen",
 "Bei SET dürfen nur konstante Ausdrücke verwendet werden",
@@ -253,11 +253,12 @@ character-set=latin1
 "Diese MySQL-Version unterstützt '%s' nicht",
 "Schwerer Fehler %d: '%-.128s vom Master beim Lesen des binären Logs aufgetreten",
 "Slave-SQL-Thread hat die Abfrage aufgrund von replicate-*-table-Regeln ignoriert",
+"Variable '%-.64s' is a %s variable",
 "Falsche Fremdschlüssel-Definition für '%-64s': %s",
 "Schlüssel- und Tabellenverweis passen nicht zusammen",
 "Operand solle %d Spalte(n) enthalten",
 "Unterabfrage lieferte mehr als einen Datensatz zurück",
-"Unbekannter Prepared-Statement-Handler (%ld) für %s angegeben",
+"Unbekannter Prepared-Statement-Handler (%.*s) für %s angegeben",
 "Die Hilfe-Datenbank ist beschädigt oder existiert nicht",
 "Zyklischer Verweis in Unterabfragen",
 "Spalte '%s' wird von %s nach %s umgewandelt",
@@ -271,10 +272,10 @@ character-set=latin1
 "Slave läuft bereits",
 "Slave wurde bereits angehalten",
 "Unkomprimierte Daten sind zu groß. Die maximale Größe beträgt %d",
-"Z_MEM_ERROR: Für zlib steht nicht genug Speicher zur Verfügung",
-"Z_BUF_ERROR: Im Ausgabepuffer ist nicht genug Platz für zlib vorhanden (wahrscheinlich wurde die Länge der unkomprimierten Daten beschädigt)",
-"Z_DATA_ERROR: Eingabedaten für zlib beschädigt",
-"%d Zeile(n) durch group_concat() abgeschnitten",
+"ZLIB: Steht nicht genug Speicher zur Verfügung",
+"ZLIB: Im Ausgabepuffer ist nicht genug Platz vorhanden (wahrscheinlich wurde die Länge der unkomprimierten Daten beschädigt)",
+"ZLIB: Eingabedaten beschädigt",
+"%d Zeile(n) durch GROUP_CONCAT() abgeschnitten",
 "Anzahl der Datensätze in Zeile %ld geringer als Anzahl der Spalten",
 "Anzahl der Datensätze in Zeile %ld größer als Anzahl der Spalten",
 "Daten abgeschnitten, NULL für NOT NULL-Spalte '%s' in Zeile %ld angegeben",
@@ -289,7 +290,7 @@ character-set=latin1
 "Variable '%-.64s' ist keine Variablen-Komponenten (kann nicht als XXXX.variablen_name verwendet werden)",
 "Unbekannte Kollation: '%-.64s'",
 "SSL-Parameter in CHANGE MASTER werden ignoriert, weil dieser MySQL-Slave ohne SSL-Unterstützung kompiliert wurde. Sie können aber später verwendet werden, wenn der MySQL-Slave mit SSL gestartet wird",
-"Server läuft im Modus --secure-auth, aber '%s@%s' hat ein Passwort im alten Format. Bitte Passwort ins neue Format ändern",
+"Server läuft im Modus --secure-auth, aber '%s'@'%s' hat ein Passwort im alten Format. Bitte Passwort ins neue Format ändern",
 "Feld oder Verweis '%-.64s%s%-.64s%s%-.64s' im SELECT-Befehl Nr. %d wurde im SELECT-Befehl Nr. %d aufgelöst",
 "Falscher Parameter oder falsche Kombination von Parametern für START SLAVE UNTIL",
 "Es wird empfohlen, mit --skip-slave-start zu starten, wenn mit START SLAVE UNTIL eine Schritt-für-Schritt-Replikation ausgeführt wird. Ansonsten gibt es Probleme, wenn der Slave-Server unerwartet neu startet",
@@ -301,7 +302,21 @@ character-set=latin1
 "Unknown key cache '%-.100s'",
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Unknown table engine '%s'",
-"'%s' is deprecated. Use '%s' instead.",
+"'%s' is deprecated, use '%s' instead",
+"The target table %-.100s of the %s is not updateable",
+"The '%s' feature was disabled; you need MySQL built with '%s' to have it working",
+"The MySQL server is running with the %s option so it cannot execute this statement",
+"Column '%-.100s' has duplicated value '%-.64s' in %s"
+"Truncated wrong %-.32s value: '%-.128s'"
+"Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
+"Invalid ON UPDATE clause for '%-.64s' column",
+"This command is not supported in the prepared statement protocol yet",
+"Got error %d '%-.100s' from %s",
+"Got temporary error %d '%-.100s' from %s",
+"Unknown or incorrect time zone: '%-.64s'",
+"Invalid TIMESTAMP value in column '%s' at row %ld",
+"Invalid %s character string: '%.64s'",
+"Result of %s() was larger than max_allowed_packet (%d) - truncated"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -314,10 +329,10 @@ character-set=latin1
 "SELECT in a stored procedure must have INTO"
 "RETURN is only allowed in a FUNCTION"
 "Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION"
-"The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored."
-"The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN."
+"The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored"
+"The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN"
 "Query execution was interrupted"
-"Wrong number of arguments for %s %s, expected %u, got %u"
+"Incorrect number of arguments for %s %s, expected %u, got %u"
 "Undefined CONDITION: %s"
 "No RETURN found in FUNCTION %s"
 "FUNCTION %s ended without RETURN"
@@ -327,7 +342,7 @@ character-set=latin1
 "Cursor is already open"
 "Cursor is not open"
 "Undeclared variable: %s"
-"Wrong number of FETCH variables"
+"Incorrect number of FETCH variables"
 "No data to FETCH"
 "Duplicate parameter: %s"
 "Duplicate variable: %s"
@@ -335,3 +350,25 @@ character-set=latin1
 "Duplicate cursor: %s"
 "Failed to ALTER %s %s"
 "Subselect value not supported"
+"USE is not allowed in a stored procedure"
+"Variable or condition declaration after cursor or handler declaration"
+"Cursor declaration after handler declaration"
+"Case not found for CASE statement"
+"Configuration file '%-.64s' is too big"
+"Malformed file type header in file '%-.64s'"
+"Unexpected end of file while parsing comment '%-.64s'"
+"Error while parsing parameter '%-.64s' (line: '%-.64s')"
+"Unexpected end of file while skipping unknown parameter '%-.64s'"
+"EXPLAIN/SHOW can not be issued; lacking privileges for underlying table"
+"File '%-.64s' has unknown type '%-.64s' in its header"
+"'%-.64s.%-.64s' is not %s"
+"Column '%-.64s' is not updatable"
+"View's SELECT contains a subquery in the FROM clause"
+"View's SELECT contains a PROCEDURE clause"
+"View's SELECT contains a variable or parameter" 
+"View's SELECT contains a temporary table '%-.64s'"
+"View's SELECT and view's field list have different column counts"
+"View merge algorithm can't be used here for now (assumed undefined algorithm)"
+"View being updated does not have complete key of underlying table in it"
+"View '%-.64s.%-.64s' references invalid table(s) or column(s)"
+"Can't drop a %s from within another stored routine"

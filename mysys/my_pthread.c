@@ -23,7 +23,6 @@
 #include <signal.h>
 #include <m_string.h>
 #include <thr_alarm.h>
-#include <assert.h>
 
 #if (defined(__BSD__) || defined(_BSDI_VERSION)) && !defined(HAVE_mit_thread)
 #define SCHED_POLICY SCHED_RR
@@ -98,21 +97,23 @@ void *my_pthread_getspecific_imp(pthread_key_t key)
 #undef pthread_exit
 void my_pthread_exit(void *status)
 {
-  NXThreadId_t tid = NXThreadGetId();
+  NXThreadId_t tid;
   NXContext_t ctx;
-  char name[PATH_MAX] = "";
+  char name[NX_MAX_OBJECT_NAME_LEN+1] = "";
 
-  NXThreadGetContext(tid, &ctx);
-  NXContextGetName(ctx, name, PATH_MAX);
+  tid= NXThreadGetId();
+  if (tid == NX_INVALID_THREAD_ID || !tid)
+    return;
+  if (NXThreadGetContext(tid, &ctx) ||
+      NXContextGetName(ctx, name, sizeof(name)-1))
+    return;
 
   /*
     "MYSQLD.NLM's LibC Reaper" or "MYSQLD.NLM's main thread"
     with a debug build of LibC the reaper can have different names
   */
   if (!strindex(name, "\'s"))
-  {
     pthread_exit(status);
-  }
 }
 #endif
 

@@ -89,7 +89,7 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
       We should never come here on any modern machine
     */
     VOID(my_seek(fd, newlength, MY_SEEK_SET, MYF(MY_WME+MY_FAE)));
-    swap(my_off_t, newlength, oldsize);
+    swap_variables(my_off_t, newlength, oldsize);
   }
 #endif
 

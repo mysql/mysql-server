@@ -16,15 +16,23 @@
 
 /* Return error-text for system error messages and nisam messages */
 
-#define PERROR_VERSION "2.9"
+#define PERROR_VERSION "2.10"
 
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <errno.h>
 #include <my_getopt.h>
+#ifdef HAVE_NDBCLUSTER_DB
+#include "../ndb/src/ndbapi/ndberror.c"
+#endif
 
 static my_bool verbose, print_all_codes;
+
+#ifdef HAVE_NDBCLUSTER_DB
+static my_bool ndb_code;
+static char ndb_string[1024];
+#endif
 
 static struct my_option my_long_options[] =
 {
@@ -32,6 +40,10 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"info", 'I', "Synonym for --help.",  0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef HAVE_NDBCLUSTER_DB
+  {"ndb", 0, "Ndbcluster storage engine specific error codes.",  (gptr*) &ndb_code,
+   (gptr*) &ndb_code, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+#endif
 #ifdef HAVE_SYS_ERRLIST
   {"all", 'a', "Print all the error messages and the number.",
    (gptr*) &print_all_codes, (gptr*) &print_all_codes, 0, GET_BOOL, NO_ARG,
@@ -71,7 +83,7 @@ static HA_ERRORS ha_errlist[]=
   { 136,"No more room in index file" },
   { 137,"No more records (read after end of file)" },
   { 138,"Unsupported extension used for table" },
-  { 139,"Too big row (>= 16 M)"},
+  { 139,"Too big row"},
   { 140,"Wrong create options"},
   { 141,"Duplicate unique key or constraint on write or update"},
   { 142,"Unknown character set used"},
@@ -185,7 +197,7 @@ int main(int argc,char *argv[])
     for (code=1 ; code < sys_nerr ; code++)
     {
       if (sys_errlist[code][0])
-      {						/* Skipp if no error-text */
+      {						/* Skip if no error-text */
 	printf("%3d = %s\n",code,sys_errlist[code]);
       }
     }
@@ -195,12 +207,37 @@ int main(int argc,char *argv[])
   else
 #endif
   {
+    /*
+      On some system, like NETWARE, strerror(unknown_error) returns a
+      string 'Unknown Error'.  To avoid printing it we try to find the
+      error string by asking for an impossible big error message.
+    */
+    const char *unknown_error= strerror(10000);
+
     for ( ; argc-- > 0 ; argv++)
     {
+
       found=0;
       code=atoi(*argv);
-      msg = strerror(code);
-      if (msg)
+#ifdef HAVE_NDBCLUSTER_DB
+      if (ndb_code)
+      {
+	if (ndb_error_string(code, ndb_string, 1024) < 0)
+	  msg= 0;
+	else
+	  msg= ndb_string;
+      }
+      else 
+#endif
+	msg = strerror(code);
+
+      /*
+        Don't print message for not existing error messages or for
+        unknown errors.  We test for 'Uknown Errors' just as an
+        extra safety for Netware
+      */
+      if (msg && strcmp(msg, "Unknown Error") &&
+          (!unknown_error || strcmp(msg, unknown_error)))
       {
 	found=1;
 	if (verbose)
@@ -219,7 +256,7 @@ int main(int argc,char *argv[])
       else
       {
 	if (verbose)
-	  printf("%3d = %s\n",code,msg);
+	  printf("MySQL error:  %3d = %s\n",code,msg);
 	else
 	  puts(msg);
       }

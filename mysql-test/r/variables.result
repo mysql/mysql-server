@@ -48,7 +48,7 @@ explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority no_cache (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@t1) AS `@t1`,(@t2) AS `@t2`,(@t3) AS `@t3`
+Note	1003	select sql_no_cache (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@t1) AS `@t1`,(@t2) AS `@t2`,(@t3) AS `@t3`
 select @t5;
 @t5
 1.23456
@@ -107,7 +107,7 @@ explain extended select last_insert_id(345);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority no_cache last_insert_id(345) AS `last_insert_id(345)`
+Note	1003	select sql_no_cache last_insert_id(345) AS `last_insert_id(345)`
 select @@IDENTITY,last_insert_id(), @@identity;
 @@IDENTITY	last_insert_id()	@@identity
 345	345	345
@@ -115,7 +115,7 @@ explain extended select @@IDENTITY,last_insert_id(), @@identity;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority no_cache 345 AS `@@IDENTITY`,345 AS `last_insert_id()`,345 AS `@@identity`
+Note	1003	select sql_no_cache 345 AS `@@IDENTITY`,last_insert_id() AS `last_insert_id()`,345 AS `@@identity`
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 set global concurrent_insert=ON;
 show variables like 'concurrent_insert';
@@ -239,7 +239,7 @@ ERROR 42000: Variable 'big_tables' can't be set to the value of 'OFFF'
 set unknown_variable=1;
 ERROR HY000: Unknown system variable 'unknown_variable'
 set max_join_size="hello";
-ERROR 42000: Wrong argument type to variable 'max_join_size'
+ERROR 42000: Incorrect argument type to variable 'max_join_size'
 set storage_engine=UNKNOWN_TABLE_TYPE;
 ERROR 42000: Unknown table engine 'UNKNOWN_TABLE_TYPE'
 set storage_engine=INNODB, big_tables=2;
@@ -255,18 +255,22 @@ set character_set_client=UNKNOWN_CHARACTER_SET;
 ERROR 42000: Unknown character set: 'UNKNOWN_CHARACTER_SET'
 set collation_connection=UNKNOWN_COLLATION;
 ERROR HY000: Unknown collation: 'UNKNOWN_COLLATION'
+set character_set_client=NULL;
+ERROR 42000: Variable 'character_set_client' can't be set to the value of 'NULL'
+set collation_connection=NULL;
+ERROR 42000: Variable 'collation_connection' can't be set to the value of 'NULL'
 set global autocommit=1;
-ERROR HY000: Variable 'autocommit' is a LOCAL variable and can't be used with SET GLOBAL
+ERROR HY000: Variable 'autocommit' is a SESSION variable and can't be used with SET GLOBAL
 select @@global.timestamp;
-ERROR HY000: Variable 'timestamp' is a LOCAL variable and can't be used with SET GLOBAL
+ERROR HY000: Variable 'timestamp' is a SESSION variable
 set @@version='';
 ERROR HY000: Unknown system variable 'version'
 set @@concurrent_insert=1;
 ERROR HY000: Variable 'concurrent_insert' is a GLOBAL variable and should be set with SET GLOBAL
 set @@global.sql_auto_is_null=1;
-ERROR HY000: Variable 'sql_auto_is_null' is a LOCAL variable and can't be used with SET GLOBAL
+ERROR HY000: Variable 'sql_auto_is_null' is a SESSION variable and can't be used with SET GLOBAL
 select @@global.sql_auto_is_null;
-ERROR HY000: Variable 'sql_auto_is_null' is a LOCAL variable and can't be used with SET GLOBAL
+ERROR HY000: Variable 'sql_auto_is_null' is a SESSION variable
 set myisam_max_sort_file_size=100;
 ERROR HY000: Variable 'myisam_max_sort_file_size' is a GLOBAL variable and should be set with SET GLOBAL
 set myisam_max_extra_sort_file_size=100;
@@ -360,7 +364,7 @@ set sql_log_bin=1;
 set sql_log_off=1;
 set sql_log_update=1;
 Warnings:
-Note	1299	The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored.
+Note	1314	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored
 set sql_low_priority_updates=1;
 set sql_max_join_size=200;
 select @@sql_max_join_size,@@max_join_size;
@@ -404,6 +408,24 @@ ERROR HY000: Unknown system variable 'xxxxxxxxxx'
 select 1;
 1
 1
+select @@session.key_buffer_size;
+ERROR HY000: Variable 'key_buffer_size' is a GLOBAL variable
+set ft_boolean_syntax = @@init_connect;
+ERROR HY000: Variable 'ft_boolean_syntax' is a GLOBAL variable and should be set with SET GLOBAL
+set global ft_boolean_syntax = @@init_connect;
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of ''
+set init_connect = NULL;
+ERROR HY000: Variable 'init_connect' is a GLOBAL variable and should be set with SET GLOBAL
+set global init_connect = NULL;
+set ft_boolean_syntax = @@init_connect;
+ERROR HY000: Variable 'ft_boolean_syntax' is a GLOBAL variable and should be set with SET GLOBAL
+set global ft_boolean_syntax = @@init_connect;
+ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of ''
+set global myisam_max_sort_file_size=4294967296;
+show global variables like 'myisam_max_sort_file_size';
+Variable_name	Value
+myisam_max_sort_file_size	MAX_FILE_SIZE
+set global myisam_max_sort_file_size=default;
 select @@global.max_user_connections,@@local.max_join_size;
 @@global.max_user_connections	@@session.max_join_size
 100	200
@@ -428,3 +450,13 @@ set @a=@b, @b=@a;
 select @a, @b;
 @a	@b
 2	1
+set @@global.global.key_buffer_size= 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size= 1' at line 1
+set GLOBAL global.key_buffer_size= 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size= 1' at line 1
+SELECT @@global.global.key_buffer_size;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
+SELECT @@global.session.key_buffer_size;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
+SELECT @@global.local.key_buffer_size;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1

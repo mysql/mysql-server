@@ -71,7 +71,7 @@ sp_cache_insert(sp_cache **cp, sp_head *sp)
 }
 
 sp_head *
-sp_cache_lookup(sp_cache **cp, char *name, uint namelen)
+sp_cache_lookup(sp_cache **cp, sp_name *name)
 {
   ulong v;
   sp_cache *c= *cp;
@@ -89,11 +89,11 @@ sp_cache_lookup(sp_cache **cp, char *name, uint namelen)
     c->version= v;
     return NULL;
   }
-  return c->lookup(name, namelen);
+  return c->lookup(name->m_qname.str, name->m_qname.length);
 }
 
 bool
-sp_cache_remove(sp_cache **cp, char *name, uint namelen)
+sp_cache_remove(sp_cache **cp, sp_name *name)
 {
   sp_cache *c= *cp;
   bool found= FALSE;
@@ -109,18 +109,28 @@ sp_cache_remove(sp_cache **cp, char *name, uint namelen)
     if (c->version < v)
       c->remove_all();
     else
-      found= c->remove(name, namelen);
+      found= c->remove(name->m_qname.str, name->m_qname.length);
     c->version= v+1;
   }
   return found;
 }
 
+void
+sp_cache_invalidate()
+{
+  pthread_mutex_lock(&Cversion_lock); // LOCK
+  Cversion++;
+  pthread_mutex_unlock(&Cversion_lock); // UNLOCK
+}
 
 static byte *
 hash_get_key_for_sp_head(const byte *ptr, uint *plen,
 			       my_bool first)
 {
-  return (byte*) ((sp_head*)ptr)->name(plen);
+  sp_head *sp= (sp_head *)ptr;
+
+  *plen= sp->m_qname.length;
+  return (byte*) sp->m_qname.str;
 }
 
 static void

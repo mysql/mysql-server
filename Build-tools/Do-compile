@@ -7,16 +7,17 @@ use Sys::Hostname;
 @config_options= ();
 @make_options= ();
 
-$opt_distribution=$opt_user=$opt_config_env="";
+$opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
-$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
-$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=0;
+$opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_cluster=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
+$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=0;
 
 GetOptions(
 	"bdb",
 	"build-thread=i",
 	"config-env=s" => \@config_env,
+	"config-extra-env=s" => \@config_extra_env,
 	"config-options=s" => \@config_options,
 	"dbd-options=s",
 	"debug",
@@ -50,11 +51,13 @@ GetOptions(
 	"use-old-distribution",
 	"user=s",
 	"version-suffix=s",
+	"with-cluster",
 	"with-debug",
 	"with-low-memory",
 	"with-other-libc=s",
 	"with-small-disk",
 	"without-embedded",
+	"clearlogs",
 ) || usage();
 
 usage() if ($opt_help);
@@ -78,6 +81,12 @@ if (@config_env > 0)
 	$opt_config_env= join(" ", @config_env);
 }
 
+if (@config_extra_env > 0)
+{
+	chomp(@config_extra_env);
+	$opt_config_extra_env= join(" ", @config_extra_env);
+}
+
 $host= hostname();
 chomp($uname=`uname`);
 $full_host_name=$host;
@@ -88,6 +97,7 @@ $email="$opt_user\@mysql.com";
 chomp($pwd = `pwd`);
 $VER= basename($opt_distribution);
 $VER=~ /mysql.*-([1-9]\.[0-9]{1,2}\.[0-9]{1,2}.*)\.tar*/; $version=$1;
+$release="";			# Shut up perl
 ($major, $minor, $release) = split(/\./,$version);
 $log="$pwd/Logs/$host-$major.$minor$opt_version_suffix.log";
 $opt_distribution =~ /(mysql[^\/]*)\.tar/;
@@ -109,6 +119,8 @@ if (defined($gcc_version) && ! $opt_config_env)
     $opt_config_env= 'CC=gcc CFLAGS="-O3 -fno-omit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fno-omit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti"';
   }
 }
+
+$opt_config_env.=" $opt_config_extra_env";
 
 $new_opt_tmp=0;
 if ($opt_tmp)
@@ -136,10 +148,11 @@ $ENV{'MYSQL_TCP_PORT'}= $mysql_tcp_port= 3334 + $opt_build_thread*2;
 $ENV{'MYSQL_UNIX_PORT'}=$mysql_unix_port="$opt_tmp/mysql$opt_suffix.build";
 $ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
 $slave_port=$mysql_tcp_port+16;
+$ndbcluster_port= 9350 + $opt_build_thread*2;
 $manager_port=$mysql_tcp_port+1;
 $mysqladmin_args="--no-defaults -u root --connect_timeout=5 --shutdown_timeout=20";
 
-if ($opt_stage == 0)
+if ($opt_stage == 0 || $opt_clearlogs)
 {
   system("mkdir Logs") if (! -d "Logs");
   system("mv $log ${log}-old") if (-f $log);
@@ -153,7 +166,21 @@ select STDOUT;
 $|=1;
 
 info("Compiling MySQL$opt_version_suffix at $host$opt_suffix, stage: $opt_stage\n");
+info("LD_LIBRARY_PATH is $ENV{LD_LIBRARY_PATH}");
+info("PATH is $ENV{PATH}");
+
 log_timestamp();
+
+$md5_result= safe_system("perl $ENV{HOME}/my_md5sum -c ${opt_distribution}.md5");
+
+if ($md5_result != 0)
+{
+  abort("MD5 check failed for $opt_distribution!");
+}
+else
+{
+  info("SUCCESS: MD5 checks for $opt_distribution");
+}
 
 if (-x "$host/bin/mysqladmin")
 {
@@ -234,19 +261,27 @@ if ($opt_stage <= 1)
   $opt_config_options.= " --with-low-memory" if ($opt_with_low_memory);
   $opt_config_options.= " --with-mysqld-ldflags=-all-static" if ($opt_static_server);
   $opt_config_options.= " --with-raid" if ($opt_raid);
-  $opt_config_options.= " --with-readline" if ($opt_readline);
-  $opt_config_options.= " --with-embedded-server" unless ($opt_without_embedded);
-
-  # Only enable InnoDB when requested (required to be able to
-  # build the "Classic" packages that do not include InnoDB)
-	if ($opt_innodb)
+	if ($opt_readline)
 	{
-		$opt_config_options.= " --with-innodb";
+  	$opt_config_options.= " --with-readline";
 	}
 	else
 	{
-		$opt_config_options.= " --without-innodb";
+		$opt_config_options.= " --with-libedit";
 	}
+  $opt_config_options.= " --with-embedded-server" unless ($opt_without_embedded);
+  $opt_config_options.= " --with-ndbcluster" if ($opt_with_cluster);
+
+  # Only enable InnoDB when requested (required to be able to
+  # build the "Classic" packages that do not include InnoDB)
+  if ($opt_innodb)
+  {
+    $opt_config_options.= " --with-innodb";
+  }
+  else
+  {
+    $opt_config_options.= " --without-innodb";
+  }
 
   if ($opt_with_other_libc)
   {
@@ -282,16 +317,17 @@ if ($opt_stage <= 3)
 {
   my $flags= "";
   log_timestamp();
-  log_system("rm -fr mysql-3* mysql-4* $pwd/$host/*.tar.gz");
+  log_system("rm -fr mysql-{3,4,5}* $pwd/$host/mysql*.t*gz");
   # No need to add the debug symbols, if the binaries are not stripped (saves space)
   unless ($opt_with_debug || $opt_no_strip)
   {
     log_system("nm -n sql/mysqld | gzip -9 -v 2>&1 > sql/mysqld.sym.gz | cat");
   }
 
-  $flags.= "--no-strip" if ($opt_no_strip || $opt_with_debug);
+  $flags.= " --no-strip" if ($opt_no_strip || $opt_with_debug);
+  $flags.= " --with-ndbcluster" if ($opt_with_cluster);
   check_system("scripts/make_binary_distribution --tmp=$opt_tmp --suffix=$opt_suffix $flags",".tar.gz created");
-  safe_system("mv mysql*.tar.gz $pwd/$host");
+  safe_system("mv mysql*.t*gz $pwd/$host");
   if (-f "client/.libs/mysqladmin")
   {
     safe_system("cp client/.libs/mysqladmin $pwd/$host/bin");
@@ -303,11 +339,13 @@ if ($opt_stage <= 3)
   safe_system("$make clean") if ($opt_with_small_disk);
 }
 
-$tar_file=<$pwd/$host/*.tar.gz>;
-if (!defined($tar_file))
-{
-  $tar_file=<$pwd/$host/*.tgz>;
-}
+$tar_file=<$pwd/$host/mysql*.t*gz>;
+abort ("Could not find tarball!") unless ($tar_file);
+
+# Generate the MD5 for the binary distribution
+$tar_file=~ /(mysql[^\/]*)\.(tar\.gz|tgz)/;
+$tar_file_lite= "$1.$2";
+system("cd $pwd/$host; perl $ENV{HOME}/my_md5sum $tar_file_lite > ${tar_file_lite}.md5");
 
 #
 # Unpack the binary distribution
@@ -320,7 +358,7 @@ if ($opt_stage <= 4 && !$opt_no_test)
   safe_system("gunzip < $tar_file | $tar xf -");
 }
 
-$tar_file =~ /(mysql[^\/]*)\.tar/;
+$tar_file =~ /(mysql[^\/]*)\.(tar\.gz|tgz)/;
 $ver=$1;
 $test_dir="$pwd/$host/test/$ver";
 $ENV{"LD_LIBRARY_PATH"}= ("$test_dir/lib" .
@@ -331,10 +369,12 @@ $ENV{"LD_LIBRARY_PATH"}= ("$test_dir/lib" .
 #
 if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
+  my $flags= "";
+  $flags.= " --with-ndbcluster" if ($opt_with_cluster);
   log_timestamp();
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
-  check_system("./mysql-test-run --warnings --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+  check_system("./mysql-test-run $flags --warnings --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --ndbcluster_port=$ndbcluster_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
 }
 
 #
@@ -445,15 +485,24 @@ exit 0;
 sub usage
 {
 print <<EOF;
-$0  version 1.5
+$0  version 1.6
 
 $0 takes the following options:
 
 --bdb
 Compile with support for Berkeley DB tables
 
+--build-thread=<1,2,3...>
+When running several Do-compile runs in parallel, each build
+should have its own thread ID, so running the test suites
+does not cause conflicts with duplicate TCP port numbers.
+
 --config-env=<environment for configure>
 To set up the environment, like 'CC=cc CXX=gcc CXXFLAGS=-O3'
+
+--config-extra-env <environment for configure>
+Additional flags for environment (not CC or CXX). Should be used when one
+wants Do-compile to propose proper CC and CXX flags.
 
 --config-options=<options>
 To add some extra options to configure (e.g. '--with-perl=yes')
@@ -550,6 +599,9 @@ If user is empty then no mail is sent.
 --version-suffix=suffix
 Set name suffix (e.g. 'com' or '-max') for a distribution
 
+--with cluster
+Compile and test with NDB Cluster enabled
+
 --with-debug
 Build binaries with debug information (implies "--no-strip")
 
@@ -624,7 +676,10 @@ sub safe_system
   my($com,$res)=@_;
   print LOG "$com\n";
   print "$host: $com\n" if ($opt_debug);
-  system("$com >> $log 2>&1") && abort("error: Couldn't execute command, error: " . ($? / 256));
+  my $result= system("$com >> $log 2>&1");
+  abort("error: Couldn't execute command, error: " . ($? / 256)) unless $result == 0;
+
+  return $result;
 }
 
 sub check_system

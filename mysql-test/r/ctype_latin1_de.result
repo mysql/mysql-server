@@ -1,3 +1,5 @@
+set names latin1;
+set @@collation_connection=latin1_german2_ci;
 select @@collation_connection;
 @@collation_connection
 latin1_german2_ci

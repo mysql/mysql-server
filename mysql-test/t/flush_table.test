@@ -4,10 +4,55 @@
 # Test of flush table
 #
 
-#drop table if exists t1;
-#create table t1 (a int not null auto_increment primary key);
-#insert into t1 values(0);
-#lock table t1 read;
-#flush table t1;
-#check table t1;
-#drop table t1;
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+create table t1 (a int not null auto_increment primary key);
+insert into t1 values(0);
+lock table t1 read;
+flush table t1;
+check table t1;
+drop table t1;
+
+#
+# In the following test FLUSH TABLES produces a deadlock
+# (hang forever) if the fix for bug#3565 is missing.
+#
+create table t1(table_id char(20) primary key);
+create table t2(table_id char(20) primary key);
+insert into t1 values ('test.t1');
+insert into t1 values ('');
+insert into t2 values ('test.t2');
+insert into t2 values ('');
+handler t1 open as a1;
+handler t1 open as a2;
+handler t2 open;
+handler a1 read first limit 9;
+handler a2 read first limit 9;
+handler t2 read first limit 9;
+flush tables;
+--error 1109;
+handler a1 read first limit 9;
+--error 1109;
+handler a2 read first limit 9;
+--error 1109;
+handler t2 read first limit 9;
+#
+handler t1 open as a1;
+handler t1 open as a2;
+handler t2 open;
+handler a1 read first limit 9;
+handler a2 read first limit 9;
+handler t2 read first limit 9;
+flush table t1;
+--error 1109;
+handler a1 read first limit 9;
+--error 1109;
+handler a2 read first limit 9;
+handler t2 read first limit 9;
+flush table t2;
+--error 1109;
+handler t2 close;
+drop table t1;
+drop table t2;
+

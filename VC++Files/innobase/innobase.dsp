@@ -67,7 +67,7 @@ LIB32=xilink6.exe -lib
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /D "NDEBUG" /FD /c
 # SUBTRACT CPP /WX /Fr /YX
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
 # ADD RSC /l 0x416 /d "NDEBUG"
@@ -91,7 +91,7 @@ LIB32=xilink6.exe -lib
 # PROP Intermediate_Dir "nt"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "_LIB" /D "_WIN32" /D "WIN32" /D "NDEBUG" /D "MYSQL_SERVER" /D "_MBCS" /D MYSQL_SERVER_SUFFIX=-nt /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
 # ADD RSC /l 0x416 /d "NDEBUG"
@@ -115,7 +115,7 @@ LIB32=xilink6.exe -lib
 # PROP Intermediate_Dir "max_nt"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "_LIB" /D "_WIN32" /D "WIN32" /D "NDEBUG" /D "MYSQL_SERVER" /D "_MBCS" /D MYSQL_SERVER_SUFFIX=-nt-max /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
 # ADD RSC /l 0x416 /d "NDEBUG"
@@ -165,14 +165,6 @@ SOURCE=.\buf\buf0lru.c
 # Begin Source File
 
 SOURCE=.\buf\buf0rea.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\com\com0com.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\com\com0shm.c
 # End Source File
 # Begin Source File
 
@@ -280,19 +272,11 @@ SOURCE=.\mtr\mtr0mtr.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\odbc\odbc0odbc.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\os\os0file.c
 # End Source File
 # Begin Source File
 
 SOURCE=.\os\os0proc.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\os\os0shm.c
 # End Source File
 # Begin Source File
 
@@ -397,10 +381,6 @@ SOURCE=.\srv\srv0start.c
 # Begin Source File
 
 SOURCE=.\sync\sync0arr.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\sync\sync0ipm.c
 # End Source File
 # Begin Source File
 

@@ -4,13 +4,19 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 5.0.0-alpha)
+AM_INIT_AUTOMAKE(mysql, 5.0.2-alpha)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
 DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
 SHARED_LIB_VERSION=14:0:0
+
+# ndb version
+NDB_VERSION_MAJOR=3
+NDB_VERSION_MINOR=5
+NDB_VERSION_BUILD=0
+NDB_VERSION_STATUS=beta
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
@@ -26,7 +32,7 @@ MYSQL_UNIX_ADDR_DEFAULT="/tmp/mysql.sock"
 AVAILABLE_LANGUAGES="\
 czech danish dutch english estonian french german greek hungarian \
 italian japanese korean norwegian norwegian-ny polish portuguese \
-romanian russian slovak spanish swedish ukrainian"
+romanian russian serbian slovak spanish swedish ukrainian"
 
 # Generate make rules for all error messages
 AVAILABLE_LANGUAGES_ERRORS=
@@ -64,6 +70,16 @@ AC_SUBST(AVAILABLE_LANGUAGES)
 AC_SUBST(AVAILABLE_LANGUAGES_ERRORS)
 AC_SUBST_FILE(AVAILABLE_LANGUAGES_ERRORS_RULES)
 
+AC_SUBST([NDB_VERSION_MAJOR])
+AC_SUBST([NDB_VERSION_MINOR])
+AC_SUBST([NDB_VERSION_BUILD])
+AC_SUBST([NDB_VERSION_STATUS])
+AC_DEFINE_UNQUOTED([NDB_VERSION_MAJOR], [$NDB_VERSION_MAJOR])
+AC_DEFINE_UNQUOTED([NDB_VERSION_MINOR], [$NDB_VERSION_MINOR])
+AC_DEFINE_UNQUOTED([NDB_VERSION_BUILD], [$NDB_VERSION_BUILD])
+AC_DEFINE_UNQUOTED([NDB_VERSION_STATUS], ["$NDB_VERSION_STATUS"])
+
+
 # Canonicalize the configuration name.
 SYSTEM_TYPE="$host_vendor-$host_os"
 MACHINE_TYPE="$host_cpu"
@@ -95,7 +111,6 @@ AC_SUBST(CXXLDFLAGS)
 
 AC_PREREQ(2.12)dnl		Minimum Autoconf version required.
 
-AM_MAINTAINER_MODE
 #AC_ARG_PROGRAM			# Automaticly invoked by AM_INIT_AUTOMAKE
 AM_SANITY_CHECK
 # This is needed is SUBDIRS is set
@@ -126,8 +141,10 @@ fi
 
 # The following hack should ensure that configure doesn't add optimizing
 # or debugging flags to CFLAGS or CXXFLAGS
-CFLAGS="$CFLAGS "
-CXXFLAGS="$CXXFLAGS "
+# C_EXTRA_FLAGS are flags that are automaticly added to both
+# CFLAGS and CXXFLAGS
+CFLAGS="$CFLAGS $C_EXTRA_FLAGS "
+CXXFLAGS="$CXXFLAGS $C_EXTRA_FLAGS "
 
 dnl Checks for programs.
 AC_PROG_AWK
@@ -191,6 +208,11 @@ AC_PROG_RANLIB
 # We use libtool
 #AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
+
+# Ensure that we have --preserve-dup-deps defines, otherwise we get link
+# problems of 'mysql' with CXX=g++
+LIBTOOL="$LIBTOOL --preserve-dup-deps"
+AC_SUBST(LIBTOOL)dnl
 
 #AC_LIBTOOL_DLOPEN AC_LIBTOOL_WIN32_DLL AC_DISABLE_FAST_INSTALL AC_DISABLE_SHARED AC_DISABLE_STATIC
 
@@ -346,14 +368,17 @@ AC_SUBST(CXXFLAGS)
 AC_SUBST(LD)
 AC_SUBST(INSTALL_SCRIPT)
 
-export CC CFLAGS LD LDFLAGS
+export CC CXX CFLAGS LD LDFLAGS AR
 
+ndb_cxxflags_fix=
 if test "$GXX" = "yes"
 then
   # mysqld requires -fno-implicit-templates.
   # Disable exceptions as they seams to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
+  # ndb cannot be compiled with -fno-implicit-templaces
+  ndb_cxxflags_fix="$ndb_cxxflags_fix -fimplicit-templates"
 
   # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
   # we will gets some problems when linking static programs.
@@ -426,6 +451,15 @@ AC_SUBST(HOSTNAME)
 AC_SUBST(PERL)
 AC_SUBST(PERL5)
 
+# for build ndb docs
+
+AC_PATH_PROG(DOXYGEN, doxygen, no)
+AC_PATH_PROG(PDFLATEX, pdflatex, no)
+AC_PATH_PROG(MAKEINDEX, makeindex, no)
+AC_SUBST(DOXYGEN)
+AC_SUBST(PDFLATEX)
+AC_SUBST(MAKEINDEX)
+
 # Lock for PS
 AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
@@ -452,6 +486,9 @@ then
   FIND_PROC="$PS \$\$PID | grep mysqld > /dev/null"
 else
   case $SYSTEM_TYPE in
+    *freebsd*)
+      FIND_PROC="$PS p \$\$PID | grep mysqld > /dev/null"
+      ;;
     *darwin*)
       FIND_PROC="$PS -uaxww | grep mysqld | grep \" \$\$PID \" > /dev/null"
       ;;
@@ -484,7 +521,7 @@ fi
 AC_SUBST(CHECK_PID)
 AC_MSG_RESULT("$CHECK_PID")
 
-# We need a ANSI C compiler
+# We need an ANSI C compiler
 AM_PROG_CC_STDC
 
 # We need an assembler, too
@@ -492,7 +529,7 @@ AM_PROG_AS
 
 if test "$am_cv_prog_cc_stdc" = "no"
 then
-  AC_MSG_ERROR([MySQL requires a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
+  AC_MSG_ERROR([MySQL requires an ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
 fi
 
 NOINST_LDFLAGS=
@@ -758,7 +795,14 @@ AC_CHECK_FUNC(crypt, AC_DEFINE(HAVE_CRYPT))
 AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
 
 # For compress in zlib
-MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
+case $SYSTEM_TYPE in
+  *netware* | *modesto*)
+    AC_DEFINE(HAVE_COMPRESS)
+    ;;
+  *)
+    MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
+    ;;
+esac
 
 #--------------------------------------------------------------------
 # Check for TCP wrapper support
@@ -988,6 +1032,7 @@ case $SYSTEM_TYPE in
       CXXFLAGS="$CXXFLAGS +O2"
       MAX_C_OPTIMIZE=""
       MAX_CXX_OPTIMIZE=""
+      ndb_cxxflags_fix="$ndb_cxxflags_fix -Aa"
     fi
     ;;
   *rhapsody*)
@@ -1005,7 +1050,7 @@ case $SYSTEM_TYPE in
   *darwin5*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH -DFN_NO_CASE_SENCE"
+      FLAGS="-traditional-cpp -DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
@@ -1015,7 +1060,16 @@ case $SYSTEM_TYPE in
   *darwin6*)
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH -DFN_NO_CASE_SENCE"
+      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DHAVE_BROKEN_REALPATH"
+      CFLAGS="$CFLAGS $FLAGS"
+      CXXFLAGS="$CXXFLAGS $FLAGS"
+      MAX_C_OPTIMIZE="-O"
+    fi
+    ;;
+  *darwin7*)
+    if test "$ac_cv_prog_gcc" = "yes"
+    then
+      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
@@ -1051,7 +1105,7 @@ case $SYSTEM_TYPE in
       echo "Using --with-named-thread=-lpthread"
       with_named_thread="-lpthread"
     fi
-    CXXFLAGS="-D_BOOL"
+    CXXFLAGS="$CXXFLAGS -D_BOOL"
     ;;
     *aix4.3*)
       echo "Adding defines for AIX"
@@ -1101,10 +1155,10 @@ dnl Is this the right match for DEC OSF on alpha?
         sql/Makefile.in)
           # Use gen_lex_hash.linux instead of gen_lex_hash
           # Add library dependencies to mysqld_DEPENDENCIES
-          lib_DEPENDENCIES="\$(bdb_libs_with_path) \$(innodb_libs) \$(pstack_libs) \$(innodb_system_libs) \$(openssl_libs)"
+          lib_DEPENDENCIES="\$(bdb_libs_with_path) \$(innodb_libs) \$(ndbcluster_libs) \$(pstack_libs) \$(innodb_system_libs) \$(openssl_libs)"
           cat > $filesed << EOF
-s,\(^.*\$(MAKE) gen_lex_hash\),#\1,
-s,\(\./gen_lex_hash\),\1.linux,
+s,\(^.*\$(MAKE) gen_lex_hash\)\$(EXEEXT),#\1,
+s,\(\./gen_lex_hash\)\$(EXEEXT),\1.linux,
 s%\(mysqld_DEPENDENCIES = \) %\1$lib_DEPENDENCIES %
 EOF
           ;;
@@ -1818,29 +1872,33 @@ AC_TYPE_SIGNAL
 MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS(alarm bmove \
- chsize ftruncate rint finite isnan fpsetmask fpresetsticky\
- cuserid fcntl fconvert poll \
- getrusage getpwuid getcwd getrlimit getwd index stpcpy locking longjmp \
- perror pread realpath readlink rename \
- socket strnlen madvise mallinfo mkstemp \
- strtol strtoul strtoll strtoull snprintf tempnam thr_setconcurrency \
- gethostbyaddr_r gethostbyname_r getpwnam \
- bfill bzero bcmp strstr strpbrk strerror \
- tell atod memcpy memmove \
- setupterm strcasecmp sighold vidattr lrand48 localtime_r gmtime_r \
- sigset sigthreadmask pthread_sigmask pthread_setprio pthread_setprio_np \
- pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
- pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
- pthread_attr_getstacksize \
- pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
- fsync fdatasync fchmod getpass getpassphrase initgroups mlockall)
 
+AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
+  fconvert fdatasync finite fpresetsticky fpsetmask fsync ftruncate \
+  getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
+  getpwuid getrlimit getrusage getwd gmtime_r index initgroups isnan \
+  localtime_r locking longjmp lrand48 madvise mallinfo memcpy memmove \
+  mkstemp mlockall perror poll pread pthread_attr_create clock_gettime \
+  pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
+  pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
+  pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
+  pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
+  realpath rename rint rwlock_init setupterm sighold sigset sigthreadmask \
+  snprintf socket stpcpy strcasecmp strerror strnlen strpbrk strstr strtol \
+  strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr)
+
+# isinf() could be a function or a macro (HPUX)
+AC_MSG_CHECKING(for isinf with <math.h>)
+AC_TRY_LINK([#include <math.h>], [float f = 0.0; isinf(f)],
+ AC_MSG_RESULT(yes)
+ AC_DEFINE(HAVE_ISINF,,[isinf() macro or function]),
+ AC_MSG_RESULT(no))
+ 
 CFLAGS="$ORG_CFLAGS"
 
 # Sanity check: We chould not have any fseeko symbol unless
 # large_file_support=yes
-AC_CHECK_FUNCS(fseeko,
+AC_CHECK_FUNC(fseeko,
 [if test "$large_file_support" = no -a "$IS_LINUX" = "true";
 then
   AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
@@ -2112,6 +2170,31 @@ then
   AC_DEFINE(HAVE_QUERY_CACHE)
 fi
 
+AC_ARG_WITH(geometry,
+    [  --without-geometry      Do not build geometry-related parts.],
+    [with_geometry=$withval],
+    [with_geometry=yes]
+)
+
+if test "$with_geometry" = "yes"
+then
+  AC_DEFINE(HAVE_SPATIAL)
+  AC_DEFINE(HAVE_RTREE_KEYS)
+fi
+
+AC_ARG_WITH(embedded_privilege_control,
+    [  --with-embedded-privilege-control
+                          Build parts to check user's privileges.
+			  Only affects embedded library.],
+    [with_embedded_privilege_control=$withval],
+    [with_embedded_privilege_control=no]
+)
+
+if test "$with_embedded_privilege_control" = "yes"
+then
+  AC_DEFINE(HAVE_EMBEDDED_PRIVILEGE_CONTROL)
+fi
+
 AC_ARG_WITH(extra-tools,
     [  --without-extra-tools   Skip building utilites in the tools directory.],
     [with_tools=$withval],
@@ -2221,7 +2304,6 @@ if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
     # For NetWare, do not need readline
     echo "Skipping readline"
 else
-mkdir include/readline
 
 if [test "$with_libedit" = "yes"] || [test "$with_libedit" = "undefined"] && [test "$with_readline" = "undefined"]
 then
@@ -2229,7 +2311,7 @@ then
     readline_basedir="libedit"
     readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/libedit/liblibedit.a"
-    readline_h_ln_cmd="\$(LN) \$(top_builddir)/cmd-line-utils/libedit/readline/*.h readline/"
+    readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/libedit/readline readline"
     compile_libedit=yes
     AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE)
 elif test "$with_readline" = "yes"
@@ -2238,7 +2320,7 @@ then
     readline_basedir="readline"
     readline_dir="$readline_topdir/$readline_basedir"
     readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
-    readline_h_ln_cmd="\$(LN) \$(top_builddir)/cmd-line-utils/readline/*.h readline/"
+    readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/readline readline"
     compile_readline=yes
     AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE)
 else
@@ -2267,14 +2349,15 @@ dnl you must also create strings/ctype-$charset_name.c
 
 AC_DIVERT_PUSH(0)
 
+define(CHARSETS_AVAILABLE0,binary)
 define(CHARSETS_AVAILABLE1,ascii armscii8 ascii big5 cp1250 cp1251 cp1256 cp1257)
-define(CHARSETS_AVAILABLE2,cp850 cp852 cp866 dec8 euckr gb2312 gbk)
+define(CHARSETS_AVAILABLE2,cp850 cp852 cp866 dec8 euckr gb2312 gbk geostd8)
 define(CHARSETS_AVAILABLE3,greek hebrew hp8 keybcs2 koi8r koi8u)
 define(CHARSETS_AVAILABLE4,latin1 latin2 latin5 latin7 macce macroman)
 define(CHARSETS_AVAILABLE5,sjis swe7 tis620 ucs2 ujis utf8)
 
 DEFAULT_CHARSET=latin1
-CHARSETS_AVAILABLE="CHARSETS_AVAILABLE1 CHARSETS_AVAILABLE2 CHARSETS_AVAILABLE3 CHARSETS_AVAILABLE4 CHARSETS_AVAILABLE5"
+CHARSETS_AVAILABLE="CHARSETS_AVAILABLE0 CHARSETS_AVAILABLE1 CHARSETS_AVAILABLE2 CHARSETS_AVAILABLE3 CHARSETS_AVAILABLE4 CHARSETS_AVAILABLE5"
 CHARSETS_COMPLEX="big5 cp1250 euckr gb2312 gbk latin1 latin2 sjis tis620 ucs2 ujis utf8"
 
 AC_DIVERT_POP
@@ -2282,6 +2365,7 @@ AC_DIVERT_POP
 AC_ARG_WITH(charset,
    [  --with-charset=CHARSET
                           Default character set, use one of:
+                          CHARSETS_AVAILABLE0
                           CHARSETS_AVAILABLE1
                           CHARSETS_AVAILABLE2
                           CHARSETS_AVAILABLE3
@@ -2336,6 +2420,8 @@ do
       AC_DEFINE(USE_MB)
       AC_DEFINE(USE_MB_IDENT)
       ;;
+    binary)
+      ;;
     cp1250)
       AC_DEFINE(HAVE_CHARSET_cp1250)
       ;;
@@ -2374,6 +2460,9 @@ do
       AC_DEFINE(HAVE_CHARSET_gbk)
       AC_DEFINE(USE_MB)
       AC_DEFINE(USE_MB_IDENT)
+      ;;
+    geostd8)
+      AC_DEFINE(HAVE_CHARSET_geostd8)
       ;;
     greek)
       AC_DEFINE(HAVE_CHARSET_greek)
@@ -2449,7 +2538,7 @@ done
 case $default_charset in 
     armscii8)
       default_charset_default_collation="armscii8_general_ci"
-      default_charset_collations="armscii8_general_ci armscii_bin"
+      default_charset_collations="armscii8_general_ci armscii8_bin"
       ;;
     ascii)
       default_charset_default_collation="ascii_general_ci"
@@ -2458,6 +2547,10 @@ case $default_charset in
     big5)
       default_charset_default_collation="big5_chinese_ci"
       default_charset_collations="big5_chinese_ci big5_bin"
+      ;;
+    binary)
+      default_charset_default_collation="binary"
+      default_charset_collations="binary"
       ;;
     cp1250)
       default_charset_default_collation="cp1250_general_ci"
@@ -2502,6 +2595,10 @@ case $default_charset in
     gbk)
       default_charset_default_collation="gbk_chinese_ci"
       default_charset_collations="gbk_chinese_ci gbk_bin"
+      ;;
+    geostd8)
+      default_charset_default_collation="geostd8_general_ci"
+      default_charset_collations="geostd8_general_ci geostd8_bin"
       ;;
     greek)
       default_charset_default_collation="greek_general_ci"
@@ -2565,7 +2662,17 @@ case $default_charset in
       ;;
     ucs2)
       default_charset_default_collation="ucs2_general_ci"
-      default_charset_collations="ucs2_general_ci ucs2_bin"
+      define(UCSC1, ucs2_general_ci ucs2_bin)
+      define(UCSC2, ucs2_czech_ci ucs2_danish_ci)
+      define(UCSC3, ucs2_estonian_ci ucs2_icelandic_ci)
+      define(UCSC4, ucs2_latvian_ci ucs2_lithuanian_ci)
+      define(UCSC5, ucs2_polish_ci ucs2_romanian_ci)
+      define(UCSC6, ucs2_slovak_ci ucs2_slovenian_ci)
+      define(UCSC7, ucs2_spanish2_ci ucs2_spanish_ci)
+      define(UCSC8, ucs2_swedish_ci ucs2_turkish_ci)
+      define(UCSC9, ucs2_unicode_ci)
+      UCSC="UCSC1 UCSC2 UCSC3 UCSC4 UCSC5 UCSC6 UCSC7 UCSC8 UCSC9"
+      default_charset_collations="$UCSC"
       ;;
     ujis)
       default_charset_default_collation="ujis_japanese_ci"
@@ -2573,7 +2680,17 @@ case $default_charset in
       ;;
     utf8)
       default_charset_default_collation="utf8_general_ci"
-      default_charset_collations="utf8_general_ci utf8_bin"
+      define(UTFC1, utf8_general_ci utf8_bin)
+      define(UTFC2, utf8_czech_ci utf8_danish_ci)
+      define(UTFC3, utf8_estonian_ci utf8_icelandic_ci)
+      define(UTFC4, utf8_latvian_ci utf8_lithuanian_ci)
+      define(UTFC5, utf8_polish_ci utf8_romanian_ci)
+      define(UTFC6, utf8_slovak_ci utf8_slovenian_ci)
+      define(UTFC7, utf8_spanish2_ci utf8_spanish_ci)
+      define(UTFC8, utf8_swedish_ci utf8_turkish_ci)
+      define(UTFC9, utf8_unicode_ci)
+      UTFC="UTFC1 UTFC2 UTFC3 UTFC4 UTFC5 UTFC6 UTFC7 UTFC8 UTFC9"
+      default_charset_collations="$UTFC"
       ;;
     *)
       AC_MSG_ERROR([Charset $cs not available. (Available are: $CHARSETS_AVAILABLE).
@@ -2611,6 +2728,9 @@ AC_DEFINE_UNQUOTED(MYSQL_DEFAULT_COLLATION_NAME,"$default_collation")
 MYSQL_CHECK_ISAM
 MYSQL_CHECK_BDB
 MYSQL_CHECK_INNODB
+MYSQL_CHECK_EXAMPLEDB
+MYSQL_CHECK_ARCHIVEDB
+MYSQL_CHECK_NDBCLUSTER
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=
@@ -2644,6 +2764,11 @@ if expr "$SYSTEM_TYPE" : ".*netware.*" > /dev/null; then
 fi
 AC_SUBST(netware_dir)
 AC_SUBST(linked_netware_sources)
+AM_CONDITIONAL(HAVE_NETWARE, test "$netware_dir" = "netware")
+
+# Ensure that table handlers gets all modifications to CFLAGS/CXXFLAGS
+export CC CXX CFLAGS CXXFLAGS LD LDFLAGS AR
+ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'"
 
 if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
 then
@@ -2664,12 +2789,14 @@ then
   if test X"$have_isam" != Xno
   then
     sql_server_dirs="$sql_server_dirs isam merge"
+    AC_CONFIG_FILES(isam/Makefile merge/Makefile)
   fi
 
   if test X"$have_berkeley_db" != Xno; then
     if test X"$have_berkeley_db" != Xyes; then
       # we must build berkeley db from source
       sql_server_dirs="$sql_server_dirs $have_berkeley_db"
+      AC_CONFIG_FILES(bdb/Makefile)
 
       echo "CONFIGURING FOR BERKELEY DB" 
       bdb_conf_flags=
@@ -2699,7 +2826,7 @@ then
       esac
       (cd $bdb/build_unix && \
        sh $rel_srcdir/$bdb/dist/configure $bdb_conf_flags) || \
-	AC_MSG_ERROR([could not configure Berkeley DB])
+        AC_MSG_ERROR([could not configure Berkeley DB])
 
 dnl       echo "bdb = '$bdb'; inc = '$bdb_includes', lib = '$bdb_libs'"
       echo "END OF BERKELEY DB CONFIGURATION"
@@ -2738,25 +2865,20 @@ EOF
   then
     innodb_conf_flags=""
     sql_server_dirs="$sql_server_dirs innobase"
-    echo "CONFIGURING FOR INNODB" 
-    if test ! -d "innobase"; then
-        # This should only happen when doing a VPATH build
-        echo "NOTICE: I have to make the Innobase directory: `pwd`/innobase"
-	mkdir "innobase" || exit 1
-    fi
-    rel_srcdir=
-    case "$srcdir" in
-	/* ) rel_srcdir="$srcdir" ;;
-	* )  rel_srcdir="../$srcdir" ;;
-    esac
-    if test "x$enable_dependency_tracking" == xno
-    then
-      innodb_conf_flags=--disable-dependency-tracking
-    fi
-    (cd innobase && sh $rel_srcdir/innobase/configure --host=$host $innodb_conf_flags) \
-    || AC_MSG_ERROR([could not configure INNODB])
+    AC_CONFIG_SUBDIRS(innobase)
+  fi
 
-    echo "END OF INNODB CONFIGURATION"
+  if test X"$have_ndbcluster" = Xyes
+  then
+    if test X"$mysql_cv_compress" != Xyes
+    then
+      echo
+      echo "MySQL Cluster table handler ndbcluster requires compress/uncompress."
+      echo "Commonly available in libzlib.a.  Please install and rerun configure."
+      echo
+      exit 1
+    fi
+    sql_server_dirs="$sql_server_dirs ndb"
   fi
   #
   # END of configuration for optional table handlers
@@ -2819,12 +2941,103 @@ case $SYSTEM_TYPE in
     MAKE_BINARY_DISTRIBUTION_OPTIONS=
     ;;
 esac
+
+if test X"$have_ndbcluster" = Xyes
+then
+  MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
+
+  CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
+  if test "$with_debug" = "yes"
+  then
+    # Medium debug.
+    NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+  elif test "$with_debug" = "full"
+  then
+    NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+  else
+    NDB_DEFS="-DNDEBUG"
+  fi
+
+AC_SUBST([NDB_DEFS])
+AC_SUBST([ndb_cxxflags_fix])
+
+ndb_transporter_opt_objs=""
+if test X"$have_ndb_shm" = Xyes
+then
+  ndb_transporter_opt_objs="$(ndb_transporter_opt_objs) SHM_Transporter.lo SHM_Transporter.unix.lo"
+fi
+if test X"$have_ndb_sci" = Xyes
+then
+  ndb_transporter_opt_objs="$(ndb_transporter_opt_objs) SCI_Transporter.lo"
+fi
+AC_SUBST([ndb_transporter_opt_objs])
+
+ndb_opt_subdirs=
+ndb_bin_am_ldflags="-static"
+if test X"$have_ndb_test" = Xyes
+then
+  ndb_opt_subdirs="test"
+  ndb_bin_am_ldflags=""
+fi
+if test X"$have_ndb_docs" = Xyes
+then
+  ndb_opt_subdirs="$ndb_opt_subdirs docs"
+  ndb_bin_am_ldflags=""
+fi
+AC_SUBST([ndb_bin_am_ldflags])
+AC_SUBST([ndb_opt_subdirs])
+AC_CONFIG_FILES(ndb/Makefile ndb/include/Makefile dnl
+   ndb/src/Makefile ndb/src/common/Makefile dnl
+   ndb/docs/Makefile dnl
+   ndb/tools/Makefile dnl
+   ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
+   ndb/src/common/portlib/Makefile dnl
+   ndb/src/common/util/Makefile dnl
+   ndb/src/common/logger/Makefile dnl
+   ndb/src/common/transporter/Makefile dnl
+   ndb/src/common/mgmcommon/Makefile dnl
+   ndb/src/common/editline/Makefile dnl
+   ndb/src/kernel/Makefile dnl
+   ndb/src/kernel/error/Makefile dnl
+   ndb/src/kernel/blocks/Makefile dnl
+   ndb/src/kernel/blocks/cmvmi/Makefile dnl
+   ndb/src/kernel/blocks/dbacc/Makefile dnl
+   ndb/src/kernel/blocks/dbdict/Makefile dnl
+   ndb/src/kernel/blocks/dbdih/Makefile dnl
+   ndb/src/kernel/blocks/dblqh/Makefile dnl
+   ndb/src/kernel/blocks/dbtc/Makefile dnl
+   ndb/src/kernel/blocks/dbtup/Makefile dnl
+   ndb/src/kernel/blocks/ndbfs/Makefile dnl
+   ndb/src/kernel/blocks/ndbcntr/Makefile dnl
+   ndb/src/kernel/blocks/qmgr/Makefile dnl
+   ndb/src/kernel/blocks/trix/Makefile dnl
+   ndb/src/kernel/blocks/backup/Makefile dnl
+   ndb/src/kernel/blocks/backup/restore/Makefile dnl
+   ndb/src/kernel/blocks/dbutil/Makefile dnl
+   ndb/src/kernel/blocks/suma/Makefile dnl
+   ndb/src/kernel/blocks/grep/Makefile dnl
+   ndb/src/kernel/blocks/dbtux/Makefile dnl
+   ndb/src/kernel/vm/Makefile dnl
+   ndb/src/mgmapi/Makefile dnl
+   ndb/src/ndbapi/Makefile dnl
+   ndb/src/mgmsrv/Makefile dnl
+   ndb/src/mgmclient/Makefile dnl
+   ndb/src/cw/Makefile dnl
+   ndb/src/cw/cpcd/Makefile dnl
+   ndb/test/Makefile dnl
+   ndb/test/src/Makefile dnl
+   ndb/test/ndbapi/Makefile dnl
+   ndb/test/ndbapi/bank/Makefile dnl
+   ndb/test/tools/Makefile dnl
+   ndb/test/run-test/Makefile mysql-test/ndb/Makefile dnl
+   )
+fi
+
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
-AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
+AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  strings/Makefile regex/Makefile heap/Makefile dnl
- bdb/Makefile dnl
  myisam/Makefile myisammrg/Makefile dnl
  os2/Makefile os2/include/Makefile os2/include/sys/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
@@ -2832,18 +3045,18 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  libmysql/Makefile client/Makefile dnl
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile dnl
  sql-common/Makefile SSL/Makefile dnl
- merge/Makefile dbug/Makefile scripts/Makefile dnl
+ dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  server-tools/Makefile server-tools/instance-manager/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
+ netware/Makefile dnl
  include/mysql_version.h dnl
  cmd-line-utils/Makefile dnl
  cmd-line-utils/libedit/Makefile dnl
- cmd-line-utils/readline/Makefile dnl
- , , [
-  test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
- ])
+ cmd-line-utils/readline/Makefile)
+ AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
+ AC_OUTPUT
 
 rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
 echo

@@ -22,9 +22,6 @@
   */
 
 #include "myisamdef.h"
-#ifdef	__WIN__
-#include <errno.h>
-#endif
 
 	/* lock table by F_UNLCK, F_RDLCK or F_WRLCK */
 
@@ -288,6 +285,21 @@ void mi_copy_status(void* to,void *from)
 {
   ((MI_INFO*) to)->state= &((MI_INFO*) from)->save_state;
 }
+
+
+/*
+  Check if should allow concurrent inserts
+
+  IMPLEMENTATION
+    Don't allow concurrent inserts if we have a hole in the table.
+
+  NOTES
+    Rtree indexes are disabled in mi_open()
+
+  RETURN
+    0  ok to use concurrent inserts
+    1  not ok
+*/
 
 my_bool mi_check_status(void* param)
 {

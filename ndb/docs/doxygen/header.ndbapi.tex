@@ -1,0 +1,44 @@
+\documentclass[a4paper]{book}
+\usepackage{a4wide}
+\usepackage{makeidx}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{multicol}
+\usepackage{float}
+\usepackage{textcomp}
+\usepackage{alltt}
+\usepackage{times}
+\ifx\pdfoutput\undefined
+\usepackage[ps2pdf,
+            pagebackref=true,
+            colorlinks=true,
+            linkcolor=blue
+           ]{hyperref}
+\usepackage{pspicture}
+\else
+\usepackage[pdftex,
+            pagebackref=true,
+            colorlinks=true,
+            linkcolor=blue
+           ]{hyperref}
+\fi
+\usepackage{doxygen}
+\makeindex
+\setcounter{tocdepth}{1}
+\renewcommand{\footrulewidth}{0.4pt}
+\begin{document}
+\begin{titlepage}
+\vspace*{7cm}
+\begin{center}
+{\Huge NDB API Programmer's Guide \mbox{}\vspace{-3cm}\mbox{}\hrule\bigskip\bigskip\bigskip\bigskip\mbox{}\Huge{}}\\\vspace*{1cm}
+\begin{center}\LARGE{MySQL AB}\end{center}\hfill\bigskip\bigskip\bigskip\hrule\bigskip\bigskip\bigskip\bigskip\bigskip\bigskip\bigskip\bigskip\bigskip\bigskip\bigskip\bigskip NDB Cluster Release RELEASE
+\bigskip\bigskip\bigskip\bigskip\bigskip\hfill\vspace*{0.5cm}
+{\small DATE}\\
+\end{center}
+\end{titlepage}
+\clearemptydoublepage
+\pagenumbering{roman}
+\tableofcontents
+\clearemptydoublepage
+\pagenumbering{arabic}
+

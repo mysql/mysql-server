@@ -1,0 +1,61 @@
+
+NDBCNTR			   DIH			      DICT
+----------------------     ----------------------     ---------------
+DIH_RESTARTREQ -> DIH
+			   Check for sysfile
+			   <- DIH_RESTARTCONF
+
+NDB_STTORY -> DICT					
+sp = 1
+						      Read schema file
+
+---- Master
+
+NDB_STARTREQ -> DIH
+			   Read sysfile
+
+			   COPY_GCIREQ -> all DIHs
+				
+			   DICTSTARTREQ -> local DICT
+						      local
+                                                      ======
+						      SCHEMA_INFO -> all DICTs
+						         Info = schema file
+
+						      Participant
+						      ===========
+						      1) For each table
+							   If TableStatus match
+                                                             ReadTableFile
+                                                           else
+							     GET_TABINFOREQ
+
+                                                         <- SCHEMA_INFOCONF
+
+						      local
+						      ======
+                                                      For each table
+                                                        DIHSTARTTABREQ -> DIH
+
+                                                      <- DICTSTARTCONF
+						  
+			   For each table (STARTED)
+			     Read table description
+                               from disk
+
+			   For each fragment 
+			     IF Fragment dont have LCP
+			       ADD_FRAGREQ -> local DICT
+                                                      1) LQHFRAGREQ -> LQH x
+						      2) For each attribute
+						         LQHADDATTREQ
+			     IF Fragment is logged
+                               START_FRAGREQ -> LQH x
+
+                           START_RECREQ -> all LQH
+ 			     Note does not wait for START_FRAGCONF
+
+			   For each table
+			     COPY_TABREQ -> all DIH (but self)
+
+			   <- NDB_STARTCONF	   

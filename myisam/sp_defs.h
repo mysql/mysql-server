@@ -22,6 +22,8 @@
 #define SPTYPE HA_KEYTYPE_DOUBLE
 #define SPLEN  8
 
+#ifdef HAVE_SPATIAL
+
 enum wkbType
 {
   wkbPoint = 1,
@@ -42,4 +44,5 @@ enum wkbByteOrder
 uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
                  const byte *record, my_off_t filepos);
 
+#endif /*HAVE_SPATIAL*/
 #endif /* _SP_DEFS_H */

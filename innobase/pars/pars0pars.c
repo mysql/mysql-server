@@ -29,13 +29,14 @@ on 1/27/1998 */
 #include "trx0trx.h"
 #include "trx0roll.h"
 #include "lock0lock.h"
-#include "odbc0odbc.h"
 #include "eval0eval.h"
 
+#ifdef UNIV_SQL_DEBUG
 /* If the following is set TRUE, the lexer will print the SQL string
 as it tokenizes it */
 
 ibool	pars_print_lexed	= FALSE;
+#endif /* UNIV_SQL_DEBUG */
 
 /* Global variable used while parsing a single procedure or query : the code is
 NOT re-entrant */
@@ -389,7 +390,7 @@ pars_resolve_exp_variables_and_types(
 	}
 
 	if (!node) {
-		printf("PARSER ERROR: Unresolved identifier %s\n",
+		fprintf(stderr, "PARSER ERROR: Unresolved identifier %s\n",
 							sym_node->name);
 	}
 	
@@ -522,25 +523,6 @@ pars_resolve_exp_list_columns(
 }
 
 /*************************************************************************
-Retrieves the stored procedure definition for a procedure name. */
-static
-void
-pars_retrieve_procedure_def(
-/*========================*/
-	sym_node_t*	sym_node)	/* in: procedure name node */
-{
-	ut_a(sym_node);
-	ut_a(que_node_get_type(sym_node) == QUE_NODE_SYMBOL);
-
-	sym_node->resolved = TRUE;
-	sym_node->token_type = SYM_PROCEDURE_NAME;
-
-	sym_node->procedure_def = dict_procedure_get((char*)sym_node->name,
-								NULL);
-	ut_a(sym_node->procedure_def);
-}
-
-/*************************************************************************
 Retrieves the table definition for a table name id. */
 static
 void
@@ -548,7 +530,7 @@ pars_retrieve_table_def(
 /*====================*/
 	sym_node_t*	sym_node)	/* in: table node */
 {
-	char*	table_name;
+	const char*	table_name;
 
 	ut_a(sym_node);
 	ut_a(que_node_get_type(sym_node) == QUE_NODE_SYMBOL);
@@ -556,7 +538,7 @@ pars_retrieve_table_def(
 	sym_node->resolved = TRUE;
 	sym_node->token_type = SYM_TABLE;
 
-	table_name = (char*) sym_node->name;
+	table_name = (const char*) sym_node->name;
 	
 	sym_node->table = dict_table_get_low(table_name);
 
@@ -1662,217 +1644,20 @@ pars_procedure_definition(
 
 /*****************************************************************
 Parses a stored procedure call, when this is not within another stored
-procedure, that is, the client issues a procedure call directly. */
+procedure, that is, the client issues a procedure call directly.
+In MySQL/InnoDB, stored InnoDB procedures are invoked via the
+parsed procedure tree, not via InnoDB SQL, so this function is not used. */
 
 que_fork_t*
 pars_stored_procedure_call(
 /*=======================*/
 					/* out: query graph */
-	sym_node_t*	sym_node)	/* in: stored procedure name */
+	sym_node_t*	sym_node __attribute__((unused)))
+					/* in: stored procedure name */
 {
-	call_node_t*	node;
-	que_fork_t*	fork;
-	que_thr_t*	thr;
-	mem_heap_t*	heap;
-
-	heap = pars_sym_tab_global->heap;
-
-	fork = que_fork_create(NULL, NULL, QUE_FORK_PROCEDURE_CALL, heap);
-	fork->trx = NULL;
-
-	thr = que_thr_create(fork, heap);
-
-	node = mem_heap_alloc(heap, sizeof(call_node_t));
-
-	thr->child = node;
-
-	node->common.type = QUE_NODE_CALL;
-	node->common.parent = thr;
-
-	sym_node->token_type = SYM_PROCEDURE_NAME;
-
-	pars_retrieve_procedure_def(sym_node);	
-	
-	node->procedure_def = sym_node->procedure_def;
-	node->proc_name = sym_node;
-
-	node->sym_tab = pars_sym_tab_global;
-
- 	pars_sym_tab_global->query_graph = fork;
-
-	return(fork);
+	ut_error;
+	return(NULL);
 }
-
-/*****************************************************************
-Writes info about query parameter markers (denoted with '?' in ODBC) into a
-buffer. */
-
-ulint
-pars_write_query_param_info(
-/*========================*/
-				/* out: number of bytes used for info in buf */
-	byte*		buf,	/* in: buffer which must be big enough */
-	que_fork_t*	graph)	/* in: parsed query graph */
-{
-	que_thr_t*	thr;
-	call_node_t*	call_node;
-	dict_proc_t*	procedure_def;
-	que_t*		stored_graph;
-	proc_node_t*	proc_node;
-	sym_node_t*	param;
-	ulint		n_params;
-	ibool		is_input;
-
-	/* We currently support parameter markers only in stored procedure
-	calls, and there ALL procedure parameters must be marked with '?':
-	no literal values are allowed */
-
-	thr = UT_LIST_GET_FIRST(graph->thrs);
-
-	n_params = 0;
-
-	if (que_node_get_type(thr->child) == QUE_NODE_CALL) {
-		call_node = thr->child;
-
-		procedure_def = call_node->procedure_def;
-
-		stored_graph = dict_procedure_reserve_parsed_copy(
-								procedure_def);
-		proc_node = que_fork_get_child(stored_graph);
-
-		param = proc_node->param_list;
-
-		while (param) {
-			if (param->param_type == PARS_INPUT) {
-				is_input = TRUE;
-			} else {
-				is_input = FALSE;
-			}
-
-			mach_write_to_1(buf + 4 + n_params, is_input);
-
-			n_params++;
-
-			param = que_node_get_next(param);
-		}
-
-		dict_procedure_release_parsed_copy(stored_graph);
-	}
-
-	mach_write_to_4(buf, n_params);
-
-	return(4 + n_params);
-}
-
-/*****************************************************************
-Reads stored procedure input parameter values from a buffer. */
-
-void
-pars_proc_read_input_params_from_buf(
-/*=================================*/
-	que_t*	graph,	/* in: query graph which contains a stored procedure */
-	byte*	buf)	/* in: buffer */
-{
-	que_thr_t*	thr;
-	proc_node_t*	proc_node;
-	sym_node_t*	param;
-	byte*		ptr;
-	ulint		len;
-	lint		odbc_len;
-
-	ut_ad(graph->fork_type == QUE_FORK_PROCEDURE);
-
-	thr = UT_LIST_GET_FIRST(graph->thrs);
-
-	proc_node = thr->child;
-
-	ptr = buf;
-	
-	param = proc_node->param_list;
-
-	while (param) {
-		if (param->param_type == PARS_INPUT) {
-			odbc_len = (lint)mach_read_from_4(ptr);
-
-			ptr += 4;
-
-			if (odbc_len == SQL_NULL_DATA) {
-				len = UNIV_SQL_NULL;
-			} else {
-				len = (ulint)odbc_len;
-			}
-
- 			eval_node_copy_and_alloc_val(param, ptr, len);
-		
-			if (len != UNIV_SQL_NULL) {
-				ptr += len;
-			}
-		}
-
-		param = que_node_get_next(param);
-	}
-
-	ut_ad(ptr - buf < ODBC_DATAGRAM_SIZE);
-}	
-
-/*****************************************************************
-Writes stored procedure output parameter values to a buffer. */
-
-ulint
-pars_proc_write_output_params_to_buf(
-/*=================================*/
-			/* out: bytes used in buf */
-	byte*	buf,	/* in: buffer which must be big enough */
-	que_t*	graph)	/* in: query graph which contains a stored procedure */
-{
-	que_thr_t*	thr;
-	proc_node_t*	proc_node;
-	sym_node_t*	param;
-	dfield_t*	dfield;
-	byte*		ptr;
-	ulint		len;
-	lint		odbc_len;
-
-	ut_ad(graph->fork_type == QUE_FORK_PROCEDURE);
-
-	thr = UT_LIST_GET_FIRST(graph->thrs);
-
-	proc_node = thr->child;
-
-	ptr = buf;
-	
-	param = proc_node->param_list;
-
-	while (param) {
-		if (param->param_type == PARS_OUTPUT) {
-			dfield = que_node_get_val(param);
-		
-			len = dfield_get_len(dfield);
-
-			if (len == UNIV_SQL_NULL) {
-				odbc_len = SQL_NULL_DATA;
-			} else {
-				odbc_len = (lint)len;
-			}
-		
-			mach_write_to_4(ptr, (ulint)odbc_len);
-
-			ptr += 4;
-
-			if (len != UNIV_SQL_NULL) {
-				ut_memcpy(ptr, dfield_get_data(dfield), len);
-
-				ptr += len;
-			}
-		}
-
-		param = que_node_get_next(param);
-	}
-
-	ut_ad(ptr - buf < ODBC_DATAGRAM_SIZE);
-
-	return((ulint)(ptr - buf));
-}	
 
 /*****************************************************************
 Retrieves characters to the lexical analyzer. */
@@ -1886,13 +1671,12 @@ pars_get_lex_chars(
 				in the buffer */
 {
 	int	len;
-	char	print_buf[16];
 	
 	len = pars_sym_tab_global->string_len
 				- pars_sym_tab_global->next_char_pos;
 	if (len == 0) {
 #ifdef YYDEBUG
-		/* printf("SQL string ends\n"); */
+		/* fputs("SQL string ends\n", stderr); */
 #endif	
 		*result = 0;
 
@@ -1903,18 +1687,18 @@ pars_get_lex_chars(
 		len = max_size;
 	}
 
+#ifdef UNIV_SQL_DEBUG
 	if (pars_print_lexed) {
 		
 		if (len >= 5) {
 			len = 5;
 		}
-	
-		ut_memcpy(print_buf, pars_sym_tab_global->sql_string +
-				pars_sym_tab_global->next_char_pos, len);
-		print_buf[len] = '\0';
-		
-		printf("%s", print_buf);
+
+		fwrite(pars_sym_tab_global->sql_string +
+			pars_sym_tab_global->next_char_pos,
+			1, len, stderr);
 	}
+#endif /* UNIV_SQL_DEBUG */
 	
 	ut_memcpy(buf, pars_sym_tab_global->sql_string +
 				pars_sym_tab_global->next_char_pos, len);
@@ -1924,27 +1708,17 @@ pars_get_lex_chars(
 }
 
 /*****************************************************************
-Instructs the lexical analyzer to stop when it receives the EOF integer. */
-
-int
-yywrap(void)
-/*========*/
-		/* out: returns TRUE */
-{
-	return(1);
-}
-
-/*****************************************************************
 Called by yyparse on error. */
 
 void
 yyerror(
 /*====*/
-        char*	s __attribute__((unused))) /* in: error message string */
+	const char*	s __attribute__((unused)))
+				/* in: error message string */
 {
 	ut_ad(s);
 
-	printf("PARSER ERROR: Syntax error in SQL string\n");
+	fputs("PARSER ERROR: Syntax error in SQL string\n", stderr);
 
 	ut_error;
 }
@@ -1955,31 +1729,25 @@ Parses an SQL string returning the query graph. */
 que_t*
 pars_sql(
 /*=====*/
-			/* out, own: the query graph */
-	char*	str)	/* in: SQL string */
+				/* out, own: the query graph */
+	const char*	str)	/* in: SQL string */
 {
 	sym_node_t*	sym_node;
 	mem_heap_t*	heap;
 	que_t*		graph;
-	ulint		len;
-	char*		buf;
 
 	ut_ad(str);
 
 	heap = mem_heap_create(256);
 
+#ifdef UNIV_SYNC_DEBUG
 	/* Currently, the parser is not reentrant: */
-
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-	
+#endif /* UNIV_SYNC_DEBUG */
 	pars_sym_tab_global = sym_tab_create(heap);
 
-	len = ut_strlen(str);
-	buf = mem_heap_alloc(heap, len + 1);
-	ut_memcpy(buf, str, len + 1);
-
-	pars_sym_tab_global->sql_string = buf;
-	pars_sym_tab_global->string_len = len;
+	pars_sym_tab_global->sql_string = mem_heap_strdup(heap, str);
+	pars_sym_tab_global->string_len = strlen(str);
 	pars_sym_tab_global->next_char_pos = 0;
 	
 	yyparse();
@@ -1996,7 +1764,7 @@ pars_sql(
 
 	graph->sym_tab = pars_sym_tab_global;
 
-	/* printf("SQL graph size %lu\n", mem_heap_get_size(heap)); */
+	/* fprintf(stderr, "SQL graph size %lu\n", mem_heap_get_size(heap)); */
 
 	return(graph);
 }

@@ -20,6 +20,8 @@ CFG=mysys - Win32 Debug
 !MESSAGE "mysys - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "mysys - Win32 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE "mysys - Win32 Max" (based on "Win32 (x86) Static Library")
+!MESSAGE "mysys - Win32 TLS_DEBUG" (based on "Win32 (x86) Static Library")
+!MESSAGE "mysys - Win32 TLS" (based on "Win32 (x86) Static Library")
 !MESSAGE
 
 # Begin Project
@@ -42,7 +44,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../zlib" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../zlib" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
 # SUBTRACT CPP /WX /Fr /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
@@ -91,7 +93,7 @@ LIB32=xilink6.exe -lib
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../zlib" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_SYMDIR" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../zlib" /D "USE_SYMDIR" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /D MYSQL_SERVER_SUFFIX=-max /FD  /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
@@ -102,6 +104,56 @@ LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo /out:"..\lib_release\mysys.lib"
 # ADD LIB32 /nologo /out:"..\lib_release\mysys-max.lib"
 
+!ELSEIF  "$(CFG)" == "mysys - Win32 TLS_DEBUG"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 1
+# PROP BASE Output_Dir "mysys___Win32_TLS_DEBUG"
+# PROP BASE Intermediate_Dir "mysys___Win32_TLS_DEBUG"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 1
+# PROP Output_Dir "mysys___Win32_TLS_DEBUG"
+# PROP Intermediate_Dir "mysys___Win32_TLS_DEBUG"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MTd /W3 /Z7 /Od /I "../include" /I "../zlib" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_SYMDIR" /FD /c
+# SUBTRACT BASE CPP /Fr
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /I "../include" /I "../zlib" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_SYMDIR" /D "USE_TLS" /FD /c
+# SUBTRACT CPP /Fr
+# ADD BASE RSC /l 0x409
+# ADD RSC /l 0x409
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=link.exe -lib
+# ADD BASE LIB32 /nologo /out:"..\lib_debug\mysys_tls.lib"
+# ADD LIB32 /nologo /out:"..\lib_debug\mysys_tls.lib"
+
+!ELSEIF  "$(CFG)" == "mysys - Win32 TLS"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "mysys___Win32_TLS"
+# PROP BASE Intermediate_Dir "mysys___Win32_TLS"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "mysys___Win32_TLS"
+# PROP Intermediate_Dir "mysys___Win32_TLS"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../zlib" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
+# SUBTRACT BASE CPP /YX
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../zlib" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /D "USE_TLS" /FD /c
+# SUBTRACT CPP /YX
+# ADD BASE RSC /l 0x409
+# ADD RSC /l 0x409
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=link.exe -lib
+# ADD BASE LIB32 /nologo /out:"..\lib_release\mysys_tls.lib"
+# ADD LIB32 /nologo /out:"..\lib_release\mysys_tls.lib"
+
 !ENDIF
 
 # Begin Target
@@ -109,6 +161,8 @@ LIB32=xilink6.exe -lib
 # Name "mysys - Win32 Release"
 # Name "mysys - Win32 Debug"
 # Name "mysys - Win32 Max"
+# Name "mysys - Win32 TLS_DEBUG"
+# Name "mysys - Win32 TLS"
 # Begin Source File
 
 SOURCE=.\array.c
@@ -120,6 +174,14 @@ SOURCE=.\array.c
 # SUBTRACT CPP /Fr
 
 !ELSEIF  "$(CFG)" == "mysys - Win32 Max"
+
+
+!ELSEIF  "$(CFG)" == "mysys - Win32 TLS_DEBUG"
+
+# ADD BASE CPP /FR
+# ADD CPP /FR
+
+!ELSEIF  "$(CFG)" == "mysys - Win32 TLS"
 
 !ENDIF
 
@@ -330,7 +392,15 @@ SOURCE=.\my_gethostbyname.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_gethwaddr.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\my_getopt.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\my_getsystime.c
 # End Source File
 # Begin Source File
 
@@ -387,6 +457,10 @@ SOURCE=.\my_once.c
 # Begin Source File
 
 SOURCE=.\my_open.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\my_file.c
 # End Source File
 # Begin Source File
 
@@ -515,6 +589,13 @@ SOURCE=.\thr_lock.c
 # ADD CPP /D "EXTRA_DEBUG"
 
 !ELSEIF  "$(CFG)" == "mysys - Win32 Max"
+
+!ELSEIF  "$(CFG)" == "mysys - Win32 TLS_DEBUG"
+
+# ADD BASE CPP /D "EXTRA_DEBUG"
+# ADD CPP /D "EXTRA_DEBUG"
+
+!ELSEIF  "$(CFG)" == "mysys - Win32 TLS"
 
 !ENDIF
 

@@ -1,45 +1,121 @@
 use test;
-grant usage on *.* to dummy@localhost;
+grant usage on *.* to user1@localhost;
+flush privileges;
 drop database if exists db1_secret;
 create database db1_secret;
+create procedure db1_secret.dummy() begin end;
+drop procedure db1_secret.dummy;
 use db1_secret;
 create table t1 ( u varchar(64), i int );
 create procedure stamp(i int)
 insert into db1_secret.t1 values (user(), i);
 show procedure status like 'stamp';
-Name	Type	Definer	Modified	Created	Security_type	Comment
-stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
+create function db() returns varchar(64) return database();
+show function status like 'db';
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER	
 call stamp(1);
 select * from t1;
 u	i
 root@localhost	1
-call stamp(2);
+select db();
+db()
+db1_secret
+call db1_secret.stamp(2);
+select db1_secret.db();
+db1_secret.db()
+db1_secret
 select * from db1_secret.t1;
-ERROR 42000: Access denied for user: 'dummy'@'localhost' to database 'db1_secret'
-call stamp(3);
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
+create procedure db1_secret.dummy() begin end;
+ERROR 42000: Unknown database 'db1_secret'
+drop procedure db1_secret.dummy;
+ERROR 42000: PROCEDURE db1_secret.dummy does not exist
+call db1_secret.stamp(3);
+select db1_secret.db();
+db1_secret.db()
+db1_secret
 select * from db1_secret.t1;
-ERROR 42000: Access denied for user: ''@'localhost' to database 'db1_secret'
+ERROR 42000: Access denied for user ''@'localhost' to database 'db1_secret'
+create procedure db1_secret.dummy() begin end;
+ERROR 42000: Unknown database 'db1_secret'
+drop procedure db1_secret.dummy;
+ERROR 42000: PROCEDURE db1_secret.dummy does not exist
 select * from t1;
 u	i
 root@localhost	1
-dummy@localhost	2
+user1@localhost	2
 anon@localhost	3
 alter procedure stamp sql security invoker;
 show procedure status like 'stamp';
-Name	Type	Definer	Modified	Created	Security_type	Comment
-stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	
+alter function db sql security invoker;
+show function status like 'db';
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment
+db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER	
 call stamp(4);
 select * from t1;
 u	i
 root@localhost	1
-dummy@localhost	2
+user1@localhost	2
 anon@localhost	3
 root@localhost	4
-call stamp(5);
-ERROR 42000: Access denied for user: 'dummy'@'localhost' to database 'db1_secret'
-call stamp(6);
-ERROR 42000: Access denied for user: ''@'localhost' to database 'db1_secret'
-drop procedure stamp;
+select db();
+db()
+db1_secret
+call db1_secret.stamp(5);
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
+select db1_secret.db();
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
+call db1_secret.stamp(6);
+ERROR 42000: Access denied for user ''@'localhost' to database 'db1_secret'
+select db1_secret.db();
+ERROR 42000: Access denied for user ''@'localhost' to database 'db1_secret'
+drop database if exists db2;
+create database db2;
+use db2;
+create table t2 (s1 int);
+insert into t2 values (0);
+grant usage on db2.* to user1@localhost;
+grant select on db2.* to user1@localhost;
+grant usage on db2.* to user2@localhost;
+grant select,insert,update,delete on db2.* to user2@localhost;
+flush privileges;
+use db2;
+create procedure p () insert into t2 values (1);
+call p();
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db2'
+use db2;
+call p();
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db2'
+select * from t2;
+s1
+0
+create procedure q () insert into t2 values (2);
+call q();
+select * from t2;
+s1
+0
+2
+use db2;
+call q();
+select * from t2;
+s1
+0
+2
+2
 use test;
+select type,db,name from mysql.proc;
+type	db	name
+FUNCTION	db1_secret	db
+PROCEDURE	db1_secret	stamp
+PROCEDURE	db2	p
+PROCEDURE	db2	q
 drop database db1_secret;
-delete from mysql.user where user='dummy';
+drop database db2;
+select type,db,name from mysql.proc;
+type	db	name
+delete from mysql.user where user='user1' or user='user2';

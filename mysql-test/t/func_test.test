@@ -21,6 +21,7 @@ select -1.49 or -1.49,0.6 or 0.6;
 select 3 ^ 11, 1 ^ 1, 1 ^ 0, 1 ^ NULL, NULL ^ 1;
 explain extended select 3 ^ 11, 1 ^ 1, 1 ^ 0, 1 ^ NULL, NULL ^ 1;
 select 1 XOR 1, 1 XOR 0, 0 XOR 1, 0 XOR 0, NULL XOR 1, 1 XOR NULL, 0 XOR NULL;
+select 1 like 2 xor 2 like 1;
 select 10 % 7, 10 mod 7, 10 div 3;
 explain extended select 10 % 7, 10 mod 7, 10 div 3;
 select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
@@ -51,9 +52,9 @@ explain extended select _koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci;
 select _koi8r'a' = _koi8r'A' COLLATE koi8r_bin;
 select _koi8r'a' COLLATE koi8r_general_ci = _koi8r'A';
 select _koi8r'a' COLLATE koi8r_bin = _koi8r'A';
---error 1266
+--error 1267
 select _koi8r'a' COLLATE koi8r_bin = _koi8r'A' COLLATE koi8r_general_ci;
---error 1266
+--error 1267
 select _koi8r'a' = _latin1'A';
 
 select strcmp(_koi8r'a', _koi8r'A');
@@ -61,9 +62,9 @@ select strcmp(_koi8r'a', _koi8r'A' COLLATE koi8r_general_ci);
 select strcmp(_koi8r'a', _koi8r'A' COLLATE koi8r_bin);
 select strcmp(_koi8r'a' COLLATE koi8r_general_ci, _koi8r'A');
 select strcmp(_koi8r'a' COLLATE koi8r_bin, _koi8r'A');
---error 1266
+--error 1267
 select strcmp(_koi8r'a' COLLATE koi8r_general_ci, _koi8r'A' COLLATE koi8r_bin);
---error 1266
+--error 1267
 select strcmp(_koi8r'a', _latin1'A');
 
 select _koi8r'a' LIKE _koi8r'A';
@@ -71,9 +72,9 @@ select _koi8r'a' LIKE _koi8r'A' COLLATE koi8r_general_ci;
 select _koi8r'a' LIKE _koi8r'A' COLLATE koi8r_bin;
 select _koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A';
 select _koi8r'a' COLLATE koi8r_bin LIKE _koi8r'A';
---error 1266
+--error 1267
 select _koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A' COLLATE koi8r_bin;
---error 1266
+--error 1267
 select _koi8r'a' LIKE _latin1'A';
 
 #
@@ -85,3 +86,11 @@ CREATE TABLE t2 (  access_id smallint(6) NOT NULL default '0',   name varchar(20
 INSERT INTO t2 VALUES (1,'Everyone',2),(2,'Help',3),(3,'Customer Support',1);
 SELECT f_acc.rank, a1.rank, a2.rank  FROM t1 LEFT JOIN t1 f1 ON  (f1.access_id=1 AND f1.faq_group_id = t1.faq_group_id) LEFT JOIN t2 a1 ON (a1.access_id =  f1.access_id) LEFT JOIN t1 f2 ON (f2.access_id=3 AND  f2.faq_group_id = t1.faq_group_id) LEFT  JOIN t2 a2 ON (a2.access_id = f2.access_id), t2 f_acc WHERE LEAST(a1.rank,a2.rank) =  f_acc.rank;
 DROP TABLE t1,t2;
+
+#
+# Test for GREATEST() and LEAST() bug, which segfaulted 4.1.1 server
+#
+CREATE TABLE t1 (d varchar(6), k int);
+INSERT INTO t1 VALUES (NULL, 2);
+SELECT GREATEST(d,d) FROM t1 WHERE k=2;
+DROP TABLE t1;

@@ -36,7 +36,7 @@ in the reset state. Explicit freeing of the mutex with mutex_free is
 necessary only if the memory block containing it is freed. */
 
 
-#define mutex_create(M)	mutex_create_func((M), IB__FILE__, __LINE__)
+#define mutex_create(M)	mutex_create_func((M), __FILE__, __LINE__)
 /*===================*/
 /**********************************************************************
 Creates, or rather, initializes a mutex object in a specified memory
@@ -48,7 +48,7 @@ void
 mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/* in: pointer to memory */
-	char*		cfile_name,	/* in: file name where created */
+	const char*	cfile_name,	/* in: file name where created */
 	ulint		cline);		/* in: file line where created */
 /**********************************************************************
 Calling this function is obligatory only if the memory buffer containing
@@ -64,14 +64,23 @@ mutex_free(
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
 
-#define mutex_enter(M)    mutex_enter_func((M), IB__FILE__, __LINE__)
+#define mutex_enter(M)    mutex_enter_func((M), __FILE__, __LINE__)
+/**********************************************************************
+A noninlined function that reserves a mutex. In ha_innodb.cc we have disabled
+inlining of InnoDB functions, and no inlined functions should be called from
+there. That is why we need to duplicate the inlined function here. */
+
+void
+mutex_enter_noninline(
+/*==================*/
+	mutex_t*	mutex);	/* in: mutex */
 /******************************************************************
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
 
 /* NOTE! currently same as mutex_enter! */
 
-#define mutex_enter_fast(M)    	mutex_enter_func((M), IB__FILE__, __LINE__)
+#define mutex_enter_fast(M)    	mutex_enter_func((M), __FILE__, __LINE__)
 #define mutex_enter_fast_func  	mutex_enter_func;
 /**********************************************************************
 NOTE! Use the corresponding macro in the header file, not this function
@@ -83,7 +92,7 @@ void
 mutex_enter_func(
 /*=============*/
 	mutex_t*	mutex,		/* in: pointer to mutex */
-	char*		file_name, 	/* in: file name where locked */
+	const char*	file_name, 	/* in: file name where locked */
 	ulint		line);		/* in: line where locked */
 /************************************************************************
 Tries to lock the mutex for the current thread. If the lock is not acquired
@@ -94,9 +103,9 @@ mutex_enter_nowait(
 /*===============*/
 					/* out: 0 if succeed, 1 if not */
 	mutex_t*	mutex,		/* in: pointer to mutex */
-	char*	   	file_name, 	/* in: file name where mutex
+	const char*	file_name,	/* in: file name where mutex
 					requested */
-	ulint	   	line);		/* in: line where requested */
+	ulint		line);		/* in: line where requested */
 /**********************************************************************
 Unlocks a mutex owned by the current thread. */
 UNIV_INLINE
@@ -104,6 +113,13 @@ void
 mutex_exit(
 /*=======*/
 	mutex_t*	mutex);	/* in: pointer to mutex */
+/**********************************************************************
+Releases a mutex. */
+
+void
+mutex_exit_noninline(
+/*=================*/
+	mutex_t*	mutex);	/* in: mutex */
 /**********************************************************************
 Returns TRUE if no mutex or rw-lock is currently locked.
 Works only in the debug version. */
@@ -119,16 +135,14 @@ Prints wait info of the sync system. */
 void
 sync_print_wait_info(
 /*=================*/
-	char*	buf,		/* in/out: buffer where to print */
-	char*	buf_end);	/* in: buffer end */
+	FILE*	file);		/* in: file where to print */
 /***********************************************************************
 Prints info of the sync system. */
 
 void
 sync_print(
 /*=======*/
-	char*	buf,		/* in/out: buffer where to print */
-	char*	buf_end);	/* in: buffer end */
+	FILE*	file);		/* in: file where to print */
 /**********************************************************************
 Checks that the mutex has been initialized. */
 
@@ -185,6 +199,7 @@ sync_thread_levels_empty_gen(
 					allowed to be owned by the thread,
 					also purge_is_running mutex is
 					allowed */
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Checks that the current thread owns the mutex. Works only
 in the debug version. */
@@ -201,7 +216,7 @@ void
 mutex_get_debug_info(
 /*=================*/
 	mutex_t*	mutex,		/* in: mutex */
-	char**		file_name,	/* out: file where requested */
+	const char**	file_name,	/* out: file where requested */
 	ulint*		line,		/* out: line where requested */
 	os_thread_id_t* thread_id);	/* out: id of the thread which owns
 					the mutex */
@@ -217,6 +232,7 @@ Prints debug info of currently reserved mutexes. */
 void
 mutex_list_print_info(void);
 /*========================*/
+#endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 NOT to be used outside this module except in debugging! Gets the value
 of the lock word. */
@@ -225,6 +241,7 @@ ulint
 mutex_get_lock_word(
 /*================*/
 	mutex_t*	mutex);	/* in: mutex */
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 NOT to be used outside this module except in debugging! Gets the waiters
 field in a mutex. */
@@ -234,15 +251,7 @@ mutex_get_waiters(
 /*==============*/
 				/* out: value to set */		
 	mutex_t*	mutex);	/* in: mutex */
-/**********************************************************************
-Implements the memory barrier operation which makes a serialization point to
-the instruction flow. This is needed because the Pentium may speculatively
-execute reads before preceding writes are committed. We could also use here
-any LOCKed instruction (see Intel Software Dev. Manual, Vol. 3). */
-
-void
-mutex_fence(void);
-/*=============*/
+#endif /* UNIV_SYNC_DEBUG */
 
 /*
 		LATCHING ORDER WITHIN THE DATABASE
@@ -451,15 +460,15 @@ struct mutex_struct {
 				Otherwise, this is 0. */
 	UT_LIST_NODE_T(mutex_t)	list; /* All allocated mutexes are put into
 				a list.	Pointers to the next and prev. */
+#ifdef UNIV_SYNC_DEBUG
+	const char*	file_name;	/* File where the mutex was locked */
+	ulint	line;		/* Line where the mutex was locked */
 	os_thread_id_t thread_id; /* Debug version: The thread id of the
 				thread which locked the mutex. */
-	char*	file_name;	/* Debug version: File name where the mutex
-				was locked */
-	ulint	line;		/* Debug version: Line where the mutex was
-				locked */
-	ulint	level;		/* Debug version: level in the global latching
+#endif /* UNIV_SYNC_DEBUG */
+	ulint	level;		/* Level in the global latching
 				order; default SYNC_LEVEL_NONE */
-	char*	cfile_name;	/* File name where mutex created */
+	const char*	cfile_name;/* File name where mutex created */
 	ulint	cline;		/* Line where created */
 	ulint	magic_n;
 };

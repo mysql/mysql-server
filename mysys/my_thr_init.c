@@ -104,7 +104,7 @@ void my_thread_global_end(void)
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_fast_mutexattr);
 #endif
-#ifdef PPTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
   pthread_mutexattr_destroy(&my_errchk_mutexattr);
 #endif
   pthread_mutex_destroy(&THR_LOCK_malloc);
@@ -203,7 +203,8 @@ void my_thread_end(void)
       tmp->dbug=0;
     }
 #endif
-#if !defined(__bsdi__) || defined(HAVE_mit_thread) /* bsdi dumps core here */
+#if !defined(__bsdi__) && !defined(__OpenBSD__) || defined(HAVE_mit_thread)
+ /* bsdi and openbsd 3.5 dumps core here */
     pthread_cond_destroy(&tmp->suspend);
 #endif
     pthread_mutex_destroy(&tmp->mutex);

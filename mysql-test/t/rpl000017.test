@@ -1,4 +1,4 @@
-connect (master,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connect (slave,localhost,root,,test,$SLAVE_MYPORT,slave.sock);
 connection master;
 reset master;

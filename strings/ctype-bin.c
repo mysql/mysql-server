@@ -67,67 +67,79 @@ static uchar bin_char_array[] =
 };
 
 
+
+/*
+  Compare two strings. Result is sign(first_argument - second_argument)
+
+  SYNOPSIS
+    my_strnncoll_binary()
+    cs			Chararacter set
+    s			String to compare
+    slen		Length of 's'
+    t			String to compare
+    tlen		Length of 't'
+
+  NOTE
+   This is used also when comparing with end space removal, as end space
+   is significant for binary strings
+
+  RETURN
+  < 0	s < t
+  0	s == t
+  > 0	s > t
+*/
+
 static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
 				const uchar *s, uint slen,
-				const uchar *t, uint tlen)
+				const uchar *t, uint tlen,
+                                my_bool t_is_prefix)
 {
-  int cmp= memcmp(s,t,min(slen,tlen));
-  return cmp ? cmp : (int) (slen - tlen);
+  uint len=min(slen,tlen);
+  int cmp= memcmp(s,t,len);
+  return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
 }
 
-static int my_strnncollsp_binary(CHARSET_INFO * cs,
-                               const uchar *s, uint slen,
-                               const uchar *t, uint tlen)
+
+static int my_strnncollsp_binary(CHARSET_INFO * cs __attribute__((unused)),
+                                const uchar *s, uint slen,
+                                const uchar *t, uint tlen)
 {
-  int len, cmp;
-
-  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
-  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
-
-  len  = ( slen > tlen ) ? tlen : slen;
-
-  cmp= memcmp(s,t,len);
-  return cmp ? cmp : (int) (slen - tlen);
+  return my_strnncoll_binary(cs,s,slen,t,tlen,0);
 }
 
-static void my_caseup_str_bin(CHARSET_INFO *cs __attribute__((unused)),
-		       char *str __attribute__((unused)))
+
+/* This function is used for all conversion functions */
+
+static void my_case_str_bin(CHARSET_INFO *cs __attribute__((unused)),
+			    char *str __attribute__((unused)))
 {
 }
 
-static void my_casedn_str_bin(CHARSET_INFO * cs __attribute__((unused)),
-		       char *str __attribute__((unused)))
+static void my_case_bin(CHARSET_INFO *cs __attribute__((unused)),
+			char *str __attribute__((unused)),
+			uint length __attribute__((unused)))
 {
 }
 
-static void my_caseup_bin(CHARSET_INFO * cs __attribute__((unused)),
-		   char *str __attribute__((unused)),
-		   uint length __attribute__((unused)))
-{
-}
-
-static void my_casedn_bin(CHARSET_INFO * cs __attribute__((unused)),
-		   char *str __attribute__((unused)),
-		   uint length  __attribute__((unused)))
-{
-}
 
 static int my_strcasecmp_bin(CHARSET_INFO * cs __attribute__((unused)),
-		      const char *s, const char *t)
+			     const char *s, const char *t)
 {
   return strcmp(s,t);
 }
 
+
 int my_mbcharlen_8bit(CHARSET_INFO *cs __attribute__((unused)),
-                             uint c __attribute__((unused)))
+		      uint c __attribute__((unused)))
 {
   return 1;
 }
 
+
 static int my_mb_wc_bin(CHARSET_INFO *cs __attribute__((unused)),
-		  my_wc_t *wc,
-		  const unsigned char *str,
-		  const unsigned char *end __attribute__((unused)))
+			my_wc_t *wc,
+			const unsigned char *str,
+			const unsigned char *end __attribute__((unused)))
 {
   if (str >= end)
     return MY_CS_TOOFEW(0);
@@ -136,10 +148,11 @@ static int my_mb_wc_bin(CHARSET_INFO *cs __attribute__((unused)),
   return 1;
 }
 
+
 static int my_wc_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
-		  my_wc_t wc,
-		  unsigned char *s,
-		  unsigned char *e __attribute__((unused)))
+			my_wc_t wc,
+			unsigned char *s,
+			unsigned char *e __attribute__((unused)))
 {
   if (s >= e)
     return MY_CS_TOOSMALL;
@@ -169,12 +182,21 @@ void my_hash_sort_bin(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+/*
+  The following defines is here to keep the following code identical to
+  the one in ctype-simple.c
+*/
+
+#define likeconv(s,A) (A)
+#define INC_PTR(cs,A,B) (A)++
+
+
 static int my_wildcmp_bin(CHARSET_INFO *cs,
 			   const char *str,const char *str_end,
 			   const char *wildstr,const char *wildend,
 			   int escape, int w_one, int w_many)
 {
-  int result= -1;				/* Not found, using wildcards */
+  int result= -1;			/* Not found, using wildcards */
   
   while (wildstr != wildend)
   {
@@ -182,31 +204,26 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
     {
       if (*wildstr == escape && wildstr+1 != wildend)
 	wildstr++;
-      if (str == str_end || *wildstr++ != *str++)
-      {
-	return(1);
-      }
+      if (str == str_end || likeconv(cs,*wildstr++) != likeconv(cs,*str++))
+	return(1);			/* No match */
       if (wildstr == wildend)
-      {
-	return(str != str_end);			/* Match if both are at end */
-      }
-      result=1;					/* Found an anchor char */
+	return(str != str_end);		/* Match if both are at end */
+      result=1;				/* Found an anchor char */
     }
     if (*wildstr == w_one)
     {
       do
       {
-	if (str == str_end)			/* Skip one char if possible */
+	if (str == str_end)		/* Skip one char if possible */
 	  return(result);
-	str++;
-      } while (*++wildstr == w_one && wildstr != wildend);
+	INC_PTR(cs,str,str_end);
+      } while (++wildstr < wildend && *wildstr == w_one);
       if (wildstr == wildend)
 	break;
     }
     if (*wildstr == w_many)
-    {						/* Found w_many */
-      char cmp;
-      
+    {					/* Found w_many */
+      uchar cmp;
       wildstr++;
       /* Remove any '%' and '_' from the wild search string */
       for (; wildstr != wildend ; wildstr++)
@@ -216,40 +233,33 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
 	if (*wildstr == w_one)
 	{
 	  if (str == str_end)
-	  {
 	    return(-1);
-	  }
-	  str++;
+	  INC_PTR(cs,str,str_end);
 	  continue;
 	}
-	break;					/* Not a wild character */
+	break;				/* Not a wild character */
       }
       if (wildstr == wildend)
-      {
-	return(0);				/* Ok if w_many is last */
-      }
+	return(0);			/* match if w_many is last */
       if (str == str_end)
-      {
 	return(-1);
-      }
       
       if ((cmp= *wildstr) == escape && wildstr+1 != wildend)
 	cmp= *++wildstr;
-      wildstr++;				/* This is compared trough cmp */
+
+      INC_PTR(cs,wildstr,wildend);	/* This is compared through cmp */
+      cmp=likeconv(cs,cmp);
       do
       {
-	while (str != str_end && *str != cmp)
+	while (str != str_end && (uchar) likeconv(cs,*str) != cmp)
 	  str++;
 	if (str++ == str_end)
-	{ 
 	  return(-1);
-	}
 	{
-	  int tmp=my_wildcmp_bin(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
+	  int tmp=my_wildcmp_bin(cs,str,str_end,wildstr,wildend,escape,w_one,
+				 w_many);
 	  if (tmp <= 0)
-	  {
 	    return(tmp);
-	  }
 	}
       } while (str != str_end && wildstr[0] != w_many);
       return(-1);
@@ -257,6 +267,7 @@ static int my_wildcmp_bin(CHARSET_INFO *cs,
   }
   return(str != str_end ? 1 : 0);
 }
+
 
 static int my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
 			    uchar * dest, uint len,
@@ -268,11 +279,12 @@ static int my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
   return len;
 }
 
+
 static
 uint my_instr_bin(CHARSET_INFO *cs __attribute__((unused)),
-                 const char *b, uint b_length,
-                 const char *s, uint s_length,
-                 my_match_t *match, uint nmatch)
+		  const char *b, uint b_length,
+		  const char *s, uint s_length,
+		  my_match_t *match, uint nmatch)
 {
   register const uchar *str, *search, *end, *search_end;
 
@@ -294,7 +306,7 @@ uint my_instr_bin(CHARSET_INFO *cs __attribute__((unused)),
     end= (const uchar*) b+b_length-s_length+1;
     search_end= (const uchar*) s + s_length;
 
-skipp:
+skip:
     while (str != end)
     {
       if ( (*str++) == (*search))
@@ -306,7 +318,7 @@ skipp:
 
 	while (j != search_end)
 	  if ((*i++) != (*j++))
-            goto skipp;
+            goto skip;
 
         if (nmatch > 0)
 	{
@@ -331,6 +343,7 @@ skipp:
 
 MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
 {
+    NULL,			/* init */
     my_strnncoll_binary,
     my_strnncollsp_binary,
     my_strnxfrm_bin,
@@ -341,19 +354,22 @@ MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
     my_hash_sort_bin
 };
 
+
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+    NULL,			/* init */
     NULL,			/* ismbchar      */
     my_mbcharlen_8bit,		/* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
+    my_well_formed_len_8bit,
     my_lengthsp_8bit,
     my_mb_wc_bin,
     my_wc_mb_bin,
-    my_caseup_str_bin,
-    my_casedn_str_bin,
-    my_caseup_bin,
-    my_casedn_bin,
+    my_case_str_bin,
+    my_case_str_bin,
+    my_case_bin,
+    my_case_bin,
     my_snprintf_8bit,
     my_long10_to_str_8bit,
     my_longlong10_to_str_8bit,
@@ -366,6 +382,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_scan_8bit
 };
 
+
 CHARSET_INFO my_charset_bin =
 {
     63,0,0,			/* number        */
@@ -373,16 +390,22 @@ CHARSET_INFO my_charset_bin =
     "binary",			/* cs name    */
     "binary",			/* name          */
     "",				/* comment       */
+    NULL,			/* tailoring     */
     ctype_bin,			/* ctype         */
     bin_char_array,		/* to_lower      */
     bin_char_array,		/* to_upper      */
     bin_char_array,		/* sort_order    */
+    NULL,			/* contractions */
+    NULL,			/* sort_order_big*/
     NULL,			/* tab_to_uni    */
     NULL,			/* tab_from_uni  */
-    "","",
+    NULL,			/* state_map    */
+    NULL,			/* ident_map    */
     1,				/* strxfrm_multiply */
+    1,				/* mbminlen      */
     1,				/* mbmaxlen      */
-    (char) 255,			/* max_sort_char */
+    0,				/* min_sort_char */
+    255,			/* max_sort_char */
     &my_charset_handler,
     &my_collation_8bit_bin_handler
 };

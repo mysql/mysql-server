@@ -1,6 +1,6 @@
-# Example mysql config file for large systems.
+# Example MySQL config file for large systems.
 #
-# This is for large system with memory = 512M where the system runs mainly
+# This is for a large system with memory = 512M where the system runs mainly
 # MySQL.
 #
 # You can copy this file to
@@ -9,9 +9,9 @@
 # installation this directory is @localstatedir@) or
 # ~/.my.cnf to set user-specific options.
 #
-# One can in this file use all long options that the program supports.
-# If you want to know which options a program support, run the program
-# with --help option.
+# In this file, you can use all long options that a program supports.
+# If you want to know which options a program supports, run the program
+# with the "--help" option.
 
 # The following options will be passed to all MySQL clients
 [client]
@@ -31,6 +31,7 @@ max_allowed_packet = 1M
 table_cache = 256
 sort_buffer_size = 1M
 read_buffer_size = 1M
+read_rnd_buffer_size = 4M
 myisam_sort_buffer_size = 64M
 thread_cache = 8
 query_cache_size= 16M

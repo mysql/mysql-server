@@ -1,0 +1,29 @@
+
+1) Receive from client (sequence of DICTTABINFO)
+
+2) CREATE_FRAGMENTATION_REQ -> local DIH 
+   Returns all fragments for table + some other stuff 
+   NOTE without side effects in DIH
+
+3) Pack table description
+
+4) CREATE_TAB -> all DICTs (including table data) 
+   1) Write schema file (ADD_STARTED)
+   2) Write table descriptor to file
+   3) CREATE_TAB (DIADDTABREQ) -> local DIH (including fragment info)
+   4) DIH 
+        1) write table descriptor
+        2) For each local fragment 
+           ADD_FRAG -> local DICT
+             LQHFRAGREQ -> local LQH
+             LQHADDATTREQ -> local LQH
+   5) TAB_COMMITREQ -> local LQH
+
+5) WAIT_GCP
+
+6) ALTER_TAB (activate) -> all DICTs
+   1) Write schema file (CREATED)
+   2) TAB_COMMITREQ -> local DIH
+   3) TC_SCHVERREQ -> local TC
+
+

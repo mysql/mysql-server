@@ -24,17 +24,23 @@ CHARSET_INFO compiled_charsets[] = {
     NullS,		/* cs name    */
     NullS,		/* name       */
     NullS,		/* comment    */
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    NULL,		/* tailoring  */
+    NULL,		/* ctype      */
+    NULL,		/* to_lower   */
+    NULL,		/* to_upper   */
+    NULL,		/* sort_order */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
-    0,
-    0,
-    0,
-    NULL,
-    NULL
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
+    0,			/* strxfrm_mul  */
+    0,			/* mbminlen     */
+    0,			/* mbmaxlen     */
+    0,			/* min_sort_ord */
+    0,			/* max_sort_ord */
+    NULL,		/* cset handler */
+    NULL		/* coll handler */
   }
 };

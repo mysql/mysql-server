@@ -18,7 +18,7 @@ explain extended select grp,group_concat(c) from t1 group by grp;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	Using filesort
 Warnings:
-Note	1003	select high_priority test.t1.grp AS `grp`,group_concat(test.t1.c seperator ',') AS `group_concat(c)` from test.t1 group by test.t1.grp
+Note	1003	select `test`.`t1`.`grp` AS `grp`,group_concat(`test`.`t1`.`c` seperator ',') AS `group_concat(c)` from `test`.`t1` group by `test`.`t1`.`grp`
 select grp,group_concat(a,c) from t1 group by grp;
 grp	group_concat(a,c)
 1	1a
@@ -59,11 +59,16 @@ grp	group_concat(d order by a desc)
 1	a
 2	b,a
 3	c,d,d,b,b,a
-select grp,group_concat(a order by a,d+c) from t1 group by grp;
-grp	group_concat(a order by a,d+c)
+select grp,group_concat(a order by a,d+c-ascii(c)-a) from t1 group by grp;
+grp	group_concat(a order by a,d+c-ascii(c)-a)
 1	1
 2	2,3
 3	4,5,6,7,8,9
+select grp,group_concat(a order by d+c-ascii(c),a) from t1 group by grp;
+grp	group_concat(a order by d+c-ascii(c),a)
+1	1
+2	3,2
+3	7,8,4,6,9,5
 select grp,group_concat(c order by 1) from t1 group by grp;
 grp	group_concat(c order by 1)
 1	a
@@ -88,7 +93,7 @@ explain extended select grp,group_concat(distinct c order by c desc) from t1 gro
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	Using filesort
 Warnings:
-Note	1003	select high_priority test.t1.grp AS `grp`,group_concat(distinct test.t1.c order by test.t1.c seperator ',') AS `group_concat(distinct c order by c desc)` from test.t1 group by test.t1.grp
+Note	1003	select `test`.`t1`.`grp` AS `grp`,group_concat(distinct `test`.`t1`.`c` order by `test`.`t1`.`c` seperator ',') AS `group_concat(distinct c order by c desc)` from `test`.`t1` group by `test`.`t1`.`grp`
 select grp,group_concat(c order by c separator ",") from t1 group by grp;
 grp	group_concat(c order by c separator ",")
 1	a
@@ -108,7 +113,7 @@ explain extended select grp,group_concat(distinct c order by c separator ",") fr
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	Using filesort
 Warnings:
-Note	1003	select high_priority test.t1.grp AS `grp`,group_concat(distinct test.t1.c order by test.t1.c seperator ',') AS `group_concat(distinct c order by c separator ",")` from test.t1 group by test.t1.grp
+Note	1003	select `test`.`t1`.`grp` AS `grp`,group_concat(distinct `test`.`t1`.`c` order by `test`.`t1`.`c` seperator ',') AS `group_concat(distinct c order by c separator ",")` from `test`.`t1` group by `test`.`t1`.`grp`
 select grp,group_concat(distinct c order by c desc separator ",") from t1 group by grp;
 grp	group_concat(distinct c order by c desc separator ",")
 1	a
@@ -136,17 +141,7 @@ grp	ROUND(group_concat(a separator ""))
 3	456789
 drop table t1;
 create table t1 (grp int, c char(10));
-insert into t1 values (1,NULL);
-insert into t1 values (2,"b");
-insert into t1 values (2,NULL);
-insert into t1 values (3,"E");
-insert into t1 values (3,NULL);
-insert into t1 values (3,"D");
-insert into t1 values (3,NULL);
-insert into t1 values (3,NULL);
-insert into t1 values (3,"D");
-insert into t1 values (4,"");
-insert into t1 values (5,NULL);
+insert into t1 values (1,NULL),(2,"b"),(2,NULL),(3,"E"),(3,NULL),(3,"D"),(3,NULL),(3,NULL),(3,"D"),(4,""),(5,NULL);
 select grp,group_concat(c order by c) from t1 group by grp;
 grp	group_concat(c order by c)
 1	NULL
@@ -154,19 +149,19 @@ grp	group_concat(c order by c)
 3	D,D,E
 4	
 5	NULL
-set group_concat_max_len = 5;
+set group_concat_max_len = 4;
 select grp,group_concat(c) from t1 group by grp;
 grp	group_concat(c)
 1	NULL
 2	b
-3	D,D,E
+3	D,D,
 4	
 5	NULL
 Warnings:
-Warning	1259	1 line(s) was(were) cut by group_concat()
+Warning	1260	1 line(s) were cut by GROUP_CONCAT()
 show warnings;
 Level	Code	Message
-Warning	1259	1 line(s) was(were) cut by group_concat()
+Warning	1260	1 line(s) were cut by GROUP_CONCAT()
 set group_concat_max_len = 1024;
 select group_concat(sum(a)) from t1 group by grp;
 ERROR HY000: Invalid use of group function
@@ -177,7 +172,7 @@ create table t1 ( URL_ID int(11), URL varchar(80));
 create table t2 ( REQ_ID int(11), URL_ID int(11));
 insert into t1 values (4,'www.host.com'), (5,'www.google.com'),(5,'www.help.com');
 insert into t2 values (1,4), (5,4), (5,5);
-select REQ_ID, Group_Concat(URL) as URL from t1, t2 where 
+select REQ_ID, Group_Concat(URL) as URL from t1, t2 where
 t2.URL_ID = t1.URL_ID group by REQ_ID;
 REQ_ID	URL
 1	X
@@ -207,9 +202,21 @@ NULL
 drop table t1;
 drop table t2;
 create table t1 (bar varchar(32));
-insert into t1 values('test'),('test2');
-select * from t1 having group_concat(bar)='';
+insert into t1 values('test1'),('test2');
+select group_concat(bar order by concat(bar,bar)) from t1;
+group_concat(bar order by concat(bar,bar))
+test1,test2
+select group_concat(bar order by concat(bar,bar) desc) from t1;
+group_concat(bar order by concat(bar,bar) desc)
+test2,test1
+select bar from t1 having group_concat(bar)='';
 bar
+select bar from t1 having instr(group_concat(bar), "test") > 0;
+bar
+test1
+select bar from t1 having instr(group_concat(bar order by concat(bar,bar) desc), "test2,test1") > 0;
+bar
+test1
 drop table t1;
 create table t1 (a int, a1 varchar(10));
 create table t2 (a0 int);
@@ -222,3 +229,95 @@ select  group_concat(a1 order by (t1.a)) from t1;
 group_concat(a1 order by (t1.a))
 b,a,c
 drop table t1, t2;
+CREATE TABLE t1 (id1 tinyint(4) NOT NULL, id2 tinyint(4) NOT NULL);
+INSERT INTO t1 VALUES (1, 1),(1, 2),(1, 3),(1, 4),(1, 5),(2, 1),(2, 2),(2, 3);
+CREATE TABLE t2 (id1 tinyint(4) NOT NULL);
+INSERT INTO t2 VALUES (1),(2),(3),(4),(5);
+SELECT t1.id1, GROUP_CONCAT(t1.id2 ORDER BY t1.id2 ASC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 AND t1.id1=1 GROUP BY t1.id1;
+id1	concat_id
+1	1,2,3,4,5
+SELECT t1.id1, GROUP_CONCAT(t1.id2 ORDER BY t1.id2 ASC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 GROUP BY t1.id1;
+id1	concat_id
+1	1,2,3,4,5
+2	1,2,3
+SELECT t1.id1, GROUP_CONCAT(t1.id2 ORDER BY t1.id2 DESC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 GROUP BY t1.id1;
+id1	concat_id
+1	5,4,3,2,1
+2	3,2,1
+SELECT t1.id1, GROUP_CONCAT(t1.id2 ORDER BY 6-t1.id2 ASC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 GROUP BY t1.id1;
+id1	concat_id
+1	5,4,3,2,1
+2	3,2,1
+SELECT t1.id1, GROUP_CONCAT(t1.id2,6-t1.id2 ORDER BY 6-t1.id2 ASC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 GROUP BY t1.id1;
+id1	concat_id
+1	51,42,33,24,15
+2	33,24,15
+SELECT t1.id1, GROUP_CONCAT(t1.id2,6-t1.id2 ORDER BY 6-t1.id2 ASC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 GROUP BY t1.id1;
+id1	concat_id
+1	51,42,33,24,15
+2	33,24,15
+SELECT t1.id1, GROUP_CONCAT(t1.id2,"/",6-t1.id2 ORDER BY 1+0,6-t1.id2,t1.id2 ASC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 GROUP BY t1.id1;
+id1	concat_id
+1	5/1,4/2,3/3,2/4,1/5
+2	3/3,2/4,1/5
+drop table t1,t2;
+create table t1 (s1 char(10), s2 int not null);
+insert into t1 values ('a',2),('b',2),('c',1),('a',3),('b',4),('c',4);
+select distinct s1 from t1 order by s2,s1;
+s1
+c
+a
+b
+select group_concat(distinct s1) from t1;
+group_concat(distinct s1)
+a,b,c
+select group_concat(distinct s1 order by s2) from t1 where s2 < 4;
+group_concat(distinct s1 order by s2)
+c,b,a
+select group_concat(distinct s1 order by s2) from t1;
+group_concat(distinct s1 order by s2)
+c,b,a,c
+drop table t1;
+create table t1 (a int, c int);
+insert into t1 values (1, 2), (2, 3), (2, 4), (3, 5);
+create table t2 (a int, c int);
+insert into t2 values (1, 5), (2, 4), (3, 3), (3,3);
+select group_concat(c) from t1;
+group_concat(c)
+2,3,4,5
+select group_concat(c order by (select c from t2 where t2.a=t1.a limit 1)) as grp from t1;
+grp
+5,4,3,2
+select group_concat(c order by (select mid(group_concat(c order by a),1,5) from t2 where t2.a=t1.a)) as grp from t1;
+grp
+5,4,3,2
+select group_concat(c order by (select mid(group_concat(c order by a),1,5) from t2 where t2.a=t1.a) desc) as grp from t1;
+grp
+2,4,3,5
+select a,c,(select group_concat(c order by a) from t2 where a=t1.a) as grp from t1 order by grp;
+a	c	grp
+3	5	3,3
+2	3	4
+2	4	4
+1	2	5
+drop table t1,t2;
+CREATE TABLE t1 ( a int );
+CREATE TABLE t2 ( a int );
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+SELECT GROUP_CONCAT(t1.a*t2.a ORDER BY t2.a) FROM t1, t2 GROUP BY t1.a;
+GROUP_CONCAT(t1.a*t2.a ORDER BY t2.a)
+1,2
+2,4
+DROP TABLE t1, t2;
+CREATE TABLE t1 (a char(4));
+INSERT INTO t1 VALUES ('John'), ('Anna'), ('Bill');
+SELECT GROUP_CONCAT(a SEPARATOR '||') AS names FROM t1 
+HAVING names LIKE '%An%';
+names
+John||Anna||Bill
+SELECT GROUP_CONCAT(a SEPARATOR '###') AS names FROM t1 
+HAVING LEFT(names, 1) ='J';
+names
+John###Anna###Bill
+DROP TABLE t1;

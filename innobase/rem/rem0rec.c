@@ -108,12 +108,12 @@ rec_get_nth_field(
 	if (n > 1024) {
 		fprintf(stderr, "Error: trying to access field %lu in rec\n",
 								(ulong) n);
-		ut_a(0);
+		ut_error;
 	}
 
 	if (rec == NULL) {
-		fprintf(stderr, "Error: rec is NULL pointer\n");
-		ut_a(0);
+		fputs("Error: rec is NULL pointer\n", stderr);
+		ut_error;
 	}
 	
 	if (rec_get_1byte_offs_flag(rec)) {
@@ -518,110 +518,47 @@ Prints a physical record. */
 void
 rec_print(
 /*======*/
+	FILE*	file,	/* in: file where to print */
 	rec_t*	rec)	/* in: physical record */
 {
 	byte*	data;
 	ulint	len;
-	char*	offs;
 	ulint	n;
 	ulint	i;
 
 	ut_ad(rec);
 	
-	if (rec_get_1byte_offs_flag(rec)) {
-		offs = (char *) "TRUE";
-	} else {
-		offs = (char *) "FALSE";
-	}
-
 	n = rec_get_n_fields(rec);
 
-	printf(
-	    "PHYSICAL RECORD: n_fields %lu; 1-byte offs %s; info bits %lu\n",
-		(ulong) n, offs, (ulong) rec_get_info_bits(rec));
+	fprintf(file, "PHYSICAL RECORD: n_fields %lu;"
+		" 1-byte offs %s; info bits %lu\n",
+		(ulong) n, rec_get_1byte_offs_flag(rec) ? "TRUE" : "FALSE",
+		(ulong) rec_get_info_bits(rec));
 	
 	for (i = 0; i < n; i++) {
 
 		data = rec_get_nth_field(rec, i, &len);
 
-		printf(" %lu:", (ulong) i);
+		fprintf(file, " %lu:", (ulong) i);
 	
 		if (len != UNIV_SQL_NULL) {
 			if (len <= 30) {
 
-				ut_print_buf(data, len);
+				ut_print_buf(file, data, len);
 			} else {
-				ut_print_buf(data, 30);
+				ut_print_buf(file, data, 30);
 
-				printf("...(truncated)");
+				fputs("...(truncated)", file);
 			}
 		} else {
-			printf(" SQL NULL, size %lu ",
+			fprintf(file, " SQL NULL, size %lu ",
 				      (ulong) rec_get_nth_field_size(rec, i));
 						
 		}
-		printf(";");
+		putc(';', file);
 	}
 
-	printf("\n");
+	putc('\n', file);
 
 	rec_validate(rec);
-}
-
-/*******************************************************************
-Prints a physical record to a buffer. */
-
-ulint
-rec_sprintf(
-/*========*/
-			/* out: printed length in bytes */
-	char*	buf,	/* in: buffer to print to */
-	ulint	buf_len,/* in: buffer length */
-	rec_t*	rec)	/* in: physical record */
-{
-	byte*	data;
-	ulint	len;
-	ulint	k;
-	ulint	n;
-	ulint	i;
-
-	ut_ad(rec);
-	
-	n = rec_get_n_fields(rec);
-	k = 0;
-
-	if (k + 30 > buf_len) {
-
-		return(k);
-	}
-	
-	k += sprintf(buf + k, "RECORD: info bits %lu",
-		     (ulong) rec_get_info_bits(rec));
-	
-	for (i = 0; i < n; i++) {
-
-		if (k + 30 > buf_len) {
-
-			return(k);
-		}
-		
-		data = rec_get_nth_field(rec, i, &len);
-
-		k += sprintf(buf + k, " %lu:", (ulong) i);
-	
-		if (len != UNIV_SQL_NULL) {
-			if (k + 30 + 5 * len > buf_len) {
-
-				return(k);
-			}
-			
-			k += ut_sprintf_buf(buf + k, data, len);
-		} else {
-			k += sprintf(buf + k, " SQL NULL");
-		}
-		
-		k += sprintf(buf + k, ";");
-	}
-
-	return(k);
 }

@@ -19,6 +19,7 @@ CFG=mysqlimport - Win32 Debug
 !MESSAGE
 !MESSAGE "mysqlimport - Win32 Release" (based on "Win32 (x86) Console Application")
 !MESSAGE "mysqlimport - Win32 Debug" (based on "Win32 (x86) Console Application")
+!MESSAGE "mysqlimport - Win32 classic" (based on "Win32 (x86) Console Application")
 !MESSAGE
 
 # Begin Project
@@ -42,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../" /D "NDEBUG" /D "DBUG_OFF" /D "_CONSOLE" /D "_MBCS" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../" /D "DBUG_OFF" /D "_CONSOLE" /D "_MBCS" /D "_WINDOWS" /D "NDEBUG" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
@@ -79,12 +80,42 @@ LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
 # ADD LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib setargv.obj /nologo /subsystem:console /incremental:no /debug /machine:I386 /out:"../client_debug/mysqlimport.exe" /pdbtype:sept /libpath:"..\lib_debug\\"
 
+!ELSEIF  "$(CFG)" == "mysqlimport - Win32 classic"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "mysqlimport___Win32_classic"
+# PROP BASE Intermediate_Dir "mysqlimport___Win32_classic"
+# PROP BASE Ignore_Export_Lib 0
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "classic"
+# PROP Intermediate_Dir "classic"
+# PROP Ignore_Export_Lib 0
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../" /D "DBUG_OFF" /D "_CONSOLE" /D "_MBCS" /D "_WINDOWS" /D "NDEBUG"  /FD /c
+# SUBTRACT BASE CPP /YX
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../" /D "_CONSOLE" /D "_WINDOWS" /D LICENSE=Commercial /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FD  /c
+# SUBTRACT CPP /YX
+# ADD BASE RSC /l 0x409 /d "NDEBUG"
+# ADD RSC /l 0x409 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LINK32=xilink6.exe
+# ADD BASE LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386 /out:"../client_release/mysqlimport.exe" /libpath:"..\lib_release\\"
+# SUBTRACT BASE LINK32 /incremental:yes
+# ADD LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386 /out:"../client_classic/mysqlimport.exe" /libpath:"..\lib_release\\"
+# SUBTRACT LINK32 /incremental:yes
+
 !ENDIF
 
 # Begin Target
 
 # Name "mysqlimport - Win32 Release"
 # Name "mysqlimport - Win32 Debug"
+# Name "mysqlimport - Win32 classic"
 # Begin Source File
 
 SOURCE=.\mysqlimport.c

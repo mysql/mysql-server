@@ -48,27 +48,28 @@ Creates a table memory object. */
 dict_table_t*
 dict_mem_table_create(
 /*==================*/
-				/* out, own: table object */
-	char*	name,		/* in: table name */
-	ulint	space,		/* in: space where the clustered index of
-				the table is placed; this parameter is
-				ignored if the table is made a member of
-				a cluster */
-	ulint	n_cols);	/* in: number of columns */
+					/* out, own: table object */
+	const char*	name,		/* in: table name */
+	ulint		space,		/* in: space where the clustered index
+					of the table is placed; this parameter
+					is ignored if the table is made
+					a member of a cluster */
+	ulint		n_cols);	/* in: number of columns */
 /**************************************************************************
 Creates a cluster memory object. */
 
 dict_cluster_t*
 dict_mem_cluster_create(
 /*====================*/
-				/* out, own: cluster object (where the type
-				dict_cluster_t == dict_table_t) */
-	char*	name,		/* in: cluster name */
-	ulint	space,		/* in: space where the clustered indexes
-				of the member tables are placed */
-	ulint	n_cols,		/* in: number of columns */
-	ulint	mix_len);	/* in: length of the common key prefix in the
-				cluster */
+					/* out, own: cluster object (where the
+					type dict_cluster_t == dict_table_t) */
+	const char*	name,		/* in: cluster name */
+	ulint		space,		/* in: space where the clustered
+					indexes of the member tables are
+					placed */
+	ulint		n_cols,		/* in: number of columns */
+	ulint		mix_len);	/* in: length of the common key prefix
+					in the cluster */
 /**************************************************************************
 Declares a non-published table as a member in a cluster. */
 
@@ -76,7 +77,7 @@ void
 dict_mem_table_make_cluster_member(
 /*===============================*/
 	dict_table_t*	table,		/* in: non-published table */
-	char*		cluster_name);	/* in: cluster name */
+	const char*	cluster_name);	/* in: cluster name */
 /**************************************************************************
 Adds a column definition to a table. */
 
@@ -84,7 +85,7 @@ void
 dict_mem_table_add_col(
 /*===================*/
 	dict_table_t*	table,	/* in: table */
-	char*		name,	/* in: column name */
+	const char*	name,	/* in: column name */
 	ulint		mtype,	/* in: main datatype */
 	ulint		prtype,	/* in: precise type */
 	ulint		len,	/* in: length */
@@ -95,14 +96,15 @@ Creates an index memory object. */
 dict_index_t*
 dict_mem_index_create(
 /*==================*/
-				/* out, own: index object */
-	char*	table_name,	/* in: table name */
-	char*	index_name,	/* in: index name */
-	ulint	space,		/* in: space where the index tree is placed,
-				ignored if the index is of the clustered
-				type */
-	ulint	type,		/* in: DICT_UNIQUE, DICT_CLUSTERED, ... ORed */
-	ulint	n_fields);	/* in: number of fields */
+					/* out, own: index object */
+	const char*	table_name,	/* in: table name */
+	const char*	index_name,	/* in: index name */
+	ulint		space,		/* in: space where the index tree is
+					placed, ignored if the index is of
+					the clustered type */
+	ulint		type,		/* in: DICT_UNIQUE,
+					DICT_CLUSTERED, ... ORed */
+	ulint		n_fields);	/* in: number of fields */
 /**************************************************************************
 Adds a field definition to an index. NOTE: does not take a copy
 of the column name if the field is a column. The memory occupied
@@ -112,7 +114,7 @@ void
 dict_mem_index_add_field(
 /*=====================*/
 	dict_index_t*	index,		/* in: index */
-	char*		name,		/* in: column name */
+	const char*	name,		/* in: column name */
 	ulint		order,		/* in: order criterion; 0 means an
 					ascending order */
 	ulint		prefix_len);	/* in: 0 or the column prefix length
@@ -132,18 +134,6 @@ dict_foreign_t*
 dict_mem_foreign_create(void);
 /*=========================*/
 				/* out, own: foreign constraint struct */
-/**************************************************************************
-Creates a procedure memory object. */
-
-dict_proc_t*
-dict_mem_procedure_create(
-/*======================*/
-					/* out, own: procedure object */
-	char*		name,		/* in: procedure name */
-	char*		sql_string,	/* in: procedure definition as an SQL
-					string */
-	que_fork_t*	graph);		/* in: parsed procedure graph */
-					
 
 /* Data structure for a column in a table */
 struct dict_col_struct{
@@ -154,7 +144,7 @@ struct dict_col_struct{
 				clustered index */
 	ulint		ord_part;/* count of how many times this column
 				appears in ordering fields of an index */
-	char*		name;	/* name */
+	const char*	name;	/* name */
 	dtype_t		type;	/* data type */
 	dict_table_t*	table;	/* back pointer to table of this column */
 	ulint		aux;	/* this is used as an auxiliary variable 
@@ -166,7 +156,7 @@ struct dict_col_struct{
 /* Data structure for a field in an index */
 struct dict_field_struct{
 	dict_col_t*	col;		/* pointer to the table column */
-	char*		name;		/* name of the column */
+	const char*	name;		/* name of the column */
 	ulint		order;		/* flags for ordering this field:
 					DICT_DESCEND, ... */
 	ulint		prefix_len;	/* 0 or the length of the column
@@ -208,8 +198,8 @@ struct dict_index_struct{
 	dulint		id;	/* id of the index */
 	mem_heap_t*	heap;	/* memory heap */
 	ulint		type;	/* index type */
-	char*		name;	/* index name */
-	char*		table_name; /* table name */
+	const char*	name;	/* index name */
+	const char*	table_name; /* table name */
 	dict_table_t*	table;	/* back pointer to table */
 	ulint		space;	/* space where the index tree is placed */
 	ulint		page_no;/* page number of the index tree root */
@@ -262,12 +252,12 @@ struct dict_foreign_struct{
 					or DICT_FOREIGN_ON_DELETE_SET_NULL */
 	char*		foreign_table_name;/* foreign table name */
 	dict_table_t*	foreign_table;	/* table where the foreign key is */
-	char**		foreign_col_names;/* names of the columns in the
+	const char**	foreign_col_names;/* names of the columns in the
 					foreign key */
 	char*		referenced_table_name;/* referenced table name */
 	dict_table_t*	referenced_table;/* table where the referenced key
 					is */
-	char**		referenced_col_names;/* names of the referenced
+	const char**	referenced_col_names;/* names of the referenced
 					columns in the referenced table */
 	ulint		n_fields;	/* number of indexes' first fields
 					for which the the foreign key
@@ -306,7 +296,7 @@ struct dict_table_struct{
 	dulint		id;	/* id of the table or cluster */
 	ulint		type;	/* DICT_TABLE_ORDINARY, ... */
 	mem_heap_t*	heap;	/* memory heap */
-	char*		name;	/* table name */
+	const char*	name;	/* table name */
 	ulint		space;	/* space where the clustered index of the
 				table is placed */
 	ibool		ibd_file_missing;/* TRUE if this is in a single-table
@@ -374,7 +364,7 @@ struct dict_table_struct{
 	byte		mix_id_buf[12];
 				/* mix id of a mixed table written in
 				a compressed form */
-	char*		cluster_name; /* if the table is a member in a
+	const char*	cluster_name; /* if the table is a member in a
 				cluster, this is the name of the cluster */
 	/*----------------------*/
 	ibool		does_not_fit_in_memory;
@@ -424,24 +414,6 @@ struct dict_table_struct{
 };
 #define	DICT_TABLE_MAGIC_N	76333786
 					
-/* Data structure for a stored procedure */
-struct dict_proc_struct{
-	mem_heap_t*	heap;	/* memory heap */
-	char*		name;	/* procedure name */
-	char*		sql_string;
-				/* procedure definition as an SQL string:
-				we can produce more parsed instances of the
-				procedure by parsing this string */
-	hash_node_t	name_hash;
-				/* hash chain node */
-	UT_LIST_BASE_NODE_T(que_fork_t) graphs;
-				/* list of parsed instances of the procedure:
-				there may be many of them, and they are
-				recycled */
-	ulint		mem_fix;/* count of how many times this struct 
-				has been fixed in memory */
-};
-
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"
 #endif

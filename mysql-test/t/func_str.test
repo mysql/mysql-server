@@ -1,5 +1,3 @@
-# Version: 3.23.29
-#
 # Description
 # -----------
 # Testing string functions
@@ -41,7 +39,7 @@ SELECT CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),r
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 select replace('aaaa','a','b'),replace('aaaa','aa','b'),replace('aaaa','a','bb'),replace('aaaa','','b'),replace('bbbb','a','c');
 select replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL') ;
-select soundex(''),soundex('he'),soundex('hello all folks');
+select soundex(''),soundex('he'),soundex('hello all folks'),soundex('#3556 in bugdb');
 select 'mood' sounds like 'mud';
 select 'Glazgo' sounds like 'Liverpool';
 select null sounds like 'null';
@@ -80,6 +78,9 @@ select quote(concat('abc\'', '\\cba'));
 select quote(1/0), quote('\0\Z');
 select length(quote(concat(char(0),"test")));
 select hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))));
+select unhex(hex("foobar")), hex(unhex("1234567890ABCDEF")), unhex("345678"), unhex(NULL);
+select hex(unhex("1")), hex(unhex("12")), hex(unhex("123")), hex(unhex("1234")), hex(unhex("12345")), hex(unhex("123456"));
+select length(unhex(md5("abrakadabra")));
 
 #
 # Wrong usage of functions
@@ -141,6 +142,45 @@ INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
 SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
 DROP TABLE t1;
 
+CREATE TABLE t1 (
+  wid int(10) unsigned NOT NULL auto_increment,
+  data_podp date default NULL,
+  status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
+  PRIMARY KEY(wid)
+);
+
+INSERT INTO t1 VALUES (8,NULL,'real');
+INSERT INTO t1 VALUES (9,NULL,'nowy');
+SELECT elt(status_wnio,data_podp) FROM t1 GROUP BY wid;
+DROP TABLE t1;
+
+#
+# test for #739
+
+CREATE TABLE t1 (title text) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
+INSERT INTO t1 VALUES ('House passes the CAREERS bill');
+SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;
+DROP TABLE t1;
+
+#
+# test for Bug #2290 "output truncated with ELT when using DISTINCT"
+#
+
+CREATE TABLE t1 (i int, j int);
+INSERT INTO t1 VALUES (1,1),(2,2);
+SELECT DISTINCT i, ELT(j, '345', '34') FROM t1;
+DROP TABLE t1;
+
+#
+# bug #3756: quote and NULL
+#
+
+create table t1(a char(4));
+insert into t1 values ('one'),(NULL),('two'),('four');
+select a, quote(a), isnull(quote(a)), quote(a) is null, ifnull(quote(a), 'n') from t1;
+drop table t1;
+
 #
 # Test collation and coercibility
 #
@@ -149,22 +189,23 @@ select 1=_latin1'1';
 select _latin1'1'=1;
 select _latin2'1'=1;
 select 1=_latin2'1';
---error 1266
+--error 1267
 select _latin1'1'=_latin2'1';
 select row('a','b','c') = row('a','b','c');
 select row('A','b','c') = row('a','b','c');
 select row('A' COLLATE latin1_bin,'b','c') = row('a','b','c');
 select row('A','b','c') = row('a' COLLATE latin1_bin,'b','c');
---error 1266
+--error 1267
 select row('A' COLLATE latin1_general_ci,'b','c') = row('a' COLLATE latin1_bin,'b','c');
 
---error 1266
+--error 1267
 select concat(_latin1'a',_latin2'a');
---error 1269
-select concat(_latin1'a',_latin2'a',_latin5'a');
 --error 1270
+select concat(_latin1'a',_latin2'a',_latin5'a');
+--error 1271
 select concat(_latin1'a',_latin2'a',_latin5'a',_latin7'a');
-
+--error 1267
+select concat_ws(_latin1'a',_latin2'a');
 
 #
 # Test FIELD() and collations
@@ -173,65 +214,64 @@ select FIELD('b','A','B');
 select FIELD('B','A','B');
 select FIELD('b' COLLATE latin1_bin,'A','B');
 select FIELD('b','A' COLLATE latin1_bin,'B');
---error 1269
+--error 1270
 select FIELD(_latin2'b','A','B');
---error 1269
+--error 1270
 select FIELD('b',_latin2'A','B');
 select FIELD('b',_latin2'A','B',1);
-
 
 select POSITION(_latin1'B' IN _latin1'abcd');
 select POSITION(_latin1'B' IN _latin1'abcd' COLLATE latin1_bin);
 select POSITION(_latin1'B' COLLATE latin1_bin IN _latin1'abcd');
---error 1266
+--error 1267
 select POSITION(_latin1'B' COLLATE latin1_general_ci IN _latin1'abcd' COLLATE latin1_bin);
---error 1266
+--error 1267
 select POSITION(_latin1'B' IN _latin2'abcd');
 
 select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d');
 --fix this:
 --select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d' COLLATE latin1_bin);
 --select FIND_IN_SET(_latin1'B' COLLATE latin1_bin,_latin1'a,b,c,d');
---error 1266
+--error 1267
 select FIND_IN_SET(_latin1'B' COLLATE latin1_general_ci,_latin1'a,b,c,d' COLLATE latin1_bin);
---error 1266
+--error 1267
 select FIND_IN_SET(_latin1'B',_latin2'a,b,c,d');
 
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd',2);
 --fix this:
 --select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_bin,_latin1'd',2);
 --select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin1'd' COLLATE latin1_bin,2);
---error 1266
+--error 1267
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd',_latin2'd',2);
---error 1266
+--error 1267
 select SUBSTRING_INDEX(_latin1'abcdabcdabcd' COLLATE latin1_general_ci,_latin1'd' COLLATE latin1_bin,2);
 
 select _latin1'B' between _latin1'a' and _latin1'c';
 select _latin1'B' collate latin1_bin between _latin1'a' and _latin1'c';
 select _latin1'B' between _latin1'a' collate latin1_bin and _latin1'c';
 select _latin1'B' between _latin1'a' and _latin1'c' collate latin1_bin;
---error 1269
+--error 1270
 select _latin2'B' between _latin1'a' and _latin1'b';
---error 1269
+--error 1270
 select _latin1'B' between _latin2'a' and _latin1'b';
---error 1269
+--error 1270
 select _latin1'B' between _latin1'a' and _latin2'b';
---error 1269
+--error 1270
 select _latin1'B' collate latin1_general_ci between _latin1'a' collate latin1_bin and _latin1'b';
 
 select _latin1'B' in (_latin1'a',_latin1'b');
 select _latin1'B' collate latin1_bin in (_latin1'a',_latin1'b');
 select _latin1'B' in (_latin1'a' collate latin1_bin,_latin1'b');
 select _latin1'B' in (_latin1'a',_latin1'b' collate latin1_bin);
---error 1269
+--error 1270
 select _latin2'B' in (_latin1'a',_latin1'b');
---error 1269
+--error 1270
 select _latin1'B' in (_latin2'a',_latin1'b');
---error 1269
+--error 1270
 select _latin1'B' in (_latin1'a',_latin2'b');
---error 1269
+--error 1270
 select _latin1'B' COLLATE latin1_general_ci in (_latin1'a' COLLATE latin1_bin,_latin1'b');
---error 1269
+--error 1270
 select _latin1'B' COLLATE latin1_general_ci in (_latin1'a',_latin1'b' COLLATE latin1_bin);
 
 select collation(bin(130)), coercibility(bin(130));
@@ -264,6 +304,7 @@ select collation(soundex(_latin2'ab')), coercibility(soundex(_latin2'ab'));
 select collation(substring(_latin2'ab',1)), coercibility(substring(_latin2'ab',1));
 select collation(insert(_latin2'abcd',2,3,_latin2'ef')), coercibility(insert(_latin2'abcd',2,3,_latin2'ef'));
 select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
+select collation(encode('abcd','ab')), coercibility(encode('abcd','ab'));
 
 create table t1 
 select
@@ -296,7 +337,8 @@ select
   soundex(_latin2'ab'),
   substring(_latin2'ab',1),
   insert(_latin2'abcd',2,3,_latin2'ef'),
-  replace(_latin2'abcd',_latin2'b',_latin2'B')
+  replace(_latin2'abcd',_latin2'b',_latin2'B'),
+  encode('abcd','ab')
 ;
 show create table t1;
 drop table t1;
@@ -317,32 +359,46 @@ select SUBSTR('abcdefg',1,-1) FROM DUAL;
 # when an error on a lower level (in concat) has accured:
 #
 create table t7 (s1 char);
---error 1266
+--error 1267
 select * from t7
 where concat(s1 collate latin1_general_ci,s1 collate latin1_swedish_ci) = 'AA';
 drop table t7;
 
-CREATE TABLE t1 (
-  wid int(10) unsigned NOT NULL auto_increment,
-  data_podp date default NULL,
-  status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
-  PRIMARY KEY(wid),
-);
-
-INSERT INTO t1 VALUES (8,NULL,'real');
-INSERT INTO t1 VALUES (9,NULL,'nowy');
-SELECT elt(status_wnio,data_podp) FROM t1 GROUP BY wid;
-DROP TABLE t1;
-
-#
-# test for #739
-
-CREATE TABLE t1 (title text) ENGINE=MyISAM;
-INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
-INSERT INTO t1 VALUES ('House passes the CAREERS bill');
-SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;
-DROP TABLE t1;
-
 select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2);
 
 explain extended select md5('hello'), sha('abc'), sha1('abc'), soundex(''), 'mood' sounds like 'mud', aes_decrypt(aes_encrypt('abc','1'),'1'),concat('*',space(5),'*'), reverse('abc'), rpad('a',4,'1'), lpad('a',4,'1'),  concat_ws(',','',NULL,'a'),make_set(255,_latin2'a',_latin2'b',_latin2'c'),elt(2,1),locate("a","b",2),format(130,10),char(0),conv(130,16,10),hex(130),binary 'HE', export_set(255,_latin2'y',_latin2'n',_latin2' '),FIELD('b' COLLATE latin1_bin,'A','B'),FIND_IN_SET(_latin1'B',_latin1'a,b,c,d'),collation(conv(130,16,10)), coercibility(conv(130,16,10)),length('\n\t\r\b\0\_\%\\'),bit_length('\n\t\r\b\0\_\%\\'),bit_length('\n\t\r\b\0\_\%\\'),concat('monty',' was here ','again'),length('hello'),char(ascii('h')),ord('h'),quote(1/0),crc32("123"),replace('aaaa','a','b'),insert('txs',2,1,'hi'),left(_latin2'a',1),right(_latin2'a',1),lcase(_latin2'a'),ucase(_latin2'a'),SUBSTR('abcdefg',3,2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),trim(_latin2' a '),ltrim(_latin2' a '),rtrim(_latin2' a '), decode(encode(repeat("a",100000),"monty"),"monty");
+
+#
+# lpad returns incorrect result (Bug #2182)
+#
+
+SELECT lpad(12345, 5, "#");
+
+#
+# Problem the the CONV() function (Bug #2972)
+#
+ 
+SELECT conv(71, 10, 36), conv('1Z', 36, 10);
+
+#
+# Bug in SUBSTRING when mixed with CONCAT and ORDER BY (Bug #3089)
+#
+
+create table t1 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
+insert into t1 values (1,'aaaaaaaaaa'), (2,'bbbbbbbbbb');
+create table t2 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
+insert into t2 values (1,'cccccccccc'), (2,'dddddddddd');
+select substring(concat(t1.str, t2.str), 1, 15) "name" from t1, t2 
+where t2.id=t1.id order by name;
+drop table t1, t2;
+
+#
+# Test case for conversion of long string value to integer (Bug #3472)
+#
+
+create table t1 (c1 INT, c2 INT UNSIGNED);
+insert into t1 values ('21474836461','21474836461');
+insert into t1 values ('-21474836461','-21474836461');
+show warnings;
+select * from t1;
+drop table t1;

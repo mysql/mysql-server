@@ -78,6 +78,10 @@ os_thread_create(
 						function */
 	os_thread_id_t*		thread_id);	/* out: id of the created
 						thread */
+int
+os_thread_join(
+/*=============*/
+  os_thread_id_t  thread_id);	/* in: id of the thread to join */
 /*********************************************************************
 Exits the current thread. */
 
@@ -98,13 +102,6 @@ Returns handle to the current thread. */
 os_thread_t
 os_thread_get_curr(void);
 /*====================*/
-/*********************************************************************
-Waits for a thread to terminate. */
-
-void
-os_thread_wait(
-/*===========*/
-	os_thread_t	thread);	/* in: thread to wait */
 /*********************************************************************
 Advises the os to give up remainder of the thread's time slice. */
 

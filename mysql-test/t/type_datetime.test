@@ -7,13 +7,13 @@ drop table if exists t1;
 --enable_warnings
 
 create table t1 (t datetime);
-insert into t1 values(101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030102030460),(20030102036301),(20030102240401),(20030132030401),(20031302030460);
+insert into t1 values (101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030100000000),(20030000000000);
 select * from t1;
 delete from t1 where t > 0;
 optimize table t1;
 check table t1;
 delete from t1;
-insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030102030460"),("20030102036301"),("20030102240401"),("20030132030401"),("20031302030460");
+insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030100000000"),("20030000000000");
 select * from t1;
 drop table t1;
 
@@ -70,4 +70,19 @@ create table t1 (a datetime not null, b datetime not null);
 insert into t1 values (now(), now());
 insert into t1 values (now(), now());
 select * from t1 where a is null or b is null;
+drop table t1;
+
+#
+# Let us check if we properly treat wrong datetimes and produce proper
+# warnings (for both strings and numbers)
+#
+create table t1 (t datetime);
+insert into t1 values (20030102030460),(20030102036301),(20030102240401),(20030132030401),(20031302030460);
+select * from t1;
+delete from t1;
+insert into t1 values ("20030102030460"),("20030102036301"),("20030102240401"),("20030132030401"),("20031302030460");
+select * from t1;
+delete from t1;
+insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
+select * from t1;
 drop table t1;

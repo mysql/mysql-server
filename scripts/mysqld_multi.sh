@@ -4,12 +4,12 @@ use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.5";
+$VER="2.7";
 
 $opt_config_file   = undef();
 $opt_example       = 0;
 $opt_help          = 0;
-$opt_log           = "/tmp/mysqld_multi.log";
+$opt_log           = undef();
 $opt_mysqladmin    = "@bindir@/mysqladmin";
 $opt_mysqld        = "@libexecdir@/mysqld";
 $opt_no_log        = 0;
@@ -17,6 +17,9 @@ $opt_password      = undef();
 $opt_tcp_ip        = 0;
 $opt_user          = "root";
 $opt_version       = 0;
+
+my $my_print_defaults_exists= 1;
+my $logdir= undef();
 
 my ($mysqld, $mysqladmin, $groupids, $homedir, $my_progname);
 
@@ -42,16 +45,41 @@ sub main
     print "Please make sure you have this command available and\n";
     print "in your path. The command is available from the latest\n";
     print "MySQL distribution.\n";
+    $my_print_defaults_exists= 0;
   }
-  my @defops = `my_print_defaults mysqld_multi`;
-  chop @defops;
-  splice @ARGV, 0, 0, @defops;
+  if ($my_print_defaults_exists)
+  {
+    foreach my $arg (@ARGV)
+    {
+      if ($arg =~ m/^--config-file=(.*)/)
+      {
+	if (!length($1))
+	{
+	  die "Option config-file requires an argument\n";
+	}
+	elsif (!( -e $1 && -r $1))
+	{
+	  die "Option file '$1' doesn't exists, or is not readable\n";
+	}
+	else
+	{
+	  $opt_config_file= $1;
+	}
+      }
+    }
+    my $com= "my_print_defaults ";
+    $com.= "--config-file=$opt_config_file " if (defined($opt_config_file));
+    $com.= "mysqld_multi";
+    my @defops = `$com`;
+    chop @defops;
+    splice @ARGV, 0, 0, @defops;
+  }
   GetOptions("help","example","version","mysqld=s","mysqladmin=s",
-	     "config-file=s","user=s","password=s","log=s","no-log","tcp-ip")
+             "config-file=s","user=s","password=s","log=s","no-log","tcp-ip")
   || die "Wrong option! See $my_progname --help for detailed information!\n";
 
+  init_log();
   $groupids = $ARGV[1];
-
   if ($opt_version)
   {
     print "$my_progname version $VER by Jani Tolonen\n";
@@ -109,6 +137,84 @@ sub main
   else
   {
     stop_mysqlds();
+  }
+}
+
+####
+#### Init log file. Check for appropriate place for log file, in the following
+#### order my_print_defaults mysqld datadir, @datadir@, /var/log, /tmp
+####
+
+sub init_log
+{
+  if ($my_print_defaults_exists)
+  {
+    @mysqld_opts= `my_print_defaults mysqld`;
+    chomp @mysqld_opts;
+    foreach my $opt (@mysqld_opts)
+    {
+      if ($opt =~ m/^\-\-datadir[=](.*)/)
+      {
+        if (-d "$1" && -w "$1")
+        {
+	  $logdir= $1;
+        }
+      }
+    }
+  }
+  if (!defined($logdir))
+  {
+    $logdir= "@datadir@" if (-d "@datadir@" && -w "@datadir@");
+  }
+  if (!defined($logdir))
+  {
+    # Log file was not specified and we could not log to a standard place,
+    # so log file be disabled for now.
+    print "WARNING: Log file disabled. Maybe directory/file isn't writable?\n";
+    $opt_no_log= 1;
+  }
+  else
+  {
+    $opt_log= "$logdir/mysqld_multi.log";
+  }
+}
+
+####
+#### Init log file. Check for appropriate place for log file, in the following
+#### order my_print_defaults mysqld datadir, @datadir@, /var/log, /tmp
+####
+
+sub init_log
+{
+  if ($my_print_defaults_exists)
+  {
+    @mysqld_opts= `my_print_defaults mysqld`;
+    chomp @mysqld_opts;
+    foreach my $opt (@mysqld_opts)
+    {
+      if ($opt =~ m/^\-\-datadir[=](.*)/)
+      {
+        if (-d "$1" && -w "$1")
+        {
+	  $logdir= $1;
+        }
+      }
+    }
+  }
+  if (!defined($logdir))
+  {
+    $logdir= "@datadir@" if (-d "@datadir@" && -w "@datadir@");
+  }
+  if (!defined($logdir))
+  {
+    # Log file was not specified and we could not log to a standard place,
+    # so log file be disabled for now.
+    print "WARNING: Log file disabled. Maybe directory/file isn't writable?\n";
+    $opt_no_log= 1;
+  }
+  else
+  {
+    $opt_log= "$logdir/mysqld_multi.log";
   }
 }
 
@@ -589,12 +695,9 @@ reported. Note that you must not have any white spaces in the GNR
 list. Anything after a white space are ignored.
 
 Options:
---config-file=...  Alternative config file. NOTE: This will not affect
-                   this program's own options (group [mysqld_multi]),
-                   but only groups [mysqld#]. Without this option everything
-                   will be searched from the ordinary my.cnf file.
+--config-file=...  Alternative config file.
                    Using: $opt_config_file
---example          Give an example of a config file. (PLEASE DO CHECK THIS!)
+--example          Give an example of a config file.
 --help             Print this help and exit.
 --log=...          Log file. Full path to and the name for the log file. NOTE:
                    If the file exists, everything will be appended.

@@ -1,0 +1,77 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+create table t1 (t timestamp);
+create table t2 (t char(32));
+select @@time_zone;
+@@time_zone
+Europe/Moscow
+set time_zone='UTC';
+insert into t1 values ('20040101000000'), ('20040611093902');
+select * from t1;
+t
+2004-01-01 00:00:00
+2004-06-11 09:39:02
+select * from t1;
+t
+2004-01-01 03:00:00
+2004-06-11 13:39:02
+delete from t1;
+set time_zone='Europe/Moscow';
+insert into t1 values ('20040101000000'), ('20040611093902');
+select * from t1;
+t
+2004-01-01 00:00:00
+2004-06-11 09:39:02
+select * from t1;
+t
+2004-01-01 00:00:00
+2004-06-11 09:39:02
+show binlog events;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	95	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	95	Query	1	181	use `test`; create table t1 (t timestamp)
+master-bin.000001	181	Query	1	266	use `test`; create table t2 (t char(32))
+master-bin.000001	266	Query	1	351	use `test`; SET ONE_SHOT TIME_ZONE='UTC'
+master-bin.000001	351	Query	1	468	use `test`; insert into t1 values ('20040101000000'), ('20040611093902')
+master-bin.000001	468	Query	1	539	use `test`; delete from t1
+master-bin.000001	539	Query	1	656	use `test`; insert into t1 values ('20040101000000'), ('20040611093902')
+set time_zone='MET';
+insert into t2 (select t from t1);
+select * from t1;
+t
+2003-12-31 22:00:00
+2004-06-11 07:39:02
+select * from t2;
+t
+2003-12-31 22:00:00
+2004-06-11 07:39:02
+delete from t2;
+set timestamp=1000072000;
+insert into t2 values (current_timestamp), (current_date), (current_time);
+set timestamp=1000072000;
+select current_timestamp, current_date, current_time;
+current_timestamp	current_date	current_time
+2001-09-10 01:46:40	2001-09-10	01:46:40
+select * from t2;
+t
+2001-09-09 23:46:40
+2001-09-09
+23:46:40
+delete from t2;
+insert into t2 values (from_unixtime(1000000000)),
+(unix_timestamp('2001-09-09 03:46:40'));
+select * from t2;
+t
+2001-09-09 03:46:40
+1000000000
+select * from t2;
+t
+2001-09-09 03:46:40
+1000000000
+set global time_zone='MET';
+ERROR HY000: Binary logging and replication forbid changing of the global server time zone
+drop table t1, t2;

@@ -2,6 +2,7 @@
 # ISAM Check
 #------------------------------------------------------------------------------
 MODULE	libc.nlm
+SCREENNAME "MySQL ISAM Table Check Tool"
 COPYRIGHT "(c) 2003 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL ISAM Table Check Tool"
 VERSION 4, 0

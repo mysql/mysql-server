@@ -37,12 +37,12 @@ char *strstr(register const char *str,const char *search)
  register char *i,*j;
  register char first= *search;
 
-skipp:
+skip:
   while (*str != '\0') {
     if (*str++ == first) {
       i=(char*) str; j=(char*) search+1;
       while (*j)
-	if (*i++ != *j++) goto skipp;
+	if (*i++ != *j++) goto skip;
       return ((char*) str-1);
     }
   }

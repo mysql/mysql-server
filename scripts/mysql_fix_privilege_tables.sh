@@ -7,13 +7,34 @@ password=""
 host="localhost"
 user="root"
 sql_only=0
-basedir=""
+basedir="@prefix@"
 verbose=0
 args=""
+port=""
+socket=""
+database="mysql"
+bindir=""
+pkgdatadir="@pkgdatadir@"
 
 file=mysql_fix_privilege_tables.sql
 
+# The following test is to make this script compatible with the 4.0 where
+# the single argument could be a password
+if test "$#" = 1
+then
+  case "$1" in
+  --*) ;;
+  *) old_style_password="$1" ; shift ;;
+  esac
+fi
+
 # The following code is almost identical to the code in mysql_install_db.sh
+
+case "$1" in
+    --no-defaults|--defaults-file=*|--defaults-extra-file=*)
+      defaults="$1"; shift
+      ;;
+esac
 
 parse_arguments() {
   # We only need to pass arguments through to the server if we don't
@@ -32,14 +53,18 @@ parse_arguments() {
       --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --password=*) password=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --host=*) host=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
-      --sql|--sql-only) sql_only=1;;
+      --sql|--sql-only) sql_only=1 ;;
       --verbose) verbose=1 ;;
+      --port=*) port=`echo "$arg" | sed -e "s;--port=;;"` ;;
+      --socket=*) socket=`echo "$arg" | sed -e "s;--socket=;;"` ;;
+      --database=*) database=`echo "$arg" | sed -e "s;--database=;;"` ;;
+      --bindir=*) bindir=`echo "$arg" | sed -e "s;--bindir=;;"` ;;
       *)
         if test -n "$pick_args"
         then
           # This sed command makes sure that any special chars are quoted,
           # so the arg gets passed exactly to the server.
-          args="$args "`echo "$arg" | sed -e 's,\([^a-zA-Z0-9_.-]\),\\\\\1,g'`
+          args="$args "`echo "$arg" | sed -e 's,\([^=a-zA-Z0-9_.-]\),\\\\\1,g'`
         fi
         ;;
     esac
@@ -48,68 +73,63 @@ parse_arguments() {
 
 # Get first arguments from the my.cfg file, groups [mysqld] and
 # [mysql_install_db], and then merge with the command line arguments
-if test -x ./bin/my_print_defaults
-then
-  print_defaults="./bin/my_print_defaults"
-elif test -x @bindr@/my_print_defaults
-then
-  print_defaults="@bindir@/my_print_defaults"
-elif test -x @bindir@/mysql_print_defaults
-then
-  print_defaults="@bindir@/mysql_print_defaults"
-elif test -x extra/my_print_defaults
-then
-  print_defaults="extra/my_print_defaults"
-else
-  print_defaults="my_print_defaults"
-fi
+
+for dir in ./bin @bindir@ @bindir@ extra $bindir/../bin $bindir/../extra
+do
+  if test -x $dir/my_print_defaults
+  then
+    print_defaults="$dir/my_print_defaults"
+    break
+  fi
+done
 
 parse_arguments `$print_defaults $defaults mysql_install_db mysql_fix_privilege_tables`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
-if test -z "$basedir"
-then
-  basedir=@prefix@
-  bindir=@bindir@
-  execdir=@libexecdir@ 
-  pkgdatadir=@pkgdatadir@
-else
-  bindir="$basedir/bin"
-  if test -x "$basedir/libexec/mysqld"
-  then
-    execdir="$basedir/libexec"
-  elif test -x "@libexecdir@/mysqld"
-  then
-    execdir="@libexecdir@"
-  else
-    execdir="$basedir/bin"
-  fi
-fi
-
-# The following test is to make this script compatible with the 4.0 where
-# the first argument was the password
 if test -z "$password"
 then
-  password=`echo $args | sed -e 's/ *//g'`
+  password=$old_style_password
 fi
 
-if test -z "$password" ; then
-  cmd="$bindir/mysql -f --user=$user --host=$host mysql"
-else
-  cmd="$bindir/mysql -f --user=$user --password=$password --host=$host mysql"
+# Find where 'mysql' command is located
+
+if test -z "$bindir"
+then
+  for i in @bindir@ $basedir/bin client
+  do
+    if test -f $i/mysql
+    then
+      bindir=$i
+      break
+    fi
+  done
 fi
+
+cmd="$bindir/mysql -f --user=$user --host=$host"
+if test ! -z "$password" ; then
+  cmd="$cmd --password=$password"
+fi
+if test ! -z "$port"; then
+  cmd="$cmd --port=$port"
+fi
+if test ! -z "$socket"; then
+  cmd="$cmd --socket=$socket"
+fi
+cmd="$cmd --database=$database"
+
 if test $sql_only = 1
 then
   cmd="cat"
 fi
 
-# Find where mysql_fix_privilege_tables.sql is located
+# Find where first mysql_fix_privilege_tables.sql is located
 for i in $basedir/support-files $basedir/share $basedir/share/mysql \
-        $basedir/scripts @pkgdatadir@ . ./scripts
+        $basedir/scripts $pkgdatadir . ./scripts
 do
   if test -f $i/$file
   then
     pkgdatadir=$i
+    break
   fi
 done
 
@@ -129,17 +149,18 @@ s_echo()
    fi
 }
 
-s_echo "This scripts updates all the mysql privilege tables to be usable by"
+s_echo "This script updates all the mysql privilege tables to be usable by"
 s_echo "MySQL 4.0 and above."
 s_echo ""
 s_echo "This is needed if you want to use the new GRANT functions,"
-s_echo "CREATE AGGREGATE FUNCTION or want to use the more secure passwords in 4.1"
+s_echo "CREATE AGGREGATE FUNCTION, stored procedures, or"
+s_echo "more secure passwords in 4.1"
 s_echo ""
 
 if test $verbose = 1
 then
   s_echo "You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
-  s_echo "as this just means that your tables where already up to date."
+  s_echo "because these just mean that your tables are already up to date."
   s_echo "This script is safe to run even if your tables are already up to date!"
   s_echo ""
 fi

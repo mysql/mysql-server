@@ -26,8 +26,7 @@ ulint
 row_undo_ins(
 /*=========*/
 				/* out: DB_SUCCESS */
-	undo_node_t*	node,	/* in: row undo node */
-	que_thr_t*	thr);	/* in: query thread */
+	undo_node_t*	node);	/* in: row undo node */
 
 
 #ifndef UNIV_NONINL

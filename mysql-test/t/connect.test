@@ -42,7 +42,7 @@ show tables;
 
 
 # check if old password version also works
-update mysql.user set password=old_password("gambling2") where user="test";
+update mysql.user set password=old_password("gambling2") where user=_binary"test";
 flush privileges;
 
 #connect (con1,localhost,test,gambling2,"");
@@ -68,5 +68,5 @@ show tables;
 # remove user 'test' so that other tests which may use 'test'
 # do not depend on this test.
 
-delete from mysql.user where user="test";
+delete from mysql.user where user=_binary"test";
 flush privileges;

@@ -28,6 +28,9 @@
     * when both arguments are bitmaps, they must be of the same size
     * bitmap_intersect() is an exception :)
       (for for Bitmap::intersect(ulonglong map2buff))
+  
+  If THREAD is defined all bitmap operations except bitmap_init/bitmap_free 
+  are thread-safe.
 
   TODO:
   Make assembler THREAD safe versions of these using test-and-set instructions
@@ -35,7 +38,6 @@
 
 #include "mysys_priv.h"
 #include <my_bitmap.h>
-#include <assert.h>
 #include <m_string.h>
 
 
@@ -104,7 +106,7 @@ void bitmap_set_bit(MY_BITMAP *map, uint bitmap_bit)
 {
   DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size*8);
   bitmap_lock(map);
-  map->bitmap[bitmap_bit / 8] |= (1 << (bitmap_bit & 7));
+  bitmap_fast_set_bit(map, bitmap_bit);
   bitmap_unlock(map);
 }
 
@@ -144,7 +146,7 @@ void bitmap_clear_bit(MY_BITMAP *map, uint bitmap_bit)
 {
   DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size*8);
   bitmap_lock(map);
-  map->bitmap[bitmap_bit / 8] &= ~ (1 << (bitmap_bit & 7));
+  bitmap_fast_clear_bit(map, bitmap_bit);
   bitmap_unlock(map);
 }
 
@@ -220,7 +222,7 @@ my_bool bitmap_is_set_all(const MY_BITMAP *map)
 my_bool bitmap_is_set(const MY_BITMAP *map, uint bitmap_bit)
 {
   DBUG_ASSERT(map->bitmap && bitmap_bit < map->bitmap_size*8);
-  return map->bitmap[bitmap_bit / 8] & (1 << (bitmap_bit & 7));
+  return bitmap_fast_is_set(map, bitmap_bit);
 }
 
 
@@ -328,5 +330,68 @@ void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2)
 
   bitmap_unlock((MY_BITMAP *)map2);
   bitmap_unlock(map);
+}
+
+
+/*
+  SYNOPSIS
+    bitmap_bits_set()
+      map
+  RETURN
+    Number of set bits in the bitmap.
+*/
+
+uint bitmap_bits_set(const MY_BITMAP *map)
+{  
+  uchar *m= map->bitmap;
+  uchar *end= m + map->bitmap_size;
+  uint res= 0;
+
+  DBUG_ASSERT(map->bitmap);
+  bitmap_lock((MY_BITMAP *)map);
+  while (m < end)
+  {
+    res+= my_count_bits_ushort(*m++);
+  }
+  bitmap_unlock((MY_BITMAP *)map);
+  return res;
+}
+
+
+/* 
+  SYNOPSIS
+    bitmap_get_first()
+      map
+  RETURN 
+    Number of first unset bit in the bitmap or MY_BIT_NONE if all bits are set.
+*/
+
+uint bitmap_get_first(const MY_BITMAP *map)
+{
+  uchar *bitmap=map->bitmap;
+  uint bit_found = MY_BIT_NONE;
+  uint bitmap_size=map->bitmap_size*8;
+  uint i;
+
+  DBUG_ASSERT(map->bitmap);
+  bitmap_lock((MY_BITMAP *)map);
+  for (i=0; i < bitmap_size ; i++, bitmap++)
+  {
+    if (*bitmap != 0xff)
+    {						/* Found slot with free bit */
+      uint b;
+      for (b=0; ; b++)
+      {
+	if (!(*bitmap & (1 << b)))
+	{
+	  bit_found = (i*8)+b;
+	  break;
+	}
+      }
+      break;					/* Found bit */
+    }
+  }
+  bitmap_unlock((MY_BITMAP *)map);
+  return bit_found;
 }
 

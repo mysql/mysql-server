@@ -1,0 +1,175 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1, t2, t3, t4, t5, t6, t7;
+--enable_warnings
+
+#
+# Simple test to show use of UNIQUE indexes 
+#
+
+CREATE TABLE t1 (
+  a int unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned,
+  UNIQUE(b)	
+) engine=ndbcluster;
+
+insert t1 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t1 order by b;
+select * from t1 where b = 4 order by b;
+insert into t1 values(7,8,3);
+select * from t1 where b = 4 order by a;
+
+drop table t1;
+
+
+#
+# Show use of UNIQUE USING HASH indexes 
+#
+
+CREATE TABLE t2 (
+  a int unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned not null,
+  UNIQUE USING HASH (b, c)	
+) engine=ndbcluster;
+
+insert t2 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t2 where a = 3;
+select * from t2 where b = 4;
+select * from t2 where c = 6;
+insert into t2 values(7,8,3);
+select * from t2 where b = 4 order by a;
+
+drop table t2;
+
+#
+# Show use of PRIMARY KEY USING HASH indexes 
+#
+
+CREATE TABLE t3 (
+  a int unsigned NOT NULL,
+  b int unsigned not null,
+  c int unsigned,
+  PRIMARY KEY USING HASH (a, b)	
+) engine=ndbcluster;
+
+insert t3 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t3 where a = 3;
+select * from t3 where b = 4;
+select * from t3 where c = 6;
+insert into t3 values(7,8,3);
+select * from t3 where b = 4 order by a;
+
+drop table t3;
+
+#
+# More complex tables
+#
+
+CREATE TABLE t1 (
+  cid smallint(5) unsigned NOT NULL default '0',
+  cv varchar(250) NOT NULL default '',
+  PRIMARY KEY  (cid),
+  UNIQUE KEY cv (cv)
+) engine=ndbcluster;
+INSERT INTO t1 VALUES (8,'dummy');
+CREATE TABLE t2 (
+  cid bigint(20) unsigned NOT NULL auto_increment,
+  cap varchar(255) NOT NULL default '',
+  PRIMARY KEY  (cid)
+) engine=ndbcluster;
+CREATE TABLE t3 (
+  gid bigint(20) unsigned NOT NULL auto_increment,
+  gn varchar(255) NOT NULL default '',
+  must tinyint(4) default NULL,
+  PRIMARY KEY  (gid)
+) engine=ndbcluster;
+INSERT INTO t3 VALUES (1,'V1',NULL);
+CREATE TABLE t4 (
+  uid bigint(20) unsigned NOT NULL default '0',
+  gid bigint(20) unsigned NOT NULL,
+  rid bigint(20) unsigned NOT NULL default '-1',
+  cid bigint(20) unsigned NOT NULL default '-1',
+  UNIQUE KEY m (uid,gid,rid,cid)
+) engine=ndbcluster;
+INSERT INTO t4 VALUES (1,1,2,4);
+INSERT INTO t4 VALUES (1,1,2,3);
+INSERT INTO t4 VALUES (1,1,5,7);
+INSERT INTO t4 VALUES (1,1,10,8);
+CREATE TABLE t5 (
+  rid bigint(20) unsigned NOT NULL auto_increment,
+  rl varchar(255) NOT NULL default '',
+  PRIMARY KEY  (rid)
+) engine=ndbcluster;
+CREATE TABLE t6 (
+  uid bigint(20) unsigned NOT NULL auto_increment,
+  un varchar(250) NOT NULL default '',
+  uc smallint(5) unsigned NOT NULL default '0',
+  PRIMARY KEY  (uid),
+  UNIQUE KEY nc (un,uc)
+) engine=ndbcluster;
+INSERT INTO t6 VALUES (1,'test',8);
+INSERT INTO t6 VALUES (2,'test2',9);
+INSERT INTO t6 VALUES (3,'tre',3);
+CREATE TABLE t7 (
+  mid bigint(20) unsigned NOT NULL PRIMARY KEY,
+  uid bigint(20) unsigned NOT NULL default '0',
+  gid bigint(20) unsigned NOT NULL,
+  rid bigint(20) unsigned NOT NULL default '-1',
+  cid bigint(20) unsigned NOT NULL default '-1',
+  UNIQUE KEY m (uid,gid,rid,cid)
+) engine=ndbcluster;
+INSERT INTO t7 VALUES(1, 1, 1, 1, 1);
+INSERT INTO t7 VALUES(2, 2, 1, 1, 1);
+INSERT INTO t7 VALUES(3, 3, 1, 1, 1);
+INSERT INTO t7 VALUES(4, 4, 1, 1, 1);
+INSERT INTO t7 VALUES(5, 5, 1, 1, 1);
+INSERT INTO t7 VALUES(6, 1, 1, 1, 6);
+INSERT INTO t7 VALUES(7, 2, 1, 1, 7);
+INSERT INTO t7 VALUES(8, 3, 1, 1, 8);
+INSERT INTO t7 VALUES(9, 4, 1, 1, 9);
+INSERT INTO t7 VALUES(10, 5, 1, 1, 10);
+
+select * from t1 where cv = 'dummy';
+select * from t1 where cv = 'test';
+select * from t4 where uid = 1 and gid=1 and rid=2 and cid=4;
+select * from t4 where uid = 1 and gid=1 and rid=1 and cid=4;
+select * from t4 where uid = 1 order by cid;
+select * from t4 where rid = 2 order by cid;
+select * from t6 where un='test' and uc=8;
+select * from t6 where un='test' and uc=7;
+select * from t6 where un='test';
+select * from t7 where mid = 8; 
+select * from t7 where uid = 8; 
+select * from t7 where uid = 1 order by mid; 
+select * from t7 where uid = 4 order by mid; 
+select * from t7 where gid = 4; 
+select * from t7 where gid = 1 order by mid; 
+select * from t7 where cid = 4; 
+select * from t7 where cid = 8; 
+
+#
+# insert more records into t4
+#
+let $1=100;
+disable_query_log;
+while ($1)
+{
+ eval insert into t4 values(1, $1, 5, 12);
+ eval insert into t4 values($1, 3, 9, 11);
+ dec $1;
+}
+enable_query_log;
+
+select * from t4 where uid = 1 and gid=1 and rid=2 and cid=4;
+select * from t4 where uid = 1 and gid=1 and rid=1 and cid=4;
+select * from t4 where uid = 1 order by gid,cid;
+select * from t4 where uid = 1 order by gid,cid;
+select * from t4 where rid = 2 order by cid;
+
+
+drop table t1,t2,t3,t4,t5,t6,t7;
+
+

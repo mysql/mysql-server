@@ -71,3 +71,8 @@ uint my_count_bits(ulonglong v)
 #endif
 }
 
+uint my_count_bits_ushort(ushort v)
+{
+  return nbits[v];
+}
+

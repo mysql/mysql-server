@@ -1,15 +1,27 @@
-select format(1.5555,0),format(123.5555,1),format(1234.5555,2),format(12345.5555,3),format(123456.5555,4),format(1234567.5555,5),format("12345.2399",2);
-format(1.5555,0)	format(123.5555,1)	format(1234.5555,2)	format(12345.5555,3)	format(123456.5555,4)	format(1234567.5555,5)	format("12345.2399",2)
+select format(1.5555,0),format(123.5555,1),format(1234.5555,2),format(12345.55555,3),format(123456.5555,4),format(1234567.5555,5),format("12345.2399",2);
+format(1.5555,0)	format(123.5555,1)	format(1234.5555,2)	format(12345.55555,3)	format(123456.5555,4)	format(1234567.5555,5)	format("12345.2399",2)
 2	123.6	1,234.56	12,345.556	123,456.5555	1,234,567.55550	12,345.24
 select inet_ntoa(inet_aton("255.255.255.255.255.255.255.255"));
 inet_ntoa(inet_aton("255.255.255.255.255.255.255.255"))
 NULL
 select inet_aton("255.255.255.255.255"),inet_aton("255.255.1.255"),inet_aton("0.1.255");
 inet_aton("255.255.255.255.255")	inet_aton("255.255.1.255")	inet_aton("0.1.255")
-1099511627775	4294902271	511
+1099511627775	4294902271	65791
 select inet_ntoa(1099511627775),inet_ntoa(4294902271),inet_ntoa(511);
 inet_ntoa(1099511627775)	inet_ntoa(4294902271)	inet_ntoa(511)
 NULL	255.255.1.255	0.0.1.255
+select hex(inet_aton('127'));
+hex(inet_aton('127'))
+7F
+select hex(inet_aton('127.1'));
+hex(inet_aton('127.1'))
+7F000001
+select hex(inet_aton('127.1.1'));
+hex(inet_aton('127.1.1'))
+7F010001
+select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_utf8'')));
+length(uuid())	charset(uuid())	length(unhex(replace(uuid(),_utf8'-',_utf8'')))
+36	utf8	16
 select length(format('nan', 2)) > 0;
 length(format('nan', 2)) > 0
 1

@@ -337,10 +337,10 @@ drop table t1;
 #
 
 --error 1071
-CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), KEY t1 (a, b, c));
-CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255));
+CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), d varchar(255), e varchar(255), KEY t1 (a, b, c, d, e));
+CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), d varchar(255), e varchar(255));
 --error 1071
-ALTER TABLE t1 ADD INDEX t1 (a, b, c);   
+ALTER TABLE t1 ADD INDEX t1 (a, b, c, d, e);
 DROP TABLE t1;
 
 #
@@ -399,6 +399,69 @@ check table t1;
 drop table t1;
 
 #
+# two bugs in myisam-space-stripping feature
+#
+create table t1 ( a text not null, key a (a(20)));
+insert into t1 values ('aaa   '),('aaa'),('aa');
+check table t1;
+repair table t1;
+select concat(a,'.') from t1 where a='aaa';
+select concat(a,'.') from t1 where binary a='aaa';
+update t1 set a='bbb' where a='aaa';
+select concat(a,'.') from t1;
+drop table t1;
+
+#
+# Third bug in the same code (BUG#2295)
+#
+
+create table t1(a text not null, b text not null, c text not null, index (a(10),b(10),c(10)));
+insert into t1 values('807780', '477', '165');
+insert into t1 values('807780', '477', '162');
+insert into t1 values('807780', '472', '162');
+select * from t1 where a='807780' and b='477' and c='165';
+drop table t1;
+
+#
+# Verify blob handling
+#
+create table t1 (a blob);
+insert into t1 values('a '),('a');
+select concat(a,'.') from t1 where a='a';
+select concat(a,'.') from t1 where a='a ';
+alter table t1 add key(a(2));
+select concat(a,'.') from t1 where a='a';
+select concat(a,'.') from t1 where a='a ';
+drop table t1;
+
+#
+# Test text and unique
+#
+create table t1 (a int not null auto_increment primary key, b text not null, unique b (b(20)));
+insert into t1 (b) values ('a'),('a '),('a  ');
+select concat(b,'.') from t1;
+update t1 set b='b ' where a=2;
+--error 1062
+update t1 set b='b  ' where a > 1;
+delete from t1 where b='b';
+select a,concat(b,'.') from t1;
+drop table t1;
+
+#
+# Test keys with 0 segments. (Bug #3203)
+#
+create table t1 (a int not null);
+create table t2 (a int not null, primary key (a));
+insert into t1 values (1);
+insert into t2 values (1),(2);
+select sql_big_result distinct t1.a from t1,t2 order by t2.a;
+select distinct t1.a from t1,t2 order by t2.a;
+select sql_big_result distinct t1.a from t1,t2;
+explain select sql_big_result distinct t1.a from t1,t2 order by t2.a;
+explain select distinct t1.a from t1,t2 order by t2.a;
+drop table t1,t2;
+
+#
 # Test RTREE index
 #
 --error 1235
@@ -416,3 +479,26 @@ checksum table t1, t2, t3;
 checksum table t1, t2, t3 extended;
 #show table status;
 drop table t1,t2;
+
+create table t1 (a int, key (a));
+show keys from t1;
+alter table t1 disable keys;
+show keys from t1;
+create table t2 (a int);
+let $i=1000;
+--disable_query_log
+while ($i)
+{
+  dec $i;
+  eval insert t2 values (rand()*100000);
+}
+--enable_query_log
+insert t1 select * from t2;
+show keys from t1;
+alter table t1 enable keys;
+show keys from t1;
+alter table t1 engine=heap;
+alter table t1 disable keys;
+show keys from t1;
+drop table t1,t2;
+

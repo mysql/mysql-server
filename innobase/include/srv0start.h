@@ -21,16 +21,6 @@ srv_normalize_path_for_win(
 /*=======================*/
 	char*	str);	/* in/out: null-terminated character string */
 /*************************************************************************
-Adds a slash or a backslash to the end of a string if it is missing
-and the string is not empty. */
-
-char*
-srv_add_path_separator_if_needed(
-/*=============================*/
-			/* out, own: string which has the separator if the
-			string is not empty */
-	char*	str);	/* in: null-terminated character string */
-/*************************************************************************
 Reads the data files and their sizes from a character string given in
 the .cnf file. */
 

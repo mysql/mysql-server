@@ -1,0 +1,1038 @@
+drop table if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop database if exists mysqltest;
+use test;
+create view v1 (c,d) as select a,b from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create temporary table t1 (a int, b int);
+create view v1 (c) as select b+1 from t1;
+ERROR HY000: View's SELECT contains a temporary table 't1'
+drop table t1;
+create table t1 (a int, b int);
+insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
+create view v1 (c,d) as select a,b+@@global.max_user_connections from t1;
+ERROR HY000: View's SELECT contains a variable or parameter
+create view v1 (c) as select b+1 from t1;
+select c from v1;
+c
+3
+4
+5
+6
+11
+create temporary table t1 (a int, b int);
+select * from t1;
+a	b
+select c from v1;
+c
+3
+4
+5
+6
+11
+show create table v1;
+Table	Create Table
+v1	CREATE VIEW test.v1 AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+show create view v1;
+Table	Create Table
+v1	CREATE VIEW test.v1 AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+show create view t1;
+ERROR HY000: 'test.t1' is not VIEW
+drop table t1;
+select a from v1;
+ERROR 42S22: Unknown column 'a' in 'field list'
+select v1.a from v1;
+ERROR 42S22: Unknown column 'v1.a' in 'field list'
+select b from v1;
+ERROR 42S22: Unknown column 'b' in 'field list'
+select v1.b from v1;
+ERROR 42S22: Unknown column 'v1.b' in 'field list'
+explain extended select c from v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
+Warnings:
+Note	1003	select (`test`.`t1`.`b` + 1) AS `c` from `test`.`v1`
+create algorithm=temptable view v2 (c) as select b+1 from t1;
+show create table v2;
+Table	Create Table
+v2	CREATE ALGORITHM=TMPTABLE VIEW test.v2 AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+select c from v2;
+c
+3
+4
+5
+6
+11
+explain extended select c from v2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
+Warnings:
+Note	1003	select `v2`.`c` AS `c` from `test`.`v2`
+create view v3 (c) as select a+1 from v1;
+ERROR 42S22: Unknown column 'a' in 'field list'
+create view v3 (c) as select b+1 from v1;
+ERROR 42S22: Unknown column 'b' in 'field list'
+create view v3 (c) as select c+1 from v1;
+select c from v3;
+c
+4
+5
+6
+7
+12
+explain extended select c from v3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
+Warnings:
+Note	1003	select ((`test`.`t1`.`b` + 1) + 1) AS `c` from `test`.`v3`
+create algorithm=temptable view v4 (c) as select c+1 from v2;
+select c from v4;
+c
+4
+5
+6
+7
+12
+explain extended select c from v4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	
+2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	5	
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
+Warnings:
+Note	1003	select `v4`.`c` AS `c` from `test`.`v4`
+create view v5 (c) as select c+1 from v2;
+select c from v5;
+c
+4
+5
+6
+7
+12
+explain extended select c from v5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	5	
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
+Warnings:
+Note	1003	select (`v2`.`c` + 1) AS `c` from `test`.`v5`
+create algorithm=temptable view v6 (c) as select c+1 from v1;
+select c from v6;
+c
+4
+5
+6
+7
+12
+explain extended select c from v6;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
+Warnings:
+Note	1003	select `v6`.`c` AS `c` from `test`.`v6`
+show tables;
+Tables_in_test	table_type
+t1	BASE TABLE
+v1	VIEW
+v2	VIEW
+v3	VIEW
+v4	VIEW
+v5	VIEW
+v6	VIEW
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Fixed	5	9	45	38654705663	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
+v1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
+v2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
+v3	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
+v4	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
+v5	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
+v6	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	view
+drop view v1,v2,v3,v4,v5,v6;
+create view v1 (c,d,e,f) as select a,b,
+a in (select a+2 from t1), a = all (select a from t1) from t1;
+create view v2 as select c, d from v1;
+select * from v1;
+c	d	e	f
+1	2	0	0
+1	3	0	0
+2	4	0	0
+2	5	0	0
+3	10	1	0
+select * from v2;
+c	d
+1	2
+1	3
+2	4
+2	5
+3	10
+create view v1 (c,d,e,f) as select a,b, a in (select a+2 from t1), a = all (select a from t1) from t1;
+ERROR 42S01: Table 'v1' already exists
+create or replace view v1 (c,d,e,f) as select a,b, a in (select a+2 from t1), a = all (select a from t1) from t1;
+drop view v2;
+alter view v2 as select c, d from v1;
+ERROR 42S02: Table 'test.v2' doesn't exist
+create or replace view v2 as select c, d from v1;
+alter view v1 (c,d) as select a,max(b) from t1 group by a;
+select * from v1;
+c	d
+1	3
+2	5
+3	10
+select * from v2;
+c	d
+1	3
+2	5
+3	10
+grant create view on test.* to test@localhost;
+show grants for test@localhost;
+Grants for test@localhost
+GRANT USAGE ON *.* TO 'test'@'localhost'
+GRANT CREATE VIEW ON `test`.* TO 'test'@'localhost'
+revoke create view on test.* from test@localhost;
+show grants for test@localhost;
+Grants for test@localhost
+GRANT USAGE ON *.* TO 'test'@'localhost'
+drop view v100;
+ERROR 42S02: Unknown table 'test.v100'
+drop view t1;
+ERROR HY000: 'test.t1' is not VIEW
+drop table v1;
+ERROR 42S02: Unknown table 'v1'
+drop view v1,v2;
+drop table t1;
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+create view v1 (a) as select a+1 from t1;
+create view v2 (a) as select a-1 from t1;
+select * from t1 natural left join v1;
+a	a
+1	NULL
+2	2
+3	3
+select * from v2 natural left join t1;
+a	a
+0	NULL
+1	1
+2	2
+select * from v2 natural left join v1;
+a	a
+0	NULL
+1	NULL
+2	2
+drop view v1, v2;
+drop table t1;
+create database mysqltest;
+create table mysqltest.t1 (a int, b int);
+create table mysqltest.t2 (a int, b int);
+grant select on mysqltest.t1 to mysqltest_1@localhost;
+grant create view,select on test.* to mysqltest_1@localhost;
+create view v1  as select * from mysqltest.t1;
+create view mysqltest.v2  as select * from mysqltest.t1;
+ERROR 42000: create view command denied to user 'mysqltest_1'@'localhost' for table 'v2'
+create view v2 as select * from mysqltest.t2;
+ERROR 42000: ANY command denied to user 'mysqltest_1'@'localhost' for table 't2'
+revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
+revoke all privileges on test.* from mysqltest_1@localhost;
+drop database mysqltest;
+drop view test.v1;
+create database mysqltest;
+create table mysqltest.t1 (a int, b int);
+create view mysqltest.v1 (c,d) as select a+1,b+1 from mysqltest.t1;
+grant select (c) on mysqltest.v1 to mysqltest_1@localhost;
+select c from mysqltest.v1;
+c
+select d from mysqltest.v1;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'd' in table 'v1'
+revoke all privileges on mysqltest.v1 from mysqltest_1@localhost;
+delete from mysql.user where user='mysqltest_1';
+drop database mysqltest;
+create database mysqltest;
+create table mysqltest.t1 (a int, b int);
+create algorithm=temptable view mysqltest.v1 (c,d) as select a+1,b+1 from mysqltest.t1;
+grant select (c) on mysqltest.v1 to mysqltest_1@localhost;
+select c from mysqltest.v1;
+c
+select d from mysqltest.v1;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'd' in table 'v1'
+revoke all privileges on mysqltest.v1 from mysqltest_1@localhost;
+delete from mysql.user where user='mysqltest_1';
+drop database mysqltest;
+create database mysqltest;
+create table mysqltest.t1 (a int, b int);
+create table mysqltest.t2 (a int, b int);
+create view mysqltest.v1 (c,d) as select a+1,b+1 from mysqltest.t1;
+create algorithm=temptable view mysqltest.v2 (c,d) as select a+1,b+1 from mysqltest.t1;
+create view mysqltest.v3 (c,d) as select a+1,b+1 from mysqltest.t2;
+create algorithm=temptable view mysqltest.v4 (c,d) as select a+1,b+1 from mysqltest.t2;
+grant select on mysqltest.v1 to mysqltest_1@localhost;
+grant select on mysqltest.v2 to mysqltest_1@localhost;
+grant select on mysqltest.v3 to mysqltest_1@localhost;
+grant select on mysqltest.v4 to mysqltest_1@localhost;
+select c from mysqltest.v1;
+c
+select c from mysqltest.v2;
+c
+select c from mysqltest.v3;
+c
+select c from mysqltest.v4;
+c
+show columns from mysqltest.v1;
+Field	Type	Null	Key	Default	Extra
+c	bigint(20)	YES		NULL	
+d	bigint(20)	YES		NULL	
+show columns from mysqltest.v2;
+Field	Type	Null	Key	Default	Extra
+c	bigint(20)	YES		NULL	
+d	bigint(20)	YES		NULL	
+explain select c from mysqltest.v1;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+show create table mysqltest.v1;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+explain select c from mysqltest.v2;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+show create table mysqltest.v2;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+explain select c from mysqltest.v3;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+show create table mysqltest.v3;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+explain select c from mysqltest.v4;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+show create table mysqltest.v4;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+grant select on mysqltest.t1 to mysqltest_1@localhost;
+explain select c from mysqltest.v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+show create table mysqltest.v1;
+Table	Create Table
+v1	CREATE VIEW mysqltest.v1 AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
+explain select c from mysqltest.v2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+show create table mysqltest.v2;
+Table	Create Table
+v2	CREATE ALGORITHM=TMPTABLE VIEW mysqltest.v2 AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
+explain select c from mysqltest.v3;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+show create table mysqltest.v3;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+explain select c from mysqltest.v4;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+show create table mysqltest.v4;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+grant show view on mysqltest.* to mysqltest_1@localhost;
+explain select c from mysqltest.v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+show create table mysqltest.v1;
+Table	Create Table
+v1	CREATE VIEW mysqltest.v1 AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
+explain select c from mysqltest.v2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+show create table mysqltest.v2;
+Table	Create Table
+v2	CREATE ALGORITHM=TMPTABLE VIEW mysqltest.v2 AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
+explain select c from mysqltest.v3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+show create table mysqltest.v3;
+Table	Create Table
+v3	CREATE VIEW mysqltest.v3 AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
+explain select c from mysqltest.v4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+show create table mysqltest.v4;
+Table	Create Table
+v4	CREATE ALGORITHM=TMPTABLE VIEW mysqltest.v4 AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
+revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+delete from mysql.user where user='mysqltest_1';
+drop database mysqltest;
+set GLOBAL query_cache_size=1355776;
+flush status;
+create table t1 (a int, b int);
+create view v1 (c,d) as select sql_no_cache a,b from t1;
+create view v2 (c,d) as select a+rand(),b from t1;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+select * from v1;
+c	d
+select * from v2;
+c	d
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+select * from v1;
+c	d
+select * from v2;
+c	d
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+drop view v1,v2;
+set query_cache_type=demand;
+flush status;
+create view v1 (c,d) as select sql_cache a,b from t1;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+select * from v1;
+c	d
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+select * from t1;
+a	b
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+select * from v1;
+c	d
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	1
+select * from t1;
+a	b
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	1
+drop view v1;
+set query_cache_type=default;
+drop table t1;
+set GLOBAL query_cache_size=default;
+create table t1 (a int);
+insert into t1 values (1), (2), (3), (1), (2), (3);
+create view v1 as select distinct a from t1;
+select * from v1;
+a
+1
+2
+3
+explain select * from v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
+select * from t1;
+a
+1
+2
+3
+1
+2
+3
+drop view v1;
+drop table t1;
+create table t1 (a int);
+create view v1 as select distinct a from t1 WITH CHECK OPTION;
+create view v2 as select distinct a from t1 WITH CASCADED CHECK OPTION;
+create view v3 as select distinct a from t1 WITH LOCAL CHECK OPTION;
+drop view v3 RESTRICT;
+drop view v2 CASCADE;
+drop view v1;
+drop table t1;
+create table t1 (a int, b int);
+insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
+create view v1 (c) as select b+1 from t1;
+select test.c from v1 test;
+c
+3
+4
+5
+6
+11
+create algorithm=temptable view v2 (c) as select b+1 from t1;
+select test.c from v2 test;
+c
+3
+4
+5
+6
+11
+select test1.* from v1 test1, v2 test2 where test1.c=test2.c;
+c
+3
+4
+5
+6
+11
+select test2.* from v1 test1, v2 test2 where test1.c=test2.c;
+c
+3
+4
+5
+6
+11
+drop table t1;
+drop view v1,v2;
+create table t1 (a int);
+insert into t1 values (1), (2), (3), (4);
+create view v1 as select a+1 from t1 order by 1 desc limit 2;
+select * from v1;
+a+1
+5
+4
+explain select * from v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
+drop view v1;
+drop table t1;
+create table t1 (a int);
+insert into t1 values (1), (2), (3), (4);
+create view v1 as select a+1 from t1;
+create table t2 select * from v1;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+a+1	bigint(17)	YES		NULL	
+select * from t2;
+a+1
+2
+3
+4
+5
+drop view v1;
+drop table t1,t2;
+create table t1 (a int, b int, primary key(a));
+insert into t1 values (10,2), (20,3), (30,4), (40,5), (50,10);
+create view v1 (a,c) as select a, b+1 from t1;
+create algorithm=temptable view v2 (a,c) as select a, b+1 from t1;
+update v1 set c=a+c;
+ERROR HY000: Column 'c' is not updatable
+update v2 set a=a+c;
+ERROR HY000: The target table v2 of the UPDATE is not updatable
+update v1 set a=a+c;
+select * from v1;
+a	c
+13	3
+24	4
+35	5
+46	6
+61	11
+select * from t1;
+a	b
+13	2
+24	3
+35	4
+46	5
+61	10
+drop table t1;
+drop view v1,v2;
+create table t1 (a int, b int, primary key(a));
+insert into t1 values (10,2), (20,3), (30,4), (40,5), (50,10);
+create table t2 (x int);
+insert into t2 values (10), (20);
+create view v1 (a,c) as select a, b+1 from t1;
+create algorithm=temptable view v2 (a,c) as select a, b+1 from t1;
+update t2,v1 set v1.c=v1.a+v1.c where t2.x=v1.a;
+ERROR HY000: Column 'c' is not updatable
+update t2,v2 set v2.a=v2.v2.a+c where t2.x=v2.a;
+ERROR HY000: The target table v2 of the UPDATE is not updatable
+update t2,v1 set v1.a=v1.a+v1.c where t2.x=v1.a;
+select * from v1;
+a	c
+13	3
+24	4
+30	5
+40	6
+50	11
+select * from t1;
+a	b
+13	2
+24	3
+30	4
+40	5
+50	10
+drop table t1,t2;
+drop view v1,v2;
+create database mysqltest;
+create table mysqltest.t1 (a int, b int, primary key(a));
+insert into mysqltest.t1 values (10,2), (20,3), (30,4), (40,5), (50,10);
+create table mysqltest.t2 (x int);
+insert into mysqltest.t2 values (3), (4), (5), (6);
+create view mysqltest.v1 (a,c) as select a, b+1 from mysqltest.t1;
+create view mysqltest.v2 (a,c) as select a, b from mysqltest.t1;
+create view mysqltest.v3 (a,c) as select a, b+1 from mysqltest.t1;
+grant update (a) on mysqltest.v2 to mysqltest_1@localhost;
+grant update on mysqltest.v1 to mysqltest_1@localhost;
+grant select on mysqltest.* to mysqltest_1@localhost;
+use mysqltest;
+update t2,v1 set v1.a=v1.a+v1.c where t2.x=v1.c;
+select * from t1;
+a	b
+13	2
+24	3
+35	4
+46	5
+50	10
+update v1 set a=a+c;
+select * from t1;
+a	b
+16	2
+28	3
+40	4
+52	5
+61	10
+update t2,v2 set v2.a=v2.a+v2.c where t2.x=v2.c;
+select * from t1;
+a	b
+16	2
+31	3
+44	4
+57	5
+61	10
+update v2 set a=a+c;
+select * from t1;
+a	b
+18	2
+34	3
+48	4
+62	5
+71	10
+update t2,v2 set v2.c=v2.a+v2.c where t2.x=v2.c;
+ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 'c' in table 'v2'
+update v2 set c=a+c;
+ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 'c' in table 'v2'
+update t2,v3 set v3.a=v3.a+v3.c where t2.x=v3.c;
+ERROR 42000: UPDATE command denied to user 'mysqltest_1'@'localhost' for column 'a' in table 'v3'
+update v3 set a=a+c;
+ERROR 42000: update command denied to user 'mysqltest_1'@'localhost' for table 'v3'
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
+drop database mysqltest;
+create table t1 (a int, b int, primary key(b));
+insert into t1 values (1,20), (2,30), (3,40), (4,50), (5,100);
+create view v1 (c) as select b from t1 where a<3;
+select * from v1;
+c
+20
+30
+explain extended select * from v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`b` AS `c` from `test`.`v1` where (`test`.`t1`.`a` < 3)
+update v1 set c=c+1;
+select * from t1;
+a	b
+1	21
+2	31
+3	40
+4	50
+5	100
+create view v2 (c) as select b from t1 where a>=3;
+select * from v1, v2;
+c	c
+21	40
+31	40
+21	50
+31	50
+21	100
+31	100
+drop view v1, v2;
+drop table t1;
+create table t1 (a int, b int, primary key(a));
+insert into t1 values (1,2), (2,3), (3,4), (4,5), (5,10);
+create view v1 (a,c) as select a, b+1 from t1;
+create algorithm=temptable view v2 (a,c) as select a, b+1 from t1;
+delete from v2 where c < 4;
+ERROR HY000: The target table v2 of the DELETE is not updatable
+delete from v1 where c < 4;
+select * from v1;
+a	c
+2	4
+3	5
+4	6
+5	11
+select * from t1;
+a	b
+2	3
+3	4
+4	5
+5	10
+drop table t1;
+drop view v1,v2;
+create table t1 (a int, b int, primary key(a));
+insert into t1 values (1,2), (2,3), (3,4), (4,5), (5,10);
+create table t2 (x int);
+insert into t2 values (1), (2), (3), (4);
+create view v1 (a,c) as select a, b+1 from t1;
+create algorithm=temptable view v2 (a,c) as select a, b+1 from t1;
+delete v2 from t2,v2 where t2.x=v2.a;
+ERROR HY000: The target table v2 of the DELETE is not updatable
+delete v1 from t2,v1 where t2.x=v1.a;
+select * from v1;
+a	c
+5	11
+select * from t1;
+a	b
+5	10
+drop table t1,t2;
+drop view v1,v2;
+create database mysqltest;
+create table mysqltest.t1 (a int, b int, primary key(a));
+insert into mysqltest.t1 values (1,2), (2,3), (3,4), (4,5), (5,10);
+create table mysqltest.t2 (x int);
+insert into mysqltest.t2 values (3), (4), (5), (6);
+create view mysqltest.v1 (a,c) as select a, b+1 from mysqltest.t1;
+create view mysqltest.v2 (a,c) as select a, b+1 from mysqltest.t1;
+grant delete on mysqltest.v1 to mysqltest_1@localhost;
+grant select on mysqltest.* to mysqltest_1@localhost;
+use mysqltest;
+delete from v1 where c < 4;
+select * from t1;
+a	b
+2	3
+3	4
+4	5
+5	10
+delete v1 from t2,v1 where t2.x=v1.c;
+select * from t1;
+a	b
+5	10
+delete v2 from t2,v2 where t2.x=v2.c;
+ERROR 42000: delete command denied to user 'mysqltest_1'@'localhost' for table 'v2'
+delete from v2 where c < 4;
+ERROR 42000: delete command denied to user 'mysqltest_1'@'localhost' for table 'v2'
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
+drop database mysqltest;
+create table t1 (a int, b int, c int, primary key(a,b));
+insert into t1 values (10,2,-1), (20,3,-2), (30,4,-3), (40,5,-4), (50,10,-5);
+create view v1 (x,y) as select a, b from t1;
+create view v2 (x,y) as select a, c from t1;
+set sql_updatable_view_key=YES;
+update v1 set x=x+1;
+update v2 set x=x+1;
+ERROR HY000: The target table v2 of the UPDATE is not updatable
+set sql_updatable_view_key=LIMIT1;
+update v1 set x=x+1;
+update v2 set x=x+1;
+Warnings:
+Note	1354	View being updated does not have complete key of underlying table in it
+update v1 set x=x+1 limit 1;
+update v2 set x=x+1 limit 1;
+ERROR HY000: The target table v2 of the UPDATE is not updatable
+set sql_updatable_view_key=NO;
+update v1 set x=x+1 limit 1;
+update v2 set x=x+1 limit 1;
+Warnings:
+Note	1354	View being updated does not have complete key of underlying table in it
+set sql_updatable_view_key=DEFAULT;
+select * from t1;
+a	b	c
+16	2	-1
+23	3	-2
+33	4	-3
+43	5	-4
+53	10	-5
+drop table t1;
+drop view v1,v2;
+create table t1 (a int, b int, c int, primary key(a,b));
+insert into t1 values (10,2,-1), (20,3,-2);
+create view v1 (x,y,z) as select c, b, a from t1;
+create view v2 (x,y) as select b, a from t1;
+create view v3 (x,y,z) as select b, a, b from t1;
+create view v4 (x,y,z) as select c+1, b, a from t1;
+create algorithm=temptable view v5 (x,y,z) as select c, b, a from t1;
+insert into v3 values (-60,4,30);
+ERROR HY000: The target table v3 of the INSERT is not updatable
+insert into v4 values (-60,4,30);
+ERROR HY000: The target table v4 of the INSERT is not updatable
+insert into v5 values (-60,4,30);
+ERROR HY000: The target table v5 of the INSERT is not updatable
+insert into v1 values (-60,4,30);
+insert into v1 (z,y,x) values (50,6,-100);
+insert into v2 values (5,40);
+select * from t1;
+a	b	c
+10	2	-1
+20	3	-2
+30	4	-60
+50	6	-100
+40	5	NULL
+drop table t1;
+drop view v1,v2,v3,v4,v5;
+create table t1 (a int, b int, c int, primary key(a,b));
+insert into t1 values (10,2,-1), (20,3,-2);
+create table t2 (a int, b int, c int, primary key(a,b));
+insert into t2 values (30,4,-60);
+create view v1 (x,y,z) as select c, b, a from t1;
+create view v2 (x,y) as select b, a from t1;
+create view v3 (x,y,z) as select b, a, b from t1;
+create view v4 (x,y,z) as select c+1, b, a from t1;
+create algorithm=temptable view v5 (x,y,z) as select c, b, a from t1;
+insert into v3 select c, b, a from t2;
+ERROR HY000: The target table v3 of the INSERT is not updatable
+insert into v4 select c, b, a from t2;
+ERROR HY000: The target table v4 of the INSERT is not updatable
+insert into v5 select c, b, a from t2;
+ERROR HY000: The target table v5 of the INSERT is not updatable
+insert into v1 select c, b, a from t2;
+insert into v1 (z,y,x) select a+20,b+2,-100 from t2;
+insert into v2 select b+1, a+10 from t2;
+select * from t1;
+a	b	c
+10	2	-1
+20	3	-2
+30	4	-60
+50	6	-100
+40	5	NULL
+drop table t1;
+drop view v1,v2,v3,v4,v5;
+create database mysqltest;
+create table mysqltest.t1 (a int, b int, primary key(a));
+insert into mysqltest.t1 values (1,2), (2,3);
+create table mysqltest.t2 (x int, y int);
+insert into mysqltest.t2 values (3,4);
+create view mysqltest.v1 (a,c) as select a, b from mysqltest.t1;
+create view mysqltest.v2 (a,c) as select a, b from mysqltest.t1;
+grant insert on mysqltest.v1 to mysqltest_1@localhost;
+grant select on mysqltest.* to mysqltest_1@localhost;
+use mysqltest;
+insert into v1 values (5,6);
+select * from t1;
+a	b
+1	2
+2	3
+5	6
+insert into v1 select x,y from t2;
+select * from t1;
+a	b
+1	2
+2	3
+5	6
+3	4
+insert into v2 values (5,6);
+ERROR 42000: insert command denied to user 'mysqltest_1'@'localhost' for table 'v2'
+insert into v2 select x,y from t2;
+ERROR 42000: insert command denied to user 'mysqltest_1'@'localhost' for table 'v2'
+use test;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
+drop database mysqltest;
+create table t1 (a int, primary key(a));
+insert into t1 values (1), (2), (3);
+create view v1 (x) as select a from t1 where a > 1;
+select t1.a, v1.x from t1 left join v1 on (t1.a= v1.x);
+a	x
+1	NULL
+2	2
+3	3
+drop table t1;
+drop view v1;
+create table t1 (a int, primary key(a));
+insert into t1 values (1), (2), (3), (200);
+create view v1 (x) as select a from t1 where a > 1;
+create view v2 (y) as select x from v1 where x < 100;
+select * from v2;
+x
+2
+3
+drop table t1;
+drop view v1,v2;
+create table t1 (a int, primary key(a));
+insert into t1 values (1), (2), (3), (200);
+create ALGORITHM=TEMPTABLE view v1 (x) as select a from t1;
+create view v2 (y) as select x from v1;
+update v2 set y=10 where y=2;
+ERROR HY000: The target table v2 of the UPDATE is not updatable
+drop table t1;
+drop view v1,v2;
+create table t1 (a int not null auto_increment, b int not null, primary key(a), unique(b));
+create view v1 (x) as select b from t1;
+insert into v1 values (1);
+select last_insert_id();
+last_insert_id()
+0
+insert into t1 (b) values (2);
+select last_insert_id();
+last_insert_id()
+2
+select * from t1;
+a	b
+1	1
+2	2
+drop view v1;
+drop table t1;
+create database mysqltest;
+create table mysqltest.t1 (a int, b int);
+create table mysqltest.t2 (a int, b int);
+grant update on mysqltest.t1 to mysqltest_1@localhost;
+grant update(b) on mysqltest.t2 to mysqltest_1@localhost;
+grant create view,update on test.* to mysqltest_1@localhost;
+create view v1 as select * from mysqltest.t1;
+create view v2 as select b from mysqltest.t2;
+create view mysqltest.v1 as select * from mysqltest.t1;
+ERROR 42000: create view command denied to user 'mysqltest_1'@'localhost' for table 'v1'
+create view v3 as select a from mysqltest.t2;
+ERROR 42000: ANY command denied to user 'mysqltest_1'@'localhost' for column 'a' in table 't2'
+create table mysqltest.v3 (b int);
+grant create view on mysqltest.v3 to mysqltest_1@localhost;
+drop table mysqltest.v3;
+create view mysqltest.v3 as select b from mysqltest.t2;
+ERROR 42000: create view command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 'v3'
+create table mysqltest.v3 (b int);
+grant create view, update on mysqltest.v3 to mysqltest_1@localhost;
+drop table mysqltest.v3;
+create view mysqltest.v3 as select b from mysqltest.t2;
+grant select(b) on mysqltest.v3 to mysqltest_1@localhost;
+drop view mysqltest.v3;
+create view mysqltest.v3 as select b from mysqltest.t2;
+ERROR 42000: create view command denied to user 'mysqltest_1'@'localhost' for table 'v3'
+create view v4 as select b+1 from mysqltest.t2;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 't2'
+grant create view,update,select on test.* to mysqltest_1@localhost;
+create view v4 as select b+1 from mysqltest.t2;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 'b' in table 't2'
+grant update,select(b) on mysqltest.t2 to mysqltest_1@localhost;
+create view v4 as select b+1 from mysqltest.t2;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
+drop database mysqltest;
+drop view v1,v2;
+set sql_mode='ansi';
+create table t1 ("a*b" int);
+create view v1 as select "a*b" from t1;
+show create view v1;
+Table	Create Table
+v1	CREATE VIEW test.v1 AS select `test`.`t1`.`a*b` AS `a*b` from `test`.`t1`
+drop view v1;
+drop table t1;
+set sql_mode=default;
+create table t1 (t_column int);
+create view v1 as select 'a';
+select * from v1, t1;
+a	t_column
+drop view v1;
+drop table t1;
+create table `t1a``b` (col1 char(2));
+create view v1 as select * from `t1a``b`;
+select * from v1;
+col1
+describe v1;
+Field	Type	Null	Key	Default	Extra
+col1	char(2)	YES		NULL	
+drop view v1;
+drop table `t1a``b`;
+create table t1 (col1 char(5),col2 char(5));
+create view v1 as select * from t1;
+drop table t1;
+create table t1 (col1 char(5),newcol2 char(5));
+insert into v1 values('a','aa');
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s)
+drop table t1;
+select * from v1;
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s)
+drop view v1;
+create view v1 (a,a) as select 'a','a';
+ERROR 42S21: Duplicate column name 'a'
+create procedure p1 () begin declare v int; create view v1 as select v; end;//
+Warnings:
+Warning	1310	Referring to uninitialized variable v
+call p1();
+ERROR HY000: View's SELECT contains a variable or parameter
+drop procedure p1;
+create table t1 (col1 int,col2 char(22));
+insert into t1 values(5,'Hello, world of views');
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+update v2 set col2='Hello, view world';
+select * from t1;
+col1	col2
+5	Hello, view world
+drop view v2, v1;
+drop table t1;
+create table t1 (a int, b int);
+create view v1 as select a, sum(b) from t1 group by a;
+select b from v1 use index (some_index) where b=1;
+ERROR 42000: Key column 'some_index' doesn't exist in table
+drop view v1;
+drop table t1;
+create table t1 (col1 char(5),col2 char(5));
+create view v1 (col1,col2) as select col1,col2 from t1;
+insert into v1 values('s1','p1'),('s1','p2'),('s1','p3'),('s1','p4'),('s2','p1'),('s3','p2'),('s4','p4');
+select distinct first.col2 from t1 first where first.col2 in (select second.col2 from t1 second where second.col1<>first.col1);
+col2
+p1
+p2
+p4
+select distinct first.col2 from v1 first where first.col2 in (select second.col2 from t1 second where second.col1<>first.col1);
+col2
+p1
+p2
+p4
+drop view v1;
+drop table t1;
+create table t1 (a int);
+create view v1 as select a from t1;
+insert into t1 values (1);
+SET @v0 = '2';
+PREPARE stmt FROM 'UPDATE v1 SET a = ?';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+SET @v0 = '3';
+PREPARE stmt FROM 'insert into v1 values (?)';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+SET @v0 = '4';
+PREPARE stmt FROM 'insert into v1 (a) values (?)';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+select * from t1;
+a
+2
+3
+4
+drop view v1;
+drop table t1;

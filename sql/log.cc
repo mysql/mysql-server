@@ -25,12 +25,14 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "sql_repl.h"
+#include "ha_innodb.h" // necessary to cut the binlog when crash recovery
 
 #include <my_dir.h>
 #include <stdarg.h>
 #include <m_ctype.h>				// For test_if_number
 
 MYSQL_LOG mysql_log, mysql_slow_log, mysql_bin_log;
+ulong sync_binlog_counter= 0;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
@@ -108,6 +110,7 @@ MYSQL_LOG::~MYSQL_LOG()
 
 void MYSQL_LOG::cleanup()
 {
+  DBUG_ENTER("cleanup");
   if (inited)
   {
     inited= 0;
@@ -118,6 +121,7 @@ void MYSQL_LOG::cleanup()
     (void) pthread_mutex_destroy(&LOCK_index);
     (void) pthread_cond_destroy(&update_cond);
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -207,7 +211,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
     open_flags |= O_RDWR;
   else
     open_flags |= O_WRONLY;
-  
+
   db[0]=0;
   open_count++;
   if ((file=my_open(log_file_name,open_flags,
@@ -220,14 +224,19 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   case LOG_NORMAL:
   {
     char *end;
+    int len=my_snprintf(buff, sizeof(buff), "%s, Version: %s. "
 #ifdef EMBEDDED_LIBRARY
-    sprintf(buff, "%s, Version: %s, embedded library\n", my_progname, server_version);
+		        "embedded library\n", my_progname, server_version
 #elif __NT__
-    sprintf(buff, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysqld_port, mysqld_unix_port);
+			"started with:\nTCP Port: %d, Named Pipe: %s\n",
+			my_progname, server_version, mysqld_port, mysqld_unix_port
 #else
-    sprintf(buff, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysqld_port,mysqld_unix_port);
+			"started with:\nTcp port: %d  Unix socket: %s\n",
+			my_progname,server_version,mysqld_port,mysqld_unix_port
 #endif
-    end=strmov(strend(buff),"Time                 Id Command    Argument\n");
+                        );
+    end=strnmov(buff+len,"Time                 Id Command    Argument\n",
+                sizeof(buff)-len);
     if (my_b_write(&log_file, (byte*) buff,(uint) (end-buff)) ||
 	flush_io_cache(&log_file))
       goto err;
@@ -235,21 +244,21 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   }
   case LOG_NEW:
   {
+    uint len;
     time_t skr=time(NULL);
     struct tm tm_tmp;
+
     localtime_r(&skr,&tm_tmp);
-    ulong length;
-    length= my_sprintf(buff,
-		       (buff,
-			"# %s, Version: %s at %02d%02d%02d %2d:%02d:%02d\n",
-			my_progname,server_version,
-			tm_tmp.tm_year % 100,
-			tm_tmp.tm_mon+1,
-			tm_tmp.tm_mday,
-			tm_tmp.tm_hour,
-			tm_tmp.tm_min,
-			tm_tmp.tm_sec));
-    if (my_b_write(&log_file, (byte*) buff, length) ||
+    len= my_snprintf(buff,sizeof(buff),
+		     "# %s, Version: %s at %02d%02d%02d %2d:%02d:%02d\n",
+		     my_progname,server_version,
+		     tm_tmp.tm_year % 100,
+		     tm_tmp.tm_mon+1,
+		     tm_tmp.tm_mday,
+		     tm_tmp.tm_hour,
+		     tm_tmp.tm_min,
+		     tm_tmp.tm_sec);
+    if (my_b_write(&log_file, (byte*) buff, len) ||
 	flush_io_cache(&log_file))
       goto err;
     break;
@@ -264,7 +273,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       index_file_name_arg= name;	// Use same basename for index file
       opt= MY_UNPACK_FILENAME | MY_REPLACE_EXT;
     }
-  
+
     if (!my_b_filelength(&log_file))
     {
       /*
@@ -292,6 +301,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       if ((index_file_nr= my_open(index_file_name,
 				  O_RDWR | O_CREAT | O_BINARY ,
 				  MYF(MY_WME))) < 0 ||
+          my_sync(index_file_nr, MYF(MY_WME)) ||
 	  init_io_cache(&index_file, index_file_nr,
 			IO_SIZE, WRITE_CACHE,
 			my_seek(index_file_nr,0L,MY_SEEK_END,MYF(0)),
@@ -352,16 +362,21 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
         goto err;
       bytes_written+= description_event_for_queue->get_event_len();
     }
-    if (flush_io_cache(&log_file))
+    if (flush_io_cache(&log_file) ||
+        my_sync(log_file.file, MYF(MY_WME)))
       goto err;
 
     if (write_file_name_to_index_file)
     {
-      /* As this is a new log file, we write the file name to the index file */
+      /*
+        As this is a new log file, we write the file name to the index
+        file. As every time we write to the index file, we sync it.
+      */
       if (my_b_write(&index_file, (byte*) log_file_name,
 		     strlen(log_file_name)) ||
 	  my_b_write(&index_file, (byte*) "\n", 1) ||
-	  flush_io_cache(&index_file))
+	  flush_io_cache(&index_file) ||
+          my_sync(index_file.file, MYF(MY_WME)))
 	goto err;
     }
     break;
@@ -442,7 +457,8 @@ static bool copy_up_file_and_fill(IO_CACHE *index_file, my_off_t offset)
       goto err;
   }
   /* The following will either truncate the file or fill the end with \n' */
-  if (my_chsize(file, offset - init_offset, '\n', MYF(MY_WME)))
+  if (my_chsize(file, offset - init_offset, '\n', MYF(MY_WME)) ||
+      my_sync(file, MYF(MY_WME)))
     goto err;
 
   /* Reset data in old index cache */
@@ -547,7 +563,6 @@ int MYSQL_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   RETURN VALUES
     0			ok
     LOG_INFO_EOF	End of log-index-file found
-    LOG_INFO_SEEK	Could not allocate IO cache
     LOG_INFO_IO		Got IO error while reading file
 */
 
@@ -1042,6 +1057,8 @@ void MYSQL_LOG::new_file(bool need_lock)
 
   open(old_name, save_log_type, new_name_ptr, index_file_name, io_cache_type,
        no_auto_events, max_size, 1);
+  if (this == &mysql_bin_log)
+    report_pos_in_innodb();
   my_free(old_name,MYF(0));
 
 end:
@@ -1212,6 +1229,17 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 }
 
 
+inline bool sync_binlog(IO_CACHE *cache)
+{
+  if (sync_binlog_period == ++sync_binlog_counter && sync_binlog_period)
+  {
+    sync_binlog_counter= 0;
+    return my_sync(cache->file, MYF(MY_WME));
+  }
+  return 0;
+}
+
+
 /*
   Write an event to the binary log
 */
@@ -1257,8 +1285,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
        "do the involved tables match (to be implemented)
         binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
-    if ((thd && !(thd->options & OPTION_BIN_LOG) &&
-	 (thd->master_access & SUPER_ACL)) ||
+    if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
 	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
@@ -1280,6 +1307,53 @@ bool MYSQL_LOG::write(Log_event* event_info)
 
     if (thd)
     {
+      /* NOTE: CHARSET AND TZ REPL WILL BE REWRITTEN SHORTLY */
+      /*
+        To make replication of charsets working in 4.1 we are writing values
+        of charset related variables before every statement in the binlog,
+        if values of those variables differ from global server-wide defaults.
+        We are using SET ONE_SHOT command so that the charset vars get reset
+        to default after the first non-SET statement.
+        In the next 5.0 this won't be needed as we will use the new binlog
+        format to store charset info.
+      */
+      if ((thd->variables.character_set_client->number !=
+           global_system_variables.collation_server->number) ||
+          (thd->variables.character_set_client->number !=
+           thd->variables.collation_connection->number) ||
+          (thd->variables.collation_server->number !=
+           thd->variables.collation_connection->number))
+      {
+	char buf[200];
+        int written= my_snprintf(buf, sizeof(buf)-1,
+                    "SET ONE_SHOT CHARACTER_SET_CLIENT=%u,\
+COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
+                             (uint) thd->variables.character_set_client->number,
+                             (uint) thd->variables.collation_connection->number,
+                             (uint) thd->variables.collation_database->number,
+                             (uint) thd->variables.collation_server->number);
+	Query_log_event e(thd, buf, written, 0);
+	e.set_log_pos(this);
+	if (e.write(file))
+	  goto err;
+      }
+      /*
+        We use the same ONE_SHOT trick for making replication of time zones 
+        working in 4.1. Again in 5.0 we have better means for doing this.
+      */
+      if (thd->time_zone_used &&
+          thd->variables.time_zone != global_system_variables.time_zone)
+      {
+        char buf[MAX_TIME_ZONE_NAME_LENGTH + 26];
+        char *buf_end= strxmov(buf, "SET ONE_SHOT TIME_ZONE='", 
+                               thd->variables.time_zone->get_name()->ptr(),
+                               "'", NullS);
+        Query_log_event e(thd, buf, buf_end - buf, 0);
+        e.set_log_pos(this);
+        if (e.write(file))
+          goto err;
+      }
+
       if (thd->last_insert_id_used)
       {
 	Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
@@ -1393,9 +1467,9 @@ bool MYSQL_LOG::write(Log_event* event_info)
 
     if (file == &log_file) // we are writing to the real log (disk)
     {
-      if (flush_io_cache(file))
+      if (flush_io_cache(file) || sync_binlog(file))
 	goto err;
- 
+
       if (opt_using_transactions && !my_b_tell(&thd->transaction.trans_log))
       {
         /*
@@ -1408,6 +1482,30 @@ bool MYSQL_LOG::write(Log_event* event_info)
         if (event_info->get_type_code() == QUERY_EVENT ||
             event_info->get_type_code() == EXEC_LOAD_EVENT)
         {
+#ifndef DBUG_OFF
+          if (unlikely(opt_crash_binlog_innodb))
+          {
+            /*
+              This option is for use in rpl_crash_binlog_innodb.test.
+              1st we want to verify that Binlog_dump thread cannot send the
+              event now (because of LOCK_log): we here tell the Binlog_dump
+              thread to wake up, sleep for the slave to have time to possibly
+              receive data from the master (it should not), and then crash.
+              2nd we want to verify that at crash recovery the rolled back
+              event is cut from the binlog.
+            */
+            if (!(--opt_crash_binlog_innodb))
+            {
+              signal_update();
+              sleep(2);
+              fprintf(stderr,"This is a normal crash because of"
+                      " --crash-binlog-innodb\n");
+              assert(0);
+            }
+            DBUG_PRINT("info",("opt_crash_binlog_innodb: %d",
+                               opt_crash_binlog_innodb));
+          }
+#endif
           error = ha_report_binlog_offset_and_commit(thd, log_file_name,
                                                      file->pos_in_file);
           called_handler_commit=1;
@@ -1553,7 +1651,8 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
                             commit_or_rollback ? 6        : 8, 
                             TRUE);
       qinfo.set_log_pos(this);
-      if (qinfo.write(&log_file) || flush_io_cache(&log_file))
+      if (qinfo.write(&log_file) || flush_io_cache(&log_file) ||
+          sync_binlog(&log_file))
 	goto err;
     }
     if (cache->error)				// Error on read
@@ -1562,6 +1661,22 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
       write_error=1;				// Don't give more errors
       goto err;
     }
+#ifndef DBUG_OFF
+    if (unlikely(opt_crash_binlog_innodb))
+    {
+      /* see the previous MYSQL_LOG::write() method for a comment */
+      if (!(--opt_crash_binlog_innodb))
+      {
+        signal_update();
+        sleep(2);
+        fprintf(stderr, "This is a normal crash because of"
+                " --crash-binlog-innodb\n");
+        assert(0);
+      }
+      DBUG_PRINT("info",("opt_crash_binlog_innodb: %d",
+                         opt_crash_binlog_innodb));
+    }
+#endif
     if ((ha_report_binlog_offset_and_commit(thd, log_file_name,
 					    log_file.pos_in_file)))
       goto err;
@@ -1974,4 +2089,139 @@ bool flush_error_log()
 }
 
 
+/*
+  If the server has InnoDB on, and InnoDB has published the position of the
+  last committed transaction (which happens only if a crash recovery occured at
+  this startup) then truncate the previous binary log at the position given by
+  InnoDB. If binlog is shorter than the position, print a message to the error
+  log.
 
+  SYNOPSIS
+    cut_spurious_tail()
+
+  RETURN VALUES
+    1	Error
+    0	Ok
+*/
+
+bool MYSQL_LOG::cut_spurious_tail()
+{
+  int error= 0;
+  DBUG_ENTER("cut_spurious_tail");
+
+#ifdef HAVE_INNOBASE_DB
+  if (have_innodb != SHOW_OPTION_YES)
+    DBUG_RETURN(0);
+  /*
+    This is the place where we use information from InnoDB to cut the
+    binlog.
+  */
+  char *name= ha_innobase::get_mysql_bin_log_name();
+  ulonglong pos= ha_innobase::get_mysql_bin_log_pos();
+  ulonglong actual_size;
+  char llbuf1[22], llbuf2[22];
+
+  if (name[0] == 0 || pos == ULONGLONG_MAX)
+  {
+    DBUG_PRINT("info", ("InnoDB has not set binlog info"));
+    DBUG_RETURN(0);
+  }
+  /* The binlog given by InnoDB normally is never an active binlog */
+  if (is_open() && is_active(name))
+  {
+    sql_print_error("Warning: after InnoDB crash recovery, InnoDB says that "
+                    "the binary log of the previous run has the same name "
+                    "'%s' as the current one; this is likely to be abnormal.",
+                    name);
+    DBUG_RETURN(1);
+  }
+  sql_print_error("After InnoDB crash recovery, checking if the binary log "
+                  "'%s' contains rolled back transactions which must be "
+                  "removed from it...", name);
+  /* If we have a too long binlog, cut. If too short, print error */
+  int fd= my_open(name, O_EXCL | O_APPEND | O_BINARY | O_WRONLY, MYF(MY_WME));
+  if (fd < 0)
+  {
+    int save_errno= my_errno;
+    sql_print_error("Could not open the binary log '%s' for truncation.",
+                    name);
+    if (save_errno != ENOENT)
+      sql_print_error("The binary log '%s' should not be used for "
+                      "replication.", name);    
+    DBUG_RETURN(1);
+  }
+
+  if (pos > (actual_size= my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME))))
+  {
+    /*
+      Note that when we have MyISAM rollback this error message should be
+      reconsidered.
+    */
+    sql_print_error("The binary log '%s' is shorter than its expected size "
+                    "(actual: %s, expected: %s) so it misses at least one "
+                    "committed transaction; so it should not be used for "
+                    "replication or point-in-time recovery. You would need "
+                    "to restart slaves from a fresh master's data "
+                    "snapshot ",
+                    name, llstr(actual_size, llbuf1),
+                    llstr(pos, llbuf2));
+    error= 1;
+    goto err;
+  }
+  if (pos < actual_size)
+  {
+    sql_print_error("The binary log '%s' is bigger than its expected size "
+                    "(actual: %s, expected: %s) so it contains a rolled back "
+                    "transaction; now truncating that.", name,
+                    llstr(actual_size, llbuf1), llstr(pos, llbuf2));
+    /*
+      As on some OS, my_chsize() can only pad with 0s instead of really
+      truncating. Then mysqlbinlog (and Binlog_dump thread) will error on
+      these zeroes. This is annoying, but not more (you just need to manually
+      switch replication to the next binlog). Fortunately, in my_chsize.c, it
+      says that all modern machines support real ftruncate().
+      
+    */
+    if ((error= my_chsize(fd, pos, 0, MYF(MY_WME))))
+      goto err;
+  }
+err:
+  if (my_close(fd, MYF(MY_WME)))
+    error= 1;
+#endif
+  DBUG_RETURN(error);
+}
+
+
+/*
+  If the server has InnoDB on, store the binlog name and position into
+  InnoDB. This function is used every time we create a new binlog.
+
+  SYNOPSIS
+    report_pos_in_innodb()
+
+  NOTES
+    This cannot simply be done in MYSQL_LOG::open(), because when we create
+    the first binlog at startup, we have not called ha_init() yet so we cannot
+    write into InnoDB yet.
+
+  RETURN VALUES
+    1	Error
+    0	Ok
+*/
+
+void MYSQL_LOG::report_pos_in_innodb()
+{
+  DBUG_ENTER("report_pos_in_innodb");
+#ifdef HAVE_INNOBASE_DB
+  if (is_open() && have_innodb == SHOW_OPTION_YES)
+  {
+    DBUG_PRINT("info", ("Reporting binlog info into InnoDB - "
+                        "name: '%s' position: %d",
+                        log_file_name, my_b_tell(&log_file)));
+    innobase_store_binlog_offset_and_flush_log(log_file_name,
+                                               my_b_tell(&log_file));
+  }
+#endif
+  DBUG_VOID_RETURN;
+}

@@ -53,15 +53,24 @@ hash_calc_hash(
 				/* out: hashed value */
 	ulint		fold,	/* in: folded value */
 	hash_table_t*	table);	/* in: hash table */
+/************************************************************************
+Assert that the mutex for the table in a hash operation is owned. */
+#ifdef UNIV_SYNC_DEBUG
+# define HASH_ASSERT_OWNED(TABLE, FOLD) \
+ut_ad(!(TABLE)->mutexes || mutex_own(hash_get_mutex(TABLE, FOLD)));
+#else
+# define HASH_ASSERT_OWNED(TABLE, FOLD)
+#endif
+
 /***********************************************************************
 Inserts a struct to a hash table. */
 
 #define HASH_INSERT(TYPE, NAME, TABLE, FOLD, DATA)\
-{\
+do {\
 	hash_cell_t*	cell3333;\
 	TYPE*		struct3333;\
 \
-	ut_ad(!(TABLE)->mutexes || mutex_own(hash_get_mutex(TABLE, FOLD)));\
+	HASH_ASSERT_OWNED(TABLE, FOLD)\
 \
 	(DATA)->NAME = NULL;\
 \
@@ -79,17 +88,17 @@ Inserts a struct to a hash table. */
 \
 		struct3333->NAME = DATA;\
 	}\
-}
+} while (0)
 
 /***********************************************************************
 Deletes a struct from a hash table. */
 
 #define HASH_DELETE(TYPE, NAME, TABLE, FOLD, DATA)\
-{\
+do {\
 	hash_cell_t*	cell3333;\
 	TYPE*		struct3333;\
 \
-	ut_ad(!(TABLE)->mutexes || mutex_own(hash_get_mutex(TABLE, FOLD)));\
+	HASH_ASSERT_OWNED(TABLE, FOLD)\
 \
 	cell3333 = hash_get_nth_cell(TABLE, hash_calc_hash(FOLD, TABLE));\
 \
@@ -100,13 +109,13 @@ Deletes a struct from a hash table. */
 \
 		while (struct3333->NAME != DATA) {\
 \
-			ut_a(struct3333)\
+			ut_a(struct3333);\
 			struct3333 = struct3333->NAME;\
 		}\
 \
 		struct3333->NAME = DATA->NAME;\
 	}\
-}
+} while (0)
 
 /***********************************************************************
 Gets the first struct in a hash chain, NULL if none. */
@@ -124,7 +133,7 @@ Looks for a struct in a hash table. */
 #define HASH_SEARCH(NAME, TABLE, FOLD, DATA, TEST)\
 {\
 \
-	ut_ad(!(TABLE)->mutexes || mutex_own(hash_get_mutex(TABLE, FOLD)));\
+	HASH_ASSERT_OWNED(TABLE, FOLD)\
 \
 	(DATA) = HASH_GET_FIRST(TABLE, hash_calc_hash(FOLD, TABLE));\
 \
@@ -160,7 +169,7 @@ the heap. The fold value must be stored in the struct NODE in a field named
 'fold'. */
 
 #define HASH_DELETE_AND_COMPACT(TYPE, NAME, TABLE, NODE)\
-{\
+do {\
 	TYPE*		node111;\
 	TYPE*		top_node111;\
 	hash_cell_t*	cell111;\
@@ -211,33 +220,7 @@ the heap. The fold value must be stored in the struct NODE in a field named
 	/* Free the space occupied by the top node */\
 \
 	mem_heap_free_top(hash_get_heap(TABLE, fold111), sizeof(TYPE));\
-}
-
-/***********************************************************************
-Calculates the number of stored structs in a hash table. */
-
-#define HASH_GET_N_NODES(TYPE, NAME, TABLE, N)\
-{\
-	hash_cell_t*	cell3333;\
-	TYPE*		struct3333;\
-	ulint		i3333;\
-\
-	(N) = 0;\
-\
-	for (i3333 = 0; i3333 < hash_get_n_cells(TABLE); i3333++) {\
-\
-		cell3333 = hash_get_nth_cell(TABLE, i3333);\
-\
-		struct3333 = cell3333->node;\
-\
-		while (struct3333) {\
-\
-			(N) = (N) + 1;\
-\
-			struct = HASH_GET_NEXT(NAME, struct3333);\
-		}\
-	}\
-}
+} while (0)
 
 /****************************************************************
 Gets the mutex index for a fold value in a hash table. */

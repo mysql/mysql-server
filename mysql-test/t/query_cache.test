@@ -466,8 +466,10 @@ select * from t1 where id=2;
 create table t1 (word char(20) not null);
 select * from t1;
 show status like "Qcache_queries_in_cache";
-load data infile '../../std_data/words.dat' into table t1;
+--replace_result $MYSQL_TEST_DIR TEST_DIR
+eval load data infile '$MYSQL_TEST_DIR/std_data/words.dat' into table t1;
 show status like "Qcache_queries_in_cache";
+select count(*) from t1;
 drop table t1;
 
 #
@@ -476,7 +478,9 @@ drop table t1;
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
 show status like "Qcache_queries_in_cache";
-select * from t1 into outfile "query_caceh.out.file";
+select * from t1 into outfile "query_cache.out.file";
+--error 1086
+select * from t1 into outfile "query_cache.out.file";
 select * from t1 limit 1 into dumpfile "query_cache.dump.file";
 show status like "Qcache_queries_in_cache";
 drop table t1;
@@ -540,8 +544,23 @@ select * from t3;
 enable_result_log;
 delete from t4 where a=1;
 flush query cache;
-
 drop table t1,t2,t3,t4;
+
+#
+# WRITE LOCK & QC
+#
+set query_cache_wlock_invalidate=1;
+create table t1 (a int not null);
+create table t2 (a int not null);
+select * from t1;
+select * from t2;
+show status like "Qcache_queries_in_cache";
+lock table t1 write, t2 read;
+show status like "Qcache_queries_in_cache";
+unlock table;
+drop table t1,t2;
+set query_cache_wlock_invalidate=default;
+
 
 #
 # Test character set related variables:
@@ -585,9 +604,26 @@ set character_set_results=cp1251;
 SELECT a,'Â','â'='Â' FROM t1; 
 show status like "Qcache_hits";
 show status like "Qcache_queries_in_cache";
-drop table t1;
+
+DROP TABLE t1;
 
 #
+# DROP current database test
+#
+CREATE TABLE t1 (a int(1));
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+SELECT * FROM test.t1;
+USE test;
+DROP TABLE t1;
+
+#
+# charset with NULL
+#
+set character_set_results=null;
+select @@character_set_results;
+set character_set_results=default;
 # comments before command
 #
 create table t1 (a int);

@@ -26,18 +26,27 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "trx0types.h"
 
+/************************************************************************
+Get the database name length in a table name. */
+
+ulint
+dict_get_db_name_len(
+/*=================*/
+				/* out: database name length */
+	const char*	name);	/* in: table name in the form
+				dbname '/' tablename */
 /*************************************************************************
 Accepts a specified string. Comparisons are case-insensitive. */
 
-char*
+const char*
 dict_accept(
 /*========*/
-			/* out: if string was accepted, the pointer
-			is moved after that, else ptr is returned */
-	char*	ptr,	/* in: scan from this */
-	const char* string,/* in: accept only this string as the next
-			non-whitespace string */
-	ibool*	success);/* out: TRUE if accepted */
+				/* out: if string was accepted, the pointer
+				is moved after that, else ptr is returned */
+	const char*	ptr,	/* in: scan from this */
+	const char*	string,	/* in: accept only this string as the next
+				non-whitespace string */
+	ibool*		success);/* out: TRUE if accepted */
 /************************************************************************
 Decrements the count of open MySQL handles to a table. */
 
@@ -61,41 +70,6 @@ database directories. */
 void
 dict_load_space_id_list(void);
 /*=========================*/
-/**************************************************************************
-Returns a stored procedure object and memoryfixes it. */
-UNIV_INLINE
-dict_proc_t*
-dict_procedure_get(
-/*===============*/
-				/* out: procedure, NULL if does not exist */
-	char*	proc_name,	/* in: table name */
-	trx_t*	trx);		/* in: transaction handle or NULL */
-/**************************************************************************
-Adds a stored procedure object to the dictionary cache. */
-
-void
-dict_procedure_add_to_cache(
-/*========================*/
-	dict_proc_t*	proc);	/* in: procedure */
-/**************************************************************************
-Reserves a parsed copy of a stored procedure to execute. If there are no
-free parsed copies left at the moment, parses a new copy. Takes the copy off
-the list of copies: the copy must be returned there with
-dict_procedure_release_parsed_copy. */
-
-que_t*
-dict_procedure_reserve_parsed_copy(
-/*===============================*/
-				/* out: the query graph */
-	dict_proc_t*	proc);	/* in: dictionary procedure node */
-/**************************************************************************
-Releases a parsed copy of an executed stored procedure. Puts the copy to the
-list of copies. */
-
-void
-dict_procedure_release_parsed_copy(
-/*===============================*/
-	que_t*	graph);	/* in: query graph of a stored procedure */
 /*************************************************************************
 Gets the column data type. */
 UNIV_INLINE
@@ -192,7 +166,7 @@ dict_table_rename_in_cache(
 /*=======================*/
 					/* out: TRUE if success */
 	dict_table_t*	table,		/* in: table */
-	char*		new_name,	/* in: new name */
+	const char*	new_name,	/* in: new name */
 	ibool		rename_also_foreigns);/* in: in ALTER TABLE we want
 					to preserve the original table name
 					in constraints which reference it */
@@ -217,6 +191,15 @@ dict_foreign_add_to_cache(
 					/* out: DB_SUCCESS or error code */
 	dict_foreign_t*	foreign);	/* in, own: foreign key constraint */
 /*************************************************************************
+Checks if a table is referenced by foreign keys. */
+
+ibool
+dict_table_referenced_by_foreign_key(
+/*=================================*/
+				/* out: TRUE if table is referenced by a
+				foreign key */
+	dict_table_t*	table);	/* in: InnoDB table */
+/*************************************************************************
 Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.
@@ -227,16 +210,19 @@ fields than mentioned in the constraint. */
 ulint
 dict_create_foreign_constraints(
 /*============================*/
-				/* out: error code or DB_SUCCESS */
-	trx_t*	trx,		/* in: transaction */
-	char*	sql_string,	/* in: table create statement where
-				foreign keys are declared like:
-				FOREIGN KEY (a, b) REFERENCES table2(c, d),
-				table2 can be written also with the database
-				name before it: test.table2; the default
-				database id the database of parameter name */
-	char*	name);		/* in: table full name in the normalized form
-				database_name/table_name */
+					/* out: error code or DB_SUCCESS */
+	trx_t*		trx,		/* in: transaction */
+	const char*	sql_string,	/* in: table create statement where
+					foreign keys are declared like:
+					FOREIGN KEY (a, b) REFERENCES
+					table2(c, d), table2 can be written
+					also with the database
+					name before it: test.table2; the
+					default database id the database of
+					parameter name */
+	const char*	name);		/* in: table full name in the
+					normalized form
+					database_name/table_name */
 /**************************************************************************
 Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement. */
 
@@ -253,7 +239,7 @@ dict_foreign_parse_drop_constraints(
 	dict_table_t*	table,			/* in: table */
 	ulint*		n,			/* out: number of constraints
 						to drop */
-	char***		constraints_to_drop);	/* out: id's of the
+	const char***	constraints_to_drop);	/* out: id's of the
 						constraints to drop */
 /**************************************************************************
 Returns a table object and memoryfixes it. NOTE! This is a high-level
@@ -263,9 +249,10 @@ directory dict_table_get_low is usually the appropriate function. */
 dict_table_t*
 dict_table_get(
 /*===========*/
-				/* out: table, NULL if does not exist */
-	char*	table_name,	/* in: table name */
-	trx_t*	trx);		/* in: transaction handle */
+					/* out: table, NULL if
+					does not exist */
+	const char*	table_name,	/* in: table name */
+	trx_t*		trx);		/* in: transaction handle */
 /**************************************************************************
 Returns a table object and increments MySQL open handle count on the table.
 */
@@ -273,9 +260,10 @@ Returns a table object and increments MySQL open handle count on the table.
 dict_table_t*
 dict_table_get_and_increment_handle_count(
 /*======================================*/
-				/* out: table, NULL if does not exist */
-	char*	table_name,	/* in: table name */
-	trx_t*	trx);		/* in: transaction handle or NULL */
+					/* out: table, NULL if
+					does not exist */
+	const char*	table_name,	/* in: table name */
+	trx_t*		trx);		/* in: transaction handle or NULL */
 /**************************************************************************
 Returns a table object, based on table id, and memoryfixes it. */
 
@@ -307,8 +295,8 @@ UNIV_INLINE
 dict_table_t*
 dict_table_check_if_in_cache_low(
 /*==============================*/
-				/* out: table, NULL if not found */
-	char*	table_name);	/* in: table name */
+					/* out: table, NULL if not found */
+	const char*	table_name);	/* in: table name */
 /**************************************************************************
 Gets a table; loads it to the dictionary cache if necessary. A low-level
 function. */
@@ -316,8 +304,8 @@ UNIV_INLINE
 dict_table_t*
 dict_table_get_low(
 /*===============*/
-				/* out: table, NULL if not found */
-	char*	table_name);	/* in: table name */
+					/* out: table, NULL if not found */
+	const char*	table_name);	/* in: table name */
 /**************************************************************************
 Returns an index object. */
 UNIV_INLINE
@@ -326,7 +314,7 @@ dict_table_get_index(
 /*=================*/
 				/* out: index, NULL if does not exist */
 	dict_table_t*	table,	/* in: table */
-	char*		name);	/* in: index name */
+	const char*	name);	/* in: index name */
 /**************************************************************************
 Returns an index object. */
 
@@ -335,7 +323,7 @@ dict_table_get_index_noninline(
 /*===========================*/
 				/* out: index, NULL if does not exist */
 	dict_table_t*	table,	/* in: table */
-	char*		name);	/* in: index name */
+	const char*	name);	/* in: index name */
 /**************************************************************************
 Prints a table definition. */
 
@@ -356,9 +344,9 @@ Prints a table data when we know the table name. */
 void
 dict_table_print_by_name(
 /*=====================*/
-	char*	name);
+	const char*	name);
 /**************************************************************************
-Sprintfs to a string info on foreign keys of a table. */
+Outputs info on foreign keys of a table. */
 
 void
 dict_print_info_on_foreign_keys(
@@ -367,19 +355,23 @@ dict_print_info_on_foreign_keys(
 				a format suitable to be inserted into
 				a CREATE TABLE, otherwise in the format
 				of SHOW TABLE STATUS */
-	char*		str,	/* in/out: pointer to a string */
-	ulint		len,	/* in: space in str available for info */
+	FILE*		file,	/* in: file where to print */
 	dict_table_t*	table);	/* in: table */
 /**************************************************************************
-Sprintfs to a string info on a foreign key of a table in a format suitable
-for CREATE TABLE. */
-
-char*
+Outputs info on a foreign key of a table in a format suitable for
+CREATE TABLE. */
+void
 dict_print_info_on_foreign_key_in_create_format(
 /*============================================*/
-                                /* out: how far in buf we printed */
-	dict_foreign_t*	foreign,/* in: foreign key constraint */
-	char*		buf);	/* in: buffer of at least 5000 bytes */
+	FILE*		file,	/* in: file where to print */
+	dict_foreign_t*	foreign);/* in: foreign key constraint */
+/************************************************************************
+Displays the names of the index and the table. */
+void
+dict_index_name_print(
+/*==================*/
+	FILE*			file,	/* in: output stream */
+	const dict_index_t*	index);	/* in: index to print */
 /************************************************************************
 Gets the first index on the table (the clustered index). */
 UNIV_INLINE
@@ -476,6 +468,17 @@ dict_table_get_sys_col_no(
 				/* out: column number */
 	dict_table_t*	table,	/* in: table */
 	ulint		sys);	/* in: DATA_ROW_ID, ... */
+/************************************************************************
+Checks if a column is in the ordering columns of the clustered index of a
+table. Column prefixes are treated like whole columns. */
+
+ibool
+dict_table_col_in_clustered_key(
+/*============================*/
+				/* out: TRUE if the column, or its prefix, is
+				in the clustered key */
+	dict_table_t*	table,	/* in: table */
+	ulint		n);	/* in: column number */
 /***********************************************************************
 Copies types of columns contained in table to tuple. */
 
@@ -659,13 +662,6 @@ dict_index_get_tree(
 /*================*/
 				/* out: index tree */
 	dict_index_t*	index);	/* in: index */
-/*************************************************************************
-Gets the column data type. */
-UNIV_INLINE
-dtype_t*
-dict_col_get_type(
-/*==============*/
-	dict_col_t*	col);
 /*************************************************************************
 Gets the field order criterion. */
 UNIV_INLINE
@@ -878,14 +874,21 @@ Releases the dictionary system mutex for MySQL. */
 void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
+/************************************************************************
+Checks if the database name in two table names is the same. */
 
-/* The following len must be at least 10000 bytes! */
-#define DICT_FOREIGN_ERR_BUF_LEN	10000
+ibool
+dict_tables_have_same_db(
+/*=====================*/
+				/* out: TRUE if same db name */
+	const char*	name1,	/* in: table name in the form
+				dbname '/' tablename */
+	const char*	name2);	/* in: table name in the form
+				dbname '/' tablename */
 
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */
-extern char*	dict_foreign_err_buf;
-extern char*	dict_unique_err_buf;
+extern FILE*	dict_foreign_err_file;
 extern mutex_t	dict_foreign_err_mutex; /* mutex protecting the buffers */
 
 extern dict_sys_t*	dict_sys;	/* the dictionary system */
@@ -911,8 +914,6 @@ struct dict_sys_struct{
 	hash_table_t* 	table_id_hash;	/* hash table of the tables, based
 					on id */
 	hash_table_t* 	col_hash;	/* hash table of the columns */
-	hash_table_t*	procedure_hash;	/* hash table of the stored
-					procedures */
 	UT_LIST_BASE_NODE_T(dict_table_t)
 			table_LRU; 	/* LRU list of tables */
 	ulint		size;		/* varying space in bytes occupied

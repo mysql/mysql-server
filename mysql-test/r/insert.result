@@ -63,7 +63,7 @@ insert into t1 values(NULL);
 ERROR 23000: Column 'id' cannot be null
 insert into t1 values (1), (NULL), (2);
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'id' at row 2
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'id' at row 2
 select * from t1;
 id
 1
@@ -86,6 +86,244 @@ use mysqltest;
 create table t1 (c int);
 insert into mysqltest.t1 set mysqltest.t1.c = '1';
 drop database mysqltest;
+use test;
+create table t1(number int auto_increment primary key, original_value varchar(50), f_double double, f_float float, f_double_7_2 double(7,2), f_float_4_3 float (4,3), f_double_u double unsigned, f_float_u float unsigned, f_double_15_1_u double(15,1) unsigned, f_float_3_1_u float (3,1) unsigned);
+set @value= "aa";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1265	Data truncated for column 'f_double' at row 1
+Warning	1265	Data truncated for column 'f_float' at row 1
+Warning	1265	Data truncated for column 'f_double_7_2' at row 1
+Warning	1265	Data truncated for column 'f_float_4_3' at row 1
+Warning	1265	Data truncated for column 'f_double_u' at row 1
+Warning	1265	Data truncated for column 'f_float_u' at row 1
+Warning	1265	Data truncated for column 'f_double_15_1_u' at row 1
+Warning	1265	Data truncated for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	1
+original_value	aa
+f_double	0
+f_float	0
+f_double_7_2	0.00
+f_float_4_3	0.000
+f_double_u	0
+f_float_u	0
+f_double_15_1_u	0.0
+f_float_3_1_u	0.0
+set @value= "1aa";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1265	Data truncated for column 'f_double' at row 1
+Warning	1265	Data truncated for column 'f_float' at row 1
+Warning	1265	Data truncated for column 'f_double_7_2' at row 1
+Warning	1265	Data truncated for column 'f_float_4_3' at row 1
+Warning	1265	Data truncated for column 'f_double_u' at row 1
+Warning	1265	Data truncated for column 'f_float_u' at row 1
+Warning	1265	Data truncated for column 'f_double_15_1_u' at row 1
+Warning	1265	Data truncated for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	2
+original_value	1aa
+f_double	1
+f_float	1
+f_double_7_2	1.00
+f_float_4_3	1.000
+f_double_u	1
+f_float_u	1
+f_double_15_1_u	1.0
+f_float_3_1_u	1.0
+set @value= "aa1";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1265	Data truncated for column 'f_double' at row 1
+Warning	1265	Data truncated for column 'f_float' at row 1
+Warning	1265	Data truncated for column 'f_double_7_2' at row 1
+Warning	1265	Data truncated for column 'f_float_4_3' at row 1
+Warning	1265	Data truncated for column 'f_double_u' at row 1
+Warning	1265	Data truncated for column 'f_float_u' at row 1
+Warning	1265	Data truncated for column 'f_double_15_1_u' at row 1
+Warning	1265	Data truncated for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	3
+original_value	aa1
+f_double	0
+f_float	0
+f_double_7_2	0.00
+f_float_4_3	0.000
+f_double_u	0
+f_float_u	0
+f_double_15_1_u	0.0
+f_float_3_1_u	0.0
+set @value= "1e+1111111111a";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1265	Data truncated for column 'f_double' at row 1
+Warning	1265	Data truncated for column 'f_float' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float' at row 1
+Warning	1265	Data truncated for column 'f_double_7_2' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_7_2' at row 1
+Warning	1265	Data truncated for column 'f_float_4_3' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_4_3' at row 1
+Warning	1265	Data truncated for column 'f_double_u' at row 1
+Warning	1265	Data truncated for column 'f_float_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_u' at row 1
+Warning	1265	Data truncated for column 'f_double_15_1_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_15_1_u' at row 1
+Warning	1265	Data truncated for column 'f_float_3_1_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	4
+original_value	1e+1111111111a
+f_double	1.79769313486232e+308
+f_float	3.40282e+38
+f_double_7_2	99999.99
+f_float_4_3	9.999
+f_double_u	1.79769313486232e+308
+f_float_u	3.40282e+38
+f_double_15_1_u	99999999999999.9
+f_float_3_1_u	99.9
+set @value= "-1e+1111111111a";
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1265	Data truncated for column 'f_double' at row 1
+Warning	1265	Data truncated for column 'f_float' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float' at row 1
+Warning	1265	Data truncated for column 'f_double_7_2' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_7_2' at row 1
+Warning	1265	Data truncated for column 'f_float_4_3' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_4_3' at row 1
+Warning	1265	Data truncated for column 'f_double_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_u' at row 1
+Warning	1265	Data truncated for column 'f_float_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_u' at row 1
+Warning	1265	Data truncated for column 'f_double_15_1_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_15_1_u' at row 1
+Warning	1265	Data truncated for column 'f_float_3_1_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	5
+original_value	-1e+1111111111a
+f_double	-1.79769313486232e+308
+f_float	-3.40282e+38
+f_double_7_2	-99999.99
+f_float_4_3	-9.999
+f_double_u	0
+f_float_u	0
+f_double_15_1_u	0.0
+f_float_3_1_u	0.0
+set @value= 1e+1111111111;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1264	Data truncated; out of range for column 'f_float' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_7_2' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_4_3' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_15_1_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	6
+original_value	1.7976931348623e+308
+f_double	1.79769313486232e+308
+f_float	3.40282e+38
+f_double_7_2	99999.99
+f_float_4_3	9.999
+f_double_u	1.79769313486232e+308
+f_float_u	3.40282e+38
+f_double_15_1_u	99999999999999.9
+f_float_3_1_u	99.9
+set @value= -1e+1111111111;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1264	Data truncated; out of range for column 'f_float' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_7_2' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_4_3' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_15_1_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	7
+original_value	-1.7976931348623e+308
+f_double	-1.79769313486232e+308
+f_float	-3.40282e+38
+f_double_7_2	-99999.99
+f_float_4_3	-9.999
+f_double_u	0
+f_float_u	0
+f_double_15_1_u	0.0
+f_float_3_1_u	0.0
+set @value= 1e+111;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1264	Data truncated; out of range for column 'f_float' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_7_2' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_4_3' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_15_1_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	8
+original_value	1e+111
+f_double	1e+111
+f_float	3.40282e+38
+f_double_7_2	99999.99
+f_float_4_3	9.999
+f_double_u	1e+111
+f_float_u	3.40282e+38
+f_double_15_1_u	99999999999999.9
+f_float_3_1_u	99.9
+set @value= -1e+111;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1264	Data truncated; out of range for column 'f_float' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_7_2' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_4_3' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_15_1_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	9
+original_value	-1e+111
+f_double	-1e+111
+f_float	-3.40282e+38
+f_double_7_2	-99999.99
+f_float_4_3	-9.999
+f_double_u	0
+f_float_u	0
+f_double_15_1_u	0.0
+f_float_3_1_u	0.0
+set @value= 1;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+select * from t1 where number =last_insert_id();
+number	10
+original_value	1
+f_double	1
+f_float	1
+f_double_7_2	1.00
+f_float_4_3	1.000
+f_double_u	1
+f_float_u	1
+f_double_15_1_u	1.0
+f_float_3_1_u	1.0
+set @value= -1;
+insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
+Warnings:
+Warning	1264	Data truncated; out of range for column 'f_double_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_double_15_1_u' at row 1
+Warning	1264	Data truncated; out of range for column 'f_float_3_1_u' at row 1
+select * from t1 where number =last_insert_id();
+number	11
+original_value	-1
+f_double	-1
+f_float	-1
+f_double_7_2	-1.00
+f_float_4_3	-1.000
+f_double_u	0
+f_float_u	0
+f_double_15_1_u	0.0
+f_float_3_1_u	0.0
 use test;
 drop table if exists t1,t2,t3;
 create table t1(id1 int not null auto_increment primary key, t char(12));

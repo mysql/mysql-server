@@ -81,15 +81,88 @@ extern "C" void free_user_var(user_var_entry *entry)
   my_free((char*) entry,MYF(0));
 }
 
+bool key_part_spec::operator==(const key_part_spec& other) const
+{
+  return length == other.length && !strcmp(field_name, other.field_name);
+}
+
+
+/*
+  Test if a foreign key (= generated key) is a prefix of the given key
+  (ignoring key name, key type and order of columns)
+
+  NOTES:
+    This is only used to test if an index for a FOREIGN KEY exists
+
+  IMPLEMENTATION
+    We only compare field names
+
+  RETURN
+    0	Generated key is a prefix of other key
+    1	Not equal
+*/
+
+bool foreign_key_prefix(Key *a, Key *b)
+{
+  /* Ensure that 'a' is the generated key */
+  if (a->generated)
+  {
+    if (b->generated && a->columns.elements > b->columns.elements)
+      swap_variables(Key*, a, b);               // Put shorter key in 'a'
+  }
+  else
+  {
+    if (!b->generated)
+      return TRUE;                              // No foreign key
+    swap_variables(Key*, a, b);                 // Put generated key in 'a'
+  }
+
+  /* Test if 'a' is a prefix of 'b' */
+  if (a->columns.elements > b->columns.elements)
+    return TRUE;                                // Can't be prefix
+
+  List_iterator<key_part_spec> col_it1(a->columns);
+  List_iterator<key_part_spec> col_it2(b->columns);
+  const key_part_spec *col1, *col2;
+
+#ifdef ENABLE_WHEN_INNODB_CAN_HANDLE_SWAPED_FOREIGN_KEY_COLUMNS
+  while ((col1= col_it1++))
+  {
+    bool found= 0;
+    col_it2.rewind();
+    while ((col2= col_it2++))
+    {
+      if (*col1 == *col2)
+      {
+        found= TRUE;
+	break;
+      }
+    }
+    if (!found)
+      return TRUE;                              // Error
+  }
+  return FALSE;                                 // Is prefix
+#else
+  while ((col1= col_it1++))
+  {
+    col2= col_it2++;
+    if (!(*col1 == *col2))
+      return TRUE;
+  }
+  return FALSE;                                 // Is prefix
+#endif
+}
+
 
 /****************************************************************************
 ** Thread specific functions
 ****************************************************************************/
 
-THD::THD():user_time(0), is_fatal_error(0),
+THD::THD():user_time(0), current_arena(0), is_fatal_error(0),
 	   last_insert_id_used(0),
-	   insert_id_used(0), rand_used(0), in_lock_tables(0),
-	   global_read_lock(0), bootstrap(0), spcont(NULL)
+           insert_id_used(0), rand_used(0), time_zone_used(0),
+           in_lock_tables(0), global_read_lock(0), bootstrap(0),
+           spcont(NULL)
 {
   host= user= priv_user= db= ip= 0;
   catalog= (char*)"std"; // the only catalog we have for now
@@ -113,6 +186,7 @@ THD::THD():user_time(0), is_fatal_error(0),
   current_linfo =  0;
   slave_thread = 0;
   variables.pseudo_thread_id= 0;
+  one_shot_set= 0;
   file_id = 0;
   warn_id= 0;
   db_charset= global_system_variables.collation_database;
@@ -149,10 +223,8 @@ THD::THD():user_time(0), is_fatal_error(0),
   *scramble= '\0';
 
   init();
-  init_sql_alloc(&mem_root,                    // must be after init()
-                 variables.query_alloc_block_size,
-                 variables.query_prealloc_size);
   /* Initialize sub structures */
+  clear_alloc_root(&transaction.mem_root);
   init_alloc_root(&warn_root, WARN_ALLOC_BLOCK_SIZE, WARN_ALLOC_PREALLOC_SIZE);
   user_connect=(USER_CONN *)0;
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
@@ -179,7 +251,11 @@ THD::THD():user_time(0), is_fatal_error(0),
   tablespace_op=FALSE;
 #ifdef USING_TRANSACTIONS
   bzero((char*) &transaction,sizeof(transaction));
-  if (opt_using_transactions)
+  /*
+    Binlog is always open (if needed) before a THD is created (including
+    bootstrap).
+  */
+  if (opt_using_transactions && mysql_bin_log.is_open())
   {
     if (open_cached_file(&transaction.trans_log,
 			 mysql_tmpdir, LOG_PREFIX, binlog_cache_size,
@@ -188,17 +264,8 @@ THD::THD():user_time(0), is_fatal_error(0),
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
-  init_sql_alloc(&transaction.mem_root,         
-		 variables.trans_alloc_block_size, 
-		 variables.trans_prealloc_size);
-  /*
-    We need good random number initialization for new thread
-    Just coping global one will not work
-  */
   {
-    pthread_mutex_lock(&LOCK_thread_count);
-    ulong tmp=(ulong) (my_rnd(&sql_rand) * 0xffffffff); /* make all bits random */
-    pthread_mutex_unlock(&LOCK_thread_count);
+    ulong tmp=sql_rnd_with_mutex();
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
   }
 }
@@ -230,6 +297,23 @@ void THD::init(void)
   bzero((char*) warn_count, sizeof(warn_count));
   total_warn_count= 0;
   update_charset();
+}
+
+
+/*
+  Init THD for query processing.
+  This has to be called once before we call mysql_parse.
+  See also comments in sql_class.h.
+*/
+
+void THD::init_for_queries()
+{
+  init_sql_alloc(&mem_root,
+                 variables.query_alloc_block_size,
+                 variables.query_prealloc_size);
+  init_sql_alloc(&transaction.mem_root,         
+		 variables.trans_alloc_block_size, 
+		 variables.trans_prealloc_size);
 }
 
 
@@ -330,8 +414,8 @@ THD::~THD()
     safeFree(host);
   if (user != delayed_user)
     safeFree(user);
-  safeFree(db);
   safeFree(ip);
+  safeFree(db);
   free_root(&warn_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
@@ -339,6 +423,8 @@ THD::~THD()
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
+  /* Reset stmt_backup.mem_root to not double-free memory from thd.mem_root */
+  clear_alloc_root(&stmt_backup.mem_root);
   DBUG_VOID_RETURN;
 }
 
@@ -435,18 +521,49 @@ bool THD::convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
 
 
 /*
+  Convert string from source character set to target character set inplace.
+
+  SYNOPSIS
+    THD::convert_string
+
+  DESCRIPTION
+    Convert string using convert_buffer - buffer for character set 
+    conversion shared between all protocols.
+
+  RETURN
+    0   ok
+   !0   out of memory
+*/
+
+bool THD::convert_string(String *s, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+{
+  if (convert_buffer.copy(s->ptr(), s->length(), from_cs, to_cs))
+    return TRUE;
+  /* If convert_buffer >> s copying is more efficient long term */
+  if (convert_buffer.alloced_length() >= convert_buffer.length() * 2 ||
+      !s->is_alloced())
+  {
+    return s->copy(convert_buffer);
+  }
+  s->swap(convert_buffer);
+  return FALSE;
+}
+
+
+/*
   Update some cache variables when character set changes
 */
 
 void THD::update_charset()
 {
-  charset_is_system_charset= my_charset_same(charset(),system_charset_info);
-  charset_is_collation_connection= my_charset_same(charset(),
-						   variables.
-						   collation_connection);
+  uint32 not_used;
+  charset_is_system_charset= !String::needs_conversion(0,charset(),
+                                                       system_charset_info,
+                                                       &not_used);
+  charset_is_collation_connection= 
+    !String::needs_conversion(0,charset(),variables.collation_connection,
+                              &not_used);
 }
-
-
 
 
 /* routings to adding tables to list of changed in transaction tables */
@@ -558,7 +675,8 @@ int THD::send_explain_fields(select_result *result)
   item->maybe_null=1;
   field_list.push_back(new Item_return_int("rows",10, MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Extra",255));
-  return (result->send_fields(field_list,1));
+  return (result->send_fields(field_list,
+                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
 
 #ifdef SIGNAL_WITH_VIO_CLOSE
@@ -605,9 +723,9 @@ sql_exchange::sql_exchange(char *name,bool flag)
   escaped=    &default_escaped;
 }
 
-bool select_send::send_fields(List<Item> &list,uint flag)
+bool select_send::send_fields(List<Item> &list, uint flags)
 {
-  return thd->protocol->send_fields(&list,flag);
+  return thd->protocol->send_fields(&list, flags);
 }
 
 /* Send data to client. Returns 0 if ok */
@@ -648,6 +766,8 @@ bool select_send::send_data(List<Item> &items)
     }
   }
   thd->sent_row_count++;
+  if (!thd->vio_ok())
+    DBUG_RETURN(0);
   if (!thd->net.report_error)
     DBUG_RETURN(protocol->write());
   DBUG_RETURN(1);
@@ -678,12 +798,24 @@ bool select_send::send_eof()
 }
 
 
-/***************************************************************************
-** Export of select to textfile
-***************************************************************************/
+/************************************************************************
+  Handling writing to file
+************************************************************************/
+
+void select_to_file::send_error(uint errcode,const char *err)
+{
+  ::send_error(thd,errcode,err);
+  if (file > 0)
+  {
+    (void) end_io_cache(&cache);
+    (void) my_close(file,MYF(0));
+    (void) my_delete(path,MYF(0));		// Delete file on error
+    file= -1;
+  }
+}
 
 
-select_export::~select_export()
+select_to_file::~select_to_file()
 {
   if (file >= 0)
   {					// This only happens in case of error
@@ -691,42 +823,78 @@ select_export::~select_export()
     (void) my_close(file,MYF(0));
     file= -1;
   }
+}
+
+/***************************************************************************
+** Export of select to textfile
+***************************************************************************/
+
+select_export::~select_export()
+{
   thd->sent_row_count=row_count;
 }
+
+
+/*
+  Create file with IO cache
+
+  SYNOPSIS
+    create_file()
+    thd			Thread handle
+    path		File name
+    exchange		Excange class
+    cache		IO cache
+
+  RETURN
+    >= 0 	File handle
+   -1		Error
+*/
+
+
+static File create_file(THD *thd, char *path, sql_exchange *exchange,
+			IO_CACHE *cache)
+{
+  File file;
+  uint option= MY_UNPACK_FILENAME;
+
+#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
+  option|= MY_REPLACE_DIR;			// Force use of db directory
+#endif
+  (void) fn_format(path, exchange->file_name, thd->db ? thd->db : "", "",
+		   option);
+  if (!access(path, F_OK))
+  {
+    my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
+    return -1;
+  }
+  /* Create the file world readable */
+  if ((file= my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
+    return file;
+#ifdef HAVE_FCHMOD
+  (void) fchmod(file, 0666);			// Because of umask()
+#else
+  (void) chmod(path, 0666);
+#endif
+  if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, 1, MYF(MY_WME)))
+  {
+    my_close(file, MYF(0));
+    my_delete(path, MYF(0));  // Delete file on error, it was just created 
+    return -1;
+  }
+  return file;
+}
+
 
 int
 select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
-  char path[FN_REFLEN];
-  uint option=4;
   bool blob_flag=0;
   unit= u;
-#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-  option|=1;					// Force use of db directory
-#endif
   if ((uint) strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
     strmake(path,exchange->file_name,FN_REFLEN-1);
-  (void) fn_format(path,exchange->file_name, thd->db ? thd->db : "", "",
-		   option);
-  if (!access(path,F_OK))
-  {
-    my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
+
+  if ((file= create_file(thd, path, exchange, &cache)) < 0)
     return 1;
-  }
-  /* Create the file world readable */
-  if ((file=my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
-    return 1;
-#ifdef HAVE_FCHMOD
-  (void) fchmod(file,0666);			// Because of umask()
-#else
-  (void) chmod(path,0666);
-#endif
-  if (init_io_cache(&cache,file,0L,WRITE_CACHE,0L,1,MYF(MY_WME)))
-  {
-    my_close(file,MYF(0));
-    file= -1;
-    return 1;
-  }
   /* Check if there is any blobs in data */
   {
     List_iterator_fast<Item> li(list);
@@ -897,15 +1065,6 @@ err:
 }
 
 
-void select_export::send_error(uint errcode, const char *err)
-{
-  ::send_error(thd,errcode,err);
-  (void) end_io_cache(&cache);
-  (void) my_close(file,MYF(0));
-  file= -1;
-}
-
-
 bool select_export::send_eof()
 {
   int error=test(end_io_cache(&cache));
@@ -923,48 +1082,12 @@ bool select_export::send_eof()
 ***************************************************************************/
 
 
-select_dump::~select_dump()
-{
-  if (file >= 0)
-  {					// This only happens in case of error
-    (void) end_io_cache(&cache);
-    (void) my_close(file,MYF(0));
-    file= -1;
-  }
-}
-
 int
 select_dump::prepare(List<Item> &list __attribute__((unused)),
 		     SELECT_LEX_UNIT *u)
 {
-  uint option=4;
   unit= u;
-#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-  option|=1;					// Force use of db directory
-#endif
-  (void) fn_format(path,exchange->file_name, thd->db ? thd->db : "", "",
-		   option);
-  if (!access(path,F_OK))
-  {
-    my_error(ER_FILE_EXISTS_ERROR,MYF(0),exchange->file_name);
-    return 1;
-  }
-  /* Create the file world readable */
-  if ((file=my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
-    return 1;
-#ifdef HAVE_FCHMOD
-  (void) fchmod(file,0666);			// Because of umask()
-#else
-  (void) chmod(path,0666);
-#endif
-  if (init_io_cache(&cache,file,0L,WRITE_CACHE,0L,1,MYF(MY_WME)))
-  {
-    my_close(file,MYF(0));
-    my_delete(path,MYF(0));
-    file= -1;
-    return 1;
-  }
-  return 0;
+  return (int) ((file= create_file(thd, path, exchange, &cache)) < 0);
 }
 
 
@@ -1007,15 +1130,6 @@ err:
 }
 
 
-void select_dump::send_error(uint errcode,const char *err)
-{
-  ::send_error(thd,errcode,err);
-  (void) end_io_cache(&cache);
-  (void) my_close(file,MYF(0));
-  (void) my_delete(path,MYF(0));		// Delete file on error
-  file= -1;
-}
-
 bool select_dump::send_eof()
 {
   int error=test(end_io_cache(&cache));
@@ -1027,10 +1141,12 @@ bool select_dump::send_eof()
   return error;
 }
 
+
 select_subselect::select_subselect(Item_subselect *item_arg)
 {
   item= item_arg;
 }
+
 
 bool select_singlerow_subselect::send_data(List<Item> &items)
 {
@@ -1038,7 +1154,7 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
   if (it->assigned())
   {
-      my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
+    my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
     DBUG_RETURN(1);
   }
   if (unit->offset_limit_cnt)
@@ -1053,6 +1169,7 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
   it->assigned(1);
   DBUG_RETURN(0);
 }
+
 
 bool select_max_min_finder_subselect::send_data(List<Item> &items)
 {
@@ -1159,8 +1276,9 @@ bool select_exists_subselect::send_data(List<Item> &items)
 
 
 /***************************************************************************
-** Dump  of select to variables
+  Dump of select to variables
 ***************************************************************************/
+
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   List_iterator_fast<Item> li(list);
@@ -1184,8 +1302,12 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     else
     {
       Item_func_set_user_var *xx = new Item_func_set_user_var(mv->s, item);
+      /*
+        Item_func_set_user_var can't substitute something else on its place =>
+        0 can be passed as last argument (reference on item)
+      */
       xx->fix_fields(thd, (TABLE_LIST*) thd->lex->select_lex.table_list.first,
-		     &item);
+		     0);
       xx->fix_length_and_dec();
       vars.push_back(xx);
     }
@@ -1194,24 +1316,49 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
+Item_arena::Item_arena(THD* thd)
+  :free_list(0)
+{
+  init_sql_alloc(&mem_root,
+                 thd->variables.query_alloc_block_size,
+                 thd->variables.query_prealloc_size);
+}
+
+
+Item_arena::Item_arena()
+  :free_list(0)
+{
+  bzero((char *) &mem_root, sizeof(mem_root));
+}
+
+
+Item_arena::Item_arena(bool init_mem_root)
+  :free_list(0)
+{
+  if (init_mem_root)
+    bzero((char *) &mem_root, sizeof(mem_root));
+}
+
+
+Item_arena::~Item_arena()
+{}
+
+
 /*
   Statement functions 
 */
 
 Statement::Statement(THD *thd)
-  :id(++thd->statement_id_counter),
-  query_id(thd->query_id),
+  :Item_arena(thd),
+  id(++thd->statement_id_counter),
   set_query_id(1),
   allow_sum_func(0),
-  command(thd->command),
   lex(&main_lex),
   query(0),
   query_length(0),
-  free_list(0)
+  cursor(0)
 {
-  init_sql_alloc(&mem_root,
-                 thd->variables.query_alloc_block_size,
-                 thd->variables.query_prealloc_size);
+  name.str= NULL;
 }
 
 /*
@@ -1221,17 +1368,15 @@ Statement::Statement(THD *thd)
 */
 
 Statement::Statement()
-  :id(0),
-  query_id(0),                                  /* initialized later */
+  :Item_arena(),
+  id(0),
   set_query_id(1),
   allow_sum_func(0),                            /* initialized later */
-  command(COM_SLEEP),                           /* initialized later */ 
   lex(&main_lex),
   query(0),                                     /* these two are set */ 
   query_length(0),                              /* in alloc_query() */
-  free_list(0)
+  cursor(0)
 {
-  bzero((char *) &mem_root, sizeof(mem_root));
 }
 
 
@@ -1244,17 +1389,35 @@ Statement::Type Statement::type() const
 void Statement::set_statement(Statement *stmt)
 {
   id=             stmt->id;
-  query_id=       stmt->query_id;
   set_query_id=   stmt->set_query_id;
   allow_sum_func= stmt->allow_sum_func;
-  command=        stmt->command;
   lex=            stmt->lex;
   query=          stmt->query;
   query_length=   stmt->query_length;
-  free_list=      stmt->free_list;
-  mem_root=       stmt->mem_root;
+  cursor=         stmt->cursor;
 }
 
+
+void Item_arena::set_n_backup_item_arena(Item_arena *set, Item_arena *backup)
+{
+  backup->set_item_arena(this);
+  set_item_arena(set);
+}
+
+
+void Item_arena::restore_backup_item_arena(Item_arena *set, Item_arena *backup)
+{
+  set->set_item_arena(this);
+  set_item_arena(backup);
+  // reset backup mem_root to avoid its freeing
+  init_alloc_root(&backup->mem_root, 0, 0);
+}
+
+void Item_arena::set_item_arena(Item_arena *set)
+{
+  mem_root= set->mem_root;
+  free_list= set->free_list;
+}
 
 Statement::~Statement()
 {
@@ -1277,16 +1440,51 @@ static void delete_statement_as_hash_key(void *key)
   delete (Statement *) key;
 }
 
+static byte *get_stmt_name_hash_key(Statement *entry, uint *length,
+                                    my_bool not_used __attribute__((unused)))
+{
+  *length=(uint) entry->name.length;
+  return (byte*) entry->name.str;
+}
+
 C_MODE_END
 
 Statement_map::Statement_map() :
   last_found_statement(0)
 {
-  enum { START_HASH_SIZE = 16 };
-  hash_init(&st_hash, default_charset_info, START_HASH_SIZE, 0, 0,
+  enum
+  {
+    START_STMT_HASH_SIZE = 16,
+    START_NAME_HASH_SIZE = 16
+  };
+  hash_init(&st_hash, default_charset_info, START_STMT_HASH_SIZE, 0, 0,
             get_statement_id_as_hash_key,
             delete_statement_as_hash_key, MYF(0));
+  hash_init(&names_hash, &my_charset_bin, START_NAME_HASH_SIZE, 0, 0,
+            (hash_get_key) get_stmt_name_hash_key,
+            NULL,MYF(0));
 }
+
+int Statement_map::insert(Statement *statement)
+{
+  int rc= my_hash_insert(&st_hash, (byte *) statement);
+  if (rc == 0)
+    last_found_statement= statement;
+  if (statement->name.str)
+  {
+    /*
+      If there is a statement with the same name, remove it. It is ok to 
+      remove old and fail to insert new one at the same time.
+    */
+    Statement *old_stmt;
+    if ((old_stmt= find_by_name(&statement->name)))
+      erase(old_stmt); 
+    if ((rc= my_hash_insert(&names_hash, (byte*)statement)))
+      hash_delete(&st_hash, (byte*)statement);
+  }
+  return rc;
+}
+
 
 bool select_dumpvar::send_data(List<Item> &items)
 {
@@ -1321,7 +1519,8 @@ bool select_dumpvar::send_data(List<Item> &items)
     {
       if ((yy=var_li++)) 
       {
-	thd->spcont->set_item_eval(yy->get_offset(), item, zz->type);
+	if (thd->spcont->set_item_eval(yy->get_offset(), item, zz->type))
+	  DBUG_RETURN(1);
       }
     }
     else

@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding="utf-8"?>
 
-<charsets max-id="93">
+<charsets max-id="94">
 
 <description>
 This file lists all of the available character sets.
@@ -36,7 +36,7 @@ To make maintaining easier please:
   <alias>iso_8859-2</alias>
   <alias>iso_8859-2:1987</alias>
   <alias>l2</alias>
-  <collation name="latin2_czech_ci" 	id="2"	order="Czech" flag="compiled"/>
+  <collation name="latin2_czech_cs" 	id="2"	order="Czech" flag="compiled"/>
   <collation name="latin2_general_ci"	id="9"	flag="primary">
     <order>Hungarian</order>
     <order>Polish</order>
@@ -100,6 +100,7 @@ To make maintaining easier please:
   <collation name="latin1_swedish_ci"	id="8"	order="Finnish, Swedish"	flag="primary"/>
   <collation name="latin1_danish_ci"	id="15"	order="Danish"/>
   <collation name="latin1_german2_ci"	id="31"	order="German Phonebook"	flag="compiled"/>
+  <collation name="latin1_spanish_ci"	id="94"	order="Spanish"/>
   <collation name="latin1_bin"		id="47"	order="Binary">
     <flag>binary</flag>
     <flag>compiled</flag>
@@ -348,7 +349,7 @@ To make maintaining easier please:
     <order>Slovenian</order>
     <order>Sorbian</order>
   </collation>
-  <collation name="cp1250_czech_ci"	id="34"	order="Czech">
+  <collation name="cp1250_czech_cs"	id="34"	order="Czech">
     <flag>compiled</flag>
   </collation>
   <collation name="cp1250_bin"		id="66"	order="Binary"	flag="binary"/>
@@ -401,7 +402,7 @@ To make maintaining easier please:
   <description>ARMSCII-8 Armenian</description>
   <alias>armscii-8</alias>
   <collation name="armscii8_general_ci"	id="32"	order="Armenian"	flag="primary"/>
-  <collation name="armscii_bin"		id="64"	order="Binary"		flag="binary"/>
+  <collation name="armscii8_bin"	id="64"	order="Binary"		flag="binary"/>
 </charset>
 
 <charset name="utf8">
@@ -463,9 +464,6 @@ To make maintaining easier please:
     <order>Sorbian</order>
   </collation>
   <collation name="macce_bin"	id="43"	order="Binary"	flag="binary"/>
-  <!--collation name="macce_ci_ai"	id="44"/-->
-  <!--collation name="macce_ci"	id="45"/-->
-  <!--collation name="macce_cs"	id="46"/-->
 </charset>
 
 <charset name="macroman">

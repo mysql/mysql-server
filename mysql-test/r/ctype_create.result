@@ -1,15 +1,37 @@
 SET @@character_set_server=latin5;
-CREATE DATABASE db1 DEFAULT CHARACTER SET cp1251;
-USE db1;
-CREATE DATABASE db2;
-SHOW CREATE DATABASE db1;
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET cp1251;
+USE mysqltest1;
+CREATE DATABASE mysqltest2;
+SHOW CREATE DATABASE mysqltest1;
 Database	Create Database
-db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET cp1251 */
-SHOW CREATE DATABASE db2;
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET cp1251 */
+SHOW CREATE DATABASE mysqltest2;
 Database	Create Database
-db2	CREATE DATABASE `db2` /*!40100 DEFAULT CHARACTER SET latin5 */
-DROP DATABASE db2;
-USE db1;
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin5 */
+CREATE TABLE mysqltest2.t1 (a char(10));
+SHOW CREATE TABLE mysqltest2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin5
+DROP TABLE mysqltest2.t1;
+ALTER DATABASE mysqltest2 DEFAULT CHARACTER SET latin7;
+CREATE TABLE mysqltest2.t1 (a char(10));
+SHOW CREATE TABLE mysqltest2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin7
+DROP DATABASE mysqltest2;
+CREATE DATABASE mysqltest2 CHARACTER SET latin2;
+CREATE TABLE mysqltest2.t1 (a char(10));
+SHOW CREATE TABLE mysqltest2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin2
+DROP DATABASE mysqltest2;
+USE mysqltest1;
 CREATE TABLE t1 (a char(10));
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -17,4 +39,19 @@ t1	CREATE TABLE `t1` (
   `a` char(10) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=cp1251
 DROP TABLE t1;
-DROP DATABASE db1;
+CREATE TABLE t1 (a char(10)) DEFAULT CHARACTER SET latin1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+CREATE TABLE t1 (a char(10)) 
+DEFAULT CHARACTER SET latin1 COLLATE latin1_german1_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) collate latin1_german1_ci default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
+DROP TABLE t1;
+DROP DATABASE mysqltest1;

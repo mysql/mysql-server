@@ -19,7 +19,6 @@
 #include "myisamdef.h"
 #include "m_ctype.h"
 #include "sp_defs.h"
-#include <assert.h>
 #ifdef HAVE_IEEEFP_H
 #include <ieeefp.h>
 #endif
@@ -46,7 +45,11 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     /* 
       TODO: nulls processing
     */
+#ifdef HAVE_SPATIAL
     return sp_make_key(info,keynr,key,record,filepos);
+#else
+    DBUG_ASSERT(0); /* mi_open should check that this never happens*/
+#endif
   }
 
   start=key;
@@ -217,7 +220,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
       k_length-= 2+length;
       set_if_smaller(length,tmp_length);	/* Safety */
       store_key_length_inc(key,length);
-      old+=2;					/* Skipp length */
+      old+=2;					/* Skip length */
       memcpy((byte*) key, pos+2,(size_t) length);
       key+= length;
       continue;

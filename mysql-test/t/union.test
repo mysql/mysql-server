@@ -23,7 +23,7 @@ select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 g
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 4;
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1);
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
---error 1249
+--error 1250
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
 explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 (select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
@@ -39,8 +39,11 @@ explain select a,b from t1 union all select a,b from t2;
 
 --error  1054
 explain select xx from t1 union select 1;
+--error 1222
 explain select a,b from t1 union select 1;
+--error 1222
 explain select 1 union select a,b from t1 union select 1;
+--error 1222
 explain select a,b from t1 union select 1 limit 0;
 
 --error 1221
@@ -213,7 +216,7 @@ select found_rows();
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1) UNION all (SELECT * FROM t2 LIMIT 1);
 select found_rows();
 # This used to work in 4.0 but not anymore in 4.1
---error 1149
+--error 1064
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2 LIMIT 1;
 #select found_rows();
 
@@ -251,6 +254,8 @@ create temporary table t1 select a from t1 union select a from t2;
 drop temporary table t1;
 --error 1093
 create table t1 select a from t1 union select a from t2;
+--error 1109
+select a from t1 union select a from t2 order by t2.a;
 drop table t1,t2;
 
 #
@@ -420,7 +425,7 @@ create table t1 select 1 union select -1;
 select * from t1;
 show create table t1;
 drop table t1;
--- error 1266
+-- error 1267
 create table t1 select _latin1"test" union select _latin2"testt" ;
 create table t1 select _latin2"test" union select _latin2"testt" ;
 show create table t1;
@@ -465,3 +470,100 @@ show status like 'Slow_queries';
 select count(*) from t1 where a=7 union select count(*) from t1 where b=13;
 show status like 'Slow_queries';
 drop table t1;
+
+#
+# Column 'name' cannot be null (error with union and left join) (bug #2508)
+#
+create table t1 (   RID int(11) not null default '0',   IID int(11) not null default '0',    nada varchar(50)  not null,NAME varchar(50) not null,PHONE varchar(50) not null) engine=MyISAM;
+insert into t1 ( RID,IID,nada,NAME,PHONE) values (1, 1, 'main', 'a', '111'), (2, 1, 'main', 'b', '222'), (3, 1, 'main', 'c', '333'), (4, 1, 'main', 'd', '444'), (5, 1, 'main', 'e', '555'), (6, 2, 'main', 'c', '333'), (7, 2, 'main', 'd', '454'), (8, 2, 'main', 'e', '555'), (9, 2, 'main', 'f', '666'), (10, 2, 'main', 'g', '777');
+select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 A left join t1 B on A.NAME = B.NAME and B.IID = 2 where A.IID = 1 and (A.PHONE <> B.PHONE or B.NAME is null) union select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 B left join t1 A on B.NAME = A.NAME and A.IID = 1 where B.IID = 2 and (A.PHONE <> B.PHONE or A.NAME is null);
+drop  table t1;
+
+#
+# Bug #2809 (UNION fails on MyIsam tables when index on second column from
+# same table)
+#
+create table t1 (col1 tinyint unsigned, col2 tinyint unsigned);
+insert into t1 values (1,2),(3,4),(5,6),(7,8),(9,10);
+select col1 n from t1 union select col2 n from t1 order by n;
+alter table t1 add index myindex (col2);
+select col1 n from t1 union select col2 n from t1 order by n;
+drop  table t1;
+
+#
+# Incorrect handling of UNION ALL (Bug #1428)
+#
+create table t1 (i int);
+insert into t1 values (1);
+select * from t1 UNION select * from t1;
+select * from t1 UNION ALL select * from t1;
+select * from t1 UNION select * from t1 UNION ALL select * from t1;
+drop table t1;
+select 1 as a union all select 1 union all select 2 union select 1 union all select 2;
+set sql_select_limit=1;
+select 1 union select 2;
+(select 1) union (select 2);
+(select 1) union (select 2) union (select 3) limit 2;
+set sql_select_limit=default;
+
+#
+# ORDER with LIMIT
+#
+create table t1 (a int);
+insert into t1 values (100), (1);
+create table t2 (a int);
+insert into t2 values (100);
+select a from t1 union select a from t2 order by a;
+SET SQL_SELECT_LIMIT=1;
+select a from t1 union select a from t2 order by a;
+drop table t1, t2;
+set sql_select_limit=default;
+
+#
+# nonexisting column in global ORDER BY
+#
+CREATE TABLE t1 (i int(11) default NULL,c char(1) default NULL,KEY i (i));
+CREATE TABLE t2 (i int(11) default NULL,c char(1) default NULL,KEY i (i));
+--error 1054
+explain (select * from t1) union (select * from t2) order by not_existing_column;
+drop table t1, t2;
+
+#
+# length detecting
+#
+CREATE TABLE t1 (uid int(1));
+INSERT INTO t1 SELECT 150;
+SELECT 'a' UNION SELECT uid FROM t1;
+drop table t1;
+
+#
+# parser stack overflow
+#
+CREATE TABLE t1 ( ID1 int(10) unsigned NOT NULL DEFAULT '0' , ID2 datetime NOT NULL DEFAULT '0000-00-00 00:00:00' , DATA1 varchar(10) , DATA2 double(5,4) , DATA3 datetime , PRIMARY KEY (ID1,ID2));
+
+CREATE TABLE t2 ( ID int(3) unsigned NOT NULL DEFAULT '0' , DATA1 timestamp DEFAULT '0000-00-00 00:00:00' , PRIMARY KEY (ID));
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1);
+drop table t1,t2;

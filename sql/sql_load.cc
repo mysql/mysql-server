@@ -93,8 +93,12 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   LOAD_FILE_INFO lf_info;
 #endif
   char *db = table_list->db;			// This is never null
-  /* If no current database, use database where table is located */
-  char *tdb= thd->db ? thd->db : db;
+  /*
+    If path for file is not defined, we will use the current database.
+    If this is not set, we will use the directory where the table to be
+    loaded is located
+  */
+  char *tdb= thd->db ? thd->db : db;		// Result is never null
   bool transactional_table, log_delayed;
   ulong skip_lines= ex->skip_lines;
   DBUG_ENTER("mysql_load");
@@ -109,8 +113,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       MYF(0));
     DBUG_RETURN(-1);
   }
-  if (!(table = open_ltable(thd,table_list,lock_type)))
+  table_list->lock_type= lock_type;
+  if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(-1);
+  /* TODO: add key check when we will support VIEWs in LOAD */
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "LOAD");
+    DBUG_RETURN(-1);
+  }
+  table= table_list->table;
   transactional_table= table->file->has_transactions();
   log_delayed= (transactional_table || table->tmp_table);
 
@@ -123,7 +135,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   else
   {						// Part field list
     thd->dupp_field=0;
-    if (setup_tables(table_list) ||
+    /* TODO: use this conds for 'WITH CHECK OPTIONS' */
+    Item *unused_conds= 0;
+    if (setup_tables(thd, table_list, &unused_conds) ||
 	setup_fields(thd, 0, table_list, fields, 1, 0, 0))
       DBUG_RETURN(-1);
     if (thd->dupp_field)
@@ -237,7 +251,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
 
 #ifndef EMBEDDED_LIBRARY
-  if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+  if (mysql_bin_log.is_open())
   {
     lf_info.thd = thd;
     lf_info.ex = ex;
@@ -270,17 +284,14 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (!(error=test(read_info.error)))
   {
-    uint save_time_stamp=table->time_stamp;
     if (use_timestamp)
-      table->time_stamp=0;
+      table->timestamp_default_now= table->timestamp_on_update_now= 0;
+
     table->next_number_field=table->found_next_number_field;
-    VOID(table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
-			    thd->variables.read_buff_size));
-    table->bulk_insert= 1;
     if (handle_duplicates == DUP_IGNORE ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-    table->file->deactivate_non_unique_index((ha_rows) 0);
+    table->file->start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
     if (!field_term->length() && !enclosed->length())
       error=read_fixed_length(thd,info,table,fields,read_info,
@@ -288,12 +299,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     else
       error=read_sep_field(thd,info,table,fields,read_info,*enclosed,
 			   skip_lines);
-    if (table->file->extra(HA_EXTRA_NO_CACHE))
-      error=1;					/* purecov: inspected */
-    if (table->file->activate_all_index(thd))
+    if (table->file->end_bulk_insert())
       error=1;					/* purecov: inspected */
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-    table->time_stamp=save_time_stamp;
     table->next_number_field=0;
   }
   if (file >= 0)
@@ -312,8 +320,13 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     if (transactional_table)
       ha_autocommit_or_rollback(thd,error);
+
+    if (read_file_from_client)
+      while (!read_info.next_line())
+	;
+
 #ifndef EMBEDDED_LIBRARY
-    if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+    if (mysql_bin_log.is_open())
     {
       /*
         Make sure last block (the one which caused the error) gets logged.
@@ -357,28 +370,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
   {
-    if (opt_old_rpl_compat)
+    /*
+      As already explained above, we need to call end_io_cache() or the last
+      block will be logged only after Execute_load_log_event (which is wrong),
+      when read_info is destroyed.
+    */
+    read_info.end_io_cache(); 
+    if (lf_info.wrote_create_file)
     {
-      if (!read_file_from_client)
-      {
-	Load_log_event qinfo(thd, ex, db, table->table_name, fields, 
-			     handle_duplicates, log_delayed);
-	mysql_bin_log.write(&qinfo);
-      }
-    }
-    else
-    {
-      /*
-        As already explained above, we need to call end_io_cache() or the last
-        block will be logged only after Execute_load_log_event (which is wrong),
-        when read_info is destroyed.
-      */
-      read_info.end_io_cache(); 
-      if (lf_info.wrote_create_file)
-      {
-        Execute_load_log_event e(thd, db, log_delayed);
-        mysql_bin_log.write(&e);
-      }
+      Execute_load_log_event e(thd, db, log_delayed);
+      mysql_bin_log.write(&e);
     }
   }
 #endif /*!EMBEDDED_LIBRARY*/
@@ -540,8 +541,8 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 	  if (field->type() == FIELD_TYPE_TIMESTAMP)
 	    ((Field_timestamp*) field)->set_time();
 	  else if (field != table->next_number_field)      
-      field->set_warning((uint)MYSQL_ERROR::WARN_LEVEL_WARN, 
-                         ER_WARN_NULL_TO_NOTNULL);
+	    field->set_warning((uint) MYSQL_ERROR::WARN_LEVEL_WARN, 
+			       ER_WARN_NULL_TO_NOTNULL, 1);
 	}
 	continue;
       }
@@ -695,7 +696,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
       if (get_it_from_net)
 	cache.read_function = _my_b_net_read;
 
-      if (!opt_old_rpl_compat && mysql_bin_log.is_open())
+      if (mysql_bin_log.is_open())
 	cache.pre_read = cache.pre_close =
 	  (IO_CACHE_CALLBACK) log_loaded_block;
 #endif
@@ -1025,7 +1026,7 @@ bool READ_INFO::find_start_of_fields()
     {						// Can't be line_start
       PUSH(chr);
       while (--ptr != line_start_ptr)
-      {					// Restart with next char
+      {						// Restart with next char
 	PUSH((uchar) *ptr);
       }
       goto try_again;

@@ -84,6 +84,7 @@
 #undef HAVE_CHARSET_euckr
 #undef HAVE_CHARSET_gb2312
 #undef HAVE_CHARSET_gbk
+#undef HAVE_CHARSET_geostd8
 #undef HAVE_CHARSET_greek
 #undef HAVE_CHARSET_hebrew
 #undef HAVE_CHARSET_hp8
@@ -111,6 +112,12 @@
 
 /* Define if we are using OSF1 DEC threads on 3.2 */
 #undef HAVE_DEC_3_2_THREADS
+
+/* Builds Example DB */
+#undef HAVE_EXAMPLE_DB
+
+/* Builds Archive Storage Engine */
+#undef HAVE_ARCHIVE_DB
 
 /* fp_except from ieeefp.h */
 #undef HAVE_FP_EXCEPT
@@ -148,6 +155,15 @@
 
 /* Do we use user level threads */
 #undef HAVE_mit_thread
+
+/* Using Ndb Cluster DB */
+#undef HAVE_NDBCLUSTER_DB
+
+/* Including Ndb Cluster DB shared memory transporter */
+#undef NDB_SHM_TRANSPORTER
+
+/* Including Ndb Cluster DB sci transporter */
+#undef NDB_SCI_TRANSPORTER
 
 /* For some non posix threads */
 #undef HAVE_NONPOSIX_PTHREAD_GETSPECIFIC
@@ -190,6 +206,15 @@
 
 /* If we want to have query cache */
 #undef HAVE_QUERY_CACHE
+
+/* Spatial extentions */
+#undef HAVE_SPATIAL
+
+/* RTree keys */
+#undef HAVE_RTREE_KEYS
+
+/* Access checks in embedded library */
+#undef HAVE_EMBEDDED_PRIVILEGE_CONTROL
 
 /* Solaris define gethostbyaddr_r with 7 arguments. glibc2 defines
    this with 8 arguments */
@@ -256,6 +281,12 @@
 
 /* mysql client protocoll version */
 #undef PROTOCOL_VERSION
+
+/* ndb version */
+#undef NDB_VERSION_MAJOR
+#undef NDB_VERSION_MINOR
+#undef NDB_VERSION_BUILD
+#undef NDB_VERSION_STATUS
 
 /* Define if qsort returns void */
 #undef QSORT_TYPE_IS_VOID

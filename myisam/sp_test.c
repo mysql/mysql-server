@@ -18,6 +18,8 @@
 /* Written by Alex Barkov, who has a shared copyright to this code */
 
 #include "myisam.h"
+
+#ifdef HAVE_SPATIAL
 #include "sp_defs.h"
 
 #define MAX_REC_LENGTH 1024
@@ -32,9 +34,9 @@ static void print_key(const char *key,const char * tail);
 static int run_test(const char *filename);
 static int read_with_pos(MI_INFO * file, int silent);
 
-static int rtree_CreateLineStringWKB(double *ords, uint n_dims, uint n_points, uchar *wkb);
+static int rtree_CreateLineStringWKB(double *ords, uint n_dims, uint n_points,
+                                     uchar *wkb);
 static  void rtree_PrintWKB(uchar *wkb, uint n_dims);
-
 
 static char blob_key[MAX_REC_LENGTH];
 
@@ -46,7 +48,6 @@ int main(int argc  __attribute__((unused)),char *argv[])
 }
 
 
-
 int run_test(const char *filename)
 {
   MI_INFO        *file;
@@ -55,7 +56,7 @@ int run_test(const char *filename)
   MI_COLUMNDEF   recinfo[20];
   MI_KEYDEF      keyinfo[20];
   HA_KEYSEG      keyseg[20];
-
+  key_range	 min_range, max_range;
   int silent=0;
   int create_flag=0;
   int null_fields=0;
@@ -100,7 +101,7 @@ int run_test(const char *filename)
   keyinfo[0].seg[0].bit_start=4; /* Long BLOB */
   
   
-  if(!silent)
+  if (!silent)
     printf("- Creating isam-file\n");
   
   bzero((char*) &create_info,sizeof(create_info));
@@ -113,16 +114,11 @@ int run_test(const char *filename)
                 recinfo,uniques,&uniquedef,&create_info,create_flag))
     goto err;
   
-  
-  
-  
-  if(!silent)
+  if (!silent)
     printf("- Open isam-file\n");
   
   if (!(file=mi_open(filename,2,HA_OPEN_ABORT_IF_LOCKED)))
     goto err;
-  
-
   
   if (!silent)
     printf("- Writing key:s\n");
@@ -143,10 +139,8 @@ int run_test(const char *filename)
     }
   }
 
-
-  if((error=read_with_pos(file,silent)))
+  if ((error=read_with_pos(file,silent)))
     goto err;
-
 
   if (!silent)
     printf("- Deleting rows with position\n");
@@ -155,22 +149,19 @@ int run_test(const char *filename)
     my_errno=0;
     bzero((char*) read_record,MAX_REC_LENGTH);
     error=mi_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR);
-    if(error)
+    if (error)
     {
       printf("pos: %2d  mi_rrnd: %3d  errno: %3d\n",i,error,my_errno);
       goto err;
     }
     print_record(read_record,mi_position(file),"\n");
     error=mi_delete(file,read_record);
-    if(error)
+    if (error)
     {
       printf("pos: %2d mi_delete: %3d errno: %3d\n",i,error,my_errno);
       goto err;
     }
   }
-
-
-
 
   if (!silent)
     printf("- Updating rows with position\n");
@@ -179,9 +170,9 @@ int run_test(const char *filename)
     my_errno=0;
     bzero((char*) read_record,MAX_REC_LENGTH);
     error=mi_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR);
-    if(error)
+    if (error)
     {
-      if(error==HA_ERR_RECORD_DELETED)
+      if (error==HA_ERR_RECORD_DELETED)
         continue;
       printf("pos: %2d  mi_rrnd: %3d  errno: %3d\n",i,error,my_errno);
       goto err;
@@ -191,19 +182,15 @@ int run_test(const char *filename)
     printf("\t-> ");
     print_record(record,mi_position(file),"\n");
     error=mi_update(file,read_record,record);
-    if(error)
+    if (error)
     {
       printf("pos: %2d  mi_update: %3d  errno: %3d\n",i,error,my_errno);
       goto err;
     }
   }
 
-
-
-  if((error=read_with_pos(file,silent)))
+  if ((error=read_with_pos(file,silent)))
     goto err;
-
-
 
   if (!silent)
     printf("- Test mi_rkey then a sequence of mi_rnext_same\n");
@@ -219,24 +206,19 @@ int run_test(const char *filename)
   print_record(read_record,mi_position(file),"  mi_rkey\n");
   row_count=1;
 
-
-  do {
-    if((error=mi_rnext_same(file,read_record)))
+  for (;;)
+  {
+    if ((error=mi_rnext_same(file,read_record)))
     {
-      if(error==HA_ERR_END_OF_FILE)
+      if (error==HA_ERR_END_OF_FILE)
         break;
       printf("mi_next: %3d  errno: %3d\n",error,my_errno);
       goto err;
     }
     print_record(read_record,mi_position(file),"  mi_rnext_same\n");
       row_count++;
-  }while(1);
+  }
   printf("     %d rows\n",row_count);
-
-
-
-
-
 
   if (!silent)
     printf("- Test mi_rfirst then a sequence of mi_rnext\n");
@@ -251,9 +233,9 @@ int run_test(const char *filename)
   print_record(read_record,mi_position(file),"  mi_frirst\n");
   
   for(i=0;i<nrecords;i++) {
-    if((error=mi_rnext(file,read_record,0)))
+    if ((error=mi_rnext(file,read_record,0)))
     {
-      if(error==HA_ERR_END_OF_FILE)
+      if (error==HA_ERR_END_OF_FILE)
         break;
       printf("mi_next: %3d  errno: %3d\n",error,my_errno);
       goto err;
@@ -263,29 +245,28 @@ int run_test(const char *filename)
   }
   printf("     %d rows\n",row_count);
 
-
-
-
   if (!silent)
     printf("- Test mi_records_in_range()\n");
 
   create_key(key, nrecords*upd);
   print_key(key," INTERSECT\n");
-  hrows=mi_records_in_range(file,0,key,0,HA_READ_MBR_INTERSECT,record+1,0,
-			    HA_READ_KEY_EXACT);
+  min_range.key= key;
+  min_range.length= 1000;                       /* Big enough */
+  min_range.flag= HA_READ_MBR_INTERSECT;
+  max_range.key= record+1;
+  max_range.length= 1000;                       /* Big enough */
+  max_range.flag= HA_READ_KEY_EXACT;
+  hrows= mi_records_in_range(file,0, &min_range, &max_range);
   printf("     %ld rows\n", (long) hrows);
-
 
   if (mi_close(file)) goto err;
   my_end(MY_CHECK_ERROR);
-  
   return 0;
   
 err:
   printf("got error: %3d when using myisam-database\n",my_errno);
-  return 1;           /* skipp warning */
+  return 1;           /* skip warning */
 }
-
 
 
 static int read_with_pos (MI_INFO * file,int silent)
@@ -302,11 +283,11 @@ static int read_with_pos (MI_INFO * file,int silent)
     my_errno=0;
     bzero((char*) read_record,MAX_REC_LENGTH);
     error=mi_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR);
-    if(error)
+    if (error)
     {
-      if(error==HA_ERR_END_OF_FILE)
+      if (error==HA_ERR_END_OF_FILE)
         break;
-      if(error==HA_ERR_RECORD_DELETED)
+      if (error==HA_ERR_RECORD_DELETED)
         continue;
       printf("pos: %2d  mi_rrnd: %3d  errno: %3d\n",i,error,my_errno);
       return error;
@@ -351,14 +332,13 @@ static void print_record(char * record, my_off_t offs,const char * tail)
   pos+=4;
   printf(" len=%d ",len);
   memcpy_fixed(&ptr,pos,sizeof(char*));
-  if(ptr)
+  if (ptr)
     rtree_PrintWKB((uchar*) ptr,SPDIMS);
   else
     printf("<NULL> ");
   printf(" offs=%ld ",(long int)offs);
   printf("%s",tail);
 }
-
 
 
 #ifdef NOT_USED
@@ -447,7 +427,6 @@ static void print_key(const char *key,const char * tail)
 }
 
 
-
 #ifdef NOT_USED
 
 static int rtree_CreatePointWKB(double *ords, uint n_dims, uchar *wkb)
@@ -488,6 +467,7 @@ static int rtree_CreateLineStringWKB(double *ords, uint n_dims, uint n_points,
   }
   return 9 + n_points * n_dims * 8;
 }
+
 
 static void rtree_PrintWKB(uchar *wkb, uint n_dims)
 {
@@ -575,3 +555,11 @@ static void rtree_PrintWKB(uchar *wkb, uint n_dims)
     }
   }
 }
+
+#else
+int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
+{
+  exit(0);
+}
+#endif /*HAVE_SPATIAL*/
+

@@ -18,8 +18,9 @@ rw_lock_s_lock_spin(
         rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
-	char*		file_name,/* in: file name where lock requested */
+	const char*	file_name,/* in: file name where lock requested */
 	ulint		line);	/* in: line where requested */
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Inserts the debug information for an rw-lock. */
 
@@ -29,7 +30,7 @@ rw_lock_add_debug_info(
 	rw_lock_t*	lock,		/* in: rw-lock */
 	ulint		pass,		/* in: pass value */
 	ulint		lock_type,	/* in: lock type */
-	char*		file_name,	/* in: file where requested */
+	const char*	file_name,	/* in: file where requested */
 	ulint		line);		/* in: line where requested */
 /**********************************************************************
 Removes a debug information struct for an rw-lock. */
@@ -40,7 +41,7 @@ rw_lock_remove_debug_info(
 	rw_lock_t*	lock,		/* in: rw-lock */
 	ulint		pass,		/* in: pass value */
 	ulint		lock_type);	/* in: lock type */
-
+#endif /* UNIV_SYNC_DEBUG */
 
 /************************************************************************
 Accessor functions for rw lock. */
@@ -129,22 +130,22 @@ rw_lock_s_lock_low(
 	ulint		pass __attribute__((unused)),
                                 /* in: pass value; != 0, if the lock will be
 				passed to another thread to unlock */
-	char*		file_name, /* in: file name where lock requested */
+	const char*	file_name, /* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(rw_lock_get_mutex(lock)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	/* Check if the writer field is free */
 
 	if (lock->writer == RW_LOCK_NOT_LOCKED) {
 		/* Set the shared lock by incrementing the reader count */
 		lock->reader_count++;
 
-		#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 		rw_lock_add_debug_info(lock, pass, RW_LOCK_SHARED, file_name,
 									line);
-		#endif
-		
+#endif
 		lock->last_s_file_name = file_name;
 		lock->last_s_line = line;
 
@@ -162,9 +163,9 @@ UNIV_INLINE
 void
 rw_lock_s_lock_direct(
 /*==================*/
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
-	char*		file_name,/* in: file name where lock requested */
-	ulint		line)	/* in: line where requested */
+	rw_lock_t*	lock,		/* in: pointer to rw-lock */
+	const char*	file_name,	/* in: file name where requested */
+	ulint		line)		/* in: line where lock requested */
 {
 	ut_ad(lock->writer == RW_LOCK_NOT_LOCKED);
 	ut_ad(rw_lock_get_reader_count(lock) == 0);
@@ -175,9 +176,9 @@ rw_lock_s_lock_direct(
 	lock->last_s_file_name = file_name;
 	lock->last_s_line = line;
 
-	#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 	rw_lock_add_debug_info(lock, 0, RW_LOCK_SHARED, file_name, line);
-	#endif
+#endif
 }
 
 /**********************************************************************
@@ -188,9 +189,9 @@ UNIV_INLINE
 void
 rw_lock_x_lock_direct(
 /*==================*/
-        rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
-	char*		file_name, /* in: file name where lock requested */
-	ulint		line)	/* in: line where requested */
+	rw_lock_t*	lock,		/* in: pointer to rw-lock */
+	const char*	file_name,	/* in: file name where requested */
+	ulint		line)		/* in: line where lock requested */
 {
         ut_ad(rw_lock_validate(lock));
 	ut_ad(rw_lock_get_reader_count(lock) == 0);
@@ -204,9 +205,9 @@ rw_lock_x_lock_direct(
 	lock->last_x_file_name = file_name;
 	lock->last_x_line = line;
 
-	#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 	rw_lock_add_debug_info(lock, 0, RW_LOCK_EX, file_name, line);
-	#endif
+#endif
 }
 
 /**********************************************************************
@@ -222,7 +223,7 @@ rw_lock_s_lock_func(
         rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
 	ulint		pass,	/* in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
-	char*		file_name, /* in: file name where lock requested */
+	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
 	/* NOTE: As we do not know the thread ids for threads which have
@@ -236,7 +237,9 @@ rw_lock_s_lock_func(
 	the threads which have s-locked a latch. This would use some CPU
 	time. */
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED)); /* see NOTE above */
+#endif /* UNIV_SYNC_DEBUG */
 
 	mutex_enter(rw_lock_get_mutex(lock));
 
@@ -264,7 +267,7 @@ rw_lock_s_lock_func_nowait(
 /*=======================*/
 				/* out: TRUE if success */
         rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
-	char*		file_name,/* in: file name where lock requested */
+	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
 	ibool	success	= FALSE;
@@ -275,10 +278,10 @@ rw_lock_s_lock_func_nowait(
 		/* Set the shared lock by incrementing the reader count */
 		lock->reader_count++;
 
-		#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 		rw_lock_add_debug_info(lock, 0, RW_LOCK_SHARED, file_name,
 									line);
-		#endif
+#endif
 
 		lock->last_s_file_name = file_name;
 		lock->last_s_line = line;
@@ -301,7 +304,7 @@ rw_lock_x_lock_func_nowait(
 /*=======================*/
 				/* out: TRUE if success */
         rw_lock_t*   	lock,  	/* in: pointer to rw-lock */
-	char*		file_name, /* in: file name where lock requested */
+	const char*	file_name,/* in: file name where lock requested */
 	ulint		line)	/* in: line where requested */
 {
 	ibool	success	= FALSE;
@@ -320,9 +323,9 @@ rw_lock_x_lock_func_nowait(
 		lock->writer_count++;
 		lock->pass = 0;
 			
-		#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 		rw_lock_add_debug_info(lock, 0, RW_LOCK_EX, file_name, line);
-		#endif
+#endif
 
 		lock->last_x_file_name = file_name;
 		lock->last_x_line = line;
@@ -361,9 +364,9 @@ rw_lock_s_unlock_func(
 	ut_a(lock->reader_count > 0);
 	lock->reader_count--;
 
-	#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 	rw_lock_remove_debug_info(lock, pass, RW_LOCK_SHARED);
-	#endif
+#endif
 	
 	/* If there may be waiters and this was the last s-lock,
 	signal the object */
@@ -402,9 +405,9 @@ rw_lock_s_unlock_direct(
 
 	lock->reader_count--;
 
-	#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 	rw_lock_remove_debug_info(lock, 0, RW_LOCK_SHARED);
-	#endif
+#endif
 
 	ut_ad(!lock->waiters);
         ut_ad(rw_lock_validate(lock));
@@ -442,9 +445,9 @@ rw_lock_x_unlock_func(
 		rw_lock_set_writer(lock, RW_LOCK_NOT_LOCKED);
 	}
 
-	#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 	rw_lock_remove_debug_info(lock, pass, RW_LOCK_EX);
-	#endif
+#endif
 	
 	/* If there may be waiters, signal the lock */
 	if (lock->waiters && (lock->writer_count == 0)) {
@@ -486,9 +489,9 @@ rw_lock_x_unlock_direct(
 		rw_lock_set_writer(lock, RW_LOCK_NOT_LOCKED);
 	}
 
-	#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 	rw_lock_remove_debug_info(lock, 0, RW_LOCK_EX);
-	#endif
+#endif
 
 	ut_ad(!lock->waiters);
         ut_ad(rw_lock_validate(lock));

@@ -24,8 +24,6 @@
 #include "sp.h"
 #include "sp_head.h"
 
-LEX_STRING tmp_table_alias= {(char*) "tmp-table",8};
-
 /* Macros to look like lex */
 
 #define yyGet()		*(lex->ptr++)
@@ -44,13 +42,6 @@ pthread_key(LEX*,THR_LEX);
 
 /* Longest standard keyword name */
 #define TOCK_NAME_LENGTH 24
-
-/*
-  Map to default keyword characters.  This is used to test if an identifer
-  is 'simple', in which case we don't have to do any character set conversions
-  on it
-*/
-uchar *bin_ident_map= my_charset_bin.ident_map;
 
 /*
   The following data is based on the latin1 character set, and is only
@@ -115,21 +106,22 @@ void lex_free(void)
   (We already do too much here)
 */
 
-LEX *lex_start(THD *thd, uchar *buf,uint length)
+void lex_start(THD *thd, uchar *buf,uint length)
 {
   LEX *lex= thd->lex;
   lex->thd= thd;
   lex->next_state=MY_LEX_START;
-  lex->buf= buf;
-  lex->end_of_query=(lex->ptr=buf)+length;
+  lex->buf= lex->ptr= buf;
+  lex->end_of_query=buf+length;
   lex->yylineno = 1;
-  lex->select_lex.parsing_place= SELECT_LEX_NODE::NO_MATTER;
   lex->in_comment=0;
   lex->length=0;
   lex->select_lex.in_sum_expr=0;
   lex->select_lex.expr_list.empty();
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
+  lex->select_lex.group_list.empty();
+  lex->select_lex.order_list.empty();
   lex->current_select= &lex->select_lex;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
@@ -143,7 +135,6 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   hash_init(&lex->spfuns, system_charset_info, 0, 0, 0,
 	    sp_lex_spfuns_key, 0, 0);
 
-  return lex;
 }
 
 void lex_end(LEX *lex)
@@ -166,41 +157,26 @@ static int find_keyword(LEX *lex, uint len, bool function)
     lex->yylval->symbol.length=len;
     return symbol->tok;
   }
-
-  LEX_STRING ls;
-  ls.str = (char *)tok; ls.length= len;
-  if (function && sp_function_exists(current_thd, &ls))	// QQ temp fix
-  {
-    lex->safe_to_cache_query= 0;
-    lex->yylval->lex_str.str= lex->thd->strmake((char*)lex->tok_start, len);
-    lex->yylval->lex_str.length= len;
-    return SP_FUNC;
-  }
-
-#ifdef HAVE_DLOPEN
-  udf_func *udf;
-  if (function && using_udf_functions && (udf=find_udf((char*) tok, len)))
-  {
-    lex->safe_to_cache_query=0;
-    lex->yylval->udf=udf;
-    switch (udf->returns) {
-    case STRING_RESULT:
-      return (udf->type == UDFTYPE_FUNCTION) ? UDF_CHAR_FUNC : UDA_CHAR_SUM;
-    case REAL_RESULT:
-      return (udf->type == UDFTYPE_FUNCTION) ? UDF_FLOAT_FUNC : UDA_FLOAT_SUM;
-    case INT_RESULT:
-      return (udf->type == UDFTYPE_FUNCTION) ? UDF_INT_FUNC : UDA_INT_SUM;
-    case ROW_RESULT:
-    default:
-      // This case should never be choosen
-      DBUG_ASSERT(0);
-      return 0;
-    }
-  }
-#endif
   return 0;
 }
 
+/*
+  Check if name is a keyword
+
+  SYNOPSIS
+    is_keyword()
+    name      checked name
+    len       length of checked name
+
+  RETURN VALUES
+    0         name is a keyword
+    1         name isn't a keyword
+*/
+
+bool is_keyword(const char *name, uint len)
+{
+  return get_hash_symbol(name,len,0)!=0;
+}
 
 /* make a copy of token before ptr and set yytoklen */
 
@@ -212,6 +188,13 @@ static LEX_STRING get_token(LEX *lex,uint length)
   tmp.str=(char*) lex->thd->strmake((char*) lex->tok_start,tmp.length);
   return tmp;
 }
+
+/* 
+ todo: 
+   There are no dangerous charsets in mysql for function 
+   get_quoted_token yet. But it should be fixed in the 
+   future to operate multichar strings (like ucs2)
+*/
 
 static LEX_STRING get_quoted_token(LEX *lex,uint length, char quote)
 {
@@ -258,7 +241,8 @@ static char *get_text(LEX *lex)
 	continue;
     }
 #endif
-    if (c == '\\')
+    if (c == '\\' &&
+	!(lex->thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES))
     {					// Escaped character
       found_escape=1;
       if (lex->ptr == lex->end_of_query)
@@ -440,7 +424,6 @@ inline static uint int_token(const char *str,uint length)
   return ((uchar) str[-1] <= (uchar) cmp[-1]) ? smaller : bigger;
 }
 
-
 /*
   yylex remember the following states from the following yylex()
 
@@ -565,13 +548,9 @@ int yylex(void *arg, void *yythd)
       else
 #endif
       {
-	result_state= bin_ident_map[c] ? IDENT : IDENT_QUOTED;
-        while (ident_map[c=yyGet()])
-	{
-	  /* If not simple character, mark that we must convert it */
-	  if (!bin_ident_map[c])
-	    result_state= IDENT_QUOTED;
-	}
+        for (result_state= c; ident_map[c= yyGet()]; result_state|= c);
+        /* If there were non-ASCII characters, mark that we must convert */
+        result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
       length= (uint) (lex->ptr - lex->tok_start)-1;
       if (lex->ignore_space)
@@ -673,46 +652,29 @@ int yylex(void *arg, void *yythd)
       }
       else
 #endif
-        while (ident_map[c = yyGet()])
-	{
-	  /* If not simple character, mark that we must convert it */
-	  if (!bin_ident_map[c])
-	    result_state= IDENT_QUOTED;
-	}
+      {
+        for (result_state=0; ident_map[c= yyGet()]; result_state|= c);
+        /* If there were non-ASCII characters, mark that we must convert */
+        result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
+      }
       if (c == '.' && ident_map[yyPeek()])
 	lex->next_state=MY_LEX_IDENT_SEP;// Next is '.'
 
       yylval->lex_str= get_token(lex,yyLength());
       return(result_state);
 
-    case MY_LEX_USER_VARIABLE_DELIMITER:
+    case MY_LEX_USER_VARIABLE_DELIMITER:	// Found quote char
     {
-      char delim= c;				// Used char
+      uint double_quotes= 0;
+      char quote_char= c;                       // Used char
       lex->tok_start=lex->ptr;			// Skip first `
-#ifdef USE_MB
-      if (use_mb(cs))
+      while ((c=yyGet()))
       {
-	while ((c=yyGet()) && c != delim && c != (uchar) NAMES_SEP_CHAR)
+	int length;
+	if ((length= my_mbcharlen(cs, c)) == 1)
 	{
-          if (my_mbcharlen(cs, c) > 1)
-          {
-            int l;
-            if ((l = my_ismbchar(cs,
-                                 (const char *)lex->ptr-1,
-                                 (const char *)lex->end_of_query)) == 0)
-              break;
-            lex->ptr += l-1;
-          }
-        }
-	yylval->lex_str=get_token(lex,yyLength());
-      }
-      else
-#endif
-      {
-	uint double_quotes= 0;
-	char quote_char= c;
-	while ((c=yyGet()))
-	{
+	  if (c == (uchar) NAMES_SEP_CHAR)
+	    break; /* Old .frm format can't handle this char */
 	  if (c == quote_char)
 	  {
 	    if (yyPeek() != quote_char)
@@ -721,16 +683,19 @@ int yylex(void *arg, void *yythd)
 	    double_quotes++;
 	    continue;
 	  }
-	  if (c == (uchar) NAMES_SEP_CHAR)
-	    break;
 	}
-	if (double_quotes)
-	  yylval->lex_str=get_quoted_token(lex,yyLength() - double_quotes,
-					   quote_char);
-	else
-	  yylval->lex_str=get_token(lex,yyLength());
+#ifdef USE_MB
+	else if (length < 1)
+	  break;				// Error
+	lex->ptr+= length-1;
+#endif
       }
-      if (c == delim)
+      if (double_quotes)
+	yylval->lex_str=get_quoted_token(lex,yyLength() - double_quotes,
+					 quote_char);
+      else
+	yylval->lex_str=get_token(lex,yyLength());
+      if (c == quote_char)
 	yySkip();			// Skip end `
       lex->next_state= MY_LEX_START;
       return(IDENT_QUOTED);
@@ -889,13 +854,15 @@ int yylex(void *arg, void *yythd)
       }
       yySkip();
       return (SET_VAR);
-    case MY_LEX_COLON:			// optional line terminator
+    case MY_LEX_SEMICOLON:			// optional line terminator
       if (yyPeek())
       {
-        if (((THD *)yythd)->client_capabilities & CLIENT_MULTI_STATEMENTS)
+        THD* thd= (THD*)yythd;
+        if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
+            (thd->command != COM_PREPARE))
         {
           lex->found_colon=(char*)lex->ptr;
-          ((THD *)yythd)->server_status |= SERVER_MORE_RESULTS_EXISTS;
+          thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
           lex->next_state=MY_LEX_END;
           return(END_OF_INPUT);
         }
@@ -905,8 +872,13 @@ int yylex(void *arg, void *yythd)
       }
       /* fall true */
     case MY_LEX_EOL:
-      lex->next_state=MY_LEX_END;	// Mark for next loop
-      return(END_OF_INPUT);
+      if (lex->ptr >= lex->end_of_query)
+      {
+	lex->next_state=MY_LEX_END;	// Mark for next loop
+	return(END_OF_INPUT);
+      }
+      state=MY_LEX_CHAR;
+      break;
     case MY_LEX_END:
       lex->next_state=MY_LEX_END;
       return(0);			// We found end of input last time
@@ -958,13 +930,11 @@ int yylex(void *arg, void *yythd)
 	We should now be able to handle:
 	[(global | local | session) .]variable_name
       */
-      result_state= IDENT;
-      while (ident_map[c=yyGet()])
-      {
-	/* If not simple character, mark that we must convert it */
-	if (!bin_ident_map[c])
-	  result_state= IDENT_QUOTED;
-      }
+      
+      for (result_state= 0; ident_map[c= yyGet()]; result_state|= c);
+      /* If there were non-ASCII characters, mark that we must convert */
+      result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
+      
       if (c == '.')
 	lex->next_state=MY_LEX_IDENT_SEP;
       length= (uint) (lex->ptr - lex->tok_start)-1;
@@ -1002,28 +972,40 @@ void st_select_lex_unit::init_query()
   global_parameters= first_select();
   select_limit_cnt= HA_POS_ERROR;
   offset_limit_cnt= 0;
-  union_option= 0;
+  union_distinct= 0;
   prepared= optimized= executed= 0;
   item= 0;
   union_result= 0;
   table= 0;
   fake_select_lex= 0;
+  cleaned= 0;
+  item_list.empty();
+  describe= 0;
+  found_rows_for_union= 0;
 }
 
 void st_select_lex::init_query()
 {
   st_select_lex_node::init_query();
   table_list.empty();
+  top_join_list.empty();
+  join_list= &top_join_list;
+  embedding= 0;
   item_list.empty();
   join= 0;
-  where= 0;
+  where= prep_where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
   resolve_mode= NOMATTER_MODE;
   cond_count= with_wild= 0;
+  conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
   select_n_having_items= 0;
-  prep_where= 0;
+  subquery_in_having= explicit_limit= 0;
+  first_execution= 1;
+  first_cond_optimization= 1;
+  parsing_place= SELECT_LEX_NODE::NO_MATTER;
+  no_wrap_view_item= 0;
 }
 
 void st_select_lex::init_select()
@@ -1037,9 +1019,9 @@ void st_select_lex::init_select()
   in_sum_expr= with_wild= 0;
   options= 0;
   braces= 0;
-  when_list.empty(); 
+  when_list.empty();
   expr_list.empty();
-  interval_list.empty(); 
+  interval_list.empty();
   use_index.empty();
   ftfunc_list_alloc.empty();
   ftfunc_list= &ftfunc_list_alloc;
@@ -1050,7 +1032,6 @@ void st_select_lex::init_select()
   select_limit= HA_POS_ERROR;
   offset_limit= 0;
   with_sum_func= 0;
-  parsing_place= SELECT_LEX_NODE::NO_MATTER;
 }
 
 /*
@@ -1070,7 +1051,7 @@ void st_select_lex_node::include_down(st_select_lex_node *upper)
 
 /*
   include on level down (but do not link)
-  
+
   SYNOPSYS
     st_select_lex_node::include_standalone()
     upper - reference on node underr which this node should be included
@@ -1197,7 +1178,6 @@ void st_select_lex_unit::exclude_level()
 */
 void st_select_lex_unit::exclude_tree()
 {
-  SELECT_LEX_UNIT *units= 0;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     // unlink current level from global SELECTs list
@@ -1244,11 +1224,6 @@ void st_select_lex::mark_as_dependent(SELECT_LEX *last)
       s->uncacheable|= UNCACHEABLE_DEPENDENT;
       SELECT_LEX_UNIT *munit= s->master_unit();
       munit->uncacheable|= UNCACHEABLE_DEPENDENT;
-      //Tables will be reopened many times
-      for (TABLE_LIST *tbl= s->get_table_list();
-	   tbl;
-	   tbl= tbl->next)
-	tbl->shared= 1;
     }
 }
 
@@ -1292,179 +1267,56 @@ bool st_select_lex::test_limit()
   return(0);
 }
 
-/*  
-  Interface method of table list creation for query
-  
-  SYNOPSIS
-    st_select_lex_unit::create_total_list()
-    thd            THD pointer
-    result         pointer on result list of tables pointer
-    check_derived  force derived table chacking (used for creating 
-                   table list for derived query)
-  DESCRIPTION
-    This is used for UNION & subselect to create a new table list of all used 
-    tables.
-    The table_list->table entry in all used tables are set to point
-    to the entries in this list.
-
-  RETURN
-    0 - OK
-    !0 - error
-*/
-bool st_select_lex_unit::create_total_list(THD *thd_arg, st_lex *lex,
-					   TABLE_LIST **result_arg,
-					   bool check_derived)
-{
-  *result_arg= 0;
-  res= create_total_list_n_last_return(thd_arg, lex, &result_arg,
-				       check_derived);
-  return res;
-}
-
-/*  
-  Table list creation for query
-  
-  SYNOPSIS
-    st_select_lex_unit::create_total_list()
-    thd            THD pointer
-    lex            pointer on LEX stricture
-    result         pointer on pointer on result list of tables pointer
-    check_derived  force derived table chacking (used for creating 
-                   table list for derived query)
-  DESCRIPTION
-    This is used for UNION & subselect to create a new table list of all used 
-    tables.
-    The table_list->table entry in all used tables are set to point
-    to the entries in this list.
-
-  RETURN
-    0 - OK
-    !0 - error
-*/
-bool st_select_lex_unit::
-create_total_list_n_last_return(THD *thd_arg,
-				st_lex *lex,
-				TABLE_LIST ***result_arg,
-				bool check_derived)
-{
-  TABLE_LIST *slave_list_first=0, **slave_list_last= &slave_list_first;
-  TABLE_LIST **new_table_list= *result_arg, *aux;
-  SELECT_LEX *sl= (SELECT_LEX*)slave;
-  
-  /*
-    iterate all inner selects + fake_select (if exists),
-    fake_select->next_select() always is 0
-  */
-  for (;
-       sl;
-       sl= (sl->next_select() ?
-	    sl->next_select() :
-	    (sl == fake_select_lex ?
-	     0 :
-	     fake_select_lex)))
-  {
-    // check usage of ORDER BY in union
-    if (sl->order_list.first && sl->next_select() && !sl->braces &&
-	sl->linkage != GLOBAL_OPTIONS_TYPE)
-    {
-      net_printf(thd_arg,ER_WRONG_USAGE,"UNION","ORDER BY");
-      return 1;
-    }
-
-    if (sl->linkage == DERIVED_TABLE_TYPE && !check_derived)
-      goto end;
-
-    for (SELECT_LEX_UNIT *inner=  sl->first_inner_unit();
-	 inner;
-	 inner= inner->next_unit())
-    {
-      if (inner->create_total_list_n_last_return(thd, lex,
-						 &slave_list_last, 0))
-	return 1;
-    }
-
-    if ((aux= (TABLE_LIST*) sl->table_list.first))
-    {
-      TABLE_LIST *next_table;
-      for (; aux; aux= next_table)
-      {
-	TABLE_LIST *cursor;
-	next_table= aux->next;
-	for (cursor= **result_arg; cursor; cursor= cursor->next)
-	  if (!strcmp(cursor->db, aux->db) &&
-	      !strcmp(cursor->real_name, aux->real_name) &&
-	      !strcmp(cursor->alias, aux->alias))
-	    break;
-	if (!cursor)
-	{
-	  /* Add not used table to the total table list */
-	  if (!(cursor= (TABLE_LIST *) thd->memdup((char*) aux,
-						   sizeof(*aux))))
-	  {
-	    send_error(thd,0);
-	    return 1;
-	  }
-	  *new_table_list= cursor;
-	  cursor->table_list= aux; //to be able mark this table as shared
-	  new_table_list= &cursor->next;
-	  *new_table_list= 0;			// end result list
-	}
-	else
-	  // Mark that it's used twice
-	  cursor->table_list->shared= aux->shared= 1;
-	aux->table_list= cursor;
-      }
-    }
-  }
-end:
-  if (slave_list_first)
-  {
-    *new_table_list= slave_list_first;
-    new_table_list= slave_list_last;
-  }
-  *result_arg= new_table_list;
-  return 0;
-}
 
 st_select_lex_unit* st_select_lex_unit::master_unit()
 {
     return this;
 }
 
+
 st_select_lex* st_select_lex_unit::outer_select()
 {
   return (st_select_lex*) master;
 }
+
 
 bool st_select_lex::add_order_to_list(THD *thd, Item *item, bool asc)
 {
   return add_to_list(thd, order_list, item, asc);
 }
 
+
 bool st_select_lex::add_item_to_list(THD *thd, Item *item)
 {
-  return item_list.push_back(item);
+  DBUG_ENTER("st_select_lex::add_item_to_list");
+  DBUG_PRINT("info", ("Item: %p", item));
+  DBUG_RETURN(item_list.push_back(item));
 }
+
 
 bool st_select_lex::add_group_to_list(THD *thd, Item *item, bool asc)
 {
   return add_to_list(thd, group_list, item, asc);
 }
 
+
 bool st_select_lex::add_ftfunc_to_list(Item_func_match *func)
 {
   return !func || ftfunc_list->push_back(func); // end of memory?
 }
+
 
 st_select_lex_unit* st_select_lex::master_unit()
 {
   return (st_select_lex_unit*) master;
 }
 
+
 st_select_lex* st_select_lex::outer_select()
 {
   return (st_select_lex*) master->get_master();
 }
+
 
 bool st_select_lex::set_braces(bool value)
 {
@@ -1472,16 +1324,19 @@ bool st_select_lex::set_braces(bool value)
   return 0; 
 }
 
+
 bool st_select_lex::inc_in_sum_expr()
 {
   in_sum_expr++;
   return 0;
 }
 
+
 uint st_select_lex::get_in_sum_expr()
 {
   return in_sum_expr;
 }
+
 
 TABLE_LIST* st_select_lex::get_table_list()
 {
@@ -1493,31 +1348,93 @@ List<Item>* st_select_lex::get_item_list()
   return &item_list;
 }
 
+
 List<String>* st_select_lex::get_use_index()
 {
   return use_index_ptr;
 }
+
 
 List<String>* st_select_lex::get_ignore_index()
 {
   return ignore_index_ptr;
 }
 
+
 ulong st_select_lex::get_table_join_options()
 {
   return table_join_options;
 }
 
+
 bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 {
   if (ref_pointer_array)
     return 0;
+
+  /*
+    We have to create array in prepared statement memory if it is
+    prepared statement
+  */
+  Item_arena *arena= thd->current_arena ? thd->current_arena : thd;
   return (ref_pointer_array= 
-	  (Item **)thd->alloc(sizeof(Item*) *
-			      (item_list.elements +
-			       select_n_having_items +
-			       order_group_num)* 5)) == 0;
+          (Item **)arena->alloc(sizeof(Item*) *
+                                (item_list.elements +
+                                 select_n_having_items +
+                                 order_group_num)* 5)) == 0;
 }
+
+
+/*
+  Find db.table which will be updated in this unit
+
+  SYNOPSIS
+    st_select_lex_unit::check_updateable()
+    db		- data base name
+    table	- real table name
+
+  RETURN
+    1 - found
+    0 - OK (table did not found)
+*/
+bool st_select_lex_unit::check_updateable(char *db, char *table)
+{
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+    if (sl->check_updateable(db, table))
+      return 1;
+  return 0;
+}
+
+
+/*
+  Find db.table which will be updated in this select and 
+  underlayed ones (except derived tables)
+
+  SYNOPSIS
+    st_select_lex::check_updateable()
+    db		- data base name
+    table	- real table name
+
+  RETURN
+    1 - found
+    0 - OK (table did not found)
+*/
+bool st_select_lex::check_updateable(char *db, char *table)
+{
+  if (find_real_table_in_local_list(get_table_list(), db, table))
+    return 1;
+
+  for (SELECT_LEX_UNIT *un= first_inner_unit();
+       un;
+       un= un->next_unit())
+  {
+    if (un->first_select()->linkage != DERIVED_TABLE_TYPE &&
+	un->check_updateable(db, table))
+      return 1;
+  }
+  return 0;
+}
+
 
 void st_select_lex_unit::print(String *str)
 {
@@ -1526,7 +1443,7 @@ void st_select_lex_unit::print(String *str)
     if (sl != first_select())
     {
       str->append(" union ", 7);
-      if (union_option & UNION_ALL)
+      if (!union_distinct)
 	str->append("all ", 4);
     }
     if (sl->braces)
@@ -1561,14 +1478,23 @@ void st_select_lex::print_order(String *str, ORDER *order)
   }
 }
  
+
 void st_select_lex::print_limit(THD *thd, String *str)
 {
+  Item_subselect *item= master_unit()->item;
+  if (item &&
+      (item->substype() == Item_subselect::EXISTS_SUBS ||
+       item->substype() == Item_subselect::IN_SUBS ||
+       item->substype() == Item_subselect::ALL_SUBS))
+  {
+    DBUG_ASSERT(select_limit == 1L && offset_limit == 0L);
+    return;
+  }
+
   if (!thd)
     thd= current_thd;
 
-  if (select_limit != thd->variables.select_limit ||
-      select_limit != HA_POS_ERROR ||
-      offset_limit != 0L)
+  if (explicit_limit)
   {
     str->append(" limit ", 7);
     char buff[20];
@@ -1585,9 +1511,261 @@ void st_select_lex::print_limit(THD *thd, String *str)
   }
 }
 
-/*
-  There are st_select_lex::add_table_to_list & 
-  st_select_lex::set_lock_for_tables in sql_parse.cc
 
-  st_select_lex::print is in sql_select.h
+/*
+  Check is merging algorithm can be used on this VIEW
+
+  SYNOPSIS
+    st_lex::can_be_merged()
+
+  RETURN
+    FALSE - only temporary table algorithm can be used
+    TRUE  - merge algorithm can be used
+*/
+
+bool st_lex::can_be_merged()
+{
+  // TODO: do not forget implement case when select_lex.table_list.elements==0
+
+  /* find non VIEW subqueries/unions */
+  uint selects= 0;
+  for (SELECT_LEX *sl= all_selects_list;
+       sl && selects <= 1;
+       sl= sl->next_select_in_list())
+    if (sl->parent_lex == this)
+      selects++;
+
+  return (selects <= 1 &&
+	  select_lex.order_list.elements == 0 &&
+	  select_lex.group_list.elements == 0 &&
+	  select_lex.having == 0 &&
+	  select_lex.table_list.elements == 1 &&
+	  !(select_lex.options & SELECT_DISTINCT) &&
+          select_lex.select_limit == HA_POS_ERROR);
+}
+
+/*
+  check if command can use VIEW with MERGE algorithm
+
+  SYNOPSIS
+    st_lex::can_use_merged()
+
+  RETURN
+    FALSE - command can't use merged VIEWs
+    TRUE  - VIEWs with MERGE algorithms can be used
+*/
+
+bool st_lex::can_use_merged()
+{
+  switch (sql_command)
+  {
+  case SQLCOM_SELECT:
+  case SQLCOM_CREATE_TABLE:
+  case SQLCOM_UPDATE:
+  case SQLCOM_UPDATE_MULTI:
+  case SQLCOM_DELETE:
+  case SQLCOM_DELETE_MULTI:
+  case SQLCOM_INSERT:
+  case SQLCOM_INSERT_SELECT:
+  case SQLCOM_REPLACE:
+  case SQLCOM_REPLACE_SELECT:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
+/*
+  Detect that we need only table structure of derived table/view
+
+  SYNOPSIS
+    only_view_structure()
+
+  RETURN
+    TRUE yes, we need only structure
+    FALSE no, we need data
+*/
+bool st_lex::only_view_structure()
+{
+  switch(sql_command)
+  {
+  case SQLCOM_SHOW_CREATE:
+  case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_REVOKE_ALL:
+  case SQLCOM_REVOKE:
+  case SQLCOM_GRANT:
+  case SQLCOM_CREATE_VIEW:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
+
+/*
+  initialize limit counters
+
+  SYNOPSIS
+    st_select_lex_unit::set_limit()
+    values	- SELECT_LEX with initial values for counters
+    sl		- SELECT_LEX for options set
+*/
+
+void st_select_lex_unit::set_limit(SELECT_LEX *values,
+				   SELECT_LEX *sl)
+{
+  offset_limit_cnt= values->offset_limit;
+  select_limit_cnt= values->select_limit+values->offset_limit;
+  if (select_limit_cnt < values->select_limit)
+    select_limit_cnt= HA_POS_ERROR;		// no limit
+  if (select_limit_cnt == HA_POS_ERROR)
+    sl->options&= ~OPTION_FOUND_ROWS;
+}
+
+
+/*
+  Unlink first table from global table list and first table from outer select
+  list (lex->select_lex)
+
+  SYNOPSIS
+    unlink_first_table()
+    link_to_local	do we need link this table to local
+
+  NOTES
+    We rely on fact that first table in both list are same or local list
+    is empty
+
+  RETURN
+    unlinked table
+
+*/
+TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
+{
+  TABLE_LIST *first;
+  if ((first= query_tables))
+  {
+    /*
+      Exclude from global table list
+    */
+    if ((query_tables= query_tables->next_global))
+      query_tables->prev_global= &query_tables;
+    first->next_global= 0;
+
+    /*
+      and from local list if it is not empty
+    */
+    if ((*link_to_local= test(select_lex.table_list.first)))
+    {
+      select_lex.table_list.first= (byte*) first->next_local;
+      select_lex.table_list.elements--;	//safety
+      first->next_local= 0;
+      /*
+	reorder global list to keep first tables the same in both lists
+	(if it is need)
+      */
+      first_lists_tables_same();
+    }
+  }
+  return first;
+}
+
+
+/*
+  Bring first local table of first most outer select to first place in global
+  table list
+
+  SYNOPSYS
+     st_lex::first_lists_tables_same()
+
+  NOTES
+    In many cases first table of main SELECT_LEX have special meaning =>
+    check that it is first table in global list and relink it first in
+    queries_tables list if it is necessary (we need such relinking only
+    for queries with subqueries in select list, in this case tables of
+    subqueries will go to global list first)
+*/
+
+void st_lex::first_lists_tables_same()
+{
+  TABLE_LIST *first_table= (TABLE_LIST*) select_lex.table_list.first;
+  if (query_tables != first_table && first_table != 0)
+  {
+    if (query_tables_last == &first_table->next_global)
+      query_tables_last= first_table->prev_global;
+    TABLE_LIST *next= *first_table->prev_global= first_table->next_global;
+    first_table->next_global= 0;
+    if (next)
+      next->prev_global= first_table->prev_global;
+    /* include in new place */
+    first_table->next_global= query_tables;
+    /*
+       we are sure that above is not 0, because first_table was not
+       first table in global list => we can do following without check
+    */
+    query_tables->prev_global= &first_table->next_global;
+    first_table->prev_global= &query_tables;
+    query_tables= first_table;
+  }
+}
+
+
+/*
+  Link table back that was unlinked with unlink_first_table()
+
+  SYNOPSIS
+    link_first_table_back()
+    link_to_local	do we need link this table to local
+
+  RETURN
+    global list
+*/
+
+void st_lex::link_first_table_back(TABLE_LIST *first,
+				   bool link_to_local)
+{
+  if (first)
+  {
+    if ((first->next_global= query_tables))
+      query_tables->prev_global= &first->next_global;
+    query_tables= first;
+
+    if (link_to_local)
+    {
+      first->next_local= (TABLE_LIST*) select_lex.table_list.first;
+      select_lex.table_list.first= (byte*) first;
+      select_lex.table_list.elements++;	//safety
+    }
+  }
+}
+
+
+/*
+  fix some structures at the end of preparation
+
+  SYNOPSIS
+    st_select_lex::fix_prepare_information
+    thd   thread handler
+    conds pointer on conditions which will be used for execution statement
+*/
+
+void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
+{
+  if (thd->current_arena && first_execution)
+  {
+    prep_where= where;
+    first_execution= 0;
+  }
+}
+
+/*
+  There are st_select_lex::add_table_to_list &
+  st_select_lex::set_lock_for_tables are in sql_parse.cc
+
+  st_select_lex::print is in sql_select.cc
+
+  st_select_lex_unit::prepare, st_select_lex_unit::exec,
+  st_select_lex_unit::cleanup, st_select_lex_unit::reinit_exec_mechanism,
+  st_select_lex_unit::change_result
+  are in sql_union.cc
 */

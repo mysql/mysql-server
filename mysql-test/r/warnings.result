@@ -1,25 +1,22 @@
 drop table if exists t1, t2;
-Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
 SET SQL_WARNINGS=1;
 create table t1 (a int);
 insert into t1 values (1);
 insert into t1 values ("hej");
 Warnings:
-Warning	1264	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 1
 insert into t1 values ("hej"),("då");
 Warnings:
-Warning	1264	Data truncated for column 'a' at row 1
-Warning	1264	Data truncated for column 'a' at row 2
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
 set SQL_WARNINGS=1;
 insert into t1 values ("hej");
 Warnings:
-Warning	1264	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 1
 insert into t1 values ("hej"),("då");
 Warnings:
-Warning	1264	Data truncated for column 'a' at row 1
-Warning	1264	Data truncated for column 'a' at row 2
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
 drop table t1;
 set SQL_WARNINGS=0;
 drop temporary table if exists not_exists;
@@ -46,13 +43,13 @@ drop table t1;
 create table t1(a tinyint, b int not null, c date, d char(5));
 load data infile '../../std_data/warnings_loaddata.dat' into table t1 fields terminated by ',';
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'b' at row 2
-Warning	1264	Data truncated for column 'd' at row 3
-Warning	1264	Data truncated for column 'c' at row 4
-Warning	1260	Row 5 doesn't contain data for all columns
-Warning	1264	Data truncated for column 'b' at row 6
-Warning	1261	Row 7 was truncated; It contained more data than there where input columns
-Warning	1263	Data truncated, out of range for column 'a' at row 8
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'b' at row 2
+Warning	1265	Data truncated for column 'd' at row 3
+Warning	1265	Data truncated for column 'c' at row 4
+Warning	1261	Row 5 doesn't contain data for all columns
+Warning	1265	Data truncated for column 'b' at row 6
+Warning	1262	Row 7 was truncated; it contained more data than there were input columns
+Warning	1264	Data truncated; out of range for column 'a' at row 8
 select @@warning_count;
 @@warning_count
 7
@@ -60,44 +57,44 @@ drop table t1;
 create table t1(a tinyint NOT NULL, b tinyint unsigned, c char(5));
 insert into t1 values(NULL,100,'mysql'),(10,-1,'mysql ab'),(500,256,'open source'),(20,NULL,'test');
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'a' at row 1
-Warning	1263	Data truncated, out of range for column 'b' at row 2
-Warning	1264	Data truncated for column 'c' at row 2
-Warning	1263	Data truncated, out of range for column 'a' at row 3
-Warning	1263	Data truncated, out of range for column 'b' at row 3
-Warning	1264	Data truncated for column 'c' at row 3
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 1
+Warning	1264	Data truncated; out of range for column 'b' at row 2
+Warning	1265	Data truncated for column 'c' at row 2
+Warning	1264	Data truncated; out of range for column 'a' at row 3
+Warning	1264	Data truncated; out of range for column 'b' at row 3
+Warning	1265	Data truncated for column 'c' at row 3
 alter table t1 modify c char(4);
 Warnings:
-Warning	1264	Data truncated for column 'c' at row 1
-Warning	1264	Data truncated for column 'c' at row 2
+Warning	1265	Data truncated for column 'c' at row 1
+Warning	1265	Data truncated for column 'c' at row 2
 alter table t1 add d char(2);
 update t1 set a=NULL where a=10;
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'a' at row 2
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 2
 update t1 set c='mysql ab' where c='test';
 Warnings:
-Warning	1264	Data truncated for column 'c' at row 4
+Warning	1265	Data truncated for column 'c' at row 4
 update t1 set d=c;
 Warnings:
-Warning	1264	Data truncated for column 'd' at row 1
-Warning	1264	Data truncated for column 'd' at row 2
-Warning	1264	Data truncated for column 'd' at row 3
-Warning	1264	Data truncated for column 'd' at row 4
+Warning	1265	Data truncated for column 'd' at row 1
+Warning	1265	Data truncated for column 'd' at row 2
+Warning	1265	Data truncated for column 'd' at row 3
+Warning	1265	Data truncated for column 'd' at row 4
 create table t2(a tinyint NOT NULL, b char(3));
 insert into t2 select b,c from t1;
 Warnings:
-Warning	1264	Data truncated for column 'b' at row 1
-Warning	1264	Data truncated for column 'b' at row 2
-Warning	1264	Data truncated for column 'b' at row 3
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'a' at row 4
-Warning	1264	Data truncated for column 'b' at row 4
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b' at row 2
+Warning	1265	Data truncated for column 'b' at row 3
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 4
+Warning	1265	Data truncated for column 'b' at row 4
 insert into t2(b) values('mysqlab');
 Warnings:
-Warning	1264	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
 set sql_warnings=1;
 insert into t2(b) values('mysqlab');
 Warnings:
-Warning	1264	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
 set sql_warnings=0;
 drop table t1, t2;
 create table t1(a char(10));
@@ -105,34 +102,34 @@ alter table t1 add b char;
 set max_error_count=10;
 update t1 set b=a;
 Warnings:
-Warning	1264	Data truncated for column 'b' at row 1
-Warning	1264	Data truncated for column 'b' at row 2
-Warning	1264	Data truncated for column 'b' at row 3
-Warning	1264	Data truncated for column 'b' at row 4
-Warning	1264	Data truncated for column 'b' at row 5
-Warning	1264	Data truncated for column 'b' at row 6
-Warning	1264	Data truncated for column 'b' at row 7
-Warning	1264	Data truncated for column 'b' at row 8
-Warning	1264	Data truncated for column 'b' at row 9
-Warning	1264	Data truncated for column 'b' at row 10
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b' at row 2
+Warning	1265	Data truncated for column 'b' at row 3
+Warning	1265	Data truncated for column 'b' at row 4
+Warning	1265	Data truncated for column 'b' at row 5
+Warning	1265	Data truncated for column 'b' at row 6
+Warning	1265	Data truncated for column 'b' at row 7
+Warning	1265	Data truncated for column 'b' at row 8
+Warning	1265	Data truncated for column 'b' at row 9
+Warning	1265	Data truncated for column 'b' at row 10
 select @@warning_count;
 @@warning_count
 50
 drop table t1;
 create table t1 (id int) engine=isam;
 Warnings:
-Warning	1265	Using storage engine MyISAM for table 't1'
+Warning	1266	Using storage engine MyISAM for table 't1'
 alter table t1 engine=isam;
 Warnings:
-Warning	1265	Using storage engine MyISAM for table 't1'
+Warning	1266	Using storage engine MyISAM for table 't1'
 drop table t1;
 create table t1 (id int) type=heap;
 Warnings:
-Warning	1286	'TYPE=database_engine' is deprecated. Use 'ENGINE=database_engine' instead.
+Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
 alter table t1 type=myisam;
 Warnings:
-Warning	1286	'TYPE=database_engine' is deprecated. Use 'ENGINE=database_engine' instead.
+Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
 drop table t1;
 set table_type=MYISAM;
 Warnings:
-Warning	1286	'table_type' is deprecated. Use 'storage_engine' instead.
+Warning	1287	'table_type' is deprecated; use 'storage_engine' instead

@@ -1,0 +1,35 @@
+
+1) Receive from client (sequence of DICTTABINFO)
+
+2) DICT_SCHEMAREQ -> all DICTs
+   Write ADD_STARTED in schema file
+
+3) Pack table description
+
+4) DICTTABINFO -> all DICTs (but self) (containing packed table info)
+                  self -> Write 2 file
+   1) Write 2 file
+
+5) DICT_SCHEMAREQ -> all DICTs
+   Write UPDATE_PAGE_COUNT in schema file
+
+6) DIADDTABREQ -> local DIH
+   1) Create fragments
+   2) For each fragment
+        DIHADDFRAGREQ -> all DIH
+   3) For each fragment
+        DICTFRAGSREQ -> local DICT
+        1) LQHFRAGREQ -> concerned LQH
+        2) For each attribute
+           LQHADDATTREQ -> concerned LQH
+
+7) WAIT_GCP -> local DIH
+
+8) DICT_SCHEMAREQ -> all DICTs
+   Write TABLE_ADD_COMMITTED in schema file
+
+9) TAB_COMMITREQ -> all LQH & DIH
+
+10) TC_SCHVERREQ -> all TC
+
+11) UNBLO_DICTREQ -> all DICT

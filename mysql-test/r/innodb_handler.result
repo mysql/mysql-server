@@ -49,7 +49,7 @@ handler t2 read a=(16);
 a	b
 16	ccc
 handler t2 read a=(19,"fff");
-ERROR 42000: Too many key parts specified. Max 1 parts allowed
+ERROR 42000: Too many key parts specified; max 1 parts allowed
 handler t2 read b=(19,"fff");
 a	b
 19	fff
@@ -130,7 +130,7 @@ handler t2 read next;
 a	b
 18	eee
 handler t2 read last;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 handler t2 close;
 handler t1 open as t2;
 handler t2 read first;

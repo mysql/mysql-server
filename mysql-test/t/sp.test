@@ -3,6 +3,10 @@
 #
 #
 
+# Let us reset binary logs in order to make show master status 
+# in test for bug 4902 repeatable.
+reset master;
+
 use test;
 
 --disable_warnings
@@ -29,21 +33,6 @@ call foo42();
 select * from t1;
 delete from t1;
 drop procedure foo42;
-
-
-# USE test: Make sure we remain in the same DB.
-create procedure u()
-  use sptmp;
-
---disable_warnings
-drop database if exists sptmp;
---enable_warnings
-create database sptmp;
-use test;
-call u();
-select database();
-drop database sptmp;
-drop procedure u;
 
 
 # Single statement, two IN params.
@@ -107,6 +96,23 @@ call locset("locset", 19)|
 select * from t1|
 delete from t1|
 drop procedure locset|
+
+
+# In some contexts local variables are not recognized
+# (and in some, you have to qualify the identifier).
+create procedure setcontext()
+begin
+  declare data int default 2;
+
+  insert into t1 (id, data) values ("foo", 1);
+  replace t1 set data = data, id = "bar";
+  update t1 set id = "kaka", data = 3 where t1.data = data;
+end|
+
+call setcontext()|
+select * from t1|
+delete from t1|
+drop procedure setcontext|
 
 
 # Set things to null
@@ -485,7 +491,6 @@ drop procedure sel2|
 delete from t1|
 delete from t2|
 
-
 # SELECT INTO local variables
 create procedure into_test(x char(16), y int)
 begin
@@ -775,12 +780,12 @@ drop procedure hndlr4|
 #
 create procedure cur1()
 begin
-  declare done int default 0;
-  declare continue handler for sqlstate '02000' set done = 1;
-  declare c cursor for select * from test.t2;
   declare a char(16);
   declare b int;
   declare c double;
+  declare done int default 0;
+  declare c cursor for select * from test.t2;
+  declare continue handler for sqlstate '02000' set done = 1;
 
   open c;
   repeat
@@ -805,9 +810,9 @@ create table t3 ( s char(16), i int )|
 create procedure cur2()
 begin
   declare done int default 0;
-  declare continue handler for sqlstate '02000' set done = 1;
   declare c1 cursor for select id,data from test.t1;
   declare c2 cursor for select i from test.t2;
+  declare continue handler for sqlstate '02000' set done = 1;
 
   open c1;
   open c2;
@@ -878,8 +883,8 @@ create procedure modes(out c1 int, out c2 int)
 begin
   declare done int default 0;
   declare x int;
-  declare continue handler for sqlstate '02000' set done = 1;
   declare c cursor for select data from t1;
+  declare continue handler for sqlstate '02000' set done = 1;
 
   select 1 || 2 into c1;
   set c2 = 0;
@@ -902,6 +907,53 @@ set sql_select_limit = default|
 select @c1, @c2|
 delete from t1|
 drop procedure modes|
+
+
+# Check that dropping a database without routines works.
+# (Dropping with routines is tested in sp-security.test)
+# First an empty db.
+create database sp_db1|
+drop database sp_db1|
+
+# Again, with a table.
+create database sp_db2|
+use sp_db2|
+# Just put something in here...
+create table t3 ( s char(4), t int )|
+insert into t3 values ("abcd", 42), ("dcba", 666)|
+use test|
+drop database sp_db2|
+
+# And yet again, with just a procedure.
+create database sp_db3|
+use sp_db3|
+create procedure dummy(out x int)
+  set x = 42|
+use test|
+drop database sp_db3|
+# Check that it's gone
+select type,db,name from mysql.proc where db = 'sp_db3'|
+
+
+# ROW_COUNT() function after a CALL
+# We test the other cases here too, although it's not strictly SP specific
+create procedure rc()
+begin
+  delete from t1;
+  insert into t1 values ("a", 1), ("b", 2), ("c", 3);
+end|
+
+call rc()|
+select row_count()|
+update t1 set data=42 where id = "b";
+select row_count()|
+delete from t1|
+select row_count()|
+delete from t1|
+select row_count()|
+select * from t1|
+select row_count()|
+drop procedure rc|
 
 
 #
@@ -1042,8 +1094,8 @@ drop procedure bug1874|
 create procedure bug2260()
 begin
   declare v1 int;
-  declare continue handler for not found set @x2 = 1;
   declare c1 cursor for select data from t1;
+  declare continue handler for not found set @x2 = 1;
 
   open c1;
   fetch c1 into v1;
@@ -1054,6 +1106,648 @@ end|
 call bug2260()|
 select @x2|
 drop procedure bug2260|
+
+#
+# BUG#2267
+#
+create procedure bug2267_1()
+begin
+  show procedure status;
+end|
+
+create procedure bug2267_2()
+begin
+  show function status;
+end|
+
+create procedure bug2267_3()
+begin
+  show create procedure bug2267_1;
+end|
+
+create procedure bug2267_4()
+begin
+  show create function fac;
+end|
+
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+call bug2267_1()|
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+call bug2267_2()|
+call bug2267_3()|
+call bug2267_4()|
+
+drop procedure bug2267_1|
+drop procedure bug2267_2|
+drop procedure bug2267_3|
+drop procedure bug2267_4|
+
+#
+# BUG#2227
+#
+create procedure bug2227(x int)
+begin
+  declare y float default 2.6;
+  declare z char(16) default "zzz";
+
+  select 1.3, x, y, 42, z;
+end|
+
+call bug2227(9)|
+drop procedure bug2227|
+
+#
+# BUG#2614
+#
+create procedure bug2614()
+begin
+  drop table if exists t3;
+  create table t3 (id int default '0' not null);
+  insert into t3 select 12;
+  insert into t3 select * from t3;
+end|
+
+--disable_warnings
+call bug2614()|
+--enable_warnings
+call bug2614()|
+drop table t3|
+drop procedure bug2614|
+
+#
+# BUG#2674
+#
+create function bug2674 () returns int
+  return @@sort_buffer_size|
+
+set @osbs = @@sort_buffer_size|
+set @@sort_buffer_size = 262000|
+select bug2674()|
+drop function bug2674|
+set @@sort_buffer_size = @osbs|
+
+#
+# BUG#3259
+#
+create procedure bug3259_1 () begin end|
+create procedure BUG3259_2 () begin end|
+create procedure Bug3259_3 () begin end|
+
+call BUG3259_1()|
+call BUG3259_1()|
+call bug3259_2()|
+call Bug3259_2()|
+call bug3259_3()|
+call bUG3259_3()|
+
+drop procedure bUg3259_1|
+drop procedure BuG3259_2|
+drop procedure BUG3259_3|
+
+#
+# BUG##2772
+#
+create function bug2772() returns char(10) character set latin2
+  return 'a'|
+
+select bug2772()|
+drop function bug2772|
+
+#
+# BUG#2776
+#
+create procedure bug2776_1(out x int)
+begin
+  declare v int;
+
+  set v = default;
+  set x = v;
+end|
+
+create procedure bug2776_2(out x int)
+begin
+  declare v int default 42;
+
+  set v = default;
+  set x = v;
+end|
+
+set @x = 1|
+call bug2776_1(@x)|
+select @x|
+call bug2776_2(@x)|
+select @x|
+drop procedure bug2776_1|
+drop procedure bug2776_2|
+
+#
+# BUG#2780
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 (s1 smallint)|
+
+insert into t3 values (123456789012)|
+
+create procedure bug2780()
+begin
+  declare exit handler for sqlwarning set @x = 1; 
+
+  set @x = 0;
+  insert into t3 values (123456789012);
+  insert into t3 values (0);
+end|
+
+call bug2780()|
+select @x|
+select * from t3|
+
+drop procedure bug2780|
+drop table t3|
+
+#
+# BUG#1863
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 (content varchar(10) )|
+insert into t3 values ("test1")|
+insert into t3 values ("test2")|
+
+--disable_warnings
+drop table if exists t4|
+--enable_warnings
+create table t4 (f1 int, rc int, t3 int)|
+
+create procedure bug1863(in1 int)
+begin 
+
+  declare ind int default 0;
+  declare t1 int;
+  declare t2 int;
+  declare t3 int;
+
+  declare rc int default 0;
+  declare continue handler for 1065 set rc = 1;
+
+  drop table if exists temp_t1;
+  create temporary table temp_t1 (
+    f1 int auto_increment, f2 varchar(20), primary key (f1)
+  );
+
+  insert into temp_t1 (f2) select content from t3;
+
+  select f2 into t3 from temp_t1 where f1 = 10;
+
+  if (rc) then
+       insert into t4 values (1, rc, t3);
+  end if;
+
+  insert into t4 values (2, rc, t3);
+
+end|
+
+call bug1863(10)|
+call bug1863(10)|
+select * from t4|
+
+drop procedure bug1863|
+drop table t3, t4|
+
+#
+# BUG#2656
+#
+--disable_warnings
+drop table if exists t3, t4|
+--enable_warnings
+
+create table t3 ( 
+  OrderID  int not null,
+  MarketID int,
+  primary key (OrderID)
+)|
+
+create table t4 ( 
+  MarketID int not null,
+  Market varchar(60),
+  Status char(1),
+  primary key (MarketID)
+)|
+
+insert t3 (OrderID,MarketID) values (1,1)|
+insert t3 (OrderID,MarketID) values (2,2)|
+insert t4 (MarketID,Market,Status) values (1,"MarketID One","A")|
+insert t4 (MarketID,Market,Status) values (2,"MarketID Two","A")|
+
+create procedure bug2656_1()
+begin 
+  select
+    m.Market
+  from  t4 m JOIN t3 o 
+        ON o.MarketID != 1 and o.MarketID = m.MarketID;
+end |
+
+create procedure bug2656_2()
+begin 
+  select
+    m.Market
+  from  
+    t4 m, t3 o
+  where       
+    m.MarketID != 1 and m.MarketID = o.MarketID;
+        
+end |
+
+call bug2656_1()|
+call bug2656_1()|
+call bug2656_2()|
+call bug2656_2()|
+drop procedure bug2656_1|
+drop procedure bug2656_2|
+drop table t3, t4|
+
+
+#
+# BUG#3426
+#
+create procedure bug3426(in_time int unsigned, out x int)
+begin
+  if in_time is null then
+    set @stamped_time=10;
+    set x=1;
+  else
+    set @stamped_time=in_time;
+    set x=2;
+  end if;
+end|
+
+call bug3426(1000, @i)|
+select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
+call bug3426(NULL, @i)|
+select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
+# Clear SP cache
+alter procedure bug3426 sql security invoker|
+call bug3426(NULL, @i)|
+select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
+call bug3426(1000, @i)|
+select @i, from_unixtime(@stamped_time, '%d-%m-%Y %h:%i:%s') as time|
+
+drop procedure bug3426|
+
+#
+# BUG#3448
+#
+--disable_warnings
+drop table if exists t3, t4|
+
+create table t3 (
+  a int primary key, 
+  ach char(1)
+) engine = innodb|
+
+create table t4 (
+  b int  primary key , 
+  bch char(1)
+) engine = innodb|
+--enable_warnings
+
+insert into t3 values (1 , 'aCh1' ) , ('2' , 'aCh2')|
+insert into t4 values (1 , 'bCh1' )|
+
+create procedure bug3448()
+  select * from t3 inner join t4 on t3.a = t4.b|
+
+select * from t3 inner join t4 on t3.a = t4.b|
+call bug3448()|
+call bug3448()|
+
+drop procedure bug3448|
+drop table t3, t4|
+
+
+#
+# BUG#3734
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 (
+  id int unsigned auto_increment not null primary key,
+  title VARCHAR(200),
+  body text,
+  fulltext (title,body)
+)|
+
+insert into t3 (title,body) values
+  ('MySQL Tutorial','DBMS stands for DataBase ...'),
+  ('How To Use MySQL Well','After you went through a ...'),
+  ('Optimizing MySQL','In this tutorial we will show ...'),
+  ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+  ('MySQL vs. YourSQL','In the following database comparison ...'),
+  ('MySQL Security','When configured properly, MySQL ...')|
+
+create procedure bug3734 (param1 varchar(100))
+  select * from t3 where match (title,body) against (param1)|
+
+call bug3734('database')|
+call bug3734('Security')|
+
+drop procedure bug3734|
+drop table t3|
+
+#
+# BUG#3863
+#
+create procedure bug3863()
+begin
+  set @a = 0;
+  while @a < 5 do
+    set @a = @a + 1;
+  end while;
+end|
+
+call bug3863()|
+select @a|
+call bug3863()|
+select @a|
+
+drop procedure bug3863|
+
+#
+# BUG#2460
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 (
+  id int(10) unsigned not null default 0,
+  rid int(10) unsigned not null default 0,
+  msg text not null,
+  primary key (id),
+  unique key rid (rid, id)
+)|
+
+create procedure bug2460_1(in v int)
+begin
+    ( select n0.id from t3 as n0 where n0.id = v )
+  union
+    ( select n0.id from t3 as n0, t3 as n1
+        where n0.id = n1.rid and n1.id = v )
+  union
+    ( select n0.id from t3 as n0, t3 as n1, t3 as n2
+        where n0.id = n1.rid and n1.id = n2.rid and n2.id = v );
+end|
+
+call bug2460_1(2)|
+call bug2460_1(2)|
+insert into t3 values (1, 1, 'foo'), (2, 1, 'bar'), (3, 1, 'zip zap')|
+call bug2460_1(2)|
+call bug2460_1(2)|
+
+create procedure bug2460_2()
+begin
+  drop table if exists t3;
+  create table t3 (s1 int);
+  insert into t3 select 1 union select 1;
+end|
+
+call bug2460_2()|
+call bug2460_2()|
+select * from t3|
+
+drop procedure bug2460_1|
+drop procedure bug2460_2|
+drop table t3|
+
+
+#
+# BUG#2564
+#
+set @@sql_mode = ''|
+create procedure bug2564_1()
+    comment 'Joe''s procedure'
+  insert into `t1` values ("foo", 1)|
+
+set @@sql_mode = 'ANSI_QUOTES'|
+create procedure bug2564_2()
+  insert into "t1" values ('foo', 1)|
+
+delimiter $|
+set @@sql_mode = ''$
+create function bug2564_3(x int, y int) returns int
+  return x || y$
+
+set @@sql_mode = 'ANSI'$
+create function bug2564_4(x int, y int) returns int
+  return x || y$
+delimiter |$
+
+set @@sql_mode = ''|
+show create procedure bug2564_1|
+show create procedure bug2564_2|
+show create function bug2564_3|
+show create function bug2564_4|
+
+drop procedure bug2564_1|
+drop procedure bug2564_2|
+drop function bug2564_3|
+drop function bug2564_4|
+
+#
+# BUG#3132
+#
+create function bug3132(s char(20)) returns char(50)
+  return concat('Hello, ', s, '!')|
+
+select bug3132('Bob') union all select bug3132('Judy')|
+drop function bug3132|
+
+#
+# BUG#3843
+#
+create procedure bug3843()
+  analyze table t1|
+
+# Testing for packets out of order
+call bug3843()|
+call bug3843()|
+select 1+2|
+
+drop procedure bug3843|
+
+#
+# BUG#3368
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 ( s1 char(10) )|
+insert into t3 values ('a'), ('b')|
+
+create procedure bug3368(v char(10))
+begin
+  select group_concat(v) from t3;
+end|
+
+call bug3368('x')|
+call bug3368('yz')|
+drop procedure bug3368|
+drop table t3|
+
+#
+# BUG#4579
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 (f1 int, f2 int);
+insert into t3 values (1,1);
+
+create procedure bug4579_1 ()
+begin
+  declare sf1 int;
+
+  select f1 into sf1 from t3 where f1=1 and f2=1;
+  update t3 set f2 = f2 + 1 where f1=1 and f2=1;
+  call bug4579_2();
+end|
+
+create procedure bug4579_2 ()
+begin
+end|
+
+call bug4579_1()|
+call bug4579_1()|
+call bug4579_1()|
+
+drop procedure bug4579_1|
+drop procedure bug4579_2|
+drop table t3|
+
+
+#
+# BUG#4726
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+ 
+create table t3 (f1 int, f2 int, f3 int)|
+insert into t3 values (1,1,1)|
+
+create procedure bug4726()
+begin
+   declare tmp_o_id INT;
+   declare tmp_d_id INT default 1;
+
+   while tmp_d_id <= 2 do
+   begin
+     select f1 into tmp_o_id from t3 where f2=1 and f3=1;
+     set tmp_d_id = tmp_d_id + 1;
+   end;
+   end while;
+end|
+
+call bug4726()|
+call bug4726()|
+call bug4726()|
+
+drop procedure bug4726|
+drop table t3|
+
+#
+# BUG#4318
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+ 
+create table t3 (s1 int)|
+insert into t3 values (3), (4)|
+
+create procedure bug4318()
+  handler t3 read next|
+
+handler t3 open|
+# Expect no results, as tables are closed, but there shouldn't be any errors
+call bug4318()|
+call bug4318()|
+handler t3 close|
+
+drop procedure bug4318|
+drop table t3|
+
+#
+# BUG#4902: Stored procedure with SHOW WARNINGS leads to packet error
+#
+# Added tests for most other show commands we could find too.
+# (Skipping those already tested, and the ones depending on optional handlers.)
+#
+# Note: This will return a large number of results of different formats,
+#       which makes it impossible to filter with --replace_column.
+#       It's possible that some of these are not deterministic across
+#       platforms. If so, just remove the offending command.
+#
+create procedure bug4902()
+begin
+  show charset like 'foo';
+  show collation like 'foo';
+  show column types;
+  show create table t1;
+  show create database test;
+  show databases like 'foo';
+  show errors;
+  show columns from t1;
+  show grants for 'root'@'localhost';
+  show keys from t1;
+  show master status;
+  show open tables like 'foo';
+  show privileges;
+  show slave hosts;
+  show slave status;
+  show status like 'foo';
+  show tables like 'foo';
+  show variables like 'foo';
+  show warnings;
+end|
+#show binlog events;
+#show storage engines;
+
+call bug4902()|
+call bug4902()|
+
+drop procedure bug4902|
+
+# We need separate SP for SHOW PROCESSLIST  since we want use replace_column
+create procedure bug4902_2()
+begin
+  show processlist;
+end|
+--replace_column 1 #
+call bug4902_2()|
+--replace_column 1 #
+call bug4902_2()|
+drop procedure bug4902_2|
+
+#
+# BUG#4904
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+
+create procedure bug4904()
+begin
+  declare continue handler for sqlstate 'HY000' begin end;
+
+  create table t2 as select * from t;
+end|
+
+call bug4904()|
+
+drop procedure bug4904|
 
 
 #
@@ -1085,11 +1779,11 @@ end|
 call ifac(20)|
 select * from fac|
 drop table fac|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show function status like '%f%'|
 drop procedure ifac|
 drop function fac|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show function status like '%f%'|
 
 
@@ -1166,7 +1860,7 @@ begin
   end while;
 end|
 show create procedure opp|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like '%p%'|
 
 # This isn't the fastest way in the world to compute prime numbers, so
@@ -1174,11 +1868,17 @@ show procedure status like '%p%'|
 call ip(200)|
 # We don't want to select the entire table here, just pick a few
 # examples.
+# The expected result is:
+#    i      p
+#   ---   ----
+#    45    211
+#   100    557
+#   199   1229
 select * from primes where i=45 or i=100 or i=199|
 drop table primes|
 drop procedure opp|
 drop procedure ip|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like '%p%'|
 
 
@@ -1225,16 +1925,27 @@ drop procedure fib|
 create procedure bar(x char(16), y int)
  comment "111111111111" sql security invoker
  insert into test.t1 values (x, y)|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 alter procedure bar name bar2 comment "2222222222" sql security definer|
 alter procedure bar2 name bar comment "3333333333"|
 alter procedure bar|
 show create procedure bar|
---replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 drop procedure bar|
-
 delimiter ;|
 drop table t1;
 drop table t2;
+
+#
+# rexecution
+#
+create procedure p1 () select (select s1 from t1) from t1;
+create table t1 (s1 int);
+call p1();
+insert into t1 values (1);
+call p1();
+drop procedure p1;
+drop table t1;
+

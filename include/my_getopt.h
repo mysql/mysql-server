@@ -16,12 +16,20 @@
 
 C_MODE_START
 
-enum get_opt_var_type { GET_NO_ARG, GET_BOOL, GET_INT, GET_UINT, GET_LONG,
-			GET_ULONG, GET_LL, GET_ULL, GET_STR, GET_STR_ALLOC
-                      };
+#define GET_NO_ARG     1
+#define GET_BOOL       2
+#define GET_INT        3
+#define GET_UINT       4
+#define GET_LONG       5
+#define GET_ULONG      6
+#define GET_LL         7
+#define GET_ULL        8
+#define GET_STR        9
+#define GET_STR_ALLOC 10
+#define GET_DISABLED  11
 
-#define GET_ASK_ADDR	128
-#define GET_TYPE_MASK	127
+#define GET_ASK_ADDR	 128
+#define GET_TYPE_MASK	 127
 
 enum get_opt_arg_type { NO_ARG, OPT_ARG, REQUIRED_ARG };
 
@@ -33,7 +41,7 @@ struct my_option
   gptr       *value;                    /* The variable value */
   gptr       *u_max_value;              /* The user def. max variable value */
   const char **str_values;              /* Pointer to possible values */
-  enum get_opt_var_type var_type;
+  ulong     var_type;
   enum get_opt_arg_type arg_type;
   longlong   def_value;                 /* Default value */
   longlong   min_value;                 /* Min allowed value */

@@ -34,7 +34,7 @@ ERROR 42000: Column 'a' is used with UNIQUE or INDEX but is not defined as NOT N
 create table t1 (a int,b text, index(b)) engine=isam;
 ERROR 42000: BLOB column 'b' can't be used in key specification with the used table type
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=isam;
-ERROR 42000: Incorrect table definition; There can only be one auto column and it must be defined as a key
+ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
 create table t1 (ordid int(8), unique (ordid)) engine=isam;
 ERROR 42000: Column 'ordid' is used with UNIQUE or INDEX but is not defined as NOT NULL
 drop table if exists t1;
@@ -49,14 +49,14 @@ test.t1	optimize	status	OK
 check table t1,t2;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-test.t2	check	error	The storage engine for the table doesn't support check
+test.t2	check	note	The storage engine for the table doesn't support check
 repair table t1,t2;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
-test.t2	repair	error	The storage engine for the table doesn't support repair
+test.t2	repair	note	The storage engine for the table doesn't support repair
 check table t2,t1;
 Table	Op	Msg_type	Msg_text
-test.t2	check	error	The storage engine for the table doesn't support check
+test.t2	check	note	The storage engine for the table doesn't support check
 test.t1	check	status	OK
 lock tables t1 write;
 check table t2,t1;

@@ -68,7 +68,7 @@ byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen)
     DBUG_PRINT("note",("Packet got longer on compression; Not compressed"));
     return 0;
   }
-  swap(ulong, *len, *complen);			/* *len is now packet length */
+  swap_variables(ulong, *len, *complen);       /* *len is now packet length */
   return compbuf;
 }
 

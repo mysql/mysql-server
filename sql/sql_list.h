@@ -21,6 +21,12 @@
 
 /* mysql standard class memoryallocator */
 
+#ifdef PEDANTIC_SAFEMALLOC
+#define TRASH(XX,YY) bfill((XX), (YY), 0x8F)
+#else
+#define TRASH(XX,YY) /* no-op */
+#endif
+
 class Sql_alloc
 {
 public:
@@ -34,8 +40,8 @@ public:
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
-  static void operator delete(void *ptr, size_t size) {} /*lint -e715 */
-  static void operator delete[](void *ptr, size_t size) {}
+  static void operator delete(void *ptr, size_t size) { TRASH(ptr, size); }
+  static void operator delete[](void *ptr, size_t size) { TRASH(ptr, size); }
 #ifdef HAVE_purify
   bool dummy;
   inline Sql_alloc() :dummy(0) {}
@@ -287,7 +293,7 @@ protected:
   inline T** ref(void)	    { return (T**) 0; }
 
 public:
-  List_iterator_fast(List<T> &a) : base_list_iterator(a) {}
+  inline List_iterator_fast(List<T> &a) : base_list_iterator(a) {}
   inline T* operator++(int) { return (T*) base_list_iterator::next_fast(); }
   inline void rewind(void)  { base_list_iterator::rewind(); }
   void sublist(List<T> &list_arg, uint el_arg)
@@ -358,6 +364,10 @@ class base_ilist
     first_link->unlink();			// Unlink from list
     return first_link;
   }
+  inline struct ilink *head()
+  {
+    return (first != &last) ? first : 0;
+  }
   friend class base_list_iterator;
 };
 
@@ -390,6 +400,7 @@ public:
   inline void append(T* a)	{ base_ilist::append(a); }
   inline void push_back(T* a)	{ base_ilist::push_back(a); }
   inline T* get()		{ return (T*) base_ilist::get(); }
+  inline T* head()		{ return (T*) base_ilist::head(); }
 #ifndef _lint
   friend class I_List_iterator<T>;
 #endif

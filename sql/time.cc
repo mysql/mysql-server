@@ -23,16 +23,26 @@
 static ulong const days_at_timestart=719528;	/* daynr at 1970.01.01 */
 uchar *days_in_month= (uchar*) "\037\034\037\036\037\036\037\037\036\037\036\037";
 
-	/* Init some variabels needed when using my_local_time */
-	/* Currently only my_time_zone is inited */
 
+/*
+  Offset of system time zone from UTC in seconds used to speed up 
+  work of my_system_gmt_sec() function.
+*/
 static long my_time_zone=0;
 
+
+/*
+  Prepare offset of system time zone from UTC for my_system_gmt_sec() func.
+
+  SYNOPSIS
+    init_time()
+*/
 void init_time(void)
 {
   time_t seconds;
   struct tm *l_time,tm_tmp;;
   TIME my_time;
+  bool not_used;
 
   seconds= (time_t) time((time_t*) 0);
   localtime_r(&seconds,&tm_tmp);
@@ -44,29 +54,39 @@ void init_time(void)
   my_time.hour=		(uint) l_time->tm_hour;
   my_time.minute=	(uint) l_time->tm_min;
   my_time.second=	(uint) l_time->tm_sec;
-  my_gmt_sec(&my_time, &my_time_zone);	/* Init my_time_zone */
+  my_system_gmt_sec(&my_time, &my_time_zone, &not_used); /* Init my_time_zone */
 }
 
+
 /*
-  Convert current time to sec. since 1970.01.01 
-  This code handles also day light saving time.
-  The idea is to cache the time zone (including daylight saving time)
-  for the next call to make things faster.
+  Convert time in TIME representation in system time zone to its
+  my_time_t form (number of seconds in UTC since begginning of Unix Epoch).
 
+  SYNOPSIS
+    my_system_gmt_sec()
+      t               - time value to be converted
+      my_timezone     - pointer to long where offset of system time zone
+                        from UTC will be stored for caching
+      in_dst_time_gap - set to true if time falls into spring time-gap
+
+  NOTES
+    The idea is to cache the time zone offset from UTC (including daylight 
+    saving time) for the next call to make things faster. But currently we 
+    just calculate this offset during startup (by calling init_time() 
+    function) and use it all the time.
+    Time value provided should be legal time value (e.g. '2003-01-01 25:00:00'
+    is not allowed).
+
+  RETURN VALUE
+    Time in UTC seconds since Unix Epoch representation.
 */
-
-long my_gmt_sec(TIME *t, long *my_timezone)
+my_time_t 
+my_system_gmt_sec(const TIME *t, long *my_timezone, bool *in_dst_time_gap)
 {
   uint loop;
   time_t tmp;
   struct tm *l_time,tm_tmp;
   long diff, current_timezone;
-
-  if (t->hour >= 24)
-  {					/* Fix for time-loop */
-    t->day+=t->hour/24;
-    t->hour%=24;
-  }
 
   /*
     Calculate the gmt time based on current time and timezone
@@ -122,12 +142,13 @@ long my_gmt_sec(TIME *t, long *my_timezone)
       tmp+=3600 - t->minute*60 - t->second;	// Move to next hour
     else if (diff == -3600)
       tmp-=t->minute*60 + t->second;		// Move to previous hour
+
+    *in_dst_time_gap= 1;
   }
   *my_timezone= current_timezone;
-  if (tmp < 0 && t->year <= 1900+YY_PART_YEAR)
-    tmp= 0;
-  return (long) tmp;
-} /* my_gmt_sec */
+  
+  return (my_time_t) tmp;
+} /* my_system_gmt_sec */
 
 
 	/* Some functions to calculate dates */
@@ -159,6 +180,7 @@ long calc_daynr(uint year,uint month,uint day)
 } /* calc_daynr */
 
 
+#ifndef TESTTIME
 	/* Calc weekday from daynr */
 	/* Returns 0 for monday, 1 for tuesday .... */
 
@@ -323,515 +345,167 @@ ulong convert_month_to_period(ulong month)
 }
 
 
-/* Position for YYYY-DD-MM HH-MM-DD.FFFFFF AM in default format */
-
-static uchar internal_format_positions[]=
-{0, 1, 2, 3, 4, 5, 6, (uchar) 255};
-
-static char time_separator=':';
-
 /*
-  Convert a timestamp string to a TIME value.
+  Convert a timestamp string to a TIME value and produce a warning 
+  if string was truncated during conversion.
 
-  SYNOPSIS
-    str_to_TIME()
-    str			String to parse
-    length		Length of string
-    l_time		Date is stored here
-    flags		Bitmap of following items
-			TIME_FUZZY_DATE    Set if we should allow partial dates
-			TIME_DATETIME_ONLY Set if we only allow full datetimes.
-
-  DESCRIPTION
-    At least the following formats are recogniced (based on number of digits)
-    YYMMDD, YYYYMMDD, YYMMDDHHMMSS, YYYYMMDDHHMMSS
-    YY-MM-DD, YYYY-MM-DD, YY-MM-DD HH.MM.SS
-    YYYYMMDDTHHMMSS  where T is a the character T (ISO8601)
-    Also dates where all parts are zero are allowed
-
-    The second part may have an optional .###### fraction part.
-
-  NOTES
-   This function should work with a format position vector as long as the
-   following things holds:
-   - All date are kept together and all time parts are kept together
-   - Date and time parts must be separated by blank
-   - Second fractions must come after second part and be separated
-     by a '.'.  (The second fractions are optional)
-   - AM/PM must come after second fractions (or after seconds if no fractions)
-   - Year must always been specified.
-   - If time is before date, then we will use datetime format only if
-     the argument consist of two parts, separated by space.
-     Otherwise we will assume the argument is a date.
-   - The hour part must be specified in hour-minute-second order.
-
-  RETURN VALUES
-    TIMESTAMP_NONE	String wasn't a timestamp, like
-			[DD [HH:[MM:[SS]]]].fraction.
-			l_time is not changed.
-    TIMESTAMP_DATE	DATE string (YY MM and DD parts ok)
-    TIMESTAMP_DATETIME	Full timestamp
-    TIMESTAMP_DATETIME_ERROR Timestamp with wrong values.
-			All elements in l_time is set to 0
+  NOTE
+    See description of str_to_datetime() for more information.
 */
-
-#define MAX_DATE_PARTS 8
-
 timestamp_type
-str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
+str_to_datetime_with_warn(const char *str, uint length, TIME *l_time,
+                          uint flags)
 {
-  uint field_length, year_length, digits, i, number_of_fields;
-  uint date[MAX_DATE_PARTS], date_len[MAX_DATE_PARTS];
-  uint add_hours= 0, start_loop;
-  ulong not_zero_date, allow_space;
-  bool is_internal_format;
-  const char *pos, *last_field_pos;
-  const char *end=str+length;
-  const uchar *format_position;
-  bool found_delimitier= 0, found_space= 0;
-  DBUG_ENTER("str_to_TIME");
-  DBUG_PRINT("ENTER",("str: %.*s",length,str));
-
-  LINT_INIT(field_length);
-  LINT_INIT(year_length);
-  LINT_INIT(last_field_pos);
-
-  // Skip space at start
-  for (; str != end && my_isspace(&my_charset_latin1, *str) ; str++)
-    ;
-  if (str == end || ! my_isdigit(&my_charset_latin1, *str))
-    DBUG_RETURN(TIMESTAMP_NONE);
-
-  is_internal_format= 0;
-  /* This has to be changed if want to activate different timestamp formats */
-  format_position= internal_format_positions;
-
-  /*
-    Calculate number of digits in first part.
-    If length= 8 or >= 14 then year is of format YYYY.
-    (YYYY-MM-DD,  YYYYMMDD, YYYYYMMDDHHMMSS)
-  */
-  for (pos=str; pos != end && my_isdigit(&my_charset_latin1,*pos) ; pos++)
-    ;
-
-  digits= (uint) (pos-str);
-  start_loop= 0;				// Start of scan loop
-  date_len[format_position[0]]= 0;		// Length of year field
-  if (pos == end)
-  {
-    /* Found date in internal format (only numbers like YYYYMMDD) */
-    year_length= (digits == 4 || digits == 8 || digits >= 14) ? 4 : 2;
-    field_length=year_length-1;
-    is_internal_format= 1;
-    format_position= internal_format_positions;
-  }
-  else
-  {
-    if (format_position[0] >= 3)		// If year is after HHMMDD
-    {
-      /*
-	If year is not in first part then we have to determinate if we got
-	a date field or a datetime field.
-	We do this by checking if there is two numbers separated by
-	space in the input.
-      */
-      while (pos < end && !my_isspace(&my_charset_latin1, *pos))
-	pos++;
-      while (pos < end && !my_isdigit(&my_charset_latin1, *pos))
-	pos++;
-      if (pos == end)
-      {
-	if (flags & TIME_DATETIME_ONLY)
-	  DBUG_RETURN(TIMESTAMP_NONE);		// Can't be a full datetime
-	/* Date field.  Set hour, minutes and seconds to 0 */
-	date[0]= date[1]= date[2]= date[3]= date[4]= 0;
-	start_loop= 5;				// Start with first date part
-      }
-    }
-  }
-
-  /*
-    Only allow space in the first "part" of the datetime field and:
-    - after days, part seconds
-    - before and after AM/PM (handled by code later)
-
-    2003-03-03 20:00:20 AM
-    20:00:20.000000 AM 03-03-2000
-  */
-  i= max((uint) format_position[0], (uint) format_position[1]);
-  set_if_bigger(i, (uint) format_position[2]);
-  allow_space= ((1 << i) | (1 << format_position[6]));
-  allow_space&= (1 | 2 | 4 | 8);
-
-  not_zero_date= 0;
-  for (i = start_loop;
-       i < MAX_DATE_PARTS-1 && str != end &&
-	 my_isdigit(&my_charset_latin1,*str);
-       i++)
-  {
-    const char *start= str;
-    ulong tmp_value= (uint) (uchar) (*str++ - '0');
-    while (str != end && my_isdigit(&my_charset_latin1,str[0]) &&
-	   (!is_internal_format || field_length--))
-    {
-      tmp_value=tmp_value*10 + (ulong) (uchar) (*str - '0');
-      str++;
-    }
-    date_len[i]+= (uint) (str - start);
-    if (tmp_value > 999999)			// Impossible date part
-      DBUG_RETURN(TIMESTAMP_NONE);
-    date[i]=tmp_value;
-    not_zero_date|= tmp_value;
-
-    /* Length-1 of next field */
-    field_length= format_position[i+1] == 0 ? 3 : 1;
-
-    if ((last_field_pos= str) == end)
-    {
-      i++;					// Register last found part
-      break;
-    }
-    /* Allow a 'T' after day to allow CCYYMMDDT type of fields */
-    if (i == format_position[2] && *str == 'T')
-    {
-      str++;					// ISO8601:  CCYYMMDDThhmmss
-      continue;
-    }
-    if (i == format_position[5])		// Seconds
-    {
-      if (*str == '.')				// Followed by part seconds
-      {
-	str++;
-	field_length= 5;			// 5 digits after first (=6)
-      }
-      continue;
-
-      /* No part seconds */
-      date[++i]= 0;
-    }
-    while (str != end &&
-	   (my_ispunct(&my_charset_latin1,*str) ||
-	    my_isspace(&my_charset_latin1,*str)))
-    {
-      if (my_isspace(&my_charset_latin1,*str))
-      {
-	if (!(allow_space & (1 << i)))
-	  DBUG_RETURN(TIMESTAMP_NONE);
-	found_space= 1;
-      }
-      str++;
-      found_delimitier= 1;			// Should be a 'normal' date
-    }
-    /* Check if next position is AM/PM */
-    if (i == format_position[6])		// Seconds, time for AM/PM
-    {
-      i++;					// Skip AM/PM part
-      if (format_position[7] != 255)		// If using AM/PM
-      {
-	if (str+2 <= end && (str[1] == 'M' || str[1] == 'm'))
-	{
-	  if (str[1] == 'p' || str[1] == 'P')
-	    add_hours= 12;
-	  else if (str[1] != 'a' || str[1] != 'A')
-	    continue;				// Not AM/PM
-	  str+= 2;				// Skip AM/PM
-	  /* Skip space after AM/PM */
-	  while (str != end && my_isspace(&my_charset_latin1,*str))
-	    str++;
-	}
-      }
-    }
-    last_field_pos= str;
-  }
-  if (found_delimitier && !found_space && (flags & TIME_DATETIME_ONLY))
-    DBUG_RETURN(TIMESTAMP_NONE);		// Can't be a datetime
-
-  str= last_field_pos;
-
-  number_of_fields= i - start_loop;
-  while (i < MAX_DATE_PARTS)
-    date[i++]=0;
-
-  if (!is_internal_format)
-  {
-    year_length= date_len[(uint) format_position[0]];
-    if (!year_length)				// Year must be specified
-      DBUG_RETURN(TIMESTAMP_NONE);
-
-    l_time->year=		date[(uint) format_position[0]];
-    l_time->month=		date[(uint) format_position[1]];
-    l_time->day=		date[(uint) format_position[2]];
-    l_time->hour=		date[(uint) format_position[3]];
-    l_time->minute=		date[(uint) format_position[4]];
-    l_time->second=		date[(uint) format_position[5]];
-    l_time->second_part=	date[(uint) format_position[6]];
-    if (format_position[7] != (uchar) 255)
-    {
-      if (l_time->hour > 12)
-	goto err;
-      l_time->hour= l_time->hour%12 + add_hours;
-    }
-  }
-  else
-  {
-    l_time->year=	date[0];
-    l_time->month=	date[1];
-    l_time->day=	date[2];
-    l_time->hour=	date[3];
-    l_time->minute=	date[4];
-    l_time->second=	date[5];
-    l_time->second_part=date[6];
-  }
-  l_time->neg= 0;
-
-  if (year_length == 2 && i >= format_position[1] && i >=format_position[2] &&
-      (l_time->month || l_time->day))
-    l_time->year+= (l_time->year < YY_PART_YEAR ? 2000 : 1900);
-
-  if (number_of_fields < 3 || l_time->month > 12 ||
-      l_time->day > 31 || l_time->hour > 23 ||
-      l_time->minute > 59 || l_time->second > 59 ||
-      (!(flags & TIME_FUZZY_DATE) && (l_time->month == 0 || l_time->day == 0)))
-  {
-    /* Only give warning for a zero date if there is some garbage after */
-    if (!not_zero_date)				// If zero date
-    {
-      for (; str != end ; str++)
-      {
-	if (!my_isspace(&my_charset_latin1, *str))
-	{
-	  not_zero_date= 1;			// Give warning
-	  break;
-	}
-      }
-    }
-    if (not_zero_date)
-      current_thd->cuted_fields++;
-    goto err;
-  }
-  if (str != end && current_thd->count_cuted_fields)
-  {
-    for (; str != end ; str++)
-    {
-      if (!my_isspace(&my_charset_latin1,*str))
-      {
-	current_thd->cuted_fields++;
-	break;
-      }
-    }
-  }
-
-  DBUG_RETURN(l_time->time_type=
-	      (number_of_fields <= 3 ? TIMESTAMP_DATE : TIMESTAMP_DATETIME));
-
-err:
-  bzero((char*) l_time, sizeof(*l_time));
-  DBUG_RETURN(TIMESTAMP_DATETIME_ERROR);
-}
-
-
-time_t str_to_timestamp(const char *str,uint length)
-{
-  TIME l_time;
-  long not_used;
-
-  if (str_to_TIME(str,length,&l_time,0) <= TIMESTAMP_DATETIME_ERROR)
-    return(0);
-  if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR-1)
-  {
-    current_thd->cuted_fields++;
-    return(0);
-  }
-  return(my_gmt_sec(&l_time, &not_used));
-}
-
-
-longlong str_to_datetime(const char *str,uint length, uint fuzzy_date)
-{
-  TIME l_time;
-  if (str_to_TIME(str,length,&l_time,fuzzy_date) <= TIMESTAMP_DATETIME_ERROR)
-    return(0);
-  return (longlong) (l_time.year*LL(10000000000) +
-		     l_time.month*LL(100000000)+
-		     l_time.day*LL(1000000)+
-		     l_time.hour*LL(10000)+
-		     (longlong) (l_time.minute*100+l_time.second));
+  int was_cut;
+  timestamp_type ts_type= str_to_datetime(str, length, l_time, flags, &was_cut);
+  if (was_cut)
+    make_truncated_value_warning(current_thd, str, length, ts_type);
+  return ts_type;
 }
 
 
 /*
- Convert a time string to a TIME struct.
+  Convert a datetime from broken-down TIME representation to corresponding 
+  TIMESTAMP value.
 
   SYNOPSIS
-   str_to_time()
-   str			A string in full TIMESTAMP format or
-			[-] DAYS [H]H:MM:SS, [H]H:MM:SS, [M]M:SS, [H]HMMSS,
-			[M]MSS or [S]S
-			There may be an optional [.second_part] after seconds
-   length		Length of str
-   l_time		Store result here
+    TIME_to_timestamp()
+      thd             - current thread
+      t               - datetime in broken-down representation, 
+      in_dst_time_gap - pointer to bool which is set to true if t represents
+                        value which doesn't exists (falls into the spring 
+                        time-gap) or to false otherwise.
+   
+  RETURN
+     Number seconds in UTC since start of Unix Epoch corresponding to t.
+     0 - t contains datetime value which is out of TIMESTAMP range.
+     
+*/
+my_time_t TIME_to_timestamp(THD *thd, const TIME *t, bool *in_dst_time_gap)
+{
+  my_time_t timestamp;
 
-   NOTES
-     Because of the extra days argument, this function can only
-     work with times where the time arguments are in the above order.
+  *in_dst_time_gap= 0;
 
-   RETURN
-     0	ok
-     1  error
+  if (t->year < TIMESTAMP_MAX_YEAR && t->year > TIMESTAMP_MIN_YEAR ||
+      t->year == TIMESTAMP_MAX_YEAR && t->month == 1 && t->day == 1 ||
+      t->year == TIMESTAMP_MIN_YEAR && t->month == 12 && t->day == 31)
+  {
+    thd->time_zone_used= 1;
+    timestamp= thd->variables.time_zone->TIME_to_gmt_sec(t, in_dst_time_gap);
+    if (timestamp >= TIMESTAMP_MIN_VALUE && timestamp <= TIMESTAMP_MAX_VALUE)
+      return timestamp;
+  }
+
+  /* If we are here we have range error. */
+  return(0);
+}
+
+
+/*
+  Convert a time string to a TIME struct and produce a warning
+  if string was cut during conversion.
+
+  NOTE
+    See str_to_time() for more info.
+*/
+bool
+str_to_time_with_warn(const char *str, uint length, TIME *l_time)
+{
+  int was_cut;
+  bool ret_val= str_to_time(str, length, l_time, &was_cut);
+  if (was_cut)
+    make_truncated_value_warning(current_thd, str, length, MYSQL_TIMESTAMP_TIME);
+  return ret_val;
+}
+
+
+/*
+  Convert datetime value specified as number to broken-down TIME 
+  representation and form value of DATETIME type as side-effect.
+
+  SYNOPSIS
+    number_to_TIME()
+      nr         - datetime value as number 
+      time_res   - pointer for structure for broken-down representation
+      fuzzy_date - indicates whenever we allow fuzzy dates
+      was_cut    - set ot 1 if there was some kind of error during 
+                   conversion or to 0 if everything was OK.
+  
+  DESCRIPTION
+    Convert a datetime value of formats YYMMDD, YYYYMMDD, YYMMDDHHMSS, 
+    YYYYMMDDHHMMSS to broken-down TIME representation. Return value in
+    YYYYMMDDHHMMSS format as side-effect.
+  
+    This function also checks if datetime value fits in DATETIME range.
+
+  RETURN VALUE
+    Datetime value in YYYYMMDDHHMMSS format.
+    If input value is not valid datetime value then 0 is returned. 
 */
 
-bool str_to_time(const char *str,uint length,TIME *l_time)
+longlong number_to_TIME(longlong nr, TIME *time_res, bool fuzzy_date, 
+                        int *was_cut)
 {
-  long date[5],value;
-  const char *end=str+length, *end_of_days;
-  bool found_days,found_hours;
-  uint state;
+  long part1,part2;
 
-  l_time->neg=0;
-  for (; str != end && my_isspace(&my_charset_latin1,*str) ; str++)
-    length--;
-  if (str != end && *str == '-')
+  *was_cut= 0;
+  
+  if (nr == LL(0) || nr >= LL(10000101000000))
+    goto ok;
+  if (nr < 101)
+    goto err;
+  if (nr <= (YY_PART_YEAR-1)*10000L+1231L)
   {
-    l_time->neg=1;
-    str++;
-    length--;
+    nr= (nr+20000000L)*1000000L;                 // YYMMDD, year: 2000-2069
+    goto ok;
   }
-  if (str == end)
-    return 1;
-
-  /* Check first if this is a full TIMESTAMP */
-  if (length >= 12)
-  {						// Probably full timestamp
-    enum timestamp_type res= str_to_TIME(str,length,l_time,
-					 (TIME_FUZZY_DATE |
-					 TIME_DATETIME_ONLY));
-    if ((int) res >= (int) TIMESTAMP_DATETIME_ERROR)
-      return res == TIMESTAMP_DATETIME_ERROR;
-  }
-
-  /* Not a timestamp. Try to get this as a DAYS_TO_SECOND string */
-  for (value=0; str != end && my_isdigit(&my_charset_latin1,*str) ; str++)
-    value=value*10L + (long) (*str - '0');
-
-  /* Skipp all space after 'days' */
-  end_of_days= str;
-  for (; str != end && my_isspace(&my_charset_latin1, str[0]) ; str++)
-    ;
-
-  LINT_INIT(state);
-  found_days=found_hours=0;
-  if ((uint) (end-str) > 1 && str != end_of_days &&
-      my_isdigit(&my_charset_latin1, *str))
-  {						// Found days part
-    date[0]= value;
-    state= 1;					// Assume next is hours
-    found_days= 1;
-  }
-  else if ((end-str) > 1 &&  *str == time_separator &&
-           my_isdigit(&my_charset_latin1, str[1]))
+  if (nr < (YY_PART_YEAR)*10000L+101L)
+    goto err;
+  if (nr <= 991231L)
   {
-    date[0]=0;					// Assume we found hours
-    date[1]=value;
-    state=2;
-    found_hours=1;
-    str++;					// skip ':'
+    nr= (nr+19000000L)*1000000L;                 // YYMMDD, year: 1970-1999
+    goto ok;
   }
-  else
+  if (nr < 10000101L)
+    goto err;
+  if (nr <= 99991231L)
   {
-    /* String given as one number; assume HHMMSS format */
-    date[0]= 0;
-    date[1]= value/10000;
-    date[2]= value/100 % 100;
-    date[3]= value % 100;
-    state=4;
-    goto fractional;
+    nr= nr*1000000L;
+    goto ok;
   }
-
-  /* Read hours, minutes and seconds */
-  for (;;)
+  if (nr < 101000000L)
+    goto err;
+  if (nr <= (YY_PART_YEAR-1)*LL(10000000000)+LL(1231235959))
   {
-    for (value=0; str != end && my_isdigit(&my_charset_latin1,*str) ; str++)
-      value=value*10L + (long) (*str - '0');
-    date[state++]=value;
-    if (state == 4 || (end-str) < 2 || *str != time_separator ||
-	!my_isdigit(&my_charset_latin1,str[1]))
-      break;
-    str++;					// Skip time_separator (':')
+    nr= nr+LL(20000000000000);                   // YYMMDDHHMMSS, 2000-2069
+    goto ok;
   }
+  if (nr <  YY_PART_YEAR*LL(10000000000)+ LL(101000000))
+    goto err;
+  if (nr <= LL(991231235959))
+    nr= nr+LL(19000000000000);		// YYMMDDHHMMSS, 1970-1999
 
-  if (state != 4)
-  {						// Not HH:MM:SS
-    /* Fix the date to assume that seconds was given */
-    if (!found_hours && !found_days)
-    {
-      bmove_upp((char*) (date+4), (char*) (date+state),
-		sizeof(long)*(state-1));
-      bzero((char*) date, sizeof(long)*(4-state));
-    }
-    else
-      bzero((char*) (date+state), sizeof(long)*(4-state));
-  }
-
-fractional:
-  /* Get fractional second part */
-  if ((end-str) >= 2 && *str == '.' && my_isdigit(&my_charset_latin1,str[1]))
-  {
-    uint field_length=5;
-    str++; value=(uint) (uchar) (*str - '0');
-    while (++str != end && 
-           my_isdigit(&my_charset_latin1,str[0]) && 
-           field_length--)
-      value=value*10 + (uint) (uchar) (*str - '0');
-    date[4]=value;
-  }
-  else
-    date[4]=0;
-
-  if (internal_format_positions[7] != 255)
-  {
-    /* Read a possible AM/PM */
-    while (str != end && my_isspace(&my_charset_latin1, *str))
-      str++;
-    if (str+2 <= end && (str[1] == 'M' || str[1] == 'm'))
-    {
-      if (str[1] == 'p' || str[1] == 'P')
-      {
-	str+= 2;
-	date[1]= date[1]%12 + 12;
-      }
-      else if (str[1] == 'a' || str[1] == 'A')
-	str+=2;
-    }
-  }
-
-  /* Some simple checks */
-  if (date[2] >= 60 || date[3] >= 60)
-  {
-    current_thd->cuted_fields++;
-    return 1;
-  }
-  l_time->year= 	0;			// For protocol::store_time
-  l_time->month=	0;
-  l_time->day=		date[0];
-  l_time->hour=		date[1];
-  l_time->minute=	date[2];
-  l_time->second=	date[3];
-  l_time->second_part=	date[4];
-  l_time->time_type= TIMESTAMP_TIME;
-
-  /* Check if there is garbage at end of the TIME specification */
-  if (str != end && current_thd->count_cuted_fields)
-  {
-    do
-    {
-      if (!my_isspace(&my_charset_latin1,*str))
-      {
-	current_thd->cuted_fields++;
-	break;
-      }
-    } while (++str != end);
-  }
-  return 0;
+ ok:
+  part1=(long) (nr/LL(1000000));
+  part2=(long) (nr - (longlong) part1*LL(1000000));
+  time_res->year=  (int) (part1/10000L);  part1%=10000L;
+  time_res->month= (int) part1 / 100;
+  time_res->day=   (int) part1 % 100;
+  time_res->hour=  (int) (part2/10000L);  part2%=10000L;
+  time_res->minute=(int) part2 / 100;
+  time_res->second=(int) part2 % 100;
+    
+  if (time_res->year <= 9999 && time_res->month <= 12 && 
+      time_res->day <= 31 && time_res->hour <= 23 && 
+      time_res->minute <= 59 && time_res->second <= 59 &&
+      (fuzzy_date || (time_res->month != 0 && time_res->day != 0) || nr==0))
+    return nr;
+  
+ err:
+  
+  *was_cut= 1;
+  return LL(0);
 }
 
 
@@ -1007,10 +681,10 @@ bool parse_date_time_format(timestamp_type format_type,
     The last test is to ensure that %p is used if and only if
     it's needed.
   */
-  if ((format_type == TIMESTAMP_DATETIME &&
+  if ((format_type == MYSQL_TIMESTAMP_DATETIME &&
        !test_all_bits(part_map, (1 | 2 | 4 | 8 | 16 | 32))) ||
-      (format_type == TIMESTAMP_DATE && part_map != (1 | 2 | 4)) ||
-      (format_type == TIMESTAMP_TIME &&
+      (format_type == MYSQL_TIMESTAMP_DATE && part_map != (1 | 2 | 4)) ||
+      (format_type == MYSQL_TIMESTAMP_TIME &&
        !test_all_bits(part_map, 8 | 16 | 32)) ||
       !allow_separator ||			// %option should be last
       (need_p && dt_pos[6] +1 != dt_pos[7]) ||
@@ -1053,10 +727,10 @@ bool parse_date_time_format(timestamp_type format_type,
 
   format_str= 0;
   switch (format_type) {
-  case TIMESTAMP_DATE:
+  case MYSQL_TIMESTAMP_DATE:
     format_str= known_date_time_formats[INTERNAL_FORMAT].date_format;
     /* fall through */
-  case TIMESTAMP_TIME:
+  case MYSQL_TIMESTAMP_TIME:
     if (!format_str)
       format_str=known_date_time_formats[INTERNAL_FORMAT].time_format;
 
@@ -1071,7 +745,7 @@ bool parse_date_time_format(timestamp_type format_type,
       return 0;
     if (separator_map == (1 | 2))
     {
-      if (format_type == TIMESTAMP_TIME)
+      if (format_type == MYSQL_TIMESTAMP_TIME)
       {
 	if (*(format+2) != *(format+5))
 	  break;				// Error
@@ -1081,7 +755,7 @@ bool parse_date_time_format(timestamp_type format_type,
       return 0;
     }
     break;
-  case TIMESTAMP_DATETIME:
+  case MYSQL_TIMESTAMP_DATETIME:
     /*
       If there is no separators, allow the internal format as we can read
       this.  If separators are used, they must be between each part.
@@ -1200,11 +874,11 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 				     timestamp_type type)
 {
   switch (type) {
-  case TIMESTAMP_DATE:
+  case MYSQL_TIMESTAMP_DATE:
     return format->date_format;
-  case TIMESTAMP_DATETIME:
+  case MYSQL_TIMESTAMP_DATETIME:
     return format->datetime_format;
-  case TIMESTAMP_TIME:
+  case MYSQL_TIMESTAMP_TIME:
     return format->time_format;
   default:
     DBUG_ASSERT(0);				// Impossible
@@ -1220,9 +894,15 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
     MySQL doesn't support comparing of date/time/datetime strings that
     are not in arbutary order as dates are compared as strings in some
     context)
+    This functions don't check that given TIME structure members are
+    in valid range. If they are not, return value won't reflect any 
+    valid date either. Additionally, make_time doesn't take into
+    account time->day member: it's assumed that days have been converted
+    to hours already.
 ****************************************************************************/
 
-void make_time(DATE_TIME_FORMAT *format, TIME *l_time, String *str)
+void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
+               const TIME *l_time, String *str)
 {
   long length= my_sprintf((char*) str->ptr(),
 			  ((char*) str->ptr(),
@@ -1236,7 +916,8 @@ void make_time(DATE_TIME_FORMAT *format, TIME *l_time, String *str)
 }
 
 
-void make_date(DATE_TIME_FORMAT *format, TIME *l_time, String *str)
+void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
+               const TIME *l_time, String *str)
 {
   long length= my_sprintf((char*) str->ptr(),
 			  ((char*) str->ptr(),
@@ -1249,7 +930,8 @@ void make_date(DATE_TIME_FORMAT *format, TIME *l_time, String *str)
 }
 
 
-void make_datetime(DATE_TIME_FORMAT *format, TIME *l_time, String *str)
+void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
+                   const TIME *l_time, String *str)
 {
   long length= my_sprintf((char*) str->ptr(),
 			  ((char*) str->ptr(),
@@ -1263,3 +945,144 @@ void make_datetime(DATE_TIME_FORMAT *format, TIME *l_time, String *str)
   str->length(length);
   str->set_charset(&my_charset_bin);
 }
+
+
+void make_truncated_value_warning(THD *thd, const char *str_val,
+				  uint str_length, timestamp_type time_type)
+{
+  char warn_buff[MYSQL_ERRMSG_SIZE];
+  const char *type_str;
+
+  char buff[128];
+  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  str.length(0);
+  str.append(str_val, str_length);
+  str.append('\0');
+
+  switch (time_type) {
+    case MYSQL_TIMESTAMP_DATE: 
+      type_str= "date";
+      break;
+    case MYSQL_TIMESTAMP_TIME:
+      type_str= "time";
+      break;
+    case MYSQL_TIMESTAMP_DATETIME:  // FALLTHROUGH
+    default:
+      type_str= "datetime";
+      break;
+  }
+  sprintf(warn_buff, ER(ER_TRUNCATED_WRONG_VALUE),
+	  type_str, str.ptr());
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		      ER_TRUNCATED_WRONG_VALUE, warn_buff);
+}
+
+
+/* Convert time value to integer in YYYYMMDDHHMMSS format */
+
+ulonglong TIME_to_ulonglong_datetime(const TIME *time)
+{
+  return ((ulonglong) (time->year * 10000UL +
+                       time->month * 100UL +
+                       time->day) * ULL(1000000) +
+          (ulonglong) (time->hour * 10000UL +
+                       time->minute * 100UL +
+                       time->second));
+}
+
+
+/* Convert TIME value to integer in YYYYMMDD format */
+
+ulonglong TIME_to_ulonglong_date(const TIME *time)
+{
+  return (ulonglong) (time->year * 10000UL + time->month * 100UL + time->day);
+}
+
+
+/*
+  Convert TIME value to integer in HHMMSS format.
+  This function doesn't take into account time->day member:
+  it's assumed that days have been converted to hours already.
+*/
+
+ulonglong TIME_to_ulonglong_time(const TIME *time)
+{
+  return (ulonglong) (time->hour * 10000UL +
+                      time->minute * 100UL +
+                      time->second);
+}
+
+
+/*
+  Convert struct TIME (date and time split into year/month/day/hour/...
+  to a number in format YYYYMMDDHHMMSS (DATETIME),
+  YYYYMMDD (DATE)  or HHMMSS (TIME).
+  
+  SYNOPSIS
+    TIME_to_ulonglong()
+
+  DESCRIPTION
+    The function is used when we need to convert value of time item
+    to a number if it's used in numeric context, i. e.:
+    SELECT NOW()+1, CURDATE()+0, CURTIMIE()+0;
+    SELECT ?+1;
+
+  NOTE
+    This function doesn't check that given TIME structure members are
+    in valid range. If they are not, return value won't reflect any 
+    valid date either.
+*/
+
+ulonglong TIME_to_ulonglong(const TIME *time)
+{
+  switch (time->time_type) {
+  case MYSQL_TIMESTAMP_DATETIME:
+    return TIME_to_ulonglong_datetime(time);
+  case MYSQL_TIMESTAMP_DATE:
+    return TIME_to_ulonglong_date(time);
+  case MYSQL_TIMESTAMP_TIME:
+    return TIME_to_ulonglong_time(time);
+  case MYSQL_TIMESTAMP_NONE:
+  case MYSQL_TIMESTAMP_ERROR:
+    return ULL(0);
+  default:
+    DBUG_ASSERT(0);
+  }
+  return 0;
+}
+
+
+/*
+  Convert struct DATE/TIME/DATETIME value to string using built-in
+  MySQL time conversion formats.
+
+  SYNOPSIS
+    TIME_to_string()
+
+  NOTE 
+    The string must have at least MAX_DATE_REP_LENGTH bytes reserved.
+*/
+
+void TIME_to_string(const TIME *time, String *str)
+{
+  switch (time->time_type) {
+  case MYSQL_TIMESTAMP_DATETIME:
+    make_datetime((DATE_TIME_FORMAT*) 0, time, str);
+    break;
+  case MYSQL_TIMESTAMP_DATE:
+    make_date((DATE_TIME_FORMAT*) 0, time, str);
+    break;
+  case MYSQL_TIMESTAMP_TIME:
+    make_time((DATE_TIME_FORMAT*) 0, time, str);
+    break;
+  case MYSQL_TIMESTAMP_NONE:
+  case MYSQL_TIMESTAMP_ERROR:
+    str->length(0);
+    str->set_charset(&my_charset_bin);
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+}
+
+#endif

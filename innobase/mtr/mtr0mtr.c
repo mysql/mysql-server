@@ -106,178 +106,6 @@ mtr_memo_pop_all(
 }
 
 /****************************************************************
-Writes to the log the contents of a full page. This is called when the
-database is in the online backup state. */
-static
-void
-mtr_log_write_full_page(
-/*====================*/
-	page_t*	page,	/* in: page to write */
-	ulint	i,	/* in: i'th page for mtr */
-	ulint	n_pages,/* in: total number of pages for mtr */
-	mtr_t*	mtr)	/* in: mtr */
-{
-	byte*	buf;
-	byte*	ptr;
-	ulint	len;
-
-	buf = mem_alloc(UNIV_PAGE_SIZE + 50);
-
-	ptr = mlog_write_initial_log_record_fast(page, MLOG_FULL_PAGE, buf,
-									mtr);
-	ut_memcpy(ptr, page, UNIV_PAGE_SIZE);
-
-	len = (ptr - buf) + UNIV_PAGE_SIZE;
-
-	if (i == n_pages - 1) {
-		if (n_pages > 1) {
-			*(buf + len) = MLOG_MULTI_REC_END;
-			len++;
-		} else {
-			*buf = (byte)((ulint)*buf | MLOG_SINGLE_REC_FLAG);
-		}
-	}
-	
-	ut_ad(len < UNIV_PAGE_SIZE + 50);
-
-	log_write_low(buf, len);
-
-	mem_free(buf);
-}	
-
-/****************************************************************
-Parses a log record which contains the full contents of a page. */
-
-byte*
-mtr_log_parse_full_page(
-/*====================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page)	/* in: page or NULL */
-{
-	if (end_ptr < ptr + UNIV_PAGE_SIZE) {
-
-		return(NULL);
-	} 
-
-	if (page) {
-		ut_memcpy(page, ptr, UNIV_PAGE_SIZE);
-	}
-
-	return(ptr + UNIV_PAGE_SIZE);
-}
-	
-/****************************************************************
-Writes to the database log the full contents of the pages that this mtr has
-modified. */
-
-void
-mtr_log_write_backup_full_pages(
-/*============================*/
-	mtr_t*	mtr,	/* in: mini-transaction */
-	ulint	n_pages)/* in: number of pages modified by mtr */ 
-{
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-	buf_block_t*	block;
-	ulint		offset;
-	ulint		type;
-	ulint		i;
-
-	ut_ad(mtr);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_COMMITTING);
-		
-	/* Open the database log for log_write_low */
-	mtr->start_lsn = log_reserve_and_open(n_pages * (UNIV_PAGE_SIZE + 50));
-
-	memo = &(mtr->memo);
-
-	offset = dyn_array_get_data_size(memo);
-
-	i = 0;
-	
-	while (offset > 0) {
-		offset -= sizeof(mtr_memo_slot_t);
-		slot = dyn_array_get_element(memo, offset);
-
-		block = slot->object;
-		type = slot->type;
-
-		if ((block != NULL) && (type == MTR_MEMO_PAGE_X_FIX)) {
-
-			mtr_log_write_full_page(block->frame, i, n_pages, mtr);
-
-			i++;
-		}
-	}
-
-	ut_ad(i == n_pages);
-}
-
-/****************************************************************
-Checks if mtr is the first to modify any page after online_backup_lsn. */
-static
-ibool
-mtr_first_to_modify_page_after_backup(
-/*==================================*/
-				/* out: TRUE if first for a page */
-	mtr_t*	mtr,		/* in: mini-transaction */
-	ulint*	n_pages)	/* out: number of modified pages (all modified
-				pages, backup_lsn does not matter here) */
-{
-	mtr_memo_slot_t* slot;
-	dyn_array_t*	memo;
-	ulint		offset;
-	buf_block_t*	block;
-	ulint		type;
-	dulint		backup_lsn;
-	ibool		ret	= FALSE;
-
-	ut_ad(mtr);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
-	ut_ad(mtr->state == MTR_COMMITTING);
-
-	backup_lsn = log_get_online_backup_lsn_low();
-	
-	memo = &(mtr->memo);
-	
-	offset = dyn_array_get_data_size(memo);
-
-	*n_pages = 0;
-	
-	while (offset > 0) {
-		offset -= sizeof(mtr_memo_slot_t);
-		slot = dyn_array_get_element(memo, offset);
-
-		block = slot->object;
-		type = slot->type;
-
-		if ((block != NULL) && (type == MTR_MEMO_PAGE_X_FIX)) {
-
-			*n_pages = *n_pages + 1;
-
-			if (ut_dulint_cmp(buf_frame_get_newest_modification(
-								block->frame),
-							backup_lsn) <= 0) {
-
-				printf("Page %lu newest %lu backup %lu\n",
-					(ulong) block->offset,
-					(ulong) ut_dulint_get_low(
-					buf_frame_get_newest_modification(
-							block->frame)),
-					(ulong) ut_dulint_get_low(backup_lsn));
-					
-				ret = TRUE;
-			}
-		}
-	}
-
-	return(ret);
-}
-	
-/****************************************************************
 Writes the contents of a mini-transaction log, if any, to the database log. */
 static
 void
@@ -290,7 +118,6 @@ mtr_log_reserve_and_write(
 	ulint		data_size;
 	ibool		success;
 	byte*		first_data;
-	ulint		n_modified_pages;
 
 	ut_ad(mtr);
 
@@ -321,27 +148,12 @@ mtr_log_reserve_and_write(
 
 	if (mtr->log_mode == MTR_LOG_ALL) {
 
-		if (log_get_online_backup_state_low()
-		    && mtr_first_to_modify_page_after_backup(mtr,
-		    					&n_modified_pages)) {
-		    	
-			/* The database is in the online backup state: write
-			to the log the full contents of all the pages if this
-			mtr is the first to modify any page in the buffer pool
-			after online_backup_lsn */
+		block = mlog;
 
-			log_close();
-			log_release();
-		
-			mtr_log_write_backup_full_pages(mtr, n_modified_pages);
-		} else {
-			block = mlog;
-
-			while (block != NULL) {
-				log_write_low(dyn_block_get_data(block),
-						dyn_block_get_used(block));
-				block = dyn_array_get_next_block(mlog, block);
-			}
+		while (block != NULL) {
+			log_write_low(dyn_block_get_data(block),
+					dyn_block_get_used(block));
+			block = dyn_array_get_next_block(mlog, block);
 		}
 	} else {
 		ut_ad(mtr->log_mode == MTR_LOG_NONE);
@@ -495,13 +307,11 @@ mtr_read_dulint(
 /*===========*/
 				/* out: value read */
 	byte*		ptr,	/* in: pointer from where to read */
-	ulint		type __attribute__((unused)), /* in: MLOG_8BYTES */
 	mtr_t*		mtr __attribute__((unused)))
                                 /* in: mini-transaction handle */
 {
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(ptr && mtr);
-	ut_ad(type == MLOG_8BYTES);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr), 
 						MTR_MEMO_PAGE_S_FIX) ||
 	      mtr_memo_contains(mtr, buf_block_align(ptr), 
@@ -517,7 +327,7 @@ mtr_print(
 /*======*/
 	mtr_t*	mtr)	/* in: mtr */
 {
-	printf(
+	fprintf(stderr,
 	"Mini-transaction handle: memo size %lu bytes log size %lu bytes\n",
 		(ulong) dyn_array_get_data_size(&(mtr->memo)),
 		(ulong) dyn_array_get_data_size(&(mtr->log)));

@@ -3,10 +3,10 @@ create table t1 (a varchar(10), key(a));
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 explain select * from t1 where a like 'abc%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	11	NULL	1	Using where; Using index
+1	SIMPLE	t1	index	a	a	11	NULL	5	Using where; Using index
 explain select * from t1 where a like concat('abc','%');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	11	NULL	1	Using where; Using index
+1	SIMPLE	t1	index	a	a	11	NULL	5	Using where; Using index
 select * from t1 where a like "abc%";
 a
 abc
@@ -36,6 +36,27 @@ abcd
 select * from t1 where a like "%abc\d%";
 a
 abcd
+drop table t1;
+create table t1 (a varchar(10), key(a));
+insert into t1 values ('a'), ('a\\b');
+select * from t1 where a like 'a\\%' escape '#';
+a
+a\b
+select * from t1 where a like 'a\\%' escape '#' and a like 'a\\\\b';
+a
+a\b
+prepare stmt1 from 'select * from t1 where a like \'a\\%\' escape ?';
+set @esc='#';
+execute stmt1 using @esc;
+a
+a\b
+deallocate prepare stmt1;
+drop table t1;
+create table t1 (a datetime);
+insert into t1 values ('2004-03-11 12:00:21');
+select * from t1 where a like '2004-03-11 12:00:21';
+a
+2004-03-11 12:00:21
 drop table t1;
 SET NAMES koi8r;
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET koi8r);
@@ -103,4 +124,34 @@ a
 ÆÙ×ÁÐÒÏÌäÖ
 ÆÙ×ÁÐÒÏÌÄö
 æù÷áðòïìäö
+DROP TABLE t1;
+SET NAMES cp1250;
+CREATE TABLE t1 (a varchar(250) NOT NULL) DEFAULT CHARACTER SET=cp1250;
+INSERT INTO t1 VALUES
+('Techni Tapes Sp. z o.o.'),
+('Pojazdy Szynowe PESA Bydgoszcz SA Holding'),
+('AKAPESTER 1 P.P.H.U.'),
+('Pojazdy Szynowe PESA Bydgoszcz S A Holding'),
+('PPUH PESKA-I Maria Struniarska');
+select * from t1 where a like '%PESA%';
+a
+Pojazdy Szynowe PESA Bydgoszcz SA Holding
+Pojazdy Szynowe PESA Bydgoszcz S A Holding
+select * from t1 where a like '%PESA %';
+a
+Pojazdy Szynowe PESA Bydgoszcz SA Holding
+Pojazdy Szynowe PESA Bydgoszcz S A Holding
+select * from t1 where a like '%PES%';
+a
+Techni Tapes Sp. z o.o.
+Pojazdy Szynowe PESA Bydgoszcz SA Holding
+AKAPESTER 1 P.P.H.U.
+Pojazdy Szynowe PESA Bydgoszcz S A Holding
+PPUH PESKA-I Maria Struniarska
+select * from t1 where a like '%PESKA%';
+a
+PPUH PESKA-I Maria Struniarska
+select * from t1 where a like '%ESKA%';
+a
+PPUH PESKA-I Maria Struniarska
 DROP TABLE t1;

@@ -97,8 +97,6 @@ struct mem_pool_struct{
 /* The common memory pool */
 mem_pool_t*	mem_comm_pool	= NULL;
 
-ulint		mem_out_of_mem_err_msg_count	= 0;
-
 /* We use this counter to check that the mem pool mutex does not leak;
 this is to track a strange assertion failure reported at
 mysql@lists.mysql.com */
@@ -259,13 +257,13 @@ mem_pool_fill_free_list(
 	mem_area_t*	area2;
 	ibool		ret;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (i >= 63) {
 		/* We come here when we have run out of space in the
 		memory pool: */
-
-		mem_out_of_mem_err_msg_count++;
      
 		return(FALSE);
 	}
@@ -296,7 +294,7 @@ mem_pool_fill_free_list(
 	if (UT_LIST_GET_LEN(pool->free_list[i + 1]) == 0) {
 	        mem_analyze_corruption((byte*)area);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	UT_LIST_REMOVE(free_list, pool->free_list[i + 1], area);
@@ -374,7 +372,7 @@ mem_area_alloc(
 "InnoDB: Probably a race condition because now the area is marked free!\n");
 		}
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (UT_LIST_GET_LEN(pool->free_list[n]) == 0) {
@@ -384,7 +382,7 @@ mem_area_alloc(
 			(ulong) n);
 		mem_analyze_corruption((byte*)area);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	ut_ad(mem_area_get_size(area) == ut_2_exp(n));	
@@ -459,17 +457,13 @@ mem_area_free(
 	ulint		size;
 	ulint		n;
 	
-	if (mem_out_of_mem_err_msg_count > 0) {
-		/* It may be that the area was really allocated from the
-		OS with regular malloc: check if ptr points within
-		our memory pool */
+	/* It may be that the area was really allocated from the OS with
+	regular malloc: check if ptr points within our memory pool */
 
-		if ((byte*)ptr < pool->buf
-				|| (byte*)ptr >= pool->buf + pool->size) {
-			ut_free(ptr);
+	if ((byte*)ptr < pool->buf || (byte*)ptr >= pool->buf + pool->size) {
+		ut_free(ptr);
 
-			return;
-		}
+		return;
 	}
 
 	area = (mem_area_t*) (((byte*)ptr) - MEM_AREA_EXTRA_SIZE);
@@ -480,7 +474,7 @@ mem_area_free(
 "InnoDB: element is marked free!\n");
 
 		mem_analyze_corruption((byte*)area);
-		ut_a(0);
+		ut_error;
 	}
 
 	size = mem_area_get_size(area);
@@ -491,7 +485,7 @@ mem_area_free(
 "InnoDB: previous allocated area!\n");
 
 		mem_analyze_corruption((byte*)area);
-		ut_a(0);
+		ut_error;
 	}
 
 #ifdef UNIV_LIGHT_MEM_DEBUG	
@@ -508,7 +502,7 @@ mem_area_free(
 			  (ulong) size, (ulong) next_size);
 			mem_analyze_corruption((byte*)area);
 
-			ut_a(0);
+			ut_error;
 		}
 	}
 #endif

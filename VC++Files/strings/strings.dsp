@@ -26,6 +26,7 @@ CFG=strings - Win32 Debug
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
 CPP=xicl6.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "strings - Win32 Release"
@@ -41,7 +42,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
@@ -82,10 +83,6 @@ LIB32=xilink6.exe -lib
 
 # Name "strings - Win32 Release"
 # Name "strings - Win32 Debug"
-# Begin Source File
-
-SOURCE=.\atof.c
-# End Source File
 # Begin Source File
 
 SOURCE=.\bchange.c
@@ -153,6 +150,10 @@ SOURCE=".\ctype-sjis.c"
 # Begin Source File
 
 SOURCE=".\ctype-tis620.c"
+# End Source File
+# Begin Source File
+
+SOURCE=".\ctype-uca.c"
 # End Source File
 # Begin Source File
 
@@ -229,6 +230,10 @@ SOURCE=.\strmov.c
 # Begin Source File
 
 SOURCE=.\strnmov.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\strtod.c
 # End Source File
 # Begin Source File
 

@@ -36,6 +36,11 @@
 #define MYSQL_SERVICENAME "MySQL"
 #endif /* __WIN__ */
 
+/*
+  You should add new commands to the end of this list, otherwise old
+  servers won't be able to handle them as 'unsupported'.
+*/
+
 enum enum_server_command
 {
   COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_QUERY, COM_FIELD_LIST,
@@ -44,7 +49,7 @@ enum enum_server_command
   COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP,
   COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
   COM_PREPARE, COM_EXECUTE, COM_LONG_DATA, COM_CLOSE_STMT,
-  COM_RESET_STMT, COM_SET_OPTION,
+  COM_RESET_STMT, COM_SET_OPTION, COM_FETCH,
   COM_END				/* Must be last */
 };
 
@@ -78,6 +83,7 @@ enum enum_server_command
 #define PART_KEY_FLAG	16384		/* Intern; Part of some key */
 #define GROUP_FLAG	32768		/* Intern: Group field */
 #define UNIQUE_FLAG	65536		/* Intern: Used by sql_yacc */
+#define BINCMP_FLAG	131072		/* Intern: Used by sql_yacc */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */
@@ -118,7 +124,7 @@ enum enum_server_command
 #define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
 #define CLIENT_MULTI_STATEMENTS 65536   /* Enable/disable multi-stmt support */
 #define CLIENT_MULTI_RESULTS    131072  /* Enable/disable multi-results */
-#define CLIENT_REMEMBER_OPTIONS	((ulong) (1L << 31))
+#define CLIENT_REMEMBER_OPTIONS	(((ulong) 1) << 31)
 
 #define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
 #define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
@@ -126,6 +132,17 @@ enum enum_server_command
 #define SERVER_MORE_RESULTS_EXISTS 8    /* Multi query - next query exists */
 #define SERVER_QUERY_NO_GOOD_INDEX_USED 16
 #define SERVER_QUERY_NO_INDEX_USED      32
+/*
+  The server was able to fulfill client request and open read-only
+  non-scrollable cursor for the query.  This flag comes in server
+  status with reply to COM_EXECUTE and COM_EXECUTE_DIRECT commands.
+*/
+#define SERVER_STATUS_CURSOR_EXISTS 64
+/*
+  This flag is sent with last row of read-only cursor, in reply to
+  COM_FETCH command.
+*/
+#define SERVER_STATUS_LAST_ROW_SENT 128
 
 #define MYSQL_ERRMSG_SIZE	512
 #define NET_READ_TIMEOUT	30		/* Timeout on read */
@@ -225,16 +242,41 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 #define FIELD_TYPE_INTERVAL    MYSQL_TYPE_ENUM
 #define FIELD_TYPE_GEOMETRY    MYSQL_TYPE_GEOMETRY
 
-#if TO_BE_INCLUDED_LATER
-/* For bind applications, to indicate unsigned buffers */
-#define MYSQL_TYPE_UTINY     -10
-#define MYSQL_TYPE_USHORT    -9
-#define MYSQL_TYPE_ULONG     -8
-#define MYSQL_TYPE_UFLOAT    -7
-#define MYSQL_TYPE_UDOUBLE   -6
-#define MYSQL_TYPE_ULONGLONG -5
-#define MYSQL_TYPE_UINT24    -4
+enum enum_shutdown_level {
+  /*
+    We want levels to be in growing order of hardness. So we leave room
+    for future intermediate levels. For now, escalating one level is += 10;
+    later if we insert new levels in between we will need a function
+    next_shutdown_level(level). Note that DEFAULT does not respect the
+    growing property.
+  */
+  SHUTDOWN_DEFAULT= 0, /* mapped to WAIT_ALL_BUFFERS for now */
+  /*
+    Here is the list in growing order (the next does the previous plus
+    something). WAIT_ALL_BUFFERS is what we have now. Others are "this MySQL
+    server does not support this shutdown level yet".
+  */
+  SHUTDOWN_WAIT_CONNECTIONS= 10, /* wait for existing connections to finish */
+  SHUTDOWN_WAIT_TRANSACTIONS= 20, /* wait for existing trans to finish */
+  SHUTDOWN_WAIT_STATEMENTS= 30, /* wait for existing updating stmts to finish */
+  SHUTDOWN_WAIT_ALL_BUFFERS= 40, /* flush InnoDB buffers */
+  SHUTDOWN_WAIT_CRITICAL_BUFFERS= 50, /* flush MyISAM buffs (no corruption) */
+  /* Now the 2 levels of the KILL command */
+#if MYSQL_VERSION_ID >= 50000
+  KILL_QUERY= 254,
 #endif
+  KILL_CONNECTION= 255
+};
+
+
+enum enum_cursor_type
+{
+  CURSOR_TYPE_NO_CURSOR= 0,
+  CURSOR_TYPE_READ_ONLY= 1,
+  CURSOR_TYPE_FOR_UPDATE= 2,
+  CURSOR_TYPE_SCROLLABLE= 4
+};
+
 
 /* options for mysql_set_option */
 enum enum_mysql_set_option
@@ -321,9 +363,6 @@ typedef struct st_udf_init
 extern "C" {
 #endif
 
-extern unsigned long max_allowed_packet;
-extern unsigned long net_buffer_length;
-
 /*
   These functions are used for authentication by client and server and
   implemented in sql/password.c
@@ -374,6 +413,6 @@ char *net_store_length(char *pkg, ulonglong length);
 
 #define NULL_LENGTH ((unsigned long) ~0) /* For net_store_length */
 #define MYSQL_STMT_HEADER       4
-#define	MYSQL_LONG_DATA_HEADER	6
+#define MYSQL_LONG_DATA_HEADER  6
 
 #endif

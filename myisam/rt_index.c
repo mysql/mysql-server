@@ -17,11 +17,15 @@
 
 #include "myisamdef.h"
 
+#ifdef HAVE_RTREE_KEYS
+
 #include "rt_index.h"
 #include "rt_key.h"
 #include "rt_mbr.h"
 
 #define REINSERT_BUFFER_INC 10
+#define PICK_BY_AREA
+/*#define PICK_BY_PERIMETER*/
 
 typedef struct st_page_level
 {
@@ -437,6 +441,84 @@ int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
 
 
 /*
+  Choose non-leaf better key for insertion
+*/
+
+#ifdef PICK_BY_PERIMETER
+static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
+			     uint key_length, uchar *page_buf, uint nod_flag)
+{
+  double increase;
+  double best_incr = DBL_MAX;
+  double perimeter;
+  double best_perimeter;
+  uchar *best_key;
+  uchar *k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
+  uchar *last = rt_PAGE_END(page_buf);
+
+  LINT_INIT(best_perimeter);
+  LINT_INIT(best_key);
+
+  for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag))
+  {
+    if ((increase = rtree_perimeter_increase(keyinfo->seg, k, key, key_length,
+					     &perimeter)) == -1)
+      return NULL;
+    if ((increase < best_incr)||
+	(increase == best_incr && perimeter < best_perimeter))
+    {
+      best_key = k;
+      best_perimeter= perimeter;
+      best_incr = increase;
+    }
+  }
+  return best_key;
+}
+
+#endif /*PICK_BY_PERIMETER*/
+
+#ifdef PICK_BY_AREA
+static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
+			     uint key_length, uchar *page_buf, uint nod_flag)
+{
+  double increase;
+  double best_incr = DBL_MAX;
+  double area;
+  double best_area;
+  uchar *best_key;
+  uchar *k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
+  uchar *last = rt_PAGE_END(page_buf);
+
+  LINT_INIT(best_area);
+  LINT_INIT(best_key);
+
+  for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag))
+  {
+    if ((increase = rtree_area_increase(keyinfo->seg, k, key, key_length, 
+                                        &area)) == -1)
+      return NULL;
+    if (increase < best_incr)
+    {
+      best_key = k;
+      best_area = area;
+      best_incr = increase;
+    }
+    else
+    {
+      if ((increase == best_incr) && (area < best_area))
+      {
+        best_key = k;
+        best_area = area;
+        best_incr = increase;
+      }
+    }
+  }
+  return best_key;
+}
+
+#endif /*PICK_BY_AREA*/
+
+/*
   Go down and insert key into tree
 
   RETURN
@@ -467,7 +549,7 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   if ((ins_level == -1 && nod_flag) ||       /* key: go down to leaf */
       (ins_level > -1 && ins_level > level)) /* branch: go down to ins_level */
   { 
-    if ((k = rtree_choose_key(info, keyinfo, key, key_length, page_buf, 
+    if ((k = rtree_pick_key(info, keyinfo, key, key_length, page_buf, 
                              nod_flag)) == NULL)
       goto err1;
     switch ((res = rtree_insert_req(info, keyinfo, key, key_length, 
@@ -577,7 +659,7 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
 
       mi_putint(new_root_buf, 2, nod_flag);
       if ((new_root = _mi_new(info, keyinfo, DFLT_INIT_HITS)) ==
-                                                             HA_OFFSET_ERROR)
+	  HA_OFFSET_ERROR)
         goto err1;
 
       new_key = new_root_buf + keyinfo->block_length + nod_flag;
@@ -991,3 +1073,6 @@ err1:
   my_afree((byte*)page_buf);
   return HA_POS_ERROR;
 }
+
+#endif /*HAVE_RTREE_KEYS*/
+

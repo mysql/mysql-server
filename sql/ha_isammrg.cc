@@ -78,8 +78,8 @@ int ha_isammrg::write_row(byte * buf)
 int ha_isammrg::update_row(const byte * old_data, byte * new_data)
 {
   statistic_increment(ha_update_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(new_data+table->time_stamp-1);
+  if (table->timestamp_on_update_now)
+    update_timestamp(new_data+table->timestamp_on_update_now-1);
   return !mrg_update(file,old_data,new_data) ? 0 : my_errno ? my_errno : -1;
 }
 
@@ -169,11 +169,6 @@ void ha_isammrg::info(uint flag)
 int ha_isammrg::extra(enum ha_extra_function operation)
 {
   return !mrg_extra(file,operation) ? 0 : my_errno ? my_errno : -1;
-}
-
-int ha_isammrg::reset(void)
-{
-  return !mrg_extra(file,HA_EXTRA_RESET) ? 0 : my_errno ? my_errno : -1;
 }
 
 int ha_isammrg::external_lock(THD *thd, int lock_type)

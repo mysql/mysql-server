@@ -33,10 +33,11 @@ noinst_PROGRAMS =	insert_test select_test thread_test client_test
 #
 INCLUDES =		-I$(top_srcdir)/include $(openssl_includes)
 LIBS =			@CLIENT_LIBS@
-LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
-client_test_LDADD=      $(LDADD) $(CXXLDFLAGS)
+LDADD =			@CLIENT_EXTRA_LDFLAGS@ \
+                        $(top_builddir)/libmysql/libmysqlclient.la
+client_test_LDADD=      $(LDADD) $(CXXLDFLAGS) \
+                        $(top_builddir)/mysys/libmysys.a
 client_test_SOURCES=    client_test.c
-client_test_DEPENDENCIES= $(LIBRARIES) $(pkglib_LTLIBRARIES)
 insert_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 select_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 

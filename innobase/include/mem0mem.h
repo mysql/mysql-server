@@ -64,14 +64,14 @@ heap creation. */
 
 #define mem_heap_create(N)    mem_heap_create_func(\
 						(N), NULL, MEM_HEAP_DYNAMIC,\
-						IB__FILE__, __LINE__)
+						__FILE__, __LINE__)
 /******************************************************************
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
 
 #define mem_heap_create_in_buffer(N)	mem_heap_create_func(\
 						(N), NULL, MEM_HEAP_BUFFER,\
-						IB__FILE__, __LINE__)
+						__FILE__, __LINE__)
 /******************************************************************
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
@@ -79,7 +79,7 @@ heap creation. */
 #define mem_heap_create_in_btr_search(N) mem_heap_create_func(\
 					(N), NULL, MEM_HEAP_BTR_SEARCH |\
 						MEM_HEAP_BUFFER,\
-						IB__FILE__, __LINE__)
+						__FILE__, __LINE__)
 /******************************************************************
 Use this macro instead of the corresponding function! Macro for fast
 memory heap creation. An initial block of memory B is given by the
@@ -88,14 +88,14 @@ mem_heap_free. See the parameter comment in mem_heap_create_func below. */
 
 #define mem_heap_fast_create(N, B)	mem_heap_create_func(\
 						(N), (B), MEM_HEAP_DYNAMIC,\
-						IB__FILE__, __LINE__)
+						__FILE__, __LINE__)
 
 /******************************************************************
 Use this macro instead of the corresponding function! Macro for memory
 heap freeing. */
 
 #define mem_heap_free(heap) mem_heap_free_func(\
-					  (heap), IB__FILE__, __LINE__)
+					  (heap), __FILE__, __LINE__)
 /*********************************************************************
 NOTE: Use the corresponding macros instead of this function. Creates a
 memory heap which allocates memory from dynamic space. For debugging
@@ -105,26 +105,27 @@ UNIV_INLINE
 mem_heap_t*
 mem_heap_create_func(
 /*=================*/
-				/* out, own: memory heap */
-	ulint	n,		/* in: desired start block size,
-				this means that a single user buffer
-				of size n will fit in the block, 
-				0 creates a default size block;
-				if init_block is not NULL, n tells
-				its size in bytes */
-	void*	init_block,	/* in: if very fast creation is
-				wanted, the caller can reserve some
-				memory from its stack, for example,
-				and pass it as the the initial block
-				to the heap: then no OS call of malloc
-				is needed at the creation. CAUTION:
-				the caller must make sure the initial
-				block is not unintentionally erased
-				(if allocated in the stack), before
-				the memory heap is explicitly freed. */
-	ulint	type,		/* in: MEM_HEAP_DYNAMIC or MEM_HEAP_BUFFER */ 
-	char*   file_name,	/* in: file name where created */
-	ulint	line		/* in: line where created */
+					/* out, own: memory heap */
+	ulint		n,		/* in: desired start block size,
+					this means that a single user buffer
+					of size n will fit in the block, 
+					0 creates a default size block;
+					if init_block is not NULL, n tells
+					its size in bytes */
+	void*		init_block,	/* in: if very fast creation is
+					wanted, the caller can reserve some
+					memory from its stack, for example,
+					and pass it as the the initial block
+					to the heap: then no OS call of malloc
+					is needed at the creation. CAUTION:
+					the caller must make sure the initial
+					block is not unintentionally erased
+					(if allocated in the stack), before
+					the memory heap is explicitly freed. */
+	ulint		type,		/* in: MEM_HEAP_DYNAMIC
+					or MEM_HEAP_BUFFER */ 
+	const char*	file_name,	/* in: file name where created */
+	ulint		line		/* in: line where created */
 	);
 /*********************************************************************
 NOTE: Use the corresponding macro instead of this function. Frees the space
@@ -135,7 +136,7 @@ void
 mem_heap_free_func(
 /*===============*/
 	mem_heap_t*   	heap,  		/* in, own: heap to be freed */
-	char*  		file_name __attribute__((unused)),
+	const char*	file_name __attribute__((unused)),
 					/* in: file name where freed */
 	ulint    	line  __attribute__((unused)));
 					/* in: line where freed */
@@ -206,13 +207,13 @@ mem_heap_get_size(
 Use this macro instead of the corresponding function!
 Macro for memory buffer allocation */
 
-#define mem_alloc(N)    mem_alloc_func((N), IB__FILE__, __LINE__)
+#define mem_alloc(N)    mem_alloc_func((N), __FILE__, __LINE__)
 /******************************************************************
 Use this macro instead of the corresponding function!
 Macro for memory buffer allocation */
 
 #define mem_alloc_noninline(N)    mem_alloc_func_noninline(\
-					  (N), IB__FILE__, __LINE__)
+					  (N), __FILE__, __LINE__)
 /*******************************************************************
 NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
@@ -222,11 +223,11 @@ UNIV_INLINE
 void*
 mem_alloc_func(
 /*===========*/
-				/* out, own: free storage, NULL
-				if did not succeed */
-	ulint 	n,              /* in: desired number of bytes */
-	char*  	file_name,  	/* in: file name where created */
-	ulint 	line            /* in: line where created */
+					/* out, own: free storage, NULL
+					if did not succeed */
+	ulint		n,		/* in: desired number of bytes */
+	const char*	file_name,	/* in: file name where created */
+	ulint		line		/* in: line where created */
 );
 /*******************************************************************
 NOTE: Use the corresponding macro instead of this function.
@@ -237,17 +238,17 @@ with mem_free. */
 void*
 mem_alloc_func_noninline(
 /*=====================*/
-				/* out, own: free storage, NULL if did not
-				succeed */
-	ulint   n,              /* in: desired number of bytes */
-	char*  	file_name,	/* in: file name where created */
-	ulint   line		/* in: line where created */
+					/* out, own: free storage,
+					NULL if did not succeed */
+	ulint		n,		/* in: desired number of bytes */
+	const char*	file_name,	/* in: file name where created */
+	ulint		line		/* in: line where created */
 	);
 /******************************************************************
 Use this macro instead of the corresponding function!
 Macro for memory buffer freeing */
 
-#define mem_free(PTR)   mem_free_func((PTR), IB__FILE__, __LINE__)
+#define mem_free(PTR)   mem_free_func((PTR), __FILE__, __LINE__)
 /*******************************************************************
 NOTE: Use the corresponding macro instead of this function.
 Frees a single buffer of storage from
@@ -256,21 +257,63 @@ UNIV_INLINE
 void
 mem_free_func(
 /*==========*/
-	void*   ptr,    	/* in, own: buffer to be freed */
-	char*  	file_name,  	/* in: file name where created */
-	ulint 	line            /* in: line where created */
+	void*		ptr,		/* in, own: buffer to be freed */
+	const char*	file_name,	/* in: file name where created */
+	ulint		line		/* in: line where created */
 );
-/*******************************************************************
-Implements realloc. */
+
+/**************************************************************************
+Duplicates a NUL-terminated string. */
 UNIV_INLINE
-void*
-mem_realloc(
+char*
+mem_strdup(
+/*=======*/
+				/* out, own: a copy of the string,
+				must be deallocated with mem_free */
+	const char*	str);	/* in: string to be copied */
+/**************************************************************************
+Makes a NUL-terminated copy of a nonterminated string. */
+UNIV_INLINE
+char*
+mem_strdupl(
 /*========*/
-			/* out, own: free storage, NULL if did not succeed */
-	void*	buf,	/* in: pointer to an old buffer */
-	ulint   n,	/* in: desired number of bytes */
-	char*  	file_name,/* in: file name where called */
-	ulint 	line);  /* in: line where called */
+				/* out, own: a copy of the string,
+				must be deallocated with mem_free */
+	const char*	str,	/* in: string to be copied */
+	ulint		len);	/* in: length of str, in bytes */
+
+/**************************************************************************
+Makes a NUL-terminated quoted copy of a NUL-terminated string. */
+UNIV_INLINE
+char*
+mem_strdupq(
+/*========*/
+				/* out, own: a quoted copy of the string,
+				must be deallocated with mem_free */
+	const char*	str,	/* in: string to be copied */
+	char		q);	/* in: quote character */
+
+/**************************************************************************
+Duplicates a NUL-terminated string, allocated from a memory heap. */
+UNIV_INLINE
+char*
+mem_heap_strdup(
+/*============*/
+				/* out, own: a copy of the string */
+	mem_heap_t* heap,	/* in: memory heap where string is allocated */
+	const char* str);	/* in: string to be copied */
+/**************************************************************************
+Makes a NUL-terminated copy of a nonterminated string,
+allocated from a memory heap. */
+UNIV_INLINE
+char*
+mem_heap_strdupl(
+/*=============*/
+				/* out, own: a copy of the string */
+	mem_heap_t*	heap,	/* in: memory heap where string is allocated */
+	const char*	str,	/* in: string to be copied */
+	ulint		len);	/* in: length of str, in bytes */
+
 #ifdef MEM_PERIODIC_CHECK
 /**********************************************************************
 Goes through the list of all allocated mem blocks, checks their magic

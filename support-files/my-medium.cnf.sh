@@ -1,8 +1,8 @@
-# Example mysql config file for medium systems.
+# Example MySQL config file for medium systems.
 #
 # This is for a system with little memory (32M - 64M) where MySQL plays
-# a important part and systems up to 128M very MySQL is used together with
-# other programs (like a web server)
+# an important part, or systems up to 128M where MySQL is used together with
+# other programs (such as a web server)
 #
 # You can copy this file to
 # /etc/my.cnf to set global options,
@@ -10,9 +10,9 @@
 # installation this directory is @localstatedir@) or
 # ~/.my.cnf to set user-specific options.
 #
-# One can in this file use all long options that the program supports.
-# If you want to know which options a program support, run the program
-# with --help option.
+# In this file, you can use all long options that a program supports.
+# If you want to know which options a program supports, run the program
+# with the "--help" option.
 
 # The following options will be passed to all MySQL clients
 [client]
@@ -32,6 +32,8 @@ max_allowed_packet = 1M
 table_cache = 64
 sort_buffer_size = 512K
 net_buffer_length = 8K
+read_buffer_size = 256K
+read_rnd_buffer_size = 512K
 myisam_sort_buffer_size = 8M
 
 # Don't listen on a TCP/IP port at all. This can be a security enhancement,

@@ -1,10 +1,19 @@
 delete from mysql.proc;
 create procedure syntaxerror(t int)|
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+drop table if exists t3|
+create table t3 ( x int )|
+insert into t3 values (2), (3)|
+create procedure bad_into(out param int)
+select x from t3 into param|
+call bad_into(@x)|
+ERROR 42000: Result consisted of more than one row
+drop procedure bad_into|
+drop table t3|
 create procedure proc1()
 set @x = 42|
 create function func1() returns int
@@ -24,18 +33,18 @@ ERROR 42000: FUNCTION func1 already exists
 drop procedure proc1|
 drop function func1|
 alter procedure foo|
-ERROR 42000: PROCEDURE foo does not exist
+ERROR 42000: PROCEDURE test.foo does not exist
 alter function foo|
-ERROR 42000: FUNCTION foo does not exist
+ERROR 42000: FUNCTION test.foo does not exist
 drop procedure foo|
-ERROR 42000: PROCEDURE foo does not exist
+ERROR 42000: PROCEDURE test.foo does not exist
 drop function foo|
-ERROR 42000: FUNCTION foo does not exist
+ERROR 42000: FUNCTION test.foo does not exist
 call foo()|
-ERROR 42000: PROCEDURE foo does not exist
+ERROR 42000: PROCEDURE test.foo does not exist
 drop procedure if exists foo|
 Warnings:
-Warning	1289	PROCEDURE foo does not exist
+Warning	1304	PROCEDURE foo does not exist
 show create procedure foo|
 ERROR 42000: PROCEDURE foo does not exist
 create procedure foo()
@@ -71,7 +80,7 @@ declare y int;
 set x = y;
 end|
 Warnings:
-Warning	1295	Referring to uninitialized variable y
+Warning	1310	Referring to uninitialized variable y
 drop procedure foo|
 create procedure foo()
 return 42|
@@ -88,13 +97,13 @@ insert into test.t1 values (x)|
 create function f(x int) returns int
 return x+42|
 call p()|
-ERROR 42000: Wrong number of arguments for PROCEDURE p, expected 1, got 0
+ERROR 42000: Incorrect number of arguments for PROCEDURE p; expected 1, got 0
 call p(1, 2)|
-ERROR 42000: Wrong number of arguments for PROCEDURE p, expected 1, got 2
+ERROR 42000: Incorrect number of arguments for PROCEDURE p; expected 1, got 2
 select f()|
-ERROR 42000: Wrong number of arguments for FUNCTION f, expected 1, got 0
+ERROR 42000: Incorrect number of arguments for FUNCTION f; expected 1, got 0
 select f(1, 2)|
-ERROR 42000: Wrong number of arguments for FUNCTION f, expected 1, got 2
+ERROR 42000: Incorrect number of arguments for FUNCTION f; expected 1, got 2
 drop procedure p|
 drop function f|
 create procedure p(val int, out res int)
@@ -184,7 +193,7 @@ call p()|
 ERROR 24000: Cursor is not open
 drop procedure p|
 alter procedure bar3 sql security invoker|
-ERROR 42000: PROCEDURE bar3 does not exist
+ERROR 42000: PROCEDURE test.bar3 does not exist
 alter procedure bar3 name
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA|
 ERROR 42000: Identifier name 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' is too long
@@ -194,8 +203,8 @@ create table t1 (val int, x float)|
 insert into t1 values (42, 3.1), (19, 1.2)|
 create procedure p()
 begin
-declare c cursor for select * from t1;
 declare x int;
+declare c cursor for select * from t1;
 open c;
 fetch c into x, y;
 close c;
@@ -203,27 +212,27 @@ end|
 ERROR 42000: Undeclared variable: y
 create procedure p()
 begin
-declare c cursor for select * from t1;
 declare x int;
+declare c cursor for select * from t1;
 open c;
 fetch c into x;
 close c;
 end|
 call p()|
-ERROR HY000: Wrong number of FETCH variables
+ERROR HY000: Incorrect number of FETCH variables
 drop procedure p|
 create procedure p()
 begin
-declare c cursor for select * from t1;
 declare x int;
 declare y float;
 declare z int;
+declare c cursor for select * from t1;
 open c;
 fetch c into x, y, z;
 close c;
 end|
 call p()|
-ERROR HY000: Wrong number of FETCH variables
+ERROR HY000: Incorrect number of FETCH variables
 drop procedure p|
 create procedure p(in x int, x char(10))
 begin
@@ -251,6 +260,29 @@ declare c cursor for select * from t1;
 declare c cursor for select field from t1;
 end|
 ERROR 42000: Duplicate cursor: c
+create procedure u()
+use sptmp|
+ERROR 42000: USE is not allowed in a stored procedure
+create procedure p()
+begin
+declare c cursor for select * from t1;
+declare x int;
+end|
+ERROR 42000: Variable or condition declaration after cursor or handler declaration
+create procedure p()
+begin
+declare x int;
+declare continue handler for sqlstate '42S99' set x = 1;
+declare foo condition for sqlstate '42S99';
+end|
+ERROR 42000: Variable or condition declaration after cursor or handler declaration
+create procedure p()
+begin
+declare x int;
+declare continue handler for sqlstate '42S99' set x = 1;
+declare c cursor for select * from t1;
+end|
+ERROR 42000: Cursor declaration after handler declaration
 create procedure bug1965()
 begin
 declare c cursor for select val from t1 order by valname;
@@ -272,7 +304,7 @@ create function bug1654()
 returns int
 return (select sum(t.data) from test.t2 t)|
 ERROR 0A000: Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION
-drop table if exists table_1|
+drop table if exists t3|
 create table t3 (column_1_0 int)|
 create procedure bug1653()
 update t3 set column_1 = 0|
@@ -302,4 +334,87 @@ call bug2272()|
 ERROR 42S22: Unknown column 'v' in 'field list'
 delete from t1|
 drop procedure bug2272|
+create procedure bug2329_1()
+begin
+declare v int;
+insert into t1 (v) values (5);
+end|
+create procedure bug2329_2()
+begin
+declare v int;
+replace t1 set v = 5;
+end|
+call bug2329_1()|
+ERROR 42S22: Unknown column 'v' in 'field list'
+call bug2329_2()|
+ERROR 42S22: Unknown column 'v' in 'field list'
+drop procedure bug2329_1|
+drop procedure bug2329_2|
+create function bug3287() returns int
+begin
+declare v int default null;
+case
+when v is not null then return 1;
+end case;
+return 2;
+end|
+select bug3287()|
+ERROR 20000: Case not found for CASE statement
+drop function bug3287|
+create procedure bug3287(x int)
+case x
+when 0 then
+insert into test.t1 values (x, 0.1);
+when 1 then
+insert into test.t1 values (x, 1.1);
+end case|
+call bug3287(2)|
+ERROR 20000: Case not found for CASE statement
+drop procedure bug3287|
+drop table if exists t3|
+create table t3 (s1 int, primary key (s1))|
+insert into t3 values (5),(6)|
+create procedure bug3279(out y int) 
+begin
+declare x int default 0;
+begin
+declare exit handler for sqlexception set x = x+1;
+insert into t3 values (5);
+end;
+if x < 2 then
+set x = x+1;
+insert into t3 values (6);
+end if;
+set y = x;
+end|
+set @x = 0|
+call bug3279(@x)|
+ERROR 23000: Duplicate entry '6' for key 1
+select @x|
+@x
+0
+drop procedure bug3279|
+drop table t3|
+create procedure nodb.bug3339() begin end|
+ERROR 42000: Unknown database 'nodb'
+create procedure bug2653_1(a int, out b int)
+set b = aa|
+create procedure bug2653_2(a int, out b int)
+begin
+if aa < 0 then
+set b = - a;
+else
+set b = a;
+end if;
+end|
+call bug2653_1(1, @b)|
+ERROR 42S22: Unknown column 'aa' in 'order clause'
+call bug2653_2(2, @b)|
+ERROR 42S22: Unknown column 'aa' in 'order clause'
+drop procedure bug2653_1|
+drop procedure bug2653_2|
+create procedure bug4344() drop procedure bug4344|
+ERROR HY000: Can't drop a PROCEDURE from within another stored routine
+create procedure bug4344() drop function bug4344|
+ERROR HY000: Can't drop a FUNCTION from within another stored routine
 drop table t1|

@@ -16,18 +16,18 @@ Creates a memory heap block where data can be allocated. */
 mem_block_t*
 mem_heap_create_block(
 /*==================*/
-			/* out, own: memory heap block, NULL if did not
-			succeed */
-	mem_heap_t* heap,/* in: memory heap or NULL if first block should
-			be created */
-	ulint	n,	/* in: number of bytes needed for user data, or
-			if init_block is not NULL, its size in bytes */
-	void*	init_block, /* in: init block in fast create, type must be
-			MEM_HEAP_DYNAMIC */
-	ulint 	type,	/* in: type of heap: MEM_HEAP_DYNAMIC or
-			MEM_HEAP_BUFFER */
-	char*  	file_name,/* in: file name where created */
-	ulint 	line);   /* in: line where created */
+				/* out, own: memory heap block,
+				NULL if did not succeed */
+	mem_heap_t*	heap,	/* in: memory heap or NULL if first block
+				should be created */
+	ulint		n,	/* in: number of bytes needed for user data, or
+				if init_block is not NULL, its size in bytes */
+	void*		init_block, /* in: init block in fast create,
+				type must be MEM_HEAP_DYNAMIC */
+	ulint		type,	/* in: type of heap: MEM_HEAP_DYNAMIC or
+				MEM_HEAP_BUFFER */
+	const char*	file_name,/* in: file name where created */
+	ulint		line);	/* in: line where created */
 /**********************************************************************
 Frees a block from a memory heap. */
 
@@ -162,7 +162,7 @@ mem_heap_alloc(
 
 	mem_block_set_free(block, free + MEM_SPACE_NEEDED(n));
 
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 
 	/* In the debug version write debugging info to the field */
 	mem_field_init((byte*)buf, n);
@@ -171,7 +171,7 @@ mem_heap_alloc(
 	caller */
 	buf = (byte*)buf + MEM_FIELD_HEADER_SIZE;
 
-	#endif
+#endif
 #ifdef UNIV_SET_MEM_TO_ZERO
 	memset(buf, '\0', n);
 #endif
@@ -212,15 +212,15 @@ mem_heap_free_heap_top(
 {
 	mem_block_t*	block;
 	mem_block_t*	prev_block;
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 	ibool		error;
 	ulint		total_size;	
 	ulint		size;
-	#endif			
+#endif			
 
 	ut_ad(mem_heap_check(heap));
 	
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 
 	/* Validate the heap and get its total allocated size */
 	mem_heap_validate_or_print(heap, NULL, FALSE, &error, &total_size,
@@ -232,7 +232,7 @@ mem_heap_free_heap_top(
 									NULL);
 	ut_a(!error);
 
-	#endif
+#endif
 
 	block = UT_LIST_GET_LAST(heap->base);
 
@@ -259,7 +259,7 @@ mem_heap_free_heap_top(
 	/* Set the free field of block */
 	mem_block_set_free(block, old_top - (byte*)block); 
 
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 	ut_ad(mem_block_get_start(block) <= mem_block_get_free(block));
 
 	/* In the debug version erase block from top up */
@@ -271,7 +271,7 @@ mem_heap_free_heap_top(
 	mem_current_allocated_memory -= (total_size - size);
 	mutex_exit(&mem_hash_mutex);
 
-	#endif
+#endif
 
 	/* If free == start, we may free the block if it is not the first
 	one */
@@ -317,7 +317,7 @@ mem_heap_get_top(
 
 	buf = (byte*)block + mem_block_get_free(block) - MEM_SPACE_NEEDED(n);
 
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 	ut_ad(mem_block_get_start(block) <=(ulint)((byte*)buf - (byte*)block));
 
 	/* In the debug version, advance buf to point at the storage which
@@ -327,7 +327,7 @@ mem_heap_get_top(
 
 	/* Check that the field lengths agree */
 	ut_ad(n == (ulint)mem_field_header_get_len(buf));
-	#endif
+#endif
 
 	return(buf);
 } 
@@ -351,13 +351,13 @@ mem_heap_free_top(
 	/* Subtract the free field of block */
 	mem_block_set_free(block, mem_block_get_free(block)
 						- MEM_SPACE_NEEDED(n));
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 
 	ut_ad(mem_block_get_start(block) <= mem_block_get_free(block));
 
 	/* In the debug version check the consistency, and erase field */
 	mem_field_erase((byte*)block + mem_block_get_free(block), n);
-	#endif
+#endif
 
 	/* If free == start, we may free the block if it is not the first
 	one */
@@ -377,27 +377,27 @@ UNIV_INLINE
 mem_heap_t*
 mem_heap_create_func(
 /*=================*/
-				/* out, own: memory heap */
-	ulint	n,		/* in: desired start block size,
-				this means that a single user buffer
-				of size n will fit in the block, 
-				0 creates a default size block;
-				if init_block is not NULL, n tells
-				its size in bytes */
-	void*	init_block,	/* in: if very fast creation is
-				wanted, the caller can reserve some
-				memory from its stack, for example,
-				and pass it as the the initial block
-				to the heap: then no OS call of malloc
-				is needed at the creation. CAUTION:
-				the caller must make sure the initial
-				block is not unintentionally erased
-				(if allocated in the stack), before
-				the memory heap is explicitly freed. */
-	ulint	type,		/* in: MEM_HEAP_DYNAMIC, or MEM_HEAP_BUFFER
-				possibly ORed to MEM_HEAP_BTR_SEARCH */
-	char*  	file_name,	/* in: file name where created */
-	ulint	line		/* in: line where created */
+					/* out, own: memory heap */
+	ulint		n,		/* in: desired start block size,
+					this means that a single user buffer
+					of size n will fit in the block, 
+					0 creates a default size block;
+					if init_block is not NULL, n tells
+					its size in bytes */
+	void*		init_block,	/* in: if very fast creation is
+					wanted, the caller can reserve some
+					memory from its stack, for example,
+					and pass it as the the initial block
+					to the heap: then no OS call of malloc
+					is needed at the creation. CAUTION:
+					the caller must make sure the initial
+					block is not unintentionally erased
+					(if allocated in the stack), before
+					the memory heap is explicitly freed. */
+	ulint		type,		/* in: MEM_HEAP_DYNAMIC
+					or MEM_HEAP_BUFFER */ 
+	const char*	file_name,	/* in: file name where created */
+	ulint		line		/* in: line where created */
 	)
 {
 	mem_block_t*   block; 
@@ -417,7 +417,7 @@ mem_heap_create_func(
 	/* Add the created block itself as the first block in the list */
 	UT_LIST_ADD_FIRST(list, block->base, block);
 
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 
 	if (block == NULL) {
 
@@ -426,7 +426,7 @@ mem_heap_create_func(
 
 	mem_hash_insert(block, file_name, line);
 
-	#endif
+#endif
 	
 	return(block);
 }
@@ -440,10 +440,9 @@ void
 mem_heap_free_func(
 /*===============*/
 	mem_heap_t*   	heap,  		/* in, own: heap to be freed */
-	char*  		file_name __attribute__((unused)),
+	const char*	file_name __attribute__((unused)),
 					/* in: file name where freed */
 	ulint    	line  __attribute__((unused)))
-					/* in: line where freed */
 {
 	mem_block_t*	block;
 	mem_block_t*	prev_block;
@@ -452,14 +451,14 @@ mem_heap_free_func(
 	
 	block = UT_LIST_GET_LAST(heap->base);
 
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 
 	/* In the debug version remove the heap from the hash table of heaps
 	and check its consistency */
 
 	mem_hash_remove(heap, file_name, line); 
 
-	#endif
+#endif
 	
 	if (heap->free_block) {
 		mem_heap_free_block_free(heap);
@@ -486,25 +485,13 @@ UNIV_INLINE
 void*
 mem_alloc_func(
 /*===========*/
-				/* out, own: free storage, NULL if did not
-				succeed */
-	ulint   n,              /* in: desired number of bytes */
-	char*  	file_name,	/* in: file name where created */
-	ulint   line		/* in: line where created */
+					/* out, own: free storage, NULL
+					if did not succeed */
+	ulint		n,		/* in: desired number of bytes */
+	const char*	file_name,	/* in: file name where created */
+	ulint		line		/* in: line where created */
 	)
 {
-#ifdef notdefined
-	void* buf;
-
-	buf = mem_area_alloc(n, mem_comm_pool);
-
-#ifdef UNIV_SET_MEM_TO_ZERO
-	memset(buf, '\0', n);
-#endif
-	return(buf);
-	
-#else
-	
 	mem_heap_t*   	heap; 
 	void*           buf;
 
@@ -525,8 +512,6 @@ mem_alloc_func(
 	ut_a((byte*)heap == (byte*)buf - MEM_BLOCK_HEADER_SIZE
 					- MEM_FIELD_HEADER_SIZE);
 	return(buf);
-
-#endif
 }
 
 /*******************************************************************
@@ -537,22 +522,16 @@ UNIV_INLINE
 void
 mem_free_func(
 /*==========*/
-	void*   ptr,       	/* in, own: buffer to be freed */
-	char*  	file_name,      /* in: file name where created */
-	ulint   line            /* in: line where created */
+	void*		ptr,		/* in, own: buffer to be freed */
+	const char*	file_name,	/* in: file name where created */
+	ulint		line		/* in: line where created */
 	)
 {
-#ifdef notdefined
-
-	mem_area_free(ptr, mem_comm_pool);
-       
-#else
 	mem_heap_t*   heap; 
 
 	heap = (mem_heap_t*)((byte*)ptr - MEM_BLOCK_HEADER_SIZE
 				 		- MEM_FIELD_HEADER_SIZE);
 	mem_heap_free_func(heap, file_name, line);
-#endif
 }
 
 /*********************************************************************
@@ -583,19 +562,98 @@ mem_heap_get_size(
 	return(size);
 }
 
-/*******************************************************************
-Implements realloc. */
+/**************************************************************************
+Duplicates a NUL-terminated string. */
 UNIV_INLINE
-void*
-mem_realloc(
-/*========*/
-			/* out, own: free storage, NULL if did not succeed */
-	void*	buf,	/* in: pointer to an old buffer */
-	ulint   n,	/* in: desired number of bytes */
-	char*  	file_name,/* in: file name where called */
-	ulint 	line)  	/* in: line where called */
+char*
+mem_strdup(
+/*=======*/
+				/* out, own: a copy of the string,
+				must be deallocated with mem_free */
+	const char*	str)	/* in: string to be copied */
 {
-	mem_free(buf);
+	ulint	len = strlen(str) + 1;
+	return(memcpy(mem_alloc(len), str, len));
+}
 
-	return(mem_alloc_func(n, file_name, line));
+/**************************************************************************
+Makes a NUL-terminated copy of a nonterminated string. */
+UNIV_INLINE
+char*
+mem_strdupl(
+/*========*/
+				/* out, own: a copy of the string,
+				must be deallocated with mem_free */
+	const char*	str,	/* in: string to be copied */
+	ulint		len)	/* in: length of str, in bytes */
+{
+	char*	s = mem_alloc(len + 1);
+	s[len] = 0;
+	return(memcpy(s, str, len));
+}
+
+/**************************************************************************
+Makes a NUL-terminated quoted copy of a NUL-terminated string. */
+UNIV_INLINE
+char*
+mem_strdupq(
+/*========*/
+				/* out, own: a quoted copy of the string,
+				must be deallocated with mem_free */
+	const char*	str,	/* in: string to be copied */
+	char		q)	/* in: quote character */
+{
+	char*		dst;
+	char*		d;
+	const char*	s	= str;
+	int		len	= strlen(str) + 3;
+	/* calculate the number of quote characters in the string */
+	while((s = strchr(s, q)) != NULL) {
+		s++;
+		len++;
+	}
+	/* allocate the quoted string, and copy it */
+	d = dst = mem_alloc(len);
+	*d++ = q;
+	s = str;
+	while(*s) {
+		if ((*d++ = *s++) == q) {
+			*d++ = q;
+		}
+	}
+	*d++ = q;
+	*d++ = '\0';
+	ut_ad(len == d - dst);
+	return(dst);
+}
+
+/**************************************************************************
+Duplicates a NUL-terminated string, allocated from a memory heap. */
+UNIV_INLINE
+char*
+mem_heap_strdup(
+/*============*/
+				/* out, own: a copy of the string */
+	mem_heap_t* heap,	/* in: memory heap where string is allocated */
+	const char* str)	/* in: string to be copied */
+{
+	ulint	len = strlen(str) + 1;
+	return(memcpy(mem_heap_alloc(heap, len), str, len));
+}
+
+/**************************************************************************
+Makes a NUL-terminated copy of a nonterminated string,
+allocated from a memory heap. */
+UNIV_INLINE
+char*
+mem_heap_strdupl(
+/*=============*/
+				/* out, own: a copy of the string */
+	mem_heap_t*	heap,	/* in: memory heap where string is allocated */
+	const char*	str,	/* in: string to be copied */
+	ulint		len)	/* in: length of str, in bytes */
+{
+	char*	s = mem_heap_alloc(heap, len + 1);
+	s[len] = 0;
+	return(memcpy(s, str, len));
 }

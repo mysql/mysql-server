@@ -87,26 +87,20 @@ class ha_berkeley: public handler
 
  public:
   ha_berkeley(TABLE *table): handler(table), alloc_ptr(0),rec_buff(0), file(0),
-    int_table_flags(HA_REC_NOT_IN_SEQ |
-		     HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
-		     HA_NULL_KEY | HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
-		     HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
-		     HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX),
-    changed_rows(0),last_dup_key((uint) -1),version(0),using_ignore(0)
-  {
-  }
+    int_table_flags(HA_REC_NOT_IN_SEQ | HA_FAST_KEY_READ |
+		    HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_NOT_EXACT_COUNT |
+		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_FILE_BASED |
+		    HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX),
+    changed_rows(0),last_dup_key((uint) -1),version(0),using_ignore(0) {}
   ~ha_berkeley() {}
   const char *table_type() const { return "BerkeleyDB"; }
+  ulong index_flags(uint idx, uint part, bool all_parts) const;
   const char *index_type(uint key_number) { return "BTREE"; }
   const char **bas_ext() const;
   ulong table_flags(void) const { return int_table_flags; }
-  uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()	   const { return MAX_KEY-1; }
-  uint max_key_parts()	   const { return MAX_REF_PARTS; }
-  uint max_key_length()    const { return MAX_KEY_LENGTH; }
+  uint max_supported_keys()        const { return MAX_KEY-1; }
   uint extra_rec_buf_length()	 { return BDB_HIDDEN_PRIMARY_KEY_LENGTH; }
   ha_rows estimate_number_of_rows();
-  bool fast_key_read()	   { return 1;}
   const key_map *keys_to_use_for_scanning() { return &key_map_full; }
   bool has_transactions()  { return 1;}
 
@@ -128,7 +122,7 @@ class ha_berkeley: public handler
   int index_prev(byte * buf);
   int index_first(byte * buf);
   int index_last(byte * buf);
-  int rnd_init(bool scan=1);
+  int rnd_init(bool scan);
   int rnd_end();
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
@@ -143,12 +137,7 @@ class ha_berkeley: public handler
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
 
-  ha_rows records_in_range(int inx,
-			   const byte *start_key,uint start_key_len,
-			   enum ha_rkey_function start_search_flag,
-			   const byte *end_key,uint end_key_len,
-			   enum ha_rkey_function end_search_flag);
-
+  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   int create(const char *name, register TABLE *form,
 	     HA_CREATE_INFO *create_info);
   int delete_table(const char *name);
@@ -168,9 +157,10 @@ class ha_berkeley: public handler
   void print_error(int error, myf errflag);
   uint8 table_cache_type() { return HA_CACHE_TBL_TRANSACT; }
   bool primary_key_is_clustered() { return true; }
+  int cmp_ref(const byte *ref1, const byte *ref2);
 };
 
-extern bool berkeley_skip, berkeley_shared_data;
+extern bool berkeley_shared_data;
 extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
                  berkeley_lock_types[];
 extern ulong berkeley_cache_size, berkeley_max_lock, berkeley_log_buffer_size;

@@ -173,22 +173,22 @@ UNIV_INLINE
 ulint
 ut_fold_string(
 /*===========*/
-			/* out: folded value */
-	char*	str)	/* in: null-terminated string */	
+				/* out: folded value */
+	const char*	str)	/* in: null-terminated string */	
 {
-	#ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG
 	ulint	i = 0;
-	#endif
+#endif
 	ulint	fold = 0;
 
 	ut_ad(str);
 
 	while (*str != '\0') {
 
-		#ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG
 		i++;
 		ut_a(i < 100);
-		#endif
+#endif
 
 		fold = ut_fold_ulint_pair(fold, (ulint)(*str));
 		str++;
@@ -203,9 +203,9 @@ UNIV_INLINE
 ulint
 ut_fold_binary(
 /*===========*/
-			/* out: folded value */
-	byte*	str,	/* in: string of bytes */
-	ulint	len)	/* in: length */
+				/* out: folded value */
+	const byte*	str,	/* in: string of bytes */
+	ulint		len)	/* in: length */
 {
 	ulint	i;
 	ulint	fold = 0;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,8 @@
 #define NO_HASH				/* Not yet implemented */
 #endif
 
-#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB)
+#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB) || \
+    defined(HAVE_NDBCLUSTER_DB)
 #define USING_TRANSACTIONS
 #endif
 
@@ -41,51 +42,63 @@
 #define HA_ADMIN_CORRUPT         -3
 #define HA_ADMIN_INTERNAL_ERROR  -4
 #define HA_ADMIN_INVALID         -5
+#define HA_ADMIN_REJECT          -6
+#define HA_ADMIN_TRY_ALTER       -7
 
 /* Bits in table_flags() to show what database can do */
-#define HA_READ_RND_SAME        1       /* Read RND-record to KEY-record
-                                           (To update with RND-read)       */
-#define HA_KEYPOS_TO_RNDPOS     2       /* ha_info gives pos to record */
-#define HA_TABLE_SCAN_ON_INDEX  4       /* No separate data/index file */
-#define HA_REC_NOT_IN_SEQ       8       /* ha_info don't return recnumber;
+#define HA_READ_RND_SAME       (1 << 0) /* can switch index during the scan
+                                           with ::rnd_same() - not used yet.
+                                           see mi_rsame/heap_rsame/myrg_rsame */
+#define HA_TABLE_SCAN_ON_INDEX (1 << 2) /* No separate data/index file */
+#define HA_REC_NOT_IN_SEQ      (1 << 3) /* ha_info don't return recnumber;
                                            It returns a position to ha_r_rnd */
-#define HA_HAS_GEOMETRY        (1 << 4)
-#define HA_NO_INDEX            (1 << 5) /* No index needed for next/prev */
-#define HA_KEY_READ_WRONG_STR  (1 << 6) /* keyread returns converted strings */
-#define HA_NULL_KEY            (1 << 7) /* One can have keys with NULL */
-#define HA_DUPP_POS            (1 << 8) /* ha_position() gives dupp row */
+#define HA_CAN_GEOMETRY        (1 << 4)
+#define HA_FAST_KEY_READ       (1 << 5) /* no need for a record cache in filesort */
+#define HA_NULL_IN_KEY         (1 << 7) /* One can have keys with NULL */
+#define HA_DUPP_POS            (1 << 8) /* ha_position() gives dup row */
 #define HA_NO_BLOBS            (1 << 9) /* Doesn't support blobs */
-#define HA_BLOB_KEY            (1 << 10) /* key on blob */
-#define HA_AUTO_PART_KEY       (1 << 11)
-#define HA_REQUIRE_PRIMARY_KEY (1 << 12)
+#define HA_CAN_INDEX_BLOBS     (1 << 10)
+#define HA_AUTO_PART_KEY       (1 << 11) /* auto-increment in multi-part key */
+#define HA_REQUIRE_PRIMARY_KEY (1 << 12) /* .. and can't create a hidden one */
 #define HA_NOT_EXACT_COUNT     (1 << 13)
-#define HA_NO_WRITE_DELAYED    (1 << 14)
+#define HA_CAN_INSERT_DELAYED  (1 << 14) /* only handlers with table-level locks
+                                            need no special code to support
+                                            INSERT DELAYED */
 #define HA_PRIMARY_KEY_IN_READ_INDEX (1 << 15)
-#define HA_DROP_BEFORE_CREATE  (1 << 16)
-#define HA_NOT_READ_AFTER_KEY  (1 << 17)
 #define HA_NOT_DELETE_WITH_CACHE (1 << 18)
-#define HA_NO_TEMP_TABLES      (1 << 19)
 #define HA_NO_PREFIX_CHAR_KEYS (1 << 20)
 #define HA_CAN_FULLTEXT        (1 << 21)
 #define HA_CAN_SQL_HANDLER     (1 << 22)
 #define HA_NO_AUTO_INCREMENT   (1 << 23)
 #define HA_HAS_CHECKSUM        (1 << 24)
-
-/*
-  Next record gives next record according last record read (even
-  if database is updated after read).  Not used at this point.
-*/
-#define HA_LASTKEY_ORDER	(1 << 25)
+/* Table data are stored in separate files (for lower_case_table_names) */
+#define HA_FILE_BASED	       (1 << 26)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
-#define HA_WRONG_ASCII_ORDER	1	/* Can't use sorting through key */
-#define HA_READ_NEXT		2	/* Read next record with same key */
-#define HA_READ_PREV		4	/* Read prev. record with same key */
-#define HA_READ_ORDER		8	/* Read through record-keys in order */
+#define HA_READ_NEXT            1       /* TODO really use this flag */
+#define HA_READ_PREV            2       /* supports ::index_prev */
+#define HA_READ_ORDER           4       /* index_next/prev follow sort order */
+#define HA_READ_RANGE           8       /* can find all records in a range */
 #define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
-#define HA_NOT_READ_PREFIX_LAST	32	/* No support for index_read_last() */
-#define HA_KEY_READ_ONLY	64	/* Support HA_EXTRA_KEYREAD */
+#define HA_KEYREAD_ONLY         64	/* Support HA_EXTRA_KEYREAD */
+
+/* operations for disable/enable indexes */
+#define HA_KEY_SWITCH_NONUNIQ      0
+#define HA_KEY_SWITCH_ALL          1
+#define HA_KEY_SWITCH_NONUNIQ_SAVE 2
+#define HA_KEY_SWITCH_ALL_SAVE     3
+
+
+/*
+  Bits in index_ddl_flags(KEY *wanted_index)
+  for what ddl you can do with index
+  If none is set, the wanted type of index is not supported
+  by the handler at all. See WorkLog 1563.
+*/
+#define HA_DDL_SUPPORT   1 /* Supported by handler */
+#define HA_DDL_WITH_LOCK 2 /* Can create/drop with locked table */
+#define HA_DDL_ONLINE    4 /* Can create/drop without lock */
 
 /*
   Parameters for open() (in register form->filestat)
@@ -121,15 +134,23 @@
 
 /* Table caching type */
 #define HA_CACHE_TBL_NONTRANSACT 0
-#define HA_CACHE_TBL_ASKTRANSACT 1
-#define HA_CACHE_TBL_TRANSACT    2
+#define HA_CACHE_TBL_NOCACHE     1
+#define HA_CACHE_TBL_ASKTRANSACT 2
+#define HA_CACHE_TBL_TRANSACT    4
 
-enum db_type { DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
-	       DB_TYPE_HASH,DB_TYPE_MISAM,DB_TYPE_PISAM,
-	       DB_TYPE_RMS_ISAM, DB_TYPE_HEAP, DB_TYPE_ISAM,
-	       DB_TYPE_MRG_ISAM, DB_TYPE_MYISAM, DB_TYPE_MRG_MYISAM,
-	       DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, DB_TYPE_GEMINI,
-	       DB_TYPE_DEFAULT };
+
+enum db_type 
+{ 
+  DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
+  DB_TYPE_HASH,DB_TYPE_MISAM,DB_TYPE_PISAM,
+  DB_TYPE_RMS_ISAM, DB_TYPE_HEAP, DB_TYPE_ISAM,
+  DB_TYPE_MRG_ISAM, DB_TYPE_MYISAM, DB_TYPE_MRG_MYISAM,
+  DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, 
+  DB_TYPE_GEMINI, DB_TYPE_NDBCLUSTER,
+  DB_TYPE_EXAMPLE_DB, DB_TYPE_ARCHIVE_DB,
+	       
+  DB_TYPE_DEFAULT // Must be last
+};
 
 struct show_table_type_st {
   const char *type;
@@ -159,6 +180,7 @@ typedef struct st_thd_trans {
   void *bdb_tid;
   void *innobase_tid;
   bool innodb_active_trans;
+  void *ndb_tid;
 } THD_TRANS;
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
@@ -167,8 +189,9 @@ enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 typedef struct st_ha_create_information
 {
   CHARSET_INFO *table_charset, *default_table_charset;
-  char *comment,*password;
-  char *data_file_name, *index_file_name;
+  const char *comment,*password;
+  const char *data_file_name, *index_file_name;
+  const char *alias;
   ulonglong max_rows,min_rows;
   ulonglong auto_increment_value;
   ulong table_options;
@@ -205,6 +228,18 @@ class handler :public Sql_alloc
  protected:
   struct st_table *table;		/* The table definition */
 
+  virtual int index_init(uint idx) { active_index=idx; return 0; }
+  virtual int index_end() { active_index=MAX_KEY; return 0; }
+  /*
+    rnd_init() can be called two times without rnd_end() in between
+    (it only makes sense if scan=1).
+    then the second call should prepare for the new table scan (e.g
+    if rnd_init allocates the cursor, second call should position it
+    to the start of the table, no need to deallocate and allocate it again
+  */
+  virtual int rnd_init(bool scan) =0;
+  virtual int rnd_end() { return 0; }
+
 public:
   byte *ref;				/* Pointer to current row */
   byte *dupp_ref;			/* Pointer to dupp row */
@@ -221,6 +256,13 @@ public:
   time_t create_time;			/* When table was created */
   time_t check_time;
   time_t update_time;
+
+  /* The following are for read_range() */
+  key_range save_end_range, *end_range;
+  KEY_PART_INFO *range_key_part;
+  int key_compare_result_on_equal;
+  bool eq_range;
+
   uint errkey;				/* Last dup key */
   uint sortkey, key_used_on_scan;
   uint active_index;
@@ -229,114 +271,182 @@ public:
   uint block_size;			/* index block size */
   uint raid_type,raid_chunks;
   FT_INFO *ft_handler;
+  enum {NONE=0, INDEX, RND} inited;
   bool  auto_increment_column_changed;
+  bool implicit_emptied;                /* Can be !=0 only if HEAP */
+
 
   handler(TABLE *table_arg) :table(table_arg),
     ref(0), data_file_length(0), max_data_file_length(0), index_file_length(0),
     delete_length(0), auto_increment_value(0),
     records(0), deleted(0), mean_rec_length(0),
     create_time(0), check_time(0), update_time(0),
-    key_used_on_scan(MAX_KEY), active_index(MAX_REF_PARTS),
+    key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)), block_size(0),
-    raid_type(0), ft_handler(0)
+    raid_type(0), ft_handler(0), inited(NONE), implicit_emptied(0)
     {}
-  virtual ~handler(void) {}
+  virtual ~handler(void) { /* TODO: DBUG_ASSERT(inited == NONE); */ }
   int ha_open(const char *name, int mode, int test_if_locked);
   void update_timestamp(byte *record);
   void update_auto_increment();
   virtual void print_error(int error, myf errflag);
+  virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
   void change_table_ptr(TABLE *table_arg) { table=table_arg; }
   virtual double scan_time()
     { return ulonglong2double(data_file_length) / IO_SIZE + 2; }
   virtual double read_time(uint index, uint ranges, ha_rows rows)
  { return rows2double(ranges+rows); }
-  virtual bool fast_key_read() { return 0;}
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   virtual bool has_transactions(){ return 0;}
   virtual uint extra_rec_buf_length() { return 0; }
   virtual ha_rows estimate_number_of_rows() { return records+EXTRA_RECORDS; }
-  virtual const char *index_type(uint key_number) { return "";}
 
-  virtual int index_init(uint idx) { active_index=idx; return 0;}
-  virtual int index_end() {return 0; }
+  virtual const char *index_type(uint key_number) { DBUG_ASSERT(0); return "";}
+
+  int ha_index_init(uint idx)
+  {
+    DBUG_ENTER("ha_index_init");
+    DBUG_ASSERT(inited==NONE);
+    inited=INDEX;
+    DBUG_RETURN(index_init(idx));
+  }
+  int ha_index_end()
+  {
+    DBUG_ENTER("ha_index_end");
+    DBUG_ASSERT(inited==INDEX);
+    inited=NONE;
+    DBUG_RETURN(index_end());
+  }
+  int ha_rnd_init(bool scan)
+  {
+    DBUG_ENTER("ha_rnd_init");
+    DBUG_ASSERT(inited==NONE || (inited==RND && scan));
+    inited=RND;
+    DBUG_RETURN(rnd_init(scan));
+  }
+  int ha_rnd_end()
+  {
+    DBUG_ENTER("ha_rnd_end");
+    DBUG_ASSERT(inited==RND);
+    inited=NONE;
+    DBUG_RETURN(rnd_end());
+  }
+  /* this is necessary in many places, e.g. in HANDLER command */
+  int ha_index_or_rnd_end()
+  {
+    return inited == INDEX ? ha_index_end() : inited == RND ? ha_rnd_end() : 0;
+  }
   uint get_index(void) const { return active_index; }
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
-  virtual void initialize(void) {}
   virtual int close(void)=0;
-  virtual int write_row(byte * buf)=0;
-  virtual int update_row(const byte * old_data, byte * new_data)=0;
-  virtual int delete_row(const byte * buf)=0;
+  virtual int write_row(byte * buf) { return  HA_ERR_WRONG_COMMAND; }
+  virtual int update_row(const byte * old_data, byte * new_data)
+   { return  HA_ERR_WRONG_COMMAND; }
+  virtual int delete_row(const byte * buf)
+   { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_read(byte * buf, const byte * key,
-			 uint key_len, enum ha_rkey_function find_flag)=0;
+			 uint key_len, enum ha_rkey_function find_flag)
+   { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_read_idx(byte * buf, uint index, const byte * key,
-			     uint key_len, enum ha_rkey_function find_flag)=0;
-  virtual int index_next(byte * buf)=0;
-  virtual int index_prev(byte * buf)=0;
-  virtual int index_first(byte * buf)=0;
-  virtual int index_last(byte * buf)=0;
+			     uint key_len, enum ha_rkey_function find_flag);
+  virtual int index_next(byte * buf)
+   { return  HA_ERR_WRONG_COMMAND; }
+  virtual int index_prev(byte * buf)
+   { return  HA_ERR_WRONG_COMMAND; }
+  virtual int index_first(byte * buf)
+   { return  HA_ERR_WRONG_COMMAND; }
+  virtual int index_last(byte * buf)
+   { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_next_same(byte *buf, const byte *key, uint keylen);
   virtual int index_read_last(byte * buf, const byte * key, uint key_len)
-  {
-    return (my_errno=HA_ERR_WRONG_COMMAND);
-  }
-  virtual int ft_init()
-    { return -1; }
-  virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key, uint keylen)
+   { return (my_errno=HA_ERR_WRONG_COMMAND); }
+  virtual int read_range_first(const key_range *start_key,
+                               const key_range *end_key,
+                               bool eq_range, bool sorted);
+  virtual int read_range_next();
+  int compare_key(key_range *range);
+  virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
+  void ft_end() { ft_handler=NULL; }
+  virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key,
+                               uint keylen)
     { return NULL; }
-  virtual int ft_read(byte *buf) { return -1; }
-  virtual int rnd_init(bool scan=1)=0;
-  virtual int rnd_end() { return 0; }
+  virtual int ft_read(byte *buf) { return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_next(byte *buf)=0;
   virtual int rnd_pos(byte * buf, byte *pos)=0;
   virtual int read_first_row(byte *buf, uint primary_key);
-  virtual int restart_rnd_next(byte *buf, byte *pos);
-  virtual ha_rows records_in_range(int inx,
-			           const byte *start_key,uint start_key_len,
-			           enum ha_rkey_function start_search_flag,
-			           const byte *end_key,uint end_key_len,
-			           enum ha_rkey_function end_search_flag)
+  /*
+    The following function is only needed for tables that may be temporary
+    tables during joins
+  */
+  virtual int restart_rnd_next(byte *buf, byte *pos)
+    { return HA_ERR_WRONG_COMMAND; }
+  virtual int rnd_same(byte *buf, uint inx)
+    { return HA_ERR_WRONG_COMMAND; }
+  virtual ha_rows records_in_range(uint inx, key_range *min_key,
+                                   key_range *max_key)
     { return (ha_rows) 10; }
   virtual void position(const byte *record)=0;
-  virtual my_off_t row_position() { return HA_OFFSET_ERROR; }
   virtual void info(uint)=0;
-  virtual int extra(enum ha_extra_function operation)=0;
+  virtual int extra(enum ha_extra_function operation)
+  { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
-  {
-    return extra(operation);
-  }
-  virtual int reset()=0;
+  { return extra(operation); }
+  virtual int reset() { return extra(HA_EXTRA_RESET); }
   virtual int external_lock(THD *thd, int lock_type)=0;
   virtual void unlock_row() {}
   virtual int start_stmt(THD *thd) {return 0;}
-  virtual int delete_all_rows();
+  /*
+    This is called to delete all rows in a table
+    If the handler don't support this, then this function will
+    return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
+    by one.
+  */
+  virtual int delete_all_rows()
+  { return (my_errno=HA_ERR_WRONG_COMMAND); }
   virtual longlong get_auto_increment();
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
-  virtual int check(THD* thd,   HA_CHECK_OPT* check_opt );
-  virtual int repair(THD* thd,  HA_CHECK_OPT* check_opt);
-  virtual bool check_and_repair(THD *thd) {return 1;}
-  virtual int optimize(THD* thd,HA_CHECK_OPT* check_opt);
-  virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt);
-  virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt);
-  virtual int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
-  virtual int backup(THD* thd, HA_CHECK_OPT* check_opt);
+
+  /* admin commands - called from mysql_admin_table */
+  virtual int check(THD* thd, HA_CHECK_OPT* check_opt)
+  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  virtual int backup(THD* thd, HA_CHECK_OPT* check_opt)
+  { return HA_ADMIN_NOT_IMPLEMENTED; }
   /*
     restore assumes .frm file must exist, and that generate_table() has been
     called; It will just copy the data file and run repair.
   */
-  virtual int restore(THD* thd, HA_CHECK_OPT* check_opt);
-  virtual int dump(THD* thd, int fd = -1) { return ER_DUMP_NOT_IMPLEMENTED; }
-  virtual void deactivate_non_unique_index(ha_rows rows) {}
-  virtual bool activate_all_index(THD *thd) {return 0;}
-  virtual int discard_or_import_tablespace(my_bool discard) {return -1;}
-  // not implemented by default
-  virtual int net_read_dump(NET* net)
-  { return ER_DUMP_NOT_IMPLEMENTED; }
+  virtual int restore(THD* thd, HA_CHECK_OPT* check_opt)
+  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  virtual int repair(THD* thd, HA_CHECK_OPT* check_opt)
+  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  virtual int optimize(THD* thd, HA_CHECK_OPT* check_opt)
+  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)
+  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt)
+  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  virtual int preload_keys(THD* thd, HA_CHECK_OPT* check_opt)
+  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  /* end of the list of admin commands */
+
+  virtual bool check_and_repair(THD *thd) { return HA_ERR_WRONG_COMMAND; }
+  virtual int dump(THD* thd, int fd = -1) { return HA_ERR_WRONG_COMMAND; }
+  virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
+  virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
+  virtual int indexes_are_disabled(void) {return 0;}
+  virtual void start_bulk_insert(ha_rows rows) {}
+  virtual int end_bulk_insert() {return 0; }
+  virtual int discard_or_import_tablespace(my_bool discard)
+  {return HA_ERR_WRONG_COMMAND;}
+  virtual int net_read_dump(NET* net) { return HA_ERR_WRONG_COMMAND; }
   virtual char *update_table_comment(const char * comment)
   { return (char*) comment;}
   virtual void append_create_info(String *packet) {}
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
+  /* used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
+  virtual uint referenced_by_foreign_key() { return 0;}
   virtual void init_table_handle_for_HANDLER()
   { return; }       /* prepare InnoDB for HANDLER */
   virtual void free_foreign_key_create_info(char* str) {}
@@ -344,24 +454,47 @@ public:
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
   virtual ulong table_flags(void) const =0;
-  virtual ulong index_flags(uint idx) const
-  {
-    return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEY_READ_ONLY);
-  }
-  virtual uint max_record_length() const =0;
-  virtual uint max_keys() const =0;
-  virtual uint max_key_parts() const =0;
-  virtual uint max_key_length()const =0;
-  virtual uint max_key_part_length() { return 255; }
+  virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
+  virtual ulong index_ddl_flags(KEY *wanted_index) const
+  { return (HA_DDL_SUPPORT); }
+  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
+  { return (HA_ERR_WRONG_COMMAND); }
+  virtual int drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys)
+  { return (HA_ERR_WRONG_COMMAND); }
+
+  uint max_record_length() const
+  { return min(HA_MAX_REC_LENGTH, max_supported_record_length()); }
+  uint max_keys() const
+  { return min(MAX_KEY, max_supported_keys()); }
+  uint max_key_parts() const
+  { return min(MAX_REF_PARTS, max_supported_key_parts()); }
+  uint max_key_length() const
+  { return min(MAX_KEY_LENGTH, max_supported_key_length()); }
+  uint max_key_part_length() const
+  { return min(MAX_KEY_LENGTH, max_supported_key_part_length()); }
+
+  virtual uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
+  virtual uint max_supported_keys() const { return 0; }
+  virtual uint max_supported_key_parts() const { return MAX_REF_PARTS; }
+  virtual uint max_supported_key_length() const { return MAX_KEY_LENGTH; }
+  virtual uint max_supported_key_part_length() const { return 255; }
   virtual uint min_record_length(uint options) const { return 1; }
+
   virtual bool low_byte_first() const { return 1; }
   virtual uint checksum() const { return 0; }
   virtual bool is_crashed() const  { return 0; }
   virtual bool auto_repair() const { return 0; }
 
+  /*
+    default rename_table() and delete_table() rename/delete files with a
+    given name and extensions from bas_ext()
+  */
   virtual int rename_table(const char *from, const char *to);
   virtual int delete_table(const char *name);
+  
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
+
+  /* lock_count() can be more than one if the table is a MERGE */
   virtual uint lock_count(void) const { return 1; }
   virtual THR_LOCK_DATA **store_lock(THD *thd,
 				     THR_LOCK_DATA **to,
@@ -369,19 +502,18 @@ public:
 
   /* Type of table for caching query */
   virtual uint8 table_cache_type() { return HA_CACHE_TBL_NONTRANSACT; }
-  /*
-    Is query with this table cachable (have sense only for ASKTRANSACT
-    tables)
-  */
-  static bool caching_allowed(THD* thd, char* table_key,
-			      uint key_length, uint8 cahe_type);
+ 
+ /*
+  RETURN
+    true  Primary key (if there is one) is clustered key covering all fields
+    false otherwise
+ */
+ virtual bool primary_key_is_clustered() { return FALSE; }
 
-  /*
-   RETURN
-     true  Primary key (if there is one) is clustered key covering all fields
-     false otherwise
-  */
-  virtual bool primary_key_is_clustered() { return false; }
+ virtual int cmp_ref(const byte *ref1, const byte *ref2)
+ {
+   return memcmp(ref1, ref2, ref_length);
+ }
 };
 
 	/* Some extern variables used with handlers */
@@ -396,8 +528,11 @@ extern TYPELIB tx_isolation_typelib;
 #define ha_commit(thd) (ha_commit_trans((thd), &((thd)->transaction.all)))
 #define ha_rollback(thd) (ha_rollback_trans((thd), &((thd)->transaction.all)))
 
-#define ha_supports_generate(T) (T != DB_TYPE_INNODB)
+#define ha_supports_generate(T) (T != DB_TYPE_INNODB && \
+                                 T != DB_TYPE_BERKELEY_DB)
 
+bool ha_caching_allowed(THD* thd, char* table_key,
+                        uint key_length, uint8 cache_type);
 enum db_type ha_resolve_by_name(const char *name, uint namelen);
 const char *ha_get_storage_engine(enum db_type db_type);
 handler *get_new_handler(TABLE *table, enum db_type db_type);
@@ -430,3 +565,5 @@ bool ha_flush_logs(void);
 int ha_recovery_logging(THD *thd, bool on);
 int ha_change_key_cache(KEY_CACHE *old_key_cache,
 			KEY_CACHE *new_key_cache);
+int ha_discover(const char* dbname, const char* name,
+		const void** frmblob, uint* frmlen);

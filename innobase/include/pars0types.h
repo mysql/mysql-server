@@ -15,7 +15,6 @@ typedef struct pars_res_word_struct	pars_res_word_t;
 typedef struct func_node_struct		func_node_t;
 typedef struct order_node_struct	order_node_t;
 typedef struct proc_node_struct		proc_node_t;
-typedef struct call_node_struct		call_node_t;
 typedef struct elsif_node_struct	elsif_node_t;
 typedef struct if_node_struct		if_node_t;
 typedef struct while_node_struct	while_node_t;

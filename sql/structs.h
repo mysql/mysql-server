@@ -20,10 +20,20 @@
 struct st_table;
 class Field;
 
-typedef struct lex_string {
+typedef struct st_lex_string
+{
   char *str;
   uint length;
 } LEX_STRING;
+
+typedef struct st_lex_string_with_init :public st_lex_string
+{
+  st_lex_string_with_init(const char *str_arg, uint length_arg)
+  {
+    str= (char*) str_arg;
+    length= length_arg;
+  }
+} LEX_STRING_WITH_INIT;
 
 
 typedef struct st_date_time_format {
@@ -120,27 +130,19 @@ typedef struct st_read_record {			/* Parameter to read_record */
 } READ_RECORD;
 
 
-enum timestamp_type
-{
-  TIMESTAMP_NONE= -2, TIMESTAMP_DATETIME_ERROR= -1,
-  TIMESTAMP_DATE= 0,  TIMESTAMP_DATETIME= 1, TIMESTAMP_TIME= 2
-};
+/*
+  Originally MySQL used TIME structure inside server only, but since
+  4.1 it's exported to user in the new client API. Define aliases for
+  new names to keep existing code simple.
+*/
 
-/* Parameters to str_to_TIME */
-#define TIME_FUZZY_DATE		1
-#define TIME_DATETIME_ONLY	2
-
-
-typedef struct st_time {
-  uint year,month,day,hour,minute,second;
-  ulong second_part;
-  bool neg;
-  timestamp_type time_type;
-} TIME;
+typedef struct st_mysql_time TIME;
+typedef enum enum_mysql_timestamp_type timestamp_type;
 
 
 typedef struct {
-  long year,month,day,hour,minute,second,second_part;
+  ulong year,month,day,hour;
+  ulonglong minute,second,second_part;
   bool neg;
 } INTERVAL;
 
@@ -156,8 +158,8 @@ typedef struct st_known_date_time_format {
 enum SHOW_TYPE
 {
   SHOW_UNDEF,
-  SHOW_LONG, SHOW_LONGLONG, SHOW_INT, SHOW_CHAR, SHOW_CHAR_PTR, SHOW_BOOL,
-  SHOW_MY_BOOL, SHOW_OPENTABLES, SHOW_STARTTIME, SHOW_QUESTION,
+  SHOW_LONG, SHOW_LONGLONG, SHOW_INT, SHOW_CHAR, SHOW_CHAR_PTR, SHOW_DOUBLE,
+  SHOW_BOOL, SHOW_MY_BOOL, SHOW_OPENTABLES, SHOW_STARTTIME, SHOW_QUESTION,
   SHOW_LONG_CONST, SHOW_INT_CONST, SHOW_HAVE, SHOW_SYS, SHOW_HA_ROWS,
 #ifdef HAVE_OPENSSL
   SHOW_SSL_CTX_SESS_ACCEPT, 	SHOW_SSL_CTX_SESS_ACCEPT_GOOD,
@@ -173,7 +175,8 @@ enum SHOW_TYPE
   SHOW_SSL_CTX_SESS_TIMEOUTS, SHOW_SSL_CTX_SESS_CACHE_FULL,
   SHOW_SSL_GET_CIPHER_LIST,
 #endif /* HAVE_OPENSSL */
-  SHOW_RPL_STATUS, SHOW_SLAVE_RUNNING, SHOW_KEY_CACHE_LONG
+  SHOW_RPL_STATUS, SHOW_SLAVE_RUNNING,
+  SHOW_KEY_CACHE_LONG, SHOW_KEY_CACHE_CONST_LONG
 };
 
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
@@ -210,7 +213,7 @@ typedef struct  user_conn {
 #define REG_NEW_RECORD		2	/* Write a new record if not found */
 #define REG_UPDATE		4	/* Uppdate record */
 #define REG_DELETE		8	/* Delete found record */
-#define REG_PROG		16	/* User is updateing database */
+#define REG_PROG		16	/* User is updating database */
 #define REG_CLEAR_AFTER_WRITE	32
 #define REG_MAY_BE_UPDATED	64
 #define REG_AUTO_UPDATE		64	/* Used in D-forms for scroll-tables */

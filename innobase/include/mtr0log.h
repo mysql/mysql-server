@@ -32,7 +32,6 @@ mlog_write_dulint(
 /*==============*/
 	byte*	ptr,	/* in: pointer where to write */
 	dulint	val,	/* in: value to write */
-	byte	type,	/* in: MLOG_8BYTES */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
 /************************************************************
 Writes a string to a file page buffered in the buffer pool. Writes the
@@ -122,7 +121,9 @@ mlog_close(
 	mtr_t*	mtr,	/* in: mtr */
 	byte*	ptr);	/* in: buffer space from ptr up was not used */
 /************************************************************
-Writes the initial part of a log record. */
+Writes the initial part of a log record (3..11 bytes).
+If the implementation of this function is changed, all
+size parameters to mlog_open() should be adjusted accordingly! */
 UNIV_INLINE
 byte*
 mlog_write_initial_log_record_fast(
@@ -133,15 +134,6 @@ mlog_write_initial_log_record_fast(
 	byte	type,	/* in: log item type: MLOG_1BYTE, ... */
 	byte*	log_ptr,/* in: pointer to mtr log which has been opened */
 	mtr_t*	mtr);	/* in: mtr */
-/****************************************************************
-Writes the contents of a mini-transaction log, if any, to the database log. */
-
-dulint
-mlog_write(
-/*=======*/
-	dyn_array_t*	mlog,		/* in: mlog */
-	ibool*		modifications);	/* out: TRUE if there were 
-					log items to write */
 /************************************************************
 Parses an initial log record written by mlog_write_initial_log_record. */
 

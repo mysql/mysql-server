@@ -1,0 +1,140 @@
+DROP TABLE DESCRIPTION
+----------------------
+
+Drop table is controlled by DICT.
+
+Drop table is used in the following cases in some sort.
+ - Drop Table
+ - Abort Add Table
+ - Drop table in node restart
+ - Drop table in system restart
+
+Sequence of Drop Table:
+-----------------------
+
+1) PREP_DROP_TAB_REQ -> all DICT
+   Update schema files on disk
+   Table status = DROPPING
+
+2) Controlling DICT only
+   Report Table Dropped secured but not yet completed.
+
+------ PREP DROP 
+
+4) PREP_DROP_TAB_REQ -> all LQHs
+
+5) PREP_DROP_TAB_REQ -> all TCs
+
+6) PREP_DROP_TAB_REQ -> all DIHs
+
+
+--- LQH::PREP_DROP_TAB_REQ
+
+*) Mark the table so that no new operations will start
+*) Mark all fragments so that new LCP_FRAG_ORD gets replied directly 
+   w.o actually checkpointing the fragment
+2) Start waiting for completion
+3) Reply PREP_DROP_TAB_CONF
+
+-  After this LQH accepts WAIT_DROP_TAB_REQ
+
+--- TC::PREP_DROP_TAB_REQ
+
+1) Mark the table so that no new transactions will start on the table
+2) Send WAIT_DROP_TAB_REQ -> all connected LQH's
+3) Wait for CONF (including NF-handling) from LQH:s
+4) Reply PREP_DROP_TAB_CONF
+
+--- DIH::PREP_DROP_TAB_REQ
+
+1) Mark the table so that no new LCP will start on the table
+2) If master (unlink any queued LCP_FRAG_ORD)
+3) Send WAIT_DROP_TAB_REQ -> all connected LQH's
+4) Wait for CONF (including NF-handling) from LQH:s
+5) Reply PREP_DROP_TAB_CONF
+
+--- LQH::WAIT_DROP_TAB_REQ
+
+1) Wait for running operations
+   Wait for running LCP
+
+2) Reply
+
+------ PREP_DROP
+
+7) DROP_TAB_REQ -> all DICT's
+   *) DROP_TAB_REQ -> TC
+   *) DROP_TAB_REQ -> ACC
+   *) DROP_TAB_REQ -> TUP
+   *) DROP_TAB_REQ -> DIH
+   *) DROP_TAB_REQ -> LQH
+   *) Update schema files on disk DROPPED
+   
+8) DICT_SCHEMAREQ -> all DICT
+   Table status = DROPPED
+
+---------------------------------
+
+Sequence of Drop table in node/system restart
+---------------------------------------------
+
+In both node and system restart the node receives the schema information from
+the master. If the table is in a state where it needs to complete the drop
+table activity then DBACC, DBTUP, DBDIH, DBDICT is contacted to drop all files
+related to the table. After this the schema information is updated with the new
+state. Since all nodes receive the same schema information there is no risk of
+different behaviour in the various NDB nodes.
+
+API Requirements for Drop Table
+-------------------------------
+Definition:
+  
+  Two tables are NOT the same if they were created with two create
+  tables at different points in time, even if the two create tables
+  had exactly the same definition.
+
+Requirements:
+
+1. Each operation in a transaction refering to a table (by name or by id)
+   should operate on the same table.  (This is probably necessary.)
+
+2. Each operation in a transaction refering to a table (by name or by
+   id) should operate on the same table as were defined at the
+   startTransaction timepoint.  (This is not strictly necessary for
+   API consistency.)
+
+   Example 1:
+
+     startTransaction()
+
+     drop("TableName1")
+     create("TableName1")
+
+     getNdbOperation("TableName1")
+
+     execute(commit)
+
+   - If both requirements 1 and 2 are fulfilled, then this should lead
+     to "Error: Invalid Schema Version" or similar error
+
+   - If only requirement 1 is fulfilled, then this may be executed
+     without any errors.
+
+
+   Example 2:
+
+     startTransaction()
+
+     getNdbOperation("TableName1")
+     execute(NoCommit)
+
+     drop("TableName1")
+     create("TableName1")
+
+     getNdbOperation("TableName1")
+
+     execute(commit)
+
+   - This should always lead to "Error: Invalid Schema Version" or
+     similar error.
+

@@ -1,0 +1,340 @@
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL
+) ENGINE=ndbcluster;
+INSERT INTO t1 VALUES (9410,9412);
+SELECT pk1 FROM t1;
+pk1
+9410
+SELECT * FROM t1;
+pk1	attr1
+9410	9412
+SELECT t1.* FROM t1;
+pk1	attr1
+9410	9412
+UPDATE t1 SET attr1=1 WHERE pk1=9410;
+SELECT * FROM t1;
+pk1	attr1
+9410	1
+UPDATE t1 SET pk1=2 WHERE attr1=1;
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+SELECT * FROM t1;
+pk1	attr1
+9410	1
+DELETE FROM t1;
+SELECT * FROM t1;
+pk1	attr1
+INSERT INTO t1 VALUES (9410,9412), (9411, 9413), (9408, 8765),
+(7,8), (8,9), (9,10), (10,11), (11,12), (12,13), (13,14);
+UPDATE t1 SET attr1 = 9999;
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1
+7	9999
+8	9999
+9	9999
+10	9999
+11	9999
+12	9999
+13	9999
+9408	9999
+9410	9999
+9411	9999
+UPDATE t1 SET attr1 = 9998 WHERE pk1 < 1000;
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1
+7	9998
+8	9998
+9	9998
+10	9998
+11	9998
+12	9998
+13	9998
+9408	9999
+9410	9999
+9411	9999
+UPDATE t1 SET attr1 = 9997 WHERE attr1 = 9999;
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1
+7	9998
+8	9998
+9	9998
+10	9998
+11	9998
+12	9998
+13	9998
+9408	9997
+9410	9997
+9411	9997
+DELETE FROM t1 WHERE pk1 = 9410;
+SELECT * FROM t1 ORDER BY pk1;
+pk1	attr1
+7	9998
+8	9998
+9	9998
+10	9998
+11	9998
+12	9998
+13	9998
+9408	9997
+9411	9997
+DELETE FROM t1;
+SELECT * FROM t1;
+pk1	attr1
+INSERT INTO t1 values (1, 4), (2, 4), (3, 5), (4, 4), (5, 5);
+DELETE FROM t1 WHERE attr1=4;
+SELECT * FROM t1 order by pk1;
+pk1	attr1
+3	5
+5	5
+DELETE FROM t1;
+INSERT INTO t1 VALUES (9410,9412), (9411, 9413);
+DELETE FROM t1 WHERE pk1 = 9410;
+SELECT * FROM t1;
+pk1	attr1
+9411	9413
+DROP TABLE t1;
+CREATE TABLE t1 (id INT, id2 int) engine=ndbcluster;
+INSERT INTO t1 values(3456, 7890);
+SELECT * FROM t1;
+id	id2
+3456	7890
+UPDATE t1 SET id=2 WHERE id2=12;
+SELECT * FROM t1;
+id	id2
+3456	7890
+UPDATE t1 SET id=1234 WHERE id2=7890;
+SELECT * FROM t1;
+id	id2
+1234	7890
+DELETE FROM t1;
+INSERT INTO t1 values(3456, 7890), (3456, 7890), (3456, 7890);
+SELECT * FROM t1;
+id	id2
+3456	7890
+3456	7890
+3456	7890
+DELETE FROM t1 WHERE id = 3456;
+DROP TABLE t1;
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL
+) ENGINE=NDBCLUSTER;
+INSERT INTO t1 values(1, 9999);
+DROP TABLE t1;
+CREATE TABLE t1 (
+pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL
+) ENGINE=NDB;
+INSERT INTO t1 values(1, 9999);
+DROP TABLE t1;
+CREATE TABLE t2 (
+a bigint unsigned NOT NULL PRIMARY KEY,
+b int unsigned not null,
+c int unsigned
+) engine=ndbcluster;
+CREATE TABLE t3 (
+a bigint unsigned NOT NULL,
+b bigint unsigned not null,
+c bigint unsigned,
+PRIMARY KEY(a)
+) engine=ndbcluster;
+CREATE TABLE t4 (
+a bigint unsigned NOT NULL,
+b bigint unsigned not null,
+c bigint unsigned NOT NULL,
+d int unsigned,
+PRIMARY KEY(a, b, c)
+) engine=ndbcluster;
+select * from t2 where a = 7 order by b;
+a	b	c
+7	16	5
+select * from t2 where a = 7 order by a;
+a	b	c
+7	16	5
+select * from t2 where a = 7 order by 2;
+a	b	c
+7	16	5
+select * from t2 where a = 7 order by c;
+a	b	c
+7	16	5
+select * from t2 where a = 7 and b = 16 order by b;
+a	b	c
+7	16	5
+select * from t2 where a = 7 and b = 16 order by a;
+a	b	c
+7	16	5
+select * from t2 where a = 7 and b = 17 order by a;
+a	b	c
+select * from t2 where a = 7 and b != 16 order by b;
+a	b	c
+select * from t2 where a = 7 and b = 16 and c = 5 order by b;
+a	b	c
+7	16	5
+select * from t2 where a = 7 and b = 16 and c = 5 order by a;
+a	b	c
+7	16	5
+select * from t2 where a = 7 and b = 16 and c = 6 order by a;
+a	b	c
+select * from t2 where a = 7 and b != 16 and c = 5 order by b;
+a	b	c
+select * from t3 where a = 7 order by b;
+a	b	c
+7	16	5
+select * from t3 where a = 7 order by a;
+a	b	c
+7	16	5
+select * from t3 where a = 7 order by 2;
+a	b	c
+7	16	5
+select * from t3 where a = 7 order by c;
+a	b	c
+7	16	5
+select * from t3 where a = 7 and b = 16 order by b;
+a	b	c
+7	16	5
+select * from t3 where a = 7 and b = 16 order by a;
+a	b	c
+7	16	5
+select * from t3 where a = 7 and b = 17 order by a;
+a	b	c
+select * from t3 where a = 7 and b != 16 order by b;
+a	b	c
+select * from t4 where a = 7 order by b;
+a	b	c	d
+7	16	5	26007
+select * from t4 where a = 7 order by a;
+a	b	c	d
+7	16	5	26007
+select * from t4 where a = 7 order by 2;
+a	b	c	d
+7	16	5	26007
+select * from t4 where a = 7 order by c;
+a	b	c	d
+7	16	5	26007
+select * from t4 where a = 7 and b = 16 order by b;
+a	b	c	d
+7	16	5	26007
+select * from t4 where a = 7 and b = 16 order by a;
+a	b	c	d
+7	16	5	26007
+select * from t4 where a = 7 and b = 17 order by a;
+a	b	c	d
+select * from t4 where a = 7 and b != 16 order by b;
+a	b	c	d
+delete from t2;
+delete from t3;
+delete from t4;
+drop table t2;
+drop table t3;
+drop table t4;
+CREATE TABLE t5 (
+a bigint unsigned NOT NULL,
+b bigint unsigned not null,
+c bigint unsigned NOT NULL,
+d int unsigned,
+PRIMARY KEY(a, b, c)
+) engine=ndbcluster;
+insert into t5 values(10, 19, 5, 26010);
+delete from t5 where a=10 and b=19 and c=5;
+select * from t5;
+a	b	c	d
+insert into t5 values(10, 19, 5, 26010);
+update t5 set d=21997 where a=10 and b=19 and c=5;
+select * from t5;
+a	b	c	d
+10	19	5	21997
+delete from t5;
+drop table t5;
+CREATE TABLE t6 (
+adress char(255),
+a int NOT NULL PRIMARY KEY,
+b int
+) engine = NDB;
+insert into t6 values
+("Nice road 3456", 1, 23),
+("Street Road 78", 3, 92),
+("Road street 89C", 5, 71),
+(NULL, 7, NULL);
+select * from t6 order by a;
+adress	a	b
+Nice road 3456	1	23
+Street Road 78	3	92
+Road street 89C	5	71
+NULL	7	NULL
+select a, b from t6 order by a;
+a	b
+1	23
+3	92
+5	71
+7	NULL
+update t6 set adress="End of road 09" where a=3;
+update t6 set b=181, adress="Street 76" where a=7;
+select * from t6 order by a;
+adress	a	b
+Nice road 3456	1	23
+End of road 09	3	92
+Road street 89C	5	71
+Street 76	7	181
+select * from t6 where a=1;
+adress	a	b
+Nice road 3456	1	23
+delete from t6 where a=1;
+select * from t6 order by a;
+adress	a	b
+End of road 09	3	92
+Road street 89C	5	71
+Street 76	7	181
+delete from t6 where b=71;
+select * from t6 order by a;
+adress	a	b
+End of road 09	3	92
+Street 76	7	181
+drop table t6;
+CREATE TABLE t7 (
+adress char(255),
+a int NOT NULL,
+b int,
+c int NOT NULL,
+PRIMARY KEY(a, c)	
+) engine = NDB;
+insert into t7 values
+("Highway 3456", 1, 23, 2),
+("Street Road 78", 3, 92, 3),
+("Main street 89C", 5, 71, 4),
+(NULL, 8, NULL, 12);
+select * from t7 order by a;
+adress	a	b	c
+Highway 3456	1	23	2
+Street Road 78	3	92	3
+Main street 89C	5	71	4
+NULL	8	NULL	12
+select a, b from t7 order by a;
+a	b
+1	23
+3	92
+5	71
+8	NULL
+update t7 set adress="End of road 09" where a=3;
+update t7 set adress="Gatuvägen 90C" where a=5 and c=4;
+update t7 set adress="No adress" where adress is NULL;
+select * from t7 order by a;
+adress	a	b	c
+Highway 3456	1	23	2
+End of road 09	3	92	3
+Gatuvägen 90C	5	71	4
+No adress	8	NULL	12
+select * from t7 where a=1 and c=2;
+adress	a	b	c
+Highway 3456	1	23	2
+delete from t7 where a=1;
+delete from t7 where a=3 and c=3;
+delete from t7 where a=5 and c=4;
+select * from t7;
+adress	a	b	c
+No adress	8	NULL	12
+delete from t7 where b=23;
+select * from t7;
+adress	a	b	c
+No adress	8	NULL	12
+drop table t7;

@@ -120,3 +120,80 @@ select @a+0, @a:=@a+0+count(*), count(*), @a+0 from t1 group by i;
 1	3	2	0
 3	6	3	0
 drop table t1;
+set @a=_latin2'test';
+select charset(@a),collation(@a),coercibility(@a);
+charset(@a)	collation(@a)	coercibility(@a)
+latin2	latin2_general_ci	3
+select @a=_latin2'TEST';
+@a=_latin2'TEST'
+1
+select @a=_latin2'TEST' collate latin2_bin;
+@a=_latin2'TEST' collate latin2_bin
+0
+set @a=_latin2'test' collate latin2_general_ci;
+select charset(@a),collation(@a),coercibility(@a);
+charset(@a)	collation(@a)	coercibility(@a)
+latin2	latin2_general_ci	0
+select @a=_latin2'TEST';
+@a=_latin2'TEST'
+1
+select @a=_latin2'TEST' collate latin2_bin;
+ERROR HY000: Illegal mix of collations (latin2_general_ci,EXPLICIT) and (latin2_bin,EXPLICIT) for operation '='
+select charset(@a:=_latin2'test');
+charset(@a:=_latin2'test')
+latin2
+select collation(@a:=_latin2'test');
+collation(@a:=_latin2'test')
+latin2_general_ci
+select coercibility(@a:=_latin2'test');
+coercibility(@a:=_latin2'test')
+3
+select collation(@a:=_latin2'test' collate latin2_bin);
+collation(@a:=_latin2'test' collate latin2_bin)
+latin2_bin
+select coercibility(@a:=_latin2'test' collate latin2_bin);
+coercibility(@a:=_latin2'test' collate latin2_bin)
+0
+select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST';
+(@a:=_latin2'test' collate latin2_bin) = _latin2'TEST'
+0
+select charset(@a),collation(@a),coercibility(@a);
+charset(@a)	collation(@a)	coercibility(@a)
+latin2	latin2_bin	0
+select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST' collate latin2_general_ci;
+ERROR HY000: Illegal mix of collations (latin2_bin,EXPLICIT) and (latin2_general_ci,EXPLICIT) for operation '='
+create table t1 (a varchar(50));
+reset master;
+SET TIMESTAMP=10000;
+SET @`a b`='hello';
+INSERT INTO t1 VALUES(@`a b`);
+set @var1= "';aaa";
+insert into t1 values (@var1);
+create table t2 (c char(30)) charset=ucs2;
+set @v=convert('abc' using ucs2);
+insert into t2 values (@v);
+show binlog events from 95;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	95	User var	1	136	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci
+master-bin.000001	136	Query	1	222	use `test`; INSERT INTO t1 VALUES(@`a b`)
+master-bin.000001	222	User var	1	264	@`var1`=_latin1 0x273B616161 COLLATE latin1_swedish_ci
+master-bin.000001	264	Query	1	350	use `test`; insert into t1 values (@var1)
+master-bin.000001	350	Query	1	448	use `test`; create table t2 (c char(30)) charset=ucs2
+master-bin.000001	448	User var	1	488	@`v`=_ucs2 0x006100620063 COLLATE ucs2_general_ci
+master-bin.000001	488	Query	1	571	use `test`; insert into t2 values (@v)
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+SET @`a b`:=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci;
+use test;
+SET TIMESTAMP=10000;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
+SET @@session.sql_mode=0;
+INSERT INTO t1 VALUES(@`a b`);
+SET @`var1`:=_latin1 0x273B616161 COLLATE latin1_swedish_ci;
+SET TIMESTAMP=10000;
+insert into t1 values (@var1);
+SET TIMESTAMP=10000;
+create table t2 (c char(30)) charset=ucs2;
+SET @`v`:=_ucs2 0x006100620063 COLLATE ucs2_general_ci;
+SET TIMESTAMP=10000;
+insert into t2 values (@v);
+drop table t1, t2;
