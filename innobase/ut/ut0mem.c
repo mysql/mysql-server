@@ -202,10 +202,7 @@ ut_realloc(
 	ulint		min_size;
 	void*		new_ptr;
 
-	printf("Calling realloc with size %lu\n", size);
-
 	if (ptr == NULL) {
-		printf("ptr was NULL, calling malloc\n");
 
 		return(ut_malloc(size));
 	}
@@ -222,8 +219,6 @@ ut_realloc(
 
 	old_size = block->size - sizeof(ut_mem_block_t);
 
-	printf("Old size was %lu\n", old_size);
-
 	if (size < old_size) {
 		min_size = size;
 	} else {
@@ -239,8 +234,6 @@ ut_realloc(
 
 	/* Copy the old data from ptr */
 	ut_memcpy(new_ptr, ptr, min_size);
-
-	printf("Copying %lu bytes to new_ptr\n", min_size);
 
 	ut_free(ptr);
 
