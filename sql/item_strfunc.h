@@ -89,30 +89,12 @@ public:
 
 class Item_func_concat_ws :public Item_str_func
 {
-  Item *separator;
   String tmp_value;
-
 public:
-  Item_func_concat_ws(Item *a,List<Item> &list) 
-    :Item_str_func(list),separator(a) {}
+  Item_func_concat_ws(List<Item> &list) :Item_str_func(list) {}
   String *val_str(String *);
   void fix_length_and_dec();
-  void update_used_tables();
-  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
-  {
-    DBUG_ASSERT(fixed == 0);
-    return (separator->fix_fields(thd, tlist, &separator) ||
-	    separator->check_cols(1) ||
-	    Item_func::fix_fields(thd, tlist, ref));
-  }
-  void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   const char *func_name() const { return "concat_ws"; }
-  bool walk(Item_processor processor, byte *arg)
-  {
-    return separator->walk(processor, arg) ||
-      Item_str_func::walk(processor, arg);
-  }
-  void print(String *str);
 };
 
 class Item_func_reverse :public Item_str_func

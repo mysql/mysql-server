@@ -532,7 +532,7 @@ String *Item_func_concat_ws::val_str(String *str)
   uint i;
 
   null_value=0;
-  if (!(sep_str= separator->val_str(&tmp_sep_str)))
+  if (!(sep_str= args[0]->val_str(&tmp_sep_str)))
     goto null;
 
   use_as_buff= &tmp_value;
@@ -541,7 +541,7 @@ String *Item_func_concat_ws::val_str(String *str)
 
   // Skip until non-null argument is found.
   // If not, return the empty string
-  for (i=0; i < arg_count; i++)
+  for (i=1; i < arg_count; i++)
     if ((res= args[i]->val_str(str)))
       break;
   if (i ==  arg_count)
@@ -635,67 +635,25 @@ null:
   return 0;
 }
 
-void Item_func_concat_ws::split_sum_func(THD *thd, Item **ref_pointer_array,
-					 List<Item> &fields)
-{
-  if (separator->with_sum_func && separator->type() != SUM_FUNC_ITEM)
-    separator->split_sum_func(thd, ref_pointer_array, fields);
-  else if (separator->used_tables() || separator->type() == SUM_FUNC_ITEM)
-  {
-    uint el= fields.elements;
-    Item *new_item= new Item_ref(ref_pointer_array + el, 0, separator->name);
-    fields.push_front(separator);
-    ref_pointer_array[el]= separator;
-    thd->change_item_tree(&separator, new_item);
-  }
-  Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
-}
 
 void Item_func_concat_ws::fix_length_and_dec()
 {
-  collation.set(separator->collation);
-  max_length=separator->max_length*(arg_count-1);
-  for (uint i=0 ; i < arg_count ; i++)
-  {
-    DTCollation tmp(collation.collation, collation.derivation);
+  max_length=0;
+
+  if (agg_arg_collations(collation, args, arg_count))
+    return;
+
+  max_length= arg_count > 1 ? args[0]->max_length * (arg_count - 2) : 0;
+  for (uint i=1 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
-    if (collation.aggregate(args[i]->collation))
-    {
-      collation.set(tmp); // Restore the previous value
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
-  }
+
   if (max_length > MAX_BLOB_WIDTH)
   {
     max_length=MAX_BLOB_WIDTH;
     maybe_null=1;
   }
-  used_tables_cache|=     separator->used_tables();
-  not_null_tables_cache&= separator->not_null_tables();
-  const_item_cache&=	  separator->const_item();
-  with_sum_func=	  with_sum_func || separator->with_sum_func;
 }
 
-void Item_func_concat_ws::update_used_tables()
-{
-  Item_func::update_used_tables();
-  separator->update_used_tables();
-  used_tables_cache|=separator->used_tables();
-  const_item_cache&=separator->const_item();
-}
-
-void Item_func_concat_ws::print(String *str)
-{
-  str->append("concat_ws(", 10);
-  separator->print(str);
-  if (arg_count)
-  {
-    str->append(',');
-    print_args(str, 0);
-  }
-  str->append(')');
-}
 
 String *Item_func_reverse::val_str(String *str)
 {
