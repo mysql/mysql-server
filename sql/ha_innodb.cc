@@ -702,7 +702,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
         /* Always fetch all columns in the index record */
 
-        prebuilt->hint_no_need_to_fetch_extra_cols = FALSE;
+        prebuilt->hint_need_to_fetch_extra_cols = ROW_RETRIEVE_ALL_COLS;
 
         /* We want always to fetch all columns in the whole row? Or do
 	we???? */
@@ -1951,6 +1951,7 @@ build_template(
 	ulint		n_fields;
 	ulint		n_requested_fields	= 0;
 	ibool		fetch_all_in_key	= FALSE;
+	ibool		fetch_primary_key_cols	= FALSE;
 	ulint		i;
 
 	if (prebuilt->select_lock_type == LOCK_X) {
@@ -1961,8 +1962,9 @@ build_template(
 	        templ_type = ROW_MYSQL_WHOLE_ROW;
 	}
 
-	if (templ_type == ROW_MYSQL_REC_FIELDS
-	    && !prebuilt->hint_no_need_to_fetch_extra_cols) {
+	if (templ_type == ROW_MYSQL_REC_FIELDS) {
+	     if (prebuilt->hint_need_to_fetch_extra_cols
+						== ROW_RETRIEVE_ALL_COLS) {
 
 		/* We know we must at least fetch all columns in the key, or
 		all columns in the table */
@@ -1977,15 +1979,14 @@ build_template(
 
 			fetch_all_in_key = TRUE;
 		} else {
-			/* We are building a temporary table: fetch all
- 			columns; the reason is that MySQL may use the
-			clustered index key to store rows, but the mechanism
-			we use below to detect required columns does not
-			reveal that. Actually, it might be enough to
-			fetch only all in the key also in this case! */
-
 			templ_type = ROW_MYSQL_WHOLE_ROW;
 		}
+	    } else if (prebuilt->hint_need_to_fetch_extra_cols
+						== ROW_RETRIEVE_PRIMARY_KEY) {
+		/* We must at least fetch all primary key cols */
+
+		fetch_primary_key_cols = TRUE;
+	    }
 	}
 
 	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
@@ -2004,7 +2005,7 @@ build_template(
 		the clustered index */
 	}
 
-	n_fields = (ulint)table->fields;
+	n_fields = (ulint)table->fields; /* number of columns */
 
 	if (!prebuilt->mysql_template) {
 		prebuilt->mysql_template = (mysql_row_templ_t*)
@@ -2017,6 +2018,8 @@ build_template(
 
 	prebuilt->templ_contains_blob = FALSE;
 
+	/* Note that in InnoDB, i is the column number. MySQL calls columns
+	'fields'. */
 	for (i = 0; i < n_fields; i++) {
 		templ = prebuilt->mysql_template + n_requested_fields;
 		field = table->field[i];
@@ -2029,6 +2032,8 @@ build_template(
 		if (templ_type == ROW_MYSQL_REC_FIELDS
 		    && !(fetch_all_in_key
 			 && dict_index_contains_col_or_prefix(index, i))
+		    && !(fetch_primary_key_cols
+			 && dict_table_col_in_clustered_key(index->table, i))
 		    && thd->query_id != field->query_id) {
 
 			/* This field is not needed in the query, skip it */
@@ -4514,7 +4519,14 @@ ha_innobase::extra(
     			prebuilt->read_just_key = 0;
     			break;
 	        case HA_EXTRA_RETRIEVE_ALL_COLS:
-			prebuilt->hint_no_need_to_fetch_extra_cols = FALSE;
+			prebuilt->hint_need_to_fetch_extra_cols
+					= ROW_RETRIEVE_ALL_COLS;
+			break;
+	        case HA_EXTRA_RETRIEVE_PRIMARY_KEY:
+			if (prebuilt->hint_need_to_fetch_extra_cols == 0) {
+				prebuilt->hint_need_to_fetch_extra_cols
+					= ROW_RETRIEVE_PRIMARY_KEY;
+			}
 			break;
 	        case HA_EXTRA_KEYREAD:
 	        	prebuilt->read_just_key = 1;
@@ -4575,7 +4587,7 @@ ha_innobase::start_stmt(
 
 	auto_inc_counter_for_this_stat = 0;
 	prebuilt->sql_stat_start = TRUE;
-	prebuilt->hint_no_need_to_fetch_extra_cols = TRUE;
+	prebuilt->hint_need_to_fetch_extra_cols = 0;
 	prebuilt->read_just_key = 0;
 
 	if (!prebuilt->mysql_has_locked) {
@@ -4652,7 +4664,7 @@ ha_innobase::external_lock(
 	trx = prebuilt->trx;
 
 	prebuilt->sql_stat_start = TRUE;
-	prebuilt->hint_no_need_to_fetch_extra_cols = TRUE;
+	prebuilt->hint_need_to_fetch_extra_cols = 0;
 
 	prebuilt->read_just_key = 0;
 
@@ -4996,7 +5008,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
   	/* Play safe and also give in another way the hint to fetch
   	all columns in the key: */
   	
-	prebuilt->hint_no_need_to_fetch_extra_cols = FALSE;
+	prebuilt->hint_need_to_fetch_extra_cols = ROW_RETRIEVE_ALL_COLS;
 
 	prebuilt->trx->mysql_n_tables_locked += 1;
   
