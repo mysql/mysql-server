@@ -517,3 +517,28 @@ SELECT titre,t1.numeropost,auteur,icone,nbrep,'0',date,vue,ouvert,lastauteur,des
 titre	numeropost	auteur	icone	nbrep	0	date	vue	ouvert	lastauteur	dest
 test	1	joce	0	0	0	0000-00-00 00:00:00	0	1		bug
 drop table t1,t2;
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t1 VALUES (3, 4);
+INSERT INTO t1 VALUES (5, NULL);
+SELECT * FROM t1 ORDER BY b;
+a	b
+5	NULL
+1	2
+3	4
+SELECT * FROM t1 ORDER BY b DESC;
+a	b
+3	4
+1	2
+5	NULL
+SELECT * FROM t1 ORDER BY (a + b);
+a	b
+5	NULL
+1	2
+3	4
+SELECT * FROM t1 ORDER BY (a + b) DESC;
+a	b
+3	4
+1	2
+5	NULL
+DROP TABLE t1;

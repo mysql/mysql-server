@@ -1066,7 +1066,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
 
 int Item_sum_count_distinct::tree_to_myisam()
 {
-  if (create_myisam_from_heap(table, tmp_table_param,
+  if (create_myisam_from_heap(current_thd, table, tmp_table_param,
 			      HA_ERR_RECORD_FILE_FULL, 1) ||
       tree_walk(&tree, (tree_walk_action)&dump_leaf, (void*)this,
 		left_root_right))
@@ -1120,7 +1120,8 @@ bool Item_sum_count_distinct::add()
     if (error != HA_ERR_FOUND_DUPP_KEY &&
 	error != HA_ERR_FOUND_DUPP_UNIQUE)
     {
-      if (create_myisam_from_heap(table, tmp_table_param, error,1))
+      if (create_myisam_from_heap(current_thd, table, tmp_table_param, error,
+				  1))
 	return 1;				// Not a table_is_full error
     }
   }

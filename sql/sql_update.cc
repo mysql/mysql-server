@@ -66,7 +66,10 @@ int mysql_update(THD *thd,
   TABLE		*table;
   SQL_SELECT	*select;
   READ_RECORD	info;
+  TABLE_LIST   tables;
+  List<Item>   all_fields;
   DBUG_ENTER("mysql_update");
+
   LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
@@ -80,8 +83,13 @@ int mysql_update(THD *thd,
   table->quick_keys=0;
   want_privilege=table->grant.want_privilege;
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
-  if (setup_tables(table_list) || setup_conds(thd,table_list,&conds)
-                               || setup_ftfuncs(thd))
+
+  bzero((char*) &tables,sizeof(tables));	// For ORDER BY
+  tables.table = table;
+
+  if (setup_tables(table_list) || setup_conds(thd,table_list,&conds) ||
+      setup_order(thd, &tables, all_fields, all_fields, order) ||
+      setup_ftfuncs(thd))
     DBUG_RETURN(-1);				/* purecov: inspected */
   old_used_keys=table->used_keys;		// Keys used in WHERE
 
@@ -159,13 +167,6 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     table->file->extra(HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE);
-    IO_CACHE tempfile;
-    if (open_cached_file(&tempfile, mysql_tmpdir,TEMP_PREFIX,
-			  DISK_BUFFER_SIZE, MYF(MY_WME)))
-    {
-      delete select; /* purecov: inspected */
-      DBUG_RETURN(-1);
-    }
     if (old_used_keys & ((key_map) 1 << used_index))
     {
       table->key_read=1;
@@ -174,80 +175,96 @@ int mysql_update(THD *thd,
 
     if (order)
     {
+      /*
+	Doing an ORDER BY;  Let filesort find and sort the rows we are going
+	to update
+      */
       uint         length;
       SORT_FIELD  *sortorder;
-      TABLE_LIST   tables;
       List<Item>   fields;
-      List<Item>   all_fields;
       ha_rows examined_rows;
-
-      bzero((char*) &tables,sizeof(tables));
-      tables.table = table;
 
       table->io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                                MYF(MY_FAE | MY_ZEROFILL));
-      if (setup_order(thd, &tables, fields, all_fields, order) ||
-          !(sortorder=make_unireg_sortorder(order, &length)) ||
+      if (!(sortorder=make_unireg_sortorder(order, &length)) ||
           (table->found_records = filesort(table, sortorder, length,
-                                           (SQL_SELECT *) 0, 0L,
-					   HA_POS_ERROR, &examined_rows))
-          == HA_POS_ERROR)
+                                           select, 0L,
+					   limit, &examined_rows)) ==
+          HA_POS_ERROR)
+      {
+	delete select;
+	free_io_cache(table);
+	DBUG_RETURN(-1);
+      }
+      /*
+	Filesort has already found and selected the rows we want to update,
+	so we don't need the where clause
+      */
+      delete select;
+      select= 0;
+    }
+    else
+    {
+      /*
+	We are doing a search on a key that is updated. In this case
+	we go trough the matching rows, save a pointer to them and
+	update these in a separate loop based on the pointer.
+      */
+
+      IO_CACHE tempfile;
+      if (open_cached_file(&tempfile, mysql_tmpdir,TEMP_PREFIX,
+			   DISK_BUFFER_SIZE, MYF(MY_WME)))
+      {
+	delete select; /* purecov: inspected */
+	DBUG_RETURN(-1);
+      }
+
+      init_read_record(&info,thd,table,select,0,1);
+      thd->proc_info="Searching rows for update";
+      uint tmp_limit= limit;
+      while (!(error=info.read_record(&info)) && !thd->killed)
+      {
+	if (!(select && select->skipp_record()))
+	{
+	  table->file->position(table->record[0]);
+	  if (my_b_write(&tempfile,table->file->ref,
+			 table->file->ref_length))
+	  {
+	    error=1; /* purecov: inspected */
+	    break; /* purecov: inspected */
+	  }
+	  if (!--limit && using_limit)
+	    break;
+	}
+      }
+      end_read_record(&info);
+      /* Change select to use tempfile */
+      if (select)
+      {
+	delete select->quick;
+	if (select->free_cond)
+	  delete select->cond;
+	select->quick=0;
+	select->cond=0;
+      }
+      else
+      {
+	select= new SQL_SELECT;
+	select->head=table;
+      }
+      if (reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
+	error=1; /* purecov: inspected */
+      select->file=tempfile;			// Read row ptrs from this file
+      if (error >= 0)
       {
 	delete select;
 	DBUG_RETURN(-1);
       }
     }
-
-    init_read_record(&info,thd,table,select,0,1);
-    thd->proc_info="Searching rows for update";
-
-    while (!(error=info.read_record(&info)) && !thd->killed)
-    {
-      if (!(select && select->skipp_record()))
-      {
-	table->file->position(table->record[0]);
-	if (my_b_write(&tempfile,table->file->ref,
-		       table->file->ref_length))
-	{
-	  error=1; /* purecov: inspected */
-	  break; /* purecov: inspected */
-	}
-      }
-      else
-      {
-	if (!(test_flags & 512))		/* For debugging */
-	{
-	  DBUG_DUMP("record",(char*) table->record[0],table->reclength);
-	}
-      }
-    }
-    end_read_record(&info);
     if (table->key_read)
     {
       table->key_read=0;
       table->file->extra(HA_EXTRA_NO_KEYREAD);
-    }
-    /* Change select to use tempfile */
-    if (select)
-    {
-      delete select->quick;
-      if (select->free_cond)
-	delete select->cond;
-      select->quick=0;
-      select->cond=0;
-    }
-    else
-    {
-      select= new SQL_SELECT;
-      select->head=table;
-    }
-    if (reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
-      error=1; /* purecov: inspected */
-    select->file=tempfile;			// Read row ptrs from this file
-    if (error >= 0)
-    {
-      delete select;
-      DBUG_RETURN(-1);
     }
   }
 
@@ -275,11 +292,6 @@ int mysql_update(THD *thd,
 					    (byte*) table->record[0])))
 	{
 	  updated++;
-	  if (!--limit && using_limit)
-	  {
-	    error= -1;
-	    break;
-	  }
 	}
 	else if (handle_duplicates != DUP_IGNORE ||
 		 error != HA_ERR_FOUND_DUPP_KEY)
@@ -289,11 +301,17 @@ int mysql_update(THD *thd,
 	  break;
 	}
       }
+      if (!--limit && using_limit)
+      {
+	error= -1;				// Simulate end of file
+	break;
+      }
     }
     else
       table->file->unlock_row();
   }
   end_read_record(&info);
+  free_io_cache(table);				// If ORDER BY
   thd->proc_info="end";
   VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
   transactional_table= table->file->has_transactions();
@@ -743,7 +761,8 @@ bool multi_update::send_data(List<Item> &not_used_values)
 	  (error != HA_ERR_FOUND_DUPP_KEY &&
 	   error != HA_ERR_FOUND_DUPP_UNIQUE))
       {
-	if (create_myisam_from_heap(tmp_table, tmp_table_param + offset, error, 1))
+	if (create_myisam_from_heap(thd, tmp_table, tmp_table_param + offset,
+				    error, 1))
 	{
 	  do_update=0;
 	  DBUG_RETURN(1);			// Not a table_is_full error

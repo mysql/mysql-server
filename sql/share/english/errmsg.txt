@@ -105,7 +105,7 @@
 "BLOB column '%-.64s' can't have a default value",
 "Incorrect database name '%-.100s'",
 "Incorrect table name '%-.100s'",
-"The SELECT would examine too many records and probably take a very long time. Check your WHERE and use SET SQL_BIG_SELECTS=1 if the SELECT is ok",
+"The SELECT would examine more rows than MAX_JOIN_SIZE. Check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is ok",
 "Unknown error",
 "Unknown procedure '%-.64s'",
 "Incorrect parameter count to procedure '%-.64s'",

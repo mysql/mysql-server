@@ -3,10 +3,10 @@
 # debug
 #set -x
 
-path=`dirname $0`
-
 # stop on errors
 set -e
+
+path=`dirname $0`
 
 # repository direcotry
 repo_dir=`pwd`
@@ -24,6 +24,7 @@ temp_dir=""
 revision=""
 rev=""
 build=""
+suffix=""
 mwenv=""
 
 # show usage
@@ -81,6 +82,7 @@ for arg do
     --wine-build-dir=*) wine_build_dir=`echo "$arg" | sed -e "s;--wine-build-dir=;;"` ;;
     --revision=*) revision=`echo "$arg" | sed -e "s;--revision=;;"` ;;
     --build=*) build=`echo "$arg" | sed -e "s;--build=;;"` ;;
+    --suffix=*) suffix=`echo "$arg" | sed -e "s;--suffix=;;"` ;;
     --doc-dir=*) doc_dir=`echo "$arg" | sed -e "s;--doc-dir=;;"` ;;
     *) show_usage ;;
   esac
@@ -110,6 +112,12 @@ echo "version: $version"
 
 # build target directory
 target_dir="$build_dir/mysql-$version"
+
+# add suffix
+if test $suffix
+then
+  target_dir="$target_dir-$suffix"
+fi
 
 # delete any old target
 if test -d $target_dir.old; then rm -rf $target_dir.old; fi

@@ -42,7 +42,7 @@
 #define MAIN_THD
 #define SIGNAL_THD
 
-#ifdef PURIFY
+#ifdef HAVE_purify
 #define IF_PURIFY(A,B) (A)
 #else
 #define IF_PURIFY(A,B) (B)

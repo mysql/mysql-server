@@ -16,20 +16,25 @@
 ## 1.2 begin screen now in a loop + quit is using 0 instead of 9
 ##     after ideas of Paul DuBois.
 ## 1.2a Add Grant, References, Index and Alter privilege handling (Monty)
+## 1.3 Applied patch provided by Martin Mokrejs <mmokrejs@natur.cuni.cz>
+##     (General code cleanup, use the GRANT statement instead of updating
+##     the privilege tables directly, added option to revoke privileges)
 
 #### TODO
 #
 # empty ... suggestions ... mail them to me ...
 
 
-$version="1.2";
+$version="1.3";
 
 use DBI;
 use Getopt::Long;
 use strict;
-use vars qw($dbh $hostname $opt_user $opt_password $opt_help $opt_host
+use vars qw($dbh $sth $hostname $opt_user $opt_password $opt_help $opt_host
 	    $opt_socket $opt_port $host $version);
 
+my $sqlhost = "";
+my $user = "";
 
 $dbh=$host=$opt_user= $opt_password= $opt_help= $opt_host= $opt_socket= "";
 $opt_port=0;
@@ -42,11 +47,11 @@ usage() if ($opt_help); # the help function
 
 if ($opt_host eq '')
 {
-  $hostname = "localhost";
+  $sqlhost = "localhost";
 }
 else
 {
-  $hostname = $opt_host;
+  $sqlhost = $opt_host;
 }
 
 # ask for a password if no password is set already
@@ -62,7 +67,7 @@ if ($opt_password eq '')
 
 
 # make the connection to MySQL
-$dbh= DBI->connect("DBI:mysql:mysql:host=$hostname:port=$opt_port:mysql_socket=$opt_socket",$opt_user,$opt_password, {PrintError => 0}) ||
+$dbh= DBI->connect("DBI:mysql:mysql:host=$sqlhost:port=$opt_port:mysql_socket=$opt_socket",$opt_user,$opt_password, {PrintError => 0}) ||
   die("Can't make a connection to the mysql server.\n The error: $DBI::errstr");
 
 # the start of the program
@@ -86,27 +91,44 @@ sub q1 { # first question ...
     print "#"x70;
     print "\n";
     print "What would you like to do:\n";
-    print "  1. Set password for a user.\n";
-    print "  2. Add a database + user privilege for that database.\n";
-    print "     - user can do all except all admin functions\n";
-    print "  3. Add user privilege for an existing database.\n";
-    print "     - user can do all except all admin functions\n";
-    print "  4. Add user privilege for an existing database.\n";
-    print "     - user can do all except all admin functions + no create/drop\n";
-    print "  5. Add user privilege for an existing database.\n";
-    print "     - user can do only selects (no update/delete/insert etc.)\n";
+    print "  1. Set password for an existing user.\n";
+    print "  2. Create a database + user privilege for that database\n";
+		print "     and host combination (user can only do SELECT)\n";
+    print "  3. Create/append user privilege for an existing database\n";
+		print "     and host combination (user can only do SELECT)\n";
+    print "  4. Create/append broader user privileges for an existing\n";
+		print "     database and host combination\n";
+		print "     (user can do SELECT,INSERT,UPDATE,DELETE)\n";
+    print "  5. Create/append quite extended user privileges for an\n";
+		print "     existing database and host combination (user can do\n";
+		print "     SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,\n";
+		print "     LOCK TABLES,CREATE TEMPORARY TABLES)\n";
+    print "  6. Create/append database administrative privileges for an\n";
+		print "     existing database and host combination (user can do\n";
+		print "     SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,\n";
+		print "     CREATE TEMPORARY TABLES,SHOW DATABASES,PROCESS)\n";
+    print "  7. Create/append full privileges for an existing database\n";
+		print "     and host combination (user has FULL privilege)\n";
+    print "  8. Remove all privileges for for an existing database and\n";
+		print "     host combination.\n";
+    print "     (user will have all permission fields set to N)\n";
     print "  0. exit this program\n";
-    print "\nMake your choice [1,2,3,4,5,0]: ";
+    print "\nMake your choice [1,2,3,4,5,6,7,0]: ";
     while (<STDIN>) {
       $answer = $_;
       chomp($answer);
-      if ($answer =~ /1|2|3|4|5|0/) {
-        &setpwd if ($answer == 1);
-        &addall($answer) if ($answer =~ /^[2345]$/);
-        if ($answer == 0) {
-          print "Sorry, hope we can help you next time \n\n";
+      if ($answer =~ /^[12345678]$/) {
+        if ($answer == 1) {
+	   setpwd();
+        } elsif ($answer =~ /^[2345678]$/) {
+	   addall($answer);
+	} else {
+          print "Sorry, something went wrong. With such option number you should not get here.\n\n";
           $end = 1;
         }
+      } elsif ($answer == 0) {
+        print "We hope we can help you next time \n\n";
+	$end = 1;
       } else {
         print "Your answer was $answer\n";
         print "and that's wrong .... Try again\n";
@@ -121,7 +143,7 @@ sub q1 { # first question ...
 ###
 sub setpwd
 {
-  my ($user,$pass,$host);
+  my ($user,$pass,$host) = "";
   print "\n\nSetting a (new) password for a user.\n";
 
   $user = user();
@@ -168,22 +190,18 @@ sub setpwd
 ###
 # all things which will be added are done here
 ###
-sub addall
-{
+sub addall {
   my ($todo) = @_;
   my ($answer,$good,$db,$user,$pass,$host,$priv);
 
-  if ($todo == 2)
-  {
+  if ($todo == 2) {
     $db = newdatabase();
-  }
-  else
-  {
+  } else {
     $db = database();
   }
 
   $user = newuser();
-  $pass = newpass();
+  $pass = newpass("$user");
   $host = newhosts();
 
   print "#"x70;
@@ -198,104 +216,80 @@ sub addall
   print "Are you pretty sure you would like to implement this [yes/no]: ";
   my $no = <STDIN>;
   chomp($no);
-  if ($no =~ /n/i)
-  {
+  if ($no =~ /n/i) {
     print "Okay .. that was it then ... See ya\n\n";
     return(0);
-  }
-  else
-  {
+  } else {
     print "Okay ... let's go then ...\n\n";
   }
 
-  if ($todo == 2)
-  {
+  if ($todo == 2) {
     # create the database
-    my $sth = $dbh->do("create database $db") || $dbh->errstr;
+    if ($db) {
+    my $sth = $dbh->do("CREATE DATABASE $db") || $dbh->errstr;
+    } else {
+      print STDERR "What do you want? You wanted to create new database and add new user, right?\n";
+      die "But then specify databasename, please\n";
+  }
   }
 
-  # select the privilege ....
-  if (($todo == 2) || ($todo == 3))
-  {
-    $priv = "'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y'";
-  }
-  elsif ($todo == 4)
-  {
-    $priv = "'Y','Y','Y','Y','N','N','N','Y','Y','Y'";
-  }
-  elsif ($todo == 5)
-  {
-    $priv = "'Y','N','N','N','N','N','N','N','N','N'";
-  }
-  else
-  {
-    print "Sorry, choice  number $todo isn't known inside the program .. See ya\n";
+  if ( ( !$todo ) or not ( $todo =~ m/^[2-8]$/ ) ) {
+    print STDERR "Sorry, select option $todo isn't known inside the program .. See ya\n";
     quit();
   }
 
   my @hosts = split(/,/,$host);
-  $user = $dbh->quote($user);
-  $db = $dbh->quote($db);
-  if ($pass eq '')
-  {
-    $pass = "''";
+  if (!$user) {
+     die "username not specified: $user\n";
   }
-  else
-  {
-    $pass = "PASSWORD(". $dbh->quote($pass) . ")";
+  if (!$db) {
+     die "databasename is not specified nor *\n";
   }
-  foreach my $key (@hosts)
-  {
-    my $key1 = $dbh->quote($key);
-    my $sth = $dbh->prepare("select Host,User from user where Host = $key1 and User = $user") || die $dbh->errstr;
-    $sth->execute || die $dbh->errstr;
-    my @r = $sth->fetchrow_array;
-    if ($r[0])
-    {
-      print "WARNING WARNING SKIPPING CREATE FOR USER $user AND HOST $key\n";
-      print "Reason: entry already exists in the user table.\n";
+  foreach $host (@hosts) {
+    # user privileges: SELECT
+    if (($todo == 2) || ($todo == 3)) {
+      $sth = $dbh->do("GRANT SELECT ON $db.* TO $user@\"$host\" IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
+    } elsif ($todo == 4) {
+      # user privileges: SELECT,INSERT,UPDATE,DELETE
+      $sth = $dbh->do("GRANT SELECT,INSERT,UPDATE,DELETE ON $db.* TO $user@\"$host\" IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
+    } elsif ($todo == 5) {
+      # user privileges: SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,CREATE TEMPORARY TABLES
+      $sth = $dbh->do("GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,CREATE TEMPORARY TABLES ON $db.* TO $user@\"$host\" IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
+    } elsif ($todo == 6) {
+       # admin privileges: GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,CREATE TEMPORARY TABLES,SHOW DATABASES,PROCESS
+       $sth = $dbh->do("GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,INDEX,LOCK TABLES,CREATE TEMPORARY TABLES,SHOW DATABASES,PROCESS ON $db.* TO $user@\"$host\" IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
+    } elsif ($todo == 7) {
+       # all privileges
+       $sth = $dbh->do("GRANT ALL ON $db.* TO \'$user\'\@\'$host\' IDENTIFIED BY \'$pass\'") || die $dbh->errstr;
+    } elsif ($todo == 8) {
+       # all privileges set to N
+       $sth = $dbh->do("REVOKE ALL ON *.* FROM \'$user\'\@\'$host\'") || die $dbh->errstr;
     }
-    else
-    {
-      $sth = $dbh->prepare("insert into user (Host,User,Password) values($key1,$user,$pass)") || die $dbh->errstr;
-      $sth->execute || die $dbh->errstr;
-      $sth->finish;
     }
-    $sth = $dbh->prepare("INSERT INTO db (Host,Db,User,Select_priv,Insert_priv,Update_priv,Delete_priv,Create_priv,Drop_priv,Grant_priv,References_priv,Index_priv,Alter_priv) VALUES ($key1,$db,$user,$priv)") || die $dbh->errstr;
-    $sth->execute || die $dbh->errstr;
-    $sth->finish;
-  }
-  $dbh->do("flush privileges") || print "Can't load privileges\n";
+  $dbh->do("FLUSH PRIVILEGES") || print STDERR "Can't flush privileges\n";
   print "Everything is inserted and mysql privileges have been reloaded.\n\n";
 }
 
 ###
 # ask for a new database name
 ###
-sub newdatabase
-{
+sub newdatabase {
   my ($answer,$good,$db);
   print "\n\nWhich database would you like to add: ";
-  while (<STDIN>)
-  {
+  while (<STDIN>) {
     $answer = $_;
     $good = 0;
     chomp($answer);
-    if ($answer)
-    {
-      my $sth = $dbh->prepare("show databases") || die $dbh->errstr;
+    if ($answer) {
+      my $sth = $dbh->prepare("SHOW DATABASES") || die $dbh->errstr;
       $sth->execute || die $dbh->errstr;
-      while (my @r = $sth->fetchrow_array)
-      {
-        if ($r[0] eq $answer)
-	{
+      while (my @r = $sth->fetchrow_array) {
+        if ($r[0] eq $answer) {
           print "\n\nSorry, this database name is already in use; try something else: ";
           $good = 1;
         }
       }
-    }
-    else
-    {
+    } else {
       print "You must type something ...\nTry again: ";
       next;
     }
@@ -309,48 +303,44 @@ sub newdatabase
 ###
 # select a database
 ###
-sub database
-{
+sub database {
   my ($answer,$good,$db);
-  print "\n\nWhich database would you like to select: \n";
+  print "\n\nWhich database from existing databases would you like to select: \n";
   print "You can choose from: \n";
   my $sth = $dbh->prepare("show databases") || die $dbh->errstr;
   $sth->execute || die $dbh->errstr;
-  while (my @r = $sth->fetchrow_array)
-  {
+  while (my @r = $sth->fetchrow_array) {
     print "  - $r[0] \n";
   }
-  print "Which database will it be (case sensitive): ";
-  while (<STDIN>)
-  {
+  print "Which database will it be (case sensitive). Type * for any: \n";
+  while (<STDIN>) {
     $answer = $_;
     $good = 0;
     chomp($answer);
-    if ($answer)
-    {
+    if ($answer) {
+      if ($answer eq "*") {
+        print "OK, the user entry will NOT be limited to any database";
+        return("*");
+      }
       my $sth = $dbh->prepare("show databases") || die $dbh->errstr;
       $sth->execute || die $dbh->errstr;
-      while (my @r = $sth->fetchrow_array)
-      {
-        if ($r[0] eq $answer)
-	{
+      while (my @r = $sth->fetchrow_array) {
+        if ($r[0] eq $answer) {
           $good = 1;
           $db = $r[0];
           last;
         }
       }
-    }
-    else
-    {
-      print "You must type something ...\nTry again: ";
+    } else {
+        print "Type either database name or * meaning any databasename. That means";
+        print " any of those above but also any which will be created in future!";
+        print " This option gives a user chance to operate on databse mysql, which";
+        print " contains privilege settings. That is really risky!\n";
       next;
     }
-    if ($good == 1)
-    {
+    if ($good == 1) {
       last;
-    }
-    else
-    {
+    } else {
       print "You must select one from the list.\nTry again: ";
       next;
     }
@@ -364,7 +354,8 @@ sub database
 ###
 sub newuser
 {
-  my ($answer,$user);
+  my $user = "";
+  my $answer = "";
 
   print "\nWhat username is to be created: ";
   while(<STDIN>)
@@ -430,7 +421,7 @@ sub user
 sub newpass
 {
   my ($user) = @_;
-  my ($answer,$good,$pass,$yes);
+  my ($pass,$answer,$good,$yes);
 
   print "Would you like to set a password for $user [y/n]: ";
   $yes = <STDIN>;
@@ -487,7 +478,7 @@ sub newpass
 ###
 sub newhosts
 {
-  my ($answer,$good,$host);
+  my ($host,$answer,$good);
 
   print "We now need to know from what host(s) the user will connect.\n";
   print "Keep in mind that % means 'from any host' ...\n";

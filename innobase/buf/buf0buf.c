@@ -480,9 +480,6 @@ buf_pool_create(
 
 		block = buf_pool_get_nth_block(buf_pool, i);
 
-		/* Wipe contents of page to eliminate a Purify warning */
-		memset(block->frame, '\0', UNIV_PAGE_SIZE);
-
 		UT_LIST_ADD_FIRST(free, buf_pool->free, block);
 	}
 
@@ -1907,7 +1904,7 @@ buf_print_io(
 		/ (buf_pool->n_page_gets - buf_pool->n_page_gets_old)));
 	} else {
 		buf += sprintf(buf,
-			"No buffer pool activity since the last printout\n");
+			"No buffer pool page gets since the last printout\n");
 	}
 
 	buf_pool->n_page_gets_old = buf_pool->n_page_gets;
