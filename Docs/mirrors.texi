@@ -266,6 +266,10 @@ FTP (@uref{ftp://mysql.unam.mx/pub/mysql/})
 WWW (@uref{http://mysql.adgrafix.com/})
 
 @item
+@image{Flags/usa} USA [Argonne National Laboratory / Chicago, IL] @@
+FTP (@uref{ftp://mirror.mcs.anl.gov/pub/mysql/})
+
+@item
 @image{Flags/usa} USA [Hurricane Electric / San Jose, CA] @@
 WWW (@uref{http://mysql.he.net/})
 
@@ -386,6 +390,10 @@ WWW (@uref{http://mysql.holywar.net/})
 WWW (@uref{http://mysql.webiiz.com/})
 
 @item
+@image{Flags/taiwan} Taiwan [I-SHOU University] @@
+WWW (@uref{http://mysql.isu.edu.tw})
+
+@item
 @image{Flags/taiwan} Taiwan [nctu.edu/HsinChu] @@
 WWW (@uref{http://mysql.nctu.edu.tw/})
 
@@ -398,6 +406,10 @@ WWW (@uref{http://mysql.ttn.net/})
 @strong{Australia:}
 
 @itemize @bullet
+
+@item
+@image{Flags/australia} Australia [InterActive Consulting] @@
+WWW (@uref{http://mysql.oranged.to})
 
 @item
 @image{Flags/australia} Australia [planetmirror.com] @@
