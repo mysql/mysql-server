@@ -603,7 +603,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       else
         net_store_null(packet);
       net_store_null(packet);                   // No pack_information yet
-      net_store_null(packet);                   // No comments yet
+      net_store_data(packet,key_info->flags & HA_FULLTEXT ? "FULLTEXT":"");
       if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
         DBUG_RETURN(1); /* purecov: inspected */
     }
@@ -719,7 +719,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     field->sql_type(type);
     packet->append(type.ptr(),type.length());
 
-    bool has_default = (field->type() != FIELD_TYPE_BLOB && 
+    bool has_default = (field->type() != FIELD_TYPE_BLOB &&
 			field->type() != FIELD_TYPE_TIMESTAMP &&
 			field->unireg_check != Field::NEXT_NUMBER);
     if (flags & NOT_NULL_FLAG)
@@ -822,7 +822,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(" DELAY_KEY_WRITE=1",18);
   if(table->comment)
     {
-      packet->append(" COMMENT='", 10); 
+      packet->append(" COMMENT='", 10);
       append_unescaped(packet, table->comment);
       packet->append('\'');
     }
