@@ -3885,6 +3885,14 @@ literal:
 	| NULL_SYM	{ $$ =	new Item_null();
 			  Lex->next_state=MY_LEX_OPERATOR_OR_IDENT;}
 	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
+	| UNDERSCORE_CHARSET HEX_NUM
+	  { 
+	    Item *tmp= new Item_varbinary($2.str,$2.length);
+	    String *str= tmp ? tmp->val_str((String*) 0) : (String*) 0;
+	    $$ = new Item_string(str ? str->ptr() : "",
+				       str ? str->length() : 0,
+				       Lex->charset,Item::COER_IMPLICIT);
+	  }
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
 	| TIMESTAMP text_literal { $$ = $2; };
