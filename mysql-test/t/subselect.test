@@ -135,9 +135,21 @@ CREATE TABLE `searchconthardwarefr7` (
     ) TYPE=MyISAM ROW_FORMAT=DYNAMIC;
 
 INSERT INTO searchconthardwarefr7 (mot,topic,date,pseudo) VALUES ('joce','40143','2002-10-22','joce'), ('joce','43506','2002-10-22','joce');
-
+select numeropost as a FROM forumconthardwarefr7 GROUP BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
 SELECT numeropost,maxnumrep FROM forumconthardwarefr7 WHERE exists (SELECT 1 FROM searchconthardwarefr7 WHERE (mot='joce') AND date >= '2002-10-21' AND forumconthardwarefr7.numeropost = searchconthardwarefr7.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
 -- error 1054
 SELECT (SELECT 1) as a FROM (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
-
 drop table forumconthardwarefr7, searchconthardwarefr7;
+
+drop table if exists forumconthardwarefr7;
+CREATE TABLE `forumconthardwarefr7` (
+  `numeropost` mediumint(8) unsigned NOT NULL auto_increment,
+  `maxnumrep` int(10) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`numeropost`),
+  UNIQUE KEY `maxnumrep` (`maxnumrep`)
+) TYPE=MyISAM ROW_FORMAT=FIXED;
+
+INSERT INTO forumconthardwarefr7 (numeropost,maxnumrep) VALUES (1,0),(2,1);
+-- error 1240
+select numeropost as a FROM forumconthardwarefr7 GROUP BY (SELECT 1 FROM forumconthardwarefr7 HAVING a=1);
+drop table if exists forumconthardwarefr7;

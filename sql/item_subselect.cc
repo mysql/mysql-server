@@ -33,7 +33,7 @@ SUBSELECT TODO:
 #include "sql_select.h"
 
 Item_subselect::Item_subselect():
-  Item(), engine_owner(1), value_assigned(0)
+  Item_result_field(), engine_owner(1), value_assigned(0)
 {
   assign_null();
   /*
