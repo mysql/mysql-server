@@ -2749,7 +2749,7 @@ pthread_handler_decl(handle_connections_namedpipes,arg)
 				   PIPE_WAIT,
 				   PIPE_UNLIMITED_INSTANCES,
 				   (int) global_system_variables.net_buffer_length,
-				   (int) global_systenm_ariables.net_buffer_length,
+				   (int) global_system_variables.net_buffer_length,
 				   NMPWAIT_USE_DEFAULT_WAIT,
 				   &saPipeSecurity )) ==
 	  INVALID_HANDLE_VALUE )
