@@ -620,7 +620,7 @@ extern my_string my_path(my_string to,const char *progname,
 			 const char *own_pathname_part);
 extern my_string my_load_path(my_string to, const char *path,
 			      const char *own_path_prefix);
-extern int wild_compare(const char *str,const char *wildstr);
+extern int wild_compare(const char *str,const char *wildstr,pbool str_is_pattern);
 extern my_string my_strcasestr(const char *src,const char *suffix);
 extern int my_strcasecmp(const char *s,const char *t);
 extern int my_strsortcmp(const char *s,const char *t);
