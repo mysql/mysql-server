@@ -37,3 +37,7 @@ k
 223
 245
 267
+Table	Op	Msg_type	Msg_text
+test.t1	restore	status	OK
+Table	Op	Msg_type	Msg_text
+test.t1	backup	status	OK
