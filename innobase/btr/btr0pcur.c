@@ -292,6 +292,11 @@ btr_pcur_restore_position(
 
 	mem_heap_free(heap);
 
+	/* We have to store position information, modify clock value, etc.
+        because the cursor may now be on a different page */
+
+	btr_pcur_store_position(cursor, mtr);
+
 	return(FALSE);
 }
 
