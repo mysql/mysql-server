@@ -2276,8 +2276,6 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
   else if (parent->options.db)
     child->options.db = my_strdup(parent->options.db, MYF(0));
 
-  child->options.rpl_parse = child->options.rpl_probe = child->rpl_pivot = 0;
-
   return child;
 }
 
