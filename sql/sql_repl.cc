@@ -1274,6 +1274,7 @@ bool mysql_show_binlog_events(THD* thd)
   DBUG_ENTER("show_binlog_events");
   List<Item> field_list;
   const char *errmsg = 0;
+  bool ret = TRUE;
   IO_CACHE log;
   File file = -1;
   Format_description_log_event *description_event= new
@@ -1376,6 +1377,8 @@ bool mysql_show_binlog_events(THD* thd)
     pthread_mutex_unlock(log_lock);
   }
 
+  ret= FALSE;
+
 err:
   delete description_event;
   if (file >= 0)
@@ -1395,7 +1398,7 @@ err:
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
   pthread_mutex_unlock(&LOCK_thread_count);
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(ret);
 }
 
 
