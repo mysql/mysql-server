@@ -2583,22 +2583,18 @@ static longlong fix_datetime(longlong nr, TIME *time_res)
 void Field_timestamp::store(longlong nr)
 {
   TIME l_time;
-  time_t timestamp;
+  time_t timestamp= 0;
 
   if ((nr= fix_datetime(nr, &l_time)))
   {
     long not_used;
     
-    if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR-1)
-    {
+    timestamp= my_gmt_sec(&l_time, &not_used);
+    
+    if (!timestamp)
       current_thd->cuted_fields++;
-      timestamp=0;
-    }
-    else
-      timestamp=my_gmt_sec(&l_time, &not_used);
   }
-  else
-    timestamp=0;
+  
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
