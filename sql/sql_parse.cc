@@ -654,7 +654,7 @@ check_connections(THD *thd)
     if (user)
       strmake(tmp_user,user,USERNAME_LENGTH);
 
-    tmp_db[0]=0;  
+    tmp_db[0]=0;
     if (db)
       strmake(tmp_db,db,NAME_LEN);
 

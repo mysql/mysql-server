@@ -328,7 +328,7 @@ static int mc_sock_connect(my_socket s, const struct sockaddr *name,
 ** or packet is an error message
 *****************************************************************************/
 
-ulong 
+ulong
 mc_net_safe_read(MYSQL *mysql)
 {
   NET *net= &mysql->net;
@@ -433,7 +433,7 @@ my_bool mc_mysql_reconnect(MYSQL *mysql)
 
 
 
-int 
+int
 mc_simple_command(MYSQL *mysql,enum enum_server_command command,
 		  const char *arg, uint length, my_bool skipp_check)
 {
@@ -483,7 +483,7 @@ mc_simple_command(MYSQL *mysql,enum enum_server_command command,
 }
 
 
-MYSQL * 
+MYSQL *
 mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 		 const char *passwd, const char *db,
 		 uint port, const char *unix_socket,uint client_flag,
@@ -662,7 +662,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
       vio_poll_read(net->vio, mysql->options.connect_timeout))
   {
     net->last_errno= CR_SERVER_LOST;
-    strmov(net->last_error,ER(net->last_errno));    
+    strmov(net->last_error,ER(net->last_errno));
     goto error;
   }
   if ((pkt_length=mc_net_safe_read(mysql)) == packet_error)
@@ -777,7 +777,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
     {
       net->last_errno= CR_SERVER_LOST;
-      strmov(net->last_error,ER(net->last_errno));    
+      strmov(net->last_error,ER(net->last_errno));
       goto error;
     }
     /* Do the SSL layering. */
@@ -801,7 +801,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   }
 
   DBUG_PRINT("info",("user: %s",buff+5));
- 
+
   /*
     We always start with old type handshake the only difference is message sent
     If server handles secure connection type we'll not send the real scramble
@@ -918,7 +918,7 @@ error:
 ** NB! Errors are not reported until you do mysql_real_connect.
 **************************************************************************
 */
-int 
+int
 mysql_ssl_clear(MYSQL *mysql)
 {
   my_free(mysql->options.ssl_key, MYF(MY_ALLOW_ZERO_PTR));
@@ -943,7 +943,7 @@ mysql_ssl_clear(MYSQL *mysql)
 ** If handle is alloced by mysql connect free it.
 *************************************************************************/
 
-void 
+void
 mc_mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");

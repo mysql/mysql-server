@@ -142,11 +142,11 @@ typedef struct st_net {
   char save_char;
   my_bool report_error; /* We should report error (we have unreported error) */
   my_bool no_send_ok;
-  /* 
-    Pointer to query object in query cache, do not equal NULL (0) for 
-    queries in cache that have not stored its results yet 
+  /*
+    Pointer to query object in query cache, do not equal NULL (0) for
+    queries in cache that have not stored its results yet
   */
-  gptr query_cache_query; 
+  gptr query_cache_query;
 } NET;
 
 #define packet_error (~(unsigned long) 0)
@@ -158,7 +158,7 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 			MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
 			MYSQL_TYPE_DATE,   MYSQL_TYPE_TIME,
 			MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
-			MYSQL_TYPE_NEWDATE,      
+			MYSQL_TYPE_NEWDATE,
 			MYSQL_TYPE_ENUM=247,
 			MYSQL_TYPE_SET=248,
 			MYSQL_TYPE_TINY_BLOB=249,
@@ -172,32 +172,32 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 };
 
 /* For backward compatibility */
-#define FIELD_TYPE_DECIMAL     MYSQL_TYPE_DECIMAL		
-#define FIELD_TYPE_TINY        MYSQL_TYPE_TINY				
-#define FIELD_TYPE_SHORT       MYSQL_TYPE_SHORT				
-#define FIELD_TYPE_LONG        MYSQL_TYPE_LONG			
-#define FIELD_TYPE_FLOAT       MYSQL_TYPE_FLOAT				
-#define FIELD_TYPE_DOUBLE      MYSQL_TYPE_DOUBLE			
-#define FIELD_TYPE_NULL        MYSQL_TYPE_NULL			
-#define FIELD_TYPE_TIMESTAMP   MYSQL_TYPE_TIMESTAMP				
-#define FIELD_TYPE_LONGLONG    MYSQL_TYPE_LONGLONG				
-#define FIELD_TYPE_INT24       MYSQL_TYPE_INT24		
-#define FIELD_TYPE_DATE        MYSQL_TYPE_DATE			
-#define FIELD_TYPE_TIME        MYSQL_TYPE_TIME				
-#define FIELD_TYPE_DATETIME    MYSQL_TYPE_DATETIME				
-#define FIELD_TYPE_YEAR        MYSQL_TYPE_YEAR		
-#define FIELD_TYPE_NEWDATE     MYSQL_TYPE_NEWDATE				
-#define FIELD_TYPE_ENUM        MYSQL_TYPE_ENUM			
-#define FIELD_TYPE_SET         MYSQL_TYPE_SET				
-#define FIELD_TYPE_TINY_BLOB   MYSQL_TYPE_TINY_BLOB				
-#define FIELD_TYPE_MEDIUM_BLOB MYSQL_TYPE_MEDIUM_BLOB	
+#define FIELD_TYPE_DECIMAL     MYSQL_TYPE_DECIMAL
+#define FIELD_TYPE_TINY        MYSQL_TYPE_TINY
+#define FIELD_TYPE_SHORT       MYSQL_TYPE_SHORT
+#define FIELD_TYPE_LONG        MYSQL_TYPE_LONG
+#define FIELD_TYPE_FLOAT       MYSQL_TYPE_FLOAT
+#define FIELD_TYPE_DOUBLE      MYSQL_TYPE_DOUBLE
+#define FIELD_TYPE_NULL        MYSQL_TYPE_NULL
+#define FIELD_TYPE_TIMESTAMP   MYSQL_TYPE_TIMESTAMP
+#define FIELD_TYPE_LONGLONG    MYSQL_TYPE_LONGLONG
+#define FIELD_TYPE_INT24       MYSQL_TYPE_INT24
+#define FIELD_TYPE_DATE        MYSQL_TYPE_DATE
+#define FIELD_TYPE_TIME        MYSQL_TYPE_TIME
+#define FIELD_TYPE_DATETIME    MYSQL_TYPE_DATETIME
+#define FIELD_TYPE_YEAR        MYSQL_TYPE_YEAR
+#define FIELD_TYPE_NEWDATE     MYSQL_TYPE_NEWDATE
+#define FIELD_TYPE_ENUM        MYSQL_TYPE_ENUM
+#define FIELD_TYPE_SET         MYSQL_TYPE_SET
+#define FIELD_TYPE_TINY_BLOB   MYSQL_TYPE_TINY_BLOB
+#define FIELD_TYPE_MEDIUM_BLOB MYSQL_TYPE_MEDIUM_BLOB
 #define FIELD_TYPE_LONG_BLOB   MYSQL_TYPE_LONG_BLOB
-#define FIELD_TYPE_BLOB        MYSQL_TYPE_BLOB	
-#define FIELD_TYPE_VAR_STRING  MYSQL_TYPE_VAR_STRING				
-#define FIELD_TYPE_STRING      MYSQL_TYPE_STRING	
-#define FIELD_TYPE_CHAR        MYSQL_TYPE_TINY	
+#define FIELD_TYPE_BLOB        MYSQL_TYPE_BLOB
+#define FIELD_TYPE_VAR_STRING  MYSQL_TYPE_VAR_STRING
+#define FIELD_TYPE_STRING      MYSQL_TYPE_STRING
+#define FIELD_TYPE_CHAR        MYSQL_TYPE_TINY
 #define FIELD_TYPE_INTERVAL    MYSQL_TYPE_ENUM
-#define FIELD_TYPE_GEOMETRY    MYSQL_TYPE_GEOMETRY	
+#define FIELD_TYPE_GEOMETRY    MYSQL_TYPE_GEOMETRY
 
 #if TO_BE_INCLUDED_LATER
 /* For bind applications, to indicate unsigned buffers */
@@ -296,11 +296,11 @@ my_bool validate_password(const char* password, const char* message,
 void password_hash_stage1(char *to, const char *password);
 void password_hash_stage2(char *to,const char *salt);
 void password_crypt(const char* from,char* to, const char* password,int length);
-void get_hash_and_password(ulong* salt, unsigned char  pversion,char* hash, 
+void get_hash_and_password(ulong* salt, unsigned char  pversion,char* hash,
      unsigned char* bin_password);
 void get_salt_from_password(unsigned long *res,const char *password);
 void create_key_from_old_password(const char* password,char* key);
-void make_password_from_salt(char *to, unsigned long *hash_res, 
+void make_password_from_salt(char *to, unsigned long *hash_res,
      unsigned char  password_version);
 char *scramble(char *to,const char *message,const char *password,
 	       my_bool old_ver);
