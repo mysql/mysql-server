@@ -192,7 +192,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-/bin:/usr/bin}\" \
 
 OTHER_LIBC_DIR=/usr/local/mysql-glibc
 USE_OTHER_LIBC_DIR=""
-if test -d "OTHER_LIBC_DIR"
+if test -d "$OTHER_LIBC_DIR"
 then
   USE_OTHER_LIBC_DIR="--with-other-libc=$OTHER_LIBC_DIR"
 fi
