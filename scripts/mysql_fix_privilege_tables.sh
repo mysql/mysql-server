@@ -42,7 +42,7 @@ database="mysql"
 bindir="@bindir@"
 
 # Old format where there is only one argument and it's the password
-if test "$#" == 1
+if test "$#" = 1
 then
   case "$1" in
   --*) ;;
