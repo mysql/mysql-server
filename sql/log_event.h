@@ -59,7 +59,7 @@ enum Int_event_type { INVALID_INT_EVENT = 0, LAST_INSERT_ID_EVENT = 1, INSERT_ID
 class String;
 #endif
 
-extern uint32 server_id;
+extern ulong server_id;
 
 class Log_event
 {
