@@ -326,6 +326,10 @@ SOURCE=.\my_getwd.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_handler.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\my_init.c
 # End Source File
 # Begin Source File

@@ -1287,6 +1287,7 @@ mysql_execute_command(THD *thd)
   int	res= 0;
   LEX	*lex= &thd->lex;
   TABLE_LIST *tables= (TABLE_LIST*) lex->select_lex.table_list.first;
+  TABLE_LIST *cursor;
   SELECT_LEX *select_lex= &lex->select_lex;
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
@@ -1343,7 +1344,7 @@ mysql_execute_command(THD *thd)
       DBUG_VOID_RETURN;
     }
     //check rights
-    for (TABLE_LIST *cursor= tables;
+    for (cursor= tables;
 	 cursor;
 	 cursor= cursor->next)
       if (cursor->derived)
@@ -1361,7 +1362,7 @@ mysql_execute_command(THD *thd)
       }
     thd->send_explain_fields(explain_result);
     // EXPLAIN derived tables
-    for (TABLE_LIST *cursor= tables;
+    for (cursor= tables;
 	 cursor;
 	 cursor= cursor->next)
       if (cursor->derived)
@@ -1468,24 +1469,7 @@ mysql_execute_command(THD *thd)
 	  else
 	    thd->send_explain_fields(explain_result);
 	fix_tables_pointers(select_lex);
-	for ( SELECT_LEX *sl= select_lex;
-	     sl && res == 0;
-	     sl= sl->next_select_in_list())
-	{
-	  SELECT_LEX *first= sl->master_unit()->first_select();
-	  res= mysql_explain_select(thd, sl,
-				    ((select_lex==sl)?
-				     ((sl->next_select_in_list())?"PRIMARY":
-				       "SIMPLE"):
-				     ((sl == first)?
-				      ((sl->depended)?"DEPENDENT SUBSELECT":
-				       "SUBSELECT"):
-				      ((sl->depended)?"DEPENDENT UNION":
-				       "UNION"))),
-				    explain_result);
-	}
-	if (res > 0)
-	  res= -res; // mysql_explain_select do not report error
+	res= mysql_explain_union(thd, &thd->lex.unit, explain_result);
 	MYSQL_LOCK *save_lock= thd->lock;
 	thd->lock= (MYSQL_LOCK *)0;
 	explain_result->send_eof();

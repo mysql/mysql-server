@@ -210,7 +210,7 @@ private:
    SELECT_LEX_UNIT - unit of selects (UNION, INTERSECT, ...) group 
    SELECT_LEXs
 */
-class st_lex;
+struct st_lex;
 class st_select_lex;
 class THD;
 class select_result;

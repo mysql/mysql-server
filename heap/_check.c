@@ -116,13 +116,11 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
 		     SEARCH_FIND | SEARCH_SAME, &not_used))
       {
 	error= 1;
-	DBUG_PRINT("error",("Record in wrong link: Link %d  Record: %lx\n", 
-		   key, recpos));
+	DBUG_PRINT("error",("Record in wrong link:  key: %d  Record: %lx\n", 
+			    keynr, recpos));
       }
       else
-      {
 	found++;
-      }
       key= tree_search_next(&keydef->rb_tree, &info->last_pos,
 			    offsetof(TREE_ELEMENT, left), 
 			    offsetof(TREE_ELEMENT, right));
@@ -130,7 +128,7 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
   }
   if (found != records)
   {
-    DBUG_PRINT("error",("Found %ld of %ld records", found, records));
+    DBUG_PRINT("error",("Found %lu of %lu records", found, records));
     error= 1;
   }
   if (print_status)

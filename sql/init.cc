@@ -24,7 +24,6 @@ void unireg_init(ulong options)
 {
   uint i;
   double nr;
-  CHARSET_INFO *cs;
   DBUG_ENTER("unireg_init");
 
   MYSYS_PROGRAM_DONT_USE_CURSES();
