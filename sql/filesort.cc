@@ -925,10 +925,13 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
       {
 	sortorder->length=sortorder->field->pack_length();
 #ifdef USE_STRCOLL
-	// BAR TODO: need checking that it is really Field_str based class
-	CHARSET_INFO *cs=((Field_str*)(sortorder->field))->charset();
-	if (use_strcoll(cs) && !sortorder->field->binary())
-	  sortorder->length= sortorder->length*cs->strxfrm_multiply;
+	if (!sortorder->field->binary())
+	{
+	  // BAR TODO: need checking that it is really Field_str based class
+	  CHARSET_INFO *cs=((Field_str*)(sortorder->field))->charset();
+	  if (use_strcoll(cs))
+	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
+	}
 #endif
       }
       if (sortorder->field->maybe_null())
@@ -937,15 +940,19 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
     else
     {
 #ifdef USE_STRCOLL
-      // BAR TODO: need checking that it is really Field_str based class
-      CHARSET_INFO *cs=((Field_str*)(sortorder->field))->charset();
+      
 #endif
       switch ((sortorder->result_type=sortorder->item->result_type())) {
       case STRING_RESULT:
 	sortorder->length=sortorder->item->max_length;
 #ifdef USE_STRCOLL
-	if (use_strcoll(cs) && !sortorder->item->binary)
-	  sortorder->length= sortorder->length*cs->strxfrm_multiply;
+	if (!sortorder->item->binary)
+	{
+	  // BAR TODO: need checking that it is really Field_str based class
+          CHARSET_INFO *cs=((Field_str*)(sortorder->field))->charset();
+	  if (use_strcoll(cs))
+	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
+	}
 #endif
 	break;
       case INT_RESULT:
