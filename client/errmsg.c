@@ -46,7 +46,12 @@ const char *client_errors[]=
   "Kann den Status der Named Pipe nicht setzen.  Host: %-.64s  pipe: %-.32s (%lu)",
   "Can't initialize character set %-.64s (path: %-.64s)",
   "Got packet bigger than 'max_allowed_packet'",
-  "Embedded server"
+  "Embedded server",
+  "Error on SHOW SLAVE STATUS:",
+  "Error on SHOW SLAVE HOSTS:",
+  "Error connecting to slave:",
+  "Error connecting to master:"
+
 };
 
 /* Start of code added by Roberto M. Serqueira - martinsc@uol.com.br - 05.24.2001 */
@@ -76,6 +81,10 @@ const char *client_errors[]=
   "Não pode inicializar conjunto de caracteres %-.64s (caminho %-.64s)",
   "Obteve pacote maior do que 'max_allowed_packet'",
   "Embedded server",
+  "Error on SHOW SLAVE STATUS:",
+  "Error on SHOW SLAVE HOSTS:",
+  "Error connecting to slave:",
+  "Error connecting to master:"
 };
 
 #else /* ENGLISH */
@@ -102,7 +111,11 @@ const char *client_errors[]=
   "Can't set state of named pipe to host: %-.64s  pipe: %-.32s (%lu)",
   "Can't initialize character set %-.64s (path: %-.64s)",
   "Got packet bigger than 'max_allowed_packet'",
-  "Embedded server"
+  "Embedded server",
+  "Error on SHOW SLAVE STATUS:",
+  "Error on SHOW SLAVE HOSTS:",
+  "Error connecting to slave:",
+  "Error connecting to master:"
 };
 #endif
 

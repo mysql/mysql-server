@@ -36,9 +36,14 @@ link_sources:
 	  ss=`echo $(mystringsobjects) | sed "s;\.lo;.c;g"`; \
 	  ds=`echo $(dbugobjects) | sed "s;\.lo;.c;g"`; \
 	  ms=`echo $(mysysobjects) | sed "s;\.lo;.c;g"`; \
+	  vs=`echo $(vio_objects) | sed "s;\.lo;.c;g"`; \
 	  for f in $$ss; do \
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ $(srcdir)/../strings/$$f $(srcdir)/$$f; \
+	  done; \
+	  for f in $$vs; do \
+	    rm -f $(srcdir)/$$f; \
+	    @LN_CP_F@ $(srcdir)/../vio/$$f $(srcdir)/$$f; \
 	  done; \
 	  for f in $(mystringsextra); do \
 	    rm -f $(srcdir)/$$f; \
