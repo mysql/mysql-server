@@ -560,7 +560,6 @@ public:
   bool       prepare_command;
   bool	     tmp_table_used;
 
-  bool       init_connect_error;
   /*
     If we do a purge of binary logs, log index info of the threads
     that are currently reading it needs to be adjusted. To do that

@@ -92,7 +92,6 @@ void send_error(THD *thd, uint sql_errno, const char *err)
       /* In bootstrap it's ok to print on stderr */
       fprintf(stderr,"ERROR: %d  %s\n",sql_errno,err);
     }
-    thd->init_connect_error= 1;
     DBUG_VOID_RETURN;
   }
 
@@ -211,7 +210,6 @@ net_printf(THD *thd, uint errcode, ...)
       fprintf(stderr,"ERROR: %d  %s\n",errcode,text_pos);
       thd->fatal_error();
     }
-    thd->init_connect_error= 1;
     DBUG_VOID_RETURN;
   }
 
