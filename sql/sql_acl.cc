@@ -1338,7 +1338,9 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if ((combo.password.length != HASH_PASSWORD_LENGTH)
          && combo.password.length != HASH_OLD_PASSWORD_LENGTH)
     {
-      my_error(ER_PASSWORD_NO_MATCH,MYF(0));
+      my_printf_error(ER_PASSWORD_NO_MATCH,
+          "Password hash should be a %d-digit hexadecimal number",
+          MYF(0),HASH_PASSWORD_LENGTH);
       DBUG_RETURN(-1);
     }
     password=combo.password.str;
