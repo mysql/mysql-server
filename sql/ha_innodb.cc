@@ -4128,7 +4128,7 @@ ha_innobase::delete_all_rows(void)
 		goto fallback;
 	}
 
-	innobase_commit_low(trx);
+	innobase_commit(thd, trx);
 
 	error = convert_error_code_to_mysql(error, NULL);
 
