@@ -931,4 +931,6 @@ create table t1 (s1 char(5));
 select (select 'a','b' from t1 union select 'a','b' from t1) from t1;
 insert into t1 values ('tttt');
 select * from t1 where ('a','b')=(select 'a','b' from t1 union select 'a','b' from t1);
+explain (select * from t1);
+(select * from t1);
 drop table t1;

@@ -2012,8 +2012,9 @@ select_init:
 	    YYABORT;
 	  }
             /* select in braces, can't contain global parameters */
-            sel->master_unit()->global_parameters=
-               sel->master_unit()->fake_select_lex;
+	    if (sel->master_unit()->fake_select_lex)
+              sel->master_unit()->global_parameters=
+                 sel->master_unit()->fake_select_lex;
           } union_opt;
 
 select_init2:
