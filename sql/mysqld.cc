@@ -682,7 +682,11 @@ static sig_handler print_signal_warning(int sig)
 void unireg_end(int signal_number __attribute__((unused)))
 {
   clean_up();
+#if defined(EMBEDDED_LIBRARY)
+  exit(0);			// XXX QQ: this is a temporary hack (I hope)
+#else
   pthread_exit(0);				// Exit is in main thread
+#endif
 }
 
 

@@ -1,0 +1,131 @@
+#! /bin/sh
+
+# This is slapped together as a quick way to run the tests and
+# is not meant for prime time.  Please hack at it and submit
+# changes, though, so we can gradually turn it into something
+# that will run on all platforms (or incorporate it into the
+# standard mysql-test-run).
+
+#test_data_dir=/tmp/mysql-data
+test_data_dir=../../mysql-test/var/master-data
+cd "$test_data_dir" || {
+  echo "can't cd to $test_data_dir" >&2
+  exit 1
+}
+
+# All paths below must be relative to $test_data_dir
+#top_builddir=/home/tim/my/4
+top_builddir=../../..
+mysql_test_dir=$top_builddir/mysql-test
+examples=$top_builddir/libmysqld/examples
+mysqltest=$examples/mysqltest
+testdir=./test
+
+gdb=0
+list=0
+run=
+tests=
+start=
+
+cr="
+"
+er="\b\b\b\b\b\b\b\b"
+
+usage () {
+    cat <<EOF
+usage: $0 [-g|-h|-r] [test-name ...]
+
+    -g | --gdb          run $mysqltest in gdb
+    -h | --help         show this help
+    -l | --list )       list all available tests
+    -r | --run          automatically 'run' program in gdb
+    -s t | --start=t    start with test t (skip all tests before t)
+EOF
+}
+
+while test $# -gt 0
+do
+    arg=
+    argset=0
+    case "$1" in
+        --?*=* ) arg=`echo "$1" | sed -e 's,^[^=][^=]*=,,'`; argset=1 ;;
+    esac
+
+    case "$1" in
+        -g | --gdb )  gdb=1; shift;;
+        -h | --help | -\? ) usage; exit 0;;
+        -l | --list ) list=1 ; shift ;;
+        -r | --run ) run="${cr}run"; shift;;
+        -s | --start=* )
+            test $argset -eq 0 && { shift; arg="$1"; }
+            start="$arg"
+            shift
+            ;;
+        -* ) usage; exit 1;;
+        * ) tests="$tests $1"; shift;;
+    esac
+done
+
+test -d "$mysql_test_dir/t" -a -d "$mysql_test_dir/r" -a \
+     -f $mysqltest -a -d $testdir || {
+    echo "bad setup (is '$testdir', from '$test_data_dir', missing?)" >&2
+    exit 1
+}
+
+test -n "$tests" ||
+    tests=`/bin/ls -1 "$mysql_test_dir"/t/*.test | grep -v '^.*/rpl[^/]*$' | \
+        sed -e 's,^.*/,,' -e 's,.test$,,'`
+
+echo "cleaning data directory '$test_data_dir'"
+rm -f $test_data_dir/ib_* $test_data_dir/ibdata* log.*
+echo "cleaning test directory '$testdir'"
+rm -f $testdir/*
+
+rm -f test-gdbinit
+
+TZ=GMT-3; export TZ
+
+skip=1
+test -z "$start" && skip=0
+
+for b in $tests
+do
+    test $list -eq 1 && { echo "  $b"; continue; }
+    test $skip -eq 1 && test -n "$start" && test "$start" = "$b" && skip=0
+    test $skip -eq 1 && { echo "skipping '$b'"; continue; }
+
+    t="$mysql_test_dir/t/$b.test"
+    r="$mysql_test_dir/r/$b.result"
+    c="$mysql_test_dir/r/$b.reject"
+
+    # Only test if $t exists; there is no $r for some tests
+    test -f $t || {
+        echo "test '$b' doesn't exist" >&2
+        continue
+    }
+    args="-v -S /tmp/mysql.sock -R $r -x $t test"
+    echo "set args $args$run" > test-gdbinit
+    #if false && test -n "$run"
+    if test -n "$run" -o $gdb -eq 1
+    then
+        echo -e "$er>>> $b"
+    else
+        echo -e "$er>>> $b> \c"
+        read junk
+    fi
+    if test $gdb -eq 1
+    then
+	if [ -x "$top_builddir/libtool" ]; then
+	  $top_builddir/libtool gdb -x test-gdbinit -q $mysqltest
+	else
+	  gdb -x test-gdbinit -q $mysqltest
+	fi
+        res=$?
+        rm -f test-gdbinit
+    else
+        $mysqltest $args
+        res=$?
+    fi
+
+    test $res -eq 0 || echo "!!! error: $res"
+done

@@ -1802,7 +1802,7 @@ AC_ARG_WITH(readline,
 if test "$with_readline" = "yes"
 then
   readline_dir="readline"
-  readline_link="../readline/libreadline.a"
+  readline_link="\$(top_builddir)/readline/libreadline.a"
 else
   # This requires readline to be in a standard place. Mosty for linux
   # there readline may be a shared library.
@@ -2217,7 +2217,8 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  bdb/Makefile \
  myisam/Makefile myisammrg/Makefile \
  man/Makefile readline/Makefile vio/Makefile \
- libmysql_r/Makefile libmysqld/Makefile libmysql/Makefile client/Makefile \
+ libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile \
+ libmysql/Makefile client/Makefile \
  pstack/Makefile sql/Makefile sql/share/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
  include/Makefile sql-bench/Makefile tools/Makefile \
