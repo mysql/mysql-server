@@ -387,7 +387,6 @@ typedef struct st_table_list
   void restore_want_privilege();
   bool check_single_table(st_table_list **table, table_map map);
   bool set_insert_values(MEM_ROOT *mem_root);
-  void clear_insert_values();
 } TABLE_LIST;
 
 class Item;
