@@ -51,7 +51,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
     if (info->opt_flag & MEMMAP_USED)
       madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
 #endif
-    info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);    
+    info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
     info->quick_mode=0;
     /* Fall through */
 

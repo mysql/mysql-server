@@ -890,7 +890,7 @@ int collect_string(String *element,
 int collect_real(double *element, element_count count __attribute__((unused)),
 		 TREE_INFO *info)
 {
-  char buff[255];
+  char buff[MAX_FIELD_WIDTH];
   String s(buff, sizeof(buff));
 
   if (info->found)
@@ -909,7 +909,7 @@ int collect_longlong(longlong *element,
 		     element_count count __attribute__((unused)),
 		     TREE_INFO *info)
 {
-  char buff[255];
+  char buff[MAX_FIELD_WIDTH];
   String s(buff, sizeof(buff));
 
   if (info->found)
@@ -928,7 +928,7 @@ int collect_ulonglong(ulonglong *element,
 		      element_count count __attribute__((unused)),
 		      TREE_INFO *info)
 {
-  char buff[255];
+  char buff[MAX_FIELD_WIDTH];
   String s(buff, sizeof(buff));
 
   if (info->found)
