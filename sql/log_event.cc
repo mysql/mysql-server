@@ -1057,7 +1057,8 @@ int Start_log_event::write_data(IO_CACHE* file)
   The master started
 
   IMPLEMENTATION
-    - To handle the case where the master died without a stop event,
+    - To handle the case where the master died without having time to write DROP
+      TEMPORARY TABLE, DO RELEASE_LOCK (prepared statements' deletion is TODO),
       we clean up all temporary tables + locks that we got.
       However, we don't clean temporary tables if the master was 3.23
       (this is because a 3.23 master writes a Start_log_event at every
@@ -1065,11 +1066,20 @@ int Start_log_event::write_data(IO_CACHE* file)
       on the slave when FLUSH LOGS is issued on the master). 
 
   TODO
-    - Remove all active user locks
+    - Remove all active user locks.
+      Guilhem 2003-06: this is true but not urgent: the worst it can cause is
+      the use of a bit of memory for a user lock which will not be used
+      anymore. If the user lock is later used, the old one will be released. In
+      other words, no deadlock problem.
     - If we have an active transaction at this point, the master died
       in the middle while writing the transaction to the binary log.
       In this case we should stop the slave.
-
+      Guilhem 2003-06: I don't think we should. As the binlog is written before
+      the table changes are committed, rollback has occured on the master; we
+      should rather rollback on the slave and go on. If we don't rollback, and
+      the next query is not BEGIN, then it will be considered as part of the
+      unfinished transaction, and so will be rolled back at next BEGIN, which is
+      a bug.
 */
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
@@ -1079,6 +1089,11 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
 
   if (!rli->mi->old_format)
   {
+    /*
+      If the master died before writing the COMMIT to the binlog, rollback;
+      otherwise it does not hurt to rollback.
+    */
+    ha_rollback(thd);
     /* 
        If 4.0 master, all temporary tables have been deleted on the master; 
        if 3.23 master, this is far from sure.
@@ -1703,8 +1718,6 @@ void Rotate_log_event::pack_info(Protocol *protocol)
   b_pos+= ident_len;
   b_pos= strmov(b_pos, ";pos=");
   b_pos=longlong10_to_str(pos, b_pos, 10);
-  if (flags & LOG_EVENT_FORCED_ROTATE_F)
-    b_pos= strmov(b_pos ,"; forced by master");
   protocol->store(buf, b_pos-buf, &my_charset_bin);
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
@@ -1728,8 +1741,6 @@ void Rotate_log_event::print(FILE* file, bool short_form, char* last_db)
     my_fwrite(file, (byte*) new_log_ident, (uint)ident_len, 
 	      MYF(MY_NABP | MY_WME));
   fprintf(file, "  pos: %s", llstr(pos, buf));
-  if (flags & LOG_EVENT_FORCED_ROTATE_F)
-    fprintf(file,"  forced by master");
   fputc('\n', file);
   fflush(file);
 }
@@ -2399,28 +2410,20 @@ void Stop_log_event::print(FILE* file, bool short_form, char* last_db)
 /*
   Stop_log_event::exec_event()
 
-  The master stopped. Clean up all temporary tables + locks that the
-  master may have set.
-
-  TODO
-    - Remove all active user locks
+  The master stopped. 
+  We used to clean up all temporary tables but this is useless as, as the master
+  has shut down properly, it has written all DROP TEMPORARY TABLE and DO
+  RELEASE_LOCK (prepared statements' deletion is TODO).
+  We used to clean up slave_load_tmpdir, but this is useless as it has been
+  cleared at the end of LOAD DATA INFILE.
+  So we have nothing to do here.
+  The place were we must do this cleaning is in Start_log_event::exec_event(),
+  not here. Because if we come here, the master was sane.
 */
 
 #ifndef MYSQL_CLIENT
 int Stop_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  /*
-    do not clean up immediately after rotate event;
-    QQ: this should be a useless test: the only case when it is false is when
-    shutdown occurred just after FLUSH LOGS. It has nothing to do with Rotate?
-    By the way, immediately after a Rotate the I/O thread does not write
-    the Stop to the relay log, so we won't come here in that case.
-  */
-  if (rli->group_master_log_pos > BIN_LOG_HEADER_SIZE) 
-  {
-    close_temporary_tables(thd);
-    cleanup_load_tmpdir();
-  }
   /*
     We do not want to update master_log pos because we get a rotate event
     before stop, so by now group_master_log_name is set to the next log.
@@ -2965,10 +2968,10 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
     goto err;
   }
   /*
-    We want to disable binary logging in slave thread because we need the file
-    events to appear in the same order as they do on the master relative to
-    other events, so that we can preserve ascending order of log sequence
-    numbers - needed to handle failover .
+    We are going to create a Load_log_event to finally load into the table.
+    This event should not go into the binlog: in the binlog we only want the
+    Create_file, Append_blocks and Execute_load. We disable binary logging and
+    restore the thread's options just after finishing the load.
   */
   save_options = thd->options;
   thd->options &= ~ (ulong) (OPTION_BIN_LOG);
