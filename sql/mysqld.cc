@@ -5095,7 +5095,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 }
 	/* Initiates DEBUG - but no debugging here ! */
 
-void option_error_reporter( enum LOGLEVEL level, const char *format, ... )
+void option_error_reporter( enum loglevel level, const char *format, ... )
 {
   va_list args;
   va_start( args, format );

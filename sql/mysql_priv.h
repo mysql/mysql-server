@@ -640,10 +640,9 @@ void key_unpack(String *to,TABLE *form,uint index);
 bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);
 void init_errmessage(void);
 
-void vprint_msg_to_log( enum LOGLEVEL level, const char *format, va_list args );
-void print_msg_to_log( enum LOGLEVEL level, const char *format, ... );
 void sql_perror(const char *message);
 
+void vprint_msg_to_log( enum loglevel level, const char *format, va_list args );
 void sql_print_error( const char *format, ... );
 void sql_print_warning( const char *format, ...); 
 void sql_print_information( const char *format, ...); 
