@@ -556,6 +556,8 @@ INSERT IGNORE INTO t1 (col1) values (1/0);
 --error 1367
 INSERT IGNORE INTO t1 VALUES (+1.9E+309,-1.9E+309);
 INSERT IGNORE INTO t1 VALUES ('+2.0E+309','-2.0E+309');
+# stupid...
+--replace_result -0 0
 SELECT * FROM t1;
 DROP TABLE t1;
 

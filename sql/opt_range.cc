@@ -7134,17 +7134,14 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
 static inline uint
 get_field_keypart(KEY *index, Field *field)
 {
-  KEY_PART_INFO *part= index->key_part;
-  uint key_part_num= 0;
+  KEY_PART_INFO *part, *end;
 
-  while (part != part + index->key_parts)
+  for (part= index->key_part, end= part + index->key_parts; part < end; part++)
   {
-    key_part_num++;
     if (field->eq(part->field))
-      return key_part_num;
-    part++;
+      return part - index->key_part + 1;
   }
-  return key_part_num;
+  return 0;
 }
 
 
