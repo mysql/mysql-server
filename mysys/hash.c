@@ -45,7 +45,7 @@ my_bool _hash_init(HASH *hash,uint size,uint key_offset,uint key_length,
   DBUG_PRINT("enter",("hash: %lx  size: %d",hash,size));
 
   hash->records=0;
-  if (init_dynamic_array_ci(&hash->array,sizeof(HASH_LINK),size,0))
+  if (my_init_dynamic_array_ci(&hash->array,sizeof(HASH_LINK),size,0))
   {
     hash->free=0;				/* Allow call to hash_free */
     DBUG_RETURN(TRUE);

@@ -372,14 +372,14 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
     error = LOG_INFO_MEM;
     goto err;
   }
-  if (init_dynamic_array(&logs_to_purge, sizeof(char*), 1024, 1024))
+  if (my_init_dynamic_array(&logs_to_purge, sizeof(char*), 1024, 1024))
   {
     error = LOG_INFO_MEM;
     goto err;
   }
   logs_to_purge_inited = 1;
   
-  if (init_dynamic_array(&logs_to_keep, sizeof(char*), 1024, 1024))
+  if (my_init_dynamic_array(&logs_to_keep, sizeof(char*), 1024, 1024))
   {
     error = LOG_INFO_MEM;
     goto err;

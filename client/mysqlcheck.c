@@ -648,7 +648,7 @@ int main(int argc, char **argv)
     exit(EX_MYSQLERR);
 
   if (opt_auto_repair && 
-      init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64))
+      my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64))
   {
     first_error = 1;
     goto end;

@@ -114,7 +114,7 @@ void init_table_rule_hash(HASH* h, bool* h_inited)
 
 void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited)
 {
-  init_dynamic_array(a, sizeof(TABLE_RULE_ENT*), TABLE_RULE_ARR_SIZE,
+  my_init_dynamic_array(a, sizeof(TABLE_RULE_ENT*), TABLE_RULE_ARR_SIZE,
 		     TABLE_RULE_ARR_SIZE);
   *a_inited = 1;
 }

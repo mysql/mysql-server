@@ -105,7 +105,7 @@ extern "C" {
   void init_raid(void)
   {
   /* Allocate memory for global file to raid map */
-    init_dynamic_array(&RaidFd::_raid_map, sizeof(RaidFd*), 4096, 1024);
+    my_init_dynamic_array(&RaidFd::_raid_map, sizeof(RaidFd*), 4096, 1024);
   }
   void end_raid(void)
   {

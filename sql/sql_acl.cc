@@ -158,7 +158,7 @@ int  acl_init(bool dont_read_acl_tables)
 
   init_sql_alloc(&mem,1024,0);
   init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0);
-  VOID(init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50));
+  VOID(my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50));
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_HOST host;
@@ -182,7 +182,7 @@ int  acl_init(bool dont_read_acl_tables)
   freeze_size(&acl_hosts);
 
   init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0);
-  VOID(init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100));
+  VOID(my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100));
   if (table->field[2]->field_length == 8 &&
       protocol_version == PROTOCOL_VERSION)
   {
@@ -236,7 +236,7 @@ int  acl_init(bool dont_read_acl_tables)
   freeze_size(&acl_users);
 
   init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0);
-  VOID(init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100));
+  VOID(my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100));
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_DB db;
@@ -688,7 +688,7 @@ int wild_case_compare(const char *str,const char *wildstr)
 static void init_check_host(void)
 {
   DBUG_ENTER("init_check_host");
-  VOID(init_dynamic_array(&acl_wild_hosts,sizeof(struct acl_host_and_ip),
+  VOID(my_init_dynamic_array(&acl_wild_hosts,sizeof(struct acl_host_and_ip),
 			  acl_users.elements,1));
   VOID(hash_init(&acl_check_hosts,acl_users.elements,0,0,
 		 (hash_get_key) check_get_key,0,HASH_CASE_INSENSITIVE));
