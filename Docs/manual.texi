@@ -8193,8 +8193,8 @@ you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
 @code{LOCATE()} and @code{INSTR()} are case sensitive if one of the
 arguments is a binary string.
 @item
-@code{STRCMP()} now uses the current character set when doing comparison,
-which means that the default comparison is case insensitive.
+@code{STRCMP()} now uses the current character set when doing comparisons,
+which means that the default comparison behavior now is case insensitive.
 @item
 @code{HEX(string)} now returns the characters in string converted to
 hexadecimal.  If you want to convert a number to hexadecimal, you should
@@ -20576,8 +20576,8 @@ with the simple @code{sort_order[]} table, you need to use the string
 collating functions.
 
 Right now the best documentation on this is the character sets that are
-already implemented.  Look at the big5, czech, gbk, sjis, and tis160
-character sets for examples.
+already implemented.  Look at the @code{big5}, @code{czech}, @code{gbk},
+@code{sjis}, and @code{tis160} character sets for examples.
 
 You must specify the @code{strxfrm_multiply_MYSET=N} value in the
 special comment at the top of the file.  @code{N} should be set to
@@ -29947,7 +29947,7 @@ mysql> SELECT MOD(29,9);
 @subsection Non-Type-Specific Operators and Functions
 
 @menu
-* Parenthesis::                 Parenthesis
+* Parenthesis::                 Parentheses
 * Comparison Operators::        Comparison Operators
 * Logical Operators::           Logical Operators
 * Control flow functions::      Control Flow Functions
@@ -29955,7 +29955,7 @@ mysql> SELECT MOD(29,9);
 
 
 @node Parenthesis, Comparison Operators, Non-typed Operators, Non-typed Operators
-@subsubsection Parenthesis
+@subsubsection Parentheses
 
 @findex () (parentheses)
 @findex parentheses ( and )
@@ -29967,7 +29967,7 @@ mysql> SELECT MOD(29,9);
 ( ... )
 @end example
 
-Use parenthesis to force the order of evaluation in an expression.  For
+Use parentheses to force the order of evaluation in an expression.  For
 example:
 
 @example
@@ -30611,8 +30611,8 @@ mysql> select OCTET_LENGTH('text');
         -> 4
 @end example
 
-Note that for @code{CHAR_LENGTH()}, multi-byte characters are only counted
-once.
+Note that for @code{CHAR_LENGTH()} and @code{CHARACTER_LENGTH()}, multi-byte
+characters are only counted once.
 
 @findex BIT_LENGTH()
 @item BIT_LENGTH(str)
@@ -49032,7 +49032,7 @@ First pre-version of multi-table @code{UPDATE} statement.
 @item
 Fixed bug in multi-table @code{DELETE}.
 @item
-Fixed bug in @code{SELECT CONCAT(argument-list) ... GROUP BY 1}.
+Fixed bug in @code{SELECT CONCAT(argument_list) ... GROUP BY 1}.
 @item
 @code{INSERT ... SELECT} did a full rollback in case of an error. Fixed
 so that we only roll back the last statement in the current transaction.
@@ -49170,8 +49170,8 @@ now handle signed and unsigned @code{BIGINT} numbers correctly.
 @item
 New character set @code{latin_de} which provides correct German sorting.
 @item
-@code{STRCMP()} now uses the current character set when doing comparison,
-which means that the default comparison is case insensitive.
+@code{STRCMP()} now uses the current character set when doing comparisons,
+which means that the default comparison behavior now is case insensitive.
 @item
 @code{TRUNCATE TABLE} and @code{DELETE FROM tbl_name} are now separate
 functions. One bonus is that @code{DELETE FROM tbl_name} now returns
@@ -49356,13 +49356,13 @@ not yet 100% confident in this code.
 
 @itemize @bullet
 @item
-Our Linux RPMS and binaries are now compiled with gcc 3.0.4, which should
-make them a bit faster.
+Our Linux RPMS and binaries are now compiled with @code{gcc} 3.0.4, which
+should make them a bit faster.
 @item
 Fixed some buffer overflow problems when reading startup parameters.
 @item
 Because of problems on shutdown we have now disabled named pipes on
-windows by default.  One can enable this with by starting mysqld with
+Windows by default.  To override this, start @code{mysqld} with
 @code{--enable-named-pipe}.
 @item
 Fixed bug when using @code{WHERE key_column = 'J' or key_column='j'}.
@@ -49583,7 +49583,7 @@ Fixed @code{Rows_examined} count in slow query log.
 Fixed bug when using a reference to an @code{AVG()} column in @code{HAVING}.
 @item
 Fixed that date functions that require correct dates, like
-@code{DAYOFYEAR(column)} will return @code{NULL} for @code{0000-00-00} dates.
+@code{DAYOFYEAR(column)}, will return @code{NULL} for @code{0000-00-00} dates.
 @item
 Fixed bug in const-propagation when comparing columns of different
 types. (@code{SELECT * FROM date_col="2001-01-01" and date_col=time_col})
@@ -49624,7 +49624,7 @@ Foreign keys checking is now done for @code{InnoDB} tables.
 @code{DROP DATABASE} now works also for @code{InnoDB} tables.
 @item
 @code{InnoDB} now supports data files and raw disk partitions bigger
-than 4 GB on those operating systems which have big files.
+than 4 GB on those operating systems that have big files.
 @item
 @code{InnoDB} calculates better table cardinality estimates for the
 MySQL optimiser.
@@ -49907,7 +49907,7 @@ sometimes results in incorrectly ordered rows.
 @item
 Fixed a bug in @code{REPLACE()} when using the @code{ujis} character set.
 @item
-Applied Sleepycat BDB patches 3.2.9.1 and 3.2.9.2.
+Applied Sleepycat @code{BDB} patches 3.2.9.1 and 3.2.9.2.
 @item
 Added @code{--skip-stack-trace} option to @code{mysqld}.
 @item
@@ -50198,8 +50198,8 @@ Added @code{--sort-recover} option to @code{myisamchk}.
 Fixed bug when using @code{DISTINCT} on results from functions that referred
 to a group function, like:
 @example
-SELECT a, DISTINCT SEC_TO_TIME(sum(a))
-from tbl_name GROUP BY a, b;
+SELECT a, DISTINCT SEC_TO_TIME(SUM(a))
+FROM tbl_name GROUP BY a, b;
 @end example
 @item
 Fixed buffer overrun in @code{libmysqlclient} library.
@@ -50482,7 +50482,7 @@ Added @code{binlog_cache_size} and @code{max_binlog_cache_size} variables to
 If you do a @code{DROP DATABASE} on a symbolically linked database, both
 the link and the original database is deleted.
 @item
-Fixed that @code{DROP DATABASE} works on OS/2.
+Fixed @code{DROP DATABASE} to work on OS/2.
 @item
 Fixed bug when doing a @code{SELECT DISTINCT ... table1 LEFT JOIN
 table2 ...} when @code{table2} was empty.
@@ -50517,7 +50517,7 @@ Added a warning if number of rows changes on @code{REPAIR}/@code{OPTIMIZE}.
 @item
 Applied patches for OS/2 by @code{Yuri Dario}.
 @item
-@code{FLUSH TABLES table_name} didn't always flush the index tree
+@code{FLUSH TABLES tbl_name} didn't always flush the index tree
 to disk properly.
 @item
 @code{--bootstrap} is now run in a separate thread. This fixes a problem
@@ -50599,7 +50599,7 @@ of more than 65K was shortened by a single byte.
 Fixed a bug in @code{MyISAM} when running multiple updating processes on
 the same table.
 @item
-Allow one to use @code{FLUSH TABLE tablename}.
+Allow one to use @code{FLUSH TABLE tbl_name}.
 @item
 Added @code{--replicate-ignore-table}, @code{--replicate-do-table},
 @code{--replicate-wild-ignore-table}, and @code{--replicate-wild-do-table}
@@ -50626,7 +50626,7 @@ Fixed a bug where we didn't allow an index name after the
 Added @code{TRUNCATE table_name} as a synonym for
 @code{DELETE FROM table_name}.
 @item
-Fixed a bug in a BDB key compare function when comparing part keys.
+Fixed a bug in a @code{BDB} key compare function when comparing part keys.
 @item
 Added @code{bdb_lock_max} variable to @code{mysqld}.
 @item
@@ -50864,7 +50864,7 @@ To make it possible to reliably dump and restore tables with
 @code{TIMESTAMP(X)} columns, MySQL now reports columns with @code{X}
 other than 14 or 8 to be strings.
 @item
-Changed sort order for latin1 as it was before MySQL Version 3.23.23.
+Changed sort order for @code{latin1} as it was before MySQL Version 3.23.23.
 Any table that was created or modified with 3.23.22 must be repaired if it has
 @code{CHAR} columns that may contain characters with ASCII values greater than
 128!
@@ -51363,7 +51363,7 @@ When using @code{=} on @code{BLOB} or @code{VARCHAR BINARY} keys, where
 only a part of the column was indexed, the whole column of the result
 row wasn't compared.
 @item
-Fix for sjis character set and @code{ORDER BY}.
+Fix for @code{sjis} character set and @code{ORDER BY}.
 @item
 When running in ANSI mode, don't allow columns to be used that aren't in
 the @code{GROUP BY} part.
@@ -51407,8 +51407,8 @@ Added @code{print_defaults} program to the @file{.rpm} files. Removed
 Fixed bug in @code{MyISAM} involving @code{REPLACE ... SELECT ...} which could
 give a corrupted table.
 @item
-Fixed bug in @code{myisamchk} where it wrongly reset the @code{AUTO_INCREMENT}
-value.
+Fixed bug in @code{myisamchk} where it incorrectly reset the
+@code{AUTO_INCREMENT} value.
 @item
 LOTS of patches for Linux Alpha. MySQL now appears to be relatively
 stable on Alpha.
@@ -51435,7 +51435,7 @@ now waits until the PID file is gone before terminating.
 @item
 Fixed core dump with some @code{COUNT(DISTINCT ...)} queries.
 @item
-Fixed that @code{myisamchk} works properly with RAID:ed tables.
+Fixed that @code{myisamchk} works properly with RAID tables.
 @item
 Fixed problem with @code{LEFT JOIN} and @code{key_field IS NULL}.
 @item
@@ -51517,7 +51517,7 @@ Fixed problem that affected queries that did arithmetic on group functions.
 @item
 Fixed problem with timestamps and @code{INSERT DELAYED}.
 @item
-Fixed that @code{date_column BETWEEN const_date AND const_date} works.
+Fixed that @code{date_col BETWEEN const_date AND const_date} works.
 @item
 Fixed problem when only changing a 0 to @code{NULL} in a table with
 @code{BLOB/TEXT} columns.
@@ -51549,7 +51549,7 @@ Fixed bug that a change of all @code{VARCHAR} columns to @code{CHAR} columns
 didn't change row type from dynamic to fixed.
 @item
 Disabled floating-point exceptions for FreeBSD to fix core dump when
-doing @code{SELECT floor(pow(2,63))}.
+doing @code{SELECT FLOOR(POW(2,63))}.
 @item
 Renamed @code{mysqld} startup option from @code{--delay-key-write} to
 @code{--delay-key-write-for-all-tables}.
@@ -51563,10 +51563,10 @@ Added @code{--log-slow-queries} option to @code{mysqld} to log all queries
 that take a long time to a separate log file with a time indicating how
 long the query took.
 @item
-Fixed core dump when doing @code{WHERE key_column=RAND(...)}.
+Fixed core dump when doing @code{WHERE key_col=RAND(...)}.
 @item
-Fixed optimisation bug in @code{SELECT ... LEFT JOIN ... key_column IS NULL},
-when @code{key_column} could contain @code{NULL} values.
+Fixed optimisation bug in @code{SELECT ... LEFT JOIN ... key_col IS NULL},
+when @code{key_col} could contain @code{NULL} values.
 @item
 Fixed problem with 8-bit characters as separators in @code{LOAD DATA INFILE}.
 @end itemize
@@ -51591,14 +51591,14 @@ Fixed bug when doing a join on a text key which didn't cover the whole key.
 @item
 Option @code{--delay-key-write} didn't enable delayed key writing.
 @item
-Fixed update of @code{TEXT} column which only involved case changes.
+Fixed update of @code{TEXT} column which involved only case changes.
 @item
 Fixed that @code{INSERT DELAYED} doesn't update timestamps that are given.
 @item
 Added function @code{YEARWEEK()} and options @code{x}, @code{X}, @code{v} and
 @code{V} to @code{DATE_FORMAT()}.
 @item
-Fixed problem with @code{MAX(indexed_column)} and HEAP tables.
+Fixed problem with @code{MAX(indexed_column)} and @code{HEAP} tables.
 @item
 Fixed problem with @code{BLOB NULL} keys and @code{LIKE "prefix%"}.
 @item
@@ -51680,7 +51680,7 @@ users to force table names to lowercase.
 Added @code{SELECT ... INTO DUMPFILE}.
 @item
 Added @code{--ansi} option to @code{mysqld} to make some functions
-@code{ANSI SQL} compatible.
+ANSI SQL compatible.
 @item
 Temporary table names now start with @code{#sql}.
 @item
@@ -51689,7 +51689,7 @@ Added quoting of identifiers with @code{`} (@code{"} in @code{--ansi} mode).
 Changed to use @code{snprintf()} when printing floats to avoid some buffer
 overflows on FreeBSD.
 @item
-Made @code{floor()} overflow safe on FreeBSD.
+Made @code{FLOOR()} overflow safe on FreeBSD.
 @item
 Added @code{--quote-names} option to @code{mysqldump}.
 @item
@@ -51886,7 +51886,7 @@ You can now update index columns that are used in the @code{WHERE} clause.
 Date handling should now be a bit faster.
 @item
 Added handling of fuzzy dates (dates where day or month is 0), such as
-1999-01-00.
+@code{'1999-01-00'}.
 @item
 Fixed optimisation of @code{SELECT ... WHERE key_part1=const1 AND
 key_part_2=const2 AND key_part1=const4 AND key_part2=const4}; Indextype
@@ -52221,7 +52221,7 @@ A few small fixes for the Windows version.
 Fixed optimiser problem on @code{SELECT} when using many overlapping indexes.
 @item
 Disabled floating-point exceptions for FreeBSD to fix core dump when
-doing @code{SELECT floor(pow(2,63))}.
+doing @code{SELECT FLOOR(POW(2,63))}.
 @item
 Added print of default arguments options to all clients.
 @item
