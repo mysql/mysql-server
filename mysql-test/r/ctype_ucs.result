@@ -581,3 +581,14 @@ x,y	0078002C0079
 z	007A
 x,y,z,ä,ö,ü	0078002C0079002C007A002C00E4002C00F6002C00FC
 drop table t1;
+create table t1(a enum('a','b','c')) default character set ucs2;
+insert into t1 values('a'),('b'),('c');
+alter table t1 add b char(1);
+show warnings;
+Level	Code	Message
+select * from t1 order by a;
+a	b
+a	NULL
+b	NULL
+c	NULL
+drop table t1;

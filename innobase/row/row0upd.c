@@ -381,8 +381,14 @@ row_upd_changes_field_size_or_external(
 		new_len = new_val->len;
 
 		if (new_len == UNIV_SQL_NULL) {
+			/* A bug fixed on Dec 31st, 2004: we looked at the
+			SQL NULL size from the wrong field! We may backport
+			this fix also to 4.0. The merge to 5.0 will be made
+			manually immediately after we commit this to 4.1. */
+
 			new_len = dtype_get_sql_null_size(
-					dict_index_get_nth_type(index, i));
+					dict_index_get_nth_type(index,
+						upd_field->field_no));
 		}
 
 		old_len = rec_get_nth_field_size(rec, upd_field->field_no);

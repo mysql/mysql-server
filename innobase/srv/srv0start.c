@@ -1378,20 +1378,48 @@ NetWare. */
 			return(DB_ERROR);
 		}
 
-		/* Since ibuf init is in dict_boot, and ibuf is needed
-		in any disk i/o, first call dict_boot */
+		/* Since the insert buffer init is in dict_boot, and the
+		insert buffer is needed in any disk i/o, first we call
+		dict_boot(). Note that trx_sys_init_at_db_start() only needs
+		to access space 0, and the insert buffer at this stage already
+		works for space 0. */
 
 		dict_boot();
 		trx_sys_init_at_db_start();
 
-		/* The following needs trx lists which are initialized in
-		trx_sys_init_at_db_start */
+		if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
+			/* The following call is necessary for the insert
+			buffer to work with multiple tablespaces. We must
+			know the mapping between space id's and .ibd file
+			names.
+
+			In a crash recovery, we check that the info in data
+			dictionary is consistent with what we already know
+			about space id's from the call of
+			fil_load_single_table_tablespaces().
+
+			In a normal startup, we create the space objects for
+			every table in the InnoDB data dictionary that has
+			an .ibd file.
+	
+			We also determine the maximum tablespace id used.
+
+			TODO: We may have incomplete transactions in the
+			data dictionary tables. Does that harm the scanning of
+			the data dictionary below? */
+
+			dict_check_tablespaces_and_store_max_id(
+							recv_needed_recovery);
+		}
 
                 srv_startup_is_before_trx_rollback_phase = FALSE;
 
 		/* Initialize the fsp free limit global variable in the log
 		system */
 		fsp_header_get_free_limit(0);
+
+		/* recv_recovery_from_checkpoint_finish needs trx lists which
+		are initialized in trx_sys_init_at_db_start(). */
 
 		recv_recovery_from_checkpoint_finish();
 	}
@@ -1433,13 +1461,6 @@ NetWare. */
 		}
 	}
 #endif /* UNIV_LOG_ARCHIVE */
-	if (!create_new_db && srv_force_recovery == 0) {
-		/* After a crash recovery we only check that the info in data
-		dictionary is consistent with what we already know about space
-		id's from the call of fil_load_single_table_tablespaces(). */
-
-		dict_check_tablespaces_or_store_max_id(recv_needed_recovery);
-	}
 
 	if (srv_measure_contention) {
 	  	/* os_thread_create(&test_measure_cont, NULL, thread_ids +
@@ -1507,6 +1528,21 @@ NetWare. */
 "InnoDB: the sum of data file sizes is %lu pages\n",
  			(ulong) tablespace_size_in_header,
 			(ulong) sum_of_data_file_sizes);
+
+		if (srv_force_recovery == 0
+		    && sum_of_data_file_sizes < tablespace_size_in_header) {
+			/* This is a fatal error, the tail of a tablespace is
+			missing */
+
+			fprintf(stderr,
+"InnoDB: Cannot start InnoDB. The tail of the system tablespace is\n"
+"InnoDB: missing. Have you edited innodb_data_file_path in my.cnf in an\n"
+"InnoDB: inappropriate way, removing ibdata files from there?\n"
+"InnoDB: You can set innodb_force_recovery=1 in my.cnf to force\n"
+"InnoDB: a startup if you are trying to recover a badly corrupt database.\n");
+
+			return(DB_ERROR);
+		}
 	}
 
 	if (srv_auto_extend_last_data_file
@@ -1517,6 +1553,18 @@ NetWare. */
 "InnoDB: the sum of data file sizes is only %lu pages\n",
  			(ulong) tablespace_size_in_header,
 			(ulong) sum_of_data_file_sizes);
+
+		if (srv_force_recovery == 0) {
+
+			fprintf(stderr,
+"InnoDB: Cannot start InnoDB. The tail of the system tablespace is\n"
+"InnoDB: missing. Have you edited innodb_data_file_path in my.cnf in an\n"
+"InnoDB: inappropriate way, removing ibdata files from there?\n"
+"InnoDB: You can set innodb_force_recovery=1 in my.cnf to force\n"
+"InnoDB: a startup if you are trying to recover a badly corrupt database.\n");
+
+			return(DB_ERROR);
+		}
 	}
 
 	/* Check that os_fast_mutexes work as expected */
