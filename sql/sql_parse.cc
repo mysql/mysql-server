@@ -248,6 +248,7 @@ check_connections(THD *thd)
     int2store(end+3,thd->server_status);
     bzero(end+5,13);
     end+=18;
+    net->timeout = net_read_timeout;
     if (net_write_command(net,protocol_version, buff,
 			  (uint) (end-buff)) ||
        (pkt_len=my_net_read(net)) == packet_error ||
