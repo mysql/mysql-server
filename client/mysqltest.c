@@ -950,8 +950,6 @@ int read_query(struct query** q_ptr)
   return 0;
 }
 
-enum options {OPT_NODEFAULTS} ;
-
 struct option long_options[] =
 {
   {"verbose", no_argument, 0, 'v'},
@@ -1030,7 +1028,7 @@ int parse_args(int argc, char **argv)
 	    {
 	      my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
 	      pass=my_strdup(optarg,MYF(MY_FAE));
-	      while (*optarg) *optarg++= 'x';		// Destroy argument
+	      while (*optarg) *optarg++= 'x';		/* Destroy argument */
 	    }
 	  else
 	    tty_password=1;
