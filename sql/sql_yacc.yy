@@ -4033,11 +4033,14 @@ optional_order_or_limit:
 	      send_error(&lex->thd->net, ER_SYNTAX_ERROR);
 	      YYABORT;
 	    }
-	    if (mysql_new_select(lex))
-	      YYABORT;
-	    mysql_init_select(lex);
-	    lex->select->linkage=NOT_A_SELECT;
-	    lex->select->select_limit=lex->thd->variables.select_limit;
+            if (lex->select != &lex->select_lex)
+            {
+	      if (mysql_new_select(lex))
+	        YYABORT;
+	      mysql_init_select(lex);
+	      lex->select->linkage=NOT_A_SELECT;
+	      lex->select->select_limit=lex->thd->variables.select_limit;
+            }
 	  }
 	  opt_order_clause limit_clause
 	;
