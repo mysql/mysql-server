@@ -313,9 +313,9 @@ public:
   List_iterator_fast(List<T> &a) : base_list_iterator(a) {}
   inline T* operator++(int) { return (T*) base_list_iterator::next_fast(); }
   inline void rewind(void)  { base_list_iterator::rewind(); }
-  void sublist(List<T> &list, uint el)
+  void sublist(List<T> &list_arg, uint el_arg)
   {
-    base_list_iterator::sublist(list, el);
+    base_list_iterator::sublist(list_arg, el_arg);
   }
 };
 

@@ -104,16 +104,16 @@ Item *Item_sum::get_tmp_table_item(THD *thd)
   Item_sum* sum_item= (Item_sum *) copy_or_same(thd);
   if (sum_item && sum_item->result_field)	   // If not a const sum func
   {
-    Field *result_field= sum_item->result_field;
+    Field *result_field_tmp= sum_item->result_field;
     for (uint i=0 ; i < sum_item->arg_count ; i++)
     {
       Item *arg= sum_item->args[i];
       if (!arg->const_item())
       {
 	if (arg->type() == Item::FIELD_ITEM)
-	  ((Item_field*) arg)->field= result_field++;
+	  ((Item_field*) arg)->field= result_field_tmp++;
 	else
-	  sum_item->args[i]= new Item_field(result_field++);
+	  sum_item->args[i]= new Item_field(result_field_tmp++);
       }
     }
   }
@@ -1642,10 +1642,8 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
   original= 0;
   quick_group= 0;
   mark_as_sum_func();
-  item_thd= current_thd;
-  SELECT_LEX *select_lex= item_thd->lex->current_select;
   order= 0;
-  group_concat_max_len= item_thd->variables.group_concat_max_len;
+  group_concat_max_len= current_thd->variables.group_concat_max_len;
 
     
   arg_show_fields= arg_count_field= is_select->elements;
@@ -1791,6 +1789,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   
   thd->allow_sum_func= 0;
   maybe_null= 0;
+  item_thd= thd;
   for (i= 0 ; i < arg_count ; i++)
   {
     if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
@@ -1968,6 +1967,7 @@ String* Item_func_group_concat::val_str(String* str)
   }
   return &result;
 }
+
 
 void Item_func_group_concat::print(String *str)
 {

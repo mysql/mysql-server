@@ -19,15 +19,13 @@
 AUTOMAKE_OPTIONS =	foreign
 
 # These are built from source in the Docs directory
-EXTRA_DIST =		INSTALL-SOURCE README \
-			COPYING COPYING.LIB zlib
+EXTRA_DIST =		INSTALL-SOURCE README COPYING zlib
 SUBDIRS =		. include @docs_dirs@ \
 			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack @sql_client_dirs@ \
-			@sql_server_dirs@ scripts man tests \
+			@sql_server_dirs@ scripts man tests SSL\
 			BUILD @netware_dir@ os2 @libmysqld_dirs@ \
 			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
-			
 
 # Relink after clean
 linked_sources = linked_client_sources linked_server_sources \

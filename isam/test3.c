@@ -20,6 +20,7 @@
 
 #include "nisam.h"
 #include <sys/types.h>
+#include <keycache.h>
 #ifdef HAVE_SYS_WAIT_H
 # include <sys/wait.h>
 #endif
@@ -173,7 +174,7 @@ void start_test(int id)
     exit(1);
   }
   if (key_cacheing && rnd(2) == 0)
-    init_key_cache(dflt_keycache,512,65536L,0);
+    init_key_cache(dflt_key_cache,512,65536L,0,0);
   printf("Process %d, pid: %d\n",id,(int) getpid()); fflush(stdout);
 
   for (error=i=0 ; i < tests && !error; i++)

@@ -454,7 +454,7 @@ int yylex(void *arg, void *yythd)
   reg1	uchar c;
   int	tokval, result_state;
   uint length;
-  enum my_lex_states state,prev_state;
+  enum my_lex_states state;
   LEX	*lex= (((THD *)yythd)->lex);
   YYSTYPE *yylval=(YYSTYPE*) arg;
   CHARSET_INFO *cs= ((THD *) yythd)->charset();
@@ -463,7 +463,7 @@ int yylex(void *arg, void *yythd)
 
   lex->yylval=yylval;			// The global state
   lex->tok_start=lex->tok_end=lex->ptr;
-  prev_state=state=lex->next_state;
+  state=lex->next_state;
   lex->next_state=MY_LEX_OPERATOR_OR_IDENT;
   LINT_INIT(c);
   for (;;)
@@ -1197,7 +1197,7 @@ void st_select_lex_unit::exclude_level()
 */
 void st_select_lex_unit::exclude_tree()
 {
-  SELECT_LEX_UNIT *units= 0, **units_last= &units;
+  SELECT_LEX_UNIT *units= 0;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     // unlink current level from global SELECTs list
@@ -1292,28 +1292,6 @@ bool st_select_lex::test_limit()
   return(0);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /*  
   Interface method of table list creation for query
   
@@ -1333,18 +1311,14 @@ bool st_select_lex::test_limit()
     0 - OK
     !0 - error
 */
-bool st_select_lex_unit::create_total_list(THD *thd, st_lex *lex,
-					   TABLE_LIST **result,
+bool st_select_lex_unit::create_total_list(THD *thd_arg, st_lex *lex,
+					   TABLE_LIST **result_arg,
 					   bool check_derived)
 {
-  *result= 0;
-  for (SELECT_LEX_UNIT *unit= this; unit; unit= unit->next_unit())
-  {
-    if ((res= unit->create_total_list_n_last_return(thd, lex, &result,
-						    check_derived)))
-      return res;
-  }
-  return 0;
+  *result_arg= 0;
+  res= create_total_list_n_last_return(thd_arg, lex, &result_arg,
+				       check_derived);
+  return res;
 }
 
 /*  
@@ -1367,12 +1341,14 @@ bool st_select_lex_unit::create_total_list(THD *thd, st_lex *lex,
     0 - OK
     !0 - error
 */
-bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
-							 TABLE_LIST ***result,
-							 bool check_derived)
+bool st_select_lex_unit::
+create_total_list_n_last_return(THD *thd_arg,
+				st_lex *lex,
+				TABLE_LIST ***result_arg,
+				bool check_derived)
 {
   TABLE_LIST *slave_list_first=0, **slave_list_last= &slave_list_first;
-  TABLE_LIST **new_table_list= *result, *aux;
+  TABLE_LIST **new_table_list= *result_arg, *aux;
   SELECT_LEX *sl= (SELECT_LEX*)slave;
   
   /*
@@ -1391,7 +1367,7 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
     if (sl->order_list.first && sl->next_select() && !sl->braces &&
 	sl->linkage != GLOBAL_OPTIONS_TYPE)
     {
-      net_printf(thd,ER_WRONG_USAGE,"UNION","ORDER BY");
+      net_printf(thd_arg,ER_WRONG_USAGE,"UNION","ORDER BY");
       return 1;
     }
 
@@ -1409,12 +1385,12 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
 
     if ((aux= (TABLE_LIST*) sl->table_list.first))
     {
-      TABLE_LIST *next;
-      for (; aux; aux= next)
+      TABLE_LIST *next_table;
+      for (; aux; aux= next_table)
       {
 	TABLE_LIST *cursor;
-	next= aux->next;
-	for (cursor= **result; cursor; cursor= cursor->next)
+	next_table= aux->next;
+	for (cursor= **result_arg; cursor; cursor= cursor->next)
 	  if (!strcmp(cursor->db, aux->db) &&
 	      !strcmp(cursor->real_name, aux->real_name) &&
 	      !strcmp(cursor->alias, aux->alias))
@@ -1446,7 +1422,7 @@ end:
     *new_table_list= slave_list_first;
     new_table_list= slave_list_last;
   }
-  *result= new_table_list;
+  *result_arg= new_table_list;
   return 0;
 }
 

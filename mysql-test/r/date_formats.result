@@ -120,7 +120,7 @@ date	format	str_to_date
 10:20:10.44AM	%h:%i:%s.%f%p	0000-00-00 10:20:10.000044
 15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	2001-01-15 12:59:58
 15 September 2001	%d %M %Y	2001-09-15 00:00:00
-15 SEPTEMB 2001	%d %M %Y	2001-01-15 00:00:00
+15 SEPTEMB 2001	%d %M %Y	2001-09-15 00:00:00
 15 MAY 2001	%d %b %Y	2001-05-15 00:00:00
 Sunday 15 MAY 2001	%W %d %b %Y	2001-05-15 00:00:00
 Sund 15 MAY 2001	%W %d %b %Y	2001-05-15 00:00:00
@@ -144,7 +144,7 @@ date	format	con
 10:20:10.44AM	%h:%i:%s.%f%p	0000-00-00 10:20:10.000044
 15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	2001-01-15 12:59:58
 15 September 2001	%d %M %Y	2001-09-15 00:00:00
-15 SEPTEMB 2001	%d %M %Y	2001-01-15 00:00:00
+15 SEPTEMB 2001	%d %M %Y	2001-09-15 00:00:00
 15 MAY 2001	%d %b %Y	2001-05-15 00:00:00
 Sunday 15 MAY 2001	%W %d %b %Y	2001-05-15 00:00:00
 Sund 15 MAY 2001	%W %d %b %Y	2001-05-15 00:00:00
@@ -168,7 +168,7 @@ date	format	datetime
 10:20:10.44AM	%h:%i:%s.%f%p	0000-00-00 10:20:10.000044
 15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	2001-01-15 12:59:58
 15 September 2001	%d %M %Y	2001-09-15 00:00:00
-15 SEPTEMB 2001	%d %M %Y	2001-01-15 00:00:00
+15 SEPTEMB 2001	%d %M %Y	2001-09-15 00:00:00
 15 MAY 2001	%d %b %Y	2001-05-15 00:00:00
 Sunday 15 MAY 2001	%W %d %b %Y	2001-05-15 00:00:00
 Sund 15 MAY 2001	%W %d %b %Y	2001-05-15 00:00:00
@@ -192,7 +192,7 @@ date	format	date2
 10:20:10.44AM	%h:%i:%s.%f%p	0000-00-00
 15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	2001-01-15
 15 September 2001	%d %M %Y	2001-09-15
-15 SEPTEMB 2001	%d %M %Y	2001-01-15
+15 SEPTEMB 2001	%d %M %Y	2001-09-15
 15 MAY 2001	%d %b %Y	2001-05-15
 Sunday 15 MAY 2001	%W %d %b %Y	2001-05-15
 Sund 15 MAY 2001	%W %d %b %Y	2001-05-15
@@ -330,3 +330,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select high_priority makedate(1997,1) AS `makedate(1997,1)`,addtime(_latin1'31.12.97 11.59.59.999999 PM',_latin1'31.12.97 11.59.59.999999 PM') AS `addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002")`,subtime(_latin1'31.12.97 11.59.59.999999 PM',_latin1'31.12.97 11.59.59.999999 PM') AS `subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002")`,timediff(_latin1'01.01.97 11:59:59.000001 PM',_latin1'31.12.95 11:59:59.000002 PM') AS `timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM")`,cast(str_to_date(_latin1'15-01-2001 12:59:59',_latin1'%d-%m-%Y %H:%i:%S') as time) AS `cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME)`,maketime(23,11,12) AS `maketime(23,11,12)`,microsecond(_latin1'1997-12-31 23:59:59.000001') AS `microsecond("1997-12-31 23:59:59.000001")`
+create table t1 (d date);
+insert into t1 values ('2004-07-14'),('2005-07-14');
+select date_format(d,"%d") from t1 order by 1;
+date_format(d,"%d")
+14
+14
+drop table t1;

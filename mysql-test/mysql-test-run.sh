@@ -1,7 +1,7 @@
-#! /bin/sh
+#!/bin/sh
 # mysql-test-run - originally written by Matt Wagner <matt@mysql.com>
 # modified by Sasha Pachev <sasha@mysql.com>
-# Sligtly updated by Monty
+# Slightly updated by Monty
 # Cleaned up again by Matt
 # Fixed by Sergei
 # :-)
@@ -1172,7 +1172,7 @@ run_testcase ()
  slave_master_info_file=$TESTDIR/$tname.slave-mi
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
- if [ $USE_MANAGER = 1 ] ; then
+ if [ "$USE_MANAGER" = 1 ] ; then
   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
 

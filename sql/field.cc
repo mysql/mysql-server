@@ -169,6 +169,128 @@ static inline uint field_length_without_space(const char *ptr, uint length)
   return (uint) (end-ptr);
 }
 
+/*
+ Tables of filed type compatibility.
+
+ There are tables for every type, table consist of list of types in which
+ given type can be converted without data lost, list should be ended with
+ FIELD_CAST_STOP
+*/
+static Field::field_cast_enum field_cast_decimal[]=
+{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_tiny[]=
+{Field::FIELD_CAST_SHORT, Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG,
+ Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_short[]=
+{Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_medium[]=
+{Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_long[]=
+{Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_longlong[]=
+{Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_float[]=
+{Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_double[]=
+{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_null[]=
+{Field::FIELD_CAST_DECIMAL, Field::FIELD_CAST_TINY, Field::FIELD_CAST_SHORT,
+ Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_TIMESTAMP, Field::FIELD_CAST_YEAR,
+ Field::FIELD_CAST_DATE, Field::FIELD_CAST_NEWDATE,
+ Field::FIELD_CAST_TIME, Field::FIELD_CAST_DATETIME,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB,
+ Field::FIELD_CAST_GEOM, Field::FIELD_CAST_ENUM, Field::FIELD_CAST_SET,
+ Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_timestamp[]=
+{Field::FIELD_CAST_DATETIME,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_year[]=
+{Field::FIELD_CAST_SHORT, Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG,
+ Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_date[]=
+{Field::FIELD_CAST_DATETIME,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_newdate[]=
+{Field::FIELD_CAST_DATETIME,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_time[]=
+{Field::FIELD_CAST_DATETIME,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_datetime[]=
+{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_string[]=
+{Field::FIELD_CAST_VARSTRING, Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_varstring[]=
+{Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_blob[]=
+{Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_geom[]=
+{Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_enum[]=
+{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+static Field::field_cast_enum field_cast_set[]=
+{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+// Array of pointers on conversion table for all fields types casting
+static Field::field_cast_enum *field_cast_array[]=
+{0, //FIELD_CAST_STOP
+ field_cast_decimal, field_cast_tiny, field_cast_short,
+ field_cast_medium, field_cast_long, field_cast_longlong,
+ field_cast_float, field_cast_double,
+ field_cast_null,
+ field_cast_timestamp, field_cast_year, field_cast_date, field_cast_newdate,
+ field_cast_time, field_cast_datetime,
+ field_cast_string, field_cast_varstring, field_cast_blob,
+ field_cast_geom, field_cast_enum, field_cast_set
+};
+
+
+bool Field::field_cast_compatible(Field::field_cast_enum type)
+{
+  DBUG_ASSERT(type != FIELD_CAST_STOP);
+  Field::field_cast_enum *array= field_cast_array[field_cast_type()];
+  uint i= 0;
+  Field::field_cast_enum tp;
+  do
+  {
+    tp=  array[i++];
+    if (tp == type)
+      return 1;
+  } while (tp != FIELD_CAST_STOP);
+  return 0;
+}
+
+
 /****************************************************************************
 ** Functions for the base classes
 ** This is an unpacked number.
@@ -2850,7 +2972,7 @@ String *Field_timestamp::val_str(String *val_buffer,
   struct tm tm_tmp;
 
   val_buffer->alloc(field_length+1);
-  char *to=(char*) val_buffer->ptr(),*end=to+field_length;
+  char *to= (char*) val_buffer->ptr();
   val_buffer->length(field_length);
 
 #ifdef WORDS_BIGENDIAN
@@ -3635,7 +3757,7 @@ bool Field_newdate::get_date(TIME *ltime,uint fuzzydate)
   ltime->month= (tmp >> 5) & 15;
   ltime->year=  (tmp >> 9);
   ltime->time_type=TIMESTAMP_DATE;
-  ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
+  ltime->hour= ltime->minute= ltime->second= ltime->second_part= ltime->neg= 0;
   return (!fuzzydate && (!ltime->month || !ltime->day)) ? 1 : 0;
 }
 
@@ -3987,7 +4109,6 @@ longlong Field_string::val_int(void)
 String *Field_string::val_str(String *val_buffer __attribute__((unused)),
 			      String *val_ptr)
 {
-  char *end=ptr+field_length;
   uint length= field_charset->cset->lengthsp(field_charset, ptr, field_length);
   val_ptr->set((const char*) ptr, length, field_charset);
   return val_ptr;

@@ -34,6 +34,7 @@ ulong server_id = 0;
 ulong bytes_sent = 0L, bytes_received = 0L;
 ulong mysqld_net_retry_count = 10L;
 uint test_flags = 0; 
+static uint opt_protocol= 0;
 
 static FILE *result_file;
 
@@ -233,6 +234,10 @@ static struct my_option my_long_options[] =
   {"position", 'j', "Start reading the binlog at position N.",
    (gptr*) &position, (gptr*) &position, 0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
+  {"protocol", OPT_MYSQL_PROTOCOL,
+   "The protocol of connection (tcp,socket,pipe,memory).",
+   0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+
   {"result-file", 'r', "Direct output to a given file.", 0, 0, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"read-from-remote-server", 'R', "Read binary logs from a MySQL server",
@@ -285,7 +290,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s Ver 2.4 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 2.5 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -369,6 +374,17 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'R':
     remote_opt= 1;
     break;
+  case OPT_MYSQL_PROTOCOL:
+  {
+    if ((opt_protocol= find_type(argument, &sql_protocol_typelib,0)) ==
+	~(ulong) 0)
+    {
+      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
+      exit(1);
+    }
+    break;
+  }
+  break;
   case 'V':
     print_version();
     exit(0);
@@ -398,9 +414,11 @@ static int parse_args(int *argc, char*** argv)
 static MYSQL* safe_connect()
 {
   MYSQL *local_mysql = mysql_init(NULL);
-  if(!local_mysql)
+  if (!local_mysql)
     die("Failed on mysql_init");
 
+  if (opt_protocol)
+    mysql_options(local_mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
   if (!mysql_real_connect(local_mysql, host, user, pass, 0, port, sock, 0))
     die("failed on connect: %s", mysql_error(local_mysql));
 

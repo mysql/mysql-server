@@ -94,8 +94,8 @@ THD::THD():user_time(0), is_fatal_error(0),
   lex= &main_lex;
   host=user=priv_user=db=query=ip=0;
   host_or_ip= "connecting host";
-  locked=some_tables_deleted=no_errors=password=
-    query_start_used=prepare_command=0;
+  locked=some_tables_deleted=no_errors=password= 0;
+  query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   db_length=query_length=col_access=0;
@@ -1047,9 +1047,9 @@ bool select_dump::send_eof()
   return error;
 }
 
-select_subselect::select_subselect(Item_subselect *item)
+select_subselect::select_subselect(Item_subselect *item_arg)
 {
-  this->item=item;
+  item= item_arg;
 }
 
 bool select_singlerow_subselect::send_data(List<Item> &items)
@@ -1268,4 +1268,15 @@ bool select_dumpvar::send_eof()
     send_warning(thd, ER_SP_FETCH_NO_DATA);
   ::send_ok(thd,row_count);
   return 0;
+}
+
+/****************************************************************************
+  TMP_TABLE_PARAM
+****************************************************************************/
+
+void TMP_TABLE_PARAM::init()
+{
+  field_count= sum_func_count= func_count= hidden_field_count= 0;
+  group_parts= group_length= group_null_parts= 0;
+  quick_group= 1;
 }

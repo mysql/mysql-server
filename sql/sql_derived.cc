@@ -62,16 +62,14 @@
 int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 		  TABLE_LIST *org_table_list)
 {
-  SELECT_LEX *select_cursor= unit->first_select();
-  List<Item> item_list;
+  SELECT_LEX *first_select= unit->first_select();
   TABLE *table;
   int res;
   select_union *derived_result;
-  TABLE_LIST *tables= (TABLE_LIST *)select_cursor->table_list.first;
-  TMP_TABLE_PARAM tmp_table_param;
-  bool is_union= select_cursor->next_select() && 
-    select_cursor->next_select()->linkage == UNION_TYPE;
-  bool is_subsel= select_cursor->first_inner_unit() ? 1: 0;
+  TABLE_LIST *tables= (TABLE_LIST *)first_select->table_list.first;
+  bool is_union= first_select->next_select() && 
+    first_select->next_select()->linkage == UNION_TYPE;
+  bool is_subsel= first_select->first_inner_unit() ? 1: 0;
   SELECT_LEX *save_current_select= lex->current_select;
   DBUG_ENTER("mysql_derived");
   
@@ -112,16 +110,12 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
       fix_tables_pointers(unit);
     }
 
-    lex->current_select= select_cursor;
-    TABLE_LIST *first_table= (TABLE_LIST*) select_cursor->table_list.first;
-    /* Setting up. A must if a join or IGNORE, USE or similar are utilised */
-    if (setup_tables(first_table) ||
-	setup_wild(thd, first_table, select_cursor->item_list, 0,
-		   select_cursor->with_wild))
-    {
-      res= -1;
+    if (!(derived_result= new select_union(0)))
+      DBUG_RETURN(1); // out of memory
+
+    // st_select_lex_unit::prepare correctly work for single select
+    if ((res= unit->prepare(thd, derived_result)))
       goto exit;
-    }
 
     /* 
        This is done in order to redo all field optimisations when any of the 
@@ -133,30 +127,16 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	cursor->table->clear_query_id= 1;
     }
 	
-    item_list= select_cursor->item_list;
-    select_cursor->with_wild= 0;
-    if (select_cursor->setup_ref_array(thd,
-				       select_cursor->order_list.elements +
-				       select_cursor->group_list.elements) ||
-	setup_fields(thd, select_cursor->ref_pointer_array, first_table,
-		     item_list, 0, 0, 1))
-    {
-      res= -1;
-      goto exit;
-    }
-    // Item list should be fix_fielded yet another time in JOIN::prepare
-    unfix_item_list(item_list);
-
-    bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
-    tmp_table_param.field_count= item_list.elements;
+    derived_result->tmp_table_param.init();
+    derived_result->tmp_table_param.field_count= unit->types.elements;
     /*
       Temp table is created so that it hounours if UNION without ALL is to be 
       processed
     */
-    if (!(table= create_tmp_table(thd, &tmp_table_param, item_list,
-				  (ORDER*) 0, 
+    if (!(table= create_tmp_table(thd, &derived_result->tmp_table_param,
+				  unit->types, (ORDER*) 0, 
 				  is_union && !unit->union_option, 1,
-				  (select_cursor->options | thd->options |
+				  (first_select->options | thd->options |
 				   TMP_TABLE_ALL_COLUMNS),
 				  HA_POS_ERROR,
 				  org_table_list->alias)))
@@ -164,70 +144,67 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
       res= -1;
       goto exit;
     }
-  
-    if ((derived_result=new select_union(table)))
+    derived_result->set_table(table);
+
+    unit->offset_limit_cnt= first_select->offset_limit;
+    unit->select_limit_cnt= first_select->select_limit+
+      first_select->offset_limit;
+    if (unit->select_limit_cnt < first_select->select_limit)
+      unit->select_limit_cnt= HA_POS_ERROR;
+    if (unit->select_limit_cnt == HA_POS_ERROR)
+      first_select->options&= ~OPTION_FOUND_ROWS;
+
+    if (is_union)
+      res= mysql_union(thd, lex, derived_result, unit);
+    else
+      res= mysql_select(thd, &first_select->ref_pointer_array, 
+			(TABLE_LIST*) first_select->table_list.first,
+			first_select->with_wild,
+			first_select->item_list, first_select->where,
+			(first_select->order_list.elements+
+			 first_select->group_list.elements),
+			(ORDER *) first_select->order_list.first,
+			(ORDER *) first_select->group_list.first,
+			first_select->having, (ORDER*) NULL,
+			(first_select->options | thd->options |
+			 SELECT_NO_UNLOCK),
+			derived_result, unit, first_select);
+
+    if (!res)
     {
-      derived_result->tmp_table_param=tmp_table_param;
-      unit->offset_limit_cnt= select_cursor->offset_limit;
-      unit->select_limit_cnt= select_cursor->select_limit+
-	select_cursor->offset_limit;
-      if (unit->select_limit_cnt < select_cursor->select_limit)
-	unit->select_limit_cnt= HA_POS_ERROR;
-      if (unit->select_limit_cnt == HA_POS_ERROR)
-	select_cursor->options&= ~OPTION_FOUND_ROWS;
-
-      if (is_union)
-	res= mysql_union(thd, lex, derived_result, unit, 1);
+      /*
+	Here we entirely fix both TABLE_LIST and list of SELECT's as
+	there were no derived tables
+      */
+      if (derived_result->flush())
+	res= 1;
       else
-        res= mysql_select(thd, &select_cursor->ref_pointer_array, 
-			  (TABLE_LIST*) select_cursor->table_list.first,
-			  select_cursor->with_wild,
-			  select_cursor->item_list, select_cursor->where,
-			  (select_cursor->order_list.elements+
-			   select_cursor->group_list.elements),
-			  (ORDER *) select_cursor->order_list.first,
-			  (ORDER *) select_cursor->group_list.first,
-			  select_cursor->having, (ORDER*) NULL,
-			  (select_cursor->options | thd->options |
-			   SELECT_NO_UNLOCK),
-			  derived_result, unit, select_cursor, 1);
-
-      if (!res)
       {
-	/*
-	  Here we entirely fix both TABLE_LIST and list of SELECT's as
-	  there were no derived tables
-	*/
-	if (derived_result->flush())
-	  res= 1;
-	else
-	{
-	  org_table_list->real_name=table->real_name;
-	  org_table_list->table=table;
-	  table->derived_select_number= select_cursor->select_number;
-	  table->tmp_table= TMP_TABLE;
+	org_table_list->real_name=table->real_name;
+	org_table_list->table=table;
+	table->derived_select_number= first_select->select_number;
+	table->tmp_table= TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	  org_table_list->grant.privilege= SELECT_ACL;
+	org_table_list->grant.privilege= SELECT_ACL;
 #endif
-	  if (lex->describe)
+	if (lex->describe)
+	{
+	  // to fix a problem in EXPLAIN
+	  if (tables)
 	  {
-	    // to fix a problem in EXPLAIN
-	    if (tables)
-	    {
-	      for (TABLE_LIST *cursor= tables;  cursor;  cursor= cursor->next)
-		if (cursor->table_list)
-		  cursor->table_list->table=cursor->table;
-	    }
+	    for (TABLE_LIST *cursor= tables;  cursor;  cursor= cursor->next)
+	      if (cursor->table_list)
+		cursor->table_list->table=cursor->table;
 	  }
-	  else
-	    unit->exclude_tree();
-	  org_table_list->db= (char *)"";
-	  // Force read of table stats in the optimizer
-	  table->file->info(HA_STATUS_VARIABLE);
 	}
+	else
+	  unit->exclude_tree();
+	org_table_list->db= (char *)"";
+	  // Force read of table stats in the optimizer
+	table->file->info(HA_STATUS_VARIABLE);
       }
-      delete derived_result;
     }
+
     if (res)
       free_tmp_table(thd, table);
     else
@@ -238,6 +215,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     }
 
 exit:
+    delete derived_result;
     lex->current_select= save_current_select;
     close_thread_tables(thd, 0, 1);
   }

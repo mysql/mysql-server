@@ -332,8 +332,12 @@ dict_boot(void)
 	dict_mem_table_add_col(table, (char *) "PAGE_NO", DATA_INT, 0, 4, 0);
 
 	/* The '+ 2' below comes from the 2 system fields */
-	ut_ad(DICT_SYS_INDEXES_PAGE_NO_FIELD == 6 + 2);
-	ut_ad(DICT_SYS_INDEXES_SPACE_NO_FIELD == 5 + 2); 
+#if DICT_SYS_INDEXES_PAGE_NO_FIELD != 6 + 2
+#error "DICT_SYS_INDEXES_PAGE_NO_FIELD != 6 + 2"
+#endif
+#if DICT_SYS_INDEXES_SPACE_NO_FIELD != 5 + 2
+#error "DICT_SYS_INDEXES_SPACE_NO_FIELD != 5 + 2"
+#endif
 
 	table->id = DICT_INDEXES_ID;
 	dict_table_add_to_cache(table);

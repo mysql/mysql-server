@@ -100,6 +100,10 @@ SOURCE=..\strings\bmove_upp.c
 # End Source File
 # Begin Source File
 
+SOURCE="..\mysys\charset-def.c"
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\charset.c
 # End Source File
 # Begin Source File

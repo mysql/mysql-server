@@ -226,7 +226,18 @@ INSERT INTO t1 VALUES
 # we expect that optimizer will choose index on A
 EXPLAIN SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
 SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
+DROP TABLE t1;
 
+#
+# Test error with 
+#
+
+CREATE TABLE t1 (a int, b int, c int, INDEX (c,a,b));
+INSERT INTO t1 VALUES (1,0,0),(1,0,0),(1,0,0);
+INSERT INTO t1 VALUES (0,1,0),(0,1,0),(0,1,0);
+# -- First reports 3; second reports 6
+SELECT COUNT(*) FROM t1 WHERE (c=0 and a=1) or (c=0 and b=1);
+SELECT COUNT(*) FROM t1 WHERE (c=0 and b=1) or (c=0 and a=1);
 DROP TABLE t1;
 
 # test for a bug with in() and unique key

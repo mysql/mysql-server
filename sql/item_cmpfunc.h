@@ -41,24 +41,24 @@ public:
   Arg_comparator(Item **a1, Item **a2): a(a1), b(a2) {};
 
   int set_compare_func(Item_bool_func2 *owner, Item_result type);
-  inline int set_compare_func(Item_bool_func2 *owner)
+  inline int set_compare_func(Item_bool_func2 *owner_arg)
   {
-    return set_compare_func(owner, item_cmp_type((*a)->result_type(),
-						 (*b)->result_type()));
+    return set_compare_func(owner_arg, item_cmp_type((*a)->result_type(),
+						     (*b)->result_type()));
   }
-  inline int set_cmp_func(Item_bool_func2 *owner,
+  inline int set_cmp_func(Item_bool_func2 *owner_arg,
 			  Item **a1, Item **a2,
 			  Item_result type)
   {
     a= a1;
     b= a2;
-    return set_compare_func(owner, type);
+    return set_compare_func(owner_arg, type);
   }
-  inline int set_cmp_func(Item_bool_func2 *owner,
+  inline int set_cmp_func(Item_bool_func2 *owner_arg,
 			  Item **a1, Item **a2)
   {
-    return set_cmp_func(owner, a1, a2, item_cmp_type((*a1)->result_type(),
-						     (*a2)->result_type()));
+    return set_cmp_func(owner_arg, a1, a2, item_cmp_type((*a1)->result_type(),
+							 (*a2)->result_type()));
   }
   inline int compare() { return (this->*func)(); }
 
@@ -638,17 +638,7 @@ class cmp_item_row :public cmp_item
   uint n;
 public:
   cmp_item_row(): comparators(0), n(0) {}
-  ~cmp_item_row()
-  {
-    if (comparators)
-    {
-      for (uint i= 0; i < n; i++)
-      {
-	if (comparators[i])
-	  delete comparators[i];
-      }
-    }
-  }
+  ~cmp_item_row();
   void store_value(Item *item);
   int cmp(Item *arg);
   int compare(cmp_item *arg);
@@ -694,7 +684,7 @@ public:
     cmp_item_string *cmp= (cmp_item_string *)c;
     return sortcmp(value_res, cmp->value_res, cmp_charset);
   }
-  cmp_item * make_same()
+  cmp_item *make_same()
   {
     return new cmp_item_sort_string_in_static(cmp_charset);
   }
@@ -715,7 +705,10 @@ class Item_func_in :public Item_int_func
   }
   longlong val_int();
   void fix_length_and_dec();
-  ~Item_func_in() {}
+  ~Item_func_in()
+  {
+    cleanup(); /* This is not called by Item::~Item() */
+  }
   void cleanup()
   {
     delete array;
@@ -753,6 +746,7 @@ public:
     if (!args[0]->maybe_null)
     {
       used_tables_cache= 0;			/* is always false */
+      const_item_cache= 1;
       cached_value= (longlong) 0;
     }
     else

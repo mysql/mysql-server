@@ -702,7 +702,6 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   restore_record(table,default_values);      // Get empty record
 
   Field **ptr,*field;
-  String *packet= &thd->packet;
   for (ptr=table->field; (field= *ptr) ; ptr++)
   {
     if (!wild || !wild[0] || 
@@ -892,7 +891,6 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
-  String *packet= &thd->packet;
   KEY *key_info=table->key_info;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
   for (uint i=0 ; i < table->keys ; i++,key_info++)

@@ -324,7 +324,6 @@ null:
 
 void Item_func_concat::fix_length_and_dec()
 {
-  bool first_coll= 1;
   max_length=0;
 
   if (agg_arg_collations(collation, args, arg_count))
@@ -2018,7 +2017,7 @@ void Item_func_lpad::fix_length_and_dec()
 
 String *Item_func_lpad::val_str(String *str)
 {
-  uint32 res_byte_length,res_char_length,pad_byte_length,pad_char_length;
+  uint32 res_char_length,pad_char_length;
   ulong count= (long) args[1]->val_int(), byte_count;
   String a1,a3;
   String *res= args[0]->val_str(&a1);
@@ -2028,7 +2027,6 @@ String *Item_func_lpad::val_str(String *str)
     goto err;
 
   null_value=0;
-  res_byte_length= res->length();
   res_char_length= res->numchars();
 
   if (count <= res_char_length)
@@ -2037,7 +2035,6 @@ String *Item_func_lpad::val_str(String *str)
     return res;
   }
   
-  pad_byte_length= pad->length();
   pad_char_length= pad->numchars();
   byte_count= count * collation.collation->mbmaxlen;
   
