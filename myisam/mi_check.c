@@ -26,6 +26,7 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
+#include "rt_index.h"
 
 #ifndef USE_RAID
 #define my_raid_create(A,B,C,D,E,F,G) my_create(A,B,C,G)
@@ -1463,6 +1464,12 @@ static int writekeys(MI_CHECK *param, register MI_INFO *info, byte *buff,
       if (info->s->keyinfo[i].flag & HA_FULLTEXT )
       {
         if (_mi_ft_add(info,i,(char*) key,buff,filepos))
+	  goto err;
+      }
+      else if (info->s->keyinfo[i].flag & HA_SPATIAL)
+      {
+	uint key_length=_mi_make_key(info,i,key,buff,filepos);
+	if (rtree_insert(info, i, key, key_length))
 	  goto err;
       }
       else
@@ -3987,7 +3994,8 @@ static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
                                   key->seg->charset->mbmaxlen;
     key_maxlength+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
   }
-  return (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
+  return (key->flag & HA_SPATIAL) ||
+          (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
 	  ((ulonglong) rows * key_maxlength >
 	   (ulonglong) myisam_max_temp_length));
 }

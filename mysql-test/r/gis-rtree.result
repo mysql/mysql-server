@@ -757,3 +757,44 @@ SPATIAL KEY(g)
 ) ENGINE=MyISAM;
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(1 2, 2 3)')),(GeomFromText('LineString(1 2, 2 4)'));
 drop table t1;
+CREATE TABLE t1 (
+geoobjid INT NOT NULL,
+line LINESTRING NOT NULL,
+kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
+name VARCHAR(32),
+SPATIAL KEY (line)
+) engine=myisam;
+ALTER TABLE t1 DISABLE KEYS;
+INSERT INTO t1 (name, kind, line) VALUES 
+("Aadaouane", "pp", GeomFromText("POINT(32.816667 35.983333)")),
+("Aadassiye", "pp", GeomFromText("POINT(35.816667 36.216667)")),
+("Aadbel", "pp", GeomFromText("POINT(34.533333 36.100000)")),
+("Aadchit", "pp", GeomFromText("POINT(33.347222 35.423611)")),
+("Aadchite", "pp", GeomFromText("POINT(33.347222 35.423611)")),
+("Aadchit el Qoussair", "pp", GeomFromText("POINT(33.283333 35.483333)")),
+("Aaddaye", "pp", GeomFromText("POINT(36.716667 40.833333)")),
+("'Aadeissa", "pp", GeomFromText("POINT(32.823889 35.698889)")),
+("Aaderup", "pp", GeomFromText("POINT(55.216667 11.766667)")),
+("Qalaat Aades", "pp", GeomFromText("POINT(33.503333 35.377500)")),
+("A ad'ino", "pp", GeomFromText("POINT(54.812222 38.209167)")),
+("Aadi Noia", "pp", GeomFromText("POINT(13.800000 39.833333)")),
+("Aad La Macta", "pp", GeomFromText("POINT(35.779444 -0.129167)")),
+("Aadland", "pp", GeomFromText("POINT(60.366667 5.483333)")),
+("Aadliye", "pp", GeomFromText("POINT(33.366667 36.333333)")),
+("Aadloun", "pp", GeomFromText("POINT(33.403889 35.273889)")),
+("Aadma", "pp", GeomFromText("POINT(58.798333 22.663889)")),
+("Aadma Asundus", "pp", GeomFromText("POINT(58.798333 22.663889)")),
+("Aadmoun", "pp", GeomFromText("POINT(34.150000 35.650000)")),
+("Aadneram", "pp", GeomFromText("POINT(59.016667 6.933333)")),
+("Aadneskaar", "pp", GeomFromText("POINT(58.083333 6.983333)")),
+("Aadorf", "pp", GeomFromText("POINT(47.483333 8.900000)")),
+("Aadorp", "pp", GeomFromText("POINT(52.366667 6.633333)")),
+("Aadouane", "pp", GeomFromText("POINT(32.816667 35.983333)")),
+("Aadoui", "pp", GeomFromText("POINT(34.450000 35.983333)")),
+("Aadouiye", "pp", GeomFromText("POINT(34.583333 36.183333)")),
+("Aadouss", "pp", GeomFromText("POINT(33.512500 35.601389)")),
+("Aadra", "pp", GeomFromText("POINT(33.616667 36.500000)")),
+("Aadzi", "pp", GeomFromText("POINT(38.100000 64.850000)"));
+ALTER TABLE t1 ENABLE KEYS;
+INSERT INTO t1 (name, kind, line) VALUES ("austria", "pp", GeomFromText('LINESTRING(14.9906 48.9887,14.9946 48.9904,14.9947 48.9916)'));
+drop table t1;
