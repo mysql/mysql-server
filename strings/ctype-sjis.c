@@ -4437,6 +4437,12 @@ my_wc_mb_sjis(CHARSET_INFO *cs  __attribute__((unused)),
   if (!(code=func_uni_sjis_onechar(wc)))
     return MY_CS_ILUNI;
   
+  if (code>=0xA1 && code <= 0xDF)
+  {
+    s[0]= code;
+    return 1;
+  }
+  
   if (s+2>e)
     return MY_CS_TOOSMALL;
   
@@ -4454,9 +4460,15 @@ my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
   if (s >= e)
     return MY_CS_TOOFEW(0);
   
-  if (hi<0x80)
+  if (hi < 0x80)
   {
     pwc[0]=hi;
+    return 1;
+  }
+  
+  if (hi >= 0xA1 && hi <= 0xDF)
+  {
+    pwc[0]= func_sjis_uni_onechar(hi);
     return 1;
   }
   
