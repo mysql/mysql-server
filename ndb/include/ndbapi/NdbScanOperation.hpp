@@ -54,18 +54,6 @@ public:
   };
 
   /**
-   * Lock when performing scan
-   */
-  enum LockMode {
-    LM_Read = 0,
-    LM_Exclusive = 1,
-    LM_CommittedRead = 2,
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-    LM_Dirty = 2
-#endif
-  };
-  
-  /**
    * Type of cursor
    */
   CursorType get_cursor_type() const;

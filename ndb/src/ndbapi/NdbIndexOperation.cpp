@@ -85,6 +85,11 @@ NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
   return 0;
 }
 
+int NdbIndexOperation::readTuple(NdbOperation::LockMode lm)
+{ 
+  return NdbOperation::readTuple(lm);
+}
+
 int NdbIndexOperation::readTuple()
 {
   // First check that index is unique
