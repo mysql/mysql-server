@@ -78,11 +78,11 @@ my_bool	net_flush(NET *net);
   can't normally do this the client should have a bigger max_allowed_packet.
 */
 
-#if (defined(__WIN__) || (!defined(MYSQL_SERVER) && !defined(MYSQL_INSTANCE_MANAGER)))
+#if defined(__WIN__) || !defined(MYSQL_SERVER)
   /* The following is because alarms doesn't work on windows. */
 #define NO_ALARM
 #endif
-   
+
 #ifndef NO_ALARM
 #include "my_pthread.h"
 void sql_print_error(const char *format,...);
@@ -93,7 +93,6 @@ void sql_print_error(const char *format,...);
 #include "thr_alarm.h"
 
 #ifdef MYSQL_SERVER
-#define USE_QUERY_CACHE
 /*
   The following variables/functions should really not be declared
   extern, but as it's hard to include mysql_priv.h here, we have to
@@ -102,9 +101,14 @@ void sql_print_error(const char *format,...);
 extern uint test_flags;
 extern ulong bytes_sent, bytes_received, net_big_packet_count;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
+#ifndef MYSQL_INSTANCE_MANAGER
 extern void query_cache_insert(NET *net, const char *packet, ulong length);
+#define USE_QUERY_CACHE
 #define update_statistics(A) A
-#else
+#endif /* MYSQL_INSTANCE_MANGER */
+#endif /* defined(MYSQL_SERVER) && !defined(MYSQL_INSTANCE_MANAGER) */
+
+#if !defined(MYSQL_SERVER) || defined(MYSQL_INSTANCE_MANAGER)
 #define update_statistics(A)
 #define thd_increment_bytes_sent()
 #endif
@@ -453,7 +457,8 @@ net_real_write(NET *net,const char *packet,ulong len)
   my_bool net_blocking = vio_is_blocking(net->vio);
   DBUG_ENTER("net_real_write");
 
-#if defined(MYSQL_SERVER) && defined(HAVE_QUERY_CACHE)
+#if defined(MYSQL_SERVER) && defined(HAVE_QUERY_CACHE) \
+                          && !defined(MYSQL_INSTANCE_MANAGER)
   if (net->query_cache_query != 0)
     query_cache_insert(net, packet, len);
 #endif
@@ -663,13 +668,6 @@ static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
 }
 #endif /* NO_ALARM */
 
-/* 
-  If we are inside of the instance manageer, we need to simulate mysql
-  server for the following function.
-*/
-#ifdef MYSQL_INSTANCE_MANAGER
-#define MYSQL_SERVER
-#endif
 
 /*
   Reads one packet to net->buff + net->where_b
@@ -859,9 +857,6 @@ end:
   return(len);
 }
 
-#ifdef MYSQL_INSTANCE_MANAGER
-#undef MYSQL_SERVER
-#endif
 
 /*
   Read a packet from the client/server and return it without the internal

@@ -16,14 +16,14 @@
 
 INCLUDES= -I$(top_srcdir)/include
 
-DEFS= -DMYSQL_INSTANCE_MANAGER
+DEFS= -DMYSQL_INSTANCE_MANAGER -DMYSQL_SERVER
 
 # As all autoconf variables depend from ${prefix} and being resolved only when
 # make is run, we can not put these defines to a header file (e.g. to
 # default_options.h, generated from default_options.h.in)
 # See automake/autoconf docs for details
 
-noinst_LIBRARIES= liboptions.a libnet.a libalarm.a
+noinst_LIBRARIES= liboptions.a libnet.a
 
 liboptions_a_CPPFLAGS= $(CPPFLAGS) \
 	-DDEFAULT_PID_FILE_NAME="$(localstatedir)/mysqlmanager.pid" \
@@ -34,7 +34,7 @@ liboptions_a_CPPFLAGS= $(CPPFLAGS) \
 	-DDEFAULT_USER="root" \
 	-DDEFAULT_PASSWORD="" \
 	-DDEFAULT_MONITORING_INTERVAL="5" \
-	-DDEFAULT_PORT="3406" \
+	-DDEFAULT_PORT="33006" \
 	-DPROTOCOL_VERSION=@PROTOCOL_VERSION@
 
 liboptions_a_SOURCES= options.h options.cc priv.h priv.cc
@@ -42,37 +42,28 @@ liboptions_a_SOURCES= options.h options.cc priv.h priv.cc
 # MySQL sometimes uses symlinks to reuse code 
 # All symlinked files are grouped in libnet.a
 
-nodist_libnet_a_SOURCES= password.c pack.c sql_state.c net_serv.cc
-nodist_libnet_a_CPPFLAGS= $(CPPFLAGS) -DMYSQL_SERVER
+nodist_libnet_a_SOURCES= net_serv.cc client.c errmsg.c
+libnet_a_LIBADD= $(top_builddir)/sql/password.$(OBJEXT) \
+	$(top_builddir)/sql/pack.$(OBJEXT) \
+	$(top_builddir)/sql/sql_state.$(OBJEXT)
 
-nodist_libalarm_a_SOURCES= thr_alarm.c
-nodist_libalarm_a_CPPFLAGS= $(CPPFLAGS) -DMYSQL_SERVER
-libalarm_a_LIBADD=	$(top_builddir)/mysys/mf_qsort2.$(OBJEXT) \
-	$(top_builddir)/mysys/queues.$(OBJEXT) \
-	$(top_builddir)/mysys/my_new.$(OBJEXT)
-        
-
-CLEANFILES= net_serv.cc password.c pack.c sql_state.c thr_alarm.c
+CLEANFILES= net_serv.cc client.c client_settings.h errmsg.c
 
 net_serv.cc: Makefile
 	rm -f $(srcdir)/net_serv.cc
 	@LN_CP_F@ $(top_srcdir)/sql/net_serv.cc $(srcdir)/net_serv.cc
 
-password.c: Makefile
-	rm -f $(srcdir)/password.c
-	@LN_CP_F@ $(top_srcdir)/sql/password.c $(srcdir)/password.c
+client.c: Makefile
+	rm -f $(srcdir)/client.c
+	@LN_CP_F@ $(top_srcdir)/sql-common/client.c $(srcdir)/client.c
 
-pack.c: Makefile
-	rm -f $(srcdir)/pack.c
-	@LN_CP_F@ $(top_srcdir)/sql-common/pack.c $(srcdir)/pack.c
+errmsg.c: Makefile
+	rm -f $(srcdir)/errmsg.c
+	@LN_CP_F@ $(top_srcdir)/libmysql/errmsg.c $(srcdir)/errmsg.c
 
-sql_state.c: Makefile
-	rm -f $(srcdir)/sql_state.c
-	@LN_CP_F@ $(top_srcdir)/sql/sql_state.c $(srcdir)/sql_state.c
-
-thr_alarm.c: Makefile
-	rm -f $(srcdir)/thr_alarm.c
-	@LN_CP_F@ $(top_srcdir)/mysys/thr_alarm.c $(srcdir)/thr_alarm.c
+client_settings.h: Makefile
+	rm -f $(srcdir)/client_settings.h
+	@LN_CP_F@ $(top_srcdir)/sql/client_settings.h $(srcdir)/client_settings.h
 
 bin_PROGRAMS= mysqlmanager
 
@@ -90,15 +81,16 @@ mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
 			instance_map.h instance_map.cc\
 			instance_options.h instance_options.cc \
 			buffer.h buffer.cc parse.cc parse.h \
-			guardian.cc guardian.h common_structures.h \
-                        mysql_manager_error.h
+			guardian.cc guardian.h \
+                        mysql_manager_error.h client_func.c
 
 mysqlmanager_LDADD=	liboptions.a \
 			libnet.a \
-                        libalarm.a \
 			$(top_builddir)/vio/libvio.a \
-			$(top_builddir)/libmysql_r/libmysqlclient_r.la \
-			$(top_builddir)/dbug/libdbug.a -lz
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/strings/libmystrings.a \
+			$(top_builddir)/dbug/libdbug.a \
+			@openssl_libs@ @ZLIB_LIBS@
 
 
 tags:
