@@ -1085,8 +1085,11 @@ int change_master(THD* thd, MASTER_INFO* mi)
      strmake(mi->master_log_name, mi->rli.group_master_log_name,
              sizeof(mi->master_log_name)-1);
   }
-
-  flush_master_info(mi);
+  /*
+    Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
+    a slave before).
+  */
+  flush_master_info(mi, 0);
   if (need_relay_log_purge)
   {
     relay_log_purge= 1;
