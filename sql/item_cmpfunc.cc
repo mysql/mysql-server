@@ -1703,9 +1703,6 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     {						// Identical function
       li.replace(((Item_cond*) item)->list);
       ((Item_cond*) item)->list.empty();
-#ifdef DELETE_ITEMS
-      delete (Item_cond*) item;
-#endif
       item= *li.ref();				// new current item
     }
     if (abort_on_null)
