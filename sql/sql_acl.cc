@@ -17,8 +17,8 @@
 
 /*
   The privileges are saved in the following tables:
-  mysql/user	 ; super user who are allowed to do almoust anything
-  mysql/host	 ; host priviliges. This is used if host is empty in mysql/db.
+  mysql/user	 ; super user who are allowed to do almost anything
+  mysql/host	 ; host privileges. This is used if host is empty in mysql/db.
   mysql/db	 ; database privileges / user
 
   data in tables is sorted according to how many not-wild-cards there is
@@ -597,7 +597,7 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
                 thd->host, thd->ip, thd->user are used for checks.
     mqh         user resources; on success mqh is reset, else
                 unchanged
-    passwd      scrambled & crypted password, recieved from client
+    passwd      scrambled & crypted password, received from client
                 (to check): thd->scramble or thd->scramble_323 is
                 used to decrypt passwd, so they must contain
                 original random string,
@@ -608,7 +608,7 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
   RETURN VALUE
     0  success: thd->priv_user, thd->priv_host, thd->master_access, mqh are
        updated
-    1  user not found or authentification failure
+    1  user not found or authentication failure
     2  user found, has long (4.1.1) salt, but passwd is in old (3.23) format.
    -1  user found, has short (3.23) salt, but passwd is in new (4.1.1) format.
 */
@@ -748,7 +748,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 	break;
       }
       DBUG_PRINT("info",("checkpoint 2"));
-      /* If X509 issuer is speified, we check it... */
+      /* If X509 issuer is specified, we check it... */
       if (acl_user->x509_issuer)
       {
         DBUG_PRINT("info",("checkpoint 3"));
@@ -810,7 +810,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
 /*
  * This is like acl_getroot() above, but it doesn't check password,
  * and we don't care about the user resources.
- * Used to get access rights for SQL SECURITY DEFINER invokation of
+ * Used to get access rights for SQL SECURITY DEFINER invocation of
  * stored procedures.
  */
 int acl_getroot_no_password(THD *thd)
@@ -1831,7 +1831,7 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
 {
   /* Host given by user */
   orig_host=  strdup_root(&memex,h);
-  /* Convert empty hostname to '%' for easy comparision */
+  /* Convert empty hostname to '%' for easy comparison */
   host=  orig_host[0] ? orig_host : (char*) "%";
   db =   strdup_root(&memex,d);
   user = strdup_root(&memex,u);
@@ -2778,7 +2778,7 @@ void grant_reload(THD *thd)
 /****************************************************************************
   Check table level grants
 
-  SYNPOSIS
+  SYNOPSIS
    bool check_grant()
    thd		Thread handler
    want_access  Bits of privileges user needs to have
@@ -2792,7 +2792,7 @@ void grant_reload(THD *thd)
 
    RETURN
      0  ok
-     1  Error: User did not have the requested privielges
+     1  Error: User did not have the requested privileges
 ****************************************************************************/
 
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
@@ -3870,8 +3870,8 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
   fill effective privileges for table
 
   SYNOPSIS
-    get_effectlige_privileges()
-    thd     thread handleg
+    fill_effective_table_privileges()
+    thd     thread handler
     grant   grants table descriptor
     db      db name
     table   table name

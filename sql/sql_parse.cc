@@ -108,7 +108,7 @@ static void unlock_locked_tables(THD *thd)
   if (thd->locked_tables)
   {
     thd->lock=thd->locked_tables;
-    thd->locked_tables=0;			// Will be automaticly closed
+    thd->locked_tables=0;			// Will be automatically closed
     close_thread_tables(thd);			// Free tables
   }
 }
@@ -205,13 +205,13 @@ end:
     command      originator of the check: now check_user is called
                  during connect and change user procedures; used for 
                  logging.
-    passwd       scrambled password recieved from client
+    passwd       scrambled password received from client
     passwd_len   length of scrambled password
     db           database name to connect to, may be NULL
     check_count  dont know exactly
 
     Note, that host, user and passwd may point to communication buffer.
-    Current implementation does not depened on that, but future changes
+    Current implementation does not depend on that, but future changes
     should be done with this in mind; 'thd' is INOUT, all other params
     are 'IN'.
 
@@ -269,7 +269,7 @@ int check_user(THD *thd, enum enum_server_command command,
 
   /*
     Clear thd->db as it points to something, that will be freed when 
-    connection is closed. We don't want to accidently free a wrong pointer
+    connection is closed. We don't want to accidentally free a wrong pointer
     if connect failed. Also in case of 'CHANGE USER' failure, current
     database will be switched to 'no database selected'.
   */
@@ -311,7 +311,7 @@ int check_user(THD *thd, enum enum_server_command command,
   /* here res is always >= 0 */
   if (res == 0)
   {
-    if (!(thd->master_access & NO_ACCESS)) // authentification is OK 
+    if (!(thd->master_access & NO_ACCESS)) // authentication is OK 
     {
       DBUG_PRINT("info",
                  ("Capabilities: %d  packet_length: %ld  Host: '%s'  "
@@ -731,7 +731,7 @@ static int check_connection(THD *thd)
 #endif /* HAVE_COMPRESS */
 #ifdef HAVE_OPENSSL
     if (ssl_acceptor_fd)
-      client_flags |= CLIENT_SSL;       /* Wow, SSL is avalaible! */
+      client_flags |= CLIENT_SSL;       /* Wow, SSL is available! */
 #endif /* HAVE_OPENSSL */
 
     end= strnmov(buff, server_version, SERVER_VERSION_LENGTH) + 1;
@@ -1393,7 +1393,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       *passwd++ : strlen(passwd);
     db+= passwd_len + 1;
 #ifndef EMBEDDED_LIBRARY
-    /* Small check for incomming packet */
+    /* Small check for incoming packet */
     if ((uint) ((uchar*) db - net->read_pos) > packet_length)
     {
       send_error(thd, ER_UNKNOWN_COM_ERROR);
@@ -1428,7 +1428,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     if (res)
     {
-      /* authentification failure, we shall restore old user */
+      /* authentication failure, we shall restore old user */
       if (res > 0)
         send_error(thd, ER_UNKNOWN_COM_ERROR);
       x_free(thd->user);
@@ -2397,7 +2397,7 @@ mysql_execute_command(THD *thd)
     }
 #endif
     /*
-      If we are using SET CHARSET without DEFAULT, add an implicite
+      If we are using SET CHARSET without DEFAULT, add an implicit
       DEFAULT to not confuse old users. (This may change).
     */
     if ((lex->create_info.used_fields & 
@@ -3537,7 +3537,7 @@ purposes internal to the MySQL server", MYF(0));
     if (thd->locked_tables)
     {
       thd->lock=thd->locked_tables;
-      thd->locked_tables=0;			// Will be automaticly closed
+      thd->locked_tables=0;			// Will be automatically closed
       close_thread_tables(thd);			// Free tables
     }
     if (end_active_trans(thd))
@@ -3984,7 +3984,7 @@ error:
   SYNOPSIS
     check_one_table_access()
     thd			Thread handler
-    privilege		requested privelage
+    privilege		requested privilege
     all_tables		global table list of query
 
   RETURN
@@ -4126,7 +4126,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     want_access		Use should have any of these global rights
 
   WARNING
-    One gets access rigth if one has ANY of the rights in want_access
+    One gets access right if one has ANY of the rights in want_access
     This is useful as one in most cases only need one global right,
     but in some case we want to check if the user has SUPER or
     REPL_CLIENT_ACL rights.
@@ -4888,7 +4888,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       /* 
         We are setting TIMESTAMP_OLD_FIELD here only temporary, we will 
         replace this value by TIMESTAMP_DNUN_FIELD or NONE later when 
-        information about all TIMESTAMP fields in table will be availiable.
+        information about all TIMESTAMP fields in table will be available.
       */
       new_field->unireg_check= on_update_value?Field::TIMESTAMP_UN_FIELD:
                                                Field::TIMESTAMP_OLD_FIELD;
@@ -5315,7 +5315,7 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
 
 
 /*
-  Save names for a join with using clase
+  Save names for a join with using clause
 
   SYNOPSIS
     save_names_for_using_list
@@ -6168,7 +6168,7 @@ int create_table_precheck(THD *thd, TABLE_LIST *tables,
 
   SYNOPSIS
     negate_expression()
-    thd  therad handler
+    thd  thread handler
     expr expression for negation
 
   RETURN

@@ -72,7 +72,7 @@ static bool check_fields(THD *thd, List<Item> &items)
   {
     if (!(field= item->filed_for_view_update()))
     {
-      /* as far as item comes from VIEW select list it has name */
+      /* item has name, because it comes from VIEW SELECT list */
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->name);
       return TRUE;
     }
@@ -589,8 +589,9 @@ int mysql_multi_update_prepare(THD *thd)
   }
 
   /*
-    setup_tables() need for VIEWs. JOIN::prepare() will not do it second
-    time.
+    setup_tables() need for VIEWs. JOIN::prepare() will call setup_tables()
+    second time, but this call will do nothing (there are check for second
+    call in setup_tables()).
   */
   if (setup_tables(thd, table_list, &lex->select_lex.where) ||
       (thd->lex->select_lex.no_wrap_view_item= 1,
