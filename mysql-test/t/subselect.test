@@ -693,7 +693,7 @@ INSERT INTO t1 VALUES (1);
 UPDATE t1 SET i=i+(SELECT MAX(i) FROM (SELECT 1) t) WHERE i=(SELECT MAX(i));
 -- error 1111
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
--- error 1109
+-- error 1054
 UPDATE t1 SET t.i=i+(SELECT MAX(i) FROM (SELECT 1) t);
 drop table t1;
 
@@ -887,7 +887,7 @@ create table t1 (s1 int);
 create table t2 (s1 int);
 insert into t1 values (1);
 insert into t2 values (1);
--- error 1109
+-- error 1054
 update t1 set  s1 = s1 + 1 where 1 = (select x.s1 as A from t2 WHERE t2.s1 > t1.s1 order by A);
 DROP TABLE t1, t2;
 
@@ -1030,3 +1030,17 @@ CREATE TABLE t2 (code char(5) NOT NULL default '',UNIQUE KEY code (code)) TYPE=M
 INSERT INTO t2 VALUES ('1'),('1226'),('1245'),('1862'),('18623'),('1874'),('1967'),('6');
 select c.number as phone,(select p.code from t2 p where c.number like concat(p.code, '%') order by length(p.code) desc limit 1) as code from t1 c;
 drop table t1, t2;
+
+#
+# unresolved field error
+#
+create table t1 (s1 int); 
+create table t2 (s1 int);
+-- error 1054
+select * from t1 where (select count(*) from t2 where t1.s2) = 1;
+-- error 1054
+select * from t1 where (select count(*) from t2 group by t1.s2) = 1;
+-- error 1109
+select count(*) from t2 group by t1.s2;
+drop table t1, t2;
+
