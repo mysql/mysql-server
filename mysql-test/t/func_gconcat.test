@@ -1,8 +1,10 @@
 #
 # simple test of group_concat function
 #
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
 
-drop table if exists t1;
 create table t1 (grp int, a bigint unsigned, c char(10) not null, d char(10) not null);
 insert into t1 values (1,1,"a","a");
 insert into t1 values (2,2,"b","a");
@@ -70,21 +72,6 @@ select grp,group_concat(c) from t1 group by grp;
 show warnings;
 set group_concat_max_len = 1024;
 
-# Test variable length
-
-drop table if exists T_URL;
-create table T_URL ( URL_ID int(11), URL varchar(80));
-drop table if exists T_REQUEST;
-create table T_REQUEST ( REQ_ID int(11), URL_ID int(11));
-insert into T_URL values (4,'www.host.com'), (5,'www.google.com'),(5,'www.help.com');
-insert into T_REQUEST values (1,4), (5,4), (5,5);
-# Make this order independent
---replace_result www.help.com X www.host.com X www.google.com X
-select REQ_ID, Group_Concat(URL) as URL from T_URL, T_REQUEST where 
-T_REQUEST.URL_ID = T_URL.URL_ID group by REQ_ID;
-drop table T_URL;
-drop table T_REQUEST;
-
 # Test errors
 
 --error 1111
@@ -93,6 +80,19 @@ select group_concat(sum(a)) from t1 group by grp;
 select grp,group_concat(c order by 2) from t1 group by grp;
 
 drop table t1;
+
+# Test variable length
+
+create table t1 ( URL_ID int(11), URL varchar(80));
+create table t2 ( REQ_ID int(11), URL_ID int(11));
+insert into t1 values (4,'www.host.com'), (5,'www.google.com'),(5,'www.help.com');
+insert into t2 values (1,4), (5,4), (5,5);
+# Make this order independent
+--replace_result www.help.com X www.host.com X www.google.com X
+select REQ_ID, Group_Concat(URL) as URL from t1, t2 where 
+t2.URL_ID = t1.URL_ID group by REQ_ID;
+drop table t1;
+drop table t2;
 
 create table t1 (id int, name varchar(16));
 insert into t1 values (1,'longername'),(1,'evenlongername');
