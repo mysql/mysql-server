@@ -2600,6 +2600,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     table_map used_tables;
     if (join->tables > 1)
       cond->update_used_tables();		// Tablenr may have changed
+    if (join->const_tables == join->tables)
+      join->const_table_map|=RAND_TABLE_BIT;
     {						// Check const tables
       COND *const_cond=
 	make_cond_for_table(cond,join->const_table_map,(table_map) 0);
