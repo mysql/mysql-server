@@ -6306,6 +6306,7 @@ static MY_CHARSET_HANDLER my_charset_big5_handler=
   my_strntoll_8bit,
   my_strntoull_8bit,
   my_strntod_8bit,
+  my_strtoll10_8bit,
   my_scan_8bit
 };
 
