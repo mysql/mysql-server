@@ -6357,26 +6357,26 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
-  if (cfirstfreepage == RNIL) {
+  if (fragrecptr.p->firstOverflowRec == RNIL) {
+    jam();
+    allocOverflowPage(signal);
+    if (tresult > ZLIMIT_OF_ERROR) {
     if (cfreepage + 10 >= cpagesize) {
+      jam();
+      /*--------------------------------------------------------------*/
+      /* WE COULD NOT ALLOCATE ANY OVERFLOW PAGE. THUS WE HAVE TO STOP*/
+      /* THE EXPAND SINCE WE CANNOT GUARANTEE ITS COMPLETION.         */
+      /*--------------------------------------------------------------*/
+      return;
+    }//if
+  }//if
+  if (cfirstfreepage == RNIL) {
+    if (cfreepage >= cpagesize) {
       jam();
       /*--------------------------------------------------------------*/
       /* WE HAVE TO STOP THE EXPAND PROCESS SINCE THERE ARE NO FREE   */
       /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
       /* CANNOT COMPLETE THE EXPAND. TO AVOID THE CRASH WE EXIT HERE. */
-      /*--------------------------------------------------------------*/
-      return;
-    }//if
-  }//if
-
-  if (fragrecptr.p->firstOverflowRec == RNIL) {
-    jam();
-    allocOverflowPage(signal);
-    if (tresult > ZLIMIT_OF_ERROR) {
-      jam();
-      /*--------------------------------------------------------------*/
-      /* WE COULD NOT ALLOCATE ANY OVERFLOW PAGE. THUS WE HAVE TO STOP*/
-      /* THE EXPAND SINCE WE CANNOT GUARANTEE ITS COMPLETION.         */
       /*--------------------------------------------------------------*/
       return;
     }//if
@@ -6985,7 +6985,16 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
       }//if
     }//if
   }//if
+  if (fragrecptr.p->firstOverflowRec == RNIL) {
+    jam();
+    allocOverflowPage(signal);
+    if (tresult > ZLIMIT_OF_ERROR) {
+      jam();
+      return;
+    }//if
+  }//if
   if (cfirstfreepage == RNIL) {
+    if (cfreepage >= cpagesize) {
     if (cfreepage >= cpagesize) {
       jam();
       /*--------------------------------------------------------------*/
@@ -6993,14 +7002,6 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
       /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
       /* CANNOT COMPLETE THE SHRINK. TO AVOID THE CRASH WE EXIT HERE. */
       /*--------------------------------------------------------------*/
-      return;
-    }//if
-  }//if
-  if (fragrecptr.p->firstOverflowRec == RNIL) {
-    jam();
-    allocOverflowPage(signal);
-    if (tresult > ZLIMIT_OF_ERROR) {
-      jam();
       return;
     }//if
   }//if
