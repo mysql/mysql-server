@@ -172,7 +172,7 @@ MgmtSrvr::signalRecvThreadRun()
   siglist.push_back(SigMatch(GSN_MGM_UNLOCK_CONFIG_REQ,
 			     &MgmtSrvr::handle_MGM_UNLOCK_CONFIG_REQ));
   
-  while(1) {
+  while(!_isStopThread) {
     SigMatch *handler = NULL;
     NdbApiSignal *signal = NULL;
     if(m_signalRecvQueue.waitFor(siglist, handler, signal)) {
@@ -415,14 +415,18 @@ MgmtSrvr::getPort() const {
     ndbout << "Local node id " << getOwnNodeId()
 	   << " is not defined as management server" << endl
 	   << "Have you set correct NodeId for this node?" << endl;
+    ndb_mgm_destroy_iterator(iter);
     return 0;
   }
   
   Uint32 port = 0;
   if(ndb_mgm_get_int_parameter(iter, CFG_MGM_PORT, &port) != 0){
     ndbout << "Could not find PortNumber in the configuration file." << endl;
+    ndb_mgm_destroy_iterator(iter);
     return 0;
   }
+
+  ndb_mgm_destroy_iterator(iter);
   
   /*****************
    * Set Stat Port *
@@ -517,6 +521,7 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _isStopThread        = false;
   _logLevelThread      = NULL;
   _logLevelThreadSleep = 500;
+  m_signalRecvThread   = NULL;
   _startedNodeId       = 0;
 
   theFacade = 0;
@@ -695,6 +700,11 @@ MgmtSrvr::~MgmtSrvr()
   if (_logLevelThread != NULL) {
     NdbThread_WaitFor(_logLevelThread, &res);
     NdbThread_Destroy(&_logLevelThread);
+  }
+
+  if (m_signalRecvThread != NULL) {
+    NdbThread_WaitFor(m_signalRecvThread, &res);
+    NdbThread_Destroy(&m_signalRecvThread);
   }
 }
 
