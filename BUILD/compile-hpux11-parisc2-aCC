@@ -13,7 +13,7 @@ fi
 #               Also sends +Oprocelim and +Ofastaccess to the linker
 #               (see ld(1)).
 
-release_flags="-fast +O4"
+release_flags="-fast +O3"
 
 # -z             Do not bind anything to address zero.  This option
 #                allows runtime detection of null pointers.  See the
