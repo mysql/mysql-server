@@ -76,7 +76,7 @@ select * from t2;
 # replication
 #
 connection master;
---error 1105
+--error 1386
 set global time_zone='MET';
 
 # Clean up

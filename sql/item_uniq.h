@@ -50,7 +50,7 @@ public:
   {
     DBUG_ASSERT(fixed == 0);
     fixed= 1;
-    return 0;
+    return FALSE;
   }
   Item *copy_or_same(THD* thd)
   {

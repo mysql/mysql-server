@@ -1520,8 +1520,8 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
   {
     if (var_type != OPT_DEFAULT)
     {
-      net_printf(thd, ER_INCORRECT_GLOBAL_LOCAL_VAR,
-		 name, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
+      my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0),
+               name, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
       return 0;
     }
     /* As there was no local variable, return the global value */
@@ -1564,7 +1564,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     return tmp;
   }
   default:
-    net_printf(thd, ER_VAR_CANT_BE_READ, name);
+    my_error(ER_VAR_CANT_BE_READ, MYF(0), name);
   }
   return 0;
 }
@@ -1950,8 +1950,8 @@ bool sys_var_character_set_server::check(THD *thd, set_var *var)
       (mysql_bin_log.is_open() ||
        active_mi->slave_running || active_mi->rli.slave_running))
   {
-    my_printf_error(0, "Binary logging and replication forbid changing \
-the global server character set or collation", MYF(0));
+    my_error(ER_LOGING_PROHIBIT_CHANGING_OF, MYF(0),
+	     "character set, collation");
     return 1;
   }
   return sys_var_character_set::check(thd,var);
@@ -2057,8 +2057,8 @@ bool sys_var_collation_server::check(THD *thd, set_var *var)
       (mysql_bin_log.is_open() ||
        active_mi->slave_running || active_mi->rli.slave_running))
   {
-    my_printf_error(0, "Binary logging and replication forbid changing \
-the global server character set or collation", MYF(0));
+    my_error(ER_LOGING_PROHIBIT_CHANGING_OF, MYF(0),
+	     "character set, collation");
     return 1;
   }
   return sys_var_collation::check(thd,var);
@@ -2407,8 +2407,7 @@ bool sys_var_thd_time_zone::check(THD *thd, set_var *var)
       (mysql_bin_log.is_open() ||
        active_mi->slave_running || active_mi->rli.slave_running))
   {
-    my_printf_error(0, "Binary logging and replication forbid changing "
-                       "of the global server time zone", MYF(0));
+    my_error(ER_LOGING_PROHIBIT_CHANGING_OF, MYF(0), "time zone");
     return 1;
   }
 #endif
@@ -2686,9 +2685,6 @@ void set_var_free()
     length	Length of variable.  zero means that we should use strlen()
 		on the variable
 
-  NOTE
-    We have to use net_printf() as this is called during the parsing stage
-
   RETURN VALUES
     pointer	pointer to variable definitions
     0		Unknown variable (error message is given)
@@ -2701,7 +2697,7 @@ sys_var *find_sys_var(const char *str, uint length)
 				       length ? length :
 				       strlen(str));
   if (!var)
-    net_printf(current_thd, ER_UNKNOWN_SYSTEM_VARIABLE, (char*) str);
+    my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
   return var;
 }
 

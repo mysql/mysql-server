@@ -2587,7 +2587,7 @@ Slave: load data infile on table '%s' at log position %s in log \
     my_afree(load_data_query);
   if (thd->query_error)
   {
-    /* this err/sql_errno code is copy-paste from send_error() */
+    /* this err/sql_errno code is copy-paste from net_send_error() */
     const char *err;
     int sql_errno;
     if ((err=thd->net.last_error)[0])

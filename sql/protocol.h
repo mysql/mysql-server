@@ -172,7 +172,8 @@ public:
 };
 
 void send_warning(THD *thd, uint sql_errno, const char *err=0);
-void net_printf(THD *thd,uint sql_errno, ...);
+void net_printf_error(THD *thd, uint sql_errno, ...);
+void net_send_error(THD *thd, uint sql_errno=0, const char *err=0);
 void send_ok(THD *thd, ha_rows affected_rows=0L, ulonglong id=0L,
 	     const char *info=0);
 void send_eof(THD *thd, bool no_flush=0);

@@ -66,7 +66,7 @@ void Item_subselect::init(st_select_lex *select_lex,
     parsing_place= unit->item->parsing_place;
     unit->item->engine= 0;
     unit->item= this;
-    engine->change_item(this, result);
+    engine->change_result(this, result);
   }
   else
   {
@@ -133,13 +133,13 @@ Item_subselect::select_transformer(JOIN *join)
 bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 {
   char const *save_where= thd_param->where;
-  int res;
+  bool res;
 
   DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
 
   if (check_stack_overrun(thd, (gptr)&res))
-    return 1;
+    return TRUE;
 
   res= engine->prepare();
 
@@ -168,7 +168,7 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
       if (substype() == SINGLEROW_SUBS && (*ref)->with_sum_func)
       {
 	my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
-	return 1;
+	return TRUE;
       }
       return ret;
     }
@@ -176,7 +176,7 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
     if (engine->cols() > max_columns)
     {
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-      return 1;
+      return TRUE;
     }
     fix_length_and_dec();
   }
@@ -1493,12 +1493,12 @@ void subselect_indexsubquery_engine::print(String *str)
     res		new select_result object
 
   RETURN
-    0  OK
-    -1 error
+    FALSE OK
+    TRUE  error
 */
 
-int subselect_single_select_engine::change_item(Item_subselect *si,
-						select_subselect *res)
+bool subselect_single_select_engine::change_result(Item_subselect *si,
+                                                 select_subselect *res)
 {
   item= si;
   result= res;
@@ -1515,12 +1515,12 @@ int subselect_single_select_engine::change_item(Item_subselect *si,
     res		new select_result object
 
   RETURN
-    0  OK
-    -1 error
+    FALSE OK
+    TRUE  error
 */
 
-int subselect_union_engine::change_item(Item_subselect *si,
-					select_subselect *res)
+bool subselect_union_engine::change_result(Item_subselect *si,
+                                         select_subselect *res)
 {
   item= si;
   int rc= unit->change_result(res, result);
@@ -1538,12 +1538,13 @@ int subselect_union_engine::change_item(Item_subselect *si,
     res		new select_result object
 
   RETURN
-    -1 error
+    FALSE OK
+    TRUE  error
 */
 
-int subselect_uniquesubquery_engine::change_item(Item_subselect *si,
-						 select_subselect *res)
+bool subselect_uniquesubquery_engine::change_result(Item_subselect *si,
+                                                  select_subselect *res)
 {
   DBUG_ASSERT(0);
-  return -1;
+  return TRUE;
 }
