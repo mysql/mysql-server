@@ -634,23 +634,12 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
           share->port= MYSQL_PORT;
       }
 
-      DBUG_PRINT("ha_federated::parse_url",
+      DBUG_PRINT("info",
                  ("scheme %s username %s password %s \
                   hostname %s port %d database %s tablename %s\n",
                   share->scheme, share->username, share->password,
                   share->hostname, share->port, share->database,
                   share->table_base_name));
-
-      /* If creation, check first if we can connect and that the table exists */
-      /*if (table_create_flag)
-      {
-        if (check_foreign_data_source(share))
-          goto error;
-      */
-        /* free share->schema even if no error, since this is a create */
-      /*
-        my_free((gptr) share->scheme, MYF(0));
-        }*/
     }
     else
       goto error;
@@ -760,7 +749,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
         if (to->append("IS NULL", 7))
           DBUG_RETURN(1);
 
-        DBUG_PRINT("ha_federated::create_where_from_key",
+        DBUG_PRINT("info",
                    ("NULL type %s", to->c_ptr_quick()));
         key_length-= key_part->store_length;
         key+= key_part->store_length - 1;
@@ -790,8 +779,6 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
       if (to->append(buff, (uint)(ptr - buff)))
         DBUG_RETURN(1);
 
-      DBUG_PRINT("ha_federated::create_where_from_key",
-                 ("bit type %s", to->c_ptr_quick()));
       key_length-= length;
       continue;
     }
@@ -805,8 +792,6 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
       if (append_escaped(to, &tmp))
         DBUG_RETURN(1);
 
-      DBUG_PRINT("ha_federated::create_where_from_key",
-                 ("blob type %s", to->c_ptr_quick()));
       length= key_part->length;
     }
     else if (key_part->key_part_flag & HA_VAR_LENGTH_PART)
@@ -816,14 +801,9 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
       tmp.set_quick((char*) key, length, &my_charset_bin);
       if (append_escaped(to, &tmp))
         DBUG_RETURN(1);
-
-      DBUG_PRINT("ha_federated::create_where_from_key",
-                 ("varchar type %s", to->c_ptr_quick()));
     }
     else
     {
-      DBUG_PRINT("ha_federated::create_where_from_key",
-                 ("else block, unknown type so far"));
       char buff[MAX_FIELD_WIDTH];
       String str(buff, sizeof(buff), field->charset()), *res;
 
@@ -833,16 +813,13 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
         if (append_escaped(to, res))
           DBUG_RETURN(1);
         res= field->val_str(&str, (char*) (key));
-
-        DBUG_PRINT("ha_federated::create_where_from_key",
-                   ("else block, string type", to->c_ptr_quick()));
       }
       else if (to->append(res->ptr(), res->length()))
         DBUG_RETURN(1);
     }
     if (needs_quotes && to->append("'"))
       DBUG_RETURN(1);
-    DBUG_PRINT("ha_federated::create_where_from_key",
+    DBUG_PRINT("info",
                ("final value for 'to' %s", to->c_ptr_quick()));
     key+= length;
     key_length-= length;
@@ -869,7 +846,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
 
   /* share->table_name has the file location - we want the table's name!  */
   table_base_name= (char*) table->s->table_name;
-  DBUG_PRINT("ha_federated::get_share", ("table_name %s", table_base_name));
+  DBUG_PRINT("info", ("table_name %s", table_base_name));
   /*
     So why does this exist? There is no way currently to init a storage engine.
     Innodb and BDB both have modifications to the server to allow them to
@@ -909,7 +886,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     share->select_query= select_query;
     strmov(share->table_name, table_name);
     strmov(share->select_query, query.ptr());
-    DBUG_PRINT("ha_federated::get_share",
+    DBUG_PRINT("info",
                ("share->select_query %s", share->select_query));
     if (my_hash_insert(&federated_open_tables, (byte*) share))
       goto error;
@@ -996,11 +973,11 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
 
   /* Connect to foreign database mysql_real_connect() */
   mysql= mysql_init(0);
-  DBUG_PRINT("ha_federated::open", ("hostname %s", share->hostname));
-  DBUG_PRINT("ha_federated::open", ("username %s", share->username));
-  DBUG_PRINT("ha_federated::open", ("password %s", share->password));
-  DBUG_PRINT("ha_federated::open", ("database %s", share->database));
-  DBUG_PRINT("ha_federated::open", ("port %d", share->port));
+  DBUG_PRINT("info", ("hostname %s", share->hostname));
+  DBUG_PRINT("info", ("username %s", share->username));
+  DBUG_PRINT("info", ("password %s", share->password));
+  DBUG_PRINT("info", ("database %s", share->database));
+  DBUG_PRINT("info", ("port %d", share->port));
   if (!mysql_real_connect(mysql,
                           share->hostname,
                           share->username,
@@ -1034,7 +1011,7 @@ int ha_federated::close(void)
   /* free the result set */
   if (result)
   {
-    DBUG_PRINT("ha_federated::close",
+    DBUG_PRINT("info",
                ("mysql_free_result result at address %lx", result));
     mysql_free_result(result);
     result= 0;
@@ -1120,7 +1097,7 @@ int ha_federated::write_row(byte *buf)
   insert_field_value_string.length(0);
 
   DBUG_ENTER("ha_federated::write_row");
-  DBUG_PRINT("ha_federated::write_row", ("table charset name %s csname %s",
+  DBUG_PRINT("info", ("table charset name %s csname %s",
                                          table->s->table_charset->name, table->s->table_charset->csname));
 
   statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
@@ -1133,8 +1110,7 @@ int ha_federated::write_row(byte *buf)
     this query id
   */
   current_query_id= table->in_use->query_id;
-  DBUG_PRINT("ha_federated::write_row", ("current query id %d",
-                                         current_query_id));
+  DBUG_PRINT("info", ("current query id %d", current_query_id));
 
   /* start off our string */
   insert_string.append("INSERT INTO `");
@@ -1160,9 +1136,9 @@ int ha_federated::write_row(byte *buf)
     loop through the field pointer array, add any fields to both the values
     list and the fields list that match the current query id
   */
+  x=0;
   for (field= table->field; *field; field++, x++)
   {
-    DBUG_PRINT("ha_federated::write_row", ("field type %d", (*field)->type()));
     /* if there is a query id and if it's equal to the current query id */
     if (((*field)->query_id && (*field)->query_id == current_query_id)
         || all_fields_have_same_query_id)
@@ -1171,16 +1147,16 @@ int ha_federated::write_row(byte *buf)
 
       if ((*field)->is_null())
       {
-        DBUG_PRINT("ha_federated::write_row",
-                   ("current query id %d field is_null query id %d",
-                    current_query_id, (*field)->query_id));
+        DBUG_PRINT("info",
+                   ("column %d current query id %d field is_null query id %d",
+                    x, current_query_id, (*field)->query_id));
         insert_field_value_string.append("NULL");
       }
       else
       {
-        DBUG_PRINT("ha_federated::write_row",
-                   ("current query id %d field is not null query ID %d",
-                    current_query_id, (*field)->query_id));
+        DBUG_PRINT("info",
+                   ("column %d current query id %d field is not null query ID %d",
+                    x, current_query_id, (*field)->query_id));
         (*field)->val_str(&insert_field_value_string);
         /* quote these fields if they require it */
         (*field)->quote_data(&insert_field_value_string); }
@@ -1194,10 +1170,6 @@ int ha_federated::write_row(byte *buf)
       /* append commas between both fields and fieldnames */
       insert_string.append(',');
       values_string.append(',');
-      DBUG_PRINT("ha_federated::write_row",
-                 ("insert_string %s values_string %s insert_field_value_string %s",
-                  insert_string.c_ptr_quick(), values_string.c_ptr_quick(),
-                  insert_field_value_string.c_ptr_quick()));
 
     }
   }
@@ -1215,7 +1187,7 @@ int ha_federated::write_row(byte *buf)
     AND, we don't want to chop off the last char '('
     insert will be "INSERT INTO t1 VALUES ();"
   */
-  DBUG_PRINT("ha_federated::write_row", ("x %d  num fields %d", x, num_fields));
+  DBUG_PRINT("info", ("x %d  num fields %d", x, num_fields));
   if (num_fields > 0)
   {
     /* chops off leading commas */
@@ -1228,8 +1200,7 @@ int ha_federated::write_row(byte *buf)
   /* add the values */
   insert_string.append(values_string);
 
-  DBUG_PRINT("ha_federated::write_row", ("insert query %s",
-                                         insert_string.c_ptr_quick()));
+  DBUG_PRINT("info", ("insert query %s", insert_string.c_ptr_quick()));
 
   if (mysql_real_query(mysql, insert_string.ptr(), insert_string.length()))
   {
@@ -1239,6 +1210,7 @@ int ha_federated::write_row(byte *buf)
 
   DBUG_RETURN(0);
 }
+
 
 /*
   Yes, update_row() does what you expect, it updates a row. old_data will have
@@ -1286,7 +1258,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   primary_key_field_num= has_a_primary_key ?
     table->key_info[table->s->primary_key].key_part->fieldnr - 1 : -1;
   if (has_a_primary_key)
-    DBUG_PRINT("ha_federated::update_row", ("has a primary key"));
+    DBUG_PRINT("info", ("has a primary key"));
 
   update_string.append("UPDATE `");
   update_string.append(share->table_base_name);
@@ -1324,7 +1296,10 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
     update_string.append('=');
 
     if ((*field)->is_null())
+    {
+      DBUG_PRINT("info", ("column %d is NULL", x ));
       new_field_value.append("NULL");
+    }
     else
     {
       /* otherwise = */
@@ -1356,12 +1331,18 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
         where_string.append(" IS NULL ");
       else
       {
+        uint o_len;
         (*field)->val_str(&old_field_value,
                           (char*) (old_data + (*field)->offset()));
+        o_len= (*field)->pack_length();
+        DBUG_PRINT("info", ("o_len %lu", o_len));
         (*field)->quote_data(&old_field_value);
         where_string.append(old_field_value);
       }
     }
+    DBUG_PRINT("info",
+               ("column %d new value %s old value %s",
+                x, new_field_value.c_ptr_quick(), old_field_value.c_ptr_quick() ));
     update_string.append(new_field_value);
     new_field_value.length(0);
 
@@ -1378,7 +1359,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   if (! has_a_primary_key)
     update_string.append(" LIMIT 1");
 
-  DBUG_PRINT("ha_federated::update_row", ("Final update query: %s",
+  DBUG_PRINT("info", ("Final update query: %s",
                                           update_string.c_ptr_quick()));
   if (mysql_real_query(mysql, update_string.ptr(), update_string.length()))
   {
@@ -1447,7 +1428,7 @@ int ha_federated::delete_row(const byte *buf)
   }
 
   delete_string.append(" LIMIT 1");
-  DBUG_PRINT("ha_federated::delete_row",
+  DBUG_PRINT("info",
              ("Delete sql: %s", delete_string.c_ptr_quick()));
   if (mysql_real_query(mysql, delete_string.ptr(), delete_string.length()))
   {
@@ -1513,12 +1494,12 @@ int ha_federated::index_read_idx(byte *buf, uint index, const byte *key,
   create_where_from_key(&index_string, &table->key_info[index], key, keylen);
   sql_query.append(index_string);
 
-  DBUG_PRINT("ha_federated::index_read_idx",
+  DBUG_PRINT("info",
              ("current key %d key value %s index_string value %s length %d",
               index, (char*) key, index_string.c_ptr_quick(),
               index_string.length()));
 
-  DBUG_PRINT("ha_federated::index_read_idx",
+  DBUG_PRINT("info",
              ("current position %d sql_query %s", current_position,
               sql_query.c_ptr_quick()));
 
@@ -1554,7 +1535,7 @@ int ha_federated::index_init(uint keynr)
 {
   int error;
   DBUG_ENTER("ha_federated::index_init");
-  DBUG_PRINT("ha_federated::index_init",
+  DBUG_PRINT("info",
              ("table: '%s'  key: %d", table->s->table_name, keynr));
   active_index= keynr;
   DBUG_RETURN(0);
@@ -1623,11 +1604,10 @@ int ha_federated::rnd_init(bool scan)
   scan_flag= scan;
   if (scan)
   {
-    DBUG_PRINT("ha_federated::rnd_init",
-               ("share->select_query %s", share->select_query));
+    DBUG_PRINT("info", ("share->select_query %s", share->select_query));
     if (result)
     {
-      DBUG_PRINT("ha_federated::rnd_init",
+      DBUG_PRINT("info",
                  ("mysql_free_result address %lx", result));
       mysql_free_result(result);
       result= 0;
@@ -1652,8 +1632,7 @@ int ha_federated::rnd_end()
   DBUG_ENTER("ha_federated::rnd_end");
   if (result)
   {
-    DBUG_PRINT("ha_federated::index_end",
-               ("mysql_free_result address %lx", result));
+    DBUG_PRINT("info", ("mysql_free_result address %lx", result));
     mysql_free_result(result);
     result= 0;
   }
@@ -1696,8 +1675,7 @@ int ha_federated::rnd_next(byte *buf)
  
   /* Fetch a row, insert it back in a row format. */
   current_position= result->data_cursor;
-  DBUG_PRINT("ha_federated::rnd_next",
-             ("current position %d", current_position));
+  DBUG_PRINT("info", ("current position %d", current_position));
   if (!(row= mysql_fetch_row(result)))
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
@@ -1941,7 +1919,7 @@ int ha_federated::create(const char *name, TABLE *table_arg,
   DBUG_RETURN(0);
   
 error:
-  DBUG_PRINT("ha_federated::create", ("errors, returning %d", ER_CANT_CREATE_TABLE));
+  DBUG_PRINT("info", ("errors, returning %d", ER_CANT_CREATE_TABLE));
   my_free((gptr) tmp.scheme, MYF(0));
   DBUG_RETURN(ER_CANT_CREATE_TABLE);
 
