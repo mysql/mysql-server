@@ -614,13 +614,15 @@ public:
 
 class Item_char_typecast :public Item_typecast
 {
+  int cast_length;
+  CHARSET_INFO *cast_cs;
+  bool charset_conversion;
+  String tmp_value;
 public:
-  Item_char_typecast(Item *a) :Item_typecast(a) {}
-  void fix_length_and_dec()
-  {
-    collation.set(default_charset());
-    max_length=args[0]->max_length;
-  }
+  Item_char_typecast(Item *a, int length_arg, CHARSET_INFO *cs_arg)
+    :Item_typecast(a), cast_length(length_arg), cast_cs(cs_arg) {}
+  String *val_str(String *a);
+  void fix_length_and_dec();
 };
 
 
