@@ -5907,6 +5907,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
             break;
           }
         }
+        DBUG_PRINT("info", ("Was not expecting field of type %u",
+                            field->result_type()));
         context->supported= FALSE;
         break;
       }
@@ -6009,14 +6011,16 @@ void ndb_serialize_cond(const Item *item, void *arg)
           DBUG_PRINT("info", ("LIKE_FUNC"));      
           curr_cond->ndb_item= new Ndb_item(func_item->functype());      
           context->expect(Item::STRING_ITEM);
-          context->supported= FALSE; // Currently not supported
+          context->expect(Item::FIELD_ITEM);
+          context->expect_field_result(STRING_RESULT);
           break;
         }
         case(Item_func::NOTLIKE_FUNC): {
           DBUG_PRINT("info", ("NOTLIKE_FUNC"));      
           curr_cond->ndb_item= new Ndb_item(func_item->functype());      
           context->expect(Item::STRING_ITEM);
-          context->supported= FALSE; // Currently not supported
+          context->expect(Item::FIELD_ITEM);
+          context->expect_field_result(STRING_RESULT);
           break;
         }
         case(Item_func::ISNULL_FUNC): {
@@ -6037,6 +6041,13 @@ void ndb_serialize_cond(const Item *item, void *arg)
           context->expect_field_result(REAL_RESULT);
           context->expect_field_result(INT_RESULT);
           context->expect_field_result(DECIMAL_RESULT);
+          break;
+        }
+        case(Item_func::NOT_FUNC): {
+          DBUG_PRINT("info", ("NOT_FUNC"));      
+          curr_cond->ndb_item= new Ndb_item(func_item->functype());     
+          context->expect(Item::FUNC_ITEM);
+          context->expect(Item::COND_ITEM);
           break;
         }
         case(Item_func::UNKNOWN_FUNC): {
@@ -6293,7 +6304,8 @@ ha_ndbcluster::serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond)
 
 int
 ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond, 
-                                           NdbScanFilter *filter)
+                                           NdbScanFilter *filter,
+                                           bool negated)
 {
   DBUG_ENTER("build_scan_filter_predicate");  
   switch(cond->ndb_item->type) {
@@ -6301,7 +6313,10 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
     if (!cond->next)
       break;
     Ndb_item *a= cond->next->ndb_item;
-    switch(cond->ndb_item->qualification.function_type) {
+    switch((negated) ? 
+           Ndb_item::negate(cond->ndb_item->qualification.function_type)
+           : cond->ndb_item->qualification.function_type)
+    {
     case(Item_func::EQ_FUNC): {
       if (!cond->next->next)
         break;
@@ -6511,14 +6526,13 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       // Save value in right format for the field type
       value->save_in_field(field);
       DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%d)", 
-                          field->get_field_no(), field->get_val(), 
-                          field->pack_length()));
-      /*
-      if (filter->like(field->get_field_no(),
-                       field->get_val(),
-                       field->pack_length()) == -1)
+                          field->get_field_no(), value->get_val(), 
+                          value->pack_length()));
+      if (filter->cmp(NdbScanFilter::COND_LIKE, 
+                      field->get_field_no(),
+                      field->get_val(),
+                      field->pack_length()) == -1)
         DBUG_RETURN(1);
-      */
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
@@ -6539,13 +6553,13 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
       // Save value in right format for the field type
       value->save_in_field(field);
       DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", 
-                          field->get_field_no(), field->get_val(), 
-                          field->pack_length()));
-      /*
-      if (filter->notlike(field->get_field_no(),
-                          field->get_val(), field->pack_length()) == -1)
+                          field->get_field_no(), value->get_val(), 
+                          value->pack_length()));
+      if (filter->cmp(NdbScanFilter::COND_NOT_LIKE, 
+                      field->get_field_no(),
+                      field->get_val(),
+                      field->pack_length()) == -1)
         DBUG_RETURN(1);
-      */
       cond= cond->next->next->next;
       DBUG_RETURN(0);
     }
@@ -6581,7 +6595,8 @@ ha_ndbcluster::build_scan_filter_predicate(Ndb_cond * &cond,
 }
 
 int
-ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
+ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter,
+                                       bool negated)
 {
   DBUG_ENTER("build_scan_filter_group");
   if (!cond) DBUG_RETURN(1);
@@ -6589,8 +6604,9 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
   case(NDB_FUNCTION):
     switch(cond->ndb_item->qualification.function_type) {
     case(Item_func::COND_AND_FUNC): {
-      DBUG_PRINT("info", ("Generating AND group"));
-      if (filter->begin(NdbScanFilter::AND) == -1)
+      DBUG_PRINT("info", ("Generating %s group", (negated)?"NAND":"AND"));
+      if ((negated) ? filter->begin(NdbScanFilter::NAND)
+          : filter->begin(NdbScanFilter::AND) == -1)
         DBUG_RETURN(1);
       cond= cond->next;
       do
@@ -6601,12 +6617,13 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
       if (cond) cond= cond->next;
       if (filter->end() == -1)
         DBUG_RETURN(1);
-      DBUG_PRINT("info", ("End of AND group"));
+      DBUG_PRINT("info", ("End of %s group", (negated)?"NAND":"AND"));
       break;
     }
     case(Item_func::COND_OR_FUNC): {
-      DBUG_PRINT("info", ("Generating OR group"));
-      if (filter->begin(NdbScanFilter::OR) == -1)
+      DBUG_PRINT("info", ("Generating % group", (negated)?"NOR":"OR"));
+      if ((negated) ? filter->begin(NdbScanFilter::OR)
+          : filter->begin(NdbScanFilter::OR) == -1)
         DBUG_RETURN(1);
       cond= cond->next;
       do
@@ -6617,11 +6634,16 @@ ha_ndbcluster::build_scan_filter_group(Ndb_cond* &cond, NdbScanFilter *filter)
       if (cond) cond= cond->next;
       if (filter->end() == -1)
         DBUG_RETURN(1);
-      DBUG_PRINT("info", ("End of OR group"));
+      DBUG_PRINT("info", ("End of %s group", (negated)?"NOR":"OR"));
+      break;
+    }
+    case(Item_func::NOT_FUNC): {
+      cond= cond->next;
+      build_scan_filter_group(cond, filter, true);
       break;
     }
     default:
-      if (build_scan_filter_predicate(cond, filter))
+      if (build_scan_filter_predicate(cond, filter, negated))
         DBUG_RETURN(1);
     }
     break;
