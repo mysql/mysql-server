@@ -145,22 +145,18 @@ extern my_string my_strdup(const char *from,myf MyFlags);
 #define CALLER_INFO         /* nothing */
 #define ORIG_CALLER_INFO    /* nothing */
 #endif
+
 #ifdef HAVE_ALLOCA
-#ifdef  __GNUC__
-/* Remove any previous definitions.  */
-#undef  alloca
-#define alloca(size)   __builtin_alloca (size)
-#else /* xlc */
-#ifdef _AIX
- #pragma alloca
+#if defined(_AIX) && !defined(__GNUC__)
+#pragma alloca
 #endif /* _AIX */
-#endif /* __GNUC__  */
 #define my_alloca(SZ) alloca((size_t) (SZ))
 #define my_afree(PTR) {}
 #else
 #define my_alloca(SZ) my_malloc(SZ,MYF(0))
 #define my_afree(PTR) my_free(PTR,MYF(MY_WME))
 #endif /* HAVE_ALLOCA */
+
 #ifdef MSDOS
 #ifdef __ZTC__
 void * __CDECL halloc(long count,size_t length);
