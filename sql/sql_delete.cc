@@ -33,6 +33,25 @@ int generate_table(THD *thd, TABLE_LIST *table_list,
   DBUG_ENTER("generate_table");
 
   thd->proc_info="generate_table";
+
+  if(global_read_lock)
+    {
+      if(thd->global_read_lock)
+	{
+	  my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
+		   table_list->real_name);
+	  DBUG_RETURN(-1);
+	}
+      pthread_mutex_lock(&LOCK_open);
+      while (global_read_lock && ! thd->killed ||
+	     thd->version != refresh_version)
+	{
+	  (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+	}
+      pthread_mutex_unlock(&LOCK_open);
+    }
+
+  
     /* If it is a temporary table, close and regenerate it */
   if ((table_ptr=find_temporary_table(thd,table_list->db,
 				      table_list->real_name)))

@@ -57,6 +57,23 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   VOID(pthread_mutex_lock(&LOCK_open));
   pthread_mutex_unlock(&thd->mysys_var->mutex);
 
+  if(global_read_lock)
+    {
+      if(thd->global_read_lock)
+	{
+   	 my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE,MYF(0),
+		 tables->real_name);
+         error = 1;
+	 goto err;
+	}
+      while (global_read_lock && ! thd->killed ||
+	     thd->version != refresh_version)
+      {
+	(void) pthread_cond_wait(&COND_refresh,&LOCK_open);
+      }
+
+    }
+  
   for (TABLE_LIST *table=tables ; table ; table=table->next)
   {
     char *db=table->db ? table->db : thd->db;
@@ -124,7 +141,9 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
       mysql_bin_log.write(&qinfo);
     }
   }
-
+  
+  error = 0;
+ err:  
   VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
   pthread_mutex_unlock(&LOCK_open);
 
@@ -138,6 +157,8 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
     my_error(ER_BAD_TABLE_ERROR,MYF(0),wrong_tables.c_ptr());
     DBUG_RETURN(-1);
   }
+  if(error)
+    DBUG_RETURN(-1);
   send_ok(&thd->net);
   DBUG_RETURN(0);
 }
