@@ -343,68 +343,72 @@ int main(int argc, char *argv[])
   }
   if (testflag==3) goto end;
 
-  if (!silent)
-    printf("- Same key: first - next -> last - prev -> first\n");
-  DBUG_PRINT("progpos",("first - next -> last - prev -> first"));
   for (i=999, dupp_keys=j=0 ; i>0 ; i--)
   {
-    if (key1[i] >dupp_keys) { dupp_keys=key1[i]; j=i; }
+    if (key1[i] > dupp_keys) { dupp_keys=key1[i]; j=i; }
   }
   sprintf(key,"%6d",j);
-  if (verbose) printf("	 Using key: \"%s\"  Keys: %d\n",key,dupp_keys);
-  if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT)) goto err;
-  if (mi_rsame(file,read_record2,-1)) goto err;
-  if (memcmp(read_record,read_record2,reclength) != 0)
+  if (dupp_keys)
   {
-    printf("mi_rsame didn't find same record\n");
-    goto end;
-  }
-  info.recpos=mi_position(file);
-  if (mi_rfirst(file,read_record2,0) ||
-      mi_rsame_with_pos(file,read_record2,0,info.recpos) ||
-      memcmp(read_record,read_record2,reclength) != 0)
-  {
-    printf("mi_rsame_with_pos didn't find same record\n");
-    goto end;
-  }
-  {
-    int skr=mi_rnext(file,read_record2,0);
-    if ((skr && my_errno != HA_ERR_END_OF_FILE) ||
-	mi_rprev(file,read_record2,-1) ||
-	memcmp(read_record,read_record2,reclength) != 0)
+    if (!silent)
+      printf("- Same key: first - next -> last - prev -> first\n");
+    DBUG_PRINT("progpos",("first - next -> last - prev -> first"));
+    if (verbose) printf("	 Using key: \"%s\"  Keys: %d\n",key,dupp_keys);
+
+    if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT)) goto err;
+    if (mi_rsame(file,read_record2,-1)) goto err;
+    if (memcmp(read_record,read_record2,reclength) != 0)
     {
-      printf("mi_rsame_with_pos lost position\n");
+      printf("mi_rsame didn't find same record\n");
       goto end;
     }
-  }
-  ant=1;
-  start=keyinfo[0].seg[0].start; length=keyinfo[0].seg[0].length;
-  while (mi_rnext(file,read_record2,0) == 0 &&
-	 memcmp(read_record2+start,key,length) == 0) ant++;
-  if (ant != dupp_keys)
-  {
-    printf("next: Found: %d keys of %d\n",ant,dupp_keys);
-    goto end;
-  }
-  ant=0;
-  while (mi_rprev(file,read_record3,0) == 0 &&
-	 bcmp(read_record3+start,key,length) == 0) ant++;
-  if (ant != dupp_keys)
-  {
-    printf("prev: Found: %d records of %d\n",ant,dupp_keys);
-    goto end;
-  }
+    info.recpos=mi_position(file);
+    if (mi_rfirst(file,read_record2,0) ||
+	mi_rsame_with_pos(file,read_record2,0,info.recpos) ||
+	memcmp(read_record,read_record2,reclength) != 0)
+    {
+      printf("mi_rsame_with_pos didn't find same record\n");
+      goto end;
+    }
+    {
+      int skr=mi_rnext(file,read_record2,0);
+      if ((skr && my_errno != HA_ERR_END_OF_FILE) ||
+	  mi_rprev(file,read_record2,-1) ||
+	  memcmp(read_record,read_record2,reclength) != 0)
+      {
+	printf("mi_rsame_with_pos lost position\n");
+	goto end;
+      }
+    }
+    ant=1;
+    start=keyinfo[0].seg[0].start; length=keyinfo[0].seg[0].length;
+    while (mi_rnext(file,read_record2,0) == 0 &&
+	   memcmp(read_record2+start,key,length) == 0) ant++;
+    if (ant != dupp_keys)
+    {
+      printf("next: Found: %d keys of %d\n",ant,dupp_keys);
+      goto end;
+    }
+    ant=0;
+    while (mi_rprev(file,read_record3,0) == 0 &&
+	   bcmp(read_record3+start,key,length) == 0) ant++;
+    if (ant != dupp_keys)
+    {
+      printf("prev: Found: %d records of %d\n",ant,dupp_keys);
+      goto end;
+    }
 
-  /* Check of mi_rnext_same */
-  if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
-    goto err;
-  ant=1;
-  while (!mi_rnext_same(file,read_record3) && ant < dupp_keys+10)
-    ant++;
-  if (ant != dupp_keys || my_errno != HA_ERR_END_OF_FILE)
-  {
-    printf("mi_rnext_same: Found: %d records of %d\n",ant,dupp_keys);
-    goto end;
+    /* Check of mi_rnext_same */
+    if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
+      goto err;
+    ant=1;
+    while (!mi_rnext_same(file,read_record3) && ant < dupp_keys+10)
+      ant++;
+    if (ant != dupp_keys || my_errno != HA_ERR_END_OF_FILE)
+    {
+      printf("mi_rnext_same: Found: %d records of %d\n",ant,dupp_keys);
+      goto end;
+    }
   }
 
   if (!silent)
@@ -776,9 +780,13 @@ end:
     printf("\nFollowing test have been made:\n");
     printf("Write records: %d\nUpdate records: %d\nSame-key-read: %d\nDelete records: %d\n", write_count,update,dupp_keys,opt_delete);
     if (rec_pointer_size)
-      printf("Record pointer size: %d\n",rec_pointer_size);
+      printf("Record pointer size:  %d\n",rec_pointer_size);
+    printf("myisam_block_size:    %u\n", myisam_block_size);
     if (key_cacheing)
+    {
       puts("Key cacheing used");
+      printf("key_cache_block_size: %u\n", key_cache_block_size);
+    }
     if (write_cacheing)
       puts("Write cacheing used");
     if (write_cacheing)
@@ -801,7 +809,7 @@ reads:      %10lu\n",
   end_key_cache();
   if (blob_buffer)
     my_free(blob_buffer,MYF(0));
-  my_end(MY_CHECK_ERROR | MY_GIVE_INFO);
+  my_end(silent ? MY_CHECK_ERROR : MY_CHECK_ERROR | MY_GIVE_INFO);
   return(0);
 err:
   printf("got error: %d when using MyISAM-database\n",my_errno);
@@ -861,7 +869,29 @@ static void get_options(int argc, char **argv)
       verbose=1;
       break;
     case 'm':				/* records */
-      recant=atoi(++pos);
+      if ((recant=atoi(++pos)) < 10)
+      {
+	fprintf(stderr,"record count must be >= 10\n");
+	exit(1);
+      }
+      break;
+    case 'e':				/* myisam_block_length */
+      if ((myisam_block_size=atoi(++pos)) < MI_MIN_KEY_BLOCK_LENGTH ||
+	  myisam_block_size > MI_MAX_KEY_BLOCK_LENGTH)
+      {
+	fprintf(stderr,"Wrong myisam_block_length\n");
+	exit(1);
+      }
+      myisam_block_size=1 << my_bit_log2(myisam_block_size);
+      break;
+    case 'E':				/* myisam_block_length */
+      if ((key_cache_block_size=atoi(++pos)) < MI_MIN_KEY_BLOCK_LENGTH ||
+	  key_cache_block_size > MI_MAX_KEY_BLOCK_LENGTH)
+      {
+	fprintf(stderr,"Wrong key_cache_block_size\n");
+	exit(1);
+      }
+      key_cache_block_size=1 << my_bit_log2(key_cache_block_size);
       break;
     case 'f':
       if ((first_key=atoi(++pos)) < 0 || first_key >= MYISAM_KEYS)
@@ -904,7 +934,7 @@ static void get_options(int argc, char **argv)
     case 'V':
       printf("%s  Ver 1.2 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
       puts("By Monty, for your professional use\n");
-      printf("Usage: %s [-?AbBcDIKLPRqSsVWltv] [-k#] [-f#] [-m#] [-t#]\n",
+      printf("Usage: %s [-?AbBcDIKLPRqSsVWltv] [-k#] [-f#] [-m#] [-e#] [-E#] [-t#]\n",
 	     progname);
       exit(0);
     case '#':

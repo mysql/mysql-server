@@ -607,7 +607,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
   if (limit < records)
     read_time=(double) records+scan_time+1;	// Force to use index
   else if (read_time <= 2.0 && !force_quick_range)
-    DBUG_RETURN(0);				/* No nead for quick select */
+    DBUG_RETURN(0);				/* No need for quick select */
 
   DBUG_PRINT("info",("Time to scan table: %ld",(long) read_time));
 

@@ -324,11 +324,13 @@ static void close_cons()
 
 static void close_files()
 {
-  do
+  DBUG_ENTER("close_files");
+  for (; cur_file != file_stack ; cur_file--)
   {
     if (*cur_file != stdin && *cur_file)
       my_fclose(*cur_file,MYF(0));
-  } while (cur_file-- != file_stack);
+  }
+  DBUG_VOID_RETURN;
 }
 
 static void free_used_memory()
@@ -356,6 +358,7 @@ static void free_used_memory()
   dynstr_free(&ds_res);
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
+  mysql_server_end();
   my_end(MY_CHECK_ERROR);
   DBUG_VOID_RETURN;
 }
@@ -1387,15 +1390,11 @@ int read_line(char* buf, int size)
     {
       if ((*cur_file) != stdin)
 	my_fclose(*cur_file,MYF(0));
-
+      cur_file--;
+      lineno--;
       if (cur_file == file_stack)
 	return 1;
-      else
-      {
-	cur_file--;
-	lineno--;
-	continue;
-      }
+      continue;
     }
 
     switch(state) {
@@ -2068,6 +2067,9 @@ int main(int argc, char** argv)
   mysql_server_init(sizeof(embedded_server_args) / sizeof(char *) - 1,
 		    embedded_server_args, embedded_server_groups);
   MY_INIT(argv[0]);
+  {
+  DBUG_ENTER("main");
+  DBUG_PROCESS(argv[0]);
 
   save_file[0]=0;
   TMPDIR[0]=0;
@@ -2092,9 +2094,12 @@ int main(int argc, char** argv)
   *block_ok = 1;
   init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
+  if (mysql_server_init(sizeof(embedded_server_args) / sizeof(char *) - 1,
+			embedded_server_args, embedded_server_groups))
+    die("Can't initialize MySQL server");
   init_var_hash();
-  if (!*cur_file)
-    *cur_file = stdin;
+  if (cur_file == file_stack)
+    *++cur_file = stdin;
   *lineno=1;
   init_manager();
 
@@ -2239,6 +2244,7 @@ int main(int argc, char** argv)
   free_used_memory();
   exit(error ? 1 : 0);
   return error ? 1 : 0;				/* Keep compiler happy */
+  }
 }
 
 

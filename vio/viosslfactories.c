@@ -168,15 +168,17 @@ vio_verify_callback(int ok, X509_STORE_CTX *ctx)
 struct st_VioSSLConnectorFd* new_VioSSLConnectorFd(const char* key_file,
 				     const char* cert_file,
 				     const char* ca_file,
-				     const char* ca_path)
+				     const char* ca_path,
+				     const char* cipher)
 {
   int	verify = SSL_VERIFY_PEER;
   struct st_VioSSLConnectorFd* ptr;
+  int result;
   DH *dh=NULL; 
   DBUG_ENTER("new_VioSSLConnectorFd");
   DBUG_PRINT("enter",
-	     ("key_file=%s, cert_file=%s, ca_path=%s, ca_file=%s",
-	      key_file, cert_file, ca_path, ca_file));
+	     ("key_file=%s, cert_file=%s, ca_path=%s, ca_file=%s, cipher=%s",
+	      key_file, cert_file, ca_path, ca_file, cipher));
   ptr=(struct st_VioSSLConnectorFd*)my_malloc(sizeof(struct st_VioSSLConnectorFd),MYF(0));
   ptr->ssl_context_=0;
   ptr->ssl_method_=0;
@@ -206,8 +208,12 @@ struct st_VioSSLConnectorFd* new_VioSSLConnectorFd(const char* key_file,
   /*
    * SSL_CTX_set_options
    * SSL_CTX_set_info_callback
-   * SSL_CTX_set_cipher_list
    */
+  if(cipher)
+  {
+    result=SSL_CTX_set_cipher_list(ptr->ssl_context_, cipher);
+    DBUG_PRINT("info",("SSL_set_cipher_list() returned %d",result));
+  }
   SSL_CTX_set_verify(ptr->ssl_context_, verify, vio_verify_callback);
   if (vio_set_cert_stuff(ptr->ssl_context_, cert_file, key_file) == -1)
   {
@@ -231,14 +237,6 @@ struct st_VioSSLConnectorFd* new_VioSSLConnectorFd(const char* key_file,
   SSL_CTX_set_tmp_dh(ptr->ssl_context_,dh);
   DH_free(dh);
 
-/*if (cipher != NULL)
-    if(!SSL_CTX_set_cipher_list(ctx,cipher)) {
-    BIO_printf(bio_err,"error setting cipher list\n");
-    ERR_print_errors(bio_err);
-    goto end;
-  }
-*/
-  
   DBUG_RETURN(ptr);
 ctor_failure:
   DBUG_PRINT("exit", ("there was an error"));
@@ -253,18 +251,20 @@ struct st_VioSSLAcceptorFd*
 new_VioSSLAcceptorFd(const char*	key_file,
 				   const char*	cert_file,
 				   const char*	ca_file,
-				   const char*	ca_path)
+				   const char*	ca_path,
+				   const char* cipher)
 {
   int	verify = (SSL_VERIFY_PEER			|
 		  SSL_VERIFY_FAIL_IF_NO_PEER_CERT	|
 		  SSL_VERIFY_CLIENT_ONCE);
 
   struct st_VioSSLAcceptorFd* ptr;
+  int result;
   DH *dh=NULL; 
   DBUG_ENTER("new_VioSSLAcceptorFd");
   DBUG_PRINT("enter",
-	     ("key_file=%s, cert_file=%s, ca_path=%s, ca_file=%s",
-	      key_file, cert_file, ca_path, ca_file));
+	     ("key_file=%s, cert_file=%s, ca_path=%s, ca_file=%s, cipher=%s",
+	      key_file, cert_file, ca_path, ca_file, cipher));
 
   ptr=(struct st_VioSSLAcceptorFd*)my_malloc(sizeof(struct st_VioSSLAcceptorFd),MYF(0));
   ptr->ssl_context_=0;
@@ -293,11 +293,18 @@ new_VioSSLAcceptorFd(const char*	key_file,
     report_errors();
     goto ctor_failure;
   }
+  if(cipher)
+  {
+    result=SSL_CTX_set_cipher_list(ptr->ssl_context_, cipher);
+    DBUG_PRINT("info",("SSL_set_cipher_list() returned %d",result));
+  }
   /*
    * SSL_CTX_set_quiet_shutdown(ctx,1);
    * 
    */
   SSL_CTX_sess_set_cache_size(ptr->ssl_context_,128);
+
+
 
   /* DH?
    */
@@ -328,14 +335,6 @@ new_VioSSLAcceptorFd(const char*	key_file,
   SSL_CTX_set_tmp_dh(ptr->ssl_context_,dh);
   DH_free(dh);
 
-/*if (cipher != NULL)
-    if(!SSL_CTX_set_cipher_list(ctx,cipher)) {
-    BIO_printf(bio_err,"error setting cipher list\n");
-    ERR_print_errors(bio_err);
-    goto end;
-  }
-*/
- 
   DBUG_RETURN(ptr);
 ctor_failure:
   DBUG_PRINT("exit", ("there was an error"));

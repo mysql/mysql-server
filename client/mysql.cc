@@ -24,6 +24,7 @@
  *   Jani Tolonen <jani@mysql.com>
  *   Matt Wagner  <mwagner@mysql.com>
  *   Jeremy Cole  <jcole@mysql.com>
+ *   Tonu Samuel  <tonu@mysql.com>
  *
  **/
 
@@ -74,7 +75,6 @@ extern "C" {
 #endif
 
 #undef bcmp				// Fix problem with new readline
-#undef bzero
 #if defined( __WIN__) || defined(OS2)
 #include <conio.h>
 #else
@@ -243,7 +243,8 @@ static COMMANDS commands[] = {
 };
 
 static const char *load_default_groups[]= { "mysql","client",0 };
-static const char *server_default_groups[]= { "server", "mysql_SERVER", 0 };
+static const char *server_default_groups[]=
+{ "server", "embedded", "mysql_SERVER", 0 };
 
 #ifdef HAVE_READLINE
 extern "C" void add_history(char *command); /* From readline directory */
@@ -271,7 +272,6 @@ int main(int argc,char *argv[])
 {
   char buff[80];
 
-  mysql_server_init(0, NULL, server_default_groups);
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
@@ -302,6 +302,7 @@ int main(int argc,char *argv[])
       !(status.line_buff=batch_readline_init(max_allowed_packet+512,stdin)))
     exit(1);
   glob_buffer.realloc(512);
+  mysql_server_init(0, NULL, server_default_groups);
   completion_hash_init(&ht,50);
   bzero((char*) &mysql, sizeof(mysql));
   if (sql_connect(current_host,current_db,current_user,opt_password,
@@ -368,7 +369,6 @@ int main(int argc,char *argv[])
   if (opt_outfile)
     end_tee();
   mysql_end(0);
-  mysql_server_end();
 #ifndef _lint
   DBUG_RETURN(0);				// Keep compiler happy
 #endif
@@ -398,6 +398,7 @@ sig_handler mysql_end(int sig)
   my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
   my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
   my_free(current_user,MYF(MY_ALLOW_ZERO_PTR));
+  mysql_server_end();
   my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(status.exit_status);
 }
@@ -967,7 +968,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
     {					// mSQL or postgreSQL style command ?
       if (!(inchar = (uchar) *++pos))
 	break;				// readline adds one '\'
-      if (*in_string || inchar == 'N')
+      if (*in_string || inchar == 'N')	// \N is short for NULL
       {					// Don't allow commands in string
 	*out++='\\';
 	*out++= (char) inchar;
@@ -1232,6 +1233,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
       }
     }
   }
+  /* FIXME: free() on small chunks is sloooowwww. glibc bug */
   if (field_names) {
     for (i=0; field_names[i]; i++) {
       for (j=0; field_names[i][j]; j++) {
@@ -2219,7 +2221,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath);
+		  opt_ssl_capath, opt_ssl_cipher);
 #endif
   if (safe_updates)
   {

@@ -217,7 +217,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       (mi_safe_mul(share->base.reclength,
 		   (ulonglong) 1 << (share->base.rec_reflength*8))-1);
     max_key_file_length=
-      mi_safe_mul(MI_KEY_BLOCK_LENGTH,
+      mi_safe_mul(MI_MIN_KEY_BLOCK_LENGTH,
 		  ((ulonglong) 1 << (share->base.key_reflength*8))-1);
 #if SIZEOF_OFF_T == 4
     set_if_smaller(max_data_file_length, INT_MAX32);
@@ -913,7 +913,7 @@ char *mi_keydef_read(char *ptr, MI_KEYDEF *keydef)
    keydef->keylength	= mi_uint2korr(ptr);	ptr +=2;
    keydef->minlength	= mi_uint2korr(ptr);	ptr +=2;
    keydef->maxlength	= mi_uint2korr(ptr);	ptr +=2;
-   keydef->block_size	= keydef->block_length/MI_KEY_BLOCK_LENGTH-1;
+   keydef->block_size	= keydef->block_length/MI_MIN_KEY_BLOCK_LENGTH-1;
    keydef->underflow_block_length=keydef->block_length/3;
    keydef->version	= 0;			/* Not saved */
    return ptr;

@@ -26,10 +26,8 @@
 #undef __WIN__
 #endif
 
-#ifndef MYSQL_SERVER
 #ifdef	__cplusplus
 extern "C" {
-#endif
 #endif
   
 #ifndef _global_h				/* If not standard header */
@@ -135,6 +133,7 @@ struct st_mysql_options {
   char *ssl_cert;				/* PEM cert file */
   char *ssl_ca;					/* PEM CA file */
   char *ssl_capath;				/* PEM directory of CA-s? */
+  char *ssl_cipher;				/* cipher to use */
   my_bool use_ssl;				/* if to use SSL or not */
   my_bool compress,named_pipe;
  /*
@@ -252,7 +251,7 @@ typedef struct st_mysql_manager
 /* Set up and bring down the server; to ensure that applications will
  * work when linked against either the standard client library or the
  * embedded server library, these functions should be called. */
-void mysql_server_init(int argc, const char **argv, const char **groups);
+int mysql_server_init(int argc, const char **argv, const char **groups);
 void mysql_server_end();
 
 /* Set up and bring down a thread; these function should be called
@@ -286,7 +285,7 @@ const char * STDCALL mysql_character_set_name(MYSQL *mysql);
 MYSQL *		STDCALL mysql_init(MYSQL *mysql);
 int		STDCALL mysql_ssl_set(MYSQL *mysql, const char *key,
 				      const char *cert, const char *ca,
-				      const char *capath);
+				      const char *capath, const char *cipher);
 int		STDCALL mysql_ssl_clear(MYSQL *mysql);
 my_bool		STDCALL mysql_change_user(MYSQL *mysql, const char *user, 
 					  const char *passwd, const char *db);
@@ -416,10 +415,8 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 
 #define HAVE_MYSQL_REAL_CONNECT
 
-#ifndef MYSQL_SERVER  
 #ifdef	__cplusplus
 }
 #endif
-#endif
 
-#endif
+#endif /* _mysql_h */

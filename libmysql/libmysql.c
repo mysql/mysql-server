@@ -91,10 +91,12 @@ static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
-void mysql_server_init(int argc __attribute__((unused)),
+int mysql_server_init(int argc __attribute__((unused)),
 		       const char **argv __attribute__((unused)),
 		       const char **groups __attribute__((unused)))
-{}
+{
+  return 0;
+}
 
 void mysql_server_end()
 {}
@@ -695,7 +697,7 @@ mysql_free_result(MYSQL_RES *result)
 static const char *default_options[]=
 {"port","socket","compress","password","pipe", "timeout", "user",
  "init-command", "host", "database", "debug", "return-found-rows",
- "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath",
+ "ssl-key" ,"ssl-cert" ,"ssl-ca" ,"ssl-capath", "ssl-cipher"
  "character-set-dir", "default-character-set", "interactive-timeout",
  "connect_timeout", "replication-probe", "enable-reads-from-master",
  "repl-parse-query",
@@ -1368,15 +1370,17 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 	const char *key __attribute__((unused)), 
 	const char *cert __attribute__((unused)),
 	const char *ca __attribute__((unused)), 
-	const char *capath __attribute__((unused)))
+	const char *capath __attribute__((unused)),
+	const char *cipher __attribute__((unused)))
 {
 #ifdef HAVE_OPENSSL
   mysql->options.ssl_key = key==0 ? 0 : my_strdup(key,MYF(0));
   mysql->options.ssl_cert = cert==0 ? 0 : my_strdup(cert,MYF(0));
   mysql->options.ssl_ca = ca==0 ? 0 : my_strdup(ca,MYF(0));
   mysql->options.ssl_capath = capath==0 ? 0 : my_strdup(capath,MYF(0));
+  mysql->options.ssl_cipher = cipher==0 ? 0 : my_strdup(cipher,MYF(0));
   mysql->options.use_ssl = TRUE;
-  mysql->connector_fd = (gptr)new_VioSSLConnectorFd(key, cert, ca, capath);
+  mysql->connector_fd = (gptr)new_VioSSLConnectorFd(key, cert, ca, capath, cipher);
   DBUG_PRINT("info",("mysql_ssl_set, context: %p",((struct st_VioSSLConnectorFd *)(mysql->connector_fd))->ssl_context_));
 #endif
   return 0;
@@ -1396,10 +1400,12 @@ mysql_ssl_clear(MYSQL *mysql __attribute__((unused)))
   my_free(mysql->options.ssl_cert, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
   mysql->options.ssl_key = 0;
   mysql->options.ssl_cert = 0;
   mysql->options.ssl_ca = 0;
   mysql->options.ssl_capath = 0;
+  mysql->options.ssl_cipher= 0;
   mysql->options.use_ssl = FALSE;
   my_free(mysql->connector_fd,MYF(MY_ALLOW_ZERO_PTR));
   mysql->connector_fd = 0;
@@ -1797,7 +1803,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
     DBUG_PRINT("info", ("IO context %p",((struct st_VioSSLConnectorFd*)mysql->connector_fd)->ssl_context_));
-    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio);
+    sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio, (long)(mysql->options.connect_timeout));
     DBUG_PRINT("info", ("IO layer change done!"));
   }
 #endif /* HAVE_OPENSSL */
@@ -1887,7 +1893,7 @@ static my_bool mysql_reconnect(MYSQL *mysql)
   if (!mysql->reconnect ||
       (mysql->server_status & SERVER_STATUS_IN_TRANS) || !mysql->host_info)
   {
-   /* Allov reconnect next time */
+   /* Allow reconnect next time */
     mysql->server_status&= ~SERVER_STATUS_IN_TRANS;
     DBUG_RETURN(1);
   }
@@ -1995,13 +2001,13 @@ mysql_close(MYSQL *mysql)
     my_free(mysql->options.my_cnf_group,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
+#ifdef HAVE_OPENSSL
+    mysql_ssl_clear(mysql);
+#endif /* HAVE_OPENSSL */
     /* Clear pointers for better safety */
     mysql->host_info=mysql->user=mysql->passwd=mysql->db=0;
     bzero((char*) &mysql->options,sizeof(mysql->options));
     mysql->net.vio = 0;
-#ifdef HAVE_OPENSSL
-    mysql_ssl_clear(mysql);
-#endif /* HAVE_OPENSSL */
     
     /* free/close slave list */
     if (mysql->rpl_pivot)

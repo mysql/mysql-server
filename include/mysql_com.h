@@ -104,6 +104,8 @@ enum enum_server_command {COM_SLEEP,COM_QUIT,COM_INIT_DB,COM_QUERY,
 struct st_vio;					/* Only C */
 typedef struct st_vio Vio;
 
+#define MAX_BLOB_WIDTH		8192	// Default width for blob
+
 typedef struct st_net {
   Vio* vio;
   my_socket fd;					/* For Perl DBI/dbd */

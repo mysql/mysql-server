@@ -474,7 +474,7 @@ int main(int argc,char **argv)
 
   MY_INIT(argv[0]);
 
-  start_value=1060872L; best_t1=7930739L;  best_t2=4311642L;  best_type=3; /* mode=5333  add=6  type: 0 */
+  start_value=1109118L; best_t1=6657025L;  best_t2=6114496L;  best_type=1; /* mode=4903  add=3  type: 0 */
   if (get_options(argc,(char **) argv))
     exit(1);
 

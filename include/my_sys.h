@@ -109,7 +109,8 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WAIT_FOR_USER_TO_FIX_PANIC	60	/* in seconds */
 #define MY_WAIT_GIVE_USER_A_MESSAGE	10	/* Every 10 times of prev */
 #define MIN_COMPRESS_LENGTH		50	/* Don't compress small bl. */
-#define KEYCACHE_BLOCK_SIZE		1024
+#define DEFAULT_KEYCACHE_BLOCK_SIZE	1024
+#define MAX_KEYCACHE_BLOCK_SIZE		16384
 
 	/* root_alloc flags */
 #define MY_KEEP_PREALLOC	1
@@ -193,9 +194,10 @@ extern char *get_charsets_dir(char *buf);
 /* statistics */
 extern ulong	_my_cache_w_requests,_my_cache_write,_my_cache_r_requests,
 		_my_cache_read;
-extern ulong	 _my_blocks_used,_my_blocks_changed;
+extern ulong	_my_blocks_used,_my_blocks_changed;
+extern uint	key_cache_block_size;
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
-extern my_bool	key_cache_inited;
+extern my_bool	key_cache_inited, my_init_done;
 
 					/* Point to current my_message() */
 extern void (*my_sigtstp_cleanup)(void),
@@ -605,6 +607,7 @@ my_bool my_compress(byte *, ulong *, ulong *);
 my_bool my_uncompress(byte *, ulong *, ulong *);
 byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
 ulong checksum(const byte *mem, uint count);
+uint my_bit_log2(ulong value);
 
 #if defined(_MSC_VER) && !defined(__WIN__)
 extern void sleep(int sec);

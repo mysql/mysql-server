@@ -118,8 +118,11 @@ int vio_ssl_read(Vio * vio, gptr buf, int size)
 #endif /* DBUG_OFF */
   r = SSL_read(vio->ssl_, buf, size);
 #ifndef DBUG_OFF
-  if ( r< 0)
+  if ( r<= 0) {
+    r=SSL_get_error(vio->ssl_, r);
+    DBUG_PRINT("info",("SSL_get_error returned %d",r));
     report_errors();
+  }
 #endif /* DBUG_OFF */
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
@@ -207,7 +210,6 @@ int vio_ssl_close(Vio * vio)
     r = SSL_shutdown(vio->ssl_);
     SSL_free(vio->ssl_);
     vio->ssl_= 0;
-    vio->bio_ = 0;
   }
   if (shutdown(vio->sd,2))
     r= -1;
@@ -298,12 +300,11 @@ my_bool vio_ssl_poll_read(Vio *vio,uint timeout)
 #endif
 }
 
-void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio)
+void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
 {
-  X509*    client_cert;
+  X509* client_cert;
   char *str;
-  int i;
-//  const int blocking = vio_is_blocking(vio);
+  char buf[1024];
   DBUG_ENTER("sslaccept");
   DBUG_PRINT("enter", ("sd=%d ptr=%p", vio->sd,ptr));
   vio_reset(vio,VIO_TYPE_SSL,vio->sd,0,FALSE);
@@ -316,49 +317,12 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio)
     DBUG_VOID_RETURN;
   }
   DBUG_PRINT("info", ("ssl_=%p",vio->ssl_));
+  SSL_clear(vio->ssl_);
   vio_blocking(vio, FALSE);
+  SSL_SESSION_set_timeout(SSL_get_session(vio->ssl_), timeout);
   SSL_set_fd(vio->ssl_,vio->sd);
   SSL_set_accept_state(vio->ssl_);
-
-  /* FIXME possibly infinite loop */
-  while (SSL_is_init_finished(vio->ssl_)) {
-    DBUG_PRINT("info",("SSL_is_init_finished(vio->ssl_) is not 1"));
-    if((i=SSL_do_handshake(vio->ssl_))!=SSL_ERROR_NONE) 
-    {
-      DBUG_PRINT("info",("*** errno %d",errno));
-      switch (SSL_get_error(vio->ssl_,i))
-      {
-      case SSL_ERROR_NONE:
-        DBUG_PRINT("info",("SSL_ERROR_NONE: handshake finished"));
-      break;
-      case SSL_ERROR_SSL:
-        DBUG_PRINT("info",("SSL_ERROR_SSL: SSL protocol error "));
-      break;
-      case SSL_ERROR_WANT_CONNECT:
-        DBUG_PRINT("info",("SSL_ERROR_WANT_CONNECT:If you are doing non-blocking connects call again when the connection is established"));
-      break;
-      case SSL_ERROR_WANT_READ:
-        DBUG_PRINT("info",("SSL_ERROR_WANT_READ: if non-blocking etc, call again when data is available"));
-      break;
-      case SSL_ERROR_WANT_WRITE:
-        DBUG_PRINT("info",("SSL_ERROR_WANT_WRITE: if non-blocking etc, call again when data is available to write"));
-      break;
-      case SSL_ERROR_WANT_X509_LOOKUP:
-        DBUG_PRINT("info",("SSL_ERROR_WANT_X509_LOOKUP: /* not used yet but could be :-) */"));
-      break;
-      case SSL_ERROR_SYSCALL:
-        DBUG_PRINT("info",("SSL_ERROR_SYSCALL: An error than the error code can be found in errno (%d)",errno));
-      break;
-      case SSL_ERROR_ZERO_RETURN:
-        DBUG_PRINT("info",("SSL_ERROR_ZERO_RETURN: 0 returned on the read, normally means the socket is closed :-) */"));
-      break;
-      default:
-        DBUG_PRINT("info",("Unknown SSL error returned"));
-      break;
-      }
-    }
-    usleep(100);
-  }
+  SSL_do_handshake(vio->ssl_);
   vio->open_ = TRUE;
 #ifndef DBUF_OFF
   DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'"
@@ -374,23 +338,28 @@ void sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio)
     DBUG_PRINT("info",("\t issuer: %s", str));
     free (str);
 
-    /* We could do all sorts of certificate verification stuff here before
-     *        deallocating the certificate. */
-
     X509_free (client_cert);
   } else
     DBUG_PRINT("info",("Client does not have certificate."));
+  
+  str=SSL_get_shared_ciphers(vio->ssl_, buf, sizeof(buf));
+  if(str)
+  {
+    DBUG_PRINT("info",("SSL_get_shared_ciphers() returned '%s'",str));
+  }
+  else
+  {
+    DBUG_PRINT("info",("no shared ciphers!"));
+  }
+
 #endif
   DBUG_VOID_RETURN;
 }
 
-void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio)
+void sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
 {
   char *str;
-//  char s[]="abc";
-int i;
   X509*    server_cert;
-  const int blocking = vio_is_blocking(vio);
   DBUG_ENTER("sslconnect");
   DBUG_PRINT("enter", ("sd=%d ptr=%p ctx: %p", vio->sd,ptr,ptr->ssl_context_));
   vio_reset(vio,VIO_TYPE_SSL,vio->sd,0,FALSE);
@@ -403,50 +372,13 @@ int i;
     report_errors();
     DBUG_VOID_RETURN;
   }
-  DBUG_PRINT("info", ("ssl_=%p",vio->ssl_));
+  DBUG_PRINT("info",("ssl_=%p",vio->ssl_));
+  SSL_clear(vio->ssl_);
   vio_blocking(vio, FALSE);
+  SSL_SESSION_set_timeout(SSL_get_session(vio->ssl_), timeout);
   SSL_set_fd (vio->ssl_, vio->sd);
   SSL_set_connect_state(vio->ssl_);
-
-  /* FIXME possibly infinite loop */
-  while (SSL_is_init_finished(vio->ssl_)) {
-    DBUG_PRINT("info",("SSL_is_init_finished(vio->ssl_) is not 1"));
-    if((i=SSL_do_handshake(vio->ssl_))!=SSL_ERROR_NONE) 
-    {
-      DBUG_PRINT("info",("*** errno %d",errno));
-      switch (SSL_get_error(vio->ssl_,i))
-      {
-      case SSL_ERROR_NONE:
-        DBUG_PRINT("info",("SSL_ERROR_NONE: handshake finished"));
-      break;
-      case SSL_ERROR_SSL:
-        DBUG_PRINT("info",("SSL_ERROR_SSL: SSL protocol error "));
-      break;
-      case SSL_ERROR_WANT_CONNECT:
-        DBUG_PRINT("info",("SSL_ERROR_WANT_CONNECT:If you are doing non-blocking connects call again when the connection is established"));
-      break;
-      case SSL_ERROR_WANT_READ:
-        DBUG_PRINT("info",("SSL_ERROR_WANT_READ: if non-blocking etc, call again when data is available"));
-      break;
-      case SSL_ERROR_WANT_WRITE:
-        DBUG_PRINT("info",("SSL_ERROR_WANT_WRITE: if non-blocking etc, call again when data is available to write"));
-      break;
-      case SSL_ERROR_WANT_X509_LOOKUP:
-        DBUG_PRINT("info",("SSL_ERROR_WANT_X509_LOOKUP: /* not used yet but could be :-) */"));
-      break;
-      case SSL_ERROR_SYSCALL:
-        DBUG_PRINT("info",("SSL_ERROR_SYSCALL: An error than the error code can be found in errno (%d)",errno));
-      break;
-      case SSL_ERROR_ZERO_RETURN:
-        DBUG_PRINT("info",("SSL_ERROR_ZERO_RETURN: 0 returned on the read, normally means the socket is closed :-) */"));
-      break;
-      default:
-        DBUG_PRINT("info",("Unknown SSL error returned"));
-      break;
-      }
-    }
-    usleep(100);
-  }
+  SSL_do_handshake(vio->ssl_);
   vio->open_ = TRUE;
 #ifndef DBUG_OFF
   DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'"
@@ -469,9 +401,7 @@ int i;
   } else
     DBUG_PRINT("info",("Server does not have certificate."));
 #endif
-  vio_blocking(vio, blocking);
   DBUG_VOID_RETURN;
 }
-
 
 #endif /* HAVE_OPENSSL */
