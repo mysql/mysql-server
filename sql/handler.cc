@@ -1287,3 +1287,141 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
   mi_change_key_cache(old_key_cache, new_key_cache);
   return 0;
 }
+
+
+/*
+  Read first row between two ranges.
+  Store ranges for future calls to read_range_next
+
+  SYNOPSIS
+    read_range_first()
+    start_key		Start key. Is 0 if no min range
+    end_key		End key.  Is 0 if no max range
+    sorted		Set to 1 if result should be sorted per key
+
+  NOTES
+    Record is read into table->record[0]
+
+  RETURN
+    0			Found row
+    HA_ERR_END_OF_FILE	No rows in range
+    #			Error code
+*/
+
+int handler::read_range_first(const key_range *start_key,
+			      const key_range *end_key,
+			      bool sorted)
+{
+  int result;
+  DBUG_ENTER("handler::read_range_first");
+
+  end_range= 0;
+  if (end_key)
+  {
+    end_range= &save_end_range;
+    save_end_range= *end_key;
+    key_compare_result_on_equal= ((end_key->flag == HA_READ_BEFORE_KEY) ? 1 :
+				  (end_key->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+  }
+  range_key_part= table->key_info[active_index].key_part;
+
+
+  if (!start_key)			// Read first record
+    result= index_first(table->record[0]);
+  else
+    result= index_read(table->record[0],
+		       start_key->key,
+		       start_key->length,
+		       start_key->flag);
+  if (result)
+    DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND ||
+		 result == HA_ERR_END_OF_FILE) ? HA_ERR_END_OF_FILE :
+		result);
+
+  DBUG_RETURN (compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+}
+
+
+/*
+  Read next row between two ranges.
+
+  SYNOPSIS
+    read_range_next()
+    eq_range		Set to 1 if start_key == end_key
+
+  NOTES
+    Record is read into table->record[0]
+
+  RETURN
+    0			Found row
+    HA_ERR_END_OF_FILE	No rows in range
+    #			Error code
+*/
+
+int handler::read_range_next(bool eq_range)
+{
+  int result;
+  DBUG_ENTER("handler::read_range_next");
+
+  if (eq_range)
+    result= index_next_same(table->record[0],
+			    end_range->key,
+			    end_range->length);
+  else
+    result= index_next(table->record[0]);
+  if (result)
+    DBUG_RETURN(result);
+  DBUG_RETURN(compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+}
+
+
+/*
+  Compare if found key is over max-value
+
+  SYNOPSIS
+    compare_key
+    range		key to compare to row
+ 
+  NOTES
+    For this to work, the row must be stored in table->record[0]
+
+  RETURN
+    0			Key is equal to range or 'range' == 0 (no range)
+   -1			Key is less than range
+    1			Key is larger than range
+*/
+
+int handler::compare_key(key_range *range)
+{
+  KEY_PART_INFO *key_part= range_key_part;
+  uint store_length;
+
+  if (!range)
+    return 0;					// No max range
+
+  for (const char *key=range->key, *end=key+range->length;
+       key < end;
+       key+= store_length, key_part++)
+  {
+    int cmp;
+    store_length= key_part->store_length;
+    if (key_part->null_bit)
+    {
+      if (*key)
+      {
+	if (!key_part->field->is_null())
+	  return 1;
+	continue;
+      }
+      else if (key_part->field->is_null())
+	return 0;
+      key++;					// Skip null byte
+      store_length--;
+    }
+    if ((cmp=key_part->field->key_cmp((byte*) key, key_part->length)) < 0)
+      return -1;
+    if (cmp > 0)
+      return 1;
+  }
+  return key_compare_result_on_equal;
+}
