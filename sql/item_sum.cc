@@ -42,17 +42,17 @@ Item_sum::Item_sum(List<Item> &list)
 }
 
 // Constructor used in processing select with temporary tebles
-Item_sum::Item_sum(THD *thd, Item_sum &item):
-  Item_result_field(thd, item), quick_group(item.quick_group)
+Item_sum::Item_sum(THD *thd, Item_sum *item):
+  Item_result_field(thd, item), quick_group(item->quick_group)
 {
-  arg_count= item.arg_count;
+  arg_count= item->arg_count;
   if (arg_count <= 2)
     args=tmp_args;
   else
     if (!(args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
       return;
   for (uint i= 0; i < arg_count; i++)
-    args[i]= item.args[i];
+    args[i]= item->args[i];
 }
 
 void Item_sum::mark_as_sum_func()
@@ -240,7 +240,7 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 
 Item *Item_sum_sum::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_sum(thd, *this);
+  return new (&thd->mem_root) Item_sum_sum(thd, this);
 }
 
 
@@ -267,7 +267,7 @@ double Item_sum_sum::val()
 
 Item *Item_sum_count::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_count(thd, *this);
+  return new (&thd->mem_root) Item_sum_count(thd, this);
 }
 
 
@@ -301,7 +301,7 @@ longlong Item_sum_count::val_int()
 
 Item *Item_sum_avg::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_avg(thd, *this);
+  return new (&thd->mem_root) Item_sum_avg(thd, this);
 }
 
 
@@ -346,7 +346,7 @@ double Item_sum_std::val()
 
 Item *Item_sum_std::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_std(thd, *this);
+  return new (&thd->mem_root) Item_sum_std(thd, this);
 }
 
 
@@ -356,7 +356,7 @@ Item *Item_sum_std::copy_or_same(THD* thd)
 
 Item *Item_sum_variance::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_variance(thd, *this);
+  return new (&thd->mem_root) Item_sum_variance(thd, this);
 }
 
 
@@ -497,7 +497,7 @@ Item_sum_hybrid::val_str(String *str)
 
 Item *Item_sum_min::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_min(thd, *this);
+  return new (&thd->mem_root) Item_sum_min(thd, this);
 }
 
 
@@ -550,7 +550,7 @@ bool Item_sum_min::add()
 
 Item *Item_sum_max::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_max(thd, *this);
+  return new (&thd->mem_root) Item_sum_max(thd, this);
 }
 
 
@@ -616,7 +616,7 @@ void Item_sum_bit::clear()
 
 Item *Item_sum_or::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_or(thd, *this);
+  return new (&thd->mem_root) Item_sum_or(thd, this);
 }
 
 
@@ -630,7 +630,7 @@ bool Item_sum_or::add()
 
 Item *Item_sum_xor::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_xor(thd, *this);
+  return new (&thd->mem_root) Item_sum_xor(thd, this);
 }
 
 
@@ -644,7 +644,7 @@ bool Item_sum_xor::add()
 
 Item *Item_sum_and::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_and(thd, *this);
+  return new (&thd->mem_root) Item_sum_and(thd, this);
 }
 
 
@@ -1281,7 +1281,7 @@ int Item_sum_count_distinct::tree_to_myisam()
 
 Item *Item_sum_count_distinct::copy_or_same(THD* thd) 
 {
-  return new (&thd->mem_root) Item_sum_count_distinct(thd, *this);
+  return new (&thd->mem_root) Item_sum_count_distinct(thd, this);
 }
 
 
@@ -1381,7 +1381,7 @@ bool Item_udf_sum::add()
 
 Item *Item_sum_udf_float::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_udf_float(thd, *this);
+  return new (&thd->mem_root) Item_sum_udf_float(thd, this);
 }
 
 double Item_sum_udf_float::val()
@@ -1404,7 +1404,7 @@ String *Item_sum_udf_float::val_str(String *str)
 
 Item *Item_sum_udf_int::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_udf_int(thd, *this);
+  return new (&thd->mem_root) Item_sum_udf_int(thd, this);
 }
 
 
@@ -1440,7 +1440,7 @@ void Item_sum_udf_str::fix_length_and_dec()
 
 Item *Item_sum_udf_str::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_sum_udf_str(thd, *this);
+  return new (&thd->mem_root) Item_sum_udf_str(thd, this);
 }
 
 
@@ -1701,7 +1701,7 @@ Item_func_group_concat::~Item_func_group_concat()
 
 Item *Item_func_group_concat::copy_or_same(THD* thd)
 {
-  return new (&thd->mem_root) Item_func_group_concat(thd, *this);
+  return new (&thd->mem_root) Item_func_group_concat(thd, this);
 }
 
 

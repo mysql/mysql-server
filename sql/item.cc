@@ -71,18 +71,18 @@ Item::Item():
   Used for duplicating lists in processing queries with temporary
   tables
 */
-Item::Item(THD *thd, Item &item):
-  str_value(item.str_value),
-  name(item.name),
-  max_length(item.max_length),
-  marker(item.marker),
-  decimals(item.decimals),
-  maybe_null(item.maybe_null),
-  null_value(item.null_value),
-  unsigned_flag(item.unsigned_flag),
-  with_sum_func(item.with_sum_func),
-  fixed(item.fixed),
-  collation(item.collation)
+Item::Item(THD *thd, Item *item):
+  str_value(item->str_value),
+  name(item->name),
+  max_length(item->max_length),
+  marker(item->marker),
+  decimals(item->decimals),
+  maybe_null(item->maybe_null),
+  null_value(item->null_value),
+  unsigned_flag(item->unsigned_flag),
+  with_sum_func(item->with_sum_func),
+  fixed(item->fixed),
+  collation(item->collation)
 {
   next= thd->free_list;				// Put in free list
   thd->free_list= this;
@@ -110,12 +110,12 @@ Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 }
 
 // Constructor used by Item_field & Item_ref (see Item comment)
-Item_ident::Item_ident(THD *thd, Item_ident &item):
+Item_ident::Item_ident(THD *thd, Item_ident *item):
   Item(thd, item),
-  db_name(item.db_name),
-  table_name(item.table_name),
-  field_name(item.field_name),
-  depended_from(item.depended_from)
+  db_name(item->db_name),
+  table_name(item->table_name),
+  field_name(item->field_name),
+  depended_from(item->depended_from)
 {}
 
 bool Item_ident::remove_dependence_processor(byte * arg)
@@ -296,10 +296,10 @@ Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 }
 
 // Constructor need to process subselect with temporary tables (see Item)
-Item_field::Item_field(THD *thd, Item_field &item)
+Item_field::Item_field(THD *thd, Item_field *item)
   :Item_ident(thd, item),
-   field(item.field),
-   result_field(item.result_field)
+   field(item->field),
+   result_field(item->result_field)
 {
   collation.set(DERIVATION_IMPLICIT);
 }
@@ -455,7 +455,7 @@ table_map Item_field::used_tables() const
 
 Item *Item_field::get_tmp_table_item(THD *thd)
 {
-  Item_field *new_item= new Item_field(thd, *this);
+  Item_field *new_item= new Item_field(thd, this);
   if (new_item)
     new_item->field= new_item->result_field;
   return new_item;
@@ -937,7 +937,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
-	  *ref= rf= new Item_ref(ref, this,
+	  *ref= rf= new Item_ref(ref, *ref,
 				 (where->db[0]?where->db:0), 
 				 (char *)where->alias,
 				 (char *)field_name);
@@ -967,8 +967,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 void Item_field::cleanup()
 {
   Item_ident::cleanup();
-  field= 0;
-  result_field= 0;
+  field= result_field= 0;
 }
 
 void Item::init_make_field(Send_field *tmp_field,
@@ -2028,7 +2027,7 @@ void Item_cache_row::bring_value()
 
 
 Item_type_holder::Item_type_holder(THD *thd, Item *item)
-  :Item(thd, *item), item_type(item->result_type())
+  :Item(thd, item), item_type(item->result_type())
 {
   DBUG_ASSERT(item->fixed);
 
