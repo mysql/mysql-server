@@ -87,12 +87,17 @@ typedef union ndb_item_value {
   NDB_ITEM_FIELD_VALUE *field_value;
 } NDB_ITEM_VALUE;
 
+/*
+  This class is used for serialization of the Item tree for
+  condition pushdown. It is stored in a linked list implemented
+  by Ndb_cond class.
+ */
 class Ndb_item {
  public:
   Ndb_item(NDB_ITEM_TYPE item_type) : type(item_type) {};
   Ndb_item(NDB_ITEM_TYPE item_type, 
-	   NDB_ITEM_QUALIFICATION item_qualification,
-	   const Item *item_value)
+           NDB_ITEM_QUALIFICATION item_qualification,
+           const Item *item_value)
     : type(item_type), qualification(item_qualification)
   { 
     switch(item_type) {
@@ -128,8 +133,8 @@ class Ndb_item {
   { 
     if (type == NDB_FIELD)
       {
-	delete value.field_value;
-	value.field_value= NULL;
+        delete value.field_value;
+        value.field_value= NULL;
       }
   };
 
@@ -162,7 +167,12 @@ class Ndb_item {
   NDB_ITEM_VALUE value;
 };
 
-class Ndb_cond {
+/*
+  This class implements a linked list used for storing a
+  serialization of the Item tree for condition pushdown.
+ */
+class Ndb_cond 
+{
  public:
   Ndb_cond() : ndb_item(NULL), next(NULL), prev(NULL) {};
   ~Ndb_cond() 
@@ -177,7 +187,15 @@ class Ndb_cond {
   Ndb_cond *prev;
 };
 
-class Ndb_cond_stack {
+/*
+  This class implements a stack for storing several conditions
+  for pushdown (represented as serialized Item trees using Ndb_cond).
+  The current implementation only pushes one condition, but is
+  prepared for handling several (C1 AND C2 ...) if the logic for 
+  pushing conditions is extended in sql_select.
+*/
+class Ndb_cond_stack 
+{
  public:
   Ndb_cond_stack() : ndb_cond(NULL), next(NULL) {};
   ~Ndb_cond_stack() 
@@ -190,12 +208,19 @@ class Ndb_cond_stack {
   Ndb_cond_stack *next;
 };
 
-class Ndb_cond_traverse_context {
+/*
+  This class is used for storing the context when traversing
+  the Item tree. It stores a reference to the table the condition
+  is defined on, the serialized representation being generated, 
+  if the condition found is supported, and information what is
+  expected next in the tree inorder for the condition to be supported.
+*/
+class Ndb_cond_traverse_context 
+{
  public:
-  Ndb_cond_traverse_context(TABLE *tab, void* ndb_tab, 
-			    bool *supported, Ndb_cond_stack* stack)
+  Ndb_cond_traverse_context(TABLE *tab, void* ndb_tab, Ndb_cond_stack* stack)
     : table(tab), ndb_table(ndb_tab), 
-    supported_ptr(supported), stack_ptr(stack), cond_ptr(NULL),
+    supported(TRUE), stack_ptr(stack), cond_ptr(NULL),
     expect_mask(0), expect_field_result_mask(0), skip(0)
   {
     if (stack)
@@ -243,7 +268,7 @@ class Ndb_cond_traverse_context {
 
   TABLE* table;
   void* ndb_table;
-  bool *supported_ptr;
+  bool supported;
   Ndb_cond_stack* stack_ptr;
   Ndb_cond* cond_ptr;
   uint expect_mask;
@@ -255,7 +280,8 @@ class Ndb_cond_traverse_context {
   Place holder for ha_ndbcluster thread specific data
 */
 
-class Thd_ndb {
+class Thd_ndb 
+{
  public:
   Thd_ndb();
   ~Thd_ndb();
@@ -280,9 +306,9 @@ class ha_ndbcluster: public handler
   int index_init(uint index);
   int index_end();
   int index_read(byte *buf, const byte *key, uint key_len, 
-		 enum ha_rkey_function find_flag);
+                 enum ha_rkey_function find_flag);
   int index_read_idx(byte *buf, uint index, const byte *key, uint key_len, 
-		     enum ha_rkey_function find_flag);
+                     enum ha_rkey_function find_flag);
   int index_next(byte *buf);
   int index_prev(byte *buf);
   int index_first(byte *buf);
@@ -294,20 +320,20 @@ class ha_ndbcluster: public handler
   int rnd_pos(byte *buf, byte *pos);
   void position(const byte *record);
   int read_range_first(const key_range *start_key,
-		       const key_range *end_key,
-		       bool eq_range, bool sorted);
+                       const key_range *end_key,
+                       bool eq_range, bool sorted);
   int read_range_first_to_buf(const key_range *start_key,
-			      const key_range *end_key,
-			      bool eq_range, bool sorted,
-			      byte* buf);
+                              const key_range *end_key,
+                              bool eq_range, bool sorted,
+                              byte* buf);
   int read_range_next();
 
   /**
    * Multi range stuff
    */
   int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
-			     KEY_MULTI_RANGE*ranges, uint range_count,
-			     bool sorted, HANDLER_BUFFER *buffer);
+                             KEY_MULTI_RANGE*ranges, uint range_count,
+                             bool sorted, HANDLER_BUFFER *buffer);
   int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
 
   bool get_error_message(int error, String *buf);
@@ -329,8 +355,8 @@ class ha_ndbcluster: public handler
   int delete_table(const char *name);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
   THR_LOCK_DATA **store_lock(THD *thd,
-			     THR_LOCK_DATA **to,
-			     enum thr_lock_type lock_type);
+                             THR_LOCK_DATA **to,
+                             enum thr_lock_type lock_type);
 
   bool low_byte_first() const;
   bool has_transactions();
@@ -347,14 +373,34 @@ class ha_ndbcluster: public handler
   /*
     Condition pushdown
   */
+/*
+  Push a condition to ndbcluster storage engine for evaluation 
+  during table   and index scans. The conditions will be stored on a stack
+  for possibly storing several conditions. The stack can be popped
+  by calling cond_pop, handler::extra(HA_EXTRA_RESET) (handler::reset())
+  will clear the stack.
+  The current implementation supports arbitrary AND/OR nested conditions
+  with comparisons between columns and constants (including constant
+  expressions and function calls) and the following comparison operators:
+  =, !=, >, >=, <, <=, "is null", and "is not null".
+  
+  RETURN
+    NULL The condition was supported and will be evaluated for each 
+    row found during the scan
+    cond The condition was not supported and all rows will be returned from
+         the scan for evaluation (and thus not saved on stack)
+*/
   const COND *cond_push(const COND *cond);
+/*
+  Pop the top condition from the condition stack of the handler instance.
+*/
   void cond_pop();
 
   uint8 table_cache_type();
   my_bool register_query_cache_table(THD *thd, char *table_key,
-				     uint key_length,
-				     qc_engine_callback *engine_callback,
-				     ulonglong *engine_data);
+                                     uint key_length,
+                                     qc_engine_callback *engine_callback,
+                                     ulonglong *engine_data);
 private:
   int alter_table_name(const char *to);
   int drop_table();
@@ -374,17 +420,17 @@ private:
   int complemented_pk_read(const byte *old_data, byte *new_data);
   int peek_row();
   int unique_index_read(const byte *key, uint key_len, 
-			byte *buf);
+                        byte *buf);
   int ordered_index_scan(const key_range *start_key,
-			 const key_range *end_key,
-			 bool sorted, bool descending, byte* buf);
+                         const key_range *end_key,
+                         bool sorted, bool descending, byte* buf);
   int full_table_scan(byte * buf);
   int fetch_next(NdbScanOperation* op);
   int next_result(byte *buf); 
   int define_read_attrs(byte* buf, NdbOperation* op);
   int filtered_scan(const byte *key, uint key_len, 
-		    byte *buf,
-		    enum ha_rkey_function find_flag);
+                    byte *buf,
+                    enum ha_rkey_function find_flag);
   int close_scan();
   void unpack_record(byte *buf);
   int get_ndb_lock_type(enum thr_lock_type type);
@@ -394,9 +440,9 @@ private:
   void set_tabname(const char *pathname, char *tabname);
 
   bool set_hidden_key(NdbOperation*,
-		      uint fieldnr, const byte* field_ptr);
+                      uint fieldnr, const byte* field_ptr);
   int set_ndb_key(NdbOperation*, Field *field,
-		  uint fieldnr, const byte* field_ptr);
+                  uint fieldnr, const byte* field_ptr);
   int set_ndb_value(NdbOperation*, Field *field, uint fieldnr, bool *set_blob_value= 0);
   int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, byte*);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
@@ -432,12 +478,12 @@ private:
   void cond_clear();
   bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond);
   int build_scan_filter_predicate(Ndb_cond* &cond, 
-				  NdbScanFilter* filter);
+                                  NdbScanFilter* filter);
   int build_scan_filter_group(Ndb_cond* &cond, 
-			      NdbScanFilter* filter);
+                              NdbScanFilter* filter);
   int build_scan_filter(Ndb_cond* &cond, NdbScanFilter* filter);
   int generate_scan_filter(Ndb_cond_stack* cond_stack, 
-			   NdbScanOperation* op);
+                           NdbScanOperation* op);
 
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*);
@@ -501,9 +547,9 @@ int ndbcluster_rollback(THD *thd, void* ndb_transaction);
 void ndbcluster_close_connection(THD *thd);
 
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
-			const void** frmblob, uint* frmlen);
+                        const void** frmblob, uint* frmlen);
 int ndbcluster_find_files(THD *thd,const char *db,const char *path,
-			  const char *wild, bool dir, List<char> *files);
+                          const char *wild, bool dir, List<char> *files);
 int ndbcluster_table_exists(THD* thd, const char *db, const char *name);
 int ndbcluster_drop_database(const char* path);
 
