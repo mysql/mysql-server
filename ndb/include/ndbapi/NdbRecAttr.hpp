@@ -301,15 +301,6 @@ NdbRecAttr::arraySize() const
 }
 
 inline
-Int64
-NdbRecAttr::int64_value() const 
-{
-  Int64 val;
-  memcpy(&val,theRef,8);
-  return val;
-}
-
-inline
 Int32
 NdbRecAttr::int32_value() const 
 {
@@ -331,15 +322,6 @@ NdbRecAttr::char_value() const
 }
 
 inline
-Uint64
-NdbRecAttr::u_64_value() const
-{
-  Uint64 val;
-  memcpy(&val,theRef,8);
-  return val;
-}
-
-inline
 Uint32
 NdbRecAttr::u_32_value() const
 {
@@ -358,24 +340,6 @@ Uint8
 NdbRecAttr::u_char_value() const
 {
   return *(Uint8*)theRef;
-}
-
-inline
-float
-NdbRecAttr::float_value() const
-{
-  float val;
-  memcpy(&val,theRef,sizeof(val));
-  return val;
-}
-
-inline
-double
-NdbRecAttr::double_value() const
-{
-  double val;
-  memcpy(&val,theRef,sizeof(val));
-  return val;
 }
 
 inline
