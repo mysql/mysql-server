@@ -276,7 +276,9 @@ public:
     ExtBit = NdbSqlUtil::Type::Bit,
     ExtLongvarchar = NdbSqlUtil::Type::Longvarchar,
     ExtLongvarbinary = NdbSqlUtil::Type::Longvarbinary,
-    ExtTime = NdbSqlUtil::Type::Time
+    ExtTime = NdbSqlUtil::Type::Time,
+    ExtYear = NdbSqlUtil::Type::Year,
+    ExtTimestamp = NdbSqlUtil::Type::Timestamp
   };
 
   // Attribute data interpretation
@@ -388,6 +390,14 @@ public:
       case DictTabInfo::ExtTime:
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 3 * AttributeExtLength;
+        break;
+      case DictTabInfo::ExtYear:
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize = 1 * AttributeExtLength;
+        break;
+      case DictTabInfo::ExtTimestamp:
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize = 4 * AttributeExtLength;
         break;
       default:
         return false;
