@@ -1586,7 +1586,8 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   }
   else
   {
-    join= new JOIN(thd, fields, select_options, result);
+    if (!(join= new JOIN(thd, fields, select_options, result)))
+	DBUG_RETURN(-1);
     thd->proc_info="init";
     thd->used_tables=0;                         // Updated by setup_fields
     if (join->prepare(rref_pointer_array, tables, wild_num,

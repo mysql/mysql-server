@@ -78,7 +78,7 @@ CREATE TABLE t1 (
   c char(3) default NULL,
   PRIMARY KEY  (id),
   KEY t2i1 (b)
-) TYPE=innodb DEFAULT CHARSET=latin1;
+) ENGINE=innodb DEFAULT CHARSET=latin1;
 INSERT INTO t1 VALUES (0,0,'GPL'),(1,0,'GPL'),(2,1,'GPL'),(3,2,'GPL');
 CREATE TABLE t2 (
   id int(11) NOT NULL default '0',
@@ -86,7 +86,7 @@ CREATE TABLE t2 (
   c char(3) default NULL,
   PRIMARY KEY  (id),
   KEY t2i (b)
-) TYPE=innodb DEFAULT CHARSET=latin1;
+) ENGINE=innodb DEFAULT CHARSET=latin1;
 INSERT INTO t2 VALUES (0,0,'GPL'),(1,0,'GPL'),(2,1,'GPL'),(3,2,'GPL');
 select (select max(id) from t2 where b=1 group by b) as x,b from t1 where b=1;
 drop table t1,t2;
