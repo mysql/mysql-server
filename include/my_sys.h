@@ -511,6 +511,7 @@ extern uint my_b_fill(IO_CACHE *info);
 extern void my_b_seek(IO_CACHE *info,my_off_t pos);
 extern uint my_b_gets(IO_CACHE *info, char *to, uint max_length);
 extern uint my_b_printf(IO_CACHE *info, const char* fmt, ...);
+extern uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list ap);
 extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
 				 const char *prefix, uint cache_size,
 				 myf cache_myflags);

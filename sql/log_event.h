@@ -183,7 +183,7 @@ class Load_log_event: public Log_event
 {
 protected:
   char* data_buf;
-  void Load_log_event::copy_log_event(const char *buf, ulong data_len);
+  void copy_log_event(const char *buf, ulong data_len);
 
 public:
   int thread_id;
@@ -304,9 +304,9 @@ extern char server_version[50];
 class Start_log_event: public Log_event
 {
 public:
+  uint32 created;
   uint16 binlog_version;
   char server_version[50];
-  uint32 created;
   
   Start_log_event() :Log_event(time(NULL)),binlog_version(BINLOG_VERSION)
   {
@@ -316,8 +316,7 @@ public:
   Start_log_event(IO_CACHE* file, time_t when_arg, uint32 server_id) :
     Log_event(when_arg, 0, 0, server_id)
   {
-    char buf[sizeof(server_version) + sizeof(binlog_version) +
-	    sizeof(created)+4];
+    char buf[sizeof(server_version) + 2 + 4 + 4];
     if (my_b_read(file, (byte*) buf, sizeof(buf)))
       return;				
     binlog_version = uint2korr(buf+4);
@@ -328,18 +327,11 @@ public:
   
   ~Start_log_event() {}
   Log_event_type get_type_code() { return START_EVENT;}
-  int write_data(IO_CACHE* file)
-  {
-    if (my_b_write(file, (byte*) &binlog_version, sizeof(binlog_version)) ||
-	my_b_write(file, (byte*) server_version, sizeof(server_version)) ||
-	my_b_write(file, (byte*) &created, sizeof(created)))
-      return -1;
-    return 0;
-  }
+  int write_data(IO_CACHE* file);
   int get_data_size()
   {
-    return sizeof(binlog_version) + sizeof(server_version) +
-      sizeof(created);
+    // sizeof(binlog_version) + sizeof(server_version) sizeof(created)
+    return 2 + sizeof(server_version) + 4;
   }
   void print(FILE* file, bool short_form = 0);
 };

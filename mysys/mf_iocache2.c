@@ -128,30 +128,38 @@ uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
 
 uint my_b_printf(IO_CACHE *info, const char* fmt, ...)
 {
+  int result;
   va_list args;
+  va_start(args,fmt);
+  result=my_b_vprintf(info, fmt, args);
+  va_end(args);
+  return result;
+}
+
+
+uint my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
+{
   reg1 char *to= info->rc_pos;
   char *end=info->rc_end;
   uint out_length=0;
 
-  va_start(args,fmt);
-
   for (; *fmt ; fmt++)
   {
-    if (fmt[0] != '%')
+    if (*fmt++ != '%')
     {
       /* Copy everything until '%' or end of string */
-      const char *start=fmt;
+      const char *start=fmt-1;
       uint length;
-      for (fmt++ ; *fmt && *fmt != '%' ; fmt++ ) ;
+      for (; *fmt && *fmt != '%' ; fmt++ ) ;
       length= (uint) (fmt - start);
       out_length+=length;
       if (my_b_write(info, start, length))
 	goto err;
       if (!*fmt)				/* End of format */
       {
-	va_end(args);
 	return out_length;
       }
+      fmt++;
       /* Found one '%' */
     }
     /* Skipp if max size is used (to be compatible with printf) */
@@ -203,10 +211,8 @@ uint my_b_printf(IO_CACHE *info, const char* fmt, ...)
       out_length++;
     }
   }
-  va_end(args);
   return out_length;
 
 err:
   return (uint) -1;
-  va_end(args);
 }

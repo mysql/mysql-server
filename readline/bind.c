@@ -1210,7 +1210,7 @@ rl_parse_and_bind (string)
       if (fl && funname[fl - 1] == *funname)
 	funname[fl - 1] = '\0';
 
-      rl_macro_bind (useq, &funname[1], _rl_keymap);
+      rl_macro_bind ((char*) useq, &funname[1], _rl_keymap);
     }
 #if defined (PREFIX_META_HACK)
   /* Ugly, but working hack to keep prefix-meta around. */

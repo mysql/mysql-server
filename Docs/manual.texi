@@ -374,7 +374,7 @@ MySQL Language Reference
 * ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
 * REPAIR TABLE::                @code{REPAIR TABLE} syntax
 * DELETE::                      @code{DELETE} syntax
-* TRUNCATE::                    
+* TRUNCATE::                    @code{TRUNCATE} syntax
 * SELECT::                      @code{SELECT} syntax
 * JOIN::                        @code{JOIN} syntax
 * INSERT::                      @code{INSERT} syntax
@@ -1011,8 +1011,7 @@ The following list describes some useful sections of the manual:
 For a discussion of @strong{MySQL}'s capabilities, see @ref{Features}.
 
 @item
-For installation instructions, see @ref{Installing}. For tips on porting
-@strong{MySQL} to new architectures or operating systems, see @ref{Porting}.
+For installation instructions, see @ref{Installing}.
 
 @item
 For tips on porting @strong{MySQL} to new architectures or operating
@@ -3581,7 +3580,9 @@ We will provide hints on optimizing your system and your queries.
 
 @item
 You are allowed to call a @strong{MySQL} developer (in moderation) and
-discuss your @strong{MySQL}-related problems.
+discuss your @strong{MySQL}-related problems.  This option is however
+only to be used as a last result during an emergency after we have
+failed to grasp the total problem with email.
 @end itemize
 
 @node Extended login support,  , Login support, Support
@@ -12590,7 +12591,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
 * REPAIR TABLE::                @code{REPAIR TABLE} syntax
 * DELETE::                      @code{DELETE} syntax
-* TRUNCATE::                    
+* TRUNCATE::                    @code{TRUNCATE} syntax
 * SELECT::                      @code{SELECT} syntax
 * JOIN::                        @code{JOIN} syntax
 * INSERT::                      @code{INSERT} syntax
@@ -18264,7 +18265,7 @@ the @code{LIMIT} value.
 @section @code{TRUNCATE} syntax
 
 @example
-TRUNCATE TABLE table_name
+TRUNCATE table_name
 @end example
 
 Is in 3.23 and the same thing as @code{DELETE FROM table_name}. @xref{DELETE}.
@@ -19528,7 +19529,7 @@ the @code{mysql} database.
 
 @item @code{TABLES} @tab Closes all open tables and force all tables in use to be closed.
 
-@item @code{TABLES table_name [,table_name...]} @tab Flush only the given tables
+@item @code{[TABLE | TABLES] table_name [,table_name...]} @tab Flush only the given tables
 
 @item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}. This is very convinient way to get backups if you have a file system, like Veritas,that can take snapshots in time.
 
@@ -21551,13 +21552,19 @@ while other threads are reading from the table.
 Support for big files (63-bit) on filesystems/operating systems that
 support big files.
 @item
-All data is stored with the low byte first. This makes the data machine and
-OS independent. The only requirement is that the machine uses two's-complement
-signed integers (as every machine for the last 20 years has)
-and IEEE floating-point format (also totally dominant among mainstream
-machines). The only area of machines that may not support binary
-compatibility are embedded systems (because they sometimes have peculiar
-processors).
+All data is stored with the low byte first. This makes the data machine
+and OS independent. The only requirement is that the machine uses
+two's-complement signed integers (as every machine for the last 20 years
+has) and IEEE floating-point format (also totally dominant among
+mainstream machines). The only area of machines that may not support
+binary compatibility are embedded systems (because they sometimes have
+peculiar processors).
+
+There is no big speed penalty in storing data low byte first; The bytes
+in a table row is normally unaligned and it doesn't take that much more
+power to read an unaligned byte in order than in reverse order.  The
+actual fetch-column-value code is also not time critical compared to
+other code.
 @item
 All number keys are stored with high byte first to give better index
 compression.
@@ -22094,7 +22101,7 @@ You need enough extra memory for all HEAP tables that you want to use at
 the same time.
 @item
 To free memory, you should execute @code{DELETE FROM heap_table},
-@code{TRUNCATE TABLE heap_table} or @code{DROP TABLE heap_table}.
+@code{TRUNCATE heap_table} or @code{DROP TABLE heap_table}.
 @item
 @strong{MySQL} cannot find out how approximately many rows there
 are between two values (this is used by the range optimizer to decide which
@@ -26255,7 +26262,7 @@ This can be done with the following code:
 @example
 mysql> LOCK TABLES real_table WRITE, insert_table WRITE;
 mysql> insert into real_table select * from insert_table;
-mysql> TRUNCATE TABLE insert_table;
+mysql> TRUNCATE insert_table;
 mysql> UNLOCK TABLES;
 @end example
 
@@ -27110,7 +27117,7 @@ it is very important to @code{OPTIMIZE TABLE} sometimes.
 @subsection Speed of @code{DELETE} queries
 
 If you want to delete all rows in the table, you should use
-@code{TRUNCATE TABLE table_name}. @xref{TRUNCATE}.
+@code{TRUNCATE table_name}. @xref{TRUNCATE}.
 
 The time to delete a record is exactly proportional to the number of
 indexes. To delete records more quickly, you can increase the size of
@@ -29825,7 +29832,7 @@ Use the table description file to create new (empty) data and index files:
 @example
 shell> mysql db_name
 mysql> SET AUTOCOMMIT=1;
-mysql> TRUNCATE TABLE table_name;
+mysql> TRUNCATE table_name;
 mysql> quit
 @end example
 
@@ -38485,6 +38492,13 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.28
 @itemize @bullet
 @item
+Fixed the @code{--skip-networking} works properly on NT.
+@item
+Fixed bug in @code{MyISAM} when running multiple updating processes on
+the same table.
+@item
+Allow one to use @code{FLUSH TABLE tablename}.
+@item
 Changed all log files to use our own IO_CACHE mechanism instead of
 FILE:s to avoid OS problems when there is many files open.
 @item
@@ -38500,7 +38514,7 @@ Added status variables @code{large_file_support},@code{net_read_timeout},
 Fixed bug where we didn't allow an index name after the
 @code{FOREIGN KEY} definition.
 @item
-Added @code{TRUNCATE TABLE table_name} as a synonym for
+Added @code{TRUNCATE table_name} as a synonym for
 @code{DELETE FROM table_name}.
 @item
 Fixed bug in a BDB key compare function when comparing part keys.

@@ -28,6 +28,7 @@
 #define LANGUAGE	"english/"
 #define ERRMSG_FILE	"errmsg.sys"
 #define TEMP_PREFIX	"MY"
+#define LOG_PREFIX	"ML"
 #define PROGDIR		"bin/"
 #ifndef DATADIR
 #define DATADIR		"data/"

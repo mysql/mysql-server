@@ -1446,7 +1446,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       mysql_bin_log.write(&qinfo);
     }
     goto end_temporary;
-    DBUG_RETURN(0);
   }
 
   intern_close_table(new_table);		/* close temporary table */

@@ -289,9 +289,9 @@ report("rename table","rename_table",
 $dbh->do("drop table crash_q1");
 $dbh->do("drop table crash_q");
 
-report("truncate table","truncate_table",
+report("truncate","truncate_table",
        "create table crash_q (a integer, b integer,c CHAR(10))",
-       "truncate table crash_q",
+       "truncate crash_q",
        "drop table crash_q1");
 
 if ($dbh->do("create table crash_q (a integer, b integer,c CHAR(10))") &&

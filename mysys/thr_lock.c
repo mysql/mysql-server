@@ -422,8 +422,8 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
     /* Request for READ lock */
     if (lock->write.data)
     {
-      /* We can get allow a read lock even if there is already a write lock
-	 one the table in one the following cases:
+      /* We can allow a read lock even if there is already a write lock
+	 on the table in one the following cases:
 	 - This thread alread have a write lock on the table
 	 - The write lock is TL_WRITE_ALLOW_READ or TL_WRITE_DELAYED
            and the read lock is TL_READ_HIGH_PRIORITY or TL_READ

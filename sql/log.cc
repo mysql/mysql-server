@@ -582,7 +582,7 @@ void MYSQL_LOG::write(THD *thd,enum enum_server_command command,
       if (format)
       {
 	if (my_b_write(&log_file," ",1) ||
-	    my_b_printf(&log_file,format,args) == (uint) -1)
+	    my_b_vprintf(&log_file,format,args) == (uint) -1)
 	  error=errno;
       }
       if (my_b_write(&log_file,"\n",1) ||

@@ -246,11 +246,10 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len)
   case START_EVENT:  return  new Start_log_event(buf);
   case STOP_EVENT:  return  new Stop_log_event(buf);
   case INTVAR_EVENT:  return  new Intvar_log_event(buf);
-  default: return NULL;
+  default:
+    break;
   }
-
-  //impossible
-  return NULL;
+  return NULL;  // default value
 }
 
 void Log_event::print_header(FILE* file)
@@ -349,6 +348,15 @@ Start_log_event::Start_log_event(const char* buf) :Log_event(buf)
   binlog_version = uint2korr(buf);
   memcpy(server_version, buf + 2, sizeof(server_version));
   created = uint4korr(buf + 2 + sizeof(server_version));
+}
+
+int Start_log_event::write_data(IO_CACHE* file)
+{
+  char buff[sizeof(server_version)+2+4];
+  int2store(buff,binlog_version);
+  memcpy(buff+2,server_version,sizeof(server_version));
+  int4store(buff+2+sizeof(server_version),created);
+  return (my_b_write(file, (byte*) buff, sizeof(buff)) ? -1 : 0);
 }
 
 Rotate_log_event::Rotate_log_event(const char* buf, int event_len):

@@ -1653,7 +1653,7 @@ int main(int argc, char **argv)
 	  handler_count--;
 	}
       }
-      if (have_tcpip)
+      if (have_tcpip && !opt_disable_networking)
       {
 	handler_count++;
 	if (pthread_create(&hThread,&connection_attrib,

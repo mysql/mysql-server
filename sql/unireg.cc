@@ -280,11 +280,11 @@ static uint pack_keys(uchar *keybuff,uint key_count,KEY *keyinfo)
   }
 	/* Save keynames */
   keyname_pos=pos;
-  *pos++=NAMES_SEP_CHAR;
+  *pos++=(uchar) NAMES_SEP_CHAR;
   for (key=keyinfo ; key != end ; key++)
   {
     uchar *tmp=(uchar*) strmov((char*) pos,key->name);
-    *tmp++=NAMES_SEP_CHAR;
+    *tmp++= (uchar) NAMES_SEP_CHAR;
     *tmp=0;
     pos=tmp;
   }
@@ -458,7 +458,7 @@ static bool pack_fields(File file,List<create_field> &create_fields)
   }
 
 	/* Write fieldnames */
-  buff[0]=NAMES_SEP_CHAR;
+  buff[0]=(uchar) NAMES_SEP_CHAR;
   if (my_write(file,(byte*) buff,1,MYF_RW))
     DBUG_RETURN(1);
   i=0;
