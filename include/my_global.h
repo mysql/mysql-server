@@ -1016,7 +1016,7 @@ typedef union {
 #ifdef SPRINTF_RETURNS_PTR
 #define my_sprintf(buff,args) ((int)(sprintf args - buff))
 #else
-#define my_sprintf(buff,args) sprintf args,strlen(buff)
+#define my_sprintf(buff,args) ((ulong) sprintf args, (ulong) strlen(buff))
 #endif
 #endif
 
