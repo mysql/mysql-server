@@ -4964,6 +4964,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			     tmp_from_field, group != 0,not_all_columns);
 	  if (!new_field)
 	    goto err;					// Should be OOM
+	  if (param->all_nulls)
+	    new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
 	  tmp_from_field++;
 	  *(reg_field++)= new_field;
 	  reclength+=new_field->pack_length();
@@ -4999,6 +5001,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  goto err;				// Got OOM
 	continue;				// Some kindf of const item
       }
+      if (param->all_nulls)
+	new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
       if (type == Item::SUM_FUNC_ITEM)
 	((Item_sum *) item)->result_field= new_field;
       tmp_from_field++;
