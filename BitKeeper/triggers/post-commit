@@ -37,8 +37,10 @@ From: $FROM
 To: $INTERNALS
 Subject: bk commit into 4.0 tree
 
-Below is the list of changes that have just been pushed into main
-4.0 repository. For information on how to access the repository
+Below is the list of changes that have just been committed into a
+4.0 repository of $USER. When $USER does a push, they will be propogated to 
+the main repository and within 24 hours after the push to the public repository. 
+For information on how to access the public repository
 see http://www.mysql.com/doc/I/n/Installing_source_tree.html
 
 EOF

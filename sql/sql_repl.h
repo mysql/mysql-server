@@ -20,6 +20,11 @@ extern uint32 server_id;
 extern bool server_id_supplied;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 
+#ifndef DBUG_OFF
+extern int max_binlog_dump_events;
+extern bool opt_sporadic_binlog_dump_fail;
+#endif
+
 File open_binlog(IO_CACHE *log, const char *log_file_name,
 	      const char **errmsg);
 

@@ -2487,8 +2487,8 @@ enum options {
                OPT_GEMINI_UNBUFFERED_IO, OPT_SKIP_SAFEMALLOC,
 	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINK, OPT_REPORT_HOST,
 	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
-	       OPT_SHOW_SLAVE_AUTH_INFO
-};
+               OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP,
+               OPT_SHOW_SLAVE_AUTH_INFO};
 
 static struct option long_options[] = {
   {"ansi",                  no_argument,       0, 'a'},
@@ -2573,6 +2573,10 @@ static struct option long_options[] = {
      (int) OPT_DISCONNECT_SLAVE_EVENT_COUNT},
   {"abort-slave-event-count",      required_argument, 0,
      (int) OPT_ABORT_SLAVE_EVENT_COUNT},
+  {"max-binlog-dump-events",      required_argument, 0,
+     (int) OPT_MAX_BINLOG_DUMP_EVENTS},
+  {"sporadic-binlog-dump-fail", no_argument, 0,
+     (int) OPT_SPORADIC_BINLOG_DUMP_FAIL},
   {"safemalloc-mem-limit",  required_argument, 0, (int)
      OPT_SAFEMALLOC_MEM_LIMIT},
   {"new",                   no_argument,       0, 'n'},
@@ -2634,6 +2638,9 @@ static struct option long_options[] = {
   {"temp-pool",             no_argument,       0, (int) OPT_TEMP_POOL},
   {"tmpdir",                required_argument, 0, 't'},
   {"use-locking",           no_argument,       0, (int) OPT_USE_LOCKING},
+#ifdef USE_SYMDIR
+  {"use-symbolic-links",    no_argument,       0, 's'},
+#endif
   {"user",                  required_argument, 0, 'u'},
   {"version",               no_argument,       0, 'V'},
   {"warnings",		    no_argument,       0, 'W'},
@@ -3088,6 +3095,9 @@ static void usage(void)
   --remove		Remove mysqld from the service list (NT)\n\
   --standalone		Dummy option to start as a standalone program (NT)\
 ");
+#ifdef USE_SYMDIR
+  puts("--use-symbolic-links	Enable symbolic link support");
+#endif
   puts("");
 #endif
 #ifdef HAVE_BERKELEY_DB
@@ -3274,6 +3284,11 @@ static void get_options(int argc,char **argv)
     case 'r':
       mysqld_chroot=optarg;
       break;
+#ifdef USE_SYMDIR
+    case 's':
+      my_use_symdir=1;			/* Use internal symbolic links */
+      break;
+#endif
     case 't':
       mysql_tmpdir=optarg;
       break;
@@ -3327,6 +3342,17 @@ static void get_options(int argc,char **argv)
       abort_slave_event_count = atoi(optarg);
 #endif      
       break;
+    case (int)OPT_SPORADIC_BINLOG_DUMP_FAIL:
+#ifndef DBUG_OFF      
+      opt_sporadic_binlog_dump_fail = 1;
+#endif      
+      break;
+     case (int)OPT_MAX_BINLOG_DUMP_EVENTS:
+#ifndef DBUG_OFF      
+      max_binlog_dump_events = atoi(optarg);
+#endif      
+      break;
+
     case (int) OPT_LOG_SLAVE_UPDATES:
       opt_log_slave_updates = 1;
       break;
