@@ -1761,7 +1761,9 @@ mysql_execute_command(void)
 				for (TABLE_LIST *cursor=(TABLE_LIST *)sl->table_list.first;cursor;cursor=cursor->next)
 					cursor->table= ((TABLE_LIST*) cursor->table)->table;
 			}
+			ha_rows save_it=thd->offset_limit; thd->offset_limit=0;
       res=mysql_union(thd,lex, select_lex->select_number+1);
+			thd->offset_limit=save_it;
 		}
     close_thread_tables(thd);
     break;
@@ -2440,9 +2442,9 @@ mysql_init_select(LEX *lex)
   SELECT_LEX *select_lex = lex->select;
   select_lex->where=select_lex->having=0;
   select_lex->select_limit=current_thd->default_select_limit;
-  select_lex->offset_limit=0L;
+  select_lex->offset_limit=0;
   select_lex->options=0; select_lex->linkage=UNSPECIFIED_TYPE;
-  select_lex->select_number = 0;  lex->exchange = 0;
+  select_lex->select_number = 0;  lex->exchange = 0; lex->union_option=0;
   lex->proc_list.first=0;
   select_lex->order_list.elements=select_lex->group_list.elements=0;
   select_lex->order_list.first=0;
@@ -2915,29 +2917,31 @@ static int link_in_large_list_and_check_acl(THD *thd,LEX *lex,SQL_LIST *tables)
     if (aux)
     {
       if (check_table_access(thd, lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL , aux))
-	return -1;
+				return -1;
       for (;aux;aux=aux->next)
       {
-	if (!aux->db)
-	  aux->db=(char *)current_db;
-	for (cursor=(TABLE_LIST *)tables->first;cursor;cursor=cursor->next)
-	  if (!strcmp(cursor->db,aux->db) && (!strcmp(cursor->real_name,aux->real_name)))
-	    break;
-	if (!cursor ||  !tables->first)
-	{
-	  aux->lock_type= lex->lock_option;
-	  if (!tables->next)
-	    tables->next= (byte**) &tables->first;
-		if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
-			return 1;
-		ptr->db= aux->db; ptr->real_name=aux->real_name;
-		ptr->name=aux->name;  ptr->lock_type=aux->lock_type;
-		ptr->updating=aux->updating;
-    ptr->use_index=aux->use_index;
-    ptr->ignore_index=aux->use_index;
-    aux->table=(TABLE *)ptr;
-	  link_in_list(tables,(byte*)ptr,(byte**) &ptr->next);
-	}
+				if (!aux->db)
+					aux->db=(char *)current_db;
+				for (cursor=(TABLE_LIST *)tables->first;cursor;cursor=cursor->next)
+					if (!strcmp(cursor->db,aux->db) && (!strcmp(cursor->real_name,aux->real_name)))
+						break;
+				if (!cursor ||  !tables->first)
+				{
+					aux->lock_type= lex->lock_option;
+					if (!tables->next)
+						tables->next= (byte**) &tables->first;
+					if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
+						return 1;
+					ptr->db= aux->db; ptr->real_name=aux->real_name;
+					ptr->name=aux->name;  ptr->lock_type=aux->lock_type;
+					ptr->updating=aux->updating;
+					ptr->use_index=aux->use_index;
+					ptr->ignore_index=aux->use_index;
+					aux->table=(TABLE *)ptr;
+					link_in_list(tables,(byte*)ptr,(byte**) &ptr->next);
+				}
+				else
+					aux->table=(TABLE *)cursor;
       }
     }
   }
