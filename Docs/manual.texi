@@ -1422,7 +1422,8 @@ The @code{MySQL} software is released under the
 which probably is the best known @code{Open Source} license.
 The formal terms of the @code{GPL} license can be found at
 @uref{http://www.gnu.org/licenses/}.
-See also @uref{http://www.gnu.org/licenses/gpl-faq.html}.
+See also @uref{http://www.gnu.org/licenses/gpl-faq.html} and
+@uref{http://www.gnu.org/philosophy/enforcing-gpl.html}.
 
 Since the @code{MySQL} software is released under the @code{GPL},
 it may often be used for free, but for certain uses you may want
@@ -33182,20 +33183,6 @@ select fields which are not mentioned in the @code{GROUP BY} clause.
 If you are not getting the results you expect from your query, please
 read the @code{GROUP BY} description.
 @xref{Group by functions}.
-
-@item
-@cindex hints
-@code{SQL_BUFFER_RESULT} will force the result to be put into a temporary
-table. This will help MySQL free the table locks early and will help
-in cases where it takes a long time to send the result set to the client.
-
-@item
-@cindex hints
-@code{SQL_SMALL_RESULT}, a MySQL-specific option, can be used
-with @code{GROUP BY} or @code{DISTINCT} to tell the optimiser that the
-result set will be small.  In this case, MySQL will use fast
-temporary tables to store the resulting table instead of using sorting. In
-MySQL Version 3.23 this shouldn't normally be needed.
 
 @item
 @cindex hints
