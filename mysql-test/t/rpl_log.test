@@ -38,9 +38,9 @@ select count(*) from t1;
 drop table t1;
 --replace_result $VERSION VERSION
 show binlog events;
-show binlog events from 79 limit 1;
-show binlog events from 79 limit 2;
-show binlog events from 79 limit 2,1;
+show binlog events from 95 limit 1;
+show binlog events from 95 limit 2;
+show binlog events from 95 limit 2,1;
 flush logs;
 
 # We need an extra update before doing save_master_pos.
@@ -82,6 +82,7 @@ insert into t1 values (1);
 drop table t1;
 --replace_result $VERSION VERSION
 show binlog events;
+--replace_result $VERSION VERSION
 show binlog events in 'master-bin.000002';
 show binary logs;
 save_master_pos;
@@ -94,7 +95,7 @@ show binlog events in 'slave-bin.000001' from 4;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT $VERSION VERSION
 show binlog events in 'slave-bin.000002' from 4;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
 
 # Need to recode the following

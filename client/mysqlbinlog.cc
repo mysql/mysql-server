@@ -14,12 +14,28 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/* 
+
+   TODO: print the catalog (some USE catalog.db ????).
+
+   Standalone program to read a MySQL binary log (or relay log);
+   can read files produced by 3.23, 4.x, 5.0 servers. 
+
+   Can read binlogs from 3.23/4.x/5.0 and relay logs from 4.x/5.0.
+   Should be able to read any file of these categories, even with --position.
+   An important fact: the Format_desc event of the log is at most the 3rd event
+   of the log; if it is the 3rd then there is this combination:
+   Format_desc_of_slave, Rotate_of_master, Format_desc_of_master.
+*/
+
 #define MYSQL_CLIENT
 #undef MYSQL_SERVER
 #include "client_priv.h"
 #include <time.h>
 #include <assert.h>
 #include "log_event.h"
+/* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
+#include "mysql_priv.h" 
 
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
@@ -433,12 +449,17 @@ static void dump_log_entries(const char* logname)
     dump_local_log_entries(logname);  
 }
 
-static int check_master_version(MYSQL* mysql)
+/*
+  This is not as smart as check_header() (used for local log); it will not work
+  for a binlog which mixes format. TODO: fix this.
+*/
+static int check_master_version(MYSQL* mysql,
+                                Format_description_log_event
+                                **description_event)
 {
   MYSQL_RES* res = 0;
   MYSQL_ROW row;
   const char* version;
-  int old_format = 0;
 
   if (mysql_query(mysql, "SELECT VERSION()") ||
       !(res = mysql_store_result(mysql)))
@@ -463,11 +484,18 @@ static int check_master_version(MYSQL* mysql)
 
   switch (*version) {
   case '3':
-    old_format = 1;
+    *description_event= new Format_description_log_event(1);
     break;
   case '4':
+    *description_event= new Format_description_log_event(3);
   case '5':
-    old_format = 0;
+    /*
+      The server is soon going to send us its Format_description log
+      event, unless it is a 5.0 server with 3.23 or 4.0 binlogs.
+      So we first assume that this is 4.0 (which is enough to read the
+      Format_desc event if one comes).
+    */
+    *description_event= new Format_description_log_event(3);
     break;
   default:
     sql_print_error("Master reported unrecognized MySQL version '%s'",
@@ -477,25 +505,35 @@ static int check_master_version(MYSQL* mysql)
     return 1;
   }
   mysql_free_result(res);
-  return old_format;
+  return 0;
 }
 
 
+/*
+  I thought I'd wait for both dump_*_log_entries to be merged, but it's not
+  yet, so I must update this one too.
+*/
+
 static void dump_remote_log_entries(const char* logname)
+
 {
   char buf[128];
-  char last_db[FN_REFLEN+1] = "";
+  LAST_EVENT_INFO last_event_info;
   uint len;
   NET* net = &mysql->net;
   int old_format;
-  old_format = check_master_version(mysql);
+  Format_description_log_event* description_event; 
+
+  if (check_master_version(mysql, &description_event))
+    die("Could not find server version");
+  if (!description_event || !description_event->is_valid())
+    die("Invalid Format_description log event; could be out of memory");
 
   if (!position)
-    position = BIN_LOG_HEADER_SIZE; // protect the innocent from spam
+    position = BIN_LOG_HEADER_SIZE;
   if (position < BIN_LOG_HEADER_SIZE)
   {
     position = BIN_LOG_HEADER_SIZE;
-    // warn the guity
     sql_print_error("Warning: The position in the binary log can't be less than %d.\nStarting from position %d\n", BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE);
   }
   int4store(buf, position);
@@ -517,43 +555,136 @@ static void dump_remote_log_entries(const char* logname)
     DBUG_PRINT("info",( "len= %u, net->read_pos[5] = %d\n",
 			len, net->read_pos[5]));
     Log_event *ev = Log_event::read_log_event((const char*) net->read_pos + 1 ,
-					      len - 1, &error, old_format);
+					      len - 1, &error, description_event);
     if (ev)
     {
-      ev->print(result_file, short_form, last_db);
-      if (ev->get_type_code() == LOAD_EVENT)
-	dump_remote_file(net, ((Load_log_event*)ev)->fname);
-      delete ev;
+      switch (ev->get_type_code())
+      {
+      case FORMAT_DESCRIPTION_EVENT:
+        delete description_event;
+        description_event= (Format_description_log_event*) ev;
+        ev->print(result_file, short_form, &last_event_info);
+        break;
+      case ROTATE_EVENT:
+        /* see comments in sql/slave.cc:process_io_rotate() */
+        if (description_event->binlog_version >= 4)
+        {
+          delete description_event;
+          /* start from format 3 (MySQL 4.0) again */
+          description_event= new Format_description_log_event(3);
+          if (!description_event || !description_event->is_valid())
+            die("Invalid Format_description log event; could be out of memory");
+        }
+        ev->print(result_file, short_form, &last_event_info);
+        delete ev;
+        break;
+      case LOAD_EVENT:
+        dump_remote_file(net, ((Load_log_event*)ev)->fname);
+        /* fall through */
+      default:
+        ev->print(result_file, short_form, &last_event_info);
+        delete ev;
+      }
     }
     else
       die("Could not construct log event object");
   }
+  delete description_event;
 }
 
 
-static int check_header(IO_CACHE* file)
+static void check_header(IO_CACHE* file, 
+                        Format_description_log_event **description_event) 
 {
   byte header[BIN_LOG_HEADER_SIZE];
   byte buf[PROBE_HEADER_LEN];
-  int old_format=0;
 
+  *description_event= new Format_description_log_event(3);
+  my_off_t tmp_pos;
   my_off_t pos = my_b_tell(file);
   my_b_seek(file, (my_off_t)0);
   if (my_b_read(file, header, sizeof(header)))
     die("Failed reading header;  Probably an empty file");
   if (memcmp(header, BINLOG_MAGIC, sizeof(header)))
     die("File is not a binary log file");
-  if (!my_b_read(file, buf, sizeof(buf)))
+
+  /*
+    Imagine we are running with --position=1000. We still need to know the
+    binlog format's. So we still need to find, if there is one, the Format_desc
+    event, or to know if this is a 3.23 binlog. So we need to first read the
+    first events of the log, those around offset 4.
+    Even if we are reading a 3.23 binlog from the start (no --position): we need
+    to know the header length (which is 13 in 3.23, 19 in 4.x) to be able to
+    successfully print the first event (Start_log_event_v3). So even in this
+    case, we need to "probe" the first bytes of the log *before* we do a real
+    read_log_event(). Because read_log_event() needs to know the header's length
+    to work fine.
+  */
+  for(;;)
   {
-    if (buf[4] == START_EVENT)
+    tmp_pos= my_b_tell(file); /* should be 4 the first time */
+    if (my_b_read(file, buf, sizeof(buf)))
     {
-      uint event_len;
-      event_len = uint4korr(buf + EVENT_LEN_OFFSET);
-      old_format = (event_len < (LOG_EVENT_HEADER_LEN + START_HEADER_LEN));
+      if (file->error)
+        die("\
+Could not read entry at offset %lu : Error in log format or read error",
+            tmp_pos); 
+      /*
+        Otherwise this is just EOF : this log currently contains 0-2 events.
+        Maybe it's going to be filled in the next milliseconds; then we are
+        going to have a problem if this a 3.23 log (imagine we are locally
+        reading a 3.23 binlog which is being written presently): we won't know
+        it in read_log_event() and will fail().
+        Similar problems could happen with hot relay logs if --position is used
+        (but a --position which is posterior to the current size of the log).
+        These are rare problems anyway (reading a hot log + when we read the
+        first events there are not all there yet + when we read a bit later
+        there are more events + using a strange --position).
+      */
+      break;
+    }
+    else
+    {
+      DBUG_PRINT("info",("buf[4]=%d", buf[4]));
+      /* always test for a Start_v3, even if no --position */
+      if (buf[4] == START_EVENT_V3)       /* This is 3.23 or 4.x */
+      {
+        if (uint4korr(buf + EVENT_LEN_OFFSET) < 
+            (LOG_EVENT_MINIMAL_HEADER_LEN + START_V3_HEADER_LEN))
+        {
+          /* This is 3.23 (format 1) */
+          delete *description_event;
+          *description_event= new Format_description_log_event(1);
+        }
+        break;
+      }
+      else if (tmp_pos>=position)
+        break;
+      else if (buf[4] == FORMAT_DESCRIPTION_EVENT) /* This is 5.0 */
+      {
+        my_b_seek(file, tmp_pos); /* seek back to event's start */
+        if (!(*description_event= (Format_description_log_event*) 
+              Log_event::read_log_event(file, *description_event)))
+          /* EOF can't be hit here normally, so it's a real error */
+          die("Could not read a Format_description_log_event event \
+at offset %lu ; this could be a log format error or read error",
+              tmp_pos); 
+        DBUG_PRINT("info",("Setting description_event"));
+      }
+      else if (buf[4] == ROTATE_EVENT)
+      {
+        my_b_seek(file, tmp_pos); /* seek back to event's start */
+        if (!Log_event::read_log_event(file, *description_event))
+          /* EOF can't be hit here normally, so it's a real error */
+          die("Could not read a Rotate_log_event event \
+at offset %lu ; this could be a log format error or read error",
+              tmp_pos); 
+      }
+      else
+        break;
     }
   }
   my_b_seek(file, pos);
-  return old_format;
 }
 
 
@@ -562,11 +693,15 @@ static void dump_local_log_entries(const char* logname)
   File fd = -1;
   IO_CACHE cache,*file= &cache;
   ulonglong rec_count = 0;
-  char last_db[FN_REFLEN+1];
+  LAST_EVENT_INFO last_event_info;
   byte tmp_buff[BIN_LOG_HEADER_SIZE];
-  bool old_format = 0;
-
-  last_db[0]=0;
+  /* 
+     check_header() will set the pointer below.
+     Why do we need here a pointer on an event instead of an event ?
+     This is because the event will be created (alloced) in read_log_event()
+     (which returns a pointer) in check_header().
+  */
+  Format_description_log_event* description_event; 
 
   if (logname && logname[0] != '-')
   {
@@ -575,14 +710,14 @@ static void dump_local_log_entries(const char* logname)
     if (init_io_cache(file, fd, 0, READ_CACHE, (my_off_t) position, 0,
 		      MYF(MY_WME | MY_NABP)))
       exit(1);
-    old_format = check_header(file);
+    check_header(file, &description_event);
   }
-  else
+  else // reading from stdin; TODO: check that it works
   {
     if (init_io_cache(file, fileno(result_file), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
       exit(1);
-    old_format = check_header(file);
+    check_header(file, &description_event);
     if (position)
     {
       /* skip 'position' characters from stdout */
@@ -599,6 +734,9 @@ static void dump_local_log_entries(const char* logname)
     file->seek_not_done=0;
   }
 
+  if (!description_event || !description_event->is_valid())
+    die("Invalid Format_description log event; could be out of memory");
+
   if (!position)
     my_b_read(file, tmp_buff, BIN_LOG_HEADER_SIZE); // Skip header
   for (;;)
@@ -606,7 +744,7 @@ static void dump_local_log_entries(const char* logname)
     char llbuff[21];
     my_off_t old_off = my_b_tell(file);
 
-    Log_event* ev = Log_event::read_log_event(file, old_format);
+    Log_event* ev = Log_event::read_log_event(file, description_event);
     if (!ev)
     {
       if (file->error)
@@ -633,7 +771,7 @@ Could not read entry at offset %s : Error in log format or read error",
             continue; // next
           }
         }
-	ev->print(result_file, short_form, last_db);
+	ev->print(result_file, short_form, &last_event_info);
         break;
       case CREATE_FILE_EVENT:
       {
@@ -661,18 +799,18 @@ Could not read entry at offset %s : Error in log format or read error",
 	  filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT'
 	  below.
         */
-	ce->print(result_file, short_form, last_db, true);
+	ce->print(result_file, short_form, &last_event_info, true);
 	load_processor.process(ce);
 	ev= 0;
 	break;
       }
       case APPEND_BLOCK_EVENT:
-	ev->print(result_file, short_form, last_db);
+	ev->print(result_file, short_form, &last_event_info);
 	load_processor.process((Append_block_log_event*)ev);
 	break;
       case EXEC_LOAD_EVENT:
       {
-	ev->print(result_file, short_form, last_db);
+	ev->print(result_file, short_form, &last_event_info);
 	Execute_load_log_event *exv= (Execute_load_log_event*)ev;
 	Create_file_log_event *ce= load_processor.grab_event(exv->file_id);
         /*
@@ -682,7 +820,7 @@ Could not read entry at offset %s : Error in log format or read error",
         */
         if (ce)
         {
-          ce->print(result_file, short_form, last_db,true);
+          ce->print(result_file, short_form, &last_event_info,true);
           my_free((char*)ce->fname,MYF(MY_WME));
           delete ce;
         }
@@ -691,17 +829,35 @@ Could not read entry at offset %s : Error in log format or read error",
 Create_file event for file_id: %u\n",exv->file_id);
 	break;
       }
+      case FORMAT_DESCRIPTION_EVENT:
+        delete description_event;
+        description_event= (Format_description_log_event*) ev;
+	ev->print(result_file, short_form, &last_event_info);
+        break;
+      case ROTATE_EVENT:
+        /* see comments in sql/slave.cc:process_io_rotate() */
+        if (description_event->binlog_version >= 4)
+        {
+          delete description_event;
+          /* start from format 3 (MySQL 4.0) again */
+          description_event= new Format_description_log_event(3);
+          if (!description_event || !description_event->is_valid())
+            die("Invalid Format_description log event; could be out of memory");
+        }
+	ev->print(result_file, short_form, &last_event_info);
+        break;
       default:
-	ev->print(result_file, short_form, last_db);
+	ev->print(result_file, short_form, &last_event_info);
       }
     }
     rec_count++;
-    if (ev)
-      delete ev;
+    if (ev && ev->get_type_code()!=FORMAT_DESCRIPTION_EVENT)
+      delete ev; /* otherwise, deleted in the end */
   }
   if (fd >= 0)
     my_close(fd, MYF(MY_WME));
   end_io_cache(file);
+  delete description_event;
 }
 
 

@@ -25,7 +25,7 @@ insert into t1 values(1);
 insert into t2 select * from t1;
 commit;
 
-show binlog events from 79;
+show binlog events from 95;
 
 delete from t1;
 delete from t2;
@@ -37,7 +37,7 @@ insert into t2 select * from t1;
 # should say some changes to non-transact1onal tables couldn't be rolled back
 rollback;
 
-show binlog events from 79;
+show binlog events from 95;
 
 delete from t1;
 delete from t2;
@@ -51,7 +51,7 @@ insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
 commit;
 
-show binlog events from 79;
+show binlog events from 95;
 
 delete from t1;
 delete from t2;
@@ -67,7 +67,7 @@ insert into t1 values(7);
 commit;
 select a from t1 order by a; # check that savepoints work :)
 
-show binlog events from 79;
+show binlog events from 95;
 
 # and when ROLLBACK is not explicit?
 delete from t1;
@@ -87,7 +87,7 @@ connection con2;
 # so SHOW BINLOG EVENTS may come before con1 does the loggin. To be sure that
 # logging has been done, we use a user lock.
 select get_lock("a",10);
-show binlog events from 79;
+show binlog events from 95;
 
 # and when not in a transact1on?
 delete from t1;
@@ -97,10 +97,10 @@ reset master;
 insert into t1 values(9);
 insert into t2 select * from t1;
 
-show binlog events from 79;
+show binlog events from 95;
 
 # Check that when the query updat1ng the MyISAM table is the first in the
-# transact1on, we log it immediately.
+# transaction, we log it immediately.
 delete from t1;
 delete from t2;
 reset master;
@@ -108,11 +108,11 @@ reset master;
 insert into t1 values(10); # first make t1 non-empty
 begin;
 insert into t2 select * from t1;
-show binlog events from 79;
+show binlog events from 95;
 insert into t1 values(11);
 commit;
 
-show binlog events from 79;
+show binlog events from 95;
 
 
 # Check that things work like before this BEGIN/ROLLBACK code was added,
@@ -129,7 +129,7 @@ insert into t1 values(12);
 insert into t2 select * from t1;
 commit;
 
-show binlog events from 79;
+show binlog events from 95;
 
 delete from t1;
 delete from t2;
@@ -140,7 +140,7 @@ insert into t1 values(13);
 insert into t2 select * from t1;
 rollback;
 
-show binlog events from 79;
+show binlog events from 95;
 
 delete from t1;
 delete from t2;
@@ -154,7 +154,7 @@ insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
 commit;
 
-show binlog events from 79;
+show binlog events from 95;
 
 delete from t1;
 delete from t2;
@@ -170,6 +170,6 @@ insert into t1 values(18);
 commit;
 select a from t1 order by a; # check that savepoints work :)
 
-show binlog events from 79;
+show binlog events from 95;
 
 drop table t1,t2;
