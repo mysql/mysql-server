@@ -68,7 +68,6 @@ int mysql_update(THD *thd,
   LINT_INIT(used_index);
   LINT_INIT(timestamp_query_id);
 
-  table_list->lock_type= lock_type;
   if ((open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(-1);
   fix_tables_pointers(&thd->lex.select_lex);

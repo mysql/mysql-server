@@ -149,7 +149,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->select_lex.expr_list.empty();
   lex->select_lex.ftfunc_list_alloc.empty();
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
-  lex->select= &lex->select_lex;
+  lex->current_select= &lex->select_lex;
   lex->convert_set= (lex->thd= thd)->variables.convert_set;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);

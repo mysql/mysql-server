@@ -114,6 +114,7 @@ EXPLAIN SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03';
 EXPLAIN SELECT (SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03');
 SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03';
 SELECT (SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03');
+SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION SELECT 1) UNION ALL SELECT 1;
 -- error 1240
 SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION ALL SELECT 1) UNION SELECT 1;
 EXPLAIN SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION SELECT 1);
@@ -181,7 +182,6 @@ EXPLAIN SELECT numreponse FROM threadhardwarefr7 WHERE numeropost='1' AND numrep
 EXPLAIN SELECT MAX(numreponse) FROM threadhardwarefr7 WHERE numeropost='1';
 EXPLAIN SELECT numreponse FROM threadhardwarefr7 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM threadhardwarefr7 WHERE numeropost='1');
 drop table if exists threadhardwarefrtest7;
-drop table searchconthardwarefr3;
 
 #update with subselects
 create table t1 (a int NOT NULL, b int, primary key (a));
