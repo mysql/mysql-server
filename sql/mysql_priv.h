@@ -538,8 +538,9 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 
 /* sql_handler.cc */
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
-int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok=0);
-int mysql_ha_closeall(THD *thd, TABLE_LIST *tables);
+int mysql_ha_close(THD *thd, TABLE_LIST *tables,
+                   bool dont_send_ok=0, bool dont_lock=0, bool no_alias=0);
+int mysql_ha_close_list(THD *thd, TABLE_LIST *tables, bool flushed=0);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
 
@@ -587,7 +588,6 @@ void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_thread_tables(THD *thd,bool locked=0);
-bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
