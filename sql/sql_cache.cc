@@ -1951,11 +1951,35 @@ Query_cache::get_free_block(ulong len, my_bool not_less, ulong min)
   if (bins[start].number != 0)
   {
     Query_cache_block *list = bins[start].free_blocks;
-    first = list;
-    while (first->next != list && first->length < len)
-      first=first->next;
-    if (first->length >= len)
-      block=first;
+    ulong max_len = list->prev->length;
+    if (list->prev->length >= len) // check block with max size 
+    { 
+      first = list;
+      uint n = 0;
+      while ( n < QUERY_CACHE_MEM_BIN_TRY &&
+	      first->length < len) //we don't need irst->next != list
+      {
+	first=first->next;
+	n++;
+      }
+      if (first->length >= len)
+	block=first;
+      else // we don't need if (first->next != list)
+      {
+	n = 0;
+	block = list->prev;
+	while (n < QUERY_CACHE_MEM_BIN_TRY &&
+	       block->length > len)
+	{
+	  block=block->prev;
+	  n++;
+	}
+	if(block->length < len)
+	  block=block->next;
+      }
+    }
+    else
+      first = list->prev;
   }
   if (block == 0 && start > 0)
   {
@@ -2117,18 +2141,30 @@ void Query_cache::insert_into_free_memory_list(Query_cache_block *free_block)
 
 uint Query_cache::find_bin(ulong size)
 {
-  int i;
   DBUG_ENTER("Query_cache::find_bin");
-  // Begin small blocks to big (small blocks frequently asked)
-  for (i=mem_bin_steps - 1; i > 0 && steps[i-1].size < size; i--) ;
-  if (i == 0)
+  // Binary search
+  int left = 0, right = mem_bin_steps;
+  do
+  {
+    int middle = (left + right) / 2;
+    if (steps[middle].size > size)
+      left = middle+1;
+    else
+      right = middle;
+  } while (left < right);
+  if (left == 0)
   {
     // first bin not subordinate of common rules
     DBUG_PRINT("qcache", ("first bin (# 0), size %lu",size));
     DBUG_RETURN(0);
   }
-  uint bin =  steps[i].idx - (uint)((size - steps[i].size)/steps[i].increment);
-  DBUG_PRINT("qcache", ("bin %u step %u, size %lu", bin, i, size));
+  uint bin =  steps[left].idx - 
+    (uint)((size - steps[left].size)/steps[left].increment);
+#ifndef DBUG_OFF
+  bins_dump();
+#endif
+  DBUG_PRINT("qcache", ("bin %u step %u, size %lu step size %lu",
+			bin, left, size, steps[left].size));
   DBUG_RETURN(bin);
 }
 
@@ -2480,6 +2516,9 @@ my_bool Query_cache::move_by_type(byte **border,
 	result_block = result_block->next;
       } while ( result_block != first_result_block );
     }
+    Query_cache_query *new_query= ((Query_cache_query *) new_block->data());
+    pthread_cond_init(&new_query->lock, NULL);
+    pthread_mutex_init(&new_query->clients_guard,MY_MUTEX_INIT_FAST);
     NET *net = new_block->query()->writer();
     if (net != 0)
     {

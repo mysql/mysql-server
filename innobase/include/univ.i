@@ -30,6 +30,7 @@ be defined:
 
 /* Most C compilers other than gcc do not know 'extern inline' */ 
 #if !defined(__GNUC__) && !defined(__WIN__)
+#undef UNIV_MUST_NOT_INLINE
 #define UNIV_MUST_NOT_INLINE
 #endif
 
