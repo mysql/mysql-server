@@ -1473,6 +1473,7 @@ recv_apply_log_recs_for_backup(
 	recv_sys_empty_hash();
 }
 
+#ifdef notdefined
 /***********************************************************************
 In the debug version, updates the replica of a file page, based on a log
 record. */
@@ -1672,6 +1673,7 @@ recv_compare_spaces_low(
 
 	recv_compare_spaces(space1, space2, n_pages);
 }
+#endif
 
 /***********************************************************************
 Tries to parse a single log record and returns its length. */
@@ -1770,7 +1772,7 @@ recv_calc_lsn_on_data_add(
 /***********************************************************
 Checks that the parser recognizes incomplete initial segments of a log
 record as incomplete. */
-static
+
 void
 recv_check_incomplete_log_recs(
 /*===========================*/
