@@ -818,7 +818,7 @@ size is pushed up to 8 million terabytes (2 ^ 63 bytes).
 Note, however, that operating systems have their own file size
 limits. Here are some examples:
 
-@multitable @columnfractions .6 .4
+@multitable @columnfractions .3 .45
 @item @strong{Operating System} @tab @strong{File Size Limit}
 @item Linux-Intel 32 bit        @tab 2G, 4G or more, depends on Linux version
 @item Linux-Alpha               @tab 8T (?)
@@ -4541,7 +4541,7 @@ the following additional type attributes:
 @end itemize
 @item mSQL2
 @code{mSQL} column types correspond to the MySQL types shown below:
-@multitable @columnfractions .15 .85
+@multitable @columnfractions .15 .65
 @item @code{mSQL} @strong{type} @tab @strong{Corresponding MySQL type}
 @item @code{CHAR(len)} @tab @code{CHAR(len)}
 @item @code{TEXT(len)} @tab @code{TEXT(len)}. @code{len} is the maximal length.
@@ -4975,7 +4975,7 @@ following table the version when MySQL Server should support this feature.
 Unfortunately we couldn't do this for previous comparison, because we
 don't know the PostgreSQL roadmap.
 
-@multitable @columnfractions .70 .30
+@multitable @columnfractions .35 .30
 @item @strong{Feature}                     @tab @strong{MySQL version}
 @item Subselects                           @tab 4.1
 @item Foreign keys                         @tab 4.0 and 4.1
@@ -5516,7 +5516,7 @@ Starting with MySQL 3.23.38, the Windows distribution includes
 both the normal and the @strong{MySQL-Max} server binaries.
 Here is a list of the different MySQL servers you can use:
 
-@multitable @columnfractions .25 .75
+@multitable @columnfractions .20 .80
 @item @strong{Binary} @tab @strong{Description}
 @item @code{mysqld} @tab
 Compiled with full debugging and automatic memory allocation
@@ -6040,7 +6040,7 @@ A binary distribution is installed by unpacking it at the installation
 location you choose (typically @file{/usr/local/mysql}) and creates the
 following directories in that location:
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .15 .40
 @item @strong{Directory} @tab @strong{Contents of directory}
 @item @file{bin}         @tab Client programs and the @code{mysqld} server
 @item @file{data}        @tab Log files, databases
@@ -6055,7 +6055,7 @@ A source distribution is installed after you configure and compile it.  By
 default, the installation step installs files under @file{/usr/local}, in the
 following subdirectories:
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .15 .40
 @item @strong{Directory} @tab @strong{Contents of directory}
 @item @file{bin}         @tab Client programs and scripts
 @item @file{include/mysql}  @tab Include (header) files
@@ -8083,7 +8083,7 @@ The @code{mysql.server} script understands the following options:
 The following table shows which option groups each of the startup scripts
 read from option files:
 
-@multitable @columnfractions .20 .80
+@multitable @columnfractions .15 .35
 @item @strong{Script} @tab @strong{Option groups}
 @item @code{mysqld} @tab @code{mysqld} and @code{server}
 @item @code{mysql.server} @tab @code{mysql.server}, @code{mysqld}, and @code{server}
@@ -9313,7 +9313,7 @@ NT/2000/XP. The default is to use named pipes for local connections
 on NT/2000/XP and TCP/IP for all other cases if the client has TCP/IP
 installed. The host name specifies which protocol is used:
 
-@multitable @columnfractions .3 .7
+@multitable @columnfractions .15 .60
 @item @strong{Host name} @tab @strong{Protocol}
 @item NULL (none) @tab
 On NT/2000/XP, try named pipes first; if that doesn't work, use TCP/IP.
@@ -9353,7 +9353,7 @@ the MySQL grant tables.  You can also avoid DNS when connecting to a
 MySQL clients.
 
 There are two versions of the MySQL command-line tool:
-@multitable @columnfractions .25 .75
+@multitable @columnfractions .10 .60
 @item @strong{Binary} @tab @strong{Description}
 @item @code{mysql} @tab Compiled on native Windows, which offers very limited text editing capabilities.
 @item @code{mysqlc} @tab Compiled with the Cygnus GNU compiler and libraries, which offers @code{readline} editing.
@@ -11746,7 +11746,7 @@ The following table shows each of the prompts you may see and summarises what
 they mean about the state that @code{mysql} is in:
 
 @cindex prompts, meanings
-@multitable @columnfractions .10 .9
+@multitable @columnfractions .10 .80
 @item @strong{Prompt} @tab @strong{Meaning}
 @item @code{mysql>} @tab Ready for new command.
 @item @code{@ @ @ @ ->} @tab Waiting for next line of multiple-line command.
@@ -12089,7 +12089,7 @@ Suppose your pet records can be described as shown below.
 (Observe that MySQL expects dates in @code{YYYY-MM-DD} format;
 this may be different than what you are used to.)
 
-@multitable @columnfractions .16 .16 .16 .16 .16 .16
+@multitable @columnfractions .10 .10 .10 .05 .15 .15
 @item @strong{name} @tab @strong{owner} @tab @strong{species} @tab @strong{sex} @tab @strong{birth} @tab @strong{death}
 @item Fluffy @tab Harold @tab cat @tab f @tab 1993-02-04 @tab
 @item Claws @tab Gwen @tab cat @tab m @tab 1994-03-17 @tab
@@ -12113,7 +12113,7 @@ use @code{NULL} values.  To represent these in your text file, use
 @code{\N}.  For example, the record for Whistler the bird would look like
 this (where the whitespace between values is a single tab character):
 
-@multitable @columnfractions .15 .15 .15 .15 .25 .15
+@multitable @columnfractions .10 .10 .10 .05 .15 .15
 @item @strong{name} @tab @strong{owner} @tab @strong{species} @tab @strong{sex} @tab @strong{birth} @tab @strong{death}
 @item @code{Whistler} @tab @code{Gwen} @tab @code{bird} @tab @code{\N} @tab @code{1997-12-09} @tab @code{\N}
 @end multitable
@@ -13099,7 +13099,7 @@ mysql> CREATE TABLE event (name VARCHAR(20), date DATE,
 As with the @code{pet} table, it's easiest to load the initial records
 by creating a tab-delimited text file containing the information:
 
-@multitable @columnfractions .15 .15 .15 .55
+@multitable @columnfractions .10 .15 .10 .30
 @item @strong{name} @tab @strong{date} @tab @strong{type} @tab @strong{remark}
 @item Fluffy @tab 1995-05-15 @tab litter @tab 4 kittens, 3 female, 1 male
 @item Buffy @tab 1993-06-23 @tab litter @tab 5 puppies, 2 female, 3 male
@@ -13992,7 +13992,7 @@ On our production machine (A 200MHz UltraSPARC), this query returns
 about 150-200 rows and takes less than one second.
 
 The current number of records in the tables used above:
-@multitable @columnfractions .3 .5
+@multitable @columnfractions .25 .10
 @item @strong{Table}            @tab @strong{Rows}
 @item @code{person_data}        @tab 71074
 @item @code{lentus}		@tab 5291
