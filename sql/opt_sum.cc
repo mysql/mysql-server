@@ -59,9 +59,9 @@ static int maxmin_in_range(bool max_fl, Field* field, COND *cond);
 
   SYNOPSIS
     opt_sum_query()
-    tables                Tables in query
-    all_fields                All fields to be returned
-    conds                WHERE clause
+    tables                list of leaves of join table tree
+    all_fields            All fields to be returned
+    conds                 WHERE clause
 
   NOTE:
     This function is only called for queries with sum functions and no
@@ -89,7 +89,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
     where_tables= conds->used_tables();
 
   /* Don't replace expression on a table that is part of an outer join */
-  for (TABLE_LIST *tl= tables; tl; tl= tl->next_local)
+  for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
     if (tl->on_expr)
     {
@@ -128,7 +128,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
         {
           longlong count= 1;
           TABLE_LIST *table;
-          for (table= tables; table; table= table->next_local)
+          for (table= tables; table; table= table->next_leaf)
           {
             if (outer_tables || (table->table->file->table_flags() &
                                  HA_NOT_EXACT_COUNT) || table->schema_table)

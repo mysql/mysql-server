@@ -25,6 +25,11 @@ select 'a ' = 'a\t', 'a ' < 'a\t', 'a ' > 'a\t';
 select 'a  a' > 'a', 'a  \t' < 'a';
 
 #
+# Bug #6787 LIKE not working properly with _ and utf8 data
+#
+select 'c' like '\_' as want0; 
+
+#
 # Bug #5679 utf8_unicode_ci LIKE--trailing % doesn't equal zero characters
 #
 CREATE TABLE t (
