@@ -6861,7 +6861,7 @@ shell> CXXFLAGS=-DDONT_USE_DEFAULT_FIELDS ./configure
 
 @cindex character sets
 @findex configure option, --with-charset
-@findex configure option, --with-extra-charset
+@findex configure option, --with-extra-charsets
 @item
 By default, MySQL uses the ISO-8859-1 (Latin1) character set. To
 change the default set, use the @code{--with-charset} option:
@@ -6887,7 +6887,7 @@ indexes may be sorted incorrectly otherwise.  (This can happen if you
 install MySQL, create some tables, then reconfigure
 MySQL to use a different character set and reinstall it.)
 
-With the option @code{--with-extra-charset=LIST} you can define
+With the option @code{--with-extra-charsets=LIST} you can define
 which additional character sets should be compiled into the server.
 
 Here @code{LIST} is either a list of character
