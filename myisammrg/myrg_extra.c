@@ -31,9 +31,9 @@ int myrg_extra(MYRG_INFO *info,enum ha_extra_function function)
     info->cache_in_use=1;
   else
   {
-    if (function == HA_EXTRA_NO_CACHE)
+    if (function == HA_EXTRA_NO_CACHE || function == HA_EXTRA_RESET)
       info->cache_in_use=0;
-    if (function == HA_EXTRA_RESET)
+    if (function == HA_EXTRA_RESET || function == HA_EXTRA_RESET_STATE)
     {
       info->current_table=0;
       info->last_used_table=info->open_tables;

@@ -36,6 +36,14 @@ int nisam_extra(N_INFO *info, enum ha_extra_function function)
 
   switch (function) {
   case HA_EXTRA_RESET:
+    if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
+    {
+      info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
+      error=end_io_cache(&info->rec_cache);
+    }
+    info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
+
+  case HA_EXTRA_RESET_STATE:
     info->lastinx= 0;			/* Use first index as def */
     info->int_pos=info->lastpos= NI_POS_ERROR;
     info->page_changed=1;

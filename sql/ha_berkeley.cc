@@ -319,8 +319,14 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 
   /* Open other keys */
   bzero((char*) key_file,sizeof(*key_file)*table->keys);
-  key_used_on_scan=primary_key=table->primary_key;
-  key_file[primary_key]=file;
+  if ((key_used_on_scan=primary_key=table->primary_key) < MAX_KEY)
+    key_file[primary_key]=file;
+  else						// No primary key
+  {
+    hidden_primary_key=1;
+    if (!share->primary_key_inited)
+      update_auto_primary_key();
+  }
   bzero((char*) &current_row,sizeof(current_row));
 
   DB **ptr=key_file;
@@ -1387,8 +1393,6 @@ static BDB_SHARE *get_share(const char *table_name)
     if ((share=(BDB_SHARE *) my_malloc(sizeof(*share)+length+1,
 				       MYF(MY_WME | MY_ZEROFILL))))
     {
-      // pthread_mutex_init(&share->mutex);
-      // pthread_cond_init(&share->cond);
       share->table_name_length=length;
       share->table_name=(char*) (share+1);
       strmov(share->table_name,table_name);
@@ -1399,6 +1403,7 @@ static BDB_SHARE *get_share(const char *table_name)
 	return 0;
       }
       thr_lock_init(&share->lock);
+      pthread_mutex_init(&share->mutex);
     }
   }
   share->use_count++;
@@ -1413,10 +1418,26 @@ static void free_share(BDB_SHARE *share)
   {
     hash_delete(&bdb_open_tables, (gptr) share);
     thr_lock_delete(&share->lock);
-  //  pthread_mutex_destroy(&share->mutex);
+    pthread_mutex_destroy(&share->mutex);
     my_free((gptr) share, MYF(0));
   }
   pthread_mutex_unlock(&bdb_mutex);
+}
+
+
+void ha_berkeley::update_auto_primary_key()
+{
+  (void) extra(HA_EXTRA_KEYREAD);
+  pthread_mutex_lock(&share->mutex);
+  if (!share->primary_key_inited)
+  {
+    index_init(primary_key);
+    if (!index_last(table->record[1]))
+      share->auto_ident=current_ident;
+    index_end();
+  }
+  pthread_mutex_unlock(&share->mutex);
+  (void) extra(HA_EXTRA_NO_KEYREAD);
 }
 
 #endif /* HAVE_BERKELEY_DB */

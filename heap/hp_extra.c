@@ -29,6 +29,7 @@ int heap_extra(register HP_INFO *info, enum ha_extra_function function)
 
   switch (function) {
   case HA_EXTRA_RESET:
+  case HA_EXTRA_RESET_STATE:
     info->lastinx= -1;
     info->current_record= (ulong) ~0L;
     info->current_hash_ptr=0;

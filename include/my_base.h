@@ -87,7 +87,8 @@ enum ha_extra_function {
   HA_EXTRA_REINIT_CACHE=20,		/* init cache from current record */
   HA_EXTRA_FORCE_REOPEN=21,		/* Datafile have changed on disk */
   HA_EXTRA_FLUSH,			/* Flush tables to disk */
-  HA_EXTRA_NO_ROWS			/* Don't write rows */
+  HA_EXTRA_NO_ROWS,			/* Don't write rows */
+  HA_EXTRA_RESET_STATE			/* Reset positions */
 };
 
 	/* The following is parameter to ha_panic() */

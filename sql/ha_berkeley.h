@@ -24,9 +24,12 @@
 #include <db.h>
 
 typedef struct st_berkeley_share {
+  ulonglong auto_ident;
   THR_LOCK lock;
+  pthread_mutex_t mutex;
   char *table_name;
   uint table_name_length,use_count;
+  my_bool inited;
 } BDB_SHARE;
 
 class ha_berkeley: public handler
@@ -44,7 +47,7 @@ class ha_berkeley: public handler
   ulong int_option_flag;
   ulong alloced_rec_buff_length;
   uint primary_key,last_dup_key;
-  bool fixed_length_row, fixed_length_primary_key;
+  bool fixed_length_row, fixed_length_primary_key, hidden_primary_key;
 
   bool  fix_rec_buff_for_blob(ulong length);
   ulong max_row_length(const byte *buf);

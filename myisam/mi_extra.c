@@ -37,6 +37,24 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
 
   switch (function) {
   case HA_EXTRA_RESET:
+    /*
+      Free buffers and reset the following flags:
+      EXTRA_CACHE, EXTRA_WRITE_CACHE, EXTRA_KEYREAD, EXTRA_QUICK
+    */
+    if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
+    {
+      info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
+      error=end_io_cache(&info->rec_cache);
+    }
+#if defined(HAVE_MMAP) && defined(HAVE_MADVICE)
+    if (info->opt_flag & MEMMAP_USED)
+      madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
+#endif
+    info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);    
+    info->quick_mode=0;
+    /* Fall through */
+
+  case HA_EXTRA_RESET_STATE:		/* Reset state (don't free buffers) */
     info->lastinx= 0;			/* Use first index as def */
     info->last_search_keypage=info->lastpos= HA_OFFSET_ERROR;
     info->page_changed=1;
