@@ -938,19 +938,17 @@ innobase_commit_low(
 	        return;
 	}
 
-        /* TODO: Guilhem should check if master_log_name, pending
-        etc. are right if the master log gets rotated! Possible bug here.
-	Comment by Heikki March 4, 2003. */
-
         if (current_thd->slave_thread) {
                 /* Update the replication position info inside InnoDB */
 
                 trx->mysql_master_log_file_name
                                         = active_mi->rli.master_log_name;
-                trx->mysql_master_log_pos = ((ib_longlong)
-					 (active_mi->rli.master_log_pos +
-					  active_mi->rli.event_len +
-					  active_mi->rli.pending));
+                trx->mysql_master_log_pos = (ib_longlong)
+#if MYSQL_VERSION_ID < 40100
+                  (active_mi->rli.future_master_log_pos);
+#else
+                  (active_mi->rli.future_group_master_log_pos);
+#endif
         }
 
 	trx_commit_for_mysql(trx);
