@@ -175,7 +175,11 @@ os_file_create(
 			file is created (if exists, error), OS_FILE_OVERWRITE
 			if a new file is created or an old overwritten */
 	ulint	purpose,/* in: OS_FILE_AIO, if asynchronous, non-buffered i/o
-			is desired, OS_FILE_NORMAL, if any normal file */
+			is desired, OS_FILE_NORMAL, if any normal file;
+			NOTE that it also depends on type, os_aio_.. and srv_..
+			variables whether we really use async i/o or
+			unbuffered i/o: look in the function source code for
+			the exact rules */
 	ulint	type,	/* in: OS_DATA_FILE or OS_LOG_FILE */
 	ibool*	success);/* out: TRUE if succeed, FALSE if error */
 /***************************************************************************

@@ -176,3 +176,5 @@ Column 'k1' cannot be null
 insert into t1 values (NULL, NULL);
 Column 'k1' cannot be null
 drop table t1;
+create table t1 select x'4132';
+drop table t1;

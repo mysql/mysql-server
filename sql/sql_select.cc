@@ -3664,6 +3664,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::STRING_ITEM:
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
+  case Item::VARBIN_ITEM:
   {
     bool maybe_null=item->maybe_null;
     Field *new_field;
