@@ -270,8 +270,9 @@ static void dump_remote_log_entries(const char* logname)
   int4store(buf, position);
   int2store(buf + 4, binlog_flags);
   len = (uint) strlen(logname);
-  memcpy(buf + 6, logname,len);
-  if(mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 6, 1))
+  int4store(buf + 6, 0);
+  memcpy(buf + 10, logname,len);
+  if(mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
     die("Error sending the log dump command");
   
   for(;;)

@@ -22,16 +22,6 @@
 #include  "mysql_priv.h"
 #endif /* MYSQL_CLIENT */
 
-#define LOG_EVENT_HEADER_LEN 13
-#define QUERY_HEADER_LEN     (sizeof(uint32) + sizeof(uint32) + sizeof(uchar))
-#define LOAD_HEADER_LEN      (sizeof(uint32) + sizeof(uint32) + \
-  + sizeof(uint32) + 2 + sizeof(uint32))
-#define EVENT_LEN_OFFSET     9
-#define EVENT_TYPE_OFFSET    4
-#define MAX_EVENT_LEN        4*1024*1024 
-#define QUERY_EVENT_OVERHEAD  LOG_EVENT_HEADER_LEN+QUERY_HEADER_LEN
-#define ROTATE_EVENT_OVERHEAD LOG_EVENT_HEADER_LEN
-#define LOAD_EVENT_OVERHEAD   (LOG_EVENT_HEADER_LEN+LOAD_HEADER_LEN+sizeof(sql_ex_info))
 
 static void pretty_print_char(FILE* file, int c)
 {

@@ -248,7 +248,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_error_log,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_flush, LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
-                LOCK_binlog_update, LOCK_slave;
+                LOCK_binlog_update, LOCK_slave, LOCK_server_id;
 
 pthread_cond_t COND_refresh,COND_thread_count,COND_flush, COND_binlog_update,
   COND_slave_stopped;
@@ -1395,6 +1395,7 @@ int main(int argc, char **argv)
   (void) pthread_mutex_init(&LOCK_timezone,NULL);
   (void) pthread_mutex_init(&LOCK_binlog_update, NULL);
   (void) pthread_mutex_init(&LOCK_slave, NULL);
+  (void) pthread_mutex_init(&LOCK_server_id, NULL);
   (void) pthread_cond_init(&COND_binlog_update, NULL);
   (void) pthread_cond_init(&COND_slave_stopped, NULL);
 
