@@ -34127,7 +34127,7 @@ mysql> select * from bar;
 For each row in table @code{foo}, a row is inserted in @code{bar} with
 the values from @code{foo} and default values for the new columns.
 
-@code{CREATE TABLE ... SELECT} will not automaticly create any indexes
+@code{CREATE TABLE ... SELECT} will not automatically create any indexes
 for you.  This is done intentionally to make the command as flexible as
 possible.  If you want to have indexes in the created table, you should
 specify these before the @code{SELECT} statement:
@@ -41970,7 +41970,7 @@ MySQL function.  This initializes some global variables that MySQL
 needs.  If you are using a thread safe client library, this will also
 call @code{my_thread_init()} for this thread.
 
-This is automaticly called by @code{mysql_init()}
+This is automatically called by @code{mysql_init()}
 and @code{mysql_connect()}.
 
 @subsubheading Return Values
@@ -41987,7 +41987,7 @@ none.
 This function needs to be called for each created thread to initialize
 thread specific variables.
 
-This is automaticly called by @code{my_init()} and @code{mysql_connect()}.
+This is automatically called by @code{my_init()} and @code{mysql_connect()}.
 
 @subsubheading Return Values
 
@@ -42003,7 +42003,7 @@ none.
 This function needs to be called before calling @code{pthread_exit()} to
 freed memory allocated by @code{my_thread_init()}.
 
-Note that this function is NOT invoked automaticly be the client
+Note that this function is NOT invoked automatically by the client
 library!
 
 @subsubheading Return Values
@@ -47113,6 +47113,8 @@ as @code{NULL}.
 Fixed problem with @code{myisampack} when using pre-space filled CHAR columns.
 @item
 Applied patch from Yuri Dario for OS2.
+@item
+Fixed bug in @code{--safe-user-create}
 @end itemize
 
 @node News-3.23.42, News-3.23.41, News-3.23.43, News-3.23.x
