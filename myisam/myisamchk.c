@@ -258,8 +258,6 @@ static void usage(void)
   -k, --keys-used=#   Tell MyISAM to update only some specific keys. # is a\n\
 	              bit mask of which keys to use. This can be used to\n\
 		      get faster inserts!\n\
-  -l, --no-symlinks   Do not follow symbolic links. Normally\n\
-		      myisamchk repairs the table a symlink points at.\n\
   -r, --recover       Can fix almost anything except unique keys that aren't\n\
                       unique.\n\
   -n, --sort-recover  Force recovering with sorting even if the temporary\n\

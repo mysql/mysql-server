@@ -133,6 +133,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  BINLOG_SYM
 %token  EVENTS_SYM
 
+%token	ABORT_SYM
 %token	ACTION
 %token	AGGREGATE_SYM
 %token	ALL
@@ -3022,7 +3023,7 @@ option_value:
          | SQL_SLAVE_SKIP_COUNTER equal ULONG_NUM
           {
 	    pthread_mutex_lock(&LOCK_slave);
-	    if(slave_running)
+	    if (slave_running)
 	      send_error(&current_thd->net, ER_SLAVE_MUST_STOP);
 	    else
 	      slave_skip_counter = $3;
