@@ -359,8 +359,8 @@ WWW (@uref{http://mysql.ttn.net/})
 
 @item
 @image{Flags/australia} Australia [planetmirror.com] @@
-WWW (@uref{http://mysql.planetmirror.com})
-FTP (@uref{ftp://planetmirror.com/pub/mysql})
+WWW (@uref{http://mysql.planetmirror.com/})
+FTP (@uref{ftp://planetmirror.com/pub/mysql/})
 
 @end itemize
 
@@ -377,5 +377,3 @@ WWW (@uref{http://www.mysql.mweb.co.za/})
 FTP (@uref{ftp://ftp.is.co.za/linux/mysql/})
 
 @end itemize
-
-
