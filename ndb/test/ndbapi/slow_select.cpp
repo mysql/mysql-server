@@ -1,4 +1,5 @@
 
+#include <ndb_global.h>
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
