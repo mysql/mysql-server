@@ -792,3 +792,16 @@ libmysql/my_time.c
 libmysqld/my_time.c
 sql/mysql_tzinfo_to_sql
 sql/mysql_tzinfo_to_sql.cc
+ndb/src/cw/cpcd/ndb_cpcd
+ndb/src/kernel/ndbd
+ndb/src/kernel/blocks/backup/restore/ndb_restore
+ndb/src/mgmclient/ndb_mgm
+ndb/src/mgmsrv/ndb_mgmd
+ndb/tools/ndb_delete_all
+ndb/tools/ndb_desc
+ndb/tools/ndb_drop_index
+ndb/tools/ndb_drop_table
+ndb/tools/ndb_select_all
+ndb/tools/ndb_select_count
+ndb/tools/ndb_show_tables
+ndb/tools/ndb_waiter
