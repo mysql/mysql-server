@@ -171,6 +171,11 @@ do
   rm $file.org
 done
 
+# create the libmysql.imp file in netware folder from libmysql/libmysql.def
+# file
+echo "generating llibmysql.imp file..."
+awk 'BEGIN{x=0;}  x==1 {print $1;next} /EXPORTS/{x=1}' libmysql/libmysql.def > netware/libmysql.imp
+
 # build linux tools
 echo "compiling linux tools..."
 ./netware/BUILD/compile-linux-tools
