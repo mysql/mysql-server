@@ -557,6 +557,7 @@ class in_row :public in_vector
   cmp_item_row tmp;
 public:
   in_row(uint elements, Item *);
+  ~in_row();
   void set(uint pos,Item *item);
   byte *get_value(Item *item);
 };
