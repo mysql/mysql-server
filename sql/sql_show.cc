@@ -21,8 +21,6 @@
 #include "sql_select.h"                         // For select_describe
 #include "sql_acl.h"
 #include <my_dir.h>
-#undef USE_RAID
-#define USE_RAID
 
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"			// For berkeley_show_logs
@@ -77,10 +75,17 @@ mysqld_show_dbs(THD *thd,const char *wild)
   List_iterator<char> it(files);
   while ((file_name=it++))
   {
-    thd->packet.length(0);
-    net_store_data(&thd->packet,file_name);
-    if (my_net_write(&thd->net,(char*) thd->packet.ptr(),thd->packet.length()))
-      DBUG_RETURN(-1);
+    if (!opt_safe_show_db || thd->master_access ||
+	acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
+		thd->priv_user, file_name) ||
+	(grant_option && !check_grant_db(thd, file_name)))
+      {
+      thd->packet.length(0);
+      net_store_data(&thd->packet,file_name);
+      if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
+		       thd->packet.length()))
+	DBUG_RETURN(-1);
+    }
   }
   send_eof(&thd->net);
   DBUG_RETURN(0);
@@ -1088,6 +1093,14 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
       case SHOW_INT:
         net_store_data(&packet2,(uint32) *(int*) variables[i].value);
         break;
+      case SHOW_HAVE:
+      {
+	SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) variables[i].value;
+        net_store_data(&packet2, (tmp == SHOW_OPTION_NO ? "NO" :
+				  tmp == SHOW_OPTION_YES ? "YES" :
+				  "DISABLED"));
+        break;
+      }
       case SHOW_CHAR:
         net_store_data(&packet2,variables[i].value);
         break;
