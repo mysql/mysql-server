@@ -127,7 +127,7 @@ void sql_element_free(void *ptr);
 #define TEST_NO_THREADS		32	/* For debugging under Linux */
 #define TEST_READCHECK		64	/* Force use of readcheck */
 #define TEST_NO_EXTRA		128
-#define TEST_KILL_ON_DEBUG	256	/* Kill server */
+#define TEST_CORE_ON_SIGNAL	256	/* Give core if signal */
 
 /* options for select set by the yacc parser */
 #define SELECT_DISTINCT		1
