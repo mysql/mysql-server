@@ -89,13 +89,18 @@ sub add_copyright
   elsif ($ARGV =~ /\.c$/ ||
 	 $ARGV =~ /\.cc$/ ||
 	 $ARGV =~ /\.h$/ ||
-	 $ARGV =~ /\.yy$/ ||
-	 $ARGV =~ /-x86\.s$/)
+	 $ARGV =~ /\.yy$/)
   {
     $start_copyright="/* ";
     $line_copyright= "   ";
     $end_copyright=  " */";
   }
+	elsif ($ARGV =~ /-x86\.s$/)
+	{
+		$start_copyright="# ";
+		$line_copyright= "# ";
+		$end_copyright=  "";
+	}
   elsif ($ARGV =~ /\.s$/)
   {
     $start_copyright="! ";
