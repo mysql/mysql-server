@@ -1301,3 +1301,11 @@ explain select a from t1 where c=2;
 do @a:= (select sum(a) from t1 where b > @b);
 explain select a from t1 where c=2;
 drop table t1;
+
+#
+# Equal operation under row and empty subquery
+#
+create table t1 (s1 int,s2 int);
+insert into t1 values (20,15);
+select * from t1 where  (('a',null) <=> (select 'a',s2 from t1 where s1 = 0));
+drop table t1;
