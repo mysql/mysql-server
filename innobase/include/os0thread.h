@@ -65,7 +65,9 @@ os_thread_pf(
 /********************************************************************
 Creates a new thread of execution. The execution starts from
 the function given. The start function takes a void* parameter
-and returns a ulint. */
+and returns a ulint.
+NOTE: We count the number of threads in os_thread_exit(). A created
+thread should always use that to exit and not use return() to exit. */
 
 os_thread_t
 os_thread_create(
