@@ -314,3 +314,18 @@ prepare stmt from "select 'abc' like convert('abc' using utf8)";
 execute stmt;
 execute stmt;
 deallocate prepare stmt;
+
+# 
+# BUG#5748 "Prepared statement with BETWEEN and bigint values crashes
+# mysqld". Just another place where an item tree modification must be 
+# rolled back.
+# 
+create table t1 ( a bigint );
+prepare stmt from 'select a from t1 where a between ? and ?';
+set @a=1;
+execute stmt using @a, @a;
+execute stmt using @a, @a;
+execute stmt using @a, @a;
+drop table t1;
+deallocate prepare stmt;
+
