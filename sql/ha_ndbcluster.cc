@@ -147,6 +147,7 @@ Thd_ndb::Thd_ndb()
   ndb= new Ndb(g_ndb_cluster_connection, "");
   lock_count= 0;
   count= 0;
+  error= 0;
 }
 
 Thd_ndb::~Thd_ndb()
@@ -179,6 +180,11 @@ void ha_ndbcluster::records_update()
       info->records= rows;
     }
   }
+  {
+    THD *thd= current_thd;
+    if (((Thd_ndb*)(thd->transaction.thd_ndb))->error)
+      info->no_uncommitted_rows_count= 0;
+  }
   records= info->records+ info->no_uncommitted_rows_count;
   DBUG_VOID_RETURN;
 }
@@ -186,8 +192,8 @@ void ha_ndbcluster::records_update()
 void ha_ndbcluster::no_uncommitted_rows_execute_failure()
 {
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_execute_failure");
-  struct Ndb_table_local_info *info= (struct Ndb_table_local_info *)m_table_info;
-  info->no_uncommitted_rows_count= 0;
+  THD *thd= current_thd;
+  ((Thd_ndb*)(thd->transaction.thd_ndb))->error= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -223,6 +229,7 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
 {
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_reset");
   ((Thd_ndb*)(thd->transaction.thd_ndb))->count++;
+  ((Thd_ndb*)(thd->transaction.thd_ndb))->error= 0;
   DBUG_VOID_RETURN;
 }
 
