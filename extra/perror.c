@@ -66,6 +66,7 @@ static HA_ERRORS ha_errlist[]=
   { 142,"Unknown character set used"},
   { 143,"Conflicting table definition between MERGE and mapped table"},
   { 144,"Table is crashed and last repair failed"},
+  { 145,"Table was marked as crashed and should be repaired"},
   { 0,NullS },
 };
 

@@ -382,6 +382,7 @@ int _mi_test_if_changed(register MI_INFO *info)
       share->state.unique  != info->last_unique ||
       share->state.update_count != info->last_loop)
   {						/* Keyfile has changed */
+    DBUG_PRINT("info",("index file changed"));
     if (share->state.process != share->this_process)
       VOID(flush_key_blocks(share->kfile,FLUSH_RELEASE));
     share->last_process=share->state.process;

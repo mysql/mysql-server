@@ -25,7 +25,7 @@
 
 int mi_rprev(MI_INFO *info, byte *buf, int inx)
 {
-  int error;
+  int error,changed;
   register uint flag;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("mi_rprev");
@@ -38,12 +38,13 @@ int mi_rprev(MI_INFO *info, byte *buf, int inx)
 
   if (_mi_readinfo(info,F_RDLCK,1))
     DBUG_RETURN(my_errno);
+  changed=_mi_test_if_changed(info);
   if (share->concurrent_insert)
     rw_rdlock(&share->key_root_lock[inx]);
   if (!flag)
     error=_mi_search_last(info, share->keyinfo+inx,
 			  share->state.key_root[inx]);
-  else if (_mi_test_if_changed(info) == 0)
+  else if (!changed)
     error=_mi_search_next(info,share->keyinfo+inx,info->lastkey,
 			  info->lastkey_length,flag,
 			  share->state.key_root[inx]);

@@ -27,7 +27,7 @@
 
 int nisam_rprev(N_INFO *info, byte *buf, int inx)
 {
-  int error;
+  int error,changed;
   register uint flag;
   DBUG_ENTER("nisam_rprev");
 
@@ -40,9 +40,10 @@ int nisam_rprev(N_INFO *info, byte *buf, int inx)
 #ifndef NO_LOCKING
   if (_nisam_readinfo(info,F_RDLCK,1)) DBUG_RETURN(-1);
 #endif
+  changed=_nisam_test_if_changed(info);
   if (!flag)
     error=_nisam_search_last(info,info->s->keyinfo+inx,info->s->state.key_root[inx]);
-  else if (_nisam_test_if_changed(info) == 0)
+  else if (!changed)
     error=_nisam_search_next(info,info->s->keyinfo+inx,info->lastkey,flag,
 			  info->s->state.key_root[inx]);
   else
