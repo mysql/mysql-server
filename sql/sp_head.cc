@@ -459,11 +459,22 @@ sp_head::destroy()
   delete_dynamic(&m_instr);
   m_pcont->destroy();
   free_items(free_list);
+
+  /*
+    If we have non-empty LEX stack then we just came out of parser with
+    error. Now we should delete all auxilary LEXes and restore original
+    THD::lex (In this case sp_head::restore_thd_mem_root() was not called
+    too, so m_thd points to the current thread context).
+    It is safe to not update LEX::ptr because further query string parsing
+    and execution will be stopped anyway.
+  */
+  DBUG_ASSERT(m_lex.is_empty() || m_thd);
   while ((lex= (LEX *)m_lex.pop()))
   {
-    if (lex != &m_thd->main_lex) // We got interrupted and have lex'es left
-      delete lex;
+    delete m_thd->lex;
+    m_thd->lex= lex;
   }
+
   hash_free(&m_sptabs);
   hash_free(&m_spfuns);
   hash_free(&m_spprocs);
