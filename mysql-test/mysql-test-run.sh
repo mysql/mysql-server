@@ -429,14 +429,14 @@ if [ x$SOURCE_DIST = x1 ] ; then
    MYSQL_TEST="$BASEDIR/client/mysqltest"
  fi
  if [ -f "$BASEDIR/client/.libs/mysqldump" ] ; then
-   MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump --no-defaults -uroot --socket=$MASTER_MYSOCK"
+   MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump"
  else
-   MYSQL_DUMP="$BASEDIR/client/mysqldump --no-defaults -uroot --socket=$MASTER_MYSOCK"
+   MYSQL_DUMP="$BASEDIR/client/mysqldump"
  fi
  if [ -f "$BASEDIR/client/.libs/mysqlbinlog" ] ; then
-   MYSQL_BINLOG="$BASEDIR/client/.libs/mysqlbinlog --local-load=$MYSQL_TMP_DIR"
+   MYSQL_BINLOG="$BASEDIR/client/.libs/mysqlbinlog"
  else
-   MYSQL_BINLOG="$BASEDIR/client/mysqlbinlog --local-load=$MYSQL_TMP_DIR"
+   MYSQL_BINLOG="$BASEDIR/client/mysqlbinlog"
  fi
  if [ -n "$STRACE_CLIENT" ]; then
   MYSQL_TEST="strace -o $MYSQL_TEST_DIR/var/log/mysqltest.strace $MYSQL_TEST"
@@ -459,8 +459,8 @@ else
    MYSQLD="$VALGRIND $BASEDIR/bin/mysqld"
  fi
  MYSQL_TEST="$BASEDIR/bin/mysqltest"
- MYSQL_DUMP="$BASEDIR/bin/mysqldump --no-defaults -uroot --socket=$MASTER_MYSOCK"
- MYSQL_BINLOG="$BASEDIR/bin/mysqlbinlog --local-load=$MYSQL_TMP_DIR"
+ MYSQL_DUMP="$BASEDIR/bin/mysqldump"
+ MYSQL_BINLOG="$BASEDIR/bin/mysqlbinlog"
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
  WAIT_PID="$BASEDIR/bin/mysql_waitpid"
  MYSQL_MANAGER="$BASEDIR/bin/mysqlmanager"
@@ -478,6 +478,8 @@ else
   fi
 fi
 
+MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK"
+MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR"
 export MYSQL_DUMP
 export MYSQL_BINLOG
 
