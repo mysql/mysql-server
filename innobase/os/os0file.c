@@ -104,6 +104,38 @@ os_aio_array_t*	os_aio_sync_array	= NULL;
 ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 
 /***************************************************************************
+Gets the operating system version. Currently works only on Windows. */
+
+ulint
+os_get_os_version(void)
+/*===================*/
+                  /* out: OS_WIN95, OS_WIN31, OS_WINNT (2000 == NT) */
+{
+#ifdef __WIN__
+  OSVERSIONINFO     os_info;
+
+  os_info.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+
+  ut_a(GetVersionEx(&os_info));
+
+  if (os_info.dwPlatformId == VER_PLATFORM_WIN32s) {
+    return(OS_WIN31);
+  } else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
+    return(OS_WIN95);
+  } else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
+    return(OS_WINNT);
+  } else {
+    ut_error;
+    return(0);
+  }
+#else
+  ut_error;
+
+  return(0);
+#endif
+}
+
+/***************************************************************************
 Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
@@ -438,13 +470,13 @@ os_file_set_size(
 	byte*   buf;
 
 try_again:
-	/* We use a very big 16 MB buffer in writing because Linux is
+	/* We use a very big 8 MB buffer in writing because Linux may be
 	extremely slow in fdatasync on 1 MB writes */
 
-	buf = ut_malloc(UNIV_PAGE_SIZE * 1024);
+	buf = ut_malloc(UNIV_PAGE_SIZE * 512);
 
 	/* Write buffer full of zeros */
-	for (i = 0; i < UNIV_PAGE_SIZE * 1024; i++) {
+	for (i = 0; i < UNIV_PAGE_SIZE * 512; i++) {
 	        buf[i] = '\0';
 	}
 
@@ -456,10 +488,10 @@ try_again:
 	UT_NOT_USED(size_high);
 #endif
 	while (offset < low) {
-	        if (low - offset < UNIV_PAGE_SIZE * 1024) {
+	        if (low - offset < UNIV_PAGE_SIZE * 512) {
 	                 n_bytes = low - offset;
 	        } else {
-	                 n_bytes = UNIV_PAGE_SIZE * 1024;
+	                 n_bytes = UNIV_PAGE_SIZE * 512;
 	        }
 	  
 	        ret = os_file_write(name, file, buf, offset, 0, n_bytes);
@@ -474,8 +506,6 @@ try_again:
 	ut_free(buf);
 
 	ret = os_file_flush(file);
-
-	fsync(file);
 
 	if (ret) {
 	        return(TRUE);
