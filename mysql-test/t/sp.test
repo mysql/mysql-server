@@ -931,6 +931,25 @@ drop database sp_db3|
 select type,db,name from mysql.proc where db = 'sp_db3'|
 
 
+# ROW_COUNT() function after a CALL
+# We test the other cases here too, although it's not strictly SP specific
+create procedure rc()
+begin
+  delete from t1;
+  insert into t1 values ("a", 1), ("b", 2), ("c", 3);
+end|
+
+call rc()|
+select row_count()|
+update t1 set data=42 where id = "b";
+select row_count()|
+delete from t1|
+select row_count()|
+delete from t1|
+select row_count()|
+drop procedure rc|
+
+
 #
 # Test cases for old bugs
 #

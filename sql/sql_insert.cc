@@ -419,7 +419,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     goto abort;
   if (values_list.elements == 1 && (!(thd->options & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
-    send_ok(thd,info.copied+info.deleted+info.updated,id);
+  {
+    thd->row_count_func= info.copied+info.deleted+info.updated;
+    send_ok(thd, thd->row_count_func, id);
+  }
   else
   {
     char buff[160];
@@ -430,7 +433,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     else
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (ulong) info.deleted+info.updated, (ulong) thd->cuted_fields);
-    ::send_ok(thd,info.copied+info.deleted+info.updated,(ulonglong)id,buff);
+    thd->row_count_func= info.copied+info.deleted+info.updated;
+    ::send_ok(thd, thd->row_count_func, (ulonglong)id,buff);
   }
   free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
@@ -1565,7 +1569,8 @@ bool select_insert::send_eof()
   else
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) info.deleted+info.updated, (ulong) thd->cuted_fields);
-  ::send_ok(thd,info.copied+info.deleted+info.updated,last_insert_id,buff);
+  thd->row_count_func= info.copied+info.deleted+info.updated;
+  ::send_ok(thd, thd->row_count_func, last_insert_id, buff);
   DBUG_RETURN(0);
 }
 
