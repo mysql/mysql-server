@@ -2421,6 +2421,14 @@ void Field_double::sql_type(String &res) const
 ** by handler.cc.  The form->timestamp points at the automatic timestamp.
 ****************************************************************************/
 
+enum Item_result Field_timestamp::result_type() const
+{
+ return (!current_thd->variables.new_mode &&
+	 (field_length == 8 || field_length == 14) ? INT_RESULT :
+	 STRING_RESULT);
+}
+
+
 Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 				 enum utype unireg_check_arg,
 				 const char *field_name_arg,
@@ -2782,6 +2790,23 @@ void Field_timestamp::set_time()
 #endif
     longstore(ptr,tmp);
 }
+
+/*
+ This is an exact copy of Field_num except that 'length' is depending
+ on --new mode
+*/
+
+void Field_timestamp::make_field(Send_field *field)
+{
+  field->table_name=table_name;
+  field->col_name=field_name;
+  /* If --new, then we are using "YYYY-MM-DD HH:MM:SS" format */
+  field->length= current_thd->variables.new_mode ? 19 : field_length;
+  field->type=type();
+  field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
+  field->decimals=dec;
+}
+
 
 /****************************************************************************
 ** time type
