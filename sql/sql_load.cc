@@ -759,8 +759,7 @@ int READ_INFO::read_field()
     {
       chr = GET;
 #ifdef USE_MB
-      if (use_mb(read_charset) &&
-          (my_mbcharlen(read_charset, chr) >1 )&&
+      if ((my_mbcharlen(read_charset, chr) > 1) &&
           to+my_mbcharlen(read_charset, chr) <= end_of_buff)
       {
 	  uchar* p = (uchar*)to;
@@ -946,7 +945,7 @@ int READ_INFO::next_line()
   {
     int chr = GET;
 #ifdef USE_MB
-   if (use_mb(read_charset) && (my_mbcharlen(read_charset, chr) >1 ))
+   if (my_mbcharlen(read_charset, chr) > 1)
    {
        for (int i=1;
             chr != my_b_EOF && i<my_mbcharlen(read_charset, chr);

@@ -401,7 +401,7 @@ static int ismbchar_big5(CHARSET_INFO *cs __attribute__((unused)),
 
 static int mbcharlen_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
 {
-  return (isbig5head(c)? 2: 0);
+  return (isbig5head(c)? 2 : 1);
 }
 
 /* page 0 0xA140-0xC7FC */

@@ -1539,7 +1539,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
     case HA_ADMIN_CORRUPT:
       protocol->store("error", 5, system_charset_info);
-      protocol->store("Corrupt", 8, system_charset_info);
+      protocol->store("Corrupt", 7, system_charset_info);
       fatal_error=1;
       break;
 
