@@ -373,7 +373,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
   uint len;
   MY_STAT stat_info;
   
-  if (!my_stat(filename, &stat_info, MYF(MY_WME)) ||
+  if (!my_stat(filename, &stat_info, MYF(myflags)) ||
        ((len= (uint)stat_info.st_size) > MY_MAX_ALLOWED_BUF) ||
        !(buf= (char *)my_malloc(len,myflags)))
     return TRUE;

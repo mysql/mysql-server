@@ -91,7 +91,6 @@ static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0;
 static char compatible_mode_normal_str[255];
-static char *default_charset= (char*) MYSQL_UNIVERSAL_CLIENT_CHARSET;
 static ulong opt_compatible_mode= 0;
 static uint     opt_mysql_port= 0, err_len= 0;
 static my_string opt_mysql_unix_port=0;
@@ -104,7 +103,9 @@ FILE  *md_result_file;
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol= 0;
+static char *default_charset= (char*) MYSQL_UNIVERSAL_CLIENT_CHARSET;
 static CHARSET_INFO *charset_info= &my_charset_latin1;
+const char *default_dbug_option="d:t:o,/tmp/mysqldump.trace";
 
 const char *compatible_mode_names[]=
 {
@@ -165,8 +166,13 @@ static struct my_option my_long_options[] =
    "To dump several databases. Note the difference in usage; In this case no tables are given. All name arguments are regarded as databasenames. 'USE db_name;' will be included in the output.",
    (gptr*) &opt_databases, (gptr*) &opt_databases, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
-  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit",
+   0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#else
+  {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
+   (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (gptr*) &default_charset,
    (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -464,7 +470,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_disable_keys=0;
     break;
   case '#':
-    DBUG_PUSH(argument ? argument : "d:t:o");
+    DBUG_PUSH(argument ? argument : default_dbug_option);
     break;
 #include <sslopt-case.h>
   case 'V': print_version(); exit(0);
