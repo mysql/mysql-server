@@ -98,6 +98,11 @@ OperationTestCase matrix[] = {
   result = NDBT_FAILED; \
   break; }
 
+#define C3(b)  if (!(b)) { \
+  g_err  << "ERR: "<< step->getName() \
+         << " failed on line " << __LINE__ << endl; \
+  abort(); return NDBT_FAILED; }
+
 int
 runOp(HugoOperations & hugoOps,
       Ndb * pNdb,
@@ -228,11 +233,287 @@ runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+enum OPS { o_DONE= 0, o_INS= 1, o_UPD= 2, o_DEL= 3 };
+typedef Vector<OPS> Sequence;
+
+static
+bool
+valid(const Sequence& s)
+{ 
+  if(s.size() == 0)
+    return false;
+
+  for(size_t i = 1; i<s.size(); i++)
+  {
+    switch(s[i]){
+    case o_INS:
+      if(s[i-1] != o_DEL)
+	return false;
+      break;
+    case o_UPD:
+    case o_DEL:
+      if(s[i-1] == o_DEL)
+	return false;
+      break;
+    case o_DONE:
+      return true;
+    }
+  }
+  return true;
+}
+
+static
+NdbOut& operator<<(NdbOut& out, const Sequence& s)
+{
+  out << "[ ";
+  for(size_t i = 0; i<s.size(); i++)
+  {
+   switch(s[i]){
+    case o_INS:
+      out << "INS ";
+      break;
+    case o_DEL:
+      out << "DEL ";
+      break;
+    case o_UPD:
+      out << "UPD ";
+      break;
+   case o_DONE:
+     abort();
+   }
+  }
+  out << "]";
+  return out;
+}
+
+static
+void
+generate(Sequence& out, int no)
+{
+  while(no & 3)
+  {
+    out.push_back((OPS)(no & 3));
+    no >>= 2;
+  }
+}
+
+static
+void
+generate(Vector<int>& out, size_t len)
+{
+  int max= 1;
+  while(len)
+  {
+    max <<= 2;
+    len--;
+  }
+  
+  len= 1;
+  for(int i = 0; i<max; i++)
+  {
+    Sequence tmp;
+    generate(tmp, i);
+
+    if(tmp.size() >= len && valid(tmp))
+    {
+      out.push_back(i);
+      len= tmp.size();
+    }
+    else
+    {
+      //ndbout << "DISCARD: " << tmp << endl;
+    }
+  }
+}
+
+int 
+runOperations(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const Uint32 DUMMY = 0;
+  const Uint32 ROW = 1;
+
+  int tmp; 
+  Ndb* pNdb = GETNDB(step);
+  
+  Uint32 seqNo = ctx->getProperty("Sequence", (Uint32)0);
+  Uint32 no_wait = NdbOperation::LM_CommittedRead*
+    ctx->getProperty("NoWait", (Uint32)1);
+  
+  if(seqNo == 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  Sequence seq;
+  generate(seq, seqNo);
+
+  {
+    // Dummy row
+    HugoOperations hugoOps(*ctx->getTab());
+    C3(hugoOps.startTransaction(pNdb) == 0);  
+    C3(hugoOps.pkInsertRecord(pNdb, DUMMY, 1, 0) == 0);
+    C3(hugoOps.execute_Commit(pNdb) == 0);
+  }
+    
+  const bool inital_row= (seq[0] != o_INS);
+  if(inital_row)
+  {
+    HugoOperations hugoOps(*ctx->getTab());
+    C3(hugoOps.startTransaction(pNdb) == 0);  
+    C3(hugoOps.pkInsertRecord(pNdb, ROW, 1, 0) == 0);
+    C3(hugoOps.execute_Commit(pNdb) == 0);
+  }
+    
+  HugoOperations trans1(*ctx->getTab());
+  C3(trans1.startTransaction(pNdb) == 0);  
+  for(size_t i = 0; i<seq.size(); i++)
+  {
+    /**
+     * Perform operation
+     */
+    switch(seq[i]){
+    case o_INS:
+      C3(trans1.pkInsertRecord(pNdb, ROW, 1, i+1) == 0);
+      break;
+    case o_UPD:
+      C3(trans1.pkUpdateRecord(pNdb, ROW, 1, i+1) == 0);
+      break;
+    case o_DEL:
+      C3(trans1.pkDeleteRecord(pNdb, ROW, 1) == 0);
+      break;
+    case o_DONE:
+      abort();
+    }
+    C3(trans1.execute_NoCommit(pNdb) == 0);
+      
+    /**
+     * Verify other transaction
+     */
+    for(size_t j = no_wait; j<3; j++)
+    {
+      HugoOperations other(*ctx->getTab());
+      C3(other.startTransaction(pNdb) == 0);  
+      C3(other.pkReadRecord(pNdb, ROW, 1, (NdbOperation::LockMode)j) == 0);
+      tmp= other.execute_Commit(pNdb);
+      if(j == NdbOperation::LM_CommittedRead)
+      {
+	C3(inital_row? tmp==0 && other.verifyUpdatesValue(0) == 0 : tmp==626);
+      }
+      else
+      {
+	C3(tmp == 266);
+      }
+    }
+      
+    /**
+     * Verify savepoint read
+     */
+    Uint64 transactionId= trans1.getTransaction()->getTransactionId();
+    for(size_t k=0; k<=i+1; k++)
+    {
+      for(size_t j = 0; j<3; j++)
+      {
+	const NdbOperation::LockMode lm= (NdbOperation::LockMode)j;
+
+	HugoOperations same(*ctx->getTab());
+	C3(same.startTransaction(pNdb) == 0);  
+	same.getTransaction()->setTransactionId(transactionId); // Cheat
+	
+	/**
+	 * Increase savepoint to <em>k</em>
+	 */
+	for(size_t l = 1; l<=k; l++)
+	{
+	  C3(same.pkReadRecord(pNdb, DUMMY, 1, lm) == 0); // Read dummy row
+	  C3(same.execute_NoCommit(pNdb) == 0);
+	  g_info << "savepoint: " << l << endl;
+	}	  
+	
+	g_info << "op(" << k << ", " << i << "): " 
+	       << " lock mode " << lm << endl;
+      
+	C3(same.pkReadRecord(pNdb, ROW, 1, lm) == 0); // Read real row
+	tmp= same.execute_Commit(pNdb);
+	if(k == 0)
+	{
+	  if(inital_row)
+	  {
+	    C3(tmp == 0 && same.verifyUpdatesValue(0) == 0);
+	  } else
+	  {
+	    C3(tmp == 626);
+	  }
+	}
+	else
+	{
+	  switch(seq[k-1]){
+	  case o_INS:
+	  case o_UPD:
+	    C3(tmp == 0 && same.verifyUpdatesValue(k) == 0);
+	    break;
+	  case o_DEL:
+	    C3(tmp == 626);
+	    break;
+	  case o_DONE:
+	    abort();
+	  }
+	}
+      }
+    }  
+  }
+  C3(trans1.execute_Commit(pNdb) == 0);
+
+  return NDBT_OK;
+}
+
 int
 main(int argc, const char** argv){
   ndb_init();
 
+  Vector<int> tmp;
+  generate(tmp, 5);
+
   NDBT_TestSuite ts("testOperations");
+  for(size_t i = 0; i<tmp.size(); i++)
+  {
+    BaseString name;
+    Sequence s;
+    generate(s, tmp[i]);
+    for(size_t j = 0; j<s.size(); j++){
+      switch(s[j]){
+      case o_INS:
+	name.append("_INS");
+	break;
+      case o_DEL:
+	name.append("_DEL");
+	break;
+      case o_UPD:
+	name.append("_UPD");
+	break;
+      case o_DONE:
+	abort();
+      }
+    }
+
+    NDBT_TestCaseImpl1 *pt = new NDBT_TestCaseImpl1(&ts, 
+						    name.c_str()+1, "");    
+
+    pt->setProperty("Sequence", tmp[i]);
+    pt->addInitializer(new NDBT_Initializer(pt, 
+					    "runClearTable", 
+					    runClearTable));
+
+    pt->addStep(new NDBT_ParallelStep(pt, 
+				      name.c_str()+1,
+				      runOperations));
+    
+    pt->addFinalizer(new NDBT_Finalizer(pt, 
+					"runClearTable", 
+					runClearTable));
+
+    ts.addTest(pt);
+  }
+
   for(Uint32 i = 0; i<sizeof(matrix)/sizeof(matrix[0]); i++){
     NDBT_TestCaseImpl1 *pt = new NDBT_TestCaseImpl1(&ts, matrix[i].name, "");
     
@@ -270,3 +551,5 @@ main(int argc, const char** argv){
   return ts.execute(argc, argv);
 }
 
+template class Vector<OPS>;
+template class Vector<Sequence>;

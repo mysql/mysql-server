@@ -401,6 +401,10 @@ HugoOperations::HugoOperations(const NdbDictionary::Table& _tab):
 
 HugoOperations::~HugoOperations(){
   deallocRows();
+  if (pTrans != NULL){
+    pTrans->close();
+    pTrans = NULL;
+  }
 }
 
 
