@@ -32,6 +32,7 @@
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
 
+extern "C" ulong locks_waited, locks_immediate;
 
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias, bool locked);
@@ -1166,7 +1167,8 @@ bool wait_for_tables(THD *thd)
   {
     /* Now we can open all tables without any interference */
     thd->proc_info="Reopen tables";
-    result=reopen_tables(thd,0,0);
+    if(!(result=reopen_tables(thd,0,0)))
+       ++locks_waited;
   }
   pthread_mutex_unlock(&LOCK_open);
   thd->proc_info=0;

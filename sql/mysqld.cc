@@ -260,6 +260,7 @@ ulong query_id=1L,long_query_count,long_query_time,aborted_threads,
       delayed_queue_size,delayed_insert_threads,delayed_insert_writes,
       delayed_rows_in_use,delayed_insert_errors,flush_time, thread_created;
 ulong filesort_rows, filesort_range_count, filesort_scan_count;
+extern "C" ulong locks_immediate, locks_waited;
 ulong filesort_merge_passes;
 ulong select_range_check_count, select_range_count, select_scan_count;
 ulong select_full_range_join_count,select_full_join_count;
@@ -2804,6 +2805,8 @@ struct show_var_st status_vars[]= {
   {"Sort_range",	       (char*) &filesort_range_count,   SHOW_LONG},
   {"Sort_rows",		       (char*) &filesort_rows,	        SHOW_LONG},
   {"Sort_scan",		       (char*) &filesort_scan_count,    SHOW_LONG},
+  {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
+  {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
   {"Threads_cached",           (char*) &cached_thread_count,    SHOW_LONG_CONST},
   {"Threads_created",	       (char*) &thread_created,		SHOW_LONG_CONST},
   {"Threads_connected",        (char*) &thread_count,           SHOW_INT_CONST},
