@@ -10,6 +10,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "os0sync.h"
 #include "ut0mem.h"
 #include "srv0srv.h"
+#include "trx0sys.h"
 
 #undef HAVE_FDATASYNC
 
@@ -74,9 +75,12 @@ typedef struct os_aio_array_struct	os_aio_array_t;
 
 struct os_aio_array_struct{
 	os_mutex_t	mutex;	  /* the mutex protecting the aio array */
-	os_event_t	not_full; /* The event which is set to signaled
+	os_event_t	not_full; /* The event which is set to the signaled
 				  state when there is space in the aio
 				  outside the ibuf segment */
+	os_event_t	is_empty; /* The event which is set to the signaled
+				  state when there are no pending i/os
+				  in this array */
 	ulint		n_slots;  /* Total number of slots in the aio array.
 				  This must be divisible by n_threads. */
 	ulint		n_segments;/* Number of segments in the aio array of
@@ -254,6 +258,7 @@ os_file_create(
 			if a new is created or an old overwritten */
 	ulint	purpose,/* in: OS_FILE_AIO, if asynchronous, non-buffered i/o
 			is desired, OS_FILE_NORMAL, if any normal file */
+	ulint	type,	/* in: OS_DATA_FILE or OS_LOG_FILE */
 	ibool*	success)/* out: TRUE if succeed, FALSE if error */
 {
 #ifdef __WIN__
@@ -347,11 +352,10 @@ try_again:
 
 	UT_NOT_USED(purpose);
 
-	/* Currently use only O_SYNC because there may be a bug in
-	   Linux O_DSYNC! */
-
 #ifdef O_SYNC
-	if (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
+	if ((!srv_use_doublewrite_buf || type != OS_DATA_FILE) 
+	    && srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
+
 	        create_flag = create_flag | O_SYNC;
 	}
 #endif
@@ -551,12 +555,6 @@ os_file_flush(
 #else
 	int	ret;
 
-#ifdef O_DSYNC
-	if (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
-	        return(TRUE);
-	}
-#endif
-	
 #ifdef HAVE_FDATASYNC
 	ret = fdatasync(file);
 #else
@@ -637,7 +635,8 @@ os_file_pwrite(
 	ret = pwrite(file, buf, n, offs);
 
 	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
-	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
+	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
+	    && !trx_doublewrite) {
 
 	        /* Always do fsync to reduce the probability that when
                 the OS crashes, a database page is only partially
@@ -666,7 +665,8 @@ os_file_pwrite(
 	ret = write(file, buf, n);
 
 	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
-	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
+	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC
+	    && !trx_doublewrite) {
 
 	        /* Always do fsync to reduce the probability that when
                 the OS crashes, a database page is only partially
@@ -825,7 +825,9 @@ try_again:
 	/* Always do fsync to reduce the probability that when the OS crashes,
 	a database page is only partially physically written to disk. */
 
-	ut_a(TRUE == os_file_flush(file));
+	if (!trx_doublewrite) {
+		ut_a(TRUE == os_file_flush(file));
+	}
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
 
@@ -900,6 +902,10 @@ os_aio_array_create(
 
 	array->mutex 		= os_mutex_create(NULL);
 	array->not_full		= os_event_create(NULL);
+	array->is_empty		= os_event_create(NULL);
+
+	os_event_set(array->is_empty);
+	
 	array->n_slots  	= n;
 	array->n_segments	= n_segments;
 	array->n_reserved	= 0;
@@ -999,6 +1005,17 @@ os_aio_init(
 #endif
 }
 				
+/****************************************************************************
+Waits until there are no pending writes in os_aio_write_array. There can
+be other, synchronous, pending writes. */
+
+void
+os_aio_wait_until_no_pending_writes(void)
+/*=====================================*/
+{
+	os_event_wait(os_aio_write_array->is_empty);
+}
+
 /**************************************************************************
 Calculates segment number for a slot. */
 static
@@ -1191,6 +1208,10 @@ loop:
 
 	array->n_reserved++;
 
+	if (array->n_reserved == 1) {
+		os_event_reset(array->is_empty);
+	}
+
 	if (array->n_reserved == array->n_slots) {
 		os_event_reset(array->not_full);
 	}
@@ -1262,6 +1283,10 @@ os_aio_array_free_slot(
 
 	if (array->n_reserved == array->n_slots - 1) {
 		os_event_set(array->not_full);
+	}
+
+	if (array->n_reserved == 0) {
+		os_event_set(array->is_empty);
 	}
 
 #ifdef WIN_ASYNC_IO		
@@ -1377,6 +1402,7 @@ os_aio(
 	DWORD		len		= n;
 	void*		dummy_mess1;
 	void*		dummy_mess2;
+	ulint		dummy_type;
 #endif
 	ulint		err		= 0;
 	ibool		retry;
@@ -1489,8 +1515,9 @@ try_again:
 	    		    use the same wait mechanism as for async i/o */
 	    		
 	    		    return(os_aio_windows_handle(ULINT_UNDEFINED,
-						slot->pos,
-		    				&dummy_mess1, &dummy_mess2));
+					slot->pos,
+		    			&dummy_mess1, &dummy_mess2,
+					&dummy_type));
 	    		}
 
 			return(TRUE);
@@ -1547,7 +1574,8 @@ os_aio_windows_handle(
 				the aio operation failed, these output
 				parameters are valid and can be used to
 				restart the operation, for example */
-	void**	message2)
+	void**	message2,
+	ulint*	type)		/* out: OS_FILE_WRITE or ..._READ */
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
@@ -1592,10 +1620,12 @@ os_aio_windows_handle(
 	*message1 = slot->message1;
 	*message2 = slot->message2;
 
+	*type = slot->type;
+
 	if (ret && len == slot->len) {
 		ret_val = TRUE;
 
-		if (slot->type == OS_FILE_WRITE) {
+		if (slot->type == OS_FILE_WRITE && !trx_doublewrite) {
 		         ut_a(TRUE == os_file_flush(slot->file));
 		}
 	} else {
@@ -1679,7 +1709,7 @@ os_aio_posix_handle(
 	*message1 = slot->message1;
 	*message2 = slot->message2;
 
-	if (slot->type == OS_FILE_WRITE) {
+	if (slot->type == OS_FILE_WRITE && !trx_doublewrite) {
 		ut_a(TRUE == os_file_flush(slot->file));
 	}
 
@@ -1709,7 +1739,8 @@ os_aio_simulated_handle(
 				the aio operation failed, these output
 				parameters are valid and can be used to
 				restart the operation, for example */
-	void**	message2)
+	void**	message2,
+	ulint*	type)		/* out: OS_FILE_WRITE or ..._READ */
 {
 	os_aio_array_t*	array;
 	ulint		segment;
@@ -1906,6 +1937,8 @@ slot_io_done:
 	*message1 = slot->message1;
 	*message2 = slot->message2;
 
+	*type = slot->type;
+
 	os_mutex_exit(array->mutex);
 
 	os_aio_array_free_slot(array, slot);
@@ -1989,13 +2022,13 @@ os_aio_print(void)
 	os_aio_slot_t*	slot;
 	ulint		n_reserved;
 	ulint		i;
-	
+
+	printf("Pending normal aio reads:\n");
+
 	array = os_aio_read_array;
 loop:
 	ut_a(array);
 	
-	printf("INFO OF AN AIO ARRAY\n");
-
 	os_mutex_enter(array->mutex);
 
 	ut_a(array->n_slots > 0);
@@ -2022,24 +2055,29 @@ loop:
 	os_mutex_exit(array->mutex);
 
 	if (array == os_aio_read_array) {
+		printf("Pending aio writes:\n");
+	
 		array = os_aio_write_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_write_array) {
+		printf("Pending insert buffer aio reads:\n");
 		array = os_aio_ibuf_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_ibuf_array) {
+		printf("Pending log writes or reads:\n");
 		array = os_aio_log_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_log_array) {
+		printf("Pending synchronous reads or writes:\n");		
 		array = os_aio_sync_array;
 
 		goto loop;

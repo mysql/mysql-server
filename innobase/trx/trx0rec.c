@@ -292,6 +292,8 @@ trx_undo_rec_get_pars(
 					TRX_UNDO_INSERT_REC, ... */
 	ulint*		cmpl_info,	/* out: compiler info, relevant only
 					for update type records */
+	ibool*		updated_extern,	/* out: TRUE if we updated an
+					externally stored fild */
 	dulint*		undo_no,	/* out: undo log record number */
 	dulint*		table_id)	/* out: table id */
 {
@@ -303,7 +305,14 @@ trx_undo_rec_get_pars(
 
 	type_cmpl = mach_read_from_1(ptr);
 	ptr++;
-	
+
+	if (type_cmpl & TRX_UNDO_UPD_EXTERN) {
+		*updated_extern = TRUE;
+		type_cmpl -= TRX_UNDO_UPD_EXTERN;
+	} else {
+		*updated_extern = FALSE;
+	}
+
 	*type = type_cmpl & (TRX_UNDO_CMPL_INFO_MULT - 1);
 	*cmpl_info = type_cmpl / TRX_UNDO_CMPL_INFO_MULT;
 
@@ -336,7 +345,11 @@ trx_undo_rec_get_col_val(
 	*field = ptr;
 	
 	if (*len != UNIV_SQL_NULL) {
-		ptr += *len;
+		if (*len >= UNIV_EXTERN_STORAGE_FIELD) {
+			ptr += (*len - UNIV_EXTERN_STORAGE_FIELD);
+		} else {
+			ptr += *len;
+		}
 	}
 
 	return(ptr);
@@ -452,6 +465,7 @@ trx_undo_page_report_modify(
 	ulint		col_no;
 	byte*		old_ptr;
 	ulint		type_cmpl;
+	byte*		type_cmpl_ptr;
 	ulint		i;
 	
 	ut_ad(index->type & DICT_CLUSTERED);
@@ -491,6 +505,8 @@ trx_undo_page_report_modify(
 
 	mach_write_to_1(ptr, type_cmpl);
 	
+	type_cmpl_ptr = ptr;
+
 	ptr++;
 	len = mach_dulint_write_much_compressed(ptr, trx->undo_no);
 	ptr += len;
@@ -577,7 +593,23 @@ trx_undo_page_report_modify(
 			return(0);
 		}
 
-		len = mach_write_compressed(ptr, flen);
+		if (rec_get_nth_field_extern_bit(rec, pos)) {
+			/* If a field has external storage, we add to
+			flen the flag */
+
+			len = mach_write_compressed(ptr,
+					UNIV_EXTERN_STORAGE_FIELD + flen);
+
+			/* Notify purge that it eventually has to free the old
+			externally stored field */
+			
+			(trx->update_undo)->del_marks = TRUE;
+
+			*type_cmpl_ptr = *type_cmpl_ptr | TRX_UNDO_UPD_EXTERN;
+		} else {
+			len = mach_write_compressed(ptr, flen);
+		}
+
 		ptr += len;
 
 		if (flen != UNIV_SQL_NULL) {
@@ -825,6 +857,13 @@ trx_undo_update_rec_get_update(
 
 		upd_field_set_field_no(upd_field, field_no, index);
 
+		if (len != UNIV_SQL_NULL && len >= UNIV_EXTERN_STORAGE_FIELD) {
+
+			upd_field->extern_storage = TRUE;
+			
+			len -= UNIV_EXTERN_STORAGE_FIELD;
+		}
+		
 		dfield_set_data(&(upd_field->new_val), field, len);
 	}
 
@@ -1222,8 +1261,10 @@ trx_undo_prev_version_build(
 	byte*		ptr;
 	ulint		info_bits;
 	ulint		cmpl_info;
+	ibool		dummy_extern;
 	byte*		buf;
 	ulint		err;
+	ulint		i;
 
 	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 	ut_ad(mtr_memo_contains(index_mtr, buf_block_align(index_rec), 
@@ -1252,8 +1293,9 @@ trx_undo_prev_version_build(
 		return(err);
 	}
 
-	ptr = trx_undo_rec_get_pars(undo_rec, &type, &cmpl_info, &undo_no,
-								&table_id);
+	ptr = trx_undo_rec_get_pars(undo_rec, &type, &cmpl_info,
+					&dummy_extern, &undo_no, &table_id);
+
 	ptr = trx_undo_update_rec_get_sys_cols(ptr, &trx_id, &roll_ptr,
 								&info_bits);
 	ptr = trx_undo_rec_skip_row_ref(ptr, index);
@@ -1276,6 +1318,16 @@ trx_undo_prev_version_build(
 		*old_vers = rec_copy(buf, rec);
 
 		row_upd_rec_in_place(*old_vers, update);
+	}
+
+	for (i = 0; i < upd_get_n_fields(update); i++) {
+
+		if (upd_get_nth_field(update, i)->extern_storage) {
+
+			rec_set_nth_field_extern_bit(*old_vers,
+				upd_get_nth_field(update, i)->field_no,
+				TRUE, NULL);
+		}
 	}
 
 	return(DB_SUCCESS);

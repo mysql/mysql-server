@@ -1946,6 +1946,7 @@ ibuf_insert_low(
 	ulint		page_no,/* in: page number where to insert */
 	que_thr_t*	thr)	/* in: query thread */
 {
+	big_rec_t*	dummy_big_rec;
 	ulint		entry_size;
 	btr_pcur_t	pcur;
 	btr_cur_t*	cursor;
@@ -2101,7 +2102,8 @@ ibuf_insert_low(
 	
 	if (mode == BTR_MODIFY_PREV) {
 		err = btr_cur_optimistic_insert(BTR_NO_LOCKING_FLAG, cursor,
-						ibuf_entry, &ins_rec, thr,
+						ibuf_entry, &ins_rec,
+						&dummy_big_rec, thr,
 						&mtr);
 		if (err == DB_SUCCESS) {
 			/* Update the page max trx id field */
@@ -2121,7 +2123,8 @@ ibuf_insert_low(
 		err = btr_cur_pessimistic_insert(BTR_NO_LOCKING_FLAG
 						| BTR_NO_UNDO_LOG_FLAG,
 						cursor,
-						ibuf_entry, &ins_rec, thr,
+						ibuf_entry, &ins_rec,
+						&dummy_big_rec, thr,
 						&mtr);
 		if (err == DB_SUCCESS) {
 			/* Update the page max trx id field */

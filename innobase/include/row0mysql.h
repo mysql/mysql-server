@@ -189,7 +189,9 @@ row_update_for_mysql(
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
 					handle */
 /*************************************************************************
-Does a table creation operation for MySQL. */
+Does a table creation operation for MySQL. If the name of the created
+table ends to characters INNODB_MONITOR, then this also starts
+printing of monitor output by the master thread. */
 
 int
 row_create_table_for_mysql(
@@ -209,7 +211,9 @@ row_create_index_for_mysql(
 	dict_index_t*	index,		/* in: index defintion */
 	trx_t*		trx);		/* in: transaction handle */
 /*************************************************************************
-Drops a table for MySQL. */
+Drops a table for MySQL. If the name of the dropped table ends to
+characters INNODB_MONITOR, then this also stops printing of monitor
+output by the master thread. */
 
 int
 row_drop_table_for_mysql(

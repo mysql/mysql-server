@@ -1,7 +1,7 @@
 /************************************************************************
 Starts the InnoDB database server
 
-(c) 1996-2000 InnoDB Oy
+(c) 1996-2000 Innobase Oy
 
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
@@ -203,8 +203,8 @@ open_or_create_log_file(
 
 	sprintf(name, "%s%s%lu", srv_log_group_home_dirs[k], "ib_logfile", i);
 
-	files[i] = os_file_create(name, OS_FILE_CREATE, OS_FILE_NORMAL, &ret);
-
+	files[i] = os_file_create(name, OS_FILE_CREATE, OS_FILE_NORMAL,
+						OS_LOG_FILE, &ret);
 	if (ret == FALSE) {
 		if (os_file_get_last_error() != OS_FILE_ALREADY_EXISTS) {
 			fprintf(stderr,
@@ -214,7 +214,8 @@ open_or_create_log_file(
 		}
 
 		files[i] = os_file_create(
-					name, OS_FILE_OPEN, OS_FILE_AIO, &ret);
+					name, OS_FILE_OPEN, OS_FILE_AIO,
+							OS_LOG_FILE, &ret);
 		if (!ret) {
 			fprintf(stderr,
 			"InnoDB: Error in opening %s\n", name);
@@ -239,7 +240,7 @@ open_or_create_log_file(
 		fprintf(stderr,
 		"InnoDB: Log file %s did not exist: new to be created\n",
 									name);
-		printf("InnoDB: Setting log file %s size to %lu\n",
+		fprintf(stderr, "InnoDB: Setting log file %s size to %lu\n",
 			             name, UNIV_PAGE_SIZE * srv_log_file_size);
 
 		ret = os_file_set_size(name, files[i],
@@ -330,27 +331,28 @@ open_or_create_data_files(
 
 		sprintf(name, "%s%s", srv_data_home, srv_data_file_names[i]);
 	
-		if (srv_data_file_is_raw_partition[i] == 0) {
+		files[i] = os_file_create(name, OS_FILE_CREATE,
+					OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 
-		  files[i] = os_file_create(name, OS_FILE_CREATE,
-						OS_FILE_NORMAL, &ret);
-		} else if (srv_data_file_is_raw_partition[i] == SRV_OLD_RAW) {
-		  ret = FALSE;
-		} else if (srv_data_file_is_raw_partition[i] == SRV_NEW_RAW) {
+		if (srv_data_file_is_raw_partition[i] == SRV_NEW_RAW) {
+			/* The partition is opened, not created; then it is
+			written over */
 
-		  files[i] = os_file_create(
-				name, OS_FILE_OPEN, OS_FILE_NORMAL, &ret);
-
-		  if (!ret) {
+			files[i] = os_file_create(
+				name, OS_FILE_OPEN, OS_FILE_NORMAL,
+						OS_DATA_FILE, &ret);
+			if (!ret) {
 				fprintf(stderr,
 				"InnoDB: Error in opening %s\n", name);
 
 				return(DB_ERROR);
-		  }
+			}
+		} else if (srv_data_file_is_raw_partition[i] == SRV_OLD_RAW) {
+			ret = FALSE;
 		}
 
 		if (ret == FALSE) {
-			if (srv_data_file_is_raw_partition[i] == 0
+			if (srv_data_file_is_raw_partition[i] != SRV_OLD_RAW
 			    && os_file_get_last_error() !=
 						OS_FILE_ALREADY_EXISTS) {
 				fprintf(stderr,
@@ -370,8 +372,8 @@ open_or_create_data_files(
 			}
 				
 			files[i] = os_file_create(
-				name, OS_FILE_OPEN, OS_FILE_NORMAL, &ret);
-
+				name, OS_FILE_OPEN, OS_FILE_NORMAL,
+						OS_DATA_FILE, &ret);
 			if (!ret) {
 				fprintf(stderr,
 				"InnoDB: Error in opening %s\n", name);
@@ -379,18 +381,21 @@ open_or_create_data_files(
 				return(DB_ERROR);
 			}
 
-			ret = os_file_get_size(files[i], &size, &size_high);
-			ut_a(ret);
+			if (srv_data_file_is_raw_partition[i] != SRV_OLD_RAW) {
+			
+				ret = os_file_get_size(files[i], &size,
+								&size_high);
+				ut_a(ret);
 		
-			if (srv_data_file_is_raw_partition[i] == 0 
-			    && (size != UNIV_PAGE_SIZE * srv_data_file_sizes[i]
-				|| size_high != 0)) {
-
-				fprintf(stderr,
+				if (size !=
+					UNIV_PAGE_SIZE * srv_data_file_sizes[i]
+		    					|| size_high != 0) {
+					fprintf(stderr,
 			"InnoDB: Error: data file %s is of different size\n"
 			"InnoDB: than specified in the .cnf file!\n", name);
 				
-				return(DB_ERROR);
+					return(DB_ERROR);
+				}
 			}
 
 			fil_read_flushed_lsn_and_arch_log_no(files[i],
@@ -403,7 +408,8 @@ open_or_create_data_files(
 
 			if (i > 0) {
 				fprintf(stderr, 
-	"InnoDB: Data file %s did not exist: new to be created\n", name);
+		"InnoDB: Data file %s did not exist: new to be created\n",
+									name);
 			} else {
 				fprintf(stderr, 
  		"InnoDB: The first specified data file %s did not exist:\n"
@@ -411,10 +417,10 @@ open_or_create_data_files(
 				*create_new_db = TRUE;
 			}
 			
-			printf("InnoDB: Setting file %s size to %lu\n",
+			fprintf(stderr, "InnoDB: Setting file %s size to %lu\n",
 			       name, UNIV_PAGE_SIZE * srv_data_file_sizes[i]);
 
-			printf(
+			fprintf(stderr,
 	    "InnoDB: Database physically writes the file full: wait...\n");
 
 			ret = os_file_set_size(name, files[i],
@@ -555,19 +561,22 @@ innobase_start_or_create_for_mysql(void)
         srv_startup_is_before_trx_rollback_phase = TRUE;
 
 	if (0 == ut_strcmp(srv_unix_file_flush_method_str, "fdatasync")) {
-	  srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+	  	srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+
 	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str, "O_DSYNC")) {
-	  srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
+	  	srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
+
 	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str,
 				  "littlesync")) {
-	  srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
-	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str, "nosync")) {
-	  srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
-	} else {
-	  fprintf(stderr, 
-          "InnoDB: Unrecognized value for innodb_unix_file_flush_method\n");
+	  	srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
 
-	  return(DB_ERROR);
+	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str, "nosync")) {
+	  	srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
+	} else {
+	  	fprintf(stderr, 
+          	"InnoDB: Unrecognized value %s for innodb_flush_method\n",
+          				srv_unix_file_flush_method_str);
+	  	return(DB_ERROR);
 	}
 
 	/*
@@ -593,14 +602,15 @@ innobase_start_or_create_for_mysql(void)
 #ifdef __WIN__
 	if (os_get_os_version() == OS_WIN95
 	    || os_get_os_version() == OS_WIN31) {
-	  /* On Win 95, 98, ME, and Win32 subsystem for Windows 3.1 use
-	     simulated aio */
 
-	  os_aio_use_native_aio = FALSE;
-	  srv_n_file_io_threads = 4;
+	  	/* On Win 95, 98, ME, and Win32 subsystem for Windows 3.1 use
+	     	simulated aio */
+
+	  	os_aio_use_native_aio = FALSE;
+	  	srv_n_file_io_threads = 4;
 	} else {
-	  /* On NT and Win 2000 always use aio */
-	  os_aio_use_native_aio = TRUE;
+	  	/* On NT and Win 2000 always use aio */
+	  	os_aio_use_native_aio = TRUE;
 	}
 #endif
 	if (!os_aio_use_native_aio) {
@@ -652,14 +662,21 @@ innobase_start_or_create_for_mysql(void)
 	sum_of_new_sizes = 0;
 
 	for (i = 0; i < srv_n_data_files; i++) {
-	  sum_of_new_sizes += srv_data_file_sizes[i];
+		if (srv_data_file_sizes[i] >= 262144) {
+		 	fprintf(stderr,
+	"InnoDB: Error: file size must be < 4 GB, or on some OS's < 2 GB\n");
+
+		  	return(DB_ERROR);
+		}
+
+		sum_of_new_sizes += srv_data_file_sizes[i];
 	}
 
 	if (sum_of_new_sizes < 640) {
-	  fprintf(stderr,
+		  fprintf(stderr,
 		  "InnoDB: Error: tablespace size must be at least 10 MB\n");
 
-	  return(DB_ERROR);
+		  return(DB_ERROR);
 	}
 
 	err = open_or_create_data_files(&create_new_db,
@@ -671,6 +688,15 @@ innobase_start_or_create_for_mysql(void)
 	        fprintf(stderr, "InnoDB: Could not open data files\n");
 
 		return((int) err);
+	}
+
+	if (!create_new_db) {
+		/* If we are using the doublewrite method, we will
+		check if there are half-written pages in data files,
+		and restore them from the doublewrite buffer if
+		possible */
+		
+		trx_sys_doublewrite_restore_corrupt_pages();
 	}
 
 	srv_normalize_path_for_win(srv_arch_dir);
@@ -742,7 +768,6 @@ innobase_start_or_create_for_mysql(void)
 		mutex_exit(&(log_sys->mutex));
 	}
 
-	/* 	mutex_create(&row_mysql_thread_mutex); */
 	sess_sys_init_at_db_start();
 
 	if (create_new_db) {
@@ -834,7 +859,7 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	if (srv_measure_contention) {
-	  /* os_thread_create(&test_measure_cont, NULL, thread_ids +
+	  	/* os_thread_create(&test_measure_cont, NULL, thread_ids +
                              	     SRV_MAX_N_IO_THREADS); */
 	}
 
@@ -849,16 +874,20 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the thread which watches the timeouts for lock waits */
 	os_thread_create(&srv_lock_timeout_monitor_thread, NULL,
 					thread_ids + 2 + SRV_MAX_N_IO_THREADS);	
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: Started\n");
-
 	srv_was_started = TRUE;
 	srv_is_being_started = FALSE;
 
 	sync_order_checks_on = TRUE;
 
+	if (srv_use_doublewrite_buf && trx_doublewrite == NULL) {
+		trx_sys_create_doublewrite_buf();
+	}
+
 	/* buf_debug_prints = TRUE; */
 	
+	ut_print_timestamp(stderr);
+	fprintf(stderr, "  InnoDB: Started\n");
+
 	return((int) DB_SUCCESS);
 }
 

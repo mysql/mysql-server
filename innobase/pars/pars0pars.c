@@ -2028,11 +2028,7 @@ pars_complete_graph_for_exec(
 
 	que_node_set_parent(node, thr);
 
-	mutex_enter(&kernel_mutex);	
-
 	trx->graph = NULL;
 	
-	mutex_exit(&kernel_mutex);
-
 	return(thr);
 }

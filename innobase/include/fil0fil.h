@@ -196,6 +196,16 @@ fil_space_get_size(
 			/* out: space size */
 	ulint	id);	/* in: space id */
 /***********************************************************************
+Checks if the pair space, page_no refers to an existing page in a
+tablespace file space. */
+
+ibool
+fil_check_adress_in_tablespace(
+/*===========================*/
+			/* out: TRUE if the address is meaningful */
+	ulint	id,	/* in: space id */
+	ulint	page_no);/* in: page number */
+/***********************************************************************
 Appends a new file to the chain of files of a space.
 File must be closed. */
 

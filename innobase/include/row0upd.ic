@@ -23,6 +23,7 @@ upd_create(
 	mem_heap_t*	heap)	/* in: heap from which memory allocated */
 {
 	upd_t*	update;
+	ulint	i;
 
 	update = mem_heap_alloc(heap, sizeof(upd_t));
 
@@ -30,6 +31,10 @@ upd_create(
 	update->n_fields = n;
 	update->fields = mem_heap_alloc(heap, sizeof(upd_field_t) * n);
 
+	for (i = 0; i < n; i++) {
+		update->fields[i].extern_storage = 0;
+	}
+	
 	return(update);
 }
 

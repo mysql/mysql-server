@@ -48,17 +48,19 @@ static MYSQL	mysql_connection;
 static char	*opt_password=0, *current_user=0,
 		*current_host=0, *current_db=0, *fields_terminated=0,
 		*lines_terminated=0, *enclosed=0, *opt_enclosed=0,
-		*escaped=0, opt_low_priority=0, *opt_columns=0;
+		*escaped=0, opt_low_priority=0, *opt_columns=0,
+ 		*default_charset;
 static uint     opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
 #include "sslopt-vars.h"
 
 enum options {OPT_FTB=256, OPT_LTB, OPT_ENC, OPT_O_ENC, OPT_ESC,
-	      OPT_LOW_PRIORITY, OPT_CHARSETS_DIR};
+ 	      OPT_LOW_PRIORITY, OPT_CHARSETS_DIR, OPT_DEFAULT_CHARSET};
 
 static struct option long_options[] =
 {
   {"character-sets-dir", required_argument,     0, OPT_CHARSETS_DIR},
+  {"default-character-set", required_argument,  0, OPT_DEFAULT_CHARSET},
   {"columns",           required_argument,      0, 'c'},
   {"compress",	        no_argument,	        0, 'C'},
   {"debug",		optional_argument,	0, '#'},
@@ -119,6 +121,8 @@ file. The SQL command 'LOAD DATA INFILE' is used to import the rows.\n");
   printf("\n\
   -#, --debug[=...]     Output debug log. Often this is 'd:t:o,filename`\n\
   -?, --help		Displays this help and exits.\n\
+  --default-character-set=...\n\
+                        Set the default character set.\n\
   --character-sets-dir=...\n\
                         Directory where character sets are\n\
   -c, --columns=...     Use only these columns to import the data to.\n\
@@ -178,6 +182,9 @@ static int get_options(int *argc, char ***argv)
       break;
     case 'C':
       opt_compress=1;
+      break;
+    case OPT_DEFAULT_CHARSET:
+      default_charset= optarg;
       break;
     case OPT_CHARSETS_DIR:
       charsets_dir= optarg;
@@ -268,6 +275,11 @@ static int get_options(int *argc, char ***argv)
   {
     fprintf(stderr, "You can't use --ignore (-i) and --replace (-r) at the same time.\n");
     return(1);
+  }
+  if (default_charset)
+  {
+    if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
+      exit(1);
   }
   (*argc)-=optind;
   (*argv)+=optind;
