@@ -2153,7 +2153,7 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
     if (tmp_min_flag & GEOM_FLAG)
     {
       tmp= param->table->file->
-	records_in_range((int) keynr, (byte*)(param->min_key + 1),
+	records_in_range((int) keynr, (byte*)(param->min_key),
 			 min_key_length,
 			 (ha_rkey_function)(tmp_min_flag ^ GEOM_FLAG),
 			 (byte *)NullS, 0, HA_READ_KEY_EXACT);
