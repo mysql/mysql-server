@@ -155,9 +155,11 @@ ndbrecattr_print_string(NdbOut& out, const char *type,
   if (printable)
     out.print("%.*s", len, ref);
   else
+  {
+    out.print("0x");
     for (i=0; i < len; i++)
       out.print("%02X", (int)ref[i]);
-
+  }
   if (len != (int)sz)
   {
     out.print("[");
