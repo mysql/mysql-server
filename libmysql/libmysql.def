@@ -68,8 +68,8 @@ EXPORTS
 	my_memdup
 	my_no_flags_free
 	my_realloc
-	my_thread_end
-	my_thread_init
+	mysql_thread_end
+	mysql_thread_init
 	net_buffer_length
 	set_dynamic
 	strcend

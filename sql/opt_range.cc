@@ -1710,6 +1710,8 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
 	  return 0;				// OOM
 	tmp->copy_max_to_min(&key);
 	tmp->increment_use_count(key1->use_count+1);
+	/* Increment key count as it may be used for next loop */
+	key.increment_use_count(1);
 	new_arg->next_key_part=key_or(tmp->next_key_part,key.next_key_part);
 	key1=key1->insert(new_arg);
 	break;
@@ -2708,15 +2710,18 @@ int QUICK_SELECT_DESC::get_next()
     }
     else
     {
-      /* Heikki changed Sept 11, 2002: since InnoDB does not store the cursor
-	 position if READ_KEY_EXACT is used to a primary key with all
-	 key columns specified, we must use below HA_READ_KEY_OR_NEXT,
-	 so that InnoDB stores the cursor position and is able to move
-	 the cursor one step backward after the search. */
+      /*
+	Heikki changed Sept 11, 2002: since InnoDB does not store the cursor
+	position if READ_KEY_EXACT is used to a primary key with all
+	key columns specified, we must use below HA_READ_KEY_OR_NEXT,
+	so that InnoDB stores the cursor position and is able to move
+	the cursor one step backward after the search. */
 
       DBUG_ASSERT(range->flag & NEAR_MAX || range_reads_after_key(range));
-      /* Note: even if max_key is only a prefix, HA_READ_AFTER_KEY will
-       * do the right thing - go past all keys which match the prefix */
+      /*
+	Note: even if max_key is only a prefix, HA_READ_AFTER_KEY will
+	do the right thing - go past all keys which match the prefix
+      */
       result=file->index_read(record, (byte*) range->max_key,
 			      range->max_length,
 			      ((range->flag & NEAR_MAX) ?

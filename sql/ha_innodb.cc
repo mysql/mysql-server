@@ -276,7 +276,7 @@ convert_error_code_to_mysql(
 
         } else if (error == (int) DB_CANNOT_DROP_CONSTRAINT) {
 
-		return(HA_WRONG_CREATE_OPTION);
+    		return(HA_ERR_ROW_IS_REFERENCED);
 
         } else if (error == (int) DB_COL_APPEARS_TWICE_IN_INDEX) {
 
@@ -3572,6 +3572,7 @@ ha_innobase::delete_table(
 	int	error;
 	trx_t*	parent_trx;
 	trx_t*	trx;
+	THD	*thd= current_thd;
 	char	norm_name[1000];
 
   	DBUG_ENTER("ha_innobase::delete_table");
@@ -3596,6 +3597,14 @@ ha_innobase::delete_table(
 
 	trx->mysql_thd = current_thd;
 	trx->mysql_query_str = &((*current_thd).query);
+
+	if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS) {
+		trx->check_foreigns = FALSE;
+	}
+
+	if (thd->options & OPTION_RELAXED_UNIQUE_CHECKS) {
+		trx->check_unique_secondary = FALSE;
+	}
 
 	name_len = strlen(name);
 
