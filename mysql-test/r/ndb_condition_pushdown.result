@@ -12,6 +12,7 @@ long_int int(11) DEFAULT '0' NOT NULL,
 longlong bigint(13) DEFAULT '0' NOT NULL,
 real_float float(13,1) DEFAULT 0.0 NOT NULL,
 real_double double(16,4),
+real_decimal decimal(16,4),
 utiny tinyint(3) unsigned DEFAULT '0' NOT NULL,
 ushort smallint(5) unsigned zerofill DEFAULT '00000' NOT NULL,
 umedium mediumint(8) unsigned DEFAULT '0' NOT NULL,
@@ -28,19 +29,19 @@ time_stamp timestamp,
 PRIMARY KEY (auto)
 ) engine=ndb;
 insert into t1 values 
-(NULL,"aaaa","aaaa","aaaa","aaaa",-1,-1,-1,-1,-1,1.1,1.1,1,1,1,1,1, 
+(NULL,"aaaa","aaaa","aaaa","aaaa",-1,-1,-1,-1,-1,1.1,1.1,1.1,1,1,1,1,1, 
 b'001','one','one',
 '1901-01-01','1901', 
 '01:01:01','1901-01-01 01:01:01',NULL),
-(NULL,"bbbb","bbbb","bbbb","bbbb",-2,-2,-2,-2,-2,2.2,2.2,2,2,2,2,2,
+(NULL,"bbbb","bbbb","bbbb","bbbb",-2,-2,-2,-2,-2,2.2,2.2,2.2,2,2,2,2,2,
 b'010','two','one,two',
 '1902-02-02','1902', 
 '02:02:02','1902-02-02 02:02:02',NULL),
-(NULL,"cccc","cccc","cccc","cccc",-3,-3,-3,-3,-3,3.3,3.3,3,3,3,3,3,
+(NULL,"cccc","cccc","cccc","cccc",-3,-3,-3,-3,-3,3.3,3.3,3.3,3,3,3,3,3,
 b'011','three','one,two,three',
 '1903-03-03','1903', 
 '03:03:03','1903-03-03 03:03:03',NULL),
-(NULL,"dddd","dddd","dddd","dddd",-4,-4,-4,-4,-4,4.4,4.4,4,4,4,4,4,
+(NULL,"dddd","dddd","dddd","dddd",-4,-4,-4,-4,-4,4.4,4.4,4.4,4,4,4,4,4,
 b'100','four','one,two,three,four',
 '1904-04-04','1904', 
 '04:04:04','1904-04-04 04:04:04',NULL);
@@ -63,7 +64,8 @@ medium = -1 and
 long_int = -1 and 
 longlong = -1 and 
 real_float > 1.0 and real_float < 2.0 and 
-real_double > 1.0 and real_float < 2.0 and
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
 utiny = 1 and 
 ushort = 1 and 
 umedium = 1 and 
@@ -90,7 +92,8 @@ medium != -1 and
 long_int != -1 and 
 longlong != -1 and 
 (real_float < 1.0 or real_float > 2.0) and 
-(real_double < 1.0 or real_float > 2.0) and
+(real_double < 1.0 or real_double > 2.0) and
+(real_decimal < 1.0 or real_decimal > 2.0) and
 utiny != 1 and 
 ushort != 1 and 
 umedium != 1 and 
@@ -120,6 +123,7 @@ long_int < -1 and
 longlong < -1 and 
 real_float > 1.1 and 
 real_double > 1.1 and 
+real_decimal > 1.1 and 
 utiny > 1 and 
 ushort > 1 and 
 umedium > 1 and 
@@ -149,6 +153,7 @@ long_int <= -1 and
 longlong <= -1 and 
 real_float >= 1.0 and 
 real_double >= 1.0 and 
+real_decimal >= 1.0 and 
 utiny >= 1 and 
 ushort >= 1 and 
 umedium >= 1 and 
@@ -179,6 +184,7 @@ long_int > -4 and
 longlong > -4 and 
 real_float < 4.4 and 
 real_double < 4.4 and
+real_decimal < 4.4 and
 utiny < 4 and 
 ushort < 4 and 
 umedium < 4 and 
@@ -208,6 +214,7 @@ long_int >= -4 and
 longlong >= -4 and 
 real_float <= 4.5 and 
 real_double <= 4.5 and 
+real_decimal <= 4.5 and 
 utiny <= 4 and 
 ushort <= 4 and 
 umedium <= 4 and 
@@ -258,7 +265,8 @@ medium = -1 and
 long_int = -1 and 
 longlong = -1 and 
 real_float > 1.0 and real_float < 2.0 and 
-real_double > 1.0 and real_float < 2.0 and
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
 utiny = 1 and 
 ushort = 1 and 
 umedium = 1 and 
@@ -285,7 +293,8 @@ medium != -1 and
 long_int != -1 and 
 longlong != -1 and 
 (real_float < 1.0 or real_float > 2.0) and 
-(real_double < 1.0 or real_float > 2.0) and
+(real_double < 1.0 or real_double > 2.0) and
+(real_decimal < 1.0 or real_decimal > 2.0) and
 utiny != 1 and 
 ushort != 1 and 
 umedium != 1 and 
@@ -315,6 +324,7 @@ long_int < -1 and
 longlong < -1 and 
 real_float > 1.1 and 
 real_double > 1.1 and 
+real_decimal > 1.1 and 
 utiny > 1 and 
 ushort > 1 and 
 umedium > 1 and 
@@ -344,6 +354,7 @@ long_int <= -1 and
 longlong <= -1 and 
 real_float >= 1.0 and 
 real_double >= 1.0 and 
+real_decimal >= 1.0 and 
 utiny >= 1 and 
 ushort >= 1 and 
 umedium >= 1 and 
@@ -374,6 +385,7 @@ long_int > -4 and
 longlong > -4 and 
 real_float < 4.4 and 
 real_double < 4.4 and
+real_decimal < 4.4 and
 utiny < 4 and 
 ushort < 4 and 
 umedium < 4 and 
@@ -403,6 +415,7 @@ long_int >= -4 and
 longlong >= -4 and 
 real_float <= 4.5 and 
 real_double <= 4.5 and 
+real_decimal <= 4.5 and 
 utiny <= 4 - 1 + 1 and /* Checking function composition */
 ushort <= 4 and 
 umedium <= 4 and 
@@ -433,7 +446,8 @@ medium = -1 and
 long_int = -1 and 
 longlong = -1 and 
 real_float > 1.0 and real_float < 2.0 and 
-real_double > 1.0 and real_float < 2.0 and
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
 utiny = 1 and 
 ushort = 1 and 
 umedium = 1 and 
@@ -460,7 +474,8 @@ medium != -1 and
 long_int != -1 and 
 longlong != -1 and 
 (real_float < 1.0 or real_float > 2.0) and 
-(real_double < 1.0 or real_float > 2.0) and
+(real_double < 1.0 or real_double > 2.0) and
+(real_decimal < 1.0 or real_decimal > 2.0) and
 utiny != 1 and 
 ushort != 1 and 
 umedium != 1 and 
@@ -490,6 +505,7 @@ long_int < -1 and
 longlong < -1 and 
 real_float > 1.1 and 
 real_double > 1.1 and 
+real_decimal > 1.1 and 
 utiny > 1 and 
 ushort > 1 and 
 umedium > 1 and 
@@ -519,6 +535,7 @@ long_int <= -1 and
 longlong <= -1 and 
 real_float >= 1.0 and 
 real_double >= 1.0 and 
+real_decimal >= 1.0 and 
 utiny >= 1 and 
 ushort >= 1 and 
 umedium >= 1 and 
@@ -549,6 +566,7 @@ long_int > -4 and
 longlong > -4 and 
 real_float < 4.4 and 
 real_double < 4.4 and
+real_decimal < 4.4 and
 utiny < 4 and 
 ushort < 4 and 
 umedium < 4 and 
@@ -578,6 +596,7 @@ long_int >= -4 and
 longlong >= -4 and 
 real_float <= 4.5 and 
 real_double <= 4.5 and 
+real_decimal <= 4.5 and 
 utiny <= 4 - 1 + 1 and /* Checking function composition */
 ushort <= 4 and 
 umedium <= 4 and 
