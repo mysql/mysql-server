@@ -476,20 +476,22 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
        checking for proper key parts number:
     */
    
-    if(key_info->flags == HA_SPATIAL){
-      if(key_info->key_parts!=1){
+    if (key_info->flags == HA_SPATIAL)
+    {
+      if (key_info->key_parts != 1)
+      {
         my_printf_error(ER_WRONG_ARGUMENTS,
                         ER(ER_WRONG_ARGUMENTS),MYF(0),"SPATIAL INDEX");
         DBUG_RETURN(-1);
       }
-    }else
+    }
+    else if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
-      if(key_info->algorithm == HA_KEY_ALG_RTREE){
-        if((key_info->key_parts&1)==1){
-          my_printf_error(ER_WRONG_ARGUMENTS,
-                          ER(ER_WRONG_ARGUMENTS),MYF(0),"RTREE INDEX");
-          DBUG_RETURN(-1);
-        }
+      if ((key_info->key_parts & 1) == 1)
+      {
+	my_printf_error(ER_WRONG_ARGUMENTS,
+			ER(ER_WRONG_ARGUMENTS),MYF(0),"RTREE INDEX");
+	DBUG_RETURN(-1);
       }
     }
     
