@@ -736,7 +736,6 @@ public:
   bool update(THD *thd, set_var *var);
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
   virtual void set_default(THD *thd, enum_var_type type);
-  Time_zone **get_tz_ptr(THD *thd, enum_var_type type);
 };
 
 /****************************************************************************
