@@ -123,7 +123,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   char *query=thd->query;
   thr_lock_type lock_type = table_list->lock_type;
   TABLE_LIST *insert_table_list= (TABLE_LIST*)
-    thd->lex.select_lex.table_list.first;
+    thd->lex->select_lex.table_list.first;
   DBUG_ENTER("mysql_insert");
 
   /*
@@ -166,7 +166,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     res= open_and_lock_tables(thd, table_list);
   if (res)
     DBUG_RETURN(-1);
-  fix_tables_pointers(thd->lex.all_selects_list);
+  fix_tables_pointers(thd->lex->all_selects_list);
 
   table= table_list->table;
   thd->proc_info="init";
@@ -378,13 +378,13 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	      thd->cuted_fields);
     ::send_ok(thd,info.copied+info.deleted,(ulonglong)id,buff);
   }
-  free_underlaid_joins(thd, &thd->lex.select_lex);
+  free_underlaid_joins(thd, &thd->lex->select_lex);
   DBUG_RETURN(0);
 
 abort:
   if (lock_type == TL_WRITE_DELAYED)
     end_delayed_insert(thd);
-  free_underlaid_joins(thd, &thd->lex.select_lex);
+  free_underlaid_joins(thd, &thd->lex->select_lex);
   DBUG_RETURN(-1);
 }
 

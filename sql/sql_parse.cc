@@ -1087,7 +1087,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thread_running++;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
-  thd->lex.select_lex.options=0;		// We store status here
+  thd->lex->select_lex.options=0;		// We store status here
   switch (command) {
   case COM_INIT_DB:
     statistic_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_status);
@@ -1263,16 +1263,16 @@ restore_user:
     DBUG_PRINT("query",("%-.4096s",thd->query));
     mysql_parse(thd,thd->query, thd->query_length);
 
-    while (!thd->killed && !thd->is_fatal_error && thd->lex.found_colon)
+    while (!thd->killed && !thd->is_fatal_error && thd->lex->found_colon)
     {
-      char *packet= thd->lex.found_colon;
+      char *packet= thd->lex->found_colon;
       /* 
         Multiple queries exits, execute them individually
       */
       if (thd->lock || thd->open_tables || thd->derived_tables)
         close_thread_tables(thd);		
 
-      ulong length= thd->query_length-(ulong)(thd->lex.found_colon-thd->query);
+      ulong length= thd->query_length-(ulong)(thd->lex->found_colon-thd->query);
       
       /* Remove garbage at start of query */
       while (my_isspace(thd->charset(), *packet) && length > 0)
@@ -1510,7 +1510,7 @@ restore_user:
 
     if ((ulong) (thd->start_time - thd->time_after_lock) >
 	thd->variables.long_query_time ||
-	((thd->lex.select_lex.options &
+	((thd->lex->select_lex.options &
 	  (QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED)) &&
 	 (specialflag & SPECIAL_LONG_LOG_FORMAT)))
     {
@@ -1592,7 +1592,7 @@ int
 mysql_execute_command(THD *thd)
 {
   int	res= 0;
-  LEX	*lex= &thd->lex;
+  LEX	*lex= thd->lex;
   TABLE_LIST *tables= (TABLE_LIST*) lex->select_lex.table_list.first;
   SELECT_LEX *select_lex= &lex->select_lex;
   SELECT_LEX_UNIT *unit= &lex->unit;
@@ -1719,7 +1719,7 @@ mysql_execute_command(THD *thd)
 	else
 	  thd->send_explain_fields(result);
 	fix_tables_pointers(lex->all_selects_list);
-	res= mysql_explain_union(thd, &thd->lex.unit, result);
+	res= mysql_explain_union(thd, &thd->lex->unit, result);
 	MYSQL_LOCK *save_lock= thd->lock;
 	thd->lock= (MYSQL_LOCK *)0;
 	result->send_eof();
@@ -2404,7 +2404,7 @@ mysql_execute_command(THD *thd)
   }
   case SQLCOM_DELETE_MULTI:
   {
-    TABLE_LIST *aux_tables=(TABLE_LIST *)thd->lex.auxilliary_table_list.first;
+    TABLE_LIST *aux_tables=(TABLE_LIST *)thd->lex->auxilliary_table_list.first;
     TABLE_LIST *auxi;
     uint table_count=0;
     multi_delete *result;
@@ -3436,7 +3436,7 @@ void
 mysql_init_query(THD *thd)
 {
   DBUG_ENTER("mysql_init_query");
-  LEX *lex=&thd->lex;
+  LEX *lex=thd->lex;
   lex->unit.init_query();
   lex->unit.init_select();
   lex->unit.thd= thd;
@@ -3621,7 +3621,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 		       uint uint_geom_type)
 {
   register create_field *new_field;
-  LEX  *lex= &thd->lex;
+  LEX  *lex= thd->lex;
   uint allowed_type_modifier=0;
   char warn_buff[MYSQL_ERRMSG_SIZE];
   DBUG_ENTER("add_field_to_list");
@@ -3945,7 +3945,7 @@ add_proc_to_list(THD* thd, Item *item)
   *item_ptr= item;
   order->item=item_ptr;
   order->free_me=0;
-  thd->lex.proc_list.link_in_list((byte*) order,(byte**) &order->next);
+  thd->lex->proc_list.link_in_list((byte*) order,(byte**) &order->next);
   return 0;
 }
 
@@ -4368,11 +4368,11 @@ static bool append_file_to_dir(THD *thd, char **filename_ptr, char *table_name)
 bool check_simple_select()
 {
   THD *thd= current_thd;
-  if (thd->lex.current_select != &thd->lex.select_lex)
+  if (thd->lex->current_select != &thd->lex->select_lex)
   {
     char command[80];
-    strmake(command, thd->lex.yylval->symbol.str,
-	    min(thd->lex.yylval->symbol.length, sizeof(command)-1));
+    strmake(command, thd->lex->yylval->symbol.str,
+	    min(thd->lex->yylval->symbol.length, sizeof(command)-1));
     net_printf(thd, ER_CANT_USE_OPTION_HERE, command);
     return 1;
   }

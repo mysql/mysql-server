@@ -399,7 +399,7 @@ static void setup_param_functions(Item_param *param, uchar param_type)
 static bool insert_params_withlog(PREP_STMT *stmt, uchar *pos, uchar *read_pos)
 {
   THD *thd= stmt->thd;
-  List<Item> &params= thd->lex.param_list;
+  List<Item> &params= thd->lex->param_list;
   List_iterator<Item> param_iterator(params);
   Item_param *param;
   DBUG_ENTER("insert_params_withlog"); 
@@ -445,7 +445,7 @@ static bool insert_params_withlog(PREP_STMT *stmt, uchar *pos, uchar *read_pos)
 static bool insert_params(PREP_STMT *stmt, uchar *pos, uchar *read_pos)
 {
   THD *thd= stmt->thd;
-  List<Item> &params= thd->lex.param_list;
+  List<Item> &params= thd->lex->param_list;
   List_iterator<Item> param_iterator(params);
   Item_param *param;
   DBUG_ENTER("insert_params"); 
@@ -471,7 +471,7 @@ static bool insert_params(PREP_STMT *stmt, uchar *pos, uchar *read_pos)
 static bool setup_params_data(PREP_STMT *stmt)
 {                                       
   THD *thd= stmt->thd;
-  List<Item> &params= thd->lex.param_list;
+  List<Item> &params= thd->lex->param_list;
   List_iterator<Item> param_iterator(params);
   Item_param *param;
   DBUG_ENTER("setup_params_data");
@@ -517,8 +517,8 @@ static bool mysql_test_insert_fields(PREP_STMT *stmt,
   List_item *values;
   DBUG_ENTER("mysql_test_insert_fields");
 
-  my_bool update=(thd->lex.value_list.elements ? UPDATE_ACL : 0);
-  ulong privilege= (thd->lex.duplicates == DUP_REPLACE ?
+  my_bool update=(thd->lex->value_list.elements ? UPDATE_ACL : 0);
+  ulong privilege= (thd->lex->duplicates == DUP_REPLACE ?
                     INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
 
   if (check_access(thd,privilege,table_list->db,
@@ -616,8 +616,8 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
                                      SELECT_LEX *select_lex)
 {
   THD *thd= stmt->thd;
-  LEX *lex= &thd->lex;
-  select_result *result= thd->lex.result;
+  LEX *lex= thd->lex;
+  select_result *result= thd->lex->result;
   DBUG_ENTER("mysql_test_select_fields");
 
   ulong privilege= lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL;
@@ -643,7 +643,7 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
   }   
   else 
   {
-    fix_tables_pointers(thd->lex.all_selects_list);
+    fix_tables_pointers(thd->lex->all_selects_list);
     if (!result && !(result= new select_send()))
     {
       delete select_lex->having;
@@ -676,8 +676,8 @@ static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
 static bool send_prepare_results(PREP_STMT *stmt)     
 {   
   THD *thd= stmt->thd;
-  LEX *lex= &thd->lex;
-  enum enum_sql_command sql_command= thd->lex.sql_command;
+  LEX *lex= thd->lex;
+  enum enum_sql_command sql_command= thd->lex->sql_command;
   DBUG_ENTER("send_prepare_results");
   DBUG_PRINT("enter",("command: %d, param_count: %ld",
                       sql_command, lex->param_count));
@@ -758,7 +758,7 @@ static bool parse_prepare_query(PREP_STMT *stmt,
   LEX *lex=lex_start(thd, (uchar*) packet, length);
   lex->safe_to_cache_query= 0;
   thd->prepare_command= TRUE; 
-  thd->lex.param_count= 0;
+  thd->lex->param_count= 0;
   if (!yyparse((void *)thd) && !thd->is_fatal_error) 
     error= send_prepare_results(stmt);
   lex_end(lex);
@@ -772,11 +772,11 @@ static bool parse_prepare_query(PREP_STMT *stmt,
 static bool init_param_items(PREP_STMT *stmt)
 {
   THD *thd= stmt->thd;
-  List<Item> &params= thd->lex.param_list;
+  List<Item> &params= thd->lex->param_list;
   Item_param **to;
   uint32 length= thd->query_length;
  
-  stmt->lex=  thd->lex;
+  stmt->lex=  *thd->lex;
 
   if (mysql_bin_log.is_open())
   {
@@ -817,7 +817,7 @@ static bool init_param_items(PREP_STMT *stmt)
 static void init_stmt_execute(PREP_STMT *stmt)
 {
   THD *thd= stmt->thd;
-  TABLE_LIST *tables= (TABLE_LIST*) thd->lex.select_lex.table_list.first;
+  TABLE_LIST *tables= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
   
   /*
   TODO: When the new table structure is ready, then have a status bit 
@@ -914,8 +914,8 @@ void mysql_stmt_execute(THD *thd, char *packet)
     DBUG_VOID_RETURN;
   }
 
-  LEX thd_lex= thd->lex;
-  thd->lex= stmt->lex;
+  LEX *old_thd_lex= thd->lex;
+  thd->lex= &stmt->lex;
   init_stmt_execute(stmt);
 
   if (stmt->param_count && setup_params_data(stmt))
@@ -937,7 +937,7 @@ void mysql_stmt_execute(THD *thd, char *packet)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
-  thd->lex= thd_lex;
+  thd->lex= old_thd_lex;
   DBUG_VOID_RETURN;
 }
 

@@ -2253,7 +2253,7 @@ void Item_func_get_user_var::fix_length_and_dec()
 
   if ((var_entry= get_variable(&thd->user_vars, name, 0)))
   {
-    if (opt_bin_log && is_update_query(thd->lex.sql_command) &&
+    if (opt_bin_log && is_update_query(thd->lex->sql_command) &&
 	var_entry->used_query_id != thd->query_id)
     {
       uint size;
@@ -2632,7 +2632,7 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
   }
   if (!(item=var->item(thd, var_type)))
     return 0;					// Impossible
-  thd->lex.uncacheable();
+  thd->lex->uncacheable();
   buff[0]='@';
   buff[1]='@';
   pos=buff+2;
@@ -2658,7 +2658,7 @@ Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
   DBUG_ASSERT(var != 0);
   if (!(item=var->item(thd, var_type)))
     return 0;						// Impossible
-  thd->lex.uncacheable();
+  thd->lex->uncacheable();
   item->set_name(item_name, 0, system_charset_info);	// Will use original name
   return item;
 }

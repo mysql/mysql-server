@@ -90,6 +90,7 @@ THD::THD():user_time(0), is_fatal_error(0),
 	   insert_id_used(0), rand_used(0), in_lock_tables(0),
 	   global_read_lock(0), bootstrap(0), spcont(NULL)
 {
+  lex= &main_lex;
   host=user=priv_user=db=query=ip=0;
   host_or_ip= "connecting host";
   locked=count_cuted_fields=some_tables_deleted=no_errors=password=
@@ -1040,7 +1041,7 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     else
     {
       Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
-      xx->fix_fields(thd,(TABLE_LIST*) thd->lex.select_lex.table_list.first,&item);
+      xx->fix_fields(thd,(TABLE_LIST*) thd->lex->select_lex.table_list.first,&item);
       xx->fix_length_and_dec();
       vars.push_back(xx);
     }

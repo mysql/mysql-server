@@ -359,7 +359,7 @@ sp_cache_functions(THD *thd, LEX *lex)
       continue;
     if (db_find_routine(thd, TYPE_ENUM_FUNCTION, fn, strlen(fn), &sp) == SP_OK)
     {
-      ret= sp_cache_functions(thd, &thd->lex);
+      ret= sp_cache_functions(thd, thd->lex);
       if (ret)
 	break;
       thd->spfuns.push_back(sp);
