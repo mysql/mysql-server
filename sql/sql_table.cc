@@ -1747,10 +1747,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                               uint extra_open_options,
                               int (*prepare_func)(THD *, TABLE_LIST *,
                                                   HA_CHECK_OPT *),
-                              int (handler::*operator_func)
-                              (THD *, HA_CHECK_OPT *),
-                              int (view_operator_func)
-                              (THD *, TABLE_LIST*))
+                              int (handler::*operator_func)(THD *,
+                                                            HA_CHECK_OPT *),
+                              int (view_operator_func)(THD *, TABLE_LIST*))
 {
   TABLE_LIST *table, *next_global_table;
   List<Item> field_list;
@@ -1808,12 +1807,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
 
     /*
-      for this command used only temporary table method (without
-      filling tables), so if opening succeed, table will be opened
+      CHECK TABLE command is only command where VIEW allowed here and this
+      command use only temporary teble method for VIEWs resolving => there
+      can't be VIEW tree substitition of join view => if opening table
+      succeed then table->table will have real TABLE pointer as value (in
+      case of join view substitution table->table can be 0, but here it is
+      impossible)
     */
     if (!table->table)
     {
-      char buf[ERRMSGSIZE+25];
+      char buf[ERRMSGSIZE+ERRMSGSIZE+2];
       const char *err_msg;
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
@@ -1825,7 +1828,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       if (table->view &&
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
       {
-        strxmov(buf, "View checksum failed and ", err_msg, NullS);
+        strxmov(buf, err_msg, "; ", ER(ER_VIEW_CHECKSUM), NullS);
         err_msg= (const char *)buf;
       }
       protocol->store(err_msg, system_charset_info);
@@ -1961,7 +1964,8 @@ send_result_message:
     case HA_ADMIN_WRONG_CHECKSUM:
     {
       protocol->store("note", 4, system_charset_info);
-      protocol->store("Checksum error", 14, system_charset_info);
+      protocol->store(ER(ER_VIEW_CHECKSUM), strlen(ER(ER_VIEW_CHECKSUM)),
+                      system_charset_info);
       break;
     }
 
