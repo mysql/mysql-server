@@ -111,7 +111,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   DBUG_ENTER("_create_index_by_sort");
   DBUG_PRINT("enter",("sort_length: %d", info->key_length));
 
-  if (info->keyinfo->flag && HA_VAR_LENGTH_KEY)
+  if (info->keyinfo->flag & HA_VAR_LENGTH_KEY)
   {
     info->write_keys=write_keys_varlen;
     info->read_to_buffer=read_to_buffer_varlen;
@@ -622,7 +622,7 @@ inline int my_var_write(MI_SORT_PARAM *info,IO_CACHE *to_file,char *bufs)
 {
   int err;
   uint16 len = _mi_keylength(info->keyinfo,bufs);
-  
+
   if ((err= my_b_write(to_file,(byte*)&len,sizeof(len))))
     return (err);
   if ((err= my_b_write(to_file,(byte*)bufs,(uint) len)))
@@ -641,7 +641,7 @@ static int NEAR_F write_keys_varlen(MI_SORT_PARAM *info, register uchar **sort_k
   qsort2((byte*) sort_keys,count,sizeof(byte*),(qsort2_cmp) info->key_cmp,
          info);
   if (!my_b_inited(tempfile) &&
-      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST", 
+      open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
                        DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
     DBUG_RETURN(1); /* purecov: inspected */
 
@@ -650,7 +650,7 @@ static int NEAR_F write_keys_varlen(MI_SORT_PARAM *info, register uchar **sort_k
   for (end=sort_keys+count ; sort_keys != end ; sort_keys++)
   {
     if ((err= my_var_write(info,tempfile,*sort_keys)))
-      DBUG_RETURN(err); 
+      DBUG_RETURN(err);
   }
   DBUG_RETURN(0);
 } /* write_keys_varlen */
@@ -777,7 +777,7 @@ static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
   uint16 length_of_key = 0;
   uint idx;
   uchar *buffp;
-  
+
   if ((count=(uint) min((ha_rows) buffpek->max_keys,buffpek->count)))
   {
     buffp = buffpek->base;
@@ -786,11 +786,11 @@ static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
     {
       if (my_pread(fromfile->file,(byte*)&length_of_key,sizeof(length_of_key),
                    buffpek->file_pos,MYF_RW))
-        return((uint) -1);     
+        return((uint) -1);
       buffpek->file_pos+=sizeof(length_of_key);
       if (my_pread(fromfile->file,(byte*) buffp,length_of_key,
                    buffpek->file_pos,MYF_RW))
-        return((uint) -1);     
+        return((uint) -1);
       buffpek->file_pos+=length_of_key;
       buffp = buffp + sort_length;
     }
