@@ -1,65 +1,165 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
-sub fix {
-  $str = shift;
-  $str =~ tr/_/-/;
-  return $str;
-};
+# Fix the output of `makeinfo --docbook` version 4.0c
+# Convert the broken docbook output to well-formed XML that conforms to the O'Reilly idiom
+# See code for detailed comments
+# Authors: Arjen Lentz and Zak Greant
 
-$data = join "", <STDIN>;
+use strict;
 
-print STDERR "Changing @@ to @...\n";
-$data =~ s/@@/@/gs;
+my $data  = '';
+my @apx   = ();
+my $apx   = '';
+my @nodes = ();
+my $nodes = '';
 
-print STDERR "Changing '_' to '-' in references...\n";
-$data =~ s{id=\"(.+?)\"}
-          {"id=\"".&fix($1)."\""}gsex;
-$data =~ s{linkend=\"(.+?)\"}
-          {"linkend=\"".&fix($1)."\""}gsex;
+msg ("\n-- Post-processing `makeinfo --docbook` output --");
+msg ("** Written to work with makeinfo version 4.0c **\n");
 
-print STDERR "Changing ULINK to SYSTEMITEM...\n";
-$data =~ s{<ulink url=\"(.+?)\"></ulink>}
+msg ("Discarding DTD - not required by subsequent scripts");
+# <> is a magic filehandle - either reading lines from stdin or from file(s) specified on the command line
+<>;
+
+msg ("Create an XML PI with ISO-8859-1 character encoding");
+$data = "<?xml version='1.0' encoding='ISO-8859-1'?>";
+
+msg ("Get the rest of the data");
+$data = $data . join "", <>;
+
+msg ("Add missing <bookinfo> and <abstract> opening tags");
+# Note the absence of the g (global) pattern modified. This situation can only happen once.
+# ...as soon as we find the first instance, we can stop looking.
+$data =~ s/<book lang="en">/<book lang="en"><bookinfo><abstract>/;
+
+msg ("Removing mailto: from email addresses...");
+$data =~ s/mailto://g;
+
+msg ("Removing INFORMALFIGURE...");
+$data =~ s{<informalfigure>.+?</informalfigure>}
+          {}gs;
+
+msg ("Convert ampersands to XML escape sequences ");
+$data =~ s/&(?!\w+;)/&amp;/g;
+  
+msg ("Changing @@ to @...");
+$data =~ s/@@/@/g;
+
+msg ("Rework references of the notation '<n>'");
+# Need to talk to Arjen about what the <n> bits are for
+$data =~ s/<(\d)>/[$1]/g;
+
+msg ("Changing '_' to '-' in references...");
+$data =~ s{((?:id|linkend)=\".+?\")}
+          {&underscore2hyphen($1)}gex;
+
+msg ("Changing ULINK to SYSTEMITEM...");
+$data =~ s{<ulink url=\"(.+?)\">\s*</ulink>}
           {<systemitem role=\"url\">$1</systemitem>}gs;
 
-print STDERR "Removing INFORMALFIGURE...\n";
-$data =~ s{<informalfigure>(.+?)</informalfigure>}
-          {}gs;
-
-print STDERR "Adding PARA inside ENTRY...\n";
-$data =~ s{<entry>(.+?)</entry>}
+msg ("Adding PARA inside ENTRY...");
+$data =~ s{<entry>(.*?)</entry>}
           {<entry><para>$1</para></entry>}gs;
 
-print STDERR "Removing mailto: from email addresses...\n";
-$data =~ s{mailto:}
+msg ("Fixing spacing problem with titles...");
+$data =~ s{(</\w+>)(\w{2,})}
+          {$1 $2}gs;
+
+msg ("Adding closing / to XREF and COLSPEC tags...");
+$data =~ s{<(xref|colspec) (.+?)>}
+          {<$1 $2 />}gs;
+
+# Probably need to strip these
+msg ('Adding "See " to XREFs that used to be @xref...');
+$data =~ s{([.'!)])\s*<xref }
+          {$1 See <xref }gs;
+
+msg ('Adding "see " to (XREFs) that used to be (@pxref)...');
+$data =~ s{([([,;])(\s*)<xref }
+          {$1$2see <xref }gs;
+
+msg ("Making first row in table THEAD...");
+$data =~ s{( *)<tbody>(\s*<row>.+?</row>)}
+          {$1<thead>$2\n$1</thead>\n$1<tbody>}gs;
+
+msg ("Removing EMPHASIS inside THEAD...");
+$data =~ s{<thead>(.+?)</thead>}
+          {"<thead>".&strip_tag($1, 'emphasis')."</thead>"}gsex;
+
+msg ("Removing empty PARA...");
+$data =~ s{<para>\s*</para>}
           {}gs;
 
-print STDERR "Fixing spacing problem with titles...\n";
-$data =~ s{</(\w+)>(\w{2,})}
-          {</$1> $2}gs;
+msg ("Removing lf before /PARA in ENTRY...");
+$data =~ s{\n(</para></entry>)}
+          {$1}gs;
 
-@apx = ("Users", "MySQL Testimonials", "News",
-        "GPL-license", "LGPL-license");
+msg ("Removing whitespace before /PARA if not on separate line...");
+$data =~ s{(\S+)[\t ]+</para>}
+          {$1</para>}g;
+
+msg ("Removing PARA around INDEXTERM if no text in PARA...");
+$data =~ s{<para>((?:<indexterm role=\"[^"]+\">(?:<(primary|secondary)>[^>]+</\2>)+?</indexterm>)+?)\s*</para>}
+          {$1}gs;
+
+@apx = ("Users", "MySQL Testimonials", "News", "GPL-license", "LGPL-license");
 
 foreach $apx (@apx) {
-  print STDERR "Removing appendix $apx...\n";
-  $data =~ s{<appendix id=\"$apx\">(.+?)</appendix>}
-            {}gs;
+    msg ("Removing appendix $apx...");
+    $data =~ s{<appendix id=\"$apx\">(.+?)</appendix>}
+              {}gs;
 
-  print STDERR " ... Building list of removed nodes ...\n";
-  foreach(split "\n", $&) {
-    push @nodes, $2 if(/<(\w+) id=\"(.+?)\">/)
-  };
-};
+    # Skip to next appendix regex if the regex did not match anything
+    next unless (defined $&);
+    
+    msg ("...Building list of removed nodes...");
+    
+    # Split the last bracketed regex match into an array
+    # Extract the node names from the tags and push them into an array
+    foreach (split "\n", $&) {
+        push @nodes, $1 if /<\w+ id=\"(.+?)\">/
+    }
+}
 
-print STDERR "Fixing references to removed nodes...\n";
-foreach $node (@nodes) {
-  $web = $node;
-  $web =~ s/[ ]/_/;
-  $web = "http://www.mysql.com/doc/" .
-         (join "/", (split //, $web)[0..1])."/$web.html";
-  print STDERR "$node -> $web\n";
-  $data =~ s{<(\w+) linkend=\"$node\">}
-            {$web}gs;
-};
+# 2002-02-22 arjen@mysql.com (added fix " /" to end of regex, to make it match)
+msg ("Fixing references to removed nodes...");
+# Merge the list of node names into a set of regex alternations
+$nodes = join "|", @nodes;
+
+# Find all references to removed nodes and convert them to absolute URLs
+$data =~ s{<\w+ linkend="($nodes)" />}
+          {&xref2link($1)}ges;
 
 print STDOUT $data;
+exit;
+
+#
+# Definitions for helper sub-routines
+#
+
+sub msg {
+    print STDERR shift, "\n";
+}
+
+sub strip_tag($$) {
+    (my $str, my $tag) = @_;
+    $str =~ s{<$tag>(.+?)</$tag>}{$1}gs;
+    return $str;
+}
+
+sub underscore2hyphen($) {
+    my $str = shift;
+    $str =~ tr/_/-/;
+    return $str;
+}
+
+sub xref2link {
+    my $ref = shift;
+    $ref =~ tr/ /_/;
+    $ref =~ s{^((.)(.).+)$}{$2/$3/$1.html};
+    return "http://www.mysql.com/doc/" . $ref;
+}
+
+# We might need to encode the high-bit characters to ensure proper representation
+# msg ("Converting high-bit characters to entities");
+# $data =~ s/([\200-\400])/&get_entity($1)>/gs;
+# There is no get_entity function yet - no point writing it til we need it :)

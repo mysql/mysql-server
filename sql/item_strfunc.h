@@ -435,7 +435,8 @@ class Item_func_binary :public Item_str_func
 public:
   Item_func_binary(Item *a) :Item_str_func(a) {}
   const char *func_name() const { return "binary"; }
-  String *val_str(String *a) { return (args[0]->val_str(a)); }
+  String *val_str(String *a)
+  { a=args[0]->val_str(a); null_value=args[0]->null_value; return a; }
   void fix_length_and_dec() { binary=1; max_length=args[0]->max_length; }
   void print(String *str) { print_op(str); }
 };

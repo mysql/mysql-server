@@ -1,0 +1,18 @@
+#! /bin/sh
+
+set -e -x
+OTHER_LIBC_DIR=/usr/local/mysql-glibc
+
+BUILD/compile-pentium-max --with-other-libc=$OTHER_LIBC_DIR \
+  --with-comment="Official MySQL Binary"  \
+  --prefix=/usr/local/mysql --with-extra-charset=complex \
+  --enable-thread-safe-client --enable-local-infile \
+  --with-server-suffix=-max
+scripts/make_binary_distribution
+make dist
+Build-tools/Do-rpm --local
+BUILD/compile-pentium --with-other-libc=$OTHER_LIBC_DIR \
+  --with-comment="Official MySQL Binary" \
+  --prefix=/usr/local/mysql --with-extra-charset=complex \
+  --enable-thread-safe-client --enable-local-infile
+scripts/make_binary_distribution 

@@ -251,6 +251,24 @@ row_table_add_foreign_constraints(
 	char*	name);		/* in: table full name in the normalized form
 				database_name/table_name */
 /*************************************************************************
+The master thread in srv0srv.c calls this regularly to drop tables which
+we must drop in background after queries to them have ended. Such lazy
+dropping of tables is needed in ALTER TABLE on Unix. */
+
+ulint
+row_drop_tables_for_mysql_in_background(void);
+/*=========================================*/
+					/* out: how many tables dropped
+					+ remaining tables in list */
+/*************************************************************************
+Get the background drop list length. NOTE: the caller must own the kernel
+mutex! */
+
+ulint
+row_get_background_drop_list_len_low(void);
+/*======================================*/
+					/* out: how many tables in list */
+/*************************************************************************
 Drops a table for MySQL. If the name of the dropped table ends to
 characters INNODB_MONITOR, then this also stops printing of monitor
 output by the master thread. */
@@ -323,11 +341,18 @@ struct mysql_row_templ_struct {
 /* After fetching this many rows, we start caching them in fetch_cache */
 #define MYSQL_FETCH_CACHE_THRESHOLD	4
 
+#define ROW_PREBUILT_ALLOCATED	78540783
+#define ROW_PREBUILT_FREED	26423527
 
 /* A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
 
 struct row_prebuilt_struct {
+	ulint		magic_n;	/* this magic number is set to
+					ROW_PREBUILT_ALLOCATED when created
+					and to ROW_PREBUILT_FREED when the
+					struct has been freed; used in
+					debugging */
 	dict_table_t*	table;		/* Innobase table handle */
 	trx_t*		trx;		/* current transaction handle */
 	ibool		sql_stat_start;	/* TRUE when we start processing of
@@ -419,7 +444,7 @@ struct row_prebuilt_struct {
 					fetched row in fetch_cache */
 	ulint		n_fetch_cached;	/* number of not yet fetched rows
 					in fetch_cache */
-	mem_heap_t*	blob_heap;	/* in SELECTS BLOB fields are copied
+	mem_heap_t*	blob_heap;	/* in SELECTS BLOB fie lds are copied
 					to this heap */
 	mem_heap_t*	old_vers_heap;	/* memory heap where a previous
 					version is built in consistent read */

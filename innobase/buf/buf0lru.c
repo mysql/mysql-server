@@ -243,7 +243,6 @@ loop:
 	if (n_iterations > 30) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-		" ***********************************************\n"
 		"InnoDB: Warning: difficult to find free blocks from\n"
 		"InnoDB: the buffer pool (%lu search iterations)! Consider\n"
 		"InnoDB: increasing the buffer pool size.\n",

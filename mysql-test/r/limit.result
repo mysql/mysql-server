@@ -48,3 +48,5 @@ i
 2
 1
 drop table t1;
+select 0 limit 0;
+0

@@ -268,6 +268,20 @@ are stored in one block.
  +-------------+      +-------------+
 
 If join_results allocated new block(s) then we need call pack_cache again.
+
+TODO list:
+
+  - Invalidate queries that use innoDB tables changed in transaction & remove
+      invalidation by table type
+  - Delayed till after-parsing qache answer (for column rights processing)
+  - Optimize cache resizing
+      - if new_size < old_size then pack & shrink
+      - if new_size > old_size copy cached query to new cache
+  - Move MRG_MYISAM table type processing to handlers, something like:
+        tables_used->table->file->register_used_filenames(callback,
+                                                          first_argument);
+  - In Query_cache::insert_table eliminate strlen(). To do this we have to
+        add db_len to the TABLE_LIST and TABLE structures.
 */
 
 #include "mysql_priv.h"
@@ -640,9 +654,14 @@ void query_cache_end_of_result(NET *net)
     {
       DUMP(&query_cache);
       BLOCK_LOCK_WR(query_block);
+      Query_cache_query *header = query_block->query();
+      Query_cache_block *last_result_block = header->result()->prev;
+      ulong allign_size = ALIGN_SIZE(last_result_block->used);
+      ulong len = max(query_cache.min_allocation_unit, allign_size);
+      if (last_result_block->length >= query_cache.min_allocation_unit + len)
+	query_cache.split_block(last_result_block,len);
       STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
 
-      Query_cache_query *header = query_block->query();
 #ifndef DBUG_OFF
       if (header->result() == 0)
       {
@@ -705,13 +724,6 @@ Query_cache::Query_cache(ulong query_cache_limit,
 
 ulong Query_cache::resize(ulong query_cache_size)
 {
-  /*
-     TODO:
-     When will be realized pack() optimize case when
-     query_cache_size < this->query_cache_size
-
-     Try to copy old cache in new memory
-  */
   DBUG_ENTER("Query_cache::resize");
   DBUG_PRINT("qcache", ("from %lu to %lu",this->query_cache_size,
 		      query_cache_size));
@@ -723,11 +735,6 @@ ulong Query_cache::resize(ulong query_cache_size)
 
 void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 {
-  /*
-    TODO:
-    Maybe better convert keywords to upper case when query stored/compared.
-    (Not important at this stage)
-  */
   TABLE_COUNTER_TYPE tables;
   ulong tot_length;
   DBUG_ENTER("Query_cache::store_query");
@@ -879,18 +886,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   /* Check that we haven't forgot to reset the query cache variables */
   DBUG_ASSERT(thd->net.query_cache_query == 0);
 
-  /*
-    We can't cache the query if we are using a temporary table because
-    we don't know if the query is using a temporary table.
-
-    TODO:  We could parse the query and then check if the query used
-	   a temporary table.
-  */
-  if (thd->temporary_tables != 0 || !thd->safe_to_cache_query)
+  if (!thd->safe_to_cache_query)
   {
-    DBUG_PRINT("qcache", ("SELECT is non-cacheable: tmp_tables: %d  safe: %d",
-			  thd->temporary_tables,
-			  thd->safe_to_cache_query));
+    DBUG_PRINT("qcache", ("SELECT is non-cacheable"));
     goto err;
   }
 
@@ -1066,12 +1064,8 @@ void Query_cache::invalidate(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
-
 /*
   Remove all cached queries that uses the given table type.
-  TODO: This is currently used to invalidate InnoDB tables on commit.
-	We should remove this function and only invalidate tables
-	used in the transaction.
 */
 
 void Query_cache::invalidate(Query_cache_table::query_cache_table_type type)
@@ -1175,6 +1169,11 @@ void Query_cache::pack(ulong join_limit, uint iteration_limit)
 
 void Query_cache::destroy()
 {
+  if ( !initialized )
+  {
+    DBUG_PRINT("qcache", ("Query Cache not initialized"));
+    return;
+  }
   DBUG_ENTER("Query_cache::destroy");
   free_cache(1);
   pthread_mutex_destroy(&structure_guard_mutex);
@@ -1588,15 +1587,15 @@ Query_cache::append_result_data(Query_cache_block **current_block,
   */
 
   // Try join blocks if physically next block is free...
+  ulong tail = data_len - last_block_free_space;
+  ulong append_min = get_min_append_result_data_size();
   if (last_block_free_space < data_len &&
       append_next_free_block(last_block,
-			     max(data_len - last_block_free_space,
-				 QUERY_CACHE_MIN_RESULT_DATA_SIZE)))
+			     max(tail, append_min)))
     last_block_free_space = last_block->length - last_block->used;
   // If no space in last block (even after join) allocate new block
   if (last_block_free_space < data_len)
   {
-    // TODO: Try get memory from next free block (if exist) (is it needed?)
     DBUG_PRINT("qcache", ("allocate new block for %lu bytes",
 			data_len-last_block_free_space));
     Query_cache_block *new_block = 0;
@@ -1652,7 +1651,8 @@ my_bool Query_cache::write_result_data(Query_cache_block **result_block,
     structure_guard_mutex and copy data.
   */
 
-  my_bool success = allocate_data_chain(result_block, data_len, query_block);
+  my_bool success = allocate_data_chain(result_block, data_len, query_block,
+					type == Query_cache_block::RES_BEG);
   if (success)
   {
     // It is success (nobody can prevent us write data)
@@ -1697,13 +1697,28 @@ my_bool Query_cache::write_result_data(Query_cache_block **result_block,
   DBUG_RETURN(success);
 }
 
+inline ulong Query_cache::get_min_first_result_data_size()
+{
+  if (queries_in_cache < QUERY_CACHE_MIN_ESTIMATED_QUERIES_NUMBER)
+    return min_result_data_size;
+  ulong avg_result = (query_cache_size - free_memory) / queries_in_cache;
+  avg_result = min(avg_result, query_cache_limit);
+  return max(min_result_data_size, avg_result);
+}
+
+inline ulong Query_cache::get_min_append_result_data_size()
+{
+  return min_result_data_size;
+}
+
 /*
   Allocate one or more blocks to hold data
 */
 
 my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
 					 ulong data_len,
-					 Query_cache_block *query_block)
+					 Query_cache_block *query_block,
+					 my_bool first_block)
 {
   ulong all_headers_len = (ALIGN_SIZE(sizeof(Query_cache_block)) +
 			   ALIGN_SIZE(sizeof(Query_cache_result)));
@@ -1712,7 +1727,10 @@ my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
   DBUG_PRINT("qcache", ("data_len %lu, all_headers_len %lu",
 		      data_len, all_headers_len));
 
-  *result_block = allocate_block(max(min_result_data_size,len),
+  ulong min_size = (first_block ?
+		    get_min_first_result_data_size():
+		    get_min_append_result_data_size());
+  *result_block = allocate_block(max(min_size,len),
 				 min_result_data_size == 0,
 				 all_headers_len + min_result_data_size,
 				 1);
@@ -1736,7 +1754,7 @@ my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
       Query_cache_block *next_block;
       if ((success = allocate_data_chain(&next_block,
 					 len - new_block->length,
-					 query_block)))
+					 query_block, first_block)))
 	double_linked_list_join(new_block, next_block);
     }
     if (success)
@@ -1827,15 +1845,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 		      Query_cache_table::type_convertion(tables_used->table->
 							 db_type)))
       break;
-    /*
-      TODO: (Low priority)
-      The following has to be recoded to not test for a specific table
-      type but instead call a handler function that does this for us.
-      Something like the following:
 
-      tables_used->table->file->register_used_filenames(callback,
-							first_argument);
-    */
     if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)
     {
       ha_myisammrg *handler = (ha_myisammrg *) tables_used->table->file;
@@ -1913,10 +1923,6 @@ Query_cache::insert_table(uint key_len, char *key,
       DBUG_RETURN(0);
     }
     char *db = header->db();
-    /*
-      TODO: Eliminate strlen() by sending this to the function
-      To do this we have to add db_len to the TABLE_LIST and TABLE structures.
-    */
     header->table(db + strlen(db) + 1);
   }
 
@@ -1980,7 +1986,7 @@ Query_cache::allocate_block(ulong len, my_bool not_less, ulong min,
 
   if (block != 0)				// If we found a suitable block
   {
-    if (block->length > ALIGN_SIZE(len) + min_allocation_unit)
+    if (block->length >= ALIGN_SIZE(len) + min_allocation_unit)
       split_block(block,ALIGN_SIZE(len));
   }
 
@@ -2085,7 +2091,7 @@ void Query_cache::free_memory_block(Query_cache_block *block)
 }
 
 
-void Query_cache::split_block(Query_cache_block *block,ulong len)
+void Query_cache::split_block(Query_cache_block *block, ulong len)
 {
   DBUG_ENTER("Query_cache::split_block");
   Query_cache_block *new_block = (Query_cache_block*)(((byte*) block)+len);
@@ -2098,7 +2104,11 @@ void Query_cache::split_block(Query_cache_block *block,ulong len)
   new_block->pprev = block;
   new_block->pnext->pprev = new_block;
 
-  insert_into_free_memory_list(new_block);
+  if (block->type == Query_cache_block::FREE)
+    // if block was free then it already joined with all free neighbours
+    insert_into_free_memory_list(new_block);
+  else
+    free_memory_block(new_block);
 
   DBUG_PRINT("qcache", ("split 0x%lx (%lu) new 0x%lx",
 		      (ulong) block, len, (ulong) new_block));
@@ -2991,7 +3001,7 @@ my_bool Query_cache::check_integrity(bool not_locked)
   uint i;
   DBUG_ENTER("check_integrity");
 
-  if (!initialized )
+  if (query_cache_size == 0)
   {
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     DBUG_RETURN(0);
@@ -3078,6 +3088,7 @@ my_bool Query_cache::check_integrity(bool not_locked)
 	result = 1;
       break;
     case Query_cache_block::QUERY:
+    {
       if (in_list(queries_blocks, block, "query"))
 	result = 1;
       for (TABLE_COUNTER_TYPE j=0; j < block->n_tables; j++)
@@ -3092,6 +3103,7 @@ my_bool Query_cache::check_integrity(bool not_locked)
     	  result = 1;
       }
       break;
+    }
     case Query_cache_block::RES_INCOMPLETE:
       // This type of block can be not lincked yet (in multithread environment)
       break;

@@ -50,6 +50,13 @@ trx_allocate_for_mysql(void);
 /*========================*/
 				/* out, own: transaction object */
 /************************************************************************
+Creates a transaction object for background operations by the master thread. */
+
+trx_t*
+trx_allocate_for_background(void);
+/*=============================*/
+				/* out, own: transaction object */
+/************************************************************************
 Frees a transaction object. */
 
 void
@@ -62,6 +69,13 @@ Frees a transaction object for MySQL. */
 void
 trx_free_for_mysql(
 /*===============*/
+	trx_t*	trx);	/* in, own: trx object */
+/************************************************************************
+Frees a transaction object of a background operation of the master thread. */
+
+void
+trx_free_for_background(
+/*====================*/
 	trx_t*	trx);	/* in, own: trx object */
 /********************************************************************
 Creates trx objects for transactions and initializes the trx list of
@@ -266,11 +280,14 @@ struct trx_sig_struct{
 					transaction is waiting a reply */
 };
 
+#define TRX_MAGIC_N	91118598
+
 /* The transaction handle; every session has a trx object which is freed only
 when the session is freed; in addition there may be session-less transactions
 rolling back after a database recovery */
 
 struct trx_struct{
+	ulint		magic_n;
 	/* All the next fields are protected by the kernel mutex, except the
 	undo logs which are protected by undo_mutex */
 	char*		op_info;	/* English text describing the
@@ -290,10 +307,20 @@ struct trx_struct{
 					table */
 	dulint		table_id;	/* table id if the preceding field is
 					TRUE */
+	/*------------------------------*/
         void*           mysql_thd;      /* MySQL thread handle corresponding
                                         to this trx, or NULL */
+	char*		mysql_log_file_name;
+					/* If MySQL binlog is used, this field
+					contains a pointer to the latest file
+					name; this is NULL if binlog is not
+					used */
+	ib_longlong	mysql_log_offset;/* If MySQL binlog is used, this field
+					contains the end offset of the binlog
+					entry */
 	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
 					with this transaction object */
+	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current
 					SQL statement in MySQL */
@@ -314,6 +341,18 @@ struct trx_struct{
 					calls from MySQL; this is intended
 					to reduce contention on the search
 					latch */
+	/*------------------------------*/
+	ibool		declared_to_be_inside_innodb;
+					/* this is TRUE if we have declared
+					this transaction in
+					srv_conc_enter_innodb to be inside the
+					InnoDB engine */
+	ulint		n_tickets_to_enter_innodb;
+					/* this can be > 0 only when
+					declared_to_... is TRUE; when we come
+					to srv_conc_innodb_enter, if the value
+					here is > 0, we decrement this by 1 */ 
+	/*------------------------------*/
 	lock_t*		auto_inc_lock;	/* possible auto-inc lock reserved by
 					the transaction; note that it is also
 					in the lock list trx_locks */

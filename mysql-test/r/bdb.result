@@ -1101,3 +1101,25 @@ INFO_NOTE
 select INFO_NOTE from t1 where STR_DATE > '20010610';
 INFO_NOTE
 drop table t1;
+create table t1 (a int not null, b int, primary key (a)) type =bdb;
+create table t2 (a int not null, b int, primary key (a)) type =bdb;
+insert into t1 values (2, 3),(1, 7),(10, 7);
+insert into t2 values (2, 3),(1, 7),(10, 7);
+select * from t1;
+a	b
+1	7
+2	3
+10	7
+select * from t2;
+a	b
+1	7
+2	3
+10	7
+delete t1, t2 from t1, t2 where t1.a = t2.a;
+select * from t1;
+a	b
+select * from t2;
+a	b
+select * from t2;
+a	b
+drop table t1,t2;

@@ -150,6 +150,7 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->convert_set=(lex->thd=thd)->convert_set;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);
+  lex->slave_thd_opt=0;
   return lex;
 }
 
@@ -768,6 +769,7 @@ int yylex(void *arg)
       return(TEXT_STRING);
 
     case STATE_COMMENT:			//  Comment
+      lex->select_lex.options|= OPTION_FOUND_COMMENT;
       while ((c = yyGet()) != '\n' && c) ;
       yyUnget();			// Safety against eof
       state = STATE_START;		// Try again
@@ -779,6 +781,7 @@ int yylex(void *arg)
 	break;
       }
       yySkip();				// Skip '*'
+      lex->select_lex.options|= OPTION_FOUND_COMMENT;
       if (yyPeek() == '!')		// MySQL command in comment
       {
 	ulong version=MYSQL_VERSION_ID;

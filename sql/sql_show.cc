@@ -708,7 +708,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
 
       /* Null flag */
       uint flags= key_part->field ? key_part->field->flags : 0;
-      char *pos=(byte*) ((flags & NOT_NULL_FLAG) ? "" : "YES");
+      char *pos=(char*) ((flags & NOT_NULL_FLAG) ? "" : "YES");
       net_store_data(packet,convert,(const char*) pos);
       net_store_data(packet,convert,table->file->index_type(i));
       /* Comment */
@@ -1177,6 +1177,15 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
       case SHOW_RPL_STATUS:
 	net_store_data(&packet2, rpl_status_type[(int)rpl_status]);
 	break;
+      case SHOW_SLAVE_RUNNING:
+      {
+	LOCK_ACTIVE_MI;
+	net_store_data(&packet2, (active_mi->slave_running &&
+				  active_mi->rli.slave_running)
+		        ? "ON" : "OFF");
+	UNLOCK_ACTIVE_MI;
+	break;
+      }
       case SHOW_OPENTABLES:
         net_store_data(&packet2,(uint32) cached_tables());
         break;

@@ -38,7 +38,7 @@ class ha_myisammrg: public handler
 	      HA_HAVE_KEY_READ_ONLY |
 	      HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER |
 	      HA_LASTKEY_ORDER | HA_READ_NOT_EXACT_KEY |
-	      HA_LONGLONG_KEYS | HA_NULL_KEY | HA_BLOB_KEY); }
+	      HA_NULL_KEY | HA_BLOB_KEY); }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return MI_MAX_KEY; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }
@@ -55,6 +55,7 @@ class ha_myisammrg: public handler
 		 uint key_len, enum ha_rkey_function find_flag);
   int index_read_idx(byte * buf, uint idx, const byte * key,
 		     uint key_len, enum ha_rkey_function find_flag);
+  int index_read_last(byte * buf, const byte * key, uint key_len);
   int index_next(byte * buf);
   int index_prev(byte * buf);
   int index_first(byte * buf);

@@ -257,8 +257,6 @@ int mysql_update(THD *thd,
     }
   }
 
-  if (!(test_flags & TEST_READCHECK))		/* For debugging */
-    VOID(table->file->extra(HA_EXTRA_NO_READCHECK));
   if (handle_duplicates == DUP_IGNORE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   init_read_record(&info,thd,table,select,0,1);
@@ -303,7 +301,6 @@ int mysql_update(THD *thd,
   }
   end_read_record(&info);
   thd->proc_info="end";
-  VOID(table->file->extra(HA_EXTRA_READCHECK));
   VOID(table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY));
   table->time_stamp=save_time_stamp;	// Restore auto timestamp pointer
   using_transactions=table->file->has_transactions();
@@ -359,11 +356,11 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs,
   tmp_tables = (TABLE **)NULL;
   int counter=0;
   ulong timestamp_query_id;
+  not_trans_safe=false;
   for (TABLE_LIST *dt=ut ; dt ; dt=dt->next,counter++)
   {
     TABLE *table=ut->table;
-    (void) ut->table->file->extra(HA_EXTRA_NO_READCHECK);
-    (void) ut->table->file->extra(HA_EXTRA_NO_KEYREAD);
+//    (void) ut->table->file->extra(HA_EXTRA_NO_KEYREAD);
     dt->table->used_keys=0;
     if (table->timestamp_field)
     {
@@ -420,6 +417,9 @@ multi_update::prepare(List<Item> &values)
       {
 	num_updated++;
 	table_ref->shared=1;
+	if (!not_trans_safe && !table_ref->table->file->has_transactions())
+	  not_trans_safe=true;
+	table_ref->table->no_keyread=1; // to be moved if initialize_tables has to be used
 	break;
       }
     }
@@ -521,14 +521,13 @@ multi_update::initialize_tables(JOIN *join)
 
 multi_update::~multi_update()
 {
-  /* Add back EXTRA_READCHECK;  In 4.0.1 we shouldn't need this anymore */
   int counter = 0;
   for (table_being_updated=update_tables ;
        table_being_updated ;
        counter++, table_being_updated=table_being_updated->next)
   {
     TABLE *table=table_being_updated->table;
-    (void)table->file->extra(HA_EXTRA_READCHECK);
+    table->no_keyread=0;
     if (error) 
       table->time_stamp=save_time_stamps[counter];
   }
@@ -614,10 +613,12 @@ bool multi_update::send_data(List<Item> &values)
       }
       else
       {
-// Here I insert into each temporary table
-	values_by_table.push_front(new Item_string(table->file->ref,table->file->ref_length));
+	// Here we insert into each temporary table
+	values_by_table.push_front(new Item_string((char*) table->file->ref,
+						   table->file->ref_length));
 	fill_record(tmp_tables[secure_counter]->field,values_by_table);
-	error= write_record(tmp_tables[secure_counter],&(infos[secure_counter]));
+	error= write_record(tmp_tables[secure_counter],
+			    &(infos[secure_counter]));
 	if (error)
 	{
 	  error=-1;
@@ -629,27 +630,13 @@ bool multi_update::send_data(List<Item> &values)
   return 0;
 }
 
-
-/* Return true if some table is not transaction safe */
-
-static bool some_table_is_not_transaction_safe (TABLE_LIST *tl)
-{
-  for (; tl ; tl=tl->next)
-  { 
-    if (!(tl->table->file->has_transactions()))
-      return true;
-  }
-  return false;
-}
-
-
 void multi_update::send_error(uint errcode,const char *err)
 {
   /* First send error what ever it is ... */
   ::send_error(&thd->net,errcode,err);
 
   /* reset used flags */
-  update_tables->table->no_keyread=0;
+//  update_tables->table->no_keyread=0;
 
   /* If nothing updated return */
   if (!updated)
@@ -665,8 +652,7 @@ void multi_update::send_error(uint errcode,const char *err)
     In all other cases do attempt updates ...
   */
   if ((table_being_updated->table->file->has_transactions() &&
-       table_being_updated == update_tables) ||
-      !some_table_is_not_transaction_safe(update_tables->next))
+       table_being_updated == update_tables) || !not_trans_safe)
     ha_rollback_stmt(thd);
   else if (do_update)
     VOID(do_updates(true));
@@ -677,7 +663,8 @@ int multi_update::do_updates (bool from_send_error)
 {
   int error = 0, counter = 0;
 
-  if (num_updated == 1) return 0;
+  if (num_updated == 1)
+    return 0;
   if (from_send_error)
   {
     /* Found out table number for 'table_being_updated' */
@@ -706,7 +693,7 @@ int multi_update::do_updates (bool from_send_error)
     }
     List<Item> list;
     Field **ptr=tmp_table->field,*field;
-// This is supposed to be something like insert_fields
+    // This is supposed to be something like insert_fields
     thd->used_tables|=tmp_table->map;
     while ((field = *ptr++))
     {
@@ -721,17 +708,18 @@ int multi_update::do_updates (bool from_send_error)
     error = tmp_table->file->rnd_init(1);
     if (error) 
       return error;
-    bool not_trans_safe = some_table_is_not_transaction_safe(update_tables);
     while (!(error=tmp_table->file->rnd_next(tmp_table->record[0])) &&
 	   (!thd->killed ||  from_send_error || not_trans_safe))
     {
       found++; 
-      error= table->file->rnd_pos(table->record[0], (*(tmp_table->field))->ptr);
+      error= table->file->rnd_pos(table->record[0],
+				  (byte*) (*(tmp_table->field))->ptr);
       if (error)
 	return error;
       table->status|= STATUS_UPDATED;
       store_record(table,1); 
-      error= fill_record(*fields_by_tables[counter + 1],list) /*|| compare_record(table, query_id)*/  ||
+      error= fill_record(*fields_by_tables[counter + 1],list) ||
+	/* compare_record(table, query_id) || */
 	table->file->update_row(table->record[1],table->record[0]);
       if (error)
       {
@@ -748,41 +736,47 @@ int multi_update::do_updates (bool from_send_error)
 }
 
 
+/* out: 1 if error, 0 if success */
+
 bool multi_update::send_eof()
 {
-  thd->proc_info="updating the  reference tables";  /* out: 1 if error, 0 if success */
+  thd->proc_info="updating the  reference tables";
 
   /* Does updates for the last n - 1 tables, returns 0 if ok */
   int error = do_updates(false);   /* do_updates returns 0 if success */
 
   /* reset used flags */
+#ifndef NOT_USED
   update_tables->table->no_keyread=0;
-  if (error == -1) error = 0;
+#endif
+  if (error == -1)
+    error = 0;
   thd->proc_info="end";
   if (error)
     send_error(error,"An error occured in multi-table update");
 
-  /* Write the SQL statement to the binlog if we updated
-   rows and we succeeded, or also in an error case when there
-   was a non-transaction-safe table involved, since
-   modifications in it cannot be rolled back. */
+  /*
+    Write the SQL statement to the binlog if we updated
+    rows and we succeeded, or also in an error case when there
+    was a non-transaction-safe table involved, since
+    modifications in it cannot be rolled back.
+  */
 
-  if (updated &&
-      (!error || some_table_is_not_transaction_safe(update_tables)))
+  if (updated || not_trans_safe)
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
     Query_log_event qinfo(thd, thd->query);
 
-    /* mysql_bin_log is not open if binlogging or replication
-    is not used */
+    /*
+      mysql_bin_log is not open if binlogging or replication
+      is not used
+    */
 
     if (mysql_bin_log.is_open() &&  mysql_bin_log.write(&qinfo) &&
-	!some_table_is_not_transaction_safe(update_tables))
-      error=1;  /* Log write failed: roll back
-		   the SQL statement */
+	!not_trans_safe)
+      error=1;  /* Log write failed: roll back the SQL statement */
 
     /* Commit or rollback the current SQL statement */ 
-
     VOID(ha_autocommit_or_rollback(thd,error > 0));
   }
   else
@@ -792,9 +786,11 @@ bool multi_update::send_eof()
     char buff[80];
     sprintf(buff,ER(ER_UPDATE_INFO), (long) found, (long) updated,
 	    (long) thd->cuted_fields);
+    if (updated)
+      query_cache.invalidate(update_tables);
     ::send_ok(&thd->net,
-	    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
-	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
+	      (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
+	      thd->insert_id_used ? thd->insert_id() : 0L,buff);
   }
   thd->count_cuted_fields=0;
   return 0;

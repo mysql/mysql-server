@@ -112,6 +112,15 @@ int ha_myisammrg::index_read_idx(byte * buf, uint index, const byte * key,
   return error;
 }
 
+int ha_myisammrg::index_read_last(byte * buf, const byte * key, uint key_len)
+{
+  statistic_increment(ha_read_key_count,&LOCK_status);
+  int error=myrg_rkey(file,buf,active_index, key, key_len,
+		      HA_READ_PREFIX_LAST);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
 int ha_myisammrg::index_next(byte * buf)
 {
   statistic_increment(ha_read_next_count,&LOCK_status);
@@ -180,7 +189,7 @@ void ha_myisammrg::info(uint flag)
   deleted = (ha_rows) info.deleted;
   data_file_length=info.data_file_length;
   errkey  = info.errkey;
-  table->keys_in_use=(((key_map) 1) << table->keys)- (key_map) 1;
+  table->keys_in_use= set_bits(key_map, table->keys);
   table->db_options_in_use    = info.options;
   table->is_view=1;
   mean_rec_length=info.reclength;

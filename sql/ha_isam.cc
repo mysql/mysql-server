@@ -109,6 +109,15 @@ int ha_isam::index_read_idx(byte * buf, uint index, const byte * key,
   return !error ? 0 : my_errno ? my_errno : -1;
 }
 
+int ha_isam::index_read_last(byte * buf, const byte * key, uint key_len)
+{
+  statistic_increment(ha_read_key_count,&LOCK_status);
+  int error=nisam_rkey(file, buf, active_index, key, key_len,
+		       HA_READ_PREFIX_LAST);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return !error ? 0 : my_errno ? my_errno : -1;
+}
+
 int ha_isam::index_next(byte * buf)
 {
   statistic_increment(ha_read_next_count,&LOCK_status);
@@ -192,7 +201,7 @@ void ha_isam::info(uint flag)
     sortkey = info.sortkey;
     block_size=nisam_block_size;
     table->keys	   = min(table->keys,info.keys);
-    table->keys_in_use= (((key_map) 1) << table->keys)- (key_map) 1;
+    table->keys_in_use= set_bits(key_map,table->keys);
     table->db_options_in_use= info.options;
     table->db_record_offset=
       (table->db_options_in_use &

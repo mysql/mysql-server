@@ -1,23 +1,23 @@
 drop table if exists t1,t2;
 create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
 insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
-check table t1 type=fast;
+check table t1 fast;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	Table is already up to date
-check table t1 type=fast;
+check table t1 fast;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	Table is already up to date
-check table t1 type=changed;
+check table t1 changed;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 insert into t1 values (5,5,5);
-check table t1 type=changed;
+check table t1 changed;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-check table t1 type=medium;
+check table t1 medium;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-check table t1 type=extended;
+check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 show index from t1;

@@ -37,7 +37,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.14";
+my $VERSION = "1.16";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -236,9 +236,7 @@ my $num_files = 0;
 
 foreach my $rdb ( @db_desc ) {
     my $db = $rdb->{src};
-    eval { $dbh->do( "use $db" ); };
-    die "Database '$db' not accessible: $@"  if ( $@ );
-    my @dbh_tables = $dbh->tables();
+    my @dbh_tables = get_list_of_tables( $db );
 
     ## generate regex for tables/files
     my $t_regex;
@@ -307,7 +305,7 @@ foreach my $rdb ( @db_desc ) {
 
     $rdb->{files}  = [ @db_files ];
     $rdb->{index}  = [ @index_files ];
-    my @hc_tables = map { "$db.$_" } @dbh_tables;
+    my @hc_tables = map { "`$db`.`$_`" } @dbh_tables;
     $rdb->{tables} = [ @hc_tables ];
 
     $rdb->{raid_dirs} = [ get_raid_dirs( $rdb->{files} ) ];
@@ -562,14 +560,14 @@ sub copy_files {
 	# add recursive option for scp
 	push @cp, "-r" if $^O =~ /m^(solaris|linux|freebsd)$/ && $method =~ /^scp\b/;
 
-	my @non_raid = grep { $_ !~ m:\d\d/: } @$files;
+	my @non_raid = map { "'$_'" } grep { ! m:/\d{2}/[^/]+$: } @$files;
 
 	# add files to copy and the destination directory
-	safe_system( @cp, @non_raid, $target );
++ 	safe_system( @cp, @non_raid, "'$target'" );
 	
 	foreach my $rd ( @$raid_dirs ) {
-	    my @raid = grep { m:$rd/: } @$files;
-	    safe_system( @cp, @raid, "$target/$rd" ) if ( @raid );
+	    my @raid = map { "'$_'" } grep { m:$rd/: } @$files;
+	    safe_system( @cp, @raid, "'$target'/$rd" ) if ( @raid );
 	}
     }
     else
@@ -733,6 +731,25 @@ sub get_raid_dirs {
 	}
     }
     return sort keys %dirs;
+}
+
+sub get_list_of_tables {
+    my ( $db ) = @_;
+
+    # "use database" cannot cope with database names containing spaces
+    # so create a new connection 
+
+    my $dbh = DBI->connect("dbi:mysql:${db}${dsn};mysql_read_default_group=mysqlhotcopy",
+			    $opt{user}, $opt{password},
+    {
+	RaiseError => 1,
+	PrintError => 0,
+	AutoCommit => 1,
+    });
+
+    my @dbh_tables = eval { $dbh->tables() };
+    $dbh->disconnect();
+    return @dbh_tables;
 }
 
 __END__
@@ -975,3 +992,4 @@ Jeremy D. Zawodny - Removed depricated DBI calls.  Fixed bug which
 resulted in nothing being copied when a regexp was specified but no
 database name(s).
 
+Martin Waite - Fix to handle database name that contains space.

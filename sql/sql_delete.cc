@@ -24,7 +24,7 @@
 
 
 #include "mysql_priv.h"
-#include "ha_innobase.h"
+#include "ha_innodb.h"
 #include "sql_select.h"
 
 int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
@@ -98,7 +98,6 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
       DBUG_RETURN(1);
     }
   }
-  (void) table->file->extra(HA_EXTRA_NO_READCHECK);
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_QUICK);
 
@@ -157,8 +156,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   }
   thd->proc_info="end";
   end_read_record(&info);
-  /* if (order) free_io_cache(table); */ /* QQ Should not be needed */
-  (void) table->file->extra(HA_EXTRA_READCHECK);
+  free_io_cache(table);				// Will not do any harm
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_NORMAL);
 
@@ -216,17 +214,15 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
     do_delete(false)
 {
   uint counter=0;
+  not_trans_safe=false;
   tempfiles = (Unique **) sql_calloc(sizeof(Unique *) * (num_of_tables-1));
 
-  (void) dt->table->file->extra(HA_EXTRA_NO_READCHECK);
   /* Don't use key read with MULTI-TABLE-DELETE */
-  (void) dt->table->file->extra(HA_EXTRA_NO_KEYREAD);
   dt->table->used_keys=0;
   for (dt=dt->next ; dt ; dt=dt->next,counter++)
   {
     TABLE *table=dt->table;
-    (void) dt->table->file->extra(HA_EXTRA_NO_READCHECK);
-    (void) dt->table->file->extra(HA_EXTRA_NO_KEYREAD);
+    table->used_keys=0;
     tempfiles[counter] = new Unique (refposcmp2,
 				     (void *) &table->file->ref_length,
 				     table->file->ref_length,
@@ -279,18 +275,24 @@ multi_delete::initialize_tables(JOIN *join)
       walk=walk->next;
       if (tab == join->join_tab)
 	tab->table->no_keyread=1;
+      if (!not_trans_safe && !tab->table->file->has_transactions())
+	not_trans_safe=true;
     }
   }
+  init_ftfuncs(thd,1);
 }
 
 
 multi_delete::~multi_delete()
 {
-  /* Add back EXTRA_READCHECK;  In 4.0.1 we shouldn't need this anymore */
   for (table_being_deleted=delete_tables ;
        table_being_deleted ;
        table_being_deleted=table_being_deleted->next)
-    (void) table_being_deleted->table->file->extra(HA_EXTRA_READCHECK);
+  {
+    TABLE *t=table_being_deleted->table;
+    free_io_cache(t);				// Alloced by unique
+    t->no_keyread=0;
+  }
 
   for (uint counter = 0; counter < num_of_tables-1; counter++)
   {
@@ -303,6 +305,8 @@ multi_delete::~multi_delete()
 bool multi_delete::send_data(List<Item> &values)
 {
   int secure_counter= -1;
+  DBUG_ENTER("multi_delete::send_data");
+
   for (table_being_deleted=delete_tables ;
        table_being_deleted ;
        table_being_deleted=table_being_deleted->next, secure_counter++)
@@ -317,13 +321,14 @@ bool multi_delete::send_data(List<Item> &values)
 
     if (secure_counter < 0)
     {
+      /* If this is the table we are scanning */
       table->status|= STATUS_DELETED;
       if (!(error=table->file->delete_row(table->record[0])))
 	deleted++;
       else
       {
 	table->file->print_error(error,MYF(0));
-	return 1;
+	DBUG_RETURN(1);
       }
     }
     else
@@ -332,55 +337,42 @@ bool multi_delete::send_data(List<Item> &values)
       if (error)
       {
 	error=-1;
-	return 1;
+	DBUG_RETURN(1);
       }
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
-
-
-
-/* Return true if some table is not transaction safe */
-
-static bool some_table_is_not_transaction_safe (TABLE_LIST *tl)
-{
-  for (; tl ; tl=tl->next)
-  { 
-    if (!(tl->table->file->has_transactions()))
-      return true;
-  }
-  return false;
-}
-
 
 void multi_delete::send_error(uint errcode,const char *err)
 {
+  DBUG_ENTER("multi_delete::send_error");
+
   /* First send error what ever it is ... */
   ::send_error(&thd->net,errcode,err);
 
-  /* reset used flags */
-  delete_tables->table->no_keyread=0;
-
   /* If nothing deleted return */
   if (!deleted)
-    return;
+    DBUG_VOID_RETURN;
+
   /* Below can happen when thread is killed early ... */
   if (!table_being_deleted)
     table_being_deleted=delete_tables;
 
   /*
-    If rows from the first table only has been deleted and it is transactional,
-    just do rollback.
+    If rows from the first table only has been deleted and it is
+    transactional, just do rollback.
     The same if all tables are transactional, regardless of where we are.
     In all other cases do attempt deletes ...
   */
   if ((table_being_deleted->table->file->has_transactions() &&
-       table_being_deleted == delete_tables) ||
-      !some_table_is_not_transaction_safe(delete_tables->next))
+       table_being_deleted == delete_tables) || !not_trans_safe)
     ha_rollback_stmt(thd);
   else if (do_delete)
-    VOID(do_deletes(true));
+  {
+    VOID(do_deletes(1));
+  }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -391,7 +383,7 @@ void multi_delete::send_error(uint errcode,const char *err)
 	1 error
 */
 
-int multi_delete::do_deletes (bool from_send_error)
+int multi_delete::do_deletes(bool from_send_error)
 {
   int error = 0, counter = 0;
 
@@ -418,30 +410,8 @@ int multi_delete::do_deletes (bool from_send_error)
       break;
     }
 
-#if USE_REGENERATE_TABLE
-    // nice little optimization ....
-    // but Monty has to fix generate_table...
-    // This will not work for transactional tables because for other types
-    // records is not absolute
-    if (num_of_positions == table->file->records) 
-    {
-      TABLE_LIST table_list;
-      bzero((char*) &table_list,sizeof(table_list));
-      table_list.name=table->table_name;
-      table_list.real_name=table_being_deleted->real_name;
-      table_list.table=table;
-      table_list.grant=table->grant;
-      table_list.db = table_being_deleted->db;
-      error=generate_table(thd,&table_list,(TABLE *)0);
-      if (error <= 0) {error = 1; break;}
-      deleted += num_of_positions;
-      continue;
-    }
-#endif /* USE_REGENERATE_TABLE */
-
     READ_RECORD	info;
     init_read_record(&info,thd,table,NULL,0,0);
-    bool not_trans_safe = some_table_is_not_transaction_safe(delete_tables);
     while (!(error=info.read_record(&info)) &&
 	   (!thd->killed ||  from_send_error || not_trans_safe))
     {
@@ -460,15 +430,19 @@ int multi_delete::do_deletes (bool from_send_error)
 }
 
 
+/*
+  return:  0 sucess
+	   1 error
+*/
+
 bool multi_delete::send_eof()
 {
-  thd->proc_info="deleting from reference tables";  /* out: 1 if error, 0 if success */
+  thd->proc_info="deleting from reference tables";
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
-  int error = do_deletes(false);   /* do_deletes returns 0 if success */
+  int error = do_deletes(0);		// returns 0 if success
 
   /* reset used flags */
-  delete_tables->table->no_keyread=0;
   thd->proc_info="end";
   if (error)
   {
@@ -476,25 +450,27 @@ bool multi_delete::send_eof()
     return 1;
   }
 
-  /* Write the SQL statement to the binlog if we deleted
-   rows and we succeeded, or also in an error case when there
-   was a non-transaction-safe table involved, since
-   modifications in it cannot be rolled back. */
-
-  if (deleted || some_table_is_not_transaction_safe(delete_tables))
+  /*
+    Write the SQL statement to the binlog if we deleted
+    rows and we succeeded, or also in an error case when there
+    was a non-transaction-safe table involved, since
+    modifications in it cannot be rolled back.
+  */
+  if (deleted || not_trans_safe)
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query);
       if (mysql_bin_log.write(&qinfo) &&
-	  !some_table_is_not_transaction_safe(delete_tables))
+	  !not_trans_safe)
 	error=1;  // Log write failed: roll back the SQL statement
     }
     /* Commit or rollback the current SQL statement */ 
     VOID(ha_autocommit_or_rollback(thd,error > 0));
   }
-
+  if (deleted)
+    query_cache.invalidate(delete_tables);
   ::send_ok(&thd->net,deleted);
   return 0;
 }

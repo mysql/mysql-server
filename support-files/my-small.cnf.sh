@@ -5,7 +5,7 @@
 # doesn't use much resources.
 #
 # You can copy this file to
-# /etc/mf.cnf to set global options,
+# /etc/my.cnf to set global options,
 # mysql-data-dir/my.cnf to set server-specific options (in this
 # installation this directory is @localstatedir@) or
 # ~/.my.cnf to set user-specific options.

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ static void update_hostname(acl_host_and_ip *host, const char *hostname);
 static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
 			     const char *ip);
 
-int  acl_init(bool dont_read_acl_tables)
+int acl_init(bool dont_read_acl_tables)
 {
   THD  *thd;
   TABLE_LIST tables[3];
@@ -221,6 +221,8 @@ int  acl_init(bool dont_read_acl_tables)
       user.x509_issuer=get_field(&mem, table, 19);
       user.x509_subject=get_field(&mem, table, 20);
     }
+    else
+      user.ssl_type=SSL_TYPE_NONE;
 #endif /* HAVE_OPENSSL */
     if (user.password && (length=(uint) strlen(user.password)) == 8 &&
 	protocol_version == PROTOCOL_VERSION)
@@ -243,13 +245,16 @@ int  acl_init(bool dont_read_acl_tables)
     user.hostname_length=user.host.hostname ? (uint) strlen(user.host.hostname) : 0;
     if (table->fields >=23)
     {
+      /* Table has new MySQL usage limits */
       char *ptr = get_field(&mem, table, 21);
       user.questions=atoi(ptr);
       ptr = get_field(&mem, table, 22);
       user.updates=atoi(ptr);
       if (user.questions)
-	mqh_used=true;
+	mqh_used=1;
     }
+    else
+      user.questions=user.updates=0;
 #ifndef TO_BE_REMOVED
     if (table->fields <= 13)
     {						// Without grant
@@ -430,15 +435,20 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 }
 
 
-/* Get master privilges for user (priviliges for all tables). Required to connect */
+/*
+  Get master privilges for user (priviliges for all tables).
+  Required before connecting to MySQL
+*/
+
 uint acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		 const char *password,const char *message,char **priv_user,
-		 bool old_ver, uint *max)
+		 bool old_ver, uint *max_questions)
 {
   uint user_access=NO_ACCESS;
   *priv_user=(char*) user;
   char *ptr=0;
 
+  *max_questions=0;
   if (!initialized)
     return (uint) ~NO_ACCESS;			// If no data allow anything /* purecov: tested */
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -546,7 +556,7 @@ uint acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 #else  /* HAVE_OPENSSL */
 	  user_access=acl_user->access;
 #endif /* HAVE_OPENSSL */
-	  *max=acl_user->questions;
+	  *max_questions=acl_user->questions;
 	  if (!acl_user->user)
 	    *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
 	  break;
@@ -912,14 +922,10 @@ bool acl_check_host(const char *host, const char *ip)
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *new_password)
 {
+  uint length=0;
   DBUG_ENTER("change_password");
   DBUG_PRINT("enter",("thd=%x, host='%s', user='%s', new_password='%s'",thd,host,user,new_password));
-  uint length=0;
-  if (!user[0])
-  {
-    send_error(&thd->net, ER_PASSWORD_ANONYMOUS_USER);
-    DBUG_RETURN(1);
-  }
+
   if (!initialized)
   {
     send_error(&thd->net, ER_PASSWORD_NOT_ALLOWED); /* purecov: inspected */
@@ -931,16 +937,21 @@ bool change_password(THD *thd, const char *host, const char *user,
   length=(uint) strlen(new_password);
   new_password[length & 16]=0;
 
-  if (!thd || (!thd->slave_thread && ( strcmp(thd->user,user) ||
-	       my_strcasecmp(host,thd->host ? thd->host : thd->ip))))
+  if (!thd->slave_thread &&
+      (strcmp(thd->user,user) ||
+       my_strcasecmp(host,thd->host ? thd->host : thd->ip)))
   {
     if (check_access(thd, UPDATE_ACL, "mysql",0,1))
       DBUG_RETURN(1);
   }
+  if (!thd->slave_thread && !thd->user[0])
+  {
+    send_error(&thd->net, ER_PASSWORD_ANONYMOUS_USER);
+    DBUG_RETURN(1);
+  }
   VOID(pthread_mutex_lock(&acl_cache->lock));
   ACL_USER *acl_user;
-  DBUG_PRINT("info",("host=%s, user=%s",host,user));
-  if (!(acl_user= find_acl_user(host,user)) || !acl_user->user)
+  if (!(acl_user= find_acl_user(host,user)))
   {
     send_error(&thd->net, ER_PASSWORD_NO_MATCH);
     VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -948,7 +959,8 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
   if (update_user_table(thd,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
-			acl_user->user, new_password))
+			acl_user->user ? acl_user->user : "",
+			new_password))
   {
     VOID(pthread_mutex_unlock(&acl_cache->lock)); /* purecov: deadcode */
     send_error(&thd->net,0); /* purecov: deadcode */
@@ -968,7 +980,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   qinfo.q_len =
     my_sprintf(buff,
 	       (buff,"SET PASSWORD FOR \"%-.120s\"@\"%-.120s\"=\"%-.120s\"",
-		acl_user->user,
+		acl_user->user ? acl_user->user : "",
 		acl_user->host.hostname ? acl_user->host.hostname : "",
 		new_password));
   mysql_update_log.write(thd,buff,qinfo.q_len);
@@ -1193,7 +1205,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   /* We write down SSL related ACL stuff */
   DBUG_PRINT("info",("table->fields=%d",table->fields));
   if (table->fields >= 21)		/* From 4.0.0 we have more fields */
-  { 
+  {
     table->field[18]->store("",0);
     table->field[19]->store("",0);
     table->field[20]->store("",0);
@@ -1221,12 +1233,10 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     }
   }
 #endif /* HAVE_OPENSSL */
-  if (table->fields>=23 && thd->lex.mqh)
+  if (table->fields >= 23 && thd->lex.mqh)
   {
-    char buff[33];
-    int len =int2str((long)thd->lex.mqh,buff,10) - buff;
-    table->field[21]->store(buff,len);
-    mqh_used=true;
+    table->field[21]->store((longlong) thd->lex.mqh);
+    mqh_used=1;
   }
   if (old_row_exists)
   {
@@ -2181,7 +2191,7 @@ int  grant_init (void)
     delete thd;
     DBUG_RETURN(0);				// Empty table is ok!
   }
-  grant_option = TRUE;
+  grant_option= TRUE;
   t_table->file->index_end();
 
   MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
@@ -2681,6 +2691,13 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 #endif /* HAVE_OPENSSL */
     if (want_access & GRANT_ACL)
       global.append(" WITH GRANT OPTION",18); 
+    else if (acl_user->questions)
+    {
+      char buff[65], *p; // just as in int2str
+      global.append(" WITH MAX_QUERIES_PER_HOUR = ",29);
+      p=int2str(acl_user->questions,buff,10);
+      global.append(buff,p-buff);
+    }
     thd->packet.length(0);
     net_store_data(&thd->packet,global.ptr(),global.length());
     if (my_net_write(&thd->net,(char*) thd->packet.ptr(),
@@ -2728,9 +2745,9 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	    }
 	  }
 	}
-	db.append (" ON ",4);
+	db.append (" ON '",5);
 	db.append(acl_db->db);
-	db.append (".* TO '",7);
+	db.append ("'.* TO '",8);
 	db.append(lex_user->user.str,lex_user->user.length); 
 	db.append ("'@'",3);
 	db.append(lex_user->host.str, lex_user->host.length);
@@ -2840,6 +2857,16 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   send_eof(&thd->net);
   DBUG_RETURN(error);
+}
+
+
+uint get_mqh(const char *user, const char *host)
+{
+  if (!initialized) return 0;
+
+  ACL_USER *acl_user;
+  acl_user= find_acl_user(host,user);
+  return (acl_user) ? acl_user->questions : 0;
 }
 
 

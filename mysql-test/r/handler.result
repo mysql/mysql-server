@@ -129,6 +129,7 @@ a	b
 handler t2 read next;
 a	b
 18	eee
+alter table t1 type=MyISAM;
 handler t2 read next;
 a	b
 19	fff

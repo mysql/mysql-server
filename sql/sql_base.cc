@@ -300,6 +300,7 @@ static void free_cache_entry(TABLE *table)
 
 void free_io_cache(TABLE *table)
 {
+  DBUG_ENTER("free_io_cache");
   if (table->io_cache)
   {
     close_cached_file(table->io_cache);
@@ -311,6 +312,7 @@ void free_io_cache(TABLE *table)
     my_free((gptr) table->record_pointers,MYF(0));
     table->record_pointers=0;
   }
+  DBUG_VOID_RETURN;
 }
 
 	/* Close all tables which aren't in use by any thread */
@@ -610,8 +612,6 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
 }
 
 
-
-
 	/* move table first in unused links */
 
 static void relink_unused(TABLE *table)
@@ -708,11 +708,11 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   if (open_unireg_entry(thd, table, db, table_name, table_name, 1) ||
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
-    {
-      closefrm(table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(0);
-    }
+  {
+    closefrm(table);
+    pthread_mutex_unlock(&LOCK_open);
+    DBUG_RETURN(0);
+  }
 
   table->key_length=key_length;
   table->version=0;
@@ -1301,7 +1301,6 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     if (error)
       goto err;
   }
-  (void) entry->file->extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(1);
@@ -1499,7 +1498,6 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
     DBUG_RETURN(0);
   }
 
-  tmp_table->file->extra(HA_EXTRA_NO_READCHECK); // Not needed in SQL
   tmp_table->reginfo.lock_type=TL_WRITE;	 // Simulate locked
   tmp_table->tmp_table = (tmp_table->file->has_transactions() ? 
 			  TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
@@ -2144,7 +2142,10 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
     THD *in_use;
     table->version=0L;			/* Free when thread is ready */
     if (!(in_use=table->in_use))
+    {
+      DBUG_PRINT("info",("Table was not in use"));
       relink_unused(table);
+    }
     else if (in_use != thd)
     {
       in_use->some_tables_deleted=1;
@@ -2174,8 +2175,8 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
 
 int setup_ftfuncs(THD *thd)
 {
-  List_iterator<Item_func_match> li(thd->lex.select_lex.ftfunc_list),
-                                 lj(thd->lex.select_lex.ftfunc_list);
+  List_iterator<Item_func_match> li(thd->lex.select->ftfunc_list),
+                                 lj(thd->lex.select->ftfunc_list);
   Item_func_match *ftf, *ftf2;
 
   while ((ftf=li++))
@@ -2195,9 +2196,9 @@ int setup_ftfuncs(THD *thd)
 
 int init_ftfuncs(THD *thd, bool no_order)
 {
-  if (thd->lex.select_lex.ftfunc_list.elements)
+  if (thd->lex.select->ftfunc_list.elements)
   {
-    List_iterator<Item_func_match> li(thd->lex.select_lex.ftfunc_list);
+    List_iterator<Item_func_match> li(thd->lex.select->ftfunc_list);
     Item_func_match *ifm;
     DBUG_PRINT("info",("Performing FULLTEXT search"));
     thd->proc_info="FULLTEXT initialization";

@@ -31,10 +31,11 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   ORDER *order;
   List<Item> item_list;
   TABLE *table;
+  int describe=(lex->select_lex.options & SELECT_DESCRIBE) ? 1 : 0;
+  int res;
   TABLE_LIST result_table_list;
   TMP_TABLE_PARAM tmp_table_param;
   select_union *union_result;
-  int res;
   DBUG_ENTER("mysql_union");
 
   /* Fix tables 'to-be-unioned-from' list to point at opened tables */
@@ -70,27 +71,26 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     lex_sl=0;
     order=0;
   }
-
-  if (lex->select_lex.options & SELECT_DESCRIBE)
+  
+  if (describe)
   {
-    for (sl= &lex->select_lex; sl; sl=sl->next)
-    {
-      lex->select=sl;
-      res=mysql_select(thd, (TABLE_LIST*) sl->table_list.first,
-		       sl->item_list,
-		       sl->where,
-		       ((sl->braces) ?
-			(ORDER *) sl->order_list.first : (ORDER *) 0),
-		       (ORDER*) sl->group_list.first,
-		       sl->having,
-		       (ORDER*) NULL,
-		       (sl->options | thd->options | SELECT_NO_UNLOCK |
-			SELECT_DESCRIBE),
-		       result);
-    }
-    DBUG_RETURN(0);
+    Item *item;
+    item_list.push_back(new Item_empty_string("table",NAME_LEN));
+    item_list.push_back(new Item_empty_string("type",10));
+    item_list.push_back(item=new Item_empty_string("possible_keys",
+						  NAME_LEN*MAX_KEY));
+    item->maybe_null=1;
+    item_list.push_back(item=new Item_empty_string("key",NAME_LEN));
+    item->maybe_null=1;
+    item_list.push_back(item=new Item_int("key_len",0,3));
+    item->maybe_null=1;
+    item_list.push_back(item=new Item_empty_string("ref",
+						    NAME_LEN*MAX_REF_PARTS));
+    item->maybe_null=1;
+    item_list.push_back(new Item_real("rows",0.0,0,10));
+    item_list.push_back(new Item_empty_string("Extra",255));
   }
-
+  else
   {
     Item *item;
     List_iterator<Item> it(lex->select_lex.item_list);
@@ -107,7 +107,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
   tmp_table_param.field_count=item_list.elements;
   if (!(table=create_tmp_table(thd, &tmp_table_param, item_list,
-			       (ORDER*) 0, !lex->union_option,
+			       (ORDER*) 0, !describe & !lex->union_option,
 			       1, 0,
 			       (lex->select_lex.options | thd->options |
 				TMP_TABLE_ALL_COLUMNS))))
@@ -124,8 +124,11 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     res= -1;
     goto exit;
   }
+  union_result->save_time_stamp=!describe;
+
   for (sl= &lex->select_lex; sl; sl=sl->next)
   {
+    lex->select=sl;
     thd->offset_limit=sl->offset_limit;
     thd->select_limit=sl->select_limit+sl->offset_limit;
     if (thd->select_limit < sl->select_limit)
@@ -140,7 +143,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		     (ORDER*) sl->group_list.first,
 		     sl->having,
 		     (ORDER*) NULL,
-		     sl->options | thd->options | SELECT_NO_UNLOCK,
+		     sl->options | thd->options | SELECT_NO_UNLOCK | ((describe) ? SELECT_DESCRIBE : 0),
 		     union_result);
     if (res)
       goto exit;
@@ -153,6 +156,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   delete union_result;
 
   /* Send result to 'result' */
+  lex->select = &lex->select_lex;
   res =-1;
   {
     /* Create a list of fields in the temporary table */
@@ -181,6 +185,8 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 	if (thd->select_limit == HA_POS_ERROR)
 	  thd->options&= ~OPTION_FOUND_ROWS;
       }
+      if (describe)
+	thd->select_limit= HA_POS_ERROR;		// no limit
       res=mysql_select(thd,&result_table_list,
 		       item_list, NULL, /*ftfunc_list,*/ order,
 		       (ORDER*) NULL, NULL, (ORDER*) NULL,
@@ -216,7 +222,7 @@ select_union::~select_union()
 
 int select_union::prepare(List<Item> &list)
 {
-  if (list.elements != table->fields)
+  if (save_time_stamp && list.elements != table->fields)
   {
     my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
 	       ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT),MYF(0));

@@ -23,20 +23,72 @@
 #include <m_string.h>
 #include <stdarg.h>
 #include <m_ctype.h>
+#include <assert.h>
+
+my_off_t my_b_append_tell(IO_CACHE* info)
+{
+  /* prevent optimizer from putting res in a register when debugging
+     we need this to be able to see the value of res when the assert fails
+  */
+  dbug_volatile my_off_t res; 
+/* we need to lock the append buffer mutex to keep flush_io_cache()
+   from messing with the variables that we need in order to provide the
+   answer to the question.
+*/
+#ifdef THREAD
+  pthread_mutex_lock(&info->append_buffer_lock);
+#endif
+  /* save the value of my_tell in res so we can see it when studying
+     coredump
+  */
+#ifndef DBUG_OFF
+  /* make sure EOF is where we think it is. Note that we cannot just use
+     my_tell() because we have a reader thread that could have left the
+     file offset in a non-EOF location
+     */
+  {
+   volatile my_off_t save_pos;
+   save_pos = my_tell(info->file,MYF(0));
+   my_seek(info->file,(my_off_t)0,MY_SEEK_END,MYF(0));
+   DBUG_ASSERT(info->end_of_file - (info->append_read_pos-info->write_buffer)
+	      == (res=my_tell(info->file,MYF(0))));
+   my_seek(info->file,save_pos,MY_SEEK_SET,MYF(0));
+  }
+#endif  
+  res = info->end_of_file + (info->write_pos-info->append_read_pos);
+#ifdef THREAD
+  pthread_mutex_unlock(&info->append_buffer_lock);
+#endif
+  return res;
+}
 
 /*
-  Fix that next read will be made at certain position
-  For write cache, make next write happen at a certain position
+  Make next read happen at the given position
+  For write cache, make next write happen at the given position
 */
 
 void my_b_seek(IO_CACHE *info,my_off_t pos)
 {
-  my_off_t offset = (pos - info->pos_in_file);
+  my_off_t offset;  
   DBUG_ENTER("my_b_seek");
   DBUG_PRINT("enter",("pos: %lu", (ulong) pos));
 
-  if (info->type == READ_CACHE)
+  /*
+    TODO: verify that it is OK to do seek in the non-append
+    area in SEQ_READ_APPEND cache
+  */
+  /* TODO:
+     a) see if this always works
+     b) see if there is a better way to make it work
+  */
+  if (info->type == SEQ_READ_APPEND)
+    flush_io_cache(info);
+  
+  offset=(pos - info->pos_in_file);
+  
+  if (info->type == READ_CACHE || info->type == SEQ_READ_APPEND)
   {
+    /* TODO: explain why this works if pos < info->pos_in_file */
     if ((ulonglong) offset < (ulonglong) (info->read_end - info->buffer))
     {
       /* The read is in the current buffer; Reuse it */

@@ -585,6 +585,9 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
   uint idx;
   double scan_time;
   DBUG_ENTER("test_quick_select");
+  DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
+		      (ulong) keys_to_use, (ulong) prev_tables,
+		      (ulong) const_tables));
 
   delete quick;
   quick=0;
@@ -2520,13 +2523,13 @@ int QUICK_SELECT::cmp_next(QUICK_RANGE *range)
 
 
 /*
- * This is a hack: we inherit from QUICK_SELECT so that we can use the
- * get_next() interface, but we have to hold a pointer to the original
- * QUICK_SELECT because its data are used all over the place.  What
- * should be done is to factor out the data that is needed into a base
- * class (QUICK_SELECT), and then have two subclasses (_ASC and _DESC)
- * which handle the ranges and implement the get_next() function.  But
- * for now, this seems to work right at least.
+  This is a hack: we inherit from QUICK_SELECT so that we can use the
+  get_next() interface, but we have to hold a pointer to the original
+  QUICK_SELECT because its data are used all over the place.  What
+  should be done is to factor out the data that is needed into a base
+  class (QUICK_SELECT), and then have two subclasses (_ASC and _DESC)
+  which handle the ranges and implement the get_next() function.  But
+  for now, this seems to work right at least.
  */
 
 QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts)
@@ -2535,6 +2538,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts)
   bool not_read_after_key = file->option_flag() & HA_NOT_READ_AFTER_KEY;
   QUICK_RANGE *r;
 
+  it.rewind();
   for (r = it++; r; r = it++)
   {
     rev_ranges.push_front(r);

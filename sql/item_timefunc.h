@@ -333,6 +333,7 @@ class Item_func_date_format :public Item_str_func
 {
   int fixed_length;
   const bool date_or_time;
+  String value;
 public:
   Item_func_date_format(Item *a,Item *b,bool date_or_time_arg)
     :Item_str_func(a,b),date_or_time(date_or_time_arg) {}
@@ -418,7 +419,8 @@ class Item_typecast :public Item_str_func
 {
 public:
   Item_typecast(Item *a) :Item_str_func(a) {}
-  String *val_str(String *a) { return (args[0]->val_str(a)); }
+  String *val_str(String *a)
+  { a=args[0]->val_str(a); null_value=args[0]->null_value; return a; }
   void fix_length_and_dec() { max_length=args[0]->max_length; }
   void print(String *str);
 };

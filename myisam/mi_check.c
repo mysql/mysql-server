@@ -221,7 +221,7 @@ int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag)
   }
   DBUG_RETURN(0);
 wrong:
-  param->retry_without_quick=1;		/* Don't use quick repair */
+  param->testflag|=T_RETRY_WITHOUT_QUICK;
   if (test_flag & T_VERBOSE) puts("");
   mi_check_print_error(param,"record delete-link-chain corrupted");
   DBUG_RETURN(1);
@@ -321,7 +321,7 @@ int chk_size(MI_CHECK *param, register MI_INFO *info)
       error=1;
       mi_check_print_error(param,"Size of datafile is: %-9s         Should be: %s",
 		    llstr(size,buff), llstr(skr,buff2));
-      param->retry_without_quick=1;		/* Don't use quick repair */
+      param->testflag|=T_RETRY_WITHOUT_QUICK;
     }
     else
     {
@@ -384,6 +384,8 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
     bzero((char*) &param->unique_count,sizeof(param->unique_count));
     if ((!(param->testflag & T_SILENT)))
       printf ("- check data record references index: %d\n",key+1);
+    if (keyinfo->flag & HA_FULLTEXT)
+      full_text_keys++;
     if (share->state.key_root[key] == HA_OFFSET_ERROR &&
 	(info->state->records == 0 || keyinfo->flag & HA_FULLTEXT))
       continue;
@@ -434,8 +436,6 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
 	continue;
       }
     }
-    else
-      full_text_keys++;
     if ((uint) share->base.auto_key -1 == key)
     {
       /* Check that auto_increment key is bigger than max key value */
@@ -1094,7 +1094,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
   mi_check_print_error(param,"got error: %d when reading datafile at record: %s",my_errno, llstr(records,llbuff));
  err2:
   my_free((gptr) record,MYF(0));
-  param->retry_without_quick=1;
+  param->testflag|=T_RETRY_WITHOUT_QUICK;
   DBUG_RETURN(1);
 } /* chk_data_link */
 
@@ -1238,9 +1238,10 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 		      USE_WHOLE_KEY);
       }
       sort_info->dupp++;
-      if (rep_quick == 1)
+      if (!(rep_quick & T_FORCE_UNIQUENESS))
       {
-	param->error_printed=param->retry_without_quick=1;
+        param->testflag|=T_RETRY_WITHOUT_QUICK;
+	param->error_printed=1;
 	goto err;
       }
       continue;
@@ -1269,7 +1270,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     mi_check_print_error(param,"Couldn't fix table with quick recovery: Found wrong number of deleted records");
     mi_check_print_error(param,"Run recovery again without -q");
     got_error=1;
-    param->retry_repair=param->retry_without_quick=1;
+    param->retry_repair=1;
+    param->testflag|=T_RETRY_WITHOUT_QUICK;
     goto err;
   }
   if (param->testflag & T_SAFE_REPAIR)
@@ -1987,11 +1989,12 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
     mi_check_print_error(param,"Couldn't fix table with quick recovery: Found wrong number of deleted records");
     mi_check_print_error(param,"Run recovery again without -q");
     got_error=1;
-    param->retry_repair=param->retry_without_quick=1;
+    param->retry_repair=1;
+    param->testflag|=T_RETRY_WITHOUT_QUICK;
     goto err;
   }
 
-  if (rep_quick != 1)
+  if (rep_quick & T_FORCE_UNIQUENESS)
   {
     my_off_t skr=info->state->data_file_length+
       (share->options & HA_OPTION_COMPRESS_RECORD ?
@@ -2175,7 +2178,8 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       {
 	if (param->read_cache.error)
 	  param->out_flag |= O_DATA_LOST;
-	param->retry_repair=param->retry_without_quick=1;
+        param->retry_repair=1;
+        param->testflag|=T_RETRY_WITHOUT_QUICK;
 	DBUG_RETURN(-1);
       }
       sort_info->start_recpos=sort_info->pos;
@@ -2209,8 +2213,8 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       if (searching)
       {
 	pos=MY_ALIGN(pos,MI_DYN_ALIGN_SIZE);
-	param->retry_without_quick=1;
-	sort_info->start_recpos=pos;	  
+        param->testflag|=T_RETRY_WITHOUT_QUICK;
+	sort_info->start_recpos=pos;
       }
       do
       {
@@ -2245,7 +2249,8 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	if (searching && ! sort_info->fix_datafile)
 	{
 	  param->error_printed=1;
-	  param->retry_repair=param->retry_without_quick=1;
+          param->retry_repair=1;
+          param->testflag|=T_RETRY_WITHOUT_QUICK;
 	  DBUG_RETURN(1);	/* Something wrong with data */
 	}
 	if (((b_type=_mi_get_block_info(&block_info,-1,pos)) &
@@ -2355,7 +2360,7 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	  continue;
 	}
 
-	if (!sort_info->fix_datafile && (b_type & BLOCK_DELETED))
+	if (!sort_info->fix_datafile)
 	  share->state.split++;
 	if (! found_record++)
 	{
@@ -2456,7 +2461,8 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       if (searching && ! sort_info->fix_datafile)
       {
 	param->error_printed=1;
-	param->retry_repair=param->retry_without_quick=1;
+        param->retry_repair=1;
+        param->testflag|=T_RETRY_WITHOUT_QUICK;
 	DBUG_RETURN(1);		/* Something wrong with data */
       }
       sort_info->start_recpos=sort_info->pos;
@@ -2655,7 +2661,7 @@ static int sort_key_write(SORT_INFO *sort_info, const void *a)
 						    sort_info->key_block->
 						    lastkey),
 				 llbuff2));
-    param->retry_without_quick=1;
+    param->testflag|=T_RETRY_WITHOUT_QUICK;
     if (sort_info->param->testflag & T_VERBOSE)
       _mi_print_key(stdout,sort_info->keyseg,(uchar*) a, USE_WHOLE_KEY);
     return (sort_delete_record(param));
@@ -2778,10 +2784,10 @@ static int sort_delete_record(MI_CHECK *param)
   SORT_INFO *sort_info= &param->sort_info;
   DBUG_ENTER("sort_delete_record");
 
-  if (param->opt_rep_quick == 1)
+  if (!(param->testflag & T_FORCE_UNIQUENESS))
   {
     mi_check_print_error(param,
-			 "Quick-recover aborted; Run recovery without switch 'q' or with switch -qq");
+			 "Quick-recover aborted; Run recovery without switch -q or with switch -qq");
     DBUG_RETURN(1);
   }
   info=sort_info->info;

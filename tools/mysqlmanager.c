@@ -1155,7 +1155,7 @@ static int client_msg_raw(NET* net, int err_code, int pre, const char* fmt,
     p=buf_end - 2;
   *p++='\r';
   *p++='\n';
-
+  log_debug("message to client: %-.*s",p-buf-2,buf);
   if (my_net_write(net,buf,(uint)(p-buf)) || net_flush(net))
   {
     p[-2]=0;

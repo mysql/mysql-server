@@ -512,6 +512,8 @@ page_dir_find_owner_slot(
 	slot = page_dir_get_nth_slot(page, i); 
 
 	while (page_dir_slot_get_rec(slot) != rec) {
+		ut_a(i > 0);
+
 		i--;
 		slot = page_dir_get_nth_slot(page, i); 
 	}

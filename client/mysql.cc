@@ -38,7 +38,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER="11.19";
+const char *VER="11.21";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -116,10 +116,11 @@ static MYSQL mysql;			/* The connection */
 static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	    connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
 	    no_rehash=0,skip_updates=0,safe_updates=0,one_database=0,
-	    opt_compress=0,
+	    opt_compress=0, using_opt_local_infile=0,
 	    vertical=0,skip_line_numbers=0,skip_column_names=0,opt_html=0,
-            opt_xml=0,opt_nopager=1, opt_outfile=0, no_named_cmds=1;
-static uint verbose=0,opt_silent=0,opt_mysql_port=0;
+            opt_xml=0,opt_nopager=1, opt_outfile=0, no_named_cmds=1,
+            opt_nobeep=0;
+static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
@@ -436,7 +437,9 @@ static struct option long_options[] =
   {"xml",           no_argument,           0, 'X'},
   {"host",	    required_argument,	   0, 'h'},
   {"ignore-spaces", no_argument,	   0, 'i'},
+  {"local-infile",  optional_argument,	   0, OPT_LOCAL_INFILE},
   {"no-auto-rehash",no_argument,	   0, 'A'},
+  {"no-beep",       no_argument,           0, 'b'},
   {"no-named-commands", no_argument,       0, 'g'},
   {"no-tee",        no_argument,           0, OPT_NOTEE},
 #ifndef __WIN__
@@ -477,8 +480,8 @@ static struct option long_options[] =
 CHANGEABLE_VAR changeable_vars[] = {
   { "connect_timeout", (long*) &opt_connect_timeout, 0, 0, 3600*12, 0, 1},
   { "max_allowed_packet", (long*) &max_allowed_packet,16*1024L*1024L,4096,
-    24*1024L*1024L, MALLOC_OVERHEAD,1024},
-  { "net_buffer_length",(long*) &net_buffer_length,16384,1024,24*1024*1024L,
+    512*1024L*1024L, MALLOC_OVERHEAD,1024},
+  { "net_buffer_length",(long*) &net_buffer_length,16384,1024,512*1024*1024L,
     MALLOC_OVERHEAD,1024},
   { "select_limit", (long*) &select_limit, 1000L, 1, ~0L, 0, 1},
   { "max_join_size", (long*) &max_join_size, 1000000L, 1, ~0L, 0, 1},
@@ -492,14 +495,17 @@ static void usage(int version)
 	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
-  puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
+  printf("\
+Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB\n\
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
+and you are welcome to modify and redistribute it under the GPL license\n");
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   printf("\n\
   -?, --help		Display this help and exit.\n\
   -A, --no-auto-rehash  No automatic rehashing. One has to use 'rehash' to\n\
 			get table and field completion. This gives a quicker\n\
 			start of mysql and disables rehashing on reconnect.\n\
+  -b, --no-beep         Turn off beep on error.\n\
   -B, --batch		Print results with a tab as separator, each row on\n\
 			a new line. Doesn't use history file.\n\
   --character-sets-dir=...\n\
@@ -507,7 +513,7 @@ static void usage(int version)
   -C, --compress	Use compression in server/client protocol.\n");
 #ifndef DBUG_OFF
   printf("\
-  -#, --debug[=...]     Debug log. Default is '%s'.\n",default_dbug_option);
+  -#, --debug[=...]     Debug log. Default is '%s'.\n", default_dbug_option);
 #endif
   printf("\
   -D, --database=..	Database to use.\n\
@@ -529,6 +535,7 @@ static void usage(int version)
   -h, --host=...	Connect to host.\n\
   -H, --html		Produce HTML output.\n\
   -X, --xml		Produce XML output.\n\
+  --local-infile=[1|0]  Enable/disable LOAD DATA LOCAL INFILE\n\
   -L, --skip-line-numbers\n\
                         Don't write line number for errors.\n");
 #ifndef __WIN__
@@ -553,14 +560,16 @@ static void usage(int version)
                         variable PAGER (%s).\n\
                         Valid pagers are less, more, cat [> filename], etc.\n\
                         See interactive help (\\h) also. This option does\n\
-                        not work in batch mode.\n", getenv("PAGER") ? getenv("PAGER") : "");
+                        not work in batch mode.\n", 
+                          getenv("PAGER") ? getenv("PAGER") : "");
 #endif
   printf("\
   -p[password], --password[=...]\n\
 			Password to use when connecting to server\n\
 			If password is not given it's asked from the tty.\n");
 #ifdef __WIN__
-  puts("  -W, --pipe		Use named pipes to connect to server");
+  printf("\
+  -W, --pipe		Use named pipes to connect to server");
 #endif
   printf("\n\
   -P, --port=...	Port number to use for connection.\n\
@@ -586,6 +595,7 @@ static void usage(int version)
   -v, --verbose		Write more. (-v -v -v gives the table output format)\n\
   -V, --version		Output version information and exit.\n\
   -w, --wait		Wait and retry if connection is down.\n");
+
   print_defaults("my",load_default_groups);
 
   printf("\nPossible variables for option --set-variable (-O) are:\n");
@@ -603,16 +613,20 @@ static int get_options(int argc, char **argv)
 
   set_all_changeable_vars(changeable_vars);
   while ((c=getopt_long(argc,argv,
-			(char*) "?ABCD:LfgGHXinNoqrstTU::vVw::WEe:h:O:P:S:u:#::p::",
+			(char*) "?AbBCD:LfgGHXinNoqrstTU::vVw::WEe:h:O:P:S:u:#::p::",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
-    case OPT_DEFAULT_CHARSET:
-      default_charset= optarg;
-      break;
     case OPT_CHARSETS_DIR:
       strmov(mysql_charsets_dir, optarg);
       charsets_dir = mysql_charsets_dir;
+      break;
+    case OPT_DEFAULT_CHARSET:
+      default_charset= optarg;
+      break;
+    case OPT_LOCAL_INFILE:
+      using_opt_local_infile=1;
+      opt_local_infile= test(!optarg || atoi(optarg)>0);
       break;
     case OPT_TEE:
       if (!opt_outfile && strlen(optarg))
@@ -646,6 +660,9 @@ static int get_options(int argc, char **argv)
       break;
     case OPT_NOPAGER:
       opt_nopager=1;
+      break;
+    case 'b':
+      opt_nobeep = 1;
       break;
     case 'D':
       my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));      
@@ -701,32 +718,27 @@ static int get_options(int argc, char **argv)
       else
 	tty_password=1;
       break;
-    case 't':
-      output_tables=1;
-      break;
-    case 'r':
-      opt_raw_data=1;
-      break;
-    case '#':
-      DBUG_PUSH(optarg ? optarg : default_dbug_option);
-      info_flag=1;
-      break;
+    case 't': output_tables=1; break;
+    case 'r': opt_raw_data=1;  break;
     case 'q': quick=1; break;
     case 's': opt_silent++; break;
     case 'T': info_flag=1; break;
     case 'n': unbuffered=1; break;
     case 'v': verbose++; break;
     case 'E': vertical=1; break;
-    case 'w':
-      wait_flag=1;
-      if(optarg) wait_time = atoi(optarg) ;
-      break;
     case 'A': no_rehash=1; break;
     case 'G': no_named_cmds=0; break;
     case 'g': no_named_cmds=1; break;
     case 'H': opt_html=1; break;
     case 'X': opt_xml=1; break;
     case 'i': connect_flag|= CLIENT_IGNORE_SPACE; break;
+    case 'C': opt_compress=1; break;
+    case 'L': skip_line_numbers=1; break;
+    case 'N': skip_column_names=1; break;
+    case 'w':
+      wait_flag=1;
+      if(optarg) wait_time = atoi(optarg) ;
+      break;
     case 'B':
       if (!status.batch)
       {
@@ -734,15 +746,6 @@ static int get_options(int argc, char **argv)
 	status.add_to_history=0;
 	opt_silent++;				// more silent
       }
-      break;
-    case 'C':
-      opt_compress=1;
-      break;
-    case 'L':
-      skip_line_numbers=1;
-      break;
-    case 'N':
-      skip_column_names=1;
       break;
     case 'P':
       opt_mysql_port= (unsigned int) atoi(optarg);
@@ -761,6 +764,10 @@ static int get_options(int argc, char **argv)
     case '?':
       usage(0);
       exit(0);
+    case '#':
+      DBUG_PUSH(optarg ? optarg : default_dbug_option);
+      info_flag=1;
+      break;
 #include "sslopt-case.h"
     default:
       tee_fprintf(stderr,"illegal option: -%c\n",opterr);
@@ -2235,6 +2242,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
+  if (using_opt_local_infile)
+    mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
@@ -2434,7 +2443,8 @@ put_info(const char *str,INFO_TYPE info_type,uint error)
     }
     if (info_type == INFO_ERROR)
     {
-      putchar('\007');				/* This should make a bell */
+      if(!opt_nobeep)
+	putchar('\007');		      	/* This should make a bell */
       vidattr(A_STANDOUT);
       if (error)
         (void) tee_fprintf(stderr, "ERROR %d: ", error);

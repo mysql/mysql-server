@@ -33,3 +33,7 @@ drop table t1;
 select CAST(1-2 AS UNSIGNED);
 select CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER);
 select CONVERT('-1',UNSIGNED);
+select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
+select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
+select ~5, cast(~5 as signed);
+select cast(5 as unsigned) -6.0;

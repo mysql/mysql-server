@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/* To avoid problems with alarms in debug code, we disable DBUG here */
+#define DBUG_OFF
 #include <my_global.h>
 
 #if defined(THREAD) && !defined(DONT_USE_THR_ALARM)

@@ -35,7 +35,6 @@ EXTRA_DIST =		FINISH.sh \
 			compile-pentium-myodbc \
 			compile-pentium-mysqlfs-debug \
 			compile-pentium-pgcc \
-			compile-pentium-symbols \
 			compile-solaris-sparc \
 			compile-solaris-sparc-debug \
 			compile-solaris-sparc-fortre \

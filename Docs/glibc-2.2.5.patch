@@ -1,0 +1,73 @@
+diff -Nur --exclude=SCCS --exclude=BitKeeper --exclude=ChangeSet ../glibc-2.2.5/linuxthreads/internals.h ./linuxthreads/internals.h
+--- ../glibc-2.2.5/linuxthreads/internals.h	Thu Nov 29 00:44:16 2001
++++ ./linuxthreads/internals.h	Fri Feb 22 21:18:09 2002
+@@ -343,7 +343,7 @@
+    THREAD_SELF implementation is used, this must be a power of two and
+    a multiple of PAGE_SIZE.  */
+ #ifndef STACK_SIZE
+-#define STACK_SIZE  (2 * 1024 * 1024)
++#define STACK_SIZE  (128 * 1024)
+ #endif
+ 
+ /* The initial size of the thread stack.  Must be a multiple of PAGE_SIZE.  */
+diff -Nur --exclude=SCCS --exclude=BitKeeper --exclude=ChangeSet ../glibc-2.2.5/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h ./linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h
+--- ../glibc-2.2.5/linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h	Thu Jun  8 13:49:49 2000
++++ ./linuxthreads/sysdeps/unix/sysv/linux/bits/local_lim.h	Fri Feb 22 21:18:09 2002
+@@ -64,7 +64,7 @@
+ /* The number of threads per process.  */
+ #define _POSIX_THREAD_THREADS_MAX	64
+ /* This is the value this implementation supports.  */
+-#define PTHREAD_THREADS_MAX	1024
++#define PTHREAD_THREADS_MAX	4096
+ 
+ /* Maximum amount by which a process can descrease its asynchronous I/O
+    priority level.  */
+diff -Nur --exclude=SCCS --exclude=BitKeeper --exclude=ChangeSet ../glibc-2.2.5/nss/nsswitch.c ./nss/nsswitch.c
+--- ../glibc-2.2.5/nss/nsswitch.c	Tue Jul 17 02:21:36 2001
++++ ./nss/nsswitch.c	Fri Feb 22 21:18:09 2002
+@@ -515,8 +515,16 @@
+ 					     + (line - name + 1));
+       if (new_service == NULL)
+ 	return result;
+-
++#ifdef DO_STATIC_NSS
++      if (strncmp(name,"files",5) == 0 ||
++	  strncmp(name,"dns",3) == 0)
++#endif      
+       *((char *) __mempcpy (new_service->name, name, line - name)) = '\0';
++#ifdef DO_STATIC_NSS
++      else
++        *((char *) __mempcpy (new_service->name, "files", 5)) = '\0';
++#endif      
++	
+ 
+       /* Set default actions.  */
+       new_service->actions[2 + NSS_STATUS_TRYAGAIN] = NSS_ACTION_CONTINUE;
+diff -Nur --exclude=SCCS --exclude=BitKeeper --exclude=ChangeSet ../glibc-2.2.5/time/Makefile ./time/Makefile
+--- ../glibc-2.2.5/time/Makefile	Fri Feb 22 21:27:19 2002
++++ ./time/Makefile	Fri Feb 22 21:26:47 2002
+@@ -37,8 +37,8 @@
+ 
+ include ../Rules
+ 
+-tz-cflags = -DTZDIR='"$(zonedir)"' \
+-	    -DTZDEFAULT='"$(localtime-file)"' \
++tz-cflags = -DTZDIR='"/usr/share/zoneinfo/"' \
++	    -DTZDEFAULT='"/etc/localtime"' \
+ 	    -DTZDEFRULES='"$(posixrules-file)"'
+ 
+ CFLAGS-tzfile.c = $(tz-cflags)
+diff -Nur --exclude=SCCS --exclude=BitKeeper --exclude=ChangeSet ../glibc-2.2.5/timezone/Makefile ./timezone/Makefile
+--- ../glibc-2.2.5/timezone/Makefile	Wed Aug 29 16:45:25 2001
++++ ./timezone/Makefile	Fri Feb 22 21:18:09 2002
+@@ -159,8 +159,8 @@
+ 
+ $(objpfx)zic: $(objpfx)scheck.o $(objpfx)ialloc.o
+ 
+-tz-cflags = -DTZDIR='"$(zonedir)"' \
+-	    -DTZDEFAULT='"$(localtime-file)"' \
++tz-cflags = -DTZDIR='"/usr/share/zoneinfo/"' \
++	    -DTZDEFAULT='"/etc/localtime"' \
+ 	    -DTZDEFRULES='"$(posixrules-file)"' \
+ 	    -DTM_GMTOFF=tm_gmtoff -DTM_ZONE=tm_zone
+ 

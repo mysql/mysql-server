@@ -255,6 +255,8 @@ inline double ulonglong2double(ulonglong value)
 #define HAVE_COMPRESS
 #define HAVE_CREATESEMAPHORE
 
+#define HAVE_ISAM		/* We want to have support for ISAM in 4.0 */
+
 #ifdef NOT_USED
 #define HAVE_SNPRINTF		/* Gave link error */
 #define _snprintf snprintf

@@ -136,7 +136,11 @@ static int rl_digit_loop1 ();
 void
 _rl_vi_initialize_line ()
 {
+#ifndef __QNXNTO__
   register uint i;
+#else
+  register unsigned int i;
+#endif
 
   for (i = 0; i < (int) sizeof (vi_mark_chars) / sizeof (int); i++)
     vi_mark_chars[i] = -1;

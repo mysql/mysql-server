@@ -226,7 +226,7 @@ key (score)
 INSERT INTO t1 VALUES (1,1,1),(2,2,2),(2,1,1),(3,3,3),(4,3,3),(5,3,3);
 explain select userid,count(*) from t1 group by userid desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
+t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
 select userid,count(*) from t1 group by userid desc;
 userid	count(*)
 3	3
@@ -244,6 +244,8 @@ spid	count(*)
 2	2
 select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
 spid	count(*)
+2	2
+1	1
 explain select sql_big_result spid,sum(userid) from t1 group by spid desc;
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
@@ -263,3 +265,111 @@ score	count(*)
 2	1
 1	2
 drop table t1;
+CREATE TABLE t1 (a char(1));
+INSERT INTO t1 VALUES ('A'),('B'),('A'),('B'),('A'),('B'),(NULL),('a'),('b'),(NULL),('A'),('B'),(NULL);
+SELECT a FROM t1 GROUP BY a;
+a
+NULL
+A
+B
+SELECT a,count(*) FROM t1 GROUP BY a;
+a	count(*)
+NULL	3
+A	5
+B	5
+SELECT a FROM t1 GROUP BY binary a;
+a
+NULL
+A
+B
+a
+b
+SELECT a,count(*) FROM t1 GROUP BY binary a;
+a	count(*)
+NULL	3
+A	4
+B	4
+a	1
+b	1
+SELECT binary a FROM t1 GROUP BY 1;
+binary a
+NULL
+A
+B
+a
+b
+SELECT binary a,count(*) FROM t1 GROUP BY 1;
+binary a	count(*)
+NULL	3
+A	4
+B	4
+a	1
+b	1
+SET SQL_BIG_TABLES=1;
+SELECT a FROM t1 GROUP BY a;
+a
+NULL
+A
+B
+SELECT a,count(*) FROM t1 GROUP BY a;
+a	count(*)
+NULL	3
+A	5
+B	5
+SELECT a FROM t1 GROUP BY binary a;
+a
+NULL
+A
+B
+a
+b
+SELECT a,count(*) FROM t1 GROUP BY binary a;
+a	count(*)
+NULL	3
+A	4
+B	4
+a	1
+b	1
+SELECT binary a FROM t1 GROUP BY 1;
+binary a
+NULL
+A
+B
+a
+b
+SELECT binary a,count(*) FROM t1 GROUP BY 1;
+binary a	count(*)
+NULL	3
+A	4
+B	4
+a	1
+b	1
+SET SQL_BIG_TABLES=0;
+drop table t1;
+CREATE TABLE t1 (
+`a` char(193) default NULL,
+`b` char(63) default NULL
+);
+INSERT INTO t1 VALUES ('abc','def'),('hij','klm');
+SELECT CONCAT(a, b) FROM t1 GROUP BY 1;
+CONCAT(a, b)
+abcdef
+hijklm
+SELECT CONCAT(a, b),count(*) FROM t1 GROUP BY 1;
+CONCAT(a, b)	count(*)
+abcdef	1
+hijklm	1
+SELECT CONCAT(a, b),count(distinct a) FROM t1 GROUP BY 1;
+CONCAT(a, b)	count(distinct a)
+abcdef	1
+hijklm	1
+SELECT 1 FROM t1 GROUP BY CONCAT(a, b);
+1
+1
+1
+INSERT INTO t1 values ('hij','klm');
+SELECT CONCAT(a, b),count(*) FROM t1 GROUP BY 1;
+CONCAT(a, b)	count(*)
+abcdef	1
+hijklm	2
+DROP TABLE t1;

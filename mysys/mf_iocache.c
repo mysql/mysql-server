@@ -122,6 +122,8 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->pos_in_file= seek_offset;
   info->pre_close = info->pre_read = info->post_read = 0;
   info->arg = 0;
+  info->init_count++; /* we assume the user had set it to 0 prior to
+			 first call */
   info->alloced_buffer = 0;
   info->buffer=0;
   info->seek_not_done= test(file >= 0);
@@ -446,11 +448,13 @@ int _my_b_seq_read(register IO_CACHE *info, byte *Buffer, uint Count)
       info->end_of_file)
     goto read_append_buffer;
 
-  if (info->seek_not_done)
-  {					/* File touched, do seek */
-    VOID(my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)));
-    info->seek_not_done=0;
-  }
+  /*
+    With read-append cache we must always do a seek before we read,
+    because the write could have moved the file pointer astray
+  */
+  VOID(my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)));
+  info->seek_not_done=0;
+  
   diff_length=(uint) (pos_in_file & (IO_SIZE-1));
 
   /* now the second stage begins - read from file descriptor */
@@ -506,6 +510,13 @@ int _my_b_seq_read(register IO_CACHE *info, byte *Buffer, uint Count)
       memcpy(Buffer,info->buffer,(size_t) length);
       Count -= length;
       Buffer += length;
+      
+      /*
+	 added the line below to make
+	 DBUG_ASSERT(pos_in_file==info->end_of_file) pass.
+	 otherwise this does not appear to be needed
+      */
+      pos_in_file += length;
       goto read_append_buffer;
     }
   }
@@ -527,10 +538,13 @@ read_append_buffer:
     /* First copy the data to Count */
     uint len_in_buff = (uint) (info->write_pos - info->append_read_pos);
     uint copy_len;
+    uint transfer_len;
 
     DBUG_ASSERT(info->append_read_pos <= info->write_pos);
-    DBUG_ASSERT(pos_in_file == info->end_of_file);
-
+    /*
+      TODO: figure out if the assert below is needed or correct.
+    */
+    DBUG_ASSERT(pos_in_file == info->end_of_file); 
     copy_len=min(Count, len_in_buff);
     memcpy(Buffer, info->append_read_pos, copy_len);
     info->append_read_pos += copy_len;
@@ -540,11 +554,12 @@ read_append_buffer:
 
     /* Fill read buffer with data from write buffer */
     memcpy(info->buffer, info->append_read_pos,
-	   (size_t) (len_in_buff - copy_len));
+	   (size_t) (transfer_len=len_in_buff - copy_len));
     info->read_pos= info->buffer;
-    info->read_end= info->buffer+(len_in_buff - copy_len);
+    info->read_end= info->buffer+transfer_len;
     info->append_read_pos=info->write_pos;
-    info->pos_in_file+=len_in_buff;
+    info->pos_in_file=pos_in_file+copy_len;
+    info->end_of_file+=len_in_buff;
   }
   unlock_append_buffer(info);
   return Count ? 1 : 0;
@@ -793,15 +808,22 @@ int my_b_append(register IO_CACHE *info, const byte *Buffer, uint Count)
   Buffer+=rest_length;
   Count-=rest_length;
   info->write_pos+=rest_length;
-  if (flush_io_cache(info))
+  if (_flush_io_cache(info,0))
+  {
+    unlock_append_buffer(info);
     return 1;
+  }
   if (Count >= IO_SIZE)
   {					/* Fill first intern buffer */
     length=Count & (uint) ~(IO_SIZE-1);
     if (my_write(info->file,Buffer,(uint) length,info->myflags | MY_NABP))
+    {
+      unlock_append_buffer(info);
       return info->error= -1;
+    }
     Count-=length;
     Buffer+=length;
+    info->end_of_file+=length;
   }
 
 end:
@@ -868,14 +890,27 @@ int my_block_write(register IO_CACHE *info, const byte *Buffer, uint Count,
 
 	/* Flush write cache */
 
-int flush_io_cache(IO_CACHE *info)
+#ifdef THREAD
+#define LOCK_APPEND_BUFFER if (need_append_buffer_lock) \
+  lock_append_buffer(info);
+#define UNLOCK_APPEND_BUFFER if (need_append_buffer_lock) \
+  unlock_append_buffer(info);
+#else
+#define LOCK_APPEND_BUFFER
+#define UNLOCK_APPEND_BUFFER
+#endif
+
+
+int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
 {
   uint length;
   my_bool append_cache;
   my_off_t pos_in_file;
   DBUG_ENTER("flush_io_cache");
 
-  append_cache = (info->type == SEQ_READ_APPEND);
+  if (!(append_cache = (info->type == SEQ_READ_APPEND)))
+    need_append_buffer_lock=0;
+  
   if (info->type == WRITE_CACHE || append_cache)
   {
     if (info->file == -1)
@@ -883,38 +918,47 @@ int flush_io_cache(IO_CACHE *info)
       if (real_open_cached_file(info))
 	DBUG_RETURN((info->error= -1));
     }
+    LOCK_APPEND_BUFFER;
+    
     if ((length=(uint) (info->write_pos - info->write_buffer)))
     {
       pos_in_file=info->pos_in_file;
-      if (append_cache)
-      {
-	pos_in_file=info->end_of_file;
-	info->seek_not_done=1;
-      }
-      if (info->seek_not_done)
+      /* if we have append cache, we always open the file with
+	 O_APPEND which moves the pos to EOF automatically on every write
+      */
+      if (!append_cache && info->seek_not_done)
       {					/* File touched, do seek */
 	if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) ==
 	    MY_FILEPOS_ERROR)
 	{
+	  UNLOCK_APPEND_BUFFER;
 	  DBUG_RETURN((info->error= -1));
 	}
 	if (!append_cache)
 	  info->seek_not_done=0;
       }
-      info->write_pos= info->write_buffer;
       if (!append_cache)
 	info->pos_in_file+=length;
       info->write_end= (info->write_buffer+info->buffer_length-
 			((pos_in_file+length) & (IO_SIZE-1)));
 
-      /* Set this to be used if we are using SEQ_READ_APPEND */
-      info->append_read_pos = info->write_buffer;
       if (my_write(info->file,info->write_buffer,length,
 		   info->myflags | MY_NABP))
 	info->error= -1;
       else
 	info->error= 0;
-      set_if_bigger(info->end_of_file,(pos_in_file+length));
+      if (!append_cache)
+      {
+        set_if_bigger(info->end_of_file,(pos_in_file+length));
+      }
+      else
+      {
+	info->end_of_file+=(info->write_pos-info->append_read_pos);
+	DBUG_ASSERT(info->end_of_file == my_tell(info->file,MYF(0)));
+      }
+      
+      info->append_read_pos=info->write_pos=info->write_buffer;
+      UNLOCK_APPEND_BUFFER;
       DBUG_RETURN(info->error);
     }
   }
@@ -925,6 +969,7 @@ int flush_io_cache(IO_CACHE *info)
     info->inited=0;
   }
 #endif
+  UNLOCK_APPEND_BUFFER;
   DBUG_RETURN(0);
 }
 

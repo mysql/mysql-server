@@ -810,7 +810,7 @@ mem_validate_no_assert(void)
 	}
 	
 	mutex_exit(&mem_hash_mutex);
-
+ 
 	return(error);
 
 	#else
@@ -833,4 +833,96 @@ mem_validate(void)
 	ut_a(!mem_validate_no_assert());
 
 	return(TRUE);
+}
+
+/****************************************************************
+Tries to find neigboring memory allocation blocks and dumps to stderr
+the neighborhood of a given pointer. */
+
+void
+mem_analyze_corruption(
+/*===================*/
+	byte*	ptr)	/* in: pointer to place of possible corruption */
+{
+	byte*	p;
+	ulint	i;
+	ulint	dist;
+
+	ut_sprintf_buf(srv_fatal_errbuf, ptr - 250, 500);
+	fprintf(stderr,
+  "InnoDB: Apparent memory corruption: mem dump %s\n", srv_fatal_errbuf);
+
+	fprintf(stderr,
+  "InnoDB: Scanning backward trying to find previous allocated mem blocks\n");
+
+	p = ptr;
+	dist = 0;
+  
+	for (i = 0; i < 10; i++) {
+		for (;;) {
+			if (((ulint)p) % 4 == 0) {
+
+			    if (*((ulint*)p) == MEM_BLOCK_MAGIC_N) {
+				fprintf(stderr,
+			"Mem block at - %lu, file %s, line %lu\n",
+				dist, p + sizeof(ulint),
+				*(ulint*)(p + 8 + sizeof(ulint)));
+
+				break;
+			    }
+
+			    if (*((ulint*)p) == MEM_FREED_BLOCK_MAGIC_N) {
+				fprintf(stderr,
+			"Freed mem block at - %lu, file %s, line %lu\n",
+				dist, p + sizeof(ulint),
+				*(ulint*)(p + 8 + sizeof(ulint)));
+
+				break;
+			    }
+			}
+
+			p--;
+			dist++;
+		}
+
+		p--;
+		dist++;
+	}
+
+	fprintf(stderr,
+  "InnoDB: Scanning forward trying to find next allocated mem blocks\n");
+
+	p = ptr;
+	dist = 0;
+  
+	for (i = 0; i < 10; i++) {
+		for (;;) {
+			if (((ulint)p) % 4 == 0) {
+
+			    if (*((ulint*)p) == MEM_BLOCK_MAGIC_N) {
+				fprintf(stderr,
+			"Mem block at + %lu, file %s, line %lu\n",
+				dist, p + sizeof(ulint),
+				*(ulint*)(p + 8 + sizeof(ulint)));
+
+				break;
+			    }
+
+			    if (*((ulint*)p) == MEM_FREED_BLOCK_MAGIC_N) {
+				fprintf(stderr,
+			"Freed mem block at + %lu, file %s, line %lu\n",
+				dist, p + sizeof(ulint),
+				*(ulint*)(p + 8 + sizeof(ulint)));
+
+				break;
+			    }
+			}
+
+			p++;
+			dist++;
+		}
+
+		p++;
+		dist++;
+	}
 }

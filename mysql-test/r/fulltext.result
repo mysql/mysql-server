@@ -16,6 +16,11 @@ select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 a	b
 Full-text indexes	are called collections
 Only MyISAM tables	support collections
+select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
+a	b
+Only MyISAM tables	support collections
+Full-text indexes	are called collections
+Full-text indexes	are called collections
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
@@ -48,7 +53,14 @@ Full-text search in MySQL	implements vector space model
 select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
 a	b
 Function MATCH ... AGAINST()	is used to do a search
-select *, MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE) as x from t1;
+select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+a	b	x
+MySQL has now support	for full-text search	1
+Full-text indexes	are called collections	1
+Only MyISAM tables	support collections	2
+Function MATCH ... AGAINST()	is used to do a search	0
+Full-text search in MySQL	implements vector space model	0
+select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
 a	b	x
 MySQL has now support	for full-text search	1
 Full-text indexes	are called collections	1
@@ -149,3 +161,10 @@ update t1 set title='this test once revealed a bug' where id=1;
 select * from t1;
 id	title
 1	this test once revealed a bug
+update t1 set title=NULL where id=1;
+drop table t1;
+CREATE TABLE t1 (a int(11), b text, FULLTEXT KEY (b)) TYPE=MyISAM;
+insert into t1 values (1,"I wonder why the fulltext index doesnt work?");
+SELECT * from t1 where MATCH (b) AGAINST ('apples');
+a	b
+drop table t1;

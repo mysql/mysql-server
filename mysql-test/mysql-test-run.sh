@@ -20,6 +20,7 @@ TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 #--
 
 PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin:/usr/openwin/bin
+MASTER_40_ARGS="--rpl-recovery-rank=1 --init-rpl-role=master"
 
 # Standard functions
 
@@ -58,7 +59,7 @@ sleep_until_file_deleted ()
   done
 }
 
-sleep_until_file_exists ()
+sleep_until_file_created ()
 {
   file=$1
   loop=$2
@@ -78,8 +79,10 @@ sleep_until_file_exists ()
 
 # No paths below as we can't be sure where the program is!
 
-BASENAME=`which basename | head -1`
-DIFF=`which diff | head -1`
+SED=sed
+
+BASENAME=`which basename | $SED q`
+DIFF=`which diff | $SED q`
 CAT=cat
 CUT=cut
 HEAD=head
@@ -87,13 +90,12 @@ TAIL=tail
 ECHO=echo # use internal echo if possible
 EXPR=expr # use internal if possible
 FIND=find
-GCOV=`which gcov | head -1`
+GCOV=`which gcov | $SED q`
 PRINTF=printf
 RM=rm
 TIME=time
 TR=tr
-XARGS=`which xargs | head -1`
-SED=sed
+XARGS=`which xargs | $SED q`
 
 # Are we using a source or a binary distribution?
 
@@ -149,6 +151,7 @@ SLAVE_LOAD_TMPDIR=../../var/tmp #needs to be same length to test logging
 RES_SPACE="      "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
+MY_LOG_DIR="$MYSQL_TEST_DIR/var/log" 
 #
 # Set LD_LIBRARY_PATH if we are using shared libraries
 #
@@ -164,6 +167,7 @@ MYSQL_MANAGER_PW_FILE=$MYSQL_TEST_DIR/var/tmp/manager.pwd
 MYSQL_MANAGER_LOG=$MYSQL_TEST_DIR/var/log/manager.log
 MYSQL_MANAGER_USER=root
 NO_SLAVE=0
+USER_TEST=
 
 EXTRA_MASTER_OPT=""
 EXTRA_MYSQL_TEST_OPT=""
@@ -181,14 +185,19 @@ SLEEP_TIME_FOR_FIRST_SLAVE=400
 SLEEP_TIME_FOR_SECOND_SLAVE=30
 CHARACTER_SET=latin1
 DBUSER=""
-START_WAIT_TIMEOUT=3
-STOP_WAIT_TIMEOUT=3
+START_WAIT_TIMEOUT=10
+STOP_WAIT_TIMEOUT=10
 
 while test $# -gt 0; do
   case "$1" in
     --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
     --force)  FORCE=1 ;;
     --verbose-manager)  MANAGER_QUIET_OPT="" ;;
+    --old-master) MASTER_40_ARGS="";;
+    --master-binary=*)
+      MASTER_MYSQLD=`$ECHO "$1" | $SED -e "s;--master-binary=;;"` ;;
+    --slave-binary=*)
+      SLAVE_MYSQLD=`$ECHO "$1" | $SED -e "s;--slave-binary=;;"` ;;
     --local)   USE_RUNNING_SERVER="" ;;
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --local-master)
@@ -242,6 +251,9 @@ while test $# -gt 0; do
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
       SLEEP_TIME_AFTER_RESTART=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
+      ;;
+    --user-test=*)
+      USER_TEST=`$ECHO "$1" | $SED -e "s;--user-test=;;"`
       ;;
     --mysqld=*)
        TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
@@ -393,6 +405,16 @@ else
   fi
 fi
 
+if [ -z "$MASTER_MYSQLD" ]
+then
+MASTER_MYSQLD=$MYSQLD
+fi
+
+if [ -z "$SLAVE_MYSQLD" ]
+then
+SLAVE_MYSQLD=$MYSQLD
+fi
+
 # If we should run all tests cases, we will use a local server for that
 
 if [ -z "$1" ]
@@ -429,7 +451,6 @@ GPROF_DIR=$MYSQL_TMP_DIR/gprof
 GPROF_MASTER=$GPROF_DIR/master.gprof
 GPROF_SLAVE=$GPROF_DIR/slave.gprof
 TIMEFILE="$MYSQL_TEST_DIR/var/log/mysqltest-time"
-SLAVE_MYSQLD=$MYSQLD #this can be changed later if we are doing gcov
 XTERM=`which xterm`
 
 #++
@@ -521,7 +542,7 @@ report_stats () {
 	deci=`$EXPR $raw - $xwhole`
 	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests, ${whole}.${deci}% successful."
 	$ECHO ""
-        $ECHO "The log files in $MYSQL_TEST_DIR/var/log may give you some hint"
+        $ECHO "The log files in $MY_LOG_DIR may give you some hint"
 	$ECHO "of what when wrong."
 	$ECHO "If you want to report this error, please read first the documentation at"
         $ECHO "http://www.mysql.com/doc/M/y/MySQL_test_suite.html"
@@ -530,8 +551,7 @@ report_stats () {
 
 mysql_install_db () {
     $ECHO "Removing Stale Files"
-    $RM -rf $MASTER_MYDDIR $SLAVE_MYDDIR $SLAVE_MYLOG $MASTER_MYLOG \
-     $SLAVE_MYERR $MASTER_MYERR
+    $RM -rf $MASTER_MYDDIR $SLAVE_MYDDIR $MY_LOG_DIR/* 
     $ECHO "Installing Master Databases"
     $INSTALL_DB
     if [ $? != 0 ]; then
@@ -564,11 +584,11 @@ gprof_prepare ()
 gprof_collect ()
 {
  if [ -f $MASTER_MYDDIR/gmon.out ]; then
-   gprof $MYSQLD $MASTER_MYDDIR/gmon.out > $GPROF_MASTER
+   gprof $MASTER_MYSQLD $MASTER_MYDDIR/gmon.out > $GPROF_MASTER
    echo "Master execution profile has been saved in $GPROF_MASTER"
  fi
  if [ -f $SLAVE_MYDDIR/gmon.out ]; then
-   gprof $MYSQLD $SLAVE_MYDDIR/gmon.out > $GPROF_SLAVE
+   gprof $SLAVE_MYSQLD $SLAVE_MYDDIR/gmon.out > $GPROF_SLAVE
    echo "Slave execution profile has been saved in $GPROF_SLAVE"
  fi
 }
@@ -708,9 +728,10 @@ start_master()
   if [ -z "$DO_BENCH" ]
   then
     master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
-  	    --server-id=1 --rpl-recovery-rank=1 \
-          --basedir=$MY_BASEDIR --init-rpl-role=master \
+  	    --server-id=1  \
+          --basedir=$MY_BASEDIR \
           --port=$MASTER_MYPORT \
+          --local-infile \
           --exit-info=256 \
           --core \
           --datadir=$MASTER_MYDDIR \
@@ -722,6 +743,7 @@ start_master()
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:50M \
+	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
   else
@@ -729,6 +751,7 @@ start_master()
           --server-id=1 --rpl-recovery-rank=1 \
           --basedir=$MY_BASEDIR --init-rpl-role=master \
           --port=$MASTER_MYPORT \
+          --local-infile \
           --datadir=$MASTER_MYDDIR \
           --pid-file=$MASTER_MYPID \
           --socket=$MASTER_MYSOCK \
@@ -738,6 +761,7 @@ start_master()
           --tmpdir=$MYSQL_TMP_DIR \
           --language=$LANGUAGE \
           --innodb_data_file_path=ibdata1:50M \
+	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
   fi
@@ -749,14 +773,14 @@ start_master()
   then
     $ECHO "set args $master_args" > $GDB_MASTER_INIT
     manager_launch master ddd -display $DISPLAY --debugger \
-    "gdb -x $GDB_MASTER_INIT" $MYSQLD
+    "gdb -x $GDB_MASTER_INIT" $MASTER_MYSQLD
   elif [ x$DO_GDB = x1 ]
   then
     if [ x$MANUAL_GDB = x1 ]
     then
       $ECHO "set args $master_args" > $GDB_MASTER_INIT
       $ECHO "To start gdb for the master , type in another window:"
-      $ECHO "cd $CWD ; gdb -x $GDB_MASTER_INIT $MYSQLD"
+      $ECHO "cd $CWD ; gdb -x $GDB_MASTER_INIT $MASTER_MYSQLD"
       wait_for_master=1500
     else
       ( $ECHO set args $master_args;
@@ -770,12 +794,12 @@ r
 EOF
       fi )  > $GDB_MASTER_INIT
       manager_launch master $XTERM -display $DISPLAY \
-      -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD
+      -title "Master" -e gdb -x $GDB_MASTER_INIT $MASTER_MYSQLD
     fi
   else
-    manager_launch master $MYSQLD $master_args
+    manager_launch master $MASTER_MYSQLD $master_args
   fi
-  sleep_until_file_exists $MASTER_MYPID $wait_for_master
+  sleep_until_file_created $MASTER_MYPID $wait_for_master
   wait_for_master=$SLEEP_TIME_FOR_SECOND_MASTER
   MASTER_RUNNING=1
 }
@@ -832,6 +856,7 @@ start_slave()
   slave_args="--no-defaults $master_info \
   	    --exit-info=256 \
           --log-bin=$MYSQL_TEST_DIR/var/log/$slave_ident-bin \
+          --relay-log=$MYSQL_TEST_DIR/var/log/$slave_ident-relay-bin \
           --log-slave-updates \
           --log=$slave_log \
           --basedir=$MY_BASEDIR \
@@ -865,7 +890,7 @@ start_slave()
     if [ x$MANUAL_GDB = x1 ]
     then
       echo "To start gdb for the slave, type in another window:"
-      echo "cd $CWD ; gdb -x $GDB_SLAVE_INIT $MYSQLD"
+      echo "cd $CWD ; gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD"
       wait_for_slave=1500
     else
       manager_launch $slave_ident $XTERM -display $DISPLAY -title "Slave" -e \
@@ -875,7 +900,7 @@ start_slave()
     manager_launch $slave_ident $SLAVE_MYSQLD $slave_args
   fi
   eval "SLAVE$1_RUNNING=1"
-  sleep_until_file_exists $slave_pid $wait_for_slave
+  sleep_until_file_created $slave_pid $wait_for_slave
   wait_for_slave=$SLEEP_TIME_FOR_SECOND_SLAVE
 }
 

@@ -19,6 +19,7 @@
 #include <m_string.h>
 #include <stdarg.h>
 #include <m_ctype.h>
+#include <assert.h>
 
 int my_snprintf(char* to, size_t n, const char* fmt, ...)
 {
@@ -39,7 +40,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       *to++= *fmt;			/* Copy ordinary char */
       continue;
     }
-    /* Skipp if max size is used (to be compatible with printf) */
+    /* Skip if max size is used (to be compatible with printf) */
     fmt++;
     while (isdigit(*fmt) || *fmt == '.' || *fmt == '-')
       fmt++;
@@ -48,14 +49,13 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     if (*fmt == 's')				/* String parameter */
     {
       reg2 char	*par = va_arg(ap, char *);
-      uint plen;
+      uint plen,left_len = (uint)(end-to);
       if (!par) par = (char*)"(null)";
       plen = (uint) strlen(par);
-      if ((uint) (end-to) > plen)	/* Replace if possible */
-      {
-	to=strmov(to,par);
-	continue;
-      }
+      if (left_len <= plen)
+	plen = left_len - 1;
+      to=strnmov(to,par,plen);
+      continue;
     }
     else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
     {
@@ -74,20 +74,28 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       break;
     *to++='%';				/* % used as % or unknown code */
   }
+  DBUG_ASSERT(to <= end);
   *to='\0';				/* End of errmessage */
   return (uint) (to - start);
 }
 
 #ifdef MAIN
+#define OVERRUN_SENTRY  250
 static void my_printf(const char * fmt, ...)
 {
-  char buf[32];
+  char buf[33];
   int n;
   va_list ar;
   va_start(ar, fmt);
-  n = my_vsnprintf(buf, sizeof(buf),fmt, ar);
+  buf[sizeof(buf)-1]=OVERRUN_SENTRY;
+  n = my_vsnprintf(buf, sizeof(buf)-1,fmt, ar);
   printf(buf);
   printf("n=%d, strlen=%d\n", n, strlen(buf));
+  if (buf[sizeof(buf)-1] != OVERRUN_SENTRY)
+  {
+    fprintf(stderr, "Buffer overrun\n");
+    abort();
+  }
   va_end(ar);
 }
 

@@ -36,7 +36,7 @@ class ha_heap: public handler
   ulong option_flag() const
   { return (HA_READ_RND_SAME | HA_NO_INDEX | HA_ONLY_WHOLE_INDEX |
 	    HA_WRONG_ASCII_ORDER | HA_KEYPOS_TO_RNDPOS | HA_NO_BLOBS |
-	    HA_REC_NOT_IN_SEQ); }
+	    HA_NULL_KEY | HA_REC_NOT_IN_SEQ | HA_NOT_READ_PREFIX_LAST); }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return MAX_KEY; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }

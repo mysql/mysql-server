@@ -30,7 +30,7 @@
 #include <signal.h>
 
 #define MAX_RECORDS 100000
-#define MAX_KEYS 3
+#define MAX_KEYS 4
 
 static int get_options(int argc, char *argv[]);
 static int rnd(int max_value);
@@ -40,16 +40,20 @@ static uint flag=0,verbose=0,testflag=0,recant=10000,silent=0;
 static uint keys=MAX_KEYS;
 static uint16 key1[1001];
 static my_bool key3[MAX_RECORDS];
+static int reclength=39;
+
 
 static int calc_check(byte *buf,uint length);
+static void make_record(char *record, uint n1, uint n2, uint n3,
+			const char *mark, uint count);
 
-		/* Huvudprogrammet */
+/* Main program */
 
 int main(int argc, char *argv[])
 {
   register uint i,j;
   uint ant,n1,n2,n3;
-  uint reclength,write_count,update,opt_delete,check2,dupp_keys,found_key;
+  uint write_count,update,opt_delete,check2,dupp_keys,found_key;
   int error;
   ulong pos;
   unsigned long key_check;
@@ -66,7 +70,6 @@ int main(int argc, char *argv[])
   filename2= "test2_2";
   file=file2=0;
   get_options(argc,argv);
-  reclength=37;
 
   write_count=update=opt_delete=0;
   key_check=0;
@@ -77,21 +80,33 @@ int main(int argc, char *argv[])
   keyinfo[0].seg[0].type=HA_KEYTYPE_BINARY;
   keyinfo[0].seg[0].start=0;
   keyinfo[0].seg[0].length=6;
+  keyinfo[0].seg[0].null_bit=0;
   keyinfo[1].seg=keyseg+1;
   keyinfo[1].keysegs=2;
   keyinfo[1].flag=0;
   keyinfo[1].seg[0].type=HA_KEYTYPE_BINARY;
   keyinfo[1].seg[0].start=7;
   keyinfo[1].seg[0].length=6;
+  keyinfo[1].seg[0].null_bit=0;
   keyinfo[1].seg[1].type=HA_KEYTYPE_TEXT;
-  keyinfo[1].seg[1].start=0;			/* Tv}delad nyckel */
+  keyinfo[1].seg[1].start=0;			/* key in two parts */
   keyinfo[1].seg[1].length=6;
+  keyinfo[1].seg[1].null_bit=0;
   keyinfo[2].seg=keyseg+3;
   keyinfo[2].keysegs=1;
   keyinfo[2].flag=HA_NOSAME;
   keyinfo[2].seg[0].type=HA_KEYTYPE_BINARY;
   keyinfo[2].seg[0].start=12;
   keyinfo[2].seg[0].length=8;
+  keyinfo[2].seg[0].null_bit=0;
+  keyinfo[3].keysegs=1;
+  keyinfo[3].flag=HA_NOSAME;
+  keyinfo[3].seg=keyseg+4;
+  keyinfo[3].seg[0].type=HA_KEYTYPE_BINARY;
+  keyinfo[3].seg[0].start=37;
+  keyinfo[3].seg[0].length=1;
+  keyinfo[3].seg[0].null_bit=1;
+  keyinfo[3].seg[0].null_pos=38;
 
   bzero((char*) key1,sizeof(key1));
   bzero((char*) key3,sizeof(key3));
@@ -110,7 +125,7 @@ int main(int argc, char *argv[])
   for (i=0 ; i < recant ; i++)
   {
     n1=rnd(1000); n2=rnd(100); n3=rnd(min(recant*5,MAX_RECORDS));
-    sprintf(record,"%6d:%4d:%8d:Pos: %4d          ",n1,n2,n3,write_count);
+    make_record(record,n1,n2,n3,"Pos",write_count);
 
     if (heap_write(file,record))
     {
@@ -191,7 +206,7 @@ int main(int argc, char *argv[])
   for (i=0 ; i < write_count/10 ; i++)
   {
     n1=rnd(1000); n2=rnd(100); n3=rnd(min(recant*2,MAX_RECORDS));
-    sprintf(record2,"%6d:%4d:%8d:XXX: %4d          ",n1,n2,n3,update);
+    make_record(record2, n1, n2, n3, "XXX", update);
     if (rnd(2) == 1)
     {
       if (heap_scan_init(file))
@@ -653,4 +668,14 @@ static int calc_check(byte *buf, uint length)
   while (length--)
     check+= (int) (uchar) *(buf++);
   return check;
+}
+
+static void make_record(char *record, uint n1, uint n2, uint n3,
+			const char *mark, uint count)
+{
+  bfill(record,reclength,' ');
+  sprintf(record,"%6d:%4d:%8d:%3.3s: %4d",
+	  n1,n2,n3,mark,count);
+  record[37]='A';				/* Store A in null key */
+  record[38]=1;					/* set as null */
 }
