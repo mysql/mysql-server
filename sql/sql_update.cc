@@ -360,7 +360,7 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs,
   for (TABLE_LIST *dt=ut ; dt ; dt=dt->next,counter++)
   {
     TABLE *table=ut->table;
-    (void) ut->table->file->extra(HA_EXTRA_NO_KEYREAD);
+//    (void) ut->table->file->extra(HA_EXTRA_NO_KEYREAD);
     dt->table->used_keys=0;
     if (table->timestamp_field)
     {
