@@ -361,6 +361,7 @@ libmysqld/item_func.cc
 libmysqld/item_geofunc.cc
 libmysqld/item_row.cc
 libmysqld/item_strfunc.cc
+libmysqld/item_subselect.cc
 libmysqld/item_sum.cc
 libmysqld/item_timefunc.cc
 libmysqld/item_uniq.cc
@@ -396,6 +397,7 @@ libmysqld/sql_command
 libmysqld/sql_crypt.cc
 libmysqld/sql_db.cc
 libmysqld/sql_delete.cc
+libmysqld/sql_derived.cc
 libmysqld/sql_do.cc
 libmysqld/sql_handler.cc
 libmysqld/sql_help.cc
