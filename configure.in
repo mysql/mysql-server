@@ -1897,6 +1897,8 @@ else
   CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
 fi
 
+CHARSETS="$DEFAULT_CHARSET $CHARSETS"
+
 use_mb="no"
 
 for cs in $CHARSETS
