@@ -69,7 +69,8 @@ class sp_rcontext : public Sql_alloc
       m_frame[idx] = i;
   }
 
-  void
+  /* Returns 0 on success, -1 on (eval) failure */
+  int
   set_item_eval(uint idx, Item *i, enum_field_types type);
 
   inline Item *
