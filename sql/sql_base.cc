@@ -499,15 +499,13 @@ void close_temporary_tables(THD *thd)
     {
       // skip temporary tables not created directly by the user
       if (table->real_name[0] != '#')
-      {
-	/*
-	  Here we assume table_cache_key always starts
-	  with \0 terminated db name
-	*/
 	found_user_tables = 1;
-      }
-      end = strxmov(end,table->table_cache_key,".",
-		    table->real_name,",", NullS);
+      /*
+        Here we assume table_cache_key always starts
+        with \0 terminated db name
+      */
+      end = strxmov(end,"`",table->table_cache_key,"`",
+                    ".`",table->real_name,"`,", NullS);
     }
     next=table->next;
     close_temporary(table);

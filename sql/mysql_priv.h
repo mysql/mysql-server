@@ -537,11 +537,11 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 #include <openssl/des.h>
 struct st_des_keyblock
 {
-  des_cblock key1, key2, key3;
+  DES_cblock key1, key2, key3;
 };
 struct st_des_keyschedule
 {
-  des_key_schedule ks1, ks2, ks3;
+  DES_key_schedule ks1, ks2, ks3;
 };
 extern char *des_key_file;
 extern struct st_des_keyschedule des_keyschedule[10];
