@@ -582,6 +582,13 @@ os_file_flush(
 		return(TRUE);
 	}
 	
+	/* Since Linux returns EINVAL if the 'file' is actually a raw device,
+	we choose to ignore that error */
+
+	if (errno == EINVAL) {
+	        return(TRUE);
+	}
+
 	fprintf(stderr,
 		"InnoDB: Error: the OS said file flush did not succeed\n");
 
