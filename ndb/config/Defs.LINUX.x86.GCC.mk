@@ -53,4 +53,4 @@ LINK.cc = $(PURE) $(CC) $(CCFLAGS) $(LDFLAGS)
 
 LINK.c = $(PURE) $(CC) $(CFLAGS) $(LDFLAGS)
 
-LDFLAGS_LAST = -lpthread -lrt
+LDFLAGS_LAST = -lpthread -lrt $(NDB_TOP)/src/common/portlib/gcc.cpp
