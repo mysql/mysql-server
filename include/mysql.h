@@ -57,9 +57,6 @@ typedef int my_socket;
 #include "mysql_com.h"
 #include "mysql_version.h"
 #include "typelib.h"
-#ifndef DBUG_OFF
-#define CHECK_EXTRA_ARGUMENTS
-#endif
 
 #include "my_list.h" /* for LISTs used in 'MYSQL' and 'MYSQL_STMT' */
 

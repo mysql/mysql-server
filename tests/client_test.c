@@ -953,8 +953,6 @@ static void test_prepare_simple()
 
   verify_param_count(stmt,1);
 
-  rc = mysql_execute(stmt);
-  mystmt_r(stmt, rc);
   mysql_stmt_close(stmt);
 
   /* select */
@@ -5589,26 +5587,23 @@ static void test_pure_coverage()
   stmt = mysql_prepare(mysql,"insert into test_pure(c67788) values(10)",100);
   mystmt_init_r(stmt);
   
-#ifndef DBUG_OFF
-  stmt = mysql_prepare(mysql,(const char *)0,0);
-  mystmt_init_r(stmt);
-  
+  /* Query without params and result should allow to bind 0 arrays */
   stmt = mysql_prepare(mysql,"insert into test_pure(c2) values(10)",100);
   mystmt_init(stmt);
+  
+  rc = mysql_bind_param(stmt, (MYSQL_BIND*)0);
+  mystmt(stmt, rc);
+  
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
 
-  rc = mysql_bind_param(stmt, bind);
-  mystmt_r(stmt, rc);
-
+  rc = mysql_bind_result(stmt, (MYSQL_BIND*)0);
+  mystmt(stmt, rc);
+  
   mysql_stmt_close(stmt);
-#endif
 
   stmt = mysql_prepare(mysql,"insert into test_pure(c2) values(?)",100);
   mystmt_init(stmt);
-
-#ifndef DBUG_OFF
-  rc = mysql_execute(stmt);
-  mystmt_r(stmt, rc);/* No parameters supplied */
-#endif
 
   bind[0].length= &length;
   bind[0].is_null= 0;
@@ -5622,9 +5617,6 @@ static void test_pure_coverage()
   rc = mysql_bind_param(stmt, bind);
   mystmt(stmt, rc);
 
-  rc = mysql_send_long_data(stmt, 20, (char *)"venu", 4);
-  mystmt_r(stmt, rc); /* wrong param number */
-
   rc = mysql_stmt_store_result(stmt);
   mystmt(stmt, rc); 
 
@@ -5636,14 +5628,9 @@ static void test_pure_coverage()
   rc = mysql_execute(stmt);
   mystmt(stmt, rc);
 
-#ifndef DBUG_OFF
-  rc = mysql_bind_result(stmt, (MYSQL_BIND *)0);
-  mystmt_r(stmt, rc);
-  
   bind[0].buffer_type= MYSQL_TYPE_GEOMETRY;
   rc = mysql_bind_result(stmt, bind);
   mystmt_r(stmt, rc); /* unsupported buffer type */
-#endif
 
   rc = mysql_stmt_store_result(stmt);
   mystmt(stmt, rc);
@@ -7291,9 +7278,6 @@ static void test_fetch_offset()
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);
   
-  rc = mysql_fetch_column(stmt,bind,4,0);
-  mystmt_r(stmt,rc);
-
   data[0]= '\0';
   rc = mysql_fetch_column(stmt,bind,0,0);
   mystmt(stmt,rc);
@@ -7410,9 +7394,6 @@ static void test_fetch_column()
   mystmt(stmt,rc);
   fprintf(stdout, "\n col 0: %d(%ld)", c1, l1);
   assert(c1 == 1 && l1 == 4);
-
-  rc = mysql_fetch_column(stmt,bind,10,0);
-  mystmt_r(stmt,rc);
 
   rc = mysql_fetch(stmt);
   mystmt(stmt,rc);  
@@ -8097,6 +8078,64 @@ static void test_bug1946()
 
 
 /*
+  Test for bug#2248 "mysql_fetch without prior mysql_execute hangs"
+*/
+
+static void test_bug2248()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  const char *query1= "SELECT DATABASE()";
+  const char *query2= "INSERT INTO test_bug2248 VALUES (10)";
+  
+  myheader("test_bug2248");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_bug2248");
+  myquery(rc);
+  
+  rc= mysql_query(mysql, "CREATE TABLE test_bug2248 (id int)");
+  myquery(rc);
+  
+  stmt= mysql_prepare(mysql, query1, strlen(query1));
+  mystmt_init(stmt);
+
+  /* This should not hang */
+  rc= mysql_fetch(stmt);
+  mystmt_r(stmt,rc);
+  
+  /* And this too */
+  rc= mysql_stmt_store_result(stmt);
+  mystmt_r(stmt,rc);
+  
+  mysql_stmt_close(stmt);
+  
+  stmt= mysql_prepare(mysql, query2, strlen(query2));
+  mystmt_init(stmt);
+  
+  rc= mysql_execute(stmt);
+  mystmt(stmt,rc);
+
+  /* This too should not hang but should return proper error */
+  rc= mysql_fetch(stmt);
+  assert(rc==MYSQL_NO_DATA);
+  
+  /* This too should not hang but should not bark */
+  rc= mysql_stmt_store_result(stmt);
+  mystmt(stmt,rc);
+ 
+  /* This should return proper error */
+  rc= mysql_fetch(stmt);
+  mystmt_r(stmt,rc);
+  assert(rc==MYSQL_NO_DATA);
+  
+  mysql_stmt_close(stmt);
+  
+  rc= mysql_query(mysql,"DROP TABLE test_bug2248");
+  myquery(rc);
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -8340,6 +8379,7 @@ int main(int argc, char **argv)
     test_bug1644();	    /* BUG#1644 */
     test_bug1946();         /* test that placeholders are allowed only in 
                                prepared queries */
+    test_bug2248();         /* BUG#2248 */ 
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);
