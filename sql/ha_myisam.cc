@@ -37,7 +37,7 @@ ulong myisam_recover_options= HA_RECOVER_NONE;
 const char *myisam_recover_names[] =
 { "DEFAULT", "BACKUP", "FORCE", "QUICK", NullS};
 TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
-				 myisam_recover_names};
+				 myisam_recover_names, NULL};
 
 
 /*****************************************************************************
@@ -252,8 +252,8 @@ int ha_myisam::write_row(byte * buf)
   statistic_increment(current_thd->status_var.ha_write_count,&LOCK_status);
 
   /* If we have a timestamp column, update it to the current time */
-  if (table->timestamp_default_now)
-    update_timestamp(buf+table->timestamp_default_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    table->timestamp_field->set_time();
 
   /*
     If we have an auto_increment column and we are writing a changed row
@@ -510,16 +510,16 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 		      (uint) (T_RETRY_WITHOUT_QUICK | T_QUICK)))
     {
       param.testflag&= ~T_RETRY_WITHOUT_QUICK;
-      sql_print_error("Note: Retrying repair of: '%s' without quick",
-		      table->path);
+      sql_print_information("Retrying repair of: '%s' without quick",
+                            table->path);
       continue;
     }
     param.testflag&= ~T_QUICK;
     if ((param.testflag & T_REP_BY_SORT))
     {
       param.testflag= (param.testflag & ~T_REP_BY_SORT) | T_REP;
-      sql_print_error("Note: Retrying repair of: '%s' with keycache",
-		      table->path);
+      sql_print_information("Retrying repair of: '%s' with keycache",
+                            table->path);
       continue;
     }
     break;
@@ -528,16 +528,17 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
       !(check_opt->flags & T_VERY_SILENT))
   {
     char llbuff[22],llbuff2[22];
-    sql_print_error("Note: Found %s of %s rows when repairing '%s'",
-		    llstr(file->state->records, llbuff),
-		    llstr(start_records, llbuff2),
-		    table->path);
+    sql_print_information("Found %s of %s rows when repairing '%s'",
+                          llstr(file->state->records, llbuff),
+                          llstr(start_records, llbuff2),
+                          table->path);
   }
   return error;
 }
 
 int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
 {
+  int error;
   if (!file) return HA_ADMIN_INTERNAL_ERROR;
   MI_CHECK param;
 
@@ -547,7 +548,14 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
   param.testflag = (check_opt->flags | T_SILENT | T_FORCE_CREATE |
 		    T_REP_BY_SORT | T_STATISTICS | T_SORT_INDEX);
   param.sort_buffer_length=  check_opt->sort_buffer_size;
-  return repair(thd,param,1);
+  if ((error= repair(thd,param,1)) && param.retry_repair)
+  {
+    sql_print_warning("Warning: Optimize table got errno %d, retrying",
+                      my_errno);
+    param.testflag&= ~T_REP_BY_SORT;
+    error= repair(thd,param,1);
+  }
+  return error;
 }
 
 
@@ -914,7 +922,13 @@ int ha_myisam::enable_indexes(uint mode)
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
     param.tmpdir=&mysql_tmpdir_list;
-    error=repair(thd,param,0) != HA_ADMIN_OK;
+    if ((error= (repair(thd,param,0) != HA_ADMIN_OK)) && param.retry_repair)
+    {
+      sql_print_warning("Warning: Enabling keys got errno %d, retrying",
+                        my_errno);
+      param.testflag&= ~(T_REP_BY_SORT | T_QUICK);
+      error= (repair(thd,param,0) != HA_ADMIN_OK);
+    }
     info(HA_STATUS_CONST);
     thd->proc_info=save_proc_info;
   }
@@ -1035,7 +1049,7 @@ bool ha_myisam::check_and_repair(THD *thd)
   // Don't use quick if deleted rows
   if (!file->state->del && (myisam_recover_options & HA_RECOVER_QUICK))
     check_opt.flags|=T_QUICK;
-  sql_print_error("Warning: Checking table:   '%s'",table->path);
+  sql_print_warning("Checking table:   '%s'",table->path);
 
   old_query= thd->query;
   old_query_length= thd->query_length;
@@ -1046,7 +1060,7 @@ bool ha_myisam::check_and_repair(THD *thd)
 
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
-    sql_print_error("Warning: Recovering table: '%s'",table->path);
+    sql_print_warning("Recovering table: '%s'",table->path);
     check_opt.flags=
       ((myisam_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0) |
        (marked_crashed                             ? 0 : T_QUICK) |
@@ -1071,8 +1085,8 @@ bool ha_myisam::is_crashed() const
 int ha_myisam::update_row(const byte * old_data, byte * new_data)
 {
   statistic_increment(current_thd->status_var.ha_update_count,&LOCK_status);
-  if (table->timestamp_on_update_now)
-    update_timestamp(new_data+table->timestamp_on_update_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+    table->timestamp_field->set_time();
   return mi_update(file,old_data,new_data);
 }
 
@@ -1283,13 +1297,13 @@ int ha_myisam::delete_table(const char *name)
   return mi_delete_table(name);
 }
 
+
 int ha_myisam::external_lock(THD *thd, int lock_type)
 {
   return mi_lock_database(file, !table->tmp_table ?
 			  lock_type : ((lock_type == F_UNLCK) ?
 				       F_UNLCK : F_EXTRA_LCK));
 }
-
 
 THR_LOCK_DATA **ha_myisam::store_lock(THD *thd,
 				      THR_LOCK_DATA **to,

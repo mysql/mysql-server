@@ -42,7 +42,9 @@ private:
     ZWAIT_ABORT_ALL                        = 14,
     ZCHECK_SCAN_ACTIVE_FAILED_LQH          = 15,
     CHECK_WAIT_DROP_TAB_FAILED_LQH         = 16,
-    TRIGGER_PENDING                        = 17     
+    TRIGGER_PENDING                        = 17,
+    
+    DelayTCKEYCONF = 18
   };
 };
 

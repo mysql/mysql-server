@@ -45,16 +45,9 @@ Backup::Backup(const Configuration & conf) :
   ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES, &noAttribs));
-  
-  // To allow for user tables AND SYSTAB 
-  // See ClusterConfig
-  //TODO get this infor from NdbCntr
-  noTables += 2;
 
-  // Considering also TR527, this is a KISS work-around to be able to
-  // continue testing the real thing
-  noAttribs += 2 + 1;
-  
+  noAttribs++; //RT 527 bug fix
+
   c_backupPool.setSize(noBackups);
   c_backupFilePool.setSize(3 * noBackups);
   c_tablePool.setSize(noBackups * noTables);

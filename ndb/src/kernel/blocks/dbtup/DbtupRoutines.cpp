@@ -35,6 +35,7 @@ Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
   for (Uint32 i = 0; i < regTabPtr->noOfAttr; i++) {
     Uint32 attrDescriptorStart = startDescriptor + (i << ZAD_LOG_SIZE);
     Uint32 attrDescriptor = tableDescriptor[attrDescriptorStart].tabDescr;
+    Uint32 attrOffset = tableDescriptor[attrDescriptorStart + 1].tabDescr;
     if (!AttributeDescriptor::getDynamic(attrDescriptor)) {
       if ((AttributeDescriptor::getArrayType(attrDescriptor) == ZNON_ARRAY) ||
           (AttributeDescriptor::getArrayType(attrDescriptor) == ZFIXED_ARRAY)) {
@@ -54,6 +55,11 @@ Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
           } else {
             ndbrequire(false);
           }//if
+          // replace read function of char attribute
+          if (AttributeOffset::getCharsetFlag(attrOffset)) {
+            ljam();
+            regTabPtr->readFunctionArray[i] = &Dbtup::readCharNotNULL;
+          }
         } else {
           if (AttributeDescriptor::getSizeInWords(attrDescriptor) == 1) {
             ljam();
@@ -72,6 +78,11 @@ Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
             regTabPtr->readFunctionArray[i] = &Dbtup::readFixedSizeTHZeroWordNULLable;
             regTabPtr->updateFunctionArray[i] = &Dbtup::updateFixedSizeTHManyWordNULLable;
           }//if
+          // replace read function of char attribute
+          if (AttributeOffset::getCharsetFlag(attrOffset)) {
+            ljam();
+            regTabPtr->readFunctionArray[i] = &Dbtup::readCharNULLable;
+          }
         }//if
       } else if (AttributeDescriptor::getArrayType(attrDescriptor) == ZVAR_ARRAY) {
         if (!AttributeDescriptor::getNullable(attrDescriptor)) {
@@ -145,11 +156,12 @@ Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
 // tabptr.p       Table record pointer
 /* ---------------------------------------------------------------- */
 int Dbtup::readAttributes(Page* const pagePtr,
-                          Uint32  tupHeadOffset,
-                          Uint32* inBuffer,
-                          Uint32  inBufLen,
-                          Uint32* outBuffer,
-                          Uint32  maxRead)
+			  Uint32  tupHeadOffset,
+			  const Uint32* inBuffer,
+			  Uint32  inBufLen,
+			  Uint32* outBuffer,
+			  Uint32  maxRead,
+			  bool    xfrmFlag)
 {
   Tablerec* const regTabPtr =  tabptr.p;
   Uint32 numAttributes = regTabPtr->noOfAttr;
@@ -162,6 +174,7 @@ int Dbtup::readAttributes(Page* const pagePtr,
   tCheckOffset = regTabPtr->tupheadsize;
   tMaxRead = maxRead;
   tTupleHeader = &pagePtr->pageWord[tupHeadOffset];
+  tXfrmFlag = xfrmFlag;
 
   ndbrequire(tupHeadOffset + tCheckOffset <= ZWORDS_ON_PAGE);
   while (inBufIndex < inBufLen) {
@@ -185,16 +198,22 @@ int Dbtup::readAttributes(Page* const pagePtr,
                      attributeOffset)) {
         continue;
       } else {
-        return (Uint32)-1;
+        return -1;
       }//if
+    } else if(attributeId & AttributeHeader::PSUEDO){
+      Uint32 sz = read_psuedo(attributeId, 
+			      outBuffer+tmpAttrBufIndex+1);
+      AttributeHeader::init(&outBuffer[tmpAttrBufIndex], attributeId, sz);
+      tOutBufIndex = tmpAttrBufIndex + 1 + sz;
     } else {
       terrorCode = ZATTRIBUTE_ID_ERROR;
-      return (Uint32)-1;
+      return -1;
     }//if
   }//while
   return tOutBufIndex;
 }//Dbtup::readAttributes()
 
+#if 0
 int Dbtup::readAttributesWithoutHeader(Page* const pagePtr,
                                        Uint32  tupHeadOffset,
                                        Uint32* inBuffer,
@@ -237,16 +256,17 @@ int Dbtup::readAttributesWithoutHeader(Page* const pagePtr,
                      attributeOffset)) {
         continue;
       } else {
-        return (Uint32)-1;
+        return -1;
       }//if
     } else {
       terrorCode = ZATTRIBUTE_ID_ERROR;
-      return (Uint32)-1;
+      return -1;
     }//if
   }//while
   ndbrequire(attrBufIndex == inBufLen);
   return tOutBufIndex;
 }//Dbtup::readAttributes()
+#endif
 
 bool
 Dbtup::readFixedSizeTHOneWordNotNULL(Uint32* outBuffer,
@@ -535,6 +555,74 @@ Dbtup::readDynSmallVarSize(Uint32* outBuffer,
   return false;
 }//Dbtup::readDynSmallVarSize()
 
+
+bool
+Dbtup::readCharNotNULL(Uint32* outBuffer,
+                       AttributeHeader* ahOut,
+                       Uint32  attrDescriptor,
+                       Uint32  attrDes2)
+{
+  Uint32 indexBuf = tOutBufIndex;
+  Uint32 readOffset = AttributeOffset::getOffset(attrDes2);
+  Uint32 attrNoOfWords = AttributeDescriptor::getSizeInWords(attrDescriptor);
+  Uint32 newIndexBuf = indexBuf + attrNoOfWords;
+  Uint32 maxRead = tMaxRead;
+
+  ndbrequire((readOffset + attrNoOfWords - 1) < tCheckOffset);
+  if (newIndexBuf <= maxRead) {
+    ljam();
+    ahOut->setDataSize(attrNoOfWords);
+    if (! tXfrmFlag) {
+      MEMCOPY_NO_WORDS(&outBuffer[indexBuf],
+                       &tTupleHeader[readOffset],
+                       attrNoOfWords);
+    } else {
+      ljam();
+      Tablerec* regTabPtr = tabptr.p;
+      Uint32 i = AttributeOffset::getCharsetPos(attrDes2);
+      ndbrequire(i < tabptr.p->noOfCharsets);
+      // not const in MySQL
+      CHARSET_INFO* cs = tabptr.p->charsetArray[i];
+      // XXX should strip Uint32 null padding
+      const unsigned nBytes = attrNoOfWords << 2;
+      unsigned n =
+      (*cs->coll->strnxfrm)(cs,
+                            (uchar*)&outBuffer[indexBuf],
+                            nBytes,
+                            (const uchar*)&tTupleHeader[readOffset],
+                            nBytes);
+      // pad with ascii spaces
+      while (n < nBytes)
+        ((uchar*)&outBuffer[indexBuf])[n++] = 0x20;
+    }
+    tOutBufIndex = newIndexBuf;
+    return true;
+  } else {
+    ljam();
+    terrorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
+    return false;
+  }
+}
+
+bool
+Dbtup::readCharNULLable(Uint32* outBuffer,
+                       AttributeHeader* ahOut,
+                       Uint32  attrDescriptor,
+                       Uint32  attrDes2)
+{
+  if (!nullFlagCheck(attrDes2)) {
+    ljam();
+    return readCharNotNULL(outBuffer,
+                           ahOut,
+                           attrDescriptor,
+                           attrDes2);
+  } else {
+    ljam();
+    ahOut->setNULL();
+    return true;
+  }
+}
+
 /* ---------------------------------------------------------------------- */
 /*       THIS ROUTINE IS USED TO UPDATE A NUMBER OF ATTRIBUTES. IT IS     */
 /*       USED BY THE INSERT ROUTINE, THE UPDATE ROUTINE AND IT CAN BE     */
@@ -590,12 +678,12 @@ int Dbtup::updateAttributes(Page* const pagePtr,
         continue;
       } else {
         ljam();
-        return (Uint32)-1;
+        return -1;
       }//if
     } else {
       ljam();
       terrorCode = ZATTRIBUTE_ID_ERROR;
-      return (Uint32)-1;
+      return -1;
     }//if
   }//while
   return 0;
@@ -893,4 +981,24 @@ Dbtup::updateDynSmallVarSize(Uint32* inBuffer,
   return false;
 }//Dbtup::updateDynSmallVarSize()
 
+Uint32 
+Dbtup::read_psuedo(Uint32 attrId, Uint32* outBuffer){
+  Uint32 tmp[sizeof(SignalHeader)+25];
+  Signal * signal = (Signal*)&tmp;
+  switch(attrId){
+  case AttributeHeader::FRAGMENT:
+    * outBuffer = operPtr.p->fragId;
+    return 1;
+  case AttributeHeader::ROW_COUNT:
+  case AttributeHeader::COMMIT_COUNT:
+    signal->theData[0] = operPtr.p->userpointer;
+    signal->theData[1] = attrId;
 
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSUEDO_REQ, signal, 2);
+    outBuffer[0] = signal->theData[0];
+    outBuffer[1] = signal->theData[1];
+    return 2;
+  default:
+    return 0;
+  }
+}

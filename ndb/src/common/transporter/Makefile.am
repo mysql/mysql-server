@@ -13,7 +13,7 @@ EXTRA_libtransporter_la_SOURCES = SHM_Transporter.cpp SHM_Transporter.unix.cpp S
 libtransporter_la_LIBADD = @ndb_transporter_opt_objs@
 libtransporter_la_DEPENDENCIES = @ndb_transporter_opt_objs@
 
-INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel -I$(top_srcdir)/ndb/include/transporter
+INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel -I$(top_srcdir)/ndb/include/transporter @NDB_SCI_INCLUDES@
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_util.mk.am

@@ -3,7 +3,6 @@
 #define NDBGLOBAL_H
 
 #include <my_global.h>
-#define NDB_BASE_PORT 2200
 
 /** signal & SIG_PIPE */
 #include <my_alarm.h>
@@ -14,6 +13,9 @@
 #undef NDB_WIN32
 #endif
 
+#ifdef _AIX
+#undef _H_STRINGS
+#endif
 #include <m_string.h>
 #include <m_ctype.h>
 #include <ndb_types.h>
@@ -61,7 +63,7 @@
 
 static const char table_name_separator =  '/';
 
-#ifdef NDB_VC98
+#if defined(_AIX) || defined(NDB_VC98)
 #define STATIC_CONST(x) enum { x }
 #else
 #define STATIC_CONST(x) static const Uint32 x
@@ -76,6 +78,10 @@ extern "C" {
 #endif
 	
 #include <assert.h>
+
+/* call in main() - does not return on error */
+extern int ndb_init(void);
+extern void ndb_end(int);
 
 #ifndef HAVE_STRDUP
 extern char * strdup(const char *s);

@@ -28,7 +28,8 @@ const char *updatable_views_with_limit_names[]= { "NO", "YES", NullS };
 TYPELIB updatable_views_with_limit_typelib=
 {
   array_elements(updatable_views_with_limit_names)-1, "",
-  updatable_views_with_limit_names
+  updatable_views_with_limit_names,
+  0
 };
 
 
@@ -347,7 +348,7 @@ static File_option view_parameters[]=
   FILE_OPTIONS_ULONGLONG},
  {{(char*) "algorithm", 9},	offsetof(TABLE_LIST, algorithm),
   FILE_OPTIONS_ULONGLONG},
- {{"with_check_option", 17},    offsetof(TABLE_LIST, with_check),
+ {{(char*) "with_check_option", 17}, offsetof(TABLE_LIST, with_check),
    FILE_OPTIONS_ULONGLONG},
  {{(char*) "revision", 8},	offsetof(TABLE_LIST, revision),
   FILE_OPTIONS_REV},
@@ -357,7 +358,7 @@ static File_option view_parameters[]=
   FILE_OPTIONS_ULONGLONG},
  {{(char*) "source", 6},	offsetof(TABLE_LIST, source),
   FILE_OPTIONS_ESTRING},
- {{NULL, 0},			0,
+ {{NullS, 0},			0,
   FILE_OPTIONS_STRING}
 };
 
@@ -607,7 +608,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     now Lex placed in statement memory
   */
   table->view= lex= thd->lex= (LEX*) new(&thd->mem_root) st_lex_local;
-  mysql_init_query(thd, (uchar*)table->query.str, table->query.length, TRUE);
+  lex_start(thd, (uchar*)table->query.str, table->query.length);
   lex->select_lex.select_number= ++thd->select_number;
   old_lex->derived_tables|= DERIVED_VIEW;
   {

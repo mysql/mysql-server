@@ -422,6 +422,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	ibool		found;
 	big_rec_t*	dummy_big_rec;
 	mtr_t		mtr;
+	trx_t*		trx		= thr_get_trx(thr);
 
 	log_free_check();
 	mtr_start(&mtr);
@@ -431,7 +432,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	if (!found) {
 		fputs("InnoDB: error in sec index entry del undo in\n"
 			"InnoDB: ", stderr);
-		dict_index_name_print(stderr, index);
+		dict_index_name_print(stderr, trx, index);
 		fputs("\n"
 			"InnoDB: tuple ", stderr);
 		dtuple_print(stderr, entry);
@@ -439,7 +440,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			"InnoDB: record ", stderr);
 		rec_print(stderr, btr_pcur_get_rec(&pcur));
 		putc('\n', stderr);
-		trx_print(stderr, thr_get_trx(thr));
+		trx_print(stderr, trx);
 		fputs("\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
 	} else {
@@ -451,7 +452,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		heap = mem_heap_create(100);
 
 		update = row_upd_build_sec_rec_difference_binary(index, entry,
-					btr_cur_get_rec(btr_cur), heap);
+			btr_cur_get_rec(btr_cur), trx, heap);
 	        if (upd_get_n_fields(update) == 0) {
 
 			/* Do nothing */
@@ -671,14 +672,15 @@ row_undo_mod_parse_undo_rec(
 	ulint		type;
 	ulint		cmpl_info;
 	ibool		dummy_extern;
-	
+	trx_t*		trx;
+
 	ut_ad(node && thr);
-	
+	trx = thr_get_trx(thr);
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info,
 					&dummy_extern, &undo_no, &table_id);
 	node->rec_type = type;
 	
-	node->table = dict_table_get_on_id(table_id, thr_get_trx(thr));
+	node->table = dict_table_get_on_id(table_id, trx);
 
 	/* TODO: other fixes associated with DROP TABLE + rollback in the
 	same table by another user */
@@ -704,8 +706,8 @@ row_undo_mod_parse_undo_rec(
 								node->heap);
 
 	trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
-					roll_ptr, info_bits, node->heap,
-					&(node->update));
+					roll_ptr, info_bits, trx,
+					node->heap, &(node->update));
 	node->new_roll_ptr = roll_ptr;
 	node->new_trx_id = trx_id;
 	node->cmpl_info = cmpl_info;

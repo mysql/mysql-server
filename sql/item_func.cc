@@ -292,27 +292,30 @@ Item *Item_func::transform(Item_transformer transformer, byte *argument)
       Item *new_item= (*arg)->transform(transformer, argument);
       if (!new_item)
 	return 0;
-      *arg= new_item;
+      if (*arg != new_item)
+        current_thd->change_item_tree(arg, new_item);
     }
   }
   return (this->*transformer)(argument);
 }
 
 
-void Item_func::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
+void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
+                               List<Item> &fields)
 {
   Item **arg, **arg_end;
   for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
   {
     Item *item=* arg;
     if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-      item->split_sum_func(ref_pointer_array, fields);
+      item->split_sum_func(thd, ref_pointer_array, fields);
     else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
     {
       uint el= fields.elements;
+      Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
       fields.push_front(item);
       ref_pointer_array[el]= item;
-      *arg= new Item_ref(ref_pointer_array + el, arg, 0, item->name);
+      thd->change_item_tree(arg, new_item);
     }
   }
 }
@@ -718,8 +721,8 @@ void Item_func_int_div::fix_length_and_dec()
 double Item_func_mod::val()
 {
   DBUG_ASSERT(fixed == 1);
-  double value= floor(args[0]->val()+0.5);
-  double val2=floor(args[1]->val()+0.5);
+  double value= args[0]->val();
+  double val2=  args[1]->val();
   if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0.0; /* purecov: inspected */
   if (val2 == 0.0)
@@ -747,10 +750,7 @@ longlong Item_func_mod::val_int()
 
 void Item_func_mod::fix_length_and_dec()
 {
-  max_length=args[1]->max_length;
-  decimals=0;
-  maybe_null=1;
-  find_num_type();
+  Item_num_op::fix_length_and_dec();
 }
 
 
@@ -1087,21 +1087,38 @@ double Item_func_round::val()
 }
 
 
-void Item_func_rand::fix_length_and_dec()
+bool Item_func_rand::fix_fields(THD *thd, struct st_table_list *tables,
+                                Item **ref)
 {
-  decimals=NOT_FIXED_DEC; 
-  max_length=float_length(decimals);
+  Item_real_func::fix_fields(thd, tables, ref);
   used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
   {					// Only use argument once in query
-    uint32 tmp= (uint32) (args[0]->val_int());
-    if ((rand= (struct rand_struct*) sql_alloc(sizeof(*rand))))
-      randominit(rand,(uint32) (tmp*0x10001L+55555555L),
-		 (uint32) (tmp*0x10000001L));
+    /*
+      Allocate rand structure once: we must use thd->current_arena
+      to create rand in proper mem_root if it's a prepared statement or
+      stored procedure.
+    */
+    if (!rand && !(rand= (struct rand_struct*)
+                   thd->current_arena->alloc(sizeof(*rand))))
+      return TRUE;
+    /*
+      PARAM_ITEM is returned if we're in statement prepare and consequently
+      no placeholder value is set yet.
+    */
+    if (args[0]->type() != PARAM_ITEM)
+    {
+      /*
+        TODO: do not do reinit 'rand' for every execute of PS/SP if
+        args[0] is a constant.
+      */
+      uint32 tmp= (uint32) args[0]->val_int();
+      randominit(rand, (uint32) (tmp*0x10001L+55555555L),
+                 (uint32) (tmp*0x10000001L));
+    }
   }
   else
   {
-    THD *thd= current_thd;
     /*
       No need to send a Rand log event if seed was given eg: RAND(seed),
       as it will be replicated in the query as such.
@@ -1115,6 +1132,7 @@ void Item_func_rand::fix_length_and_dec()
     thd->rand_saved_seed2=thd->rand.seed2;
     rand= &thd->rand;
   }
+  return FALSE;
 }
 
 void Item_func_rand::update_used_tables()
@@ -1534,10 +1552,11 @@ longlong Item_func_find_in_set::val_int()
       {
         const char *substr_end= str_end + symbol_len;
         bool is_last_item= (substr_end == real_end);
-        if (wc == (my_wc_t) separator || is_last_item)
+        bool is_separator= (wc == (my_wc_t) separator);
+        if (is_separator || is_last_item)
         {
           position++;
-          if (is_last_item)
+          if (is_last_item && !is_separator)
             str_end= substr_end;
           if (!my_strnncoll(cs, (const uchar *) str_begin,
                             str_end - str_begin,
@@ -2820,7 +2839,21 @@ void Item_func_get_user_var::fix_length_and_dec()
   error= get_var_with_binlog(thd, name, &var_entry);
 
   if (var_entry)
+  {
     collation.set(var_entry->collation);
+    switch (var_entry->type) {
+    case REAL_RESULT:
+      max_length= DBL_DIG + 8;
+    case INT_RESULT:
+      max_length= MAX_BIGINT_WIDTH;
+      break;
+    case STRING_RESULT:
+      max_length= MAX_BLOB_WIDTH;
+      break;
+    case ROW_RESULT:                            // Keep compiler happy
+      break;
+    }
+  }
   else
     null_value= 1;
 
@@ -2937,10 +2970,10 @@ void Item_func_match::init_search(bool no_order)
   if (key == NO_SUCH_KEY)
   {
     List<Item> fields;
+    fields.push_back(new Item_string(" ",1, cmp_collation.collation));
     for (uint i=1; i < arg_count; i++)
       fields.push_back(args[i]);
-    concat=new Item_func_concat_ws(new Item_string(" ",1,
-                                   cmp_collation.collation), fields);
+    concat=new Item_func_concat_ws(fields);
     /*
       Above function used only to get value and do not need fix_fields for it:
       Item_string - basic constant

@@ -41,3 +41,22 @@ C0C1C2C3C4C5C6C7C8C9CACBCCCDCECF
 select hex(CONVERT(@utf84 USING sjis));
 hex(CONVERT(@utf84 USING sjis))
 D0D1D2D3D4D5D6D7D8D9DADBDCDDDEDF
+create table t1 (a char(10) character set sjis);
+insert into t1 values (0x878A);
+select hex(a) from t1;
+hex(a)
+878A
+drop table t1;
+create table t1(c enum(0x9353,0x9373) character set sjis);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` enum('“S','“s') character set sjis default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values (0x9353);
+insert into t1 values (0x9373);
+select hex(c) from t1;
+hex(c)
+9353
+9373
+drop table t1;

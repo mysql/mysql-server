@@ -33,7 +33,7 @@ typedef unsigned int UintR;
 #ifdef __SIZE_TYPE__
 typedef __SIZE_TYPE__ UintPtr;
 #else
-#include <my_global.h>
+#include <ndb_global.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif

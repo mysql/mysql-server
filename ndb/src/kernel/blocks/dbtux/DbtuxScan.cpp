@@ -108,14 +108,23 @@ Dbtux::execACC_SCANREQ(Signal* signal)
 /*
  * Receive bounds for scan in single direct call.  The bounds can arrive
  * in any order.  Attribute ids are those of index table.
+ *
+ * Replace EQ by equivalent LE + GE.  Check for conflicting bounds.
+ * Check that sets of lower and upper bounds are on initial sequences of
+ * keys and that all but possibly last bound is non-strict.
+ *
+ * Finally save the sets of lower and upper bounds (i.e. start key and
+ * end key).  Full bound type (< 4) is included but only the strict bit
+ * is used since lower and upper have now been separated.
  */
 void
 Dbtux::execTUX_BOUND_INFO(Signal* signal)
 {
+  jamEntry();
   struct BoundInfo {
+    int type;
     unsigned offset;
     unsigned size;
-    int type;
   };
   TuxBoundInfo* const sig = (TuxBoundInfo*)signal->getDataPtrSend();
   const TuxBoundInfo reqCopy = *(const TuxBoundInfo*)sig;
@@ -123,19 +132,12 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   // get records
   ScanOp& scan = *c_scanOpPool.getPtr(req->tuxScanPtrI);
   Index& index = *c_indexPool.getPtr(scan.m_indexId);
-  // collect bound info for each index attribute
-  BoundInfo boundInfo[MaxIndexAttributes][2];
+  // collect lower and upper bounds
+  BoundInfo boundInfo[2][MaxIndexAttributes];
   // largest attrId seen plus one
-  Uint32 maxAttrId = 0;
-  // skip 5 words
-  if (req->boundAiLength < 5) {
-    jam();
-    scan.m_state = ScanOp::Invalid;
-    sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
-    return;
-  }
+  Uint32 maxAttrId[2] = { 0, 0 };
+  unsigned offset = 0;
   const Uint32* const data = (Uint32*)sig + TuxBoundInfo::SignalLength;
-  unsigned offset = 5;
   // walk through entries
   while (offset + 2 <= req->boundAiLength) {
     jam();
@@ -155,32 +157,35 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
       return;
     }
-    while (maxAttrId <= attrId) {
-      BoundInfo* b = boundInfo[maxAttrId++];
-      b[0].type = b[1].type = -1;
-    }
-    BoundInfo* b = boundInfo[attrId];
-    if (type == 0 || type == 1  || type == 4) {
-      if (b[0].type != -1) {
-        jam();
-        scan.m_state = ScanOp::Invalid;
-        sig->errorCode = TuxBoundInfo::InvalidBounds;
-        return;
+    for (unsigned j = 0; j <= 1; j++) {
+      // check if lower/upper bit matches
+      const unsigned luBit = (j << 1);
+      if ((type & 0x2) != luBit && type != 4)
+        continue;
+      // EQ -> LE, GE
+      const unsigned type2 = (type & 0x1) | luBit;
+      // fill in any gap
+      while (maxAttrId[j] <= attrId) {
+        BoundInfo& b = boundInfo[j][maxAttrId[j]++];
+        b.type = -1;
       }
-      b[0].offset = offset;
-      b[0].size = 2 + dataSize;
-      b[0].type = type;
-    }
-    if (type == 2 || type == 3 || type == 4) {
-      if (b[1].type != -1) {
-        jam();
-        scan.m_state = ScanOp::Invalid;
-        sig->errorCode = TuxBoundInfo::InvalidBounds;
-        return;
+      BoundInfo& b = boundInfo[j][attrId];
+      if (b.type != -1) {
+        // compare with previous bound
+        if (b.type != (int)type2 ||
+            b.size != 2 + dataSize ||
+            memcmp(&data[b.offset + 2], &data[offset + 2], dataSize << 2) != 0) {
+          jam();
+          scan.m_state = ScanOp::Invalid;
+          sig->errorCode = TuxBoundInfo::InvalidBounds;
+          return;
+        }
+      } else {
+        // enter new bound
+        b.type = type2;
+        b.offset = offset;
+        b.size = 2 + dataSize;
       }
-      b[1].offset = offset;
-      b[1].size = 2 + dataSize;
-      b[1].type = type;
     }
     // jump to next
     offset += 2 + dataSize;
@@ -191,34 +196,27 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
     return;
   }
-  // save the bounds in index attribute id order
-  scan.m_boundCnt[0] = 0;
-  scan.m_boundCnt[1] = 0;
-  for (unsigned i = 0; i < maxAttrId; i++) {
-    jam();
-    const BoundInfo* b = boundInfo[i];
-    // current limitation - check all but last is equality
-    if (i + 1 < maxAttrId) {
-      if (b[0].type != 4 || b[1].type != 4) {
+  for (unsigned j = 0; j <= 1; j++) {
+    // save lower/upper bound in index attribute id order
+    for (unsigned i = 0; i < maxAttrId[j]; i++) {
+      jam();
+      const BoundInfo& b = boundInfo[j][i];
+      // check for gap or strict bound before last
+      if (b.type == -1 || (i + 1 < maxAttrId[j] && (b.type & 0x1))) {
         jam();
         scan.m_state = ScanOp::Invalid;
         sig->errorCode = TuxBoundInfo::InvalidBounds;
         return;
       }
-    }
-    for (unsigned j = 0; j <= 1; j++) {
-      if (b[j].type != -1) {
+      bool ok = scan.m_bound[j]->append(&data[b.offset], b.size);
+      if (! ok) {
         jam();
-        bool ok = scan.m_bound[j]->append(&data[b[j].offset], b[j].size);
-        if (! ok) {
-          jam();
-          scan.m_state = ScanOp::Invalid;
-          sig->errorCode = TuxBoundInfo::OutOfBuffers;
-          return;
-        }
-        scan.m_boundCnt[j]++;
+        scan.m_state = ScanOp::Invalid;
+        sig->errorCode = TuxBoundInfo::OutOfBuffers;
+        return;
       }
     }
+    scan.m_boundCnt[j] = maxAttrId[j];
   }
   // no error
   sig->errorCode = 0;
@@ -277,7 +275,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
       jam();
       const TupLoc loc = scan.m_scanPos.m_loc;
       NodeHandle node(frag);
-      selectNode(signal, node, loc, AccHead);
+      selectNode(node, loc);
       unlinkScan(node, scanPtr);
       scan.m_scanPos.m_loc = NullTupLoc;
     }
@@ -352,7 +350,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
   if (scan.m_lockwait) {
     jam();
     // LQH asks if we are waiting for lock and we tell it to ask again
-    const TreeEnt ent = scan.m_scanPos.m_ent;
+    const TreeEnt ent = scan.m_scanEnt;
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;       // no tuple returned
@@ -366,7 +364,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
   if (scan.m_state == ScanOp::First) {
     jam();
     // search is done only once in single range scan
-    scanFirst(signal, scanPtr);
+    scanFirst(scanPtr);
 #ifdef VM_TRACE
     if (debugFlags & DebugScan) {
       debugOut << "First scan " << scanPtr.i << " " << scan << endl;
@@ -376,7 +374,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
   if (scan.m_state == ScanOp::Next) {
     jam();
     // look for next
-    scanNext(signal, scanPtr);
+    scanNext(scanPtr);
   }
   // for reading tuple key in Current or Locked state
   Data pkData = c_dataBuffer;
@@ -387,9 +385,9 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     ndbrequire(scan.m_accLockOp == RNIL);
     if (! scan.m_readCommitted) {
       jam();
-      const TreeEnt ent = scan.m_scanPos.m_ent;
+      const TreeEnt ent = scan.m_scanEnt;
       // read tuple key
-      readTablePk(frag, ent, pkSize, pkData);
+      readTablePk(frag, ent, pkData, pkSize);
       // get read lock or exclusive lock
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
@@ -475,12 +473,12 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     // we have lock or do not need one
     jam();
     // read keys if not already done (uses signal)
-    const TreeEnt ent = scan.m_scanPos.m_ent;
+    const TreeEnt ent = scan.m_scanEnt;
     if (scan.m_keyInfo) {
       jam();
       if (pkSize == 0) {
         jam();
-        readTablePk(frag, ent, pkSize, pkData);
+        readTablePk(frag, ent, pkData, pkSize);
       }
     }
     // conf signal
@@ -538,8 +536,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         total += length;
       }
     }
-    // remember last entry returned
-    scan.m_lastEnt = ent;
     // next time look for next entry
     scan.m_state = ScanOp::Next;
     return;
@@ -684,7 +680,7 @@ Dbtux::execACC_ABORTCONF(Signal* signal)
  * by scanNext.
  */
 void
-Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
+Dbtux::scanFirst(ScanOpPtr scanPtr)
 {
   ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
@@ -702,7 +698,7 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
   }
   // search for scan start position
   TreePos treePos;
-  searchToScan(signal, frag, c_dataBuffer, scan.m_boundCnt[0], treePos);
+  searchToScan(frag, c_dataBuffer, scan.m_boundCnt[0], treePos);
   if (treePos.m_loc == NullTupLoc) {
     // empty tree
     jam();
@@ -714,23 +710,27 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
   scan.m_state = ScanOp::Next;
   // link the scan to node found
   NodeHandle node(frag);
-  selectNode(signal, node, treePos.m_loc, AccFull);
+  selectNode(node, treePos.m_loc);
   linkScan(node, scanPtr);
 }
 
 /*
  * Move to next entry.  The scan is already linked to some node.  When
- * we leave, if any entry was found, it will be linked to a possibly
- * different node.  The scan has a direction, one of:
+ * we leave, if an entry was found, it will be linked to a possibly
+ * different node.  The scan has a position, and a direction which tells
+ * from where we came to this position.  This is one of:
  *
- * 0 - coming up from left child
- * 1 - coming up from right child (proceed to parent immediately)
- * 2 - coming up from root (the scan ends)
- * 3 - left to right within node
- * 4 - coming down from parent to left or right child
+ * 0 - up from left child (scan this node next)
+ * 1 - up from right child (proceed to parent)
+ * 2 - up from root (the scan ends)
+ * 3 - left to right within node (at end proceed to right child)
+ * 4 - down from parent (proceed to left child)
+ *
+ * If an entry was found, scan direction is 3.  Therefore tree
+ * re-organizations need not worry about scan direction.
  */
 void
-Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
+Dbtux::scanNext(ScanOpPtr scanPtr)
 {
   ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
@@ -739,22 +739,8 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     debugOut << "Next in scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
-  if (scan.m_state == ScanOp::Locked) {
-    jam();
-    // version of a tuple locked by us cannot disappear (assert only)
-#ifdef dbtux_wl_1942_is_done
-    ndbassert(false);
-#endif
-    AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
-    lockReq->returnCode = RNIL;
-    lockReq->requestInfo = AccLockReq::Unlock;
-    lockReq->accOpPtr = scan.m_accLockOp;
-    EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
-    jamEntry();
-    ndbrequire(lockReq->returnCode == AccLockReq::Success);
-    scan.m_accLockOp = RNIL;
-    scan.m_state = ScanOp::Current;
-  }
+  // cannot be moved away from tuple we have locked
+  ndbrequire(scan.m_state != ScanOp::Locked);
   // set up index keys for this operation
   setKeyAttrs(frag);
   // unpack upper bound into c_dataBuffer
@@ -770,10 +756,12 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   TreePos pos = scan.m_scanPos;
   // get and remember original node
   NodeHandle origNode(frag);
-  selectNode(signal, origNode, pos.m_loc, AccHead);
+  selectNode(origNode, pos.m_loc);
   ndbrequire(islinkScan(origNode, scanPtr));
   // current node in loop
   NodeHandle node = origNode;
+  // copy of entry found
+  TreeEnt ent;
   while (true) {
     jam();
     if (pos.m_dir == 2) {
@@ -785,7 +773,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
     }
     if (node.m_loc != pos.m_loc) {
       jam();
-      selectNode(signal, node, pos.m_loc, AccHead);
+      selectNode(node, pos.m_loc);
     }
     if (pos.m_dir == 4) {
       // coming down from parent proceed to left child
@@ -801,7 +789,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
       pos.m_dir = 0;
     }
     if (pos.m_dir == 0) {
-      // coming from left child scan current node
+      // coming up from left child scan current node
       jam();
       pos.m_pos = 0;
       pos.m_match = false;
@@ -812,8 +800,6 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
       jam();
       unsigned occup = node.getOccup();
       ndbrequire(occup >= 1);
-      // access full node
-      accessNode(signal, node, AccFull);
       // advance position
       if (! pos.m_match)
         pos.m_match = true;
@@ -821,10 +807,10 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
         pos.m_pos++;
       if (pos.m_pos < occup) {
         jam();
-        pos.m_ent = node.getEnt(pos.m_pos);
+        ent = node.getEnt(pos.m_pos);
         pos.m_dir = 3;  // unchanged
         // read and compare all attributes
-        readKeyAttrs(frag, pos.m_ent, 0, c_entryKey);
+        readKeyAttrs(frag, ent, 0, c_entryKey);
         int ret = cmpScanBound(frag, 1, c_dataBuffer, scan.m_boundCnt[1], c_entryKey);
         ndbrequire(ret != NdbSqlUtil::CmpUnknown);
         if (ret < 0) {
@@ -835,7 +821,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
           break;
         }
         // can we see it
-        if (! scanVisible(signal, scanPtr, pos.m_ent)) {
+        if (! scanVisible(scanPtr, ent)) {
           jam();
           continue;
         }
@@ -855,7 +841,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
       pos.m_dir = 1;
     }
     if (pos.m_dir == 1) {
-      // coming from right child proceed to parent
+      // coming up from right child proceed to parent
       jam();
       pos.m_loc = node.getLink(2);
       pos.m_dir = node.getSide();
@@ -867,12 +853,15 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   scan.m_scanPos = pos;
   // relink
   if (scan.m_state == ScanOp::Current) {
+    ndbrequire(pos.m_match == true && pos.m_dir == 3);
     ndbrequire(pos.m_loc == node.m_loc);
     if (origNode.m_loc != node.m_loc) {
       jam();
       unlinkScan(origNode, scanPtr);
       linkScan(node, scanPtr);
     }
+    // copy found entry
+    scan.m_scanEnt = ent;
   } else if (scan.m_state == ScanOp::Last) {
     jam();
     ndbrequire(pos.m_loc == NullTupLoc);
@@ -890,12 +879,12 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
 /*
  * Check if an entry is visible to the scan.
  *
- * There is a special check to never return same tuple twice in a row.
+ * There is a special check to never accept same tuple twice in a row.
  * This is faster than asking TUP.  It also fixes some special cases
  * which are not analyzed or handled yet.
  */
 bool
-Dbtux::scanVisible(Signal* signal, ScanOpPtr scanPtr, TreeEnt ent)
+Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
 {
   const ScanOp& scan = *scanPtr.p;
   const Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
@@ -905,8 +894,8 @@ Dbtux::scanVisible(Signal* signal, ScanOpPtr scanPtr, TreeEnt ent)
   Uint32 tupAddr = getTupAddr(frag, ent);
   Uint32 tupVersion = ent.m_tupVersion;
   // check for same tuple twice in row
-  if (scan.m_lastEnt.m_tupLoc == ent.m_tupLoc &&
-      scan.m_lastEnt.m_fragBit == fragBit) {
+  if (scan.m_scanEnt.m_tupLoc == ent.m_tupLoc &&
+      scan.m_scanEnt.m_fragBit == fragBit) {
     jam();
     return false;
   }
@@ -928,7 +917,7 @@ Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
   ScanOp& scan = *scanPtr.p;
   ndbrequire(! scan.m_lockwait && scan.m_accLockOp == RNIL);
   // unlock all not unlocked by LQH
-  for (unsigned i = 0; i < MaxAccLockOps; i++) {
+  for (unsigned i = 0; i < scan.m_maxAccLockOps; i++) {
     if (scan.m_accLockOps[i] != RNIL) {
       jam();
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
@@ -958,12 +947,20 @@ Dbtux::addAccLockOp(ScanOp& scan, Uint32 accLockOp)
   ndbrequire(accLockOp != RNIL);
   Uint32* list = scan.m_accLockOps;
   bool ok = false;
-  for (unsigned i = 0; i < MaxAccLockOps; i++) {
+  for (unsigned i = 0; i < scan.m_maxAccLockOps; i++) {
     ndbrequire(list[i] != accLockOp);
     if (! ok && list[i] == RNIL) {
       list[i] = accLockOp;
       ok = true;
       // continue check for duplicates
+    }
+  }
+  if (! ok) {
+    unsigned i = scan.m_maxAccLockOps;
+    if (i < MaxAccLockOps) {
+      list[i] = accLockOp;
+      ok = true;
+      scan.m_maxAccLockOps = i + 1;
     }
   }
   ndbrequire(ok);
@@ -975,7 +972,7 @@ Dbtux::removeAccLockOp(ScanOp& scan, Uint32 accLockOp)
   ndbrequire(accLockOp != RNIL);
   Uint32* list = scan.m_accLockOps;
   bool ok = false;
-  for (unsigned i = 0; i < MaxAccLockOps; i++) {
+  for (unsigned i = 0; i < scan.m_maxAccLockOps; i++) {
     if (list[i] == accLockOp) {
       list[i] = RNIL;
       ok = true;

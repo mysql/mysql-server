@@ -442,13 +442,13 @@ public:
   int executePendingBlobOps(Uint8 flags = 0xFF);
 
   // Fast path calls for MySQL ha_ndbcluster
-  NdbOperation* getNdbOperation(NdbDictionary::Table * table);
-  NdbIndexOperation* getNdbIndexOperation(NdbDictionary::Index * index,
-					  NdbDictionary::Table * table);
-  NdbScanOperation* getNdbScanOperation(NdbDictionary::Table * table);
-  NdbIndexScanOperation* getNdbIndexScanOperation(NdbDictionary::Index * index,
-						  NdbDictionary::Table * table);
-
+  NdbOperation* getNdbOperation(const NdbDictionary::Table * table);
+  NdbIndexOperation* getNdbIndexOperation(const NdbDictionary::Index *,
+					  const NdbDictionary::Table * table);
+  NdbScanOperation* getNdbScanOperation(const NdbDictionary::Table * table);
+  NdbIndexScanOperation* getNdbIndexScanOperation(const NdbDictionary::Index * index,
+						  const NdbDictionary::Table * table);
+  
 private:						
   /**
    * Release completed operations
@@ -526,9 +526,8 @@ private:
   int 	sendCOMMIT();                   // Send a TC_COMMITREQ signal;
   void	setGCI(int GCI);		// Set the global checkpoint identity
  
-  int	OpCompleteFailure();		// Operation Completed with success  
-  int	OpCompleteSuccess();		// Operation Completed with success  
-
+  int	OpCompleteFailure(Uint8 abortoption);
+  int	OpCompleteSuccess();
   void	CompletedOperations();	        // Move active ops to list of completed
  
   void	OpSent();			// Operation Sent with success
@@ -556,14 +555,14 @@ private:
   void		setOperationErrorCodeAbort(int anErrorCode);
 
   int		checkMagicNumber();		       // Verify correct object
-  NdbOperation* getNdbOperation(class NdbTableImpl* aTable,
+  NdbOperation* getNdbOperation(const class NdbTableImpl* aTable,
                                 NdbOperation* aNextOp = 0);
-  NdbIndexScanOperation* getNdbScanOperation(class NdbTableImpl* aTable);
-  NdbIndexOperation* getNdbIndexOperation(class NdbIndexImpl* anIndex, 
-                                          class NdbTableImpl* aTable,
+  NdbIndexScanOperation* getNdbScanOperation(const class NdbTableImpl* aTable);
+  NdbIndexOperation* getNdbIndexOperation(const class NdbIndexImpl* anIndex, 
+                                          const class NdbTableImpl* aTable,
                                           NdbOperation* aNextOp = 0);
-  NdbIndexScanOperation* getNdbIndexScanOperation(NdbIndexImpl* index,
-						  NdbTableImpl* table);
+  NdbIndexScanOperation* getNdbIndexScanOperation(const NdbIndexImpl* index,
+						  const NdbTableImpl* table);
   
   void		handleExecuteCompletion();
   
@@ -649,6 +648,18 @@ private:
   Uint32 theNodeSequence; // The sequence no of the db node
   bool theReleaseOnClose;
 
+  /**
+   * handle transaction spanning
+   *   multiple TC/db nodes
+   *
+   * 1) Bitmask with used nodes
+   * 2) Bitmask with nodes failed during op
+   */
+  Uint32 m_db_nodes[2];
+  Uint32 m_failed_db_nodes[2];
+  
+  int report_node_failure(Uint32 id);
+
   // Scan operations
   bool m_waitForReply;     
   NdbIndexScanOperation* m_theFirstScanOperation;
@@ -673,6 +684,9 @@ private:
   void printState();
 #endif
   bool checkState_TransId(const Uint32 * transId) const;
+
+  void remove_list(NdbOperation*& head, NdbOperation*);
+  void define_scan_op(NdbIndexScanOperation*);
 };
 
 inline

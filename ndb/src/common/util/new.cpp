@@ -1,5 +1,6 @@
 
 #include <ndb_global.h>
+#include <NdbMem.h>
 
 extern "C" {
   void (* ndb_new_handler)() = 0;
@@ -9,7 +10,7 @@ extern "C" {
 
 void *operator new (size_t sz)
 {
-  void * p = malloc (sz ? sz : 1);
+  void * p = NdbMem_Allocate(sz ? sz : 1);
   if(p)
     return p;
   if(ndb_new_handler)
@@ -19,7 +20,7 @@ void *operator new (size_t sz)
 
 void *operator new[] (size_t sz)
 {
-  void * p = (void *) malloc (sz ? sz : 1);
+  void * p = (void *) NdbMem_Allocate(sz ? sz : 1);
   if(p)
     return p;
   if(ndb_new_handler)
@@ -30,13 +31,13 @@ void *operator new[] (size_t sz)
 void operator delete (void *ptr)
 {
   if (ptr)
-    free(ptr);
+    NdbMem_Free(ptr);
 }
 
 void operator delete[] (void *ptr) throw ()
 {
   if (ptr)
-    free(ptr);
+    NdbMem_Free(ptr);
 }
 
 #endif // USE_MYSYS_NEW

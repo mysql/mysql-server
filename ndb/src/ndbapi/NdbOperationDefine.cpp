@@ -55,6 +55,7 @@ NdbOperation::insertTuple()
     theOperationType = InsertRequest;
     tNdbCon->theSimpleState = 0;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Exclusive;
     return 0; 
   } else {
     setErrorCode(4200);
@@ -74,6 +75,7 @@ NdbOperation::updateTuple()
     tNdbCon->theSimpleState = 0;
     theOperationType = UpdateRequest;  
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Exclusive;
     return 0; 
   } else {
     setErrorCode(4200);
@@ -93,12 +95,33 @@ NdbOperation::writeTuple()
     tNdbCon->theSimpleState = 0;
     theOperationType = WriteRequest;  
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Exclusive;
     return 0; 
   } else {
     setErrorCode(4200);
     return -1;
   }//if
 }//NdbOperation::writeTuple()
+/******************************************************************************
+ * int readTuple();
+ *****************************************************************************/
+int
+NdbOperation::readTuple(NdbOperation::LockMode lm)
+{ 
+  switch(lm) {
+  case LM_Read:
+    return readTuple();
+    break;
+  case LM_Exclusive:
+    return readTupleExclusive();
+    break;
+  case LM_CommittedRead:
+    return committedRead();
+    break;
+  default:
+    return -1;
+  };
+}
 /******************************************************************************
  * int readTuple();
  *****************************************************************************/
@@ -112,6 +135,7 @@ NdbOperation::readTuple()
     tNdbCon->theSimpleState = 0;
     theOperationType = ReadRequest;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Read;
     return 0;
   } else {
     setErrorCode(4200);
@@ -132,6 +156,7 @@ NdbOperation::deleteTuple()
     tNdbCon->theSimpleState = 0;
     theOperationType = DeleteRequest;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Exclusive;
     return 0;
   } else {
     setErrorCode(4200);
@@ -152,6 +177,7 @@ NdbOperation::readTupleExclusive()
     tNdbCon->theSimpleState = 0;
     theOperationType = ReadExclusive;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Exclusive;
     return 0;
   } else {
     setErrorCode(4200);
@@ -165,17 +191,24 @@ NdbOperation::readTupleExclusive()
 int
 NdbOperation::simpleRead()
 {
+  /**
+   * Currently/still disabled
+   */
+  return readTuple();
+#if 0
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
     theOperationType = ReadRequest;
     theSimpleIndicator = 1;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_Read;
     return 0;
   } else {
     setErrorCode(4200);
     return -1;
   }//if
+#endif
 }//NdbOperation::simpleRead()
 
 /*****************************************************************************
@@ -200,6 +233,7 @@ NdbOperation::committedRead()
     theSimpleIndicator = 1;
     theDirtyIndicator = 1;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_CommittedRead;
     return 0;
   } else {
     setErrorCode(4200);
@@ -222,6 +256,7 @@ NdbOperation::dirtyUpdate()
     theSimpleIndicator = 1;
     theDirtyIndicator = 1;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_CommittedRead;
     return 0;
   } else {
     setErrorCode(4200);
@@ -244,6 +279,7 @@ NdbOperation::dirtyWrite()
     theSimpleIndicator = 1;
     theDirtyIndicator = 1;
     theErrorLine = tErrorLine++;
+    theLockMode = LM_CommittedRead;
     return 0;
   } else {
     setErrorCode(4200);
@@ -264,7 +300,7 @@ NdbOperation::interpretedUpdateTuple()
     tNdbCon->theSimpleState = 0;
     theOperationType = UpdateRequest;
     theAI_LenInCurrAI = 25;
-
+    theLockMode = LM_Exclusive;
     theErrorLine = tErrorLine++;
     initInterpreter();
     return 0;
@@ -289,7 +325,7 @@ NdbOperation::interpretedDeleteTuple()
 
     theErrorLine = tErrorLine++;
     theAI_LenInCurrAI = 25;
-
+    theLockMode = LM_Exclusive;
     initInterpreter();
     return 0;
   } else {
@@ -316,16 +352,12 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
   if ((tAttrInfo != NULL) &&
       (!tAttrInfo->m_indexOnly) && 
       (theStatus != Init)){
-    if (theStatus == SetBound) {
-      ((NdbIndexScanOperation*)this)->saveBoundATTRINFO();
-      theStatus = GetValue;
-    }
     if (theStatus != GetValue) {
       if (theInterpretIndicator == 1) {
 	if (theStatus == FinalGetValue) {
 	  ; // Simply continue with getValue
 	} else if (theStatus == ExecInterpretedValue) {
-	  if (insertATTRINFO(Interpreter::EXIT_OK_LAST) == -1)
+	  if (insertATTRINFO(Interpreter::EXIT_OK) == -1)
 	    return NULL;
 	  theInterpretedSize = theTotalCurrAI_Len -
 	    (theInitialReadSize + 5);
@@ -415,7 +447,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 	// We insert an exit from interpretation since we are now starting 
 	// to set values in the tuple by setValue.
 	//--------------------------------------------------------------------
-        if (insertATTRINFO(Interpreter::EXIT_OK_LAST) == -1){
+        if (insertATTRINFO(Interpreter::EXIT_OK) == -1){
           return -1;
 	}
         theInterpretedSize = theTotalCurrAI_Len - 
@@ -492,6 +524,17 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   
   // Insert Attribute Id into ATTRINFO part. 
   const Uint32 sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
+
+  CHARSET_INFO* cs = tAttrInfo->m_cs;
+  // invalid data can crash kernel
+  if (cs != NULL &&
+      (*cs->cset->well_formed_len)(cs,
+                                   aValue,
+                                   aValue + sizeInBytes,
+                                   sizeInBytes) != sizeInBytes) {
+    setErrorCodeAbort(744);
+    return -1;
+  }
 #if 0
   tAttrSize = tAttrInfo->theAttrSize;
   tArraySize = tAttrInfo->theArraySize;

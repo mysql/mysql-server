@@ -435,8 +435,8 @@ btr_search_update_hash_ref(
 
 		ha_insert_for_fold(btr_search_sys->hash_index, fold, rec);
 	}
-}	
-	
+}
+
 /*************************************************************************
 Updates the search info. */
 
@@ -915,17 +915,6 @@ btr_search_drop_page_hash_index(
 {
 	hash_table_t*	table;
 	buf_block_t*	block;
-	ulint		n_fields;
-	ulint		n_bytes;
-	rec_t*		rec;
-	rec_t*		sup;
-	ulint		fold;
-	ulint		prev_fold;
-	dulint		tree_id;
-	ulint		n_cached;
-	ulint		n_recs;
-	ulint*		folds;
-	ulint		i;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
@@ -951,72 +940,17 @@ btr_search_drop_page_hash_index(
 	      			|| (block->buf_fix_count == 0));
 #endif /* UNIV_SYNC_DEBUG */
 
-	n_fields = block->curr_n_fields;
-	n_bytes = block->curr_n_bytes;
-
-	ut_a(n_fields + n_bytes > 0);
+	ut_a(block->curr_n_fields + block->curr_n_bytes > 0);
 
 	rw_lock_s_unlock(&btr_search_latch);
 	
-	n_recs = page_get_n_recs(page);
-
-	/* Calculate and cache fold values into an array for fast deletion
-	from the hash index */
-
-	folds = mem_alloc(n_recs * sizeof(ulint));
-
-	n_cached = 0;
-
-	sup = page_get_supremum_rec(page);
-
-	rec = page_get_infimum_rec(page);
-	rec = page_rec_get_next(rec);
-
-	if (rec != sup) {
-		ut_a(n_fields <= rec_get_n_fields(rec));
-
-		if (n_bytes > 0) {
-			ut_a(n_fields < rec_get_n_fields(rec));
-		}
-	}
-
-	tree_id = btr_page_get_index_id(page);
-	
-	prev_fold = 0;
-
-	while (rec != sup) {
-		/* FIXME: in a mixed tree, not all records may have enough
-		ordering fields: */
-		
-		fold = rec_fold(rec, n_fields, n_bytes, tree_id);
-
-		if (fold == prev_fold && prev_fold != 0) {
-
-			goto next_rec;
-		}
-
-		/* Remove all hash nodes pointing to this page from the
-		hash chain */
-
-		folds[n_cached] = fold;
-		n_cached++;
-next_rec:
-		rec = page_rec_get_next(rec);
-		prev_fold = fold;
-	}
-
 	rw_lock_x_lock(&btr_search_latch);
 
-	for (i = 0; i < n_cached; i++) {
-
-		ha_remove_all_nodes_to_page(table, folds[i], page);
-	}
+	ha_remove_all_nodes_to_page(table, page);
 
 	block->is_hashed = FALSE;
 
 	rw_lock_x_unlock(&btr_search_latch);
-
-	mem_free(folds);
 }
 
 /************************************************************************

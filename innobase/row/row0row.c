@@ -113,6 +113,8 @@ row_build_index_entry(
 	dfield_t*	dfield2;
 	dict_col_t*	col;
 	ulint		i;
+        ulint           storage_len;
+	dtype_t*	cur_type;
 
 	ut_ad(row && index && heap);
 	ut_ad(dtuple_check_typed(row));
@@ -139,10 +141,17 @@ row_build_index_entry(
 
 		/* If a column prefix index, take only the prefix */
 		if (ind_field->prefix_len > 0
-		    && dfield_get_len(dfield2) != UNIV_SQL_NULL
-		    && dfield_get_len(dfield2) > ind_field->prefix_len) {
+		    && dfield_get_len(dfield2) != UNIV_SQL_NULL) {
 			
-			dfield_set_len(dfield, ind_field->prefix_len);
+			cur_type = dict_col_get_type(
+				dict_field_get_col(ind_field));
+
+			storage_len = dtype_get_at_most_n_mbchars(
+				cur_type,
+				ind_field->prefix_len,
+				dfield_get_len(dfield2), dfield2->data);
+
+			dfield_set_len(dfield, storage_len);
 		}
 	}
 
@@ -334,6 +343,7 @@ row_build_row_ref(
 	ulint		ref_len;
 	ulint		pos;
 	byte*		buf;
+	ulint		clust_col_prefix_len;
 	ulint		i;
 	
 	ut_ad(index && rec && heap);
@@ -366,6 +376,24 @@ row_build_row_ref(
 		field = rec_get_nth_field(rec, pos, &len);
 
 		dfield_set_data(dfield, field, len);
+
+		/* If the primary key contains a column prefix, then the
+		secondary index may contain a longer prefix of the same
+		column, or the full column, and we must adjust the length
+		accordingly. */
+
+		clust_col_prefix_len =
+			dict_index_get_nth_field(clust_index, i)->prefix_len;
+
+		if (clust_col_prefix_len > 0) {
+		    	if (len != UNIV_SQL_NULL) {
+
+				dfield_set_len(dfield,
+				  dtype_get_at_most_n_mbchars(
+					dfield_get_type(dfield),
+					clust_col_prefix_len, len, field));
+			}
+		}
 	}
 
 	ut_ad(dtuple_check_typed(ref));
@@ -383,12 +411,13 @@ row_build_row_ref_in_tuple(
 	dtuple_t*	ref,	/* in/out: row reference built; see the
 				NOTE below! */
 	dict_index_t*	index,	/* in: index */
-	rec_t*		rec)	/* in: record in the index;
+	rec_t*		rec,	/* in: record in the index;
 				NOTE: the data fields in ref will point
 				directly into this record, therefore,
 				the buffer page of this record must be
 				at least s-latched and the latch held
 				as long as the row reference is used! */
+	trx_t*		trx)	/* in: transaction */
 {
 	dict_index_t*	clust_index;
 	dfield_t*	dfield;
@@ -396,6 +425,7 @@ row_build_row_ref_in_tuple(
 	ulint		len;
 	ulint		ref_len;
 	ulint		pos;
+	ulint		clust_col_prefix_len;
 	ulint		i;
 	
 	ut_a(ref && index && rec);
@@ -403,9 +433,9 @@ row_build_row_ref_in_tuple(
 	if (!index->table) {
 		fputs("InnoDB: table ", stderr);
 	notfound:
-		ut_print_name(stderr, index->table_name);
+		ut_print_name(stderr, trx, index->table_name);
 		fputs(" for index ", stderr);
-		ut_print_name(stderr, index->name);
+		ut_print_name(stderr, trx, index->name);
 		fputs(" not found\n", stderr);
 		ut_error;
 	}
@@ -433,6 +463,24 @@ row_build_row_ref_in_tuple(
 		field = rec_get_nth_field(rec, pos, &len);
 
 		dfield_set_data(dfield, field, len);
+
+		/* If the primary key contains a column prefix, then the
+		secondary index may contain a longer prefix of the same
+		column, or the full column, and we must adjust the length
+		accordingly. */
+
+		clust_col_prefix_len =
+			dict_index_get_nth_field(clust_index, i)->prefix_len;
+
+		if (clust_col_prefix_len > 0) {
+		    	if (len != UNIV_SQL_NULL) {
+
+				dfield_set_len(dfield,
+				  dtype_get_at_most_n_mbchars(
+					dfield_get_type(dfield),
+					clust_col_prefix_len, len, field));
+			}
+		}
 	}
 
 	ut_ad(dtuple_check_typed(ref));
@@ -460,6 +508,7 @@ row_build_row_ref_from_row(
 	dict_col_t*	col;
 	ulint		ref_len;
 	ulint		i;
+	dtype_t*	cur_type;
 	
 	ut_ad(ref && table && row);
 		
@@ -481,10 +530,15 @@ row_build_row_ref_from_row(
 		dfield_copy(dfield, dfield2);
 
 		if (field->prefix_len > 0
-		    && dfield->len != UNIV_SQL_NULL
-		    && dfield->len > field->prefix_len) {
+		    && dfield->len != UNIV_SQL_NULL) {
 
-		        dfield->len = field->prefix_len;
+			cur_type = dict_col_get_type(
+				dict_field_get_col(field));
+
+			dfield->len = dtype_get_at_most_n_mbchars(
+				cur_type,
+				field->prefix_len,
+				dfield->len, dfield->data);
 		}
 	}
 

@@ -53,6 +53,7 @@
 #include <signaldata/UtilPrepare.hpp>
 #include <signaldata/UtilExecute.hpp>
 #include <signaldata/ScanTab.hpp>
+#include <signaldata/ScanFrag.hpp>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/LqhTransConf.hpp>
 #include <signaldata/DropTab.hpp>
@@ -75,12 +76,11 @@
 #include <signaldata/TuxMaint.hpp>
 #include <signaldata/AccLock.hpp>
 
-bool printCONTINUEB(FILE *, const Uint32 *, Uint32, Uint16);
-
 /** 
  * This is the register
  */
-const NameFunctionPair 
+
+const NameFunctionPair
 SignalDataPrintFunctions[] = {
   { GSN_TCKEYREQ, printTCKEYREQ },
   { GSN_TCKEYCONF, printTCKEYCONF },
@@ -250,9 +250,9 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_TUX_MAINT_REQ, printTUX_MAINT_REQ }
   ,{ GSN_ACC_LOCKREQ, printACC_LOCKREQ }
   ,{ GSN_LQH_TRANSCONF, printLQH_TRANSCONF }
+  ,{ GSN_SCAN_FRAGREQ, printSCAN_FRAGREQ }
+  ,{ 0, 0 }
 };
-
-const unsigned short NO_OF_PRINT_FUNCTIONS = sizeof(SignalDataPrintFunctions)/sizeof(NameFunctionPair);
 
 template class Bitmask<1>;
 template class Bitmask<2>;

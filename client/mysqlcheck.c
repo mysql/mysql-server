@@ -16,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.4.3"
+#define CHECK_VERSION "2.4.4"
 
 #include "client_priv.h"
 #include <m_ctype.h>
@@ -246,6 +246,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1] = 0;                             /* Cut length of argument */
+      tty_password= 0;
     }
     else
       tty_password = 1;
@@ -436,18 +437,18 @@ static int process_all_tables_in_db(char *database)
   LINT_INIT(res);
   if (use_db(database))
     return 1;
-  if (!(mysql_query(sock, "SHOW TABLES") ||
-	(res = mysql_store_result(sock))))
+  if (mysql_query(sock, "SHOW TABLES") ||
+	!((res= mysql_store_result(sock))))
     return 1;
 
   if (opt_all_in_1)
   {
-    /* 
+    /*
       We need table list in form `a`, `b`, `c`
       that's why we need 4 more chars added to to each table name
       space is for more readable output in logs and in case of error
      */
-	  
+
     char *tables, *end;
     uint tot_length = 0;
 

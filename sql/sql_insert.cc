@@ -44,8 +44,8 @@ static void unlink_blobs(register TABLE *table);
 
 /*
   Check if insert fields are correct.
-  Sets table->timestamp_default_now/on_update_now to 0 o leaves it to point
-  to timestamp field, depending on if timestamp should be updated or not.
+  Sets table->timestamp_field_type to TIMESTAMP_NO_AUTO_SET or leaves it
+  as is, depending on if timestamp should be updated or not.
 */
 
 static int
@@ -74,7 +74,7 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
         return -1;
     }
 #endif
-    table->timestamp_default_now= table->timestamp_on_update_now= 0;
+    table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   }
   else
   {						// Part field list
@@ -105,7 +105,7 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
     }
     if (table->timestamp_field &&	// Don't set timestamp if used
 	table->timestamp_field->query_id == thd->query_id)
-      table->timestamp_default_now= table->timestamp_on_update_now= 0;
+      table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   }
   // For the values we need select_priv
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -767,7 +767,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	*/
 	if (last_uniq_key(table,key_nr) &&
 	    !table->file->referenced_by_foreign_key() &&
-            table->timestamp_default_now == table->timestamp_on_update_now)
+            (table->timestamp_field_type == TIMESTAMP_NO_AUTO_SET ||
+             table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
         {
           if ((error=table->file->update_row(table->record[1],
 					     table->record[0])))
@@ -845,8 +846,7 @@ public:
   time_t start_time;
   bool query_start_used,last_insert_id_used,insert_id_used, log_query;
   ulonglong last_insert_id;
-  ulong timestamp_default_now;
-  ulong timestamp_on_update_now;
+  timestamp_auto_set_type timestamp_field_type;
   uint query_length;
 
   delayed_row(enum_duplicates dup_arg, bool log_query_arg)
@@ -1140,7 +1140,7 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
     copy->timestamp_field=
       (Field_timestamp*) copy->field[table->timestamp_field_offset];
     copy->timestamp_field->unireg_check= table->timestamp_field->unireg_check;
-    copy->timestamp_field->set_timestamp_offsets();
+    copy->timestamp_field_type= copy->timestamp_field->get_auto_set_type();
   }
 
   /* _rowid is not used with delayed insert */
@@ -1195,8 +1195,7 @@ static int write_delayed(THD *thd,TABLE *table,enum_duplicates duplic,
   row->last_insert_id_used=	thd->last_insert_id_used;
   row->insert_id_used=		thd->insert_id_used;
   row->last_insert_id=		thd->last_insert_id;
-  row->timestamp_default_now=	table->timestamp_default_now;
-  row->timestamp_on_update_now=	table->timestamp_on_update_now;
+  row->timestamp_field_type=    table->timestamp_field_type;
 
   di->rows.push_back(row);
   di->stacked_inserts++;
@@ -1537,8 +1536,7 @@ bool delayed_insert::handle_inserts(void)
     thd.last_insert_id=row->last_insert_id;
     thd.last_insert_id_used=row->last_insert_id_used;
     thd.insert_id_used=row->insert_id_used;
-    table->timestamp_default_now= row->timestamp_default_now;
-    table->timestamp_on_update_now= row->timestamp_on_update_now;
+    table->timestamp_field_type= row->timestamp_field_type;
 
     info.handle_duplicates= row->dup;
     if (info.handle_duplicates == DUP_IGNORE ||
@@ -1892,7 +1890,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   field=table->field+table->fields - values.elements;
 
   /* Don't set timestamp if used */
-  table->timestamp_default_now= table->timestamp_on_update_now= 0;
+  table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   table->next_number_field=table->found_next_number_field;
 
@@ -1949,7 +1947,13 @@ bool select_create::send_eof()
       We should be able to just keep the table in the table cache.
     */
     if (!table->tmp_table)
+    {
+      ulong version= table->version;
       hash_delete(&open_cache,(byte*) table);
+      /* Tell threads waiting for refresh that something has happened */
+      if (version != refresh_version)
+        VOID(pthread_cond_broadcast(&COND_refresh));
+    }
     lock=0;
     table=0;
     VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1971,9 +1975,13 @@ void select_create::abort()
     enum db_type table_type=table->db_type;
     if (!table->tmp_table)
     {
+      ulong version= table->version;      
       hash_delete(&open_cache,(byte*) table);
       if (!create_info->table_existed)
         quick_rm_table(table_type, create_table->db, create_table->real_name);
+      /* Tell threads waiting for refresh that something has happened */
+      if (version != refresh_version)
+        VOID(pthread_cond_broadcast(&COND_refresh));
     }
     else if (!create_info->table_existed)
       close_temporary_table(thd, create_table->db, create_table->real_name);

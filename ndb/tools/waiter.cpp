@@ -15,8 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
 #include <mgmapi.h>
-#include <string.h>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
@@ -27,17 +27,18 @@
 #include <NDBT.hpp>
 
 int 
-waitClusterStatus(const char* _addr,
-		  ndb_mgm_node_status _status= NDB_MGM_NODE_STATUS_STARTED,
-		  unsigned int _timeout= 120);
+waitClusterStatus(const char* _addr, ndb_mgm_node_status _status, unsigned int _timeout);
 
 int main(int argc, const char** argv){
+  ndb_init();
 
   const char* _hostName = NULL;
   int _no_contact = 0;
   int _help = 0;
+  int _timeout = 120;
 
   struct getargs args[] = {
+    { "timeout", 0, arg_integer, &_timeout, "Timeout to wait", "#" },
     { "no-contact", 0, arg_flag, &_no_contact, "Wait for cluster no contact", "" },
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
@@ -67,7 +68,7 @@ int main(int argc, const char** argv){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
 
-    for (int i = 0; i<lcfg.ids.size();i++)
+    for (unsigned i = 0; i<lcfg.ids.size();i++)
     {
       MgmtSrvrId * m = &lcfg.ids[i];
       
@@ -92,9 +93,9 @@ int main(int argc, const char** argv){
   }
 
   if (_no_contact) {
-    if (waitClusterStatus(_hostName, NDB_MGM_NODE_STATUS_NO_CONTACT) != 0)
+    if (waitClusterStatus(_hostName, NDB_MGM_NODE_STATUS_NO_CONTACT, _timeout) != 0)
       return NDBT_ProgramExit(NDBT_FAILED);
-  } else if (waitClusterStatus(_hostName) != 0)
+  } else if (waitClusterStatus(_hostName, NDB_MGM_NODE_STATUS_STARTED, _timeout) != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
 
   return NDBT_ProgramExit(NDBT_OK);
@@ -291,8 +292,8 @@ waitClusterStatus(const char* _addr,
 	  if (ndbNode->node_status < _status)
 	    allInState = false;
 	  else 
-	    g_info << "node_status(" << ndbNode->node_status
-		   <<") != _status("<<_status<<")"<<endl;
+	    g_info << "node_status(" << (unsigned)ndbNode->node_status
+		   << ") != _status("<< (unsigned)_status << ")" <<endl;
 	} else if (ndbNode->start_phase < _startphase)
 	  allInState = false;
       } else {

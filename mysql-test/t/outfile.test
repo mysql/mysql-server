@@ -2,9 +2,12 @@
 # test of into outfile|dumpfile
 #
 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
 # We need to check that we have 'file' privilege.
 
-#drop table if exists t1;
 #create table t1 (`a` blob);
 #insert into t1 values("hello world"),("Hello mars"),(NULL);
 #select * into outfile "/tmp/select-test.1" from t1;
@@ -26,3 +29,15 @@
 #INSERT INTO t VALUES ('2002-12-20 12:01:20','',1,"aaa","bbb");
 #select * from t into outfile "check";
 #drop table if exists t;
+
+#
+# Bug #5382: 'explain select into outfile' crashes the server
+#
+
+CREATE TABLE t1 (a INT);
+EXPLAIN 
+  SELECT *
+  INTO OUTFILE '/tmp/t1.txt'
+  FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' LINES TERMINATED BY '\r\n'
+  FROM t1;
+DROP TABLE t1;

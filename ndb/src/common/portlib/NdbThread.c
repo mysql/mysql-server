@@ -18,6 +18,7 @@
 #include <ndb_global.h>
 #include <NdbThread.h>
 #include <pthread.h>
+#include <NdbMem.h>
 
 #define MAX_THREAD_NAME 16
 
@@ -41,15 +42,16 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   int result;
   pthread_attr_t thread_attr;
 
+  (void)thread_prio; /* remove warning for unused parameter */
+
   if (p_thread_func == NULL)
     return 0;
 
-  tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
+  tmpThread = (struct NdbThread*)NdbMem_Allocate(sizeof(struct NdbThread));
   if (tmpThread == NULL)
     return NULL;
 
-  snprintf(tmpThread->thread_name, sizeof(tmpThread->thread_name),
-	   "%s", p_thread_name);
+  strnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
 
   pthread_attr_init(&thread_attr);
   pthread_attr_setstacksize(&thread_attr, thread_stack_size);
@@ -108,6 +110,7 @@ int NdbThread_SetConcurrencyLevel(int level)
 #ifdef USE_PTHREAD_EXTRAS
   return pthread_setconcurrency(level);
 #else
+  (void)level; /* remove warning for unused parameter */
   return 0;
 #endif
 }
