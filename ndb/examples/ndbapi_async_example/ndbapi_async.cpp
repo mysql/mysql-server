@@ -24,9 +24,12 @@
  *
  * Classes and methods in NDBAPI used in this example:
  *
+ *  Ndb_cluster_connection
+ *       connect()
+ *       wait_until_ready()
+ *
  *  Ndb
  *       init()
- *       waitUntilRead()
  *       getDictionary()
  *       startTransaction()
  *       closeTransaction()
@@ -38,23 +41,6 @@
  *       executeAsynchPrepare()
  *       getNdbError()
  *
- *  NdbDictionary::Dictionary
- *       getTable()
- *       dropTable()
- *       createTable()
- *       getNdbError()
- *
- *  NdbDictionary::Column
- *       setName()
- *       setType()
- *       setLength()
- *       setPrimaryKey()
- *       setNullable()
- *
- *  NdbDictionary::Table
- *       setName()
- *       addColumn()
- *
  *  NdbOperation
  *       insertTuple()
  *       equal()
@@ -63,10 +49,10 @@
  */
 
 
-#include <ndb_global.h>
-
+#include <mysql.h>
+#include <mysqld_error.h>
 #include <NdbApi.hpp>
-#include <NdbScanFilter.hpp>
+
 #include <iostream> // Used for cout
 
 /**
@@ -85,11 +71,16 @@ milliSleep(int milliseconds){
 /**
  * error printout macro
  */
-#define APIERROR(error) \
-  { std::cout << "Error in " << __FILE__ << ", line:" << __LINE__ << ", code:" \
-              << error.code << ", msg: " << error.message << "." << std::endl; \
-    exit(-1); }
-
+#define PRINT_ERROR(code,msg) \
+  std::cout << "Error in " << __FILE__ << ", line: " << __LINE__ \
+            << ", code: " << code \
+            << ", msg: " << msg << "." << std::endl
+#define MYSQLERROR(mysql) { \
+  PRINT_ERROR(mysql_errno(&mysql),mysql_error(&mysql)); \
+  exit(-1); }
+#define APIERROR(error) { \
+  PRINT_ERROR(error.code,error.message); \
+  exit(-1); }
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 /**
@@ -207,61 +198,26 @@ callback(int result, NdbConnection* trans, void* aObject)
 /**
  * Create table "GARAGE"
  */
-int create_table(Ndb * myNdb) 
+int create_table(MYSQL &mysql) 
 {
-  NdbDictionary::Table myTable;
-  NdbDictionary::Column myColumn;
-  
-  NdbDictionary::Dictionary* myDict = myNdb->getDictionary();
-  
-  /*********************************************************
-   * Create a table named GARAGE if it does not exist *
-   *********************************************************/
-  if (myDict->getTable("GARAGE") != NULL) 
+  while (mysql_query(&mysql, 
+		  "CREATE TABLE"
+		  "  GARAGE"
+		  "    (REG_NO INT UNSIGNED NOT NULL,"
+		  "     BRAND CHAR(20) NOT NULL,"
+		  "     COLOR CHAR(20) NOT NULL,"
+		  "     PRIMARY KEY USING HASH (REG_NO))"
+		  "  ENGINE=NDB"))
   {
-    std::cout << "NDB already has example table: GARAGE. "
+    if (mysql_errno(&mysql) != ER_TABLE_EXISTS_ERROR)
+      MYSQLERROR(mysql);
+    std::cout << "MySQL Cluster already has example table: GARAGE. "
 	      << "Dropping it..." << std::endl; 
-    if(myDict->dropTable("GARAGE") == -1)
-    {
-      std::cout << "Failed to drop: GARAGE." << std::endl; 
-      exit(1);
-    }
-  } 
-
-  myTable.setName("GARAGE");
-  
-/**
- * Column REG_NO
- */
-  myColumn.setName("REG_NO");
-  myColumn.setType(NdbDictionary::Column::Unsigned);
-  myColumn.setLength(1);
-  myColumn.setPrimaryKey(true);
-  myColumn.setNullable(false);
-  myTable.addColumn(myColumn);
-
-/**
- * Column BRAND
- */
-  myColumn.setName("BRAND");
-  myColumn.setType(NdbDictionary::Column::Char);
-  myColumn.setLength(20);
-  myColumn.setPrimaryKey(false);
-  myColumn.setNullable(false);
-  myTable.addColumn(myColumn);
-
-/**
- * Column COLOR
- */
-  myColumn.setName("COLOR");
-  myColumn.setType(NdbDictionary::Column::Char);
-  myColumn.setLength(20);
-  myColumn.setPrimaryKey(false);
-  myColumn.setNullable(false);
-  myTable.addColumn(myColumn);
-
-  if (myDict->createTable(myTable) == -1) {
-      APIERROR(myDict->getNdbError());
+    /**************
+     * Drop table *
+     **************/
+    if (mysql_query(&mysql, "DROP TABLE GARAGE"))
+      MYSQLERROR(mysql);
   }
   return 1;
 }
@@ -455,22 +411,48 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
 int main()
 {
   ndb_init();
-  Ndb* myNdb = new Ndb( "TEST_DB" );  // Object representing the database
-  
-  /*******************************************
-   * Initialize NDB and wait until its ready *
-   *******************************************/
-  if (myNdb->init(1024) == -1) {          // Set max 1024  parallel transactions
+  MYSQL mysql;
+
+  /**************************************************************
+   * Connect to mysql server and create table                   *
+   **************************************************************/
+  {
+    if ( !mysql_init(&mysql) ) {
+      std::cout << "mysql_init failed\n";
+      exit(-1);
+    }
+    if ( !mysql_real_connect(&mysql, "localhost", "root", "", "",
+			     3306, "/tmp/mysql.sock", 0) )
+      MYSQLERROR(mysql);
+
+    mysql_query(&mysql, "CREATE DATABASE TEST_DB");
+    if (mysql_query(&mysql, "USE TEST_DB") != 0) MYSQLERROR(mysql);
+
+    create_table(mysql);
+  }
+
+  /**************************************************************
+   * Connect to ndb cluster                                     *
+   **************************************************************/
+  Ndb_cluster_connection cluster_connection;
+  if (cluster_connection.connect(4, 5, 1))
+  {
+    std::cout << "Unable to connect to cluster within 30 secs." << std::endl;
+    exit(-1);
+  }
+  // Optionally connect and wait for the storage nodes (ndbd's)
+  if (cluster_connection.wait_until_ready(30,0) < 0)
+  {
+    std::cout << "Cluster was not ready within 30 secs.\n";
+    exit(-1);
+  }
+
+  Ndb* myNdb = new Ndb( &cluster_connection,
+			"TEST_DB" );  // Object representing the database
+  if (myNdb->init(1024) == -1) {      // Set max 1024  parallel transactions
     APIERROR(myNdb->getNdbError());
   }
 
-  if (myNdb->waitUntilReady(30) != 0) {
-    std::cout << "NDB was not ready within 30 secs." << std::endl;
-    exit(-1);
-  }
-  create_table(myNdb);
-
-  
   /**
    * Initialise transaction array
    */
