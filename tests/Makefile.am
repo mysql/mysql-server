@@ -26,7 +26,8 @@ EXTRA_DIST =		auto_increment.res auto_increment.tst \
 			pmail.pl mail_to_db.pl table_types.pl \
 			udf_test udf_test.res myisam-big-rows.tst
 
-noinst_PROGRAMS =	insert_test select_test thread_test client_test
+bin_PROGRAMS =		client_test
+noinst_PROGRAMS =	insert_test select_test thread_test
 
 #
 # C Test for 4.1 protocol
