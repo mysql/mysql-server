@@ -770,6 +770,7 @@ trx_undo_update_rec_get_update(
 	dulint		trx_id,	/* in: transaction id from this undo record */
 	dulint		roll_ptr,/* in: roll pointer from this undo record */
 	ulint		info_bits,/* in: info bits from this undo record */
+	trx_t*		trx,	/* in: transaction */
 	mem_heap_t*	heap,	/* in: memory heap from which the memory
 				needed is allocated */
 	upd_t**		upd)	/* out, own: update vector */
@@ -803,7 +804,7 @@ trx_undo_update_rec_get_update(
 
 	upd_field_set_field_no(upd_field,
 			dict_index_get_sys_col_pos(index, DATA_TRX_ID),
-									index);
+								index, trx);
 	dfield_set_data(&(upd_field->new_val), buf, DATA_TRX_ID_LEN);
 
 	upd_field = upd_get_nth_field(update, n_fields + 1);
@@ -812,7 +813,7 @@ trx_undo_update_rec_get_update(
 
 	upd_field_set_field_no(upd_field,
 			dict_index_get_sys_col_pos(index, DATA_ROLL_PTR),
-									index);
+								index, trx);
 	dfield_set_data(&(upd_field->new_val), buf, DATA_ROLL_PTR_LEN);
 	
 	/* Store then the updated ordinary columns to the update vector */
@@ -824,13 +825,13 @@ trx_undo_update_rec_get_update(
 		if (field_no >= dict_index_get_n_fields(index)) {
 			fprintf(stderr,
 "InnoDB: Error: trying to access update undo rec field %lu in ", (ulong) field_no);
-			dict_index_name_print(stderr, index);
+			dict_index_name_print(stderr, trx, index);
 			fprintf(stderr, "\n"
 "InnoDB: but index has only %lu fields\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n"
 "InnoDB: Run also CHECK TABLE ",
 				(ulong) dict_index_get_n_fields(index));
-			ut_print_name(stderr, index->table_name);
+			ut_print_name(stderr, trx, index->table_name);
 			fprintf(stderr, "\n"
 "InnoDB: n_fields = %lu, i = %lu, ptr %p\n",
 				(ulong) n_fields, (ulong) i, ptr);
@@ -841,7 +842,7 @@ trx_undo_update_rec_get_update(
 
 		upd_field = upd_get_nth_field(update, i);
 
-		upd_field_set_field_no(upd_field, field_no, index);
+		upd_field_set_field_no(upd_field, field_no, index, trx);
 
 		if (len != UNIV_SQL_NULL && len >= UNIV_EXTERN_STORAGE_FIELD) {
 
@@ -1266,12 +1267,11 @@ trx_undo_prev_version_build(
 	      mtr_memo_contains(index_mtr, buf_block_align(index_rec), 
 						MTR_MEMO_PAGE_X_FIX));
 	if (!(index->type & DICT_CLUSTERED)) {
-		fputs("InnoDB: Error: trying to access"
-			" update undo rec for non-clustered ", stderr);
-		dict_index_name_print(stderr, index);
-		fputs("\n"
-"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n"
-			"InnoDB: index record ", stderr);
+		fprintf(stderr, "InnoDB: Error: trying to access"
+			" update undo rec for non-clustered index %s\n"
+			"InnoDB: Submit a detailed bug report to"
+			" http://bugs.mysql.com\n"
+			"InnoDB: index record ", index->name);
 		rec_print(stderr, index_rec);
 		fputs("\n"
 			"InnoDB: record version ", stderr);
@@ -1309,32 +1309,29 @@ trx_undo_prev_version_build(
 	ptr = trx_undo_rec_skip_row_ref(ptr, index);
 
 	ptr = trx_undo_update_rec_get_update(ptr, index, type, trx_id,
-					roll_ptr, info_bits, heap, &update);
+				roll_ptr, info_bits, NULL, heap, &update);
 
 	if (ut_dulint_cmp(table_id, index->table->id) != 0) {
 		ptr = NULL;
 
-		fputs("InnoDB: Error: trying to access"
-			" update undo rec for table ", stderr);
-		ut_print_name(stderr, index->table_name);
-		fputs("\n"
+		fprintf(stderr,
+"InnoDB: Error: trying to access update undo rec for table %s\n"
 "InnoDB: but the table id in the undo record is wrong\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n"
-"InnoDB: Run also CHECK TABLE ", stderr);
-		ut_print_name(stderr, index->table_name);
-		putc('\n', stderr);
+"InnoDB: Run also CHECK TABLE %s\n",
+			index->table_name, index->table_name);
 	}
 
 	if (ptr == NULL) {
 		/* The record was corrupted, return an error; these printfs
 		should catch an elusive bug in row_vers_old_has_index_entry */
 
-		fputs("InnoDB: ", stderr);
-		dict_index_name_print(stderr, index);
-		fprintf(stderr, ", n_uniq %lu\n"
+		fprintf(stderr,
+		"InnoDB: table %s, index %s, n_uniq %lu\n"
 		"InnoDB: undo rec address %p, type %lu cmpl_info %lu\n"
 		"InnoDB: undo rec table id %lu %lu, index table id %lu %lu\n"
 		"InnoDB: dump of 150 bytes in undo rec: ",
+			index->table_name, index->name,
 			(ulong) dict_index_get_n_unique(index),
 			undo_rec, (ulong) type, (ulong) cmpl_info,
 			(ulong) ut_dulint_get_high(table_id),

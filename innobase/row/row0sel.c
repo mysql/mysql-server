@@ -1942,7 +1942,8 @@ row_sel_convert_mysql_key_to_innobase(
 	ulint		buf_len,	/* in: buffer length */
 	dict_index_t*	index,		/* in: index of the key value */
 	byte*		key_ptr,	/* in: MySQL key value */
-	ulint		key_len)	/* in: MySQL key value length */
+	ulint		key_len,	/* in: MySQL key value length */
+	trx_t*		trx)		/* in: transaction */
 {
 	byte*		original_buf	= buf;
 	byte*		original_key_ptr = key_ptr;
@@ -2025,7 +2026,7 @@ row_sel_convert_mysql_key_to_innobase(
 				ut_print_timestamp(stderr);
 				fputs(
 "  InnoDB: Error: BLOB or TEXT prefix > 255 bytes in query to table ", stderr);
-				ut_print_name(stderr, index->table_name);
+				ut_print_name(stderr, trx, index->table_name);
 				putc('\n', stderr);
 			}
 
@@ -2069,11 +2070,13 @@ row_sel_convert_mysql_key_to_innobase(
 
 		        ut_print_timestamp(stderr);
 			
-			fprintf(stderr,
+			fputs(
   "  InnoDB: Warning: using a partial-field key prefix in search.\n"
-  "InnoDB: Table name %s, index name %s. Last data field length %lu bytes,\n"
+  "InnoDB: ", stderr);
+			dict_index_name_print(stderr, trx, index);
+			fprintf(stderr, ". Last data field length %lu bytes,\n"
   "InnoDB: key ptr now exceeds key end by %lu bytes.\n"
-  "InnoDB: Key value in the MySQL format:\n", index->table_name, index->name,
+  "InnoDB: Key value in the MySQL format:\n",
 					  (ulong) data_field_len,
 					  (ulong) (key_ptr - key_end));
 			fflush(stderr);
@@ -2116,7 +2119,7 @@ row_sel_store_row_id_to_prebuilt(
 	if (len != DATA_ROW_ID_LEN) {
 	        fprintf(stderr,
 "InnoDB: Error: Row id field is wrong length %lu in ", (ulong) len);
-		dict_index_name_print(stderr, index);
+		dict_index_name_print(stderr, prebuilt->trx, index);
 		fprintf(stderr, "\n"
 "InnoDB: Field number %lu, record:\n",
 			(ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID));
@@ -2275,7 +2278,11 @@ row_sel_store_mysql_rec(
 					ut_print_timestamp(stderr);
 					fprintf(stderr,
 "  InnoDB: Warning: could not allocate %lu + 1000000 bytes to retrieve\n"
-"InnoDB: a big column. Table name %s\n", (ulong) len, prebuilt->table->name);
+"InnoDB: a big column. Table name ", (ulong) len);
+					ut_print_name(stderr,
+						prebuilt->trx,
+						prebuilt->table->name);
+					putc('\n', stderr);
 
 					if (extern_field_heap) {
 						mem_heap_free(
@@ -2407,8 +2414,9 @@ row_sel_get_clust_rec_for_mysql(
 	trx_t*		trx;
 
 	*out_rec = NULL;
+	trx = thr_get_trx(thr);
 	
-	row_build_row_ref_in_tuple(prebuilt->clust_ref, sec_index, rec);
+	row_build_row_ref_in_tuple(prebuilt->clust_ref, sec_index, rec, trx);
 
 	clust_index = dict_table_get_first_index(sec_index->table);
 	
@@ -2441,7 +2449,7 @@ row_sel_get_clust_rec_for_mysql(
 			fputs("  InnoDB: error clustered record"
 				" for sec rec not found\n"
 				"InnoDB: ", stderr);
-			dict_index_name_print(stderr, sec_index);
+			dict_index_name_print(stderr, trx, sec_index);
 			fputs("\n"
 				"InnoDB: sec index record ", stderr);
 			rec_print(stderr, rec);
@@ -2449,7 +2457,7 @@ row_sel_get_clust_rec_for_mysql(
 				"InnoDB: clust index record ", stderr);
 			rec_print(stderr, clust_rec);
 			putc('\n', stderr);
-			trx_print(stderr, thr_get_trx(thr));
+			trx_print(stderr, trx);
 
 			fputs("\n"
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
@@ -2476,8 +2484,6 @@ row_sel_get_clust_rec_for_mysql(
 	} else {
 		/* This is a non-locking consistent read: if necessary, fetch
 		a previous version of the record */
-
-		trx = thr_get_trx(thr);
 
 		old_vers = NULL;
 
@@ -2803,7 +2809,7 @@ row_search_for_mysql(
 		"InnoDB: Error: trying to free a corrupt\n"
 		"InnoDB: table handle. Magic n %lu, table name ",
 		(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, prebuilt->table->name);
+		ut_print_name(stderr, trx, prebuilt->table->name);
 		putc('\n', stderr);
 
 		mem_analyze_corruption((byte*)prebuilt);
@@ -3237,7 +3243,7 @@ rec_loop:
 				(ulong) (rec - buf_frame_align(rec)),
 				(ulong) next_offs,
 				(ulong) buf_frame_get_page_no(rec));
-			dict_index_name_print(stderr, index);
+			dict_index_name_print(stderr, trx, index);
 			fputs(". Run CHECK TABLE. You may need to\n"
 "InnoDB: restore from a backup, or dump + drop + reimport the table.\n",
 			      stderr);
@@ -3255,7 +3261,7 @@ rec_loop:
 			   (ulong) (rec - buf_frame_align(rec)),
 			   (ulong) next_offs,
 			   (ulong) buf_frame_get_page_no(rec));
-			dict_index_name_print(stderr, index);
+			dict_index_name_print(stderr, trx, index);
 			fputs(". We try to skip the rest of the page.\n",
 				stderr);
 
@@ -3274,7 +3280,7 @@ rec_loop:
 			   (ulong) (rec - buf_frame_align(rec)),
 			   (ulong) next_offs,
 			   (ulong) buf_frame_get_page_no(rec));
-			dict_index_name_print(stderr, index);
+			dict_index_name_print(stderr, trx, index);
 			fputs(". We try to skip the record.\n",
 				stderr);
 

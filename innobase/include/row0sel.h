@@ -105,7 +105,8 @@ row_sel_convert_mysql_key_to_innobase(
 	ulint		buf_len,	/* in: buffer length */
 	dict_index_t*	index,		/* in: index of the key value */
 	byte*		key_ptr,	/* in: MySQL key value */
-	ulint		key_len);	/* in: MySQL key value length */
+	ulint		key_len,	/* in: MySQL key value length */
+	trx_t*		trx);		/* in: transaction */
 /************************************************************************
 Searches for rows in the database. This is used in the interface to
 MySQL. This function opens a cursor, and also implements fetch next
