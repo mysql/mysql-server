@@ -170,6 +170,7 @@ sub new
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'working_all_fields'} = 1;
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   # Some fixes that depends on the environment
   if (defined($main::opt_create_options) &&
@@ -214,6 +215,13 @@ sub version
   {
     $row[0] =~ s/-/ /g;			# To get better tables with long names
     $version="MySQL $row[0]";
+  }
+  $sth->finish;
+
+  $sth = $dbh->prepare("show status like 'ssl_version'") or die $DBI::errstr;
+  if ($sth->execute && (@row = $sth->fetchrow_array))
+  {
+    $version .= "/$row[1]";
   }
   $sth->finish;
   $dbh->disconnect;
@@ -413,6 +421,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
   return $self;
 }
 
@@ -614,6 +623,7 @@ sub new
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'working_all_fields'} = 1;
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -891,6 +901,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -1121,6 +1132,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -1392,6 +1404,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
 
   return $self;
@@ -1636,6 +1649,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -1850,6 +1864,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
   return $self;
 }
 
@@ -2034,6 +2049,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
   return $self;
 }
 
@@ -2229,6 +2245,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
   return $self;
 }
 
@@ -2460,6 +2477,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
 
   return $self;
@@ -2663,6 +2681,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
   return $self;
 }
 
@@ -2817,7 +2836,7 @@ sub new
   $limits{'subqueries'}		= 1; # Supports sub-queries.
   $limits{'left_outer_join'}	= 1; # Supports left outer joins
   $limits{'table_wildcard'}	= 1; # Has SELECT table_name.*
-  $limits{'having_with_alias'}  = 1; # Can use aliases in HAVING
+  $limits{'having_with_alias'}  = 0; # Can use aliases in HAVING
   $limits{'having_with_group'}	= 1; # Can use group functions in HAVING
   $limits{'like_with_column'}	= 1; # Can use column1 LIKE column2
   $limits{'order_by_position'}  = 1; # Can use 'ORDER BY 1'
@@ -2826,6 +2845,7 @@ sub new
   $limits{'alter_add_multi_col'}= 0; # Have ALTER TABLE t add a int,add b int;
   $limits{'alter_table_dropcol'}= 1; # Have ALTER TABLE DROP column
   $limits{'insert_multi_value'} = 0; # Does not have INSERT ... values (1,2),(3,4)
+  $limits{'multi_distinct'}     = 0; # Does not allow select count(distinct a),count(distinct b).. 
 
   $limits{'group_func_extra_std'} = 0; # Does not have group function std().
 
@@ -2840,8 +2860,9 @@ sub new
   $limits{'unique_index'}	= 1; # Unique index works or not
   $limits{'insert_select'}	= 1;
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
-  $limits{'order_by_unused'}	= 1;
+  $limits{'order_by_unused'}	= 0;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -2899,6 +2920,7 @@ sub create
   {
 #    $field =~ s/ decimal/ double(10,2)/i;
 #    $field =~ s/ big_decimal/ double(10,2)/i;
+    $field =~ s/ double/ double precision/i;  
     $field =~ s/ tinyint\(.*\)/ smallint/i;
     $field =~ s/ smallint\(.*\)/ smallint/i;
     $field =~ s/ mediumint/ integer/i;
@@ -3040,6 +3062,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -3242,6 +3265,7 @@ sub new
   $limits{'group_func_sql_min_str'} = 0;
   # If you do select f1,f2,f3...f200 from table, Frontbase dies.
   $limits{'working_all_fields'} = 0;
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
   return $self;
 }
@@ -3446,6 +3470,7 @@ sub new
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works *
   $limits{'order_by_unused'}	= 1; # 
   $limits{'working_all_fields'} = 1; #
+  $limits{'multi_distinct'}     = 1; # allows select count(distinct a),count(distinct b).. 
 
 
   return $self;

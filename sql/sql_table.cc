@@ -1432,6 +1432,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       send_ok(&thd->net);
     }
+    table_list->table=0;				// For query cache
+    query_cache_invalidate3(thd, table_list, 0);
     DBUG_RETURN(error);
   }
 
