@@ -221,6 +221,13 @@ const char *command_names[]=
   "connection",
   "query",
   "connect",
+  /* the difference between sleep and real_sleep is that sleep will use
+     the delay from command line (--sleep) if there is one.
+     real_sleep always uses delay from it's argument.
+     the logic is that sometimes delays are cpu-dependent (and --sleep
+     can be used to set this delay. real_sleep is used for cpu-independent
+     delays
+   */
   "sleep",
   "real_sleep",
   "inc",
