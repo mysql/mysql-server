@@ -285,9 +285,21 @@ latin2_general_ci	3
 select collation(concat(_latin2'a',_latin2'b')), coercibility(concat(_latin2'a',_latin2'b'));
 collation(concat(_latin2'a',_latin2'b'))	coercibility(concat(_latin2'a',_latin2'b'))
 latin2_general_ci	3
+select collation(lpad(_latin2'a',4,_latin2'b')), coercibility(lpad(_latin2'a',4,_latin2'b'));
+collation(lpad(_latin2'a',4,_latin2'b'))	coercibility(lpad(_latin2'a',4,_latin2'b'))
+binary	3
+select collation(rpad(_latin2'a',4,_latin2'b')), coercibility(rpad(_latin2'a',4,_latin2'b'));
+collation(rpad(_latin2'a',4,_latin2'b'))	coercibility(rpad(_latin2'a',4,_latin2'b'))
+latin2_general_ci	3
 select collation(concat_ws(_latin2'a',_latin2'b')), coercibility(concat_ws(_latin2'a',_latin2'b'));
 collation(concat_ws(_latin2'a',_latin2'b'))	coercibility(concat_ws(_latin2'a',_latin2'b'))
 latin2_general_ci	3
+select collation(make_set(255,_latin2'a',_latin2'b',_latin2'c')), coercibility(make_set(255,_latin2'a',_latin2'b',_latin2'c'));
+collation(make_set(255,_latin2'a',_latin2'b',_latin2'c'))	coercibility(make_set(255,_latin2'a',_latin2'b',_latin2'c'))
+latin2_general_ci	3
+select collation(export_set(255,_latin2'y',_latin2'n',_latin2' ')), coercibility(export_set(255,_latin2'y',_latin2'n',_latin2' '));
+collation(export_set(255,_latin2'y',_latin2'n',_latin2' '))	coercibility(export_set(255,_latin2'y',_latin2'n',_latin2' '))
+binary	3
 select collation(trim(_latin2' a ')), coercibility(trim(_latin2' a '));
 collation(trim(_latin2' a '))	coercibility(trim(_latin2' a '))
 latin2_general_ci	3
@@ -341,7 +353,11 @@ lcase(_latin2'a'),
 ucase(_latin2'a'),
 substring(_latin2'a',1,1),
 concat(_latin2'a',_latin2'b'),
+lpad(_latin2'a',4,_latin2'b'),
+rpad(_latin2'a',4,_latin2'b'),
 concat_ws(_latin2'a',_latin2'b'),
+make_set(255,_latin2'a',_latin2'b',_latin2'c'),
+export_set(255,_latin2'y',_latin2'n',_latin2' '),
 trim(_latin2' a '),
 ltrim(_latin2' a '),
 rtrim(_latin2' a '),
@@ -373,7 +389,11 @@ t1	CREATE TABLE `t1` (
   `ucase(_latin2'a')` char(1) character set latin2 NOT NULL default '',
   `substring(_latin2'a',1,1)` char(1) character set latin2 NOT NULL default '',
   `concat(_latin2'a',_latin2'b')` char(2) character set latin2 NOT NULL default '',
+  `lpad(_latin2'a',4,_latin2'b')` char(4) character set latin2 NOT NULL default '',
+  `rpad(_latin2'a',4,_latin2'b')` char(4) character set latin2 NOT NULL default '',
   `concat_ws(_latin2'a',_latin2'b')` char(1) character set latin2 NOT NULL default '',
+  `make_set(255,_latin2'a',_latin2'b',_latin2'c')` char(5) character set latin2 NOT NULL default '',
+  `export_set(255,_latin2'y',_latin2'n',_latin2' ')` char(127) character set latin2 NOT NULL default '',
   `trim(_latin2' a ')` char(3) character set latin2 NOT NULL default '',
   `ltrim(_latin2' a ')` char(3) character set latin2 NOT NULL default '',
   `rtrim(_latin2' a ')` char(3) character set latin2 NOT NULL default '',
