@@ -2632,6 +2632,7 @@ ha_innobase::write_row(
                 table->timestamp_field->set_time();
 
 	if ((user_thd->lex->sql_command == SQLCOM_ALTER_TABLE
+	    || user_thd->lex->sql_command == SQLCOM_OPTIMIZE
 	    || user_thd->lex->sql_command == SQLCOM_CREATE_INDEX
 	    || user_thd->lex->sql_command == SQLCOM_DROP_INDEX)
 	    && num_write_row >= 10000) {
