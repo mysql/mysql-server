@@ -28,7 +28,7 @@
 #include <io.h>
 #endif
 #ifndef __GNU_LIBRARY__
-#define __GNU_LIBRARY__			/* Skipp warnings in getopt.h */
+#define __GNU_LIBRARY__			/* Skip warnings in getopt.h */
 #endif
 #include <my_getopt.h>
 

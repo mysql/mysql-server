@@ -68,10 +68,10 @@ int my_error(int nr,myf MyFlags, ...)
     }
     else
     {
-      /* Skipp if max size is used (to be compatible with printf) */
+      /* Skip if max size is used (to be compatible with printf) */
       while (my_isdigit(&my_charset_latin1, *tpos) || *tpos == '.' || *tpos == '-')
 	tpos++;
-      if (*tpos == 'l')				/* Skipp 'l' argument */
+      if (*tpos == 'l')				/* Skip 'l' argument */
 	tpos++;
       if (*tpos == 's')				/* String parameter */
       {

@@ -816,7 +816,7 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
 	  if (!(*start & 128))
 	    prev_length=0;			/* prev key not packed */
 	  if (keyinfo->seg[0].flag & HA_NULL_PART)
-	    lastkey++;				/* Skipp null marker */
+	    lastkey++;				/* Skip null marker */
 	  get_key_length(lastkey_length,lastkey);
 	  if (!next_length)			/* Same key after */
 	  {
