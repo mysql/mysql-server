@@ -129,7 +129,8 @@ void Item_subselect::fix_length_and_dec()
 
 inline table_map Item_subselect::used_tables() const
 {
-  return (table_map) engine->depended() ? 1L : 0L; 
+  return (table_map) (engine->dependent() ? 1L :
+		      (engine->uncacheable() ? RAND_TABLE_BIT : 0L));
 }
 
 Item_singlerow_subselect::Item_singlerow_subselect(THD *thd,
@@ -795,7 +796,7 @@ int subselect_single_select_engine::exec()
       DBUG_RETURN(join->error?join->error:1);
     }
   }
-  if (select_lex->dependent && executed)
+  if ((select_lex->dependent || select_lex->uncacheable) && executed)
   {
     if (join->reinit())
     {
@@ -837,14 +838,24 @@ uint subselect_union_engine::cols()
   return unit->first_select()->item_list.elements;
 }
 
-bool subselect_single_select_engine::depended()
+bool subselect_single_select_engine::dependent()
 {
   return select_lex->dependent;
 }
 
-bool subselect_union_engine::depended()
+bool subselect_union_engine::dependent()
 {
   return unit->dependent;
+}
+
+bool subselect_single_select_engine::uncacheable()
+{
+  return select_lex->uncacheable;
+}
+
+bool subselect_union_engine::uncacheable()
+{
+  return unit->uncacheable;
 }
 
 bool subselect_single_select_engine::check_loop(uint id)
@@ -865,13 +876,9 @@ bool subselect_union_engine::check_loop(uint id)
 void subselect_single_select_engine::exclude()
 {
   select_lex->master_unit()->exclude_level();
-  //if (current_thd->lex->describe)
 }
 
 void subselect_union_engine::exclude()
 {
   unit->exclude_level();
-  // for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
-  //  if (sl->join && sl->join->check_loop(id))
-  //    DBUG_RETURN(1);
 }

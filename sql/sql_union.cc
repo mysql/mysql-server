@@ -207,11 +207,11 @@ int st_select_lex_unit::exec()
   DBUG_ENTER("st_select_lex_unit::exec");
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
   
-  if (executed && !dependent)
+  if (executed && !(dependent||uncacheable))
     DBUG_RETURN(0);
   executed= 1;
   
-  if (dependent || !item || !item->assigned())
+  if ((dependent||uncacheable) || !item || !item->assigned())
   {
     if (optimized && item && item->assigned())
     {

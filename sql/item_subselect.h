@@ -223,7 +223,8 @@ public:
   virtual void fix_length_and_dec(Item_cache** row)= 0;
   virtual int exec()= 0;
   virtual uint cols()= 0; /* return number of columnss in select */
-  virtual bool depended()= 0; /* depended from outer select */
+  virtual bool dependent()= 0; /* depended from outer select */
+  virtual bool uncacheable()= 0; /* query is uncacheable */
   enum Item_result type() { return res_type; }
   virtual bool check_loop(uint id)= 0;
   virtual void exclude()= 0;
@@ -245,7 +246,8 @@ public:
   void fix_length_and_dec(Item_cache** row);
   int exec();
   uint cols();
-  bool depended();
+  bool dependent();
+  bool uncacheable();
   bool check_loop(uint id);
   void exclude();
 };
@@ -262,7 +264,8 @@ public:
   void fix_length_and_dec(Item_cache** row);
   int exec();
   uint cols();
-  bool depended();
+  bool dependent();
+  bool uncacheable();
   bool check_loop(uint id);
   void exclude();
 };
