@@ -22,7 +22,7 @@ day	id	category	name
 2003-04-22	2416	a	bbbbb
 show binlog events from 898;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-slave-bin.001	898	Query	1	895	use test; insert into t3 select * from t2
+slave-bin.001	898	Query	1	898	use test; insert into t3 select * from t2
 drop table t1;
 drop table t2;
 drop table t3;
