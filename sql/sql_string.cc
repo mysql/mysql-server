@@ -123,7 +123,7 @@ bool String::set(double num,uint decimals)
   char *pos,*to;
 
   VOID(fconvert(num,(int) decimals,&decpt,&sign,buff+1));
-  if (!isdigit(buff[1]))
+  if (!my_isdigit(system_charset_info, buff[1]))
   {						// Nan or Inf
     pos=buff+1;
     if (sign)
@@ -490,7 +490,7 @@ void String::qs_append(double d)
 void String::qs_append(double *d)
 {
   double ld;
-  float8get(ld, d);
+  float8get(ld, (char*) d);
   qs_append(ld);
 }
 
