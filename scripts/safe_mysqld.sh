@@ -21,7 +21,7 @@ esac
 
 # Parse arguments to see if caller wants the pid_file somewhere else.
 parse_arguments() {
-  for arg; do
+  for arg in "$@"; do
     case $arg in
       --datadir=*)  DATADIR=`echo "$arg" | sed -e "s;--datadir=;;"` ;;
       --pid-file=*) pid_file=`echo "$arg" | sed -e "s;--pid-file=;;"` ;;
