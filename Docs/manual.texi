@@ -11965,10 +11965,11 @@ communication.
 All other information is transferred as text that can be read by anyone
 who is able to watch the connection.  If you are concerned about this,
 you can use the compressed protocol (in @strong{MySQL} Version 3.22 and above)
-to make things much harder.  To make things even more secure you should
-use @code{ssh} (see @uref{http://www.cs.hut.fi/ssh}).  With this, you
-can get an encrypted TCP/IP connection between a @strong{MySQL} server
-and a @strong{MySQL} client.
+to make things much harder.  To make things even more secure you should use 
+@code{ssh}.  You can find an open source ssh client at 
+@uref{http://www.openssh.org}, and a commercial ssh client at 
+@uref{http://www.ssh.com}.  With this, you can get an encrypted TCP/IP 
+connection between a @strong{MySQL} server and a @strong{MySQL} client.
 
 To make a @strong{MySQL} system secure, you should strongly consider the
 following suggestions:
@@ -24050,52 +24051,52 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @end menu
 
 @node BDB overview, BDB install, BDB, BDB
-@subsection Overview over BDB tables
+@subsection Overview of BDB Tables
 
-BDB tables are included in the @strong{MySQL} source distribution
-starting from 3.23.34 and will be activated in the @strong{MySQL}-max
+Support for BDB tables is included in the @strong{MySQL} source distribution
+starting from Version 3.23.34 and will be activated in the @strong{MySQL}-Max
 binary.
 
-Berkeley DB (@uref{http://www.sleepycat.com}) has provided
-@strong{MySQL} with a transaction-safe table handler. This will survive
-crashes and also provides @code{COMMIT} and @code{ROLLBACK} on
-transactions. The @strong{MySQL} source distribution comes with a BDB
-distribution that has a couple of small patches to make it work more
-smoothly with @strong{MySQL}.  You can't use a not-patched @code{BDB}
-version with @strong{MySQL}.
+BerkeleyDB, available at @uref{http://www.sleepycat.com/} has provided 
+@strong{MySQL} with a transactional table handler.  By using BerkeleyDB
+tables, your tables may have a greater chance of surviving crashes, and also
+provides @code{COMMIT} and @code{ROLLBACK} on transactions.  The 
+@strong{MySQL} source distribution comes with a BDB distribution that has a
+couple of small patches to make it work more smoothly with @strong{MySQL}.
+You can't use a non-patched @code{BDB} version with @strong{MySQL}.
 
-We at MySQL AB are working in close cooperating with Sleepycat to
-keep the quality of the @strong{MySQL} - BDB interface high.
+We at @strong{MySQL AB} are working in close cooperation with Sleepycat to
+keep the quality of the @strong{MySQL}/BDB interface high.
 
 When it comes to supporting BDB tables, we are committed to help our
 users to locate the problem and help creating a reproducable test case
 for any problems involving BDB tables.  Any such test case will be
 forwarded to Sleepycat who in turn will help us find and fix the
-problem.  As this is a two stage operating, any problems with BDB tables
-may take a little longer for us to fix than for other table handlers,
-but as the Berkeley code itself has been used by many other applications
-than @strong{MySQL} we don't envision any big problems with this.
-@xref{Table handler support}.
+problem.  As this is a two stage operation, any problems with BDB tables
+may take a little longer for us to fix than for other table handlers.
+However, as the BerkeleyDB code itself has been used by many other
+applications than @strong{MySQL}, we don't envision any big problems with
+this.  @xref{Table handler support}.
 
 @node BDB install, BDB start, BDB overview, BDB
 @subsection Installing BDB
 
 If you have downloaded a binary version of @strong{MySQL} that includes
-support for Berkeley DB, simply follow the instructions for
-installing a binary version of @strong{MySQL}. @xref{Installing binary}.
-@xref{mysqld-max}.
+support for BerkeleyDB, simply follow the instructions for installing a 
+binary version of @strong{MySQL}.  
+@xref{Installing binary}.  @xref{mysqld-max}.
 
 To compile @strong{MySQL} with Berkeley DB support, download @strong{MySQL}
-3.23.34 or newer and configure @code{MySQL} with the
-@code{--with-berkeley-db} option. @xref{Installing source}.
+Version 3.23.34 or newer and configure @code{MySQL} with the 
+@code{--with-berkeley-db} option.  @xref{Installing source}.
 
 @example
 cd /path/to/source/of/mysql-3.23.34
 ./configure --with-berkeley-db
 @end example
 
-Please refer to the manual provided by @code{BDB} distribution for
-more/updated information.
+Please refer to the manual provided with the @code{BDB} distribution for
+more updated information.
 
 Even though Berkeley DB is in itself very tested and reliable,
 the @strong{MySQL} interface is still considered beta quality.
@@ -36208,6 +36209,10 @@ is that the server timed out and closed the connection. By default, the
 server closes the connection after 8 hours if nothing has happened. You
 can change the time limit by setting the @code{wait_timeout} variable when
 you start mysqld.
+
+Another common reason to receive the @code{MySQL server has gone away} error
+is because you have issued a ``close'' on your @strong{MySQL} connection
+and then tried to run a query on the closed connection.
 
 You can check that the @strong{MySQL} hasn't died by executing
 @code{mysqladmin version} and examining the uptime.
