@@ -27725,6 +27725,7 @@ How big a @code{VARCHAR} column can be
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
 * mysqlimport::                 Importing data from text files
 * mysqlshow::                   Showing databases, tables and columns
+* perror::                      Displaying error messages
 * myisampack::                  The @strong{MySQL} compressed read-only table generator
 @end menu
 
@@ -28523,7 +28524,7 @@ mysqldump --all-databases > all_databases.sql
 @cindex files, text
 @cindex text files, importing
 @cindex @code{mysqlimport}
-@node mysqlimport, mysqlshow, mysqldump, Tools
+@node mysqlimport, perror, mysqldump, Tools
 @section Importing data from text files
 
 @code{mysqlimport} provides a command line interface to the @code{LOAD DATA
@@ -28660,12 +28661,34 @@ $ mysql -e 'SELECT * FROM imptest' test
 +------+---------------+
 @end example
 
+@cindex error messages, displaying
+@cindex perror
+@node perror, mysqlshow, mysqlimport, Tools
+@section Converting an error code to the corresponding error message
+
+@code{perror} can be used to print error message(s). @code{perror} can
+be invoked like this:
+
+@example
+shell> perror [OPTIONS] [ERRORCODE [ERRORCODE...]]
+
+For example:
+
+shell> perror 64 79
+Error code  64:  Machine is not on the network
+Error code  79:  Can not access a needed shared library
+@end example
+
+@code{perror} can be used to display a description for a system error
+code, or an MyISAM/ISAM table handler error code. The error messages
+are mostly system dependent.
+
 @cindex databases, displaying
 @cindex displaying, database information
 @cindex tables, displaying
 @cindex columns, displaying
 @cindex showing, database information
-@node mysqlshow, myisampack, mysqlimport, Tools
+@node mysqlshow, myisampack, perror, Tools
 @section Showing databases, tables and columns
 
 @code{mysqlshow} can be used to quickly look at which databases exist,
@@ -32054,6 +32077,12 @@ tmpdir=C:/temp
 @end example
 
 assuming that the @file{c:\\temp} directory exists. @xref{Option files}.
+
+Check also the error code that you get with @code{perror}. One reason
+may also be a disk full error;
+
+shell >perror 28
+Error code  28:  No space left on device
 
 @cindex commands out of sync
 @node Commands out of sync, Ignoring user, Cannot create, Common errors
