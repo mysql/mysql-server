@@ -21,22 +21,9 @@
   the file descriptior.
 */
 
-#include <my_global.h>
+#include "vio_priv.h"
 
 #ifdef HAVE_OPENSSL
-
-#include <mysql_com.h>
-
-#include <errno.h>
-#include <assert.h>
-#include <violite.h>
-#include <my_sys.h>
-#include <my_net.h>
-#include <m_string.h>
-
-#ifndef __WIN__
-#define HANDLE void *
-#endif
 
 static void
 report_errors()
@@ -88,11 +75,11 @@ int vio_ssl_read(Vio * vio, gptr buf, int size)
   int r;
   DBUG_ENTER("vio_ssl_read");
   DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d, ssl_=%p",
-		       vio->sd, buf, size, vio->ssl_));
+		       vio->sd, buf, size, vio->ssl_arg));
 
-  if ((r= SSL_read(vio->ssl_, buf, size)) < 0)
+  if ((r= SSL_read((SSL*) vio->ssl_arg, buf, size)) < 0)
   {
-    int err= SSL_get_error(vio->ssl_, r);
+    int err= SSL_get_error((SSL*) vio->ssl_arg, r);
     DBUG_PRINT("error",("SSL_read(): %d  SSL_get_error(): %d", r, err));
     report_errors();
   }
@@ -107,7 +94,7 @@ int vio_ssl_write(Vio * vio, const gptr buf, int size)
   DBUG_ENTER("vio_ssl_write");
   DBUG_PRINT("enter", ("sd=%d, buf=%p, size=%d", vio->sd, buf, size));
 
-  if ((r= SSL_write(vio->ssl_, buf, size)) < 0)
+  if ((r= SSL_write((SSL*) vio->ssl_arg, buf, size)) < 0)
     report_errors();
   DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
@@ -171,11 +158,11 @@ int vio_ssl_close(Vio * vio)
   int r;
   DBUG_ENTER("vio_ssl_close");
   r=0;
-  if (vio->ssl_)
+  if ((SSL*) vio->ssl_arg)
   {
-    r = SSL_shutdown(vio->ssl_);
-    SSL_free(vio->ssl_);
-    vio->ssl_= 0;
+    r = SSL_shutdown((SSL*) vio->ssl_arg);
+    SSL_free((SSL*) vio->ssl_arg);
+    vio->ssl_arg= 0;
   }
   if (vio->sd >= 0)
   {
@@ -273,8 +260,8 @@ int sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
   net_blocking = vio_is_blocking(vio);
   vio_blocking(vio, 1, &unused);	/* Must be called before reset */
   vio_reset(vio,VIO_TYPE_SSL,vio->sd,0,FALSE);
-  vio->ssl_=0;
-  if (!(vio->ssl_ = SSL_new(ptr->ssl_context_)))
+  vio->ssl_arg= 0;
+  if (!(vio->ssl_arg= (void*) SSL_new(ptr->ssl_context)))
   {
     DBUG_PRINT("error", ("SSL_new failure"));
     report_errors();
@@ -282,25 +269,25 @@ int sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
     vio_blocking(vio, net_blocking, &unused);
     DBUG_RETURN(1);
   }
-  DBUG_PRINT("info", ("ssl_=%p  timeout=%ld",vio->ssl_, timeout));
-  SSL_clear(vio->ssl_);
-  SSL_SESSION_set_timeout(SSL_get_session(vio->ssl_), timeout);
-  SSL_set_fd(vio->ssl_,vio->sd);
-  SSL_set_accept_state(vio->ssl_);
-  if (SSL_do_handshake(vio->ssl_) < 1)
+  DBUG_PRINT("info", ("ssl_=%p  timeout=%ld",(SSL*) vio->ssl_arg, timeout));
+  SSL_clear((SSL*) vio->ssl_arg);
+  SSL_SESSION_set_timeout(SSL_get_session((SSL*) vio->ssl_arg), timeout);
+  SSL_set_fd((SSL*) vio->ssl_arg,vio->sd);
+  SSL_set_accept_state((SSL*) vio->ssl_arg);
+  if (SSL_do_handshake((SSL*) vio->ssl_arg) < 1)
   {
     DBUG_PRINT("error", ("SSL_do_handshake failure"));
     report_errors();
-    SSL_free(vio->ssl_);
-    vio->ssl_=0;
+    SSL_free((SSL*) vio->ssl_arg);
+    vio->ssl_arg= 0;
     vio_reset(vio, old_type,vio->sd,0,FALSE);
     vio_blocking(vio, net_blocking, &unused);
     DBUG_RETURN(1);
   }
 #ifndef DBUF_OFF
   DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'"
-		     ,SSL_get_cipher_name(vio->ssl_)));
-  client_cert = SSL_get_peer_certificate (vio->ssl_);
+		     ,SSL_get_cipher_name((SSL*) vio->ssl_arg)));
+  client_cert = SSL_get_peer_certificate ((SSL*) vio->ssl_arg);
   if (client_cert != NULL)
   {
     DBUG_PRINT("info",("Client certificate:"));
@@ -317,7 +304,7 @@ int sslaccept(struct st_VioSSLAcceptorFd* ptr, Vio* vio, long timeout)
   else
     DBUG_PRINT("info",("Client does not have certificate."));
 
-  str=SSL_get_shared_ciphers(vio->ssl_, buf, sizeof(buf));
+  str=SSL_get_shared_ciphers((SSL*) vio->ssl_arg, buf, sizeof(buf));
   if (str)
   {
     DBUG_PRINT("info",("SSL_get_shared_ciphers() returned '%s'",str));
@@ -340,14 +327,14 @@ int sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
   my_bool net_blocking;
   enum enum_vio_type old_type;  
   DBUG_ENTER("sslconnect");
-  DBUG_PRINT("enter", ("sd=%d ptr=%p ctx: %p", vio->sd,ptr,ptr->ssl_context_));
+  DBUG_PRINT("enter", ("sd=%d ptr=%p ctx: %p", vio->sd,ptr,ptr->ssl_context));
 
   old_type= vio->type;
   net_blocking = vio_is_blocking(vio);
   vio_blocking(vio, 1, &unused);	/* Must be called before reset */
   vio_reset(vio,VIO_TYPE_SSL,vio->sd,0,FALSE);
-  vio->ssl_=0;
-  if (!(vio->ssl_ = SSL_new(ptr->ssl_context_)))
+  vio->ssl_arg= 0;
+  if (!(vio->ssl_arg = SSL_new(ptr->ssl_context)))
   {
     DBUG_PRINT("error", ("SSL_new failure"));
     report_errors();
@@ -355,25 +342,25 @@ int sslconnect(struct st_VioSSLConnectorFd* ptr, Vio* vio, long timeout)
     vio_blocking(vio, net_blocking, &unused);    
     DBUG_RETURN(1);
   }
-  DBUG_PRINT("info", ("ssl_=%p  timeout=%ld",vio->ssl_, timeout));
-  SSL_clear(vio->ssl_);
-  SSL_SESSION_set_timeout(SSL_get_session(vio->ssl_), timeout);
-  SSL_set_fd (vio->ssl_, vio->sd);
-  SSL_set_connect_state(vio->ssl_);
-  if (SSL_do_handshake(vio->ssl_) < 1)
+  DBUG_PRINT("info", ("ssl_=%p  timeout=%ld",(SSL*) vio->ssl_arg, timeout));
+  SSL_clear((SSL*) vio->ssl_arg);
+  SSL_SESSION_set_timeout(SSL_get_session((SSL*) vio->ssl_arg), timeout);
+  SSL_set_fd ((SSL*) vio->ssl_arg, vio->sd);
+  SSL_set_connect_state((SSL*) vio->ssl_arg);
+  if (SSL_do_handshake((SSL*) vio->ssl_arg) < 1)
   {
     DBUG_PRINT("error", ("SSL_do_handshake failure"));
     report_errors();
-    SSL_free(vio->ssl_);
-    vio->ssl_=0;
+    SSL_free((SSL*) vio->ssl_arg);
+    vio->ssl_arg= 0;
     vio_reset(vio, old_type,vio->sd,0,FALSE);
     vio_blocking(vio, net_blocking, &unused);
     DBUG_RETURN(1);
   }  
 #ifndef DBUG_OFF
   DBUG_PRINT("info",("SSL_get_cipher_name() = '%s'"
-		     ,SSL_get_cipher_name(vio->ssl_)));
-  server_cert = SSL_get_peer_certificate (vio->ssl_);
+		     ,SSL_get_cipher_name((SSL*) vio->ssl_arg)));
+  server_cert = SSL_get_peer_certificate ((SSL*) vio->ssl_arg);
   if (server_cert != NULL)
   {
     DBUG_PRINT("info",("Server certificate:"));
@@ -407,4 +394,10 @@ int vio_ssl_blocking(Vio * vio __attribute__((unused)),
   return set_blocking_mode ? 0 : 1;
 }
 
+
+void vio_ssl_timeout(Vio *vio __attribute__((unused)),
+		     uint timeout __attribute__((unused)))
+{
+  /* Not yet implemented (non critical) */
+}
 #endif /* HAVE_OPENSSL */

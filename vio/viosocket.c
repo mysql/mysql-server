@@ -21,19 +21,7 @@
   the file descriptior.
 */
 
-#define DONT_MAP_VIO
-#include <my_global.h>
-#include <mysql_com.h>
-
-#include <errno.h>
-#include <my_sys.h>
-#include <violite.h>
-#include <my_net.h>
-#include <m_string.h>
-
-#ifndef __WIN__
-#define HANDLE void *
-#endif
+#include "vio_priv.h"
 
 void vio_delete(Vio* vio)
 {
@@ -333,4 +321,15 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
   }
   DBUG_RETURN(fds.revents & POLLIN ? 0 : 1);
 #endif
+}
+
+
+void vio_timeout(Vio *vio __attribute__((unused)),
+		 uint timeout __attribute__((unused)))
+{
+#ifdef __WIN__
+  ulong wait_timeout= (ulong) timeout * 1000;
+  (void) setsockopt(vio->sd, SOL_SOCKET, SO_RCVTIMEO, (char*) &wait_timeout,
+		    sizeof(wait_timeout));
+#endif /* __WIN__ */
 }

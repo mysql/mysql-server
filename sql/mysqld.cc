@@ -1136,7 +1136,14 @@ static void server_init(void)
     IPaddr.sin_family = AF_INET;
     IPaddr.sin_addr.s_addr = my_bind_addr;
     IPaddr.sin_port = (unsigned short) htons((unsigned short) mysql_port);
+
+#ifndef __WIN__
+    /*
+      We should not use SO_REUSEADDR on windows as this would enable a
+      user to open two mysqld servers with the same TCP/IP port.
+    */
     (void) setsockopt(ip_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,sizeof(arg));
+#endif
     if (bind(ip_sock, my_reinterpret_cast(struct sockaddr *) (&IPaddr),
 	     sizeof(IPaddr)) < 0)
     {
@@ -3011,6 +3018,12 @@ extern "C" pthread_handler_decl(handle_connections_sockets,
     }
     if (sock == unix_sock)
       thd->host=(char*) localhost;
+#ifdef __WIN__
+    /* Set default wait_timeout */
+    ulong wait_timeout= global_system_variables.net_wait_timeout * 1000;
+    (void) setsockopt(new_sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&wait_timeout,
+                    sizeof(wait_timeout));
+#endif
     create_new_thread(thd);
   }
 

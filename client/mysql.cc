@@ -708,6 +708,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'W':
 #ifdef __WIN__
+    my_free(opt_mysql_unix_port, MYF(MY_ALLOW_ZERO_PTR));
     opt_mysql_unix_port= my_strdup(MYSQL_NAMEDPIPE, MYF(0));
 #endif
     break;
@@ -2329,10 +2330,10 @@ com_status(String *buffer __attribute__((unused)),
       (void) mysql_fetch_row(result);		// Read eof
     }
 #ifdef HAVE_OPENSSL
-    if (mysql.net.vio && mysql.net.vio->ssl_ &&
-	SSL_get_cipher(mysql.net.vio->ssl_))
+    if (mysql.net.vio && mysql.net.vio->ssl_arg &&
+	SSL_get_cipher((SSL*) mysql.net.vio->ssl_arg))
       tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
-		  SSL_get_cipher(mysql.net.vio->ssl_));
+		  SSL_get_cipher((SSL*) mysql.net.vio->ssl_arg));
     else
 #endif /* HAVE_OPENSSL */
       tee_puts("SSL:\t\t\tNot in use", stdout);
