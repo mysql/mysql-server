@@ -51,9 +51,10 @@ SumaParticipant::SumaParticipant(const Configuration & conf) :
   //addRecSignal(GSN_GET_TABINFOREF, &SumaParticipant::execGET_TABINFO_REF);
   addRecSignal(GSN_GET_TABINFO_CONF, &SumaParticipant::execGET_TABINFO_CONF);
   addRecSignal(GSN_GET_TABINFOREF, &SumaParticipant::execGET_TABINFOREF);
+#if 0
   addRecSignal(GSN_GET_TABLEID_CONF, &SumaParticipant::execGET_TABLEID_CONF);
   addRecSignal(GSN_GET_TABLEID_REF, &SumaParticipant::execGET_TABLEID_REF);
-
+#endif
   /**
    * Dih interface
    */

@@ -87,6 +87,8 @@
 #define CFG_DB_UNDO_DATA_BUFFER       155
 #define CFG_DB_REDO_BUFFER            156
 
+#define CFG_DB_LONG_SIGNAL_BUFFER     157
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 
