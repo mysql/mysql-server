@@ -71,11 +71,6 @@ public:
   const char *func_name() const { return "month"; }
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() { decimals=0; max_length=2; maybe_null=1; }
-  Field *tmp_table_field(TABLE *t_arg)
-  {
-    if (!t_arg) return result_field;
-    return (Field *) new Field_string(max_length,maybe_null, name,t_arg, binary);
-  }  
 };
 
 class Item_func_monthname :public Item_func_month
