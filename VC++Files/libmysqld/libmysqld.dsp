@@ -344,7 +344,7 @@ SOURCE=..\mysys\my_alloc.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\mysys\my_decimal.cpp
+SOURCE=..\sql\my_decimal.cpp
 # End Source File
 # Begin Source File
 
