@@ -430,7 +430,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 	{
 	  if (field->type() == FIELD_TYPE_TIMESTAMP)
 	    ((Field_timestamp*) field)->set_time();
-	  else
+	  else if (field != table->next_number_field)
 	    thd->cuted_fields++;
 	}
 	continue;

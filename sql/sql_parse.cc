@@ -889,9 +889,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_REGISTER_SLAVE:
   {
-    if (register_slave(thd, (uchar*)packet, packet_length))
-      send_error(&thd->net);
-    else
+    if (!register_slave(thd, (uchar*)packet, packet_length))
       send_ok(&thd->net);
     break;
   }
@@ -1077,6 +1075,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       ulong pos;
       ushort flags;
       uint32 slave_server_id;
+      /* TODO: The following has to be changed to an 8 byte integer */
       pos = uint4korr(packet);
       flags = uint2korr(packet + 4);
       pthread_mutex_lock(&LOCK_server_id);
@@ -1084,7 +1083,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       kill_zombie_dump_threads(slave_server_id = uint4korr(packet+6));
       thd->server_id = slave_server_id;
       pthread_mutex_unlock(&LOCK_server_id);
-      mysql_binlog_send(thd, thd->strdup(packet + 10), pos, flags);
+      mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, flags);
       unregister_slave(thd,1,1);
       // fake COM_QUIT -- if we get here, the thread needs to terminate
       error = TRUE;
