@@ -881,19 +881,20 @@ err:
 
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry)
 {
-  if (!thd->abort_on_warning)                   // No check if not strict mode
-    return 0;
-
+  int err= 0;
   for (Field **field=entry->field ; *field ; field++)
   {
     if ((*field)->query_id != thd->query_id &&
         ((*field)->flags & NO_DEFAULT_VALUE_FLAG))
     {
-      my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), (*field)->field_name);
-      return 1;
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                           ER_NO_DEFAULT_FOR_FIELD,
+                           ER(ER_NO_DEFAULT_FOR_FIELD),
+                           (*field)->field_name);
+      err= 1;
     }
   }
-  return 0;
+  return thd->abort_on_warning ? err : 0;
 }
 
 /*****************************************************************************

@@ -206,7 +206,7 @@ CREATE TABLE t1 (
   favo_tv varchar(50) NOT NULL default '',
   favo_eten varchar(50) NOT NULL default '',
   favo_muziek varchar(30) NOT NULL default '',
-  info text NOT NULL,
+  info text NOT NULL default '',
   ipnr varchar(30) NOT NULL default '',
   PRIMARY KEY  (member_id)
 ) ENGINE=MyISAM PACK_KEYS=1;

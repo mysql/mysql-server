@@ -225,6 +225,10 @@ host	user	password
 %	mysqltest_2	*BD447CBA355AF58578D3AE33BA2E2CD388BA08D1
 localhost	mysqltest_3	
 insert into mysql.user set host='%', user='mysqltest_B';
+Warnings:
+Warning	1364	Field 'ssl_cipher' doesn't have a default value
+Warning	1364	Field 'x509_issuer' doesn't have a default value
+Warning	1364	Field 'x509_subject' doesn't have a default value
 create user mysqltest_A@'%';
 ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'mysql'
 rename user mysqltest_B@'%' to mysqltest_C@'%';

@@ -120,7 +120,6 @@ INSERT INTO t1 (g) VALUES (GeomFromText('LineString(1 2, 2 3)')),(GeomFromText('
 drop table t1;
 
 CREATE TABLE t1 (
-  geoobjid INT NOT NULL,
   line LINESTRING NOT NULL,
   kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
   name VARCHAR(32),
