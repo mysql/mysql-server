@@ -1026,15 +1026,19 @@ NdbOperation::branch_col(Uint32 type,
     abort();
   }
 
-  Uint32 sizeInBytes = col->m_attrSize * col->m_arraySize;
-  if (! col->getCharType()) {
-    // prevent assert in NdbSqlUtil on length error
-    if(len != 0 && len != sizeInBytes)
-    {
-      setErrorCodeAbort(4209);
-      return -1;
+  if (val == NULL)
+    len = 0;
+  else {
+    if (! col->getCharType()) {
+      // prevent assert in NdbSqlUtil on length error
+      Uint32 sizeInBytes = col->m_attrSize * col->m_arraySize;
+      if (len != 0 && len != sizeInBytes)
+      {
+        setErrorCodeAbort(4209);
+        return -1;
+      }
+      len = sizeInBytes;
     }
-    len = sizeInBytes;
   }
 
   if (insertATTRINFO(Interpreter::BranchCol(c, 0, 0, false)) == -1)
