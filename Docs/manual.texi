@@ -3630,9 +3630,9 @@ Greece [NTUA, Athens] @
 @item
 @c EMAIL: mirrors@gm.is (Tomas Edwardsson)
 @c @image{Flags/iceland}
-Island [GM] @
+Iceland [GM] @
 @uref{http://mysql.gm.is/, WWW}
-@uref{ftp://ftp.gm.is/pub/mysql, WWW}
+@uref{ftp://ftp.gm.is/pub/mysql/, FTP}
 
 @c @item
 @c Out of date 990906
