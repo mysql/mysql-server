@@ -10,7 +10,6 @@ DIRS := basictest perftest
 SOURCES = 				\
 	Transporter.cpp \
 	SendBuffer.cpp   \
-	SHM_Transporter.cpp \
 	TCP_Transporter.cpp \
 	TransporterRegistry.cpp \
         Packer.cpp
@@ -22,6 +21,7 @@ CCFLAGS_LOC += -I$(call fixpath,$(NDB_TOP)/include/kernel) \
 
 
 ifeq ($(NDB_SHM), Y)
+SOURCES += SHM_Transporter.cpp
 ifeq ($(NDB_OS), WIN32)
 SOURCES += SHM_Transporter.win32.cpp
 else
