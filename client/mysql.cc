@@ -2329,7 +2329,8 @@ com_status(String *buffer __attribute__((unused)),
       (void) mysql_fetch_row(result);		// Read eof
     }
 #ifdef HAVE_OPENSSL
-    if (mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_))
+    if (mysql.net.vio && mysql.net.vio->ssl_ &&
+	SSL_get_cipher(mysql.net.vio->ssl_))
       tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
 		  SSL_get_cipher(mysql.net.vio->ssl_));
     else

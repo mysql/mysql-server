@@ -267,9 +267,13 @@ int purge_master_logs(THD* thd, const char* to_log)
 {
   char search_file_name[FN_REFLEN];
   const char* errmsg = 0;
+  int res;
+
+  if (!mysql_bin_log.is_open())
+    goto end;
 
   mysql_bin_log.make_log_name(search_file_name, to_log);
-  int res = mysql_bin_log.purge_logs(thd, search_file_name);
+  res = mysql_bin_log.purge_logs(thd, search_file_name);
 
   switch(res)  {
   case 0: break;
@@ -292,9 +296,9 @@ binlog purge"; break;
     send_error(&thd->net, 0, errmsg);
     return 1;
   }
-  else
-    send_ok(&thd->net);
 
+end:
+  send_ok(&thd->net);
   return 0;
 }
 
@@ -886,7 +890,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
 
   if (lex_mi->log_file_name)
     strmake(mi->master_log_name, lex_mi->log_file_name,
-	    sizeof(mi->master_log_name));
+	    sizeof(mi->master_log_name)-1);
   if (lex_mi->pos)
   {
     mi->master_log_pos= lex_mi->pos;
@@ -895,11 +899,11 @@ int change_master(THD* thd, MASTER_INFO* mi)
   DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
 
   if (lex_mi->host)
-    strmake(mi->host, lex_mi->host, sizeof(mi->host));
+    strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
   if (lex_mi->user)
-    strmake(mi->user, lex_mi->user, sizeof(mi->user));
+    strmake(mi->user, lex_mi->user, sizeof(mi->user)-1);
   if (lex_mi->password)
-    strmake(mi->password, lex_mi->password, sizeof(mi->password));
+    strmake(mi->password, lex_mi->password, sizeof(mi->password)-1);
   if (lex_mi->port)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)
@@ -1137,7 +1141,6 @@ int show_binlog_info(THD* thd)
 
 int show_binlogs(THD* thd)
 {
-  const char *errmsg;
   IO_CACHE *index_file;
   char fname[FN_REFLEN];
   NET* net = &thd->net;
@@ -1148,8 +1151,8 @@ int show_binlogs(THD* thd)
   if (!mysql_bin_log.is_open())
   {
     //TODO:  Replace with ER() error message
-    errmsg= "You are not using binary logging";
-    goto err_with_msg;
+    send_error(net, 0, "You are not using binary logging");
+    return 1;
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));
@@ -1174,8 +1177,6 @@ int show_binlogs(THD* thd)
   send_eof(net);
   return 0;
 
-err_with_msg:
-  send_error(net, 0, errmsg);
 err:
   mysql_bin_log.unlock_index();
   return 1;
