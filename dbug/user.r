@@ -907,8 +907,10 @@ Double the colon, if you want it in the path
 .SP 1
 EX: \fCa,C::\\tmp\\log\fR
 .LI A[,file]
-Like 'a[,file]' but close and reopen file after each write. It helps to get
-a complete log file in case of crashes.
+Like 'a[,file]' but ensure that data are written after each write
+(this typically implies flush or close/reopen). It helps to get
+a complete log file in case of crashes. This mode is implied in
+multi-threaded environment.
 .LI d[,keywords]
 Enable output from macros with specified keywords.
 A null list of keywords implies that all keywords are selected.

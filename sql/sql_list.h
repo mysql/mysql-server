@@ -21,12 +21,6 @@
 
 /* mysql standard class memory allocator */
 
-#ifdef SAFEMALLOC
-#define TRASH(XX,YY) bfill((XX), (YY), 0x8F)
-#else
-#define TRASH(XX,YY) /* no-op */
-#endif
-
 class Sql_alloc
 {
 public:

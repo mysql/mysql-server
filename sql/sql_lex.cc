@@ -201,7 +201,7 @@ static int find_keyword(LEX *lex, uint len, bool function)
     lex->yylval->symbol.length=len;
     
     if ((symbol->tok == NOT_SYM) &&
-        (lex->thd->variables.sql_mode & MODE_BROKEN_NOT))
+        (lex->thd->variables.sql_mode & MODE_HIGH_NOT_PRECEDENCE))
       return NOT2_SYM;
     if ((symbol->tok == OR_OR_SYM) &&
 	!(lex->thd->variables.sql_mode & MODE_PIPES_AS_CONCAT))

@@ -263,11 +263,13 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 
   save_allow_sum_func= thd->allow_sum_func;
   thd->allow_sum_func= 0;
-  res= (setup_conds(thd, tables, leaves, conds) ||
-        setup_order(thd, ref_pointer_array, tables, fields, all_fields,
-                    order) ||
-        setup_group(thd, ref_pointer_array, tables, fields, all_fields,
-                    group, hidden_group_fields));
+  res= setup_conds(thd, tables, leaves, conds);
+  thd->allow_sum_func= save_allow_sum_func;
+  res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
+                          order);
+  thd->allow_sum_func= 0;
+  res= res || setup_group(thd, ref_pointer_array, tables, fields, all_fields,
+                          group, hidden_group_fields);
   thd->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(res);
 }
@@ -6023,9 +6025,13 @@ static void clear_tables(JOIN *join)
 
 class COND_CMP :public ilink {
 public:
-  static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
+  static void *operator new(size_t size)
+  {
+    return (void*) sql_alloc((uint) size);
+  }
   static void operator delete(void *ptr __attribute__((unused)),
-			      size_t size __attribute__((unused))) {} /*lint -e715 */
+                              size_t size __attribute__((unused)))
+  { TRASH(ptr, size); }
 
   Item *and_level;
   Item_func *cmp_func;
@@ -11346,7 +11352,7 @@ int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
    setup_group()
    thd			Thread handler
    ref_pointer_array	We store references to all fields that was not in
-			'fields' here.   
+			'fields' here.
    fields		All fields in the select part. Any item in 'order'
 			that is part of these list is replaced by a pointer
 			to this fields.
