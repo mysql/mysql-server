@@ -1890,7 +1890,7 @@ ha_innobase::change_active_index(
 			InnoDB */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
-	KEY*		key;
+	KEY*		key=0;
 
   	statistic_increment(ha_read_key_count, &LOCK_status);
 
@@ -1911,9 +1911,10 @@ ha_innobase::change_active_index(
 	if (!prebuilt->index) {
 		fprintf(stderr,
 	"InnoDB: Could not find key n:o %u with name %s from dict cache\n"
-	"InnoDB: for table %s\n", keynr, key->name, prebuilt->table->name);
+	"InnoDB: for table %s\n", keynr, key ? key->name : "NULL",
+			prebuilt->table->name);
 
-		return(1);
+		DBUG_RETURN(1);
 	}
 	
 	assert(prebuilt->search_tuple);
@@ -1929,7 +1930,7 @@ ha_innobase::change_active_index(
 
 	build_template(prebuilt, user_thd, table, ROW_MYSQL_WHOLE_ROW);
 
-	return(0);
+	DBUG_RETURN(0);
 }
 
 /**************************************************************************
@@ -2812,7 +2813,7 @@ ha_innobase::estimate_number_of_rows(void)
 
 	estimate = 2 * data_file_length / dict_index_calc_min_rec_len(index);
 	
-	return((ha_rows) estimate);
+	DBUG_RETURN((ha_rows) estimate);
 }
 
 /*************************************************************************
