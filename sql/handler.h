@@ -120,9 +120,10 @@ enum row_type { ROW_TYPE_DEFAULT, ROW_TYPE_FIXED, ROW_TYPE_DYNAMIC,
 /* struct to hold information about the table that should be created */
 
 /* Bits in used_fields */
-#define HA_CREATE_USED_AUTO	1
-#define HA_CREATE_USED_RAID	2
-#define HA_CREATE_USED_UNION	4
+#define HA_CREATE_USED_AUTO		1
+#define HA_CREATE_USED_RAID		2
+#define HA_CREATE_USED_UNION		4
+#define HA_CREATE_USED_INSERT_METHOD	8
 
 typedef struct st_thd_trans {
   void *bdb_tid;
@@ -150,6 +151,7 @@ typedef struct st_ha_create_information
   bool if_not_exists;
   ulong used_fields;
   SQL_LIST merge_list;
+  uint merge_insert_method;
 } HA_CREATE_INFO;
 
 

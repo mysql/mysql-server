@@ -22,7 +22,6 @@
  in case we decide to make them external at some point
  */
 
-#define DONT_USE_RAID
 #if defined(__WIN__)
 #include <winsock.h>
 #include <odbcinst.h>
@@ -41,6 +40,7 @@ inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __a
 #endif
 
 #include <my_global.h>
+#include <mysql_embed.h>
 #include <mysql_com.h>
 #include <violite.h>
 #include <my_sys.h>

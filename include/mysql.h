@@ -48,32 +48,15 @@ typedef char my_bool;
 #endif
 typedef char * gptr;
 
-#ifndef ST_USED_MEM_DEFINED
-#define ST_USED_MEM_DEFINED
-typedef struct st_used_mem {			/* struct for once_alloc */
-  struct st_used_mem *next;			/* Next block in use */
-  unsigned int	left;				/* memory left in block  */
-  unsigned int	size;				/* size of block */
-} USED_MEM;
-typedef struct st_mem_root {
-  USED_MEM *free;
-  USED_MEM *used;
-  USED_MEM *pre_alloc;
-  unsigned int	min_malloc;
-  unsigned int	block_size;
-
-  void (*error_handler)(void);
-} MEM_ROOT;
-#endif
-
 #ifndef my_socket_defined
 #ifdef __WIN__
 #define my_socket SOCKET
 #else
 typedef int my_socket;
-#endif
-#endif
-#endif
+#endif /* __WIN__ */
+#endif /* my_socket_defined */
+#endif /* _global_h */
+
 #include "mysql_com.h"
 #include "mysql_version.h"
 
@@ -117,6 +100,24 @@ typedef struct st_mysql_rows {
 } MYSQL_ROWS;
 
 typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;	/* offset to current row */
+
+#ifndef ST_USED_MEM_DEFINED
+#define ST_USED_MEM_DEFINED
+typedef struct st_used_mem {			/* struct for once_alloc */
+  struct st_used_mem *next;			/* Next block in use */
+  unsigned int	left;				/* memory left in block  */
+  unsigned int	size;				/* size of block */
+} USED_MEM;
+typedef struct st_mem_root {
+  USED_MEM *free;
+  USED_MEM *used;
+  USED_MEM *pre_alloc;
+  unsigned int	min_malloc;
+  unsigned int	block_size;
+
+  void (*error_handler)(void);
+} MEM_ROOT;
+#endif
 
 typedef struct st_mysql_data {
   my_ulonglong rows;

@@ -13,6 +13,7 @@
  *
  */
 #include "my_global.h"
+#include "mysql_embed.h"
 #include "my_pthread.h"
 #include "sys/types.h"
 #include "../regex/regex.h"

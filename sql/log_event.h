@@ -272,7 +272,8 @@ public:
 #else // avoid having to link mysqlbinlog against libpthread
   static Log_event* read_log_event(IO_CACHE* file);
 #endif  
-  static Log_event* read_log_event(const char* buf, int event_len);
+  static Log_event* read_log_event(const char* buf, int event_len,
+				   const char **error);
   const char* get_type_str();
 
 #ifndef MYSQL_CLIENT
@@ -567,9 +568,10 @@ public:
   uint file_id;
 #ifndef MYSQL_CLIENT
   Create_file_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
-			       const char* table_name_arg,
-		 List<Item>& fields_arg, enum enum_duplicates handle_dup,
-		       char* block_arg, uint block_len_arg);
+			const char* table_name_arg,
+			List<Item>& fields_arg,
+			enum enum_duplicates handle_dup,
+			char* block_arg, uint block_len_arg);
 #endif  
   
   Create_file_log_event(const char* buf, int event_len);

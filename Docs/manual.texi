@@ -6825,6 +6825,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{ftp://mysql.cyberus.ca/, FTP}
 
 @item
+@c EMAIL: alagbe@servidor.unam.mx (Alfredo Aguayo)
+@image{Flags/mexico} Mexico [UNAM] @
+@uref{http://mysql.unam.mx/, WWW}
+@uref{ftp://mysql.unam.mx/pub/mysql/, FTP}
+
+@item
 @c EMAIL: mleber@he.net (Mike Leber)
 @c Added 980312
 @image{Flags/usa} USA [Hurricane Electric/San Jose] @
@@ -46513,7 +46519,7 @@ newest version from @uref{http://civeng.com/sqldemo/, the home site}.
 @item @uref{http://myadmin.cheapnet.net/, MyAdmin home page}
 A Web-based MySQL administrator by Mike Machado.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/phpMyAdmin_2.0.1.tar.gz,phpMyAdmin_2.0.1.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/phpMyAdmin_2.2.0.tar.gz,phpMyAdmin_2.2.0.tar.gz}
 A set of PHP3-scripts to adminstrate MySQL over the WWW.
 
 @item @uref{http://www.phpwizard.net/projects/phpMyAdmin/, phpMyAdmin home page}

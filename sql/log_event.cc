@@ -469,7 +469,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file)
     error = "read error";
     goto err;
   }
-  if((res = read_log_event(buf, data_len)))
+  if ((res = read_log_event(buf, data_len, &error)))
     res->register_temp_buf(buf);
 err:
   UNLOCK_MUTEX;
@@ -481,10 +481,11 @@ err:
   return res;
 }
 
-Log_event* Log_event::read_log_event(const char* buf, int event_len)
+Log_event* Log_event::read_log_event(const char* buf, int event_len,
+				     const char **error)
 {
-  if(event_len < EVENT_LEN_OFFSET ||
-     (uint)event_len != uint4korr(buf+EVENT_LEN_OFFSET))
+  if (event_len < EVENT_LEN_OFFSET ||
+      (uint)event_len != uint4korr(buf+EVENT_LEN_OFFSET))
     return NULL; // general sanity check - will fail on a partial read
   
   Log_event* ev = NULL;
@@ -531,6 +532,7 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len)
   if (!ev) return 0;
   if (!ev->is_valid())
   {
+    *error= "Found invalid event in binary log";
     delete ev;
     return 0;
   }
@@ -812,80 +814,92 @@ int Load_log_event::write_data_body(IO_CACHE* file)
   if (sql_ex.write_data(file)) return 1;
   if (num_fields && fields && field_lens)
   {
-    if(my_b_write(file, (byte*)field_lens, num_fields) ||
-       my_b_write(file, (byte*)fields, field_block_len))
+    if (my_b_write(file, (byte*)field_lens, num_fields) ||
+	my_b_write(file, (byte*)fields, field_block_len))
       return 1;
   }
-  return my_b_write(file, (byte*)table_name, table_name_len + 1) ||
-     my_b_write(file, (byte*)db, db_len + 1) ||
-    my_b_write(file, (byte*)fname, fname_len);
+  return (my_b_write(file, (byte*)table_name, table_name_len + 1) ||
+	  my_b_write(file, (byte*)db, db_len + 1) ||
+	  my_b_write(file, (byte*)fname, fname_len));
 }
 
-#define WRITE_STR(name) my_b_write(file,(byte*)&name ## _len, 1) || \
-   my_b_write(file,(byte*)name,name ## _len)
-#define OLD_EX_INIT(name) old_ex.##name = *name
+
+static bool write_str(IO_CACHE *file, char *str, byte length)
+{
+  return (my_b_write(file, &length, 1) ||
+	  my_b_write(file, (byte*) str, (int) length));
+}
 
 int sql_ex_info::write_data(IO_CACHE* file)
 {
   if (new_format())
   {
-    return WRITE_STR(field_term) || WRITE_STR(enclosed) ||
-      WRITE_STR(line_term) || WRITE_STR(line_start) ||
-      WRITE_STR(escaped) || my_b_write(file,(byte*)&opt_flags,1);
+    return (write_str(file, field_term, field_term_len) ||
+	    write_str(file, enclosed,   enclosed_len) ||
+	    write_str(file, line_term,  line_term_len) ||
+	    write_str(file, line_start, line_start_len) ||
+	    write_str(file, escaped,    escaped_len) ||
+	    my_b_write(file,(byte*) &opt_flags,1));
   }
   else
   {
     old_sql_ex old_ex;
-    OLD_EX_INIT(field_term);
-    OLD_EX_INIT(enclosed);
-    OLD_EX_INIT(line_term);
-    OLD_EX_INIT(line_start);
-    OLD_EX_INIT(escaped);
-    old_ex.opt_flags = opt_flags;
-    old_ex.empty_flags = empty_flags;
-    return my_b_write(file,(byte*)&old_ex,sizeof(old_ex));
+    old_ex.field_term= *field_term;
+    old_ex.enclosed=   *enclosed;
+    old_ex.line_term=  *line_term;
+    old_ex.line_start= *line_start;
+    old_ex.escaped=    *escaped;
+    old_ex.opt_flags=  opt_flags;
+    old_ex.empty_flags=empty_flags;
+    return my_b_write(file, (byte*) &old_ex, sizeof(old_ex));
   }
 }
 
-#define READ_STR(name) name ## _len = *buf++;\
- if (buf >= buf_end) return 0;\
- name = buf; \
- buf += name ## _len; \
- if (buf >= buf_end) return 0;
-
-#define READ_OLD_STR(name) name ## _len = 1; \
-  name = buf++; \
-  if (buf >= buf_end) return 0; 
-
-#define FIX_OLD_LEN(name,NAME) if (empty_flags & NAME ## _EMPTY) \
-  name ## _len = 0
+static inline int read_str(char * &buf, char *buf_end, char * &str,
+			   uint8 &len)
+{
+  if (buf + (uint) (uchar) *buf >= buf_end)
+    return 1;
+  len = (uint8) *buf;
+  str= buf+1;
+  buf+= (uint) len+1;
+  return 0;
+}
 
 char* sql_ex_info::init(char* buf,char* buf_end,bool use_new_format)
 {
   cached_new_format = use_new_format;
   if (use_new_format)
   {
-    READ_STR(field_term);
-    READ_STR(enclosed);
-    READ_STR(line_term);
-    READ_STR(line_start);
-    READ_STR(escaped);
+    empty_flags=0;
+    if (read_str(buf, buf_end, field_term, field_term_len) ||
+	read_str(buf, buf_end, enclosed,   enclosed_len) ||
+	read_str(buf, buf_end, line_term,  line_term_len) ||
+	read_str(buf, buf_end, line_start, line_start_len) ||
+	read_str(buf, buf_end, escaped,	   escaped_len))
+      return 0;
     opt_flags = *buf++;
   }
   else
   {
-    READ_OLD_STR(field_term);
-    READ_OLD_STR(enclosed);
-    READ_OLD_STR(line_term);
-    READ_OLD_STR(line_start);
-    READ_OLD_STR(escaped);
+    field_term_len= enclosed_len= line_term_len= line_start_len= escaped_len=1;
+    *field_term=*buf++;
+    *enclosed=	*buf++;
+    *line_term= *buf++;
+    *line_start=*buf++;
+    *escaped=	*buf++;
     opt_flags = *buf++;
-    empty_flags = *buf++;
-    FIX_OLD_LEN(field_term,FIELD_TERM);
-    FIX_OLD_LEN(enclosed,ENCLOSED);
-    FIX_OLD_LEN(line_term,LINE_TERM);
-    FIX_OLD_LEN(line_start,LINE_START);
-    FIX_OLD_LEN(escaped,ESCAPED);
+    empty_flags=*buf++;
+    if (empty_flags & FIELD_TERM_EMPTY)
+      field_term_len=0;
+    if (empty_flags & ENCLOSED_EMPTY)
+      enclosed_len=0;
+    if (empty_flags & LINE_TERM_EMPTY)
+      line_term_len=0;
+    if (empty_flags & LINE_START_EMPTY)
+      line_start_len=0;
+    if (empty_flags & ESCAPED_EMPTY)
+      escaped_len=0;
   }
   return buf;
 }
@@ -1271,6 +1285,8 @@ Create_file_log_event::Create_file_log_event(const char* buf, int len):
   block = (char*)buf + block_offset;
   block_len = len - block_offset;
 }
+
+
 #ifdef MYSQL_CLIENT
 void Create_file_log_event::print(FILE* file, bool short_form,
 				  char* last_db)
@@ -1553,20 +1569,16 @@ int Load_log_event::exec_event(NET* net, struct st_master_info* mi)
 	handle_dup = DUP_REPLACE;
       sql_exchange ex((char*)fname, sql_ex.opt_flags &&
 		      DUMPFILE_FLAG );
-      
-#define SET_EX(name) String name(sql_ex.name,sql_ex.name ## _len);\
- ex.name = &name;
-
-      SET_EX(field_term);
-      SET_EX(enclosed);
-      SET_EX(line_term);
-      SET_EX(line_start);
-      SET_EX(escaped);
+      String field_term(sql_ex.field_term,sql_ex.field_term_len);
+      String enclosed(sql_ex.enclosed,sql_ex.enclosed_len);
+      String line_term(sql_ex.line_term,sql_ex.line_term_len);
+      String line_start(sql_ex.line_start,sql_ex.line_start_len);
+      String escaped(sql_ex.escaped,sql_ex.escaped_len);
 	    
       ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
-      if(sql_ex.empty_flags & FIELD_TERM_EMPTY)
+      if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
 	ex.field_term->length(0);
-	    
+
       ex.skip_lines = skip_lines;
       List<Item> fields;
       set_fields(fields);
@@ -1862,10 +1874,3 @@ err:
 
 
 #endif
-
-
-
-
-
-
-
