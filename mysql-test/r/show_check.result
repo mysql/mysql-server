@@ -101,7 +101,7 @@ show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 test_set	set('val1','val2','val3')	latin1_swedish_ci					select,insert,update,references	
 name	char(20)	latin1_swedish_ci	YES		O'Brien		select,insert,update,references	O'Brien as default
-c	int(11)	binary			0		select,insert,update,references	int column
+c	int(11)	NULL			0		select,insert,update,references	int column
 drop table t1;
 create table t1 (a int not null, unique aa (a));
 show create table t1;
@@ -156,20 +156,20 @@ drop table t1;
 create table t1 (a decimal(9,2), b decimal (9,0), e double(9,2), f double(5,0), h float(3,2), i float(3,0));
 show columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra
-a	decimal(9,2)	binary	YES		NULL	
-b	decimal(9,0)	binary	YES		NULL	
-e	double(9,2)	binary	YES		NULL	
-f	double(5,0)	binary	YES		NULL	
-h	float(3,2)	binary	YES		NULL	
-i	float(3,0)	binary	YES		NULL	
+a	decimal(9,2)	NULL	YES		NULL	
+b	decimal(9,0)	NULL	YES		NULL	
+e	double(9,2)	NULL	YES		NULL	
+f	double(5,0)	NULL	YES		NULL	
+h	float(3,2)	NULL	YES		NULL	
+i	float(3,0)	NULL	YES		NULL	
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-a	decimal(9,2)	binary	YES		NULL		select,insert,update,references	
-b	decimal(9,0)	binary	YES		NULL		select,insert,update,references	
-e	double(9,2)	binary	YES		NULL		select,insert,update,references	
-f	double(5,0)	binary	YES		NULL		select,insert,update,references	
-h	float(3,2)	binary	YES		NULL		select,insert,update,references	
-i	float(3,0)	binary	YES		NULL		select,insert,update,references	
+a	decimal(9,2)	NULL	YES		NULL		select,insert,update,references	
+b	decimal(9,0)	NULL	YES		NULL		select,insert,update,references	
+e	double(9,2)	NULL	YES		NULL		select,insert,update,references	
+f	double(5,0)	NULL	YES		NULL		select,insert,update,references	
+h	float(3,2)	NULL	YES		NULL		select,insert,update,references	
+i	float(3,0)	NULL	YES		NULL		select,insert,update,references	
 drop table t1;
 create table t1 (
 type_bool bool not null,
@@ -230,15 +230,15 @@ drop table t1;
 create table t1 (c decimal, d double, f float, r real);
 show columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra
-c	decimal(10,0)	binary	YES		NULL	
-d	double	binary	YES		NULL	
-f	float	binary	YES		NULL	
-r	double	binary	YES		NULL	
+c	decimal(10,0)	NULL	YES		NULL	
+d	double	NULL	YES		NULL	
+f	float	NULL	YES		NULL	
+r	double	NULL	YES		NULL	
 drop table t1;
 create table t1 (c decimal(3,3), d double(3,3), f float(3,3));
 show columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra
-c	decimal(4,3)	binary	YES		NULL	
-d	double(4,3)	binary	YES		NULL	
-f	float(4,3)	binary	YES		NULL	
+c	decimal(4,3)	NULL	YES		NULL	
+d	double(4,3)	NULL	YES		NULL	
+f	float(4,3)	NULL	YES		NULL	
 drop table t1;

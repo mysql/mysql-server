@@ -9,36 +9,36 @@ CREATE TABLE gc  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
 CREATE TABLE geo (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 SHOW FIELDS FROM pt;
 Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	binary		PRI	0	
-g	point	binary	YES		NULL	
+fid	int(11)	NULL		PRI	0	
+g	point	NULL	YES		NULL	
 SHOW FIELDS FROM ls;
 Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	binary		PRI	0	
-g	linestring	binary	YES		NULL	
+fid	int(11)	NULL		PRI	0	
+g	linestring	NULL	YES		NULL	
 SHOW FIELDS FROM p;
 Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	binary		PRI	0	
-g	polygon	binary	YES		NULL	
+fid	int(11)	NULL		PRI	0	
+g	polygon	NULL	YES		NULL	
 SHOW FIELDS FROM mpt;
 Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	binary		PRI	0	
-g	multipoint	binary	YES		NULL	
+fid	int(11)	NULL		PRI	0	
+g	multipoint	NULL	YES		NULL	
 SHOW FIELDS FROM mls;
 Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	binary		PRI	0	
-g	multilinestring	binary	YES		NULL	
+fid	int(11)	NULL		PRI	0	
+g	multilinestring	NULL	YES		NULL	
 SHOW FIELDS FROM mp;
 Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	binary		PRI	0	
-g	multipolygon	binary	YES		NULL	
+fid	int(11)	NULL		PRI	0	
+g	multipolygon	NULL	YES		NULL	
 SHOW FIELDS FROM gc;
 Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	binary		PRI	0	
-g	geometrycollection	binary	YES		NULL	
+fid	int(11)	NULL		PRI	0	
+g	geometrycollection	NULL	YES		NULL	
 SHOW FIELDS FROM geo;
 Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	binary		PRI	0	
-g	geometry	binary	YES		NULL	
+fid	int(11)	NULL		PRI	0	
+g	geometry	NULL	YES		NULL	
 INSERT INTO pt VALUES 
 (101, PointFromText('POINT(10 10)')),
 (102, PointFromText('POINT(20 10)')),
@@ -367,26 +367,26 @@ gm  geometry
 );
 SHOW FIELDS FROM g1;
 Field	Type	Collation	Null	Key	Default	Extra
-pt	point	binary	YES		NULL	
-ln	linestring	binary	YES		NULL	
-pg	polygon	binary	YES		NULL	
-mpt	multipoint	binary	YES		NULL	
-mln	multilinestring	binary	YES		NULL	
-mpg	multipolygon	binary	YES		NULL	
-gc	geometrycollection	binary	YES		NULL	
-gm	geometry	binary	YES		NULL	
+pt	point	NULL	YES		NULL	
+ln	linestring	NULL	YES		NULL	
+pg	polygon	NULL	YES		NULL	
+mpt	multipoint	NULL	YES		NULL	
+mln	multilinestring	NULL	YES		NULL	
+mpg	multipolygon	NULL	YES		NULL	
+gc	geometrycollection	NULL	YES		NULL	
+gm	geometry	NULL	YES		NULL	
 ALTER TABLE g1 ADD fid INT NOT NULL;
 SHOW FIELDS FROM g1;
 Field	Type	Collation	Null	Key	Default	Extra
-pt	point	binary	YES		NULL	
-ln	linestring	binary	YES		NULL	
-pg	polygon	binary	YES		NULL	
-mpt	multipoint	binary	YES		NULL	
-mln	multilinestring	binary	YES		NULL	
-mpg	multipolygon	binary	YES		NULL	
-gc	geometrycollection	binary	YES		NULL	
-gm	geometry	binary	YES		NULL	
-fid	int(11)	binary			0	
+pt	point	NULL	YES		NULL	
+ln	linestring	NULL	YES		NULL	
+pg	polygon	NULL	YES		NULL	
+mpt	multipoint	NULL	YES		NULL	
+mln	multilinestring	NULL	YES		NULL	
+mpg	multipolygon	NULL	YES		NULL	
+gc	geometrycollection	NULL	YES		NULL	
+gm	geometry	NULL	YES		NULL	
+fid	int(11)	NULL			0	
 DROP TABLE g1;
 SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))));
 AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))

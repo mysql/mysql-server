@@ -39,28 +39,28 @@ KEY (options,flags)
 );
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(5) unsigned	binary		PRI	NULL	auto_increment	select,insert,update,references	
+auto	int(5) unsigned	NULL		PRI	NULL	auto_increment	select,insert,update,references	
 string	varchar(10)	latin1_swedish_ci	YES		hello		select,insert,update,references	
-tiny	tinyint(4)	binary		MUL	0		select,insert,update,references	
-short	smallint(6)	binary		MUL	1		select,insert,update,references	
-medium	mediumint(8)	binary		MUL	0		select,insert,update,references	
-long_int	int(11)	binary			0		select,insert,update,references	
-longlong	bigint(13)	binary		MUL	0		select,insert,update,references	
-real_float	float(13,1)	binary		MUL	0.0		select,insert,update,references	
-real_double	double(16,4)	binary	YES		NULL		select,insert,update,references	
-utiny	tinyint(3) unsigned	binary		MUL	0		select,insert,update,references	
-ushort	smallint(5) unsigned zerofill	binary		MUL	00000		select,insert,update,references	
-umedium	mediumint(8) unsigned	binary		MUL	0		select,insert,update,references	
-ulong	int(11) unsigned	binary		MUL	0		select,insert,update,references	
-ulonglong	bigint(13) unsigned	binary		MUL	0		select,insert,update,references	
-time_stamp	timestamp	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-date_field	date	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-time_field	time	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-date_time	datetime	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-blob_col	blob	binary	YES		NULL		select,insert,update,references	
-tinyblob_col	tinyblob	binary	YES		NULL		select,insert,update,references	
-mediumblob_col	mediumblob	binary					select,insert,update,references	
-longblob_col	longblob	binary					select,insert,update,references	
+tiny	tinyint(4)	NULL		MUL	0		select,insert,update,references	
+short	smallint(6)	NULL		MUL	1		select,insert,update,references	
+medium	mediumint(8)	NULL		MUL	0		select,insert,update,references	
+long_int	int(11)	NULL			0		select,insert,update,references	
+longlong	bigint(13)	NULL		MUL	0		select,insert,update,references	
+real_float	float(13,1)	NULL		MUL	0.0		select,insert,update,references	
+real_double	double(16,4)	NULL	YES		NULL		select,insert,update,references	
+utiny	tinyint(3) unsigned	NULL		MUL	0		select,insert,update,references	
+ushort	smallint(5) unsigned zerofill	NULL		MUL	00000		select,insert,update,references	
+umedium	mediumint(8) unsigned	NULL		MUL	0		select,insert,update,references	
+ulong	int(11) unsigned	NULL		MUL	0		select,insert,update,references	
+ulonglong	bigint(13) unsigned	NULL		MUL	0		select,insert,update,references	
+time_stamp	timestamp	NULL	YES		NULL		select,insert,update,references	
+date_field	date	NULL	YES		NULL		select,insert,update,references	
+time_field	time	NULL	YES		NULL		select,insert,update,references	
+date_time	datetime	NULL	YES		NULL		select,insert,update,references	
+blob_col	blob	NULL	YES		NULL		select,insert,update,references	
+tinyblob_col	tinyblob	NULL	YES		NULL		select,insert,update,references	
+mediumblob_col	mediumblob	NULL					select,insert,update,references	
+longblob_col	longblob	NULL					select,insert,update,references	
 options	enum('one','two','tree')	latin1_swedish_ci		MUL	one		select,insert,update,references	
 flags	set('one','two','tree')	latin1_swedish_ci					select,insert,update,references	
 show keys from t1;
@@ -206,53 +206,53 @@ Warning	1263	Data truncated for column 'options' at row 6
 update t2 set string="changed" where auto=16;
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(5) unsigned	binary		MUL	NULL	auto_increment	select,insert,update,references	
+auto	int(5) unsigned	NULL		MUL	NULL	auto_increment	select,insert,update,references	
 string	varchar(10)	latin1_swedish_ci	YES		new defaul		select,insert,update,references	
-tiny	tinyint(4)	binary		MUL	0		select,insert,update,references	
-short	smallint(6)	binary		MUL	0		select,insert,update,references	
-medium	mediumint(8)	binary		MUL	0		select,insert,update,references	
-long_int	int(11)	binary			0		select,insert,update,references	
-longlong	bigint(13)	binary		MUL	0		select,insert,update,references	
-real_float	float(13,1)	binary		MUL	0.0		select,insert,update,references	
-real_double	double(16,4)	binary	YES		NULL		select,insert,update,references	
-utiny	tinyint(3) unsigned	binary			0		select,insert,update,references	
-ushort	smallint(5) unsigned zerofill	binary			00000		select,insert,update,references	
-umedium	mediumint(8) unsigned	binary		MUL	0		select,insert,update,references	
-ulong	int(11) unsigned	binary		MUL	0		select,insert,update,references	
-ulonglong	bigint(13) unsigned	binary		MUL	0		select,insert,update,references	
-time_stamp	timestamp	latin1_swedish_ci	YES		NULL		select,insert,update,references	
+tiny	tinyint(4)	NULL		MUL	0		select,insert,update,references	
+short	smallint(6)	NULL		MUL	0		select,insert,update,references	
+medium	mediumint(8)	NULL		MUL	0		select,insert,update,references	
+long_int	int(11)	NULL			0		select,insert,update,references	
+longlong	bigint(13)	NULL		MUL	0		select,insert,update,references	
+real_float	float(13,1)	NULL		MUL	0.0		select,insert,update,references	
+real_double	double(16,4)	NULL	YES		NULL		select,insert,update,references	
+utiny	tinyint(3) unsigned	NULL			0		select,insert,update,references	
+ushort	smallint(5) unsigned zerofill	NULL			00000		select,insert,update,references	
+umedium	mediumint(8) unsigned	NULL		MUL	0		select,insert,update,references	
+ulong	int(11) unsigned	NULL		MUL	0		select,insert,update,references	
+ulonglong	bigint(13) unsigned	NULL		MUL	0		select,insert,update,references	
+time_stamp	timestamp	NULL	YES		NULL		select,insert,update,references	
 date_field	varchar(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-time_field	time	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-date_time	datetime	latin1_swedish_ci	YES		NULL		select,insert,update,references	
+time_field	time	NULL	YES		NULL		select,insert,update,references	
+date_time	datetime	NULL	YES		NULL		select,insert,update,references	
 new_blob_col	varchar(20)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-tinyblob_col	tinyblob	binary	YES		NULL		select,insert,update,references	
-mediumblob_col	mediumblob	binary					select,insert,update,references	
+tinyblob_col	tinyblob	NULL	YES		NULL		select,insert,update,references	
+mediumblob_col	mediumblob	NULL					select,insert,update,references	
 options	enum('one','two','tree')	latin1_swedish_ci		MUL	one		select,insert,update,references	
 flags	set('one','two','tree')	latin1_swedish_ci					select,insert,update,references	
 new_field	varchar(10)	latin1_swedish_ci			new		select,insert,update,references	
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(5) unsigned	binary			0		select,insert,update,references	
+auto	int(5) unsigned	NULL			0		select,insert,update,references	
 string	varchar(10)	latin1_swedish_ci	YES		new defaul		select,insert,update,references	
-tiny	tinyint(4)	binary			0		select,insert,update,references	
-short	smallint(6)	binary			0		select,insert,update,references	
-medium	mediumint(8)	binary			0		select,insert,update,references	
-long_int	int(11)	binary			0		select,insert,update,references	
-longlong	bigint(13)	binary			0		select,insert,update,references	
-real_float	float(13,1)	binary			0.0		select,insert,update,references	
-real_double	double(16,4)	binary	YES		NULL		select,insert,update,references	
-utiny	tinyint(3) unsigned	binary			0		select,insert,update,references	
-ushort	smallint(5) unsigned zerofill	binary			00000		select,insert,update,references	
-umedium	mediumint(8) unsigned	binary			0		select,insert,update,references	
-ulong	int(11) unsigned	binary			0		select,insert,update,references	
-ulonglong	bigint(13) unsigned	binary			0		select,insert,update,references	
-time_stamp	timestamp	latin1_swedish_ci	YES		NULL		select,insert,update,references	
+tiny	tinyint(4)	NULL			0		select,insert,update,references	
+short	smallint(6)	NULL			0		select,insert,update,references	
+medium	mediumint(8)	NULL			0		select,insert,update,references	
+long_int	int(11)	NULL			0		select,insert,update,references	
+longlong	bigint(13)	NULL			0		select,insert,update,references	
+real_float	float(13,1)	NULL			0.0		select,insert,update,references	
+real_double	double(16,4)	NULL	YES		NULL		select,insert,update,references	
+utiny	tinyint(3) unsigned	NULL			0		select,insert,update,references	
+ushort	smallint(5) unsigned zerofill	NULL			00000		select,insert,update,references	
+umedium	mediumint(8) unsigned	NULL			0		select,insert,update,references	
+ulong	int(11) unsigned	NULL			0		select,insert,update,references	
+ulonglong	bigint(13) unsigned	NULL			0		select,insert,update,references	
+time_stamp	timestamp	NULL	YES		NULL		select,insert,update,references	
 date_field	varchar(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-time_field	time	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-date_time	datetime	latin1_swedish_ci	YES		NULL		select,insert,update,references	
+time_field	time	NULL	YES		NULL		select,insert,update,references	
+date_time	datetime	NULL	YES		NULL		select,insert,update,references	
 new_blob_col	varchar(20)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-tinyblob_col	tinyblob	binary	YES		NULL		select,insert,update,references	
-mediumblob_col	mediumblob	binary					select,insert,update,references	
+tinyblob_col	tinyblob	NULL	YES		NULL		select,insert,update,references	
+mediumblob_col	mediumblob	NULL					select,insert,update,references	
 options	enum('one','two','tree')	latin1_swedish_ci			one		select,insert,update,references	
 flags	set('one','two','tree')	latin1_swedish_ci					select,insert,update,references	
 new_field	varchar(10)	latin1_swedish_ci			new		select,insert,update,references	
@@ -266,11 +266,11 @@ drop table t2;
 create table t2 (primary key (auto)) select auto+1 as auto,1 as t1, "a" as t2, repeat("a",256) as t3, binary repeat("b",256) as t4 from t1;
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	bigint(17) unsigned	binary		PRI	0		select,insert,update,references	
-t1	bigint(1)	binary			0		select,insert,update,references	
+auto	bigint(17) unsigned	NULL		PRI	0		select,insert,update,references	
+t1	bigint(1)	NULL			0		select,insert,update,references	
 t2	char(1)	latin1_swedish_ci					select,insert,update,references	
 t3	mediumtext	latin1_swedish_ci					select,insert,update,references	
-t4	mediumtext character set latin1	latin1_bin					select,insert,update,references	
+t4	mediumtext	latin1_bin					select,insert,update,references	
 select * from t2;
 auto	t1	t2	t3	t4
 11	1	a	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
@@ -289,9 +289,9 @@ Duplicate column name 'c'
 create table t3 select t1.c AS c1, t2.c AS c2,1 as "const" from t1, t2;
 show full columns from t3;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-c1	int(11)	binary	YES		NULL		select,insert,update,references	
-c2	int(11)	binary	YES		NULL		select,insert,update,references	
-const	bigint(1)	binary			0		select,insert,update,references	
+c1	int(11)	NULL	YES		NULL		select,insert,update,references	
+c2	int(11)	NULL	YES		NULL		select,insert,update,references	
+const	bigint(1)	NULL			0		select,insert,update,references	
 drop table t1,t2,t3;
 create table t1 ( myfield INT NOT NULL, UNIQUE INDEX (myfield), unique (myfield), index(myfield));
 drop table t1;
