@@ -4789,7 +4789,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     for (; group ; group=group->next,key_part_info++)
     {
-      Field *field=(*group->item)->tmp_table_field();
+      Field *field=(*group->item)->get_tmp_table_field();
       bool maybe_null=(*group->item)->maybe_null;
       key_part_info->null_bit=0;
       key_part_info->field=  field;
@@ -6057,7 +6057,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	Item *item= *group->item;
 	if (item->maybe_null)
 	{
-	  Field *field=item->tmp_table_field();
+	  Field *field=item->get_tmp_table_field();
 	  field->ptr[-1]= (byte) (field->is_null() ? 1 : 0);
 	}
       }
@@ -6926,7 +6926,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
   Item *item;
   while ((item=it++))
   {
-    if (item->tmp_table_field() && ! item->const_item())
+    if (item->get_tmp_table_field() && ! item->const_item())
       field_count++;
   }
 
@@ -7162,7 +7162,7 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length)
       pos->field= ((Item_field*) (*order->item))->field;
     else if (order->item[0]->type() == Item::SUM_FUNC_ITEM &&
 	     !order->item[0]->const_item())
-      pos->field= ((Item_sum*) order->item[0])->tmp_table_field();
+      pos->field= ((Item_sum*) order->item[0])->get_tmp_table_field();
     else if (order->item[0]->type() == Item::COPY_STR_ITEM)
     {						// Blob patch
       pos->item= ((Item_copy_string*) (*order->item))->item;
@@ -7759,7 +7759,7 @@ calc_group_buffer(JOIN *join,ORDER *group)
     join->group= 1;
   for (; group ; group=group->next)
   {
-    Field *field=(*group->item)->tmp_table_field();
+    Field *field=(*group->item)->get_tmp_table_field();
     if (field)
     {
       if (field->type() == FIELD_TYPE_BLOB)
@@ -8103,7 +8103,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
       {
 	item_field= item->get_tmp_table_item(thd);
       }
-      else if ((field= item->tmp_table_field()))
+      else if ((field= item->get_tmp_table_field()))
       {
 	if (item->type() == Item::SUM_FUNC_ITEM && field->table->group)
 	  item_field= ((Item_sum*) item)->result_item(field);
