@@ -111,7 +111,7 @@ esac
 # Here we must recognize all the valid KERNEL-OS combinations.
 maybe_os=`echo $1 | sed 's/^\(.*\)-\([^-]*-[^-]*\)$/\2/'`
 case $maybe_os in
-  linux-gnu*)
+  nto-qnx* | linux-gnu*)
     os=-$maybe_os
     basic_machine=`echo $1 | sed 's/^\(.*\)-\([^-]*-[^-]*\)$/\1/'`
     ;;
@@ -635,6 +635,20 @@ case $basic_machine in
 	nindy960)
 		basic_machine=i960-intel
 		os=-nindy
+		;;
+	ntox86)
+		basic_machine=i386${os:--unknown}
+		os=-nto-qnx
+		;;
+	nto*le | not*be)
+		basic_machine=${basic_machine%%be}
+		basic_machine=${basic_machine%%le}
+		basic_machine=${basic_machine##nto}${os:--unknown}
+		os=-nto-qnx
+		;;
+	nto*)
+		basic_machine=${basic_machine##nto}${os:--unknown}
+		os=-nto-qnx
 		;;
 	mon960)
 		basic_machine=i960-intel
