@@ -2936,7 +2936,7 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
   List<Item> field_list;
   Item *item;
   Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysql_admin_table");
+  DBUG_ENTER("mysql_checksum_table");
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null= 1;
