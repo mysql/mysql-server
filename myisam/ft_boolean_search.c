@@ -68,7 +68,6 @@ struct st_ftb_expr
   my_off_t  docid[2];
   float     weight;
   float     cur_weight;
-  byte     *quot, *qend;
   LIST     *phrase;               /* phrase words */
   uint      yesses;               /* number of "yes" words matched */
   uint      nos;                  /* number of "no"  words matched */
@@ -133,7 +132,7 @@ static int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
 }
 
 static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
-                      FTB_EXPR *up, uint depth)
+                      FTB_EXPR *up, uint depth, byte *up_quot)
 {
   byte        res;
   FTB_PARAM   param;
@@ -148,8 +147,7 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
     return;
 
   param.prev=' ';
-  param.quot=up->quot;
-  up->phrase= NULL;
+  param.quot= up_quot;
   while ((res=ft_get_word(ftb->charset,start,end,&w,&param)))
   {
     int   r=param.plusminus;
@@ -176,8 +174,8 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         if (param.yesno > 0) up->ythresh++;
         queue_insert(& ftb->queue, (byte *)ftbw);
         ftb->with_scan|=(param.trunc & FTB_FLAG_TRUNC);
-      case 4:
-        if (! up->quot) break;
+      case 4: /* not indexed word (stopword or too short/long) */
+        if (! up_quot) break;
         phrase_word= (FT_WORD *)alloc_root(&ftb->mem_root, sizeof(FT_WORD));
         phrase_list= (LIST *)alloc_root(&ftb->mem_root, sizeof(LIST));
         phrase_word->pos= w.pos;
@@ -194,17 +192,14 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         ftbe->up=up;
         ftbe->ythresh=ftbe->yweaks=0;
         ftbe->docid[0]=ftbe->docid[1]=HA_OFFSET_ERROR;
-        if ((ftbe->quot=param.quot)) ftb->with_scan|=2;
+        ftbe->phrase= NULL;
+        if (param.quot) ftb->with_scan|=2;
         if (param.yesno > 0) up->ythresh++;
-        _ftb_parse_query(ftb, start, end, ftbe, depth+1);
+        _ftb_parse_query(ftb, start, end, ftbe, depth+1, param.quot);
         param.quot=0;
         break;
       case 3: /* right bracket */
-        if (up->quot)
-        {
-          up->qend= param.quot;
-          up->phrase= list_reverse(up->phrase);
-        }
+        if (up_quot) up->phrase= list_reverse(up->phrase);
         return;
     }
   }
@@ -426,12 +421,12 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftbe->weight=1;
   ftbe->flags=FTB_FLAG_YES;
   ftbe->nos=1;
-  ftbe->quot=0;
   ftbe->up=0;
   ftbe->ythresh=ftbe->yweaks=0;
   ftbe->docid[0]=ftbe->docid[1]=HA_OFFSET_ERROR;
+  ftbe->phrase= NULL;
   ftb->root=ftbe;
-  _ftb_parse_query(ftb, &query, query+query_len, ftbe, 0);
+  _ftb_parse_query(ftb, &query, query+query_len, ftbe, 0, NULL);
   ftb->list=(FTB_WORD **)alloc_root(&ftb->mem_root,
                                      sizeof(FTB_WORD *)*ftb->queue.elements);
   memcpy(ftb->list, ftb->queue.root+1, sizeof(FTB_WORD *)*ftb->queue.elements);
@@ -447,15 +442,27 @@ err:
 }
 
 
-/* returns 1 if str0 ~= /\bstr1\b/ */
-static int _ftb_strstr(const byte *s0, const byte *e0,
+/*
+  Checks if given buffer matches phrase list.
+
+  SYNOPSIS
+    _ftb_check_phrase()
+    s0     start of buffer
+    e0     end of buffer
+    phrase broken into list phrase
+    cs     charset info
+
+  RETURN VALUE
+    1 is returned if phrase found, 0 else.
+*/
+
+static int _ftb_check_phrase(const byte *s0, const byte *e0,
                 LIST *phrase, CHARSET_INFO *cs)
 {
   FT_WORD h_word;
   const byte *h_start= s0;
   DBUG_ENTER("_ftb_strstr");
-
-  if (! phrase) DBUG_RETURN(0);
+  DBUG_ASSERT(phrase);
 
   while (ft_simple_get_word(cs, (byte **)&h_start, e0, &h_word, FALSE))
   {
@@ -504,7 +511,7 @@ static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_
       {
         yn=ftbe->flags;
         weight=ftbe->cur_weight*ftbe->weight;
-        if (mode && ftbe->quot)
+        if (mode && ftbe->phrase)
         {
           int not_found=1;
 
@@ -513,7 +520,7 @@ static void _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw, FT_SEG_ITERATOR *ftsi_
           {
             if (!ftsi.pos)
               continue;
-            not_found = ! _ftb_strstr(ftsi.pos, ftsi.pos+ftsi.len,
+            not_found = ! _ftb_check_phrase(ftsi.pos, ftsi.pos+ftsi.len,
                                       ftbe->phrase, ftb->charset);
           }
           if (not_found) break;
