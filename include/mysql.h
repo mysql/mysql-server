@@ -84,6 +84,7 @@ typedef struct st_mysql_field {
   unsigned long max_length;   /* Max width of selected set */
   unsigned int flags;         /* Div flags */
   unsigned int decimals;      /* Number of decimals in field */
+  unsigned int charsetnr;     /* Character set */
   enum enum_field_types type; /* Type of field. Se mysql_com.h for types */
 } MYSQL_FIELD;
 

@@ -654,8 +654,6 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *index_file_name,
 	      enum_log_type type, bool read_append = 0,
 	      bool no_auto_events = 0);
-/* mysqld.cc */
-void clear_error_message(THD *thd);
 
 /*
   External variables

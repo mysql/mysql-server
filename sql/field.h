@@ -1056,7 +1056,8 @@ class Send_field {
   const char *db_name;
   const char *table_name,*org_table_name;
   const char *col_name,*org_col_name;
-  uint length,flags,decimals;
+  ulong length;
+  uint charsetnr, flags, decimals;
   enum_field_types type;
   Send_field() {}
 };

@@ -223,6 +223,7 @@ void Field_num::make_field(Send_field *field)
   field->org_table_name=table->real_name;
   field->table_name=table_name;
   field->col_name=field->org_col_name=field_name;
+  field->charsetnr= charset()->number;
   field->length=field_length;
   field->type=type();
   field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
@@ -237,6 +238,7 @@ void Field_str::make_field(Send_field *field)
   field->org_table_name=table->real_name;
   field->table_name=table_name;
   field->col_name=field->org_col_name=field_name;
+  field->charsetnr= charset()->number;
   field->length=field_length;
   field->type=type();
   field->flags=table->maybe_null ? (flags & ~NOT_NULL_FLAG) : flags;
