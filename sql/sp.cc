@@ -615,7 +615,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
       Item_field *field= new Item_field("mysql", "proc",
 					used_field->field_name);
       if (!(used_field->field= find_field_in_tables(thd, field, &tables, 
-						    0, TRUE, 1)))
+						    0, REPORT_ALL_ERRORS, 1)))
       {
 	res= SP_INTERNAL_ERROR;
 	goto err_case1;
