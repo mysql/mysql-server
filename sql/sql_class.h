@@ -504,14 +504,31 @@ public:
   /* return class type */
   virtual Type type() const;
 
-  void set_n_backup_item_arena(Statement *set, Statement *backup);
-  inline void restore_backup_item_arena(Statement *backup)
+  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
+  inline gptr calloc(unsigned int size)
   {
-    set_item_arena(backup);
-    // reset backup mem_root to avoid its freeing
-    init_alloc_root(&backup->mem_root, 0, 0);
+    gptr ptr;
+    if ((ptr=alloc_root(&mem_root,size)))
+      bzero((char*) ptr,size);
+    return ptr;
   }
-  void set_item_arena(Statement *set);
+  inline char *strdup(const char *str)
+  { return strdup_root(&mem_root,str); }
+  inline char *strmake(const char *str, uint size)
+  { return strmake_root(&mem_root,str,size); }
+  inline char *memdup(const char *str, uint size)
+  { return memdup_root(&mem_root,str,size); }
+  inline char *memdup_w_gap(const char *str, uint size, uint gap)
+  {
+    gptr ptr;
+    if ((ptr=alloc_root(&mem_root,size+gap)))
+      memcpy(ptr,str,size);
+    return ptr;
+  }
+
+  void set_n_backup_item_arena(Statement *set, Statement *backup);
+  void restore_backup_item_arena(Statement *set, Statement *backup);
+  void Statement::set_item_arena(Statement *set);
 };
 
 
@@ -862,34 +879,14 @@ public:
     return 0;
 #endif
   }
-  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
-  inline gptr calloc(unsigned int size)
-  {
-    gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size)))
-      bzero((char*) ptr,size);
-    return ptr;
-  }
-  inline char *strdup(const char *str)
-  { return strdup_root(&mem_root,str); }
-  inline char *strmake(const char *str, uint size)
-  { return strmake_root(&mem_root,str,size); }
-  inline char *memdup(const char *str, uint size)
-  { return memdup_root(&mem_root,str,size); }
-  inline char *memdup_w_gap(const char *str, uint size, uint gap)
-  {
-    gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size+gap)))
-      memcpy(ptr,str,size);
-    return ptr;
-  }
-  bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
-		      const char *from, uint from_length,
-		      CHARSET_INFO *from_cs);
   inline gptr trans_alloc(unsigned int size) 
   { 
     return alloc_root(&transaction.mem_root,size);
   }
+
+  bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
+		      const char *from, uint from_length,
+		      CHARSET_INFO *from_cs);
   void add_changed_table(TABLE *table);
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
@@ -912,6 +909,32 @@ public:
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
+
+  inline void ps_setup_prepare_memory()
+  {
+    DBUG_ASSERT(current_statement!=0);
+    /*
+      We do not want to have in PS memory all that junk,
+      which will be created by preparation => substitute memory
+      from original thread pool.
+
+      We know that PS memory pool is now copied to THD, we move it back
+      to allow some code use it.
+    */
+    current_statement->set_item_arena(this);
+    init_sql_alloc(&mem_root,
+		   variables.query_alloc_block_size,
+		   variables.query_prealloc_size);
+    free_list= 0;
+  }
+  inline void ps_setup_free_memory()
+  {
+    DBUG_ASSERT(current_statement!=0);
+    cleanup_items(current_statement->free_list);
+    free_items(free_list);
+    free_root(&mem_root, MYF(0));
+    set_item_arena(current_statement);
+  }
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */

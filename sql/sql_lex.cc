@@ -1496,11 +1496,17 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 {
   if (ref_pointer_array)
     return 0;
+
+  /*
+    We have to create array in prepared statement memory if it is
+    prepared statement
+  */
+  Statement *stmt= thd->current_statement ? thd->current_statement : thd;
   return (ref_pointer_array= 
-	  (Item **)thd->alloc(sizeof(Item*) *
-			      (item_list.elements +
-			       select_n_having_items +
-			       order_group_num)* 5)) == 0;
+	  (Item **)stmt->alloc(sizeof(Item*) *
+			       (item_list.elements +
+				select_n_having_items +
+				order_group_num)* 5)) == 0;
 }
 
 

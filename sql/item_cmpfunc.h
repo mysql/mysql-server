@@ -91,9 +91,10 @@ class Item_in_optimizer: public Item_bool_func
 {
 protected:
   Item_cache *cache;
+  bool save_cache;
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
-    Item_bool_func(a, (Item *)b), cache(0) {}
+    Item_bool_func(a, (Item *)b), cache(0), save_cache(0) {}
   bool fix_fields(THD *, struct st_table_list *, Item **);
   bool fix_left(THD *thd, struct st_table_list *tables, Item **ref);
   bool is_null();
@@ -108,6 +109,7 @@ public:
   void cleanup();
   const char *func_name() const { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
+  void keep_top_level_cache();
 };
 
 class Comp_creator

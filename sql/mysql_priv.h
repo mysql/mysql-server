@@ -347,6 +347,9 @@ inline THD *_current_thd(void)
 #include "sql_udf.h"
 #include "item.h"
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
+/* sql_parse.cc */
+void free_items(Item *item);
+void cleanup_items(Item *item);
 #include "sql_class.h"
 #include "opt_range.h"
 
@@ -408,7 +411,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
-void free_items(Item *item);
 bool alloc_query(THD *thd, char *packet, ulong packet_length);
 void mysql_init_select(LEX *lex);
 void mysql_init_query(THD *thd);
@@ -761,9 +763,6 @@ uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
 
-/* sql_parse.cc */
-void free_items(Item *item);
-void cleanup_items(Item *item);
 
 #define MY_DB_OPT_FILE "db.opt"
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
