@@ -178,9 +178,19 @@ struct Ndb_table_local_info {
   ha_rows records;
 };
 
+void ha_ndbcluster::set_rec_per_key()
+{
+  DBUG_ENTER("ha_ndbcluster::get_status_const");
+  for (uint i=0 ; i < table->keys ; i++)
+  {
+    table->key_info[i].rec_per_key[table->key_info[i].key_parts-1]= 1;
+  }
+  DBUG_VOID_RETURN;
+}
+
 void ha_ndbcluster::records_update()
 {
-  DBUG_ENTER("ha_ndbcluster::records_update");
+  DBUG_ENTER("ha_ndbcluster::get_status_variable");
   struct Ndb_table_local_info *info= (struct Ndb_table_local_info *)m_table_info;
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
 		      ((const NDBTAB *)m_table)->getTableId(),
@@ -2406,8 +2416,6 @@ void ha_ndbcluster::info(uint flag)
     DBUG_PRINT("info", ("HA_STATUS_NO_LOCK"));
   if (flag & HA_STATUS_TIME)
     DBUG_PRINT("info", ("HA_STATUS_TIME"));
-  if (flag & HA_STATUS_CONST)
-    DBUG_PRINT("info", ("HA_STATUS_CONST"));
   if (flag & HA_STATUS_VARIABLE)
   {
     DBUG_PRINT("info", ("HA_STATUS_VARIABLE"));
@@ -2422,6 +2430,11 @@ void ha_ndbcluster::info(uint flag)
 	records= rows;
       }
     }
+  }
+  if (flag & HA_STATUS_CONST)
+  {
+    DBUG_PRINT("info", ("HA_STATUS_CONST"));
+    set_rec_per_key();
   }
   if (flag & HA_STATUS_ERRKEY)
   {
@@ -3504,6 +3517,7 @@ ha_ndbcluster::~ha_ndbcluster()
 
 int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
 {
+  int res;
   KEY *key;
   DBUG_ENTER("open");
   DBUG_PRINT("enter", ("name: %s mode: %d test_if_locked: %d",
@@ -3530,8 +3544,11 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     free_share(m_share); m_share= 0;
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
+  res= get_metadata(name);
+  if (!res)
+    info(HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
-  DBUG_RETURN(get_metadata(name));
+  DBUG_RETURN(res);
 }
 
 
