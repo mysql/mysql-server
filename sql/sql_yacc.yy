@@ -2750,6 +2750,9 @@ type:
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
+	| BINARY			{ Lex->length= (char*) "1";
+					  Lex->charset=&my_charset_bin;
+					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$=FIELD_TYPE_VAR_STRING; }
 	| nvarchar '(' NUM ')'		{ Lex->length=$3.str;
@@ -5413,11 +5416,12 @@ do:	DO_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_DO;
-	  if (!(lex->insert_list = new List_item))
-	    YYABORT;
+	  mysql_init_select(lex);
 	}
-	values
-	{}
+	expr_list
+	{
+	  Lex->insert_list= $3;
+	}
 	;
 
 /*
