@@ -7,7 +7,7 @@
 
 -- On unix, you should use the mysql_fix_privilege_tables script to execute
 -- this sql script.
--- On windows you should do 'mysql --force < mysql_fix_privilege_tables.sql'
+-- On windows you should do 'mysql --force mysql < mysql_fix_privilege_tables.sql'
 
 USE mysql;
 ALTER TABLE user type=MyISAM;
@@ -19,7 +19,7 @@ ALTER TABLE tables_priv type=MyISAM;
 ALTER TABLE user change Password Password char(41) not null;
 ALTER TABLE user add File_priv enum('N','Y') NOT NULL;
 CREATE TABLE IF NOT EXISTS func (
-  name char(64) DEFAULT '' NOT NULL,
+  name char(64) binary DEFAULT '' NOT NULL,
   ret tinyint(1) DEFAULT '0' NOT NULL,
   dl char(128) DEFAULT '' NOT NULL,
   type enum ('function','aggregate') NOT NULL,
@@ -56,10 +56,10 @@ ALTER TABLE user MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') NOT NULL;
 --
 
 CREATE TABLE IF NOT EXISTS tables_priv (
-  Host char(60) DEFAULT '' NOT NULL,
-  Db char(60) DEFAULT '' NOT NULL,
-  User char(16) DEFAULT '' NOT NULL,
-  Table_name char(60) DEFAULT '' NOT NULL,
+  Host char(60) binary DEFAULT '' NOT NULL,
+  Db char(64) binary DEFAULT '' NOT NULL,
+  User char(16) binary DEFAULT '' NOT NULL,
+  Table_name char(64) binary DEFAULT '' NOT NULL,
   Grantor char(77) DEFAULT '' NOT NULL,
   Timestamp timestamp(14),
   Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') DEFAULT '' NOT NULL,
