@@ -30,6 +30,18 @@ czech danish dutch english estonian french german greek hungarian \
 italian japanese korean norwegian norwegian-ny polish portuguese \
 romanian russian slovak spanish swedish"
 
+# Generate make rules for all error messages
+AVAILABLE_LANGUAGES_ERRORS=
+AVAILABLE_LANGUAGES_ERRORS_RULES=$srcdir/ac_available_languages_fragment
+rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
+for i in $AVAILABLE_LANGUAGES
+do
+  AVAILABLE_LANGUAGES_ERRORS="$AVAILABLE_LANGUAGES_ERRORS $i/errmsg.sys"
+  echo "$i/errmsg.sys: $i/errmsg.txt
+	\$(top_srdir)/extra/comp_err $i/errmsg.txt $i/errmsg.sys" \
+    >> $AVAILABLE_LANGUAGES_ERRORS_RULES
+done
+
 #####
 #####
 
@@ -42,6 +54,8 @@ AC_SUBST(DOT_FRM_VERSION)
 AC_DEFINE_UNQUOTED(DOT_FRM_VERSION, $DOT_FRM_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
+AC_SUBST(AVAILABLE_LANGUAGES_ERRORS)
+AC_SUBST_FILE(AVAILABLE_LANGUAGES_ERRORS_RULES)
 
 # Canonicalize the configuration name.
 SYSTEM_TYPE="$host_vendor-$host_os"
@@ -1911,7 +1925,10 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  tests/Makefile Docs/Makefile support-files/Makefile \
  mysql-test/Makefile \
  include/mysql_version.h
- , , [test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h])
+ , , [
+  test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
+  rm -f $AVAILABLE_LANGUAGES_ERRORS_RULES
+ ])
 
 echo
 echo "MySQL has a Web site at http://www.mysql.com/ which carries details on the"

@@ -1,16 +1,14 @@
 ## Process this file with automake to create Makefile.in
 
-ERRMSG=$(patsubst %, %/errmsg.sys, @AVAILABLE_LANGUAGES@)
-
 # This requires gnu cp at distribution time.
 dist-hook:
 	for lang in @AVAILABLE_LANGUAGES@ charsets; \
 	do cp -a $(srcdir)/$$lang $(distdir); done
 
-all: $(ERRMSG)
+all: @AVAILABLE_LANGUAGES_ERRORS@
 
-$(ERRMSG): %.sys: %.txt
-	../../extra/comp_err $< $@
+# this is ugly, but portable
+@AVAILABLE_LANGUAGES_ERRORS_RULES@
 
 install-data-local:
 	for lang in @AVAILABLE_LANGUAGES@; \
