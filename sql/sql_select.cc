@@ -5415,6 +5415,8 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     }
     else
     {
+      if (end_of_records)
+	DBUG_RETURN(0);
       join->first_record=1;
       VOID(test_if_group_changed(join->group_fields));
     }
