@@ -3752,7 +3752,7 @@ We will start working on MySQL 4.1 as soon as MySQL 4.0 goes into beta.
 The following features is the ones we plan that should be in MySQL 4.1.
 Note that because we have many developers that are working on different
 projects, there will also be many additional features. There is also a
-small change that some of these features will be added to MySQL 4.0.
+small chance that some of these features will be added to MySQL 4.0.
 
 @itemize @bullet
 @item
@@ -8132,15 +8132,15 @@ than it had in 3.23.
 @code{SIGNED} is a reserved word.
 @item
 The result of all bitwise operators @code{|}, @code{&}, @code{<<},
-@code{>>} and @code{~} is now unsigned.  This may cause problems if your
-are using them in a context where you want an signed result.
+@code{>>} and @code{~} is now unsigned.  This may cause problems if you
+are using them in a context where you want a signed result.
 @xref{Cast Functions}.
 @item
-@strong{NOTE:} When you use subtraction between integers values where
+@strong{NOTE:} When you use subtraction between integer values where
 one is of type @code{UNSIGNED}, the result will be unsigned!  In other
 words, before upgrading to MySQL 4.0, you should check your application
 for cases where you are subtracting a value from an unsigned entity and
-want a negative answer or subtracting an unsigned value from a an
+want a negative answer or subtracting an unsigned value from an
 integer column. You can disable this behaviour by using the
 @code{--sql-mode=NO_UNSIGNED_SUBTRACTION} option when starting
 @code{mysqld}.  @xref{Cast Functions}.
@@ -32008,7 +32008,7 @@ If you get a problem with @code{UNSIGNED} columns in your old MySQL
 application when porting to MySQL 4.0, you can use the
 @code{--sql-mode=NO_UNSIGNED_SUBTRACTION} option when starting
 @code{mysqld}.  Note however that as long as you use this, you will not
-be able to efficiently use the @code{UNSIGNED BIGINT} column type.
+be able to make efficient use of the @code{UNSIGNED BIGINT} column type.
 
 @node Other Functions, Group by functions, Cast Functions, Functions
 @subsection Other Functions
@@ -48394,19 +48394,19 @@ behave more closely to 3.23 with @code{UNSIGNED} columns).
 @item
 Added @code{WITH MAX_QUERIES_PER_HOUR=#} to @code{GRANT} command.
 @item
-The type returned for all bit functions (@code{|}, @code{<<} ...) are now of
+The type returned for all bit functions (@code{|}, @code{<<} ...) is now of
 type @code{unsigned integer}.
 @item
-Added detection if @code{nan} values in MyISAM to make it possible to
+Added detection of @code{nan} values in MyISAM to make it possible to
 repair tables with @code{nan} in float or double columns.
 @item
 Fixed new bug in @code{myisamchk} where it didn't correctly update number of 
-'parts' in the MyISAM index file.
+``parts'' in the MyISAM index file.
 @item
 Changed to use autoconf 2.52 (from Autconf 2.13).
 @item
 Fixed optimization problem where a MySQL was a long time in a
-"preparing" state when selecting from an empty table which had contained
+``preparing'' state when selecting from an empty table which had contained
 a lot of rows.
 @item
 Fixed bug in complicated join with @code{const} tables. This fix also
