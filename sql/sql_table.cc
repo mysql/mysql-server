@@ -501,6 +501,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE)
       && find_temporary_table(thd,db,table_name))
   {
+    if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+      DBUG_RETURN(0);
     my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
     DBUG_RETURN(-1);
   }

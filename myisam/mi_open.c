@@ -101,6 +101,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	  (kfile=my_open(name_buff,(open_mode=O_RDONLY) | O_SHARE,MYF(0))) < 0)
 	goto err;
     }
+    share->mode=open_mode;
     errpos=1;
     if (my_read(kfile,(char*) share->state.header.file_version,head_length,
 		MYF(MY_NABP)))
@@ -343,28 +344,11 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       lock_error=1;			/* Database unlocked */
     }
 
-#ifdef USE_RAID
-    if (share->base.raid_type)
-    {
-      if ((info.dfile=my_raid_open(fn_format(name_buff,name,"",MI_NAME_DEXT,
-					     2+4),
-				   mode | O_SHARE,
-				   share->base.raid_type,
-				   share->base.raid_chunks,
-				   share->base.raid_chunksize,
-				   MYF(MY_WME | MY_RAID))) < 0)
+    if (mi_open_datafile(&info, share))
       goto err;
-    }
-    else
-#endif
-      if ((info.dfile=my_open(fn_format(name_buff,name,"",MI_NAME_DEXT,2+4),
-			      mode | O_SHARE,
-			      MYF(MY_WME))) < 0)
-	goto err;
     errpos=5;
 
     share->kfile=kfile;
-    share->mode=open_mode;
     share->this_process=(ulong) getpid();
     share->rnd= (int)	 share->this_process;	/* rnd-counter for splits */
 #ifndef DBUG_OFF
@@ -433,27 +417,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       my_errno=EACCES;				/* Can't open in write mode */
       goto err;
     }
-#ifdef USE_RAID
-    if (share->base.raid_type)
-    {
-      if ((info.dfile=my_raid_open(fn_format(name_buff,old_info->filename,"",
-					     MI_NAME_DEXT, 2+4),
-				   mode | O_SHARE,
-				   share->base.raid_type,
-				   share->base.raid_chunks,
-				   share->base.raid_chunksize,
-				   MYF(MY_WME | MY_RAID))) < 0)
+    if (mi_open_datafile(&info, share))
       goto err;
-    }
-    else
-#endif
-      if ((info.dfile=my_open(fn_format(name_buff,old_info->filename,"",
-					MI_NAME_DEXT,2+4),
-			      mode | O_SHARE,MYF(MY_WME))) < 0)
-	{
-	  my_errno=errno;
-	  goto err;
-	}
     errpos=5;
   }
 
@@ -1008,4 +973,41 @@ char *mi_recinfo_read(char *ptr, MI_COLUMNDEF *recinfo)
    recinfo->null_bit= (uint8) *ptr++;
    recinfo->null_pos=mi_uint2korr(ptr); ptr +=2;
    return ptr;
+}
+
+/**************************************************************************
+ ** Help functions for recover
+ *************************************************************************/
+
+int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share)
+{
+  char name_buff[FN_REFLEN];
+  (void) fn_format(name_buff, share->filename,"",MI_NAME_DEXT, 2+4);
+
+#ifdef USE_RAID
+  if (share->base.raid_type)
+  {
+    if ((info->dfile=my_raid_open(name_buff,
+				  share->mode | O_SHARE,
+				  share->base.raid_type,
+				  share->base.raid_chunks,
+				  share->base.raid_chunksize,
+				  MYF(MY_WME | MY_RAID))) < 0)
+      return 1;
+  }
+  else
+#endif
+    if ((info->dfile=my_open(name_buff, share->mode | O_SHARE,
+			     MYF(MY_WME))) < 0)
+      return 1;
+  return 0;
+}
+
+
+int mi_open_keyfile(MYISAM_SHARE *share)
+{
+  if ((share->kfile=my_open(share->filename, share->mode | O_SHARE,
+			    MYF(MY_WME))) < 0)
+    return 1;
+  return 0;
 }

@@ -1172,9 +1172,9 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
       if (my_errno != HA_ERR_FOUND_DUPP_KEY) goto err;
       DBUG_DUMP("record",(byte*) sort_info->record,share->base.pack_reclength);
       mi_check_print_info(param,"Duplicate key %2d for record at %10s against new record at %10s",
-		 info->errkey+1,
-		 llstr(sort_info->start_recpos,llbuff),
-		 llstr(info->lastpos,llbuff2));
+			  info->errkey+1,
+			  llstr(sort_info->start_recpos,llbuff),
+			  llstr(info->dupp_key_pos,llbuff2));
       if (param->testflag & T_VERBOSE)
       {
 	VOID(_mi_make_key(info,(uint) info->errkey,info->lastkey,
@@ -2350,8 +2350,8 @@ int sort_write_record(SORT_INFO *sort_info)
 	if (sort_info->buff_length < reclength)
 	{
 	  if (!(sort_info->buff=my_realloc(sort_info->buff, (uint) reclength,
-					  MYF(MY_FREE_ON_ERROR |
-					      MY_ALLOW_ZERO_PTR))))
+					   MYF(MY_FREE_ON_ERROR |
+					       MY_ALLOW_ZERO_PTR))))
 	    DBUG_RETURN(1);
 	  sort_info->buff_length=reclength;
 	}

@@ -35,7 +35,7 @@ ulong myisam_recover_options= HA_RECOVER_NONE;
 
 /* bits in myisam_recover_options */
 const char *myisam_recover_names[] =
-{ "DEFAULT", "BACKUP", "FORCE"};
+{ "DEFAULT", "BACKUP", "FORCE", "QUICK"};
 TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names),"",
 				 myisam_recover_names};
 
@@ -423,11 +423,15 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
     if (param.retry_without_quick && param.opt_rep_quick)
     {
       param.opt_rep_quick=0;
+      sql_print_error("Warning: Retrying recover of:  %s without quick",
+		      table->path);
       continue;
     }
     if ((param.testflag & T_REP_BY_SORT))
     {
       param.testflag= (param.testflag & ~T_REP_BY_SORT) | T_REP;      
+      sql_print_error("Warning: Retrying recover of:  %s with safe repair",
+		      table->path);
       continue;
     }
     break;
@@ -532,6 +536,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   {
     if (param.out_flag & (O_NEW_DATA | O_NEW_INDEX))
     {
+      bool in_auto_repair;
       /*
 	We have to close all instances of this file to ensure that we can
 	do the rename safely on all operating system and to ensure that
@@ -539,9 +544,18 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
       */
       thd->proc_info="renaming file";
       VOID(pthread_mutex_lock(&LOCK_open));
-      if (close_cached_table(thd,table))
-	error=1;
-
+      if (!(in_auto_repair = (table->table_cache_key == 0)))
+      {
+	if (close_cached_table(thd,table))
+	  error=1;
+      }
+      else
+      {
+	if (param.out_flag & O_NEW_DATA)
+	  my_close(file->dfile,MYF(0));
+	if (param.out_flag & O_NEW_INDEX)
+	  my_close(file->s->kfile,MYF(0));
+      }
       if (param.out_flag & O_NEW_DATA)
 	error|=change_to_newfile(fixed_name,MI_NAME_DEXT,
 				 DATA_TMP_EXT, 0, MYF(0));
@@ -549,6 +563,13 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
       if (param.out_flag & O_NEW_INDEX)
 	error|=change_to_newfile(fixed_name,MI_NAME_IEXT,
 				 INDEX_TMP_EXT, 0, MYF(0));
+      if (in_auto_repair)
+      {
+	if ((param.out_flag & O_NEW_DATA) && mi_open_datafile(file,file->s))
+	  error=1;
+	if ((param.out_flag & O_NEW_DATA) && mi_open_keyfile(file->s))
+	  error=1;
+      }
       VOID(pthread_mutex_unlock(&LOCK_open));
     }
   }
@@ -600,16 +621,20 @@ bool ha_myisam::check_and_repair(THD *thd)
   DBUG_ENTER("ha_myisam::auto_check_and_repair");
 
   check_opt.init();
-  check_opt.flags= T_MEDIUM;
-  check_opt.quick= !file->state->del;	// Don't use quick if deleted rows
+  check_opt.flags= T_MEDIUM | T_AUTO_REPAIR;
+  // Don't use quick if deleted rows
+  if (!file->state->del && (myisam_recover_options & HA_RECOVER_QUICK))
+    check_opt.quick=1;
+  sql_print_error("Warning: Checking table:  %s",table->path);
   if (mi_is_crashed(file) || check(thd, &check_opt))
   {
+    sql_print_error("Warning: Recovering table: %s",table->path);
     if (check_opt.retry_without_quick)
       check_opt.quick=0;
     check_opt.flags=(((myisam_recover_options & HA_RECOVER_BACKUP) ? 
 		      T_BACKUP_DATA : 0) |
 		     (!(myisam_recover_options & HA_RECOVER_FORCE) ? 
-		      T_SAFE_REPAIR : 0));
+		      T_SAFE_REPAIR : 0)) | T_AUTO_REPAIR;
     if (repair(thd, &check_opt))
       error=1;
   }

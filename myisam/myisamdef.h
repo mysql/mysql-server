@@ -626,6 +626,8 @@ int _mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
 	     enum ha_rkey_function search_flag, bool raw_key);
 
 my_bool check_table_is_closed(const char *name, const char *where);
+int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share);
+int mi_open_keyfile(MYISAM_SHARE *share);
 
 /* Functions needed by mi_check */
 #ifdef	__cplusplus

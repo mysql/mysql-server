@@ -1472,11 +1472,11 @@ ha_rows ha_berkeley::records_in_range(int keynr,
   DB_KEY_RANGE start_range, end_range;
   double start_pos,end_pos,rows;
   DBUG_ENTER("records_in_range");
-  if ((start_key && file->key_range(file,transaction,
+  if ((start_key && file->key_range(key_file[keynr],transaction,
 				    pack_key(&key, keynr, key_buff, start_key,
 					     start_key_len),
 				    &start_range,0)) ||
-      (end_key && file->key_range(file,transaction,
+      (end_key && file->key_range(key_file[keynr],transaction,
 				  pack_key(&key, keynr, key_buff, end_key,
 					   end_key_len),
 				  &end_range,0)))

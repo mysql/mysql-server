@@ -706,7 +706,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     /* make a new table */
     if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
       DBUG_RETURN(NULL);
-    if (open_unireg_entry(thd, table,db,table_name,alias,0) ||
+    if (open_unireg_entry(thd, table,db,table_name,alias,1) ||
 	!(table->table_cache_key=memdup_root(&table->mem_root,(char*) key,
 					     key_length)))
     {
@@ -1157,7 +1157,6 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     thd->net.last_error[0]=0;				// Clear error message
     thd->net.last_errno=0;
     error=0;
-    sql_print_error("Warning: Repairing table: %s.%s",db,name);
     if (openfrm(path,alias,
 		(uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
 			 HA_TRY_READ_ONLY),
@@ -1167,11 +1166,17 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 	(entry->file->is_crashed() && entry->file->check_and_repair(thd)))
     {
       sql_print_error("Error: Couldn't repair table: %s.%s",db,name);
+      closefrm(entry);
       error=1;
+    }
+    else
+    {
+      thd->net.last_error[0]=0;				// Clear error message
+      thd->net.last_errno=0;
     }
     unlock_table_name(thd,&table_list);
     if (locked)
-      pthread_mutex_lock(&LOCK_open);      // Get back old lock
+      pthread_mutex_lock(&LOCK_open);      // Get back original lock
     if (error)
       goto err;
   }
