@@ -261,6 +261,7 @@ static Field::field_cast_enum field_cast_date[]=
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_newdate[]=
 {Field::FIELD_CAST_NEWDATE,
+ Field::FIELD_CAST_DATE,
  Field::FIELD_CAST_DATETIME,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
@@ -6831,6 +6832,40 @@ Field *make_field(char *ptr, uint32 field_length,
     break;
   }
   return 0;
+}
+
+
+/*
+  Check if field_type is appropriate field type
+  to create field for tmp table using
+  item->tmp_table_field() method
+
+  SYNOPSIS
+    field_types_to_be_kept()
+    field_type     - field type
+
+  NOTE
+    it is used in function get_holder_example_field()
+    from item.cc
+
+  RETURN
+    1 - can use item->tmp_table_field() method
+    0 - can not use item->tmp_table_field() method
+
+*/
+
+bool field_types_to_be_kept(enum_field_types field_type)
+{
+  switch (field_type)
+  {
+    case FIELD_TYPE_DATE:
+    case FIELD_TYPE_NEWDATE:
+    case FIELD_TYPE_TIME:
+    case FIELD_TYPE_DATETIME:
+      return 1;
+    default:
+      return 0;
+  }
 }
 
 

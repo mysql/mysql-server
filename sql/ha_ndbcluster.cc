@@ -87,6 +87,12 @@ static int unpackfrm(const void **data, uint *len,
 static int ndb_get_table_statistics(Ndb*, const char *, 
 				    struct Ndb_statistics *);
 
+// Util thread variables
+static pthread_t ndb_util_thread;
+pthread_mutex_t LOCK_ndb_util_thread;
+pthread_cond_t COND_ndb_util_thread;
+extern "C" pthread_handler_decl(ndb_util_thread_func, arg);
+ulong ndb_cache_check_time;
 
 /*
   Dummy buffer to read zero pack_length fields
@@ -3053,9 +3059,13 @@ int ha_ndbcluster::reset()
   DBUG_RETURN(1);
 }
 
+static const char *ha_ndb_bas_ext[]= { ha_ndb_ext, NullS };
 
-const char **ha_ndbcluster::bas_ext() const
-{ static const char *ext[]= { ha_ndb_ext, NullS }; return ext; }
+const char**
+ha_ndbcluster::bas_ext() const
+{   
+  return ha_ndb_bas_ext; 
+}
 
 
 /*
@@ -3223,7 +3233,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       m_transaction_on= FALSE;
     else
       m_transaction_on= thd->variables.ndb_use_transactions;
-    //     m_use_local_query_cache= thd->variables.ndb_use_local_query_cache;
 
     m_active_trans= thd->transaction.all.ndb_tid ? 
       (NdbTransaction*)thd->transaction.all.ndb_tid:
@@ -3650,6 +3659,52 @@ static int create_ndb_column(NDBCOL &col,
   Create a table in NDB Cluster
  */
 
+static void ndb_set_fragmentation(NDBTAB &tab, TABLE *form, uint pk_length)
+{
+  if (form->s->max_rows == 0) /* default setting, don't set fragmentation */
+    return;
+  /**
+   * get the number of fragments right
+   */
+  uint no_fragments;
+  {
+#if MYSQL_VERSION_ID >= 50000
+    uint acc_row_size= 25 + /*safety margin*/ 2;
+#else
+    uint acc_row_size= pk_length*4;
+    /* add acc overhead */
+    if (pk_length <= 8)  /* main page will set the limit */
+      acc_row_size+= 25 + /*safety margin*/ 2;
+    else                /* overflow page will set the limit */
+      acc_row_size+= 4 + /*safety margin*/ 4;
+#endif
+    ulonglong acc_fragment_size= 512*1024*1024;
+    ulonglong max_rows= form->s->max_rows;
+#if MYSQL_VERSION_ID >= 50100
+    no_fragments= (max_rows*acc_row_size)/acc_fragment_size+1;
+#else
+    no_fragments= ((max_rows*acc_row_size)/acc_fragment_size+1
+		   +1/*correct rounding*/)/2;
+#endif
+  }
+  {
+    uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
+    NDBTAB::FragmentType ftype;
+    if (no_fragments > 2*no_nodes)
+    {
+      ftype= NDBTAB::FragAllLarge;
+      if (no_fragments > 4*no_nodes)
+	push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+		     "Ndb might have problems storing the max amount of rows specified");
+    }
+    else if (no_fragments > no_nodes)
+      ftype= NDBTAB::FragAllMedium;
+    else
+      ftype= NDBTAB::FragAllSmall;
+    tab.setFragmentType(ftype);
+  }
+}
+
 int ha_ndbcluster::create(const char *name, 
 			  TABLE *form, 
 			  HA_CREATE_INFO *info)
@@ -3751,7 +3806,9 @@ int ha_ndbcluster::create(const char *name,
       break;
     }
   }
-  
+
+  ndb_set_fragmentation(tab, form, pk_length);
+
   if ((my_errno= check_ndb_connection()))
     DBUG_RETURN(my_errno);
   
@@ -4017,7 +4074,6 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_force_send(TRUE),
   m_autoincrement_prefetch(32),
   m_transaction_on(TRUE),
-  m_use_local_query_cache(FALSE),
   m_multi_cursor(NULL)
 { 
   int i;
@@ -4066,6 +4122,7 @@ ha_ndbcluster::~ha_ndbcluster()
 
   DBUG_VOID_RETURN;
 }
+
 
 
 /*
@@ -4168,16 +4225,14 @@ void ha_ndbcluster::release_thd_ndb(Thd_ndb* thd_ndb)
 
 Ndb* check_ndb_in_thd(THD* thd)
 {
-  DBUG_ENTER("check_ndb_in_thd");
-  Thd_ndb *thd_ndb= (Thd_ndb*)thd->transaction.thd_ndb;
-  
+  Thd_ndb *thd_ndb= (Thd_ndb*)thd->transaction.thd_ndb;  
   if (!thd_ndb)
   {
     if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
-      DBUG_RETURN(NULL);
+      return NULL;
     thd->transaction.thd_ndb= thd_ndb;
   }
-  DBUG_RETURN(thd_ndb->ndb);
+  return thd_ndb->ndb;
 }
 
 
@@ -4530,13 +4585,21 @@ bool ndbcluster_init()
   (void) hash_init(&ndbcluster_open_tables,system_charset_info,32,0,0,
                    (hash_get_key) ndbcluster_get_key,0,0);
   pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_ndb_util_thread, MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&COND_ndb_util_thread, NULL);
 
+
+  // Create utility thread
+  pthread_t tmp;
+  if (pthread_create(&tmp, &connection_attrib, ndb_util_thread_func, 0))
+  {
+    DBUG_PRINT("error", ("Could not create ndb utility thread"));
+    goto ndbcluster_init_error;
+  }
+  
   ndbcluster_inited= 1;
-#ifdef USE_DISCOVER_ON_STARTUP
-  if (ndb_discover_tables() != 0)
-    goto ndbcluster_init_error;    
-#endif
   DBUG_RETURN(FALSE);
+
  ndbcluster_init_error:
   ndbcluster_end();
   DBUG_RETURN(TRUE);
@@ -4546,12 +4609,19 @@ bool ndbcluster_init()
 /*
   End use of the NDB Cluster table handler
   - free all global variables allocated by 
-    ndcluster_init()
+    ndbcluster_init()
 */
 
 bool ndbcluster_end()
 {
   DBUG_ENTER("ndbcluster_end");
+
+  // Kill ndb utility thread
+  (void) pthread_mutex_lock(&LOCK_ndb_util_thread);  
+  DBUG_PRINT("exit",("killing ndb util thread: %lx", ndb_util_thread));
+  (void) pthread_cond_signal(&COND_ndb_util_thread);
+  (void) pthread_mutex_unlock(&LOCK_ndb_util_thread);
+
   if(g_ndb)
     delete g_ndb;
   g_ndb= NULL;
@@ -4562,6 +4632,8 @@ bool ndbcluster_end()
     DBUG_RETURN(0);
   hash_free(&ndbcluster_open_tables);
   pthread_mutex_destroy(&ndbcluster_mutex);
+  pthread_mutex_destroy(&LOCK_ndb_util_thread);
+  pthread_cond_destroy(&COND_ndb_util_thread);
   ndbcluster_inited= 0;
   DBUG_RETURN(0);
 }
@@ -4754,12 +4826,170 @@ const char* ha_ndbcluster::index_type(uint key_number)
     return "HASH";
   }
 }
+
 uint8 ha_ndbcluster::table_cache_type()
 {
-  if (m_use_local_query_cache)
-    return HA_CACHE_TBL_TRANSACT;
-  else
-    return HA_CACHE_TBL_NOCACHE;
+  DBUG_ENTER("ha_ndbcluster::table_cache_type=HA_CACHE_TBL_ASKTRANSACT");
+  DBUG_RETURN(HA_CACHE_TBL_ASKTRANSACT);
+}
+
+
+uint ndb_get_commitcount(THD* thd, char* dbname, char* tabname, 
+			 Uint64* commit_count)
+{
+  DBUG_ENTER("ndb_get_commitcount");
+ 
+  if (ndb_cache_check_time > 0)
+  {
+    // Use cached commit_count from share
+    char name[FN_REFLEN];
+    NDB_SHARE* share;
+    (void)strxnmov(name, FN_REFLEN, 
+		   "./",dbname,"/",tabname,NullS);
+    DBUG_PRINT("info", ("name: %s", name));
+    pthread_mutex_lock(&ndbcluster_mutex);
+    if (!(share=(NDB_SHARE*) hash_search(&ndbcluster_open_tables,
+				   (byte*) name,
+				   strlen(name))))
+    {
+      pthread_mutex_unlock(&ndbcluster_mutex);
+      DBUG_RETURN(1);
+    }
+    *commit_count= share->commit_count;    
+    DBUG_PRINT("info", ("commit_count: %d", *commit_count));
+    pthread_mutex_unlock(&ndbcluster_mutex);
+    DBUG_RETURN(0);
+  }
+  
+  // Get commit_count from NDB
+  Ndb *ndb;
+  if (!(ndb= check_ndb_in_thd(thd)))
+    DBUG_RETURN(1);
+  ndb->setDatabaseName(dbname);
+  
+  struct Ndb_statistics stat;
+  if (ndb_get_table_statistics(ndb, tabname, &stat))
+    DBUG_RETURN(1);
+  *commit_count= stat.commit_count;
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Check if a cached query can be used.
+  This is done by comparing the supplied engine_data to commit_count of 
+  the table.
+  The commit_count is either retrieved from the share for the table, where 
+  it has been cached by the util thread. If the util thread is not started, 
+  NDB has to be contacetd to retrieve the commit_count, this will introduce
+  a small delay while waiting for NDB to answer.
+  
+  
+  SYNOPSIS
+  ndbcluster_cache_retrieval_allowed
+    thd            thread handle
+    full_name      concatenation of database name,
+                   the null character '\0', and the table
+                   name 
+    full_name_len  length of the full name, 
+                   i.e. len(dbname) + len(tablename) + 1
+
+    engine_data    parameter retrieved when query was first inserted into 
+                   the cache. If the value of engine_data is changed, 
+                   all queries for this table should be invalidated.
+
+  RETURN VALUE
+    TRUE  Yes, use the query from cache
+    FALSE No, don't use the cached query, and if engine_data
+          has changed, all queries for this table should be invalidated
+
+*/
+
+static my_bool 
+ndbcluster_cache_retrieval_allowed(THD*	thd, 
+				   char* full_name, uint full_name_len, 
+				   ulonglong *engine_data)
+{
+  DBUG_ENTER("ndbcluster_cache_retrieval_allowed");
+
+  Uint64 commit_count;
+  bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+  char* dbname= full_name;
+  char* tabname= dbname+strlen(dbname)+1;
+
+  DBUG_PRINT("enter",("dbname=%s, tabname=%s, autocommit=%d",
+		      dbname, tabname, is_autocommit));
+
+  if (!is_autocommit)
+    DBUG_RETURN(FALSE);
+
+  if (ndb_get_commitcount(thd, dbname, tabname, &commit_count))
+  {
+    *engine_data+= 1; // invalidate
+    DBUG_RETURN(FALSE);
+  }
+  DBUG_PRINT("info", ("*engine_data=%llu, commit_count=%llu", 
+		      *engine_data, commit_count));
+  if (*engine_data != commit_count)
+  {
+    *engine_data= commit_count; // invalidate
+    DBUG_PRINT("exit",("Do not use cache, commit_count has changed"));
+    DBUG_RETURN(FALSE);
+  }
+
+  DBUG_PRINT("exit",("OK to use cache, *engine_data=%llu",*engine_data));
+  DBUG_RETURN(TRUE);
+}
+
+
+/**
+   Register a table for use in the query cache. Fetch the commit_count
+   for the table and return it in engine_data, this will later be used 
+   to check if the table has changed, before the cached query is reused.
+
+   SYNOPSIS
+   ha_ndbcluster::can_query_cache_table
+    thd            thread handle
+    full_name      concatenation of database name,
+                   the null character '\0', and the table
+                   name 
+    full_name_len  length of the full name, 
+                   i.e. len(dbname) + len(tablename) + 1
+    qc_engine_callback  function to be called before using cache on this table 
+    engine_data    out, commit_count for this table
+
+  RETURN VALUE
+    TRUE  Yes, it's ok to cahce this query
+    FALSE No, don't cach the query
+
+*/
+
+my_bool
+ha_ndbcluster::register_query_cache_table(THD* thd, 
+					  char* full_name, uint full_name_len,
+					  qc_engine_callback *engine_callback,
+					  ulonglong *engine_data) 
+{
+  DBUG_ENTER("ha_ndbcluster::register_query_cache_table");
+
+  bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+  DBUG_PRINT("enter",("dbname=%s, tabname=%s, is_autocommit=%d",
+		      m_dbname,m_tabname,is_autocommit));
+  if (!is_autocommit)
+    DBUG_RETURN(FALSE);
+
+  
+  Uint64 commit_count;
+  if (ndb_get_commitcount(thd, m_dbname, m_tabname, &commit_count))
+  {
+    *engine_data= 0;
+    DBUG_PRINT("error", ("Could not get commitcount"))
+    DBUG_RETURN(FALSE);
+  }
+  *engine_data= commit_count;
+  *engine_callback= ndbcluster_cache_retrieval_allowed;
+  DBUG_PRINT("exit",("*engine_data=%llu", *engine_data));
+  DBUG_RETURN(TRUE);
 }
 
 /*
@@ -4800,8 +5030,14 @@ static NDB_SHARE* get_share(const char *table_name)
       }
       thr_lock_init(&share->lock);
       pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
+      share->commit_count= 0;
     }
   }
+  DBUG_PRINT("share", 
+	     ("table_name: %s, length: %d, use_count: %d, commit_count: %d", 
+	      share->table_name, share->table_name_length, share->use_count, 
+	      share->commit_count));
+
   share->use_count++;
   pthread_mutex_unlock(&ndbcluster_mutex);
   return share;
@@ -5406,5 +5642,126 @@ ha_ndbcluster::update_table_comment(
 	   tab->getReplicaCount());
   return str;
 }
+
+
+// Utility thread main loop
+extern "C" pthread_handler_decl(ndb_util_thread_func, 
+				arg __attribute__((unused)))
+{
+  THD *thd; // needs to be first for thread_stack
+  int error = 0;
+  struct timespec abstime;
+
+  my_thread_init();
+  DBUG_ENTER("ndb_util_thread");
+  DBUG_PRINT("enter", ("ndb_cache_check_time: %d", ndb_cache_check_time));
+
+  thd= new THD; // note that contructor of THD uses DBUG_ !
+  THD_CHECK_SENTRY(thd);
+
+  pthread_detach_this_thread();
+  ndb_util_thread = pthread_self();
+
+  thd->thread_stack = (char*)&thd; // remember where our stack is
+  if (thd->store_globals())
+  {
+    thd->cleanup();
+    delete thd;
+    DBUG_RETURN(NULL);
+  }
+
+  List<NDB_SHARE> util_open_tables;
+  set_timespec(abstime, ndb_cache_check_time);
+  for (;;)
+  {
+
+    pthread_mutex_lock(&LOCK_ndb_util_thread);
+    error= pthread_cond_timedwait(&COND_ndb_util_thread, 
+				  &LOCK_ndb_util_thread, 
+				  &abstime);
+    pthread_mutex_unlock(&LOCK_ndb_util_thread);
+
+    DBUG_PRINT("ndb_util_thread", ("Started, ndb_cache_check_time: %d", 
+				   ndb_cache_check_time));
+    
+    if (abort_loop)
+      break; // Shutting down server
+    
+    if (ndb_cache_check_time == 0)
+    {
+      set_timespec(abstime, 10);
+      continue;
+    }
+
+    // Set new time to wake up 
+    set_timespec(abstime, ndb_cache_check_time);
+
+    // Lock mutex and fill list with pointers to all open tables
+    NDB_SHARE *share;
+    pthread_mutex_lock(&ndbcluster_mutex);
+    for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+    {
+      share= (NDB_SHARE *)hash_element(&ndbcluster_open_tables, i);
+      share->use_count++; // Make sure the table can't be closed
+      
+      DBUG_PRINT("ndb_util_thread", 
+		 ("Found open table[%d]: %s, use_count: %d", 
+		  i, share->table_name, share->use_count));
+      
+      // Store pointer to table
+      util_open_tables.push_back(share);
+    }
+    pthread_mutex_unlock(&ndbcluster_mutex);
+    
+    
+    // Iterate through the  open files list 
+    List_iterator_fast<NDB_SHARE> it(util_open_tables);
+    while (share=it++)
+    {  
+      // Split tab- and dbname
+      char buf[FN_REFLEN];
+      char *tabname, *db;
+      uint length= dirname_length(share->table_name);
+      tabname= share->table_name+length;
+      memcpy(buf, share->table_name, length-1);
+      buf[length-1]= 0;
+      db= buf+dirname_length(buf);
+      DBUG_PRINT("ndb_util_thread", 
+		 ("Fetching commit count for: %s, db: %s, tab: %s", 
+		  share->table_name, db, tabname));
+      
+      // Contact NDB to get commit count for table
+      g_ndb->setDatabaseName(db);
+      struct Ndb_statistics stat;;
+      if(ndb_get_table_statistics(g_ndb, tabname, &stat) == 0){
+	DBUG_PRINT("ndb_util_thread", 
+		   ("Table: %s, rows: %llu, commit_count: %llu", 
+		    share->table_name, stat.row_count, stat.commit_count));
+	share->commit_count= stat.commit_count;
+      }
+      else
+      {
+	DBUG_PRINT("ndb_util_thread", 
+		   ("Error: Could not get commit count for table %s",
+		    share->table_name));
+	share->commit_count++; // Invalidate
+      }
+      // Decrease the use count and possibly free share
+      free_share(share);
+    }
+    
+    // Clear the list of open tables
+    util_open_tables.empty();  
+    
+  }
+  
+  thd->cleanup();
+  delete thd;
+  DBUG_PRINT("exit", ("ndb_util_thread"));
+  my_thread_end();
+  pthread_exit(0);
+  DBUG_RETURN(NULL);
+}
+
 
 #endif /* HAVE_NDBCLUSTER_DB */

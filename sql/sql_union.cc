@@ -153,6 +153,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   SELECT_LEX *sl, *first_select;
   select_result *tmp_result;
   bool is_union;
+  TABLE *empty_table= 0;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   describe= test(additional_options & SELECT_DESCRIBE);
@@ -249,13 +250,21 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       goto err;
     if (sl == first_select)
     {
+      /*
+        We need to create an empty table object. It is used
+        to create tmp_table fields in Item_type_holder.
+        The main reason of this is that we can't create
+        field object without table.
+      */
+      DBUG_ASSERT(!empty_table);
+      empty_table= (TABLE*) thd->calloc(sizeof(TABLE));
       types.empty();
       List_iterator_fast<Item> it(sl->item_list);
       Item *item_tmp;
       while ((item_tmp= it++))
       {
 	/* Error's in 'new' will be detected after loop */
-	types.push_back(new Item_type_holder(thd_arg, item_tmp));
+	types.push_back(new Item_type_holder(thd_arg, item_tmp, empty_table));
       }
 
       if (thd_arg->is_fatal_error)
@@ -274,7 +283,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       Item *type, *item_tmp;
       while ((type= tp++, item_tmp= it++))
       {
-	if (((Item_type_holder*)type)->join_types(thd_arg, item_tmp))
+        if (((Item_type_holder*)type)->join_types(thd_arg, item_tmp,
+                                                  empty_table))
 	  DBUG_RETURN(TRUE);
       }
     }

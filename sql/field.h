@@ -1333,6 +1333,7 @@ enum_field_types get_blob_type_from_length(ulong length);
 uint32 calc_pack_length(enum_field_types type,uint32 length);
 int set_field_to_null(Field *field);
 int set_field_to_null_with_conversions(Field *field, bool no_conversions);
+bool field_types_to_be_kept(enum_field_types field_type);
 
 /*
   The following are for the interface with the .frm file

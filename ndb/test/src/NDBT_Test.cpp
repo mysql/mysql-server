@@ -330,12 +330,16 @@ NDBT_Finalizer::NDBT_Finalizer(NDBT_TestCase* ptest,
 NDBT_TestCase::NDBT_TestCase(NDBT_TestSuite* psuite, 
 			     const char* pname, 
 			     const char* pcomment) : 
-  name(pname) ,
-  comment(pcomment),
-  suite(psuite){
+  name(strdup(pname)) ,
+  comment(strdup(pcomment)),
+  suite(psuite)
+{
+  _name.assign(pname);
+  _comment.assign(pcomment);
+  name= _name.c_str();
+  comment= _comment.c_str();
   assert(suite != NULL);
 }
-
 
 NDBT_TestCaseImpl1::NDBT_TestCaseImpl1(NDBT_TestSuite* psuite, 
 				       const char* pname, 
@@ -477,10 +481,7 @@ extern "C"
 void *
 runStep_C(void * s)
 {
-  my_thread_init();
   runStep(s);
-  my_thread_end();
-  NdbThread_Exit(0);
   return NULL;
 }
 

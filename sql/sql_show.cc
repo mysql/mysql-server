@@ -1786,7 +1786,9 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   enum enum_schema_tables schema_table_idx;
   thr_lock_type lock_type;
   List<char> bases;
+  List_iterator_fast<char> it(bases);
   COND *partial_cond; 
+  int error= 1;
   DBUG_ENTER("get_all_tables");
 
   LINT_INIT(end);
@@ -1803,13 +1805,11 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     if (schema_table->process_table(thd, show_table_list,
                                     table, res, show_table_list->db,
                                     show_table_list->alias))
-    {
-      DBUG_RETURN(1);
-    }
+      goto err;
     close_thread_tables(thd, 0, 0, old_open_tables);
     show_table_list->table= 0;
-    lex->all_selects_list= select_lex;
-    DBUG_RETURN(0);
+    error= 0;
+    goto err;
   }
 
   lex->all_selects_list= &sel;
@@ -1822,14 +1822,14 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 
   /* information schema name always is first in list */
   if (schema_db_add(thd, &bases, idx_field_vals.db_value, &with_i_schema))
-    return 1;
+    goto err;
 
   if (mysql_find_files(thd, &bases, NullS, mysql_data_home,
 		       idx_field_vals.db_value, 1))
-    return 1;
+    goto err;
 
-  List_iterator_fast<char> it(bases);
   partial_cond= make_cond_for_info_schema(cond, tables);
+  it.rewind(); /* To get access to new elements in basis list */
   while ((base_name= it++) ||
 	 /*
 	   generate error for non existing database.
@@ -1851,7 +1851,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
       if (with_i_schema)                      // information schema table names
       {
         if (schema_tables_add(thd, &files, idx_field_vals.table_value))
-          DBUG_RETURN(1);
+          goto err;
       }
       else
       {
@@ -1860,7 +1860,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
         len= FN_LEN - len;
         if (mysql_find_files(thd, &files, base_name, 
                              path, idx_field_vals.table_value, 0))
-          DBUG_RETURN(1);
+          goto err;
       }
 
       List_iterator_fast<char> it_files(files);
@@ -1906,16 +1906,14 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             int res;
             TABLE *old_open_tables= thd->open_tables;
             if (make_table_list(thd, &sel, base_name, file_name))
-              DBUG_RETURN(1);
+              goto err;
             TABLE_LIST *show_table_list= (TABLE_LIST*) sel.table_list.first;
             show_table_list->lock_type= lock_type;
             res= open_and_lock_tables(thd, show_table_list);
             if (schema_table->process_table(thd, show_table_list, table,
                                             res, base_name,
                                             show_table_list->alias))
-            {
-              DBUG_RETURN(1);
-            }
+              goto err;
             close_thread_tables(thd, 0, 0, old_open_tables);
           }
         }
@@ -1927,8 +1925,11 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
       with_i_schema= 0;
     }
   }
+
+  error= 0;
+err:
   lex->all_selects_list= select_lex;
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 
@@ -3201,6 +3202,45 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   thd->derived_tables= table;
   table_list->select_lex->options |= OPTION_SCHEMA_TABLE;
   lex->safe_to_cache_query= 0;
+
+  if (table_list->schema_table_reformed) // show command
+  {
+    SELECT_LEX *sel= lex->current_select;
+    uint i= 0;
+    Item *item;
+    Field_translator *transl;
+
+    if (table_list->field_translation)
+    {
+      Field_translator *end= table_list->field_translation +
+        sel->item_list.elements;
+      for (transl= table_list->field_translation; transl < end; transl++)
+      {
+        if (!transl->item->fixed &&
+            transl->item->fix_fields(thd, table_list, &transl->item))
+          DBUG_RETURN(1);
+      }
+      DBUG_RETURN(0);
+    }
+    List_iterator_fast<Item> it(sel->item_list);
+    if (!(transl=
+          (Field_translator*)(thd->current_arena->
+                              alloc(sel->item_list.elements *
+                                    sizeof(Field_translator)))))
+    {
+      DBUG_RETURN(1);
+    }
+    while ((item= it++))
+    {
+      char *name= item->name;
+      transl[i].item= item;
+      if (!item->fixed && item->fix_fields(thd, table_list, &transl[i].item))
+        DBUG_RETURN(1);
+      transl[i++].name= name;
+    }
+    table_list->field_translation= transl;
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -3233,8 +3273,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
                   information_schema_name.length, 0);
   make_lex_string(thd, &table, schema_table->table_name,
                   strlen(schema_table->table_name), 0);
-  if (!sel->item_list.elements &&          /* Handle old syntax */
-      schema_table->old_format(thd, schema_table) ||
+  if (schema_table->old_format(thd, schema_table) ||      /* Handle old syntax */
       !sel->add_table_to_list(thd, new Table_ident(thd, db, table, 0),
                               0, 0, TL_READ, (List<String> *) 0,
                               (List<String> *) 0))

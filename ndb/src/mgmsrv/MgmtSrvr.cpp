@@ -70,12 +70,7 @@ void *
 MgmtSrvr::logLevelThread_C(void* m)
 {
   MgmtSrvr *mgm = (MgmtSrvr*)m;
-  my_thread_init();
   mgm->logLevelThreadRun();
-  
-  my_thread_end();
-  NdbThread_Exit(0);
-  /* NOTREACHED */
   return 0;
 }
 
@@ -83,12 +78,7 @@ void *
 MgmtSrvr::signalRecvThread_C(void *m) 
 {
   MgmtSrvr *mgm = (MgmtSrvr*)m;
-  my_thread_init();
   mgm->signalRecvThreadRun();
-
-  my_thread_end();
-  NdbThread_Exit(0);
-  /* NOTREACHED */
   return 0;
 }
 

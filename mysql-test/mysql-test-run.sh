@@ -227,6 +227,8 @@ EXTRA_MYSQLBINLOG_OPT=""
 USE_RUNNING_SERVER=0
 USE_NDBCLUSTER=""
 USE_RUNNING_NDBCLUSTER=""
+USE_PURIFY=""
+PURIFY_LOGS=""
 DO_GCOV=""
 DO_GDB=""
 MANUAL_GDB=""
@@ -246,7 +248,7 @@ MYSQL_TEST_SSL_OPTS=""
 USE_TIMER=""
 USE_EMBEDDED_SERVER=""
 RESULT_EXT=""
-TEST_MODE="default"
+TEST_MODE=""
 
 NDB_MGM_EXTRA_OPTS=
 NDB_MGMD_EXTRA_OPTS=
@@ -254,8 +256,17 @@ NDBD_EXTRA_OPTS=
 
 while test $# -gt 0; do
   case "$1" in
-    --embedded-server) USE_EMBEDDED_SERVER=1 USE_MANAGER=0 NO_SLAVE=1 ; \
-      USE_RUNNING_SERVER=0 RESULT_EXT=".es" TEST_MODE="embedded" ;;
+    --embedded-server)
+      USE_EMBEDDED_SERVER=1
+      USE_MANAGER=0 NO_SLAVE=1
+      USE_RUNNING_SERVER=0
+      RESULT_EXT=".es"
+      TEST_MODE="$TEST_MODE embedded" ;;
+    --purify)
+      USE_PURIFY=1
+      USE_MANAGER=0
+      USE_RUNNING_SERVER=0
+      TEST_MODE="$TEST_MODE purify" ;;
     --user=*) DBUSER=`$ECHO "$1" | $SED -e "s;--user=;;"` ;;
     --force)  FORCE=1 ;;
     --timer)  USE_TIMER=1 ;;
@@ -341,7 +352,7 @@ while test $# -gt 0; do
       SLEEP_TIME_AFTER_RESTART=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
       ;;
     --ps-protocol)
-      TEST_MODE="ps-protocol" EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
+      TEST_MODE="$TEST_MODE ps-protocol" EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
     --user-test=*)
       USER_TEST=`$ECHO "$1" | $SED -e "s;--user-test=;;"`
       ;;
@@ -454,6 +465,13 @@ while test $# -gt 0; do
   shift
 done
 
+if [ -z "$TEST_MODE" ] ; then
+  TEST_MODE="default"
+else
+  # Remove the leading space if any
+  TEST_MODE=`echo $TEST_MODE | sed 's/^ *//'`
+fi
+
 #++
 # mysqld Environment Parameters
 #--
@@ -482,6 +500,7 @@ export MASTER_MYPORT MASTER_MYPORT1 SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK MA
 NDBCLUSTER_BASE_PORT=`expr $NDBCLUSTER_PORT + 2`
 NDBCLUSTER_OPTS="--port=$NDBCLUSTER_PORT --port-base=$NDBCLUSTER_BASE_PORT --data-dir=$MYSQL_TEST_DIR/var --ndb_mgm-extra-opts=$NDB_MGM_EXTRA_OPTS --ndb_mgmd-extra-opts=$NDB_MGMD_EXTRA_OPTS --ndbd-extra-opts=$NDBD_EXTRA_OPTS"
 NDB_BACKUP_DIR=$MYSQL_TEST_DIR/var/ndbcluster-$NDBCLUSTER_PORT
+NDB_TOOLS_OUTPUT=$MYSQL_TEST_DIR/var/log/ndb_tools.log
 
 if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
@@ -515,7 +534,10 @@ if [ x$SOURCE_DIST = x1 ] ; then
    fi
    MYSQL_CLIENT_TEST="$BASEDIR/libmysqld/examples/mysql_client_test_embedded"
  else
-   MYSQLD="$VALGRIND $BASEDIR/sql/mysqld"
+   MYSQLD="$BASEDIR/sql/mysqld"
+   if [ -n "$VALGRIND" ] ; then
+     MYSQLD="$VALGRIND $MYSQLD"
+   fi
    if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
      MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest"
    elif [ -f "$BASEDIR/client/.libs/mysqltest" ] ; then
@@ -552,6 +574,31 @@ if [ x$SOURCE_DIST = x1 ] ; then
  MYSQL_FIX_SYSTEM_TABLES="$BASEDIR/scripts/mysql_fix_privilege_tables"
  NDB_TOOLS_DIR="$BASEDIR/ndb/tools"
  NDB_MGM="$BASEDIR/ndb/src/mgmclient/ndb_mgm"
+
+ if [ -n "$USE_PURIFY" ] ; then
+   PSUP="$MYSQL_TEST_DIR/purify.suppress"
+   echo "suppress UMR rw_read_held; mi_open; ha_myisam::open64; handler::ha_open; openfrm" >  $PSUP
+   echo "suppress UMR my_end; main" >> $PSUP
+   echo "suppress UMR _doprnt; fprintf; my_end; main" >> $PSUP
+   PURIFYOPTIONS="-windows=no -log-file=%v.purifylog -append-logfile -add-suppression-files=$PSUP"
+   if [ -f "${MYSQL_TEST}-purify" ] ; then
+     MYSQL_TEST="${MYSQL_TEST}-purify"
+     PLOG="$MYSQL_TEST.purifylog"
+     if [ -f $PLOG ]; then
+       mv $PLOG $PLOG.$$
+     fi
+     PURIFY_LOGS="$PLOG"
+   fi
+   if [ -f "${MYSQLD}-purify" ] ; then
+     MYSQLD="${MYSQLD}-purify"
+     PLOG="$MYSQLD.purifylog"
+     if [ -f $PLOG ]; then
+       mv $PLOG $PLOG.$$
+     fi
+     PURIFY_LOGS="$PURIFY_LOGS $PLOG"
+   fi
+ fi
+
 else
 
  # We have a binary installation. Note that this can be both from
@@ -646,7 +693,7 @@ fi
 
 MYSQL_CLIENT_TEST="$MYSQL_CLIENT_TEST --no-defaults --testcase --user=root --socket=$MASTER_MYSOCK --port=$MYSQL_TCP_PORT --silent"
 MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
-MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
+MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR  --character-sets-dir=$CHARSETSDIR $EXTRA_MYSQLBINLOG_OPT"
 MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
 MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
 export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES
@@ -654,6 +701,10 @@ export CLIENT_BINDIR MYSQL_CLIENT_TEST CHARSETSDIR
 export NDB_TOOLS_DIR
 export NDB_MGM
 export NDB_BACKUP_DIR
+export NDB_TOOLS_OUTPUT
+export PURIFYOPTIONS
+NDB_STATUS_OK=1
+export NDB_STATUS_OK
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
  --user=$DBUSER --password=$DBPASSWD --silent -v --skip-safemalloc \
@@ -782,6 +833,19 @@ disable_test() {
    skip_inc
    $ECHO "$RES$RES_SPACE [ disabled ]  $2"
 }
+
+
+report_current_test () {
+   tname=$1
+   echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
+   if [ -n "$PURIFY_LOGS" ] ; then
+     for log in $PURIFY_LOGS
+     do
+       echo "CURRENT_TEST: $tname" >> $log
+     done
+   fi
+}
+
 
 report_stats () {
     if [ $TOT_FAIL = 0 ]; then
@@ -1011,6 +1075,7 @@ start_ndbcluster()
 {
   if [ ! -z "$USE_NDBCLUSTER" ]
   then
+  rm -f $NDB_TOOLS_OUTPUT
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     echo "Starting ndbcluster"
@@ -1020,13 +1085,15 @@ start_ndbcluster()
     else
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    NDB_STARTED=1
-    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --initial || NDB_STARTED=0
-    if [ x$NDB_STARTED != x1 ] ; then
+    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --initial || NDB_STATUS_OK=0
+    if [ x$NDB_STATUS_OK != x1 ] ; then
       if [ x$FORCE != x1 ] ; then
         exit 1
       fi
+      USE_NDBCLUSTER=
+      return
     fi
+
     NDB_CONNECTSTRING="host=localhost:$NDBCLUSTER_PORT"
   else
     NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
@@ -1429,7 +1496,7 @@ run_testcase ()
  if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
    result_file="$result_file$RESULT_EXT"
  fi
- if [ -e "$TESTDIR/$tname.disabled" ]
+ if [ -f "$TESTDIR/$tname.disabled" ]
  then
    comment=`$CAT $TESTDIR/$tname.disabled`;
    disable_test $tname "$comment"
@@ -1535,7 +1602,7 @@ run_testcase ()
      esac
      stop_master
      stop_master 1
-     echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
+     report_current_test $tname
      start_master
      if [ -n "$USE_NDBCLUSTER" -a -z "$DO_BENCH" ] ; then
        start_master 1
@@ -1551,13 +1618,13 @@ run_testcase ()
        EXTRA_MASTER_OPT=""
        stop_master
        stop_master 1
-       echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
+       report_current_test $tname
        start_master
        if [ -n "$USE_NDBCLUSTER"  -a -z "$DO_BENCH" ] ; then
          start_master 1
        fi
      else
-       echo "CURRENT_TEST: $tname" >> $MASTER_MYERR
+       report_current_test $tname
      fi
    fi
 
@@ -1740,7 +1807,6 @@ then
   $ECHO  "Loading Standard Test Databases"
   mysql_loadstd
 fi
-
 
 $ECHO  "Starting Tests"
 
