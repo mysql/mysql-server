@@ -1449,7 +1449,14 @@ select:
 select_init:
 	SELECT_SYM select_part2 { Select->braces=false;	} union
 	|
-	'(' SELECT_SYM 	select_part2 ')' { Select->braces=true;} union_opt
+	'(' SELECT_SYM 	select_part2 ')' 
+	  { 
+            SELECT_LEX * sel=Select;
+	    sel->braces=true;
+            /* select in braces, can't contain global parameters */
+            ((SELECT_LEX_UNIT*)sel->master)->global_parameters=
+              sel->master;
+          } union_opt
 
 
 select_part2:
@@ -3826,10 +3833,15 @@ optional_order_or_limit:
   |
   {
     LEX *lex=Lex;
-    if (!lex->select->braces || mysql_new_select(lex, 0))
+    if (!lex->select->braces)
      YYABORT;
-    mysql_init_select(lex);
-    lex->select->linkage= GLOBAL_OPTIONS_TYPE;
+    ((SELECT_LEX_UNIT*)lex->select->master)->global_parameters= 
+      lex->select->master;
+    /*
+      Following type conversion looks like hack, but all that need SELECT_LEX 
+      fields always check linkage type.
+    */
+    lex->select= (SELECT_LEX*)lex->select->master;
     lex->select->select_limit=lex->thd->default_select_limit;
   }
   opt_order_clause limit_clause

@@ -382,7 +382,7 @@ public:
 #endif  
   ulonglong  next_insert_id,last_insert_id,current_insert_id,
              limit_found_rows;
-  ha_rows    select_limit,offset_limit,default_select_limit,cuted_fields,
+  ha_rows    default_select_limit,cuted_fields,
              max_join_size, sent_row_count, examined_row_count;
   table_map  used_tables;
   UC *user_connect;
@@ -551,10 +551,15 @@ void send_error(NET *net,uint sql_errno=0, const char *err=0);
 class select_result :public Sql_alloc {
 protected:
   THD *thd;
+  SELECT_LEX_UNIT *unit;
 public:
   select_result();
   virtual ~select_result() {};
-  virtual int prepare(List<Item> &list) { return 0; }
+  virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+  {
+    unit= u;
+    return 0;
+  }
   virtual bool send_fields(List<Item> &list,uint flag)=0;
   virtual bool send_data(List<Item> &items)=0;
   virtual void initialize_tables (JOIN *join=0) {}
@@ -587,7 +592,7 @@ class select_export :public select_result {
 public:
   select_export(sql_exchange *ex) :exchange(ex),file(-1),row_count(0L) {}
   ~select_export();
-  int prepare(List<Item> &list);
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_fields(List<Item> &list,
 		   uint flag) { return 0; }
   bool send_data(List<Item> &items);
@@ -606,7 +611,7 @@ public:
   select_dump(sql_exchange *ex) :exchange(ex),file(-1),row_count(0L)
   { path[0]=0; }
   ~select_dump();
-  int prepare(List<Item> &list);
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_fields(List<Item> &list,
 		   uint flag) { return 0; }
   bool send_data(List<Item> &items);
@@ -629,7 +634,7 @@ class select_insert :public select_result {
     info.handle_duplicates=duplic;
   }
   ~select_insert();
-  int prepare(List<Item> &list);
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_fields(List<Item> &list, uint flag)
   { return 0; }
   bool send_data(List<Item> &items);
@@ -658,7 +663,7 @@ public:
     create_info(create_info_par),
     lock(0)
     {}
-  int prepare(List<Item> &list);
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &values);
   bool send_eof();
   void abort();
@@ -672,7 +677,7 @@ class select_union :public select_result {
 
   select_union(TABLE *table_par);
   ~select_union();
-  int prepare(List<Item> &list);
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_fields(List<Item> &list, uint flag)
   { return 0; }
   bool send_data(List<Item> &items);
@@ -787,7 +792,7 @@ public:
    multi_delete(THD *thd, TABLE_LIST *dt, thr_lock_type lock_option_arg,
 		uint num_of_tables);
    ~multi_delete();
-   int prepare(List<Item> &list);
+   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
    bool send_fields(List<Item> &list,
  		   uint flag) { return 0; }
    bool send_data(List<Item> &items);
@@ -816,7 +821,7 @@ public:
 		enum enum_duplicates handle_duplicates,  
 		thr_lock_type lock_option_arg, uint num);
    ~multi_update();
-   int prepare(List<Item> &list);
+   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
    bool send_fields(List<Item> &list,
  		   uint flag) { return 0; }
    bool send_data(List<Item> &items);

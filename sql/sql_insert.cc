@@ -1266,10 +1266,11 @@ bool delayed_insert::handle_inserts(void)
 ***************************************************************************/
 
 int
-select_insert::prepare(List<Item> &values)
+select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("select_insert::prepare");
 
+  unit= u;
   save_time_stamp=table->time_stamp;
   if (check_insert_fields(thd,table,*fields,values,1))
     DBUG_RETURN(1);
@@ -1302,9 +1303,9 @@ select_insert::~select_insert()
 
 bool select_insert::send_data(List<Item> &values)
 {
-  if (thd->offset_limit)
+  if (unit->offset_limit_cnt)
   {						// using limit offset,count
-    thd->offset_limit--;
+    unit->offset_limit_cnt--;
     return 0;
   }
   if (fields->elements)
@@ -1380,10 +1381,11 @@ bool select_insert::send_eof()
 ***************************************************************************/
 
 int
-select_create::prepare(List<Item> &values)
+select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("select_create::prepare");
 
+  unit= u;
   table=create_table_from_items(thd, create_info, db, name,
 				extra_fields, keys, &values, &lock);
   if (!table)
@@ -1413,9 +1415,9 @@ select_create::prepare(List<Item> &values)
 
 bool select_create::send_data(List<Item> &values)
 {
-  if (thd->offset_limit)
+  if (unit->offset_limit_cnt)
   {						// using limit offset,count
-    thd->offset_limit--;
+    unit->offset_limit_cnt--;
     return 0;
   }
   fill_record(field,values);

@@ -895,14 +895,16 @@ void st_select_lex_node::init_select()
   order_list.elements= 0;
   order_list.first= 0;
   order_list.next= (byte**) &order_list.first;
-  select_limit= offset_limit= 0; 
+  select_limit= HA_POS_ERROR;
+  offset_limit= 0; 
 }
 
 void st_select_lex_unit::init_query()
 {
   st_select_lex_node::init_query();
   global_parameters= this;
-  select_limit_cnt= offset_limit_cnt= 0;
+  select_limit_cnt= HA_POS_ERROR;
+  offset_limit_cnt= 0;
 }
 
 void st_select_lex::init_query()

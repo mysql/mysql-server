@@ -379,9 +379,10 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs,
 }
 
 int
-multi_update::prepare(List<Item> &values)
+multi_update::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("multi_update::prepare");
+  unit= u;
   do_update = true;   
   thd->count_cuted_fields=1;
   thd->cuted_fields=0L;
@@ -466,15 +467,19 @@ multi_update::prepare(List<Item> &values)
       }
       if (counter)
       {
-	Field_string offset(table_ref->table->file->ref_length,false,"offset",table_ref->table,true);
+	Field_string offset(table_ref->table->file->ref_length, false,
+			    "offset", table_ref->table, true);
 	temp_fields->push_front(new Item_field(((Field *)&offset)));
 // Here I make tmp tables
 	int cnt=counter-1;
 	TMP_TABLE_PARAM tmp_table_param;
 	bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
 	tmp_table_param.field_count=temp_fields->elements;
-	if (!(tmp_tables[cnt]=create_tmp_table(thd, &tmp_table_param, *temp_fields,
-						   (ORDER*) 0, 1, 0, 0, TMP_TABLE_ALL_COLUMNS)))
+	if (!(tmp_tables[cnt]=create_tmp_table(thd, &tmp_table_param,
+					       *temp_fields,
+					       (ORDER*) 0, 1, 0, 0,
+					       TMP_TABLE_ALL_COLUMNS,
+					       unit)))
 	{
 	  error = 1; // A proper error message is due here 
 	  DBUG_RETURN(1);

@@ -359,7 +359,8 @@ int setup_order(THD *thd,TABLE_LIST *tables, List<Item> &fields,
 int handle_select(THD *thd, LEX *lex, select_result *result);
 int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
-		 ulong select_type,select_result *result);
+		 ulong select_type,select_result *result,
+		 SELECT_LEX_UNIT *unit);
 int mysql_union(THD *thd, LEX *lex,select_result *result);
 int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
