@@ -267,9 +267,9 @@ int main(int argc, char *argv[])
       puts("got error from mi_extra(HA_EXTRA_NO_CACHE)");
       goto end;
     }
-    if (key_cacheing)
-      resize_key_cache(key_cache_size*2);
   }
+  if (key_cacheing)
+    resize_key_cache(key_cache_size*2);
 
   if (!silent)
     printf("- Delete\n");
