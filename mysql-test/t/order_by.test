@@ -364,3 +364,14 @@ enable_query_log;
 explain select id,t from t1 order by id;
 explain select id,t from t1 force index (primary) order by id;
 drop table t1;
+
+#
+# Bug #7672 - a wrong result for a select query in braces followed by order by
+#
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (2), (1), (1), (2), (1);
+SELECT a FROM t1 ORDER BY a;
+(SELECT a FROM t1) ORDER BY a;
+DROP TABLE t1;
+
