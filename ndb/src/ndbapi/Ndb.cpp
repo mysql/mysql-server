@@ -1177,7 +1177,14 @@ NdbEventOperation* Ndb::createEventOperation(const char* eventName,
 
   tOp = new NdbEventOperation(this, eventName, bufferLength);
 
-  if (tOp->getState() != NdbEventOperation::CREATED) {
+  if (tOp == 0)
+  {
+    theError.code= 4000;
+    return NULL;
+  }
+
+  if (tOp->getState() != NdbEventOperation::EO_CREATED) {
+    theError.code= tOp->getNdbError().code;
     delete tOp;
     tOp = NULL;
   }
