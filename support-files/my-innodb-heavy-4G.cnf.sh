@@ -317,7 +317,7 @@ key_buffer_size = 32M
 read_buffer_size = 2M
 
 # When reading rows in sorted order after a sort, the rows are read
-# through this buffer to avoid a disk seeks. You can improve ORDER BY
+# through this buffer to avoid disk seeks. You can improve ORDER BY
 # performance a lot, if set this to a high value.
 # Allocated per thread, when needed.
 read_rnd_buffer_size = 16M
@@ -331,7 +331,7 @@ read_rnd_buffer_size = 16M
 bulk_insert_buffer_size = 64M
 
 # This buffer is allocated when MySQL needs to rebuild the index in
-# REPAIR, OPTIMZE, ALTER table statements as well as in LOAD DATA INFILE
+# REPAIR, OPTIMIZE, ALTER table statements as well as in LOAD DATA INFILE
 # into an empty table. It is allocated per thread so be careful with
 # large settings.
 myisam_sort_buffer_size = 128M
