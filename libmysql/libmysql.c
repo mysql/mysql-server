@@ -1102,12 +1102,8 @@ mysql_dump_debug_info(MYSQL *mysql)
   DBUG_RETURN(simple_command(mysql,COM_DEBUG,0,0,0));
 }
 
-const char * STDCALL
-mysql_stat(MYSQL *mysql)
+const char * STDCALL cli_read_statistic(MYSQL *mysql)
 {
-  DBUG_ENTER("mysql_stat");
-  if (simple_command(mysql,COM_STATISTICS,0,0,0))
-    return mysql->net.last_error;
   mysql->net.read_pos[mysql->packet_length]=0;	/* End of stat string */
   if (!mysql->net.read_pos[0])
   {
@@ -1116,7 +1112,16 @@ mysql_stat(MYSQL *mysql)
     strmov(mysql->net.last_error, ER(mysql->net.last_errno));
     return mysql->net.last_error;
   }
-  DBUG_RETURN((char*) mysql->net.read_pos);
+  return (char*) mysql->net.read_pos;
+}
+
+const char * STDCALL
+mysql_stat(MYSQL *mysql)
+{
+  DBUG_ENTER("mysql_stat");
+  if (simple_command(mysql,COM_STATISTICS,0,0,0))
+    return mysql->net.last_error;
+  DBUG_RETURN((*mysql->methods->read_statistic)(mysql));
 }
 
 
