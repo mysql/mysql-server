@@ -453,8 +453,8 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       setup_tables(insert_table_list) ||
       setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
       (duplic == DUP_UPDATE &&
-       (setup_fields(thd, 0, insert_table_list, update_fields, 0, 0, 0) ||
-        setup_fields(thd, 0, insert_table_list, update_values, 0, 0, 0))))
+       (setup_fields(thd, 0, insert_table_list, update_fields, 1, 0, 0) ||
+        setup_fields(thd, 0, insert_table_list, update_values, 1, 0, 0))))
     DBUG_RETURN(-1);
   if (find_real_table_in_list(table_list->next, 
 			      table_list->db, table_list->real_name))
@@ -462,6 +462,9 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
   }
+  if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
+    table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
+
   DBUG_RETURN(0);
 }
 
