@@ -16,6 +16,7 @@
 
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
 
 #include <NdbOut.hpp>
 
@@ -23,13 +24,8 @@
 #include <NdbMain.h>
 #include <NDBT.hpp> 
 #include <NdbSleep.h>
-#include <getarg.h>
 #include <NdbScanFilter.hpp>
  
-#ifndef DBUG_OFF
-const char *debug_option= 0;
-#endif
-
 int scanReadRecords(Ndb*, 
 		    const NdbDictionary::Table*, 
 		    const NdbDictionary::Index*,
@@ -40,39 +36,44 @@ int scanReadRecords(Ndb*,
 		    char delim,
 		    bool orderby);
 
-int main(int argc, const char** argv){
-  ndb_init();
-  int _parallelism = 240;
-  const char* _delimiter = "\t";
-  int _header = true;
-  int _useHexFormat = false;
-  const char* _tabname = NULL;
-  const char* _dbname = "TEST_DB";
-  int _help = 0;
-  int _lock = 0;
-  int _order = 0;
+static const char* opt_connect_str= 0;
+static const char* _dbname = "TEST_DB";
+static const char* _delimiter = "\t";
+static int _unqualified, _header, _parallelism, _useHexFormat, _lock,
+  _order;
 
-  struct getargs args[] = {
-    { "database", 'd', arg_string, &_dbname, "dbname", 
-      "Name of database table is in"},
-    { "parallelism", 'p', arg_integer, &_parallelism, "parallelism", 
-      "parallelism" },
-    { "header", 'h', arg_flag, &_header, "Print header", "header" },
-    { "useHexFormat", 'x', arg_flag, &_useHexFormat, 
-      "Output numbers in hexadecimal format", "useHexFormat" },
-    { "delimiter", 'd', arg_string, &_delimiter, "Column delimiter", 
-      "delimiter" },
-#ifndef DBUG_OFF
-    { "debug", 0, arg_string, &debug_option,
-      "Specify debug options e.g. d:t:i:o,out.trace", "options" },
-#endif
-    { "usage", '?', arg_flag, &_help, "Print help", "" },
-    { "lock", 'l', arg_integer, &_lock, 
-      "Read(0), Read-hold(1), Exclusive(2)", "lock"},
-    { "order", 'o', arg_flag, &_order, "Sort resultset according to index", ""}
-  };
-  int num_args = sizeof(args) / sizeof(args[0]);
-  int optind = 0;
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndb_desc"),
+  { "database", 'd', "Name of database table is in",
+    (gptr*) &_dbname, (gptr*) &_dbname, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "parallelism", 'p', "parallelism",
+    (gptr*) &_parallelism, (gptr*) &_parallelism, 0,
+    GET_INT, REQUIRED_ARG, 240, 0, 0, 0, 0, 0 }, 
+  { "lock", 'l', "Read(0), Read-hold(1), Exclusive(2)",
+    (gptr*) &_lock, (gptr*) &_lock, 0,
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "order", 'o', "Sort resultset according to index",
+    (gptr*) &_order, (gptr*) &_order, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "header", 'h', "Print header",
+    (gptr*) &_header, (gptr*) &_header, 0,
+    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 }, 
+  { "useHexFormat", 'x', "Output numbers in hexadecimal format",
+    (gptr*) &_useHexFormat, (gptr*) &_useHexFormat, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "delimiter", 'D', "Column delimiter",
+    (gptr*) &_delimiter, (gptr*) &_delimiter, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+static void print_version()
+{
+  printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+}
+static void usage()
+{
   char desc[] = 
     "tabname\n"\
     "This program reads all records from one table in NDB Cluster\n"\
@@ -80,19 +81,42 @@ int main(int argc, const char** argv){
     "(It only print error messages if it encounters a permanent error.)\n"\
     "It can also be used to dump the content of a table to file \n"\
     "  ex: select_all --no-header --delimiter=';' T4 > T4.data\n";
-  
-  if(getarg(args, num_args, argc, argv, &optind) || 
-     argv[optind] == NULL || _help) {
-    arg_printusage(args, num_args, argv[0], desc);
+  print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch (optid) {
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/ndb_select_all.trace");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
+  }
+  return 0;
+}
+
+int main(int argc, char** argv){
+  NDB_INIT(argv[0]);
+  const char *load_default_groups[]= { "ndb_tools",0 };
+  load_defaults("my",load_default_groups,&argc,&argv);
+  const char* _tabname;
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  if ((_tabname = argv[0]) == 0) {
+    usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
-  _tabname = argv[optind];
 
-#ifndef DBUG_OFF
-  if (debug_option)
-    DBUG_PUSH(debug_option);
-#endif
-
+  Ndb::setConnectString(opt_connect_str);
   // Connect to Ndb
   Ndb MyNdb(_dbname);
 
@@ -108,8 +132,8 @@ int main(int argc, const char** argv){
   // Check if table exists in db
   const NdbDictionary::Table* pTab = NDBT_Table::discoverTableFromDb(&MyNdb, _tabname);
   const NdbDictionary::Index * pIdx = 0;
-  if(optind+1 < argc){
-    pIdx = MyNdb.getDictionary()->getIndex(argv[optind+1], _tabname);
+  if(argc > 1){
+    pIdx = MyNdb.getDictionary()->getIndex(argv[0], _tabname);
   }
 
   if(pTab == NULL){
