@@ -2653,8 +2653,6 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
   ha_rows rec;
   double tmp;
   THD *thd= join->thd;
-  if (thd->killed)				// Abort
-    return;
 
   if (!rest_tables)
   {
