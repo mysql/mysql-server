@@ -1669,7 +1669,7 @@ ha_innobase::write_row(
 		introduced only in version 4.0.4 */
 
 	        if (incremented_auto_inc_counter) {
-	                dict_autoinc_decrement(prebuilt->table);
+	                dict_table_autoinc_decrement(prebuilt->table);
 	        }
 
 		if (incremented_auto_inc_for_stat) {
