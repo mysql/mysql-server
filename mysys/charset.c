@@ -103,7 +103,7 @@ char *get_charsets_dir(char *buf)
       strxmov(buf, DEFAULT_CHARSET_HOME, "/", sharedir, "/", CHARSET_DIR,
 	      NullS);
   }
-  convert_dirname(buf);
+  convert_dirname(buf,buf,NullS);
   DBUG_PRINT("info",("charsets dir='%s'", buf));
   DBUG_RETURN(strend(buf));
 }

@@ -16,7 +16,7 @@
 
 INCLUDES =		@MT_INCLUDES@ -I$(srcdir)/../include -I../include
 pkglib_LIBRARIES =	libmyisammrg.a
-noinst_HEADERS =	mymrgdef.h
+noinst_HEADERS =	myrg_def.h
 libmyisammrg_a_SOURCES = myrg_open.c myrg_extra.c myrg_info.c myrg_locking.c \
 			myrg_rrnd.c myrg_update.c myrg_delete.c myrg_rsame.c \
 			myrg_panic.c myrg_close.c myrg_create.c myrg_static.c \

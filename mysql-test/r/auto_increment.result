@@ -23,30 +23,6 @@ a	b	c
 8	8	8
 9	9	9
 drop table t1;
-create table t1 (a int not null auto_increment,b int, primary key (a)) type=isam;
-insert into t1 values (1,1),(NULL,2),(3,3),(NULL,4);
-delete from t1 where a=4 or a=2;
-insert into t1 values (NULL,4),(NULL,5),(6,6);
-select * from t1;
-a	b
-1	1
-5	5
-3	3
-4	4
-6	6
-delete from t1 where a=6;
-replace t1 values (3,1);
-replace t1 values (3,3);
-ALTER TABLE t1 add c int;
-insert into t1 values (NULL,6,6);
-select * from t1;
-a	b	c
-1	1	NULL
-5	5	NULL
-3	3	NULL
-4	4	NULL
-6	6	6
-drop table t1;
 create table t1 (
 skey tinyint unsigned NOT NULL auto_increment PRIMARY KEY,
 sval char(20)

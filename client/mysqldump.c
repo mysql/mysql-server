@@ -643,8 +643,7 @@ static uint getTableStructure(char *table, char* db)
       if (path)
       {
         char filename[FN_REFLEN], tmp_path[FN_REFLEN];
-        strmov(tmp_path,path);
-        convert_dirname(tmp_path);
+        convert_dirname(tmp_path,path,NullS);
         sql_file= my_fopen(fn_format(filename, table, tmp_path, ".sql", 4),
   				 O_WRONLY, MYF(MY_WME));
         if (!sql_file)			/* If file couldn't be opened */
@@ -716,8 +715,7 @@ static uint getTableStructure(char *table, char* db)
       if (path)
       {
         char filename[FN_REFLEN], tmp_path[FN_REFLEN];
-        strmov(tmp_path,path);
-        convert_dirname(tmp_path);
+        convert_dirname(tmp_path,path,NullS);
         sql_file= my_fopen(fn_format(filename, table, tmp_path, ".sql", 4),
 				 O_WRONLY, MYF(MY_WME));
         if (!sql_file)			/* If file couldn't be opened */
@@ -949,8 +947,7 @@ static void dumpTable(uint numFields, char *table)
   if (path)
   {
     char filename[FN_REFLEN], tmp_path[FN_REFLEN];
-    strmov(tmp_path, path);
-    convert_dirname(tmp_path);
+    convert_dirname(tmp_path,path,NullS);
     my_load_path(tmp_path, tmp_path, NULL);
     fn_format(filename, table, tmp_path, ".txt", 4);
     my_delete(filename, MYF(0)); /* 'INTO OUTFILE' doesn't work, if

@@ -841,7 +841,8 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
     char* table_name = table->name;
     char* db = thd->db ? thd->db : table->db;
 
-    if (!fn_format(src_path, table_name, backup_dir, reg_ext, 4 + 64))
+    if (fn_format_relative_to_data_home(src_path, table_name, backup_dir,
+					reg_ext))
       DBUG_RETURN(-1); // protect buffer overflow
 
     sprintf(dst_path, "%s/%s/%s", mysql_real_data_home, db, table_name);
@@ -850,9 +851,8 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
       DBUG_RETURN(-1);
 
     if (my_copy(src_path,
-	       fn_format(dst_path, dst_path,"",
-			 reg_ext, 4),
-	       MYF(MY_WME)))
+		fn_format(dst_path, dst_path,"", reg_ext, 4),
+		MYF(MY_WME)))
     {
       unlock_table_name(thd, table);
       DBUG_RETURN(send_check_errmsg(thd, table, "restore",
@@ -1814,7 +1814,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   }
   end_read_record(&info);
   free_io_cache(from);
-  delete [] copy;
+  delete [] copy;				// This is never 0
   uint tmp_error;
   if ((tmp_error=to->file->extra(HA_EXTRA_NO_CACHE)))
   {

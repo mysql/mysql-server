@@ -517,6 +517,8 @@ void init_errmessage(void);
 void sql_perror(const char *message);
 void sql_print_error(const char *format,...)
 	        __attribute__ ((format (printf, 1, 2)));
+bool fn_format_relative_to_data_home(my_string to, const char *name,
+				     const char *dir, const char *extension);
 
 extern uint32 server_id;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
@@ -553,7 +555,7 @@ extern pthread_cond_t COND_refresh,COND_thread_count, COND_binlog_update,
                       COND_slave_stopped, COND_slave_start;
 extern pthread_attr_t connection_attrib;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory,
-            opt_using_transactions, use_temp_pool;
+            opt_using_transactions, use_temp_pool, mysql_embedded;
 extern char f_fyllchar;
 extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 	     ha_read_key_count, ha_read_next_count, ha_read_prev_count,

@@ -47,10 +47,12 @@ int completion_hash_init(HashTable *ht, uint nSize)
   ht->arBuckets = (Bucket **) my_malloc(nSize* sizeof(Bucket *),
 					MYF(MY_ZEROFILL | MY_WME));
 
-  if (!ht->arBuckets) {
+  if (!ht->arBuckets)
+  {
     ht->initialized = 0;
     return FAILURE;
   }
+  init_alloc_root(&ht->mem_root, 8192, 0);
   ht->pHashFunction = hashpjw;
   ht->nTableSize = nSize;
   ht->initialized = 1;
@@ -78,8 +80,7 @@ int completion_hash_update(HashTable *ht, char *arKey, uint nKeyLength,
       if (!memcmp(p->arKey, arKey, nKeyLength)) {
 	entry *n;
 
-	n = (entry *) my_malloc(sizeof(entry),
-				MYF(MY_WME));
+	n = (entry *) alloc_root(&ht->mem_root,sizeof(entry));
 	n->pNext = p->pData;
 	n->str = str;
 	p->pData = n;
@@ -91,20 +92,16 @@ int completion_hash_update(HashTable *ht, char *arKey, uint nKeyLength,
     p = p->pNext;
   }
 
-  p = (Bucket *) my_malloc(sizeof(Bucket),MYF(MY_WME));
-
-  if (!p) {
+  if (!(p = (Bucket *) alloc_root(&ht->mem_root, sizeof(Bucket))))
     return FAILURE;
-  }
+
   p->arKey = arKey;
   p->nKeyLength = nKeyLength;
   p->h = h;
 
-  p->pData = (entry*) my_malloc(sizeof(entry),MYF(MY_WME));
-  if (!p->pData) {
-    my_free((gptr) p,MYF(0));
+  if (!(p->pData = (entry*) alloc_root(&ht->mem_root, sizeof(entry))))
     return FAILURE;
-  }
+
   p->pData->str = str;
   p->pData->pNext = 0;
   p->count = 1;
@@ -209,24 +206,7 @@ Bucket *find_longest_match(HashTable *ht, char *str, uint length,
 
 void completion_hash_clean(HashTable *ht)
 {
-  uint i;
-  entry *e, *t;
-  Bucket *b, *tmp;
-
-  for (i=0; i<ht->nTableSize; i++) {
-    b = ht->arBuckets[i];
-    while (b) {
-      e =  b->pData;
-      while (e) {
-	t = e;
-	e = e->pNext;
-	my_free((gptr) t,MYF(0));
-      }
-      tmp = b;
-      b = b->pNext;
-      my_free((gptr) tmp,MYF(0));
-    }
-  }
+  free_root(&ht->mem_root,MYF(0));
   bzero((char*) ht->arBuckets,ht->nTableSize*sizeof(Bucket *));
 }
 
@@ -241,9 +221,7 @@ void completion_hash_free(HashTable *ht)
 void add_word(HashTable *ht,char *str)
 {
   int i;
-  int length= (int) strlen(str);
-
-  for (i=1; i<=length; i++) {
+  char *pos=str;
+  for (i=1; *pos; i++, pos++)
     completion_hash_update(ht, str, i, str);
-  }
 }

@@ -1,21 +1,8 @@
 #
 # Test of some show commands
 #
-drop table if exists t1,t2;
-create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
-insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
-create table t2 type=isam select * from t1;
-optimize table t1;
-check table t1,t2;
-repair table t1,t2;
-check table t2,t1;
-lock tables t1 write;
-check table t2,t1;
-show columns from t1;
-show full columns from t1;
-show index from t1;
-drop table t1,t2;
 
+drop table if exists t1,t2;
 create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
 insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
 check table t1 type=fast;

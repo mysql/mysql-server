@@ -16,7 +16,7 @@
 
 /* Write a row to a MyISAM MERGE table */
 
-#include "mymrgdef.h"
+#include "myrg_def.h"
 
 int myrg_write(register MYRG_INFO *info, byte *rec)
 {

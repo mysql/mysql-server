@@ -16,10 +16,10 @@
 
 INCLUDES =		@MT_INCLUDES@ -I$(srcdir)/../include -I../include
 pkglib_LIBRARIES =	libmerge.a
-noinst_HEADERS =	mrgdef.h
-libmerge_a_SOURCES =	open.c extra.c info.c _locking.c \
-			rrnd.c update.c delete.c rsame.c panic.c \
-			close.c create.c static.c
+noinst_HEADERS =	mrg_def.h
+libmerge_a_SOURCES =	mrg_open.c mrg_extra.c mrg_info.c mrg_locking.c \
+			mrg_rrnd.c mrg_update.c mrg_delete.c mrg_rsame.c \
+			mrg_panic.c mrg_close.c mrg_create.c mrg_static.c
 
 OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			__math.h time.h __time.h unistd.h __unistd.h types.h \

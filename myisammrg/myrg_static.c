@@ -20,7 +20,7 @@
 */
 
 #ifndef stdin
-#include "mymrgdef.h"
+#include "myrg_def.h"
 #endif
 
 LIST	*myrg_open_list=0;

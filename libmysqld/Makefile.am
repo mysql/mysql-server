@@ -17,27 +17,23 @@
 #
 # This file is public domain and comes with NO WARRANTY of any kind
 
-MYSQLDATAdir =			$(localstatedir)
-MYSQLSHAREdir =			$(pkgdatadir)
-MYSQLBASEdir=			$(prefix)
+MYSQLDATAdir =		$(localstatedir)
+MYSQLSHAREdir =		$(pkgdatadir)
+MYSQLBASEdir=		$(prefix)
 
 DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\""
-INCLUDES = @MT_INCLUDES@ @bdb_includes@ -I$(srcdir)/../include -I../include \
-	-I$(srcdir)/.. -I$(top_srcdir) -I.. -I../sql -I../regex
+INCLUDES=		@MT_INCLUDES@ @bdb_includes@ -I$(srcdir)/../include \
+			-I../include -I$(srcdir)/.. -I$(top_srcdir) -I.. \
+			-I../sql -I../regex
 
-
-## XXX: should we use client or server LDFLAGS for libmysqld?
-LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmysqld.la
-pkglib_LTLIBRARIES =	libmysqld.la
+noinst_LIBRARIES =	libmysqld_int.a
+pkglib_LIBRARIES =	libmysqld.a
 SUBDIRS =		. examples
-libmysqld_la_SOURCES=	libmysqld.c lib_sql.cc lib_load.cc
-
+libmysqld_sources=	libmysqld.c lib_sql.cc lib_load.cc
 libmysqlsources =	errmsg.c get_password.c password.c
-## XXX: we should not have to duplicate info from the sources list
-libmysqlobjects =	errmsg.lo get_password.lo password.lo
 
 noinst_HEADERS =	embedded_priv.h
 
@@ -47,7 +43,7 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	hostname.cc init.cc \
 	item.cc item_buff.cc item_cmpfunc.cc item_create.cc \
 	item_func.cc item_strfunc.cc item_sum.cc item_timefunc.cc \
-	item_uniq.cc key.cc lock.cc log.cc log_event.cc \
+	item_uniq.cc key.cc lock.cc log.cc log_event.cc md5.c \
 	mini_client.cc net_pkg.cc net_serv.cc opt_ft.cc opt_range.cc \
 	opt_sum.cc procedure.cc records.cc slave.cc sql_acl.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
@@ -58,37 +54,52 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
 	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc
 
-## XXX: we should not have to duplicate info from the sources list
-sqlobjects = convert.lo derror.lo field.lo field_conv.lo filesort.lo \
-	ha_innobase.lo ha_berkeley.lo ha_heap.lo ha_isam.lo ha_isammrg.lo \
-	ha_myisam.lo ha_myisammrg.lo handler.lo sql_handler.lo \
-	hostname.lo init.lo \
-	item.lo item_buff.lo item_cmpfunc.lo item_create.lo \
-	item_func.lo item_strfunc.lo item_sum.lo item_timefunc.lo \
-	item_uniq.lo key.lo lock.lo log.lo log_event.lo  \
-	mini_client.lo net_pkg.lo net_serv.lo opt_ft.lo opt_range.lo \
-	opt_sum.lo procedure.lo records.lo slave.lo sql_acl.lo \
-	sql_analyse.lo sql_base.lo sql_cache.lo sql_class.lo \
-	sql_crypt.lo sql_db.lo sql_delete.lo sql_insert.lo sql_lex.lo \
-	sql_list.lo sql_manager.lo sql_map.lo sql_parse.lo \
-	sql_rename.lo sql_repl.lo sql_select.lo sql_show.lo \
-	sql_string.lo sql_table.lo sql_test.lo sql_udf.lo \
-	sql_update.lo sql_yacc.lo table.lo thr_malloc.lo time.lo \
-	unireg.lo uniques.lo stacktrace.lo sql_union.lo hash_filo.lo
-
 EXTRA_DIST = lib_vio.c
+
+libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
 
 # automake misses these
 sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
 
-libmysqld_la_LIBADD = $(sqlobjects) $(libmysqlobjects)
+# The following libraries should be included in libmysqld.a
+INC_LIB=	$(top_builddir)/regex/libregex.a \
+		$(top_builddir)/myisam/libmyisam.a \
+		$(top_builddir)/myisammrg/libmyisammrg.a \
+		$(top_builddir)/heap/libheap.a \
+		@innodb_libs@ @bdb_libs_with_path@ \
+		$(top_builddir)/mysys/libmysys.a \
+		$(top_builddir)/strings/libmystrings.a \
+		$(top_builddir)/dbug/libdbug.a \
+		$(top_builddir)/regex/libregex.a
+
+#
+# To make it easy for the end user to use the embedded library we 
+# generate a total libmysqld.a from all library files, 
+
+libmysqld.a:	libmysqld_int.a $(INC_LIB)
+		if test ! -d tmp ; then mkdir tmp ; fi
+		rm -f $@ libmysqld_int2.a tmp/*.o tmp/*.a
+		cp $(INC_LIB) tmp
+		cp libmysqld_int.a libmysqld_int2.a ; \
+		cd tmp ; \
+		for file in *.a ; do \
+		  bfile=`basename $$file .a` ; \
+		  ar x $$file; \
+		  for obj in *.o ; do mv $$obj $${bfile}_$$obj ; done ; \
+		  ar q ../libmysqld_int2.a *.o ; \
+		  rm *.o ; \
+		done
+		mv libmysqld_int2.a libmysqld.a
+		rm tmp/*
+		$(RANLIB) libmysqld.a
+
 ## XXX: any time the client interface changes, we'll need to bump
 ## the version info for libmysqld; however, it's possible for the
 ## libmysqld interface to change without affecting the standard
 ## libmysqlclient interface.  Should we make a separate version
 ## string for the two?
-libmysqld_la_LDFLAGS = -version-info @SHARED_LIB_VERSION@
-CLEANFILES =		$(libmysqld_la_LIBADD) libmysqld.la
+#libmysqld_la_LDFLAGS = -version-info @SHARED_LIB_VERSION@
+#CLEANFILES =		$(libmysqld_la_LIBADD) libmysqld.la
 
 # This is called from the toplevel makefile
 link_sources:

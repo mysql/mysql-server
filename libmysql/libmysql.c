@@ -92,8 +92,8 @@ static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
 int mysql_server_init(int argc __attribute__((unused)),
-		       const char **argv __attribute__((unused)),
-		       const char **groups __attribute__((unused)))
+		      char **argv __attribute__((unused)),
+		      char **groups __attribute__((unused)))
 {
   return 0;
 }
@@ -873,7 +873,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 
   for (row=data->data; row ; row = row->next,field++)
   {
-    field->table=  strdup_root(alloc,(char*) row->data[0]);
+    field->org_table= field->table=  strdup_root(alloc,(char*) row->data[0]);
     field->name=   strdup_root(alloc,(char*) row->data[1]);
     field->length= (uint) uint3korr(row->data[2]);
     field->type=   (enum enum_field_types) (uchar) row->data[3][0];
