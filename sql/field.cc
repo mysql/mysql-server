@@ -855,12 +855,13 @@ String *Field_decimal::val_str(String *val_buffer __attribute__((unused)),
 			       String *val_ptr)
 {
   char *str;
+  CHARSET_INFO *cs=current_thd->variables.thd_charset;
   for (str=ptr ; *str == ' ' ; str++) ;
   uint tmp_length=(uint) (str-ptr);
   if (field_length < tmp_length)		// Error in data
     val_ptr->length(0);
   else
-    val_ptr->set((const char*) str,field_length-tmp_length,default_charset_info);
+    val_ptr->copy((const char*) str,field_length-tmp_length,my_charset_latin1,cs);
   return val_ptr;
 }
 
