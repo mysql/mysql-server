@@ -389,7 +389,7 @@ public:
       FALSE value is false or NULL
       TRUE value is true (not equal to 0)
   */
-  bool val_bool();
+  virtual bool val_bool();
   /* Helper functions, see item_sum.cc */
   String *val_string_from_real(String *str);
   String *val_string_from_int(String *str);

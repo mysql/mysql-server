@@ -468,7 +468,6 @@ public:
   { return field_length + 1 + (dec ? 1 : 0) + (field_length == dec ? 1 : 0); }
   uint32 representation_length()
   { return field_length + 1 + (dec ? 1 : 0) + (field_length == dec ? 1 : 0); };
-  field_cast_enum field_cast_type() { return FIELD_CAST_NEWDECIMAL; }
   uint size_of() const { return sizeof(*this); } 
   uint32 pack_length() const { return (uint32) bin_size; }
 };
@@ -1002,7 +1001,7 @@ public:
   enum_field_types real_type() const { return FIELD_TYPE_STRING; }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
-  field_cast_enum field_cast_type() { return FIELD_CAST_STRING; }
+  Field *new_field(MEM_ROOT *root, struct st_table *new_table);
 };
 
 
@@ -1305,7 +1304,6 @@ public:
   { return (uint32) field_length + (bit_len > 0); }
   uint32 pack_length_in_rec() const { return field_length; }
   void sql_type(String &str) const;
-  field_cast_enum field_cast_type() { return FIELD_CAST_BIT; }
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   const char *unpack(char* to, const char *from);
   Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
