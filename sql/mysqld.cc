@@ -223,7 +223,8 @@ static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
 	    opt_myisam_log=0,
             opt_large_files=sizeof(my_off_t) > 4;
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0,
-  opt_show_slave_auth_info = 0, opt_old_rpl_compat = 0;
+  opt_show_slave_auth_info = 0, opt_old_rpl_compat = 0,
+  opt_safe_user_create = 0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
@@ -271,7 +272,7 @@ ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
       query_buff_size, lower_case_table_names, mysqld_net_retry_count,
       net_interactive_timeout, slow_launch_time = 2L,
       net_read_timeout,net_write_timeout,slave_open_temp_tables=0,
-      open_files_limit=0, max_binlog_size;
+      open_files_limit=0, max_binlog_size, record_rnd_cache_size;
 ulong slave_net_timeout;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 volatile ulong cached_thread_count=0;
@@ -2531,7 +2532,7 @@ enum options {
 	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
                OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
-               OPT_SQL_MODE,
+               OPT_SQL_MODE,OPT_SAFE_USER_CREATE,
                OPT_SLAVE_LOAD_TMPDIR};
 
 static struct option long_options[] = {
