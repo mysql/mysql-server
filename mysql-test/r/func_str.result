@@ -146,6 +146,12 @@ decode(encode(repeat("a",100000),"monty"),"monty")=repeat("a",100000)
 select decode(encode("abcdef","monty"),"monty")="abcdef";
 decode(encode("abcdef","monty"),"monty")="abcdef"
 1
+select quote('\'\"\\test');
+quote('\'\"\\test')
+'\'\"\\test'
+select quote(concat('abc\'', '\\cba'));
+quote(concat('abc\'', '\\cba'))
+'abc\'\\cba'
 select reverse("");
 reverse("")
 
