@@ -145,33 +145,21 @@ int main(int argc, char** argv){
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  LocalConfig cfg;
-
-  if(argc >= 1) {
-    _host = argv[0];
-    if(argc >= 2) {
-      _port = atoi(argv[1]);
-    }
-  } else {
-    if(cfg.init(opt_connect_str, 0) && cfg.ids.size() > 0 && cfg.ids[0].type == MgmId_TCP){
-      _host = cfg.ids[0].name.c_str();
-      _port = cfg.ids[0].port;
-    } else {
-      cfg.printError();
-      cfg.printUsage();
-      return 1;
-    }
-  }
-  
   char buf[MAXHOSTNAMELEN+10];
-  BaseString::snprintf(buf, sizeof(buf), "%s:%d", _host, _port);
+  if(argc == 1) {
+    BaseString::snprintf(buf, sizeof(buf), "%s",  argv[0]);
+    opt_connect_str= buf;
+  } else if (argc >= 2) {
+    BaseString::snprintf(buf, sizeof(buf), "%s:%s",  argv[0], argv[1]);
+    opt_connect_str= buf;
+  }
 
   ndbout << "-- NDB Cluster -- Management Client --" << endl;
-  printf("Connecting to Management Server: %s\n", buf);
+  printf("Connecting to Management Server: %s\n", opt_connect_str ? opt_connect_str : "default");
 
   signal(SIGPIPE, handler);
 
-  com = new Ndb_mgmclient(buf);
+  com = new Ndb_mgmclient(opt_connect_str);
   while(read_and_execute(_try_reconnect));
   delete com;
   

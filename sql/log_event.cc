@@ -1655,16 +1655,22 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db,
 
 /*
   Load_log_event::set_fields()
+
+  Note that this function can not use the member variable 
+  for the database, since LOAD DATA INFILE on the slave
+  can be for a different database than the current one.
+  This is the reason for the affected_db argument to this method.
 */
 
 #ifndef MYSQL_CLIENT
-void Load_log_event::set_fields(List<Item> &field_list)
+void Load_log_event::set_fields(const char* affected_db, 
+				List<Item> &field_list)
 {
   uint i;
   const char* field = fields;
   for (i= 0; i < num_fields; i++)
   {
-    field_list.push_back(new Item_field(db, table_name, field));	  
+    field_list.push_back(new Item_field(affected_db, table_name, field));
     field+= field_lens[i]  + 1;
   }
 }
@@ -1820,7 +1826,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 
       ex.skip_lines = skip_lines;
       List<Item> field_list;
-      set_fields(field_list);
+      set_fields(thd->db,field_list);
       thd->variables.pseudo_thread_id= thread_id;
       if (net)
       {
@@ -1837,13 +1843,13 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       if (thd->cuted_fields)
       {
 	/* log_pos is the position of the LOAD event in the master log */
-	sql_print_error("\
-Slave: load data infile on table '%s' at log position %s in log \
-'%s' produced %ld warning(s). Default database: '%s'",
-                        (char*) table_name,
-                        llstr(log_pos,llbuff), RPL_LOG_NAME, 
-			(ulong) thd->cuted_fields,
-                        print_slave_db_safe(thd->db));
+        sql_print_warning("Slave: load data infile on table '%s' at "
+                          "log position %s in log '%s' produced %ld "
+                          "warning(s). Default database: '%s'",
+                          (char*) table_name,
+                          llstr(log_pos,llbuff), RPL_LOG_NAME, 
+                          (ulong) thd->cuted_fields,
+                          print_slave_db_safe(thd->db));
       }
       if (net)
         net->pkt_nr= thd->net.pkt_nr;
