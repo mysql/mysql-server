@@ -4161,21 +4161,8 @@ expr_or_default:
 
 opt_insert_update:
         /* empty */
-        | ON DUPLICATE_SYM
-          { 
-            LEX *lex= Lex;
-            /*
-              For simplicity, let's forget about INSERT ... SELECT ... UPDATE
-              for a moment.
-            */
-	    if (lex->sql_command != SQLCOM_INSERT)
-            {
-	      yyerror(ER(ER_SYNTAX_ERROR));
-              YYABORT;
-            }
-            lex->duplicates= DUP_UPDATE;
-          }
-          KEY_SYM UPDATE_SYM update_list
+        | ON DUPLICATE_SYM	{ Lex->duplicates= DUP_UPDATE; }
+          KEY_SYM UPDATE_SYM insert_update_list
         ;
 
 /* Update rows in a table */
@@ -4211,16 +4198,28 @@ update:
 	;
 
 update_list:
-	update_list ',' simple_ident equal expr_or_default
+	update_list ',' update_elem
+	| update_elem;
+
+update_elem:
+	simple_ident equal expr_or_default
 	{
-	  if (add_item_to_list(YYTHD, $3) || add_value_to_list(YYTHD, $5))
+	  if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
 	    YYABORT;
-	}
-	| simple_ident equal expr_or_default
-	  {
-	    if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
-	      YYABORT;
-	  };
+	};
+
+insert_update_list:
+	insert_update_list ',' insert_update_elem
+	| insert_update_elem;
+
+insert_update_elem:
+	simple_ident equal expr_or_default
+	{
+	  LEX *lex= Lex;
+	  if (lex->update_list.push_back($1) || 
+	      lex->value_list.push_back($3))
+	    YYABORT;
+	};
 
 opt_low_priority:
 	/* empty */	{ $$= YYTHD->update_lock_default; }
