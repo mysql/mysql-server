@@ -546,7 +546,6 @@ drop table t1;
 # first a table with _many_ fragments per node group
 # then a table with just one fragment per node group
 #
-set @a= show status like 'Ndb_number_of_storage_nodes';
 create table t1
   (a bigint, b bigint, c bigint, d bigint, 
    primary key (a,b,c,d)) 
