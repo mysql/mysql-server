@@ -65,41 +65,199 @@ class QUICK_RANGE :public Sql_alloc {
     }
 };
 
+class INDEX_MERGE; 
 
-class QUICK_SELECT {
+/*
+  Quick select interface. 
+  This class is parent for all QUICK_*_SELECT and FT_SELECT classes.
+*/
+
+class QUICK_SELECT_I
+{
 public:
+  ha_rows records;  /* estimate of # of records to be retrieved */
+  double  read_time; /* time to perform this retrieval          */
+  TABLE   *head;
+
+  /*
+    the only index this quick select uses, or MAX_KEY for 
+    QUICK_INDEX_MERGE_SELECT
+  */
+  uint index; 
+  uint max_used_key_length, used_key_parts;
+
+  QUICK_SELECT_I();
+  virtual ~QUICK_SELECT_I(){};
+  virtual int  init() = 0;
+  virtual void reset(void) = 0;
+  virtual int  get_next() = 0;   /* get next record to retrieve */
+  virtual bool reverse_sorted() = 0;
+  virtual bool unique_key_range() { return false; }
+
+  enum { 
+    QS_TYPE_RANGE = 0,
+    QS_TYPE_INDEX_MERGE = 1,
+    QS_TYPE_RANGE_DESC = 2,
+    QS_TYPE_FULLTEXT   = 3
+  };
+
+  /* Get type of this quick select - one of the QS_* values */
+  virtual int get_type() = 0; 
+};
+
+struct st_qsel_param;
+class SEL_ARG;
+
+class QUICK_RANGE_SELECT : public QUICK_SELECT_I 
+{
+protected:
   bool next,dont_free;
+public:
   int error;
-  uint index, max_used_key_length, used_key_parts;
-  TABLE *head;
   handler *file;
   byte    *record;
+protected:
+  friend void print_quick_sel_range(QUICK_RANGE_SELECT *quick,
+                                    key_map needed_reg);
+  friend QUICK_RANGE_SELECT *get_quick_select_for_ref(TABLE *table, 
+                                                      struct st_table_ref *ref);
+  friend bool get_quick_keys(struct st_qsel_param *param,
+                             QUICK_RANGE_SELECT *quick,KEY_PART *key,
+                             SEL_ARG *key_tree,char *min_key,uint min_key_flag,
+                             char *max_key, uint max_key_flag);
+  friend QUICK_RANGE_SELECT *get_quick_select(struct st_qsel_param*,uint idx,
+                                              SEL_ARG *key_tree,
+                                              MEM_ROOT *alloc);
+  friend class QUICK_SELECT_DESC;
+
   List<QUICK_RANGE> ranges;
   List_iterator<QUICK_RANGE> it;
   QUICK_RANGE *range;
   MEM_ROOT alloc;
-
   KEY_PART *key_parts;
-  ha_rows records;
-  double read_time;
-
-  QUICK_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc=0);
-  virtual ~QUICK_SELECT();
-  void reset(void) { next=0; it.rewind(); }
-  int init() { return error=file->index_init(index); }
-  virtual int get_next();
-  virtual bool reverse_sorted() { return 0; }
+  QUICK_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc=0); //!!todo: add thd to my ctor below
   int cmp_next(QUICK_RANGE *range);
+public:
+  QUICK_RANGE_SELECT(TABLE *table,uint index_arg,bool no_alloc=0, 
+                     MEM_ROOT *parent_alloc=NULL);
+  ~QUICK_RANGE_SELECT();
+  
+  void reset(void) { next=0; it.rewind(); }
+  int init();
+  int get_next();
+  bool reverse_sorted() { return 0; }
   bool unique_key_range();
+  int get_type() { return QS_TYPE_RANGE; }
+};
+
+/*
+  Helper class for keeping track of rows that have been passed to output 
+  in index_merge access method. 
+
+  NOTES
+    Current implementation uses a temporary table to store ROWIDs of rows that
+    have been passed to output. In the future it might be changed to use more 
+    efficient mechanisms, like Unique class.
+*/
+
+class INDEX_MERGE
+{
+public:
+  INDEX_MERGE(THD *thd_arg);
+  ~INDEX_MERGE(); 
+  
+  int init(TABLE *table);
+  int check_record_in();
+  int start_last_quick_select();
+  int error;
+private:
+  /* The only field in temporary table */
+  class Item_rowid : public Item_str_func
+  {
+    TABLE *head; /* source table */
+  public:
+    Item_rowid(TABLE *table) : head(table) 
+    {
+      max_length= table->file->ref_length;
+      collation.set(&my_charset_bin);
+    };
+    const char *func_name() const { return "rowid"; }
+    bool const_item() const { return 0; }
+    String *val_str(String *);
+    void fix_length_and_dec()
+    {}
+  };
+
+  /* Check if record has been processed and save it if it wasn't  */
+  inline int put_record(); 
+  
+  /* Check if record has been processed without saving it         */
+  inline int check_record();
+  
+  /* If true, check_record_in does't store ROWIDs it is passed.   */
+  bool  dont_save;
+
+  THD *thd;
+  TABLE *head;                     /* source table                        */
+  TABLE *temp_table;               /* temp. table used for values storage */
+  TMP_TABLE_PARAM tmp_table_param; /* temp. table creation parameters     */
+  Item_rowid *rowid_item;          /* the only field in temp. table       */
+  List<Item> fields;               /* temp. table fields list 
+                                      (the only element is rowid_item)    */
+  ORDER order;                     /* key for temp. table (rowid_item)    */
 };
 
 
-class QUICK_SELECT_DESC: public QUICK_SELECT
+/*
+  Index merge quick select. 
+  It is implemented as a container for several QUICK_RANGE_SELECTs.
+*/
+
+class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I 
 {
 public:
-  QUICK_SELECT_DESC(QUICK_SELECT *q, uint used_key_parts);
+  QUICK_INDEX_MERGE_SELECT(THD *thd, TABLE *table);
+  ~QUICK_INDEX_MERGE_SELECT();
+
+  int  init();
+  void reset(void);
+  int  get_next();
+  bool reverse_sorted() { return false; }
+  bool unique_key_range() { return false; }
+  int get_type() { return QS_TYPE_INDEX_MERGE; }
+
+  bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
+
+  /* range quick selects this index_merge read consists of */
+  List<QUICK_RANGE_SELECT> quick_selects;
+  
+  /* quick select which is currently used for rows retrieval */
+  List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it;
+  QUICK_RANGE_SELECT* cur_quick_select;
+  
+  /*
+    Last element in quick_selects list. 
+    INDEX_MERGE::start_last_quick_select is called before retrieving
+    rows for it. 
+  */
+  QUICK_RANGE_SELECT* last_quick_select;
+  
+  /*
+    Used to keep track of what records have been already passed to output 
+    when doing index_merge access (NULL means no index_merge) 
+  */
+  INDEX_MERGE index_merge;
+
+  MEM_ROOT    alloc;
+};
+
+class QUICK_SELECT_DESC: public QUICK_RANGE_SELECT
+{
+public:
+  QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts);
   int get_next();
   bool reverse_sorted() { return 1; }
+  int get_type() { return QS_TYPE_RANGE_DESC; }
 private:
   int cmp_prev(QUICK_RANGE *range);
   bool range_reads_after_key(QUICK_RANGE *range);
@@ -114,7 +272,7 @@ private:
 
 class SQL_SELECT :public Sql_alloc {
  public:
-  QUICK_SELECT *quick;		// If quick-select used
+  QUICK_SELECT_I *quick;	// If quick-select used
   COND		*cond;		// where condition
   TABLE	*head;
   IO_CACHE file;		// Positions to used records
@@ -134,7 +292,7 @@ class SQL_SELECT :public Sql_alloc {
 			ha_rows limit, bool force_quick_range=0);
 };
 
-QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
+QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
 				       struct st_table_ref *ref);
 
 #endif
