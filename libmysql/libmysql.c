@@ -94,6 +94,28 @@ static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
+void mysql_server_init(int argc __attribute__((unused)),
+                      char **argv __attribute__((unused)),
+                      const char **groups __attribute__((unused))) {}
+
+void mysql_server_end() {}
+
+my_bool mysql_thread_init()
+{
+#ifdef THREAD
+    return my_thread_init();
+#else
+    return 0;
+#endif
+}
+
+void mysql_thread_end()
+{
+#ifdef THREAD
+    my_thread_end();
+#endif
+}
+
 /*
   Let the user specify that we don't want SIGPIPE;  This doesn't however work
   with threaded applications as we can have multiple read in progress.

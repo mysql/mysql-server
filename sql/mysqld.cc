@@ -3275,6 +3275,7 @@ static void get_options(int argc,char **argv)
   myisam_delay_key_write=1;			// Allow use of this
   my_use_symdir=1;				// Use internal symbolic links
 
+  optind = 0;   // setup in case getopt() was called previously
   while ((c=getopt_long(argc,argv,"ab:C:h:#::T::?l::L:O:P:sS::t:u:noVvWI?",
 			long_options, &option_index)) != EOF)
   {
@@ -3869,6 +3870,7 @@ static void get_options(int argc,char **argv)
     use_help();
     exit(1);
   }
+  optind = 0;   // setup so that getopt_long() can be called again
   fix_paths();
   default_table_type_name=ha_table_typelib.type_names[default_table_type-1];
   default_tx_isolation_name=tx_isolation_typelib.type_names[default_tx_isolation];

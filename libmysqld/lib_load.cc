@@ -21,19 +21,17 @@
 
 int
 mysql_load_internal(THD * thd, sql_exchange * ex, TABLE_LIST * table_list,
-List<Item> & fields, enum enum_duplicates handle_duplicates,
-bool read_file_from_client, thr_lock_type lock_type);
+                    List<Item> & fields, enum enum_duplicates handle_duplicates,
+                    bool read_file_from_client, thr_lock_type lock_type);
 
 int
 mysql_load(THD * thd, sql_exchange * ex, TABLE_LIST * table_list,
-List<Item> & fields, enum enum_duplicates handle_duplicates,
-bool read_file_from_client, thr_lock_type lock_type)
+           List<Item> & fields, enum enum_duplicates handle_duplicates,
+           bool read_file_from_client, thr_lock_type lock_type)
 {
-	printf("SWSOFT_MYSQL load: \n");
   read_file_from_client  = 0; //server is always in the same process 
-    return  mysql_load_internal(thd, ex, table_list, fields, handle_duplicates,
- read_file_from_client, lock_type);
-
+  return  mysql_load_internal(thd, ex, table_list, fields, handle_duplicates,
+                              read_file_from_client, lock_type);
 }
 
 #define mysql_load mysql_load_internal

@@ -29,6 +29,7 @@
 extern "C"
 {
 #include "mysql_com.h"
+#include "lib_vio.c"
 }
 
 
@@ -50,7 +51,6 @@ void free_defaults_internal(char ** argv){if (argv) free_defaults(argv);}
 char mysql_data_home[FN_REFLEN];
 char * get_mysql_data_home(){return mysql_data_home;};
 #define mysql_data_home mysql_data_home_internal
-#include "lib_vio.c"
 #include "../sql/mysqld.cc"
 
 #define SCRAMBLE_LENGTH 8
@@ -317,15 +317,29 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 
 
 extern "C"{
-void start_embedded_connection(NET * net)
+void mysql_server_init(int argc, char **argv, const char **groups)
 {
-    start_embedded_conn1(net);
-}
-//====================================================================
-void embedded_srv_init(void)
-{
- DEBUGGER_OFF;
   char hostname[FN_REFLEN];
+
+  /* This mess is to allow people to call the init function without
+   * having to mess with a fake argv */
+  int *argcp;
+  char ***argvp;
+  int fake_argc = 1;
+  char *fake_argv[] = { (char *)"", 0 };
+  const char *fake_groups[] = { "server", 0 };
+  if (argc)
+  {
+    argcp = &argc;
+    argvp = &argv;
+  }
+  else
+  {
+    argcp = &fake_argc;
+    argvp = (char ***)&fake_argv;
+  }
+  if (!groups)
+      groups = fake_groups;
 
   my_umask=0660;		// Default umask for new files
   my_umask_dir=0700;		// Default umask for new directories
@@ -370,8 +384,8 @@ void embedded_srv_init(void)
     exit( 1 );
   }
 #endif
- // load_defaults("my",load_default_groups,&d_argc, (char***)&d_argv);
-  defaults_argv=0;
+  load_defaults("my", groups, argcp, argvp);
+  defaults_argv=*argvp;
   mysql_tmpdir=getenv("TMPDIR");	/* Use this if possible */
 #ifdef __WIN__
   if (!mysql_tmpdir)
@@ -382,7 +396,7 @@ void embedded_srv_init(void)
   if (!mysql_tmpdir || !mysql_tmpdir[0])
     mysql_tmpdir=strdup((char*) P_tmpdir);
   set_options();
-  fix_paths();
+  get_options(*argcp, *argvp);
 
   if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
     strcat(server_version,"-log");
@@ -607,14 +621,10 @@ void embedded_srv_init(void)
   //printf(ER(ER_READY),my_progname,server_version,"");
   //printf("%s initialized.\n", server_version);
   fflush(stdout);
-
-
 }
 
-
-void embedded_srv_deinit()
+void mysql_server_end()
 {
-
   /* (void) pthread_attr_destroy(&connection_attrib); */
 
   DBUG_PRINT("quit",("Exiting main thread"));
@@ -638,8 +648,29 @@ void embedded_srv_deinit()
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   my_thread_end();
-
 }
+
+my_bool mysql_thread_init()
+{
+#ifdef THREAD
+    return my_thread_init();
+#else
+    return 0;
+#endif
+}
+
+void mysql_thread_end()
+{
+#ifdef THREAD
+    my_thread_end();
+#endif
+}
+
+void start_embedded_connection(NET * net)
+{
+    start_embedded_conn1(net);
+}
+//====================================================================
 }
 int embedded_do_command(NET * net)
 {
