@@ -2715,6 +2715,19 @@ drop procedure bug8757|
 
 
 #
+# BUG#8762: Stored Procedures: Inconsistent behavior
+#           of DROP PROCEDURE IF EXISTS statement.
+--disable_warnings
+drop procedure if exists bug8762|
+--enable_warnings
+# Doesn't exist
+drop procedure if exists bug8762; create procedure bug8762() begin end|
+# Does exist
+drop procedure if exists bug8762; create procedure bug8762() begin end|
+drop procedure bug8762|
+
+
+#
 # Some "real" examples
 #
 
@@ -3073,3 +3086,52 @@ delimiter ;|
 drop table t1;
 drop table t2;
 
+#
+# Bug#8849: rolling back changes to AND/OR structure of ON and WHERE clauses 
+# in SP
+# 
+
+CREATE TABLE t1 (
+  lpitnumber int(11) default NULL,
+  lrecordtype int(11) default NULL
+);
+
+CREATE TABLE t2 (
+  lbsiid int(11) NOT NULL default '0',
+  ltradingmodeid int(11) NOT NULL default '0',
+  ltradingareaid int(11) NOT NULL default '0',
+  csellingprice decimal(19,4) default NULL,
+  PRIMARY KEY  (lbsiid,ltradingmodeid,ltradingareaid)
+);
+
+CREATE TABLE t3 (
+  lbsiid int(11) NOT NULL default '0',
+  ltradingareaid int(11) NOT NULL default '0',
+  PRIMARY KEY  (lbsiid,ltradingareaid)
+);
+
+delimiter |;
+CREATE PROCEDURE bug8849()
+begin
+  insert into t3
+  (
+   t3.lbsiid,
+   t3.ltradingareaid
+  )
+  select distinct t1.lpitnumber, t2.ltradingareaid
+  from
+    t2 join t1 on
+      t1.lpitnumber = t2.lbsiid
+      and t1.lrecordtype = 1
+    left join t2 as price01 on
+      price01.lbsiid = t2.lbsiid and
+      price01.ltradingmodeid = 1 and
+      t2.ltradingareaid = price01.ltradingareaid;
+end|
+delimiter ;|
+
+call bug8849();
+call bug8849();
+call bug8849();
+drop procedure bug8849;
+drop tables t1,t2,t3;
