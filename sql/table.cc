@@ -661,6 +661,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	    if (!(field->flags & BINARY_FLAG))
 	      keyinfo->flags|= HA_END_SPACE_KEY;
 	  }
+          set_if_bigger(outparam->max_key_length, keyinfo->key_length);
 	  if (field->type() == MYSQL_TYPE_BIT)
             key_part->key_part_flag|= HA_BIT_PART;
 
