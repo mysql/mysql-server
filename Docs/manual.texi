@@ -50147,6 +50147,9 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Added --count=N (-c) to mysqladmin, to be used with -i (--sleep). When used,
+the program will only make N iterations. Useful in scripts.
+@item
 Fixed bug in multi-table @code{UPDATE}: when updating a table,
 @code{do_select()} became confused about reading records from a cache.
 @item
