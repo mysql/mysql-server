@@ -350,13 +350,19 @@ void Item_func_between::fix_length_and_dec()
   */
   if (!args[0] || !args[1] || !args[2])
     return;
-  cmp_type=args[0]->result_type();
-  if (args[0]->binary)
+  cmp_type=item_cmp_type(args[0]->result_type(),
+           item_cmp_type(args[1]->result_type(),
+                         args[2]->result_type()));
+  if (args[0]->binary | args[1]->binary | args[2]->binary)
     string_compare=stringcmp;
   else
     string_compare=sortcmp;
 
-  // Make a special case of compare with fields to get nicer DATE comparisons
+  /*
+    Make a special case of compare with date/time and longlong fields.
+    They are compared as integers, so for const item this time-consuming
+    conversion can be done only once, not for every single comparison
+  */
   if (args[0]->type() == FIELD_ITEM)
   {
     Field *field=((Item_field*) args[0])->field;
