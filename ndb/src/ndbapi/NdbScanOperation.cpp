@@ -439,7 +439,7 @@ NdbScanOperation::executeCursor(int nodeId){
       TRACE_DEBUG("The node is stopping when attempting to start a scan");
       setErrorCode(4030);
     }//if
-    tCon->theCommitStatus = Aborted;
+    tCon->theCommitStatus = NdbConnection::Aborted;
   }//if
   return -1;
 }
@@ -709,8 +709,8 @@ NdbScanOperation::execCLOSE_SCAN_REP(Uint32 errCode){
     /**
      * Normal termination
      */
-    theNdbCon->theCommitStatus = Committed;
-    theNdbCon->theCompletionStatus = CompletedSuccess;
+    theNdbCon->theCommitStatus = NdbConnection::Committed;
+    theNdbCon->theCompletionStatus = NdbConnection::CompletedSuccess;
   } else {
     /**
      * Something is fishy
@@ -1111,7 +1111,7 @@ NdbIndexScanOperation::fix_get_values(){
   NdbRecAttr * curr = theReceiver.theFirstRecAttr;
   
   Uint32 cnt = m_sort_columns;
-  assert(cnt < MAXNROFTUPLEKEY);
+  assert(cnt <  NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY);
 
   Uint32 idx = 0;
   NdbTableImpl * tab = m_currentTable;
