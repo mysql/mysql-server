@@ -192,6 +192,7 @@ Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
 Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
 Q_SERVER_START, Q_SERVER_STOP,Q_REQUIRE_MANAGER,
 Q_WAIT_FOR_SLAVE_TO_STOP,
+Q_REQUIRE_VERSION,
 Q_UNKNOWN,                             /* Unknown command.   */
 Q_COMMENT,                             /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -228,6 +229,7 @@ const char *command_names[] = {
   "enable_result_log", "disable_result_log",
   "server_start", "server_stop",
   "require_manager", "wait_for_slave_to_stop",
+  "require_version",
   0
 };
 
@@ -747,6 +749,42 @@ int do_server_op(struct st_query* q,const char* op)
   return 0;
 }
 #endif
+
+int do_require_version(struct st_query* q)
+{
+  MYSQL* mysql = &cur_con->mysql;
+  MYSQL_RES* res;
+  MYSQL_ROW row;
+  char* p=q->first_argument, *ver_arg;
+  uint ver_arg_len,ver_len;
+  LINT_INIT(res);
+  
+  if (!*p)
+    die("Missing version argument in require_version\n");
+  ver_arg = p;
+  while (*p && !isspace(*p))
+    p++;
+  *p = 0;
+  ver_arg_len = p - ver_arg;
+  
+  if (mysql_query(mysql, "select version()") ||
+      !(res=mysql_store_result(mysql)))
+    die("Query failed while check server version: %s",
+	mysql_error(mysql));
+  if (!(row=mysql_fetch_row(res)) || !row[0])
+  {
+    mysql_free_result(res);
+    die("Strange result from query while checking version");
+  }
+  ver_len = strlen(row[0]);
+  if (ver_len < ver_arg_len || memcmp(row[0],ver_arg,ver_arg_len))
+  {
+    mysql_free_result(res);
+    abort_not_supported_test();
+  }
+  mysql_free_result(res);
+  return 0;
+}
 
 int do_source(struct st_query* q)
 {
@@ -2379,6 +2417,7 @@ int main(int argc, char** argv)
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q); break;
+      case Q_REQUIRE_VERSION: do_require_version(q); break;
       case Q_WAIT_FOR_SLAVE_TO_STOP: do_wait_for_slave_to_stop(q); break;
       case Q_REQUIRE_MANAGER: do_require_manager(q); break;
 #ifndef EMBEDDED_LIBRARY	

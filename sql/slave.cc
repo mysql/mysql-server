@@ -1538,10 +1538,6 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     if (ev->server_id == ::server_id ||
 	(rli->slave_skip_counter && type_code != ROTATE_EVENT))
     {
-      /*
-	TODO: I/O thread must handle skipping file delivery for
-	old load data infile events
-      */
       /* TODO: I/O thread should not even log events with the same server id */
       rli->inc_pos(ev->get_event_len(),
 		   type_code != STOP_EVENT ? ev->log_pos : LL(0),
@@ -1953,6 +1949,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
   DBUG_ASSERT(cev->inited_from_old);
   thd = mi->io_thd;
   thd->file_id = cev->file_id = mi->file_id++;
+  thd->server_id = cev->server_id;
   cev_not_written = 1;
   
   if (unlikely(net_request_file(net,cev->fname)))
@@ -1980,7 +1977,8 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
       if (unlikely(!num_bytes)) /* eof */
       {
 	send_ok(net); /* 3.23 master wants it */
-	Execute_load_log_event xev(mi->io_thd);
+	Execute_load_log_event xev(thd);
+	xev.log_pos = mi->master_log_pos;
 	if (unlikely(mi->rli.relay_log.append(&xev)))
 	{
 	  sql_print_error("Slave I/O: error writing Exec_load event to \
@@ -1993,6 +1991,7 @@ relay log");
       {
 	cev->block = (char*)net->read_pos;
 	cev->block_len = num_bytes;
+	cev->log_pos = mi->master_log_pos;
 	if (unlikely(mi->rli.relay_log.append(cev)))
 	{
 	  sql_print_error("Slave I/O: error writing Create_file event to \
@@ -2005,6 +2004,7 @@ relay log");
       {
 	aev.block = (char*)net->read_pos;
 	aev.block_len = num_bytes;
+	aev.log_pos = mi->master_log_pos;
 	if (unlikely(mi->rli.relay_log.append(&aev)))
 	{
 	  sql_print_error("Slave I/O: error writing Append_block event to \
