@@ -1934,7 +1934,7 @@ static void init_var_hash()
 static const char *embedded_server_args[] = {
   "",	/* XXX: argv[0] is program name - we should fix the API */
   "--datadir=.",
-  "--language=/home/tim/my/4/sql/share/english",
+  "--language=/usr/local/mysql/share/mysql/english",
   "--skip-innodb",
   NullS
 };

@@ -92,10 +92,12 @@ static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
 void mysql_server_init(int argc __attribute__((unused)),
-                      char **argv __attribute__((unused)),
-                      const char **groups __attribute__((unused))) {}
+		       const char **argv __attribute__((unused)),
+		       const char **groups __attribute__((unused)))
+{}
 
-void mysql_server_end() {}
+void mysql_server_end()
+{}
 
 my_bool mysql_thread_init()
 {

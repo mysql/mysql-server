@@ -37,7 +37,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER="11.15";
+const char *VER="11.16";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024

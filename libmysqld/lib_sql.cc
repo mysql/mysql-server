@@ -203,17 +203,17 @@ check_connections1(THD *thd)
 static int
 check_connections2(THD * thd)
 {
-uint connect_errors=0;
-uint pkt_len = 0;
-NET * net = &thd -> net;
-if (protocol_version>9) net -> return_errno=1;
+  uint connect_errors=0;
+  uint pkt_len = 0;
+  NET * net = &thd -> net;
+  if (protocol_version>9) net -> return_errno=1;
 
-   if ( (pkt_len=my_net_read(net)) == packet_error ||
-	pkt_len < MIN_HANDSHAKE_SIZE)
-    {
-      inc_host_errors(&thd->remote.sin_addr);
-      return(ER_HANDSHAKE_ERROR);
-    }
+  if ( (pkt_len=my_net_read(net)) == packet_error ||
+       pkt_len < MIN_HANDSHAKE_SIZE)
+  {
+    inc_host_errors(&thd->remote.sin_addr);
+    return(ER_HANDSHAKE_ERROR);
+  }
 
 #ifdef _CUSTOMCONFIG_
 #include "_cust_sql_parse.h"
@@ -243,15 +243,6 @@ if (protocol_version>9) net -> return_errno=1;
   thd->password=test(passwd[0]);
   return 0;
 }
-
-
-
-
-
-
-
-
-
 
 
 static bool check_user(THD *thd,enum_server_command command, const char *user,
@@ -317,7 +308,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 
 
 extern "C"{
-void mysql_server_init(int argc, char **argv, const char **groups)
+void mysql_server_init(int argc, const char **argv, const char **groups)
 {
   char hostname[FN_REFLEN];
 
@@ -331,19 +322,19 @@ void mysql_server_init(int argc, char **argv, const char **groups)
   if (argc)
   {
     argcp = &argc;
-    argvp = &argv;
+    argvp = (char***) &argv;
   }
   else
   {
     argcp = &fake_argc;
-    argvp = (char ***)&fake_argv;
+    argvp = (char ***) &fake_argv;
   }
   if (!groups)
       groups = fake_groups;
 
   my_umask=0660;		// Default umask for new files
   my_umask_dir=0700;		// Default umask for new directories
-  MY_INIT((char *)"mysqld");		// init my_sys library & pthreads
+  MY_INIT((char *)"mysqld_server");	// init my_sys library & pthreads
   tzset();			// Set tzname
 
   start_time=time((time_t*) 0);

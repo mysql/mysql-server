@@ -62,3 +62,7 @@ t2	ALL	NULL	NULL	NULL	NULL	4
 pseudo
 dekad
 joce
+pseudo	pseudo1	same
+dekad	joce	1
+joce	testtt	1
+joce	tsestset	1

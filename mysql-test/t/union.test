@@ -25,14 +25,20 @@ select a,b from t1 into outfile 'skr' union select a,b from t2;
 --error 1216
 select a,b from t1 order by a union select a,b from t2;
 
---error 1217
-create table t3 select a,b from t1 union select a from t2;
-
 --error 1216
 insert into t3 select a from t1 order by a union select a from t2;
 
 --error 1217
+create table t3 select a,b from t1 union select a from t2;
+
+--error 1217
 select a,b from t1 union select a from t2;
+
+--error 1217
+select * from t1 union select a from t2;
+
+--error 1217
+select a from t1 union select * from t2;
 
 # Test CREATE, INSERT and REPLACE
 create table t3 select a,b from t1 union all select a,b from t2;
@@ -54,4 +60,5 @@ CREATE TABLE t1 (
 ) TYPE=MyISAM;
 INSERT INTO t1 (pseudo,pseudo1,same) VALUES ('joce', 'testtt', 1),('joce', 'tsestset', 1),('dekad', 'joce', 1);
 SELECT pseudo FROM t1 WHERE pseudo1='joce' UNION SELECT pseudo FROM t1 WHERE pseudo='joce';
+SELECT * FROM t1 WHERE pseudo1='joce' UNION SELECT * FROM t1 WHERE pseudo='joce';
 drop table t1;
