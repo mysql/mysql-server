@@ -1,17 +1,11 @@
 dnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.12)dnl		Minimum Autoconf version required.
+AC_PREREQ(2.50)dnl		Minimum Autoconf version required.
 
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
-# For some reason we have our own AM_SANITY_CHECK which is just a copy
-# of the default one included in 1.8 (it was from some version before
-# 1.4, but I updated it to fix a FreeBSD problem). It must be included
-# before we call AM_INIT_AUTOMAKE. Don't forget to also update the 
-# NDB lines below.
-#  -Brian
-sinclude(config/ac-macros/sanity.m4)
+# Don't forget to also update the NDB lines below.
 AM_INIT_AUTOMAKE(mysql, 5.0.3-alpha)
 AM_CONFIG_HEADER(config.h)
 
@@ -2435,7 +2429,7 @@ thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="libmysql strings regex client"
+sql_client_dirs="libmysql client"
 linked_client_targets="linked_libmysql_sources"
 CLIENT_LIBS=$NON_THREADED_CLIENT_LIBS
 if test "$THREAD_SAFE_CLIENT" != "no"

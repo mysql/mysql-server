@@ -383,8 +383,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
         master (it has binlog version of the master, event types of the
         master), so this is suitable to parse the next relay log's event. It
         has been produced by
-        Format_description_log_event::Format_description_log_event(char*
-        buf,).
+        Format_description_log_event::Format_description_log_event(char* buf,).
         Why don't we want to write the description_event_for_queue if this
         event is for format<4 (3.23 or 4.x): this is because in that case, the
         description_event_for_queue describes the data received from the
@@ -1326,7 +1325,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
-      DBUG_PRINT("error",("!db_ok"));
+      DBUG_PRINT("error",("!db_ok('%s')", local_db));
       DBUG_RETURN(0);
     }
 #endif /* HAVE_REPLICATION */
@@ -1369,7 +1368,7 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
                              (uint) thd->variables.collation_connection->number,
                              (uint) thd->variables.collation_database->number,
                              (uint) thd->variables.collation_server->number);
-	Query_log_event e(thd, buf, written, 0);
+	Query_log_event e(thd, buf, written, 0, FALSE);
 	if (e.write(file))
 	  goto err;
       }
@@ -1384,7 +1383,7 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
         char *buf_end= strxmov(buf, "SET ONE_SHOT TIME_ZONE='", 
                                thd->variables.time_zone->get_name()->ptr(),
                                "'", NullS);
-        Query_log_event e(thd, buf, buf_end - buf, 0);
+        Query_log_event e(thd, buf, buf_end - buf, 0, FALSE);
         if (e.write(file))
           goto err;
       }
@@ -1430,7 +1429,7 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
 	char buf[256], *p;
 	p= strmov(strmov(buf, "SET CHARACTER SET "),
 		  thd->variables.convert_set->name);
-	Query_log_event e(thd, buf, (ulong) (p - buf), 0);
+	Query_log_event e(thd, buf, (ulong) (p - buf), 0, FALSE);
 	if (e.write(file))
 	  goto err;
       }
@@ -1611,7 +1610,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
       we will add the "COMMIT mark and write the buffer to the binlog.
     */
     {
-      Query_log_event qinfo(thd, "BEGIN", 5, TRUE);
+      Query_log_event qinfo(thd, "BEGIN", 5, TRUE, FALSE);
       /*
         Imagine this is rollback due to net timeout, after all statements of
         the transaction succeeded. Then we want a zero-error code in BEGIN.
@@ -1651,7 +1650,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
       Query_log_event qinfo(thd, 
                             commit_or_rollback ? "COMMIT" : "ROLLBACK",
                             commit_or_rollback ? 6        : 8, 
-                            TRUE);
+                            TRUE, FALSE);
       qinfo.error_code= 0;
       if (qinfo.write(&log_file) || flush_io_cache(&log_file) ||
           sync_binlog(&log_file))

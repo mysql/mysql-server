@@ -828,15 +828,6 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 
-/*
-  No transactions yet, so this is pretty dull.
-*/
-int ha_archive::external_lock(THD *thd, int lock_type)
-{
-  DBUG_ENTER("ha_archive::external_lock");
-  DBUG_RETURN(0);
-}
-
 /* 
   Below is an example of how to setup row level locking.
 */

@@ -230,6 +230,7 @@ public:
   STATIC_CONST( StringType = 3 );
   
   // AttributeSize constants
+  STATIC_CONST( aBit = 0 );
   STATIC_CONST( an8Bit = 3 );
   STATIC_CONST( a16Bit = 4 );
   STATIC_CONST( a32Bit = 5 );
@@ -310,7 +311,8 @@ public:
     ExtDatetime = NdbSqlUtil::Type::Datetime,
     ExtTimespec = NdbSqlUtil::Type::Timespec,
     ExtBlob = NdbSqlUtil::Type::Blob,
-    ExtText = NdbSqlUtil::Type::Text
+    ExtText = NdbSqlUtil::Type::Text,
+    ExtBit = NdbSqlUtil::Type::Bit
   };
 
   // Attribute data interpretation
@@ -440,7 +442,13 @@ public:
         // head + inline part [ attr precision lower half ]
         AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + (AttributeExtPrecision & 0xFFFF);
         return true;
+      case DictTabInfo::ExtBit:
+	AttributeType = DictTabInfo::UnSignedType;
+	AttributeSize = DictTabInfo::aBit;
+	AttributeArraySize = AttributeExtLength;
+	return true;
       };
+      
       return false;
     }
     

@@ -2128,7 +2128,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
       {
 	reload_acl_and_cache((THD*) 0,
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
-			      REFRESH_STATUS | REFRESH_GRANT |
+			      REFRESH_GRANT |
 			      REFRESH_THREADS | REFRESH_HOSTS),
 			     (TABLE_LIST*) 0, NULL); // Flush logs
 	mysql_print_status((THD*) 0);		// Send debug some info
@@ -4910,7 +4910,7 @@ log and this option does nothing anymore.",
    "Data file autoextend increment in megabytes",
    (gptr*) &srv_auto_extend_increment,
    (gptr*) &srv_auto_extend_increment,
-   0, GET_LONG, REQUIRED_ARG, 8L, 1L, ~0L, 0, 1L, 0},
+   0, GET_LONG, REQUIRED_ARG, 8L, 1L, 1000L, 0, 1L, 0},
   {"innodb_buffer_pool_awe_mem_mb", OPT_INNODB_BUFFER_POOL_AWE_MEM_MB,
    "If Windows AWE is used, the size of InnoDB buffer pool allocated from the AWE memory.",
    (gptr*) &innobase_buffer_pool_awe_mem_mb, (gptr*) &innobase_buffer_pool_awe_mem_mb, 0,

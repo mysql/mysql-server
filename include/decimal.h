@@ -51,13 +51,7 @@ int decimal_mul(decimal *from1, decimal *from2, decimal *to);
 int decimal_div(decimal *from1, decimal *from2, decimal *to, int scale_incr);
 int decimal_mod(decimal *from1, decimal *from2, decimal *to);
 int decimal_round(decimal *from, decimal *to, int new_scale, decimal_round_mode mode);
-
-/*
-  the following works only on special "zero" decimal, not on any
-  decimal that happen to evaluate to zero
-*/
-
-#define decimal_is_zero(dec) ((dec)->intg1==1 && (dec)->frac1==0 && (dec)->buf[0]==0)
+int decimal_is_zero(decimal *from);
 
 /* set a decimal to zero */
 

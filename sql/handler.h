@@ -449,7 +449,7 @@ public:
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
   virtual int reset() { return extra(HA_EXTRA_RESET); }
-  virtual int external_lock(THD *thd, int lock_type)=0;
+  virtual int external_lock(THD *thd, int lock_type) { return 0; }
   virtual void unlock_row() {}
   virtual int start_stmt(THD *thd) {return 0;}
   /*
