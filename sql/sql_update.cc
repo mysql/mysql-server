@@ -493,8 +493,7 @@ int multi_update::prepare(List<Item> &not_used_values, SELECT_LEX_UNIT *unit)
 
   if (!tables_to_update)
   {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-	     "You didn't specify any tables to UPDATE");
+    my_error(ER_NO_TABLES_USED, MYF(0));
     DBUG_RETURN(1);
   }
 
