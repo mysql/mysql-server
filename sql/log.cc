@@ -475,6 +475,25 @@ void MYSQL_LOG::write(Query_log_event* event_info)
 	  goto err;
 	}
       }
+
+      if(thd->convert_set)
+	{
+	  char buf[1024] = "SET CHARACTER SET ";
+	  char* p = strend(buf);
+	  p = strmov(p, thd->convert_set->name);
+	  int save_query_length = thd->query_length;
+	  // just in case somebody wants it later
+	  thd->query_length = (uint)(p - buf);
+	  Query_log_event e(thd, buf);
+	  if(e.write(file))
+	    {
+	      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+	      goto err;
+	    }
+
+	  thd->query_length = save_query_length; // clean up
+	  
+	}
 	  
       if (event_info->write(file))
       {
