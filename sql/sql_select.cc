@@ -77,6 +77,7 @@ static Item *flatten_condition(COND *cond);
 static COND *build_all_equal_items(COND *cond,
                                         COND_EQUAL *inherited);
 static COND* substitute_for_best_equal_field(COND *cond,
+                                             COND_EQUAL *cond_equal,
                                              void *table_join_idx);
 static COND *optimize_cond(COND *conds,Item::cond_result *cond_value);
 static COND *remove_eq_conds(COND *cond,Item::cond_result *cond_value);
@@ -690,7 +691,7 @@ JOIN::optimize()
   */
   if (conds)
   {
-    conds= substitute_for_best_equal_field(conds, map2table);
+    conds= substitute_for_best_equal_field(conds, cond_equal, map2table);
     conds->update_used_tables();
   }
   {
@@ -700,6 +701,7 @@ JOIN::optimize()
       if (tables->on_expr)
       {
         tables->on_expr= substitute_for_best_equal_field(tables->on_expr,
+                                                         cond_equal,
                                                          map2table);
         tables->on_expr->update_used_tables();
         map2table[tables->table->tablenr]->on_expr= tables->on_expr;
@@ -4703,11 +4705,8 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *cond_equal,
     Item_field *item= item_field;
     if (upper)
     { 
-      if (item_const)
-      {
-        if (upper->get_const())
-          item= 0;
-      }
+      if (item_const && upper->get_const())
+        item= 0;
       else
       {
         Item_equal_iterator li(*item_equal);
@@ -4745,6 +4744,7 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *cond_equal,
   SYNOPSIS
     substitute_for_best_equal_field()
     cond            condition to process
+    cond_equal      multiple equalities to take into consideration
     table_join_idx  index to tables determining field preference
 
   DESCRIPTION
@@ -4770,6 +4770,7 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *cond_equal,
 */
 
 static COND* substitute_for_best_equal_field(COND *cond,
+                                             COND_EQUAL *cond_equal,
                                              void *table_join_idx)
 {
   Item_equal *item_equal;
@@ -4777,7 +4778,6 @@ static COND* substitute_for_best_equal_field(COND *cond,
   if (cond->type() == Item::COND_ITEM)
   {
     List<Item> *cond_list= ((Item_cond*) cond)->argument_list();
-    COND_EQUAL *cond_equal= 0;
 
     bool and_level= ((Item_cond*) cond)->functype() ==
                       Item_func::COND_AND_FUNC;
@@ -4797,7 +4797,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
     Item *item;
     while ((item= li++))
     {
-      Item *new_item =substitute_for_best_equal_field(item,
+      Item *new_item =substitute_for_best_equal_field(item, cond_equal,
                                                         table_join_idx);
       if (new_item != item)
         li.replace(new_item);
@@ -4817,7 +4817,9 @@ static COND* substitute_for_best_equal_field(COND *cond,
   {
     item_equal= (Item_equal *) cond;
     item_equal->sort(table_join_idx);
-    return eliminate_item_equal(0, 0, item_equal);
+    if (cond_equal && cond_equal->current_level.head() == item_equal)
+      cond_equal= 0;
+    return eliminate_item_equal(0, cond_equal, item_equal);
   }
   else
     cond->walk(&Item::replace_equal_field_processor, 0);

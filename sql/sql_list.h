@@ -271,8 +271,8 @@ public:
   inline T* head() {return (T*) base_list::head(); }
   inline T** head_ref() {return (T**) base_list::head_ref(); }
   inline T* pop()  {return (T*) base_list::pop(); }
-  inline void concat(List<T> *list) { return base_list::concat(list); }
-  inline void disjoin(List<T> *list) { return base_list::disjoin(list); }
+  inline void concat(List<T> *list) { base_list::concat(list); }
+  inline void disjoin(List<T> *list) { base_list::disjoin(list); }
   void delete_elements(void)
   {
     list_node *element,*next;
@@ -283,7 +283,6 @@ public:
     }
     empty();
   }
-  inline void concat(List<T> *list) { base_list::concat(list); }
 };
 
 
