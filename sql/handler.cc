@@ -318,7 +318,7 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   if (!error)
   {
     if (!alloc_root_inited(&table->mem_root))	// If temporary table
-      ref=sql_alloc(ALIGN_SIZE(ref_length)*2);
+      ref=(byte*) sql_alloc(ALIGN_SIZE(ref_length)*2);
     else
       ref=(byte*) alloc_root(&table->mem_root, ALIGN_SIZE(ref_length)*2);
     if (!ref)
@@ -334,22 +334,22 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
 
 int handler::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return HA_CHECK_NOT_IMPLEMENTED;
+  return HA_ADMIN_NOT_IMPLEMENTED;
 }
 
 int handler::repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return HA_REPAIR_NOT_IMPLEMENTED;
+  return HA_ADMIN_NOT_IMPLEMENTED;
 }
 
-int handler::optimize(THD* thd)
+int handler::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return HA_OPTIMIZE_NOT_IMPLEMENTED;
+  return HA_ADMIN_NOT_IMPLEMENTED;
 }
 
-int handler::analyze(THD* thd)
+int handler::analyze(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return HA_ANALYZE_NOT_IMPLEMENTED;
+  return HA_ADMIN_NOT_IMPLEMENTED;
 }
 
 	/* Read first row from a table */

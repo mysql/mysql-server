@@ -155,7 +155,7 @@ THD::~THD()
   safeFree(user);
   safeFree(db);
   safeFree(ip);
-  free_root(&mem_root);
+  free_root(&mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
   DBUG_VOID_RETURN;
 }

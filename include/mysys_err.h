@@ -50,6 +50,7 @@ extern const char * NEAR globerrs[];	/* my_error_messages is here */
 #define EE_DISK_FULL		20
 #define EE_CANT_MKDIR		21
 #define EE_UNKNOWN_CHARSET	22
+#define EE_OUT_OF_FILERESOURCES	23
 
 #ifdef	__cplusplus
 }

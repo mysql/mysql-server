@@ -66,12 +66,13 @@ class ha_berkeley: public handler
 
  public:
   ha_berkeley(TABLE *table): handler(table), alloc_ptr(0),rec_buff(0), file(0),
-    int_option_flag(HA_READ_NEXT+HA_READ_PREV+
-		    HA_KEYPOS_TO_RNDPOS+ HA_READ_ORDER+ HA_LASTKEY_ORDER+
-		    HA_LONGLONG_KEYS+ HA_NULL_KEY + 
-		    HA_BLOB_KEY + 
-		    HA_REQUIRE_PRIMARY_KEY + HA_NOT_EXACT_COUNT + 
-		    HA_PRIMARY_KEY_IN_READ_INDEX + HA_DROP_BEFORE_CREATE),
+    int_option_flag(HA_READ_NEXT | HA_READ_PREV |
+		    HA_REC_NOT_IN_SEQ |
+		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
+		    HA_LONGLONG_KEYS | HA_NULL_KEY |
+		    HA_BLOB_KEY | 
+		    HA_REQUIRE_PRIMARY_KEY | HA_NOT_EXACT_COUNT | 
+		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE),
     last_dup_key((uint) -1)
   {
   }

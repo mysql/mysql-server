@@ -394,11 +394,13 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->proc_info=0;				// Remove 'login'
     thd->version=refresh_version;
     thd->set_time();
+    init_sql_alloc(&thd->mem_root,8192,8192);
     while (!net->error && net->vio != 0 && !thd->killed)
     {
       if (do_command(thd))
 	break;
     }
+    free_root(&thd->mem_root,MYF(0));
     if (net->error && net->vio != 0)
     {
       sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
@@ -453,13 +455,13 @@ int handle_bootstrap(THD *thd,FILE *file)
   thd->version=refresh_version;
 
   char *buff= (char*) thd->net.buff;
+  init_sql_alloc(&thd->mem_root,8192,8192);
   while (fgets(buff, thd->net.max_packet, file))
   {
     uint length=(uint) strlen(buff);
     while (length && (isspace(buff[length-1]) || buff[length-1] == ';'))
       length--;
     buff[length]=0;
-    init_sql_alloc(&thd->mem_root,8192);
     thd->current_tablenr=0;
     thd->query= thd->memdup(buff,length+1);
     thd->query_id=query_id++;
@@ -469,8 +471,9 @@ int handle_bootstrap(THD *thd,FILE *file)
     {
       DBUG_RETURN(-1);
     }
-    free_root(&thd->mem_root);
+    free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
   }
+  free_root(&thd->mem_root,MYF(0));
   DBUG_RETURN(0);
 }
 
@@ -537,7 +540,6 @@ bool do_command(THD *thd)
   enum enum_server_command command;
   DBUG_ENTER("do_command");
 
-  init_sql_alloc(&thd->mem_root,8192);
   net= &thd->net;
   thd->current_tablenr=0;
 
@@ -741,7 +743,7 @@ bool do_command(THD *thd)
     send_eof(net);				// This is for 'quit request'
     close_connection(net);
     close_thread_tables(thd);			// Free before kill
-    free_root(&thd->mem_root);
+    free_root(&thd->mem_root,MYF(0));
     kill_mysql();
     error=TRUE;
     break;
@@ -822,7 +824,7 @@ bool do_command(THD *thd)
   thread_running--;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   thd->packet.shrink(net_buffer_length);	// Reclaim some memory
-  free_root(&thd->mem_root);
+  free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
   DBUG_RETURN(error);
 }
 
@@ -1191,33 +1193,34 @@ mysql_execute_command(void)
     if (check_db_used(thd,tables) ||
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
       goto error; /* purecov: inspected */
-    res = mysql_analyze_table(thd, tables);
+    res = mysql_analyze_table(thd, tables, &lex->check_opt);
     break;
   }
+
   case SQLCOM_OPTIMIZE:
   {
     HA_CREATE_INFO create_info;
-    /* This is now done with ALTER TABLE, but should be done with isamchk */
-    if (!tables->db)
-      tables->db=thd->db;
-    if (check_access(thd,SELECT_ACL | INSERT_ACL,tables->db,
-		     &tables->grant.privilege))
+    if (check_db_used(thd,tables) ||
+	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
       goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,SELECT_ACL | INSERT_ACL,tables))
-      goto error;
-
-    lex->create_list.empty();
-    lex->key_list.empty();
-    lex->col_list.empty();
-    lex->drop_list.empty();
-    lex->alter_list.empty();
-    bzero((char*) &create_info,sizeof(create_info));
-    create_info.db_type=DB_TYPE_DEFAULT;
-    create_info.row_type=ROW_TYPE_DEFAULT;
-    res= mysql_alter_table(thd, NullS, NullS, &create_info,
-			   tables, lex->create_list,
-			   lex->key_list, lex->drop_list, lex->alter_list,
-			   0,DUP_ERROR);
+    if (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC))
+    {
+      /* Use ALTER TABLE */
+      lex->create_list.empty();
+      lex->key_list.empty();
+      lex->col_list.empty();
+      lex->drop_list.empty();
+      lex->alter_list.empty();
+      bzero((char*) &create_info,sizeof(create_info));
+      create_info.db_type=DB_TYPE_DEFAULT;
+      create_info.row_type=ROW_TYPE_DEFAULT;
+      res= mysql_alter_table(thd, NullS, NullS, &create_info,
+			     tables, lex->create_list,
+			     lex->key_list, lex->drop_list, lex->alter_list,
+			     0,DUP_ERROR);
+    }
+    else
+      res = mysql_optimize_table(thd, tables, &lex->check_opt);
     break;
   }
   case SQLCOM_UPDATE:

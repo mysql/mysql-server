@@ -30,7 +30,7 @@ class ha_myisam: public handler
 {
   MI_INFO *file;
   uint    int_option_flag;
-  int repair(THD *thd, MI_CHECK &param);
+  int repair(THD *thd, MI_CHECK &param, bool optimize);
 
  public:
   ha_myisam(TABLE *table): handler(table), file(0),
@@ -93,8 +93,9 @@ class ha_myisam: public handler
   int rename_table(const char * from, const char * to);
   int delete_table(const char *name);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
-  int analyze(THD* thd);
+  int analyze(THD* thd,HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
+  int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int dump(THD* thd, int fd);
   int net_read_dump(NET* net);
 };

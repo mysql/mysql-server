@@ -2333,10 +2333,35 @@ make_join_readinfo(JOIN *join,uint options)
       }
       /* These init changes read_record */
       if (tab->use_quick == 2)
+      {
 	tab->read_first_record= join_init_quick_read_record;
+	statistic_increment(select_range_check_count, &LOCK_status);
+      }
       else
       {
 	tab->read_first_record= join_init_read_record;
+	if (i == join->const_tables)
+	{
+	  if (tab->select && tab->select->quick)
+	  {
+	    statistic_increment(select_range_count, &LOCK_status);
+	  }
+	  else
+	  {
+	    statistic_increment(select_scan_count, &LOCK_status);
+	  }
+	}
+	else
+	{
+	  if (tab->select && tab->select->quick)
+	  {
+	    statistic_increment(select_full_range_join_count, &LOCK_status);
+	  }
+	  else
+	  {
+	    statistic_increment(select_full_join_count, &LOCK_status);
+	  }
+	}
 	if (tab->select && tab->select->quick &&
 	    table->used_keys & ((key_map) 1 << tab->select->quick->index))
 	{

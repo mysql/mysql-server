@@ -115,7 +115,15 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
   param.ref_length= table[0]->file->ref_length;
   param.sort_length=sortlength(sortorder,s_length)+ param.ref_length;
   param.max_rows= max_rows;
-
+  
+  if (select && select->quick)
+  {
+    statistic_increment(filesort_range_count, &LOCK_status);	  
+  }
+  else
+  {
+    statistic_increment(filesort_scan_count, &LOCK_status);
+  }
   if (select && my_b_inited(&select->file))
   {
     records=special=select->records;		/* purecov: deadcode */
@@ -261,6 +269,8 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
   }
   if (error)
     my_error(ER_FILSORT_ABORT,MYF(ME_ERROR+ME_WAITTANG));
+  else
+    statistic_add(filesort_rows, records, &LOCK_status);
 
 #ifdef SKIPP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */

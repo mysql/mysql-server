@@ -104,6 +104,9 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MIN_COMPRESS_LENGTH		50	/* Don't compress small bl. */
 #define KEYCACHE_BLOCK_SIZE		1024
 
+	/* root_alloc flags */
+#define MY_KEEP_PREALLOC	1
+
 	/* defines when allocating data */
 
 #ifdef SAFEMALLOC
@@ -240,6 +243,9 @@ extern struct my_file_info
 {
   my_string		name;
   enum file_type	type;
+#if defined(THREAD) && !defined(HAVE_PREAD)  
+  pthread_mutex_t	mutex;
+#endif
 } my_file_info[MY_NFILE];
 
 
@@ -329,15 +335,17 @@ typedef struct st_changeable_var {
 #define ST_USED_MEM_DEFINED
 typedef struct st_used_mem {			/* struct for once_alloc */
   struct st_used_mem *next;			/* Next block in use */
-  unsigned int	left;				/* memory left in block  */
-  unsigned int	size;				/* size of block */
+  unsigned int left;				/* memory left in block  */
+  unsigned int size;				/* Size of block */
 } USED_MEM;
 
 typedef struct st_mem_root {
   USED_MEM *free;
   USED_MEM *used;
+  USED_MEM *pre_alloc;
   unsigned int	min_malloc;
   unsigned int	block_size;
+
   void (*error_handler)(void);
 } MEM_ROOT;
 #endif
@@ -532,9 +540,9 @@ extern void my_free_lock(byte *ptr,myf flags);
 #define my_free_lock(A,B) my_free((A),(B))
 #endif
 #define alloc_root_inited(A) ((A)->min_malloc != 0)
-void init_alloc_root(MEM_ROOT *mem_root,uint block_size);
+void init_alloc_root(MEM_ROOT *mem_root, uint block_size, uint pre_alloc_size);
 gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);
-void free_root(MEM_ROOT *root);
+void free_root(MEM_ROOT *root, myf MyFLAGS);
 char *strdup_root(MEM_ROOT *root,const char *str);
 char *memdup_root(MEM_ROOT *root,const char *str,uint len);
 void load_defaults(const char *conf_file, const char **groups,

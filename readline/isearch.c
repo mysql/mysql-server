@@ -264,7 +264,7 @@ rl_search_history (direction, invoking_key)
 	 variable isearch-terminators) are used to terminate the search but
 	 not subsequently execute the character as a command.  The default
 	 value is "\033\012" (ESC and C-J). */
-      if (strchr (isearch_terminators, c))
+      if (strchr((char*) isearch_terminators, c))
 #endif
 	{
 	  /* ESC still terminates the search, but if there is pending

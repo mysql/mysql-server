@@ -49,8 +49,10 @@ typedef struct st_used_mem {			/* struct for once_alloc */
 typedef struct st_mem_root {
   USED_MEM *free;
   USED_MEM *used;
+  USED_MEM *pre_alloc;
   unsigned int	min_malloc;
   unsigned int	block_size;
+
   void (*error_handler)(void);
 } MEM_ROOT;
 #endif
@@ -74,7 +76,7 @@ extern char *mysql_unix_port;
 #define IS_BLOB(n)	((n) & BLOB_FLAG)
 #define IS_NUM(t)	((t) <= FIELD_TYPE_INT24 || (t) == FIELD_TYPE_YEAR)
 #define IS_NUM_FIELD(f)	 ((f)->flags & NUM_FLAG)
-#define INTERNAL_NUM_FIELD(f) (((f)->type <= FIELD_TYPE_INT24 && (f)->type != FIELD_TYPE_TIMESTAMP || (f)->length == 14 || (f)->length == 8) || (f)->type == FIELD_TYPE_YEAR)
+#define INTERNAL_NUM_FIELD(f) (((f)->type <= FIELD_TYPE_INT24 && ((f)->type != FIELD_TYPE_TIMESTAMP || (f)->length == 14 || (f)->length == 8)) || (f)->type == FIELD_TYPE_YEAR)
 
 typedef struct st_mysql_field {
   char *name;			/* Name of column */

@@ -34,7 +34,7 @@ typedef ulong key_part_map;		/* Used for finding key parts */
 #include "mysql_com.h"
 #include "unireg.h"
 
-void init_sql_alloc(MEM_ROOT *root,uint block_size);
+void init_sql_alloc(MEM_ROOT *root, uint block_size, uint pre_alloc_size);
 gptr sql_alloc(unsigned size);
 gptr sql_calloc(unsigned size);
 char *sql_strdup(const char *str);
@@ -243,9 +243,10 @@ int mysql_check_table(THD* thd, TABLE_LIST* table_list,
 		      HA_CHECK_OPT* check_opt);
 int mysql_repair_table(THD* thd, TABLE_LIST* table_list,
 		       HA_CHECK_OPT* check_opt);
-int mysql_analyze_table(THD* thd, TABLE_LIST* table_list);
-int mysql_optimize_table(THD* thd, TABLE_LIST* table_list);
-
+int mysql_analyze_table(THD* thd, TABLE_LIST* table_list,
+			HA_CHECK_OPT* check_opt);
+int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
+			 HA_CHECK_OPT* check_opt);
 
 /* net_pkg.c */
 void send_error(NET *net,uint sql_errno=0, const char *err=0);
@@ -434,6 +435,9 @@ extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables,
 	     delayed_insert_limit, delayed_queue_size,
 	     delayed_insert_threads, delayed_insert_writes,
 	     delayed_rows_in_use,delayed_insert_errors;
+extern ulong filesort_rows, filesort_range_count, filesort_scan_count;
+extern ulong select_range_check_count, select_range_count, select_scan_count;
+extern ulong select_full_range_join_count,select_full_join_count;
 extern uint test_flags,select_errors,mysql_port,ha_open_options;
 extern ulong thd_startup_options, slow_launch_threads, slow_launch_time;
 extern time_t start_time;

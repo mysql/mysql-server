@@ -383,7 +383,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #ifndef FN_LIBCHAR
 #define FN_LIBCHAR	'/'
 #define FN_ROOTDIR	"/"
-#define MY_NFILE	127	/* This is only used to save filenames */
+#define MY_NFILE	1024	/* This is only used to save filenames */
 #endif
 
 /* #define EXT_IN_LIBNAME     */
@@ -855,5 +855,12 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 #endif
 #endif
 
+#ifndef THREAD
+#define thread_safe_increment(V,L) (V)++
+#define thread_safe_add(V,C,L)     (V)+=(C)
+#define thread_safe_sub(V,C,L)     (V)-=(C)
+#define statistic_increment(V,L)   (V)++
+#define statistic_add(V,C,L)       (V)+=(C)
+#endif
 
 #endif /* _global_h */

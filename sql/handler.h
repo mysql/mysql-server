@@ -27,26 +27,12 @@
 
 // the following is for checking tables
 
-#define HA_CHECK_ALREADY_CHECKED  1
-#define HA_CHECK_OK               0
-#define HA_CHECK_NOT_IMPLEMENTED -1
-#define HA_CHECK_CORRUPT         -2
-#define HA_CHECK_INTERNAL_ERROR  -3
-
-#define HA_REPAIR_OK               0
-#define HA_REPAIR_NOT_IMPLEMENTED -1
-#define HA_REPAIR_FAILED         -2
-#define HA_REPAIR_INTERNAL_ERROR  -3
-
-#define HA_OPTIMIZE_OK               0
-#define HA_OPTIMIZE_NOT_IMPLEMENTED -1
-#define HA_OPTIMIZE_FAILED         -2
-#define HA_OPTIMIZE_INTERNAL_ERROR  -3
-
-#define HA_ANALYZE_OK               0
-#define HA_ANALYZE_NOT_IMPLEMENTED -1
-#define HA_ANALYZE_FAILED         -2
-#define HA_ANALYZE_INTERNAL_ERROR  -3
+#define HA_ADMIN_ALREADY_DONE	  1
+#define HA_ADMIN_OK               0
+#define HA_ADMIN_NOT_IMPLEMENTED -1
+#define HA_ADMIN_FAILED		 -2
+#define HA_ADMIN_CORRUPT         -3
+#define HA_ADMIN_INTERNAL_ERROR  -4
 
 /* Bits in bas_flag to show what database can do */
 
@@ -156,9 +142,10 @@ typedef struct st_ha_check_opt
   uint flags;
   bool quick;
   bool changed_files;
+  bool optimize;
   inline void init()
   {
-    flags= 0; quick= 0;
+    flags= 0; quick= optimize=0;
     sort_buffer_size = myisam_sort_buffer_size;
   }
 } HA_CHECK_OPT;
@@ -257,10 +244,10 @@ public:
   virtual int delete_all_rows();
   virtual longlong get_auto_increment();
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
-  virtual int check(THD* thd, HA_CHECK_OPT* check_opt );
-  virtual int repair(THD* thd, HA_CHECK_OPT* check_opt);
-  virtual int optimize(THD* thd);
-  virtual int analyze(THD* thd);
+  virtual int check(THD* thd,   HA_CHECK_OPT* check_opt );
+  virtual int repair(THD* thd,  HA_CHECK_OPT* check_opt);
+  virtual int optimize(THD* thd,HA_CHECK_OPT* check_opt);
+  virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int dump(THD* thd, int fd = -1) { return ER_DUMP_NOT_IMPLEMENTED; }
   virtual void deactivate_non_unique_index(ha_rows rows) {}
   virtual bool activate_all_index(THD *thd) {return 0;}
