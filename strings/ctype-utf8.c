@@ -2000,6 +2000,7 @@ CHARSET_INFO my_charset_utf8 =
     my_strntoll_8bit,
     my_strntoull_8bit,
     my_strntod_8bit,
+    my_scan_8bit
 };
 
 
@@ -3073,7 +3074,8 @@ CHARSET_INFO my_charset_ucs2 =
     my_strntoul_ucs2,
     my_strntoll_ucs2,
     my_strntoull_ucs2,
-    my_strntod_ucs2
+    my_strntod_ucs2,
+    my_scan_8bit
 };
 
 
