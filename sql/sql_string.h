@@ -28,8 +28,6 @@ class String;
 int sortcmp(const String *a,const String *b);
 int stringcmp(const String *a,const String *b);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
-int wild_case_compare(String &match,String &wild,char escape);
-int wild_compare(String &match,String &wild,char escape);
 
 class String
 {
@@ -208,8 +206,6 @@ public:
   friend int sortcmp(const String *a,const String *b);
   friend int stringcmp(const String *a,const String *b);
   friend String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
-  friend int wild_case_compare(String &match,String &wild,char escape);
-  friend int wild_compare(String &match,String &wild,char escape);
   uint32 numchars();
   int charpos(int i,uint32 offset=0);
 

@@ -673,26 +673,3 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 
 
 
-int wild_case_compare(String &match,String &wild, char escape)
-{
-  DBUG_ENTER("wild_case_compare");
-  DBUG_PRINT("enter",("match='%s', wild='%s', escape='%c'"
-			  ,match.ptr(),wild.ptr(),escape));
-  DBUG_RETURN(my_wildcmp(match.str_charset,match.ptr(),match.ptr()+match.length(),
-			   wild.ptr(), wild.ptr()+wild.length(),
-			   escape,wild_one,wild_many));
-}
-
-
-
-int wild_compare(String &match,String &wild, char escape)
-{
-  DBUG_ENTER("wild_compare");
-  DBUG_PRINT("enter",("match='%s', wild='%s', escape='%c'"
-			  ,match.ptr(),wild.ptr(),escape));
-  DBUG_RETURN(my_wildcmp(my_charset_bin,match.ptr(),match.ptr()+match.length(),
-		      wild.ptr(), wild.ptr()+wild.length(),
-		      escape,wild_one,wild_many));
-}
-
-
