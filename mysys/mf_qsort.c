@@ -66,7 +66,7 @@ do {							\
 typedef struct st_stack
 {
   char *low,*high;
-} STACK;
+} stack_node;
 
 #define PUSH(LOW,HIGH)  {stack_ptr->low = LOW; stack_ptr++->high = HIGH;}
 #define POP(LOW,HIGH)   {LOW = (--stack_ptr)->low; HIGH = stack_ptr->high;}
@@ -98,7 +98,7 @@ qsort_t qsort(void *base_ptr, size_t count, size_t size, qsort_cmp cmp)
 #endif
 {
   char *low, *high, *pivot;
-  STACK stack[STACK_SIZE], *stack_ptr;
+  stack_node stack[STACK_SIZE], *stack_ptr;
   my_bool ptr_cmp;
   /* Handle the simple case first */
   /* This will also make the rest of the code simpler */

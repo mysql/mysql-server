@@ -41,7 +41,7 @@ static char *field_escape(char *to,const char *from,uint length);
 static char *add_load_option(char *ptr,const char *object,
 			     const char *statement);
 
-static my_bool	verbose=0,lock_tables=0,ignore_errors=0,delete=0,
+static my_bool	verbose=0,lock_tables=0,ignore_errors=0,opt_delete=0,
 		replace=0,silent=0,ignore=0,opt_compress=0,opt_local_file=0;
 
 static MYSQL	mysql_connection;
@@ -54,8 +54,8 @@ static uint     opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
 #include "sslopt-vars.h"
 
-enum options {OPT_FTB=256, OPT_LTB, OPT_ENC, OPT_O_ENC, OPT_ESC,
- 	      OPT_LOW_PRIORITY, OPT_CHARSETS_DIR, OPT_DEFAULT_CHARSET};
+enum mi_options {OPT_FTB=256, OPT_LTB, OPT_ENC, OPT_O_ENC, OPT_ESC,
+		 OPT_LOW_PRIORITY, OPT_CHARSETS_DIR, OPT_DEFAULT_CHARSET};
 
 static struct option long_options[] =
 {
@@ -173,7 +173,8 @@ static int get_options(int *argc, char ***argv)
   int c, option_index;
   my_bool tty_password=0;
 
-  while ((c=getopt_long(*argc,*argv,"#::p::c:h:u:P:S:CdfilLrsvV?IW",
+  while ((c=getopt_long(*argc,*argv,
+			(char*) "#::p::c:h:u:P:S:CdfilLrsvV?IW",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -190,7 +191,7 @@ static int get_options(int *argc, char ***argv)
       charsets_dir= optarg;
       break;
     case 'd':
-      delete= 1;
+      opt_delete= 1;
       break;
     case 'f':
       ignore_errors= 1;
@@ -313,7 +314,7 @@ static int write_to_table(char *filename, MYSQL *sock)
   else
     my_load_path(hard_path, filename, NULL); /* filename includes the path */
 
-  if (delete)
+  if (opt_delete)
   {
     if (verbose)
       fprintf(stdout, "Deleting the old data from table %s\n", tablename);

@@ -287,7 +287,6 @@ inline double ulonglong2double(ulonglong value)
 #define FN_ROOTDIR	"\\"
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
 #define FN_NO_CASE_SENCE	/* Files are not case-sensitive */
-#define FN_LOWER_CASE	TRUE	/* Files are represented in lower case */
 #define MY_NFILE	1024
 
 #define DO_NOT_REMOVE_THREAD_WRAPPERS

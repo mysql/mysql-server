@@ -23,10 +23,23 @@
  */
 
 #define DONT_USE_RAID
-#if defined(__WIN__) || defined(WIN32)
+#if defined(__WIN__)
 #include <winsock.h>
 #include <odbcinst.h>
+/* Disable alarms */
+typedef my_bool ALARM;
+#define thr_alarm_init(A) (*(A))=0
+#define thr_alarm_in_use(A) (*(A))
+#define thr_end_alarm(A)
+#define thr_alarm(A,B,C) local_thr_alarm((A),(B),(C))
+inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __attribute__((unused)))
+{
+  *A=1;
+  return 0;
+}
+#define thr_got_alarm(A) 0
 #endif
+
 #include <global.h>
 #include <mysql_com.h>
 #include <violite.h>
@@ -43,6 +56,11 @@
 #ifdef EMBEDDED_LIBRARY
 #define net_read_timeout net_read_timeout1
 #define net_write_timeout net_write_timeout1
+#endif
+
+#if defined( OS2) && defined( MYSQL_SERVER)
+#undef  ER
+#define ER CER
 #endif
 
 extern ulong net_read_timeout;
@@ -68,7 +86,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
 #endif
-#if defined(THREAD) && !defined(__WIN__)
+#if defined(THREAD)
 #include <my_pthread.h>				/* because of signal()	*/
 #include <thr_alarm.h>
 #endif
@@ -101,6 +119,9 @@ static MYSQL_DATA *mc_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 #if defined(MSDOS) || defined(__WIN__)
 #define ERRNO WSAGetLastError()
 #define perror(A)
+#elif defined(OS2)
+#define ERRNO sock_errno()
+#define SOCKET_ERROR -1
 #else
 #include <sys/errno.h>
 #define ERRNO errno
@@ -254,7 +275,7 @@ static void mc_free_old_query(MYSQL *mysql)
 static int mc_sock_connect(my_socket s, const struct sockaddr *name,
 			   uint namelen, uint to)
 {
-#if defined(__WIN__)
+#if defined(__WIN__) || defined(OS2)
   return connect(s, (struct sockaddr*) name, namelen);
 #else
   int flags, res, s_err;
@@ -349,18 +370,18 @@ mc_net_safe_read(MYSQL *mysql)
   {
     DBUG_PRINT("error",("Wrong connection or packet. fd: %s  len: %d",
 			vio_description(net->vio),len));
-    if(errno != EINTR)
+    if (socket_errno != EINTR)
+    {
+      mc_end_server(mysql);
+      if(net->last_errno != ER_NET_PACKET_TOO_LARGE)
       {
-        mc_end_server(mysql);
-	if(net->last_errno != ER_NET_PACKET_TOO_LARGE)
-	  {
-            net->last_errno=CR_SERVER_LOST;
-            strmov(net->last_error,ER(net->last_errno));
-	  }
-	else
-	  strmov(net->last_error, "Packet too large - increase \
+	net->last_errno=CR_SERVER_LOST;
+	strmov(net->last_error,ER(net->last_errno));
+      }
+      else
+	strmov(net->last_error, "Packet too large - increase \
 max_allowed_packet on this server");
-      }	
+    }	
     return(packet_error);
   }
   if (net->read_pos[0] == 255)
@@ -470,7 +491,7 @@ mc_simple_command(MYSQL *mysql,enum enum_server_command command,
   if (net_write_command(net,(uchar) command,arg,
 			length ? length :(uint) strlen(arg)))
   {
-    DBUG_PRINT("error",("Can't send command to server. Error: %d",errno));
+    DBUG_PRINT("error",("Can't send command to server. Error: %d",socket_errno));
     mc_end_server(mysql);
     if (mc_mysql_reconnect(mysql) ||
 	net_write_command(net,(uchar) command,arg,
@@ -502,9 +523,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   uint		pkt_length;
   NET		*net= &mysql->net;
   thr_alarm_t   alarmed;
-#if !defined(__WIN__)
   ALARM alarm_buff;
-#endif
 
 #ifdef __WIN__
   HANDLE	hPipe=INVALID_HANDLE_VALUE;
@@ -554,9 +573,9 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     if (mc_sock_connect(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
 			mysql->options.connect_timeout) <0)
     {
-      DBUG_PRINT("error",("Got error %d on connect to local server",ERRNO));
+      DBUG_PRINT("error",("Got error %d on connect to local server",socket_errno));
       net->last_errno=CR_CONNECTION_ERROR;
-      sprintf(net->last_error,ER(net->last_errno),unix_socket,ERRNO);
+      sprintf(net->last_error,ER(net->last_errno),unix_socket,socket_errno);
       goto error;
     }
   }
@@ -604,7 +623,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     if ((sock = socket(AF_INET,SOCK_STREAM,0)) == SOCKET_ERROR)
     {
       net->last_errno=CR_IPSOCK_ERROR;
-      sprintf(net->last_error,ER(net->last_errno),ERRNO);
+      sprintf(net->last_error,ER(net->last_errno),socket_errno);
       goto error;
     }
     net->vio = vio_new(sock,VIO_TYPE_TCPIP,FALSE);
@@ -641,7 +660,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
       if (!(hp=gethostbyname(host)))
       {
 	net->last_errno=CR_UNKNOWN_HOST;
-	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, errno);
+	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, socket_errno);
 	goto error;
       }
       memcpy(&sock_addr.sin_addr,hp->h_addr, (size_t) hp->h_length);
@@ -649,11 +668,12 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 #endif
     sock_addr.sin_port = (ushort) htons((ushort) port);
     if (mc_sock_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
-		 mysql->options.connect_timeout) <0)
+			mysql->options.connect_timeout) <0)
     {
-      DBUG_PRINT("error",("Got error %d on connect to '%s'",ERRNO,host));
+      DBUG_PRINT("error",("Got error %d on connect to '%s'",
+			  socket_errno,host));
       net->last_errno= CR_CONN_HOST_ERROR;
-      sprintf(net->last_error ,ER(CR_CONN_HOST_ERROR), host, ERRNO);
+      sprintf(net->last_error ,ER(CR_CONN_HOST_ERROR), host, socket_errno);
       if (thr_alarm_in_use(&alarmed))
 	thr_end_alarm(&alarmed);
       goto error;

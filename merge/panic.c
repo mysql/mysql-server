@@ -24,8 +24,8 @@
 	   done for all single user files to get changes in database */
 
 
-int mrg_panic(flag)
-enum ha_panic_function flag;
+int mrg_panic(
+enum ha_panic_function flag)
 {
   int error=0;
   LIST *list_element,*next_open;

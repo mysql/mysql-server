@@ -1,0 +1,190 @@
+MySQL 3.23.40 for OS/2 Warp build 1 
+====================================================
+
+Contents
+--------
+Welcome to the latest port of MySQL for OS/2 and eComStation.
+
+Modules included in this build:
+	- protocol data compression
+	- transaction support
+	- perl BDB/BDI support (not in this package)
+	- Library and header files for C/CPP developers included
+
+This package has been built using IBM VAC++ 4.0
+
+The MySQL server is distributed under the GPL license. Please refer to
+the file COPYING for the license information.
+
+The MySQL client library is distributed under the LGPL license.
+Please refer to the file COPYING for the license information.
+
+Most of the MySQL clients are distributed under the GPL license, but
+some files may be in the public domain.
+
+The latest information about MySQL can be found at: http://www.mysql.com
+
+To get the latest information about this port please subscribe to our
+newsgroup/mailinglist mysql2 at www.egroups.com.
+
+To see what MySQL can do, take a look at the features section in the
+manual. For future plans see the TODO appendix in the manual.
+
+New features/bug fixes history is in the news appendix in the manual.
+
+For the currently known bugs/misfeatures (known errors) see the bugs
+appendix in the manual.  The OS/2 section contains notes that are
+specific to the MySQL OS/2 and eComStation version.
+
+Please note that MySQL is a constantly moving target. New builds for
+Linux are made available every week. This port may therefore be a few
+minor versions after the latest Linux/Win32 builds but its generally
+more stable than the "latest and greates" port.
+
+MySQL is brought to you by: TcX DataKonsult AB & MySQL Finland AB
+
+This port is brought to you by:
+
+Yuri Dario <mc6530@mclink.it>, development, porting
+Timo Maier <tam@gmx.de>, documentation, testing
+John M Alfredsson <jma@jmast.se>, documentation, testing
+
+
+Installation
+------------
+Prerequisite:
+
+- OS/2 Warp 3 with FP ?? or later, 
+  OS/2 Warp 4 with FP ?? or later,
+  OS/2 Warp Server for e-Business,
+  eComStation 1.0 (prev 1/2 OK)
+- TCPIP 4.x installed (requires 32-bit tcpip stack)
+- WarpIN installer 0.9.12 (ftp://ftp.os2.org/xworkplace/warpin-0-9-12.zip)
+
+Note: probably some fixpak level is required on both Warp3&Warp4 to
+      support >2GB file sizes.
+
+Save the installation archives into a temporary folder and double click 
+on the main package; otherwise you can drop the mysql package in your 
+WarpIN object or type 
+
+	WARPIN MYSQL-3-23-??-B1.WPI 
+
+from the command line.
+The configuration file for MySQL is named my.cnf and it is placed into
+your %ETC% directory. Usually it located into the boot driver under
+
+	x:\MPTN\ETC
+
+If the installation detect an existing configuration file, this will be
+renamed to my.cnf.bak; your current settings aren't migrated to current 
+installation. This file is not deleted by uninstall process.
+Startup options for MySQL daemon could be added there.
+
+As default, client connections uses data compression: if you don't like it,
+remove the following from your %ETC%\my.cnf
+
+	[client]
+	compress
+
+The server switches automatically compression mode on client request.
+
+SMP systems: while my developement system is a SMP one, and here MySQL seems
+to run fine with two processors enabled, keep in mind that both EMX runtime
+and current thread model are not SMP safe.
+
+This release comes with DLL client library MYSQL.DLL: it is installed by
+default into mysql\bin together with client applications. Copy it to your
+x:\OS2\DLL or another directory in your LIBPATH to run command line 
+utilities from every place.
+
+
+Documentation
+-------------
+Documentation is provided in separate files. You can use either
+the PDF documentation (requires Adobe Acrobat Reader) or the
+INF documentation (requires OS/2 view or NewView).
+
+The PDF documentation is found in MYSQL-3-23-28-PDF.WPI and 
+the INF documentation is found in MYSQL-3-23-28-INF.WPI
+
+The latest documentation can always be downloaded from 
+http://www.mysql.com. However this documentation may
+no fully apply to this port.
+The INF documentation could contain errors because of semi-automatic
+translation from texi original. 
+
+Support
+-------
+Since MySQL is a OpenSource freeware product there are no
+formal support options available.
+
+Please subscribe to mysql2 at www.egroups.com to get in contact
+with other users using this port.
+
+http://www.egroups.com/group/mysql2
+
+This newsgroup/mailinglist is the official "home" of this port.
+
+
+Know problems
+-------------
+alter_table.test and show_check are failing, reporting a different status 
+message: actually seems only a different text, no bugs in table checking.
+
+
+Apache/2 + PHP
+--------------
+To avoid problems with different socket when you use PHP and Apache
+webserver, get the PHP4 module from the Apache Server for OS/2 homepage
+http://silk.apana.org.au/apache/ 
+
+
+Developing MySQL
+----------------
+If you want to help us develop MySQL for OS2/eComStation please join
+the mysql2 mailinglist at www.egroups.com and ask for help to set up 
+your environment!
+
+All questions that are specific to the OS2/eComStation version should 
+be posted to this list!  Please remember to include all relevant
+information that may help solve your problem.
+
+
+Building MySQL (EMX)
+--------------------
+NOTE: these instructions are outdated
+
+db-3.2.x: before compiling MySQL, you need to setup Berkeley DB. Untar
+the distribution, enter dist directory and run
+
+attrib -r * /s
+sh -c s_config
+
+to create proper aclocal macros and configure headers.
+
+In the src directory you will find patches used to build this release
+of MySQL.
+You can run 'sh -c config.status' to create current makefiles without
+running autoconf & configure.
+
+apply previous patches 		(if not already included)
+sh -c autoconf			(upgrade scripts)
+sh -c configure.os2		(config system)
+edit config.status: 
+	s%@MYSQL_UNIX_ADDR@%\\socket\\MySQL%g
+	s%@LN_CP_F@%cp.exe%g
+	replace -O2 -m486 with -mpentiumpro
+sh -c config.status		(upgrade makefiles again)
+edit libmysql\Makefile
+	remove all occurences of -Zexe
+	replace libmysqlclient with libmysql (case sensitive search)
+edit client\Makefile
+	replace libmysqlclient with libmysql (case sensitive search)
+make
+
+After config.status, you have to edit include\mysql_version.h and correct
+the socket definition (\\socket\\MySQL is correct).
+If you go with configure, you have to change LN_CP_F macro from 'ln -s' to
+'cp' and correct all makefiles (sh -c config.status will do it).
+

@@ -113,13 +113,13 @@ typedef struct st_heap_share
   LIST open_list;
 } HP_SHARE;
 
-struct st_hash_info;
+struct st_hp_hash_info;
 
 typedef struct st_heap_info
 {
   HP_SHARE *s;
   byte *current_ptr;
-  struct st_hash_info *current_hash_ptr;
+  struct st_hp_hash_info *current_hash_ptr;
   ulong current_record,next_block;
   int lastinx,errkey;
   int  mode;				/* Mode of file (READONLY..) */

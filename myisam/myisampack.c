@@ -230,12 +230,12 @@ int main(int argc, char **argv)
 #endif
 }
 
-enum options {OPT_CHARSETS_DIR=256};
+enum options {OPT_CHARSETS_DIR_MP=256};
 
 static struct option long_options[] =
 {
   {"backup",	no_argument,	   0, 'b'},
-  {"character-sets-dir",required_argument,0,  OPT_CHARSETS_DIR},
+  {"character-sets-dir",required_argument,0,  OPT_CHARSETS_DIR_MP},
   {"debug",	optional_argument, 0, '#'},
   {"force",	no_argument,	   0, 'f'},
   {"join",	required_argument, 0, 'j'},
@@ -252,7 +252,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.9 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
+  printf("%s  Ver 1.10 for %s on %s\n",my_progname,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
 static void usage(void)
@@ -335,7 +335,7 @@ static void get_options(int *argc,char ***argv)
     case '#':
       DBUG_PUSH(optarg ? optarg : "d:t:o");
       break;
-    case OPT_CHARSETS_DIR:
+    case OPT_CHARSETS_DIR_MP:
       charsets_dir = optarg;
       break;
     case 'V': print_version(); exit(0);
@@ -1169,7 +1169,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
 {
   uint i,found,bits_packed,first,last;
   my_off_t bytes_packed;
-  HUFF_ELEMENT *a,*b,*new;
+  HUFF_ELEMENT *a,*b,*new_huff_el;
 
   first=last=0;
   if (huff_counts->tree_buff)
@@ -1249,23 +1249,23 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
     {
       if (huff_counts->counts[i])
       {
-	new=huff_tree->element_buffer+(found++);
-	new->count=huff_counts->counts[i];
-	new->a.leaf.null=0;
-	new->a.leaf.element_nr=i;
-	queue.root[found]=(byte*) new;
+	new_huff_el=huff_tree->element_buffer+(found++);
+	new_huff_el->count=huff_counts->counts[i];
+	new_huff_el->a.leaf.null=0;
+	new_huff_el->a.leaf.element_nr=i;
+	queue.root[found]=(byte*) new_huff_el;
       }
     }
     while (found < 2)
     {			/* Our huff_trees request at least 2 elements */
-      new=huff_tree->element_buffer+(found++);
-      new->count=0;
-      new->a.leaf.null=0;
+      new_huff_el=huff_tree->element_buffer+(found++);
+      new_huff_el->count=0;
+      new_huff_el->a.leaf.null=0;
       if (last)
-	new->a.leaf.element_nr=huff_tree->min_chr=last-1;
+	new_huff_el->a.leaf.element_nr=huff_tree->min_chr=last-1;
       else
-	new->a.leaf.element_nr=huff_tree->max_chr=last+1;
-      queue.root[found]=(byte*) new;
+	new_huff_el->a.leaf.element_nr=huff_tree->max_chr=last+1;
+      queue.root[found]=(byte*) new_huff_el;
     }
   }
   queue.elements=found;
@@ -1277,13 +1277,13 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
   {
     a=(HUFF_ELEMENT*) queue_remove(&queue,0);
     b=(HUFF_ELEMENT*) queue.root[1];
-    new=huff_tree->element_buffer+found+i;
-    new->count=a->count+b->count;
-    bits_packed+=(uint) (new->count & 7);
-    bytes_packed+=new->count/8;
-    new->a.nod.left=a;			/* lesser in left  */
-    new->a.nod.right=b;
-    queue.root[1]=(byte*) new;
+    new_huff_el=huff_tree->element_buffer+found+i;
+    new_huff_el->count=a->count+b->count;
+    bits_packed+=(uint) (new_huff_el->count & 7);
+    bytes_packed+=new_huff_el->count/8;
+    new_huff_el->a.nod.left=a;			/* lesser in left  */
+    new_huff_el->a.nod.right=b;
+    queue.root[1]=(byte*) new_huff_el;
     queue_replaced(&queue);
   }
   huff_tree->root=(HUFF_ELEMENT*) queue.root[1];
@@ -1306,14 +1306,14 @@ static int compare_tree(void* cmp_arg __attribute__((unused)),
 static int save_counts_in_queue(byte *key, element_count count,
 				HUFF_TREE *tree)
 {
-  HUFF_ELEMENT *new;
+  HUFF_ELEMENT *new_huff_el;
 
-  new=tree->element_buffer+(tree->elements++);
-  new->count=count;
-  new->a.leaf.null=0;
-  new->a.leaf.element_nr= (uint) (key- tree->counts->tree_buff) /
+  new_huff_el=tree->element_buffer+(tree->elements++);
+  new_huff_el->count=count;
+  new_huff_el->a.leaf.null=0;
+  new_huff_el->a.leaf.element_nr= (uint) (key- tree->counts->tree_buff) /
     tree->counts->field_length;
-  queue.root[tree->elements]=(byte*) new;
+  queue.root[tree->elements]=(byte*) new_huff_el;
   return 0;
 }
 
@@ -1355,14 +1355,14 @@ static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,
     _downheap(&queue,i);
   for (i=0 ; i < found-1 ; i++)
   {
-    HUFF_ELEMENT *a,*b,*new;
+    HUFF_ELEMENT *a,*b,*new_huff_el;
     a=(HUFF_ELEMENT*) queue_remove(&queue,0);
     b=(HUFF_ELEMENT*) queue.root[1];
-    new=element_buffer+i;
-    new->count=a->count+b->count;
-    bits_packed+=(uint) (new->count & 7);
-    bytes_packed+=new->count/8;
-    queue.root[1]=(byte*) new;
+    new_huff_el=element_buffer+i;
+    new_huff_el->count=a->count+b->count;
+    bits_packed+=(uint) (new_huff_el->count & 7);
+    bytes_packed+=new_huff_el->count/8;
+    queue.root[1]=(byte*) new_huff_el;
     queue_replaced(&queue);
   }
   DBUG_RETURN(bytes_packed+(bits_packed+7)/8);
@@ -1673,7 +1673,7 @@ static int compress_isam_file(MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
       max_calc_length+=huff_counts[i].tree->height;
     else if (huff_counts[i].field_type == FIELD_BLOB ||
 	     huff_counts[i].field_type == FIELD_VARCHAR)
-      max_calc_length=huff_counts[i].tree->height*huff_counts[i].max_length + huff_counts[i].length_bits +1;
+      max_calc_length+=huff_counts[i].tree->height*huff_counts[i].max_length + huff_counts[i].length_bits +1;
     else
       max_calc_length+=
 	(huff_counts[i].field_length - huff_counts[i].max_zero_fill)*

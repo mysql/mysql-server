@@ -2295,7 +2295,7 @@ void Field_timestamp::store(longlong nr)
   }
   else
 #endif
-    longstore(ptr,timestamp);
+    longstore(ptr,(ulong)timestamp);
 }
 
 
@@ -4122,7 +4122,7 @@ ulonglong Field_blob::get_id(const char *from)
   ulonglong id = 0;
   ulong length=get_length(from);
   if (length)
-    longlongget(id, from+packlength);
+    uint8korr(id, from+packlength);
   return id;
 }
 

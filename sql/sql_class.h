@@ -291,7 +291,7 @@ public:
   bool	     no_errors, allow_sum_func, password, fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used;
   bool	     system_thread,in_lock_tables,global_read_lock;
-  bool       query_error, bootstrap;
+  bool       query_error, bootstrap, cleanup_done;
   bool	     volatile killed;
   LOG_INFO*  current_linfo;
   // if we do a purge of binary logs, log index info of the threads
@@ -305,6 +305,7 @@ public:
 
   THD();
   ~THD();
+  void cleanup(void);
   bool store_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
@@ -335,11 +336,9 @@ public:
 			  const char* msg)
   {
     const char* old_msg = proc_info;
-    pthread_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
     proc_info = msg;
-    pthread_mutex_unlock(&mysys_var->mutex);
     return old_msg;
   }
   inline void exit_cond(const char* old_msg)
@@ -374,7 +373,7 @@ public:
   {
 #ifdef USING_TRANSACTIONS    
     return (transaction.all.bdb_tid != 0 ||
-	    transaction.all.innobase_tid != 0 || 
+	    transaction.all.innodb_active_trans != 0 || 
 	    transaction.all.gemini_tid != 0);
 #else
     return 0;

@@ -23,8 +23,7 @@
 	   a NULL-pointer last
 	   */
 
-int mrg_create(name,table_names)
-const char *name,**table_names;
+int mrg_create(const char *name, const char**table_names)
 {
   int save_errno;
   uint errpos;

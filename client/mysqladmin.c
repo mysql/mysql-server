@@ -132,7 +132,7 @@ static struct option long_options[] = {
   {0, 0, 0, 0}
 };
 
-CHANGEABLE_VAR changeable_vars[] = {
+static CHANGEABLE_VAR changeable_vars[] = {
   { "connect_timeout", (long*) &opt_connect_timeout, 0, 0, 3600*12, 0, 1},
   { "shutdown_timeout", (long*) &opt_shutdown_timeout, SHUTDOWN_DEF_TIMEOUT, 0,
     3600*12, 0, 1},
@@ -152,7 +152,8 @@ int main(int argc,char *argv[])
   load_defaults("my",load_default_groups,&argc,&argv);
   set_all_changeable_vars( changeable_vars );
 
-  while ((c=getopt_long(argc,argv,"h:i:p::u:#::P:sS:Ct:fq?vVw::WrEO:",
+  while ((c=getopt_long(argc,argv,
+			(char*) "h:i:p::u:#::P:sS:Ct:fq?vVw::WrEO:",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -1121,14 +1122,15 @@ static void wait_pidfile(char *pidfile)
   uint count=0;
 
   system_filename(buff,pidfile);
-  while ((fd = open(buff, O_RDONLY)) >= 0 && count++ < opt_shutdown_timeout)
+  while ((fd = my_open(buff, O_RDONLY, MYF(0))) >= 0 &&
+	 count++ < opt_shutdown_timeout)
   {
-    close(fd);
+    my_close(fd,MYF(0));
     sleep(1);
   }
   if (fd >= 0)
   {
-    close(fd);
+    my_close(fd,MYF(0));
     fprintf(stderr,
 	    "Warning;  Aborted waiting on pid file: '%s' after %d seconds\n",
 	    buff, count-1);

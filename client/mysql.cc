@@ -80,7 +80,7 @@ extern "C" {
 
 #undef bcmp				// Fix problem with new readline
 #undef bzero
-#ifdef __WIN__
+#if defined( __WIN__) || defined(OS2)
 #include <conio.h>
 #else
 #include <readline/readline.h>
@@ -596,7 +596,7 @@ static int get_options(int argc, char **argv)
 
   set_all_changeable_vars(changeable_vars);
   while ((c=getopt_long(argc,argv,
-			"?ABCD:LfgGHXinNoqrstTU::vVw::WEe:h:O:P:S:u:#::p::",
+			(char*) "?ABCD:LfgGHXinNoqrstTU::vVw::WEe:h:O:P:S:u:#::p::",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -795,10 +795,20 @@ static int get_options(int argc, char **argv)
   return(0);
 }
 
+#if  defined(OS2)
+static char* readline( char* prompt)
+{
+#if defined(OS2)
+   static char linebuffer[254];
+#endif
+   puts( prompt);
+   return gets( linebuffer);
+}
+#endif
 
 static int read_lines(bool execute_commands)
 {
-#ifdef __WIN__
+#if defined( __WIN__) || defined(OS2)
   char linebuffer[254];
 #endif
   char	*line;
@@ -818,7 +828,7 @@ static int read_lines(bool execute_commands)
     }
     else
     {
-#ifdef __WIN__
+#if defined( __WIN__) || defined(OS2)
       if (opt_outfile && glob_buffer.is_empty())
 	fflush(OUTFILE);
       tee_fputs(glob_buffer.is_empty() ? "mysql> " :
@@ -1513,7 +1523,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 
 static void init_pager()
 {
-#ifndef __WIN__
+#if !defined( __WIN__) && !defined( OS2)
   if (!opt_nopager)
   {
     if (!(PAGER= popen(pager, "w")))
@@ -1529,7 +1539,7 @@ static void init_pager()
 
 static void end_pager()
 {
-#ifndef __WIN__
+#if !defined( __WIN__) && !defined( OS2)
   if (!opt_nopager)
     pclose(PAGER);
 #endif
@@ -2452,6 +2462,9 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 
   va_start(args, fmt);
   (void) vfprintf(file, fmt, args);
+#ifdef OS2
+  fflush( file);
+#endif
   if (opt_outfile)
     (void) vfprintf(OUTFILE, fmt, args);
   va_end(args);
@@ -2461,6 +2474,9 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 void tee_fputs(const char *s, FILE *file)
 {
   fputs(s, file);
+#ifdef OS2
+  fflush( file);
+#endif
   if (opt_outfile)
     fputs(s, OUTFILE);
 }
@@ -2470,6 +2486,9 @@ void tee_puts(const char *s, FILE *file)
 {
   fputs(s, file);
   fputs("\n", file);
+#ifdef OS2
+  fflush( file);
+#endif
   if (opt_outfile)
   {
     fputs(s, OUTFILE);
@@ -2480,11 +2499,14 @@ void tee_puts(const char *s, FILE *file)
 void tee_putc(int c, FILE *file)
 {
   putc(c, file);
+#ifdef OS2
+  fflush( file);
+#endif
   if (opt_outfile)
     putc(c, OUTFILE);
 }
 
-#ifdef __WIN__
+#if defined( __WIN__) || defined( OS2)
 #include <time.h>
 #else
 #include <sys/times.h>
@@ -2494,7 +2516,7 @@ void tee_putc(int c, FILE *file)
 
 static ulong start_timer(void)
 {
-#ifdef __WIN__
+#if defined( __WIN__) || defined( OS2)
  return clock();
 #else
   struct tms tms_tmp;

@@ -4,10 +4,10 @@ use Getopt::Long;
 $opt_distribution=$opt_user=$opt_result=$opt_config_options=$opt_config_env="";
 $opt_dbd_options=$opt_perl_options=$opt_suffix="";
 $opt_tmp=$version_suffix="";
-$opt_help=$opt_Information=$opt_no_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_no_mysqltest=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=0;
+$opt_help=$opt_Information=$opt_no_delete=$opt_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_no_mysqltest=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=0;
 $opt_innodb=$opt_bdb=0;
 
-GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i","innodb","bdb","use-old-distribution","enable-shared","no-crash-me","no-strip") || usage();
+GetOptions("Information","help","distribution=s","user=s","result=s","no-delete","delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i","innodb","bdb","use-old-distribution","enable-shared","no-crash-me","no-strip") || usage();
 
 usage() if ($opt_help || $opt_Information);
 usage() if (!$opt_distribution);
@@ -68,17 +68,20 @@ delete $ENV{'MY_BASEDIR_VERSION'};
 $ENV{'MYSQL_TCP_PORT'}= $mysql_tcp_port= 3334 + $opt_build_thread;
 $ENV{'MYSQL_UNIX_PORT'}=$mysql_unix_port="$opt_tmp/mysql$opt_suffix.build";
 $ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
+$slave_port=$mysql_tcp_port+16;
+
+if (-x "$host/bin/mysqladmin")
+{
+  log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
+  log_system("$host/bin/mysqladmin --no-defaults -u root -P $mysql_tcp_port -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin --no-defaults -u root -P $slave_port -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin --no-defaults -u root -P 9306 -h $host -s shutdown");
+  log_system("$host/bin/mysqladmin --no-defaults -u root -P 9307 -h $host -s shutdown");
+}
 
 if ($opt_stage == 0)
 {
   print "$host: Removing old distribution\n" if ($opt_debug);
-  if (-x "$host/bin/mysqladmin")
-  {
-    log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
-    log_system("$host/bin/mysqladmin --no-defaults -u root -P $mysql_tcp_port -h $host -s shutdown");
-    log_system("$host/bin/mysqladmin --no-defaults -u root -P 9306 -h $host -s shutdown");
-    log_system("$host/bin/mysqladmin --no-defaults -u root -P 9307 -h $host -s shutdown");
-  }
   if (!$opt_use_old_distribution)
   {
     system("mkdir $host") if (! -d $host);
@@ -86,7 +89,6 @@ if ($opt_stage == 0)
     rm_all(<$host/mysql-*>);
     system("mkdir $host/bin") if (! -d "$host/bin");
   }
-  system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   rm_all("$host/test");
   system("mkdir $host/test") if (! -d "$host/test");
   system("mkdir Logs") if (! -d "Logs");
@@ -109,6 +111,7 @@ safe_cd($ver);
 if ($opt_stage <= 1)
 {
   $opt_config_options.=" --with-low-memory" if ($opt_with_low_memory);
+  # Fix files if this is in another timezone than work.mysql.com
   unlink("config.cache");
   log_system("$make clean") if ($opt_use_old_distribution);
   if ($opt_static_server)
@@ -140,7 +143,7 @@ if ($opt_stage <= 1)
 
 if ($opt_stage <= 2)
 {
-  unlink($opt_distribution) if (!$opt_no_delete && !$opt_use_old_distribution);
+  unlink($opt_distribution) if (!$opt_delete && !$opt_use_old_distribution);
   safe_system("$make");
 }
 
@@ -157,7 +160,14 @@ if ($opt_stage <= 3)
   $flags.="--no-strip" if ($opt_no_strip);
   check_system("scripts/make_binary_distribution --tmp=$opt_tmp --suffix=$opt_suffix $flags",".tar.gz created");
   safe_system("mv mysql*.tar.gz $pwd/$host");
-  safe_system("cp client/mysqladmin $pwd/$host/bin");
+  if (-f "client/.libs/mysqladmin")
+  {
+    safe_system("cp client/.libs/mysqladmin $pwd/$host/bin");
+  }
+  else
+  {
+    safe_system("cp client/mysqladmin $pwd/$host/bin");
+  }  
   safe_system("$make clean") if ($opt_with_small_disk);
 }
 
@@ -184,13 +194,14 @@ $ENV{"LD_LIBRARY_PATH"}= "$testdir/lib:" . $ENV{"LD_LIBRARY_PATH"};
 
 if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
-  my ($slave_port);
-  $slave_port=$mysql_tcp_port+16;
+  system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
   check_system("./mysql-test-run --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --sleep=10", "tests were successful");
 }
 
-if ($opt_stage <= 6 && !$opt_no_test)
+# Start the server if we are going to run any of the benchmarks
+
+if (!$opt_no_test)
 {
   my $extra;
   safe_cd($test_dir);
@@ -207,9 +218,10 @@ if ($opt_stage <= 6 && !$opt_no_test)
   {
     $extra.=" --innodb_data_file_path=ibdata1:100M";
   }
-  safe_system("./bin/mysqld --no-defaults --basedir . --datadir ./data --skip-locking $extra >> $log 2>&1 &");
+  safe_system("./bin/mysqld --no-defaults --basedir . --datadir ./data --skip-l\ocking $extra >> $log 2>&1 &");
   sleep(2);
 }
+
 
 if ($opt_stage <= 7 && $opt_perl_files && !$opt_no_perl && !$opt_no_test)
 {

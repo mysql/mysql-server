@@ -1,0 +1,53 @@
+// set to 1 to enable debug code
+debug_build = 0
+
+// common options
+option BaseOptions =    link(defaultlibsname, "tcpip32.lib")
+                        ,link(libsearchpath, "..\\lib\\")
+                        ,link(libsearchpath, "..\\bin\\")
+                        ,link(pmtype, vio)
+                        ,link(linkwithmultithreadlib, "yes")
+                        ,link(linkwithsharedlib, "no")
+                        ,gen(initauto, "yes")
+                        ,define("__MT__", )
+                        ,define("HAVE_BSD_SIGNALS", )
+                        ,define("INCL_DOS", )
+                        ,define("INCL_DOSERRORS", )
+                        ,define("INCL_LONGLONG", )
+                        ,define("OS2", )
+                        ,define("USE_TLS", )
+                        ,lang(signedchars, yes)
+                        ,incl(searchpath, "..")
+                        ,incl(searchpath, "..\\include")
+                        ,incl(searchpath, "..\\my_sys")
+                        ,incl(searchpath, "..\\regex")
+                        ,incl(searchpath, "..\\sql")
+                        ,incl(searchpath, "\\rd\\mysql\\zlib-1.1.3")
+                        ,incl(searchpath, "\\rd\\mysql\\ufc")
+                        ,incl(searchpath, "..\\os2")
+
+option ReleaseOptions =   link(debug, "no")
+                        , define("DBUG_OFF", )
+                        , gen(arch, "pentium")
+                        , opt(tune, "pentium2")
+                        , opt(level, "0")
+                        , opt(stackchaining, no)
+                        , opt(size, yes)
+                        , opt(autoinline, InlineCode)
+                        , opt(inline, InlineCode)
+                        , opt(schedule, no)
+
+option DebugOptions =     link(debug, "yes")
+                        , gen(debug, "yes")
+                        , define("DBUG_ON", )
+
+
+if debug_build {
+
+option MySQLOptions =   BaseOptions, DebugOptions
+
+} else {
+
+option MySQLOptions =   BaseOptions, ReleaseOptions
+
+}

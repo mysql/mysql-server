@@ -179,7 +179,11 @@ row_undo_mod_remove_clust_low(
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
 
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, mtr);
+		/* Note that since this operation is analogous to purge,
+		we can free also inherited externally stored fields:
+		hence the last FALSE in the call below */
+
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, FALSE, mtr);
 
 		/* The delete operation may fail if we have little
 		file space left: TODO: easiest to crash the database
@@ -356,7 +360,8 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		} else {
 			ut_ad(mode == BTR_MODIFY_TREE);
 
-			btr_cur_pessimistic_delete(&err, FALSE, btr_cur, &mtr);
+			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+							TRUE, &mtr);
 
 			/* The delete operation may fail if we have little
 			file space left: TODO: easiest to crash the database
@@ -423,22 +428,22 @@ row_undo_mod_del_unmark_sec(
 	found = row_search_index_entry(index, entry, BTR_MODIFY_LEAF, &pcur,
 									&mtr);
 	if (!found) {
-	  err_buf = mem_alloc(1000);
-	  dtuple_sprintf(err_buf, 900, entry);
+	  	err_buf = mem_alloc(1000);
+	  	dtuple_sprintf(err_buf, 900, entry);
 
-	  fprintf(stderr, "InnoDB: error in sec index entry del undo in\n"
-		  "InnoDB: index %s table %s\n", index->name,
-		  index->table->name);
-	  fprintf(stderr, "InnoDB: tuple %s\n", err_buf);
+	  	fprintf(stderr, "InnoDB: error in sec index entry del undo in\n"
+		  	"InnoDB: index %s table %s\n", index->name,
+		  	index->table->name);
+	  	fprintf(stderr, "InnoDB: tuple %s\n", err_buf);
 
-	  rec_sprintf(err_buf, 900, btr_pcur_get_rec(&pcur));
-	  fprintf(stderr, "InnoDB: record %s\n", err_buf);
+	  	rec_sprintf(err_buf, 900, btr_pcur_get_rec(&pcur));
+	  	fprintf(stderr, "InnoDB: record %s\n", err_buf);
 
-	  fprintf(stderr, "InnoDB: Make a detailed bug report and send it\n");
-	  fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+	  	fprintf(stderr,
+			"InnoDB: Make a detailed bug report and send it\n");
+	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 
-	  mem_free(err_buf);
-
+	  	mem_free(err_buf);
 	} else {
          	btr_cur = btr_pcur_get_btr_cur(&pcur);
 

@@ -48,11 +48,9 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
 
   /* mark for close and remove all cached entries */
 
-  pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= &LOCK_open;
   thd->mysys_var->current_cond= &COND_refresh;
   VOID(pthread_mutex_lock(&LOCK_open));
-  pthread_mutex_unlock(&thd->mysys_var->mutex);
 
   if (global_read_lock)
   {
@@ -1064,19 +1062,31 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 
 int mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
+#ifdef OS2
+  thr_lock_type lock_type = TL_WRITE;
+#else
+  thr_lock_type lock_type = TL_READ_NO_INSERT;
+#endif
+
   DBUG_ENTER("mysql_analyze_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				"analyze",TL_READ_NO_INSERT, 1,0,0,
+				"analyze", lock_type, 1,0,0,
 				&handler::analyze));
 }
 
 
 int mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
 {
+#ifdef OS2
+  thr_lock_type lock_type = TL_WRITE;
+#else
+  thr_lock_type lock_type = TL_READ_NO_INSERT;
+#endif
+
   DBUG_ENTER("mysql_check_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
-				"check",
-				TL_READ_NO_INSERT, 0, 0, HA_OPEN_FOR_REPAIR,
+				"check", lock_type,
+				0, 0, HA_OPEN_FOR_REPAIR,
 				&handler::check));
 }
 
@@ -1119,16 +1129,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     strmov(new_name_buff,new_name);
     fn_same(new_name_buff,table_name,3);
-#ifdef FN_LOWER_CASE
     if (lower_case_table_names)
       casedn_str(new_name);
     if ((lower_case_table_names &&
 	 !my_strcasecmp(new_name_buff,table_name)) ||
 	(!lower_case_table_names &&
 	 !strcmp(new_name_buff,table_name)))
-#else
-    if (!strcmp(new_name_buff,table_name))	// Check if name changed
-#endif
       new_name=table_name;			// No. Make later check easier
     else
     {
@@ -1600,7 +1606,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     }
   }
 
-#if defined( __WIN__) || defined( __EMX__)
+#if defined( __WIN__) || defined( __EMX__) || defined( OS2)
   // Win32 can't rename an open table, so we must close the org table!
   table_name=thd->strdup(table_name);		// must be saved
   if (close_cached_table(thd,table))
@@ -1762,7 +1768,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   /* Turn off recovery logging since rollback of an
      alter table is to delete the new table so there
      is no need to log the changes to it.              */
-  error = ha_recovery_logging(thd,false);
+  error = ha_recovery_logging(thd,FALSE);
   if (error)
   {
     error = 1;
@@ -1814,7 +1820,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (to->file->activate_all_index(thd))
     error=1;
 
-  tmp_error = ha_recovery_logging(thd,true);
+  tmp_error = ha_recovery_logging(thd,TRUE);
   /*
     Ensure that the new table is saved properly to disk so that we
     can do a rename
@@ -1826,7 +1832,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (to->file->external_lock(thd,F_UNLCK))
     error=1;
  err:
-  tmp_error = ha_recovery_logging(thd,true);
+  tmp_error = ha_recovery_logging(thd,TRUE);
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;

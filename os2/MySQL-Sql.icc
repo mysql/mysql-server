@@ -1,0 +1,117 @@
+// disable code inlining when building static libs
+InlineCode = "no"
+
+// include common options
+include "MySQL-Opt.icc"
+include "MySQL-Source.icc"
+
+option ProjectOptions = MySQLOptions
+                        , define( "MYSQL_SERVER", "")
+{
+
+   option file(genobject, "..\\OBJ\\ZLIB\\")
+   {
+      target "..\\bin\\mysqld.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            //source type('cpp') gpch
+            source type('cpp') 'os2.h'
+            source type('cpp')
+               //'ctype.h',
+               'string.h', 'assert.h', 'share.h', 'stdarg.h', 'stdio.h',
+               'stdlib.h', 'stddef.h', 'math.h', 'io.h', 'limits.h',
+               'process.h', 'errno.h', 'nerrno.h', 'sys/types.h',
+               'sys/time.h', 'sys/stat.h', 'sys/param.h', 'sys/ioccom.h',
+               'sys/filio.h', 'sys/sockio.h', 'sys/ioctlos2.h','sys/ioctl.h', 'types.h'
+
+            source type('cpp')
+               'global.h', 'my_base.h', 'config-os2.h',
+               'my_dir.h', 'my_sys.h', 'mysql.h',
+               'my_bitmap.h', 'violite.h', 'mysql_priv.h',
+               'm_string.h', 'm_ctype.h'
+
+            source type('cpp') 'myisam.h'
+            source type('cpp') 'myisampack.h'
+            source type('cpp') '.\myisam\myisamdef.h'
+
+            source type('cpp') 'sql_string.h'
+            source type('cpp') 'item.h'
+            source type('cpp') 'unireg.h'
+            source type('cpp') 'field.h'
+            source type('cpp') 'sql_lex.h'
+            source type('cpp') 'sql_list.h'
+            source type('cpp') 'md5.h'
+            source type('cpp') 'sql_acl.h'
+            source type('cpp') 'slave.h'
+            source type('cpp') 'ha_myisam.h'
+            source type('cpp') 'procedure.h'
+            source type('cpp') 'sql_select.h'
+            source type('cpp') 'errmsg.h'
+            source type('cpp') 't_ctype.h'
+            source type('cpp') 'direct.h'
+            source type('cpp') 'mysys_err.h'
+            source type('cpp') 'zconf.h'
+            source type('cpp') 'zlib.h'
+            source type('cpp') 'my_tree.h'
+            source type('cpp') '..\mysys\my_static.h'
+            source type('cpp') 'netdb.h'
+            source type('cpp') 'thr_alarm.h'
+            source type('cpp') 'heap.h'
+            source type('cpp') '..\myisam\fulltext.h'
+            source type('cpp') '..\myisam\ftdefs.h'
+            source type('cpp') 'myisammrg.h'
+
+         }
+         source type('cpp') 'sys/un.h'
+         source type('cpp') 'ha_heap.h'
+         source type('cpp') 'ha_myisammrg.h'
+         source type('cpp') 'opt_ft.h'
+         source type('cpp') 'hash_filo.h'
+         source type('cpp') 'mini_client.h'
+         source type('cpp') 'sql_repl.h'
+         source type('cpp') 'netinet/in_systm.h'
+         source type('cpp') 'netinet/tcp.h'
+         source type('cpp') 'sql_analyse.h'
+         source type('cpp') 'item_create.h'
+         source type('cpp') '..\mysys\mysys_priv.h'
+         source type('cpp') 'sys/utime.h'
+         source type('cpp') 'sys/select.h'
+
+         // target source files
+         source "rint.obj"
+         source zlib, ufc, regex, 'strings\bmove_upp.c'
+         if debug_build  {
+            source type('cpp') dbug
+         }
+         source type('cpp') heap
+         source type('cpp') isam
+         source type('cpp') merge
+         source type('cpp') myisam
+         source type('cpp') myisammrg
+         source type('cpp') my_sys
+         source type('cpp') my_sys_sql
+         source type('cpp') strings
+         source type('cpp') sql
+      }
+   }
+/*
+   option define( "MYSQL_SERVER", "")
+   {
+      target "..\\bin\\mysqlbinlog.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            //source type('cpp') client_pch //, 'sql_string.h'
+         }
+         // target source files
+         source type('cpp')
+                     "..\\sql\\mysqlbinlog.cc",
+                     "..\\sql\\mini_client.cc",
+                     "..\\sql\\net_serv.cc"
+      }
+   }
+*/
+}

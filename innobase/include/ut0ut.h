@@ -11,7 +11,9 @@ Created 1/20/1994 Heikki Tuuri
 
 #include "univ.i"
 #include <time.h>
+#ifndef MYSQL_SERVER
 #include <ctype.h>
+#endif
 
 typedef time_t	ib_time_t;
 

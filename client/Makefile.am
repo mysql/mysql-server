@@ -40,20 +40,15 @@ mysqltest_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc 
 mysqlbinlog_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 sql_src=log_event.h log_event.cc
-mysys_src=mysys_priv.h
 
 # Fix for mit-threads
 DEFS =			-DUNDEF_THREADS_HACK
 
 link_sources:
 	for f in $(sql_src) ; do \
-	rm -f $$f; \
-        @LN_CP_F@ ../sql/$$f $$f; \
-        done; \
-	for f in $(mysys_src); do \
-	rm -f $$f; \
-	@LN_CP_F@ ../mysys/$$f $$f; \
-	done;
+	  rm -f $(srcdir)/$$f; \
+	  @LN_CP_F@ $(top_srcdir)/sql/$$f $(srcdir)/$$f; \
+        done;
 
 thread_test.o:		thread_test.c
 			$(COMPILE) -c @MT_INCLUDES@ $(INCLUDES) $<

@@ -2610,7 +2610,7 @@ int my_strcoll_gbk(const uchar * s1, const uchar * s2)
 			  s2, (uint) strlen((char*) s2));
 }
 
-int my_strnxfrm_gbk(uchar * dest, uchar * src, int len, int srclen)
+int my_strnxfrm_gbk(uchar * dest, const uchar * src, int len, int srclen)
 {
   uint16 e;
 
@@ -2630,7 +2630,7 @@ int my_strnxfrm_gbk(uchar * dest, uchar * src, int len, int srclen)
   return srclen;
 }
   
-int my_strxfrm_gbk(uchar * dest, uchar * src, int len)
+int my_strxfrm_gbk(uchar * dest, const uchar * src, int len)
 {
   return my_strnxfrm_gbk(dest,src,len,(uint) strlen((char*) src));
 }

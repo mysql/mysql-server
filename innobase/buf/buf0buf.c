@@ -349,6 +349,10 @@ buf_pool_create(
 	buf_pool->n_pages_written = 0;
 	buf_pool->n_pages_created = 0;
 
+	buf_pool->n_page_gets = 0;
+	buf_pool->n_page_gets_old = 0;
+	buf_pool->n_pages_read_old = 0;
+	
 	/* 2. Initialize flushing fields
 	   ---------------------------- */
 	UT_LIST_INIT(buf_pool->flush_list);
@@ -667,6 +671,7 @@ buf_page_get_gen(
 #ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside() || ibuf_page(space, offset));
 #endif
+	buf_pool->n_page_gets++;
 loop:
 	mutex_enter_fast(&(buf_pool->mutex));
 
@@ -846,6 +851,8 @@ buf_page_optimistic_get_func(
 	ut_ad(mtr && guess);
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
 
+	buf_pool->n_page_gets++;
+
 	block = buf_block_align(guess);
 	
 	mutex_enter(&(buf_pool->mutex));
@@ -975,6 +982,8 @@ buf_page_get_known_nowait(
 
 	ut_ad(mtr);
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
+
+	buf_pool->n_page_gets++;
 
 	block = buf_block_align(guess);
 	
@@ -1643,6 +1652,18 @@ buf_print_io(void)
 	printf("Pages read %lu, created %lu, written %lu\n",
 			buf_pool->n_pages_read, buf_pool->n_pages_created,
 						buf_pool->n_pages_written);
+
+	if (buf_pool->n_page_gets > buf_pool->n_page_gets_old) {
+		printf("Buffer pool hit rate %lu / 1000\n",
+		1000
+		- ((1000 *
+		    (buf_pool->n_pages_read - buf_pool->n_pages_read_old))
+		/ (buf_pool->n_page_gets - buf_pool->n_page_gets_old)));
+	}
+
+	buf_pool->n_page_gets_old = buf_pool->n_page_gets;
+	buf_pool->n_pages_read_old = buf_pool->n_pages_read;
+
 	mutex_exit(&(buf_pool->mutex));
 }
 

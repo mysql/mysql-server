@@ -1,0 +1,127 @@
+#include "mysql.ih"
+
+<WARPIN VERSION <$WARPIN_VERSION>>
+<HEAD>
+
+<PCK INDEX=1 
+     PACKAGEID="TCX Datakonsult AB\MySQL for OS/2\SQL Database Engine\<$MySQL\Ver>"
+     TARGET="?:\usr\local\mysql" BASE
+     TITLE="SQL Database Engine"
+     EXECUTE="$(1)\bootstrap.cmd [bootstrap]"
+     CONFIG.SYS="SET EMXOPT=-h1024 | UNIQUE(-h)"
+     CREATEOBJECT="WPFolder|MySQL <$MySQL.Ver>|<WP_DESKTOP>|OBJECTID=<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_FOLDER>"
+     CREATEOBJECT="WPProgram|Console|<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_FOLDER>|EXENAME=$(1)\bin\mysql.exe;STARTUPDIR=$(1)\bin;ICONFILE=$(1)\bin\icons\mysql-client.ico;OBJECTID=<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_CONSOLE>;"
+     CREATEOBJECT="WPProgram|Start server|<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_FOLDER>|EXENAME=$(1)\bin\mysqld.exe;ICONFILE=$(1)\bin\icons\mysql-startserver.ico;OBJECTID=<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_START>;"
+     CREATEOBJECT="WPProgram|Shutdown server|<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_FOLDER>|EXENAME=$(1)\bin\mysqladmin.exe;STARTUPDIR=$(1)\bin;PARAMETERS=-u root shutdown;ICONFILE=$(1)\bin\icons\mysql-shutdownserver.ico;OBJECTID=<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_SHUTDOWN>;"
+     CREATEOBJECT="WPProgram|Readme first|<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_FOLDER>|EXENAME=e.exe;PARAMETERS=$(1)\readme.os2;OBJECTID=<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_README>;"
+     SELECT
+     >This package will install MySQL for OS/2 SQL engine
+</PCK>
+
+<PCK INDEX=2
+     PACKAGEID="TCX Datakonsult AB\MySQL for OS/2\Developement Kit\<$MySQL\Ver>"
+     TARGET="?:\usr\local\mysql"
+     TITLE="Developement Kit"
+     SELECT
+     >This package will install MySQL for OS/2 sdk
+</PCK>
+
+<PCK INDEX=3
+     PACKAGEID="TCX Datakonsult AB\MySQL for OS/2\PDF manual\<$MySQL\Ver>"
+     TARGET="?:\usr\local\mysql"
+     TITLE="PDF manual"
+     EXTERNAL="mysql-3-23-28-gamma-pdf.wpi"
+     CREATEOBJECT="WPShadow|PDF Manual|<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_FOLDER>|SHADOWID=$(1)\docs\manual.pdf"
+     SELECT
+     >This package will install MySQL for OS/2 documentation
+</PCK>
+
+<PCK INDEX=4
+     PACKAGEID="TCX Datakonsult AB\MySQL for OS/2\INF manual\<$MySQL\Ver>"
+     TARGET="?:\usr\local\mysql"
+     TITLE="INF manual"
+     EXTERNAL="mysql-3-23-28-gamma-inf.wpi"
+     CREATEOBJECT="WPProgram|MySQL Manual|<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_FOLDER>|EXENAME=view.exe;PARAMETERS=$(1)\docs\manual.inf;ICONFILE=$(1)\bin\icons\mysql-manual.ico;OBJECTID=<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_INFMANUAL>;"
+     SELECT
+     >This package will install MySQL for OS/2 documentation
+</PCK>
+
+<PCK INDEX=5
+     PACKAGEID="TCX Datakonsult AB\MySQL for OS/2\Test suite\<$MySQL\Ver>"
+     TARGET="?:\usr\local\mysql"
+     TITLE="Test suite"
+     EXTERNAL="mysql-<$MySQL-Ver>-test.wpi"
+     CREATEOBJECT="WPProgram|Run MySQL Test Suite|<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_FOLDER>|EXENAME=$(5)\mysql-test\mysql-test.cmd;PARAMETERS=$(1)\docs\manual.inf;ICONFILE=$(1)\bin\icons\mysql-manual.ico;OBJECTID=<MYSQL_<$MySQL.Major>_<$MySQL.Minor>_TESTSUITE>;"
+     SELECT
+     >This package will install MySQL for OS/2 test suite
+</PCK>
+
+</HEAD>
+
+<!-- Here come the different pages. They are linked by
+     the <NEXTBUTTON> tags, which must have a target.
+     Each page must have a TYPE= attribute, which tells
+     WarpIn what will be visible on that page. -->
+
+<BODY>
+
+<!-- page1: introduction ->>
+<PAGE INDEX=1 TYPE=README>
+<TEXT>
+</TEXT>
+<NEXTBUTTON TARGET=2>~Next</NEXTBUTTON>
+<README FORMAT=HTML>
+
+<P>Welcome to the latest port of MySQL for <B>OS/2 and eComStation</B>.
+
+<P>You are about to install <B>MySQL <$MySQL.Ver></B>
+
+<BR>
+<BR>
+<P>Select "Next" to continue.
+
+<P>Select "Cancel" to abort installation.
+</README>
+</PAGE>
+
+<!-- show readme.os2 -->
+<PAGE INDEX=2 TYPE=README>
+<NEXTBUTTON TARGET=3>~Next</NEXTBUTTON>
+<TEXT>
+</TEXT>
+<README FORMAT=PLAIN EXTRACTFROMPCK="1">readme.os2</README>
+</PAGE>
+
+<!-- show GPL license -->
+<PAGE INDEX=3 TYPE=README>
+<NEXTBUTTON TARGET=4>~I agree</NEXTBUTTON>
+<TEXT>
+By pressing the "I agree" button, you agree to all terms and conditions to the below licence agreement.
+</TEXT>
+<README FORMAT=HTML EXTRACTFROMPCK="1">license.htm</README>
+</PAGE>
+
+
+<!-- The TYPE=CONTAINER will list the packages which can be installed. -->
+
+<PAGE INDEX=4 TYPE=CONTAINER>
+<NEXTBUTTON TARGET=5>~Next</NEXTBUTTON>
+<TEXT>
+Please select the packages which are to be installed. You may change the target paths for the packages.
+</TEXT>
+</PAGE>
+
+<!-- Here's another TYPE=TEXT page before we install.
+     The special target "0" indicates that after this page we
+     should start installation.
+     Note that the TYPE=INSTALL page (which we had in Alpha #3)
+     is no longer supported. -->
+
+<PAGE INDEX=5 TYPE=TEXT>
+<NEXTBUTTON TARGET=0>I~nstall</NEXTBUTTON>
+<TEXT>
+Press "Install" to begin installing this archive.</TEXT>
+</PAGE>
+
+</BODY>
+</WARPIN>

@@ -364,7 +364,9 @@ bool mysql_change_db(THD *thd,const char *name)
   }
 
   (void) sprintf(path,"%s/%s",mysql_data_home,dbname);
-  unpack_dirname(path,path);			// Convert if not unix
+  length=unpack_dirname(path,path);		// Convert if not unix
+  if (length && path[length-1] == FN_LIBCHAR)
+    path[length-1]=0;				// remove ending '\'
   if (access(path,F_OK))
   {
     net_printf(&thd->net,ER_BAD_DB_ERROR,dbname);

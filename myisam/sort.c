@@ -28,6 +28,9 @@
 #include <queues.h>
 
 	/* static variabels */
+#undef MIN_SORT_MEMORY
+#undef MYF_RW
+#undef DISK_BUFFER_SIZE
 
 #define MERGEBUFF 15
 #define MERGEBUFF2 31
@@ -36,10 +39,10 @@
 #define DISK_BUFFER_SIZE (IO_SIZE*16)
 
 typedef struct st_buffpek {
-  my_off_t file_pos;			/* position to buffer */
-  ha_rows count;			/* keys in buffer */
-  uchar *base,*key;			/* Pekare inom sort_key - indexdel */
-  uint mem_count;			/* keys left in memory */
+  my_off_t file_pos;			/* Where we are in the sort file */
+  ha_rows count;			/* Number of rows in table */
+  uchar *base,*key;			/* Key pointers */
+  uint mem_count;			/* numbers of keys in memory */
   uint max_keys;			/* Max keys in buffert */
 } BUFFPEK;
 
@@ -419,7 +422,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
 						sort_length));
     if (error == -1)
       goto err; /* purecov: inspected */
-    queue_insert(&queue,(void*) buffpek);
+    queue_insert(&queue,(char*) buffpek);
   }
 
   while (queue.elements > 1)

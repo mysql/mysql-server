@@ -37,7 +37,7 @@
 static my_bool alarm_aborted=1;
 my_bool thr_alarm_inited=0;
 
-#if !defined(__WIN__) && !defined(__EMX__)
+#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
 
 static pthread_mutex_t LOCK_alarm;
 static sigset_t full_signal_set;
@@ -460,7 +460,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
 **  thr_alarm for OS/2
 *****************************************************************************/
 
-#elif defined(__EMX__)
+#elif defined(__EMX__) || defined(OS2)
 
 #define INCL_BASE
 #define INCL_NOPMAPI
@@ -775,8 +775,10 @@ static sig_handler print_signal_warning(int sig)
 #ifdef DONT_REMEMBER_SIGNAL
   sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
+#ifndef OS2
   if (sig == SIGALRM)
     alarm(2);					/* reschedule alarm */
+#endif
 }
 #endif /* USE_ONE_SIGNAL_HAND */
 
@@ -793,6 +795,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
   VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);
 
+#ifndef OS2
   sigemptyset(&set);				/* Catch all signals */
   sigaddset(&set,SIGINT);
   sigaddset(&set,SIGQUIT);
@@ -809,6 +812,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
 #else
   puts("Starting signal handling thread");
 #endif
+#endif /* OS2 */
   printf("server alarm: %d  thread alarm: %d\n",
 	 THR_SERVER_ALARM,THR_CLIENT_ALARM);
   DBUG_PRINT("info",("Starting signal and alarm handling thread"));
@@ -831,7 +835,9 @@ static void *signal_hand(void *arg __attribute__((unused)))
     case SIGINT:
     case SIGQUIT:
     case SIGTERM:
+#ifndef OS2
     case SIGHUP:
+#endif
       printf("Aborting nicely\n");
       end_thr_alarm();
       break;
@@ -841,11 +847,13 @@ static void *signal_hand(void *arg __attribute__((unused)))
       exit(1);
       return 0;					/* Keep some compilers happy */
 #endif
+#ifndef OS2
 #ifdef USE_ONE_SIGNAL_HAND
      case THR_SERVER_ALARM:
        process_alarm(sig);
       break;
 #endif
+#endif /* OS2 */
     }
   }
 }
@@ -866,6 +874,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   pthread_cond_init(&COND_thread_count,NULL);
 
   /* Start a alarm handling thread */
+#ifndef OS2
   sigemptyset(&set);
   sigaddset(&set,SIGINT);
   sigaddset(&set,SIGQUIT);
@@ -883,6 +892,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   sigaddset(&set,THR_CLIENT_ALARM);
   VOID(pthread_sigmask(SIG_UNBLOCK, &set, (sigset_t*) 0));
 #endif
+#endif /* OS2 */
 
   pthread_attr_init(&thr_attr);
   pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_PROCESS);
