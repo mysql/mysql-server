@@ -48767,7 +48767,8 @@ Fixed bug with indexless boolean full-text search.
 Fixed bug that sometimes appeared when full-text search was used
 with ``const'' tables.
 @item
-Fixed incorrect error value when doing a @code{SELECT} with an empty HEAP table.
+Fixed incorrect error value when doing a @code{SELECT} with an empty
+@code{HEAP} table.
 @item
 Use @code{ORDER BY column DESC} now sorts @code{NULL} values first.
 @item
@@ -48779,41 +48780,43 @@ Fixed bug in @code{... HAVING 'GROUP_FUNCTION'(xxx) IS [NOT] NULL}.
 @item
 Fixed bug in truncation operator for boolean full-text search.
 @item
-Allow numeric user id to @code{mysqld --user=#}.
+Allow value of @code{--user=#} option for @code{mysqld} to be specified
+as a numeric user ID.
 @item
 Fixed a bug where @code{SQL_CALC_ROWS} returned an incorrect value when used
-with one table and @code{ORDER BY} and with InnoDB tables.
+with one table and @code{ORDER BY} and with @code{InnoDB} tables.
 @item
 Fixed that @code{SELECT 0 LIMIT 0} doesn't hang thread.
 @item
 Fixed some problems with @code{USE/IGNORE INDEX} when using
 many keys with the same start column.
 @item
-Don't use table scan with BerkeleyDB and InnoDB tables when we can use
-an index that covers the whole row.
+Don't use table scan with @code{BerkeleyDB} and @code{InnoDB} tables when
+we can use an index that covers the whole row.
 @item
-Optimised InnoDB sort-buffer handling to take less memory.
+Optimised @code{InnoDB} sort-buffer handling to take less memory.
 @item
-Fixed bug in multi-table @code{DELETE} and InnoDB tables.
+Fixed bug in multi-table @code{DELETE} and @code{InnoDB} tables.
 @item
-Fixed problem with @code{TRUNCATE} and InnoDB that produced the error
-@code{Can't execute the given command because you have active locked
+Fixed problem with @code{TRUNCATE} and @code{InnoDB} tables that produced the
+error @code{Can't execute the given command because you have active locked
 tables or an active transaction}.
 @item
-Added sql-mode flag @code{NO_UNSIGNED_SUBTRACTION} to disable unsigned
-arithmetic rules when it comes to subtraction. (This will make MySQL 4.0
-behave more closely to 3.23 with @code{UNSIGNED} columns).
+Added @code{NO_UNSIGNED_SUBTRACTION} to the set of flags that may be
+specified with the @code{--sql-mode} option for @code{mysqld}.  It disables
+unsigned arithmetic rules when it comes to subtraction. (This will make
+MySQL 4.0 behave more closely to 3.23 with @code{UNSIGNED} columns).
 @item
 Added @code{WITH MAX_QUERIES_PER_HOUR=#} to @code{GRANT} command.
 @item
-The type returned for all bit functions (@code{|}, @code{<<} ...) is now of
+The result returned for all bit functions (@code{|}, @code{<<}, ...) is now of
 type @code{unsigned integer}.
 @item
-Added detection of @code{nan} values in MyISAM to make it possible to
+Added detection of @code{nan} values in @code{MyISAM} to make it possible to
 repair tables with @code{nan} in float or double columns.
 @item
 Fixed new bug in @code{myisamchk} where it didn't correctly update number of
-``parts'' in the MyISAM index file.
+``parts'' in the @code{MyISAM} index file.
 @item
 Changed to use @code{autoconf} 2.52 (from @code{autoconf} 2.13).
 @item
@@ -48838,11 +48841,11 @@ Fixed bug with empty expression for boolean full-text search.
 @item
 Fixed core dump bug in updating full-text key from/to @code{NULL}.
 @item
-ODBC compatibility: Added @code{BIT_LENGTH()}.
+ODBC compatibility: Added @code{BIT_LENGTH()} function.
 @item
 Fixed core dump bug in @code{GROUP BY BINARY column}.
 @item
-Added support for @code{NULL} keys in HEAP tables.
+Added support for @code{NULL} keys in @code{HEAP} tables.
 @item
 Use index for @code{ORDER BY} in queries of type:
 @code{SELECT * FROM t WHERE key_part1=1 ORDER BY key_part1 DESC,key_part2 DESC}
@@ -48882,9 +48885,9 @@ Added functions @code{DES_ENCRYPT()} and @code{DES_DECRYPT()}.
 @item
 Added statement @code{FLUSH DES_KEY_FILE}.
 @item
-Added @code{mysqld} option @code{--des-key-file}.
+Added @code{--des-key-file} option to @code{mysqld}.
 @item
-@code{HEX(string)} now returns the characters in string converted to
+@code{HEX(string)} now returns the characters in @code{string} converted to
 hexadecimal.
 @item
 Fixed problem with @code{GRANT} when using @code{lower_case_table_names == 1}.
@@ -48956,8 +48959,8 @@ Removed @code{my_thread_init()} and @code{my_thread_end()}
 from mysql_com.h, and added @code{mysql_thread_init()} and
 @code{mysql_thread_end()} to mysql.h.
 @item
-Support for communication packets > 16M.  In 4.0.1 we will extend MyISAM to
-be able to handle these.
+Support for communication packets > 16M.  In 4.0.1 we will extend
+@code{MyISAM} to be able to handle these.
 @item
 Secure connections (with SSL).
 @item
@@ -48968,7 +48971,7 @@ New character set @code{latin_de} which provides correct German sorting.
 @item
 @code{TRUNCATE TABLE} and @code{DELETE FROM table_name} are now separate
 functions. One bonus is that @code{DELETE FROM table_name} now returns
-the number of deleted rows.
+the number of deleted rows, rather than zero.
 @item
 @code{DROP DATABASE} now executes a @code{DROP TABLE} on all tables in
 the database, which fixes a problem with @code{InnoDB} tables.
@@ -49042,7 +49045,7 @@ Cleaned up global lock handling for @code{FLUSH TABLES WITH READ LOCK}.
 @item
 Fixed problem with @code{DATETIME = constant} in @code{WHERE} optimisation.
 @item
-Added options @code{--master-data} and @code{--no-autocommit} to
+Added @code{--master-data} and @code{--no-autocommit} options to
 @code{mysqldump} (Thanks to Brian Aker for this).
 @item
 Added script @code{mysql_explain_log.sh} to distribution.
@@ -51304,8 +51307,9 @@ problems with @code{HEAP} tables when using non-@code{UNIQUE} keys.
 @item
 Added option to print default arguments to all clients.
 @item
-Added @code{--log-slow-queries} to @code{mysqld} to log all queries that take a
-long time to a separate log file with a time indicating how long the query took.
+Added @code{--log-slow-queries} option to @code{mysqld} to log all queries
+that take a long time to a separate log file with a time indicating how
+long the query took.
 @item
 Fixed core dump when doing @code{WHERE key_column=RAND(...)}.
 @item
