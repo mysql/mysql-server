@@ -42930,6 +42930,8 @@ import-/export-files. (Freeware).  By Ansgar Becker.
 
 @item @uref{http://www.mysql.com/Downloads/Win32/W9xstop.zip,Utility from Artronic to stop MySQL on win9x}.
 
+@item @uref{http://bardo.hyperlink.cz/mysqlmon,a light weight GUI client for Windows}.
+
 @item @uref{http://dbtools.vila.bol.com.br/, Dbtools}
 A tool to manage @strong{MySQL} databases. Currently only for Windows.
 Some features:
