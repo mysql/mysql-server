@@ -320,3 +320,14 @@ id	name	id	idx
 2	no	NULL	NULL
 bug_id	reporter	bug_id	who
 1	1	1	2
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	index	NULL	PRIMARY	4	NULL	3	Using index
+t1	eq_ref	PRIMARY	PRIMARY	2	const	1	where used; Using index
+fooID	barID	fooID
+10	1	NULL
+20	2	NULL
+30	3	30
+fooID	barID	fooID
+10	1	NULL
+20	2	NULL
+30	3	30
