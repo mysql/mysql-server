@@ -504,10 +504,7 @@ public:
   bool fix_fields(THD *thd,struct st_table_list *tables, Item **ref);
   String *val_str(String *);
   void fix_length_and_dec() 
-  {
-    max_length = args[0]->max_length; 
-    str_value.set_charset(set_collation);
-  }
+  { max_length = args[0]->max_length; }
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "set_collation"; }
 };
