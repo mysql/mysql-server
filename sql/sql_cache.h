@@ -143,14 +143,14 @@ struct Query_cache_query
 struct Query_cache_table
 {
   char *tbl;
-  uint key_len;
+  uint32 key_len;
   uint8 table_type;
 
   inline char *db()			     { return (char *) data(); }
   inline char *table()			     { return tbl; }
   inline void table(char *table)	     { tbl= table; }
-  inline uint key_length()                   { return key_len; }
-  inline void key_length(uint len)           { key_len= len; }
+  inline uint32 key_length()                 { return key_len; }
+  inline void key_length(uint32 len)         { key_len= len; }
   inline uint8 type()                        { return table_type; }
   inline void type(uint8 t)                  { table_type= t; }
   inline gptr data()
