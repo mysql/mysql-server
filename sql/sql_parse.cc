@@ -1344,7 +1344,7 @@ mysql_execute_command(THD *thd)
 						    cursor->derived,
 						    cursor)))
 	  {  
-	    if (res < 0)
+	    if (res < 0 || thd->net.report_error)
 	      send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
 	    DBUG_VOID_RETURN;
 	  }

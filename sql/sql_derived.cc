@@ -129,8 +129,6 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
       free_tmp_table(thd,table);
 exit:
     close_thread_tables(thd);
-    if (res > 0)
-      send_error(thd, ER_UNKNOWN_COM_ERROR); // temporary only ...
   }
   DBUG_RETURN(res);
 }
