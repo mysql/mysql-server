@@ -49,6 +49,7 @@ check table t9;
 optimize table t9;
 repair table t9;
 alter table t9 add column c int not null;
+--replace_result $MYSQL_TEST_DIR TEST_DIR
 show create table t9;
 
 # Test renames
@@ -89,5 +90,6 @@ enable_query_log;
 
 alter table t9 rename mysqltest.t9;
 select count(*) from mysqltest.t9;
+--replace_result $MYSQL_TEST_DIR TEST_DIR
 show create table mysqltest.t9;
 drop database mysqltest;

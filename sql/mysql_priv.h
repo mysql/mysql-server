@@ -209,16 +209,17 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_NOT_USED			16
 #define MODE_ONLY_FULL_GROUP_BY		32
 #define MODE_NO_UNSIGNED_SUBTRACTION	64
-#define MODE_POSTGRESQL			128
-#define MODE_ORACLE			256
-#define MODE_MSSQL			512
-#define MODE_DB2			1024
-#define MODE_SAPDB			2048
-#define MODE_NO_KEY_OPTIONS             4096
-#define MODE_NO_TABLE_OPTIONS           8192
-#define MODE_NO_FIELD_OPTIONS          16384
-#define MODE_MYSQL323                  32768
-#define MODE_MYSQL40                   65536
+#define MODE_NO_DIR_IN_CREATE		128
+#define MODE_POSTGRESQL			256
+#define MODE_ORACLE			512
+#define MODE_MSSQL			1024
+#define MODE_DB2			2048
+#define MODE_SAPDB			4096
+#define MODE_NO_KEY_OPTIONS             8192
+#define MODE_NO_TABLE_OPTIONS          16384 
+#define MODE_NO_FIELD_OPTIONS          32768
+#define MODE_MYSQL323                  65536
+#define MODE_MYSQL40                   (MODE_MYSQL323*2)
 #define MODE_ANSI	               (MODE_MYSQL40*2)
 #define MODE_NO_AUTO_VALUE_ON_ZERO     (MODE_ANSI*2)
 
@@ -557,7 +558,8 @@ void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
-		enum enum_var_type value_type);
+		enum enum_var_type value_type,
+		pthread_mutex_t *mutex);
 int mysqld_show_charsets(THD *thd,const char *wild);
 int mysqld_show_collations(THD *thd,const char *wild);
 int mysqld_show_table_types(THD *thd);
@@ -745,6 +747,7 @@ extern ulong ha_read_first_count, ha_read_last_count;
 extern ulong ha_read_rnd_count, ha_read_rnd_next_count;
 extern ulong ha_commit_count, ha_rollback_count,table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
+extern ulong slave_net_timeout;
 extern ulong max_insert_delayed_threads, max_user_connections;
 extern ulong long_query_count, what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack,thread_stack_min;
@@ -962,6 +965,12 @@ inline void mark_as_null_row(TABLE *table)
   bfill(table->null_flags,table->null_bytes,255);
 }
 
+inline void table_case_convert(char * name, uint length)
+{
+  if (lower_case_table_names)
+    my_casedn(files_charset_info, name, length);
+}
+
 compare_func_creator comp_eq_creator(bool invert);
 compare_func_creator comp_ge_creator(bool invert);
 compare_func_creator comp_gt_creator(bool invert);
@@ -978,6 +987,7 @@ compare_func_creator comp_ne_creator(bool invert);
     table_list TABLE_LIST structure pointer (owner of TABLE)
     tablenr - table number
 */
+
 inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
 {
   table->used_fields= 0;

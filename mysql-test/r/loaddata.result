@@ -28,3 +28,13 @@ NULL	NULL	0000-00-00	0000-00-00
 NULL	0000-00-00	0000-00-00	0000-00-00
 NULL	2003-03-03	2003-03-03	NULL
 drop table t1;
+create table t1 (a text, b text);
+load data infile '../../std_data/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+concat('|',a,'|')	concat('|',b,'|')
+|Field A|	|Field B|
+|Field 1|	|Field 2' 
+Field 3,'Field 4|
+|Field 5' ,'Field 6|	NULL
+|Field 6|	| 'Field 7'|
+drop table t1;

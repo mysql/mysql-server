@@ -186,3 +186,20 @@ insert into t1 values (0,1,NULL,"aaa"), (1,1,NULL,"aaa"), (2,1,NULL,"aaa"),
 select a.id1, b.idnull from t1 as a, t1 as b where a.id2=1 and a.id1=1 and b.id1=a.idnull order by b.id2 desc limit 1;
 drop table t1;
 
+#
+# BETWEEN problems
+#
+create table t1 (x int, y int, index(x), index(y));
+insert into t1 (x) values (1),(2),(3),(4),(5),(6),(7),(8),(9);
+update t1 set y=x;
+# between with only one end fixed
+explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 7 and t1.y+0;
+explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 7 and t2.x <= t1.y+0;
+# between with both expressions on both ends
+explain select * from t1, t1 t2 where t1.y = 2 and t2.x between t1.y-1 and t1.y+1;
+explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1.y+1;
+# equation propagation
+explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
+explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
+drop table t1;
+

@@ -532,6 +532,29 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 
 
 /*
+  Prepare crypted scramble to be sent to the client
+*/
+
+void prepare_scramble(THD *thd, ACL_USER *acl_user,char* prepared_scramble)
+{
+  /* Binary password format to be used for generation*/
+  char bin_password[SCRAMBLE41_LENGTH];
+  /* Generate new long scramble for the thread */
+  create_random_string(SCRAMBLE41_LENGTH,&thd->rand,thd->scramble);
+  thd->scramble[SCRAMBLE41_LENGTH]=0;
+  /* Get binary form, First 4 bytes of prepared scramble is salt */
+  get_hash_and_password(acl_user->salt,acl_user->pversion,prepared_scramble,
+			(unsigned char*) bin_password);
+  /* Store "*" as identifier for old passwords */
+  if (!acl_user->pversion)
+    prepared_scramble[0]='*';
+  /* Finally encrypt password to get prepared scramble */
+  password_crypt(thd->scramble, prepared_scramble+4, bin_password,
+		 SCRAMBLE41_LENGTH);
+}
+
+
+/*
     Seek ACL entry for a user, check password, SSL cypher, and if
     everything is OK, update THD user data and USER_RESOURCES struct.
 
@@ -566,6 +589,9 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
                 const char *passwd, uint passwd_len)
 {
+  ulong user_access= NO_ACCESS;
+  int res= 1;
+  ACL_USER *acl_user= 0;
   DBUG_ENTER("acl_getroot");
 
   if (!initialized)
@@ -576,11 +602,9 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
     thd->priv_user= (char *) "";                // privileges for
     *thd->priv_host= '\0';                      // the user are unknown
     thd->master_access= ~NO_ACCESS;             // everything is allowed
-    bzero(mqh, sizeof(*mqh));
+    bzero((char*) mqh, sizeof(*mqh));
     DBUG_RETURN(0);
   }
-
-  int res= 1;
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
@@ -590,32 +614,31 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
     but acl_user->user is empty
   */
 
-  ACL_USER *acl_user= 0;
   for (uint i=0 ; i < acl_users.elements ; i++)
   {
-    ACL_USER *user_i = dynamic_element(&acl_users,i,ACL_USER*);
-    if (!user_i->user || !strcmp(thd->user, user_i->user))
+    ACL_USER *acl_user= dynamic_element(&acl_users,i,ACL_USER*);
+    if (!acl_user->user || !strcmp(thd->user, acl_user->user))
     {
-      if (compare_hostname(&user_i->host, thd->host, thd->ip))
+      if (compare_hostname(&acl_user->host, thd->host, thd->ip))
       {
         /* check password: it should be empty or valid */
-        if (passwd_len == user_i->salt_len)
+        if (passwd_len == acl_user->salt_len)
         {
-          if (user_i->salt_len == 0 ||
-              user_i->salt_len == SCRAMBLE_LENGTH &&
-              check_scramble(passwd, thd->scramble, user_i->salt) == 0 ||
+          if (acl_user->salt_len == 0 ||
+              acl_user->salt_len == SCRAMBLE_LENGTH &&
+              check_scramble(passwd, thd->scramble, acl_user->salt) == 0 ||
               check_scramble_323(passwd, thd->scramble,
-                                 (ulong *) user_i->salt) == 0)
+                                 (ulong *) acl_user->salt) == 0)
           {
-            acl_user= user_i;
+            acl_user= acl_user;
             res= 0;
           }
         }
         else if (passwd_len == SCRAMBLE_LENGTH &&
-                 user_i->salt_len == SCRAMBLE_LENGTH_323)
+                 acl_user->salt_len == SCRAMBLE_LENGTH_323)
           res= -1;
         else if (passwd_len == SCRAMBLE_LENGTH_323 &&
-                 user_i->salt_len == SCRAMBLE_LENGTH)
+                 acl_user->salt_len == SCRAMBLE_LENGTH)
           res= 2;
         /* linear search complete: */
         break;
@@ -630,8 +653,11 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
   if (acl_user)
   {
     /* OK. User found and password checked continue validation */
-    thd->master_access= NO_ACCESS;
     Vio *vio=thd->net.vio;
+#ifdef HAVE_OPENSSL
+    SSL *ssl= (SSL*) vio->ssl_arg;
+#endif
+
     /*
       At this point we know that user is allowed to connect
       from given host by given username/password pair. Now
@@ -640,55 +666,55 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
     */
     switch (acl_user->ssl_type) {
     case SSL_TYPE_NOT_SPECIFIED:		// Impossible
-    case SSL_TYPE_NONE: /* SSL is not required to connect */
-      thd->master_access= acl_user->access;
+    case SSL_TYPE_NONE:				// SSL is not required
+      user_access= acl_user->access;
       break;
 #ifdef HAVE_OPENSSL
-    case SSL_TYPE_ANY: /* Any kind of SSL is good enough */
+    case SSL_TYPE_ANY:				// Any kind of SSL is ok
       if (vio_type(vio) == VIO_TYPE_SSL)
-        thd->master_access= acl_user->access;
+	user_access= acl_user->access;
       break;
     case SSL_TYPE_X509: /* Client should have any valid certificate. */
       /*
-        Connections with non-valid certificates are dropped already
-        in sslaccept() anyway, so we do not check validity here.
-        
-        We need to check for absence of SSL because without SSL
-        we should reject connection.
+	Connections with non-valid certificates are dropped already
+	in sslaccept() anyway, so we do not check validity here.
+
+	We need to check for absence of SSL because without SSL
+	we should reject connection.
       */
       if (vio_type(vio) == VIO_TYPE_SSL &&
-	  SSL_get_verify_result(vio->ssl_) == X509_V_OK &&
-	  SSL_get_peer_certificate(vio->ssl_))
-        thd->master_access= acl_user->access;
+	  SSL_get_verify_result(ssl) == X509_V_OK &&
+	  SSL_get_peer_certificate(ssl))
+	user_access= acl_user->access;
       break;
     case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
       /*
-        We do not check for absence of SSL because without SSL it does
-        not pass all checks here anyway.
-        If cipher name is specified, we compare it to actual cipher in
-        use.
+	We do not check for absence of SSL because without SSL it does
+	not pass all checks here anyway.
+	If cipher name is specified, we compare it to actual cipher in
+	use.
       */
       if (vio_type(vio) != VIO_TYPE_SSL ||
-	  SSL_get_verify_result(vio->ssl_) != X509_V_OK)
+	  SSL_get_verify_result(ssl) != X509_V_OK)
 	break;
       if (acl_user->ssl_cipher)
       {
 	DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
-			   acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)));
-	if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
-	  thd->master_access= acl_user->access;
+			   acl_user->ssl_cipher,SSL_get_cipher(ssl)));
+	if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(ssl)))
+	  user_access= acl_user->access;
 	else
 	{
 	  if (global_system_variables.log_warnings)
 	    sql_print_error("X509 ciphers mismatch: should be '%s' but is '%s'",
 			    acl_user->ssl_cipher,
-			    SSL_get_cipher(vio->ssl_));
+			    SSL_get_cipher(ssl));
 	  break;
 	}
       }
       /* Prepare certificate (if exists) */
       DBUG_PRINT("info",("checkpoint 1"));
-      X509* cert=SSL_get_peer_certificate(vio->ssl_);
+      X509* cert=SSL_get_peer_certificate(ssl);
       DBUG_PRINT("info",("checkpoint 2"));
       /* If X509 issuer is speified, we check it... */
       if (acl_user->x509_issuer)
@@ -701,11 +727,11 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
         {
           if (global_system_variables.log_warnings)
             sql_print_error("X509 issuer mismatch: should be '%s' "
-                "but is '%s'", acl_user->x509_issuer, ptr);
+			    "but is '%s'", acl_user->x509_issuer, ptr);
           free(ptr);
           break;
         }
-        thd->master_access= acl_user->access;
+        user_access= acl_user->access;
         free(ptr);
       }
       DBUG_PRINT("info",("checkpoint 4"));
@@ -722,7 +748,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
                             acl_user->x509_subject, ptr);
         }
         else
-          thd->master_access= acl_user->access;
+          user_access= acl_user->access;
         free(ptr);
       }
       break;
@@ -735,6 +761,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
       break;
 #endif /* HAVE_OPENSSL */
     }
+    thd->master_access= user_access;
     thd->priv_user= acl_user->user ? thd->user : (char *) "";
     *mqh= acl_user->user_resource;
 
@@ -2445,7 +2472,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       {
 	my_printf_error(ER_WRONG_USAGE, ER(ER_WRONG_USAGE), MYF(0),
 			"DB GRANT","GLOBAL PRIVILEGES");
-	result= -1;
+	result= 1;
       }
     }
   }
@@ -3175,6 +3202,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
 	if (test_all_bits(table_access, (TABLE_ACLS & ~GRANT_ACL)))
 	  global.append("ALL PRIVILEGES",14);
+ 	else if (!(table_access & ~GRANT_ACL))
+ 	  global.append("USAGE",5);
 	else
 	{
 	  int found= 0;
@@ -3345,7 +3374,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
 }
 
 ACL_USER *check_acl_user(LEX_USER *user_name,
-			 uint *acl_user_idx)
+			 uint *acl_acl_userdx)
 {
   ACL_USER *acl_user= 0;
   uint counter;
@@ -3365,14 +3394,14 @@ ACL_USER *check_acl_user(LEX_USER *user_name,
   if (counter == acl_users.elements)
     return 0;
 
-  *acl_user_idx= counter;
+  *acl_acl_userdx= counter;
   return acl_user;
 }
 
 
 int mysql_drop_user(THD *thd, List <LEX_USER> &list)
 {
-  uint counter, user_id;
+  uint counter, acl_userd;
   int result;
   ACL_USER *acl_user;
   ACL_DB *acl_db;
@@ -3406,7 +3435,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
       result= -1;
       continue;
     }
-    user_id= counter;
+    acl_userd= counter;
 
     for (counter= 0 ; counter < acl_dbs.elements ; counter++)
     {
@@ -3472,7 +3501,7 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
 	tables[0].table->file->index_end();
 	DBUG_RETURN(-1);
       }
-      delete_dynamic_element(&acl_users, user_id);
+      delete_dynamic_element(&acl_users, acl_userd);
     }
     tables[0].table->file->index_end();
   }
