@@ -1120,7 +1120,6 @@ void append_unescaped(String *res, const char *pos, uint length)
       res->append(*pos);
       break;
     }
-    pos++;
   }
   res->append('\'');
 }
