@@ -314,6 +314,10 @@ int mysql_rpl_parse_enabled(MYSQL* mysql __attribute__((unused))) { return 1; }
 my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 #endif
 
+#ifdef EMBEDDED_LIBRARY
+#define mysql_send_query mysql_real_query
+#endif
+
 #define MAX_SERVER_ARGS 20
 
 static int embedded_server_arg_count=0;

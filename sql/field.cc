@@ -4465,7 +4465,7 @@ void Field_blob::set_key_image(char *buff,uint length)
 
 void Field_geom::get_key_image(char *buff,uint length, imagetype type)
 {
-  length-=HA_KEY_BLOB_LENGTH;
+/*  length-=HA_KEY_BLOB_LENGTH;
   ulong blob_length=get_length(ptr);
   char *blob;
   get_ptr(&blob);
@@ -4480,12 +4480,19 @@ void Field_geom::get_key_image(char *buff,uint length, imagetype type)
   float8store(buff+16, mbr.ymin);
   float8store(buff+24, mbr.ymax);
   return;
+*/
+  Field_blob::get_key_image(buff, length, type);
 }
 
 void Field_geom::set_key_image(char *buff,uint length)
 {
+  Field_blob::set_key_image(buff, length);
 }
 
+void Field_geom::sql_type(String &res) const
+{
+  res.set("geometry", 8U, default_charset_info);
+}
 
 int Field_blob::key_cmp(const byte *key_ptr, uint max_key_length)
 {
@@ -5144,6 +5151,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case FIELD_TYPE_BLOB:		return 2+portable_sizeof_char_ptr;
   case FIELD_TYPE_MEDIUM_BLOB:	return 3+portable_sizeof_char_ptr;
   case FIELD_TYPE_LONG_BLOB:	return 4+portable_sizeof_char_ptr;
+  case FIELD_TYPE_GEOMETRY:	return 2+portable_sizeof_char_ptr;
   case FIELD_TYPE_SET:
   case FIELD_TYPE_ENUM: abort(); return 0;	// This shouldn't happen
   default: return 0;
@@ -5190,15 +5198,14 @@ Field *make_field(char *ptr, uint32 field_length,
 				      f_packtype(pack_flag),
 				      field_length);
 
-    if (f_is_blob(pack_flag))
-      return new Field_blob(ptr,null_pos,null_bit,
-			    unireg_check, field_name, table,
-			    pack_length, field_charset);
     if (f_is_geom(pack_flag))
       return new Field_geom(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
 			    pack_length);
-
+    if (f_is_blob(pack_flag))
+      return new Field_blob(ptr,null_pos,null_bit,
+			    unireg_check, field_name, table,
+			    pack_length, field_charset);
     if (interval)
     {
       if (f_is_enum(pack_flag))
