@@ -14,7 +14,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "trx0sys.h"
 #include "page0types.h"
-#include "xa.h"
+#include "trx0xa.h"
 
 /***************************************************************************
 Builds a roll pointer dulint. */
@@ -469,7 +469,10 @@ page of an update undo log segment. */
 					log start, and therefore this is not
 					necessarily the same as this log
 					header end offset */
-#define	TRX_UNDO_DICT_OPERATION	20	/* TRUE if the transaction is a table
+#define	TRX_UNDO_XID_EXISTS	20	/* TRUE if undo log header includes
+					X/Open XA transaction identification
+					XID */
+#define	TRX_UNDO_DICT_TRANS	21	/* TRUE if the transaction is a table
 					create, index create, or drop
 					transaction: in recovery
 					the transaction cannot be rolled back
@@ -492,7 +495,6 @@ page of an update undo log segment. */
 #define	TRX_UNDO_XA_BQUAL_LEN	(TRX_UNDO_XA_TRID_LEN + 4)
 #define	TRX_UNDO_XA_XID		(TRX_UNDO_XA_BQUAL_LEN + 4)
 #define	TRX_UNDO_XA_LEN		(TRX_UNDO_XA_XID + XIDDATASIZE)
-#define	TRX_UNDO_XA_EXISTS	256
 
 /*-------------------------------------------------------------*/
 #define	TRX_UNDO_LOG_HDR_SIZE	(TRX_UNDO_XA_LEN)
