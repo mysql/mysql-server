@@ -1,4 +1,6 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
+# 2002-02-15 zak@mysql.com
+# Use -w to make perl print useful warnings about the script being run
 
 sub fix_underscore {
   $str = shift;
@@ -13,8 +15,38 @@ sub strip_emph {
   return $str;
 };
 
+print STDERR "\n--Post-processing makeinfo output--\n";
 
+# 2002-02-15 zak@mysql.com
+print STDERR "Discard DTD - ORA can add the appropriate DTD for their flavour of DocBook\n";
+<STDIN>;
+
+print STDERR "Slurp! In comes the rest of the file. :)\n";
 $data = join "", <STDIN>;
+
+# 2002-02-15 zak@mysql.com
+print STDERR "Add an XML processing instruction with the right character encoding\n";
+$data = "<?xml version='1.0' encoding='ISO-8859-1'?>" . $data;
+
+# 2002-02-15 zak@mysql.com
+# Less than optimal - should be fixed in makeinfo
+print STDERR "Put in missing <bookinfo> and <abstract>\n";
+$data =~ s/<book lang="en">/<book lang="en"><bookinfo><abstract>/gs;
+
+# 2002-02-15 zak@mysql.com
+print STDERR "Convert existing ampersands to escape sequences \n";
+$data =~ s/&(?!\w+;)/&amp;/gs;
+
+# 2002-02-15 zak@mysql.com
+# Need to talk to Arjen about what the <n> bits are for
+print STDERR "Rework references of the notation '<n>'\n";
+$data =~ s/<(\d)>/[$1]/gs;
+  
+# 2002-02-15 zak@mysql.com
+# We might need to encode the high-bit characters to ensure proper representation
+# print STDERR "Converting high-bit characters to entities\n";
+# $data =~ s/([\200-\400])/&get_entity($1)>/gs;
+# There is no get_entity function yet - no point writing it til we need it :)
 
 print STDERR "Changing @@ to @...\n";
 $data =~ s/@@/@/gs;

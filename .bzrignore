@@ -460,3 +460,4 @@ vio/test-sslserver
 vio/viotest-ssl
 Docs/mysql.xml
 mysql-test/r/rpl000001.eval
+Docs/safe-mysql.xml
