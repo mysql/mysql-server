@@ -1,0 +1,223 @@
+use test ;
+set @stmt_part_1= 'SELECT 1 as "my_fine_statement"' ;
+set @max_var_number= 0;
+the content of the statement variable
+--------------------------------------
+@__stmt_c_  is: SELECT 1 as "my_fine_statement"
+prepare __stmt_c_  from @__stmt_c_ ;
+SELECT 1 as "my_fine_statement" ;
+my_fine_statement
+1
+execute __stmt_c_ ;
+my_fine_statement
+1
+execute __stmt_c_ ;
+my_fine_statement
+1
+execute __stmt_c_ ;
+my_fine_statement
+1
+set @stmt_part_1= 'SELECT ' ;
+set @stmt_part_2= ' + ' ;
+set @stmt_part_3= ' + ' ;
+set @stmt_part_4= ' + ' ;
+set @stmt_part_5= ' + ' ;
+set @stmt_part_6= ' + ' ;
+set @stmt_part_7= ' + ' ;
+set @stmt_part_8= ' + ' ;
+set @stmt_part_9= ' as "my_fine_statement"' ;
+set @max_var_number= 8;
+set @string_1= '1' ;
+set @type_1=   'BIGINT' ;
+set @string_2= 'nULL' ;
+set @type_2=   'BIGINT' ;
+set @string_3= '2.0' ;
+set @type_3=   'DOUBLE' ;
+set @string_4= 'NuLL' ;
+set @type_4=   'DOUBLE' ;
+set @string_5= 'TEXT' ;
+set @type_5=   'LONGTEXT' ;
+set @string_6= 'NUlL' ;
+set @type_6=   'LONGTEXT' ;
+set @string_7= 'BLOB' ;
+set @type_7=   'LONGBLOB' ;
+set @string_8= 'NULl' ;
+set @type_8=   'LONGBLOB' ;
+set @var_1= 'YYYYYYYY' ;
+set @var_2= 'YYYYYYYY' ;
+set @var_3= 'YYYYYYYY' ;
+set @var_4= 'YYYYYYYY' ;
+set @var_5= 'YYYYYYYY' ;
+set @var_6= 'YYYYYYYY' ;
+set @var_7= 'YYYYYYYY' ;
+set @var_8= 'YYYYYYYY' ;
+the content of the statement variables
+--------------------------------------
+@__stmt_c_  is: SELECT 1 + NULL + 2.0 + NULL + 'TEXT' + NULL + 'BLOB' + NULL as "my_fine_statement"
+@__stmt_uv_ is: SELECT @var_1  + @var_2 + @var_3 + @var_4 + @var_5 + @var_6 + @var_7 + @var_8 as "my_fine_statement"
+@__stmt_ph_ is: SELECT ? + ? + ? + ? + ? + ? + ? + ? as "my_fine_statement"
+@__execute_stmt_ph is: execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4,@var_5,@var_6,@var_7,@var_8
+the content of the parameter variables
+--------------------------------------
+type	string	uservariable
+BIGINT	1	1
+type	string	uservariable
+BIGINT	nULL	NULL
+type	string	uservariable
+DOUBLE	2.0	2
+type	string	uservariable
+DOUBLE	NuLL	NULL
+type	string	uservariable
+LONGTEXT	TEXT	TEXT
+type	string	uservariable
+LONGTEXT	NUlL	NULL
+type	string	uservariable
+LONGBLOB	BLOB	BLOB
+type	string	uservariable
+LONGBLOB	NULl	NULL
+@var_1	@var_2	@var_3	@var_4	@var_5	@var_6	@var_7	@var_8
+1	NULL	2	NULL	TEXT	NULL	BLOB	NULL
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `@var_1` bigint(20) default NULL,
+  `@var_2` bigint(20) default NULL,
+  `@var_3` double default NULL,
+  `@var_4` double default NULL,
+  `@var_5` longtext,
+  `@var_6` longtext,
+  `@var_7` longblob,
+  `@var_8` longblob
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+SELECT 1 + NULL + 2.0 + NULL + 'TEXT' + NULL + 'BLOB' + NULL as "my_fine_statement" ;
+my_fine_statement
+NULL
+execute __stmt_c_ ;
+my_fine_statement
+NULL
+execute __stmt_c_ ;
+my_fine_statement
+NULL
+execute __stmt_c_ ;
+my_fine_statement
+NULL
+SELECT @var_1  + @var_2 + @var_3 + @var_4 + @var_5 + @var_6 + @var_7 + @var_8 as "my_fine_statement" ;
+my_fine_statement
+NULL
+execute __stmt_uv_ ;
+my_fine_statement
+NULL
+execute __stmt_uv_ ;
+my_fine_statement
+NULL
+execute __stmt_uv_ ;
+my_fine_statement
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4,@var_5,@var_6,@var_7,@var_8 ;
+my_fine_statement
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4,@var_5,@var_6,@var_7,@var_8 ;
+my_fine_statement
+NULL
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4,@var_5,@var_6,@var_7,@var_8 ;
+my_fine_statement
+NULL
+set @string_1= '1.0' ;
+set @type_1=   'DOUBLE' ;
+set @string_2= '3.0' ;
+set @type_2=   'DOUBLE' ;
+set @string_3= '2' ;
+set @type_3=   'BIGINT' ;
+set @string_4= '4' ;
+set @type_4=   'BIGINT' ;
+set @string_5= '5' ;
+set @type_5=   'BIGINT' ;
+set @string_6= '6' ;
+set @type_6=   'DOUBLE' ;
+set @string_7= '7' ;
+set @type_7=   'DOUBLE' ;
+set @string_8= '8' ;
+set @type_8=   'DOUBLE' ;
+set @var_1= 'YYYYYYYY' ;
+set @var_2= 'YYYYYYYY' ;
+set @var_3= 'YYYYYYYY' ;
+set @var_4= 'YYYYYYYY' ;
+set @var_5= 'YYYYYYYY' ;
+set @var_6= 'YYYYYYYY' ;
+set @var_7= 'YYYYYYYY' ;
+set @var_8= 'YYYYYYYY' ;
+the content of the statement variables
+--------------------------------------
+@__stmt_c_  is: SELECT 1.0 + 3.0 + 2 + 4 + 5 + 6 + 7 + 8 as "my_fine_statement"
+@__stmt_uv_ is: SELECT @var_1  + @var_2 + @var_3 + @var_4 + @var_5 + @var_6 + @var_7 + @var_8 as "my_fine_statement"
+@__stmt_ph_ is: SELECT ? + ? + ? + ? + ? + ? + ? + ? as "my_fine_statement"
+@__execute_stmt_ph is: execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4,@var_5,@var_6,@var_7,@var_8
+the content of the parameter variables
+--------------------------------------
+type	string	uservariable
+DOUBLE	1.0	1
+type	string	uservariable
+DOUBLE	3.0	3
+type	string	uservariable
+BIGINT	2	2
+type	string	uservariable
+BIGINT	4	4
+type	string	uservariable
+BIGINT	5	5
+type	string	uservariable
+DOUBLE	6	6
+type	string	uservariable
+DOUBLE	7	7
+type	string	uservariable
+DOUBLE	8	8
+@var_1	@var_2	@var_3	@var_4	@var_5	@var_6	@var_7	@var_8
+1	3	2	4	5	6	7	8
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `@var_1` double default NULL,
+  `@var_2` double default NULL,
+  `@var_3` bigint(20) default NULL,
+  `@var_4` bigint(20) default NULL,
+  `@var_5` bigint(20) default NULL,
+  `@var_6` double default NULL,
+  `@var_7` double default NULL,
+  `@var_8` double default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+prepare __stmt_c_  from @__stmt_c_ ;
+prepare __stmt_uv_ from @__stmt_uv_ ;
+prepare __stmt_ph_ from @__stmt_ph_ ;
+SELECT 1.0 + 3.0 + 2 + 4 + 5 + 6 + 7 + 8 as "my_fine_statement" ;
+my_fine_statement
+36.0
+execute __stmt_c_ ;
+my_fine_statement
+36.0
+execute __stmt_c_ ;
+my_fine_statement
+36.0
+execute __stmt_c_ ;
+my_fine_statement
+36.0
+SELECT @var_1  + @var_2 + @var_3 + @var_4 + @var_5 + @var_6 + @var_7 + @var_8 as "my_fine_statement" ;
+my_fine_statement
+36
+execute __stmt_uv_ ;
+my_fine_statement
+36
+execute __stmt_uv_ ;
+my_fine_statement
+36
+execute __stmt_uv_ ;
+my_fine_statement
+36
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4,@var_5,@var_6,@var_7,@var_8 ;
+my_fine_statement
+36
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4,@var_5,@var_6,@var_7,@var_8 ;
+my_fine_statement
+36
+execute __stmt_ph_ using @var_1 ,@var_2,@var_3,@var_4,@var_5,@var_6,@var_7,@var_8 ;
+my_fine_statement
+36
