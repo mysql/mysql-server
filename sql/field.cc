@@ -840,17 +840,19 @@ int Field_decimal::store(longlong nr)
 
 double Field_decimal::val_real(void)
 {
-  int err;
-  return my_strntod(my_charset_bin, ptr, field_length, NULL, &err);
+  int not_used;
+  return my_strntod(my_charset_bin, ptr, field_length, NULL, &not_used);
 }
 
 longlong Field_decimal::val_int(void)
 {
-  int err;
+  int not_used;
   if (unsigned_flag)
-    return my_strntoull(my_charset_bin, ptr, field_length, 10, NULL, &err);
+    return my_strntoull(my_charset_bin, ptr, field_length, 10, NULL,
+			&not_used);
   else
-    return my_strntoll( my_charset_bin, ptr, field_length, 10, NULL, &err);
+    return my_strntoll( my_charset_bin, ptr, field_length, 10, NULL,
+			&not_used);
 }
 
 
@@ -952,9 +954,9 @@ void Field_decimal::sql_type(String &res) const
 
 int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  int err;
+  int not_used;				// We can ignore result from str2int
   char *end;
-  long tmp= my_strntol(cs, from, len, 10, &end, &err);
+  long tmp= my_strntol(cs, from, len, 10, &end, &not_used);
   int error= 0;
 
   if (unsigned_flag)
@@ -1154,10 +1156,11 @@ void Field_tiny::sql_type(String &res) const
 
 int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  int err;
+  int not_used;				// We can ignore result from str2int
   char *end;
-  long tmp= my_strntol(cs, from, len, 10, &end, &err);
+  long tmp= my_strntol(cs, from, len, 10, &end, &not_used);
   int error= 0;
+
   if (unsigned_flag)
   {
     if (tmp < 0)
@@ -1427,9 +1430,9 @@ void Field_short::sql_type(String &res) const
 
 int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  int err;
+  int not_used;				// We can ignore result from str2int
   char *end;
-  long tmp= my_strntol(cs, from, len, 10, &end, &err);
+  long tmp= my_strntol(cs, from, len, 10, &end, &not_used);
   int error= 0;
 
   if (unsigned_flag)
@@ -2134,7 +2137,7 @@ void Field_longlong::sql_type(String &res) const
 
 int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  int err=0;
+  int err;
   Field_float::store(my_strntod(cs,(char*) from,len,(char**)NULL,&err));
   if (err || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
   {
@@ -2407,7 +2410,7 @@ void Field_float::sql_type(String &res) const
 
 int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  int err= 0;
+  int err;
   double j= my_strntod(cs,(char*) from,len,(char**)0,&err);
   if (err || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
   {
@@ -3193,9 +3196,9 @@ void Field_time::sql_type(String &res) const
 
 int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
 {
-  int  err;
+  int not_used;				// We can ignore result from str2int
   char *end;
-  long nr= my_strntol(cs, from, len, 10, &end, &err);
+  long nr= my_strntol(cs, from, len, 10, &end, &not_used);
 
   if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155)
   {
@@ -3932,17 +3935,17 @@ int Field_string::store(longlong nr)
 
 double Field_string::val_real(void)
 {
-  int err;
+  int not_used;
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,ptr,field_length,(char**)0,&err);
+  return my_strntod(cs,ptr,field_length,(char**)0,&not_used);
 }
 
 
 longlong Field_string::val_int(void)
 {
-  int err;
+  int not_used;
   CHARSET_INFO *cs=charset();
-  return my_strntoll(cs,ptr,field_length,10,NULL,&err);
+  return my_strntoll(cs,ptr,field_length,10,NULL,&not_used);
 }
 
 
@@ -4017,7 +4020,6 @@ int Field_string::pack_cmp(const char *a, const char *b, uint length)
 {
   uint a_length= (uint) (uchar) *a++;
   uint b_length= (uint) (uchar) *b++;
-
   return my_strnncoll(field_charset,
 		      (const uchar*)a,a_length,
 		      (const uchar*)b,b_length);
@@ -4031,7 +4033,6 @@ int Field_string::pack_cmp(const char *b, uint length)
   while (end > ptr && end[-1] == ' ')
     end--;
   uint a_length = (uint) (end - ptr);
-
   return my_strnncoll(field_charset,
 		     (const uchar*)ptr,a_length,
 		     (const uchar*)b, b_length);
@@ -4101,19 +4102,19 @@ int Field_varstring::store(longlong nr)
 
 double Field_varstring::val_real(void)
 {
-  int err;
+  int not_used;
   uint length=uint2korr(ptr)+2;
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,ptr+2,length,(char**)0,&err);
+  return my_strntod(cs,ptr+2,length,(char**)0, &not_used);
 }
 
 
 longlong Field_varstring::val_int(void)
 {
-  int err;
+  int not_used;
   uint length=uint2korr(ptr)+2;
   CHARSET_INFO *cs=charset();
-  return my_strntoll(cs,ptr+2,length,10,NULL,&err);
+  return my_strntoll(cs,ptr+2,length,10,NULL, &not_used);
 }
 
 
@@ -4421,26 +4422,26 @@ int Field_blob::store(longlong nr)
 
 double Field_blob::val_real(void)
 {
-  int err;
+  int not_used;
   char *blob;
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
     return 0.0;
   uint32 length=get_length(ptr);
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,blob,length,(char**)0,&err);
+  return my_strntod(cs,blob,length,(char**)0, &not_used);
 }
 
 
 longlong Field_blob::val_int(void)
 {
-  int err;
+  int not_used;
   char *blob;
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
     return 0;
   uint32 length=get_length(ptr);
-  return my_strntoll(charset(),blob,length,10,NULL,&err);
+  return my_strntoll(charset(),blob,length,10,NULL,&not_used);
 }
 
 
@@ -4610,10 +4611,8 @@ void Field_blob::sort_string(char *to,uint length)
     blob_length=my_strnxfrm(field_charset,
                             (unsigned char *)to, length, 
                             (unsigned char *)blob, blob_length);
-    if (blob_length >= length)
-      return;
-    to+=blob_length;
-    bzero(to,length-blob_length);
+    if (blob_length < length)
+      bzero(to+blob_length, length-blob_length);
   }
 }
 
