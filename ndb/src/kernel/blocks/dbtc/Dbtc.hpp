@@ -998,7 +998,12 @@ public:
    * It will receive max 16 tuples in each request
    */
   struct ScanFragRec {
-    ScanFragRec(){}
+    ScanFragRec(){ 
+      stopFragTimer();
+      lqhBlockref = 0;
+      scanFragState = IDLE;
+      scanRec = RNIL;
+    }
     /**
      * ScanFragState      
      *  WAIT_GET_PRIMCONF : Waiting for DIGETPRIMCONF when starting a new 

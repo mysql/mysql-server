@@ -187,7 +187,7 @@ NDB_MAIN(mgmsrv){
 	       "Please check if the port is already used,\n"
 	       "(perhaps a mgmtsrvr is already running),\n"
 	       "and if you are executing on the correct computer", 
-	       glob.interface_name, glob.port);
+	       (glob.interface_name ? glob.interface_name : "*"), glob.port);
       goto error_end;
     }
     free(glob.interface_name);

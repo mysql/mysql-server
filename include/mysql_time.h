@@ -34,4 +34,13 @@ typedef struct st_mysql_time
   enum enum_mysql_timestamp_type time_type;
 } MYSQL_TIME;
 
+
+/* 
+  Portable time_t replacement. 
+  Should be signed and hold seconds for 1902-2038 range.
+*/
+typedef long my_time_t;
+#define MY_TIME_T_MAX LONG_MAX
+#define MY_TIME_T_MIN LONG_MIN
+
 #endif /* _mysql_time_h_ */
