@@ -21,15 +21,20 @@ use db1_secret;
 
 create table t1 ( u varchar(64), i int );
 
-# Our test procedure
+# A test procedure and function
 create procedure stamp(i int)
   insert into db1_secret.t1 values (user(), i);
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'stamp';
 
+create function db() returns varchar(64) return database();
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+show function status like 'db';
+
 # root can, of course
 call stamp(1);
 select * from t1;
+select db();
 
 connect (con2user1,localhost,user1,,);
 connect (con3anon,localhost,anon,,);
@@ -41,6 +46,7 @@ connection con2user1;
 
 # This should work...
 call db1_secret.stamp(2);
+select db1_secret.db();
 
 # ...but not this
 --error 1044
@@ -53,6 +59,7 @@ connection con3anon;
 
 # This should work...
 call db1_secret.stamp(3);
+select db1_secret.db();
 
 # ...but not this
 --error 1044
@@ -71,9 +78,14 @@ alter procedure stamp sql security invoker;
 --replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
 show procedure status like 'stamp';
 
+alter function db sql security invoker;
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+show function status like 'db';
+
 # root still can
 call stamp(4);
 select * from t1;
+select db();
 
 #
 # User1 cannot
@@ -83,6 +95,8 @@ connection con2user1;
 # This should not work
 --error 1044
 call db1_secret.stamp(5);
+--error 1044
+select db1_secret.db();
 
 #
 # Anonymous cannot
@@ -92,7 +106,8 @@ connection con3anon;
 # This should not work
 --error 1044
 call db1_secret.stamp(6);
-
+--error 1044
+select db1_secret.db();
 
 #
 # BUG#2777
@@ -149,6 +164,7 @@ select * from t2;
 # Clean up
 connection con1root;
 drop procedure db1_secret.stamp;
+drop function db1_secret.db;
 drop procedure db2.p;
 drop procedure db2.q;
 use test;

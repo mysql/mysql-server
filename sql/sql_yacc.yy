@@ -3923,83 +3923,90 @@ simple_expr:
 	  { $$= new Item_func_round($3,$5,1); }
 	| TRUE_SYM
 	  { $$= new Item_int((char*) "TRUE",1,1); }
-	| IDENT_sys '(' udf_expr_list ')'
+	| ident '.' ident '(' udf_expr_list ')'
 	  {
-	    sp_name *name= sp_name_current_db_new(YYTHD, $1);
+	    LEX *lex= Lex;
+	    sp_name *name= new sp_name($1, $3);
 
-	    if (sp_function_exists(YYTHD, name))
-	    {
-	      LEX *lex= Lex;
-
-	      sp_add_fun_to_lex(lex, name);
-	      if ($3)
-	        $$= new Item_func_sp(name, *$3);
-	      else
-	        $$= new Item_func_sp(name);
-	    }
+	    name->init_qname(YYTHD);
+	    sp_add_fun_to_lex(Lex, name);
+	    if ($5)
+	      $$= new Item_func_sp(name, *$5);
 	    else
-	    {
-#ifdef HAVE_DLOPEN
-	      udf_func *udf;
-
-	      if (using_udf_functions && (udf=find_udf($1.str, $1.length)))
-	      {
-		switch (udf->returns) {
-		case STRING_RESULT:
-		  if (udf->type == UDFTYPE_FUNCTION)
-		  {
-		    if ($3 != NULL)
-		      $$ = new Item_func_udf_str(udf, *$3);
-		    else
-		      $$ = new Item_func_udf_str(udf);
-		  }
-		  else
-		  {
-		    if ($3 != NULL)
-		      $$ = new Item_sum_udf_str(udf, *$3);
-		    else
-		      $$ = new Item_sum_udf_str(udf);
-		  }
-		  break;
-		case REAL_RESULT:
-		  if (udf->type == UDFTYPE_FUNCTION)
-		  {
-		    if ($3 != NULL)
-		      $$ = new Item_func_udf_float(udf, *$3);
-		    else
-		      $$ = new Item_func_udf_float(udf);
-		  }
-		  else
-		  {
-		    if ($3 != NULL)
-		      $$ = new Item_sum_udf_float(udf, *$3);
-		    else
-		      $$ = new Item_sum_udf_float(udf);
-		  }
-		  break;
-		case INT_RESULT:
-		  if (udf->type == UDFTYPE_FUNCTION)
-		  {
-		    if ($3 != NULL)
-		      $$ = new Item_func_udf_int(udf, *$3);
-		    else
-		      $$ = new Item_func_udf_int(udf);
-		  }
-		  else
-		  {
-		    if ($3 != NULL)
-		      $$ = new Item_sum_udf_int(udf, *$3);
-		    else
-		      $$ = new Item_sum_udf_int(udf);
-		  }
-		  break;
-		default:
-		  YYABORT;
-		}
-	      }
-#endif /* HAVE_DLOPEN */
-	    }
+	      $$= new Item_func_sp(name);
 	  }
+	| IDENT_sys '(' udf_expr_list ')'
+          {
+#ifdef HAVE_DLOPEN
+            udf_func *udf;
+
+            if (using_udf_functions && (udf=find_udf($1.str, $1.length)))
+            {
+              switch (udf->returns) {
+              case STRING_RESULT:
+                if (udf->type == UDFTYPE_FUNCTION)
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_func_udf_str(udf, *$3);
+                  else
+                    $$ = new Item_func_udf_str(udf);
+                }
+                else
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_sum_udf_str(udf, *$3);
+                  else
+                    $$ = new Item_sum_udf_str(udf);
+                }
+                break;
+              case REAL_RESULT:
+                if (udf->type == UDFTYPE_FUNCTION)
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_func_udf_float(udf, *$3);
+                  else
+                    $$ = new Item_func_udf_float(udf);
+                }
+                else
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_sum_udf_float(udf, *$3);
+                  else
+                    $$ = new Item_sum_udf_float(udf);
+                }
+                break;
+              case INT_RESULT:
+                if (udf->type == UDFTYPE_FUNCTION)
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_func_udf_int(udf, *$3);
+                  else
+                    $$ = new Item_func_udf_int(udf);
+                }
+                else
+                {
+                  if ($3 != NULL)
+                    $$ = new Item_sum_udf_int(udf, *$3);
+                  else
+                    $$ = new Item_sum_udf_int(udf);
+                }
+                break;
+              default:
+                YYABORT;
+              }
+            }
+            else
+#endif /* HAVE_DLOPEN */
+            {
+              sp_name *name= sp_name_current_db_new(YYTHD, $1);
+
+              sp_add_fun_to_lex(Lex, name);
+              if ($3)
+                $$= new Item_func_sp(name, *$3);
+              else
+                $$= new Item_func_sp(name);
+	    }
+          }
 	| UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' expr_list ')'
 	  {
             $$= new Item_func_unique_users($3,atoi($5.str),atoi($7.str), * $9);
