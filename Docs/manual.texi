@@ -42845,9 +42845,19 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
 @item
-Fixed bug when using indexes on @code{CHAR(255) NULL} columns.
+Slave thread will now be started even if @code{master-host} is not set, as
+long as @code{server-id} is set and valid @code{master.info} is present
 @item
-Fixed two bugs in @code{REGEXP()} on 64-bit machines.
+Partial updates ( terminated with kill) are now logged with a special error
+code to the binary log. Slave will refuse to execute them if the error code
+indicates the update was terminated abnormally, and will have to be recovered
+with @code{SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START} after a manual sanity
+check/correction of data integrity
+@item
+Fixed bug that erroneously logged a drop of internal temporary table
+ on thread termination to the binary log - bug affected replication
+@item
+Fixed a bug in @code{REGEXP()} on 64-bit machines.
 @item
 @code{UPDATE} and @code{DELETE} with @code{WHERE unique_key_part IS NULL}
 didn't update/delete all rows.

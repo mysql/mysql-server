@@ -20,7 +20,13 @@ drop table t1;
 save_master_pos;
 connection slave;
 sync_with_master;
+
 #test handling of aborted connection in the middle of update
+connection master;
+reset master;
+connection slave;
+reset slave;
+
 connection master;
 drop table if exists t1,t2;
 create table t1(n int);
@@ -44,6 +50,8 @@ connection master;
 reap;
 connection slave;
 sync_with_master ;
+#give the slave a chance to exit
+sleep 0.5;
 show slave status;
 set sql_slave_skip_counter=1;
 slave start;
