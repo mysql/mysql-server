@@ -2026,26 +2026,6 @@ bool st_table_list::set_insert_values(MEM_ROOT *mem_root)
 }
 
 
-/*
-  clear insert_values reference
-
-    SYNOPSIS
-    clear_insert_values()
-*/
-
-void st_table_list::clear_insert_values()
-{
-  if (table)
-    table->insert_values= 0;
-  else
-  {
-    DBUG_ASSERT(view && ancestor && ancestor->next_local);
-    for (TABLE_LIST *tbl= ancestor; tbl; tbl= tbl->next_local)
-      tbl->clear_insert_values();
-  }
-}
-
-
 void Field_iterator_view::set(TABLE_LIST *table)
 {
   ptr= table->field_translation;
