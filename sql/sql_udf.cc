@@ -139,7 +139,8 @@ void udf_init()
   new_thd->version = refresh_version;	//current_thd->version;
   new_thd->current_tablenr = 0;
   new_thd->open_tables = 0;
-  new_thd->db = my_strdup("mysql", MYF(0));
+  new_thd->db= my_strdup("mysql", MYF(0));
+  new_thd->db_length=5;
 
   bzero((gptr) &tables,sizeof(tables));
   tables.name = tables.real_name = (char*) "func";

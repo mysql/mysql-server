@@ -85,7 +85,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   host_or_ip="unknown ip";
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
     query_start_used=safe_to_cache_query=0;
-  query_length=col_access=0;
+  db_length=query_length=col_access=0;
   query_error=0;
   next_insert_id=last_insert_id=0;
   open_tables=temporary_tables=handler_tables=0;

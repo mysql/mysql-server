@@ -10200,7 +10200,7 @@ because it can't compile @code{.S} (assembler) files.
 The following configure line should work:
 
 @example
-CFLAGS="-DHPUX -I/opt/dce/include" CXXFLAGS="-DHPUX -I/opt/dce/include -felide-constructors -fno-exceptions -fno-rtti" CXX=gcc ./configure --with-pthread --with-named-thread-libs='-ldce' --prefix=/usr/local/mysql --disable-shared
+CFLAGS="-DHPUX -I/opt/dce/include -fpic" CXXFLAGS="-DHPUX -I/opt/dce/include -felide-constructors -fno-exceptions -fno-rtti" CXX=gcc ./configure --with-pthread --with-named-thread-libs='-ldce' --prefix=/usr/local/mysql --disable-shared
 @end example
 
 If you are compiling @code{gcc} 2.95 yourself, you should NOT link it with
@@ -22679,10 +22679,13 @@ file is written in the data directory.
 If you supply an extension to @code{--log-bin=filename.extension}, the
 extension will be silenty removed.
 
-To the binary log filename @code{mysqld} will append an extension that is a
-number that is incremented each time you execute @code{mysqladmin
-refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH LOGS}
-statement or restart the server. 
+To the binary log filename @code{mysqld} will append an extension that
+is a number that is incremented each time you execute @code{mysqladmin
+refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH
+LOGS} statement or restart the server. A new binary log will also
+automaticly be created when it reaches @code{max_bin_log_size}. You can
+delete all not active binary log files with the @code{RESET MASTER}
+command. @xref{RESET}.
 
 You can use the following options to @code{mysqld} to affect what is logged
 to the binary log:

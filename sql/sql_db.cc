@@ -317,19 +317,19 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
 
 bool mysql_change_db(THD *thd,const char *name)
 {
-  int length;
+  int length, db_length;
   char *dbname=my_strdup((char*) name,MYF(MY_WME));
   char	path[FN_REFLEN];
   uint db_access;
   DBUG_ENTER("mysql_change_db");
 
-  if (!dbname || !(length=stripp_sp(dbname)))
+  if (!dbname || !(db_length=stripp_sp(dbname)))
   {
     x_free(dbname);				/* purecov: inspected */
     send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
-  if ((length > NAME_LEN) || check_db_name(dbname))
+  if ((db_length > NAME_LEN) || check_db_name(dbname))
   {
     net_printf(&thd->net,ER_WRONG_DB_NAME, dbname);
     x_free(dbname);
@@ -369,6 +369,7 @@ bool mysql_change_db(THD *thd,const char *name)
   send_ok(&thd->net);
   x_free(thd->db);
   thd->db=dbname;
+  thd->db_length=db_length;
   thd->db_access=db_access;
   DBUG_RETURN(0);
 }

@@ -25,7 +25,7 @@
 #include "mysys_priv.h"
 #include <my_bitmap.h>
 #include <assert.h>
-#include <string.h>
+#include <m_string.h>
 
 inline void bitmap_lock(MY_BITMAP* map)
 {
