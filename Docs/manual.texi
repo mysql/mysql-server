@@ -13804,7 +13804,7 @@ You can also use scripts in the @code{mysql} command line prompt by
 using the @code{source} command:
 
 @example
-mysql> source filename
+mysql> source filename;
 @end example
 
 @node Twin, Apache, Batch mode, Tutorial
@@ -22832,8 +22832,6 @@ Note that the error messages are mostly system dependent!
 @node Batch Commands,  , perror, Client-Side Scripts
 @subsection How to Run SQL Commands from a Text File
 
-@c FIX add the 'source' command
-
 The @code{mysql} client typically is used interactively, like this:
 
 @example
@@ -22857,7 +22855,14 @@ line:
 shell> mysql < text_file
 @end example
 
-@xref{Client-Side Scripts}.
+If you are already running @code{mysql}, you can execute a SQL
+script file using the @code{source} command:
+
+@example
+mysql> source filename;
+@end example
+
+For more information about batch mode, @ref{Batch mode}.
 
 
 @node Log Files, Replication, Client-Side Scripts, MySQL Database Administration
