@@ -927,6 +927,7 @@ void st_select_lex_node::init_query()
 {
   next= master= slave= link_next= 0;
   prev= link_prev= 0;
+  dependent= 0;
 }
 
 void st_select_lex_node::init_select()
@@ -937,7 +938,7 @@ void st_select_lex_node::init_select()
   select_limit= HA_POS_ERROR;
   offset_limit= 0;
   with_sum_func= 0;
-  create_refs= dependent= 0;
+  create_refs= 0;
 }
 
 void st_select_lex_unit::init_query()

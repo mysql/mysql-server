@@ -2915,9 +2915,12 @@ join_free(JOIN *join)
       free_io_cache(join->table[join->const_tables]);
     for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
     {
-      delete tab->select;
-      delete tab->quick;
-      x_free(tab->cache.buff);
+      if (!join->select_lex->dependent)
+      {
+	delete tab->select;
+	delete tab->quick;
+	x_free(tab->cache.buff);
+      }
       if (tab->table)
       {
 	if (tab->table->key_read)
