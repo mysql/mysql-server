@@ -1905,7 +1905,7 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   create_info.db_type=DB_TYPE_DEFAULT;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, FALSE, DUP_ERROR));
+				fields, keys, drop, alter, (ORDER*)0, FALSE, DUP_ERROR));
 }
 
 
@@ -1920,7 +1920,7 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
   create_info.db_type=DB_TYPE_DEFAULT;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
-				fields, keys, drop, alter, FALSE, DUP_ERROR));
+				fields, keys, drop, alter, (ORDER*)0, FALSE, DUP_ERROR));
 }
 
 /*****************************************************************************
