@@ -93,7 +93,6 @@ TAIL=tail
 ECHO=echo # use internal echo if possible
 EXPR=expr # use internal if possible
 FIND=find
-GCOV=`which gcov`
 if test $? != 0; then exit 1; fi
 PRINTF=printf
 RM=rm
@@ -276,6 +275,7 @@ while test $# -gt 0; do
 	exit 1
       fi
       DO_GCOV=1
+      GCOV=`which gcov`
       ;;
     --gprof )
       DO_GPROF=1
