@@ -623,7 +623,7 @@ rl_redisplay ()
 		  _rl_move_vert (linenum);
 		  _rl_move_cursor_relative (0, tt);
 		  _rl_clear_to_eol
-		    ((linenum == _rl_vis_botlin) ? strlen (tt) : screenwidth);
+		    ((linenum == _rl_vis_botlin) ? (int) strlen (tt) : screenwidth);
 		}
 	    }
 	  _rl_vis_botlin = inv_botlin;

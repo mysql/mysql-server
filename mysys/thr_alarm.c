@@ -39,6 +39,8 @@
 static my_bool alarm_aborted=1;
 my_bool thr_alarm_inited=0;
 
+static sig_handler process_alarm_part2(int sig);
+
 #if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
 
 static pthread_mutex_t LOCK_alarm;
@@ -244,8 +246,6 @@ void thr_end_alarm(thr_alarm_t *alarmed)
 sig_handler process_alarm(int sig __attribute__((unused)))
 {
   sigset_t old_mask;
-  ALARM *alarm_data;
-
 /*
   This must be first as we can't call DBUG inside an alarm for a normal thread
 */
@@ -262,11 +262,33 @@ sig_handler process_alarm(int sig __attribute__((unused)))
     return;
   }
 #endif
-  {
+
+  /*
+    We have to do do the handling of the alarm in a sub function,
+    because otherwise we would get problems with two threads calling
+    DBUG_... functions at the same time (as two threads may call
+    process_alarm() at the same time
+  */
+
 #ifndef USE_ALARM_THREAD
   pthread_sigmask(SIG_SETMASK,&full_signal_set,&old_mask);
   pthread_mutex_lock(&LOCK_alarm);
 #endif
+  process_alarm_part2(sig);
+#ifndef USE_ALARM_THREAD
+#if defined(DONT_REMEMBER_SIGNAL) && !defined(USE_ONE_SIGNAL_HAND)
+  sigset(THR_SERVER_ALARM,process_alarm);
+#endif
+  pthread_mutex_unlock(&LOCK_alarm);
+  pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
+#endif
+  return;
+}
+
+
+static sig_handler process_alarm_part2(int sig __attribute__((unused)))
+{
+  ALARM *alarm_data;
   DBUG_ENTER("process_alarm");
   DBUG_PRINT("info",("sig: %d  active alarms: %d",sig,alarm_queue.elements));
 
@@ -333,15 +355,7 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 #endif
     }
   }
-#ifndef USE_ALARM_THREAD
-#if defined(DONT_REMEMBER_SIGNAL) && !defined(USE_ONE_SIGNAL_HAND)
-  sigset(THR_SERVER_ALARM,process_alarm);
-#endif
-  pthread_mutex_unlock(&LOCK_alarm);
-  pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
-#endif
   DBUG_VOID_RETURN;
-  }
 }
 
 

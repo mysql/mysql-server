@@ -162,20 +162,24 @@ static my_bool net_realloc(NET *net, ulong length)
 
 void net_clear(NET *net)
 {
+  DBUG_ENTER("net_clear");
 #if !defined(EXTRA_DEBUG) && !defined(EMBEDDED_LIBRARY)
-  int count;					/* One may get 'unused' warn */
-  my_bool old_mode;
-  if (!vio_blocking(net->vio, FALSE, &old_mode))
   {
-    while ( (count = vio_read(net->vio, (char*) (net->buff),
-			      (uint32) net->max_packet)) > 0)
-      DBUG_PRINT("info",("skipped %d bytes from file: %s",
-			 count,vio_description(net->vio)));
-    vio_blocking(net->vio, TRUE, &old_mode);
+    int count;					/* One may get 'unused' warn */
+    my_bool old_mode;
+    if (!vio_blocking(net->vio, FALSE, &old_mode))
+    {
+      while ((count = vio_read(net->vio, (char*) (net->buff),
+			       (uint32) net->max_packet)) > 0)
+	DBUG_PRINT("info",("skipped %d bytes from file: %s",
+			   count, vio_description(net->vio)));
+      vio_blocking(net->vio, TRUE, &old_mode);
+    }
   }
 #endif /* EXTRA_DEBUG */
   net->pkt_nr=net->compress_pkt_nr=0;		/* Ready for new command */
   net->write_pos=net->buff;
+  DBUG_VOID_RETURN;
 }
 
 	/* Flush write_buffer if not empty. */
