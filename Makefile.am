@@ -22,7 +22,7 @@ AUTOMAKE_OPTIONS =	foreign
 EXTRA_DIST =		INSTALL-SOURCE README \
 			COPYING COPYING.LIB
 SUBDIRS =		. include @docs_dirs@ \
-			@readline_topdir@ \
+			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack @sql_client_dirs@ \
 			@sql_server_dirs@ scripts man tests \
 			BUILD @netware_dir@ os2 @libmysqld_dirs@ \
@@ -70,7 +70,10 @@ linked_netware_sources:
 
 #avoid recursive make calls in sql directory
 linked_server_sources:
-	cd sql; rm -f mini_client_errors.c;@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c;	rm -f pack.c;@LN_CP_F@ ../sql-common/pack.c pack.c
+	cd sql; rm -f mini_client_errors.c;\
+		@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c;\
+		rm -f pack.c;@LN_CP_F@ ../sql-common/pack.c pack.c;\
+		rm -f client.c;@LN_CP_F@ ../sql-common/client.c client.c
 	echo timestamp > linked_server_sources
 
 # Create permission databases

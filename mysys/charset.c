@@ -368,6 +368,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
 char *get_charsets_dir(char *buf)
 {
   const char *sharedir= SHAREDIR;
+  char *res;
   DBUG_ENTER("get_charsets_dir");
 
   if (charsets_dir != NULL)
@@ -381,9 +382,9 @@ char *get_charsets_dir(char *buf)
       strxmov(buf, DEFAULT_CHARSET_HOME, "/", sharedir, "/", CHARSET_DIR,
 	      NullS);
   }
-  convert_dirname(buf,buf,NullS);
+  res= convert_dirname(buf,buf,NullS);
   DBUG_PRINT("info",("charsets dir: '%s'", buf));
-  DBUG_RETURN(strend(buf));
+  DBUG_RETURN(res);
 }
 
 CHARSET_INFO *all_charsets[256];
@@ -407,11 +408,15 @@ static my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   MY_ADD_CHARSET(&my_charset_big5_bin);
 #endif
 
-#ifdef HAVE_CHARSET_czech
+#ifdef HAVE_CHARSET_cp1250
+  MY_ADD_CHARSET(&my_charset_cp1250_czech_ci);
+#endif
+
+#ifdef HAVE_CHARSET_latin2
   MY_ADD_CHARSET(&my_charset_latin2_czech_ci);
 #endif
 
-#ifdef HAVE_CHARSET_euc_kr
+#ifdef HAVE_CHARSET_euckr
   MY_ADD_CHARSET(&my_charset_euckr_korean_ci);
   MY_ADD_CHARSET(&my_charset_euckr_bin);
 #endif
@@ -449,10 +454,6 @@ static my_bool init_compiled_charsets(myf flags __attribute__((unused)))
 #ifdef HAVE_CHARSET_utf8
   MY_ADD_CHARSET(&my_charset_utf8_general_ci);
   MY_ADD_CHARSET(&my_charset_utf8_bin);
-#endif
-
-#ifdef HAVE_CHARSET_win1250ch
-  MY_ADD_CHARSET(&my_charset_cp1250_czech_ci);
 #endif
 
   /* Copy compiled charsets */
@@ -613,6 +614,9 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 {
   CHARSET_INFO *cs=NULL;
   CHARSET_INFO **css;
+  DBUG_ENTER("get_charset_by_csname");
+  DBUG_PRINT("enter",("name: '%s'", cs_name));
+
   (void) init_available_charsets(MYF(0));	/* If it isn't initialized */
   
   for (css= all_charsets; css < all_charsets+255; ++css)
@@ -624,7 +628,7 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
       cs= css[0]->number ? get_internal_charset(css[0]->number,flags) : NULL;
       break;
     }
-  }  
+  }
   
   if (!cs && (flags & MY_WME))
   {
@@ -633,5 +637,5 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
     my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_name, index_file);
   }
 
-  return cs;
+  DBUG_RETURN(cs);
 }

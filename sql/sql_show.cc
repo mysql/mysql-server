@@ -679,7 +679,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Field",NAME_LEN));
   field_list.push_back(new Item_empty_string("Type",40));
-  field_list.push_back(new Item_empty_string("Collation",40));
+  if (verbose)
+    field_list.push_back(new Item_empty_string("Collation",40));
   field_list.push_back(new Item_empty_string("Null",1));
   field_list.push_back(new Item_empty_string("Key",3));
   field_list.push_back(item=new Item_empty_string("Default",NAME_LEN));
@@ -719,7 +720,8 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         protocol->store(field->field_name, system_charset_info);
         field->sql_type(type);
         protocol->store(type.ptr(), type.length(), system_charset_info);
-	protocol->store(field->has_charset() ? field->charset()->name : "NULL",
+	if (verbose)
+	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
@@ -1004,12 +1006,7 @@ static void
 append_identifier(THD *thd, String *packet, const char *name)
 {
   char qtype;
-  if ((thd->variables.sql_mode & MODE_ANSI_QUOTES) ||
-      (thd->variables.sql_mode & MODE_POSTGRESQL) ||
-      (thd->variables.sql_mode & MODE_ORACLE) ||
-      (thd->variables.sql_mode & MODE_MSSQL) ||
-      (thd->variables.sql_mode & MODE_DB2) ||
-      (thd->variables.sql_mode & MODE_SAPDB))
+  if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
     qtype= '\"';
   else
     qtype= '`';
@@ -1031,16 +1028,16 @@ append_identifier(THD *thd, String *packet, const char *name)
 static int
 store_create_info(THD *thd, TABLE *table, String *packet)
 {
-  my_bool foreign_db_mode=    ((thd->variables.sql_mode & MODE_POSTGRESQL) ||
-			       (thd->variables.sql_mode & MODE_ORACLE) ||
-			       (thd->variables.sql_mode & MODE_MSSQL) ||
-			       (thd->variables.sql_mode & MODE_DB2) ||
-			       (thd->variables.sql_mode & MODE_SAPDB));
-  my_bool limited_mysql_mode= ((thd->variables.sql_mode & 
-				MODE_NO_FIELD_OPTIONS) ||
-			       (thd->variables.sql_mode & MODE_MYSQL323) ||
-			       (thd->variables.sql_mode & MODE_MYSQL40));
-
+  my_bool foreign_db_mode=    (thd->variables.sql_mode & (MODE_POSTGRESQL |
+							  MODE_ORACLE |
+							  MODE_MSSQL |
+							  MODE_DB2 |
+							  MODE_SAPDB |
+							  MODE_ANSI)) != 0;
+  my_bool limited_mysql_mode= (thd->variables.sql_mode &
+			       (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323 |
+				MODE_MYSQL40)) != 0;
+			       
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s",table->real_name));
 
@@ -1436,8 +1433,8 @@ static bool write_collation(Protocol *protocol, CHARSET_INFO *cs)
   protocol->store(cs->name, system_charset_info);
   protocol->store(cs->csname, system_charset_info);
   protocol->store_short((longlong) cs->number);
-  protocol->store((cs->state & MY_CS_PRIMARY) ? "Y" : "",system_charset_info);
-  protocol->store((cs->state & MY_CS_COMPILED)? "Y" : "",system_charset_info);
+  protocol->store((cs->state & MY_CS_PRIMARY) ? "Yes" : "",system_charset_info);
+  protocol->store((cs->state & MY_CS_COMPILED)? "Yes" : "",system_charset_info);
   protocol->store_short((longlong) cs->strxfrm_multiply);
   return protocol->write();
 }
@@ -1449,15 +1446,14 @@ int mysqld_show_collations(THD *thd, const char *wild)
   List<Item> field_list;
   CHARSET_INFO **cs;
   Protocol *protocol= thd->protocol;
-  char flags[64];
 
   DBUG_ENTER("mysqld_show_charsets");
 
   field_list.push_back(new Item_empty_string("Collation",30));
   field_list.push_back(new Item_empty_string("Charset",30));
   field_list.push_back(new Item_return_int("Id",11, FIELD_TYPE_SHORT));
-  field_list.push_back(new Item_empty_string("D",30));
-  field_list.push_back(new Item_empty_string("C",30));
+  field_list.push_back(new Item_empty_string("Default",30));
+  field_list.push_back(new Item_empty_string("Compiled",30));
   field_list.push_back(new Item_return_int("Sortlen",3, FIELD_TYPE_SHORT));
 
   if (protocol->send_fields(&field_list, 1))
@@ -1501,7 +1497,6 @@ int mysqld_show_charsets(THD *thd, const char *wild)
   List<Item> field_list;
   CHARSET_INFO **cs;
   Protocol *protocol= thd->protocol;
-  char flags[64];
 
   DBUG_ENTER("mysqld_show_charsets");
 

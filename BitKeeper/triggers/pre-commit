@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if [ "$REAL_EMAIL" = "" ]
+then
+ echo "Error: you must set REAL_EMAIL in your profile"
+ echo "e.g.: export REAL_EMAIL='Joe Dow <joe@foo.bar>'"
+ echo ""
+ echo "Commit FAILED!"
+ echo "Set REAL_EMAIL and retry."
+ exit 1
+fi
+

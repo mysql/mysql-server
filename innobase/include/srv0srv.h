@@ -212,6 +212,12 @@ void
 srv_init(void);
 /*==========*/
 /*************************************************************************
+Frees the OS fast mutex created in srv_init(). */
+
+void
+srv_free(void);
+/*==========*/
+/*************************************************************************
 Initializes the synchronization primitives, memory system, and the thread
 local storage. */
 

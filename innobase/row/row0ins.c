@@ -1275,6 +1275,10 @@ row_ins_unique_report_err(
 	dtuple_t*	entry,	/* in: index entry to insert in the index */
 	dict_index_t*	index)	/* in: index */
 {
+#ifdef notdefined
+        /* Disable reporting to test if the slowdown of REPLACE in 4.0.13 was
+	caused by this! */
+
 	char*	buf	= dict_unique_err_buf;
 
 	/* The foreign err mutex protects also dict_unique_err_buf */
@@ -1303,6 +1307,7 @@ row_ins_unique_report_err(
 	ut_a(strlen(buf) < DICT_FOREIGN_ERR_BUF_LEN);
 
 	mutex_exit(&dict_foreign_err_mutex);
+#endif
 }
 
 /*******************************************************************

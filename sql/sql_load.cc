@@ -215,7 +215,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   info.handle_duplicates=handle_duplicates;
   info.escape_char=escaped->length() ? (*escaped)[0] : INT_MAX;
 
-  READ_INFO read_info(file,tot_length,thd->db_charset,
+  READ_INFO read_info(file,tot_length,thd->variables.character_set_database,
 		      *field_term,*ex->line_start, *ex->line_term, *enclosed,
 		      info.escape_char, read_file_from_client, is_fifo);
   if (read_info.error)
@@ -283,6 +283,12 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   table->copy_blobs=0;
   thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
 
+  /*
+    We must invalidate the table in query cache before binlog writing and
+    ha_autocommit_...
+  */
+  query_cache_invalidate3(thd, table_list, 0);
+
   if (error)
   {
     if (transactional_table)
@@ -344,8 +350,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   if (transactional_table)
     error=ha_autocommit_or_rollback(thd,error); 
-  query_cache_invalidate3(thd, table_list, 0);
-
 err:
   if (thd->lock)
   {

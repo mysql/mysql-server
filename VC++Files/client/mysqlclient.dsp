@@ -104,6 +104,10 @@ SOURCE=..\mysys\charset.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\libmysql\client.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\completion_hash.cpp
 # End Source File
 # Begin Source File
@@ -427,10 +431,6 @@ SOURCE=.\readline.cpp
 # Begin Source File
 
 SOURCE=..\mysys\safemalloc.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\select_test.c
 # End Source File
 # Begin Source File
 

@@ -29,6 +29,8 @@ class Item {
   void operator=(Item &);
 public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
+  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) {} /*lint -e715 */
 
   enum Type {FIELD_ITEM, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
@@ -644,6 +646,7 @@ public:
 #include "item_row.h"
 #include "item_cmpfunc.h"
 #include "item_strfunc.h"
+#include "item_geofunc.h"
 #include "item_timefunc.h"
 #include "item_uniq.h"
 #include "item_subselect.h"

@@ -77,7 +77,7 @@
 
 #endif
 
-#ifdef HAVE_CHARSET_czech
+#ifdef HAVE_CHARSET_latin2
 
 /*
 	These are four tables for four passes of the algorithm. Please see

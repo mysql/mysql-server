@@ -48,7 +48,7 @@ id	parent_id	level
 15	102	2
 update t1 set id=id+1000;
 update t1 set id=1024 where id=1009;
-Duplicate entry '1024' for key 1
+ERROR 23000: Duplicate entry '1024' for key 1
 select * from t1;
 id	parent_id	level
 1001	100	0
@@ -270,7 +270,7 @@ n	after commit
 commit;
 insert into t1 values (5);
 insert into t1 values (4);
-Duplicate entry '4' for key 1
+ERROR 23000: Duplicate entry '4' for key 1
 commit;
 select n, "after commit" from t1;
 n	after commit
@@ -279,7 +279,7 @@ n	after commit
 set autocommit=1;
 insert into t1 values (6);
 insert into t1 values (4);
-Duplicate entry '4' for key 1
+ERROR 23000: Duplicate entry '4' for key 1
 select n from t1;
 n
 4
@@ -309,7 +309,7 @@ drop table t1;
 CREATE TABLE t1 (id char(8) not null primary key, val int not null) type=bdb;
 insert into t1 values ('pippo', 12);
 insert into t1 values ('pippo', 12);
-Duplicate entry 'pippo' for key 1
+ERROR 23000: Duplicate entry 'pippo' for key 1
 delete from t1;
 delete from t1 where id = 'pippo';
 select * from t1;
@@ -464,9 +464,9 @@ UNIQUE ggid (ggid)
 insert into t1 (ggid,passwd) values ('test1','xxx');
 insert into t1 (ggid,passwd) values ('test2','yyy');
 insert into t1 (ggid,passwd) values ('test2','this will fail');
-Duplicate entry 'test2' for key 2
+ERROR 23000: Duplicate entry 'test2' for key 2
 insert into t1 (ggid,id) values ('this will fail',1);
-Duplicate entry '1' for key 1
+ERROR 23000: Duplicate entry '1' for key 1
 select * from t1 where ggid='test1';
 id	ggid	email	passwd
 1	test1		xxx
@@ -479,7 +479,7 @@ id	ggid	email	passwd
 replace into t1 (ggid,id) values ('this will work',1);
 replace into t1 (ggid,passwd) values ('test2','this will work');
 update t1 set id=100,ggid='test2' where id=1;
-Duplicate entry 'test2' for key 2
+ERROR 23000: Duplicate entry 'test2' for key 2
 select * from t1;
 id	ggid	email	passwd
 1	this will work		
@@ -1008,7 +1008,7 @@ create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(3
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
 LOCK TABLES t1 WRITE;
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
-Duplicate entry '1-1' for key 1
+ERROR 23000: Duplicate entry '1-1' for key 1
 select id from t1;
 id
 0
@@ -1026,7 +1026,7 @@ insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJ
 LOCK TABLES t1 WRITE;
 begin;
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
-Duplicate entry '1-1' for key 1
+ERROR 23000: Duplicate entry '1-1' for key 1
 select id from t1;
 id
 0

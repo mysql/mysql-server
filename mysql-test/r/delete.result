@@ -30,7 +30,7 @@ CREATE TABLE `t1` (
 PRIMARY KEY  (`i`)
 );
 DELETE FROM t1 USING t1 WHERE post='1';
-Unknown column 'post' in 'where clause'
+ERROR 42S22: Unknown column 'post' in 'where clause'
 drop table t1;
 CREATE TABLE t1 (
 bool     char(0) default NULL,

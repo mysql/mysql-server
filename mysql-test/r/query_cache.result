@@ -561,22 +561,62 @@ set GLOBAL query_cache_min_res_unit=default;
 show global variables like "query_cache_min_res_unit";
 Variable_name	Value
 query_cache_min_res_unit	4096
+create table t1 (a int);
 set GLOBAL query_cache_size=1000;
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
-set GLOBAL query_cache_size=1100;
-set GLOBAL query_cache_size=1200;
-set GLOBAL query_cache_size=1300;
-set GLOBAL query_cache_size=1400;
-set GLOBAL query_cache_size=1500;
-set GLOBAL query_cache_size=1600;
-set GLOBAL query_cache_size=1700;
-set GLOBAL query_cache_size=1800;
-set GLOBAL query_cache_size=1900;
+select * from t1;
+a
+set GLOBAL query_cache_size=1024;
 show global variables like "query_cache_size";
 Variable_name	Value
-query_cache_size	1024
+query_cache_size	0
+select * from t1;
+a
+set GLOBAL query_cache_size=10240;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	0
+select * from t1;
+a
+set GLOBAL query_cache_size=20480;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	0
+select * from t1;
+a
+set GLOBAL query_cache_size=40960;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	0
+select * from t1;
+a
+set GLOBAL query_cache_size=51200;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	51200
+select * from t1;
+a
+set GLOBAL query_cache_size=61440;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	61440
+select * from t1;
+a
+set GLOBAL query_cache_size=81920;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	81920
+select * from t1;
+a
+set GLOBAL query_cache_size=102400;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	102400
+select * from t1;
+a
+drop table t1;
 set GLOBAL query_cache_size=1048576;
 create table t1 (i int not null);
 create table t2 (i int not null);
@@ -615,10 +655,10 @@ id
 2
 alter table t1 rename to t2;
 select * from t1 where id=2;
-Table 'test.t1' doesn't exist
+ERROR 42S02: Table 'test.t1' doesn't exist
 drop table t2;
 select * from t1 where id=2;
-Table 'test.t1' doesn't exist
+ERROR 42S02: Table 'test.t1' doesn't exist
 create table t1 (word char(20) not null);
 select * from t1;
 word

@@ -187,7 +187,11 @@ management to ensure correct alignment for doubles etc. */
 /* Another basic type we use is unsigned long integer which is intended to be
 equal to the word size of the machine. */
 
+#ifdef _WIN64
+typedef unsigned __int64	ulint;
+#else
 typedef unsigned long int	ulint;
+#endif
 
 typedef long int		lint;
 

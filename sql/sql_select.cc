@@ -138,7 +138,6 @@ static bool test_if_subpart(ORDER *a,ORDER *b);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static void calc_group_buffer(JOIN *join,ORDER *group);
 static bool alloc_group_fields(JOIN *join,ORDER *group);
-static bool make_sum_func_list(JOIN *join,List<Item> &fields);
 // Create list for using with tempory table
 static bool change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 				     List<Item> &new_list1,
@@ -153,7 +152,7 @@ static void init_tmptable_sum_functions(Item_sum **func);
 static void update_tmptable_sum_func(Item_sum **func,TABLE *tmp_table);
 static void copy_sum_funcs(Item_sum **func_ptr);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
-static void init_sum_functions(Item_sum **func);
+static bool init_sum_functions(Item_sum **func, Item_sum **end);
 static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 			    bool distinct, const char *message=NullS);
@@ -313,9 +312,11 @@ JOIN::prepare(Item ***rref_pointer_array,
     if (having->with_sum_func)
       having->split_sum_func(ref_pointer_array, all_fields);
   }
-  
+
   if (setup_ftfuncs(select_lex)) /* should be after having->fix_fields */
     DBUG_RETURN(-1);
+  
+
   /*
     Check if one one uses a not constant column with group functions
     and no GROUP BY.
@@ -345,45 +346,47 @@ JOIN::prepare(Item ***rref_pointer_array,
     for (table=tables_list ; table ; table=table->next)
       tables++;
   }
+  {
+    /* Caclulate the number of groups */
+    send_group_parts= 0;
+    for (ORDER *group= group_list ; group ; group= group->next)
+      send_group_parts++;
+  }
+  
   procedure= setup_procedure(thd, proc_param, result, fields_list, &error);
   if (error)
-    DBUG_RETURN(-1);				/* purecov: inspected */
+    goto err;					/* purecov: inspected */
   if (procedure)
   {
     if (setup_new_fields(thd, tables_list, fields_list, all_fields,
 			 procedure->param_fields))
-    {						/* purecov: inspected */
-      delete procedure;				/* purecov: inspected */
-      DBUG_RETURN(-1);				/* purecov: inspected */
-    }
+	goto err;				/* purecov: inspected */
     if (procedure->group)
     {
       if (!test_if_subpart(procedure->group,group_list))
       {						/* purecov: inspected */
 	my_message(0,"Can't handle procedures with differents groups yet",
 		   MYF(0));			/* purecov: inspected */
-	delete procedure;			/* purecov: inspected */
-	DBUG_RETURN(-1);			/* purecov: inspected */
+	goto err;				/* purecov: inspected */
       }
     }
 #ifdef NOT_NEEDED
     else if (!group_list && procedure->flags & PROC_GROUP)
     {
       my_message(0,"Select must have a group with this procedure",MYF(0));
-      delete procedure;
-      DBUG_RETURN(-1);
+      goto err;
     }
 #endif
     if (order && (procedure->flags & PROC_NO_SORT))
-    { /* purecov: inspected */
+    {						/* purecov: inspected */
       my_message(0,"Can't use order with this procedure",MYF(0)); /* purecov: inspected */
-      delete procedure; /* purecov: inspected */
-      DBUG_RETURN(-1); /* purecov: inspected */
+      goto err;					/* purecov: inspected */
     }
   }
 
   /* Init join struct */
   count_field_types(&tmp_table_param, all_fields, 0);
+  ref_pointer_array_size= all_fields.elements*sizeof(Item*);
   this->group= group_list != 0;
   row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
 	      unit->select_limit_cnt);
@@ -398,15 +401,23 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (sum_func_count && !group_list && (func_count || field_count))
   {
     my_message(ER_WRONG_SUM_SELECT,ER(ER_WRONG_SUM_SELECT),MYF(0));
-    delete procedure;
-    DBUG_RETURN(-1);
+    goto err;
   }
 #endif
   if (!procedure && result->prepare(fields_list, unit))
-  {						/* purecov: inspected */
-    DBUG_RETURN(-1);				/* purecov: inspected */
-  }
+    goto err;					/* purecov: inspected */
+
+  if (select_lex->olap == ROLLUP_TYPE && rollup_init())
+    goto err;
+  if (alloc_func_list())
+    goto err;
+
   DBUG_RETURN(0); // All OK
+
+err:
+  delete procedure;				/* purecov: inspected */
+  procedure= 0;
+  DBUG_RETURN(-1);				/* purecov: inspected */
 }
 
 /*
@@ -638,7 +649,9 @@ JOIN::optimize()
     else if (thd->is_fatal_error)			// End of memory
       DBUG_RETURN(1);
   }
-  group_list= remove_const(this, group_list, conds, &simple_group);
+  simple_group= 0;
+  if (rollup.state == ROLLUP::STATE_NONE)
+    group_list= remove_const(this, group_list, conds, &simple_group);
   if (!group_list && group)
   {
     order=0;					// The output has only one row
@@ -788,14 +801,14 @@ JOIN::optimize()
       thd->proc_info="Sorting for group";
       if (create_sort_index(thd, &join_tab[const_tables], group_list,
 			    HA_POS_ERROR, HA_POS_ERROR) ||
-	  make_sum_func_list(this, all_fields) ||
-	  alloc_group_fields(this, group_list))
+	  alloc_group_fields(this, group_list) ||
+	  make_sum_func_list(all_fields, fields_list, 1))
 	DBUG_RETURN(1);
       group_list=0;
     }
     else
     {
-      if (make_sum_func_list(this, all_fields))
+      if (make_sum_func_list(all_fields, fields_list, 0))
 	DBUG_RETURN(1);
       if (!group_list && ! exec_tmp_table1->distinct && order && simple_order)
       {
@@ -862,7 +875,7 @@ int
 JOIN::reinit()
 {
   DBUG_ENTER("JOIN::reinit");
-  //TODO move to unit reinit
+  /* TODO move to unit reinit */
   unit->offset_limit_cnt =select_lex->offset_limit;
   unit->select_limit_cnt =select_lex->select_limit+select_lex->offset_limit;
   if (unit->select_limit_cnt < select_lex->select_limit)
@@ -873,7 +886,7 @@ JOIN::reinit()
   if (setup_tables(tables_list))
     DBUG_RETURN(1);
   
-  // Reset of sum functions
+  /* Reset of sum functions */
   first_record= 0;
   if (sum_funcs)
   {
@@ -897,7 +910,7 @@ JOIN::reinit()
     filesort_free_buffers(exec_tmp_table2);
   }
   if (items0)
-    memcpy(ref_pointer_array, items0, ref_pointer_array_size);
+    set_items_ref_array(items0);
 
   if (tmp_join)
     restore_tmp();
@@ -977,9 +990,6 @@ JOIN::exec()
     DBUG_VOID_RETURN;
   }
 
-  /* Perform FULLTEXT search before all regular searches */
-  //init_ftfuncs(thd, select_lex, test(order));
-
   JOIN *curr_join= this;
   List<Item> *curr_all_fields= &all_fields;
   List<Item> *curr_fields_list= &fields_list;
@@ -1030,7 +1040,7 @@ JOIN::exec()
     }
     curr_all_fields= &tmp_all_fields1;
     curr_fields_list= &tmp_fields_list1;
-    memcpy(ref_pointer_array, items1, ref_pointer_array_size);
+    set_items_ref_array(items1);
     
     if (sort_and_group || curr_tmp_table->group)
     {
@@ -1079,7 +1089,8 @@ JOIN::exec()
       if (make_simple_join(curr_join, curr_tmp_table))
 	DBUG_VOID_RETURN;
       calc_group_buffer(curr_join, group_list);
-      count_field_types(&curr_join->tmp_table_param, curr_join->tmp_all_fields1,
+      count_field_types(&curr_join->tmp_table_param,
+			curr_join->tmp_all_fields1,
 			curr_join->select_distinct && !curr_join->group_list);
       curr_join->tmp_table_param.hidden_field_count= 
 	(curr_join->tmp_all_fields1.elements-
@@ -1117,7 +1128,8 @@ JOIN::exec()
       
       thd->proc_info="Copying to group table";
       tmp_error= -1;
-      if (make_sum_func_list(curr_join, *curr_all_fields) ||
+      if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
+					1) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
       {
@@ -1141,7 +1153,7 @@ JOIN::exec()
       }
       curr_fields_list= &curr_join->tmp_fields_list2;
       curr_all_fields= &curr_join->tmp_all_fields2;
-      memcpy(ref_pointer_array, items2, ref_pointer_array_size);
+      set_items_ref_array(items2);
       curr_join->tmp_table_param.field_count+= 
 	curr_join->tmp_table_param.sum_func_count;
       curr_join->tmp_table_param.sum_func_count= 0;
@@ -1169,9 +1181,7 @@ JOIN::exec()
     
   }
   if (procedure)
-  {
     count_field_types(&curr_join->tmp_table_param, *curr_all_fields, 0);
-  }
   
   if (curr_join->group || curr_join->tmp_table_param.sum_func_count ||
       (procedure && (procedure->flags & PROC_GROUP)))
@@ -1201,10 +1211,10 @@ JOIN::exec()
     }
     curr_fields_list= &tmp_fields_list3;
     curr_all_fields= &tmp_all_fields3;
-    memcpy(ref_pointer_array, items3, ref_pointer_array_size);
+    set_items_ref_array(items3);
 
-    if (make_sum_func_list(curr_join, *curr_all_fields) ||
-	thd->is_fatal_error)
+    if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
+				      1) || thd->is_fatal_error)
       DBUG_VOID_RETURN;
   }
   if (curr_join->group_list || curr_join->order)
@@ -1291,7 +1301,7 @@ JOIN::exec()
 */
 
 int
-JOIN::cleanup(THD *thd)
+JOIN::cleanup()
 {
   DBUG_ENTER("JOIN::cleanup");
   select_lex->join= 0;
@@ -1312,7 +1322,7 @@ JOIN::cleanup(THD *thd)
       }
     }
     tmp_join->tmp_join= 0;
-    DBUG_RETURN(tmp_join->cleanup(thd));
+    DBUG_RETURN(tmp_join->cleanup());
   }
 
   lock=0;                                     // It's faster to unlock later
@@ -1396,7 +1406,7 @@ err:
     thd->limit_found_rows= curr_join->send_records;
     thd->examined_row_count= curr_join->examined_rows;
     thd->proc_info="end";
-    err= join->cleanup(thd);
+    err= join->cleanup();
     if (thd->net.report_error)
       err= -1;
     delete join;
@@ -2916,7 +2926,6 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
     join->tmp_table_param.func_count=0;
   join->tmp_table_param.copy_field=join->tmp_table_param.copy_field_end=0;
   join->first_record=join->sort_and_group=0;
-  join->sum_funcs=0;
   join->send_records=(ha_rows) 0;
   join->group=0;
   join->row_limit=join->unit->select_limit_cnt;
@@ -4782,7 +4791,7 @@ free_tmp_table(THD *thd, TABLE *entry)
     (void) ha_delete_table(entry->db_type,entry->real_name);
   /* free blobs */
   for (Field **ptr=entry->field ; *ptr ; ptr++)
-    delete *ptr;
+    (*ptr)->free();
   my_free((gptr) entry->record[0],MYF(0));
   free_io_cache(entry);
 
@@ -5715,8 +5724,12 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
- 	  else if (join->do_send_rows)
-	    error=join->procedure->send_row(*join->fields) ? 1 : 0;
+ 	  else
+	  {
+	    if (join->do_send_rows)
+	      error=join->procedure->send_row(*join->fields) ? 1 : 0;
+	    join->send_records++;
+	  }
 	  if (end_of_records && join->procedure->end_of_records())
 	    error= 1;				// Fatal error
 	}
@@ -5730,17 +5743,23 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  }
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
-	  else if (join->do_send_rows)
-	    error=join->result->send_data(*join->fields) ? 1 : 0;
+	  else
+	  {
+	    if (join->do_send_rows)
+	      error=join->result->send_data(*join->fields) ? 1 : 0;
+	    join->send_records++;
+	  }
+	  if (join->rollup.state != ROLLUP::STATE_NONE && error <= 0)
+	  {
+	    if (join->rollup_send_data((uint) (idx+1)))
+	      error= 1;
+	  }
 	}
 	if (error > 0)
 	  DBUG_RETURN(-1);			/* purecov: inspected */
 	if (end_of_records)
-	{
-	  join->send_records++;
 	  DBUG_RETURN(0);
-	}
-	if (!error && ++join->send_records >= join->unit->select_limit_cnt &&
+	if (join->send_records >= join->unit->select_limit_cnt &&
 	    join->do_send_rows)
 	{
 	  if (!(join->select_options & OPTION_FOUND_ROWS))
@@ -5760,7 +5779,8 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (idx < (int) join->send_group_parts)
     {
       copy_fields(&join->tmp_table_param);
-      init_sum_functions(join->sum_funcs);
+      if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
+	DBUG_RETURN(-1);
       if (join->procedure)
 	join->procedure->add();
       DBUG_RETURN(0);
@@ -6016,7 +6036,8 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     {
       copy_fields(&join->tmp_table_param);
       copy_funcs(join->tmp_table_param.items_to_copy);
-      init_sum_functions(join->sum_funcs);
+      if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
+	DBUG_RETURN(-1);
       if (join->procedure)
 	join->procedure->add();
       DBUG_RETURN(0);
@@ -6275,14 +6296,14 @@ is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
 */
 
 static uint
-test_if_subkey(ORDER *order, TABLE *table, uint ref, key_map usable_keys)
+test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
+	       key_map usable_keys)
 {
   uint nr;
   uint min_length= (uint) ~0;
   uint best= MAX_KEY;
   uint not_used;
   KEY_PART_INFO *ref_key_part= table->key_info[ref].key_part;
-  uint ref_key_parts= table->key_info[ref].key_parts;
   KEY_PART_INFO *ref_key_part_end= ref_key_part + ref_key_parts;
   
   for (nr= 0; usable_keys; usable_keys>>= 1, nr++)
@@ -6317,10 +6338,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 			bool no_changes)
 {
   int ref_key;
+  uint ref_key_parts;
   TABLE *table=tab->table;
   SQL_SELECT *select=tab->select;
   key_map usable_keys;
   DBUG_ENTER("test_if_skip_sort_order");
+  LINT_INIT(ref_key_parts);
 
   /* Check which keys can be used to resolve ORDER BY */
   usable_keys= ~(key_map) 0;
@@ -6336,9 +6359,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
   ref_key= -1;
   if (tab->ref.key >= 0)			// Constant range in WHERE
-    ref_key=tab->ref.key;
+  {
+    ref_key=	   tab->ref.key;
+    ref_key_parts= tab->ref.key_parts;
+  }
   else if (select && select->quick)		// Range found by opt_range
-    ref_key=select->quick->index;
+  {
+    ref_key=	   select->quick->index;
+    ref_key_parts= select->quick->used_key_parts;
+  }
 
   if (ref_key >= 0)
   {
@@ -6352,20 +6381,28 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       /*
 	We come here when ref_key is not among usable_keys
       */
-      uint a;
-      if ((a= test_if_subkey(order, table, ref_key, usable_keys)) < MAX_KEY)
+      uint new_ref_key;
+      /*
+	If using index only read, only consider other possible index only
+	keys
+      */
+      if (table->used_keys & (((key_map) 1 << ref_key)))
+	usable_keys|= table->used_keys;
+      if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
+				       usable_keys)) < MAX_KEY)
       {
+	/* Found key that can be used to retrieve data in sorted order */
 	if (tab->ref.key >= 0)
 	{
-	  tab->ref.key= a;
-	  table->file->index_init(a);
+	  tab->ref.key= new_ref_key;
+	  table->file->index_init(new_ref_key);
 	}
 	else
 	{
-	  select->quick->index= a;
+	  select->quick->index= new_ref_key;
 	  select->quick->init();
 	}
-	ref_key= a;
+	ref_key= new_ref_key;
       }  
     }
     /* Check if we get the rows in requested sorted order by using the key */
@@ -7658,7 +7695,10 @@ err2:
 
 
 /*
-  Copy fields and null values between two tables
+  Make a copy of all simple SELECT'ed items
+
+  This is done at the start of a new group so that we can retrieve
+  these later when the group changes.
 */
 
 void
@@ -7678,32 +7718,75 @@ copy_fields(TMP_TABLE_PARAM *param)
 }
 
 
-/*****************************************************************************
-  Make an array of pointer to sum_functions to speed up sum_func calculation
-*****************************************************************************/
+/*
+  Make an array of pointers to sum_functions to speed up sum_func calculation
 
-static bool
-make_sum_func_list(JOIN *join,List<Item> &fields)
+  SYNOPSIS
+    alloc_func_list()
+
+  RETURN
+    0	ok
+    1	Error
+*/
+
+bool JOIN::alloc_func_list()
 {
-  DBUG_ENTER("make_sum_func_list");
-  Item_sum **func =
-    (Item_sum**) sql_alloc(sizeof(Item_sum*)*
-			   (join->tmp_table_param.sum_func_count+1));
-  if (!func)
-    DBUG_RETURN(TRUE);
-  List_iterator<Item> it(fields);
-  join->sum_funcs=func;
+  uint func_count, group_parts;
+  DBUG_ENTER("alloc_func_list");
 
-  Item *field;
-  while ((field=it++))
+  func_count= tmp_table_param.sum_func_count;
+  /*
+    If we are using rollup, we need a copy of the summary functions for
+    each level
+  */
+  if (rollup.state != ROLLUP::STATE_NONE)
+    func_count*= (send_group_parts+1);
+
+  group_parts= send_group_parts;
+  /*
+    If distinct, reserve memory for possible
+    disctinct->group_by optimization
+  */
+  if (select_distinct)
+    group_parts+= fields_list.elements;
+
+  /* This must use calloc() as rollup_make_fields depends on this */
+  sum_funcs= (Item_sum**) thd->calloc(sizeof(Item_sum**) * (func_count+1) +
+				      sizeof(Item_sum***) * (group_parts+1));
+  sum_funcs_end= (Item_sum***) (sum_funcs+func_count+1);
+  DBUG_RETURN(sum_funcs == 0);
+}
+
+
+bool JOIN::make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
+			      bool before_group_by)
+{
+  List_iterator_fast<Item> it(all_fields);
+  Item_sum **func;
+  Item *item;
+  DBUG_ENTER("make_sum_func_list");
+
+  func= sum_funcs;
+  while ((item=it++))
   {
-    if (field->type() == Item::SUM_FUNC_ITEM && !field->const_item())
+    if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item())
     {
-      *func++=(Item_sum*) field;
+      *func++= (Item_sum*) item;
       /* let COUNT(DISTINCT) create the temporary table */
-      if (((Item_sum*) field)->setup(join->thd))
+      if (((Item_sum*) item)->setup(thd))
 	DBUG_RETURN(TRUE);
     }
+  }
+  if (before_group_by && rollup.state == ROLLUP::STATE_INITED)
+  {
+    rollup.state= ROLLUP::STATE_READY;
+    if (rollup_make_fields(all_fields, send_fields, &func))
+      DBUG_RETURN(TRUE);			// Should never happen
+  }
+  else if (rollup.state == ROLLUP::STATE_NONE)
+  {
+    for (uint i=0 ; i <= send_group_parts ;i++)
+      sum_funcs_end[i]= func;
   }
   *func=0;					// End marker
   DBUG_RETURN(FALSE);
@@ -7800,8 +7883,8 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
     all_fields - all fields list
 
    RETURN
-    0 - ok
-    !=0 - error
+    0	ok
+    1	error
 */
 
 static bool
@@ -7870,12 +7953,21 @@ copy_sum_funcs(Item_sum **func_ptr)
 }
 
 
-static void
-init_sum_functions(Item_sum **func_ptr)
+static bool
+init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr)
 {
-  Item_sum *func;
-  for (; (func= (Item_sum*) *func_ptr) ; func_ptr++)
-    func->reset();
+  for (; func_ptr != end_ptr ;func_ptr++)
+  {
+    if ((*func_ptr)->reset())
+      return 1;
+  }
+  /* If rollup, calculate the upper sum levels */
+  for ( ; *func_ptr ; func_ptr++)
+  {
+    if ((*func_ptr)->add())
+      return 1;
+  }
+  return 0;
 }
 
 
@@ -7900,10 +7992,10 @@ copy_funcs(Item **func_ptr)
 }
 
 
-/*****************************************************************************
+/*
   Create a condition for a const reference and add this to the
   currenct select for the table
-*****************************************************************************/
+*/
 
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 {
@@ -7919,7 +8011,8 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 
   for (uint i=0 ; i < join_tab->ref.key_parts ; i++)
   {
-    Field *field=table->field[table->key_info[join_tab->ref.key].key_part[i].fieldnr-1];
+    Field *field=table->field[table->key_info[join_tab->ref.key].key_part[i].
+			      fieldnr-1];
     Item *value=join_tab->ref.items[i];
     cond->add(new Item_func_equal(new Item_field(field),value));
   }
@@ -7942,7 +8035,240 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   DBUG_RETURN(error ? TRUE : FALSE);
 }
 
+
+/*
+  Free joins of subselect of this select.
+
+  free_underlaid_joins()
+    thd - THD pointer
+    select - pointer to st_select_lex which subselects joins we will free
+*/
+
+void free_underlaid_joins(THD *thd, SELECT_LEX *select)
+{
+  for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
+       unit;
+       unit= unit->next_unit())
+    unit->cleanup();
+}
+
 /****************************************************************************
+  ROLLUP handling
+****************************************************************************/
+
+/* Allocate memory needed for other rollup functions */
+
+bool JOIN::rollup_init()
+{
+  uint i,j;
+  Item **ref_array;
+
+  tmp_table_param.quick_group= 0;	// Can't create groups in tmp table
+  rollup.state= ROLLUP::STATE_INITED;
+
+  /*
+    Create pointers to the different sum function groups
+    These are updated by rollup_make_fields()
+  */
+  tmp_table_param.group_parts= send_group_parts;
+
+  if (!(rollup.fields= (List<Item>*) thd->alloc((sizeof(Item*) +
+						 sizeof(List<Item>) +
+						 ref_pointer_array_size)
+						* send_group_parts)))
+    return 1;
+  rollup.ref_pointer_arrays= (Item***) (rollup.fields + send_group_parts);
+  ref_array= (Item**) (rollup.ref_pointer_arrays+send_group_parts);
+  rollup.item_null= new (&thd->mem_root) Item_null();
+
+  /*
+    Prepare space for field list for the different levels
+    These will be filled up in rollup_make_fields()
+  */
+  for (i= 0 ; i < send_group_parts ; i++)
+  {
+    List<Item> *fields= &rollup.fields[i];
+    fields->empty();
+    rollup.ref_pointer_arrays[i]= ref_array;
+    ref_array+= all_fields.elements;
+    for (j=0 ; j < fields_list.elements ; j++)
+      fields->push_back(rollup.item_null);
+  }
+  return 0;
+}
+  
+
+/*
+  Fill up rollup structures with pointers to fields to use
+
+  SYNOPSIS
+    rollup_make_fields()
+    all_fields			List of all fields (hidden and real ones)
+    fields			Pointer to selected fields
+    func			Store here a pointer to all fields
+
+  IMPLEMENTATION:
+    Creates copies of item_sum items for each sum level
+
+  RETURN
+    0	if ok
+	In this case func is pointing to next not used element.
+    1   on error
+*/
+
+bool JOIN::rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
+			      Item_sum ***func)
+{
+  List_iterator_fast<Item> it(all_fields);
+  Item *first_field= fields.head();
+  uint level;
+
+  /*
+    Create field lists for the different levels
+
+    The idea here is to have a separate field list for each rollup level to
+    avoid all runtime checks of which columns should be NULL.
+
+    The list is stored in reverse order to get sum function in such an order
+    in func that it makes it easy to reset them with init_sum_functions()
+
+    Assuming:  SELECT a, b, c SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP
+
+    rollup.fields[0] will contain list where a,b,c is NULL
+    rollup.fields[1] will contain list where b,c is NULL
+    ...
+    rollup.ref_pointer_array[#] points to fields for rollup.fields[#]
+    ...
+    sum_funcs_end[0] points to all sum functions
+    sum_funcs_end[1] points to all sum functions, except grand totals
+    ...
+  */
+
+  for (level=0 ; level < send_group_parts ; level++)
+  {
+    uint i;
+    uint pos= send_group_parts - level -1;
+    bool real_fields= 0;
+    Item *item;
+    List_iterator<Item> new_it(rollup.fields[pos]);
+    Item **ref_array_start= rollup.ref_pointer_arrays[pos];
+    ORDER *start_group;
+
+    /* Point to first hidden field */
+    Item **ref_array= ref_array_start + all_fields.elements-1;
+
+    /* Remember where the sum functions ends for the previous level */
+    sum_funcs_end[pos+1]= *func;
+
+    /* Find the start of the group for this level */
+    for (i= 0, start_group= group_list ;
+	 i++ < pos ;
+	 start_group= start_group->next)
+      ;
+
+    it.rewind();
+    while ((item= it++))
+    {
+      if (item == first_field)
+      {
+	real_fields= 1;				// End of hidden fields
+	ref_array= ref_array_start;
+      }
+
+      if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item())
+      {
+	/*
+	  This is a top level summary function that must be replaced with
+	  a sum function that is reset for this level.
+
+	  NOTE: This code creates an object which is not that nice in a
+	  sub select.  Fortunately it's not common to have rollup in
+	  sub selects.
+	*/
+	item= item->copy_or_same(thd);
+	((Item_sum*) item)->make_unique();
+	if (((Item_sum*) item)->setup(thd))
+	  return 1;
+	*(*func)= (Item_sum*) item;
+	(*func)++;
+      }
+      else if (real_fields)
+      {
+	/* Check if this is something that is part of this group by */
+	ORDER *group;
+	for (group= start_group ; group ; group= group->next)
+	{
+	  if (*group->item == item)
+	  {
+	    /*
+	      This is an element that is used by the GROUP BY and should be
+	      set to NULL in this level
+	    */
+	    item->maybe_null= 1;		// Value will be null sometimes
+	    item= rollup.item_null;
+	    break;
+	  }
+	}
+      }
+      *ref_array= item;
+      if (real_fields)
+      {
+	(void) new_it++;			// Point to next item
+	new_it.replace(item);			// Replace previous
+	ref_array++;
+      }
+      else
+	ref_array--;
+    }
+  }
+  sum_funcs_end[0]= *func;			// Point to last function
+  return 0;
+}
+
+/*
+  Send all rollup levels higher than the current one to the client
+
+  SYNOPSIS:
+    rollup_send_data()
+    idx			Level we are on:
+			0 = Total sum level
+			1 = First group changed  (a)
+			2 = Second group changed (a,b)
+
+  SAMPLE
+    SELECT a, b, c SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP
+
+  RETURN
+    0	ok
+    1   If send_data_failed()
+*/
+
+int JOIN::rollup_send_data(uint idx)
+{
+  uint i;
+  for (i= send_group_parts ; i-- > idx ; )
+  {
+    /* Get reference pointers to sum functions in place */
+    memcpy((char*) ref_pointer_array,
+	   (char*) rollup.ref_pointer_arrays[i],
+	   ref_pointer_array_size);
+    if ((!having || having->val_int()))
+    {
+      if (send_records < unit->select_limit_cnt &&
+	  result->send_data(rollup.fields[i]))
+	return 1;
+      send_records++;
+    }
+  }
+  /* Restore ref_pointer_array */
+  set_items_ref_array(current_ref_pointer_array);
+  return 0;
+}
+
+
+/****************************************************************************
+  EXPLAIN handling
+
   Send a description about what how the select will be done to stdout
 ****************************************************************************/
 
@@ -8181,20 +8507,4 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
 			select_lex->options | thd->options | SELECT_DESCRIBE,
 			result, unit, select_lex, 0);
   DBUG_RETURN(res);
-}
-
-/*
-  Free joins of subselect of this select.
-
-  free_underlaid_joins()
-    thd - THD pointer
-    select - pointer to st_select_lex which subselects joins we will free
-*/
-
-void free_underlaid_joins(THD *thd, SELECT_LEX *select)
-{
-  for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
-       unit;
-       unit= unit->next_unit())
-    unit->cleanup();
 }

@@ -8,37 +8,37 @@ CREATE TABLE mp  (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON);
 CREATE TABLE gc  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
 CREATE TABLE geo (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 SHOW FIELDS FROM pt;
-Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	NULL		PRI	0	
-g	point	NULL	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+fid	int(11)		PRI	0	
+g	point	YES		NULL	
 SHOW FIELDS FROM ls;
-Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	NULL		PRI	0	
-g	linestring	NULL	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+fid	int(11)		PRI	0	
+g	linestring	YES		NULL	
 SHOW FIELDS FROM p;
-Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	NULL		PRI	0	
-g	polygon	NULL	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+fid	int(11)		PRI	0	
+g	polygon	YES		NULL	
 SHOW FIELDS FROM mpt;
-Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	NULL		PRI	0	
-g	multipoint	NULL	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+fid	int(11)		PRI	0	
+g	multipoint	YES		NULL	
 SHOW FIELDS FROM mls;
-Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	NULL		PRI	0	
-g	multilinestring	NULL	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+fid	int(11)		PRI	0	
+g	multilinestring	YES		NULL	
 SHOW FIELDS FROM mp;
-Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	NULL		PRI	0	
-g	multipolygon	NULL	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+fid	int(11)		PRI	0	
+g	multipolygon	YES		NULL	
 SHOW FIELDS FROM gc;
-Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	NULL		PRI	0	
-g	geometrycollection	NULL	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+fid	int(11)		PRI	0	
+g	geometrycollection	YES		NULL	
 SHOW FIELDS FROM geo;
-Field	Type	Collation	Null	Key	Default	Extra
-fid	int(11)	NULL		PRI	0	
-g	geometry	NULL	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+fid	int(11)		PRI	0	
+g	geometry	YES		NULL	
 INSERT INTO pt VALUES 
 (101, PointFromText('POINT(10 10)')),
 (102, PointFromText('POINT(20 10)')),
@@ -366,27 +366,27 @@ gc  geometrycollection,
 gm  geometry
 );
 SHOW FIELDS FROM g1;
-Field	Type	Collation	Null	Key	Default	Extra
-pt	point	NULL	YES		NULL	
-ln	linestring	NULL	YES		NULL	
-pg	polygon	NULL	YES		NULL	
-mpt	multipoint	NULL	YES		NULL	
-mln	multilinestring	NULL	YES		NULL	
-mpg	multipolygon	NULL	YES		NULL	
-gc	geometrycollection	NULL	YES		NULL	
-gm	geometry	NULL	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+pt	point	YES		NULL	
+ln	linestring	YES		NULL	
+pg	polygon	YES		NULL	
+mpt	multipoint	YES		NULL	
+mln	multilinestring	YES		NULL	
+mpg	multipolygon	YES		NULL	
+gc	geometrycollection	YES		NULL	
+gm	geometry	YES		NULL	
 ALTER TABLE g1 ADD fid INT NOT NULL;
 SHOW FIELDS FROM g1;
-Field	Type	Collation	Null	Key	Default	Extra
-pt	point	NULL	YES		NULL	
-ln	linestring	NULL	YES		NULL	
-pg	polygon	NULL	YES		NULL	
-mpt	multipoint	NULL	YES		NULL	
-mln	multilinestring	NULL	YES		NULL	
-mpg	multipolygon	NULL	YES		NULL	
-gc	geometrycollection	NULL	YES		NULL	
-gm	geometry	NULL	YES		NULL	
-fid	int(11)	NULL			0	
+Field	Type	Null	Key	Default	Extra
+pt	point	YES		NULL	
+ln	linestring	YES		NULL	
+pg	polygon	YES		NULL	
+mpt	multipoint	YES		NULL	
+mln	multilinestring	YES		NULL	
+mpg	multipolygon	YES		NULL	
+gc	geometrycollection	YES		NULL	
+gm	geometry	YES		NULL	
+fid	int(11)			0	
 DROP TABLE g1;
 SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))));
 AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))

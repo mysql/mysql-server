@@ -1,2 +1,2 @@
-Collation	Charset	Id	D	C	Sortlen
-ucs2_general_ci	ucs2	35	Y		0
+Collation	Charset	Id	Default	Compiled	Sortlen
+ucs2_general_ci	ucs2	35	Yes	Yes	1

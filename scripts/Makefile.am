@@ -32,7 +32,8 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysqldumpslow \
 			mysql_explain_log \
 			mysql_tableinfo \
-			mysqld_multi
+			mysqld_multi \
+			mysql_create_system_tables
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			make_win_src_distribution.sh \
@@ -54,13 +55,14 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysqld_multi.sh \
 			mysql_tableinfo.sh \
 			mysqld_safe.sh \
-			fill_help_tables.sh
+			fill_help_tables.sh \
+			mysql_create_system_tables.sh
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
 			mysqlbug
 
-pkgdata_DATA =		fill_help_tables.sql
+pkgdata_DATA =		fill_help_tables.sql mysql_fix_privilege_tables.sql
 
 # mysqlbug should be distributed built so that people can report build
 # failures with it.
@@ -81,7 +83,7 @@ CLEANFILES =		@server_scripts@ \
 			mysqldumpslow \
 			mysqld_multi \
 			fill_help_tables \
-			fill_help_tables.sql
+			mysql_create_system_tables
 
 SUPERCLEANFILES =	mysqlbug
 
@@ -139,10 +141,5 @@ SUFFIXES = .sh
 
 all: fill_help_tables.sql make_win_src_distribution make_binary_distribution
 
-# The following rule is here to ensure that build will continue
-# even if we don't have perl installed.  In this case the help tables
-# will be empty
-
 fill_help_tables.sql: fill_help_tables ../Docs/manual.texi
-	-./fill_help_tables < ../Docs/manual.texi > fill_help_tables.sql
-	echo "" >> fill_help_tables.sql
+		./fill_help_tables < ../Docs/manual.texi > fill_help_tables.sql

@@ -2179,11 +2179,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   {
     int error;
     GRANT_TABLE *grant_table;
-    if (!Str->host.str)
-    {
-      Str->host.str=(char*) "%";
-      Str->host.length=1;
-    }
     if (Str->host.length > HOSTNAME_LENGTH ||
 	Str->user.length > USERNAME_LENGTH)
     {
@@ -2350,11 +2345,6 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list,
   int result=0;
   while ((Str = str_list++))
   {
-    if (!Str->host.str)
-    {
-      Str->host.str=(char*) "%";
-      Str->host.length=1;
-    }
     if (Str->host.length > HOSTNAME_LENGTH ||
 	Str->user.length > USERNAME_LENGTH)
     {
@@ -2855,11 +2845,6 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     send_error(thd, ER_UNKNOWN_COM_ERROR);
     DBUG_RETURN(-1);
   }
-  if (!lex_user->host.str)
-  {
-    lex_user->host.str=(char*) "%";
-    lex_user->host.length=1;
-  }
   if (lex_user->host.length > HOSTNAME_LENGTH ||
       lex_user->user.length > USERNAME_LENGTH)
   {
@@ -3202,6 +3187,283 @@ void get_mqh(const char *user, const char *host, USER_CONN *uc)
     bzero((char*) &uc->user_resources, sizeof(uc->user_resources));
 }
 
+int open_grant_tables(THD *thd, TABLE_LIST *tables)
+{
+  DBUG_ENTER("open_grant_tables");
+
+  if (!initialized)
+  {
+    send_error(thd, ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES));
+    DBUG_RETURN(-1);
+  }
+
+  bzero((char*) tables, 4*sizeof(*tables));
+  tables->alias= tables->real_name= (char*) "user";
+  (tables+1)->alias= (tables+1)->real_name= (char*) "db";
+  (tables+2)->alias= (tables+2)->real_name= (char*) "tables_priv";
+  (tables+3)->alias= (tables+3)->real_name= (char*) "columns_priv";
+  tables->next= tables+1;
+  (tables+1)->next= tables+2;
+  (tables+2)->next= tables+3;
+  (tables+3)->next= 0;
+  tables->lock_type= (tables+1)->lock_type=
+    (tables+2)->lock_type= (tables+3)->lock_type= TL_WRITE;
+  tables->db= (tables+1)->db= (tables+2)->db= (tables+3)->db=(char*) "mysql";
+
+#ifdef HAVE_REPLICATION
+  /*
+    GRANT and REVOKE are applied the slave in/exclusion rules as they are
+    some kind of updates to the mysql.% tables.
+  */
+  if (thd->slave_thread && table_rules_on && !tables_ok(0, tables))
+    DBUG_RETURN(1);
+#endif
+
+  if (open_and_lock_tables(thd, tables))
+  {						// This should never happen
+    close_thread_tables(thd);
+    DBUG_RETURN(-1);
+  }
+
+  DBUG_RETURN(0);
+}
+
+ACL_USER *check_acl_user(LEX_USER *user_name,
+			 uint *acl_user_idx)
+{
+  ACL_USER *acl_user= 0;
+  uint counter;
+
+  for (counter= 0 ; counter < acl_users.elements ; counter++)
+  {
+    const char *user,*host;
+    acl_user= dynamic_element(&acl_users, counter, ACL_USER*);
+    if (!(user=acl_user->user))
+      user="";
+    if (!(host=acl_user->host.hostname))
+      host="%";
+    if (!strcmp(user_name->user.str,user) &&
+	!my_strcasecmp(system_charset_info, user_name->host.str, host))
+      break;
+  }
+  if (counter == acl_users.elements)
+    return 0;
+
+  *acl_user_idx= counter;
+  return acl_user;    
+}
+
+int mysql_drop_user(THD *thd, List <LEX_USER> &list)
+{
+  uint counter, user_id;
+  int result;
+  ACL_USER *acl_user;
+  ACL_DB *acl_db;
+  TABLE_LIST tables[4];
+
+  DBUG_ENTER("mysql_drop_user");
+
+  if ((result= open_grant_tables(thd, tables)))
+    DBUG_RETURN(result == 1 ? 0 : -1);
+
+  rw_wrlock(&LOCK_grant);
+  VOID(pthread_mutex_lock(&acl_cache->lock));
+
+  LEX_USER *user_name;
+  List_iterator <LEX_USER> user_list(list);
+  while ((user_name=user_list++))
+  {
+    if (!(acl_user= check_acl_user(user_name, &counter)))
+    {
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+		      user_name->user.str,
+		      user_name->host.str);
+      result= -1;
+      continue;
+    }
+    if ((acl_user->access & ~0))
+    {
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+		      user_name->user.str,
+		      user_name->host.str);
+      result= -1;
+      continue;
+    }
+    user_id= counter;
+
+    for (counter= 0 ; counter < acl_dbs.elements ; counter++)
+    {
+      const char *user,*host;
+      acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
+      if (!(user= acl_db->user))
+	user="";
+      if (!(host= acl_db->host.hostname))
+	host="";
+
+      if (!strcmp(user_name->user.str,user) &&
+	  !my_strcasecmp(system_charset_info, user_name->host.str, host))
+	break;
+    }
+    if (counter != acl_dbs.elements)
+    {
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+		      user_name->user.str,
+		      user_name->host.str);
+      result= -1;
+      continue;
+    }
+
+    for (counter= 0 ; counter < column_priv_hash.records ; counter++)
+    {
+      const char *user,*host;
+      GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
+							    counter);
+      if (!(user=grant_table->user))
+	user="";
+      if (!(host=grant_table->host))
+	host="";
+
+      if (!strcmp(user_name->user.str,user) &&
+	  !my_strcasecmp(system_charset_info, user_name->host.str, host))
+	break;
+    }
+    if (counter != column_priv_hash.records)
+    {
+      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'",
+		      user_name->user.str,
+		      user_name->host.str);
+      result= -1;
+      continue;
+    }
+
+    tables[0].table->field[0]->store(user_name->host.str,(uint) 
+				     user_name->host.length,
+				     system_charset_info);
+    tables[0].table->field[1]->store(user_name->user.str,(uint) 
+				     user_name->user.length,
+				     system_charset_info);
+    if (!tables[0].table->file->index_read_idx(tables[0].table->record[0],0,
+					       (byte*) tables[0].table->
+					       field[0]->ptr,0,
+					       HA_READ_KEY_EXACT))
+    {
+      int error;
+      if ((error = tables[0].table->file->delete_row(tables[0].table->
+						     record[0])))
+      {
+	tables[0].table->file->print_error(error, MYF(0));
+	tables[0].table->file->index_end();
+	DBUG_RETURN(-1);
+      }
+      delete_dynamic_element(&acl_users, user_id);
+    }
+    tables[0].table->file->index_end();
+  }
+
+  VOID(pthread_mutex_unlock(&acl_cache->lock));
+  rw_unlock(&LOCK_grant);
+  close_thread_tables(thd);
+  if (result)
+    my_error(ER_DROP_USER, MYF(0));
+  DBUG_RETURN(result);
+}
+
+int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
+{
+  uint counter;
+  int result;
+  ACL_USER *acl_user; ACL_DB *acl_db;
+  TABLE_LIST tables[4];
+  DBUG_ENTER("mysql_revoke_all");
+
+  if ((result= open_grant_tables(thd, tables)))
+    DBUG_RETURN(result == 1 ? 0 : -1);
+
+  rw_wrlock(&LOCK_grant);
+  VOID(pthread_mutex_lock(&acl_cache->lock));
+
+  LEX_USER *lex_user;
+  List_iterator <LEX_USER> user_list(list);
+  while ((lex_user=user_list++))
+  {
+    if (!(acl_user= check_acl_user(lex_user, &counter)))
+    {
+      sql_print_error("REVOKE ALL PRIVILEGES, GRANT: User '%s'@'%s' not exists",
+		      lex_user->user.str,
+		      lex_user->host.str);
+      result= -1;
+      continue;
+    }
+    
+    if (replace_user_table(thd, tables[0].table,
+			   *lex_user, ~0, 1, 0))
+    {
+      result= -1;
+      continue;
+    }
+
+    /* Remove db access privileges */
+    for (counter= 0 ; counter < acl_dbs.elements ; counter++)
+    {
+      const char *user,*host;
+
+      acl_db=dynamic_element(&acl_dbs,counter,ACL_DB*);
+      if (!(user=acl_db->user))
+	user="";
+      if (!(host=acl_db->host.hostname))
+	host="";
+
+      if (!strcmp(lex_user->user.str,user) &&
+	  !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+      {
+	if (replace_db_table(tables[1].table, acl_db->db, *lex_user, ~0, 1))
+	  result= -1;
+      }
+    }
+
+    /* Remove column access */
+    for (counter= 0 ; counter < column_priv_hash.records ; counter++)
+    {
+      const char *user,*host;
+      GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
+							    counter);
+      if (!(user=grant_table->user))
+	user="";
+      if (!(host=grant_table->host))
+	host="";
+
+      if (!strcmp(lex_user->user.str,user) &&
+	  !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+      {
+	if (replace_table_table(thd,grant_table,tables[2].table,*lex_user,
+				grant_table->db,
+				grant_table->tname,
+				~0, 0, 1))
+	{
+	  result= -1;
+	  continue;
+	}
+	if (grant_table->cols)
+	{
+	  List<LEX_COLUMN> columns;
+	  if (replace_column_table(grant_table,tables[3].table, *lex_user,
+				   columns,
+				   grant_table->db,
+				   grant_table->tname,
+				   ~0, 1))
+	    result= -1;
+	}
+      }
+    }
+  }
+
+  VOID(pthread_mutex_unlock(&acl_cache->lock));
+  rw_unlock(&LOCK_grant);
+  close_thread_tables(thd);
+  if (result)
+    my_error(ER_REVOKE_GRANTS, MYF(0));
+  DBUG_RETURN(result);
+}
 
 
 /*****************************************************************************

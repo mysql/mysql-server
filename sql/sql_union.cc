@@ -389,7 +389,7 @@ int st_select_lex_unit::cleanup()
     JOIN *join;
     if ((join= sl->join))
     {
-      error|= sl->join->cleanup(thd);
+      error|= sl->join->cleanup();
       delete join;
     }
   }

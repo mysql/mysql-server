@@ -131,9 +131,11 @@ static void innobase_print_error(const char* db_errpfx, char* buffer);
 
 /**********************************************************************
 Releases possible search latch and InnoDB thread FIFO ticket. These should
-be released at each SQL statement end. It does no harm to release these
-also in the middle of an SQL statement. */
+be released at each SQL statement end, and also when mysqld passes the
+control to the client. It does no harm to release these also in the middle
+of an SQL statement. */
 static
+inline
 void
 innobase_release_stat_resources(
 /*============================*/
@@ -560,12 +562,12 @@ innobase_query_caching_of_table_permitted(
 #endif
 	if (row_search_check_if_query_cache_permitted(trx, norm_name)) {
 
-		printf("Query cache for %s permitted\n", norm_name);
+		/* printf("Query cache for %s permitted\n", norm_name); */
 
 		return((my_bool)TRUE);
 	}
 
-	printf("Query cache for %s NOT permitted\n", norm_name);
+	/* printf("Query cache for %s NOT permitted\n", norm_name); */
 
 	return((my_bool)FALSE);
 }
@@ -914,6 +916,11 @@ innobase_commit_low(
 	trx_t*	trx)	/* in: transaction handle */
 {
 #ifdef HAVE_REPLICATION
+	if (trx->conc_state == TRX_NOT_STARTED) {
+
+	        return;
+	}
+
         /* TODO: Guilhem should check if master_log_name, pending
         etc. are right if the master log gets rotated! Possible bug here.
 	Comment by Heikki March 4, 2003. */
@@ -929,11 +936,13 @@ innobase_commit_low(
                                           ));
         }
 #endif /* HAVE_REPLICATION */
+
         trx_commit_for_mysql(trx);
 }
 
 /*********************************************************************
-Commits a transaction in an InnoDB database. */
+Commits a transaction in an InnoDB database or marks an SQL statement
+ended. */
 
 int
 innobase_commit(
@@ -951,29 +960,45 @@ innobase_commit(
   	DBUG_ENTER("innobase_commit");
   	DBUG_PRINT("trans", ("ending transaction"));
 
+	/* The flag thd->transaction.all.innodb_active_trans is set to 1
+	in ::external_lock and ::start_stmt, and it is only set to 0 in
+	a commit or a rollback. If it is 0 we know there cannot be resources
+	to be freed and we can return immediately. */
+
+	if (thd->transaction.all.innodb_active_trans == 0) {
+
+	        DBUG_RETURN(0);
+	}
+
 	trx = check_trx_exists(thd);
 
-        if (trx->auto_inc_lock) {
-		  	
-		/* If we had reserved the auto-inc lock for
-		some table in this SQL statement, we release it now */
-		  	
-		srv_conc_enter_innodb(trx);
-		row_unlock_table_autoinc_for_mysql(trx);
-		srv_conc_exit_innodb(trx);
-	}
-
-	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
+	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle
+	    || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
+	        
 		innobase_commit_low(trx);
-		thd->transaction.all.innodb_active_trans=0;
+
+		thd->transaction.all.innodb_active_trans = 0;
+	} else {
+		if (trx->auto_inc_lock) {
+			/* If we had reserved the auto-inc lock for some
+			table in this SQL statement we release it now */
+		  	
+			srv_conc_enter_innodb(trx);
+			row_unlock_table_autoinc_for_mysql(trx);
+			srv_conc_exit_innodb(trx);
+		}
+		/* Store the current undo_no of the transaction so that we
+		know where to roll back if we have to roll back the next
+		SQL statement */
+
+		trx_mark_sql_stat_end(trx);
 	}
 
-	/* Release possible statement level resources */
+	/* Release a possible FIFO ticket and search latch */
 	innobase_release_stat_resources(trx);
-	trx_mark_sql_stat_end(trx);
 
-	/* Tell InnoDB server that there might be work for
-	utility threads: */
+	/* Tell the InnoDB server that there might be work for utility
+	threads: */
 
 	srv_active_wake_master_thread();
 
@@ -1044,7 +1069,7 @@ innobase_commit_complete(
 }
 
 /*********************************************************************
-Rolls back a transaction in an InnoDB database. */
+Rolls back a transaction or the latest SQL statement in an InnoDB database. */
 
 int
 innobase_rollback(
@@ -1085,10 +1110,8 @@ innobase_rollback(
 
 	srv_conc_exit_innodb(trx);
 
-	/* Release possible statement level resources */
+	/* Release a possible FIFO ticket and search latch */
 	innobase_release_stat_resources(trx);
-
-	trx_mark_sql_stat_end(trx);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -3032,6 +3055,8 @@ create_index(
 	KEY*		key;
 	KEY_PART_INFO*	key_part;
 	ulint		ind_type;
+	ulint		col_type;
+	ulint		prefix_len;
   	ulint		i;
 
   	DBUG_ENTER("create_index");
@@ -3058,6 +3083,27 @@ create_index(
 						ind_type, n_fields);
 	for (i = 0; i < n_fields; i++) {
 		key_part = key->key_part + i;
+
+		if (key_part->length != key_part->field->pack_length()) {
+		        prefix_len = key_part->length;
+
+			col_type = get_innobase_type_from_mysql_type(
+							key_part->field);
+			if (col_type == DATA_INT
+			    || col_type == DATA_FLOAT
+			    || col_type == DATA_DOUBLE
+			    || col_type == DATA_DECIMAL) {
+			        fprintf(stderr,
+"InnoDB: error: MySQL is trying to create a column prefix index field\n"
+"InnoDB: on an inappropriate data type %lu. Table name %s, column name %s.\n",
+				  col_type, table_name, 
+				  key_part->field->field_name);
+			        
+			        prefix_len = 0;
+			}
+		} else {
+		        prefix_len = 0;
+		}	   
 
 		/* We assume all fields should be sorted in ascending
 		order, hence the '0': */
@@ -3600,8 +3646,7 @@ ha_innobase::records_in_range(
 
 /*************************************************************************
 Gives an UPPER BOUND to the number of rows in a table. This is used in
-filesort.cc and its better if the upper bound hold.
-*/
+filesort.cc. */
 
 ha_rows
 ha_innobase::estimate_number_of_rows(void)
@@ -3636,11 +3681,11 @@ ha_innobase::estimate_number_of_rows(void)
 
 	/* Calculate a minimum length for a clustered index record and from
 	that an upper bound for the number of rows. Since we only calculate
-	new statistics in row0mysql.c when a tablehas grown
-        by a threshold factor, we must add a safety factor 2 in front
-	of the formula below. */
+	new statistics in row0mysql.c when a table has grown by a threshold
+	factor, we must add a safety factor 2 in front of the formula below. */
 
-	estimate = 2 * local_data_file_length / dict_index_calc_min_rec_len(index);
+	estimate = 2 * local_data_file_length /
+					 dict_index_calc_min_rec_len(index);
 
 	prebuilt->trx->op_info = (char*)"";
 
@@ -3667,27 +3712,36 @@ ha_innobase::scan_time()
 	return((double) (prebuilt->table->stat_clustered_index_size));
 }
 
-/*
-  Calculate the time it takes to read a set of ranges through and index
-  This enables us to optimise reads for clustered indexes.
-*/
+/**********************************************************************
+Calculate the time it takes to read a set of ranges through an index
+This enables us to optimise reads for clustered indexes. */
 
-double ha_innobase::read_time(uint index, uint ranges, ha_rows rows)
+double
+ha_innobase::read_time(
+/*===================*/
+			/* out: estimated time measured in disk seeks */
+	uint    index,	/* in: key number */
+	uint	ranges,	/* in: how many ranges */
+	ha_rows rows)	/* in: estimated number of rows in the ranges */
 {
-  ha_rows total_rows;
-  double time_for_scan;
-  if (index != table->primary_key)
-    return handler::read_time(index, ranges, rows); // Not clustered
-  if (rows <= 2)
-    return (double) rows;
-  /*
-    Assume that the read is proportional to scan time for all rows + one
-    seek per range.
-  */
-  time_for_scan= scan_time();
-  if ((total_rows= estimate_number_of_rows()) < rows)
-    return time_for_scan;
-  return (ranges + (double) rows / (double) total_rows * time_for_scan);
+	ha_rows total_rows;
+	double  time_for_scan;
+  
+	if (index != table->primary_key)
+	  return handler::read_time(index, ranges, rows); // Not clustered
+
+	if (rows <= 2)
+	  return (double) rows;
+
+	/* Assume that the read time is proportional to the scan time for all
+	rows + at most one seek per range. */
+
+	time_for_scan= scan_time();
+
+	if ((total_rows= estimate_number_of_rows()) < rows)
+	  return time_for_scan;
+
+	return (ranges + (double) rows / (double) total_rows * time_for_scan);
 }
 
 /*************************************************************************
@@ -4040,10 +4094,10 @@ ha_innobase::reset(void)
 }
 
 /**********************************************************************
-Inside LOCK TABLES MySQL will not call external_lock() between SQL
-statements. It will call this function at the start of each SQL statement.
-Note also a spacial case: if a temporary table is created inside LOCK
-TABLES, MySQL has not called external_lock() at all on that table. */
+MySQL calls this function at the start of each SQL statement. Inside LOCK
+TABLES the ::external_lock method does not work to mark SQL statement
+borders. Note also a special case: if a temporary table is created inside
+LOCK TABLES, MySQL has not called external_lock() at all on that table. */
 
 int
 ha_innobase::start_stmt(
@@ -4058,8 +4112,14 @@ ha_innobase::start_stmt(
 
 	trx = prebuilt->trx;
 
+	/* Here we release the search latch and the InnoDB thread FIFO ticket
+	if they were reserved. They should have been released already at the
+	end of the previous statement, but because inside LOCK TABLES the
+	lock count method does not work to mark the end of a SELECT statement,
+	that may not be the case. We MUST release the search latch before an
+	INSERT, for example. */
+
 	innobase_release_stat_resources(trx);
-	trx_mark_sql_stat_end(trx);
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 	    						&& trx->read_view) {
@@ -4082,7 +4142,8 @@ ha_innobase::start_stmt(
 	  
 	        prebuilt->select_lock_type = LOCK_X;
 	}
-
+	
+	/* Set the MySQL flag to mark that there is an active transaction */
 	thd->transaction.all.innodb_active_trans = 1;
 
 	return(0);
@@ -4146,17 +4207,20 @@ ha_innobase::external_lock(
 	}
 
 	if (lock_type != F_UNLCK) {
-		if (trx->n_mysql_tables_in_use == 0) {
-			trx_mark_sql_stat_end(trx);
-		}
+		/* MySQL is setting a new table lock */
 
+		/* Set the MySQL flag to mark that there is an active
+		transaction */
 		thd->transaction.all.innodb_active_trans = 1;
+
 		trx->n_mysql_tables_in_use++;
 		prebuilt->mysql_has_locked = TRUE;
 
-		trx->isolation_level = innobase_map_isolation_level(
+		if (trx->n_mysql_tables_in_use == 1) {
+		        trx->isolation_level = innobase_map_isolation_level(
 						(enum_tx_isolation)
 						thd->variables.tx_isolation);
+		}
 
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
 		    && prebuilt->select_lock_type == LOCK_NONE) {
@@ -4172,37 +4236,44 @@ ha_innobase::external_lock(
 
 		  	trx->mysql_n_tables_locked++;
 		}
-	} else {
-		trx->n_mysql_tables_in_use--;
-		prebuilt->mysql_has_locked = FALSE;
-		auto_inc_counter_for_this_stat = 0;
 
-		if (trx->n_mysql_tables_in_use == 0) {
+		DBUG_RETURN(error);
+	}
 
-		  	trx->mysql_n_tables_locked = 0;
+	/* MySQL is releasing a table lock */
 
-			prebuilt->used_in_HANDLER = FALSE;
+	trx->n_mysql_tables_in_use--;
+	prebuilt->mysql_has_locked = FALSE;
+	auto_inc_counter_for_this_stat = 0;
 
-			/* Here we release the search latch and InnoDB
-			thread FIFO ticket if they were reserved. */
+	/* If the MySQL lock count drops to zero we know that the current SQL
+	statement has ended */
 
-			innobase_release_stat_resources(trx);
+	if (trx->n_mysql_tables_in_use == 0) {
 
+	        trx->mysql_n_tables_locked = 0;
+		prebuilt->used_in_HANDLER = FALSE;
+			
+		if (!(thd->options
+				 & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
+			if (thd->transaction.all.innodb_active_trans != 0) {
+		    	        innobase_commit(thd, trx);
+			}
+		} else {
 			if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 	    						&& trx->read_view) {
 
-	    			/* At low transaction isolation levels we let
+				/* At low transaction isolation levels we let
 				each consistent read set its own snapshot */
 
-	    			read_view_close_for_mysql(trx);
+				read_view_close_for_mysql(trx);
 			}
-			
-		  	if (!(thd->options
-				 & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
-
-		    		innobase_commit(thd, trx);
-		  	}
 		}
+		        
+		/* Here we release the search latch and the InnoDB thread FIFO
+		ticket if they were reserved. */
+
+		innobase_release_stat_resources(trx);
 	}
 
 	DBUG_RETURN(error);
@@ -4513,4 +4584,3 @@ ha_innobase::get_auto_increment()
 }
 
 #endif /* HAVE_INNOBASE_DB */
-

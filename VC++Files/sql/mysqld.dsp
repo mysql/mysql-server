@@ -178,7 +178,7 @@ LINK32=xilink6.exe
 # Name "mysqld - Win32 Max"
 # Begin Source File
 
-SOURCE=.\convert.cpp
+SOURCE=.\client.c
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
 
@@ -486,6 +486,10 @@ SOURCE=.\item_func.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\item_geofunc.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\item_row.cpp
 # End Source File
 # Begin Source File
@@ -656,10 +660,6 @@ SOURCE=.\mf_iocache.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\mini_client.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\myisammrg\myrg_rnext_same.c
 # End Source File
 # Begin Source File
@@ -739,6 +739,10 @@ SOURCE=.\opt_range.h
 # Begin Source File
 
 SOURCE=.\OPT_SUM.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\pack.c
 # End Source File
 # Begin Source File
 
@@ -1130,6 +1134,10 @@ SOURCE=.\sql_show.cpp
 
 !ENDIF
 
+# End Source File
+# Begin Source File
+
+SOURCE=.\sql_state.c
 # End Source File
 # Begin Source File
 

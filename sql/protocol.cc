@@ -52,7 +52,7 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 {
 #ifndef EMBEDDED_LIBRARY 
   uint length;
-  char buff[MYSQL_ERRMSG_SIZE+2];
+  char buff[MYSQL_ERRMSG_SIZE+2], *pos;
 #endif
   NET *net= &thd->net;
   DBUG_ENTER("send_error");
@@ -98,7 +98,14 @@ void send_error(THD *thd, uint sql_errno, const char *err)
   if (net->return_errno)
   {				// new client code; Add errno before message
     int2store(buff,sql_errno);
-    length= (uint) (strmake(buff+2,err,MYSQL_ERRMSG_SIZE-1) - buff);
+    pos= buff+2;
+    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
+    {
+      /* The first # is to make the protocol backward compatible */
+      buff[2]= '#';
+      pos= strmov(buff+3, mysql_errno_to_sqlstate(sql_errno));
+    }
+    length= (uint) (strmake(pos, err, MYSQL_ERRMSG_SIZE-1) - buff);
     err=buff;
   }
   else
@@ -112,26 +119,6 @@ void send_error(THD *thd, uint sql_errno, const char *err)
   thd->net.report_error= 0;
   DBUG_VOID_RETURN;
 }
-
-/*
-  Send an error to the client when a connection is forced close
-  This is used by mysqld.cc, which doesn't have a THD
-*/
-
-#ifndef EMBEDDED_LIBRARY
-void net_send_error(NET *net, uint sql_errno, const char *err)
-{
-  char buff[2];
-  uint length;
-  DBUG_ENTER("send_net_error");
-
-  int2store(buff,sql_errno);
-  length=(uint) strlen(err);
-  set_if_smaller(length,MYSQL_ERRMSG_SIZE-1);
-  net_write_command(net,(uchar) 255, buff, 2, err, length);
-  DBUG_VOID_RETURN;
-}
-#endif
 
 
 /*
@@ -173,7 +160,7 @@ net_printf(THD *thd, uint errcode, ...)
 #ifndef EMBEDDED_LIBRARY
   const char *text_pos;
 #else
-  char text_pos[500];
+  char text_pos[1024];
 #endif
   int head_length= NET_HEADER_SIZE;
   NET *net= &thd->net;
@@ -199,9 +186,11 @@ net_printf(THD *thd, uint errcode, ...)
     format=va_arg(args,char*);
     errcode= ER_UNKNOWN_ERROR;
   }
-  offset= net->return_errno ? 2 : 0;
+  offset= (net->return_errno ?
+	   ((thd->client_capabilities & CLIENT_PROTOCOL_41) ?
+	    2+SQLSTATE_LENGTH+1 : 2) : 0);
 #ifndef EMBEDDED_LIBRARY
-  text_pos=(char*) net->buff+head_length+offset+1;
+  text_pos=(char*) net->buff + head_length + offset + 1;
 #endif
   (void) vsprintf(my_const_cast(char*) (text_pos),format,args);
   length=(uint) strlen((char*) text_pos);
@@ -228,7 +217,15 @@ net_printf(THD *thd, uint errcode, ...)
   net->buff[3]= (net->compress) ? 0 : (uchar) (net->pkt_nr++);
   net->buff[head_length]=(uchar) 255;		// Error package
   if (offset)
-    int2store(text_pos-2, errcode);
+  {
+    uchar *pos= net->buff+head_length+1;
+    int2store(pos, errcode);
+    if (thd->client_capabilities & CLIENT_PROTOCOL_41)
+    {
+      pos[2]= '#';      /* To make the protocol backward compatible */
+      memcpy(pos+3, mysql_errno_to_sqlstate(errcode), SQLSTATE_LENGTH);
+    }
+  }
   VOID(net_real_write(net,(char*) net->buff,length+head_length+1+offset));
 #else
   net->last_errno= errcode;
@@ -238,28 +235,6 @@ net_printf(THD *thd, uint errcode, ...)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Function called by my_net_init() to set some check variables
-*/
-
-#ifndef EMBEDDED_LIBRARY
-extern "C" {
-void my_net_local_init(NET *net)
-{
-  net->max_packet=   (uint) global_system_variables.net_buffer_length;
-  net->read_timeout= (uint) global_system_variables.net_read_timeout;
-  net->write_timeout=(uint) global_system_variables.net_write_timeout;
-  net->retry_count=  (uint) global_system_variables.net_retry_count;
-  net->max_packet_size= max(global_system_variables.net_buffer_length,
-			    global_system_variables.max_allowed_packet);
-}
-}
-
-#else /* EMBEDDED_LIBRARY */
-void my_net_local_init(NET *net __attribute__(unused))
-{
-}
-#endif /* EMBEDDED_LIBRARY */
 
 /*
   Return ok to the client.
@@ -502,6 +477,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   String tmp((char*) buff,sizeof(buff),&my_charset_bin);
   Protocol_simple prot(thd);
   String *packet= prot.storage_packet();
+  CHARSET_INFO *thd_charset= thd->variables.character_set_results;
   DBUG_ENTER("send_fields");
 
   if (flag & 1)
@@ -526,36 +502,37 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
-      if (prot.store(field.db_name, (uint) strlen(field.db_name),
-		     cs, thd->charset()) ||
+      if (prot.store("std", 3, cs, thd_charset) ||
+	  prot.store(field.db_name, (uint) strlen(field.db_name),
+		     cs, thd_charset) ||
 	  prot.store(field.table_name, (uint) strlen(field.table_name),
-		     cs, thd->charset()) ||
+		     cs, thd_charset) ||
 	  prot.store(field.org_table_name, (uint) strlen(field.org_table_name),
-		     cs, thd->charset()) ||
+		     cs, thd_charset) ||
 	  prot.store(field.col_name, (uint) strlen(field.col_name),
-		     cs, thd->charset()) ||
+		     cs, thd_charset) ||
 	  prot.store(field.org_col_name, (uint) strlen(field.org_col_name),
-		     cs, thd->charset()) ||
+		     cs, thd_charset) ||
 	  packet->realloc(packet->length()+12))
 	goto err;
       /* Store fixed length fields */
       pos= (char*) packet->ptr()+packet->length();
-      *pos++= 11;				// Length of packed fields
+      *pos++= 12;				// Length of packed fields
       int2store(pos, field.charsetnr);
-      int3store(pos+2, field.length);
-      pos[5]= field.type;
-      int2store(pos+6,field.flags);
-      pos[8]= (char) field.decimals;
-      pos[9]= 0;				// For the future
+      int4store(pos+2, field.length);
+      pos[6]= field.type;
+      int2store(pos+7,field.flags);
+      pos[9]= (char) field.decimals;
       pos[10]= 0;				// For the future
-      pos+= 11;
+      pos[11]= 0;				// For the future
+      pos+= 12;
     }
     else
     {
       if (prot.store(field.table_name, (uint) strlen(field.table_name),
-		     cs, thd->charset()) ||
+		     cs, thd_charset) ||
 	  prot.store(field.col_name, (uint) strlen(field.col_name),
-		     cs, thd->charset()) ||
+		     cs, thd_charset) ||
 	  packet->realloc(packet->length()+10))
 	goto err;
       pos= (char*) packet->ptr()+packet->length();
@@ -893,9 +870,10 @@ bool Protocol_simple::store_time(TIME *tm)
 #endif
   char buff[40];
   uint length;
+  uint day= (tm->year || tm->month) ? 0 : tm->day;
   length= my_sprintf(buff,(buff, "%s%02ld:%02d:%02d",
 			   tm->neg ? "-" : "",
-			   (long) tm->day*3600L+(long) tm->hour,
+			   (long) day*24L+(long) tm->hour,
 			   (int) tm->minute,
 			   (int) tm->second));
   return net_store_data((char*) buff, length);
