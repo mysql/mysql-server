@@ -11071,7 +11071,6 @@ It's probably a good idea to install the above patches before trying to
 compile/use MySQL.
 
 @node OS/2, BeOS, Other Unix Notes, Operating System Specific Notes
-
 @subsection OS/2 Notes
 
 MySQL uses quite a few open files. Because of this, you should add
@@ -43693,6 +43692,7 @@ threaded client. @xref{Threaded clients}.
 * my_init::                     @code{my_init()}
 * mysql_thread_init::           @code{mysql_thread_init()}
 * mysql_thread_end::            @code{mysql_thread_end()}
+* mysql_thread_safe::           @code{mysql_thread_safe()}
 @end menu
 
 @node my_init, mysql_thread_init, C Thread functions, C Thread functions
@@ -43734,7 +43734,7 @@ This is automatically called by @code{my_init()} and @code{mysql_connect()}.
 
 None.
 
-@node mysql_thread_end,  , mysql_thread_init, C Thread functions
+@node mysql_thread_end, mysql_thread_safe, mysql_thread_init, C Thread functions
 @subsubsection @code{mysql_thread_end()}
 
 @findex @code{mysql_thread_end()}
@@ -43752,6 +43752,21 @@ library.  It must be called explicitly to avoid a memory leak.
 @subsubheading Return Values
 
 None.
+
+@node mysql_thread_safe,  , mysql_thread_end, C Thread functions
+@subsubsection @code{mysql_thread_safe()}
+
+@findex @code{mysql_thread_safe()}
+
+@code{unsigned int mysql_thread_safe(void)}
+
+@subsubheading Description
+
+This function indicates whether the client is compiled as thread safe.
+
+@subsubheading Return Values
+
+1 is the client is thread safe, 0 otherwise.
 
 @node C Embedded Server func, C API problems, C Thread functions, C
 @subsection C Embedded Server Function Descriptions
