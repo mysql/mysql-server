@@ -1322,6 +1322,8 @@ static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
          !rli->ignore_log_space_limit)
   {
     pthread_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
+    /* Re-acquire the mutex as pthread_cond_wait released it */
+    pthread_mutex_lock(&rli->log_space_lock);
   }
   thd->proc_info = save_proc_info;
   pthread_mutex_unlock(&rli->log_space_lock);
@@ -2028,7 +2030,11 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   Log_event * ev = next_event(rli);
   DBUG_ASSERT(rli->sql_thd==thd);
   if (sql_slave_killed(thd,rli))
+  {
+    /* do not forget to free ev ! */
+    if (ev) delete ev;
     return 1;
+  }
   if (ev)
   {
     int type_code = ev->get_type_code();
@@ -2302,6 +2308,18 @@ reconnect done to recover from failed read");
 	goto err;
       }
       flush_master_info(mi);
+      /*
+        See if the relay logs take too much space.
+        We don't lock mi->rli.log_space_lock here; this dirty read saves time
+        and does not introduce any problem:
+        - if mi->rli.ignore_log_space_limit is 1 but becomes 0 just after (so
+        the clean value is 0), then we are reading only one more event as we
+        should, and we'll block only at the next event. No big deal.
+        - if mi->rli.ignore_log_space_limit is 0 but becomes 1 just after (so
+        the clean value is 1), then we are going into wait_for_relay_log_space()
+        for no reason, but this function will do a clean read, notice the clean
+        value and exit immediately.
+      */
       if (mi->rli.log_space_limit && mi->rli.log_space_limit <
 	  mi->rli.log_space_total &&
           !mi->rli.ignore_log_space_limit)
@@ -2416,7 +2434,9 @@ slave_begin:
   rli->pending = 0;
 
   //tell the I/O thread to take relay_log_space_limit into account from now on
+  pthread_mutex_lock(&rli->log_space_lock);
   rli->ignore_log_space_limit= 0;
+  pthread_mutex_unlock(&rli->log_space_lock);
 
   if (init_relay_log_pos(rli,
 			 rli->relay_log_name,
@@ -3122,9 +3142,14 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
         pthread_mutex_lock(&rli->log_space_lock);
         // prevent the I/O thread from blocking next times
         rli->ignore_log_space_limit= 1; 
-        // If the I/O thread is blocked, unblock it
-        pthread_cond_broadcast(&rli->log_space_cond);
+        /*
+          If the I/O thread is blocked, unblock it.
+          Ok to broadcast after unlock, because the mutex is only destroyed in
+          ~st_relay_log_info(), i.e. when rli is destroyed, and rli will not be
+          destroyed before we exit the present function.
+        */
         pthread_mutex_unlock(&rli->log_space_lock);
+        pthread_cond_broadcast(&rli->log_space_cond);
         // Note that wait_for_update unlocks lock_log !
         rli->relay_log.wait_for_update(rli->sql_thd);
         // re-acquire data lock since we released it earlier
