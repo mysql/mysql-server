@@ -111,7 +111,7 @@ inline
 void 
 TcKeyConf::setNoOfOperations(Uint32 & confInfo, Uint32 noOfOps){
   ASSERT_MAX(noOfOps, 65535, "TcKeyConf::setNoOfOperations");
-  confInfo = (confInfo & 0xFFFF) | noOfOps;
+  confInfo = (confInfo & 0xFFFF0000) | noOfOps;
 }
 
 inline
