@@ -55,12 +55,9 @@ void _mi_ft_segiterator_dummy_init(const byte *record, uint len,
 
 uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
 {
-  if(!ftsi->num)
-    return 0;
-  if (!ftsi->seg)
-    return 1;
+  if (!ftsi->num) return 0; else ftsi->num--;
+  if (!ftsi->seg) return 1; else ftsi->seg--;
 
-  ftsi->seg--;  ftsi->num--;
   if (ftsi->seg->null_bit &&
       (ftsi->rec[ftsi->seg->null_pos] & ftsi->seg->null_bit))
   {
