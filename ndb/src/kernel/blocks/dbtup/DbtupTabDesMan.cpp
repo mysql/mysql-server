@@ -31,12 +31,33 @@
 /* memory attached to fragments (could be allocated per table       */
 /* instead. Performs its task by a buddy algorithm.                 */
 /* **************************************************************** */
-Uint32 Dbtup::allocTabDescr(Uint32 noOfAttributes, Uint32 noOfKeyAttr, Uint32 noOfAttributeGroups) 
+
+Uint32
+Dbtup::getTabDescrOffsets(const Tablerec* regTabPtr, Uint32* offset)
+{
+  // belongs to configure.in
+  unsigned sizeOfPointer = sizeof(CHARSET_INFO*);
+  ndbrequire((sizeOfPointer & 0x3) == 0);
+  sizeOfPointer = (sizeOfPointer >> 2);
+  // do in layout order and return offsets (see DbtupMeta.cpp)
+  Uint32 allocSize = 0;
+  // magically aligned to 8 bytes
+  offset[0] = allocSize += ZTD_SIZE;
+  offset[1] = allocSize += regTabPtr->noOfAttr * sizeOfReadFunction();
+  offset[2] = allocSize += regTabPtr->noOfAttr * sizeOfReadFunction();
+  offset[3] = allocSize += regTabPtr->noOfCharsets * sizeOfPointer;
+  offset[4] = allocSize += regTabPtr->noOfKeyAttr;
+  offset[5] = allocSize += regTabPtr->noOfAttributeGroups;
+  allocSize += regTabPtr->noOfAttr * ZAD_SIZE;
+  allocSize += ZTD_TRAILER_SIZE;
+  // return number of words
+  return allocSize;
+}
+
+Uint32 Dbtup::allocTabDescr(const Tablerec* regTabPtr, Uint32* offset)
 {
   Uint32 reference = RNIL;
-  Uint32 allocSize = (ZTD_SIZE + ZTD_TRAILER_SIZE) + (noOfAttributes * ZAD_SIZE);
-  allocSize += noOfAttributeGroups;
-  allocSize += ((2 * noOfAttributes * sizeOfReadFunction()) + noOfKeyAttr);
+  Uint32 allocSize = getTabDescrOffsets(regTabPtr, offset);
 /* ---------------------------------------------------------------- */
 /*       ALWAYS ALLOCATE A MULTIPLE OF 16 BYTES                     */
 /* ---------------------------------------------------------------- */

@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <my_sys.h>
 
 #define DBDICT_C
 #include "Dbdict.hpp"
@@ -2866,8 +2867,6 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
   if(parseRecord.errorCode != 0){
     jam();
     c_opCreateTable.release(alterTabPtr);
-    parseRecord.tablePtr.p->tabState = TableRecord::NOT_DEFINED;
-    releaseTableObject(parseRecord.tablePtr.i, false);
     alterTableRef(signal, req, 
 		  (AlterTableRef::ErrorCode) parseRecord.errorCode, 
 		  aParseRecord);
@@ -3052,8 +3051,6 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
       if(parseRecord.errorCode != 0){
 	jam();
 	c_opCreateTable.release(alterTabPtr);
-	parseRecord.tablePtr.p->tabState = TableRecord::NOT_DEFINED;
-	releaseTableObject(parseRecord.tablePtr.i, false);
 	alterTabRef(signal, req, 
 		    (AlterTableRef::ErrorCode) parseRecord.errorCode, 
 		    aParseRecord);
@@ -3438,7 +3435,6 @@ Dbdict::execALTER_TAB_CONF(Signal * signal){
       // Release resources
       TableRecordPtr tabPtr;
       c_tableRecordPool.getPtr(tabPtr, regAlterTabPtr->m_tablePtrI);  
-      tabPtr.p->tabState = TableRecord::NOT_DEFINED;
       releaseTableObject(tabPtr.i, false);
       c_opCreateTable.release(alterTabPtr);
       c_blockState = BS_IDLE;
@@ -3479,12 +3475,19 @@ int Dbdict::handleAlterTab(AlterTabReq * req,
     jam();
     // Table rename
     // Remove from hashtable
+#ifdef VM_TRACE
+    TableRecordPtr tmp;
+    ndbrequire(c_tableRecordHash.find(tmp, *origTablePtr.p));
+#endif
     c_tableRecordHash.remove(origTablePtr);
     strcpy(regAlterTabPtr->previousTableName, origTablePtr.p->tableName);
     strcpy(origTablePtr.p->tableName, newTablePtr.p->tableName);
     // Set new schema version
     origTablePtr.p->tableVersion = newTablePtr.p->tableVersion;
     // Put it back
+#ifdef VM_TRACE
+    ndbrequire(!c_tableRecordHash.find(tmp, *origTablePtr.p));
+#endif
     c_tableRecordHash.add(origTablePtr);	 
     
     return 0;
@@ -3505,12 +3508,19 @@ void Dbdict::revertAlterTable(Signal * signal,
     TableRecordPtr tablePtr;
     c_tableRecordPool.getPtr(tablePtr, tableId);
     // Remove from hashtable
+#ifdef VM_TRACE
+    TableRecordPtr tmp;
+    ndbrequire(c_tableRecordHash.find(tmp, * tablePtr.p));
+#endif
     c_tableRecordHash.remove(tablePtr);
     // Restore name
     strcpy(tablePtr.p->tableName, regAlterTabPtr->previousTableName);
     // Revert schema version
     tablePtr.p->tableVersion = tablePtr.p->tableVersion - 1;
     // Put it back
+#ifdef VM_TRACE
+    ndbrequire(!c_tableRecordHash.find(tmp, * tablePtr.p));
+#endif
     c_tableRecordHash.add(tablePtr);	 
 
     return;
@@ -3572,7 +3582,6 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
     jam();
     // Release resources
     c_tableRecordPool.getPtr(tabPtr, regAlterTabPtr->m_tablePtrI);  
-    tabPtr.p->tabState = TableRecord::NOT_DEFINED;
     releaseTableObject(tabPtr.i, false);
     c_opCreateTable.release(alterTabPtr);
     c_blockState = BS_IDLE;
@@ -4100,6 +4109,8 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
 
     req->noOfKeyAttr = tabPtr.p->noOfPrimkey;
     req->noOfNewAttr = 0;
+    // noOfCharsets passed to TUP in upper half
+    req->noOfNewAttr |= (tabPtr.p->noOfCharsets << 16);
     req->checksumIndicator = 1;
     req->noOfAttributeGroups = 1;
     req->GCPIndicator = 0;
@@ -4161,6 +4172,8 @@ Dbdict::sendLQHADDATTRREQ(Signal* signal,
     entry.attrId = attrPtr.p->attributeId;
     entry.attrDescriptor = attrPtr.p->attributeDescriptor;
     entry.extTypeInfo = attrPtr.p->extType;
+    // charset number passed to TUP, TUX in upper half
+    entry.extTypeInfo |= (attrPtr.p->extPrecision & ~0xFFFF);
     if (tabPtr.p->isIndex()) {
       Uint32 primaryAttrId;
       if (attrPtr.p->nextAttrInTable != RNIL) {
@@ -4456,7 +4469,6 @@ Dbdict::createTab_dropComplete(Signal* signal,
 
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_tablePtrI);
-  tabPtr.p->tabState = TableRecord::NOT_DEFINED;
   
   releaseTableObject(tabPtr.i);
   PageRecordPtr pagePtr;
@@ -4540,6 +4552,15 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     parseP->errorLine = __LINE__;
     return;
   }
+
+  if(parseP->requestType == DictTabInfo::AlterTableFromAPI)
+  {  
+    ndbrequire(!checkExist);
+  }
+  if(!checkExist)
+  {
+    ndbrequire(parseP->requestType == DictTabInfo::AlterTableFromAPI);
+  }
   
   /* ---------------------------------------------------------------- */
   // Verify that table name is an allowed table name.
@@ -4554,14 +4575,15 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   
   TableRecordPtr tablePtr;
   c_tableRecordHash.find(tablePtr, keyRecord);
-
-  if (checkExist)
+  
+  if (checkExist){
     jam();
     /* ---------------------------------------------------------------- */
     // Check if table already existed.
     /* ---------------------------------------------------------------- */
     tabRequire(tablePtr.i == RNIL, CreateTableRef::TableAlreadyExist);
-  
+  }
+
   switch (parseP->requestType) {
   case DictTabInfo::CreateTableFromAPI: {
     jam();
@@ -4634,12 +4656,13 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   strcpy(tablePtr.p->tableName, keyRecord.tableName);  
   if (parseP->requestType != DictTabInfo::AlterTableFromAPI) {
     jam();
+#ifdef VM_TRACE
+    ndbout_c("Dbdict: name=%s,id=%u", tablePtr.p->tableName, tablePtr.i);
+    TableRecordPtr tmp;
+    ndbrequire(!c_tableRecordHash.find(tmp, * tablePtr.p));
+#endif
     c_tableRecordHash.add(tablePtr);
   }
-
-#ifdef VM_TRACE
-  ndbout_c("Dbdict: name=%s,id=%u", tablePtr.p->tableName, tablePtr.i);
-#endif
   
   //tablePtr.p->noOfPrimkey = tableDesc.NoOfKeyAttr;
   //tablePtr.p->noOfNullAttr = tableDesc.NoOfNullable;
@@ -4678,11 +4701,12 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   
   handleTabInfo(it, parseP);
 
-  if(parseP->errorCode != 0){
+  if(parseP->errorCode != 0)
+  {
     /**
      * Release table
      */
-    releaseTableObject(tablePtr.i);
+    releaseTableObject(tablePtr.i, checkExist);
   }
 }//handleTabInfoInit()
 
@@ -4697,6 +4721,8 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
   Uint32 keyLength = 0;
   Uint32 attrCount = tablePtr.p->noOfAttributes;
   Uint32 nullCount = 0;
+  Uint32 noOfCharsets = 0;
+  Uint16 charsets[128];
   Uint32 recordLength = 0;
   AttributeRecordPtr attrPtr;
   c_attributeRecordHash.removeAll();
@@ -4751,6 +4777,31 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     attrPtr.p->extPrecision = attrDesc.AttributeExtPrecision;
     attrPtr.p->extScale = attrDesc.AttributeExtScale;
     attrPtr.p->extLength = attrDesc.AttributeExtLength;
+    // charset in upper half of precision
+    unsigned csNumber = (attrPtr.p->extPrecision >> 16);
+    if (csNumber != 0) {
+      CHARSET_INFO* cs = get_charset(csNumber, MYF(0));
+      if (cs == NULL) {
+        parseP->errorCode = CreateTableRef::InvalidCharset;
+        parseP->errorLine = __LINE__;
+        return;
+      }
+      unsigned i = 0;
+      while (i < noOfCharsets) {
+        if (charsets[i] == csNumber)
+          break;
+        i++;
+      }
+      if (i == noOfCharsets) {
+        noOfCharsets++;
+        if (noOfCharsets > sizeof(charsets)/sizeof(charsets[0])) {
+          parseP->errorCode = CreateTableRef::InvalidFormat;
+          parseP->errorLine = __LINE__;
+          return;
+        }
+        charsets[i] = csNumber;
+      }
+    }
 
     /**
      * Ignore incoming old-style type and recompute it.
@@ -4814,6 +4865,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
   
   tablePtr.p->noOfPrimkey = keyCount;
   tablePtr.p->noOfNullAttr = nullCount;
+  tablePtr.p->noOfCharsets = noOfCharsets;
   tablePtr.p->tupKeyLength = keyLength;
 
   tabRequire(recordLength<= MAX_TUPLE_SIZE_IN_WORDS, 
@@ -5465,7 +5517,14 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
   AttributeRecordPtr attrPtr;
   c_tableRecordPool.getPtr(tablePtr, tableId);
   if (removeFromHash)
+  {
+#ifdef VM_TRACE
+    TableRecordPtr tmp;
+    ndbrequire(c_tableRecordHash.find(tmp, * tablePtr.p));
+#endif
     c_tableRecordHash.remove(tablePtr);
+  }
+  tablePtr.p->tabState = TableRecord::NOT_DEFINED;
 
   Uint32 nextAttrRecord = tablePtr.p->firstAttribute;
   while (nextAttrRecord != RNIL) {
@@ -6317,6 +6376,8 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
       w.add(DictTabInfo::AttributeStoredInd, (Uint32)DictTabInfo::Stored);
       // ext type overrides
       w.add(DictTabInfo::AttributeExtType, aRec->extType);
+      w.add(DictTabInfo::AttributeExtPrecision, aRec->extPrecision);
+      w.add(DictTabInfo::AttributeExtScale, aRec->extScale);
       w.add(DictTabInfo::AttributeExtLength, aRec->extLength);
       w.add(DictTabInfo::AttributeEnd, (Uint32)true);
     }
@@ -6510,6 +6571,8 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
   jamEntry();
   DropIndxReq* const req = (DropIndxReq*)signal->getDataPtrSend();
   OpDropIndexPtr opPtr;
+
+  int err = DropIndxRef::BadRequestType;
   const Uint32 senderRef = signal->senderBlockRef();
   const DropIndxReq::RequestType requestType = req->getRequestType();
   if (requestType == DropIndxReq::RT_USER) {
@@ -6524,6 +6587,34 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
         return;
       }
       // forward initial request plus operation key to all
+      Uint32 indexId= req->getIndexId();
+      Uint32 indexVersion= req->getIndexVersion();
+      TableRecordPtr tmp;
+      int res = getMetaTablePtr(tmp, indexId,  indexVersion);
+      switch(res){
+      case MetaData::InvalidArgument:
+	err = DropIndxRef::IndexNotFound;
+	goto error;
+      case MetaData::TableNotFound:
+      case MetaData::InvalidTableVersion:
+	err = DropIndxRef::InvalidIndexVersion;
+	goto error;
+      }
+
+      if (! tmp.p->isIndex()) {
+	jam();
+	err = DropIndxRef::NotAnIndex;
+	goto error;
+      }
+
+      if (tmp.p->indexState == TableRecord::IS_DROPPING){
+	jam();
+	err = DropIndxRef::IndexNotFound;
+	goto error;
+      }
+
+      tmp.p->indexState = TableRecord::IS_DROPPING;
+
       req->setOpKey(++c_opRecordSequence);
       NodeReceiverGroup rg(DBDICT, c_aliveNodes);
       sendSignal(rg, GSN_DROP_INDX_REQ,
@@ -6573,12 +6664,13 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
       return;
     }
   }
+error:
   jam();
   // return to sender
   OpDropIndex opBad;
   opPtr.p = &opBad;
   opPtr.p->save(req);
-  opPtr.p->m_errorCode = DropIndxRef::BadRequestType;
+  opPtr.p->m_errorCode = (DropIndxRef::ErrorCode)err;
   opPtr.p->m_errorLine = __LINE__;
   dropIndex_sendReply(signal, opPtr, true);
 }
