@@ -74,8 +74,8 @@ Parses an SQL string returning the query graph. */
 que_t*
 pars_sql(
 /*=====*/
-			/* out, own: the query graph */
-	char*	str);	/* in: SQL string */
+				/* out, own: the query graph */
+	const char*	str);	/* in: SQL string */
 /*****************************************************************
 Retrieves characters to the lexical analyzer. */
 

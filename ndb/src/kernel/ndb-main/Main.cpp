@@ -228,16 +228,25 @@ systemInfo(const Configuration & config, const LogLevel & logLevel){
 void 
 catchsigs(bool ignore){
 #if ! defined NDB_SOFTOSE && !defined NDB_OSE 
+
+#if defined SIGRTMIN
+  #define MAX_SIG_CATCH SIGRTMIN
+#elif defined NSIG
+  #define MAX_SIG_CATCH NSIG
+#else
+  #error "neither SIGRTMIN or NSIG is defined on this platform, please report bug at bugs.mysql.com"
+#endif
+
   // Makes the main process catch process signals, eg installs a 
   // handler named "handler". "handler" will then be called is instead 
   // of the defualt process signal handler)
   if(ignore){
-    for(int i = 1; i<100; i++){
+    for(int i = 1; i < MAX_SIG_CATCH; i++){
       if(i != SIGCHLD)
 	signal(i, SIG_IGN);
-    } 
+    }
   } else {
-    for(int i = 1; i<100; i++){
+    for(int i = 1; i < MAX_SIG_CATCH; i++){
       signal(i, handler);
     }
   }

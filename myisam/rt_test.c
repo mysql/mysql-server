@@ -39,7 +39,7 @@ int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
 }
 
 
-int run_test(const char *filename)
+static int run_test(const char *filename)
 {
   MI_INFO        *file;
   MI_UNIQUEDEF   uniquedef;

@@ -19,6 +19,7 @@ CFG=myisamlog - Win32 Debug
 !MESSAGE
 !MESSAGE "myisamlog - Win32 Release" (based on "Win32 (x86) Console Application")
 !MESSAGE "myisamlog - Win32 Debug" (based on "Win32 (x86) Console Application")
+!MESSAGE "myisamlog - Win32 classic" (based on "Win32 (x86) Console Application")
 !MESSAGE
 
 # Begin Project
@@ -80,12 +81,40 @@ LINK32=xilink6.exe
 # ADD LINK32 kernel32.lib user32.lib wsock32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib setargv.obj /nologo /subsystem:console /incremental:no /pdb:"debug/myisamchk.pdb" /debug /machine:I386 /out:"../client_debug/myisamlog.exe" /pdbtype:sept
 # SUBTRACT LINK32 /pdb:none
 
+!ELSEIF  "$(CFG)" == "myisamlog - Win32 classic"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "myisamlog___Win32_classic"
+# PROP BASE Intermediate_Dir "myisamlog___Win32_classic"
+# PROP BASE Ignore_Export_Lib 0
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "classic"
+# PROP Intermediate_Dir "classic"
+# PROP Ignore_Export_Lib 0
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../myisam" /D "DBUG_OFF" /D "_CONSOLE" /D "_MBCS" /D "_WINDOWS" /D "NDEBUG" /FR /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../myisam" /D "_CONSOLE" /D "_WINDOWS" /D LICENSE=Commercial /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FR /FD /c
+# ADD BASE RSC /l 0x409 /d "NDEBUG"
+# ADD RSC /l 0x409 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LINK32=xilink6.exe
+# ADD BASE LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib setargv.obj /nologo /subsystem:console /pdb:"release/myisamchk.pdb" /machine:I386 /out:"../client_release/myisamlog.exe"
+# SUBTRACT BASE LINK32 /pdb:none
+# ADD LINK32 wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib setargv.obj ..\lib_release\myisam.lib ..\lib_release\mysys.lib ..\lib_release\strings.lib ..\lib_release\zlib.lib /nologo /subsystem:console /pdb:"release/myisamchk.pdb" /machine:I386 /out:"../client_classic/myisamlog.exe" /libpath:"..\lib_release\\"
+# SUBTRACT LINK32 /pdb:none
+
 !ENDIF
 
 # Begin Target
 
 # Name "myisamlog - Win32 Release"
 # Name "myisamlog - Win32 Debug"
+# Name "myisamlog - Win32 classic"
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"

@@ -166,7 +166,7 @@ dict_table_rename_in_cache(
 /*=======================*/
 					/* out: TRUE if success */
 	dict_table_t*	table,		/* in: table */
-	char*		new_name,	/* in: new name */
+	const char*	new_name,	/* in: new name */
 	ibool		rename_also_foreigns);/* in: in ALTER TABLE we want
 					to preserve the original table name
 					in constraints which reference it */
@@ -210,16 +210,19 @@ fields than mentioned in the constraint. */
 ulint
 dict_create_foreign_constraints(
 /*============================*/
-				/* out: error code or DB_SUCCESS */
-	trx_t*	trx,		/* in: transaction */
-	char*	sql_string,	/* in: table create statement where
-				foreign keys are declared like:
-				FOREIGN KEY (a, b) REFERENCES table2(c, d),
-				table2 can be written also with the database
-				name before it: test.table2; the default
-				database id the database of parameter name */
-	char*	name);		/* in: table full name in the normalized form
-				database_name/table_name */
+					/* out: error code or DB_SUCCESS */
+	trx_t*		trx,		/* in: transaction */
+	const char*	sql_string,	/* in: table create statement where
+					foreign keys are declared like:
+					FOREIGN KEY (a, b) REFERENCES
+					table2(c, d), table2 can be written
+					also with the database
+					name before it: test.table2; the
+					default database id the database of
+					parameter name */
+	const char*	name);		/* in: table full name in the
+					normalized form
+					database_name/table_name */
 /**************************************************************************
 Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement. */
 
@@ -246,9 +249,10 @@ directory dict_table_get_low is usually the appropriate function. */
 dict_table_t*
 dict_table_get(
 /*===========*/
-				/* out: table, NULL if does not exist */
-	char*	table_name,	/* in: table name */
-	trx_t*	trx);		/* in: transaction handle */
+					/* out: table, NULL if
+					does not exist */
+	const char*	table_name,	/* in: table name */
+	trx_t*		trx);		/* in: transaction handle */
 /**************************************************************************
 Returns a table object and increments MySQL open handle count on the table.
 */
@@ -256,9 +260,10 @@ Returns a table object and increments MySQL open handle count on the table.
 dict_table_t*
 dict_table_get_and_increment_handle_count(
 /*======================================*/
-				/* out: table, NULL if does not exist */
-	char*	table_name,	/* in: table name */
-	trx_t*	trx);		/* in: transaction handle or NULL */
+					/* out: table, NULL if
+					does not exist */
+	const char*	table_name,	/* in: table name */
+	trx_t*		trx);		/* in: transaction handle or NULL */
 /**************************************************************************
 Returns a table object, based on table id, and memoryfixes it. */
 
@@ -290,8 +295,8 @@ UNIV_INLINE
 dict_table_t*
 dict_table_check_if_in_cache_low(
 /*==============================*/
-				/* out: table, NULL if not found */
-	char*	table_name);	/* in: table name */
+					/* out: table, NULL if not found */
+	const char*	table_name);	/* in: table name */
 /**************************************************************************
 Gets a table; loads it to the dictionary cache if necessary. A low-level
 function. */
@@ -299,8 +304,8 @@ UNIV_INLINE
 dict_table_t*
 dict_table_get_low(
 /*===============*/
-				/* out: table, NULL if not found */
-	char*	table_name);	/* in: table name */
+					/* out: table, NULL if not found */
+	const char*	table_name);	/* in: table name */
 /**************************************************************************
 Returns an index object. */
 UNIV_INLINE
@@ -309,7 +314,7 @@ dict_table_get_index(
 /*=================*/
 				/* out: index, NULL if does not exist */
 	dict_table_t*	table,	/* in: table */
-	char*		name);	/* in: index name */
+	const char*	name);	/* in: index name */
 /**************************************************************************
 Returns an index object. */
 
@@ -318,7 +323,7 @@ dict_table_get_index_noninline(
 /*===========================*/
 				/* out: index, NULL if does not exist */
 	dict_table_t*	table,	/* in: table */
-	char*		name);	/* in: index name */
+	const char*	name);	/* in: index name */
 /**************************************************************************
 Prints a table data. */
 
@@ -340,7 +345,7 @@ Prints a table data when we know the table name. */
 void
 dict_table_print_by_name(
 /*=====================*/
-	char*	name);
+	const char*	name);
 #endif /* UNIV_DEBUG */
 /**************************************************************************
 Outputs info on foreign keys of a table. */
