@@ -764,12 +764,12 @@ verb_clause:
 	| checksum
 	| commit
 	| create
-        | deallocate 
+        | deallocate
 	| delete
 	| describe
 	| do
 	| drop
-        | execute 
+        | execute
 	| flush
 	| grant
 	| handler
@@ -781,7 +781,7 @@ verb_clause:
 	| optimize
         | keycache
 	| preload
-        | prepare 
+        | prepare
 	| purge
 	| rename
 	| repair
@@ -803,7 +803,7 @@ verb_clause:
         ;
 
 deallocate:
-        DEALLOCATE_SYM PREPARE_SYM ident 
+        DEALLOCATE_SYM PREPARE_SYM ident
         {
           THD *thd=YYTHD;
           LEX *lex= thd->lex;
@@ -845,7 +845,7 @@ prepare_src:
           lex->prepared_stmt_code= $2;
           lex->prepared_stmt_code_is_varref= true;
         };
-        
+
 execute:
         EXECUTE_SYM ident
         {

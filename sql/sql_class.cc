@@ -233,7 +233,7 @@ THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
 			  16);
   else
     bzero((char*) &user_var_events, sizeof(user_var_events));
-  
+
   /* Protocol */
   protocol= &protocol_simple;			// Default protocol
   protocol_simple.init(this);
