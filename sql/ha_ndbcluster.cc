@@ -12,7 +12,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 /*
@@ -44,6 +44,25 @@ static const int parallelism= 0;
 static const int max_transactions= 256;
 
 static const char *ha_ndb_ext=".ndb";
+
+static int ndbcluster_close_connection(THD *thd);
+static int ndbcluster_commit(THD *thd, bool all);
+static int ndbcluster_rollback(THD *thd, bool all);
+
+static handlerton ndbcluster_hton = {
+  0, /* slot */
+  0, /* savepoint size */
+  ndbcluster_close_connection,
+  NULL, /* savepoint_set */
+  NULL, /* savepoint_rollback */
+  NULL, /* savepoint_release */
+  ndbcluster_commit,
+  ndbcluster_rollback,
+  NULL, /* prepare */
+  NULL, /* recover */
+  NULL, /* commit_by_xid */
+  NULL  /* rollback_by_xid */
+};
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
 
@@ -258,6 +277,8 @@ Thd_ndb::Thd_ndb()
   ndb= new Ndb(g_ndb_cluster_connection, "");
   lock_count= 0;
   count= 0;
+  all= NULL;
+  stmt= NULL;
   error= 0;
 }
 
@@ -269,9 +290,17 @@ Thd_ndb::~Thd_ndb()
 }
 
 inline
+Thd_ndb *
+get_thd_ndb(THD *thd) { return (Thd_ndb *) thd->ha_data[ndbcluster_hton.slot]; }
+
+inline
+void
+set_thd_ndb(THD *thd, Thd_ndb *thd_ndb) { thd->ha_data[ndbcluster_hton.slot]= thd_ndb; }
+
+inline
 Ndb *ha_ndbcluster::get_ndb()
 {
-  return ((Thd_ndb*)current_thd->transaction.thd_ndb)->ndb;
+  return get_thd_ndb(current_thd)->ndb;
 }
 
 /*
@@ -315,7 +344,7 @@ void ha_ndbcluster::records_update()
   }
   {
     THD *thd= current_thd;
-    if (((Thd_ndb*)(thd->transaction.thd_ndb))->error)
+    if (get_thd_ndb(thd)->error)
       info->no_uncommitted_rows_count= 0;
   }
   records= info->records+ info->no_uncommitted_rows_count;
@@ -327,8 +356,7 @@ void ha_ndbcluster::no_uncommitted_rows_execute_failure()
   if (m_ha_not_exact_count)
     return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_execute_failure");
-  THD *thd= current_thd;
-  ((Thd_ndb*)(thd->transaction.thd_ndb))->error= 1;
+  get_thd_ndb(current_thd)->error= 1;
   DBUG_VOID_RETURN;
 }
 
@@ -338,7 +366,7 @@ void ha_ndbcluster::no_uncommitted_rows_init(THD *thd)
     return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_init");
   struct Ndb_table_local_info *info= (struct Ndb_table_local_info *)m_table_info;
-  Thd_ndb *thd_ndb= (Thd_ndb *)thd->transaction.thd_ndb;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (info->last_count != thd_ndb->count)
   {
     info->last_count= thd_ndb->count;
@@ -370,14 +398,15 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
   if (m_ha_not_exact_count)
     return;
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_reset");
-  ((Thd_ndb*)(thd->transaction.thd_ndb))->count++;
-  ((Thd_ndb*)(thd->transaction.thd_ndb))->error= 0;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  thd_ndb->count++;
+  thd_ndb->error= 0;
   DBUG_VOID_RETURN;
 }
 
 /*
   Take care of the error that occured in NDB
-  
+
   RETURN
     0	No error
     #   The mapped error code
@@ -766,7 +795,7 @@ bool ha_ndbcluster::uses_blob_value(bool all_fields)
   {
     uint no_fields= table->s->fields;
     int i;
-    THD *thd= table->in_use;
+    THD *thd= current_thd;
     // They always put blobs at the end..
     for (i= no_fields - 1; i >= 0; i--)
     {
@@ -3134,9 +3163,9 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd,
   As MySQL will execute an external lock for every new table it uses
   we can use this to start the transactions.
   If we are in auto_commit mode we just need to start a transaction
-  for the statement, this will be stored in transaction.stmt.
+  for the statement, this will be stored in thd_ndb.stmt.
   If not, we have to start a master transaction if there doesn't exist
-  one from before, this will be stored in transaction.all
+  one from before, this will be stored in thd_ndb.all
  
   When a table lock is held one transaction will be started which holds
   the table lock and for each statement a hupp transaction will be started  
@@ -3155,7 +3184,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   if (check_ndb_connection())
     DBUG_RETURN(1);
  
-  Thd_ndb *thd_ndb= (Thd_ndb*)thd->transaction.thd_ndb;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
 
   DBUG_PRINT("enter", ("transaction.thd_ndb->lock_count: %d", 
@@ -3171,18 +3200,19 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK))) 
       {
         // Autocommit transaction
-        DBUG_ASSERT(!thd->transaction.stmt.ndb_tid);
+        DBUG_ASSERT(!thd_ndb->stmt);
         DBUG_PRINT("trans",("Starting transaction stmt"));      
 
         trans= ndb->startTransaction();
         if (trans == NULL)
           ERR_RETURN(ndb->getNdbError());
 	no_uncommitted_rows_reset(thd);
-        thd->transaction.stmt.ndb_tid= trans;
+        thd_ndb->stmt= trans;
+        trans_register_ha(thd, FALSE, &ndbcluster_hton);
       } 
       else 
       { 
-        if (!thd->transaction.all.ndb_tid)
+        if (!thd_ndb->all)
 	{
           // Not autocommit transaction
           // A "master" transaction ha not been started yet
@@ -3192,6 +3222,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           if (trans == NULL)
             ERR_RETURN(ndb->getNdbError());
 	  no_uncommitted_rows_reset(thd);
+          thd_ndb->all= trans; 
+          trans_register_ha(thd, TRUE, &ndbcluster_hton);
 
           /*
             If this is the start of a LOCK TABLE, a table look 
@@ -3205,7 +3237,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
             DBUG_PRINT("info", ("Locking the table..." ));
           }
 
-          thd->transaction.all.ndb_tid= trans; 
         }
       }
     }
@@ -3230,9 +3261,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     else
       m_transaction_on= thd->variables.ndb_use_transactions;
 
-    m_active_trans= thd->transaction.all.ndb_tid ? 
-      (NdbTransaction*)thd->transaction.all.ndb_tid:
-      (NdbTransaction*)thd->transaction.stmt.ndb_tid;
+    m_active_trans= thd_ndb->all ? thd_ndb->all : thd_ndb->stmt;
     DBUG_ASSERT(m_active_trans);
     // Start of transaction
     m_retrieve_all_fields= FALSE;
@@ -3258,7 +3287,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       DBUG_PRINT("trans", ("Last external_lock"));
       PRINT_OPTION_FLAGS(thd);
 
-      if (thd->transaction.stmt.ndb_tid)
+      if (thd_ndb->stmt)
       {
         /*
           Unlock is done without a transaction commit / rollback.
@@ -3267,7 +3296,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         */
         DBUG_PRINT("trans",("ending non-updating transaction"));
         ndb->closeTransaction(m_active_trans);
-        thd->transaction.stmt.ndb_tid= 0;
+        thd_ndb->stmt= NULL;
       }
     }
     m_table= NULL;
@@ -3314,14 +3343,14 @@ int ha_ndbcluster::start_stmt(THD *thd)
   DBUG_ENTER("start_stmt");
   PRINT_OPTION_FLAGS(thd);
 
-  NdbTransaction *trans= (NdbTransaction*)thd->transaction.stmt.ndb_tid;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  NdbTransaction *trans= thd_ndb->stmt;
   if (!trans){
-    Ndb *ndb= ((Thd_ndb*)thd->transaction.thd_ndb)->ndb;
+    Ndb *ndb= thd_ndb->ndb;
     DBUG_PRINT("trans",("Starting transaction stmt"));  
 
 #if 0    
-    NdbTransaction *tablock_trans= 
-      (NdbTransaction*)thd->transaction.all.ndb_tid;
+    NdbTransaction *tablock_trans= thd_ndb->all;
     DBUG_PRINT("info", ("tablock_trans: %x", (UintPtr)tablock_trans));
     DBUG_ASSERT(tablock_trans);
 //    trans= ndb->hupp(tablock_trans);
@@ -3330,7 +3359,8 @@ int ha_ndbcluster::start_stmt(THD *thd)
     if (trans == NULL)
       ERR_RETURN(ndb->getNdbError());
     no_uncommitted_rows_reset(thd);
-    thd->transaction.stmt.ndb_tid= trans;
+    thd_ndb->stmt= trans;
+    trans_register_ha(thd, FALSE, &ndbcluster_hton);
   }
   m_active_trans= trans;
 
@@ -3347,15 +3377,16 @@ int ha_ndbcluster::start_stmt(THD *thd)
   Commit a transaction started in NDB 
  */
 
-int ndbcluster_commit(THD *thd, void *ndb_transaction)
+int ndbcluster_commit(THD *thd, bool all)
 {
   int res= 0;
-  Ndb *ndb= ((Thd_ndb*)thd->transaction.thd_ndb)->ndb;
-  NdbTransaction *trans= (NdbTransaction*)ndb_transaction;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  Ndb *ndb= thd_ndb->ndb;
+  NdbTransaction *trans= all ? thd_ndb->all : thd_ndb->stmt;
 
   DBUG_ENTER("ndbcluster_commit");
   DBUG_PRINT("transaction",("%s",
-                            trans == thd->transaction.stmt.ndb_tid ? 
+                            trans == thd_ndb->stmt ? 
                             "stmt" : "all"));
   DBUG_ASSERT(ndb && trans);
 
@@ -3369,6 +3400,7 @@ int ndbcluster_commit(THD *thd, void *ndb_transaction)
       ndbcluster_print_error(res, error_op);
   }
   ndb->closeTransaction(trans);
+  thd_ndb->all= thd_ndb->stmt= NULL;
   DBUG_RETURN(res);
 }
 
@@ -3377,15 +3409,16 @@ int ndbcluster_commit(THD *thd, void *ndb_transaction)
   Rollback a transaction started in NDB
  */
 
-int ndbcluster_rollback(THD *thd, void *ndb_transaction)
+int ndbcluster_rollback(THD *thd, bool all)
 {
   int res= 0;
-  Ndb *ndb= ((Thd_ndb*)thd->transaction.thd_ndb)->ndb;
-  NdbTransaction *trans= (NdbTransaction*)ndb_transaction;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  Ndb *ndb= thd_ndb->ndb;
+  NdbTransaction *trans= all ? thd_ndb->all : thd_ndb->stmt;
 
   DBUG_ENTER("ndbcluster_rollback");
   DBUG_PRINT("transaction",("%s",
-                            trans == thd->transaction.stmt.ndb_tid ? 
+                            trans == thd_ndb->stmt ? 
                             "stmt" : "all"));
   DBUG_ASSERT(ndb && trans);
 
@@ -3399,7 +3432,8 @@ int ndbcluster_rollback(THD *thd, void *ndb_transaction)
       ndbcluster_print_error(res, error_op);
   }
   ndb->closeTransaction(trans);
-  DBUG_RETURN(0);
+  thd_ndb->all= thd_ndb->stmt= NULL;
+  DBUG_RETURN(res);
 }
 
 
@@ -4253,12 +4287,12 @@ void ha_ndbcluster::release_thd_ndb(Thd_ndb* thd_ndb)
 
 Ndb* check_ndb_in_thd(THD* thd)
 {
-  Thd_ndb *thd_ndb= (Thd_ndb*)thd->transaction.thd_ndb;  
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (!thd_ndb)
   {
     if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
       return NULL;
-    thd->transaction.thd_ndb= thd_ndb;
+    set_thd_ndb(thd, thd_ndb);
   }
   return thd_ndb->ndb;
 }
@@ -4278,16 +4312,16 @@ int ha_ndbcluster::check_ndb_connection()
 }
 
 
-void ndbcluster_close_connection(THD *thd)
+int ndbcluster_close_connection(THD *thd)
 {
-  Thd_ndb *thd_ndb= (Thd_ndb*)thd->transaction.thd_ndb;
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   DBUG_ENTER("ndbcluster_close_connection");
   if (thd_ndb)
   {
     ha_ndbcluster::release_thd_ndb(thd_ndb);
-    thd->transaction.thd_ndb= NULL;
+    set_thd_ndb(thd, NULL); // not strictly required but does not hurt either
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 
@@ -4552,7 +4586,8 @@ static int connect_callback()
   return 0;
 }
 
-bool ndbcluster_init()
+handlerton *
+ndbcluster_init()
 {
   int res;
   DBUG_ENTER("ndbcluster_init");
@@ -4628,11 +4663,11 @@ bool ndbcluster_init()
   }
   
   ndbcluster_inited= 1;
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(&ndbcluster_hton);
 
  ndbcluster_init_error:
   ndbcluster_end();
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(NULL);
 }
 
 
