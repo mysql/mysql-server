@@ -135,6 +135,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	RESET_SYM
 %token	ROLLBACK_SYM
 %token  ROLLUP_SYM
+%token	SAVEPOINT_SYM
 %token	SELECT_SYM
 %token	SHOW
 %token	SLAVE
@@ -573,7 +574,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	query verb_clause create change select do drop insert replace insert2
 	insert_values update delete truncate rename
 	show describe load alter optimize flush
-	reset purge begin commit rollback slave master_def master_defs
+	reset purge begin commit rollback savepoint
+	slave master_def master_defs
 	repair restore backup analyze check start
 	field_list field_list_item field_spec kill column_def key_def
 	select_item_list select_item values_list no_braces
@@ -649,6 +651,7 @@ verb_clause:
 	| restore
 	| revoke
 	| rollback
+	| savepoint
 	| select
 	| set
 	| slave
@@ -3382,6 +3385,7 @@ keyword:
 	| ROWS_SYM		{}
 	| ROW_FORMAT_SYM	{}
 	| ROW_SYM		{}
+	| SAVEPOINT_SYM		{}
 	| SECOND_SYM		{}
 	| SERIALIZABLE_SYM	{}
 	| SESSION_SYM		{}
@@ -3915,8 +3919,22 @@ commit:
 	COMMIT_SYM   { Lex->sql_command = SQLCOM_COMMIT;};
 
 rollback:
-	ROLLBACK_SYM { Lex->sql_command = SQLCOM_ROLLBACK;};
-
+	ROLLBACK_SYM 
+	{
+	  Lex->sql_command = SQLCOM_ROLLBACK;
+	  Lex->savepoint_name = NULL;
+	}
+	| ROLLBACK_SYM TO_SYM SAVEPOINT_SYM ident
+	{
+	  Lex->sql_command = SQLCOM_ROLLBACK;
+	  Lex->savepoint_name = $4.str;
+	};
+savepoint:
+	SAVEPOINT_SYM ident
+	{
+	  Lex->sql_command = SQLCOM_SAVEPOINT;
+	  Lex->savepoint_name = $2.str;
+	};
 
 /*
 ** UNIONS : glue selects together

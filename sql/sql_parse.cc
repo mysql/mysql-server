@@ -2533,6 +2533,9 @@ mysql_execute_command(void)
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     break;
+  case SQLCOM_SAVEPOINT:
+    send_ok(&thd->net);
+    break;
   default:					/* Impossible */
     send_ok(&thd->net);
     break;
