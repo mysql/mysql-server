@@ -29,7 +29,6 @@ TIMEFILE="$CWD/var/tmp/mysqltest-time"
 DASHBLANK="----	----	-------"
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
-GCOV=`which gcov`
 GCOV_MSG=/tmp/mysqld-gcov.out #gcov output
 GCOV_ERR=/tmp/mysqld-gcov.err  
 
@@ -61,16 +60,21 @@ CAT=/bin/cat
 CUT=/usr/bin/cut
 ECHO=/bin/echo
 EXPR=`which expr`
+FIND=/usr/bin/find
+GCOV=`which gcov`
 PRINTF=/usr/bin/printf
 RM=/bin/rm
 TIME=/usr/bin/time
 TR=/usr/bin/tr
+XARGS=`which xargs`
 MYSQLD="$BASEDIR/sql/mysqld"
 MYSQL_TEST="$BASEDIR/client/mysqltest"
 MYSQLADMIN="$BASEDIR/client/mysqladmin"
 MYSQL_TEST="$MYSQL_TEST --socket=$MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent"
 INSTALL_DB="$MYBIN/mysql-test_install_db"
+
 [ "$1" = "-gcov" ] && DO_GCOV=1
+
 #++
 # Terminal Modifications
 #--
@@ -163,35 +167,35 @@ report_stats () {
 mysql_install_db () {
     `$INSTALL_DB`
     if [ $? != 0 ]; then
-	error "Could not install tmp DBs"
+	error "Could not install test DBs"
 	exit 1
     fi
     return 0
 }
 
 gcov_clean () {
-  find .. -name -name \*.gcov \
-   -or -name \*.da   | xargs rm
+    $FIND $BASEDIR -name \*.gcov \
+    -or -name \*.da | $XARGS $RM
 }
 
 gcov_collect () {
-  echo "Collecting source coverage info..."
-  [ -f $GCOV_MSG ] && rm $GCOV_MSG
-  [ -f $GCOV_ERR ] && rm $GCOV_ERR
-  for d in $MYSQLD_SRC_DIRS; do
-    cd ../$d
-    for f in *.h *.cc *.c; do
-      $GCOV $f 2>>$GCOV_ERR  >>$GCOV_MSG
+    $ECHO "Collecting source coverage info..."
+    [ -f $GCOV_MSG ] && $RM $GCOV_MSG
+    [ -f $GCOV_ERR ] && $RM $GCOV_ERR
+    for d in $MYSQLD_SRC_DIRS; do
+	cd $BASEDIR/$d
+	for f in *.h *.cc *.c; do
+	    $GCOV $f 2>>$GCOV_ERR  >>$GCOV_MSG
+	done
+	cd $CWD
     done
-    cd ../mysql-test
-  done
 
-  echo "gcov info in $GCOV_MSG, errors in $GCOV_ERR"
+    $ECHO "gcov info in $GCOV_MSG, errors in $GCOV_ERR"
 }
 
 mysql_start () {
 
-    cd .. # for gcov
+    cd $BASEDIR # for gcov
     $MYSQLD --no-defaults \
             --skip-networking \
             --basedir=$CWD \
@@ -200,7 +204,7 @@ mysql_start () {
 	    --socket=$MYSOCK \
             --log=$MYLOG \
             --language=english >> $MYERR 2>&1 &
-    cd mysql-test
+    cd $CWD
     return 1
 }
 
