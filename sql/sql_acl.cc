@@ -4670,9 +4670,11 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
     if (!(user=grant_table->user))
       user= "";
     ulong table_access= grant_table->privs;
-    if (table_access != 0)
+    if (table_access)
     {
       ulong test_access= table_access & ~GRANT_ACL;
+      if (!test_access && grant_table->cols)
+        continue;
       if (!(table_access & GRANT_ACL))
         is_grantable= "NO";
 

@@ -355,6 +355,7 @@ drop table t2;
 drop database test2;
 show databases;
 Database
+information_schema
 mysql
 test
 use test;

@@ -1941,6 +1941,40 @@ static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table)
 }
 
 
+int schema_db_add(THD *thd, List<char> *files, const char *wild)
+{
+  if (wild && wild_compare(information_schema_name.str, wild, 0))
+    return 0;
+  if (files->push_back(thd->strdup(information_schema_name.str)))
+    return -1;
+  return 1;
+}
+
+
+int schema_tables_add(THD *thd, List<char> *files, const char *wild)
+{
+  ST_SCHEMA_TABLE *tmp_schema_table= schema_tables;
+  for ( ; tmp_schema_table->table_name; tmp_schema_table++)
+  {
+    if (wild)
+    {
+      if (lower_case_table_names)
+      {
+        if (wild_case_compare(files_charset_info,
+                              tmp_schema_table->table_name,
+                              wild))
+          continue;
+      }
+      else if (wild_compare(tmp_schema_table->table_name, wild, 0))
+        continue;
+    }
+    if (files->push_back(thd->strdup(tmp_schema_table->table_name)))
+      return 1;
+  }
+  return 0;
+}
+
+
 int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 {
   LEX *lex= thd->lex;
@@ -1970,8 +2004,9 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 
   SELECT_LEX sel;
   INDEX_FIELD_VALUES idx_field_vals;
-  char path[FN_REFLEN], *end, *base_name, *file_name;
-  uint len;
+  char path[FN_REFLEN], *end= 0, *base_name, *file_name;
+  uint len= 0;
+  int with_i_schema;
   List<char> bases;
   lex->all_selects_list= &sel;
   enum enum_schema_tables schema_table_idx=
@@ -1980,6 +2015,12 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   if (schema_table_idx == SCH_TABLES)
     lock_type= TL_READ;
   get_index_field_values(lex, &idx_field_vals);
+
+  /* information schema name always is first in list */
+  with_i_schema= schema_db_add(thd, &bases, idx_field_vals.db_value);
+  if (with_i_schema < 0)
+    return 1;
+
   if (mysql_find_files(thd, &bases, NullS, mysql_data_home,
 		       idx_field_vals.db_value, 1))
     return 1;
@@ -1995,19 +2036,28 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 	  (base_name= select_lex->db) && !bases.elements))
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (!check_access(thd,SELECT_ACL, base_name, &thd->col_access,0,1) ||
+    if (with_i_schema ||   // don't check the rights if information schema db
+        !check_access(thd,SELECT_ACL, base_name, &thd->col_access,0,1) ||
         thd->master_access & (DB_ACLS | SHOW_DB_ACL) ||
 	acl_get(thd->host, thd->ip, thd->priv_user, base_name,0) ||
 	(grant_option && !check_grant_db(thd, base_name)))
 #endif
     {
       List<char> files;
-      strxmov(path, mysql_data_home, "/", base_name, NullS);
-      end= path + (len= unpack_dirname(path,path));
-      len= FN_LEN - len;
-      if (mysql_find_files(thd, &files, base_name, 
-                           path, idx_field_vals.table_value, 0))
-	DBUG_RETURN(1);
+      if (with_i_schema)                      // information schema table names
+      {
+        if (schema_tables_add(thd, &files, idx_field_vals.table_value))
+          DBUG_RETURN(1);
+      }
+      else
+      {
+        strxmov(path, mysql_data_home, "/", base_name, NullS);
+        end= path + (len= unpack_dirname(path,path));
+        len= FN_LEN - len;
+        if (mysql_find_files(thd, &files, base_name, 
+                             path, idx_field_vals.table_value, 0))
+          DBUG_RETURN(1);
+      }
 
       List_iterator_fast<char> it(files);
       while ((file_name=it++))
@@ -2023,20 +2073,27 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
           {
             if (lex->verbose || lex->orig_sql_command == SQLCOM_END)
             {
-              my_snprintf(end, len, "/%s%s", file_name, reg_ext);
-              switch (mysql_frm_type(path))
+              if (with_i_schema)
               {
-              case FRMTYPE_ERROR:
-                table->field[3]->store("ERROR", 5, system_charset_info);
-                break;
-              case FRMTYPE_TABLE:
-                table->field[3]->store("BASE TABLE", 10, system_charset_info);
-                break;
-              case FRMTYPE_VIEW:
-                table->field[3]->store("VIEW", 4, system_charset_info);
-                break;
-              default:
-                DBUG_ASSERT(0);
+                table->field[3]->store("TEMPORARY", 9, system_charset_info);
+              }
+              else
+              {
+                my_snprintf(end, len, "/%s%s", file_name, reg_ext);
+                switch (mysql_frm_type(path))
+                {
+                case FRMTYPE_ERROR:
+                  table->field[3]->store("ERROR", 5, system_charset_info);
+                  break;
+                case FRMTYPE_TABLE:
+                  table->field[3]->store("BASE TABLE", 10, system_charset_info);
+                  break;
+                case FRMTYPE_VIEW:
+                  table->field[3]->store("VIEW", 4, system_charset_info);
+                  break;
+                default:
+                  DBUG_ASSERT(0);
+                }
               }
             }
             table->file->write_row(table->record[0]);
@@ -2059,10 +2116,21 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
           }
         }
       }
+      with_i_schema= 0;
     }
   }
   lex->all_selects_list= select_lex;
   DBUG_RETURN(0);
+}
+
+
+void store_schema_shemata(TABLE *table, const char *db_name,
+                          const char* cs_name)
+{
+  restore_record(table, default_values);
+  table->field[1]->store(db_name, strlen(db_name), system_charset_info);
+  table->field[2]->store(cs_name, strlen(cs_name), system_charset_info);
+  table->file->write_row(table->record[0]);
 }
 
 
@@ -2074,16 +2142,26 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
   List<char> files;
   char *file_name;
   uint length;
+  int with_i_schema;
   HA_CREATE_INFO create;
   TABLE *table= tables->table;
 
   get_index_field_values(thd->lex, &idx_field_vals);
+  with_i_schema= schema_db_add(thd, &files, idx_field_vals.db_value);
+  if (with_i_schema < 0)
+    return 1;
   if (mysql_find_files(thd, &files, NullS, mysql_data_home,
                        idx_field_vals.db_value, 1))
     return 1;
   List_iterator_fast<char> it(files);
   while ((file_name=it++))
   {
+    if (with_i_schema)       // information schema name is always first in list
+    {
+      store_schema_shemata(table, file_name, system_charset_info->csname);
+      with_i_schema= 0;
+      continue;
+    }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (thd->master_access & (DB_ACLS | SHOW_DB_ACL) ||
 	acl_get(thd->host, thd->ip, thd->priv_user, file_name,0) ||
@@ -2103,12 +2181,8 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 	path[length-1]= FN_LIBCHAR;
       strmov(path+length, MY_DB_OPT_FILE);
       load_db_opt(thd, path, &create);
-      restore_record(table, default_values);
-      table->field[1]->store(file_name, strlen(file_name), system_charset_info);
-      table->field[2]->store(create.default_table_charset->csname, 
-			     strlen(create.default_table_charset->csname),
-			     system_charset_info);
-      table->file->write_row(table->record[0]);
+      store_schema_shemata(table, file_name,
+                           create.default_table_charset->csname);
     }
   }
   return 0;
@@ -2147,7 +2221,11 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
     TABLE *show_table= tables->table;
     handler *file= show_table->file;
     file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
-    table->field[3]->store("BASE TABLE", 10, cs);
+    if (table->tmp_table == TMP_TABLE)
+      table->field[3]->store("TEMPORARY", 9, cs);
+    else
+      table->field[3]->store("BASE TABLE", 10, cs);
+
     for (int i= 4; i < 20; i++)
     {
       if ((i > 12 && i < 17) || i == 18)
@@ -2341,7 +2419,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       }
       pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                    field->type() != FIELD_TYPE_TIMESTAMP ?
-                   "" : "YES");
+                   "NO" : "YES");
       table->field[6]->store((const char*) pos,
                              strlen((const char*) pos), cs);
       if (field->has_charset())
@@ -2741,12 +2819,26 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
 }
 
 
+void store_constarints(TABLE *table, const char*db, const char *tname,
+                       const char *key_name, uint key_len,
+                       const char *con_type, uint con_len)
+{
+  CHARSET_INFO *cs= system_charset_info;
+  restore_record(table, default_values);
+  table->field[1]->store(db, strlen(db), cs);
+  table->field[2]->store(key_name, key_len, cs);
+  table->field[3]->store(db, strlen(db), cs);
+  table->field[4]->store(tname, strlen(tname), cs);
+  table->field[5]->store(con_type, con_len, cs);
+  table->file->write_row(table->record[0]);
+}
+
+
 static int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
 					 TABLE *table, bool res,
 					 const char *base_name,
 					 const char *file_name)
 {
-  CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_constarints_record");
   if (!res && !tables->view)
   {
@@ -2760,17 +2852,14 @@ static int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
     for (uint i=0 ; i < show_table->keys ; i++, key_info++)
     {
       if (i != primary_key && !(key_info->flags & HA_NOSAME))
-        continue;              
-      restore_record(table, default_values);
-      table->field[1]->store(base_name, strlen(base_name), cs);
-      table->field[2]->store(key_info->name, strlen(key_info->name), cs);
-      table->field[3]->store(base_name, strlen(base_name), cs);
-      table->field[4]->store(file_name, strlen(file_name), cs);
+        continue;
+
       if (i == primary_key && !strcmp(key_info->name, primary_key_name))
-        table->field[5]->store("PRIMARY KEY", 11, cs);
+        store_constarints(table, base_name, file_name, key_info->name,
+                          strlen(key_info->name), "PRIMARY KEY", 11);
       else if (key_info->flags & HA_NOSAME)
-        table->field[5]->store("UNIQUE", 6, cs);
-      table->file->write_row(table->record[0]);
+        store_constarints(table, base_name, file_name, key_info->name,
+                          strlen(key_info->name), "UNIQUE", 6);        
     }
 
     show_table->file->get_foreign_key_list(thd, &f_key_list);
@@ -2778,20 +2867,25 @@ static int get_schema_constarints_record(THD *thd, struct st_table_list *tables,
     List_iterator_fast<FOREIGN_KEY_INFO> it(f_key_list);
     while ((f_key_info=it++))
     {
-      restore_record(table, default_values);
-      table->field[1]->store(base_name, strlen(base_name), cs);
-      table->field[2]->store(f_key_info->forein_id->str,
-                             f_key_info->forein_id->length, cs);
-      table->field[3]->store(base_name, strlen(base_name), cs);
-      table->field[4]->store(file_name, strlen(file_name), cs);
-      table->field[5]->store("FOREIGN KEY", 11, system_charset_info);
-      table->field[6]->store(f_key_info->constraint_method->str,
-                             f_key_info->constraint_method->length, cs);
-      table->field[6]->set_notnull();
-      table->file->write_row(table->record[0]);
+      store_constarints(table, base_name, file_name, f_key_info->forein_id->str,
+                        strlen(f_key_info->forein_id->str), "FOREIGN KEY", 11);
     }
   }
   DBUG_RETURN(res);
+}
+
+
+void store_key_column_usage(TABLE *table, const char*db, const char *tname,
+                            const char *key_name, uint key_len, 
+                            const char *con_type, uint con_len, longlong idx)
+{
+  CHARSET_INFO *cs= system_charset_info;
+  table->field[1]->store(db, strlen(db), cs);
+  table->field[2]->store(key_name, key_len, cs);
+  table->field[4]->store(db, strlen(db), cs);
+  table->field[5]->store(tname, strlen(tname), cs);
+  table->field[6]->store(con_type, con_len, cs);
+  table->field[7]->store((longlong) idx);
 }
 
 
@@ -2825,13 +2919,12 @@ static int get_schema_key_column_usage_record(THD *thd,
         {
           f_idx++;
           restore_record(table, default_values);
-          table->field[1]->store(base_name, strlen(base_name), cs);
-          table->field[2]->store(key_info->name, strlen(key_info->name), cs);
-          table->field[4]->store(base_name, strlen(base_name), cs);
-          table->field[5]->store(file_name, strlen(file_name), cs);
-          table->field[6]->store(key_part->field->field_name, 
-                                 strlen(key_part->field->field_name), cs);
-          table->field[7]->store((longlong) f_idx);
+          store_key_column_usage(table, base_name, file_name,
+                                 key_info->name,
+                                 strlen(key_info->name), 
+                                 key_part->field->field_name, 
+                                 strlen(key_part->field->field_name),
+                                 (longlong) f_idx);
           table->file->write_row(table->record[0]);
         }
       }
@@ -2851,21 +2944,21 @@ static int get_schema_key_column_usage_record(THD *thd,
         r_info= it1++;
         f_idx++;
         restore_record(table, default_values);
-        table->field[1]->store(base_name, strlen(base_name), cs);
-        table->field[2]->store(f_key_info->forein_id->str,
-                               f_key_info->forein_id->length, cs);
-        table->field[4]->store(base_name, strlen(base_name), cs);
-        table->field[5]->store(file_name, strlen(file_name), cs);
-        table->field[6]->store(f_info->str, f_info->length, cs);
-        table->field[7]->store((longlong) f_idx);
-        table->field[8]->store(f_key_info->referenced_db->str,
+        store_key_column_usage(table, base_name, file_name,
+                               f_key_info->forein_id->str,
+                               f_key_info->forein_id->length,
+                               f_info->str, f_info->length,
+                               (longlong) f_idx);
+        table->field[8]->store((longlong) f_idx);
+        table->field[8]->set_notnull();
+        table->field[9]->store(f_key_info->referenced_db->str,
                                f_key_info->referenced_db->length, cs);
         table->field[9]->set_notnull();
         table->field[10]->store(f_key_info->referenced_table->str,
                                f_key_info->referenced_table->length, cs);
-        table->field[9]->set_notnull();
-        table->field[10]->store(r_info->str, r_info->length, cs);
         table->field[10]->set_notnull();
+        table->field[11]->store(r_info->str, r_info->length, cs);
+        table->field[11]->set_notnull();
         table->file->write_row(table->record[0]);
       }
     }
@@ -3466,7 +3559,6 @@ ST_FIELD_INFO table_constraints_fields_info[]=
   {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CONSTRAINT_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CONSTRAINT_METHOD", 20, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -3481,6 +3573,7 @@ ST_FIELD_INFO key_column_usage_fields_info[]=
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"ORDINAL_POSITION", 10 ,MYSQL_TYPE_LONG, 0, 0, 0},
+  {"POSITION_IN_UNIQUE_CONSTRAINT", 10 ,MYSQL_TYPE_LONG, 0, 1, 0},
   {"REFERENCED_TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"REFERENCED_TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"REFERENCED_COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},

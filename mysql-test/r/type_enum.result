@@ -1654,7 +1654,7 @@ set names latin1;
 create table t1 (a enum(0xE4, '1', '2') not null default 0xE4);
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	enum('ไ','1','2')			ไ	
+a	enum('ไ','1','2')	NO		ไ	
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1675,7 +1675,7 @@ t1	CREATE TABLE `t1` (
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		1	
-b	enum('value','๖ไü_value','สรี')			value	
+b	enum('value','๖ไü_value','สรี')	NO		value	
 drop table t1;
 CREATE TABLE t1 (c enum('a', 'A') BINARY);
 INSERT INTO t1 VALUES ('a'),('A');
