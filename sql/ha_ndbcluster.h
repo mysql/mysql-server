@@ -74,6 +74,7 @@ class Thd_ndb {
   Ndb *ndb;
   ulong count;
   uint lock_count;
+  int error;
 };
 
 class ha_ndbcluster: public handler
