@@ -38047,6 +38047,8 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.26
 @itemize @bullet
 @item
+Fixed that @code{<>} works properly with @code{NULL}.
+@item
 Fixed problem with @code{SUBSTRING_INDEX()} and @code{REPLACE()}.
 (Patch by Alexander Igonitchev)
 @item

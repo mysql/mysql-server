@@ -185,7 +185,7 @@ longlong Item_func_equal::val_int()
 longlong Item_func_ne::val_int()
 {
   int value=(this->*cmp_func)();
-  return value != 0 ? 1 : 0;
+  return value != 0 && !null_value ? 1 : 0;
 }
 
 
