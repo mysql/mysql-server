@@ -334,6 +334,8 @@ MySQL language reference
 * CHECK TABLE::                 @code{CHECK TABLE} syntax
 * ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
 * REPAIR TABLE::                @code{REPAIR TABLE} syntax
+* BACKUP TABLE::                @code{BACKUP TABLE} syntax
+* RESTORE TABLE::               @code{RESTORE TABLE} syntax
 * DELETE::                      @code{DELETE} syntax
 * SELECT::                      @code{SELECT} syntax
 * JOIN::                        @code{JOIN} syntax
@@ -506,6 +508,7 @@ Replication in MySQL
 * Replication Features::        Replication Features
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
+* Replication FAQ::             Frequently asked questions about replication
 
 Getting maximum performance from MySQL
 
@@ -11872,6 +11875,8 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to be able to run
 * CHECK TABLE::                 @code{CHECK TABLE} syntax
 * ANALYZE TABLE::               @code{ANALYZE TABLE} syntax
 * REPAIR TABLE::                @code{REPAIR TABLE} syntax
+* BACKUP TABLE::                @code{BACKUP TABLE} syntax
+* RESTORE TABLE::               @code{RESTORE TABLE} syntax
 * DELETE::                      @code{DELETE} syntax
 * SELECT::                      @code{SELECT} syntax
 * JOIN::                        @code{JOIN} syntax
@@ -17184,8 +17189,65 @@ The different check types stand for the following:
 @item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This ensures that the table is 100 % consistent, but will take a long time!
 @end multitable
 
+@findex BACKUP TABLE
+@node BACKUP TABLE,  RESTORE TABLE, CHECK TABLE, Reference
+@section @code{BACKUP TABLE} syntax
+
+@example
+BACKUP TABLE tbl_name[,tbl_name...] TO '/path/to/backup/directory'
+@end example
+
+Make a copy of all the table files to the backup directory that are the
+minimum needed to restore it. Currenlty only works for @code{MyISAM}
+tables. For @code{MyISAM} table, copies @code{.frm} (definition)  and
+ @code{.MYD} (data) files. The index file can be rebuilt from those two.
+
+During the backup, read lock will be held for each table, one at time,
+as they are being backed up. If you want to backup several tables as
+a snapshot, you must first issue @code{LOCK TABLES} obtaining a read
+lock for each table in the group.
+
+
+The command returns a table with the following columns:
+
+@multitable @columnfractions .35 .65
+@item @strong{Column} @tab @strong{Value}
+@item Table @tab Table name
+@item Op @tab Always ``backup''
+@item Msg_type @tab One of @code{status}, @code{error}, @code{info} or @code{warning}.
+@item Msg_text @tab The message.
+@end multitable
+
+
+@findex RESTORE TABLE
+@node RESTORE TABLE, ANALYZE TABLE, BACKUP TABLE, Reference
+@section @code{RESTORE TABLE} syntax
+
+@example
+RESTORE TABLE tbl_name[,tbl_name...] FROM '/path/to/backup/directory'
+@end example
+
+Restores the table(s) from the backup that was made with 
+@code{BACKUP TABLE}. Existing tables will not be overwritten - if you
+try to restore over an existing table, you will get an error. Restore
+will take  longer than BACKUP due to the need to rebuilt the index. The
+more keys you have, the longer it is going to take. Just as 
+@code{BACKUP TABLE}, currently only works of @code{MyISAM} tables.
+
+
+The command returns a table with the following columns:
+
+@multitable @columnfractions .35 .65
+@item @strong{Column} @tab @strong{Value}
+@item Table @tab Table name
+@item Op @tab Always ``restore''
+@item Msg_type @tab One of @code{status}, @code{error}, @code{info} or @code{warning}.
+@item Msg_text @tab The message.
+@end multitable
+
+
 @findex ANALYZE TABLE
-@node ANALYZE TABLE, REPAIR TABLE, CHECK TABLE, Reference
+@node ANALYZE TABLE, REPAIR TABLE, RESTORE TABLE, Reference
 @section @code{ANALYZE TABLE} syntax
 
 @example
@@ -23560,6 +23622,7 @@ tables}.
 * Replication Features::        Replication Features
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
+* Replication FAQ::             Frequently Asked Questions about replication
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -23734,14 +23797,14 @@ of the are available starting in 3.23.15 unless indicated otherwise.
 @item @strong{Option} @tab @strong{Description}
 @item 
 @code{log-bin} 
-@tab Should be set on the master. Tells it to keep a binary update log. 
+ @tab Should be set on the master. Tells it to keep a binary update log. 
 If a parameter is specified, the log will be written to the specified 
 location.
 (Set on @strong{Master}, Example: @code{log-bin})
 
 @item 
 @code{log-bin-index} 
-@tab Because the user could issue @code{FLUSH LOGS} command, we need to
+ @tab Because the user could issue @code{FLUSH LOGS} command, we need to
 know which log is currently active and which ones have been rotated out 
 and it what sequence. This info is stored in the binary log index file. 
 The default is `hostname`.index . You can use this option
@@ -23750,40 +23813,40 @@ if you want to be a rebel.
 
 @item 
 @code{master-host} 
-@tab Master hostname or IP address for replication. If not set, the slave 
+ @tab Master hostname or IP address for replication. If not set, the slave 
 thread will not be started.
 (Set on @strong{Slave}, Example: @code{master-host=db-master.mycompany.com})
 
 @item 
 @code{master-user} 
-@tab The user the slave thread will authenticate as when connecting to
+ @tab The user the slave thread will authenticate as when connecting to
 the master. The user must have @code{FILE} privilige. If the master user 
 is not set, user @code{test} is assumed. 
 (Set on @strong{Slave}, Example: @code{master-user=scott})
 
 @item 
 @code{master-password} 
-@tab The password the slave thread will authenticate with when connecting
+ @tab The password the slave thread will authenticate with when connecting
 to the master. If not set, empty password is assumed
 (Set on @strong{Slave}, Example: @code{master-password=tiger})
 
 @item
 @code{master-port}
-@tab The port the master is listening on. If not set, the compiled setting
+ @tab The port the master is listening on. If not set, the compiled setting
 of @code{MYSQL_PORT} is assumed. If you have not tinkered with @code{configure}
 options, this should be 3306. 
 (Set on @strong{Slave}, Example: @code{master-port=3306})
 
 @item 
 @code{master-connect-retry}
-@tab The number of seconds the slave thread will sleep before retrying to 
+ @tab The number of seconds the slave thread will sleep before retrying to 
 connect to the master in case the master goes down or the connection is lost.
 Default is 60. 
 (Set on @strong{Slave}, Example: @code{master-connect-retry=60})
 
 @item 
 @code{master-info-file} 
-@tab The location of the file that remembers where we left off on the master
+ @tab The location of the file that remembers where we left off on the master
 during the replication process. The default is master.info in the data
 directory.  Sasha: The only reason I see for ever changing the default
 is the desire to be rebelious.
@@ -23791,7 +23854,7 @@ is the desire to be rebelious.
 
 @item 
 @code{replicate-do-db}
-@tab Tells the slave thread to restrict replication to the specified database.
+ @tab Tells the slave thread to restrict replication to the specified database.
 To specify more than one database, use the directive multiple times, once for
 each database. Note that this will only work if you do not use cross-database 
 queries such as @code{UPDATE some_db.some_table SET foo='bar'} while having 
@@ -23800,7 +23863,7 @@ selected a different or no database.
 
 @item 
 @code{replicate-ignore-db} 
-@tab Tells the slave thread to not replicate to the specified database. To 
+ @tab Tells the slave thread to not replicate to the specified database. To 
 specify more than one database to ignore, use the directive multiple times,
 once for each database. You must not use cross database updates for this 
 option. 
@@ -23808,32 +23871,32 @@ option.
 
 @item 
 @code{sql-bin-update-same} 
-@tab If set, setting  @code{SQL_LOG_BIN} to a value will automatically set 
+ @tab If set, setting  @code{SQL_LOG_BIN} to a value will automatically set 
 @code{SQL_LOG_UPDATE} to the same value and vice versa. 
 (Set on @strong{Master}, Example: @code{sql-bin-update-same})
 
 @item 
 @code{log-slave-updates} 
-@tab Tells the slave to log the updates from the slave thread to the binary 
+ @tab Tells the slave to log the updates from the slave thread to the binary 
 log. Off by default. You will need to turn it on if you plan to daisy-chain 
 the slaves 
 (Set on @strong{Slave}, Example: @code{log-slave-updates})
 
 @item 
 @code{binlog-do-db} 
-@tab Tells the master it should log updates for the specified database, and 
+ @tab Tells the master it should log updates for the specified database, and 
 exclude all others not explicitly mentioned. 
 (Set on @strong{Master}, Example: @code{binlog-do-db=some_database})
 
 @item 
 @code{binlog-ignore-db}
-@tab Tells the master that updates to the given database should not be logged 
+ @tab Tells the master that updates to the given database should not be logged 
 to the binary log 
 (Set on @strong{Master}, Example: @code{binlog-ignore-db=some_database})
 
 @end multitable
 
-@node Replication SQL,  , Replication Options, Replication
+@node Replication SQL, Replication FAQ, Replication Options, Replication
 @section SQL commands related to replication
 
 Replication can be controlled through the SQL interface. Below is the
@@ -23843,30 +23906,30 @@ summary of commands:
 @item @strong{Command} @tab @strong{Description}
 
 @item @code{SLAVE START} 
-@tab Starts the slave thread. (Slave)
+ @tab Starts the slave thread. (Slave)
 
 @item @code{SLAVE STOP} 
-@tab Stops the slave thread. (Slave)
+ @tab Stops the slave thread. (Slave)
 
 @item @code{SET SQL_LOG_BIN=0} 
-@tab Disables update logging (Master)
+ @tab Disables update logging (Master)
 
 @item @code{SET SQL_LOG_BIN=1} 
-@tab Re-enable update logging (Master)
+ @tab Re-enable update logging (Master)
 
 @item @code{FLUSH MASTER} 
-@tab Deletes all binary logs listed in the index file, resetting the binlog 
+ @tab Deletes all binary logs listed in the index file, resetting the binlog 
 index file to be empty. (Master)
 
 @item @code{FLUSH SLAVE} 
-@tab Makes the slave forget its replication position in the master 
+ @tab Makes the slave forget its replication position in the master 
 logs. (Slave)
 
 @item @code{LOAD TABLE tblname FROM MASTER} 
-@tab Downloads a copy of the table from master to the slave. (Slave)
+ @tab Downloads a copy of the table from master to the slave. (Slave)
 
 @item @code{CHANGE MASTER TO master_def_list} 
-@tab Changes the master parameters to the values specified in 
+ @tab Changes the master parameters to the values specified in 
 @code{master_def_list} and restarts the slave thread. @code{master_def_list} 
 is a comma-separated list of @code{master_def} where @code{master_def} is 
 one of the following: @code{MASTER_HOST}, @code{MASTER_USER}, 
@@ -23895,12 +23958,234 @@ restarting, and the slave will read its master from @code{my.cnf} or the
 command line. (Slave)
 
 @item @code{SHOW MASTER STATUS}
-@tab Provides status info on the binlog of the master. (Master)
+ @tab Provides status info on the binlog of the master. (Master)
 
 @item @code{SHOW SLAVE STATUS} 
-@tab Provides status info on essential parameters of the slave thread. (Slave)
+ @tab Provides status info on essential parameters of the slave thread. (Slave)
 
 @end multitable
+
+@node Replication FAQ, , Replication SQL, Replication 
+@section Replication FAQ
+
+@strong{Q}: Why do I sometimes see more than one @code{Binlog_Dump} thread on
+the master after I have restarted the slave?
+
+@strong{A}: @code{Binlog_Dump} is a continuous process that is handled by the
+server the following way:
+
+@itemize
+@item
+catch up on the updates
+@item
+once there are no more updates left, go into @code{pthread_cond_wait()},
+from which we can be woken up either by an update or a kill
+@item 
+on wake up, check the reason, if we are not supposed to die, continue
+the @code{Binlog_dump} loop
+@item
+if there is some fatal error, such as detecting a dead client, 
+terminate the loop
+@end itemize
+
+So if the slave thread stops on the slave, the corresponding 
+@code{Binlog_Dump} thread on the master will not notice it until after
+at least one update to the master ( or a kill), which is needed to wake
+it up from @code{pthread_cond_wait()}.  In the meantime, the slave 
+could have opened another connection, which resulted in another 
+@code{Binlog_Dump} thread.
+
+Once we add @strong{server_id} variable for each server that 
+participates in replication, we will fix @code{Binlog_Dump} thread to
+kill all the zombies from the same slave on reconnect.
+
+@strong{Q}: What issues should I be aware of when setting up two-way
+replication?
+
+@strong{A}: @strong{MySQL} replication currently does not support any
+locking protocol between master and slave to guarantee the atomicity of
+a distributed ( cross-server) update. In in other words, it is possible
+for client A to make an update to  co-master 1, and in the meantime, 
+before it propogates to co-master 2, client B could make an update to
+co-master 2 that will make the update of client A work differently than
+it did on co-master 1. Thus when the update of client A will make it
+to co-master 2, it will produce  tables that will be different than 
+what you have on co-master 1, even after all the updates from co-master
+2 have also propogated. So you should not co-chain two servers in a
+two-way replication relationship, unless you are sure that you updates
+can safely happen in any order, or unless you take care of mis-ordered
+updates somehow in the client code.
+
+Until we implement @code{server_id} variable, you cannot have more than
+two servers in a co-master replication relationship, and you must 
+run @code{mysqld} without @code{log-slave-updates} (default) to avoid
+infinite update loops.
+
+You must also realize that two-way replication actually does not improve
+performance very much, if at all, as far as updates are concerned. Both
+servers need to do the same amount of updates each, as you would have 
+one server do. The only difference is that there will be a little less
+lock contention, because the updates originating on another server will
+be serialized in one slave thread. This benefit, though, might be 
+offset by network delays.
+
+@strong{Q}: How can I use replication to improve performance of my system?
+
+@strong{A}: You should set up one server as the master, and direct all
+writes to it, and configure as many slaves as you have the money and
+rackspace for, distributing the reads among the master and the slaves.
+
+@strong{Q}: What should I do to prepare my client code to use 
+performance-enhancing replication?
+
+@strong{A}: 
+If the part of your code that is responsible for database access has
+been properly abstracted/modularized, converting it to run with the
+replicated setup should be very smooth and easy - just change the 
+implementation of your database access to read from some slave or the
+master, and to awlays write to the master. If your code does not have
+this level of abstraction,
+setting up a replicated system will give you an opportunity/motivation 
+to it clean up. 
+ You should start by creating a wrapper library
+/module with the following functions:
+
+@itemize
+@item
+@code{safe_writer_connect()}
+@item
+@code{safe_reader_connect()}
+@item
+@code{safe_reader_query()}
+@item
+@code{safe_writer_query()}
+@end itemize
+
+@code{safe_} means that the function will take care of handling all
+the error conditions. 
+
+You should then convert your client code to use the wrapper library.
+It may be a painful and scary process at first, but it will pay off in
+the long run. All application that follow the above pattern will be
+able to take advantage of one-master/many slaves solution.  The 
+code will be a lot easier to maintain, and adding troubleshooting 
+options will be trivial - you will just need to modify one or two
+functions, for example, to log how long each query took, or which
+query, among your many thousands, gave you an error. If you have written a lot of code already,
+you may want to automate the conversion task by using Monty's 
+@code{replace} utility, which comes with the standard distribution of 
+@strong{MySQL}, or just write your own Perl script. Hopefully, your
+code follows some recognizable pattern. If not, then you are probably
+better off re-writing it anyway, or at least going through and manually
+beating it into a pattern.
+
+Note that, of course, you can use different names for the
+functions. What is important is having unified interface for connecting
+for reads, connecting for writes, doing a read, and doing a write. 
+
+
+@strong{Q}: When and how much can @code{MySQL} replication improve the performance
+of my system?
+
+@strong{A}: @strong{MySQL} replication is most benefitial for a system
+with frequent reads and not so frequent writes. In theory, by using a
+one master/many slaves setup you can scale by adding more slaves until
+you either run out of network bandwidth, or your update 
+load grows to the point
+that the master cannot handle it. 
+
+In order to determine how many slaves you can get before the added
+benefits begin to level out, and how much you can improve performance
+of your site, you need to know your query patterns, and empirically
+ (by benchmarking) determine the relationship between the throughput
+on reads ( reads per second, or @code{max_reads}) and on writes 
+@code{max_writes}) on a typical master and a typical slave. The
+example below will show you a rather simplified calculation of what you
+can get with replication for our imagined system.
+
+Let's say our system load consist of 10% writes and 90% reads, and we
+have determined that @code{max_reads} = 1200 - 2 * @code{max_writes},
+or in other words, our system can do 1200 reads per second with no
+writes, our average write is twice as slow as average read, 
+and the relationship is 
+linear. Let us suppose that our master and slave are of the same
+capacity, and we have N slaves and 1 master. Then we have for each
+server ( master or slave):
+
+@code{reads = 1200 - 2 * writes} ( from bencmarks)
+
+@code{reads = 9* writes / (N + 1) } ( reads split, but writes go
+to all servers)
+
+@code{9*writes/(N+1) + 2 * writes = 1200}
+
+@code{writes = 1200/(2 + 9/(N+1)}
+
+So if N = 0, which means we have no replication, our system can handle
+1200/11, about 109 writes per second ( which means we will have 9 times
+as many reads to to the nature of our application) 
+
+If N = 1, we can get up to 184 writes per second
+
+If N = 8, we get up to 400
+
+If N = 17, 480 writes
+
+Eventually as N approaches infinity ( and our budget negative infinity),
+we can get very close to 600 writes per second, increasing system
+throughput about 5.5 times. However, with only 8 servers, we increased
+it almost 4 times already. 
+
+Note that our computations assumed infitine network bandwidth, and 
+neglected several other factors that could turn out to be signficant on
+your system. In many cases, you may not be able to make a computation
+similar to the one above that will accurately predict what will happen
+on your system if you add N replication slaves. However, answering the
+following questions should help you decided whether and how much if at
+all the replication will improve the performance of your system:
+
+@itemize
+@item
+What is the read/write ratio on your system?
+@item
+How much more write load can one server handle if you reduce the reads?
+@item
+How many slaves do you have bandwidth for on your network?
+@end itemize
+
+@strong{Q}: How can I use replication to provide redundancy/high 
+availability?
+
+@strong{A}: With the currently available features, you would have to
+set up a master and a slave (or several slaves), and write a script 
+that will monitor the
+master to see if it is up, and instruct your applications and 
+the slaves of the master change in case of failure. Some suggestions:
+
+@itemize
+@item
+To tell a slave to change the master use @code{CHANGE MASTER TO} command
+@item 
+A good way to keep your applications informed where the master is is by
+having a dynamic DNS entry for the master. With @strong{bind} you can
+use @code{nsupdate} to dynamically update your DNS
+@item
+You should run your slaves with @code{log-bin} option and without
+@code{log-slave-updates}. This way the slave will be ready to become a
+master as soon as you issue @code{STOP SLAVE}; @code{FLUSH MASTER}, and
+@code{CHANGE MASTER TO} on the other slaves. It will also help you catch
+spurious updates that may happen because of misconfiguration of the 
+slave ( ideally, you want to configure access rights so that no client
+can update the slave, except for the slave thread) combined with the
+bugs in your client programs ( they should never update the slave 
+directly). 
+
+@end itemize
+
+We are currently working on intergrating an automatic master election
+system into @strong{MySQL}, but until it is ready, you will have to
+create your own monitoring tools .
+
 
 @cindex Performance
 @cindex Optimization
@@ -40779,10 +41064,8 @@ show columns from t2;
 @item
 Implement function: @code{get_changed_tables(timeout,table1,table2,...)}
 @item
-Atomic updates; This includes a language that one can even use for
-a set of stored procedures.
-@item
-@code{update items,month set items.price=month.price where items.id=month.id;}
+Atomic multi-table updates, eg @code{update items,month set 
+items.price=month.price where items.id=month.id;}; 
 @item
 Change reading through tables to use memmap when possible. Now only
 compressed tables use memmap.
@@ -40859,8 +41142,6 @@ Don't assign a new @code{AUTO_INCREMENT} value when one sets a column to 0.
 Use @code{NULL} instead.
 @item
 Add full support for @code{JOIN} with parentheses.
-@item
-Reuse threads for systems with a lot of connections.
 @item
 As an alternative for one thread / connection manage a pool of threads
 to handle the queries.
