@@ -653,7 +653,9 @@ public:
   {
      collation.set(system_charset_info);
      max_length= 64 * collation.collation->mbmaxlen; // should be enough
+     maybe_null= 0;
   };
+  table_map not_null_tables() const { return 0; }
 };
 
 class Item_func_collation :public Item_str_func
@@ -666,7 +668,9 @@ public:
   {
      collation.set(system_charset_info);
      max_length= 64 * collation.collation->mbmaxlen; // should be enough
+     maybe_null= 0;
   };
+  table_map not_null_tables() const { return 0; }
 };
 
 class Item_func_crc32 :public Item_int_func
