@@ -1434,6 +1434,10 @@ tz_init_table_list(TABLE_LIST *tz_tabs)
     This function creates list of TABLE_LIST objects allocated in thd's
     memroot, which can be used for opening of time zone tables.
 
+  NOTE
+    my_tz_check_n_skip_implicit_tables() function depends on fact that
+    elements of list created are allocated as TABLE_LIST[4] array.
+
   RETURN VALUES
     Returns pointer to first TABLE_LIST object, (could be 0 if time zone
     tables don't exist) and &fake_time_zone_tables_list in case of error.
