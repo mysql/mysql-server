@@ -34,7 +34,8 @@
 #include <AttributeList.hpp>
 #include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
-#include "NdbBlob.hpp"
+#include <NdbBlob.hpp>
+#include "NdbBlobImpl.hpp"
 #include <AttributeHeader.hpp>
 #include <my_sys.h>
 
@@ -1381,7 +1382,7 @@ NdbDictionaryImpl::addBlobTables(NdbTableImpl &t)
     if (! c.getBlobType() || c.getPartSize() == 0)
       continue;
     n--;
-    char btname[NdbBlob::BlobTableNameSize];
+    char btname[NdbBlobImpl::BlobTableNameSize];
     NdbBlob::getBlobTableName(btname, &t, &c);
     // Save BLOB table handle
     NdbTableImpl * cachedBlobTable = getTable(btname);
@@ -1789,7 +1790,7 @@ NdbDictionaryImpl::dropBlobTables(NdbTableImpl & t)
     NdbColumnImpl & c = *t.m_columns[i];
     if (! c.getBlobType() || c.getPartSize() == 0)
       continue;
-    char btname[NdbBlob::BlobTableNameSize];
+    char btname[NdbBlobImpl::BlobTableNameSize];
     NdbBlob::getBlobTableName(btname, &t, &c);
     if (dropTable(btname) != 0) {
       if (m_error.code != 709){

@@ -303,5 +303,8 @@ select a,b,c from t3 force index (a) where a=1 order by a,b,c;
 explain select a,b,c from t3 force index (a) where a=1 order by a desc, b desc, c desc;
 select a,b,c from t3 force index (a) where a=1 order by a desc, b desc, c desc;
 
+# BUG#7377 SHOW index on MERGE table crashes debug server
+show index from t3;
+
 drop table t1, t2, t3;
 
