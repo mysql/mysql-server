@@ -2602,6 +2602,7 @@ void
 NdbDictInterface::execSUB_STOP_CONF(NdbApiSignal * signal,
 				      LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execSUB_STOP_REF");
 #ifdef EVENT_DEBUG
   ndbout << "Got GSN_SUB_STOP_CONF" << endl;
 #endif
@@ -2618,17 +2619,21 @@ void
 NdbDictInterface::execSUB_STOP_REF(NdbApiSignal * signal,
 				     LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execSUB_STOP_REF");
 #ifdef EVENT_DEBUG
   ndbout << "Got GSN_SUB_STOP_REF" << endl;
 #endif
-  //  SubRemoveConf * const sumaRemoveRef = CAST_CONSTPTR(SubRemoveRef, signal->getDataPtr());
+  const SubRemoveRef * const sumaRemoveRef=
+    CAST_CONSTPTR(SubRemoveRef, signal->getDataPtr());
 
   //  Uint32 subscriptionId = sumaRemoveRef->subscriptionId;
   //  Uint32 subscriptionKey = sumaRemoveRef->subscriptionKey;
   //  Uint32 senderData = sumaRemoveRef->senderData;
 
-  m_error.code = 1;
+  m_error.code= sumaRemoveRef->errorCode;
   m_waiter.signal(NO_WAIT);
+
+  DBUG_VOID_RETURN;
 }
 
 void

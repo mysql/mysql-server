@@ -50,7 +50,6 @@
  */
 
 #include <NdbApi.hpp>
-#include <ndberror.h>
 
 // Used for cout
 #include <stdio.h>
@@ -251,7 +250,8 @@ int myCreateEvent(Ndb* myNdb,
   // Add event to database
   if (myDict->createEvent(myEvent) == 0)
     myEvent.print();
-  else if (myDict->getNdbError().code == NDBERR_EVENT_NAME_ALEADY_EXISTS) {
+  else if (myDict->getNdbError().classification ==
+	   NdbError::SchemaObjectExists) {
     printf("Event creation failed, event exists\n");
     printf("dropping Event...\n");
     if (myDict->dropEvent(eventName)) APIERROR(myDict->getNdbError());

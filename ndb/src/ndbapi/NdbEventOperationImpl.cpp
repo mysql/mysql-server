@@ -260,15 +260,16 @@ NdbEventOperationImpl::execute()
 int
 NdbEventOperationImpl::stop()
 {
+  DBUG_ENTER("NdbEventOperationImpl::stop");
   if (m_state != NdbEventOperation::EXECUTING)
-    return -1;
+    DBUG_RETURN(-1);
 
   //  ndbout_c("NdbEventOperation::stopping()");
 
   NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
   if (!myDict) {
     ndbout_c("NdbEventOperation::stop(): getDictionary=NULL");
-    return 0;
+    DBUG_RETURN(-1);
   }
 
   NdbDictionaryImpl & myDictImpl = NdbDictionaryImpl::getImpl(*myDict);
@@ -279,8 +280,8 @@ NdbEventOperationImpl::stop()
 					      hasSubscriber /* return value */);
 
   if (ret < 0) {
-    ndbout_c("prepareDropSubscribeEvent failed");
-    return -1;
+    m_error.code= 4712;
+    DBUG_RETURN(-1);
   }
   //  m_eventImpl->m_bufferId = m_bufferId;
 
@@ -297,6 +298,7 @@ NdbEventOperationImpl::stop()
   if (r) {
     //Error
     m_bufferHandle->unprepareDropSubscribeEvent(m_bufferId);
+    m_error.code= myDictImpl.m_error.code;
     m_state = NdbEventOperation::ERROR;
   } else {
 #ifdef EVENT_DEBUG
@@ -306,8 +308,7 @@ NdbEventOperationImpl::stop()
     m_state = NdbEventOperation::CREATED;
   }
 
-
-  return r;
+  DBUG_RETURN(r);
 }
 
 bool
@@ -955,7 +956,7 @@ NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
       } else {
 	ndbout_c("prepareAddSubscribeEvent: Can't accept more subscribers");
 	//	add_drop_unlock();
-	return -1;
+	DBUG_RETURN(-1);
       }
     }
     bufferId = NO_ID(ni, bufferId);
@@ -1047,6 +1048,7 @@ int
 NdbGlobalEventBuffer::real_prepareDropSubscribeEvent(int bufferId,
 						     int& hasSubscriber)
 {
+  DBUG_ENTER("NdbGlobalEventBuffer::real_prepareDropSubscribeEvent");
   //  add_drop_lock(); // only one thread can do add or drop at a time
 
   BufItem &b = m_buf[ID(bufferId)];
@@ -1062,9 +1064,9 @@ NdbGlobalEventBuffer::real_prepareDropSubscribeEvent(int bufferId,
   else if (n == 1)
     hasSubscriber = 0;
   else
-    return -1;
+    DBUG_RETURN(-1);
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void
