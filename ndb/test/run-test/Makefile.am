@@ -1,9 +1,9 @@
 
-bin_PROGRAMS = atrt
+ndbtest_PROGRAMS = atrt
 
 atrt_SOURCES = main.cpp
 
-bin_SCRIPTS = atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
+ndbtest_SCRIPTS = atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
           atrt-clear-result.sh make-config.sh
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/include/mgmapi -I$(top_srcdir)/ndb/src/mgmclient
