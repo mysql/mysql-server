@@ -82,6 +82,7 @@ public:
     first=tmp.first;
     last=tmp.last;
   }
+  inline base_list(bool error) { }
   inline bool push_back(void *info)
   {
     if (((*last)=new list_node(info, &end_of_list)))
@@ -122,11 +123,15 @@ public:
       last= &first;
     return tmp->info;
   }
+  inline list_node* last_node() { return *last; }
+  inline list_node* first_node() { return first;}
   inline void *head() { return first->info; }
   inline void **head_ref() { return first != &end_of_list ? &first->info : 0; }
   inline bool is_empty() { return first == &end_of_list ; }
   inline list_node *last_ref() { return &end_of_list; }
   friend class base_list_iterator;
+  friend class error_list;
+  friend class error_list_iterator;
 
 protected:
   void after(void *info,list_node *node)
@@ -204,6 +209,7 @@ public:
   {
     return el == &list->last_ref()->next;
   }
+  friend class error_list_iterator;
 };
 
 

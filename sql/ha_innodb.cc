@@ -756,9 +756,8 @@ innobase_init(void)
 
 		DBUG_RETURN(1);
 	}
-
-	(void) hash_init(&innobase_open_tables,32,0,0,
-			 		(hash_get_key) innobase_get_key,0,0);
+	(void) hash_init(&innobase_open_tables,system_charset_info,32,0,0,
+			 (hash_get_key) innobase_get_key,0,0);
 	pthread_mutex_init(&innobase_mutex,MY_MUTEX_INIT_FAST);
 
 	/* If this is a replication slave and we needed to do a crash recovery,
@@ -1365,8 +1364,11 @@ innobase_mysql_cmp(
 
 	case FIELD_TYPE_STRING:
 	case FIELD_TYPE_VAR_STRING:
-  		ret = my_sortncmp((const char*) a, a_length,
-				  (const char*) b, b_length);
+		// BAR TODO: Discuss with heikki.tuuri@innodb.com
+		// so that he sends CHARSET_INFO for the field to this function.
+  		ret = my_strnncoll(default_charset_info,
+				  a, a_length,
+				  b, b_length);
 		if (ret < 0) {
 		        return(-1);
 		} else if (ret > 0) {
@@ -3813,7 +3815,7 @@ innodb_show_status(
 
 	ut_free(buf);
 
-  	send_eof(&thd->net);
+  	send_eof(thd);
 
   	DBUG_RETURN(0);
 }

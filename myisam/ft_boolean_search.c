@@ -119,7 +119,7 @@ static int FTB_WORD_cmp(my_off_t *v, FTB_WORD *a, FTB_WORD *b)
 static int FTB_WORD_cmp_list(CHARSET_INFO *cs, FTB_WORD **a, FTB_WORD **b)
 {
   /* ORDER BY word DESC, ndepth DESC */
-  int i=_mi_compare_text(cs, (*b)->word+1,(*b)->len-1,
+  int i= mi_compare_text(cs, (*b)->word+1,(*b)->len-1,
                              (*a)->word+1,(*a)->len-1,0);
   if (!i)
     i=CMP_NUM((*b)->ndepth,(*a)->ndepth);
@@ -242,8 +242,8 @@ static void _ftb_init_index_search(FT_INFO *ftb)
       {
         if (!is_tree_inited(& ftb->no_dupes))
         {
-          init_tree(& ftb->no_dupes,0,0,sizeof(my_off_t),
-              _ftb_no_dupes_cmp,0,0,0);
+          init_tree(&ftb->no_dupes,0,0,sizeof(my_off_t),
+		    _ftb_no_dupes_cmp, 0, NULL, NULL);
         }
       }
     }
@@ -251,7 +251,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
                               SEARCH_FIND | SEARCH_BIGGER, keyroot);
     if (!r)
     {
-      r=_mi_compare_text(ftb->charset,
+      r= mi_compare_text(ftb->charset,
                          info->lastkey + (ftbw->flags&FTB_FLAG_TRUNC),
                          ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
                          ftbw->word    + (ftbw->flags&FTB_FLAG_TRUNC),
@@ -460,7 +460,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
 	 (curdoc=((FTB_WORD *)queue_top(& ftb->queue))->docid[0]) !=
 	 HA_POS_ERROR)
   {
-    while (curdoc==(ftbw=(FTB_WORD *)queue_top(& ftb->queue))->docid[0])
+    while (curdoc == (ftbw=(FTB_WORD *)queue_top(& ftb->queue))->docid[0])
     {
       _ftb_climb_the_tree(ftb, ftbw, 0);
 
@@ -469,7 +469,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
                    SEARCH_BIGGER , keyroot);
       if (!r)
       {
-        r=_mi_compare_text(ftb->charset,
+        r= mi_compare_text(ftb->charset,
                            info->lastkey + (ftbw->flags&FTB_FLAG_TRUNC),
                            ftbw->len     - (ftbw->flags&FTB_FLAG_TRUNC),
                            ftbw->word    + (ftbw->flags&FTB_FLAG_TRUNC),
@@ -501,12 +501,14 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
         ftbe->yesses>=(ftbe->ythresh-ftbe->yweaks) && !ftbe->nos)
     {
       /* curdoc matched ! */
-      if (is_tree_inited(& ftb->no_dupes) &&
-          tree_insert(& ftb->no_dupes, &curdoc, 0)->count >1)
+      if (is_tree_inited(&ftb->no_dupes) &&
+          tree_insert(&ftb->no_dupes, &curdoc, 0, 
+		      ftb->no_dupes.custom_arg)->count >1)
         /* but it managed to get past this line once */
         continue;
 
       info->lastpos=curdoc;
+      /* Clear all states, except that the table was updated */
       info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
       if (!(*info->read_record)(info,curdoc,record))
@@ -575,9 +577,9 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       for (a=0, b=ftb->queue.elements, c=(a+b)/2; b-a>1; c=(a+b)/2)
       {
         ftbw=ftb->list[c];
-        if (_mi_compare_text(ftb->charset, word.pos, word.len,
-                             (uchar*) ftbw->word+1, ftbw->len-1,
-                             (my_bool) (ftbw->flags&FTB_FLAG_TRUNC)) >0)
+        if (mi_compare_text(ftb->charset, word.pos, word.len,
+                            (uchar*) ftbw->word+1, ftbw->len-1,
+                            (my_bool) (ftbw->flags&FTB_FLAG_TRUNC)) >0)
           b=c;
         else
           a=c;
@@ -585,9 +587,9 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
       for (; c>=0; c--)
       {
         ftbw=ftb->list[c];
-        if (_mi_compare_text(ftb->charset, word.pos,word.len,
-                             (uchar*) ftbw->word+1,ftbw->len-1,
-                              (my_bool) (ftbw->flags&FTB_FLAG_TRUNC)))
+        if (mi_compare_text(ftb->charset, word.pos,word.len,
+                            (uchar*) ftbw->word+1,ftbw->len-1,
+                            (my_bool) (ftbw->flags&FTB_FLAG_TRUNC)))
           break;
         if (ftbw->docid[1] == docid)
           continue;

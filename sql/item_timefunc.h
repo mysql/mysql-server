@@ -176,7 +176,6 @@ public:
   const char *func_name() const { return "weekday"; }
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_dayname :public Item_func_weekday
@@ -202,7 +201,6 @@ public:
   {
     decimals=0; max_length=10;
   }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -231,7 +229,7 @@ public:
   double val() { return (double) val_int(); }
   const char *func_name() const { return "date"; }
   void fix_length_and_dec() { decimals=0; max_length=10; }
-  bool save_in_field(Field *to);
+  int  save_in_field(Field *to);
   void make_field(Send_field *tmp_field)
   {
     init_make_field(tmp_field,FIELD_TYPE_DATE);
@@ -240,7 +238,6 @@ public:
   {
     return (!t_arg) ? result_field : new Field_date(maybe_null, name, t_arg);
   }  
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -259,7 +256,6 @@ public:
     return  (!t_arg) ? result_field : new Field_datetime(maybe_null, name,
 							 t_arg);
   }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -275,7 +271,7 @@ public:
   double val() { return (double) value; }
   longlong val_int() { return value; }
   String *val_str(String *str)
-  { str_value.set(buff,buff_length); return &str_value; }
+  { str_value.set(buff,buff_length,default_charset_info); return &str_value; }
   const char *func_name() const { return "curtime"; }
   void fix_length_and_dec();
   void make_field(Send_field *tmp_field)
@@ -286,7 +282,6 @@ public:
   {
     return (!t_arg) ? result_field : new Field_time(maybe_null, name, t_arg);
   }  
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -300,7 +295,6 @@ public:
   const char *func_name() const { return "curdate"; }
   void fix_length_and_dec();			/* Retrieves curtime */
   bool get_date(TIME *res,bool fuzzy_date);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -316,13 +310,12 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   double val()	     { return (double) value; }
   longlong val_int() { return value; }
-  bool save_in_field(Field *to);
+  int  save_in_field(Field *to);
   String *val_str(String *str)
-  { str_value.set(buff,buff_length); return &str_value; }
+  { str_value.set(buff,buff_length,default_charset_info); return &str_value; }
   const char *func_name() const { return "now"; }
   void fix_length_and_dec();
   bool get_date(TIME *res,bool fuzzy_date);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -347,7 +340,6 @@ public:
   const char *func_name() const { return "date_format"; }
   void fix_length_and_dec();
   uint format_length(const String *format);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -407,7 +399,6 @@ public:
   double val() { return (double) val_int(); }
   longlong val_int();
   bool get_date(TIME *res,bool fuzzy_date);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_extract :public Item_int_func
@@ -421,7 +412,6 @@ class Item_extract :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "extract"; }
   void fix_length_and_dec();
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_typecast :public Item_str_func

@@ -23,7 +23,7 @@ ulong ft_max_word_len=HA_FT_MAXLEN;
 ulong ft_max_word_len_for_sort=20;
 const char *ft_boolean_syntax="+ -><()~*:\"\"&|";
 
-const MI_KEYSEG ft_keysegs[FT_SEGS]={
+const HA_KEYSEG ft_keysegs[FT_SEGS]={
 {
     HA_KEYTYPE_VARTEXT,               /* type */
     7,                                /* language (will be overwritten) */
@@ -36,7 +36,7 @@ const MI_KEYSEG ft_keysegs[FT_SEGS]={
     HA_FT_WLEN,                       /* start */
 #endif /* EVAL_RUN */
     0,                                /* null_pos */
-    NULL                              /* sort_order */
+    NULL                              /* charset  */
   },
 #ifdef EVAL_RUN
   {

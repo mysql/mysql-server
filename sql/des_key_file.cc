@@ -70,9 +70,10 @@ load_des_key_file(const char *file_name)
     {
       offset=(char) (offset - '0');
       // Remove newline and possible other control characters
-      for (start=buf+1 ; isspace(*start) ; start++) ;
+      for (start=buf+1 ; my_isspace(system_charset_info, *start) ; start++) ;
       end=buf+length;
-      for  (end=strend(buf) ; end > start && !isgraph(end[-1]) ; end--) ;
+      for  (end=strend(buf) ; 
+            end > start && !my_isgraph(system_charset_info, end[-1]) ; end--) ;
 
       if (start != end)
       {

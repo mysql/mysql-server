@@ -32,7 +32,8 @@ public:
   enum Type {FIELD_ITEM,FUNC_ITEM,SUM_FUNC_ITEM,STRING_ITEM,
 	     INT_ITEM,REAL_ITEM,NULL_ITEM,VARBIN_ITEM,
 	     COPY_STR_ITEM,FIELD_AVG_ITEM, DEFAULT_ITEM,
-	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, CONST_ITEM};
+	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, CONST_ITEM,
+             SUBSELECT_ITEM};
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
   String str_value;			/* used to store value */
@@ -46,14 +47,13 @@ public:
   my_bool unsigned_flag;
   my_bool with_sum_func;
 
-
   // alloc & destruct is done as start of select using sql_alloc
   Item();
   virtual ~Item() { name=0; }		/*lint -e1509 */
-  void set_name(char* str,uint length=0);
+  void set_name(const char *str,uint length=0);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
-  virtual bool fix_fields(THD *,struct st_table_list *);
-  virtual bool save_in_field(Field *field);
+  virtual bool fix_fields(THD *, struct st_table_list *, Item **);
+  virtual int  save_in_field(Field *field);
   virtual void save_org_in_field(Field *field)
     { (void) save_in_field(field); }
   virtual bool send(THD *thd, String *str);
@@ -82,22 +82,23 @@ public:
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool is_null() { return 0; }
-  virtual unsigned int size_of()= 0;
 };
 
 
+class st_select_lex;
 class Item_ident :public Item
 {
 public:
   const char *db_name;
   const char *table_name;
   const char *field_name;
+  st_select_lex *depended_from;
   Item_ident(const char *db_name_par,const char *table_name_par,
 	     const char *field_name_par)
-    :db_name(db_name_par),table_name(table_name_par),field_name(field_name_par)
+    :db_name(db_name_par),table_name(table_name_par),
+    field_name(field_name_par), depended_from(0)
     { name = (char*) field_name_par; }
   const char *full_name() const;
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -126,8 +127,8 @@ public:
     return result_field->send(thd,str_arg);
   }
   void make_field(Send_field *field);
-  bool fix_fields(THD *,struct st_table_list *);
-  bool save_in_field(Field *field);
+  bool fix_fields(THD *, struct st_table_list *, Item **);
+  int  save_in_field(Field *field);
   void save_org_in_field(Field *field);
   table_map used_tables() const;
   enum Item_result result_type () const
@@ -138,7 +139,6 @@ public:
   bool get_date(TIME *ltime,bool fuzzydate);  
   bool get_time(TIME *ltime);  
   bool is_null() { return field->is_null(); }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -153,16 +153,51 @@ public:
   longlong val_int();
   String *val_str(String *str);
   void make_field(Send_field *field);
-  bool save_in_field(Field *field);
+  int  save_in_field(Field *field);
   enum Item_result result_type () const
   { return STRING_RESULT; }
   bool send(THD *thd, String *str);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
+class Item_param :public Item
+{
+public:    
+  longlong int_value;
+  double   real_value;
+  enum Item_result item_result_type;
+  enum Type item_type;
+  enum enum_field_types buffer_type;
+  my_bool long_data_supplied;
+
+  Item_param(char *name_par=0)
+  { 
+    name= name_par ? name_par : (char*) "?";
+    long_data_supplied = false;
+    item_type = STRING_ITEM;
+    item_result_type = STRING_RESULT;
+  }
+  enum Type type() const { return item_type; }
+  double val();
+  longlong val_int();
+  String *val_str(String*);
+  void make_field(Send_field *field);
+  int  save_in_field(Field *field);
+  void set_null();
+  void set_int(longlong i);
+  void set_double(double i);
+  void set_value(const char *str, uint length);  
+  void set_long_str(const char *str, ulong length);
+  void set_long_binary(const char *str, ulong length);
+  void set_longdata(const char *str, ulong length);
+  void set_long_end(); 
+  void reset() {}
+  enum Item_result result_type () const
+  { return item_result_type; }  
+  Item *new_item() { return new Item_param(name); }
+};
 
 class Item_int :public Item
 {
@@ -186,11 +221,10 @@ public:
   double val() { return (double) value; }
   String *val_str(String*);
   void make_field(Send_field *field);
-  bool save_in_field(Field *field);
+  int  save_in_field(Field *field);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_int(name,value,max_length); }
   void print(String *str);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -205,7 +239,6 @@ public:
   void make_field(Send_field *field);
   Item *new_item() { return new Item_uint(name,max_length); }
   void print(String *str);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -228,7 +261,7 @@ public:
     max_length=length;
   }
   Item_real(double value_par) :value(value_par) {}
-  bool save_in_field(Field *field);
+  int  save_in_field(Field *field);
   enum Type type() const { return REAL_ITEM; }
   double val() { return value; }
   longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5));}
@@ -236,7 +269,6 @@ public:
   void make_field(Send_field *field);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_real(name,value,decimals,max_length); }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -248,22 +280,21 @@ public:
     decimals=NOT_FIXED_DEC;
     max_length=DBL_DIG+8;
   }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_string :public Item
 {
 public:
-  Item_string(const char *str,uint length)
+  Item_string(const char *str,uint length,CHARSET_INFO *cs)
   {
-    str_value.set(str,length);
+    str_value.set(str,length,cs);
     max_length=length;
     name=(char*) str_value.ptr();
     decimals=NOT_FIXED_DEC;
   }
-  Item_string(const char *name_par,const char *str,uint length)
+  Item_string(const char *name_par,const char *str,uint length,CHARSET_INFO *cs)
   {
-    str_value.set(str,length);
+    str_value.set(str,length,cs);
     max_length=length;
     name=(char*) name_par;
     decimals=NOT_FIXED_DEC;
@@ -273,16 +304,15 @@ public:
   double val() { return atof(str_value.ptr()); }
   longlong val_int() { return strtoll(str_value.ptr(),(char**) 0,10); }
   String *val_str(String*) { return (String*) &str_value; }
-  bool save_in_field(Field *field);
+  int  save_in_field(Field *field);
   void make_field(Send_field *field);
   enum Item_result result_type () const { return STRING_RESULT; }
   bool basic_const_item() const { return 1; }
   bool eq(const Item *item, bool binary_cmp) const;
-  Item *new_item() { return new Item_string(name,str_value.ptr(),max_length); }
+  Item *new_item() { return new Item_string(name,str_value.ptr(),max_length,default_charset_info); }
   String *const_string() { return &str_value; }
   inline void append(char *str,uint length) { str_value.append(str,length); }
   void print(String *str);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -294,7 +324,7 @@ public:
   Item_default() { name= (char*) "DEFAULT"; }
   enum Type type() const { return DEFAULT_ITEM; }
   void make_field(Send_field *field) {}
-  bool save_in_field(Field *field)
+  int save_in_field(Field *field)
   {
     field->set_default();
     return 0;
@@ -303,7 +333,6 @@ public:
   virtual longlong val_int() { return 0; }
   virtual String *val_str(String *str) { return 0; }
   bool basic_const_item() const { return 1; }
-  unsigned int size_of() { return sizeof(*this);}
 };
 
 
@@ -312,33 +341,30 @@ public:
 class Item_datetime :public Item_string
 {
 public:
-  Item_datetime(const char *item_name): Item_string(item_name,"",0)
+  Item_datetime(const char *item_name): Item_string(item_name,"",0,default_charset_info)
   { max_length=19;}
   void make_field(Send_field *field);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_empty_string :public Item_string
 {
 public:
-  Item_empty_string(const char *header,uint length) :Item_string("",0)
+  Item_empty_string(const char *header,uint length) :Item_string("",0,default_charset_info)
     { name=(char*) header; max_length=length;}
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_varbinary :public Item
 {
 public:
-  Item_varbinary(const char *str,uint str_length);
+  Item_varbinary(const char *str,uint str_length,CHARSET_INFO *cs);
   ~Item_varbinary() {}
   enum Type type() const { return VARBIN_ITEM; }
   double val() { return (double) Item_varbinary::val_int(); }
   longlong val_int();
   String *val_str(String*) { return &str_value; }
-  bool save_in_field(Field *field);
+  int  save_in_field(Field *field);
   void make_field(Send_field *field);
   enum Item_result result_type () const { return INT_RESULT; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -351,7 +377,6 @@ public:
   Field *tmp_table_field(TABLE *t_arg=(TABLE *)0) { return result_field; }
   table_map used_tables() const { return 1; }
   virtual void fix_length_and_dec()=0;
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -396,12 +421,11 @@ public:
   }
   bool send(THD *thd, String *tmp)	{ return (*ref)->send(thd, tmp); }
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }
-  bool fix_fields(THD *,struct st_table_list *);
-  bool save_in_field(Field *field)	{ return (*ref)->save_in_field(field); }
+  bool fix_fields(THD *, struct st_table_list *, Item **);
+  int  save_in_field(Field *field)	{ return (*ref)->save_in_field(field); }
   void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
   enum Item_result result_type () const { return (*ref)->result_type(); }
   table_map used_tables() const		{ return (*ref)->used_tables(); }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -417,20 +441,22 @@ class Item_int_with_ref :public Item_int
 public:
   Item_int_with_ref(longlong i, Item *ref_arg) :Item_int(i), ref(ref_arg)
   {}
-  bool save_in_field(Field *field)
+  int  save_in_field(Field *field)
   {
     return ref->save_in_field(field);
   }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
+#include "gstream.h"
+#include "spatial.h"
 #include "item_sum.h"
 #include "item_func.h"
 #include "item_cmpfunc.h"
 #include "item_strfunc.h"
 #include "item_timefunc.h"
 #include "item_uniq.h"
+#include "item_subselect.h"
 
 class Item_copy_string :public Item
 {
@@ -456,7 +482,6 @@ public:
   table_map used_tables() const { return (table_map) 1L; }
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -467,7 +492,6 @@ public:
   Item_buff() :null_value(0) {}
   virtual bool cmp(void)=0;
   virtual ~Item_buff(); /*line -e1509 */
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_str_buff :public Item_buff
@@ -478,7 +502,6 @@ public:
   Item_str_buff(Item *arg) :item(arg),value(arg->max_length) {}
   bool cmp(void);
   ~Item_str_buff();				// Deallocate String:s
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -489,7 +512,6 @@ class Item_real_buff :public Item_buff
 public:
   Item_real_buff(Item *item_par) :item(item_par),value(0.0) {}
   bool cmp(void);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_int_buff :public Item_buff
@@ -499,7 +521,6 @@ class Item_int_buff :public Item_buff
 public:
   Item_int_buff(Item *item_par) :item(item_par),value(0) {}
   bool cmp(void);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -516,7 +537,6 @@ public:
     buff= (char*) sql_calloc(length=field->pack_length());
   }
   bool cmp(void);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 extern Item_buff *new_Item_buff(Item *item);

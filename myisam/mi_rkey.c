@@ -17,7 +17,7 @@
 /* Read record based on a key */
 
 #include "myisamdef.h"
-
+#include "rt_index.h"
 
 	/* Read a record using key */
 	/* Ordinary search_flag is 0 ; Give error if no record with key */
@@ -36,6 +36,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
     DBUG_RETURN(my_errno);
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
+  info->last_key_func=search_flag;
 
   if (!info->use_packed_key)
   {
@@ -65,22 +66,33 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   if (!(nextflag & (SEARCH_FIND | SEARCH_NO_FIND | SEARCH_LAST)))
     use_key_length=USE_WHOLE_KEY;
 
-  if (!_mi_search(info,info->s->keyinfo+inx,key_buff,use_key_length,
-		  myisam_read_vec[search_flag],info->s->state.key_root[inx]))
-  {
-    while (info->lastpos >= info->state->data_file_length)
+  switch(info->s->keyinfo[inx].key_alg){
+  case HA_KEY_ALG_RTREE:
+    if(rtree_find_first(info,inx,key_buff,use_key_length,nextflag)<0)
     {
-      /*
-	Skip rows that are inserted by other threads since we got a lock
-	Note that this can only happen if we are not searching after an
-	exact key, because the keys are sorted according to position
-      */
+      my_errno=HA_ERR_CRASHED;
+      goto err;
+    }
+    break;
+  case HA_KEY_ALG_BTREE:
+  default:
+    if (!_mi_search(info,info->s->keyinfo+inx,key_buff,use_key_length,
+		  myisam_read_vec[search_flag],info->s->state.key_root[inx]))
+    {
+      while (info->lastpos >= info->state->data_file_length)
+      {
+        /*
+	  Skip rows that are inserted by other threads since we got a lock
+	  Note that this can only happen if we are not searching after an
+	  exact key, because the keys are sorted according to position
+        */
 
-      if  (_mi_search_next(info,info->s->keyinfo+inx,info->lastkey,
+        if  (_mi_search_next(info,info->s->keyinfo+inx,info->lastkey,
 			   info->lastkey_length,
 			   myisam_readnext_vec[search_flag],
 			   info->s->state.key_root[inx]))
-	break;
+	  break;
+      }
     }
   }
   if (share->concurrent_insert)

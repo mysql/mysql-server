@@ -28,7 +28,6 @@ public:
   Item_bool_func(Item *a) :Item_int_func(a) {}
   Item_bool_func(Item *a,Item *b) :Item_int_func(a,b) {}
   void fix_length_and_dec() { decimals=0; max_length=1; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_bool_func2 :public Item_int_func
@@ -48,7 +47,6 @@ public:
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -82,7 +80,6 @@ public:
   enum Functype rev_functype() const { return EQUAL_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<=>"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -180,15 +177,15 @@ public:
   Item_func_interval(Item *a,List<Item> &list)
     :Item_int_func(list),item(a),intervals(0) {}
   longlong val_int();
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
   {
-    return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
+    return (item->fix_fields(thd, tlist, &item) || 
+	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
   ~Item_func_interval() { delete item; }
   const char *func_name() const { return "interval"; }
   void update_used_tables();
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -203,7 +200,6 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "ifnull"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -218,7 +214,6 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "if"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -233,7 +228,6 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "nullif"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -248,7 +242,6 @@ public:
   void fix_length_and_dec();
   enum Item_result result_type () const { return cached_result_type; }
   const char *func_name() const { return "coalesce"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_case :public Item_func
@@ -267,9 +260,8 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   const char *func_name() const { return "case"; }
   void print(String *str);
-  bool fix_fields(THD *thd,struct st_table_list *tlist);
+  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   Item *find_item(String *str);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -350,7 +342,7 @@ class cmp_item_sort_string :public cmp_item {
   char value_buff[80];
   String value,*value_res;
 public:
-  cmp_item_sort_string() :value(value_buff,sizeof(value_buff)) {}
+  cmp_item_sort_string() :value(value_buff,sizeof(value_buff),default_charset_info) {}
   void store_value(Item *item)
     {
       value_res=item->val_str(&value);
@@ -358,7 +350,7 @@ public:
   int cmp(Item *arg)
     {
       char buff[80];
-      String tmp(buff,sizeof(buff)),*res;
+      String tmp(buff,sizeof(buff),default_charset_info),*res;
       if (!(res=arg->val_str(&tmp)))
 	return 1;				/* Can't be right */
       return sortcmp(value_res,res);
@@ -371,7 +363,7 @@ public:
   int cmp(Item *arg)
     {
       char buff[80];
-      String tmp(buff,sizeof(buff)),*res;
+      String tmp(buff,sizeof(buff),default_charset_info),*res;
       if (!(res=arg->val_str(&tmp)))
 	return 1;				/* Can't be right */
       return stringcmp(value_res,res);
@@ -418,9 +410,10 @@ class Item_func_in :public Item_int_func
   Item_func_in(Item *a,List<Item> &list)
     :Item_int_func(list),item(a),array(0),in_item(0) {}
   longlong val_int();
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
   {
-    return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
+    return (item->fix_fields(thd, tlist, &item) ||
+	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
   ~Item_func_in() { delete item; delete array; delete in_item; }
@@ -431,7 +424,6 @@ class Item_func_in :public Item_int_func
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
   void update_used_tables();
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -469,7 +461,6 @@ public:
     }
   }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_isnotnull :public Item_bool_func
@@ -484,7 +475,6 @@ public:
   }
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_like :public Item_bool_func2
@@ -517,8 +507,7 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "like"; }
   void fix_length_and_dec();
-  bool fix_fields(THD *thd,struct st_table_list *tlist);
-  unsigned int size_of() { return sizeof(*this);}  
+  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
 };
 
 #ifdef USE_REGEX
@@ -536,9 +525,8 @@ public:
     regex_compiled(0),regex_is_const(0) {}
   ~Item_func_regex();
   longlong val_int();
-  bool fix_fields(THD *thd,struct st_table_list *tlist);
+  bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   const char *func_name() const { return "regex"; }
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 #else
@@ -566,7 +554,7 @@ public:
     { list.push_back(i1); list.push_back(i2); }
   ~Item_cond() { list.delete_elements(); }
   bool add(Item *item) { return list.push_back(item); }
-  bool fix_fields(THD *,struct st_table_list *);
+  bool fix_fields(THD *, struct st_table_list *, Item **ref);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }
@@ -575,7 +563,6 @@ public:
   void print(String *str);
   void split_sum_func(List<Item> &fields);
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
-  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -600,6 +587,17 @@ public:
 };
 
 
+class Item_cond_xor :public Item_cond
+{
+public:
+  Item_cond_xor() :Item_cond() {}
+  Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) {}
+  enum Functype functype() const { return COND_XOR_FUNC; }
+  longlong val_int();
+  const char *func_name() const { return "xor"; }
+};
+
+
 /* Some usefull inline functions */
 
 inline Item *and_conds(Item *a,Item *b)
@@ -612,12 +610,79 @@ inline Item *and_conds(Item *a,Item *b)
   return cond;
 }
 
-class Item_cond_xor :public Item_cond
+
+/**************************************************************
+  Spatial relations
+***************************************************************/
+
+class Item_func_spatial_rel :public Item_bool_func2
+{
+  enum Functype spatial_rel;
+public:
+  Item_func_spatial_rel(Item *a,Item *b, enum Functype sp_rel) :
+    Item_bool_func2(a,b) { spatial_rel = sp_rel; }
+  longlong val_int();
+  enum Functype functype() const 
+  { 
+    switch (spatial_rel) {
+    case SP_CONTAINS_FUNC:
+      return SP_WITHIN_FUNC;
+    case SP_WITHIN_FUNC:
+      return SP_CONTAINS_FUNC;
+    default:
+      return spatial_rel;
+    }
+  }
+  enum Functype rev_functype() const { return spatial_rel; }
+  const char *func_name() const 
+  { 
+    switch (spatial_rel) {
+    case SP_CONTAINS_FUNC:
+      return "contains";
+    case SP_WITHIN_FUNC:
+      return "within";
+    case SP_EQUALS_FUNC:
+      return "equals";
+    case SP_DISJOINT_FUNC:
+      return "disjoint";
+    case SP_INTERSECTS_FUNC:
+      return "intersects";
+    case SP_TOUCHES_FUNC:
+      return "touches";
+    case SP_CROSSES_FUNC:
+      return "crosses";
+    case SP_OVERLAPS_FUNC:
+      return "overlaps";
+    default:
+      return "sp_unknown"; 
+    }
+    }
+};
+
+
+class Item_func_isempty :public Item_bool_func
 {
 public:
-  Item_cond_xor() :Item_cond() {}
-  Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) {}
-  enum Functype functype() const { return COND_XOR_FUNC; }
+  Item_func_isempty(Item *a) :Item_bool_func(a) {}
   longlong val_int();
-  const char *func_name() const { return "xor"; }
+  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
+  const char *func_name() const { return "isempty"; }
+};
+
+class Item_func_issimple :public Item_bool_func
+{
+public:
+  Item_func_issimple(Item *a) :Item_bool_func(a) {}
+  longlong val_int();
+  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
+  const char *func_name() const { return "issimple"; }
+};
+
+class Item_func_isclosed :public Item_bool_func
+{
+public:
+  Item_func_isclosed(Item *a) :Item_bool_func(a) {}
+  longlong val_int();
+  optimize_type select_optimize() const { return OPTIMIZE_NONE; }
+  const char *func_name() const { return "isclosed"; }
 };

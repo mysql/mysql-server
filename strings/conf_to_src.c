@@ -124,7 +124,7 @@ print_arrays_for(char *set)
   }
 
   printf("\
-/* The %s character set.  Generated automatically by configure and\n\
+/* The %s character set.  Generated automatically by\n\
  * the %s program\n\
  */\n\n",
 	 set, prog);

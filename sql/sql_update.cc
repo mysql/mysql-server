@@ -127,7 +127,7 @@ int mysql_update(THD *thd,
     {
       DBUG_RETURN(-1);				// Error in where
     }
-    send_ok(&thd->net);				// No matching records
+    send_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
   /* If running in safe sql mode, don't allow updates without keys */
@@ -138,7 +138,7 @@ int mysql_update(THD *thd,
     {
       delete select;
       table->time_stamp=save_time_stamp;
-      send_error(&thd->net,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
+      send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
       DBUG_RETURN(1);
     }
   }
@@ -329,13 +329,13 @@ int mysql_update(THD *thd,
 
   delete select;
   if (error >= 0)
-    send_error(&thd->net,thd->killed ? ER_SERVER_SHUTDOWN : 0); /* purecov: inspected */
+    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0); /* purecov: inspected */
   else
   {
     char buff[80];
     sprintf(buff,ER(ER_UPDATE_INFO), (long) found, (long) updated,
 	    (long) thd->cuted_fields);
-    send_ok(&thd->net,
+    send_ok(thd,
 	    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
 	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
     DBUG_PRINT("info",("%d records updated",updated));
@@ -380,9 +380,10 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs,
 }
 
 int
-multi_update::prepare(List<Item> &values)
+multi_update::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("multi_update::prepare");
+  unit= u;
   do_update = true;   
   thd->count_cuted_fields=1;
   thd->cuted_fields=0L;
@@ -438,7 +439,7 @@ multi_update::prepare(List<Item> &values)
     }
     if (!table_ref)
     {
-      net_printf(&thd->net, ER_NOT_SUPPORTED_YET, "JOIN SYNTAX WITH MULTI-TABLE UPDATES");
+      net_printf(thd, ER_NOT_SUPPORTED_YET, "JOIN SYNTAX WITH MULTI-TABLE UPDATES");
       DBUG_RETURN(1);
     }
     else
@@ -446,7 +447,7 @@ multi_update::prepare(List<Item> &values)
   }
   if (!num_updated)
   {
-    net_printf(&thd->net, ER_NOT_SUPPORTED_YET, "SET CLAUSE MUST CONTAIN TABLE.FIELD REFERENCE");
+    net_printf(thd, ER_NOT_SUPPORTED_YET, "SET CLAUSE MUST CONTAIN TABLE.FIELD REFERENCE");
     DBUG_RETURN(1);
   }
 
@@ -480,9 +481,12 @@ multi_update::prepare(List<Item> &values)
       }
       if (counter)
       {
-	Field_string offset(table_ref->table->file->ref_length,false,"offset",table_ref->table,true);
+	Field_string offset(table_ref->table->file->ref_length, false,
+                            "offset", table_ref->table, true,
+                            default_charset_info);
 	temp_fields->push_front(new Item_field(((Field *)&offset)));
-	// Here I make tmp tables
+
+	// Make a temporary table
 	int cnt=counter-1;
 	TMP_TABLE_PARAM tmp_table_param;
 	bzero((char*) &tmp_table_param,sizeof(tmp_table_param));
@@ -490,7 +494,8 @@ multi_update::prepare(List<Item> &values)
 	if (!(tmp_tables[cnt]=create_tmp_table(thd, &tmp_table_param,
 					       *temp_fields,
 					       (ORDER*) 0, 1, 0, 0,
-					       TMP_TABLE_ALL_COLUMNS)))
+					       TMP_TABLE_ALL_COLUMNS,
+					       unit)))
 	{
 	  error = 1; // A proper error message is due here 
 	  DBUG_RETURN(1);
@@ -638,7 +643,8 @@ bool multi_update::send_data(List<Item> &values)
       {
 	// Here we insert into each temporary table
 	values_by_table.push_front(new Item_string((char*) table->file->ref,
-						   table->file->ref_length));
+						   table->file->ref_length,
+						   system_charset_info));
 	fill_record(tmp_tables[secure_counter]->field,values_by_table);
 	error= write_record(tmp_tables[secure_counter],
 			    &(infos[secure_counter]));
@@ -655,8 +661,10 @@ bool multi_update::send_data(List<Item> &values)
 
 void multi_update::send_error(uint errcode,const char *err)
 {
+
+  //TODO error should be sent at the query processing end
   /* First send error what ever it is ... */
-  ::send_error(&thd->net,errcode,err);
+  ::send_error(thd,errcode,err);
 
   /* reset used flags */
   //  update_tables->table->no_keyread=0;
@@ -777,6 +785,7 @@ bool multi_update::send_eof()
   if (error == -1)
     error = 0;
   thd->proc_info="end";
+  //TODO error should be sent at the query processing end
   if (error)
     send_error(error,"An error occured in multi-table update");
 
@@ -815,7 +824,7 @@ bool multi_update::send_eof()
     {
       query_cache_invalidate3(thd, update_tables, 1);
     }
-    ::send_ok(&thd->net,
+    ::send_ok(thd,
 	      (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
 	      thd->insert_id_used ? thd->insert_id() : 0L,buff);
   }

@@ -278,6 +278,21 @@ TODO list:
   - Move MRG_MYISAM table type processing to handlers, something like:
         tables_used->table->file->register_used_filenames(callback,
                                                           first_argument);
+  - Make derived tables cachable.
+  - QC improvement suggested by Monty:
+    - Add a counter in open_table() for how many MERGE (ISAM or MyISAM)
+      tables are cached in the table cache.
+      (This will be trivial when we have the new table cache in place I
+      have been working on)
+    - After this we can add the following test around the for loop in
+      is_cacheable::
+
+      if (thd->temp_tables || global_merge_table_count)
+
+    - Another option would be to set thd->safe_to_cache_query to 0
+      in 'get_lock_data' if any of the tables was a tmp table or a
+      MRG_ISAM table.
+      (This could be done with almost no speed penalty)
 */
 
 #include "mysql_priv.h"
@@ -894,8 +909,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     Test if the query is a SELECT
     (pre-space is removed in dispatch_command)
   */
-  if (toupper(sql[0]) != 'S' || toupper(sql[1]) != 'E' ||
-      toupper(sql[2]) !='L')
+  if (my_toupper(system_charset_info, sql[0]) != 'S' || 
+      my_toupper(system_charset_info, sql[1]) != 'E' ||
+      my_toupper(system_charset_info,sql[2]) !='L')
   {
     DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
     goto err;
@@ -1382,7 +1398,7 @@ ulong Query_cache::init_cache()
 
   DUMP(this);
 
-  VOID(hash_init(&queries,def_query_hash_size, 0, 0,
+  VOID(hash_init(&queries,system_charset_info,def_query_hash_size, 0, 0,
 		 query_cache_query_get_key, 0, 0));
 #ifndef FN_NO_CASE_SENCE
   VOID(hash_init(&tables,def_table_hash_size, 0, 0,

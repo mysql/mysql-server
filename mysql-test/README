@@ -1,6 +1,10 @@
 This directory contains a test suite for mysql daemon. To run
 the currently existing test cases, simply execute ./mysql-test-run in
 this directory. It will fire up the newly built mysqld and test it.
+
+If you want to run the test with a running MySQL server use the --external
+option to mysql-test-run.
+
 Note that you do not have to have to do make install, and you could
 actually have a co-existing MySQL installation - the tests will not
 conflict with it.
@@ -13,8 +17,7 @@ http://www.mysql.com/doc/M/y/MySQL_test_suite.html
 
 You can create your own test cases. To create a test case:
 
- cd t
- vi test_case_name.test
+ xeamacs t/test_case_name.test
 
  in the file, put a set of SQL commands that will create some tables,
  load test data, run some queries to manipulate it.

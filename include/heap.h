@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* This file should be included when using heap_database_funktions */
+/* This file should be included when using heap_database_functions */
 /* Author: Michael Widenius */
 
 #ifndef _heap_h
@@ -30,6 +30,9 @@ extern "C" {
 #include <my_pthread.h>
 #include <thr_lock.h>
 #endif
+
+#include "my_handler.h"
+#include "my_tree.h"
 
 	/* defines used by heap-funktions */
 
@@ -47,6 +50,7 @@ typedef struct st_heapinfo		/* Struct from heap_info */
   ulong index_length;
   uint reclength;			/* Length of one record */
   int errkey;
+  ulonglong auto_increment;
 } HEAPINFO;
 
 
@@ -73,22 +77,22 @@ typedef struct st_heap_block		/* The data is saved in blocks */
   ulong last_allocated;			/* Blocks allocated, used by keys */
 } HP_BLOCK;
 
-typedef struct st_hp_keyseg		/* Key-portion */
-{
-  uint start;				/* Start of key in record (from 0) */
-  uint length;				/* Keylength */
-  uint type;
-  uint null_bit;			/* bit set in row+null_pos */
-  uint null_pos;
-} HP_KEYSEG;
+struct st_heap_info;			/* For referense */
 
 typedef struct st_hp_keydef		/* Key definition with open */
 {
   uint flag;				/* HA_NOSAME | HA_NULL_PART_KEY */
   uint keysegs;				/* Number of key-segment */
   uint length;				/* Length of key (automatic) */
-  HP_KEYSEG *seg;
+  uint8 algorithm;			/* HASH / BTREE */
+  HA_KEYSEG *seg;
   HP_BLOCK block;			/* Where keys are saved */
+  TREE rb_tree;
+  int (*write_key)(struct st_heap_info *info, struct st_hp_keydef *keyinfo,
+		   const byte *record, byte *recpos);
+  int (*delete_key)(struct st_heap_info *info, struct st_hp_keydef *keyinfo, 
+  		   const byte *record, byte *recpos, int flag);
+  uint (*get_key_length)(struct st_hp_keydef *keydef, const byte *key);
 } HP_KEYDEF;
 
 typedef struct st_heap_share
@@ -112,6 +116,9 @@ typedef struct st_heap_share
 #endif
   my_bool delete_on_close;
   LIST open_list;
+  uint auto_key;
+  uint auto_key_type;			/* real type of the auto key segment */
+  ulonglong auto_increment;
 } HP_SHARE;
 
 struct st_hp_hash_info;
@@ -126,17 +133,27 @@ typedef struct st_heap_info
   int  mode;				/* Mode of file (READONLY..) */
   uint opt_flag,update;
   byte *lastkey;			/* Last used key with rkey */
+  byte *recbuf;                         /* Record buffer for rb-tree keys */
+  enum ha_rkey_function last_find_flag;
+  TREE_ELEMENT *parents[MAX_TREE_HEIGHT+1];
+  TREE_ELEMENT **last_pos;
+  uint lastkey_len;
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif
   LIST open_list;
 } HP_INFO;
 
+typedef struct st_heap_create_info
+{
+  uint auto_key;
+  uint auto_key_type;
+  ulonglong auto_increment;
+} HP_CREATE_INFO;
+
 	/* Prototypes for heap-functions */
 
-extern HP_INFO* heap_open(const char *name,int mode,uint keys,
-			  HP_KEYDEF *keydef,uint reclength,
-			  ulong max_records,ulong min_reloc);
+extern HP_INFO *heap_open(const char *name, int mode);
 extern int heap_close(HP_INFO *info);
 extern int heap_write(HP_INFO *info,const byte *buff);
 extern int heap_update(HP_INFO *info,const byte *old,const byte *newdata);
@@ -145,7 +162,9 @@ extern int heap_scan_init(HP_INFO *info);
 extern int heap_scan(register HP_INFO *info, byte *record);
 extern int heap_delete(HP_INFO *info,const byte *buff);
 extern int heap_info(HP_INFO *info,HEAPINFO *x,int flag);
-extern int heap_create(const char *name);
+extern int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
+		       uint reclength, ulong max_records, ulong min_records,
+		       HP_CREATE_INFO *create_info);
 extern int heap_delete_table(const char *name);
 extern int heap_extra(HP_INFO *info,enum ha_extra_function function);
 extern int heap_rename(const char *old_name,const char *new_name);
@@ -153,10 +172,17 @@ extern int heap_panic(enum ha_panic_function flag);
 extern int heap_rsame(HP_INFO *info,byte *record,int inx);
 extern int heap_rnext(HP_INFO *info,byte *record);
 extern int heap_rprev(HP_INFO *info,byte *record);
-extern int heap_rfirst(HP_INFO *info,byte *record);
-extern int heap_rlast(HP_INFO *info,byte *record);
+extern int heap_rfirst(HP_INFO *info,byte *record,int inx);
+extern int heap_rlast(HP_INFO *info,byte *record,int inx);
 extern void heap_clear(HP_INFO *info);
-extern int heap_rkey(HP_INFO *info,byte *record,int inx,const byte *key);
+extern void heap_update_auto_increment(HP_INFO *info, const byte *record);
+ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
+			       uint start_key_len,
+			       enum ha_rkey_function start_search_flag,
+			       const byte *end_key, uint end_key_len,
+			       enum ha_rkey_function end_search_flag);
+int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key, 
+              uint key_len, enum ha_rkey_function find_flag);
 extern gptr heap_find(HP_INFO *info,int inx,const byte *key);
 extern int heap_check_heap(HP_INFO *info, my_bool print_status);
 extern byte *heap_position(HP_INFO *info);
