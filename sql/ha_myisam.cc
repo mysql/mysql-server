@@ -1197,7 +1197,7 @@ int ha_myisam::restart_rnd_next(byte *buf, byte *pos)
 int ha_myisam::rnd_pos(byte * buf, byte *pos)
 {
   statistic_increment(current_thd->status_var.ha_read_rnd_count,&LOCK_status);
-  int error=mi_rrnd(file, buf, ha_get_ptr(pos,ref_length));
+  int error=mi_rrnd(file, buf, my_get_ptr(pos,ref_length));
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }
@@ -1205,7 +1205,7 @@ int ha_myisam::rnd_pos(byte * buf, byte *pos)
 void ha_myisam::position(const byte* record)
 {
   my_off_t position=mi_position(file);
-  ha_store_ptr(ref, ref_length, position);
+  my_store_ptr(ref, ref_length, position);
 }
 
 void ha_myisam::info(uint flag)
@@ -1261,7 +1261,7 @@ void ha_myisam::info(uint flag)
   if (flag & HA_STATUS_ERRKEY)
   {
     errkey  = info.errkey;
-    ha_store_ptr(dupp_ref, ref_length, info.dupp_key_pos);
+    my_store_ptr(dupp_ref, ref_length, info.dupp_key_pos);
   }
   if (flag & HA_STATUS_TIME)
     update_time = info.update_time;

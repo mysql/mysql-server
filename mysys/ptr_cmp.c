@@ -21,6 +21,7 @@
   */
 
 #include "mysys_priv.h"
+#include <myisampack.h>
 
 static int ptr_compare(uint *compare_length, uchar **a, uchar **b);
 static int ptr_compare_0(uint *compare_length, uchar **a, uchar **b);
@@ -152,3 +153,41 @@ static int ptr_compare_3(uint *compare_length,uchar **a, uchar **b)
   }
   return (0);
 }
+
+void my_store_ptr(byte *buff, uint pack_length, my_off_t pos)
+{
+  switch (pack_length) {
+#if SIZEOF_OFF_T > 4
+  case 8: mi_int8store(buff,pos); break;
+  case 7: mi_int7store(buff,pos); break;
+  case 6: mi_int6store(buff,pos); break;
+  case 5: mi_int5store(buff,pos); break;
+#endif
+  case 4: mi_int4store(buff,pos); break;
+  case 3: mi_int3store(buff,pos); break;
+  case 2: mi_int2store(buff,pos); break;
+  case 1: buff[0]= (uchar) pos; break;
+  default: DBUG_ASSERT(0);
+  }
+  return;
+}
+
+my_off_t my_get_ptr(byte *ptr, uint pack_length)
+{
+  my_off_t pos;
+  switch (pack_length) {
+#if SIZEOF_OFF_T > 4
+  case 8: pos= (my_off_t) mi_uint8korr(ptr); break;
+  case 7: pos= (my_off_t) mi_uint7korr(ptr); break;
+  case 6: pos= (my_off_t) mi_uint6korr(ptr); break;
+  case 5: pos= (my_off_t) mi_uint5korr(ptr); break;
+#endif
+  case 4: pos= (my_off_t) mi_uint4korr(ptr); break;
+  case 3: pos= (my_off_t) mi_uint3korr(ptr); break;
+  case 2: pos= (my_off_t) mi_uint2korr(ptr); break;
+  case 1: pos= (my_off_t) mi_uint2korr(ptr); break;
+  default: DBUG_ASSERT(0);
+  }
+ return pos;
+}
+
