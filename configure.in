@@ -1833,6 +1833,7 @@ AC_MSG_RESULT([default: $default_charset; compiled in: $CHARSETS])
 
 
 MYSQL_CHECK_BDB
+MYSQL_CHECK_INNOBASE
 
 
 # If we have threads generate some library functions and test programs
@@ -1896,6 +1897,16 @@ mysql-noinstall-hack:' \
     fi
 
     AC_DEFINE(HAVE_BERKELEY_DB)
+  fi
+
+  if test X"$have_innobase_db" = Xyes
+  then
+    sql_server_dirs="innobase $sql_server_dirs"
+    echo "CONFIGURING FOR INNOBASE DB" 
+    (cd innobase && sh ./configure) \
+    || AC_MSG_ERROR([could not configure Innobase DB])
+
+    echo "END OF INNOBASE DB CONFIGURATION"
   fi
 
   if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"

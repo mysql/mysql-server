@@ -1288,9 +1288,9 @@ calc_row_difference(
 	uint		n_fields;
 	ulint		o_len;
 	ulint		n_len;
-	mysql_byte*	o_ptr;
-	mysql_byte*	n_ptr;
-	mysql_byte*	buf;
+	byte*	        o_ptr;
+        byte*	        n_ptr;
+        byte*	        buf;
 	upd_field_t*	ufield;
 	ulint		col_type;
 	ulint		is_unsigned;
@@ -1300,7 +1300,7 @@ calc_row_difference(
 	n_fields = table->fields;
 
 	/* We use upd_buff to convert changed fields */
-	buf = upd_buff;
+	buf = (byte*) upd_buff;
 
 	for (i = 0; i < n_fields; i++) {
 		field = table->field[i];
@@ -1312,8 +1312,8 @@ calc_row_difference(
 			goto skip_field;
 		}
 
-		o_ptr = old_row + get_field_offset(table, field);
-		n_ptr = new_row + get_field_offset(table, field);
+		o_ptr = (byte*) old_row + get_field_offset(table, field);
+		n_ptr = (byte*) new_row + get_field_offset(table, field);
 		o_len = field->pack_length();
 		n_len = field->pack_length();
 
@@ -1353,8 +1353,10 @@ calc_row_difference(
 
 			ufield = uvect->fields + n_changed;
 
-			buf = innobase_convert_and_store_changed_col(ufield,
-						buf, n_ptr, n_len, col_type,
+			buf = (byte*)
+                          innobase_convert_and_store_changed_col(ufield,
+					  (mysql_byte*)buf,
+					  (mysql_byte*)n_ptr, n_len, col_type,
 						is_unsigned);
 			ufield->exp = NULL;
 			ufield->field_no =
@@ -1580,7 +1582,7 @@ ha_innobase::index_read(
 
 	last_match_mode = match_mode;
 
-	ret = row_search_for_mysql(buf, mode, prebuilt, match_mode, 0);
+	ret = row_search_for_mysql((byte*) buf, mode, prebuilt, match_mode, 0);
 
 	if (ret == DB_SUCCESS) {
 		error = 0;
@@ -1690,7 +1692,8 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
-	ret = row_search_for_mysql(buf, 0, prebuilt, match_mode, direction);
+	ret = row_search_for_mysql((byte*)buf, 0, prebuilt,
+                       match_mode, direction);
 
 	if (ret == DB_SUCCESS) {
 		error = 0;
@@ -2550,11 +2553,11 @@ ha_innobase::update_table_comment(
   char *str=my_malloc(length + 50,MYF(0));
 
   if (!str)
-    return comment;
+    return (char*)comment;
 
   sprintf(str,"%s Innobase free: %lu kB", comment,innobase_get_free_space());
 
-  return str;
+  return((char*) str);
 }
 
 
