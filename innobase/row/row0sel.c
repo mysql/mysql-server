@@ -2103,6 +2103,7 @@ row_sel_store_mysql_rec(
 
 			if (extern_field_heap) {
  				mem_heap_free(extern_field_heap);
+				extern_field_heap = NULL;
  			}
 		} else {
 			mysql_rec[templ->mysql_null_byte_offset] |=

@@ -259,12 +259,15 @@ innobase_parse_data_file_paths_and_sizes(void)
 	str = innobase_data_file_path;
 
 	/* First calculate the number of data files and check syntax:
-	path:size[M];path:size[M]... */
+	path:size[M];path:size[M]... . Note that a Windows path may
+	contain a drive name and a ':'. */
 
 	while (*str != '\0') {
 		path = str;
 
-		while (*str != ':' && *str != '\0') {
+		while ((*str != ':' && *str != '\0')
+		       || (*str == ':'
+			   && (*(str + 1) == '\\' || *(str + 1) == '/'))) {
 			str++;
 		}
 
@@ -335,7 +338,11 @@ innobase_parse_data_file_paths_and_sizes(void)
 	while (*str != '\0') {
 		path = str;
 
-		while (*str != ':' && *str != '\0') {
+		/* Note that we must ignore the ':' in a Windows path */
+
+		while ((*str != ':' && *str != '\0')
+		       || (*str == ':'
+			   && (*(str + 1) == '\\' || *(str + 1) == '/'))) {
 			str++;
 		}
 
