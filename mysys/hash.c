@@ -217,7 +217,7 @@ static int hashcmp(HASH *hash,HASH_LINK *pos,const byte *key,uint length)
 
 	/* Write a hash-key to the hash-index */
 
-my_bool hash_insert(HASH *info,const byte *record)
+my_bool my_hash_insert(HASH *info,const byte *record)
 {
   int flag;
   uint halfbuff,hash_nr,first_index,idx;

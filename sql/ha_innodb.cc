@@ -4583,7 +4583,7 @@ static INNOBASE_SHARE *get_share(const char *table_name)
       share->table_name_length=length;
       share->table_name=(char*) (share+1);
       strmov(share->table_name,table_name);
-      if (hash_insert(&innobase_open_tables, (mysql_byte*) share))
+      if (my_hash_insert(&innobase_open_tables, (mysql_byte*) share))
       {
 	pthread_mutex_unlock(&innobase_mutex);
 	my_free((gptr) share,0);

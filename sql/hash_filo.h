@@ -116,7 +116,7 @@ public:
       last_link=last_link->prev_used;
       hash_delete(&cache,(byte*) tmp);
     }
-    if (hash_insert(&cache,(byte*) entry))
+    if (my_hash_insert(&cache,(byte*) entry))
     {
       if (free_element)
 	(*free_element)(entry);		// This should never happen

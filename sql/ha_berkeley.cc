@@ -2266,7 +2266,7 @@ static BDB_SHARE *get_share(const char *table_name, TABLE *table)
       strmov(share->table_name,table_name);
       share->key_file = key_file;
       share->key_type = key_type;
-      if (hash_insert(&bdb_open_tables, (byte*) share))
+      if (my_hash_insert(&bdb_open_tables, (byte*) share))
       {
 	pthread_mutex_unlock(&bdb_mutex); /* purecov: inspected */
 	my_free((gptr) share,0); /* purecov: inspected */
