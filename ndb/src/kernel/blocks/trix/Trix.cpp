@@ -814,8 +814,8 @@ void Trix::executeInsertTransaction(Signal* signal,
   for(Uint32 i = 0; i < headerPtr.sz; i++) {
     AttributeHeader* keyAttrHead = (AttributeHeader *) headerBuffer + i;
 
-    // Filter out single NULL attributes
-    if (keyAttrHead->isNULL() && (i == (Uint32)0) && (headerPtr.sz == (Uint32)2))
+    // Filter out NULL attributes
+    if (keyAttrHead->isNULL())
       return;
 
     if (i < subRec->noOfIndexColumns)
@@ -965,3 +965,5 @@ void Trix::checkParallelism(Signal* signal, SubscriptionRecord* subRec)
 }
 
 BLOCK_FUNCTIONS(Trix);
+
+template void append(DataBuffer<15>&,SegmentedSectionPtr,SectionSegmentPool&);

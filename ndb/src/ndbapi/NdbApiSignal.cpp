@@ -15,18 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/******************************************************************************
-Name:          NdbApiSignal.C
-Include:
-Link:
-Author:        UABMNST Mona Natterkvist UAB/B/SD                         
-Date:          970829
-Version:       0.1
-Description:   Interface between TIS and NDB
-Documentation:
-Adjust:  971114  UABMNST   First version.
-         000705  QABANAB   Update of Protocol2
-******************************************************************************/
 #include "API.hpp"
 #include "NdbApiSignal.hpp"
 
@@ -46,6 +34,7 @@ Adjust:  971114  UABMNST   First version.
 #include <signaldata/IndxKeyInfo.hpp>
 #include <signaldata/IndxAttrInfo.hpp>
 #include <signaldata/TcHbRep.hpp>
+#include <signaldata/ScanTab.hpp>
 
 #include <NdbOut.hpp>
 
@@ -161,7 +150,7 @@ NdbApiSignal::setSignal(int aNdbSignalType)
       theTrace                = TestOrd::TraceAPI;
       theReceiversBlockNumber = DBTC;
       theVerId_signalNumber   = GSN_TCROLLBACKREQ;
-      theLength               = 5;
+      theLength               = 3;
     }
     break;
 
@@ -188,16 +177,7 @@ NdbApiSignal::setSignal(int aNdbSignalType)
       theTrace                = TestOrd::TraceAPI;
       theReceiversBlockNumber = DBTC;
       theVerId_signalNumber   = GSN_SCAN_TABREQ;
-      theLength               = 25;      
-    }
-    break;
-
-    case GSN_SCAN_TABINFO:
-    {
-      theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber = DBTC;
-      theVerId_signalNumber   = GSN_SCAN_TABINFO;
-      theLength               = 17;
+      theLength               = 9; // ScanTabReq::SignalLength;      
     }
     break;
 

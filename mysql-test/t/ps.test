@@ -206,3 +206,75 @@ execute stmt1;
 show table status from test like 't1%' ;
 deallocate prepare stmt1 ;
 drop table t1;
+
+#
+# Bug#4912 "mysqld crashs in case a statement is executed a second time":
+# negation elimination should work once and not break prepared statements
+# 
+
+create table t1(a varchar(2), b varchar(3));
+prepare stmt1 from "select a, b from t1 where (not (a='aa' and b < 'zzz'))";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+drop table t1;
+
+#
+# Bug#5034 "prepared "select 1 into @arg15", second execute crashes
+# server".
+# Check that descendands of select_result can be reused in prepared 
+# statements or are correctly created and deleted on each execute
+#
+
+prepare stmt1 from "select 1 into @var";
+execute stmt1;
+execute stmt1;
+prepare stmt1 from "create table t1 select 1 as i";
+execute stmt1;
+drop table t1;
+execute stmt1;
+prepare stmt1 from "insert into t1 select i from t1";
+execute stmt1;
+execute stmt1;
+prepare stmt1 from "select * from t1 into outfile 'f1.txt'";
+execute stmt1;
+deallocate prepare stmt1;
+drop table t1;
+
+# 
+# BUG#5242 "Prepared statement names are case sensitive"
+#
+prepare stmt1 from 'select 1';
+prepare STMT1 from 'select 2';
+execute sTmT1;
+deallocate prepare StMt1;
+
+--error 1243
+deallocate prepare Stmt1;
+
+# also check that statement names are in right charset.
+set names utf8;
+prepare `ü` from 'select 1234';
+execute `ü` ;
+set names latin1;
+execute `�`;
+set names default;
+
+
+# 
+# BUG#4368 "select * from t1 where a like ?" crashes server if a is in utf8
+# and ? is in latin1
+# Check that Item converting latin1 to utf8 (for LIKE function) is created
+# in memory of prepared statement.
+#
+
+create table t1 (a varchar(10)) charset=utf8;
+insert into t1 (a) values ('yahoo');
+set character_set_connection=latin1;
+prepare stmt from 'select a from t1 where a like ?';
+set @var='google';
+execute stmt using @var;
+execute stmt using @var;
+deallocate prepare stmt;
+drop table t1;
+

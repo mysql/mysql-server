@@ -8657,6 +8657,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   my_charpos_mb,
   my_well_formed_len_mb,
   my_lengthsp_8bit,
+  my_numcells_mb,
   my_mb_wc_euc_kr,	/* mb_wc   */
   my_wc_mb_euc_kr,	/* wc_mb   */
   my_caseup_str_mb,
@@ -8715,7 +8716,7 @@ CHARSET_INFO my_charset_euckr_bin=
     ctype_euc_kr,
     to_lower_euc_kr,
     to_upper_euc_kr,
-    sort_order_euc_kr,
+    NULL,		/* sort_order   */
     NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */

@@ -1266,6 +1266,8 @@ void Query_log_event::print(FILE* file, bool short_form,
 {
   // TODO: print the catalog ??
   char buff[40],*end;				// Enough for SET TIMESTAMP
+  bool different_db= 1;
+
   if (!short_form)
   {
     print_header(file);
@@ -1273,9 +1275,7 @@ void Query_log_event::print(FILE* file, bool short_form,
 	    (ulong) thread_id, (ulong) exec_time, error_code);
   }
 
-  bool different_db= 1;
-
-  if (db && last_event_info->db)
+  if (db)
   {
     if ((different_db = memcmp(last_event_info->db, db, db_len + 1)))
       memcpy(last_event_info->db, db, db_len + 1);
@@ -1540,10 +1540,6 @@ end:
   thd->query= 0;			// just to be sure
   thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
-  // assume no convert for next query unless set explictly
-#ifdef TO_BE_REMOVED
-  thd->variables.convert_set = 0;
-#endif
   close_thread_tables(thd);      
   free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
   return (thd->query_error ? thd->query_error : Log_event::exec_event(rli)); 
@@ -2304,7 +2300,7 @@ void Load_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_ev
   }
 
   bool different_db= 1;
-  if (db && last_event_info->db)
+  if (db)
   {
     /*
       If the database is different from the one of the previous statement, we
@@ -2849,7 +2845,8 @@ int Intvar_log_event::write_data(IO_CACHE* file)
 */
 
 #ifdef MYSQL_CLIENT
-void Intvar_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_event_info)
+void Intvar_log_event::print(FILE* file, bool short_form,
+                             LAST_EVENT_INFO* last_event_info)
 {
   char llbuff[22];
   const char *msg;

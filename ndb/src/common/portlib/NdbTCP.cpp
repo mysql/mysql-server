@@ -16,14 +16,15 @@
 
 
 #include <NdbMutex.h>
-#include "NdbTCP.h"
+#include <NdbTCP.h>
 
-#ifdef NDB_WIN32
+#if defined NDB_WIN32 || defined SCO
 static NdbMutex & LOCK_gethostbyname = * NdbMutex_Create();
 #else
 static NdbMutex LOCK_gethostbyname = NDB_MUTEX_INITIALIZER;
 #endif
 
+extern "C"
 int 
 Ndb_getInAddr(struct in_addr * dst, const char *address) {
   struct hostent * hostPtr;

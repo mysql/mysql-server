@@ -1,5 +1,18 @@
-/* Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
-   This file is public domain and comes with NO WARRANTY of any kind */
+/* Copyright (C) 2003 MySQL AB
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
    Translated from both   E n g l i s h   &   C z e c h   error messages
@@ -87,7 +100,7 @@ character-set=latin2
 "Blob pole '%-.64s' nemô¾e by» pou¾ité ako kµúè",
 "Príli¹ veµká då¾ka pre pole '%-.64s' (maximum = %d). Pou¾ite BLOB",
 "Mô¾ete ma» iba jedno AUTO pole a to musí by» definované ako kµúè",
-"%s: pripravený na spojenie\n",
+"%s: pripravený na spojenie",
 "%s: normálne ukonèenie\n",
 "%s: prijatý signál %d, ukonèenie (Abort)!\n",
 "%s: práca ukonèená\n",
@@ -312,7 +325,8 @@ character-set=latin2
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
 "Invalid %s character string: '%.64s'",
-"Result of %s() was larger than max_allowed_packet (%d) - truncated"
+"Result of %s() was larger than max_allowed_packet (%ld) - truncated"
+"Conflicting declarations: '%s%s' and '%s%s'"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -369,3 +383,8 @@ character-set=latin2
 "View '%-.64s.%-.64s' references invalid table(s) or column(s)"
 "Can't drop a %s from within another stored routine"
 "GOTO is not allowed in a stored procedure handler"
+"Trigger already exists"
+"Trigger does not exist"
+"Trigger's '%-.64s' is view or temporary table"
+"Updating of %s row is not allowed in %strigger"
+"There is no %s row in %s trigger"

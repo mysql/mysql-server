@@ -1,6 +1,20 @@
-/* Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
-   This file is public domain and comes with NO WARRANTY of any kind
+/* Copyright (C) 2003 MySQL AB
 
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+/*
    Dirk Munzinger (dmun@4t2.com)
    2001-06-07
 
@@ -11,7 +25,7 @@
 
    Stefan Hinz (stefan@mysql.com)
    2003-10-01
-                */
+*/
 
 character-set=latin1
 
@@ -91,7 +105,7 @@ character-set=latin1
 "BLOB-Feld '%-.64s' kann beim verwendeten Tabellentyp nicht als Schlüssel verwendet werden",
 "Feldlänge für Feld '%-.64s' zu groß (maximal %d). BLOB-Feld verwenden!",
 "Falsche Tabellendefinition. Es darf nur ein Auto-Feld geben und dieses muss als Schlüssel definiert werden",
-"%-.64s: Bereit für Verbindungen\n",
+"%-.64s: Bereit für Verbindungen",
 "%-.64s: Normal heruntergefahren\n",
 "%-.64s: Signal %d erhalten. Abbruch!\n",
 "%-.64s: Heruntergefahren (shutdown)\n",
@@ -316,7 +330,8 @@ character-set=latin1
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
 "Invalid %s character string: '%.64s'",
-"Result of %s() was larger than max_allowed_packet (%d) - truncated"
+"Result of %s() was larger than max_allowed_packet (%ld) - truncated"
+"Conflicting declarations: '%s%s' and '%s%s'"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -373,3 +388,8 @@ character-set=latin1
 "View '%-.64s.%-.64s' references invalid table(s) or column(s)"
 "Can't drop a %s from within another stored routine"
 "GOTO is not allowed in a stored procedure handler"
+"Trigger already exists"
+"Trigger does not exist"
+"Trigger's '%-.64s' is view or temporary table"
+"Updating of %s row is not allowed in %strigger"
+"There is no %s row in %s trigger"

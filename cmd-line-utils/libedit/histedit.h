@@ -1,4 +1,4 @@
-/*	$NetBSD: histedit.h,v 1.16 2000/09/04 22:06:30 lukem Exp $	*/
+/*	$NetBSD: histedit.h,v 1.21 2003/01/21 18:40:24 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -43,6 +43,9 @@
  */
 #ifndef _HISTEDIT_H_
 #define	_HISTEDIT_H_
+
+#define	LIBEDIT_MAJOR 2
+#define	LIBEDIT_MINOR 6
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -90,7 +93,7 @@ void		 el_end(EditLine *);
  */
 const char	*el_gets(EditLine *, int *);
 int		 el_getc(EditLine *, char *);
-void		 el_push(EditLine *, const char *);
+void		 el_push(EditLine *, char *);
 
 /*
  * Beep!
@@ -126,6 +129,10 @@ int		 el_get(EditLine *, int, void *);
 #define	EL_HIST		10	/* , hist_fun_t, const char *);	*/
 #define	EL_EDITMODE	11	/* , int);			*/
 #define	EL_RPROMPT	12	/* , el_pfunc_t);		*/
+#define	EL_GETCFN	13	/* , el_rfunc_t);		*/
+#define	EL_CLIENTDATA	14	/* , void *);			*/
+
+#define EL_BUILTIN_GETCFN	(NULL)
 
 /*
  * Source named file or $PWD/.editrc or $HOME/.editrc
@@ -174,7 +181,7 @@ int		history(History *, HistEvent *, int, ...);
 #define	H_PREV		 5	/* , void);		*/
 #define	H_NEXT		 6	/* , void);		*/
 #define	H_CURR		 8	/* , const int);	*/
-#define	H_SET		 7	/* , void);		*/
+#define	H_SET		 7	/* , int);		*/
 #define	H_ADD		 9	/* , const char *);	*/
 #define	H_ENTER		10	/* , const char *);	*/
 #define	H_APPEND	11	/* , const char *);	*/
@@ -186,5 +193,7 @@ int		history(History *, HistEvent *, int, ...);
 #define	H_LOAD		17	/* , const char *);	*/
 #define	H_SAVE		18	/* , const char *);	*/
 #define	H_CLEAR		19	/* , void);		*/
+#define	H_SETUNIQUE	20	/* , int);		*/
+#define	H_GETUNIQUE	21	/* , void);		*/
 
 #endif /* _HISTEDIT_H_ */

@@ -8,8 +8,7 @@
 # The slave is started with max_binlog_size=16384 bytes,
 # to force many rotations (approximately 30 rotations)
 
-# If the master or slave does not support InnoDB, this test will pass
-
+source include/have_innodb.inc;
 source include/master-slave.inc;
 connection slave;
 stop slave;

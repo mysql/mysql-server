@@ -644,23 +644,17 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 #endif /* defined (HAVE_LONG_LONG) && !defined(ULONGLONG_MAX)*/
 
-#if SIZEOF_LONG == 4
-#define INT_MIN32	(long) 0x80000000L
-#define INT_MAX32	(long) 0x7FFFFFFFL
-#define INT_MIN24	((long) 0xff800000L)
-#define INT_MAX24	0x007fffffL
-#define INT_MIN16	((short int) 0x8000)
-#define INT_MAX16	0x7FFF
-#define INT_MIN8	((char) 0x80)
-#define INT_MAX8	((char) 0x7F)
-#else  /* Probably Alpha */
-#define INT_MIN32	((long) (int) 0x80000000)
-#define INT_MAX32	((long) (int) 0x7FFFFFFF)
-#define INT_MIN24	((long) (int) 0xff800000)
-#define INT_MAX24	((long) (int) 0x007fffff)
-#define INT_MIN16	((short int) 0xffff8000)
-#define INT_MAX16	((short int) 0x00007FFF)
-#endif
+#define INT_MIN32       (~0x7FFFFFFFL)
+#define INT_MAX32       0x7FFFFFFFL
+#define UINT_MAX32      0xFFFFFFFFL
+#define INT_MIN24       (~0x007FFFFF)
+#define INT_MAX24       0x007FFFFF
+#define UINT_MAX24      0x00FFFFFF
+#define INT_MIN16       (~0x7FFF)
+#define INT_MAX16       0x7FFF
+#define UINT_MAX16      0xFFFF
+#define INT_MIN8        (~0x7F)
+#define INT_MAX8        0x7F
 
 /* From limits.h instead */
 #ifndef DBL_MIN

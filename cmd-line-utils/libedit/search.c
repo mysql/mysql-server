@@ -1,4 +1,4 @@
-/*	$NetBSD: search.c,v 1.11 2001/01/23 15:55:31 jdolecek Exp $	*/
+/*	$NetBSD: search.c,v 1.14 2002/11/20 16:50:08 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -36,17 +36,21 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)search.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: search.c,v 1.14 2002/11/20 16:50:08 christos Exp $");
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * search.c: History and character search functions
  */
-#include "sys.h"
 #include <stdlib.h>
-#if HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
 #if defined(REGEX)
+#include <sys/types.h>
 #include <regex.h>
 #elif defined(REGEXP)
 #include <regexp.h>
@@ -73,7 +77,8 @@ search_init(EditLine *el)
 	el->el_search.patlen = 0;
 	el->el_search.patdir = -1;
 	el->el_search.chacha = '\0';
-	el->el_search.chadir = -1;
+	el->el_search.chadir = CHAR_FWD;
+	el->el_search.chatflg = 0;
 	return (0);
 }
 
@@ -445,29 +450,23 @@ cv_search(EditLine *el, int dir)
 	char tmpbuf[EL_BUFSIZ];
 	int tmplen;
 
-	tmplen = 0;
 #ifdef ANCHOR
-	tmpbuf[tmplen++] = '.';
-	tmpbuf[tmplen++] = '*';
-#endif
-
-	el->el_line.buffer[0] = '\0';
-	el->el_line.lastchar = el->el_line.buffer;
-	el->el_line.cursor = el->el_line.buffer;
-	el->el_search.patdir = dir;
-
-	c_insert(el, 2);	/* prompt + '\n' */
-	*el->el_line.cursor++ = '\n';
-	*el->el_line.cursor++ = dir == ED_SEARCH_PREV_HISTORY ? '/' : '?';
-	re_refresh(el);
-
-#ifdef ANCHOR
+	tmpbuf[0] = '.';
+	tmpbuf[1] = '*';
 #define	LEN	2
 #else
 #define	LEN	0
 #endif
+	tmplen = LEN;
 
-	tmplen = c_gets(el, &tmpbuf[LEN]) + LEN;
+	el->el_search.patdir = dir;
+
+	tmplen = c_gets(el, &tmpbuf[LEN],
+		dir == ED_SEARCH_PREV_HISTORY ? "\n/" : "\n?" );
+	if (tmplen == -1)
+		return CC_REFRESH;
+
+	tmplen += LEN;
 	ch = tmpbuf[tmplen];
 	tmpbuf[tmplen] = '\0';
 
@@ -476,9 +475,6 @@ cv_search(EditLine *el, int dir)
 		 * Use the old pattern, but wild-card it.
 		 */
 		if (el->el_search.patlen == 0) {
-			el->el_line.buffer[0] = '\0';
-			el->el_line.lastchar = el->el_line.buffer;
-			el->el_line.cursor = el->el_line.buffer;
 			re_refresh(el);
 			return (CC_ERROR);
 		}
@@ -509,19 +505,15 @@ cv_search(EditLine *el, int dir)
 	el->el_state.lastcmd = (el_action_t) dir;	/* avoid c_setpat */
 	el->el_line.cursor = el->el_line.lastchar = el->el_line.buffer;
 	if ((dir == ED_SEARCH_PREV_HISTORY ? ed_search_prev_history(el, 0) :
-		ed_search_next_history(el, 0)) == CC_ERROR) {
+	    ed_search_next_history(el, 0)) == CC_ERROR) {
 		re_refresh(el);
 		return (CC_ERROR);
-	} else {
-		if (ch == 0033) {
-			re_refresh(el);
-			*el->el_line.lastchar++ = '\n';
-			*el->el_line.lastchar = '\0';
-			re_goto_bottom(el);
-			return (CC_NEWLINE);
-		} else
-			return (CC_REFRESH);
 	}
+	if (ch == 0033) {
+		re_refresh(el);
+		return ed_newline(el, 0);
+	}
+	return (CC_REFRESH);
 }
 
 
@@ -578,69 +570,53 @@ cv_repeat_srch(EditLine *el, int c)
 }
 
 
-/* cv_csearch_back():
- *	Vi character search reverse
+/* cv_csearch():
+ *	Vi character search
  */
 protected el_action_t
-cv_csearch_back(EditLine *el, int ch, int count, int tflag)
+cv_csearch(EditLine *el, int direction, int ch, int count, int tflag)
 {
 	char *cp;
+
+	if (ch == 0)
+		return CC_ERROR;
+
+	if (ch == -1) {
+		char c;
+		if (el_getc(el, &c) != 1)
+			return ed_end_of_file(el, 0);
+		ch = c;
+	}
+
+	/* Save for ';' and ',' commands */
+	el->el_search.chacha = ch;
+	el->el_search.chadir = direction;
+	el->el_search.chatflg = tflag;
 
 	cp = el->el_line.cursor;
 	while (count--) {
 		if (*cp == ch)
-			cp--;
-		while (cp > el->el_line.buffer && *cp != ch)
-			cp--;
+			cp += direction;
+		for (;;cp += direction) {
+			if (cp >= el->el_line.lastchar)
+				return CC_ERROR;
+			if (cp < el->el_line.buffer)
+				return CC_ERROR;
+			if (*cp == ch)
+				break;
+		}
 	}
 
-	if (cp < el->el_line.buffer || (cp == el->el_line.buffer && *cp != ch))
-		return (CC_ERROR);
-
-	if (*cp == ch && tflag)
-		cp++;
+	if (tflag)
+		cp -= direction;
 
 	el->el_line.cursor = cp;
 
-	if (el->el_chared.c_vcmd.action & DELETE) {
-		el->el_line.cursor++;
+	if (el->el_chared.c_vcmd.action != NOP) {
+		if (direction > 0)
+			el->el_line.cursor++;
 		cv_delfini(el);
-		return (CC_REFRESH);
+		return CC_REFRESH;
 	}
-	re_refresh_cursor(el);
-	return (CC_NORM);
-}
-
-
-/* cv_csearch_fwd():
- *	Vi character search forward
- */
-protected el_action_t
-cv_csearch_fwd(EditLine *el, int ch, int count, int tflag)
-{
-	char *cp;
-
-	cp = el->el_line.cursor;
-	while (count--) {
-		if (*cp == ch)
-			cp++;
-		while (cp < el->el_line.lastchar && *cp != ch)
-			cp++;
-	}
-
-	if (cp >= el->el_line.lastchar)
-		return (CC_ERROR);
-
-	if (*cp == ch && tflag)
-		cp--;
-
-	el->el_line.cursor = cp;
-
-	if (el->el_chared.c_vcmd.action & DELETE) {
-		el->el_line.cursor++;
-		cv_delfini(el);
-		return (CC_REFRESH);
-	}
-	re_refresh_cursor(el);
-	return (CC_NORM);
+	return CC_CURSOR;
 }

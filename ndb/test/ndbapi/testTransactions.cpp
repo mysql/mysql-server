@@ -102,7 +102,7 @@ OperationTestCase matrix[] = {
   { "ScanExInsert",     true, "SCAN-EX",1, "INSERT",  266, X,   0, 1 },
   { "ScanExUpdate",     true, "SCAN-EX",1, "UPDATE",  266, 2,   0, 1 },
   { "ScanExDelete",     true, "SCAN-EX",1, "DELETE",  266, X,   0, 1 },
-  { "ScanExScan",       true, "SCAN-EX",1, "SCAN",    274, X,   0, 1 },
+  { "ScanExScan",       true, "SCAN-EX",1, "SCAN",      0, 1,   0, 1 },
   { "ScanExScanHl",     true, "SCAN-EX",1, "SCAN-HL", 274, X,   0, 1 },
   { "ScanExScanEx",     true, "SCAN-EX",1, "SCAN-EX", 274, X,   0, 1 },
 #if 0
@@ -117,8 +117,8 @@ OperationTestCase matrix[] = {
   { "ReadExInsert",     true, "READ-EX",1, "INSERT",  266, X,   0, 1 },
   { "ReadExUpdate",     true, "READ-EX",1, "UPDATE",  266, X,   0, 1 },
   { "ReadExDelete",     true, "READ-EX",1, "DELETE",  266, X,   0, 1 },
-  { "ReadExScan",       true, "READ-EX",1, "SCAN",    274, 1,   0, 1 },
-  { "ReadExScanHl",     true, "READ-EX",1, "SCAN-HL", 274, 1,   0, 1 },
+  { "ReadExScan",       true, "READ-EX",1, "SCAN",      0, 1,   0, 1 },
+  { "ReadExScanHl",     true, "READ-EX",1, "SCAN-HL", 274, X,   0, 1 },
   { "ReadExScanEx",     true, "READ-EX",1, "SCAN-EX", 274, X,   0, 1 },
 #if 0
   { "ReadExScanUp",     true, "READ-EX",1, "SCAN-UP", 266, X,   0, 1 },
@@ -132,7 +132,7 @@ OperationTestCase matrix[] = {
   { "InsertInsert",    false, "INSERT", 1, "INSERT",  266, X,   0, 1 },
   { "InsertUpdate",    false, "INSERT", 1, "UPDATE",  266, X,   0, 1 },
   { "InsertDelete",    false, "INSERT", 1, "DELETE",  266, X,   0, 1 },
-  { "InsertScan",      false, "INSERT", 1, "SCAN",    274, X,   0, 1 },
+  { "InsertScan",      false, "INSERT", 1, "SCAN",    626, X,   0, 1 },
   { "InsertScanHl",    false, "INSERT", 1, "SCAN-HL", 274, X,   0, 1 },
   { "InsertScanEx",    false, "INSERT", 1, "SCAN-EX", 274, X,   0, 1 },
 #if 0
@@ -147,7 +147,7 @@ OperationTestCase matrix[] = {
   { "UpdateInsert",     true, "UPDATE", 2, "INSERT",  266, X,   0, 2 },
   { "UpdateUpdate",     true, "UPDATE", 2, "UPDATE",  266, X,   0, 2 },
   { "UpdateDelete",     true, "UPDATE", 2, "DELETE",  266, X,   0, 2 },
-  { "UpdateScan",       true, "UPDATE", 2, "SCAN",    274, X,   0, 2 },
+  { "UpdateScan",       true, "UPDATE", 2, "SCAN",      0, 1,   0, 2 },
   { "UpdateScanHl",     true, "UPDATE", 2, "SCAN-HL", 274, X,   0, 2 },
   { "UpdateScanEx",     true, "UPDATE", 2, "SCAN-EX", 274, X,   0, 2 },
 #if 0
@@ -162,7 +162,7 @@ OperationTestCase matrix[] = {
   { "DeleteInsert",     true, "DELETE", X, "INSERT",  266, X, 626, X },
   { "DeleteUpdate",     true, "DELETE", X, "UPDATE",  266, X, 626, X },
   { "DeleteDelete",     true, "DELETE", X, "DELETE",  266, X, 626, X },
-  { "DeleteScan",       true, "DELETE", X, "SCAN",    274, X, 626, X },
+  { "DeleteScan",       true, "DELETE", X, "SCAN",      0, 1, 626, X },
   { "DeleteScanHl",     true, "DELETE", X, "SCAN-HL", 274, X, 626, X },
   { "DeleteScanEx",     true, "DELETE", X, "SCAN-EX", 274, X, 626, X },
 #if 0
@@ -206,9 +206,9 @@ runOp(HugoOperations & hugoOps,
   } else if(strcmp(op, "SCAN") == 0){
     C2(hugoOps.scanReadRecords(pNdb) == 0);
   } else if(strcmp(op, "SCAN-HL") == 0){
-    C2(hugoOps.scanReadRecords(pNdb, 240, HugoOperations::SL_ReadHold) == 0);
+    C2(hugoOps.scanReadRecords(pNdb, NdbScanOperation::LM_Read)== 0);
   } else if(strcmp(op, "SCAN-EX") == 0){
-    C2(hugoOps.scanReadRecords(pNdb, 240, HugoOperations::SL_Exclusive) == 0);
+    C2(hugoOps.scanReadRecords(pNdb, NdbScanOperation::LM_Exclusive)== 0);
   } else {
     g_err << __FILE__ << " - " << __LINE__ 
 	  << ": Unknown operation" << op << endl;

@@ -251,6 +251,12 @@ typedef struct wild_file_pack	/* Struct to hold info when selecting files */
   my_string	*wild;		/* Pointer to wildcards */
 } WF_PACK;
 
+enum loglevel {
+   ERROR_LEVEL,
+   WARNING_LEVEL,
+   INFORMATION_LEVEL
+};
+
 enum cache_type
 {
   READ_CACHE,WRITE_CACHE,
@@ -701,7 +707,8 @@ File create_temp_file(char *to, const char *dir, const char *pfx,
 #define my_init_dynamic_array(A,B,C,D) init_dynamic_array(A,B,C,D CALLER_INFO)
 #define my_init_dynamic_array_ci(A,B,C,D) init_dynamic_array(A,B,C,D ORIG_CALLER_INFO)
 extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array,uint element_size,
-	  uint init_alloc,uint alloc_increment CALLER_INFO_PROTO);
+                                  uint init_alloc,uint alloc_increment
+                                  CALLER_INFO_PROTO);
 extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,gptr element);
 extern byte *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern byte *pop_dynamic(DYNAMIC_ARRAY*);
@@ -731,7 +738,7 @@ extern void my_free_lock(byte *ptr,myf flags);
 #define my_free_lock(A,B) my_free((A),(B))
 #endif
 #define alloc_root_inited(A) ((A)->min_malloc != 0)
-#define clear_alloc_root(A) bzero((void *) (A), sizeof(MEM_ROOT))
+#define clear_alloc_root(A) { (A)->free= (A)->used= (A)->pre_alloc= 0; }
 extern void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
 			    uint pre_alloc_size);
 extern gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);

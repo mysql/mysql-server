@@ -78,13 +78,16 @@ static void my_coll_agg_error(Item** args, uint count, const char *fname)
 }
 
 
-bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count)
+bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
+                                   bool allow_superset_conversion)
 {
   uint i;
+  c.nagg= 0;
+  c.strong= 0;
   c.set(av[0]->collation);
   for (i= 1; i < count; i++)
   {
-    if (c.aggregate(av[i]->collation))
+    if (c.aggregate(av[i]->collation, allow_superset_conversion))
     {
       my_coll_agg_error(av, count, func_name());
       return TRUE;
@@ -95,9 +98,10 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count)
 
 
 bool Item_func::agg_arg_collations_for_comparison(DTCollation &c,
-						  Item **av, uint count)
+						  Item **av, uint count,
+                                                  bool allow_superset_conv)
 {
-  if (agg_arg_collations(c, av, count))
+  if (agg_arg_collations(c, av, count, allow_superset_conv))
     return TRUE;
 
   if (c.derivation == DERIVATION_NONE)
@@ -972,7 +976,7 @@ void Item_func_round::fix_length_and_dec()
     if (tmp < 0)
       decimals=0;
     else
-      decimals=tmp;
+      decimals=min(tmp,NOT_FIXED_DEC);
   }
 }
 
@@ -1438,30 +1442,43 @@ longlong Item_func_find_in_set::val_int()
   int diff;
   if ((diff=buffer->length() - find->length()) >= 0)
   {
-    const char *f_pos=find->ptr();
-    const char *f_end=f_pos+find->length();
-    const char *str=buffer->ptr();
-    const char *end=str+diff+1;
-    const char *real_end=str+buffer->length();
-    uint position=1;
-    do
+    my_wc_t wc;
+    CHARSET_INFO *cs= cmp_collation.collation;
+    const char *str_begin= buffer->ptr();
+    const char *str_end= buffer->ptr();
+    const char *real_end= str_end+buffer->length();
+    const uchar *find_str= (const uchar *) find->ptr();
+    uint find_str_len= find->length();
+    int position= 0;
+    while (1)
     {
-      const char *pos= f_pos;
-      while (pos != f_end)
+      int symbol_len;
+      if ((symbol_len= cs->cset->mb_wc(cs, &wc, (uchar*) str_end, 
+                                       (uchar*) real_end)) > 0)
       {
-	if (my_toupper(cmp_collation.collation,*str) != 
-	    my_toupper(cmp_collation.collation,*pos))
-	  goto not_found;
-	str++;
-	pos++;
+        const char *substr_end= str_end + symbol_len;
+        bool is_last_item= (substr_end == real_end);
+        if (wc == (my_wc_t) separator || is_last_item)
+        {
+          position++;
+          if (is_last_item)
+            str_end= substr_end;
+          if (!my_strnncoll(cs, (const uchar *) str_begin,
+                            str_end - str_begin,
+                            find_str, find_str_len))
+            return (longlong) position;
+          else
+            str_begin= substr_end;
+        }
+        str_end= substr_end;
       }
-      if (str == real_end || str[0] == separator)
-	return (longlong) position;
-  not_found:
-      while (str < end && str[0] != separator)
-	str++;
-      position++;
-    } while (++str <= end);
+      else if (str_end - str_begin == 0 && 
+               find_str_len == 0 && 
+               wc == (my_wc_t) separator)
+        return (longlong) ++position;
+      else
+        return (longlong) 0;
+    }
   }
   return 0;
 }
@@ -1649,7 +1666,7 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
     func->max_length=min(initid.max_length,MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
     const_item_cache=initid.const_item;
-    func->decimals=min(initid.decimals,31);
+    func->decimals=min(initid.decimals,NOT_FIXED_DEC);
   }
   initialized=1;
   if (error)
@@ -2563,6 +2580,16 @@ void Item_func_set_user_var::print(String *str)
 }
 
 
+void Item_func_set_user_var::print_as_stmt(String *str)
+{
+  str->append("set @", 5);
+  str->append(name.str, name.length);
+  str->append(":=", 2);
+  args[0]->print(str);
+  str->append(')');
+}
+
+
 String *
 Item_func_get_user_var::val_str(String *str)
 {
@@ -3312,6 +3339,11 @@ Item_func_sp::execute(Item **itp)
   sp_change_security_context(thd, m_sp, &save_ctx);
 #endif
 
+  /*
+    We don't need to surpress senfing of ok packet here (by setting
+    thd->net.no_send_ok to true), because we are not allowing statements
+    in functions now.
+  */
   res= m_sp->execute_function(thd, args, arg_count, itp);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

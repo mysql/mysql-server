@@ -24,6 +24,21 @@
 #include "sp.h"
 #include "sp_head.h"
 
+/*
+  We are using pointer to this variable for distinguishing between assignment
+  to NEW row field (when parsing trigger definition) and structured variable.
+*/
+sys_var_long_ptr trg_new_row_fake_var(0, 0);
+
+/*
+  Fake table list object, pointer to which is used as special value for
+  st_lex::time_zone_tables_used indicating that we implicitly use time
+  zone tables in this statement but real table list was not yet created.
+  Pointer to it is also returned by my_tz_get_tables_list() as indication
+  of transient error;
+*/
+TABLE_LIST fake_time_zone_tables_list;
+
 /* Macros to look like lex */
 
 #define yyGet()		*(lex->ptr++)
@@ -129,6 +144,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->duplicates= DUP_ERROR;
   lex->sphead= NULL;
   lex->spcont= NULL;
+  lex->trg_table= NULL;
 
   extern byte *sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first);
   hash_free(&lex->spfuns);
@@ -1004,7 +1020,7 @@ void st_select_lex::init_query()
   subquery_in_having= explicit_limit= 0;
   first_execution= 1;
   first_cond_optimization= 1;
-  parsing_place= SELECT_LEX_NODE::NO_MATTER;
+  parsing_place= NO_MATTER;
   no_wrap_view_item= 0;
 }
 
@@ -1376,7 +1392,7 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     We have to create array in prepared statement memory if it is
     prepared statement
   */
-  Item_arena *arena= thd->current_arena ? thd->current_arena : thd;
+  Item_arena *arena= thd->current_arena;
   return (ref_pointer_array= 
           (Item **)arena->alloc(sizeof(Item*) *
                                 (item_list.elements +
@@ -1785,10 +1801,10 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
 
 void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
 {
-  if (thd->current_arena && first_execution)
+  if (!thd->current_arena->is_conventional() && first_execution)
   {
-    prep_where= where;
     first_execution= 0;
+    prep_where= where;
   }
 }
 
