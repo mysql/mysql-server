@@ -68,6 +68,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   Table_ident *table;
   char *simple_string;
   Item *item;
+  Item_num *item_num;
   List<Item> *item_list;
   List<String> *string_list;
   String *string;
@@ -224,6 +225,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CONSTRAINT
 %token  CONTINUE_SYM
 %token	CONVERT_SYM
+%token  CURRENT_USER
 %token	DATABASES
 %token	DATA_SYM
 %token  DECLARE_SYM
@@ -614,7 +616,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %token  BEFORE_SYM
 %left   SET_VAR
-%left	OR_OR_CONCAT OR
+%left	OR_OR_CONCAT OR XOR
 %left	AND
 %left	BETWEEN_SYM CASE_SYM WHEN_SYM THEN_SYM ELSE
 %left	EQ EQUAL_SYM GE GT_SYM LE LT NE IS LIKE REGEXP IN_SYM
@@ -623,7 +625,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %left	SHIFT_LEFT SHIFT_RIGHT
 %left	'-' '+'
 %left	'*' '/' '%' DIV_SYM MOD_SYM
-%left   XOR
 %left   '^'
 %left	NEG '~'
 %right	NOT
@@ -640,7 +641,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_table_alias
 
 %type <table>
-	table_ident references
+	table_ident table_ident_ref references
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
@@ -654,7 +655,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	udf_type if_exists opt_local opt_table_options table_options
         table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type
         opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
-        opt_ignore_leaves fulltext_options spatial_type
+        opt_ignore_leaves fulltext_options spatial_type union_option
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -672,9 +673,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init geometry_function
-	signed_literal NUM_literal
+	signed_literal now_or_signed_literal
 	sp_opt_default
 	simple_ident_nospvar simple_ident_q
+
+%type <item_num>
+	NUM_literal
 
 %type <item_list>
 	expr_list udf_expr_list udf_expr_list2 when_list
@@ -759,7 +763,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild
-	union_clause union_list union_option
+	union_clause union_list
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
 	opt_extended_describe
@@ -2169,25 +2173,15 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| DEFAULT charset opt_equal charset_name_or_default
+	| opt_default charset opt_equal charset_name_or_default
 	  {
 	    Lex->create_info.default_table_charset= $4;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
 	  }
-	| charset opt_equal charset_name_or_default
+	| opt_default COLLATE_SYM opt_equal collation_name_or_default
 	  {
-	    Lex->create_info.table_charset= $3;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
-	  }
-	| DEFAULT COLLATE_SYM opt_equal collation_name_or_default
-	  {
-	    Lex->create_info.table_charset= $4;
+	    Lex->create_info.default_table_charset= $4;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
-	  }
-	| COLLATE_SYM opt_equal collation_name_or_default
-	  {
-	    Lex->create_info.table_charset= $3;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
@@ -2297,7 +2291,7 @@ field_spec:
 	 {
 	   LEX *lex=Lex;
 	   lex->length=lex->dec=0; lex->type=0; lex->interval=0;
-	   lex->default_value=0;
+	   lex->default_value= lex->on_update_value= 0;
 	   lex->comment=0;
 	   lex->charset=NULL;
 	 }
@@ -2307,7 +2301,8 @@ field_spec:
 	  if (add_field_to_list(lex->thd, $1.str,
 				(enum enum_field_types) $3,
 				lex->length,lex->dec,lex->type,
-				lex->default_value, lex->comment,
+				lex->default_value, lex->on_update_value, 
+                                lex->comment,
 				lex->change,lex->interval,lex->charset,
 				lex->uint_geom_type))
 	    YYABORT;
@@ -2503,7 +2498,9 @@ opt_attribute_list:
 attribute:
 	NULL_SYM	  { Lex->type&= ~ NOT_NULL_FLAG; }
 	| NOT NULL_SYM	  { Lex->type|= NOT_NULL_FLAG; }
-	| DEFAULT signed_literal { Lex->default_value=$2; }
+	| DEFAULT now_or_signed_literal { Lex->default_value=$2; }
+	| ON UPDATE_SYM NOW_SYM optional_braces 
+          { Lex->on_update_value= new Item_func_now_local(); }
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
 	| SERIAL_SYM DEFAULT VALUE_SYM
 	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG; }
@@ -2511,6 +2508,7 @@ attribute:
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
 	| COMMENT_SYM TEXT_STRING_sys { Lex->comment= &$2; }
+	| BINARY { Lex->type|= BINCMP_FLAG; }
 	| COLLATE_SYM collation_name
 	  {
 	    if (Lex->charset && !my_charset_same(Lex->charset,$2))
@@ -2525,6 +2523,11 @@ attribute:
 	    }
 	  }
 	;
+
+now_or_signed_literal:
+        NOW_SYM optional_braces { $$= new Item_func_now_local(); }
+        | signed_literal { $$=$1; }
+        ;
 
 charset:
 	CHAR_SYM SET	{}
@@ -2592,7 +2595,6 @@ opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
 	| ASCII_SYM			{ Lex->charset=&my_charset_latin1; }
 	| BYTE_SYM			{ Lex->charset=&my_charset_bin; }
-	| BINARY			{ Lex->charset=&my_charset_bin; }
 	| UNICODE_SYM
 	{
 	  if (!(Lex->charset=get_charset_by_csname("ucs2",MY_CS_PRIMARY,MYF(0))))
@@ -2826,7 +2828,7 @@ alter_list_item:
           {
             LEX *lex=Lex;
             lex->length=lex->dec=0; lex->type=0; lex->interval=0;
-            lex->default_value=0;
+            lex->default_value= lex->on_update_value= 0;
 	    lex->comment=0;
 	    lex->charset= NULL;
             lex->simple_alter=0;
@@ -2837,7 +2839,8 @@ alter_list_item:
             if (add_field_to_list(lex->thd,$3.str,
                                   (enum enum_field_types) $5,
                                   lex->length,lex->dec,lex->type,
-                                  lex->default_value, lex->comment,
+                                  lex->default_value, lex->on_update_value,
+                                  lex->comment,
 				  $3.str, lex->interval, lex->charset,
 				  lex->uint_geom_type))
 	       YYABORT;
@@ -2883,6 +2886,27 @@ alter_list_item:
 	    LEX *lex=Lex;
 	    lex->select_lex.db=$3->db.str;
 	    lex->name= $3->table.str;
+	  }
+	| CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
+	  {
+	    if (!$4)
+	    {
+	      THD *thd= YYTHD;
+	      $4= thd->variables.collation_database;
+	    }
+	    $5= $5 ? $5 : $4;
+	    if (!my_charset_same($4,$5))
+	    {
+	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
+			 $5->name,$4->csname);
+	      YYABORT;
+	    }
+	    LEX *lex= Lex;
+	    lex->create_info.table_charset= 
+	      lex->create_info.default_table_charset= $5;
+	    lex->create_info.used_fields|= (HA_CREATE_USED_CHARSET |
+					    HA_CREATE_USED_DEFAULT_CHARSET);
+	    lex->simple_alter= 0;
 	  }
         | create_table_options_space_separated { Lex->simple_alter=0; }
 	| order_clause         { Lex->simple_alter=0; };
@@ -3246,13 +3270,13 @@ select_init:
             SELECT_LEX * sel= lex->current_select;
 	    if (sel->set_braces(1))
 	    {
-	      send_error(lex->thd, ER_SYNTAX_ERROR);
+	      yyerror(ER(ER_SYNTAX_ERROR));
 	      YYABORT;
 	    }
 	  if (sel->linkage == UNION_TYPE &&
 	      !sel->master_unit()->first_select()->braces)
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
             /* select in braces, can't contain global parameters */
@@ -3268,13 +3292,13 @@ select_init2:
           SELECT_LEX * sel= lex->current_select;
           if (lex->current_select->set_braces(0))
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	  if (sel->linkage == UNION_TYPE &&
 	      sel->master_unit()->first_select()->braces)
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	}
@@ -3603,7 +3627,7 @@ simple_expr:
 	    $$= new Item_func_set_collation($1,
 					    new Item_string($3.str,
 							    $3.length,
-					    		    YYTHD->charset()));
+                                                            YYTHD->charset()));
 	  }
 	| literal
 	| param_marker
@@ -3619,6 +3643,12 @@ simple_expr:
 	  }
 	| '@' '@' opt_var_ident_type ident_or_text opt_component
 	  {
+
+            if ($4.str && $5.str && check_reserved_words(&$4))
+            {
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
 	    if (!($$= get_system_var(YYTHD, (enum_var_type) $3, $4, $5)))
 	      YYABORT;
 	  }
@@ -3751,6 +3781,8 @@ simple_expr:
 	    $$= new Item_func_curtime_local($3);
 	    Lex->safe_to_cache_query=0;
 	  }
+	| CURRENT_USER optional_braces
+          { $$= create_func_current_user(); }
 	| DATE_ADD_INTERVAL '(' expr ',' interval_expr interval ')'
 	  { $$= new Item_date_add_interval($3,$5,$6,0); }
 	| DATE_SUB_INTERVAL '(' expr ',' interval_expr interval ')'
@@ -3830,20 +3862,19 @@ simple_expr:
 	  {
             if ($1->type() != Item::ROW_ITEM)
             {
-              send_error(Lex->thd, ER_SYNTAX_ERROR);
+              yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
             $$= new Item_func_interval((Item_row *)$1);
           }
 	| LAST_INSERT_ID '(' ')'
 	  {
-	    $$= get_system_var(YYTHD, OPT_SESSION, "last_insert_id", 14,
-			      "last_insert_id()");
+	    $$= new Item_func_last_insert_id();
 	    Lex->safe_to_cache_query= 0;
 	  }
 	| LAST_INSERT_ID '(' expr ')'
 	  {
-	    $$= new Item_func_set_last_insert_id($3);
+	    $$= new Item_func_last_insert_id($3);
 	    Lex->safe_to_cache_query= 0;
 	  }
 	| LEFT '(' expr ',' expr ')'
@@ -4086,14 +4117,14 @@ geometry_function:
 	  { $$= GEOM_NEW(Item_func_geometry_from_wkb($3, $5)); }
 	| GEOMETRYCOLLECTION '(' expr_list ')'
 	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-                           Geometry::wkbGeometryCollection,
-                           Geometry::wkbPoint)); }
+                           Geometry::wkb_geometrycollection,
+                           Geometry::wkb_point)); }
 	| LINESTRING '(' expr_list ')'
 	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-                  Geometry::wkbLineString, Geometry::wkbPoint)); }
+                  Geometry::wkb_linestring, Geometry::wkb_point)); }
  	| MULTILINESTRING '(' expr_list ')'
 	  { $$= GEOM_NEW( Item_func_spatial_collection(* $3,
-                   Geometry::wkbMultiLineString, Geometry::wkbLineString)); }
+                   Geometry::wkb_multilinestring, Geometry::wkb_linestring)); }
  	| MLINEFROMTEXT '(' expr ')'
 	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
 	| MLINEFROMTEXT '(' expr ',' expr ')'
@@ -4108,10 +4139,10 @@ geometry_function:
 	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
 	| MULTIPOINT '(' expr_list ')'
 	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-                  Geometry::wkbMultiPoint, Geometry::wkbPoint)); }
+                  Geometry::wkb_multipoint, Geometry::wkb_point)); }
  	| MULTIPOLYGON '(' expr_list ')'
 	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-                  Geometry::wkbMultiPolygon, Geometry::wkbPolygon)); }
+                  Geometry::wkb_multipolygon, Geometry::wkb_polygon)); }
 	| POINT_SYM '(' expr ',' expr ')'
 	  { $$= GEOM_NEW(Item_func_point($3,$5)); }
  	| POINTFROMTEXT '(' expr ')'
@@ -4124,7 +4155,7 @@ geometry_function:
 	  { $$= GEOM_NEW(Item_func_geometry_from_text($3, $5)); }
 	| POLYGON '(' expr_list ')'
 	  { $$= GEOM_NEW(Item_func_spatial_collection(* $3,
-	          Geometry::wkbPolygon, Geometry::wkbLineString)); }
+	          Geometry::wkb_polygon, Geometry::wkb_linestring)); }
  	| GEOMCOLLFROMTEXT '(' expr ')'
 	  { $$= GEOM_NEW(Item_func_geometry_from_text($3)); }
 	| GEOMCOLLFROMTEXT '(' expr ',' expr ')'
@@ -4216,11 +4247,15 @@ sum_expr:
 	  { $$=new Item_sum_sum($3); }
 	| SUM_SYM '(' DISTINCT in_sum_expr ')'
 	  { $$=new Item_sum_sum_distinct($4); }
-	| GROUP_CONCAT_SYM '(' opt_distinct expr_list opt_gorder_clause
-	  opt_gconcat_separator ')'
+	| GROUP_CONCAT_SYM '(' opt_distinct
+	  { Select->in_sum_expr++; }
+	  expr_list opt_gorder_clause
+	  opt_gconcat_separator
+	 ')'
 	  {
-	    $$=new Item_func_group_concat($3,$4,Lex->gorder_list,$6);
-	    $4->empty();
+	    Select->in_sum_expr--;
+	    $$=new Item_func_group_concat($3,$5,Select->gorder_list,$7);
+	    $5->empty();
 	  };
 
 opt_distinct:
@@ -4228,23 +4263,22 @@ opt_distinct:
     |DISTINCT   { $$ = 1; };
 
 opt_gconcat_separator:
-    /* empty */        { $$ = new String(",",1,default_charset_info); }
+    /* empty */        { $$ = new (&YYTHD->mem_root) String(",",1,default_charset_info); }
     |SEPARATOR_SYM text_string  { $$ = $2; };
 
 
 opt_gorder_clause:
 	  /* empty */
 	  {
-            LEX *lex=Lex;
-            lex->gorder_list = NULL;
+            Select->gorder_list = NULL;
 	  }
 	| order_clause
           {
-            LEX *lex=Lex;
-            lex->gorder_list=
-	      (SQL_LIST*) sql_memdup((char*) &lex->current_select->order_list,
+            SELECT_LEX *select= Select;
+            select->gorder_list=
+	      (SQL_LIST*) sql_memdup((char*) &select->order_list,
 				     sizeof(st_sql_list));
-	    lex->current_select->order_list.empty();
+	    select->order_list.empty();
 	  };
 
 
@@ -4254,7 +4288,7 @@ in_sum_expr:
 	  LEX *lex= Lex;
 	  if (lex->current_select->inc_in_sum_expr())
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	}
@@ -4265,7 +4299,7 @@ in_sum_expr:
 	};
 
 cast_type:
-	BINARY			{ $$=ITEM_CAST_BINARY; Lex->charset= NULL; Lex->length= (char*)0; }
+	BINARY opt_len		{ $$=ITEM_CAST_CHAR; Lex->charset= &my_charset_bin; }
 	| CHAR_SYM opt_len opt_binary	{ $$=ITEM_CAST_CHAR; }
 	| NCHAR_SYM opt_len	{ $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; }
 	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->length= (char*)0; }
@@ -4425,8 +4459,8 @@ select_derived:
 	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
 	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
 	       lex->sql_command == (int)SQLCOM_KILL)
-	  {	
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	  {
+	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE ||
@@ -4434,8 +4468,13 @@ select_derived:
 	    YYABORT;
 	  mysql_init_select(lex);
 	  lex->current_select->linkage= DERIVED_TABLE_TYPE;
+	  lex->current_select->parsing_place= SELECT_LEX_NODE::SELECT_LIST;
 	}
-        select_options select_item_list opt_select_from union_opt
+        select_options select_item_list
+	{
+	  Select->parsing_place= SELECT_LEX_NODE::NO_MATTER;
+	}
+	opt_select_from union_opt
         ;
 
 opt_outer:
@@ -4478,15 +4517,15 @@ key_list_or_empty:
 key_usage_list2:
 	key_usage_list2 ',' ident
         { Select->
-	    interval_list.push_back(new String((const char*) $3.str, $3.length,
+	    interval_list.push_back(new (&YYTHD->mem_root) String((const char*) $3.str, $3.length,
 				    system_charset_info)); }
 	| ident
         { Select->
-	    interval_list.push_back(new String((const char*) $1.str, $1.length,
+	    interval_list.push_back(new (&YYTHD->mem_root) String((const char*) $1.str, $1.length,
 				    system_charset_info)); }
 	| PRIMARY_SYM
         { Select->
-	    interval_list.push_back(new String("PRIMARY", 7,
+	    interval_list.push_back(new (&YYTHD->mem_root) String("PRIMARY", 7,
 				    system_charset_info)); };
 
 using_list:
@@ -4663,9 +4702,12 @@ order_dir:
 opt_limit_clause_init:
 	/* empty */
 	{
-	  SELECT_LEX *sel= Select;
+	  LEX *lex= Lex;
+	  SELECT_LEX *sel= lex->current_select;
           sel->offset_limit= 0L;
-          sel->select_limit= Lex->thd->variables.select_limit;
+          sel->select_limit= (&lex->select_lex == sel) ?
+	    Lex->thd->variables.select_limit :	/* primary SELECT */
+	    HA_POS_ERROR;			/* subquery */
 	}
 	| limit_clause {}
 	;
@@ -5094,7 +5136,7 @@ opt_insert_update:
                for a moment */
 	    if (Lex->sql_command != SQLCOM_INSERT)
             {
-	      send_error(Lex->thd, ER_SYNTAX_ERROR);
+	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
           }
@@ -5351,6 +5393,29 @@ show_param:
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; WARN_DEPRECATED("SHOW BDB LOGS", "SHOW ENGINE BDB LOGS"); }
 	| LOGS_SYM
 	  { Lex->sql_command= SQLCOM_SHOW_LOGS; WARN_DEPRECATED("SHOW LOGS", "SHOW ENGINE BDB LOGS"); }
+	| GRANTS
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_GRANTS;
+	    THD *thd= lex->thd;
+	    LEX_USER *curr_user;
+            if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+              YYABORT;
+            curr_user->user.str= thd->priv_user;
+            curr_user->user.length= strlen(thd->priv_user);
+            if (*thd->priv_host != 0)
+            {
+              curr_user->host.str= thd->priv_host;
+              curr_user->host.length= strlen(thd->priv_host);
+            }
+            else
+            {
+              curr_user->host.str= (char *) "%";
+              curr_user->host.length= 1;
+            }
+            curr_user->password.str=NullS;
+	    lex->grant_user= curr_user;
+	  }
 	| GRANTS FOR_SYM user
 	  {
 	    LEX *lex=Lex;
@@ -5492,7 +5557,7 @@ opt_describe_column:
 	/* empty */	{}
 	| text_string	{ Lex->wild= $1; }
 	| ident
-	  { Lex->wild= new String((const char*) $1.str,$1.length,system_charset_info); };
+	  { Lex->wild= new (&YYTHD->mem_root) String((const char*) $1.str,$1.length,system_charset_info); };
 
 
 /* flush things */
@@ -5574,6 +5639,11 @@ purge_option:
 	    YYABORT;
 	  }
 	  Item *tmp= new Item_func_unix_timestamp($2);
+	  /*
+	    it is OK only emulate fix_fieds, because we need only
+            value of constant
+	  */
+	  tmp->quick_fix_field();
 	  Lex->sql_command = SQLCOM_PURGE_BEFORE;
 	  Lex->purge_time= (ulong) tmp->val_int();
 	}
@@ -5709,26 +5779,38 @@ text_literal:
 
 text_string:
 	TEXT_STRING_literal
-	{ $$=  new String($1.str,$1.length,YYTHD->variables.collation_connection); }
+	{ $$=  new (&YYTHD->mem_root) String($1.str,$1.length,YYTHD->variables.collation_connection); }
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
-	    $$= tmp ? tmp->val_str((String*) 0) : (String*) 0;
+	    /*
+	      it is OK only emulate fix_fieds, because we need only
+              value of constant
+	    */
+	    $$= tmp ?
+	      tmp->quick_fix_field(), tmp->val_str((String*) 0) :
+	      (String*) 0;
 	  }
 	;
 
 param_marker:
         '?'
         {
-	  LEX *lex=Lex;
-          if (YYTHD->command == COM_PREPARE)
+          THD *thd=YYTHD;
+	  LEX *lex= thd->lex;
+          if (thd->command == COM_PREPARE)
           {
-            lex->param_list.push_back($$=new Item_param((uint)(lex->tok_start-(uchar *)YYTHD->query)));
-            lex->param_count++;
+            Item_param *item= new Item_param((uint) (lex->tok_start -
+                                                     (uchar *) thd->query));
+            if (!($$= item) || lex->param_list.push_back(item))
+            {
+	      send_error(thd, ER_OUT_OF_RESOURCES);
+	      YYABORT;
+            }
           }
           else
           {
-            yyerror("You have an error in your SQL syntax");
+            yyerror(ER(ER_SYNTAX_ERROR));
             YYABORT;
           }
         }
@@ -5737,7 +5819,11 @@ param_marker:
 signed_literal:
 	literal		{ $$ = $1; }
 	| '+' NUM_literal { $$ = $2; }
-	| '-' NUM_literal { $$ = new Item_func_neg($2); }
+	| '-' NUM_literal
+	  {
+	    $2->max_length++;
+	    $$= $2->neg();
+	  }
 	;
 
 
@@ -5750,7 +5836,13 @@ literal:
 	| UNDERSCORE_CHARSET HEX_NUM
 	  {
 	    Item *tmp= new Item_varbinary($2.str,$2.length);
-	    String *str= tmp ? tmp->val_str((String*) 0) : (String*) 0;
+	    /*
+	      it is OK only emulate fix_fieds, because we need only
+              value of constant
+	    */
+	    String *str= tmp ?
+	      tmp->quick_fix_field(), tmp->val_str((String*) 0) :
+	      (String*) 0;
 	    $$= new Item_string(str ? str->ptr() : "",
 				str ? str->length() : 0,
 				Lex->charset);
@@ -5897,8 +5989,13 @@ field_ident:
 table_ident:
 	ident			{ $$=new Table_ident($1); }
 	| ident '.' ident	{ $$=new Table_ident(YYTHD, $1,$3,0);}
-	| '.' ident		{ $$=new Table_ident($2);}
-   /* For Delphi */;
+	| '.' ident		{ $$=new Table_ident($2);} /* For Delphi */
+        ;
+
+table_ident_ref:
+	ident			{ LEX_STRING db={(char*) any_db,3}; $$=new Table_ident(YYTHD, db,$1,0); }
+	| ident '.' ident	{ $$=new Table_ident(YYTHD, $1,$3,0);}
+        ;
 
 IDENT_sys:
 	IDENT { $$= $1; }
@@ -5969,7 +6066,25 @@ user:
 	    if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
-	  };
+	  }
+	| CURRENT_USER optional_braces
+	{
+          THD *thd= YYTHD;
+          if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+            YYABORT;
+          $$->user.str= thd->priv_user;
+          $$->user.length= strlen(thd->priv_user);
+          if (*thd->priv_host != 0)
+          {
+            $$->host.str= thd->priv_host;
+            $$->host.length= strlen(thd->priv_host);
+          }
+          else
+          {
+            $$->host.str= (char *) "%";
+            $$->host.length= 1;
+          }
+	};
 
 /* Keyword that we allow for identifiers */
 
@@ -6074,6 +6189,7 @@ keyword:
 	| MASTER_LOG_POS_SYM	{}
 	| MASTER_USER_SYM	{}
 	| MASTER_PASSWORD_SYM	{}
+	| MASTER_SERVER_ID_SYM  {}
 	| MASTER_CONNECT_RETRY_SYM	{}
 	| MASTER_SSL_SYM	{}
 	| MASTER_SSL_CA_SYM	{}
@@ -6195,7 +6311,7 @@ set:
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_SET_OPTION;
-	  lex->option_type=OPT_DEFAULT;
+	  lex->option_type=OPT_SESSION;
 	  lex->var_list.empty();
 	}
 	option_value_list
@@ -6348,6 +6464,11 @@ internal_variable_name:
 	}
 	| ident '.' ident
 	  {
+            if (check_reserved_words(&$1))
+            {
+	      yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
 	    sys_var *tmp=find_sys_var($3.str, $3.length);
 	    if (!tmp)
 	      YYABORT;
@@ -6453,14 +6574,14 @@ handler:
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, $4, 0))
 	    YYABORT;
 	}
-	| HANDLER_SYM table_ident CLOSE_SYM
+	| HANDLER_SYM table_ident_ref CLOSE_SYM
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command = SQLCOM_HA_CLOSE;
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
 	}
-	| HANDLER_SYM table_ident READ_SYM
+	| HANDLER_SYM table_ident_ref READ_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_HA_READ;
@@ -6529,7 +6650,7 @@ revoke_command:
 	grant_privileges ON opt_table FROM user_list
 	{}
 	|
-	ALL PRIVILEGES ',' GRANT FROM user_list
+	ALL PRIVILEGES ',' GRANT OPTION FROM user_list
 	{
 	  Lex->sql_command = SQLCOM_REVOKE_ALL;
 	}
@@ -6738,7 +6859,7 @@ column_list:
 column_list_id:
 	ident
 	{
-	  String *new_str = new String((const char*) $1.str,$1.length,system_charset_info);
+	  String *new_str = new (&YYTHD->mem_root) String((const char*) $1.str,$1.length,system_charset_info);
 	  List_iterator <LEX_COLUMN> iter(Lex->columns);
 	  class LEX_COLUMN *point;
 	  LEX *lex=Lex;
@@ -6844,7 +6965,7 @@ union_clause:
 	;
 
 union_list:
-	UNION_SYM    union_option
+	UNION_SYM union_option
 	{
 	  LEX *lex=Lex;
 	  if (lex->exchange)
@@ -6855,13 +6976,16 @@ union_list:
 	  }
 	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+            yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	  if (mysql_new_select(lex, 0))
 	    YYABORT;
           mysql_init_select(lex);
 	  lex->current_select->linkage=UNION_TYPE;
+          if ($2) /* UNION DISTINCT - remember position */
+            lex->current_select->master_unit()->union_distinct=
+                                                      lex->current_select;
 	}
 	select_init {}
 	;
@@ -6903,9 +7027,10 @@ order_or_limit:
 	;
 
 union_option:
-	/* empty */ {}
-	| DISTINCT {}
-	| ALL {Select->master_unit()->union_option|= UNION_ALL;};
+	/* empty */ { $$=1; }
+	| DISTINCT  { $$=1; }
+	| ALL       { $$=0; }
+        ;
 
 singlerow_subselect:
 	subselect_start singlerow_subselect_init
@@ -6955,8 +7080,8 @@ subselect_start:
 	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
 	       lex->sql_command <= (int)SQLCOM_HA_READ) ||
 	       lex->sql_command == (int)SQLCOM_KILL)
-	  {	
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
+	  {
+            yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
 	  if (mysql_new_select(Lex, 1))

@@ -36,3 +36,14 @@ INSERT INTO t1
 VALUES(NULL,1,'2001-03-01',1,1,1,'New',NULL,NULL,'now');
 select * from t1;
 drop table t1;
+
+#
+# Test for bug #2342 "Running ANALYZE TABLE on bdb table 
+# inside a transaction hangs server thread"
+
+create table t1 (a int) engine=bdb;
+
+set autocommit=0;
+insert into t1 values(1);
+analyze table t1;
+drop table t1;

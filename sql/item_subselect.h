@@ -26,6 +26,7 @@ class JOIN;
 class select_subselect;
 class subselect_engine;
 class Item_bool_func2;
+class Statement;
 
 /* base class for subselects */
 
@@ -35,22 +36,30 @@ class Item_subselect :public Item_result_field
 protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
+  /* prepared statement, or 0 */
+  Statement *stmt;
   /* substitution instead of subselect in case of optimization */
   Item *substitution;
+  /* unit of subquery */
+  st_select_lex_unit *unit;
   /* engine that perform execution of subselect (single select or union) */
   subselect_engine *engine;
+  /* old engine if engine was changed */
+  subselect_engine *old_engine;
   /* cache of used external tables */
   table_map used_tables_cache; 
   /* allowed number of columns (1 for single value subqueries) */
   uint max_columns;
   /* work with 'substitution' */
   bool have_to_be_excluded;
-  /* cache of constante state */
+  /* cache of constant state */
   bool const_item_cache;
 
 public:
   /* changed engine indicator */
   bool engine_changed;
+  /* subquery is transformed */
+  bool changed;
 
   enum trans_res {RES_OK, RES_REDUCE, RES_ERROR};
   enum subs_type {UNKNOWN_SUBS, SINGLEROW_SUBS,
@@ -90,10 +99,12 @@ public:
   bool const_item() const;
   inline table_map get_used_tables_cache() { return used_tables_cache; }
   inline bool get_const_item_cache() { return const_item_cache; }
+  Item *get_tmp_table_item(THD *thd);
   void update_used_tables();
   void print(String *str);
   bool change_engine(subselect_engine *eng)
   {
+    old_engine= engine;
     engine= eng;
     engine_changed= 1;
     return eng == 0;
@@ -116,6 +127,7 @@ public:
   Item_singlerow_subselect(st_select_lex *select_lex);
   Item_singlerow_subselect() :Item_subselect(), value(0), row (0) {}
 
+  void cleanup();
   subs_type substype() { return SINGLEROW_SUBS; }
 
   void reset();
@@ -200,13 +212,6 @@ public:
      
   {}
 
-  void cleanup()
-  {
-    Item_exists_subselect::cleanup();
-    abort_on_null= 0;
-    transformed= 0;
-    upper_not= 0;
-  }
   subs_type substype() { return IN_SUBS; }
   void reset() 
   {
@@ -269,7 +274,7 @@ public:
     maybe_null= 0;
   }
   virtual ~subselect_engine() {}; // to satisfy compiler
-  virtual void cleanup() {}
+  virtual void cleanup()= 0;
   
   // set_thd should be called before prepare()
   void set_thd(THD *thd_arg) { thd= thd_arg; }
@@ -318,6 +323,7 @@ public:
   subselect_union_engine(st_select_lex_unit *u,
 			 select_subselect *result,
 			 Item_subselect *item);
+  void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
   int exec();
@@ -345,6 +351,7 @@ public:
     set_thd(thd_arg);
   }
   ~subselect_uniquesubquery_engine();
+  void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
   int exec();

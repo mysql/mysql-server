@@ -15,6 +15,7 @@ file7=C:\mysql\bin\mysqlc.exe
 file8=C:\mysql\bin\mysqlcheck.exe
 file9=C:\mysql\bin\mysqldump.exe
 file20=C:\mysql\bin\winmysqladmin.exe
+file21=C:\mysql\bin\myisam_ftdump.exe
 file10=C:\mysql\bin\mysqlimport.exe
 fulldirectory=
 file11=C:\mysql\bin\mysqlshow.exe

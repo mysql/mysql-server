@@ -3413,6 +3413,6 @@ static int update_state_info( N_INFO *info, uint update)
       return 0;
   }
 err:
-  print_error("%d when updateing keyfile",my_errno);
+  print_error("%d when updating keyfile",my_errno);
   return 1;
 }

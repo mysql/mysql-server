@@ -84,18 +84,30 @@ static void print_cs(CHARSET_INFO *cs)
     printf("<TD>%02X",ch[i].srt);
     
     printf("<TD>%s%s%s%s%s%s%s%s",
-    		ch[i].ctp & _U ? "U" : "",
-    		ch[i].ctp & _L ? "L" : "",
-    		ch[i].ctp & _NMR ? "N" : "",
-    		ch[i].ctp & _SPC ? "S" : "",
-    		ch[i].ctp & _PNT ? "P" : "",
-    		ch[i].ctp & _CTR ? "C" : "",
-    		ch[i].ctp & _B ? "B" : "",
-    		ch[i].ctp & _X ? "X" : "");
+    		ch[i].ctp & _MY_U ? "U" : "",
+    		ch[i].ctp & _MY_L ? "L" : "",
+    		ch[i].ctp & _MY_NMR ? "N" : "",
+    		ch[i].ctp & _MY_SPC ? "S" : "",
+    		ch[i].ctp & _MY_PNT ? "P" : "",
+    		ch[i].ctp & _MY_CTR ? "C" : "",
+    		ch[i].ctp & _MY_B ? "B" : "",
+    		ch[i].ctp & _MY_X ? "X" : "");
     
-    printf("<TD>&#%d;",ch[i].uni);
-    printf("<TD>&#%d;",ch[i].low);
-    printf("<TD>&#%d;",ch[i].upp);
+    if ((ch[i].uni >= 0x80) && (ch[i].uni <= 0x9F))
+    {
+      /* 
+       Control characters 0x0080..0x009F are dysplayed by some
+       browers as if they were letters. Don't print them to
+       avoid confusion.
+      */
+      printf("<TD>ctrl<TD>ctrl<TD>ctrl");
+    }
+    else
+    {
+      printf("<TD>&#%d;",ch[i].uni);
+      printf("<TD>&#%d;",ch[i].low);
+      printf("<TD>&#%d;",ch[i].upp);
+    }
     printf("</TR>\n");
     srt=ch[i].srt;
   }

@@ -216,7 +216,7 @@ character-set=latin1
 "Diese Operation kann nicht bei einem aktiven Slave durchgeführt werden. Bitte zuerst STOP SLAVE ausführen",
 "Diese Operation benötigt einen aktiven Slave. Bitte Slave konfigurieren und mittels START SLAVE aktivieren",
 "Der Server ist nicht als Slave konfiguriert. Bitte in der Konfigurationsdatei oder mittels CHANGE MASTER TO beheben",
-"Konnte Master-Info-Struktur nicht initialisieren. Bitte Berechtigungen von master.info prüfen",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Konnte keinen Slave-Thread starten. Bitte System-Ressourcen überprüfen",
 "Benutzer '%-.64s' hat mehr als max_user_connections aktive Verbindungen",
 "Bei SET dürfen nur konstante Ausdrücke verwendet werden",
@@ -253,6 +253,7 @@ character-set=latin1
 "Diese MySQL-Version unterstützt '%s' nicht",
 "Schwerer Fehler %d: '%-.128s vom Master beim Lesen des binären Logs aufgetreten",
 "Slave-SQL-Thread hat die Abfrage aufgrund von replicate-*-table-Regeln ignoriert",
+"Variable '%-.64s' is a %s variable",
 "Falsche Fremdschlüssel-Definition für '%-64s': %s",
 "Schlüssel- und Tabellenverweis passen nicht zusammen",
 "Operand solle %d Spalte(n) enthalten",
@@ -289,7 +290,7 @@ character-set=latin1
 "Variable '%-.64s' ist keine Variablen-Komponenten (kann nicht als XXXX.variablen_name verwendet werden)",
 "Unbekannte Kollation: '%-.64s'",
 "SSL-Parameter in CHANGE MASTER werden ignoriert, weil dieser MySQL-Slave ohne SSL-Unterstützung kompiliert wurde. Sie können aber später verwendet werden, wenn der MySQL-Slave mit SSL gestartet wird",
-"Server läuft im Modus --secure-auth, aber '%s@%s' hat ein Passwort im alten Format. Bitte Passwort ins neue Format ändern",
+"Server läuft im Modus --secure-auth, aber '%s'@'%s' hat ein Passwort im alten Format. Bitte Passwort ins neue Format ändern",
 "Feld oder Verweis '%-.64s%s%-.64s%s%-.64s' im SELECT-Befehl Nr. %d wurde im SELECT-Befehl Nr. %d aufgelöst",
 "Falscher Parameter oder falsche Kombination von Parametern für START SLAVE UNTIL",
 "Es wird empfohlen, mit --skip-slave-start zu starten, wenn mit START SLAVE UNTIL eine Schritt-für-Schritt-Replikation ausgeführt wird. Ansonsten gibt es Probleme, wenn der Slave-Server unerwartet neu startet",
@@ -301,10 +302,14 @@ character-set=latin1
 "Unknown key cache '%-.100s'",
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Unknown table engine '%s'",
-"'%s' is deprecated. Use '%s' instead.",
-"The target table %-.100s of the %s is not updatable.",
-"The '%s' feature was disabled. You need MySQL built with '%s' define to have it working"
-"MySQL is started in --skip-grant-tables mode. You can't use this command"
+"'%s' is deprecated, use '%s' instead",
+"The target table %-.100s of the %s is not updateable",
+"The '%s' feature was disabled; you need MySQL built with '%s' to have it working",
+"The MySQL server is running with the %s option so it cannot execute this statement",
+"Column '%-.100s' has duplicated value '%-.64s' in %s"
+"Truncated wrong %-.32s value: '%-.128s'"
+"Incorrect table definition; There can only be one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause"
+"Invalid ON UPDATE clause for '%-.64s' field",
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"

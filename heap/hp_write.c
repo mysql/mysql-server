@@ -99,6 +99,7 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *record,
 		    byte *recpos)
 {
   heap_rb_param custom_arg;
+  uint old_allocated;
 
   info->last_pos= NULL; /* For heap_rnext/heap_rprev */
   custom_arg.keyseg= keyinfo->seg;
@@ -113,12 +114,14 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *record,
     custom_arg.search_flag= SEARCH_SAME;
     keyinfo->rb_tree.flag= 0;
   }
+  old_allocated= keyinfo->rb_tree.allocated;
   if (!tree_insert(&keyinfo->rb_tree, (void*)info->recbuf,
 		   custom_arg.key_length, &custom_arg))
   {
     my_errno= HA_ERR_FOUND_DUPP_KEY;
     return 1;
   }
+  info->s->index_length+= (keyinfo->rb_tree.allocated-old_allocated);
   return 0;
 }
 

@@ -78,6 +78,7 @@ enum enum_server_command
 #define PART_KEY_FLAG	16384		/* Intern; Part of some key */
 #define GROUP_FLAG	32768		/* Intern: Group field */
 #define UNIQUE_FLAG	65536		/* Intern: Used by sql_yacc */
+#define BINCMP_FLAG	131072		/* Intern: Used by sql_yacc */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */
@@ -118,7 +119,7 @@ enum enum_server_command
 #define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
 #define CLIENT_MULTI_STATEMENTS 65536   /* Enable/disable multi-stmt support */
 #define CLIENT_MULTI_RESULTS    131072  /* Enable/disable multi-results */
-#define CLIENT_REMEMBER_OPTIONS	((ulong) (1L << 31))
+#define CLIENT_REMEMBER_OPTIONS	(((ulong) 1) << 31)
 
 #define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
 #define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */

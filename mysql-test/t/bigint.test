@@ -68,3 +68,6 @@ insert into t1 values ('10000000000000000000');
 select * from t1;
 drop table t1;
 
+# atof() behaviour is different of different systems. to be fixed in 4.1
+SELECT '0x8000000000000001'+0;
+

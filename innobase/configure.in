@@ -34,6 +34,7 @@ CXXFLAGS="$CXXFLAGS "
 AC_PROG_CC
 AC_PROG_RANLIB
 AC_PROG_INSTALL
+AC_PROG_LIBTOOL
 AC_CHECK_HEADERS(aio.h sched.h)
 AC_CHECK_SIZEOF(int, 4)
 AC_CHECK_SIZEOF(long, 4)
@@ -112,12 +113,12 @@ case "$target" in
 esac
 
 AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile dnl
-		buf/Makefile com/Makefile data/Makefile dnl
+		buf/Makefile data/Makefile dnl
 		dict/Makefile dyn/Makefile dnl
 		eval/Makefile fil/Makefile fsp/Makefile fut/Makefile dnl
 		ha/Makefile ibuf/Makefile include/Makefile dnl
 		lock/Makefile log/Makefile dnl
-		mach/Makefile mem/Makefile mtr/Makefile odbc/Makefile dnl
+		mach/Makefile mem/Makefile mtr/Makefile dnl
 		page/Makefile pars/Makefile que/Makefile dnl
 		read/Makefile rem/Makefile row/Makefile dnl
 		srv/Makefile sync/Makefile thr/Makefile trx/Makefile dnl

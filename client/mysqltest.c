@@ -109,6 +109,7 @@ MYSQL_MANAGER* manager=0;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest","client",0 };
+static char line_buffer[MAX_DELIMITER], *line_buffer_pos= line_buffer;;
 
 static FILE* file_stack[MAX_INCLUDE_DEPTH];
 static FILE** cur_file;
@@ -127,6 +128,8 @@ static CHARSET_INFO *charset_info= &my_charset_latin1;
 
 static int embedded_server_arg_count=0;
 static char *embedded_server_args[MAX_SERVER_ARGS];
+
+static my_bool display_result_vertically= FALSE, display_metadata= FALSE;
 
 static const char *embedded_server_groups[] = {
   "server",
@@ -212,7 +215,10 @@ Q_WAIT_FOR_SLAVE_TO_STOP,
 Q_REQUIRE_VERSION,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
+Q_ENABLE_METADATA, Q_DISABLE_METADATA,
 Q_EXEC, Q_DELIMITER,
+Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
+Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -284,8 +290,14 @@ const char *command_names[]=
   "disable_warnings",
   "enable_info",
   "disable_info",
+  "enable_metadata",
+  "disable_metadata",
   "exec",
   "delimiter",
+  "vertical_results",
+  "horizontal_results",
+  "query_vertical",
+  "query_horizontal",
   0
 };
 
@@ -441,10 +453,10 @@ static void free_used_memory()
     my_free((gptr) (*q),MYF(0));
   }
   for (i=0; i < 10; i++)
-    {
-      if (var_reg[i].alloced_len)
-	my_free(var_reg[i].str_val, MYF(MY_WME));
-    }
+  {
+    if (var_reg[i].alloced_len)
+      my_free(var_reg[i].str_val, MYF(MY_WME));
+  }
   while (embedded_server_arg_count > 1)
     my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
   delete_dynamic(&q_lines);
@@ -862,44 +874,59 @@ int do_exec(struct st_query* q)
   char buf[1024];
   FILE *res_file;
   char *cmd= q->first_argument;
+  DBUG_ENTER("do_exec");
 
   while (*cmd && my_isspace(charset_info, *cmd))
     cmd++;
   if (!*cmd)
     die("Missing argument in exec\n");
 
-  if (q->record_file[0])
-  {
-    init_dynamic_string(&ds_tmp, "", 16384, 65536);
-    ds= &ds_tmp;
-  }
-  else
-    ds= &ds_res;
+  DBUG_PRINT("info", ("Executing '%s'", cmd));
 
   if (!(res_file= popen(cmd, "r")) && q->abort_on_error)
     die("popen() failed\n");
-  while (fgets(buf, sizeof(buf), res_file))
-    replace_dynstr_append_mem(ds, buf, strlen(buf));
+
+  if (disable_result_log)
+  {
+    while (fgets(buf, sizeof(buf), res_file))
+    {
+      buf[strlen(buf)-1]=0;
+      DBUG_PRINT("exec_result",("%s", buf));
+    }
+  }
+  else
+  {
+    if (q->record_file[0])
+    {
+      init_dynamic_string(&ds_tmp, "", 16384, 65536);
+      ds= &ds_tmp;
+    }
+    else
+      ds= &ds_res;
+
+    while (fgets(buf, sizeof(buf), res_file))
+      replace_dynstr_append_mem(ds, buf, strlen(buf));
+  
+    if (glob_replace)
+      free_replace();
+
+    if (record)
+    {
+      if (!q->record_file[0] && !result_file)
+        die("At line %u: Missing result file", start_lineno);
+      if (!result_file)
+        str_to_file(q->record_file, ds->str, ds->length);
+    }
+    else if (q->record_file[0])
+    {
+      error= check_result(ds, q->record_file, q->require_file);
+    }
+    if (ds == &ds_tmp)
+      dynstr_free(&ds_tmp);
+  }
   pclose(res_file);
   
-  if (glob_replace)
-    free_replace();
-
-  if (record)
-  {
-    if (!q->record_file[0] && !result_file)
-      die("At line %u: Missing result file", start_lineno);
-    if (!result_file)
-      str_to_file(q->record_file, ds->str, ds->length);
-  }
-  else if (q->record_file[0])
-  {
-    error= check_result(ds, q->record_file, q->require_file);
-  }
-  if (ds == &ds_tmp)
-    dynstr_free(&ds_tmp);
-  
-  return error;
+  DBUG_RETURN(error);
 }
 
 int var_query_set(VAR* v, const char* p, const char** p_end)
@@ -1034,7 +1061,7 @@ int do_system(struct st_query* q)
   eval_expr(&v, p, 0); /* NULL terminated */
   if (v.str_val_len)
   {
-    char expr_buf[512];
+    char expr_buf[1024];
     if ((uint)v.str_val_len > sizeof(expr_buf) - 1)
       v.str_val_len = sizeof(expr_buf) - 1;
     memcpy(expr_buf, v.str_val, v.str_val_len);
@@ -1628,24 +1655,49 @@ int do_while(struct st_query* q)
 }
 
 
-my_bool end_of_query(int c, char* p)
+/*
+  Read characters from line buffer or file. This is needed to allow
+  my_ungetc() to buffer MAX_DELIMITER characters for a file
+
+  NOTE:
+    This works as long as one doesn't change files (with 'source file_name')
+    when there is things pushed into the buffer.  This should however not
+    happen for any tests in the test suite.
+*/
+
+int my_getc(FILE *file)
 {
-  uint i, j;
-  int tmp[MAX_DELIMITER]= {0};
+  if (line_buffer_pos == line_buffer)
+    return fgetc(file);
+  return *--line_buffer_pos;
+}
 
-  for (i= 0; c == *(delimiter + i) && i < delimiter_length;
-       i++, c= fgetc(*cur_file))
+void my_ungetc(int c)
+{
+  *line_buffer_pos++= (char) c;
+}
+
+
+my_bool end_of_query(int c)
+{
+  uint i;
+  char tmp[MAX_DELIMITER];
+
+  if (c != *delimiter)
+    return 0;
+
+  for (i= 1; i < delimiter_length &&
+	 (c= my_getc(*cur_file)) == *(delimiter + i);
+       i++)
     tmp[i]= c;
-  tmp[i]= c;
 
-  for (j= i; j > 0 && i != delimiter_length; j--)
-    ungetc(tmp[j], *cur_file);
   if (i == delimiter_length)
-  {
-    ungetc(tmp[i], *cur_file);
-    *p= 0;
-    return 1;
-  }
+    return 1;					/* Found delimiter */
+
+  /* didn't find delimiter, push back things that we read */
+  my_ungetc(c);
+  while (i > 1)
+    my_ungetc(tmp[--i]);
   return 0;
 }
 
@@ -1663,7 +1715,7 @@ int read_line(char* buf, int size)
   for (; p < buf_end ;)
   {
     no_save= 0;
-    c= fgetc(*cur_file);
+    c= my_getc(*cur_file);
     if (feof(*cur_file))
     {
       if ((*cur_file) != stdin)
@@ -1678,8 +1730,11 @@ int read_line(char* buf, int size)
     switch(state) {
     case R_NORMAL:
       /*  Only accept '{' in the beginning of a line */
-      if (end_of_query(c, p))
+      if (end_of_query(c))
+      {
+	*p= 0;
 	return 0;
+      }
       else if (c == '\'')
 	state = R_Q1;
       else if (c == '"')
@@ -1715,7 +1770,7 @@ int read_line(char* buf, int size)
 	*buf= 0;
 	return 0;
       }
-      else if (end_of_query(c, p) || c == '{')
+      else if (end_of_query(c) || c == '{')
       {
 	*p= 0;
 	return 0;
@@ -1735,8 +1790,11 @@ int read_line(char* buf, int size)
 	state= R_ESC_SLASH_Q1;
       break;
     case R_ESC_Q_Q1:
-      if (end_of_query(c, p))
+      if (end_of_query(c))
+      {
+	*p= 0;
 	return 0;
+      }
       if (c != '\'')
 	state= R_NORMAL;
       else
@@ -1753,8 +1811,11 @@ int read_line(char* buf, int size)
 	state= R_ESC_SLASH_Q2;
       break;
     case R_ESC_Q_Q2:
-      if (end_of_query(c, p))
+      if (end_of_query(c))
+      {
+	*p= 0;
 	return 0;
+      }
       if (c != '"')
 	state= R_NORMAL;
       else
@@ -1772,6 +1833,7 @@ int read_line(char* buf, int size)
   return feof(*cur_file);
 }
 
+
 static char read_query_buf[MAX_QUERY];
 
 int read_query(struct st_query** q_ptr)
@@ -1779,11 +1841,12 @@ int read_query(struct st_query** q_ptr)
   char *p = read_query_buf, * p1 ;
   int expected_errno;
   struct st_query* q;
+  DBUG_ENTER("read_query");
 
   if (parser.current_line < parser.read_lines)
   {
     get_dynamic(&q_lines, (gptr) q_ptr, parser.current_line) ;
-    return 0;
+    DBUG_RETURN(0);
   }
   if (!(*q_ptr= q= (struct st_query*) my_malloc(sizeof(*q), MYF(MY_WME))) ||
       insert_dynamic(&q_lines, (gptr) &q))
@@ -1795,14 +1858,14 @@ int read_query(struct st_query** q_ptr)
   memcpy((gptr) q->expected_errno, (gptr) global_expected_errno,
 	 sizeof(global_expected_errno));
   q->expected_errors= global_expected_errors;
-  q->abort_on_error= global_expected_errno[0] == 0;
+  q->abort_on_error= global_expected_errors == 0;
   bzero((gptr) global_expected_errno, sizeof(global_expected_errno));
   global_expected_errors=0;
 
   q->type = Q_UNKNOWN;
   q->query_buf= q->query= 0;
   if (read_line(read_query_buf, sizeof(read_query_buf)))
-    return 1;
+    DBUG_RETURN(1);
 
   if (*p == '#')
   {
@@ -1856,7 +1919,7 @@ int read_query(struct st_query** q_ptr)
   q->first_argument= p;
   q->end= strend(q->query);
   parser.read_lines++;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -1894,7 +1957,7 @@ static struct my_option my_long_options[] =
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &port,
-   (gptr*) &port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &port, 0, GET_INT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0, 0},
   {"quiet", 's', "Suppress all normal output.", (gptr*) &silent,
    (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"record", 'r', "Record output of test_file into result file.",
@@ -2110,6 +2173,7 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 {
   MYSQL_ROW row;
   uint num_fields= mysql_num_fields(res);
+  MYSQL_FIELD *fields= !display_result_vertically ? 0 : mysql_fetch_fields(res);
   unsigned long *lengths;
   while ((row = mysql_fetch_row(res)))
   {
@@ -2130,11 +2194,22 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 	val= "NULL";
 	len= 4;
       }
-      if (i)
+      if (!display_result_vertically)
+      {
+	if (i)
+	  dynstr_append_mem(ds, "\t", 1);
+	replace_dynstr_append_mem(ds, val, len);
+      }
+      else
+      {
+	dynstr_append(ds, fields[i].name);
 	dynstr_append_mem(ds, "\t", 1);
-      replace_dynstr_append_mem(ds, val, len);
+	replace_dynstr_append_mem(ds, val, len);
+	dynstr_append_mem(ds, "\n", 1);
+      }
     }
-    dynstr_append_mem(ds, "\n", 1);
+    if (!display_result_vertically)
+      dynstr_append_mem(ds, "\n", 1);
   }
   free_replace_column();
 }
@@ -2149,7 +2224,8 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 int run_query(MYSQL* mysql, struct st_query* q, int flags)
 {
   MYSQL_RES* res= 0;
-  int i, error= 0, err= 0, counter= 0;
+  uint i;
+  int error= 0, err= 0, counter= 0;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_tmp;
   DYNAMIC_STRING eval_query;
@@ -2233,7 +2309,8 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	    goto end;				/* Ok */
 	  }
 	}
-	DBUG_PRINT("info",("i: %d  expected_errors: %d", i, q->expected_errors));
+	DBUG_PRINT("info",("i: %d  expected_errors: %d", i,
+			   q->expected_errors));
 	dynstr_append_mem(ds, "ERROR ",6);
 	replace_dynstr_append_mem(ds, mysql_sqlstate(mysql),
 				  strlen(mysql_sqlstate(mysql)));
@@ -2276,16 +2353,65 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     {
       if (res)
       {
-	int num_fields= mysql_num_fields(res);
-	MYSQL_FIELD *fields= mysql_fetch_fields(res);
+	MYSQL_FIELD *field, *field_end;
+	uint num_fields= mysql_num_fields(res);
 
-	for (i = 0; i < num_fields; i++)
+	if (display_metadata)
 	{
-	  if (i)
+	  dynstr_append(ds,"Catalog\tDatabase\tTable\tTable_alias\tColumn\tColumn_alias\tName\tType\tLength\tMax length\tIs_null\tFlags\tDecimals\tCharsetnr\n");
+	  for (field= mysql_fetch_fields(res), field_end= field+num_fields ;
+	       field < field_end ;
+	       field++)
+	  {
+	    char buff[22];
+	    dynstr_append_mem(ds, field->catalog, field->catalog_length);
 	    dynstr_append_mem(ds, "\t", 1);
-	  dynstr_append(ds, fields[i].name);
+	    dynstr_append_mem(ds, field->db, field->db_length);
+	    dynstr_append_mem(ds, "\t", 1);
+	    dynstr_append_mem(ds, field->org_table, field->org_table_length);
+	    dynstr_append_mem(ds, "\t", 1);
+	    dynstr_append_mem(ds, field->table, field->table_length);
+	    dynstr_append_mem(ds, "\t", 1);
+	    dynstr_append_mem(ds, field->org_name, field->org_name_length);
+	    dynstr_append_mem(ds, "\t", 1);
+	    dynstr_append_mem(ds, field->name, field->name_length);
+	    dynstr_append_mem(ds, "\t", 1);
+	    int10_to_str((int) field->type, buff, 10);
+	    dynstr_append(ds, buff);
+	    dynstr_append_mem(ds, "\t", 1);
+	    int10_to_str((int) field->length, buff, 10);
+	    dynstr_append(ds, buff);
+	    dynstr_append_mem(ds, "\t", 1);
+	    int10_to_str((int) field->max_length, buff, 10);
+	    dynstr_append(ds, buff);
+	    dynstr_append_mem(ds, "\t", 1);
+	    dynstr_append_mem(ds, (char*) (IS_NOT_NULL(field->flags) ?
+					   "N" : "Y"), 1);
+	    dynstr_append_mem(ds, "\t", 1);
+
+	    int10_to_str((int) field->flags, buff, 10);
+	    dynstr_append(ds, buff);
+	    dynstr_append_mem(ds, "\t", 1);
+	    int10_to_str((int) field->decimals, buff, 10);
+	    dynstr_append(ds, buff);
+	    dynstr_append_mem(ds, "\t", 1);
+	    int10_to_str((int) field->charsetnr, buff, 10);
+	    dynstr_append(ds, buff);
+	    dynstr_append_mem(ds, "\n", 1);
+	  }
 	}
-	dynstr_append_mem(ds, "\n", 1);
+	if (!display_result_vertically)
+	{
+	  field= mysql_fetch_fields(res);
+	  for (i = 0; i < num_fields; i++)
+	  {
+	    if (i)
+	      dynstr_append_mem(ds, "\t", 1);
+	    replace_dynstr_append_mem(ds, field[i].name,
+				      strlen(field[i].name));
+	  }
+	  dynstr_append_mem(ds, "\n", 1);
+	}
 	append_result(ds, res);
       }
 
@@ -2308,16 +2434,19 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	  mysql_free_result(warn_res);
 	}
       }
-      if (!disable_info && mysql_info(mysql))
+      if (!disable_info)
       {
-	dynstr_append(ds, "info: ");
-	dynstr_append(ds, mysql_info(mysql));
-	dynstr_append_mem(ds, "\n", 1);
+	char buf[40];
+	sprintf(buf,"affected rows: %lu\n",(ulong) mysql_affected_rows(mysql));
+	dynstr_append(ds, buf);
+	if (mysql_info(mysql))
+	{
+	  dynstr_append(ds, "info: ");
+	  dynstr_append(ds, mysql_info(mysql));
+	  dynstr_append_mem(ds, "\n", 1);
+	}
       }
     }
-
-    if (glob_replace)
-      free_replace();
 
     if (record)
     {
@@ -2339,6 +2468,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     mysql_error(mysql);
 
 end:
+  free_replace();
   last_result=0;
   if (ds == &ds_tmp)
     dynstr_free(&ds_tmp);
@@ -2352,10 +2482,12 @@ void get_query_type(struct st_query* q)
 {
   char save;
   uint type;
+  DBUG_ENTER("get_query_type");
+
   if (*q->query == '}')
   {
     q->type = Q_END_BLOCK;
-    return;
+    DBUG_VOID_RETURN;
   }
   if (q->type != Q_COMMENT_WITH_COMMAND)
     q->type = Q_QUERY;
@@ -2366,7 +2498,9 @@ void get_query_type(struct st_query* q)
   q->query[q->first_word_len]=save;
   if (type > 0)
     q->type=(enum enum_commands) type;		/* Found command */
+  DBUG_VOID_RETURN;
 }
+
 
 static byte *get_var_key(const byte* var, uint* len,
 			 my_bool __attribute__((unused)) t)
@@ -2539,6 +2673,8 @@ int main(int argc, char **argv)
       case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
       case Q_ENABLE_INFO:    	 disable_info=0; break;
       case Q_DISABLE_INFO:   	 disable_info=1; break;
+      case Q_ENABLE_METADATA:    display_metadata=1; break;
+      case Q_DISABLE_METADATA: 	 display_metadata=0; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q, 0); break;
       case Q_REAL_SLEEP: do_sleep(q, 1); break;
@@ -2557,12 +2693,33 @@ int main(int argc, char **argv)
 	strmake(delimiter, q->first_argument, sizeof(delimiter) - 1);
 	delimiter_length= strlen(delimiter);
 	break;
+      case Q_DISPLAY_VERTICAL_RESULTS: display_result_vertically= TRUE; break;
+      case Q_DISPLAY_HORIZONTAL_RESULTS: 
+	display_result_vertically= FALSE; break;
       case Q_LET: do_let(q); break;
       case Q_EVAL_RESULT: eval_result = 1; break;
       case Q_EVAL:
 	if (q->query == q->query_buf)
 	  q->query= q->first_argument;
 	/* fall through */
+      case Q_QUERY_VERTICAL:
+      case Q_QUERY_HORIZONTAL:
+      {
+	my_bool old_display_result_vertically= display_result_vertically;
+	if (!q->query[q->first_word_len])
+	{
+	  /* This happens when we use 'query_..' on it's own line */
+	  q_send_flag=1;
+	  break;
+	}
+	/* fix up query pointer if this is * first iteration for this line */
+	if (q->query == q->query_buf)
+	  q->query += q->first_word_len + 1;
+	display_result_vertically= (q->type==Q_QUERY_VERTICAL);
+	error |= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
+	display_result_vertically= old_display_result_vertically;
+	break;
+      }
       case Q_QUERY:
       case Q_REAP:
       {

@@ -262,6 +262,14 @@ dtuple_set_types_binary(
 /*====================*/
 	dtuple_t*	tuple,	/* in: data tuple */
 	ulint		n);	/* in: number of fields to set */
+/**************************************************************************
+Checks if a dtuple contains an SQL null value. */
+UNIV_INLINE
+ibool
+dtuple_contains_null(
+/*=================*/
+				/* out: TRUE if some field is SQL null */
+	dtuple_t*	tuple);	/* in: dtuple */
 /**************************************************************
 Checks that a data field is typed. Asserts an error if not. */
 
@@ -367,84 +375,6 @@ dtuple_big_rec_free(
 /*================*/
 	big_rec_t*	vector);	/* in, own: big rec vector; it is
 				freed in this function */
-/***************************************************************
-Generates a random tuple. */
-
-dtuple_t*
-dtuple_gen_rnd_tuple(
-/*=================*/
-				/* out: pointer to the tuple */
-	mem_heap_t*	heap);	/* in: memory heap where generated */
-/*******************************************************************
-Generates a test tuple for sort and comparison tests. */
-
-void
-dtuple_gen_test_tuple(
-/*==================*/
-	dtuple_t*	tuple,	/* in/out: a tuple with 3 fields */
-	ulint		i);	/* in: a number, 0 <= i < 512 */
-/*******************************************************************
-Generates a test tuple for B-tree speed tests. */
-
-void
-dtuple_gen_test_tuple3(
-/*===================*/
-	dtuple_t*	tuple,	/* in/out: a tuple with 3 fields */
-	ulint		i,	/* in: a number < 1000000 */
-	ulint		type,	/* in: DTUPLE_TEST_FIXED30, ... */
-	byte*		buf);	/* in: a buffer of size >= 8 bytes */
-/*******************************************************************
-Generates a test tuple for B-tree speed tests. */
-
-void
-dtuple_gen_search_tuple3(
-/*=====================*/
-	dtuple_t*	tuple,	/* in/out: a tuple with 1 or 2 fields */
-	ulint		i,	/* in: a number < 1000000 */
-	byte*		buf);	/* in: a buffer of size >= 8 bytes */
-/*******************************************************************
-Generates a test tuple for TPC-A speed test. */
-
-void
-dtuple_gen_test_tuple_TPC_A(
-/*========================*/
-	dtuple_t*	tuple,	/* in/out: a tuple with >= 3 fields */
-	ulint		i,	/* in: a number < 10000 */
-	byte*		buf);	/* in: a buffer of size >= 16 bytes */
-/*******************************************************************
-Generates a test tuple for B-tree speed tests. */
-
-void
-dtuple_gen_search_tuple_TPC_A(
-/*==========================*/
-	dtuple_t*	tuple,	/* in/out: a tuple with 1 field */
-	ulint		i,	/* in: a number < 10000 */
-	byte*		buf);	/* in: a buffer of size >= 16 bytes */
-/*******************************************************************
-Generates a test tuple for TPC-C speed test. */
-
-void
-dtuple_gen_test_tuple_TPC_C(
-/*========================*/
-	dtuple_t*	tuple,	/* in/out: a tuple with >= 12 fields */
-	ulint		i,	/* in: a number < 100000 */
-	byte*		buf);	/* in: a buffer of size >= 16 bytes */
-/*******************************************************************
-Generates a test tuple for B-tree speed tests. */
-
-void
-dtuple_gen_search_tuple_TPC_C(
-/*==========================*/
-	dtuple_t*	tuple,	/* in/out: a tuple with 1 field */
-	ulint		i,	/* in: a number < 100000 */
-	byte*		buf);	/* in: a buffer of size >= 16 bytes */
-
-/* Types of the third field in dtuple_gen_test_tuple3 */	
-#define DTUPLE_TEST_FIXED30	1
-#define DTUPLE_TEST_RND30	2
-#define DTUPLE_TEST_RND3500	3
-#define DTUPLE_TEST_FIXED2000	4
-#define DTUPLE_TEST_FIXED3	5
 
 /*######################################################################*/
 
@@ -472,9 +402,11 @@ struct dtuple_struct {
 	UT_LIST_NODE_T(dtuple_t) tuple_list;
 					/* data tuples can be linked into a
 					list using this field */
-	ulint		magic_n;	
-};
+#ifdef UNIV_DEBUG
+	ulint		magic_n;
 #define	DATA_TUPLE_MAGIC_N	65478679
+#endif /* UNIV_DEBUG */
+};
 
 /* A slot for a field in a big rec vector */
 

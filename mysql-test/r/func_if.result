@@ -59,6 +59,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 Warnings:
 Note	1003	select high_priority nullif((test.t1.u = 0),_latin1'test') AS `nullif(u=0, 'test')` from test.t1
 drop table t1;
+select NULLIF(NULL,NULL), NULLIF(NULL,1), NULLIF(NULL,1.0), NULLIF(NULL,"test");
+NULLIF(NULL,NULL)	NULLIF(NULL,1)	NULLIF(NULL,1.0)	NULLIF(NULL,"test")
+NULL	NULL	NULL	NULL
+select NULLIF(1,NULL), NULLIF(1.0, NULL), NULLIF("test", NULL);
+NULLIF(1,NULL)	NULLIF(1.0, NULL)	NULLIF("test", NULL)
+1	1.0	test
 create table t1 (num  double(12,2));
 insert into t1 values (144.54);
 select sum(if(num is null,0.00,num)) from t1;

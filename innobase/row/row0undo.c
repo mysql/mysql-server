@@ -334,7 +334,7 @@ row_undo_step(
 			exit(1);			
 		}
 		
-		ut_a(0);
+		ut_error;
 
 		return(NULL);
 	}

@@ -17,4 +17,19 @@ t1	CREATE TABLE `t1` (
   `a` char(10) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=cp1251
 DROP TABLE t1;
+CREATE TABLE t1 (a char(10)) DEFAULT CHARACTER SET latin1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+CREATE TABLE t1 (a char(10)) 
+DEFAULT CHARACTER SET latin1 COLLATE latin1_german1_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) collate latin1_german1_ci default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
+DROP TABLE t1;
 DROP DATABASE db1;

@@ -213,7 +213,7 @@ ERROR 42000: You have an error in your SQL syntax.  Check the manual that corres
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
 update (select * from t1) as t1 set a = 5;
-ERROR HY000: The target table t1 of the UPDATE is not updatable.
+ERROR HY000: The target table t1 of the UPDATE is not updatable
 delete from (select * from t1);
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1)' at line 1
 insert into  (select * from t1) values (5);
@@ -264,15 +264,15 @@ N	M
 2	2
 3	0
 UPDATE `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2, P2.N = 2;
-ERROR HY000: The target table P2 of the UPDATE is not updatable.
+ERROR HY000: The target table P2 of the UPDATE is not updatable
 UPDATE `t1` AS P1 INNER JOIN (SELECT aaaa FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2;
 ERROR 42S22: Unknown column 'aaaa' in 'field list'
 delete P1.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
 select * from t1;
 N	M
 3	0
-delete P1.*,P2.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
-ERROR HY000: The target table P2 of the DELETE is not updatable.
+delete P1.*,p2.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS p2 ON P1.N = p2.N;
+ERROR HY000: The target table p2 of the DELETE is not updatable
 delete P1.* from `t1` AS P1 INNER JOIN (SELECT aaa FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
 ERROR 42S22: Unknown column 'aaa' in 'field list'
 drop table t1;
@@ -320,3 +320,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
 2	DERIVED	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
 drop table t2;
+CREATE TABLE `t1` ( `itemid` int(11) NOT NULL default '0', `grpid` varchar(15) NOT NULL default '', `vendor` int(11) NOT NULL default '0', `date_` date NOT NULL default '0000-00-00', `price` decimal(12,2) NOT NULL default '0.00', PRIMARY KEY  (`itemid`,`grpid`,`vendor`,`date_`), KEY `itemid` (`itemid`,`vendor`), KEY `itemid_2` (`itemid`,`date_`));
+insert into t1 values (128, 'rozn', 2, now(), 10),(128, 'rozn', 1, now(), 10);
+SELECT MIN(price) min, MAX(price) max, AVG(price) avg FROM (SELECT SUBSTRING( MAX(concat(date_,";",price)), 12) price FROM t1 WHERE itemid=128 AND  grpid='rozn' GROUP BY itemid, grpid, vendor) lastprices;
+min	max	avg
+10.00	10.00	10
+DROP TABLE t1;

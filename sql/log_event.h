@@ -751,17 +751,19 @@ public:
   const char* fname;
   uint32 skip_lines;
   sql_ex_info sql_ex;
+  bool local_fname;
 
   /* fname doesn't point to memory inside Log_event::temp_buf  */
   void set_fname_outside_temp_buf(const char *afname, uint alen)
   {
     fname= afname;
     fname_len= alen;
+    local_fname= true;
   }
   /* fname doesn't point to memory inside Log_event::temp_buf  */
   int  check_fname_outside_temp_buf()
   {
-    return fname < temp_buf || fname > temp_buf+ cached_event_len;
+    return local_fname;
   }
 
 #ifndef MYSQL_CLIENT
@@ -1146,6 +1148,7 @@ protected:
   bool fake_base; 
 public:
   char* block;
+  const char *event_buf;
   uint block_len;
   uint file_id;
   bool inited_from_old;
@@ -1168,7 +1171,10 @@ public:
   
   Create_file_log_event(const char* buf, uint event_len,
                         const Format_description_log_event* description_event);
-  ~Create_file_log_event() {}
+  ~Create_file_log_event()
+  {
+    my_free((char*) event_buf, MYF(MY_ALLOW_ZERO_PTR));
+  }
 
   Log_event_type get_type_code()
   {

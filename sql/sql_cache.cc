@@ -601,7 +601,6 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
     if (!query_cache.append_result_data(&result, length, (gptr) packet,
 					query_block))
     {
-      query_cache.refused++;
       DBUG_PRINT("warning", ("Can't append data"));
       header->result(result);
       DBUG_PRINT("qcache", ("free query 0x%lx", (ulong) query_block));
@@ -781,7 +780,9 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.character_set_client_num=
       thd->variables.character_set_client->number;
     flags.character_set_results_num=
-      thd->variables.character_set_results->number;
+      (thd->variables.character_set_results ?
+       thd->variables.character_set_results->number :
+       UINT_MAX);
     flags.collation_connection_num=
       thd->variables.collation_connection->number;
     flags.limit= thd->variables.select_limit;
@@ -796,6 +797,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
     if (ask_handler_allowance(thd, tables_used))
     {
+      refused++;
       STRUCT_UNLOCK(&structure_guard_mutex);
       DBUG_VOID_RETURN;
     }
@@ -884,7 +886,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
       DBUG_PRINT("qcache", ("Another thread process same query"));
     }
   }
-  else
+  else if (thd->lex->sql_command == SQLCOM_SELECT)
     statistic_increment(refused, &structure_guard_mutex);
 
 end:
@@ -970,7 +972,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 			   1 : 0);
   flags.character_set_client_num= thd->variables.character_set_client->number;
   flags.character_set_results_num=
-    thd->variables.character_set_results->number;
+    (thd->variables.character_set_results ?
+     thd->variables.character_set_results->number :
+     UINT_MAX);
   flags.collation_connection_num= thd->variables.collation_connection->number;
   flags.limit= thd->variables.select_limit;
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
@@ -1029,7 +1033,6 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       DBUG_PRINT("qcache",
 		 ("probably no SELECT access to %s.%s =>  return to normal processing",
 		  table_list.db, table_list.alias));
-      refused++;				// This is actually a hit
       STRUCT_UNLOCK(&structure_guard_mutex);
       thd->lex->safe_to_cache_query=0;		// Don't try to cache this
       BLOCK_UNLOCK_RD(query_block);
@@ -1156,6 +1159,37 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
 	DBUG_PRINT("qcache", (" db %s, table %s", tables_used->key,
 			      tables_used->key+
 			      strlen(tables_used->key)+1));
+      }
+    }
+    STRUCT_UNLOCK(&structure_guard_mutex);
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Invalidate locked for write
+
+  SYNOPSIS
+    Query_cache::invalidate_locked_for_write()
+    tables_used - table list
+
+  NOTE
+    can be used only for opened tables
+*/
+void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
+{
+  DBUG_ENTER("Query_cache::invalidate (changed table list)");
+  if (query_cache_size > 0 && tables_used)
+  {
+    STRUCT_LOCK(&structure_guard_mutex);
+    if (query_cache_size > 0)
+    {
+      DUMP(this);
+      for (; tables_used; tables_used= tables_used->next)
+      {
+	if (tables_used->lock_type & (TL_WRITE_LOW_PRIORITY | TL_WRITE))
+	  invalidate_table(tables_used->table);
       }
     }
     STRUCT_UNLOCK(&structure_guard_mutex);
@@ -1654,6 +1688,12 @@ void Query_cache::free_query(Query_cache_block *query_block)
   */
   if (result_block != 0)
   {
+    if (result_block->type != Query_cache_block::RESULT)
+    {
+      // removing unfinished query
+      refused++;
+      inserts--;
+    }
     Query_cache_block *block = result_block;
     do
     {
@@ -1661,6 +1701,12 @@ void Query_cache::free_query(Query_cache_block *query_block)
       block = block->next;
       free_memory_block(current);
     } while (block != result_block);
+  }
+  else
+  {
+    // removing unfinished query
+    refused++;
+    inserts--;
   }
 
   query->unlock_n_destroy();
@@ -1819,11 +1865,11 @@ my_bool Query_cache::write_result_data(Query_cache_block **result_block,
   {
     // It is success (nobody can prevent us write data)
     STRUCT_UNLOCK(&structure_guard_mutex);
-    byte *rest = (byte*) data;
-    Query_cache_block *block = *result_block;
     uint headers_len = (ALIGN_SIZE(sizeof(Query_cache_block)) +
 			ALIGN_SIZE(sizeof(Query_cache_result)));
 #ifndef EMBEDDED_LIBRARY
+    Query_cache_block *block= *result_block;
+    byte *rest= (byte*) data;
     // Now fill list of blocks that created by allocate_data_chain
     do
     {
@@ -2567,20 +2613,15 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 			  tables_used->db, tables_used->table->db_type));
       *tables_type|= tables_used->table->file->table_cache_type();
 
+      /*
+	table_alias_charset used here because it depends of
+	lower_case_table_names variable
+      */
       if (tables_used->table->db_type == DB_TYPE_MRG_ISAM ||
 	  tables_used->table->tmp_table != NO_TMP_TABLE ||
 	  (tables_used->db_length == 5 &&
-#ifdef FN_NO_CASE_SENCE
-	   my_strnncoll(system_charset_info, (uchar*)tables_used->db, 6,
-					     (uchar*)"mysql",6) == 0
-#else
-	   tables_used->db[0]=='m' &&
-	   tables_used->db[1]=='y' &&
-	   tables_used->db[2]=='s' &&
-	   tables_used->db[3]=='q' &&
-	   tables_used->db[4]=='l'
-#endif
-	   ))
+	   my_strnncoll(table_alias_charset, (uchar*)tables_used->db, 6,
+			(uchar*)"mysql",6) == 0))
       {
 	DBUG_PRINT("qcache", 
 		   ("select not cacheable: used MRG_ISAM, temporary or system table(s)"));
