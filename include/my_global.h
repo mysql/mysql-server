@@ -132,6 +132,14 @@
 /* #define _AIX32_CURSES */	/* XXX: this breaks AIX 4.3.3 (others?). */
 #endif
 
+#ifdef __QNXNTO__
+#define HAVE_ERRNO_AS_DEFINE
+#define HAVE_FCNTL_LOCK
+#undef  HAVE_SYS_UN_H
+#undef  HAVE_FINITE
+#undef  HAVE_RINT
+#endif
+
 #ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
 #undef HAVE_SNPRINTF
 #endif
