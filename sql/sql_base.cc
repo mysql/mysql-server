@@ -2604,45 +2604,6 @@ static void mysql_rm_tmp_tables(void)
 }
 
 
-/*
-  CREATE INDEX and DROP INDEX are implemented by calling ALTER TABLE with
-  the proper arguments.  This isn't very fast but it should work for most
-  cases.
-  One should normally create all indexes with CREATE TABLE or ALTER TABLE.
-*/
-
-int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
-{
-  List<create_field> fields;
-  List<Alter_drop> drop;
-  List<Alter_column> alter;
-  HA_CREATE_INFO create_info;
-  DBUG_ENTER("mysql_create_index");
-  bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.default_table_charset= thd->variables.collation_database;
-  DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
-				&create_info, table_list,
-				fields, keys, drop, alter, 0, (ORDER*)0,
-				DUP_ERROR));
-}
-
-
-int mysql_drop_index(THD *thd, TABLE_LIST *table_list, List<Alter_drop> &drop)
-{
-  List<create_field> fields;
-  List<Key> keys;
-  List<Alter_column> alter;
-  HA_CREATE_INFO create_info;
-  DBUG_ENTER("mysql_drop_index");
-  bzero((char*) &create_info,sizeof(create_info));
-  create_info.db_type=DB_TYPE_DEFAULT;
-  create_info.default_table_charset= thd->variables.collation_database;
-  DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
-				&create_info, table_list,
-				fields, keys, drop, alter, 0, (ORDER*)0,
-				DUP_ERROR));
-}
 
 /*****************************************************************************
 	unireg support functions

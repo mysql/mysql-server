@@ -90,6 +90,20 @@
 #define HA_NOT_READ_PREFIX_LAST	32	/* No support for index_read_last() */
 #define HA_KEY_READ_ONLY	64	/* Support HA_EXTRA_KEYREAD */
 
+
+/*
+   Bits in index_ddl_flags(KEY *wanted_index)
+   for what ddl you can do with index
+   If none is set, the wanted type of index is not supported
+   by the handler at all. See WorkLog 1563.
+*/
+#define HA_DDL_SUPPORT   1 /* Supported by handler */
+#define HA_DDL_WITH_LOCK 2 /* Can create/drop with locked table */
+#define HA_DDL_ONLINE    4 /* Can create/drop without lock */
+
+/* Return value for ddl methods */
+#define HA_DDL_NOT_IMPLEMENTED -1
+
 /*
   Parameters for open() (in register form->filestat)
   HA_GET_INFO does an implicit HA_ABORT_IF_LOCKED
@@ -354,6 +368,20 @@ public:
   virtual ulong index_flags(uint idx) const
   {
     return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEY_READ_ONLY);
+  }
+  virtual ulong index_ddl_flags(KEY *wanted_index) const
+  {
+    return (HA_DDL_SUPPORT);
+  }
+  virtual int add_index(TABLE *table, KEY *key_info, uint num_of_keys)
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "online add index");
+    return (HA_DDL_NOT_IMPLEMENTED);
+  }
+  virtual int drop_index(TABLE *table, uint *key_num, uint num_of_keys)
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "online drop index");
+    return (HA_DDL_NOT_IMPLEMENTED);
   }
   virtual uint max_record_length() const =0;
   virtual uint max_keys() const =0;

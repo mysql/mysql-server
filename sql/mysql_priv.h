@@ -488,6 +488,11 @@ int mysql_handle_derived(LEX *lex);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
 			bool group,bool modify_item);
+int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
+		       List<create_field> &fields,
+		       List<Key> &keys, uint &db_options, 
+		       handler *file, KEY *&key_info_buffer,
+		       uint &key_count, int select_field_count);
 int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       HA_CREATE_INFO *create_info,
 		       List<create_field> &fields, List<Key> &keys,
@@ -504,11 +509,23 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      List<create_field> &fields,
 		      List<Key> &keys,List<Alter_drop> &drop_list,
 		      List<Alter_column> &alter_list,
-                      uint order_num, ORDER *order,
+                      uint order_num, ORDER *order, int alter_flags,
 		      enum enum_duplicates handle_duplicates,
 		      enum enum_enable_or_disable keys_onoff=LEAVE_AS_IS,
 		      enum tablespace_op_type tablespace_op=NO_TABLESPACE_OP,
 		      bool simple_alter=0);
+int real_alter_table(THD *thd, char *new_db, char *new_name,
+		     HA_CREATE_INFO *create_info,
+		     TABLE_LIST *table_list,
+                     TABLE *table,
+		     List<create_field> &fields,
+		     List<Key> &keys,List<Alter_drop> &drop_list,
+		     List<Alter_column> &alter_list,
+                     uint order_num, ORDER *order, int alter_flags,
+		     enum enum_duplicates handle_duplicates,
+		     enum enum_enable_or_disable keys_onoff=LEAVE_AS_IS,
+		     enum tablespace_op_type tablespace_op=NO_TABLESPACE_OP,
+		     bool simple_alter=0);
 int mysql_create_like_table(THD *thd, TABLE_LIST *table,
                             HA_CREATE_INFO *create_info,
                             Table_ident *src_table);
@@ -520,6 +537,10 @@ bool mysql_rename_table(enum db_type base,
 int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
 		     List<Alter_drop> &drop_list);
+int mysql_add_column(THD *thd, TABLE_LIST *table_list,
+		     List<create_field> &fields);
+int mysql_drop_column(THD *thd, TABLE_LIST *table_list,
+		      List<Alter_drop> &drop_list);
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds,
                  uint order_num, ORDER *order, ha_rows limit,
@@ -923,6 +944,9 @@ void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 
 void unireg_init(ulong options);
 void unireg_end(void);
+int mysql_create_frm(THD *thd, my_string file_name,HA_CREATE_INFO *create_info,
+		     List<create_field> &create_field,
+		     uint key_count,KEY *key_info,handler *db_type);
 int rea_create_table(THD *thd, my_string file_name,HA_CREATE_INFO *create_info,
 		     List<create_field> &create_field,
 		     uint key_count,KEY *key_info);
