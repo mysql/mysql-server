@@ -1,3 +1,7 @@
+max-time: 2500
+cmd: atrt-mysql-test-run
+args: --do-test=ndb --force
+
 #
 # INDEX
 #
@@ -19,7 +23,7 @@ args: -n CreateLoadDrop T1 T10
 # BACKUP
 #
 max-time: 600
-cmd: testBackup
+cmd: atrt-testBackup
 args: -n BackupOne T1 T6 T3 I3
 
 #max-time: 600
