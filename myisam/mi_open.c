@@ -30,7 +30,6 @@
 #include "static.c"
 #endif
 
-static void setup_functions(MYISAM_SHARE *info);
 static void setup_key_functions(MI_KEYDEF *keyinfo);
 #define get_next_element(to,pos,size) { memcpy((char*) to,pos,(size_t) size); \
 					pos+=size;}
@@ -405,7 +404,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     else if (share->options & HA_OPTION_PACK_RECORD)
       share->data_file_type = DYNAMIC_RECORD;
     my_afree((gptr) disk_cache);
-    setup_functions(share);
+    mi_setup_functions(share);
 #ifdef THREAD
     thr_lock_init(&share->lock);
     VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
@@ -580,7 +579,7 @@ ulonglong mi_safe_mul(ulonglong a, ulonglong b)
 
 	/* Set up functions in structs */
 
-static void setup_functions(register MYISAM_SHARE *share)
+void mi_setup_functions(register MYISAM_SHARE *share)
 {
   if (share->options & HA_OPTION_COMPRESS_RECORD)
   {

@@ -217,7 +217,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.52 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 2.0 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -260,7 +260,7 @@ static void usage(void)
 
   puts("Repair options (When using -r or -o) \n\
   -B, --backup	      Make a backup of the .MYD file as 'filename-time.BAK'\n\
-  --correct-checksum  Correct checksum information for table. \n\
+  --correct-checksum  Correct checksum information for table.\n\
   -D, --data-file-length=#  Max length of data file (when recreating data\n\
                       file when it's full)\n\
   -e, --extend-check  Try to recover every possible row from the data file\n\
