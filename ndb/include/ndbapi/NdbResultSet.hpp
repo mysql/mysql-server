@@ -138,7 +138,11 @@ public:
    */
   int deleteTuple();
   int deleteTuple(NdbConnection* takeOverTransaction);
-  
+
+  /**
+   * Get underlying operation
+   */
+  NdbOperation* getOperation();
 private:
   NdbResultSet(NdbScanOperation*);
 
@@ -148,5 +152,11 @@ private:
 
   NdbScanOperation* m_operation;
 };
+
+inline
+NdbOperation*
+NdbResultSet::getOperation(){
+  return m_operation;
+}
 
 #endif

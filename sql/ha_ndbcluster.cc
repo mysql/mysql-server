@@ -1341,6 +1341,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 				      const key_range *end_key,
 				      bool sorted, byte* buf)
 {  
+  bool restart;
   NdbConnection *trans= m_active_trans;
   NdbResultSet *cursor;
   NdbIndexScanOperation *op;
@@ -1352,16 +1353,28 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   DBUG_EXECUTE("enter", print_key(start_key, "start_key"););
   DBUG_EXECUTE("enter", print_key(end_key, "end_key"););
   
-
-  NdbOperation::LockMode lm=
-    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
-  if (!(op= trans->getNdbIndexScanOperation((NDBINDEX *)
-					   m_index[active_index].index, 
-					   (const NDBTAB *) m_table)) ||
-      !(cursor= op->readTuples(lm, 0, parallelism, sorted)))
-    ERR_RETURN(trans->getNdbError());
-  m_active_cursor= cursor;
-
+  if(m_active_cursor == 0)
+  {
+    restart= false;
+    NdbOperation::LockMode lm=
+      (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
+    if (!(op= trans->getNdbIndexScanOperation((NDBINDEX *)
+					      m_index[active_index].index, 
+					      (const NDBTAB *) m_table)) ||
+	!(cursor= op->readTuples(lm, 0, parallelism, sorted)))
+      ERR_RETURN(trans->getNdbError());
+    m_active_cursor= cursor;
+  } else {
+    restart= true;
+    op= (NdbIndexScanOperation*)m_active_cursor->getOperation();
+    
+    DBUG_ASSERT(op->getSorted() == sorted);
+    DBUG_ASSERT(op->getLockMode() == 
+		(NdbOperation::LockMode)get_ndb_lock_type(m_lock.type));
+    if(op->reset_bounds())
+      DBUG_RETURN(ndb_err(m_active_trans));
+  }
+  
   if (start_key && 
       set_bounds(op, start_key, 
 		 (start_key->flag == HA_READ_KEY_EXACT) ? 
@@ -1383,9 +1396,18 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 			NdbIndexScanOperation::BoundGT))
       DBUG_RETURN(1);    
   }
-  DBUG_RETURN(define_read_attrs(buf, op));
+  if(!restart)
+  {
+    DBUG_RETURN(define_read_attrs(buf, op));
+  }
+  else
+  {
+    if (execute_no_commit(this,trans) != 0)
+      DBUG_RETURN(ndb_err(trans));
+    
+    DBUG_RETURN(next_result(buf));
+  }
 } 
-
 
 /*
   Start a filtered scan in NDB.
@@ -2225,9 +2247,6 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   DBUG_ENTER("ha_ndbcluster::read_range_first_to_buf");
   DBUG_PRINT("info", ("eq_range: %d, sorted: %d", eq_range, sorted));
 
-  if (m_active_cursor)
-    close_scan();
-
   switch (get_index_type(active_index)){
   case PRIMARY_KEY_ORDERED_INDEX:
   case PRIMARY_KEY_INDEX:
@@ -2255,11 +2274,8 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
     break;
   }
 
-
   // Start the ordered index scan and fetch the first row
-  error= ordered_index_scan(start_key, end_key, sorted,
-			    buf);
-
+  error= ordered_index_scan(start_key, end_key, sorted, buf);
   DBUG_RETURN(error);
 }
 

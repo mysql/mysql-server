@@ -717,6 +717,8 @@ public:
     NotDefined                    ///< Internal for debugging
   };
 
+  LockMode getLockMode() const { return theLockMode; }
+
 protected:
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
@@ -893,7 +895,7 @@ protected:
 		       			   // currently defined   
   OperationType	  theOperationType;        // Read Request, Update Req......   
 
-  Uint8        theLockMode;	   // Can be set to WRITE if read operation 
+  LockMode        theLockMode;	   // Can be set to WRITE if read operation 
   OperationStatus theStatus;	   // The status of the operation.	
   Uint32         theMagicNumber;  // Magic number to verify that object 
                                    // is correct

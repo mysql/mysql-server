@@ -144,6 +144,7 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   }
 
   theNdbCon->theScanningOp = this;
+  theLockMode = lm;
 
   bool lockExcl, lockHoldMode, readCommitted;
   switch(lm){
@@ -167,7 +168,7 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     return 0;
   }
 
-  m_keyInfo = lockExcl;
+  m_keyInfo = lockExcl ? 1 : 0;
 
   bool range = false;
   if (m_accessTable->m_indexType == NdbDictionary::Index::OrderedIndex ||
@@ -743,20 +744,28 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   req->batch_byte_size= batch_byte_size;
   req->first_batch_size= first_batch_size;
 
+  /**
+   * Set keyinfo flag
+   *  (Always keyinfo when using blobs)
+   */
+  Uint32 reqInfo = req->requestInfo;
+  ScanTabReq::setKeyinfoFlag(reqInfo, keyInfo);
+  req->requestInfo = reqInfo;
+  
   for(Uint32 i = 0; i<theParallelism; i++){
     m_receivers[i]->do_get_value(&theReceiver, batch_size, key_size);
   }
   return 0;
 }
 
-/******************************************************************************
+/*****************************************************************************
 int doSend()
 
 Return Value:   Return >0 : send was succesful, returns number of signals sent
                 Return -1: In all other case.   
 Parameters:     aProcessorId: Receiving processor node
 Remark:         Sends the ATTRINFO signal(s)
-******************************************************************************/
+*****************************************************************************/
 int
 NdbScanOperation::doSendScan(int aProcessorId)
 {
@@ -842,7 +851,7 @@ NdbScanOperation::doSendScan(int aProcessorId)
   return tSignalCount;
 }//NdbOperation::doSendScan()
 
-/******************************************************************************
+/*****************************************************************************
  * NdbOperation* takeOverScanOp(NdbConnection* updateTrans);
  *
  * Parameters:     The update transactions NdbConnection pointer.
@@ -861,7 +870,7 @@ NdbScanOperation::doSendScan(int aProcessorId)
  *     This means that the updating transactions can be placed
  *     in separate threads and thus increasing the parallelism during
  *     the scan process. 
- *****************************************************************************/
+ ****************************************************************************/
 int
 NdbScanOperation::getKeyFromKEYINFO20(Uint32* data, unsigned size)
 {
@@ -970,6 +979,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbConnection* pTrans){
 NdbBlob*
 NdbScanOperation::getBlobHandle(const char* anAttrName)
 {
+  m_keyInfo = 1;
   return NdbOperation::getBlobHandle(m_transConnection, 
 				     m_currentTable->getColumn(anAttrName));
 }
@@ -977,6 +987,7 @@ NdbScanOperation::getBlobHandle(const char* anAttrName)
 NdbBlob*
 NdbScanOperation::getBlobHandle(Uint32 anAttrId)
 {
+  m_keyInfo = 1;
   return NdbOperation::getBlobHandle(m_transConnection, 
 				     m_currentTable->getColumn(anAttrId));
 }
