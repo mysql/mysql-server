@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 #define GLOB		0	/* Error maps */
-#define GLOBERRS	23	/* Max number of error messages in map's */
+#define GLOBERRS	24	/* Max number of error messages in map's */
 #define EE(X)	globerrs[ X ]	/* Defines to add error to right map */
 
 extern const char * NEAR globerrs[];	/* my_error_messages is here */
