@@ -20,7 +20,7 @@ int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key)
 {
   byte *pos;
   HP_SHARE *share=info->s;
-  DBUG_ENTER("hp_rkey");
+  DBUG_ENTER("heap_rkey");
   DBUG_PRINT("enter",("base: %lx  inx: %d",info,inx));
 
   if ((uint) inx >= share->keys)

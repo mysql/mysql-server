@@ -48121,10 +48121,12 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in @code{GROUP BY BINARY column}
+@item
 Added support for @code{NULL} keys in HEAP tables.
 @item
 Use index for @code{ORDER BY} in queries of type:
-@code{SELECT * FROM t1 WHERE key_part1=1 ORDER BY key_part1 DESC,key_part2 DESC}
+@code{SELECT * FROM t WHERE key_part1=1 ORDER BY key_part1 DESC,key_part2 DESC}
 @item
 Fixed bug in @code{FLUSH QUERY CACHE}.
 @item

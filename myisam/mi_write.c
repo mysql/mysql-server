@@ -25,7 +25,8 @@
 
 	/* Functions declared in this file */
 
-static int w_search(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
+static int w_search(MI_INFO *info,MI_KEYDEF *keyinfo,
+		    uint comp_flag, uchar *key,
 		    uint key_length, my_off_t pos, uchar *father_buff,
 		    uchar *father_keypos, my_off_t father_page,
 		    my_bool insert_last);
@@ -245,10 +246,23 @@ int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
 		       uint key_length)
 {
   int error;
+  uint comp_flag;
+  MI_KEYDEF *keyinfo=info->s->keyinfo+keynr;
   DBUG_ENTER("_mi_ck_write_btree");
 
+  if (keyinfo->flag & HA_SORT_ALLOWS_SAME)
+    comp_flag=SEARCH_BIGGER;			/* Put after same key */
+  else if (keyinfo->flag & HA_NOSAME)
+  {
+    comp_flag=SEARCH_FIND | SEARCH_UPDATE;	/* No dupplicates */
+    if (keyinfo->flag & HA_NULL_ARE_EQUAL)
+      comp_flag|= SEARCH_NULL_ARE_EQUAL;
+  }
+  else
+    comp_flag=SEARCH_SAME;			/* Keys in rec-pos order */
+
   if (info->s->state.key_root[keynr] == HA_OFFSET_ERROR ||
-      (error=w_search(info,info->s->keyinfo+keynr,key, key_length,
+      (error=w_search(info, keyinfo, comp_flag, key, key_length,
 		      info->s->state.key_root[keynr], (uchar *) 0, (uchar*) 0,
 		      (my_off_t) 0, 1)) > 0)
     error=_mi_enlarge_root(info,keynr,key);
@@ -291,13 +305,12 @@ int _mi_enlarge_root(register MI_INFO *info, uint keynr, uchar *key)
 	*/
 
 static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
-		    uchar *key, uint key_length, my_off_t page,
-		    uchar *father_buff,
-		    uchar *father_keypos, my_off_t father_page,
-		    my_bool insert_last)
+		    uint comp_flag, uchar *key, uint key_length, my_off_t page,
+		    uchar *father_buff, uchar *father_keypos,
+		    my_off_t father_page, my_bool insert_last)
 {
   int error,flag;
-  uint comp_flag,nod_flag, search_key_length;
+  uint nod_flag, search_key_length;
   uchar *temp_buff,*keypos;
   uchar keybuff[MI_MAX_KEY_BUFF];
   my_bool was_last_key;
@@ -305,17 +318,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   DBUG_ENTER("w_search");
   DBUG_PRINT("enter",("page: %ld",page));
 
-  search_key_length=USE_WHOLE_KEY;
-  if (keyinfo->flag & HA_SORT_ALLOWS_SAME)
-    comp_flag=SEARCH_BIGGER;			/* Put after same key */
-  else if (keyinfo->flag & HA_NOSAME)
-  {
-    comp_flag=SEARCH_FIND | SEARCH_UPDATE;	/* No dupplicates */
-    search_key_length= key_length;
-  }
-  else
-    comp_flag=SEARCH_SAME;			/* Keys in rec-pos order */
-
+  search_key_length= (comp_flag & SEARCH_FIND) ? key_length : USE_WHOLE_KEY;
   if (!(temp_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
 				      MI_MAX_KEY_BUFF*2)))
     DBUG_RETURN(-1);
@@ -344,7 +347,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     insert_last=0;
   next_page=_mi_kpos(nod_flag,keypos);
   if (next_page == HA_OFFSET_ERROR ||
-      (error=w_search(info,keyinfo,key,key_length,next_page,
+      (error=w_search(info, keyinfo, comp_flag, key, key_length, next_page,
 		      temp_buff, keypos, page, insert_last)) >0)
   {
     error=_mi_insert(info,keyinfo,key,temp_buff,keypos,keybuff,father_buff,
@@ -759,40 +762,43 @@ static int keys_compare(bulk_insert_param *param, uchar *key1, uchar *key2)
 {
   uint not_used;
   return _mi_key_cmp(param->info->s->keyinfo[param->keynr].seg,
-              key1, key2, USE_WHOLE_KEY, SEARCH_SAME, &not_used);
+		     key1, key2, USE_WHOLE_KEY, SEARCH_SAME,
+		     &not_used);
 }
 
 
 static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
 {
-  /* probably I can use info->lastkey here, but I'm not sure,
-     and to be safe I'd better use local lastkey.
-     Monty, feel free to comment on this */
+  /*
+    Probably I can use info->lastkey here, but I'm not sure,
+    and to be safe I'd better use local lastkey.
+  */
   uchar lastkey[MI_MAX_KEY_BUFF];
   uint keylen;
   MI_KEYDEF *keyinfo;
 
   switch (mode) {
-    case free_init:
-      if (param->info->s->concurrent_insert)
-      {
-        rw_wrlock(&param->info->s->key_root_lock[param->keynr]);
-        param->info->s->keyinfo[param->keynr].version++;
-      }
-      return 0;
-    case free_free:
-      keyinfo=param->info->s->keyinfo+param->keynr;
-      keylen=_mi_keylength(keyinfo, key);
-      memcpy(lastkey, key, keylen);
-      return _mi_ck_write_btree(param->info,param->keynr,lastkey,
-                 keylen - param->info->s->rec_reflength);
-    case free_end:
-      if (param->info->s->concurrent_insert)
-        rw_unlock(&param->info->s->key_root_lock[param->keynr]);
-      return 0;
+  case free_init:
+    if (param->info->s->concurrent_insert)
+    {
+      rw_wrlock(&param->info->s->key_root_lock[param->keynr]);
+      param->info->s->keyinfo[param->keynr].version++;
+    }
+    return 0;
+  case free_free:
+    keyinfo=param->info->s->keyinfo+param->keynr;
+    keylen=_mi_keylength(keyinfo, key);
+    memcpy(lastkey, key, keylen);
+    return _mi_ck_write_btree(param->info,param->keynr,lastkey,
+			      keylen - param->info->s->rec_reflength);
+  case free_end:
+    if (param->info->s->concurrent_insert)
+      rw_unlock(&param->info->s->key_root_lock[param->keynr]);
+    return 0;
   }
   return -1;
 }
+
 
 int _mi_init_bulk_insert(MI_INFO *info)
 {

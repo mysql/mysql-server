@@ -183,7 +183,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	     ulong select_options,select_result *result)
 {
   TABLE		*tmp_table;
-  int		error,tmp;
+  int		error, tmp_error, tmp;
   bool		need_tmp,hidden_group_fields;
   bool		simple_order,simple_group,no_order, skip_sort_order;
   Item::cond_result cond_value;
@@ -678,8 +678,11 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 
     /* Copy data to the temporary table */
     thd->proc_info="Copying to tmp table";
-    if (do_select(&join,(List<Item> *) 0,tmp_table,0))
+    if ((tmp_error=do_select(&join,(List<Item> *) 0,tmp_table,0)))
+    {
+      error=tmp_error;
       goto err;					/* purecov: inspected */
+    }
     if (join.having)
       join.having=having=0;			// Allready done
 
@@ -752,9 +755,11 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	group=0;
       }
       thd->proc_info="Copying to group table";
+      tmp_error= -1;
       if (make_sum_func_list(&join,all_fields) ||
-	  do_select(&join,(List<Item> *) 0,tmp_table2,0))
+	  (tmp_error=do_select(&join,(List<Item> *) 0,tmp_table2,0)))
       {
+	error=tmp_error;
 	free_tmp_table(thd,tmp_table2);
 	goto err;				/* purecov: inspected */
       }
@@ -3736,14 +3741,16 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	if (maybe_null)
 	{
 	  /*
-	    To be able to group on NULL, we move the null bit to be
-	    just before the column.
-	    The null byte is updated by 'end_update()' 
+	    To be able to group on NULL, we reserve place in group_buff
+	    for the NULL flag just before the column.
+	    The field data is after this flag.
+	    The NULL flag is updated by 'end_update()' and 'end_write()'
 	  */
-	  key_part_info->null_bit=1;
-	  key_part_info->null_offset= key_part_info->offset-1;
-	  group->field->move_field((char*) group_buff+1, (uchar*) group_buff,
-				   1);
+	  keyinfo->flags|= HA_NULL_ARE_EQUAL;	// def. that NULL == NULL
+	  key_part_info->null_bit=field->null_bit;
+	  key_part_info->null_offset= (uint) (field->null_ptr -
+					      (uchar*) table->record[0]);
+	  group->field->move_field((char*) ++group->buff);
 	}
 	else
 	  group->field->move_field((char*) group_buff);
@@ -3899,10 +3906,10 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
     for (uint i=0; i < keyinfo->key_parts ; i++,seg++)
     {
       Field *field=keyinfo->key_part[i].field;
-      seg->flag=0;
-      seg->language=MY_CHARSET_CURRENT;
-      seg->length=keyinfo->key_part[i].length;
-      seg->start=keyinfo->key_part[i].offset;
+      seg->flag=     0;
+      seg->language= MY_CHARSET_CURRENT;
+      seg->length=   keyinfo->key_part[i].length;
+      seg->start=    keyinfo->key_part[i].offset;
       if (field->flags & BLOB_FLAG)
       {
 	seg->type=
@@ -3923,11 +3930,17 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 	    keyinfo->key_part[i].length > 4)
 	  seg->flag|=HA_SPACE_PACK;
       }
-      if (using_unique_constraint &&
-	  !(field->flags & NOT_NULL_FLAG))
+      if (!(field->flags & NOT_NULL_FLAG))
       {
 	seg->null_bit= field->null_bit;
 	seg->null_pos= (uint) (field->null_ptr - (uchar*) table->record[0]);
+	/*
+	  We are using a GROUP BY on something that contains NULL
+	  In this case we have to tell MyISAM that two NULL should
+	  on INSERT be compared as equal
+	*/
+	if (!using_unique_constraint)
+	  keydef.flag|= HA_NULL_ARE_EQUAL;
       }
     }
   }
@@ -4065,9 +4078,12 @@ bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
 }
 
 
-/*****************************************************************************
-**	Make a join of all tables and write it on socket or to table
-*****************************************************************************/
+/****************************************************************************
+  Make a join of all tables and write it on socket or to table
+  Return:  0 if ok
+           1 if error is sent
+          -1 if error should be sent
+****************************************************************************/
 
 static int
 do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
@@ -4144,15 +4160,21 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     if (error == -3)
       error=0;					/* select_limit used */
   }
+
+  /* Return 1 if error is sent;  -1 if error should be sent */
   if (error < 0)
-    join->result->send_error(0,NullS);	/* purecov: inspected */
+  {
+    join->result->send_error(0,NullS);		/* purecov: inspected */
+    error=1;					// Error sent
+  }
   else
   {
-    if (!table)				// If sending data to client
+    error=0;
+    if (!table)					// If sending data to client
     {
       join_free(join);				// Unlock all cursors
       if (join->result->send_eof())
-	error= -1;
+	error= 1;				// Don't send error
     }
     DBUG_PRINT("info",("%ld records output",join->send_records));
   }
@@ -4169,10 +4191,10 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       my_errno=tmp;
       error= -1;
     }
-    if (error != old_error)
+    if (error == -1)
       table->file->print_error(my_errno,MYF(0));
   }
-  DBUG_RETURN(error < 0);
+  DBUG_RETURN(error);
 }
 
 
@@ -4926,6 +4948,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     copy_fields(&join->tmp_table_param);
     copy_funcs(join->tmp_table_param.funcs);
 
+#ifdef TO_BE_DELETED
     if (!table->uniques)			// If not unique handling
     {
       /* Copy null values from group to row */
@@ -4936,10 +4959,11 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (item->maybe_null)
 	{
 	  Field *field=item->tmp_table_field();
-	  field->ptr[-1]= (byte) (field->is_null() ? 0 : 1);
+	  field->ptr[-1]= (byte) (field->is_null() ? 1 : 0);
 	}
       }
     }
+#endif
     if (!join->having || join->having->val_int())
     {
       join->found_records++;
@@ -4994,8 +5018,9 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {
     Item *item= *group->item;
     item->save_org_in_field(group->field);
+    /* Store in the used key if the field was 0 */
     if (item->maybe_null)
-      group->buff[0]=item->null_value ? 0: 1;	// Save reversed value
+      group->buff[-1]=item->null_value ? 1 : 0;
   }
   // table->file->index_init(0);
   if (!table->file->index_read(table->record[1],

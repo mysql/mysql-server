@@ -33,7 +33,7 @@ const char **ha_heap::bas_ext() const
 
 int ha_heap::open(const char *name, int mode, uint test_if_locked)
 {
-  uint key,part,parts,mem_per_row=0;
+  uint key,parts,mem_per_row=0;
   ulong max_rows;
   HP_KEYDEF *keydef;
   HP_KEYSEG *seg;
@@ -48,24 +48,27 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
   for (key=0 ; key < table->keys ; key++)
   {
     KEY *pos=table->key_info+key;
+    KEY_PART_INFO *key_part=     pos->key_part;
+    KEY_PART_INFO *key_part_end= key_part+pos->key_parts;
+
     mem_per_row += (pos->key_length + (sizeof(char*) * 2));
 
     keydef[key].keysegs=(uint) pos->key_parts;
-    keydef[key].flag = (pos->flags & HA_NOSAME);
+    keydef[key].flag = (pos->flags & (HA_NOSAME | HA_NULL_ARE_EQUAL));
     keydef[key].seg=seg;
 
-    for (part=0 ; part < pos->key_parts ; part++)
+    for (; key_part != key_part_end ; key_part++, seg++)
     {
-      uint flag=pos->key_part[part].key_type;
-      Field *field=pos->key_part[part].field;
+      uint flag=key_part->key_type;
+      Field *field=key_part->field;
       if (!f_is_packed(flag) &&
 	  f_packtype(flag) == (int) FIELD_TYPE_DECIMAL &&
 	  !(flag & FIELDFLAG_BINARY))
 	seg->type= (int) HA_KEYTYPE_TEXT;
       else
 	seg->type= (int) HA_KEYTYPE_BINARY;
-      seg->start=(uint) pos->key_part[part].offset;
-      seg->length=(uint) pos->key_part[part].length;
+      seg->start=(uint) key_part->offset;
+      seg->length=(uint) key_part->length;
       if (field->null_ptr)
       {
 	seg->null_bit=field->null_bit;
@@ -88,7 +91,8 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
 		  table->max_rows : max_rows),
 		 table->min_rows);
   my_free((gptr) keydef,MYF(0));
-  info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+  if (file)
+    info(HA_STATUS_NO_LOCK | HA_STATUS_CONST | HA_STATUS_VARIABLE);
   ref_length=sizeof(HEAP_PTR);
   return (!file ? errno : 0);
 }

@@ -557,9 +557,9 @@ pthread_handler_decl(handle_one_connection,arg)
 
   pthread_detach_this_thread();
 
-#if !defined( __WIN__) && !defined(OS2)	/* Win32 calls this in pthread_create */
-  if (my_thread_init()) // needed to be called first before we call
-    // DBUG_ macros
+#if !defined( __WIN__) && !defined(OS2)	// Win32 calls this in pthread_create
+  // The following calls needs to be done before we call DBUG_ macros
+  if (my_thread_init())
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_thread_count);
@@ -568,13 +568,13 @@ pthread_handler_decl(handle_one_connection,arg)
   }
 #endif
 
-  // handle_one_connection() is the only way a thread would start
-  // and would always be on top of the stack
-  // therefore, the thread stack always starts at the address of the first
-  // local variable of handle_one_connection, which is thd
-  // we need to know the start of the stack so that we could check for
-  // stack overruns
-
+  /*
+    handle_one_connection() is the only way a thread would start
+    and would always be on top of the stack, therefore, the thread
+    stack always starts at the address of the first local variable
+    of handle_one_connection, which is thd. We need to know the
+    start of the stack so that we could check for stack overruns.
+  */
   DBUG_PRINT("info", ("handle_one_connection called by thread %d\n",
 		      thd->thread_id));
   // now that we've called my_thread_init(), it is safe to call DBUG_*
@@ -634,12 +634,12 @@ pthread_handler_decl(handle_one_connection,arg)
     if (net->error && net->vio != 0)
     {
       if (!thd->killed && opt_warnings)
-      sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
-		      thd->thread_id,(thd->db ? thd->db : "unconnected"),
-		      thd->user ? thd->user : "unauthenticated",
-		      thd->host_or_ip,
-		      (net->last_errno ? ER(net->last_errno) :
-		       ER(ER_UNKNOWN_ERROR)));
+	sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
+			thd->thread_id,(thd->db ? thd->db : "unconnected"),
+			thd->user ? thd->user : "unauthenticated",
+			thd->host_or_ip,
+			(net->last_errno ? ER(net->last_errno) :
+			 ER(ER_UNKNOWN_ERROR)));
       send_error(net,net->last_errno,NullS);
       thread_safe_increment(aborted_threads,&LOCK_thread_count);
     }
@@ -1216,7 +1216,6 @@ mysql_execute_command(void)
 #endif
   }
   
-  thread_safe_increment(com_stat[lex->sql_command],&LOCK_thread_count);
   /*
     Skip if we are in the slave thread, some table rules have been given
     and the table list says the query should not be replicated
