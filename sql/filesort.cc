@@ -732,7 +732,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   org_max_rows=max_rows=param->max_rows;
 
   if (init_queue(&queue,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
-		 (int (*) (void *, byte *,byte*))
+		 (queue_compare)
 		 (cmp=get_ptr_compare(sort_length)),(void*) &sort_length))
     DBUG_RETURN(1);				/* purecov: inspected */
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)

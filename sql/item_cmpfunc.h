@@ -292,9 +292,9 @@ public:
   virtual void set(uint pos,Item *item)=0;
   virtual byte *get_value(Item *item)=0;
   void sort()
-    {
-      qsort(base,used_count,size,compare);
-    }
+  {
+    qsort(base,used_count,size,compare);
+  }
   int find(Item *item);
 };
 

@@ -556,7 +556,7 @@ void init_table_rule_hash(HASH* h, bool* h_inited)
 {
   hash_init(h, TABLE_RULE_HASH_SIZE,0,0,
 	    (hash_get_key) get_table_key,
-	    (void (*)(void*)) free_table_ent, 0);
+	    (hash_free_key) free_table_ent, 0);
   *h_inited = 1;
 }
 
@@ -1809,7 +1809,7 @@ This may also be a network problem, or just a bug in the master or slave code.\
 
 
 /* slave I/O thread */
-pthread_handler_decl(handle_slave_io,arg)
+extern "C" pthread_handler_decl(handle_slave_io,arg)
 {
   THD *thd; // needs to be first for thread_stack
   MYSQL *mysql;
@@ -2080,7 +2080,7 @@ err:
 
 /* slave SQL logic thread */
 
-pthread_handler_decl(handle_slave_sql,arg)
+extern "C" pthread_handler_decl(handle_slave_sql,arg)
 {
   THD *thd;			/* needs to be first for thread_stack */
   char llbuff[22],llbuff1[22];

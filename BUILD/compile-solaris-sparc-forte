@@ -1,0 +1,39 @@
+#! /bin/sh
+
+gmake -k clean || true
+/bin/rm -f */.deps/*.P config.cache
+ 
+aclocal && autoheader && aclocal && automake && autoconf
+(cd bdb/dist && sh s_all)
+(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
+if [ -d gemini ]
+then
+   (cd gemini && aclocal && autoheader && aclocal && automake && autoconf)
+fi
+
+
+# Assume Forte is installed in /opt/SUNWSpro
+
+PATH=/opt/SUNWspro/bin/:$PATH
+
+# For "optimal" code for this computer add -fast to EXTRA
+# To compile 64 bit, add -xarch=v9 to EXTRA_64_BIT
+
+EXTRA_64_BIT="-xarch=v9"	# Remove comment to get 64 bit binaries
+EXTRA="-fast"			# Remove comment to target current machine
+
+#
+# The following should not need to be touched
+#
+
+STD="-mt -D_FORTEC_ $EXTRA $EXTRA_64_BIT"
+ASFLAGS="$EXTRA_64_BIT" \
+CC=cc-5.0 CFLAGS="-Xa -xstrconst $STD" \
+CXX=CC CXXFLAGS="-noex $STD" \
+./configure --prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client
+
+gmake -j 4
+if [ $? = 0 ]
+then
+  make test
+fi

@@ -101,6 +101,7 @@ SUFFIXES = .sh
 	  -e 's!@''CXX''@!@CXX@!'\
 	  -e 's!@''GXX''@!@GXX@!'\
 	  -e 's!@''PERL''@!@PERL@!' \
+	  -e 's!@''ASFLAGS''@!@SAVE_ASFLAGS@!'\
 	  -e 's!@''CFLAGS''@!@SAVE_CFLAGS@!'\
 	  -e 's!@''CXXFLAGS''@!@SAVE_CXXFLAGS@!'\
 	  -e 's!@''LDFLAGS''@!@SAVE_LDFLAGS@!'\
