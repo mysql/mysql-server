@@ -1889,8 +1889,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       mysql_log.write(thd,command,db);
-      mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db),
-                       0, 0);
+      mysql_rm_db(thd, db, 0, 0);
       break;
     }
 #ifndef EMBEDDED_LIBRARY
@@ -3261,8 +3260,6 @@ unsent_create_error:
       /* revert changes for SP */
       lex->select_lex.table_list.first= (byte*) first_table;
     }
-    else
-      res= TRUE;
 
     if (first_table->view && !first_table->contain_auto_increment)
       thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
@@ -3347,7 +3344,7 @@ unsent_create_error:
       delete result;
     }
     else
-      res= TRUE;
+      res= TRUE;                                // Error
     break;
   }
   case SQLCOM_DROP_TABLE:
@@ -3573,8 +3570,7 @@ unsent_create_error:
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
       goto error;
     }
-    res=mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : lex->name),
-                    lex->drop_if_exists, 0);
+    res= mysql_rm_db(thd, lex->name, lex->drop_if_exists, 0);
     break;
   }
   case SQLCOM_ALTER_DB:
@@ -3911,10 +3907,7 @@ unsent_create_error:
       *sv=(*sv)->prev;
     }
     else
-    {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SAVEPOINT", lex->ident.str);
-      res= TRUE;
-    }
     break;
   }
   case SQLCOM_ROLLBACK_TO_SAVEPOINT:
@@ -3943,10 +3936,7 @@ unsent_create_error:
       *sv=(*sv)->prev;
     }
     else
-    {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SAVEPOINT", lex->ident.str);
-      res= TRUE;
-    }
     break;
   }
   case SQLCOM_SAVEPOINT:
@@ -3973,7 +3963,6 @@ unsent_create_error:
                                                savepoint_alloc_size)) == 0)
       {
         my_error(ER_OUT_OF_RESOURCES, MYF(0));
-        res= TRUE;
         break;
       }
       newsv->name=strmake_root(&thd->transaction.mem_root,
@@ -4391,7 +4380,6 @@ unsent_create_error:
       }
       thd->transaction.xa_state=XA_ACTIVE;
       send_ok(thd);
-      res=TRUE;
       break;
     }
     if (thd->lex->ident.length > MAXGTRIDSIZE || thd->lex->xa_opt != XA_NONE)
@@ -4417,7 +4405,6 @@ unsent_create_error:
                    OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     send_ok(thd);
-    res=TRUE;
     break;
   case SQLCOM_XA_END:
     /* fake it */
@@ -4439,7 +4426,6 @@ unsent_create_error:
     }
     thd->transaction.xa_state=XA_IDLE;
     send_ok(thd);
-    res=TRUE;
     break;
   case SQLCOM_XA_PREPARE:
     if (thd->transaction.xa_state != XA_IDLE)
@@ -4459,7 +4445,6 @@ unsent_create_error:
       thd->transaction.xa_state=XA_NOTR;
       break;
     }
-    res=TRUE;
     thd->transaction.xa_state=XA_PREPARED;
     send_ok(thd);
     break;
@@ -4478,7 +4463,6 @@ unsent_create_error:
       else
       {
         send_ok(thd);
-        res= TRUE;
       }
     }
     else
@@ -4489,7 +4473,6 @@ unsent_create_error:
       else
       {
         send_ok(thd);
-        res= TRUE;
       }
     }
     else
@@ -4519,16 +4502,13 @@ unsent_create_error:
     if (ha_rollback(thd))
       my_error(ER_XAER_RMERR, MYF(0));
     else
-    {
       send_ok(thd);
-      res= TRUE;
-    }
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     thd->transaction.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_RECOVER:
-    res= !mysql_xa_recover(thd);
+    res= mysql_xa_recover(thd);
     break;
   default:
     DBUG_ASSERT(0);                             /* Impossible */
@@ -6173,22 +6153,16 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       the slow query log, and the relay log (if it exists).
     */
 
-    /* 
+    /*
      Writing this command to the binlog may result in infinite loops when doing
      mysqlbinlog|mysql, and anyway it does not really make sense to log it
      automatically (would cause more trouble to users than it would help them)
     */
     tmp_write_to_binlog= 0;
     mysql_log.new_file(1);
-    mysql_bin_log.new_file(1);
     mysql_slow_log.new_file(1);
+    mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
 #ifdef HAVE_REPLICATION
-    if (mysql_bin_log.is_open() && expire_logs_days)
-    {
-      long purge_time= time(0) - expire_logs_days*24*60*60;
-      if (purge_time >= 0)
-	mysql_bin_log.purge_logs_before_date(purge_time);
-    }
     pthread_mutex_lock(&LOCK_active_mi);
     rotate_relay_log(active_mi);
     pthread_mutex_unlock(&LOCK_active_mi);
@@ -6202,7 +6176,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
     query_cache.pack();				// FLUSH QUERY CACHE
-    options &= ~REFRESH_QUERY_CACHE; 	// Don't flush cache, just free memory
+    options &= ~REFRESH_QUERY_CACHE;    // Don't flush cache, just free memory
   }
   if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))
   {

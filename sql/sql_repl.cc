@@ -454,13 +454,14 @@ impossible position";
                    (*packet)[EVENT_TYPE_OFFSET+1]));
        if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
        {
-         binlog_can_be_corrupted= (*packet)[FLAGS_OFFSET+1] & LOG_EVENT_BINLOG_IN_USE_F;
+         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+1] &
+                                       LOG_EVENT_BINLOG_IN_USE_F);
          /*
            mark that this event with "log_pos=0", so the slave
            should not increment master's binlog position
            (rli->group_master_log_pos)
          */
-         int4store(packet->c_ptr()+LOG_POS_OFFSET+1, 0);
+         int4store((char*) packet->ptr()+LOG_POS_OFFSET+1, 0);
          /* send it */
          if (my_net_write(net, (char*)packet->ptr(), packet->length()))
          {
@@ -477,16 +478,21 @@ impossible position";
        }
      }
      else
+     {
        if (test_for_non_eof_log_read_errors(error, &errmsg))
          goto err;
-     /*
-        else: it's EOF, nothing to do, go on reading next events, the
-        Format_description_log_event will be found naturally if it is written.
-     */
+       /*
+         It's EOF, nothing to do, go on reading next events, the
+         Format_description_log_event will be found naturally if it is written.
+       */
+     }
      /* reset the packet as we wrote to it in any case */
      packet->set("\0", 1, &my_charset_bin);
-   } /* end of if (pos > BIN_LOG_HEADER_SIZE); if false, the
-        Format_description_log_event event will be found naturally. */
+  } /* end of if (pos > BIN_LOG_HEADER_SIZE); */
+  else
+  {
+    /* The Format_description_log_event event will be found naturally. */
+  }
 
   /* seek to the requested position, to start the requested dump */
   my_b_seek(&log, pos);			// Seek will done on next read
@@ -506,7 +512,8 @@ impossible position";
 #endif
 
       if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
-        binlog_can_be_corrupted= (*packet)[FLAGS_OFFSET+1] & LOG_EVENT_BINLOG_IN_USE_F;
+        binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+1] &
+                                      LOG_EVENT_BINLOG_IN_USE_F);
       else if ((*packet)[EVENT_TYPE_OFFSET+1] == STOP_EVENT)
         binlog_can_be_corrupted= FALSE;
 
@@ -755,9 +762,9 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
     else if (server_id_supplied && *mi->host)
     {
       /*
-         If we will start SQL thread we will care about UNTIL options If
-         not and they are specified we will ignore them and warn user
-         about this fact.
+        If we will start SQL thread we will care about UNTIL options If
+        not and they are specified we will ignore them and warn user
+        about this fact.
       */
       if (thread_mask & SLAVE_SQL)
       {
@@ -772,14 +779,14 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
              since it is checked in sql_yacc.yy
           */
           strmake(mi->rli.until_log_name, thd->lex->mi.log_file_name,
-              sizeof(mi->rli.until_log_name)-1);
+                  sizeof(mi->rli.until_log_name)-1);
         }
         else if (thd->lex->mi.relay_log_pos)
         {
           mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_RELAY_POS;
           mi->rli.until_log_pos= thd->lex->mi.relay_log_pos;
           strmake(mi->rli.until_log_name, thd->lex->mi.relay_log_name,
-              sizeof(mi->rli.until_log_name)-1);
+                  sizeof(mi->rli.until_log_name)-1);
         }
         else
           clear_until_condition(&mi->rli);
@@ -810,7 +817,8 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 
           /* Issuing warning then started without --skip-slave-start */
           if (!opt_skip_slave_start)
-            push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_MISSING_SKIP_SLAVE, 
+            push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                         ER_MISSING_SKIP_SLAVE, 
                          ER(ER_MISSING_SKIP_SLAVE));
         }
 
@@ -818,7 +826,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
       }
       else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
-            ER(ER_UNTIL_COND_IGNORED));
+                     ER(ER_UNTIL_COND_IGNORED));
 
       if (!slave_errno)
         slave_errno = start_slave_threads(0 /*no mutex */,
@@ -831,10 +839,12 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
       slave_errno = ER_BAD_SLAVE;
   }
   else
-    //no error if all threads are already started, only a warning
+  {
+    /* no error if all threads are already started, only a warning */
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_SLAVE_WAS_RUNNING,
                  ER(ER_SLAVE_WAS_RUNNING));
-
+  }
+  
   unlock_slave_threads(mi);
 
   if (slave_errno)

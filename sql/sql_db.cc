@@ -576,7 +576,8 @@ exit2:
     mysql_rm_db()
     thd			Thread handle
     db			Database name in the case given by user
-		        It's already validated when we come here
+		        It's already validated and set to lower case
+                        (if needed) when we come here
     if_exists		Don't give error if database doesn't exists
     silent		Don't generate errors
 
@@ -589,7 +590,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
   long deleted=0;
   int error= 0;
-  char	path[FN_REFLEN+16], tmp_db[NAME_LEN+1];
+  char	path[FN_REFLEN+16];
   MY_DIR *dirp;
   uint length;
   DBUG_ENTER("mysql_rm_db");
@@ -635,13 +636,6 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       query_cache_invalidate1(db);
       error = 0;
     }
-  }
-  if (lower_case_table_names)
-  {
-    /* Convert database to lower case */
-    strmov(tmp_db, db);
-    my_casedn_str(files_charset_info, tmp_db);
-    db= tmp_db;
   }
   if (!silent && deleted>=0)
   {
