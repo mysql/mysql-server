@@ -5,9 +5,6 @@
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6;
 --enable_warnings
-# PS doesn't work correctly with found_rows: to be fixed
---disable_ps_protocol
-
 
 CREATE TABLE t1 (a int not null, b char (10) not null);
 insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
@@ -30,9 +27,12 @@ select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 g
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
 explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 (select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
+# PS doesn't work correctly with found_rows: to be fixed
+--disable_ps_protocol
 select found_rows();
 select sql_calc_found_rows  a,b from t1  union all select a,b from t2 limit 2;
 select found_rows();
+--enable_ps_protocol
 
 #
 # Test some error conditions with UNION
@@ -210,15 +210,27 @@ insert into t2 values (3),(4),(5);
 
 # Test global limits
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1) UNION all (SELECT * FROM t2) LIMIT 1;
+# PS doesn't work correctly with found_rows: to be fixed
+--disable_ps_protocol
 select found_rows();
+--enable_ps_protocol
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2) LIMIT 2;
+# PS doesn't work correctly with found_rows: to be fixed
+--disable_ps_protocol
 select found_rows();
+--enable_ps_protocol
 
 # Test cases where found_rows() should return number of returned rows
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2);
+# PS doesn't work correctly with found_rows: to be fixed
+--disable_ps_protocol
 select found_rows();
+--enable_ps_protocol
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1) UNION all (SELECT * FROM t2 LIMIT 1);
+# PS doesn't work correctly with found_rows: to be fixed
+--disable_ps_protocol
 select found_rows();
+--enable_ps_protocol
 # This used to work in 4.0 but not anymore in 4.1
 --error 1064
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2 LIMIT 1;
@@ -226,9 +238,15 @@ select found_rows();
 
 # In these case found_rows() should work
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;
+# PS doesn't work correctly with found_rows: to be fixed
+--disable_ps_protocol
 select found_rows();
+--disable_ps_protocol
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION all SELECT * FROM t2 LIMIT 2;
+# PS doesn't work correctly with found_rows: to be fixed
+--disable_ps_protocol
 select found_rows();
+--disable_ps_protocol
 
 # The following examples will not be exact
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2;

@@ -2314,7 +2314,7 @@ void Dbtc::hash(Signal* signal)
   }//if
 }//Dbtc::hash()
 
-Uint32
+bool
 Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen, 
 			  Uint32 tabPtrI,
 			  bool distr)
@@ -2349,17 +2349,26 @@ Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen,
 	dstWords = srcWords;
       } else {
 	jam();
+        Uint32 typeId =
+          AttributeDescriptor::getType(keyAttr.attributeDescriptor);
+        Uint32 lb, len;
+        bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
+        ndbrequire(ok);
 	Uint32 xmul = cs->strxfrm_multiply;
 	if (xmul == 0)
 	  xmul = 1;
-	Uint32 dstLen = xmul * srcBytes;
+        /*
+         * Varchar is really Char.  End spaces do not matter.  To get
+         * same hash we blank-pad to maximum length via strnxfrm.
+         * TODO use MySQL charset-aware hash function instead
+         */
+	Uint32 dstLen = xmul * (srcBytes - lb);
 	ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
-	uint n = (*cs->coll->strnxfrm)(cs, dstPtr, dstLen, srcPtr, srcBytes);
+	uint n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
 	while ((n & 3) != 0) {
 	  dstPtr[n++] = 0;
 	}
 	dstWords = (n >> 2);
-	
       }
       dstPos += dstWords;
       srcPos += srcWords;
@@ -2418,6 +2427,7 @@ Dbtc::handle_special_hash(Uint32 dstHash[4], Uint32* src, Uint32 srcLen,
     md5_hash(tmp, (Uint64*)dst, dstPos);
     dstHash[1] = tmp[1];
   }
+  return true;  // success
 }
 
 /*

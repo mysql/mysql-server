@@ -104,7 +104,7 @@ int insert(int transactionId, NdbTransaction* myTransaction) {
     exit(-1);
   }
 
-  return myTransaction->execute(NoCommit);
+  return myTransaction->execute(NdbTransaction::NoCommit);
 }
 
 
@@ -131,7 +131,7 @@ int executeInsertTransaction(int transactionId, Ndb* myNdb) {
       result = -1;  // Failure
     } else if (insert(transactionId, myTransaction) || 
 	       insert(10000+transactionId, myTransaction) ||
-	       myTransaction->execute(Commit)) {
+	       myTransaction->execute(NdbTransaction::Commit)) {
       TRANSERROR(myTransaction);
       ndberror = myTransaction->getNdbError();
       result = -1;  // Failure

@@ -1017,7 +1017,7 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   int error;
   DBUG_ENTER("handler::ha_open");
   DBUG_PRINT("enter",("name: %s  db_type: %d  db_stat: %d  mode: %d  lock_test: %d",
-		      name, table->db_type, table->db_stat, mode,
+		      name, table->s->db_type, table->db_stat, mode,
 		      test_if_locked));
 
   if ((error=open(name,mode,test_if_locked)))
@@ -1036,7 +1036,7 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   }
   else
   {
-    if (table->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
+    if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
       table->db_stat|=HA_READ_ONLY;
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
 
@@ -1214,7 +1214,7 @@ void handler::update_auto_increment()
     first key part, as there is no guarantee that the first parts will be in
     sequence
   */
-  if (!table->next_number_key_offset)
+  if (!table->s->next_number_key_offset)
   {
     /*
       Set next insert id to point to next auto-increment value to be able to
@@ -1252,8 +1252,8 @@ ulonglong handler::get_auto_increment()
   int error;
 
   (void) extra(HA_EXTRA_KEYREAD);
-  index_init(table->next_number_index);
-  if (!table->next_number_key_offset)
+  index_init(table->s->next_number_index);
+  if (!table->s->next_number_key_offset)
   {						// Autoincrement at key-start
     error=index_last(table->record[1]);
   }
@@ -1261,17 +1261,17 @@ ulonglong handler::get_auto_increment()
   {
     byte key[MAX_KEY_LENGTH];
     key_copy(key, table->record[0],
-             table->key_info + table->next_number_index,
-             table->next_number_key_offset);
-    error=index_read(table->record[1], key, table->next_number_key_offset,
-                     HA_READ_PREFIX_LAST);
+             table->key_info + table->s->next_number_index,
+             table->s->next_number_key_offset);
+    error= index_read(table->record[1], key, table->s->next_number_key_offset,
+                      HA_READ_PREFIX_LAST);
   }
 
   if (error)
     nr=1;
   else
-    nr=((ulonglong) table->next_number_field->
-        val_int_offset(table->rec_buff_length)+1);
+    nr= ((ulonglong) table->next_number_field->
+         val_int_offset(table->s->rec_buff_length)+1);
   index_end();
   (void) extra(HA_EXTRA_NO_KEYREAD);
   return nr;
@@ -1396,10 +1396,10 @@ void handler::print_error(int error, myf errflag)
     */
     char *db;
     char buff[FN_REFLEN];
-    uint length=dirname_part(buff,table->path);
+    uint length= dirname_part(buff,table->s->path);
     buff[length-1]=0;
     db=buff+dirname_length(buff);
-    my_error(ER_NO_SUCH_TABLE, MYF(0), db, table->table_name);
+    my_error(ER_NO_SUCH_TABLE, MYF(0), db, table->alias);
     break;
   }
   default:
@@ -1422,7 +1422,7 @@ void handler::print_error(int error, myf errflag)
       DBUG_VOID_RETURN;
     }
   }
-  my_error(textno, errflag, table->table_name, error);
+  my_error(textno, errflag, table->alias, error);
   DBUG_VOID_RETURN;
 }
 

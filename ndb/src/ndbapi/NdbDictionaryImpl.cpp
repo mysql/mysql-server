@@ -143,6 +143,24 @@ NdbColumnImpl::init(Type t)
     m_length = 4;
     m_cs = default_cs;
     break;
+  case Bit:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1;
+    m_cs = NULL;
+    break;
+  case Longvarchar:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1; // legal
+    m_cs = default_cs;
+    break;
+  case Longvarbinary:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1; // legal
+    m_cs = NULL;
+    break;
   case Undefined:
     assert(false);
     break;
@@ -546,23 +564,29 @@ void NdbEventImpl::setName(const char * name)
   m_externalName.assign(name);
 }
 
+const char *NdbEventImpl::getName() const
+{
+  return m_externalName.c_str();
+}
+
+void 
+NdbEventImpl::setTable(const NdbDictionary::Table& table)
+{
+  m_tableImpl= &NdbTableImpl::getImpl(table);
+  m_tableName.assign(m_tableImpl->getName());
+}
+
 void 
 NdbEventImpl::setTable(const char * table)
 {
   m_tableName.assign(table);
 }
 
-const char * 
-NdbEventImpl::getTable() const
+const char *
+NdbEventImpl::getTableName() const
 {
   return m_tableName.c_str();
 }
-
-const char * 
-NdbEventImpl::getName() const
-{
-  return m_externalName.c_str();
-} 
 
 void
 NdbEventImpl::addTableEvent(const NdbDictionary::Event::TableEvent t =  NdbDictionary::Event::TE_ALL)
@@ -579,6 +603,17 @@ void
 NdbEventImpl::setDurability(const NdbDictionary::Event::EventDurability d)
 {
   m_dur = d;
+}
+
+NdbDictionary::Event::EventDurability
+NdbEventImpl::getDurability() const
+{
+  return m_dur;
+}
+
+int NdbEventImpl::getNoOfEventColumns() const
+{
+  return m_attrIds.size() + m_columns.size();
 }
 
 /**
@@ -941,7 +976,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
       for (int j=0; j < noerrcodes; j++)
 	if(m_error.code == errcodes[j]) {
 	  doContinue = 1;
-	  continue;
+	  break;
 	}
       if (doContinue)
 	continue;
@@ -1007,12 +1042,14 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
 			   Uint32 noOfSections, bool fullyQualifiedNames)
 {
   //GetTabInfoReq * const req = CAST_PTR(GetTabInfoReq, signal->getDataPtrSend());
+  int errCodes[] = {GetTabInfoRef::Busy };
+
   int r = dictSignal(signal,ptr,noOfSections,
 		     0/*do not use masternode id*/,
 		     100,
 		     WAIT_GET_TAB_INFO_REQ,
 		     WAITFOR_RESPONSE_TIMEOUT,
-		     NULL,0);
+		     errCodes, 1);
   if (r) return 0;
 
   NdbTableImpl * rt = 0;
@@ -1149,6 +1186,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 				 const Uint32 * data, Uint32 len,
 				 bool fullyQualifiedNames)
 {
+  DBUG_ENTER("NdbDictInterface::parseTableInfo");
+
   SimplePropertiesLinearReader it(data, len);
   DictTabInfo::Table tableDesc; tableDesc.init();
   SimpleProperties::UnpackStatus s;
@@ -1158,7 +1197,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 			       true, true);
   
   if(s != SimpleProperties::Break){
-    return 703;
+    DBUG_RETURN(703);
   }
   const char * internalName = tableDesc.TableName;
   const char * externalName = Ndb::externalizeTableName(internalName, fullyQualifiedNames);
@@ -1209,15 +1248,17 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 				 true, true);
     if(s != SimpleProperties::Break){
       delete impl;
-      return 703;
+      DBUG_RETURN(703);
     }
     
     NdbColumnImpl * col = new NdbColumnImpl();
     col->m_attrId = attrDesc.AttributeId;
     col->setName(attrDesc.AttributeName);
-    if (attrDesc.AttributeExtType >= NDB_TYPE_MAX) {
+
+    // check type and compute attribute size and array size
+    if (! attrDesc.translateExtType()) {
       delete impl;
-      return 703;
+      DBUG_RETURN(703);
     }
     col->m_type = (NdbDictionary::Column::Type)attrDesc.AttributeExtType;
     col->m_precision = (attrDesc.AttributeExtPrecision & 0xFFFF);
@@ -1228,20 +1269,14 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     // charset is defined exactly for char types
     if (col->getCharType() != (cs_number != 0)) {
       delete impl;
-      return 703;
+      DBUG_RETURN(703);
     }
     if (col->getCharType()) {
       col->m_cs = get_charset(cs_number, MYF(0));
       if (col->m_cs == NULL) {
         delete impl;
-        return 743;
+        DBUG_RETURN(743);
       }
-    }
-
-    // translate to old kernel types and sizes
-    if (! attrDesc.translateExtType()) {
-      delete impl;
-      return 703;
     }
     col->m_attrSize = (1 << attrDesc.AttributeSize) / 8;
     col->m_arraySize = attrDesc.AttributeArraySize;
@@ -1275,7 +1310,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     if(impl->m_columns[attrDesc.AttributeId] != 0){
       delete col;
       delete impl;
-      return 703;
+      DBUG_RETURN(703);
     }
     impl->m_columns[attrDesc.AttributeId] = col;
     it.next();
@@ -1286,7 +1321,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_noOfBlobs = blobCount;
   impl->m_noOfDistributionKeys = distKeys;
   * ret = impl;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /*****************************************************************
@@ -1446,7 +1481,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     if (col->m_autoIncrement) {
       if (haveAutoIncrement) {
         m_error.code = 4335;
-        return -1;
+        DBUG_RETURN(-1);
       }
       haveAutoIncrement = true;
       autoIncrementValue = col->m_autoIncrementInitialValue;
@@ -1496,14 +1531,16 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     tmpAttr.AttributeNullableFlag = col->m_nullable;
     tmpAttr.AttributeDKey = col->m_distributionKey;
 
-    if (col->m_type >= NDB_TYPE_MAX) {
-      m_error.code = 703;
-      return -1;
-    }
     tmpAttr.AttributeExtType = (Uint32)col->m_type;
     tmpAttr.AttributeExtPrecision = ((unsigned)col->m_precision & 0xFFFF);
     tmpAttr.AttributeExtScale = col->m_scale;
     tmpAttr.AttributeExtLength = col->m_length;
+
+    // check type and compute attribute size and array size
+    if (! tmpAttr.translateExtType()) {
+      m_error.code = 703;
+      DBUG_RETURN(-1);
+    }
     // charset is defined exactly for char types
     if (col->getCharType() != (col->m_cs != NULL)) {
       m_error.code = 703;
@@ -1517,15 +1554,12 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     // distribution key not supported for Char attribute
     if (col->m_distributionKey && col->m_cs != NULL) {
       m_error.code = 745;
-      return -1;
+      DBUG_RETURN(-1);
     }
     // charset in upper half of precision
     if (col->getCharType()) {
       tmpAttr.AttributeExtPrecision |= (col->m_cs->number << 16);
     }
-
-    // DICT will ignore and recompute this
-    (void)tmpAttr.translateExtType();
 
     tmpAttr.AttributeAutoIncrement = col->m_autoIncrement;
     BaseString::snprintf(tmpAttr.AttributeDefaultValue, 
@@ -1571,7 +1605,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
     ret= createTable(&tSignal, ptr);
 
     if (ret)
-      return ret;
+      DBUG_RETURN(ret);
 
     if (haveAutoIncrement) {
       if (!ndb.setAutoIncrementValue(impl.m_externalName.c_str(),
@@ -2231,13 +2265,12 @@ int
 NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
 {
   int i;
-  NdbTableImpl* tab = getTable(evnt.getTable());
+  NdbTableImpl* tab = getTable(evnt.getTableName());
 
   if(tab == 0){
-    //    m_error.code = 3249;
-    ndbout_c(":createEvent: table %s not found", evnt.getTable());
 #ifdef EVENT_DEBUG
-    ndbout_c("NdbDictionaryImpl::createEvent: table not found: %s", evnt.getTable());
+    ndbout_c("NdbDictionaryImpl::createEvent: table not found: %s",
+	     evnt.getTableName());
 #endif
     return -1;
   }
@@ -2259,7 +2292,8 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
       evnt.m_facade->addColumn(*(col_impl->m_facade));
     } else {
       ndbout_c("Attr id %u in table %s not found", evnt.m_attrIds[i],
-	       evnt.getTable());
+	       evnt.getTableName());
+      m_error.code= 4713;
       return -1;
     }
   }
@@ -2517,8 +2551,8 @@ NdbDictionaryImpl::getEvent(const char * eventName)
   }
 
   // We only have the table name with internal name
-  ev->setTable(m_ndb.externalizeTableName(ev->getTable()));
-  ev->m_tableImpl = getTable(ev->getTable());
+  ev->setTable(m_ndb.externalizeTableName(ev->getTableName()));
+  ev->m_tableImpl = getTable(ev->getTableName());
 
   // get the columns from the attrListBitmask
 
@@ -2601,6 +2635,7 @@ void
 NdbDictInterface::execSUB_STOP_CONF(NdbApiSignal * signal,
 				      LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execSUB_STOP_REF");
 #ifdef EVENT_DEBUG
   ndbout << "Got GSN_SUB_STOP_CONF" << endl;
 #endif
@@ -2617,17 +2652,21 @@ void
 NdbDictInterface::execSUB_STOP_REF(NdbApiSignal * signal,
 				     LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execSUB_STOP_REF");
 #ifdef EVENT_DEBUG
   ndbout << "Got GSN_SUB_STOP_REF" << endl;
 #endif
-  //  SubRemoveConf * const sumaRemoveRef = CAST_CONSTPTR(SubRemoveRef, signal->getDataPtr());
+  const SubRemoveRef * const sumaRemoveRef=
+    CAST_CONSTPTR(SubRemoveRef, signal->getDataPtr());
 
   //  Uint32 subscriptionId = sumaRemoveRef->subscriptionId;
   //  Uint32 subscriptionKey = sumaRemoveRef->subscriptionKey;
   //  Uint32 senderData = sumaRemoveRef->senderData;
 
-  m_error.code = 1;
+  m_error.code= sumaRemoveRef->errorCode;
   m_waiter.signal(NO_WAIT);
+
+  DBUG_VOID_RETURN;
 }
 
 void

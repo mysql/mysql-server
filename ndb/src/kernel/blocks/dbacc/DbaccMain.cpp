@@ -1861,12 +1861,18 @@ Dbacc::xfrmKeyData(Signal* signal)
       dstWords = srcWords;
     } else {
       jam();
+      Uint32 typeId = AttributeDescriptor::getType(keyAttr.attributeDescriptor);
+      Uint32 lb, len;
+      bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
+      ndbrequire(ok);
       Uint32 xmul = cs->strxfrm_multiply;
       if (xmul == 0)
         xmul = 1;
-      Uint32 dstLen = xmul * srcBytes;
+      // see comment in DbtcMain.cpp
+      Uint32 dstLen = xmul * (srcBytes - lb);
       ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
-      uint n = (*cs->coll->strnxfrm)(cs, dstPtr, dstLen, srcPtr, srcBytes);
+      int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
+      ndbrequire(n != -1);
       while ((n & 3) != 0)
         dstPtr[n++] = 0;
       dstWords = (n >> 2);

@@ -55,9 +55,8 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
 					     const char* eventName, 
 					     const int bufferLength) 
   : NdbEventOperation(*this), m_ndb(theNdb),
-    m_state(ERROR), m_bufferL(bufferLength)
+    m_state(EO_ERROR), m_bufferL(bufferLength)
 {
-
   m_eventId = 0;
   theFirstRecAttrs[0] = NULL;
   theCurrentRecAttrs[0] = NULL;
@@ -71,16 +70,15 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
   // we should lookup id in Dictionary, TODO
   // also make sure we only have one listener on each event
 
-  if (!m_ndb) { ndbout_c("m_ndb=NULL"); return; }
+  if (!m_ndb) abort();
 
   NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
-  if (!myDict) { ndbout_c("getDictionary=NULL"); return; }
+  if (!myDict) { m_error.code= m_ndb->getNdbError().code; return; }
 
   const NdbDictionary::Event *myEvnt = myDict->getEvent(eventName);
-  if (!myEvnt) { ndbout_c("getEvent()=NULL"); return; }
+  if (!myEvnt) { m_error.code= myDict->getNdbError().code; return; }
 
   m_eventImpl = &myEvnt->m_impl;
-  if (!m_eventImpl) { ndbout_c("m_impl=NULL"); return; }
 
   m_bufferHandle = m_ndb->getGlobalEventBufferHandle();
   if (m_bufferHandle->m_bufferL > 0) 
@@ -88,7 +86,7 @@ NdbEventOperationImpl::NdbEventOperationImpl(NdbEventOperation &N,
   else
     m_bufferHandle->m_bufferL = m_bufferL;
 
-  m_state = CREATED;
+  m_state = EO_CREATED;
 }
 
 NdbEventOperationImpl::~NdbEventOperationImpl()
@@ -106,7 +104,7 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
       p = p_next;
     }
   }
-  if (m_state == NdbEventOperation::EXECUTING) {
+  if (m_state == EO_EXECUTING) {
     stop();
     // m_bufferHandle->dropSubscribeEvent(m_bufferId);
     ; // We should send stop signal here
@@ -122,7 +120,7 @@ NdbEventOperationImpl::getState()
 NdbRecAttr*
 NdbEventOperationImpl::getValue(const char *colName, char *aValue, int n)
 {
-  if (m_state != NdbEventOperation::CREATED) {
+  if (m_state != EO_CREATED) {
     ndbout_c("NdbEventOperationImpl::getValue may only be called between instantiation and execute()");
     return NULL;
   }
@@ -211,8 +209,8 @@ NdbEventOperationImpl::execute()
 {
   NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
   if (!myDict) {
-    ndbout_c("NdbEventOperation::execute(): getDictionary=NULL");
-    return 0;
+    m_error.code= m_ndb->getNdbError().code;
+    return -1;
   }
 
   if (theFirstRecAttrs[0] == NULL) { // defaults to get all
@@ -223,13 +221,17 @@ NdbEventOperationImpl::execute()
 
 
   int hasSubscriber;
-  m_bufferId = 
+  int r=
     m_bufferHandle->prepareAddSubscribeEvent(m_eventImpl->m_eventId,
 					     hasSubscriber /* return value */);
+  m_error.code= 4709;
 
-  m_eventImpl->m_bufferId = m_bufferId;
+  if (r < 0)
+    return -1;
 
-  int r = -1;
+  m_eventImpl->m_bufferId = m_bufferId = (Uint32)r;
+
+  r = -1;
   if (m_bufferId >= 0) {
     // now we check if there's already a subscriber
 
@@ -241,14 +243,14 @@ NdbEventOperationImpl::execute()
     if (r) {
       //Error
       m_bufferHandle->unprepareAddSubscribeEvent(m_bufferId);
-      m_state = NdbEventOperation::ERROR;
+      m_state = EO_ERROR;
     } else {
       m_bufferHandle->addSubscribeEvent(m_bufferId, this);
-      m_state = NdbEventOperation::EXECUTING;
+      m_state = EO_EXECUTING;
     }
   } else {
     //Error
-    m_state = NdbEventOperation::ERROR;
+    m_state = EO_ERROR;
   }
   return r;
 }
@@ -256,15 +258,16 @@ NdbEventOperationImpl::execute()
 int
 NdbEventOperationImpl::stop()
 {
-  if (m_state != NdbEventOperation::EXECUTING)
-    return -1;
+  DBUG_ENTER("NdbEventOperationImpl::stop");
+  if (m_state != EO_EXECUTING)
+    DBUG_RETURN(-1);
 
   //  ndbout_c("NdbEventOperation::stopping()");
 
   NdbDictionary::Dictionary *myDict = m_ndb->getDictionary();
   if (!myDict) {
-    ndbout_c("NdbEventOperation::stop(): getDictionary=NULL");
-    return 0;
+    m_error.code= m_ndb->getNdbError().code;
+    DBUG_RETURN(-1);
   }
 
   NdbDictionaryImpl & myDictImpl = NdbDictionaryImpl::getImpl(*myDict);
@@ -275,8 +278,8 @@ NdbEventOperationImpl::stop()
 					      hasSubscriber /* return value */);
 
   if (ret < 0) {
-    ndbout_c("prepareDropSubscribeEvent failed");
-    return -1;
+    m_error.code= 4712;
+    DBUG_RETURN(-1);
   }
   //  m_eventImpl->m_bufferId = m_bufferId;
 
@@ -293,17 +296,17 @@ NdbEventOperationImpl::stop()
   if (r) {
     //Error
     m_bufferHandle->unprepareDropSubscribeEvent(m_bufferId);
-    m_state = NdbEventOperation::ERROR;
+    m_error.code= myDictImpl.m_error.code;
+    m_state = EO_ERROR;
   } else {
 #ifdef EVENT_DEBUG
     ndbout_c("NdbEventOperation::dropping()");
 #endif
     m_bufferHandle->dropSubscribeEvent(m_bufferId);
-    m_state = NdbEventOperation::CREATED;
+    m_state = EO_CREATED;
   }
 
-
-  return r;
+  DBUG_RETURN(r);
 }
 
 bool
@@ -363,11 +366,11 @@ NdbEventOperationImpl::next(int *pOverrun)
 
 #ifdef EVENT_DEBUG
     printf("after values sz=%u\n", ptr[1].sz);
-    for(int i=0; i < ptr[1].sz; i++)
+    for(int i=0; i < (int)ptr[1].sz; i++)
       printf ("H'%.8X ",ptr[1].p[i]);
     printf("\n");
     printf("before values sz=%u\n", ptr[2].sz);
-    for(int i=0; i < ptr[2].sz; i++)
+    for(int i=0; i < (int)ptr[2].sz; i++)
       printf ("H'%.8X ",ptr[2].p[i]);
     printf("\n");
 #endif
@@ -871,6 +874,7 @@ int
 NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
 (NdbGlobalEventBufferHandle *aHandle, Uint32 eventId, int& hasSubscriber)
 {
+  DBUG_ENTER("NdbGlobalEventBuffer::real_prepareAddSubscribeEvent");
   int i;
   int bufferId = -1;
 
@@ -900,7 +904,10 @@ NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
     } else {
       ndbout_c("prepareAddSubscribeEvent: Can't accept more subscribers");
       //      add_drop_unlock();
-      return -1;
+      DBUG_PRINT("error",("Can't accept more subscribers:"
+			  " bufferId=%d, m_no=%d, m_max=%d",
+			  bufferId, m_no, m_max));
+      DBUG_RETURN(-1);
     }
   }
 
@@ -947,7 +954,7 @@ NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
       } else {
 	ndbout_c("prepareAddSubscribeEvent: Can't accept more subscribers");
 	//	add_drop_unlock();
-	return -1;
+	DBUG_RETURN(-1);
       }
     }
     bufferId = NO_ID(ni, bufferId);
@@ -976,7 +983,7 @@ NdbGlobalEventBuffer::real_prepareAddSubscribeEvent
   /* we now have a lock on the prepare so that no one can mess with this
    * unlock comes in unprepareAddSubscribeEvent or addSubscribeEvent
    */
-  return bufferId;
+  DBUG_RETURN(bufferId);
 }
 
 void
@@ -1039,6 +1046,7 @@ int
 NdbGlobalEventBuffer::real_prepareDropSubscribeEvent(int bufferId,
 						     int& hasSubscriber)
 {
+  DBUG_ENTER("NdbGlobalEventBuffer::real_prepareDropSubscribeEvent");
   //  add_drop_lock(); // only one thread can do add or drop at a time
 
   BufItem &b = m_buf[ID(bufferId)];
@@ -1054,9 +1062,9 @@ NdbGlobalEventBuffer::real_prepareDropSubscribeEvent(int bufferId,
   else if (n == 1)
     hasSubscriber = 0;
   else
-    return -1;
+    DBUG_RETURN(-1);
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void

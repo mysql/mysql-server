@@ -97,8 +97,8 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
   else
   {
     for (table= thd->open_tables ; table ; table= table->next)
-      if (strcmp(table->table_cache_key, "mysql") == 0 &&
-          strcmp(table->real_name, "proc") == 0)
+      if (strcmp(table->s->db, "mysql") == 0 &&
+          strcmp(table->s->table_name, "proc") == 0)
         break;
   }
   if (table)
@@ -109,7 +109,7 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
 
     memset(&tables, 0, sizeof(tables));
     tables.db= (char*)"mysql";
-    tables.real_name= tables.alias= (char*)"proc";
+    tables.table_name= tables.alias= (char*)"proc";
     if (! (table= open_ltable(thd, &tables, ltype)))
     {
       *tablep= NULL;
@@ -158,7 +158,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   if (ret != SP_OK)
     goto done;
 
-  if (table->fields != MYSQL_PROC_FIELD_COUNT)
+  if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
   {
     ret= SP_GET_FIELD_FAILED;
     goto done;
@@ -356,16 +356,16 @@ db_create_routine(THD *thd, int type, sp_head *sp)
 
   memset(&tables, 0, sizeof(tables));
   tables.db= (char*)"mysql";
-  tables.real_name= tables.alias= (char*)"proc";
+  tables.table_name= tables.alias= (char*)"proc";
 
   if (! (table= open_ltable(thd, &tables, TL_WRITE)))
     ret= SP_OPEN_TABLE_FAILED;
   else
   {
-    restore_record(table, default_values); // Get default values for fields
+    restore_record(table, s->default_values); // Get default values for fields
     strxmov(definer, thd->priv_user, "@", thd->priv_host, NullS);
 
-    if (table->fields != MYSQL_PROC_FIELD_COUNT)
+    if (table->s->fields != MYSQL_PROC_FIELD_COUNT)
     {
       ret= SP_GET_FIELD_FAILED;
       goto done;
@@ -562,7 +562,7 @@ db_show_routine_status(THD *thd, int type, const char *wild)
 
   memset(&tables, 0, sizeof(tables));
   tables.db= (char*)"mysql";
-  tables.real_name= tables.alias= (char*)"proc";
+  tables.table_name= tables.alias= (char*)"proc";
 
   if (! (table= open_ltable(thd, &tables, TL_READ)))
   {
@@ -668,8 +668,8 @@ sp_drop_db_routines(THD *thd, char *db)
   keylen= sizeof(key);
 
   for (table= thd->open_tables ; table ; table= table->next)
-    if (strcmp(table->table_cache_key, "mysql") == 0 &&
-	strcmp(table->real_name, "proc") == 0)
+    if (strcmp(table->s->db, "mysql") == 0 &&
+	strcmp(table->s->table_name, "proc") == 0)
       break;
   if (! table)
   {
@@ -677,7 +677,7 @@ sp_drop_db_routines(THD *thd, char *db)
 
     memset(&tables, 0, sizeof(tables));
     tables.db= (char*)"mysql";
-    tables.real_name= tables.alias= (char*)"proc";
+    tables.table_name= tables.alias= (char*)"proc";
     if (! (table= open_ltable(thd, &tables, TL_WRITE)))
       DBUG_RETURN(SP_OPEN_TABLE_FAILED);
   }
@@ -749,9 +749,9 @@ sp_exists_routine(THD *thd, TABLE_LIST *tables, bool any, bool no_error)
     LEX_STRING lex_db;
     LEX_STRING lex_name;
     lex_db.length= strlen(table->db);
-    lex_name.length= strlen(table->real_name);
+    lex_name.length= strlen(table->table_name);
     lex_db.str= thd->strmake(table->db, lex_db.length);
-    lex_name.str= thd->strmake(table->real_name, lex_name.length);
+    lex_name.str= thd->strmake(table->table_name, lex_name.length);
     name= new sp_name(lex_db, lex_name);
     name->init_qname(thd);
     if (sp_find_procedure(thd, name) != NULL ||
@@ -766,7 +766,7 @@ sp_exists_routine(THD *thd, TABLE_LIST *tables, bool any, bool no_error)
       if (!no_error)
       {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE", 
-		 table->real_name);
+		 table->table_name);
 	DBUG_RETURN(-1);
       }
       DBUG_RETURN(0);

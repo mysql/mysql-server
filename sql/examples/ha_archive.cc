@@ -520,7 +520,7 @@ error:
 int ha_archive::write_row(byte * buf)
 {
   z_off_t written;
-  Field_blob **field;
+  uint *ptr, *end;
   DBUG_ENTER("ha_archive::write_row");
 
   if (share->crashed)
@@ -530,25 +530,27 @@ int ha_archive::write_row(byte * buf)
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   pthread_mutex_lock(&share->mutex);
-  written= gzwrite(share->archive_write, buf, table->reclength);
-  DBUG_PRINT("ha_archive::write_row", ("Wrote %d bytes expected %d", written, table->reclength));
+  written= gzwrite(share->archive_write, buf, table->s->reclength);
+  DBUG_PRINT("ha_archive::write_row", ("Wrote %d bytes expected %d", written, table->s->reclength));
   if (!delayed_insert || !bulk_insert)
     share->dirty= TRUE;
 
-  if (written != table->reclength)
+  if (written != table->s->reclength)
     goto error;
   /*
     We should probably mark the table as damagaged if the record is written
     but the blob fails.
   */
-  for (field= table->blob_field ; *field ; field++)
+  for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
+       ptr != end ;
+       ptr++)
   {
     char *ptr;
-    uint32 size= (*field)->get_length();
+    uint32 size= ((Field_blob*) table->field[*ptr])->get_length();
 
     if (size)
     {
-      (*field)->get_ptr(&ptr);
+      ((Field_blob*) table->field[*ptr])->get_ptr(&ptr);
       written= gzwrite(share->archive_write, ptr, (unsigned)size);
       if (written != size)
         goto error;
@@ -614,13 +616,13 @@ int ha_archive::rnd_init(bool scan)
 int ha_archive::get_row(gzFile file_to_read, byte *buf)
 {
   int read; // Bytes read, gzread() returns int
+  uint *ptr, *end;
   char *last;
   size_t total_blob_length= 0;
-  Field_blob **field;
   DBUG_ENTER("ha_archive::get_row");
 
-  read= gzread(file_to_read, buf, table->reclength);
-  DBUG_PRINT("ha_archive::get_row", ("Read %d bytes expected %d", read, table->reclength));
+  read= gzread(file_to_read, buf, table->s->reclength);
+  DBUG_PRINT("ha_archive::get_row", ("Read %d bytes expected %d", read, table->s->reclength));
 
   if (read == Z_STREAM_ERROR)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
@@ -633,27 +635,31 @@ int ha_archive::get_row(gzFile file_to_read, byte *buf)
     If the record is the wrong size, the file is probably damaged, unless 
     we are dealing with a delayed insert or a bulk insert.
   */
-  if ((ulong) read != table->reclength)
+  if ((ulong) read != table->s->reclength)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   /* Calculate blob length, we use this for our buffer */
-  for (field=table->blob_field; *field ; field++)
-    total_blob_length += (*field)->get_length();
+  for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
+       ptr != end ;
+       ptr++)
+    total_blob_length += ((Field_blob*) table->field[*ptr])->get_length();
 
   /* Adjust our row buffer if we need be */
   buffer.alloc(total_blob_length);
   last= (char *)buffer.ptr();
 
   /* Loop through our blobs and read them */
-  for (field=table->blob_field; *field ; field++)
+  for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
+       ptr != end ;
+       ptr++)
   {
-    size_t size= (*field)->get_length();
+    size_t size= ((Field_blob*) table->field[*ptr])->get_length();
     if (size)
     {
       read= gzread(file_to_read, last, size);
       if ((size_t) read != size)
         DBUG_RETURN(HA_ERR_END_OF_FILE);
-      (*field)->set_ptr(size, last);
+      ((Field_blob*) table->field[*ptr])->set_ptr(size, last);
       last += size;
     }
   }
@@ -753,8 +759,8 @@ int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
     I know, this malloc'ing memory but this should be a very 
     rare event.
   */
-  if (!(buf= (byte*) my_malloc(table->rec_buff_length > sizeof(ulonglong) +1 ? 
-                               table->rec_buff_length : sizeof(ulonglong) +1 ,
+  if (!(buf= (byte*) my_malloc(table->s->rec_buff_length > sizeof(ulonglong) +1 ? 
+                               table->s->rec_buff_length : sizeof(ulonglong) +1 ,
                                MYF(MY_WME))))
   {
     rc= HA_ERR_CRASHED_ON_USAGE;
@@ -894,7 +900,7 @@ void ha_archive::info(uint flag)
 
     VOID(my_stat(share->data_file_name, &file_stat, MYF(MY_WME)));
 
-    mean_rec_length= table->reclength + buffer.alloced_length();
+    mean_rec_length= table->s->reclength + buffer.alloced_length();
     data_file_length= file_stat.st_size;
     create_time= file_stat.st_ctime;
     update_time= file_stat.st_mtime;

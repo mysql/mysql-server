@@ -569,7 +569,7 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
 }
 
 Item_field::Item_field(Field *f)
-  :Item_ident(NullS, f->table_name, f->field_name),
+  :Item_ident(NullS, *f->table_name, f->field_name),
   item_equal(0), no_const_subst(0),
    have_privileges(0), any_privileges(0)
 {
@@ -582,7 +582,7 @@ Item_field::Item_field(Field *f)
 }
 
 Item_field::Item_field(THD *thd, Field *f)
-  :Item_ident(f->table->table_cache_key, f->table_name, f->field_name),
+  :Item_ident(f->table->s->db, *f->table_name, f->field_name),
    item_equal(0), no_const_subst(0),
    have_privileges(0), any_privileges(0)
 {
@@ -636,9 +636,9 @@ void Item_field::set_field(Field *field_par)
   maybe_null=field->maybe_null();
   max_length=field_par->field_length;
   decimals= field->decimals();
-  table_name=field_par->table_name;
-  field_name=field_par->field_name;
-  db_name=field_par->table->table_cache_key;
+  table_name= *field_par->table_name;
+  field_name= field_par->field_name;
+  db_name= field_par->table->s->db;
   alias_name_used= field_par->table->alias_name_used;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
   collation.set(field_par->charset(), DERIVATION_IMPLICIT);
@@ -1576,16 +1576,18 @@ bool Item_ref_null_helper::get_date(TIME *ltime, uint fuzzydate)
 static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 			      Item_ident *item)
 {
-  // store pointer on SELECT_LEX from which item is dependent
+  const char *db_name=    item->db_name ? item->db_name : "";
+  const char *table_name= item->table_name ? item->table_name : "";
+  /* store pointer on SELECT_LEX from which item is dependent */
   item->depended_from= last;
   current->mark_as_dependent(last);
   if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
     char warn_buff[MYSQL_ERRMSG_SIZE];
     sprintf(warn_buff, ER(ER_WARN_FIELD_RESOLVED),
-	    (item->db_name?item->db_name:""), (item->db_name?".":""),
-	    (item->table_name?item->table_name:""), (item->table_name?".":""),
-	    item->field_name,
+            db_name, (db_name[0] ? "." : ""),
+            table_name, (table_name [0] ? "." : ""),
+            item->field_name,
 	    current->select_number, last->select_number);
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		 ER_WARN_FIELD_RESOLVED, warn_buff);
@@ -1745,8 +1747,9 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     Search for a column or derived column named as 'ref' in the SELECT
     clause of the current select.
   */
-  if (!(select_ref= find_item_in_list(ref, *(select->get_item_list()), &counter,
-                                      REPORT_EXCEPT_NOT_FOUND, &not_used)))
+  if (!(select_ref= find_item_in_list(ref, *(select->get_item_list()),
+                                      &counter, REPORT_EXCEPT_NOT_FOUND,
+                                      &not_used)))
     return NULL; /* Some error occurred. */
 
   /* If this is a non-aggregated field inside HAVING, search in GROUP BY. */
@@ -2053,7 +2056,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
     else
     {
       db= cached_table->db;
-      tab= cached_table->real_name;
+      tab= cached_table->table_name;
     }
     if (!(have_privileges= (get_column_grant(thd, &field->table->grant,
                                              db, tab, field_name) &
@@ -3195,7 +3198,7 @@ bool Item_default_value::fix_fields(THD *thd,
   if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
     return TRUE;
   memcpy(def_field, field_arg->field, field_arg->field->size_of());
-  def_field->move_field(def_field->table->default_values -
+  def_field->move_field(def_field->table->s->default_values -
                         def_field->table->record[0]);
   set_field(def_field);
   return FALSE;

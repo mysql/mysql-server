@@ -272,9 +272,9 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   DBUG_ENTER("get_topics_for_keyword");
 
   if ((iindex_topic= find_type((char*) primary_key_name,
-			       &topics->keynames, 1+2)-1)<0 ||
+			       &topics->s->keynames, 1+2)-1)<0 ||
       (iindex_relations= find_type((char*) primary_key_name,
-				   &relations->keynames, 1+2)-1)<0)
+				   &relations->s->keynames, 1+2)-1)<0)
   {
     my_message(ER_CORRUPT_HELP_DB, ER(ER_CORRUPT_HELP_DB), MYF(0));
     DBUG_RETURN(-1);
@@ -620,16 +620,16 @@ bool mysqld_help(THD *thd, const char *mask)
   TABLE_LIST *leaves= 0;
   TABLE_LIST tables[4];
   bzero((gptr)tables,sizeof(tables));
-  tables[0].alias= tables[0].real_name= (char*) "help_topic";
+  tables[0].alias= tables[0].table_name= (char*) "help_topic";
   tables[0].lock_type= TL_READ;
   tables[0].next_global= tables[0].next_local= &tables[1];
-  tables[1].alias= tables[1].real_name= (char*) "help_category";
+  tables[1].alias= tables[1].table_name= (char*) "help_category";
   tables[1].lock_type= TL_READ;
   tables[1].next_global= tables[1].next_local= &tables[2];
-  tables[2].alias= tables[2].real_name= (char*) "help_relation";
+  tables[2].alias= tables[2].table_name= (char*) "help_relation";
   tables[2].lock_type= TL_READ;
   tables[2].next_global= tables[2].next_local= &tables[3];
-  tables[3].alias= tables[3].real_name= (char*) "help_keyword";
+  tables[3].alias= tables[3].table_name= (char*) "help_keyword";
   tables[3].lock_type= TL_READ;
   tables[0].db= tables[1].db= tables[2].db= tables[3].db= (char*) "mysql";
 

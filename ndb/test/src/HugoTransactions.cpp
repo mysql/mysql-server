@@ -826,6 +826,7 @@ struct receivedEvent {
 };
 
 int XXXXX = 0;
+
 int 
 HugoTransactions::eventOperation(Ndb* pNdb, void* pstats,
 				 int records) {
@@ -896,7 +897,9 @@ HugoTransactions::eventOperation(Ndb* pNdb, void* pstats,
   // set up the callbacks
   g_info << function << "execute\n";
   if (pOp->execute()) { // This starts changes to "start flowing"
-    g_err << function << "operation execution failed\n";
+    g_err << function << "operation execution failed: \n";
+    g_err << pOp->getNdbError().code << " "
+	  << pOp->getNdbError().message << endl;
     return NDBT_FAILED;
   }
 

@@ -4827,9 +4827,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
       }
     }
 
-    /**
-     * Ignore incoming old-style type and recompute it.
-     */
+    // compute attribute size and array size
     bool translateOk = attrDesc.translateExtType();
     tabRequire(translateOk, CreateTableRef::Inconsistency);
 
@@ -7849,7 +7847,7 @@ void Dbdict::createEventUTIL_EXECUTE(Signal *signal,
 	break;
       case ZALREADYEXIST:
 	jam();
-	evntRecPtr.p->m_errorCode = CreateEvntRef::EventExists;
+	evntRecPtr.p->m_errorCode = CreateEvntRef::EventNameExists;
 	break;
       default:
 	jam();

@@ -31,18 +31,18 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
 
 static bool compare_record(TABLE *table, ulong query_id)
 {
-  if (!table->blob_fields)
+  if (!table->s->blob_fields)
     return cmp_record(table,record[1]);
   /* Compare null bits */
   if (memcmp(table->null_flags,
-	     table->null_flags+table->rec_buff_length,
-	     table->null_bytes))
+	     table->null_flags+table->s->rec_buff_length,
+	     table->s->null_bytes))
     return TRUE;				// Diff in NULL value
   /* Compare updated fields */
   for (Field **ptr=table->field ; *ptr ; ptr++)
   {
     if ((*ptr)->query_id == query_id &&
-	(*ptr)->cmp_binary_offset(table->rec_buff_length))
+	(*ptr)->cmp_binary_offset(table->s->rec_buff_length))
       return TRUE;
   }
   return FALSE;
@@ -113,12 +113,11 @@ int mysql_update(THD *thd,
                  COND *conds,
                  uint order_num, ORDER *order,
 		 ha_rows limit,
-		 enum enum_duplicates handle_duplicates)
+		 enum enum_duplicates handle_duplicates, bool ignore)
 {
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
-  bool          ignore_err= (thd->lex->duplicates == DUP_IGNORE);
   int           res;
   int		error=0;
   uint		used_index;
@@ -167,14 +166,12 @@ int mysql_update(THD *thd,
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   /* Calculate "table->used_keys" based on the WHERE */
-  table->used_keys=table->keys_in_use;
+  table->used_keys= table->s->keys_in_use;
   table->quick_keys.clear_all();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  /* In case of view TABLE_LIST contain right privilages request */
-  want_privilege= (table_list->view ?
-                   table_list->grant.want_privilege :
-                   table->grant.want_privilege);
+  /* TABLE_LIST contain right privilages request */
+  want_privilege= table_list->grant.want_privilege;
 #endif
   if (mysql_prepare_update(thd, table_list, &conds, order_num, order))
     DBUG_RETURN(1);
@@ -222,7 +219,7 @@ int mysql_update(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Check values */
   table_list->grant.want_privilege= table->grant.want_privilege=
-    (SELECT_ACL & ~table->grant.privilege);
+    (SELECT_ACL & ~~table->grant.privilege);
 #endif
   if (setup_fields(thd, 0, table_list, values, 1, 0, 0))
   {
@@ -380,7 +377,7 @@ int mysql_update(THD *thd,
     }
   }
 
-  if (handle_duplicates == DUP_IGNORE)
+  if (ignore)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   
   if (select && select->quick && select->quick->reset())
@@ -395,7 +392,7 @@ int mysql_update(THD *thd,
 
   transactional_table= table->file->has_transactions();
   thd->no_trans_update= 0;
-  thd->abort_on_warning= test(handle_duplicates != DUP_IGNORE &&
+  thd->abort_on_warning= test(!ignore &&
                               (thd->variables.sql_mode &
                                (MODE_STRICT_TRANS_TABLES |
                                 MODE_STRICT_ALL_TABLES)));
@@ -415,7 +412,7 @@ int mysql_update(THD *thd,
 
       if (compare_record(table, query_id))
       {
-        if ((res= table_list->view_check_option(thd, ignore_err)) !=
+        if ((res= table_list->view_check_option(thd, ignore)) !=
             VIEW_CHECK_OK)
         {
           found--;
@@ -433,8 +430,7 @@ int mysql_update(THD *thd,
 	  updated++;
           thd->no_trans_update= !transactional_table;
 	}
-	else if (handle_duplicates != DUP_IGNORE ||
-		 error != HA_ERR_FOUND_DUPP_KEY)
+ 	else if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
 	{
           thd->fatal_error();                   // Force error message
 	  table->file->print_error(error,MYF(0));
@@ -473,7 +469,7 @@ int mysql_update(THD *thd,
     query_cache_invalidate3(thd, table_list, 1);
   }
 
-  log_delayed= (transactional_table || table->tmp_table);
+  log_delayed= (transactional_table || table->s->tmp_table);
   if ((updated || (error < 0)) && (error <= 0 || !transactional_table))
   {
     if (mysql_bin_log.is_open())
@@ -574,7 +570,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   /* Check that we are not using table that we are updating in a sub select */
   if (unique_table(table_list, table_list->next_global))
   {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
+    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
     DBUG_RETURN(TRUE);
   }
   select_lex->fix_prepare_information(thd, conds);
@@ -700,9 +696,9 @@ bool mysql_multi_update_prepare(THD *thd)
         single SELECT on top and have to check underlying SELECTs of it
       */
       if (lex->select_lex.check_updateable_in_subqueries(tl->db,
-                                                         tl->real_name))
+                                                         tl->table_name))
       {
-        my_error(ER_UPDATE_TABLE_USED, MYF(0), tl->real_name);
+        my_error(ER_UPDATE_TABLE_USED, MYF(0), tl->table_name);
         DBUG_RETURN(TRUE);
       }
       DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
@@ -717,7 +713,7 @@ bool mysql_multi_update_prepare(THD *thd)
     }
 
     /* Check access privileges for table */
-    if (!tl->derived)
+    if (!tl->derived && !tl->belong_to_view)
     {
       uint want_privilege= tl->updating ? UPDATE_ACL : SELECT_ACL;
       if (!using_lock_tables)
@@ -812,7 +808,7 @@ bool mysql_multi_update(THD *thd,
                         List<Item> *values,
                         COND *conds,
                         ulong options,
-                        enum enum_duplicates handle_duplicates,
+                        enum enum_duplicates handle_duplicates, bool ignore,
                         SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex)
 {
   bool res= FALSE;
@@ -825,7 +821,7 @@ bool mysql_multi_update(THD *thd,
   if (!(result= new multi_update(thd, table_list,
 				 thd->lex->select_lex.leaf_tables,
 				 fields, values,
-				 handle_duplicates)))
+				 handle_duplicates, ignore)))
     DBUG_RETURN(TRUE);
 
   thd->no_trans_update= 0;
@@ -851,12 +847,13 @@ bool mysql_multi_update(THD *thd,
 multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
 			   TABLE_LIST *leaves_list,
 			   List<Item> *field_list, List<Item> *value_list,
-			   enum enum_duplicates handle_duplicates_arg)
+			   enum enum_duplicates handle_duplicates_arg,
+                           bool ignore_arg)
   :all_tables(table_list), leaves(leaves_list), update_tables(0),
    thd(thd_arg), tmp_tables(0), updated(0), found(0), fields(field_list),
    values(value_list), table_count(0), copy_field(0),
    handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(0),
-   transactional_tables(1)
+   transactional_tables(1), ignore(ignore_arg)
 {}
 
 
@@ -925,7 +922,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   table_count=  update.elements;
   update_tables= (TABLE_LIST*) update.first;
 
-  tmp_tables = (TABLE **) thd->calloc(sizeof(TABLE *) * table_count);
+  tmp_tables = (TABLE**) thd->calloc(sizeof(TABLE *) * table_count);
   tmp_table_param = (TMP_TABLE_PARAM*) thd->calloc(sizeof(TMP_TABLE_PARAM) *
 						   table_count);
   fields_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
@@ -977,7 +974,7 @@ int multi_update::prepare(List<Item> &not_used_values,
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) &&
 	find_table_in_local_list(update_tables, table_ref->db,
-				table_ref->real_name))
+				table_ref->table_name))
       table->no_cache= 1;			// Disable row cache
   }
   DBUG_RETURN(thd->is_fatal_error != 0);
@@ -1003,7 +1000,7 @@ multi_update::initialize_tables(JOIN *join)
     DBUG_RETURN(1);
   main_table=join->join_tab->table;
   trans_safe= transactional_tables= main_table->file->has_transactions();
-  log_delayed= trans_safe || main_table->tmp_table != NO_TMP_TABLE;
+  log_delayed= trans_safe || main_table->s->tmp_table != NO_TMP_TABLE;
   table_to_update= 0;
 
   /* Create a temporary table for keys to all tables, except main table */
@@ -1106,8 +1103,8 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
       return !join_tab->quick->check_if_keys_used(fields);
     /* If scanning in clustered key */
     if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
-	table->primary_key < MAX_KEY)
-      return !check_if_key_used(table, table->primary_key, *fields);
+	table->s->primary_key < MAX_KEY)
+      return !check_if_key_used(table, table->s->primary_key, *fields);
     return TRUE;
   default:
     break;					// Avoid compler warning
@@ -1144,7 +1141,6 @@ multi_update::~multi_update()
 bool multi_update::send_data(List<Item> &not_used_values)
 {
   TABLE_LIST *cur_table;
-  bool ignore_err= (thd->lex->duplicates == DUP_IGNORE);
   DBUG_ENTER("multi_update::send_data");
 
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
@@ -1179,7 +1175,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       if (compare_record(table, thd->query_id))
       {
 	int error;
-        if ((error= cur_table->view_check_option(thd, ignore_err)) !=
+        if ((error= cur_table->view_check_option(thd, ignore)) !=
             VIEW_CHECK_OK)
         {
           found--;
@@ -1201,8 +1197,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
 					   table->record[0])))
 	{
 	  updated--;
-          if (handle_duplicates != DUP_IGNORE ||
-	      error != HA_ERR_FOUND_DUPP_KEY)
+          if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
 	  {
             thd->fatal_error();                 // Force error message
 	    table->file->print_error(error,MYF(0));
@@ -1336,19 +1331,18 @@ int multi_update::do_updates(bool from_send_error)
 	if ((local_error=table->file->update_row(table->record[1],
 						 table->record[0])))
 	{
-	  if (local_error != HA_ERR_FOUND_DUPP_KEY ||
-	      handle_duplicates != DUP_IGNORE)
+	  if (!ignore || local_error != HA_ERR_FOUND_DUPP_KEY)
 	    goto err;
 	}
 	updated++;
-	if (table->tmp_table != NO_TMP_TABLE)
+	if (table->s->tmp_table != NO_TMP_TABLE)
 	  log_delayed= 1;
       }
     }
 
     if (updated != org_updated)
     {
-      if (table->tmp_table != NO_TMP_TABLE)
+      if (table->s->tmp_table != NO_TMP_TABLE)
 	log_delayed= 1;				// Tmp tables forces delay log
       if (table->file->has_transactions())
 	log_delayed= transactional_tables= 1;
@@ -1372,7 +1366,7 @@ err:
 
   if (updated != org_updated)
   {
-    if (table->tmp_table != NO_TMP_TABLE)
+    if (table->s->tmp_table != NO_TMP_TABLE)
       log_delayed= 1;
     if (table->file->has_transactions())
       log_delayed= transactional_tables= 1;

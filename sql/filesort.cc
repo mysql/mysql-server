@@ -127,7 +127,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   param.ref_length= table->file->ref_length;
   param.addon_field= 0;
   param.addon_length= 0;
-  if (!(table->tmp_table || table->fulltext_searched))
+  if (!(table->s->tmp_table || table->fulltext_searched))
   {
     /* 
       Get the descriptors of all fields whose values are appended 
@@ -463,7 +463,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row
-	  record+=sort_form->db_record_offset;
+	  record+= sort_form->s->db_record_offset;
 	}
 	else
 	  file->position(sort_form->record[0]);
