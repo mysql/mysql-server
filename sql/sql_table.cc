@@ -31,14 +31,6 @@
 #endif
 
 #include "sql_acl.h" // for SUPER_ACL
-# define tmp_disable_binlog(A)                                          \
-  ulong save_options= (A)->options, save_master_access= (A)->master_access; \
-  (A)->options&= ~OPTION_BIN_LOG;                                       \
-  (A)->master_access|= SUPER_ACL; /* unneeded in 4.1 */                 
-
-#define reenable_binlog(A)                      \
-  (A)->options= save_options;                   \
-  (A)->master_access= save_master_access;       
 
 extern HASH open_cache;
 static const char *primary_key_name="PRIMARY";
