@@ -57,8 +57,8 @@ set -x
 
 # Check environment
 export MYSQL_BUILD_PATH="/usr/cygnus/redhat-980810/H-i386-pc-linux-gnu/bin/:/usr/bin:/bin"
-export MYSQL_BUILD_CFLAGS="-O6 -fomit-frame-pointer -mpentium"
-export MYSQL_BUILD_CXXFLAGS="-O6 -fomit-frame-pointer \
+export MYSQL_BUILD_CFLAGS="-O6 -fno-omit-frame-pointer -mpentium"
+export MYSQL_BUILD_CXXFLAGS="-O6 -fno-omit-frame-pointer \
 	          -felide-constructors -fno-exceptions -fno-rtti -mpentium"
 gcc -v
 
