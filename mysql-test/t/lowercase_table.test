@@ -4,6 +4,9 @@
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4;
+# Clear up from other tests (to ensure that SHOW TABLES below is right)
+drop table if exists t0,t5,t6,t7,t8,t9;
+drop database if exists mysqltest;
 --enable_warnings
 
 create table T1 (id int primary key, Word varchar(40) not null, Index(Word));
@@ -32,6 +35,23 @@ select count(bags.a) from t1 as Bags;
 drop table t1;
 
 #
+# Test all caps database name
+#
+create database mysqltest;
+use MYSQLTEST;
+create table t1 (a int);
+select T1.a from MYSQLTEST.T1;
+select t1.a from MYSQLTEST.T1;
+select mysqltest.t1.* from MYSQLTEST.t1;
+select MYSQLTEST.t1.* from MYSQLTEST.t1;
+select MYSQLTEST.T1.* from MYSQLTEST.T1;
+select MYSQLTEST.T1.* from T1;
+alter table t1 rename to T1;
+select MYSQLTEST.t1.* from MYSQLTEST.t1;
+drop database mysqltest;
+use test;
+
+#
 # multiupdate/delete & --lower-case-table-names
 #
 create table t1 (a int);
@@ -54,13 +74,3 @@ select C.a, c.a from t1 c, t2 C;
 drop table t1, t2;
 
 show tables;
-
-#
-# Test all caps database name
-#
-create table t1 (a int);
-select TEST.t1.* from TEST.t1;
-alter table t1 rename to T1;
-select TEST.t1.* from TEST.t1;
-drop table t1;
-

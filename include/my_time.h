@@ -58,6 +58,8 @@ void init_time(void);
 my_time_t 
 my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap);
 
+void set_zero_time(MYSQL_TIME *tm);
+
 C_MODE_END
 
 #endif /* _my_time_h_ */
