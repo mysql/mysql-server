@@ -356,6 +356,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
   int fake_argc = 1;
   char *fake_argv[] = { (char *)"", 0 };
   const char *fake_groups[] = { "server", "embedded", 0 };
+  my_bool acl_error;
   if (argc)
   {
     argcp= &argc;
@@ -397,16 +398,17 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   error_handler_hook = my_message_sql;
 
+  acl_error= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (acl_init((THD *)0, opt_noacl))
+  if (!(acl_error= acl_init((THD *)0, opt_noacl)) &&
+      !opt_noacl)
+    (void) grant_init((THD *)0);
+#endif
+  if (acl_error || my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
     mysql_server_end();
     return 1;
   }
-  if (!opt_noacl)
-    (void) grant_init((THD *)0);
-
-#endif
 
   init_max_user_conn();
   init_update_queries();

@@ -530,7 +530,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
 	    ((Field_timestamp*) field)->set_time();
 	  else if (field != table->next_number_field)      
 	    field->set_warning((uint) MYSQL_ERROR::WARN_LEVEL_WARN, 
-			       ER_WARN_NULL_TO_NOTNULL);
+			       ER_WARN_NULL_TO_NOTNULL, 1);
 	}
 	continue;
       }

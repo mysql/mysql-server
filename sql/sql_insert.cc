@@ -945,6 +945,10 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
 
   /* _rowid is not used with delayed insert */
   copy->rowid_field=0;
+
+  /* Adjust in_use for pointing to client thread */
+  copy->in_use= client_thd;
+  
   return copy;
 
   /* Got fatal error */
