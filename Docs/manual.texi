@@ -36200,6 +36200,15 @@ SET [GLOBAL | SESSION] TRANSACTION ISOLATION LEVEL
 Sets the transaction isolation level for the global, whole session or
 the next transaction.
 
+The default behavior is to set the isolation level for the next (not
+started) transaction.  If you use the @code{GLOBAL} keyword, the statement
+sets the default transaction level globally for all new connections
+created from that point on.  You will need the @strong{process}
+privilege to do do this.  Using the @code{SESSION} keyword sets the
+default transaction level for all future transactions performed on the
+current connection.
+
+You can set the default global isolation level for @code{mysqld} with
 @code{--transaction-isolation=...}. @xref{Command-line options}.
 
 @node Fulltext Search, Query Cache, Transactional Commands, Reference
