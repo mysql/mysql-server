@@ -25,6 +25,9 @@ class st_select_lex_unit;
 class JOIN;
 class select_subselect;
 class subselect_engine;
+class Item_bool_func2;
+
+typedef Item_bool_func2* (*compare_func_creator)(Item*, Item*);
 
 /* base class for subselects */
 
@@ -56,15 +59,14 @@ public:
      to subselect Item class to select_subselect classes constructor.
   */
   virtual void init (THD *thd, st_select_lex *select_lex, 
-		     select_subselect *result,
-		     Item *left_expr= 0);
+		     select_subselect *result);
 
   ~Item_subselect();
   virtual void assign_null() 
   {
     null_value= 1;
   }
-  virtual void select_transformer(st_select_lex *select_lex, Item *left_expr);
+  virtual void select_transformer(st_select_lex *select_lex);
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -129,8 +131,7 @@ protected:
   longlong value; /* value of this item (boolean: exists/not-exists) */
 
 public:
-  Item_exists_subselect(THD *thd, st_select_lex *select_lex,
-			Item *left_expr= 0);
+  Item_exists_subselect(THD *thd, st_select_lex *select_lex);
   Item_exists_subselect(Item_exists_subselect *item):
     Item_subselect(item)
   {
@@ -156,10 +157,29 @@ public:
 
 class Item_in_subselect :public Item_exists_subselect
 {
+protected:
+  Item * left_expr;
+
 public:
   Item_in_subselect(THD *thd, Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect(Item_in_subselect *item);
-  virtual void select_transformer(st_select_lex *select_lex, Item *left_exp);
+  Item_in_subselect(): Item_exists_subselect() {}
+  virtual void select_transformer(st_select_lex *select_lex);
+  void single_value_transformer(st_select_lex *select_lex,
+				Item *left_expr, compare_func_creator func);
+};
+
+/* ALL/ANY/SOME subselect */
+class Item_allany_subselect :public Item_in_subselect
+{
+protected:
+  compare_func_creator func;
+
+public:
+  Item_allany_subselect(THD *thd, Item * left_expr, compare_func_creator f,
+		     st_select_lex *select_lex);
+  Item_allany_subselect(Item_allany_subselect *item);
+  virtual void select_transformer(st_select_lex *select_lex);
 };
 
 class subselect_engine

@@ -263,6 +263,7 @@ inline THD *_current_thd(void)
 #include "field.h"				/* Field definitions */
 #include "sql_udf.h"
 #include "item.h"
+typedef compare_func_creator (*chooser_compare_func_creator)(bool invert);
 #include "sql_class.h"
 #include "opt_range.h"
 
@@ -867,3 +868,11 @@ inline void mark_as_null_row(TABLE *table)
   table->status|=STATUS_NULL_ROW;
   bfill(table->null_flags,table->null_bytes,255);
 }
+
+compare_func_creator comp_eq_creator(bool invert);
+compare_func_creator comp_ge_creator(bool invert);
+compare_func_creator comp_gt_creator(bool invert);
+compare_func_creator comp_le_creator(bool invert);
+compare_func_creator comp_lt_creator(bool invert);
+compare_func_creator comp_ne_creator(bool invert);
+

@@ -71,6 +71,7 @@ inline Item *or_or_concat(Item* A, Item* B)
   CHARSET_INFO *charset;
   interval_type interval;
   st_select_lex *select_lex;
+  chooser_compare_func_creator boolfunc2creator;
 }
 
 %{
@@ -104,6 +105,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	AFTER_SYM
 %token	ALTER
 %token	ANALYZE_SYM
+%token	ANY_SYM
 %token	AVG_SYM
 %token	BEGIN_SYM
 %token	BINLOG_SYM
@@ -551,7 +553,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	type int_type real_type order_dir opt_field_spec lock_option
 	udf_type if_exists opt_local opt_table_options table_options
 	table_option opt_if_not_exists opt_var_type opt_var_ident_type
-	delete_option
+	delete_option all_or_any
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -616,6 +618,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <select_lex> in_subselect in_subselect_init
 
+%type <boolfunc2creator> comp_op
+
 %type <NONE>
 	query verb_clause create change select do drop insert replace insert2
 	insert_values update delete truncate rename
@@ -641,7 +645,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_mi_check_type opt_to mi_check_types normal_join
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
-	single_multi table_wild_list table_wild_one opt_wild union union_list
+	single_multi table_wild_list table_wild_one opt_wild union
 	precision union_option opt_on_delete_item subselect_start opt_and
 	subselect_end select_var_list select_var_list_init help
 END_OF_INPUT
@@ -1723,6 +1727,18 @@ optional_braces:
 expr:	expr_expr	{ $$= $1; }
 	| simple_expr	{ $$= $1; };
 
+comp_op:  EQ		{ $$ = &comp_eq_creator; }
+	| GE		{ $$ = &comp_ge_creator; }
+	| GT_SYM	{ $$ = &comp_gt_creator; }
+	| LE		{ $$ = &comp_le_creator; }
+	| LT		{ $$ = &comp_lt_creator; }
+	| NE		{ $$ = &comp_ne_creator; }
+	;
+
+all_or_any: ALL     { $$ = 1; }
+        |   ANY_SYM { $$ = 0; }
+        ;
+
 /* expressions that begin with 'expr' */
 expr_expr:
 	  expr IN_SYM '(' expr_list ')'
@@ -1749,13 +1765,17 @@ expr_expr:
 	| expr NOT REGEXP expr { $$= new Item_func_not(new Item_func_regex($1,$4)); }
 	| expr IS NULL_SYM	{ $$= new Item_func_isnull($1); }
 	| expr IS NOT NULL_SYM { $$= new Item_func_isnotnull($1); }
-	| expr EQ expr		{ $$= new Item_func_eq($1,$3); }
 	| expr EQUAL_SYM expr	{ $$= new Item_func_equal($1,$3); }
-	| expr GE expr		{ $$= new Item_func_ge($1,$3); }
-	| expr GT_SYM expr	{ $$= new Item_func_gt($1,$3); }
-	| expr LE expr		{ $$= new Item_func_le($1,$3); }
-	| expr LT expr		{ $$= new Item_func_lt($1,$3); }
-	| expr NE expr		{ $$= new Item_func_ne($1,$3); }
+	| expr comp_op expr %prec EQ	{ $$= (*((*$2)(0)))($1,$3); }
+	| expr comp_op all_or_any in_subselect %prec EQ
+	{
+	  Item_allany_subselect *it= 
+	    new Item_allany_subselect(current_thd, $1, (*$2)($3), $4);
+	  if ($3)
+	    $$ = new Item_func_not(it);	/* ALL */
+	  else
+	    $$ = it;			/* ANY/SOME */
+	}
 	| expr SHIFT_LEFT expr	{ $$= new Item_func_shift_left($1,$3); }
 	| expr SHIFT_RIGHT expr { $$= new Item_func_shift_right($1,$3); }
 	| expr '+' expr		{ $$= new Item_func_plus($1,$3); }
@@ -1789,13 +1809,17 @@ no_in_expr:
 	| no_in_expr NOT REGEXP expr { $$= new Item_func_not(new Item_func_regex($1,$4)); }
 	| no_in_expr IS NULL_SYM	{ $$= new Item_func_isnull($1); }
 	| no_in_expr IS NOT NULL_SYM { $$= new Item_func_isnotnull($1); }
-	| no_in_expr EQ expr		{ $$= new Item_func_eq($1,$3); }
 	| no_in_expr EQUAL_SYM expr	{ $$= new Item_func_equal($1,$3); }
-	| no_in_expr GE expr		{ $$= new Item_func_ge($1,$3); }
-	| no_in_expr GT_SYM expr	{ $$= new Item_func_gt($1,$3); }
-	| no_in_expr LE expr		{ $$= new Item_func_le($1,$3); }
-	| no_in_expr LT expr		{ $$= new Item_func_lt($1,$3); }
-	| no_in_expr NE expr		{ $$= new Item_func_ne($1,$3); }
+	| no_in_expr comp_op expr %prec EQ	{ $$= (*((*$2)(0)))($1,$3); }
+	| no_in_expr comp_op all_or_any in_subselect %prec EQ
+	{
+	  Item_allany_subselect *it= 
+	    new Item_allany_subselect(current_thd, $1, (*$2)($3), $4);
+	  if ($3)
+	    $$ = new Item_func_not(it);	/* ALL */
+	  else
+	    $$ = it;			/* ANY/SOME */
+	}
 	| no_in_expr SHIFT_LEFT expr  { $$= new Item_func_shift_left($1,$3); }
 	| no_in_expr SHIFT_RIGHT expr { $$= new Item_func_shift_right($1,$3); }
 	| no_in_expr '+' expr		{ $$= new Item_func_plus($1,$3); }
@@ -1837,13 +1861,17 @@ no_and_expr:
 	| no_and_expr NOT REGEXP expr { $$= new Item_func_not(new Item_func_regex($1,$4)); }
 	| no_and_expr IS NULL_SYM	{ $$= new Item_func_isnull($1); }
 	| no_and_expr IS NOT NULL_SYM { $$= new Item_func_isnotnull($1); }
-	| no_and_expr EQ expr		{ $$= new Item_func_eq($1,$3); }
 	| no_and_expr EQUAL_SYM expr	{ $$= new Item_func_equal($1,$3); }
-	| no_and_expr GE expr		{ $$= new Item_func_ge($1,$3); }
-	| no_and_expr GT_SYM expr	{ $$= new Item_func_gt($1,$3); }
-	| no_and_expr LE expr		{ $$= new Item_func_le($1,$3); }
-	| no_and_expr LT expr		{ $$= new Item_func_lt($1,$3); }
-	| no_and_expr NE expr		{ $$= new Item_func_ne($1,$3); }
+	| no_and_expr comp_op expr %prec EQ { $$= (*((*$2)(0)))($1,$3); }
+	| no_and_expr comp_op all_or_any in_subselect %prec EQ
+	{
+	  Item_allany_subselect *it= 
+	    new Item_allany_subselect(current_thd, $1, (*$2)($3), $4);
+	  if ($3)
+	    $$ = new Item_func_not(it);	/* ALL */
+	  else
+	    $$ = it;			/* ANY/SOME */
+	}
 	| no_and_expr SHIFT_LEFT expr  { $$= new Item_func_shift_left($1,$3); }
 	| no_and_expr SHIFT_RIGHT expr { $$= new Item_func_shift_right($1,$3); }
 	| no_and_expr '+' expr		{ $$= new Item_func_plus($1,$3); }
@@ -3495,6 +3523,7 @@ keyword:
 	| AFTER_SYM		{}
 	| AGAINST		{}
 	| AGGREGATE_SYM		{}
+	| ANY_SYM		{}
 	| AUTO_INC		{}
 	| AVG_ROW_LENGTH	{}
 	| AVG_SYM		{}
@@ -4173,10 +4202,7 @@ rollback:
 
 union:	
 	/* empty */ {}
-	| union_list;
-
-union_list:
-	UNION_SYM    union_option
+	|UNION_SYM    union_option
 	{
 	  LEX *lex=Lex;
 	  if (lex->exchange)

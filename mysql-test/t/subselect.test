@@ -36,6 +36,16 @@ select * from t3 where exists (select * from t2 where t2.b=t3.a);
 select * from t3 where not exists (select * from t2 where t2.b=t3.a);
 select * from t3 where a in (select b from t2);
 select * from t3 where a not in (select b from t2);
+select * from t3 where a = some (select b from t2);
+select * from t3 where a <> any (select b from t2);
+select * from t3 where a = all (select b from t2);
+select * from t3 where a <> all (select b from t2);
+insert into t2 values (100, 5);
+select * from t3 where a < any (select b from t2);
+select * from t3 where a < all (select b from t2);
+select * from t3 where a >= any (select b from t2);
+select * from t3 where a >= all (select b from t2);
+delete from t2 where a=100;
 -- error 1239
 select * from t3 where a in (select a,b from t2);
 -- error 1239
@@ -125,6 +135,13 @@ SELECT 1 IN (SELECT 1 FROM searchconthardwarefr3 HAVING a);
 SELECT * from searchconthardwarefr3 where topic IN (SELECT topic FROM searchconthardwarefr3 GROUP BY date);
 SELECT * from searchconthardwarefr3 where topic IN (SELECT topic FROM searchconthardwarefr3 GROUP BY date HAVING topic < 4100);
 SELECT * from searchconthardwarefr3 where topic IN (SELECT SUM(topic) FROM searchconthardwarefr3);
+SELECT * from searchconthardwarefr3 where topic = any (SELECT topic FROM searchconthardwarefr3 GROUP BY date);
+SELECT * from searchconthardwarefr3 where topic = any (SELECT topic FROM searchconthardwarefr3 GROUP BY date HAVING topic < 4100);
+SELECT * from searchconthardwarefr3 where topic = any (SELECT SUM(topic) FROM searchconthardwarefr3);
+SELECT * from searchconthardwarefr3 where topic = all (SELECT topic FROM searchconthardwarefr3 GROUP BY date);
+SELECT * from searchconthardwarefr3 where topic = all (SELECT topic FROM searchconthardwarefr3 GROUP BY date HAVING topic < 4100);
+SELECT * from searchconthardwarefr3 where topic = all (SELECT SUM(topic) FROM searchconthardwarefr3);
+SELECT * from searchconthardwarefr3 where topic <> any (SELECT SUM(topic) FROM searchconthardwarefr3);
 CREATE TABLE `forumconthardwarefr7` (
   `numeropost` mediumint(8) unsigned NOT NULL auto_increment,
   `maxnumrep` int(10) unsigned NOT NULL default '0',
