@@ -37,7 +37,16 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
+#include <sha1.h>
 #include "mysql.h"
+
+
+
+/* Character to use as version identifier for version 4.1 */
+#define PVERSION41_CHAR '*'
+
+
+
 
 
 void randominit(struct rand_struct *rand_st,ulong seed1, ulong seed2)
@@ -84,12 +93,67 @@ void hash_password(ulong *result, const char *password)
   return;
 }
 
-void make_scrambled_password(char *to,const char *password)
-{
-  ulong hash_res[2];
-  hash_password(hash_res,password);
-  sprintf(to,"%08lx%08lx",hash_res[0],hash_res[1]);
+
+
+
+
+void make_scrambled_password(char *to,const char *password,my_bool force_old_scramble)
+{ 
+  ulong hash_res[2];  /* Used for pre 4.1 password hashing */
+  static uint salt=0; /* Salt for 4.1 version password */
+  unsigned char* slt=(unsigned char*)&salt;
+  SHA1_CONTEXT context; 
+  uint8 digest[SHA1_HASH_SIZE];
+  if (force_old_scramble) /* Pre 4.1 password encryption */
+  {
+    hash_password(hash_res,password);
+    sprintf(to,"%08lx%08lx",hash_res[0],hash_res[1]);
+  }
+  else /* New password 4.1 password scrambling */ 
+  {
+    to[0]=PVERSION41_CHAR; /* New passwords have version prefix */
+    /* We do not need too strong salt generation so this should be enough */
+    salt+=getpid()+time(NULL)+0x01010101;
+    /* Use only 2 first bytes from it */ 
+    sprintf(&(to[1]),"%02x%02x",slt[0],slt[1]);
+    sha1_reset(&context);
+    /* Use Salt for Hash */
+    sha1_input(&context,(uint8*)&salt,2);
+    
+    for (; *password ; password++)
+    {
+      if (*password == ' ' || *password == '\t')
+        continue;/* skip space in password */
+      sha1_input(&context,(int8*)&password[0],1);	
+    }
+    sha1_result(&context,digest);
+    /* Hash one more time */
+    sha1_reset(&context);
+    sha1_input(&context,digest,SHA1_HASH_SIZE);
+    sha1_result(&context,digest);
+    /* Print resulting hash into the password*/
+    sprintf(&(to[5]),
+      "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+      digest[0],digest[1],digest[2],digest[3],digest[4],digest[5],digest[6],
+      digest[7],digest[8],digest[9],digest[10],digest[11],digest[12],digest[13],
+      digest[14],digest[15],digest[16],digest[17],digest[18],digest[19]);         
+  }
 }
+
+uint get_password_length(my_bool force_old_scramble)
+{
+  if (force_old_scramble)
+    return 16;
+  else return SHA1_HASH_SIZE*2+4+1;
+}
+
+uint8 get_password_version(const char* password)
+{
+  if (password==NULL) return 0;
+  if (password[0]==PVERSION41_CHAR) return PVERSION41_CHAR;
+  return 0;
+}
+
 
 inline uint char_val(char X)
 {
@@ -99,15 +163,27 @@ inline uint char_val(char X)
 }
 
 /*
-** This code assumes that len(password) is divideable with 8 and that
-** res is big enough (2 in mysql)
+** This code detects new version password by leading char. 
+** Old password has to be divisible by 8 length
+** do not forget to increase array length if you need longer passwords
 */
 
 void get_salt_from_password(ulong *res,const char *password)
 {
-  res[0]=res[1]=0;
+  bzero(res,5*sizeof(res[0]));
   if (password)
   {
+    if (password[0]==PVERSION41_CHAR) // if new password
+    {
+      uint val=0;
+      uint i;
+      password++; // skip version identifier.
+      //get hashing salt from password and store in in the start of array
+      
+      for (i=0 ; i < 4 ; i++)
+	val=(val << 4)+char_val(*password++);
+      *res++=val; 
+    }
     while (*password)
     {
       ulong val=0;
@@ -115,13 +191,14 @@ void get_salt_from_password(ulong *res,const char *password)
       for (i=0 ; i < 8 ; i++)
 	val=(val << 4)+char_val(*password++);
       *res++=val;
-    }
+    }    
   }
   return;
 }
 
 void make_password_from_salt(char *to, ulong *hash_res)
 {
+  // warning this does not work for new passwords yet
   sprintf(to,"%08lx%08lx",hash_res[0],hash_res[1]);
 }
 

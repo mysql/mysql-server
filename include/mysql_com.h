@@ -97,6 +97,7 @@ enum enum_server_command
 #define CLIENT_IGNORE_SIGPIPE   4096     /* IGNORE sigpipes */
 #define CLIENT_TRANSACTIONS	8192	/* Client knows about transactions */
 #define CLIENT_PROTOCOL_41       16384   /* New 4.1 protocol  */
+#define CLIENT_SECURE_CONNECTION 32768   /* New 4.1 authentication */
 
 #define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
 #define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
@@ -279,7 +280,9 @@ extern unsigned long net_buffer_length;
 void randominit(struct rand_struct *,unsigned long seed1,
 		unsigned long seed2);
 double rnd(struct rand_struct *);
-void make_scrambled_password(char *to,const char *password);
+void make_scrambled_password(char *to,const char *password,my_bool force_old_scramble);
+uint get_password_length(my_bool force_old_scramble);
+uint8 get_password_version(const char* password);
 void get_salt_from_password(unsigned long *res,const char *password);
 void make_password_from_salt(char *to, unsigned long *hash_res);
 char *scramble(char *to,const char *message,const char *password,
