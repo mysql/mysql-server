@@ -561,9 +561,9 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
     *min_str++= *max_str++ = *ptr;
   }
 
- *min_length= *max_length = (uint) (min_str - min_org);
+  *min_length= *max_length = (uint) (min_str - min_org);
   while (min_str != min_end)
-    *min_str++= *max_str= ' ';            /* Because if key compression */
+    *min_str++= *max_str++= ' ';           /* Because if key compression */
   return 0;
 }
 
