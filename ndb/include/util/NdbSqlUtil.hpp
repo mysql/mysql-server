@@ -37,17 +37,23 @@ public:
                         const char* s2, unsigned n2, bool padded);
 
   /**
-   * Compare kernel attribute values.  Returns -1, 0, +1 for less,
-   * equal, greater, respectively.  Parameters are pointers to values,
-   * full attribute size in words, and size of available data in words.
-   * There is also pointer to type specific extra info.  Char types
-   * receive CHARSET_INFO in it.
+   * Compare attribute values.  Returns -1, 0, +1 for less, equal,
+   * greater, respectively.  Parameters are pointers to values and their
+   * lengths in bytes.  The lengths can differ.
    *
-   * If available size is less than full size, CmpUnknown may be
-   * returned.  If a value cannot be parsed, it compares like NULL i.e.
-   * less than any valid value.
+   * First value is a full value but second value can be partial.  If
+   * the partial value is not enough to determine the result, CmpUnknown
+   * will be returned.  A shorter second value is not necessarily
+   * partial.  Partial values are allowed only for types where prefix
+   * comparison is possible (basically, binary types).
+   *
+   * First parameter is a pointer to type specific extra info.  Char
+   * types receive CHARSET_INFO in it.
+   *
+   * If a value cannot be parsed, it compares like NULL i.e. less than
+   * any valid value.
    */
-  typedef int Cmp(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size);
+  typedef int Cmp(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full);
 
   enum CmpResult {
     CmpLess = -1,

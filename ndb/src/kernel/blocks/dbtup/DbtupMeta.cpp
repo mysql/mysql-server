@@ -364,13 +364,8 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       ndbrequire(false);
     }//if
     if (csNumber != 0) { 
-      CHARSET_INFO* cs = get_charset(csNumber, MYF(0));
-      if (cs == NULL) {
-        ljam();
-        terrorCode = TupAddAttrRef::InvalidCharset;
-        addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
-        return;
-      }
+      CHARSET_INFO* cs = all_charsets[csNumber];
+      ndbrequire(cs != NULL);
       Uint32 i = 0;
       while (i < fragOperPtr.p->charsetIndex) {
         ljam();
