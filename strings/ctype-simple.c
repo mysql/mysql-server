@@ -244,3 +244,33 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
     nr2[0]+=3;
   }
 }
+
+long        my_strtol_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtol(s,e,base);
+}
+
+ulong      my_strtoul_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoul(s,e,base);
+}
+
+longlong   my_strtoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoll(s,e,base);
+}
+
+ulonglong my_strtoull_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoul(s,e,base);
+}
+
+double      my_strtod_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e)
+{
+  return strtod(s,e);
+}

@@ -118,6 +118,12 @@ typedef struct charset_info_st
   /* Charset dependant snprintf() */
   int (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
   
+  long        (*strtol)(struct charset_info_st *, const char *s, char **e, int base);
+  ulong      (*strtoul)(struct charset_info_st *, const char *s, char **e, int base);
+  longlong   (*strtoll)(struct charset_info_st *, const char *s, char **e, int base);
+  ulonglong (*strtoull)(struct charset_info_st *, const char *s, char **e, int base);
+  double      (*strtod)(struct charset_info_st *, const char *s, char **e);
+  
 } CHARSET_INFO;
 
 
@@ -155,6 +161,13 @@ int my_mb_wc_8bit(CHARSET_INFO *cs,my_wc_t *wc, const uchar *s,const uchar *e);
 int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 
 int my_snprintf_8bit(struct charset_info_st *, char *to, uint n, const char *fmt, ...);
+
+long        my_strtol_8bit(CHARSET_INFO *, const char *s, char **e, int base);
+ulong      my_strtoul_8bit(CHARSET_INFO *, const char *s, char **e, int base);
+longlong   my_strtoll_8bit(CHARSET_INFO *, const char *s, char **e, int base);
+ulonglong my_strtoull_8bit(CHARSET_INFO *, const char *s, char **e, int base);
+double      my_strtod_8bit(CHARSET_INFO *, const char *s, char **e);
+  
 
 
 #ifdef USE_MB
