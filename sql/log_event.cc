@@ -24,20 +24,24 @@
 #endif /* MYSQL_CLIENT */
 
 #ifdef MYSQL_CLIENT
-static void pretty_print_char(FILE* file, int c)
+static void pretty_print_str(FILE* file, char* str, int len)
 {
+  char* end = str + len;
   fputc('\'', file);
-  switch(c) {
-  case '\n': fprintf(file, "\\n"); break;
-  case '\r': fprintf(file, "\\r"); break;
-  case '\\': fprintf(file, "\\\\"); break;
-  case '\b': fprintf(file, "\\b"); break;
-  case '\t': fprintf(file, "\\t"); break;
-  case '\'': fprintf(file, "\\'"); break;
-  case 0   : fprintf(file, "\\0"); break;
-  default:
-    fputc(c, file);
-    break;
+  while (str < end)
+  {
+    switch ((c=*str++)) {
+    case '\n': fprintf(file, "\\n"); break;
+    case '\r': fprintf(file, "\\r"); break;
+    case '\\': fprintf(file, "\\\\"); break;
+    case '\b': fprintf(file, "\\b"); break;
+    case '\t': fprintf(file, "\\t"); break;
+    case '\'': fprintf(file, "\\'"); break;
+    case 0   : fprintf(file, "\\0"); break;
+    default:
+      fputc(c, file);
+      break;
+    }
   }
   fputc('\'', file);
 }
@@ -46,20 +50,25 @@ static void pretty_print_char(FILE* file, int c)
 #ifndef MYSQL_CLIENT
 
 
-static void pretty_print_char(String* packet, int c)
+static void pretty_print_str(String* packet, char* str, int len)
 {
+  char* end = str + len;
   packet->append('\'');
-  switch(c) {
-  case '\n': packet->append( "\\n"); break;
-  case '\r': packet->append( "\\r"); break;
-  case '\\': packet->append( "\\\\"); break;
-  case '\b': packet->append( "\\b"); break;
-  case '\t': packet->append( "\\t"); break;
-  case '\'': packet->append( "\\'"); break;
-  case 0   : packet->append( "\\0"); break;
-  default:
-    packet->append((char)c);
-    break;
+  while (str < end)
+  {
+    char c;
+    switch((c=*str++)) {
+    case '\n': packet->append( "\\n"); break;
+    case '\r': packet->append( "\\r"); break;
+    case '\\': packet->append( "\\\\"); break;
+    case '\b': packet->append( "\\b"); break;
+    case '\t': packet->append( "\\t"); break;
+    case '\'': packet->append( "\\'"); break;
+    case 0   : packet->append( "\\0"); break;
+    default:
+      packet->append((char)c);
+      break;
+    }
   }
   packet->append('\'');
 }
@@ -88,6 +97,7 @@ const char* Log_event::get_type_str()
   case ROTATE_EVENT: return "Rotate";
   case INTVAR_EVENT: return "Intvar";
   case LOAD_EVENT:   return "Load";
+  case NEW_LOAD_EVENT:   return "New_load";
   case SLAVE_EVENT:  return "Slave";
   case CREATE_FILE_EVENT: return "Create_file";
   case APPEND_BLOCK_EVENT: return "Append_block";
@@ -201,36 +211,36 @@ void Load_log_event::pack_info(String* packet)
   
   tmp.append("INTO TABLE ");
   tmp.append(table_name);
-  if (!(sql_ex.empty_flags & FIELD_TERM_EMPTY))
+  if (sql_ex.field_term_len)
   {
     tmp.append(" FIELDS TERMINATED BY ");
-    pretty_print_char(&tmp, sql_ex.field_term);
+    pretty_print_str(&tmp, sql_ex.field_term, sql_ex.field_term_len);
   }
 
-  if (!(sql_ex.empty_flags & ENCLOSED_EMPTY))
+  if (sql_ex.enclosed_len)
   {
     if (sql_ex.opt_flags && OPT_ENCLOSED_FLAG )
       tmp.append(" OPTIONALLY ");
     tmp.append( " ENCLOSED BY ");
-    pretty_print_char(&tmp, sql_ex.enclosed);
+    pretty_print_str(&tmp, sql_ex.enclosed, sql_ex.enclosed_len);
   }
      
-  if (!(sql_ex.empty_flags & ESCAPED_EMPTY))
+  if (sql_ex.escaped_len)
   {
     tmp.append( " ESCAPED BY ");
-    pretty_print_char(&tmp, sql_ex.escaped);
+    pretty_print_str(&tmp, sql_ex.escaped, sql_ex.escaped_len);
   }
      
-  if (!(sql_ex.empty_flags & LINE_TERM_EMPTY))
+  if (sql_ex.line_term_len)
   {
     tmp.append(" LINES TERMINATED BY ");
-    pretty_print_char(&tmp, sql_ex.line_term);
+    pretty_print_str(&tmp, sql_ex.line_term, sql_ex.line_term_len);
   }
 
-  if (!(sql_ex.empty_flags & LINE_START_EMPTY))
+  if (sql_ex.line_start_len)
   {
     tmp.append(" LINES STARTING BY ");
-    pretty_print_char(&tmp, sql_ex.line_start);
+    pretty_print_str(&tmp, sql_ex.line_start, sql_ex.line_start_len);
   }
      
   if ((int)skip_lines > 0)
@@ -443,13 +453,14 @@ Log_event* Log_event::read_log_event(IO_CACHE* file)
     error = "Event too small";
     goto err;
   }
-  
-  if (!(buf = my_malloc(data_len, MYF(MY_WME))))
+
+  // some events use the extra byte to null-terminate strings
+  if (!(buf = my_malloc(data_len+1, MYF(MY_WME))))
   {
     error = "Out of memory";
     goto err;
   }
-
+  buf[data_len] = 0;
   memcpy(buf, head, LOG_EVENT_HEADER_LEN);
   if(my_b_read(file, (byte*) buf + LOG_EVENT_HEADER_LEN,
 	       data_len - LOG_EVENT_HEADER_LEN))
@@ -483,6 +494,7 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len)
     ev  = new Query_log_event(buf, event_len);
     break;
   case LOAD_EVENT:
+  case NEW_LOAD_EVENT:
     ev = new Load_log_event(buf, event_len);
     break;
   case ROTATE_EVENT:
@@ -784,12 +796,12 @@ int Load_log_event::write_data_header(IO_CACHE* file)
   buf[L_TBL_LEN_OFFSET] = (char)table_name_len;
   buf[L_DB_LEN_OFFSET] = (char)db_len;
   int4store(buf + L_NUM_FIELDS_OFFSET, num_fields);
-  memcpy(buf + L_SQL_EX_OFFSET, &sql_ex, sizeof(sql_ex));
   return my_b_write(file, (byte*)buf, LOAD_HEADER_LEN);
 }
 
 int Load_log_event::write_data_body(IO_CACHE* file)
 {
+  if (sql_ex.write_data(file)) return 1;
   if (num_fields && fields && field_lens)
   {
     if(my_b_write(file, (byte*)field_lens, num_fields) ||
@@ -801,6 +813,76 @@ int Load_log_event::write_data_body(IO_CACHE* file)
     my_b_write(file, (byte*)fname, fname_len);
 }
 
+#define WRITE_STR(name) my_b_write(file,(byte*)&name ## _len, 1) || \
+   my_b_write(file,(byte*)name,name ## _len)
+#define OLD_EX_INIT(name) old_ex.##name = *name
+
+int sql_ex_info::write_data(IO_CACHE* file)
+{
+  if (new_format())
+  {
+    return WRITE_STR(field_term) || WRITE_STR(enclosed) ||
+      WRITE_STR(line_term) || WRITE_STR(line_start) ||
+      WRITE_STR(escaped) || my_b_write(file,(byte*)&opt_flags,1);
+  }
+  else
+  {
+    old_sql_ex old_ex;
+    OLD_EX_INIT(field_term);
+    OLD_EX_INIT(enclosed);
+    OLD_EX_INIT(line_term);
+    OLD_EX_INIT(line_start);
+    OLD_EX_INIT(escaped);
+    old_ex.opt_flags = opt_flags;
+    old_ex.empty_flags = empty_flags;
+    return my_b_write(file,(byte*)&old_ex,sizeof(old_ex));
+  }
+}
+
+#define READ_STR(name) name ## _len = *buf++;\
+ if (buf >= buf_end) return 0;\
+ name = buf; \
+ buf += name ## _len; \
+ if (buf >= buf_end) return 0;
+
+#define READ_OLD_STR(name) name ## _len = 1; \
+  name = buf++; \
+  if (buf >= buf_end) return 0; 
+
+#define FIX_OLD_LEN(name,NAME) if (empty_flags & NAME ## _EMPTY) \
+  name ## _len = 0
+
+char* sql_ex_info::init(char* buf,char* buf_end,bool use_new_format)
+{
+  cached_new_format = use_new_format;
+  if (use_new_format)
+  {
+    READ_STR(field_term);
+    READ_STR(enclosed);
+    READ_STR(line_term);
+    READ_STR(line_start);
+    READ_STR(escaped);
+    opt_flags = *buf++;
+  }
+  else
+  {
+    READ_OLD_STR(field_term);
+    READ_OLD_STR(enclosed);
+    READ_OLD_STR(line_term);
+    READ_OLD_STR(line_start);
+    READ_OLD_STR(escaped);
+    opt_flags = *buf++;
+    empty_flags = *buf++;
+    FIX_OLD_LEN(field_term,FIELD_TERM);
+    FIX_OLD_LEN(enclosed,ENCLOSED);
+    FIX_OLD_LEN(line_term,LINE_TERM);
+    FIX_OLD_LEN(line_start,LINE_START);
+    FIX_OLD_LEN(escaped,ESCAPED);
+  }
+  return buf;
+}
+
+
 #ifndef MYSQL_CLIENT
 Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
 			       const char* db_arg, const char* table_name_arg,
@@ -809,7 +891,7 @@ Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
     num_fields(0),fields(0),field_lens(0),field_block_len(0),
     table_name(table_name_arg),
     db(db_arg),
-    fname(ex->file_name),fname_null_term(1)
+    fname(ex->file_name)
   {
     time_t end_time;
     time(&end_time);
@@ -817,12 +899,19 @@ Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
     db_len = (db) ? (uint32) strlen(db) : 0;
     table_name_len = (table_name) ? (uint32) strlen(table_name) : 0;
     fname_len = (fname) ? (uint) strlen(fname) : 0;
-    sql_ex.field_term = (*ex->field_term)[0];
-    sql_ex.enclosed = (*ex->enclosed)[0];
-    sql_ex.line_term = (*ex->line_term)[0];
-    sql_ex.line_start = (*ex->line_start)[0];
-    sql_ex.escaped = (*ex->escaped)[0];
+    sql_ex.field_term = (char*)ex->field_term->ptr();
+    sql_ex.field_term_len = ex->field_term->length();
+    sql_ex.enclosed = (char*)ex->enclosed->ptr();
+    sql_ex.enclosed_len = ex->enclosed->length();
+    sql_ex.line_term = (char*)ex->line_term->ptr();
+    sql_ex.line_term_len = ex->line_term->length();
+    sql_ex.line_start = (char*)ex->line_start->ptr();
+    sql_ex.line_start_len = ex->line_start->length();
+    sql_ex.escaped = (char*)ex->escaped->ptr();
+    sql_ex.escaped_len = ex->escaped->length();
     sql_ex.opt_flags = 0;
+    sql_ex.cached_new_format = -1;
+    
     if(ex->dumpfile)
       sql_ex.opt_flags |= DUMPFILE_FLAG;
     if(ex->opt_enclosed)
@@ -836,6 +925,7 @@ Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
       case DUP_REPLACE: sql_ex.opt_flags |= REPLACE_FLAG; break;
       case DUP_ERROR: break;	
       }
+
 
     if(!ex->field_term->length())
       sql_ex.empty_flags |= FIELD_TERM_EMPTY;
@@ -869,10 +959,12 @@ Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
 
 #endif
 
+// the caller must do buf[event_len] = 0 before he starts using the
+// constructed event
 Load_log_event::Load_log_event(const char* buf, int event_len):
   Log_event(buf),num_fields(0),fields(0),
   field_lens(0),field_block_len(0),
-  table_name(0),db(0),fname(0),fname_null_term(0)
+  table_name(0),db(0),fname(0)
 {
   if (!event_len) // derived class, will call copy_log_event() itself
     return;
@@ -882,12 +974,7 @@ Load_log_event::Load_log_event(const char* buf, int event_len):
 int Load_log_event::copy_log_event(const char *buf, ulong event_len)
 {
   uint data_len;
-  int body_offset = get_data_body_offset();
-  if((int)event_len < body_offset)
-    return 1;
-  memcpy(&sql_ex, buf + L_SQL_EX_OFFSET + LOG_EVENT_HEADER_LEN,
-	 sizeof(sql_ex));
-  data_len = event_len - body_offset;
+  char* buf_end = (char*)buf + event_len;
   thread_id = uint4korr(buf + L_THREAD_ID_OFFSET + LOG_EVENT_HEADER_LEN);
   exec_time = uint4korr(buf + L_EXEC_TIME_OFFSET + LOG_EVENT_HEADER_LEN);
   skip_lines = uint4korr(buf + L_SKIP_LINES_OFFSET + LOG_EVENT_HEADER_LEN);
@@ -895,9 +982,19 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len)
   db_len = (uint)buf[L_DB_LEN_OFFSET + LOG_EVENT_HEADER_LEN];
   num_fields = uint4korr(buf + L_NUM_FIELDS_OFFSET + LOG_EVENT_HEADER_LEN);
 	  
+  int body_offset = get_data_body_offset();
+  if ((int)event_len < body_offset)
+    return 1;
+  //sql_ex.init() on success returns the pointer to the first byte after
+  //the sql_ex structure, which is the start of field lengths array
+  if (!(field_lens=(uchar*)sql_ex.init((char*)buf + body_offset,
+		  buf_end,
+		  buf[EVENT_TYPE_OFFSET] != LOAD_EVENT)))
+    return 1;
+  
+  data_len = event_len - body_offset;
   if (num_fields > data_len) // simple sanity check against corruption
     return 1;
-  field_lens = (uchar*)buf + body_offset;
   uint i;
   for (i = 0; i < num_fields; i++)
   {
@@ -907,9 +1004,9 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len)
   table_name  = fields + field_block_len;
   db = table_name + table_name_len + 1;
   fname = db + db_len + 1;
-  fname_len = (get_type_code() == LOAD_EVENT) ?
-    data_len - 2 - db_len - table_name_len - num_fields - field_block_len :
-    strlen(fname);
+  int type_code = get_type_code();
+  fname_len = strlen(fname);
+  // null termination is accomplished by the caller doing buf[event_len]=0
   return 0;
 }
 
@@ -943,36 +1040,36 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
     fprintf(file," IGNORE ");
   
   fprintf(file, "INTO TABLE %s ", table_name);
-  if(!(sql_ex.empty_flags & FIELD_TERM_EMPTY))
+  if(sql_ex.field_term)
   {
     fprintf(file, " FIELDS TERMINATED BY ");
-    pretty_print_char(file, sql_ex.field_term);
+    pretty_print_str(file, sql_ex.field_term, sql_ex.field_term_len);
   }
 
-  if(!(sql_ex.empty_flags & ENCLOSED_EMPTY))
+  if(sql_ex.enclosed)
   {
     if(sql_ex.opt_flags && OPT_ENCLOSED_FLAG )
       fprintf(file," OPTIONALLY ");
     fprintf(file, " ENCLOSED BY ");
-    pretty_print_char(file, sql_ex.enclosed);
+    pretty_print_str(file, sql_ex.enclosed, sql_ex.enclosed_len);
   }
      
-  if(!(sql_ex.empty_flags & ESCAPED_EMPTY))
+  if (sql_ex.escaped)
   {
     fprintf(file, " ESCAPED BY ");
-    pretty_print_char(file, sql_ex.escaped);
+    pretty_print_str(file, sql_ex.escaped, sql_ex.escaped_len);
   }
      
-  if(!(sql_ex.empty_flags & LINE_TERM_EMPTY))
+  if (sql_ex.line_term)
   {
     fprintf(file," LINES TERMINATED BY ");
-    pretty_print_char(file, sql_ex.line_term);
+    pretty_print_str(file, sql_ex.line_term, sql_ex.line_term_len);
   }
 
-  if(!(sql_ex.empty_flags & LINE_START_EMPTY))
+  if (sql_ex.line_start)
   {
     fprintf(file," LINES STARTING BY ");
-    pretty_print_char(file, sql_ex.line_start);
+    pretty_print_str(file, sql_ex.line_start, sql_ex.line_start_len);
   }
      
   if((int)skip_lines > 0)
@@ -1119,6 +1216,7 @@ Create_file_log_event::Create_file_log_event(THD* thd_arg, sql_exchange* ex,
  fake_base(0),block(block_arg),block_len(block_len_arg),
   file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
 {
+  sql_ex.force_new_format();
 }
 #endif
 
@@ -1155,12 +1253,11 @@ Create_file_log_event::Create_file_log_event(const char* buf, int len):
   int block_offset;
   if (copy_log_event(buf,len))
     return;
-  fname_null_term = 1;
   file_id = uint4korr(buf + LOG_EVENT_HEADER_LEN +
 		      + LOAD_HEADER_LEN + CF_FILE_ID_OFFSET);
   block_offset = LOG_EVENT_HEADER_LEN + Load_log_event::get_data_size() +
     CREATE_FILE_HEADER_LEN + 1; // 1 for \0 terminating fname  
-  if(len < block_offset)
+  if (len < block_offset)
     return;
   block = (char*)buf + block_offset;
   block_len = len - block_offset;
@@ -1443,46 +1540,20 @@ int Load_log_event::exec_event(NET* net, struct st_master_info* mi)
     {
       char llbuff[22];
       enum enum_duplicates handle_dup = DUP_IGNORE;
-      char fname_buf[FN_REFLEN+1], *fname_p;
-      if (fname_null_term)
-	fname_p = (char*)fname;
-      else
-      {
-	int len = min(FN_REFLEN,fname_len);
-	memcpy(fname_buf,fname,len);
-	fname_buf[len] = 0;
-	fname_p = fname_buf;
-      }
       if(sql_ex.opt_flags && REPLACE_FLAG)
 	handle_dup = DUP_REPLACE;
-      sql_exchange ex(fname_p, sql_ex.opt_flags &&
+      sql_exchange ex((char*)fname, sql_ex.opt_flags &&
 		      DUMPFILE_FLAG );
-      String field_term(&sql_ex.field_term, 1),
-	enclosed(&sql_ex.enclosed, 1),
-	line_term(&sql_ex.line_term,1),
-	escaped(&sql_ex.escaped, 1),
-	line_start(&sql_ex.line_start, 1);
+      
+#define SET_EX(name) String name(sql_ex.name,sql_ex.name ## _len);\
+ ex.name = &name;
+
+      SET_EX(field_term);
+      SET_EX(enclosed);
+      SET_EX(line_term);
+      SET_EX(line_start);
+      SET_EX(escaped);
 	    
-      ex.field_term = &field_term;
-      if(sql_ex.empty_flags & FIELD_TERM_EMPTY)
-	ex.field_term->length(0);
-	    
-      ex.enclosed = &enclosed;
-      if(sql_ex.empty_flags & ENCLOSED_EMPTY)
-	ex.enclosed->length(0);
-
-      ex.line_term = &line_term;
-      if(sql_ex.empty_flags & LINE_TERM_EMPTY)
-	ex.line_term->length(0);
-
-      ex.line_start = &line_start;
-      if(sql_ex.empty_flags & LINE_START_EMPTY)
-	ex.line_start->length(0);
-
-      ex.escaped = &escaped;
-      if(sql_ex.empty_flags & ESCAPED_EMPTY)
-	ex.escaped->length(0);
-
       ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
       if(sql_ex.empty_flags & FIELD_TERM_EMPTY)
 	ex.field_term->length(0);
@@ -1528,7 +1599,7 @@ int Load_log_event::exec_event(NET* net, struct st_master_info* mi)
       sql_error = ER_UNKNOWN_ERROR;
 		
     slave_print_error(sql_error, "Slave: Error '%s' running load data infile ",
-		    ER(sql_error));
+		    ER_SAFE(sql_error));
     free_root(&thd->mem_root,0);
     return 1;
   }
@@ -1745,7 +1816,7 @@ int Execute_load_log_event::exec_event(struct st_master_info* mi)
     goto err;
   }
   if (!(lev = (Load_log_event*)Log_event::read_log_event(&file,0))
-      || lev->get_type_code() != LOAD_EVENT)
+      || lev->get_type_code() != NEW_LOAD_EVENT)
   {
     slave_print_error(0, "File '%s' appears corrupted", fname);
     goto err;
