@@ -128,7 +128,8 @@ int compare_prep_stmt(void *not_used, PREP_STMT *stmt, ulong *key)
 */
 
 void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used)
-{   
+{     
+  my_free((char *)stmt->param, MYF(MY_ALLOW_ZERO_PTR));
   free_items(stmt->free_list);
   free_root(&stmt->mem_root, MYF(0));
 }
@@ -319,7 +320,7 @@ static void setup_param_date(Item_param *param, uchar **pos)
     uchar *to= *pos;
     TIME tm;
 
-    tm.year =  (uint) sint2korr(to);
+    tm.year=  (uint) sint2korr(to);
     tm.month=  (uint) to[2];
     tm.day= (uint) to[3];
 
@@ -344,44 +345,44 @@ static void setup_param_functions(Item_param *param, uchar param_type)
   switch (param_type) {
   case FIELD_TYPE_TINY:
     param->setup_param_func= setup_param_tiny;
-    param->item_result_type = INT_RESULT;
+    param->item_result_type= INT_RESULT;
     break;
   case FIELD_TYPE_SHORT:
     param->setup_param_func= setup_param_short;
-    param->item_result_type = INT_RESULT;
+    param->item_result_type= INT_RESULT;
     break;
   case FIELD_TYPE_LONG:
     param->setup_param_func= setup_param_int32;
-    param->item_result_type = INT_RESULT;
+    param->item_result_type= INT_RESULT;
     break;
   case FIELD_TYPE_LONGLONG:
     param->setup_param_func= setup_param_int64;
-    param->item_result_type = INT_RESULT;
+    param->item_result_type= INT_RESULT;
     break;
   case FIELD_TYPE_FLOAT:
     param->setup_param_func= setup_param_float;
-    param->item_result_type = REAL_RESULT;
+    param->item_result_type= REAL_RESULT;
     break;
   case FIELD_TYPE_DOUBLE:
     param->setup_param_func= setup_param_double;
-    param->item_result_type = REAL_RESULT;
+    param->item_result_type= REAL_RESULT;
     break;
   case FIELD_TYPE_TIME:
     param->setup_param_func= setup_param_time;
-    param->item_result_type = STRING_RESULT;
+    param->item_result_type= STRING_RESULT;
     break;
   case FIELD_TYPE_DATE:
     param->setup_param_func= setup_param_date;
-    param->item_result_type = STRING_RESULT;
+    param->item_result_type= STRING_RESULT;
     break;
   case FIELD_TYPE_DATETIME:
   case FIELD_TYPE_TIMESTAMP:
     param->setup_param_func= setup_param_datetime;
-    param->item_result_type = STRING_RESULT;
+    param->item_result_type= STRING_RESULT;
     break;
   default:
     param->setup_param_func= setup_param_str;
-    param->item_result_type = STRING_RESULT;
+    param->item_result_type= STRING_RESULT;
   }
 }
 
@@ -454,7 +455,7 @@ static bool mysql_test_insert_fields(PREP_STMT *stmt,
   List_item *values;
   DBUG_ENTER("mysql_test_insert_fields");
 
-  if (!(table = open_ltable(thd,table_list,table_list->lock_type)))
+  if (!(table= open_ltable(thd,table_list,table_list->lock_type)))
     DBUG_RETURN(1);
 
   if ((values= its++))
@@ -591,7 +592,7 @@ static bool send_prepare_results(PREP_STMT *stmt)
 {   
   THD *thd= stmt->thd;
   LEX *lex= &thd->lex;
-  enum enum_sql_command sql_command = thd->lex.sql_command;
+  enum enum_sql_command sql_command= thd->lex.sql_command;
   DBUG_ENTER("send_prepare_results");
   DBUG_PRINT("enter",("command: %d, param_count: %ld",
                       sql_command, lex->param_count));
@@ -601,7 +602,7 @@ static bool send_prepare_results(PREP_STMT *stmt)
   stmt->free_list= thd->free_list;		// Save items used in stmt
   thd->free_list= 0;
 
-  SELECT_LEX *select_lex = &lex->select_lex;
+  SELECT_LEX *select_lex= &lex->select_lex;
   TABLE_LIST *tables=(TABLE_LIST*) select_lex->table_list.first;
   
   switch (sql_command) {
@@ -688,13 +689,18 @@ static bool init_param_items(PREP_STMT *stmt)
 {
   List<Item> &params= stmt->thd->lex.param_list;
   Item_param **to;
-  
-  if (!(stmt->param= to= (Item_param **)
-        my_malloc(sizeof(Item_param *)*(stmt->param_count+1), 
-                  MYF(MY_WME))))
-    return 1;
-  List_iterator<Item> param_iterator(params);
-  while ((*(to++) = (Item_param *)param_iterator++));
+ 
+  if (!stmt->param_count)
+    stmt->param= (Item_param **)0;
+  else
+  {
+    if (!(stmt->param= to= (Item_param **)
+          my_malloc(sizeof(Item_param *)*(stmt->param_count+1), 
+                    MYF(MY_WME))))
+      return 1;
+    List_iterator<Item> param_iterator(params);
+    while ((*(to++)= (Item_param *)param_iterator++));
+  }
   return 0;
 }
 
@@ -732,7 +738,7 @@ static void init_stmt_execute(PREP_STMT *stmt)
 
 bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 {
-  MEM_ROOT thd_root = thd->mem_root;
+  MEM_ROOT thd_root= thd->mem_root;
   PREP_STMT stmt;
   DBUG_ENTER("mysql_stmt_prepare");
 
@@ -764,7 +770,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 err:
   stmt.mem_root= stmt.thd->mem_root;  
   free_prep_stmt(&stmt, free_free, (void*) 0);
-  thd->mem_root = thd_root;	// restore main mem_root
+  thd->mem_root= thd_root;	// restore main mem_root
   DBUG_RETURN(1);
 }
 
@@ -884,9 +890,8 @@ void mysql_stmt_free(THD *thd, char *packet)
     send_error(thd); // Not seen by the client
     DBUG_VOID_RETURN;
   }
-  my_free((char *)stmt->param, MYF(MY_ALLOW_ZERO_PTR));
-  tree_delete(&thd->prepared_statements, (void*) &stmt, (void *)0);
-  thd->last_prepared_stmt=0;
+  tree_delete(&thd->prepared_statements, (void*) &stmt_id, (void *)0);
+  thd->last_prepared_stmt= (PREP_STMT *)0;
   DBUG_VOID_RETURN;
 }
 
