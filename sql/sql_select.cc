@@ -1648,8 +1648,8 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   {
     select->head=table;
     table->reginfo.impossible_range=0;
-    if ((error=select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,limit))
-	== 1)
+    if ((error=select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,
+					 limit)) == 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
     {
@@ -7212,9 +7212,12 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
   table->sort.found_records=filesort(thd, table,sortorder, length,
                                      select, filesort_limit, &examined_rows);
-  tab->records=table->sort.found_records;		// For SQL_CALC_ROWS
-  delete select;				// filesort did select
-  tab->select=0;
+  tab->records=table->sort.found_records;	// For SQL_CALC_ROWS
+  if (select)
+  {
+    select->cleanup();				// filesort did select
+    tab->select= 0;
+  }
   tab->select_cond=0;
   tab->type=JT_ALL;				// Read with normal read_record
   tab->read_first_record= join_init_read_record;
