@@ -1020,6 +1020,8 @@ public:
   bool walk(Item_processor processor, byte *arg);
   Item *transform(Item_transformer transformer, byte *arg);
   void print(String *str);
+  CHARSET_INFO *compare_collation() 
+  { return fields.head()->collation.collation; }
 }; 
 
 class COND_EQUAL
