@@ -367,6 +367,7 @@ void Field_decimal::store(const char *from,uint len)
   /* The pointer where the field value starts (i.e., "where to write") */
   char *to=ptr;
   uint tmp_dec, tmp_uint;
+  ulonglong tmp_ulonglong;
   /*
     The sign of the number : will be 0 (means positive but sign not
     specified), '+' or '-'
@@ -380,7 +381,8 @@ void Field_decimal::store(const char *from,uint len)
   const char *frac_digits_from, *frac_digits_end;
  /* The sign of the exponent : will be 0 (means no exponent), '+' or '-' */
   char expo_sign_char=0;
-  uint exponent=0;				// value of the exponent
+  uint exponent=0;                              // value of the exponent
+  ulonglong exponent_ulonglong=0;
   /*
     Pointers used when digits move from the left of the '.' to the
     right of the '.' (explained below)
@@ -474,13 +476,23 @@ void Field_decimal::store(const char *from,uint len)
     else
       expo_sign_char= '+';
     /*
-      Read digits of the exponent and compute its value
-      'exponent' overflow (e.g. if 1E10000000000000000) is not a problem
-      (the value of the field will be overflow anyway, or 0 anyway, 
-      it does not change anything if the exponent is 2^32 or more
+     Read digits of the exponent and compute its value.
+     We must care about 'exponent' overflow, because as
+     unsigned arithmetic is "modulo", big exponents
+     will become small (e.g.
+     1e4294967296 will become 1e0, and the field
+     will finally contain 1 instead of its max possible value).
     */
-    for (;from!=end && isdigit(*from); from++) 
-      exponent=10*exponent+(*from-'0');
+    for (;from!=end && isdigit(*from); from++)
+    {
+      exponent_ulonglong=10*exponent_ulonglong+(ulonglong)(*from-'0');
+      if (exponent_ulonglong>(ulonglong)UINT_MAX)
+      {
+        exponent_ulonglong=(ulonglong)UINT_MAX;
+        break;
+      }
+    }
+    exponent=(uint)(exponent_ulonglong);
   }
   
   /*
@@ -521,15 +533,22 @@ void Field_decimal::store(const char *from,uint len)
       int_digits_added_zeros=2 (to make 1234500).
   */
   
+  /* 
+     Below tmp_ulongulong cannot overflow,
+     as int_digits_added_zeros<=exponent<4G and 
+     (ulonglong)(int_digits_end-int_digits_from)<=max_allowed_packet<=2G and
+     (ulonglong)(frac_digits_from-int_digits_tail_from)<=max_allowed_packet<=2G
+  */
+
   if (!expo_sign_char)
-    tmp_uint=tmp_dec+(uint)(int_digits_end-int_digits_from);
+    tmp_ulonglong=(ulonglong)tmp_dec+(ulonglong)(int_digits_end-int_digits_from);
   else if (expo_sign_char == '-') 
   {
     tmp_uint=min(exponent,(uint)(int_digits_end-int_digits_from));
     frac_digits_added_zeros=exponent-tmp_uint;
     int_digits_end -= tmp_uint;
     frac_digits_head_end=int_digits_end+tmp_uint;
-    tmp_uint=tmp_dec+(uint)(int_digits_end-int_digits_from);	
+    tmp_ulonglong=(ulonglong)tmp_dec+(ulonglong)(int_digits_end-int_digits_from);     
   }
   else // (expo_sign_char=='+') 
   {
@@ -556,9 +575,9 @@ void Field_decimal::store(const char *from,uint len)
 	int_digits_added_zeros=0;
       }
     }
-    tmp_uint=(tmp_dec+(uint)(int_digits_end-int_digits_from)
-	      +(uint)(frac_digits_from-int_digits_tail_from)+
-	      int_digits_added_zeros);
+    tmp_ulonglong=(ulonglong)tmp_dec+(ulonglong)(int_digits_end-int_digits_from)
+                 +(ulonglong)(frac_digits_from-int_digits_tail_from)+
+                 (ulonglong)int_digits_added_zeros;
   }
   
   /*
@@ -569,13 +588,19 @@ void Field_decimal::store(const char *from,uint len)
     If the sign is defined and '-', we need one position for it
   */
 
-  if (field_length < tmp_uint + (int) (sign_char == '-'))
+  if ((ulonglong)field_length < tmp_ulonglong + (ulonglong) (sign_char == '-')) 
+  //the rightmost sum above cannot overflow
   {
     // too big number, change to max or min number
     Field_decimal::overflow(sign_char == '-');
     return;
   }
  
+  /*
+    If the above test was ok, then tmp_ulonglong<4G and the following cast is valid
+  */
+  tmp_uint=(uint)tmp_ulonglong; 
+
   /*
     Tmp_left_pos is the position where the leftmost digit of
     the int_% parts will be written
@@ -632,7 +657,7 @@ void Field_decimal::store(const char *from,uint len)
       *pos--=' ';  //fill with blanks
   }
   
-  if (tmp_dec)					// This field has decimals
+  //  if (tmp_dec)
   { 
     /*
       Write digits of the frac_% parts ;
@@ -644,8 +669,8 @@ void Field_decimal::store(const char *from,uint len)
     */
       
     pos=to+(uint)(field_length-tmp_dec);	// Calculate post to '.'
-    *pos++='.';
     right_wall=to+field_length;
+    if (pos != right_wall) *pos++='.';
 
     if (expo_sign_char == '-')
     {
