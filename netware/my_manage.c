@@ -73,7 +73,7 @@ void init_args(arg_list_t *al)
 	Add an argument to a list.
 
 ******************************************************************************/
-void add_arg(arg_list_t *al, char *format, ...)
+void add_arg(arg_list_t *al, const char *format, ...)
 {
   va_list ap;
   char temp[PATH_MAX];
@@ -439,7 +439,7 @@ void del_tree(char *dir)
 	removef()
 	
 ******************************************************************************/
-int removef(char *format, ...)
+int removef(const char *format, ...)
 {
 	va_list ap;
   char path[PATH_MAX];
