@@ -14,7 +14,7 @@ extra_configs="$extra_configs --with-berkeley-db --with-innodb --without-isam --
 
 if test -z "$just_print"
 then
-  set +v
+  set +v +x
   echo "\
 ******************************************************************************
 Note that by default BUILD/compile-pentium-valgrind-max calls 'configure' with
