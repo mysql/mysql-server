@@ -3,6 +3,9 @@
 # CLIENT_MULTI_STATEMENTS) will be binlogged ONE-query-per-event (not
 # one binlog event containing all queries)
 
+# PS doesn't support multi-statements
+--disable_ps_protocol
+
 source include/master-slave.inc;
 --disable_warnings
 drop database if exists mysqltest;
