@@ -167,6 +167,8 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
     else
       table->file->unlock_row();  // Row failed selection, release lock on it
   }
+  if (thd->killed && !error)
+    error= 1;					// Aborted
   thd->proc_info="end";
   end_read_record(&info);
   free_io_cache(table);				// Will not do any harm
@@ -366,6 +368,7 @@ bool multi_delete::send_data(List<Item> &values)
   DBUG_RETURN(0);
 }
 
+
 void multi_delete::send_error(uint errcode,const char *err)
 {
   DBUG_ENTER("multi_delete::send_error");
@@ -450,15 +453,13 @@ int multi_delete::do_deletes(bool from_send_error)
       if ((local_error=table->file->delete_row(table->record[0])))
       {
 	table->file->print_error(local_error,MYF(0));
-	if (transactional_tables)
-	{
-	  DBUG_RETURN(local_error);
-	}
 	break;
       }
       deleted++;
     }
     end_read_record(&info);
+    if (thd->killed && !local_error)
+      local_error= 1;
     if (local_error == -1)				// End of file
       local_error = 0;
   }

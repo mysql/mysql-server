@@ -1236,8 +1236,15 @@ bool delayed_insert::handle_inserts(void)
     pthread_mutex_lock(&mutex);
 
     delete row;
-    /* Let READ clients do something once in a while */
-    if (group_count++ == max_rows)
+    /*
+      Let READ clients do something once in a while
+      We should however not break in the middle of a multi-line insert
+      if we have binary logging enabled as we don't want other commands
+      on this table until all entries has been processed
+    */
+    if (group_count++ >= max_rows && (row= rows.head()) &&
+	(!(row->log_query & DELAYED_LOG_BIN && using_bin_log) ||
+	 row->query))
     {
       group_count=0;
       if (stacked_inserts || tables_in_use)	// Let these wait a while
