@@ -22,7 +22,7 @@ noinst_HEADERS =        dbug_long.h
 libdbug_a_SOURCES =     dbug.c sanity.c
 EXTRA_DIST =            example1.c example2.c example3.c \
                         user.r monty.doc readme.prof dbug_add_tags.pl \
-                        main.c factorial.c dbug_analyze.c
+                        my_main.c main.c factorial.c dbug_analyze.c
 NROFF_INC =             example1.r example2.r example3.r main.r \
                         factorial.r output1.r output2.r output3.r \
                         output4.r output5.r
@@ -30,7 +30,7 @@ NROFF_INC =             example1.r example2.r example3.r main.r \
 
 # Must be linked with libs that are not compiled yet
 noinst_PROGRAMS =       factorial dbug_analyze
-factorial_SOURCES =     main.c factorial.c
+factorial_SOURCES =     my_main.c factorial.c
 dbug_analyze_SOURCES =  dbug_analyze.c
 
 all:            user.t user.ps
