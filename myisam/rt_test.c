@@ -31,6 +31,51 @@ static void create_record1(char *record,uint rownr);
 static void print_record(char * record,my_off_t offs,const char * tail);
 static  int run_test(const char *filename);
 
+static double rt_data[]=
+{
+  /*1*/  0,10,0,10,
+  /*2*/  5,15,0,10,
+  /*3*/  0,10,5,15,
+  /*4*/  10,20,10,20,
+  /*5*/  0,10,0,10,
+  /*6*/  5,15,0,10,
+  /*7*/  0,10,5,15,
+  /*8*/  10,20,10,20,
+  /*9*/  0,10,0,10,
+  /*10*/  5,15,0,10,
+  /*11*/  0,10,5,15,
+  /*12*/  10,20,10,20,
+  /*13*/  0,10,0,10,
+  /*14*/  5,15,0,10,
+  /*15*/  0,10,5,15,
+  /*16*/  10,20,10,20,
+  /*17*/  5,15,0,10,
+  /*18*/  0,10,5,15,
+  /*19*/  10,20,10,20,
+  /*20*/  0,10,0,10,
+
+  /*1*/  100,110,0,10,
+  /*2*/  105,115,0,10,
+  /*3*/  100,110,5,15,
+  /*4*/  110,120,10,20,
+  /*5*/  100,110,0,10,
+  /*6*/  105,115,0,10,
+  /*7*/  100,110,5,15,
+  /*8*/  110,120,10,20,
+  /*9*/  100,110,0,10,
+  /*10*/  105,115,0,10,
+  /*11*/  100,110,5,15,
+  /*12*/  110,120,10,20,
+  /*13*/  100,110,0,10,
+  /*14*/  105,115,0,10,
+  /*15*/  100,110,5,15,
+  /*16*/  110,120,10,20,
+  /*17*/  105,115,0,10,
+  /*18*/  100,110,5,15,
+  /*19*/  110,120,10,20,
+  /*20*/  100,110,0,10,
+  -1
+};
 
 int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
 {
@@ -55,7 +100,7 @@ int run_test(const char *filename)
   int key_type=HA_KEYTYPE_DOUBLE;
   int key_length=8;
   int null_fields=0;
-  int nrecords=300;
+  int nrecords=sizeof(rt_data)/(sizeof(double)*4);/* 3000;*/
   int rec_length=0;
   int uniques=0;
   int i;
@@ -399,7 +444,7 @@ static void create_record1(char *record,uint rownr)
 }
 
 
-static void create_record(char *record,uint rownr)
+static void create_record0(char *record,uint rownr)
 {
    int i;
    char * pos;
@@ -417,5 +462,18 @@ static void create_record(char *record,uint rownr)
       memcpy(pos,&c,sizeof(c));
       float8store(pos,c);
       pos+=sizeof(c);
+   }
+}
+
+static void create_record(char *record,uint rownr)
+{
+   int i;
+   char *pos;
+   double *data= rt_data+rownr*4;
+   record[0]=0x01; /* DEL marker */
+   for ( pos=record+1, i=0; i<ndims*2; i++)
+   {
+      float8store(pos,data[i]);
+      pos+=8;
    }
 }
