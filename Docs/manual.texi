@@ -8629,10 +8629,6 @@ connections.
 We plan to fix this problem when our Windows developers have figured out a
 nice workaround.
 
-@item UDF functions
-For the moment, MySQL-Windows does not support user-definable
-functions.
-
 @item @code{DROP DATABASE}
 You can't drop a database that is in use by some thread.
 
@@ -43046,7 +43042,8 @@ is not the case, you should run the script
 @cindex functions, user-definable, adding
 
 @menu
-* UDF calling sequences::       UDF Calling Sequences
+* UDF calling::                 UDF Calling Sequences
+* UDF aggr. calling::           UDF Calling Sequences for aggregate functions
 * UDF arguments::               Argument Processing
 * UDF return values::           Return Values and Error Handling
 * UDF compiling::               Compiling and Installing User-definable Functions
@@ -43124,6 +43121,38 @@ function @code{xxx()} is called once for each row.  After all rows have been
 processed, the deinitialisation function @code{xxx_deinit()} is called so it
 can perform any required cleanup.
 
+For aggregate functions (like @code{SUM()}), you must also provide the
+following functions:
+
+@table @asis
+@item @code{xxx_reset()} (required)
+Reset sum and insert the argument as the initial value for a new group.
+@item @code{xxx_add()} (required)
+Add the argument to the old sum.
+@end table
+
+When using aggregate UDF functions MySQL works the following way:
+
+@enumerate
+@item
+Call @code{xxx_init()} to let the aggregate function allocate the memory it
+will need to store results.
+@item
+Sort the table according to the @code{GROUP BY} expression.
+@item
+For the first row in a new group, call the @code{xxx_reset()} function.
+@item
+For each new row that belongs in the same group, call the
+@code{xxx_add()} function.
+@item
+When the group changes or after the last row has been processed,
+call @code{xxx()} to get the result for the aggregate.
+@item
+Repeat 3-5 until all rows has been processed
+@item
+Call @code{xxx_deinit()} to let the UDF free any memory it has allocated.
+@end enumerate
+
 All functions must be thread safe (not just the main function,
 but the initialisation and deinitialisation functions as well). This means
 that you are not allowed to allocate any global or static variables that
@@ -43131,10 +43160,10 @@ change!  If you need memory, you should allocate it in @code{xxx_init()}
 and free it in @code{xxx_deinit()}.
 
 
-@node UDF calling sequences, UDF arguments, Adding UDF, Adding UDF
-@subsubsection UDF Calling Sequences
+@node UDF calling, UDF aggr. calling , Adding UDF, Adding UDF
+@subsubsection UDF Calling Sequences for simple functions
 
-@cindex calling sequences, UDF
+@cindex calling sequences for simple functions, UDF
 
 The main function should be declared as shown below.  Note that the return
 type and parameters differ, depending on whether you will declare the SQL
@@ -43146,8 +43175,8 @@ For @code{STRING} functions:
 
 @example
 char *xxx(UDF_INIT *initid, UDF_ARGS *args,
-              char *result, unsigned long *length,
-              char *is_null, char *error);
+          char *result, unsigned long *length,
+          char *is_null, char *error);
 @end example
 
 @noindent
@@ -43219,13 +43248,68 @@ or deallocate the memory.
 @end table
 
 
-@node UDF arguments, UDF return values, UDF calling sequences, Adding UDF
+@node UDF aggr. calling , UDF arguments, UDF calling, Adding UDF
+@subsubsection UDF Calling Sequences for aggregate functions
+
+@cindex calling sequences for aggregate functions, UDF
+
+Here follows a description of the different functions you need to define
+when you want to create an aggregate UDF function.
+
+@example
+char *xxx_reset(UDF_INIT *initid, UDF_ARGS *args,
+                char *is_null, char *error);
+@end example
+
+This function is called when MySQL finds the first row in a new group.
+In the function you should reset any internal summary variables and then set
+the given argument as the first argument in the group.
+
+In many cases this is implemented internally by reseting all variables
+and then calling @code{xxx_add()}.
+
+@example
+char *xxx_add(UDF_INIT *initid, UDF_ARGS *args,
+              char *is_null, char *error);
+@end example
+
+This function is called for all rows that belongs to the same group,
+except for the first row. In this you should add the value in UDF_ARGS
+to your internal summary variable.
+
+The @code{xxx()} function should be declared identical as when you
+define a simple UDF function. @xref{UDF calling}.
+
+This function is called when all rows in the group has been processed.
+You should normally never access the @code{args} variable here but
+return your value based on your internal summary variables.
+
+All argument processing in @code{xxx_reset()} and @code{xxx_add()}
+should be done identically as for normal UDF functions. @xref{UDF
+arguments}.
+
+The return value handling in @code{xxx()} should be done identically as
+for a normal UDF. @xref{UDF return values}.
+
+The pointer argument to @code{is_null} and @code{error} is the same for
+all calls to @code{xxx_reset()}, @code{xxx_add()} and @code{xxx()}.
+You can use this to remember that you got an error or if the @code{xxx()}
+function should return @code{NULL}. Note that you should not store a string
+into @code{*error}!  This is just a 1 byte flag!
+
+@code{is_null} is reset for each group (before calling @code{xxx_reset()}.
+@code{error} is never reset.
+
+If @code{isnull} or @code{error} are set after @code{xxx()} then MySQL
+will return @code{NULL} as the result for the group function.
+
+@node UDF arguments, UDF return values, UDF aggr. calling , Adding UDF
 @subsubsection Argument Processing
 
 @cindex argument processing
 @cindex processing, arguments
 
-The @code{args} parameter points to a @code{UDF_ARGS} structure that thas the
+The @code{args} parameter points to a @code{UDF_ARGS} structure that has the
 members listed below:
 
 @table @code
@@ -43317,11 +43401,12 @@ real_val = *((double*) args->args[i]);
 
 @item unsigned long *lengths
 For the initialisation function, the @code{lengths} array indicates the
-maximum string length for each argument.  For each invocation of the main
-function, @code{lengths} contains the actual lengths of any string arguments
-that are passed for the row currently being processed.  For arguments of
-types @code{INT_RESULT} or @code{REAL_RESULT}, @code{lengths} still contains
-the maximum length of the argument (as for the initialisation function).
+maximum string length for each argument. You should not change these.
+For each invocation of the main function, @code{lengths} contains the
+actual lengths of any string arguments that are passed for the row
+currently being processed.  For arguments of types @code{INT_RESULT} or
+@code{REAL_RESULT}, @code{lengths} still contains the maximum length of
+the argument (as for the initialisation function).
 @end table
 
 
@@ -43362,7 +43447,7 @@ you must allocate the space for it with @code{malloc()} in your
 @code{xxx_init()} function or your @code{xxx()} function and free it in
 your @code{xxx_deinit()} function.  You can store the allocated memory
 in the @code{ptr} slot in the @code{UDF_INIT} structure for reuse by
-future @code{xxx()} calls.  @xref{UDF calling sequences}.
+future @code{xxx()} calls.  @xref{UDF calling}.
 
 To indicate a return value of @code{NULL} in the main function, set
 @code{is_null} to @code{1}:
