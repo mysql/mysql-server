@@ -1467,7 +1467,6 @@ select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
 drop table t1;
 
 # Test for BUG#8218
-drop table if exists t1, t2, t3, t4, t5;
 
 CREATE TABLE t1 (
   categoryId int(11) NOT NULL,
