@@ -992,6 +992,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
+* News-3.23.40::                Changes in release 3.23.40
 * News-3.23.39::                Changes in release 3.23.39
 * News-3.23.38::                Changes in release 3.23.38
 * News-3.23.37::                Changes in release 3.23.37
@@ -3581,7 +3582,7 @@ Note that older versions of @strong{MySQL} are still using a more
 @uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}. 
 See the documentation for that version for more information. If you need a 
 commercial @strong{MySQL} license, because the GPL license doesn't suit your
-application, you can buy one at @uref{https://order.mysql.com/license.htmy}.
+application, you can buy one at @uref{https://order.mysql.com/}.
 
 For normal internal use, @strong{MySQL} costs nothing.  You do not have
 to pay us if you do not want to.
@@ -3646,7 +3647,7 @@ contact us.  @xref{Contact information}.
 
 If you require a @strong{MySQL} license, the easiest way to pay for it
 is to use the license form on @strong{MySQL}'s secure server at
-@uref{https://order.mysql.com/license.htmy}.  Other forms of payment are
+@uref{https://order.mysql.com/}.  Other forms of payment are
 discussed in @ref{Payment information}.
 
 @cindex copyrights
@@ -3923,7 +3924,7 @@ BOX 6434, Torsgatan 21
 @end example
 
 If you want to pay by credit card over the Internet, you can use
-@uref{https://order.mysql.com/license.htmy, MySQL AB's secure license form}.
+@uref{https://order.mysql.com/, MySQL AB's secure license form}.
 
 You can also print a copy of the license form, fill it in, and send it by fax
 to:
@@ -7553,6 +7554,40 @@ relative to the root of @code{glibc} Note that @strong{MySQL} will not be
 stable with around 600-1000 connections if @code{STACK_SIZE} is the default 
 of 2 MB.
 
+If you have a problem with that @strong{MySQL} can't open enough files,
+or connections, it may be that you haven't configured Linux to handle
+enough files.
+
+In Linux 2.2 and forwards, you can check the number of allocated
+file handlers by doing:
+
+@example
+cat /proc/sys/fs/file-max
+cat /proc/sys/fs/dquot-max 
+cat /proc/sys/fs/super-max
+@end example
+
+If you have more than 16M of memory, you should add something like the
+following in your boot script (@file{/etc/rc/boot.local} on SuSE):
+
+@example
+echo 65536 > /proc/sys/fs/file-max
+echo 8192 > /proc/sys/fs/dquot-max
+echo 1024 > /proc/sys/fs/super-max
+@end example
+
+You can also run the above from the command line as root, but in this case
+your old limits will be used next time your computer reboots.
+
+You should also add /etc/my.cnf:
+
+@example
+[safe_mysqld]
+open_files_limit=8192
+@end example
+
+The above should allow @strong{MySQL} to create up to 8192 connections + files.
+
 The @code{STACK_SIZE} constant in LinuxThreads controls the spacing of thread
 stacks in the address space.  It needs to be large enough so that there will
 be plenty of room for the stack of each individual thread, but small enough
@@ -9576,11 +9611,8 @@ and are configured with the following compilers and options:
 @item SunOS 4.1.4 2 sun4c with @code{gcc} 2.7.2.1
 @code{CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors" ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-assembler}
 
-@item SunOS 5.5.1 sun4u with @code{egcs} 1.0.3a
-@code{CC=gcc CFLAGS="-O3" CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
-
-@item SunOS 5.6 sun4u with @code{egcs} 2.90.27
-@code{CC=gcc CFLAGS="-O3" CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
+@item SunOS 5.5.1 (and above) sun4u with @code{egcs} 1.0.3a or 2.90.27 or gcc 2.95.2 and newer
+@code{CC=gcc CFLAGS="-O3" CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex --enable-assembler}
 
 @item SunOS 5.6 i86pc with @code{gcc} 2.8.1
 @code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
@@ -10501,6 +10533,9 @@ Run @code{mysqld} daemon as user @code{user_name}.  This option is
 @item -V, --version
 Output version information and exit.
 
+@item -W, --warnings
+Print out warnings like @code{Aborted connection...} to the @code{.err} file.
+@xref{Communication errors}.
 @end table
 
 @cindex default options
@@ -19411,9 +19446,6 @@ INDEX} are @strong{MySQL} extensions to ANSI SQL92.
 @code{MODIFY} is an Oracle extension to @code{ALTER TABLE}.
 
 @item
-@code{TRUNCATE} is an Oracle extension. @xref{TRUNCATE}.
-
-@item
 The optional word @code{COLUMN} is a pure noise word and can be omitted.
 
 @item
@@ -19474,8 +19506,7 @@ a table row. The default is to add the column last.
 or removes the old default value.
 If the old default is removed and the column can be @code{NULL}, the new
 default is @code{NULL}. If the column cannot be @code{NULL}, @strong{MySQL}
-assigns a default value.
-Default value assignment is described in
+assigns a default value, as described in
 @ref{CREATE TABLE, , @code{CREATE TABLE}}.
 
 @findex DROP INDEX
@@ -19487,6 +19518,10 @@ ANSI SQL92.
 If columns are dropped from a table, the columns are also removed from any
 index of which they are a part.  If all columns that make up an index are
 dropped, the index is dropped as well.
+
+@item
+If a table contains only one column, the column cannot be dropped.
+If what you intend is to remove the table, use @code{DROP TABLE} instead.
 
 @findex DROP PRIMARY KEY
 @item
@@ -19805,6 +19840,8 @@ minimum needed to restore it. Currenlty only works for @code{MyISAM}
 tables. For @code{MyISAM} table, copies @code{.frm} (definition)  and
 @code{.MYD} (data) files. The index file can be rebuilt from those two.
 
+Before using this command, please see @xref{Backup}.
+
 During the backup, read lock will be held for each table, one at time,
 as they are being backed up. If you want to backup several tables as
 a snapshot, you must first issue @code{LOCK TABLES} obtaining a read
@@ -20012,6 +20049,8 @@ As long as the table definition file @file{table_name.frm} is
 valid, the table can be re-created this way, even if the data or index
 files have become corrupted.
 @end itemize
+
+@code{TRUNCATE} is an Oracle SQL extension.
 
 @findex SELECT
 @node SELECT, JOIN, TRUNCATE, Reference
@@ -20767,6 +20806,13 @@ the old record is deleted before the new record is inserted.
 In other words, you can't access the values of the old row from a
 @code{REPLACE} statement.  In some old @strong{MySQL} version it looked
 like you could do this, but that was a bug that has been corrected.
+
+When one uses a @code{REPLACE} command, @code{mysql_affected_rows()}
+will return 2 if the new row replaced and old row.  This is because in
+this case one row was inserted and then the duplicate was deleted.
+
+The above makes it easy to check if @code{REPLACE} added or replaced a
+row.
 
 @findex LOAD DATA INFILE
 @node LOAD DATA, UPDATE, REPLACE, Reference
@@ -22783,8 +22829,6 @@ This statement is provided for Oracle compatibility.
 
 The @code{SHOW} statement provides similar information.
 @xref{SHOW, , @code{SHOW}}.
-
-
 
 @findex BEGIN
 @findex COMMIT
@@ -25683,6 +25727,11 @@ InnoDB has been designed for maximum performance when processing
 large data volumes. Its CPU efficiency is probably not
 matched by any other disk-based relational database engine.
 
+You can find the latest information about InnoDB at
+@uref{http://www.innodb.com}. The most up-to-date version of the
+InnoDB manual is always placed there, and you can also order commercial
+support for InnoDB.
+
 Technically, InnoDB is a database backend placed under @strong{MySQL}. InnoDB
 has its own buffer pool for caching data and indexes in main
 memory. InnoDB stores its tables and indexes in a tablespace, which
@@ -25833,7 +25882,7 @@ than InnoDB in the same transaction, then a deadlock may arise which
 InnoDB cannot notice. In cases like this the timeout is useful to
 resolve the situation.
 @item @code{innodb_flush_method} @tab
-(Available from 3.23.39 up.)
+(Available from 3.23.40 up.)
 The default value for this is @code{fdatasync}.
 Another option is @code{O_DSYNC}.
 Options @code{littlesync} and @code{nosync} have the
@@ -26908,11 +26957,11 @@ the maximum size for a table. The minimum tablespace size is 10 MB.
 @node InnoDB contact information,  , InnoDB restrictions, InnoDB
 @subsection InnoDB contact information
 
-Contact information of Innobase Oy, producer of the InnoDB engine:
+Contact information of Innobase Oy, producer of the InnoDB engine.
+Website: @uref{http://www.innodb.com}. Email:
+@email{Heikki.Tuuri@@innodb.com}
 
 @example
-Website: www.innodb.com
-Heikki.Tuuri@@innodb.com
 phone: 358-9-6969 3250 (office) 358-40-5617367 (mobile)
 InnoDB Oy Inc.
 World Trade Center Helsinki
@@ -38245,6 +38294,9 @@ option.
 @node Communication errors, Full table, Packet too large, Common errors
 @subsection Communication Errors / Aborted Connection
 
+Starting with @code{MySQL 3.23.40} you only get the @code{Aborted
+connection} error of you start @code{mysqld} with @code{--warnings}.
+
 If you find errors like the following in your error log.
 
 @example
@@ -38769,6 +38821,8 @@ shell> perror 23
 File table overflow
 shell> perror 24
 Too many open files
+shell> perror 11
+Resource temporarily unavailable
 @end example
 
 The problem here is that @code{mysqld} is trying to keep open too many
@@ -39286,8 +39340,8 @@ database directory.  The @code{FLUSH TABLE} is needed to ensure that
 the all active index pages is written to disk before you start the backup.
 
 If you want to make a SQL level backup of a table, you can use
-@code{SELECT INTO OUTFILE} or @code{BACKUP
-TABLE}. @xref{SELECT}. @xref{BACKUP TABLE}.
+@code{SELECT INTO OUTFILE} or @code{BACKUP TABLE}. @xref{SELECT}.
+@xref{BACKUP TABLE}.
 
 Another way to back up a database is to use the @code{mysqldump} program or
 the @code{mysqlhotcopy script}. @xref{mysqldump, , @code{mysqldump}}.
@@ -41816,7 +41870,7 @@ specified explicitly.
 @item
 The @code{passwd} parameter contains the password for @code{user}.  If
 @code{passwd} is @code{NULL}, only entries in the @code{user} table for the
-user that have a blank password field will be checked for a match. This
+user that have a blank (empty) password field will be checked for a match. This
 allows the database administrator to set up the @strong{MySQL} privilege
 system in such a way that users get different privileges depending on whether
 or not they have specified a password.
@@ -41849,7 +41903,7 @@ of the following flags in very special circumstances:
 @code{mysqld} to be more ODBC-friendly.
 @item @code{CLIENT_COMPRESS}   @tab Use compression protocol.
 @item @code{CLIENT_FOUND_ROWS} @tab Return the number of found (matched) rows, not the number of affected rows.
-@item @code{CLIENT_IGNORE_SPACE} $tab Allow spaces after function names. Makes all functions names reserved words.
+@item @code{CLIENT_IGNORE_SPACE} @tab Allow spaces after function names. Makes all functions names reserved words.
 @item @code{CLIENT_INTERACTIVE} @tab Allow @code{interactive_timeout} seconds (instead of @code{wait_timeout} seconds) of inactivity before closing the connection.
 @item @code{CLIENT_NO_SCHEMA}  @tab Don't allow the @code{db_name.tbl_name.col_name} syntax.  This is for ODBC. It causes the parser to generate an error if you use that syntax, which is useful for trapping bugs in some ODBC programs.
 @item @code{CLIENT_ODBC}       @tab The client is an ODBC client. This changes
@@ -46335,6 +46389,16 @@ Added @code{HANDLER} command.
 Added support for symbolic links to @code{MyISAM} tables. Symlink handling is
 now enabled by default for Windows.
 @item
+@code{LOAD DATA FROM MASTER} "auto-magically" sets up a slave.
+@item
+A new @code{HANDLER} interface to @code{MyISAM} tables.
+@item
+@code{COUNT(DISTINCT)} is about 30% faster.
+@item
+Creating full text indexes are now much faster.
+@item
+Searching on packed (@code{CHAR}/@code{VARCHAR}) keys are now much faster.
+@item
 Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This makes it
 possible to know how many rows a query would have returned
 without a @code{LIMIT} clause.
@@ -46395,6 +46459,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.40::                Changes in release 3.23.40
 * News-3.23.39::                Changes in release 3.23.39
 * News-3.23.38::                Changes in release 3.23.38
 * News-3.23.37::                Changes in release 3.23.37
@@ -46438,17 +46503,40 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.39, News-3.23.38, News-3.23.x, News-3.23.x
+@node News-3.23.40, News-3.23.39, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.40
+@itemize @bullet
+@item
+Added option @code{--warnings} to @code{mysqld}. Now @code{mysqld}
+only prints the error @code{Aborted connection} if this option is used.
+@item
+Fixed problem with @code{SHOW CREATE TABLE} when you didn't have a
+@code{PRIMARY KEY}.
+@item
+Fixed properly the rename of @code{innodb_unix_file_flush_method} to
+@code{innodb_flush_method}.
+@item
+Fixed bug when converting @code{UNSIGNED BIGINT} to @code{DOUBLE}. This caused
+a problem when doing comparisons with @code{BIGINT}'s outside of the
+signed range.
+@item
+Fixed bug in @code{BDB} tables when querying empty tables.
+@item
+Fixed a bug when using @code{COUNT(DISTINCT)} with @code{LEFT JOIN} and
+there wasn't any matching rows.
+@end itemize
+
+@node News-3.23.39, News-3.23.38, News-3.23.40, News-3.23.x
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
 @item
-If one dropped and added an @code{AUTO_INCREMENT} column, the
-@code{AUTO_INCREMENT} sequence wasn't reset.
+The @code{AUTO_INCREMENT} sequence wasn't reset when dropping
+and adding an @code{AUTO_INCREMENT} column.
 @item
-@code{CREATE .. SELECT} now creates not unique indexes delayed.
+@code{CREATE ... SELECT} now creates non-unique indexes delayed.
 @item
 Fixed problem where @code{LOCK TABLES table_name READ} followed by
-@code{FLUSH TABLES} put a exclusive lock on the table.
+@code{FLUSH TABLES} put an exclusive lock on the table.
 @item
 @code{REAL} @@variables with was represented with 2 digits when
 converted to strings.
@@ -46460,8 +46548,8 @@ that only had the open count wrong.
 @item
 Added functions to handle symbolic links to make life easier in 4.0.
 @item
-We are now using the @code{-lcma} thread library on HP-UX 10.20 to
-get @strong{MySQL} more stable on HP-UX.
+We are now using the @code{-lcma} thread library on HP-UX 10.20 so
+that @strong{MySQL} will be more stable on HP-UX.
 @item
 Fixed problem with @code{IF()} and number of decimals in the result.
 @item

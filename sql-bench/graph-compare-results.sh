@@ -458,7 +458,7 @@ sub gd {
   # set a color per server so in every result it has the same color ....
   foreach $key (@key_order) {
     if ($tot{$key}{'server'} =~ /mysql/i) {
-      if ($key =~ /mysql_pgcc/i || $key =~ /mysql_odbc/i) {
+      if ($key =~ /mysql_pgcc/i || $key =~ /mysql_odbc/i || $key =~ /mysql_fast/i) {
         $tot{$key}{'color'} = $lblue;
       } else {
         $tot{$key}{'color'} = $blue;
