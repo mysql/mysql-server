@@ -130,8 +130,9 @@ static void innobase_print_error(const char* db_errpfx, char* buffer);
 /* General functions */
 
 /**********************************************************************
-Releases possible search latch, auto inc lock, and InnoDB thread FIFO ticket.
-These should be released at each SQL statement end. */
+Releases possible search latch and InnoDB thread FIFO ticket. These should
+be released at each SQL statement end. It does no harm to release these
+also in the middle of an SQL statement. */
 static
 void
 innobase_release_stat_resources(
@@ -140,16 +141,6 @@ innobase_release_stat_resources(
 {
 	if (trx->has_search_latch) {
 		trx_search_latch_release_if_reserved(trx);
-	}
-
-	if (trx->auto_inc_lock) {
-		  	
-		/* If we had reserved the auto-inc lock for
-		some table in this SQL statement, we release it now */
-		  	
-		srv_conc_enter_innodb(trx);
-		row_unlock_table_autoinc_for_mysql(trx);
-		srv_conc_exit_innodb(trx);
 	}
 
 	if (trx->declared_to_be_inside_innodb) {
@@ -635,6 +626,16 @@ innobase_commit(
 
 	trx = check_trx_exists(thd);
 
+        if (trx->auto_inc_lock) {
+		  	
+		/* If we had reserved the auto-inc lock for
+		some table in this SQL statement, we release it now */
+		  	
+		srv_conc_enter_innodb(trx);
+		row_unlock_table_autoinc_for_mysql(trx);
+		srv_conc_exit_innodb(trx);
+	}
+
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle) {
 		innobase_commit_low(trx);
 	}
@@ -703,6 +704,16 @@ innobase_rollback(
 	DBUG_PRINT("trans", ("aborting transaction"));
 
 	trx = check_trx_exists(thd);
+
+        if (trx->auto_inc_lock) {
+		  	
+		/* If we had reserved the auto-inc lock for
+		some table in this SQL statement, we release it now */
+		  	
+		srv_conc_enter_innodb(trx);
+		row_unlock_table_autoinc_for_mysql(trx);
+		srv_conc_exit_innodb(trx);
+	}
 
 	srv_conc_enter_innodb(trx);
 
@@ -1899,6 +1910,55 @@ convert_search_mode_to_innobase(
 
 	return(0);
 }
+
+/*
+   BACKGROUND INFO: HOW A SELECT SQL QUERY IS EXECUTED
+   ---------------------------------------------------
+The following does not cover all the details, but explains how we determine
+the start of a new SQL statement, and what is associated with it.
+
+For each table in the database the MySQL interpreter may have several
+table handle instances in use, also in a single SQL query. For each table
+handle instance there is an InnoDB  'prebuilt' struct which contains most
+of the InnoDB data associated with this table handle instance.
+
+  A) if the user has not explicitly set any MySQL table level locks:
+
+  1) MySQL calls ::external_lock to set an 'intention' table level lock on
+the table of the handle instance. There we set
+prebuilt->sql_stat_start = TRUE. The flag sql_stat_start should be set
+true if we are taking this table handle instance to use in a new SQL
+statement issued by the user. We also increment trx->n_mysql_tables_in_use.
+
+  2) If prebuilt->sql_stat_start == TRUE we 'pre-compile' the MySQL search
+instructions to prebuilt->template of the table handle instance in
+::index_read. The template is used to save CPU time in large joins.
+
+  3) In row_search_for_mysql, if prebuilt->sql_stat_start is true, we
+allocate a new consistent read view for the trx if it does not yet have one,
+or in the case of a locking read, set an InnoDB 'intention' table level
+lock on the table.
+
+  4) We do the SELECT. MySQL may repeatedly call ::index_read for the
+same table handle instance, if it is a join.
+
+  5) When the SELECT ends, MySQL removes its intention table level locks
+in ::external_lock. When trx->n_mysql_tables_in_use drops to zero,
+ (a) we execute a COMMIT there if the autocommit is on,
+ (b) we also release possible 'SQL statement level resources' InnoDB may
+have for this SQL statement. The MySQL interpreter does NOT execute
+autocommit for pure read transactions, though it should. That is why the
+table handler in that case has to execute the COMMIT in ::external_lock.
+
+  B) If the user has explicitly set MySQL table level locks, then MySQL
+does NOT call ::external_lock at the start of the statement. To determine
+when we are at the start of a new SQL statement we at the start of
+::index_read also compare the query id to the latest query id where the
+table handle instance was used. If it has changed, we know we are at the
+start of a new SQL statement. Since the query id can theoretically
+overwrap, we use this test only as a secondary way of determining the
+start of a new SQL statement. */
+
 
 /**************************************************************************
 Positions an index cursor to the index specified in the handle. Fetches the
