@@ -289,6 +289,7 @@ int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
   bool logs_to_purge_inited = 0, logs_to_keep_inited = 0, found_log = 0;
   DYNAMIC_ARRAY logs_to_purge, logs_to_keep;
   my_off_t purge_offset ;
+  LINT_INIT(purge_offset);
   pthread_mutex_lock(&LOCK_index);
   
   if(my_fseek(index_file, 0, MY_SEEK_SET,
