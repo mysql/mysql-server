@@ -142,3 +142,5 @@ explain (select * from t1 where a=1) union (select * from t2 where a=1);
 explain (select * from t1 where a=1 and b=10) union (select t1.a,t2.a from t1,t2 where t1.a=t2.a);
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 drop table t1,t2;
+--error 1054
+(select 1) union (select 2) order by 0;
