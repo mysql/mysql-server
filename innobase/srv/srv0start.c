@@ -532,6 +532,24 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_is_being_started = TRUE;
 
+	if (0 == ut_strcmp(srv_unix_file_flush_method_str, "fdatasync")) {
+	  srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str, "O_DSYNC")) {
+	  srv_unix_file_flush_method = SRV_UNIX_O_DSYNC;
+	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str,
+				  "littlesync")) {
+	  srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
+	} else if (0 == ut_strcmp(srv_unix_file_flush_method_str, "nosync")) {
+	  srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
+	} else {
+	  fprintf(stderr, 
+          "InnoDB: Unrecognized value for innodb_unix_file_flush_method\n");
+
+	  return(DB_ERROR);
+	}
+
+	printf("InnoDB file flush method %lu\n", srv_unix_file_flush_method);
+
 	os_aio_use_native_aio = srv_use_native_aio;
 
 	err = srv_boot();
