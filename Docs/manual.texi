@@ -3381,10 +3381,10 @@ mentioned strategy of not sacrificing speed or reliability in the
 server.
 
 @menu
-* Standards::                   What standards does MySQL follow?
-* ANSI mode::                   Running MySQL in ANSI mode
-* Extensions to ANSI::          MySQL extensions to ANSI SQL92
-* Differences from ANSI::       MySQL differences compared to ANSI SQL92
+* Standards::                   What Standards Does MySQL Follow?
+* ANSI mode::                   Running MySQL in ANSI Mode
+* Extensions to ANSI::          MySQL Extensions to ANSI SQL92
+* Differences from ANSI::       MySQL Differences Compared to ANSI SQL92
 * Bugs::                        Known Errors and Design Deficiencies in MySQL
 @end menu
 
@@ -47277,7 +47277,7 @@ ANSI-92 compliance)}
 
 @item @uref{http://www.hek.com, HEK A construction company}
 
-@item @uref{http://www.ebi.nl, Elsevier Bussiness Information}
+@item @uref{http://www.ebi.nl, Elsevier Business Information}
 
 @item @uref{http://vaccination.medicallink.se/, Medical Links (Using ColdFusion and MySQL)}
 
