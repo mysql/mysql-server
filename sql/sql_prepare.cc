@@ -1809,20 +1809,33 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   else
   {
     stmt->setup_set_params();
-    SELECT_LEX *sl= stmt->lex->all_selects_list;
-    /*
-      Save WHERE clause pointers, because they may be changed during query
-      optimisation.
-    */
-    for (; sl; sl= sl->next_select_in_list())
-      sl->prep_where= sl->where;
+    init_stmt_after_parse(thd, stmt->lex);
     stmt->state= Item_arena::PREPARED;
   }
   DBUG_RETURN(!stmt);
 }
 
 
-/* Reinit statement before execution */
+/*
+  Init PS/SP specific parse tree members.
+*/
+
+void init_stmt_after_parse(THD *thd, LEX *lex)
+{
+  SELECT_LEX *sl= lex->all_selects_list;
+  /*
+    Save WHERE clause pointers, because they may be changed during query
+    optimisation.
+  */
+  for (; sl; sl= sl->next_select_in_list())
+    sl->prep_where= sl->where;
+
+  for (TABLE_LIST *table= lex->query_tables; table; table= table->next_global)
+    table->prep_on_expr= table->on_expr;
+}
+
+
+/* Reinit prepared statement/stored procedure before execution */
 
 void reset_stmt_for_execute(THD *thd, LEX *lex)
 {
@@ -1883,6 +1896,12 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
     tables->table= 0;
     if (tables->nested_join)
       tables->nested_join->counter= 0;
+
+    if (tables->prep_on_expr)
+    {
+      tables->on_expr= tables->prep_on_expr->copy_andor_structure(thd);
+      tables->on_expr->cleanup();
+    }
   }
   lex->current_select= &lex->select_lex;
 

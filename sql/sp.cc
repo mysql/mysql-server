@@ -288,12 +288,14 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
        * in thd->lex (the unit and master stuff), and the easiest way to
        * do it is, is to call mysql_init_query(), but this unfortunately
        * resets teh value_list where we keep the CALL parameters. So we
-       * copy the list and then restore it.
+       * copy the list and then restore it. (... and found_semicolon too).
        */
-      List<Item> vals= thd->lex->value_list;
+      List<Item> tmpvals= thd->lex->value_list;
+      char *tmpfsc= thd->lex->found_semicolon;
 
       lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
-      thd->lex->value_list= vals;
+      thd->lex->value_list= tmpvals;
+      thd->lex->found_semicolon= tmpfsc;
     }
 
     if (yyparse(thd) || thd->is_fatal_error || thd->lex->sphead == NULL)

@@ -45,7 +45,7 @@ extern const char **errmesg;
 
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
-extern uint opt_tc_log_size;
+extern ulong opt_tc_log_size;
 extern ulong tc_log_max_pages_used;
 extern ulong tc_log_page_size;
 extern ulong tc_log_page_waits;

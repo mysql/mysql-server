@@ -293,7 +293,8 @@ typedef struct st_relay_log_info
   } until_log_names_cmp_result;
 
   char cached_charset[6];
-  
+  ulong trans_retries;
+
   st_relay_log_info();
   ~st_relay_log_info();
 
