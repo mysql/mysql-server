@@ -303,3 +303,5 @@ character-set=ujis
 "This command is not supported in the prepared statement protocol yet",
 "Got NDB error %d '%-.100s'",
 "Got temporary NDB error %d '%-.100s'",
+"Unknown or incorrect time zone: '%-.64s'",
+"Invalid TIMESTAMP value in column '%s' at row %ld",
