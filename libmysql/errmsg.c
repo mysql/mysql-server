@@ -51,7 +51,8 @@ const char *client_errors[]=
   "Error connecting to slave:",
   "Error connecting to master:",
   "SSL connection error",
-  "Malformed packet"
+  "Malformed packet",
+  "This client library is licensed only for use with MySQL servers having '%s' license"
 };
 
 /* Start of code added by Roberto M. Serqueira - martinsc@uol.com.br - 05.24.2001 */
@@ -86,7 +87,8 @@ const char *client_errors[]=
   "Error connecting to slave:",
   "Error connecting to master:",
   "SSL connection error",
-  "Malformed packet"
+  "Malformed packet",
+  "This client library is licensed only for use with MySQL servers having '%s' license"
 };
 
 #else /* ENGLISH */
@@ -119,7 +121,8 @@ const char *client_errors[]=
   "Error connecting to slave:",
   "Error connecting to master:",
   "SSL connection error",
-  "Malformed packet"
+  "Malformed packet",
+  "This client library is licensed only for use with MySQL servers having '%s' license"
 };
 #endif
 
