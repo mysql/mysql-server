@@ -759,30 +759,47 @@ Ndb::getTupleIdFromNdb(Uint32 aTableId, Uint32 cacheSize )
 }
 
 bool
-Ndb::setAutoIncrementValue(const char* aTableName, Uint64 val)
+Ndb::setAutoIncrementValue(const char* aTableName, Uint64 val, bool increase)
 {
   DEBUG_TRACE("setAutoIncrementValue " << val);
   const NdbTableImpl* table = theDictionary->getTable(aTableName);
   if (table == 0)
     return false;
-  return setTupleIdInNdb(table->m_tableId, val);
+  return setTupleIdInNdb(table->m_tableId, val, increase);
 }
 
 bool 
-Ndb::setTupleIdInNdb(const char* aTableName, Uint64 val )
+Ndb::setTupleIdInNdb(const char* aTableName, Uint64 val, bool increase )
 {
   DEBUG_TRACE("setTupleIdInNdb");
   const NdbTableImpl* table = theDictionary->getTable(aTableName);
   if (table == 0)
     return false;
-  return setTupleIdInNdb(table->m_tableId, val);
+  return setTupleIdInNdb(table->m_tableId, val, increase);
 }
 
 bool
-Ndb::setTupleIdInNdb(Uint32 aTableId, Uint64 val )
+Ndb::setTupleIdInNdb(Uint32 aTableId, Uint64 val, bool increase )
 {
   DEBUG_TRACE("setTupleIdInNdb");
-  return (opTupleIdOnNdb(aTableId, val, 1) == val);
+  if (increase)
+  {
+    if (theFirstTupleId[aTableId] != theLastTupleId[aTableId])
+    {
+      // We have a cache sequence
+      if (val <= theFirstTupleId[aTableId]+1)
+	return true;
+      if (val <= theLastTupleId[aTableId])
+      {
+	theFirstTupleId[aTableId] = val - 1;
+	return true;
+      }
+      // else continue;
+    }    
+    return (opTupleIdOnNdb(aTableId, val, 2) == val);
+  }
+  else
+    return (opTupleIdOnNdb(aTableId, val, 1) == val);
 }
 
 Uint64
@@ -845,6 +862,23 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
       tOperation->equal("SYSKEY_0", aTableId );
       tOperation->setValue("NEXTID", opValue);
 
+      if (tConnection->execute( Commit ) == -1 )
+        goto error_handler;
+
+      theFirstTupleId[aTableId] = ~0;
+      theLastTupleId[aTableId]  = ~0;
+      ret = opValue;
+      break;
+    case 2:
+      tOperation->interpretedUpdateTuple();
+      tOperation->equal("SYSKEY_0", aTableId );
+      tOperation->load_const_u64(1, opValue);
+      tOperation->read_attr("NEXTID", 2);
+      tOperation->branch_le(2, 1, 0);
+      tOperation->write_attr("NEXTID", 1);
+      tOperation->def_label(0);
+      tOperation->interpret_exit_ok();
+      
       if (tConnection->execute( Commit ) == -1 )
         goto error_handler;
 
