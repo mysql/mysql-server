@@ -3639,9 +3639,42 @@ ha_innobase::reset(void)
 }
 
 /**********************************************************************
+When we create a temporary table inside MySQL LOCK TABLES, MySQL will
+not call external_lock for the temporary table when it uses it. Instead,
+it will call this function. */
+
+int
+start_stmt(
+/*=======*/
+	              /* out: 0 or error code */
+	THD*    thd)  /* in: handle to the user thread */
+{
+	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+	trx_t*		trx;
+
+  	DBUG_ENTER("ha_innobase::external_lock");
+
+	update_thd(thd);
+
+	trx = prebuilt->trx;
+
+	innobase_release_stat_resources(trx);
+	trx_mark_sql_stat_end(trx);
+
+	auto_inc_counter_for_this_stat = 0;
+	prebuilt->sql_stat_start = TRUE;
+	prebuilt->hint_no_need_to_fetch_extra_cols = TRUE;
+	prebuilt->read_just_key = 0;
+	prebuilt->select_lock_type = LOCK_NONE;
+
+	thd->transaction.all.innodb_active_trans = 1;
+}
+
+/**********************************************************************
 As MySQL will execute an external lock for every new table it uses when it
-starts to process an SQL statement, we can use this function to store the
-pointer to the THD in the handle. We will also use this function to communicate
+starts to process an SQL statement (an exception is when MySQL calls
+start_stmt for the handle) we can use this function to store the pointer to
+the THD in the handle. We will also use this function to communicate
 to InnoDB that a new SQL statement has started and that we must store a
 savepoint to our transaction handle, so that we are able to roll back
 the SQL statement in case of an error. */
@@ -3649,6 +3682,7 @@ the SQL statement in case of an error. */
 int
 ha_innobase::external_lock(
 /*=======================*/
+			        /* out: 0 or error code */
 	THD*	thd,		/* in: handle to the user thread */
 	int 	lock_type)	/* in: lock type */
 {
