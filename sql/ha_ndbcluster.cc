@@ -666,10 +666,8 @@ int ha_ndbcluster::get_metadata(const char *path)
   if (error)
     DBUG_RETURN(error);
 
-  // All checks OK, lets use the table
-  //  m_table= (void*)tab;
-  m_table= 0;
-  m_table_info= 0;
+  m_table= NULL;
+  m_table_info= NULL;
   
   DBUG_RETURN(build_index_list(table, ILBP_OPEN));  
 }
@@ -784,6 +782,7 @@ void ha_ndbcluster::release_metadata()
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
 
   m_table= NULL;
+  m_table_info= NULL;
 
   // Release index list 
   for (i= 0; i < MAX_KEY; i++)
@@ -2836,8 +2835,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         thd->transaction.stmt.ndb_tid= 0;
       }
     }
-    m_table= (void *)0;
-    m_table_info= 0;
+    m_table= NULL;
+    m_table_info= NULL;
     if (m_active_trans)
       DBUG_PRINT("warning", ("m_active_trans != NULL"));
     if (m_active_cursor)
@@ -3337,6 +3336,7 @@ int ha_ndbcluster::alter_table_name(const char *from, const char *to)
     ERR_RETURN(dict->getNdbError());
 
   m_table= NULL;
+  m_table_info= NULL;
                                                                              
   DBUG_RETURN(0);
 }
