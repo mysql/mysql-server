@@ -113,7 +113,8 @@ enum timestamp_type { TIMESTAMP_NONE, TIMESTAMP_DATE, TIMESTAMP_FULL,
 		      TIMESTAMP_TIME };
 
 typedef struct st_time {
-  uint year,month,day,hour,minute,second,second_part;
+  uint year,month,day,hour,minute,second;
+  ulong second_part;
   bool neg;
   timestamp_type time_type;
 } TIME;

@@ -604,7 +604,8 @@ bool mysql_change_db(THD *thd, const char *name)
 }
 
 
-int mysqld_show_create_db(THD *thd, const char *dbname, HA_CREATE_INFO *create_info)
+int mysqld_show_create_db(THD *thd, const char *dbname,
+			  HA_CREATE_INFO *create_info)
 {
   int length;
   char	path[FN_REFLEN], *to;
@@ -613,7 +614,7 @@ int mysqld_show_create_db(THD *thd, const char *dbname, HA_CREATE_INFO *create_i
   HA_CREATE_INFO create;
   CONVERT *convert=thd->variables.convert_set;
   uint create_options = create_info ? create_info->options : 0;
-  
+  Protocol *protocol=thd->protocol;
   DBUG_ENTER("mysql_show_create_db");
   
   if (check_db_name(dbname))
@@ -663,12 +664,11 @@ int mysqld_show_create_db(THD *thd, const char *dbname, HA_CREATE_INFO *create_i
   field_list.push_back(new Item_empty_string("Database",NAME_LEN));
   field_list.push_back(new Item_empty_string("Create Database",1024));
   
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
   
-  String *packet = &thd->packet;
-  packet->length(0);
-  net_store_data(packet, convert, dbname);
+  protocol->prepare_for_resend();
+  protocol->store(dbname, strlen(dbname));
   to= strxmov(path, "CREATE DATABASE ", NullS);
   if (create_options & HA_LEX_CREATE_IF_NOT_EXISTS)
     to= strxmov(to,"/*!32312 IF NOT EXISTS*/ ", NullS);
@@ -678,11 +678,10 @@ int mysqld_show_create_db(THD *thd, const char *dbname, HA_CREATE_INFO *create_i
     to= strxmov(to," /*!40100 DEFAULT CHARACTER SET ", 
 		create.table_charset->name,"*/",NullS);
   
-  net_store_data(packet, convert, path, (uint) (to-path));
+  protocol->store(path, (uint) (to-path));
   
-  if (my_net_write(&thd->net,(char*) packet->ptr(), packet->length()))
+  if (protocol->write())
     DBUG_RETURN(1);
-  
   send_eof(thd);
   DBUG_RETURN(0);
 }

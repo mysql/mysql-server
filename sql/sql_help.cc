@@ -219,22 +219,21 @@ int search_categories(THD *thd,
   DBUG_RETURN(count);
 }
 
-int send_variant_2_list(THD *thd, List<String> *names, my_bool is_category)
+int send_variant_2_list(Protocol *protocol, List<String> *names,
+			my_bool is_category)
 {
   DBUG_ENTER("send_names");
 
   List_iterator<String> it(*names);
   String *cur_name;
-  String *packet= &thd->packet;
   while ((cur_name = it++))
   {
-    packet->length(0);
-    net_store_data(packet, cur_name->ptr());
-    net_store_data(packet, is_category ? "Y" : "N");
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+    protocol->prepare_for_resend();
+    protocol->store(cur_name->ptr());
+    protocol->store(is_category ? "Y" : "N");
+    if (protocol->write())
       DBUG_RETURN(-1);
   }
-
   DBUG_RETURN(0);
 }
 
@@ -296,43 +295,44 @@ int get_all_names_for_category(THD *thd,MI_INFO *file_leafs,
   DBUG_RETURN(0);
 }
 
-int send_answer_1(THD *thd, const char *s1, const char *s2, 
+int send_answer_1(Protocol *protocol, const char *s1, const char *s2, 
 		  const char *s3, const char *s4)
 {
   DBUG_ENTER("send_answer_1");
   List<Item> field_list;
-  field_list.push_back(new Item_empty_string("name",64));
-  field_list.push_back(new Item_empty_string("is_category",1));
-  field_list.push_back(new Item_empty_string("description",1000));
-  field_list.push_back(new Item_empty_string("example",1000));
+  field_list.push_back(new Item_empty_string("Name",64));
+  field_list.push_back(new Item_empty_string("Category",1));
+  field_list.push_back(new Item_empty_string("Description",1000));
+  field_list.push_back(new Item_empty_string("Example",1000));
 
-  if (send_fields(thd,field_list,1))
+  if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1);
 
-  String *packet= &thd->packet;
-  packet->length(0);
-  net_store_data(packet, s1);
-  net_store_data(packet, s2);
-  net_store_data(packet, s3);
-  net_store_data(packet, s4);
-  
-  if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
+  protocol->prepare_for_resend();
+  protocol->store(s1);
+  protocol->store(s2);
+  protocol->store(s3);
+  protocol->store(s4);
+  if (protocol->write())
     DBUG_RETURN(-1);
 
   DBUG_RETURN(0);
 }
 
-int send_header_2(THD *thd)
+
+int send_header_2(Protocol *protocol)
 {
   DBUG_ENTER("send_header2");
   List<Item> field_list;
-  field_list.push_back(new Item_empty_string("name",64));
-  field_list.push_back(new Item_empty_string("is_category",1));
-  DBUG_RETURN(send_fields(thd,field_list,1));
+  field_list.push_back(new Item_empty_string("Name",64));
+  field_list.push_back(new Item_empty_string("Category",1));
+  DBUG_RETURN(protocol->send_fields(&field_list,1));
 }
 
-int mysqld_help (THD *thd, const char *mask)
+
+int mysqld_help(THD *thd, const char *mask)
 {
+  Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_help");
 
   MI_INFO *file_leafs= 0;
@@ -345,7 +345,7 @@ int mysqld_help (THD *thd, const char *mask)
 
   int count= search_functions(file_leafs, mask,
 			      &function_list,&name,&description,&example);
-  if (count<0)
+  if (count < 0)
   {
     res= 1;
     goto end;
@@ -371,31 +371,31 @@ int mysqld_help (THD *thd, const char *mask)
 	example.append(*cur_leaf);
 	example.append("\n",1);
       }
-      if ((res= send_answer_1(thd, categories_list.head()->ptr(),
-				       "Y","",example.ptr())))
+      if ((res= send_answer_1(protocol, categories_list.head()->ptr(),
+			      "Y","",example.ptr())))
 	goto end;
     }
     else	
     {
-      if ((res= send_header_2(thd)) ||
+      if ((res= send_header_2(protocol)) ||
 	  (count==0 && 
 	   (search_categories(thd, 0, &categories_list, 0)<0 && 
 	    (res= 1))) ||
-	  (res= send_variant_2_list(thd,&categories_list,true)))
+	  (res= send_variant_2_list(protocol,&categories_list,true)))
 	goto end;
     }
   }
   else if (count==1)
   {
-    if ((res= send_answer_1(thd,name->ptr(),"N",
-			   description->ptr(), example->ptr())))
+    if ((res= send_answer_1(protocol,name->ptr(),"N",
+			    description->ptr(), example->ptr())))
       goto end;
   }
-  else if((res= send_header_2(thd)) ||
-	  (res= send_variant_2_list(thd,&function_list,false)) ||
+  else if((res= send_header_2(protocol)) ||
+	  (res= send_variant_2_list(protocol,&function_list,false)) ||
 	  (search_categories(thd, mask, &categories_list, 0)<0 && 
 	   (res=1)) ||
-	  (res= send_variant_2_list(thd,&categories_list,true)))
+	  (res= send_variant_2_list(protocol,&categories_list,true)))
   {
     goto end;
   }

@@ -123,6 +123,9 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   List<Item> list;
   list.push_front(new Item_field(NULL,NULL,"*"));
   List_iterator<Item> it(list);
+  Protocol *protocol= thd->protocol;
+  char buff[MAX_FIELD_WIDTH];
+  String buffer(buff, sizeof(buff), system_charset_info);
   uint num_rows;
   it++;
 
@@ -131,7 +134,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
 
   select_limit+=offset_limit;
-  send_fields(thd,list,1);
+  protocol->send_fields(&list,1);
 
   HANDLER_TABLES_HACK(thd);
   MYSQL_LOCK *lock=mysql_lock_tables(thd,&tables->table,1);
@@ -141,7 +144,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   for (num_rows=0; num_rows < select_limit; )
   {
-    switch(mode) {
+    switch (mode) {
     case RFIRST:
       err=keyname ?
 	table->file->index_first(table->record[0]) :
@@ -216,24 +219,24 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       if (!cond->val_int())
         continue;
     }
-    if (num_rows>=offset_limit)
+    if (num_rows >= offset_limit)
     {
       if (!err)
       {
         String *packet = &thd->packet;
         Item *item;
-        packet->length(0);
+        protocol->prepare_for_resend();
         it.rewind();
         while ((item=it++))
         {
-          if (item->send(thd,packet))
+          if (item->send(thd->protocol, &buffer))
           {
-            packet->free();                             // Free used
+            protocol->free();                             // Free used
             my_error(ER_OUT_OF_RESOURCES,MYF(0));
             goto err;
           }
         }
-        my_net_write(&thd->net, (char*)packet->ptr(), packet->length());
+	protocol->write();
       }
     }
     num_rows++;
@@ -249,26 +252,26 @@ err0:
 }
 
 /**************************************************************************
-   2Monty: It could easily happen, that the following service functions are
+   Monty: It could easily happen, that the following service functions are
    already defined somewhere in the code, but I failed to find them.
    If this is the case, just say a word and I'll use old functions here.
 **************************************************************************/
 
-/* Note: this function differs from find_locked_table() because we're looking
-   here for alias, not real table name
- */
+/*
+  Note: this function differs from find_locked_table() because we're looking
+  here for alias, not real table name
+*/
+
 static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
 				      const char *alias)
 {
   int dblen;
   TABLE **ptr;
 
-  if (!db || ! *db)
-    db= thd->db ? thd->db : "";
   dblen=strlen(db)+1;
-  ptr=&(thd->handler_tables);
+  ptr= &(thd->handler_tables);
 
-  for (TABLE *table=*ptr; table ; table=*ptr)
+  for (TABLE *table= *ptr; table ; table= *ptr)
   {
     if (!memcmp(table->table_cache_key, db, dblen) &&
         !my_strcasecmp(system_charset_info,table->table_name,alias))

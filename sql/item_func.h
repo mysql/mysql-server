@@ -106,7 +106,6 @@ public:
   Item_func(List<Item> &list);
   ~Item_func() {} /* Nothing to do; Items are freed automaticly */
   bool fix_fields(THD *,struct st_table_list *, Item **ref);
-  void make_field(Send_field *field);
   table_map used_tables() const;
   void update_used_tables();
   bool eq(const Item *item, bool binary_cmp) const;
@@ -909,7 +908,9 @@ class Item_func_set_user_var :public Item_func
   user_var_entry *entry;
 
 public:
-  Item_func_set_user_var(LEX_STRING a,Item *b): Item_func(b), name(a) {}
+  Item_func_set_user_var(LEX_STRING a,Item *b)
+    :Item_func(b), cached_result_type(INT_RESULT), name(a)
+  {}
   double val();
   longlong val_int();
   String *val_str(String *str);

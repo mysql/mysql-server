@@ -19,6 +19,7 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+class Protocol;
 struct st_table_list;
 void item_init(void);			/* Init item functions */
 
@@ -53,20 +54,21 @@ public:
   virtual ~Item() { name=0; }		/*lint -e1509 */
   void set_name(const char *str,uint length=0);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
+  virtual void make_field(Send_field *field);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
   virtual int save_in_field(Field *field, bool no_conversions);
   virtual void save_org_in_field(Field *field)
   { (void) save_in_field(field, 1); }
   virtual int save_safe_in_field(Field *field)
   { return save_in_field(field, 1); }
-  virtual bool send(THD *thd, String *str);
+  virtual bool send(Protocol *protocol, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type () const { return REAL_RESULT; }
+  virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
   virtual double val()=0;
   virtual longlong val_int()=0;
   virtual String *val_str(String*)=0;
-  virtual void make_field(Send_field *field)=0;
   virtual Field *tmp_table_field(TABLE *t_arg=(TABLE *)0) { return 0; }
   virtual const char *full_name() const { return name ? name : "???"; }
   virtual double  val_result() { return val(); }
@@ -117,10 +119,10 @@ public:
      item (it assign '*ref' with field 'item' in derived classes)
   */
   enum Type type() const         { return item->type(); }
+  enum_field_types field_type() const { return item->field_type(); }
   double val()                   { return item->val(); }
   longlong val_int()             { return item->val_int(); }
   String* val_str(String* s)     { return item->val_str(s); }
-  void make_field(Send_field* f) { item->make_field(f); }
   bool check_cols(uint col)      { return item->check_cols(col); }
 };
 
@@ -189,18 +191,19 @@ public:
   longlong val_int_result();
   String *str_result(String* tmp);
   bool is_null_result() { return result_field->is_null(); }
-  bool send(THD *thd, String *str_arg)
-  {
-    return result_field->send(thd,str_arg);
-  }
-  void make_field(Send_field *field);
+  bool send(Protocol *protocol, String *str_arg);
   bool fix_fields(THD *, struct st_table_list *, Item **);
+  void make_field(Send_field *tmp_field);
   int save_in_field(Field *field,bool no_conversions);
   void save_org_in_field(Field *field);
   table_map used_tables() const;
   enum Item_result result_type () const
   {
     return field->result_type();
+  }
+  enum_field_types field_type()
+  {
+    return field->type();
   }
   Field *tmp_table_field(TABLE *t_arg=(TABLE *)0) { return result_field; }
   bool get_date(TIME *ltime,bool fuzzydate);  
@@ -219,12 +222,17 @@ public:
   double val();
   longlong val_int();
   String *val_str(String *str);
-  void make_field(Send_field *field);
   int save_in_field(Field *field, bool no_conversions);
   int save_safe_in_field(Field *field);
-  enum Item_result result_type () const
-  { return STRING_RESULT; }
-  bool send(THD *thd, String *str);
+  enum Item_result result_type () const { return STRING_RESULT; }
+  enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
+  bool fix_fields(THD *thd, struct st_table_list *list, Item **item)
+  {
+    bool res= Item::fix_fields(thd, list, item);
+    max_length=0;
+    return res;
+  }
+  bool send(Protocol *protocol, String *str);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
@@ -251,7 +259,6 @@ public:
   double val();
   longlong val_int();
   String *val_str(String*);
-  void make_field(Send_field *field);
   int  save_in_field(Field *field, bool no_conversions);
   void set_null();
   void set_int(longlong i);
@@ -265,6 +272,7 @@ public:
   void (*setup_param_func)(Item_param *param, uchar **pos);
   enum Item_result result_type () const
   { return item_result_type; }
+  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
   Item *new_item() { return new Item_param(name); }
 };
 
@@ -285,11 +293,11 @@ public:
 	  (longlong) strtoull(str_arg,(char**) 0,10))
     { max_length= (uint) strlen(str_arg); name=(char*) str_arg;}
   enum Type type() const { return INT_ITEM; }
-  virtual enum Item_result result_type () const { return INT_RESULT; }
+  enum Item_result result_type () const { return INT_RESULT; }
+  enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
   longlong val_int() { return value; }
   double val() { return (double) value; }
   String *val_str(String*);
-  void make_field(Send_field *field);
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_int(name,value,max_length); }
@@ -305,8 +313,13 @@ public:
   Item_uint(uint32 i) :Item_int((longlong) i, 10) {}
   double val() { return ulonglong2double(value); }
   String *val_str(String*);
-  void make_field(Send_field *field);
   Item *new_item() { return new Item_uint(name,max_length); }
+  bool fix_fields(THD *thd, struct st_table_list *list, Item **item)
+  {
+    bool res= Item::fix_fields(thd, list, item);
+    unsigned_flag= 1;
+    return res;
+  }
   void print(String *str);
 };
 
@@ -332,10 +345,10 @@ public:
   Item_real(double value_par) :value(value_par) {}
   int save_in_field(Field *field, bool no_conversions);
   enum Type type() const { return REAL_ITEM; }
+  enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
   double val() { return value; }
   longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5));}
   String *val_str(String*);
-  void make_field(Send_field *field);
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_real(name,value,decimals,max_length); }
 };
@@ -374,8 +387,8 @@ public:
   longlong val_int() { return strtoll(str_value.ptr(),(char**) 0,10); }
   String *val_str(String*) { return (String*) &str_value; }
   int save_in_field(Field *field, bool no_conversions);
-  void make_field(Send_field *field);
   enum Item_result result_type () const { return STRING_RESULT; }
+  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
   bool basic_const_item() const { return 1; }
   bool eq(const Item *item, bool binary_cmp) const;
   Item *new_item() { return new Item_string(name,str_value.ptr(),max_length,default_charset_info); }
@@ -392,7 +405,6 @@ class Item_default :public Item
 public:
   Item_default() { name= (char*) "DEFAULT"; }
   enum Type type() const { return DEFAULT_ITEM; }
-  void make_field(Send_field *field) {}
   int save_in_field(Field *field, bool no_conversions)
   {
     field->set_default();
@@ -412,7 +424,7 @@ class Item_datetime :public Item_string
 public:
   Item_datetime(const char *item_name): Item_string(item_name,"",0,default_charset_info)
   { max_length=19;}
-  void make_field(Send_field *field);
+  enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
 };
 
 class Item_empty_string :public Item_string
@@ -421,6 +433,20 @@ public:
   Item_empty_string(const char *header,uint length) :Item_string("",0,default_charset_info)
     { name=(char*) header; max_length=length;}
 };
+
+class Item_return_int :public Item_int
+{
+  enum_field_types int_field_type;
+public:
+  Item_return_int(const char *name, uint length,
+		  enum_field_types field_type_arg)
+    :Item_int(name, 0, length), int_field_type(field_type_arg)
+  {
+    unsigned_flag=1;
+  }
+  enum_field_types field_type() const { return int_field_type; }
+};
+
 
 class Item_varbinary :public Item
 {
@@ -432,8 +458,8 @@ public:
   longlong val_int();
   String *val_str(String*) { return &str_value; }
   int save_in_field(Field *field, bool no_conversions);
-  void make_field(Send_field *field);
   enum Item_result result_type () const { return INT_RESULT; }
+  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
 };
 
 
@@ -488,13 +514,14 @@ public:
   {  
     return (null_value=(*ref)->get_date(ltime,fuzzydate));
   }
-  bool send(THD *thd, String *tmp)	{ return (*ref)->send(thd, tmp); }
+  bool send(Protocol *prot, String *tmp){ return (*ref)->send(prot, tmp); }
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }
   bool fix_fields(THD *, struct st_table_list *, Item **);
   int save_in_field(Field *field, bool no_conversions)
   { return (*ref)->save_in_field(field, no_conversions); }
   void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
   enum Item_result result_type () const { return (*ref)->result_type(); }
+  enum_field_types field_type() const   { return (*ref)->field_type(); }
   table_map used_tables() const		{ return (*ref)->used_tables(); }
   bool check_loop(uint id);
 };
@@ -544,6 +571,7 @@ public:
   ~Item_copy_string() { delete item; }
   enum Type type() const { return COPY_STR_ITEM; }
   enum Item_result result_type () const { return STRING_RESULT; }
+  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
   double val()
   { return null_value ? 0.0 : my_strntod(str_value.charset(),str_value.ptr(),str_value.length(),NULL); }
   longlong val_int()

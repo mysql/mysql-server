@@ -1945,8 +1945,6 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
 					Item **ref)
 {
-  if (!thd)
-    thd=current_thd;				// Should never happen
   if (Item_func::fix_fields(thd, tables, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return 1;

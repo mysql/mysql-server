@@ -316,6 +316,7 @@ public:
   Item_date() :Item_func() {}
   Item_date(Item *a) :Item_func(a) {}
   enum Item_result result_type () const { return STRING_RESULT; }
+  enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   String *val_str(String *str);
   double val() { return (double) val_int(); }
   const char *func_name() const { return "date"; }
@@ -326,10 +327,6 @@ public:
     max_length=10*thd_charset()->mbmaxlen;
   }
   int save_in_field(Field *to, bool no_conversions);
-  void make_field(Send_field *tmp_field)
-  {
-    init_make_field(tmp_field,FIELD_TYPE_DATE);
-  }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (!t_arg) ? result_field : new Field_date(maybe_null, name, t_arg, thd_charset());
@@ -343,10 +340,7 @@ public:
   Item_date_func() :Item_str_func() {}
   Item_date_func(Item *a) :Item_str_func(a) {}
   Item_date_func(Item *a,Item *b) :Item_str_func(a,b) {}
-  void make_field(Send_field *tmp_field)
-  {
-    init_make_field(tmp_field,FIELD_TYPE_DATETIME);
-  }
+  enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return  (!t_arg) ? result_field : new Field_datetime(maybe_null, name,
@@ -364,15 +358,12 @@ public:
   Item_func_curtime() :Item_func() {}
   Item_func_curtime(Item *a) :Item_func(a) {}
   enum Item_result result_type () const { return STRING_RESULT; }
+  enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
   double val() { return (double) value; }
   longlong val_int() { return value; }
   String *val_str(String *str);
   const char *func_name() const { return "curtime"; }
   void fix_length_and_dec();
-  void make_field(Send_field *tmp_field)
-  {
-    init_make_field(tmp_field,FIELD_TYPE_TIME);
-  }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (!t_arg) ? result_field : 
@@ -470,11 +461,8 @@ public:
     maybe_null=1;
     max_length=13*thd_charset()->mbmaxlen;
   }
+  enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
   const char *func_name() const { return "sec_to_time"; }
-  void make_field(Send_field *tmp_field)
-  {
-    init_make_field(tmp_field,FIELD_TYPE_TIME);
-  }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (!t_arg) ? result_field : 
@@ -566,10 +554,7 @@ class Item_date_typecast :public Item_typecast
 public:
   Item_date_typecast(Item *a) :Item_typecast(a) {}
   const char *func_name() const { return "date"; }
-  void make_field(Send_field *tmp_field)
-  {
-    init_make_field(tmp_field,FIELD_TYPE_DATE);
-  }
+  enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (!t_arg) ? result_field : 
@@ -583,10 +568,7 @@ class Item_time_typecast :public Item_typecast
 public:
   Item_time_typecast(Item *a) :Item_typecast(a) {}
   const char *func_name() const { return "time"; }
-  void make_field(Send_field *tmp_field)
-  {
-    init_make_field(tmp_field,FIELD_TYPE_TIME);
-  }
+  enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (!t_arg) ? result_field : 
@@ -600,10 +582,7 @@ class Item_datetime_typecast :public Item_typecast
 public:
   Item_datetime_typecast(Item *a) :Item_typecast(a) {}
   const char *func_name() const { return "datetime"; }
-  void make_field(Send_field *tmp_field)
-  {
-    init_make_field(tmp_field,FIELD_TYPE_DATETIME);
-  }
+  enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (!t_arg) ? result_field : new Field_datetime(maybe_null, name,
