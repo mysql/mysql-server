@@ -1,6 +1,7 @@
 #!/bin/bash
 
 WD=`pwd`
+# Don't write a wrong path for BD !!!!!
 BD=/my/tmp/BUILD
 TMP_SCRIPT=$WD/Logs/00-temp-for-do-all-build-steps.$$
 
@@ -12,6 +13,7 @@ EXTRA_CONFIG="--without-perl"
 
 echo "Building on $to_host"
 
+rm -rf $BD/*
 mkdir -p $WD/Logs
 mkdir -p $BD/Logs
 
@@ -22,8 +24,11 @@ set -x
 cd "$WD"
 # Create a build directory tree
 bk export -w $BD
-chmod a+x $BD/mit-pthreads/config/configure
+chmod a+x $BD/mit-pthreads/config/configure $BD/Build-tools/* $BD/tests/*.pl
 cd "$BD"
+
+#Make it easy to remove an old build
+umask 002
 
 CC=$cc CXX=$ccc 
 export CC CXX
@@ -51,7 +56,8 @@ aclocal; autoheader; aclocal; automake; autoconf
 ./configure \
  --with-unix-socket-path=/var/tmp/mysql.sock \
  --with-low-memory \
- --with-mit-threads=yes $EXTRA_CONFIG
+ --with-mit-threads=yes $EXTRA_CONFIG \
+ --enable-thread-safe-client
 
 gmake # --jobs=4 does not work.
 
@@ -77,5 +83,6 @@ fi
 # Create a commercial MySQL distribution (mysqlcom-VER.tar.gz) from
 # the newly made source distribution
 
+cd "$BD"
 DIST=`ls -t mysql-*.tar.gz | head -1`
-sh $BD/Build-tools/mysql-copyright --target=. $DIST
+$BD/Build-tools/mysql-copyright --target=. $DIST
