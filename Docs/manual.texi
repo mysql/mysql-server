@@ -35991,6 +35991,10 @@ SELECT * FROM tbl_name WHERE auto_col IS NULL
 @end example
 
 @item
+@code{CREATE TABLE} automatically commits the current InnoDB
+transaction if the MySQL binlogging is used.
+
+@item
 @code{NULL} values are handled differently for @code{TIMESTAMP} columns than
 for other column types.  You cannot store a literal @code{NULL} in a
 @code{TIMESTAMP} column; setting the column to @code{NULL} sets it to the
@@ -36121,7 +36125,13 @@ supported. See @ref{Fulltext Search} for details of operation.
 
 @item
 In MySQL Version 3.23.44 or later, @code{InnoDB} tables support checking of
-foreign key constraints. @xref{InnoDB}.
+foreign key constraints. @xref{InnoDB}. Note that the
+@code{FOREIGN KEY} syntax in InnoDB is more restricted than
+the syntax presented above. InnoDB does not allow
+@code{index_name} to be specified, and the columns of the referenced
+table always have to be explicitly named. Of actions, InnoDB supports
+only @code{ON DELETE CASCADE} and @code{ON DELETE SET NULL}.
+See the InnoDB manual section for the precise syntax.
 For other table types, MySQL Server does parse the @code{FOREIGN KEY},
 @code{CHECK}, and @code{REFERENCES} syntax in @code{CREATE TABLE} commands,
 but without further action being taken. @xref{ANSI diff Foreign Keys}.
@@ -36381,7 +36391,7 @@ alter_specification:
   or    ADD PRIMARY KEY (index_col_name,...)
   or    ADD UNIQUE [index_name] (index_col_name,...)
   or    ADD FULLTEXT [index_name] (index_col_name,...)
-  or	ADD [CONSTRAINT symbol] FOREIGN KEY index_name (index_col_name,...)
+  or	ADD [CONSTRAINT symbol] FOREIGN KEY [index_name] (index_col_name,...)
             [reference_definition]
   or    ALTER [COLUMN] col_name @{SET DEFAULT literal | DROP DEFAULT@}
   or    CHANGE [COLUMN] old_col_name create_definition
@@ -36592,7 +36602,11 @@ deleted due to duplication of unique key values.
 @cindex foreign keys
 @cindex references
 The @code{FOREIGN KEY}, @code{CHECK}, and @code{REFERENCES} clauses don't
-actually do anything.  The syntax for them is provided only for compatibility,
+actually do anything, except for InnoDB type tables which support
+@code{ADD CONSTRAINT FOREIGN KEY (...) REFERENCES ... (...)}.
+Note that InnoDB does not allow a constraint @code{symbol} or @code{index_name}
+to be specified. @xref{InnoDB}.
+The syntax for other table types is provided only for compatibility,
 to make it easier to port code from other SQL servers and to run applications
 that create tables with references.
 @xref{Differences from ANSI}.
@@ -38631,6 +38645,7 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 * Table and index::             Table and Index Structures
 * File space management::       File Space Management and Disk I/O
 * Error handling::              Error Handling
+* InnoDB change history::       InnoDB Change History
 * InnoDB restrictions::         Restrictions on InnoDB Tables
 * InnoDB contact information::  InnoDB Contact Information.
 @end menu
@@ -40490,7 +40505,6 @@ records are deleted only from the end, then the file space management
 algorithm of InnoDB guarantees that fragmentation in the index will
 not occur.
 
-
 @node Error handling, InnoDB restrictions, File space management, InnoDB
 @subsection Error Handling
 
@@ -40524,7 +40538,7 @@ they roll back the corresponding SQL statement.
 @end itemize
 
 
-@node InnoDB restrictions, InnoDB contact information, Error handling, InnoDB
+@node InnoDB restrictions, InnoDB change history, Error handling, InnoDB
 @subsection Restrictions on InnoDB Tables
 
 @itemize @bullet
@@ -40590,8 +40604,581 @@ The maximum tablespace size is 4 billion database pages. This is also
 the maximum size for a table. The minimum tablespace size is 10 MB.
 @end itemize
 
+@node InnoDB change history, InnoDB contact information, InnoDB restrictions, InnoDB
+@subsection InnoDB Change History
 
-@node InnoDB contact information,  , InnoDB restrictions, InnoDB
+@subsubsection MySQL/InnoDB-3.23.53, October xx, 2002
+@itemize bullet
+@item
+We again use unbuffered disk i/o in Windows. Win XP and Win 2000
+read performance seems to be very poor with normal i/o.
+@item
+Allow dropping and creating a table even if
+innodb_force_recovery is set. One can use this to drop
+a table which would cause a crash in rollback or purge,
+or if a failed table import causes a runaway rollback in recovery.
+@item
+Fixed a bug: fast shutdown (which is the default) sometimes
+was slowed down by purge and insert buffer merge.
+@item
+Fixed a bug: doing a big SELECT from a table where
+no rows were visible in a consistent read could cause
+a very long (> 600 seconds) semaphore wait in btr0cur.c line 310.
+@end itemize
+
+@subsubsection MySQL/InnoDB-4.0.4, October 2, 2002
+@itemize bullet
+@item
+We again use unbuffered disk i/o in Windows. Win XP and Win 2000
+read performance seems to be very poor with normal i/o.
+@item
+Increased the max key length of InnoDB tables from 500 to 1024 bytes.
+@item
+Increased the table comment field in SHOW TABLE STATUS so that
+up to 16000 characters of foreign key definitions can be printed there.
+@item
+The auto-increment counter is no longer incremented if
+an insert of a row immediately fails in an error.
+@item
+Allow dropping and creating a table even if
+innodb_force_recovery is set. One can use this to drop
+a table which would cause a crash in rollback or purge,
+or if a failed table import causes a runaway rollback in recovery.
+@item
+Fixed a bug: Using ORDER BY primarykey DESC in 4.0.3 causes
+an assertion failure in btr0pcur.c, line 203.
+@item
+Fixed a bug: fast shutdown (which is the default) sometimes
+was slowed down by purge and insert buffer merge.
+@item
+Fixed a bug: doing a big SELECT from a table where
+no rows were visible in a consistent read could cause
+a very long (> 600 seconds) semaphore wait in btr0cur.c line 310.
+@item
+Fixed a bug: if the MySQL query cache was used, it did not get
+invalidated by a modification done by ON DELETE CASCADE or ...SET NULL.
+@item
+Fixed a bug: if you created a temporary table inside LOCK TABLES,
+and used that temporary table, that caused an assertion failure
+in ha_innodb.cc.
+@item
+Fixed a bug: if you set innodb_flush_log_at_trx_commit to 1, SHOW
+VARIABLES would show its value as 16 million.
+@end itemize
+
+@subsubsection MySQL/InnoDB-4.0.3, August 28, 2002
+@itemize bullet
+@item
+Removed unnecessary deadlocks when inserts have to wait for
+a locking read, update, or delete to release its next-key lock.
+@item
+The MySQL HANDLER SQL commands now work also for InnoDB type tables.
+InnoDB does the HANDLER reads always as consistent reads.
+HANDLER is a direct access path to read individual indexes of tables.
+In some cases HANDLER can be used as a substitute of server-side cursors.
+@item
+Fixed a bug in 4.0.2: even a simple insert could crash the
+AIX version.
+@item
+Fixed a bug: if you used in a table name characters whose code is > 127,
+in DROP TABLE InnoDB could assert on line 155 of pars0sym.c.
+@item
+Compilation from source now provides a working version both on
+HP-UX-11 and HP-UX-10.20. The source of 4.0.2 worked only on 11,
+and the source of 3.23.52 only on 10.20.
+@item
+Fixed a bug: if compiled on 64-bit Solaris, InnoDB produced a bus error
+at startup.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.52, August 16, 2002
+@itemize bullet
+@item
+The feature set of 3.23 will be frozen from this version on. New features
+will go the the 4.0 branch, and only bug fixes will be made to the 3.23
+branch.
+@item
+Many CPU-bound join queries now run faster. On Windows also many
+other CPU-bound queries run faster.
+@item
+A new SQL command SHOW INNODB STATUS returns the output of the
+InnoDB Monitor to the client. The InnoDB Monitor now prints detailed info on
+the latest detected deadlock.
+@item
+InnoDB made the SQL query optimizer to avoid too much index-only
+range scans and choose full table scans instead. This is now fixed.
+@item
+"BEGIN" and "COMMIT" are now added in the binlog around transactions.
+The MySQL replication now respects transaction borders:
+a user will no longer see half transactions in replication slaves.
+@item
+A replication slave now prints in crash recovery the last
+master binlog position it was able to recover to.
+@item
+A new setting innodb_flush_log_at_trx_commit=2 makes InnoDB to write
+the log to the operating system file cache at each commit. This is
+almost as fast as the setting innodb_flush_log_at_trx_commit=0, and
+the setting 2 also has the nice feature that in a crash where the
+operating system does not crash, no committed transaction is lost.
+If the operating system crashes or there is a power outage, then
+the setting 2 is no safer than the setting 0.
+@item
+Added checksum fields to log blocks.
+@item
+SET FOREIGN_KEY_CHECKS=0 helps in importing tables
+in an arbitrary order which does not respect the foreign key rules.
+@item
+SET UNIQUE_CHECKS=0 speeds up table imports into InnoDB
+if you have UNIQUE constraints on secondary indexes.
+@item
+SHOW TABLE STATUS now lists also possible ON DELETE CASCADE or
+ON DELETE SET NULL in the comment field of the table.
+@item
+When CHECK TABLE is run on any InnoDB type table, it now
+checks also the adaptive hash index for all tables.
+@item
+If you defined ON DELETE CASCADE or SET NULL and updated the
+referenced key in the parent row, InnoDB deleted or updated
+the child row. This is now changed to conform to SQL-92: you get
+the error 'Cannot delete parent row'.
+@item
+Improved the auto-increment algorithm: now the first insert or
+SHOW TABLE STATUS initializes the auto-inc counter for the table.
+This removes almost all surprising deadlocks caused by
+SHOW TABLE STATUS.
+@item
+Aligned some buffers used in reading and writing to data files.
+This allows using unbuffered raw devices as data files in Linux.
+@item
+Fixed a bug: If you updated the primary key of a table so that only the
+case of characters changed, that could cause assertion
+failures, mostly in page0page.ic line 515.
+@item
+Fixed a bug: If you delete or update a row referenced in a foreign key
+constraint and the foreign key check has to wait for a lock,
+then the check may report an erroneous result. This
+affects also the ON DELETE... operation.
+@item
+Fixed a bug: A deadlock or a lock wait timeout error in InnoDB
+causes InnoDB to roll back the whole transaction, but MySQL could still
+write the earlier SQL statements to the binlog, even though
+InnoDB rolled them back. This could, for example, cause replicated
+databases to get out-of-sync.
+@item
+Fixed a bug: If the database happened to crash in the middle of a
+commit, then the recovery might leak tablespace pages.
+@item
+Fixed a bug: If you specified a non-latin1 character set in my.cnf,
+then, in contrary to what is stated in the manual, in a foreign key
+constraint a string type column had to have the same length specification
+in the referencing table and the referenced table.
+@item
+Fixed a bug: DROP TABLE or DROP DATABASE could fail if there
+simultaneously was a CREATE TABLE running.
+@item
+Fixed a bug: If you configured the buffer pool bigger than 2 GB in
+a 32-bit computer, InnoDB would assert in buf0buf.ic line 214.
+@item
+Fixed a bug: on 64-bit computers updating rows which contained the
+SQL NULL in some column could cause the undo log and the ordinary
+log to become corrupt.
+@item
+Fixed a bug: innodb_log_monitor caused a hang if it suppressed
+lock prints for a page.
+@item
+Fixed a bug: in the HP-UX-10.20 version mutexes would leak and cause
+race conditions and crashes in any part of InnoDB code.
+@item
+Fixed a bug: if you ran in the AUTOCOMMIT mode, executed a SELECT,
+and immediately after that a RENAME TABLE, then RENAME would fail and
+MySQL would complain about error 1192.
+@item
+Fixed a bug: if compiled on 64-bit Solaris, InnoDB produced a bus error
+at startup.
+@end itemize
+
+@subsubsection MySQL/InnoDB-4.0.2, July 10, 2002
+@itemize bullet
+@item
+InnoDB is essentially the same as InnoDB-3.23.51.
+@item
+If no innodb_data_file_path is specified, InnoDB at the database creation
+now creates a 10 MB auto-extending data file ibdata1 to the datadir
+of MySQL. In 4.0.1 the file was 64 MB and not auto-extending.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.51, June 12, 2002
+@itemize bullet
+@item
+Fixed a bug: a join could result in a seg fault in copying of a BLOB or
+TEXT column if some of the BLOB or TEXT columns in the table contained
+SQL NULL values.
+@item
+Fixed a bug: if you added self-referential foreign key constraints with
+ON DELETE CASCADE to tables and a row deletion caused InnoDB
+to attempt the deletion of the same row twice because of
+a cascading delete, then you got an assertion failure.
+@item
+Fixed a bug: if you use MySQL 'user level locks' and close
+a connection, then InnoDB may assert in ha_innobase.cc, line 302.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.50, April 23, 2002
+@itemize bullet
+@item
+InnoDB now supports an auto-extending last data file. You do not need
+to preallocate the whole data file at the database startup.
+@item
+Made several changes to facilitate the use of the InnoDB Hot Backup
+tool. It is a separate non-free tool you can use to take online backups
+of your database without shutting down the server or setting
+any locks.
+@item
+If you want to run the InnoDB Hot Backup tool on an auto-extending
+data file you have to upgrade it to version ibbackup-0.35.
+@item
+The log scan phase in crash recovery will now run much faster.
+@item
+Starting from this server version, the hot backup tool
+truncates unused ends in the backup InnoDB data files.
+@item
+To allow the hot backup tool to work, on Windows we no longer use
+unbuffered i/o or native async i/o; instead we use the same simulated
+async i/o as on Unix.
+@item
+You can now define the ON DELETE CASCADE or ON DELETE SET NULL
+clause on foreign keys.
+@item
+FOREIGN KEY constraints now survive ALTER TABLE and CREATE
+INDEX.
+@item
+We suppress the FOREIGN KEY check if any of the column values in the
+foreign key or referenced key to be checked is the SQL NULL. This
+is compatible with Oracle, for example.
+@item
+SHOW CREATE TABLE now lists also foreign key constraints. Also
+mysqldump no longer forgets about foreign keys in table definitions.
+@item
+You can now add a new foreign key constraint with
+ALTER TABLE ... ADD CONSTRAINT FOREIGN KEY (...) REFERENCES ... (...).
+@item
+FOREIGN KEY definitions now allow backquotes around table and
+column names.
+@item
+MySQL command
+SET TRANSACTION ISOLATION LEVEL ...
+has now the following effect on
+InnoDB tables: if a transaction is defined as SERIALIZABLE
+then InnoDB conceptually adds LOCK IN SHARE MODE
+to all consistent reads. If a transaction is defined to have any other
+isolation level, then InnoDB obeys its default locking strategy
+which is REPEATABLE READ.
+@item
+SHOW TABLE STATUS no longer sets an x-lock at the end of an
+auto-increment index if the auto-increment counter has already
+been initialized. This removes in almost all cases the surprising deadlocks
+caused by SHOW TABLE STATUS.
+@item
+Fixed a bug: in a CREATE TABLE statement the string 'foreign'
+followed by a non-space character confused the FOREIGN KEY parser
+and caused table creation to fail with errno 150.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.49, February 17, 2002
+@itemize bullet
+@item
+Fixed a bug: if you called DROP DATABASE for a database on which
+there simultaneously were running queries, the MySQL server could crash
+or hang. Crashes fixed, but a full fix has to wait some changes
+in the MySQL layer of code.
+@item
+Fixed a bug: on Windows one had to put the database name
+in lower case for DROP
+DATABASE to work. Fixed in 3.23.49: case no longer matters
+on Windows. On Unix the database name remains case-sensitive.
+@item
+Fixed a bug: if one defined a non-latin1 character set as
+the default character set,
+then definition of foreign key constraints could fail
+in an assertion failure
+in dict0crea.c, reporting an internal error 17.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.48, February 9, 2002
+@itemize bullet
+@item
+Tuned the SQL optimizer to favor more often index searches
+over table scans.
+@item
+Fixed a performance problem when several large SELECT
+queries are run concurrently on a multiprocessor Linux computer.
+Large CPU-bound SELECT queries will now also generally run faster on
+all platforms.
+@item
+If MySQL binlogging is used,
+InnoDB now prints after crash recovery the latest MySQL binlog
+file name and the position in that file (= byte offset)
+InnoDB was able to recover to. This is useful, for example,
+when resynchronizing a master and a slave database in replication.
+@item
+Added better error messages to help in installation problems.
+@item
+One can now recover also MySQL temporary tables which have become
+orphaned inside the InnoDB tablespace.
+@item
+InnoDB now prevents a FOREIGN KEY declaration where the signedness
+is not the same in the referencing and referenced integer columns.
+@item
+Fixed a bug: calling SHOW CREATE TABLE or SHOW TABLE STATUS
+could cause memory corruption and make mysqld to crash.
+Especially at risk was mysqldump, because it calls frequently
+SHOW CREATE TABLE.
+@item
+Fixed a bug: if on Unix you did an ALTER TABLE to an InnoDB table and
+simultaneously did queries to it, mysqld could crash with an assertion
+failure in row0row.c, line 474.
+@item
+Fixed a bug: if inserts to several tables containing an auto-inc column
+were wrapped inside one LOCK TABLES, InnoDB asserted in lock0lock.c.
+@item
+In 3.23.47 we allowed several NULLS in a UNIQUE secondary index.
+But CHECK TABLE was not relaxed: it reports the table as corrupt.
+CHECK TABLE no longer complains in this situation.
+@item
+Fixed a bug: on Sparc and other high-endian processors SHOW VARIABLES
+showed innodb_flush_log_at_trx_commit and other boolean-valued
+startup parameters always OFF even if they were switched on. 
+@item
+Fixed a bug: if you ran mysqld-max-nt as a service on Windows NT/2000,
+the service shutdown did not always wait long enough for the InnoDB shutdown
+to finish.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.47, December 28, 2001
+@itemize bullet
+@item
+Recovery happens now faster, especially in a lightly loaded system,
+because background checkpointing has been made more frequent.
+@item
+InnoDB allows now several similar key values in a UNIQUE secondary index
+if those values contain SQL NULLs. Thus the convention is now the same as in
+MyISAM tables.
+@item
+InnoDB gives a better row count estimate for a table which contains BLOBs.
+@item
+In a FOREIGN KEY constraint InnoDB is now case-insensitive to column
+names, and in Windows also to table names.
+@item
+InnoDB allows a FOREIGN KEY column of CHAR type to refer to a column of
+VARCHAR type, and vice versa. MySQL silently changes the type of some
+columns between CHAR and VARCHAR, and these silent changes do not hinder
+FOREIGN KEY declaration any more.
+@item
+Recovery has been made more resilient to corruption of log files.
+@item
+Unnecessary statistics calculation has been removed from queries which
+generate a temporary table. Some ORDER BY and DISTINCT queries will now run
+much faster.
+@item
+MySQL now knows that the table scan of an InnoDB table is done through the
+primary key. This will save a sort in some ORDER BY queries.
+@item
+The maximum key length of InnoDB tables is again restricted to 500 bytes.
+The MySQL interpreter is not able to handle longer keys.
+@item
+The default value of innodb_lock_wait_timeout was changed from infinite to
+50 seconds, the default value of innodb_file_io_threads from 9
+to 4.
+@end itemize
+
+@subsubsection MySQL/InnoDB-4.0.1, December 23, 2001
+@itemize bullet
+@item
+InnoDB is the same as in 3.23.47.
+@item
+In 4.0.0 the MySQL interpreter did not know the syntax LOCK IN
+SHARE MODE. This has been fixed.
+@item
+In 4.0.0 multi-table delete did not work for transactional tables.
+This has been fixed.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.46, November 30, 2001
+@itemize bullet
+@item
+This is the same as 3.23.45.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.45, November 23, 2001
+@itemize bullet
+@item
+This is a bugfix release.
+@item
+In versions 3.23.42-.44 when creating a table on Windows you
+have to use lower case letters in the database name to be able to
+access the table. Fixed in 3.23.45.
+@item
+InnoDB now flushes stdout and stderr every 10 seconds: if these
+are redirected to files, the file contents can be better viewed with
+an editor.
+@item
+Fixed an assertion failure in .44, in trx0trx.c, line 178
+when you drop a table which has
+the .frm file but does not exist inside InnoDB.
+@item
+Fixed a bug in the insert buffer.
+The insert buffer tree could get into an inconsistent state, causing a crash,
+and also crashing the recovery. This bug could appear especially in
+large table imports or alterations.
+@item
+Fixed a bug in recovery: InnoDB could go into an infinite loop
+constantly printing
+a warning message that it cannot find free blocks from the buffer pool.
+@item
+Fixed a bug: when you created a temporary table of the InnoDB type, and then
+used ALTER TABLE to it, the MySQL server could crash.
+@item
+Prevented creation of MySQL system tables 'mysql.user',
+'mysql.host', or 'mysql.db', in the
+InnoDB type.
+@item
+Fixed a bug which can cause an assertion failure in 3.23.44 in
+srv0srv.c, line 1728.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.44, November 2, 2001
+@itemize bullet
+@item
+You can define foreign key constraints on InnoDB
+tables. An example: FOREIGN KEY (col1) REFERENCES table2(col2).
+@item
+You can create > 4 GB data files in those
+file systems that allow it.
+@item
+Improved InnoDB monitors, including a new innodb_table_monitor
+which allows you to print the contents of the InnoDB internal data
+dictionary.
+@item
+DROP DATABASE will now work also for InnoDB tables.
+@item
+Accent characters in the default character set
+latin1 will be ordered according to the MySQL ordering.<br>
+NOTE: if you are using latin1 and have inserted characters
+whose code is > 127 to an indexed CHAR column, you should run
+CHECK TABLE on your table when you upgrade to
+3.23.43, and drop and reimport the table if CHECK TABLE
+reports an error!
+@item
+InnoDB will calculate better table cardinality
+estimates.
+@item
+Change in deadlock resolution:
+in .43 a deadlock rolls back only the
+SQL statement, in .44 it will roll back the whole transaction.
+@item
+Deadlock, lock wait timeout, and foreign key
+constraint violations (no parent row, child rows exist)
+now return native MySQL
+error codes 1213, 1205, 1216, 1217, respectively.
+@item
+A new my.cnf parameter innodb_thread_concurrency
+helps in performance tuning in high concurrency environments.
+@item
+A new my.cnf option innodb_force_recovery will
+help you in dumping tables from a corrupted database.
+@item
+A new my.cnf option innodb_fast_shutdown will
+speed up shutdown. Normally InnoDB does a full purge
+and an insert buffer merge at shutdown.
+@item
+Raised maximum key length to 7000 bytes from a
+previous limit of 500 bytes.
+@item
+Fixed a bug in replication of auto-inc columns with multiline inserts.
+@item
+Fixed a bug when the case of letters changes in an update of an indexed
+secondary column.
+@item
+Fixed a hang when there are > 24 data files.
+@item
+Fixed a crash when MAX(col) is selected from an empty table, and col is a
+not the first column in a multi-column index.
+@item
+Fixed a bug in purge which could cause crashes.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.43, October 4, 2001
+@itemize bullet
+@item
+This is essentially the same as InnoDB-3.23.42.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.42, September 9, 2001
+@itemize bullet
+@item
+Fixed a bug which corrupted the table if the primary key
+of a > 8000-byte row was updated.
+@item
+There are now 3 types of InnoDB Monitors: innodb_monitor,
+innodb_lock_monitor, and innodb_tablespace_monitor.
+innodb_monitor now prints also buffer pool hit rate and the total
+number of rows inserted, updated, deleted, read.
+@item
+Fixed a bug in RENAME TABLE.
+@item
+Fixed a bug in replication with an auto-increment column.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.41, August 13, 2001
+@itemize bullet
+@item
+Support for < 4 GB rows. The previous limit was
+8000 bytes.
+@item
+Use the doublewrite file flush method.
+@item
+Raw disk partitions supported as data files.
+@item
+InnoDB Monitor.
+@item
+Several hang bugs fixed and an ORDER BY
+bug ('Sort aborted') fixed.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.40, July 16, 2001
+@itemize bullet
+@item
+Only a few rare bugs fixed.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.39, June 13, 2001
+@itemize bullet
+@item
+CHECK TABLE now works for InnoDB tables.
+@item
+A new my.cnf parameter innodb_unix_file_flush_method
+introduced. It can be used to tune disk write performance.
+@item
+An auto-increment column now gets new values past the
+transaction mechanism. This saves CPU time and eliminates
+transaction deadlocks in new value assignment.
+@item
+Several bug fixes, most notably the rollback bug in 3.23.38.
+@end itemize
+
+@subsubsection MySQL/InnoDB-3.23.38, May 12, 2001
+@itemize bullet
+@item
+The new syntax SELECT ... LOCK IN SHARE MODE is introduced.
+@item
+InnoDB now calls fsync after every disk write and calculates
+a checksum
+for every database page it writes or reads, which will reveal disk defects.
+@item
+Several bug fixes.
+@end itemize
+
+@node InnoDB contact information,  , InnoDB change history, InnoDB
 @subsection InnoDB Contact Information
 
 Contact information of Innobase Oy, producer of the InnoDB engine.
