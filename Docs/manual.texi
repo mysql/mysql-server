@@ -14137,7 +14137,7 @@ though.
 Write a core file if @code{mysqld} dies.  For some systems you must also
 specify @code{--core-file-size} to @code{safe_mysqld}.
 @xref{safe_mysqld, ,@code{safe_mysqld}}.
-Note that on some systems like Solaris, you will
+Note that on some systems, like Solaris, you will
 not get a core file if you are also using the @code{--user} option.
 
 @item -h, --datadir=path
