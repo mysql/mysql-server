@@ -212,7 +212,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
       if (strcmp(host.db, tmp_name) != 0)
         sql_print_warning("'host' entry '%s|%s' had database in mixed "
                           "case that has been forced to lowercase because "
-                          "lower_case_table_names is set.",
+                          "lower_case_table_names is set. It will not be "
+                          "possible to remove this privilege using REVOKE.",
                           host.host.hostname, host.db);
     }
     host.access= get_access(table,2);
@@ -437,7 +438,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
       {
         sql_print_warning("'db' entry '%s %s@%s' had database in mixed "
                           "case that has been forced to lowercase because "
-                          "lower_case_table_names is set.",
+                          "lower_case_table_names is set. It will not be "
+                          "possible to remove this privilege using REVOKE.",
 		          db.db, db.user, db.host.hostname, db.host.hostname);
       }
     }
