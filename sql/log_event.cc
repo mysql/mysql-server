@@ -1862,25 +1862,6 @@ int Rotate_log_event::write_data(IO_CACHE* file)
     We can't rotate the slave as this will cause infinitive rotations
     in a A -> B -> A setup.
 
-  NOTES
-    As a transaction NEVER spans on 2 or more binlogs:
-    if we have an active transaction at this point, the master died while
-    writing the transaction to the binary log, i.e. while flushing the binlog
-    cache to the binlog. As the write was started, the transaction had been
-    committed on the master, so we lack of information to replay this
-    transaction on the slave; all we can do is stop with error.
-    If we didn't detect it, then positions would start to become garbage (as we
-    are incrementing rli->relay_log_pos whereas we are in a transaction: the
-    new rli->relay_log_pos will be
-    relay_log_pos of the BEGIN + size of the Rotate event = garbage.
-
-    Since MySQL 4.0.14, the master ALWAYS sends a Rotate event when it starts
-    sending the next binlog, so we are sure to receive a Rotate event just
-    after the end of the "dead master"'s binlog; so this exec_event() is the
-    right place to catch the problem. If we would wait until
-    Start_log_event::exec_event() it would be too late, rli->relay_log_pos
-    would already be garbage.
-
   RETURN VALUES
     0	ok
 */
@@ -1892,6 +1873,18 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 
   pthread_mutex_lock(&rli->data_lock);
   rli->event_relay_log_pos += get_event_len();
+  /*
+    If we are in a transaction: the only normal case is when the I/O thread was
+    copying a big transaction, then it was stopped and restarted: we have this
+    in the relay log:
+    BEGIN
+    ...
+    ROTATE (a fake one)
+    ...
+    COMMIT or ROLLBACK
+    In that case, we don't want to touch the coordinates which correspond to the
+    beginning of the transaction.
+  */
   if (!(thd->options & OPTION_BEGIN))
   {
     memcpy(rli->group_master_log_name, new_log_ident, ident_len+1);
