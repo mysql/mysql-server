@@ -359,3 +359,8 @@ character-set=ujis
 "View's SELECT and view's field list have different column counts"
 "View merge algorithm can't be used here for now (assumed undefined algorithm)"
 "View being update does not have complete key of underlying table in it"
+"Trigger already exists"
+"Trigger does not exist"
+"Trigger's '%-.64s' is view or temporary table"
+"Updating of %s row is not allowed in %strigger"
+"There is no %s row in %s trigger"
