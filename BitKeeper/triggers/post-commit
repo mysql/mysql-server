@@ -6,6 +6,7 @@ FROM=$USER@mysql.com
 INTERNALS=internals@lists.mysql.com
 DOCS=docs-commit@mysql.com
 LIMIT=10000
+REPOV=5.0
 
 if [ "$REAL_EMAIL" = "" ]
 then
@@ -27,15 +28,15 @@ CHANGESET=`bk -R prs -r+ -h -d':I:' ChangeSet`
  echo "Commit successful, notifying developers at $TO"
  (
    cat <<EOF
-List-ID: <bk.mysql-4.1>
+List-ID: <bk.mysql-$REPOV>
 From: $FROM
 To: $TO
-Subject: bk commit - 4.1 tree ($CHANGESET)
+Subject: bk commit - $REPOV tree ($CHANGESET)
 
 EOF
   bk changes -v -r+
   bk cset -r+ -d
- ) | head -n $LIMIT | /usr/sbin/sendmail -t
+ ) | /usr/sbin/sendmail -t
 
 #++
 # internals@ mail
@@ -43,13 +44,13 @@ EOF
  echo "Notifying internals list at $INTERNALS"
  (
    cat <<EOF
-List-ID: <bk.mysql-4.1>
+List-ID: <bk.mysql-$REPOV>
 From: $FROM
 To: $INTERNALS
-Subject: bk commit into 4.1 tree ($CHANGESET)
+Subject: bk commit into $REPOV tree ($CHANGESET)
 
 Below is the list of changes that have just been committed into a local
-4.1 repository of $USER. When $USER does a push these changes will
+$REPOV repository of $USER. When $USER does a push these changes will
 be propagated to the main repository and, within 24 hours after the
 push, to the public repository.
 For information on how to access the public repository
@@ -70,15 +71,15 @@ EOF
   echo "Notifying docs list at $DOCS"
   (
     cat <<EOF
-List-ID: <bk.mysql-4.1>
+List-ID: <bk.mysql-$REPOV>
 From: $FROM
 To: $DOCS
-Subject: bk commit - 4.1 tree (Manual) ($CHANGESET)
+Subject: bk commit - $REPOV tree (Manual) ($CHANGESET)
 
 EOF
   bk changes -v -r+
   bk cset -r+ -d
- ) | head -n $LIMIT | /usr/sbin/sendmail -t
+ ) | /usr/sbin/sendmail -t
  fi
 
 else
