@@ -144,6 +144,13 @@ alter table user comment='Users and global privileges';
 alter table func comment='User defined functions';
 alter table tables_priv comment='Table privileges';
 alter table columns_priv comment='Column privileges';
+
+#
+# Detect whether we had Create_view_priv
+# 
+SET @hadCreateViewPriv:=0;
+SELECT @hadCreateViewPriv:=1 FROM user WHERE Create_view_priv LIKE '%';
+
 #
 # Create VIEWs privileges (v5.0)
 #
@@ -157,6 +164,11 @@ ALTER TABLE user ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER R
 ALTER TABLE db ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
 ALTER TABLE host ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
 ALTER TABLE user ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+
+#
+# Assign create/show view privileges to people who have create provileges
+#
+UPDATE user SET Create_view_priv=Create_priv, Show_view_priv=Create_priv where user<>"" AND @hadCreateViewPriv = 0;
 
 #
 # Create some possible missing tables
