@@ -25,6 +25,8 @@
 #include "my_alarm.h"
 #endif
 
+my_bool timed_mutexes= 0;
+
 	/* from my_init */
 my_string	home_dir=0,my_progname=0;
 char		NEAR curr_dir[FN_REFLEN]= {0},
