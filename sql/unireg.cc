@@ -47,10 +47,11 @@ static bool make_empty_rec(int file, enum db_type table_type,
 			   uint reclength,uint null_fields);
 
 
-int rea_create_table(THD *thd, my_string file_name,
+int mysql_create_frm(THD *thd, my_string file_name,
 		     HA_CREATE_INFO *create_info,
 		     List<create_field> &create_fields,
-		     uint keys, KEY *key_info)
+		     uint keys, KEY *key_info,
+		     handler *db_file)
 {
   uint reclength,info_length,screens,key_info_length,maxlength,null_fields;
   File file;
@@ -58,13 +59,13 @@ int rea_create_table(THD *thd, my_string file_name,
   uchar fileinfo[64],forminfo[288],*keybuff;
   TYPELIB formnames;
   uchar *screen_buff;
-  handler *db_file;
   DBUG_ENTER("rea_create_table");
 
   formnames.type_names=0;
   if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,0)))
     DBUG_RETURN(1);
-  db_file=get_new_handler((TABLE*) 0, create_info->db_type);
+  if (db_file == NULL)
+    db_file=get_new_handler((TABLE*) 0, create_info->db_type);
   if (pack_header(forminfo, create_info->db_type,create_fields,info_length,
 		  screens, create_info->table_options, db_file))
   {
@@ -155,8 +156,7 @@ int rea_create_table(THD *thd, my_string file_name,
   if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
       my_sync(file, MYF(MY_WME)))
     goto err2;
-  if (my_close(file,MYF(MY_WME)) ||
-      ha_create_table(file_name,create_info,0))
+  if (my_close(file,MYF(MY_WME)))
     goto err3;
   DBUG_RETURN(0);
 
@@ -166,6 +166,23 @@ err:
 err2:
   VOID(my_close(file,MYF(MY_WME)));
 err3:
+  DBUG_RETURN(1);
+} /* mysql_create_frm */
+
+int rea_create_table(THD *thd, my_string file_name,
+		     HA_CREATE_INFO *create_info,
+		     List<create_field> &create_fields,
+		     uint keys, KEY *key_info)
+{
+  DBUG_ENTER("rea_create_table");
+
+  if (mysql_create_frm(thd, file_name, create_info,
+  		       create_fields, keys, key_info, NULL) ||
+      ha_create_table(file_name,create_info,0))
+    goto err;
+  DBUG_RETURN(0);
+
+err:
   my_delete(file_name,MYF(0));
   DBUG_RETURN(1);
 } /* rea_create_table */

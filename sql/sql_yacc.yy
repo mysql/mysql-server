@@ -1441,10 +1441,29 @@ attribute:
 	| DEFAULT signed_literal { Lex->default_value=$2; }
 	| AUTO_INC	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
 	| SERIAL_SYM DEFAULT VALUE_SYM
-	  { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG; }
-	| opt_primary KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
-	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
-	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
+	  { 
+	    LEX *lex=Lex;
+	    lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNIQUE_FLAG; 
+	    lex->alter_flags|= ALTER_ADD_INDEX; 
+	  }
+	| opt_primary KEY_SYM 
+	  {
+	    LEX *lex=Lex;
+	    lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; 
+	    lex->alter_flags|= ALTER_ADD_INDEX; 
+	  }
+	| UNIQUE_SYM	  
+	  {
+	    LEX *lex=Lex;
+	    lex->type|= UNIQUE_FLAG; 
+	    lex->alter_flags|= ALTER_ADD_INDEX; 
+	  }
+	| UNIQUE_SYM KEY_SYM 
+	  {
+	    LEX *lex=Lex;
+	    lex->type|= UNIQUE_KEY_FLAG; 
+	    lex->alter_flags|= ALTER_ADD_INDEX; 
+	  }
 	| COMMENT_SYM TEXT_STRING_sys { Lex->comment= &$2; }
 	| COLLATE_SYM collation_name
 	  {
@@ -1697,6 +1716,7 @@ alter:
           lex->alter_keys_onoff=LEAVE_AS_IS;
 	  lex->tablespace_op=NO_TABLESPACE_OP;
           lex->simple_alter=1;
+	  lex->alter_flags=0;
 	}
 	alter_list
 	{}
@@ -1715,16 +1735,28 @@ alter_list:
 	| alter_list ',' alter_list_item;
 
 add_column:
-	ADD opt_column { Lex->change=0; };
+	ADD opt_column 
+	{
+	  LEX *lex=Lex;
+	  lex->change=0; 
+	  lex->alter_flags|= ALTER_ADD_COLUMN; 
+	};
 
 alter_list_item:
 	add_column column_def opt_place { Lex->simple_alter=0; }
-	| ADD key_def { Lex->simple_alter=0; }
+	| ADD key_def 
+	  { 
+	    LEX *lex=Lex;
+	    lex->simple_alter=0; 
+	    lex->alter_flags|= ALTER_ADD_INDEX; 
+	  }
 	| add_column '(' field_list ')'      { Lex->simple_alter=0; }
 	| CHANGE opt_column field_ident
 	  {
 	     LEX *lex=Lex;
-	     lex->change= $3.str; lex->simple_alter=0;
+	     lex->change= $3.str; 
+	     lex->simple_alter=0;
+	     lex->alter_flags|= ALTER_CHANGE_COLUMN;
 	  }
           field_spec opt_place
         | MODIFY_SYM opt_column field_ident
@@ -1735,6 +1767,7 @@ alter_list_item:
 	    lex->comment=0;
 	    lex->charset= NULL;
             lex->simple_alter=0;
+	    lex->alter_flags|= ALTER_CHANGE_COLUMN;
           }
           type opt_attribute
           {
@@ -1752,7 +1785,9 @@ alter_list_item:
 	  {
 	    LEX *lex=Lex;
 	    lex->drop_list.push_back(new Alter_drop(Alter_drop::COLUMN,
-					    $3.str)); lex->simple_alter=0;
+        					    $3.str)); 
+	    lex->simple_alter=0;
+	    lex->alter_flags|= ALTER_DROP_COLUMN;
 	  }
 	| DROP FOREIGN KEY_SYM opt_ident { Lex->simple_alter=0; }
 	| DROP PRIMARY_SYM KEY_SYM
@@ -1761,6 +1796,7 @@ alter_list_item:
 	    lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
 						    primary_key_name));
 	    lex->simple_alter=0;
+	    lex->alter_flags|= ALTER_DROP_INDEX;
 	  }
 	| DROP key_or_index field_ident
 	  {
@@ -1768,6 +1804,7 @@ alter_list_item:
 	    lex->drop_list.push_back(new Alter_drop(Alter_drop::KEY,
 						    $3.str));
 	    lex->simple_alter=0;
+	    lex->alter_flags|= ALTER_DROP_INDEX;
 	  }
 	| DISABLE_SYM KEYS { Lex->alter_keys_onoff=DISABLE; }
 	| ENABLE_SYM KEYS  { Lex->alter_keys_onoff=ENABLE; }
@@ -1776,21 +1813,34 @@ alter_list_item:
 	    LEX *lex=Lex;
 	    lex->alter_list.push_back(new Alter_column($3.str,$6));
 	    lex->simple_alter=0;
+	    lex->alter_flags|= ALTER_CHANGE_COLUMN;
 	  }
 	| ALTER opt_column field_ident DROP DEFAULT
 	  {
 	    LEX *lex=Lex;
 	    lex->alter_list.push_back(new Alter_column($3.str,(Item*) 0));
 	    lex->simple_alter=0;
+	    lex->alter_flags|= ALTER_CHANGE_COLUMN;
 	  }
 	| RENAME opt_to table_ident
 	  {
 	    LEX *lex=Lex;
 	    lex->select_lex.db=$3->db.str;
 	    lex->name= $3->table.str;
+	    lex->alter_flags|= ALTER_RENAME;
 	  }
-        | create_table_options_space_separated { Lex->simple_alter=0; }
-	| order_clause         { Lex->simple_alter=0; };
+        | create_table_options_space_separated 
+	  {
+	    LEX *lex=Lex;
+	    lex->simple_alter=0; 
+	    lex->alter_flags|= ALTER_OPTIONS;
+	  }
+	| order_clause         
+	  {
+	    LEX *lex=Lex;
+	    lex->simple_alter=0; 
+	    lex->alter_flags|= ALTER_ORDER;
+	  };
 
 opt_column:
 	/* empty */	{}

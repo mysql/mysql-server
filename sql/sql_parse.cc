@@ -2355,6 +2355,7 @@ mysql_execute_command(THD *thd)
 			       lex->key_list, lex->drop_list, lex->alter_list,
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
+			       lex->alter_flags,
 			       lex->duplicates,
 			       lex->alter_keys_onoff,
                                lex->tablespace_op,
@@ -2503,7 +2504,7 @@ mysql_execute_command(THD *thd)
       res= mysql_alter_table(thd, NullS, NullS, &create_info,
 			     tables, lex->create_list,
 			     lex->key_list, lex->drop_list, lex->alter_list,
-                             0, (ORDER *) 0,
+                             0, (ORDER *) 0, 0,
 			     DUP_ERROR);
     }
     else
