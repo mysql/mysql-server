@@ -18,7 +18,7 @@ print OUTFILE<<EOT;
 <center>
 EOT
 print OUTFILE "Documentation generated " . localtime() . 
-    " from NDB Cluster source files.";
+    " from mysql source files.";
 print OUTFILE<<EOT;
 <br>
 &copy; 2003-2004 

@@ -20,29 +20,28 @@
 /**
  * @mainpage NDB Cluster Management API
  *
- * The NDB Cluster Management API (MGM API) is a C API 
+ * The NDB Cluster Management API (MGM API) is a C API
  * that is used to:
- * - Start/stop database nodes (DB nodes)
- * - Start/stop NDB Cluster backups
+ * - Start and stop database nodes (DB nodes)
+ * - Start and stop NDB Cluster backups
  * - Control the NDB Cluster log
- * - Other administrative tasks
+ * - Perform other administrative tasks
  *
  * @section  General Concepts
  *
- * Each MGM API function needs a management server handle 
- * (of type Mgm_C_Api::NdbMgmHandle).  
- * This handle is initally is created by calling the 
- * function ndb_mgm_create_handle().
+ * Each MGM API function needs a management server handle
+ * of type <code>Mgm_C_Api::NdbMgmHandle</code>.
+ * This handle is initally created by calling the
+ * function <code>ndb_mgm_create_handle()</code>.
  *
  * A function can return:
- *  -# An integer value.  
- *     If it returns -1 then this indicates an error, and then
- *  -# A pointer value.  If it returns NULL then check the latest error.
- *     If it didn't return NULL, then a "something" is returned.
- *     This "something" has to be free:ed by the user of the MGM API.
+ *  -# An integer value.
+ *     A value of <b>-1</b> indicates an error.
+ *  -# A pointer value.  A <var>NULL</var> value indicates an error;
+ *     otherwise, the return value must be freed by the user of the MGM API.
  *
- * If there are an error, then the get latest error functions
- * can be used to check what the error was.
+ * Error conditions can be identified by using the appropriate
+ * error-reporting functions.
  */
 
 /** @addtogroup MGM_C_API
@@ -131,7 +130,7 @@ extern "C" {
 
   struct Ndb_Mgm_Error_Msg {
     enum ndb_mgm_error  code;
-    const char *        msg; 
+    const char *        msg;
   };
 
   const struct Ndb_Mgm_Error_Msg ndb_mgm_error_msgs[] = {
@@ -157,19 +156,19 @@ extern "C" {
     /* Service errors - Backup */
     { NDB_MGM_COULD_NOT_START_BACKUP, "Could not start backup" },
     { NDB_MGM_COULD_NOT_ABORT_BACKUP, "Could not abort backup" },
-    
+
     /* Service errors - Single User Mode */
-    { NDB_MGM_COULD_NOT_ENTER_SINGLE_USER_MODE, 
+    { NDB_MGM_COULD_NOT_ENTER_SINGLE_USER_MODE,
       "Could not enter single user mode" },
-    { NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE, 
+    { NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE,
       "Could not exit single user mode" },
 
     /* Usage errors */
     { NDB_MGM_USAGE_ERROR,
       "Usage error" }
   };
-  
-  const int ndb_mgm_noOfErrorMsgs = 
+
+  const int ndb_mgm_noOfErrorMsgs =
   sizeof(ndb_mgm_error_msgs)/sizeof(struct Ndb_Mgm_Error_Msg);
 
   /**
@@ -194,7 +193,7 @@ extern "C" {
     int node_group;                         /*< Node group of node
 					     *< (only valid for DB nodes)*/
     int version;                            /*< Internal version number*/
-    int connect_count;                      /*< No of times node has connected
+    int connect_count;                      /*< Number of times node has connected
 					     *< or disconnected to the mgm srv
 					     */
     char connect_address[sizeof("000.000.000.000")+1];
@@ -204,7 +203,7 @@ extern "C" {
    *   Cluster status
    */
   struct ndb_mgm_cluster_state {
-    int no_of_nodes;                        /*< No of entries in the 
+    int no_of_nodes;                        /*< No of entries in the
 					     *< node_states array
 					     */
     struct ndb_mgm_node_state               /*< An array with node_states*/
@@ -216,7 +215,7 @@ extern "C" {
    *   Default reply from the server
    */
   struct ndb_mgm_reply {
-    int return_code;                        /*< 0 if successful, 
+    int return_code;                        /*< 0 if successful,
 					     *< otherwise error code.
 					     */
     char message[256];                      /*< Error or reply message.*/
@@ -251,14 +250,14 @@ extern "C" {
 					     */
     NDB_MGM_CLUSTERLOG_INFO = 2,            /*< Informational messages*/
     NDB_MGM_CLUSTERLOG_WARNING = 3,         /*< Conditions that are not
-					     *< error condition, but 
+					     *< error condition, but
 					     *< might require handling
 					     */
     NDB_MGM_CLUSTERLOG_ERROR = 4,           /*< Conditions that should be
 					     *< corrected
 					     */
     NDB_MGM_CLUSTERLOG_CRITICAL = 5,        /*< Critical conditions, like
-					     *< device errors or out of 
+					     *< device errors or out of
 					     *< resources
 					     */
     NDB_MGM_CLUSTERLOG_ALERT = 6,           /*< A condition that should be
@@ -280,7 +279,7 @@ extern "C" {
      * Events during all kinds of startups
      */
     NDB_MGM_EVENT_CATEGORY_STARTUP = CFG_LOGLEVEL_STARTUP,
-    
+
     /**
      * Events during shutdown
      */
@@ -299,13 +298,13 @@ extern "C" {
     NDB_MGM_EVENT_CATEGORY_ERROR = CFG_LOGLEVEL_ERROR,
     NDB_MGM_EVENT_CATEGORY_GREP = CFG_LOGLEVEL_GREP,
     NDB_MGM_EVENT_CATEGORY_BACKUP = CFG_LOGLEVEL_BACKUP,
-    
+
     NDB_MGM_MIN_EVENT_CATEGORY = CFG_MIN_LOGLEVEL,
     NDB_MGM_MAX_EVENT_CATEGORY = CFG_MAX_LOGLEVEL
   };
-  
+
   /***************************************************************************/
-  /** 
+  /**
    * @name Functions: Error Handling
    * @{
    */
@@ -329,7 +328,7 @@ extern "C" {
   /**
    * Get latest error description associated with a handle
    *
-   * The error description gives some additional information to 
+   * The error description gives some additional information to
    * the error message.
    *
    * @param   handle        Management handle.
@@ -343,40 +342,24 @@ extern "C" {
    *
    * @param   handle        Management handle.
    * @return                Latest internal source code line of latest error
-   * @deprecated 
+   * @deprecated
    */
   int ndb_mgm_get_latest_error_line(const NdbMgmHandle handle);
 #endif
 
   /** @} *********************************************************************/
-  /** 
+  /**
    * @name Functions: Create/Destroy Management Server Handles
    * @{
    */
 
-  /** 
+  /**
    * Create a handle to a management server
    *
    * @return                 A management handle<br>
-   *                         or NULL if no management handle could be created. 
+   *                         or NULL if no management handle could be created.
    */
   NdbMgmHandle ndb_mgm_create_handle();
-  
-  /** 
-   * Set connecst string to management server
-   *
-   * @param   handle         Management handle
-   * @param   connect_string Connect string to the management server, 
-   *
-   * @return                -1 on error.
-   */
-  int ndb_mgm_set_connectstring(NdbMgmHandle handle,
-				const char *connect_string);
-
-  int ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle);
-  int ndb_mgm_get_connected_port(NdbMgmHandle handle);
-  const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
-  const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
 
   /**
    * Destroy a management server handle
@@ -384,12 +367,35 @@ extern "C" {
    * @param   handle        Management handle
    */
   void ndb_mgm_destroy_handle(NdbMgmHandle * handle);
-  
+
   /** @} *********************************************************************/
-  /** 
+  /**
    * @name Functions: Connect/Disconnect Management Server
    * @{
    */
+
+  /**
+   * Set connect string to management server
+   *
+   * @param   handle         Management handle
+   * @param   connect_string Connect string to the management server,
+   *
+   * @return                -1 on error.
+   */
+  int ndb_mgm_set_connectstring(NdbMgmHandle handle,
+				const char *connect_string);
+
+  /**
+   * Get connectstring used for connection
+   *
+   * @note returns what the connectstring defaults to if the above call has
+   *       not been performed
+   *
+   * @param   handle         Management handle
+   *
+   * @return                 connectstring
+   */
+  const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
 
   /**
    * Connect to a management server
@@ -399,7 +405,7 @@ extern "C" {
    */
   int ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
 		      int retry_delay_in_seconds, int verbose);
-  
+
   /**
    * Disconnect from a management server
    *
@@ -407,9 +413,36 @@ extern "C" {
    * @return                -1 on error.
    */
   int ndb_mgm_disconnect(NdbMgmHandle handle);
-  
+
+  /**
+   * Get nodeid used in the connection
+   *
+   * @param   handle         Management handle
+   *
+   * @return                 node id
+   */
+  int ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle);
+
+  /**
+   * Get port used in the connection
+   *
+   * @param   handle         Management handle
+   *
+   * @return                 port
+   */
+  int ndb_mgm_get_connected_port(NdbMgmHandle handle);
+
+  /**
+   * Get host used in the connection
+   *
+   * @param   handle         Management handle
+   *
+   * @return                 hostname
+   */
+  const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
+
   /** @} *********************************************************************/
-  /** 
+  /**
    * @name Functions: Convert between different data formats
    * @{
    */
@@ -436,7 +469,8 @@ extern "C" {
    * @param   type          Node type.
    * @return                NULL if invalid id.
    */
-  const char * ndb_mgm_get_node_type_alias_string(enum ndb_mgm_node_type type, const char **str);
+  const char * ndb_mgm_get_node_type_alias_string(enum ndb_mgm_node_type type,
+						  const char **str);
 
   /**
    * Convert a string to a ndb_mgm_node_status
@@ -454,11 +488,13 @@ extern "C" {
    */
   const char * ndb_mgm_get_node_status_string(enum ndb_mgm_node_status status);
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   ndb_mgm_event_category ndb_mgm_match_event_category(const char *);
   const char * ndb_mgm_get_event_category_string(enum ndb_mgm_event_category);
+#endif
 
   /** @} *********************************************************************/
-  /** 
+  /**
    * @name Functions: State of cluster
    * @{
    */
@@ -469,13 +505,14 @@ extern "C" {
    * Note the caller must free the pointer returned.
    *
    * @param   handle        Management handle.
+   *
    * @return                Cluster state (or NULL on error).
    */
   struct ndb_mgm_cluster_state * ndb_mgm_get_status(NdbMgmHandle handle);
 
   /** @} *********************************************************************/
-  /** 
-   * @name Functions: Start/stop nodes 
+  /**
+   * @name Functions: Start/stop nodes
    * @{
    */
 
@@ -485,15 +522,16 @@ extern "C" {
    * @param   handle        Management handle.
    * @param   no_of_nodes   no of database nodes<br>
    *                        0 - means all database nodes in cluster<br>
-   *                        n - Means stop n node(s) specified in the 
+   *                        n - Means stop n node(s) specified in the
    *                            array node_list
    * @param   node_list     List of node ids of database nodes to be stopped
+   *
    * @return                No of nodes stopped (or -1 on error)
    *
-   * @note    The function is equivalent 
+   * @note    The function is equivalent
    *          to ndb_mgm_stop2(handle, no_of_nodes, node_list, 0)
    */
-  int ndb_mgm_stop(NdbMgmHandle handle, int no_of_nodes, 
+  int ndb_mgm_stop(NdbMgmHandle handle, int no_of_nodes,
 		   const int * node_list);
 
   /**
@@ -502,11 +540,12 @@ extern "C" {
    * @param   handle        Management handle.
    * @param   no_of_nodes   No of database nodes<br>
    *                        0 - means all database nodes in cluster<br>
-   *                        n - Means stop n node(s) specified in 
+   *                        n - Means stop n node(s) specified in
    *                            the array node_list
    * @param   node_list     List of node ids of database nodes to be stopped
-   * @param   abort         Don't perform gracefull stop, 
+   * @param   abort         Don't perform gracefull stop,
    *                        but rather stop immediatly
+   *
    * @return                No of nodes stopped (or -1 on error).
    */
   int ndb_mgm_stop2(NdbMgmHandle handle, int no_of_nodes,
@@ -518,15 +557,16 @@ extern "C" {
    * @param   handle        Management handle.
    * @param   no_of_nodes   No of database nodes<br>
    *                        0 - means all database nodes in cluster<br>
-   *                        n - Means stop n node(s) specified in the 
+   *                        n - Means stop n node(s) specified in the
    *                            array node_list
    * @param   node_list     List of node ids of database nodes to be stopped
+   *
    * @return                No of nodes stopped (or -1 on error).
    *
-   * @note    The function is equivalent to 
+   * @note    The function is equivalent to
    *          ndb_mgm_restart2(handle, no_of_nodes, node_list, 0, 0, 0);
    */
-  int ndb_mgm_restart(NdbMgmHandle handle, int no_of_nodes, 
+  int ndb_mgm_restart(NdbMgmHandle handle, int no_of_nodes,
 		      const int * node_list);
 
   /**
@@ -535,35 +575,37 @@ extern "C" {
    * @param   handle        Management handle.
    * @param   no_of_nodes   No of database nodes<br>
    *                        0 - means all database nodes in cluster<br>
-   *                        n - Means stop n node(s) specified in the 
+   *                        n - Means stop n node(s) specified in the
    *                            array node_list
    * @param   node_list     List of node ids of database nodes to be stopped
    * @param   initial       Remove filesystem from node(s) restarting
-   * @param   nostart       Don't actually start node(s) but leave them 
+   * @param   nostart       Don't actually start node(s) but leave them
    *                        waiting for start command
-   * @param   abort         Don't perform gracefull restart, 
+   * @param   abort         Don't perform gracefull restart,
    *                        but rather restart immediatly
+   *
    * @return                No of nodes stopped (or -1 on error).
    */
   int ndb_mgm_restart2(NdbMgmHandle handle, int no_of_nodes,
 		       const int * node_list, int initial,
 		       int nostart, int abort);
-       
+
   /**
    * Start database nodes
    *
    * @param   handle        Management handle.
    * @param   no_of_nodes   No of database nodes<br>
    *                        0 - means all database nodes in cluster<br>
-   *                        n - Means start n node(s) specified in 
+   *                        n - Means start n node(s) specified in
    *                            the array node_list
    * @param   node_list     List of node ids of database nodes to be started
+   *
    * @return                No of nodes started (or -1 on error).
    *
-   * @note    The nodes to start must have been started with nostart(-n) 
+   * @note    The nodes to start must have been started with nostart(-n)
    *          argument.
-   *          This means that the database node binary is started and 
-   *          waiting for a START management command which will 
+   *          This means that the database node binary is started and
+   *          waiting for a START management command which will
    *          actually start the database node functionality
    */
   int ndb_mgm_start(NdbMgmHandle handle,
@@ -571,7 +613,7 @@ extern "C" {
 		    const int * node_list);
 
   /** @} *********************************************************************/
-  /** 
+  /**
    * @name Functions: Logging and Statistics
    * @{
    */
@@ -582,6 +624,7 @@ extern "C" {
    * @param   handle        NDB management handle.
    * @param   level         A cluster log level to filter.
    * @param   reply         Reply message.
+   *
    * @return                -1 on error.
    */
   int ndb_mgm_filter_clusterlog(NdbMgmHandle handle,
@@ -590,16 +633,17 @@ extern "C" {
 
   /**
    * Get log filter
-   * 
+   *
    * @param   handle        NDB management handle
-   * @return                A vector of seven elements, 
+   *
+   * @return                A vector of seven elements,
    *                        where each element contains
-   *                        1 if a severity is enabled and 0 if not. 
-   *                        A severity is stored at position 
-   *                        ndb_mgm_clusterlog_level, 
+   *                        1 if a severity is enabled and 0 if not.
+   *                        A severity is stored at position
+   *                        ndb_mgm_clusterlog_level,
    *                        for example the "error" level is stored in position
    *                        [NDB_MGM_CLUSTERLOG_ERROR-1].
-   *                        The first element in the vector signals 
+   *                        The first element in the vector signals
    *                        whether the clusterlog
    *                        is disabled or enabled.
    */
@@ -620,7 +664,7 @@ extern "C" {
 				      enum ndb_mgm_event_category category,
 				      int level,
 				      struct ndb_mgm_reply* reply);
-
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Set log category and levels for the Node
    *
@@ -646,9 +690,10 @@ extern "C" {
    */
   int ndb_mgm_get_stat_port(NdbMgmHandle handle,
 			    struct ndb_mgm_reply* reply);
+#endif
 
   /** @} *********************************************************************/
-  /** 
+  /**
    * @name Functions: Backup
    * @{
    */
@@ -677,13 +722,13 @@ extern "C" {
 
 
   /** @} *********************************************************************/
-  /** 
+  /**
    * @name Functions: Single User Mode
    * @{
    */
 
   /**
-   * Enter Single user mode 
+   * Enter Single user mode
    *
    * @param   handle        NDB management handle.
    * @param   nodeId        Node Id of the single user node
@@ -692,38 +737,44 @@ extern "C" {
    */
   int ndb_mgm_enter_single_user(NdbMgmHandle handle, unsigned int nodeId,
 				struct ndb_mgm_reply* reply);
-  
+
   /**
-   * Exit Single user mode 
+   * Exit Single user mode
    *
    * @param   handle        NDB management handle.
    * @param   nodeId        Node Id of the single user node
    * @param   reply         Reply message.
+   *
    * @return                -1 on error.
    */
-  int ndb_mgm_exit_single_user(NdbMgmHandle handle, 
+  int ndb_mgm_exit_single_user(NdbMgmHandle handle,
 			       struct ndb_mgm_reply* reply);
-  
+
   /**
    * Listen event
    *
    * @param filter pairs of { level, category } that will be
    *        pushed to fd, level=0 ends lists
+   *
    * @return fd which events will be pushed to
    */
   int ndb_mgm_listen_event(NdbMgmHandle handle, int filter[]);
-  
+
   /**
    * Get configuration
    * @param   handle     NDB management handle.
    * @param   version    Version of configuration, 0 means latest
    *                     @see MAKE_VERSION
-   * @Note the caller must call ndb_mgm_detroy_configuration
+   *
+   * @return configuration
+   *
+   * @note the caller must call ndb_mgm_detroy_configuration
    */
   struct ndb_mgm_configuration * ndb_mgm_get_configuration(NdbMgmHandle handle,
 							   unsigned version);
   void ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *);
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int ndb_mgm_alloc_nodeid(NdbMgmHandle handle,
 			   unsigned version, int nodetype);
   /**
@@ -734,14 +785,14 @@ extern "C" {
   ndb_mgm_configuration_iterator* ndb_mgm_create_configuration_iterator
   (struct ndb_mgm_configuration *, unsigned type_of_section);
   void ndb_mgm_destroy_iterator(ndb_mgm_configuration_iterator*);
-  
+
   int ndb_mgm_first(ndb_mgm_configuration_iterator*);
   int ndb_mgm_next(ndb_mgm_configuration_iterator*);
   int ndb_mgm_valid(const ndb_mgm_configuration_iterator*);
-  int ndb_mgm_find(ndb_mgm_configuration_iterator*, 
+  int ndb_mgm_find(ndb_mgm_configuration_iterator*,
 		   int param, unsigned value);
-  
-  int ndb_mgm_get_int_parameter(const ndb_mgm_configuration_iterator*, 
+
+  int ndb_mgm_get_int_parameter(const ndb_mgm_configuration_iterator*,
 				int param, unsigned * value);
   int ndb_mgm_get_int64_parameter(const ndb_mgm_configuration_iterator*,
 				  int param, Uint64 * value);
@@ -749,6 +800,8 @@ extern "C" {
 				   int param, const char  ** value);
   int ndb_mgm_purge_stale_sessions(NdbMgmHandle handle, char **);
   int ndb_mgm_check_connection(NdbMgmHandle handle);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

@@ -23,7 +23,7 @@ class TcRollbackRep {
   /**
    * Sender(s)
    */
-  friend class NdbConnection;
+  friend class NdbTransaction;
   friend class DbUtil;
   
   /**

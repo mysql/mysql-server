@@ -14,8 +14,8 @@ libndbapi_la_SOURCES = \
         Ndberr.cpp    \
         ndberror.c    \
         NdbErrorOut.cpp    \
-        NdbConnection.cpp       \
-        NdbConnectionScan.cpp \
+        NdbTransaction.cpp       \
+        NdbTransactionScan.cpp \
         NdbOperation.cpp        \
         NdbOperationSearch.cpp  \
         NdbOperationScan.cpp    \

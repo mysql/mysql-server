@@ -31,7 +31,7 @@ Adjust:  971022  UABMNST   First version.
 
 #include <NdbOperation.hpp>
 #include "NdbApiSignal.hpp"
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include <Ndb.hpp>
 #include "NdbImpl.hpp"
 #include <NdbOut.hpp>
@@ -298,32 +298,6 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
  equal_error3:
   setErrorCodeAbort(4209);
   return -1;
-}
-
-/******************************************************************************
- * Uint64 setTupleId( void )
- *
- * Return Value:  Return > 0: OK 
- *                Return 0 : setTupleId failed
- * Parameters:     
- * Remark:
- *****************************************************************************/
-Uint64
-NdbOperation::setTupleId()
-{
-  if (theStatus != OperationDefined)
-  {
-    return 0;
-  }
-  Uint64 tTupleId = theNdb->getTupleIdFromNdb(m_currentTable->m_tableId);
-  if (tTupleId == ~(Uint64)0){
-    setErrorCodeAbort(theNdb->theError.code);
-    return 0;
-  }
-  if (equal((Uint32)0, tTupleId) == -1)
-    return 0;
-
-  return tTupleId;
 }
 
 /******************************************************************************

@@ -19,11 +19,11 @@
 
 #include <ndb_types.h>
 #include <NdbDictionary.hpp>
-#include <NdbConnection.hpp>
+#include <NdbTransaction.hpp>
 #include <NdbError.hpp>
 
 class Ndb;
-class NdbConnection;
+class NdbTransaction;
 class NdbOperation;
 class NdbRecAttr;
 class NdbTableImpl;
@@ -67,7 +67,7 @@ class NdbColumnImpl;
  * cases NdbBlob is forced to do implicit executes.  To avoid this,
  * operate on complete blob parts.
  *
- * Use NdbConnection::executePendingBlobOps to flush your reads and
+ * Use NdbTransaction::executePendingBlobOps to flush your reads and
  * writes.  It avoids execute penalty if nothing is pending.  It is not
  * needed after execute (obviously) or after next scan result.
  *
@@ -88,8 +88,13 @@ class NdbColumnImpl;
  * - lock mode vs allowed operation is not checked
  * - too many pending blob ops can blow up i/o buffers
  * - table and its blob part tables are not created atomically
+ */
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+/**
  * - there is no support for an asynchronous interface
  */
+#endif
+
 class NdbBlob {
 public:
   /**
@@ -212,12 +217,14 @@ public:
   NdbBlob* blobsNextBlob();
 
 private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
-  friend class NdbConnection;
+  friend class NdbTransaction;
   friend class NdbOperation;
   friend class NdbScanOperation;
   friend class NdbDictionaryImpl;
   friend class NdbResultSet; // atNextResult
+#endif
   // state
   State theState;
   void setState(State newState);
@@ -226,7 +233,7 @@ private:
   static void getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c);
   // ndb api stuff
   Ndb* theNdb;
-  NdbConnection* theNdbCon;
+  NdbTransaction* theNdbCon;
   NdbOperation* theNdbOp;
   const NdbTableImpl* theTable;
   const NdbTableImpl* theAccessTable;
@@ -316,7 +323,7 @@ private:
   // callbacks
   int invokeActiveHook();
   // blob handle maintenance
-  int atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl* aColumn);
+  int atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl* aColumn);
   int preExecute(ExecType anExecType, bool& batch);
   int postExecute(ExecType anExecType);
   int preCommit();
@@ -324,7 +331,7 @@ private:
   // errors
   void setErrorCode(int anErrorCode, bool invalidFlag = true);
   void setErrorCode(NdbOperation* anOp, bool invalidFlag = true);
-  void setErrorCode(NdbConnection* aCon, bool invalidFlag = true);
+  void setErrorCode(NdbTransaction* aCon, bool invalidFlag = true);
 #ifdef VM_TRACE
   int getOperationType() const;
   friend class NdbOut& operator<<(NdbOut&, const NdbBlob&);

@@ -1440,6 +1440,12 @@ tz_init_table_list(TABLE_LIST *tz_tabs, TABLE_LIST ***global_next_ptr)
 
 
 /*
+  Fake table list object, pointer to which is returned by
+  my_tz_get_tables_list() as indication of error.
+*/
+TABLE_LIST fake_time_zone_tables_list;
+
+/*
   Create table list with time zone related tables and add it to the end
   of global table list.
 

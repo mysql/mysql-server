@@ -14,14 +14,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef NdbConnection_H
-#define NdbConnection_H
+#ifndef NdbTransaction_H
+#define NdbTransaction_H
 
 #include <ndb_types.h>
 #include <NdbError.hpp>
 #include <NdbDictionary.hpp>
 
-class NdbConnection;
+class NdbTransaction;
 class NdbOperation;
 class NdbScanOperation;
 class NdbIndexScanOperation;
@@ -30,17 +30,16 @@ class NdbApiSignal;
 class Ndb;
 class NdbBlob;
 
-
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 // to be documented later
 /**
  * NdbAsynchCallback functions are used when executing asynchronous 
- * transactions (using NdbConnection::executeAsynchPrepare, or 
- * NdbConnection::executeAsynch).  
+ * transactions (using NdbTransaction::executeAsynchPrepare, or 
+ * NdbTransaction::executeAsynch).
  * The functions are called when the execute has finished.
  * See @ref secAsync for more information.
  */
-typedef void (* NdbAsynchCallback)(int, NdbConnection*, void*);
+typedef void (* NdbAsynchCallback)(int, NdbTransaction*, void*);
 #endif
 
 /**
@@ -73,37 +72,37 @@ enum ExecType {
 
 
 /**
- * @class NdbConnection
+ * @class NdbTransaction
  * @brief Represents a transaction.
  *
- * A transaction (represented by an NdbConnection object) 
+ * A transaction (represented by an NdbTransaction object) 
  * belongs to an Ndb object and is typically created using 
  * Ndb::startTransaction.
  * A transaction consists of a list of operations 
  * (represented by NdbOperation objects). 
  * Each operation access exactly one table.
  *
- * After getting the NdbConnection object, 
+ * After getting the NdbTransaction object, 
  * the first step is to get (allocate) an operation given the table name. 
  * Then the operation is defined. 
  * Several operations can be defined in parallel on the same 
- * NdbConnection object. 
- * When all operations are defined, the NdbConnection::execute
+ * NdbTransaction object. 
+ * When all operations are defined, the NdbTransaction::execute
  * method sends them to the NDB kernel for execution. 
  *
- * The NdbConnection::execute method returns when the NDB kernel has 
+ * The NdbTransaction::execute method returns when the NDB kernel has 
  * completed execution of all operations defined before the call to 
- * NdbConnection::execute. 
+ * NdbTransaction::execute. 
  * All allocated operations should be properly defined 
- * before calling NdbConnection::execute.
+ * before calling NdbTransaction::execute.
  *
- * A call to NdbConnection::execute uses one out of three types of execution:
+ * A call to NdbTransaction::execute uses one out of three types of execution:
  *  -# ExecType::NoCommit  Executes operations without committing them.
  *  -# ExecType::Commit	   Executes remaining operation and commits the 
  *        	           complete transaction
  *  -# ExecType::Rollback  Rollbacks the entire transaction.
  *
- * NdbConnection::execute is equipped with an extra error handling parameter 
+ * NdbTransaction::execute is equipped with an extra error handling parameter 
  * There are two alternatives:
  * -# AbortOption::AbortOnError (default).
  *    The transaction is aborted if there are any error during the
@@ -111,28 +110,11 @@ enum ExecType {
  * -# AbortOption::IgnoreError
  *    Continue execution of transaction even if operation fails
  *
- * NdbConnection::execute can sometimes indicate an error 
- * (return with -1) while the error code on the NdbConnection is 0. 
- * This is an indication that one of the operations found a record 
- * problem. The transaction is still ok and can continue as usual.
- * The NdbConnection::execute returns -1 together with error code 
- * on NdbConnection object equal to 0 always means that an 
- * operation was not successful but that the total transaction was OK. 
- * By checking error codes on the individual operations it is possible 
- * to find out which operation was not successful. 
- *
- * NdbConnection::executeScan is used to setup a scan in the NDB kernel
- * after it has been defined.
- * NdbConnection::nextScanResult is used to iterate through the 
- * scanned tuples. 
- * After each call to NdbConnection::nextScanResult, the pointers
- * of NdbRecAttr objects defined in the NdbOperation::getValue 
- * operations are updated with the values of the new the scanned tuple. 
  */
 
 /* FUTURE IMPLEMENTATION:
  * Later a prepare mode will be added when Ndb supports Prepare-To-Commit
- * The NdbConnection can deliver the Transaction Id of the transaction.
+ * The NdbTransaction can deliver the Transaction Id of the transaction.
  * After committing a transaction it is also possible to retrieve the 
  * global transaction checkpoint which the transaction was put in.
  *
@@ -151,21 +133,23 @@ enum ExecType {
  *    not known the table of the tuple.  As long as the table is
  *    derived from the known base class everything is ok.
  *    It is not possible to provide any primary key since it is 
- *    already supplied with the call to NdbConnection::getNdbOperation. 
+ *    already supplied with the call to NdbTransaction::getNdbOperation. 
  * -# The third method is used when a scanned tuple is to be transferred to 
  *    another transaction. In this case it is not possible to define the 
  *    primary key since it came along from the scanned tuple.
  *
  */
-class NdbConnection
+class NdbTransaction
 {
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
   friend class NdbOperation;
   friend class NdbScanOperation;
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbBlob;
- 
+#endif
+
 public:
 
   /**
@@ -195,7 +179,7 @@ public:
 
   /**
    * Get an operation from NdbScanOperation idlelist and 
-   * get the NdbConnection object which
+   * get the NdbTransaction object which
    * was fetched by startTransaction pointing to this operation.
    *
    * @param  aTableName  The table name.
@@ -205,7 +189,7 @@ public:
 
   /**
    * Get an operation from NdbScanOperation idlelist and 
-   * get the NdbConnection object which
+   * get the NdbTransaction object which
    * was fetched by startTransaction pointing to this operation.
    *
    * @param  aTable  
@@ -216,7 +200,7 @@ public:
 
   /**
    * Get an operation from NdbIndexScanOperation idlelist and 
-   * get the NdbConnection object which
+   * get the NdbTransaction object which
    * was fetched by startTransaction pointing to this operation.
    *
    * @param  anIndexName  The index name.
@@ -228,7 +212,7 @@ public:
   
   /**
    * Get an operation from NdbIndexScanOperation idlelist and 
-   * get the NdbConnection object which
+   * get the NdbTransaction object which
    * was fetched by startTransaction pointing to this operation.
    *
    * @param  anIndex  
@@ -243,7 +227,7 @@ public:
   
   /**
    * Get an operation from NdbIndexOperation idlelist and 
-   * get the NdbConnection object that
+   * get the NdbTransaction object that
    * was fetched by startTransaction pointing to this operation.
    *
    * @param   anIndexName   The index name (as created by createIndex).
@@ -256,7 +240,7 @@ public:
 
   /**
    * Get an operation from NdbIndexOperation idlelist and 
-   * get the NdbConnection object that
+   * get the NdbTransaction object that
    * was fetched by startTransaction pointing to this operation.
    *
    * @param   anIndex   
@@ -333,10 +317,10 @@ public:
    * Prepare and send an asynchronous transaction.
    *
    * This method perform the same action as 
-   * NdbConnection::executeAsynchPrepare
+   * NdbTransaction::executeAsynchPrepare
    * but also sends the operations to the NDB kernel.
    *
-   * See NdbConnection::executeAsynchPrepare for information
+   * See NdbTransaction::executeAsynchPrepare for information
    * about the parameters of this method.
    *
    * See @ref secAsync for more information on
@@ -361,16 +345,21 @@ public:
 
   /**
    * Close transaction
-   * @note It is not allowed to call NdbConnection::close after sending the
+   */
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  /**
+   * @note It is not allowed to call NdbTransaction::close after sending the
    *       transaction asynchronously before the callback method has 
    * 	   been called.
    *       (The application should keep track of the number of 
    *       outstanding transactions and wait until all of them 
-   *       has completed before calling NdbConnection::close).
+   *       has completed before calling NdbTransaction::close).
    *       If the transaction is not committed it will be aborted.
    */
+#endif
   void close();
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Restart transaction
    *
@@ -380,6 +369,7 @@ public:
    *   Note this method also releases completed operations
    */
   int restart();
+#endif
 
   /** @} *********************************************************************/
 
@@ -406,7 +396,7 @@ public:
    *       (This is because no updates are performed in scan transactions.)
    *
    * @return GCI of transaction or -1 if GCI is not available.
-   *         (Note that there has to be an NdbConnection::execute call 
+   *         (Note that there has to be an NdbTransaction::execute call 
    *         with Ndb::Commit for the GCI to be available.)
    */
   int		getGCI();
@@ -450,7 +440,7 @@ public:
 
   /**
    * Get the latest NdbOperation which had an error. 
-   * This method is used on the NdbConnection object to find the
+   * This method is used on the NdbTransaction object to find the
    * NdbOperation causing an error.  
    * To find more information about the
    * actual error, use method NdbOperation::getNdbError 
@@ -472,9 +462,9 @@ public:
    *
    * This method should only be used <em>after</em> a transaction 
    * has been executed.  
-   * - NdbConnection::getNextCompletedOperation(NULL) returns the
+   * - NdbTransaction::getNextCompletedOperation(NULL) returns the
    *   first NdbOperation object.
-   * - NdbConnection::getNextCompletedOperation(op) returns the
+   * - NdbTransaction::getNextCompletedOperation(op) returns the
    *   NdbOperation object defined after the NdbOperation "op".
    * 
    * This method is typically used to fetch all NdbOperation:s of 
@@ -489,7 +479,7 @@ public:
    */
   const NdbOperation * getNextCompletedOperation(const NdbOperation * op)const;
 
-  
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   const NdbOperation* getFirstDefinedOperation()const{return theFirstOpInList;}
   const NdbOperation* getLastDefinedOperation()const{return theLastOpInList;}
 
@@ -503,6 +493,7 @@ public:
    * ops are used (read, insert, update, delete).
    */
   int executePendingBlobOps(Uint8 flags = 0xFF);
+#endif
 
 private:						
   /**
@@ -519,9 +510,9 @@ private:
    *	These are the create and delete methods of this class.              *
    **************************************************************************/
   
-  NdbConnection(Ndb* aNdb); 
+  NdbTransaction(Ndb* aNdb); 
   
-  ~NdbConnection();
+  ~NdbTransaction();
 
   void init();           // Initialize connection object for new transaction
 
@@ -541,8 +532,8 @@ private:
   int		getTC_ConnectPtr();		  // Gets TC Connect pointer
   void          setBuddyConPtr(Uint32);           // Sets Buddy Con Ptr
   Uint32        getBuddyConPtr();                 // Gets Buddy Con Ptr
-  NdbConnection* next();			  // Returns the next pointer
-  void		next(NdbConnection*);		  // Sets the next pointer
+  NdbTransaction* next();			  // Returns the next pointer
+  void		next(NdbTransaction*);		  // Sets the next pointer
 
   enum ConStatusType { 
     NotConnected,
@@ -653,7 +644,7 @@ private:
   NdbOperation*	theErrorOperation; // The NdbOperation where the error occurred
 
   Ndb* 		theNdb;			     // Pointer to Ndb object	   
-  NdbConnection* theNext;	      	     // Next pointer. Used in idle list.
+  NdbTransaction* theNext;	      	     // Next pointer. Used in idle list.
 
   NdbOperation*	theFirstOpInList;	    // First operation in defining list.
   NdbOperation*	theLastOpInList;	    // Last operation in defining list.
@@ -746,14 +737,14 @@ private:
 
 inline
 Uint32
-NdbConnection::get_send_size()
+NdbTransaction::get_send_size()
 {
   return 0;
 }
 
 inline
 void
-NdbConnection::set_send_size(Uint32 send_size)
+NdbTransaction::set_send_size(Uint32 send_size)
 {
   return;
 }
@@ -764,7 +755,7 @@ NdbConnection::set_send_size(Uint32 send_size)
 
 inline
 int
-NdbConnection::checkMagicNumber()
+NdbTransaction::checkMagicNumber()
 {
   if (theMagicNumber == 0x37412619)
     return 0;
@@ -778,7 +769,7 @@ NdbConnection::checkMagicNumber()
 
 inline
 bool
-NdbConnection::checkState_TransId(const Uint32 * transId) const {
+NdbTransaction::checkState_TransId(const Uint32 * transId) const {
   const Uint32 tTmp1 = transId[0];
   const Uint32 tTmp2 = transId[1];
   Uint64 tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
@@ -793,14 +784,14 @@ Remark:        Set the transaction identity.
 ************************************************************************************************/
 inline
 void
-NdbConnection::setTransactionId(Uint64 aTransactionId)
+NdbTransaction::setTransactionId(Uint64 aTransactionId)
 {
   theTransactionId = aTransactionId;
 }
 
 inline
 void			
-NdbConnection::setConnectedNodeId(Uint32 aNode, Uint32 aSequenceNo)
+NdbTransaction::setConnectedNodeId(Uint32 aNode, Uint32 aSequenceNo)
 {
   theDBnode = aNode;
   theNodeSequence = aSequenceNo;
@@ -813,7 +804,7 @@ Remark:         Get Connected node id.
 ******************************************************************************/
 inline
 Uint32			
-NdbConnection::getConnectedNodeId()
+NdbTransaction::getConnectedNodeId()
 {
   return theDBnode;
 }	
@@ -825,7 +816,7 @@ Remark:         Set my block refrerence.
 ******************************************************************************/
 inline
 void			
-NdbConnection::setMyBlockReference(int aBlockRef)	
+NdbTransaction::setMyBlockReference(int aBlockRef)	
 {
   theMyRef = aBlockRef;
 }
@@ -837,7 +828,7 @@ Remark:         Sets TC Connect pointer.
 ******************************************************************************/
 inline
 void			
-NdbConnection::setTC_ConnectPtr(Uint32 aTCConPtr)
+NdbTransaction::setTC_ConnectPtr(Uint32 aTCConPtr)
 {
   theTCConPtr = aTCConPtr;
 }
@@ -850,61 +841,61 @@ Remark:         Gets TC Connect pointer.
 ******************************************************************************/
 inline
 int			
-NdbConnection::getTC_ConnectPtr()
+NdbTransaction::getTC_ConnectPtr()
 {
   return theTCConPtr;
 }
 
 inline
 void
-NdbConnection::setBuddyConPtr(Uint32 aBuddyConPtr)
+NdbTransaction::setBuddyConPtr(Uint32 aBuddyConPtr)
 {
   theBuddyConPtr = aBuddyConPtr;
 }
 
 inline
-Uint32 NdbConnection::getBuddyConPtr()
+Uint32 NdbTransaction::getBuddyConPtr()
 {
   return theBuddyConPtr;
 }
 
 /******************************************************************************
-NdbConnection* next();
+NdbTransaction* next();
 
 inline
 void
-NdbConnection::setBuddyConPtr(Uint32 aBuddyConPtr)
+NdbTransaction::setBuddyConPtr(Uint32 aBuddyConPtr)
 {
   theBuddyConPtr = aBuddyConPtr;
 }
 
 inline
-Uint32 NdbConnection::getBuddyConPtr()
+Uint32 NdbTransaction::getBuddyConPtr()
 {
   return theBuddyConPtr;
 }
 
-Return Value:	Return  next pointer to NdbConnection object.
+Return Value:	Return  next pointer to NdbTransaction object.
 Remark:         Get the next pointer. 
 ******************************************************************************/
 inline
-NdbConnection*
-NdbConnection::next()
+NdbTransaction*
+NdbTransaction::next()
 {
   return theNext;
 }
 
 /******************************************************************************
-void next(NdbConnection aConnection);
+void next(NdbTransaction aTransaction);
 
-Parameters:     aConnection: The connection object. 
+Parameters:     aTransaction: The connection object. 
 Remark:         Sets the next pointer. 
 ******************************************************************************/
 inline
 void
-NdbConnection::next(NdbConnection* aConnection)
+NdbTransaction::next(NdbTransaction* aTransaction)
 {
-  theNext = aConnection;
+  theNext = aTransaction;
 }
 
 /******************************************************************************
@@ -915,8 +906,8 @@ Parameters:     aStatus:  The status.
 Remark:         Sets Connect status. 
 ******************************************************************************/
 inline
-NdbConnection::ConStatusType			
-NdbConnection::Status()
+NdbTransaction::ConStatusType			
+NdbTransaction::Status()
 {
   return theStatus;
 }
@@ -929,7 +920,7 @@ Remark:         Sets Connect status.
 ******************************************************************************/
 inline
 void			
-NdbConnection::Status( ConStatusType aStatus )
+NdbTransaction::Status( ConStatusType aStatus )
 {
   theStatus = aStatus;
 }
@@ -942,7 +933,7 @@ Remark:		Set global checkpoint identity of the transaction
 ******************************************************************************/
 inline
 void
-NdbConnection::setGCI(int aGlobalCheckpointId)
+NdbTransaction::setGCI(int aGlobalCheckpointId)
 {
   theGlobalCheckpointId = aGlobalCheckpointId;
 }
@@ -954,7 +945,7 @@ Remark:       An operation was sent with success that expects a response.
 ******************************************************************************/
 inline
 void 
-NdbConnection::OpSent()
+NdbTransaction::OpSent()
 {
   theNoOfOpSent++;
 }
@@ -965,7 +956,7 @@ void executePendingBlobOps();
 #include <stdlib.h>
 inline
 int
-NdbConnection::executePendingBlobOps(Uint8 flags)
+NdbTransaction::executePendingBlobOps(Uint8 flags)
 {
   if (thePendingBlobOps & flags) {
     // not executeNoBlobs because there can be new ops with blobs
@@ -976,8 +967,10 @@ NdbConnection::executePendingBlobOps(Uint8 flags)
 
 inline
 Uint32
-NdbConnection::ptr2int(){
+NdbTransaction::ptr2int(){
   return theId;
 }
+
+typedef NdbTransaction NdbConnection;
 
 #endif

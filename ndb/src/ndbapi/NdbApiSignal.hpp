@@ -93,7 +93,7 @@ private:
    
   void setDataPtr(Uint32 *);
   
-  friend class NdbConnection;
+  friend class NdbTransaction;
   friend class NdbScanReceiver;
   friend class Table;
   void copyFrom(const NdbApiSignal * src);

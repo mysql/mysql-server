@@ -34,7 +34,7 @@ class NdbOperation;
  *   MyRecAttr = MyOperation->getValue("ATTR2", NULL);
  *   if (MyRecAttr == NULL) goto error;
  *
- *   if (MyConnection->execute(Commit) == -1) goto error;
+ *   if (MyTransaction->execute(Commit) == -1) goto error;
  *
  *   ndbout << MyRecAttr->u_32_value();
  * @endcode
@@ -43,14 +43,14 @@ class NdbOperation;
  * @ref ndbapi_example2.cpp.
  *
  * @note The NdbRecAttr object is instantiated with its value when 
- *       NdbConnection::execute is called.  Before this, the value is 
+ *       NdbTransaction::execute is called.  Before this, the value is 
  *       undefined.  (NdbRecAttr::isNULL can be used to check 
  *       if the value is defined or not.)
  *       This means that an NdbRecAttr object only has valid information
- *       between the time of calling NdbConnection::execute and
+ *       between the time of calling NdbTransaction::execute and
  *       the time of Ndb::closeTransaction.
  *       The value of the null indicator is -1 until the
- *       NdbConnection::execute method have been called.
+ *       NdbTransaction::execute method have been called.
  *
  * For simple types, there are methods which directly getting the value
  * from the NdbRecAttr object.
@@ -72,12 +72,14 @@ class NdbOperation;
  */
 class NdbRecAttr
 {
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbOperation;
   friend class NdbIndexScanOperation;
   friend class NdbEventOperationImpl;
   friend class NdbReceiver;
   friend class Ndb;
   friend class NdbOut& operator<<(class NdbOut&, const class AttributeS&);
+#endif
 
 public:
   /** 
@@ -124,7 +126,7 @@ public:
    * Check if attribute value is NULL.
    *
    * @return -1 = Not defined (Failure or 
-   *              NdbConnection::execute not yet called).<br>
+   *              NdbTransaction::execute not yet called).<br>
    *          0 = Attribute value is defined, but not equal to NULL.<br>
    *          1 = Attribute value is defined and equal to NULL.
    */
@@ -243,7 +245,9 @@ public:
   ~NdbRecAttr();    
 
 public:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   const NdbRecAttr* next() const;
+#endif
 private:
   NdbRecAttr();
 
