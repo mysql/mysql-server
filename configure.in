@@ -2303,6 +2303,20 @@ AC_ARG_WITH(libedit,
     [ with_libedit=undefined ]
     )
 
+#
+# We support next variants of compilation:
+#                              --with-readline
+#                |       yes      |  no  |               undefined
+# --with-libedit |                |      |
+# ---------------+----------------+------+----------------------------------
+#       yes      |      ERROR!    |   use libedit from mysql sources
+# ---------------+----------------+------+----------------------------------
+#       no       | use readline   | use system readline or external libedit
+#                | from mysql     | according to results of m4 tests
+# ---------------+ sources (if it +      +----------------------------------
+#    undefined   | is presented)  |      | use libedit from mysql sources
+                   
+
 compile_readline="no"
 compile_libedit="no"
 
@@ -2330,6 +2344,7 @@ then
     readline_link="\$(top_builddir)/cmd-line-utils/libedit/liblibedit.a"
     readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/libedit/readline readline"
     compile_libedit=yes
+    AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY)
     AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
 elif test "$with_readline" = "yes"
 then
@@ -2341,8 +2356,12 @@ then
     compile_readline=yes
     AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
 else
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
     MYSQL_CHECK_LIBEDIT_INTERFACE
     MYSQL_CHECK_NEW_RL_INTERFACE
+    MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
+    AC_LANG_RESTORE
     if [test "$mysql_cv_new_rl_interface" = "yes"] || [test "$mysql_cv_libedit_interface" = "no"]
     then
         readline_link="-lreadline"
