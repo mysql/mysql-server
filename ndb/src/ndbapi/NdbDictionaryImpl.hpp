@@ -88,11 +88,12 @@ public:
    * Equality/assign
    */
   bool equal(const NdbColumnImpl&) const;
-  void assign(const NdbColumnImpl&);
 
   static NdbColumnImpl & getImpl(NdbDictionary::Column & t);
   static const NdbColumnImpl & getImpl(const NdbDictionary::Column & t);
   NdbDictionary::Column * m_facade;
+
+  static NdbDictionary::Column * create_psuedo(const char *);
 };
 
 class NdbTableImpl : public NdbDictionary::Table, public NdbDictObjectImpl {

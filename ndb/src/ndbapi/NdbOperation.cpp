@@ -295,6 +295,12 @@ NdbOperation::getValue(Uint32 anAttrId, char* aValue)
   return getValue_impl(m_currentTable->getColumn(anAttrId), aValue);
 }
 
+NdbRecAttr*
+NdbOperation::getValue(const NdbDictionary::Column* col, char* aValue)
+{
+  return getValue_impl(&NdbColumnImpl::getImpl(*col), aValue);
+}
+
 int
 NdbOperation::equal(const char* anAttrName, 
 		    const char* aValuePassed, 

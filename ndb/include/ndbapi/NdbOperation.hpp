@@ -21,6 +21,7 @@
 #include "ndbapi_limits.h"
 #include "NdbError.hpp"
 #include "NdbReceiver.hpp"
+#include "NdbDictionary.hpp"
 
 class Ndb;
 class NdbApiSignal;
@@ -289,8 +290,9 @@ public:
    *                    the attribute, or a NULL pointer 
    *                    (indicating error).
    */
-  NdbRecAttr* 		getValue(const char* anAttrName, char* aValue = 0);
-  NdbRecAttr* 		getValue(Uint32 anAttrId, char* aValue = 0);
+  NdbRecAttr* getValue(const char* anAttrName, char* aValue = 0);
+  NdbRecAttr* getValue(Uint32 anAttrId, char* aValue = 0);
+  NdbRecAttr* getValue(const NdbDictionary::Column*, char* val = 0);
   
   /**
    * Define an attribute to set or update in query.
