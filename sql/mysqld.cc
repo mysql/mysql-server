@@ -2672,7 +2672,7 @@ server.");
 #ifdef __WIN__
   if ( !have_tcpip || opt_disable_networking)
   {
-    sql_print_error("Without TCP/IP or use of --skip-networking results in no available interfaces");
+    sql_print_error("TCP/IP unavailable or disabled with --skip-networking; no available interfaces");
     unireg_abort(1);
   }
 #endif
