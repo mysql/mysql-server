@@ -1122,9 +1122,7 @@ JOIN::exec()
   if (zero_result_cause)
   {
     (void) return_zero_rows(this, result, tables_list, fields_list,
-			    do_send_rows &&
-			    tmp_table_param.sum_func_count != 0 &&
-			    !group_list,
+			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
 			    having, procedure,
@@ -5674,8 +5672,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       if (!(error=(*end_select)(join,join_tab,0)) || error == -3)
 	error=(*end_select)(join,join_tab,1);
     }
-    else if (join->do_send_rows && join->tmp_table_param.sum_func_count != 0 &&
-	     !join->group_list)
+    else if (join->send_row_on_empty_set())
       error= join->result->send_data(*join->fields);
   }
   else
