@@ -3150,15 +3150,12 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   ctx.m_config->get("Node", id2, &node2);
   node2->get("Type", &type2);
 
-  bool is_mgm_connection= true;
   if(strcmp(type1, MGM_TOKEN)==0)
     node->get("PortNumber",&port);
   else if(strcmp(type2, MGM_TOKEN)==0)
     node2->get("PortNumber",&port);
-  else
-    is_mgm_connection= false;
 
-  if (!is_mgm_connection && 
+  if (!port && 
       !node->get("ServerPort", &port) &&
       !ctx.m_userProperties.get("ServerPort_", id1, &port))
   {
@@ -3192,7 +3189,16 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
     }
   }
 
-  ctx.m_currentSection->put("PortNumber", port);
+  if(ctx.m_currentSection->contains("PortNumber")) {
+    ndbout << "PortNumber should no longer be specificied "
+	   << "per connection, please remove from config. "
+	   << "Will be changed to " << port << endl;
+    ctx.m_currentSection->put("PortNumber", port, true);
+  } 
+  else
+  {
+    ctx.m_currentSection->put("PortNumber", port);
+  }
 
   DBUG_PRINT("info", ("connection %d-%d port %d host %s",
 		      id1, id2, port, hostname.c_str()));
