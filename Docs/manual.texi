@@ -50657,6 +50657,8 @@ Fixed incorrect error value when doing a @code{SELECT} with an empty
 @code{HEAP} table.
 @item
 Use @code{ORDER BY column DESC} now sorts @code{NULL} values first.
+(In other words, @code{NULL} values sort first in all cases, whether or
+not @code{DESC} is specified.)
 @item
 Fixed bug in @code{WHERE key_name='constant' ORDER BY key_name DESC}.
 @item
