@@ -507,8 +507,7 @@ static void make_sortkey(register SORTPARAM *param,
             if (res->ptr() != (char*) to)
               memcpy(to,res->ptr(),length);
             bzero((char *)to+length,diff);
-            if (!item->binary())
-              my_tosort(cs, (char*) to,length);
+            my_tosort(cs, (char*) to,length);
           }
 	  break;
 	}
@@ -918,6 +917,7 @@ sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
 {
   reg2 uint length;
   THD *thd= current_thd;
+  CHARSET_INFO *cs;
   *multi_byte_charset= 0;
 
   length=0;
@@ -926,20 +926,17 @@ sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
     sortorder->need_strxnfrm= 0;
     if (sortorder->field)
     {
+      
       if (sortorder->field->type() == FIELD_TYPE_BLOB)
 	sortorder->length= thd->variables.max_sort_length;
       else
       {
 	sortorder->length=sortorder->field->pack_length();
-	if (!sortorder->field->binary())
+	if (use_strnxfrm((cs=sortorder->field->charset())))
 	{
-	  CHARSET_INFO *cs=sortorder->field->charset();
-	  if (use_strnxfrm(cs))
-	  {
-	    sortorder->need_strxnfrm= 1;
-	    *multi_byte_charset= 1;
-	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
-	  }
+	  sortorder->need_strxnfrm= 1;
+	  *multi_byte_charset= 1;
+	  sortorder->length= sortorder->length*cs->strxfrm_multiply;
 	}
       }
       if (sortorder->field->maybe_null())
@@ -950,15 +947,11 @@ sortlength(SORT_FIELD *sortorder, uint s_length, bool *multi_byte_charset)
       switch ((sortorder->result_type=sortorder->item->result_type())) {
       case STRING_RESULT:
 	sortorder->length=sortorder->item->max_length;
-	if (!sortorder->item->binary())
-	{ 
-	  CHARSET_INFO *cs=sortorder->item->charset();
-	  if (use_strnxfrm(cs))
-	  {
-	    sortorder->length= sortorder->length*cs->strxfrm_multiply;
-	    sortorder->need_strxnfrm= 1;
-	    *multi_byte_charset= 1;
-	  }
+	if (use_strnxfrm((cs=sortorder->item->charset())))
+	{
+	  sortorder->length= sortorder->length*cs->strxfrm_multiply;
+	  sortorder->need_strxnfrm= 1;
+	  *multi_byte_charset= 1;
 	}
 	break;
       case INT_RESULT:
