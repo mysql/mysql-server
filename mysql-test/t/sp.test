@@ -2715,6 +2715,19 @@ drop procedure bug8757|
 
 
 #
+# BUG#8762: Stored Procedures: Inconsistent behavior
+#           of DROP PROCEDURE IF EXISTS statement.
+--disable_warnings
+drop procedure if exists bug8762|
+--enable_warnings
+# Doesn't exist
+drop procedure if exists bug8762; create procedure bug8762() begin end|
+# Does exist
+drop procedure if exists bug8762; create procedure bug8762() begin end|
+drop procedure bug8762|
+
+
+#
 # Some "real" examples
 #
 
