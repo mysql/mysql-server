@@ -518,6 +518,10 @@ static uint thai2sortable(uchar *tstr, uint len)
   strncoll() replacement, compare 2 string, both are converted to sortable
   string
 
+  NOTE:
+    We can't cut strings at end \0 as this would break comparision with
+    LIKE characters, where the min range is stored as end \0
+
   Arg: 2 Strings and it compare length
   Ret: strcmp result
 */
@@ -530,9 +534,6 @@ int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
   uchar *tc1, *tc2;
   int i;
 
-  /* Cut strings at end \0 */
-  len1= (int) strnlen((char*) s1,len1);
-  len2= (int) strnlen((char*) s2,len2);
   tc1= buf;
   if ((len1 + len2 +2) > (int) sizeof(buf))
     tc1= (uchar*) malloc(len1+len2);
@@ -549,6 +550,10 @@ int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
   return i;
 }
 
+
+/*
+  TODO: Has to be fixed like strnncollsp in ctype-simple.c
+*/
 
 static
 int my_strnncollsp_tis620(CHARSET_INFO * cs, 
@@ -637,8 +642,9 @@ my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
     {
       *min_length= (uint) (min_str - min_org);
       *max_length=res_length;
-      do {
-	*min_str++ = ' ';		/* Because of key compression */
+      do
+      {
+	*min_str++ = 0;
 	*max_str++ = max_sort_chr;
       } while (min_str != min_end);
       return 0;
