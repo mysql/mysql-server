@@ -4465,7 +4465,7 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
   :Field_str(ptr_arg, (1L << min(blob_pack_length,3)*8)-1L,
 	     null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
 	     table_arg, cs),
-   geom_flag(true), packlength(blob_pack_length)
+   packlength(blob_pack_length)
 {
   flags|= BLOB_FLAG;
   if (table)
@@ -4703,6 +4703,7 @@ void Field_blob::get_key_image(char *buff,uint length,
   uint32 blob_length= get_length(ptr);
   char *blob;
 
+#ifdef HAVE_SPATIAL
   if (type == itMBR)
   {
     if (!blob_length)
@@ -4719,6 +4720,7 @@ void Field_blob::get_key_image(char *buff,uint length,
     float8store(buff+24, mbr.ymax);
     return;
   }
+#endif /*HAVE_SPATIAL*/
 
   if ((uint32) length > blob_length)
   {
@@ -4928,6 +4930,7 @@ uint Field_blob::max_packed_col_length(uint max_length)
   return (max_length > 255 ? 2 : 1)+max_length;
 }
 
+#ifdef HAVE_SPATIAL
 
 void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
 			       imagetype type)
@@ -5011,6 +5014,7 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
   return 0;
 }
 
+#endif /*HAVE_SPATIAL*/
 
 /****************************************************************************
 ** enum type.
@@ -5486,10 +5490,12 @@ Field *make_field(char *ptr, uint32 field_length,
 				      f_packtype(pack_flag),
 				      field_length);
 
+#ifdef HAVE_SPATIAL
     if (f_is_geom(pack_flag))
       return new Field_geom(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
 			    pack_length, geom_type);
+#endif
     if (f_is_blob(pack_flag))
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
@@ -5649,10 +5655,12 @@ create_field::create_field(Field *old_field,Field *orig_field)
       def=new Item_string(pos,tmp.length(), charset);
     }
   }
+#ifdef HAVE_SPATIAL
   if (sql_type == FIELD_TYPE_GEOMETRY)
   {
     geom_type= ((Field_geom*)old_field)->geom_type;
   }
+#endif
 }
 
 

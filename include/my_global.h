@@ -1168,4 +1168,6 @@ typedef union {
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET MYSQL_DEFAULT_CHARSET_NAME
 #endif
 
+#define HAVE_SPATIAL
+#define HAVE_RTREE_KEYS
 #endif /* my_global_h */
