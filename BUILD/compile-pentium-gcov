@@ -1,3 +1,4 @@
+AM_MAKEFLAGS="-j 2"
 make -k clean
 /bin/rm -f */.deps/*.P config.cache
 
