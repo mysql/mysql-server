@@ -20,6 +20,7 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 #include  "mysql_priv.h"
+#include "slave.h"
 #endif /* MYSQL_CLIENT */
 
 
@@ -153,6 +154,18 @@ Log_event* Log_event::read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock)
     }
     return l;
   }
+  
+  case SLAVE_EVENT:
+  {
+    Slave_log_event* l = new Slave_log_event(file, timestamp, server_id);
+    if(log_lock) pthread_mutex_unlock(log_lock);
+    if (!l->master_host)
+    {
+      delete l;
+      l=NULL;
+    }
+    return l;
+  }
 
 
   case ROTATE_EVENT:
@@ -220,6 +233,18 @@ Log_event* Log_event::read_log_event(const char* buf, int event_len)
     }
 
     return q;
+  }
+  
+  case SLAVE_EVENT:
+  {
+    Slave_log_event* s = new Slave_log_event(buf, event_len);
+    if (!s->master_host)
+    {
+      delete s;
+      return NULL;
+    }
+
+    return s;
   }
 
   case LOAD_EVENT:
@@ -729,4 +754,123 @@ void Load_log_event::set_fields(List<Item> &fields)
   
 }
 
+Slave_log_event::Slave_log_event(THD* thd_arg,MASTER_INFO* mi):
+  Log_event(thd_arg->start_time, 0, 1, thd_arg->server_id),
+  mem_pool(0),master_host(0)
+{
+  if(!mi->inited)
+    return;
+  pthread_mutex_lock(&mi->lock);
+  master_host_len = strlen(mi->host);
+  master_log_len = strlen(mi->log_file_name);
+  // on OOM, just do not initialize the structure and print the error
+  if((mem_pool = (char*)my_malloc(get_data_size() + 1,
+				  MYF(MY_WME))))
+  {
+    master_host = mem_pool + sizeof(uint32) +
+      sizeof(ulonglong) + sizeof(uint16);
+    memcpy(master_host, mi->host, master_host_len + 1);
+    master_log = master_host + master_host_len + 1;
+    memcpy(master_log, mi->log_file_name, master_log_len + 1);
+    master_port = mi->port;
+    master_pos = mi->pos;
+  }
+  else
+    sql_print_error("Out of memory while recording slave event");
+  pthread_mutex_unlock(&mi->lock);
+}
+
+
 #endif
+
+
+Slave_log_event::~Slave_log_event()
+{
+  my_free(mem_pool, MYF(MY_ALLOW_ZERO_PTR));
+}
+
+void Slave_log_event::print(FILE* file, bool short_form = 0,
+			    char* last_db = 0)
+{
+  char llbuff[22];
+  if(short_form)
+    return;
+  print_header(file);
+  fputc('\n', file);
+  fprintf(file, "Slave: master_host='%s' master_port=%d \
+ master_log=%s master_pos=%s\n", master_host, master_port, master_log,
+	  llstr(master_pos, llbuff));
+}
+
+int Slave_log_event::get_data_size()
+{
+  return master_host_len + master_log_len + 1 + sizeof(uint32) +
+    sizeof(ulonglong) +
+    sizeof(uint16);
+}
+
+int Slave_log_event::write_data(IO_CACHE* file)
+{
+  int data_size = get_data_size();
+  int4store(mem_pool, data_size);
+  int8store(mem_pool + 4, master_pos);
+  int2store(mem_pool + 12, master_port);
+  // log and host are already there
+  return my_b_write(file, (byte*)mem_pool, data_size);
+}
+
+Slave_log_event::Slave_log_event(IO_CACHE* file, time_t when,
+				 uint32 server_id_arg):
+  Log_event(when,0,0,server_id),master_host(0)
+{
+  char buf[4];
+  if(my_b_read(file, (byte*)buf, 4))
+    return;
+  uint32 data_size;
+  data_size = uint4korr(buf);
+  if(data_size > max_allowed_packet)
+    return; // safety
+  
+  if(!(mem_pool = (char*)my_malloc(data_size + 1, MYF(MY_WME))))
+    return;
+
+  if(my_b_read(file, (byte*)mem_pool + 4, data_size - 4))
+    return;
+
+  mem_pool[data_size] = 0;
+  init_from_mem_pool(data_size);
+}
+
+void Slave_log_event::init_from_mem_pool(int data_size)
+{
+  master_pos = uint8korr(mem_pool + 4);
+  master_port = uint2korr(mem_pool + 12);
+  master_host = mem_pool + 14;
+  master_host_len = strlen(master_host);
+  // safety
+  master_log = master_host + master_host_len;
+  if(master_log >= mem_pool + data_size)
+  {
+    master_host = 0;
+    return;
+  }
+
+  master_log_len = strlen(master_log);
+}
+
+Slave_log_event::Slave_log_event(const char* buf, int event_len):
+  Log_event(buf),mem_pool(0),master_host(0)
+{
+  if(!(mem_pool = (char*)my_malloc(event_len + 1, MYF(MY_WME))))
+    return;
+  memcpy(mem_pool, buf, event_len);
+  mem_pool[event_len] = 0;
+  init_from_mem_pool(event_len);
+}
+
+
+
+
+
+
+

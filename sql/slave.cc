@@ -1014,6 +1014,18 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       flush_master_info(mi);
       break;
     }
+
+    case SLAVE_EVENT:
+    {
+      if(mysql_bin_log.is_open())
+      {
+        Slave_log_event *sev = (Slave_log_event*)ev;
+	mysql_bin_log.write(sev);
+      }
+
+      delete ev;
+      break;
+    }
 	  
     case LOAD_EVENT:
     {
@@ -1167,7 +1179,14 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 #ifndef DBUG_OFF
       if(abort_slave_event_count)
 	++events_till_abort;
-#endif      
+#endif
+      if(mysql_bin_log.is_open())
+      {
+	mysql_bin_log.new_file();
+	Slave_log_event sev(slave_thd, mi);
+	if(sev.master_host)
+	  mysql_bin_log.write(&sev);
+      }
       delete ev;
       break;
     }
