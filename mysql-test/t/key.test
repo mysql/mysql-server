@@ -58,7 +58,7 @@ drop table t1;
 #
 
 CREATE TABLE t1 (program enum('signup','unique','sliding') not null,  type enum('basic','sliding','signup'),  sites set('mt'),  PRIMARY KEY (program));
-# The following should give an error for wrong primary key
+# This no longer give an error for wrong primary key
 ALTER TABLE t1 modify program enum('signup','unique','sliding');
 drop table t1;
 
