@@ -29916,6 +29916,9 @@ stored into a temporary table) is calculated in MySQL Version
 @item expr2 or expr3 returns an integer @tab integer
 @end multitable
 
+If expr2 and expr3 are strings, then the result is case sensitive if
+both strings are case sensitive. (Starting from 3.23.51)
+
 @findex CASE
 @item CASE value WHEN [compare-value] THEN result [WHEN [compare-value] THEN result ...] [ELSE result] END
 @item CASE WHEN [condition] THEN result [WHEN [condition] THEN result ...] [ELSE result] END
@@ -46854,6 +46857,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.51::                
 * News-3.23.50::                Changes in release 3.23.50
 * News-3.23.49::                Changes in release 3.23.49
 * News-3.23.48::                Changes in release 3.23.48
@@ -46908,9 +46912,15 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
-@appendixsubsec Changes in release 3.23.50
+@node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.51
+@itemize @bullet
+Fixed the result from @code{IF()} is case in-sensitive if the 2 and
+third arguments are case sensitive.
+@end itemize
 
+@node News-3.23.50, News-3.23.49, News-3.23.51, News-3.23.x
+@appendixsubsec Changes in release 3.23.50
 @itemize @bullet
 @item
 Fixed problem with @code{crash-me} and gcc 3.0.4.
