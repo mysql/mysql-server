@@ -18,7 +18,6 @@
 /* Basic functions needed by many modules */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h"
 #include <m_ctype.h>
 #include <my_dir.h>

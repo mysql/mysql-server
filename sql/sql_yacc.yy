@@ -32,7 +32,6 @@
 #define Select Lex->current_select
 #include "mysql_priv.h"
 #include "slave.h"
-#include "sql_acl.h"
 #include "lex_symbol.h"
 #include "item_create.h"
 #include <myisam.h>
