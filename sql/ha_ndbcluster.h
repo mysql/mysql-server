@@ -215,6 +215,8 @@ class ha_ndbcluster: public handler
 
   int write_ndb_file();
 
+  char *update_table_comment(const char * comment);
+
  private:
   int check_ndb_connection();
 
