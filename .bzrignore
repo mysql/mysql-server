@@ -198,3 +198,4 @@ bdb/dist/configure
 bdb/dist/tags
 bdb/build_unix/*
 sql/.gdbinit
+BitKeeper/etc/level

@@ -1834,7 +1834,7 @@ AC_MSG_RESULT([default: $default_charset; compiled in: $CHARSETS])
 
 MYSQL_CHECK_BDB
 MYSQL_CHECK_INNOBASE
-
+MYSQL_CHECK_GEMINI
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=
