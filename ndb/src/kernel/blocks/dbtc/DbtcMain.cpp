@@ -8459,7 +8459,7 @@ void Dbtc::systemErrorLab(Signal* signal)
 void Dbtc::execSCAN_TABREQ(Signal* signal) 
 {
   const ScanTabReq * const scanTabReq = (ScanTabReq *)&signal->theData[0];
-  const Uint32 reqinfo = scanTabReq->requestInfo;
+  const Uint32 ri = scanTabReq->requestInfo;
   const Uint32 aiLength = (scanTabReq->attrLenKeyLen & 0xFFFF);
   const Uint32 keyLen = scanTabReq->attrLenKeyLen >> 16;
   const Uint32 schemaVersion = scanTabReq->tableSchemaVersion;
@@ -8469,8 +8469,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   const Uint32 buddyPtr = (tmpXX == 0xFFFFFFFF ? RNIL : tmpXX);
   Uint32 currSavePointId = 0;
   
-  Uint32 scanConcurrency = scanTabReq->getParallelism(reqinfo);
-  Uint32 noOprecPerFrag = ScanTabReq::getScanBatch(reqinfo);
+  Uint32 scanConcurrency = scanTabReq->getParallelism(ri);
+  Uint32 noOprecPerFrag = ScanTabReq::getScanBatch(ri);
   Uint32 scanParallel = scanConcurrency;
   Uint32 errCode;
   ScanRecordPtr scanptr;
@@ -8545,6 +8545,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   seizeCacheRecord(signal);
   cachePtr.p->keylen = keyLen;
   cachePtr.p->save1 = 0;
+  cachePtr.p->distributionKey = scanTabReq->distributionKey;
+  cachePtr.p->distributionKeyIndicator= ScanTabReq::getDistributionKeyFlag(ri);
   scanptr = seizeScanrec(signal);
 
   ndbrequire(transP->apiScanRec == RNIL);
@@ -8621,6 +8623,7 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
 		       UintR scanParallel,
 		       UintR noOprecPerFrag) 
 {
+  const UintR ri = scanTabReq->requestInfo;
   scanptr.p->scanTcrec = tcConnectptr.i;
   scanptr.p->scanApiRec = apiConnectptr.i;
   scanptr.p->scanAiLength = scanTabReq->attrLenKeyLen & 0xFFFF;
@@ -8633,7 +8636,6 @@ void Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->batch_byte_size= scanTabReq->batch_byte_size;
 
   Uint32 tmp = 0;
-  const UintR ri = scanTabReq->requestInfo;
   ScanFragReq::setLockMode(tmp, ScanTabReq::getLockMode(ri));
   ScanFragReq::setHoldLockFlag(tmp, ScanTabReq::getHoldLockFlag(ri));
   ScanFragReq::setKeyinfoFlag(tmp, ScanTabReq::getKeyinfoFlag(ri));
@@ -8749,14 +8751,42 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
     return;
   }
 
+  scanptr.p->scanNextFragId = 0;
   scanptr.p->scanState = ScanRecord::WAIT_FRAGMENT_COUNT;
-  /*************************************************
-   * THE FIRST STEP TO RECEIVE IS SUCCESSFULLY COMPLETED. 
-   * WE MUST FIRST GET THE NUMBER OF  FRAGMENTS IN THE TABLE.
-   ***************************************************/
-  signal->theData[0] = tcConnectptr.p->dihConnectptr;
-  signal->theData[1] = scanptr.p->scanTableref;
-  sendSignal(cdihblockref, GSN_DI_FCOUNTREQ, signal, 2, JBB);
+  
+  if(!cachePtr.p->distributionKeyIndicator)
+  {
+    jam();
+    /*************************************************
+     * THE FIRST STEP TO RECEIVE IS SUCCESSFULLY COMPLETED. 
+     * WE MUST FIRST GET THE NUMBER OF  FRAGMENTS IN THE TABLE.
+     ***************************************************/
+    signal->theData[0] = tcConnectptr.p->dihConnectptr;
+    signal->theData[1] = scanptr.p->scanTableref;
+    sendSignal(cdihblockref, GSN_DI_FCOUNTREQ, signal, 2, JBB);
+  }
+  else 
+  {
+    signal->theData[0] = tcConnectptr.p->dihConnectptr;
+    signal->theData[1] = tabPtr.i;
+    signal->theData[2] = cachePtr.p->distributionKey;
+    EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal, 3);
+    UintR TerrorIndicator = signal->theData[0];
+    jamEntry();
+    if (TerrorIndicator != 0) {
+      signal->theData[0] = tcConnectptr.i;
+      //signal->theData[1] Contains error
+      execDI_FCOUNTREF(signal);
+      return;
+    }
+    
+    UintR Tdata1 = signal->theData[1];
+    scanptr.p->scanNextFragId = Tdata1;
+
+    signal->theData[0] = tcConnectptr.i;
+    signal->theData[1] = 1; // Frag count
+    execDI_FCOUNTCONF(signal);
+  }
   return;
 }//Dbtc::diFcountReqLab()
 
@@ -8773,7 +8803,7 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
 {
   jamEntry();
   tcConnectptr.i = signal->theData[0];
-  const UintR tfragCount = signal->theData[1];
+  Uint32 tfragCount = signal->theData[1];
   ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
   apiConnectptr.i = tcConnectptr.p->apiConnect;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -8807,24 +8837,17 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
     return;
   }
 
-  if(scanptr.p->scanParallel > tfragCount){
-    jam();
-    abortScanLab(signal, scanptr, ZTOO_HIGH_CONCURRENCY_ERROR);
-    return;
-  }
-  
   scanptr.p->scanParallel = tfragCount;
   scanptr.p->scanNoFrag = tfragCount;
-  scanptr.p->scanNextFragId = 0;
   scanptr.p->scanState = ScanRecord::RUNNING;
 
   setApiConTimer(apiConnectptr.i, 0, __LINE__);
   updateBuddyTimer(apiConnectptr);
   
   ScanFragRecPtr ptr;
-  ScanFragList list(c_scan_frag_pool, 
-		    scanptr.p->m_running_scan_frags);
-  for (list.first(ptr); !ptr.isNull(); list.next(ptr)){
+  ScanFragList list(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+  for (list.first(ptr); !ptr.isNull() && tfragCount; 
+       list.next(ptr), tfragCount--){
     jam();
 
     ptr.p->lqhBlockref = 0;
@@ -8839,6 +8862,20 @@ void Dbtc::execDI_FCOUNTCONF(Signal* signal)
     signal->theData[3] = ptr.p->scanFragId;
     sendSignal(cdihblockref, GSN_DIGETPRIMREQ, signal, 4, JBB);
   }//for
+
+  ScanFragList queued(c_scan_frag_pool, scanptr.p->m_queued_scan_frags);
+  for (; !ptr.isNull();)
+  {
+    ptr.p->m_ops = 0;
+    ptr.p->m_totalLen = 0;
+    ptr.p->scanFragState = ScanFragRec::QUEUED_FOR_DELIVERY;
+    ptr.p->stopFragTimer();
+
+    ScanFragRecPtr tmp = ptr;
+    list.next(ptr);
+    list.remove(tmp);
+    queued.add(tmp);
+  }
 }//Dbtc::execDI_FCOUNTCONF()
 
 /******************************************************

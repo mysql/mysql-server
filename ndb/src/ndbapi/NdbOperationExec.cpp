@@ -65,7 +65,7 @@ NdbOperation::doSend(int aNodeId, Uint32 lastFlag)
   if (tReturnCode == -1) {
     return -1;
   }
-  NdbApiSignal *tSignal = theFirstKEYINFO;
+  NdbApiSignal *tSignal = theTCREQ->next();
   while (tSignal != NULL) {
     NdbApiSignal* tnextSignal = tSignal->next();
     tReturnCode = tp->sendSignal(tSignal, aNodeId);
@@ -201,7 +201,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   abortOption = tSimpleIndicator ? IgnoreError : abortOption;
   tcKeyReq->setAbortOption(tReqInfo, abortOption);
   
-  Uint8 tDistrKeyIndicator = theDistrKeyIndicator;
+  Uint8 tDistrKeyIndicator = theDistrKeyIndicator_;
   Uint8 tScanIndicator = theScanInfo & 1;
 
   tcKeyReq->setDistributionKeyFlag(tReqInfo, tDistrKeyIndicator);
@@ -260,7 +260,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
     /**
      *	Set transid, TC connect ptr and length in the KEYINFO signals
      */
-    NdbApiSignal* tSignal = theFirstKEYINFO;
+    NdbApiSignal* tSignal = theTCREQ->next();
     Uint32 remainingKey = tTupKeyLen - TcKeyReq::MaxKeyInfo;
     do {
       Uint32* tSigDataPtr = tSignal->getDataPtrSend();
