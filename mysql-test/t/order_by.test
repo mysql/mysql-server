@@ -352,4 +352,15 @@ CREATE TABLE t1 (a INT, b INT);
 SET @id=0;
 UPDATE t1 SET a=0 ORDER BY (a=@id), b;
 DROP TABLE t1;
-
+create table t1(id int not null auto_increment primary key, t char(12));
+disable_query_log;
+let $1 = 1000;
+while ($1)
+ {
+  eval insert into t1(t) values ('$1'); 
+  dec $1;
+ }
+enable_query_log;
+explain select id,t from t1 order by id;
+explain select id,t from t1 force index (primary) order by id;
+drop table t1;
