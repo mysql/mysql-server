@@ -171,6 +171,12 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define FLUSH_TIME		0		/* Don't flush tables */
 #define MAX_CONNECT_ERRORS	10		// errors before disabling host
 
+#ifdef HAVE_INNOBASE_DB
+#define IF_INNOBASE_DB(A, B) (A)
+#else
+#define IF_INNOBASE_DB(A, B) (B)
+#endif
+
 #if defined(__WIN__) || defined(OS2)
 #define IF_WIN(A,B) (A)
 #undef	FLUSH_TIME

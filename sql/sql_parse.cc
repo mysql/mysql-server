@@ -1810,9 +1810,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     TABLE_LIST table_list;
     LEX_STRING conv_name;
     /* Saved variable value */
-#ifdef HAVE_INNOBASE_DB
-    my_bool old_innodb_table_locks= thd->variables.innodb_table_locks;
-#endif
+    my_bool old_innodb_table_locks= 
+              IF_INNOBASE_DB(thd->variables.innodb_table_locks, FALSE);
 
 
     statistic_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS],
@@ -2336,9 +2335,8 @@ mysql_execute_command(THD *thd)
   /* Locked closure of all tables */
   TABLE_LIST *locked_tables= NULL;
   /* Saved variable value */
-#ifdef HAVE_INNOBASE_DB
-  my_bool old_innodb_table_locks= thd->variables.innodb_table_locks;
-#endif
+  my_bool old_innodb_table_locks=
+            IF_INNOBASE_DB(thd->variables.innodb_table_locks, FALSE);
   DBUG_ENTER("mysql_execute_command");
   thd->net.no_send_error= 0;
 
