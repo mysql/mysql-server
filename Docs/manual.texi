@@ -263,7 +263,8 @@ This manual is written and maintained by David Axmark, Michael (Monty)
 Widenius, Jeremy Cole, Arjen Lentz, and Paul DuBois. For other
 contributors, see @ref{Credits}.
 
-The copyright is owned by @code{MySQL AB}. @xref{What is MySQL AB}.
+The copyright (2001) to this manual is owned by the Swedish company
+@code{MySQL AB}. @xref{What is MySQL AB}.
 
 @menu
 * Manual conventions::          Conventions Used in This Manual
@@ -1324,7 +1325,7 @@ MySQL troubleshooters available, those employed by MySQL AB.
 @cindex licenses
 
 @code{MySQL AB} owns the copyright to the MySQL source code,
-the MySQL logo and trademark and this manual.
+the MySQL logos and trademarks and this manual.
 @xref{What is MySQL AB}.
 There are several different licenses relevant to the MySQL
 distribution:
@@ -1428,7 +1429,7 @@ source code as required under the GPL license.
 
 @item
 When you want to support the further development of the MySQL database
-even if you don't formally need a commercial license. Purchasing suppport
+even if you don't formally need a commercial license. Purchasing support
 directly from MySQL AB is another good way of contributing to the
 development of MySQL, with immediate advantages for you.
 @xref{Support}.
