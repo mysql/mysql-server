@@ -902,6 +902,12 @@ int load_master_data(THD* thd)
   strmake(active_mi->rli.group_master_log_name,active_mi->master_log_name,
 	  sizeof(active_mi->rli.group_master_log_name)-1);
   /*
+     Cancel the previous START SLAVE UNTIL, as the fact to download
+     a new copy logically makes UNTIL irrelevant.
+  */
+  clear_until_condition(&active_mi->rli);
+
+  /*
     No need to update rli.event* coordinates, they will be when the slave
     threads start ; only rli.group* coordinates are necessary here.
   */

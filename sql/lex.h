@@ -403,6 +403,7 @@ static SYMBOL symbols[] = {
   { "USE",		SYM(USE_SYM),0,0},
   { "USE_FRM",		SYM(USE_FRM),0,0},
   { "USER",		SYM(USER),0,0},
+  { "UNTIL",		SYM(UNTIL_SYM),0,0},
   { "USING",		SYM(USING),0,0},
   { "UPDATE",		SYM(UPDATE_SYM),0,0},
   { "USAGE",		SYM(USAGE),0,0},
