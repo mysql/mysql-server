@@ -59,7 +59,7 @@
 #endif
 
 void free_old_query(MYSQL *mysql);
-my_bool
+my_bool STDCALL
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
 		     const char *arg, ulong arg_length, my_bool skip_check);
@@ -169,7 +169,7 @@ static inline int mysql_init_charset(MYSQL *mysql)
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-static void emb_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
 { 
   MYSQL_ROW end;
 
