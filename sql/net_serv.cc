@@ -14,17 +14,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Write and read of logical packets to/from socket
-** Writes are cached into net_buffer_length big packets.
-** Read packets are reallocated dynamicly when reading big packets.
-** Each logical packet has the following pre-info:
-** 3 byte length & 1 byte package-number.
-*/
+/*
+  Write and read of logical packets to/from socket
 
-#ifdef EMBEDDED_LIBRARY
-#define net_read_timeout net_read_timeout1
-#define net_write_timeout net_write_timeout1
-#endif
+  Writes are cached into net_buffer_length big packets.
+  Read packets are reallocated dynamicly when reading big packets.
+  Each logical packet has the following pre-info:
+  3 byte length & 1 byte package-number.
+*/
 
 #ifdef __WIN__
 #include <winsock.h>
@@ -51,15 +48,10 @@
 */
 
 #ifdef MYSQL_SERVER
-ulong max_allowed_packet=65536;
-extern ulong net_read_timeout,net_write_timeout;
-extern uint test_flags;
 #define USE_QUERY_CACHE
+extern uint test_flags;
 extern void query_cache_insert(NET *net, const char *packet, ulong length);
 #else
-ulong max_allowed_packet=16*1024*1024L;
-ulong net_read_timeout=  NET_READ_TIMEOUT;
-ulong net_write_timeout= NET_WRITE_TIMEOUT;
 #endif
 
 #if defined(__WIN__) || !defined(MYSQL_SERVER)
@@ -86,8 +78,6 @@ extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #define TEST_BLOCKING		8
 #define MAX_THREE_BYTES 255L*255L*255L
 
-ulong net_buffer_length=8192;   /* Default length. Enlarged if necessary */
-
 static int net_write_buff(NET *net,const char *packet,ulong len);
 
 
@@ -95,17 +85,15 @@ static int net_write_buff(NET *net,const char *packet,ulong len);
 
 int my_net_init(NET *net, Vio* vio)
 {
-  if (!(net->buff=(uchar*) my_malloc((uint32) net_buffer_length+ 
+  my_net_local_init(net);			/* Set some limits */
+  if (!(net->buff=(uchar*) my_malloc((uint32) net->max_packet+
 				     NET_HEADER_SIZE + COMP_HEADER_SIZE,
 				     MYF(MY_WME))))
     return 1;
-  if (net_buffer_length > max_allowed_packet)
-    max_allowed_packet=net_buffer_length;
-  net->buff_end=net->buff+(net->max_packet=net_buffer_length);
+  net->buff_end=net->buff+net->max_packet;
   net->vio = vio;
   net->no_send_ok = 0;
   net->error=0; net->return_errno=0; net->return_status=0;
-  net->timeout=(uint) net_read_timeout; /* Timeout for read */
   net->pkt_nr=net->compress_pkt_nr=0;
   net->write_pos=net->read_pos = net->buff;
   net->last_error[0]=0;
@@ -126,11 +114,13 @@ int my_net_init(NET *net, Vio* vio)
   return 0;
 }
 
+
 void net_end(NET *net)
 {
   my_free((gptr) net->buff,MYF(MY_ALLOW_ZERO_PTR));
   net->buff=0;
 }
+
 
 /* Realloc the packet buffer */
 
@@ -138,7 +128,7 @@ static my_bool net_realloc(NET *net, ulong length)
 {
   uchar *buff;
   ulong pkt_length;
-  if (length >= max_allowed_packet)
+  if (length >= net->max_packet_size)
   {
     DBUG_PRINT("error",("Packet too large (%lu)", length));
     net->error=1;
@@ -146,8 +136,10 @@ static my_bool net_realloc(NET *net, ulong length)
     return 1;
   }
   pkt_length = (length+IO_SIZE-1) & ~(IO_SIZE-1); 
-  /* We must allocate some extra bytes for the end 0 and to be able to
-     read big compressed blocks */
+  /*
+    We must allocate some extra bytes for the end 0 and to be able to
+    read big compressed blocks
+  */
   if (!(buff=(uchar*) my_realloc((char*) net->buff, (uint32) pkt_length +
 				 NET_HEADER_SIZE + COMP_HEADER_SIZE,
 				 MYF(MY_WME))))
@@ -374,7 +366,7 @@ net_real_write(NET *net,const char *packet,ulong len)
 #ifndef NO_ALARM
   thr_alarm_init(&alarmed);
   if (net_blocking)
-    thr_alarm(&alarmed,(uint) net_write_timeout,&alarm_buff);
+    thr_alarm(&alarmed,(uint) net->write_timeout,&alarm_buff);
 #else
   alarmed=0;
 #endif /* NO_ALARM */
@@ -388,7 +380,7 @@ net_real_write(NET *net,const char *packet,ulong len)
 #if (!defined(__WIN__) && !defined(__EMX__) && !defined(OS2))
       if ((interrupted || length==0) && !thr_alarm_in_use(&alarmed))
       {
-        if (!thr_alarm(&alarmed,(uint) net_write_timeout,&alarm_buff))
+        if (!thr_alarm(&alarmed,(uint) net->write_timeout,&alarm_buff))
         {                                       /* Always true for client */
 	  if (!vio_is_blocking(net->vio))
 	  {
@@ -471,7 +463,7 @@ static void my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed)
   uint retry_count=0;
   if (!thr_alarm_in_use(&alarmed))
   {
-    if (!thr_alarm(alarmed,net->timeout,&alarm_buff) ||
+    if (!thr_alarm(alarmed,net->read_timeout,&alarm_buff) ||
 	(!vio_is_blocking(net->vio) && vio_blocking(net->vio,TRUE) < 0))
       return;					/* Can't setup, abort */
   }
@@ -521,7 +513,7 @@ my_real_read(NET *net, ulong *complen)
   thr_alarm_init(&alarmed);
 #ifndef NO_ALARM
   if (net_blocking)
-    thr_alarm(&alarmed,net->timeout,&alarm_buff);
+    thr_alarm(&alarmed,net->read_timeout,&alarm_buff);
 #endif /* NO_ALARM */
 
     pos = net->buff + net->where_b;		/* net->packet -4 */
@@ -544,7 +536,7 @@ my_real_read(NET *net, ulong *complen)
 	  */
 	  if ((interrupted || length == 0) && !thr_alarm_in_use(&alarmed))
 	  {
-	    if (!thr_alarm(&alarmed,net->timeout,&alarm_buff)) /* Don't wait too long */
+	    if (!thr_alarm(&alarmed,net->read_timeout,&alarm_buff)) /* Don't wait too long */
 	    {
               if (!vio_is_blocking(net->vio))
               {

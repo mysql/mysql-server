@@ -21,7 +21,6 @@
 #ifndef _mysql_com_h
 #define _mysql_com_h
 
-
 #define NAME_LEN	64		/* Field/table name length */
 #define HOSTNAME_LENGTH 60
 #define USERNAME_LENGTH 16
@@ -115,9 +114,10 @@ typedef struct st_net {
   Vio* vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;					/* For Perl DBI/dbd */
-  unsigned long max_packet;
+  unsigned long max_packet,max_packet_size;
+  unsigned int last_errno,pkt_nr,compress_pkt_nr;
+  unsigned int write_timeout,read_timeout;
   int fcntl;
-  unsigned int last_errno,timeout,pkt_nr,compress_pkt_nr;
   char last_error[MYSQL_ERRMSG_SIZE];
   unsigned char error;
   my_bool return_errno,compress;
@@ -165,6 +165,7 @@ extern "C" {
 #endif
 
 int	my_net_init(NET *net, Vio* vio);
+void	my_net_local_init(NET *net);
 void	net_end(NET *net);
 void	net_clear(NET *net);
 int	net_flush(NET *net);

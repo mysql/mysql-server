@@ -970,9 +970,46 @@ bool acl_check_host(const char *host, const char *ip)
 }
 
 /*****************************************************************************
-** Change password for the user if it's not an anonymous user
-** Note: This should write the error directly to the client!
+  Change password for the user if it's not an anonymous user
+  Note: This should write the error directly to the client!
 *****************************************************************************/
+
+/*
+  Check if the user is allowed to change password
+
+  SYNOPSIS:
+    check_change_password()
+    thd		THD
+    host	hostname for the user
+    user	user name
+
+    RETURN VALUE
+    0	OK
+    1	ERROR  ; In this case the error is sent to the client.
+*/
+
+bool check_change_password(THD *thd, const char *host, const char *user)
+{
+  if (!initialized)
+  {
+    send_error(&thd->net, ER_PASSWORD_NOT_ALLOWED); /* purecov: inspected */
+    return(1); /* purecov: inspected */
+  }
+  if (!thd->slave_thread &&
+      (strcmp(thd->user,user) ||
+       my_strcasecmp(host,thd->host ? thd->host : thd->ip)))
+  {
+    if (check_access(thd, UPDATE_ACL, "mysql",0,1))
+      return(1);
+  }
+  if (!thd->slave_thread && !thd->user[0])
+  {
+    send_error(&thd->net, ER_PASSWORD_ANONYMOUS_USER);
+    return(1);
+  }
+  return(0);
+}
+
 
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *new_password)
@@ -981,30 +1018,15 @@ bool change_password(THD *thd, const char *host, const char *user,
   DBUG_ENTER("change_password");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'  new_password: '%s'",
 		      host,user,new_password));
+  DBUG_ASSERT(host != 0);			// Ensured by parent
 
-  if (!initialized)
-  {
-    send_error(&thd->net, ER_PASSWORD_NOT_ALLOWED); /* purecov: inspected */
-    DBUG_RETURN(1); /* purecov: inspected */
-  }
-  if (!host)
-    host=thd->ip; /* purecov: tested */
+  if (check_change_password(thd, host, user))
+    DBUG_RETURN(1);
+
   /* password should always be 0 or 16 chars; simple hack to avoid cracking */
   length=(uint) strlen(new_password);
   new_password[length & 16]=0;
 
-  if (!thd->slave_thread &&
-      (strcmp(thd->user,user) ||
-       my_strcasecmp(host,thd->host ? thd->host : thd->ip)))
-  {
-    if (check_access(thd, UPDATE_ACL, "mysql",0,1))
-      DBUG_RETURN(1);
-  }
-  if (!thd->slave_thread && !thd->user[0])
-  {
-    send_error(&thd->net, ER_PASSWORD_ANONYMOUS_USER);
-    DBUG_RETURN(1);
-  }
   VOID(pthread_mutex_lock(&acl_cache->lock));
   ACL_USER *acl_user;
   if (!(acl_user= find_acl_user(host,user)))

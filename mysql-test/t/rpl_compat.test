@@ -58,7 +58,7 @@ sync_with_master ;
 #now slave will hit an error
 wait_for_slave_to_stop;
 
-set sql_slave_skip_counter=1;
+set global sql_slave_skip_counter=1;
 slave start;
 select count(*) from t1;
 connection master1;

@@ -46,6 +46,7 @@
 #define MAX_DBKEY_LENGTH (FN_LEN*2+6)           /* extra 4 bytes for slave tmp
 						 * tables */
 #define MAX_FIELD_NAME 34			/* Max colum name length +2 */
+#define MAX_SYS_VAR_LENGTH 32
 #define MAX_KEY 32				/* Max used keys */
 #define MAX_REF_PARTS 16			/* Max parts used as ref */
 #define MAX_KEY_LENGTH 500			/* max possible key */

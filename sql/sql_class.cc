@@ -51,8 +51,6 @@ template class List<Alter_drop>;
 template class List_iterator<Alter_drop>;
 template class List<Alter_column>;
 template class List_iterator<Alter_column>;
-template class List<Set_option>;
-template class List_iterator<Set_option>;
 #endif
 
 /****************************************************************************
@@ -105,7 +103,6 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   slave_proxy_id = 0;
   file_id = 0;
   cond_count=0;
-  convert_set=0;
   mysys_var=0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
@@ -129,23 +126,15 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   slave_net = 0;
   log_pos = 0;
   server_status= SERVER_STATUS_AUTOCOMMIT;
-  update_lock_default= low_priority_updates ? TL_WRITE_LOW_PRIORITY : TL_WRITE;
+  update_lock_default= (variables.low_priority_updates ?
+			TL_WRITE_LOW_PRIORITY :
+			TL_WRITE);
   options= thd_startup_options;
-#ifdef HAVE_QUERY_CACHE
-  query_cache_type= (byte) query_cache_startup_type;
-#else
-  query_cache_type= 0; //Safety
-#endif
   sql_mode=(uint) opt_sql_mode;
-  inactive_timeout= variables.net_wait_timeout;
   open_options=ha_open_options;
-  tx_isolation=session_tx_isolation=default_tx_isolation;
+  session_tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   command=COM_CONNECT;
   set_query_id=1;
-  default_select_limit= HA_POS_ERROR;
-  max_join_size= ((variables.max_join_size != ~ (ulong) 0L) ?
-		  variables.max_join_size :
-		  HA_POS_ERROR);
   db_access=NO_ACCESS;
 
   /* Initialize sub structures */
@@ -300,7 +289,7 @@ void THD::add_changed_table(TABLE *table)
 {
   DBUG_ENTER("THD::add_changed_table(table)");
 
-  DBUG_ASSERT((options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)) &&
+  DBUG_ASSERT((options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
 	      table->file->has_transactions());
 
   CHANGED_TABLE_LIST** prev = &transaction.changed_tables;

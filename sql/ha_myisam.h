@@ -100,6 +100,7 @@ class ha_myisam: public handler
   my_off_t row_position() { return mi_position(file); }
   void info(uint);
   int extra(enum ha_extra_function operation);
+  int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);

@@ -53,8 +53,10 @@ const char *ha_table_type[] = {
   "MRG_ISAM","MYISAM", "MRG_MYISAM", "BDB", "INNODB", "GEMINI", "?", "?",NullS
 };
 
-TYPELIB ha_table_typelib= {array_elements(ha_table_type)-4,"",
-			   ha_table_type+1};
+TYPELIB ha_table_typelib=
+{
+  array_elements(ha_table_type)-3, "", ha_table_type
+};
 
 const char *ha_row_type[] = {
   "", "FIXED", "DYNAMIC", "COMPRESSED","?","?","?"
@@ -216,7 +218,7 @@ int ha_autocommit_or_rollback(THD *thd, int error)
     }
     else
       (void) ha_rollback_stmt(thd);
-    thd->tx_isolation=thd->session_tx_isolation;
+    thd->variables.tx_isolation=thd->session_tx_isolation;
   }
 #endif
   DBUG_RETURN(error);
@@ -314,7 +316,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 #endif /*HAVE_QUERY_CACHE*/
     if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
       sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
-    thd->tx_isolation=thd->session_tx_isolation;
+    thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
     {
       statistic_increment(ha_commit_count,&LOCK_status);
@@ -362,7 +364,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       reinit_io_cache(&thd->transaction.trans_log,
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
     thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
-    thd->tx_isolation=thd->session_tx_isolation;
+    thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
     {
       statistic_increment(ha_rollback_count,&LOCK_status);
@@ -865,8 +867,14 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 void ha_key_cache(void)
 {
   if (keybuff_size)
-    (void) init_key_cache(keybuff_size,0);
-} /* ha_key_cache */
+    (void) init_key_cache(keybuff_size);
+}
+
+
+void ha_resize_key_cache(void)
+{
+  (void) resize_key_cache(keybuff_size);
+}
 
 
 static int NEAR_F delete_file(const char *name,const char *ext,int extflag)
@@ -874,4 +882,10 @@ static int NEAR_F delete_file(const char *name,const char *ext,int extflag)
   char buff[FN_REFLEN];
   VOID(fn_format(buff,name,"",ext,extflag | 4));
   return(my_delete_with_symlink(buff,MYF(MY_WME)));
+}
+
+void st_ha_check_opt::init()
+{
+  flags= sql_flags= 0;
+  sort_buffer_size = current_thd->variables.myisam_sort_buff_size;
 }

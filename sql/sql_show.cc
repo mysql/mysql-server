@@ -84,7 +84,7 @@ mysqld_show_dbs(THD *thd,const char *wild)
 	(grant_option && !check_grant_db(thd, file_name)))
     {
       thd->packet.length(0);
-      net_store_data(&thd->packet, thd->convert_set, file_name);
+      net_store_data(&thd->packet, thd->variables.convert_set, file_name);
       if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
 		       thd->packet.length()))
 	DBUG_RETURN(-1);
@@ -102,7 +102,7 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
 {
   List<Item> field_list;
   OPEN_TABLE_LIST *open_list;
-  CONVERT *convert=thd->convert_set;
+  CONVERT *convert=thd->variables.convert_set;
   DBUG_ENTER("mysqld_show_open_tables");
 
   field_list.push_back(new Item_empty_string("Database",NAME_LEN));
@@ -161,7 +161,7 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   while ((file_name=it++))
   {
     thd->packet.length(0);
-    net_store_data(&thd->packet, thd->convert_set, file_name);
+    net_store_data(&thd->packet, thd->variables.convert_set, file_name);
     if (my_net_write(&thd->net,(char*) thd->packet.ptr(),thd->packet.length()))
       DBUG_RETURN(-1);
   }
@@ -257,7 +257,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   char *file_name;
   TABLE *table;
   String *packet= &thd->packet;
-  CONVERT *convert=thd->convert_set;
+  CONVERT *convert=thd->variables.convert_set;
   DBUG_ENTER("mysqld_extend_show_tables");
 
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
@@ -433,7 +433,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   handler *file;
   char tmp[MAX_FIELD_WIDTH];
   Item *item;
-  CONVERT *convert=thd->convert_set;
+  CONVERT *convert=thd->variables.convert_set;
   DBUG_ENTER("mysqld_show_fields");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
@@ -549,7 +549,7 @@ int
 mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
-  CONVERT *convert=thd->convert_set;
+  CONVERT *convert=thd->variables.convert_set;
   DBUG_ENTER("mysqld_show_create");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
@@ -637,7 +637,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
   char buff[256];
-  CONVERT *convert=thd->convert_set;
+  CONVERT *convert=thd->variables.convert_set;
   DBUG_ENTER("mysqld_show_keys");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
@@ -768,7 +768,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
 int
 mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
 {
-  CONVERT *convert=thd->convert_set;
+  CONVERT *convert=thd->variables.convert_set;
   DBUG_ENTER("mysqld_dump_create_info");
   DBUG_PRINT("enter",("table: %s",table->real_name));
 
@@ -1018,8 +1018,9 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Item *field;
   List<Item> field_list;
   I_List<thread_info> thread_infos;
-  ulong max_query_length= verbose ? max_allowed_packet : PROCESS_LIST_WIDTH;
-  CONVERT *convert=thd->convert_set;
+  ulong max_query_length= (verbose ? thd->variables.max_allowed_packet :
+			   PROCESS_LIST_WIDTH);
+  CONVERT *convert=thd->variables.convert_set;
   DBUG_ENTER("mysqld_list_processes");
 
   field_list.push_back(new Item_int("Id",0,7));
@@ -1143,13 +1144,12 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 
 
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
-		struct system_variables *values)
+		enum enum_var_type value_type)
 {
-  uint i;
   char buff[8192];
   String packet2(buff,sizeof(buff));
   List<Item> field_list;
-  CONVERT *convert=thd->convert_set;
+  CONVERT *convert=thd->variables.convert_set;
   ulong offset;
 
   DBUG_ENTER("mysqld_show");
@@ -1160,55 +1160,48 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 
   /* pthread_mutex_lock(&THR_LOCK_keycache); */
   pthread_mutex_lock(&LOCK_status);
-  for (i=0; variables[i].name; i++)
+  for (; variables->name; variables++)
   {
-    if (!(wild && wild[0] && wild_case_compare(variables[i].name,wild)))
+    if (!(wild && wild[0] && wild_case_compare(variables->name,wild)))
     {
       packet2.length(0);
-      net_store_data(&packet2,convert,variables[i].name);
-      switch (variables[i].type){
+      net_store_data(&packet2,convert,variables->name);
+      SHOW_TYPE show_type=variables->type;
+      char *value=variables->value;
+      if (show_type == SHOW_SYS)
+      {
+	show_type= ((sys_var*) value)->type();
+	value=     ((sys_var*) value)->value_ptr(thd, value_type);
+      }
+
+      switch (show_type) {
       case SHOW_LONG:
       case SHOW_LONG_CONST:
-        net_store_data(&packet2,(uint32) *(ulong*) variables[i].value);
+        net_store_data(&packet2,(uint32) *(ulong*) value);
         break;
-      case SHOW_LONG_OFFSET:
-	offset= (ulong) variables[i].value;
-        net_store_data(&packet2,
-		       (uint32) *(ulong*) (((char*) values) + offset));
-	break;
+      case SHOW_LONGLONG:
+        net_store_data(&packet2,(longlong) *(longlong*) value);
+        break;
       case SHOW_BOOL:
-        net_store_data(&packet2,(ulong) *(bool*) variables[i].value ?
-                       "ON" : "OFF");
+        net_store_data(&packet2,(ulong) *(bool*) value ? "ON" : "OFF");
         break;
       case SHOW_MY_BOOL:
-        net_store_data(&packet2,(ulong) *(my_bool*) variables[i].value ?
-                       "ON" : "OFF");
-        break;
-      case SHOW_MY_BOOL_OFFSET:
-	offset= (ulong) variables[i].value;
-        net_store_data(&packet2,
-		       ((ulong) *(my_bool*) (((char*) values) + offset)) ?
-                       "ON" : "OFF");
+        net_store_data(&packet2,(ulong) *(my_bool*) value ? "ON" : "OFF");
         break;
       case SHOW_INT_CONST:
       case SHOW_INT:
-        net_store_data(&packet2,(uint32) *(int*) variables[i].value);
-        break;
-      case SHOW_INT_OFFSET:
-	offset= (ulong) variables[i].value;
-        net_store_data(&packet2,
-		       (uint32) *(int*) (((char*) values) + offset));
+        net_store_data(&packet2,(uint32) *(int*) value);
         break;
       case SHOW_HAVE:
       {
-	SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) variables[i].value;
+	SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
         net_store_data(&packet2, (tmp == SHOW_OPTION_NO ? "NO" :
 				  tmp == SHOW_OPTION_YES ? "YES" :
 				  "DISABLED"));
         break;
       }
       case SHOW_CHAR:
-        net_store_data(&packet2,convert, variables[i].value);
+        net_store_data(&packet2,convert, value);
         break;
       case SHOW_STARTTIME:
         net_store_data(&packet2,(uint32) (thd->query_start() - start_time));
@@ -1232,11 +1225,11 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         net_store_data(&packet2,(uint32) cached_tables());
         break;
       case SHOW_CHAR_PTR:
-        {
-          char *value= *(char**) variables[i].value;
-          net_store_data(&packet2,convert, value ? value : "");
-          break;
-        }
+      {
+	value= *(char**) value;
+	net_store_data(&packet2,convert, value ? value : "");
+	break;
+      }
 #ifdef HAVE_OPENSSL
 	/* First group - functions relying on CTX */
       case SHOW_SSL_CTX_SESS_ACCEPT:
@@ -1393,6 +1386,10 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         break;
 
 #endif /* HAVE_OPENSSL */
+      case SHOW_UNDEF:				// Show never happen
+      case SHOW_SYS:
+	net_store_data(&packet2, "");		// Safety
+	break;
       }
       if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
         goto err;                               /* purecov: inspected */

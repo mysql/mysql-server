@@ -71,8 +71,8 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
   error=mysql_rm_table_part2(thd,tables,if_exists,0);
 
  err:  
-  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
   pthread_mutex_unlock(&LOCK_open);
+  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
 
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -83,6 +83,27 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists)
     DBUG_RETURN(-1);
   send_ok(&thd->net);
   DBUG_RETURN(0);
+}
+
+int mysql_rm_table_part2_with_lock(THD *thd,
+				   TABLE_LIST *tables, bool if_exists,
+				   bool dont_log_query)
+{
+  int error;
+  thd->mysys_var->current_mutex= &LOCK_open;
+  thd->mysys_var->current_cond= &COND_refresh;
+  VOID(pthread_mutex_lock(&LOCK_open));
+
+  error=mysql_rm_table_part2(thd,tables, if_exists, dont_log_query);
+
+  pthread_mutex_unlock(&LOCK_open);
+  VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
+
+  pthread_mutex_lock(&thd->mysys_var->mutex);
+  thd->mysys_var->current_mutex= 0;
+  thd->mysys_var->current_cond= 0;
+  pthread_mutex_unlock(&thd->mysys_var->mutex);
+  return error;
 }
 
 
@@ -115,15 +136,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
     drop_locked_tables(thd,db,table->real_name);
     if (thd->killed)
-    {
-      VOID(pthread_cond_broadcast(&COND_refresh)); // Signal to refresh
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      pthread_mutex_lock(&thd->mysys_var->mutex);
-      thd->mysys_var->current_mutex= 0;
-      thd->mysys_var->current_cond= 0;
-      pthread_mutex_unlock(&thd->mysys_var->mutex);
       DBUG_RETURN(-1);
-    }
+
     /* remove form file and isam files */
     (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,db,table->real_name,
 		   reg_ext);

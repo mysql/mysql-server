@@ -61,10 +61,11 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     */
     lex_sl= sl;
     order=  (ORDER *) lex_sl->order_list.first;
-    found_rows_for_union = lex->select_lex.options & OPTION_FOUND_ROWS && !describe && sl->select_limit;
+    found_rows_for_union = (lex->select_lex.options & OPTION_FOUND_ROWS &&
+			    !describe && sl->select_limit);
     if (found_rows_for_union)
       lex->select_lex.options ^=  OPTION_FOUND_ROWS;
-// This is done to eliminate unnecessary slowing down of the first query 
+    // This is done to eliminate unnecessary slowing down of the first query 
     if (!order || !describe) 
       last_sl->next=0;				// Remove this extra element
   }
@@ -195,7 +196,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       else 
       {
 	thd->offset_limit= 0;
-	thd->select_limit= thd->default_select_limit;
+	thd->select_limit= thd->variables.select_limit;
       }
       if (describe)
 	thd->select_limit= HA_POS_ERROR;		// no limit

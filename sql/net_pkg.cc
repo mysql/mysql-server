@@ -87,6 +87,7 @@ void send_warning(NET *net, uint sql_errno, const char *err)
   DBUG_VOID_RETURN;
 }
 
+
 /*
    Write error package and flush to client
    It's a little too low level, but I don't want to allow another buffer
@@ -368,4 +369,19 @@ net_store_data(String *packet, CONVERT *convert, const char *from)
   if (convert)
     return convert->store(packet, from, length);
   return net_store_data(packet,from,length);
+}
+
+/*
+  Function called by my_net_init() to set some check variables
+*/
+
+extern "C" {
+void my_net_local_init(NET *net)
+{
+  net->max_packet=   (uint) global_system_variables.net_buffer_length;
+  net->read_timeout= (uint) global_system_variables.net_read_timeout;
+  net->write_timeout=(uint) global_system_variables.net_write_timeout;
+  net->max_packet_size= max(global_system_variables.net_buffer_length,
+			    global_system_variables.max_allowed_packet);
+}
 }

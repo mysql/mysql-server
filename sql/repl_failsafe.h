@@ -14,7 +14,6 @@ extern RPL_STATUS rpl_status;
 extern pthread_mutex_t LOCK_rpl_status;
 extern pthread_cond_t COND_rpl_status;
 extern TYPELIB rpl_role_typelib, rpl_status_typelib;
-extern uint rpl_recovery_rank;
 extern const char* rpl_role_type[], *rpl_status_type[];
 
 pthread_handler_decl(handle_failsafe_rpl,arg);
