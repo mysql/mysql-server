@@ -292,7 +292,7 @@ row_upd_index_parse(
 /* Update vector field */
 struct upd_field_struct{
 	ulint		field_no;	/* field number in an index, usually
-					the clustered index, but in upadating
+					the clustered index, but in updating
 					a secondary index record in btr0cur.c
 					this is the position in the secondary
 					index */
