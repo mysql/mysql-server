@@ -520,7 +520,11 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     if ((error= (int) !(open_temporary_table(thd, path, table_list->db,
 					     table_list->real_name, 1))))
       (void) rm_temporary_table(table_type, path);
-    DBUG_RETURN(error ? -1 : 0);
+    /* Sasha: if we return here we will not have binloged the truncation and
+       we will not send_ok() to the client. Yes, we do need better coverage
+       testing, this bug has been here for a few months :-).
+    */
+    goto end; 
   }
 
   (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,table_list->db,
@@ -549,7 +553,7 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   *fn_ext(path)=0;				// Remove the .frm extension
   error= ha_create_table(path,&create_info,1) ? -1 : 0;
   query_cache_invalidate3(thd, table_list, 0); 
-
+end:
   if (!dont_send_ok)
   {
     if (!error)
