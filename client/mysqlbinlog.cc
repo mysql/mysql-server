@@ -20,6 +20,7 @@
 #include <time.h>
 #include <assert.h>
 #include "log_event.h"
+#include "include/my_sys.h"
 
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
@@ -57,7 +58,6 @@ static short binlog_flags = 0;
 static MYSQL* mysql = NULL;
 static const char* table = 0;
 
-static bool use_local_load= 0;
 static const char* dirname_for_local_load= 0;
 
 static void dump_local_log_entries(const char* logname);
@@ -106,7 +106,7 @@ class Load_log_processor
 		      gptr data, uint size)
     {
       File file;
-      if ((file= my_open(fname,flags,MYF(MY_WME)) < 0) ||
+      if (((file= my_open(fname,flags,MYF(MY_WME))) < 0) ||
 	  my_write(file,(byte*) data,size,MYF(MY_WME|MY_NABP)) ||
 	  my_close(file,MYF(MY_WME)))
 	exit(1);
@@ -149,7 +149,9 @@ public:
     }
   void init_by_cur_dir()
     {
-      target_dir_name_len= 0;
+      if (my_getwd(target_dir_name,sizeof(target_dir_name),MYF(MY_WME)))
+	exit(1);
+      target_dir_name_len= strlen(target_dir_name);
     }
   void destroy()
     {
@@ -176,7 +178,7 @@ public:
   void process(Create_file_log_event *ce)
     {
       const char *fname= create_file(ce);
-      append_to_file(fname,O_CREAT|O_BINARY,ce->block,ce->block_len);
+      append_to_file(fname,O_CREAT|O_EXCL|O_BINARY|O_WRONLY,ce->block,ce->block_len);
     }
   void process(Append_block_log_event *ae)
     {
@@ -184,7 +186,7 @@ public:
 	die("Skiped CreateFile event for file_id: %u",ae->file_id);
       Create_file_log_event* ce= 
 	*((Create_file_log_event**)file_names.buffer + ae->file_id);
-      append_to_file(ce->fname,O_APPEND|O_BINARY,ae->block,ae->block_len);
+      append_to_file(ce->fname,O_APPEND|O_BINARY|O_WRONLY,ae->block,ae->block_len);
     }
 };
 
@@ -309,7 +311,7 @@ extern "C" my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  switch(optid) {
+  switch (optid) {
 #ifndef DBUG_OFF
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
@@ -338,9 +340,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
-  case 'l':
-    use_local_load= 1;
-    break;
   case '?':
     usage();
     exit(0);
@@ -552,8 +551,6 @@ static void dump_local_log_entries(const char* logname)
 		      MYF(MY_WME | MY_NABP)))
       exit(1);
     old_format = check_header(file);
-    if (use_local_load && !dirname_for_local_load)
-      load_processor.init_by_file_name(logname);
   }
   else
   {
@@ -575,8 +572,6 @@ static void dump_local_log_entries(const char* logname)
     }
     file->pos_in_file=position;
     file->seek_not_done=0;
-    if (use_local_load && !dirname_for_local_load)
-      load_processor.init_by_cur_dir();
   }
 
   if (!position)
@@ -632,37 +627,31 @@ Could not read entry at offset %s : Error in log format or read error",
       if (!short_form)
         fprintf(result_file, "# at %s\n",llstr(old_off,llbuff));
       
-      if (!use_local_load)
-	ev->print(result_file, short_form, last_db);
-      else 
+      switch (ev->get_type_code()) {
+      case CREATE_FILE_EVENT:
       {
-	switch(ev->get_type_code())
-	{
-	case CREATE_FILE_EVENT:
-	{
-	  Create_file_log_event* ce= (Create_file_log_event*)ev;
-	  ce->print(result_file, short_form, last_db,true);
-	  load_processor.process(ce);
-	  ev= 0;
-	  break;
-	}
-	case APPEND_BLOCK_EVENT:
-	  ev->print(result_file, short_form, last_db);
-	  load_processor.process((Append_block_log_event*)ev);
-	  break;
-	case EXEC_LOAD_EVENT:
-	{
-	  ev->print(result_file, short_form, last_db);
-	  Execute_load_log_event *exv= (Execute_load_log_event*)ev;
-	  Create_file_log_event *ce= load_processor.grab_event(exv->file_id);
-	  ce->print(result_file, short_form, last_db,true);
-	  my_free((char*)ce->fname,MYF(MY_WME));
-	  delete ce;
-	  break;
-	}
-	default:
-	  ev->print(result_file, short_form, last_db);
-	}
+	Create_file_log_event* ce= (Create_file_log_event*)ev;
+	ce->print(result_file, short_form, last_db,true);
+	load_processor.process(ce);
+	ev= 0;
+	break;
+      }
+      case APPEND_BLOCK_EVENT:
+	ev->print(result_file, short_form, last_db);
+	load_processor.process((Append_block_log_event*)ev);
+	break;
+      case EXEC_LOAD_EVENT:
+      {
+	ev->print(result_file, short_form, last_db);
+	Execute_load_log_event *exv= (Execute_load_log_event*)ev;
+	Create_file_log_event *ce= load_processor.grab_event(exv->file_id);
+	ce->print(result_file, short_form, last_db,true);
+	my_free((char*)ce->fname,MYF(MY_WME));
+	delete ce;
+	break;
+      }
+      default:
+	ev->print(result_file, short_form, last_db);
       }
     }
     rec_count++;
@@ -688,8 +677,20 @@ int main(int argc, char** argv)
 
   if (use_remote)
     mysql = safe_connect();
+
+  MY_TMPDIR tmpdir;
+  tmpdir.list= 0;
+  if (!dirname_for_local_load)
+  {
+    if (init_tmpdir(&tmpdir, 0))
+      exit(1);
+    dirname_for_local_load= my_tmpdir(&tmpdir);
+  }
+
   if (dirname_for_local_load)
     load_processor.init_by_dir_name(dirname_for_local_load);
+  else
+    load_processor.init_by_cur_dir();
 
   if (table)
   {
@@ -707,6 +708,8 @@ int main(int argc, char** argv)
     while (--argc >= 0)
       dump_log_entries(*(argv++));
   }
+  if (tmpdir.list)
+    free_tmpdir(&tmpdir);
   if (result_file != stdout)
     my_fclose(result_file, MYF(0));
   if (use_remote)

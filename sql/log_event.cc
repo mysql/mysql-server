@@ -1182,15 +1182,19 @@ void Load_log_event::pack_info(Protocol *protocol)
     pos= pretty_print_str(pos, sql_ex.escaped, sql_ex.escaped_len);
   }
 
+  bool line_lexem_added= false;
   if (sql_ex.line_term_len)
   {
     pos= strmov(pos, " LINES TERMINATED BY ");
     pos= pretty_print_str(pos, sql_ex.line_term, sql_ex.line_term_len);
+    line_lexem_added= true;
   }
 
   if (sql_ex.line_start_len)
   {
-    pos= strmov(pos, " LINES STARTING BY ");
+    if (!line_lexem_added)
+      pos= strmov(pos," LINES");
+    pos= strmov(pos, " STARTING BY ");
     pos= pretty_print_str(pos, sql_ex.line_start, sql_ex.line_start_len);
   }
 
@@ -1438,10 +1442,10 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
   if (db && db[0] && !same_db)
     fprintf(file, "use %s;\n", db);
 
-  fprintf(file, "LOAD ");
+  fprintf(file, "LOAD DATA ");
   if (check_fname_outside_temp_buf())
     fprintf(file, "LOCAL ");
-  fprintf(file, "DATA INFILE '%-*s' ", fname_len, fname);
+  fprintf(file, "INFILE '%-*s' ", fname_len, fname);
 
   if (sql_ex.opt_flags & REPLACE_FLAG)
     fprintf(file," REPLACE ");
@@ -1469,15 +1473,19 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
     pretty_print_str(file, sql_ex.escaped, sql_ex.escaped_len);
   }
      
+  bool line_lexem_added= false;
   if (sql_ex.line_term)
   {
     fprintf(file," LINES TERMINATED BY ");
     pretty_print_str(file, sql_ex.line_term, sql_ex.line_term_len);
+    line_lexem_added= true;
   }
 
   if (sql_ex.line_start)
   {
-    fprintf(file," LINES STARTING BY ");
+    if (!line_lexem_added)
+      fprintf(file," LINES");
+    fprintf(file," STARTING BY ");
     pretty_print_str(file, sql_ex.line_start, sql_ex.line_start_len);
   }
      
