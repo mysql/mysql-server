@@ -547,7 +547,7 @@ void close_temporary_tables(THD *thd)
     return;
   
   LINT_INIT(end);
-  query_buf_size= 50;   // Enough for DROP ... TABLE
+  query_buf_size= 50;   // Enough for DROP ... TABLE IF EXISTS
 
   for (table=thd->temporary_tables ; table ; table=table->next)
     /*
@@ -558,7 +558,8 @@ void close_temporary_tables(THD *thd)
     query_buf_size+= table->key_length+1;
 
   if ((query = alloc_root(&thd->mem_root, query_buf_size)))
-    end=strmov(query, "DROP /*!40005 TEMPORARY */ TABLE ");
+    // Better add "if exists", in case a RESET MASTER has been done
+    end=strmov(query, "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ");
 
   for (table=thd->temporary_tables ; table ; table=next)
   {
