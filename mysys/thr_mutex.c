@@ -210,7 +210,7 @@ int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp, const char *file,
   if (mp->count++)
   {
     fprintf(stderr,
-	    "safe_mutex:  Count was %d in thread %lx when locking mutex at %s, line %d\n",
+	    "safe_mutex:  Count was %d in thread 0x%lx when locking mutex at %s, line %d\n",
 	    mp->count-1, my_thread_id(), file, line);
     fflush(stderr);
     abort();
@@ -248,7 +248,7 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
   if (mp->count++)
   {
     fprintf(stderr,
-	    "safe_mutex:  Count was %d in thread %lx when locking mutex at %s, line %d (error: %d (%d))\n",
+	    "safe_mutex:  Count was %d in thread 0x%lx when locking mutex at %s, line %d (error: %d (%d))\n",
 	    mp->count-1, my_thread_id(), file, line, error, error);
     fflush(stderr);
     abort();

@@ -47,7 +47,7 @@ MetaData::MetaData(SimulatedBlock* block) :
 MetaData::~MetaData()
 {
   for (int i = false; i <= true; i++) {
-    NDB_ASSERT(m_common.m_lock[i] >= m_lock[i], "invalid lock count");
+    assert(m_common.m_lock[i] >= m_lock[i]);
     m_common.m_lock[i] -= m_lock[i];
     m_lock[i] = 0;
   }

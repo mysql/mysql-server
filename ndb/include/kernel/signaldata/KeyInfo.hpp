@@ -25,6 +25,7 @@ class KeyInfo {
    */
   friend class DbUtil;
   friend class NdbOperation;
+  friend class NdbScanOperation;
 
   /**
    * Reciver(s)

@@ -62,9 +62,11 @@ AC_SUBST(MYSQL_NO_DASH_VERSION)
 AC_SUBST(MYSQL_BASE_VERSION)
 AC_SUBST(MYSQL_VERSION_ID)
 AC_SUBST(PROTOCOL_VERSION)
-AC_DEFINE_UNQUOTED(PROTOCOL_VERSION, $PROTOCOL_VERSION)
+AC_DEFINE_UNQUOTED([PROTOCOL_VERSION], [$PROTOCOL_VERSION],
+                   [mysql client protocol version])
 AC_SUBST(DOT_FRM_VERSION)
-AC_DEFINE_UNQUOTED(DOT_FRM_VERSION, $DOT_FRM_VERSION)
+AC_DEFINE_UNQUOTED([DOT_FRM_VERSION], [$DOT_FRM_VERSION],
+                   [Version of .frm files])
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 AC_SUBST(AVAILABLE_LANGUAGES_ERRORS)
@@ -74,19 +76,25 @@ AC_SUBST([NDB_VERSION_MAJOR])
 AC_SUBST([NDB_VERSION_MINOR])
 AC_SUBST([NDB_VERSION_BUILD])
 AC_SUBST([NDB_VERSION_STATUS])
-AC_DEFINE_UNQUOTED([NDB_VERSION_MAJOR], [$NDB_VERSION_MAJOR])
-AC_DEFINE_UNQUOTED([NDB_VERSION_MINOR], [$NDB_VERSION_MINOR])
-AC_DEFINE_UNQUOTED([NDB_VERSION_BUILD], [$NDB_VERSION_BUILD])
-AC_DEFINE_UNQUOTED([NDB_VERSION_STATUS], ["$NDB_VERSION_STATUS"])
+AC_DEFINE_UNQUOTED([NDB_VERSION_MAJOR], [$NDB_VERSION_MAJOR],
+                   [NDB major version])
+AC_DEFINE_UNQUOTED([NDB_VERSION_MINOR], [$NDB_VERSION_MINOR],
+                   [NDB minor version])
+AC_DEFINE_UNQUOTED([NDB_VERSION_BUILD], [$NDB_VERSION_BUILD],
+                   [NDB build version])
+AC_DEFINE_UNQUOTED([NDB_VERSION_STATUS], ["$NDB_VERSION_STATUS"],
+                   [NDB status version])
 
 
 # Canonicalize the configuration name.
 SYSTEM_TYPE="$host_vendor-$host_os"
 MACHINE_TYPE="$host_cpu"
 AC_SUBST(SYSTEM_TYPE)
-AC_DEFINE_UNQUOTED(SYSTEM_TYPE, "$SYSTEM_TYPE")
+AC_DEFINE_UNQUOTED([SYSTEM_TYPE], ["$SYSTEM_TYPE"],
+                   [Name of system, eg solaris])
 AC_SUBST(MACHINE_TYPE)
-AC_DEFINE_UNQUOTED(MACHINE_TYPE, "$MACHINE_TYPE")
+AC_DEFINE_UNQUOTED([MACHINE_TYPE], ["$MACHINE_TYPE"],
+                   [Machine type name, eg sun10])
 
 # Detect intel x86 like processor
 BASE_MACHINE_TYPE=$MACHINE_TYPE
@@ -230,7 +238,7 @@ AC_MSG_CHECKING("return type of sprintf")
 #check the return type of sprintf
 case $SYSTEM_TYPE in
   *netware*)
-    AC_DEFINE(SPRINTF_RETURNS_INT) AC_MSG_RESULT("int")
+    AC_DEFINE(SPRINTF_RETURNS_INT, [1]) AC_MSG_RESULT("int")
     ;;
   *)
 AC_TRY_RUN([
@@ -244,8 +252,9 @@ AC_TRY_RUN([
       return -1;
      }
    ],
-AC_DEFINE(SPRINTF_RETURNS_INT) AC_MSG_RESULT("int"),
- AC_TRY_RUN([
+   [AC_DEFINE(SPRINTF_RETURNS_INT, [1], [POSIX sprintf])
+   AC_MSG_RESULT("int")],
+   [AC_TRY_RUN([
  int main()
    {
      char* s = "hello";
@@ -253,9 +262,12 @@ AC_DEFINE(SPRINTF_RETURNS_INT) AC_MSG_RESULT("int"),
      if((char*)sprintf(buf,s) == buf + strlen(s))
        return 0;
      return -1;
-   }
-], AC_DEFINE(SPRINTF_RETURNS_PTR) AC_MSG_RESULT("ptr"),
- AC_DEFINE(SPRINTF_RETURNS_GARBAGE) AC_MSG_RESULT("garbage")))
+   }           ],
+               [AC_DEFINE(SPRINTF_RETURNS_PTR, [1], [Broken sprintf])
+                AC_MSG_RESULT("ptr")],
+               [AC_DEFINE(SPRINTF_RETURNS_GARBAGE, [1], [Broken sprintf])
+                AC_MSG_RESULT("garbage")])
+   ])
     ;;
 esac
 
@@ -384,7 +396,7 @@ then
   # we will gets some problems when linking static programs.
   # The following code is used to fix this problem.
 
-  if test "$CXX" = "gcc" -o "$CXX" = "ccache gcc"
+  if echo $CXX | grep gcc > /dev/null 2>&1
   then
     if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
     then
@@ -652,15 +664,6 @@ AC_ARG_WITH(named-curses-libs,
     [ with_named_curses=no ]
     )
 
-# Force use of a zlib (compress)
-AC_ARG_WITH(named-z-libs,
-    [  --with-named-z-libs=ARG
-                          Use specified zlib libraries instead of
-                          those automatically found by configure.],
-    [ with_named_zlib=$withval ],
-    [ with_named_zlib=z ]
-    )
-
 # Make thread safe client
 AC_ARG_ENABLE(thread-safe-client,
     [  --enable-thread-safe-client   
@@ -701,7 +704,7 @@ AC_ARG_WITH(raid,
 if test "$USE_RAID" = "yes"
 then
   AC_MSG_RESULT([yes])
-  AC_DEFINE([USE_RAID])
+  AC_DEFINE([USE_RAID], [1], [Use MySQL RAID])
 else
   AC_MSG_RESULT([no])
 fi
@@ -745,7 +748,8 @@ AC_ARG_ENABLE(local-infile,
 if test "$ENABLED_LOCAL_INFILE" = "yes"
 then
   AC_MSG_RESULT([yes])
-  AC_DEFINE([ENABLED_LOCAL_INFILE])
+  AC_DEFINE([ENABLED_LOCAL_INFILE], [1],
+            [If LOAD DATA LOCAL INFILE should be enabled by default])
 else
   AC_MSG_RESULT([no])
 fi
@@ -789,20 +793,11 @@ AC_CHECK_FUNC(p2open, , AC_CHECK_LIB(gen, p2open))
 AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
 # For crypt() on Linux
 AC_CHECK_LIB(crypt, crypt)
-AC_CHECK_FUNC(crypt, AC_DEFINE(HAVE_CRYPT)) 
+AC_CHECK_FUNC(crypt, AC_DEFINE([HAVE_CRYPT], [1], [crypt])) 
 
 # For sem_xxx functions on Solaris 2.6
 AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
-
-# For compress in zlib
-case $SYSTEM_TYPE in
-  *netware* | *modesto*)
-    AC_DEFINE(HAVE_COMPRESS)
-    ;;
-  *)
-    MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
-    ;;
-esac
+MYSQL_CHECK_ZLIB_WITH_COMPRESS
 
 #--------------------------------------------------------------------
 # Check for TCP wrapper support
@@ -832,8 +827,8 @@ int deny_severity  = 0;
 struct request_info *req;
 ],[hosts_access (req)],
         AC_MSG_RESULT(yes)
-        AC_DEFINE(LIBWRAP)
-        AC_DEFINE(HAVE_LIBWRAP)
+        AC_DEFINE([LIBWRAP], [1], [Define if you have -lwrap])
+        AC_DEFINE([HAVE_LIBWRAP], [1], [Define if have -lwrap])
 	if test "$with_libwrap" != "yes"; then
 	    WRAPLIBS="-L${with_libwrap}/lib"
 	fi
@@ -861,7 +856,10 @@ int main()
   atomic_add(5, &v);
   return atomic_read(&v) == 28 ? 0 : -1;
 }
-  ], AC_DEFINE(HAVE_ATOMIC_ADD) atom_ops="${atom_ops}atomic_add ",
+  ],
+  [AC_DEFINE([HAVE_ATOMIC_ADD], [1],
+             [atomic_add() from <asm/atomic.h> (Linux only)])
+   atom_ops="${atom_ops}atomic_add "],
   )
   AC_TRY_RUN([
 #include <asm/atomic.h>
@@ -873,7 +871,10 @@ int main()
   atomic_sub(5, &v);
   return atomic_read(&v) == 18 ? 0 : -1;
 }
-  ], AC_DEFINE(HAVE_ATOMIC_SUB) atom_ops="${atom_ops}atomic_sub ",
+  ],
+  [AC_DEFINE([HAVE_ATOMIC_SUB], [1],
+             [atomic_sub() from <asm/atomic.h> (Linux only)])
+   atom_ops="${atom_ops}atomic_sub "],
   )
 
   if test -z "$atom_ops"; then atom_ops="no"; fi
@@ -903,7 +904,7 @@ dnl I have no idea if this is a good test - can not find docs for libiberty
       with_mysqld_ldflags="-all-static"
       AC_SUBST([pstack_dirs])
       AC_SUBST([pstack_libs])
-      AC_DEFINE([USE_PSTACK])
+      AC_DEFINE([USE_PSTACK], [1], [the pstack backtrace library])
 dnl This check isn't needed, but might be nice to give some feedback....
 dnl    AC_CHECK_HEADER(libiberty.h,
 dnl      have_libiberty_h=yes,
@@ -926,7 +927,7 @@ then
 fi
 # We make a special variable for client library's to avoid including
 # thread libs in the client.
-NON_THREADED_CLIENT_LIBS="$LIBS"
+NON_THREADED_CLIENT_LIBS="$LIBS $ZLIB_LIBS"
 
 AC_MSG_CHECKING([for int8])
 case $SYSTEM_TYPE in
@@ -952,7 +953,11 @@ int main()
   int8 i;
   return 0;
 }
-], AC_DEFINE(HAVE_INT_8_16_32) AC_MSG_RESULT([yes]), AC_MSG_RESULT([no])
+],
+[AC_DEFINE([HAVE_INT_8_16_32], [1],
+           [whether int8, int16 and int32 types exist])
+AC_MSG_RESULT([yes])],
+[AC_MSG_RESULT([no])]
 )
     ;;
 esac
@@ -963,6 +968,16 @@ esac
 
 MAX_C_OPTIMIZE="-O3"
 MAX_CXX_OPTIMIZE="-O3"
+
+# workaround for Sun Forte/x86 see BUG#4681
+case $SYSTEM_TYPE-$MACHINE_TYPE-$ac_cv_prog_gcc in
+  *solaris*-i?86-no)
+    CFLAGS="$CFLAGS -DBIG_TABLES"
+    CXXFLAGS="$CXXFLAGS -DBIG_TABLES"
+    ;;
+  *) ;;
+esac
+
 
 case $SYSTEM_TYPE in
   *solaris2.7*)
@@ -1029,7 +1044,8 @@ case $SYSTEM_TYPE in
     if test "$ac_cv_prog_gcc" = "no"
     then
       CFLAGS="$CFLAGS -DHAVE_BROKEN_INLINE"
-      CXXFLAGS="$CXXFLAGS +O2"
+# set working flags first in line, letting override it (i. e. for debug):
+      CXXFLAGS="+O2 $CXXFLAGS"
       MAX_C_OPTIMIZE=""
       MAX_CXX_OPTIMIZE=""
       ndb_cxxflags_fix="$ndb_cxxflags_fix -Aa"
@@ -1066,10 +1082,11 @@ case $SYSTEM_TYPE in
       MAX_C_OPTIMIZE="-O"
     fi
     ;;
-  *darwin7*)
+  *darwin[[7-8]]*)
+    # don't forget to escape [] like above
     if test "$ac_cv_prog_gcc" = "yes"
     then
-      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ"
+      FLAGS="-DHAVE_DARWIN_THREADS -D_P1003_1B_VISIBLE -DSIGNAL_WITH_VIO_CLOSE -DSIGNALS_DONT_BREAK_READ -DIGNORE_SIGHUP_SIGQUIT"
       CFLAGS="$CFLAGS $FLAGS"
       CXXFLAGS="$CXXFLAGS $FLAGS"
       MAX_C_OPTIMIZE="-O"
@@ -1097,7 +1114,8 @@ case $SYSTEM_TYPE in
   *bsdi*)
     echo "Adding fix for BSDI"
     CFLAGS="$CFLAGS -D__BSD__ -DHAVE_BROKEN_REALPATH"
-    AC_DEFINE_UNQUOTED(SOCKOPT_OPTLEN_TYPE, size_t)
+    AC_DEFINE_UNQUOTED([SOCKOPT_OPTLEN_TYPE], [size_t],
+                       [Last argument to get/setsockopt])
     ;;
    *sgi-irix6*)
     if test "$with_named_thread" = "no"
@@ -1247,7 +1265,8 @@ then
     if test "$res" -gt 0
     then
       AC_MSG_RESULT("Found")
-      AC_DEFINE(HAVE_LINUXTHREADS)
+      AC_DEFINE([HAVE_LINUXTHREADS], [1],
+                [Whether we are using Xavier Leroy's LinuxThreads])
       # Linux 2.0 sanity check
       AC_TRY_COMPILE([#include <sched.h>], [int a = sched_get_priority_min(1);], ,
       AC_MSG_ERROR([Syntax error in sched.h. Change _P to __P in the /usr/include/sched.h file. See the Installation chapter in the Reference Manual]))
@@ -1270,7 +1289,8 @@ Reference Manual for more information.])
 	  with_named_thread="-lpthread -lmach -lexc"
 	  CFLAGS="$CFLAGS -D_REENTRANT"
 	  CXXFLAGS="$CXXFLAGS -D_REENTRANT"
-	  AC_DEFINE(HAVE_DEC_THREADS)
+	  AC_DEFINE(HAVE_DEC_THREADS, [1],
+                    [Whether we are using DEC threads])
 	  AC_MSG_RESULT("yes")
 	else
 	  AC_MSG_RESULT("no")
@@ -1278,8 +1298,9 @@ Reference Manual for more information.])
           if test -f /usr/shlib/libpthreads.so -a -f /usr/lib/libmach.a -a -f /usr/ccs/lib/cmplrs/cc/libexc.a
 	  then
 	    with_named_thread="-lpthreads -lmach -lc_r"
-	    AC_DEFINE(HAVE_DEC_THREADS)
-	    AC_DEFINE(HAVE_DEC_3_2_THREADS)
+	    AC_DEFINE(HAVE_DEC_THREADS, [1])
+            AC_DEFINE([HAVE_DEC_3_2_THREADS], [1],
+                      [Whether we are using OSF1 DEC threads on 3.2])
             with_osf32_threads="yes"
             MYSQLD_DEFAULT_SWITCHES="--skip-thread-priority"
 	    AC_MSG_RESULT("yes")
@@ -1309,6 +1330,7 @@ then
       with_named_thread="-lgthreads -lsocket -lgthreads"
       # sched.h conflicts with fsu-threads
       touch ./include/sched.h
+      touch ./include/semaphore.h
 
       # We must have gcc
       if expr "$CC" : ".*gcc.*"
@@ -1353,9 +1375,9 @@ then
           fi
           if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
           then
-            AC_DEFINE(HAVE_UNIXWARE7_THREADS)
+            AC_DEFINE(HAVE_UNIXWARE7_THREADS, [1])
           else
-            AC_DEFINE(HAVE_UNIXWARE7_POSIX)
+            AC_DEFINE(HAVE_UNIXWARE7_POSIX, [1])
           fi
           AC_MSG_RESULT("yes")
           # We must have cc
@@ -1399,9 +1421,9 @@ then
       fi
       if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
       then
-        AC_DEFINE(HAVE_UNIXWARE7_THREADS)
+        AC_DEFINE(HAVE_UNIXWARE7_THREADS, [1])
       else
-        AC_DEFINE(HAVE_UNIXWARE7_POSIX)
+        AC_DEFINE(HAVE_UNIXWARE7_POSIX, [1])
       fi
       # We must have cc
       AC_MSG_CHECKING("for gcc")
@@ -1440,9 +1462,11 @@ then
       fi
       if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
       then
-        AC_DEFINE(HAVE_UNIXWARE7_THREADS)
+        AC_DEFINE([HAVE_UNIXWARE7_THREADS], [1],
+                  [UNIXWARE7 threads are not posix])
       else
-        AC_DEFINE(HAVE_UNIXWARE7_POSIX)
+        AC_DEFINE([HAVE_UNIXWARE7_POSIX], [1],
+                  [new UNIXWARE7 threads that are not yet posix])
       fi
       # We must have cc
       AC_MSG_CHECKING("for gcc")
@@ -1843,6 +1867,7 @@ MYSQL_HAVE_TIOCGWINSZ
 MYSQL_HAVE_FIONREAD
 MYSQL_HAVE_TIOCSTAT
 MYSQL_STRUCT_DIRENT_D_INO
+MYSQL_STRUCT_DIRENT_D_NAMLEN
 MYSQL_TYPE_SIGHANDLER
 if test "$with_named_curses" = "no"
 then
@@ -1851,6 +1876,15 @@ else
   TERMCAP_LIB="$with_named_curses"
 fi
 AC_SUBST(TERMCAP_LIB)
+
+LIBEDIT_LOBJECTS=""
+AC_CHECK_FUNC(strunvis, ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS unvis.o"])
+AC_CHECK_FUNC(strvis,   ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS vis.o"])
+AC_CHECK_FUNC(strlcpy,  ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS strlcpy.o"])
+AC_CHECK_FUNC(strlcat,  ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS strlcat.o"])
+AC_CHECK_FUNC(fgetln,   ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS fgetln.o"])
+AC_SUBST(LIBEDIT_LOBJECTS)
+enable_readline="yes"
 
 # End of readline/libedit stuff
 #########################################################################
@@ -1891,7 +1925,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
 AC_MSG_CHECKING(for isinf with <math.h>)
 AC_TRY_LINK([#include <math.h>], [float f = 0.0; isinf(f)],
  AC_MSG_RESULT(yes)
- AC_DEFINE(HAVE_ISINF,,[isinf() macro or function]),
+ AC_DEFINE(HAVE_ISINF, [1], [isinf() macro or function]),
  AC_MSG_RESULT(no))
  
 CFLAGS="$ORG_CFLAGS"
@@ -1945,7 +1979,8 @@ AC_LANG_RESTORE
 CXXFLAGS="$ac_save_CXXFLAGS"
 if test "$mysql_cv_gethost_style" = "solaris"
 then
-  AC_DEFINE(HAVE_SOLARIS_STYLE_GETHOST)
+  AC_DEFINE([HAVE_SOLARIS_STYLE_GETHOST], [1],
+            [Solaris define gethostbyaddr_r with 7 arguments. glibc2 defines this with 8 arguments])
 fi
 
 #---START: Used in for client configure
@@ -1979,7 +2014,8 @@ AC_LANG_RESTORE
 CXXFLAGS="$ac_save_CXXFLAGS"
 if test "$mysql_cv_gethostname_style" = "glibc2"
 then
-  AC_DEFINE(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
+  AC_DEFINE([HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE], [1],
+            [Solaris define gethostbyname_r with 5 arguments. glibc2 defines this with 6 arguments])
 fi
 
 # Check 3rd argument of getthostbyname_r
@@ -2010,7 +2046,8 @@ AC_LANG_RESTORE
 CXXFLAGS="$ac_save_CXXFLAGS"
 if test "$mysql_cv_gethostname_arg" = "hostent_data"
 then
-  AC_DEFINE(HAVE_GETHOSTBYNAME_R_RETURN_INT)
+  AC_DEFINE([HAVE_GETHOSTBYNAME_R_RETURN_INT], [1],
+            [In OSF 4.0f the 3'd argument to gethostname_r is hostent_data *])
 fi
 
 
@@ -2029,7 +2066,8 @@ pthread_getspecific((pthread_key_t) NULL); ],
 mysql_cv_getspecific_args=POSIX, mysql_cv_getspecific_args=other))
   if test "$mysql_cv_getspecific_args" = "other"
   then
-    AC_DEFINE(HAVE_NONPOSIX_PTHREAD_GETSPECIFIC)
+    AC_DEFINE([HAVE_NONPOSIX_PTHREAD_GETSPECIFIC], [1],
+              [For some non posix threads])
   fi
 
   # Check definition of pthread_mutex_init
@@ -2047,7 +2085,8 @@ mysql_cv_getspecific_args=POSIX, mysql_cv_getspecific_args=other))
 mysql_cv_mutex_init_args=POSIX, mysql_cv_mutex_init_args=other))
   if test "$mysql_cv_mutex_init_args" = "other"
   then
-    AC_DEFINE(HAVE_NONPOSIX_PTHREAD_MUTEX_INIT)
+    AC_DEFINE([HAVE_NONPOSIX_PTHREAD_MUTEX_INIT], [1],
+              [For some non posix threads])
   fi
 fi
 #---END:
@@ -2067,7 +2106,7 @@ readdir_r((DIR *) NULL, (struct dirent *) NULL, (struct dirent **) NULL); ],
 mysql_cv_readdir_r=POSIX, mysql_cv_readdir_r=other))
 if test "$mysql_cv_readdir_r" = "POSIX"
 then
-  AC_DEFINE(HAVE_READDIR_R)
+  AC_DEFINE([HAVE_READDIR_R], [1], [POSIX readdir_r])
 fi
 
 # Check definition of posix sigwait()
@@ -2087,7 +2126,7 @@ sigwait(&set,&sig);
 mysql_cv_sigwait=POSIX, mysql_cv_sigwait=other))
 if test "$mysql_cv_sigwait" = "POSIX"
 then
-  AC_DEFINE(HAVE_SIGWAIT)
+  AC_DEFINE([HAVE_SIGWAIT], [1], [POSIX sigwait])
 fi
 
 if test "$mysql_cv_sigwait" != "POSIX"
@@ -2108,7 +2147,7 @@ sigwait(&set);],
 mysql_cv_sigwait=NONPOSIX, mysql_cv_sigwait=other))
 if test "$mysql_cv_sigwait" = "NONPOSIX"
 then
-  AC_DEFINE(HAVE_NONPOSIX_SIGWAIT)
+  AC_DEFINE([HAVE_NONPOSIX_SIGWAIT], [1], [sigwait with one argument])
 fi
 fi
 #---END:
@@ -2126,7 +2165,7 @@ pthread_attr_setscope(&thr_attr,0);],
 mysql_cv_pthread_attr_setscope=yes, mysql_cv_pthread_attr_setscope=no))
 if test "$mysql_cv_pthread_attr_setscope" = "yes"
 then
-  AC_DEFINE(HAVE_PTHREAD_ATTR_SETSCOPE)
+  AC_DEFINE([HAVE_PTHREAD_ATTR_SETSCOPE], [1], [pthread_attr_setscope])
 fi
 
 # Check for bad includes
@@ -2142,7 +2181,7 @@ AC_TRY_COMPILE(
 netinet_inc=yes, netinet_inc=no)
 if test "$netinet_inc" = "no"
 then
-  AC_DEFINE(HAVE_BROKEN_NETINET_INCLUDES)
+  AC_DEFINE([HAVE_BROKEN_NETINET_INCLUDES], [1], [Can netinet be included])
 fi
 AC_MSG_RESULT("$netinet_inc")
 
@@ -2167,7 +2206,7 @@ AC_ARG_WITH(query_cache,
 
 if test "$with_query_cache" = "yes"
 then
-  AC_DEFINE(HAVE_QUERY_CACHE)
+  AC_DEFINE([HAVE_QUERY_CACHE], [1], [If we want to have query cache])
 fi
 
 AC_ARG_WITH(geometry,
@@ -2178,8 +2217,8 @@ AC_ARG_WITH(geometry,
 
 if test "$with_geometry" = "yes"
 then
-  AC_DEFINE(HAVE_SPATIAL)
-  AC_DEFINE(HAVE_RTREE_KEYS)
+  AC_DEFINE([HAVE_SPATIAL], [1], [Spatial extentions])
+  AC_DEFINE([HAVE_RTREE_KEYS], [1], [RTree keys])
 fi
 
 AC_ARG_WITH(embedded_privilege_control,
@@ -2192,7 +2231,8 @@ AC_ARG_WITH(embedded_privilege_control,
 
 if test "$with_embedded_privilege_control" = "yes"
 then
-  AC_DEFINE(HAVE_EMBEDDED_PRIVILEGE_CONTROL)
+  AC_DEFINE([HAVE_EMBEDDED_PRIVILEGE_CONTROL], [1],
+            [Access checks in embedded library])
 fi
 
 AC_ARG_WITH(extra-tools,
@@ -2275,6 +2315,20 @@ AC_ARG_WITH(libedit,
     [ with_libedit=undefined ]
     )
 
+#
+# We support next variants of compilation:
+#                              --with-readline
+#                |       yes      |  no  |               undefined
+# --with-libedit |                |      |
+# ---------------+----------------+------+----------------------------------
+#       yes      |      ERROR!    |   use libedit from mysql sources
+# ---------------+----------------+------+----------------------------------
+#       no       | use readline   | use system readline or external libedit
+#                | from mysql     | according to results of m4 tests
+# ---------------+ sources (if it +      +----------------------------------
+#    undefined   | is presented)  |      | use libedit from mysql sources
+                   
+
 compile_readline="no"
 compile_libedit="no"
 
@@ -2299,10 +2353,11 @@ then
     readline_topdir="cmd-line-utils"
     readline_basedir="libedit"
     readline_dir="$readline_topdir/$readline_basedir"
-    readline_link="\$(top_builddir)/cmd-line-utils/libedit/liblibedit.a"
+    readline_link="\$(top_builddir)/cmd-line-utils/libedit/libedit.a"
     readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/libedit/readline readline"
     compile_libedit=yes
-    AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE)
+    AC_DEFINE_UNQUOTED(HAVE_HIST_ENTRY, 1)
+    AC_DEFINE_UNQUOTED(USE_LIBEDIT_INTERFACE, 1)
 elif test "$with_readline" = "yes"
 then
     readline_topdir="cmd-line-utils"
@@ -2311,10 +2366,14 @@ then
     readline_link="\$(top_builddir)/cmd-line-utils/readline/libreadline.a"
     readline_h_ln_cmd="\$(LN) -s \$(top_builddir)/cmd-line-utils/readline readline"
     compile_readline=yes
-    AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE)
+    AC_DEFINE_UNQUOTED(USE_NEW_READLINE_INTERFACE, 1)
 else
+    AC_LANG_SAVE
+    AC_LANG_CPLUSPLUS
     MYSQL_CHECK_LIBEDIT_INTERFACE
     MYSQL_CHECK_NEW_RL_INTERFACE
+    MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY
+    AC_LANG_RESTORE
     if [test "$mysql_cv_new_rl_interface" = "yes"] || [test "$mysql_cv_libedit_interface" = "no"]
     then
         readline_link="-lreadline"
@@ -2339,7 +2398,7 @@ dnl you must also create strings/ctype-$charset_name.c
 AC_DIVERT_PUSH(0)
 
 define(CHARSETS_AVAILABLE0,binary)
-define(CHARSETS_AVAILABLE1,ascii armscii8 ascii big5 cp1250 cp1251 cp1256 cp1257)
+define(CHARSETS_AVAILABLE1,armscii8 ascii big5 cp1250 cp1251 cp1256 cp1257)
 define(CHARSETS_AVAILABLE2,cp850 cp852 cp866 dec8 euckr gb2312 gbk geostd8)
 define(CHARSETS_AVAILABLE3,greek hebrew hp8 keybcs2 koi8r koi8u)
 define(CHARSETS_AVAILABLE4,latin1 latin2 latin5 latin7 macce macroman)
@@ -2388,8 +2447,10 @@ elif test "$extra_charsets" = none; then
   CHARSETS="$CHARSETS"
 elif test "$extra_charsets" = complex; then
   CHARSETS="$CHARSETS $CHARSETS_COMPLEX"
+  AC_DEFINE([DEFINE_ALL_CHARACTER_SETS],1,[all charsets are available])
 elif test "$extra_charsets" = all; then
   CHARSETS="$CHARSETS $CHARSETS_AVAILABLE"
+  AC_DEFINE([DEFINE_ALL_CHARACTER_SETS],1,[all charsets are available])
 else
   EXTRA_CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
   CHARSETS="$CHARSETS $EXTRA_CHARSETS"
@@ -2399,121 +2460,124 @@ for cs in $CHARSETS
 do
   case $cs in 
     armscii8)
-      AC_DEFINE(HAVE_CHARSET_armscii8)
+      AC_DEFINE(HAVE_CHARSET_armscii8, 1,
+                [Define to enable charset armscii8])
       ;;
     ascii)
-      AC_DEFINE(HAVE_CHARSET_ascii)
+      AC_DEFINE(HAVE_CHARSET_ascii, 1,
+                [Define to enable ascii character set])
       ;;
     big5)
-      AC_DEFINE(HAVE_CHARSET_big5)
-      AC_DEFINE(USE_MB)
-      AC_DEFINE(USE_MB_IDENT)
+      AC_DEFINE(HAVE_CHARSET_big5, 1, [Define to enable charset big5])
+      AC_DEFINE([USE_MB], [1], [Use multi-byte character routines])
+      AC_DEFINE(USE_MB_IDENT, [1], [ ])
       ;;
     binary)
       ;;
     cp1250)
-      AC_DEFINE(HAVE_CHARSET_cp1250)
+      AC_DEFINE(HAVE_CHARSET_cp1250, 1, [Define to enable cp1250])
       ;;
     cp1251)
-      AC_DEFINE(HAVE_CHARSET_cp1251)
+      AC_DEFINE(HAVE_CHARSET_cp1251, 1, [Define to enable charset cp1251])
       ;;
     cp1256)
-      AC_DEFINE(HAVE_CHARSET_cp1256)
+      AC_DEFINE(HAVE_CHARSET_cp1256, 1, [Define to enable charset cp1256])
       ;;
     cp1257)
-      AC_DEFINE(HAVE_CHARSET_cp1257)
+      AC_DEFINE(HAVE_CHARSET_cp1257, 1, [Define to enable charset cp1257])
       ;;
     cp850)
-      AC_DEFINE(HAVE_CHARSET_cp850)
+      AC_DEFINE(HAVE_CHARSET_cp850, 1, [Define to enable charset cp850])
       ;;
     cp852)
-      AC_DEFINE(HAVE_CHARSET_cp852)
+      AC_DEFINE(HAVE_CHARSET_cp852, 1, [Define to enable charset cp852])
       ;;
     cp866)
-      AC_DEFINE(HAVE_CHARSET_cp866)
+      AC_DEFINE(HAVE_CHARSET_cp866, 1, [Define to enable charset cp866])
       ;;
     dec8)
-      AC_DEFINE(HAVE_CHARSET_dec8)
+      AC_DEFINE(HAVE_CHARSET_dec8, 1, [Define to enable charset dec8])
       ;;
     euckr)
-      AC_DEFINE(HAVE_CHARSET_euckr)
-      AC_DEFINE(USE_MB)
-      AC_DEFINE(USE_MB_IDENT)
+      AC_DEFINE(HAVE_CHARSET_euckr, 1, [Define to enable charset euckr])
+      AC_DEFINE([USE_MB], [1], [Use multi-byte character routines])
+      AC_DEFINE(USE_MB_IDENT, 1)
       ;;
     gb2312)
-      AC_DEFINE(HAVE_CHARSET_gb2312)
-      AC_DEFINE(USE_MB)
-      AC_DEFINE(USE_MB_IDENT)
+      AC_DEFINE(HAVE_CHARSET_gb2312, 1, [Define to enable charset gb2312])
+      AC_DEFINE([USE_MB], 1, [Use multi-byte character routines])
+      AC_DEFINE(USE_MB_IDENT, 1)
       ;;
     gbk)
-      AC_DEFINE(HAVE_CHARSET_gbk)
-      AC_DEFINE(USE_MB)
-      AC_DEFINE(USE_MB_IDENT)
+      AC_DEFINE(HAVE_CHARSET_gbk, 1, [Define to enable charset gbk])
+      AC_DEFINE([USE_MB], [1], [Use multi-byte character routines])
+      AC_DEFINE(USE_MB_IDENT, 1)
       ;;
     geostd8)
-      AC_DEFINE(HAVE_CHARSET_geostd8)
+      AC_DEFINE(HAVE_CHARSET_geostd8, 1, [Define to enable charset geostd8])
       ;;
     greek)
-      AC_DEFINE(HAVE_CHARSET_greek)
+      AC_DEFINE(HAVE_CHARSET_greek, 1, [Define to enable charset greek])
       ;;
     hebrew)
-      AC_DEFINE(HAVE_CHARSET_hebrew)
+      AC_DEFINE(HAVE_CHARSET_hebrew, 1, [Define to enable charset hebrew])
       ;;
     hp8)
-      AC_DEFINE(HAVE_CHARSET_hp8)
+      AC_DEFINE(HAVE_CHARSET_hp8, 1, [Define to enable charset hp8])
       ;;
     keybcs2)
-      AC_DEFINE(HAVE_CHARSET_keybcs2)
+      AC_DEFINE(HAVE_CHARSET_keybcs2, 1, [Define to enable charset keybcs2])
       ;;
     koi8r)
-      AC_DEFINE(HAVE_CHARSET_koi8r)
+      AC_DEFINE(HAVE_CHARSET_koi8r, 1, [Define to enable charset koi8r])
       ;;
     koi8u)
-      AC_DEFINE(HAVE_CHARSET_koi8u)
+      AC_DEFINE(HAVE_CHARSET_koi8u, 1, [Define to enable charset koi8u])
       ;;
     latin1)
-      AC_DEFINE(HAVE_CHARSET_latin1)
+      AC_DEFINE(HAVE_CHARSET_latin1, 1, [Define to enable charset latin1])
       ;;
     latin2)
-      AC_DEFINE(HAVE_CHARSET_latin2)
+      AC_DEFINE(HAVE_CHARSET_latin2, 1, [Define to enable charset latin2])
       ;;
     latin5)
-      AC_DEFINE(HAVE_CHARSET_latin5)
+      AC_DEFINE(HAVE_CHARSET_latin5, 1, [Define to enable charset latin5])
       ;;
     latin7)
-      AC_DEFINE(HAVE_CHARSET_latin7)
+      AC_DEFINE(HAVE_CHARSET_latin7, 1, [Define to enable charset latin7])
       ;;
     macce)
-      AC_DEFINE(HAVE_CHARSET_macce)
+      AC_DEFINE(HAVE_CHARSET_macce, 1, [Define to enable charset macce])
       ;;
     macroman)
-      AC_DEFINE(HAVE_CHARSET_macroman)
+      AC_DEFINE(HAVE_CHARSET_macroman, 1,
+                [Define to enable charset macroman])
       ;;
     sjis)
-      AC_DEFINE(HAVE_CHARSET_sjis)
-      AC_DEFINE(USE_MB)
-      AC_DEFINE(USE_MB_IDENT)
+      AC_DEFINE(HAVE_CHARSET_sjis, 1, [Define to enable charset sjis])
+      AC_DEFINE([USE_MB], 1, [Use multi-byte character routines])
+      AC_DEFINE(USE_MB_IDENT, 1)
       ;;
     swe7)
-      AC_DEFINE(HAVE_CHARSET_swe7)
+      AC_DEFINE(HAVE_CHARSET_swe7, 1, [Define to enable charset swe7])
       ;;
     tis620)
-      AC_DEFINE(HAVE_CHARSET_tis620)
+      AC_DEFINE(HAVE_CHARSET_tis620, 1, [Define to enable charset tis620])
       ;;
     ucs2)
-      AC_DEFINE(HAVE_CHARSET_ucs2)
-      AC_DEFINE(USE_MB)
-      AC_DEFINE(USE_MB_IDENT)
+      AC_DEFINE(HAVE_CHARSET_ucs2, 1, [Define to enable charset ucs2])
+      AC_DEFINE([USE_MB], [1], [Use multi-byte character routines])
+      AC_DEFINE(USE_MB_IDENT, 1)
       ;;
     ujis)
-      AC_DEFINE(HAVE_CHARSET_ujis)
-      AC_DEFINE(USE_MB)
-      AC_DEFINE(USE_MB_IDENT)
+      AC_DEFINE(HAVE_CHARSET_ujis, 1, [Define to enable charset ujis])
+      AC_DEFINE([USE_MB], [1], [Use multi-byte character routines])
+      AC_DEFINE(USE_MB_IDENT, 1)
       ;;
     utf8)
-      AC_DEFINE(HAVE_CHARSET_utf8)
-      AC_DEFINE(USE_MB)
-      AC_DEFINE(USE_MB_IDENT)
+      AC_DEFINE(HAVE_CHARSET_utf8, 1, [Define to enable ut8])
+      AC_DEFINE([USE_MB], 1, [Use multi-byte character routines])
+      AC_DEFINE(USE_MB_IDENT, 1)
       ;;
     *)
       AC_MSG_ERROR([Charset '$cs' not available. (Available are: $CHARSETS_AVAILABLE).
@@ -2543,7 +2607,7 @@ case $default_charset in
       ;;
     cp1250)
       default_charset_default_collation="cp1250_general_ci"
-      default_charset_collations="cp1250_general_ci cp1250_czech_ci cp1250_bin"
+      default_charset_collations="cp1250_general_ci cp1250_czech_cs cp1250_bin"
       ;;
     cp1251)
       default_charset_default_collation="cp1251_general_ci"
@@ -2619,7 +2683,7 @@ case $default_charset in
       ;;
     latin2)
       default_charset_default_collation="latin2_general_ci"
-      default_charset_collations="latin2_general_ci latin2_bin latin2_czech_ci latin2_hungarian_ci latin2_croatian_ci"
+      default_charset_collations="latin2_general_ci latin2_bin latin2_czech_cs latin2_hungarian_ci latin2_croatian_ci"
       ;;
     latin5)
       default_charset_default_collation="latin5_turkish_ci"
@@ -2711,14 +2775,17 @@ else
   ]);
 fi
 
-AC_DEFINE_UNQUOTED(MYSQL_DEFAULT_CHARSET_NAME,"$default_charset")
-AC_DEFINE_UNQUOTED(MYSQL_DEFAULT_COLLATION_NAME,"$default_collation")
+AC_DEFINE_UNQUOTED([MYSQL_DEFAULT_CHARSET_NAME], ["$default_charset"],
+                   [Define the default charset name])
+AC_DEFINE_UNQUOTED([MYSQL_DEFAULT_COLLATION_NAME], ["$default_collation"],
+                   [Define the default charset name])
 
 MYSQL_CHECK_ISAM
 MYSQL_CHECK_BDB
 MYSQL_CHECK_INNODB
 MYSQL_CHECK_EXAMPLEDB
 MYSQL_CHECK_ARCHIVEDB
+MYSQL_CHECK_CSVDB
 MYSQL_CHECK_NDBCLUSTER
 
 # If we have threads generate some library functions and test programs
@@ -2735,7 +2802,7 @@ if test "$THREAD_SAFE_CLIENT" != "no"
 then
   sql_client_dirs="libmysql_r $sql_client_dirs"
   linked_client_targets="$linked_client_targets linked_libmysql_r_sources"
-  AC_DEFINE(THREAD_SAFE_CLIENT)
+  AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should be client be thread safe])
 fi
 
 CLIENT_LIBS="$CLIENT_LIBS $STATIC_NSS_FLAGS"
@@ -2761,7 +2828,8 @@ ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'"
 
 if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
 then
-  AC_DEFINE(THREAD)
+  AC_DEFINE([THREAD], [1],
+            [Define if you want to have threaded code. This may be undef on client code])
   # Avoid _PROGRAMS names
   THREAD_LPROGRAMS="test_thr_alarm\$(EXEEXT) test_thr_lock\$(EXEEXT)"
   AC_SUBST(THREAD_LPROGRAMS)
@@ -2788,7 +2856,7 @@ then
       AC_CONFIG_FILES(bdb/Makefile)
 
       echo "CONFIGURING FOR BERKELEY DB" 
-      bdb_conf_flags=
+      bdb_conf_flags="--disable-shared"
       if test $with_debug = "yes"
       then
         bdb_conf_flags="$bdb_conf_flags --enable-debug --enable-diagnostic"
@@ -2821,7 +2889,7 @@ dnl       echo "bdb = '$bdb'; inc = '$bdb_includes', lib = '$bdb_libs'"
       echo "END OF BERKELEY DB CONFIGURATION"
     fi
 
-    AC_DEFINE(HAVE_BERKELEY_DB)
+    AC_DEFINE([HAVE_BERKELEY_DB], [1], [Have berkeley db installed])
   else
     if test -d bdb; then :
     else
@@ -2878,7 +2946,7 @@ EOF
   then
     # MIT user level threads
     thread_dirs="mit-pthreads"
-    AC_DEFINE(HAVE_mit_thread)
+    AC_DEFINE([HAVE_mit_thread], [1], [Do we use user level threads])
     MT_INCLUDES="-I\$(top_srcdir)/mit-pthreads/include"
     AC_SUBST(MT_INCLUDES)
     if test -n "$OVERRIDE_MT_LD_ADD"
@@ -2912,7 +2980,7 @@ AC_SUBST(server_scripts)
 #if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
 #then
   # MIT pthreads does now support connecting with unix sockets
-  # AC_DEFINE(HAVE_THREADS_WITHOUT_SOCKETS)
+  # AC_DEFINE([HAVE_THREADS_WITHOUT_SOCKETS], [], [MIT pthreads does not support connecting with unix sockets])
 #fi
 
 # Some usefull subst
@@ -2939,10 +3007,10 @@ then
   if test "$with_debug" = "yes"
   then
     # Medium debug.
-    NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+    NDB_DEFS="-DNDB_DEBUG -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   elif test "$with_debug" = "full"
   then
-    NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+    NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   else
     NDB_DEFS="-DNDEBUG"
   fi
@@ -3042,6 +3110,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  include/mysql_version.h dnl
  cmd-line-utils/Makefile dnl
  cmd-line-utils/libedit/Makefile dnl
+ zlib/Makefile dnl
  cmd-line-utils/readline/Makefile)
  AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
  AC_OUTPUT

@@ -90,3 +90,9 @@ select * from t1 where a like '%PES%';
 select * from t1 where a like '%PESKA%';
 select * from t1 where a like '%ESKA%';
 DROP TABLE t1;
+
+#
+# LIKE crashed for binary collations in some cases
+#
+select _cp866'aaaaaaaaa' like _cp866'%aaaa%' collate cp866_bin;
+

@@ -1572,7 +1572,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     mysqld_list_fields(thd,&table_list,fields);
     free_items(thd->free_list);
-    thd->free_list=0;           /* free_list should never point to garbage */
+    thd->free_list= 0;           /* free_list should never point to garbage */
     break;
   }
 #endif
@@ -1673,8 +1673,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       SHUTDOWN_DEFAULT is 0. If client is >= 4.1.3, the shutdown level is in
       packet[0].
     */
-    enum enum_shutdown_level level=
-      (enum enum_shutdown_level) (uchar) packet[0];
+    enum mysql_enum_shutdown_level level=
+      (enum mysql_enum_shutdown_level) (uchar) packet[0];
     DBUG_PRINT("quit",("Got shutdown command for level %u", level));
     if (level == SHUTDOWN_DEFAULT)
       level= SHUTDOWN_WAIT_ALL_BUFFERS; // soon default will be configurable
@@ -2011,8 +2011,6 @@ mysql_execute_command(THD *thd)
 	else
 	  thd->send_explain_fields(result);
 	res= mysql_explain_union(thd, &thd->lex->unit, result);
-	MYSQL_LOCK *save_lock= thd->lock;
-	thd->lock= (MYSQL_LOCK *)0;
 	if (lex->describe & DESCRIBE_EXTENDED)
 	{
 	  char buff[1024];
@@ -2024,20 +2022,19 @@ mysql_execute_command(THD *thd)
 		       ER_YES, str.ptr());
 	}
 	result->send_eof();
-	thd->lock= save_lock;
+        delete result;
       }
       else
       {
-	if (!result)
+	if (!result && !(result= new select_send()))
 	{
-	  if (!(result=new select_send()))
-	  {
-	    res= -1;
-	    break;
-	  }
+	  res= -1;
+	  break;
 	}
 	query_cache_store_query(thd, all_tables);
-	res=handle_select(thd, lex, result);
+	res= handle_select(thd, lex, result);
+        if (result != lex->result)
+          delete result;
       }
     }
     break;
@@ -2393,6 +2390,21 @@ mysql_execute_command(THD *thd)
 	net_printf(thd, ER_UPDATE_TABLE_USED, create_table->real_name);
 	goto create_error;
       }
+      if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
+      {
+        TABLE_LIST *tab;
+        for (tab= select_tables; tab; tab= tab->next)
+        {
+          if (find_real_table_in_list((TABLE_LIST*) lex->create_info.
+                                      merge_list.first,
+                                      select_tables->db, tab->real_name))
+          {
+            net_printf(thd, ER_UPDATE_TABLE_USED, tab->real_name);
+            goto create_error;
+          }
+        }  
+      }    
+
       if (select_tables &&
 	  check_table_access(thd, SELECT_ACL, select_tables, 0))
 	goto create_error;			// Error message is given
@@ -2433,7 +2445,7 @@ mysql_execute_command(THD *thd)
         res= mysql_create_table(thd, create_table->db,
 				create_table->real_name, &lex->create_info,
 				lex->create_list,
-				lex->key_list, 0, 0, 0); // do logging
+				lex->key_list, 0, 0);
       }
       if (!res)
 	send_ok(thd);
@@ -2759,31 +2771,30 @@ unsent_create_error:
 
     // is table which we are changing used somewhere in other parts of query
     if (find_table_in_global_list(all_tables->next_global,
-				first_table->db, first_table->real_name))
+				  first_table->db, first_table->real_name))
     {
       /* Using same table for INSERT and SELECT */
       select_lex->options |= OPTION_BUFFER_RESULT;
     }
 
-    if (!(res= open_and_lock_tables(thd, all_tables)))
+    if (!(res= open_and_lock_tables(thd, all_tables)) &&
+        !(res= mysql_insert_select_prepare(thd)) &&
+        (result= new select_insert(first_table, first_table->table,
+                                   &lex->field_list, lex->duplicates)))
     {
-      if ((res= mysql_insert_select_prepare(thd)))
-        break;
-      if ((result= new select_insert(first_table, first_table->table,
-                                     &lex->field_list, lex->duplicates)))
-	/* Skip first table, which is the table we are inserting in */
-	lex->select_lex.table_list.first= (byte*) first_table->next_local;
-        /*
-          insert/replace from SELECT give its SELECT_LEX for SELECT,
-          and item_list belong to SELECT
-        */
-	lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
-	res= handle_select(thd, lex, result);
-	/* revert changes for SP */
-	lex->select_lex.table_list.first= (byte*) first_table;
-	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
+      /* Skip first table, which is the table we are inserting in */
+      lex->select_lex.table_list.first= (byte*) first_table->next_local;
+      /*
+        insert/replace from SELECT give its SELECT_LEX for SELECT,
+        and item_list belong to SELECT
+      */
+      lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
+      res= handle_select(thd, lex, result);
+      lex->select_lex.table_list.first= (byte*) first_table;
+      lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
+      delete result;
       if (thd->net.report_error)
-	res= -1;
+        res= -1;
     }
     else
       res= -1;
@@ -2807,7 +2818,7 @@ unsent_create_error:
       goto error;
     }
 
-    res= mysql_truncate(thd, first_table);
+    res= mysql_truncate(thd, first_table, 0);
     break;
   case SQLCOM_DELETE:
   {
@@ -4290,6 +4301,7 @@ mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly)
   lex->lock_option= TL_READ;
   lex->found_colon= 0;
   lex->safe_to_cache_query= 1;
+  lex->time_zone_tables_used= 0;
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
   lex->variables_used= 0;
@@ -4324,8 +4336,8 @@ mysql_init_select(LEX *lex)
   select_lex->select_limit= HA_POS_ERROR;
   if (select_lex == &lex->select_lex)
   {
+    DBUG_ASSERT(lex->result == 0);
     lex->exchange= 0;
-    lex->result= 0;
     lex->proc_list.first= 0;
   }
 }
@@ -4494,9 +4506,7 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
       }
     }
     thd->proc_info="freeing items";
-    free_items(thd->free_list);  /* Free strings used by items */
-    thd->free_list= 0;           /* free_list should never point to garbage */
-    lex_end(lex);
+    thd->end_statement();
   }
   DBUG_VOID_RETURN;
 }
@@ -4522,10 +4532,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
   if (!yyparse((void*) thd) && ! thd->is_fatal_error &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
     error= 1;                  /* Ignore question */
-  free_items(thd->free_list);  /* Free strings used by items */
-  thd->free_list= 0;           /* free_list should never point to garbage */
-  lex_end(lex);
-
+  thd->end_statement();
   DBUG_RETURN(error);
 }
 #endif
@@ -4770,8 +4777,12 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   case FIELD_TYPE_TIMESTAMP:
     if (!length)
       new_field->length= 14;			// Full date YYYYMMDDHHMMSS
-    else
+    else if (new_field->length != 19)
     {
+      /*
+        We support only even TIMESTAMP lengths less or equal than 14
+        and 19 as length of 4.1 compatible representation.
+      */
       new_field->length=((new_field->length+1)/2)*2; /* purecov: inspected */
       new_field->length= min(new_field->length,14); /* purecov: inspected */
     }
@@ -4832,7 +4843,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->length=0;
       for (const char **pos=interval->type_names; *pos ; pos++)
       {
-	new_field->length+=(uint) strip_sp((char*) *pos)+1;
+        uint length= (uint) strip_sp((char*) *pos)+1;
+        CHARSET_INFO *cs= thd->variables.character_set_client;
+        length= cs->cset->numchars(cs, *pos, *pos+length);
+        new_field->length+= length;
       }
       new_field->length--;
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
@@ -4862,8 +4876,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->length=(uint) strip_sp((char*) interval->type_names[0]);
       for (const char **pos=interval->type_names+1; *pos ; pos++)
       {
-	uint length=(uint) strip_sp((char*) *pos);
-	set_if_bigger(new_field->length,length);
+        uint length=(uint) strip_sp((char*) *pos);
+        CHARSET_INFO *cs= thd->variables.character_set_client;
+        length= cs->cset->numchars(cs, *pos, *pos+length);
+        set_if_bigger(new_field->length,length);
       }
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)
@@ -5493,9 +5509,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       tmp_write_to_binlog= 0;
       if (lock_global_read_lock(thd))
 	return 1;
+      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1,
+                                 tables);
+      make_global_read_lock_block_commit(thd);
     }
+    else
+      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
     my_dbopt_cleanup();
-    result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
   }
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();
@@ -6055,4 +6075,40 @@ int create_table_precheck(THD *thd, TABLE_LIST *tables,
   DBUG_RETURN((grant_option && want_priv != CREATE_TMP_ACL &&
 	       check_grant(thd, want_priv, create_table, 0, UINT_MAX, 0)) ?
 	      1 : 0);
+}
+
+
+/*
+  negate given expression
+
+  SYNOPSIS
+    negate_expression()
+    thd  therad handler
+    expr expression for negation
+
+  RETURN
+    negated expression
+*/
+
+Item *negate_expression(THD *thd, Item *expr)
+{
+  Item *negated;
+  if (expr->type() == Item::FUNC_ITEM &&
+      ((Item_func *) expr)->functype() == Item_func::NOT_FUNC)
+  {
+    /* it is NOT(NOT( ... )) */
+    Item *arg= ((Item_func *) expr)->arguments()[0];
+    enum_parsing_place place= thd->lex->current_select->parsing_place;
+    if (arg->is_bool_func() || place == IN_WHERE || place == IN_HAVING)
+      return arg;
+    /*
+      if it is not boolean function then we have to emulate value of
+      not(not(a)), it will be a != 0
+    */
+    return new Item_func_ne(arg, new Item_int((char*) "0", 0, 1));
+  }
+
+  if ((negated= expr->neg_transformer(thd)) != 0)
+    return negated;
+  return new Item_func_not(expr);
 }

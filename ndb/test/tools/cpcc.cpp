@@ -192,7 +192,7 @@ main(int argc, const char** argv){
     ,{ "rm",    0, arg_flag, &rm, "-c rm", "undefine process(es)" }
   };
   const int num_args = 10;
-  
+  int i; 
   int optind = 0;
   char desc[] = "[host:[port]]\n";
   
@@ -215,13 +215,13 @@ main(int argc, const char** argv){
   
   Expression * m_expr = 0;
 
-  for(int i = optind; i<argc; i++){
+  for(i = optind; i<argc; i++){
     add_host(g_hosts, argv[i]);
   }
 
   OrExpr * orE = new OrExpr(new Operate(cmd, g_settings), true);
   m_expr = orE;
-  for(int i = optind; i<argc; i++){
+  for(i = optind; i<argc; i++){
     BaseString tmp(argv[i]);
     Vector<BaseString> split;
     tmp.split(split, ":");
@@ -347,3 +347,5 @@ Operate::evaluate(SimpleCpcClient* c, const SimpleCpcClient::Process & pp){
   return true;
 }
 
+template class Vector<Expression*>;
+template class Vector<SimpleCpcClient*>;

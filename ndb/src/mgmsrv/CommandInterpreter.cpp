@@ -378,7 +378,8 @@ void CommandInterpreter::executeHelp(char* parameters) {
   (void)parameters;  // Don't want compiler warning
 
   if (emptyString(parameters)) {
-    for (int i = 0; i<noOfHelpTexts; i++) {
+    unsigned i;
+    for (i = 0; i<noOfHelpTexts; i++) {
       ndbout << helpTexts[i] << endl;
     }
     
@@ -388,7 +389,7 @@ void CommandInterpreter::executeHelp(char* parameters) {
 	   << endl;
 
     ndbout << "<category> = ";
-    for(Uint32 i = 0; i<EventLogger::noOfEventCategoryNames; i++){
+    for(i = 0; i<EventLogger::noOfEventCategoryNames; i++){
       ndbout << EventLogger::eventCategoryNames[i].name;
       if (i < EventLogger::noOfEventCategoryNames - 1) {
 	ndbout << " | ";
@@ -1195,11 +1196,12 @@ CommandInterpreter::jonas(int processId, const char* parameters, bool all) {
 
   data[0] = 12;
   data[1] = 13;
-  
-  for(Uint32 i = 0; i<70; i++)
+
+  unsigned i; 
+  for(i = 0; i<70; i++)
     sec0[i] = i;
   
-  for(Uint32 i = 0; i<123; i++)
+  for(i = 0; i<123; i++)
     sec1[i] = 70+i;
   
   signal.set(0, CMVMI, GSN_TESTSIG, 3);  

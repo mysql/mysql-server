@@ -93,26 +93,28 @@ inline
 void *
 NdbObjectIdMap::unmap(Uint32 id, void *object){
 
-  int i = id>>2;
+  Uint32 i = id>>2;
 
   //  lock();
-  
-  void * obj = m_map[i].m_obj;
-  if (object == obj) {
-    m_map[i].m_next = m_firstFree;
-    m_firstFree = i;
-  } else {
-    ndbout_c("Error: NdbObjectIdMap::::unmap(%u, 0x%x) obj=0x%x", id, object, obj);
-    return 0;
-  }
-  
-  //  unlock();
-
+  if(i < m_size){
+    void * obj = m_map[i].m_obj;
+    if (object == obj) {
+      m_map[i].m_next = m_firstFree;
+      m_firstFree = i;
+    } else {
+      ndbout_c("Error: NdbObjectIdMap::::unmap(%u, 0x%x) obj=0x%x", id, object, obj);
+      return 0;
+    }
+    
+    //  unlock();
+    
 #ifdef DEBUG_OBJECTMAP
-  ndbout_c("NdbObjectIdMap::unmap(%u) obj=0x%x", id, obj);
+    ndbout_c("NdbObjectIdMap::unmap(%u) obj=0x%x", id, obj);
 #endif
-
-  return obj;
+    
+    return obj;
+  }
+  return 0;
 }
 
 inline void *
@@ -120,7 +122,11 @@ NdbObjectIdMap::getObject(Uint32 id){
 #ifdef DEBUG_OBJECTMAP
   ndbout_c("NdbObjectIdMap::getObject(%u) obj=0x%x", id,  m_map[id>>2].m_obj);
 #endif
-  return m_map[id>>2].m_obj;
+  id >>= 2;
+  if(id < m_size){
+    return m_map[id].m_obj;
+  }
+  return 0;
 }
 
 inline void
@@ -129,7 +135,6 @@ NdbObjectIdMap::expand(Uint32 incSize){
   MapEntry * tmp = (MapEntry*)malloc(newSize * sizeof(MapEntry));
 
   memcpy(tmp, m_map, m_size * sizeof(MapEntry));
-  free(m_map);
   m_map = tmp;
 
   for(Uint32 i = m_size; i<newSize; i++){

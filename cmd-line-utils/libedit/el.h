@@ -1,4 +1,4 @@
-/*	$NetBSD: el.h,v 1.8 2001/01/06 14:44:50 jdolecek Exp $	*/
+/*	$NetBSD: el.h,v 1.13 2002/11/15 14:32:33 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -72,7 +72,7 @@ typedef struct el_line_t {
 	char	*buffer;		/* Input line			*/
 	char	*cursor;		/* Cursor position		*/
 	char	*lastchar;		/* Last character		*/
-	const char	*limit;			/* Max position			*/
+	const char	*limit;		/* Max position			*/
 } el_line_t;
 
 /*
@@ -84,6 +84,8 @@ typedef struct el_state_t {
 	int		argument;	/* Numeric argument		*/
 	int		metanext;	/* Is the next char a meta char */
 	el_action_t	lastcmd;	/* Previous command		*/
+	el_action_t	thiscmd;	/* this command 		*/
+	char		thisch;		/* char that generated it	*/
 } el_state_t;
 
 /*
@@ -106,6 +108,7 @@ typedef struct el_state_t {
 #include "parse.h"
 #include "sig.h"
 #include "help.h"
+#include "read.h"
 
 struct editline {
 	char		 *el_prog;	/* the program name		*/
@@ -116,6 +119,7 @@ struct editline {
 	coord_t		  el_cursor;	/* Cursor location		*/
 	char		**el_display;	/* Real screen image = what is there */
 	char		**el_vdisplay;	/* Virtual screen image = what we see */
+	void		 *el_data;	/* Client data			*/
 	el_line_t	  el_line;	/* The current line information	*/
 	el_state_t	  el_state;	/* Current editor state		*/
 	el_term_t	  el_term;	/* Terminal dependent stuff	*/
@@ -129,13 +133,18 @@ struct editline {
 	el_history_t	  el_history;	/* History stuff		*/
 	el_search_t	  el_search;	/* Search stuff			*/
 	el_signal_t	  el_signal;	/* Signal handling stuff	*/
+	el_read_t	  el_read;	/* Character reading stuff	*/
 };
 
 protected int	el_editmode(EditLine *, int, const char **);
 
 #ifdef DEBUG
-#define EL_ABORT(a)	(void) (fprintf(el->el_errfile, "%s, %d: ", \
-				__FILE__, __LINE__), fprintf a, abort())
+#define	EL_ABORT(a)	do { \
+				fprintf(el->el_errfile, "%s, %d: ", \
+					 __FILE__, __LINE__); \
+				fprintf a; \
+				abort(); \
+			} while( /*CONSTCOND*/0);
 #else
 #define EL_ABORT(a)	abort()
 #endif

@@ -6,41 +6,41 @@
 
 source include/master-slave.inc;
 --disable_warnings
-drop database if exists test2;
-drop database if exists test3;
+drop database if exists mysqltest2;
+drop database if exists mysqltest3;
 --enable_warnings
 
-create database test2 character set latin2;
+create database mysqltest2 character set latin2;
 set @@character_set_server=latin5;      
-create database test3;
+create database mysqltest3;
 --disable_query_log
 select "--- --master--" as "";
 --enable_query_log
-show create database test2;
-show create database test3;
+show create database mysqltest2;
+show create database mysqltest3;
 sync_slave_with_master;
 --disable_query_log
 select "--- --slave--" as "";
 --enable_query_log
-show create database test2;
-show create database test3;
+show create database mysqltest2;
+show create database mysqltest3;
 
 connection master;
 set @@collation_server=armscii8_bin;
-drop database test3;
-create database test3;
+drop database mysqltest3;
+create database mysqltest3;
 --disable_query_log
 select "--- --master--" as "";
 --enable_query_log
-show create database test3;
+show create database mysqltest3;
 sync_slave_with_master;
 --disable_query_log
 select "--- --slave--" as "";
 --enable_query_log
-show create database test3;
+show create database mysqltest3;
 
 connection master;
-use test2;
+use mysqltest2;
 create table t1 (a int auto_increment primary key, b varchar(100));
 set character_set_client=cp850, collation_connection=latin2_croatian_ci;
 insert into t1 (b) values(@@character_set_server);
@@ -59,7 +59,7 @@ sync_slave_with_master;
 --disable_query_log
 select "--- --slave--" as "";
 --enable_query_log
-select * from test2.t1 order by a;
+select * from mysqltest2.t1 order by a;
 
 connection master;
 set character_set_client=latin1, collation_connection=latin1_german1_ci;
@@ -77,7 +77,7 @@ sync_slave_with_master;
 --disable_query_log
 select "--- --slave--" as "";
 --enable_query_log
-select * from test2.t1 order by a;
+select * from mysqltest2.t1 order by a;
 
 # See if SET ONE_SHOT gets into binlog when LOAD DATA
 connection master;
@@ -101,11 +101,11 @@ sync_slave_with_master;
 --disable_query_log
 select "--- --slave--" as "";
 --enable_query_log
-select * from test2.t1 order by a;
+select * from mysqltest2.t1 order by a;
 
 connection master;
-drop database test2;
-drop database test3;
+drop database mysqltest2;
+drop database mysqltest3;
 show binlog events from 95;
 sync_slave_with_master;
 

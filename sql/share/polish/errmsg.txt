@@ -1,6 +1,20 @@
-/* Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
-   This file is public domain and comes with NO WARRANTY of any kind 
+/* Copyright (C) 2003 MySQL AB
 
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+/*
    Changed by Jaroslaw Lewandowski <jotel@itnet.com.pl>
    Charset ISO-8859-2
 */
@@ -83,7 +97,7 @@ character-set=latin2
 "Kolumna typu Blob '%-.64s' nie mo¿e byæ u¿yta w specyfikacji klucza",
 "Zbyt du¿a d³ugo?æ kolumny '%-.64s' (maks. = %d). W zamian u¿yj typu BLOB",
 "W tabeli mo¿e byæ tylko jedno pole auto i musi ono byæ zdefiniowane jako klucz",
-"%s: gotowe do po³?czenia\n",
+"%s: gotowe do po³?czenia",
 "%s: Standardowe zakoñczenie dzia³ania\n",
 "%s: Otrzymano sygna³ %d. Koñczenie dzia³ania!\n",
 "%s: Zakoñczenie dzia³ania wykonane\n",
@@ -308,7 +322,8 @@ character-set=latin2
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
 "Invalid %s character string: '%.64s'",
-"Result of %s() was larger than max_allowed_packet (%d) - truncated"
+"Result of %s() was larger than max_allowed_packet (%ld) - truncated"
+"Conflicting declarations: '%s%s' and '%s%s'"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"

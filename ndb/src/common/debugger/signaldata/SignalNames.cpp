@@ -32,7 +32,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_READCONF,               "READCONF" }
   ,{ GSN_SCAN_NEXTREQ,           "SCAN_NEXTREQ" }
   ,{ GSN_SCAN_TABCONF,           "SCAN_TABCONF" }
-  ,{ GSN_SCAN_TABINFO,           "SCAN_TABINFO" }
   ,{ GSN_SCAN_TABREF,            "SCAN_TABREF" }
   ,{ GSN_SCAN_TABREQ,            "SCAN_TABREQ" }
   ,{ GSN_TC_COMMITCONF,          "TC_COMMITCONF" }
@@ -641,9 +640,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_TUX_MAINT_REQ,  "TUX_MAINT_REQ" }
   ,{ GSN_TUX_MAINT_CONF, "TUX_MAINT_CONF" }
   ,{ GSN_TUX_MAINT_REF,  "TUX_MAINT_REF" }
-  ,{ GSN_TUP_READ_ATTRS,  "TUP_READ_ATTRS" }
-  ,{ GSN_TUP_QUERY_TH,  "TUP_QUERY_TH" }
-  ,{ GSN_TUP_STORE_TH,  "TUP_STORE_TH" }
   ,{ GSN_TUX_BOUND_INFO,  "TUX_BOUND_INFO" }
   ,{ GSN_ACC_LOCKREQ,  "ACC_LOCKREQ" }
   

@@ -16,10 +16,11 @@
 
 #include <ndb_global.h>
 
-#include "TransporterRegistry.hpp"
+#include <TransporterRegistry.hpp>
 #include "TransporterInternalDefinitions.hpp"
 
 #include "Transporter.hpp"
+#include <SocketAuthenticator.hpp>
 
 #ifdef NDB_TCP_TRANSPORTER
 #include "TCP_Transporter.hpp"
@@ -42,20 +43,67 @@
 #include "NdbOut.hpp"
 #include <NdbSleep.h>
 #include <NdbTick.h>
-#define STEPPING 1
+#include <InputStream.hpp>
+#include <OutputStream.hpp>
+
+SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
+{
+  if (m_auth && !m_auth->server_authenticate(sockfd)){
+    NDB_CLOSE_SOCKET(sockfd);
+    return 0;
+  }
+
+  {
+    // read node id from client
+    int nodeId;
+    SocketInputStream s_input(sockfd);
+    char buf[256];
+    if (s_input.gets(buf, 256) == 0) {
+      NDB_CLOSE_SOCKET(sockfd);
+      return 0;
+    }
+    if (sscanf(buf, "%d", &nodeId) != 1) {
+      NDB_CLOSE_SOCKET(sockfd);
+      return 0;
+    }
+
+    //check that nodeid is valid and that there is an allocated transporter
+    if ( nodeId < 0 || nodeId >= m_transporter_registry->maxTransporters) {
+      NDB_CLOSE_SOCKET(sockfd);
+      return 0;
+    }
+    if (m_transporter_registry->theTransporters[nodeId] == 0) {
+      NDB_CLOSE_SOCKET(sockfd);
+      return 0;
+    }
+    
+    //check that the transporter should be connected
+    if (m_transporter_registry->performStates[nodeId] != TransporterRegistry::CONNECTING) {
+      NDB_CLOSE_SOCKET(sockfd);
+      return 0;
+    }
+
+    Transporter *t= m_transporter_registry->theTransporters[nodeId];
+
+    // send info about own id (just as response to acknowledge connection)
+    SocketOutputStream s_output(sockfd);
+    s_output.println("%d", t->getLocalNodeId());
+
+    // setup transporter (transporter responsible for closing sockfd)
+    t->connect_server(sockfd);
+  }
+
+  return 0;
+}
 
 TransporterRegistry::TransporterRegistry(void * callback,
 					 unsigned _maxTransporters,
 					 unsigned sizeOfLongSignalMemory) {
 
+  m_transporter_service= 0;
   nodeIdSpecified = false;
   maxTransporters = _maxTransporters;
   sendCounter = 1;
-  m_ccCount = 0;
-  m_ccIndex = 0;
-  m_ccStep = STEPPING;
-  m_ccReady = false;
-  m_nTransportersPerformConnect=0;
   
   callbackObj=callback;
 
@@ -82,7 +130,7 @@ TransporterRegistry::TransporterRegistry(void * callback,
     theSHMTransporters[i] = NULL;
     theOSETransporters[i] = NULL;
     theTransporters[i]    = NULL;
-    performStates[i]      = PerformNothing;
+    performStates[i]      = DISCONNECTED;
     ioStates[i]           = NoHalt;
   }
   theOSEReceiver = 0;
@@ -152,15 +200,15 @@ TransporterRegistry::createTransporter(TCP_TransporterConfiguration *config) {
   
   if(theTransporters[config->remoteNodeId] != NULL)
     return false;
-    
-
-  TCP_Transporter * t = new TCP_Transporter(config->sendBufferSize, 
-					    config->maxReceiveSize, 
-					    config->port,
-					    config->remoteHostName,
+   
+  TCP_Transporter * t = new TCP_Transporter(*this,
+					    config->sendBufferSize,
+					    config->maxReceiveSize,
 					    config->localHostName,
-					    config->remoteNodeId,
+					    config->remoteHostName,
+					    config->port,
 					    localNodeId,
+					    config->remoteNodeId,
 					    config->byteOrder,
 					    config->compression,
 					    config->checksum,
@@ -172,13 +220,11 @@ TransporterRegistry::createTransporter(TCP_TransporterConfiguration *config) {
     return false;
   }
 
-  t->setCallbackObject(callbackObj);
-  
   // Put the transporter in the transporter arrays
   theTCPTransporters[nTCPTransporters]      = t;
   theTransporters[t->getRemoteNodeId()]     = t;
   theTransporterTypes[t->getRemoteNodeId()] = tt_TCP_TRANSPORTER;
-  performStates[t->getRemoteNodeId()]       = PerformNothing;
+  performStates[t->getRemoteNodeId()]       = DISCONNECTED;
   nTransporters++;
   nTCPTransporters++;
 
@@ -228,12 +274,11 @@ TransporterRegistry::createTransporter(OSE_TransporterConfiguration *conf) {
     delete t;
     return false;
   }
-  t->setCallbackObject(callbackObj);  
   // Put the transporter in the transporter arrays
   theOSETransporters[nOSETransporters]      = t;
   theTransporters[t->getRemoteNodeId()]     = t;
   theTransporterTypes[t->getRemoteNodeId()] = tt_OSE_TRANSPORTER;
-  performStates[t->getRemoteNodeId()]       = PerformNothing;
+  performStates[t->getRemoteNodeId()]       = DISCONNECTED;
   
   nTransporters++;
   nOSETransporters++;
@@ -279,12 +324,11 @@ TransporterRegistry::createTransporter(SCI_TransporterConfiguration *config) {
     delete t;
     return false;
   }
-  t->setCallbackObject(callbackObj);
   // Put the transporter in the transporter arrays
   theSCITransporters[nSCITransporters]      = t;
   theTransporters[t->getRemoteNodeId()]     = t;
   theTransporterTypes[t->getRemoteNodeId()] = tt_SCI_TRANSPORTER;
-  performStates[t->getRemoteNodeId()]       = PerformNothing;
+  performStates[t->getRemoteNodeId()]       = DISCONNECTED;
   nTransporters++;
   nSCITransporters++;
   
@@ -307,13 +351,17 @@ TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
   if(theTransporters[config->remoteNodeId] != NULL)
     return false;
 
-  SHM_Transporter * t = new SHM_Transporter(config->localNodeId,
+  SHM_Transporter * t = new SHM_Transporter(*this,
+					    "localhost",
+					    "localhost",
+					    config->port,
+					    localNodeId,
 					    config->remoteNodeId,
-					    config->shmKey,
-					    config->shmSize,
 					    config->compression,
 					    config->checksum,
-					    config->signalId
+					    config->signalId,
+					    config->shmKey,
+					    config->shmSize
 					    );
   if (t == NULL)
     return false;
@@ -321,12 +369,11 @@ TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
     delete t;
     return false;
   }
-  t->setCallbackObject(callbackObj);
   // Put the transporter in the transporter arrays
   theSHMTransporters[nSHMTransporters]      = t;
   theTransporters[t->getRemoteNodeId()]     = t;
   theTransporterTypes[t->getRemoteNodeId()] = tt_SHM_TRANSPORTER;
-  performStates[t->getRemoteNodeId()]       = PerformNothing;
+  performStates[t->getRemoteNodeId()]       = DISCONNECTED;
   
   nTransporters++;
   nSHMTransporters++;
@@ -781,7 +828,7 @@ TransporterRegistry::performReceive(){
       TCP_Transporter *t = theTCPTransporters[i];
       const NodeId nodeId = t->getRemoteNodeId();
       const NDB_SOCKET_TYPE socket    = t->getSocket();
-      if(performStates[nodeId] == PerformIO){
+      if(is_connected(nodeId)){
 	if(t->isConnected() && FD_ISSET(socket, &tcpReadset)) {
 	  const int receiveSize = t->doReceive();
 	  if(receiveSize > 0){
@@ -804,7 +851,7 @@ TransporterRegistry::performReceive(){
       checkJobBuffer();
       SCI_Transporter  *t = theSCITransporters[i];
       const NodeId nodeId = t->getRemoteNodeId();
-      if(performStates[nodeId] == PerformIO){
+      if(is_connected(nodeId)){
 	if(t->isConnected() && t->checkConnected()){
 	  Uint32 * readPtr, * eodPtr;
 	  t->getReceivePtr(&readPtr, &eodPtr);
@@ -819,7 +866,7 @@ TransporterRegistry::performReceive(){
       checkJobBuffer();
       SHM_Transporter *t = theSHMTransporters[i];
       const NodeId nodeId = t->getRemoteNodeId();
-      if(performStates[nodeId] == PerformIO){
+      if(is_connected(nodeId)){
 	if(t->isConnected() && t->checkConnected()){
 	  Uint32 * readPtr, * eodPtr;
 	  t->getReceivePtr(&readPtr, &eodPtr);
@@ -834,13 +881,13 @@ TransporterRegistry::performReceive(){
 static int x = 0;
 void
 TransporterRegistry::performSend(){
-    
+    int i; 
     sendCounter = 1;
     
 #ifdef NDB_OSE_TRANSPORTER
     for (int i = 0; i < nOSETransporters; i++){
         OSE_Transporter *t = theOSETransporters[i];
-        if((performStates[t->getRemoteNodeId()] == PerformIO) &&
+        if((is_connected(t->getRemoteNodeId()) &&
             (t->isConnected())) {
             t->doSend();
         }//if
@@ -858,7 +905,7 @@ TransporterRegistry::performSend(){
         FD_ZERO(&writeset);
         
         // Prepare for sending and receiving
-        for (int i = 0; i < nTCPTransporters; i++) {
+        for (i = 0; i < nTCPTransporters; i++) {
             TCP_Transporter * t = theTCPTransporters[i];
             
             // If the transporter is connected
@@ -883,11 +930,11 @@ TransporterRegistry::performSend(){
         if (tmp == 0) {
             return;
         }//if
-        for (int i = 0; i < nTCPTransporters; i++) {
+        for (i = 0; i < nTCPTransporters; i++) {
             TCP_Transporter *t = theTCPTransporters[i];
             const NodeId nodeId = t->getRemoteNodeId();
             const int socket    = t->getSocket();
-            if(performStates[nodeId] == PerformIO){
+            if(is_connected(nodeId)){
                 if(t->isConnected() && FD_ISSET(socket, &writeset)) {
                     t->doSend();
                 }//if
@@ -896,21 +943,21 @@ TransporterRegistry::performSend(){
     }
 #endif
 #ifdef NDB_TCP_TRANSPORTER
-    for (int i = x; i < nTCPTransporters; i++) {
+    for (i = x; i < nTCPTransporters; i++) {
         TCP_Transporter *t = theTCPTransporters[i];
         if (t &&
             (t->hasDataToSend()) &&
             (t->isConnected()) &&
-            (performStates[t->getRemoteNodeId()] == PerformIO)) {
+            (is_connected(t->getRemoteNodeId()))) {
             t->doSend();
         }//if
     }//for
-    for (int i = 0; i < x && i < nTCPTransporters; i++) {
+    for (i = 0; i < x && i < nTCPTransporters; i++) {
         TCP_Transporter *t = theTCPTransporters[i];
         if (t &&
             (t->hasDataToSend()) &&
             (t->isConnected()) &&
-            (performStates[t->getRemoteNodeId()] == PerformIO)) {
+            (is_connected(t->getRemoteNodeId()))) {
             t->doSend();
         }//if
     }//for
@@ -921,11 +968,11 @@ TransporterRegistry::performSend(){
 #ifdef NDB_SCI_TRANSPORTER
     //scroll through the SCI transporters, 
     // get each transporter, check if connected, send data
-    for (int i=0; i<nSCITransporters; i++) {
+    for (i=0; i<nSCITransporters; i++) {
       SCI_Transporter  *t = theSCITransporters[i];
       const NodeId nodeId = t->getRemoteNodeId();
       
-      if(performStates[nodeId] == PerformIO){
+      if(is_connected(nodeId)){
 	if(t->isConnected() && t->hasDataToSend()) {
 	  t->doSend();
 	} //if
@@ -961,56 +1008,6 @@ TransporterRegistry::printState(){
 }
 #endif
 
-PerformState
-TransporterRegistry::performState(NodeId nodeId) { 
-  return performStates[nodeId]; 
-}
-
-#ifdef DEBUG_TRANSPORTER
-const char *
-performStateString(PerformState state){
-  switch(state){
-  case PerformNothing:
-    return "PerformNothing";
-    break;
-  case PerformIO:
-    return "PerformIO";
-    break;
-  case PerformConnect:
-    return "PerformConnect";
-    break;
-  case PerformDisconnect:
-    return "PerformDisconnect";
-    break;
-  case RemoveTransporter:
-    return "RemoveTransporter";
-    break;
-  }
-  return "Unknown";
-}
-#endif
-
-void
-TransporterRegistry::setPerformState(NodeId nodeId, PerformState state) {
-  DEBUG("TransporterRegistry::setPerformState(" 
-	<< nodeId << ", " << performStateString(state) << ")");
-  
-  performStates[nodeId] = state;
-}
-
-void
-TransporterRegistry::setPerformState(PerformState state) {
-  int count = 0;
-  int index = 0;
-  while(count < nTransporters){
-    if(theTransporters[index] != 0){
-      setPerformState(theTransporters[index]->getRemoteNodeId(), state);
-      count ++;
-    }
-    index ++;
-  }
-}
-
 IOState
 TransporterRegistry::ioState(NodeId nodeId) { 
   return ioStates[nodeId]; 
@@ -1023,8 +1020,200 @@ TransporterRegistry::setIOState(NodeId nodeId, IOState state) {
   ioStates[nodeId] = state;
 }
 
+static void * 
+run_start_clients_C(void * me)
+{
+  ((TransporterRegistry*) me)->start_clients_thread();
+  NdbThread_Exit(0);
+  return me;
+}
+
+// Run by kernel thread
 void
-TransporterRegistry::startReceiving(){
+TransporterRegistry::do_connect(NodeId node_id)
+{
+  PerformState &curr_state = performStates[node_id];
+  switch(curr_state){
+  case DISCONNECTED:
+    break;
+  case CONNECTED:
+    return;
+  case CONNECTING:
+    return;
+  case DISCONNECTING:
+    break;
+  }
+  curr_state= CONNECTING;
+}
+void
+TransporterRegistry::do_disconnect(NodeId node_id)
+{
+  PerformState &curr_state = performStates[node_id];
+  switch(curr_state){
+  case DISCONNECTED:
+    return;
+  case CONNECTED:
+    break;
+  case CONNECTING:
+    break;
+  case DISCONNECTING:
+    return;
+  }
+  curr_state= DISCONNECTING;
+}
+
+void
+TransporterRegistry::report_connect(NodeId node_id)
+{
+  performStates[node_id] = CONNECTED;
+  reportConnect(callbackObj, node_id);
+}
+
+void
+TransporterRegistry::report_disconnect(NodeId node_id, int errnum)
+{
+  performStates[node_id] = DISCONNECTED;
+  reportDisconnect(callbackObj, node_id, errnum);
+}
+
+void
+TransporterRegistry::update_connections()
+{
+  for (int i= 0, n= 0; n < nTransporters; i++){
+    Transporter * t = theTransporters[i];
+    if (!t)
+      continue;
+    n++;
+
+    const NodeId nodeId = t->getRemoteNodeId();
+    switch(performStates[nodeId]){
+    case CONNECTED:
+    case DISCONNECTED:
+      break;
+    case CONNECTING:
+      if(t->isConnected())
+	report_connect(nodeId);
+      break;
+    case DISCONNECTING:
+      if(!t->isConnected())
+	report_disconnect(nodeId, 0);
+      break;
+    }
+  }
+}
+
+// run as own thread
+void
+TransporterRegistry::start_clients_thread()
+{
+  while (m_run_start_clients_thread) {
+    NdbSleep_MilliSleep(100);
+    for (int i= 0, n= 0; n < nTransporters && m_run_start_clients_thread; i++){
+      Transporter * t = theTransporters[i];
+      if (!t)
+	continue;
+      n++;
+
+      const NodeId nodeId = t->getRemoteNodeId();
+      switch(performStates[nodeId]){
+      case CONNECTING:
+	if(!t->isConnected() && !t->isServer)
+	    t->connect_client();
+	break;
+      case DISCONNECTING:
+	if(t->isConnected())
+	  t->doDisconnect();
+	break;
+      default:
+	break;
+      }
+    }
+  }
+}
+
+bool
+TransporterRegistry::start_clients()
+{
+  m_run_start_clients_thread= true;
+  m_start_clients_thread= NdbThread_Create(run_start_clients_C,
+					   (void**)this,
+					   32768,
+					   "ndb_start_clients",
+					   NDB_THREAD_PRIO_LOW);
+  if (m_start_clients_thread == 0) {
+    m_run_start_clients_thread= false;
+    return false;
+  }
+  return true;
+}
+
+bool
+TransporterRegistry::stop_clients()
+{
+  if (m_start_clients_thread) {
+    m_run_start_clients_thread= false;
+    void* status;
+    int r= NdbThread_WaitFor(m_start_clients_thread, &status);
+    NdbThread_Destroy(&m_start_clients_thread);
+  }
+  return true;
+}
+
+bool
+TransporterRegistry::start_service(SocketServer& socket_server)
+{
+#if 0
+  for (int i= 0, n= 0; n < nTransporters; i++){
+    Transporter * t = theTransporters[i];
+    if (!t)
+      continue;
+    n++;
+    if (t->isServer) {
+      t->m_service = new TransporterService(new SocketAuthSimple("ndbd passwd"));
+      if(!socket_server.setup(t->m_service, t->m_r_port, 0))
+      {
+	ndbout_c("Unable to setup transporter service port: %d!\n"
+		 "Please check if the port is already used,\n"
+		 "(perhaps a mgmtsrvrserver is already running)",
+		 m_service_port);
+	delete t->m_service;
+	return false;
+      }
+    }
+  }
+#endif
+
+  if (m_service_port != 0) {
+
+    m_transporter_service = new TransporterService(new SocketAuthSimple("ndbd", "ndbd passwd"));
+
+    if (nodeIdSpecified != true) {
+      ndbout_c("TransporterRegistry::startReceiving: localNodeId not specified");
+      return false;
+    }
+
+    //m_interface_name = "ndbd";
+    m_interface_name = 0;
+
+    if(!socket_server.setup(m_transporter_service, m_service_port, m_interface_name))
+      {
+	ndbout_c("Unable to setup transporter service port: %d!\n"
+		 "Please check if the port is already used,\n"
+		 "(perhaps a mgmtsrvrserver is already running)",
+		 m_service_port);
+	delete m_transporter_service;
+	return false;
+      }
+    m_transporter_service->setTransporterRegistry(this);
+  } else
+    m_transporter_service= 0;
+
+  return true;
+}
+
+void
+TransporterRegistry::startReceiving()
+{
 #ifdef NDB_OSE_TRANSPORTER
   if(theOSEReceiver != NULL){
     theOSEReceiver->createPhantom();
@@ -1080,99 +1269,6 @@ TransporterRegistry::stopSending(){
   theOSEJunkSocketSend = -1;
 #endif
 }
-
-/**
- * The old implementation did not scale with a large
- * number of nodes. (Watchdog killed NDB because
- * it took too long time to allocated threads in 
- * doConnect.
- *
- * The new implementation only checks the connection
- * for a number of transporters (STEPPING), until to
- * the point where all transporters has executed 
- * doConnect once. After that, the behaviour is as 
- * in the old implemenation, i.e, checking the connection
- * for all transporters. 
- * @todo: instead of STEPPING, maybe we should only
- * allow checkConnections to execute for a certain
- * time that somehow factors in heartbeat times and
- * watchdog times.
- * 
- */
-
-void
-TransporterRegistry::checkConnections(){
-  if(m_ccStep > nTransporters)
-    m_ccStep = nTransporters;
-
-  while(m_ccCount < m_ccStep){
-    if(theTransporters[m_ccIndex] != 0){
-      Transporter * t = theTransporters[m_ccIndex];
-      const NodeId nodeId = t->getRemoteNodeId();
-      if(t->getThreadError() != 0) {
-	reportError(callbackObj, nodeId, t->getThreadError()); 
-	t->resetThreadError();
-      }
-      
-      switch(performStates[nodeId]){
-      case PerformConnect:
-	if(!t->isConnected()){
-	  t->doConnect();
-	  if(m_nTransportersPerformConnect!=nTransporters)
-	    m_nTransportersPerformConnect++;
-	    
-	} else {
-	  performStates[nodeId] = PerformIO;
-	  reportConnect(callbackObj, nodeId);
-	}
-	break;
-      case PerformDisconnect:
-	{
-	  bool wasConnected = t->isConnected();
-	  t->doDisconnect();
-	  performStates[nodeId] = PerformNothing;
-	  if(wasConnected){
-	    reportDisconnect(callbackObj, nodeId,0);
-	  }
-	}
-	break;
-      case RemoveTransporter:
-	removeTransporter(nodeId);
-	break;
-      case PerformNothing:
-      case PerformIO:
-	break;
-      }
-      m_ccCount ++;
-    }
-    m_ccIndex ++;
-  }
-  
-  if(!m_ccReady) {
-    if(m_ccCount < nTransporters) {
-      if(nTransporters - m_ccStep < STEPPING)
-	m_ccStep += nTransporters-m_ccStep;
-      else
-	m_ccStep += STEPPING;
-      
-      //      ndbout_c("count %d step %d ", m_ccCount, m_ccStep);
-    }  
-    else {
-      m_ccCount = 0;
-      m_ccIndex = 0;
-      m_ccStep = STEPPING;
-      //     ndbout_c("count %d step %d ", m_ccCount, m_ccStep);
-    }
-  }
-  if((nTransporters == m_nTransportersPerformConnect) || m_ccReady) {
-    m_ccReady = true;
-    m_ccCount = 0;
-    m_ccIndex = 0;
-    m_ccStep = nTransporters;
-    //    ndbout_c("alla count %d step %d ", m_ccCount, m_ccStep);
-  }  
-
-}//TransporterRegistry::checkConnections()
 
 NdbOut & operator <<(NdbOut & out, SignalHeader & sh){
   out << "-- Signal Header --" << endl;

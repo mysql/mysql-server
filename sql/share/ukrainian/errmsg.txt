@@ -1,6 +1,20 @@
-/*  Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
- *  This файл is public domain and comes with NO WARRANTY of any kind
- *
+/* Copyright (C) 2003 MySQL AB
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+/*
  *  Ukrainian translation by Roman Festchook <roma@orta.zt.ua>
  *  Encoding:	KOI8-U
  *  Version:	13/09/2001 mysql-3.23.41
@@ -84,7 +98,7 @@ character-set=koi8u
 "BLOB стовбець '%-.64s' не може бути використаний у визначенн╕ ключа в цьому тип╕ таблиц╕",
 "Задовга довжина стовбця '%-.64s' (max = %d). Використайте тип BLOB",
 "Нев╕рне визначення таблиц╕; Може бути лише один автоматичний стовбець, що повинен бути визначений як ключ",
-"%s: Готовий для з'╓днань!\n",
+"%s: Готовий для з'╓днань!",
 "%s: Нормальне завершення\n",
 "%s: Отримано сигнал %d. Перериваюсь!\n",
 "%s: Роботу завершено\n",
@@ -309,7 +323,8 @@ character-set=koi8u
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
 "Invalid %s character string: '%.64s'",
-"Result of %s() was larger than max_allowed_packet (%d) - truncated"
+"Result of %s() was larger than max_allowed_packet (%ld) - truncated"
+"Conflicting declarations: '%s%s' and '%s%s'"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"

@@ -37,7 +37,7 @@
 
 NdbEventOperation::NdbEventOperation(Ndb *theNdb, 
 				     const char* eventName, 
-				     const int bufferLength) 
+				     int bufferLength) 
   : m_impl(* new NdbEventOperationImpl(*this,theNdb, 
 				       eventName, 
 				       bufferLength))
