@@ -2460,6 +2460,9 @@ ha_innobase::change_active_index(
   statistic_increment(ha_read_key_count, &LOCK_status);
   DBUG_ENTER("change_active_index");
 
+  ut_a(prebuilt->trx ==
+	     (trx_t*) current_thd->transaction.all.innobase_tid);
+
   active_index = keynr;
 
   if (keynr != MAX_KEY && table->keys > 0) {
@@ -2487,9 +2490,9 @@ ha_innobase::change_active_index(
 
   /* Maybe MySQL changes the active index for a handle also
      during some queries, we do not know: then it is safest to build
-     the template such that all columns will be fetched */
+     the template such that all columns will be fetched. */
 
-  build_template(prebuilt, user_thd, table, ROW_MYSQL_WHOLE_ROW);
+  build_template(prebuilt, NULL, table, ROW_MYSQL_WHOLE_ROW);
 
   DBUG_RETURN(0);
 }
