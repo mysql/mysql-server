@@ -1,0 +1,19 @@
+Testing server 'MySQL 3.23.37' at 2001-04-13  1:12:02
+
+Testing of some unusual tables
+All tests are done 1000 times with 1000 fields
+
+Testing table with 1000 fields
+Testing select * from table with 1 record
+Time to select_many_fields(1000):  9 wallclock secs ( 4.67 usr  4.30 sys +  0.00 cusr  0.00 csys =  8.97 CPU)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(1000): 13 wallclock secs ( 4.34 usr  3.47 sys +  0.00 cusr  0.00 csys =  7.81 CPU)
+
+Testing insert VALUES()
+Time to insert_many_fields(1000):  3 wallclock secs ( 0.42 usr  0.07 sys +  0.00 cusr  0.00 csys =  0.49 CPU)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(1000):  7 wallclock secs ( 0.03 usr  0.11 sys +  0.00 cusr  0.00 csys =  0.14 CPU)
+
+Total time: 33 wallclock secs ( 9.47 usr  7.95 sys +  0.00 cusr  0.00 csys = 17.42 CPU)

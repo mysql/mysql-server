@@ -110,6 +110,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
 %token	COALESCE
+%token	CLOSE_SYM
 %token	COLUMNS
 %token	COLUMN_SYM
 %token	COMMENT_SYM
@@ -193,6 +194,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	GROUP_UNIQUE_USERS
 %token	GT_SYM
 %token	HAVING
+%token	HANDLER_SYM
 %token	HEAP_SYM
 %token	HEX_NUM
 %token	HIGH_PRIORITY
@@ -222,6 +224,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	KEY_SYM
 %token	KILL_SYM
 %token	LAST_INSERT_ID
+%token	LAST_SYM
 %token	LE
 %token	LEADING
 %token	LEAST_SYM
@@ -271,6 +274,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	NATURAL
 %token	NCHAR_SYM
 %token	NE
+%token	NEXT_SYM
 %token	NOT
 %token	NOW_SYM
 %token	NO_SYM
@@ -292,6 +296,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	PASSWORD
 %token	POSITION_SYM
 %token	PRECISION
+%token	PREV_SYM
 %token	PRIMARY_SYM
 %token	PRIVILEGES
 %token	PROCEDURE
@@ -403,6 +408,42 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	USE_SYM
 %token	USING
 %token	VALUES
+%token	VARIABLES
+%token	WHERE
+%token	WITH
+%token	WRITE_SYM
+%token  COMPRESSED_SYM
+
+%token	BIGINT
+%token	BLOB_SYM
+%token	CHAR_SYM
+%token  CHANGED
+%token	DATETIME
+%token	DATE_SYM
+%token	DECIMAL_SYM
+%token	DOUBLE_SYM
+%token	ENUM
+%token	FAST_SYM
+%token	FLOAT_SYM
+%token	INT_SYM
+%token	LONGBLOB
+%token	LONGTEXT
+%token	MEDIUMBLOB
+%token	MEDIUMINT
+%token	MEDIUMTEXT
+%token	NUMERIC_SYM
+%token	PRECISION
+%token  QUICK
+%token	REAL
+%token	SMALLINT
+%token	STRING_SYM
+%token	TEXT_SYM
+%token	TIMESTAMP
+%token	TIME_SYM
+%token	TINYBLOB
+%token	TINYINT
+%token	TINYTEXT
+%token	UNSIGNED
 %token	VARBINARY
 %token	VARCHAR
 %token	VARIABLES
@@ -527,13 +568,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	select_item_list select_item values_list no_braces
 	limit_clause delete_limit_clause fields opt_values values
 	procedure_list procedure_list2 procedure_item
-        when_list2 expr_list2
+        when_list2 expr_list2 handler
 	opt_precision opt_ignore opt_column opt_restrict
 	grant revoke set lock unlock string_list field_options field_option
 	field_opt_list opt_binary table_lock_list table_lock varchar
 	references opt_on_delete opt_on_delete_list opt_on_delete_item use
 	opt_delete_options opt_delete_option
-	opt_outer table_list table opt_option opt_place opt_low_priority
+	opt_outer table_list table_name opt_option opt_place opt_low_priority
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges opt_table user_list grant_option
 	grant_privilege grant_privilege_list
@@ -541,7 +582,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
 	table_to_table_list table_to_table opt_table_list opt_as
-	END_OF_INPUT
+	handler_rkey_function handler_rkey_mode handler_read_or_scan
+        END_OF_INPUT
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
@@ -590,6 +632,7 @@ verb_clause:
 	| slave
 	| show
 	| truncate
+	| handler
 	| unlock
 	| update
 	| use
@@ -1910,7 +1953,8 @@ order_dir:
 limit_clause:
 	/* empty */
 	{
-	  Lex->select_limit= current_thd->default_select_limit;
+	  Lex->select_limit= (Lex->sql_command == SQLCOM_HA_READ) ?
+             1 : current_thd->default_select_limit;
 	  Lex->offset_limit= 0L;
 	}
 	| LIMIT ULONG_NUM
@@ -2015,10 +2059,10 @@ drop:
 
 
 table_list:
-	table
-	| table_list ',' table
+	table_name
+	| table_list ',' table_name
 
-table:
+table_name:
 	table_ident
 	{ if (!add_table_to_list($1,NULL,1)) YYABORT; }
 
@@ -2051,7 +2095,7 @@ insert2:
 	| insert_table {}
 
 insert_table:
-	table
+	table_name
 	{
 	  Lex->field_list.empty();
 	  Lex->many_values.empty();
@@ -2140,7 +2184,7 @@ values:
 /* Update rows in a table */
 
 update:
-	UPDATE_SYM opt_low_priority opt_ignore table 
+	UPDATE_SYM opt_low_priority opt_ignore table_name
         SET update_list 
         where_clause 
         opt_order_clause
@@ -2179,7 +2223,7 @@ delete:
           Lex->order_list.first=0;
           Lex->order_list.next= (byte**) &Lex->order_list.first;
         }
-        opt_delete_options FROM table
+        opt_delete_options FROM table_name
 	where_clause opt_order_clause delete_limit_clause
 
 
@@ -2192,7 +2236,7 @@ opt_delete_option:
 	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
 
 truncate:
-	TRUNCATE_SYM opt_table_sym table
+	TRUNCATE_SYM opt_table_sym table_name
 	{
 	  LEX* lex = Lex;
 	  lex->sql_command= SQLCOM_TRUNCATE;
@@ -2550,6 +2594,7 @@ keyword:
 	| CHANGED		{}
 	| CHECKSUM_SYM		{}
 	| CHECK_SYM		{}
+	| CLOSE_SYM		{}
 	| COMMENT_SYM		{}
 	| COMMIT_SYM		{}
 	| COMMITTED_SYM		{}
@@ -2575,12 +2620,14 @@ keyword:
 	| GEMINI_SYM		{}
 	| GLOBAL_SYM		{}
 	| HEAP_SYM		{}
+	| HANDLER_SYM		{}
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
 	| ISOLATION		{}
 	| ISAM_SYM		{}
 	| INNOBASE_SYM		{}
+	| LAST_SYM		{}
 	| LEVEL_SYM		{}
 	| LOCAL_SYM		{}
 	| LOGS_SYM		{}
@@ -2603,10 +2650,12 @@ keyword:
 	| MYISAM_SYM		{}
 	| NATIONAL_SYM		{}
 	| NCHAR_SYM		{}
+	| NEXT_SYM		{}
 	| NO_SYM		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PASSWORD		{}
+	| PREV_SYM		{}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
 	| QUICK			{}
@@ -2862,6 +2911,58 @@ lock_option:
 unlock:
 	UNLOCK_SYM table_or_tables { Lex->sql_command=SQLCOM_UNLOCK_TABLES; }
 
+
+/*
+** Handler: direct access to ISAM functions
+*/
+
+handler:
+	HANDLER_SYM table_ident OPEN_SYM opt_table_alias
+	{
+	  Lex->sql_command = SQLCOM_HA_OPEN;
+	  if (!add_table_to_list($2,$4,0))
+	    YYABORT;
+	}
+	| HANDLER_SYM table_ident CLOSE_SYM
+	{
+	  Lex->sql_command = SQLCOM_HA_CLOSE;
+	  if (!add_table_to_list($2,0,0))
+	    YYABORT;
+	}
+	| HANDLER_SYM table_ident READ_SYM handler_read_or_scan
+	{
+	  Lex->sql_command = SQLCOM_HA_READ;
+	  if (!add_table_to_list($2,0,0))
+	    YYABORT;
+        }
+        where_clause limit_clause { }
+
+handler_read_or_scan:
+	handler_scan_function         { Lex->backup_dir= 0; }
+        | ident handler_rkey_function { Lex->backup_dir= $1.str; }
+
+handler_scan_function:
+	FIRST_SYM  { Lex->ha_read_mode = RFIRST; }
+	| NEXT_SYM { Lex->ha_read_mode = RNEXT;  }
+
+handler_rkey_function:
+	FIRST_SYM  { Lex->ha_read_mode = RFIRST; }
+	| NEXT_SYM { Lex->ha_read_mode = RNEXT;  }
+	| PREV_SYM { Lex->ha_read_mode = RPREV;  }
+	| LAST_SYM { Lex->ha_read_mode = RLAST;  }
+	| handler_rkey_mode
+	{
+	  Lex->ha_read_mode = RKEY;
+	  if (!(Lex->insert_list = new List_item))
+	    YYABORT;
+	} '(' values ')' { }
+
+handler_rkey_mode:
+	  EQ     { Lex->ha_rkey_mode=HA_READ_KEY_EXACT;   }
+	| GE     { Lex->ha_rkey_mode=HA_READ_KEY_OR_NEXT; }
+	| LE     { Lex->ha_rkey_mode=HA_READ_KEY_OR_PREV; }
+	| GT_SYM { Lex->ha_rkey_mode=HA_READ_AFTER_KEY;   }
+	| LT     { Lex->ha_rkey_mode=HA_READ_BEFORE_KEY;  }
 
 /* GRANT / REVOKE */
 

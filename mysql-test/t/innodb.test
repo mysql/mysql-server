@@ -1,4 +1,4 @@
--- source include/have_innobase.inc
+-- source include/have_innodb.inc
 
 #
 # Small basic test with ignore

@@ -17,9 +17,9 @@ package main;
 $opt_skip_create=$opt_skip_in=$opt_verbose=$opt_fast_insert=
 $opt_lock_tables=$opt_debug=$opt_skip_delete=$opt_fast=$opt_force=0;
 $opt_threads=5;
-$opt_host=""; $opt_db="test";
+$opt_host=$opt_user=$opt_password=""; $opt_db="test";
 
-GetOptions("host=s","db=s","loop-count=i","skip-create","skip-in","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","threads=i") || die "Aborted";
+GetOptions("host=s","db=s","user=s","password=s","loop-count=i","skip-create","skip-in","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","threads=i") || die "Aborted";
 $opt_verbose=$opt_debug=$opt_lock_tables=$opt_fast_insert=$opt_fast=$opt_skip_in=$opt_force=undef;  # Ignore warnings from these
 
 print "Test of multiple connections that test the following things:\n";
@@ -93,6 +93,7 @@ test_update() if (($pid=fork()) == 0); $work{$pid}="update";
 test_flush() if (($pid=fork()) == 0); $work{$pid}= "flush";
 test_check() if (($pid=fork()) == 0); $work{$pid}="check";
 test_repair() if (($pid=fork()) == 0); $work{$pid}="repair";
+#test_database("test2") if (($pid=fork()) == 0); $work{$pid}="check_database";
 
 print "Started " . ($opt_threads*2+4) . " threads\n";
 
@@ -331,7 +332,6 @@ sub test_check
   exit(0);
 }
 
-
 #
 # Do a repair on the first table once in a while
 #
@@ -392,6 +392,42 @@ sub test_flush
   exit(0);
 }
 
+
+#
+# Test all tables in a database
+#
+
+sub test_database
+{
+  my ($database) = @_;
+  my ($dbh, $row, $i, $type, $tables);
+  $dbh = DBI->connect("DBI:mysql:$database:$opt_host",
+		      $opt_user, $opt_password,
+		    { PrintError => 0}) || die $DBI::errstr;
+
+  $tables= join(',',$dbh->func('_ListTables'));
+  $type= "check";
+  for ($i=0 ; !test_if_abort($dbh) ; $i++)
+  {
+    sleep(120);
+    $sth=$dbh->prepare("$type table $tables") || die "Got error on prepare: $DBI::errstr\n";
+    $sth->execute || die $DBI::errstr;
+
+    while (($row=$sth->fetchrow_arrayref))
+    {
+      if ($row->[3] ne "OK")
+      {
+	print "Got error " . $row->[2] . " " . $row->[3] . " when doing $type on " . $row->[0] . "\n";
+	exit(1);
+      }
+    }
+  }
+  $dbh->disconnect; $dbh=0;
+  print "test_check: Executed $i checks\n";
+  exit(0);
+}
+
+
 #
 # Help functions
 #
@@ -412,7 +448,7 @@ sub signal_abort
 sub test_if_abort()
 {
   my ($dbh)=@_;
-  $row=simple_query($dbh,"select * from $abort_table");
+  $row=simple_query($dbh,"select * from $opt_db.$abort_table");
   return (defined($row) && defined($row->[0]) != 0) ? 1 : 0;
 }
 

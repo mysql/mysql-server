@@ -24,7 +24,7 @@
 class Query_log_event;
 class Load_log_event;
 
-
+enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_IGNORE };
 enum enum_log_type { LOG_CLOSED, LOG_NORMAL, LOG_NEW, LOG_BIN };
 
@@ -231,7 +231,7 @@ public:
   const   char *proc_info;
   uint	  client_capabilities,max_packet_length;
   uint	  master_access,db_access;
-  TABLE   *open_tables,*temporary_tables;
+  TABLE   *open_tables,*temporary_tables, *handler_tables;
   MYSQL_LOCK *lock,*locked_tables;
   ULL	  *ull;
   struct st_my_thread_var *mysys_var;
@@ -253,7 +253,7 @@ public:
 #ifdef HAVE_GEMINI_DB
   struct st_gemini gemini;
 #endif
-  Item	     *free_list;
+  Item	     *free_list, *handler_items;
   CONVERT    *convert_set;
   Field      *dupp_field;
 #ifndef __WIN__
