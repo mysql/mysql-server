@@ -122,7 +122,6 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
     memcpy_fixed(&sock_addr.sin_addr,&ip_addr,sizeof(ip_addr));
   }
   else
-#if defined(HAVE_GETHOSTBYNAME_R) && defined(_REENTRANT) && defined(THREAD)
   {
     int tmp_errno;
     struct hostent tmp_hostent,*hp;
@@ -133,22 +132,12 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
     {
       con->last_errno=tmp_errno;
       sprintf(con->last_error,"Could not resolve host '%s'",host);
+      my_gethostbyname_r_free();
       goto err;
     }
     memcpy(&sock_addr.sin_addr,hp->h_addr, (size_t) hp->h_length);
+    my_gethostbyname_r_free();
   }
-#else
-  {
-    struct hostent *hp;
-    if (!(hp=gethostbyname(host)))
-    {
-      con->last_errno=socket_errno;
-      sprintf(con->last_error, "Could not resolve host '%s'", host);
-      goto err;
-    }
-    memcpy(&sock_addr.sin_addr,hp->h_addr, (size_t) hp->h_length);
-  }
-#endif
   sock_addr.sin_port = (ushort) htons((ushort) port);
   if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
 		 0) <0)

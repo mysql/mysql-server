@@ -61,7 +61,8 @@ dict_mem_table_create(
 	table->mem_fix = 0;
 
 	table->n_mysql_handles_opened = 0;
-
+	table->n_foreign_key_checks_running = 0;
+		
 	table->cached = FALSE;
 	
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
@@ -235,6 +236,7 @@ dict_mem_foreign_create(void)
 
 	foreign->id = NULL;
 
+	foreign->type = 0;
 	foreign->foreign_table_name = NULL;
 	foreign->foreign_table = NULL;
 	foreign->foreign_col_names = NULL;

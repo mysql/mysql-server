@@ -28,9 +28,9 @@ int main(int argc __attribute__((unused)), char **argv __attribute__((unused)))
 #include <my_sys.h>
 #include <my_pthread.h>
 #include "mysql.h"
-#include <getopt.h>
+#include <my_getopt.h>
 
-static my_bool version,verbose;
+static my_bool version, verbose, tty_password= 0;
 static uint thread_count,number_of_tests=1000,number_of_threads=2;
 static pthread_cond_t COND_thread_count;
 static pthread_mutex_t LOCK_thread_count;
@@ -84,22 +84,38 @@ end:
 }
 
 
-static struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"help",	no_argument,	   0, '?'},
-  {"database",  required_argument, 0, 'D'},
-  {"host",	required_argument, 0, 'h'},
-  {"password",	optional_argument, 0, 'p'},
-  {"user",	required_argument, 0, 'u'},
-  {"version",	no_argument,	   0, 'V'},
-  {"verbose",	no_argument,	   0, 'v'},
-  {"query",	required_argument, 0, 'Q'},
-  {"port",	required_argument, 0, 'P'},
-  {"socket",	required_argument, 0, 'S'},
-  {"test-count",required_argument, 0, 'c'},
-  {"thread-count",required_argument, 0, 't'},
-  {0, 0, 0, 0}
+  {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0},
+  {"database", 'D', "Database to use", (gptr*) &database, (gptr*) &database,
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Connect to host", (gptr*) &host, (gptr*) &host, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"password", 'p',
+   "Password to use when connecting to server. If password is not given it's asked from the tty.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User for login if not current user", (gptr*) &user,
+   (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Write some progress indicators", (gptr*) &verbose,
+   (gptr*) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"query", 'Q', "Query to execute in each threads", (gptr*) &query,
+   (gptr*) &query, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection", (gptr*) &tcp_port,
+   (gptr*) &tcp_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"socket", 'S', "Socket file to use for connection", (gptr*) &unix_socket,
+   (gptr*) &unix_socket, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"test-count", 'c', "Run test count times (default %d)",
+   (gptr*) &number_of_tests, (gptr*) &number_of_tests, 0, GET_UINT,
+   REQUIRED_ARG, 1000, 0, 0, 0, 0, 0},
+  {"thread-count", 't', "Number of threads to start",
+   (gptr*) &number_of_threads, (gptr*) &number_of_threads, 0, GET_UINT,
+   REQUIRED_ARG, 2, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 
 static const char *load_default_groups[]= { "client",0 };
 
@@ -110,103 +126,55 @@ static void usage()
     return;
   puts("This software comes with ABSOLUTELY NO WARRANTY.\n");
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
-  printf("\n\
-  -?, --help		Display this help and exit\n\
-  -c #, --test-count=#	Run test count times (default %d)\n",number_of_tests);
-  printf("\
-  -D, --database=..	Database to use\n\
-  -h, --host=...	Connect to host\n\
-  -p[password], --password[=...]\n\
-			Password to use when connecting to server\n\
-			If password is not given it's asked from the tty.\n");
-  printf("\n\
-  -P  --port=...	Port number to use for connection\n\
-  -Q, --query=...	Query to execute in each threads\n\
-  -S  --socket=...	Socket file to use for connection\n");
-  printf("\
-  -t  --thread-count=#	Number of threads to start (default: %d) \n\
-  -u, --user=#		User for login if not current user\n\
-  -v, --verbose		Write some progress indicators\n\
-  -V, --version		Output version information and exit\n",
-	 number_of_threads);
 
+  my_print_help(my_long_options);
   print_defaults("my",load_default_groups);
-
+  my_print_variables(my_long_options);
   printf("\nExample usage:\n\n\
 %s -Q 'select * from mysql.user' -c %d -t %d\n",
 	 my_progname, number_of_tests, number_of_threads);
 }
 
 
-static void get_options(int argc, char **argv)
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
 {
-  int c,option_index=0,error=0;
-  bool tty_password=0;
-  load_defaults("my",load_default_groups,&argc,&argv);
-
-  while ((c=getopt_long(argc,argv, "c:D:h:p::VQ:P:S:t:?I",
-			long_options, &option_index)) != EOF)
-  {
-    switch (c) {
-    case 'c':
-      number_of_tests=atoi(optarg);
-      break;
-    case 'D':
-      my_free(database,MYF(MY_ALLOW_ZERO_PTR));      
-      database=my_strdup(optarg,MYF(MY_WME));
-      break;
-    case 'h':
-      host = optarg;
-      break;
-    case 'Q':					/* Allow old 'q' option */
-      query= optarg;
-      break;
-    case 'p':
-      if (optarg)
-      {
-	my_free(password,MYF(MY_ALLOW_ZERO_PTR));
-	password=my_strdup(optarg,MYF(MY_FAE));
-	while (*optarg) *optarg++= 'x';		/* Destroy argument */
-      }
-      else
-	tty_password=1;
-      break;
-    case 'u':
-      my_free(user,MYF(MY_ALLOW_ZERO_PTR));
-      user= my_strdup(optarg,MYF(0));
-      break;
-    case 'P':
-      tcp_port= (unsigned int) atoi(optarg);
-      break;
-    case 'S':
-      my_free(unix_socket,MYF(MY_ALLOW_ZERO_PTR));
-      unix_socket= my_strdup(optarg,MYF(0));
-      break;
-    case 't':
-      number_of_threads=atoi(optarg);
-      break;
-    case 'v':
-      verbose=1;
-      break;
-    case 'V':
-      version=1;
-      usage();
-      exit(0);
-      break;
-    default:
-      fprintf(stderr,"Illegal option character '%c'\n",opterr);
-      /* Fall through */
-    case '?':
-    case 'I':					/* Info */
-      error++;
-      break;
+  switch (optid) {
+  case 'p':
+    if (argument)
+    {
+      my_free(password, MYF(MY_ALLOW_ZERO_PTR));
+      password= my_strdup(argument, MYF(MY_FAE));
+      while (*argument) *argument++= 'x';		/* Destroy argument */
     }
-  }
-  if (error || argc != optind)
-  {
+    else
+      tty_password= 1;
+    break;
+  case 'V':
+    version= 1;
+    usage();
+    exit(0);
+    break;
+  case '?':
+  case 'I':					/* Info */
     usage();
     exit(1);
+    break;
   }
+  return 0;
+}
+
+
+static void get_options(int argc, char **argv)
+{
+  int ho_error;
+
+  load_defaults("my",load_default_groups,&argc,&argv);
+
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    exit(ho_error);
+
   free_defaults(argv);
   if (tty_password)
     password=get_tty_password(NullS);

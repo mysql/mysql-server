@@ -11573,10 +11573,10 @@ Weile nichts von ihnen gehört.
 
 @node Novell Netware,  , BeOS, Operating System Specific Notes
 @c German node Novell Netware
-@subsection Anmerkungen zu Novell Netware
+@subsection Anmerkungen zu Novell NetWare
 
-Wir sind sehr daran interessiert, MySQL auf Netware ans Laufen zu bringen,
-aber leider kennen wir niemanden, der sich mit Netware auskennt oder Zeit hat,
+Wir sind sehr daran interessiert, MySQL auf NetWare ans Laufen zu bringen,
+aber leider kennen wir niemanden, der sich mit NetWare auskennt oder Zeit hat,
 eine Portierung durchzuführen.
 
 Wir sind daran interessiert, jemanden für eine Portierung zu finden, und
@@ -16998,6 +16998,7 @@ neu starten, um @code{mysqldump} benutzen zu können.
 * Privilege changes::           
 * Default privileges::          
 * Adding users::                
+* User resources::              
 * Passwords::                   
 * Password security::           
 @end menu
@@ -17653,7 +17654,7 @@ müssen Sie sie aus Ihrer MySQL-Distribution zurück kopieren, bevor Sie
 @code{mysql_install_db} laufen lassen.
 
 
-@node Adding users, Passwords, Default privileges, User Account Management
+@node Adding users, User resources, Default privileges, User Account Management
 @c German node Benutzer hinzufügen
 @subsection Neue MySQL-Benutzer hinzufügen
 
@@ -17862,8 +17863,71 @@ einzufügen, zu ändern und zu aktualisieren. Sie finden diese Werkzeuge unter
 @uref{http://www.mysql.com/downloads/contrib/,Contrib-Verzeichnis der
 MySQL-Website}.
 
+@node User resources, Passwords, Adding users, User Account Management
+@c New section added by arjen 2002-05-17 to keep en/de in sync
+@subsection Limiting user resources
 
-@node Passwords, Password security, Adding users, User Account Management
+@c FIX Original section text - to be translated.
+@c FIX Also check manual.texi for other mentions of MAX_..._PER_HOUR
+
+Starting from MySQL 4.0.2 one can limit certain resources per user.
+
+So far, the only available method of limiting user usage of MySQL
+server resources has been setting the @code{max_user_connections}
+startup variable to a non-zero value. But this method is strictly
+global and does not allow for management of individual users, which
+could be of paricular interest to Internet Service Providers.
+
+Therefore, management of three resources is introduced on the
+individual user level:
+
+@itemize @bullet
+@item Number of all queries per hour:
+All commands that could be run by a user.
+@item Number of all updates per hour:
+Any command that changes any table or database.
+@item Number of connections made per hour:
+New connections opened per hour.
+@end itemize
+
+A user in the aforementioned context is a single entry in the
+@code{user} table, which is uniquely identified by its @code{user}
+and @code{host} columns.
+
+All users are by default not limited in using the above resources,
+unless the limits are granted to them. These limits can be granted
+@strong{only} via global @code{GRANT (*.*)}, using this syntax:
+
+@example
+GRANT ... WITH MAX_QUERIES_PER_HOUR = N1
+               MAX_UPDATES_PER_HOUR = N2
+               MAX_CONNECTIONS_PER_HOUR = N3;
+@end example
+
+One can specify any combination of the above resources.
+N1, N2 and N3 are integers and stands for count / hour.
+
+If user reaches any of the above limits withing one hour, his
+connection will be terminated or refused and the appropriate error
+message shall be issued.
+
+Current usage values for a particular user can be flushed (set to zero)
+by issuing a @code{GRANT} statement with any of the above clauses,
+including a @code{GRANT} statement with the current values.
+
+Also, current values for all users will be flushed if privileges are
+reloaded (in the server or using @code{mysqladmin reload})
+or if the @code{FLUSH USER_RESOURCES} command is issued.
+
+The feature is enabled as soon as a single user is granted with any
+of the limiting @code{GRANT} clauses.
+
+As a prerequisite for enabling this feature, the @code{user} table in
+the @code{mysql} database must contain the additional columns, as
+defined in the table creation scripts @code{mysql_install_db} and
+@code{mysql_install_db.sh} in @file{scripts} subdirectory.
+
+@node Passwords, Password security, User resources, User Account Management
 @c German node Passwörter
 @subsection Passwörter einrichten
 
@@ -39897,12 +39961,12 @@ gespeichert werden kann.
 
 
 @menu
-* InnoDB Disk i/o::             
+* InnoDB Disk I/O::             
 * InnoDB File space::           
 * InnoDB File Defragmenting::   
 @end menu
 
-@node InnoDB Disk i/o, InnoDB File space, File space management, File space management
+@node InnoDB Disk I/O, InnoDB File space, File space management, File space management
 @c German node Festplatten-Ein- und -Ausgaben bei InnoDB
 @subsubsection Festplatten-Ein- und -Ausgaben
 
@@ -39969,7 +40033,7 @@ Eingelesenwerdens in den Puffer-Pool zu sein scheint. Dann schickt InnoDB
 die verbleibenden Lesevorgänge an das Ein-/Ausgabesystem.
 
 
-@node InnoDB File space, InnoDB File Defragmenting, InnoDB Disk i/o, File space management
+@node InnoDB File space, InnoDB File Defragmenting, InnoDB Disk I/O, File space management
 @c German node Speicherplatz in InnoDB
 @subsubsection Speicherplatzverwaltung
 
@@ -44743,6 +44807,7 @@ wollen. @xref{Threaded clients}.
 * my_init::                     
 * mysql_thread_init::           
 * mysql_thread_end::            
+* mysql_thread_safe::           
 @end menu
 
 @node my_init, mysql_thread_init, C Thread functions, C Thread functions
@@ -44783,7 +44848,7 @@ Diese Funktion wird automatisch von @code{my_init()} und
 
 Keine.
 
-@node mysql_thread_end,  , mysql_thread_init, C Thread functions
+@node mysql_thread_end, mysql_thread_safe, mysql_thread_init, C Thread functions
 @c German node mysql_thread_end()
 @subsubsection @code{mysql_thread_end()}
 
@@ -44802,6 +44867,22 @@ Speicherlecks zu vermeiden.
 @subsubheading Rückgabewerte
 
 Keine.
+
+@node mysql_thread_safe,  , mysql_thread_end, C Thread functions
+@c Arjen note: new @node 2002-04-19, please translate text!
+@subsubsection @code{mysql_thread_safe()}
+
+@findex @code{mysql_thread_safe()}
+
+@code{unsigned int mysql_thread_safe(void)}
+
+@subsubheading Description
+
+This function indicates whether the client is compiled as thread safe.
+
+@subsubheading Return Values
+
+1 is the client is thread safe, 0 otherwise.
 
 @node C Embedded Server func, C API problems, C Thread functions, C
 @c German node C-Embedded-Server-Funktionen

@@ -220,7 +220,7 @@ mutex_create_func(
 	char*		cfile_name,	/* in: file name where created */
 	ulint		cline)		/* in: file line where created */
 {
-#ifdef _WIN32
+#if defined(_WIN32) && defined(UNIV_CAN_USE_X86_ASSEMBLER) 
 	mutex_reset_lock_word(mutex);
 #else	
 	os_fast_mutex_init(&(mutex->os_fast_mutex));
@@ -273,7 +273,7 @@ mutex_free(
 
 	mutex_exit(&mutex_list_mutex);
 
-#ifndef _WIN32
+#if !defined(_WIN32) || !defined(UNIV_CAN_USE_X86_ASSEMBLER) 
 	os_fast_mutex_free(&(mutex->os_fast_mutex));
 #endif
 	/* If we free the mutex protecting the mutex list (freeing is
@@ -1009,7 +1009,7 @@ sync_thread_add_level(
 	} else if (level == SYNC_ANY_LATCH) {
 		ut_a(sync_thread_levels_g(array, SYNC_ANY_LATCH));
 	} else if (level == SYNC_TRX_SYS_HEADER) {
-		ut_a(sync_thread_levels_contain(array, SYNC_KERNEL));
+		ut_a(sync_thread_levels_g(array, SYNC_TRX_SYS_HEADER));
 	} else if (level == SYNC_DOUBLEWRITE) {
 		ut_a(sync_thread_levels_g(array, SYNC_DOUBLEWRITE));
 	} else if (level == SYNC_BUF_BLOCK) {

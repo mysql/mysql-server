@@ -1,8 +1,8 @@
 #ifndef _SYS___PATHS_H_
 #define _SYS___PATHS_H_
 #define _PATH_PTY "/dev/"
-#define _PATH_TZDIR "/usr/share/zoneinfo"
-#define _PATH_TZFILE "/etc/localtime"
+#define _PATH_TZDIR "/usr/lib/zoneinfo"
+#define _PATH_TZFILE "/usr/lib/zoneinfo/localtime"
 #define _PATH_RESCONF "/etc/resolv.conf"
 #define _PATH_HOSTS "/etc/hosts"
 #define _PATH_NETWORKS "/etc/networks"

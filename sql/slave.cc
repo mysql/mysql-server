@@ -48,12 +48,10 @@ ulong relay_log_space_limit = 0; /* TODO: fix variables to access ulonglong
 // can re-use them on slave start
 
 // TODO: move the vars below under MASTER_INFO
-#ifndef DBUG_OFF
 int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
 static int events_till_disconnect = -1;
 int events_till_abort = -1;
 static int stuck_count = 0;
-#endif
 
 typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL} SLAVE_THD_TYPE;
 
@@ -191,9 +189,20 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
     pos = rli->relay_log_pos; // already inited
   else
     rli->relay_log_pos = pos;
-  if (rli->relay_log.find_first_log(&rli->linfo,log))
+
+  // test to see if the previous run was with the skip of purging
+  // if yes, we do not purge when we restart
+  if (rli->relay_log.find_first_log(&rli->linfo,""))
   {
     *errmsg="Could not find first log during relay log initialization";
+    goto err;
+  }
+  if (strcmp(log,rli->linfo.log_file_name))
+    rli->skip_log_purge=1;
+  
+  if (rli->relay_log.find_first_log(&rli->linfo,log))
+  {
+    *errmsg="Could not find target log during relay log initialization";
     goto err;
   }
   strnmov(rli->relay_log_name,rli->linfo.log_file_name,
@@ -235,9 +244,10 @@ err:
 }
 
 /* called from get_options() in mysqld.cc on start-up */
-void init_slave_skip_errors(char* arg)
+
+void init_slave_skip_errors(const char* arg)
 {
-  char* p;
+  const char *p;
   my_bool last_was_digit = 0;
   if (bitmap_init(&slave_error_mask,MAX_SLAVE_ERROR,0))
   {
@@ -264,8 +274,11 @@ void init_slave_skip_errors(char* arg)
   }
 }
 
-// we assume we have a run lock on rli and that the both slave thread
-// are not running
+/*
+  We assume we have a run lock on rli and that the both slave thread
+  are not running
+*/
+
 int purge_relay_logs(RELAY_LOG_INFO* rli, bool just_reset, const char** errmsg)
 {
   DBUG_ENTER("purge_relay_logs");
@@ -503,7 +516,7 @@ void init_table_rule_hash(HASH* h, bool* h_inited)
 
 void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited)
 {
-  init_dynamic_array(a, sizeof(TABLE_RULE_ENT*), TABLE_RULE_ARR_SIZE,
+  my_init_dynamic_array(a, sizeof(TABLE_RULE_ENT*), TABLE_RULE_ARR_SIZE,
 		     TABLE_RULE_ARR_SIZE);
   *a_inited = 1;
 }
@@ -1104,14 +1117,17 @@ static inline int add_relay_log(RELAY_LOG_INFO* rli,LOG_INFO* linfo)
 
 static bool wait_for_relay_log_space(RELAY_LOG_INFO* rli)
 {
-  bool slave_killed;
+  bool slave_killed=0;
   MASTER_INFO* mi = rli->mi;
   const char* save_proc_info;
   THD* thd = mi->io_thd;
+
   DBUG_ENTER("wait_for_relay_log_space");
+
   pthread_mutex_lock(&rli->log_space_lock);
   save_proc_info = thd->proc_info;
   thd->proc_info = "Waiting for relay log space to free";
+
   while (rli->log_space_limit < rli->log_space_total &&
 	 !(slave_killed=io_slave_killed(thd,mi)))
   {
@@ -1557,9 +1573,6 @@ command");
 static ulong read_event(MYSQL* mysql, MASTER_INFO *mi)
 {
   ulong len = packet_error;
-  // for convinience lets think we start by
-  // being in the interrupted state :-)
-  int read_errno = EINTR;
 
   // my_real_read() will time us out
   // we check if we were told to die, and if not, try reading again
@@ -1568,27 +1581,21 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi)
     return packet_error;      
 #endif
   
-  while (!abort_loop && !mi->abort_slave && len == packet_error &&
-	 read_errno == EINTR )
-  {
-    len = mc_net_safe_read(mysql);
-    read_errno = errno;
-  }
-  if (abort_loop || mi->abort_slave)
-    return packet_error;
+  len = mc_net_safe_read(mysql);
+
   if (len == packet_error || (long) len < 1)
   {
-    sql_print_error("Error reading packet from server: %s (read_errno %d,\
+    sql_print_error("Error reading packet from server: %s (\
 server_errno=%d)",
-		    mc_mysql_error(mysql), read_errno, mc_mysql_errno(mysql));
+		    mc_mysql_error(mysql), mc_mysql_errno(mysql));
     return packet_error;
   }
 
   if (len == 1)
   {
      sql_print_error("Slave: received 0 length packet from server, apparent\
- master shutdown: %s (%d)",
-		     mc_mysql_error(mysql), read_errno);
+ master shutdown: %s",
+		     mc_mysql_error(mysql));
      return packet_error;
   }
   
@@ -2498,6 +2505,15 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
       return ev;
     }
     DBUG_ASSERT(thd==rli->sql_thd);
+    if (opt_reckless_slave)
+      cur_log->error = 0;
+    if ( cur_log->error < 0)
+    {
+      errmsg = "slave SQL thread aborted because of I/O error";
+      goto err;
+    }
+    
+
     if (!cur_log->error) /* EOF */
     {
       /*
@@ -2560,6 +2576,7 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	    goto err;
 	  }
 	  rli->relay_log_pos = 4;
+	  rli->pending=0;
 	  strnmov(rli->relay_log_name,rli->linfo.log_file_name,
 		  sizeof(rli->relay_log_name));
 	  flush_relay_log_info(rli);
@@ -2606,12 +2623,12 @@ event(errno=%d,cur_log->error=%d)",
 		      my_errno,cur_log->error);
       // set read position to the beginning of the event
       my_b_seek(cur_log,rli->relay_log_pos+rli->pending);
-      // no need to hog the mutex while we sleep
-      pthread_mutex_unlock(&rli->data_lock);
-      safe_sleep(rli->sql_thd,1,(CHECK_KILLED_FUNC)sql_slave_killed,
-		 (void*)rli);
-      pthread_mutex_lock(&rli->data_lock);
+      /* otherwise, we have had a partial read */
+      /* TODO; see if there is a way to do this without this goto */
+      errmsg = "Aborting slave SQL thread because of partial event read";
+      goto err;
     }
+
   }
   if (!errmsg && was_killed)
     errmsg = "slave SQL thread was killed";

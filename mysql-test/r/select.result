@@ -3207,23 +3207,23 @@ Tables_in_test (s%)
 show tables from test like "t?";
 Tables_in_test (t?)
 show full columns from t2;
-Field	Type	Null	Key	Default	Extra	Privileges
-auto	int(11)		PRI	NULL	auto_increment	select,insert,update,references
-fld1	int(6) unsigned zerofill		UNI	000000		select,insert,update,references
-companynr	tinyint(2) unsigned zerofill			00		select,insert,update,references
-fld3	char(30)		MUL			select,insert,update,references
-fld4	char(35)					select,insert,update,references
-fld5	char(35)					select,insert,update,references
-fld6	char(4)					select,insert,update,references
+Field	Type	Null	Key	Default	Extra	Privileges	Comment
+auto	int(11)		PRI	NULL	auto_increment	select,insert,update,references	
+fld1	int(6) unsigned zerofill		UNI	000000		select,insert,update,references	
+companynr	tinyint(2) unsigned zerofill			00		select,insert,update,references	
+fld3	char(30)		MUL			select,insert,update,references	
+fld4	char(35)					select,insert,update,references	
+fld5	char(35)					select,insert,update,references	
+fld6	char(4)					select,insert,update,references	
 show full columns from t2 from test like 'f%';
-Field	Type	Null	Key	Default	Extra	Privileges
-fld1	int(6) unsigned zerofill		UNI	000000		select,insert,update,references
-fld3	char(30)		MUL			select,insert,update,references
-fld4	char(35)					select,insert,update,references
-fld5	char(35)					select,insert,update,references
-fld6	char(4)					select,insert,update,references
+Field	Type	Null	Key	Default	Extra	Privileges	Comment
+fld1	int(6) unsigned zerofill		UNI	000000		select,insert,update,references	
+fld3	char(30)		MUL			select,insert,update,references	
+fld4	char(35)					select,insert,update,references	
+fld5	char(35)					select,insert,update,references	
+fld6	char(4)					select,insert,update,references	
 show full columns from t2 from test like 's%';
-Field	Type	Null	Key	Default	Extra	Privileges
+Field	Type	Null	Key	Default	Extra	Privileges	Comment
 show keys from t2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t2	0	PRIMARY	1	auto	A	1199	NULL	NULL		BTREE	

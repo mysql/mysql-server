@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Definefile for errormessagenumbers */
+/* Definefile for error messagenumbers */
 
 #define ER_HASHCHK 1000
 #define ER_NISAMCHK 1001
@@ -243,6 +243,8 @@
 #define ER_MIXING_NOT_ALLOWED 1224
 #define ER_DUP_ARGUMENT 1225
 #define ER_USER_LIMIT_REACHED 1226
-#define ER_SUBSELECT_NO_1_COL 1227
-#define ER_SUBSELECT_NO_1_ROW 1228
-#define ER_ERROR_MESSAGES 229
+#define ER_WRONG_FK_DEF 1227
+#define ER_KEY_REF_DO_NOT_MATCH_TABLE_REF 1228
+#define ER_SUBSELECT_NO_1_COL 1229
+#define ER_SUBSELECT_NO_1_ROW 1231
+#define ER_ERROR_MESSAGES 231

@@ -213,16 +213,17 @@ public:
   uint32 numchars();
   int charpos(int i,uint32 offset=0);
 
-// added by Holyfoot for "geometry" needs
   int reserve(uint32 space_needed)
   {
     return realloc(str_length + space_needed);
   }
   int reserve(uint32 space_needed, uint32 grow_by);
 
-// these append operations do NOT check alloced memory
-// q_*** methods writes values of parameters itself
-// qs_*** methods writes string representation of value
+  /*
+    The following append operations do NOT check alloced memory
+    q_*** methods writes values of parameters itself
+    qs_*** methods writes string representation of value
+  */
   void q_append(const char &c)
   {
     Ptr[str_length++] = c;

@@ -30,7 +30,7 @@
 #include <m_string.h>
 #include <m_ctype.h>
 #include <hash.h>
-#include <getopt.h>
+#include <my_getopt.h>
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -41,8 +41,8 @@
 #include <sys/wait.h>
 #endif
 
-#define MANAGER_VERSION "1.0"
-#define MANAGER_GREETING "MySQL Server Management Daemon v. 1.0" 
+#define MANAGER_VERSION "1.2"
+#define MANAGER_GREETING "MySQL Server Management Daemon v. 1.2" 
 
 #define LOG_ERR  1
 #define LOG_WARN 2
@@ -99,7 +99,7 @@
 #define DO_STACKTRACE 1
 #endif
 
-uint manager_port = MANAGER_PORT;
+uint manager_port;
 FILE* errfp;
 const char* manager_log_file = MANAGER_LOG_FILE;
 pthread_mutex_t lock_log,lock_shutdown,lock_exec_hash,lock_launch_thd;
@@ -108,14 +108,14 @@ pthread_t loop_th,launch_msg_th;
 int manager_sock = -1;
 uchar* stack_bottom=0;
 struct sockaddr_in manager_addr;
-ulong manager_bind_addr = INADDR_ANY;
-int manager_back_log = MANAGER_BACK_LOG;
+ulong manager_bind_addr;
+int manager_back_log;
 int in_shutdown = 0, shutdown_requested=0;
-int manager_connect_retries=MANAGER_CONNECT_RETRIES;
+int manager_connect_retries;
 const char* manager_greeting = MANAGER_GREETING;
-uint manager_max_cmd_len = MANAGER_MAX_CMD_LEN;
+uint manager_max_cmd_len;
 const char* manager_pw_file=MANAGER_PW_FILE;
-int one_thread = 0; /* for debugging */
+my_bool one_thread; /* for debugging */
 
 typedef enum {PARAM_STDOUT,PARAM_STDERR} PARAM_TYPE;
 
@@ -232,8 +232,8 @@ static int set_exec_param(struct manager_thd* thd, char* args_start,
 
 #define HANDLE_DECL(com) static int com (struct manager_thd* thd, char* args_start,char* args_end)
 #define HANDLE_NOARG_DECL(com) static int com \
-  (struct manager_thd* thd, char* __attribute__((unused)) args_start,\
- char* __attribute__((unused)) args_end)
+  (struct manager_thd* thd, char *args_start __attribute__((unused)),\
+ char* args_end __attribute__((unused)))
 
 
 HANDLE_NOARG_DECL(handle_ping);
@@ -272,22 +272,44 @@ struct manager_cmd commands[] =
   {0,0,0,0}
 };
 
-struct option long_options[] =
+
+static struct my_option my_long_options[] =
 {
-  {"debug", optional_argument, 0, '#'},
-  {"help",  no_argument, 0, 'h'},
-  {"port",  required_argument, 0, 'P'},
-  {"log",  required_argument, 0, 'l'},
-  {"bind-address", required_argument, 0, 'b'},
-  {"tcp-backlog", required_argument, 0, 'B'},
-  {"greeting", required_argument, 0, 'g'},
-  {"max-command-len",required_argument,0,'m'},
-  {"one-thread",no_argument,0,'d'},
-  {"connect-retries",required_argument,0,'C'},
-  {"password-file",required_argument,0,'p'},
-  {"pid-file",required_argument,0,'f'},
-  {"version", no_argument, 0, 'V'},
-  {0, 0, 0, 0}
+#ifndef DBUG_OFF
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+  {"help", '?', "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to listen on.", (gptr*) &manager_port,
+   (gptr*) &manager_port, 0, GET_UINT, REQUIRED_ARG, MANAGER_PORT, 0, 0, 0,
+   0, 0},
+  {"log", 'l', "Path to log file.", (gptr*) &manager_log_file,
+   (gptr*) &manager_log_file, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"bind-address", 'b', "Address to listen on.", (gptr*) &manager_bind_addr,
+   (gptr*) &manager_bind_addr, 0, GET_ULONG, REQUIRED_ARG, INADDR_ANY, 0,
+   0, 0, 0, 0},
+  {"tcp-backlog", 'B', "Size of TCP/IP listen queue.",
+   (gptr*) &manager_back_log, (gptr*) &manager_back_log, 0, GET_INT,
+   REQUIRED_ARG, MANAGER_BACK_LOG, 0, 0, 0, 0, 0},
+  {"greeting", 'g', "Set greeting on connect", (gptr*) &manager_greeting,
+   (gptr*) &manager_greeting, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"max-command-len", 'm', "Maximum command length",
+   (gptr*) &manager_max_cmd_len, (gptr*) &manager_max_cmd_len, 0, GET_UINT,
+   REQUIRED_ARG, MANAGER_MAX_CMD_LEN, 0, 0, 0, 0, 0},
+  {"one-thread", 'd', "Use one thread ( for debugging)", (gptr*) &one_thread,
+   (gptr*) &one_thread, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"connect-retries", 'C', "Number of attempts to establish MySQL connection",
+   (gptr*) &manager_connect_retries, (gptr*) &manager_connect_retries, 0,
+   GET_INT, REQUIRED_ARG, MANAGER_CONNECT_RETRIES, 0, 0, 0, 0, 0},
+  {"password-file", 'p', "Password file for manager",
+   (gptr*) &manager_pw_file, (gptr*) &manager_pw_file, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"pid-file", 'f', "Pid file to use", (gptr*) &pid_file, (gptr*) &pid_file,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 static void die(const char* fmt,...);
@@ -1063,7 +1085,7 @@ static void log_msg(const char* fmt, int msg_type, va_list args)
 }
 
 static pthread_handler_decl(process_launcher_messages,
-			    __attribute__((unused)) arg)
+			    args __attribute__((unused)))
 {
   my_thread_init();
   for (;!in_shutdown;)
@@ -1280,77 +1302,38 @@ static void usage()
   printf("MySQL AB, by Sasha\n");
   printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
   printf("Manages instances of MySQL server.\n\n");
-  printf("Usage: %s [OPTIONS]", my_progname);
-  printf("\n\
-  -?, --help               Display this help and exit.\n");
-#ifndef DBUG_OFF
-  puts("\
-  -#, --debug=[...]        Output debug log. Often this is 'd:t:o,filename`");
-#endif
-  printf("\
-  -P, --port=...           Port number to listen on.\n\
-  -l, --log=...            Path to log file.\n\
-  -b, --bind-address=...   Address to listen on.\n\
-  -B, --tcp-backlog==...   Size of TCP/IP listen queue.\n\
-  -g, --greeting=          Set greeting on connect \n\
-  -m, --max-command-len    Maximum command length \n\
-  -d, --one-thread         Use one thread ( for debugging)  \n\
-  -C, --connect-retries    Number of attempts to establish MySQL connection \n\
-  -m, --max-command-len    Maximum command length \n\
-  -V, --version            Output version information and exit.\n\n");
+  printf("Usage: %s [OPTIONS]\n\n", my_progname);
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
 }
+
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch (optid) {
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/mysqlmgrd.trace");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
+  }
+  return 0;
+}
+
 
 static int parse_args(int argc, char **argv)
 {
-  int c, option_index = 0;
-  while ((c=getopt_long(argc,argv,"P:?#:Vl:b:B:g:m:dC:p:f:",
-			long_options,&option_index)) != EOF)
-  {
-    switch (c)
-      {
-      case '#':
-	DBUG_PUSH(optarg ? optarg : "d:t:O,/tmp/mysqlmgrd.trace");
-	break;
-      case 'd':
-	one_thread=1;
-	break;
-      case 'p':
-	manager_pw_file=optarg;
-	break;
-      case 'f':
-	pid_file=optarg;
-	break;
-      case 'C':
-        manager_connect_retries=atoi(optarg);
-	break;
-      case 'P':
-	manager_port=atoi(optarg);
-	break;
-      case 'm':
-	manager_max_cmd_len=atoi(optarg);
-	break;
-      case 'g':
-	manager_greeting=optarg;
-      case 'b':
-	manager_bind_addr = inet_addr(optarg);
-	break;
-      case 'B':
-	manager_back_log = atoi(optarg);
-	break;
-      case 'l':
-	manager_log_file=optarg;
-	break;
-      case 'V':
-	print_version();
-	exit(0);
-      case '?':
-	usage();
-	exit(0);
-      default:
-	usage();
-	exit(1);
-      }
-  }
+  int ho_error;
+  
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    exit(ho_error);
+
   return 0;
 }
 

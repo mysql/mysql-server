@@ -23,71 +23,77 @@
 
 #include <my_global.h>
 #include <my_sys.h>
-#include <getopt.h>
+#include <my_getopt.h>
 
 const char *config_file="my";			/* Default config file */
 
-static struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"config-file",	required_argument, 0,	'c'},
-  {"defaults-file",	required_argument, 0,	'c'},
-  {"defaults-extra-file", required_argument, 0,	'e'},
-  {"extra-file", 	required_argument, 0,	'e'},
-  {"no-defaults",	no_argument,	   0,	'n'},
-  {"help",		no_argument,	   0,	'?'},
-  {"version",		no_argument,	   0,	'V'},
-  {0, 0, 0, 0}
+  {"config-file", 'c', "The config file to be used",
+   (gptr*) &config_file, (gptr*) &config_file, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"defaults-file", 'c', "Synonym for --config-file",
+   (gptr*) &config_file, (gptr*) &config_file, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"defaults-extra-file", 'e', 
+   "Read this file after the global /etc config file and before the config file in the users home directory.",
+   (gptr*) &defaults_extra_file, (gptr*) &defaults_extra_file, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"extra-file", 'e', 
+   "Synonym for --defaults-extra-file",
+   (gptr*) &defaults_extra_file, (gptr*) &defaults_extra_file, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-defaults", 'n', "Return an empty string (useful for scripts)",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this help message and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 
 static void usage(my_bool version)
 {
-  printf("%s  Ver 1.3 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.5 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
   if (version)
     return;
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   puts("Prints all arguments that is give to some program using the default files");
-  printf("Usage: %s [OPTIONS] groups\n",my_progname);
-  printf("\n\
-  -c, --config-file=#, --defaults-file=#\n\
-	                The config file to use (default '%s')\n\
-  -e, --extra-file=#, --defaults-extra-file=#\n\
-			Read this file after the global /etc config file and\n\
-			before the config file in the users home directory.\n\
-  -n, --no-defaults	Return an empty string (useful for scripts)\n\
-  -?, --help		Display this help message and exit.\n\
-  -V, --version		Output version information and exit.\n",
-	 config_file);
-  printf("\nExample usage:\n%s --config-file=my client mysql\n",my_progname);
+  printf("Usage: %s [OPTIONS] groups\n", my_progname);
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+  printf("\nExample usage:\n%s --config-file=my client mysql\n", my_progname);
 }
+
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument __attribute__((unused)))
+{
+  switch (optid) {
+    case 'n':
+    exit(0);
+    case 'I':
+    case '?':
+    usage(0);
+    exit(0);
+    case 'V':
+    usage(1);
+    exit(0);
+  }
+  return 0;
+}
+
 
 static int get_options(int *argc,char ***argv)
 {
-  int c,option_index;
+  int ho_error;
 
-  while ((c=getopt_long(*argc,*argv,"nc:e:V?I",
-			long_options, &option_index)) != EOF)
-  {
-    switch (c) {
-    case 'c':
-      config_file=optarg;
-      break;
-    case 'e':
-      defaults_extra_file=optarg;		/* Used by the load_defaults */
-      break;
-    case 'n':
-      exit(0);
-    case 'I':
-    case '?':
-      usage(0);
-      exit(0);
-    case 'V':
-      usage(1);
-      exit(0);
-    }
-  }
-  (*argc)-=optind;
-  (*argv)+=optind;
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+    exit(ho_error);
+
   if (*argc < 1)
   {
     usage(0);

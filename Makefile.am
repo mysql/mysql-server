@@ -17,14 +17,14 @@
 # Process this file with automake to create Makefile.in
 
 AUTOMAKE_OPTIONS =	foreign
-TAR =			gtar
+
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE README \
 			COPYING COPYING.LIB MIRRORS
 SUBDIRS =		include @docs_dirs@ @readline_dir@ \
 			@thread_dirs@ pstack @sql_client_dirs@ \
 			@sql_server_dirs@ @libmysqld_dirs@ scripts man \
-			tests BUILD \
+			tests BUILD os2 \
 			@bench_dirs@ support-files @fs_dirs@ @tools_dirs@
 
 # Relink after clean
