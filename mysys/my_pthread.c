@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000 MySQL AB
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -16,6 +16,8 @@
    MA 02111-1307, USA */
 
 /* Functions to get threads more portable */
+
+#define DONT_REMAP_PTHREAD_FUNCTIONS
 
 #include "mysys_priv.h"
 #ifdef THREAD
@@ -372,16 +374,33 @@ int pthread_signal(int sig, void (*func)())
   sigaction(sig, &sact, (struct sigaction*) 0);
   return 0;
 }
-
 #endif
+
+/****************************************************************************
+ The following functions fixes that all pthread functions should work
+ according to latest posix standard
+****************************************************************************/
+
+/* Undefined wrappers set my_pthread.h so that we call os functions */
+#undef pthread_mutex_init
+#undef pthread_mutex_lock
+#undef pthread_mutex_unlock
+#undef pthread_mutex_destroy
+#undef pthread_mutex_wait
+#undef pthread_mutex_timedwait
+#undef pthread_mutex_t
+#undef pthread_cond_wait
+#undef pthread_cond_timedwait
+#undef pthread_mutex_trylock
+#undef pthread_mutex_t
+#undef pthread_cond_t
+
 
 /*****************************************************************************
 ** Patches for AIX and DEC OSF/1 3.2
 *****************************************************************************/
 
 #if (defined(HAVE_NONPOSIX_PTHREAD_MUTEX_INIT) && !defined(HAVE_UNIXWARE7_THREADS)) || defined(HAVE_DEC_3_2_THREADS)
-#undef pthread_mutex_init
-#undef pthread_cond_init
 
 #include <netdb.h>
 
@@ -407,13 +426,20 @@ int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
 
 #endif
 
-/* Change functions on HP to work according to POSIX */
+
+/*****************************************************************************
+  Patches for HPUX
+  We need these because the pthread_mutex.. code returns -1 on error,
+  instead of the error code.
+
+  Note that currently we only remap pthread_ functions used by MySQL.
+  If we are depending on the value for some other pthread_xxx functions,
+  this has to be added here.
+****************************************************************************/
 
 #if defined(HPUX) || defined(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT)
-#undef pthread_cond_timedwait
 
-int my_pthread_cond_timedwait(pthread_cond_t *cond,
-			      pthread_mutex_t *mutex,
+int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 			      struct timespec *abstime)
 {
   int error=pthread_cond_timedwait(cond, mutex, abstime);
@@ -429,7 +455,7 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond,
 #endif
 
 
-#ifdef HPUX
+#ifdef HAVE_POSIX1003_4a_MUTEX
 /*
   In HP-UX-10.20 and other old Posix 1003.4a Draft 4 implementations
   pthread_mutex_trylock returns 1 on success, not 0 like
@@ -447,32 +473,29 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond,
              -1   | [EINVAL] | The value specified by mutex is invalid.
 
 */
-/* We defined pthread_mutex_trylock as a macro in my_pthread.h, we have
-   to undef it here to prevent infinite recursion! Note that this comment
-   documents the pushed bugfix, not just the the code itself here. That is why
-   this comment is good here.
-*/
-
-#undef pthread_mutex_trylock
 
 /*
-This function returns 0 if we are able successfully lock the mutex. If
-the mutex cannot be locked or there is an error, then returns != 0
+  Convert pthread_mutex_trylock to return values according to latest POSIX
+
+  RETURN VALUES
+  0		If we are able successfully lock the mutex.
+  EBUSY		Mutex was locked by another thread
+  #		Other error number returned by pthread_mutex_trylock()
+		(Not likely)  
 */
+
 int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
 {
-  int error = pthread_mutex_trylock(mutex);
-
+  int error= pthread_mutex_trylock(mutex);
   if (error == 1)
-    return 0;           /* success */
-
-  if (error == -1)
-    error=errno;        /* parameter invalid */
-
-  return 1;             /* we were not able to lock the mutex */
+    return 0;				/* Got lock on mutex */
+  if (error == 0)			/* Someon else is locking mutex */
+    return EBUSY;
+  if (error == -1)			/* Safety if the lib is fixed */
+    error= errno;			/* Probably invalid parameter */
+   return error;
 }
-#endif
-
+#endif /* HAVE_POSIX1003_4a_MUTEX */
 
 /* Some help functions */
 
