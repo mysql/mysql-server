@@ -484,3 +484,13 @@ insert into t1 values(1,'first','fff'),(2,'second','sss'),(3,'third','ttt');
 select name2 from t1  union all  select name from t1 union all select id from t1;
 drop table t1;
 
+#
+# Bug #2809 (UNION fails on MyIsam tables when index on second column from
+# same table)
+#
+create table t1 (col1 tinyint unsigned, col2 tinyint unsigned);
+insert into t1 values (1,2),(3,4),(5,6),(7,8),(9,10);
+select col1 n from t1 union select col2 n from t1 order by n;
+alter table t1 add index myindex (col2);
+select col1 n from t1 union select col2 n from t1 order by n;
+drop  table t1;
