@@ -17,13 +17,13 @@
 
 /* This file defines all spatial functions */
 
-#ifdef HAVE_SPATIAL
-
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation
 #endif
 
 #include "mysql_priv.h"
+
+#ifdef HAVE_SPATIAL
 #include "sql_acl.h"
 #include <m_ctype.h>
 
