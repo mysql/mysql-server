@@ -1112,6 +1112,7 @@ public:
     net.last_error[0]= 0;
     net.last_errno= 0;
     net.report_error= 0;
+    query_error= 0;
   }
   inline bool vio_ok() const { return net.vio != 0; }
 #else

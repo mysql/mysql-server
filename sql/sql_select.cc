@@ -194,9 +194,9 @@ static Item *remove_additional_cond(Item* conds);
   This handles SELECT with and without UNION
 */
 
-int handle_select(THD *thd, LEX *lex, select_result *result)
+bool handle_select(THD *thd, LEX *lex, select_result *result)
 {
-  int res;
+  bool res;
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
@@ -223,14 +223,14 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   /* Don't set res if it's -1 as we may want this later */
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
 		     thd->net.report_error));
-  if (thd->net.report_error)
-    res= 1;
+  res|= thd->net.report_error;
   if (unlikely(res))
   {
-    if (res > 0)
-      result->send_error(0, NullS);
+    /*
+      If we have real error reported erly then this will be ignored
+    */
+    result->send_error(ER_UNKNOWN_ERROR, NullS);
     result->abort();
-    res= 1;					// Error sent to client
   }
   DBUG_RETURN(res);
 }
@@ -395,21 +395,20 @@ JOIN::prepare(Item ***rref_pointer_array,
     {
       if (!test_if_subpart(procedure->group,group_list))
       {						/* purecov: inspected */
-	my_message(0,"Can't handle procedures with differents groups yet",
-		   MYF(0));			/* purecov: inspected */
+	my_error(ER_DIFF_GROUPS_PROC, MYF(0));	/* purecov: inspected */
 	goto err;				/* purecov: inspected */
       }
     }
 #ifdef NOT_NEEDED
     else if (!group_list && procedure->flags & PROC_GROUP)
     {
-      my_message(0,"Select must have a group with this procedure",MYF(0));
+      my_message(ER_NO_GROUP_FOR_PROC, MYF(0));
       goto err;
     }
 #endif
     if (order && (procedure->flags & PROC_NO_SORT))
     {						/* purecov: inspected */
-      my_message(0,"Can't use order with this procedure",MYF(0)); /* purecov: inspected */
+      my_error(ER_ORDER_WITH_PROC, MYF(0));     /* purecov: inspected */
       goto err;					/* purecov: inspected */
     }
   }
@@ -1890,7 +1889,7 @@ Cursor::~Cursor()
 /*********************************************************************/
 
 
-int
+bool
 mysql_select(THD *thd, Item ***rref_pointer_array,
 	     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
 	     COND *conds, uint og_num,  ORDER *order, ORDER *group,
@@ -1898,7 +1897,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	     select_result *result, SELECT_LEX_UNIT *unit,
 	     SELECT_LEX *select_lex)
 {
-  int err;
+  bool err;
   bool free_join= 1;
   DBUG_ENTER("mysql_select");
 
@@ -1906,7 +1905,10 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   if (select_lex->join != 0)
   {
     join= select_lex->join;
-    // is it single SELECT in derived table, called in derived table creation
+    /*
+      is it single SELECT in derived table, called in derived table
+      creation
+    */
     if (select_lex->linkage != DERIVED_TABLE_TYPE ||
 	(select_options & SELECT_DESCRIBE))
     {
@@ -1915,7 +1917,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	//here is EXPLAIN of subselect or derived table
 	if (join->change_result(result))
 	{
-	  DBUG_RETURN(-1);
+	  DBUG_RETURN(TRUE);
 	}
       }
       else
@@ -1934,7 +1936,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   else
   {
     if (!(join= new JOIN(thd, fields, select_options, result)))
-	DBUG_RETURN(-1);
+	DBUG_RETURN(TRUE);
     thd->proc_info="init";
     thd->used_tables=0;                         // Updated by setup_fields
     if (join->prepare(rref_pointer_array, tables, wild_num,
@@ -1982,10 +1984,8 @@ err:
   {
     thd->proc_info="end";
     err= join->cleanup();
-    if (thd->net.report_error)
-      err= -1;
     delete join;
-    DBUG_RETURN(err);
+    DBUG_RETURN(err || thd->net.report_error);
   }
   DBUG_RETURN(join->error);
 }
@@ -11557,10 +11557,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 }
 
 
-int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
+bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 {
   DBUG_ENTER("mysql_explain_union");
-  int res= 0;
+  bool res= 0;
   SELECT_LEX *first= unit->first_select();
 
   for (SELECT_LEX *sl= first;
@@ -11611,9 +11611,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 			first->options | thd->options | SELECT_DESCRIBE,
 			result, unit, first);
   }
-  if (res > 0 || thd->net.report_error)
-    res= -1; // mysql_explain_select do not report error
-  DBUG_RETURN(res);
+  DBUG_RETURN(res || thd->net.report_error);
 }
 
 
@@ -11824,17 +11822,17 @@ void st_select_lex::print(THD *thd, String *str)
     res		new select_result object
 
   RETURN
-    0 - OK
-    -1 - error
+    FALSE - OK
+    TRUE  - error
 */
 
-int JOIN::change_result(select_result *res)
+bool JOIN::change_result(select_result *res)
 {
   DBUG_ENTER("JOIN::change_result");
   result= res;
   if (!procedure && result->prepare(fields_list, select_lex->master_unit()))
   {
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }

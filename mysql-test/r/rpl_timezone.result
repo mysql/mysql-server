@@ -73,5 +73,5 @@ t
 2001-09-09 03:46:40
 1000000000
 set global time_zone='MET';
-ERROR HY000: Binary logging and replication forbid changing of the global server time zone
+ERROR HY000: Binary logging and replication forbid changing the global server time zone
 drop table t1, t2;

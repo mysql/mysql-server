@@ -158,11 +158,11 @@ bool check_change_password(THD *thd, const char *host, const char *user,
                            char *password);
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *password);
-int mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
-		ulong rights, bool revoke);
-int mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
-		      List <LEX_COLUMN> &column_list, ulong rights,
-		      bool revoke);
+bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
+                 ulong rights, bool revoke);
+bool mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
+                       List <LEX_COLUMN> &column_list, ulong rights,
+                       bool revoke);
 my_bool grant_init(THD *thd);
 void grant_free(void);
 void grant_reload(THD *thd);
@@ -179,11 +179,11 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table);
 ulong get_column_grant(THD *thd, GRANT_INFO *grant,
                        const char *db_name, const char *table_name,
                        const char *field_name);
-int mysql_show_grants(THD *thd, LEX_USER *user);
+bool mysql_show_grants(THD *thd, LEX_USER *user);
 void get_privilege_desc(char *to, uint max_length, ulong access);
 void get_mqh(const char *user, const char *host, USER_CONN *uc);
-int mysql_drop_user(THD *thd, List <LEX_USER> &list);
-int mysql_revoke_all(THD *thd, List <LEX_USER> &list);
+bool mysql_drop_user(THD *thd, List <LEX_USER> &list);
+bool mysql_revoke_all(THD *thd, List <LEX_USER> &list);
 void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                                      const char *db, const char *table);
 

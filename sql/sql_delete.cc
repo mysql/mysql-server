@@ -29,8 +29,8 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 
-int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
-                 ha_rows limit, ulong options)
+bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
+                  SQL_LIST *order, ha_rows limit, ulong options)
 {
   int		error;
   TABLE		*table;
@@ -41,22 +41,22 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
   ha_rows	deleted;
   DBUG_ENTER("mysql_delete");
 
-  if ((error= open_and_lock_tables(thd, table_list)))
-    DBUG_RETURN(error);
+  if (open_and_lock_tables(thd, table_list))
+    DBUG_RETURN(TRUE);
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   table->map=1;
 
-  if ((error= mysql_prepare_delete(thd, table_list, &conds)))
-    DBUG_RETURN(error);
+  if (mysql_prepare_delete(thd, table_list, &conds))
+    DBUG_RETURN(TRUE);
 
   const_cond= (!conds || conds->const_item());
   safe_update=test(thd->options & OPTION_SAFE_UPDATES);
   if (safe_update && const_cond)
   {
-    send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
-    DBUG_RETURN(1);
+    my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
+    DBUG_RETURN(TRUE);
   }
 
   if (thd->lex->duplicates == DUP_IGNORE)
@@ -85,7 +85,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
   table->quick_keys.clear_all();		// Can't use 'only index'
   select=make_select(table,0,0,conds,&error);
   if (error)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   if ((select && select->check_quick(thd, safe_update, limit)) || !limit)
   {
     delete select;
@@ -103,8 +103,8 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
     {
       delete select;
       free_underlaid_joins(thd, &thd->lex->select_lex);
-      send_error(thd,ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE);
-      DBUG_RETURN(1);
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
+      DBUG_RETURN(TRUE);
     }
   }
   if (options & OPTION_QUICK)
@@ -135,7 +135,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
     {
       delete select;
       free_underlaid_joins(thd, &thd->lex->select_lex);
-      DBUG_RETURN(-1);			// This will force out message
+      DBUG_RETURN(TRUE);
     }
     /*
       Filesort has already found and selected the rows we want to delete,
@@ -150,7 +150,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
   {
     delete select;
     free_underlaid_joins(thd, &thd->lex->select_lex);
-    DBUG_RETURN(-1);			// This will force out message
+    DBUG_RETURN(TRUE);
   }
   init_read_record(&info,thd,table,select,1,1);
   deleted=0L;
@@ -253,15 +253,13 @@ cleanup:
     thd->lock=0;
   }
   free_underlaid_joins(thd, &thd->lex->select_lex);
-  if (error >= 0 || thd->net.report_error)
-    send_error(thd,thd->killed_errno());
-  else
+  if (error < 0)
   {
     thd->row_count_func= deleted;
     send_ok(thd,deleted);
     DBUG_PRINT("info",("%d records deleted",deleted));
   }
-       DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -275,11 +273,10 @@ cleanup:
     conds		- conditions
 
   RETURN VALUE
-    0  - OK
-    1  - error (message is sent to user)
-    -1 - error (message is not sent to user)
+    FALSE OK
+    TRUE  error
 */
-int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
+bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_delete");
@@ -287,19 +284,19 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   if (setup_tables(thd, table_list, conds) ||
       setup_conds(thd, table_list, conds) ||
       setup_ftfuncs(select_lex))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   if (!table_list->updatable || check_key_in_view(thd, table_list))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   if (unique_table(table_list, table_list->next_independent()))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
   }
   select_lex->fix_prepare_information(thd, conds);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -323,16 +320,15 @@ extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
     thd         thread handler
 
   RETURN
-    0   OK
-    -1  Error
+    FALSE OK
+    TRUE  Error
 */
 
-int mysql_multi_delete_prepare(THD *thd)
+bool mysql_multi_delete_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   TABLE_LIST *aux_tables= (TABLE_LIST *)lex->auxilliary_table_list.first;
   TABLE_LIST *target_tbl;
-  int res= 0;
   DBUG_ENTER("mysql_multi_delete_prepare");
 
   /*
@@ -342,7 +338,7 @@ int mysql_multi_delete_prepare(THD *thd)
     lex->query_tables also point on local list of DELETE SELECT_LEX
   */
   if (setup_tables(thd, lex->query_tables, &lex->select_lex.where))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   /* Fix tables-to-be-deleted-from list to point at opened tables */
   for (target_tbl= (TABLE_LIST*) aux_tables;
@@ -355,7 +351,7 @@ int mysql_multi_delete_prepare(THD *thd)
     {
       my_error(ER_NON_UPDATABLE_TABLE, MYF(0), target_tbl->real_name,
                "DELETE");
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     }
     /*
       Check are deleted table used somewhere inside subqueries.
@@ -373,12 +369,11 @@ int mysql_multi_delete_prepare(THD *thd)
       {
         my_error(ER_UPDATE_TABLE_USED, MYF(0),
                  target_tbl->correspondent_table->real_name);
-        res= -1;
-        break;
+        DBUG_RETURN(TRUE);
       }
     }
   }
-  DBUG_RETURN(res);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -522,7 +517,7 @@ void multi_delete::send_error(uint errcode,const char *err)
   DBUG_ENTER("multi_delete::send_error");
 
   /* First send error what ever it is ... */
-  ::send_error(thd,errcode,err);
+  my_message(errcode, err, MYF(0));
 
   /* If nothing deleted return */
   if (!deleted)
@@ -668,9 +663,7 @@ bool multi_delete::send_eof()
     if (ha_autocommit_or_rollback(thd,local_error > 0))
       local_error=1;
 
-  if (local_error)
-    ::send_error(thd);
-  else
+  if (!local_error)
   {
     thd->row_count_func= deleted;
     ::send_ok(thd, deleted);
@@ -695,12 +688,12 @@ bool multi_delete::send_eof()
   - If we want to have a name lock on the table on exit without errors.
 */
 
-int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
+bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 {
   HA_CREATE_INFO create_info;
   char path[FN_REFLEN];
   TABLE **table_ptr;
-  int error;
+  bool error;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
@@ -738,7 +731,7 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     {
       my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
 	       table_list->real_name);
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
     }
     if (!ha_supports_generate(table_type))
     {
@@ -748,11 +741,11 @@ int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
 			       HA_POS_ERROR, 0));
     }
     if (lock_and_wait_for_table_name(thd, table_list))
-      DBUG_RETURN(-1);
+      DBUG_RETURN(TRUE);
   }
 
   *fn_ext(path)=0;				// Remove the .frm extension
-  error= ha_create_table(path,&create_info,1) ? -1 : 0;
+  error= ha_create_table(path,&create_info,1);
   query_cache_invalidate3(thd, table_list, 0); 
 
 end:
@@ -779,5 +772,5 @@ end:
     unlock_table_name(thd, table_list);
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
-  DBUG_RETURN(error ? -1 : 0);
+  DBUG_RETURN(error);
 }
