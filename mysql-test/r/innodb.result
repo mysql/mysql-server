@@ -168,9 +168,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	error	The handler for the table doesn't support check/repair
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	id	A	NULL	NULL	NULL		BTREE	
-t1	1	parent_id	1	parent_id	A	NULL	NULL	NULL		BTREE	
-t1	1	level	1	level	A	NULL	NULL	NULL		BTREE	
+t1	0	PRIMARY	1	id	A	87	NULL	NULL		BTREE	
+t1	1	parent_id	1	parent_id	A	43	NULL	NULL		BTREE	
+t1	1	level	1	level	A	8	NULL	NULL		BTREE	
 drop table t1;
 CREATE TABLE t1 (
 gesuchnr int(11) DEFAULT '0' NOT NULL,
@@ -211,7 +211,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	error	The handler for the table doesn't support check/repair
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	skr	1	a	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	skr	1	a	A	3	NULL	NULL	YES	BTREE	
 drop table t1;
 create table t1 (a int,b varchar(20),key(a)) type=innodb;
 insert into t1 values (1,""), (2,"testing");
@@ -727,7 +727,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	error	The handler for the table doesn't support check/repair
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	a	A	NULL	NULL	NULL		BTREE	
+t1	0	PRIMARY	1	a	A	2	NULL	NULL		BTREE	
 drop table t1;
 create table t1 (i int, j int ) TYPE=innodb;
 insert into t1 values (1,2);

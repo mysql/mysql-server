@@ -160,8 +160,8 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define OPTION_LOW_PRIORITY_UPDATES	8192
 #define OPTION_WARNINGS		16384
 #define OPTION_AUTO_IS_NULL	32768
-#define OPTION_ANSI_MODE	65536L
-#define OPTION_SAFE_UPDATES	OPTION_ANSI_MODE*2
+#define OPTION_FOUND_COMMENT	65536L
+#define OPTION_SAFE_UPDATES	OPTION_FOUND_COMMENT*2
 #define OPTION_BUFFER_RESULT	OPTION_SAFE_UPDATES*2
 #define OPTION_BIN_LOG          OPTION_BUFFER_RESULT*2
 #define OPTION_NOT_AUTO_COMMIT	OPTION_BIN_LOG*2
@@ -181,7 +181,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define SELECT_NO_UNLOCK	(QUERY_NO_GOOD_INDEX_USED*2)
 #define TMP_TABLE_ALL_COLUMNS	(SELECT_NO_UNLOCK*2)
 
-
+/* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT      	1
 #define MODE_PIPES_AS_CONCAT    	2
 #define MODE_ANSI_QUOTES        	4

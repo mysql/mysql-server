@@ -610,9 +610,11 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
 #--------------------------------------------------------------------
 
 AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
-AC_CHECK_FUNC(gethostbyname_r, [], [
-  AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
-    AC_CHECK_LIB(nsl, gethostbyname_r))])
+
+AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
+  AC_CHECK_LIB(nsl, gethostbyname_r))
+AC_CHECK_FUNC(gethostbyname_r)
+
 AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
 AC_CHECK_FUNC(yp_get_default_domain, ,
   AC_CHECK_LIB(nsl, yp_get_default_domain))
