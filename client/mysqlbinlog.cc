@@ -480,7 +480,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s Ver 2.5 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 2.6 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -562,9 +562,12 @@ static int parse_args(int *argc, char*** argv)
 static MYSQL* safe_connect()
 {
   MYSQL *local_mysql = mysql_init(NULL);
+
   if(!local_mysql)
     die("Failed on mysql_init");
-
+  
+  mysql_options(local_mysql, MYSQL_INIT_COMMAND,
+		"/*!32210 SET @@session.max_insert_delayed_threads=0*/");
   if (!mysql_real_connect(local_mysql, host, user, pass, 0, port, sock, 0))
     die("failed on connect: %s", mysql_error(local_mysql));
 
