@@ -404,13 +404,12 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   {
     char buff[160];
     if (duplic == DUP_IGNORE)
-      sprintf(buff,ER(ER_INSERT_INFO),info.records,
-	      (lock_type == TL_WRITE_DELAYED) ? 0 :
-	      info.records-info.copied,
-	      thd->cuted_fields);
+      sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
+	      (lock_type == TL_WRITE_DELAYED) ? (ulong) 0 :
+	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
     else
-      sprintf(buff,ER(ER_INSERT_INFO),info.records,info.deleted,
-	      thd->cuted_fields);
+      sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
+	      (ulong) info.deleted, (ulong) thd->cuted_fields);
     ::send_ok(thd,info.copied+info.deleted,(ulonglong)id,buff);
   }
   free_underlaid_joins(thd, &thd->lex.select_lex);
@@ -1494,11 +1493,11 @@ bool select_insert::send_eof()
   {
     char buff[160];
     if (info.handle_duplicates == DUP_IGNORE)
-      sprintf(buff,ER(ER_INSERT_INFO),info.records,info.records-info.copied,
-	      thd->cuted_fields);
+      sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
+	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
     else
-      sprintf(buff,ER(ER_INSERT_INFO),info.records,info.deleted,
-	      thd->cuted_fields);
+      sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
+	      (ulong) info.deleted, (ulong) thd->cuted_fields);
     ::send_ok(thd,info.copied+info.deleted,last_insert_id,buff);
     return 0;
   }
