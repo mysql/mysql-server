@@ -79,29 +79,6 @@
   };
   
   /**
-   * Where attribute is stored.
-   *
-   * This is used to indicate whether a primary key
-   * should only be stored in the index storage and not in the data storage
-   * or if it should be stored in both places.
-   * The first alternative makes the attribute take less space, 
-   * but makes it impossible to scan using attribute.
-   *
-   * @note  Use NormalStorageAttribute for most cases.
-   *        (IndexStorageAttribute should only be used on primary key 
-   *        attributes and only if you do not want to scan using the attribute.)
-   */
-  enum StorageAttributeType { 
-    NoStorageAttributeTypeDefined = -1,  ///< <i>Missing explanation</i>
-    IndexStorageAttribute,               ///< Attribute is only stored in 
-                                         ///< index storage (ACC)
-    NormalStorageAttribute               ///< Attribute values are stored 
-                                         ///< both in the index (ACC) and 
-                                         ///< in the data storage (TUP)
-  };
-  
-  
-  /**
    *  Type of fragmentation used for a table
    */
   enum FragmentType { 
@@ -405,27 +382,7 @@ public:
    *                     the attribute.
    *                     <br>
    *                     Legal values: true, false
-   * @param aStType      Stored in both index and data storage or 
-   *                     only store in index data storage.
-   *                     <br>
-   *                     This parameter is only of interest for tuple 
-   *                     key attributes.
-   * 			 All tuple key attributes values are always stored 
-   *                     in the index storage part.
-   *                     If this parameter is set to 
-   *                     IndexStorageAttribute, then the attribute values 
-   *                     will <em>only</em> be stored in the index 
-   *                     storage part and <em>not</em> in the data 
-   *                     storage part. 
-   *                     <br>
-   *                     If there will be no scans using the primary
-   *                     key attribute and if the size of the attribute 
-   *                     is large, then this might be of interest.
-   *                     A typical example is a table where 
-   *                     http-addresses are used as primary key.
-   *                     <br>
-   *                     Legal values: NormalStorageAttribute, 
-   *                                   IndexStorageAttribute
+   * @param aStType      Obsolete since wl-2066
    * @param aDistributionKey    Sometimes it is preferable to use a subset
    *                            of the primary key as the distribution key. 
    *                            An example is TPC-C where it might be
@@ -474,7 +431,7 @@ public:
 		      AttrType aAttrType = UnSigned,
 		      StorageMode aStorageMode = MMBased,
 		      bool nullable = false,
-		      StorageAttributeType aStType= NormalStorageAttribute,
+		      int aStType= 0, // obsolete
 		      int aDistributionKey = 0,
 		      int aDistributionGroup = 0,
 		      int aDistributionGroupNoOfBits = 16,
@@ -491,7 +448,7 @@ public:
 		      AttrType aAttrType,
 		      StorageMode aStorageMode,
 		      NullAttributeType aNullAttr,
-		      StorageAttributeType aStType = NormalStorageAttribute,
+		      int aStType, // obsolete
 		      int aDistributionKey = 0,
 		      int aDistributionGroup = 0,
 		      int aDistributionGroupNoOfBits = 16){
