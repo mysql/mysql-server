@@ -29,7 +29,7 @@ DASHBLANK="----	----	-------"
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
 GCOV=`which gcov`
-GCOV_MSG=/tmp/mysqld-gcov.out
+GCOV_MSG=/tmp/mysqld-gcov.out #gcov output
 GCOV_ERR=/tmp/mysqld-gcov.err  
 
 [ -z $COLUMNS ] && COLUMNS=80
