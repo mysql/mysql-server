@@ -143,7 +143,7 @@ int read_option(char *, char *);
 void run_test(char *);
 void setup(char *);
 void vlog(char *, va_list);
-void log(char *, ...);
+void mtr_log(char *, ...);
 void log_info(char *, ...);
 void log_error(char *, ...);
 void log_errno(char *, ...);
@@ -160,21 +160,21 @@ void report_stats()
 {
   if (total_fail == 0)
   {
-    log("\nAll %d test(s) were successful.\n", total_test);
+    mtr_log("\nAll %d test(s) were successful.\n", total_test);
   }
   else
   {
     double percent = ((double)total_pass / total_test) * 100;
     
-    log("\nFailed %u/%u test(s), %.02f%% successful.\n",
+    mtr_log("\nFailed %u/%u test(s), %.02f%% successful.\n",
       total_fail, total_test, percent);
-		log("\nThe .out and .err files in %s may give you some\n", result_dir);
-		log("hint of what when wrong.\n");
-		log("\nIf you want to report this error, please first read the documentation\n");
-		log("at: http://www.mysql.com/doc/M/y/MySQL_test_suite.html\n");
+		mtr_log("\nThe .out and .err files in %s may give you some\n", result_dir);
+		mtr_log("hint of what when wrong.\n");
+		mtr_log("\nIf you want to report this error, please first read the documentation\n");
+		mtr_log("at: http://www.mysql.com/doc/M/y/MySQL_test_suite.html\n");
   }
 
-  log("\n%.02f total minutes elapsed in the test cases\n\n", total_time / 60);
+  mtr_log("\n%.02f total minutes elapsed in the test cases\n\n", total_time / 60);
 }
 
 /******************************************************************************
@@ -794,7 +794,7 @@ void run_test(char *test)
   if(ignore)
   {
     // show test
-    log("%-46s ", test);
+    mtr_log("%-46s ", test);
          
     // ignore
     rstr = TEST_IGNORE;
@@ -876,7 +876,7 @@ void run_test(char *test)
     sleep(1);
 
     // show test
-    log("%-46s ", test);
+    mtr_log("%-46s ", test);
     
     // args
     init_args(&al);
@@ -948,7 +948,7 @@ void run_test(char *test)
   else // early skips
   {
     // show test
-    log("%-46s ", test);
+    mtr_log("%-46s ", test);
     
     // skip
     rstr = TEST_SKIP;
@@ -956,7 +956,7 @@ void run_test(char *test)
   }
   
   // result
-  log("%10.06f   %-14s\n", elapsed, rstr);
+  mtr_log("%10.06f   %-14s\n", elapsed, rstr);
 }
 
 /******************************************************************************
@@ -985,7 +985,7 @@ void vlog(char *format, va_list ap)
   Log the message.
 
 ******************************************************************************/
-void log(char *format, ...)
+void mtr_log(char *format, ...)
 {
   va_list ap;
 
@@ -1009,9 +1009,9 @@ void log_info(char *format, ...)
   
   va_start(ap, format);
 
-  log("-- INFO : ");
+  mtr_log("-- INFO : ");
   vlog(format, ap);
-  log("\n");
+  mtr_log("\n");
 
   va_end(ap);
 }
@@ -1029,9 +1029,9 @@ void log_error(char *format, ...)
   
   va_start(ap, format);
 
-  log("-- ERROR: ");
+  mtr_log("-- ERROR: ");
   vlog(format, ap);
-  log("\n");
+  mtr_log("\n");
 
   va_end(ap);
 }
@@ -1049,9 +1049,9 @@ void log_errno(char *format, ...)
   
   va_start(ap, format);
 
-  log("-- ERROR: (%003u) ", errno);
+  mtr_log("-- ERROR: (%003u) ", errno);
   vlog(format, ap);
-  log("\n");
+  mtr_log("\n");
 
   va_end(ap);
 }
@@ -1184,18 +1184,18 @@ int main(int argc, char **argv)
     is_ignore_list = 1;
   }
   // header
-  log("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+  mtr_log("MySQL Server %s, for %s (%s)\n\n", VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   
-  log("Initializing Tests...\n");
+  mtr_log("Initializing Tests...\n");
   
   // install test databases
   mysql_install_db();
   
-  log("Starting Tests...\n");
+  mtr_log("Starting Tests...\n");
   
-  log("\n");
-  log(HEADER);
-  log(DASH);
+  mtr_log("\n");
+  mtr_log(HEADER);
+  mtr_log(DASH);
 
   if ( argc > 1 + is_ignore_list )
   {
@@ -1250,10 +1250,10 @@ int main(int argc, char **argv)
   // stop server
   mysql_stop();
 
-  log(DASH);
-  log("\n");
+  mtr_log(DASH);
+  mtr_log("\n");
 
-  log("Ending Tests...\n");
+  mtr_log("Ending Tests...\n");
 
   // report stats
   report_stats();
