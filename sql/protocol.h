@@ -127,6 +127,7 @@ public:
   virtual void prepare_for_resend();
 #ifdef EMBEDDED_LIBRARY
   virtual bool write();
+  bool net_store_data(const char *from, uint length);
 #endif
   virtual bool store_null();
   virtual bool store_tiny(longlong from);
