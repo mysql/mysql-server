@@ -53,11 +53,11 @@ public:
   int selectCount(Ndb*, 
 		  int parallelism = 0,
 		  int* count_rows = NULL,
-		  ScanLock lock = SL_Read,
+		  NdbOperation::LockMode lm = NdbOperation::LM_CommittedRead,
 		  NdbConnection* pTrans = NULL);
   int scanReadRecords(Ndb*,
 		      int parallelism,
-		      bool exclusive,
+		      NdbOperation::LockMode lm,
 		      int records,
 		      int noAttribs,
 		      int* attrib_list,
