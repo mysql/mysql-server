@@ -209,6 +209,7 @@ static char *get_text(LEX *lex)
 {
   reg1 uchar c,sep;
   uint found_escape=0;
+  CHARSET_INFO *cs= lex->thd->variables.thd_charset;
 
   sep= yyGetLast();			// String should end with this
   //lex->tok_start=lex->ptr-1;		// Remember '
@@ -217,8 +218,8 @@ static char *get_text(LEX *lex)
     c = yyGet();
 #ifdef USE_MB
     int l;
-    if (use_mb(system_charset_info) &&
-        (l = my_ismbchar(system_charset_info,
+    if (use_mb(cs) &&
+        (l = my_ismbchar(cs,
                          (const char *)lex->ptr-1,
                          (const char *)lex->end_of_query))) {
 	lex->ptr += l-1;
@@ -262,8 +263,8 @@ static char *get_text(LEX *lex)
 	{
 #ifdef USE_MB
 	  int l;
-	  if (use_mb(system_charset_info) &&
-              (l = my_ismbchar(system_charset_info,
+	  if (use_mb(cs) &&
+              (l = my_ismbchar(cs,
                                (const char *)str, (const char *)end))) {
 	      while (l--)
 		  *to++ = *str++;
