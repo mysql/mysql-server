@@ -38819,7 +38819,7 @@ Fixed crash when automatic repair of @code{MyISAM} table failed.
 Fixed a major performance bug in the table locking code when one
 constantly had a LOT of @code{SELECT}, @code{UPDATE} and @code{INSERT}
 statements running. The symptom was that the @code{UPDATE} and
-@code{INSERT} queries was locked a long time while new @code{SELECT}
+@code{INSERT} queries were locked a long time while new @code{SELECT}
 statements where executed without locks.
 @item
 When reading options_files with @code{mysql_options()} the
@@ -38830,27 +38830,27 @@ is read by @code{mysql_options()}. This makes it possible to force
 programs that runs for a long time (like @code{mysqlhotcopy}) to use
 @code{interactive_timeout} instead of @code{wait_timeout}.
 @item
-We now always print when the query was made and who made it in the 'slow
-query log'.  If you are using @code{--log-long-format} then also queries
+We now always print when the query was made and who made it in the ``slow
+query log''.  If you are using @code{--log-long-format} then also queries
 that are not using indexes are printed.
 @item
-Fixed problem in @code{LEFT JOIN} which caused all columns in reference
-table to be NULL.
+Fixed a problem in @code{LEFT JOIN} which caused all columns in a reference
+table to be @code{NULL}.
 @item
-Fixed problem when using @code{NATURAL JOIN} without keys.
+Fixed a problem when using @code{NATURAL JOIN} without keys.
 @item
-Fixed bug when using a multi-part keys where the first part was of type
+Fixed a bug when using a multi-part keys where the first part was of type
 @code{TEXT} or @code{BLOB}.
 @item
 @code{DROP} of temporary tables wasn't stored in the update/binary log.
 @item
-Fixed bug where @code{SELECT DISTINCT * ... LIMIT #} only returned 1 row.
+Fixed a bug where @code{SELECT DISTINCT * ... LIMIT #} only returned one row.
 @item
-Fixed a bug in the assembler code in strstr for sparc and cleaned up
-the global.h header file to avoid a problem with bad aliasing with
+Fixed a bug in the assembler code in @code{strstr()} for sparc and cleaned up
+the @file{global.h} header file to avoid a problem with bad aliasing with
 the compiler submitted with RedHat 7.0. (Reported by Trond Eivind Glomsrød)
 @item
-Fixed the @code{--skip-networking} works properly on NT.
+The option @code{--skip-networking} now works properly on NT.
 @item
 Fixed long outstanding bug in the @code{ISAM} tables when a row with a length
 of more than 65K was shortened by a single byte.
@@ -38860,14 +38860,14 @@ the same table.
 @item
 Allow one to use @code{FLUSH TABLE tablename}.
 @item
-Changed all log files to use our own IO_CACHE mechanism instead of
-FILE:s to avoid OS problems when there is many files open.
+Changed all log files to use our own @code{IO_CACHE} mechanism instead of
+@code{FILE} to avoid OS problems when there are many files open.
 @item
 Added options @code{--open-files} and @code{--timezone} to @code{safe_mysqld}.
 @item
-Fixed fatal bug in @code{CREATE TEMPORARY TABLE ...SELECT ...}.
+Fixed a fatal bug in @code{CREATE TEMPORARY TABLE ... SELECT ...}.
 @item
-Fixed problem with @code{CREATE TABLE .. SELECT NULL}.
+Fixed a problem with @code{CREATE TABLE .. SELECT NULL}.
 @item
 Added variables @code{large_file_support},@code{net_read_timeout},
 @code{net_write_timeout} and @code{query_buffer_size} to @code{SHOW VARIABLES}.
@@ -38875,19 +38875,19 @@ Added variables @code{large_file_support},@code{net_read_timeout},
 Added status variables @code{created_tmp_files} and @code{sort_merge_passes}
 to @code{SHOW STATUS}.
 @item
-Fixed bug where we didn't allow an index name after the
+Fixed a bug where we didn't allow an index name after the
 @code{FOREIGN KEY} definition.
 @item
 Added @code{TRUNCATE table_name} as a synonym for
 @code{DELETE FROM table_name}.
 @item
-Fixed bug in a BDB key compare function when comparing part keys.
+Fixed a bug in a BDB key compare function when comparing part keys.
 @item
 Added variable @code{bdb_lock_max} to @code{mysqld}.
 @item
 Added more tests to the benchmark suite.
 @item
-Fixed a overflow bug in the client code when using too long database names.
+Fixed an overflow bug in the client code when using overly long database names.
 @item
 @code{mysql_connect()} now aborts on Linux if the server doesn't answer in
 @code{timeout} seconds.
@@ -38897,22 +38897,22 @@ Fixed a overflow bug in the client code when using too long database names.
 MASTER TO}.
 @item
 Fixed the output of @code{SHOW MASTER STATUS} to be consistent with
-@code{SHOW SLAVE STATUS} (no directory in the log name).
+@code{SHOW SLAVE STATUS}. (It now has no directory in the log name.)
 @item
 Added @code{PURGE MASTER LOGS TO}.
 @item
 Added @code{SHOW MASTER LOGS}.
 @item
 Added @code{--safemalloc-mem-limit} option to mysqld to simulate memory
-shortage when compiled @code{--with-debug=full}
+shortage when compiled @code{--with-debug=full}.
 @item
-Fixed several coredumps in out-of-memory conditions
+Fixed several coredumps in out-of-memory conditions.
 @item
-@code{SHOW SLAVE STATUS} was using unititialized mutex if the slave had
-not been started yet
+@code{SHOW SLAVE STATUS} was using an unititialized mutex if the slave had
+not been started yet.
 @item
 Fixed bug in @code{ELT()} and @code{MAKE_SET()} when the query used
-a temporary table
+a temporary table.
 @item
 @code{CHANGE MASTER TO} without specifying @code{MASTER_LOG_POS} would
 set it to 0 instead of 4 and hit the magic number in the master binlog.
@@ -38925,7 +38925,7 @@ new table with the rows in a specific order.
 @appendixsubsec Changes in release 3.23.27
 @itemize @bullet
 @item
-Fixed bug where the automatic repair of MyISAM tables sometimes failed
+Fixed a bug where the automatic repair of MyISAM tables sometimes failed
 when the data file was corrupt.
 @item
 Fixed a bug in @code{SHOW CREATE} when using @code{AUTO_INCREMENT} columns.
@@ -38945,7 +38945,7 @@ Small portability fixes.
 @item
 Fixed @code{<>} to work properly with @code{NULL}.
 @item
-Fixed problem with @code{SUBSTRING_INDEX()} and @code{REPLACE()}.
+Fixed a problem with @code{SUBSTRING_INDEX()} and @code{REPLACE()}.
 (Patch by Alexander Igonitchev)
 @item
 Fix @code{CREATE TEMPORARY TABLE IF NOT EXISTS} not to give an error
@@ -38961,7 +38961,7 @@ no @code{WHERE} clause.
 @item
 When using @code{--log-slow-queries}, don't count the time waiting for a lock.
 @item
-Fixed bug in lock code on @code{windows} which could cause the key cache
+Fixed bug in lock code on Windows which could cause the key cache
 to report that the key file was crashed even if it was okay.
 @item
 Automatic repair of @code{MyISAM} tables if you start @code{mysqld} with
@@ -38969,7 +38969,7 @@ Automatic repair of @code{MyISAM} tables if you start @code{mysqld} with
 @item
 Removed the @code{TYPE=} keyword from @code{CHECK} and
 @code{REPAIR}. Allow @code{CHECK} options to be combined. (You can still
-use @code{TYPE=} but this usage is deprecated).
+use @code{TYPE=} but this usage is deprecated.)
 @item
 Fixed mutex bug in the binary replication log - long update queries could
 be read only in part by the slave if it did it at the wrong time, which
@@ -39007,7 +39007,7 @@ Columns referenced in @code{INSERT} statements now are initialized properly.
 @code{UPDATE} didn't always work when used with a range on a timestamp that
 was part of the key that was used to find rows.
 @item
-Fixed bug in @code{FULLTEXT} index when inserting a @code{NULL} column.
+Fixed a bug in @code{FULLTEXT} index when inserting a @code{NULL} column.
 @item
 Changed to use @code{mkstemp()} instead of @code{tempnam()}. Based
 on a patch from John Jones.
@@ -39026,10 +39026,10 @@ Added @code{RIGHT JOIN}. This makes @code{RIGHT} a reserved word.
 Added @code{@@@@IDENTITY} as a synonym for @code{LAST_INSERT_ID()}.
 (This is for Visual Basic compatibility.)
 @item
-Fixed bug in @code{myisamchk} and @code{REPAIR} when using @code{FULLTEXT}
+Fixed a bug in @code{myisamchk} and @code{REPAIR} when using @code{FULLTEXT}
 index.
 @item
-@code{LOAD DATA INFILE} now works for FIFOs.
+@code{LOAD DATA INFILE} now works with FIFOs.
 (Patch by Toni L. Harbaugh-Blackford.)
 @item
 @code{FLUSH LOGS} broke replication if you specified a log name with an
