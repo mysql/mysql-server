@@ -125,6 +125,7 @@ do
   if test -f $i/$file
   then
     pkgdatadir=$i
+    break
   fi
 done
 
