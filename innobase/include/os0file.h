@@ -24,6 +24,9 @@ extern ibool	os_aio_print_debug;
 extern ulint	os_file_n_pending_preads;
 extern ulint	os_file_n_pending_pwrites;
 
+extern ulint    os_n_pending_reads;
+extern ulint    os_n_pending_writes;
+
 #ifdef __WIN__
 
 /* We define always WIN_ASYNC_IO, and check at run-time whether
