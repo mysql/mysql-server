@@ -30,7 +30,7 @@ testSystemRestart \
 testTimeout \
 testTransactions \
 testDeadlock \
-test_event
+test_event ndbapi_slow_select
 
 #flexTimedAsynch
 #testBlobs
@@ -66,6 +66,7 @@ testTimeout_SOURCES = testTimeout.cpp
 testTransactions_SOURCES = testTransactions.cpp
 testDeadlock_SOURCES = testDeadlock.cpp
 test_event_SOURCES = test_event.cpp
+ndbapi_slow_select_SOURCES = slow_select.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel
 
