@@ -35556,11 +35556,11 @@ Indexing always happens over the entire column, partial indexing is not
 supported. See @ref{Fulltext Search} for details of operation.
 
 @item
-The @code{FOREIGN KEY}, @code{CHECK}, and @code{REFERENCES} clauses don't
-actually do anything.  The syntax for them is provided only for compatibility,
-to make it easier to port code from other SQL servers and to run applications
-that create tables with references.
-@xref{Differences from ANSI}.
+In MySQL Version 3.23.44 or later, @code{InnoDB} tables support checking of
+foreign key constraints. @xref{InnoDB}.
+For other table types, MySQL Server does parse the @code{FOREIGN KEY},
+@code{CHECK}, and @code{REFERENCES} syntax in @code{CREATE TABLE} commands,
+but without further action being taken. @xref{ANSI diff Foreign Keys}.
 
 @item
 Each @code{NULL} column takes one bit extra, rounded up to the nearest byte.
