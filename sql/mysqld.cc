@@ -2573,7 +2573,7 @@ default_service_handling(char **argv,
   }
   /* We must have servicename last */
   *pos++= ' ';
-  strmake(pos, servicename, (uint) (end+2 - pos));
+  (void) add_quoted_string(pos, servicename, end);
 
   if (Service.got_service_option(argv, "install"))
   {
