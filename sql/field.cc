@@ -7000,8 +7000,10 @@ longlong Field_bit::val_int(void)
 {
   ulonglong bits= 0;
   if (bit_len)
+  {
     bits= get_rec_bits(bit_ptr, bit_ofs, bit_len);
-  bits<<= (field_length * 8);
+    bits<<= (field_length * 8);
+  }
 
   switch (field_length) {
   case 0: return bits;
