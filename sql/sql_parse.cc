@@ -2550,7 +2550,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if ((thd->master_access & want_access) == want_access)
   {
-    *save_priv=thd->master_access;
+    *save_priv=thd->master_access | thd->db_access;
     DBUG_RETURN(FALSE);
   }
   if (((want_access & ~thd->master_access) & ~(DB_ACLS | EXTRA_ACL)) ||
