@@ -1123,3 +1123,34 @@ a	b
 select * from t2;
 a	b
 drop table t1,t2;
+create table t1  (x int not null, index(x)) type=bdb;
+insert into t1 values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+select * from t1 where x <= 10 and x >= 7;
+x
+7
+8
+9
+10
+select * from t1 where x <= 10 and x >= 7 order by x;
+x
+7
+8
+9
+10
+select * from t1 where x <= 10 and x >= 7 order by x desc;
+x
+10
+9
+8
+7
+select * from t1 where x <= 8 and x >= 5 order by x desc;
+x
+8
+7
+6
+5
+select * from t1 where x < 8 and x > 5 order by x desc;
+x
+7
+6
+drop table t1;
