@@ -369,16 +369,16 @@ MySQL.  @xref{What-is}.
 * Contact information::         Contact information
 @end menu
 
-MySQL AB has been profitable providing MySQL from the start.
-We don't get any outside funding, but have earned all our money ourselves.
+MySQL AB has been profitable from the start with providing MySQL. Though
+initially working without any outside funding, in October MySQL AB has
+received seed round financing from ABN Amro / Alfred Berg Industrifinans,
+Holtron, Scope Capital, Servisen Holding and a number of business angels.
 
-We are searching for partners that would like to support our development 
-of MySQL so that we can accelerate the pace of development.  If you
-are interested in doing this, please e-mail @email{partner@@mysql.com}!
+MySQL AB currently has 30+ employees worldwide (situation in October 2001).
 
-MySQL AB currently has over twenty people
-(@uref{http://www.mysql.com/development/team.html})
-on its payroll and is growing rapidly.
+We are always on the look-out for new partners who would like to support us,
+so that we can further accelerate the pace of MySQL development.  If you are
+interested in doing this, please e-mail @email{partner@@mysql.com}!
 
 
 Our main sources of income are:
