@@ -188,6 +188,7 @@ static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 			    bool distinct, const char *message=NullS);
 static Item *remove_additional_cond(Item* conds);
+static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 
 
 /*
@@ -624,7 +625,7 @@ JOIN::optimize()
     conds=new Item_int((longlong) 1,1);	// Always true
   }
   select=make_select(*table, const_table_map,
-		     const_table_map, conds, &error);
+		     const_table_map, conds, &error, true);
   if (error)
   {						/* purecov: inspected */
     error= -1;					/* purecov: inspected */
@@ -1316,7 +1317,7 @@ JOIN::exec()
 	}
       }
       if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
-					1) ||
+					1, TRUE) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
       {
@@ -1404,7 +1405,7 @@ JOIN::exec()
     set_items_ref_array(items3);
 
     if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
-				      1) || thd->is_fatal_error)
+				      1, TRUE) || thd->is_fatal_error)
       DBUG_VOID_RETURN;
   }
   if (curr_join->group_list || curr_join->order)
@@ -2294,6 +2295,12 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     if (s->worst_seeks < 2.0)			// Fix for small tables
       s->worst_seeks=2.0;
 
+    /*
+      Add to stat->const_keys those indexes for which all group fields or
+      all select distinct fields participate in one index.
+    */
+    add_group_and_distinct_keys(join, s);
+
     if (!s->const_keys.is_clear_all() &&
         !s->table->pos_in_table_list->embedding)
     {
@@ -2302,7 +2309,9 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       select= make_select(s->table, found_const_table_map,
 			  found_const_table_map,
 			  s->on_expr ? s->on_expr : conds,
-			  &error);
+			  &error, true);
+      if (!select)
+        DBUG_RETURN(1);
       records= get_quick_record_count(join->thd, select, s->table,
 				      &s->const_keys, join->row_limit);
       s->quick=select->quick;
@@ -2337,13 +2346,13 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     }
   }
 
-  /* Find best combination and return it */
   join->join_tab=stat;
   join->map2table=stat_ref;
   join->table= join->all_tables=table_vector;
   join->const_tables=const_count;
   join->found_const_table_map=found_const_table_map;
 
+  /* Find an optimal join order of the non-constant tables. */
   if (join->const_tables != join->tables)
   {
     optimize_keyuse(join, keyuse_array);
@@ -2355,6 +2364,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	   sizeof(POSITION)*join->const_tables);
     join->best_read=1.0;
   }
+  /* Generate an execution plan from the found optimal join order. */
   DBUG_RETURN(join->thd->killed || get_best_combination(join));
 }
 
@@ -2551,6 +2561,10 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
 
       bool is_const=1;
       for (uint i=0; i<num_values; i++)
+        /*
+          TODO: This looks like a bug. It should be
+          is_const&= (value[i])->const_item();
+        */
         is_const&= (*value)->const_item();
       if (is_const)
         stat[0].const_keys.merge(possible_keys);
@@ -2574,7 +2588,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, COND *cond,
             We can't use indexes if the effective collation
             of the operation differ from the field collation.
 
-            We can also not used index on a text column, as the column may
+            We also cannot use index on a text column, as the column may
             contain 'x' 'x\t' 'x ' and 'read_next_same' will stop after
             'x' when searching for WHERE col='x '
           */
@@ -2994,6 +3008,68 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
     if (keyuse->used_tables == OUTER_REF_TABLE_BIT)
       keyuse->ref_table_rows= 1;
   }
+}
+
+
+/*
+  Discover the indexes that can be used for GROUP BY or DISTINCT queries.
+
+  SYNOPSIS
+    add_group_and_distinct_keys()
+    join
+    join_tab
+
+  DESCRIPTION
+    If the query has a GROUP BY clause, find all indexes that contain all
+    GROUP BY fields, and add those indexes to join->const_keys.
+    If the query has a DISTINCT clause, find all indexes that contain all
+    SELECT fields, and add those indexes to join->const_keys.
+    This allows later on such queries to be processed by a
+    QUICK_GROUP_MIN_MAX_SELECT.
+
+  RETURN
+    None
+*/
+
+static void
+add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
+{
+  List<Item_field> indexed_fields;
+  List_iterator<Item_field> indexed_fields_it(indexed_fields);
+  ORDER      *cur_group;
+  Item_field *cur_item;
+  key_map possible_keys(0);
+
+  if (join->group_list)
+  { /* Collect all query fields referenced in the GROUP clause. */
+    for (cur_group= join->group_list; cur_group; cur_group= cur_group->next)
+      (*cur_group->item)->walk(&Item::collect_item_field_processor,
+                               (byte*) &indexed_fields);
+  }
+  else if (join->select_distinct)
+  { /* Collect all query fields referenced in the SELECT clause. */
+    List<Item> &select_items= join->fields_list;
+    List_iterator<Item> select_items_it(select_items);
+    Item *item;
+    while ((item= select_items_it++))
+      item->walk(&Item::collect_item_field_processor, (byte*) &indexed_fields);
+  }
+  else
+    return;
+
+  if (indexed_fields.elements == 0)
+    return;
+
+  /* Intersect the keys of all group fields. */
+  cur_item= indexed_fields_it++;
+  possible_keys.merge(cur_item->field->part_of_key);
+  while ((cur_item= indexed_fields_it++))
+  {
+    possible_keys.intersect(cur_item->field->part_of_key);
+  }
+
+  if (!possible_keys.is_clear_all())
+    join_tab->const_keys.merge(possible_keys);
 }
 
 
@@ -4885,42 +4961,45 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
   if (select)
   {
     table_map used_tables;
-    if (join->tables > 1)
-      cond->update_used_tables();		// Tablenr may have changed
-    if (join->const_tables == join->tables &&
-	join->thd->lex->current_select->master_unit() ==
-	&join->thd->lex->unit)		// not upper level SELECT
-      join->const_table_map|=RAND_TABLE_BIT;
-    {						// Check const tables
-      COND *const_cond=
-	make_cond_for_table(cond,join->const_table_map,(table_map) 0);
-      DBUG_EXECUTE("where",print_where(const_cond,"constants"););
-      for (JOIN_TAB *tab= join->join_tab+join->const_tables;
-           tab < join->join_tab+join->tables ; tab++)
-      {
-        if (tab->on_expr)
+    if (cond)                /* Because of QUICK_GROUP_MIN_MAX_SELECT */
+    {                        /* there may be a select without a cond. */
+      if (join->tables > 1)
+        cond->update_used_tables();		// Tablenr may have changed
+      if (join->const_tables == join->tables &&
+          join->thd->lex->current_select->master_unit() ==
+          &join->thd->lex->unit)		// not upper level SELECT
+        join->const_table_map|=RAND_TABLE_BIT;
+      {						// Check const tables
+        COND *const_cond=
+          make_cond_for_table(cond,join->const_table_map,(table_map) 0);
+        DBUG_EXECUTE("where",print_where(const_cond,"constants"););
+        for (JOIN_TAB *tab= join->join_tab+join->const_tables;
+             tab < join->join_tab+join->tables ; tab++)
         {
-          JOIN_TAB *cond_tab= tab->first_inner;
-          COND *tmp= make_cond_for_table(tab->on_expr,
-                                         join->const_table_map,
-                                         (table_map) 0);
-          if (!tmp)
-            continue;
-          tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
-          if (!tmp)
-            DBUG_RETURN(1);
-          tmp->quick_fix_field();
-          cond_tab->select_cond= !cond_tab->select_cond ? tmp :
-	                          new Item_cond_and(cond_tab->select_cond,tmp);
-          if (!cond_tab->select_cond)
-	    DBUG_RETURN(1);
-          cond_tab->select_cond->quick_fix_field();
-        }       
-      }
-      if (const_cond && !const_cond->val_int())
-      {
-	DBUG_PRINT("info",("Found impossible WHERE condition"));
-	DBUG_RETURN(1);				// Impossible const condition
+          if (tab->on_expr)
+          {
+            JOIN_TAB *cond_tab= tab->first_inner;
+            COND *tmp= make_cond_for_table(tab->on_expr,
+                                           join->const_table_map,
+                                           (table_map) 0);
+            if (!tmp)
+              continue;
+            tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
+            if (!tmp)
+              DBUG_RETURN(1);
+            tmp->quick_fix_field();
+            cond_tab->select_cond= !cond_tab->select_cond ? tmp :
+                                   new Item_cond_and(cond_tab->select_cond,tmp);
+            if (!cond_tab->select_cond)
+              DBUG_RETURN(1);
+            cond_tab->select_cond->quick_fix_field();
+          }
+        }
+        if (const_cond && !const_cond->val_int())
+        {
+          DBUG_PRINT("info",("Found impossible WHERE condition"));
+          DBUG_RETURN(1);			  // Impossible const condition
+        }
       }
     }
     used_tables=((select->const_tables=join->const_table_map) |
@@ -4952,8 +5031,10 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	join->best_positions[i].records_read= rows2double(tab->quick->records);
       }
 
-      COND *tmp=make_cond_for_table(cond,used_tables,current_map);
-      if (!tmp && tab->quick)
+      COND *tmp= NULL;
+      if (cond)
+        tmp= make_cond_for_table(cond,used_tables,current_map);
+      if (cond && !tmp && tab->quick)
       {						// Outer join
         if (tab->type != JT_ALL)
         {
@@ -4976,7 +5057,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         }
 
       }
-      if (tmp)
+      if (tmp || !cond)
       {
 	DBUG_EXECUTE("where",print_where(tmp,tab->table->table_name););
 	SQL_SELECT *sel=tab->select=(SQL_SELECT*)
@@ -4989,9 +5070,17 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           The guard will turn the predicate on only after
           the first match for outer tables is encountered.
 	*/        
-        if (!(tmp= add_found_match_trig_cond(first_inner_tab, tmp, 0)))
-          DBUG_RETURN(1);
-	tab->select_cond=sel->cond=tmp;
+        if (cond)
+        {/*
+            Because of QUICK_GROUP_MIN_MAX_SELECT there may be a select without
+            a cond, so neutralize the hack above.
+          */
+          if (!(tmp= add_found_match_trig_cond(first_inner_tab, tmp, 0)))
+            DBUG_RETURN(1);
+          tab->select_cond=sel->cond=tmp;
+        }
+        else
+          tab->select_cond= sel->cond= NULL;
 
 	sel->head=tab->table;
 	if (tab->quick)
@@ -5031,7 +5120,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    the index if we are using limit and this is the first table
 	  */
 
-	  if ((!tab->keys.is_subset(tab->const_keys) && i > 0) ||
+	  if (cond &&
+              (!tab->keys.is_subset(tab->const_keys) && i > 0) ||
 	      (!tab->const_keys.is_clear_all() && i == join->const_tables &&
 	       join->unit->select_limit_cnt <
 	       join->best_positions[i].records_read &&
@@ -5089,7 +5179,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  }
 	  if (i != join->const_tables && tab->use_quick != 2)
 	  {					/* Read with cache */
-	    if ((tmp=make_cond_for_table(cond,
+	    if (cond &&
+                (tmp=make_cond_for_table(cond,
 					 join->const_table_map |
 					 current_map,
 					 current_map)))
@@ -7468,11 +7559,18 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   else
   {
-    if (join->sort_and_group || (join->procedure &&
-				 join->procedure->flags & PROC_GROUP))
-      end_select=end_send_group;
+    /* Test if data is accessed via QUICK_GROUP_MIN_MAX_SELECT. */
+    bool is_using_quick_group_min_max_select=
+      (join->join_tab->select && join->join_tab->select->quick &&
+       (join->join_tab->select->quick->get_type() ==
+        QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
+
+    if ((join->sort_and_group ||
+         (join->procedure && join->procedure->flags & PROC_GROUP)) &&
+        !is_using_quick_group_min_max_select)
+      end_select= end_send_group;
     else
-      end_select=end_send;
+      end_select= end_send;
   }
   join->join_tab[join->tables-1].next_select=end_select;
 
@@ -9264,7 +9362,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                   & HA_READ_PREV) ||
                 quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
                 quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
-                quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION)
+                quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION ||
+                quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)
               DBUG_RETURN(0);			// Use filesort
             
             /* ORDER BY range_key DESC */
@@ -10720,6 +10819,7 @@ bool JOIN::alloc_func_list()
     field_list		All items
     send_fields		Items in select list
     before_group_by	Set to 1 if this is called before GROUP BY handling
+    recompute           Set to TRUE if sum_funcs must be recomputed
 
   NOTES
     Calls ::setup() for all item_sum objects in field_list
@@ -10730,12 +10830,15 @@ bool JOIN::alloc_func_list()
 */
 
 bool JOIN::make_sum_func_list(List<Item> &field_list, List<Item> &send_fields,
-			      bool before_group_by)
+			      bool before_group_by, bool recompute)
 {
   List_iterator_fast<Item> it(field_list);
   Item_sum **func;
   Item *item;
   DBUG_ENTER("make_sum_func_list");
+
+  if (*sum_funcs && !recompute)
+    DBUG_RETURN(FALSE); /* We have already initialized sum_funcs. */
 
   func= sum_funcs;
   while ((item=it++))
@@ -11510,11 +11613,16 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
             extra.append(tab->keys.print(buf));
             extra.append(')');
 	  }
-	  else
+	  else if (tab->select->cond)
             extra.append("; Using where");
 	}
 	if (key_read)
-	  extra.append("; Using index");
+        {
+          if (quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)
+            extra.append("; Using index for group-by");
+          else
+            extra.append("; Using index");
+        }
 	if (table->reginfo.not_exists_optimize)
 	  extra.append("; Not exists");
 	if (need_tmp_table)

@@ -336,7 +336,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
     1        Otherwise
 */
 
-static bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
+bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
 {
   Item *item;
   *inv_order= 0;

@@ -1,0 +1,579 @@
+#
+# Test file for WL#1724 (Min/Max Optimization for Queries with Group By Clause).
+# The queries in this file test query execution via QUICK_GROUP_MIN_MAX_SELECT.
+#
+
+#
+# TODO:
+# Add queries with:
+# - C != const
+# - C IS NOT NULL
+# - HAVING clause
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (
+  a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(64) default ' '
+);
+
+insert into t1 (a1, a2, b, c, d) values
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4'),
+('d','a','a','a411','xy1'),('d','a','a','b411','xy2'),('d','a','a','c411','xy3'),('d','a','a','d411','xy4'),
+('d','a','b','e412','xy1'),('d','a','b','f412','xy2'),('d','a','b','g412','xy3'),('d','a','b','h412','xy4'),
+('d','b','a','i421','xy1'),('d','b','a','j421','xy2'),('d','b','a','k421','xy3'),('d','b','a','l421','xy4'),
+('d','b','b','m422','xy1'),('d','b','b','n422','xy2'),('d','b','b','o422','xy3'),('d','b','b','p422','xy4'),
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4'),
+('d','a','a','a411','xy1'),('d','a','a','b411','xy2'),('d','a','a','c411','xy3'),('d','a','a','d411','xy4'),
+('d','a','b','e412','xy1'),('d','a','b','f412','xy2'),('d','a','b','g412','xy3'),('d','a','b','h412','xy4'),
+('d','b','a','i421','xy1'),('d','b','a','j421','xy2'),('d','b','a','k421','xy3'),('d','b','a','l421','xy4'),
+('d','b','b','m422','xy1'),('d','b','b','n422','xy2'),('d','b','b','o422','xy3'),('d','b','b','p422','xy4');
+
+create index idx_t1_0 on t1 (a1);
+create index idx_t1_1 on t1 (a1,a2,b,c);
+create index idx_t1_2 on t1 (a1,a2,b);
+analyze table t1;
+
+-- t2 is the same as t1, but with some NULLs in the MIN/MAX column, and one more
+-- nullable attribute
+
+--disable_warnings
+drop table if exists t2;
+--enable_warnings
+
+create table t2 (
+  a1 char(64), a2 char(64) not null, b char(16), c char(16), d char(16), dummy char(64) default ' '
+);
+insert into t2 select * from t1;
+-- add few rows with NULL's in the MIN/MAX column
+insert into t2 (a1, a2, b, c, d) values
+('a','a',NULL,'a777','xyz'),('a','a',NULL,'a888','xyz'),('a','a',NULL,'a999','xyz'),
+('a','a','a',NULL,'xyz'),
+('a','a','b',NULL,'xyz'),
+('a','b','a',NULL,'xyz'),
+('c','a',NULL,'c777','xyz'),('c','a',NULL,'c888','xyz'),('c','a',NULL,'c999','xyz'),
+('d','b','b',NULL,'xyz'),
+('e','a','a',NULL,'xyz'),('e','a','a',NULL,'xyz'),('e','a','a',NULL,'xyz'),('e','a','a',NULL,'xyz'),
+('e','a','b',NULL,'xyz'),('e','a','b',NULL,'xyz'),('e','a','b',NULL,'xyz'),('e','a','b',NULL,'xyz'),
+('a','a',NULL,'a777','xyz'),('a','a',NULL,'a888','xyz'),('a','a',NULL,'a999','xyz'),
+('a','a','a',NULL,'xyz'),
+('a','a','b',NULL,'xyz'),
+('a','b','a',NULL,'xyz'),
+('c','a',NULL,'c777','xyz'),('c','a',NULL,'c888','xyz'),('c','a',NULL,'c999','xyz'),
+('d','b','b',NULL,'xyz'),
+('e','a','a',NULL,'xyz'),('e','a','a',NULL,'xyz'),('e','a','a',NULL,'xyz'),('e','a','a',NULL,'xyz'),
+('e','a','b',NULL,'xyz'),('e','a','b',NULL,'xyz'),('e','a','b',NULL,'xyz'),('e','a','b',NULL,'xyz');
+
+create index idx_t2_0 on t2 (a1);
+create index idx_t2_1 on t2 (a1,a2,b,c);
+create index idx_t2_2 on t2 (a1,a2,b);
+analyze table t2;
+
+-- Table t3 is the same as t1, but with smaller column lenghts.
+-- This allows to test different branches of the cost computation procedure
+-- when the number of keys per block are less than the number of keys in the
+-- sub-groups formed by predicates over non-group attributes. 
+
+--disable_warnings
+drop table if exists t3;
+--enable_warnings
+
+create table t3 (
+  a1 char(1), a2 char(1), b char(1), c char(4) not null, d char(3), dummy char(1) default ' '
+);
+
+insert into t3 (a1, a2, b, c, d) values
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4');
+insert into t3 (a1, a2, b, c, d) values
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4');
+insert into t3 (a1, a2, b, c, d) values
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4');
+insert into t3 (a1, a2, b, c, d) values
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4');
+
+create index idx_t3_0 on t3 (a1);
+create index idx_t3_1 on t3 (a1,a2,b,c);
+create index idx_t3_2 on t3 (a1,a2,b);
+analyze table t3;
+
+
+--
+-- Queries without a WHERE clause. These queries do not use ranges.
+--
+
+-- plans
+explain select a1, min(a2) from t1 group by a1;
+explain select a1, max(a2) from t1 group by a1;
+explain select a1, min(a2), max(a2) from t1 group by a1;
+explain select a1, a2, b, min(c), max(c) from t1 group by a1,a2,b;
+explain select a1,a2,b,max(c),min(c) from t1 group by a1,a2,b;
+explain select a1,a2,b,max(c),min(c) from t2 group by a1,a2,b;
+-- Select fields in different order
+explain select min(a2), a1, max(a2), min(a2), a1 from t1 group by a1;
+explain select a1, b, min(c), a1, max(c), b, a2, max(c), max(c) from t1 group by a1, a2, b;
+explain select min(a2) from t1 group by a1;
+explain select a2, min(c), max(c) from t1 group by a1,a2,b;
+
+-- queries
+select a1, min(a2) from t1 group by a1;
+select a1, max(a2) from t1 group by a1;
+select a1, min(a2), max(a2) from t1 group by a1;
+select a1, a2, b, min(c), max(c) from t1 group by a1,a2,b;
+select a1,a2,b,max(c),min(c) from t1 group by a1,a2,b;
+select a1,a2,b,max(c),min(c) from t2 group by a1,a2,b;
+-- Select fields in different order
+select min(a2), a1, max(a2), min(a2), a1 from t1 group by a1;
+select a1, b, min(c), a1, max(c), b, a2, max(c), max(c) from t1 group by a1, a2, b;
+select min(a2) from t1 group by a1;
+select a2, min(c), max(c) from t1 group by a1,a2,b;
+
+--
+-- Queries with a where clause
+--
+
+-- A) Preds only over the group 'A' attributes
+-- plans
+explain select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where a1 >= 'b' group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+explain select a1, max(c)            from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+explain select a1,min(c),max(c)      from t1 where a1 >= 'b' group by a1,a2,b;
+explain select a1,  max(c)           from t1 where a1 in ('a','b','d') group by a1,a2,b;
+
+explain select a1,a2,b,       max(c) from t2 where a1 < 'd' group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where a1 < 'd' group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where a1 >= 'b' group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+explain select a1, max(c)            from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+explain select a1,min(c),max(c)      from t2 where a1 >= 'b' group by a1,a2,b;
+explain select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
+
+-- queries
+select a1,a2,b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where a1 >= 'b' group by a1,a2,b;
+select a1,a2,b,       max(c) from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+select a1, max(c)            from t1 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
+select a1,a2,b,       max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+select a1,a2,b,       max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+select a1,min(c),max(c)      from t1 where a1 >= 'b' group by a1,a2,b;
+select a1,  max(c)           from t1 where a1 in ('a','b','d') group by a1,a2,b;
+
+select a1,a2,b,       max(c) from t2 where a1 < 'd' group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where a1 < 'd' group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where a1 >= 'b' group by a1,a2,b;
+select a1,a2,b,       max(c) from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+select a1, max(c)            from t2 where a1 >= 'c' or a1 < 'b' group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where a1 >= 'c' or a2 < 'b' group by a1,a2,b;
+select a1,a2,b,       max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where a1 = 'z' or a1 = 'b' or a1 = 'd' group by a1,a2,b;
+select a1,a2,b,       max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') group by a1,a2,b;
+select a1,min(c),max(c)      from t2 where a1 >= 'b' group by a1,a2,b;
+select a1,  max(c)           from t2 where a1 in ('a','b','d') group by a1,a2,b;
+
+-- B) Equalities only over the non-group 'B' attributes
+-- plans
+explain select a1,a2,b,max(c),min(c) from t1 where (a2 = 'a') and (b = 'b') group by a1;
+explain select a1,max(c),min(c)      from t1 where (a2 = 'a') and (b = 'b') group by a1;
+explain select a1,a2,b,       max(c) from t1 where (b = 'b') group by a1,a2;
+explain select a1,a2,b,min(c),max(c) from t1 where (b = 'b') group by a1,a2;
+explain select a1,a2, max(c)         from t1 where (b = 'b') group by a1,a2;
+
+explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') group by a1;
+explain select a1,max(c),min(c)      from t2 where (a2 = 'a') and (b = 'b') group by a1;
+explain select a1,a2,b,       max(c) from t2 where (b = 'b') group by a1,a2;
+explain select a1,a2,b,min(c),max(c) from t2 where (b = 'b') group by a1,a2;
+explain select a1,a2, max(c)         from t2 where (b = 'b') group by a1,a2;
+
+-- these queries test case 2) in TRP_GROUP_MIN_MAX::update_cost()
+explain select a1,a2,b,max(c),min(c) from t3 where (a2 = 'a') and (b = 'b') group by a1;
+explain select a1,max(c),min(c)      from t3 where (a2 = 'a') and (b = 'b') group by a1;
+
+-- queries
+select a1,a2,b,max(c),min(c) from t1 where (a2 = 'a') and (b = 'b') group by a1;
+select a1,max(c),min(c)      from t1 where (a2 = 'a') and (b = 'b') group by a1;
+select a1,a2,b,       max(c) from t1 where (b = 'b') group by a1,a2;
+select a1,a2,b,min(c),max(c) from t1 where (b = 'b') group by a1,a2;
+select a1,a2, max(c)         from t1 where (b = 'b') group by a1,a2;
+
+select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') group by a1;
+select a1,max(c),min(c)      from t2 where (a2 = 'a') and (b = 'b') group by a1;
+select a1,a2,b,       max(c) from t2 where (b = 'b') group by a1,a2;
+select a1,a2,b,min(c),max(c) from t2 where (b = 'b') group by a1,a2;
+select a1,a2, max(c)         from t2 where (b = 'b') group by a1,a2;
+
+-- these queries test case 2) in TRP_GROUP_MIN_MAX::update_cost()
+select a1,a2,b,max(c),min(c) from t3 where (a2 = 'a') and (b = 'b') group by a1;
+select a1,max(c),min(c)      from t3 where (a2 = 'a') and (b = 'b') group by a1;
+
+
+-- IS NULL (makes sense for t2 only)
+-- plans
+explain select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1;
+explain select a1,a2,b,max(c) from t2 where (a2 = 'a') and b is NULL group by a1;
+explain select a1,a2,b,min(c) from t2 where b is NULL group by a1,a2;
+explain select a1,a2,b,max(c) from t2 where b is NULL group by a1,a2;
+explain select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
+explain select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
+-- queries
+select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1;
+select a1,a2,b,max(c) from t2 where (a2 = 'a') and b is NULL group by a1;
+select a1,a2,b,min(c) from t2 where b is NULL group by a1,a2;
+select a1,a2,b,max(c) from t2 where b is NULL group by a1,a2;
+select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
+select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
+
+-- C) Range predicates for the MIN/MAX attribute
+-- plans
+explain select a1,a2,b,       max(c) from t1 where (c > 'b1') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t1 where (c > 'f123') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where (c > 'f123') group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t1 where (c < 'a0') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t1 where (c < 'k321') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where (c < 'k321') group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where (c between 'b111' and 'g112') or (c between 'd000' and 'i110') group by a1,a2,b;
+
+explain select a1,a2,b,       max(c) from t2 where (c > 'b1') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t2 where (c > 'f123') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where (c > 'f123') group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t2 where (c < 'a0') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t2 where (c < 'k321') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where (c < 'k321') group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+explain select a1,a2,b,       max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
+
+-- queries
+select a1,a2,b,       max(c) from t1 where (c > 'b1') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') group by a1,a2,b;
+select a1,a2,b,       max(c) from t1 where (c > 'f123') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where (c > 'f123') group by a1,a2,b;
+select a1,a2,b,       max(c) from t1 where (c < 'a0') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') group by a1,a2,b;
+select a1,a2,b,       max(c) from t1 where (c < 'k321') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where (c < 'k321') group by a1,a2,b;
+select a1,a2,b,       max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+select a1,a2,b,       max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where (c between 'b111' and 'g112') or (c between 'd000' and 'i110') group by a1,a2,b;
+
+select a1,a2,b,       max(c) from t2 where (c > 'b1') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') group by a1,a2,b;
+select a1,a2,b,       max(c) from t2 where (c > 'f123') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where (c > 'f123') group by a1,a2,b;
+select a1,a2,b,       max(c) from t2 where (c < 'a0') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') group by a1,a2,b;
+select a1,a2,b,       max(c) from t2 where (c < 'k321') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where (c < 'k321') group by a1,a2,b;
+select a1,a2,b,       max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where (c < 'a0') or (c > 'b1') group by a1,a2,b;
+select a1,a2,b,       max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where (c > 'b1') or (c <= 'g1') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where (c > 'b111') and (c <= 'g112') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where (c < 'c5') or (c = 'g412') or (c = 'k421') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where ((c > 'b111') and (c <= 'g112')) or ((c > 'd000') and (c <= 'i110')) group by a1,a2,b;
+
+-- A,B,C) Predicates referencing mixed classes of attributes
+-- plans
+explain select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t1 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
+explain select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
+explain select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
+explain select a1,a2,b,min(c) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+explain select a1,a2,b,min(c) from t1 where (ord(a1) > 97) and (ord(a2) + ord(a1) > 194) and (b = 'c') group by a1,a2,b;
+
+explain select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
+explain select a1,a2,b,min(c),max(c) from t2 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
+explain select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
+explain select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
+explain select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+
+-- queries
+select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t1 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
+select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
+select a1,a2,b,min(c) from t1 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
+select a1,a2,b,min(c) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+select a1,a2,b,min(c) from t1 where (ord(a1) > 97) and (ord(a2) + ord(a1) > 194) and (b = 'c') group by a1,a2,b;
+
+select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where (a1 >= 'c' or a2 < 'b') and (c > 'b111') group by a1,a2,b;
+select a1,a2,b,min(c),max(c) from t2 where (a2 >= 'b') and (b = 'a') and (c > 'b111') group by a1,a2,b;
+select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c < 'h112') or (c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122')) group by a1,a2,b;
+select a1,a2,b,min(c) from t2 where ((a1 > 'a') or (a1 < '9'))  and ((a2 >= 'b') and (a2 < 'z')) and (b = 'a') and ((c = 'j121') or (c > 'k121' and c < 'm122') or (c > 'o122') or (c < 'h112') or (c = 'c111')) group by a1,a2,b;
+select a1,a2,b,min(c) from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+
+
+--
+-- GROUP BY queries without MIN/MAX
+--
+
+-- plans
+explain select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+explain select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+explain select a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+explain select a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+
+explain select a1,a2,b from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+explain select a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+explain select a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+explain select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+
+-- queries
+select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+select a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+select a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+
+select a1,a2,b from t2 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
+select a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+select a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+select a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+
+
+--
+-- DISTINCT queries
+--
+
+-- plans
+explain select distinct a1,a2,b from t1;
+explain select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a');
+explain select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+explain select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+explain select distinct b from t1 where (a2 >= 'b') and (b = 'a');
+
+explain select distinct a1,a2,b from t2;
+explain select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
+explain select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+explain select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+explain select distinct b from t2 where (a2 >= 'b') and (b = 'a');
+
+-- queries
+select distinct a1,a2,b from t1;
+select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a');
+select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+select distinct b from t1 where (a2 >= 'b') and (b = 'a');
+
+select distinct a1,a2,b from t2;
+select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
+select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+select distinct b from t2 where (a2 >= 'b') and (b = 'a');
+
+
+--
+-- DISTINCT queries with GROUP-BY
+--
+
+-- plans
+explain select distinct a1,a2,b from t1;
+explain select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+explain select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+explain select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+explain select distinct b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+
+explain select distinct a1,a2,b from t2;
+explain select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+explain select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+explain select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+explain select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+
+-- queries
+select distinct a1,a2,b from t1;
+select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+select distinct b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+
+select distinct a1,a2,b from t2;
+select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121') group by a1,a2,b;
+select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c') group by a1,a2,b;
+select distinct b from t2 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
+
+
+--
+-- COUNT (DISTINCT cols) queries
+--
+
+explain select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
+explain select count(distinct a1,a2,b,c) from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+explain select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+explain select count(distinct b) from t1 where (a2 >= 'b') and (b = 'a');
+explain select ord(a1) + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
+
+select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
+select count(distinct a1,a2,b,c) from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+select count(distinct b) from t1 where (a2 >= 'b') and (b = 'a');
+select ord(a1) + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
+
+--
+-- Queries with expressions in the select clause
+--
+
+explain select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
+explain select concat(a1,min(c)),b from t1 where a1 < 'd' group by a1,a2,b;
+explain select concat(a1,min(c)),b,max(c) from t1 where a1 < 'd' group by a1,a2,b;
+explain select concat(a1,a2),b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
+explain select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
+
+select a1,a2,b, concat(min(c), max(c)) from t1 where a1 < 'd' group by a1,a2,b;
+select concat(a1,min(c)),b from t1 where a1 < 'd' group by a1,a2,b;
+select concat(a1,min(c)),b,max(c) from t1 where a1 < 'd' group by a1,a2,b;
+select concat(a1,a2),b,min(c),max(c) from t1 where a1 < 'd' group by a1,a2,b;
+select concat(ord(min(b)),ord(max(b))),min(b),max(b) from t1 group by a1,a2;
+
+
+--
+-- Negative examples: queries that should NOT be treated as optimizable by
+-- QUICK_GROUP_MIN_MAX_SELECT
+--
+
+-- select a non-indexed attribute
+explain select a1,a2,b,d,min(c),max(c) from t1 group by a1,a2,b;
+
+explain select a1,a2,b,d from t1 group by a1,a2,b;
+
+-- predicate that references an attribute that is after the MIN/MAX argument
+-- in the index
+explain select a1,a2,min(b),max(b) from t1
+where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2;
+
+-- predicate that references a non-indexed attribute
+explain select a1,a2,b,min(c),max(c) from t1
+where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b;
+
+explain select a1,a2,b,c from t1
+where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b,c;
+
+-- non-equality predicate for a non-group select attribute
+explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b < 'b') group by a1;
+explain select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
+
+-- non-group field with an equality predicate that references a keypart after the
+-- MIN/MAX argument
+explain select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
+select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
+
+-- disjunction for a non-group select attribute
+explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b = 'a') group by a1;
+
+-- non-range predicate for the MIN/MAX attribute
+explain select a1,a2,b,min(c),max(c) from t2
+where (c > 'a000') and (c <= 'd999') and (c like '_8__') group by a1,a2,b;
+
+-- not all attributes are indexed by one index
+explain select a1, a2, b, c, min(d), max(d) from t1 group by a1,a2,b,c;
+
+-- other aggregate functions than MIN/MAX
+explain select a1,a2,count(a2) from t1 group by a1,a2,b;
+explain select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
+explain select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
+
+drop table t1;
+drop table t2;
+drop table t3;

@@ -1538,8 +1538,9 @@ ulonglong ha_myisam::get_auto_increment()
   mi_flush_bulk_insert(file, table->next_number_index);
 
   (void) extra(HA_EXTRA_KEYREAD);
-  key_copy(key,table,table->next_number_index,
-	   table->next_number_key_offset);
+  key_copy(key, table->record[0],
+           table->key_info + table->next_number_index,
+           table->next_number_key_offset);
   error=mi_rkey(file,table->record[1],(int) table->next_number_index,
 		key,table->next_number_key_offset,HA_READ_PREFIX_LAST);
   if (error)
