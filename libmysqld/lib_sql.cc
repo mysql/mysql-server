@@ -525,11 +525,11 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   }
 #else
   locked_in_memory=0;
-#endif    
+#endif
 
   if (opt_myisam_log)
     (void) mi_log( 1 );
-  ft_init_stopwords(ft_precompiled_stopwords);
+  ft_init_stopwords();
 
   /*
     init signals & alarm
