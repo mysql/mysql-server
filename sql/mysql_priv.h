@@ -809,8 +809,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
 		   List_iterator<Item> *it, bool any_privileges,
-                   bool allocate_view_names,
-                   bool select_insert);
+                   bool allocate_view_names);
 bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds,
 		  TABLE_LIST **leaves, bool refresh_only,
                   bool select_insert);
