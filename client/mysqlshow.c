@@ -30,6 +30,7 @@
 static my_string host=0,opt_password=0,user=0;
 static my_bool opt_show_keys=0,opt_compress=0,opt_status=0, tty_password=0;
 static uint opt_verbose=0;
+static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 
 #ifdef HAVE_SMEM 
 static char *shared_memory_base_name=0;
@@ -115,6 +116,8 @@ int main(int argc, char **argv)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
+  mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+
   if (!(mysql_real_connect(&mysql,host,user,opt_password,
 			   (first_argument_uses_wildcards) ? "" : argv[0],opt_mysql_port,opt_mysql_unix_port,
 			   0)))
@@ -155,6 +158,9 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", 'c', "Directory where character sets are",
    (gptr*) &charsets_dir, (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
+  {"default-character-set", OPT_DEFAULT_CHARSET,
+   "Set the default character set.", (gptr*) &default_charset,
+   (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -558,7 +564,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
 	    mysql_error(mysql));
     return 1;
   }
-  end=strmov(strmov(query,"show /*!32332 FULL */ columns from "),table);
+  end=strmov(strmov(strmov(query,"show /*!32332 FULL */ columns from `"),table),"`");
   if (wild && wild[0])
     strxmov(end," like '",wild,"'",NullS);
   if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
@@ -580,7 +586,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   print_res_top(result);
   if (opt_show_keys)
   {
-    end=strmov(strmov(query,"show keys from "),table);
+    end=strmov(strmov(strmov(query,"show keys from `"),table),"`");
     if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
     {
       fprintf(stderr,"%s: Cannot list keys in db: %s, table: %s: %s\n",

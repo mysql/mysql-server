@@ -2048,7 +2048,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   }
   global_system_variables.character_set_server= default_charset_info;
   global_system_variables.character_set_database= default_charset_info;
-  global_system_variables.character_set_results= NULL;
+  global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
 
@@ -4689,7 +4689,7 @@ static void mysql_init_variables(void)
   /* Set default values for some option variables */
   global_system_variables.character_set_server= default_charset_info;
   global_system_variables.character_set_database= default_charset_info;
-  global_system_variables.character_set_results= NULL;
+  global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client= default_charset_info;
   global_system_variables.collation_connection= default_charset_info;
   global_system_variables.table_type=   DB_TYPE_MYISAM;
