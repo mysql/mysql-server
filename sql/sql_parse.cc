@@ -4673,10 +4673,10 @@ Item * all_any_subquery_creator(Item *left_expr,
 				bool all,
 				SELECT_LEX *select_lex)
 {
-  if ((cmp == &comp_eq_creator) and !all)       //  = ANY <=> IN
+  if ((cmp == &comp_eq_creator) && !all)       //  = ANY <=> IN
     return new Item_in_subselect(left_expr, select_lex);
-  
-  if ((cmp == &comp_ne_creator) and all)	// <> ALL <=> NOT IN
+
+  if ((cmp == &comp_ne_creator) && all)        // <> ALL <=> NOT IN
     return new Item_func_not(new Item_in_subselect(left_expr, select_lex));
 
   Item_allany_subselect *it=
