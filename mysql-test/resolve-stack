@@ -1,0 +1,8 @@
+#! /bin/sh
+# A shortcut for resolving stacks when debugging when
+# we cannot duplicate the crash in a debugger and have to
+# resort to using stack traces
+
+nm --numeric-sort ../sql/mysqld > var/tmp/mysqld.sym
+echo "Please type or paste the numeric stack trace,Ctrl-C to quit:"
+../extra/resolve_stack_dump -s var/tmp/mysqld.sym

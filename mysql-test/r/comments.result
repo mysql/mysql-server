@@ -5,7 +5,7 @@ select 1 /* long
 multi line comment */;
 1
 1
-/* empty query */;
+;
 Query was empty
 select 1 /*!32301 +1 */;
 1 /*!32301 +1
@@ -25,3 +25,4 @@ select 1 # The rest of the row will be ignored
 ;
 1
 1
+/* line with only comment */;

@@ -169,8 +169,25 @@ os_file_get_last_error(void)
 
 	if (err != ERROR_FILE_EXISTS) {
 	         fprintf(stderr,
-  "InnoDB: Warning: operating system error number %li in a file operation.\n",
+  "InnoDB: Operating system error number %li in a file operation.\n"
+  "InnoDB: See http://www.innodb.com/ibman.html for installation help.\n",
 		(long) err);
+
+		 if (err == ERROR_PATH_NOT_FOUND) {
+		         fprintf(stderr,
+  "InnoDB: The error means the system cannot find the path specified.\n"
+  "InnoDB: In installation you must create directories yourself, InnoDB\n"
+  "InnoDB: does not create them.\n");
+		 } else if (err == ERROR_ACCESS_DENIED) {
+		         fprintf(stderr,
+  "InnoDB: The error means mysqld does not have the access rights to\n"
+  "InnoDB: the directory. It may also be you have created a subdirectory\n"
+  "InnoDB: of the same name as a data file.\n"); 
+		 } else {
+		         fprintf(stderr,
+  "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
+  "InnoDB: what the error number means.\n");
+		 }
 	}
 
 	if (err == ERROR_FILE_NOT_FOUND) {
@@ -186,9 +203,25 @@ os_file_get_last_error(void)
 	err = (ulint) errno;
 
 	if (err != EEXIST) {
-	        fprintf(stderr,
-  "InnoDB: Warning: operating system error number %i in a file operation.\n",
-		errno);
+	         fprintf(stderr,
+  "InnoDB: Operating system error number %li in a file operation.\n"
+  "InnoDB: See http://www.innodb.com/ibman.html for installation help.\n",
+		(long) err);
+
+		 if (err == ENOENT) {
+		         fprintf(stderr,
+  "InnoDB: The error means the system cannot find the path specified.\n"
+  "InnoDB: In installation you must create directories yourself, InnoDB\n"
+  "InnoDB: does not create them.\n");
+		 } else if (err == EACCES) {
+		         fprintf(stderr,
+  "InnoDB: The error means mysqld does not have the access rights to\n"
+  "InnoDB: the directory.\n");
+		 } else {
+		         fprintf(stderr,
+  "InnoDB: Look from section 13.2 at http://www.innodb.com/ibman.html\n"
+  "InnoDB: what the error number means or use the perror program of MySQL.\n");
+		 }
 	}
 
 	if (err == ENOSPC ) {
@@ -228,11 +261,11 @@ os_file_handle_error(
 	if (err == OS_FILE_DISK_FULL) {
 		fprintf(stderr, "\n");
 		if (name) {
-		  fprintf(stderr,
-			"InnoDB: Encountered a problem with file %s.\n",
+		        fprintf(stderr,
+			  "InnoDB: Encountered a problem with file %s.\n",
 									name);
 		}
-	   fprintf(stderr,
+	        fprintf(stderr,
 	   "InnoDB: Cannot continue operation.\n"
 	   "InnoDB: Disk is full. Try to clean the disk to free space.\n"
 	   "InnoDB: Delete a possible created file and restart.\n");
@@ -245,6 +278,10 @@ os_file_handle_error(
 	} else if (err == OS_FILE_ALREADY_EXISTS) {
 		return(FALSE);
 	} else {
+	        if (name) {
+	                fprintf(stderr, "InnoDB: File name %s\n", name);
+	        }
+	  
 		fprintf(stderr, "InnoDB: Cannot continue operation.\n");
 
 		exit(1);

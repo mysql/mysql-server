@@ -48,6 +48,7 @@ char *sql_strmake(const char *str,uint len);
 gptr sql_memdup(const void * ptr,unsigned size);
 void sql_element_free(void *ptr);
 void kill_one_thread(THD *thd, ulong id);
+int net_request_file(NET* net, const char* fname);
 char* query_table_status(THD *thd,const char *db,const char *table_name);
 
 #define x_free(A)	{ my_free((gptr) (A),MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR)); }
@@ -159,8 +160,8 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define OPTION_LOW_PRIORITY_UPDATES	8192
 #define OPTION_WARNINGS		16384
 #define OPTION_AUTO_IS_NULL	32768
-#define OPTION_ANSI_MODE	65536L
-#define OPTION_SAFE_UPDATES	OPTION_ANSI_MODE*2
+#define OPTION_FOUND_COMMENT	65536L
+#define OPTION_SAFE_UPDATES	OPTION_FOUND_COMMENT*2
 #define OPTION_BUFFER_RESULT	OPTION_SAFE_UPDATES*2
 #define OPTION_BIN_LOG          OPTION_BUFFER_RESULT*2
 #define OPTION_NOT_AUTO_COMMIT	OPTION_BIN_LOG*2
@@ -180,13 +181,14 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define SELECT_NO_UNLOCK	(QUERY_NO_GOOD_INDEX_USED*2)
 #define TMP_TABLE_ALL_COLUMNS	(SELECT_NO_UNLOCK*2)
 
-
-#define MODE_REAL_AS_FLOAT      1
-#define MODE_PIPES_AS_CONCAT    2
-#define MODE_ANSI_QUOTES        4
-#define MODE_IGNORE_SPACE	8
-#define MODE_SERIALIZABLE	16
-#define MODE_ONLY_FULL_GROUP_BY	32
+/* Bits for different SQL modes modes (including ANSI mode) */
+#define MODE_REAL_AS_FLOAT      	1
+#define MODE_PIPES_AS_CONCAT    	2
+#define MODE_ANSI_QUOTES        	4
+#define MODE_IGNORE_SPACE		8
+#define MODE_SERIALIZABLE		16
+#define MODE_ONLY_FULL_GROUP_BY		32
+#define MODE_NO_UNSIGNED_SUBTRACTION	64
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -540,6 +542,10 @@ void sql_print_error(const char *format,...)
 	        __attribute__ ((format (printf, 1, 2)));
 bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
+void open_log(MYSQL_LOG *log, const char *hostname,
+	     const char *opt_name, const char *extension,
+	      enum_log_type type, bool read_append = 0,
+	      bool no_auto_events = 0);
 
 extern uint32 server_id;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
@@ -572,17 +578,18 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_thread_count,LOCK_mapped_file,LOCK_user_locks, LOCK_status,
        LOCK_grant, LOCK_error_log, LOCK_delayed_insert,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
-       LOCK_binlog_update, LOCK_slave, LOCK_server_id, LOCK_slave_list;
-extern pthread_cond_t COND_refresh,COND_thread_count, COND_binlog_update,
-                      COND_slave_stopped, COND_slave_start;
+       LOCK_server_id, LOCK_slave_list, LOCK_active_mi;
+extern pthread_cond_t COND_refresh,COND_thread_count;
 extern pthread_attr_t connection_attrib;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory,
             opt_using_transactions, use_temp_pool, mysql_embedded;
+extern bool opt_local_infile;
 extern char f_fyllchar;
 extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
 	     ha_read_key_count, ha_read_next_count, ha_read_prev_count,
 	     ha_read_first_count, ha_read_last_count,
-  	     ha_read_rnd_count, ha_read_rnd_next_count;
+	     ha_read_rnd_count, ha_read_rnd_next_count,
+	     ha_commit_count, ha_rollback_count;
 extern MY_BITMAP temp_pool;
 extern uchar *days_in_month;
 extern DATE_FORMAT dayord;
@@ -611,6 +618,7 @@ extern struct show_var_st init_vars[];
 extern struct show_var_st status_vars[];
 extern enum db_type default_table_type;
 extern enum enum_tx_isolation default_tx_isolation;
+extern char glob_hostname[FN_REFLEN];
 
 #ifndef __WIN__
 extern pthread_t signal_thread;

@@ -51,6 +51,33 @@
 #endif
 #endif /* _WIN32... */
 
+/* sometimes we want to make sure that the variable is not put into
+   a register in debugging mode so we can see its value in the core
+*/
+
+#ifndef DBUG_OFF
+#define dbug_volatile volatile
+#else
+#define dbug_volatile
+#endif
+
+/*
+  The macros below are borrowed from include/linux/compiler.h in the
+  Linux kernel. Use them to indicate the likelyhood of the truthfulness
+  of a condition. This serves two purposes - newer versions of gcc will be
+  able to optimize for branch predication, which could yield siginficant
+  performance gains in frequently executed sections of the code, and the
+  other reason to use them is for documentation
+*/
+
+#if !defined(__GNUC__) || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)
+#define __builtin_expect(x, expected_value) (x)
+#endif
+
+#define likely(x)	__builtin_expect((x),1)
+#define unlikely(x)	__builtin_expect((x),0)
+
+
 /* Fix problem with S_ISLNK() on Linux */
 #if defined(HAVE_LINUXTHREADS)
 #undef  _GNU_SOURCE
@@ -103,6 +130,14 @@
 #define _H_STRINGS
 #define _SYS_STREAM_H
 /* #define _AIX32_CURSES */	/* XXX: this breaks AIX 4.3.3 (others?). */
+#endif
+
+#ifdef __QNXNTO__
+#define HAVE_ERRNO_AS_DEFINE
+#define HAVE_FCNTL_LOCK
+#undef  HAVE_SYS_UN_H
+#undef  HAVE_FINITE
+#undef  HAVE_RINT
 #endif
 
 #ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
@@ -287,6 +322,7 @@ typedef unsigned short ushort;
 #define set_if_bigger(a,b)  { if ((a) < (b)) (a)=(b); }
 #define set_if_smaller(a,b) { if ((a) > (b)) (a)=(b); }
 #define test_all_bits(a,b) (((a) & (b)) == (b))
+#define set_bits(type, bit_count) (sizeof(type)*8 <= (bit_count) ? ~(type) 0 : ((((type) 1) << (bit_count)) - (type) 1))
 #define array_elements(A) ((uint) (sizeof(A)/sizeof(A[0])))
 #ifndef HAVE_RINT
 #define rint(A) floor((A)+0.5)

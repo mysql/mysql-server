@@ -27,7 +27,7 @@
 #include "ha_berkeley.h"
 #endif
 #ifdef HAVE_INNOBASE_DB
-#include "ha_innobase.h"
+#include "ha_innodb.h"
 #endif
 #include "ha_myisam.h"
 #include <nisam.h>
@@ -211,7 +211,7 @@ SHOW_COMP_OPTION have_openssl=SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_symlink=SHOW_OPTION_YES;
 
 
-static bool opt_skip_slave_start = 0; // If set, slave is not autostarted
+bool opt_skip_slave_start = 0; // If set, slave is not autostarted
 static bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
 static ulong back_log,connect_timeout,concurrency;
@@ -231,8 +231,6 @@ bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0,
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
-extern MASTER_INFO glob_mi;
-extern int init_master_info(MASTER_INFO* mi);
 
 /*
   If sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync,
@@ -244,7 +242,7 @@ static struct rand_struct sql_rand;
 static int cleanup_done;
 static char **defaults_argv,time_zone[30];
 static const char *default_table_type_name;
-static char glob_hostname[FN_REFLEN];
+char glob_hostname[FN_REFLEN];
 
 #include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
@@ -283,9 +281,11 @@ volatile ulong cached_thread_count=0;
 
 // replication parameters, if master_host is not NULL, we are a slave
 my_string master_user = (char*) "test", master_password = 0, master_host=0,
-  master_info_file = (char*) "master.info", master_ssl_key=0, master_ssl_cert=0;
+  master_info_file = (char*) "master.info",
+  relay_log_info_file = (char*) "relay-log.info",
+  master_ssl_key=0, master_ssl_cert=0;
 my_string report_user = 0, report_password = 0, report_host=0;
-
+ 
 const char *localhost=LOCAL_HOST;
 const char *delayed_user="DELAYED";
 uint master_port = MYSQL_PORT, master_connect_retry = 60;
@@ -297,6 +297,7 @@ ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
 bool opt_using_transactions, using_update_log, opt_warnings=0;
+bool opt_local_infile=1;
 bool volatile abort_loop,select_thread_in_use,grant_option;
 bool volatile ready_to_exit,shutdown_in_progress;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
@@ -315,7 +316,7 @@ ulong max_connections,max_insert_delayed_threads,max_used_connections,
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
 ulong myisam_max_sort_file_size, myisam_max_extra_sort_file_size;
-
+  
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN],
      default_charset[LIBLEN],mysql_charsets_dir[FN_REFLEN], *charsets_list,
@@ -330,6 +331,7 @@ bool mysql_embedded=1;
 #endif
 
 char *opt_bin_logname = 0; // this one needs to be seen in sql_parse.cc
+char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
 char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
 const char **errmesg;			/* Error messages */
@@ -350,7 +352,7 @@ time_t start_time;
 ulong opt_sql_mode = 0L;
 const char *sql_mode_names[] =
 { "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
-  "SERIALIZE","ONLY_FULL_GROUP_BY", NullS };
+  "SERIALIZE","ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",NullS };
 TYPELIB sql_mode_typelib= {array_elements(sql_mode_names)-1,"",
 			   sql_mode_names};
 
@@ -365,8 +367,8 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_error_log,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
-                LOCK_binlog_update, LOCK_slave, LOCK_server_id,
-		LOCK_user_conn, LOCK_slave_list;
+	        LOCK_server_id,
+		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
 
 Query_cache query_cache;
 
@@ -380,9 +382,11 @@ enum db_type default_table_type=DB_TYPE_MYISAM;
 #ifdef __WIN__
 #undef	 getpid
 #include <process.h>
+#if !defined(EMBEDDED_LIBRARY)
 HANDLE hEventShutdown;
 #include "nt_servc.h"
 static	 NTService  Service;	      // Service object for WinNT
+#endif
 #endif
 
 #ifdef OS2
@@ -480,12 +484,25 @@ static void close_connections(void)
 #ifdef __NT__
   if ( hPipe != INVALID_HANDLE_VALUE )
   {
-    HANDLE hTempPipe = &hPipe;
+    HANDLE temp;
     DBUG_PRINT( "quit", ("Closing named pipes") );
-    hPipe = INVALID_HANDLE_VALUE;
-    CancelIo( hTempPipe );
-    DisconnectNamedPipe( hTempPipe );
-    CloseHandle( hTempPipe );
+     
+    /* Create connection to the handle named pipe handler to break the loop */
+    if ((temp = CreateFile(szPipeName,
+			   GENERIC_READ | GENERIC_WRITE,
+			   0,
+			   NULL,
+			   OPEN_EXISTING,
+			   0,
+			   NULL )) != INVALID_HANDLE_VALUE)
+    {
+      WaitNamedPipe(szPipeName, 1000);
+      DWORD dwMode = PIPE_READMODE_BYTE | PIPE_WAIT;
+      SetNamedPipeHandleState(temp, &dwMode, NULL, NULL);
+      CancelIo(temp);
+      DisconnectNamedPipe(temp);
+      CloseHandle(temp);
+    }
   }
 #endif
 #ifdef HAVE_SYS_UN_H
@@ -609,6 +626,7 @@ void kill_mysql(void)
 #endif  
 
 #if defined(__WIN__)
+#if !defined(EMBEDDED_LIBRARY)
   {
     if (!SetEvent(hEventShutdown))
     {
@@ -621,6 +639,7 @@ void kill_mysql(void)
       CloseHandle(hEvent);
     */
   }
+#endif
 #elif defined(OS2)
   pthread_cond_signal( &eventShutdown);		// post semaphore
 #elif defined(HAVE_PTHREAD_KILL)
@@ -704,8 +723,9 @@ static pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 
 static sig_handler print_signal_warning(int sig)
 {
-  sql_print_error("Warning: Got signal %d from thread %d",
-		  sig,my_thread_id());
+  if (opt_warnings)
+    sql_print_error("Warning: Got signal %d from thread %d",
+		    sig,my_thread_id());
 #ifdef DONT_REMEMBER_SIGNAL
   sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
@@ -765,13 +785,16 @@ void clean_up(bool print_message)
   my_free(opt_ssl_ca,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_ssl_capath,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_ssl_cipher,MYF(MY_ALLOW_ZERO_PTR));
+  my_free((gptr) ssl_acceptor_fd, MYF(MY_ALLOW_ZERO_PTR));
   opt_ssl_key=opt_ssl_cert=opt_ssl_ca=opt_ssl_capath=0;
 #endif /* HAVE_OPENSSL */
+
   free_defaults(defaults_argv);
   my_free(charsets_list, MYF(MY_ALLOW_ZERO_PTR));
   my_free(allocated_mysql_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
   my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
   x_free(opt_bin_logname);
+  x_free(opt_relay_logname);
   bitmap_free(&temp_pool);
   free_max_user_conn();
   end_slave_list();
@@ -851,20 +874,33 @@ static void set_user(const char *user)
   if (!strcmp(user,"root"))
     return;				// Avoid problem with dynamic libraries
 
+  uid_t uid;
   if (!(ent = getpwnam(user)))
   {
-    fprintf(stderr,"Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
-    unireg_abort(1);
+    // allow a numeric uid to be used
+    const char *pos;
+    for (pos=user; isdigit(*pos); pos++) ;
+    if (*pos)					// Not numeric id
+    {
+      fprintf(stderr,"Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
+      unireg_abort(1);
+    }
+    uid=atoi(user);				// Use numberic uid
   }
-#ifdef HAVE_INITGROUPS
-  initgroups((char*) user,ent->pw_gid);
-#endif
-  if (setgid(ent->pw_gid) == -1)
+  else
   {
-    sql_perror("setgid");
-    unireg_abort(1);
+#ifdef HAVE_INITGROUPS
+    initgroups((char*) user,ent->pw_gid);
+#endif
+    if (setgid(ent->pw_gid) == -1)
+    {
+      sql_perror("setgid");
+      unireg_abort(1);
+    }
+    uid=ent->pw_uid;
   }
-  if (setuid(ent->pw_uid) == -1)
+
+  if (setuid(uid) == -1)
   {
     sql_perror("setuid");
     unireg_abort(1);
@@ -934,14 +970,20 @@ static void server_init(void)
       unireg_abort(1);
     }
     if (listen(ip_sock,(int) back_log) < 0)
-      sql_print_error("Warning:  listen() on TCP/IP failed with error %d",
+    {
+      sql_print_error("Error:  listen() on TCP/IP failed with error %d",
 		      socket_errno);
+      unireg_abort(1);
+    }
   }
 
+  /*
+    We have to first call set_user(), then set_root(), to get things to work
+    with glibc
+  */
+  set_user(mysqld_user);		// Works also with mysqld_user==NULL
   if (mysqld_chroot)
     set_root(mysqld_chroot);
-
-  set_user(mysqld_user); // set_user now takes care of mysqld_user==NULL
 
 #ifdef __NT__
   /* create named pipe */
@@ -1108,6 +1150,8 @@ void end_thread(THD *thd, bool put_in_cache)
   DBUG_PRINT("info", ("sending a broadcast"))
 
   /* Tell main we are ready */
+    // TODO: explain why we broadcast outside of the lock or
+    // fix the bug - Sasha
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   (void) pthread_cond_broadcast(&COND_thread_count);
   DBUG_PRINT("info", ("unlocked thread_count mutex"))
@@ -1240,7 +1284,7 @@ static sig_handler handle_segfault(int sig)
     fprintf(stderr, "Fatal signal %d while backtracing\n", sig);
     exit(1);
   }
-
+  
   segfaulted = 1;
   fprintf(stderr,"\
 mysqld got signal %d;\n\
@@ -1263,7 +1307,7 @@ key_buffer_size + (record_buffer + sort_buffer)*max_connections = %ld K\n\
 bytes of memory\n", (keybuff_size + (my_default_record_cache_size +
 			     sortbuff_size) * max_connections)/ 1024);
   fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
-
+  
 #if defined(HAVE_LINUXTHREADS)
   if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
   {
@@ -1279,6 +1323,7 @@ the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
 #ifdef HAVE_STACKTRACE
   if(!(test_flags & TEST_NO_STACKTRACE))
   {
+    fprintf(stderr,"thd=%p\n",thd);
     print_stacktrace(thd ? (gptr) thd->thread_stack : (gptr) 0,
 		     thread_stack);
   }
@@ -1558,8 +1603,9 @@ pthread_handler_decl(handle_shutdown,arg)
 
   /* this call should create the message queue for this thread */
   PeekMessage(&msg, NULL, 1, 65534,PM_NOREMOVE);
-
+#if !defined(EMBEDDED_LIBRARY)
   if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
+#endif
      kill_server(MYSQL_KILL_SIGNAL);
   return 0;
 }
@@ -1607,9 +1653,10 @@ const char *load_default_groups[]= { "mysqld","server",0 };
 char *libwrapName=NULL;
 #endif
 
-static void open_log(MYSQL_LOG *log, const char *hostname,
+void open_log(MYSQL_LOG *log, const char *hostname,
 		     const char *opt_name, const char *extension,
-		     enum_log_type type)
+		     enum_log_type type, bool read_append,
+	             bool no_auto_events)
 {
   char tmp[FN_REFLEN];
   if (!opt_name || !opt_name[0])
@@ -1633,7 +1680,8 @@ static void open_log(MYSQL_LOG *log, const char *hostname,
       opt_name=tmp;
     }
   }
-  log->open(opt_name,type);
+  log->open(opt_name,type,0,(read_append) ? SEQ_READ_APPEND : WRITE_CACHE,
+	    no_auto_events);
 }
 
 
@@ -1729,19 +1777,15 @@ int main(int argc, char **argv)
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_timezone,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_binlog_update, MY_MUTEX_INIT_FAST);	// QQ NOT USED
-  (void) pthread_mutex_init(&LOCK_slave, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_server_id, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
   (void) pthread_cond_init(&COND_manager,NULL);
-  (void) pthread_cond_init(&COND_binlog_update, NULL);
-  (void) pthread_cond_init(&COND_slave_stopped, NULL);
-  (void) pthread_cond_init(&COND_slave_start, NULL);
   (void) pthread_cond_init(&COND_rpl_status, NULL);
   init_signals();
 
@@ -1753,7 +1797,8 @@ int main(int argc, char **argv)
   if (opt_use_ssl)
   {
     ssl_acceptor_fd = new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
-			   opt_ssl_ca, opt_ssl_capath, opt_ssl_cipher);
+					   opt_ssl_ca, opt_ssl_capath,
+					   opt_ssl_cipher);
     DBUG_PRINT("info",("ssl_acceptor_fd: %p",ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
       opt_use_ssl = 0;
@@ -1841,20 +1886,9 @@ int main(int argc, char **argv)
 	     LOG_NEW);
     using_update_log=1;
   }
-
-  /*
-    make sure slave thread gets started if server_id is set,
-    valid master.info is present, and master_host has not been specified
-  */
-  if (server_id && !master_host)
-  {
-    char fname[FN_REFLEN+128];
-    MY_STAT stat_area;
-    fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
-    if (my_stat(fname, &stat_area, MYF(0)) && !init_master_info(&glob_mi))
-      master_host = glob_mi.host;
-  }
-
+ 
+  init_slave();
+  
   if (opt_bin_log && !server_id)
   {
     server_id= !master_host ? 1 : 2;
@@ -1895,6 +1929,14 @@ The server will not act as a slave.");
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
 	     LOG_NORMAL);
+#ifdef __WIN__
+#define MYSQL_ERR_FILE "mysql.err"
+  if (!opt_console)
+  {
+    freopen(MYSQL_ERR_FILE,"a+",stdout);
+    freopen(MYSQL_ERR_FILE,"a+",stderr);
+  }
+#endif
   if (ha_init())
   {
     sql_print_error("Can't init databases");
@@ -1920,13 +1962,8 @@ The server will not act as a slave.");
   ft_init_stopwords(ft_precompiled_stopwords);
 
 #ifdef __WIN__
-#define MYSQL_ERR_FILE "mysql.err"
   if (!opt_console)
-  {
-    freopen(MYSQL_ERR_FILE,"a+",stdout);
-    freopen(MYSQL_ERR_FILE,"a+",stderr);
     FreeConsole();				// Remove window
-  }
 #endif
 
   /*
@@ -1953,8 +1990,7 @@ The server will not act as a slave.");
   }
   if (!opt_noacl)
     (void) grant_init();
-  if (max_user_connections || mqh_used)
-    init_max_user_conn();
+  init_max_user_conn();
 
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)
@@ -1976,7 +2012,7 @@ The server will not act as a slave.");
     }
   }
   (void) thr_setconcurrency(concurrency);	// 10 by default
-#ifdef __WIN__			        //IRENA
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)	  //IRENA
   {
     hEventShutdown=CreateEvent(0, FALSE, FALSE, "MySqlShutdown");
     pthread_t hThread;
@@ -2007,24 +2043,13 @@ The server will not act as a slave.");
       sql_print_error("Warning: Can't create thread to manage maintenance");
   }
 
-  // slave thread
-  if (master_host)
-  {
-    pthread_t hThread;
-    if (!opt_skip_slave_start &&
-       pthread_create(&hThread, &connection_attrib, handle_slave, 0))
-      sql_print_error("Warning: Can't create thread to handle slave");
-    else if(opt_skip_slave_start)
-      init_master_info(&glob_mi);
-  }
-
   printf(ER(ER_READY),my_progname,server_version,"");
   fflush(stdout);
 
 #ifdef __NT__
   if (hPipe == INVALID_HANDLE_VALUE && !have_tcpip)
   {
-    sql_print_error("TCP/IP must be installed on Win98 platforms");
+    sql_print_error("TCP/IP or Named Pipes should be installed on NT OS");
   }
   else
   {
@@ -2083,47 +2108,33 @@ The server will not act as a slave.");
 #ifdef EXTRA_DEBUG2
   sql_print_error("After lock_thread_count");
 #endif
-#else
-  if (Service.IsNT())
+#endif /* __WIN__ */
+
+  /* Wait until cleanup is done */
+  (void) pthread_mutex_lock(&LOCK_thread_count);
+  while (!ready_to_exit)
   {
-    if(start_mode)
-    {
-      if (WaitForSingleObject(hEventShutdown,1000)==WAIT_TIMEOUT)
-        Service.Stop();
-    }
-    else
-    {
-      Service.SetShutdownEvent(0);
-      if(hEventShutdown) CloseHandle(hEventShutdown);
-    }
+    pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
   }
+  (void) pthread_mutex_unlock(&LOCK_thread_count);
+
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
+  if (Service.IsNT() && start_mode)
+    Service.Stop();
   else
   {
     Service.SetShutdownEvent(0);
-    if(hEventShutdown) CloseHandle(hEventShutdown);
+    if (hEventShutdown)
+      CloseHandle(hEventShutdown);
   }
 #endif
-#ifdef HAVE_OPENSSL
-  my_free((gptr)ssl_acceptor_fd,MYF(MY_ALLOW_ZERO_PTR));
-#endif /* HAVE_OPENSSL */
-  /* Wait until cleanup is done */
-  (void) pthread_mutex_lock(&LOCK_thread_count);
-  DBUG_PRINT("quit", ("Got thread_count mutex for clean up wait"));
-
-  while (!ready_to_exit)
-  {
-    DBUG_PRINT("quit", ("not yet ready to exit"));
-    pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
-  }
-  DBUG_PRINT("quit", ("ready to exit"));
-  (void) pthread_mutex_unlock(&LOCK_thread_count);
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(0);
   return(0);					/* purecov: deadcode */
 }
 
 
-#ifdef __WIN__
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 /* ------------------------------------------------------------------------
    main and thread entry function for Win32
    (all this is needed only to run mysqld as a service on WinNT)
@@ -2455,6 +2466,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 	struct request_info req;
 	signal(SIGCHLD, SIG_DFL);
 	request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, new_sock, NULL);
+#ifndef __linux__
 	fromhost(&req);
 	if (!hosts_access(&req))
 	{
@@ -2464,6 +2476,12 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 	    clean_exit() - same stupid thing ...
 	  */
 	  syslog(deny_severity, "refused connect from %s", eval_client(&req));
+#else
+	fromhost();
+	if (!hosts_access())
+	{
+	  syslog(deny_severity, "refused connect from %s", eval_client());
+#endif
 	  if (req.sink)
 	    ((void (*)(int))req.sink)(req.fd);
 
@@ -2686,7 +2704,8 @@ enum options {
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
                OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
 	       OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
-	       OPT_DES_KEY_FILE, OPT_SLAVE_SKIP_ERRORS
+	       OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
+               OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE
 };
 
 static struct option long_options[] = {
@@ -2748,6 +2767,7 @@ static struct option long_options[] = {
   {"init-file",             required_argument, 0, (int) OPT_INIT_FILE},
   {"log",                   optional_argument, 0, 'l'},
   {"language",              required_argument, 0, 'L'},
+  {"local-infile",	    optional_argument, 0, (int) OPT_LOCAL_INFILE},
   {"log-bin",               optional_argument, 0, (int) OPT_BIN_LOG},
   {"log-bin-index",         required_argument, 0, (int) OPT_BIN_LOG_INDEX},
   {"log-isam",              optional_argument, 0, (int) OPT_ISAM_LOG},
@@ -2812,6 +2832,8 @@ static struct option long_options[] = {
   {"report-password",       required_argument, 0, (int) OPT_REPORT_PASSWORD},
   {"report-port",           required_argument, 0, (int) OPT_REPORT_PORT},
   {"rpl-recovery-rank",     required_argument, 0, (int) OPT_RPL_RECOVERY_RANK},
+  {"relay-log",             required_argument, 0, (int) OPT_RELAY_LOG},
+  {"relay-log-index",       required_argument, 0, (int) OPT_RELAY_LOG_INDEX},
   {"safe-mode",             no_argument,       0, (int) OPT_SAFE},
   {"safe-show-database",    no_argument,       0, (int) OPT_SAFE_SHOW_DB},
   {"safe-user-create",	    no_argument,       0, (int) OPT_SAFE_USER_CREATE},
@@ -2835,6 +2857,8 @@ static struct option long_options[] = {
   {"skip-stack-trace",	    no_argument,       0, (int) OPT_SKIP_STACK_TRACE},
   {"skip-symlink",	    no_argument,       0, (int) OPT_SKIP_SYMLINKS},
   {"skip-thread-priority",  no_argument,       0, (int) OPT_SKIP_PRIOR},
+  {"relay-log-info-file",      required_argument, 0,
+   (int) OPT_RELAY_LOG_INFO_FILE},
   {"slave-load-tmpdir", required_argument, 0, (int) OPT_SLAVE_LOAD_TMPDIR},  
   {"slave-skip-errors", required_argument, 0,
    (int) OPT_SLAVE_SKIP_ERRORS},
@@ -3077,7 +3101,7 @@ struct show_var_st init_vars[]= {
   {"log_update",              (char*) &opt_update_log,              SHOW_BOOL},
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_BOOL},
-  {"log_long_queries",        (char*) &opt_slow_log,                SHOW_BOOL},
+  {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_BOOL},
   {"long_query_time",         (char*) &long_query_time,             SHOW_LONG},
   {"low_priority_updates",    (char*) &low_priority_updates,        SHOW_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_LONG},
@@ -3220,6 +3244,7 @@ struct show_var_st status_vars[]= {
   {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
   {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
   {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_CONST},
+  {"Handler_commit",           (char*) &ha_commit_count,        SHOW_LONG},
   {"Handler_delete",           (char*) &ha_delete_count,        SHOW_LONG},
   {"Handler_read_first",       (char*) &ha_read_first_count,    SHOW_LONG},
   {"Handler_read_key",         (char*) &ha_read_key_count,      SHOW_LONG},
@@ -3227,6 +3252,7 @@ struct show_var_st status_vars[]= {
   {"Handler_read_prev",        (char*) &ha_read_prev_count,     SHOW_LONG},
   {"Handler_read_rnd",         (char*) &ha_read_rnd_count,      SHOW_LONG},
   {"Handler_read_rnd_next",    (char*) &ha_read_rnd_next_count, SHOW_LONG},
+  {"Handler_rollback",         (char*) &ha_rollback_count,      SHOW_LONG},
   {"Handler_update",           (char*) &ha_update_count,        SHOW_LONG},
   {"Handler_write",            (char*) &ha_write_count,         SHOW_LONG},
   {"Key_blocks_used",          (char*) &_my_blocks_used,        SHOW_LONG_CONST},
@@ -3258,8 +3284,8 @@ struct show_var_st status_vars[]= {
   {"Select_range",             (char*) &select_range_count, 	SHOW_LONG},
   {"Select_range_check",       (char*) &select_range_check_count, SHOW_LONG},
   {"Select_scan",	       (char*) &select_scan_count,	SHOW_LONG},
-  {"Slave_running",            (char*) &slave_running,          SHOW_BOOL},
   {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables, SHOW_LONG},
+  {"Slave_running",            (char*) 0, SHOW_SLAVE_RUNNING},
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
   {"Slow_queries",             (char*) &long_query_count,       SHOW_LONG},
   {"Sort_merge_passes",	       (char*) &filesort_merge_passes,  SHOW_LONG},
@@ -3316,10 +3342,11 @@ static void use_help(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB, by Monty and others");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
-  puts("and you are welcome to modify and redistribute it under the GPL license\n");
-  puts("Starts the MySQL server\n");
+  puts("\
+Copyright (C) 2000 MySQL AB, by Monty and others\n\
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
+and you are welcome to modify and redistribute it under the GPL license\n\
+Starts the MySQL server\n");
 
   printf("Usage: %s [OPTIONS]\n", my_progname);
   puts("\n\
@@ -3365,6 +3392,7 @@ static void usage(void)
   --init-file=file	Read SQL commands from this file at startup\n\
   -L, --language=...	Client error messages in given language. May be\n\
 			given as a full path\n\
+  --local-infile=[1|0]  Enable/disable LOAD DATA LOCAL INFILE\n\
   -l, --log[=file]	Log connections and queries to file\n\
   --log-bin[=file]      Log queries in new binary format (for replication)\n\
   --log-bin-index=file  File that holds the names for last binary log files\n\
@@ -3419,7 +3447,8 @@ static void usage(void)
   -t, --tmpdir=path	Path for temporary files\n\
   --sql-mode=option[,option[,option...]] where option can be one of:\n\
                         REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES,\n\
-                        IGNORE_SPACE, SERIALIZE, ONLY_FULL_GROUP_BY.\n\
+                        IGNORE_SPACE, SERIALIZE, ONLY_FULL_GROUP_BY,\n\
+			NO_UNSIGNED_SUBTRACTION.\n\
   --transaction-isolation\n\
 		        Default transaction isolation level\n\
   --temp-pool           Use a pool of temporary files\n\
@@ -3607,6 +3636,9 @@ static void get_options(int argc,char **argv)
     case 'P':
       mysql_port= (unsigned int) atoi(optarg);
       break;
+    case OPT_LOCAL_INFILE:
+      opt_local_infile= test(!optarg || atoi(optarg) != 0);
+      break;
     case OPT_SLAVE_SKIP_ERRORS:
       init_slave_skip_errors(optarg);
       break;
@@ -3670,6 +3702,14 @@ static void get_options(int argc,char **argv)
     case (int) OPT_UPDATE_LOG:
       opt_update_log=1;
       opt_update_logname=optarg;		// Use hostname.# if null
+      break;
+   case (int) OPT_RELAY_LOG_INDEX:
+      opt_relaylog_index_name = optarg;
+      break;
+    case (int) OPT_RELAY_LOG:
+      x_free(opt_relay_logname);
+      if (optarg && optarg[0])
+	opt_relay_logname=my_strdup(optarg,MYF(0));
       break;
     case (int) OPT_BIN_LOG_INDEX:
       opt_binlog_index_name = optarg;
@@ -3831,7 +3871,7 @@ static void get_options(int argc,char **argv)
       opt_slow_log=1;
       opt_slow_logname=optarg;
       break;
-    case (int) OPT_SKIP_SLAVE_START:
+    case (int)OPT_SKIP_SLAVE_START:
       opt_skip_slave_start = 1;
       break;
     case (int) OPT_SKIP_NEW:
@@ -4135,6 +4175,9 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_MASTER_INFO_FILE:
       master_info_file=optarg;
+      break;
+    case OPT_RELAY_LOG_INFO_FILE:
+      relay_log_info_file=optarg;
       break;
     case OPT_MASTER_PORT:
       master_port= atoi(optarg);

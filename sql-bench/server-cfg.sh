@@ -958,7 +958,7 @@ sub version
   {
     if ($dir && -e "$dir/bin/solcon")
     {
-      $version=`$dir/bin/solcon -e"ver" $main::opt_user $main::opt_password | grep Server | head -1`;
+      $version=`$dir/bin/solcon -e"ver" $main::opt_user $main::opt_password | grep Server | sed q`;
       if ($? == 0)
       {
 	chomp($version);

@@ -389,6 +389,115 @@ trx_sys_flush_max_trx_id(void)
 	mtr_commit(&mtr);
 }
 
+/*********************************************************************
+Updates the offset information about the end of the MySQL binlog entry
+which corresponds to the transaction just being committed. */
+
+void
+trx_sys_update_mysql_binlog_offset(
+/*===============================*/
+	trx_t*	trx,	/* in: transaction being committed */
+	mtr_t*	mtr)	/* in: mtr */
+{
+	trx_sysf_t*	sys_header;
+	char		namebuf[TRX_SYS_MYSQL_LOG_NAME_LEN];
+	
+	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(trx->mysql_log_file_name);
+
+	memset(namebuf, ' ', TRX_SYS_MYSQL_LOG_NAME_LEN - 1);
+	namebuf[TRX_SYS_MYSQL_LOG_NAME_LEN - 1] = '\0';
+
+	/* Copy the whole MySQL log file name to the buffer, or only the
+	last characters, if it does not fit */
+
+	if (ut_strlen(trx->mysql_log_file_name)
+			> TRX_SYS_MYSQL_LOG_NAME_LEN - 1) {
+		ut_memcpy(namebuf, trx->mysql_log_file_name
+			+ ut_strlen(trx->mysql_log_file_name)
+			- (TRX_SYS_MYSQL_LOG_NAME_LEN - 1),
+			TRX_SYS_MYSQL_LOG_NAME_LEN - 1);
+	} else {
+		ut_memcpy(namebuf, trx->mysql_log_file_name,
+				1 + ut_strlen(trx->mysql_log_file_name));
+	}
+
+	namebuf[TRX_SYS_MYSQL_LOG_NAME_LEN - 1] = '\0';
+
+	sys_header = trx_sysf_get(mtr);
+
+	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
+	   != TRX_SYS_MYSQL_LOG_MAGIC_N) {
+
+	   	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD,
+				TRX_SYS_MYSQL_LOG_MAGIC_N,
+				MLOG_4BYTES, mtr);
+	}
+
+	if (0 != ut_memcmp(sys_header + TRX_SYS_MYSQL_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_NAME,
+			 namebuf, TRX_SYS_MYSQL_LOG_NAME_LEN)) {
+
+		mlog_write_string(sys_header + TRX_SYS_MYSQL_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_NAME,
+				namebuf, TRX_SYS_MYSQL_LOG_NAME_LEN, mtr);
+	}
+
+	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH) > 0
+	   || (trx->mysql_log_offset >> 32) > 0) {
+				
+		mlog_write_ulint(sys_header + TRX_SYS_MYSQL_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH,
+				(ulint)(trx->mysql_log_offset >> 32),
+				MLOG_4BYTES, mtr);
+	}
+
+	mlog_write_ulint(sys_header + TRX_SYS_MYSQL_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW,
+				(ulint)(trx->mysql_log_offset & 0xFFFFFFFF),
+				MLOG_4BYTES, mtr);				
+
+	trx->mysql_log_file_name = NULL;
+}
+
+/*********************************************************************
+Prints to stderr the MySQL binlog offset info in the trx system header if
+the magic number shows it valid. */
+
+void
+trx_sys_print_mysql_binlog_offset(void)
+/*===================================*/
+{
+	trx_sysf_t*	sys_header;
+	mtr_t		mtr;
+	
+	mtr_start(&mtr);
+
+	sys_header = trx_sysf_get(&mtr);
+
+	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
+	   != TRX_SYS_MYSQL_LOG_MAGIC_N) {
+
+		mtr_commit(&mtr);
+
+		return;
+	}
+
+	fprintf(stderr,
+	"InnoDB: Last MySQL binlog file offset %lu %lu, file name %s\n",
+		mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
+		mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
+		sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME);
+
+	mtr_commit(&mtr);
+}
+
 /********************************************************************
 Looks for a free slot for a rollback segment in the trx system file copy. */
 
@@ -519,7 +628,7 @@ trx_sys_init_at_db_start(void)
 	"InnoDB: %lu uncommitted transaction(s) which must be rolled back\n",
 				UT_LIST_GET_LEN(trx_sys->trx_list));
 
-		fprintf(stderr, "Trx id counter is %lu %lu\n", 
+		fprintf(stderr, "InnoDB: Trx id counter is %lu %lu\n", 
 			ut_dulint_get_high(trx_sys->max_trx_id),
 			ut_dulint_get_low(trx_sys->max_trx_id));
 	}

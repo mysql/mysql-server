@@ -68,7 +68,8 @@ enum ha_rkey_function {
 
 enum ha_key_alg {			
   HA_KEY_ALG_BTREE=0,			/* B-tree, default one          */
-  HA_KEY_ALG_RTREE=1			/* R-tree, for spatial searches */
+  HA_KEY_ALG_RTREE=1,			/* R-tree, for spatial searches */
+  HA_KEY_ALG_HASH=2			/* HASH keys (HEAP tables) */
 };
 
 	/* The following is parameter to ha_extra() */
@@ -149,6 +150,7 @@ enum ha_base_keytype {
 #define HA_FULLTEXT		128     /* SerG: for full-text search */
 #define HA_UNIQUE_CHECK		256	/* Check the key for uniqueness */
 #define HA_SPATIAL		1024    /* Alex Barkov: for spatial search */
+#define HA_NULL_ARE_EQUAL	2048	/* NULL in key are cmp as equal */
 
 
 	/* Automatic bits in key-flag */
@@ -259,6 +261,7 @@ enum ha_base_keytype {
 #define MBR_DISJOINT    4096
 #define MBR_EQUAL       8192
 #define MBR_DATA        16384
+#define SEARCH_NULL_ARE_EQUAL 32768	/* NULL in keys are equal */
 
 	/* bits in opt_flag */
 #define QUICK_USED	1

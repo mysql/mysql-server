@@ -1328,7 +1328,7 @@ void select_insert::send_error(uint errcode,const char *err)
   ::send_error(&thd->net,errcode,err);
   table->file->extra(HA_EXTRA_NO_CACHE);
   table->file->activate_all_index(thd);
-  ha_rollback(thd);
+  ha_rollback_stmt(thd);
   if (info.copied || info.deleted)
     query_cache.invalidate(table);
 }

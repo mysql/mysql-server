@@ -22,6 +22,7 @@ Item *create_func_ascii(Item* a);
 Item *create_func_asin(Item* a);
 Item *create_func_bin(Item* a);
 Item *create_func_bit_count(Item* a);
+Item *create_func_bit_length(Item* a);
 Item *create_func_ceiling(Item* a);
 Item *create_func_char_length(Item* a);
 Item *create_func_connection_id(void);

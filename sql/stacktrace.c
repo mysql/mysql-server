@@ -123,7 +123,7 @@ terribly wrong...\n");
   }
 #endif /* __alpha__ */
 
-  if (!stack_bottom)
+  if (!stack_bottom || (gptr) stack_bottom > (gptr) &fp)
   {
     ulong tmp= min(0x10000,thread_stack);
     /* Assume that the stack starts at the previous even 65K */

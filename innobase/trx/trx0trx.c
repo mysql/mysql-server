@@ -26,9 +26,9 @@ Created 3/26/1996 Heikki Tuuri
 
 
 /* Copy of the prototype for innobase_mysql_print_thd: this
-   copy must be equal to the one in mysql/sql/ha_innobase.cc ! */
-void innobase_mysql_print_thd(void* thd);
+copy must be equal to the one in mysql/sql/ha_innobase.cc ! */
 
+void innobase_mysql_print_thd(void* thd);
 
 /* Dummy session used currently in MySQL interface */
 sess_t*		trx_dummy_sess = NULL;
@@ -64,6 +64,8 @@ trx_create(
 
 	trx = mem_alloc(sizeof(trx_t));
 
+	trx->magic_n = TRX_MAGIC_N;
+
 	trx->op_info = (char *) "";
 	
 	trx->type = TRX_USER;
@@ -76,6 +78,9 @@ trx_create(
 	trx->n_mysql_tables_in_use = 0;
 	trx->mysql_n_tables_locked = 0;
 
+	trx->mysql_log_file_name = NULL;
+	trx->mysql_log_offset = 0;
+	
 	trx->ignore_duplicates_in_insert = FALSE;
 
 	mutex_create(&(trx->undo_mutex));
@@ -110,6 +115,9 @@ trx_create(
 
 	trx->has_search_latch = FALSE;
 	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+
+	trx->declared_to_be_inside_innodb = FALSE;
+	trx->n_tickets_to_enter_innodb = 0;
 
 	trx->auto_inc_lock = NULL;
 	
@@ -152,6 +160,32 @@ trx_allocate_for_mysql(void)
 }
 
 /************************************************************************
+Creates a transaction object for background operations by the master thread. */
+
+trx_t*
+trx_allocate_for_background(void)
+/*=============================*/
+				/* out, own: transaction object */
+{
+	trx_t*	trx;
+
+	mutex_enter(&kernel_mutex);
+	
+	/* Open a dummy session */
+
+	if (!trx_dummy_sess) {
+		trx_dummy_sess = sess_open(NULL, (byte*)"Dummy sess",
+						ut_strlen("Dummy sess"));
+	}
+	
+	trx = trx_create(trx_dummy_sess);
+
+	mutex_exit(&kernel_mutex);
+	
+	return(trx);
+}
+
+/************************************************************************
 Releases the search latch if trx has reserved it. */
 
 void
@@ -175,6 +209,11 @@ trx_free(
 	trx_t*	trx)	/* in, own: trx object */
 {
 	ut_ad(mutex_own(&kernel_mutex));
+
+	ut_a(trx->magic_n == TRX_MAGIC_N);
+
+	trx->magic_n = 11112222;
+
 	ut_a(trx->conc_state == TRX_NOT_STARTED);
 	
 	mutex_free(&(trx->undo_mutex));
@@ -232,6 +271,21 @@ trx_free_for_mysql(
 	ut_a(trx_n_mysql_transactions > 0);
 
 	trx_n_mysql_transactions--;
+	
+	mutex_exit(&kernel_mutex);
+}
+
+/************************************************************************
+Frees a transaction object of a background operation of the master thread. */
+
+void
+trx_free_for_background(
+/*====================*/
+	trx_t*	trx)	/* in, own: trx object */
+{
+	mutex_enter(&kernel_mutex);
+	
+	trx_free(trx);
 	
 	mutex_exit(&kernel_mutex);
 }
@@ -568,6 +622,13 @@ trx_commit_off_kernel(
 
 		mutex_exit(&(rseg->mutex));
 
+		/* Update the latest MySQL binlog name and offset info
+		in trx sys header if MySQL binlogging is on */
+
+		if (trx->mysql_log_file_name) {
+			trx_sys_update_mysql_binlog_offset(trx, &mtr);
+		}
+		
 		/* If we did not take the shortcut, the following call
 		commits the mini-transaction, making the whole transaction
 		committed in the file-based world at this log sequence number;

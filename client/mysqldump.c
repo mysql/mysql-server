@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "8.20"
+#define DUMP_VERSION "8.23"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -147,9 +147,9 @@ static const char *load_default_groups[]= { "mysqldump","client",0 };
 
 CHANGEABLE_VAR md_changeable_vars[] = {
   { "max_allowed_packet", (long*) &max_allowed_packet,24*1024*1024,4096,
-    24*1024L*1024L,MALLOC_OVERHEAD,1024},
+    512*1024L*1024L,MALLOC_OVERHEAD,1024},
   { "net_buffer_length", (long*) &net_buffer_length,1024*1024L-1025,4096,
-    24*1024L*1024L,MALLOC_OVERHEAD,1024},
+    512*1024L*1024L,MALLOC_OVERHEAD+1024,1024},
   { 0, 0, 0, 0, 0, 0, 0}
 };
 
@@ -309,7 +309,7 @@ static int get_options(int *argc,char ***argv)
   load_defaults("my",load_default_groups,argc,argv);
   set_all_changeable_vars(md_changeable_vars);
   while ((c=getopt_long(*argc,*argv,
-			"#::p::h:u:O:P:r:S:T:EBaAcCdefFKlnqtvVw:?IxX",
+			"#::p::h:u:O:P:r:S:T:EBaAcCdefFKlnqQtvVw:?IxX",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -897,8 +897,6 @@ static uint getTableStructure(char *table, char* db)
       fputs(";\n", sql_file);
     }
   }
-  if (opt_disable_keys)
-    fprintf(sql_file,"\n/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",table_name);
   if (cFlag)
   {
     strpos=strmov(strpos,") VALUES ");
@@ -1023,7 +1021,7 @@ static void dumpTable(uint numFields, char *table)
       strxmov(strend(query), " WHERE ",where,NullS);
     }
     if (!opt_xml)
-      fputs("\n\n", md_result_file);
+      fputs("\n", md_result_file);
     if (mysql_query(sock, query))
     {
       DBerror(sock, "when retrieving data from server");
@@ -1048,6 +1046,9 @@ static void dumpTable(uint numFields, char *table)
       return;
     }
 
+    if (opt_disable_keys)
+      fprintf(md_result_file,"/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",
+	      quote_name(table, table_buff));
     if (opt_lock)
       fprintf(md_result_file,"LOCK TABLES %s WRITE;\n",
 	      quote_name(table,table_buff));
@@ -1189,7 +1190,7 @@ static void dumpTable(uint numFields, char *table)
 	fputs(");\n", md_result_file);
     }
 
-    //XML - close table tag and supress regular output
+    /* XML - close table tag and supress regular output */
     if (opt_xml)
 	fprintf(md_result_file, "\t</%s>\n", table);
     else if (extended_insert && row_break)
@@ -1207,11 +1208,11 @@ static void dumpTable(uint numFields, char *table)
       safe_exit(EX_CONSCHECK);
       return;
     }
-    if (opt_disable_keys)
-      fprintf(md_result_file,"\n/*!40000 ALTER TABLE %s ENABLE KEYS */;\n",
-                                            quote_name(table,table_buff));
     if (opt_lock)
       fputs("UNLOCK TABLES;\n", md_result_file);
+    if (opt_disable_keys)
+      fprintf(md_result_file,"/*!40000 ALTER TABLE %s ENABLE KEYS */;\n",
+	      quote_name(table,table_buff));
     if (opt_autocommit)
       fprintf(md_result_file, "commit;\n");
     mysql_free_result(res);
@@ -1292,7 +1293,7 @@ static int dump_databases(char **db_names)
   int result=0;
   for ( ; *db_names ; db_names++)
   {
-    //XML edit - add database element
+    /* XML edit - add database element */
     if (opt_xml)
       fprintf(md_result_file, "<%s>\n", *db_names);
     if (dump_all_tables_in_db(*db_names))

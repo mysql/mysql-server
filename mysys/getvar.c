@@ -19,7 +19,7 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 #include <m_ctype.h>
-
+#include <my_getopt.h>
 	/* set all changeable variables */
 
 void set_all_changeable_vars(CHANGEABLE_VAR *vars)

@@ -127,12 +127,13 @@ class TMP_TABLE_PARAM {
   ha_rows end_write_records;
   uint	field_count,sum_func_count,func_count;
   uint  hidden_field_count;
-  uint	group_parts,group_length;
+  uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
   bool  using_indirect_summary_function;
 
   TMP_TABLE_PARAM()
-    :copy_funcs_it(copy_funcs), copy_field(0), group_parts(0), group_length(0)
+    :copy_funcs_it(copy_funcs), copy_field(0), group_parts(0),
+    group_length(0), group_null_parts(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -157,7 +158,7 @@ class JOIN {
   uint	   send_group_parts;
   bool	   sort_and_group,first_record,full_join,group, no_field_update;
   bool	   do_send_rows;
-  table_map const_table_map,outer_join;
+  table_map const_table_map,found_const_table_map,outer_join;
   ha_rows  send_records,found_records,examined_rows,row_limit;
   POSITION positions[MAX_TABLES+1],best_positions[MAX_TABLES+1];
   double   best_read;

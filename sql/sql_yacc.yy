@@ -32,7 +32,7 @@
 extern void yyerror(const char*);
 int yylex(void *yylval);
 
-#define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(F))) { yyerror((char*) (A)); return 2; }
+#define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(int*) (F))) { yyerror((char*) (A)); return 2; }
 
 inline Item *or_or_concat(Item* A, Item* B)
 {
@@ -123,6 +123,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  RESET_SYM
 %token  PURGE
 %token  SLAVE
+%token  IO_THREAD
+%token  SQL_THREAD
 %token  START_SYM
 %token  STOP_SYM
 %token	TRUNCATE_SYM
@@ -322,6 +324,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	UNION_SYM
 %token	UNIQUE_SYM
 %token	USAGE
+%token	USE_FRM
 %token	USE_SYM
 %token	USING
 %token	VALUES
@@ -577,7 +580,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_outer table_list table_name opt_option opt_place opt_low_priority
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges opt_table user_list grant_option
-	grant_privilege grant_privilege_list mqh_option
+	grant_privilege grant_privilege_list
 	flush_options flush_option insert_lock_option replace_lock_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
@@ -596,9 +599,17 @@ END_OF_INPUT
 query:
 	END_OF_INPUT
 	{
-	   if (!current_thd->bootstrap)
+	   THD *thd=current_thd;
+	   if (!thd->bootstrap &&
+	      (!(thd->lex.select_lex.options & OPTION_FOUND_COMMENT)))
+	   {
 	     send_error(&current_thd->net,ER_EMPTY_QUERY);
-	   YYABORT;
+	     YYABORT;
+ 	   }
+	   else
+	   {
+	     thd->lex.sql_command = SQLCOM_EMPTY_QUERY;
+	   }
 	}
 	| verb_clause END_OF_INPUT {}
 
@@ -776,7 +787,7 @@ opt_table_options:
 
 table_options:
 	table_option	{ $$=$1; }
-	| table_option table_options { $$= $1 | $2 }
+	| table_option table_options { $$= $1 | $2; }
 
 table_option:
 	TEMPORARY	{ $$=HA_LEX_CREATE_TMP_TABLE; }
@@ -1248,20 +1259,34 @@ opt_to:
 	| AS		{}
 
 slave:
-	SLAVE START_SYM
+	SLAVE START_SYM slave_thread_opts
          {
 	   LEX *lex=Lex;
            lex->sql_command = SQLCOM_SLAVE_START;
 	   lex->type = 0;
          }
          |
-	SLAVE STOP_SYM
+	SLAVE STOP_SYM slave_thread_opts
          {
 	   LEX *lex=Lex;
            lex->sql_command = SQLCOM_SLAVE_STOP;
 	   lex->type = 0;
          };
 
+slave_thread_opts: slave_thread_opt
+ | slave_thread_opts ',' slave_thread_opt
+
+slave_thread_opt:
+   /*empty*/ {} 
+  | SQL_THREAD
+    {
+      Lex->slave_thd_opt|=SLAVE_SQL;
+    }
+  | IO_THREAD
+    {
+      Lex->slave_thd_opt|=SLAVE_IO;
+    }
+  
 restore:
 	RESTORE_SYM table_or_tables
 	{
@@ -1281,7 +1306,6 @@ backup:
 	  Lex->backup_dir = $6.str;
         }
 
-
 repair:
 	REPAIR table_or_tables
 	{
@@ -1289,24 +1313,20 @@ repair:
 	   lex->sql_command = SQLCOM_REPAIR;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type
+	table_list opt_mi_repair_type
 
-
-opt_mi_check_type:
+opt_mi_repair_type:
 	/* empty */ { Lex->check_opt.flags = T_MEDIUM; }
-	| TYPE_SYM EQ mi_check_types {}
-	| mi_check_types {}
+	| mi_repair_types {}
 
-mi_check_types:
-	mi_check_type {}
-	| mi_check_type mi_check_types {}
+mi_repair_types:
+	mi_repair_type {}
+	| mi_repair_type mi_repair_types {}
 
-mi_check_type:
-	QUICK      { Lex->check_opt.quick = 1; }
-	| FAST_SYM { Lex->check_opt.flags|= T_FAST; }
-	| MEDIUM_SYM { Lex->check_opt.flags|= T_MEDIUM; }
+mi_repair_type:
+	QUICK      { Lex->check_opt.flags|= T_QUICK; }
 	| EXTENDED_SYM { Lex->check_opt.flags|= T_EXTEND; }
-	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; }
+        | USE_FRM      { /*Lex->check_opt.flags|= T_USEFRM;*/ }
 
 analyze:
 	ANALYZE_SYM table_or_tables
@@ -1325,6 +1345,21 @@ check:
 	   lex->check_opt.init();
 	}
 	table_list opt_mi_check_type
+
+opt_mi_check_type:
+	/* empty */ { Lex->check_opt.flags = T_MEDIUM; }
+	| mi_check_types {}
+
+mi_check_types:
+	mi_check_type {}
+	| mi_check_type mi_check_types {}
+
+mi_check_type:
+	QUICK      { Lex->check_opt.flags|= T_QUICK; }
+	| FAST_SYM { Lex->check_opt.flags|= T_FAST; }
+	| MEDIUM_SYM { Lex->check_opt.flags|= T_MEDIUM; }
+	| EXTENDED_SYM { Lex->check_opt.flags|= T_EXTEND; }
+	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; }
 
 optimize:
 	OPTIMIZE table_or_tables
@@ -1606,7 +1641,7 @@ simple_expr:
 	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
 	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
-	  { $$= new Item_func_case(* $4, $2, $5 ) }
+	  { $$= new Item_func_case(* $4, $2, $5 ); }
 	| CONVERT_SYM '(' expr ',' cast_type ')'  { $$= create_func_cast($3, $5); }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
@@ -1872,7 +1907,7 @@ sum_expr:
 	  { $$=new Item_sum_sum($3); }
 
 in_sum_expr:
-	{ Select->in_sum_expr++ }
+	{ Select->in_sum_expr++; }
 	expr
 	{
 	  Select->in_sum_expr--;
@@ -1920,7 +1955,7 @@ opt_else:
 	| ELSE expr    { $$= $2; }
 
 when_list:
-        { Select->when_list.push_front(new List<Item>) }
+        { Select->when_list.push_front(new List<Item>); }
 	when_list2
 	{ $$= Select->when_list.pop(); }
 
@@ -1945,7 +1980,7 @@ opt_pad:
 join_table_list:
 	'(' join_table_list ')'	{ $$=$2; }
 	| join_table		{ $$=$1; }
-	| join_table_list normal_join join_table { $$=$3 }
+	| join_table_list normal_join join_table { $$=$3; }
 	| join_table_list STRAIGHT_JOIN join_table { $$=$3 ; $$->straight=1; }
 	| join_table_list INNER_SYM JOIN_SYM join_table ON expr
 	  { add_join_on($4,$6); $$=$4; }
@@ -2023,7 +2058,7 @@ opt_key_definition:
 	  }
 
 key_usage_list:
-	key_or_index { Select->interval_list.empty() } '(' key_usage_list2 ')'
+	key_or_index { Select->interval_list.empty(); } '(' key_usage_list2 ')'
         { $$= &Select->interval_list; }
 
 key_usage_list2:
@@ -2530,17 +2565,15 @@ show_param:
 	      YYABORT;
 	  }
         | NEW_SYM MASTER_SYM FOR_SYM SLAVE WITH MASTER_LOG_FILE_SYM EQ 
-	  TEXT_STRING AND MASTER_LOG_POS_SYM EQ ulonglong_num AND
-	MASTER_LOG_SEQ_SYM EQ ULONG_NUM AND MASTER_SERVER_ID_SYM EQ
+	  TEXT_STRING AND MASTER_LOG_POS_SYM EQ ulonglong_num
+	  AND MASTER_SERVER_ID_SYM EQ
 	ULONG_NUM
-        {
-	  LEX *lex=Lex;
-	  lex->sql_command = SQLCOM_SHOW_NEW_MASTER;
-	  lex->mi.log_file_name = $8.str;
-	  lex->mi.pos = $12;
-	  lex->mi.last_log_seq = $16;
-	  lex->mi.server_id = $20;
-        }
+          {
+	    Lex->sql_command = SQLCOM_SHOW_NEW_MASTER;
+	    Lex->mi.log_file_name = $8.str;
+	    Lex->mi.pos = $12;
+	    Lex->mi.server_id = $16;
+          }
         | MASTER_SYM LOGS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_BINLOGS;
@@ -2631,7 +2664,7 @@ describe:
 	    YYABORT;
 	}
 	opt_describe_column
-	| describe_command select { Lex->select_lex.options|= SELECT_DESCRIBE };
+	| describe_command select { Lex->select_lex.options|= SELECT_DESCRIBE; }
 
 
 describe_command:
@@ -2830,7 +2863,7 @@ literal:
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
 	| NULL_SYM	{ $$ =	new Item_null();
 			  Lex->next_state=STATE_OPERATOR_OR_IDENT;}
-	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length)};
+	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length);}
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
 	| TIMESTAMP text_literal { $$ = $2; }
@@ -3055,10 +3088,10 @@ keyword:
 	| TYPE_SYM		{}
 	| UDF_SYM		{}
 	| UNCOMMITTED_SYM	{}
+	| USE_FRM		{}
 	| VARIABLES		{}
 	| WORK_SYM		{}
 	| YEAR_SYM		{}
-        | SLAVE                 {}
 
 /* Option functions */
 
@@ -3071,7 +3104,7 @@ set:
 	  lex->select->select_limit=lex->thd->default_select_limit;
 	  lex->tx_isolation=lex->thd->tx_isolation;
 	  lex->option_type=0;
-	  lex->option_list.empty()
+	  lex->option_list.empty();
 	}
 	option_value_list
 
@@ -3176,12 +3209,18 @@ option_value:
 	   }
          | SQL_SLAVE_SKIP_COUNTER equal ULONG_NUM
           {
-	    pthread_mutex_lock(&LOCK_slave);
-	    if (slave_running)
+	    LOCK_ACTIVE_MI;
+	    pthread_mutex_lock(&active_mi->rli.run_lock);
+	    if (active_mi->rli.slave_running)
 	      send_error(&current_thd->net, ER_SLAVE_MUST_STOP);
 	    else
-	      slave_skip_counter = $3;
-	    pthread_mutex_unlock(&LOCK_slave);
+	    {
+	      pthread_mutex_lock(&active_mi->rli.data_lock);
+	      active_mi->rli.slave_skip_counter = $3;
+	      pthread_mutex_unlock(&active_mi->rli.data_lock);
+	    }
+	    pthread_mutex_unlock(&active_mi->rli.run_lock);
+	    UNLOCK_ACTIVE_MI;
           }
 	| ident equal DEFAULT
 	  {
@@ -3391,7 +3430,7 @@ grant:
 	  lex->mqh=0;	
 	}
 	grant_privileges ON opt_table TO_SYM user_list
-	require_clause grant_option mqh_option 
+	require_clause grant_options
 
 grant_privileges:
 	grant_privilege_list {}
@@ -3578,17 +3617,19 @@ require_clause: /* empty */
           Lex->ssl_type=SSL_TYPE_X509;
         }
 
-grant_option:
+grant_options:
 	/* empty */ {}
-	| WITH GRANT OPTION { Lex->grant |= GRANT_ACL;}
+	| WITH grant_option_list
 
-mqh_option:
-	/* empty */ {}
-        | AND WITH MAX_QUERIES_PER_HOUR EQ NUM
-        { 
-	  Lex->mqh=atoi($5.str);
-	  if (Lex->mqh > 65535)
-	    YYABORT;
+grant_option_list:
+	grant_option_list grant_option {}
+	| grant_option {}
+
+grant_option:
+	GRANT OPTION { Lex->grant |= GRANT_ACL;}
+        | MAX_QUERIES_PER_HOUR EQ NUM
+        {
+	  Lex->mqh=atoi($3.str);
 	}
 
 begin:

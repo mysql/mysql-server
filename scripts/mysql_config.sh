@@ -58,12 +58,16 @@ fix_path ()
   done
 }
 
-abs_path=`expr \( substr $0 1 1 \) = '/'`
-if [ "x$abs_path" = "x1" ] ; then
- me=$0
-else 
- me=`which $0`
-fi
+get_full_path ()
+{
+  case $1 in
+    /*)	echo "$1";;
+    ./*) tmp=`pwd`/$1; echo $tmp | sed -e 's;/./;/;' ;;
+     *) which $1 ;;
+   esac
+}
+
+me=`get_full_path $0`
 
 basedir=`echo $me | sed -e 's;/bin/mysql_config;;'`
 
@@ -81,6 +85,7 @@ ldflags='@LDFLAGS@'
 client_libs='@CLIENT_LIBS@'
 
 libs="$ldflags -L'$pkglibdir' -lmysqlclient $client_libs"
+libs=`echo $libs | sed -e 's; +;;'`
 cflags="-I'$pkgincludedir'"
 embedded_libs="$ldflags -L'$pkglibdir' -lmysqld @LIBS@ @innodb_system_libs@"
 

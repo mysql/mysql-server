@@ -64,3 +64,15 @@ CAST(CAST(1-2 AS UNSIGNED) AS SIGNED INTEGER)
 select CONVERT('-1',UNSIGNED);
 CONVERT('-1',UNSIGNED)
 18446744073709551615
+select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
+cast(-5 as unsigned) | 1	cast(-5 as unsigned) & -1
+18446744073709551611	18446744073709551611
+select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
+cast(-5 as unsigned) -1	cast(-5 as unsigned) + 1
+18446744073709551610	18446744073709551612
+select ~5, cast(~5 as signed);
+~5	cast(~5 as signed)
+18446744073709551610	-6
+select cast(5 as unsigned) -6.0;
+cast(5 as unsigned) -6.0
+-1.0

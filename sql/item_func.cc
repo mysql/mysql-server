@@ -280,6 +280,21 @@ longlong Item_func_plus::val_int()
   return (longlong) Item_func_plus::val();
 }
 
+
+/*
+  The following function is here to allow the user to force
+  subtraction of UNSIGNED BIGINT to return negative values.
+*/
+
+void Item_func_minus::fix_length_and_dec()
+{
+  Item_num_op::fix_length_and_dec();
+  if (unsigned_flag &&
+      (current_thd->sql_mode & MODE_NO_UNSIGNED_SUBTRACTION))
+    unsigned_flag=0;
+}
+
+
 double Item_func_minus::val()
 {
   double value=args[0]->val() - args[1]->val();
@@ -1418,16 +1433,19 @@ void item_user_lock_release(ULL *ull)
   if (mysql_bin_log.is_open())
   {
     THD *thd = current_thd;
+    uint save_query_length;
     char buf[256];
     String tmp(buf,sizeof(buf));
     tmp.length(0);
     tmp.append("DO RELEASE_LOCK(\"");
     tmp.append(ull->key,ull->key_length);
     tmp.append("\")");
+    save_query_length=thd->query_length;
     thd->query_length=tmp.length();
     Query_log_event qev(thd,tmp.ptr());
     qev.error_code=0; // this query is always safe to run on slave
     mysql_bin_log.write(&qev);
+    thd->query_length=save_query_length;
   }
   if (--ull->count)
     pthread_cond_signal(&ull->cond);
@@ -1453,11 +1471,13 @@ longlong Item_master_pos_wait::val_int()
     return 0;
   }
   ulong pos = (ulong)args[1]->val_int();
-  if ((event_count = glob_mi.wait_for_pos(thd, log_name, pos)) == -1)
+  LOCK_ACTIVE_MI;
+  if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos)) == -1)
   {
     null_value = 1;
     event_count=0;
   }
+  UNLOCK_ACTIVE_MI;
   return event_count;
 }
 
@@ -2088,6 +2108,7 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
       key=NO_SUCH_KEY;
   const_item_cache=0;
   table=((Item_field *)fields.head())->field->table;
+  table->fulltext_searched=1;
   record=table->record[0];
   if (key == NO_SUCH_KEY && mode != FT_BOOL)
   {

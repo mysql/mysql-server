@@ -42,25 +42,21 @@
 #define HA_ADMIN_INVALID         -5
 
 /* Bits in bas_flag to show what database can do */
-
 #define HA_READ_NEXT		1	/* Read next record with same key */
 #define HA_READ_PREV		2	/* Read prev. record with same key */
 #define HA_READ_ORDER		4	/* Read through record-keys in order */
 #define HA_READ_RND_SAME	8	/* Read RND-record to KEY-record
 					   (To update with RND-read)	   */
 #define HA_KEYPOS_TO_RNDPOS	16	/* ha_info gives pos to record */
-#define HA_LASTKEY_ORDER	32	/* Next record gives next record
-					  according last record read (even
-					  if database is updated after read) */
+#define HA_TABLE_SCAN_ON_INDEX  32	/* No separate data/index file */
 #define HA_REC_NOT_IN_SEQ	64	/* ha_info don't return recnumber;
 					   It returns a position to ha_r_rnd */
 #define HA_ONLY_WHOLE_INDEX	128	/* Can't use part key searches */
-#define HA_RSAME_NO_INDEX	256	/* RSAME can't restore index */
+#define HA_NOT_READ_PREFIX_LAST	256	/* RSAME can't restore index */
 #define HA_WRONG_ASCII_ORDER	512	/* Can't use sorting through key */
 #define HA_HAVE_KEY_READ_ONLY	1024	/* Can read only keys (no record) */
 #define HA_READ_NOT_EXACT_KEY	2048	/* Can read record after/before key */
 #define HA_NO_INDEX		4096	/* No index needed for next/prev */
-#define HA_LONGLONG_KEYS	8192	/* Can have longlong as key */
 #define HA_KEY_READ_WRONG_STR	16384	/* keyread returns converted strings */
 #define HA_NULL_KEY		32768	/* One can have keys with NULL */
 #define HA_DUPP_POS		65536	/* ha_position() gives dupp row */
@@ -78,6 +74,13 @@
 #define HA_NO_PREFIX_CHAR_KEYS	(HA_NO_TEMP_TABLES*2) 
 #define HA_CAN_FULLTEXT         (HA_NO_PREFIX_CHAR_KEYS*2)
 #define HA_CAN_SQL_HANDLER      (HA_CAN_FULLTEXT*2)
+
+/* Old not used flags */
+/*
+  Next record gives next record according last record read (even
+  if database is updated after read)
+*/
+#define HA_LASTKEY_ORDER	0
 
 	/* Parameters for open() (in register form->filestat) */
 	/* HA_GET_INFO does an implicit HA_ABORT_IF_LOCKED */
@@ -171,14 +174,11 @@ extern ulong myisam_sort_buffer_size;
 typedef struct st_ha_check_opt
 {
   ulong sort_buffer_size;
-  uint flags;
-  bool quick;
-  bool changed_files;
-  bool optimize;
-  bool retry_without_quick;
+  uint flags;       /* isam layer flags (e.g. for myisamchk) */
+  uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
   inline void init()
   {
-    flags= 0; quick= optimize= retry_without_quick=0;
+    flags= sql_flags= 0;
     sort_buffer_size = myisam_sort_buffer_size;
   }
 } HA_CHECK_OPT;
@@ -256,6 +256,10 @@ public:
   virtual int index_first(byte * buf)=0;
   virtual int index_last(byte * buf)=0;
   virtual int index_next_same(byte *buf, const byte *key, uint keylen);
+  virtual int index_read_last(byte * buf, const byte * key, uint key_len)
+  {
+    return (my_errno=HA_ERR_WRONG_COMMAND);
+  }
   virtual int ft_init()
     { return -1; }
   virtual FT_INFO *ft_init_ext(uint mode,uint inx,const byte *key, uint keylen,
@@ -266,7 +270,7 @@ public:
   virtual int rnd_end() { return 0; }
   virtual int rnd_next(byte *buf)=0;
   virtual int rnd_pos(byte * buf, byte *pos)=0;
-  virtual int rnd_first(byte *buf);
+  virtual int read_first_row(byte *buf, uint primary_key);
   virtual int restart_rnd_next(byte *buf, byte *pos);
   virtual ha_rows records_in_range(int inx,
 			           const byte *start_key,uint start_key_len,
@@ -354,6 +358,10 @@ int ha_delete_table(enum db_type db_type, const char *path);
 void ha_drop_database(char* path);
 void ha_key_cache(void);
 int ha_start_stmt(THD *thd); 
+int ha_report_binlog_offset_and_commit(
+       THD      *thd,
+       char     *log_file_name,
+       my_off_t  end_offset);
 int ha_commit_trans(THD *thd, THD_TRANS *trans);
 int ha_rollback_trans(THD *thd, THD_TRANS *trans);
 int ha_autocommit_or_rollback(THD *thd, int error);

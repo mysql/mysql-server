@@ -218,6 +218,22 @@ trx_in_trx_list(
 /*============*/
 			/* out: TRUE if is in */
 	trx_t*	in_trx);/* in: trx */
+/*********************************************************************
+Updates the offset information about the end of the MySQL binlog entry
+which corresponds to the transaction just being committed. */
+
+void
+trx_sys_update_mysql_binlog_offset(
+/*===============================*/
+	trx_t*	trx,	/* in: transaction being committed */
+	mtr_t*	mtr);	/* in: mtr */
+/*********************************************************************
+Prints to stderr the MySQL binlog offset info in the trx system header if
+the magic number shows it valid. */
+
+void
+trx_sys_print_mysql_binlog_offset(void);
+/*===================================*/
 
 /* The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
@@ -236,7 +252,7 @@ therefore 256 */
 
 /* Transaction system header; protected by trx_sys->mutex */
 /*-------------------------------------------------------------*/
-#define	TRX_SYS_TRX_ID_STORE	0	/* The maximum trx id or trx number
+#define	TRX_SYS_TRX_ID_STORE	0	/* the maximum trx id or trx number
 					modulo TRX_SYS_TRX_ID_UPDATE_MARGIN
 					written to a file page by any
 					transaction; the assignment of
@@ -251,6 +267,23 @@ therefore 256 */
 					/* the start of the array of rollback
 					segment specification slots */
 /*-------------------------------------------------------------*/
+
+#define TRX_SYS_MYSQL_LOG_NAME_LEN	32
+#define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
+
+/* The offset of the MySQL binlog offset info on the trx system header page */
+#define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 300)
+#define	TRX_SYS_MYSQL_LOG_MAGIC_N_FLD	0	/* magic number which shows
+						if we have valid data in the
+						MySQL binlog info; the value
+						is ..._MAGIC_N if yes */
+#define TRX_SYS_MYSQL_LOG_NAME		4	/* MySQL log file name */
+#define TRX_SYS_MYSQL_LOG_OFFSET_HIGH	(4 + TRX_SYS_MYSQL_LOG_NAME_LEN)
+						/* high 4 bytes of the offset
+						within that file */
+#define TRX_SYS_MYSQL_LOG_OFFSET_LOW	(8 + TRX_SYS_MYSQL_LOG_NAME_LEN)
+						/* low 4 bytes of the offset
+						within that file */
 
 /* The offset of the doublewrite buffer header on the trx system header page */
 #define TRX_SYS_DOUBLEWRITE		(UNIV_PAGE_SIZE - 200)

@@ -232,3 +232,4 @@
 "Ei suuda täita päringut konfliktse luku tõttu",
 "Transaktsioone toetavate ning mittetoetavate tabelite kooskasutamine ei ole lubatud",
 "Määrangut '%s' on lauses kasutatud topelt",
+"User '%-64s' has exceeded the '%s' resource (current value: %ld)",

@@ -7373,7 +7373,7 @@ void *ptr;
 unsigned int size;
 #endif
 	{
-	return (void *) mem_realloc( ptr, size );
+	return (void *) mem_realloc( ptr, size, __FILE__, __LINE__ );
 	}
 
 #ifdef YY_USE_PROTOS

@@ -75,14 +75,11 @@ bin-dist:		all
 	$(top_builddir)/scripts/make_binary_distribution
 
 tags:
-	rm -f TAGS
-	find -not -path \*SCCS\* -and \
-	\( -name \*.cc -or -name \*.h -or -name \*.yy -or -name \*.c \) \
-	-print -exec etags -o TAGS --append {} \;
-
+	support-files/build-tags
 .PHONY:		init-db bin-dist
 
 # Test installation
 
 test:
 	cd mysql-test ; ./mysql-test-run
+

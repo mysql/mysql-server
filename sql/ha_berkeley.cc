@@ -1454,6 +1454,37 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
   DBUG_RETURN(error);
 }
 
+/*
+  Read last key is solved by reading the next key and then reading
+  the previous key
+*/
+
+int ha_berkeley::index_read_last(byte * buf, const byte * key, uint key_len)
+{
+  DBT row;
+  int error;
+  KEY *key_info= &table->key_info[active_index];
+  DBUG_ENTER("ha_berkeley::index_read");
+
+  statistic_increment(ha_read_key_count,&LOCK_status);
+  bzero((char*) &row,sizeof(row));
+
+  /* read of partial key */
+  pack_key(&last_key, active_index, key_buff, key, key_len);
+  /* Store for compare */
+  memcpy(key_buff2, key_buff, (key_len=last_key.size));
+  key_info->handler.bdb_return_if_eq= 1;
+  error=read_row(cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE),
+		 (char*) buf, active_index, &row, (DBT*) 0, 0);
+  key_info->handler.bdb_return_if_eq= 0;
+  bzero((char*) &row,sizeof(row));
+  if (read_row(cursor->c_get(cursor, &last_key, &row, DB_PREV),
+	       (char*) buf, active_index, &row, &last_key, 1) ||
+      berkeley_key_cmp(table, key_info, key_buff2, key_len))
+    error=HA_ERR_KEY_NOT_FOUND;
+  DBUG_RETURN(error);
+}
+
 
 int ha_berkeley::index_next(byte * buf)
 {
@@ -1565,12 +1596,13 @@ int ha_berkeley::rnd_pos(byte * buf, byte *pos)
 {
   DBT db_pos;
   statistic_increment(ha_read_rnd_count,&LOCK_status);
+  DBUG_ENTER("ha_berkeley::rnd_pos");
 
   active_index= (uint) -1;			// Don't delete via cursor
-  return read_row(file->get(file, transaction,
-			    get_pos(&db_pos, pos),
-			    &current_row, 0),
-		 (char*) buf, primary_key, &current_row, (DBT*) 0, 0);
+  DBUG_RETURN(read_row(file->get(file, transaction,
+				 get_pos(&db_pos, pos),
+				 &current_row, 0),
+		       (char*) buf, primary_key, &current_row, (DBT*) 0, 0));
 }
 
 void ha_berkeley::position(const byte *record)

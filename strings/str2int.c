@@ -49,7 +49,8 @@
 		     X >= 'a' && X <= 'z' ? X-'a'+10 :\
 		     '\177')
 
-char *str2int(register const char *src, register int radix, long int lower, long int upper, long int *val)
+char *str2int(register const char *src, register int radix, long int lower,
+	      long int upper, long int *val)
 {
   int sign;			/* is number negative (+1) or positive (-1) */
   int n;			/* number of digits yet to be converted */

@@ -33,7 +33,7 @@
 #include "ha_berkeley.h"
 #endif
 #ifdef HAVE_INNOBASE_DB
-#include "ha_innobase.h"
+#include "ha_innodb.h"
 #endif
 #include <myisampack.h>
 #include <errno.h>
@@ -45,6 +45,7 @@ static int NEAR_F delete_file(const char *name,const char *ext,int extflag);
 ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
       ha_read_key_count, ha_read_next_count, ha_read_prev_count,
       ha_read_first_count, ha_read_last_count,
+      ha_commit_count, ha_rollback_count,
       ha_read_rnd_count, ha_read_rnd_next_count;
 
 const char *ha_table_type[] = {
@@ -221,6 +222,47 @@ int ha_autocommit_or_rollback(THD *thd, int error)
   DBUG_RETURN(error);
 }
 
+/*
+  This function is called when MySQL writes the log segment of a
+  transaction to the binlog. It is called when the LOCK_log mutex is
+  reserved. Here we communicate to transactional table handlers whta
+  binlog position corresponds to the current transaction. The handler
+  can store it and in recovery print to the user, so that the user
+  knows from what position in the binlog to start possible
+  roll-forward, for example, if the crashed server was a slave in
+  replication. This function also calls the commit of the table
+  handler, because the order of trasnactions in the log of the table
+  handler must be the same as in the binlog.
+
+  arguments:
+  log_file_name: latest binlog file name
+  end_offset:	 the offset in the binlog file up to which we wrote
+*/
+
+int ha_report_binlog_offset_and_commit(THD *thd,
+				       char *log_file_name,
+				       my_off_t end_offset)
+{
+  int  error= 0;
+#ifdef HAVE_INNOBASE_DB
+  THD_TRANS *trans;
+  trans = &thd->transaction.all;
+  if (trans->innobase_tid)
+  {
+    if ((error=innobase_report_binlog_offset_and_commit(thd,
+							trans->innobase_tid,
+							log_file_name,
+							end_offset)))
+    {
+      my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+      error=1;
+    }
+    trans->innodb_active_trans=0;
+  }
+#endif
+  return error;
+}
+
 
 int ha_commit_trans(THD *thd, THD_TRANS* trans)
 {
@@ -229,11 +271,12 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
+    bool operation_done=0;
     /* Update the binary log if we have cached some queries */
     if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
 	my_b_tell(&thd->transaction.trans_log))
     {
-      mysql_bin_log.write(&thd->transaction.trans_log);
+      mysql_bin_log.write(thd, &thd->transaction.trans_log);
       reinit_io_cache(&thd->transaction.trans_log,
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
       thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
@@ -259,12 +302,17 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       }
       trans->innodb_active_trans=0;
       if (trans == &thd->transaction.all)
+      {
 	query_cache.invalidate(Query_cache_table::INNODB);
+	operation_done=1;
+      }
     }
 #endif
     if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
       sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
     thd->tx_isolation=thd->session_tx_isolation;
+    if (operation_done)
+      statistic_increment(ha_commit_count,&LOCK_status);
   }
 #endif // using transactions
   DBUG_RETURN(error);
@@ -278,6 +326,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
+    bool operation_done=0;
 #ifdef HAVE_BERKELEY_DB
     if (trans->bdb_tid)
     {
@@ -287,6 +336,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 	error=1;
       }
       trans->bdb_tid=0;
+      operation_done=1;
     }
 #endif
 #ifdef HAVE_INNOBASE_DB
@@ -298,6 +348,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 	error=1;
       }
       trans->innodb_active_trans=0;
+      operation_done=1;
     }
 #endif
     if (trans == &thd->transaction.all)
@@ -305,6 +356,8 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
     thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
     thd->tx_isolation=thd->session_tx_isolation;
+    if (operation_done)
+      statistic_increment(ha_rollback_count,&LOCK_status);
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -425,9 +478,8 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   {
     if (table->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
       table->db_stat|=HA_READ_ONLY;
-  }
-  if (!error)
-  {
+    (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
+
     if (!alloc_root_inited(&table->mem_root))	// If temporary table
       ref=(byte*) sql_alloc(ALIGN_SIZE(ref_length)*2);
     else
@@ -473,17 +525,37 @@ int handler::analyze(THD* thd, HA_CHECK_OPT* check_opt)
   return HA_ADMIN_NOT_IMPLEMENTED;
 }
 
-	/* Read first row from a table */
+/*
+  Read first row (only) from a table
+  This is never called for InnoDB or BDB tables, as these table types
+  has the HA_NOT_EXACT_COUNT set.
+*/
 
-int handler::rnd_first(byte * buf)
+int handler::read_first_row(byte * buf, uint primary_key)
 {
   register int error;
-  DBUG_ENTER("handler::rnd_first");
+  DBUG_ENTER("handler::read_first_row");
 
   statistic_increment(ha_read_first_count,&LOCK_status);
-  (void) rnd_init();
-  while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
-  (void) rnd_end();
+
+  /*
+    If there is very few deleted rows in the table, find the first row by
+    scanning the table.
+  */
+  if (deleted < 10 || primary_key >= MAX_KEY || 
+      !(option_flag() & HA_READ_ORDER))
+  {
+    (void) rnd_init();
+    while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
+    (void) rnd_end();
+  }
+  else
+  {
+    /* Find the first row through the primary key */
+    (void) index_init(primary_key);
+    error=index_first(buf);
+    (void) index_end();
+  }
   DBUG_RETURN(error);
 }
 
@@ -499,7 +571,7 @@ int handler::restart_rnd_next(byte *buf, byte *pos)
 }
 
 
-	/* Set a timestamp in record */
+/* Set a timestamp in record */
 
 void handler::update_timestamp(byte *record)
 {
@@ -515,9 +587,10 @@ void handler::update_timestamp(byte *record)
   return;
 }
 
-	/* Updates field with field_type NEXT_NUMBER according to following:
-	** if field = 0 change field to the next free key in database.
-	*/
+/*
+  Updates field with field_type NEXT_NUMBER according to following:
+  if field = 0 change field to the next free key in database.
+*/
 
 void handler::update_auto_increment()
 {

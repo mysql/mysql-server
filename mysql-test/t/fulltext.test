@@ -17,6 +17,10 @@ select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 
+# UNION of fulltext's
+select * from t1 where MATCH(a,b) AGAINST ("collections") UNION ALL select * from t1 where MATCH(a,b) AGAINST ("indexes");
+
+
 # boolean search
 
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
@@ -27,7 +31,8 @@ select * from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MOD
 select * from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
-select *, MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE) as x from t1;
+select *, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+select *, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
 
 # boolean w/o index:
 
@@ -128,4 +133,14 @@ update t1 set title='this is A test' where id=1;
 check table t1;
 update t1 set title='this test once revealed a bug' where id=1;
 select * from t1;
+update t1 set title=NULL where id=1;
 
+drop table t1;
+
+# one more bug - const_table related
+
+CREATE TABLE t1 (a int(11), b text, FULLTEXT KEY (b)) TYPE=MyISAM;
+insert into t1 values (1,"I wonder why the fulltext index doesnt work?");
+SELECT * from t1 where MATCH (b) AGAINST ('apples');
+
+drop table t1;

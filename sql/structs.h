@@ -140,7 +140,7 @@ enum SHOW_TYPE { SHOW_LONG,SHOW_CHAR,SHOW_INT,SHOW_CHAR_PTR,SHOW_BOOL,
 		 ,SHOW_SSL_CTX_SESS_TIMEOUTS, SHOW_SSL_CTX_SESS_CACHE_FULL
 		 ,SHOW_SSL_GET_CIPHER_LIST
 #endif /* HAVE_OPENSSL */
-		 ,SHOW_RPL_STATUS
+		 ,SHOW_RPL_STATUS, SHOW_SLAVE_RUNNING
 };
 
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
@@ -159,6 +159,14 @@ typedef struct lex_string {
 typedef struct	st_lex_user {
   LEX_STRING user, host, password;
 } LEX_USER;
+
+
+typedef struct  user_conn {
+  char *user;
+  uint len, connections, questions, max_questions;
+  time_t intime;
+} UC;
+
 
 	/* Bits in form->update */
 #define REG_MAKE_DUPP		1	/* Make a copy of record when read */

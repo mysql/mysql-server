@@ -79,9 +79,11 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
   }
   DBUG_PRINT("info",
 	     ("records: %ld   seeks: %d   max links: %d   hitrate: %.2f",
-	      records,seek,max_links,(float) seek / (float) (records ? records : 1)));
+	      records,seek,max_links,
+	      (float) seek / (float) (records ? records : 1)));
   if (print_status)
     printf("Key: %d  records: %ld   seeks: %d   max links: %d   hitrate: %.2f\n",
-	   keynr, records, seek, max_links, (float) seek / (float) records);
+	   keynr, records, seek, max_links,
+	   (float) seek / (float) (records ? records : 1));
   return error;
 }

@@ -57,6 +57,7 @@ enum enum_sql_command {
   SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
   SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_MULTI_UPDATE,
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
+  SQLCOM_EMPTY_QUERY,
   SQLCOM_END
 };
 
@@ -95,7 +96,6 @@ typedef struct st_lex_master_info
 {
   char* host, *user, *password,*log_file_name;
   uint port, connect_retry;
-  ulong last_log_seq;
   ulonglong pos;
   ulong server_id;
 } LEX_MASTER_INFO;
@@ -186,7 +186,7 @@ typedef struct st_lex {
   thr_lock_type lock_option;
   bool	drop_primary,drop_if_exists,local_file;
   bool  in_comment,ignore_space,verbose,simple_alter, option_type;
-
+  uint slave_thd_opt;
 } LEX;
 
 

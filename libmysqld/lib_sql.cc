@@ -24,8 +24,10 @@
 #define main main1
 #define mysql_unix_port mysql_inix_port1
 #define mysql_port mysql_port1
+#if !defined(__WIN__)
 #define net_read_timeout net_read_timeout1
 #define net_write_timeout net_write_timeout1
+#endif
 #define changeable_vars changeable_vars1
 
 extern "C"
@@ -45,7 +47,11 @@ static bool check_user(THD *thd, enum_server_command command,
 void free_defaults_internal(char ** argv) {if (argv) free_defaults(argv);}
 #define free_defaults free_defaults_internal
 
+#if defined (__WIN__)
+#include "../sql/mysqld.cpp"
+#else
 #include "../sql/mysqld.cc"
+#endif
 
 #define SCRAMBLE_LENGTH 8
 C_MODE_START
@@ -115,8 +121,6 @@ void start_embedded_conn1(NET * net)
 
   if (thd->max_join_size == HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
-  if (thd->options & OPTION_ANSI_MODE)
-    thd->client_capabilities|=CLIENT_IGNORE_SPACE;
 
   thd->proc_info=0;				// Remove 'login'
   thd->command=COM_SLEEP;
@@ -396,9 +400,6 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   (void) pthread_mutex_init(&LOCK_bytes_sent,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_timezone,MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_binlog_update, MY_MUTEX_INIT_FAST);	// QQ NOT USED
-  (void) pthread_mutex_init(&LOCK_slave, MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_server_id, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
@@ -406,8 +407,6 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
   (void) pthread_cond_init(&COND_manager,NULL);
   (void) pthread_cond_init(&COND_binlog_update, NULL);
-  (void) pthread_cond_init(&COND_slave_stopped, NULL);
-  (void) pthread_cond_init(&COND_slave_start, NULL);
 
   if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
   {
