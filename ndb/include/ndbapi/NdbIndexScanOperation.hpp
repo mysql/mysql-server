@@ -118,13 +118,19 @@ public:
   int setBound(Uint32 anAttrId, int type, const void* aValue, Uint32 len = 0);
 
   /** @} *********************************************************************/
+
+  /**
+   * Reset bounds and put operation in list that will be
+   *   sent on next execute
+   */
+  int reset_bounds();
   
 private:
   NdbIndexScanOperation(Ndb* aNdb);
   virtual ~NdbIndexScanOperation();
 
   int setBound(const NdbColumnImpl*, int type, const void* aValue, Uint32 len);
-  int saveBoundATTRINFO();
+  int insertBOUNDS(Uint32 * data, Uint32 sz);
 
   virtual int equal_impl(const NdbColumnImpl*, const char*, Uint32);
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char*);

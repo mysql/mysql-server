@@ -3360,7 +3360,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     req->senderData = filePtr.i;
     req->resultRef = reference();
     req->schemaVersion = table.schemaVersion;
-    req->fragmentNo = fragNo;
+    req->fragmentNoKeyLen = fragNo;
     req->requestInfo = 0;
     req->savePointId = 0;
     req->tableId = table.tableId;

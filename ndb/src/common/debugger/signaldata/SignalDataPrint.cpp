@@ -53,6 +53,7 @@
 #include <signaldata/UtilPrepare.hpp>
 #include <signaldata/UtilExecute.hpp>
 #include <signaldata/ScanTab.hpp>
+#include <signaldata/ScanFrag.hpp>
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/LqhTransConf.hpp>
 #include <signaldata/DropTab.hpp>
@@ -250,6 +251,7 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_TUX_MAINT_REQ, printTUX_MAINT_REQ }
   ,{ GSN_ACC_LOCKREQ, printACC_LOCKREQ }
   ,{ GSN_LQH_TRANSCONF, printLQH_TRANSCONF }
+  ,{ GSN_SCAN_FRAGREQ, printSCAN_FRAGREQ }
 };
 
 const unsigned short NO_OF_PRINT_FUNCTIONS = sizeof(SignalDataPrintFunctions)/sizeof(NameFunctionPair);

@@ -2803,8 +2803,10 @@ void Dblqh::execKEYINFO(Signal* signal)
     return;
   }//if
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  if (regTcPtr->transactionState !=
-      TcConnectionrec::WAIT_TUPKEYINFO) {
+  TcConnectionrec::TransactionState state = regTcPtr->transactionState;
+  if (state != TcConnectionrec::WAIT_TUPKEYINFO &&
+      state != TcConnectionrec::WAIT_SCAN_AI)
+  {
     jam();
 /*****************************************************************************/
 /* TRANSACTION WAS ABORTED, THIS IS MOST LIKELY A SIGNAL BELONGING TO THE    */
@@ -2822,15 +2824,19 @@ void Dblqh::execKEYINFO(Signal* signal)
       return;
     }//if
     jam();
+    abort();
     terrorCode = errorCode;
     abortErrorLab(signal);
     return;
   }//if
-  FragrecordPtr regFragptr;
-  regFragptr.i = regTcPtr->fragmentptr;
-  ptrCheckGuard(regFragptr, cfragrecFileSize, fragrecord);
-  fragptr = regFragptr;
-  endgettupkeyLab(signal);
+  if(state == TcConnectionrec::WAIT_TUPKEYINFO)
+  {
+    FragrecordPtr regFragptr;
+    regFragptr.i = regTcPtr->fragmentptr;
+    ptrCheckGuard(regFragptr, cfragrecFileSize, fragrecord);
+    fragptr = regFragptr;
+    endgettupkeyLab(signal);
+  }
   return;
 }//Dblqh::execKEYINFO()
 
@@ -2838,9 +2844,9 @@ void Dblqh::execKEYINFO(Signal* signal)
 /* FILL IN KEY DATA INTO DATA BUFFERS.                                       */
 /* ------------------------------------------------------------------------- */
 Uint32 Dblqh::handleLongTupKey(Signal* signal,
-                             Uint32 keyLength,
-                             Uint32 primKeyLength,
-                             Uint32* dataPtr) 
+			       Uint32 keyLength,
+			       Uint32 primKeyLength,
+			       Uint32* dataPtr) 
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   Uint32 dataPos = 0;
@@ -3686,7 +3692,7 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
   signal->theData[9] = sig3;
   signal->theData[10] = sig4;
   if (regTcPtr->primKeyLen > 4) {
-    sendKeyinfoAcc(signal);
+    sendKeyinfoAcc(signal, 11);
   }//if
   EXECUTE_DIRECT(refToBlock(regTcPtr->tcAccBlockref), GSN_ACCKEYREQ, 
 		 signal, 7 + regTcPtr->primKeyLen);
@@ -3708,9 +3714,8 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
 /* =======                  SEND KEYINFO TO ACC                       ======= */
 /*                                                                            */
 /* ========================================================================== */
-void Dblqh::sendKeyinfoAcc(Signal* signal) 
+void Dblqh::sendKeyinfoAcc(Signal* signal, Uint32 Ti) 
 {
-  UintR Ti = 11;
   DatabufPtr regDatabufptr;
   regDatabufptr.i = tcConnectptr.p->firstTupkeybuf;
   
@@ -7409,7 +7414,8 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
 
   jamEntry();
   const Uint32 reqinfo = scanFragReq->requestInfo;
-  const Uint32 fragId = scanFragReq->fragmentNo;
+  const Uint32 fragId = (scanFragReq->fragmentNoKeyLen & 0xFFFF);
+  const Uint32 keyLen = (scanFragReq->fragmentNoKeyLen >> 16);
   tabptr.i = scanFragReq->tableId;
   const Uint32 max_rows = scanFragReq->batch_size_rows;
   const Uint32 scanLockMode = ScanFragReq::getLockMode(reqinfo);
@@ -7473,6 +7479,8 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
              transid2,
              fragId,
              ZNIL);
+  tcConnectptr.p->save1 = 4;
+  tcConnectptr.p->primKeyLen = keyLen + 4; // hard coded in execKEYINFO
   errorCode = initScanrec(scanFragReq);
   if (errorCode != ZOK) {
     jam();
@@ -7672,34 +7680,18 @@ void Dblqh::accScanConfScanLab(Signal* signal)
     return;
   }//if
   scanptr.p->scanAccPtr = accScanConf->accPtr;
-  AttrbufPtr regAttrinbufptr;
-  regAttrinbufptr.i = tcConnectptr.p->firstAttrinbuf;
-  Uint32 boundAiLength = 0;
+  Uint32 boundAiLength = tcConnectptr.p->primKeyLen - 4;
   if (scanptr.p->rangeScan) {
     jam();
     // bound info length is in first of the 5 header words
-    ptrCheckGuard(regAttrinbufptr, cattrinbufFileSize, attrbuf);
-    boundAiLength = regAttrinbufptr.p->attrbuf[0];
     TuxBoundInfo* const req = (TuxBoundInfo*)signal->getDataPtrSend();
     req->errorCode = RNIL;
     req->tuxScanPtrI = scanptr.p->scanAccPtr;
     req->boundAiLength = boundAiLength;
-    Uint32* out = (Uint32*)req + TuxBoundInfo::SignalLength;
-    Uint32 sz = 0;
-    while (sz < boundAiLength) {
-      jam();
-      ptrCheckGuard(regAttrinbufptr, cattrinbufFileSize, attrbuf);
-      Uint32 dataLen = regAttrinbufptr.p->attrbuf[ZINBUF_DATA_LEN];
-      MEMCOPY_NO_WORDS(&out[sz],
-                       &regAttrinbufptr.p->attrbuf[0],
-                       dataLen);
-      sz += dataLen;
-      regAttrinbufptr.i = regAttrinbufptr.p->attrbuf[ZINBUF_NEXT];
-      ptrCheckGuard(regAttrinbufptr, cattrinbufFileSize, attrbuf);
-    }
-    ndbrequire(sz == boundAiLength);
+    if(boundAiLength > 0)
+      sendKeyinfoAcc(signal, TuxBoundInfo::SignalLength);
     EXECUTE_DIRECT(DBTUX, GSN_TUX_BOUND_INFO,
-        signal, TuxBoundInfo::SignalLength + boundAiLength);
+		   signal, TuxBoundInfo::SignalLength + boundAiLength);
     jamEntry();
     if (req->errorCode != 0) {
       jam();
@@ -7716,12 +7708,14 @@ void Dblqh::accScanConfScanLab(Signal* signal)
   signal->theData[1] = tcConnectptr.p->tableref;
   signal->theData[2] = scanptr.p->scanSchemaVersion;
   signal->theData[3] = ZSTORED_PROC_SCAN;
-  ndbrequire(boundAiLength <= scanptr.p->scanAiLength);
-  signal->theData[4] = scanptr.p->scanAiLength - boundAiLength;
+
+  signal->theData[4] = scanptr.p->scanAiLength;
   sendSignal(tcConnectptr.p->tcTupBlockref,
              GSN_STORED_PROCREQ, signal, 5, JBB);
 
   signal->theData[0] = tcConnectptr.p->tupConnectrec;
+  AttrbufPtr regAttrinbufptr;
+  regAttrinbufptr.i = tcConnectptr.p->firstAttrinbuf;
   while (regAttrinbufptr.i != RNIL) {
     ptrCheckGuard(regAttrinbufptr, cattrinbufFileSize, attrbuf);
     jam();
