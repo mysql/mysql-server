@@ -170,6 +170,35 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 
   DBUG_ENTER("IPCConfig::configureTransporters");
 
+  /**
+   * Iterate over all MGM's an construct a connectstring
+   * create mgm_handle and give it to the Transporter Registry
+   */
+  {
+    const char *separator= "";
+    BaseString connect_string;
+    ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
+    for(iter.first(); iter.valid(); iter.next())
+    {
+      Uint32 type;
+      if(iter.get(CFG_TYPE_OF_SECTION, &type)) continue;
+      if(type != NODE_TYPE_MGM) continue;
+      const char* hostname;
+      Uint32 port;
+      if(iter.get(CFG_NODE_HOST, &hostname)) continue;
+      if( strlen(hostname) == 0 ) continue;
+      if(iter.get(CFG_MGM_PORT, &port)) continue;
+      connect_string.appfmt("%s%s:port",separator,hostname,port);
+      separator= ",";
+    }
+    NdbMgmHandle h= ndb_mgm_create_handle();
+    if ( h && connect_string.length() > 0 )
+    {
+      ndb_mgm_set_connectstring(h,connect_string.c_str());
+      tr.set_mgm_handle(h);
+    }
+  }
+
   Uint32 noOfTransportersCreated= 0;
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_CONNECTION);
   

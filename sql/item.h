@@ -471,7 +471,10 @@ public:
   {
     Item *it= this_item();
 
-    it->set_name(m_name.str, m_name.length, system_charset_info);
+    if (name)
+      it->set_name(name, strlen(name), system_charset_info);
+    else
+      it->set_name(m_name.str, m_name.length, system_charset_info);
     it->make_field(field);
   }
 

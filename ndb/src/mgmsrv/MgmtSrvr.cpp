@@ -576,7 +576,7 @@ MgmtSrvr::start(BaseString &error_string)
     }
   }
   theFacade= TransporterFacade::theFacadeInstance
-    = new TransporterFacade(m_config_retriever->get_mgmHandle());
+    = new TransporterFacade();
   
   if(theFacade == 0) {
     DEBUG("MgmtSrvr.cpp: theFacade is NULL.");
