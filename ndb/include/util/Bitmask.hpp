@@ -814,7 +814,6 @@ inline void
 BitmaskImpl::getField(unsigned size, const Uint32 src[],
 		      unsigned pos, unsigned len, Uint32 dst[])
 {
-  assert(len > 0);
   assert(pos + len < (size << 5));
   
   src += (pos >> 5);
@@ -834,7 +833,6 @@ inline void
 BitmaskImpl::setField(unsigned size, Uint32 dst[],
 		      unsigned pos, unsigned len, const Uint32 src[])
 {
-  assert(len > 0);
   assert(pos + len < (size << 5));
 
   dst += (pos >> 5);
