@@ -152,6 +152,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->alloced_buffer = 0;
   info->buffer=0;
   info->seek_not_done= test(file >= 0);
+  info->disk_writes= 0;
 #ifdef THREAD
   info->share=0;
 #endif
@@ -1153,6 +1154,7 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
       }
 
       info->append_read_pos=info->write_pos=info->write_buffer;
+      ++info->disk_writes;
       UNLOCK_APPEND_BUFFER;
       DBUG_RETURN(info->error);
     }
