@@ -623,7 +623,7 @@ report_stats () {
     # Find errors
     for i in "^Warning:" "^Error:" "^==.* at 0x"
     do
-      if `$GREP "$i" $MY_LOG_DIR/warnings.tmp >> $MY_LOG_DIR/warnings`
+      if $GREP "$i" $MY_LOG_DIR/warnings.tmp >> $MY_LOG_DIR/warnings
       then
         found_error=1
       fi

@@ -286,7 +286,7 @@ table_map Item_field::used_tables() const
 {
   if (field->table->const_table)
     return 0;					// const item
-  return (depended_from? RAND_TABLE_BIT : field->table->map);
+  return (depended_from ? RAND_TABLE_BIT : field->table->map);
 }
 
 Item *Item_field::get_tmp_table_item(THD *thd)

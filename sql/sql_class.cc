@@ -87,7 +87,7 @@ THD::THD():user_time(0), is_fatal_error(0),
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
     query_start_used=prepare_command=0;
   db_length=query_length=col_access=0;
-  query_error=0;
+  query_error= tmp_table_used= 0;
   next_insert_id=last_insert_id=0;
   open_tables= temporary_tables= handler_tables= derived_tables= 0;
   current_tablenr=0;

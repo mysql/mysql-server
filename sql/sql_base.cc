@@ -792,7 +792,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 	DBUG_RETURN(0);
       }
       table->query_id=thd->query_id;
-      thd->lex.tmp_table_used= 1;
+      thd->tmp_table_used= 1;
       goto reset;
     }
   }

@@ -221,9 +221,11 @@ public:
 
   static void *operator new(size_t size)
   {
+    // TODO: Change to alloc() and explicitely clear elements in constructors
     return (void*) sql_calloc((uint) size);
   }
   static void operator delete(void *ptr,size_t size) {}
+  st_select_lex_node() {}
   virtual ~st_select_lex_node() {}
   inline st_select_lex_node* get_master() { return master; }
   virtual void init_query();
@@ -475,7 +477,6 @@ typedef struct st_lex
   uint slave_thd_opt;
   CHARSET_INFO *charset;
   char *help_arg;
-  bool tmp_table_used;
 
   inline void uncacheable()
   {

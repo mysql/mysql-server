@@ -1902,9 +1902,10 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
   case Item_func::OPTIMIZE_NONE:
     break;
   case Item_func::OPTIMIZE_KEY:
-    if (cond_func->key_item()->type() == Item::FIELD_ITEM)
+    if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM)
       add_key_field(key_fields,*and_level,
-		    ((Item_field*) (cond_func->key_item()))->field,
+		    ((Item_field*) (cond_func->key_item()->real_item()))
+		    ->field,
 		    0,(Item*) 0,usable_tables);
     break;
   case Item_func::OPTIMIZE_OP:
@@ -1912,18 +1913,20 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     bool equal_func=(cond_func->functype() == Item_func::EQ_FUNC ||
 		     cond_func->functype() == Item_func::EQUAL_FUNC);
 
-    if (cond_func->arguments()[0]->type() == Item::FIELD_ITEM)
+    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM)
     {
       add_key_field(key_fields,*and_level,
-		    ((Item_field*) (cond_func->arguments()[0]))->field,
+		    ((Item_field*) (cond_func->arguments()[0])->real_item())
+		    ->field,
 		    equal_func,
 		    (cond_func->arguments()[1]),usable_tables);
     }
-    if (cond_func->arguments()[1]->type() == Item::FIELD_ITEM &&
+    if (cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
 	cond_func->functype() != Item_func::LIKE_FUNC)
     {
       add_key_field(key_fields,*and_level,
-		    ((Item_field*) (cond_func->arguments()[1]))->field,
+		    ((Item_field*) (cond_func->arguments()[1])->real_item())
+		    ->field,
 		    equal_func,
 		    (cond_func->arguments()[0]),usable_tables);
     }
@@ -1931,10 +1934,11 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
   }
   case Item_func::OPTIMIZE_NULL:
     /* column_name IS [NOT] NULL */
-    if (cond_func->arguments()[0]->type() == Item::FIELD_ITEM)
+    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM)
     {
       add_key_field(key_fields,*and_level,
-		    ((Item_field*) (cond_func->arguments()[0]))->field,
+		    ((Item_field*) (cond_func->arguments()[0])->real_item())
+		    ->field,
 		    cond_func->functype() == Item_func::ISNULL_FUNC,
 		    new Item_null, usable_tables);
     }
