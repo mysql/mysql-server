@@ -50,7 +50,6 @@ const char * NEAR globerrs[GLOBERRS]=
   "Can't sync file '%s' to disk (Errcode: %d)",
   "Collation '%s' is not a compiled collation and is not specified in the '%s' file",
   "File '%s' not found (Errcode: %d)",
-  ""
 };
 
 void init_glob_errs(void)
