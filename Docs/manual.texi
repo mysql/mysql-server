@@ -11528,7 +11528,7 @@ MySQL (This example uses the IBM compiler):
 export CC="xlc_r -ma -O3 -qstrict -qoptimize=3 -qmaxmem=8192 "
 export CXX="xlC_r -ma -O3 -qstrict -qoptimize=3 -qmaxmem=8192"
 export CFLAGS="-I /usr/local/include"
-export LDLFAGS="-L /usr/local/lib"
+export LDFLAGS="-L /usr/local/lib"
 export CPPFLAGS=$CFLAGS
 export CXXFLAGS=$CFLAGS
 
