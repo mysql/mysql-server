@@ -215,6 +215,7 @@ static void client_connect()
 
   if (!(mysql= mysql_init(NULL)))
   {
+    opt_silent= 0;
     myerror("mysql_init() failed");
     exit(1);
   }
@@ -223,6 +224,7 @@ static void client_connect()
                            opt_password, opt_db ? opt_db:"test", opt_port,
                            opt_unix_socket, 0)))
   {
+    opt_silent= 0;
     myerror("connection failed");
     mysql_close(mysql);
     fprintf(stdout, "\n Check the connection options using --help or -?\n");
