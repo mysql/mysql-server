@@ -329,7 +329,8 @@ Ndb::startTransaction(Uint32 aPriority, const char * keyData, Uint32 keyLen)
     }//if
     {
       NdbConnection *trans= startTransactionLocal(aPriority, nodeId);
-      DBUG_PRINT("exit",("start trans= 0x%x", trans));
+      DBUG_PRINT("exit",("start trans: 0x%x transid: 0x%llx",
+			 trans, trans->getTransactionId()));
       DBUG_RETURN(trans);
     }
   } else {
@@ -349,6 +350,8 @@ NdbConnection*
 Ndb::hupp(NdbConnection* pBuddyTrans)
 {
   DBUG_ENTER("Ndb::hupp");
+
+  DBUG_PRINT("enter", ("trans: 0x%x",pBuddyTrans));
 
   Uint32 aPriority = 0;
   if (pBuddyTrans == NULL){
@@ -372,6 +375,8 @@ Ndb::hupp(NdbConnection* pBuddyTrans)
     }
     pCon->setTransactionId(pBuddyTrans->getTransactionId());
     pCon->setBuddyConPtr((Uint32)pBuddyTrans->getTC_ConnectPtr());
+    DBUG_PRINT("exit", ("hupp trans: 0x%x transid: 0x%llx",
+			pCon, pCon ? pCon->getTransactionId() : 0));
     DBUG_RETURN(pCon);
   } else {
     DBUG_RETURN(NULL);
@@ -408,7 +413,10 @@ Ndb::startTransactionDGroup(Uint32 aPriority, const char * keyData, int type)
       fragmentId = getFragmentId(hashValue);    
     }//if
     Uint32 nodeId     = guessPrimaryNode(fragmentId);
-    return startTransactionLocal(aPriority, nodeId);
+    NdbConnection* trans= startTransactionLocal(aPriority, nodeId);
+    DBUG_PRINT("exit", ("start DGroup trans: 0x%x transid: 0x%llx",
+			trans, trans ? trans->getTransactionId() : 0));
+    return trans;
   } else {
     return NULL;
   }//if
@@ -455,7 +463,6 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
     abort();
   }
 #endif
-  DBUG_PRINT("exit", ("transid= %lld", tConnection->getTransactionId()));
   DBUG_RETURN(tConnection);
 }//Ndb::startTransactionLocal()
 
@@ -469,9 +476,6 @@ void
 Ndb::closeTransaction(NdbConnection* aConnection)
 {
   DBUG_ENTER("Ndb::closeTransaction");
-  DBUG_PRINT("enter",("close trans= 0x%x, transid= %lld",
-		      aConnection, aConnection->getTransactionId()));
-
   NdbConnection* tCon;
   NdbConnection* tPreviousCon;
 
@@ -489,6 +493,12 @@ Ndb::closeTransaction(NdbConnection* aConnection)
   
   tCon = theTransactionList;
   
+  DBUG_PRINT("info",("close trans: 0x%x transid: 0x%llx",
+		     aConnection, aConnection->getTransactionId()));
+  DBUG_PRINT("info",("magic number: 0x%x TCConPtr: 0x%x theMyRef: 0x%x 0x%x",
+		     aConnection->theMagicNumber, aConnection->theTCConPtr,
+		     aConnection->theMyRef, getReference()));
+
   if (aConnection == tCon) {		// Remove the active connection object
     theTransactionList = tCon->next();	// from the transaction list.
   } else { 

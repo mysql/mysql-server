@@ -1691,6 +1691,8 @@ NdbDictInterface::execALTER_TABLE_REF(NdbApiSignal * signal,
 int
 NdbDictionaryImpl::dropTable(const char * name)
 {
+  DBUG_ENTER("NdbDictionaryImpl::dropTable");
+  DBUG_PRINT("enter",("name: %s", name));
   NdbTableImpl * tab = getTable(name);
   if(tab == 0){
     return -1;
@@ -1701,15 +1703,16 @@ NdbDictionaryImpl::dropTable(const char * name)
   if (ret == INCOMPATIBLE_VERSION) {
     const char * internalTableName = m_ndb.internalizeTableName(name);
 
+    DBUG_PRINT("info",("INCOMPATIBLE_VERSION internal_name: %s", internalTableName));
     m_localHash.drop(internalTableName);
     
     m_globalHash->lock();
     m_globalHash->drop(tab);
     m_globalHash->unlock();   
-    return dropTable(name);
+    DBUG_RETURN(dropTable(name));
   }
 
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 int
@@ -1763,6 +1766,7 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
 int
 NdbDictionaryImpl::dropBlobTables(NdbTableImpl & t)
 {
+  DBUG_ENTER("NdbDictionaryImpl::dropBlobTables");
   for (unsigned i = 0; i < t.m_columns.size(); i++) {
     NdbColumnImpl & c = *t.m_columns[i];
     if (! c.getBlobType() || c.getPartSize() == 0)
@@ -1771,11 +1775,13 @@ NdbDictionaryImpl::dropBlobTables(NdbTableImpl & t)
     NdbBlob::getBlobTableName(btname, &t, &c);
     if (dropTable(btname) != 0) {
       if (m_error.code != 709){
-        return -1;
+	DBUG_PRINT("exit",("error %u - exiting",m_error.code));
+        DBUG_RETURN(-1);
       }
+      DBUG_PRINT("info",("error %u - continuing",m_error.code));
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int
