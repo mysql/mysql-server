@@ -514,7 +514,8 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data,
   NdbDictionary::Column::Type type;
   if(getMajor(m_fileHeader.NdbVersion) < VERSION_3X) {
     tableImpl->setName(tableName);   
-    for(Uint32 i = 0 ; i < tableImpl->getNoOfColumns(); i++) {
+    Uint32 noOfColumns = tableImpl->getNoOfColumns();
+    for(Uint32 i = 0 ; i < noOfColumns; i++) {
       type = convertToV3x(tableImpl->getColumn(i)->m_extType, 
 			  columnTypeMapping,
 			  -1);
@@ -562,7 +563,7 @@ bool
 TupleS::prepareRecord(const TableS & tab){
   m_currentTable = &tab;
   for(int i = 0; i<allAttributes.size(); i++) {
-    if(!allAttributes[i] == NULL)
+    if(allAttributes[i] != NULL)
       delete allAttributes[i];
   }
   allAttributes.clear();

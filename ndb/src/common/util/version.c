@@ -61,7 +61,7 @@ struct NdbUpGradeCompatible {
   UG_MatchType matchType;
 };
 
-//#define TEST_VERSION
+/*#define TEST_VERSION*/
 
 #ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
@@ -74,7 +74,7 @@ struct NdbUpGradeCompatible ndbCompatibleTable_upgrade[] = {
 
 void ndbSetOwnVersion() {}
 
-#else // testing purposes
+#else /* testing purposes */
 
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
   { MAKE_VERSION(4,1,5), MAKE_VERSION(4,1,0), UG_Range },
@@ -122,7 +122,7 @@ ndbGetOwnVersion()
 {
 #ifndef TEST_VERSION
   return NDB_VERSION_D;
-#else // testing purposes
+#else /* testing purposes */
   if (ndbOwnVersionTesting == 0)
     return NDB_VERSION_D;
   else

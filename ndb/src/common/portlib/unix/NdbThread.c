@@ -94,7 +94,7 @@ int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status)
   if (p_wait_thread == NULL)
     return 0;
 
-  if (p_wait_thread->thread == NULL)
+  if (p_wait_thread->thread == 0)
     return 0;
 
   result = pthread_join(p_wait_thread->thread, status);

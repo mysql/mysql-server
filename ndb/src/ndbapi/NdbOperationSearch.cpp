@@ -319,7 +319,7 @@ NdbOperation::setTupleId()
     return 0;
   }
   Uint64 tTupleId = theNdb->getTupleIdFromNdb(m_currentTable->m_tableId);
-  if (tTupleId == ~0){
+  if (tTupleId == ~(Uint64)0){
     setErrorCodeAbort(theNdb->theError.code);
     return 0;
   }

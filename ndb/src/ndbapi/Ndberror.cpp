@@ -460,6 +460,7 @@ int Nb = sizeof(StatusClassificationMapping)/sizeof(ErrorStatusClassification);
  * Complete all fields of an NdbError given the error code
  * and details
  */
+#if 0
 static
 void
 set(NdbError & error, int code, const char * details, ...){
@@ -470,6 +471,7 @@ set(NdbError & error, int code, const char * details, ...){
   vsnprintf(error.details, sizeof(error.details), details, ap);
   va_end(ap);
 }
+#endif
 
 static
 void
