@@ -1349,7 +1349,7 @@ create table t2 (s1 int);
 insert into t1 values (1);
 insert into t2 values (1);
 update t1 set  s1 = s1 + 1 where 1 = (select x.s1 as A from t2 WHERE t2.s1 > t1.s1 order by A);
-ERROR 42S02: Unknown table 'x' in field list
+ERROR 42S22: Unknown column 'x.s1' in 'field list'
 DROP TABLE t1, t2;
 create table t1 (a int) type=innodb;
 create table t2 (a int) type=innodb;
@@ -1439,3 +1439,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
 drop table if exists t2, t3;
+create table t1 (s1 int);
+create table t2 (s1 int);
+select * from t1 where (select count(*) from t2 where t1.s2) = 1;
+ERROR 42S22: Unknown column 't1.s2' in 'where clause'
+select * from t1 where (select count(*) from t2 group by t1.s2) = 1;
+ERROR 42S22: Unknown column 't1.s2' in 'group statement'
+select count(*) from t2 group by t1.s2;
+ERROR 42S02: Unknown table 't1' in group statement
+drop table t1, t2;
