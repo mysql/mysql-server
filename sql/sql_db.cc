@@ -837,8 +837,10 @@ bool mysql_change_db(THD *thd, const char *name)
   int length, db_length;
   char *dbname=my_strdup((char*) name,MYF(MY_WME));
   char	path[FN_REFLEN];
-  ulong db_access;
   HA_CREATE_INFO create;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  ulong db_access;
+#endif
   DBUG_ENTER("mysql_change_db");
 
   if (!dbname || !(db_length= strlen(dbname)))
@@ -899,4 +901,3 @@ bool mysql_change_db(THD *thd, const char *name)
   thd->variables.collation_database= thd->db_charset;
   DBUG_RETURN(0);
 }
-

@@ -449,7 +449,7 @@ public:
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
   virtual ulong table_flags(void) const =0;
-  virtual ulong index_flags(uint idx, uint part=0) const =0;
+  virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
   virtual ulong index_ddl_flags(KEY *wanted_index) const
   { return (HA_DDL_SUPPORT); }
   virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)

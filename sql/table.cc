@@ -569,13 +569,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  if (field->key_length() == key_part->length &&
 	      !(field->flags & BLOB_FLAG))
 	  {
-            if (outparam->file->index_flags(key, i) & HA_KEYREAD_ONLY)
+            if (outparam->file->index_flags(key, i, 1) & HA_KEYREAD_ONLY)
             {
               outparam->read_only_keys.clear_bit(key);
               outparam->keys_for_keyread.set_bit(key);
 	      field->part_of_key.set_bit(key);
             }
-	    if (outparam->file->index_flags(key, i) & HA_READ_ORDER)
+	    if (outparam->file->index_flags(key, i, 1) & HA_READ_ORDER)
 	      field->part_of_sortkey.set_bit(key);
 	  }
 	  if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
