@@ -132,7 +132,7 @@ win32_libid () {
     if eval $OBJDUMP -f $1 | $SED -e '10q' 2>/dev/null | \
       grep -E 'file format pe-i386(.*architecture: i386)?' >/dev/null ; then
       win32_nmres=`eval $NM -f posix -A $1 | \
-	sed -n -e '1,100{/ I /{x;/import/!{s/^/import/;h;p;};x;};}'`
+	$SED -n -e '1,100{/ I /{x;/import/!{s/^/import/;h;p;};x;};}'`
       if test "X$win32_nmres" = "Ximport" ; then
         win32_libid_type="x86 archive import"
       else
