@@ -218,7 +218,7 @@ sub process_mail_file
   {
     chop;
     if ($type ne "message")
-    { 
+    {
       if (/^Reply-To: (.*)/i)
       {
 	$type = "reply";
@@ -288,8 +288,11 @@ sub process_mail_file
       $values{$type} .= "\n" . $_;
     }
   }
-  $values{'hash'} = checksum("$values{'message'}");
-  update_table($dbh, $file_name, \%values);
+  if (defined($values{'message'}))
+  {
+    $values{'hash'} = checksum("$values{'message'}");
+    update_table($dbh, $file_name, \%values);
+  }
 }
 
 ####

@@ -72,7 +72,7 @@ char *get_tty_password(char *opt_message)
   char *pos=to,*end=to+sizeof(to)-1;
   int i=0;
   DBUG_ENTER("get_tty_password");
-  fprintf(stdout,opt_message ? opt_message : "Enter password: ");
+  fprintf(stderr,opt_message ? opt_message : "Enter password: ");
   for (;;)
   {
     char tmp;
@@ -125,8 +125,8 @@ static void get_password(char *to,uint length,int fd,bool echo)
       {
 	if (echo)
 	{
-	  fputs("\b \b",stdout);
-	  fflush(stdout);
+	  fputs("\b \b",stderr);
+	  fflush(stderr);
 	}
 	pos--;
 	continue;
@@ -138,8 +138,8 @@ static void get_password(char *to,uint length,int fd,bool echo)
       continue;
     if (echo)
     {
-      fputc('*',stdout);
-      fflush(stdout);
+      fputc('*',stderr);
+      fflush(stderr);
     }
     *(pos++) = tmp;
   }
@@ -172,10 +172,10 @@ char *get_tty_password(char *opt_message)
   memset(passbuff, 0, _PASSWORD_LEN);
 #endif
 #else 
-  if (isatty(fileno(stdout)))
+  if (isatty(fileno(stderr)))
   {
-    fputs(opt_message ? opt_message : "Enter password: ",stdout);
-    fflush(stdout);
+    fputs(opt_message ? opt_message : "Enter password: ",stderr);
+    fflush(stderr);
   }
 #if defined(HAVE_TERMIOS_H)
   tcgetattr(fileno(stdin), &org);
@@ -184,7 +184,7 @@ char *get_tty_password(char *opt_message)
   tmp.c_cc[VMIN] = 1;
   tmp.c_cc[VTIME] = 0;
   tcsetattr(fileno(stdin), TCSADRAIN, &tmp);
-  get_password(buff, sizeof(buff)-1, fileno(stdin), isatty(fileno(stdout)));
+  get_password(buff, sizeof(buff)-1, fileno(stdin), isatty(fileno(stderr)));
   tcsetattr(fileno(stdin), TCSADRAIN, &org);
 #elif defined(HAVE_TERMIO_H)
   ioctl(fileno(stdin), (int) TCGETA, &org);
@@ -193,7 +193,7 @@ char *get_tty_password(char *opt_message)
   tmp.c_cc[VMIN] = 1;
   tmp.c_cc[VTIME]= 0;
   ioctl(fileno(stdin),(int) TCSETA, &tmp);
-  get_password(buff,sizeof(buff)-1,fileno(stdin),isatty(fileno(stdout)));
+  get_password(buff,sizeof(buff)-1,fileno(stdin),isatty(fileno(stderr)));
   ioctl(fileno(stdin),(int) TCSETA, &org);
 #else
   gtty(fileno(stdin), &org);
@@ -201,11 +201,11 @@ char *get_tty_password(char *opt_message)
   tmp.sg_flags &= ~ECHO;
   tmp.sg_flags |= RAW;
   stty(fileno(stdin), &tmp);
-  get_password(buff,sizeof(buff)-1,fileno(stdin),isatty(fileno(stdout)));
+  get_password(buff,sizeof(buff)-1,fileno(stdin),isatty(fileno(stderr)));
   stty(fileno(stdin), &org);
 #endif
-  if (isatty(fileno(stdout)))
-    fputc('\n',stdout);
+  if (isatty(fileno(stderr)))
+    fputc('\n',stderr);
 #endif /* HAVE_GETPASS */
 
   DBUG_RETURN(my_strdup(buff,MYF(MY_FAE)));
