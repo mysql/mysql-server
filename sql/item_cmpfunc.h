@@ -482,7 +482,7 @@ public:
   int cmp(Item *arg)
   {
     char buff[80];
-    String tmp(buff, sizeof(buff), default_charset_info), *res;
+    String tmp(buff, sizeof(buff), cmp_charset), *res;
     if (!(res= arg->val_str(&tmp)))
       return 1;				/* Can't be right */
     return sortcmp(value_res, res, cmp_charset);
