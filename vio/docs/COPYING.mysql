@@ -1,0 +1,193 @@
+The *MySQL* server license for non Microsoft operating systems
+**************************************************************
+
+                      *MySQL FREE PUBLIC LICENSE*
+
+                      (Version 4, March 5, 1995)
+
+    Copyright (C) 1995, 1996 TcX AB & Monty Program KB & Detron HB
+
+       Stockholm SWEDEN, Helsingfors FINLAND and Uppsala SWEDEN
+
+                         All rights reserved.
+
+NOTE: This license is not the same as any of the GNU Licenses published
+by the Free Software Foundation. Its terms are substantially different
+from those of the GNU Licenses. If you are familiar with the GNU
+Licenses, please read this license with extra care.
+
+This License applies to the computer program known as "MySQL".  The
+"Program", below, refers to such program, and a "work based on the
+Program" means either the Program or any derivative work of the Program,
+as defined in the United States Copyright Act of 1976, such as a
+translation or a modification. The Program is a copyrighted work whose
+copyright is held by TcX Datakonsult AB and Monty Program KB and Detron
+HB.
+
+This License does not apply when running "MySQL" on any Microsoft
+operating system. Microsoft operating systems include all versions of
+Microsoft Windows NT and Microsoft Windows.
+
+BY MODIFYING OR DISTRIBUTING THE PROGRAM (OR ANY WORK BASED ON THE
+PROGRAM), YOU INDICATE YOUR ACCEPTANCE OF THIS LICENSE TO DO SO, AND ALL
+ITS TERMS AND CONDITIONS FOR COPYING, DISTRIBUTING OR MODIFYING THE
+PROGRAM OR WORKS BASED ON IT. NOTHING OTHER THAN THIS LICENSE GRANTS
+YOU PERMISSION TO MODIFY OR DISTRIBUTE THE PROGRAM OR ITS DERIVATIVE
+WORKS. THESE ACTIONS ARE PROHIBITED BY LAW. IF YOU DO NOT ACCEPT THESE
+TERMS AND CONDITIONS, DO NOT MODIFY OR DISTRIBUTE THE PROGRAM.
+
+  1. Licenses.
+
+     Licensor hereby grants you the following rights, provided that you
+     comply with all of the restrictions set forth in this License and
+     provided, further, that you distribute an unmodified copy of this
+     License with the Program:
+
+       a. You may copy and distribute literal (i.e., verbatim) copies
+          of the Program's source code as you receive it throughout the
+          world, in any medium.
+
+       b. You may modify the Program, create works based on the Program
+          and distribute copies of such throughout the world, in any
+          medium.
+
+  2. Restrictions.
+
+     This license is subject to the following restrictions:
+       a. Distribution of the Program or any work based on the Program
+          by a commercial organization to any third party is prohibited
+          if any payment is made in connection with such distribution,
+          whether directly (as in payment for a copy of the Program) or
+          indirectly (as in payment for some service related to the
+          Program, or payment for some product or service that includes
+          a copy of the Program "without charge"; these are only
+          examples, and not an exhaustive enumeration of prohibited
+          activities). However, the following methods of distribution
+          involving payment shall not in and of themselves be a
+          violation of this restriction:
+
+            A. Posting the Program on a public access information
+               storage and retrieval service for which a fee is
+               received for retrieving information (such as an on-line
+               service), provided that the fee is not content-dependent
+               (i.e., the fee would be the same for retrieving the same
+               volume of information consisting of random data).
+
+            B. Distributing the Program on a CD-ROM, provided that the
+               files containing the Program are reproduced entirely and
+               verbatim on such CD-ROM, and provided further that all
+               information on such CD-ROM be redistributable for
+               non-commercial purposes without charge.
+
+       b. Activities other than copying, distribution and modification
+          of the Program are not subject to this License and they are
+          outside its scope.  Functional use (running) of the Program
+          is not restricted, and any output produced through the use of
+          the Program is subject to this license only if its contents
+          constitute a work based on the Program (independent of having
+          been made by running the Program).
+
+       c. You must meet all of the following conditions with respect to
+          the distribution of any work based on the Program:
+            A. If you have modified the Program, you must cause your
+               work to carry prominent notices stating that you have
+               modified the Program's files and the date of any change;
+
+            B. You must cause any work that you distribute or publish,
+               that in whole or in part contains or is derived from the
+               Program or any part thereof, to be licensed as a whole
+               and at no charge to all third parties under the terms of
+               this License;
+
+            C. If the modified program normally reads commands
+               interactively when run, you must cause it, at each time
+               the modified program commences operation, to print or
+               display an announcement including an appropriate
+               copyright notice and a notice that there is no warranty
+               (or else, saying that you provide a warranty). Such
+               notice must also state that users may redistribute the
+               Program only under the conditions of this License and
+               tell the user how to view the copy of this License
+               included with the Program. (Exception: if the Program
+               itself is interactive but does not normally print such
+               an announcement, your work based on the Program is not
+               required to print an announcement.);
+
+            D. You must accompany any such work based on the Program
+               with the complete corresponding machine-readable source
+               code, delivered on a medium customarily used for
+               software interchange. The source code for a work means
+               the preferred form of the work for making modifications
+               to it.  For an executable work, complete source code
+               means all the source code for all modules it contains,
+               plus any associated interface definition files, plus the
+               scripts used to control compilation and installation of
+               the executable code. However, the source code
+               distributed need not include anything that is normally
+               distributed (in either source or binary form) with the
+               major components (compiler, kernel, and so on) of the
+               operating system on which the executable runs, unless
+               that component itself accompanies the executable code;
+
+            E. If you distribute any written or printed material at all
+               with the Program or any work based on the Program, such
+               material must include either a written copy of this
+               License, or a prominent written indication that the
+               Program or the work based on the Program is covered by
+               this License and written instructions for printing
+               and/or displaying the copy of the License on the
+               distribution medium;
+
+            F. You may not impose any further restrictions on the
+               recipient's exercise of the rights granted herein.
+
+               If distribution of executable or object code is made by
+               offering the equivalent ability to copy from a
+               designated place, then offering equivalent ability to
+               copy the source code from the same place counts as
+               distribution of the source code, even though third
+               parties are not compelled to copy the source code along
+               with the object code.
+
+  3. Reservation of Rights.
+
+     No rights are granted to the Program except as expressly set forth
+     herein. You may not copy, modify, sublicense, or distribute the
+     Program except as expressly provided under this License. Any
+     attempt otherwise to copy, modify, sublicense or distribute the
+     Program is void, and will automatically terminate your rights
+     under this License. However, parties who have received copies, or
+     rights, from you under this License will not have their licenses
+     terminated so long as such parties remain in full compliance.
+
+  4. Other Restrictions.
+
+     If the distribution and/or use of the Program is restricted in
+     certain countries for any reason, Licensor may add an explicit
+     geographical distribution limitation excluding those countries, so
+     that distribution is permitted only in or among countries not thus
+     excluded. In such case, this License incorporates the limitation
+     as if written in the body of this License.
+
+  5. Limitations.
+
+     THE PROGRAM IS PROVIDED TO YOU "AS IS," WITHOUT WARRANTY. THERE IS
+     NO WARRANTY FOR THE PROGRAM, EITHER EXPRESSED OR IMPLIED,
+     INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+     MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE AND
+     NONINFRINGEMENT OF THIRD PARTY RIGHTS. THE ENTIRE RISK AS TO THE
+     QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE
+     PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY
+     SERVICING, REPAIR OR CORRECTION.
+
+     IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN
+     WRITING WILL LICENSOR, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
+     REDISTRIBUTE THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR
+     DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR
+     CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE
+     THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA
+     BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
+     PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER
+     PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF
+     THE POSSIBILITY OF SUCH DAMAGES.
+

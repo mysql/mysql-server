@@ -130,7 +130,7 @@ else
   $query="insert into bench1 (id,id2,id3,dummy1) values ";
 }
 
-if (($opt_fast || $opt_fast_insert) && $limits->{'multi_value_insert'})
+if (($opt_fast || $opt_fast_insert) && $limits->{'insert_multi_value'})
 {
   $query_size=$server->{'limits'}->{'query_size'};
 
@@ -1177,7 +1177,7 @@ if ($server->small_rollback_segment())
 
 $loop_time=new Benchmark;
 $fields=$#fields;
-if (($opt_fast || $opt_fast_insert) && $limits->{'multi_value_insert'})
+if (($opt_fast || $opt_fast_insert) && $limits->{'insert_multi_value'})
 {
   $query_size=$server->{'limits'}->{'query_size'};
   $query="insert into bench1 values ";
@@ -1331,7 +1331,7 @@ if ($opt_fast && defined($server->{vacuum}))
 # Test multi value inserts if the server supports it
 #
 
-if ($limits->{'multi_value_insert'})
+if ($limits->{'insert_multi_value'})
 {
   $query_size=$limits->{'query_size'}; # Same limit for all databases
 

@@ -170,6 +170,7 @@ static struct rand_struct sql_rand;
 static int cleanup_done;
 static char **defaults_argv,time_zone[30];
 static const char *default_table_type_name;
+static char glob_hostname[FN_REFLEN];
 
 #ifdef HAVE_OPENSSL
 static bool opt_use_ssl = FALSE;
@@ -356,6 +357,7 @@ static void close_connections(void)
 #if defined(AIX_3_2) || defined(HAVE_DEC_3_2_THREADS)
     if (ip_sock != INVALID_SOCKET)
     {
+      DBUG_PRINT("error",("closing TCP/IP and socket files"));
       VOID(shutdown(ip_sock,2));
       VOID(closesocket(ip_sock));
       VOID(shutdown(unix_sock,2));
@@ -607,12 +609,15 @@ void clean_up(void)
   free_defaults(defaults_argv);
   my_free(mysql_tmpdir,MYF(0));
   x_free(opt_bin_logname);
+#ifndef __WIN__
   (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
-  my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+#endif
+  my_thread_end();
 
   /* Tell main we are ready */
   (void) pthread_mutex_lock(&LOCK_thread_count);
   ready_to_exit=1;
+  /* do the broadcast inside the lock to ensure that my_end() is not called */
   (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 } /* clean_up */
@@ -926,8 +931,8 @@ void end_thread(THD *thd, bool put_in_cache)
   DBUG_PRINT("info", ("sending a broadcast"))
 
   /* Tell main we are ready */
-  (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  (void) pthread_cond_broadcast(&COND_thread_count);
   DBUG_PRINT("info", ("unlocked thread_count mutex"))
 #ifdef ONE_THREAD
   if (!(test_flags & TEST_NO_THREADS))	// For debugging under Linux
@@ -1308,7 +1313,6 @@ int main(int argc, char **argv)
 #endif
 {
   DEBUGGER_OFF;
-  char hostname[FN_REFLEN];
 
   my_umask=0660;		// Default umask for new files
   my_umask_dir=0700;		// Default umask for new directories
@@ -1332,9 +1336,9 @@ int main(int argc, char **argv)
 #endif
 #endif
 
-  if (gethostname(hostname,sizeof(hostname)-4) < 0)
-    strmov(hostname,"mysql");
-  strmov(pidfile_name,hostname);
+  if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
+    strmov(glob_hostname,"mysql");
+  strmov(pidfile_name,glob_hostname);
   strmov(strcend(pidfile_name,'.'),".pid");	// Add extension
 #ifdef DEMO_VERSION
   strcat(server_version,"-demo");
@@ -1488,9 +1492,9 @@ int main(int argc, char **argv)
 
   /* Setup log files */
   if (opt_log)
-    open_log(&mysql_log, hostname, opt_logname, ".log", LOG_NORMAL);
+    open_log(&mysql_log, glob_hostname, opt_logname, ".log", LOG_NORMAL);
   if (opt_update_log)
-    open_log(&mysql_update_log, hostname, opt_update_logname, "",
+    open_log(&mysql_update_log, glob_hostname, opt_update_logname, "",
 	     LOG_NEW);
   if (opt_bin_log)
   {
@@ -1499,12 +1503,12 @@ int main(int argc, char **argv)
 	if (!opt_bin_logname)
 	  {
 	    char tmp[FN_REFLEN];
-	    strnmov(tmp,hostname,FN_REFLEN-5);
+	    strnmov(tmp,glob_hostname,FN_REFLEN-5);
 	    strmov(strcend(tmp,'.'),"-bin");
 	    opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
 	  }
 	mysql_bin_log.set_index_file_name(opt_binlog_index_name);
-	open_log(&mysql_bin_log, hostname, opt_bin_logname, "-bin",
+	open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
 		 LOG_BIN);
       }
     else
@@ -1512,7 +1516,7 @@ int main(int argc, char **argv)
   }
   
   if (opt_slow_log)
-    open_log(&mysql_slow_log, hostname, opt_slow_logname, "-slow.log",
+    open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
 	     LOG_NORMAL);
   if (ha_init())
   {
@@ -1711,10 +1715,7 @@ int main(int argc, char **argv)
     pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
-#ifndef __WIN__
-  (void) my_delete(pidfile_name,MYF(0));	// Not neaded anymore
-#endif
-  my_thread_end();
+  my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(0);
   return(0);					/* purecov: deadcode */
 }
@@ -2089,8 +2090,8 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
 #ifdef __NT__
   pthread_mutex_lock(&LOCK_thread_count);
   handler_count--;
-  pthread_cond_signal(&COND_handler_count);
   pthread_mutex_unlock(&LOCK_thread_count);
+  pthread_cond_signal(&COND_handler_count);
 #endif
   DBUG_RETURN(0);
 }

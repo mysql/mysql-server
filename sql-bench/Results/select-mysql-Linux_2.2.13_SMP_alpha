@@ -1,23 +1,23 @@
-Testing server 'MySQL 3.23.28 gamma' at 2000-11-18 17:02:47
+Testing server 'MySQL 3.23.29 gamma' at 2000-11-28 18:06:37
 
 Testing the speed of selecting on keys that consist of many parts
 The test-table has 10000 rows and the test is done with 500 ranges.
 
 Creating table
 Inserting 10000 rows
-Time to insert (10000):  3 wallclock secs ( 0.76 usr  0.64 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to insert (10000):  4 wallclock secs ( 0.76 usr  0.58 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing big selects on the table
-Time for select_big (70:17207):  1 wallclock secs ( 0.13 usr  0.10 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for select_range (410:1057904): 228 wallclock secs ( 8.51 usr  5.59 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for min_max_on_key (70000): 177 wallclock secs (20.71 usr  6.35 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for count_on_key (50000): 413 wallclock secs (15.79 usr  4.45 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_big (70:17207):  1 wallclock secs ( 0.14 usr  0.09 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for select_range (410:1057904): 229 wallclock secs ( 8.56 usr  5.62 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for min_max_on_key (70000): 166 wallclock secs (21.04 usr  6.26 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_on_key (50000): 389 wallclock secs (15.72 usr  4.52 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
-Time for count_group_on_key_parts (1000:100000): 39 wallclock secs ( 0.99 usr  0.61 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_group_on_key_parts (1000:100000): 40 wallclock secs ( 1.00 usr  0.61 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 Testing count(distinct) on the table
-Time for count_distinct (2000:2000): 86 wallclock secs ( 0.71 usr  0.21 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for count_distinct_group_on_key (1000:6000): 42 wallclock secs ( 0.45 usr  0.15 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for count_distinct_group_on_key_parts (1000:100000): 72 wallclock secs ( 1.08 usr  0.62 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for count_distinct_group (1000:100000): 72 wallclock secs ( 1.07 usr  0.63 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for count_distinct_big (100:1000000): 82 wallclock secs ( 7.24 usr  8.68 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Total time: 1215 wallclock secs (57.43 usr 28.03 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct (2000:2000): 92 wallclock secs ( 0.69 usr  0.21 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_group_on_key (1000:6000): 42 wallclock secs ( 0.43 usr  0.14 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_group_on_key_parts (1000:100000): 63 wallclock secs ( 1.10 usr  0.62 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_group (1000:100000): 64 wallclock secs ( 1.06 usr  0.66 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for count_distinct_big (100:1000000): 80 wallclock secs ( 7.23 usr  8.53 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 1170 wallclock secs (57.76 usr 27.85 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

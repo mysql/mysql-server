@@ -38,7 +38,7 @@
 # as such, and clarify ones such as "mediumint" with comments such as
 # "3-byte int" or "same as xxx".
 
-$version="1.53";
+$version="1.54";
 
 use DBI;
 use Getopt::Long;
@@ -275,7 +275,7 @@ check_and_report("Order by DESC is remembered",'order_by_remember_desc',
 		 ["drop table crash_q $drop_attr"],[3,2,1],7,undef(),3);
 report("Compute",'compute',
        "select a from crash_me order by a compute sum(a) by a");
-report("Value lists in INSERT",'multi_value_insert',
+report("INSERT with Value lists",'insert_multi_value',
        "create table crash_q (s char(10))",
        "insert into crash_q values ('a'),('b')",
        "drop table crash_q $drop_attr");
@@ -372,11 +372,11 @@ if ($dbh->do("create table crash_q (a integer, b integer,c1 CHAR(10))") &&
 $dbh->do("drop table crash_q $drop_attr");
 $dbh->do("drop table crash_q1 $drop_attr");
 
-check_and_report("case insensitive compare","case_insensitive_strings",
+check_and_report("Case insensitive compare","case_insensitive_strings",
 		 [],"select b from crash_me where b = 'A'",[],'a',1);
-check_and_report("ignore end space in compare","ignore_end_space",
+check_and_report("Ignore end space in compare","ignore_end_space",
 		 [],"select b from crash_me where b = 'a '",[],'a',1);
-check_and_report("group on column with null values",'group_by_null',
+check_and_report("Group on column with null values",'group_by_null',
 		 ["create table crash_q (s char(10))",
 		  "insert into crash_q values(null)",
 		  "insert into crash_q values(null)"],
@@ -733,7 +733,7 @@ try_and_report("Type for row id", "rowid",
 	       ["serial",
 		"create table crash_q (a serial, primary key(a))","drop table crash_q $drop_attr"]);
 
-try_and_report("Automatic rowid", "automatic_rowid",
+try_and_report("Automatic row id", "automatic_rowid",
 	       ["_rowid",
 		"create table crash_q (a int not null, primary key(a))",
 		"insert into crash_q values (1)",
@@ -1318,7 +1318,7 @@ report("default value function for column",'create_default_func',
        "create table crash_q (q integer not null,q1 integer default (1+1)",
        "drop table crash_q $drop_attr");
 
-report("temporary tables",'tempoary_table',
+report("temporary tables",'temporary_table',
        "create temporary table crash_q (q integer not null)",
        "drop table crash_q $drop_attr");
 
@@ -1399,7 +1399,7 @@ if ($limits{'unique_in_create'} eq 'yes')
 	 "insert into crash_q (q) values(NULL)",
 	 "drop table crash_q $drop_attr");
   report("null combination in unique index",'nulls_in_unique',
-          create_table("crash_q",["q integer,q1 integer"],["unique(q)"]),
+          create_table("crash_q",["q integer,q1 integer"],["unique(q,q1)"]),
 	 "insert into crash_q (q,q1) values(1,NULL)",
 	 "insert into crash_q (q,q1) values(1,NULL)",
 	 "drop table crash_q $drop_attr");

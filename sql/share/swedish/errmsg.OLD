@@ -197,5 +197,4 @@
 "Okänd system variabel '%-.64'",
 "Tabell '%-.64s' är crashad och bör repareras med REPAIR TABLE",
 "Tabell '%-.64s' är crashad och senast (automatiska?) reparation misslyckades",
-#ER_WARNING_NOT_COMPLETE_ROLLBACK
 "Warning:  Några icke transaktionella tabeller kunde inte återställas vid ROLLBACK",

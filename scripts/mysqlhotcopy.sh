@@ -36,7 +36,8 @@ WARNING: THIS IS VERY MUCH A FIRST-CUT ALPHA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.8";
+my $VERSION = "1.9";
+my $opt_tmpdir= $main::env{TMPDIR};
 
 my $OPTIONS = <<"_OPTIONS";
 
@@ -50,7 +51,7 @@ Usage: $0 db_name [new_db_name | directory]
 
   --allowold           don't abort if target already exists (rename it _old)
   --keepold            don't delete previous (now renamed) target when done
-  --indices            include index files in copy
+  --noindices          don't include full index files in copy
   --method=#           method for copy (only "cp" currently supported)
 
   -q, --quiet          be silent except for errors
@@ -61,6 +62,7 @@ Usage: $0 db_name [new_db_name | directory]
   --suffix=#           suffix for names of copied databases
   --checkpoint=#       insert checkpoint entry into specified db.table
   --flushlog           flush logs once all tables are locked 
+  --tmpdir=#	       temporary directory (instead of $opt_tmpdir)
 
   Try 'perldoc $0 for more complete documentation'
 _OPTIONS
@@ -71,7 +73,7 @@ sub usage {
 
 my %opt = (
     user	=> getpwuid($>),
-    indices	=> 1,	# for safety
+    noindices	=> 0,
     allowold	=> 0,	# for safety
     keepold	=> 0,
     method	=> "cp",
@@ -86,7 +88,7 @@ GetOptions( \%opt,
     "socket|S=s",
     "allowold!",
     "keepold!",
-    "indices!",
+    "noindices!",
     "method=s",
     "debug",
     "quiet|q",
@@ -95,6 +97,7 @@ GetOptions( \%opt,
     "suffix=s",
     "checkpoint=s",
     "flushlog",
+    "tmpdir|t=s",
     "dryrun|n",
 ) or usage("Invalid option");
 
@@ -133,6 +136,7 @@ else {
 my $mysqld_help;
 my %mysqld_vars;
 my $start_time = time;
+my $opt_tmpdir= $opt{tempdir} ? $opt{tmpdir} : $main::env{TMPDIR};
 $0 = $1 if $0 =~ m:/([^/]+)$:;
 $opt{quiet} = 0 if $opt{debug};
 $opt{allowold} = 1 if $opt{keepold};
@@ -238,13 +242,16 @@ foreach my $rdb ( @db_desc ) {
     my @db_files = sort ( $negated 
 			  ? grep { $db_files{$_} !~ $t_regex } keys %db_files
 			  : grep { $db_files{$_} =~ $t_regex } keys %db_files );
+    my @index_files=();
 
     ## remove indices unless we're told to keep them
-    unless ($opt{indices}) {
+    if ($opt{noindices}) {
+        @index_files= grep { /\.(ISM|MYI)$/ } @db_files;
 	@db_files = grep { not /\.(ISM|MYI)$/ } @db_files;
     }
 
     $rdb->{files}  = [ @db_files ];
+    $rdb->{index}  = [ @index_files ];
     my @hc_tables = map { "$db.$_" } @dbh_tables;
     $rdb->{tables} = [ @hc_tables ];
 
@@ -369,27 +376,78 @@ else {
 
 my @failed = ();
 
-foreach my $rdb ( @db_desc ) {
-    my @files = map { "$datadir/$rdb->{src}/$_" } @{$rdb->{files}};
-    next unless @files;
-    eval { copy_files($opt{method}, \@files, $rdb->{target} ); };
+foreach my $rdb ( @db_desc )
+{
+  my @files = map { "$datadir/$rdb->{src}/$_" } @{$rdb->{files}};
+  next unless @files;
+  
+  eval { copy_files($opt{method}, \@files, $rdb->{target} ); };
+  push @failed, "$rdb->{src} -> $rdb->{target} failed: $@"
+    if ( $@ );
+  
+  @files = map { "$datadir/$rdb->{src}/$_" } @{$rdb->{index}};
+  if ($rdb->{index})
+  {
+    #
+    # Copy only the header of the index file
+    #
 
-    push @failed, "$rdb->{src} -> $rdb->{target} failed: $@"
-      if ( $@ );
+    my $tmpfile="$opt_tmpdir/mysqlhotcopy$$";
+    foreach my $file ($rdb->{index})
+    {
+      my $from="$datadir/$rdb->{src}/$file";
+      my $to="$rdb->{target}/$file";
+      my $buff;
+      open(INPUT, $from) || die "Can't open file $from: $!\n";
+      my $length=read INPUT, $buff, 2048;
+      die "Can't read index header from $from\n" if ($length <= 1024);
+      close INPUT;
 
-    if ( $opt{checkpoint} ) {
-	my $msg = ( $@ ) ? "Failed: $@" : "Succeeded";
-
-	eval {
-	    $dbh->do( qq{ insert into $opt{checkpoint} (src, dest, msg) 
-			  VALUES ( '$rdb->{src}', '$rdb->{target}', '$msg' )
-			} ); 
-	};
-
-	if ( $@ ) {
-	    warn "Failed to update checkpoint table: $@\n";
-	}
+      if ( $opt{dryrun} )
+      {
+	print '$opt{method}-header $from $to\n';
+      }
+      elsif ($opt{method} eq 'cp')
+      {
+	!open(OUTPUT,$to)   || die "Can\'t create file $to: $!\n";
+	if (write(OUTPUT,$buff) != length($buff))
+	{
+          die "Error when writing data to $to: $!\n";
+        }
+	close OUTPUT	   || die "Error on close of $to: $!\n";
+      }
+      elsif ($opt{method} eq 'scp')
+      {
+ 	my $tmp=$tmpfile;
+	open(OUTPUT,"$tmp") || die "Can\'t create file $tmp: $!\n";
+	if (write(OUTPUT,$buff) != length($buff))
+	{
+          die "Error when writing data to $tmp: $!\n";
+        }
+	close OUTPUT	     || die "Error on close of $tmp: $!\n";
+	safe_system('scp $tmp $to');
+      }
+      else
+      {
+	die "Can't use unsupported method '$opt{method}'\n";
+      }
     }
+    unlink "$opt_tmpdir/mysqlhotcopy$$";
+  }
+  
+  if ( $opt{checkpoint} ) {
+    my $msg = ( $@ ) ? "Failed: $@" : "Succeeded";
+    
+    eval {
+      $dbh->do( qq{ insert into $opt{checkpoint} (src, dest, msg) 
+		      VALUES ( '$rdb->{src}', '$rdb->{target}', '$msg' )
+		    } ); 
+    };
+    
+    if ( $@ ) {
+      warn "Failed to update checkpoint table: $@\n";
+    }
+  }
 }
 
 if ( $opt{dryrun} ) {
@@ -469,24 +527,33 @@ sub copy_files {
 	# add files to copy and the destination directory
 	push @cmd, @$files, $target;
     }
-    else {
+    else
+    {
 	die "Can't use unsupported method '$method'\n";
     }
-
-    if ( $opt{dryrun} ) {
-	print "@cmd\n";
-	next;
-    }
-
-    ## for some reason system fails but backticks works ok for scp...
-    print "Executing '@cmd'\n" if $opt{debug};
-    my $cp_status = system @cmd;
-    if ($cp_status != 0) {
-	warn "Burp ('scuse me). Trying backtick execution...\n" if $opt{debug}; #'
-	## try something else
-	`@cmd` && die "Error: @cmd failed ($cp_status) while copying files.\n";
-    }
+    safe_system (@cmd);
 }
+
+sub safe_system
+{
+  my @cmd=shift;
+
+  if ( $opt{dryrun} )
+  {
+    print "@cmd\n";
+    return;
+  }
+
+  ## for some reason system fails but backticks works ok for scp...
+  print "Executing '@cmd'\n" if $opt{debug};
+  my $cp_status = system @cmd;
+  if ($cp_status != 0) {
+    warn "Burp ('scuse me). Trying backtick execution...\n" if $opt{debug}; #'
+    ## try something else
+    `@cmd` && die "Error: @cmd failed ($cp_status) while copying files.\n";
+  }
+}
+
 
 sub retire_directory {
     my ( @dir ) = @_;
@@ -611,9 +678,9 @@ port to use when connecting to local server
 
 UNIX domain socket to use when connecting to local server
 
-=item  --indices          
+=item  --noindices          
 
-include index files in copy
+don't include index files in copy
 
 =item  --method=#           
 
@@ -677,9 +744,6 @@ Add support for other copy methods (eg tar to single file?).
 
 Add support for forthcoming MySQL ``RAID'' table subdirectory layouts.
 
-Add option to only copy the first 65KB of index files. That simplifies
-recovery (recovery with no index file at all is complicated).
-
 =head1 AUTHOR
 
 Tim Bunce
@@ -689,3 +753,5 @@ Martin Waite - added checkpoint, flushlog, regexp and dryrun options
 Ralph Corderoy - added synonyms for commands
 
 Scott Wiersdorf - added table regex and scp support
+
+Monty - working --noindex (copy only first 2048 bytes of index file)
