@@ -407,6 +407,30 @@ innobase_mysql_print_thd(
 }
 
 /*************************************************************************
+Creates a temporary file. */
+extern "C"
+int
+innobase_mysql_tmpfile(void)
+/*========================*/
+			/* out: temporary file descriptor, or < 0 on error */
+{
+	char	filename[FN_REFLEN];
+	File	fd = create_temp_file(filename, NullS, "ib",
+#ifdef __WIN__
+				O_BINARY | O_TRUNC | O_SEQUENTIAL |
+				O_TEMPORARY | O_SHORT_LIVED |
+#endif /* __WIN__ */
+				O_CREAT | O_EXCL | O_RDWR,
+				MYF(MY_WME));
+#ifndef __WIN__
+	if (fd >= 0) {
+		unlink(filename);
+	}
+#endif /* !__WIN__ */
+	return(fd);
+}
+
+/*************************************************************************
 Gets the InnoDB transaction handle for a MySQL handler object, creates
 an InnoDB transaction struct if the corresponding MySQL thread struct still
 lacks one. */
