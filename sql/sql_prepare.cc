@@ -778,7 +778,7 @@ static bool init_param_items(PREP_STMT *stmt)
  
   stmt->lex=  thd->lex;
 
-  if (mysql_bin_log.is_open() || mysql_update_log.is_open())
+  if (mysql_bin_log.is_open())
   {
     stmt->log_full_query= 1;
     stmt->setup_params= insert_params_withlog;
