@@ -1,26 +1,32 @@
 DROP TABLE IF EXISTS t1,t2;
 CREATE TABLE t1 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 int unsigned,   attr3 VARCHAR(10) ) ENGINE=ndbcluster;
 insert into t1 values (0,0,0, "a"),(1,1,1,"b"),(2,2,NULL,NULL),(3,3,3,"d"),(4,4,4,"e"),(5,5,5,"f");
-CREATE TABLE  t2 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 int unsigned,   attr3 VARCHAR(10) ) ENGINE=ndbcluster;
-insert into t2 values (0,0,0, "a"),(1,1,1,"b"),(2,2,2,"c"),(3,3,3,"d"),(4,4,4,"e"),(5,5,5,"f");
+CREATE TABLE  t2 (pk1 int unsigned NOT NULL PRIMARY KEY,   attr1 int unsigned NOT NULL,   attr2 bigint unsigned, attr3 tinyint unsigned,  attr4 VARCHAR(10) ) ENGINE=ndbcluster;
+insert into t2 values (0,0,0,0,"a"),(1,1,9223372036854775803,1,"b"),(2,2,9223372036854775804,2,"c"),(3,3,9223372036854775805,3,"d"),(4,4,9223372036854775806,4,"e"),(5,5,9223372036854775807,5,"f");
 set @old_ndbcpd = @@session.ndb_condition_pushdown;
 set ndb_condition_pushdown = off;
 select * from t1 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 pk1	attr1	attr2	attr3
 2	2	NULL	NULL
 3	3	3	d
+select * from t2 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
+pk1	attr1	attr2	attr3	attr4
+2	2	9223372036854775804	2	c
+4	4	9223372036854775806	4	e
+5	5	9223372036854775807	5	f
 select * from t1,t2 where t1.attr1 > 1 and t1.attr2 = t2.attr2 and t2.attr1 < 5 order by t1.pk1;
-pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3
-3	3	3	d	3	3	3	d
-4	4	4	e	4	4	4	e
+pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
 set ndb_condition_pushdown = on;
 select * from t1 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 pk1	attr1	attr2	attr3
 2	2	NULL	NULL
 3	3	3	d
+select * from t2 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
+pk1	attr1	attr2	attr3	attr4
+2	2	9223372036854775804	2	c
+4	4	9223372036854775806	4	e
+5	5	9223372036854775807	5	f
 select * from t1,t2 where t1.attr1 > 1 and t1.attr2 = t2.attr2 and t2.attr1 < 5 order by t1.pk1;
-pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3
-3	3	3	d	3	3	3	d
-4	4	4	e	4	4	4	e
+pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
 set ndb_condition_pushdown = @old_ndbcpd;
 DROP TABLE t1,t2;
