@@ -794,15 +794,18 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	  !(param->testflag & T_CHECK_ONLY_CHANGED))))
       need_to_check=1;
 
-    if ((param->testflag & T_STATISTICS) &&
-	(share->state.changed & STATE_NOT_ANALYZED))
-      need_to_check=1;
-    if ((param->testflag & T_SORT_INDEX) &&
-	(share->state.changed & STATE_NOT_SORTED_PAGES))
-      need_to_check=1;
-    if ((param->testflag & T_REP_BY_SORT) &&
-	(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))
-      need_to_check=1;
+    if (info->s->base.keys && info->state->records)
+    {
+      if ((param->testflag & T_STATISTICS) &&
+          (share->state.changed & STATE_NOT_ANALYZED))
+        need_to_check=1;
+      if ((param->testflag & T_SORT_INDEX) &&
+          (share->state.changed & STATE_NOT_SORTED_PAGES))
+        need_to_check=1;
+      if ((param->testflag & T_REP_BY_SORT) &&
+          (share->state.changed & STATE_NOT_OPTIMIZED_KEYS))
+        need_to_check=1;
+    }
     if ((param->testflag & T_CHECK_ONLY_CHANGED) &&
 	(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
 				 STATE_CRASHED_ON_REPAIR)))
