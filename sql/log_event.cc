@@ -3099,6 +3099,16 @@ void User_var_log_event::pack_info(Protocol* protocol)
       buf= my_malloc(val_offset + 22, MYF(MY_WME));
       event_len= longlong10_to_str(uint8korr(val), buf + val_offset,-10)-buf;
       break;
+    case DECIMAL_RESULT:
+    {
+      buf= my_malloc(val_offset + DECIMAL_MAX_STR_LENGTH, MYF(MY_WME));
+      String str(buf+val_offset, DECIMAL_MAX_STR_LENGTH, &my_charset_bin);
+      my_decimal dec;
+      binary2my_decimal(E_DEC_FATAL_ERROR, val+2, &dec, val[0], val[1]);
+      my_decimal2string(E_DEC_FATAL_ERROR, &dec, 0, 0, 0, &str);
+      event_len= str.length() + val_offset;
+      break;
+    } 
     case STRING_RESULT:
       /* 15 is for 'COLLATE' and other chars */
       buf= my_malloc(event_len+val_len*2+1+2*MY_CS_NAME_SIZE+15, MYF(MY_WME));
@@ -3167,7 +3177,7 @@ bool User_var_log_event::write(IO_CACHE* file)
   char buf[UV_NAME_LEN_SIZE];
   char buf1[UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE + 
 	    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE];
-  char buf2[8], *pos= buf2;
+  char buf2[max(8, DECIMAL_MAX_FIELD_SIZE + 2)], *pos= buf2;
   uint buf1_length;
   ulong event_length;
 
@@ -3182,8 +3192,6 @@ bool User_var_log_event::write(IO_CACHE* file)
   {
     buf1[1]= type;
     int4store(buf1 + 2, charset_number);
-    int4store(buf1 + 2 + UV_CHARSET_NUMBER_SIZE, val_len);
-    buf1_length= 10;
 
     switch (type) {
     case REAL_RESULT:
@@ -3192,6 +3200,16 @@ bool User_var_log_event::write(IO_CACHE* file)
     case INT_RESULT:
       int8store(buf2, *(longlong*) val);
       break;
+    case DECIMAL_RESULT:
+    {
+      my_decimal *dec= (my_decimal *)val;
+      dec->fix_buffer_pointer();
+      buf2[0]= (char)(dec->intg + dec->frac);
+      buf2[1]= (char)dec->frac;
+      decimal2bin((decimal*)val, buf2+2, buf2[0], buf2[1]);
+      val_len= decimal_bin_size(buf2[0], buf2[1]) + 2;
+      break;
+    }
     case STRING_RESULT:
       pos= val;
       break;
@@ -3200,6 +3218,8 @@ bool User_var_log_event::write(IO_CACHE* file)
       DBUG_ASSERT(1);
       return 0;
     }
+    int4store(buf1 + 2 + UV_CHARSET_NUMBER_SIZE, val_len);
+    buf1_length= 10;
   }
 
   /* Length of the whole event */
@@ -3247,6 +3267,23 @@ void User_var_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
       longlong10_to_str(uint8korr(val), int_buf, -10);
       fprintf(file, ":=%s;\n", int_buf);
       break;
+    case DECIMAL_RESULT:
+    {
+      char str_buf[200];
+      int str_len= sizeof(str_buf) - 1;
+      int precision= (int)val[0];
+      int scale= (int)val[1];
+      decimal_digit dec_buf[10];
+      decimal dec;
+      dec.len= 10;
+      dec.buf= dec_buf;
+
+      bin2decimal(val+2, &dec, precision, scale);
+      decimal2string(&dec, str_buf, &str_len, 0, 0, 0);
+      str_buf[str_len]= 0;
+      fprintf(file, "%s",str_buf);
+      break;
+    }
     case STRING_RESULT:
     {
       /*
@@ -3323,7 +3360,7 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
     switch (type) {
     case REAL_RESULT:
       float8get(real_val, val);
-      it= new Item_real(real_val);
+      it= new Item_float(real_val);
       val= (char*) &real_val;		// Pointer to value in native format
       val_len= 8;
       break;
@@ -3333,6 +3370,14 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
       val= (char*) &int_val;		// Pointer to value in native format
       val_len= 8;
       break;
+    case DECIMAL_RESULT:
+    {
+      Item_decimal *dec= new Item_decimal(val+2, val[0], val[1]);
+      it= dec;
+      val= (char *)dec->val_decimal(NULL);
+      val_len= sizeof(my_decimal);
+      break;
+    }
     case STRING_RESULT:
       it= new Item_string(val, val_len, charset);
       break;

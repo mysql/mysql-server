@@ -380,26 +380,6 @@ delete from mysql.db where user='joe';
 delete from mysql.tables_priv where user='joe';
 delete from mysql.columns_priv where user='joe';
 flush privileges;
-create procedure px5 ()
-begin
-declare v int;
-declare c cursor for select version from
-information_schema.tables where table_schema <> 'information_schema';
-open c;
-fetch c into v;
-select v;
-close c;
-end;//
-call px5()//
-v
-9
-call px5()//
-v
-9
-select sql_mode from information_schema.ROUTINES;
-sql_mode
-
-drop procedure px5;
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
