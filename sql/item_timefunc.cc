@@ -2432,8 +2432,7 @@ void Item_func_add_time::print(String *str)
 String *Item_func_timediff::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  longlong seconds;
-  long microseconds;
+  longlong microseconds;
   long days;
   int l_sign= 1;
   TIME l_time1 ,l_time2, l_time3;
@@ -2457,32 +2456,23 @@ String *Item_func_timediff::val_str(String *str)
 			     (uint) l_time2.month,
 			     (uint) l_time2.day));
 
-  microseconds= l_time1.second_part - l_sign*l_time2.second_part;
-  seconds= ((longlong) days*86400L + l_time1.hour*3600L + 
-	    l_time1.minute*60L + l_time1.second + microseconds/1000000L -
-	    (longlong)l_sign*(l_time2.hour*3600L+l_time2.minute*60L+
-			      l_time2.second));
+  microseconds= ((longlong)days*86400L +
+                 l_time1.hour*3600L + l_time1.minute*60L + l_time1.second -
+                 (longlong)l_sign*(l_time2.hour*3600L + l_time2.minute*60L +
+                                   l_time2.second))*1000000 +
+                 l_time1.second_part - l_sign*l_time2.second_part;
 
   l_time3.neg= 0;
-  if (seconds < 0)
-  {
-    seconds= -seconds;
-    l_time3.neg= 1;
-  }
-  else if (seconds == 0 && microseconds < 0)
+  if (microseconds < 0)
   {
     microseconds= -microseconds;
     l_time3.neg= 1;
   }
-  if (microseconds < 0)
-  {
-    microseconds+= 1000000L;
-    seconds--;
-  }
-  if ((l_time2.neg == l_time1.neg) && l_time1.neg)
+  if ((l_time2.neg == l_time1.neg) && l_time1.neg && microseconds)
     l_time3.neg= l_time3.neg ? 0 : 1;
 
-  calc_time_from_sec(&l_time3, (long) seconds, microseconds);
+  calc_time_from_sec(&l_time3, (long)(microseconds/1000000),
+                               (long)(microseconds%1000000));
 
   if (!make_datetime(l_time1.second_part || l_time2.second_part ?
 		     TIME_MICROSECOND : TIME_ONLY,
