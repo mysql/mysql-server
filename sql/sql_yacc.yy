@@ -64,6 +64,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   Table_ident *table;
   char *simple_string;
   Item *item;
+  Item_num *item_num;
   List<Item> *item_list;
   List<String> *string_list;
   String *string;
@@ -628,7 +629,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init geometry_function
-	signed_literal NUM_literal
+	signed_literal
+
+%type <item_num>
+	NUM_literal
 
 %type <item_list>
 	expr_list udf_expr_list when_list ident_list ident_list_arg
@@ -4525,8 +4529,9 @@ signed_literal:
 	| '+' NUM_literal { $$ = $2; }
 	| '-' NUM_literal
 	  {
-	    /* $2 it's Item_int -> we can get value without fix_fields call */
-	    $$= new Item_int(-$2->val_int(), $2->max_length+1);
+	    $2->neg();
+	    $2->max_length++;
+	    $$= $2;
 	  }
 	;
 
