@@ -377,9 +377,10 @@ end;
 drop procedure create_select;
 create function e() returns double
 return 2.7182818284590452354;
-select e();
-e()
-2.718281828459
+set @e = e();
+select e(), @e;
+e()	@e
+2.718281828459	2.718281828459
 create function inc(i int) returns int
 return i+1;
 select inc(1), inc(99), inc(-71);
@@ -390,6 +391,11 @@ return x*y;
 select mul(1,1), mul(3,5), mul(4711, 666);
 mul(1,1)	mul(3,5)	mul(4711, 666)
 1	15	3137526
+create function append(s1 char(8), s2 char(8)) returns char(16)
+return concat(s1, s2);
+select append("foo", "bar");
+append("foo", "bar")
+foobar
 create function fac(n int unsigned) returns bigint unsigned
 begin
 declare f bigint unsigned;
@@ -400,11 +406,12 @@ set n = n - 1;
 end while;
 return f;
 end;
-select fac(1), fac(2), fac(10);
-fac(1)	fac(2)	fac(10)
-1	2	3628800
+select fac(1), fac(2), fac(5), fac(10);
+fac(1)	fac(2)	fac(5)	fac(10)
+1	2	120	3628800
 drop function e;
 drop function inc;
 drop function mul;
+drop function append;
 drop function fac;
 drop table t1;
