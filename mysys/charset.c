@@ -267,7 +267,7 @@ uint get_charset_number(const char *charset_name)
 
 const char *get_charset_name(uint charset_number)
 {
-  char *name=compiled_charset_name(charset_number);
+  const char *name=compiled_charset_name(charset_number);
   if (*name != '?')
     return name;
   if (init_available_charsets(MYF(0)))	/* If it isn't initialized */
