@@ -21,8 +21,9 @@ benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
 EXTRA_SCRIPTS = 	mysql-test-run.sh install_test_db.sh
 EXTRA_DIST = 		$(EXTRA_SCRIPTS) 
-test_SCRIPTS = 		mysql-test-run install_test_db
-CLEANFILES = 		$(test_SCRIPTS)
+test_SCRIPTS = 		mysql-test-run install_test_db 
+test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem
+CLEANFILES = 		$(test_SCRIPTS) $(test_DATA)
 
 dist-hook:
 	mkdir -p $(distdir)/t $(distdir)/r $(distdir)/include \
@@ -32,6 +33,8 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/r/*.result $(srcdir)/r/*.require $(distdir)/r
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(srcdir)/std_data/*.000001 $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(distdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(distdir)/std_data
+
 
 install-data-local:
 	$(mkinstalldirs) \
@@ -49,6 +52,11 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(DESTDIR)$(testdir)/include
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(DESTDIR)$(testdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(DESTDIR)$(testdir)/std_data
+
+std_data/%.pem:
+	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
+
 
 SUFFIXES = .sh
 

@@ -87,6 +87,13 @@ typedef struct st_lex_master_info
   uint port, connect_retry;
   ulonglong pos;
   ulong server_id;
+  /* 
+     Variable for MASTER_SSL option.
+     MASTER_SSL=0 in CHANGE MASTER TO corresponds to SSL_DISABLE
+     MASTER_SSL=1 corresponds to SSL_ENABLE
+  */
+  enum {SSL_UNCHANGED=0, SSL_DISABLE, SSL_ENABLE} ssl; 
+  char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
 } LEX_MASTER_INFO;

@@ -1557,6 +1557,18 @@ void init_master_info_with_options(MASTER_INFO* mi)
     strmake(mi->password, master_password, HASH_PASSWORD_LENGTH);
   mi->port = master_port;
   mi->connect_retry = master_connect_retry;
+  
+  mi->ssl= master_ssl;
+  if (master_ssl_ca)
+    strmake(mi->ssl_ca, master_ssl_ca, sizeof(mi->ssl_ca)-1);
+  if (master_ssl_capath)
+    strmake(mi->ssl_capath, master_ssl_capath, sizeof(mi->ssl_capath)-1);
+  if (master_ssl_cert)
+    strmake(mi->ssl_cert, master_ssl_cert, sizeof(mi->ssl_cert)-1);
+  if (master_ssl_cipher)
+    strmake(mi->ssl_cipher, master_ssl_cipher, sizeof(mi->ssl_cipher)-1);
+  if (master_ssl_key)
+    strmake(mi->ssl_key, master_ssl_key, sizeof(mi->ssl_key)-1);
 }
 
 void clear_last_slave_error(RELAY_LOG_INFO* rli)
@@ -1565,6 +1577,10 @@ void clear_last_slave_error(RELAY_LOG_INFO* rli)
   rli->last_slave_error[0]=0;
   rli->last_slave_errno=0;
 }
+
+
+#define LINES_IN_MASTER_INFO_WITH_SSL 14
+
 
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
@@ -1643,12 +1659,50 @@ file '%s')", fname);
     }
 
     mi->fd = fd;
-    int port, connect_retry, master_log_pos;
+    int port, connect_retry, master_log_pos, ssl= 0, lines;
+    char *first_non_digit;
+    
+    /*
+       Starting from 4.1.x master.info has new format. Now its
+       first line contains number of lines in file. By reading this 
+       number we will be always distinguish to which version our 
+       master.info corresponds to. We can't simply count lines in 
+       file since versions before 4.1.x could generate files with more
+       lines than needed.
+       If first line doesn't contain a number or contain number less than 
+       14 then such file is treated like file from pre 4.1.1 version.
+       There is no ambiguity when reading an old master.info, as before 
+       4.1.1, the first line contained the binlog's name, which is either
+       empty or has an extension (contains a '.'), so can't be confused 
+       with an integer.
 
+       So we're just reading first line and trying to figure which version 
+       is this.
+    */
+    
+    /* 
+       The first row is temporarily stored in mi->master_log_name, 
+       if it is line count and not binlog name (new format) it will be 
+       overwritten by the second row later.
+    */
     if (init_strvar_from_file(mi->master_log_name,
 			      sizeof(mi->master_log_name), &mi->file,
-			      "") ||
-	init_intvar_from_file(&master_log_pos, &mi->file, 4) ||
+			      ""))
+      goto errwithmsg;
+    
+    lines= strtoul(mi->master_log_name, &first_non_digit, 10);
+
+    if (mi->master_log_name[0]!='\0' && 
+        *first_non_digit=='\0' && lines >= LINES_IN_MASTER_INFO_WITH_SSL)
+    {                                          // Seems to be new format
+      if (init_strvar_from_file(mi->master_log_name,     
+            sizeof(mi->master_log_name), &mi->file, ""))
+        goto errwithmsg;
+    }
+    else
+      lines= 7;
+    
+    if (init_intvar_from_file(&master_log_pos, &mi->file, 4) ||
 	init_strvar_from_file(mi->host, sizeof(mi->host), &mi->file,
 			      master_host) ||
 	init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file,
@@ -1658,10 +1712,34 @@ file '%s')", fname);
 	init_intvar_from_file(&port, &mi->file, master_port) ||
 	init_intvar_from_file(&connect_retry, &mi->file,
 			      master_connect_retry))
-    {
-      sql_print_error("Error reading master configuration");
-      goto err;
-    }
+      goto errwithmsg;
+
+    /* 
+       If file has ssl part use it even if we have server without 
+       SSL support. But these option will be ignored later when 
+       slave will try connect to master, so in this case warning 
+       is printed.
+     */
+    if (lines >= LINES_IN_MASTER_INFO_WITH_SSL && 
+        (init_intvar_from_file(&ssl, &mi->file, master_ssl) ||
+         init_strvar_from_file(mi->ssl_ca, sizeof(mi->ssl_ca), 
+                               &mi->file, master_ssl_ca) ||
+         init_strvar_from_file(mi->ssl_capath, sizeof(mi->ssl_capath), 
+                               &mi->file, master_ssl_capath) ||
+         init_strvar_from_file(mi->ssl_cert, sizeof(mi->ssl_cert),
+                               &mi->file, master_ssl_cert) ||
+         init_strvar_from_file(mi->ssl_cipher, sizeof(mi->ssl_cipher),
+                               &mi->file, master_ssl_cipher) ||
+         init_strvar_from_file(mi->ssl_key, sizeof(mi->ssl_key),
+                              &mi->file, master_ssl_key)))
+      goto errwithmsg;
+#ifndef HAVE_OPENSSL
+    if (ssl)
+      sql_print_error("SSL information in the master info file "
+                      "('%s') are ignored because this MySQL slave was compiled "
+                      "without SSL support.", fname);
+#endif /* HAVE_OPENSSL */
+    
     /*
       This has to be handled here as init_intvar_from_file can't handle
       my_off_t types
@@ -1669,6 +1747,7 @@ file '%s')", fname);
     mi->master_log_pos= (my_off_t) master_log_pos;
     mi->port= (uint) port;
     mi->connect_retry= (uint) connect_retry;
+    mi->ssl= (my_bool) ssl;
   }
   DBUG_PRINT("master_info",("log_file_name: %s  position: %ld",
 			    mi->master_log_name,
@@ -1685,7 +1764,10 @@ file '%s')", fname);
     sql_print_error("Failed to flush master info file");
   pthread_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
-
+  
+errwithmsg:
+  sql_print_error("Error reading master configuration");
+  
 err:
   if (fd >= 0)
   {
@@ -1820,6 +1902,18 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
 					   MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_return_int("Relay_log_space", 10,
 					   MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_empty_string("Master_SSL_Allowed", 7));
+  field_list.push_back(new Item_empty_string("Master_SSL_CA_File",
+                                             sizeof(mi->ssl_ca)));
+  field_list.push_back(new Item_empty_string("Master_SSL_CA_Path", 
+                                             sizeof(mi->ssl_capath)));
+  field_list.push_back(new Item_empty_string("Master_SSL_Cert", 
+                                             sizeof(mi->ssl_cert)));
+  field_list.push_back(new Item_empty_string("Master_SSL_Cipher", 
+                                             sizeof(mi->ssl_cipher)));
+  field_list.push_back(new Item_empty_string("Master_SSL_Key", 
+                                             sizeof(mi->ssl_key)));
+  
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
 
@@ -1868,6 +1962,17 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store((uint32) mi->rli.slave_skip_counter);
     protocol->store((ulonglong) mi->rli.group_master_log_pos);
     protocol->store((ulonglong) mi->rli.log_space_total);
+#ifdef HAVE_OPENSSL 
+    protocol->store(mi->ssl? "Yes":"No", &my_charset_bin);
+#else
+    protocol->store(mi->ssl? "Ignored":"No", &my_charset_bin);
+#endif
+    protocol->store(mi->ssl_ca, &my_charset_bin);
+    protocol->store(mi->ssl_capath, &my_charset_bin);
+    protocol->store(mi->ssl_cert, &my_charset_bin);
+    protocol->store(mi->ssl_cipher, &my_charset_bin);
+    protocol->store(mi->ssl_key, &my_charset_bin);
+    
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
   
@@ -1886,11 +1991,22 @@ bool flush_master_info(MASTER_INFO* mi)
   DBUG_ENTER("flush_master_info");
   DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
 
+  /*
+     In certain cases this code may create master.info files that seems 
+     corrupted, because of extra lines filled with garbage in the end 
+     file (this happens if new contents take less space than previous 
+     contents of file). But because of number of lines in the first line 
+     of file we don't care about this garbage.
+  */
+  
   my_b_seek(file, 0L);
-  my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n",
-	      mi->master_log_name, llstr(mi->master_log_pos, lbuf),
+  my_b_printf(file, "%u\n%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n%s\n%s\n%s\n%s\n%s\n",
+	      LINES_IN_MASTER_INFO_WITH_SSL,
+              mi->master_log_name, llstr(mi->master_log_pos, lbuf),
 	      mi->host, mi->user,
-	      mi->password, mi->port, mi->connect_retry);
+	      mi->password, mi->port, mi->connect_retry,
+              (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
+              mi->ssl_cipher, mi->ssl_key);
   flush_io_cache(file);
   DBUG_RETURN(0);
 }
@@ -3274,6 +3390,17 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+ 
+#ifdef HAVE_OPENSSL
+  if (mi->ssl)
+    mysql_ssl_set(mysql, 
+                  mi->ssl_key[0]?mi->ssl_key:0,
+                  mi->ssl_cert[0]?mi->ssl_cert:0, 
+                  mi->ssl_ca[0]?mi->ssl_ca:0,
+                  mi->ssl_capath[0]?mi->ssl_capath:0,
+                  mi->ssl_cipher[0]?mi->ssl_cipher:0);
+#endif
+
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
