@@ -1819,7 +1819,7 @@ dnl this CHARSETS_AVAILABLE list and sql/share/charsets/Index.
 dnl If the character set uses strcoll or other special handling,
 dnl you must also create strings/ctype-$charset_name.c
 
-AC_DIVERT_PUSH(AC_DIVERSION_INIT)
+AC_DIVERT_PUSH(0)
 CHARSETS_AVAILABLE="big5 cp1251 cp1257
                           croat czech danish dec8 dos estonia euc_kr gb2312 gbk
                           german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
