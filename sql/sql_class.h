@@ -969,22 +969,12 @@ public:
 class select_dumpvar :public select_result {
   ha_rows row_count;
 public:
-  select_dumpvar(void)  { row_count=0;}
+  List<LEX_STRING> var_list;
+  List<Item_func_set_user_var> vars;
+  select_dumpvar(void)  { var_list.empty(); vars.empty(); row_count=0;}
   ~select_dumpvar() {}
-  int prepare(List<Item> &list, SELECT_LEX_UNIT *u) { return 0;}
-  bool send_fields(List<Item> &list, uint flag) 
-  { 
-    if (current_thd->lex.select_into_var_list.elements != list.elements)
-    {
-      my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
-      return 1;
-    }
-    return 0; 
-  }
+  int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  bool send_fields(List<Item> &list, uint flag) {return 0;}
   bool send_data(List<Item> &items);
-  void send_error(uint errcode,const char *err)
-  {
-    my_message(errcode, err, MYF(0));
-  }
   bool send_eof();
 };
