@@ -2715,7 +2715,7 @@ bool check_grant_all_columns(THD *thd, ulong want_access, TABLE *table)
   if (table->grant.version != grant_version)
   {
     table->grant.grant_table=
-      table_hash_search(thd->host,thd->ip,thd->db,
+      table_hash_search(thd->host, thd->ip, table->table_cache_key,
 			thd->priv_user,
 			table->real_name,0);	/* purecov: inspected */
     table->grant.version=grant_version;		/* purecov: inspected */
@@ -2821,7 +2821,7 @@ ulong get_column_grant(THD *thd, TABLE_LIST *table, Field *field)
   if (table->grant.version != grant_version)
   {
     table->grant.grant_table=
-      table_hash_search(thd->host,thd->ip,thd->db,
+      table_hash_search(thd->host, thd->ip, table->db,
 			thd->priv_user,
 			table->real_name,0);	/* purecov: inspected */
     table->grant.version=grant_version;		/* purecov: inspected */
