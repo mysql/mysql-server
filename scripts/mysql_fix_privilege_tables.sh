@@ -102,7 +102,7 @@ then
 fi
 
 cmd="$bindir/mysql -f --user=$user --host=$host"
-if test -z "$password" ; then
+if test ! -z "$password" ; then
   cmd="$cmd --password=$password"
 fi
 if test ! -z "$port"; then
@@ -154,7 +154,7 @@ s_echo ""
 if test $verbose = 1
 then
   s_echo "You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
-  s_echo "as this just means that your tables where already up to date."
+  s_echo "as this just means that your tables are already up to date."
   s_echo "This script is safe to run even if your tables are already up to date!"
   s_echo ""
 fi
