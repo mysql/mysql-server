@@ -299,13 +299,13 @@ insert into t7 values
  ("Street Road 78", 3, 92, 3),
  ("Main street 89C", 5, 71, 4),
  (NULL, 8, NULL, 12);
-select * from t7;
-select a, b from t7;
+select * from t7 order by a;
+select a, b from t7 order by a;
 
 update t7 set adress="End of road 09" where a=3;
 update t7 set adress="Gatuvägen 90C" where a=5 and c=4;
 update t7 set adress="No adress" where adress is NULL;
-select * from t7;
+select * from t7 order by a;
 select * from t7 where a=1 and c=2;
 delete from t7 where a=1;
 delete from t7 where a=3 and c=3;

@@ -128,7 +128,10 @@ select * from t4;
 id	name
 1	Automatic
 select * from t4;
-ERROR HY000: Got error 284 'Table not defined in transaction coordinator' from NDBCLUSTER
+ERROR HY000: Got error 284 'Table not defined in transaction coordinator' from ndbcluster
+flush table t4;
+select * from t4;
+ERROR HY000: Can't open file: 't4' (errno: 709)
 show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	0
