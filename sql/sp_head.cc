@@ -37,6 +37,8 @@ sp_map_result_type(enum enum_field_types type)
   case MYSQL_TYPE_INT24:
     return INT_RESULT;
   case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
+    return DECIMAL_RESULT;
   case MYSQL_TYPE_FLOAT:
   case MYSQL_TYPE_DOUBLE:
     return REAL_RESULT;
@@ -128,7 +130,7 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	else
 	{
 	  DBUG_PRINT("info", ("INT_RESULT: %d", i));
-	  it= new Item_int(it->val_int());
+          it= new Item_int(i);
 	}
 	break;
       }
@@ -148,13 +150,80 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	  uint8 decimals= it->decimals;
 	  uint32 max_length= it->max_length;
 	  DBUG_PRINT("info", ("REAL_RESULT: %g", d));
-	  it= new Item_real(it->val_real());
+          it= new Item_float(d);
 	  it->decimals= decimals;
 	  it->max_length= max_length;
 	}
 	break;
       }
-    default:
+    case DECIMAL_RESULT:
+      {
+        switch (it->result_type())
+        {
+        case DECIMAL_RESULT:
+        {
+          my_decimal value, *val= it->val_decimal(&value);
+          if (it->null_value)
+            it= new Item_null();
+          else
+            it= new Item_decimal(val);
+          break;
+        }
+        case INT_RESULT:
+        {
+          longlong val= it->val_int();
+          if (it->null_value)
+            it= new Item_null();
+          else
+            it= new Item_decimal(val, (int)it->max_length,
+                                 (bool)it->unsigned_flag);
+          break;
+        }
+        case REAL_RESULT:
+        {
+          double val= it->val_real();
+          if (it->null_value)
+            it= new Item_null();
+          else
+            it= new Item_decimal(val, (int)it->max_length,
+                                 (int)it->decimals);
+          break;
+        }
+        case STRING_RESULT:
+        {
+          char buffer[MAX_FIELD_WIDTH];
+          String tmp(buffer, sizeof(buffer), it->collation.collation);
+          String *val= it->val_str(&tmp);
+          if (it->null_value)
+            it= new Item_null();
+          else
+            it= new Item_decimal(val->ptr(), val->length(), val->charset());
+          break;
+        }
+        case ROW_RESULT:
+        default:
+          DBUG_ASSERT(0);
+        }
+#ifndef DBUG_OFF
+        if (it->null_value)
+        {
+          DBUG_PRINT("info", ("DECIMAL_RESULT: null"));
+        }
+        else
+        {
+          my_decimal value, *val= it->val_decimal(&value);
+          int len;
+          char *buff=
+            (char *)my_alloca(len= my_decimal_string_length(val) + 3);
+          String str(buff, len, &my_charset_bin);
+          my_decimal2string(0, val, 0, 0, 0, &str);
+          DBUG_PRINT("info", ("DECIMAL_RESULT: %s", str.ptr()));
+          my_afree(buff);
+        }
+#endif
+        break;
+      }
+    case STRING_RESULT:
       {
 	char buffer[MAX_FIELD_WIDTH];
 	String tmp(buffer, sizeof(buffer), it->collation.collation);
@@ -173,6 +242,9 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 	}
 	break;
       }
+    case ROW_RESULT:
+    default:
+      DBUG_ASSERT(0);
     }
   }
 
@@ -738,6 +810,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 		static_cast<Item_func_get_user_var*>(fi);
 
 	      suv= new Item_func_set_user_var(guv->get_name(), item);
+              /*
+                we do not check suv->fixed, bacause it can't be fixed after
+                creation
+              */
 	      suv->fix_fields(thd, NULL, &item);
 	      suv->fix_length_and_dec();
 	      suv->check();

@@ -7258,7 +7258,7 @@ static void test_decimal_bug()
   */
   bzero((char*) bind, sizeof(bind));
 
-  bind[0].buffer_type= MYSQL_TYPE_STRING;
+  bind[0].buffer_type= MYSQL_TYPE_NEWDECIMAL;
   bind[0].buffer= (void *)data;
   bind[0].buffer_length= 25;
   bind[0].is_null= &is_null;
