@@ -3476,9 +3476,12 @@ order_dir:
 opt_limit_clause_init:
 	/* empty */
 	{
-	  SELECT_LEX *sel= Select;
+	  LEX *lex= Lex;
+	  SELECT_LEX *sel= lex->current_select;
           sel->offset_limit= 0L;
-          sel->select_limit= Lex->thd->variables.select_limit;
+          sel->select_limit= (&lex->select_lex == sel) ?
+	    Lex->thd->variables.select_limit :	/* primary SELECT */
+	    HA_POS_ERROR;			/* subquery */
 	}
 	| limit_clause {}
 	;

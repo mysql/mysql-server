@@ -1540,8 +1540,9 @@ void st_select_lex::print_limit(THD *thd, String *str)
   if (!thd)
     thd= current_thd;
 
-  if (select_limit != thd->variables.select_limit ||
-      select_limit != HA_POS_ERROR ||
+  if ((select_limit != thd->variables.select_limit &&
+       this == &thd->lex->select_lex) ||
+      (select_limit != HA_POS_ERROR && this != &thd->lex->select_lex) ||
       offset_limit != 0L)
   {
     str->append(" limit ", 7);
