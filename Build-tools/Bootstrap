@@ -288,6 +288,10 @@ unless ($opt_skip_manual)
 		system ("bk cat $opt_docdir/Docs/$file.texi > $target_dir/Docs/$file.texi") == 0
 		or &abort("Could not update $file.texi in $target_dir/Docs/!");
 	}
+        system ("rm $target_dir/Docs/Images/Makefile*") == 0
+        or &abort("Could not remove Makefiles in $target_dir/Docs/Images/!");
+        system ("cp $opt_docdir/Docs/Images/*.* $target_dir/Docs/Images") == 0
+        or &abort("Could not copy image files in $target_dir/Docs/Images/!");
 }
 
 #
