@@ -1837,18 +1837,98 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
 }
 
 
+
 /*
-  TODO: Has to be fixed as strnncollsp in ctype-simple
+  Compare strings, discarding end space
+
+  SYNOPSIS
+    my_strnncollsp_utf8()
+    cs			character set handler
+    a			First string to compare
+    a_length		Length of 'a'
+    b			Second string to compare
+    b_length		Length of 'b'
+
+  IMPLEMENTATION
+    If one string is shorter as the other, then we space extend the other
+    so that the strings have equal length.
+
+    This will ensure that the following things hold:
+
+    "a"  == "a "
+    "a\0" < "a"
+    "a\0" < "a "
+
+  RETURN
+    < 0	 a <  b
+    = 0	 a == b
+    > 0	 a > b
 */
 
-static
-int my_strnncollsp_utf8(CHARSET_INFO * cs, 
-			const uchar *s, uint slen, 
-			const uchar *t, uint tlen)
+static int my_strnncollsp_utf8(CHARSET_INFO *cs, 
+			     const uchar *s, uint slen,
+			     const uchar *t, uint tlen)
 {
-  for ( ; slen && s[slen-1] == ' ' ; slen--);
-  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
-  return my_strnncoll_utf8(cs,s,slen,t,tlen);
+  int s_res,t_res;
+  my_wc_t s_wc,t_wc;
+  const uchar *se= s+slen;
+  const uchar *te= t+tlen;
+  
+  while ( s < se && t < te )
+  {
+    int plane;
+    s_res=my_utf8_uni(cs,&s_wc, s, se);
+    t_res=my_utf8_uni(cs,&t_wc, t, te);
+    
+    if ( s_res <= 0 || t_res <= 0 )
+    {
+      /* Incorrect string, compare by char value */
+      return ((int)s[0]-(int)t[0]); 
+    }
+    
+    plane=(s_wc>>8) & 0xFF;
+    s_wc = uni_plane[plane] ? uni_plane[plane][s_wc & 0xFF].sort : s_wc;
+    plane=(t_wc>>8) & 0xFF;
+    t_wc = uni_plane[plane] ? uni_plane[plane][t_wc & 0xFF].sort : t_wc;
+    if ( s_wc != t_wc )
+    {
+      return  ((int) s_wc) - ((int) t_wc);
+    }
+    
+    s+=s_res;
+    t+=t_res;
+  }
+  
+  slen= se-s;
+  tlen= te-t;
+  
+  if (slen != tlen)
+  {
+    int swap= 0;
+    if (slen < tlen)
+    {
+      slen= tlen;
+      s= t;
+      se= te;
+      swap= -1;
+    }
+    /*
+      This following loop uses the fact that in UTF-8
+      all multibyte characters are greater than space,
+      and all multibyte head characters are greater than
+      space. It means if we meet a character greater
+      than space, it always means that the longer string
+      is greater. So we can reuse the same loop from the
+      8bit version, without having to process full multibute
+      sequences.
+    */
+    for ( ; s < se; s++)
+    {
+      if (*s != ' ')
+        return ((int)*s -  (int) ' ') ^ swap;
+    }
+  }
+  return 0;
 }
 
 
