@@ -21,19 +21,16 @@
 #include "myisamdef.h"
 #include "ft_global.h"
 
-/* shoudn't be def'ed when linking with mysql */
-#undef EVAL_RUN
-
 #define HA_FT_WTYPE  HA_KEYTYPE_FLOAT
 #define HA_FT_WLEN   4
-#ifdef EVAL_RUN
-#define FT_SEGS      3
-#else /* EVAL_RUN */
 #define FT_SEGS      2
-#endif /* EVAL_RUN */
+
+#define ft_sintXkorr(A)    mi_sint4korr(A)
+#define ft_intXstore(T,A)  mi_int4store(T,A)
 
 extern const HA_KEYSEG ft_keysegs[FT_SEGS];
 
 int  _mi_ft_cmp(MI_INFO *, uint, const byte *, const byte *);
 int  _mi_ft_add(MI_INFO *, uint, byte *, const byte *, my_off_t);
 int  _mi_ft_del(MI_INFO *, uint, byte *, const byte *, my_off_t);
+

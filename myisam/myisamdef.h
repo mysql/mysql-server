@@ -55,7 +55,8 @@ typedef struct st_mi_state_info
     uchar uniques;			/* number of UNIQUE definitions */
     uchar language;			/* Language for indexes */
     uchar max_block_size;		/* max keyblock size */
-    uchar not_used[2];			/* To align to 8 */
+    uchar fulltext_keys;
+    uchar not_used;                     /* To align to 8 */
   } header;
 
   MI_STATUS_INFO state;
@@ -90,7 +91,7 @@ typedef struct st_mi_state_info
 } MI_STATE_INFO;
 
 #define MI_STATE_INFO_SIZE	(24+14*8+7*4+2*2+8)
-#define MI_STATE_KEY_SIZE 	8
+#define MI_STATE_KEY_SIZE	8
 #define MI_STATE_KEYBLOCK_SIZE  8
 #define MI_STATE_KEYSEG_SIZE	4
 #define MI_STATE_EXTRA_SIZE ((MI_MAX_KEY+MI_MAX_KEY_BLOCK_SIZE)*MI_STATE_KEY_SIZE + MI_MAX_KEY*MI_MAX_KEY_SEG*MI_STATE_KEYSEG_SIZE)
@@ -154,6 +155,7 @@ typedef struct st_mi_isam_pack {
 typedef struct st_mi_isam_share {	/* Shared between opens */
   MI_STATE_INFO state;
   MI_BASE_INFO base;
+  MI_KEYDEF  ft2_keyinfo;		/* Second-level ft-key definition */
   MI_KEYDEF  *keyinfo;			/* Key definitions */
   MI_UNIQUEDEF *uniqueinfo;		/* unique definitions */
   HA_KEYSEG *keyparts;			/* key part info */
@@ -197,8 +199,7 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
     global_changed,			/* If changed since open */
     not_flushed,
     temporary,delay_key_write,
-    concurrent_insert,
-    fulltext_index;
+    concurrent_insert;
 #ifdef THREAD
   THR_LOCK lock;
   pthread_mutex_t intern_lock;		/* Locking for use with _locking */
@@ -229,6 +230,8 @@ struct st_myisam_info {
   byte	*rec_buff;			/* Tempbuff for recordpack */
   uchar *int_keypos,			/* Save position for next/previous */
         *int_maxpos;			/*  -""-  */
+  uint  int_nod_flag;			/*  -""-  */
+  uint32 int_keytree_version;		/*  -""-  */
   int (*read_record)(struct st_myisam_info*, my_off_t, byte*);
   invalidator_by_filename invalidator;  /* query cache invalidator */
   ulong this_unique;			/* uniq filenumber or thread */
@@ -247,7 +250,6 @@ struct st_myisam_info {
   int  dfile;				/* The datafile */
   uint opt_flag;			/* Optim. for space/speed */
   uint update;				/* If file changed since open */
-  uint  int_nod_flag;			/*  -""-  */
   int	lastinx;			/* Last used index */
   uint	lastkey_length;			/* Length of key in lastkey */
   uint	last_rkey_length;		/* Last length in mi_rkey() */
@@ -259,7 +261,6 @@ struct st_myisam_info {
   uint	data_changed;			/* Somebody has changed data */
   uint	save_update;			/* When using KEY_READ */
   int	save_lastinx;
-  uint32 int_keytree_version;		/*  -""-  */
   LIST	open_list;
   IO_CACHE rec_cache;			/* When cacheing records */
   myf lock_wait;			/* is 0 or MY_DONT_WAIT */
@@ -372,6 +373,13 @@ typedef struct st_mi_sort_param
   { length=mi_uint2korr((key)+1)+3; (key)+=3; } \
 }
 
+#define get_key_full_length_rdonly(length,key) \
+{ if ((uchar) *(key) != 255) \
+    length= ((uint) (uchar) *((key)))+1; \
+  else \
+  { length=mi_uint2korr((key)+1)+3; } \
+}
+
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
 
 #define MI_MIN_BLOCK_LENGTH	20	/* Because of delete-link */
@@ -395,7 +403,7 @@ typedef struct st_mi_sort_param
 #define MI_FOUND_WRONG_KEY 32738	/* Impossible value from ha_key_cmp */
 
 #define MI_MAX_KEY_BLOCK_SIZE	(MI_MAX_KEY_BLOCK_LENGTH/MI_MIN_KEY_BLOCK_LENGTH)
-#define MI_BLOCK_SIZE(key_length,data_pointer,key_pointer) ((((key_length+data_pointer+key_pointer)*4+key_pointer+2)/myisam_block_size+1)*myisam_block_size)
+#define MI_BLOCK_SIZE(key_length,data_pointer,key_pointer) (((((key_length)+(data_pointer)+(key_pointer))*4+(key_pointer)+2)/myisam_block_size+1)*myisam_block_size)
 #define MI_MAX_KEYPTR_SIZE	5        /* For calculating block lengths */
 #define MI_MIN_KEYBLOCK_LENGTH	50         /* When to split delete blocks */
 
@@ -455,7 +463,7 @@ extern int _mi_delete_static_record(MI_INFO *info);
 extern int _mi_cmp_static_record(MI_INFO *info,const byte *record);
 extern int _mi_read_rnd_static_record(MI_INFO*, byte *,my_off_t, my_bool);
 extern int _mi_ck_write(MI_INFO *info,uint keynr,uchar *key,uint length);
-extern int _mi_enlarge_root(MI_INFO *info,uint keynr,uchar *key);
+extern int _mi_enlarge_root(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key, my_off_t *root);
 extern int _mi_insert(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
 		      uchar *anc_buff,uchar *key_pos,uchar *key_buff,
 		      uchar *father_buff, uchar *father_keypos,
@@ -690,6 +698,7 @@ void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_warning _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_info _VARARGS((MI_CHECK *param, const char *fmt,...));
 int flush_pending_blocks(MI_SORT_PARAM *param);
+int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
 int thr_write_keys(MI_SORT_PARAM *sort_param);
 #ifdef THREAD
 pthread_handler_decl(thr_find_all_keys,arg);

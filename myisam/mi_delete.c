@@ -23,13 +23,13 @@
 #include <errno.h>
 #endif
 
-static int d_search(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
-		    uint key_length, my_off_t page, uchar *anc_buff);
+static int d_search(MI_INFO *info,MI_KEYDEF *keyinfo,uint comp_flag,
+                    uchar *key,uint key_length,my_off_t page,uchar *anc_buff);
 static int del(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,uchar *anc_buff,
 	       my_off_t leaf_page,uchar *leaf_buff,uchar *keypos,
 	       my_off_t next_block,uchar *ret_key);
 static int underflow(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *anc_buff,
-		     my_off_t leaf_page, uchar *leaf_buff,uchar *keypos);
+		     my_off_t leaf_page,uchar *leaf_buff,uchar *keypos);
 static uint remove_key(MI_KEYDEF *keyinfo,uint nod_flag,uchar *keypos,
 		       uchar *lastkey,uchar *page_end,
 		       my_off_t *next_block);
@@ -73,7 +73,6 @@ int mi_delete(MI_INFO *info,const byte *record)
     if (((ulonglong) 1 << i) & info->s->state.key_map)
     {
       info->s->keyinfo[i].version++;
-      /* The following code block is for text searching by SerG */
       if (info->s->keyinfo[i].flag & HA_FULLTEXT )
       {
         if (_mi_ft_del(info,i,(char*) old_key,record,info->lastpos))
@@ -82,7 +81,7 @@ int mi_delete(MI_INFO *info,const byte *record)
       else
       {
         if (info->s->keyinfo[i].ck_delete(info,i,old_key,
-        	_mi_make_key(info,i,old_key,record,info->lastpos)))
+                _mi_make_key(info,i,old_key,record,info->lastpos)))
           goto err;
       }
     }
@@ -129,18 +128,23 @@ err:
 int _mi_ck_delete(register MI_INFO *info, uint keynr, uchar *key,
 		  uint key_length)
 {
+  return _mi_ck_real_delete(info, info->s->keyinfo+keynr, key, key_length,
+                            &info->s->state.key_root[keynr]);
+} /* _mi_ck_delete */
+
+int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
+                       uchar *key, uint key_length, my_off_t *root)
+{
   int error;
   uint nod_flag;
   my_off_t old_root;
   uchar *root_buff;
-  MI_KEYDEF *keyinfo;
-  DBUG_ENTER("_mi_ck_delete");
+  DBUG_ENTER("_mi_ck_real_delete");
 
-  if ((old_root=info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
+  if ((old_root=*root) == HA_OFFSET_ERROR)
   {
     DBUG_RETURN(my_errno=HA_ERR_CRASHED);
   }
-  keyinfo=info->s->keyinfo+keynr;
   if (!(root_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
 				      MI_MAX_KEY_BUFF*2)))
   {
@@ -153,12 +157,15 @@ int _mi_ck_delete(register MI_INFO *info, uint keynr, uchar *key,
     error= -1;
     goto err;
   }
-  if ((error=d_search(info,keyinfo,key,key_length,old_root,root_buff)) >0)
+  if ((error=d_search(info,keyinfo,
+                      (keyinfo->flag & HA_FULLTEXT ? SEARCH_FIND
+                                                   : SEARCH_SAME),
+                       key,key_length,old_root,root_buff)) >0)
   {
     if (error == 2)
     {
       DBUG_PRINT("test",("Enlarging of root when deleting"));
-      error=_mi_enlarge_root(info,keynr,key);
+      error=_mi_enlarge_root(info,keyinfo,key,root);
     }
     else /* error == 1 */
     {
@@ -166,10 +173,9 @@ int _mi_ck_delete(register MI_INFO *info, uint keynr, uchar *key,
       {
 	error=0;
 	if (nod_flag)
-	  info->s->state.key_root[keynr]=_mi_kpos(nod_flag,
-						  root_buff+2+nod_flag);
+	  *root=_mi_kpos(nod_flag,root_buff+2+nod_flag);
 	else
-	  info->s->state.key_root[keynr]= HA_OFFSET_ERROR;
+	  *root=HA_OFFSET_ERROR;
 	if (_mi_dispose(info,keyinfo,old_root))
 	  error= -1;
       }
@@ -180,7 +186,7 @@ int _mi_ck_delete(register MI_INFO *info, uint keynr, uchar *key,
 err:
   my_afree((gptr) root_buff);
   DBUG_RETURN(error);
-} /* _mi_ck_delete */
+} /* _mi_ck_real_delete */
 
 
 	/*
@@ -192,11 +198,11 @@ err:
 	*/
 
 static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
-		    uchar *key, uint key_length, my_off_t page,
-		    uchar *anc_buff)
+                    uint comp_flag, uchar *key, uint key_length,
+                    my_off_t page, uchar *anc_buff)
 {
   int flag,ret_value,save_flag;
-  uint length,nod_flag;
+  uint length,nod_flag,search_key_length;
   my_bool last_key;
   uchar *leaf_buff,*keypos;
   my_off_t leaf_page,next_block;
@@ -204,9 +210,9 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   DBUG_ENTER("d_search");
   DBUG_DUMP("page",(byte*) anc_buff,mi_getint(anc_buff));
 
-  flag=(*keyinfo->bin_search)(info,keyinfo,anc_buff,key, USE_WHOLE_KEY,
-			      SEARCH_SAME,
-			      &keypos, lastkey, &last_key);
+  search_key_length= (comp_flag & SEARCH_FIND) ? key_length : USE_WHOLE_KEY;
+  flag=(*keyinfo->bin_search)(info,keyinfo,anc_buff,key, search_key_length,
+                              comp_flag, &keypos, lastkey, &last_key);
   if (flag == MI_FOUND_WRONG_KEY)
   {
     DBUG_PRINT("error",("Found wrong key"));
@@ -214,6 +220,52 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   }
   nod_flag=mi_test_if_nod(anc_buff);
 
+  if (!flag && keyinfo->flag & HA_FULLTEXT)
+  {
+    uint off;
+    int  subkeys;
+
+    get_key_full_length_rdonly(off, lastkey);
+    subkeys=ft_sintXkorr(lastkey+off);
+    comp_flag=SEARCH_SAME;
+    if (subkeys >= 0)
+    {
+      /* normal word, one-level tree structure */
+      flag=(*keyinfo->bin_search)(info,keyinfo,anc_buff,key,USE_WHOLE_KEY,
+                                  comp_flag, &keypos, lastkey, &last_key);
+      /* fall through to normal delete */
+    }
+    else
+    {
+      /* popular word. two-level tree. going down */
+      uint tmp_key_length;
+      my_off_t root;
+      uchar *kpos=keypos;
+
+      tmp_key_length=(*keyinfo->get_key)(keyinfo,nod_flag,&kpos,lastkey);
+      root=_mi_dpos(info,nod_flag,kpos);
+      if (subkeys == -1)
+      {
+        /* the last entry in sub-tree */
+        _mi_dispose(info, keyinfo, root);
+        /* fall through to normal delete */
+      }
+      else
+      {
+        keyinfo=&info->s->ft2_keyinfo;
+        kpos-=keyinfo->keylength; /* we'll modify key entry 'in vivo' */
+        key+=off;
+        ret_value=_mi_ck_real_delete(info, &info->s->ft2_keyinfo,
+            key, HA_FT_WLEN, &root);
+        _mi_dpointer(info, kpos+HA_FT_WLEN, root);
+        subkeys++;
+        ft_intXstore(kpos, subkeys);
+        if (!ret_value)
+          ret_value=_mi_write_keypage(info,keyinfo,page,anc_buff);
+        DBUG_RETURN(ret_value);
+      }
+    }
+  }
   leaf_buff=0;
   LINT_INIT(leaf_page);
   if (nod_flag)
@@ -239,7 +291,8 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       goto err;
     }
     save_flag=0;
-    ret_value=d_search(info,keyinfo,key,key_length,leaf_page,leaf_buff);
+    ret_value=d_search(info,keyinfo,comp_flag,key,key_length,
+                       leaf_page,leaf_buff);
   }
   else
   {						/* Found key */

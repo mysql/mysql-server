@@ -69,7 +69,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 {
   int lock_error,kfile,open_mode,save_errno,have_rtree=0;
   uint i,j,len,errpos,head_length,base_pos,offset,info_length,keys,
-    key_parts,unique_key_parts,tmp_length,uniques;
+    key_parts,unique_key_parts,fulltext_keys,uniques;
   char name_buff[FN_REFLEN], org_name [FN_REFLEN], index_name[FN_REFLEN],
        data_name[FN_REFLEN];
   char *disk_cache,*disk_pos;
@@ -126,8 +126,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	  HA_OPTION_TEMP_COMPRESS_RECORD | HA_OPTION_CHECKSUM |
 	  HA_OPTION_TMP_TABLE | HA_OPTION_DELAY_KEY_WRITE))
     {
-      DBUG_PRINT("error",("wrong options: 0x%lx",
-			  share->options));
+      DBUG_PRINT("error",("wrong options: 0x%lx", share->options));
       my_errno=HA_ERR_OLD_FILE;
       goto err;
     }
@@ -162,11 +161,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     len=mi_uint2korr(share->state.header.state_info_length);
     keys=    (uint) share->state.header.keys;
     uniques= (uint) share->state.header.uniques;
+    fulltext_keys= (uint) share->state.header.fulltext_keys;
     key_parts= mi_uint2korr(share->state.header.key_parts);
     unique_key_parts= mi_uint2korr(share->state.header.unique_key_parts);
-    tmp_length=(MI_STATE_INFO_SIZE + keys * MI_STATE_KEY_SIZE +
-		key_parts*MI_STATE_KEYSEG_SIZE +
-		share->state.header.max_block_size*MI_STATE_KEYBLOCK_SIZE);
     if (len != MI_STATE_INFO_SIZE)
     {
       DBUG_PRINT("warning",
@@ -203,6 +200,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       goto err;
     }
 
+    key_parts+=fulltext_keys*FT_SEGS;
     if (share->base.max_key_length > MI_MAX_KEY_BUFF || keys > MI_MAX_KEY ||
 	key_parts >= MI_MAX_KEY * MI_MAX_KEY_SEG)
     {
@@ -211,7 +209,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       goto err;
     }
 
-    /* Correct max_file_length based on length of sizeof_t */
+    /* Correct max_file_length based on length of sizeof(off_t) */
     max_data_file_length=
       (share->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)) ?
       (((ulonglong) 1 << (share->base.rec_reflength*8))-1) :
@@ -290,12 +288,14 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       for (i=0 ; i < keys ; i++)
       {
 	disk_pos=mi_keydef_read(disk_pos, &share->keyinfo[i]);
+        if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
+          have_rtree=1;
 	set_if_smaller(share->blocksize,share->keyinfo[i].block_length);
 	share->keyinfo[i].seg=pos;
 	for (j=0 ; j < share->keyinfo[i].keysegs; j++,pos++)
 	{
 	  disk_pos=mi_keyseg_read(disk_pos, pos);
-	  
+
 	  if (pos->type == HA_KEYTYPE_TEXT || pos->type == HA_KEYTYPE_VARTEXT)
 	  {
 	    if (!pos->language)
@@ -312,11 +312,41 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	  uint sp_segs=SPDIMS*2;
 	  share->keyinfo[i].seg=pos-sp_segs;
 	  share->keyinfo[i].keysegs--;
-	} else if (share->keyinfo[i].flag & HA_FULLTEXT)
-	{
-	  share->keyinfo[i].seg=pos-FT_SEGS;
-	  share->fulltext_index=1;
 	}
+        else if (share->keyinfo[i].flag & HA_FULLTEXT)
+	{
+          if (!fulltext_keys)
+          { /* 4.0 compatibility code, to be removed in 5.0 */
+            share->keyinfo[i].seg=pos-FT_SEGS;
+            share->keyinfo[i].keysegs-=FT_SEGS;
+            share->state.header.fulltext_keys++;
+          }
+          else
+          {
+            uint j;
+            share->keyinfo[i].seg=pos;
+            for (j=0; j < FT_SEGS; j++)
+            {
+              *pos=ft_keysegs[j];
+              pos[0].language= pos[-1].language;
+              pos[0].charset= pos[-1].charset;
+              pos++;
+            }
+          }
+          if (!share->ft2_keyinfo.seg)
+          {
+            memcpy(& share->ft2_keyinfo, & share->keyinfo[i], sizeof(MI_KEYDEF));
+            share->ft2_keyinfo.keysegs=1;
+            share->ft2_keyinfo.flag=0;
+            share->ft2_keyinfo.keylength=
+            share->ft2_keyinfo.minlength=
+            share->ft2_keyinfo.maxlength=HA_FT_WLEN+share->base.rec_reflength;
+            share->ft2_keyinfo.seg=pos-1;
+            share->ft2_keyinfo.end=pos;
+            setup_key_functions(& share->ft2_keyinfo);
+          }
+	}
+        setup_key_functions(share->keyinfo+i);
 	share->keyinfo[i].end=pos;
 	pos->type=HA_KEYTYPE_END;			/* End */
 	pos->length=share->base.rec_reflength;
@@ -348,12 +378,6 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	pos->flag=0;
 	pos++;
       }
-    }
-    for (i=0 ; i < keys ; i++)
-    {
-      if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
-        have_rtree=1;
-      setup_key_functions(share->keyinfo+i);
     }
 
     for (i=j=offset=0 ; i < share->base.fields ; i++)
@@ -720,9 +744,9 @@ static void setup_key_functions(register MI_KEYDEF *keyinfo)
 }
 
 
-/***************************************************************************
-** Function to save and store the header in the index file (.MSI)
-***************************************************************************/
+/*
+   Function to save and store the header in the index file (.MYI)
+*/
 
 uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
 {
