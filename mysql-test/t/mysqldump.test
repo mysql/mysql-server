@@ -71,3 +71,19 @@ DROP TABLE t1;
 create table ```a` (i int);
 --exec $MYSQL_DUMP  --skip-comments test
 drop table ```a`;
+
+#
+# Bug #2705 'mysqldump --tab extra output'
+#
+
+create table t1(a int);
+insert into t1 values (1),(2),(3);
+--exec $MYSQL_DUMP --skip-comments --tab=$MYSQL_TEST_DIR/var/tmp/ test
+--exec cat $MYSQL_TEST_DIR/var/tmp/t1.sql
+--exec cat $MYSQL_TEST_DIR/var/tmp/t1.txt
+--exec rm $MYSQL_TEST_DIR/var/tmp/t1.sql
+--exec rm $MYSQL_TEST_DIR/var/tmp/t1.txt
+--exec $MYSQL_DUMP --tab=$MYSQL_TEST_DIR/var/tmp/ test
+--exec rm $MYSQL_TEST_DIR/var/tmp/t1.sql
+--exec rm $MYSQL_TEST_DIR/var/tmp/t1.txt
+drop table t1;
