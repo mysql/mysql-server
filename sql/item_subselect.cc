@@ -995,6 +995,10 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     List_iterator_fast<Item> li(select_lex->item_list);
     for (uint i= 0; i < n; i++)
     {
+      DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
+      if (select_lex->ref_pointer_array[i]->
+          check_cols(left_expr->el(i)->cols()))
+        goto err;
       Item *func= new Item_ref_null_helper(this,
 					   select_lex->ref_pointer_array+i,
 					   (char *) "<no matter>",
@@ -1123,6 +1127,7 @@ void subselect_single_select_engine::cleanup()
   DBUG_ENTER("subselect_single_select_engine::cleanup");
   prepared= optimized= executed= 0;
   join= 0;
+  result->cleanup();
   DBUG_VOID_RETURN;
 }
 
@@ -1131,6 +1136,7 @@ void subselect_union_engine::cleanup()
 {
   DBUG_ENTER("subselect_union_engine::cleanup");
   unit->reinit_exec_mechanism();
+  result->cleanup();
   DBUG_VOID_RETURN;
 }
 
@@ -1138,6 +1144,10 @@ void subselect_union_engine::cleanup()
 void subselect_uniquesubquery_engine::cleanup()
 {
   DBUG_ENTER("subselect_uniquesubquery_engine::cleanup");
+  /*
+    subselect_uniquesubquery_engine have not 'result' assigbed, so we do not
+    cleanup() it
+  */
   DBUG_VOID_RETURN;
 }
 
@@ -1421,13 +1431,15 @@ int subselect_indexsubquery_engine::exec()
 
 uint subselect_single_select_engine::cols()
 {
-  return select_lex->item_list.elements;
+  DBUG_ASSERT(select_lex->join); // should be called after fix_fields()
+  return select_lex->join->fields_list.elements;
 }
 
 
 uint subselect_union_engine::cols()
 {
-  return unit->first_select()->item_list.elements;
+  DBUG_ASSERT(unit->is_prepared());  // should be called after fix_fields()
+  return unit->types.elements;
 }
 
 
