@@ -62,7 +62,6 @@ From: $FROM
 To: $INTERNALS
 Subject: bk commit into $VERSION tree ($CHANGESET)$BS
 $BH
-
 Below is the list of changes that have just been committed into a local
 $VERSION repository of $USER. When $USER does a push these changes will
 be propagated to the main repository and, within 24 hours after the
