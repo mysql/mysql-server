@@ -14,3 +14,17 @@ include $(top_srcdir)/ndb/config/common.mk.am
 INCLUDES += -I.. -I$(top_srcdir)/include  -I$(top_srcdir)/ndb/include  -I$(top_srcdir)/ndb/src/ndbapi  -I$(top_srcdir)/ndb/include/ndbapi -I$(top_srcdir)/ndb/include/util  -I$(top_srcdir)/ndb/include/portlib -I$(top_srcdir)/ndb/include/kernel
 
 ndb_restore_LDFLAGS = @ndb_bin_am_ldflags@
+
+windoze-dsp: ndb_restore.dsp
+
+ndb_restore.dsp: Makefile \
+               $(top_srcdir)/ndb/config/win-lib.am \
+               $(top_srcdir)/ndb/config/win-name \
+               $(top_srcdir)/ndb/config/win-includes \
+               $(top_srcdir)/ndb/config/win-sources \
+               $(top_srcdir)/ndb/config/win-libraries
+	cat $(top_srcdir)/ndb/config/win-lib.am > $@
+	@$(top_srcdir)/ndb/config/win-name $@ $(noinst_LTLIBRARIES)
+	@$(top_srcdir)/ndb/config/win-includes $@ $(INCLUDES)
+	@$(top_srcdir)/ndb/config/win-sources $@ $(ndb_restore_SOURCES)
+	@$(top_srcdir)/ndb/config/win-libraries $@ $(LDADD)

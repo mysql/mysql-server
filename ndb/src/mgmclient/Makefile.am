@@ -23,3 +23,5 @@ ndb_mgm_LDFLAGS = @ndb_bin_am_ldflags@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
+
+windoze-dsp:
