@@ -22,7 +22,11 @@
 #include "sql_select.h"
 #include <hash.h>
 #include <thr_alarm.h>
+#if defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_H)
 #include <malloc.h>
+#elif defined(HAVE_MALLINFO) && defined(HAVE_SYS_MALLOC_H)
+#include <sys/malloc.h>
+#endif
 
 /* Intern key cache variables */
 extern "C" pthread_mutex_t THR_LOCK_keycache;
