@@ -17,7 +17,6 @@
 ## Process this file with automake to create Makefile.in
 
 bin_SCRIPTS =		@server_scripts@ \
-			make_win_src_distribution \
 			msql2mysql \
 			mysql_config \
 			mysql_fix_privilege_tables \
@@ -33,7 +32,8 @@ bin_SCRIPTS =		@server_scripts@ \
 			mysqldumpslow \
 			mysql_explain_log \
 			mysql_tableinfo \
-			mysqld_multi
+			mysqld_multi \
+			make_win_src_distribution
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			make_win_src_distribution.sh \
@@ -79,7 +79,8 @@ CLEANFILES =		@server_scripts@ \
 			mysql_find_rows \
 			mysqlhotcopy \
 			mysqldumpslow \
-			mysqld_multi
+			mysqld_multi \
+			make_win_src_distribution
 
 SUPERCLEANFILES =	mysqlbug
 
