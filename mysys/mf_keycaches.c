@@ -275,7 +275,11 @@ static void safe_hash_change(SAFE_HASH *hash, byte *old_data, byte *new_data)
     if (entry->data == old_data)
     {
       if (new_data == hash->default_value)
+      {
+        if ((*entry->prev= entry->next))
+          entry->next->prev= entry->prev;
 	hash_delete(&hash->hash, (byte*) entry);
+      }
       else
 	entry->data= new_data;
     }
