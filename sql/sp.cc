@@ -57,6 +57,8 @@ enum
   MYSQL_PROC_FIELD_COUNT
 };
 
+bool mysql_proc_table_exists= 1;
+
 /* *opened=true means we opened ourselves */
 static int
 db_find_routine_aux(THD *thd, int type, sp_name *name,
@@ -68,6 +70,14 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
   DBUG_ENTER("db_find_routine_aux");
   DBUG_PRINT("enter", ("type: %d name: %*s",
 		       type, name->m_name.length, name->m_name.str));
+
+  /*
+    Speed up things if mysql.proc doesn't exists
+    mysql_proc_table_exists is set when on creates a stored procedure
+    or on flush privileges
+  */
+  if (!mysql_proc_table_exists && ltype == TL_READ)
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
   // Put the key used to read the row together
   keylen= name->m_db.length;
@@ -99,10 +109,12 @@ db_find_routine_aux(THD *thd, int type, sp_name *name,
     if (! (table= open_ltable(thd, &tables, ltype)))
     {
       *tablep= NULL;
+      mysql_proc_table_exists= 0;
       DBUG_RETURN(SP_OPEN_TABLE_FAILED);
     }
     *opened= TRUE;
   }
+  mysql_proc_table_exists= 1;
 
   if (table->file->index_read_idx(table->record[0], 0,
 				  key, keylen,
@@ -852,6 +864,7 @@ sp_function_exists(THD *thd, sp_name *name)
     ret= TRUE;
   if (opened)
     close_thread_tables(thd, 0, 1);
+  thd->clear_error();
   DBUG_RETURN(ret);
 }
 
