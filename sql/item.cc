@@ -69,7 +69,7 @@ Item::Item():
 }
 
 /*
-  Constructor used by Item_field, Item_ref & agregate (sum) functions.
+  Constructor used by Item_field, Item_*_ref & agregate (sum) functions.
   Used for duplicating lists in processing queries with temporary
   tables
 */
@@ -114,7 +114,7 @@ Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
   name = (char*) field_name_par;
 }
 
-// Constructor used by Item_field & Item_ref (see Item comment)
+// Constructor used by Item_field & Item_*_ref (see Item comment)
 Item_ident::Item_ident(THD *thd, Item_ident *item)
   :Item(thd, item),
    orig_db_name(item->orig_db_name),
@@ -1372,6 +1372,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 
 bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  enum_parsing_place place;
   DBUG_ASSERT(fixed == 0);
   if (!field)					// If field is not checked
   {
@@ -1419,8 +1420,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  }
 
 	  Item_subselect *prev_subselect_item= prev_unit->item;
-          enum_parsing_place place=
-            prev_subselect_item->parsing_place;
+          place= prev_subselect_item->parsing_place;
           /*
             check table fields only if subquery used somewhere out of HAVING
             or outer SELECT do not use groupping (i.e. tables are
@@ -1489,8 +1489,13 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  return -1;
 	}
 
-	Item_ref *rf= new Item_ref(last->ref_pointer_array + counter,
-                                   (char *)table_name, (char *)field_name);
+	Item_ref *rf= (place == IN_HAVING ?
+                       new Item_ref(last->ref_pointer_array + counter,
+                                    (char *)table_name,
+                                    (char *)field_name) :
+                       new Item_direct_ref(last->ref_pointer_array + counter,
+                                           (char *)table_name,
+                                           (char *)field_name));
 	if (!rf)
 	  return 1;
         thd->change_item_tree(ref, rf);
@@ -2039,6 +2044,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
   uint counter;
+  enum_parsing_place place;
   bool not_used;
   if (!ref)
   {
@@ -2097,8 +2103,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	  // it is primary INSERT st_select_lex => skip first table resolving
 	  table_list= table_list->next;
 	}
-        enum_parsing_place place=
-            prev_subselect_item->parsing_place;
+        place= prev_subselect_item->parsing_place;
         /*
           check table fields only if subquery used somewhere out of HAVING
           or SELECT list or outer SELECT do not use groupping (i.e. tables
@@ -2168,6 +2173,19 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       }
       mark_as_dependent(thd, last, thd->lex->current_select,
                         this);
+      if (place == IN_HAVING)
+      {
+        Item_ref *rf;
+        if (!(rf= new Item_direct_ref(last->ref_pointer_array + counter,
+                                      (char *)table_name,
+                                      (char *)field_name)))
+          return 1;
+        ref= 0;                                 // Safety
+        if (rf->fix_fields(thd, tables, ref) || rf->check_cols(1))
+	  return 1;
+        thd->change_item_tree(reference, rf);
+        return 0;
+      }
       ref= last->ref_pointer_array + counter;
     }
     else if (!ref)
