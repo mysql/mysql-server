@@ -2897,11 +2897,6 @@ recv_recovery_from_checkpoint_finish(void)
 	int 		i;
 	os_thread_id_t	recovery_thread_id;
 
-	/* Rollback the uncommitted transactions which have no user session */
-
-	fprintf(stderr,
-		"InnoDB: Starting to apply log records to the database...\n");
-
 	/* Apply the hashed log records to the respective file pages */
 	
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
@@ -2938,6 +2933,9 @@ recv_recovery_from_checkpoint_finish(void)
 	recv_sys_free();
 #endif
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
+		/* Rollback the uncommitted transactions which have no user
+		session */
+
 		os_thread_create(trx_rollback_or_clean_all_without_sess,
 				(void *)&i, &recovery_thread_id);
 	}
