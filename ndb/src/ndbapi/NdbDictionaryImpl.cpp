@@ -1022,6 +1022,12 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
     if(m_waiter.m_state == WAIT_NODE_FAILURE)
       continue;
 
+    if(m_waiter.m_state == WST_WAIT_TIMEOUT)
+    {
+      m_error.code = 4008;
+      DBUG_RETURN(-1);
+    }
+    
     if ( (temporaryMask & m_error.code) != 0 ) {
       continue;
     }
@@ -2179,8 +2185,8 @@ int
 NdbDictInterface::createIndex(NdbApiSignal* signal, 
 			      LinearSectionPtr ptr[3])
 {
-  const int noErrCodes = 1;
-  int errCodes[noErrCodes] = {CreateIndxRef::Busy};
+  const int noErrCodes = 2;
+  int errCodes[noErrCodes] = {CreateIndxRef::Busy, CreateIndxRef::NotMaster};
   return dictSignal(signal,ptr,2,
 		    1 /*use masternode id*/,
 		    100,
@@ -2204,6 +2210,8 @@ NdbDictInterface::execCREATE_INDX_REF(NdbApiSignal * signal,
 {
   const CreateIndxRef* const ref = CAST_CONSTPTR(CreateIndxRef, signal->getDataPtr());
   m_error.code = ref->getErrorCode();
+  if(m_error.code == ref->NotMaster)
+    m_masterNodeId= ref->m_errorNode;
   m_waiter.signal(NO_WAIT);  
 }
 
@@ -2300,8 +2308,8 @@ NdbDictInterface::dropIndex(const NdbIndexImpl & impl,
 int
 NdbDictInterface::dropIndex(NdbApiSignal* signal, LinearSectionPtr ptr[3])
 {
-  const int noErrCodes = 1;
-  int errCodes[noErrCodes] = {DropIndxRef::Busy};
+  const int noErrCodes = 2;
+  int errCodes[noErrCodes] = {DropIndxRef::Busy, DropIndxRef::NotMaster};
   int r = dictSignal(signal,NULL,0,
 		     1/*Use masternode id*/,
 		     100,
@@ -2328,6 +2336,8 @@ NdbDictInterface::execDROP_INDX_REF(NdbApiSignal * signal,
 {
   const DropIndxRef* const ref = CAST_CONSTPTR(DropIndxRef, signal->getDataPtr());
   m_error.code = ref->getErrorCode();
+  if(m_error.code == ref->NotMaster)
+    m_masterNodeId= ref->m_errorNode;
   m_waiter.signal(NO_WAIT);  
 }
 
