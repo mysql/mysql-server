@@ -26724,7 +26724,7 @@ following circumstances:
 When the cache is full and a thread tries to open a table that is not in
 the cache.
 @item
-When the cache contains more than @code{table_cache} entires and
+When the cache contains more than @code{table_cache} entries and
 a thread is no longer using a table.
 @item
 When someone executes @code{mysqladmin refresh} or
@@ -51786,7 +51786,7 @@ Added @code{--default-table-type} option to @code{mysqld}.
 @cindex changes, version 3.22
 
 The 3.22 version has faster and safer connect code than version 3.21, as well
-as a lot of new nice enhancements.  The reason for not including these changes
+as a lot of new nice enhancements.
 As there aren't really any major changes, upgrading from 3.21 to 3.22 should
 be very easy and painless.  @xref{Upgrading-from-3.21}.
 
