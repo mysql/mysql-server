@@ -321,13 +321,13 @@ buf_page_is_corrupted(
 "  InnoDB: Error: page %lu log sequence number %lu %lu\n"
 "InnoDB: is in the future! Current system log sequence number %lu %lu.\n"
 "InnoDB: Your database may be corrupt.\n",
-		        mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
-			ut_dulint_get_high(
+		        (ulong) mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
+			(ulong) ut_dulint_get_high(
 				mach_read_from_8(read_buf + FIL_PAGE_LSN)),
-			ut_dulint_get_low(
+			(ulong) ut_dulint_get_low(
 				mach_read_from_8(read_buf + FIL_PAGE_LSN)),
-			ut_dulint_get_high(current_lsn),
-			ut_dulint_get_low(current_lsn));
+			(ulong) ut_dulint_get_high(current_lsn),
+			(ulong) ut_dulint_get_low(current_lsn));
 		}
 	}
 #endif
@@ -381,7 +381,7 @@ buf_page_print(
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 "  InnoDB: Page dump in ascii and hex (%lu bytes):\n%s",
-					(ulint)UNIV_PAGE_SIZE, buf);
+					(ulong) UNIV_PAGE_SIZE, buf);
 	fprintf(stderr, "InnoDB: End of page dump\n");
 
 	mem_free(buf);
@@ -393,20 +393,20 @@ buf_page_print(
 	fprintf(stderr, 
 "  InnoDB: Page checksum %lu, prior-to-4.0.14-form checksum %lu\n"
 "InnoDB: stored checksum %lu, prior-to-4.0.14-form stored checksum %lu\n",
-			checksum, old_checksum,
-			mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
-			mach_read_from_4(read_buf + UNIV_PAGE_SIZE
+			(ulong) checksum, (ulong) old_checksum,
+			(ulong) mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
+			(ulong) mach_read_from_4(read_buf + UNIV_PAGE_SIZE
 					- FIL_PAGE_END_LSN_OLD_CHKSUM));
 	fprintf(stderr,
 "InnoDB: Page lsn %lu %lu, low 4 bytes of lsn at page end %lu\n"
 "InnoDB: Page number (if stored to page already) %lu,\n"
 "InnoDB: space id (if created with >= MySQL-4.1.1 and stored already) %lu\n",
-		mach_read_from_4(read_buf + FIL_PAGE_LSN),
-		mach_read_from_4(read_buf + FIL_PAGE_LSN + 4),
-		mach_read_from_4(read_buf + UNIV_PAGE_SIZE
+		(ulong) mach_read_from_4(read_buf + FIL_PAGE_LSN),
+		(ulong) mach_read_from_4(read_buf + FIL_PAGE_LSN + 4),
+		(ulong) mach_read_from_4(read_buf + UNIV_PAGE_SIZE
 					- FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
-		mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
-		mach_read_from_4(read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
+		(ulong) mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
+		(ulong) mach_read_from_4(read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
 
 	if (mach_read_from_2(read_buf + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_TYPE)
 	    == TRX_UNDO_INSERT) {
@@ -422,8 +422,8 @@ buf_page_print(
 	if (fil_page_get_type(read_buf) == FIL_PAGE_INDEX) {
 	    	fprintf(stderr,
 "InnoDB: Page may be an index page where index id is %lu %lu\n",
-			ut_dulint_get_high(btr_page_get_index_id(read_buf)),
-			ut_dulint_get_low(btr_page_get_index_id(read_buf)));
+			(ulong) ut_dulint_get_high(btr_page_get_index_id(read_buf)),
+			(ulong) ut_dulint_get_low(btr_page_get_index_id(read_buf)));
 
 		/* If the code is in ibbackup, dict_sys may be uninitialized,
 		i.e., NULL */
@@ -513,7 +513,7 @@ buf_pool_init(
 	        fprintf(stderr,
 "InnoDB: AWE: Error: you must specify in my.cnf .._awe_mem_mb larger\n"
 "InnoDB: than .._buffer_pool_size. Now the former is %lu pages,\n"
-"InnoDB: the latter %lu pages.\n", curr_size, n_frames);
+"InnoDB: the latter %lu pages.\n", (ulong) curr_size, (ulong) n_frames);
 
 		return(NULL);
 	}
@@ -543,7 +543,7 @@ buf_pool_init(
 		        fprintf(stderr,
 "InnoDB: AWE: Error: physical memory must be allocated in full megabytes.\n"
 "InnoDB: Trying to allocate %lu database pages.\n", 
-			  curr_size);
+			  (ulong) curr_size);
 
 		        return(NULL);
 		}
@@ -780,7 +780,7 @@ buf_awe_map_page_to_frame(
 	fprintf(stderr,
 "InnoDB: AWE: Fatal error: cannot find a page to unmap\n"
 "InnoDB: awe_LRU_free_mapped list length %lu\n",
-		UT_LIST_GET_LEN(buf_pool->awe_LRU_free_mapped));
+		(ulong) UT_LIST_GET_LEN(buf_pool->awe_LRU_free_mapped));
 
 	ut_a(0);
 }
@@ -1546,8 +1546,9 @@ buf_page_init(
 
         if (buf_page_hash_get(space, offset)) {
                 fprintf(stderr,
-"InnoDB: Error: page %lu %lu already found from the hash table\n", space,
-							offset);
+"InnoDB: Error: page %lu %lu already found from the hash table\n",
+			(ulong) space,
+			(ulong) offset);
                 buf_print();
                 buf_LRU_print();
                 buf_validate();
@@ -1730,8 +1731,9 @@ buf_page_create(
 	/* If we get here, the page was not in buf_pool: init it there */
 
 	if (buf_debug_prints) {
-		printf("Creating space %lu page %lu to buffer\n", space,
-								offset);
+		printf("Creating space %lu page %lu to buffer\n",
+		       (ulong) space,
+		       (ulong) offset);
 	}
 
 	block = free_block;
@@ -1809,7 +1811,7 @@ buf_page_io_complete(
 
 			fprintf(stderr,
 "InnoDB: Error: page n:o stored in the page read in is %lu, should be %lu!\n",
-				read_page_no, block->offset);
+				(ulong) read_page_no, (ulong) block->offset);
 		}
 #ifdef notdefined
 		if (block->offset != 0 && read_page_no == 0) {
@@ -1832,7 +1834,7 @@ buf_page_io_complete(
 		if (buf_page_is_corrupted(block->frame)) {
 		  	fprintf(stderr,
 		"InnoDB: Database page corruption on disk or a failed\n"
-		"InnoDB: file read of page %lu.\n", block->offset);
+		"InnoDB: file read of page %lu.\n", (ulong) block->offset);
 			  
 		  	fprintf(stderr,
 		"InnoDB: You may have to recover from a backup.\n");
@@ -1841,7 +1843,7 @@ buf_page_io_complete(
 
 		  	fprintf(stderr,
 		"InnoDB: Database page corruption on disk or a failed\n"
-		"InnoDB: file read of page %lu.\n", block->offset);
+		"InnoDB: file read of page %lu.\n", (ulong) block->offset);
 		  	fprintf(stderr,
 		"InnoDB: You may have to recover from a backup.\n");
 			fprintf(stderr,
@@ -1922,8 +1924,8 @@ buf_page_io_complete(
 	mutex_exit(&(buf_pool->mutex));
 
 	if (buf_debug_prints) {
-		printf("page space %lu page no %lu", block->space,
-								block->offset);
+		printf("page space %lu page no %lu", (ulong) block->space,
+						     (ulong) block->offset);
 		id = btr_page_get_index_id(block->frame);
 
 		index = NULL;
@@ -2038,14 +2040,16 @@ buf_validate(void)
  	}
 
 	if (n_lru + n_free > buf_pool->curr_size) {
-		printf("n LRU %lu, n free %lu\n", n_lru, n_free);
+		printf("n LRU %lu, n free %lu\n", (ulong) n_lru,
+		       (ulong) n_free);
 		ut_error;
 	}
 
 	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == n_lru);
 	if (UT_LIST_GET_LEN(buf_pool->free) != n_free) {
 		printf("Free list len %lu, free blocks %lu\n",
-		    UT_LIST_GET_LEN(buf_pool->free), n_free);
+		       (ulong) UT_LIST_GET_LEN(buf_pool->free),
+		       (ulong) n_free);
 		ut_error;
 	}
 	ut_a(UT_LIST_GET_LEN(buf_pool->flush_list) == n_flush);
@@ -2088,22 +2092,23 @@ buf_print(void)
 
 	mutex_enter(&(buf_pool->mutex));
 	
-	printf("buf_pool size %lu \n", size);
-	printf("database pages %lu \n", UT_LIST_GET_LEN(buf_pool->LRU));
-	printf("free pages %lu \n", UT_LIST_GET_LEN(buf_pool->free));
+	printf("buf_pool size %lu \n", (ulong) size);
+	printf("database pages %lu \n", (ulong) UT_LIST_GET_LEN(buf_pool->LRU));
+	printf("free pages %lu \n", (ulong) UT_LIST_GET_LEN(buf_pool->free));
 	printf("modified database pages %lu \n",
-				UT_LIST_GET_LEN(buf_pool->flush_list));
+				(ulong) UT_LIST_GET_LEN(buf_pool->flush_list));
 
-	printf("n pending reads %lu \n", buf_pool->n_pend_reads);
+	printf("n pending reads %lu \n", (ulong) buf_pool->n_pend_reads);
 
 	printf("n pending flush LRU %lu list %lu single page %lu\n",
-		buf_pool->n_flush[BUF_FLUSH_LRU],
-		buf_pool->n_flush[BUF_FLUSH_LIST],
-		buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
+	       (ulong) buf_pool->n_flush[BUF_FLUSH_LRU],
+	       (ulong) buf_pool->n_flush[BUF_FLUSH_LIST],
+	       (ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
 
 	printf("pages read %lu, created %lu, written %lu\n",
-			buf_pool->n_pages_read, buf_pool->n_pages_created,
-						buf_pool->n_pages_written);
+	       (ulong) buf_pool->n_pages_read,
+	       (ulong) buf_pool->n_pages_created,
+	       (ulong) buf_pool->n_pages_written);
 
 	/* Count the number of blocks belonging to each index in the buffer */
 	
@@ -2147,7 +2152,8 @@ buf_print(void)
 		index = dict_index_get_if_in_cache(index_ids[i]);
 
 		printf("Block count for index %lu in buffer is about %lu",
-			ut_dulint_get_low(index_ids[i]), counts[i]);
+		       (ulong) ut_dulint_get_low(index_ids[i]),
+		       (ulong) counts[i]);
 
 		if (index) {
 			printf(" index name %s table %s", index->name,
@@ -2224,39 +2230,39 @@ buf_print_io(
 	mutex_enter(&(buf_pool->mutex));
 	
 	buf += sprintf(buf,
-		"Buffer pool size   %lu\n", size);
+		"Buffer pool size   %lu\n", (ulong) size);
 	buf += sprintf(buf,
-		"Free buffers       %lu\n", UT_LIST_GET_LEN(buf_pool->free));
+		"Free buffers       %lu\n", (ulong) UT_LIST_GET_LEN(buf_pool->free));
 	buf += sprintf(buf,
-		"Database pages     %lu\n", UT_LIST_GET_LEN(buf_pool->LRU));
+		"Database pages     %lu\n", (ulong) UT_LIST_GET_LEN(buf_pool->LRU));
 /*
 	buf += sprintf(buf,
-		"Lock heap buffers  %lu\n", buf_pool->n_lock_heap_pages);
+		"Lock heap buffers  %lu\n", (ulong) buf_pool->n_lock_heap_pages);
 	buf += sprintf(buf,
-		"Hash index buffers %lu\n", buf_pool->n_adaptive_hash_pages);
+		"Hash index buffers %lu\n", (ulong) buf_pool->n_adaptive_hash_pages);
 */
 	buf += sprintf(buf,
 		"Modified db pages  %lu\n",
-				UT_LIST_GET_LEN(buf_pool->flush_list));
+				(ulong) UT_LIST_GET_LEN(buf_pool->flush_list));
 	if (srv_use_awe) {
 		buf += sprintf(buf,
 		"AWE: Buffer pool memory frames                        %lu\n",
-				buf_pool->n_frames);
+				(ulong) buf_pool->n_frames);
 		
 		buf += sprintf(buf,
 		"AWE: Database pages and free buffers mapped in frames %lu\n",
-				UT_LIST_GET_LEN(buf_pool->awe_LRU_free_mapped));
+				(ulong) UT_LIST_GET_LEN(buf_pool->awe_LRU_free_mapped));
 	}
 
-	buf += sprintf(buf, "Pending reads %lu \n", buf_pool->n_pend_reads);
+	buf += sprintf(buf, "Pending reads %lu \n", (ulong) buf_pool->n_pend_reads);
 
 	buf += sprintf(buf,
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
-		buf_pool->n_flush[BUF_FLUSH_LRU]
-				+ buf_pool->init_flush[BUF_FLUSH_LRU],
-		buf_pool->n_flush[BUF_FLUSH_LIST]
-				+ buf_pool->init_flush[BUF_FLUSH_LIST],
-		buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
+		(ulong) (buf_pool->n_flush[BUF_FLUSH_LRU]
+				+ buf_pool->init_flush[BUF_FLUSH_LRU]),
+		(ulong) (buf_pool->n_flush[BUF_FLUSH_LIST]
+				+ buf_pool->init_flush[BUF_FLUSH_LIST]),
+		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
 
 	current_time = time(NULL);
 	time_elapsed = 0.001 + difftime(current_time,
@@ -2264,8 +2270,9 @@ buf_print_io(
 	buf_pool->last_printout_time = current_time;
 
 	buf += sprintf(buf, "Pages read %lu, created %lu, written %lu\n",
-			buf_pool->n_pages_read, buf_pool->n_pages_created,
-						buf_pool->n_pages_written);
+		       (ulong) buf_pool->n_pages_read,
+		       (ulong) buf_pool->n_pages_created,
+		       (ulong) buf_pool->n_pages_written);
 	buf += sprintf(buf, "%.2f reads/s, %.2f creates/s, %.2f writes/s\n",
 		(buf_pool->n_pages_read - buf_pool->n_pages_read_old)
 		/ time_elapsed,
@@ -2283,10 +2290,10 @@ buf_print_io(
 		
 	if (buf_pool->n_page_gets > buf_pool->n_page_gets_old) {
 		buf += sprintf(buf, "Buffer pool hit rate %lu / 1000\n",
-		1000
+       (ulong) (1000
 		- ((1000 *
 		    (buf_pool->n_pages_read - buf_pool->n_pages_read_old))
-		/ (buf_pool->n_page_gets - buf_pool->n_page_gets_old)));
+		/ (buf_pool->n_page_gets - buf_pool->n_page_gets_old))));
 	} else {
 		buf += sprintf(buf,
 			"No buffer pool page gets since the last printout\n");

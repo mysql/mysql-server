@@ -565,7 +565,7 @@ open_or_create_log_file(
 	srv_log_group_home_dirs[k] = srv_add_path_separator_if_needed(
 						srv_log_group_home_dirs[k]);
 
-	sprintf(name, "%s%s%lu", srv_log_group_home_dirs[k], "ib_logfile", i);
+	sprintf(name, "%s%s%lu", srv_log_group_home_dirs[k], "ib_logfile", (ulong) i);
 
 	files[i] = os_file_create(name, OS_FILE_CREATE, OS_FILE_NORMAL,
 						OS_LOG_FILE, &ret);
@@ -595,9 +595,9 @@ open_or_create_log_file(
 			fprintf(stderr,
 "InnoDB: Error: log file %s is of different size %lu %lu bytes\n"
 "InnoDB: than specified in the .cnf file %lu %lu bytes!\n",
-				name, size_high, size,
-				srv_calc_high32(srv_log_file_size),
-				srv_calc_low32(srv_log_file_size));
+				name, (ulong) size_high, (ulong) size,
+				(ulong) srv_calc_high32(srv_log_file_size),
+				(ulong) srv_calc_low32(srv_log_file_size));
 				
 			return(DB_ERROR);
 		}					
@@ -615,7 +615,7 @@ open_or_create_log_file(
 		}
 
 		fprintf(stderr, "InnoDB: Setting log file %s size to %lu MB\n",
-			             name, srv_log_file_size
+			             name, (ulong) srv_log_file_size
 			>> (20 - UNIV_PAGE_SIZE_SHIFT));
 
 		fprintf(stderr,
@@ -702,7 +702,7 @@ open_or_create_data_files(
 	if (srv_n_data_files >= 1000) {
 		fprintf(stderr, "InnoDB: can only have < 1000 data files\n"
 				"InnoDB: you have defined %lu\n",
-				srv_n_data_files);
+				(ulong) srv_n_data_files);
 		return(DB_ERROR);
 	}
 
@@ -814,8 +814,9 @@ open_or_create_data_files(
 "InnoDB: Error: auto-extending data file %s is of a different size\n"
 "InnoDB: %lu pages (rounded down to MB) than specified in the .cnf file:\n"
 "InnoDB: initial %lu pages, max %lu (relevant if non-zero) pages!\n",
-		  name, rounded_size_pages,
-		  srv_data_file_sizes[i], srv_last_file_size_max);
+		  name, (ulong) rounded_size_pages,
+		  (ulong) srv_data_file_sizes[i],
+		  (ulong) srv_last_file_size_max);
 
 					return(DB_ERROR);
 				}
@@ -829,8 +830,8 @@ open_or_create_data_files(
 "InnoDB: Error: data file %s is of a different size\n"
 "InnoDB: %lu pages (rounded down to MB)\n"
 "InnoDB: than specified in the .cnf file %lu pages!\n", name,
-						rounded_size_pages,
-						srv_data_file_sizes[i]);
+					       (ulong) rounded_size_pages,
+					       (ulong) srv_data_file_sizes[i]);
 				
 				return(DB_ERROR);
 			}
@@ -861,7 +862,7 @@ skip_size_check:
 	    		ut_print_timestamp(stderr);
 			fprintf(stderr, 
 				"  InnoDB: Setting file %s size to %lu MB\n",
-			       name, (srv_data_file_sizes[i]
+			       name, (ulong) (srv_data_file_sizes[i]
 				      >> (20 - UNIV_PAGE_SIZE_SHIFT)));
 
 			fprintf(stderr,
@@ -1040,7 +1041,8 @@ innobase_start_or_create_for_mysql(void)
   "InnoDB: Error: trx_t size is %lu in ha_innodb.cc but %lu in srv0start.c\n"
   "InnoDB: Check that pthread_mutex_t is defined in the same way in these\n"
   "InnoDB: compilation modules. Cannot continue.\n",
-		  srv_sizeof_trx_t_in_ha_innodb_cc, (ulint)sizeof(trx_t));
+		 (ulong)  srv_sizeof_trx_t_in_ha_innodb_cc,
+		 (ulong) sizeof(trx_t));
 		return(DB_ERROR);
 	}
 
@@ -1219,8 +1221,8 @@ NetWare. */
 	if (srv_use_awe) {
 		fprintf(stderr,
 "InnoDB: Using AWE: Memory window is %lu MB and AWE memory is %lu MB\n",
-		srv_awe_window_size / ((1024 * 1024) / UNIV_PAGE_SIZE),
-		srv_pool_size / ((1024 * 1024) / UNIV_PAGE_SIZE));
+		(ulong) (srv_awe_window_size / ((1024 * 1024) / UNIV_PAGE_SIZE)),
+		(ulong) (srv_pool_size / ((1024 * 1024) / UNIV_PAGE_SIZE)));
 
 		/* We must disable adaptive hash indexes because they do not
 		tolerate remapping of pages in AWE */
@@ -1545,7 +1547,8 @@ NetWare. */
 		fprintf(stderr,
 "InnoDB: Error: tablespace size stored in header is %lu pages, but\n"
 "InnoDB: the sum of data file sizes is %lu pages\n",
- 			tablespace_size_in_header, sum_of_data_file_sizes);
+ 			(ulong) tablespace_size_in_header,
+			(ulong) sum_of_data_file_sizes);
 	}
 
 	if (srv_auto_extend_last_data_file
@@ -1554,7 +1557,8 @@ NetWare. */
 		fprintf(stderr,
 "InnoDB: Error: tablespace size stored in header is %lu pages, but\n"
 "InnoDB: the sum of data file sizes is only %lu pages\n",
- 			tablespace_size_in_header, sum_of_data_file_sizes);
+ 			(ulong) tablespace_size_in_header,
+			(ulong) sum_of_data_file_sizes);
 	}
 
 	/* Check that os_fast_mutexes work as expected */
@@ -1579,14 +1583,14 @@ NetWare. */
 	  	ut_print_timestamp(stderr);
 	  	fprintf(stderr,
 "  InnoDB: Started; log sequence number %lu %lu\n",
-			ut_dulint_get_high(srv_start_lsn),
-			ut_dulint_get_low(srv_start_lsn));
+			(ulong) ut_dulint_get_high(srv_start_lsn),
+			(ulong) ut_dulint_get_low(srv_start_lsn));
 	}
 
 	if (srv_force_recovery > 0) {
 		fprintf(stderr,
 		"InnoDB: !!! innodb_force_recovery is set to %lu !!!\n",
-			srv_force_recovery);
+			(ulong) srv_force_recovery);
 	}
 
 	fflush(stderr);
@@ -1716,7 +1720,7 @@ innobase_shutdown_for_mysql(void)
 	if (i == 1000) {
 	        fprintf(stderr,
 "InnoDB: Warning: %lu threads created by InnoDB had not exited at shutdown!\n",
-		      os_thread_count);
+		      (ulong) os_thread_count);
 	}
 
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside
@@ -1741,16 +1745,16 @@ innobase_shutdown_for_mysql(void)
 	        fprintf(stderr,
 "InnoDB: Warning: some resources were not cleaned up in shutdown:\n"
 "InnoDB: threads %lu, events %lu, os_mutexes %lu, os_fast_mutexes %lu\n",
-		      os_thread_count, os_event_count, os_mutex_count,
-		      os_fast_mutex_count);
+			(ulong) os_thread_count, (ulong) os_event_count,
+			(ulong) os_mutex_count, (ulong) os_fast_mutex_count);
 	}
 
 	if (srv_print_verbose_log) {
 	        ut_print_timestamp(stderr);
 	        fprintf(stderr,
 "  InnoDB: Shutdown completed; log sequence number %lu %lu\n",
-			       ut_dulint_get_high(srv_shutdown_lsn),
-			       ut_dulint_get_low(srv_shutdown_lsn));
+			       (ulong) ut_dulint_get_high(srv_shutdown_lsn),
+			       (ulong) ut_dulint_get_low(srv_shutdown_lsn));
 	}
 
 	return((int) DB_SUCCESS);

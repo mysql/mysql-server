@@ -246,7 +246,7 @@ buf_flush_buffered_writes(void)
 	"InnoDB: to be written to data file. We intentionally crash server\n"
 	"InnoDB: to prevent corrupt data from ending up in data\n"
 	"InnoDB: files.\n",
-			block->offset, block->space);
+			(ulong) block->offset, (ulong) block->space);
 
 			ut_a(0);
 		}
@@ -504,7 +504,8 @@ buf_flush_try_page(
 
 		if (buf_debug_prints) {
 			printf("Flushing page space %lu, page no %lu \n",
-					block->space, block->offset);
+			       (ulong) block->space,
+			       (ulong) block->offset);
 		}
 
 		buf_flush_write_block_low(block);
@@ -592,7 +593,8 @@ buf_flush_try_page(
 		if (buf_debug_prints) {
 			printf(
 			"Flushing single page space %lu, page no %lu \n",
-						block->space, block->offset);
+						(ulong) block->space,
+			                        (ulong) block->offset);
 		}
 
 		buf_flush_write_block_low(block);
@@ -823,10 +825,10 @@ buf_flush_batch(
 	if (buf_debug_prints && page_count > 0) {
 		if (flush_type == BUF_FLUSH_LRU) {
 			printf("Flushed %lu pages in LRU flush\n",
-						page_count);
+						(ulong) page_count);
 		} else if (flush_type == BUF_FLUSH_LIST) {
 			printf("Flushed %lu pages in flush list flush\n",
-						page_count);
+						(ulong) page_count);
 		} else {
 			ut_error;
 		}

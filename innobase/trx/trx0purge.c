@@ -275,7 +275,7 @@ trx_purge_add_update_undo_to_history(
 
 		if (undo->id >= TRX_RSEG_N_SLOTS) {
 			fprintf(stderr,
-			"InnoDB: Error: undo->id is %lu\n", undo->id);
+			"InnoDB: Error: undo->id is %lu\n", (ulong) undo->id);
 			ut_a(0);
 		}
 
@@ -905,7 +905,7 @@ trx_purge_fetch_next_rec(
 			if (srv_print_thread_releases) {
 				printf(
 	"Purge: No logs left in the history list; pages handled %lu\n",
-					purge_sys->n_pages_handled);
+					(ulong) purge_sys->n_pages_handled);
 			}
 
 			mutex_exit(&(purge_sys->mutex));
@@ -1057,7 +1057,8 @@ trx_purge(void)
 	if (srv_print_thread_releases) {
 
 		printf(
-		"Purge ends; pages handled %lu\n", purge_sys->n_pages_handled);
+		"Purge ends; pages handled %lu\n",
+		(ulong) purge_sys->n_pages_handled);
 	}
 
 	return(purge_sys->n_pages_handled - old_pages_handled);
@@ -1074,16 +1075,16 @@ trx_purge_sys_print(void)
 	read_view_print(purge_sys->view);
 
 	fprintf(stderr, "InnoDB: Purge trx n:o %lu %lu, undo n_o %lu %lu\n",
-			ut_dulint_get_high(purge_sys->purge_trx_no),
-			ut_dulint_get_low(purge_sys->purge_trx_no),
-			ut_dulint_get_high(purge_sys->purge_undo_no),
-			ut_dulint_get_low(purge_sys->purge_undo_no));
+			(ulong) ut_dulint_get_high(purge_sys->purge_trx_no),
+			(ulong) ut_dulint_get_low(purge_sys->purge_trx_no),
+			(ulong) ut_dulint_get_high(purge_sys->purge_undo_no),
+			(ulong) ut_dulint_get_low(purge_sys->purge_undo_no));
 	fprintf(stderr,
 	"InnoDB: Purge next stored %lu, page_no %lu, offset %lu,\n"
 	"InnoDB: Purge hdr_page_no %lu, hdr_offset %lu\n",
-		purge_sys->next_stored,
-		purge_sys->page_no,
-		purge_sys->offset,
-		purge_sys->hdr_page_no,
-		purge_sys->hdr_offset);
+		(ulong) purge_sys->next_stored,
+		(ulong) purge_sys->page_no,
+		(ulong) purge_sys->offset,
+		(ulong) purge_sys->hdr_page_no,
+		(ulong) purge_sys->hdr_offset);
 }

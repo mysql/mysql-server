@@ -285,7 +285,8 @@ handle_new_error:
 	    "InnoDB: http://www.innodb.com/ibman.html for help.\n");
 
 	} else {
-		fprintf(stderr, "InnoDB: unknown error code %lu\n", err);
+		fprintf(stderr, "InnoDB: unknown error code %lu\n",
+			(ulong) err);
 		ut_a(0);
 	}		
 
@@ -395,7 +396,9 @@ row_prebuilt_free(
 		fprintf(stderr,
 "InnoDB: Error: trying to free a corrupt\n"
 "InnoDB: table handle. Magic n %lu, magic n2 %lu, table name %s\n",
-		prebuilt->magic_n, prebuilt->magic_n2, prebuilt->table->name);
+		(ulong) prebuilt->magic_n,
+		(ulong) prebuilt->magic_n2,
+		prebuilt->table->name);
 
 		mem_analyze_corruption((byte*)prebuilt);
 
@@ -475,7 +478,7 @@ row_update_prebuilt_trx(
 		fprintf(stderr,
 		"InnoDB: Error: trying to use a corrupt\n"
 		"InnoDB: trx handle. Magic n %lu\n",
-		trx->magic_n);
+		(ulong) trx->magic_n);
 
 		mem_analyze_corruption((byte*)trx);
 
@@ -486,7 +489,7 @@ row_update_prebuilt_trx(
 		fprintf(stderr,
 		"InnoDB: Error: trying to use a corrupt\n"
 		"InnoDB: table handle. Magic n %lu, table name %s\n",
-		prebuilt->magic_n, prebuilt->table->name);
+		(ulong) prebuilt->magic_n, prebuilt->table->name);
 
 		mem_analyze_corruption((byte*)prebuilt);
 
@@ -713,7 +716,7 @@ row_insert_for_mysql(
 		fprintf(stderr,
 		"InnoDB: Error: trying to free a corrupt\n"
 		"InnoDB: table handle. Magic n %lu, table name %s\n",
-		prebuilt->magic_n, prebuilt->table->name);
+		(ulong) prebuilt->magic_n, prebuilt->table->name);
 
 		mem_analyze_corruption((byte*)prebuilt);
 
@@ -929,7 +932,7 @@ row_update_for_mysql(
 		fprintf(stderr,
 		"InnoDB: Error: trying to free a corrupt\n"
 		"InnoDB: table handle. Magic n %lu, table name %s\n",
-		prebuilt->magic_n, prebuilt->table->name);
+		(ulong) prebuilt->magic_n, prebuilt->table->name);
 
 		mem_analyze_corruption((byte*)prebuilt);
 
@@ -1898,7 +1901,7 @@ row_discard_tablespace_for_mysql(
 	"SELECT ID INTO old_id\n"
 	"FROM SYS_TABLES\n"
 	"WHERE NAME = table_name;\n"
-	"IF (SQL % NOTFOUND) THEN\n"
+	"IF (SQL %% NOTFOUND) THEN\n"
 	"	COMMIT WORK;\n"
 	"	RETURN;\n"
 	"END IF;\n"
@@ -1909,7 +1912,8 @@ row_discard_tablespace_for_mysql(
 	"UPDATE SYS_INDEXES SET TABLE_ID = new_id\n"
 	"WHERE TABLE_ID = old_id;\n"
 	"COMMIT WORK;\n"
-	"END;\n", name, ut_dulint_get_high(new_id), ut_dulint_get_low(new_id));
+	"END;\n", name, (ulong) ut_dulint_get_high(new_id),
+		(ulong) ut_dulint_get_low(new_id));
 
 	ut_a(strlen(buf) < 2 * OS_FILE_MAX_PATH);
 
@@ -2359,8 +2363,8 @@ row_drop_table_for_mysql(
 			if (!success) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-"  InnoDB: Error: not able to delete tablespace %lu of table %s!\n", space_id,
-								     name);
+"  InnoDB: Error: not able to delete tablespace %lu of table %s!\n",
+					(ulong) space_id, name);
 				err = DB_ERROR;
 			}
 		}
@@ -2439,7 +2443,7 @@ loop:
 		if (err != DB_SUCCESS) {
 			fprintf(stderr,
 	"InnoDB: DROP DATABASE %s failed with error %lu for table %s\n",
-				name, (ulint)err, table_name);
+				name, (ulong) err, table_name);
 			break;
 		}
 	}
@@ -2947,7 +2951,8 @@ row_check_table_for_mysql(
  
 				fprintf(stderr,
 		"Error: index %s contains %lu entries, should be %lu\n",
-					index->name, n_rows, n_rows_in_table);
+					index->name, (ulong) n_rows,
+					(ulong) n_rows_in_table);
 			}
 		}
 
