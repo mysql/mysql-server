@@ -1763,7 +1763,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
   NB! Errors are not reported until you do mysql_real_connect.
 **************************************************************************/
 
-#ifdef HAVE_OPENSLL
+#ifdef HAVE_OPENSSL
 static void
 mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 {
@@ -1781,7 +1781,7 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   mysql->options.use_ssl = FALSE;
   mysql->connector_fd = 0;
 }
-#endif /* HAVE_OPENSLL */
+#endif /* HAVE_OPENSSL */
 
 /**************************************************************************
   Connect to sql server
