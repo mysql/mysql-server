@@ -10285,10 +10285,11 @@ static void test_bug5399()
     statement id hash in the server uses binary collation.
   */
 #define NUM_OF_USED_STMT 97 
-  MYSQL_STMT *stmt[NUM_OF_USED_STMT];
+  MYSQL_STMT *stmt_list[NUM_OF_USED_STMT];
+  MYSQL_STMT **stmt;
   MYSQL_BIND bind[1];
-  char buff[500];
-  int rc, i;
+  char buff[600];
+  int rc;
   int32 no;
 
   myheader("test_bug5399");
@@ -10297,29 +10298,29 @@ static void test_bug5399()
   bind[0].buffer_type= MYSQL_TYPE_LONG;
   bind[0].buffer= &no;
 
-  for (i= 0; i < NUM_OF_USED_STMT; ++i)
+  for (stmt= stmt_list; stmt != stmt_list + NUM_OF_USED_STMT; ++stmt)
   {
-    stmt[i]= mysql_stmt_init(mysql);
-    sprintf(buff, "select %d", i);
-    rc= mysql_stmt_prepare(stmt[i], buff, strlen(buff));
-    check_execute(stmt[i], rc);
-    mysql_stmt_bind_result(stmt[i], bind);
+    sprintf(buff, "select %d", stmt - stmt_list);
+    *stmt= mysql_stmt_init(mysql);
+    rc= mysql_stmt_prepare(*stmt, buff, strlen(buff));
+    check_execute(*stmt, rc);
+    mysql_stmt_bind_result(*stmt, bind);
   }
   printf("%d statements prepared.\n", NUM_OF_USED_STMT);
 
-  for (i= 0; i < NUM_OF_USED_STMT; ++i)
+  for (stmt= stmt_list; stmt != stmt_list + NUM_OF_USED_STMT; ++stmt)
   {
-    rc= mysql_stmt_execute(stmt[i]);
-    check_execute(stmt[i], rc);
-    rc= mysql_stmt_store_result(stmt[i]);
-    check_execute(stmt[i], rc);
-    rc= mysql_stmt_fetch(stmt[i]);
+    rc= mysql_stmt_execute(*stmt);
+    check_execute(*stmt, rc);
+    rc= mysql_stmt_store_result(*stmt);
+    check_execute(*stmt, rc);
+    rc= mysql_stmt_fetch(*stmt);
     DIE_UNLESS(rc == 0);
-    DIE_UNLESS((int32) i == no);
+    DIE_UNLESS((int32) (stmt - stmt_list) == no);
   }
 
-  for (i= 0; i < NUM_OF_USED_STMT; ++i)
-    mysql_stmt_close(stmt[i]);
+  for (stmt= stmt_list; stmt != stmt_list + NUM_OF_USED_STMT; ++stmt)
+    mysql_stmt_close(*stmt);
 #undef NUM_OF_USED_STMT
 }
 
