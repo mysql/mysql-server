@@ -632,7 +632,7 @@ sys_var *sys_variables[]=
 */
 
 struct show_var_st init_vars[]= {
-  {"auto_incrememt_increment", (char*) &sys_auto_increment_increment, SHOW_SYS},
+  {"auto_increment_increment", (char*) &sys_auto_increment_increment, SHOW_SYS},
   {"auto_increment_offset",   (char*) &sys_auto_increment_offset, SHOW_SYS},
   {"back_log",                (char*) &back_log,                    SHOW_LONG},
   {"basedir",                 mysql_home,                           SHOW_CHAR},
