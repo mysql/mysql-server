@@ -20,7 +20,7 @@
 #include "my_static.h"
 #include "mysys_err.h"
 #include <errno.h>
-#ifdef HAVE_PATH_H
+#ifdef HAVE_PATHS_H
 #include <paths.h>
 #endif
 
