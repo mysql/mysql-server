@@ -1,4 +1,4 @@
-SELECT 1 FROM (SELECT 1) GROUP BY SUM(1);
+SELECT 1 FROM (SELECT 1) as a  GROUP BY SUM(1);
 Invalid use of group function
 drop table if exists t1,t2,t3;
 CREATE TABLE t1 (

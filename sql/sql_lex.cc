@@ -1205,6 +1205,8 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
       net_printf(thd,ER_WRONG_USAGE,"UNION","ORDER BY");
       return 1;
     }
+    if (sl->linkage == DERIVED_TABLE_TYPE)
+      continue;
     for (SELECT_LEX_UNIT *inner=  sl->first_inner_unit();
 	 inner;
 	 inner= inner->next_unit())
