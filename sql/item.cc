@@ -46,12 +46,11 @@ void item_init(void)
 }
 
 Item::Item():
-  name_length(0), fixed(0),
+  name(0), orig_name(0), name_length(0), fixed(0),
   collation(default_charset(), DERIVATION_COERCIBLE)
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  name= 0;
   decimals= 0; max_length= 0;
 
   /* Put item in free list so that we can free all items at end */
@@ -81,6 +80,7 @@ Item::Item():
 Item::Item(THD *thd, Item *item):
   str_value(item->str_value),
   name(item->name),
+  orig_name(item->orig_name),
   max_length(item->max_length),
   marker(item->marker),
   decimals(item->decimals),
@@ -111,10 +111,12 @@ void Item::print_item_w_name(String *str)
 void Item::cleanup()
 {
   DBUG_ENTER("Item::cleanup");
-  DBUG_PRINT("info", ("Item: 0x%lx", this));
-  DBUG_PRINT("info", ("Type: %d", (int)type()));
+  DBUG_PRINT("info", ("Item: 0x%lx, Type: %d, name %s, original name %s",
+		      this, (int)type(), name, orig_name));
   fixed=0;
   marker= 0;
+  if (orig_name)
+    name= orig_name;
   DBUG_VOID_RETURN;
 }
 
@@ -132,6 +134,26 @@ bool Item::cleanup_processor(byte *arg)
   if (fixed)
     cleanup();
   return FALSE;
+}
+
+
+/*
+  rename item (used for views, cleanup() return original name)
+
+  SYNOPSIS
+    Item::rename()
+    new_name	new name of item;
+*/
+
+void Item::rename(char *new_name)
+{
+  /*
+    we can compare pointers to names here, bacause if name was not changed,
+    pointer will be same
+  */
+  if (!orig_name && new_name != name)
+    orig_name= name;
+  name= new_name;
 }
 
 
