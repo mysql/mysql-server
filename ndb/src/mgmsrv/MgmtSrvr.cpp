@@ -153,7 +153,7 @@ MgmtSrvr::logLevelThreadRun()
      * Handle started nodes
      */
     EventSubscribeReq req;
-    req = m_statisticsListner.m_clients[0].m_logLevel;
+    req = m_event_listner[0].m_logLevel;
     req.blockRef = _ownReference;
 
     SetLogLevelOrd ord;
@@ -409,7 +409,7 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
   _ownReference(0),
   theSignalIdleList(NULL),
   theWaitState(WAIT_SUBSCRIBE_CONF),
-  m_statisticsListner(this)
+  m_event_listner(this)
 {
     
   DBUG_ENTER("MgmtSrvr::MgmtSrvr");
@@ -547,16 +547,18 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
     }
   }
 
+  // Setup clusterlog as client[0] in m_event_listner
   {
-    MgmStatService::StatListener se;
+    Ndb_mgmd_event_service::Event_listener se;
     se.m_socket = -1;
     for(size_t t = 0; t<LogLevel::LOGLEVEL_CATEGORIES; t++){
       se.m_logLevel.setLogLevel((LogLevel::EventCategory)t, 7);
     }
     se.m_logLevel.setLogLevel(LogLevel::llError, 15);
+    se.m_logLevel.setLogLevel(LogLevel::llConnection, 8);
     se.m_logLevel.setLogLevel(LogLevel::llBackup, 15);
-    m_statisticsListner.m_clients.push_back(se);
-    m_statisticsListner.m_logLevel = se.m_logLevel;
+    m_event_listner.m_clients.push_back(se);
+    m_event_listner.m_logLevel = se.m_logLevel;
   }
   
   DBUG_VOID_RETURN;
@@ -2071,21 +2073,18 @@ MgmtSrvr::handleStopReply(NodeId nodeId, Uint32 errCode)
 void
 MgmtSrvr::handleStatus(NodeId nodeId, bool alive)
 {
+  DBUG_ENTER("MgmtSrvr::handleStatus");
+  Uint32 theData[25];
+  theData[1] = nodeId;
   if (alive) {
     m_started_nodes.push_back(nodeId);
-    Uint32 theData[25];
     theData[0] = EventReport::Connected;
-    theData[1] = nodeId;
-    eventReport(_ownNodeId, theData);
   } else {
     handleStopReply(nodeId, 0);
-    
-    Uint32 theData[25];
     theData[0] = EventReport::Disconnected;
-    theData[1] = nodeId;
-    
-    eventReport(_ownNodeId, theData);
   }
+  eventReport(_ownNodeId, theData);
+  DBUG_VOID_RETURN;
 }
 
 //****************************************************************************
@@ -2106,8 +2105,11 @@ void
 MgmtSrvr::nodeStatusNotification(void* mgmSrv, Uint32 nodeId, 
 				 bool alive, bool nfComplete)
 {
+  DBUG_ENTER("MgmtSrvr::nodeStatusNotification");
+  DBUG_PRINT("enter",("nodeid= %d, alive= %d, nfComplete= %d", nodeId, alive, nfComplete));
   if(!(!alive && nfComplete))
     ((MgmtSrvr*)mgmSrv)->handleStatus(nodeId, alive);
+  DBUG_VOID_RETURN;
 }
 
 enum ndb_mgm_node_type 
@@ -2294,8 +2296,9 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       if (found_matching_type)
 	if (found_free_node)
 	  error_string.appfmt("Connection done from wrong host ip %s.",
-			      inet_ntoa(((struct sockaddr_in *)
-					 (client_addr))->sin_addr));
+			      (client_addr)?
+			        inet_ntoa(((struct sockaddr_in *)
+					 (client_addr))->sin_addr):"");
 	else
 	  error_string.appfmt("No free node id found for %s.",
 			      type_string.c_str());
@@ -2386,8 +2389,8 @@ MgmtSrvr::eventReport(NodeId nodeId, const Uint32 * theData)
   EventReport::EventType type = eventReport->getEventType();
   // Log event
   g_EventLogger.log(type, theData, nodeId, 
-		    &m_statisticsListner.m_clients[0].m_logLevel);  
-  m_statisticsListner.log(type, theData, nodeId);
+		    &m_event_listner[0].m_logLevel);  
+  m_event_listner.log(type, theData, nodeId);
 }
 
 /***************************************************************************
@@ -2740,5 +2743,5 @@ template bool SignalQueue::waitFor<SigMatch>(Vector<SigMatch>&, SigMatch*&, NdbA
 #endif
 
 template class MutexVector<unsigned short>;
-template class MutexVector<MgmStatService::StatListener>;
+template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
 template class MutexVector<EventSubscribeReq>;
