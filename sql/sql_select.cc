@@ -312,7 +312,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 #ifdef RESTRICTED_GROUP
   if (join.sum_func_count && !group && (join.func_count || join.field_count))
   {
-    my_message(ER_WRONG_SUM_SELECT,ER(ER_WRONG_SUM_SELECT));
+    my_message(ER_WRONG_SUM_SELECT,ER(ER_WRONG_SUM_SELECT),MYF(0));
     delete procedure;
     DBUG_RETURN(-1);
   }

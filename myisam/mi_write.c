@@ -158,7 +158,7 @@ err:
   {
     if (info->bulk_insert)
     {
-      int j;
+      uint j;
       for (j=0 ; j < share->base.keys ; j++)
       {
         if (is_tree_inited(& info->bulk_insert[j]))
