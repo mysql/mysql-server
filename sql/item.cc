@@ -2504,62 +2504,84 @@ static Item_result type_convertor[4][4]=
  {STRING_RESULT, REAL_RESULT,   INT_RESULT,    ROW_RESULT},
  {ROW_RESULT,    ROW_RESULT,    ROW_RESULT,    ROW_RESULT}};
 
+
+/*
+  Values of 'from' field can be stored in 'to' field.
+
+  SYNOPSIS
+    is_attr_compatible()
+    from        Item which values should be saved
+    to          Item where values should be saved
+
+  RETURN
+    1   can be saved
+    0   can not be saved
+*/
+
+inline bool is_attr_compatible(Item *from, Item *to)
+{
+  return ((to->max_length >= from->max_length) &&
+          (to->maybe_null || !from->maybe_null) &&
+          (to->result_type() != STRING_RESULT ||
+           from->result_type() != STRING_RESULT ||
+           my_charset_same(from->collation.collation,
+                           to->collation.collation)));
+}
+
+
 bool Item_type_holder::join_types(THD *thd, Item *item)
 {
   uint32 new_length= real_length(item);
-  bool change_field= 0, skip_store_field= 0;
-  Item_result new_type= type_convertor[item_type][item->result_type()];
+  bool use_new_field= 0, use_expression_type= 0;
+  Item_result new_result_type= type_convertor[item_type][item->result_type()];
 
   /*
-    we have both fields and field is not enum or set(different enums(sets)
-    can't be joinned in one enum(set) field)
+    Check if both items point to fields: in this case we
+    can adjust column types of result table in the union smartly.
   */
   if (field_example && item->type() == Item::FIELD_ITEM)
   {
     Field *field= ((Item_field *)item)->field;
-    /* Can old example field store new data? */
-    if ((change_field=
-          !field->field_cast_compatible(field_example->field_cast_type())))
+    /* Can 'field_example' field store data of the column? */
+    if ((use_new_field=
+         (!field->field_cast_compatible(field_example->field_cast_type()) ||
+          !is_attr_compatible(item, this))))
     {
       /*
-        if old field can't store value of 'worse' new field we will make
-        decision about result field type based only on Item result type
+        The old field can't store value of the new field.
+        Check if the new field can store value of the old one.
       */
-      if (!field_example->field_cast_compatible(field->field_cast_type()))
-        skip_store_field= 1;
+      use_expression_type|=
+        (!field_example->field_cast_compatible(field->field_cast_type()) ||
+         !is_attr_compatible(this, item));
     }
   }
   else if (field_example || item->type() == Item::FIELD_ITEM)
   {
-    /* expression can't be mixed with field */
-    skip_store_field= 1;
+    /*
+      Expression types can't be mixed with field types, we have to use
+      expression types.
+    */
+    use_expression_type= 1;
   }
 
-  // size/type should be changed
-  if (change_field ||
-      skip_store_field ||
-      (new_type != item_type) ||
-      (max_length < new_length) ||
+  /* Check whether size/type of the result item should be changed */
+  if (use_new_field || use_expression_type ||
+      (new_result_type != item_type) || (new_length > max_length) ||
       (!maybe_null && item->maybe_null) ||
-      (item_type == STRING_RESULT && new_type == STRING_RESULT &&
+      (item_type == STRING_RESULT &&
        !my_charset_same(collation.collation, item->collation.collation)))
   {
-    // new field has some parameters worse then current
-    skip_store_field|= (change_field &&
-			(max_length > new_length) ||
-			(maybe_null && !item->maybe_null) ||
-			(item_type == STRING_RESULT &&
-			 new_type == STRING_RESULT &&
-			 !my_charset_same(collation.collation,
-					  item->collation.collation)));
-    /*
-      It is safe assign pointer on field, because it will be used just after
-      all JOIN::prepare calls and before any SELECT execution
-    */
-    if (skip_store_field || item->type() != Item::FIELD_ITEM)
+    if (use_expression_type || item->type() != Item::FIELD_ITEM)
       field_example= 0;
     else
+    {
+      /*
+        It is safe to assign a pointer to field here, because it will be used
+        before any table is closed.
+      */
       field_example= ((Item_field*) item)->field;
+    }
 
     const char *old_cs= collation.collation->name,
       *old_derivation= collation.derivation_name();
@@ -2576,7 +2598,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     max_length= max(max_length, new_length);
     decimals= max(decimals, item->decimals);
     maybe_null|= item->maybe_null;
-    item_type= new_type;
+    item_type= new_result_type;
   }
   DBUG_ASSERT(item_type != ROW_RESULT);
   return 0;
