@@ -255,23 +255,18 @@ static struct my_option my_long_options[] =
    "Option automatically turns --lock-tables off.",
    (gptr*) &opt_master_data, (gptr*) &opt_master_data, 0,
    GET_UINT, REQUIRED_ARG, 0, 0, MYSQL_OPT_MASTER_DATA_COMMENTED_SQL, 0, 0, 0},
+  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
+    (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0,
+    GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096, 
+   (longlong) 2L*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
+  {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
+    (gptr*) &opt_net_buffer_length, (gptr*) &opt_net_buffer_length, 0,
+    GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
+   MALLOC_OVERHEAD-1024, 1024, 0},
   {"no-autocommit", OPT_AUTOCOMMIT,
    "Wrap tables with autocommit/commit statements.",
    (gptr*) &opt_autocommit, (gptr*) &opt_autocommit, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  /*
-    Note that the combination --single-transaction --master-data
-    will give bullet-proof binlog position only if server >=4.1.3. That's the
-    old "FLUSH TABLES WITH READ LOCK does not block commit" fixed bug.
-  */
-  {"single-transaction", OPT_TRANSACTION,
-   "Creates a consistent snapshot by dumping all tables in a single "
-   "transaction. Works ONLY for tables stored in storage engines which "
-   "support multiversioning (currently only InnoDB does); the dump is NOT "
-   "guaranteed to be consistent for other storage engines. Option "
-   "automatically turns off --lock-tables.",
-   (gptr*) &opt_single_transaction, (gptr*) &opt_single_transaction, 0,
-   GET_BOOL, NO_ARG,  0, 0, 0, 0, 0, 0},
   {"no-create-db", 'n',
    "'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;' will not be put in the output. The above line will be added otherwise, if --databases or --all-databases option was given.}.",
    (gptr*) &opt_create_db, (gptr*) &opt_create_db, 0, GET_BOOL, NO_ARG, 0, 0,
@@ -283,13 +278,6 @@ static struct my_option my_long_options[] =
   {"no-set-names", 'N',
    "Deprecated. Use --skip-set-charset instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"set-charset", OPT_SET_CHARSET,
-   "Add 'SET NAMES default_character_set' to the output. Enabled by default; suppress with --skip-set-charset.",
-   (gptr*) &opt_set_charset, (gptr*) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
-   0, 0, 0, 0, 0},
-  {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"opt", OPT_OPTIMIZE,
    "Same as --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys. Enabled by default, disable with --skip-opt.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -313,11 +301,31 @@ static struct my_option my_long_options[] =
   {"result-file", 'r',
    "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\r\\n' (carriage return + line feed).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"set-charset", OPT_SET_CHARSET,
+   "Add 'SET NAMES default_character_set' to the output. Enabled by default; suppress with --skip-set-charset.",
+   (gptr*) &opt_set_charset, (gptr*) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
+   0, 0, 0, 0, 0},
+  {"set-variable", 'O',
+   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  /*
+    Note that the combination --single-transaction --master-data
+    will give bullet-proof binlog position only if server >=4.1.3. That's the
+    old "FLUSH TABLES WITH READ LOCK does not block commit" fixed bug.
+  */
+  {"single-transaction", OPT_TRANSACTION,
+   "Creates a consistent snapshot by dumping all tables in a single "
+   "transaction. Works ONLY for tables stored in storage engines which "
+   "support multiversioning (currently only InnoDB does); the dump is NOT "
+   "guaranteed to be consistent for other storage engines. Option "
+   "automatically turns off --lock-tables.",
+   (gptr*) &opt_single_transaction, (gptr*) &opt_single_transaction, 0,
+   GET_BOOL, NO_ARG,  0, 0, 0, 0, 0, 0},
   {"skip-opt", OPT_SKIP_OPTIMIZATION,
    "Disable --opt. Disables --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -343,15 +351,7 @@ static struct my_option my_long_options[] =
    (gptr*) &where, (gptr*) &where, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"xml", 'X', "Dump a database as well formed XML.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
-    (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0,
-    GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096, 
-   (longlong) 2L*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
-  {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
-    (gptr*) &opt_net_buffer_length, (gptr*) &opt_net_buffer_length, 0,
-    GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
-    MALLOC_OVERHEAD-1024, 1024, 0},
-  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 static const char *load_default_groups[]= { "mysqldump","client",0 };
@@ -1678,16 +1678,12 @@ static void dumpTable(uint numFields, char *table)
 		fputs("</field>\n", md_result_file);
 	      }
 	      else if (opt_hex_blob && is_blob)
-              { /* sakaik got this idea. */
-                ulong counter;
-                char xx[4];
-                unsigned char *ptr= row[i];
+              {
+                /* sakaik got the idea to to provide blob's in hex notation. */
+                unsigned char *ptr= row[i], *end= ptr+ lengths[i];
                 fputs("0x", md_result_file);
-                for (counter = 0; counter < lengths[i]; counter++)
-                {
-                  sprintf(xx, "%02X", ptr[counter]);
-                  fputs(xx, md_result_file);
-                }
+                for (; ptr < end ; ptr++)
+                  fprintf(md_result_file, "%02X", *ptr);
               }
               else
                 unescape(md_result_file, row[i], lengths[i]);
