@@ -86,7 +86,8 @@ public:
   */
   virtual double scan_time() { return (double) (records) / 20.0+10; }
   /* The next method will never be called */
-  virtual double read_time(ha_rows rows) { return (double) rows /  20.0+1; }
+  virtual double read_time(uint index, uint ranges, ha_rows rows)
+  { return (double) rows /  20.0+1; }
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int write_row(byte * buf);
@@ -109,10 +110,7 @@ public:
   int extra(enum ha_extra_function operation);
   int reset(void);
   int external_lock(THD *thd, int lock_type);
-  ha_rows records_in_range(int inx, const byte *start_key,uint start_key_len,
-                           enum ha_rkey_function start_search_flag,
-                           const byte *end_key,uint end_key_len,
-                           enum ha_rkey_function end_search_flag);
+  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,

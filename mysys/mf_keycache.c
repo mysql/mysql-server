@@ -401,8 +401,8 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     keycache->waiting_for_hash_link.last_thread= NULL;
     keycache->waiting_for_block.last_thread= NULL;
     DBUG_PRINT("exit",
-	       ("disk_blocks: %d  block_root: %lx  hash_entries: %d\
- hash_root: %lx hash_links: %d hash_link_root %lx",
+	       ("disk_blocks: %d  block_root: 0x%lx  hash_entries: %d\
+ hash_root: 0x%lx  hash_links: %d  hash_link_root: 0x%lx",
 		keycache->disk_blocks, keycache->block_root,
 		keycache->hash_entries, keycache->hash_root,
 		keycache->hash_links, keycache->hash_link_root));
@@ -596,7 +596,7 @@ void change_key_cache_param(KEY_CACHE *keycache, uint division_limit,
 void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
 {
   DBUG_ENTER("end_key_cache");
-  DBUG_PRINT("enter", ("key_cache: %lx", keycache));
+  DBUG_PRINT("enter", ("key_cache: 0x%lx", keycache));
 
   if (!keycache->key_cache_inited)
     DBUG_VOID_RETURN;
@@ -1109,7 +1109,7 @@ static inline void link_hash(HASH_LINK **start, HASH_LINK *hash_link)
 
 static void unlink_hash(KEY_CACHE *keycache, HASH_LINK *hash_link)
 {
-  KEYCACHE_DBUG_PRINT("unlink_hash", ("file %u, filepos %lu #requests=%u",
+  KEYCACHE_DBUG_PRINT("unlink_hash", ("fd: %u  pos_ %lu  #requests=%u",
       (uint) hash_link->file,(ulong) hash_link->diskpos, hash_link->requests));
   KEYCACHE_DBUG_ASSERT(hash_link->requests == 0);
   if ((*hash_link->prev= hash_link->next))
@@ -1167,7 +1167,7 @@ static HASH_LINK *get_hash_link(KEY_CACHE *keycache,
   int cnt;
 #endif
 
-  KEYCACHE_DBUG_PRINT("get_hash_link", ("file %u, filepos %lu",
+  KEYCACHE_DBUG_PRINT("get_hash_link", ("fd: %u  pos: %lu",
                       (uint) file,(ulong) filepos));
 
 restart:
@@ -1193,7 +1193,7 @@ restart:
       for (i=0, hash_link= *start ;
            i < cnt ; i++, hash_link= hash_link->next)
       {
-        KEYCACHE_DBUG_PRINT("get_hash_link", ("file %u, filepos %lu",
+        KEYCACHE_DBUG_PRINT("get_hash_link", ("fd: %u  pos: %lu",
             (uint) hash_link->file,(ulong) hash_link->diskpos));
       }
     }
@@ -1285,10 +1285,11 @@ static BLOCK_LINK *find_key_block(KEY_CACHE *keycache,
 
   DBUG_ENTER("find_key_block");
   KEYCACHE_THREAD_TRACE("find_key_block:begin");
-  DBUG_PRINT("enter", ("file %u, filepos %lu, wrmode %lu",
-               (uint) file, (ulong) filepos, (uint) wrmode));
-  KEYCACHE_DBUG_PRINT("find_key_block", ("file %u, filepos %lu, wrmode %lu",
-                      (uint) file, (ulong) filepos, (uint) wrmode));
+  DBUG_PRINT("enter", ("fd: %u  pos %lu  wrmode: %lu",
+                       (uint) file, (ulong) filepos, (uint) wrmode));
+  KEYCACHE_DBUG_PRINT("find_key_block", ("fd: %u  pos: %lu  wrmode: %lu",
+                                         (uint) file, (ulong) filepos,
+                                         (uint) wrmode));
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_keycache2",
                test_key_cache(keycache, "start of find_key_block", 0););
@@ -1542,7 +1543,7 @@ restart:
   KEYCACHE_DBUG_ASSERT(page_status != -1);
   *page_st=page_status;
   KEYCACHE_DBUG_PRINT("find_key_block",
-                      ("file %u, filepos %lu, page_status %lu",
+                      ("fd: %u  pos %lu  page_status %lu",
                       (uint) file,(ulong) filepos,(uint) page_status));
 
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
@@ -1678,7 +1679,7 @@ byte *key_cache_read(KEY_CACHE *keycache,
   uint offset= 0;
   byte *start= buff;
   DBUG_ENTER("key_cache_read");
-  DBUG_PRINT("enter", ("file %u, filepos %lu, length %u",
+  DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u",
                (uint) file, (ulong) filepos, length));
 
   if (keycache->can_be_used)
@@ -1814,7 +1815,7 @@ int key_cache_insert(KEY_CACHE *keycache,
                      byte *buff, uint length)
 {
   DBUG_ENTER("key_cache_insert");
-  DBUG_PRINT("enter", ("file %u, filepos %lu, length %u",
+  DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u",
                (uint) file,(ulong) filepos, length));
 
   if (keycache->can_be_used)
@@ -1926,7 +1927,7 @@ int key_cache_write(KEY_CACHE *keycache,
   int error=0;
   DBUG_ENTER("key_cache_write");
   DBUG_PRINT("enter",
-	     ("file %u  filepos %lu  length  %u  block_length %u  key_block_length: %u",
+	     ("fd: %u  pos: %lu  length: %u  block_length: %u  key_block_length: %u",
 	      (uint) file, (ulong) filepos, length, block_length,
 	      keycache ? keycache->key_cache_block_size : 0));
 
@@ -2396,7 +2397,7 @@ int flush_key_blocks(KEY_CACHE *keycache,
 {
   int res;
   DBUG_ENTER("flush_key_blocks");
-  DBUG_PRINT("enter", ("keycache: %lx", keycache));
+  DBUG_PRINT("enter", ("keycache: 0x%lx", keycache));
 
   if (keycache->disk_blocks <= 0)
     DBUG_RETURN(0);
