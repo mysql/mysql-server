@@ -1,6 +1,43 @@
-# We test openssl. Result set is optimized to be compiled with --with-openssl but 
-# SSL is swithced off in some reason
--- source include/have_openssl_2.inc
+# We test openssl. Result set is optimized to be compiled with --with-openssl.
+# Use mysql-test-run with --with-openssl option.
+-- source include/have_openssl_1.inc
 
-SHOW STATUS LIKE 'SSL%';
+drop table if exists t1;
+create table t1(f1 int);
+insert into t1 values (5);
 
+grant select on test.* to ssl_user1@localhost require SSL;
+grant select on test.* to ssl_user2@localhost require cipher "EDH-RSA-DES-CBC3-SHA";
+grant select on test.* to ssl_user3@localhost require cipher "EDH-RSA-DES-CBC3-SHA" AND SUBJECT "/C=RU/L=orenburg/O=MySQL AB/OU=client/CN=walrus/Email=walrus@mysql.com";
+grant select on test.* to ssl_user4@localhost require cipher "EDH-RSA-DES-CBC3-SHA" AND SUBJECT "/C=RU/L=orenburg/O=MySQL AB/OU=client/CN=walrus/Email=walrus@mysql.com" ISSUER "/C=RU/ST=Some-State/L=Orenburg/O=MySQL AB/CN=Walrus/Email=walrus@mysql.com";
+flush privileges;
+connect (con1,localhost,ssl_user1,,);
+connect (con2,localhost,ssl_user2,,);
+connect (con3,localhost,ssl_user3,,);
+connect (con4,localhost,ssl_user4,,);
+
+connection con1;
+select * from t1;
+--error 1044;
+delete from t1;
+
+connection con2;
+select * from t1;
+--error 1044;
+delete from t1;
+
+connection con3;
+select * from t1;
+--error 1044;
+delete from t1;
+
+connection con4;
+select * from t1;
+--error 1044;
+delete from t1;
+
+connection default;
+delete from mysql.user where user='ssl_user%';
+delete from mysql.db where user='ssl_user%';
+flush privileges;
+drop table t1;
