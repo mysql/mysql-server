@@ -91,7 +91,7 @@ static int return_zero_rows(JOIN *join, select_result *res,TABLE_LIST *tables,
 			    uint select_options, const char *info,
 			    Item *having, Procedure *proc,
 			    SELECT_LEX_UNIT *unit);
-static COND *build_equal_items(COND *cond,
+static COND *build_equal_items(THD *thd, COND *cond,
                                COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
                                COND_EQUAL **cond_equal_ref);
@@ -101,6 +101,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
 static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
                             COND *conds, bool top);
 static COND *optimize_cond(JOIN *join, COND *conds,
+                           List<TABLE_LIST> *join_list,
 			   Item::cond_result *cond_value);
 static bool resolve_nested_join (TABLE_LIST *table);
 static COND *remove_eq_conds(THD *thd, COND *cond, 
@@ -191,6 +192,7 @@ static void init_tmptable_sum_functions(Item_sum **func);
 static void update_tmptable_sum_func(Item_sum **func,TABLE *tmp_table);
 static void copy_sum_funcs(Item_sum **func_ptr);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
+static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 static bool init_sum_functions(Item_sum **func, Item_sum **end);
 static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
@@ -228,16 +230,11 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		      select_lex->options | thd->options,
 		      result, unit, select_lex);
   }
-
-  /* Don't set res if it's -1 as we may want this later */
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
 		     thd->net.report_error));
-  if (thd->net.report_error)
-    res= 1;
-  if (unlikely(res))
+  if (thd->net.report_error || res < 0)
   {
-    if (res > 0)
-      result->send_error(0, NullS);
+    result->send_error(0, NullS);
     result->abort();
     res= 1;					// Error sent to client
   }
@@ -333,7 +330,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
     if (having->with_sum_func)
-      having->split_sum_func(ref_pointer_array, all_fields);
+      having->split_sum_func(thd, ref_pointer_array, all_fields);
   }
 
   if (!thd->lex->view_prepare_mode)
@@ -558,17 +555,7 @@ JOIN::optimize()
       thd->restore_backup_item_arena(arena, &backup);
   }
 
-  /* 
-    Build all multiple equality predicates and eliminate equality
-    predicates that can be inferred from these multiple equalities.
-    For each reference of a field included into a multiple equality
-    that occurs in a function set a pointer to the multiple equality
-    predicate. Substitute a constant instead of this field if the
-    multiple equality contains a constant.
-  */ 
-  conds= build_equal_items(conds, NULL, join_list, &cond_equal);
-
-  conds= optimize_cond(this, conds,&cond_value);   
+  conds= optimize_cond(this, conds, join_list, &cond_value);   
   if (thd->net.report_error)
   {
     error= 1;
@@ -686,6 +673,7 @@ JOIN::optimize()
   {
     conds= substitute_for_best_equal_field(conds, cond_equal, map2table);
     conds->update_used_tables();
+    DBUG_EXECUTE("where", print_where(conds, "after substitute_best_equal"););
   }
   /*
     Permorm the the optimization on fields evaluation mentioned above
@@ -1003,13 +991,15 @@ JOIN::optimize()
       if (create_sort_index(thd, this, group_list,
 			    HA_POS_ERROR, HA_POS_ERROR) ||
 	  alloc_group_fields(this, group_list) ||
-	  make_sum_func_list(all_fields, fields_list, 1))
+          make_sum_func_list(all_fields, fields_list, 1) ||
+          setup_sum_funcs(thd, sum_funcs))
 	DBUG_RETURN(1);
       group_list=0;
     }
     else
     {
-      if (make_sum_func_list(all_fields, fields_list, 0))
+      if (make_sum_func_list(all_fields, fields_list, 0) ||
+          setup_sum_funcs(thd, sum_funcs))
 	DBUG_RETURN(1);
       if (!group_list && ! exec_tmp_table1->distinct && order && simple_order)
       {
@@ -1385,6 +1375,7 @@ JOIN::exec()
       }
       if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
 					1, TRUE) ||
+          setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
       {
@@ -1472,7 +1463,9 @@ JOIN::exec()
     set_items_ref_array(items3);
 
     if (curr_join->make_sum_func_list(*curr_all_fields, *curr_fields_list,
-				      1, TRUE) || thd->is_fatal_error)
+				      1, TRUE) || 
+        setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
+        thd->is_fatal_error)
       DBUG_VOID_RETURN;
   }
   if (curr_join->group_list || curr_join->order)
@@ -1665,9 +1658,13 @@ Cursor::init_from_thd(THD *thd)
   /*
     We need to save and reset thd->mem_root, otherwise it'll be freed
     later in mysql_parse.
+
+    We can't just change the thd->mem_root here as we want to keep the things
+    that is already allocated in thd->mem_root for Cursor::fetch()
   */
-  mem_root=       thd->mem_root;
-  init_sql_alloc(&thd->mem_root,
+  main_mem_root=  *thd->mem_root;
+  /* Allocate new memory root for thd */
+  init_sql_alloc(thd->mem_root,
                  thd->variables.query_alloc_block_size,
                  thd->variables.query_prealloc_size);
 
@@ -1681,7 +1678,7 @@ Cursor::init_from_thd(THD *thd)
   open_tables=    thd->open_tables;
   lock=           thd->lock;
   query_id=       thd->query_id;
-  free_list= thd->free_list;
+  free_list=	  thd->free_list;
   reset_thd(thd);
   /*
     XXX: thd->locked_tables is not changed.
@@ -1696,8 +1693,6 @@ Cursor::init_from_thd(THD *thd)
 void
 Cursor::init_thd(THD *thd)
 {
-  thd->mem_root= mem_root;
-
   DBUG_ASSERT(thd->derived_tables == 0);
   thd->derived_tables= derived_tables;
 
@@ -1707,7 +1702,6 @@ Cursor::init_thd(THD *thd)
   DBUG_ASSERT(thd->lock== 0);
   thd->lock= lock;
   thd->query_id= query_id;
-  thd->free_list= free_list;
 }
 
 
@@ -1725,11 +1719,10 @@ int
 Cursor::open(JOIN *join_arg)
 {
   join= join_arg;
-
   THD *thd= join->thd;
-
   /* First non-constant table */
   JOIN_TAB *join_tab= join->join_tab + join->const_tables;
+  DBUG_ENTER("Cursor::open");
 
   /*
     Send fields description to the client; server_status is sent
@@ -1751,7 +1744,9 @@ Cursor::open(JOIN *join_arg)
   join->fetch_limit= join->unit->offset_limit_cnt;
 
   /* Disable JOIN CACHE as it is not working with cursors yet */
-  for (JOIN_TAB *tab= join_tab; tab != join->join_tab + join->tables - 1; ++tab)
+  for (JOIN_TAB *tab= join_tab;
+       tab != join->join_tab + join->tables - 1;
+       tab++)
   {
     if (tab->next_select == sub_select_cache)
       tab->next_select= sub_select;
@@ -1765,7 +1760,7 @@ Cursor::open(JOIN *join_arg)
   */
   DBUG_ASSERT(join_tab->table->null_row == 0);
 
-  return join_tab->read_first_record(join_tab);
+  DBUG_RETURN(join_tab->read_first_record(join_tab));
 }
 
 
@@ -1784,12 +1779,14 @@ int
 Cursor::fetch(ulong num_rows)
 {
   THD *thd= join->thd;
-  JOIN_TAB *join_tab= join->join_tab + join->const_tables;;
+  JOIN_TAB *join_tab= join->join_tab + join->const_tables;
   COND *on_expr= *join_tab->on_expr_ref;
   COND *select_cond= join_tab->select_cond;
   READ_RECORD *info= &join_tab->read_record;
-
   int error= 0;
+
+  /* save references to memory, allocated during fetch */
+  thd->set_n_backup_item_arena(this, &thd->stmt_backup);
 
   join->fetch_limit+= num_rows;
 
@@ -1855,53 +1852,37 @@ Cursor::fetch(ulong num_rows)
   if (thd->net.report_error)
     error= -1;
 
-  switch (error) {
-    /* Fetch limit worked, possibly more rows are there */
-  case -4:
+  if (error == -3)                              /* LIMIT clause worked */
+    error= 0;
+
+#ifdef USING_TRANSACTIONS
     if (thd->transaction.all.innobase_tid)
       ha_release_temporary_latches(thd);
+#endif
+
+  thd->restore_backup_item_arena(this, &thd->stmt_backup);
+  if (error == -4)
+  {
+    /* Fetch limit worked, possibly more rows are there */
     thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
     ::send_eof(thd);
     thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
-    /* save references to memory, allocated during fetch */
-    mem_root= thd->mem_root;
-    free_list= thd->free_list;
-    break;
-    /* Limit clause worked: this is the same as 'no more rows' */
-  case -3:                                      /* LIMIT clause worked */
-    error= 0;
-    /* fallthrough */
-  case 0:                                       /* No more rows */
-    if (thd->transaction.all.innobase_tid)
-      ha_release_temporary_latches(thd);
+  }
+  else
+  {
     close();
-    thd->server_status|= SERVER_STATUS_LAST_ROW_SENT;
-    ::send_eof(thd);
-    thd->server_status&= ~SERVER_STATUS_LAST_ROW_SENT;
-    join= 0;
-    unit= 0;
-    free_items(thd->free_list);
-    thd->free_list= free_list= 0;
-    /*
-      Must be last, as some memory might be allocated for free purposes,
-      like in free_tmp_table() (TODO: fix this issue)
-    */
-    mem_root= thd->mem_root;
-    free_root(&mem_root, MYF(0));
-    break;
-  default:
-    close();
-    join= 0;
-    unit= 0;
-    free_items(thd->free_list);
-    thd->free_list= free_list= 0;
-    /*
-      Must be last, as some memory might be allocated for free purposes,
-      like in free_tmp_table() (TODO: fix this issue)
-    */
-    mem_root= thd->mem_root;
-    free_root(&mem_root, MYF(0));
-    break;
+    if (error == 0)
+    {
+      thd->server_status|= SERVER_STATUS_LAST_ROW_SENT;
+      ::send_eof(thd);
+      thd->server_status&= ~SERVER_STATUS_LAST_ROW_SENT;
+    }
+    else
+      send_error(thd, ER_OUT_OF_RESOURCES);
+    /* free cursor memory */
+    free_items(free_list);
+    free_list= 0;
+    free_root(&main_mem_root, MYF(0));
   }
   return error;
 }
@@ -1939,6 +1920,8 @@ Cursor::close()
     thd->derived_tables= tmp_derived_tables;
     thd->lock= tmp_lock;
   }
+  join= 0;
+  unit= 0;
 }
 
 
@@ -1951,7 +1934,7 @@ Cursor::~Cursor()
     Must be last, as some memory might be allocated for free purposes,
     like in free_tmp_table() (TODO: fix this issue)
   */
-  free_root(&mem_root, MYF(0));
+  free_root(&main_mem_root, MYF(0));
 }
 
 /*********************************************************************/
@@ -5030,7 +5013,7 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
   {
     tmp= new Item_func_trig_cond(tmp, &tab->found);
   }
-  if (!tmp)
+  if (tmp)
     tmp->quick_fix_field();
   return tmp;
 }
@@ -5304,8 +5287,17 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    /* Join with outer join condition */
 	    COND *orig_cond=sel->cond;
 	    sel->cond= and_conds(sel->cond, *tab->on_expr_ref);
+
+	    /*
+              We can't call sel->cond->fix_fields,
+              as it will break tab->on_expr if it's AND condition
+              (fix_fields currently removes extra AND/OR levels).
+              Yet attributes of the just built condition are not needed.
+              Thus we call sel->cond->quick_fix_field for safety.
+	    */
 	    if (sel->cond && !sel->cond->fixed)
-	      sel->cond->fix_fields(join->thd, 0, &sel->cond);
+	      sel->cond->quick_fix_field();
+
 	    if (sel->test_quick_select(join->thd, tab->keys,
 				       used_tables & ~ current_map,
 				       (join->select_options &
@@ -6030,7 +6022,7 @@ template class List_iterator<Item_func_match>;
     find_item_equal()
     cond_equal          multiple equalities to search in
     field               field to look for
-    inherited_fl  :out  set up to TRUE iff multiple equality is found
+    inherited_fl  :out  set up to TRUE if multiple equality is found
                         on upper levels (not on current level of cond_equal) 
 
   DESCRIPTION
@@ -6448,12 +6440,14 @@ static COND *build_equal_items_for_cond(COND *cond,
   return cond;
 }
 
+
 /* 
   Build multiple equalities for a condition and all on expressions that
   inherit these multiple equalities
 
   SYNOPSIS
     build_equal_items()
+    thd			Thread handler
     cond                condition to build the multiple equalities for
     inherited           path to all inherited multiple equality items
     join_list           list of join tables to which the condition refers to
@@ -6505,7 +6499,7 @@ static COND *build_equal_items_for_cond(COND *cond,
     pointer to the transformed condition containing multiple equalities
 */
    
-static COND *build_equal_items(COND *cond,
+static COND *build_equal_items(THD *thd, COND *cond,
                                COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
                                COND_EQUAL **cond_equal_ref)
@@ -6542,18 +6536,20 @@ static COND *build_equal_items(COND *cond,
     {
       if (table->on_expr)
       {
+        Item *expr;
         List<TABLE_LIST> *join_list= table->nested_join ?
 	                             &table->nested_join->join_list : NULL;
-        table->on_expr= build_equal_items(table->on_expr,
-                                          inherited,
-                                          join_list,
-                                          &table->cond_equal);
+        expr= build_equal_items(thd, table->on_expr, inherited, join_list,
+                                &table->cond_equal);
+        if (expr != table->on_expr)
+          thd->change_item_tree(&table->on_expr, expr);
       }
     }
   }
 
   return cond;
 }    
+
 
 /* 
   Compare field items by table order in the execution plan
@@ -6649,10 +6645,7 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   List<Item> eq_list;
   Item_func_eq *eq_item= 0;
   if (((Item *) item_equal)->const_item() && !item_equal->val_int())
-  {
-    cond= new Item_int((char*) "FALSE",0,1);
-    return cond;
-  } 
+    return new Item_int((longlong) 0,1); 
   Item *item_const= item_equal->get_const();
   Item_equal_iterator it(*item_equal);
   Item *head;
@@ -6695,9 +6688,14 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   }
 
   if (!cond && !eq_list.head())
+  {
+    if (!eq_item)
+      return new Item_int((longlong) 1,1);
     return eq_item;
+  }
 
-  eq_list.push_back(eq_item);
+  if (eq_item)
+    eq_list.push_back(eq_item);
   if (!cond)
     cond= new Item_cond_and(eq_list);
   else
@@ -6799,14 +6797,16 @@ static COND* substitute_for_best_equal_field(COND *cond,
   return cond;
 }
 
+
 /*
   change field = field to field = const for each found field = const in the
   and_level
 */
 
 static void
-change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
-			 Item *cond, Item *field, Item *value)
+change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
+                         Item *and_father, Item *cond,
+                         Item *field, Item *value)
 {
   if (cond->type() == Item::COND_ITEM)
   {
@@ -6815,7 +6815,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
     List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
     Item *item;
     while ((item=li++))
-      change_cond_ref_to_const(save_list,and_level ? cond : item, item,
+      change_cond_ref_to_const(thd, save_list,and_level ? cond : item, item,
 			       field, value);
     return;
   }
@@ -6823,8 +6823,9 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
     return;					// Not a boolean function
 
   Item_bool_func2 *func=  (Item_bool_func2*) cond;
-  Item *left_item=  func->arguments()[0];
-  Item *right_item= func->arguments()[1];
+  Item **args= func->arguments();
+  Item *left_item=  args[0];
+  Item *right_item= args[1];
   Item_func::Functype functype=  func->functype();
 
   if (right_item->eq(field,0) && left_item != value &&
@@ -6835,7 +6836,7 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
     Item *tmp=value->new_item();
     if (tmp)
     {
-      func->arguments()[1] = tmp;
+      thd->change_item_tree(args + 1, tmp);
       func->update_used_tables();
       if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
 	  && and_father != cond && !left_item->const_item())
@@ -6856,13 +6857,14 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
     Item *tmp=value->new_item();
     if (tmp)
     {
-      func->arguments()[0] = value = tmp;
+      thd->change_item_tree(args, tmp);
+      value= tmp;
       func->update_used_tables();
       if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
 	  && and_father != cond && !right_item->const_item())
       {
-	func->arguments()[0] = func->arguments()[1]; // For easy check
-	func->arguments()[1] = value;
+        args[0]= args[1];                       // For easy check
+        thd->change_item_tree(args + 1, value);
 	cond->marker=1;
 	COND_CMP *tmp2;
 	if ((tmp2=new COND_CMP(and_father,func)))
@@ -6908,8 +6910,8 @@ static Item *remove_additional_cond(Item* conds)
 }
 
 static void
-propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
-			 COND *cond)
+propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
+                         COND *and_father, COND *cond)
 {
   if (cond->type() == Item::COND_ITEM)
   {
@@ -6920,18 +6922,19 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
     I_List<COND_CMP> save;
     while ((item=li++))
     {
-      propagate_cond_constants(&save,and_level ? cond : item, item);
+      propagate_cond_constants(thd, &save,and_level ? cond : item, item);
     }
     if (and_level)
     {						// Handle other found items
       I_List_iterator<COND_CMP> cond_itr(save);
       COND_CMP *cond_cmp;
       while ((cond_cmp=cond_itr++))
-	if (!cond_cmp->cmp_func->arguments()[0]->const_item())
-	  change_cond_ref_to_const(&save,cond_cmp->and_level,
-				   cond_cmp->and_level,
-				   cond_cmp->cmp_func->arguments()[0],
-				   cond_cmp->cmp_func->arguments()[1]);
+      {
+        Item **args= cond_cmp->cmp_func->arguments();
+        if (!args[0]->const_item())
+          change_cond_ref_to_const(thd, &save,cond_cmp->and_level,
+                                   cond_cmp->and_level, args[0], args[1]);
+      }
     }
   }
   else if (and_father != cond && !cond->marker)		// In a AND group
@@ -6941,29 +6944,25 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
 	 ((Item_func*) cond)->functype() == Item_func::EQUAL_FUNC))
     {
       Item_func_eq *func=(Item_func_eq*) cond;
-      bool left_const= func->arguments()[0]->const_item();
-      bool right_const=func->arguments()[1]->const_item();
+      Item **args= func->arguments();
+      bool left_const= args[0]->const_item();
+      bool right_const= args[1]->const_item();
       if (!(left_const && right_const) &&
-	  (func->arguments()[0]->result_type() ==
-	   (func->arguments()[1]->result_type())))
+          args[0]->result_type() == args[1]->result_type())
       {
 	if (right_const)
 	{
-	  func->arguments()[1]=resolve_const_item(func->arguments()[1],
-						  func->arguments()[0]);
+          resolve_const_item(thd, &args[1], args[0]);
 	  func->update_used_tables();
-	  change_cond_ref_to_const(save_list,and_father,and_father,
-				   func->arguments()[0],
-				   func->arguments()[1]);
+          change_cond_ref_to_const(thd, save_list, and_father, and_father,
+                                   args[0], args[1]);
 	}
 	else if (left_const)
 	{
-	  func->arguments()[0]=resolve_const_item(func->arguments()[0],
-						  func->arguments()[1]);
+          resolve_const_item(thd, &args[0], args[1]);
 	  func->update_used_tables();
-	  change_cond_ref_to_const(save_list,and_father,and_father,
-				   func->arguments()[1],
-				   func->arguments()[0]);
+          change_cond_ref_to_const(thd, save_list, and_father, and_father,
+                                   args[1], args[0]);
 	}
       }
     }
@@ -7091,6 +7090,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       */
       if (table->on_expr)
       {
+        Item *expr;
         /* 
            If an on expression E is attached to the table, 
            check all null rejected predicates in this expression.
@@ -7099,8 +7099,9 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
            the outer join is converted to an inner join and
            the corresponding on expression is added to E. 
 	*/ 
-        table->on_expr= simplify_joins(join, &nested_join->join_list,
-                                       table->on_expr, FALSE);
+        expr= simplify_joins(join, &nested_join->join_list,
+                             table->on_expr, FALSE);
+        table->on_expr= expr;
       }
       nested_join->used_tables= (table_map) 0;
       nested_join->not_null_tables=(table_map) 0;
@@ -7209,8 +7210,10 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
   DBUG_RETURN(conds); 
 }
         
+
 static COND *
-optimize_cond(JOIN *join, COND *conds, Item::cond_result *cond_value)
+optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
+              Item::cond_result *cond_value)
 {
   THD *thd= join->thd;
   SELECT_LEX *select= thd->lex->current_select;    
@@ -7223,9 +7226,21 @@ optimize_cond(JOIN *join, COND *conds, Item::cond_result *cond_value)
   }
   else
   {
+    /* 
+      Build all multiple equality predicates and eliminate equality
+      predicates that can be inferred from these multiple equalities.
+      For each reference of a field included into a multiple equality
+      that occurs in a function set a pointer to the multiple equality
+      predicate. Substitute a constant instead of this field if the
+      multiple equality contains a constant.
+    */ 
     DBUG_EXECUTE("where", print_where(conds, "original"););
+    conds= build_equal_items(join->thd, conds, NULL, join_list,
+                             &join->cond_equal);
+    DBUG_EXECUTE("where",print_where(conds,"after equal_items"););
+
     /* change field = field to field = const for each found field = const */
-    propagate_cond_constants((I_List<COND_CMP> *) 0,conds,conds);
+    propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
     /*
       Remove all instances of item == item
       Remove all and-levels where CONST item != CONST item
@@ -7461,21 +7476,28 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 			the record in the original table.
 			If modify_item is 0 then fill_record() will update
 			the temporary table
+    convert_blob_length If >0 create a varstring(convert_blob_length) field 
+                        instead of blob.
 
   RETURN
     0			on error
     new_created field
 */
-static Field* create_tmp_field_from_field(THD *thd,
-					  Field* org_field,
-					  Item *item,
-					  TABLE *table,
-					  bool modify_item)
+
+static Field* create_tmp_field_from_field(THD *thd, Field* org_field,
+                                          Item *item, TABLE *table,
+                                          bool modify_item,
+                                          uint convert_blob_length)
 {
   Field *new_field;
 
-  // The following should always be true
-  if ((new_field= org_field->new_field(&thd->mem_root,table)))
+  if (convert_blob_length && org_field->flags & BLOB_FLAG)
+    new_field= new Field_varstring(convert_blob_length, org_field->maybe_null(),
+                                   org_field->field_name, table,
+                                   org_field->charset());
+  else
+    new_field= org_field->new_field(thd->mem_root, table);
+  if (new_field)
   {
     if (modify_item)
       ((Item_field *)item)->result_field= new_field;
@@ -7506,16 +7528,16 @@ static Field* create_tmp_field_from_field(THD *thd,
 			the record in the original table.
 			If modify_item is 0 then fill_record() will update
 			the temporary table
+    convert_blob_length If >0 create a varstring(convert_blob_length) field 
+                        instead of blob.
 
   RETURN
     0			on error
     new_created field
 */
-static Field* create_tmp_field_from_item(THD *thd,
-					 Item *item,
-					 TABLE *table,
-					 Item ***copy_func,
-					 bool modify_item)
+static Field* create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
+                                         Item ***copy_func, bool modify_item,
+                                         uint convert_blob_length)
 {
   bool maybe_null=item->maybe_null;
   Field *new_field;
@@ -7532,13 +7554,18 @@ static Field* create_tmp_field_from_item(THD *thd,
     break;
   case STRING_RESULT:
     if (item->max_length > 255)
-      new_field=  new Field_blob(item->max_length, maybe_null,
-				 item->name, table,
-				 item->collation.collation);
+    {
+      if (convert_blob_length)
+        new_field= new Field_varstring(convert_blob_length, maybe_null,
+                                       item->name, table,
+                                       item->collation.collation);
+      else
+        new_field= new Field_blob(item->max_length, maybe_null, item->name,
+                                  table, item->collation.collation);
+    }
     else
-      new_field= new Field_string(item->max_length, maybe_null,
-				  item->name, table,
-				  item->collation.collation);
+      new_field= new Field_string(item->max_length, maybe_null, item->name, 
+                                  table, item->collation.collation);
     break;
   case ROW_RESULT: 
   default: 
@@ -7575,6 +7602,8 @@ static Field* create_tmp_field_from_item(THD *thd,
 			the record in the original table.
 			If modify_item is 0 then fill_record() will update
 			the temporary table
+    convert_blob_length If >0 create a varstring(convert_blob_length) field 
+                        instead of blob.
 
   RETURN
     0			on error
@@ -7582,8 +7611,8 @@ static Field* create_tmp_field_from_item(THD *thd,
 */
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-			Item ***copy_func, Field **from_field,
-			bool group, bool modify_item)
+                        Item ***copy_func, Field **from_field,
+                        bool group, bool modify_item, uint convert_blob_length)
 {
   switch (type) {
   case Item::SUM_FUNC_ITEM:
@@ -7618,8 +7647,15 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 				  item->name,table,item->unsigned_flag);
       case STRING_RESULT:
 	if (item_sum->max_length > 255)
-	  return  new Field_blob(item_sum->max_length,maybe_null,
-				 item->name,table,item->collation.collation);
+        {
+          if (convert_blob_length)
+            return new Field_varstring(convert_blob_length, maybe_null,
+                                       item->name, table,
+                                       item->collation.collation);
+          else
+            return new Field_blob(item_sum->max_length, maybe_null, item->name,
+                                  table, item->collation.collation);
+        }
 	return	new Field_string(item_sum->max_length,maybe_null,
 				 item->name,table,item->collation.collation);
       case ROW_RESULT:
@@ -7636,8 +7672,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::DEFAULT_VALUE_ITEM:
   {
     Item_field *field= (Item_field*) item;
-    return create_tmp_field_from_field(thd, (*from_field= field->field),
-				       item, table, modify_item);
+    return create_tmp_field_from_field(thd, (*from_field= field->field), item,
+                                       table, modify_item, convert_blob_length);
   }
   case Item::FUNC_ITEM:
   case Item::COND_ITEM:
@@ -7652,14 +7688,16 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
-    return create_tmp_field_from_item(thd, item, table,
-				      copy_func, modify_item);
+    return create_tmp_field_from_item(thd, item, table, copy_func, modify_item,
+                                      convert_blob_length);
   case Item::TYPE_HOLDER:
   {
     Field *example= ((Item_type_holder *)item)->example();
     if (example)
-      return create_tmp_field_from_field(thd, example, item, table, 0);
-    return create_tmp_field_from_item(thd, item, table, copy_func, 0);
+      return create_tmp_field_from_field(thd, example, item, table, 0,
+                                         convert_blob_length);
+    return create_tmp_field_from_item(thd, item, table, copy_func, 0,
+                                      convert_blob_length);
   }
   default:					// Dosen't have to be stored
     return 0;
@@ -7818,12 +7856,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       ((Item_sum*) item)->result_field=0;
       for (i=0 ; i < ((Item_sum*) item)->arg_count ; i++)
       {
-	Item *arg= ((Item_sum*) item)->args[i];
+	Item **argp= ((Item_sum*) item)->args + i;
+	Item *arg= *argp;
 	if (!arg->const_item())
 	{
 	  Field *new_field=
-	    create_tmp_field(thd, table,arg,arg->type(),&copy_func,
-			     tmp_from_field, group != 0,not_all_columns);
+            create_tmp_field(thd, table, arg, arg->type(), &copy_func,
+                             tmp_from_field, group != 0,not_all_columns,
+                             param->convert_blob_length);
 	  if (!new_field)
 	    goto err;					// Should be OOM
 	  tmp_from_field++;
@@ -7834,7 +7874,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    *blob_field++= new_field;
 	    blob_count++;
 	  }
-	  ((Item_sum*) item)->args[i]= new Item_field(new_field);
+          thd->change_item_tree(argp, new Item_field(new_field));
 	  if (!(new_field->flags & NOT_NULL_FLAG))
           {
 	    null_count++;
@@ -7842,7 +7882,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
               new_field->maybe_null() is still false, it will be
               changed below. But we have to setup Item_field correctly
             */
-            ((Item_sum*) item)->args[i]->maybe_null=1;
+            (*argp)->maybe_null=1;
           }
 	}
       }
@@ -7859,9 +7899,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	We here distinguish between UNION and multi-table-updates by the fact
 	that in the later case group is set to the row pointer.
       */
-      Field *new_field=create_tmp_field(thd, table, item,type, &copy_func,
-					tmp_from_field, group != 0,
-					not_all_columns || group !=0);
+      Field *new_field= create_tmp_field(thd, table, item, type, &copy_func,
+                                         tmp_from_field, group != 0,
+                                         not_all_columns || group !=0,
+                                         param->convert_blob_length);
       if (!new_field)
       {
 	if (thd->is_fatal_error)
@@ -8058,7 +8099,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       if (!using_unique_constraint)
       {
 	group->buff=(char*) group_buff;
-	if (!(group->field=field->new_field(&thd->mem_root,table)))
+	if (!(group->field=field->new_field(thd->mem_root,table)))
 	  goto err; /* purecov: inspected */
 	if (maybe_null)
 	{
@@ -8569,7 +8610,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     DBUG_PRINT("error",("Error: do_select() failed"));
   }
 #endif
-  DBUG_RETURN(error || join->thd->net.report_error);
+  DBUG_RETURN(join->thd->net.report_error ? -1 : error);
 }
 
 
@@ -9050,6 +9091,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     {
       table->key_read=1;
       table->file->extra(HA_EXTRA_KEYREAD);
+      tab->index= tab->ref.key;
     }
     if ((error=join_read_const(tab)))
     {
@@ -10037,10 +10079,23 @@ part_of_refkey(TABLE *table,Field *field)
 
 /*****************************************************************************
   Test if one can use the key to resolve ORDER BY
-  Returns: 1 if key is ok.
-	   0 if key can't be used
-	  -1 if reverse key can be used
-          used_key_parts is set to key parts used if length != 0
+
+  SYNOPSIS
+    test_if_order_by_key()
+    order		Sort order
+    table		Table to sort
+    idx			Index to check
+    used_key_parts	Return value for used key parts.
+
+
+  NOTES
+    used_key_parts is set to correct key parts used if return value != 0
+    (On other cases, used_key_part may be changed)
+
+  RETURN
+    1   key is ok.
+    0   Key can't be used
+    -1  Reverse key can be used
 *****************************************************************************/
 
 static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
@@ -10069,13 +10124,17 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
       DBUG_RETURN(0);
 
     /* set flag to 1 if we can use read-next on key, else to -1 */
-    flag= ((order->asc == !(key_part->key_part_flag & HA_REVERSE_SORT)) ? 1 : -1);
+    flag= ((order->asc == !(key_part->key_part_flag & HA_REVERSE_SORT)) ?
+           1 : -1);
     if (reverse && flag != reverse)
       DBUG_RETURN(0);
     reverse=flag;				// Remember if reverse
     key_part++;
   }
   *used_key_parts= (uint) (key_part - table->key_info[idx].key_part);
+  if (reverse == -1 && !(table->file->index_flags(idx, *used_key_parts-1, 1) &
+                         HA_READ_PREV))
+    reverse= 0;                                 // Index can't be used
   DBUG_RETURN(reverse);
 }
 
@@ -10288,14 +10347,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  if (!select->quick->reverse_sorted())
 	  {
             int quick_type= select->quick->get_type();
-            /* here used_key_parts >0 */
-            if (!(table->file->index_flags(ref_key,used_key_parts-1, 1)
-                  & HA_READ_PREV) ||
-                quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
+            if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
                 quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
                 quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION ||
                 quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)
-              DBUG_RETURN(0);			// Use filesort
+              DBUG_RETURN(0);                   // Use filesort
             
             /* ORDER BY range_key DESC */
 	    QUICK_SELECT_DESC *tmp=new QUICK_SELECT_DESC((QUICK_RANGE_SELECT*)(select->quick),
@@ -10317,9 +10373,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	    Use a traversal function that starts by reading the last row
 	    with key part (A) and then traverse the index backwards.
 	  */
-          if (!(table->file->index_flags(ref_key,used_key_parts-1, 1)
-                & HA_READ_PREV))
-            DBUG_RETURN(0);			// Use filesort
 	  tab->read_first_record=       join_read_last_key;
 	  tab->read_record.read_record= join_read_prev_same;
 	  /* fall through */
@@ -10365,7 +10418,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       if (keys.is_set(nr))
       {
 	int flag;
-	if ((flag=test_if_order_by_key(order, table, nr, &not_used)))
+	if ((flag= test_if_order_by_key(order, table, nr, &not_used)))
 	{
 	  if (!no_changes)
 	  {
@@ -11150,7 +11203,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
                    ORDER *order, List<Item> &fields, List<Item> &all_fields,
                    bool is_group_field)
 {
-  Item *order_item=*order->item; /* The item from the GROUP/ORDER caluse. */
+  Item *order_item= *order->item; /* The item from the GROUP/ORDER caluse. */
   Item::Type order_item_type;
   Item **select_item; /* The corresponding item from the SELECT clause. */
   Field *from_field;  /* The corresponding field from the FROM clause. */
@@ -11161,8 +11214,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
     if (!count || count > fields.elements)
     {
       my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
-		      MYF(0),order_item->full_name(),
-	       thd->where);
+		      MYF(0), order_item->full_name(), thd->where);
       return 1;
     }
     order->item= ref_pointer_array + count - 1;
@@ -11173,8 +11225,9 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   }
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */
   uint counter;
+  bool unaliased;
   select_item= find_item_in_list(order_item, fields, &counter,
-                                 REPORT_EXCEPT_NOT_FOUND);
+                                 REPORT_EXCEPT_NOT_FOUND, &unaliased);
   if (!select_item)
     return 1; /* Some error occured. */
 
@@ -11182,6 +11235,14 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   /* Check whether the resolved field is not ambiguos. */
   if (select_item != not_found_item)
   {
+    /*
+      If we have found field not by its alias in select list but by its
+      original field name, we should additionaly check if we have conflict
+      for this name (in case if we would perform lookup in all tables).
+    */
+    if (unaliased && !order_item->fixed && order_item->fix_fields(thd, tables, order->item))
+      return 1;
+
     /* Lookup the current GROUP field in the FROM clause. */
     order_item_type= order_item->type();
     if (is_group_field &&
@@ -11215,16 +11276,15 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   }
 
   order->in_field_list=0;
-  Item *it= *order->item;
   /*
-    We check it->fixed because Item_func_group_concat can put
+    We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
 
     'it' reassigned in if condition because fix_field can change it.
   */
-  if (!it->fixed &&
-      (it->fix_fields(thd, tables, order->item) ||
-       (it= *order->item)->check_cols(1) ||
+  if (!order_item->fixed &&
+      (order_item->fix_fields(thd, tables, order->item) ||
+       (order_item= *order->item)->check_cols(1) ||
        thd->is_fatal_error))
     return 1;					// Wrong field 
   uint el= all_fields.elements;
@@ -11233,6 +11293,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   order->item= ref_pointer_array + el;
   return 0;
 }
+
 
 /*
   Change order to point at item in select list. If item isn't a number
@@ -11344,10 +11405,11 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 
   thd->set_query_id=1;				// Not really needed, but...
   uint counter;
+  bool not_used;
   for (; new_field ; new_field= new_field->next)
   {
     if ((item= find_item_in_list(*new_field->item, fields, &counter,
-				 IGNORE_ERRORS)))
+				 IGNORE_ERRORS, &not_used)))
       new_field->item=item;			/* Change to shared Item */
     else
     {
@@ -11695,7 +11757,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	   saved value
 	*/
 	Field *field= item->field;
-	item->result_field=field->new_field(&thd->mem_root,field->table);
+	item->result_field=field->new_field(thd->mem_root,field->table);
 	char *tmp=(char*) sql_alloc(field->pack_length()+1);
 	if (!tmp)
 	  goto err;
@@ -11705,6 +11767,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
       }
     }
     else if ((pos->type() == Item::FUNC_ITEM ||
+	      pos->type() == Item::SUBSELECT_ITEM ||
+	      pos->type() == Item::CACHE_ITEM ||
 	      pos->type() == Item::COND_ITEM) &&
 	     !pos->with_sum_func)
     {						// Save for send fields
@@ -11812,9 +11876,6 @@ bool JOIN::alloc_func_list()
     before_group_by	Set to 1 if this is called before GROUP BY handling
     recompute           Set to TRUE if sum_funcs must be recomputed
 
-  NOTES
-    Calls ::setup() for all item_sum objects in field_list
-
   RETURN
     0  ok
     1  error
@@ -11835,12 +11896,7 @@ bool JOIN::make_sum_func_list(List<Item> &field_list, List<Item> &send_fields,
   while ((item=it++))
   {
     if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item())
-    {
       *func++= (Item_sum*) item;
-      /* let COUNT(DISTINCT) create the temporary table */
-      if (((Item_sum*) item)->setup(thd))
-	DBUG_RETURN(TRUE);
-    }
   }
   if (before_group_by && rollup.state == ROLLUP::STATE_INITED)
   {
@@ -11984,6 +12040,30 @@ change_refs_to_tmp_fields(THD *thd, Item **ref_pointer_array,
 /******************************************************************************
   Code for calculating functions
 ******************************************************************************/
+
+
+/*
+  Call ::setup for all sum functions
+
+  SYNOPSIS
+    setup_sum_funcs()
+    thd           thread handler
+    func_ptr      sum function list
+
+  RETURN
+    FALSE  ok
+    TRUE   error
+*/
+
+static bool setup_sum_funcs(THD *thd, Item_sum **func_ptr)
+{
+  Item_sum *func;
+  while ((func= *(func_ptr++)))
+    if (func->setup(thd))
+      return TRUE;
+  return FALSE;
+}
+
 
 static void
 init_tmptable_sum_functions(Item_sum **func_ptr)
@@ -12140,7 +12220,7 @@ bool JOIN::rollup_init()
     return 1;
   rollup.ref_pointer_arrays= (Item***) (rollup.fields + send_group_parts);
   ref_array= (Item**) (rollup.ref_pointer_arrays+send_group_parts);
-  rollup.item_null= new (&thd->mem_root) Item_null();
+  rollup.item_null= new (thd->mem_root) Item_null();
 
   /*
     Prepare space for field list for the different levels
