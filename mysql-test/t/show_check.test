@@ -210,7 +210,7 @@ select @@max_heap_table_size;
 
 CREATE TABLE t1 (
  a int(11) default NULL,
- KEY a TYPE BTREE (a)
+ KEY a USING BTREE (a)
 ) ENGINE=HEAP;
 
 CREATE TABLE t2 (
@@ -221,7 +221,7 @@ CREATE TABLE t2 (
 CREATE TABLE t3 (
  a int(11) default NULL,
  b int(11) default NULL,
- KEY a TYPE BTREE (a),
+ KEY a USING BTREE (a),
  index(b)
 ) ENGINE=HEAP;
 
