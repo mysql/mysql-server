@@ -16553,6 +16553,7 @@ GRANT priv_type [(column_list)] [, priv_type [(column_list)] ...]
     TO user_name [IDENTIFIED BY [PASSWORD] 'password']
         [, user_name [IDENTIFIED BY 'password'] ...]
     [REQUIRE
+        NONE |
     	[@{SSL| X509@}]
 	[CIPHER cipher [AND]]
 	[ISSUER issuer [AND]]
@@ -17627,6 +17628,9 @@ mysql> GRANT ALL PRIVILEGES ON test.* TO root@@localhost
     "> O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com"
     -> AND CIPHER "EDH-RSA-DES-CBC3-SHA";
 @end example
+
+Starting from MySQL 4.0.4 the @code{AND} keyword is optional between
+@code{REQUIRE} options.
 
 The order of the options does not matter, but no option can be specified
 twice.
@@ -46596,7 +46600,8 @@ Copy this file to some directory searched by @code{ld}, such as
 @code{LD_LIBRARY_PATH} environment variable to point at the directory where
 you have your UDF function files. The @code{dlopen} manual page tells you
 which variable you should use on your system. You should set this in
-@code{mysql.server} or @code{safe_mysqld} and restart @code{mysqld}.
+@code{mysql.server} or @code{safe_mysqld} startup scripts and restart
+@code{mysqld}.
 
 After the library is installed, notify @code{mysqld} about the new
 functions with these commands:
@@ -50364,6 +50369,29 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+@code{--log-binary=a.b.c} now properly strips of @code{.b.c}.
+@item
+@code{FLUSH LOGS} removed numerical extension for all future update logs.
+@item
+@code{GRANT ... REQUIRE} didn't store the SSL information in the
+@code{mysql.user} table if SSL was not enabled in the server.
+@item
+@code{GRANT ... REQUIRE NONE} can now be used to remove SSL information.
+@item
+@code{AND} is not optional between @code{REQUIRE} options.
+@item
+@code{REQUIRE} options was not properly saved, which could cause strange
+output in @code{SHOW GRANTS}.
+@item
+Fixed that @code{mysqld --help} reports right values for @code{--datadir} and
+@code{--bind-address}.
+@item
+Fixed that one can drop UDF functions that didn't exists when mysqld was
+started.
+@item
+Fixed core dump problem with @code{SHOW VARIABLES} on some 64 bit systems
+(like Solaris sparc).
+@item
 Fixed a bug with wildcarded fields in select list, which led to the wrong 
 number of elements in a list containing all fields
 @item
@@ -51085,7 +51113,7 @@ not yet 100% confident in this code.
 @itemize @bullet
 @item
 Changed @code{AND/OR} to report that they can return NULL. This fixes a
-small problem in @code{GROUP BY} on @code{AND/OR} expression that return
+bug in @code{GROUP BY} on @code{AND/OR} expression that return
 @code{NULL}.
 @item
 Fixed a bug that @code{OPTIMIZE} of locked and modified MyISAM table,

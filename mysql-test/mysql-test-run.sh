@@ -37,10 +37,11 @@ which ()
         continue 2
       fi
     done
-    echo "which: no $file in ($PATH)"
+    echo "Fatal error: Cannot find program $file in $PATH" 1>&2
     exit 1
   done
   IFS="$save_ifs"
+  exit 0
 }
 
 
@@ -68,7 +69,7 @@ sleep_until_file_created ()
   do
     if [ -r $file ]
     then
-      return
+      return 0
     fi
     sleep 1
     loop=`expr $loop - 1`
@@ -81,8 +82,10 @@ sleep_until_file_created ()
 
 SED=sed
 
-BASENAME=`which basename | $SED q`
+BASENAME=`which basename`
+if test $? != 0; then exit 1; fi
 DIFF=`which diff | $SED q`
+if test $? != 0; then exit 1; fi
 CAT=cat
 CUT=cut
 HEAD=head
@@ -90,12 +93,15 @@ TAIL=tail
 ECHO=echo # use internal echo if possible
 EXPR=expr # use internal if possible
 FIND=find
-GCOV=`which gcov | $SED q`
+GCOV=`which gcov`
+if test $? != 0; then exit 1; fi
 PRINTF=printf
 RM=rm
-TIME=`which time | $SED q`
+TIME=`which time`
+if test $? != 0; then exit 1; fi
 TR=tr
-XARGS=`which xargs | $SED q`
+XARGS=`which xargs`
+if test $? != 0; then exit 1; fi
 
 # Are we using a source or a binary distribution?
 
@@ -461,7 +467,9 @@ GPROF_DIR=$MYSQL_TMP_DIR/gprof
 GPROF_MASTER=$GPROF_DIR/master.gprof
 GPROF_SLAVE=$GPROF_DIR/slave.gprof
 TIMEFILE="$MYSQL_TEST_DIR/var/log/mysqltest-time"
-XTERM=`which xterm`
+if [ -n "$DO_CLIENT_GDB" -o -n "$DO_GDB" ] ; then
+  XTERM=`which xterm`
+fi
 
 #++
 # Function Definitions

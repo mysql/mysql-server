@@ -475,6 +475,7 @@ public:
     active_vio = 0;
     pthread_mutex_unlock(&LOCK_delete);
   }
+  void THD::close_active_vio();
 #endif  
   void awake(bool prepare_to_die);
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,

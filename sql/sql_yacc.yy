@@ -126,6 +126,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MASTER_SYM
 %token	MAX_SYM
 %token	MIN_SYM
+%token	NONE_SYM
 %token	OPTIMIZE
 %token	PURGE
 %token	REPAIR
@@ -589,7 +590,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild union union_list
-	precision union_option
+	precision union_option opt_and
 END_OF_INPUT
 
 %type <NONE>
@@ -1856,7 +1857,6 @@ simple_expr:
 	      $$ = new Item_sum_udf_str($1, *$3);
 	    else
 	      $$ = new Item_sum_udf_str($1);
-	    current_thd->safe_to_cache_query=0;
 	  }
 	| UDA_FLOAT_SUM '(' udf_expr_list ')'
 	  {
@@ -1864,7 +1864,6 @@ simple_expr:
 	      $$ = new Item_sum_udf_float($1, *$3);
 	    else
 	      $$ = new Item_sum_udf_float($1);
-	    current_thd->safe_to_cache_query=0;
 	  }
 	| UDA_INT_SUM '(' udf_expr_list ')'
 	  {
@@ -1879,7 +1878,6 @@ simple_expr:
 	      $$ = new Item_func_udf_str($1, *$3);
 	    else
 	      $$ = new Item_func_udf_str($1);
-            current_thd->safe_to_cache_query=0;
 	  }
 	| UDF_FLOAT_FUNC '(' udf_expr_list ')'
 	  {
@@ -1887,7 +1885,6 @@ simple_expr:
 	      $$ = new Item_func_udf_float($1, *$3);
 	    else
 	      $$ = new Item_func_udf_float($1);
-	    current_thd->safe_to_cache_query=0;
 	  }
 	| UDF_INT_FUNC '(' udf_expr_list ')'
 	  {
@@ -1895,7 +1892,6 @@ simple_expr:
 	      $$ = new Item_func_udf_int($1, *$3);
 	    else
 	      $$ = new Item_func_udf_int($1);
-	    current_thd->safe_to_cache_query=0;
 	  }
 	| UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' expr_list ')'
 	  { 
@@ -3168,6 +3164,7 @@ keyword:
 	| NEXT_SYM		{}
 	| NEW_SYM		{}
 	| NO_SYM		{}
+	| NONE_SYM		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PASSWORD		{}
@@ -3458,13 +3455,13 @@ grant:
 	GRANT
 	{
 	  LEX *lex=Lex;
-	  lex->sql_command = SQLCOM_GRANT;
 	  lex->users_list.empty();
 	  lex->columns.empty();
-	  lex->grant= lex->grant_tot_col=0;
-	  lex->select->db=0;
-	  lex->ssl_type=SSL_TYPE_NONE;
-	  lex->ssl_cipher=lex->x509_subject=lex->x509_issuer=0;
+	  lex->sql_command = SQLCOM_GRANT;
+	  lex->grant= lex->grant_tot_col= 0;
+	  lex->select->db= 0;
+	  lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
+	  lex->ssl_cipher= lex->x509_subject= lex->x509_issuer= 0;
 	  bzero(&(lex->mqh),sizeof(lex->mqh));
 	}
 	grant_privileges ON opt_table TO_SYM user_list
@@ -3504,10 +3501,19 @@ grant_privilege:
 	| REPLICATION CLIENT_SYM { Lex->grant |= REPL_CLIENT_ACL;}
 	;
 
-require_list: require_list_element AND require_list
-| require_list_element ;
 
-require_list_element: SUBJECT_SYM TEXT_STRING
+opt_and:
+	/* empty */	{}
+	| AND		{}
+	;
+
+require_list:
+	 require_list_element opt_and require_list
+	 | require_list_element
+	 ;
+
+require_list_element:
+	SUBJECT_SYM TEXT_STRING
 	{
 	  LEX *lex=Lex;
 	  if (lex->x509_subject)
@@ -3651,17 +3657,21 @@ column_list_id:
 
 require_clause: /* empty */
         | REQUIRE_SYM require_list 
-        {
-          Lex->ssl_type=SSL_TYPE_SPECIFIED;
-        }
+          {
+            Lex->ssl_type=SSL_TYPE_SPECIFIED;
+          }
         | REQUIRE_SYM SSL_SYM
-        {
-          Lex->ssl_type=SSL_TYPE_ANY;
-        }
+          {
+            Lex->ssl_type=SSL_TYPE_ANY;
+          }
         | REQUIRE_SYM X509_SYM
-        {
-          Lex->ssl_type=SSL_TYPE_X509;
-        };
+          {
+            Lex->ssl_type=SSL_TYPE_X509;
+          }
+	| REQUIRE_SYM NONE_SYM
+	  {
+	    Lex->ssl_type=SSL_TYPE_NONE;
+	  }
 
 grant_options:
 	/* empty */ {}

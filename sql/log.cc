@@ -108,11 +108,9 @@ MYSQL_LOG::~MYSQL_LOG()
 
 int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
 {      
-  if (log_type == LOG_NORMAL)
-    fn_format(new_name,log_name,mysql_data_home,"",4);
-  else
+  fn_format(new_name,log_name,mysql_data_home,"",4);
+  if (log_type != LOG_NORMAL)
   {
-    fn_format(new_name,log_name,mysql_data_home,"",4);
     if (!fn_ext(log_name)[0])
     {
       if (find_uniq_filename(new_name))
@@ -798,7 +796,8 @@ void MYSQL_LOG::new_file(bool need_lock)
   safe_mutex_assert_owner(&LOCK_log);
   safe_mutex_assert_owner(&LOCK_index);
 
-  new_name_ptr= name;				// Reuse old name if not binlog
+  // Reuse old name if not binlog and not update log
+  new_name_ptr= name;
 
   /*
     Only rotate open logs that are marked non-rotatable
@@ -806,12 +805,17 @@ void MYSQL_LOG::new_file(bool need_lock)
   */
   if (!no_rotate)
   {
+    /*
+      If user hasn't specified an extension, generate a new log name
+      We have to do this here and not in open as we want to store the
+      new file name in the current binary log file.
+    */
+    if (generate_new_name(new_name, name))
+      goto end;
+    new_name_ptr=new_name;
+
     if (log_type == LOG_BIN)
     {
-      if (generate_new_name(new_name, name))
-	goto end;	/* Error;  Continue using old log file */
-
-      new_name_ptr=new_name;
       if (!no_auto_events)
       {
 	/*
@@ -823,9 +827,9 @@ void MYSQL_LOG::new_file(bool need_lock)
 	r.set_log_pos(this);
 
 	/*
-	  Becasue this log rotation could have been initiated by a master of
+	  Because this log rotation could have been initiated by a master of
 	  the slave running with log-bin, we set the flag on rotate
-	  event to prevent inifinite log rotation loop
+	  event to prevent infinite log rotation loop
 	*/
 	if (thd->slave_thread)
 	  r.flags|= LOG_EVENT_FORCED_ROTATE_F;
@@ -833,7 +837,7 @@ void MYSQL_LOG::new_file(bool need_lock)
 	bytes_written += r.get_event_len();
       }
       /*
-	Update needs to be signaled even if there is no rotate event
+	Update needs to be signalled even if there is no rotate event
 	log rotation should give the waiting thread a signal to
 	discover EOF and move on to the next log.
       */
