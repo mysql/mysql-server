@@ -295,6 +295,16 @@ static int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
   return s1 < e1 ? 1 : s2 < e2 ? -1 : 0;
 }
 
+static
+int my_strnncollsp_latin1_de(CHARSET_INFO * cs, 
+			const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+  return my_strnncoll_latin1_de(cs,s,slen,t,tlen);
+}
+
 
 static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
                           uchar * dest, uint len,
@@ -351,6 +361,7 @@ CHARSET_INFO my_charset_latin1_de =
     idx_uni_8859_1,	/* tab_from_uni */
     2,			/* strxfrm_multiply */
     my_strnncoll_latin1_de,
+    my_strnncollsp_latin1_de,
     my_strnxfrm_latin1_de,
     my_like_range_simple,
     my_wildcmp_8bit,	/* wildcmp   */
