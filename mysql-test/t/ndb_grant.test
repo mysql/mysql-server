@@ -226,19 +226,23 @@ grant select on test.t1 to drop_user2@localhost;
 grant select on test.* to drop_user3@localhost;
 grant select on *.* to drop_user4@localhost;
 commit;
---error 1268
+flush privileges;
+# Drop user now implicitly revokes all privileges.
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 begin;
+--error 1269
 revoke all privileges, grant option from drop_user1@localhost, drop_user2@localhost,
 drop_user3@localhost, drop_user4@localhost;
 commit;
+flush privileges;
+#--error 1268
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 drop table t1;
 begin;
 grant usage on *.* to mysqltest_1@localhost identified by "password";
-grant select, update, insert on test.* to mysqltest@localhost;
+grant select, update, insert on test.* to mysqltest_1@localhost;
 commit;
 show grants for mysqltest_1@localhost;
 drop user mysqltest_1@localhost;
@@ -350,6 +354,11 @@ DROP DATABASE testdb7;
 DROP DATABASE testdb8;
 DROP DATABASE testdb9;
 DROP DATABASE testdb10;
+
+#
+# just SHOW PRIVILEGES test
+#
+SHOW PRIVILEGES;
 
 #
 # Alter mysql system tables back to myisam
