@@ -2019,21 +2019,27 @@ print_table_data(MYSQL_RES *result)
 
   while ((cur= mysql_fetch_row(result)))
   {
+    ulong *lengths= mysql_fetch_lengths(result);
     (void) tee_fputs("|", PAGER);
     mysql_field_seek(result, 0);
     for (uint off= 0; off < mysql_num_fields(result); off++)
     {
       const char *str= cur[off] ? cur[off] : "NULL";
       field= mysql_fetch_field(result);
-      uint length= field->max_length;
-      if (length > MAX_COLUMN_LENGTH)
+      uint maxlength= field->max_length;
+      if (maxlength > MAX_COLUMN_LENGTH)
       {
 	tee_fputs(str, PAGER);
 	tee_fputs(" |", PAGER);
       }
       else
-      tee_fprintf(PAGER, num_flag[off] ? "%*s |" : " %-*s|",
-		  length, str);
+      {
+        uint currlength= (uint) lengths[off];
+        uint numcells= charset_info->cset->numcells(charset_info, 
+                                                    str, str + currlength);
+        tee_fprintf(PAGER, num_flag[off] ? "%*s |" : " %-*s|",
+                    maxlength + currlength - numcells, str);
+      }
     }
     (void) tee_fputs("\n", PAGER);
   }
