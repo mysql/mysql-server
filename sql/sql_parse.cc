@@ -708,11 +708,11 @@ static int check_connection(THD *thd)
 {
   uint connect_errors= 0;
   NET *net= &thd->net;
+  ulong pkt_len= 0;
+  char *end;
 
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
-
-  vio_in_addr(net->vio,&thd->remote.sin_addr);
 
   if (!thd->host)                           // If TCP/IP connection
   {
@@ -723,6 +723,7 @@ static int check_connection(THD *thd)
     if (!(thd->ip= my_strdup(ip,MYF(0))))
       return (ER_OUT_OF_RESOURCES);
     thd->host_or_ip= thd->ip;
+    vio_in_addr(net->vio,&thd->remote.sin_addr);
 #if !defined(HAVE_SYS_UN_H) || defined(HAVE_mit_thread)
     /* Fast local hostname resolve for Win32 */
     if (!strcmp(thd->ip,"127.0.0.1"))
@@ -758,10 +759,10 @@ static int check_connection(THD *thd)
     DBUG_PRINT("info",("Host: %s",thd->host));
     thd->host_or_ip= thd->host;
     thd->ip= 0;
+    /* Reset sin_addr */
+    bzero((char*) &thd->remote, sizeof(thd->remote));
   }
   vio_keepalive(net->vio, TRUE);
-  ulong pkt_len= 0;
-  char *end;
   {
     /* buff[] needs to big enough to hold the server_version variable */
     char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH + 64];
@@ -1670,6 +1671,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
+    char *packet_end= thd->query + thd->query_length;
     mysql_log.write(thd,command,"%s",thd->query);
     DBUG_PRINT("query",("%-.4096s",thd->query));
     mysql_parse(thd,thd->query, thd->query_length);
@@ -1685,7 +1687,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (thd->lock || thd->open_tables || thd->derived_tables)
         close_thread_tables(thd);
 #endif
-      ulong length= thd->query_length-(ulong)(packet-thd->query);
+      ulong length= (ulong)(packet_end-packet);
 
       /* Remove garbage at start of query */
       while (my_isspace(thd->charset(), *packet) && length > 0)
@@ -2375,9 +2377,14 @@ mysql_execute_command(THD *thd)
     }
     /*
       Skip if we are in the slave thread, some table rules have been
-      given and the table list says the query should not be replicated
+      given and the table list says the query should not be replicated.
+      Exception is DROP TEMPORARY TABLE IF EXISTS: we always execute it
+      (otherwise we have stale files on slave caused by exclusion of one tmp
+      table).
     */
-    if (all_tables_not_ok(thd, all_tables))
+    if (!(lex->sql_command == SQLCOM_DROP_TABLE &&
+          lex->drop_temporary && lex->drop_if_exists) &&
+        all_tables_not_ok(thd, all_tables))
     {
       /* we warn the slave SQL thread */
       my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
@@ -4956,6 +4963,20 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	}
 	else
 	{
+          /*
+            Binlog logs a string starting from thd->query and having length
+            thd->query_length; so we set thd->query_length correctly (to not
+            log several statements in one event, when we executed only first).
+            We set it to not see the ';' (otherwise it would get into binlog
+            and Query_log_event::print() would give ';;' output).
+            This also helps display only the current query in SHOW
+            PROCESSLIST.
+            Note that we don't need LOCK_thread_count to modify query_length.
+          */
+          if (lex->found_colon &&
+              (thd->query_length= (ulong)(lex->found_colon - thd->query)))
+            thd->query_length--;
+          /* Actually execute the query */
 	  mysql_execute_command(thd);
 	  query_cache_end_of_result(thd);
 	}
