@@ -419,7 +419,7 @@ public:
   void set_long_end();
   void set_time(TIME *tm, timestamp_type type);
   bool get_time(TIME *tm);
-  void reset() {}
+  void reset();
   /*
     Assign placeholder value from bind data.
     Note, that 'len' has different semantics in embedded library (as we
