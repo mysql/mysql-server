@@ -3,10 +3,10 @@ CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
 show columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra
 a	blob	binary	YES		NULL	
-b	text	latin1	YES		NULL	
+b	text	latin1_swedish_ci	YES		NULL	
 c	blob	binary	YES		NULL	
-d	mediumtext	latin1	YES		NULL	
-e	longtext	latin1	YES		NULL	
+d	mediumtext	latin1_swedish_ci	YES		NULL	
+e	longtext	latin1_swedish_ci	YES		NULL	
 CREATE TABLE t2 (a char(257), b varchar(70000) binary, c varchar(70000000));
 Warnings:
 Warning	1244	Converting column 'a' from CHAR to TEXT
@@ -14,9 +14,9 @@ Warning	1244	Converting column 'b' from CHAR to BLOB
 Warning	1244	Converting column 'c' from CHAR to TEXT
 show columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra
-a	text	latin1	YES		NULL	
+a	text	latin1_swedish_ci	YES		NULL	
 b	mediumblob	binary	YES		NULL	
-c	longtext	latin1	YES		NULL	
+c	longtext	latin1_swedish_ci	YES		NULL	
 create table t3 (a long, b long byte);
 show create TABLE t3;
 Table	Create Table
@@ -70,15 +70,15 @@ update t1 set c="",b=null where c="1";
 lock tables t1 READ;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-t	text	latin1	YES		NULL		select,insert,update,references	
-c	varchar(10)	latin1	YES		NULL		select,insert,update,references	
+t	text	latin1_swedish_ci	YES		NULL		select,insert,update,references	
+c	varchar(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 b	blob	binary	YES		NULL		select,insert,update,references	
 d	varchar(10) binary	binary	YES		NULL		select,insert,update,references	
 lock tables t1 WRITE;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-t	text	latin1	YES		NULL		select,insert,update,references	
-c	varchar(10)	latin1	YES		NULL		select,insert,update,references	
+t	text	latin1_swedish_ci	YES		NULL		select,insert,update,references	
+c	varchar(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 b	blob	binary	YES		NULL		select,insert,update,references	
 d	varchar(10) binary	binary	YES		NULL		select,insert,update,references	
 unlock tables;

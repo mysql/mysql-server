@@ -14,7 +14,7 @@ Table	Create Table
 ) TYPE=MyISAM CHARSET=latin1
 SHOW FIELDS FROM таблица;
 Field	Type	Collation	Null	Key	Default	Extra
-поле	char(32) character set koi8r	koi8r				
+поле	char(32) character set koi8r	koi8r_general_ci				
 SET NAMES cp1251;
 SHOW TABLES;
 Tables_in_test
@@ -26,7 +26,7 @@ Table	Create Table
 ) TYPE=MyISAM CHARSET=latin1
 SHOW FIELDS FROM РЮАКХЖЮ;
 Field	Type	Collation	Null	Key	Default	Extra
-ОНКЕ	char(32) character set koi8r	koi8r				
+ОНКЕ	char(32) character set koi8r	koi8r_general_ci				
 SET NAMES utf8;
 SHOW TABLES;
 Tables_in_test
@@ -38,6 +38,6 @@ Table	Create Table
 ) TYPE=MyISAM CHARSET=latin1
 SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
 Field	Type	Collation	Null	Key	Default	Extra
-п©п╬п╩п╣	char(32) character set koi8r	koi8r				
+п©п╬п╩п╣	char(32) character set koi8r	koi8r_general_ci				
 SET NAMES koi8r;
 DROP TABLE таблица;

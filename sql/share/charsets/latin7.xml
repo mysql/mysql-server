@@ -115,7 +115,7 @@
 </collation>
 
 
-<collation name="latin7_ci">
+<collation name="latin7_general_ci">
 <!-- Created for case-sensitive record search              -->
 <!-- by Andis Grasis & Rihards Grasis e-mail:andis@cata.lv -->
 <map>
@@ -139,7 +139,7 @@
 </collation>
 
 
-<collation name="latin7_cs">
+<collation name="latin7_general_cs">
 <!-- Created for case-insensitive record search -->
 <!-- Created by Andis & Rihards                 -->
 <map>

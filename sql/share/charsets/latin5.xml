@@ -93,7 +93,7 @@
 </unicode>
 
 
-<collation name="latin5">
+<collation name="latin5_turkish_ci">
 <!--
 # Note: all accented characters are compared separately (this
 # is different from the default latin1 character set, where
