@@ -149,7 +149,6 @@ dtype_store_for_order_and_null_size(
 	dtype_t*	type)	/* in: type struct */
 {
 	ut_ad(4 == DATA_ORDER_NULL_TYPE_BUF_SIZE);
-	ut_ad(type->prtype < 256);
 	
 	buf[0] = (byte)(type->mtype & 0xFF);
 	buf[1] = (byte)(type->prtype & 0xFF);

@@ -111,7 +111,7 @@ dfield_check_typed(
 				/* out: TRUE if ok */
 	dfield_t*	field)	/* in: data field */
 {
-	ut_a(dfield_get_type(field)->mtype <= DATA_SYS);
+	ut_a(dfield_get_type(field)->mtype <= DATA_MYSQL);
 	ut_a(dfield_get_type(field)->mtype >= DATA_VARCHAR);
 
 	return(TRUE);
