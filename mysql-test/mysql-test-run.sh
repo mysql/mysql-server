@@ -706,7 +706,7 @@ run_testcase ()
  slave_opt_file=$TESTDIR/$tname-slave.opt
  master_init_script=$TESTDIR/$tname-master.sh
  slave_init_script=$TESTDIR/$tname-slave.sh
- slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
+ slave_master_info_file=$TESTDIR/$tname.slave-mi
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ -n "$SKIP_TEST" ] ; then 
    SKIP_THIS_TEST=`$EXPR \( $tname : "$SKIP_TEST" \) != 0`
