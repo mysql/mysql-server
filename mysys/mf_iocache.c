@@ -506,7 +506,8 @@ static int lock_io_cache(IO_CACHE *info, my_off_t pos)
   while (!s->active || s->active->pos_in_file < pos)
     pthread_cond_wait(&s->cond, &s->mutex);
 
-  if (s->total < total)
+  if (s->total < total &&
+      (!s->active || s->active->pos_in_file < pos))
     return 1;
 
   pthread_mutex_unlock(&s->mutex);

@@ -2337,7 +2337,7 @@ mysql_execute_command(THD *thd)
 	  tmp_table.real_name=lex->name;
 	  tmp_table.db=select_lex->db;
 	  tmp_table.grant.privilege=priv;
-	  if (check_grant(thd,INSERT_ACL | CREATE_ACL,tables,0,0))
+	  if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, 0, 0))
 	    goto error;
 	}
       }
