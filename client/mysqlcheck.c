@@ -37,14 +37,15 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                tty_password = 0, opt_frm = 0;
 static uint verbose = 0, opt_mysql_port=0;
 static my_string opt_mysql_unix_port = 0;
-static char *opt_password = 0, *current_user = 0, *default_charset = 0,
-            *current_host = 0;
+static char *opt_password = 0, *current_user = 0, 
+	    *default_charset = (char *)MYSQL_CHARSET, *current_host = 0;
 static int first_error = 0;
 DYNAMIC_ARRAY tables4repair;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
+static CHARSET_INFO *charset_info= &my_charset_latin1;
 
 enum operations {DO_CHECK, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE};
 
@@ -307,11 +308,8 @@ static int get_options(int *argc, char ***argv)
     else
       what_to_do = DO_CHECK;
   }
-  if (default_charset)
-  {
-    if (!(system_charset_info= get_charset_by_name(default_charset, MYF(MY_WME))))
+  if (!(charset_info= get_charset_by_name(default_charset, MYF(MY_WME))))
       exit(1);
-  }
   if (*argc > 0 && opt_alldbs)
   {
     printf("You should give only options, no arguments at all, with option\n");
