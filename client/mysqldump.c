@@ -1825,8 +1825,6 @@ static void dumpTable(uint numFields, char *table)
 err:
   if (query != query_buf)
     my_free(query, MYF(MY_ALLOW_ZERO_PTR));
-  if (order_by)
-    my_free(order_by, MYF(0));
   safe_exit(error);
   return;
 } /* dumpTable */
@@ -1978,6 +1976,8 @@ static int dump_all_tables_in_db(char *database)
     numrows = getTableStructure(table, database);
     if (!dFlag && numrows > 0)
       dumpTable(numrows,table);
+    my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
+    order_by= 0;
   }
   if (opt_xml)
   {
@@ -2027,6 +2027,8 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     numrows = getTableStructure(*table_names, db);
     if (!dFlag && numrows > 0)
       dumpTable(numrows, *table_names);
+    my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
+    order_by= 0;
   }
   if (opt_xml)
   {
