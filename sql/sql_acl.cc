@@ -2551,7 +2551,7 @@ my_bool grant_init(THD *org_thd)
   do
   {
     GRANT_TABLE *mem_check;
-    if (!(mem_check=new GRANT_TABLE(t_table,c_table)) || !mem_check->ok())
+    if (!(mem_check=new GRANT_TABLE(t_table,c_table)))
     {
       /* This could only happen if we are out memory */
       grant_option= FALSE;			/* purecov: deadcode */
@@ -2570,7 +2570,7 @@ my_bool grant_init(THD *org_thd)
       }
     }
 
-    if (my_hash_insert(&column_priv_hash,(byte*) mem_check))
+    if (mem_check->ok() && my_hash_insert(&column_priv_hash,(byte*) mem_check))
     {
       grant_option= FALSE;
       goto end_unlock;
