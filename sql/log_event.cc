@@ -111,18 +111,29 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 
 #endif // MYSQL_CLIENT
 
-// allocates memory - the caller is responsible for clean-up
+#ifndef MYSQL_CLIENT
+#define UNLOCK_MUTEX if(log_lock) pthread_mutex_unlock(log_lock);
+#else
+#define UNLOCK_MUTEX
+#endif
 
+// allocates memory - the caller is responsible for clean-up
+#ifndef MYSQL_CLIENT
 Log_event* Log_event::read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock)
+#else
+Log_event* Log_event::read_log_event(IO_CACHE* file)
+#endif  
 {
   time_t timestamp;
   uint32 server_id;
   
   char buf[LOG_EVENT_HEADER_LEN-4];
+#ifndef MYSQL_CLIENT  
   if(log_lock) pthread_mutex_lock(log_lock);
+#endif  
   if (my_b_read(file, (byte *) buf, sizeof(buf)))
   {
-    if (log_lock) pthread_mutex_unlock(log_lock);
+    UNLOCK_MUTEX
     return NULL;
   }
   timestamp = uint4korr(buf);
@@ -133,7 +144,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock)
   case QUERY_EVENT:
   {
     Query_log_event* q = new Query_log_event(file, timestamp, server_id);
-    if(log_lock) pthread_mutex_unlock(log_lock);
+    UNLOCK_MUTEX
     if (!q->query)
     {
       delete q;
@@ -145,7 +156,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock)
   case LOAD_EVENT:
   {
     Load_log_event* l = new Load_log_event(file, timestamp, server_id);
-    if(log_lock) pthread_mutex_unlock(log_lock);
+    UNLOCK_MUTEX
     if (!l->table_name)
     {
       delete l;
@@ -158,8 +169,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock)
   case ROTATE_EVENT:
   {
     Rotate_log_event* r = new Rotate_log_event(file, timestamp, server_id);
-    if(log_lock) pthread_mutex_unlock(log_lock);
-    
+    UNLOCK_MUTEX
     if (!r->new_log_ident)
     {
       delete r;
@@ -171,8 +181,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock)
   case INTVAR_EVENT:
   {
     Intvar_log_event* e = new Intvar_log_event(file, timestamp, server_id);
-    if(log_lock) pthread_mutex_unlock(log_lock);
-    
+    UNLOCK_MUTEX
     if (e->type == INVALID_INT_EVENT)
     {
       delete e;
@@ -184,13 +193,13 @@ Log_event* Log_event::read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock)
   case START_EVENT:
     {
       Start_log_event* e = new Start_log_event(file, timestamp, server_id);
-      if(log_lock) pthread_mutex_unlock(log_lock);
+      UNLOCK_MUTEX
       return e;
     }	  
   case STOP_EVENT:
     {
       Stop_log_event* e = new Stop_log_event(file, timestamp, server_id);
-      if(log_lock) pthread_mutex_unlock(log_lock);
+      UNLOCK_MUTEX
       return e;
     }
   default:
@@ -198,7 +207,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock)
   }
 
   // default
-  if (log_lock) pthread_mutex_unlock(log_lock);
+  UNLOCK_MUTEX
   return NULL;
 }
 

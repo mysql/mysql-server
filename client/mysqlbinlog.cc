@@ -22,12 +22,18 @@
 #include <my_sys.h>
 #include <getopt.h>
 #include <thr_alarm.h>
-#define MYSQL_SERVER			// We want the C++ version of net
 #include <mysql.h>
 #include "log_event.h"
-#include "mini_client.h"
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
+
+extern "C"
+{
+ int simple_command(MYSQL *mysql,enum enum_server_command command,
+			      const char *arg,
+		  uint length, my_bool skipp_check);
+ int net_safe_read(MYSQL* mysql);
+}
 
 char server_version[SERVER_VERSION_LENGTH];
 uint32 server_id = 0;
@@ -248,12 +254,12 @@ static int parse_args(int *argc, char*** argv)
 
 static MYSQL* safe_connect()
 {
-  MYSQL *local_mysql = mc_mysql_init(NULL);
+  MYSQL *local_mysql = mysql_init(NULL);
   if(!local_mysql)
-    die("Failed on mc_mysql_init");
+    die("Failed on mysql_init");
 
-  if(!mc_mysql_connect(local_mysql, host, user, pass, 0, port, 0, 0))
-    die("failed on connect: %s", mc_mysql_error(local_mysql));
+  if(!mysql_real_connect(local_mysql, host, user, pass, 0, port, 0, 0))
+    die("failed on connect: %s", mysql_error(local_mysql));
 
   return local_mysql;
 }
@@ -281,7 +287,7 @@ static void dump_remote_table(NET* net, const char* db, const char* table)
   *p++ = table_len;
   memcpy(p, table, table_len);
   
-  if(mc_simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
+  if(simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
     die("Error sending the table dump command");
 
   for(;;)
@@ -314,14 +320,14 @@ static void dump_remote_log_entries(const char* logname)
   len = (uint) strlen(logname);
   int4store(buf + 6, 0);
   memcpy(buf + 10, logname,len);
-  if(mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
+  if(simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
     die("Error sending the log dump command");
   
   for(;;)
   {
-    len = mc_net_safe_read(mysql);
+    len = net_safe_read(mysql);
     if (len == packet_error)
-      die("Error reading packet from server: %s", mc_mysql_error(mysql));
+      die("Error reading packet from server: %s", mysql_error(mysql));
     if(len == 1 && net->read_pos[0] == 254)
       break; // end of data
     DBUG_PRINT("info",( "len= %u, net->read_pos[5] = %d\n",
@@ -391,7 +397,7 @@ static void dump_local_log_entries(const char* logname)
     char llbuff[21];
     my_off_t old_off = my_b_tell(file);
 
-    Log_event* ev = Log_event::read_log_event(file, 0);
+    Log_event* ev = Log_event::read_log_event(file);
     if (!ev)
     {
       if (file->error)
@@ -430,9 +436,6 @@ int main(int argc, char** argv)
 
   if(use_remote)
   {
-#ifndef __WIN__
-    init_thr_alarm(10); // need to do this manually 
-#endif
     mysql = safe_connect();
   }
 
@@ -457,7 +460,7 @@ int main(int argc, char** argv)
   if (result_file != stdout)
     my_fclose(result_file, MYF(0));
   if (use_remote)
-    mc_mysql_close(mysql);
+    mysql_close(mysql);
   return 0;
 }
 
