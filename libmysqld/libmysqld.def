@@ -129,3 +129,4 @@ EXPORTS
 	free_root
 	my_read
 	max_allowed_packet
+	llstr

@@ -45,7 +45,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "LIBMYSQLD_EXPORTS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../sql" /I "../regex" /I "../bdb/build_win32" /I "../zlib" /I "../libmysqld" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../libmysqld" /I "../sql" /I "../regex" /I "../bdb/build_win32" /I "../zlib" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /FD /c
 # SUBTRACT CPP /WX /Fr
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
@@ -72,8 +72,8 @@ LINK32=xilink6.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "LIBMYSQLD_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MT /W3 /Z7 /Od /I "../include" /I "../sql" /I "../regex" /I "../bdb/build_win32" /I "../zlib" /I "libmysqld" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "HAVE_BERKELEY_DB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "USE_TLS" /D "__WIN__" /FD /GZ /c
-# SUBTRACT CPP /Fr
+# ADD CPP /nologo /MT /W3 /Z7 /Od /I "../include" /I "../libmysqld" /I "../sql" /I "../regex" /I "../bdb/build_win32" /I "../zlib" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "HAVE_BERKELEY_DB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "USE_TLS" /D "__WIN__" /FD /GZ /c
+# SUBTRACT CPP /X /Fr
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x416 /d "_DEBUG"
@@ -100,7 +100,8 @@ LINK32=xilink6.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../sql" /I "../bdb/build_win32" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /D "NDEBUG" /FR /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../sql" /I "../bdb/build_win32" /D "WIN32" /D "_WINDOWS" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "USE_TLS" /D "__WIN__" /D MYSQL_COMMERCIAL_LICENSE /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FR /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../libmysqld" /I "../sql" /I "../zlib" /D "WIN32" /D "_WINDOWS" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "USE_TLS" /D "__WIN__" /D "MYSQL_COMMERCIAL_LICENSE" /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FD /c
+# SUBTRACT CPP /Fr
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
@@ -129,7 +130,8 @@ LINK32=xilink6.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../sql" /I "../bdb/build_win32" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /D "NDEBUG" /FR /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../sql" /I "../bdb/build_win32" /D "WIN32" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "EMBEDDED_LIBRARY" /D "USE_TLS" /D "__WIN__" /D "MYSQL_SERVER" /D LICENCE=Commercial /D "_MBCS" /D "HAVE_DLOPEN" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "NDEBUG" /D "_WINDOWS" /D "_CONSOLE" /FR /FD /D MYSQL_SEVER_SUFFIX=-pro /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../regex" /I "../libmysqld" /I "../sql" /I "../zlib" /D "WIN32" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "EMBEDDED_LIBRARY" /D "USE_TLS" /D "__WIN__" /D "MYSQL_SERVER" /D LICENCE=Commercial /D "_MBCS" /D "HAVE_DLOPEN" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "NDEBUG" /D "_WINDOWS" /D "_CONSOLE" /FD /D MYSQL_SEVER_SUFFIX=-pro /c
+# SUBTRACT CPP /X /Fr
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
@@ -153,6 +155,21 @@ LINK32=xilink6.exe
 # Name "libmysqld - Win32 pro"
 # Begin Source File
 
+SOURCE="..\sql-common\client.c"
+
+!IF  "$(CFG)" == "libmysqld - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "libmysqld - Win32 Debug"
+
+!ELSEIF  "$(CFG)" == "libmysqld - Win32 classic"
+
+!ELSEIF  "$(CFG)" == "libmysqld - Win32 pro"
+
+!ENDIF
+
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-latin1.c"
 # End Source File
 # Begin Source File
@@ -162,6 +179,14 @@ SOURCE=..\mysys\default.c
 # Begin Source File
 
 SOURCE=..\sql\derror.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\sql\discover.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\emb_qcache.cpp
 # End Source File
 # Begin Source File
 
@@ -253,11 +278,11 @@ SOURCE=..\sql\item_func.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\item_geofunc.cpp
+SOURCE=..\sql\item_geofunc.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\item_row.cpp
+SOURCE=..\sql\item_row.cpp
 # End Source File
 # Begin Source File
 
@@ -286,6 +311,10 @@ SOURCE=..\sql\key.cpp
 # Begin Source File
 
 SOURCE=.\lib_sql.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\libmysql\libmysql.c
 # End Source File
 # Begin Source File
 
@@ -333,7 +362,7 @@ SOURCE=..\sql\opt_sum.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=..\libmysql\pack.c
+SOURCE="..\sql-common\pack.c"
 # End Source File
 # Begin Source File
 
@@ -345,7 +374,7 @@ SOURCE=..\sql\procedure.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\protocol.cpp
+SOURCE=..\sql\protocol.cpp
 # End Source File
 # Begin Source File
 
@@ -413,7 +442,7 @@ SOURCE=..\sql\sql_handler.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\sql_help.cpp
+SOURCE=..\sql\sql_help.cpp
 # End Source File
 # Begin Source File
 
@@ -426,6 +455,10 @@ SOURCE=..\sql\sql_lex.cpp
 # Begin Source File
 
 SOURCE=..\sql\sql_list.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\sql\sql_load.cpp
 # End Source File
 # Begin Source File
 
@@ -534,6 +567,22 @@ SOURCE=..\sql\uniques.cpp
 # Begin Source File
 
 SOURCE=..\sql\unireg.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\vio\vio.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\vio\viosocket.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\vio\viossl.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\vio\viosslfactories.c
 # End Source File
 # End Target
 # End Project
