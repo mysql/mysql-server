@@ -334,6 +334,7 @@ extern ibool		recv_no_ibuf_operations;
 extern ibool		recv_needed_recovery;
 
 extern ibool		recv_is_making_a_backup;
+extern ulint		recv_max_parsed_page_no;
 
 /* Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many
 times! */ 
