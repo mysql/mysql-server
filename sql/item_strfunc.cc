@@ -2071,13 +2071,15 @@ String* Item_func_inet_ntoa::val_str(String* str)
   return str;
 }
 
+#define get_esc_bit(mask, num) (1 & (*((mask) + ((num) >> 3))) >> ((num) & 7))
+
 /*
   QUOTE() function returns argument string in single quotes,
   also adds a \ before \, ' CHAR(0) and CHAR(24)
 */
 String *Item_func_quote::val_str(String *str)
 {
-  static char escmask[64] = {0x01, 0x00, 0x00, 0x04, 0x80, 0x00, 0x00, 0x00,
+  static char escmask[32] = {0x01, 0x00, 0x00, 0x04, 0x80, 0x00, 0x00, 0x00,
 			     0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00,
 			     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -2089,10 +2091,8 @@ String *Item_func_quote::val_str(String *str)
     goto null;
 
   for (from= (char*) arg->ptr(), end= from + arg->length(); from < end; from++)
-  {
-    if (*(escmask + (*from >> 3)) and (1 << (*from & 7)))
-      delta++;
-  }
+    delta+= get_esc_bit(escmask, *from);
+
   if (str->alloc(arg->length() + delta))
     goto null;
   to= (char*) str->ptr() + arg->length() + delta - 1;
@@ -2101,7 +2101,7 @@ String *Item_func_quote::val_str(String *str)
        from--, to--)
   {
     *to= *from;
-    if (*(escmask + (*from >> 3)) and (1 << (*from & 7)))
+    if (get_esc_bit(escmask, *from))
       *--to= '\\';
   }
   *to= '\'';
