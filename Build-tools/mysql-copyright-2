@@ -109,6 +109,12 @@ sub add_copyright
     $line_copyright= "! ";
     $end_copyright=  "";
   }
+  elsif ($ARGV =~ /\.sql$/)
+  {
+    $start_copyright="-- ";
+    $line_copyright= "-- ";
+    $end_copyright=  "";
+  }
   elsif ($ARGV =~ /\.asm$/)
   {
     $start_copyright="; ";
