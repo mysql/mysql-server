@@ -1755,6 +1755,15 @@ where  db='test' and name='bug5251' and created = @c1|
 count(*)
 1
 drop procedure bug5251|
+create procedure bug5251()
+checksum table t1|
+call bug5251()|
+Table	Checksum
+test.t1	0
+call bug5251()|
+Table	Checksum
+test.t1	0
+drop procedure bug5251|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)

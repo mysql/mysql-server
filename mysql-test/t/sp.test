@@ -1914,6 +1914,16 @@ select count(*) from mysql.proc
 
 drop procedure bug5251|
 
+#
+# BUG#5279: Stored procedure packets out of order if CHECKSUM TABLE
+#
+create procedure bug5251()
+  checksum table t1|
+
+call bug5251()|
+call bug5251()|
+drop procedure bug5251|
+
 
 #
 # Some "real" examples
