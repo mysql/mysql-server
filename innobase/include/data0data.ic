@@ -98,7 +98,7 @@ dfield_set_data(
 {
 	ut_ad(field);
 
-	field->data = data;
+	field->data = (void*) data;
 	field->len = len;
 }
 

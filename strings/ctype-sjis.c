@@ -4585,6 +4585,7 @@ CHARSET_INFO my_charset_sjis_japanese_ci=
     sort_order_sjis,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    NULL,		/* sort_order_big*/
     "",
     "",
     1,			/* strxfrm_multiply */
@@ -4609,6 +4610,7 @@ CHARSET_INFO my_charset_sjis_bin=
     sort_order_sjis,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    NULL,		/* sort_order_big*/
     "",
     "",
     1,			/* strxfrm_multiply */
