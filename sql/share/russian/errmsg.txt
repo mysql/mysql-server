@@ -289,7 +289,7 @@ character-set=koi8r
 "Data truncated for column '%s' at row %ld",
 "Using storage engine %s for table '%s'",
 "Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",
-"Operation %s failed for %d of the requested users",
+"Cannot drop one or more of the requested users",
 "Can't revoke all privileges, grant for one or more of the requested users",
 "Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
 "Illegal mix of collations for operation '%s'",
@@ -417,3 +417,4 @@ character-set=koi8r
 "Нельзя изменить больше чем одну базовую таблицу используя многотабличный VIEW '%-.64s.%-.64s'"
 "Нельзя вставлять записи в многотабличный VIEW '%-.64s.%-.64s' без списка полей"
 "Нельзя удалять из многотабличного VIEW '%-.64s.%-.64s'"
+"Operation %s failed for '%.256s'",

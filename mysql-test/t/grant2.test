@@ -91,7 +91,7 @@ create table t2(c1 int, c2 int);
 #
 # Three forms of CREATE USER
 create user 'mysqltest_1';
---error 1268
+--error 1396
 create user 'mysqltest_1';
 create user 'mysqltest_2' identified by 'Mysqltest-2';
 create user 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
@@ -127,7 +127,7 @@ drop user 'mysqltest_1', 'mysqltest_3';
 # Grant must not create user
 --error 1211
 grant all on test.t1 to 'mysqltest_1';
---error 1268
+--error 1396
 drop user 'mysqltest_1';
 #
 # Cleanup
@@ -164,18 +164,18 @@ create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 create user 'mysqltest_1', 'mysqltest_2' identified by 'Mysqltest-2', 'mysqltest_3' identified by password 'fffffffffffffffffffffffffffffffffffffffff';
 rename user 'mysqltest_1' to 'mysqltest_1a', 'mysqltest_2' TO 'mysqltest_2a', 'mysqltest_3' TO 'mysqltest_3a';
---error 1268
+--error 1396
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
 drop user 'mysqltest_1a', 'mysqltest_2a', 'mysqltest_3a';
 #
 # Let one of multiple users fail
 create user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
---error 1268
+--error 1396
 create user 'mysqltest_1a', 'mysqltest_2', 'mysqltest_3a';
---error 1268
+--error 1396
 rename user 'mysqltest_1a' to 'mysqltest_1b', 'mysqltest_2a' TO 'mysqltest_2b', 'mysqltest_3a' TO 'mysqltest_3b';
 drop user 'mysqltest_1', 'mysqltest_2', 'mysqltest_3';
---error 1268
+--error 1396
 drop user 'mysqltest_1b', 'mysqltest_2b', 'mysqltest_3b';
 #
 # Obsolete syntax has been dropped
