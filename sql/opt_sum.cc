@@ -443,7 +443,9 @@ static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
 	// Save found constant
 	if (part->null_bit)
 	  *key_ptr++= (byte) test(part->field->is_null());
-	part->field->get_key_image((char*) key_ptr,part->length);
+	part->field->get_key_image((char*) key_ptr,
+				   (part->field->type() == FIELD_TYPE_BLOB) ? 
+				   part->length + HA_KEY_BLOB_LENGTH : part->length);
 	key_ptr+=part->store_length - test(part->null_bit);
 	left_length-=part->store_length;
       }
