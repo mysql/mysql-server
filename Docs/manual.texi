@@ -50442,6 +50442,12 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed bug when doing a multi-line insert on a table with an
+auto_increment key which was not in the first part of the key.
+@item
+Changed @code{LOAD DATA INFILE} to not recreate index if the table had
+rows from before.
+@item
 Fixed overrun bug when calling @code{AES_DECRYPT()} with wrong arguments
 @item
 @code{--skip-ssl} can now be used to disable SSL in the MySQL clients,

@@ -34,7 +34,9 @@
 		HA_EXTRA_WRITE_CACHE
 		HA_EXTRA_CACHE
 		HA_EXTRA_BULK_INSERT_BEGIN
-		If extra_arg is 0, then the default cache size is used.
+		  If extra_arg is 0, then the default cache size is used.
+		HA_EXTRA_BULK_INSERT_FLUSH
+		  extra_arg is a a pointer to which index to flush (uint*)
     RETURN VALUES
     0	ok
 */
@@ -355,6 +357,14 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_BULK_INSERT_BEGIN:
     error=_mi_init_bulk_insert(info, (extra_arg ? *(ulong*) extra_arg :
 				      myisam_bulk_insert_tree_size));
+    break;
+  case HA_EXTRA_BULK_INSERT_FLUSH:
+    if (info->bulk_insert)
+    {
+      uint index_to_flush= *(uint*) extra_arg;
+      if (is_tree_inited(&info->bulk_insert[index_to_flush]))
+	reset_tree(&info->bulk_insert[index_to_flush]);
+    }
     break;
   case HA_EXTRA_BULK_INSERT_END:
     if (info->bulk_insert)
