@@ -455,7 +455,7 @@ feel uncomfortable with the GPL or need to embed MySQL into a commercial
 application you can buy a commercially licensed version from us.
 @xref{MySQL server licenses}.
 
-@cindex open source, defined
+@cindex Open Source, defined
 @cindex General Public License
 
 @item Why use MySQL?
@@ -767,7 +767,8 @@ handler that checks if the table was closed properly on open and
 executes an automatic check/repair of the table if it wasn't.
 
 @item Bulk-insert -- Alpha
-New feature in MyISAM in MySQL 4.0 for faster insert of many rows.
+New feature in @code{MyISAM} tables in MySQL 4.0 for faster insert
+of many rows.
 
 @item Locking -- Gamma
 This is very system-dependent.  On some systems there are big problems
@@ -794,8 +795,8 @@ there is almost always a new release.
 @cindex files, size limits
 
 MySQL Version 3.22 has a 4G limit on table size. With the new
-@code{MyISAM} in MySQL Version 3.23 the maximum table size is
-pushed up to 8 million terabytes (2 ^ 63 bytes).
+@code{MyISAM} table type in MySQL Version 3.23, the maximum table size
+is pushed up to 8 million terabytes (2 ^ 63 bytes).
 
 Note, however, that operating systems have their own file size
 limits. Here are some examples:
@@ -1294,7 +1295,7 @@ This section describes MySQL support and licensing arrangements:
 @subsection Support Offered by MySQL AB
 
 @cindex support, types
-@cindex types, of support
+@cindex types of support
 @cindex commercial support, types
 @cindex costs, support
 @cindex licensing costs
@@ -1401,6 +1402,7 @@ Also see @ref{MySQL AB Logos and Trademarks}.
 @cindex technical support, licensing
 @cindex support, licensing
 @cindex General Public License, MySQL
+@cindex GPL, MySQL
 @cindex licensing, examples
 @cindex selling products
 @cindex products, selling
@@ -1529,7 +1531,7 @@ that it is patched correctly.
 
 @item
 @cindex web server, running
-@cindex running, a web server
+@cindex running a web server
 When you use MySQL in conjunction with a Web server, you do not need
 a commercial license. This is true even if you run a commercial Web
 server that uses MySQL, because you are not selling an embedded MySQL
@@ -1553,6 +1555,9 @@ us to provide free support, too.)
 
 @node MySQL AB Logos and Trademarks,  , MySQL server licenses, Licensing and Support
 @subsection MySQL AB Logos and Trademarks
+
+@cindex logos
+@cindex trademarks
 
 Many users of the MySQL database want to display the MySQL AB dolphin logo
 on their websites, on their books or boxed products. We welcome and
@@ -1912,8 +1917,8 @@ Some of the current MySQL Portal categories:
 
 @itemize @bullet
 @item Books
-From here you can find any MySQL, or computers related books,
-comment, rate or buy them.
+From here you can find any MySQL or computer related books,
+comment on, rate, or buy them.
 While this manual (particularly the online version) is still
 the right place for up to date technical information, its
 primary goal is to contain everything there is to know about
@@ -1949,6 +1954,7 @@ Here you can find all MySQL Partners.
 @subsection MySQL Mailing Lists
 
 @cindex reporting, errors
+@cindex errors, reporting
 @cindex MySQL mailing lists
 
 @menu
@@ -2115,7 +2121,7 @@ Email @code{subscribe mysql your@@e-mail.address} to this list.
 
 @cindex net etiquette
 @cindex mailing lists, archive location
-@cindex searching, MySQL webpages
+@cindex searching, MySQL web pages
 
 Before posting a bug report or question, please do the following:
 
@@ -2507,10 +2513,10 @@ We will continue to support transactional and not transactional
 databases to satisfy both heavy web/logging usage and mission critical
 24/7 usage.
 
-MySQL was from the start designed to work with medium large databases
+MySQL was designed from the start to work with medium large databases
 (10-100 million rows / about 100 MB per table) on small computer
 systems.  We will continue to extend MySQL to both work even better
-with terrabyte size data but we are also doing work to make it possible
+with terabyte size databases, but we are also doing work to make it possible
 to compile a reduced MySQL version that is more suitable for hand held
 devices and embedded usage.  The compact design of MySQL makes both of
 these directions possible without any conflicts in the source tree.
@@ -2521,10 +2527,10 @@ services).
 
 We don't believe that one should have native XML support in the
 database, but will instead add the XML support our users request from
-us on the client side.  We think its better to keep the main server
-code as 'lean and clean' possible and instead develop libraries to
-solve the complexity on the client side.  This is part of the above
-mentioned strategy of not sacrificing speed or reliability in the
+us on the client side.  We think it's better to keep the main server
+code as ``lean and clean'' as possible and instead develop libraries to
+deal with the complexity on the client side.  This is part of the strategy
+mentioned above of not sacrificing speed or reliability in the
 server.
 
 @menu
@@ -2816,7 +2822,7 @@ Use of @code{REPLACE} instead of @code{DELETE} + @code{INSERT}.
 The @code{FLUSH flush_option} statement.
 
 @item
-The possibility to set variables in a statement with @code{:=}:
+The ability to set variables in a statement with @code{:=}:
 @example
 SELECT @@a:=SUM(total),@@b=COUNT(*),@@a/@@b AS avg FROM test_table;
 SELECT @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
@@ -2829,7 +2835,7 @@ SELECT @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
 @subsection MySQL Differences Compared to ANSI SQL92
 
 We try to make MySQL follow the ANSI SQL standard and the
-ODBC SQL standard, but in some cases MySQL does some things
+ODBC SQL standard, but in some cases MySQL does things
 differently:
 
 @itemize @bullet
@@ -2931,7 +2937,7 @@ the @code{mysql} command-line interpreter, piping its output back to a
 second instance of the interpreter:
 
 @example
-prompt> mysql --skip-column-names mydb < myscript.sql | mysql mydb
+shell> mysql --skip-column-names mydb < myscript.sql | mysql mydb
 @end example
 
 MySQL 4.0 supports multi-table deletes that can be used to efficiently
@@ -3132,6 +3138,7 @@ This can be handled much more efficiently by using an
 @xref{mysql_insert_id, , @code{mysql_insert_id()}}.
 
 @cindex rows, locking
+@cindex locking, row-level
 Generally, you can code around row-level locking. Some cases really
 need it, but they are very few. For instance, you can use a flag
 column in the table and do something like this:
@@ -14438,7 +14445,7 @@ All other information is transferred as text that can be read by anyone
 who is able to watch the connection.  If you are concerned about this,
 you can use the compressed protocol (in MySQL Version 3.22 and above)
 to make things much harder.  To make things even more secure you should use 
-@code{ssh}.  You can find an open source @code{ssh} client at 
+@code{ssh}.  You can find an Open Source @code{ssh} client at 
 @uref{http://www.openssh.org/}, and a commercial @code{ssh} client at 
 @uref{http://www.ssh.com/}.  With this, you can get an encrypted TCP/IP 
 connection between a MySQL server and a MySQL client.
@@ -19832,7 +19839,7 @@ This can be fixed by using the @code{--character-sets-dir}
 option to the program in question.
 @item
 The character set is a multi-byte-character set that can't be loaded
-dynamicly.  In this case you have to recompiled the program with the
+dynamically.  In this case you have to recompiled the program with the
 support for the character set.
 @item
 The character set is a dynamic character set, but you don't have a
@@ -35342,7 +35349,7 @@ The disadvantages with @code{MERGE} tables are:
 @item
 You can only use identical @code{MyISAM} tables for a @code{MERGE} table.
 @item
-@code{AUTO_INCREMENT} columns are not automaticly updated on @code{INSERT}.
+@code{AUTO_INCREMENT} columns are not automatically updated on @code{INSERT}.
 @item
 @code{REPLACE} doesn't work.
 @item
@@ -45224,7 +45231,7 @@ license. Please check @uref{http://www.worldserver.com/mm.mysql/} for
 the latest drivers (and other JDBC information) because these drivers may be out of date.
 
 @item @uref{http://www.caucho.com/projects/jdbc-mysql/index.xtp}
-The Resin commercial JDBC driver, which is released under open source.
+The Resin commercial JDBC driver, which is released under Open Source.
 It claims to be faster than the mm driver, but we haven't received that much
 information about this yet.
 
@@ -45516,7 +45523,7 @@ The xmysql homepage is at @uref{http://web.wt.net/~dblhack/}
 Requires @uref{http://bragg.phys.uwm.edu/xforms/} (xforms 0.88) to work.
 
 @item @uref{http://www.tamos.net/sw/dbMetrix/}
-dbMatrix is an open source client for exploring databases and executing
+dbMatrix is an Open Source client for exploring databases and executing
 SQL. Supports MySQL, Oracle, PostgreSQL, and mSQL.
 
 @item @uref{http://www.multimania.com/bbrox/GtkSQL/}
@@ -45612,7 +45619,7 @@ This cgi scripts in Perl enables you to edit content of Mysql
 database. By Tomas Zeman.
 
 @item @uref{http://worldcommunity.com/opensource/futuresql/}
-FutureSQL by Peter F. Brown, is a free, open source rapid application
+FutureSQL by Peter F. Brown, is a free, Open Source rapid application
 development Web database administration tool, written in Perl,
 using MySQL. It uses @code{DBI:DBD} and @code{CGI.pm}.
 
@@ -52247,7 +52254,7 @@ thread support is probably to port MIT-pthreads. See
 (@uref{http://www.humanfactor.com/pthreads/}).
 
 The MySQL distribution includes a patched version of
-Provenzano's Pthreads from MIT (see the MIT Pthreads webpage at
+Provenzano's Pthreads from MIT (see the MIT Pthreads web page at
 @uref{http://www.mit.edu:8001/people/proven/pthreads.html}).
 This can be used for some operating systems that do not
 have POSIX threads.
