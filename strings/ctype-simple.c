@@ -1286,7 +1286,7 @@ static my_bool my_coll_init_simple(CHARSET_INFO *cs,
 longlong my_strtoll10_8bit(CHARSET_INFO *cs __attribute__((unused)),
                            const char *nptr, char **endptr, int *error)
 {
-  return 0; /* my_strtoll10(nptr, endptr, error); */
+  return my_strtoll10(nptr, endptr, error);
 }
 
 
