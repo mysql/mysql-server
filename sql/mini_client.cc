@@ -27,13 +27,12 @@
 #define net_write_timeout net_write_timeout1
 #endif
 
-#if defined(__WIN__)
-#include <winsock.h>
-#include <odbcinst.h>		/* QQ: Is this really needed ? */
-#define DONT_USE_THR_ALARM
-#endif
-
 #include <my_global.h>
+/* my_pthread must be included early to be able to fix things */
+#if defined(THREAD)
+#include <my_pthread.h>				/* because of signal()	*/
+#endif
+#include <thr_alarm.h>
 #include <mysql_embed.h>
 #include <mysql_com.h>
 #include <violite.h>
@@ -75,10 +74,6 @@ extern "C" {					// Because of SCO 3.2V4.2
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
 #endif
-#if defined(THREAD)
-#include <my_pthread.h>				/* because of signal()	*/
-#endif
-#include <thr_alarm.h>
 #ifndef INADDR_NONE
 #define INADDR_NONE	-1
 #endif

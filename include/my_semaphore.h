@@ -31,21 +31,22 @@
 #ifndef _my_semaphore_h_
 #define _my_semaphore_h_
 
+C_MODE_START
+
 #ifndef __WIN__
 #include <semaphore.h>
 #else
 
-C_MODE_START
-
 typedef HANDLE sem_t;
-int sem_init (sem_t * sem, int pshared, unsigned int value);
-int sem_destroy (sem_t * sem);
-int sem_trywait (sem_t * sem);
-int sem_wait (sem_t * sem);
-int sem_post (sem_t * sem);
-int sem_post_multiple (sem_t * sem,int count);
-int sem_getvalue (sem_t * sem, int * sval);
+int sem_init(sem_t * sem, int pshared, unsigned int value);
+int sem_destroy(sem_t * sem);
+int sem_trywait(sem_t * sem);
+int sem_wait(sem_t * sem);
+int sem_post(sem_t * sem);
+int sem_post_multiple(sem_t * sem,int count);
+int sem_getvalue(sem_t * sem, int * sval);
+
+#endif /* __WIN__ */
 
 C_MODE_END
-#endif /* __WIN__ */
 #endif /* !_my_semaphore_h_ */
