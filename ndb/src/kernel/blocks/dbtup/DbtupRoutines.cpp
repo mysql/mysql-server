@@ -807,13 +807,17 @@ Dbtup::updateFixedSizeTHManyWordNotNULL(Uint32* inBuffer,
       if (charsetFlag) {
         ljam();
         Tablerec* regTabPtr = tabptr.p;
+	Uint32 typeId = AttributeDescriptor::getType(attrDescriptor);
         Uint32 bytes = AttributeDescriptor::getSizeInBytes(attrDescriptor);
         Uint32 i = AttributeOffset::getCharsetPos(attrDes2);
         ndbrequire(i < regTabPtr->noOfCharsets);
         // not const in MySQL
         CHARSET_INFO* cs = regTabPtr->charsetArray[i];
         const char* ssrc = (const char*)&inBuffer[tInBufIndex + 1];
-        if ((*cs->cset->well_formed_len)(cs, ssrc, ssrc + bytes, ZNIL) != bytes) {
+	// fast fix bug#7340
+        if (typeId != NDB_TYPE_TEXT &&
+	    (*cs->cset->well_formed_len)(cs, ssrc, ssrc+bytes, ZNIL) != bytes)
+	{
           ljam();
           terrorCode = ZINVALID_CHAR_FORMAT;
           return false;
