@@ -16,6 +16,14 @@ Created 10/25/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "os0file.h"
 
+/* When mysqld is run, the default directory "." is the mysqld datadir, but in
+ibbackup we must set it explicitly; the patgh must NOT contain the trailing
+'/' or '\' */
+extern char*	fil_path_to_mysql_datadir;
+
+/* Initial size of a single-table tablespace in pages */
+#define FIL_IBD_FILE_INITIAL_SIZE	4
+
 /* 'null' (undefined) page offset in the context of file spaces */
 #define	FIL_NULL	ULINT32_UNDEFINED
 
@@ -261,6 +269,35 @@ fil_decr_pending_ibuf_merges(
 /*========================*/
 	ulint	id);	/* in: space id */
 /***********************************************************************
+Parses the body of a log record written about an .ibd file operation. That is,
+the log record part after the standard (type, space id, page no) header of the
+log record.
+
+If desired, also replays the delete or rename operation if the .ibd file
+exists and the space id in it matches. Replays the create operation if a file
+at that path does not exist yet. If the database directory for the file to be
+created does not exist, then we create the directory, too.
+
+Note that ibbackup --apply-log sets fil_path_to_mysql_datadir to point to the
+datadir that we should use in replaying the file operations. */
+
+byte*
+fil_op_log_parse_or_replay(
+/*=======================*/
+                        	/* out: end of log record, or NULL if the
+				record was not completely contained between
+				ptr and end_ptr */
+        byte*   ptr,    	/* in: buffer containing the log record body,
+				or an initial segment of it, if the record does
+				not fir completely between ptr and end_ptr */
+        byte*   end_ptr,	/* in: buffer end */
+	ulint	type,		/* in: the type of this log record */
+	ibool	do_replay,	/* in: TRUE if we want to replay the
+				operation, and not just parse the log record */
+	ulint	space_id);	/* in: if do_replay is TRUE, the space id of
+				the tablespace in question; otherwise
+				ignored */
+/***********************************************************************
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache. */
 
@@ -306,16 +343,18 @@ ulint
 fil_create_new_single_table_tablespace(
 /*===================================*/
 				/* out: DB_SUCCESS or error code */
-	ulint*	space_id,	/* out: space id */
+	ulint*	space_id,	/* in/out: space id; if this is != 0, then
+				this is an input parameter, otherwise
+				output */
 	char*	tablename,	/* in: the table name in the usual
 				databasename/tablename format of InnoDB */
 	ulint	size);		/* in: the initial size of the tablespace file
-				in pages */
+				in pages, must be > 0 */
 /************************************************************************
 Tries to open a single-table tablespace and checks the space id is right in
 it. If does not succeed, prints an error message to the .err log. This
 function is used to open the tablespace when we load a table definition
-to the dictionarky cache. NOTE that we assume this operation is used under the
+to the dictionary cache. NOTE that we assume this operation is used under the
 protection of the dictionary mutex, so that two users cannot race here. */
 
 ibool
@@ -410,39 +449,32 @@ fil_space_for_table_exists_in_mem(
 				the .err log if a matching tablespace is
 				not found from memory */
 /**************************************************************************
-Tries to extend a data file by the number of pages given. Fractions of 1 MB
-are ignored. The tablespace must be cached in the memory cache. */
-
-ibool
-fil_extend_last_data_file(
-/*======================*/
-				/* out: TRUE if success, also if we run
-				out of disk space we may return TRUE */
-	ulint*	actual_increase,/* out: number of pages we were able to
-				extend, here the original size of the file and
-				the resulting size of the file are rounded
-				downwards to a full megabyte, and the
-				difference expressed in pages is returned */
-	ulint	space_id,	/* in: space id */
-	ulint	size,		/* in: current size of the space in pages, as
-				stored in the fsp header */
-	ulint	size_increase);	/* in: try to extend this many pages */
-/**************************************************************************
 Tries to extend a data file so that it would accommodate the number of pages
-given. The tablespace must be cached in the memory cache. */
+given. The tablespace must be cached in the memory cache. If the space is big
+enough already, does nothing. */
 
 ibool
-fil_extend_data_file_with_pages(
-/*============================*/
+fil_extend_space_to_desired_size(
+/*=============================*/
 				/* out: TRUE if success */
+	ulint*	actual_size,	/* out: size of the space after extension;
+				if we ran out of disk space this may be lower
+				than the desired size */
 	ulint	space_id,	/* in: space id, must be != 0 */
-	ulint	size,		/* in: current size of the space in pages, as
-				stored in the fsp header */
 	ulint	size_after_extend);/* in: desired size in pages after the
-				extension, should be less than 4 GB (this
-				function is primarily intended for increasing
-				the data file size from < 64 pages to up to
-				64 pages) */
+				extension; if the current space size is bigger
+				than this already, the function does nothing */
+#ifdef UNIV_HOTBACKUP
+/************************************************************************
+Extends all tablespaces to the size stored in the space header. During the
+ibbackup --apply-log phase we extended the spaces on-demand so that log records
+could be appllied, but that may have left spaces still too small compared to
+the size stored in the space header. */
+
+void
+fil_extend_tablespaces_to_stored_len(void);
+/*======================================*/
+#endif
 /***********************************************************************
 Tries to reserve free extents in a file space. */
 

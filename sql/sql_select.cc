@@ -982,7 +982,7 @@ JOIN::optimize()
       }
     }
     
-    if (select_lex->master_unit()->dependent)
+    if (select_lex->master_unit()->uncacheable)
     {
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
@@ -1053,11 +1053,11 @@ JOIN::reinit()
 bool
 JOIN::save_join_tab()
 {
-  if (!join_tab_save && select_lex->master_unit()->dependent)
+  if (!join_tab_save && select_lex->master_unit()->uncacheable)
   {
-    if (!(join_tab_save= (JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB) * tables)))
+    if (!(join_tab_save= (JOIN_TAB*)thd->memdup((gptr) join_tab,
+						sizeof(JOIN_TAB) * tables)))
       return 1;
-    memcpy(join_tab_save, join_tab, sizeof(JOIN_TAB) * tables);
   }
   return 0;
 }

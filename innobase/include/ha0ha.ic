@@ -51,8 +51,6 @@ ha_chain_get_next(
 				/* out: next node, NULL if none */
 	ha_node_t*	node)	/* in: hash chain node */
 {
-	ut_ad(table);
-
 	return(node->next);
 }
 
@@ -143,8 +141,6 @@ ha_next(
 	ulint	fold;
 
 	fold = node->fold;
-
-	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
 
 	node = ha_chain_get_next(node);
 

@@ -9,6 +9,11 @@ INSERT INTO t1 VALUES (1), (2);
 --exec $MYSQL_DUMP --skip-all -X test t1
 DROP TABLE t1;
 
+CREATE TABLE t1(a int, b text, c varchar(3));
+INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
+--exec $MYSQL_DUMP --skip-all -X test t1
+DROP TABLE t1;
+
 #
 # Bug #1707
 #
