@@ -34,6 +34,7 @@ Adjust:  991029  UABRONM   First version.
 #include "AttrType.hpp"
 #include "NdbUtil.hpp"
 #include "Interpreter.hpp"
+#include <NdbScanOperation.hpp>
 
 #ifdef VM_TRACE
 #include <NdbEnv.h>
@@ -43,6 +44,31 @@ Adjust:  991029  UABRONM   First version.
 #else
 #define INT_DEBUG(x)
 #endif
+
+void
+NdbOperation::initInterpreter(){
+  theFirstLabel = NULL;
+  theLastLabel = NULL;
+  theFirstBranch = NULL;
+  theLastBranch = NULL;
+  
+  theFirstCall = NULL;
+  theLastCall = NULL;
+  theFirstSubroutine = NULL;
+  theLastSubroutine = NULL;
+  
+  theNoOfLabels = 0;
+  theNoOfSubroutines = 0;
+  
+  theSubroutineSize = 0;
+  theInitialReadSize = 0;
+  theInterpretedSize = 0;
+  theFinalUpdateSize = 0;
+  theFinalReadSize = 0;
+  theInterpretIndicator = 1;
+
+  theTotalCurrAI_Len = 5;
+}
 
 int
 NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
@@ -192,7 +218,7 @@ NdbOperation::initial_interpreterCheck()
 {
   if ((theInterpretIndicator == 1)) {
     if (theStatus == SetBound) {
-      saveBoundATTRINFO();
+      ((NdbScanOperation*)this)->saveBoundATTRINFO();
       theStatus = GetValue;
     }
     if (theStatus == ExecInterpretedValue) {

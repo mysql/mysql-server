@@ -1667,7 +1667,7 @@ void Ndbcntr::crSystab7Lab(Signal* signal)
     tcKeyReq->requestInfo        = reqInfo;
     tcKeyReq->tableSchemaVersion = ZSYSTAB_VERSION;
     tcKeyReq->transId1           = 0;
-    tcKeyReq->transId2           = 0;
+    tcKeyReq->transId2           = ckey;
 
 //-------------------------------------------------------------
 // There is no optional part in this TCKEYREQ. There is one

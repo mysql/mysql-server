@@ -33,8 +33,8 @@ class ScanTabReq {
   /**
    * Sender(s)
    */
-  friend class NdbOperation; 
   friend class NdbConnection;
+  friend class NdbScanOperation; 
 
   /**
    * For printing
@@ -73,6 +73,7 @@ private:
   static Uint8 getHoldLockFlag(const UintR & requestInfo);
   static Uint8 getReadCommittedFlag(const UintR & requestInfo);
   static Uint8 getRangeScanFlag(const UintR & requestInfo);
+  static Uint8 getScanBatch(const UintR & requestInfo);
 
   /**
    * Set:ers for requestInfo
@@ -83,7 +84,7 @@ private:
   static void setHoldLockFlag(UintR & requestInfo, Uint32 flag);
   static void setReadCommittedFlag(UintR & requestInfo, Uint32 flag);
   static void setRangeScanFlag(UintR & requestInfo, Uint32 flag);
- 
+  static void setScanBatch(Uint32& requestInfo, Uint32 sz);
 };
 
 /**
@@ -94,10 +95,11 @@ private:
  h = Hold lock mode        - 1  Bit 10
  c = Read Committed        - 1  Bit 11
  x = Range Scan (TUX)      - 1  Bit 15
+ b = Scan batch            - 5  Bit 16-19 (max 15)
 
            1111111111222222222233
  01234567890123456789012345678901
- ppppppppl hc   x
+ ppppppppl hc   xbbbbb
 */
 
 #define PARALLELL_SHIFT     (0)
@@ -114,6 +116,9 @@ private:
 
 #define RANGE_SCAN_SHIFT        (15)
 #define RANGE_SCAN_MASK         (1)
+
+#define SCAN_BATCH_SHIFT (16)
+#define SCAN_BATCH_MASK  (31)
 
 inline
 Uint8
@@ -143,6 +148,12 @@ inline
 Uint8
 ScanTabReq::getRangeScanFlag(const UintR & requestInfo){
   return (Uint8)((requestInfo >> RANGE_SCAN_SHIFT) & RANGE_SCAN_MASK);
+}
+
+inline
+Uint8
+ScanTabReq::getScanBatch(const Uint32 & requestInfo){
+  return (Uint8)((requestInfo >> SCAN_BATCH_SHIFT) & SCAN_BATCH_MASK);
 }
 
 inline
@@ -186,6 +197,12 @@ ScanTabReq::setRangeScanFlag(UintR & requestInfo, Uint32 flag){
   requestInfo |= (flag << RANGE_SCAN_SHIFT);
 }
 
+inline
+void
+ScanTabReq::setScanBatch(Uint32 & requestInfo, Uint32 flag){
+  ASSERT_MAX(flag, SCAN_BATCH_MASK,  "ScanTabReq::setScanBatch");
+  requestInfo |= (flag << SCAN_BATCH_SHIFT);
+}
 
 /**
  * 
@@ -213,7 +230,8 @@ public:
    * Length of signal
    */
   STATIC_CONST( SignalLength = 4 );
-
+  static const Uint32 EndOfData = (1 << 31);
+  
 private:
 
   // Type definitions
@@ -225,29 +243,15 @@ private:
   UintR requestInfo;          // DATA 1
   UintR transId1;             // DATA 2
   UintR transId2;             // DATA 3
-#if 0
-  UintR operLenAndIdx[16];    // DATA 4-19
-  
-  /**
-   * Get:ers for operLenAndIdx
-   */
-  static Uint32 getLen(const UintR & operLenAndIdx);
-  static Uint8 getIdx(const UintR & operLenAndIdx);
-#endif
 
-  /**
-   * Get:ers for requestInfo
-   */
-  static Uint8 getOperations(const UintR & reqInfo);
-  static Uint8 getScanStatus(const UintR & reqInfo);
+  struct OpData {
+    Uint32 apiPtrI;
+    Uint32 tcPtrI;
+    Uint32 info;
+  };
 
-  /**
-   * Set:ers for requestInfo
-   */
-  static void setOperations(UintR & reqInfo, Uint32 ops);
-  static void setScanStatus(UintR & reqInfo, Uint32 stat);
-
-
+  static Uint32 getLength(Uint32 opDataInfo) { return opDataInfo >> 5; };
+  static Uint32 getRows(Uint32 opDataInfo) { return opDataInfo & 31;}
 };
 
 /**
@@ -266,33 +270,6 @@ private:
 
 #define STATUS_SHIFT     (8)
 #define STATUS_MASK      (0xFF)
-
-inline
-Uint8
-ScanTabConf::getOperations(const UintR & reqInfo){
-  return (Uint8)((reqInfo >> OPERATIONS_SHIFT) & OPERATIONS_MASK);
-}
-
-inline
-void 
-ScanTabConf::setOperations(UintR & requestInfo, Uint32 ops){
-  ASSERT_MAX(ops, OPERATIONS_MASK, "ScanTabConf::setOperations");
-  requestInfo |= (ops << OPERATIONS_SHIFT);
-}
-
-inline
-Uint8
-ScanTabConf::getScanStatus(const UintR & reqInfo){
-  return (Uint8)((reqInfo >> STATUS_SHIFT) & STATUS_MASK);
-}
-
-inline
-void 
-ScanTabConf::setScanStatus(UintR & requestInfo, Uint32 stat){
-  ASSERT_MAX(stat, STATUS_MASK, "ScanTabConf::setScanStatus");
-  requestInfo |= (stat << STATUS_SHIFT);
-}
-
 
 /**
  * 

@@ -835,7 +835,7 @@ NDBT_Tables::printAll(){
     if (tab == NULL){
       abort();
     }
-    ndbout << (* tab) << endl;
+    ndbout << (* (NDBT_Table*)tab) << endl;
   }
   
   return NDBT_OK;

@@ -42,7 +42,8 @@ class NdbOperation
   friend class NdbScanReceiver;
   friend class NdbScanFilter;
   friend class NdbScanFilterImpl;
-  
+  friend class NdbReceiver;
+
 public:
   /** 
    * @name Define Standard Operation Type
@@ -195,196 +196,7 @@ public:
    */
   virtual int			interpretedDeleteTuple();
 
-  /**
-   * Scan a table to read tuples. 
-   * 
-   * The operation only sets a temporary read lock while 
-   * reading the tuple.
-   * The tuple lock is released when the result of the read reaches the
-   * application.
-   *
-   * @param Parallelism   Number of parallel tuple reads are performed 
-   *                      in the scan. 
-   *                      Currently a maximum of 256 parallel tuple 
-   *                      reads are allowed. 
-   *                      The parallelism can in reality be lower
-   *                      than specified
-   *                      depending on the number of nodes
-   *                      in the cluster
-   * @return              0 if successful otherwise -1.
-   */
-  int			openScanRead(Uint32 Parallelism = 16 );
-
-  /**
-   * Scan a table to write or update tuples.
-   *
-   * The operation sets an exclusive lock on the tuple and sends the result 
-   * to the application. 
-   * Thus when the application reads the data, the tuple is
-   * still locked with an exclusive lock.
-   *
-   * @param parallelism   Number of parallel tuple reads are performed 
-   *                      in the scan. 
-   *                      Currently a maximum of 256 parallel tuple 
-   *                      reads are allowed. 
-   *                      The parallelism can in reality be lower
-   *                      than specified depending on the number
-   *                      of nodes in the cluster
-   * @return              0 if successful otherwise -1.
-   *
-   */
-  int			openScanExclusive(Uint32 parallelism = 16);	
-
-  /**
-   * Scan a table to read tuples.
-   * 
-   * The operation only sets a read lock while 
-   * reading the tuple.
-   * Thus when the application reads the data, the tuple is
-   * still locked with a read lock.
-   *
-   * @param parallelism   Number of parallel tuple reads are performed 
-   *                      in the scan. 
-   *                      Currently a maximum of 256 parallel tuple 
-   *                      reads are allowed. 
-   *                      The parallelism can in reality be lower
-   *                      than specified
-   *                      depending on the number of nodes
-   *                      in the cluster
-   * @return              0 if successful otherwise -1.
-   */
-  int                   openScanReadHoldLock(Uint32 parallelism = 16);
-
-  /**
-   * Scan a table to read tuples.
-   * 
-   * The operation does not wait for locks held by other transactions
-   * but returns the latest committed tuple instead.
-   *
-   * @param parallelism   Number of parallel tuple reads are performed 
-   *                      in the scan. 
-   *                      Currently a maximum of 256 parallel tuple 
-   *                      reads are allowed. 
-   *                      The parallelism can in reality be lower
-   *                      than specified
-   *                      depending on the number of nodes
-   *                      in the cluster
-   * @return              0 if successful otherwise -1.
-   */
-  int                   openScanReadCommitted(Uint32 parallelism = 16);
-
   /** @} *********************************************************************/
-
-  /**
-   * @name Define Range Scan
-   *
-   * A range scan is a scan on an ordered index.  The operation is on
-   * the index table but tuples are returned from the primary table.
-   * The index contains all tuples where at least one index key has not
-   * null value.
-   *
-   * A range scan is currently opened via a normal open scan method.
-   * Bounds can be defined for each index key.  After setting bounds,
-   * usual scan methods can be used (get value, interpreter, take over).
-   * These operate on the primary table.
-   *
-   * @{
-   */
-
-  /**
-   * Type of ordered index key bound.  The values (0-4) will not change
-   * and can be used explicitly (e.g. they could be computed).
-   */
-  enum BoundType {
-    BoundLE = 0,        ///< lower bound,
-    BoundLT = 1,        ///< lower bound, strict
-    BoundGE = 2,        ///< upper bound
-    BoundGT = 3,        ///< upper bound, strict
-    BoundEQ = 4         ///< equality
-  };
-
-  /**
-   * Define bound on index key in range scan.
-   *
-   * Each index key can have not null lower and/or upper bound, or can
-   * be set equal to not null value.  The bounds can be defined in any
-   * order but a duplicate definition is an error.
-   *
-   * The scan is most effective when bounds are given for an initial
-   * sequence of non-nullable index keys, and all but the last one is an
-   * equality.  In this case the scan returns a contiguous range from
-   * each ordered index fragment.
-   *
-   * @note      This release implements only the case described above,
-   *            except for the non-nullable limitation.  Other sets of
-   *            bounds return error or empty result set.
-   *
-   * @note      In this release a null key value satisfies any lower
-   *            bound and no upper bound.  This may change.
-   *
-   * @param attrName    Attribute name, alternatively:
-   * @param anAttrId    Index column id (starting from 0).
-   * @param type        Type of bound
-   * @param value       Pointer to bound value
-   * @param len         Value length in bytes.
-   *                    Fixed per datatype and can be omitted
-   * @return            0 if successful otherwise -1
-   */
-  int setBound(const char* anAttrName, int type, const void* aValue, Uint32 len = 0);
-
-  /**
-   * Define bound on index key in range scan using index column id.
-   * See the other setBound() method for details.
-   */
-  int setBound(Uint32 anAttrId, int type, const void* aValue, Uint32 len = 0);
-
-  /** @} *********************************************************************/
-  
-  /**
-   * Validate parallelism parameter by checking the number 
-   * against number of executing Ndb nodes.
-   *
-   * @param Parallelism 
-   * @return 0 if correct parallelism value, otherwise -1.
-   *
-   */
-  int			checkParallelism(Uint32 Parallelism);  
-
-  /**
-   * Transfer scan operation to an updating transaction. Use this function 
-   * when a scan has found a record that you want to update. 
-   * 1. Start a new transaction.
-   * 2. Call the function takeOverForUpdate using your new transaction 
-   *    as parameter, all the properties of the found record will be copied 
-   *    to the new transaction.
-   * 3. When you execute the new transaction, the lock held by the scan will 
-   *    be transferred to the new transaction(it's taken over).
-   *
-   * @note You must have started the scan with openScanExclusive
-   *       to be able to update the found tuple.
-   *
-   * @param updateTrans the update transaction connection.
-   * @return an NdbOperation or NULL.
-   */
-  NdbOperation*	takeOverForUpdate(NdbConnection* updateTrans);
-
-  /**
-   * Transfer scan operation to a deleting transaction. Use this function 
-   * when a scan has found a record that you want to delete. 
-   * 1. Start a new transaction.
-   * 2. Call the function takeOverForDelete using your new transaction 
-   *    as parameter, all the properties of the found record will be copied 
-   *    to the new transaction.
-   * 3. When you execute the new transaction, the lock held by the scan will 
-   *    be transferred to the new transaction(its taken over).
-   *
-   * @note You must have started the scan with openScanExclusive
-   *       to be able to delete the found tuple.
-   *
-   * @param deleteTrans the delete transaction connection.
-   * @return an NdbOperation or NULL.
-   */
-  NdbOperation*	takeOverForDelete(NdbConnection* deleteTrans);
 
   /** 
    * @name Specify Search Conditions
@@ -850,16 +662,7 @@ protected:
 // Initialise after allocating operation to a transaction		      
 //--------------------------------------------------------------
   int init(class NdbTableImpl*, NdbConnection* aCon);
-  
-  void  initScan();		// Initialise after allocating operation
-				       	// to a scan transaction
-  virtual void	releaseScan();		// Release scan parts of transaction
-  void releaseSignals();
-  void releaseScanSignals();
-  void prepareNextScanResult();
-
-  // Common part for Read and Exclusive
-  int openScan(Uint32 aParallelism, bool, bool, bool); 
+  void initInterpreter();
 
   void	next(NdbOperation*);		// Set next pointer		      
 
@@ -891,11 +694,6 @@ protected:
  *****************************************************************************/
 
   int    doSend(int ProcessorId, Uint32 lastFlag);
-  int	 doSendScan(int ProcessorId);
-
-  int	 prepareSendScan(Uint32 TC_ConnectPtr,	
-			 Uint64 TransactionId);
-
   virtual int	 prepareSend(Uint32  TC_ConnectPtr,
                              Uint64  TransactionId);
   virtual void   setLastFlag(NdbApiSignal* signal, Uint32 lastFlag);
@@ -922,7 +720,7 @@ protected:
   virtual int equal_impl(const NdbColumnImpl* anAttrObject, 
                          const char* aValue, 
                          Uint32 len);
-  NdbRecAttr* getValue(const NdbColumnImpl* anAttrObject, char* aValue = 0);
+  NdbRecAttr* getValue_impl(const NdbColumnImpl* anAttrObject, char* aValue = 0);
   int setValue(const NdbColumnImpl* anAttrObject, const char* aValue, Uint32 len);
   int incValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
   int incValue(const NdbColumnImpl* anAttrObject, Uint64 aValue);
@@ -933,15 +731,12 @@ protected:
   int branch_reg_reg(Uint32 type, Uint32, Uint32, Uint32);
   int branch_col(Uint32 type, Uint32, const char *, Uint32, bool, Uint32 Label);
   int branch_col_null(Uint32 type, Uint32 col, Uint32 Label);
-  int setBound(const NdbColumnImpl* anAttrObject, int type, const void* aValue, Uint32 len);
   
   // Handle ATTRINFO signals   
   int         receiveREAD_AI(Uint32* aDataPtr, Uint32 aLength); 
 				
   int 	      insertATTRINFO(Uint32 aData);
   int         insertATTRINFOloop(const Uint32* aDataPtr, Uint32 aLength);
-  int         getFirstATTRINFOScan();
-  int         saveBoundATTRINFO();
 
   int 	      insertKEYINFO(const char* aValue,	
 			    Uint32 aStartPosition,	
@@ -965,9 +760,6 @@ protected:
 
   Uint32 ptr2int() { return theReceiver.getId(); };
 
-  NdbOperation*	 
-  takeOverScanOp(OperationType opType, NdbConnection* updateTrans);
-
 /******************************************************************************
  * These are the private variables that are defined in the operation objects.
  *****************************************************************************/
@@ -980,7 +772,6 @@ protected:
   Ndb*		   theNdb;	      	// Point back to the Ndb object.
   NdbConnection*   theNdbCon;	       	// Point back to the connection object.
   NdbOperation*	   theNext;	       	// Next pointer to operation.
-  NdbOperation*    theNextScanOp;
   NdbApiSignal*	   theTCREQ;		// The TC[KEY/INDX]REQ signal object
   NdbApiSignal*	   theFirstATTRINFO;	// The first ATTRINFO signal object 
   NdbApiSignal*	   theCurrentATTRINFO;	// The current ATTRINFO signal object  
@@ -990,9 +781,6 @@ protected:
 		      		     	// current ATTRINFO signal
   NdbApiSignal*	   theFirstKEYINFO;	// The first KEYINFO signal object 
   NdbApiSignal*	   theLastKEYINFO;	// The first KEYINFO signal object 
-
-  NdbRecAttr*	    theFirstRecAttr;	 // The first receive attribute object  
-  NdbRecAttr*	    theCurrentRecAttr;	 // The current receive attribute object
 
   class NdbLabel*	    theFirstLabel;
   class NdbLabel*	    theLastLabel;
@@ -1008,15 +796,6 @@ protected:
   Uint32*           theKEYINFOptr;       // Pointer to where to write KEYINFO
   Uint32*           theATTRINFOptr;      // Pointer to where to write ATTRINFO
 
-  Uint32    	    theTotalRecAI_Len;	 // The total length received according
-				         // to the TCKEYCONF signal    
-  Uint32	    theCurrRecAI_Len;	 // The currently received length   
-  Uint32	    theAI_ElementLen;	 // How many words long is this element 
-  Uint32*	    theCurrElemPtr;   	 // The current pointer to the element  
-  //Uint32	    theTableId;		 // Table id.     
-  //Uint32	    theAccessTableId;	 // The id of table for initial access, 
-                                         // changed by NdbIndexOperation
-  //Uint32	    theSchemaVersion;	 // The schema version on the table.  
   class NdbTableImpl* m_currentTable;      // The current table
   class NdbTableImpl* m_accessTable;
 
@@ -1059,15 +838,6 @@ protected:
   Uint16 m_keyInfoGSN;
   Uint16 m_attrInfoGSN;
 
-  // Scan related variables
-  Uint32            theParallelism;
-  NdbScanReceiver** theScanReceiversArray;
-  NdbApiSignal*     theSCAN_TABREQ;
-  NdbApiSignal*     theFirstSCAN_TABINFO_Send;
-  NdbApiSignal*     theLastSCAN_TABINFO_Send;
-  NdbApiSignal*     theFirstSCAN_TABINFO_Recv;
-  NdbApiSignal*     theLastSCAN_TABINFO_Recv;
-  NdbApiSignal*     theSCAN_TABCONF_Recv;
   // saveBoundATTRINFO() moves ATTRINFO here when setBound() is ready
   NdbApiSignal*     theBoundATTRINFO;
   Uint32            theTotalBoundAI_Len;
