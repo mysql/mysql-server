@@ -33,7 +33,8 @@ noinst_LIBRARIES =	libmysqld_int.a
 pkglib_LIBRARIES =	libmysqld.a
 SUBDIRS =		. examples
 libmysqld_sources=	libmysqld.c lib_sql.cc emb_qcache.cc
-libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c
+libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
+                        my_time.c
 
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
@@ -56,7 +57,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
 	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc \
-	spatial.cc gstream.cc sql_help.cc tztime.cc
+	spatial.cc gstream.cc sql_help.cc tztime.cc my_time.c
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
 libmysqld_a_SOURCES=

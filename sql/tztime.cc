@@ -584,7 +584,7 @@ sec_to_TIME(TIME * tmp, my_time_t t, long offset)
 
   /* filling MySQL specific TIME members */
   tmp->neg= 0; tmp->second_part= 0;
-  tmp->time_type= TIMESTAMP_DATETIME;
+  tmp->time_type= MYSQL_TIMESTAMP_DATETIME;
 }
 
 
@@ -1011,7 +1011,7 @@ Time_zone_system::gmt_sec_to_TIME(TIME *tmp, my_time_t t) const
 
   localtime_r(&tmp_t, &tmp_tm);
   localtime_to_TIME(tmp, &tmp_tm);
-  tmp->time_type= TIMESTAMP_DATETIME;
+  tmp->time_type= MYSQL_TIMESTAMP_DATETIME;
 }
 
 
@@ -1094,7 +1094,7 @@ Time_zone_utc::gmt_sec_to_TIME(TIME *tmp, my_time_t t) const
   time_t tmp_t= (time_t)t;
   gmtime_r(&tmp_t, &tmp_tm);
   localtime_to_TIME(tmp, &tmp_tm);
-  tmp->time_type= TIMESTAMP_DATETIME;
+  tmp->time_type= MYSQL_TIMESTAMP_DATETIME;
 }
 
 

@@ -18,6 +18,7 @@
 #include <mysql_version.h>
 #include <mysql_embed.h>
 #include <my_sys.h>
+#include <my_time.h>
 #include <m_string.h>
 #include <hash.h>
 #include <signal.h>
@@ -1001,12 +1002,9 @@ void get_date_from_daynr(long daynr,uint *year, uint *month,
 void init_time(void);
 my_time_t my_system_gmt_sec(const TIME *, long *current_timezone, bool *not_exist);
 my_time_t TIME_to_timestamp(THD *thd, const TIME *t, bool *not_exist);
-bool str_to_time(const char *str,uint length,TIME *l_time, int *was_cut);
 bool str_to_time_with_warn(const char *str,uint length,TIME *l_time);
-timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
-			   uint flags, int *was_cut);
-timestamp_type str_to_TIME_with_warn(const char *str, uint length, 
-                                     TIME *l_time, uint flags);
+timestamp_type str_to_datetime_with_warn(const char *str, uint length,
+                                         TIME *l_time, uint flags);
 longlong number_to_TIME(longlong nr, TIME *time_res, bool fuzzy_date,
                         int *was_cut);
 void localtime_to_TIME(TIME *to, struct tm *from);

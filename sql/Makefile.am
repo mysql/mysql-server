@@ -89,7 +89,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
-			tztime.cc examples/ha_example.cc examples/ha_archive.cc
+			tztime.cc my_time.c \
+			examples/ha_example.cc examples/ha_archive.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 
@@ -114,6 +115,8 @@ link_sources:
 	@LN_CP_F@ ../sql-common/pack.c pack.c
 	rm -f client.c
 	@LN_CP_F@ ../sql-common/client.c client.c
+	rm -f my_time.c
+	@LN_CP_F@ ../sql-common/my_time.c my_time.c
 
 gen_lex_hash.o:		gen_lex_hash.cc lex.h
 			$(CXXCOMPILE) -c $(INCLUDES) $<
