@@ -34,14 +34,14 @@ Item *create_func_acos(Item* a)
 
 Item *create_func_aes_encrypt(Item* a, Item* b)
 {
-  return new Item_func_aes_encrypt(a, b); 
+  return new Item_func_aes_encrypt(a, b);
 }
-     
+
 Item *create_func_aes_decrypt(Item* a, Item* b)
 {
   return new Item_func_aes_decrypt(a, b);
 }
-        
+
 Item *create_func_ascii(Item* a)
 {
   return new Item_func_ascii(a);
@@ -424,6 +424,11 @@ Item *create_func_to_days(Item* a)
 Item *create_func_ucase(Item* a)
 {
   return new Item_func_ucase(a);
+}
+
+Item *create_func_uuid(void)
+{
+  return new Item_func_uuid();
 }
 
 Item *create_func_version(void)

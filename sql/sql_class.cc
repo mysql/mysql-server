@@ -179,14 +179,8 @@ THD::THD():user_time(0), current_statement(0), is_fatal_error(0),
     transaction.trans_log.end_of_file= max_binlog_cache_size;
   }
 #endif
-  /*
-    We need good random number initialization for new thread
-    Just coping global one will not work
-  */
   {
-    pthread_mutex_lock(&LOCK_thread_count);
-    ulong tmp=(ulong) (my_rnd(&sql_rand) * 0xffffffff); /* make all bits random */
-    pthread_mutex_unlock(&LOCK_thread_count);
+    ulong tmp=sql_rnd_with_mutex();
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
   }
 }
