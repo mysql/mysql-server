@@ -45,43 +45,6 @@ or there was no master log position info inside InnoDB. */
 char 		trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 ib_longlong	trx_sys_mysql_master_log_pos	= -1;
 
-/* Do NOT merge this to the 4.1 code base! */
-ibool		trx_sys_downgrading_from_4_1_1	= FALSE;
-
-/********************************************************************
-Do NOT merge this to the 4.1 code base!
-Marks the trx sys header when we have successfully downgraded from the >= 4.1.1
-multiple tablespace format back to the 4.0 format. */
-
-void
-trx_sys_mark_downgraded_from_4_1_1(void)
-/*====================================*/
-{
-	page_t*	page;
-	byte*	doublewrite;
-	mtr_t	mtr;
-
-	/* Let us mark to the trx_sys header that the downgrade has been
-	done. */
-
-	mtr_start(&mtr);
-
-	page = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
-	buf_page_dbg_add_level(page, SYNC_NO_ORDER_CHECK);
-
-	doublewrite = page + TRX_SYS_DOUBLEWRITE;
-
-	mlog_write_ulint(doublewrite + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED,
-				TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N + 1,
-				MLOG_4BYTES, &mtr);
-	mtr_commit(&mtr);
-		
-	/* Flush the modified pages to disk and make a checkpoint */
-	log_make_checkpoint_at(ut_dulint_max, TRUE);
-
-	trx_sys_downgrading_from_4_1_1 = FALSE;
-}
-
 /********************************************************************
 Determines if a page number is located inside the doublewrite buffer. */
 
@@ -388,31 +351,6 @@ trx_sys_doublewrite_init_or_restore_pages(
 					== TRX_SYS_DOUBLEWRITE_MAGIC_N) {
 		/* The doublewrite buffer has been created */
 		
-		/* Do NOT merge to the 4.1 code base! */
-        	if (mach_read_from_4(doublewrite
-				+ TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED)
-            		== TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N) {
-			
-			fprintf(stderr,
-"InnoDB: You are downgrading from the multiple tablespace format of\n"
-"InnoDB: >= MySQL-4.1.1 back to the old format of MySQL-4.0.\n"
-"InnoDB:\n"
-"InnoDB: MAKE SURE that the mysqld server is idle, and purge and the insert\n"
-"InnoDB: buffer merge have run to completion under >= 4.1.1 before trying to\n"
-"InnoDB: downgrade! You can determine this by looking at SHOW INNODB STATUS:\n"
-"InnoDB: if the Main thread is 'waiting for server activity' and SHOW\n"
-"InnoDB: PROCESSLIST shows that you have ended all other connections\n"
-"InnoDB: to mysqld, then purge and the insert buffer merge have been\n"
-"InnoDB: completed.\n"
-"InnoDB: If you have already created tables in >= 4.1.1, then those\n"
-"InnoDB: tables cannot be used under 4.0.\n"
-"InnoDB: NOTE THAT this downgrade procedure has not been properly tested!\n"
-"InnoDB: The safe way to downgrade is to dump all InnoDB tables and recreate\n"
-"InnoDB: the whole tablespace.\n");
-
-			trx_sys_downgrading_from_4_1_1 = TRUE;
-		}
-
 		trx_doublewrite_init(doublewrite);
 
 		block1 = trx_doublewrite->block1;
