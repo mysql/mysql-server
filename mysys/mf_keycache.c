@@ -232,7 +232,7 @@ static inline void link_file_to_changed(SEC_LINK *next)
 }
 
 
-#ifndef DBUG_OFF
+#if !defined(DBUG_OFF) && !defined(EXTRA_DEBUG)
 #define DBUG_OFF				/* This should work */
 #endif
 
