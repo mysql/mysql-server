@@ -24,7 +24,7 @@
 
 
 #include "mysql_priv.h"
-#include "ha_innobase.h"
+#include "ha_innodb.h"
 #include "sql_select.h"
 
 int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,

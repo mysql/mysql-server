@@ -78,11 +78,13 @@ typedef struct st_hp_keyseg		/* Key-portion */
   uint start;				/* Start of key in record (from 0) */
   uint length;				/* Keylength */
   uint type;
+  uint null_bit;			/* bit set in row+null_pos */
+  uint null_pos;
 } HP_KEYSEG;
 
 typedef struct st_hp_keydef		/* Key definition with open */
 {
-  uint flag;				/* NOSAME */
+  uint flag;				/* HA_NOSAME | HA_NULL_PART_KEY */
   uint keysegs;				/* Number of key-segment */
   uint length;				/* Length of key (automatic) */
   HP_KEYSEG *seg;

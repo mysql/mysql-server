@@ -750,7 +750,7 @@ Large server clusters using replication are in production use, with
 good results. Work on enhanced replication features is continuing
 in MySQL 4.0.
 
-@item @code{InnoDB} tables -- Gamma
+@item @code{InnoDB} tables -- Stable
 While the @code{InnoDB} transactional table handler is a fairly recent
 addition to @code{MySQL}, it appears to work well and is already being
 used in some large, heavy load production systems.
@@ -3692,9 +3692,6 @@ Allow users to change startup options without taking down the server.
 @item
 Fail safe replication.
 @item
-More functions for full-text search.
-@xref{Fulltext TODO}.
-@item
 New key cache
 @item
 New table definition file format (@code{.frm} files) This will enable us
@@ -3726,9 +3723,6 @@ definition file. This will require less memory and be much faster.
 When using @code{SET CHARACTER SET} we should translate the whole query
 at once and not only strings. This will enable users to use the translated
 characters in database, table and column names.
-@item
-Add a portable interface over @code{gethostbyaddr_r()} so that we can change
-@code{ip_to_hostname()} to not block other threads while doing DNS lookups.
 @item
 Add @code{record_in_range()} method to @code{MERGE} tables to be
 able to choose the right index when there is many to choose from. We should
@@ -3861,15 +3855,6 @@ Don't add automatic @code{DEFAULT} values to columns.  Give an error when using
 an @code{INSERT} that doesn't contain a column that doesn't have a
 @code{DEFAULT}.
 @item
-Caching of queries and results. This should be done as a separated
-module that examines each query and if this is query is in the cache
-the cached result should be returned.  When one updates a table one
-should remove as few queries as possible from the cache.
-This should give a big speed bost on machines with much RAM where
-queries are often repeated (like WWW applications).
-One idea would be to only cache queries of type:
-@code{SELECT CACHED ...}
-@item
 Fix @file{libmysql.c} to allow two @code{mysql_query()} commands in a row
 without reading results or give a nice error message when one does this.
 @item
@@ -3934,10 +3919,7 @@ ADD_TO_SET(value,set) and REMOVE_FROM_SET(value,set)
 Add use of @code{t1 JOIN t2 ON ...} and @code{t1 JOIN t2 USING ...}
 Currently, you can only use this syntax with @code{LEFT JOIN}.
 @item
-Add full support for @code{unsigned long long} type.
-@item
-Many more variables for @code{show status}.  Counts for:
-@code{INSERT}/@code{DELETE}/@code{UPDATE} statements. Records reads and
+Many more variables for @code{show status}.  Records reads and
 updated.  Selects on 1 table and selects with joins.  Mean number of
 tables in select. Number of @code{ORDER BY} and @code{GROUP BY} queries.
 @item
@@ -3952,7 +3934,7 @@ should be implemented.
 @item
 Add support for UNICODE.
 @item
-@code{NATURAL JOIN} and @code{UNION JOIN}
+@code{NATURAL JOIN}.
 @item
 Allow @code{select a from crash_me left join crash_me2 using (a)}; In this
 case @code{a} is assumed to come from the @code{crash_me} table.
@@ -4068,8 +4050,6 @@ Use of full calculation names in the order part. (For ACCESS97)
 @item
 @code{MINUS}, @code{INTERSECT} and @code{FULL OUTER JOIN}.
 (Currently @code{UNION} (in 4.0) and @code{LEFT OUTER JOIN} are supported)
-@item
-Allow @code{UNIQUE} on fields that can be @code{NULL}.
 @item
 @code{SQL_OPTION MAX_SELECT_TIME=#} to put a time limit on a query.
 @item
@@ -24578,6 +24558,7 @@ great tool to find out if this is a problem with your query.
 * Where optimisations::         How MySQL optimises @code{WHERE} clauses
 * DISTINCT optimisation::       How MySQL Optimises @code{DISTINCT}
 * LEFT JOIN optimisation::      How MySQL optimises @code{LEFT JOIN}
+* ORDER BY optimisation::       
 * LIMIT optimisation::          How MySQL optimises @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
 * Update speed::                Speed of @code{UPDATE} queries
@@ -25171,7 +25152,7 @@ MySQL will stop reading from t2 (for that particular row in t1)
 when the first row in t2 is found.
 
 
-@node LEFT JOIN optimisation, LIMIT optimisation, DISTINCT optimisation, Query Speed
+@node LEFT JOIN optimisation, ORDER BY optimisation, DISTINCT optimisation, Query Speed
 @subsection How MySQL Optimises @code{LEFT JOIN} and @code{RIGHT JOIN}
 
 @findex LEFT JOIN
@@ -25237,7 +25218,119 @@ SELECT * FROM b,a LEFT JOIN c ON (c.key=a.key) LEFT JOIN d (d.key=a.key) WHERE b
 @end example
 
 
-@node LIMIT optimisation, Insert speed, LEFT JOIN optimisation, Query Speed
+@node ORDER BY optimisation, LIMIT optimisation, LEFT JOIN optimisation, Query Speed
+@subsection How MySQL Optimises @code{ORDER BY}
+
+In some cases MySQL can uses index to satisfy an @code{ORDER BY} or
+@code{GROUP BY} request without doing any extra sorting.
+
+The index can also be used even if the @code{ORDER BY} doesn't match the
+index exactly, as long as all the unused index parts and all the extra
+are @code{ORDER BY} columns are constants in the @code{WHERE}
+clause. The following queries will use the index to resolve the
+@code{ORDER BY} / @code{GROUP BY} part:
+
+@example
+SELECT * FROM t1 ORDER BY key_part1,key_part2,...
+SELECT * FROM t1 WHERE key_part1=constant ORDER BY key_part2
+SELECT * FROM t1 WHERE key_part1=constant GROUP BY key_part2
+SELECT * FROM t1 ORDER BY key_part1 DESC,key_part2 DESC
+SELECT * FROM t1 WHERE key_part1=1 ORDER BY key_part1 DESC,key_part2 DESC
+@end example
+
+Some cases where MySQL can NOT use indexes to resolve the @code{ORDER
+BY}: (Note that MySQL will still use indexes to find the rows that
+matches the where clause):
+
+@itemize @bullet
+@item
+You are doing an @code{ORDER BY} on different keys:
+
+@code{SELECT * FROM t1 ORDER BY key1,key2}
+@item
+You are doing an @code{ORDER BY} on not following key parts.
+
+@code{SELECT * FROM t1 WHERE key2=constant ORDER BY key_part2}
+
+@item
+You are mixing @code{ASC} and @code{DESC}.
+
+@code{SELECT * FROM t1 ORDER BY key_part1 DESC,key_part2 ASC}
+
+@item
+The key used to fetch the rows are not the same one that is used to
+do the @code{ORDER BY}:
+
+@code{SELECT * FROM t1 WHERE key2=constant ORDER BY key1}
+
+@item
+You are joining many tables and the columns you are doing an @code{ORDER
+BY} on are not all from the first not-const table that is used to
+retrieve rows (This is the first table in the @code{EXPLAIN} output which
+doesn't use a @code{const} row fetch method).
+
+@item
+You have different @code{ORDER BY} and @code{GROUP BY} expressions.
+
+@item
+The used table index is an index type that doesn't store rows in order.
+(Like index in @code{HEAP} tables).
+@end itemize
+
+
+In the cases where MySQL have to sort the result, it uses the following
+algorithm:
+
+@itemize @bullet
+@item
+Read all rows according to key or by table scanning.
+Rows that doesn't match the WHERE clause are skipped.
+@item
+Store the sort-key in a buffer (of size @code{sort_buffer}).
+@item
+When the buffer gets full, run a qsort on it and store the result
+in a temporary file.  Save a pointer to the sorted block.
+(In the case where all rows fits into the sort buffer, no temporary
+file is created)
+@item
+Repeat the above until all rows have been read.
+@item
+Do a multi-merge of up to @code{MERGEBUFF} (7) regions to one block in
+another temporary file.  Repeat until all blocks from the first file
+are in the second file.
+@item
+Repeat the following until there is less than @code{MERGEBUFF2} (15) 
+blocks left.
+@item
+On the last multi-merge, only the pointer to the row (last part of
+the sort-key) is written to a result file.
+@item
+Now the code in @file{sql/records.cc} will be used to read through them
+in sorted order by using the row pointers in the result file.  To
+optimize this, we read in a big block of row pointers, sort these and
+then we read the rows in the sorted order into a row buffer
+(@code{record_rnd_buffer}) .
+@end itemize
+
+You can with @code{EXPLAIN SELECT ... ORDER BY} check if MySQL can use
+indexes to resolve the query.  If you get @code{Using filesort} in the
+@code{extra} column, then MySQL can't use indexes to resolve the
+@code{ORDER BY}. @xref{EXPLAIN}.
+
+If you want to have a higher @code{ORDER BY} speed, you should first
+see if you can get MySQL to use indexes instead of having to do an extra
+sorting phase. If this is not possible, then you can do:
+
+@itemize @bullet
+@item
+Increase the size of the @code{sort_buffer} variable.
+@item
+Increase the size of the @code{record_rnd_buffer} variable.
+@item
+Change @code{tmpdir} to point to a dedicated disk with lots of empty space.
+@end itemize
+
+@node LIMIT optimisation, Insert speed, ORDER BY optimisation, Query Speed
 @subsection How MySQL Optimises @code{LIMIT}
 
 @findex LIMIT
@@ -25986,19 +26079,9 @@ SELECT MIN(key_part2),MAX(key_part2) FROM table_name where key_part1=10
 
 @item
 Sort or group a table if the sorting or grouping is done on a leftmost
-prefix of a usable key (for example, @code{ORDER BY key_part_1,key_part_2 }). The
-key is read in reverse order if all key parts are followed by @code{DESC}.
-
-The index can also be used even if the @code{ORDER BY} doesn't match the index
-exactly, as long as all the unused index parts and all the extra
-are @code{ORDER BY} columns are constants in the @code{WHERE} clause. The
-following queries will use the index to resolve the @code{ORDER BY} part:
-
-@example
-SELECT * FROM foo ORDER BY key_part1,key_part2,key_part3;
-SELECT * FROM foo WHERE column=constant ORDER BY column, key_part1;
-SELECT * FROM foo WHERE key_part1=const GROUP BY key_part2;
-@end example
+prefix of a usable key (for example, @code{ORDER BY
+key_part_1,key_part_2 }). The key is read in reverse order if all key
+parts are followed by @code{DESC}.  @xref{ORDER BY optimisation}.
 
 @item
 In some cases a query can be optimised to retrieve values without
@@ -33355,7 +33438,12 @@ DELETE [LOW_PRIORITY | QUICK] FROM table_name
 
 or
 
-DELETE [LOW_PRIORITY | QUICK] table_name[.*] [table_name[.*] ...] FROM
+DELETE [LOW_PRIORITY | QUICK] table_name[.*] [,table_name[.*] ...] FROM
+table-references [WHERE where_definition]
+
+or
+
+DELETE [LOW_PRIORITY | QUICK] FROM table_name[.*], [table_name[.*] ...] USING
 table-references [WHERE where_definition]
 @end example
 
@@ -33392,18 +33480,23 @@ TABLE} statement or the @code{myisamchk} utility to reorganise tables.
 @code{OPTIMIZE TABLE} is easier, but @code{myisamchk} is faster.  See
 @ref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}} and @ref{Optimisation}.
 
-The multi table delete format is supported starting from MySQL 4.0.0.
+The first multi table delete format is supported starting from MySQL 4.0.0.
+The second multi table delete format is supported starting from MySQL 4.0.2.
 
-The idea is that only matching rows from the tables listed @strong{before} the
-@code{FROM} clause is deleted. The effect is that you can delete rows
-from many tables at the same time and also have additional tables that
-are used for searching.
+The idea is that only matching rows from the tables listed
+@strong{before} the @code{FROM} or before the @code{USING} clause is
+deleted. The effect is that you can delete rows from many tables at the
+same time and also have additional tables that are used for searching.
 
 The @code{.*} after the table names is there just to be compatible with
 @code{Access}:
 
 @example
 DELETE t1,t2 FROM t1,t2,t3 WHERE t1.id=t2.id AND t2.id=t3.id
+
+or
+
+DELETE FROM t1,t2 USING t1,t2,t3 WHERE t1.id=t2.id AND t2.id=t3.id
 @end example
 
 In the above case we delete matching rows just from tables @code{t1} and
@@ -48028,9 +48121,17 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Added support for @code{NULL} keys in HEAP tables.
+@item
+Use index for @code{ORDER BY} in queries of type:
+@code{SELECT * FROM t1 WHERE key_part1=1 ORDER BY key_part1 DESC,key_part2 DESC}
+@item
 Fixed bug in @code{FLUSH QUERY CACHE}.
 @item
 Added @code{CAST()} and @code{CONVERT()} functions.
+@item
+@code{CREATE ... SELECT} on @code{DATE} and @code{TIME} functions now
+create columns of the expected type.
 @item
 Changed order of how keys are created in tables.
 @item

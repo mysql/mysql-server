@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  Static variables for pisam library. All definied here for easy making of
+  Static variables for ISAM library. All definied here for easy making of
   a shared library
 */
 

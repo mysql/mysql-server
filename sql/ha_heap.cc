@@ -57,6 +57,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
     for (part=0 ; part < pos->key_parts ; part++)
     {
       uint flag=pos->key_part[part].key_type;
+      Field *field=pos->key_part[part].field;
       if (!f_is_packed(flag) &&
 	  f_packtype(flag) == (int) FIELD_TYPE_DECIMAL &&
 	  !(flag & FIELDFLAG_BINARY))
@@ -65,7 +66,17 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
 	seg->type= (int) HA_KEYTYPE_BINARY;
       seg->start=(uint) pos->key_part[part].offset;
       seg->length=(uint) pos->key_part[part].length;
-      seg++;
+      if (field->null_ptr)
+      {
+	seg->null_bit=field->null_bit;
+	seg->null_pos= (uint) (field->null_ptr-
+			       (uchar*) table->record[0]);
+      }
+      else
+      {
+	seg->null_bit=0;
+	seg->null_pos=0;
+      }
     }
   }
   mem_per_row += MY_ALIGN(table->reclength+1, sizeof(char*));

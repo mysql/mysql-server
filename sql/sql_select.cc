@@ -89,15 +89,18 @@ static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
 static int join_read_key(JOIN_TAB *tab);
 static int join_read_always_key(JOIN_TAB *tab);
+static int join_read_last_key(JOIN_TAB *tab);
 static int join_no_more_records(READ_RECORD *info);
 static int join_read_next(READ_RECORD *info);
 static int join_init_quick_read_record(JOIN_TAB *tab);
 static int test_if_quick_select(JOIN_TAB *tab);
 static int join_init_read_record(JOIN_TAB *tab);
-static int join_init_read_first_with_key(JOIN_TAB *tab);
-static int join_init_read_next_with_key(READ_RECORD *info);
-static int join_init_read_last_with_key(JOIN_TAB *tab);
-static int join_init_read_prev_with_key(READ_RECORD *info);
+static int join_read_first(JOIN_TAB *tab);
+static int join_read_next(READ_RECORD *info);
+static int join_read_next_same(READ_RECORD *info);
+static int join_read_last(JOIN_TAB *tab);
+static int join_read_prev_same(READ_RECORD *info);
+static int join_read_prev(READ_RECORD *info);
 static int join_ft_read_first(JOIN_TAB *tab);
 static int join_ft_read_next(READ_RECORD *info);
 static COND *make_cond_for_table(COND *cond,table_map table,
@@ -2510,7 +2513,7 @@ make_join_readinfo(JOIN *join,uint options)
       tab->quick=0;
       table->file->index_init(tab->ref.key);
       tab->read_first_record= join_read_always_key;
-      tab->read_record.read_record= join_read_next;
+      tab->read_record.read_record= join_read_next_same;
       if (table->used_keys & ((key_map) 1 << tab->ref.key) &&
 	  !table->no_keyread)
       {
@@ -2585,7 +2588,7 @@ make_join_readinfo(JOIN *join,uint options)
 	  {					// Only read index tree
 	    tab->index=find_shortest_key(table, table->used_keys);
 	    tab->table->file->index_init(tab->index);
-	    tab->read_first_record= join_init_read_first_with_key;
+	    tab->read_first_record= join_read_first;
 	    tab->type=JT_NEXT;		// Read with index_first / index_next
 	  }
 	}
@@ -3641,6 +3644,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     {
       if (field->flags & GROUP_FLAG && !using_unique_constraint)
       {
+	/*
+	  We have to reserve one byte here for NULL bits,
+	  as this is updated by 'end_update()'
+	*/
 	*pos++=0;				// Null is stored here
 	recinfo->length=1;
 	recinfo->type=FIELD_NORMAL;
@@ -3730,11 +3737,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	{
 	  /*
 	    To be able to group on NULL, we move the null bit to be
-	     just before the column and extend the key to cover the null bit
+	    just before the column.
+	    The null byte is updated by 'end_update()' 
 	  */
-	  *group_buff= 0;			// Init null byte
-	  key_part_info->offset--;
-	  key_part_info->length++;
+	  key_part_info->null_bit=1;
+	  key_part_info->null_offset= key_part_info->offset-1;
 	  group->field->move_field((char*) group_buff+1, (uchar*) group_buff,
 				   1);
 	}
@@ -4497,6 +4504,35 @@ join_read_always_key(JOIN_TAB *tab)
   return 0;
 }
 
+/*
+  This function is used when optimizing away ORDER BY in 
+  SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
+*/
+  
+static int
+join_read_last_key(JOIN_TAB *tab)
+{
+  int error;
+  TABLE *table= tab->table;
+
+  if (cp_buffer_from_ref(&tab->ref))
+    return -1;
+  if ((error=table->file->index_read_last(table->record[0],
+					  tab->ref.key_buff,
+					  tab->ref.key_length)))
+  {
+    if (error != HA_ERR_KEY_NOT_FOUND)
+    {
+      sql_print_error("read_const: Got error %d when reading table %s",error,
+		      table->path);
+      table->file->print_error(error,MYF(0));
+      return 1;
+    }
+    return -1; /* purecov: inspected */
+  }
+  return 0;
+}
+
 
 	/* ARGSUSED */
 static int
@@ -4507,7 +4543,7 @@ join_no_more_records(READ_RECORD *info __attribute__((unused)))
 
 
 static int
-join_read_next(READ_RECORD *info)
+join_read_next_same(READ_RECORD *info)
 {
   int error;
   TABLE *table= info->table;
@@ -4528,6 +4564,37 @@ join_read_next(READ_RECORD *info)
     return -1;
   }
   return 0;
+}
+
+static int
+join_read_prev_same(READ_RECORD *info)
+{
+  int error;
+  TABLE *table= info->table;
+  JOIN_TAB *tab=table->reginfo.join_tab;
+
+  if ((error=table->file->index_prev(table->record[0])))
+  {
+    if (error != HA_ERR_END_OF_FILE)
+    {
+      sql_print_error("read_next: Got error %d when reading table %s",error,
+		      table->path);
+      table->file->print_error(error,MYF(0));
+      error= 1;
+    }
+    else
+    {
+      table->status= STATUS_GARBAGE;
+      error= -1;
+    }
+  }
+  else if (key_cmp(table, tab->ref.key_buff, tab->ref.key,
+		   tab->ref.key_length))
+  {
+    table->status=STATUS_NOT_FOUND;
+    error= 1;
+  }
+  return error;
 }
 
 
@@ -4560,7 +4627,7 @@ join_init_read_record(JOIN_TAB *tab)
 }
 
 static int
-join_init_read_first_with_key(JOIN_TAB *tab)
+join_read_first(JOIN_TAB *tab)
 {
   int error;
   TABLE *table=tab->table;
@@ -4571,7 +4638,7 @@ join_init_read_first_with_key(JOIN_TAB *tab)
     table->file->extra(HA_EXTRA_KEYREAD);
   }
   tab->table->status=0;
-  tab->read_record.read_record=join_init_read_next_with_key;
+  tab->read_record.read_record=join_read_next;
   tab->read_record.table=table;
   tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
@@ -4591,8 +4658,9 @@ join_init_read_first_with_key(JOIN_TAB *tab)
   return 0;
 }
 
+
 static int
-join_init_read_next_with_key(READ_RECORD *info)
+join_read_next(READ_RECORD *info)
 {
   int error=info->file->index_next(info->record);
   if (error)
@@ -4609,9 +4677,8 @@ join_init_read_next_with_key(READ_RECORD *info)
   return 0;
 }
 
-
 static int
-join_init_read_last_with_key(JOIN_TAB *tab)
+join_read_last(JOIN_TAB *tab)
 {
   TABLE *table=tab->table;
   int error;
@@ -4621,7 +4688,7 @@ join_init_read_last_with_key(JOIN_TAB *tab)
     table->file->extra(HA_EXTRA_KEYREAD);
   }
   tab->table->status=0;
-  tab->read_record.read_record=join_init_read_prev_with_key;
+  tab->read_record.read_record=join_read_prev;
   tab->read_record.table=table;
   tab->read_record.file=table->file;
   tab->read_record.index=tab->index;
@@ -4641,8 +4708,9 @@ join_init_read_last_with_key(JOIN_TAB *tab)
   return 0;
 }
 
+
 static int
-join_init_read_prev_with_key(READ_RECORD *info)
+join_read_prev(READ_RECORD *info)
 {
   int error=info->file->index_prev(info->record);
   if (error)
@@ -4658,6 +4726,7 @@ join_init_read_prev_with_key(READ_RECORD *info)
   }
   return 0;
 }
+
 
 static int
 join_ft_read_first(JOIN_TAB *tab)
@@ -4734,7 +4803,8 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       if (join->select_options & OPTION_FOUND_ROWS)
       {
 	JOIN_TAB *jt=join->join_tab;
-	if ((join->tables == 1) && !join->tmp_table && !join->sort_and_group && !join->send_group_parts && !join->having && !jt->select_cond )
+	if ((join->tables == 1) && !join->tmp_table && !join->sort_and_group
+	    && !join->send_group_parts && !join->having && !jt->select_cond)
 	{
 	  join->select_options ^= OPTION_FOUND_ROWS;
 	  join->send_records = jt->records;
@@ -5315,6 +5385,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
   if (ref_key >= 0)
   {
+    /*
+      We come here when there is a REF key.
+    */
     int order_direction;
     uint used_key_parts;
     /* Check if we get the rows in requested sorted order by using the key */
@@ -5322,11 +5395,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	(order_direction = test_if_order_by_key(order,table,ref_key,
 						&used_key_parts)))
     {
-      if (order_direction == -1)
+      if (order_direction == -1)		// If ORDER BY ... DESC
       {
 	if (select && select->quick)
 	{
-	  // ORDER BY ref_key DESC
+	  // ORDER BY range_key DESC
 	  QUICK_SELECT_DESC *tmp=new QUICK_SELECT_DESC(select->quick,
 						       used_key_parts);
 	  if (!tmp || tmp->error)
@@ -5341,11 +5414,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	{
 	  /*
 	    SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
-	    TODO:
-	    Add a new traversal function to read last matching row and
-	    traverse backwards.
+
+	    Use a traversal function that starts by reading the last row
+	    with key part (A) and then traverse the index backwards.
 	  */
-	  DBUG_RETURN(0);
+	  if (table->file->option_flag() & HA_NOT_READ_PREFIX_LAST)
+	    DBUG_RETURN(1);
+	  tab->read_first_record=       join_read_last_key;
+	  tab->read_record.read_record= join_read_prev_same;
+	  /* fall through */
 	}
       }
       DBUG_RETURN(1);			/* No need to sort */
@@ -5377,8 +5454,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  if (!no_changes)
 	  {
 	    tab->index=nr;
-	    tab->read_first_record=  (flag > 0 ? join_init_read_first_with_key:
-				      join_init_read_last_with_key);
+	    tab->read_first_record=  (flag > 0 ? join_read_first:
+				      join_read_last);
 	    table->file->index_init(nr);
 	    tab->type=JT_NEXT;	// Read with index_first(), index_next()
 	    if (table->used_keys & ((key_map) 1 << nr))
@@ -6369,7 +6446,8 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
 static void
 calc_group_buffer(JOIN *join,ORDER *group)
 {
-  uint key_length=0,parts=0;
+  uint key_length=0, parts=0, null_parts=0;
+
   if (group)
     join->group= 1;
   for (; group ; group=group->next)
@@ -6390,10 +6468,11 @@ calc_group_buffer(JOIN *join,ORDER *group)
       key_length+=(*group->item)->max_length;
     parts++;
     if ((*group->item)->maybe_null)
-      key_length++;
+      null_parts++;
   }
-  join->tmp_table_param.group_length=key_length;
+  join->tmp_table_param.group_length=key_length+null_parts;
   join->tmp_table_param.group_parts=parts;
+  join->tmp_table_param.group_null_parts=null_parts;
 }
 
 

@@ -44,7 +44,11 @@ HP_INFO *heap_open(const char *name, int mode, uint keys, HP_KEYDEF *keydef,
       key_segs+= keydef[i].keysegs;
       bzero((char*) &keydef[i].block,sizeof(keydef[i].block));
       for (j=length=0 ; j < keydef[i].keysegs; j++)
+      {
 	length+=keydef[i].seg[j].length;
+	if (keydef[i].seg[j].null_bit)
+	  keydef[i].flag |= HA_NULL_PART_KEY;
+      }
       keydef[i].length=length;
       if (length > max_length)
 	max_length=length;
