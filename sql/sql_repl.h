@@ -12,7 +12,7 @@ typedef struct st_slave_info
   uint16 port;
 } SLAVE_INFO;
 
-extern bool opt_show_slave_auth_info;
+extern bool opt_show_slave_auth_info, opt_old_rpl_compat;
 extern HASH slave_list;
 extern char* master_host;
 extern my_string opt_bin_logname, master_info_file;
@@ -51,4 +51,19 @@ int show_binlogs(THD* thd);
 extern int init_master_info(MASTER_INFO* mi);
 void kill_zombie_dump_threads(uint32 slave_server_id);
 
+typedef struct st_load_file_info
+{
+  THD* thd;
+  sql_exchange* ex;
+  List <Item> *fields;
+  enum enum_duplicates handle_dup;
+  char* db;
+  char* table_name;
+  bool wrote_create_file;
+  my_off_t last_pos_in_file;
+} LOAD_FILE_INFO;
+
+int log_loaded_block(IO_CACHE* file);
+
 #endif
+

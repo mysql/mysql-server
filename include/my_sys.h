@@ -281,6 +281,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
   /* callbacks when the actual read I/O happens */
   IO_CACHE_CALLBACK pre_read;
   IO_CACHE_CALLBACK post_read;
+  IO_CACHE_CALLBACK pre_close;
+  void* arg; /* for use by pre/post_read */
   char *file_name;			/* if used with 'open_cached_file' */
   char *dir,*prefix;
   File file;

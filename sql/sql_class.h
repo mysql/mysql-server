@@ -86,9 +86,7 @@ public:
   bool write(THD *thd, enum enum_server_command command,const char *format,...);
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
-  bool write(Query_log_event* event_info); // binary log write
-  bool write(Load_log_event* event_info);
-  bool write(Slave_log_event* event_info);
+  bool write(Log_event* event_info); // binary log write
   bool write(IO_CACHE *cache);
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
@@ -299,6 +297,8 @@ public:
 
   ulong slave_proxy_id; // in slave thread we need to know in behalf of which
   // thread the query is being run to replicate temp tables properly
+
+  NET* slave_net; // network connection from slave to master
 
   THD();
   ~THD();

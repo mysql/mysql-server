@@ -535,8 +535,8 @@ void MYSQL_LOG::new_file(bool inside_mutex)
 	We log the whole file name for log file as the user may decide
 	to change base names at some point.
       */
-      Rotate_log_event r(new_name+dirname_length(new_name));
       THD* thd = current_thd;
+      Rotate_log_event r(thd,new_name+dirname_length(new_name));
       r.set_log_seq(0, this);
       // this log rotation could have been initiated by a master of
       // the slave running with log-bin
@@ -638,24 +638,8 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
   return 0;
 }
 
-/* Write to binary log in a format to be used for replication */
 
-bool MYSQL_LOG::write(Slave_log_event* event_info)
-{
-  bool error;
-  if (!inited)					// Can't use mutex if not init
-    return 0;
-  VOID(pthread_mutex_lock(&LOCK_log));
-  if(!event_info->log_seq)
-    event_info->set_log_seq(current_thd, this);
-  error = event_info->write(&log_file);
-  flush_io_cache(&log_file);
-  VOID(pthread_mutex_unlock(&LOCK_log));
-  return error;
-}
-
-
-bool MYSQL_LOG::write(Query_log_event* event_info)
+bool MYSQL_LOG::write(Log_event* event_info)
 {
   /* In most cases this is only called if 'is_open()' is true */
   bool error=0;
@@ -667,40 +651,42 @@ bool MYSQL_LOG::write(Query_log_event* event_info)
   if (is_open())
   {
     THD *thd=event_info->thd;
+    const char* db = event_info->get_db();
 #ifdef USING_TRANSACTIONS    
-    IO_CACHE *file = (event_info->cache_stmt ? &thd->transaction.trans_log :
+    IO_CACHE *file = ((event_info->cache_stmt && thd) ?
+		      &thd->transaction.trans_log :
 		      &log_file);
 #else
     IO_CACHE *file = &log_file;
 #endif    
-    if ((!(thd->options & OPTION_BIN_LOG) &&
+    if ((thd && !(thd->options & OPTION_BIN_LOG) &&
 	 (thd->master_access & PROCESS_ACL)) ||
-	!db_ok(event_info->db, binlog_do_db, binlog_ignore_db))
+	(db && !db_ok(db, binlog_do_db, binlog_ignore_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
       return 0;
     }
     error=1;
 
-    if (thd->last_insert_id_used)
+    if (thd && thd->last_insert_id_used)
     {
-      Intvar_log_event e((uchar)LAST_INSERT_ID_EVENT, thd->last_insert_id);
+      Intvar_log_event e(thd,(uchar)LAST_INSERT_ID_EVENT,thd->last_insert_id);
       e.set_log_seq(thd, this);
       if (thd->server_id)
         e.server_id = thd->server_id;
       if (e.write(file))
 	goto err;
     }
-    if (thd->insert_id_used)
+    if (thd && thd->insert_id_used)
     {
-      Intvar_log_event e((uchar)INSERT_ID_EVENT, thd->last_insert_id);
+      Intvar_log_event e(thd,(uchar)INSERT_ID_EVENT,thd->last_insert_id);
       e.set_log_seq(thd, this);
       if (thd->server_id)
         e.server_id = thd->server_id;
       if (e.write(file))
 	goto err;
     }
-    if (thd->convert_set)
+    if (thd && thd->convert_set)
     {
       char buf[1024] = "SET CHARACTER SET ";
       char* p = strend(buf);
@@ -791,42 +777,6 @@ err:
     
   VOID(pthread_mutex_unlock(&LOCK_log));
   
-  return error;
-}
-
-
-bool MYSQL_LOG::write(Load_log_event* event_info)
-{
-  bool error=0;
-  bool should_rotate = 0;
-  
-  if (inited)
-  {
-    VOID(pthread_mutex_lock(&LOCK_log));
-    if (is_open())
-    {
-      THD *thd=event_info->thd;
-      if ((thd->options & OPTION_BIN_LOG) ||
-	  !(thd->master_access & PROCESS_ACL))
-      {
-	event_info->set_log_seq(thd, this);
-	if (event_info->write(&log_file) || flush_io_cache(&log_file))
-	{
-	  if (!write_error)
-	    sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
-	  error=write_error=1;
-	}
-	should_rotate = (my_b_tell(&log_file) >= max_binlog_size);
-	VOID(pthread_cond_broadcast(&COND_binlog_update));
-      }
-    }
-    
-    if(should_rotate)
-      new_file(1); // inside mutex
-    
-    VOID(pthread_mutex_unlock(&LOCK_log));
-  }
-
   return error;
 }
 

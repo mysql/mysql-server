@@ -5,7 +5,7 @@
 #define SLAVE_NET_TIMEOUT  3600
 
 extern ulong slave_net_timeout;
-
+extern char* slave_load_tmpdir;
 
 typedef struct st_master_info
 {
@@ -70,6 +70,11 @@ typedef struct st_table_rule_ent
 
 #define TABLE_RULE_HASH_SIZE   16
 #define TABLE_RULE_ARR_SIZE   16
+#define MAX_SLAVE_ERRMSG      1024
+
+#define RPL_LOG_NAME (glob_mi.log_file_name[0] ? glob_mi.log_file_name :\
+ "FIRST")
+
 
 int flush_master_info(MASTER_INFO* mi);
 int register_slave_on_master(MYSQL* mysql);
@@ -97,6 +102,10 @@ int add_table_rule(HASH* h, const char* table_spec);
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
 void init_table_rule_hash(HASH* h, bool* h_inited);
 void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited);
+char* rewrite_db(char* db);
+int check_expected_error(THD* thd, int error_code);
+void skip_load_data_infile(NET* net);
+void slave_print_error(int err_code, const char* msg, ...);
 
 void end_slave(); // clean up
 int init_master_info(MASTER_INFO* mi);
@@ -109,6 +118,11 @@ extern uint32 slave_skip_counter;
 // we want to restart it skipping one or more events in the master log that
 // have caused errors, and have been manually applied by DBA already
 
+extern int last_slave_errno;
+#ifndef DBUG_OFF
+extern int events_till_abort;
+#endif
+extern char last_slave_error[MAX_SLAVE_ERRMSG];
 extern pthread_t slave_real_id;
 extern THD* slave_thd;
 extern MASTER_INFO glob_mi;

@@ -121,6 +121,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   proc_info="login";
   where="field list";
   server_id = ::server_id;
+  slave_net = 0;
   server_status=SERVER_STATUS_AUTOCOMMIT;
   update_lock_default= low_priority_updates ? TL_WRITE_LOW_PRIORITY : TL_WRITE;
   options=thd_startup_options;
