@@ -256,7 +256,7 @@ void Log_event::print_header(FILE* file)
 {
   fputc('#', file);
   print_timestamp(file);
-  fprintf(file, " server id  %ld ", server_id); 
+  fprintf(file, " server id  %d ", server_id); 
 }
 
 void Log_event::print_timestamp(FILE* file, time_t* ts)
@@ -418,7 +418,7 @@ Query_log_event::Query_log_event(IO_CACHE* file, time_t when_arg,
 Query_log_event::Query_log_event(const char* buf, int event_len):
   Log_event(buf),data_buf(0), query(NULL), db(NULL)
 {
-  if (event_len < QUERY_EVENT_OVERHEAD)
+  if ((uint)event_len < QUERY_EVENT_OVERHEAD)
     return;				
   ulong data_len;
   buf += EVENT_LEN_OFFSET;
@@ -577,10 +577,10 @@ Load_log_event::Load_log_event(const char* buf, int event_len):
 {
   ulong data_len;
 
-  if(event_len < (LOAD_EVENT_OVERHEAD + LOG_EVENT_HEADER_LEN))
+  if((uint)event_len < (LOAD_EVENT_OVERHEAD + LOG_EVENT_HEADER_LEN))
     return;
-
   buf += EVENT_LEN_OFFSET;
+  memcpy(&sql_ex, buf + LOAD_HEADER_LEN + 4, sizeof(sql_ex));
   data_len = event_len;
   
   if(!(data_buf = (char*)my_malloc(data_len + 1, MYF(MY_WME))))
@@ -671,7 +671,7 @@ void Load_log_event::print(FILE* file, bool short_form)
   }
      
   if((int)skip_lines > 0)
-    fprintf(file, " IGNORE %ld LINES ", skip_lines);
+    fprintf(file, " IGNORE %d LINES ", skip_lines);
 
   if (num_fields)
   {

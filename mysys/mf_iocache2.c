@@ -32,7 +32,7 @@
 
 void my_b_seek(IO_CACHE *info,my_off_t pos)
 {
-  info->seek_not_done=0;
+  info->seek_not_done=1;
   info->pos_in_file=pos;
   info->rc_pos=info->rc_end=info->buffer;
 }

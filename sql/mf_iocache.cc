@@ -240,12 +240,17 @@ int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
 {
   uint length,diff_length,left_length;
   my_off_t max_length, pos_in_file;
-
-  memcpy(Buffer,info->rc_pos,
-	 (size_t) (left_length=(uint) (info->rc_end-info->rc_pos)));
-  Buffer+=left_length;
-  Count-=left_length;
-  pos_in_file=info->pos_in_file+(uint) (info->rc_end - info->buffer);
+  
+  if((left_length=(uint) (info->rc_end-info->rc_pos)))
+  {
+    if(Count < left_length)
+      left_length = Count;
+    memcpy(Buffer,info->rc_pos,
+	   (size_t) (left_length));
+    Buffer+=left_length;
+    Count-=left_length;
+  }
+  pos_in_file=info->pos_in_file+ left_length;
   if (info->seek_not_done)
   {					/* File touched, do seek */
     VOID(my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)));
