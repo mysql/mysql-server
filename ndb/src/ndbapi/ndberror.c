@@ -91,6 +91,9 @@ ErrorBundle ErrorCodes[] = {
   { 4029, NR, "Node failure caused abort of transaction" },
   { 4031, NR, "Node failure caused abort of transaction" },
   { 4033, NR, "Send to NDB failed" },
+  { 4115, NR, 
+   "Transaction was committed but all read information was not "
+   "received due to node crash" },
 
   /**
    * Node shutdown
@@ -114,9 +117,6 @@ ErrorBundle ErrorCodes[] = {
    "Time-out, most likely caused by simple read or cluster failure" }, 
   { 4024, UR, 
    "Time-out, most likely caused by simple read or cluster failure" }, 
-  { 4115, UR, 
-   "Transaction was committed but all read information was not "
-   "received due to node crash" },
 
   /**
    * TemporaryResourceError
