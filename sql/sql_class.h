@@ -831,7 +831,7 @@ class multi_update : public select_result
   uint table_count;
   Copy_field *copy_field;
   enum enum_duplicates handle_duplicates;
-  bool do_update, trans_safe, transactional_tables, log_delayed;
+  bool do_update, trans_safe, transactional_tables, log_delayed, on_the_fly;
 
 public:
   multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> *fields,
