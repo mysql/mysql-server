@@ -8157,7 +8157,7 @@ To get these new privileges to work, one must run the
 users have the @strong{show databases}, @strong{create temporary tables},
 and @strong{lock tables} privileges. @strong{super} and @strong{execute}
 privileges take their value from @strong{process}.
-@strong{replication slave} and @code{replication client} take their
+@strong{replication slave} and @strong{replication client} take their
 values from @strong{file}.
 
 If you have any scripts that creates new users, you may want to change
@@ -22166,7 +22166,7 @@ UPDATE table_name SET not_key_column=# WHERE not_key_column=# LIMIT 1;
 @item
 All big results are automatically limited to @code{#select_limit#} rows.
 @item
-@code{SELECT}'s that will probably need to examine more than
+@code{SELECT}s that will probably need to examine more than
 @code{#max_join_size} row combinations will be aborted.
 @end itemize
 
@@ -25995,7 +25995,7 @@ as soon as it finds @code{#} unique rows.
 In some cases a @code{GROUP BY} can be resolved by reading the key in order
 (or do a sort on the key) and then calculate summaries until the
 key value changes.  In this case @code{LIMIT #} will not calculate any
-unnecessary @code{GROUP BY}'s.
+unnecessary @code{GROUP BY}s.
 @item
 As soon as MySQL has sent the first @code{#} rows to the client, it
 will abort the query (If you are not using @code{SQL_CALC_FOUND_ROWS}).
@@ -27631,7 +27631,7 @@ that probably will take a very long time. This is useful when an inadvisable
 @code{1} (which will allow all @code{SELECT} statements).
 
 @item SQL_BUFFER_RESULT = 0 | 1
-@code{SQL_BUFFER_RESULT} will force the result from @code{SELECT}'s
+@code{SQL_BUFFER_RESULT} will force the result from @code{SELECT}s
 to be put into a temporary table. This will help MySQL free the
 table locks early and will help in cases where it takes a long time to
 send the result set to the client.
@@ -37267,7 +37267,7 @@ automatically depending on the type of columns you are using. The third,
 compressed tables, can only be created with the @code{myisampack} tool.
 
 When you @code{CREATE} or @code{ALTER} a table you can for tables that
-doesn't have @code{BLOB}'s force the table format to @code{DYNAMIC} or
+doesn't have @code{BLOB}s force the table format to @code{DYNAMIC} or
 @code{FIXED} with the @code{ROW_FORMAT=#} table option.  In the future
 you will be able to compress/decompress tables by specifying
 @code{ROW_FORMAT=compressed | default} to @code{ALTER TABLE}.
@@ -49492,7 +49492,7 @@ Fixed bug that caused duplicated rows when using truncation operator
 @code{*} in boolean full-text search.
 @item
 Fixed bug in truncation operator of boolean full-text search (wrong results
-when there are only @code{+word*}'s in the query).
+when there are only @code{+word*}s in the query).
 @item
 Fixed bug in boolean full-text search that caused a crash when an identical
 @code{MATCH} expression that did not use an index appeared twice.
@@ -56463,8 +56463,8 @@ UPDATE table_name SET column=value WHERE unique_key#
 DELETE FROM table_name WHERE unique_key=#
 @end example
 @item
-@code{SELECT} combined with @code{INSERT} (and very few @code{UPDATE}'s
-and @code{DELETE}'s.
+@code{SELECT} combined with @code{INSERT} (and very few @code{UPDATE}s
+and @code{DELETE}s.
 @item
 Many scans / @code{GROUP BY} on the whole table without any writers.
 @end itemize
