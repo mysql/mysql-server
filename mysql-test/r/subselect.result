@@ -163,9 +163,9 @@ a
 7
 delete from t2 where a=100;
 select * from t3 where a in (select a,b from t2);
-Subselect returns more than 1 field
+Cardinality error (more/less than 1 columns)
 select * from t3 where a in (select * from t2);
-Subselect returns more than 1 field
+Cardinality error (more/less than 1 columns)
 insert into t4 values (12,7),(1,7),(10,9),(9,6),(7,6),(3,9);
 select b,max(a) as ma from t4 group by b having b < (select max(t2.a)
 from t2 where t2.b=t4.b);
