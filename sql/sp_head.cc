@@ -561,7 +561,10 @@ sp_head::execute(THD *thd)
     // Check if an exception has occurred and a handler has been found
     // Note: We havo to check even if ret==0, since warnings (and some
     //       errors don't return a non-zero value.
-    if (!thd->killed && ctx)
+    //       We also have to check even if thd->killed != 0, since some
+    //       errors return with this even when a handler has been found
+    //       (e.g. "bad data").
+    if (ctx)
     {
       uint hf;
 
@@ -579,6 +582,7 @@ sp_head::execute(THD *thd)
 	ctx->clear_handler();
 	ctx->in_handler= TRUE;
         thd->clear_error();
+	thd->killed= THD::NOT_KILLED;
 	continue;
       }
     }
