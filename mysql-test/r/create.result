@@ -23,7 +23,7 @@ Warnings:
 Note	1051	Unknown table 't1'
 Note	1051	Unknown table 't2'
 create table t1 (b char(0) not null, index(b));
-The used table handler can't index column 'b'
+The used storage engine can't index column 'b'
 create table t1 (a int not null auto_increment,primary key (a)) type=heap;
 create table t1 (a int not null,b text) type=heap;
 The used table type doesn't support BLOB/TEXT columns
@@ -269,6 +269,8 @@ SELECT @@table_type;
 @@table_type
 GEMINI
 CREATE TABLE t1 (a int not null);
+Warnings:
+Warning	1259	Using storage engine MYISAM for table 't1'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
