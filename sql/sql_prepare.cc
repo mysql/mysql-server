@@ -904,7 +904,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 
   bzero((char*) &stmt, sizeof(stmt));
   
-  stmt.stmt_id= ++thd->current_stmt_id;
+  stmt.stmt_id= ++thd->statement_id_counter;
   init_sql_alloc(&stmt.mem_root,
 		 thd->variables.query_alloc_block_size,
 		 thd->variables.query_prealloc_size);

@@ -3106,7 +3106,6 @@ slave_begin:
     sql_print_error("Failed during slave thread initialization");
     goto err;
   }
-  thd->init_for_queries();
   rli->sql_thd= thd;
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   pthread_mutex_lock(&LOCK_thread_count);

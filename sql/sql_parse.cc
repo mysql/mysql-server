@@ -949,7 +949,6 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->command=COM_SLEEP;
     thd->version=refresh_version;
     thd->set_time();
-    thd->init_for_queries();
     while (!net->error && net->vio != 0 && !(thd->killed == THD::KILL_CONNECTION))
     {
       if (do_command(thd))
@@ -1029,7 +1028,6 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   thd->priv_user=thd->user=(char*) my_strdup("boot", MYF(MY_WME));
 
   buff= (char*) thd->net.buff;
-  thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
     uint length=(uint) strlen(buff);
