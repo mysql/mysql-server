@@ -580,7 +580,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	show describe load alter optimize flush
 	reset purge begin commit rollback slave master_def master_defs
 	repair restore backup analyze check start
-	field_list field_list_item field_spec kill
+	field_list field_list_item field_spec kill column_def key_def
 	select_item_list select_item values_list no_braces
 	limit_clause delete_limit_clause fields opt_values values
 	procedure_list procedure_list2 procedure_item
@@ -909,12 +909,20 @@ field_list:
 
 
 field_list_item:
+           column_def
+         | key_def
+         ;
+
+column_def:
 	  field_spec check_constraint
 	| field_spec references
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
-	| key_type opt_ident '(' key_list ')'
+        ;
+
+key_def:
+	  key_type opt_ident '(' key_list ')'
 	  {
 	    LEX *lex=Lex;
 	    lex->key_list.push_back(new Key($1,$2,lex->col_list));
@@ -1205,7 +1213,8 @@ add_column:
 	ADD opt_column { Lex->change=0; };
 
 alter_list_item:
-	add_column field_list_item opt_place { Lex->simple_alter=0; }
+	add_column column_def opt_place { Lex->simple_alter=0; }
+	| ADD key_def { Lex->simple_alter=0; }
 	| add_column '(' field_list ')'      { Lex->simple_alter=0; }
 	| CHANGE opt_column field_ident
 	  {
