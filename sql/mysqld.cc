@@ -3320,34 +3320,21 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
 #ifdef HAVE_SMEM
 pthread_handler_decl(handle_connections_shared_memory,arg)
 {
-/*
-  event_connect_request is event object for start connection actions
-  event_connect_answer is event object for confirm, that server put data
-  handle_connect_file_map is file-mapping object, use for create shared memory
-  handle_connect_map is pointer on shared memory
-  handle_map is pointer on shared memory for client
-  event_server_wrote,
-  event_server_read,
-  event_client_wrote,
-  event_client_read are events for transfer data between server and client
-  handle_file_map is file-mapping object, use for create shared memory
-*/
-  HANDLE handle_connect_file_map = NULL;
-  char  *handle_connect_map = NULL;
-  HANDLE event_connect_request = NULL;
-  HANDLE event_connect_answer = NULL;
-  ulong smem_buffer_length = shared_memory_buffer_length + 4;
-  ulong connect_number = 1;
+  /* file-mapping object, use for create shared memory */
+  HANDLE handle_connect_file_map= 0;
+  char  *handle_connect_map= 0;  		// pointer on shared memory
+  HANDLE event_connect_request= 0;		// for start connection actions
+  HANDLE event_connect_answer= 0;
+  ulong smem_buffer_length= shared_memory_buffer_length + 4;
+  ulong connect_number= 1;
   my_bool error_allow;
-  THD *thd;
   char tmp[63];
   char *suffix_pos;
   char connect_number_char[22], *p;
-
+  const char *errmsg= 0;
   my_thread_init();
   DBUG_ENTER("handle_connections_shared_memorys");
   DBUG_PRINT("general",("Waiting for allocated shared memory."));
-
 
   /*
     The name of event and file-mapping events create agree next rule:
@@ -3356,166 +3343,165 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
       shared_memory_base_name is unique value for each server
       unique_part is unique value for each object (events and file-mapping)
   */
-  suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
+  suffix_pos= strxmov(tmp,shared_memory_base_name,"_",NullS);
   strmov(suffix_pos, "CONNECT_REQUEST");
-  if ((event_connect_request = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
+  if ((event_connect_request= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
   {
-    sql_perror("Can't create shared memory service ! The request event don't create.");
+    errmsg= "Could not create request event";
     goto error;
   }
   strmov(suffix_pos, "CONNECT_ANSWER");
-  if ((event_connect_answer = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
+  if ((event_connect_answer= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
   {
-    sql_perror("Can't create shared memory service ! The answer event don't create.");
+    errmsg="Could not create answer event";
     goto error;
   }
   strmov(suffix_pos, "CONNECT_DATA");
-  if ((handle_connect_file_map = CreateFileMapping(INVALID_HANDLE_VALUE,NULL,PAGE_READWRITE,
-                                 0,sizeof(connect_number),tmp)) == 0)
+  if ((handle_connect_file_map= CreateFileMapping(INVALID_HANDLE_VALUE,0,
+						   PAGE_READWRITE,
+						   0,sizeof(connect_number),
+						   tmp)) == 0)
   {
-    sql_perror("Can't create shared memory service ! File mapping don't create.");
+    errmsg= "Could not create file mapping";
     goto error;
   }
-  if ((handle_connect_map = (char *)MapViewOfFile(handle_connect_file_map,FILE_MAP_WRITE,0,0,
-                            sizeof(DWORD))) == 0)
+  if ((handle_connect_map= (char *)MapViewOfFile(handle_connect_file_map,
+						  FILE_MAP_WRITE,0,0,
+						  sizeof(DWORD))) == 0)
   {
-    sql_perror("Can't create shared memory service ! Map of memory don't create.");
+    errmsg= "Could not create shared memory service";
     goto error;
   }
-
 
   while (!abort_loop)
   {
-/*
- Wait a request from client
-*/
+    /* Wait a request from client */
     WaitForSingleObject(event_connect_request,INFINITE);
-    error_allow = FALSE;
 
-    HANDLE handle_client_file_map = NULL;
-    char  *handle_client_map = NULL;
-    HANDLE event_client_wrote = NULL;
-    HANDLE event_client_read = NULL;
-    HANDLE event_server_wrote = NULL;
-    HANDLE event_server_read = NULL;
+    HANDLE handle_client_file_map= 0;
+    char  *handle_client_map= 0;
+    HANDLE event_client_wrote= 0;
+    HANDLE event_client_read= 0;    // for transfer data server <-> client
+    HANDLE event_server_wrote= 0;
+    HANDLE event_server_read= 0;
+    THD *thd= 0;
 
-    p = int2str(connect_number, connect_number_char, 10);
-/*
-  The name of event and file-mapping events create agree next rule:
-    shared_memory_base_name+unique_part+number_of_connection
-  Where:
-    shared_memory_base_name is uniquel value for each server
-    unique_part is unique value for each object (events and file-mapping)
-    number_of_connection is number of connection between server and client
-*/
-    suffix_pos = strxmov(tmp,shared_memory_base_name,"_",connect_number_char,"_",NullS);
+    p= int2str(connect_number, connect_number_char, 10);
+    /*
+      The name of event and file-mapping events create agree next rule:
+        shared_memory_base_name+unique_part+number_of_connection
+        Where:
+	  shared_memory_base_name is uniquel value for each server
+	  unique_part is unique value for each object (events and file-mapping)
+	  number_of_connection is connection-number between server and client
+    */
+    suffix_pos= strxmov(tmp,shared_memory_base_name,"_",connect_number_char,
+			 "_",NullS);
     strmov(suffix_pos, "DATA");
-    if ((handle_client_file_map = CreateFileMapping(INVALID_HANDLE_VALUE,NULL,
-                                  PAGE_READWRITE,0,smem_buffer_length,tmp)) == 0)
+    if ((handle_client_file_map= CreateFileMapping(INVALID_HANDLE_VALUE,0,
+						    PAGE_READWRITE,0,
+						    smem_buffer_length,
+						    tmp)) == 0)
     {
-      sql_perror("Can't create connection with client in shared memory service ! File mapping don't create.");
-      error_allow = TRUE;
+      errmsg= "Could not create file mapping";
       goto errorconn;
     }
-    if ((handle_client_map = (char*)MapViewOfFile(handle_client_file_map,FILE_MAP_WRITE,0,0,smem_buffer_length)) == 0)
+    if ((handle_client_map= (char*)MapViewOfFile(handle_client_file_map,
+						  FILE_MAP_WRITE,0,0,
+						  smem_buffer_length)) == 0)
     {
-      sql_perror("Can't create connection with client in shared memory service ! Map of memory don't create.");
-      error_allow = TRUE;
+      errmsg= "Could not create memory map";
       goto errorconn;
     }
-
     strmov(suffix_pos, "CLIENT_WROTE");
-    if ((event_client_wrote = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
+    if ((event_client_wrote= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
     {
-      sql_perror("Can't create connection with client in shared memory service ! CW event don't create.");
-      error_allow = TRUE;
+      errmsg= "Could not create client write event";
       goto errorconn;
     }
-
     strmov(suffix_pos, "CLIENT_READ");
-    if ((event_client_read = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
+    if ((event_client_read= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
     {
-      sql_perror("Can't create connection with client in shared memory service ! CR event don't create.");
-      error_allow = TRUE;
+      errmsg= "Could not create client read event";
       goto errorconn;
     }
-
     strmov(suffix_pos, "SERVER_READ");
-    if ((event_server_read = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
+    if ((event_server_read= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
     {
-      sql_perror("Can't create connection with client in shared memory service ! SR event don't create.");
-      error_allow = TRUE;
+      errmsg= "Could not create server read event";
       goto errorconn;
     }
-
     strmov(suffix_pos, "SERVER_WROTE");
-    if ((event_server_wrote = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
+    if ((event_server_wrote= CreateEvent(0,FALSE,FALSE,tmp)) == 0)
     {
-      sql_perror("Can't create connection with client in shared memory service ! SW event don't create.");
-      error_allow = TRUE;
+      errmsg= "Could not create server write event";
       goto errorconn;
     }
-
-    if (abort_loop) break;
-    if ( !(thd = new THD))
-    {
-      error_allow = TRUE;
+    if (abort_loop)
       goto errorconn;
-    }
-
-/*
-Send number of connection to client
-*/
+    if (!(thd= new THD))
+      goto errorconn;
+    /* Send number of connection to client */
     int4store(handle_connect_map, connect_number);
-
-/*
-  Send number of connection to client
-*/
     if (!SetEvent(event_connect_answer))
     {
-      sql_perror("Can't create connection with client in shared memory service ! Can't send answer event.");
-      error_allow = TRUE;
+      errmsg= "Could not send answer event";
       goto errorconn;
     }
-
-/*
-  Set event that client should receive data
-*/
+    /* Set event that client should receive data */
     if (!SetEvent(event_client_read))
     {
-      sql_perror("Can't create connection with client in shared memory service ! Can't set client to read's mode.");
-      error_allow = TRUE;
+      errmsg= "Could not set client to read mode";
       goto errorconn;
     }
-    if (!(thd->net.vio = vio_new_win32shared_memory(&thd->net,handle_client_file_map,handle_client_map,event_client_wrote,
-                         event_client_read,event_server_wrote,event_server_read)) ||
-                          my_net_init(&thd->net, thd->net.vio))
+    if (!(thd->net.vio= vio_new_win32shared_memory(&thd->net,
+						   handle_client_file_map,
+						   handle_client_map,
+						   event_client_wrote,
+						   event_client_read,
+						   event_server_wrote,
+						   event_server_read)) ||
+	my_net_init(&thd->net, thd->net.vio))
     {
       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
-      delete thd;
-      error_allow = TRUE;
+      errmsg= 0;
+      goto errorconn;
     }
-    /* host name is unknown */
-errorconn:
-    if (error_allow)
-    {
-      if (!handle_client_map) UnmapViewOfFile(handle_client_map);
-      if (!handle_client_file_map) CloseHandle(handle_client_file_map);
-      if (!event_server_wrote) CloseHandle(event_server_wrote);
-      if (!event_server_read) CloseHandle(event_server_read);
-      if (!event_client_wrote) CloseHandle(event_client_wrote);
-      if (!event_client_read) CloseHandle(event_client_read);
-      continue;
-    }
-    thd->host = my_strdup(my_localhost,MYF(0)); /* Host is unknown */
+    thd->host= my_strdup(my_localhost,MYF(0)); /* Host is unknown */
     create_new_thread(thd);
-    uint4korr(connect_number++);
+    connect_number++;
+    continue;
+
+errorconn:
+    /* Could not form connection;  Free used handlers/memort and retry */
+    if (errmsg)
+    {
+      char buff[180];
+      strxmov(buff, "Can't create shared memory connection: ", errmsg, ".",
+	      NullS);
+      sql_perror(buff);
+    }
+    if (handle_client_file_map) CloseHandle(handle_client_file_map);
+    if (handle_client_map)	UnmapViewOfFile(handle_client_map);
+    if (event_server_wrote)	CloseHandle(event_server_wrote);
+    if (event_server_read)	CloseHandle(event_server_read);
+    if (event_client_wrote)	CloseHandle(event_client_wrote);
+    if (event_client_read)	CloseHandle(event_client_read);
+    delete thd;
   }
+
+  /* End shared memory handling */
 error:
-  if (!handle_connect_map) UnmapViewOfFile(handle_connect_map);
-  if (!handle_connect_file_map) CloseHandle(handle_connect_file_map);
-  if (!event_connect_answer) CloseHandle(event_connect_answer);
-  if (!event_connect_request) CloseHandle(event_connect_request);
+  if (errmsg)
+  {
+    char buff[180];
+    strxmov(buff, "Can't create shared memory service: ", errmsg, ".", NullS);
+    sql_perror(buff);
+  }
+  if (handle_connect_map)	UnmapViewOfFile(handle_connect_map);
+  if (handle_connect_file_map)	CloseHandle(handle_connect_file_map);
+  if (event_connect_answer)	CloseHandle(event_connect_answer);
+  if (event_connect_request)	CloseHandle(event_connect_request);
 
   decrement_handler_count();
   DBUG_RETURN(0);

@@ -318,6 +318,7 @@ typedef struct st_mi_check_param
   ulonglong auto_increment_value;
   ulonglong max_data_file_length;
   ulonglong keys_in_use;
+  ulonglong max_record_length;
   my_off_t search_after_block;
   my_off_t new_file_pos,key_file_blocks;
   my_off_t keydata,totaldata,key_blocks,start_check_pos;
