@@ -55,7 +55,7 @@ Note	1003	select (`test`.`t1`.`b` + 1) AS `c` from `test`.`v1`
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create table v2;
 Table	Create Table
-v2	CREATE ALGORITHM=TMPTABLE VIEW `test`.`v2` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+v2	CREATE ALGORITHM=TEMPTABLE VIEW `test`.`v2` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 select c from v2;
 c
 3
@@ -313,7 +313,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 show create table mysqltest.v2;
 Table	Create Table
-v2	CREATE ALGORITHM=TMPTABLE VIEW `mysqltest`.`v2` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
+v2	CREATE ALGORITHM=TEMPTABLE VIEW `mysqltest`.`v2` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
 explain select c from mysqltest.v3;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 show create table mysqltest.v3;
@@ -335,7 +335,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 show create table mysqltest.v2;
 Table	Create Table
-v2	CREATE ALGORITHM=TMPTABLE VIEW `mysqltest`.`v2` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
+v2	CREATE ALGORITHM=TEMPTABLE VIEW `mysqltest`.`v2` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
 explain select c from mysqltest.v3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
@@ -348,7 +348,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 show create table mysqltest.v4;
 Table	Create Table
-v4	CREATE ALGORITHM=TMPTABLE VIEW `mysqltest`.`v4` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
+v4	CREATE ALGORITHM=TEMPTABLE VIEW `mysqltest`.`v4` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
@@ -1268,5 +1268,46 @@ insert into v1 values (1) on duplicate key update s1 = 7;
 select * from t1;
 s1
 7
+drop view v1;
+drop table t1;
+create table t1 (col1 int);
+create table t2 (col1 int);
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+update v2 set col1 = (select max(col1) from v1);
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+delete from v2 where col1 = (select max(col1) from v1);
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+insert into v2 values ((select max(col1) from v1));
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+drop view v2,v1;
+drop table t1,t2;
+create table t1 (s1 int);
+create view v1 as select * from t1;
+handler v1 open as xx;
+ERROR HY000: 'test.v1' is not BASE TABLE
+drop view v1;
+drop table t1;
+create table t1(a int);
+insert into t1 values (0), (1), (2), (3);
+create table t2 (a int);
+insert into t2 select a from t1 where a > 1;
+create view v1 as select a from t1 where a > 1;
+select * from t1 left join (t2 as t, v1) on v1.a=t1.a;
+a	a	a
+0	NULL	NULL
+1	NULL	NULL
+2	2	2
+2	3	2
+3	2	3
+3	3	3
+select * from t1 left join (t2 as t, t2) on t2.a=t1.a;
+a	a	a
+0	NULL	NULL
+1	NULL	NULL
+2	2	2
+2	3	2
+3	2	3
+3	3	3
 drop view v1;
 drop table t1;

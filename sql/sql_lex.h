@@ -85,6 +85,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_STATUS_PROC, SQLCOM_SHOW_STATUS_FUNC,
   SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
   SQLCOM_CREATE_VIEW, SQLCOM_DROP_VIEW,
+  SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER,
   /* This should be the last !!! */
   SQLCOM_END
 };
@@ -602,6 +603,15 @@ struct st_sp_chistics
   bool detistic;
 };
 
+
+struct st_trg_chistics
+{
+  enum trg_action_time_type action_time;
+  enum trg_event_type event;
+};
+
+extern sys_var_long_ptr trg_new_row_fake_var;
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex
@@ -633,7 +643,11 @@ typedef struct st_lex
   THD *thd;
   CHARSET_INFO *charset;
   TABLE_LIST *query_tables;	/* global list of all tables in this query */
-  /* last element next_global of previous list */
+  /*
+    last element next_global of previous list (used only for list building
+    during parsing and VIEW processing. This pointer is not valid in
+    mysql_execute_command
+  */
   TABLE_LIST **query_tables_last;
   TABLE_LIST *proc_table; /* refer to mysql.proc if it was opened by VIEW */
 
@@ -713,6 +727,14 @@ typedef struct st_lex
     rexecuton
   */
   bool empty_field_list_on_rset;
+  /* Characterstics of trigger being created */
+  st_trg_chistics trg_chistics;
+  /*
+    Points to table being opened when we are parsing trigger definition
+    while opening table. 0 if we are parsing user provided CREATE TRIGGER
+    or any other statement. Used for NEW/OLD row field lookup in trigger.
+  */
+  TABLE *trg_table;
 
   st_lex() :result(0)
   {
@@ -747,6 +769,11 @@ typedef struct st_lex
   TABLE_LIST *unlink_first_table(bool *link_to_local);
   void link_first_table_back(TABLE_LIST *first, bool link_to_local);
   void first_lists_tables_same();
+  inline void add_to_query_tables(TABLE_LIST *table)
+  {
+    *(table->prev_global= query_tables_last)= table;
+    query_tables_last= &table->next_global;
+  }
 
   bool can_be_merged();
   bool can_use_merged();

@@ -20,6 +20,8 @@
 #include "mysql_priv.h"
 #include "sql_acl.h"
 #include "sql_select.h"
+#include "sp_head.h"
+#include "sql_trigger.h"
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -42,10 +44,6 @@ static my_bool open_new_frm(const char *path, const char *alias,
 			    uint db_stat, uint prgflag,
 			    uint ha_open_flags, TABLE *outparam,
 			    TABLE_LIST *table_desc, MEM_ROOT *mem_root);
-static Field *find_field_in_real_table(THD *thd, TABLE *table,
-				       const char *name, uint length,
-				       bool check_grants, bool allow_rowid, 
-				       uint *cached_field_index_ptr);
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
 				 my_bool not_used __attribute__((unused)))
@@ -210,6 +208,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
 void intern_close_table(TABLE *table)
 {						// Free all structures
   free_io_cache(table);
+  delete table->triggers;
   if (table->file)
     VOID(closefrm(table));			// close file
 }
@@ -574,13 +573,84 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                const char *db_name,
                                const char *table_name)
 {
-  for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
+  if (lower_case_table_names)
   {
-    if (!strcmp(table->db, db_name) &&
-	!strcmp(table->real_name, table_name))
-      break;
+    for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
+    {
+      if ((!strcmp(table->db, db_name) &&
+           !strcmp(table->real_name, table_name)) ||
+          (table->view &&
+           !my_strcasecmp(table_alias_charset,
+                          table->table->table_cache_key, db_name) &&
+           !my_strcasecmp(table_alias_charset,
+                          table->table->table_name, table_name)))
+        break;
+    }
+  }
+  else
+  {
+    for (; table; table= *(TABLE_LIST **) ((char*) table + offset))
+    {
+      if ((!strcmp(table->db, db_name) &&
+           !strcmp(table->real_name, table_name)) ||
+          (table->view &&
+           !strcmp(table->table->table_cache_key, db_name) &&
+           !strcmp(table->table->table_name, table_name)))
+        break;
+    }
   }
   return table;
+}
+
+
+/*
+  Test that table is unique
+
+  SYNOPSIS
+    unique_table()
+    table       table which should be chaked
+    table_list  list of tables
+
+  RETURN
+    found duplicate
+    0 if table is unique
+*/
+
+TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
+{
+  TABLE_LIST *res;
+  const char *d_name= table->db, *t_name= table->real_name;
+  char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
+  if (table->view)
+  {
+    /* it is view and table opened */
+    if (lower_case_table_names)
+    {
+      strmov(t_name_buff, table->table->table_name);
+      my_casedn_str(files_charset_info, t_name_buff);
+      t_name= t_name_buff;
+      strmov(d_name_buff, table->table->table_cache_key);
+      my_casedn_str(files_charset_info, d_name_buff);
+      d_name= d_name_buff;
+    }
+    else
+    {
+      d_name= table->table->table_cache_key;
+      t_name= table->table->table_name;
+    }
+    if (d_name == 0)
+    {
+      /* it's temporary table => always unique */
+      return 0;
+    }
+  }
+  if ((res= find_table_in_global_list(table_list, d_name, t_name)) &&
+      res->table && res->table == table->table)
+  {
+    // we found entry of this table try again.
+    return find_table_in_global_list(res->next_global, d_name, t_name);
+  }
+  return res;
 }
 
 
@@ -747,6 +817,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
   {
+    delete table->triggers;
     closefrm(table);
     pthread_mutex_unlock(&LOCK_open);
     DBUG_RETURN(0);
@@ -1010,6 +1081,7 @@ bool reopen_table(TABLE *table,bool locked)
   if (!(tmp.table_cache_key= memdup_root(&tmp.mem_root,db,
 					 table->key_length)))
   {
+    delete tmp.triggers;
     closefrm(&tmp);				// End of memory
     goto end;
   }
@@ -1038,6 +1110,7 @@ bool reopen_table(TABLE *table,bool locked)
   tmp.next=		table->next;
   tmp.prev=		table->prev;
 
+  delete table->triggers;
   if (table->file)
     VOID(closefrm(table));		// close file, free everything
 
@@ -1424,6 +1497,9 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
   if (error == 5)
     DBUG_RETURN(0);	// we have just opened VIEW
 
+  if (Table_triggers_list::check_n_load(thd, db, name, entry))
+    goto err;
+
   /*
     If we are here, there was no fatal error (but error may be still
     unitialized).
@@ -1452,6 +1528,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
         */
         sql_print_error("Error: when opening HEAP table, could not allocate \
 memory to write 'DELETE FROM `%s`.`%s`' to the binary log",db,name);
+        delete entry->triggers;
         if (entry->file)
           closefrm(entry);
         goto err;
@@ -1999,10 +2076,10 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
     #			pointer to field
 */
 
-static Field *find_field_in_real_table(THD *thd, TABLE *table,
-				       const char *name, uint length,
-				       bool check_grants, bool allow_rowid, 
-				       uint *cached_field_index_ptr)
+Field *find_field_in_real_table(THD *thd, TABLE *table,
+                                const char *name, uint length,
+                                bool check_grants, bool allow_rowid,
+                                uint *cached_field_index_ptr)
 {
   Field **field_ptr, *field;
   uint cached_field_index= *cached_field_index_ptr;
@@ -2440,7 +2517,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     Don't use arena if we are not in prepared statements or stored procedures
     For PS/SP we have to use arena to remember the changes
   */
-  if (arena->state == Item_arena::CONVENTIONAL_EXECUTION)
+  if (arena->is_conventional())
     arena= 0;                                   // For easier test later one
   else
     thd->set_n_backup_item_arena(arena, &backup);
@@ -2466,8 +2543,8 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
         it.replace(new Item_int("Not_used", (longlong) 1, 21));
       }
       else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
-                                   ((Item_field*) item)->table_name, &it,
-                                   any_privileges))
+                             ((Item_field*) item)->table_name, &it,
+                             any_privileges, arena != 0))
       {
 	if (arena)
 	  thd->restore_backup_item_arena(arena, &backup);
@@ -2653,6 +2730,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
     any_privileges	0 If we should ensure that we have SELECT privileges
 		          for all columns
                         1 If any privilege is ok
+    allocate_view_names if true view names will be copied to current Item_arena                         memory (made for SP/PS)
   RETURN
     0	ok
         'it' is updated to point at last inserted
@@ -2662,7 +2740,7 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
 bool
 insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
 	      const char *table_name, List_iterator<Item> *it,
-              bool any_privileges)
+              bool any_privileges, bool allocate_view_names)
 {
   /* allocate variables on stack to avoid pool alloaction */
   Field_iterator_table table_iter;
@@ -2822,7 +2900,7 @@ insert_fields(THD *thd, TABLE_LIST *tables, const char *db_name,
           field->query_id=thd->query_id;
           table->used_keys.intersect(field->part_of_key);
         }
-        else if (thd->current_arena->is_stmt_prepare() &&
+        else if (allocate_view_names &&
                  thd->lex->current_select->first_execution)
         {
           Item_field *item= new Item_field(thd->strdup(tables->view_db.str),
@@ -2867,7 +2945,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
   DBUG_ENTER("setup_conds");
 
   if (select_lex->conds_processed_with_permanent_arena ||
-      !arena->is_stmt_prepare())
+      arena->is_conventional())
     arena= 0;                                   // For easier test
 
   thd->set_query_id=1;

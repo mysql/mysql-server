@@ -24,6 +24,11 @@
 #include "sp.h"
 #include "sp_head.h"
 
+/*
+  We are using pointer to this variable for distinguishing between assignment
+  to NEW row field (when parsing trigger definition) and structured variable.
+*/
+sys_var_long_ptr trg_new_row_fake_var(0, 0);
 
 /*
   Fake table list object, pointer to which is used as special value for
@@ -139,6 +144,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->duplicates= DUP_ERROR;
   lex->sphead= NULL;
   lex->spcont= NULL;
+  lex->trg_table= NULL;
 
   extern byte *sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first);
   hash_free(&lex->spfuns);
@@ -1795,7 +1801,7 @@ void st_lex::link_first_table_back(TABLE_LIST *first,
 
 void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
 {
-  if (thd->current_arena->is_stmt_prepare() && first_execution)
+  if (!thd->current_arena->is_conventional() && first_execution)
   {
     first_execution= 0;
     prep_where= where;

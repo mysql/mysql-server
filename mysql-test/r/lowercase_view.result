@@ -1,0 +1,24 @@
+drop table if exists t1Aa,t2Aa,v1Aa,v2Aa;
+drop view if exists t1Aa,t2Aa,v1Aa,v2Aa;
+drop database if exists MySQLTest;
+create database MySQLTest;
+use MySQLTest;
+create table TaB (Field int);
+create view ViE as select * from TAb;
+show create table VIe;
+Table	Create Table
+vie	CREATE VIEW `mysqltest`.`vie` AS select `mysqltest`.`tab`.`Field` AS `Field` from `mysqltest`.`tab`
+drop database MySQLTest;
+use test;
+create table t1Aa (col1 int);
+create table t2Aa (col1 int);
+create view v1Aa as select * from t1Aa;
+create view v2Aa as select * from v1Aa;
+update v2aA set col1 = (select max(col1) from v1aA);
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+delete from v2aA where col1 = (select max(col1) from v1aA);
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+insert into v2aA values ((select max(col1) from v1aA));
+ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
+drop view v2Aa,v1Aa;
+drop table t1Aa,t2Aa;

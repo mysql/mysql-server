@@ -51,7 +51,11 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables)
 {
   HANDLER_TABLES_HACK(thd);
   uint counter;
+
+  /* for now HANDLER can be used only for real TABLES */
+  tables->required_type= FRMTYPE_TABLE;
   int err=open_tables(thd, tables, &counter);
+
   HANDLER_TABLES_HACK(thd);
   if (err)
     return -1;
@@ -249,7 +253,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   it++;                                         // Skip first NULL field
 
-  insert_fields(thd, tables, tables->db, tables->alias, &it, 0);
+  insert_fields(thd, tables, tables->db, tables->alias, &it, 0, 0);
 
   select_limit+=offset_limit;
   protocol->send_fields(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
