@@ -27,22 +27,18 @@
 #include <hash.h>
 #include <time.h>
 #include <ft_global.h>
-#ifdef HAVE_COMPRESS
-#include <zlib.h>
-#endif
 
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 			      const char *fname)
 {
   my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
-  	   c1.collation->name,c1.derivation_name(),
+	   c1.collation->name,c1.derivation_name(),
 	   c2.collation->name,c2.derivation_name(),
 	   fname);
 }
 
-
-static void my_coll_agg_error(DTCollation &c1, 
+static void my_coll_agg_error(DTCollation &c1,
 			       DTCollation &c2,
 			       DTCollation &c3,
 			       const char *fname)
@@ -132,6 +128,27 @@ Item_func::Item_func(List<Item> &list)
   :allowed_arg_cols(1)
 {
   set_arguments(list);
+}
+
+Item_func::Item_func(THD *thd, Item_func &item)
+  :Item_result_field(thd, item),
+   allowed_arg_cols(item.allowed_arg_cols),
+   arg_count(item.arg_count),
+   used_tables_cache(item.used_tables_cache),
+   not_null_tables_cache(item.not_null_tables_cache),
+   const_item_cache(item.const_item_cache)
+{
+  if (arg_count)
+  {
+    if (arg_count <=2)
+      args= tmp_arg;
+    else
+    {
+      if (!(args=(Item**) thd->alloc(sizeof(Item*)*arg_count)))
+	return;
+    }
+    memcpy((char*) args, (char*) item.args, sizeof(Item*)*arg_count);
+  }
 }
 
 
@@ -1084,36 +1101,6 @@ longlong Item_func_min_max::val_int()
   }
   return value;
 }
-
-
-#ifdef HAVE_COMPRESS
-longlong Item_func_crc32::val_int()
-{
-  String *res=args[0]->val_str(&value);
-  if (!res)
-  {
-    null_value=1;
-    return 0; /* purecov: inspected */
-  }
-  null_value=0;
-  return (longlong) crc32(0L, (Bytef*)res->ptr(), res->length());
-}
-
-
-longlong Item_func_uncompressed_length::val_int()
-{
-  String *res= args[0]->val_str(&value);
-  if (!res)
-  {
-    null_value=1;
-    return 0; /* purecov: inspected */
-  }
-  null_value=0;
-  if (res->is_empty()) return 0;
-  return uint4korr(res->c_ptr()) & 0x3FFFFFFF;
-}
-#endif /* HAVE_COMPRESS */
-
 
 longlong Item_func_length::val_int()
 {

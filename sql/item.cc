@@ -490,27 +490,38 @@ String *Item_null::val_str(String *str)
 
 /* Item_param related */
 void Item_param::set_null()
-{ 
-  maybe_null=null_value=1;    
+{
+  DBUG_ENTER("Item_param::set_null");
+  maybe_null= null_value= 1;
+  DBUG_VOID_RETURN;
 }
 
 void Item_param::set_int(longlong i)
-{  
-  int_value=(longlong)i; 
-  item_type = INT_ITEM;
+{
+  DBUG_ENTER("Item_param::set_int");
+  int_value= (longlong)i;
+  item_type= INT_ITEM;
+  DBUG_PRINT("info", ("integer: %lld", int_value));
+  DBUG_VOID_RETURN;
 }
 
 void Item_param::set_double(double value)
-{  
+{
+  DBUG_ENTER("Item_param::set_double");
   real_value=value;
-  item_type = REAL_ITEM;
+  item_type= REAL_ITEM;
+  DBUG_PRINT("info", ("double: %lg", real_value));
+  DBUG_VOID_RETURN;
 }
 
 
 void Item_param::set_value(const char *str, uint length)
-{  
-  str_value.set(str,length,default_charset());
-  item_type = STRING_ITEM;
+{
+  DBUG_ENTER("Item_param::set_value");
+  str_value.copy(str,length,default_charset());
+  item_type= STRING_ITEM;
+  DBUG_PRINT("info", ("string: %s", str_value.ptr()));
+  DBUG_VOID_RETURN;
 }
 
 
@@ -921,6 +932,73 @@ enum_field_types Item::field_type() const
   return ((result_type() == STRING_RESULT) ? FIELD_TYPE_VAR_STRING :
 	  (result_type() == INT_RESULT) ? FIELD_TYPE_LONGLONG :
 	  FIELD_TYPE_DOUBLE);
+}
+
+Field *Item::tmp_table_field_from_field_type(TABLE *table)
+{
+  switch (field_type()) 
+  {
+  case MYSQL_TYPE_DECIMAL:
+    return new Field_decimal(max_length, maybe_null, name, table,
+			     unsigned_flag);
+  case MYSQL_TYPE_TINY:
+    return new Field_tiny(max_length, maybe_null, name, table,
+			  unsigned_flag);
+  case MYSQL_TYPE_SHORT:
+    return new Field_short(max_length, maybe_null, name, table,
+			   unsigned_flag);
+  case MYSQL_TYPE_LONG:
+    return new Field_long(max_length, maybe_null, name, table,
+			  unsigned_flag);
+  case MYSQL_TYPE_FLOAT:
+    return new Field_float(max_length, maybe_null, name, table, decimals);
+  case MYSQL_TYPE_DOUBLE:
+    return new Field_double(max_length, maybe_null, name, table, decimals);
+  case MYSQL_TYPE_NULL:
+    return new Field_null(max_length, name, table, &my_charset_bin);
+#ifdef HAVE_LONG_LONG
+  case MYSQL_TYPE_LONGLONG:
+    return new Field_longlong(max_length, maybe_null, name, table,
+			      unsigned_flag);
+#endif
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_INT24:
+    return new Field_long(max_length, maybe_null, name, table,
+			  unsigned_flag);
+  case MYSQL_TYPE_DATE:
+    return new Field_date(maybe_null, name, table, &my_charset_bin);
+  case MYSQL_TYPE_TIME:
+    return new Field_time(maybe_null, name, table, &my_charset_bin);
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+    return new Field_datetime(maybe_null, name, table, &my_charset_bin);
+  case MYSQL_TYPE_YEAR:
+    return new Field_year(max_length, maybe_null, name, table);
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+    return new Field_long(max_length, maybe_null, name, table,
+			  unsigned_flag);
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_GEOMETRY:
+    return new Field_blob(max_length, maybe_null, name, table, collation.collation);
+  case MYSQL_TYPE_VAR_STRING:
+    if (max_length > 255)
+      return new Field_blob(max_length, maybe_null, name, table, collation.collation);
+    else
+      return new Field_varstring(max_length, maybe_null, name, table, collation.collation);
+  case MYSQL_TYPE_STRING:
+    if (max_length > 255)
+      return new Field_blob(max_length, maybe_null, name, table, collation.collation);
+    else
+      return new Field_string(max_length, maybe_null, name, table, collation.collation);
+  default:
+    // This case should never be choosen
+    DBUG_ASSERT(0);
+    return 0;
+  }
 }
 
 /* ARGSUSED */

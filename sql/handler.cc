@@ -359,7 +359,10 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
     if (trans == &thd->transaction.all && mysql_bin_log.is_open() &&
 	my_b_tell(&thd->transaction.trans_log))
     {
+      if (wait_if_global_read_lock(thd, 0))
+	DBUG_RETURN(1);
       mysql_bin_log.write(thd, &thd->transaction.trans_log);
+      start_waiting_global_read_lock(thd);
       reinit_io_cache(&thd->transaction.trans_log,
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
       thd->transaction.trans_log.end_of_file= max_binlog_cache_size;

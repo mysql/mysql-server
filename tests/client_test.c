@@ -1717,7 +1717,7 @@ static void test_select()
   rc = mysql_commit(mysql);
   myquery(rc);
 
-    /* now insert the second row, and rollback the transaction */
+  /* now insert the second row, and rollback the transaction */
   rc = mysql_query(mysql,"INSERT INTO test_select VALUES(20,'mysql')");
   myquery(rc);
 
@@ -1755,6 +1755,168 @@ static void test_select()
   mysql_stmt_close(stmt);
 }
 
+/*
+  test BUG#1115 (incorrect string parameter value allocation)
+*/
+static void test_bug1115()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  MYSQL_BIND bind[1];
+  ulong length[1];
+  char szData[11];
+  int nData=1;
+
+  myheader("test_bug1115");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_select");
+  myquery(rc);
+
+  rc = mysql_query(mysql,"CREATE TABLE test_select(\
+session_id  char(9) NOT NULL, \
+    a       int(8) unsigned NOT NULL, \
+    b        int(5) NOT NULL, \
+    c      int(5) NOT NULL, \
+    d  datetime NOT NULL)");
+  myquery(rc);
+  rc = mysql_query(mysql,"INSERT INTO test_select VALUES (\"abc\",1,2,3,2003-08-30), (\"abd\",1,2,3,2003-08-30), (\"abf\",1,2,3,2003-08-30), (\"abg\",1,2,3,2003-08-30), (\"abh\",1,2,3,2003-08-30), (\"abj\",1,2,3,2003-08-30), (\"abk\",1,2,3,2003-08-30), (\"abl\",1,2,3,2003-08-30), (\"abq\",1,2,3,2003-08-30), (\"abw\",1,2,3,2003-08-30), (\"abe\",1,2,3,2003-08-30), (\"abr\",1,2,3,2003-08-30), (\"abt\",1,2,3,2003-08-30), (\"aby\",1,2,3,2003-08-30), (\"abu\",1,2,3,2003-08-30), (\"abi\",1,2,3,2003-08-30), (\"abo\",1,2,3,2003-08-30), (\"abp\",1,2,3,2003-08-30), (\"abz\",1,2,3,2003-08-30), (\"abx\",1,2,3,2003-08-30)");
+  myquery(rc);
+
+  strmov(query,"SELECT * FROM test_select WHERE session_id = ?");
+  stmt = mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+
+  verify_param_count(stmt,1);
+
+  strmov(szData,(char *)"abc");
+  bind[0].buffer_type=FIELD_TYPE_STRING;
+  bind[0].buffer=(char *)szData;
+  bind[0].buffer_length= 10;
+  bind[0].length= &length[0];
+  length[0]= 3;
+  bind[0].is_null=0;
+
+  rc = mysql_bind_param(stmt,bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  myassert(my_process_stmt_result(stmt) == 1);
+
+  strmov(szData,(char *)"venu");
+  bind[0].buffer_type=FIELD_TYPE_STRING;
+  bind[0].buffer=(char *)szData;
+  bind[0].buffer_length= 10;
+  bind[0].length= &length[0];
+  length[0]= 4;
+  bind[0].is_null=0;
+
+  rc = mysql_bind_param(stmt,bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  myassert(my_process_stmt_result(stmt) == 0);
+
+  strmov(szData,(char *)"abc");
+  bind[0].buffer_type=FIELD_TYPE_STRING;
+  bind[0].buffer=(char *)szData;
+  bind[0].buffer_length= 10;
+  bind[0].length= &length[0];
+  length[0]= 3;
+  bind[0].is_null=0;
+
+  rc = mysql_bind_param(stmt,bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  myassert(my_process_stmt_result(stmt) == 1);
+
+  mysql_stmt_close(stmt);
+}
+
+/*
+  test BUG#1180 (optimized away part of WHERE clause)
+*/
+static void test_bug1180()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  MYSQL_BIND bind[1];
+  ulong length[1];
+  char szData[11];
+  int nData=1;
+
+  myheader("test_select_bug");
+
+  rc = mysql_query(mysql,"DROP TABLE IF EXISTS test_select");
+  myquery(rc);
+
+  rc = mysql_query(mysql,"CREATE TABLE test_select(session_id  char(9) NOT NULL)");
+  myquery(rc);
+  rc = mysql_query(mysql,"INSERT INTO test_select VALUES (\"abc\")");
+  myquery(rc);
+
+  strmov(query,"SELECT * FROM test_select WHERE ?=\"1111\" and session_id = \"abc\"");
+  stmt = mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+
+  verify_param_count(stmt,1);
+
+  strmov(szData,(char *)"abc");
+  bind[0].buffer_type=FIELD_TYPE_STRING;
+  bind[0].buffer=(char *)szData;
+  bind[0].buffer_length= 10;
+  bind[0].length= &length[0];
+  length[0]= 3;
+  bind[0].is_null=0;
+
+  rc = mysql_bind_param(stmt,bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  myassert(my_process_stmt_result(stmt) == 0);
+
+  strmov(szData,(char *)"1111");
+  bind[0].buffer_type=FIELD_TYPE_STRING;
+  bind[0].buffer=(char *)szData;
+  bind[0].buffer_length= 10;
+  bind[0].length= &length[0];
+  length[0]= 4;
+  bind[0].is_null=0;
+
+  rc = mysql_bind_param(stmt,bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  myassert(my_process_stmt_result(stmt) == 1);
+
+  strmov(szData,(char *)"abc");
+  bind[0].buffer_type=FIELD_TYPE_STRING;
+  bind[0].buffer=(char *)szData;
+  bind[0].buffer_length= 10;
+  bind[0].length= &length[0];
+  length[0]= 3;
+  bind[0].is_null=0;
+
+  rc = mysql_bind_param(stmt,bind);
+  mystmt(stmt, rc);
+
+  rc = mysql_execute(stmt);
+  mystmt(stmt, rc);
+
+  myassert(my_process_stmt_result(stmt) == 0);
+
+  mysql_stmt_close(stmt);
+}
 
 /********************************************************
 * to test simple select show                            *
@@ -5896,7 +6058,7 @@ static void test_field_misc()
                        "@@table_type","",   /* field and its org name */
                        MYSQL_TYPE_STRING,   /* field type */
                        "", "",              /* table and its org name */
-                       "",type_length,0);   /* db name, length */
+                       "",type_length*3,0);   /* db name, length */
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -7814,6 +7976,8 @@ int main(int argc, char **argv)
     test_fetch_column();    /* to test mysql_fetch_column */
     test_sqlmode();         /* test for SQL_MODE */
     test_ts();              /* test for timestamp BR#819 */
+    test_bug1115();         /* BUG#1115 */
+    test_bug1180();         /* BUG#1180 */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

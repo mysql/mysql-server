@@ -72,7 +72,7 @@ Item_subselect::trans_res
 Item_subselect::select_transformer(JOIN *join) 
 {
   DBUG_ENTER("Item_subselect::select_transformer");
-  DBUG_RETURN(OK);
+  DBUG_RETURN(RES_OK);
 }
 
 
@@ -214,14 +214,14 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 	cond= join->having;
       else
 	if (!(cond= new Item_cond_and(join->conds, join->having)))
-	  return ERROR;
+	  return RES_ERROR;
       if (!(substitution= new Item_func_if(cond, substitution,
 					   new Item_null())))
-	return ERROR;
+	return RES_ERROR;
     }
-    return REDUCE;
+    return RES_REDUCE;
   }
-  return OK;
+  return RES_OK;
 }
 
 void Item_singlerow_subselect::store(uint i, Item *item)
@@ -508,7 +508,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
     {
       thd->lex.current_select= current;
-      DBUG_RETURN(ERROR);
+      DBUG_RETURN(RES_ERROR);
     }
     thd->lex.current_select= current;
 
@@ -528,7 +528,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   if (select_lex->item_list.elements > 1)
   {
     my_error(ER_CARDINALITY_COL, MYF(0), 1);
-    DBUG_RETURN(ERROR);
+    DBUG_RETURN(RES_ERROR);
   }
 
   item= (Item*) select_lex->item_list.head();
@@ -546,7 +546,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (join->having->fix_fields(thd, join->tables_list, &join->having))
     {
       select_lex->having_fix_field= 0;
-      DBUG_RETURN(ERROR);
+      DBUG_RETURN(RES_ERROR);
     }
     select_lex->having_fix_field= 0;
   }
@@ -570,7 +570,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	if (join->having->fix_fields(thd, join->tables_list, &join->having))
 	{
 	  select_lex->having_fix_field= 0;
-	  DBUG_RETURN(ERROR);
+	  DBUG_RETURN(RES_ERROR);
 	}
 	select_lex->having_fix_field= 0;
 	item= new Item_cond_or(item,
@@ -578,7 +578,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       }
       join->conds= and_items(join->conds, item);
       if (join->conds->fix_fields(thd, join->tables_list, &join->conds))
-	DBUG_RETURN(ERROR);
+	DBUG_RETURN(RES_ERROR);
     }
     else
     {
@@ -592,7 +592,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	if (join->having->fix_fields(thd, join->tables_list, &join->having))
 	{
 	  select_lex->having_fix_field= 0;
-	  DBUG_RETURN(ERROR);
+	  DBUG_RETURN(RES_ERROR);
 	}
 	select_lex->having_fix_field= 0;
       }
@@ -610,11 +610,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
-	DBUG_RETURN(REDUCE);
+	DBUG_RETURN(RES_REDUCE);
       }
     }
   }
-  DBUG_RETURN(OK);
+  DBUG_RETURN(RES_OK);
 }
 
 Item_subselect::trans_res
@@ -640,7 +640,7 @@ Item_in_subselect::row_value_transformer(JOIN *join,
     if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
     {
       thd->lex.current_select= current;
-      DBUG_RETURN(ERROR);
+      DBUG_RETURN(RES_ERROR);
     }
     thd->lex.current_select= current;
 
@@ -679,7 +679,7 @@ Item_in_subselect::row_value_transformer(JOIN *join,
     if (join->having->fix_fields(thd, join->tables_list, &join->having))
     {
       select_lex->having_fix_field= 0;
-      DBUG_RETURN(ERROR);
+      DBUG_RETURN(RES_ERROR);
     }
     select_lex->having_fix_field= 0;
   }
@@ -687,9 +687,9 @@ Item_in_subselect::row_value_transformer(JOIN *join,
   {
     join->conds= and_items(join->conds, item);
     if (join->conds->fix_fields(thd, join->tables_list, &join->having))
-      DBUG_RETURN(ERROR);
+      DBUG_RETURN(RES_ERROR);
   }
-  DBUG_RETURN(OK);
+  DBUG_RETURN(RES_OK);
 }
 
 Item_subselect::trans_res
@@ -846,7 +846,7 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
     SELECT_LEX *sl= unit->first_select();
     bool fake= 0;
     res_type= set_row(sl, item, row, &fake);
-    for (sl= sl->next_select(); sl; sl->next_select())
+    for (sl= sl->next_select(); sl; sl= sl->next_select())
     {
       List_iterator_fast<Item> li(sl->item_list);
       Item *sel_item;

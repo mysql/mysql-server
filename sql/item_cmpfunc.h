@@ -82,6 +82,7 @@ public:
   Item_bool_func() :Item_int_func() {}
   Item_bool_func(Item *a) :Item_int_func(a) {}
   Item_bool_func(Item *a,Item *b) :Item_int_func(a,b) {}
+  Item_bool_func(THD *thd, Item_bool_func &item) :Item_int_func(thd, item) {}
   void fix_length_and_dec() { decimals=0; max_length=1; }
 };
 
@@ -115,8 +116,8 @@ protected:
   String tmp_value1,tmp_value2;
 
 public:
-  Item_bool_func2(Item *a,Item *b):
-    Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1) {}
+  Item_bool_func2(Item *a,Item *b)
+    :Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1) {}
   void fix_length_and_dec();
   void set_cmp_func()
   {
@@ -158,7 +159,7 @@ public:
 class Item_func_eq :public Item_bool_rowready_func2
 {
 public:
-  Item_func_eq(Item *a,Item *b) :Item_bool_rowready_func2(a,b) {};
+  Item_func_eq(Item *a,Item *b) :Item_bool_rowready_func2(a,b) {}
   longlong val_int();
   enum Functype functype() const { return EQ_FUNC; }
   enum Functype rev_functype() const { return EQ_FUNC; }
@@ -280,6 +281,8 @@ public:
 class Item_func_ifnull :public Item_func
 {
   enum Item_result cached_result_type;
+  enum_field_types cached_field_type;
+  bool field_type_defined;
 public:
   Item_func_ifnull(Item *a,Item *b)
     :Item_func(a,b), cached_result_type(INT_RESULT)
@@ -288,8 +291,10 @@ public:
   longlong val_int();
   String *val_str(String *str);
   enum Item_result result_type () const { return cached_result_type; }
+  enum_field_types field_type() const;
   void fix_length_and_dec();
   const char *func_name() const { return "ifnull"; }
+  Field *tmp_table_field(TABLE *table);
   table_map not_null_tables() const { return 0; }
 };
 
@@ -787,8 +792,13 @@ protected:
 public:
   /* Item_cond() is only used to create top level items */
   Item_cond() : Item_bool_func(), abort_on_null(1) { const_item_cache=0; }
-  Item_cond(Item *i1,Item *i2) :Item_bool_func(), abort_on_null(0)
-  { list.push_back(i1); list.push_back(i2); }
+  Item_cond(Item *i1,Item *i2) 
+    :Item_bool_func(), abort_on_null(0)
+  {
+    list.push_back(i1);
+    list.push_back(i2);
+  }
+  Item_cond(THD *thd, Item_cond &item);
   ~Item_cond() { list.delete_elements(); }
   bool add(Item *item) { return list.push_back(item); }
   bool fix_fields(THD *, struct st_table_list *, Item **ref);
@@ -801,6 +811,7 @@ public:
   void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
   void top_level_item() { abort_on_null=1; }
+  void copy_andor_arguments(THD *thd, Item_cond *item);
 
   bool walk(Item_processor processor, byte *arg);
 };
@@ -811,9 +822,17 @@ class Item_cond_and :public Item_cond
 public:
   Item_cond_and() :Item_cond() {}
   Item_cond_and(Item *i1,Item *i2) :Item_cond(i1,i2) {}
+  Item_cond_and(THD *thd, Item_cond_and &item) :Item_cond(thd, item) {}
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
   const char *func_name() const { return "and"; }
+  Item* copy_andor_structure(THD *thd)
+  {
+    Item_cond_and *item;
+    if((item= new Item_cond_and(thd, *this)))
+       item->copy_andor_arguments(thd, this);
+    return item;
+  }
 };
 
 class Item_cond_or :public Item_cond
@@ -821,10 +840,18 @@ class Item_cond_or :public Item_cond
 public:
   Item_cond_or() :Item_cond() {}
   Item_cond_or(Item *i1,Item *i2) :Item_cond(i1,i2) {}
+  Item_cond_or(THD *thd, Item_cond_or &item) :Item_cond(thd, item) {}
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
   const char *func_name() const { return "or"; }
   table_map not_null_tables() const { return and_tables_cache; }
+  Item* copy_andor_structure(THD *thd)
+  {
+    Item_cond_or *item;
+    if((item= new Item_cond_or(thd, *this)))
+      item->copy_andor_arguments(thd, this);
+    return item;
+  }
 };
 
 

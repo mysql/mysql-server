@@ -120,6 +120,9 @@ public:
      Constructor used by Item_field, Item_ref & agregate (sum) functions.
      Used for duplicating lists in processing queries with temporary
      tables
+     Also it used for Item_cond_and/Item_cond_or for creating
+     top AND/OR ctructure of WHERE clause to protect it of
+     optimisation changes in prepared statements
   */
   Item(THD *thd, Item &item);
   virtual ~Item() { name=0; }		/*lint -e1509 */
@@ -140,7 +143,7 @@ public:
   virtual double val()=0;
   virtual longlong val_int()=0;
   virtual String *val_str(String*)=0;
-  virtual Field *tmp_table_field() { return 0; }
+  virtual Field *get_tmp_table_field() { return 0; }
   virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
   virtual const char *full_name() const { return name ? name : "???"; }
   virtual double  val_result() { return val(); }
@@ -184,6 +187,7 @@ public:
   virtual void save_in_result_field(bool no_conversions) {}
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
+  virtual Item *copy_andor_structure(THD *thd) { return this; }
   virtual Item *real_item() { return this; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
@@ -205,6 +209,8 @@ public:
   virtual bool null_inside() { return 0; }
   // used in row subselects to get value of elements
   virtual void bring_value() {}
+
+  Field *tmp_table_field_from_field_type(TABLE *table);
 };
 
 
@@ -265,7 +271,7 @@ public:
   {
     return field->type();
   }
-  Field *tmp_table_field() { return result_field; }
+  Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
   bool get_date(TIME *ltime,bool fuzzydate);
   bool get_date_result(TIME *ltime,bool fuzzydate);
@@ -539,12 +545,12 @@ class Item_result_field :public Item	/* Item with result field */
 public:
   Field *result_field;				/* Save result here */
   Item_result_field() :result_field(0) {}
-  // Constructor used for Item_sum (see Item comment)
+  // Constructor used for Item_sum/Item_cond_and/or (see Item comment)
   Item_result_field(THD *thd, Item_result_field &item):
     Item(thd, item), result_field(item.result_field)
   {}
   ~Item_result_field() {}			/* Required with gcc 2.95 */
-  Field *tmp_table_field() { return result_field; }
+  Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
   table_map used_tables() const { return 1; }
   virtual void fix_length_and_dec()=0;
@@ -862,6 +868,7 @@ public:
   {
     value= item->val_int_result();
     null_value= item->null_value;
+    collation.set(item->collation);
   }
   double val() { return (double) value; }
   longlong val_int() { return value; }
@@ -879,6 +886,7 @@ public:
   {
     value= item->val_result();
     null_value= item->null_value;
+    collation.set(item->collation);
   }
   double val() { return value; }
   longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5)); }

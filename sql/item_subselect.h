@@ -51,7 +51,7 @@ public:
   /* changed engine indicator */
   bool engine_changed;
 
-  enum trans_res {OK, REDUCE, ERROR};
+  enum trans_res {RES_OK, RES_REDUCE, RES_ERROR};
   enum subs_type {UNKNOWN_SUBS, SINGLEROW_SUBS,
 		  EXISTS_SUBS, IN_SUBS, ALLANY_SUBS};
 

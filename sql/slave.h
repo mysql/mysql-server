@@ -288,16 +288,19 @@ Log_event* next_event(RELAY_LOG_INFO* rli);
 
 typedef struct st_master_info
 {
+  /* the variables below are needed because we can change masters on the fly */
   char master_log_name[FN_REFLEN];
   char host[HOSTNAME_LENGTH+1];
   char user[USERNAME_LENGTH+1];
   char password[MAX_PASSWORD_LENGTH+1];
+  my_bool ssl; // enables use of SSL connection if true
+  char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
+  char ssl_cipher[FN_REFLEN], ssl_key[FN_REFLEN];
   
   my_off_t master_log_pos;
   File fd; // we keep the file open, so we need to remember the file pointer
   IO_CACHE file;
   
-  /* the variables below are needed because we can change masters on the fly */
   pthread_mutex_t data_lock,run_lock;
   pthread_cond_t data_cond,start_cond,stop_cond;
   THD *io_thd;
@@ -315,10 +318,13 @@ typedef struct st_master_info
   volatile ulong slave_run_id;
   
   st_master_info()
-    :fd(-1), io_thd(0), inited(0), old_format(BINLOG_FORMAT_CURRENT),
+    :ssl(0), fd(-1),  io_thd(0), inited(0), old_format(BINLOG_FORMAT_CURRENT),
      abort_slave(0),slave_running(0), slave_run_id(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
+    ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
+    ssl_cipher[0]= 0; ssl_key[0]= 0;
+    
     bzero((char*) &file, sizeof(file));
     pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
     pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
@@ -468,6 +474,10 @@ extern my_string master_user, master_password, master_host,
        master_info_file, relay_log_info_file, report_user, report_host,
        report_password;
 
+extern my_bool master_ssl;
+extern my_string master_ssl_ca, master_ssl_capath, master_ssl_cert,
+       master_ssl_cipher, master_ssl_key;
+       
 extern I_List<i_string> replicate_do_db, replicate_ignore_db;
 extern I_List<i_string_pair> replicate_rewrite_db;
 extern I_List<THD> threads;

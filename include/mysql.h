@@ -229,7 +229,9 @@ typedef struct st_mysql
   enum mysql_status status;
   my_bool	free_me;		/* If free in mysql_close */
   my_bool	reconnect;		/* set to 1 if automatic reconnect */
-  char	        scramble_buff[21];      /* New protocol requires longer scramble*/
+
+  /* session-wide random string */
+  char	        scramble[SCRAMBLE_LENGTH+1];
 
  /*
    Set if this is the original connection, not a master or a slave we have
@@ -541,16 +543,16 @@ typedef struct st_mysql_stmt
 
 typedef struct st_mysql_methods
 {
-  my_bool STDCALL (*read_query_result)(MYSQL *mysql);
-  my_bool STDCALL (*advanced_command)(MYSQL *mysql,
+  my_bool (STDCALL *read_query_result)(MYSQL *mysql);
+  my_bool (STDCALL *advanced_command)(MYSQL *mysql,
 				      enum enum_server_command command,
 				      const char *header,
 				      unsigned long header_length,
 				      const char *arg,
 				      unsigned long arg_length, my_bool skip_check);
-  MYSQL_RES *	STDCALL (*store_result)(MYSQL *mysql);
-  MYSQL_RES *	STDCALL (*use_result)(MYSQL *mysql);
-  void STDCALL (*fetch_lengths)(unsigned long *to, MYSQL_ROW column, uint field_count);
+  MYSQL_RES * (STDCALL *store_result)(MYSQL *mysql);
+  MYSQL_RES * (STDCALL *use_result)(MYSQL *mysql);
+  void (STDCALL *fetch_lengths)(unsigned long *to, MYSQL_ROW column, uint field_count);
 } MYSQL_METHODS;
 
 MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,

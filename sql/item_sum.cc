@@ -223,10 +223,9 @@ Item *Item_sum_sum::copy_or_same(THD* thd)
 }
 
 
-bool Item_sum_sum::reset()
+void Item_sum_sum::clear()
 {
   null_value=1; sum=0.0;
-  return Item_sum_sum::add();
 }
 
 
@@ -251,10 +250,9 @@ Item *Item_sum_count::copy_or_same(THD* thd)
 }
 
 
-bool Item_sum_count::reset()
+void Item_sum_count::clear()
 {
-  count=0;
-  return add();
+  count= 0;
 }
 
 
@@ -286,10 +284,9 @@ Item *Item_sum_avg::copy_or_same(THD* thd)
 }
 
 
-bool Item_sum_avg::reset()
+void Item_sum_avg::clear()
 {
   sum=0.0; count=0;
-  return Item_sum_avg::add();
 }
 
 
@@ -342,11 +339,10 @@ Item *Item_sum_variance::copy_or_same(THD* thd)
 }
 
 
-bool Item_sum_variance::reset()
+void Item_sum_variance::clear()
 {
   sum=sum_sqr=0.0; 
   count=0; 
-  return Item_sum_variance::add();
 }
 
 bool Item_sum_variance::add()
@@ -592,10 +588,9 @@ longlong Item_sum_bit::val_int()
 }
 
 
-bool Item_sum_bit::reset()
+void Item_sum_bit::clear()
 {
-  bits=reset_bits;
-  return add();
+  bits= reset_bits;
 }
 
 Item *Item_sum_or::copy_or_same(THD* thd)
@@ -1280,7 +1275,7 @@ Item *Item_sum_count_distinct::copy_or_same(THD* thd)
 }
 
 
-bool Item_sum_count_distinct::reset()
+void Item_sum_count_distinct::clear()
 {
   if (use_tree)
     reset_tree(tree);
@@ -1290,7 +1285,6 @@ bool Item_sum_count_distinct::reset()
     table->file->delete_all_rows();
     table->file->extra(HA_EXTRA_WRITE_CACHE);
   }
-  return add();
 }
 
 bool Item_sum_count_distinct::add()
@@ -1353,11 +1347,11 @@ longlong Item_sum_count_distinct::val_int()
 
 #ifdef HAVE_DLOPEN
 
-bool Item_udf_sum::reset()
+void Item_udf_sum::clear()
 {
-  DBUG_ENTER("Item_udf_sum::reset");
-  udf.reset(&null_value);
-  DBUG_RETURN(0);
+  DBUG_ENTER("Item_udf_sum::clear");
+  udf.clear();
+  DBUG_VOID_RETURN;
 }
 
 bool Item_udf_sum::add()
@@ -1466,7 +1460,7 @@ int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
   for (uint i= 0; i < item->arg_count_field; i++)
   {
     Item *field_item= item->args[i];
-    Field *field= field_item->tmp_table_field();
+    Field *field= field_item->real_item()->get_tmp_table_field();
     if (field)
     {
       uint offset= field->abs_offset;
@@ -1497,7 +1491,7 @@ int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2)
   {
     ORDER *order_item= item->order[i];
     Item *item= *order_item->item;
-    Field *field= item->tmp_table_field();
+    Field *field= item->real_item()->get_tmp_table_field();
     if (field)
     {
       uint offset= field->abs_offset;
@@ -1548,7 +1542,7 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
     Item *show_item= group_concat_item->args[i];
     if (!show_item->const_item())
     {
-      Field *f= show_item->tmp_table_field();
+      Field *f= show_item->real_item()->get_tmp_table_field();
       char *sv= f->ptr;
       f->ptr= (char *)key + f->abs_offset;
       String *res= f->val_str(&tmp,&tmp2);
@@ -1685,7 +1679,7 @@ Item *Item_func_group_concat::copy_or_same(THD* thd)
 }
 
 
-bool Item_func_group_concat::reset()
+void Item_func_group_concat::clear()
 {
   result.length(0);
   result.copy();
@@ -1699,7 +1693,6 @@ bool Item_func_group_concat::reset()
   }
   if (tree_mode)
     reset_tree(tree);
-  return add();
 }
 
 
@@ -1716,7 +1709,7 @@ bool Item_func_group_concat::add()
     Item *show_item= args[i];
     if (!show_item->const_item())
     {
-      Field *f= show_item->tmp_table_field();
+      Field *f= show_item->real_item()->get_tmp_table_field();
       if (!f->is_null())
       {
         record_is_null= FALSE;      
