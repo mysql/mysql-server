@@ -30,10 +30,11 @@ Prepare:
 Prepare-execute:
 
   - Server gets the command 'COM_EXECUTE' to execute the 
-    previously prepared query.
-  - If there is are any parameters, then replace the markers with the 
-    data supplied by client with the following format:
-    [types_specified(0/1)][type][length][data] .. [type][length]..
+    previously prepared query. If there is any param markers; then client
+    will send the data in the following format:    
+    [null_bits][types_specified(0/1)][[length][data]][[length][data] .. [length][data]. 
+  - Replace the param items with this new data. If it is a first execute 
+    or types altered by client; then setup the conversion routines.
   - Execute the query without re-parsing and send back the results 
     to client
 
@@ -53,33 +54,9 @@ Long data handling:
 #include <assert.h> // for DEBUG_ASSERT()
 #include <m_ctype.h>  // for isspace()
 
-extern int yyparse(void);
-static ulong get_param_length(uchar **packet);
-static uint get_buffer_type(uchar **packet);
-static bool param_is_null(uchar **packet);
-static bool setup_param_fields(THD *thd,List<Item> &params);
-static uchar* setup_param_field(Item_param *item_param, uchar *pos,
-				uint buffer_type);
-static void setup_longdata_field(Item_param *item_param, uchar *pos);
-static bool setup_longdata(THD *thd,List<Item> &params);
-static bool send_prepare_results(PREP_STMT *stmt);
-static bool parse_prepare_query(PREP_STMT *stmt, char *packet, uint length);
-static bool mysql_send_insert_fields(PREP_STMT *stmt, TABLE_LIST *table_list, 
-				     List<Item> &fields,
-				     List<List_item> &values_list,
-				     thr_lock_type lock_type);
-static bool mysql_test_insert_fields(PREP_STMT *stmt, TABLE_LIST *table_list, 
-				     List<Item> &fields,
-				     List<List_item> &values_list,
-				     thr_lock_type lock_type);
-static bool mysql_test_upd_fields(PREP_STMT *stmt, TABLE_LIST *table_list,
-				  List<Item> &fields, List<Item> &values,
-				  COND *conds,thr_lock_type lock_type);
-static bool mysql_test_select_fields(PREP_STMT *stmt, TABLE_LIST *tables,
-				     List<Item> &fields, List<Item> &values,
-				     COND *conds, ORDER *order, ORDER *group,
-				     Item *having,thr_lock_type lock_type);
+#define IS_PARAM_NULL(pos, param_no) pos[param_no/8] & (1 << param_no & 7)
 
+extern int yyparse(void);
 
 /*
   Find prepared statement in thd
@@ -114,9 +91,9 @@ static PREP_STMT *find_prepared_statement(THD *thd, ulong stmt_id,
   Compare two prepared statements;  Used to find a prepared statement
 */
 
-int compare_prep_stmt(PREP_STMT *a, PREP_STMT *b, void *not_used)
+int compare_prep_stmt(void *not_used, PREP_STMT *stmt, ulong *key)
 {
-  return (a->stmt_id < b->stmt_id) ? -1 : (a->stmt_id == b->stmt_id) ? 0 : 1;
+  return (stmt->stmt_id == *key) ? 0 : (stmt->stmt_id < *key) ? -1 : 1;
 }
 
 
@@ -132,22 +109,23 @@ int compare_prep_stmt(PREP_STMT *a, PREP_STMT *b, void *not_used)
 */
 
 void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used)
-{
-  free_root(&stmt->mem_root, MYF(0));
+{   
   free_items(stmt->free_list);
+  free_root(&stmt->mem_root, MYF(0));
 }
 
 /*
   Send prepared stmt info to client after prepare
 */
 
-bool send_prep_stmt(PREP_STMT *stmt, uint columns)
+static bool send_prep_stmt(PREP_STMT *stmt, uint columns)
 {
+  NET  *net=&stmt->thd->net;
   char buff[8];
   int4store(buff, stmt->stmt_id);
   int2store(buff+4, columns);
   int2store(buff+6, stmt->param_count);
-  return my_net_write(&stmt->thd->net, buff, sizeof(buff));
+  return (my_net_write(net, buff, sizeof(buff)) || net_flush(net));
 }
 
 /*
@@ -156,43 +134,15 @@ bool send_prep_stmt(PREP_STMT *stmt, uint columns)
   TODO: Not yet ready
 */
 
-bool send_item_params(PREP_STMT *stmt)
+static bool send_item_params(PREP_STMT *stmt)
 {
+#if 0
   char buff[1];
   buff[0]=0;
-  return my_net_write(&stmt->thd->net, buff, sizeof(buff));
-}
-
-
-
-/*
-  Read the buffer type, this happens only first time        
-*/
-
-static uint get_buffer_type(uchar **packet)
-{
-  reg1 uchar *pos= *packet;
-  (*packet)+= 2;
-  return (uint) uint2korr(pos);
-}
-
-
-/*
-  Check for NULL param data
-
-  RETURN VALUES
-    0	Value was not NULL
-    1	Value was NULL
-*/
-
-static bool param_is_null(uchar **packet)
-{
-  reg1 uchar *pos= *packet;
-  if (*pos == 251)
-  {
-    (*packet)++;
+  if (my_net_write(&stmt->thd->net, buff, sizeof(buff))) 
     return 1;
-  }
+  send_eof(stmt->thd);
+#endif
   return 0;
 }
 
@@ -222,60 +172,103 @@ static ulong get_param_length(uchar **packet)
   (*packet)+=9; // Must be 254 when here 
   return (ulong) uint4korr(pos+1);
 }
+ /*
+  Setup param conversion routines
 
-/*
-  Read and return the data for parameters supplied by client 
+  setup_param_xx()
+  param   Parameter Item
+  pos     Input data buffer
+
+  All these functions reads the data from pos and sets up that data
+  through 'param' and advances the buffer position to predifined
+  length position.
+
+  Make a note that the NULL handling is examined at first execution
+  (i.e. when input types altered) and for all subsequent executions
+  we don't read any values for this.
+
+  RETURN VALUES
+    
 */
 
-static uchar* setup_param_field(Item_param *item_param, 
-				uchar *pos, uint buffer_type)
+static void setup_param_tiny(Item_param *param, uchar **pos)
 {
-  if (param_is_null(&pos))
-  {
-    item_param->set_null();
-    return(pos);
-  }
-  switch (buffer_type) {    
+  param->set_int((longlong)(**pos));
+  *pos+= 1;
+}
+
+static void setup_param_short(Item_param *param, uchar **pos)
+{
+  param->set_int((longlong)sint2korr(*pos));
+  *pos+= 2;
+}
+
+static void setup_param_int32(Item_param *param, uchar **pos)
+{
+  param->set_int((longlong)sint4korr(*pos));
+  *pos+= 4;
+}
+
+static void setup_param_int64(Item_param *param, uchar **pos)
+{
+  param->set_int((longlong)sint8korr(*pos));
+  *pos+= 8;
+}
+
+static void setup_param_float(Item_param *param, uchar **pos)
+{
+  float data;
+  float4get(data,*pos);
+  param->set_double((double) data);
+  *pos+= 4;
+}
+
+static void setup_param_double(Item_param *param, uchar **pos)
+{
+  double data;
+  float8get(data,*pos);
+  param->set_double((double) data);
+  *pos+= 8;
+}
+
+static void setup_param_str(Item_param *param, uchar **pos)
+{
+  ulong len=get_param_length(pos);
+  param->set_value((const char *)*pos, len);
+  *pos+=len;        
+}
+
+static void setup_param_functions(Item_param *param, uchar read_pos)
+{
+  switch (read_pos) {
   case FIELD_TYPE_TINY:
-    item_param->set_int((longlong)(*pos));
-    pos += 1;
+    param->setup_param_func= setup_param_tiny;
+    param->item_result_type = INT_RESULT;
     break;
   case FIELD_TYPE_SHORT:
-    item_param->set_int((longlong)sint2korr(pos));
-    pos += 2;
-    break;
-  case FIELD_TYPE_INT24:
-    item_param->set_int((longlong)sint4korr(pos));
-    pos += 3;
+    param->setup_param_func= setup_param_short;
+    param->item_result_type = INT_RESULT;
     break;
   case FIELD_TYPE_LONG:
-    item_param->set_int((longlong)sint4korr(pos));
-    pos += 4;
+    param->setup_param_func= setup_param_int32;
+    param->item_result_type = INT_RESULT;
     break;
   case FIELD_TYPE_LONGLONG:
-    item_param->set_int((longlong)sint8korr(pos));
-    pos += 8;
+    param->setup_param_func= setup_param_int64;
+    param->item_result_type = INT_RESULT;
     break;
   case FIELD_TYPE_FLOAT:
-    float data;
-    float4get(data,pos);
-    item_param->set_double((double) data);
-    pos += 4;
+    param->setup_param_func= setup_param_float;
+    param->item_result_type = REAL_RESULT;
     break;
   case FIELD_TYPE_DOUBLE:
-    double j;
-    float8get(j,pos)
-    item_param->set_double(j);
-    pos += 8;
+    param->setup_param_func= setup_param_double;
+    param->item_result_type = REAL_RESULT;
     break;
   default:
-    {      
-      ulong len=get_param_length(&pos);
-      item_param->set_value((const char*)pos,len,current_thd->thd_charset);
-      pos+=len;        
-    }
+    param->setup_param_func= setup_param_str;
+    param->item_result_type = STRING_RESULT;
   }
-  return(pos);
 }
 
 /*
@@ -283,42 +276,45 @@ static uchar* setup_param_field(Item_param *item_param,
   from client ..                                             
 */
 
-static bool setup_param_fields(THD *thd, PREP_STMT *stmt)
-{  
-  DBUG_ENTER("setup_param_fields");  
-#ifdef READY_TO_BE_USED
-  Item_param *item_param;
-  ulong param_count=0;
-  uchar *pos=(uchar*) thd->net.read_pos+1;// skip command type
+static bool setup_params_data(THD *thd, PREP_STMT *stmt)
+{                                       
+  List<Item> &params= thd->lex.param_list;
+  List_iterator<Item> param_iterator(params);
+  Item_param *param;
+  DBUG_ENTER("setup_params_data");
 
- 
-  if (*pos++) // No types supplied, read only param data
-  {
-    while ((item_param=(Item_param *)it++) && 
-	   (param_count++ < stmt->param_count))
-    {
-      if (item_param->long_data_supplied)
-        continue;
+  uchar *pos=(uchar*) thd->net.read_pos+1+MYSQL_STMT_HEADER; //skip header
+  uchar *read_pos= pos+(stmt->param_count+7) / 8; //skip null bits   
+  ulong param_no;
 
-      if (!(pos=setup_param_field(item_param,pos,item_param->buffer_type)))
-        DBUG_RETURN(1);
+  if (*read_pos++) //types supplied / first execute
+  {              
+    /*
+      First execute or types altered by the client, setup the 
+      conversion routines for all parameters (one time)
+    */
+    while ((param= (Item_param *)param_iterator++))
+    {       
+      if (!param->long_data_supplied)
+      {
+        setup_param_functions(param,*read_pos);
+        read_pos+= 2;
+      }
     }
-  }
-  else // Types supplied, read and store it along with param data 
+    param_iterator.rewind();
+  }    
+  param_no= 0;
+  while ((param= (Item_param *)param_iterator++))
   {
-    while ((item_param=(Item_param *)it++) && 
-	   (param_count++ < thd->param_count))
+    if (!param->long_data_supplied)
     {
-      if (item_param->long_data_supplied)
-        continue;
-
-      if (!(pos=setup_param_field(item_param,pos,
-				  item_param->buffer_type=
-				  (enum_field_types) get_buffer_type(&pos))))
-        DBUG_RETURN(1);
+      if (IS_PARAM_NULL(pos,param_no))
+        param->maybe_null=param->null_value=1;
+      else
+        param->setup_param_func(param,&read_pos);
     }
+    param_no++;
   }
-#endif
   DBUG_RETURN(0);
 }
 
@@ -583,6 +579,8 @@ static bool send_prepare_results(PREP_STMT *stmt)
          Rest fall through to default category, no parsing 
          for non-DML statements 
       */
+      if (send_prep_stmt(stmt, 0))
+        goto abort;
     }
   }
   DBUG_RETURN(0);
@@ -597,7 +595,7 @@ abort:
 */
 
 static bool parse_prepare_query(PREP_STMT *stmt,
-				char *packet, uint length)
+		char *packet, uint length)
 {
   bool error= 1;
   THD *thd= stmt->thd;
@@ -607,6 +605,7 @@ static bool parse_prepare_query(PREP_STMT *stmt,
   mysql_init_query(thd);   
   thd->prepare_command=true; 
   thd->safe_to_cache_query= 0;
+  thd->lex.param_count=0;
 
   LEX *lex=lex_start(thd, (uchar*) packet, length);
   if (!yyparse() && !thd->fatal_error) 
@@ -615,6 +614,25 @@ static bool parse_prepare_query(PREP_STMT *stmt,
   DBUG_RETURN(error);
 }
 
+/*
+  Initialize parameter items in statement
+*/
+static bool init_param_items(THD *thd, PREP_STMT *stmt)
+{
+#if TO_BE_TESTED
+  Item_param **to;
+  if (!(to= (Item_param *)
+        my_malloc(sizeof(Item_param*) * stmt->param_count, MYF(MY_WME))))
+    return 1;
+  List<Item> &params= thd->lex.param_list;
+  List_iterator<Item> param_iterator(params);
+  while ((to++ = (Item_param *)param_iterator++))
+  {
+    DBUG_PRINT("info",("param: %lx", to));
+  }
+  return 0;
+#endif
+}
 
 /*
   Parse the query and send the total number of parameters 
@@ -648,10 +666,15 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
     goto err;
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(),WAIT_PRIOR);   
-       
-  stmt.mem_root= thd->mem_root;
+    my_pthread_setprio(pthread_self(),WAIT_PRIOR);
+#if 0
+  if (init_param_items(thd, &stmt))
+    goto err;
+#endif
+  stmt.mem_root= thd->mem_root;  
+  tree_insert(&thd->prepared_statements, (void *)&stmt, 0, (void *)0);
   thd->mem_root= thd_root; // restore main mem_root
+  thd->last_prepared_stmt= &stmt;
   DBUG_RETURN(0);
 
 err:
@@ -685,11 +708,11 @@ void mysql_stmt_execute(THD *thd, char *packet)
   /* Check if we got an error when sending long data */
   if (stmt->error_in_prepare)
   {
-    send_error(thd);
+    send_error(thd, stmt->last_errno, stmt->last_error);
     DBUG_VOID_RETURN;
   }
 
-  if (stmt->param_count && setup_param_fields(thd, stmt))
+  if (stmt->param_count && setup_params_data(thd, stmt))
     DBUG_VOID_RETURN;
 
   MEM_ROOT thd_root= thd->mem_root;
@@ -704,6 +727,8 @@ void mysql_stmt_execute(THD *thd, char *packet)
     have re-check on setup_* and other things ..
   */  
   mysql_execute_command(thd);
+
+  thd->last_prepared_stmt= stmt;
 
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
@@ -768,8 +793,10 @@ void mysql_stmt_close(THD *thd, char *packet)
     send_error(thd);
     DBUG_VOID_RETURN;
   }
+  stmt->param= 0;
+  my_free((char *)stmt->param, MYF(MY_ALLOW_ZERO_PTR));
   /* Will call free_prep_stmt() */
-  tree_delete(&thd->prepared_statements, (void*) stmt, NULL);
+  tree_delete(&thd->prepared_statements, (void*) &stmt, (void *)0);
   thd->last_prepared_stmt=0;
   DBUG_VOID_RETURN;
 }
@@ -800,17 +827,16 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
   DBUG_ENTER("mysql_stmt_get_longdata");
 
   /* The following should never happen */
-  if (packet_length < 9)
+  if (packet_length < MYSQL_LONG_DATA_HEADER+1)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "get_longdata");
     DBUG_VOID_RETURN;
   }
 
-  pos++;				// skip command type at first position
   ulong stmt_id=     uint4korr(pos);
   uint param_number= uint2korr(pos+4);
   uint param_type=   uint2korr(pos+6);
-  pos+=8;				// Point to data
+  pos+=MYSQL_LONG_DATA_HEADER;	// Point to data
 
   if (!(stmt=find_prepared_statement(thd, stmt_id, "get_longdata")))
   {
@@ -829,7 +855,8 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS), "get_longdata");
     DBUG_VOID_RETURN;
   }
-  stmt->param[param_number].set_longdata(pos, packet_length-9, current_thd->thd_charset);
+  stmt->param[param_number].set_longdata(pos, packet_length-9);
   stmt->long_data_used= 1;
   DBUG_VOID_RETURN;
 }
+
