@@ -69,10 +69,6 @@ my_bool	net_flush(NET *net);
 
 #endif
 
-
-uint		mysql_port=0;
-my_string	mysql_unix_port=0;
-
 #if defined(MSDOS) || defined(__WIN__)
 /* socket_errno is defined in my_global.h for all platforms */
 #define perror(A)
@@ -141,6 +137,7 @@ void mysql_once_init(void)
 #endif
 }
 
+#ifndef EMBEDDED_LIBRARY
 int STDCALL mysql_server_init(int argc __attribute__((unused)),
 			      char **argv __attribute__((unused)),
 			      char **groups __attribute__((unused)))
@@ -839,54 +836,6 @@ STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
   slave->next_slave = mysql->next_slave;
   mysql->next_slave = slave;
   return 0;
-}
-
-/**************************************************************************
-  Alloc struct for use with unbuffered reads. Data is fetched by domand
-  when calling to mysql_fetch_row.
-  mysql_data_seek is a noop.
-
-  No other queries may be specified with the same MYSQL handle.
-  There shouldn't be much processing per row because mysql server shouldn't
-  have to wait for the client (and will not wait more than 30 sec/packet).
-**************************************************************************/
-
-MYSQL_RES * STDCALL CLI_MYSQL_USE_RESULT(MYSQL *mysql)
-{
-  MYSQL_RES *result;
-  DBUG_ENTER("mysql_use_result");
-
-  mysql = mysql->last_used_con;
-
-  if (!mysql->fields)
-    DBUG_RETURN(0);
-  if (mysql->status != MYSQL_STATUS_GET_RESULT)
-  {
-    strmov(mysql->net.sqlstate, unknown_sqlstate);
-    strmov(mysql->net.last_error,
-	   ER(mysql->net.last_errno=CR_COMMANDS_OUT_OF_SYNC));
-    DBUG_RETURN(0);
-  }
-  if (!(result=(MYSQL_RES*) my_malloc(sizeof(*result)+
-				      sizeof(ulong)*mysql->field_count,
-				      MYF(MY_WME | MY_ZEROFILL))))
-    DBUG_RETURN(0);
-  result->lengths=(ulong*) (result+1);
-  if (!(result->row=(MYSQL_ROW)
-	my_malloc(sizeof(result->row[0])*(mysql->field_count+1), MYF(MY_WME))))
-  {					/* Ptrs: to one row */
-    my_free((gptr) result,MYF(0));
-    DBUG_RETURN(0);
-  }
-  result->fields=	mysql->fields;
-  result->field_alloc=	mysql->field_alloc;
-  result->field_count=	mysql->field_count;
-  result->current_field=0;
-  result->handle=	mysql;
-  result->current_row=	0;
-  mysql->fields=0;			/* fields is now in result */
-  mysql->status=MYSQL_STATUS_USE_RESULT;
-  DBUG_RETURN(result);			/* Data is read to be fetched */
 }
 
 /**************************************************************************

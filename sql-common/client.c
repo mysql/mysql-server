@@ -60,10 +60,6 @@ my_bool	net_flush(NET *net);
 #define CLI_MYSQL_REAL_CONNECT mysql_real_connect
 #endif /*EMBEDDED_LIBRARY*/
 
-#ifdef MYSQL_CLIENT
-static my_bool	mysql_client_init=0;
-#endif
-
 #if !defined(MYSQL_SERVER) && (defined(__WIN__) || defined(_WIN32) || defined(_WIN64))
 
 #include <winsock.h>
@@ -1441,6 +1437,7 @@ error:
 static void STDCALL cli_mysql_close(MYSQL *mysql);
 static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql);
 static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql);
+static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql);
 
 static MYSQL_METHODS client_methods=
 {
@@ -1448,7 +1445,7 @@ static MYSQL_METHODS client_methods=
   cli_mysql_read_query_result,
   cli_advanced_command,
   cli_mysql_store_result,
-  CLI_MYSQL_USE_RESULT
+  cli_mysql_use_result
 };
 
 MYSQL * STDCALL 
@@ -2378,8 +2375,7 @@ static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql)
   have to wait for the client (and will not wait more than 30 sec/packet).
 **************************************************************************/
 
-MYSQL_RES * STDCALL
-mysql_use_result(MYSQL *mysql)
+static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_use_result");

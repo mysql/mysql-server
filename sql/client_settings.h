@@ -30,6 +30,5 @@
 #define mysql_slave_send_query(A, B, C) 1
 #define mysql_rpl_probe(mysql) 0
 #undef HAVE_SMEM
-#define CLI_MYSQL_USE_RESULT NULL
 #undef _CUSTOMCONFIG_
 
