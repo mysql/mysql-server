@@ -481,7 +481,6 @@ ha_rows tree_record_pos(TREE *tree, const void *key,
   TREE_ELEMENT *element= tree->root;
   double left= 1;
   double right= tree->elements_in_tree;
-  ha_rows last_equal_pos= HA_POS_ERROR;
 
   while (element != &tree->null_element)
   {
@@ -490,9 +489,6 @@ ha_rows tree_record_pos(TREE *tree, const void *key,
     {
       switch (flag) {
       case HA_READ_KEY_EXACT:
-        last_equal_pos= (ha_rows) ((left + right) / 2);
-        cmp= 1;
-        break;
       case HA_READ_BEFORE_KEY:
         cmp= 1;
         break;
@@ -516,7 +512,6 @@ ha_rows tree_record_pos(TREE *tree, const void *key,
   }
   switch (flag) {
   case HA_READ_KEY_EXACT:
-    return last_equal_pos;
   case HA_READ_BEFORE_KEY:
     return (ha_rows) right;
   case HA_READ_AFTER_KEY:

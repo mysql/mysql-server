@@ -820,6 +820,16 @@ String *Item_copy_string::val_str(String *str)
   return &str_value;
 }
 
+
+int Item_copy_string::save_in_field(Field *field, bool no_conversions)
+{
+  if (null_value)
+    return set_field_to_null(field);
+  field->set_notnull();
+  return field->store(str_value.ptr(),str_value.length(),
+		      collation.collation);
+}
+
 /*
   Functions to convert item to field (for send_fields)
 */
@@ -1284,8 +1294,8 @@ int Item::save_in_field(Field *field, bool no_conversions)
     String *result;
     CHARSET_INFO *cs= collation.collation;
     char buff[MAX_FIELD_WIDTH];		// Alloc buffer for small columns
-    String loc_value(buff, sizeof(buff), cs);
-    result=val_str(&loc_value);
+    str_value.set_quick(buff, sizeof(buff), cs);
+    result=val_str(&str_value);
     if (null_value)
       return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();

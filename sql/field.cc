@@ -4209,10 +4209,10 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 void Field_string::sort_string(char *to,uint length)
 {
   uint tmp=my_strnxfrm(field_charset,
-                          (unsigned char *)to, length,
-                          (unsigned char *) ptr, field_length);
+		       (unsigned char *) to, length,
+		       (unsigned char *) ptr, field_length);
   if (tmp < length)
-    bzero(to + tmp, length - tmp);
+    field_charset->cset->fill(field_charset, to + tmp, length - tmp, ' ');
 }
 
 
@@ -4384,7 +4384,8 @@ void Field_varstring::sort_string(char *to,uint length)
                              (unsigned char *) to, length,
                              (unsigned char *)ptr+2, tot_length);
   if (tot_length < length)
-    bzero(to+tot_length,length-tot_length);
+    field_charset->cset->fill(field_charset, to+tot_length,length-tot_length,
+			      binary() ? (char) 0 : ' ');
 }
 
 
@@ -4838,7 +4839,9 @@ void Field_blob::sort_string(char *to,uint length)
                             (unsigned char *)to, length, 
                             (unsigned char *)blob, blob_length);
     if (blob_length < length)
-      bzero(to+blob_length, length-blob_length);
+      field_charset->cset->fill(field_charset, to+blob_length,
+				length-blob_length,
+				binary() ? (char) 0 : ' ');
   }
 }
 

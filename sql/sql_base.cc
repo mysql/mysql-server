@@ -2365,7 +2365,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
       {
 	table->outer_join= 0;
-	if (!(*conds= and_conds(*conds, table->on_expr, tables)))
+	if (!(*conds= and_conds(thd, *conds, table->on_expr, tables)))
 	  DBUG_RETURN(1);
 	table->on_expr=0;
       }
@@ -2407,14 +2407,14 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 
       if (!table->outer_join)			// Not left join
       {
-	if (!(*conds= and_conds(*conds, cond_and, tables)) ||
+	if (!(*conds= and_conds(thd, *conds, cond_and, tables)) ||
 	    (*conds && !(*conds)->fixed &&
 	     (*conds)->fix_fields(thd, tables, conds)))
 	  DBUG_RETURN(1);
       }
       else
       {
-	table->on_expr= and_conds(table->on_expr, cond_and, tables);
+	table->on_expr= and_conds(thd, table->on_expr, cond_and, tables);
 	if (table->on_expr && !table->on_expr->fixed &&
 	    table->on_expr->fix_fields(thd, tables, &table->on_expr))
 	  DBUG_RETURN(1);

@@ -102,7 +102,11 @@ public:
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
   
-  String str_value;			/* used to store value */
+  /*
+    str_values's main purpose is to be used to cache the value in
+    save_in_field
+  */
+  String str_value;
   my_string name;			/* Name from select */
   Item *next;
   uint32 max_length;
@@ -138,7 +142,7 @@ public:
   virtual void make_field(Send_field *field);
   virtual bool fix_fields(THD *, struct st_table_list *, Item **);
   /*
-    should be used in case where we are shure that we do not need
+    should be used in case where we are sure that we do not need
     complete fix_fields() procedure.
   */
   inline void quick_fix_field() { fixed= 1; }
@@ -250,7 +254,7 @@ public:
 class Item_num: public Item
 {
 public:
-  virtual Item_num* neg()= 0;
+  virtual Item_num *neg()= 0;
 };
 
 
@@ -813,6 +817,7 @@ public:
   String *val_str(String*);
   void make_field(Send_field *field) { item->make_field(field); }
   void copy();
+  int save_in_field(Field *field, bool no_conversions);
   table_map used_tables() const { return (table_map) 1L; }
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }

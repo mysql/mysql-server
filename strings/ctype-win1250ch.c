@@ -467,6 +467,10 @@ static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+/*
+  TODO: Has to be fixed as strnncollsp in ctype-simple
+*/
+
 static
 int my_strnncollsp_win1250ch(CHARSET_INFO * cs, 
 			     const uchar *s, uint slen, 

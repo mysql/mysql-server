@@ -1920,7 +1920,8 @@ void Item_cond::neg_arguments(THD *thd)
     Item *new_item= item->neg_transformer(thd);
     if (!new_item)
     {
-      new_item= new Item_func_not(item);
+      if (!(new_item= new Item_func_not(item)))
+	return;					// Fatal OEM error
       /*
 	We can use 0 as tables list because Item_func_not do not use it
 	on fix_fields and its arguments are already fixed.
