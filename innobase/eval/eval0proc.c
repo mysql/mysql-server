@@ -161,7 +161,7 @@ for_step(
 {
 	for_node_t*	node;
 	que_node_t*	parent;
-	int		loop_var_value;
+	lint		loop_var_value;
 
 	ut_ad(thr);
 	

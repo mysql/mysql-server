@@ -360,12 +360,6 @@ MYSQL_LOG::MYSQL_LOG()
   bzero((char*) &index_file, sizeof(index_file));
 }
 
-
-MYSQL_LOG::~MYSQL_LOG()
-{
-  cleanup();
-}
-
 /* this is called only once */
 
 void MYSQL_LOG::cleanup()
@@ -1276,8 +1270,7 @@ bool MYSQL_LOG::is_active(const char *log_file_name_arg)
 
   SYNOPSIS
     new_file()
-    need_lock		Set to 1 (default) if caller has not locked
-			LOCK_log and LOCK_index
+    need_lock		Set to 1 if caller has not locked LOCK_log
 
   NOTE
     The new file name is stored last in the index file
@@ -1764,12 +1757,13 @@ err:
 
 void MYSQL_LOG::rotate_and_purge(uint flags)
 {
+  if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
+    pthread_mutex_lock(&LOCK_log);
   if ((flags & RP_FORCE_ROTATE) ||
       (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
-    new_file(!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED));
+    new_file(0);
 #ifdef HAVE_REPLICATION
-    // QQ why do we need #ifdef here ???
     if (expire_logs_days)
     {
       long purge_time= time(0) - expire_logs_days*24*60*60;
@@ -1778,6 +1772,8 @@ void MYSQL_LOG::rotate_and_purge(uint flags)
     }
 #endif
   }
+  if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
+    pthread_mutex_unlock(&LOCK_log);
 }
 
 uint MYSQL_LOG::next_file_id()

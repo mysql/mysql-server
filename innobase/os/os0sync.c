@@ -361,7 +361,7 @@ os_event_wait_time(
 	ut_a(event);
 
 	if (time != OS_SYNC_INFINITE_TIME) {
-		err = WaitForSingleObject(event->handle, time / 1000);
+		err = WaitForSingleObject(event->handle, (DWORD) time / 1000);
 	} else {
 		err = WaitForSingleObject(event->handle, INFINITE);
 	}
@@ -408,7 +408,7 @@ os_event_wait_multiple(
 	ut_a(native_event_array);
 	ut_a(n > 0);
 
-	index = WaitForMultipleObjects(n, native_event_array,
+	index = WaitForMultipleObjects((DWORD) n, native_event_array,
 					FALSE,	   /* Wait for any 1 event */
 					INFINITE); /* Infinite wait time
 						   limit */
