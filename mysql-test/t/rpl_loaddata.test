@@ -42,9 +42,5 @@ load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 
 save_master_pos;
 connection slave;
-# don't sync_with_master because the slave SQL thread should be stopped because
-# of the error so MASTER_POS_WAIT() will not return; just sleep and hope the
-# slave SQL thread will have had time to stop.
-
-sleep 1;
-show status like 'slave_running';
+# The SQL slave thread should be stopped now.
+wait_for_slave_to_stop;

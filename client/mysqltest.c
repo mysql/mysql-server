@@ -996,7 +996,8 @@ int do_sync_with_master2(const char* p)
   if (!(row = mysql_fetch_row(res)))
     die("line %u: empty result in %s", start_lineno, query_buf);
   if (!row[0])
-    die("Error on slave while syncing with master");
+    die("line %u: could not sync with master ('%s' returned NULL)", 
+        start_lineno, query_buf);
   mysql_free_result(res);
   last_result=0;
   if (rpl_parse)
