@@ -580,8 +580,9 @@ void sql_print_error(const char *format,...)
 	        __attribute__ ((format (printf, 1, 2)));
 bool fn_format_relative_to_data_home(my_string to, const char *name,
 				     const char *dir, const char *extension);
-void open_log(MYSQL_LOG *log, const char *hostname,
-	     const char *opt_name, const char *extension,
+bool open_log(MYSQL_LOG *log, const char *hostname,
+	      const char *opt_name, const char *extension,
+	      const char *index_file_name,
 	      enum_log_type type, bool read_append = 0,
 	      bool no_auto_events = 0);
 
@@ -616,7 +617,7 @@ extern ulong select_range_check_count, select_range_count, select_scan_count;
 extern ulong select_full_range_join_count,select_full_join_count;
 extern ulong slave_open_temp_tables, query_cache_size;
 extern ulong thd_startup_options, slow_launch_threads, slow_launch_time;
-extern ulong server_id;
+extern ulong server_id, concurrency;
 extern ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count;
 extern ulong ha_read_key_count, ha_read_next_count, ha_read_prev_count;
 extern ulong ha_read_first_count, ha_read_last_count;
@@ -643,6 +644,7 @@ extern bool opt_disable_networking, opt_skip_show_db;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;
 extern uint volatile thread_count, thread_running, global_read_lock;
 extern my_bool opt_safe_show_db, opt_local_infile, lower_case_table_names;
+extern my_bool opt_slave_compressed_protocol;
 extern char f_fyllchar;
 
 extern MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
@@ -666,7 +668,8 @@ extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 
 extern SHOW_COMP_OPTION have_isam, have_raid, have_openssl, have_symlink;
-extern SHOW_COMP_OPTION have_query_cache;
+extern SHOW_COMP_OPTION have_query_cache, have_berkeley_db, have_innodb;
+
 
 #ifndef __WIN__
 extern pthread_t signal_thread;

@@ -2,7 +2,6 @@
 # Test forced timestamp
 #
 source include/master-slave.inc;
-connection master;
 
 # Don't log table creating to the slave as we want to test LOAD TABLE
 set SQL_LOG_BIN=0,timestamp=200006;

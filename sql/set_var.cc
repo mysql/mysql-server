@@ -186,6 +186,8 @@ sys_var_thd_enum	sys_query_cache_type("query_cache_type",
 sys_var_bool_ptr	sys_safe_show_db("safe_show_database",
 					 &opt_safe_show_db);
 sys_var_long_ptr	sys_server_id("server_id",&server_id);
+sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
+						      &opt_slave_compressed_protocol);
 sys_var_long_ptr	sys_slave_net_timeout("slave_net_timeout",
 					      &slave_net_timeout);
 sys_var_long_ptr	sys_slow_launch_time("slow_launch_time",
@@ -251,6 +253,15 @@ static sys_var_thd_bit	sys_buffer_results("sql_buffer_result",
 static sys_var_thd_bit	sys_quote_show_create("sql_quote_show_create",
 					      set_option_bit,
 					      OPTION_QUOTE_SHOW_CREATE);
+static sys_var_thd_bit	sys_foreign_key_checks("foreign_key_checks",
+					       set_option_bit,
+					       OPTION_NO_FOREIGN_KEY_CHECKS,
+					       1);
+static sys_var_thd_bit	sys_unique_checks("unique_checks",
+					  set_option_bit,
+					  OPTION_RELAXED_UNIQUE_CHECKS,
+					  1);
+
 
 /* Local state variables */
 
@@ -290,6 +301,7 @@ sys_var *sys_variables[]=
   &sys_delayed_queue_size,
   &sys_flush,
   &sys_flush_time,
+  &sys_foreign_key_checks,
   &sys_identity,
   &sys_insert_id,
   &sys_interactive_timeout,
@@ -326,7 +338,7 @@ sys_var *sys_variables[]=
 #ifdef HAVE_QUERY_CACHE
   &sys_query_cache_limit,
   &sys_query_cache_type,
-#endif HAVE_QUERY_CACHE
+#endif /* HAVE_QUERY_CACHE */
   &sys_quote_show_create,
   &sys_read_buff_size,
   &sys_read_rnd_buff_size,
@@ -335,6 +347,7 @@ sys_var *sys_variables[]=
   &sys_safe_updates,
   &sys_select_limit,
   &sys_server_id,
+  &sys_slave_compressed_protocol,
   &sys_slave_net_timeout,
   &sys_slave_skip_counter,
   &sys_slow_launch_time,
@@ -349,6 +362,7 @@ sys_var *sys_variables[]=
   &sys_timestamp,
   &sys_tmp_table_size,
   &sys_tx_isolation,
+  &sys_unique_checks
 };
 
 
@@ -403,7 +417,7 @@ struct show_var_st init_vars[]= {
   {"innodb_file_io_threads", (char*) &innobase_file_io_threads, SHOW_LONG },
   {"innodb_force_recovery", (char*) &innobase_force_recovery, SHOW_LONG },
   {"innodb_thread_concurrency", (char*) &innobase_thread_concurrency, SHOW_LONG },
-  {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_MY_BOOL},
+  {"innodb_flush_log_at_trx_commit", (char*) &innobase_flush_log_at_trx_commit, SHOW_LONG},
   {"innodb_fast_shutdown", (char*) &innobase_fast_shutdown, SHOW_MY_BOOL},
   {"innodb_flush_method",    (char*) &innobase_unix_file_flush_method, SHOW_CHAR_PTR},
   {"innodb_lock_wait_timeout", (char*) &innobase_lock_wait_timeout, SHOW_LONG },
@@ -988,10 +1002,11 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
 
 static bool set_option_bit(THD *thd, set_var *var)
 {
-  if (var->save_result.ulong_value == 0)
-    thd->options&= ~((sys_var_thd_bit*) var->var)->bit_flag;
+  sys_var_thd_bit *sys_var= ((sys_var_thd_bit*) var->var);
+  if ((var->save_result.ulong_value != 0) == sys_var->reverse)
+    thd->options&= ~sys_var->bit_flag;
   else
-    thd->options|= ((sys_var_thd_bit*) var->var)->bit_flag;
+    thd->options|= sys_var->bit_flag;
   return 0;
 }
 
@@ -1142,7 +1157,7 @@ void set_var_free()
     0		Unknown variable (error message is given)
 */
 
-sys_var *find_sys_var(const char *str, uint length=0)
+sys_var *find_sys_var(const char *str, uint length)
 {
   sys_var *var= (sys_var*) hash_search(&system_variable_hash, str,
 				       length ? length :

@@ -20058,14 +20058,16 @@ If the temporary file used for fast index creation would be bigger than
 using the key cache by the amount specified here, then prefer the key
 cache method.  This is mainly used to force long character keys in large
 tables to use the slower key cache method to create the index.
-@strong{Note} that this parameter is given in megabytes!
+@strong{Note} that this parameter is given in megabytes before 4.0.3 and
+in bytes starting from this version.
 
 @item @code{myisam_max_sort_file_size}
 The maximum size of the temporary file MySQL is allowed to use
 while recreating the index (during @code{REPAIR}, @code{ALTER TABLE}
 or @code{LOAD DATA INFILE}.  If the file-size would be bigger than this,
 the index will be created through the key cache (which is slower).
-@strong{Note} that this parameter is given in megabytes!
+@strong{Note} that this parameter is given in megabytes before 4.0.3 and
+in bytes starting from this version.
 
 @item @code{net_buffer_length}
 The communication buffer is reset to this size between queries. This
@@ -23246,11 +23248,11 @@ to the log file (by default named @file{'hostname'.log}).  This log can
 be very useful when you suspect an error in a client and want to know
 exactly what @code{mysqld} thought the client sent to it.
 
-By default, the @code{mysql.server} script starts the MySQL
-server with the @code{-l} option.  If you need better performance when
-you start using MySQL in a production environment, you can
-remove the @code{-l} option from @code{mysql.server} or change it to
-@code{--log-bin}.
+By default, the @code{mysql.server} script starts the MySQL server with
+the @code{-l} option (General query log).  If you need better
+performance when you start using MySQL in a production environment, you
+can remove the @code{-l} option from @code{mysql.server} or change it to
+@code{--log-bin}. @xref{Binary log}.
 
 The entries in this log are written as @code{mysqld} receives the questions.
 This may be different from the order in which the statements are executed.
@@ -23329,7 +23331,9 @@ we recommend you to switch to this log format as soon as possible!
 
 The binary log contains all information that is available in the update
 log in a more efficient format. It also contains information about how long
-every query that updated the database took.
+every query that updated the database took.  It doesn't contain queries that
+doesn't modify any data.  If you want to log all queries (for example to
+find a problem query) you should use the general query log. @xref{Query log}.
 
 The binary log is also used when you are replicating a slave from a master.
 @xref{Replication}.
@@ -23900,7 +23904,8 @@ the slave to apply updates from one database on the master to the one
 with a different name on the slave.
 @item
 Starting in Version 3.23.28, you can use @code{PURGE MASTER LOGS TO 'log-name'}
-to get rid of old logs while the slave is running.
+to get rid of old logs while the slave is running. This will remove all old
+logs before, but not including @code{'log-name'}.
 @item
 Due to the non-transactional nature of MyISAM tables, it is possible to have
 a query that will only partially update a table and return an error code. This
@@ -23933,7 +23938,6 @@ above bugs are conceptually very simple to fix, we have not yet found a way
 to do this without a sigficant code change that would compromize the stability
 status of 3.23 branch. There exists a workaround for both if in the rare case
 it happens to affect your application -- use @code{slave-skip-errors}.
-
 @end itemize
 
 
@@ -24202,6 +24206,10 @@ Example:
 @item @code{skip-slave-start} @tab
 Tells the slave server not to start the slave on the startup.  The user
 can start it later with @code{SLAVE START}.
+
+@item @code{slave_compressed_protocol=#} @tab
+If 1, then use compression on the slave/client protocol if both
+slave and master supports this.
 
 @item @code{slave_net_timeout=#} @tab
 Number of seconds to wait for more data from the master before aborting
@@ -28698,6 +28706,7 @@ and if you can use @code{GLOBAL} or @code{SESSION} with them.
 @item delayed_queue_size @tab num @tab GLOBAL
 @item flush @tab bool @tab GLOBAL
 @item flush_time @tab num @tab GLOBAL
+@item foreign_key_checks @tab bool @tab SESSION
 @item identity @tab num @tab SESSION
 @item insert_id @tab bool @tab SESSION
 @item interactive_timeout @tab num @tab GLOBAL | SESSION
@@ -28734,6 +28743,7 @@ and if you can use @code{GLOBAL} or @code{SESSION} with them.
 @item rpl_recovery_rank @tab num @tab GLOBAL
 @item safe_show_database @tab bool @tab GLOBAL
 @item server_id @tab num @tab GLOBAL
+@item slave_compressed_protocol @tab bool @tab GLOBAL
 @item slave_net_timeout @tab num @tab GLOBAL
 @item slow_launch_time @tab num @tab GLOBAL
 @item sort_buffer_size @tab num @tab GLOBAL | SESSION
@@ -28759,6 +28769,7 @@ and if you can use @code{GLOBAL} or @code{SESSION} with them.
 @item tx_isolation @tab enum @tab GLOBAL | SESSION
 @item version @tab string @tab GLOBAL
 @item wait_timeout @tab num @tab GLOBAL | SESSION
+@item unique_checks @tab bool @tab SESSION
 @end multitable
 
 Variables that are marked with @code{num} can be given a numerical
@@ -37647,8 +37658,8 @@ The following options to @code{mysqld} can be used to change the behaviour of
 @item @code{--myisam-recover=#} @tab Automatic recovery of crashed tables.
 @item @code{-O myisam_sort_buffer_size=#} @tab Buffer used when recovering tables.
 @item @code{--delay-key-write-for-all-tables} @tab Don't flush key buffers between writes for any MyISAM table
-@item @code{-O myisam_max_extra_sort_file_size=#} @tab Used to help MySQL to decide when to use the slow but safe key cache index create method. @strong{Note} that this parameter is given in megabytes!
-@item @code{-O myisam_max_sort_file_size=#} @tab Don't use the fast sort index method to created index if the temporary file would get bigger than this.  @strong{Note} that this paramter is given in megabytes!
+@item @code{-O myisam_max_extra_sort_file_size=#} @tab Used to help MySQL to decide when to use the slow but safe key cache index create method. @strong{Note} that this parameter is given in megabytes before 4.0.3 and in bytes starting from this version.
+@item @code{-O myisam_max_sort_file_size=#} @tab Don't use the fast sort index method to created index if the temporary file would get bigger than this.  @strong{Note} that this parameter is given in megabytes before 4.0.3 and in bytes starting from this version.
 @item @code{-O bulk_insert_buffer_size=#} @tab Size of tree cache used in bulk insert optimisation. @strong{Note} that this is a limit @strong{per thread}!
 @end multitable
 
@@ -50016,9 +50027,14 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.3
 @itemize @bullet
 @item
+Big code cleanup in replication code.
+@item
+If one specifies @code{--code-file}, call @code{setrlmit()} to change allowed
+core file size to unlimited, to be able to generate core files.
+@item
 Allow @code{DEFAULT} with @code{INSERT} statement.
 @item
-The startup parameters @code{myisam_max_extra_sort_file_size} and
+The startup parameters @code{myisam_max_sort_file_size} and
 @code{myisam_max_extra_sort_file_size} are now given in bytes, not megabytes.
 @item
 External system locking of MyISAM/ISAM files is now turned off by default.
@@ -50033,6 +50049,8 @@ Fixed a timing bug in @code{DROP DATABASE}
 @item
 New @code{SET [GLOBAL | SESSION]} syntax to change thread specific and global
 server variables at runtime.
+@item
+Added variable @code{slave_compressed_protocol}.
 @item
 Renamed variable @code{query_cache_startup_type} to @code{query_cache_type},
 @code{myisam_bulk_insert_tree_size} to @code{bulk_insert_buffer_size},

@@ -1,6 +1,6 @@
 source include/master-slave.inc;
-connection master;
 drop table if exists t1;
+
 create table t1 (n int not null primary key);
 save_master_pos;
 connection slave;

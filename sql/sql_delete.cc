@@ -167,7 +167,8 @@ cleanup:
     mysql_update_log.write(thd,thd->query, thd->query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, thd->query, using_transactions);
+      Query_log_event qinfo(thd, thd->query, thd->query_length, 
+			    using_transactions);
       if (mysql_bin_log.write(&qinfo) && using_transactions)
 	error=1;
     }
@@ -468,7 +469,7 @@ bool multi_delete::send_eof()
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, thd->query);
+      Query_log_event qinfo(thd, thd->query, thd->query_length);
       if (mysql_bin_log.write(&qinfo) &&
 	  !not_trans_safe)
 	error=1;  // Log write failed: roll back the SQL statement
@@ -570,7 +571,7 @@ end:
       mysql_update_log.write(thd,thd->query,thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query);
+	Query_log_event qinfo(thd, thd->query, thd->query_length);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(&thd->net);		// This should return record count

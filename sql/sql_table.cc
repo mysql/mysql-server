@@ -20,6 +20,7 @@
 #include "mysql_priv.h"
 #include <hash.h>
 #include <myisam.h>
+#include <assert.h>
 
 #ifdef __WIN__
 #include <io.h>
@@ -181,7 +182,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       mysql_update_log.write(thd, thd->query,thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query);
+	Query_log_event qinfo(thd, thd->query, thd->query_length);
 	mysql_bin_log.write(&qinfo);
       }
     }
@@ -670,7 +671,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     mysql_update_log.write(thd,thd->query, thd->query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, thd->query);
+      Query_log_event qinfo(thd, thd->query, thd->query_length);
       mysql_bin_log.write(&qinfo);
     }
   }
@@ -834,6 +835,8 @@ bool close_cached_table(THD *thd,TABLE *table)
 {
   bool result=0;
   DBUG_ENTER("close_cached_table");
+  safe_mutex_assert_owner(&LOCK_open);
+
   if (table)
   {
     DBUG_PRINT("enter",("table: %s", table->table_name));
@@ -918,13 +921,17 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
 		fn_format(dst_path, dst_path,"", reg_ext, 4),
 		MYF(MY_WME)))
     {
+      pthread_mutex_lock(&LOCK_open);
       unlock_table_name(thd, table);
+      pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(send_check_errmsg(thd, table, "restore",
 				    "Failed copying .frm file"));
     }
     if (mysql_truncate(thd, table, 1))
     {
+      pthread_mutex_lock(&LOCK_open);
       unlock_table_name(thd, table);
+      pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(send_check_errmsg(thd, table, "restore",
 				    "Failed generating table from .frm file"));
     }
@@ -935,7 +942,11 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
     to finish the restore in the handler later on
   */
   if (!(table->table = reopen_name_locked_table(thd, table)))
+  {
+    pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd, table);
+    pthread_mutex_unlock(&LOCK_open);
+  }
   DBUG_RETURN(0);
 }
 
@@ -1000,7 +1011,8 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     thr_lock_type lock_type,
 			     bool open_for_modify,
 			     uint extra_open_options,
-                     int (*prepare_func)(THD *, TABLE_LIST *, HA_CHECK_OPT *),
+			     int (*prepare_func)(THD *, TABLE_LIST *,
+						 HA_CHECK_OPT *),
 			     int (handler::*operator_func)
 			     (THD *, HA_CHECK_OPT *))
 {
@@ -1141,8 +1153,10 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->table->version=0;			// Force close of table
     else if (open_for_modify)
     {
+      pthread_mutex_lock(&LOCK_open);
       remove_table_from_cache(thd, table->table->table_cache_key,
 			      table->table->real_name);
+      pthread_mutex_unlock(&LOCK_open);
       /* May be something modified consequently we have to invalidate cache */
       query_cache_invalidate3(thd, table->table, 0);
     }
@@ -1171,6 +1185,7 @@ int mysql_backup_table(THD* thd, TABLE_LIST* table_list)
 				&handler::backup));
 }
 
+
 int mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 {
   DBUG_ENTER("mysql_restore_table");
@@ -1180,6 +1195,7 @@ int mysql_restore_table(THD* thd, TABLE_LIST* table_list)
 				&handler::restore));
 }
 
+
 int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("mysql_repair_table");
@@ -1188,6 +1204,7 @@ int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
                                 &prepare_for_repair,
 				&handler::repair));
 }
+
 
 int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
@@ -1352,7 +1369,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query);
+	Query_log_event qinfo(thd, thd->query, thd->query_length);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(&thd->net);
@@ -1717,7 +1734,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     mysql_update_log.write(thd, thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
-      Query_log_event qinfo(thd, thd->query);
+      Query_log_event qinfo(thd, thd->query, thd->query_length);
       mysql_bin_log.write(&qinfo);
     }
     goto end_temporary;
@@ -1851,7 +1868,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   mysql_update_log.write(thd, thd->query,thd->query_length);
   if (mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query);
+    Query_log_event qinfo(thd, thd->query, thd->query_length);
     mysql_bin_log.write(&qinfo);
   }
   VOID(pthread_cond_broadcast(&COND_refresh));

@@ -128,7 +128,7 @@ public:
   }
   void set_default(THD *thd, enum_var_type type)
   {
-    return (*set_default_func)(thd, type);
+    (*set_default_func)(thd, type);
   }
   SHOW_TYPE type() { return SHOW_CHAR; }
   byte *value_ptr(THD *thd, enum_var_type type) { return (byte*) value; }

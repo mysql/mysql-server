@@ -17,13 +17,8 @@ typedef struct dyn_block_struct		dyn_block_t;
 typedef dyn_block_t			dyn_array_t;
 
 
-/* Initial 'payload' size in bytes in a dynamic array block */
-#ifndef _AIX
-#define	DYN_ARRAY_DATA_SIZE	1024
-#else
-/* AIX has a quite small stack / thread */
-#define	DYN_ARRAY_DATA_SIZE	128
-#endif
+/* This must be > MLOG_BUF_MARGIN + 30 */
+#define	DYN_ARRAY_DATA_SIZE	512
 
 /*************************************************************************
 Initializes a dynamic array. */

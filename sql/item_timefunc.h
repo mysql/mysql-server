@@ -237,8 +237,7 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    if (!t_arg) return result_field;
-    return new Field_date(maybe_null, name, t_arg);
+    return (!t_arg) ? result_field : new Field_date(maybe_null, name, t_arg);
   }  
   unsigned int size_of() { return sizeof(*this);}  
 };
@@ -256,9 +255,9 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    if (!t_arg) return result_field;
-    return   new Field_datetime(maybe_null, name, t_arg);
-  }  
+    return  (!t_arg) ? result_field : new Field_datetime(maybe_null, name,
+							 t_arg);
+  }
   unsigned int size_of() { return sizeof(*this);}  
 };
 
@@ -284,8 +283,7 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    if (!t_arg) return result_field;
-    return   new Field_time(maybe_null, name, t_arg);
+    return (!t_arg) ? result_field : new Field_time(maybe_null, name, t_arg);
   }  
   unsigned int size_of() { return sizeof(*this);}  
 };
@@ -381,10 +379,10 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    if (!t_arg) return result_field;
-    return   new Field_time(maybe_null, name, t_arg);
-  }  
+    return (!t_arg) ? result_field : new Field_time(maybe_null, name, t_arg);
+  }
 };
+
 
 enum interval_type { INTERVAL_YEAR, INTERVAL_MONTH, INTERVAL_DAY,
 		     INTERVAL_HOUR, INTERVAL_MINUTE, INTERVAL_SECOND,
@@ -447,8 +445,7 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    if (!t_arg) return result_field;
-    return   new Field_date(maybe_null, name, t_arg);
+    return (!t_arg) ? result_field : new Field_date(maybe_null, name, t_arg);
   }  
 };
 
@@ -463,9 +460,8 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    if (!t_arg) return result_field;
-    return   new Field_time(maybe_null, name, t_arg);
-  }  
+    return (!t_arg) ? result_field : new Field_time(maybe_null, name, t_arg);
+  }
 };
 
 class Item_datetime_typecast :public Item_typecast
@@ -479,7 +475,7 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    if (!t_arg) return result_field;
-    return   new Field_datetime(maybe_null, name, t_arg);
-  }  
+    return (!t_arg) ? result_field : new Field_datetime(maybe_null, name,
+							t_arg);
+  }
 };

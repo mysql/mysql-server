@@ -242,6 +242,7 @@ Open streams:  %10lu\n",
 	 (ulong) my_stream_opened);
 
   ALARM_INFO alarm_info;
+#ifndef DONT_USE_THR_ALARM
   thr_alarm_info(&alarm_info);
   printf("\nAlarm status:\n\
 Active alarms:   %u\n\
@@ -250,7 +251,7 @@ Next alarm time: %lu\n",
 	 alarm_info.active_alarms,
 	 alarm_info.max_used_alarms,
 	 alarm_info.next_alarm_time);
-
+#endif
   fflush(stdout);
   if (thd)
     thd->proc_info="malloc";
