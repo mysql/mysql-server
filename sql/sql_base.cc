@@ -485,57 +485,61 @@ void close_temporary(TABLE *table,bool delete_table)
 void close_temporary_tables(THD *thd)
 {
   TABLE *table,*next;
-  char *query, *name_in_query, *end;
-  uint greatest_key_length= 0;
+  char *query, *end;
+  uint query_buf_size; 
+  bool found_user_tables = 0;
 
   if (!thd->temporary_tables)
     return;
   
-  /*
-    We write a DROP TEMPORARY TABLE for each temp table left, so that our
-    replication slave can clean them up. Not one multi-table DROP TABLE binlog
-    event: this would cause problems if slave uses --replicate-*-table.
-  */
   LINT_INIT(end);
+  query_buf_size= 50;   // Enough for DROP ... TABLE IF EXISTS
 
-  /* We'll re-use always same buffer so make it big enough for longest name */
   for (table=thd->temporary_tables ; table ; table=table->next)
-    greatest_key_length= max(greatest_key_length, table->key_length);
+    /*
+      We are going to add 4 ` around the db/table names, so 1 does not look
+      enough; indeed it is enough, because table->key_length is greater (by 8,
+      because of server_id and thread_id) than db||table.
+    */
+    query_buf_size+= table->key_length+1;
 
-  if ((query = alloc_root(thd->mem_root, greatest_key_length+50)))
+  if ((query = alloc_root(thd->mem_root, query_buf_size)))
     // Better add "if exists", in case a RESET MASTER has been done
-    name_in_query= strmov(query, "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `");
+    end=strmov(query, "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ");
 
   for (table=thd->temporary_tables ; table ; table=next)
   {
-    /*
-      In we are OOM for 'query' this is not fatal. We skip temporary tables
-      not created directly by the user.
-    */
-    if (query && mysql_bin_log.is_open() && (table->real_name[0] != '#'))
+    if (query) // we might be out of memory, but this is not fatal
     {
+      // skip temporary tables not created directly by the user
+      if (table->real_name[0] != '#')
+	found_user_tables = 1;
       /*
         Here we assume table_cache_key always starts
         with \0 terminated db name
       */
-      end = strxmov(name_in_query, table->table_cache_key, "`.`",
-                    table->real_name, "`", NullS);
-      Query_log_event qinfo(thd, query, (ulong)(end-query), 0, FALSE);
-      /*
-        Imagine the thread had created a temp table, then was doing a SELECT, and
-        the SELECT was killed. Then it's not clever to mark the statement above as
-        "killed", because it's not really a statement updating data, and there
-        are 99.99% chances it will succeed on slave. And, if thread is
-        killed now, it's not clever either.
-        If a real update (one updating a persistent table) was killed on the
-        master, then this real update will be logged with error_code=killed,
-        rightfully causing the slave to stop.
-      */
-      qinfo.error_code= 0;
-      mysql_bin_log.write(&qinfo);
+      end = strxmov(end,"`",table->table_cache_key,"`.`",
+                    table->real_name,"`,", NullS);
     }
     next=table->next;
     close_temporary(table);
+  }
+  if (query && found_user_tables && mysql_bin_log.is_open())
+  {
+    /* The -1 is to remove last ',' */
+    thd->clear_error();
+    Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0, FALSE);
+    /*
+      Imagine the thread had created a temp table, then was doing a SELECT, and
+      the SELECT was killed. Then it's not clever to mark the statement above as
+      "killed", because it's not really a statement updating data, and there
+      are 99.99% chances it will succeed on slave.
+      If a real update (one updating a persistent table) was killed on the
+      master, then this real update will be logged with error_code=killed,
+      rightfully causing the slave to stop.
+    */
+    qinfo.error_code= 0;
+    mysql_bin_log.write(&qinfo);
   }
   thd->temporary_tables=0;
 }
