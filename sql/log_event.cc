@@ -1876,19 +1876,22 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 
   pthread_mutex_lock(&rli->data_lock);
 
-#ifdef TO_BE_CHECKED_BY_GUILHEM
-  if (rli->inside_transaction)
+  if (thd->options & OPTION_BEGIN)
   {
     slave_print_error(rli, 0,
+                      opt_using_transactions ?
                       "\
 There is an unfinished transaction in the relay log (could find neither \
 COMMIT nor ROLLBACK in the relay log); It could be that the master died while \
 writing the transaction to its binary log. Now the slave is rolling back the \
-transaction.");
+transaction." : 
+                      "\
+There is an unfinished transaction in the relay log (could find neither \
+COMMIT nor ROLLBACK in the relay log); It could be that the master died while \
+writing the transaction to its binary log.");
     pthread_mutex_unlock(&rli->data_lock);
     DBUG_RETURN(1);
   }
-#endif
 
   memcpy(log_name, new_log_ident, ident_len+1);
   rli->notify_group_master_log_name_update();
