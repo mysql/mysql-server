@@ -1014,3 +1014,25 @@ p2
 p4
 drop view v1;
 drop table t1;
+create table t1 (a int);
+create view v1 as select a from t1;
+insert into t1 values (1);
+SET @v0 = '2';
+PREPARE stmt FROM 'UPDATE v1 SET a = ?';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+SET @v0 = '3';
+PREPARE stmt FROM 'insert into v1 values (?)';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+SET @v0 = '4';
+PREPARE stmt FROM 'insert into v1 (a) values (?)';
+EXECUTE stmt USING @v0;
+DEALLOCATE PREPARE stmt;
+select * from t1;
+a
+2
+3
+4
+drop view v1;
+drop table t1;
