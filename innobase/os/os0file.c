@@ -761,6 +761,10 @@ os_file_flush(
 
 	os_file_handle_error(file, NULL);
 
+	/* It is a fatal error if a file flush does not succeed, because then
+	the database can get corrupt on disk */
+	ut_a(0);
+
 	return(FALSE);
 #else
 	int	ret;
@@ -783,10 +787,16 @@ os_file_flush(
 	        return(TRUE);
 	}
 
+	ut_print_timestamp(stderr);
+	
 	fprintf(stderr,
-		"InnoDB: Error: the OS said file flush did not succeed\n");
+		"  InnoDB: Error: the OS said file flush did not succeed\n");
 
 	os_file_handle_error(file, NULL);
+
+	/* It is a fatal error if a file flush does not succeed, because then
+	the database can get corrupt on disk */
+	ut_a(0);
 
 	return(FALSE);
 #endif
@@ -1144,8 +1154,8 @@ os_file_write(
 "InnoDB: Operating system error number %lu.\n"
 "InnoDB: Check that your OS and file system support files of this size.\n"
 "InnoDB: Check also the disk is not full or a disk quota exceeded.\n",
-			name, offset_high, offset, n, ret, (ulint)errno);
-
+			name, offset_high, offset, n, (ulint)ret,
+							(ulint)errno);
 		os_has_said_disk_full = TRUE;
 	}
 
