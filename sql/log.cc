@@ -1322,6 +1322,7 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
                              (uint) thd->variables.collation_server->number);
 	Query_log_event e(thd, buf, written, 0, FALSE);
 	e.set_log_pos(this);
+	e.error_code = 0;	// This statement cannot fail (see [1]).
 	if (e.write(file))
 	  goto err;
       }
@@ -1338,6 +1339,7 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
                                "'", NullS);
         Query_log_event e(thd, buf, buf_end - buf, 0, FALSE);
         e.set_log_pos(this);
+	e.error_code = 0;	// This statement cannot fail (see [1]).
         if (e.write(file))
           goto err;
       }
@@ -1389,8 +1391,8 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
 	p= strmov(strmov(buf, "SET CHARACTER SET "),
 		  thd->variables.convert_set->name);
 	Query_log_event e(thd, buf, (ulong) (p - buf), 0);
-	e.error_code = 0;	// This statement cannot fail (see [1]).
 	e.set_log_pos(this);
+	e.error_code = 0;	// This statement cannot fail (see [1]).
 	if (e.write(file))
 	  goto err;
       }
