@@ -22870,7 +22870,7 @@ You can set the default isolation level for @code{mysqld} with
 
 @findex GRANT
 @findex REVOKE
-@node GRANT, CREATE INDEX, SET TRANSACTION, Reference
+@node GRANT, HANDLER, SET TRANSACTION, Reference
 @section @code{GRANT} and @code{REVOKE} Syntax
 
 @example
