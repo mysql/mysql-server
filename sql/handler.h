@@ -149,21 +149,21 @@ enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 
 typedef struct st_ha_create_information
 {
-  ulong table_options;
-  enum db_type db_type;
-  enum row_type row_type;
-  ulong avg_row_length;
-  ulonglong max_rows,min_rows;
-  ulonglong auto_increment_value;
   char *comment,*password;
   char *data_file_name, *index_file_name;
-  uint options;					/* OR of HA_CREATE_ options */
-  uint raid_type,raid_chunks;
+  ulonglong max_rows,min_rows;
+  ulonglong auto_increment_value;
+  ulong table_options;
+  ulong avg_row_length;
   ulong raid_chunksize;
-  bool if_not_exists;
   ulong used_fields;
   SQL_LIST merge_list;
+  enum db_type db_type;
+  enum row_type row_type;
+  uint options;				/* OR of HA_CREATE_ options */
+  uint raid_type,raid_chunks;
   uint merge_insert_method;
+  bool table_existed;			/* 1 in create if table existed */
 } HA_CREATE_INFO;
 
 
