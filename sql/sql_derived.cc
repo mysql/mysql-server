@@ -25,6 +25,49 @@
 #include "sql_select.h"
 #include "sql_acl.h"
 
+int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
+
+/*
+  Resolve derived tables in all queries
+
+  SYNOPSIS
+    mysql_handle_derived()
+    lex                 LEX for this thread
+
+  RETURN
+    0	ok
+    -1	Error
+    1	Error and error message given
+*/
+int
+mysql_handle_derived(LEX *lex)
+{
+  int res= 0;
+  if (lex->derived_tables)
+  {
+    for (SELECT_LEX *sl= lex->all_selects_list;
+	 sl;
+	 sl= sl->next_select_in_list())
+    {
+      for (TABLE_LIST *cursor= sl->get_table_list();
+	   cursor;
+	   cursor= cursor->next)
+      {
+	if (cursor->derived && (res=mysql_derived(lex->thd, lex,
+						  cursor->derived,
+						  cursor)))
+	{
+	  if (res < 0 || lex->thd->net.report_error)
+	    send_error(lex->thd, lex->thd->killed ? ER_SERVER_SHUTDOWN : 0);
+	  return 1;
+	}
+      }
+    }
+  }
+  return 0;
+}
+
+
 /*
   Resolve derived tables in all queries
 
@@ -49,9 +92,6 @@
     Derived tables is stored in thd->derived_tables and freed in
     close_thread_tables()
 
-  TODO
-    Move creation of derived tables in open_and_lock_tables()
-
   RETURN
     0	ok
     1	Error
@@ -72,143 +112,87 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
   bool is_subsel= first_select->first_inner_unit() ? 1: 0;
   SELECT_LEX *save_current_select= lex->current_select;
   DBUG_ENTER("mysql_derived");
-  
-  /*
-    In create_total_list, derived tables have to be treated in case of
-    EXPLAIN, This is because unit/node is not deleted in that
-    case. Current code in this function has to be improved to
-    recognize better when this function is called from derived tables
-    and when from other functions.
-  */
-  if ((is_union || is_subsel) && unit->create_total_list(thd, lex, &tables, 1))
-    DBUG_RETURN(-1);
 
-  /*
-    We have to do access checks here as this code is executed before any
-    sql command is started to execute.
-  */
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (tables)
-    res= check_table_access(thd,SELECT_ACL, tables,0);
-  else
-    res= check_access(thd, SELECT_ACL, any_db,0,0,0);
-  if (res)
-    DBUG_RETURN(1);
-#endif
+  if (!(derived_result= new select_union(0)))
+    DBUG_RETURN(1); // out of memory
 
-  if (!(res=open_and_lock_tables(thd,tables)))
-  {
-    if (is_union || is_subsel)
-    {
-      /* 
-	 The following code is a re-do of fix_tables_pointers() found
-	 in sql_select.cc for UNION's within derived tables. The only
-	 difference is in navigation, as in derived tables we care for
-	 this level only.
+  // st_select_lex_unit::prepare correctly work for single select
+  if ((res= unit->prepare(thd, derived_result, 0)))
+    goto exit;
 
-      */
-      fix_tables_pointers(unit);
-    }
-
-    if (!(derived_result= new select_union(0)))
-      DBUG_RETURN(1); // out of memory
-
-    // st_select_lex_unit::prepare correctly work for single select
-    if ((res= unit->prepare(thd, derived_result, 0)))
-      goto exit;
-
-    /* 
-       This is done in order to redo all field optimisations when any of the 
-       involved tables is used in the outer query 
-    */
-    if (tables)
-    {
-      for (TABLE_LIST *cursor= tables;  cursor;  cursor= cursor->next)
-	cursor->table->clear_query_id= 1;
-    }
 	
-    derived_result->tmp_table_param.init();
-    derived_result->tmp_table_param.field_count= unit->types.elements;
-    /*
-      Temp table is created so that it hounours if UNION without ALL is to be 
-      processed
-    */
-    if (!(table= create_tmp_table(thd, &derived_result->tmp_table_param,
-				  unit->types, (ORDER*) 0, 
-				  is_union && !unit->union_option, 1,
-				  (first_select->options | thd->options |
-				   TMP_TABLE_ALL_COLUMNS),
-				  HA_POS_ERROR,
-				  org_table_list->alias)))
-    {
-      res= -1;
-      goto exit;
-    }
-    derived_result->set_table(table);
+  derived_result->tmp_table_param.init();
+  derived_result->tmp_table_param.field_count= unit->types.elements;
+  /*
+    Temp table is created so that it hounours if UNION without ALL is to be 
+    processed
+  */
+  if (!(table= create_tmp_table(thd, &derived_result->tmp_table_param,
+				unit->types, (ORDER*) 0, 
+				is_union && !unit->union_option, 1,
+				(first_select->options | thd->options |
+				 TMP_TABLE_ALL_COLUMNS),
+				HA_POS_ERROR,
+				org_table_list->alias)))
+  {
+    res= -1;
+    goto exit;
+  }
+  derived_result->set_table(table);
 
-    if (is_union)
-      res= mysql_union(thd, lex, derived_result, unit);
+
+  if (is_union)
+    res= mysql_union(thd, lex, derived_result, unit);
+  else
+  {
+    unit->offset_limit_cnt= first_select->offset_limit;
+    unit->select_limit_cnt= first_select->select_limit+
+      first_select->offset_limit;
+    if (unit->select_limit_cnt < first_select->select_limit)
+      unit->select_limit_cnt= HA_POS_ERROR;
+    if (unit->select_limit_cnt == HA_POS_ERROR)
+      first_select->options&= ~OPTION_FOUND_ROWS;
+
+    lex->current_select= first_select;
+    res= mysql_select(thd, &first_select->ref_pointer_array, 
+		      (TABLE_LIST*) first_select->table_list.first,
+		      first_select->with_wild,
+		      first_select->item_list, first_select->where,
+		      (first_select->order_list.elements+
+		       first_select->group_list.elements),
+		      (ORDER *) first_select->order_list.first,
+		      (ORDER *) first_select->group_list.first,
+		      first_select->having, (ORDER*) NULL,
+		      (first_select->options | thd->options |
+		       SELECT_NO_UNLOCK),
+		      derived_result, unit, first_select);
+  }
+
+  if (!res)
+  {
+    /*
+      Here we entirely fix both TABLE_LIST and list of SELECT's as
+      there were no derived tables
+    */
+    if (derived_result->flush())
+      res= 1;
     else
     {
-      unit->offset_limit_cnt= first_select->offset_limit;
-      unit->select_limit_cnt= first_select->select_limit+
-	first_select->offset_limit;
-      if (unit->select_limit_cnt < first_select->select_limit)
-	unit->select_limit_cnt= HA_POS_ERROR;
-      if (unit->select_limit_cnt == HA_POS_ERROR)
-	first_select->options&= ~OPTION_FOUND_ROWS;
-
-      lex->current_select= first_select;
-      res= mysql_select(thd, &first_select->ref_pointer_array, 
-			(TABLE_LIST*) first_select->table_list.first,
-			first_select->with_wild,
-			first_select->item_list, first_select->where,
-			(first_select->order_list.elements+
-			 first_select->group_list.elements),
-			(ORDER *) first_select->order_list.first,
-			(ORDER *) first_select->group_list.first,
-			first_select->having, (ORDER*) NULL,
-			(first_select->options | thd->options |
-			 SELECT_NO_UNLOCK),
-			derived_result, unit, first_select);
-    }
-
-    if (!res)
-    {
-      /*
-	Here we entirely fix both TABLE_LIST and list of SELECT's as
-	there were no derived tables
-      */
-      if (derived_result->flush())
-	res= 1;
-      else
+      org_table_list->real_name= table->real_name;
+      org_table_list->table= table;
+      if (org_table_list->table_list)
       {
-	org_table_list->real_name=table->real_name;
-	org_table_list->table=table;
-	table->derived_select_number= first_select->select_number;
-	table->tmp_table= TMP_TABLE;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-	org_table_list->grant.privilege= SELECT_ACL;
-#endif
-	if (lex->describe)
-	{
-	  // to fix a problem in EXPLAIN
-	  if (tables)
-	  {
-	    for (TABLE_LIST *cursor= tables;  cursor;  cursor= cursor->next)
-	      if (cursor->table_list)
-		cursor->table_list->table=cursor->table;
-	  }
-	}
-	else
-	{
-	  unit->exclude_tree();
-	  unit->cleanup();
-	}
-	org_table_list->db= (char *)"";
-	  // Force read of table stats in the optimizer
-	table->file->info(HA_STATUS_VARIABLE);
+	org_table_list->table_list->real_name= table->real_name;
+	org_table_list->table_list->table= table;
       }
+      table->derived_select_number= first_select->select_number;
+      table->tmp_table= TMP_TABLE;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      org_table_list->grant.privilege= SELECT_ACL;
+#endif
+      org_table_list->db= (char *)"";
+      // Force read of table stats in the optimizer
+      table->file->info(HA_STATUS_VARIABLE);
     }
 
     if (res)
@@ -223,7 +207,6 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 exit:
     delete derived_result;
     lex->current_select= save_current_select;
-    close_thread_tables(thd, 0, 1);
   }
   DBUG_RETURN(res);
 }

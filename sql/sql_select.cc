@@ -175,7 +175,6 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
-  fix_tables_pointers(lex->all_selects_list);
   if (select_lex->next_select())
     res=mysql_union(thd, lex, result, &lex->unit);
   else
