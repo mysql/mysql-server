@@ -857,11 +857,11 @@ TransporterRegistry::performReceive(){
       const NodeId nodeId = t->getRemoteNodeId();
       if(is_connected(nodeId)){
 	if(t->isConnected() && t->checkConnected()){
-	  Uint32 * readPtr;
+	  Uint32 * readPtr, * eodPtr;
           Uint32 sz = 0;
-	  t->getReceivePtr(&readPtr, sz);
-	  Uint32 szUsed = unpack(readPtr, sz, nodeId, ioStates[nodeId]);
-	  t->updateReceivePtr(szUsed);
+	  t->getReceivePtr(&readPtr, &eodPtr);
+	  Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
+	  t->updateReceivePtr(newPtr);
 	}
       } 
     }
@@ -873,11 +873,11 @@ TransporterRegistry::performReceive(){
       const NodeId nodeId = t->getRemoteNodeId();
       if(is_connected(nodeId)){
 	if(t->isConnected() && t->checkConnected()){
-	  Uint32 * readPtr;
+	  Uint32 * readPtr, * eodPtr;
           Uint32 sz = 0;
-	  t->getReceivePtr(&readPtr, sz);
-	  Uint32 szUsed = unpack(readPtr, sz, nodeId, ioStates[nodeId]);
-	  t->updateReceivePtr(szUsed);
+	  t->getReceivePtr(&readPtr, &eodPtr);
+	  Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
+	  t->updateReceivePtr(newPtr);
 	}
       } 
     }
