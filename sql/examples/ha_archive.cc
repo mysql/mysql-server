@@ -528,6 +528,7 @@ error:
 int ha_archive::write_row(byte * buf)
 {
   z_off_t written;
+  Field_blob **field;
   DBUG_ENTER("ha_archive::write_row");
 
   statistic_increment(ha_write_count,&LOCK_status);
@@ -543,7 +544,7 @@ int ha_archive::write_row(byte * buf)
     We should probably mark the table as damagaged if the record is written
     but the blob fails.
   */
-  for (Field_blob **field=table->blob_field ; *field ; field++)
+  for (field= table->blob_field ; *field ; field++)
   {
     char *ptr;
     uint32 size= (*field)->get_length();
