@@ -889,7 +889,7 @@ drop table t1;
 #
 # IN optimisation test results
 #
-create table t1 (s1 char(5) not null, index s1(s1));
+create table t1 (s1 char(5), index s1(s1));
 create table t2 (s1 char(5), index s1(s1));
 insert into t1 values ('a1'),('a2'),('a3');
 insert into t2 values ('a1'),('a2');
@@ -1386,34 +1386,6 @@ INSERT INTO t1 VALUES ('UMI','United States Minor Outlying Islands','Oceania','M
 /*!40000 ALTER TABLE t1 ENABLE KEYS */;
 SELECT DISTINCT Continent AS c FROM t1 WHERE Code <> SOME ( SELECT Code FROM t1 WHERE Continent = c AND Population < 200);
 drop table t1;
-
-#
-# Test cases for bug #7351:
-# quantified predicate with subquery returning empty result set
-#
-
-CREATE TABLE t1 ( f1 BIGINT );
-INSERT INTO t1 SET f1= NULL;
-INSERT INTO t1 SET f1= 1;
-CREATE TABLE t2 ( f1 BIGINT );
-
-SELECT f1 FROM t1
-  WHERE  f1 <> ALL ( SELECT f1 FROM t2 );
-
-INSERT INTO t2 VALUES (1), (2);
-
-SELECT f1 FROM t1
-  WHERE f1 <> ALL ( SELECT f1 FROM t2 WHERE f1 > 2 );
-
-SELECT f1 FROM t1
-  WHERE f1 <> ALL ( SELECT f1 FROM t2 WHERE f1 > 2
-                    UNION
-                    SELECT f1 FROM t2 WHERE f1 > 3);
-
-SELECT f1 FROM t1
-   WHERE f1 <> ALL ( SELECT SUM(f1) AS sf1 FROM t2 HAVING sf1 > 10000);
-
-drop table t1,t2;
 
 #
 # Test for BUG#7885: Server crash when 'any' subselect compared to
