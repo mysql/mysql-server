@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.8";
+const char *VER= "12.9";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -617,13 +617,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       {
 	if (opt_outfile)
 	  end_tee();
-	opt_outfile= 0;
       }
       else
 	if (!opt_outfile)
 	{
 	  strmov(outfile, argument);
-	  opt_outfile= 1;
 	  init_tee();
 	}
       break;
@@ -631,7 +629,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       printf("WARNING: option depricated; use --disable-tee instead.\n");
       if (opt_outfile)
 	end_tee();
-      opt_outfile= 0;
       break;
     case OPT_PAGER:
       opt_nopager= 0;
@@ -1510,17 +1507,22 @@ static void end_pager()
 
 static void init_tee()
 {
+  if (opt_outfile)
+    end_tee();
   if (!(OUTFILE= my_fopen(outfile, O_APPEND | O_WRONLY, MYF(MY_WME))))
   {
-    opt_outfile=0;
+    opt_outfile= 0;
     init_pager();
     return;
   }
+  opt_outfile= 1;
+  tee_fprintf(stdout, "Logging to file '%s'\n", outfile);
 }
 
 static void end_tee()
 {
   my_fclose(OUTFILE, MYF(0));
+  opt_outfile= 0;
   return;
 }
 
@@ -1807,7 +1809,7 @@ print_tab_data(MYSQL_RES *result)
     for (uint off=1 ; off < mysql_num_fields(result); off++)
     {
       (void) tee_fputs("\t", PAGER);
-      safe_put_field(cur[off],lengths[off]);
+      safe_put_field(cur[off], lengths[off]);
     }
     (void) tee_fputs("\n", PAGER);
   }
@@ -1826,8 +1828,8 @@ com_tee(String *buffer, char *line __attribute__((unused)))
   {
     if (!strlen(outfile))
     {
-      printf("No previous outfile available, you must give the filename!\n");
-      opt_outfile=0;
+      printf("No previous outfile available, you must give a filename!\n");
+      opt_outfile= 0;
       return 0;
     }
   }
@@ -1835,10 +1837,10 @@ com_tee(String *buffer, char *line __attribute__((unused)))
   {
     while (isspace(*param))
       param++;
-    end=strmake(file_name, param, sizeof(file_name)-1);
+    end= strmake(file_name, param, sizeof(file_name) - 1);
     while (end > file_name && (isspace(end[-1]) || iscntrl(end[-1])))
       end--;
-    end[0]=0;
+    end[0]= 0;
     strmov(outfile, file_name);
   }
   if (!strlen(outfile))
@@ -1846,12 +1848,7 @@ com_tee(String *buffer, char *line __attribute__((unused)))
     printf("No outfile specified!\n");
     return 0;
   }
-  if (!opt_outfile)
-  {
-    init_tee();
-    opt_outfile=1;
-  }
-  tee_fprintf(stdout, "Logging to file '%s'\n", outfile);
+  init_tee();
   return 0;
 }
 
@@ -1861,7 +1858,6 @@ com_notee(String *buffer __attribute__((unused)),
 {
   if (opt_outfile)
     end_tee();
-  opt_outfile=0;
   tee_fprintf(stdout, "Outfile disabled.\n");
   return 0;
 }
@@ -2284,11 +2280,11 @@ com_status(String *buffer __attribute__((unused)),
     }
 #ifdef HAVE_OPENSSL
     if (mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_))
-      tee_fprintf(stdout, "SSL cipher in use is %s\n",
+      tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
 		  SSL_get_cipher(mysql.net.vio->ssl_));
     else
 #endif /* HAVE_OPENSSL */
-      tee_puts("SSL is not in use\n", stdout);
+      tee_puts("SSL:\t\t\tNot in use", stdout);
   }
   else
   {
