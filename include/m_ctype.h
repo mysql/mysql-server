@@ -391,7 +391,11 @@ extern my_bool my_parse_charset_xml(const char *bug, uint len,
 
 #define use_mb(s)                     ((s)->cset->ismbchar != NULL)
 #define my_ismbchar(s, a, b)          ((s)->cset->ismbchar((s), (a), (b)))
+#ifdef USE_MB
 #define my_mbcharlen(s, a)            ((s)->cset->mbcharlen((s),(a)))
+#else
+#define my_mbcharlen(s, a)            1
+#endif
 
 #define my_caseup(s, a, l)            ((s)->cset->caseup((s), (a), (l)))
 #define my_casedn(s, a, l)            ((s)->cset->casedn((s), (a), (l)))

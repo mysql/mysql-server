@@ -627,7 +627,7 @@ writes: %ld  r_requests: %ld  reads: %ld",
     a pointer to the last element.
 */
 
-static inline void link_into_queue(KEYCACHE_WQUEUE *wqueue,
+static void link_into_queue(KEYCACHE_WQUEUE *wqueue,
                                    struct st_my_thread_var *thread)
 {
   struct st_my_thread_var *last;
@@ -662,7 +662,7 @@ static inline void link_into_queue(KEYCACHE_WQUEUE *wqueue,
     See NOTES for link_into_queue
 */
 
-static inline void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
+static void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
                                      struct st_my_thread_var *thread)
 {
   KEYCACHE_DBUG_PRINT("unlink_from_queue", ("thread %ld", thread->id));
