@@ -356,7 +356,8 @@ struct st_myisam_info {
 #define MI_DYN_MAX_BLOCK_LENGTH	((1L << 24)-4L)
 #define MI_DYN_MAX_ROW_LENGTH	(MI_DYN_MAX_BLOCK_LENGTH - MI_SPLIT_LENGTH)
 #define MI_DYN_ALIGN_SIZE	4	/* Align blocks on this */
-#define MI_MAX_DYN_HEADER_BYTE	12	/* max header byte for dynamic rows */
+#define MI_MAX_DYN_HEADER_BYTE	13	/* max header byte for dynamic rows */
+#define MI_MAX_BLOCK_LENGTH	(((ulong) 1 << 24)-1)
 
 #define MEMMAP_EXTRA_MARGIN	7	/* Write this as a suffix for file */
 

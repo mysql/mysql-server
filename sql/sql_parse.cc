@@ -1294,6 +1294,9 @@ mysql_execute_command(void)
       res=0;
       break;
     }
+#ifndef HAVE_READLINK
+    lex->create_info.data_file_name=lex->create_info.index_file_name=0;
+#else
     /* Fix names if symlinked tables */
     if (append_file_to_dir(&lex->create_info.data_file_name, tables->name) ||
 	append_file_to_dir(&lex->create_info.index_file_name, tables->name))
@@ -1301,6 +1304,7 @@ mysql_execute_command(void)
       res=-1;
       break;
     }
+#endif
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
