@@ -295,6 +295,8 @@ sys_var_thd_sql_mode    sys_sql_mode("sql_mode",
                                      &SV::sql_mode);
 sys_var_thd_table_type  sys_table_type("table_type",
 				       &SV::table_type);
+sys_var_thd_storage_engine sys_storage_engine("storage_engine",
+				       &SV::table_type);
 sys_var_long_ptr	sys_table_cache_size("table_cache",
 					     &table_cache_size);
 sys_var_long_ptr	sys_thread_cache_size("thread_cache_size",
@@ -527,6 +529,7 @@ sys_var *sys_variables[]=
   &sys_sql_max_join_size,
   &sys_sql_mode,
   &sys_sql_warnings,
+  &sys_storage_engine,
   &sys_table_cache_size,
   &sys_table_type,
   &sys_thread_cache_size,
@@ -732,6 +735,7 @@ struct show_var_st init_vars[]= {
 #endif
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
+  {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
   {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
   {sys_table_type.name,	      (char*) &sys_table_type,	            SHOW_SYS},
   {sys_thread_cache_size.name,(char*) &sys_thread_cache_size,       SHOW_SYS},
@@ -2510,7 +2514,7 @@ int set_var_password::update(THD *thd)
 
 /* Based upon sys_var::check_enum() */
 
-bool sys_var_thd_table_type::check(THD *thd, set_var *var)
+bool sys_var_thd_storage_engine::check(THD *thd, set_var *var)
 {
   char buff[80];
   const char *value;
@@ -2529,23 +2533,23 @@ bool sys_var_thd_table_type::check(THD *thd, set_var *var)
   }
 
 err:
-  my_error(ER_UNKNOWN_TABLE_ENGINE, MYF(0), value);
+  my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), value);
   return 1;    
 }
 
 
-byte *sys_var_thd_table_type::value_ptr(THD *thd, enum_var_type type,
-					LEX_STRING *base)
+byte *sys_var_thd_storage_engine::value_ptr(THD *thd, enum_var_type type,
+					    LEX_STRING *base)
 {
   ulong val;
   val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
         thd->variables.*offset);
-  const char *table_type= ha_get_table_type((enum db_type)val);
+  const char *table_type= ha_get_storage_engine((enum db_type)val);
   return (byte *) table_type;
 }
 
 
-void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
+void sys_var_thd_storage_engine::set_default(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
     global_system_variables.*offset= (ulong) DB_TYPE_MYISAM;
@@ -2554,13 +2558,32 @@ void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
 }
 
 
-bool sys_var_thd_table_type::update(THD *thd, set_var *var)
+bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
 {
   if (var->type == OPT_GLOBAL)
     global_system_variables.*offset= var->save_result.ulong_value;
   else
     thd->variables.*offset= var->save_result.ulong_value;
   return 0;
+}
+
+void sys_var_thd_table_type::warn_deprecated(THD *thd)
+{
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		      ER_WARN_DEPRECATED_SYNTAX,
+		      ER(ER_WARN_DEPRECATED_SYNTAX), "table_type", "storage_engine"); 
+}
+
+void sys_var_thd_table_type::set_default(THD *thd, enum_var_type type)
+{
+  warn_deprecated(thd);
+  sys_var_thd_storage_engine::set_default(thd, type);
+}
+
+bool sys_var_thd_table_type::update(THD *thd, set_var *var)
+{
+  warn_deprecated(thd);
+  return sys_var_thd_storage_engine::update(thd, var);
 }
 
 

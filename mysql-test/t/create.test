@@ -152,17 +152,17 @@ drop table if exists t1;
 #
 # Test default table type
 #
-SET SESSION table_type="heap";
-SELECT @@table_type;
+SET SESSION storage_engine="heap";
+SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
 --error 1285
-SET SESSION table_type="gemini";
-SELECT @@table_type;
+SET SESSION storage_engine="gemini";
+SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
-SET SESSION table_type=default;
+SET SESSION storage_engine=default;
 drop table t1;
 
 
@@ -272,17 +272,17 @@ drop database test_$1;
 #
 # Test default table type
 #
-SET SESSION table_type="heap";
-SELECT @@table_type;
+SET SESSION storage_engine="heap";
+SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
 --error 1285
-SET SESSION table_type="gemini";
-SELECT @@table_type;
+SET SESSION storage_engine="gemini";
+SELECT @@storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
-SET SESSION table_type=default;
+SET SESSION storage_engine=default;
 drop table t1;
 
 #

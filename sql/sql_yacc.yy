@@ -390,6 +390,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  SSL_SYM
 %token	STARTING
 %token	STATUS_SYM
+%token	STORAGE_SYM
 %token	STRAIGHT_JOIN
 %token	SUBJECT_SYM
 %token	TABLES
@@ -506,6 +507,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ELT_FUNC
 %token	ENCODE_SYM
 %token	ENGINE_SYM
+%token	ENGINES_SYM
 %token	ENCRYPT
 %token	EXPORT_SET
 %token	EXTRACT_SYM
@@ -706,7 +708,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <interval_time_st> interval_time_st
 
-%type <db_type> table_types
+%type <db_type> storage_engines
 
 %type <row_type> row_types
 
@@ -2103,8 +2105,8 @@ create_table_options:
 	| create_table_option ',' create_table_options;
 
 create_table_option:
-	ENGINE_SYM opt_equal table_types        { Lex->create_info.db_type= $3; }
-	| TYPE_SYM opt_equal table_types        { Lex->create_info.db_type= $3; WARN_DEPRECATED("TYPE=database_engine","ENGINE=database_engine"); }
+	ENGINE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; }
+	| TYPE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; WARN_DEPRECATED("TYPE=database_engine","ENGINE=database_engine"); }
 	| MAX_ROWS opt_equal ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
 	| AVG_ROW_LENGTH opt_equal ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
@@ -2157,12 +2159,12 @@ create_table_option:
 	  { Lex->create_info.data_file_name= $4.str; }
 	| INDEX DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
 
-table_types:
+storage_engines:
 	ident_or_text
 	{
 	  $$ = ha_resolve_by_name($1.str,$1.length);
 	  if ($$ == DB_TYPE_UNKNOWN) {
-	    net_printf(YYTHD, ER_UNKNOWN_TABLE_ENGINE, $1.str);
+	    net_printf(YYTHD, ER_UNKNOWN_STORAGE_ENGINE, $1.str);
 	    YYABORT;
 	  }
 	};
@@ -5112,7 +5114,7 @@ show_param:
 	    lex->select_lex.db= $3;
 	    lex->select_lex.options= 0;
 	  }
-	| ENGINE_SYM table_types 
+	| ENGINE_SYM storage_engines 
 	  { Lex->create_info.db_type= $2; }
 	  show_engine_param
 	| opt_full COLUMNS from_or_in table_ident opt_db wild
@@ -5162,7 +5164,13 @@ show_param:
 	| TABLE_SYM TYPES_SYM
 	  {
 	    LEX *lex=Lex;
-	    lex->sql_command= SQLCOM_SHOW_TABLE_TYPES;
+	    lex->sql_command= SQLCOM_SHOW_STORAGE_ENGINES;
+	    WARN_DEPRECATED("SHOW TABLE TYPES", "SHOW [STORAGE] ENGINES");
+	  }
+	| opt_storage ENGINES_SYM
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_SHOW_STORAGE_ENGINES;
 	  }
 	| PRIVILEGES
 	  {
@@ -5270,6 +5278,10 @@ show_engine_param:
 master_or_binary:
 	MASTER_SYM
 	| BINARY;
+
+opt_storage:
+	/* empty */
+	| STORAGE_SYM;
 
 opt_db:
 	/* empty */  { $$= 0; }
@@ -5846,6 +5858,7 @@ keyword:
 	| END			{}
 	| ENUM			{}
 	| ENGINE_SYM		{}
+	| ENGINES_SYM		{}
 	| ERRORS		{}
 	| ESCAPE_SYM		{}
 	| EVENTS_SYM		{}
@@ -5978,6 +5991,7 @@ keyword:
 	| START_SYM		{}
 	| STATUS_SYM		{}
 	| STOP_SYM		{}
+	| STORAGE_SYM		{}
 	| STRING_SYM		{}
 	| SUBDATE_SYM		{}
 	| SUBJECT_SYM		{}
@@ -5992,6 +6006,7 @@ keyword:
 	| TIMESTAMP_DIFF	{}
 	| TIME_SYM		{}
 	| TYPE_SYM		{}
+	| TYPES_SYM		{}
 	| FUNCTION_SYM		{}
 	| UNCOMMITTED_SYM	{}
 	| UNICODE_SYM		{}

@@ -2846,8 +2846,8 @@ mysql_execute_command(THD *thd)
 #endif
 			  ,lex->verbose);
     break;
-  case SQLCOM_SHOW_TABLE_TYPES:
-    res= mysqld_show_table_types(thd);
+  case SQLCOM_SHOW_STORAGE_ENGINES:
+    res= mysqld_show_storage_engines(thd);
     break;
   case SQLCOM_SHOW_PRIVILEGES:
     res= mysqld_show_privileges(thd);

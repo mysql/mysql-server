@@ -133,3 +133,6 @@ alter table t1 type=myisam;
 Warnings:
 Warning	1286	'TYPE=database_engine' is deprecated. Use 'ENGINE=database_engine' instead.
 drop table t1;
+set table_type=MYISAM;
+Warnings:
+Warning	1286	'table_type' is deprecated. Use 'storage_engine' instead.
