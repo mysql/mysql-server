@@ -332,7 +332,10 @@ public:
   Item_subselect *item;
   /* thread handler */
   THD *thd;
-  /* fake SELECT_LEX for union processing */
+  /*
+    SELECT_LEX for hidden SELECT in onion which process global
+    ORDER BY and LIMIT
+  */
   st_select_lex *fake_select_lex;
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */

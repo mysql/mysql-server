@@ -263,7 +263,8 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     union_result->set_table(table);
 
     thd_arg->lex->current_select= lex_select_save;
-    if (!item_list.elements){
+    if (!item_list.elements)
+    {
       Statement *stmt= thd->current_statement;
       Statement backup;
       if (stmt)
