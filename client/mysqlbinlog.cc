@@ -442,7 +442,7 @@ static struct my_option my_long_options[] =
    0, 0},
   {"to-last-log", 't', "Requires -R. Will not stop at the end of the \
 requested binlog but rather continue printing until the end of the last \
-binlog of the MySQL server. If you send the output to the same MySQL server,
+binlog of the MySQL server. If you send the output to the same MySQL server, \
 that may lead to an endless loop.",
    (gptr*) &to_last_remote_log, (gptr*) &to_last_remote_log, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
