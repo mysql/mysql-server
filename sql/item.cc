@@ -132,7 +132,7 @@ void Item_field::set_field(Field *field_par)
   table_name=field_par->table_name;
   field_name=field_par->field_name;
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
-  str_value.set_charset(field_par->charset());
+  set_charset(field_par->charset());
 }
 
 const char *Item_ident::full_name() const
