@@ -243,7 +243,10 @@ typedef struct st_typelib {	/* Different types saved here */
   const char **type_names;
 } TYPELIB;
 
-enum cache_type {READ_CACHE,WRITE_CACHE,READ_FIFO,READ_NET,WRITE_NET};
+enum cache_type {READ_CACHE,WRITE_CACHE,
+		 SEQ_READ_APPEND /* sequential read or append */,
+		 READ_FIFO,
+		 READ_NET,WRITE_NET};
 enum flush_type { FLUSH_KEEP, FLUSH_RELEASE, FLUSH_IGNORE_CHANGED,
 		  FLUSH_FORCE_WRITE};
 
@@ -294,6 +297,16 @@ typedef struct st_io_cache		/* Used when cacheing files */
 {
   my_off_t pos_in_file,end_of_file;
   byte	*rc_pos,*rc_end,*buffer,*rc_request_pos;
+  my_bool alloced_buffer; /* currented READ_NET is the only one
+			     that will use a buffer allocated somewhere
+			     else
+			   */
+  byte *append_buffer, *append_pos, *append_end;
+/* for append buffer used in READ_APPEND cache */
+#ifdef THREAD
+  pthread_mutex_t append_buffer_lock;
+  /* need mutex copying from append buffer to read buffer */
+#endif  
   int (*read_function)(struct st_io_cache *,byte *,uint);
   /* callbacks when the actual read I/O happens */
   IO_CACHE_CALLBACK pre_read;
@@ -546,6 +559,7 @@ extern my_bool reinit_io_cache(IO_CACHE *info,enum cache_type type,
 			       my_off_t seek_offset,pbool use_async_io,
 			       pbool clear_cache);
 extern int _my_b_read(IO_CACHE *info,byte *Buffer,uint Count);
+extern int _my_b_seq_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_net_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_get(IO_CACHE *info);
 extern int _my_b_async_read(IO_CACHE *info,byte *Buffer,uint Count);
