@@ -2,8 +2,8 @@ drop table if exists t1;
 show variables like "ft\_%";
 Variable_name	Value
 ft_boolean_syntax	+ -><()~*:""&|
-ft_min_word_len	4
 ft_max_word_len	84
+ft_min_word_len	4
 ft_query_expansion_limit	20
 ft_stopword_file	(built-in)
 create table t1 (b text not null);
