@@ -19,7 +19,7 @@
 
 /***************************** Gis_class_info *******************************/
 
-Geometry::Class_info *Geometry::ci_collection[Geometry::wkb_end]=
+Geometry::Class_info *Geometry::ci_collection[Geometry::wkb_end+1]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };

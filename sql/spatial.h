@@ -251,7 +251,7 @@ public:
   }
 
   bool envelope(String *result) const;
-  static Geometry::Class_info *ci_collection[Geometry::wkb_end];
+  static Geometry::Class_info *ci_collection[Geometry::wkb_end+1];
 
 protected:
   static Class_info *find_class(int type_id)
