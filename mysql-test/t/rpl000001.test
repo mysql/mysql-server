@@ -12,7 +12,6 @@ insert into foo values(1),(2);
 save_master_pos;
 connection slave;
 sync_with_master;
-sleep 1;
 use test;
 select * from foo;
 select sum(length(word)) from t1;
