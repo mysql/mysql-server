@@ -317,7 +317,7 @@ int mysql_update(THD *thd,
   if (updated && (error <= 0 || !transactional_table))
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
-    if (mysql_bin_log.is_open(1))
+    if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    log_delayed);
@@ -933,7 +933,7 @@ bool multi_update::send_eof()
   if (updated && (local_error <= 0 || !trans_safe))
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
-    if (mysql_bin_log.is_open(1))
+    if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    log_delayed);

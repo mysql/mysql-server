@@ -574,7 +574,7 @@ void close_temporary_tables(THD *thd)
     next=table->next;
     close_temporary(table);
   }
-  if (query && found_user_tables && mysql_bin_log.is_open(1))
+  if (query && found_user_tables && mysql_bin_log.is_open())
   {
     /* The -1 is to remove last ',' */
     Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0);

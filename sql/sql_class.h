@@ -58,13 +58,10 @@ typedef struct st_log_info
 
 class Log_event;
 
-class MYSQL_LOG {
+class MYSQL_LOG
+ {
  private:
-  /* 
-     LOCK_log is inited by MYSQL_LOG::init(), so one should try to lock it only
-     if he is sure MYSQL_LOG::init() has been called (i.e. if 'inited' is true).
-     Same for LOCK_index.
-  */
+  /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   pthread_mutex_t LOCK_log, LOCK_index;
   pthread_cond_t update_cond;
   ulonglong bytes_written;
@@ -84,7 +81,7 @@ class MYSQL_LOG {
   */
   volatile enum_log_type log_type;
   enum cache_type io_cache_type;
-  bool write_error;
+  bool write_error, inited;
   bool need_start_event;
   bool no_auto_events; // for relay binlog
   /* 
@@ -162,8 +159,7 @@ public:
   int find_next_log(LOG_INFO* linfo, bool need_mutex);
   int get_current_log(LOG_INFO* linfo);
   uint next_file_id();
-  bool is_open(bool need_mutex=0);
-
+  inline bool is_open() { return log_type != LOG_CLOSED; }
   inline char* get_index_fname() { return index_file_name;}
   inline char* get_log_fname() { return log_file_name; }
   inline pthread_mutex_t* get_log_lock() { return &LOCK_log; }
