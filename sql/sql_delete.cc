@@ -273,11 +273,11 @@ multi_delete::initialize_tables(JOIN *join)
     if (tab->table->map & tables_to_delete_from)
     {
       /* We are going to delete from this table */
-      walk->table=tab->table;
+      TABLE *tbl=walk->table=tab->table;
+      tbl->no_keyread=1;
+      tbl->used_keys=0;
       walk=walk->next;
-      if (tab == join->join_tab)
-	tab->table->no_keyread=1;
-      if (!not_trans_safe && !tab->table->file->has_transactions())
+      if (!not_trans_safe && !tbl->file->has_transactions())
 	not_trans_safe=true;
     }
   }

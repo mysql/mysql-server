@@ -1960,7 +1960,11 @@ mysql_execute_command(void)
       }
       auxi->lock_type=walk->lock_type=TL_WRITE;
       auxi->table= (TABLE *) walk;		// Remember corresponding table
-      (void)add_item_to_list(new Item_field(auxi->db,auxi->real_name,"*"));
+    }
+    if (add_item_to_list(new Item_null()))
+    {
+      res = -1;
+      break;
     }
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
     thd->proc_info="init";
