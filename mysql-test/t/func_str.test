@@ -172,3 +172,10 @@ create table t1(a char(4));
 insert into t1 values ('one'),(NULL),('two'),('four');
 select a, quote(a), isnull(quote(a)), quote(a) is null, ifnull(quote(a), 'n') from t1;
 drop table t1;
+
+#
+# Bug #5498: TRIM fails with LEADING or TRAILING if remstr = str
+#
+
+select trim(trailing 'foo' from 'foo');
+select trim(leading 'foo' from 'foo');
