@@ -196,7 +196,18 @@ byte *hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo, const byte *key,
 }
 
 
-	/* Calculate pos according to keys */
+/*
+  Calculate position number for hash value.
+  SYNOPSIS
+    hp_mask()
+      hashnr     Hash value
+      buffmax    Value such that
+                 2^(n-1) < maxlength <= 2^n = buffmax
+      maxlength  
+  
+  RETURN
+    Array index, in [0..maxlength)
+*/
 
 ulong hp_mask(ulong hashnr, ulong buffmax, ulong maxlength)
 {
@@ -205,7 +216,12 @@ ulong hp_mask(ulong hashnr, ulong buffmax, ulong maxlength)
 }
 
 
-	/* Change link from pos to new_link */
+/*
+  Change
+    next_link -> ... -> X -> pos
+  to
+    next_link -> ... -> X -> newlink
+*/
 
 void hp_movelink(HASH_INFO *pos, HASH_INFO *next_link, HASH_INFO *newlink)
 {

@@ -128,6 +128,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 		   max_records);
 	keyinfo->delete_key= hp_delete_key;
 	keyinfo->write_key= hp_write_key;
+        keyinfo->hash_buckets= 0;
       }
     }
     share->min_records= min_records;

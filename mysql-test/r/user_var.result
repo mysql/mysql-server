@@ -195,12 +195,7 @@ INSERT INTO t1 VALUES(@`a b`);
 SET @`var1`:=_latin1 0x273B616161 COLLATE latin1_swedish_ci;
 SET TIMESTAMP=10000;
 insert into t1 values (@var1);
-SET TIMESTAMP=10000;
-create table t2 (c char(30)) charset=ucs2;
-SET @`v`:=_ucs2 0x006100620063 COLLATE ucs2_general_ci;
-SET TIMESTAMP=10000;
-insert into t2 values (@v);
-drop table t1, t2;
+drop table t1;
 set @var= NULL ;
 select FIELD( @var,'1it','Hit') as my_column;
 my_column
