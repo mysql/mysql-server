@@ -218,13 +218,14 @@ public:
   void printState();
 #endif
   
+  unsigned short      m_service_port;
+
 protected:
   
 private:
   void * callbackObj;
 
   TransporterService *m_transporter_service;
-  unsigned short      m_service_port;
   char               *m_interface_name;
   struct NdbThread   *m_start_clients_thread;
   bool                m_run_start_clients_thread;

@@ -83,9 +83,6 @@ ConfigInfo::m_SectionRules[] = {
   { "SCI",  transformConnection, 0 },
   { "OSE",  transformConnection, 0 },
 
-  { "TCP",  fixPortNumber, 0 },
-  //{ "SHM",  fixShmKey, 0 },
-
   { "DB",   fixNodeHostname, 0 },
   { "API",  fixNodeHostname, 0 },
   { "MGM",  fixNodeHostname, 0 },
@@ -105,6 +102,9 @@ ConfigInfo::m_SectionRules[] = {
   { "TCP",  fixHostname, "HostName2" },
   { "OSE",  fixHostname, "HostName1" },
   { "OSE",  fixHostname, "HostName2" },
+
+  { "TCP",  fixPortNumber, 0 },
+  //{ "SHM",  fixShmKey, 0 },
 
   /**
    * fixExtConnection must be after fixNodeId
@@ -393,16 +393,16 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     (MAX_NODES - 1) },
 
   {
-    CFG_DB_SERVER_PORT,
+    KEY_INTERNAL,
     "ServerPort",
     "DB",
     "Port used to setup transporter",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    2202,
-    0,
-    0x7FFFFFFF },
+    UNDEFINED,
+    1,
+    65535 },
 
   {
     CFG_DB_NO_REPLICAS,
@@ -2913,18 +2913,44 @@ fixHostname(InitConfigFileParser::Context & ctx, const char * data){
 bool
 fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 
-  if(!ctx.m_currentSection->contains("PortNumber")){
-    Uint32 adder = 0;
-    ctx.m_userProperties.get("PortNumberAdder", &adder);
+  Uint32 id1= 0, id2= 0;
+  require(ctx.m_currentSection->get("NodeId1", &id1));
+  require(ctx.m_currentSection->get("NodeId2", &id2));
+
+  id1 = id1 < id2 ? id1 : id2;
+
+  const Properties * node;
+  require(ctx.m_config->get("Node", id1, &node));
+  BaseString hostname;
+  require(node->get("HostName", hostname));
+  
+  if (hostname.c_str()[0] == 0) {
+    ctx.reportError("Hostname required on nodeid %d since it will act as server.", id1);
+    return false;
+  }
+
+  Uint32 port= 0;
+  if (!node->get("ServerPort", &port) && !ctx.m_userProperties.get("ServerPort_", id1, &port)) {
+    hostname.append("_ServerPortAdder");
+    Uint32 adder= 0;
+    ctx.m_userProperties.get(hostname.c_str(), &adder);
+    ctx.m_userProperties.put(hostname.c_str(), adder+1, true);
+    
     Uint32 base = 0;
     if(!(ctx.m_userDefaults && ctx.m_userDefaults->get("PortNumber", &base)) &&
        !ctx.m_systemDefaults->get("PortNumber", &base)){
       return false;
     }
-    ctx.m_currentSection->put("PortNumber", base + adder);
-    adder++;
-    ctx.m_userProperties.put("PortNumberAdder", adder, true);
+    port= base + adder;
+    ctx.m_userProperties.put("ServerPort_", id1, port);
   }
+
+  if(ctx.m_currentSection->contains("PortNumber")) {
+    ndbout << "PortNumber should no longer be specificied per connection, please remove from config. Will be changed to " << port << endl;
+  }
+
+  ctx.m_currentSection->put("PortNumber", port);
+
   return true;
 }
 
