@@ -183,10 +183,11 @@ public:
       Binary = NDB_TYPE_BINARY,        ///< Len
       Varbinary = NDB_TYPE_VARBINARY,     ///< Max len
       Datetime = NDB_TYPE_DATETIME,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
-      Timespec = NDB_TYPE_TIMESPEC,    ///< Precision down to 1 nsec(sizeof(Datetime) == 12 bytes )
+      Date = NDB_TYPE_DATE,            ///< Precision down to 1 day(sizeof(Date) == 4 bytes )
       Blob = NDB_TYPE_BLOB,        ///< Binary large object (see NdbBlob)
       Text = NDB_TYPE_TEXT,         ///< Text blob,
-      Bit = NDB_TYPE_BIT           ///< Bit, length specifies no of bits
+      Bit = NDB_TYPE_BIT,          ///< Bit, length specifies no of bits
+      Time = NDB_TYPE_TIME         ///< Time without date
     };
 
     /** 

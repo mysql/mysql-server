@@ -153,8 +153,8 @@ NdbSqlUtil::m_typeList[] = {
     cmpDatetime
   },
   {
-    Type::Timespec,
-    NULL  // cmpTimespec
+    Type::Date,
+    cmpDate
   },
   {
     Type::Blob,
@@ -163,6 +163,22 @@ NdbSqlUtil::m_typeList[] = {
   {
     Type::Text,
     NULL  // cmpText
+  },
+  {
+    Type::Undefined,    // 5.0 Bit
+    NULL
+  },
+  {
+    Type::Undefined,    // 5.0 Longvarchar
+    NULL
+  },
+  {
+    Type::Undefined,    // 5.0 Longvarbinary
+    NULL
+  },
+  {
+    Type::Time,
+    cmpTime
   }
 };
 
@@ -433,7 +449,6 @@ NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void
   return 0;
 }
 
-int
 NdbSqlUtil::cmpBinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 {
   const uchar* v1 = (const uchar*)p1;
@@ -458,19 +473,57 @@ NdbSqlUtil::cmpVarbinary(const void* info, const void* p1, unsigned n1, const vo
   return 0;
 }
 
-// allowed but ordering is wrong before wl-1442 done
 int
 NdbSqlUtil::cmpDatetime(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 {
-  return cmpBinary(info, p1, n1, p2, n2, full);
+  if (n2 >= sizeof(Int64)) {
+    Int64 v1, v2;
+    memcpy(&v1, p1, sizeof(Int64));
+    memcpy(&v2, p2, sizeof(Int64));
+    if (v1 < v2)
+      return -1;
+    if (v1 > v2)
+      return +1;
+    return 0;
+  }
+  assert(! full);
+  return CmpUnknown;
 }
 
-// not used by MySQL or NDB
 int
-NdbSqlUtil::cmpTimespec(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
+NdbSqlUtil::cmpDate(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2, bool full)
 {
-  assert(false);
-  return 0;
+#ifdef ndb_date_is_4_byte_native_int
+  if (n2 >= sizeof(Int32)) {
+    Int32 v1, v2;
+    memcpy(&v1, p1, sizeof(Int32));
+    memcpy(&v2, p2, sizeof(Int32));
+    if (v1 < v2)
+      return -1;
+    if (v1 > v2)
+      return +1;
+    return 0;
+  }
+  assert(! full);
+  return cmpUnknown;
+#else
+  if (n2 >= 4) {        // may access 4-th byte
+    const uchar* v1 = (const uchar*)p1;
+    const uchar* v2 = (const uchar*)p2;
+    // from Field_newdate::val_int
+    Uint64 j1 = uint3korr(v1);
+    Uint64 j2 = uint3korr(v2);
+    j1 = (j1 % 32L)+(j1 / 32L % 16L)*100L + (j1/(16L*32L))*10000L;
+    j2 = (j2 % 32L)+(j2 / 32L % 16L)*100L + (j2/(16L*32L))*10000L;
+    if (j1 < j2)
+      return -1;
+    if (j1 > j2)
+      return +1;
+    return 0;
+  }
+  assert(! full);
+  return cmpUnknown;
+#endif
 }
 
 // not supported
@@ -487,6 +540,25 @@ NdbSqlUtil::cmpText(const void* info, const void* p1, unsigned n1, const void* p
 {
   assert(false);
   return 0;
+}
+
+int
+NdbSqlUtil::cmpTime(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+{
+  if (n2 >= 4) {        // may access 4-th byte
+    const uchar* v1 = (const uchar*)p1;
+    const uchar* v2 = (const uchar*)p2;
+    // from Field_time::val_int
+    Int32 j1 = sint3korr(u1.v);
+    Int32 j2 = sint3korr(u2.v);
+    if (j1 < j2)
+      return -1;
+    if (j1 > j2)
+      return +1;
+    return 0;
+  }
+  assert(! full);
+  return CmpUnknown;
 }
 
 // check charset

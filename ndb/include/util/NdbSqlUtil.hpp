@@ -86,7 +86,8 @@ public:
       Timespec = NDB_TYPE_TIMESPEC,
       Blob = NDB_TYPE_BLOB,
       Text = NDB_TYPE_TEXT,
-      Bit = NDB_TYPE_BIT
+      Bit = NDB_TYPE_BIT,
+      Time = NDB_TYPE_TIME
     };
     Enum m_typeId;
     Cmp* m_cmp;         // comparison method
@@ -135,9 +136,10 @@ private:
   static Cmp cmpBinary;
   static Cmp cmpVarbinary;
   static Cmp cmpDatetime;
-  static Cmp cmpTimespec;
+  static Cmp cmpDate;
   static Cmp cmpBlob;
   static Cmp cmpText;
+  static Cmp cmpTime;
 };
 
 #endif
