@@ -193,7 +193,12 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 		   ER_SELECT_REDUCED, warn_buff);
     }
     substitution= select_lex->item_list.head();
-     
+    /*
+      as far as we moved content to upper leven, field which depend of
+      'upper' select is not really dependent => we remove this dependence
+    */
+    substitution->walk(&Item::remove_dependence_processor,
+		       (byte *) select_lex->outer_select());
     if (select_lex->where || select_lex->having)
     {
       Item *cond;

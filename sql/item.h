@@ -82,6 +82,8 @@ public:
   }
 };
 
+typedef bool (Item::*Item_processor)(byte *arg);
+
 class Item {
   uint loop_id;                         /* Used to find selfrefering loops */
   Item(const Item &);			/* Prevent use of these */
@@ -187,6 +189,13 @@ public:
   }
   bool binary() const
   { return charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
+
+  virtual bool walk(Item_processor processor, byte *arg)
+  {
+    return (this->*processor)(arg);
+  }
+
+  virtual bool remove_dependence_processor(byte * arg) { return 0; }
   
   // Row emulation
   virtual uint cols() { return 1; }
@@ -216,6 +225,8 @@ public:
   // Constructor used by Item_field & Item_ref (see Item comment)
   Item_ident(THD *thd, Item_ident &item);
   const char *full_name() const;
+
+  bool remove_dependence_processor(byte * arg);
 };
 
 
@@ -833,6 +844,12 @@ public:
     return Item_field::save_in_field(field, no_conversions);
   }
   table_map used_tables() const { return (table_map)0L; }
+  
+  bool walk(Item_processor processor, byte *args)
+  {
+    return arg->walk(processor, args) ||
+      (this->*processor)(args);
+  }
 };
 
 class Item_insert_value : public Item_field
@@ -850,6 +867,12 @@ public:
     return Item_field::save_in_field(field, no_conversions);
   }
   table_map used_tables() const { return (table_map)0L; }
+
+  bool walk(Item_processor processor, byte *args)
+  {
+    return arg->walk(processor, args) ||
+	    (this->*processor)(args);
+  }
 };
 
 class Item_cache: public Item

@@ -85,6 +85,15 @@ Item_ident::Item_ident(THD *thd, Item_ident &item):
   depended_from(item.depended_from)
 {}
 
+bool Item_ident::remove_dependence_processor(byte * arg)
+{
+  DBUG_ENTER("Item_ident::remove_dependence_processor");
+  if (depended_from == (st_select_lex *) arg)
+    depended_from= 0;
+  DBUG_RETURN(1);
+}
+
+
 bool Item::check_cols(uint c)
 {
   if (c != 1)

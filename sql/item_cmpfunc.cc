@@ -1094,6 +1094,13 @@ void Item_func_case::split_sum_func(Item **ref_pointer_array,
 }
 
 
+bool Item_func_case::walk (Item_processor processor, byte *arg)
+{
+  return first_expr->walk(processor, arg) ||
+    else_expr->walk(processor, arg) ||
+    Item_func::walk(processor, arg);
+}
+
 void Item_func_case::update_used_tables()
 {
   Item_func::update_used_tables();
@@ -1660,6 +1667,16 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   fix_length_and_dec();
   fixed= 1;
   return 0;
+}
+
+bool Item_cond::walk(Item_processor processor, byte *arg)
+{
+  List_iterator_fast<Item> li(list);
+  Item *item;
+  while ((item= li++))
+    if (item->walk(processor, arg))
+      return 1;
+  return Item_func::walk(processor, arg);
 }
 
 void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
