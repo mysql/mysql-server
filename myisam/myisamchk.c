@@ -878,10 +878,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       param->error_printed=0;
       goto end2;
     }
-    share->w_locks++;				/* Mark for writeinfo */
-    share->tot_locks++;
-    info->lock_type= F_EXTRA_LCK;		/* Simulate as locked */
-    info->tmp_lock_type=lock_type;
+    mi_lock_database(info, F_EXTRA_LCK);
     datafile=info->dfile;
 
     if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX))
@@ -1057,8 +1054,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
     VOID(lock_file(param, share->kfile,0L,F_UNLCK,"indexfile",filename));
     info->update&= ~HA_STATE_CHANGED;
   }
-  share->w_locks--;
-  share->tot_locks--;
+  mi_lock_database(info, F_UNLCK);
 end2:
   if (mi_close(info))
   {

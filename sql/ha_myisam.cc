@@ -560,7 +560,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 
   // Don't lock tables if we have used LOCK TABLE
   if (!thd->locked_tables && 
-      mi_lock_database(file, table->tmp_table ? MI_TEMPORARY_TABLE : F_WRLCK))
+      mi_lock_database(file, table->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
     mi_check_print_error(&param,ER(ER_CANT_LOCK),my_errno);
     DBUG_RETURN(HA_ADMIN_FAILED);
@@ -1002,7 +1002,7 @@ int ha_myisam::external_lock(THD *thd, int lock_type)
 {
   return mi_lock_database(file, !table->tmp_table ?
 			  lock_type : ((lock_type == F_UNLCK) ?
-				       F_UNLCK : MI_TEMPORARY_TABLE));
+				       F_UNLCK : F_EXTRA_LCK));
 }
 
 

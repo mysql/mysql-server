@@ -39,7 +39,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
   if (share->options & HA_OPTION_READ_ONLY_DATA ||
       info->lock_type == lock_type)
     DBUG_RETURN(0);
-  if (lock_type == MI_TEMPORARY_TABLE)
+  if (lock_type == F_EXTRA_LCK)
   {
     ++share->w_locks;
     ++share->tot_locks;
