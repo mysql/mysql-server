@@ -141,6 +141,8 @@ static bool send_prep_stmt(PREP_STMT *stmt, uint columns)
   int2store(buff+4, columns);
   int2store(buff+6, stmt->param_count);
 #ifndef EMBEDDED_LIBRARY
+  /* This should be fixed to work with prepared statements
+   */
   return (my_net_write(net, buff, sizeof(buff)) || net_flush(net));
 #else
   return true;

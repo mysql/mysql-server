@@ -14,8 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef EMBEDDED_LIBRARY
 #include "mysql_priv.h"
+
+#ifdef HAVE_REPLICATION
+
 #include <mysql.h>
 #include <myisam.h>
 #include "mini_client.h"
@@ -25,6 +27,7 @@
 #include <thr_alarm.h>
 #include <my_dir.h>
 #include <assert.h>
+
 
 bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
@@ -3182,4 +3185,4 @@ template class I_List_iterator<i_string>;
 template class I_List_iterator<i_string_pair>;
 #endif
 
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */

@@ -879,14 +879,6 @@ inline void mark_as_null_row(TABLE *table)
   bfill(table->null_flags,table->null_bytes,255);
 }
 
-#ifdef EMBEDDED_LIBRARY
-  int embedded_send_row(THD *thd, int n_fields, const char *data, int data_len);
-#define SEND_ROW(thd, n_fields, data, data_len)\
-  embedded_send_row(thd, n_fields, data, data_len)
-#else
-#define SEND_ROW(thd, n_fields, data, data_len)\
-  my_net_write(&thd->net, data, data_len)
-#endif
 compare_func_creator comp_eq_creator(bool invert);
 compare_func_creator comp_ge_creator(bool invert);
 compare_func_creator comp_gt_creator(bool invert);

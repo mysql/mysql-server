@@ -1656,7 +1656,7 @@ longlong Item_master_pos_wait::val_int()
     return 0;
   }
   ulong pos = (ulong)args[1]->val_int();
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   LOCK_ACTIVE_MI;
   if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos)) == -1)
   {

@@ -33,8 +33,11 @@ protected:
 #ifndef DEBUG_OFF
   enum enum_field_types *field_types;
 #endif
+  uint field_count;
+  bool net_store_data(const char *from, uint length);
 #ifdef EMBEDDED_LIBRARY
-  uint n_fields;
+  char **next_field;
+  MEM_ROOT *alloc;
 #endif
 
 public:
@@ -56,13 +59,11 @@ public:
   inline  bool store(ulonglong from)
   { return store_longlong((longlong) from, 1); }
 
-#ifdef EMBEDDED_LIBRARY
-  inline void set_nfields(uint fields_count) { n_fields= fields_count; }
-#else
-  inline void set_nfields(uint fields_count) {}
-#endif
-  
-  virtual bool prepare_for_send(List<Item> *item_list) { return 0;}
+  virtual bool prepare_for_send(List<Item> *item_list) 
+  {
+    field_count=item_list->elements;
+    return 0;
+  }
   virtual void prepare_for_resend()=0;
 
   virtual bool store_null()=0;
@@ -106,7 +107,7 @@ public:
 class Protocol_prep :public Protocol
 {
 private:
-  uint field_count, bit_fields;
+  uint bit_fields;
 public:
   Protocol_prep() {}
   Protocol_prep(THD *thd) :Protocol(thd) {}
@@ -125,7 +126,6 @@ public:
   virtual bool store(double from, uint32 decimals, String *buffer);
   virtual bool store(Field *field);
 };
-
 
 void send_warning(THD *thd, uint sql_errno, const char *err=0);
 void net_printf(THD *thd,uint sql_errno, ...);

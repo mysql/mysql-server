@@ -1,4 +1,4 @@
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
 
 #ifndef SLAVE_H
 #define SLAVE_H
@@ -466,4 +466,4 @@ extern I_List<THD> threads;
 #else
 #define SLAVE_IO  1
 #define SLAVE_SQL 2
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */

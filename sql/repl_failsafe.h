@@ -1,4 +1,4 @@
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
 #ifndef REPL_FAILSAFE_H
 #define REPL_FAILSAFE_H
 
@@ -36,4 +36,4 @@ int register_slave(THD* thd, uchar* packet, uint packet_length);
 void unregister_slave(THD* thd, bool only_mine, bool need_mutex);
 
 #endif
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */

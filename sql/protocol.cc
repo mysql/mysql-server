@@ -27,6 +27,23 @@
 #include <stdarg.h>
 #include <assert.h>
 
+#ifndef EMBEDDED_LIBRARY
+bool Protocol::net_store_data(const char *from, uint length)
+{
+  ulong packet_length=packet->length();
+  if (packet_length+5+length > packet->alloced_length() &&
+      packet->realloc(packet_length+5+length))
+    return 1;
+  char *to=(char*) net_store_length((char*) packet->ptr()+packet_length,
+				    (ulonglong) length);
+  memcpy(to,from,length);
+  packet->length((uint) (to+length-packet->ptr()));
+  return 0;
+}
+
+#endif
+
+
 	/* Send a error string to client */
 
 void send_error(THD *thd, uint sql_errno, const char *err)
@@ -402,23 +419,6 @@ char *net_store_length(char *pkg, uint length)
 }
 
 
-/*
-  Used internally for storing strings in packet
-*/
-
-static bool net_store_data(String *packet, const char *from, uint length)
-{
-  ulong packet_length=packet->length();
-  if (packet_length+5+length > packet->alloced_length() &&
-      packet->realloc(packet_length+5+length))
-    return 1;
-  char *to=(char*) net_store_length((char*) packet->ptr()+packet_length,
-				    (ulonglong) length);
-  memcpy(to,from,length);
-  packet->length((uint) (to+length-packet->ptr()));
-  return 0;
-}
-
 /****************************************************************************
   Functions used by the protocol functions (like send_ok) to store strings
   and numbers in the header result packet.
@@ -574,13 +574,14 @@ err:
   DBUG_RETURN(1);				/* purecov: inspected */
 }
 
-#endif
-
 bool Protocol::write()
 {
   DBUG_ENTER("Protocol::write");
-  DBUG_RETURN(SEND_ROW(thd, n_fields, packet->ptr(), packet->length()));
+  DBUG_RETURN(my_net_write(&thd->net, packet->ptr(), packet->length()));
 }
+
+
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*
@@ -640,6 +641,7 @@ bool Protocol::store(I_List<i_string>* str_list)
 
 ****************************************************************************/
 
+#ifndef EMBEDDED_LIBRARY
 void Protocol_simple::prepare_for_resend()
 {
   packet->length(0);
@@ -647,6 +649,7 @@ void Protocol_simple::prepare_for_resend()
   field_pos= 0;
 #endif
 }
+#endif
 
 bool Protocol_simple::store_null()
 {
@@ -669,7 +672,7 @@ bool Protocol_simple::store(const char *from, uint length)
 #endif
   if (convert)
     return convert->store(packet, from, length);
-  return net_store_data(packet, from, length);
+  return net_store_data(from, length);
 }
 
 
@@ -679,7 +682,7 @@ bool Protocol_simple::store_tiny(longlong from)
   DBUG_ASSERT(field_types == 0 || field_types[field_pos++] == MYSQL_TYPE_TINY);
 #endif
   char buff[20];
-  return net_store_data(packet,(char*) buff,
+  return net_store_data((char*) buff,
 			(uint) (int10_to_str((int) from,buff, -10)-buff));
 }
 
@@ -690,7 +693,7 @@ bool Protocol_simple::store_short(longlong from)
 	      field_types[field_pos++] == MYSQL_TYPE_SHORT);
 #endif
   char buff[20];
-  return net_store_data(packet,(char*) buff,
+  return net_store_data((char*) buff,
 			(uint) (int10_to_str((int) from,buff, -10)-buff));
 }
 
@@ -700,7 +703,7 @@ bool Protocol_simple::store_long(longlong from)
   DBUG_ASSERT(field_types == 0 || field_types[field_pos++] == MYSQL_TYPE_LONG);
 #endif
   char buff[20];
-  return net_store_data(packet,(char*) buff,
+  return net_store_data((char*) buff,
 			(uint) (int10_to_str((int) from,buff, -10)-buff));
 }
 
@@ -712,7 +715,7 @@ bool Protocol_simple::store_longlong(longlong from, bool unsigned_flag)
 	      field_types[field_pos++] == MYSQL_TYPE_LONGLONG);
 #endif
   char buff[22];
-  return net_store_data(packet,(char*) buff,
+  return net_store_data((char*) buff,
 			(uint) (longlong10_to_str(from,buff,
 						  unsigned_flag ? 10 : -10)-
 				buff));
@@ -726,7 +729,7 @@ bool Protocol_simple::store(float from, uint32 decimals, String *buffer)
 	      field_types[field_pos++] == MYSQL_TYPE_FLOAT);
 #endif
   buffer->set((double) from, decimals, thd->variables.thd_charset);
-  return net_store_data(packet,(char*) buffer->ptr(), buffer->length());
+  return net_store_data((char*) buffer->ptr(), buffer->length());
 }
 
 bool Protocol_simple::store(double from, uint32 decimals, String *buffer)
@@ -736,7 +739,7 @@ bool Protocol_simple::store(double from, uint32 decimals, String *buffer)
 	      field_types[field_pos++] == MYSQL_TYPE_DOUBLE);
 #endif
   buffer->set(from, decimals, thd->variables.thd_charset);
-  return net_store_data(packet,(char*) buffer->ptr(), buffer->length());
+  return net_store_data((char*) buffer->ptr(), buffer->length());
 }
 
 
@@ -752,7 +755,7 @@ bool Protocol_simple::store(Field *field)
   field->val_str(&tmp,&tmp);
   if (convert)
     return convert->store(packet, tmp.ptr(), tmp.length());
-  return net_store_data(packet, tmp.ptr(), tmp.length());
+  return net_store_data(tmp.ptr(), tmp.length());
 }
 
 
@@ -773,7 +776,7 @@ bool Protocol_simple::store(TIME *tm)
 			   (int) tm->hour,
 			   (int) tm->minute,
 			   (int) tm->second));
-  return net_store_data(packet, (char*) buff, length);
+  return net_store_data((char*) buff, length);
 }
 
 
@@ -789,7 +792,7 @@ bool Protocol_simple::store_date(TIME *tm)
 			   (int) tm->year,
 			   (int) tm->month,
 			   (int) tm->day));
-  return net_store_data(packet, (char*) buff, length);
+  return net_store_data((char*) buff, length);
 }
 
 
@@ -806,7 +809,7 @@ bool Protocol_simple::store_time(TIME *tm)
 			   (long) tm->day*3600L+(long) tm->hour,
 			   (int) tm->minute,
 			   (int) tm->second));
-  return net_store_data(packet, (char*) buff, length);
+  return net_store_data((char*) buff, length);
 }
 
 
@@ -816,8 +819,7 @@ bool Protocol_simple::store_time(TIME *tm)
 
 bool Protocol_prep::prepare_for_send(List<Item> *item_list)
 {
-  field_count=item_list->elements;
-  set_nfields(item_list->elements);
+  Protocol::prepare_for_send(item_list);
   bit_fields= (field_count+3)/8;
   if (packet->alloc(bit_fields))
     return 1;
@@ -846,7 +848,7 @@ bool Protocol_prep::store(const char *from,uint length)
   field_pos++;
   if (convert)
     return convert->store(packet, from, length);
-  return net_store_data(packet, from, length);
+  return net_store_data(from, length);
 }
 
 

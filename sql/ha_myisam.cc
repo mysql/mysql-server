@@ -76,7 +76,6 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   }
   length=(uint) (strxmov(name, param->db_name,".",param->table_name,NullS) -
 		 name);
-  protocol->set_nfields(4);
   protocol->prepare_for_resend();
   protocol->store(name, length);
   protocol->store(param->op_name);
@@ -140,9 +139,9 @@ const char *ha_myisam::index_type(uint key_number)
 	  "BTREE");
 }
 
+#ifdef HAVE_REPLICATION
 int ha_myisam::net_read_dump(NET* net)
 {
-#ifndef EMBEDDED_LIBRARY
   int data_fd = file->dfile;
   int error = 0;
 
@@ -167,15 +166,11 @@ int ha_myisam::net_read_dump(NET* net)
   }
 err:
   return error;
-#else
-  return (int)net;
-#endif
 }
 
 
 int ha_myisam::dump(THD* thd, int fd)
 {
-#ifndef EMBEDDED_LIBRARY
   MYISAM_SHARE* share = file->s;
   NET* net = &thd->net;
   uint blocksize = share->blocksize;
@@ -224,10 +219,8 @@ int ha_myisam::dump(THD* thd, int fd)
 err:
   my_free((gptr) buf, MYF(0));
   return error;
-#else
-  return (int)thd - fd;
-#endif
 }
+#endif /* HAVE_REPLICATION */
 
 	/* Name is here without an extension */
 
@@ -1056,8 +1049,9 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   for (i=0; i < table_arg->keys ; i++, pos++)
   {
     keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
-    keydef[i].key_alg=pos->algorithm == HA_KEY_ALG_UNDEF ?
-					HA_KEY_ALG_BTREE : pos->algorithm;
+    keydef[i].key_alg= pos->algorithm == HA_KEY_ALG_UNDEF ? 
+      (pos->flags & HA_SPATIAL ? HA_KEY_ALG_RTREE : HA_KEY_ALG_BTREE) :
+      pos->algorithm;
     keydef[i].seg=keyseg;
     keydef[i].keysegs=pos->key_parts;
     for (j=0 ; j < pos->key_parts ; j++)

@@ -24,7 +24,6 @@
 
 #include "mysql_priv.h"
 #include <mysql.h>
-
 #include "sql_acl.h"
 #include "sql_repl.h"
 
@@ -614,7 +613,7 @@ err:
     LOG_INFO_IO		Got IO error while reading file
 */
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
 
 int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
 {
@@ -745,7 +744,7 @@ err:
   DBUG_RETURN(error);
 }
 
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
 
 
 /*
@@ -1056,7 +1055,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 #else
     IO_CACHE *file = &log_file;
 #endif    
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
     if ((thd && !(thd->options & OPTION_BIN_LOG) &&
 	 (thd->master_access & SUPER_ACL)) ||
 	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db)))
@@ -1065,7 +1064,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
       DBUG_PRINT("error",("!db_ok"));
       DBUG_RETURN(0);
     }
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
 
     error=1;
     /*
@@ -1429,7 +1428,7 @@ void MYSQL_LOG::close(bool exiting)
   DBUG_PRINT("enter",("exiting: %d", (int) exiting));
   if (is_open())
   {
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
     if (log_type == LOG_BIN && !no_auto_events && exiting)
     {
       Stop_log_event s;
@@ -1437,7 +1436,7 @@ void MYSQL_LOG::close(bool exiting)
       s.write(&log_file);
       signal_update();
     }
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
     end_io_cache(&log_file);
     if (my_close(log_file.file,MYF(0)) < 0 && ! write_error)
     {

@@ -16,9 +16,9 @@
 
 // Sasha Pachev <sasha@mysql.com> is currently in charge of this file
 
-#ifndef EMBEDDED_LIBRARY
-
 #include "mysql_priv.h"
+#ifdef HAVE_REPLICATION
+
 #include "sql_repl.h"
 #include "sql_acl.h"
 #include "log_event.h"
@@ -1156,6 +1156,6 @@ int log_loaded_block(IO_CACHE* file)
   return 0;
 }
 
-#endif
+#endif /* HAVE_REPLICATION */
 
 

@@ -255,7 +255,6 @@ int berkeley_show_logs(Protocol *protocol)
   /* Error is 0 here */
   if (all_logs)
   {
-    protocol->set_nfields(3);
     for (a = all_logs, f = free_logs; *a; ++a)
     {
       protocol->prepare_for_resend();
