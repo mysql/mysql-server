@@ -283,6 +283,20 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     {
       if (lf_info.wrote_create_file)
       {
+        /*
+	  Make sure last block (the one which caused the error) gets logged.
+	  This is needed because otherwise after write of
+	  (to the binlog, not to read_info (which is a cache))
+	  Delete_file_log_event the bad block will remain in read_info.
+	  At the end of mysql_load(), the destructor of read_info will call
+	  end_io_cache() which will flush read_info, so we will finally have
+	  this in the binlog:
+          	Append_block # The last successfull block
+          	Delete_file
+          	Append_block # The failing block
+	  which is nonsense.
+	*/
+	read_info.end_io_cache();
         Delete_file_log_event d(thd, log_delayed);
         mysql_bin_log.write(&d);
       }
