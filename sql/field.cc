@@ -4591,38 +4591,19 @@ void Field_blob::sort_string(char *to,uint length)
 {
   char *blob;
   uint blob_length=get_length();
-#ifdef USE_STRCOLL
-  uint blob_org_length=blob_length;
-#endif
+
   if (!blob_length)
     bzero(to,length);
   else
   {
-    if (blob_length > length)
-      blob_length=length;
     memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
-    if (binary())
-    {
-      memcpy(to,blob,blob_length);
-      to+=blob_length;
-    }
-    else
-    {
-#ifdef USE_STRCOLL
-      if (use_strnxfrm(field_charset))
-      {
-        blob_length=my_strnxfrm(field_charset,
-                                (unsigned char *)to, length, 
-                                (unsigned char *)blob, blob_org_length);
-        if (blob_length >= length)
-          return;
-        to+=blob_length;
-      }
-      else
-#endif
-        for (char *end=blob+blob_length ; blob != end ;)
-          *to++=(char) field_charset->sort_order[(uint) (uchar) *blob++];
-    }
+    
+    blob_length=my_strnxfrm(field_charset,
+                            (unsigned char *)to, length, 
+                            (unsigned char *)blob, blob_length);
+    if (blob_length >= length)
+      return;
+    to+=blob_length;
     bzero(to,length-blob_length);
   }
 }
