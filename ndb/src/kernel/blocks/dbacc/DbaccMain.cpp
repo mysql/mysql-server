@@ -4634,7 +4634,7 @@ void Dbacc::getElement(Signal* signal)
             bool found;
             if (! compareLocalKey) {
               readTablePk(localkey1);
-              found = (memcmp(Tkeydata, ckeys, fragrecptr.p->keyLength) == 0);
+              found = (memcmp(Tkeydata, ckeys, fragrecptr.p->keyLength << 2) == 0);
             } else {
               found = (localkey1 == Tkeydata[0]);
             }

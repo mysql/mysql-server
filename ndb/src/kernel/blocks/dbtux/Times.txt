@@ -138,6 +138,14 @@ before          mc02/c   5 ms   13 ms   126 pct
 after           mc02/c   5 ms   10 ms    70 pct
                 mc02/d 178 ms  242 ms    69 pct
 
-[ prelim preformance fix for max batch size 16 -> 992 ]
+[ prelim performance fix for max batch size 16 -> 992 ]
+
+wl-2066         mc02/c   5 ms   10 ms    87 pct
+before          mc02/d 140 ms  237 ms    69 pct
+
+wl-2066         mc02/c   5 ms   10 ms    69 pct
+after           mc02/d 150 ms  229 ms    52 pct
+
+[ wl-2066 = remove ACC storage, use TUX test to see effect ]
 
 vim: set et:
