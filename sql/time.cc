@@ -557,7 +557,10 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
 
   number_of_fields= i - start_loop;
   while (i < MAX_DATE_PARTS)
-    date[i++]=0;
+  {
+    date_len[i]= 0;
+    date[i++]= 0;
+  }
 
   if (!is_internal_format)
   {
