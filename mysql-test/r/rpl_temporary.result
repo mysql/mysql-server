@@ -7,6 +7,12 @@ start slave;
 reset master;
 SET @@session.pseudo_thread_id=100;
 ERROR HY000: Access denied. You need the SUPER privilege for this operation
+SET @@session.sql_log_bin=0;
+ERROR HY000: Access denied. You need the SUPER privilege for this operation
+SET @@session.pseudo_thread_id=100;
+SET @@session.pseudo_thread_id=connection_id();
+SET @@session.sql_log_bin=0;
+SET @@session.sql_log_bin=1;
 drop table if exists t1,t2;
 create table t1(f int);
 create table t2(f int);

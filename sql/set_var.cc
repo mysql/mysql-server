@@ -2288,6 +2288,13 @@ static bool set_option_autocommit(THD *thd, set_var *var)
 
 static bool set_log_update(THD *thd, set_var *var)
 {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (!(thd->master_access & SUPER_ACL))
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+    return 1;
+  }
+#endif
   if (opt_sql_bin_update)
     ((sys_var_thd_bit*) var->var)->bit_flag|= (OPTION_BIN_LOG |
 					       OPTION_UPDATE_LOG);

@@ -134,15 +134,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     thd->lex->select_lex.table_list.first;
   DBUG_ENTER("mysql_insert");
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (thd->master_access & SUPER_ACL)
-#endif
-  {
-    if (!(thd->options & OPTION_UPDATE_LOG))
-      log_on&= ~(int) DELAYED_LOG_UPDATE;
-    if (!(thd->options & OPTION_BIN_LOG))
-      log_on&= ~(int) DELAYED_LOG_BIN;
-  }
+  if (!(thd->options & OPTION_UPDATE_LOG))
+    log_on&= ~(int) DELAYED_LOG_UPDATE;
+  if (!(thd->options & OPTION_BIN_LOG))
+    log_on&= ~(int) DELAYED_LOG_BIN;
   /*
     in safe mode or with skip-new change delayed insert to be regular
     if we are told to replace duplicates, the insert cannot be concurrent
