@@ -17191,7 +17191,7 @@ knowing your 'scrambled' password is enough to be able to connect to
 the MySQL server!
 @end itemize
 
-MySQL users and they privileges are normally created with the
+MySQL users and their privileges are normally created with the
 @code{GRANT} command. @xref{GRANT}.
 
 When you login to a MySQL server with a command line client you
@@ -17217,13 +17217,14 @@ mysql -u monty -p database_name
 
 Note that in the last example the password is @strong{NOT} 'database_name'.
 
-If you want to use the @code{-p} option to supply a password you should do like this:
+If you want to use the @code{-p} option to supply a password you should do so
+like this:
 
 @example
 mysql -u monty -pguess database_name
 @end example
 
-On some system the library call that MySQL uses to prompt for a
+On some systems, the library call that MySQL uses to prompt for a
 password will automatically cut the password to 8 characters. Internally
 MySQL doesn't have any limit for the length of the password.
 
