@@ -589,7 +589,7 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
   }
   if (a_length != b_length)
   {
-    int swap= 0;
+    int swap= 1;
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -605,7 +605,7 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
     {
       if (*a != ' ')
       {
-	res= ((int) *a - (int) ' ') ^ swap;
+	res= (*a < ' ') ? -swap : swap;
 	goto ret;
       }
     }
