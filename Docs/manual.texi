@@ -33956,7 +33956,7 @@ The first multi table delete format is supported starting from MySQL 4.0.0.
 The second multi table delete format is supported starting from MySQL 4.0.2.
 
 The idea is that only matching rows from the tables listed
-@strong{before} the @code{FROM} or before the @code{USING} clause is
+@strong{before} the @code{FROM} or before the @code{USING} clause are
 deleted. The effect is that you can delete rows from many tables at the
 same time and also have additional tables that are used for searching.
 
@@ -34015,10 +34015,10 @@ are:
 
 @itemize @bullet
 @item
-Truncates does a drop and re-create of the table, which is much faster
+Truncate operations drop and re-create the table, which is much faster
 than deleting rows one by one.
 @item
-Not transaction-safe; You will get an error if you have an active
+Not transaction-safe; you will get an error if you have an active
 transaction or an active table lock.
 @item
 Doesn't return the number of deleted rows.
@@ -34053,15 +34053,16 @@ the old record is deleted before the new record is inserted.
 @xref{INSERT, , @code{INSERT}}.
 
 In other words, you can't access the values of the old row from a
-@code{REPLACE} statement.  In some old MySQL version it looked
-like you could do this, but that was a bug that has been corrected.
+@code{REPLACE} statement.  In some old MySQL versions it appeared that
+you could do this, but that was a bug that has been corrected.
 
-When one uses a @code{REPLACE} command, @code{mysql_affected_rows()}
-will return 2 if the new row replaced and old row.  This is because in
-this case one row was inserted and then the duplicate was deleted.
+When you use a @code{REPLACE} command, @code{mysql_affected_rows()}
+will return 2 if the new row replaced an old row.  This is because
+one row was inserted and then the duplicate was deleted.
 
-The above makes it easy to check if @code{REPLACE} added or replaced a
-row.
+This fact makes it easy to determine whether @code{REPLACE} added
+or replaced a row: check whether the affected-rows value is 1 (added)
+or 2 (replaced).
 
 
 @node LOAD DATA, DO, REPLACE, Data Manipulation
@@ -36307,8 +36308,8 @@ If a table changes (@code{INSERT}, @code{UPDATE}, @code{DELETE},
 then all cached queries that used this table (possibly through a
 @code{MRG_MyISAM} table!) become invalid and are removed from the cache.
 
-Changed transactional @code{InnoDB} tables will be invalidated on
-@code{COMMIT}.
+Transactional @code{InnoDB} tables that have been changed will be invalidated
+when a @code{COMMIT} is performed.
 
 A query cannot be cached if it contains one of the functions:
 @multitable @columnfractions .25 .25 .25 .25
