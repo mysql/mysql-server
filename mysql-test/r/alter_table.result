@@ -478,7 +478,7 @@ alter table t1 drop key a;
 drop table t1;
 create table t1 (a int);
 alter table t1 rename to `t1\\`;
-Incorrect table name 't1\\'
+ERROR 42000: Incorrect table name 't1\\'
 rename table t1 to `t1\\`;
-Incorrect table name 't1\\'
+ERROR 42000: Incorrect table name 't1\\'
 drop table t1;

@@ -336,21 +336,23 @@ public:
 class Field_str :public Field {
 protected:
   CHARSET_INFO *field_charset;
-public:
   double ceiling; // for ::store(double nr)
+public:
   Field_str(char *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
 	    uchar null_bit_arg, utype unireg_check_arg,
 	    const char *field_name_arg,
 	    struct st_table *table_arg,CHARSET_INFO *charset)
     :Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 	   unireg_check_arg, field_name_arg, table_arg), ceiling(0.0)
-    { 
+    {
       field_charset=charset;
       if (charset->state & MY_CS_BINSORT)
         flags|=BINARY_FLAG;
     }
   Item_result result_type () const { return STRING_RESULT; }
   uint decimals() const { return NOT_FIXED_DEC; }
+  int  store(double nr);
+  int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
   void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
   CHARSET_INFO *charset(void) const { return field_charset; }
@@ -905,7 +907,6 @@ public:
   bool zero_pack() const { return 0; }
   void reset(void) { charset()->cset->fill(charset(),ptr,field_length,' '); }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
-  int  store(double nr);
   int  store(longlong nr);
   double val_real(void);
   longlong val_int(void);
@@ -951,7 +952,6 @@ public:
   uint32 pack_length() const { return (uint32) field_length+2; }
   uint32 key_length() const { return (uint32) field_length; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
-  int  store(double nr);
   int  store(longlong nr);
   double val_real(void);
   longlong val_int(void);

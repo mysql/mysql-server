@@ -200,13 +200,13 @@ net_printf(THD *thd, uint errcode, ...)
 	    2+SQLSTATE_LENGTH+1 : 2) : 0);
 #ifndef EMBEDDED_LIBRARY
   text_pos=(char*) net->buff + head_length + offset + 1;
+  length=(char*)net->buff_end-text_pos;
+#else
+  length=sizeof(text_pos)-1;
 #endif
-  (void) my_vsnprintf(my_const_cast(char*) (text_pos),
-                      (char*)net->buff_end-text_pos,
+  length=my_vsnprintf(my_const_cast(char*) (text_pos),
+                      min(length, sizeof(net->last_error)),
                       format,args);
-  length=(uint) strlen((char*) text_pos);
-  if (length >= sizeof(net->last_error))
-    length=sizeof(net->last_error)-1;		/* purecov: inspected */
   va_end(args);
 
 #ifndef EMBEDDED_LIBRARY
