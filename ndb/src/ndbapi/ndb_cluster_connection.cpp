@@ -74,15 +74,21 @@ int Ndb_cluster_connection::start_connect_thread(int (*connect_callback)(void))
   DBUG_ENTER("Ndb_cluster_connection::start_connect_thread");
   m_connect_callback= connect_callback;
   if ((r = connect(1)) == 1)
+  {
     m_connect_thread= NdbThread_Create(run_ndb_cluster_connection_connect_thread,
 				       (void**)this,
 				       32768,
 				       "ndb_cluster_connection",
 				       NDB_THREAD_PRIO_LOW);
+  }
   else if (r < 0)
-    DBUG_RETURN(-1)
+  {
+    DBUG_RETURN(-1);
+  }
   else if (m_connect_callback)
+  { 
     (*m_connect_callback)();
+  }
   DBUG_RETURN(0);
 }
 
