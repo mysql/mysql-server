@@ -45,6 +45,15 @@ alter table t9 rename t8, add column d int not null;
 alter table t8 rename t7;
 rename table t7 to t9;
 drop table t1;
+SHOW CREATE TABLE t9;
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `a` int(11) NOT NULL auto_increment,
+  `b` char(16) NOT NULL,
+  `c` int(11) NOT NULL,
+  `d` int(11) NOT NULL,
+  PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
