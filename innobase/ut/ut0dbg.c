@@ -18,10 +18,3 @@ ibool	ut_dbg_stop_threads	= FALSE;
 /* Null pointer used to generate memory trap */
 
 ulint*	ut_dbg_null_ptr		= NULL;
-
-/* Dummy function to prevent gcc from ignoring this file */
-void
-ut_dummy(void)
-{
-  printf("Hello world\n");
-}
