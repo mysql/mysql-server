@@ -32,24 +32,28 @@
 
 my_bool my_compress(byte *packet, ulong *len, ulong *complen)
 {
+  DBUG_ENTER("my_compress");
   if (*len < MIN_COMPRESS_LENGTH)
+  {
     *complen=0;
+    DBUG_PRINT("note",("Packet too short: Not compressed"));
+  }
   else
   {
     byte *compbuf=my_compress_alloc(packet,len,complen);
     if (!compbuf)
-      return *complen ? 0 : 1;
+      DBUG_RETURN(*complen ? 0 : 1);
     memcpy(packet,compbuf,*len);
     my_free(compbuf,MYF(MY_WME));						  }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
 byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen)
 {
   byte *compbuf;
-  *complen =  *len * 120 / 100 + 12;
-  if (!(compbuf = (byte *) my_malloc(*complen,MYF(MY_WME))))
+  *complen=  *len * 120 / 100 + 12;
+  if (!(compbuf= (byte *) my_malloc(*complen,MYF(MY_WME))))
     return 0;					/* Not enough memory */
   if (compress((Bytef*) compbuf,(ulong *) complen, (Bytef*) packet,
 	       (uLong) *len ) != Z_OK)
@@ -59,31 +63,36 @@ byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen)
   }
   if (*complen >= *len)
   {
-    *complen=0;
-    my_free(compbuf,MYF(MY_WME));
+    *complen= 0;
+    my_free(compbuf, MYF(MY_WME));
+    DBUG_PRINT("note",("Packet got longer on compression; Not compressed"));
     return 0;
   }
-  swap(ulong,*len,*complen);			/* *len is now packet length */
+  swap(ulong, *len, *complen);			/* *len is now packet length */
   return compbuf;
 }
 
 
 my_bool my_uncompress (byte *packet, ulong *len, ulong *complen)
 {
+  DBUG_ENTER("my_uncompress");
   if (*complen)					/* If compressed */
   {
-    byte *compbuf = (byte *) my_malloc (*complen,MYF(MY_WME));
+    byte *compbuf= (byte *) my_malloc(*complen,MYF(MY_WME));
+    int error;
     if (!compbuf)
-      return 1;					/* Not enough memory */
-    if (uncompress((Bytef*) compbuf, complen, (Bytef*) packet, *len) != Z_OK)
+      DBUG_RETURN(1);				/* Not enough memory */
+    if ((error=uncompress((Bytef*) compbuf, complen, (Bytef*) packet, *len))
+	!= Z_OK)
     {						/* Probably wrong packet */
-      my_free (compbuf,MYF(MY_WME));
-      return 1;
+      DBUG_PRINT("error",("Can't uncompress packet, error: %d",error));
+      my_free(compbuf, MYF(MY_WME));
+      DBUG_RETURN(1);
     }
-    *len = *complen;
-    memcpy(packet,compbuf,*len);
-    my_free(compbuf,MYF(MY_WME));
+    *len= *complen;
+    memcpy(packet, compbuf, *len);
+    my_free(compbuf, MYF(MY_WME));
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 #endif /* HAVE_COMPRESS */
