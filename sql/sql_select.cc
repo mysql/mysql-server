@@ -1026,14 +1026,13 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
     {
       ha_rows records;
       if (!select)
-	select=make_select(s->table,const_table_map,
+	select=make_select(s->table,0,
 			   0,
 			   and_conds(conds,s->on_expr),&error);
       records=get_quick_record_count(select,s->table, s->const_keys);
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
-      select->read_tables=const_table_map;
       if (records != HA_POS_ERROR)
       {
 	s->found_records=records;
