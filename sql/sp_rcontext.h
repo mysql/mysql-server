@@ -205,7 +205,7 @@ class sp_cursor : public Sql_alloc
 public:
 
   sp_cursor(LEX *lex)
-    : m_lex(lex), m_isopen(0), m_current_row(NULL)
+    : m_lex(lex), m_prot(NULL), m_isopen(0), m_current_row(NULL)
   {
     /* Empty */
   }
