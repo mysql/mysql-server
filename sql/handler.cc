@@ -1199,14 +1199,15 @@ int handler::rename_table(const char * from, const char * to)
 }
 
 /*
-  Tell the handler to turn on or off logging to the handler's recovery log
+  Tell the handler to turn on or off transaction in the handler
 */
 
-int ha_recovery_logging(THD *thd, bool on)
+int ha_enable_transaction(THD *thd, bool on)
 {
   int error=0;
 
-  DBUG_ENTER("ha_recovery_logging");
+  DBUG_ENTER("ha_enable_transaction");
+  thd->transaction.on= on;
   DBUG_RETURN(error);
 }
 
