@@ -894,15 +894,18 @@ sync_arr_wake_threads_if_sema_free(void)
 /**************************************************************************
 Prints warnings of long semaphore waits to stderr. */
 
-void
+ibool
 sync_array_print_long_waits(void)
 /*=============================*/
+			/* out: TRUE if fatal semaphore wait threshold
+			was exceeded */
 {
         sync_cell_t*   	cell;
         ibool		old_val;
 	ibool		noticed = FALSE;
 	ulint           i;
 	ulint		fatal_timeout = srv_fatal_semaphore_wait_threshold;
+	ibool		fatal = FALSE;
 
         for (i = 0; i < sync_primary_wait_array->n_cells; i++) {
 
@@ -919,13 +922,7 @@ sync_array_print_long_waits(void)
                 if (cell->wait_object != NULL
 		    && difftime(time(NULL), cell->reservation_time)
 		    > fatal_timeout) {
-
-			fprintf(stderr,
-"InnoDB: Error: semaphore wait has lasted > %lu seconds\n"
-"InnoDB: We intentionally crash the server, because it appears to be hung.\n",
-				fatal_timeout);
-
-		    	ut_error;
+			fatal = TRUE;
                 }
        	}
 
@@ -953,6 +950,8 @@ sync_array_print_long_waits(void)
 		fprintf(stderr,
 "InnoDB: ###### Diagnostic info printed to the standard error stream\n");
 	}
+
+	return(fatal);
 }
 
 /**************************************************************************
