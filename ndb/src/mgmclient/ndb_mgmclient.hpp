@@ -14,19 +14,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef Ndb_mgmclient_hpp
+#define Ndb_mgmclient_hpp
 
-#include <ndb_global.h>
-
-
-char* readline(const char* prompt)
+class CommandInterpreter;
+class Ndb_mgmclient
 {
-	char* szBuf;
-	printf(prompt);
-	szBuf = (char*)malloc(256);
-	return gets(szBuf);
-}
+public:
+  Ndb_mgmclient(const char*);
+  ~Ndb_mgmclient();
+  int execute(const char *_line, int _try_reconnect=-1);
+  int execute(int argc, const char** argv, int _try_reconnect=-1);
+  int disconnect();
+private:
+  CommandInterpreter *m_cmd;
+};
 
-void add_history(char* pch)
-{
-}
-
+#endif // Ndb_mgmclient_hpp

@@ -483,3 +483,13 @@ ERROR 42000: Incorrect table name 't1\\'
 rename table t1 to `t1\\`;
 ERROR 42000: Incorrect table name 't1\\'
 drop table t1;
+create table t1 (a text) character set koi8r;
+insert into t1 values (_koi8r'тест');
+select hex(a) from t1;
+hex(a)
+D4C5D3D4
+alter table t1 convert to character set cp1251;
+select hex(a) from t1;
+hex(a)
+F2E5F1F2
+drop table t1;

@@ -8,3 +8,6 @@ show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	1
 drop table t9;
+select * from t10;
+ERROR HY000: Got error 4263 'Invalid blob attributes or invalid blob parts table' from ndbcluster
+drop table t10;

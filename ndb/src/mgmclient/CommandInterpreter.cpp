@@ -17,7 +17,195 @@
 #include <ndb_global.h>
 #include <my_sys.h>
 
-#include "CommandInterpreter.hpp"
+//#define HAVE_GLOBAL_REPLICATION
+
+#include <Vector.hpp>
+#ifdef  HAVE_GLOBAL_REPLICATION
+#include "../rep/repapi/repapi.h"
+#endif
+
+#include <mgmapi.h>
+
+class MgmtSrvr;
+
+/** 
+ *  @class CommandInterpreter
+ *  @brief Reads command line in management client
+ *
+ *  This class has one public method which reads a command line 
+ *  from a stream. It then interpret that commmand line and calls a suitable 
+ *  method in the MgmtSrvr class which executes the command.
+ *
+ *  For command syntax, see the HELP command.
+ */ 
+class CommandInterpreter {
+public:
+  /**
+   *   Constructor
+   *   @param mgmtSrvr: Management server to use when executing commands
+   */
+  CommandInterpreter(const char *);
+  ~CommandInterpreter();
+  
+  /**
+   *   Reads one line from the stream, parse the line to find 
+   *   a command and then calls a suitable method which executes 
+   *   the command.
+   *
+   *   @return true until quit/bye/exit has been typed
+   */
+  int execute(const char *_line, int _try_reconnect=-1);
+
+private:
+  void printError();
+
+  /**
+   *   Analyse the command line, after the first token.
+   *
+   *   @param  processId:           DB process id to send command to or -1 if
+   *                                command will be sent to all DB processes.
+   *   @param  allAfterFirstToken:  What the client gave after the 
+   *                                first token on the command line
+   */
+  void analyseAfterFirstToken(int processId, char* allAfterFirstTokenCstr);
+
+  /**
+   *   Parse the block specification part of the LOG* commands,
+   *   things after LOG*: [BLOCK = {ALL|<blockName>+}]
+   *
+   *   @param  allAfterLog: What the client gave after the second token 
+   *                        (LOG*) on the command line
+   *   @param  blocks, OUT: ALL or name of all the blocks
+   *   @return: true if correct syntax, otherwise false
+   */
+  bool parseBlockSpecification(const char* allAfterLog, 
+			       Vector<const char*>& blocks);
+  
+  /**
+   *   A bunch of execute functions: Executes one of the commands
+   *
+   *   @param  processId:   DB process id to send command to
+   *   @param  parameters:  What the client gave after the command name 
+   *                        on the command line.
+   *   For example if complete input from user is: "1 LOGLEVEL 22" then the
+   *   parameters argument is the string with everything after LOGLEVEL, in
+   *   this case "22". Each function is responsible to check the parameters
+   *   argument.
+   */
+  void executeHelp(char* parameters);
+  void executeShow(char* parameters);
+  void executePurge(char* parameters);
+  void executeShutdown(char* parameters);
+  void executeRun(char* parameters);
+  void executeInfo(char* parameters);
+  void executeClusterLog(char* parameters);
+
+public:
+  void executeStop(int processId, const char* parameters, bool all);
+  void executeEnterSingleUser(char* parameters);
+  void executeExitSingleUser(char* parameters);
+  void executeStart(int processId, const char* parameters, bool all);
+  void executeRestart(int processId, const char* parameters, bool all);
+  void executeLogLevel(int processId, const char* parameters, bool all);
+  void executeError(int processId, const char* parameters, bool all);
+  void executeTrace(int processId, const char* parameters, bool all);
+  void executeLog(int processId, const char* parameters, bool all);
+  void executeLogIn(int processId, const char* parameters, bool all);
+  void executeLogOut(int processId, const char* parameters, bool all);
+  void executeLogOff(int processId, const char* parameters, bool all);
+  void executeTestOn(int processId, const char* parameters, bool all);
+  void executeTestOff(int processId, const char* parameters, bool all);
+  void executeSet(int processId, const char* parameters, bool all);
+  void executeGetStat(int processId, const char* parameters, bool all);
+  void executeStatus(int processId, const char* parameters, bool all);
+  void executeEventReporting(int processId, const char* parameters, bool all);
+  void executeDumpState(int processId, const char* parameters, bool all);
+  void executeStartBackup(char * parameters);
+  void executeAbortBackup(char * parameters);
+
+  void executeRep(char* parameters);
+
+  void executeCpc(char * parameters);
+
+public:
+  bool connect();
+  bool disconnect();
+
+  /**
+   * A execute function definition
+   */
+public:
+  typedef void (CommandInterpreter::* ExecuteFunction)(int processId, 
+						       const char * param, 
+						       bool all);
+  
+  struct CommandFunctionPair {
+    const char * command;
+    ExecuteFunction executeFunction;
+  };
+private:
+  /**
+   * 
+   */
+  void executeForAll(const char * cmd, 
+		     ExecuteFunction fun,
+		     const char * param);
+
+  NdbMgmHandle m_mgmsrv;
+  bool connected;
+  const char *host;
+  int try_reconnect;
+#ifdef HAVE_GLOBAL_REPLICATION  
+  NdbRepHandle m_repserver;
+  const char *rep_host;
+  bool rep_connected;
+#endif
+};
+
+
+/*
+ * Facade object for CommandInterpreter
+ */
+
+#include "ndb_mgmclient.hpp"
+#include "ndb_mgmclient.h"
+
+Ndb_mgmclient::Ndb_mgmclient(const char *host)
+{
+  m_cmd= new CommandInterpreter(host);
+}
+Ndb_mgmclient::~Ndb_mgmclient()
+{
+  delete m_cmd;
+}
+int Ndb_mgmclient::execute(const char *_line, int _try_reconnect)
+{
+  return m_cmd->execute(_line,_try_reconnect);
+}
+int
+Ndb_mgmclient::disconnect()
+{
+  return m_cmd->disconnect();
+}
+
+extern "C" {
+  Ndb_mgmclient_handle ndb_mgmclient_handle_create(const char *connect_string)
+  {
+    return (Ndb_mgmclient_handle) new Ndb_mgmclient(connect_string);
+  }
+  int ndb_mgmclient_execute(Ndb_mgmclient_handle h, int argc, const char** argv)
+  {
+    return ((Ndb_mgmclient*)h)->execute(argc, argv, 1);
+  }
+  int ndb_mgmclient_handle_destroy(Ndb_mgmclient_handle h)
+  {
+    delete (Ndb_mgmclient*)h;
+    return 0;
+  }
+}
+/*
+ * The CommandInterpreter
+ */
 
 #include <mgmapi.h>
 #include <mgmapi_debug.h>
@@ -33,8 +221,22 @@
 
 #endif // HAVE_GLOBAL_REPLICATION
 #include "MgmtErrorReporter.hpp"
-#include "CpcClient.hpp"
+#include <Parser.hpp>
+#include <SocketServer.hpp>
+#include <util/InputStream.hpp>
+#include <util/OutputStream.hpp>
 
+int Ndb_mgmclient::execute(int argc, const char** argv, int _try_reconnect)
+{
+  if (argc <= 0)
+    return 0;
+  BaseString _line(argv[0]);
+  for (int i= 1; i < argc; i++)
+  {
+    _line.appfmt(" %s", argv[i]);
+  }
+  return m_cmd->execute(_line.c_str(),_try_reconnect);
+}
 
 /*****************************************************************************
  * HELP
@@ -73,6 +275,7 @@ static const char* helpText =
 #ifdef HAVE_GLOBAL_REPLICATION
 "REP CONNECT <host:port>                Connect to REP server on host:port\n"
 #endif
+"PURGE STALE SESSIONS                   Reset reserved nodeid's in the mgmt server\n"
 "QUIT                                   Quit management client\n"
 ;
 
@@ -201,7 +404,7 @@ CommandInterpreter::~CommandInterpreter()
   host = NULL;
 }
 
-bool 
+static bool 
 emptyString(const char* s) 
 {
   if (s == NULL) {
@@ -264,18 +467,15 @@ CommandInterpreter::disconnect()
 //*****************************************************************************
 
 int 
-CommandInterpreter::readAndExecute(int _try_reconnect) 
+CommandInterpreter::execute(const char *_line, int _try_reconnect) 
 {
   if (_try_reconnect >= 0)
     try_reconnect=_try_reconnect;
-
-  char* _line = readline_gets(); 
   char * line;
   if(_line == NULL) {
     //   ndbout << endl;
     return false;
   }
-
   line = my_strdup(_line,MYF(MY_WME));
   My_auto_ptr<char> ptr(line);
   
@@ -320,6 +520,10 @@ CommandInterpreter::readAndExecute(int _try_reconnect)
     executeAbortBackup(allAfterFirstToken);
     return true;
   }
+  else if (strcmp(firstToken, "PURGE") == 0) {
+    executePurge(allAfterFirstToken);
+    return true;
+  } 
 #ifdef HAVE_GLOBAL_REPLICATION
   else if(strcmp(firstToken, "REPLICATION") == 0 ||
 	  strcmp(firstToken, "REP") == 0) {
@@ -349,10 +553,6 @@ CommandInterpreter::readAndExecute(int _try_reconnect)
 	  strcmp(firstToken, "BYE") == 0) && 
 	  allAfterFirstToken == NULL){
     return false;
-#if 0
-  } else if(strcmp(firstToken, "CPC") == 0) {
-    executeCpc(allAfterFirstToken);
-#endif
   } else {
     /**
      * First token should be a digit, node ID
@@ -763,6 +963,46 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
     }
   }
   ndbout << endl;
+}
+
+void
+CommandInterpreter::executePurge(char* parameters) 
+{ 
+  int command_ok= 0;
+  do {
+    if (emptyString(parameters))
+      break;
+    char* firstToken = strtok(parameters, " ");
+    char* nextToken = strtok(NULL, " \0");
+    if (strcmp(firstToken,"STALE") == 0 &&
+	nextToken &&
+	strcmp(nextToken, "SESSIONS") == 0) {
+      command_ok= 1;
+      break;
+    }
+  } while(0);
+
+  if (!command_ok) {
+    ndbout_c("Unexpected command, expected: PURGE STALE SESSIONS");
+    return;
+  }
+
+  int i;
+  char *str;
+  connect();
+  
+  if (ndb_mgm_purge_stale_sessions(m_mgmsrv, &str)) {
+    ndbout_c("Command failed");
+    return;
+  }
+  if (str) {
+    ndbout_c("Purged sessions with node id's: %s", str);
+    free(str);
+  }
+  else
+  {
+    ndbout_c("No sessions purged");
+  }
 }
 
 void
@@ -1902,170 +2142,5 @@ CommandInterpreter::executeRep(char* parameters)
   }
 }
 #endif // HAVE_GLOBAL_REPLICATION
-
-
-/*****************************************************************************
- * CPC
- *****************************************************************************/
-
-#if 0
-
-#if 0
-//#ifdef NDB_SOLARIS      // XXX fix me
-static char* strsep(char** x, const char* y) { return 0; }
-#endif
-
-// Note this code has not been verified
-#if 0
-static char * my_strsep(char **stringp, const char *delim)
-{
-  char *tmp= *stringp;
-  if (tmp == 0)
-    return 0;
-  *stringp = strtok(tmp, delim);
-  return tmp;
-}
-#endif
-
-void
-CommandInterpreter::executeCpc(char *parameters) 
-{
-  char *host_str = NULL, *port_str = NULL, *end;
-  long port = 1234; /* XXX */
-
-  while((host_str = my_strsep(&parameters, " \t:")) != NULL &&
-	host_str[0] == '\0');
-
-  if(parameters && parameters[0] != '\0') {
-    while((port_str = my_strsep(&parameters, " \t:")) != NULL &&
-	  port_str[0] == '\0');
-    
-    errno = 0;
-    port = strtol(port_str, &end, 0);
-    if(end[0] != '\0')
-      goto error;
-    if((port == LONG_MAX || port == LONG_MIN) &&
-       errno == ERANGE)
-      goto error;
-  }
-
-  {
-    SimpleCpcClient cpc(host_str, port);
-    bool done = false;
-    
-    if(cpc.connect() < 0) {
-      ndbout_c("Cannot connect to %s:%d.", cpc.getHost(), cpc.getPort());
-      switch(errno) {
-      case ENOENT:
-	ndbout << ": " << "No such host" << endl;
-	break;
-      default:
-	ndbout << ": " << strerror(errno) << endl;
-	break;
-      }
-      return;
-    }
-    
-    while(!done) {
-      char *line = readline("CPC> ");
-      if(line != NULL) {
-	add_history(line);
-	
-	char *cmd = strtok(line, " ");
-	char *arg = strtok(NULL, "");
-	
-	if(arg != NULL) {
-	  while(arg[0] == ' ')
-	    arg++;
-	  if(strlen(arg) == 0)
-	    arg = NULL;
-	}
-	
-	if(cmd != NULL) {
-	  if(strcmp(cmd, "exit") == 0)
-	    done = true;
-	  else if(strcmp(cmd, "list") == 0)
-	    cpc.cmd_list(arg);
-	  else if(strcmp(cmd, "start") == 0)
-	    cpc.cmd_start(arg);
-	  else if(strcmp(cmd, "stop") == 0)
-	    cpc.cmd_stop(arg);
-	  else if(strcmp(cmd, "help") == 0)
-	    cpc.cmd_help(arg);
-	}
-      } else {
-	done = true;
-	ndbout << endl;
-      }
-    }
-  }
-  return;
-  
- error:
-  ndbout << "Error: expected a tcp port number, got '" << port_str << "'."
-	 << endl;
-  return;
-}
-#endif
-
-#if 0
-static
-void
-CmdBackupCallback(const MgmtSrvr::BackupEvent & event){
-  char str[255];
-
-  ndbout << endl;
-  
-  bool ok = false;
-  switch(event.Event){
-  case MgmtSrvr::BackupEvent::BackupStarted:
-    ok = true;
-    BaseString::snprintf(str, sizeof(str), 
-	     "Backup %d started", event.Started.BackupId);
-    break;
-  case MgmtSrvr::BackupEvent::BackupFailedToStart:
-    ok = true;
-    BaseString::snprintf(str, sizeof(str), 
-	     "Backup failed to start (Error %d)",
-	     event.FailedToStart.ErrorCode);
-    break;
-  case MgmtSrvr::BackupEvent::BackupCompleted:
-    ok = true;
-    BaseString::snprintf(str, sizeof(str), 
-	     "Backup %d completed", 
-	     event.Completed.BackupId);
-    ndbout << str << endl;
-
-    BaseString::snprintf(str, sizeof(str), 
-	     " StartGCP: %d StopGCP: %d", 
-	     event.Completed.startGCP, event.Completed.stopGCP);
-    ndbout << str << endl;
-
-    BaseString::snprintf(str, sizeof(str), 
-	     " #Records: %d #LogRecords: %d", 
-	     event.Completed.NoOfRecords, event.Completed.NoOfLogRecords);
-    ndbout << str << endl;
-
-    BaseString::snprintf(str, sizeof(str), 
-	     " Data: %d bytes Log: %d bytes", 
-	     event.Completed.NoOfBytes, event.Completed.NoOfLogBytes);
-    break;
-  case MgmtSrvr::BackupEvent::BackupAborted:
-    ok = true;
-    BaseString::snprintf(str, sizeof(str), 
-	     "Backup %d has been aborted reason %d",
-	     event.Aborted.BackupId,
-	     event.Aborted.Reason);
-    break;
-  }
-  if(!ok){
-    BaseString::snprintf(str, sizeof(str), 
-	     "Unknown backup event: %d",
-	     event.Event);
-    
-  }
-  ndbout << str << endl;
-}
-#endif
 
 template class Vector<char const*>;

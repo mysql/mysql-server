@@ -96,7 +96,10 @@ public:
     // methods to reserve/allocate resources which
     // will be freed when running destructor
     void reserve_node(NodeId id);
-    bool is_reserved(NodeId nodeId) { return m_reserved_nodes.get(nodeId);}
+    bool is_reserved(NodeId nodeId) { return m_reserved_nodes.get(nodeId); }
+    bool is_reserved(NodeBitmask mask) { return !mask.bitAND(m_reserved_nodes).isclear(); }
+    bool isclear() { return m_reserved_nodes.isclear(); }
+    NodeId get_nodeid() const;
   private:
     MgmtSrvr &m_mgmsrv;
     NodeBitmask m_reserved_nodes;
@@ -173,6 +176,7 @@ public:
   /* Constructor */
 
   MgmtSrvr(NodeId nodeId,                    /* Local nodeid */
+	   SocketServer *socket_server,
 	   const BaseString &config_filename,      /* Where to save config */
 	   LocalConfig &local_config,  /* Ndb.cfg filename */
 	   Config * config); 
@@ -499,6 +503,9 @@ public:
   int setDbParameter(int node, int parameter, const char * value, BaseString&);
   
   const char *get_connect_address(Uint32 node_id) { return inet_ntoa(m_connect_address[node_id]); }
+  void get_connected_nodes(NodeBitmask &connected_nodes) const;
+  SocketServer *get_socket_server() { return m_socket_server; }
+
   //**************************************************************************
 private:
   //**************************************************************************
@@ -525,6 +532,8 @@ private:
   
   int _blockNumber;
   NodeId _ownNodeId;
+  SocketServer *m_socket_server;
+
   BlockReference _ownReference; 
   NdbMutex *m_configMutex;
   const Config * _config;

@@ -1,0 +1,41 @@
+-- source include/have_innodb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+### Test 1:
+### - While a consistent snapshot transaction is executed,
+###   no external inserts should be visible to the transaction.
+
+connection con1;
+create table t1 (a int) engine=innodb;
+start transaction with consistent snapshot;
+
+connection con2;
+insert into t1 values(1);
+
+connection con1;
+select * from t1; # if consistent snapshot was set as expected, we
+# should see nothing.
+commit;
+
+### Test 2:
+### - For any non-consistent snapshot transaction, external
+###   committed inserts should be visible to the transaction.
+
+delete from t1;
+start transaction; # Now we omit WITH CONSISTENT SNAPSHOT
+
+connection con2;
+insert into t1 values(1);
+
+connection con1;
+select * from t1; # if consistent snapshot was not set, as expected, we
+# should see 1.
+commit;
+
+drop table t1;

@@ -1,18 +1,19 @@
 
+noinst_LTLIBRARIES = libndbmgmclient.la
 ndbtools_PROGRAMS = ndb_mgm
 
-ndb_mgm_SOURCES = \
-	main.cpp \
-	CommandInterpreter.cpp \
-	CpcClient.cpp
+libndbmgmclient_la_SOURCES = CommandInterpreter.cpp
+
+ndb_mgm_SOURCES = main.cpp
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapi.mk.am
 
 INCLUDES += -I$(top_srcdir)/ndb/include/mgmapi -I$(top_srcdir)/ndb/src/common/mgmcommon
 
-LDADD_LOC = $(top_builddir)/ndb/src/libndbclient.la \
-            $(top_builddir)/ndb/src/common/editline/libeditline.a \
+LDADD_LOC = $(noinst_LTLIBRARIES) \
+            @readline_link@ \
+            $(top_builddir)/ndb/src/libndbclient.la \
             $(top_builddir)/dbug/libdbug.a \
             $(top_builddir)/mysys/libmysys.a \
             $(top_builddir)/strings/libmystrings.a \
