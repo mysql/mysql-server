@@ -260,6 +260,8 @@ static struct my_option my_long_options[] =
 };
 
 
+#include <help_start.h>
+
 static void print_version(void)
 {
   printf("%s Ver 5.10 for %s on %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
@@ -282,6 +284,8 @@ static void usage(void)
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
 }
+
+#include <help_end.h>
 
 
 static my_bool
