@@ -261,8 +261,6 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
 {
   TABLE_LIST    *hash_tables;
   TABLE         **table_ptr;
-  bool          was_flushed= FALSE;
-  bool          not_opened;
   DBUG_ENTER("mysql_ha_close");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->real_name, tables->alias));
@@ -366,7 +364,6 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   uint          num_rows;
   byte		*key;
   uint		key_len;
-  bool          was_flushed;
   DBUG_ENTER("mysql_ha_read");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->real_name, tables->alias));
@@ -624,10 +621,8 @@ err0:
 
 int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags)
 {
-  TABLE_LIST    **tmp_tables_p;
   TABLE_LIST    *tmp_tables;
   TABLE         **table_ptr;
-  bool          was_flushed;
   DBUG_ENTER("mysql_ha_flush");
   DBUG_PRINT("enter", ("tables: %p  mode_flags: 0x%02x", tables, mode_flags));
 
@@ -703,14 +698,13 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
 {
   TABLE_LIST    *hash_tables;
   TABLE         *table= *table_ptr;
-  bool          was_flushed;
   DBUG_ENTER("mysql_ha_flush_table");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'  flags: 0x%02x",
                       table->table_cache_key, table->real_name,
                       table->table_name, mode_flags));
 
   if ((hash_tables= (TABLE_LIST*) hash_search(&thd->handler_tables_hash,
-                                        (*table_ptr)->table_name,
+                                        (byte*) (*table_ptr)->table_name,
                                         strlen((*table_ptr)->table_name) + 1)))
   {
     if (! (mode_flags & MYSQL_HA_REOPEN_ON_USAGE))
