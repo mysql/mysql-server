@@ -1645,7 +1645,8 @@ String *Item_func_format::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   double nr	=args[0]->val();
-  uint32 diff,length,str_length;
+  int diff;
+  uint32 length, str_length;
   uint dec;
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
@@ -1670,9 +1671,12 @@ String *Item_func_format::val_str(String *str)
       pos[0]= pos[-(int) diff];
     while (diff)
     {
-      pos[0]=pos[-(int) diff]; pos--;
-      pos[0]=pos[-(int) diff]; pos--;
-      pos[0]=pos[-(int) diff]; pos--;
+      *pos= *(pos - diff);
+      pos--;
+      *pos= *(pos - diff);
+      pos--;
+      *pos= *(pos - diff);
+      pos--;
       pos[0]=',';
       pos--;
       diff--;
