@@ -3404,8 +3404,15 @@ TABLE_LIST *st_select_lex::add_table_to_list(Table_ident *table,
   }
 
   if (!alias)					/* Alias is case sensitive */
+  {
+    if (table->sel)
+    {
+      net_printf(thd,ER_DERIVED_MUST_HAVE_ALIAS);
+      DBUG_RETURN(0);
+    }
     if (!(alias_str=thd->memdup(alias_str,table->table.length+1)))
       DBUG_RETURN(0);
+  }
     
   if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(0);				/* purecov: inspected */

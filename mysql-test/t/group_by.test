@@ -1,5 +1,5 @@
 -- error 1111
-SELECT 1 FROM (SELECT 1) GROUP BY SUM(1);
+SELECT 1 FROM (SELECT 1) as a  GROUP BY SUM(1);
 #
 # Test of group (Failed for Lars Hoss <lh@pbm.de>)
 #

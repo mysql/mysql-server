@@ -2,25 +2,25 @@ select (select 2);
 SELECT (SELECT 1) UNION SELECT (SELECT 2);
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
 -- error 1245
-SELECT (SELECT 1 FROM (SELECT 1) HAVING a=1) as a;
+SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
 -- error 1245
-SELECT (SELECT 1 FROM (SELECT 1) HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) HAVING a=1) as b;
-SELECT (SELECT 1),MAX(1) FROM (SELECT 1);
+SELECT (SELECT 1 FROM (SELECT 1) as b HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) as c HAVING a=1) as b;
+SELECT (SELECT 1),MAX(1) FROM (SELECT 1) as a;
 -- error 1245
 SELECT (SELECT a) as a;
-EXPLAIN SELECT 1 FROM (SELECT 1 as a) HAVING (SELECT a)=1;
-SELECT 1 FROM (SELECT 1 as a) HAVING (SELECT a)=1;
+EXPLAIN SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
+SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
 -- error 1054
 SELECT (SELECT 1), a;
-SELECT 1 as a FROM (SELECT 1) HAVING (SELECT a)=1;
+SELECT 1 as a FROM (SELECT 1) as b HAVING (SELECT a)=1;
 -- error 1054
+SELECT 1 FROM (SELECT (SELECT a) b) c;
 SELECT 1 FROM (SELECT (SELECT a));
 SELECT * FROM (SELECT 1 as id) WHERE id IN (SELECT * FROM (SELECT 1 as id) ORDER BY id LIMIT 1);
 -- error 1239
 SELECT * FROM (SELECT 1) WHERE 1 IN (SELECT 1,1);
 SELECT 1 IN (SELECT 1);
 SELECT 1 FROM (SELECT 1 as a) WHERE 1 IN (SELECT (SELECT a));
-
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);
@@ -176,7 +176,7 @@ INSERT INTO t2 (mot,topic,date,pseudo) VALUES ('joce','40143','2002-10-22','joce
 select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
 SELECT numeropost,maxnumrep FROM t1 WHERE exists (SELECT 1 FROM t2 WHERE (mot='joce') AND date >= '2002-10-21' AND t1.numeropost = t2.topic) ORDER BY maxnumrep DESC LIMIT 0, 20;
 -- error 1054
-SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1 HAVING a=1);
+SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1 HAVING a=1) b;
 -- error 1054
 SELECT 1 IN (SELECT 1 FROM t2 HAVING a);
 SELECT * from t2 where topic IN (SELECT topic FROM t2 GROUP BY date);
@@ -210,7 +210,7 @@ drop table t1;
 CREATE TABLE t1 (field char(1) NOT NULL DEFAULT 'b');
 INSERT INTO t1 VALUES ();
 -- error 1240
-SELECT field FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) HAVING field='b');
+SELECT field FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) a HAVING field='b');
 drop table t1;
 
 # threadhardwarefr7
@@ -236,7 +236,7 @@ drop table t1;
 
 CREATE TABLE t1 (a int(1));
 INSERT INTO t1 VALUES (1);
-SELECT 1 FROM (SELECT a FROM t1) HAVING (SELECT a)=1;
+SELECT 1 FROM (SELECT a FROM t1) b HAVING (SELECT b.a)=1;
 drop table t1;
 
 #update with subselects

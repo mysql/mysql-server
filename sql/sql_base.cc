@@ -1894,13 +1894,13 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
   const char *name=item->field_name;
   uint length=(uint) strlen(name);
 
-  if (table_name)
+  if (table_name && table_name[0])
   {						/* Qualified field */
     bool found_table=0;
     for (; tables ; tables=tables->next)
     {
       if (!strcmp(tables->alias,table_name) &&
-	  (!db || !strcmp(db,tables->db)))
+	  (!db || !tables->db ||  !tables->db[0] || !strcmp(db,tables->db)))
       {
 	found_table=1;
 	Field *find=find_field_in_table(thd,tables->table,name,length,
