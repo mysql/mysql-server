@@ -880,10 +880,10 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
   */
   init_master_info_with_options(mi);
   /* 
-     Reset errors, and master timestamp (the idea is that we forget about the
+     Reset errors (the idea is that we forget about the
      old master).
   */
-  clear_slave_error_timestamp(&mi->rli);
+  clear_slave_error(&mi->rli);
   clear_until_condition(&mi->rli);
   
   // close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
@@ -1143,8 +1143,8 @@ int change_master(THD* thd, MASTER_INFO* mi)
 
   pthread_mutex_lock(&mi->rli.data_lock);
   mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
-  /* Clear the errors, for a clean start, and master timestamp */
-  clear_slave_error_timestamp(&mi->rli);
+  /* Clear the errors, for a clean start */
+  clear_slave_error(&mi->rli);
   clear_until_condition(&mi->rli);
   /*
     If we don't write new coordinates to disk now, then old will remain in
