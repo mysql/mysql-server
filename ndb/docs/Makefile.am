@@ -43,7 +43,7 @@ ndbapidoc-pdf: ndbapi.pdf
 
 ndbapi.html: $(noinst_HEADERS)
 	@set -x; \
-	export NDB_RELEASE=$(NDB_RELEASE) \
+	export NDB_RELEASE=$(NDB_RELEASE); \
 	@RM@ -f ndbapi.pdf ndbapi.html; \
 	@RM@ -rf $(DOXYTMP) $(DOXYOUT); \
 	mkdir -p $(DOXYTMP) $(DOXYOUT); \
@@ -70,7 +70,7 @@ mgmapidoc-pdf: mgmapi.pdf
 
 mgmapi.html: $(noinst_HEADERS)
 	@set -x; \
-	export NDB_RELEASE=$(NDB_RELEASE) \
+	export NDB_RELEASE=$(NDB_RELEASE); \
 	@RM@ -f mgmapi.pdf mgmapi.html; \
 	@RM@ -rf $(DOXYTMP) $(DOXYOUT); \
 	mkdir -p $(DOXYTMP) $(DOXYOUT); \
