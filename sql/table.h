@@ -109,7 +109,7 @@ struct st_table {
   my_bool maybe_null,outer_join;	/* Used with OUTER JOIN */
   my_bool force_index;
   my_bool distinct,const_table,no_rows;
-  my_bool key_read, bulk_insert;
+  my_bool key_read;
   my_bool crypted;
   my_bool db_low_byte_first;		/* Portable row format */
   my_bool locked_by_flush;
@@ -119,7 +119,7 @@ struct st_table {
   my_bool is_view;
   my_bool no_keyread, no_cache;
   my_bool clear_query_id;               /* To reset query_id for tables and cols */
-  my_bool auto_increment_field_not_null;     
+  my_bool auto_increment_field_not_null;
   Field *next_number_field,		/* Set if next_number is activated */
 	*found_next_number_field,	/* Set on open */
         *rowid_field;
