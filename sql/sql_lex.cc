@@ -1308,7 +1308,7 @@ bool st_select_lex::test_limit()
   if (select_limit != HA_POS_ERROR)
   {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-         "LIMIT & IN/ALL/ANY/SOME subquery");
+             "LIMIT & IN/ALL/ANY/SOME subquery");
     return(1);
   }
   // We need only 1 row to determinate existence

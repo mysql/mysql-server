@@ -140,11 +140,11 @@ static void mysql_ha_hash_free(TABLE_LIST *tables)
     error messages.
 
   RETURN
-    0    ok
-    != 0 error
+    FALSE OK
+    TRUE  Error
 */
 
-int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
+bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
 {
   TABLE_LIST    *hash_tables;
   char          *db, *name, *alias;
@@ -236,11 +236,11 @@ int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   if (! reopen)
     send_ok(thd);
   DBUG_PRINT("exit",("OK"));
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
 err:
   DBUG_PRINT("exit",("ERROR"));
-  DBUG_RETURN(-1);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -327,15 +327,15 @@ int mysql_ha_close(THD *thd, TABLE_LIST *tables)
     offset_limit
 
   RETURN
-    0    ok
-    != 0 error
+    FALSE ok
+    TRUE  error
 */
  
-int mysql_ha_read(THD *thd, TABLE_LIST *tables,
-                  enum enum_ha_read_modes mode, char *keyname,
-                  List<Item> *key_expr,
-                  enum ha_rkey_function ha_rkey_mode, Item *cond,
-                  ha_rows select_limit,ha_rows offset_limit)
+bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
+                   enum enum_ha_read_modes mode, char *keyname,
+                   List<Item> *key_expr,
+                   enum ha_rkey_function ha_rkey_mode, Item *cond,
+                   ha_rows select_limit,ha_rows offset_limit)
 {
   TABLE_LIST    *hash_tables;
   TABLE         *table;
@@ -512,10 +512,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 	key_len+=key_part->store_length;
       }
       if (!(key= (byte*) thd->calloc(ALIGN_SIZE(key_len))))
-      {
-	send_error(thd,ER_OUTOFMEMORY);
 	goto err;
-      }
       key_copy(key, table->record[0], table->key_info + keyno, key_len);
       error= table->file->index_read(table->record[0],
 				  key,key_len,ha_rkey_mode);
@@ -523,7 +520,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       break;
     }
     default:
-      send_error(thd,ER_ILLEGAL_HA);
+      my_message(ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA), MYF(0));
       goto err;
     }
 
@@ -552,7 +549,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 	if (item->send(thd->protocol, &buffer))
 	{
 	  protocol->free();                             // Free used
-	  my_error(ER_OUT_OF_RESOURCES,MYF(0));
+	  my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
 	  goto err;
 	}
       }
@@ -564,13 +561,13 @@ ok:
   mysql_unlock_tables(thd,lock);
   send_eof(thd);
   DBUG_PRINT("exit",("OK"));
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
 err:
   mysql_unlock_tables(thd,lock);
 err0:
   DBUG_PRINT("exit",("ERROR"));
-  DBUG_RETURN(-1);
+  DBUG_RETURN(TRUE);
 }
 
 

@@ -290,7 +290,7 @@ public:
   virtual table_map upper_select_const_tables()= 0;
   static table_map calc_const_tables(TABLE_LIST *);
   virtual void print(String *str)= 0;
-  virtual int change_item(Item_subselect *si, select_subselect *result)= 0;
+  virtual bool change_result(Item_subselect *si, select_subselect *result)= 0;
   virtual bool no_tables()= 0;
 };
 
@@ -315,7 +315,7 @@ public:
   void exclude();
   table_map upper_select_const_tables();
   void print (String *str);
-  int change_item(Item_subselect *si, select_subselect *result);
+  bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
 };
 
@@ -336,7 +336,7 @@ public:
   void exclude();
   table_map upper_select_const_tables();
   void print (String *str);
-  int change_item(Item_subselect *si, select_subselect *result);
+  bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
 };
 
@@ -366,7 +366,7 @@ public:
   void exclude();
   table_map upper_select_const_tables() { return 0; }
   void print (String *str);
-  int change_item(Item_subselect *si, select_subselect *result);
+  bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
 };
 
