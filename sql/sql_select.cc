@@ -11115,24 +11115,53 @@ cp_buffer_from_ref(TABLE_REF *ref)
 *****************************************************************************/
 
 /*
-  Find order/group item in requested columns and change the item to point at
-  it. If item doesn't exists, add it first in the field list
-  Return 0 if ok.
+  Resolve an ORDER BY or GROUP BY column reference.
+
+  SYNOPSIS
+    find_order_in_list()
+    thd		      [in]     Pointer to current thread structure
+    ref_pointer_array [in/out] All select, group and order by fields
+    tables            [in]     List of tables to search in (usually FROM clause)
+    order             [in]     Column reference to be resolved
+    fields            [in]     List of fields to search in (usually SELECT list)
+    all_fields        [in/out] All select, group and order by fields
+    is_group_field    [in]     True if order is a GROUP field, false if
+                               ORDER by field
+
+  DESCRIPTION
+    Given a column reference (represented by 'order') from a GROUP BY or ORDER
+    BY clause, find the actual column it represents. If the column being
+    resolved is from the GROUP BY clause, the procedure searches the SELECT
+    list 'fields' and the columns in the FROM list 'tables'. If 'order' is from
+    the ORDER BY clause, only the SELECT list is being searched.
+
+    If 'order' is resolved to an Item, then order->item is set to the found
+    Item. If there is no item for the found column (that is, it was resolved
+    into a table field), order->item is 'fixed' and is added to all_fields and
+    ref_pointer_array.
+
+  RETURN
+    0 if ok
+    1 if error occurred
 */
 
 static int
-find_order_in_list(THD *thd, Item **ref_pointer_array,
-		   TABLE_LIST *tables,ORDER *order, List<Item> &fields,
-		   List<Item> &all_fields)
+find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
+                   ORDER *order, List<Item> &fields, List<Item> &all_fields,
+                   bool is_group_field)
 {
-  Item *itemptr=*order->item;
-  if (itemptr->type() == Item::INT_ITEM)
+  Item *order_item=*order->item; /* The item from the GROUP/ORDER caluse. */
+  Item::Type order_item_type;
+  Item **select_item; /* The corresponding item from the SELECT clause. */
+  Field *from_field;  /* The corresponding field from the FROM clause. */
+
+  if (order_item->type() == Item::INT_ITEM)
   {						/* Order by position */
-    uint count= (uint) itemptr->val_int();
+    uint count= (uint) order_item->val_int();
     if (!count || count > fields.elements)
     {
       my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),
-		      MYF(0),itemptr->full_name(),
+		      MYF(0),order_item->full_name(),
 	       thd->where);
       return 1;
     }
@@ -11142,17 +11171,47 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
     order->counter_used= 1;
     return 0;
   }
+  /* Lookup the current GROUP/ORDER field in the SELECT clause. */
   uint counter;
-  Item **item= find_item_in_list(itemptr, fields, &counter,
+  select_item= find_item_in_list(order_item, fields, &counter,
                                  REPORT_EXCEPT_NOT_FOUND);
-  if (!item)
-    return 1;
+  if (!select_item)
+    return 1; /* Some error occured. */
 
-  if (item != (Item **)not_found_item)
+
+  /* Check whether the resolved field is not ambiguos. */
+  if (select_item != not_found_item)
   {
-    order->item= ref_pointer_array + counter;
-    order->in_field_list=1;
-    return 0;
+    /* Lookup the current GROUP field in the FROM clause. */
+    order_item_type= order_item->type();
+    if (is_group_field &&
+        order_item_type == Item::FIELD_ITEM || order_item_type == Item::REF_ITEM)
+    {
+      Item **view_ref= NULL;
+      from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
+                                       view_ref, IGNORE_ERRORS, TRUE);
+      if(!from_field)
+       from_field= (Field*) not_found_field;
+    }
+    else
+      from_field= (Field*) not_found_field;
+
+    if (from_field == not_found_field ||
+        from_field && from_field != view_ref_found &&
+        (*select_item)->type() == Item::FIELD_ITEM &&
+        ((Item_field*) (*select_item))->field->eq(from_field))
+      /*
+        If there is no such field in the FROM clause, or it is the same field as
+        the one found in the SELECT clause, then use the Item created for the
+        SELECT field. As a result if there was a derived field that 'shadowed'
+        a table field with the same name, the table field will be chosen over
+        the derived field.
+      */
+    {
+      order->item= ref_pointer_array + counter;
+      order->in_field_list=1;
+      return 0;
+    }
   }
 
   order->in_field_list=0;
@@ -11187,7 +11246,7 @@ int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   for (; order; order=order->next)
   {
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
-			   all_fields))
+			   all_fields, FALSE))
       return 1;
   }
   return 0;
@@ -11239,7 +11298,7 @@ setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   for (; order; order=order->next)
   {
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
-			   all_fields))
+			   all_fields, TRUE))
       return 1;
     (*order->item)->marker=1;		/* Mark found */
     if ((*order->item)->with_sum_func)

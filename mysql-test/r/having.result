@@ -221,6 +221,9 @@ select count(*) from wl1972 group by s1 having s1 is null;
 count(*)
 select s1*0 as s1 from wl1972 group by s1 having s1 <> 0;
 s1
+0
+0
+0
 select s1*0 from wl1972 group by s1 having s1 = 0;
 s1*0
 select s1 from wl1972 group by 1 having 1 = 0;
