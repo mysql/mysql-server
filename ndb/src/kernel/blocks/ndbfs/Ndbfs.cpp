@@ -854,7 +854,7 @@ int Ndbfs::translateErrno(int aErrno)
       //no space left on device
     case ENFILE:
     case EDQUOT:
-#ifndef NDB_MACOSX
+#ifdef ENOSR
     case ENOSR:
 #endif
     case ENOSPC:
@@ -872,12 +872,16 @@ int Ndbfs::translateErrno(int aErrno)
       return FsRef::fsErrInvalidParameters;
       //environment error
     case ELOOP:
-#ifndef NDB_MACOSX
+#ifdef ENOLINK
     case ENOLINK:
+#endif
+#ifdef EMULTIHOP
     case EMULTIHOP:
 #endif
-#ifndef NDB_LINUX
+#ifdef EOPNOTSUPP
     case EOPNOTSUPP:
+#endif
+#ifdef ESPIPE
     case ESPIPE:
 #endif
     case EPIPE:

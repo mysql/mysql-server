@@ -3,6 +3,13 @@
 #define NDBGLOBAL_H
 
 #include <my_global.h>
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
+#define NDB_WIN32
+#else
+#undef NDB_WIN32
+#endif
+
 #include <m_string.h>
 #include <m_ctype.h>
 #include <ndb_types.h>
@@ -31,7 +38,6 @@
 #ifdef NDB_WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <windows.h>
 
 #define DIR_SEPARATOR "\\"
 #define PATH_MAX 256

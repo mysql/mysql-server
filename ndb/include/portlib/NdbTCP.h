@@ -40,24 +40,8 @@ typedef int socklen_t;
 
 #define InetErrno (* inet_errno())
 
-#endif
+#elif NDB_WIN32
 
-#if defined NDB_SOLARIS || defined NDB_HPUX || defined NDB_IBMAIX || defined NDB_TRU64X || NDB_LINUX || defined NDB_MACOSX
-/**
- * Include files needed
- */
-#include <netdb.h>
-
-#define NDB_NONBLOCK O_NONBLOCK
-#define NDB_SOCKET_TYPE int
-#define NDB_INVALID_SOCKET -1
-#define NDB_CLOSE_SOCKET(x) close(x)
-
-#define InetErrno errno
-
-#endif
-
-#ifdef NDB_WIN32
 /**
  * Include files needed
  */
@@ -69,6 +53,20 @@ typedef int socklen_t;
 #define NDB_SOCKET_TYPE SOCKET
 #define NDB_INVALID_SOCKET INVALID_SOCKET
 #define NDB_CLOSE_SOCKET(x) closesocket(x)
+
+#else
+
+/**
+ * Include files needed
+ */
+#include <netdb.h>
+
+#define NDB_NONBLOCK O_NONBLOCK
+#define NDB_SOCKET_TYPE int
+#define NDB_INVALID_SOCKET -1
+#define NDB_CLOSE_SOCKET(x) close(x)
+
+#define InetErrno errno
 
 #endif
 
