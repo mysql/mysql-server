@@ -2037,7 +2037,7 @@ no_and_expr:
 	| simple_expr;
 
 interval_expr:
-         INTERVAL_SYM expr { $$=$2 }
+         INTERVAL_SYM expr { $$=$2; }
         ;
 
 simple_expr:
