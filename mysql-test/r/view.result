@@ -753,31 +753,28 @@ create table t1 (a int, b int, c int, primary key(a,b));
 insert into t1 values (10,2,-1), (20,3,-2), (30,4,-3), (40,5,-4), (50,10,-5);
 create view v1 (x,y) as select a, b from t1;
 create view v2 (x,y) as select a, c from t1;
-set sql_updatable_view_key=YES;
+set updatable_views_with_limit=NO;
 update v1 set x=x+1;
 update v2 set x=x+1;
-ERROR HY000: The target table v2 of the UPDATE is not updatable
-set sql_updatable_view_key=LIMIT1;
-update v1 set x=x+1;
-update v2 set x=x+1;
-Warnings:
-Note	1355	View being updated does not have complete key of underlying table in it
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
 ERROR HY000: The target table v2 of the UPDATE is not updatable
-set sql_updatable_view_key=NO;
+set updatable_views_with_limit=YES;
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
 Warnings:
 Note	1355	View being updated does not have complete key of underlying table in it
-set sql_updatable_view_key=DEFAULT;
+set updatable_views_with_limit=DEFAULT;
+show variables like "updatable_views_with_limit";
+Variable_name	Value
+updatable_views_with_limit	YES
 select * from t1;
 a	b	c
-16	2	-1
-23	3	-2
-33	4	-3
-43	5	-4
-53	10	-5
+15	2	-1
+22	3	-2
+32	4	-3
+42	5	-4
+52	10	-5
 drop table t1;
 drop view v1,v2;
 create table t1 (a int, b int, c int, primary key(a,b));
