@@ -31,8 +31,6 @@ Created 12/19/1997 Heikki Tuuri
 #include "pars0pars.h"
 #include "row0mysql.h"
 
-byte	row_sel_dummy_byte;
-
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
 
@@ -2122,13 +2120,12 @@ row_sel_store_mysql_rec(
 			has been marked to contain the SQL NULL value.
 			This caused seg faults reported by two users.
 			Set the BLOB length to 0 and the data pointer
-			to a dummy allocated mem address to avoid
-			a seg fault. */
+			to NULL to avoid a seg fault. */
 
 			if (templ->type == DATA_BLOB) {
 				row_sel_field_store_in_mysql_format(
 				mysql_rec + templ->mysql_col_offset,
-				templ->mysql_col_len, &row_sel_dummy_byte,
+				templ->mysql_col_len, NULL,
 				0, templ->type, templ->is_unsigned);
 			}
 
