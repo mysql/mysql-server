@@ -177,9 +177,8 @@ bool Item_ident::remove_dependence_processor(byte * arg)
     arguments in a condition the method must return false.
 
   RETURN
-    false on success (force the evaluation of collect_item_field_processor
-          for the subsequent items.)
-    true  o/w (stop evaluation of subsequent items.)
+    false to force the evaluation of collect_item_field_processor
+          for the subsequent items.
 */
 
 bool Item_field::collect_item_field_processor(byte *arg)
