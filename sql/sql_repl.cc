@@ -466,7 +466,7 @@ sweepstakes if you report the bug";
   pthread_mutex_unlock(&LOCK_thread_count);
   if(log)
    (void) my_fclose(log, MYF(MY_WME));
-  send_error(&thd->net, 0, errmsg);
+  send_error(&thd->net, my_errno, errmsg);
   DBUG_VOID_RETURN;
 }
 

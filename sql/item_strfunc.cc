@@ -309,6 +309,16 @@ void Item_func_concat_ws::fix_length_and_dec()
     max_length=MAX_BLOB_WIDTH;
     maybe_null=1;
   }
+  used_tables_cache|=separator->used_tables();
+  const_item_cache&=separator->const_item();
+}
+
+void Item_func_concat_ws::update_used_tables()
+{
+  Item_func::update_used_tables();
+  separator->update_used_tables();
+  used_tables_cache|=separator->used_tables();
+  const_item_cache&=separator->const_item();
 }
 
 
