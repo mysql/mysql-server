@@ -26,7 +26,7 @@ DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\""
-INCLUDES=		@MT_INCLUDES@ @bdb_includes@ -I$(top_srcdir)/include \
+INCLUDES=		@MT_INCLUDES@ @ndbcluster_includes@ @bdb_includes@ -I$(top_srcdir)/include \
 			-I$(top_srcdir)/sql -I$(top_srcdir)/regex \
 			$(openssl_includes)
 
@@ -70,7 +70,7 @@ INC_LIB=	$(top_builddir)/regex/libregex.a \
 		$(top_builddir)/myisam/libmyisam.a \
 		$(top_builddir)/myisammrg/libmyisammrg.a \
 		$(top_builddir)/heap/libheap.a \
-		@innodb_libs@ @bdb_libs_with_path@ \
+		@ndbcluster_libs@ @innodb_libs@ @bdb_libs_with_path@ \
 		$(top_builddir)/mysys/libmysys.a \
 		$(top_builddir)/strings/libmystrings.a \
 		$(top_builddir)/dbug/libdbug.a \
