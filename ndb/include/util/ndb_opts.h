@@ -31,7 +31,7 @@ int opt_ndb_nodeid;
 my_bool opt_ndb_shm;
 const char *opt_ndb_connectstring= 0;
 const char *opt_connect_str= 0;
-const char *opt_ndb_mgmd_host= 0;
+const char *opt_ndb_mgmd= 0;
 char opt_ndb_constrbuf[1024];
 unsigned opt_ndb_constrbuf_len;
 
@@ -50,10 +50,10 @@ unsigned opt_ndb_constrbuf_len;
     "Overides specifying entries in NDB_CONNECTSTRING and Ndb.cfg", \
     (gptr*) &opt_ndb_connectstring, (gptr*) &opt_ndb_connectstring, \
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  { "ndb-mgmd-host", OPT_NDB_MGMD_HOST, \
+  { "ndb-mgmd-host", OPT_NDB_MGMD, \
     "Set host and port for connecting to ndb_mgmd. " \
     "Syntax: <hostname>[:<port>].", \
-    (gptr*) &opt_ndb_mgmd_host, (gptr*) &opt_ndb_mgmd_host, 0, \
+    (gptr*) &opt_ndb_mgmd, (gptr*) &opt_ndb_mgmd, 0, \
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
   { "ndb-nodeid", OPT_NDB_NODEID, \
     "Set node id for this node.", \
@@ -93,7 +93,7 @@ enum ndb_std_options {
   OPT_NDB_SHM= 256,
   OPT_NDB_SHM_SIGNUM,
   OPT_NDB_OPTIMIZED_NODE_SELECTION,
-  OPT_NDB_MGMD_HOST,
+  OPT_NDB_MGMD,
   OPT_NDB_NODEID,
   NDB_STD_OPTIONS_LAST /* should always be last in this enum */
 };
@@ -126,16 +126,14 @@ ndb_std_get_one_option(int optid,
 #endif
     }
     break;
-  case OPT_NDB_MGMD_HOST:
+  case OPT_NDB_MGMD:
   case OPT_NDB_NODEID:
   {
-    const char *tmp="";
-    if (optid == OPT_NDB_NODEID)
-      tmp= "nodeid=";
     int len= my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
 			 sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
 			 "%s%s%s",opt_ndb_constrbuf_len > 0 ? ",":"",
-			 tmp, argument);
+			 optid == OPT_NDB_NODEID ? "nodeid=" : "",
+			 argument);
     opt_ndb_constrbuf_len+= len;
   }
   /* fall through to add the connectstring to the end
@@ -147,6 +145,8 @@ ndb_std_get_one_option(int optid,
 		  sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
 		  "%s%s", opt_ndb_constrbuf_len > 0 ? ",":"",
 		  opt_ndb_connectstring);
+    else
+      opt_ndb_constrbuf[opt_ndb_constrbuf_len]= 0;
     opt_connect_str= opt_ndb_constrbuf;
     break;
   }

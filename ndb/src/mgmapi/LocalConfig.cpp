@@ -148,7 +148,7 @@ const char *nodeIdTokens[] = {
 const char *hostNameTokens[] = {
   "host://%[^:]:%i",
   "host=%[^:]:%i",
-  "mgmd-host=%[^:]:%i",
+  "mgmd=%[^:]:%i",
   "%[^:^=^ ]:%i",
   "%s %i",
   0
