@@ -59,7 +59,7 @@ bool Item_row::check_cols(uint c)
 {
   if (c != arg_count)
   {
-    my_error(ER_CARDINALITY_COL, MYF(0), arg_count);
+    my_error(ER_CARDINALITY_COL, MYF(0), c);
     return 1;
   }
   return 0;
