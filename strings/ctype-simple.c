@@ -968,3 +968,29 @@ my_bool my_like_range_simple(CHARSET_INFO *cs,
     *min_str++ = *max_str++ = ' ';		// Because if key compression
   return 0;
 }
+
+
+ulong my_scan_8bit(CHARSET_INFO *cs, const char *str, const char *end, int sq)
+{
+  const char *str0= str;
+  switch (sq)
+  {
+  case MY_SEQ_INTTAIL:
+    if (*str == '.')
+    {
+      for(str++ ; str != end && *str == '0' ; str++);
+      return str-str0;
+    }
+    return 0;
+
+  case MY_SEQ_SPACES:
+    for (str++ ; str != end ; str++)
+    {
+      if (!my_isspace(cs,*str))
+        break;
+    }
+    return str-str0;
+  default:
+    return 0;
+  }
+}
