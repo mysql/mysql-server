@@ -2109,7 +2109,7 @@ err:
   DESCRIPTION
     Same as mi_repair_by_sort but do it multithreaded
     Each key is handled by a separate thread.
-    TODO: make a number of thread a parameter
+    TODO: make a number of threads a parameter
 
   RESULT
     0	ok
@@ -2358,7 +2358,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   }
   got_error=1;				/* Assume the following may go wrong */
 
-  if (sort_param->fix_datafile)
+  if (sort_param[0].fix_datafile)
   {
     if (write_data_suffix(&sort_info,1) || end_io_cache(&info->rec_cache))
       goto err;
