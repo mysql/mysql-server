@@ -33,30 +33,16 @@ Dbtux::allocNode(Signal* signal, NodeHandle& node)
     jam();
     node.m_loc = TupLoc(pageId, pageOffset);
     node.m_node = reinterpret_cast<TreeNode*>(node32);
-    node.m_acc = AccNone;
     ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
   }
   return errorCode;
 }
 
 /*
- * Access more of the node.
- */
-void
-Dbtux::accessNode(Signal* signal, NodeHandle& node, AccSize acc)
-{
-  ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
-  if (node.m_acc >= acc)
-    return;
-  // XXX could do prefetch
-  node.m_acc = acc;
-}
-
-/*
  * Set handle to point to existing node.
  */
 void
-Dbtux::selectNode(Signal* signal, NodeHandle& node, TupLoc loc, AccSize acc)
+Dbtux::selectNode(Signal* signal, NodeHandle& node, TupLoc loc)
 {
   Frag& frag = node.m_frag;
   ndbrequire(loc != NullTupLoc);
@@ -67,21 +53,19 @@ Dbtux::selectNode(Signal* signal, NodeHandle& node, TupLoc loc, AccSize acc)
   jamEntry();
   node.m_loc = loc;
   node.m_node = reinterpret_cast<TreeNode*>(node32);
-  node.m_acc = AccNone;
   ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
-  accessNode(signal, node, acc);
 }
 
 /*
  * Set handle to point to new node.  Uses the pre-allocated node.
  */
 void
-Dbtux::insertNode(Signal* signal, NodeHandle& node, AccSize acc)
+Dbtux::insertNode(Signal* signal, NodeHandle& node)
 {
   Frag& frag = node.m_frag;
   TupLoc loc = frag.m_freeLoc;
   frag.m_freeLoc = NullTupLoc;
-  selectNode(signal, node, loc, acc);
+  selectNode(signal, node, loc);
   new (node.m_node) TreeNode();
 #ifdef VM_TRACE
   TreeHead& tree = frag.m_tree;
