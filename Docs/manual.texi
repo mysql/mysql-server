@@ -802,7 +802,7 @@ of a @code{CHAR} or @code{VARCHAR} field.
 
 @item
 Clients and tools
-@izemize @bullet
+@itemize @bullet
 @item
 Includes @code{myisamchk}, a very fast utility for table checking,
 optimization, and repair.  All of the functionality of @code{myisamchk}
