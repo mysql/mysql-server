@@ -1414,7 +1414,6 @@ static int com_server_help(String *buffer __attribute__((unused)),
     server_cmd= cmd_buf;
   }
 
-  char buff[16], time_buf[32];
   MYSQL_RES *result;
   ulong timer;
   uint error= 0;
