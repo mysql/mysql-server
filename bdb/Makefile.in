@@ -36,7 +36,11 @@ subdirs = btree build_vxworks build_win32 clib common cxx db db185 \
 all:
 	cd $(bdb_build) && $(MAKE) all
 
-clean:;
+clean:
+	cd $(bdb_build) && $(MAKE) clean
+
+distclean:
+	cd $(bdb_build) && $(MAKE) distclean
 
 # May want to fix this, and MYSQL/configure, to install things
 install dvi check installcheck:

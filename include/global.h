@@ -28,6 +28,19 @@
 #include <os2.h>
 #endif /* __EMX__ */
 
+#ifdef __CYGWIN__
+/* We use a Unix API, so pretend it's not Windows */
+#undef WIN
+#undef WIN32
+#undef _WIN
+#undef _WIN32
+#undef _WIN64
+#undef __WIN__
+#undef __WIN32__
+#define HAVE_ERRNO_AS_DEFINE
+#endif /* __CYGWIN__ */
+
+
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(WIN32)
 #include <config-win.h>
 #else

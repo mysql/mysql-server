@@ -530,30 +530,20 @@ GEMINI Tables
 
 INNODB Tables
 
-* INNODB overview::           
-* INNODB start::              INNODB startup options
-* Using INNODB tables::       Using INNODB tables
-* INNODB restrictions::       Some restrictions on @code{INNODB} tables:
+* INNODB overview::             
+* INNODB start::                INNODB startup options
+* Using INNODB tables::         Using INNODB tables
+* INNODB restrictions::         Some restrictions on @code{INNODB} tables:
 
 MySQL Tutorial
 
 * Connecting-disconnecting::    Connecting to and disconnecting from the server
 * Entering queries::            Entering queries
-* Examples::                    Examples
-* Searching on two keys::       Searching on two keys
 * Database use::                Creating and using a database
 * Getting information::         Getting information about databases and tables
+* Examples::                    Examples
 * Batch mode::                  Using @code{mysql} in batch mode
 * Twin::                        Queries from twin project
-
-Examples of Common Queries
-
-* example-Maximum-column::      The maximum value for a column
-* example-Maximum-row::         The row holding the maximum of a certain column
-* example-Maximum-column-group::  Maximum of column per group
-* example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
-* example-user-variables::      Using user variables
-* example-Foreign keys::        Using foreign keys
 
 Creating and Using a Database
 
@@ -561,7 +551,6 @@ Creating and Using a Database
 * Creating tables::             Creating a table
 * Loading tables::              Loading data into a table
 * Retrieving data::             Retrieving information from a table
-* Multiple tables::             Using more than one table
 
 Retrieving Information from a Table
 
@@ -573,6 +562,17 @@ Retrieving Information from a Table
 * Working with NULL::           Working with @code{NULL} values
 * Pattern matching::            Pattern matching
 * Counting rows::               Counting rows
+* Multiple tables::             
+
+Examples of Common Queries
+
+* example-Maximum-column::      The maximum value for a column
+* example-Maximum-row::         The row holding the maximum of a certain column
+* example-Maximum-column-group::  Maximum of column per group
+* example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
+* example-user-variables::      Using user variables
+* example-Foreign keys::        Using foreign keys
+* Searching on two keys::       
 
 Queries from Twin Project
 
@@ -656,6 +656,7 @@ Speed of Queries that Access or Update Data
 MySQL Utilites
 
 * Programs::                    What do the executables do?
+* mysqld-max::                  
 * safe_mysqld::                 safe_mysqld, the wrapper around mysqld
 * mysqld_multi::                Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
@@ -2486,8 +2487,14 @@ which services were discovered on which dial-up numbers in your organization.
 @subheading SQL Clients and Report Writers
 
 @table @asis
-@item @uref{http://www.urbanresearch.com/software/utils/urbsql/index.html}
-@strong{MySQL} Editor/Utility for MS Windows Platforms.
+@item @uref{http://www.urbanresearch.com/software/utils/urbsql/index.html, urSQL}
+SQL Editor and Query Utility. Custom syntax highlighting, editable
+results grid, exportable result-sets, basic @strong{MySQL} admin functions,
+Etc.. For windows.
+
+@item @uref{http://www.edatanew.com/, MySQL Data Manager}
+@strong{MySQL} Data Manager * is platform independent web client
+(written in perl) for @strong{MySQL} server over TCP/IP.
 
 @item @uref{http://ksql.sourceforge.net/}
 KDE @strong{MySQL} client.
@@ -5067,6 +5074,21 @@ binary distributions are 'ready to run' at any place, but you may want
 to get even more flexibility).
 
 @item
+To be able to satisfy different user requirements, we are providing two
+different binary versions; One compiled with the non-transactional table
+handlers, (a small, fast binary), and one configurated with the most
+important extended options like transaction safe tables.  Both versions
+are compiled from the same source distribution.  All native @code{MySQL}
+clients can connect to both @strong{MySQL} versions.
+
+The extended @strong{MySQL} binary distribution is marked with the
+@code{-max} suffix and is configured with the same options as
+@code{mysqld-max}. @xref{mysqld-max}.
+
+If you are want to use the @code{MySQL-Max} RPM, you must first
+install the standard @code{MySQL} RPM.
+
+@item
 If you want to configure @code{mysqld} with some extra feature that is NOT in
 the standard binary distributions.  Here is a list of the most common
 extra options that you may want to use:
@@ -5398,6 +5420,12 @@ archives and have names like @file{mysql-VERSION-OS.tar.gz}, where
 @code{VERSION} is a number (for example, @code{3.21.15}), and @code{OS}
 indicates the type of operating system for which the distribution is intended
 (for example, @code{pc-linux-gnu-i586}).
+
+@item
+If you see a binary distribution marked with the @code{-max} prefix, this
+means that the binary has support for transaction safe tables and other
+features. @xref{mysqld-max}.  Note that all binaries are built from
+the same @strong{MySQL} source distribution.
 
 @item
 Add a user and group for @code{mysqld} to run as:
@@ -6153,13 +6181,13 @@ the compiler you are using:
 @tindex environment variable, CXXFLAGS
 @multitable @columnfractions .20 .80
 @item gcc 2.7.2.1 @tab
-CC=gcc CXX=gcc CXXFLAGS="-O6 -felide-constructors"
+CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors"
 @item egcs 1.0.3a @tab
-CC=gcc CXX=gcc CXXFLAGS="-O6 -felide-constructors -fno-exceptions -fno-rtti"
+CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti"
 @item gcc 2.95.2 @tab
-CFLAGS="-O6 -mpentiumpro" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti"
+CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti"
 @item pgcc 2.90.29 or newer @tab
-CFLAGS="-O6 -mpentiumpro -mstack-align-double" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -mstack-align-double -felide-constructors -fno-exceptions -fno-rtti"
+CFLAGS="-O3 -mpentiumpro -mstack-align-double" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -mstack-align-double -felide-constructors -fno-exceptions -fno-rtti"
 @end multitable
 
 In most cases you can get a reasonably optimal @strong{MySQL} binary by
@@ -6174,7 +6202,7 @@ The full configure line would in other words be something like the
 following for all recent gcc versions:
 
 @example
-CFLAGS="-O6 -mpentiumpro" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
+CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
 @end example
 
 The binaries we provide on the @strong{MySQL} Web site at
@@ -6499,9 +6527,9 @@ and @code{CXX}.  For example:
 
 @example
 shell> CC=gcc
-shell> CFLAGS=-O6
+shell> CFLAGS=-O3
 shell> CXX=gcc
-shell> CXXFLAGS=-O6
+shell> CXXFLAGS=-O3
 shell> export CC CFLAGS CXX CXXFLAGS
 @end example
 
@@ -7018,8 +7046,8 @@ SPARC!
 The recommended @code{configure} line when using @code{gcc} 2.95.2 is:
 
 @example
-CC=gcc CFLAGS="-O6" \
-CXX=gcc CXXFLAGS="-O6 -felide-constructors -fno-exceptions -fno-rtti" \
+CC=gcc CFLAGS="-O3" \
+CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" \
 ./configure --prefix=/usr/local/mysql --with-low-memory --enable-assembler
 @end example
 
@@ -7232,9 +7260,9 @@ experience problems with core dumps under load, you should use the
 following @code{configure} command:
 
 @example
-CC=gcc CFLAGS="-O6 -fomit-frame-pointer -DHAVE_CURSES_H" \
+CC=gcc CFLAGS="-O3 -fomit-frame-pointer -DHAVE_CURSES_H" \
 CXX=gcc \
-CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -DHAVE_CURSES_H" \
+CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -DHAVE_CURSES_H" \
 ./configure --prefix=/usr/local/mysql
 @end example
 
@@ -7680,7 +7708,7 @@ CC=ccc CFLAGS="-fast" CXX=cxx CXXFLAGS="-fast -noexceptions -nortti" ./configure
 If you want to use egcs the following configure line worked for us:
 
 @example
-CFLAGS="-O6 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --disable-shared
+CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --disable-shared
 @end example
 
 Some known problems when running @strong{MySQL} on Linux-Alpha:
@@ -8496,7 +8524,7 @@ the definition in @file{pthread.h}.  Here's the diff:
 After this, the following configure line should work:
 
 @example
-CFLAGS="-fomit-frame-pointer -O6 -fpic" CXX=gcc CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti -O6" ./configure --prefix=/usr/local/mysql --disable-shared
+CFLAGS="-fomit-frame-pointer -O3 -fpic" CXX=gcc CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti -O3" ./configure --prefix=/usr/local/mysql --disable-shared
 @end example
 
 Here is some information that a HPUX Version 11.x user sent us about compiling
@@ -9229,19 +9257,19 @@ and are configured with the following compilers and options:
 @code{CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors" ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-assembler}
 
 @item SunOS 5.5.1 sun4u with @code{egcs} 1.0.3a
-@code{CC=gcc CFLAGS="-O6 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
+@code{CC=gcc CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
 
 @item SunOS 5.6 sun4u with @code{egcs} 2.90.27
-@code{CC=gcc CFLAGS="-O6 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
+@code{CC=gcc CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
 
 @item SunOS 5.6 i86pc with @code{gcc} 2.8.1
 @code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
 
 @item Linux 2.0.33 i386 with @code{pgcc} 2.90.29 (@code{egcs} 1.0.3a)
-@code{CFLAGS="-O6 -mpentium -mstack-align-double -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -mpentium -mstack-align-double -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --with-extra-charsets=complex}
+@code{CFLAGS="-O3 -mpentium -mstack-align-double -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -mpentium -mstack-align-double -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --with-extra-charsets=complex}
 
 @item Linux 2.2.x with x686 with @code{gcc} 2.95.2
-@code{CFLAGS="-O6 -mpentiumpro -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charset=complex}
+@code{CFLAGS="-O3 -mpentiumpro -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charset=complex}
 
 @item SCO 3.2v5.0.4 i386 with @code{gcc} 2.7-95q4
 @code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-extra-charsets=complex}
@@ -11628,7 +11656,7 @@ of applicable attacks: eavesdropping, altering, playback, and denial of
 service. We do not cover all aspects of availability and fault tolerance
 here.
 
-@strong{MySQL} uses Access Control Lists (ACLs) security for all
+@strong{MySQL} uses security based on Access Control Lists (ACLs) for all
 connections, queries, and other operations that a user may attempt to
 perform. There is also some support for SSL-encrypted connections
 between @strong{MySQL} clients and servers. Many of the concepts
@@ -11641,12 +11669,12 @@ When running @strong{MySQL}, follow these guidelines whenever possible:
 @item
 DON'T EVER GIVE ANYONE (EXCEPT THE @strong{MySQL} ROOT USER) ACCESS TO THE
 mysql.user TABLE!  The encrypted password is the real password in
-@strong{MySQL}. If you know this for one user you can easily login as
+@strong{MySQL}. If you know this for one user, you can easily log in as
 him if you have access to his 'host'.
 
 @item
 Learn the @strong{MySQL} access privilege system. The @code{GRANT} and
-@code{REVOKE} commands are used for restricting access to @strong{MySQL}. Do
+@code{REVOKE} commands are used for controlling access to @strong{MySQL}. Do
 not grant any more privileges than necessary. Never grant privileges to all
 hosts.
 
@@ -11654,8 +11682,9 @@ Checklist:
 @itemize @minus
 @item
 Try @code{mysql -u root}. If you are able to connect successfully to the
-server without being asked for a password, you have problems. Any user (not
-just root) can connect to your @strong{MySQL} server with full privileges!
+server without being asked for a password, you have problems. Anyone
+can connect to your @strong{MySQL} server as the @strong{MySQL}
+@code{root} user with full privileges!
 Review the @strong{MySQL} installation instructions, paying particular
 attention to the item about setting a @code{root} password.
 @item
@@ -11693,8 +11722,8 @@ server_host 3306} from some remote machine, where
 @code{server_host} is the hostname of your @strong{MySQL}
 server. If you get a connection and some garbage characters, the port is
 open, and should be closed on your firewall or router, unless you really
-have a good reason to keep it open. If @code{telnet} just hangs,
-everything is OK, the port is blocked.
+have a good reason to keep it open. If @code{telnet} just hangs or the
+connection is refused, everything is OK; the port is blocked.
 @end itemize
 
 @item
@@ -11712,14 +11741,14 @@ available data that it need not be protected. This is incorrect. At least
 denial-of-service type attacks can be performed on such
 databases. The simplest way to protect from this type of attack is to use
 apostrophes around the numeric constants: @code{SELECT * FROM table
-WHERE ID='234'} instead of @code{SELECT * FROM table WHERE ID=234}.
+WHERE ID='234'} rather than @code{SELECT * FROM table WHERE ID=234}.
 @strong{MySQL} automatically converts this string to a number and
 strips all non-numeric symbols from it.
 
 Checklist:
 @itemize @minus
 @item
-All WWW applications:
+All Web applications:
 @itemize @bullet
 @item
 Try to enter @samp{'} and @samp{"} in all your Web forms. If you get any kind
@@ -11761,7 +11790,7 @@ Users of @strong{MySQL}++:
 @item
 Users of Perl DBI:
 @itemize @bullet
-@item Check out the @code{quote()} method.
+@item Check out the @code{quote()} method or use placeholders.
 @end itemize
 @end itemize
 
@@ -11873,7 +11902,7 @@ in and check things even if all normal connections are in use.
 Don't give the @strong{file} privilege to all users.  Any user that has this
 privilege can write a file anywhere in the file system with the privileges of
 the @code{mysqld} daemon!  To make this a bit safer, all files generated with
-@code{SELECT ... INTO OUTFILE} are readable to everyone, and you can't
+@code{SELECT ... INTO OUTFILE} are readable to everyone, and you cannot
 overwrite existing files.
 
 @tindex /etc/passwd
@@ -11928,10 +11957,12 @@ systems that use MIT-pthreads, because the MIT-pthreads package doesn't
 support Unix sockets.
 
 @item --skip-show-database
-@code{SHOW DATABASE} command doesn't return anything.
+With this option, the
+@code{SHOW DATABASES} statement doesn't return anything.
 
 @item --safe-show-database
-@code{SHOW DATABASE} only returns databases for which the user has
+With this option,
+@code{SHOW DATABASES} returns only those databases for which the user has
 some kind of privilege.
 
 @end table
@@ -23186,7 +23217,7 @@ of both worlds.
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
 * GEMINI::                      GEMINI tables
-* INNODB::                    INNODB tables
+* INNODB::                      INNODB tables
 @end menu
 
 @node MyISAM, MERGE, Table types, Table types
@@ -24181,10 +24212,10 @@ NuSphere is working on removing these limitations.
 @section INNODB Tables
 
 @menu
-* INNODB overview::           
-* INNODB start::              INNODB startup options
-* Using INNODB tables::       Using INNODB tables
-* INNODB restrictions::       Some restrictions on @code{INNODB} tables:
+* INNODB overview::             
+* INNODB start::                INNODB startup options
+* Using INNODB tables::         Using INNODB tables
+* INNODB restrictions::         Some restrictions on @code{INNODB} tables:
 @end menu
 
 @node INNODB overview, INNODB start, INNODB, INNODB
@@ -24419,10 +24450,9 @@ Innodb table space will not be reclaimed.
 @menu
 * Connecting-disconnecting::    Connecting to and disconnecting from the server
 * Entering queries::            Entering queries
-* Examples::                    Examples
-* Searching on two keys::       Searching on two keys
 * Database use::                Creating and using a database
 * Getting information::         Getting information about databases and tables
+* Examples::                    Examples
 * Batch mode::                  Using @code{mysql} in batch mode
 * Twin::                        Queries from twin project
 @end menu
@@ -24522,7 +24552,7 @@ server.  They indicate this by the @code{mysql>} prompt.
 @cindex running, queries
 @cindex queries, entering
 @cindex entering, queries
-@node Entering queries, Examples, Connecting-disconnecting, Tutorial
+@node Entering queries, Database use, Connecting-disconnecting, Tutorial
 @section Entering Queries
 
 Make sure you are connected to the server, as discussed in the previous
@@ -24744,358 +24774,10 @@ containing @code{QUIT}!  This can be quite confusing, especially if you
 don't know that you need to supply the terminating quote before you can
 cancel the current command.
 
-@cindex queries, examples
-@cindex examples, queries
-@node Examples, Searching on two keys, Entering queries, Tutorial
-@section Examples of Common Queries
-
-Here are examples of how to solve some common problems with
-@strong{MySQL}.
-
-Some of the examples use the table @code{shop} to hold the price of each
-article (item number) for certain traders (dealers).  Supposing that each
-trader has a single fixed price per article, then (@code{item},
-@code{trader}) is a primary key for the records.
-
-Start the command line tool @code{mysql} and select a database:
-
-@example
-mysql your-database-name
-@end example
-
-(In most @strong{MySQL} installations, you can use the database-name 'test').
-
-You can create the example table as:
-
-@example
-CREATE TABLE shop (
- article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
- dealer  CHAR(20)                 DEFAULT ''     NOT NULL,
- price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL,
- PRIMARY KEY(article, dealer));
-
-INSERT INTO shop VALUES
-(1,'A',3.45),(1,'B',3.99),(2,'A',10.99),(3,'B',1.45),(3,'C',1.69),
-(3,'D',1.25),(4,'D',19.95);
-@end example
-
-Okay, so the example data is:
-
-@example
-mysql> SELECT * FROM shop;
-
-+---------+--------+-------+
-| article | dealer | price |
-+---------+--------+-------+
-|    0001 | A      |  3.45 |
-|    0001 | B      |  3.99 |
-|    0002 | A      | 10.99 |
-|    0003 | B      |  1.45 |
-|    0003 | C      |  1.69 |
-|    0003 | D      |  1.25 |
-|    0004 | D      | 19.95 |
-+---------+--------+-------+
-@end example
-
-@menu
-* example-Maximum-column::      The maximum value for a column
-* example-Maximum-row::         The row holding the maximum of a certain column
-* example-Maximum-column-group::  Maximum of column per group
-* example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
-* example-user-variables::      Using user variables
-* example-Foreign keys::        Using foreign keys
-@end menu
-
-@node example-Maximum-column, example-Maximum-row, Examples, Examples
-@subsection The Maximum Value for a Column
-
-``What's the highest item number?''
-
-@example
-SELECT MAX(article) AS article FROM shop
-
-+---------+
-| article |
-+---------+
-|       4 |
-+---------+
-@end example
-
-@node example-Maximum-row, example-Maximum-column-group, example-Maximum-column, Examples
-@subsection The Row Holding the Maximum of a Certain Column
-
-``Find number, dealer, and price of the most expensive article.''
-
-In ANSI SQL this is easily done with a sub-query:
-
-@example
-SELECT article, dealer, price
-FROM   shop
-WHERE  price=(SELECT MAX(price) FROM shop)
-@end example
-
-In @strong{MySQL} (which does not yet have sub-selects), just do it in
-two steps:
-
-@enumerate
-@item
-Get the maximum price value from the table with a @code{SELECT} statement.
-@item
-Using this value compile the actual query:
-@example
-SELECT article, dealer, price
-FROM   shop
-WHERE  price=19.95
-@end example
-@end enumerate
-
-Another solution is to sort all rows descending by price and only
-get the first row using the @strong{MySQL} specific @code{LIMIT} clause:
-
-@example
-SELECT article, dealer, price
-FROM   shop
-ORDER BY price DESC
-LIMIT 1
-@end example
-
-@strong{NOTE}:  If there are several most expensive articles (for example, each 19.95)
-the @code{LIMIT} solution shows only one of them!
-
-@node example-Maximum-column-group, example-Maximum-column-group-row, example-Maximum-row, Examples
-@subsection Maximum of Column per Group
-
-``What's the highest price per article?''
-
-@example
-SELECT article, MAX(price) AS price
-FROM   shop
-GROUP BY article
-
-+---------+-------+
-| article | price |
-+---------+-------+
-|    0001 |  3.99 |
-|    0002 | 10.99 |
-|    0003 |  1.69 |
-|    0004 | 19.95 |
-+---------+-------+
-@end example
-
-@node example-Maximum-column-group-row, example-user-variables, example-Maximum-column-group, Examples
-@subsection The Rows Holding the Group-wise Maximum of a Certain Field
-
-``For each article, find the dealer(s) with the most expensive price.''
-
-In ANSI SQL, I'd do it with a sub-query like this:
-
-@example
-SELECT article, dealer, price
-FROM   shop s1
-WHERE  price=(SELECT MAX(s2.price)
-              FROM shop s2
-              WHERE s1.article = s2.article);
-@end example
-
-In @strong{MySQL} it's best do it in several steps:
-
-@enumerate
-@item
-Get the list of (article,maxprice).
-@item
-For each article get the corresponding rows that have the stored maximum
-price.
-@end enumerate
-
-This can easily be done with a temporary table:
-
-@example
-CREATE TEMPORARY TABLE tmp (
-        article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
-        price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL);
-
-LOCK TABLES shop read;
-
-INSERT INTO tmp SELECT article, MAX(price) FROM shop GROUP BY article;
-
-SELECT shop.article, dealer, shop.price FROM shop, tmp
-WHERE shop.article=tmp.article AND shop.price=tmp.price;
-
-UNLOCK TABLES;
-
-DROP TABLE tmp;
-@end example
-
-If you don't use a @code{TEMPORARY} table, you must also lock the 'tmp' table.
-
-``Can it be done with a single query?''
-
-Yes, but only by using a quite inefficient trick that I call the
-``MAX-CONCAT trick'':
-
-@example
-SELECT article,
-       SUBSTRING( MAX( CONCAT(LPAD(price,6,'0'),dealer) ), 7) AS dealer,
-  0.00+LEFT(      MAX( CONCAT(LPAD(price,6,'0'),dealer) ), 6) AS price
-FROM   shop
-GROUP BY article;
-
-+---------+--------+-------+
-| article | dealer | price |
-+---------+--------+-------+
-|    0001 | B      |  3.99 |
-|    0002 | A      | 10.99 |
-|    0003 | C      |  1.69 |
-|    0004 | D      | 19.95 |
-+---------+--------+-------+
-@end example
-
-The last example can, of course, be made a bit more efficient by doing the
-splitting of the concatenated column in the client.
-
-@node example-user-variables, example-Foreign keys, example-Maximum-column-group-row, Examples
-@subsection Using user variables
-
-You can use @strong{MySQL} user variables to remember results without
-having to store them in a temporary variables in the client.
-@xref{Variables}.
-
-For example, to find the articles with the highest and lowest price you
-can do:
-
-@example
-select @@min_price:=min(price),@@max_price:=max(price) from shop;
-select * from shop where price=@@min_price or price=@@max_price;
-
-+---------+--------+-------+
-| article | dealer | price |
-+---------+--------+-------+
-|    0003 | D      |  1.25 |
-|    0004 | D      | 19.95 |
-+---------+--------+-------+
-@end example
-
-@cindex foreign keys
-@cindex keys, foreign
-@node example-Foreign keys,  , example-user-variables, Examples
-@subsection Using Foreign Keys
-
-You don't need foreign keys to join 2 tables.
-
-The only thing @strong{MySQL} doesn't do is @code{CHECK} to make sure that
-the keys you use really exist in the table(s) you're referencing and it
-doesn't automatically delete rows from table with a foreign key
-definition. If you use your keys like normal, it'll work just fine:
-
-
-@example
-CREATE TABLE persons (
-    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    name CHAR(60) NOT NULL,
-    PRIMARY KEY (id)
-);
-
-CREATE TABLE shirts (
-    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    style ENUM('t-shirt', 'polo', 'dress') NOT NULL,
-    color ENUM('red', 'blue', 'orange', 'white', 'black') NOT NULL,
-    owner SMALLINT UNSIGNED NOT NULL REFERENCES persons,
-    PRIMARY KEY (id)
-);
-
-
-INSERT INTO persons VALUES (NULL, 'Antonio Paz');
-
-INSERT INTO shirts VALUES
-(NULL, 'polo', 'blue', LAST_INSERT_ID()),
-(NULL, 'dress', 'white', LAST_INSERT_ID()),
-(NULL, 't-shirt', 'blue', LAST_INSERT_ID());
-
-
-INSERT INTO persons VALUES (NULL, 'Lilliana Angelovska');
-
-INSERT INTO shirts VALUES
-(NULL, 'dress', 'orange', LAST_INSERT_ID()),
-(NULL, 'polo', 'red', LAST_INSERT_ID()),
-(NULL, 'dress', 'blue', LAST_INSERT_ID()),
-(NULL, 't-shirt', 'white', LAST_INSERT_ID());
-
-
-SELECT * FROM persons;
-+----+---------------------+
-| id | name                |
-+----+---------------------+
-|  1 | Antonio Paz         |
-|  2 | Lilliana Angelovska |
-+----+---------------------+
-
-SELECT * FROM shirts;
-+----+---------+--------+-------+
-| id | style   | color  | owner |
-+----+---------+--------+-------+
-|  1 | polo    | blue   |     1 |
-|  2 | dress   | white  |     1 |
-|  3 | t-shirt | blue   |     1 |
-|  4 | dress   | orange |     2 |
-|  5 | polo    | red    |     2 |
-|  6 | dress   | blue   |     2 |
-|  7 | t-shirt | white  |     2 |
-+----+---------+--------+-------+
-
-
-SELECT s.* FROM persons p, shirts s
- WHERE p.name LIKE 'Lilliana%'
-   AND s.owner = p.id
-   AND s.color <> 'white';
-
-+----+-------+--------+-------+
-| id | style | color  | owner |
-+----+-------+--------+-------+
-|  4 | dress | orange |     2 |
-|  5 | polo  | red    |     2 |
-|  6 | dress | blue   |     2 |
-+----+-------+--------+-------+
-@end example
-
-@findex UNION
-@cindex searching, two keys
-@cindex keys, searching on two
-@node Searching on two keys, Database use, Examples, Tutorial
-@section Searching on Two Keys
-
-@strong{MySQL} doesn't yet optimize when you search on two different
-keys combined with @code{OR} (Searching on one key with different @code{OR}
-parts is optimized quite good):
-
-@example
-SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1'
-OR  field2_index = '1'
-@end example
-
-The reason is that we haven't yet had time to come up with an efficient
-way to handle this in the general case. (The @code{AND} handling is,
-in comparison, now completely general and works very well).
-
-For the moment you can solve this very efficiently by using a
-@code{TEMPORARY} table. This type of optimization is also very good if
-you are using very complicated queries where the SQL server does the
-optimizations in the wrong order.
-
-@example
-CREATE TEMPORARY TABLE tmp
-SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1';
-INSERT INTO tmp
-SELECT field1_index, field2_index FROM test_table WHERE field2_index = '1';
-SELECT * from tmp;
-DROP TABLE tmp;
-@end example
-
-The above way to solve this query is in effect an @code{UNION} of two queries.
-
 @cindex databases, creating
 @cindex databases, using
 @cindex creating, databases
-@node Database use, Getting information, Searching on two keys, Tutorial
+@node Database use, Getting information, Entering queries, Tutorial
 @section Creating and Using a Database
 
 @menu
@@ -25103,7 +24785,6 @@ The above way to solve this query is in effect an @code{UNION} of two queries.
 * Creating tables::             Creating a table
 * Loading tables::              Loading data into a table
 * Retrieving data::             Retrieving information from a table
-* Multiple tables::             Using more than one table
 @end menu
 
 Now that you know how to enter commands, it's time to access a database.
@@ -25406,7 +25087,7 @@ than a single @code{LOAD DATA} statement.
 @cindex tables, retrieving data
 @cindex retrieving, data from tables
 @cindex unloading, tables
-@node Retrieving data, Multiple tables, Loading tables, Database use
+@node Retrieving data,  , Loading tables, Database use
 @subsection Retrieving Information from a Table
 
 @menu
@@ -25418,6 +25099,7 @@ than a single @code{LOAD DATA} statement.
 * Working with NULL::           Working with @code{NULL} values
 * Pattern matching::            Pattern matching
 * Counting rows::               Counting rows
+* Multiple tables::             
 @end menu
 
 The @code{SELECT} statement is used to pull information from a table.
@@ -26140,7 +25822,7 @@ mysql> SELECT * FROM pet WHERE name REGEXP "^.@{5@}$";
 @cindex rows, counting
 @cindex tables, counting rows
 @cindex counting, table rows
-@node Counting rows,  , Pattern matching, Retrieving data
+@node Counting rows, Multiple tables, Pattern matching, Retrieving data
 @subsubsection Counting Rows
 
 Databases are often used to answer the question, ``How often does a certain
@@ -26276,8 +25958,8 @@ mysql> SELECT species, sex, COUNT(*) FROM pet
 @end example
 
 @cindex tables, multiple
-@node Multiple tables,  , Retrieving data, Database use
-@subsection Using More Than one Table
+@node Multiple tables,  , Counting rows, Retrieving data
+@subsubsection Using More Than one Table
 
 The @code{pet} table keeps track of which pets you have.  If you want to
 record other information about them, such as events in their lives like
@@ -26398,7 +26080,7 @@ each column reference is associated with.
 @cindex databases, information about
 @cindex tables, information about
 @findex DESCRIBE
-@node Getting information, Batch mode, Database use, Tutorial
+@node Getting information, Examples, Database use, Tutorial
 @section Getting Information About Databases and Tables
 
 What if you forget the name of a database or table, or what the structure of
@@ -26459,12 +26141,361 @@ indexed, and @code{Default} specifies the column's default value.
 If you have indexes on a table,
 @code{SHOW INDEX FROM tbl_name} produces information about them.
 
+@cindex queries, examples
+@cindex examples, queries
+@node Examples, Batch mode, Getting information, Tutorial
+@section Examples of Common Queries
+
+Here are examples of how to solve some common problems with
+@strong{MySQL}.
+
+Some of the examples use the table @code{shop} to hold the price of each
+article (item number) for certain traders (dealers).  Supposing that each
+trader has a single fixed price per article, then (@code{item},
+@code{trader}) is a primary key for the records.
+
+Start the command line tool @code{mysql} and select a database:
+
+@example
+mysql your-database-name
+@end example
+
+(In most @strong{MySQL} installations, you can use the database-name 'test').
+
+You can create the example table as:
+
+@example
+CREATE TABLE shop (
+ article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
+ dealer  CHAR(20)                 DEFAULT ''     NOT NULL,
+ price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL,
+ PRIMARY KEY(article, dealer));
+
+INSERT INTO shop VALUES
+(1,'A',3.45),(1,'B',3.99),(2,'A',10.99),(3,'B',1.45),(3,'C',1.69),
+(3,'D',1.25),(4,'D',19.95);
+@end example
+
+Okay, so the example data is:
+
+@example
+mysql> SELECT * FROM shop;
+
++---------+--------+-------+
+| article | dealer | price |
++---------+--------+-------+
+|    0001 | A      |  3.45 |
+|    0001 | B      |  3.99 |
+|    0002 | A      | 10.99 |
+|    0003 | B      |  1.45 |
+|    0003 | C      |  1.69 |
+|    0003 | D      |  1.25 |
+|    0004 | D      | 19.95 |
++---------+--------+-------+
+@end example
+
+@menu
+* example-Maximum-column::      The maximum value for a column
+* example-Maximum-row::         The row holding the maximum of a certain column
+* example-Maximum-column-group::  Maximum of column per group
+* example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
+* example-user-variables::      Using user variables
+* example-Foreign keys::        Using foreign keys
+* Searching on two keys::       
+@end menu
+
+@node example-Maximum-column, example-Maximum-row, Examples, Examples
+@subsection The Maximum Value for a Column
+
+``What's the highest item number?''
+
+@example
+SELECT MAX(article) AS article FROM shop
+
++---------+
+| article |
++---------+
+|       4 |
++---------+
+@end example
+
+@node example-Maximum-row, example-Maximum-column-group, example-Maximum-column, Examples
+@subsection The Row Holding the Maximum of a Certain Column
+
+``Find number, dealer, and price of the most expensive article.''
+
+In ANSI SQL this is easily done with a sub-query:
+
+@example
+SELECT article, dealer, price
+FROM   shop
+WHERE  price=(SELECT MAX(price) FROM shop)
+@end example
+
+In @strong{MySQL} (which does not yet have sub-selects), just do it in
+two steps:
+
+@enumerate
+@item
+Get the maximum price value from the table with a @code{SELECT} statement.
+@item
+Using this value compile the actual query:
+@example
+SELECT article, dealer, price
+FROM   shop
+WHERE  price=19.95
+@end example
+@end enumerate
+
+Another solution is to sort all rows descending by price and only
+get the first row using the @strong{MySQL} specific @code{LIMIT} clause:
+
+@example
+SELECT article, dealer, price
+FROM   shop
+ORDER BY price DESC
+LIMIT 1
+@end example
+
+@strong{NOTE}:  If there are several most expensive articles (for example, each 19.95)
+the @code{LIMIT} solution shows only one of them!
+
+@node example-Maximum-column-group, example-Maximum-column-group-row, example-Maximum-row, Examples
+@subsection Maximum of Column per Group
+
+``What's the highest price per article?''
+
+@example
+SELECT article, MAX(price) AS price
+FROM   shop
+GROUP BY article
+
++---------+-------+
+| article | price |
++---------+-------+
+|    0001 |  3.99 |
+|    0002 | 10.99 |
+|    0003 |  1.69 |
+|    0004 | 19.95 |
++---------+-------+
+@end example
+
+@node example-Maximum-column-group-row, example-user-variables, example-Maximum-column-group, Examples
+@subsection The Rows Holding the Group-wise Maximum of a Certain Field
+
+``For each article, find the dealer(s) with the most expensive price.''
+
+In ANSI SQL, I'd do it with a sub-query like this:
+
+@example
+SELECT article, dealer, price
+FROM   shop s1
+WHERE  price=(SELECT MAX(s2.price)
+              FROM shop s2
+              WHERE s1.article = s2.article);
+@end example
+
+In @strong{MySQL} it's best do it in several steps:
+
+@enumerate
+@item
+Get the list of (article,maxprice).
+@item
+For each article get the corresponding rows that have the stored maximum
+price.
+@end enumerate
+
+This can easily be done with a temporary table:
+
+@example
+CREATE TEMPORARY TABLE tmp (
+        article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
+        price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL);
+
+LOCK TABLES shop read;
+
+INSERT INTO tmp SELECT article, MAX(price) FROM shop GROUP BY article;
+
+SELECT shop.article, dealer, shop.price FROM shop, tmp
+WHERE shop.article=tmp.article AND shop.price=tmp.price;
+
+UNLOCK TABLES;
+
+DROP TABLE tmp;
+@end example
+
+If you don't use a @code{TEMPORARY} table, you must also lock the 'tmp' table.
+
+``Can it be done with a single query?''
+
+Yes, but only by using a quite inefficient trick that I call the
+``MAX-CONCAT trick'':
+
+@example
+SELECT article,
+       SUBSTRING( MAX( CONCAT(LPAD(price,6,'0'),dealer) ), 7) AS dealer,
+  0.00+LEFT(      MAX( CONCAT(LPAD(price,6,'0'),dealer) ), 6) AS price
+FROM   shop
+GROUP BY article;
+
++---------+--------+-------+
+| article | dealer | price |
++---------+--------+-------+
+|    0001 | B      |  3.99 |
+|    0002 | A      | 10.99 |
+|    0003 | C      |  1.69 |
+|    0004 | D      | 19.95 |
++---------+--------+-------+
+@end example
+
+The last example can, of course, be made a bit more efficient by doing the
+splitting of the concatenated column in the client.
+
+@node example-user-variables, example-Foreign keys, example-Maximum-column-group-row, Examples
+@subsection Using user variables
+
+You can use @strong{MySQL} user variables to remember results without
+having to store them in a temporary variables in the client.
+@xref{Variables}.
+
+For example, to find the articles with the highest and lowest price you
+can do:
+
+@example
+select @@min_price:=min(price),@@max_price:=max(price) from shop;
+select * from shop where price=@@min_price or price=@@max_price;
+
++---------+--------+-------+
+| article | dealer | price |
++---------+--------+-------+
+|    0003 | D      |  1.25 |
+|    0004 | D      | 19.95 |
++---------+--------+-------+
+@end example
+
+@cindex foreign keys
+@cindex keys, foreign
+@node example-Foreign keys, Searching on two keys, example-user-variables, Examples
+@subsection Using Foreign Keys
+
+You don't need foreign keys to join 2 tables.
+
+The only thing @strong{MySQL} doesn't do is @code{CHECK} to make sure that
+the keys you use really exist in the table(s) you're referencing and it
+doesn't automatically delete rows from table with a foreign key
+definition. If you use your keys like normal, it'll work just fine:
+
+
+@example
+CREATE TABLE persons (
+    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name CHAR(60) NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE shirts (
+    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    style ENUM('t-shirt', 'polo', 'dress') NOT NULL,
+    color ENUM('red', 'blue', 'orange', 'white', 'black') NOT NULL,
+    owner SMALLINT UNSIGNED NOT NULL REFERENCES persons,
+    PRIMARY KEY (id)
+);
+
+
+INSERT INTO persons VALUES (NULL, 'Antonio Paz');
+
+INSERT INTO shirts VALUES
+(NULL, 'polo', 'blue', LAST_INSERT_ID()),
+(NULL, 'dress', 'white', LAST_INSERT_ID()),
+(NULL, 't-shirt', 'blue', LAST_INSERT_ID());
+
+
+INSERT INTO persons VALUES (NULL, 'Lilliana Angelovska');
+
+INSERT INTO shirts VALUES
+(NULL, 'dress', 'orange', LAST_INSERT_ID()),
+(NULL, 'polo', 'red', LAST_INSERT_ID()),
+(NULL, 'dress', 'blue', LAST_INSERT_ID()),
+(NULL, 't-shirt', 'white', LAST_INSERT_ID());
+
+
+SELECT * FROM persons;
++----+---------------------+
+| id | name                |
++----+---------------------+
+|  1 | Antonio Paz         |
+|  2 | Lilliana Angelovska |
++----+---------------------+
+
+SELECT * FROM shirts;
++----+---------+--------+-------+
+| id | style   | color  | owner |
++----+---------+--------+-------+
+|  1 | polo    | blue   |     1 |
+|  2 | dress   | white  |     1 |
+|  3 | t-shirt | blue   |     1 |
+|  4 | dress   | orange |     2 |
+|  5 | polo    | red    |     2 |
+|  6 | dress   | blue   |     2 |
+|  7 | t-shirt | white  |     2 |
++----+---------+--------+-------+
+
+
+SELECT s.* FROM persons p, shirts s
+ WHERE p.name LIKE 'Lilliana%'
+   AND s.owner = p.id
+   AND s.color <> 'white';
+
++----+-------+--------+-------+
+| id | style | color  | owner |
++----+-------+--------+-------+
+|  4 | dress | orange |     2 |
+|  5 | polo  | red    |     2 |
+|  6 | dress | blue   |     2 |
++----+-------+--------+-------+
+@end example
+
+@findex UNION
+@cindex searching, two keys
+@cindex keys, searching on two
+@node Searching on two keys,  , example-Foreign keys, Examples
+@subsection Searching on Two Keys
+
+@strong{MySQL} doesn't yet optimize when you search on two different
+keys combined with @code{OR} (Searching on one key with different @code{OR}
+parts is optimized quite good):
+
+@example
+SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1'
+OR  field2_index = '1'
+@end example
+
+The reason is that we haven't yet had time to come up with an efficient
+way to handle this in the general case. (The @code{AND} handling is,
+in comparison, now completely general and works very well).
+
+For the moment you can solve this very efficiently by using a
+@code{TEMPORARY} table. This type of optimization is also very good if
+you are using very complicated queries where the SQL server does the
+optimizations in the wrong order.
+
+@example
+CREATE TEMPORARY TABLE tmp
+SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1';
+INSERT INTO tmp
+SELECT field1_index, field2_index FROM test_table WHERE field2_index = '1';
+SELECT * from tmp;
+DROP TABLE tmp;
+@end example
+
+The above way to solve this query is in effect an @code{UNION} of two queries.
+
 @cindex modes, batch
 @cindex batch mode
 @cindex running, batch mode
 @cindex script files
 @cindex files, script
-@node Batch mode, Twin, Getting information, Tutorial
+@node Batch mode, Twin, Examples, Tutorial
 @section Using @code{mysql} in Batch Mode
 
 In the previous sections, you used @code{mysql} interactively to enter
@@ -28460,7 +28491,7 @@ other operating systems and workloads.
 You get the fastest executable when you link with @code{-static}.
 
 On Linux, you will get the fastest code when compiling with @code{pgcc}
-and @code{-O6}. To compile @file{sql_yacc.cc} with these options, you
+and @code{-O3}. To compile @file{sql_yacc.cc} with these options, you
 need about 200M memory because @code{gcc/pgcc} needs a lot of memory to
 make all functions inline. You should also set @code{CXX=gcc} when
 configuring @strong{MySQL} to avoid inclusion of the @code{libstdc++}
@@ -30444,6 +30475,7 @@ We can find the result from crash-me on a lot of different databases at
 
 @menu
 * Programs::                    What do the executables do?
+* mysqld-max::                  
 * safe_mysqld::                 safe_mysqld, the wrapper around mysqld
 * mysqld_multi::                Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
@@ -30462,7 +30494,7 @@ to use it, and what you should use it for.
 
 @cindex environment variables
 @cindex programs, list of
-@node Programs, safe_mysqld, Tools, Tools
+@node Programs, mysqld-max, Tools, Tools
 @section Overview of the Different MySQL Programs
 
 All @strong{MySQL} clients that communicate with the server using the
@@ -30585,16 +30617,49 @@ shell> replace a b b a -- file1 file2 ...
 @end example
 @end table
 
+@cindex @code{mysqld-max}
+@node mysqld-max, safe_mysqld, Programs, Tools
+@section mysqld-max, An extended mysqld server
+
+@code{mysqld-max} is the MySQL server (@code{mysqld}) configured with
+the following configure options:
+
+@multitable @columnfractions .3 .7
+@item @strong{Option} @tab @strong{Comment}
+@item --with-server-suffix=-max @tab Add a suffix to the @code{mysqld} version string.
+@item --with-bdb @tab Support for Berkeley DB (BDB) tables
+@item --with-innodb @tab Support for InnoDB tables.
+@item CFLAGS=-DUSE_SYMDIR @tab Symbolic links support for Windows.
+@end multitable
+
+@code{safe_mysqld} will automaticly try to start any @code{mysqld} binary
+with the @code{-max} prefix. This makes it very easy to test out a
+another @code{mysqld} binary in an existing installation.  Just
+run @code{configure} with the options you want and then install the
+new @code{mysqld} binary as @code{mysqld-max} in the same directory
+where your old @code{mysqld} binary is. @xref{safe_mysqld}.
+
+The @code{mysqld-max} RPM uses this @code{safe_mysqld} feature. It just
+installs the @code{mysqld-max} executable and @code{safe_mysqld} will
+automaticly use this when @code{mysqld} is restarted.
+
 @cindex tools, safe_mysqld
 @cindex scripts
 @cindex @code{safe_mysqld}
-@node safe_mysqld, mysqld_multi, Programs, Tools
+@node safe_mysqld, mysqld_multi, mysqld-max, Tools
 @section safe_mysqld, the wrapper around mysqld
 
 @code{safe_mysqld} is the recommended way to start a @code{mysqld}
 daemon on Unix.  @code{safe_mysqld} adds some safety features such as
 restarting the server when an error occurs and logging run-time
 information to a log file.
+
+If you don't use @code{--mysqld=#} or @code{--mysqld-version=#}
+@code{safe_mysqld} will use an executable named @code{mysqld-max} if it
+exists. If not, @code{safe_mysqld} will start @code{mysqld}.
+This makes it very easy to test to use @code{mysqld-max} instead of
+@code{mysqld};  Just copy @code{mysqld-max} to where you have
+@code{mysqld} and it will be used.
 
 Normally one should never edit the @code{safe_mysqld} script, but
 instead put the options to @code{safe_mysqld} in the
@@ -30625,6 +30690,11 @@ Path to @code{mysqld}
 @item --log=path
 @item --mysqld=mysqld-version
 Name of the mysqld version in the @code{ledir} directory you want to start.
+@item --mysqld-version=version
+Similar to @code{--mysqld=} but here you only give the suffix for mysqld.
+For example if you use @code{--mysqld-version=max}, @code{safe_mysqld} will
+start the @code{ledir/mysqld-max} version.  If the argument to
+@code{--mysqld-version} is empty, @code{ledir/mysqld} will be used.
 @item --no-defaults
 @item --open-files-limit=#
 Number of files @code{mysqld} should be able to open. Passed to @code{ulimit -n}. Note that you need to start @code{safe_mysqld} as root for this to work properly!
@@ -41189,6 +41259,10 @@ An online magazine featuring music, literature, arts, and design content.
 
 @itemize @bullet
 
+@item @uref{http://liftoff.msfc.nasa.gov, NASA}
+@item @uref{http://kids.msfc.nasa.gov, NASA KIDS}
+@item @uref{http://science.nasa.gov, Sience@@NASA}
+
 @item @uref{http://lindev.jmc.tju.edu/qwor, Qt Widget and Object Repository}
 
 @item @uref{http://www.samba-choro.com.br, Brazilian samba site (in Portuguese)}
@@ -42057,6 +42131,10 @@ An authentication module for the Cyrus IMAP server. By Aaron Newsome.
 @appendixsec Converters
 
 @itemize @bullet
+item @uref{http://www.mysql.com/Downloads/Contrib/mssql2mysql.txt, mssql2mysql.txt}
+Converter from MS-SQL to MySQL. By Michael Kofler.
+@uref{http://www.kofler.cc/mysql/mssql2mysql.html, mssql2mysql home page}.
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/dbf2mysql-1.14.tar.gz, dbf2mysql-1.14.tar.gz}
 Convert between @file{.dbf} files and @strong{MySQL} tables. By Maarten
 Boekhold (@email{boekhold@@cindy.et.tudelft.nl}), William Volkman, and
@@ -42860,10 +42938,13 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.37
 @itemize @bullet
 @item
+Added @code{--mysql-version} to @code{safe_mysqld}
+@item
 Changed @code{INNOBASE} to @code{INNODB} (because the @code{INNOBASE}
-name was already used). Note that all @code{configure} options and
-@code{mysqld} start options are now using @code{innodb} instead of
-@code{innobase}.
+name was already used). All @code{configure} options and @code{mysqld}
+start options are now using @code{innodb} instead of @code{innobase}. This
+means that you have to change any configuration files where you have used
+@code{innobase} options before upgrading to this version!
 @item
 Fixed bug when using indexes on @code{CHAR(255) NULL} columns.
 @item
@@ -48587,7 +48668,7 @@ lists the @code{mysqld} version as @code{mysql ... -debug} in this case.
 If you are using gcc or egcs, the recommended configure line is:
 
 @example
-CC=gcc CFLAGS="-O6" CXX=gcc CXXFLAGS="-O6 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-debug --with-extra-charsets=complex
+CC=gcc CFLAGS="-O2" CXX=gcc CXXFLAGS="-O2 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-debug --with-extra-charsets=complex
 @end example
 
 This will avoid problems with the @code{libstdc++} library and with C++
