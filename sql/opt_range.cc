@@ -646,6 +646,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 {
   index= key_nr;
   head=  table;
+  key_part_info= head->key_info[index].key_part;
   my_init_dynamic_array(&ranges, sizeof(QUICK_RANGE*), 16, 16);
 
   if (!no_alloc && !parent_alloc)
@@ -662,8 +663,8 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 
 int QUICK_RANGE_SELECT::init()
 {
-  key_part_info= head->key_info[index].key_part;
-  return (error= file->index_init(index));
+  DBUG_ENTER("QUICK_RANGE_SELECT::init");
+  DBUG_RETURN(error= file->index_init(index));
 }
 
 QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()

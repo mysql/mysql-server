@@ -10450,6 +10450,7 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   else
   {
     thd->lex->current_select= first;
+    unit->set_limit(unit->global_parameters, first);
     res= mysql_select(thd, &first->ref_pointer_array,
 			(TABLE_LIST*) first->table_list.first,
 			first->with_wild, first->item_list,
