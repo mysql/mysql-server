@@ -656,7 +656,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     }
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
-      statistic_increment(ha_rollback_count,&LOCK_status);
+      statistic_increment(thd->status_var.ha_rollback_count,&LOCK_status);
     thd->proc_info= save_proc_info;
   }
 #endif /* USING_TRANSACTIONS */
