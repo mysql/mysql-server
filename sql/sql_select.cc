@@ -8159,25 +8159,27 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       if (!using_unique_constraint)
       {
 	group->buff=(char*) group_buff;
-	if (!(group->field=field->new_key_field(thd->mem_root,table)))
+	if (!(group->field= field->new_key_field(thd->mem_root,table,
+                                                 (char*) group_buff +
+                                                 test(maybe_null),
+                                                 field->null_ptr,
+                                                 field->null_bit)))
 	  goto err; /* purecov: inspected */
 	if (maybe_null)
 	{
 	  /*
-	    To be able to group on NULL, we reserve place in group_buff
-	    for the NULL flag just before the column.
+	    To be able to group on NULL, we reserved place in group_buff
+	    for the NULL flag just before the column. (see above).
 	    The field data is after this flag.
-	    The NULL flag is updated by 'end_update()' and 'end_write()'
+	    The NULL flag is updated in 'end_update()' and 'end_write()'
 	  */
 	  keyinfo->flags|= HA_NULL_ARE_EQUAL;	// def. that NULL == NULL
 	  key_part_info->null_bit=field->null_bit;
 	  key_part_info->null_offset= (uint) (field->null_ptr -
 					      (uchar*) table->record[0]);
-	  group->field->move_field((char*) ++group->buff);
-	  group_buff++;
+          group->buff++;                        // Pointer to field data
+	  group_buff++;                         // Skipp null flag
 	}
-	else
-	  group->field->move_field((char*) group_buff);
         /* In GROUP BY 'a' and 'a ' are equal for VARCHAR fields */
         key_part_info->key_part_flag|= HA_END_SPACE_ARE_EQUAL;
 	group_buff+= group->field->pack_length();
