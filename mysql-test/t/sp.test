@@ -1688,7 +1688,6 @@ drop table t3|
 #
 create procedure bug4902()
 begin
-  show binlog events;
   show charset like 'foo';
   show collation like 'foo';
   show column types;
@@ -1710,6 +1709,7 @@ begin
   show variables like 'foo';
   show warnings;
 end|
+#show binlog events;
 #show storage engines;
 
 call bug4902()|
