@@ -95,6 +95,7 @@ void Item_row::split_sum_func(THD *thd, Item **ref_pointer_array,
     else if ((*arg)->used_tables() || (*arg)->type() == SUM_FUNC_ITEM)
     {
       uint el= fields.elements;
+      ref_pointer_array[el]=*arg;
       Item *new_item= new Item_ref(ref_pointer_array + el, 0, (*arg)->name);
       fields.push_front(*arg);
       ref_pointer_array[el]= *arg;
