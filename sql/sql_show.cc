@@ -3191,9 +3191,10 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
     views
     working correctly
   */
-  table->alias_name_used= my_strcasecmp(table_alias_charset,
-                                        table_list->schema_table_name,
-                                        table_list->alias);
+  if (table_list->schema_table_name)
+    table->alias_name_used= my_strcasecmp(table_alias_charset,
+                                          table_list->schema_table_name,
+                                          table_list->alias);
   table_list->table_name= (char*) table->s->table_name;
   table_list->table= table;
   table->next= thd->derived_tables;
