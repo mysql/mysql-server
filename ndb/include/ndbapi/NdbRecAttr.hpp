@@ -39,8 +39,7 @@ class NdbOperation;
  *   ndbout << MyRecAttr->u_32_value();
  * @endcode
  * For more examples, see 
- * @ref ndbapi_example1.cpp and 
- * @ref ndbapi_example2.cpp.
+ * @ref ndbapi_example1.cpp.
  *
  * @note The NdbRecAttr object is instantiated with its value when 
  *       NdbTransaction::execute is called.  Before this, the value is 
