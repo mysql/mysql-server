@@ -41,6 +41,7 @@
 static const int parallelism= 240;
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
+#define NDB_ERR_CODE_OFFSET 30000
 
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("Error: %d  message: %s", err.code, err.message))
@@ -62,6 +63,8 @@ bool ndbcluster_inited= false;
 #ifdef USE_EXTRA_ORDERED_INDEX
 static const char* unique_suffix= "$unique";
 #endif
+
+static Ndb* g_ndb= NULL;
 
 // Handler synchronization
 pthread_mutex_t ndbcluster_mutex;
@@ -96,6 +99,20 @@ static const err_code_mapping err_map[]=
   { 721, HA_ERR_TABLE_EXIST },
   { 4244, HA_ERR_TABLE_EXIST },
   { 241, HA_ERR_OLD_METADATA },
+
+  { 266, HA_ERR_LOCK_WAIT_TIMEOUT },
+  { 274, HA_ERR_LOCK_WAIT_TIMEOUT },
+  { 296, HA_ERR_LOCK_WAIT_TIMEOUT },
+  { 297, HA_ERR_LOCK_WAIT_TIMEOUT },
+  { 237, HA_ERR_LOCK_WAIT_TIMEOUT },
+
+  { 623, HA_ERR_RECORD_FILE_FULL },
+  { 624, HA_ERR_RECORD_FILE_FULL },
+  { 625, HA_ERR_RECORD_FILE_FULL },
+  { 826, HA_ERR_RECORD_FILE_FULL },
+  { 827, HA_ERR_RECORD_FILE_FULL },
+  { 832, HA_ERR_RECORD_FILE_FULL },
+
   { -1, -1 }
 };
 
@@ -106,7 +123,7 @@ static int ndb_to_mysql_error(const NdbError *err)
   for (i=0 ; err_map[i].ndb_err != err->code ; i++)
   {
     if (err_map[i].my_err == -1)
-      return err->code;
+      return err->code+NDB_ERR_CODE_OFFSET;
   }
   return err_map[i].my_err;
 }
@@ -140,6 +157,31 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
     break;
   }
   DBUG_RETURN(ndb_to_mysql_error(&err));
+}
+
+
+/*
+  Override the default print_error in order to add the 
+  error message of NDB 
+ */
+
+void ha_ndbcluster::print_error(int error, myf errflag)
+{
+  DBUG_ENTER("ha_ndbcluster::print_error");
+  DBUG_PRINT("enter", ("error: %d, errflag: %d", error, errflag));
+
+  if (error >= NDB_ERR_CODE_OFFSET)
+  {
+    error-= NDB_ERR_CODE_OFFSET;
+    const NdbError err= g_ndb->getNdbError(error);
+    int textno= (err.status==NdbError::TemporaryError) ?
+      ER_NDB_TEMPORARY_ERROR : ER_NDB_ERROR;
+    my_error(textno,MYF(0),error,err.message);
+    DBUG_VOID_RETURN;
+  }
+    
+  handler::print_error(error, errflag);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -418,11 +460,10 @@ void ha_ndbcluster::release_metadata()
   DBUG_VOID_RETURN;
 }
 
-
-inline int ha_ndbcluster::get_ndb_lock_type()
+NdbCursorOperation::LockMode get_ndb_lock_type(enum thr_lock_type type)
 {
-  return (int)((m_lock.type == TL_WRITE_ALLOW_WRITE) ? 
-	       NdbCursorOperation::LM_Exclusive : NdbCursorOperation::LM_Read);
+  return (type == TL_WRITE_ALLOW_WRITE) ? 
+    NdbCursorOperation::LM_Exclusive : NdbCursorOperation::LM_Read;
 }
 
 static const ulong index_type_flags[]=
@@ -804,9 +845,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   index_name= get_index_name(active_index);
   if (!(op= trans->getNdbScanOperation(index_name, m_tabname)))
     ERR_RETURN(trans->getNdbError());
-  if (!(cursor= 
-	op->readTuples(parallelism, 
-		       (NdbCursorOperation::LockMode)get_ndb_lock_type())))
+  if (!(cursor= op->readTuples(parallelism, get_ndb_lock_type(m_lock.type))))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= cursor;
 
@@ -822,47 +861,15 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   if (end_key)
   {
     if (start_key && start_key->flag == HA_READ_KEY_EXACT)
+    {
       DBUG_PRINT("info", ("start_key is HA_READ_KEY_EXACT ignoring end_key"));
+    }
     else if (set_bounds(op, end_key, 
 			(end_key->flag == HA_READ_AFTER_KEY) ? 
 			NdbOperation::BoundGE : 
 			NdbOperation::BoundGT))
       DBUG_RETURN(1);    
   }
-  // Define attributes to read
-  for (i= 0; i < no_fields; i++) 
-  {
-    Field *field= table->field[i];
-    if ((thd->query_id == field->query_id) ||
-	(field->flags & PRI_KEY_FLAG) || 
-	retrieve_all_fields)
-    {      
-      if (get_ndb_value(op, i, field->ptr))
-	ERR_RETURN(op->getNdbError());
-    } 
-    else 
-    {
-      m_value[i]= NULL;
-    }
-  }
-    
-  if (table->primary_key == MAX_KEY) 
-  {
-    DBUG_PRINT("info", ("Getting hidden key"));
-    // Scanning table with no primary key
-    int hidden_no= no_fields;      
-#ifndef DBUG_OFF
-    const NDBTAB *tab= (NDBTAB *) m_table;    
-    if (!tab->getColumn(hidden_no))
-      DBUG_RETURN(1);
-#endif
-    if (get_ndb_value(op, hidden_no, NULL))
-      ERR_RETURN(op->getNdbError());
-  }
-
-  if (trans->execute(NoCommit) != 0)
-    DBUG_RETURN(ndb_err(trans));
-  DBUG_PRINT("exit", ("Scan started successfully"));
   DBUG_RETURN(define_read_attrs(buf, op));
 } 
 
@@ -898,9 +905,7 @@ int ha_ndbcluster::filtered_scan(const byte *key, uint key_len,
 
   if (!(op= trans->getNdbScanOperation(m_tabname)))
     ERR_RETURN(trans->getNdbError());
-  if (!(cursor= 
-	op->readTuples(parallelism, 
-		       (NdbCursorOperation::LockMode)get_ndb_lock_type())))
+  if (!(cursor= op->readTuples(parallelism, get_ndb_lock_type(m_lock.type))))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= cursor;
 
@@ -969,9 +974,7 @@ int ha_ndbcluster::full_table_scan(byte *buf)
 
   if (!(op=trans->getNdbScanOperation(m_tabname)))
     ERR_RETURN(trans->getNdbError());  
-  if (!(cursor= 
-	op->readTuples(parallelism, 
-		       (NdbCursorOperation::LockMode)get_ndb_lock_type())))
+  if (!(cursor= op->readTuples(parallelism, get_ndb_lock_type(m_lock.type))))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= cursor;
   DBUG_RETURN(define_read_attrs(buf, op));
@@ -1475,7 +1478,7 @@ int ha_ndbcluster::index_init(uint index)
 int ha_ndbcluster::index_end()
 {
   DBUG_ENTER("index_end");
-  DBUG_RETURN(rnd_end());
+  DBUG_RETURN(close_scan());
 }
 
 
@@ -1491,6 +1494,9 @@ int ha_ndbcluster::index_read(byte *buf,
   int error= 1;
   statistic_increment(ha_read_key_count, &LOCK_status);
 
+  if (m_active_cursor)
+    close_scan();
+    
   switch (get_index_type(active_index)){    
   case PRIMARY_KEY_INDEX:
 #ifdef USE_EXTRA_ORDERED_INDEX
@@ -1644,19 +1650,23 @@ int ha_ndbcluster::rnd_init(bool scan)
   DBUG_RETURN(0);
 }
 
+int ha_ndbcluster::close_scan()
+{
+  NdbResultSet *cursor= m_active_cursor;
+  DBUG_ENTER("close_scan");
+
+  if (!cursor)
+    DBUG_RETURN(1);
+
+  cursor->close();
+  m_active_cursor= NULL;
+  DBUG_RETURN(0)
+}
 
 int ha_ndbcluster::rnd_end()
 {
-  NdbResultSet *cursor= m_active_cursor;
   DBUG_ENTER("rnd_end");
-    
-  if (cursor)
-  {
-    DBUG_PRINT("info", ("Closing the cursor"));
-    cursor->close();
-    m_active_cursor= NULL;
-  }
-  DBUG_RETURN(0);
+  DBUG_RETURN(close_scan());
 }
 
 
@@ -2870,7 +2880,6 @@ int ndbcluster_discover(const char *dbname, const char *name,
   DBUG_RETURN(0);
 }
 
-static Ndb* g_ndb= NULL;
 
 #ifdef USE_DISCOVER_ON_STARTUP
 /*

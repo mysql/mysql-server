@@ -300,3 +300,5 @@ character-set=latin1
 "Incorreta definição de tabela; Pode ter somente uma coluna TIMESTAMP com CURRENT_TIMESTAMP em DEFAULT ou ON UPDATE cláusula"
 "Inválida cláusula ON UPDATE para campo '%-.64s'",
 "This command is not supported in the prepared statement protocol yet",
+"Got NDB error %d '%-.100s'",
+"Got temporary NDB error %d '%-.100s'",
