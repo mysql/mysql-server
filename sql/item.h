@@ -533,7 +533,8 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   Item *new_item() 
   {
-    return new Item_string(name, str_value.ptr(), max_length, &my_charset_bin);
+    return new Item_string(name, str_value.ptr(), 
+    			   str_value.length(), &my_charset_bin);
   }
   String *const_string() { return &str_value; }
   inline void append(char *str, uint length) { str_value.append(str, length); }
