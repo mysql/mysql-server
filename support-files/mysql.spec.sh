@@ -12,7 +12,7 @@ Summary(pt_BR): MySQL: Um servidor SQL rápido e confiável.
 Group(pt_BR):	Aplicações/Banco_de_Dados
 Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
-Copyright:	GPL / LGPL
+Copyright:	GPL
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 Icon:		mysql.gif
 URL:		http://www.mysql.com/
@@ -28,6 +28,34 @@ BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 
 # From the manual
 %description
+The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
+and robust SQL (Structured Query Language) database server. MySQL Server
+is intended for mission-critical, heavy-load production systems as well
+as for embedding into mass-deployed software. MySQL is a trademark of
+MySQL AB.
+
+The MySQL software has Dual Licensing, which means you can use the MySQL
+software free of charge under the GNU General Public License
+(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+licenses from MySQL AB if you do not wish to be bound by the terms of
+the GPL. See the chapter "Licensing and Support" in the manual for
+further info.
+
+The MySQL web site (http://www.mysql.com/) provides the latest
+news and information about the MySQL software. Also please see the
+documentation and the manual for more information.
+
+%package server
+Release: %{release}
+Summary:	MySQL: a very fast and reliable SQL database server
+Group:		Applications/Databases
+Summary(pt_BR): MySQL: Um servidor SQL rápido e confiável.
+Group(pt_BR):	Aplicações/Banco_de_Dados
+Requires: fileutils sh-utils
+Provides:	msqlormysql mysql-server mysql MySQL
+Obsoletes:	MySQL mysql mysql-server
+
+%description server
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
@@ -62,7 +90,7 @@ Obsoletes: mysql-client
 Provides: mysql-client
 
 %description client
-This package contains the standard MySQL clients. 
+This package contains the standard MySQL clients and administration tools. 
 
 %{see_base}
 
@@ -386,7 +414,7 @@ fi
 %clean
 [ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
 
-%files
+%files server
 %defattr(755 root, root)
 
 %doc %attr(644, root, root) COPYING COPYING.LIB README
@@ -440,6 +468,7 @@ fi
 %attr(755, root, root) /usr/bin/msql2mysql
 %attr(755, root, root) /usr/bin/mysql
 %attr(755, root, root) /usr/bin/mysql_find_rows
+%attr(755, root, root) /usr/bin/mysql_waitpid
 %attr(755, root, root) /usr/bin/mysqlaccess
 %attr(755, root, root) /usr/bin/mysqladmin
 %attr(755, root, root) /usr/bin/mysqlbinlog
@@ -501,6 +530,12 @@ fi
 %attr(644, root, root) /usr/lib/mysql/libmysqld.a
 
 %changelog 
+
+* Fri Jan 24 2003 Lenz Grimmer <lenz@mysql.com>
+
+- renamed package "MySQL" to "MySQL-server"
+- fixed Copyright tag
+- added mysql_waitpid to client subpackage (required for mysql-test-run)
 
 * Wed Nov 27 2002 Lenz Grimmer <lenz@mysql.com>
 
