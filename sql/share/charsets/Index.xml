@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding="utf-8"?>
 
-<charsets max-id=63>
+<charsets max-id="82">
 
 <description>
 This file lists all of the available character sets.
@@ -16,7 +16,10 @@ To make maintaining easier please:
   <alias>big-five</alias>
   <alias>cn-big5</alias>
   <alias>csbig5</alias>
-  <collation name="big5"	id="1"	order="Chinese"	flag="primary" flag="compiled"/>
+  <collation name="big5"	id="1"	order="Chinese">
+    <flag>primary</flag>
+    <flag>compiled"</flag>
+  </collation>
 </charset>
 
 <charset name="latin2">
@@ -39,10 +42,12 @@ To make maintaining easier please:
   </collation>
   <collation name="hungarian"	id="21"	order="Hungarian"/>
   <collation name="croat"	id="27"	order="Croatian"/>
+  <collation name="latin2_bin"	id="77"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="dec8">
   <family>Western</family>
+  <collation name="dec_bin"	id="69"	order="Binary"	flag="binary"/>
   <collation name="dec8"	id="3"	flag="primary">
     <order>Dutch</order>
     <order>English</order>
@@ -71,6 +76,7 @@ To make maintaining easier please:
     <order>Pogtuguese</order>
     <order>Spanish</order>
   </collation>
+  <collation name="pclatin1_bin"	id="80"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="latin1">
@@ -86,7 +92,7 @@ To make maintaining easier please:
   <collation name="latin1"		id="8"	order="Finnish, Swedish"	flag="primary"/>
   <collation name="danish"		id="15"	order="Danish"/>
   <collation name="latin1_de"		id="31"	order="German DIN"	flag="compiled"/>
-  <collation name="latin1_bin"		id="47"	order="Binary"/>
+  <collation name="latin1_bin"		id="47"	order="Binary"		flag="binary"/>
   <collation name="latin1_ci_as"	id="48">
     <order>Dutch</order>
     <order>English</order>
@@ -112,6 +118,7 @@ To make maintaining easier please:
 <charset name="hp8">
   <family>Western</family>
   <alias>hproman8</alias>
+  <collation name="hp8_bin"	id="72"	order="Binary"		flag="binary"/>
   <collation name="hp8"		id="6"	flag="primary">
     <order>Dutch</order>
     <order>English</order>
@@ -129,12 +136,14 @@ To make maintaining easier please:
   <alias>koi8-r</alias>
   <alias>cskoi8r</alias>
   <collation name="koi8r"	id="7"	order="Russian"	flag="primary"/>
+  <collation name="koi8r_bin"	id="74"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="swe7">
   <family>Western</family>
   <alias>iso-646-se</alias>
   <collation name="swe7"	id="10"	order="Swedish"	flag="primary"/>
+  <collation name="swe7_bin"	id="82"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="ascii">
@@ -145,6 +154,7 @@ To make maintaining easier please:
   <alias>iso-ir-6</alias>
   <alias>iso646-us</alias>
   <collation name="ascii"	id="11"	order="English"	flag="primary"/>
+  <collation name="ascii_bin"	id="65"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="ujis">
@@ -175,8 +185,8 @@ To make maintaining easier please:
     <order>Mongolian</order>
     <order>Ukrainian</order>
   </collation>
-  <collation name="win1251ukr" 		id="23"	order="<Depreciated>"/>
-  <collation name="cp1251_bin"		id="50"	order="Binary"/>
+  <collation name="win1251ukr" 		id="23"	order="Depreciated"/>
+  <collation name="cp1251_bin"		id="50"	order="Binary"	flag="binary"/>
   <collation name="cp1251_ci_as"	id="51">
     <order>Belarusian</order>
     <order>Bulgarian</order>
@@ -203,19 +213,26 @@ To make maintaining easier please:
   <alias>iso-8859-8</alias>
   <alias>iso-ir-138</alias>
   <collation name="hebrew"	id="16"	order="Hebrew"	flag="primary"/>
+  <collation name="hebrew_bin"	id="71"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="tis620">
   <family>Thai</family>
   <alias>tis-620</alias>
-  <collation name="tis620"	id="18"	order="Thai"	flag="primary"	flag="compiled"/>
+  <collation name="tis620"	id="18"	order="Thai">
+    <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="euckr">
   <family>Korean</family>
   <alias>euc_kr</alias>
   <alias>euc-kr</alias>
-  <collation name="euckr"	id="19"	order="Korean"	flag="primary"	flag="compiled"/>
+  <collation name="euckr"	id="19"	order="Korean">
+    <flag>primary</flag>
+    <flag>compiled"</flag>
+  </collation>
 </charset>
 
 <charset name="latin7">
@@ -226,19 +243,24 @@ To make maintaining easier please:
   <collation name="estonia"	id="20"	order="Estonian"	flag="primary"/>
   <collation name="latvian"	id="41"	order="Latvian"/>
   <collation name="latvian1"	id="42"	order="Latvian"/>
+  <collation name="latin7_bin"	id="79"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="koi8u">
   <family>Cyrillic</family>
   <alias>koi8-u</alias>
   <collation name="koi8u"	id="22"	order="Ukranian"	flag="primary"/>
+  <collation name="koi8u_bin"	id="75"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="gb2312">
   <family>Simplified Chinese</family>
   <alias>chinese</alias>
   <alias>iso-ir-58</alias>
-  <collation name="gb2312"	id="24"	order="Chinese"	flag="primary"	flag="compiled"/>
+  <collation name="gb2312"	id="24"	order="Chinese">
+    <flag>primary</flag>
+    <flag>compiled"</flag>
+  </collation>
 </charset>
 
 <charset name="greek">
@@ -249,6 +271,7 @@ To make maintaining easier please:
   <alias>iso-8859-7</alias>
   <alias>iso-ir-126</alias>
   <collation name="greek" 	id="25"	order="Greek"	flag="primary"/>
+  <collation name="greek_bin"	id="70"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="cp1250">
@@ -265,20 +288,24 @@ To make maintaining easier please:
     <order>Sorbian</order>
   </collation>
   <collation name="cp1250_czech"	id="34"	order="Czech"/>
+  <collation name="cp1250_bin"		id="66"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="gbk">
   <family>East Asian</family>
   <alias>cp936</alias>
-  <collation name="gbk"		id="28"	order="Chinese"	flag="primary"	flag="compiled"/>
+  <collation name="gbk"		id="28"	order="Chinese">
+    <flag>primary</flag>	
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="cp1257">
   <family>Baltic</family>
   <alias>WinBaltRim</alias>
   <alias>windows-1257</alias>
-  <collation name="cp1257"		id="29"	order="<Depreciated>"/>
-  <collation name="cp1257_bin"		id="58"	order="Binary"/>
+  <collation name="cp1257"		id="29"	order="Depreciated"/>
+  <collation name="cp1257_bin"		id="58"	order="Binary"	flag="binary"/>
   <collation name="cp1257_ci_ai"	id="59"	flag="primary">
     <order>Latvian</order>
     <order>Lithuanian</order>
@@ -302,12 +329,14 @@ To make maintaining easier please:
   <alias>latin5</alias>
   <alias>turkish</alias>
   <collation name="latin5"	id="30"	order="Turkish"	flag="primary"/>
+  <collation name="latin5_bin"	id="78"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="armscii8">
   <family>South Asian</family>
   <alias>armscii-8</alias>
   <collation name="armscii8"	id="32"	order="Armenian"	flag="primary"/>
+  <collation name="armscii_bin"	id="64"	order="Binary"		flag="binary"/>
 </charset>
 
 <charset name="utf8">
@@ -328,11 +357,13 @@ To make maintaining easier please:
   <alias>ibm866</alias>
   <alias>DOSCyrillicRussian</alias>
   <collation name="cp866"	id="36"	order="Russian"	flag="primary"/>
+  <collation name="cp866_bin"	id="68"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="keybcs2">
   <family>Central European</family>
   <collation name="keybcs2"	id="37"	order="Czech"	flag="primary"/>
+  <collation name="keybcs2_bin"	id="73"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="MacCE">
@@ -347,7 +378,7 @@ To make maintaining easier please:
     <order>Slovenian</order>
     <order>Sorbian</order>
   </collation>
-  <collation name="macce_bin"	id="43"	order="Binary"/>
+  <collation name="macce_bin"	id="43"	order="Binary"	flag="binary"/>
   <collation name="macce_ci_ai"	id="44">
     <order>Hungarian</order>
     <order>Polish</order>
@@ -392,7 +423,7 @@ To make maintaining easier please:
     <order>Pogtuguese</order>
     <order>Spanish</order>
   </collation>
-  <collation name="macroman_bin"	id="53"	order="Binary"/>
+  <collation name="macroman_bin"	id="53"	order="Binary"	flag="binary"/>
   <collation name="macroman_ci_as"	id="54">
     <order>Dutch</order>
     <order>English</order>
@@ -439,12 +470,14 @@ To make maintaining easier please:
     <order>Slovenian</order>
     <order>Sorbian</order>
   </collation>
+  <collation name="pclatin2_bin"	id="81"	order="Binary"	flag="binary"/>
 </charset>
 
 <charset name="cp1256">
   <family>Arabic</family>
   <alias>ms-arab</alias>
   <alias>windows-1256</alias>
+  <collation name="cp1256_bin"	id="67"	order="Binary"	flag="binary"/>
   <collation name="cp1256"	id="57"	order="Arabic"	flag="primary">
     <order>Arabic</order>
     <order>Persian</order>
@@ -454,7 +487,11 @@ To make maintaining easier please:
 </charset>
 
 <charset name="binary">
-  <collation name="binary"	id="63"	order="Binary"	flag="primary"	flag="compiled"/>
+  <collation name="binary"	id="63"	order="Binary">
+    <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 </charsets>
+

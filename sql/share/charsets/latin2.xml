@@ -161,6 +161,7 @@
 </map>
 </collation>
 
+<collation name="latin2_bin" flag="binary"/>
 
 </charset>
 

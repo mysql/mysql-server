@@ -162,6 +162,7 @@
 </map>
 </collation>
 
+<collation name="latin7_bin"	flag="binary"/>
 
 </charset>
 
