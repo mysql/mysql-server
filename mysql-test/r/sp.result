@@ -1764,6 +1764,18 @@ call bug5251()|
 Table	Checksum
 test.t1	0
 drop procedure bug5251|
+create procedure bug5287(param1 int)
+label1:
+begin
+declare c cursor for select 5;
+loop
+if param1 >= 0 then
+leave label1;
+end if;
+end loop;
+end|
+call bug5287(1)|
+drop procedure bug5287|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)

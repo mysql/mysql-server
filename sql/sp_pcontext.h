@@ -275,6 +275,7 @@ protected:
   uint m_psubsize;		
   uint m_csubsize;
   uint m_hsubsize;
+  uint m_handlers;		// No. of handlers in this context
 
 private:
 
@@ -282,7 +283,6 @@ private:
 
   uint m_poffset;		// Variable offset for this context
   uint m_coffset;		// Cursor offset for this context
-  uint m_handlers;		// No. of handlers in this context
 
   DYNAMIC_ARRAY m_pvar;		// Parameters/variables
   DYNAMIC_ARRAY m_cond;		// Conditions
