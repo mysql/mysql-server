@@ -1595,6 +1595,7 @@ mysql_execute_command(void)
 	for (table = tables->next ; table ; table=table->next)
 	  table->lock_type= lex->lock_option;
       }
+      select_lex->options|= SELECT_NO_UNLOCK;
       thd->offset_limit=select_lex->offset_limit;
       thd->select_limit=select_lex->select_limit+select_lex->offset_limit;
       if (thd->select_limit < select_lex->select_limit)
@@ -1922,6 +1923,8 @@ mysql_execute_command(void)
       if ((res=check_table_access(thd, SELECT_ACL, save_next)))
 	goto error;
     }
+    /* Don't unlock tables until command is written to binary log */
+    select_lex->options|= SELECT_NO_UNLOCK;
 
     select_result *result;
     thd->offset_limit=select_lex->offset_limit;
