@@ -88,7 +88,7 @@ RestoreMetaData::~RestoreMetaData(){
   allTables.clear();
 }
 
-const TableS * 
+TableS * 
 RestoreMetaData::getTable(Uint32 tableId) const {
   for(Uint32 i= 0; i < allTables.size(); i++)
     if(allTables[i]->getTableId() == tableId)
@@ -201,6 +201,8 @@ TableS::TableS(NdbTableImpl* tableImpl)
 {
   m_dictTable = tableImpl;
   m_noOfNullable = m_nullBitmaskSize = 0;
+  m_auto_val_id= ~(Uint32)0;
+  m_max_auto_val= 0;
 
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
@@ -269,7 +271,7 @@ int TupleS::getNoOfAttributes() const {
   return m_currentTable->getNoOfAttributes();
 };
 
-const TableS * TupleS::getTable() const {
+TableS * TupleS::getTable() const {
   return m_currentTable;
 };
 
@@ -282,7 +284,7 @@ AttributeData * TupleS::getData(int i) const{
 };
 
 bool
-TupleS::prepareRecord(const TableS & tab){
+TupleS::prepareRecord(TableS & tab){
   if (allAttrData) {
     if (getNoOfAttributes() == tab.getNoOfAttributes())
     {
@@ -697,6 +699,9 @@ void TableS::createAttr(NdbDictionary::Column *column)
   }
   d->attrId = allAttributesDesc.size();
   allAttributesDesc.push_back(d);
+
+  if (d->m_column->getAutoIncrement())
+    m_auto_val_id= d->attrId;
 
   if(d->m_column->getPrimaryKey() /* && not variable */)
   {
