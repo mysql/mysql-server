@@ -64,9 +64,7 @@ OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			cdefs.h machdep.h signal.h __signal.h util.h
 
 libmystrings_a_LIBADD=	@CHARSET_OBJS@
-ctype.c:		ctype_extra_sources.c
-#we need a dummy rule to make GNUMake get along with bitkeeper
-	echo '' >/dev/null
+ctype.o:		ctype_extra_sources.c
 
 ctype_extra_sources.c: conf_to_src
 	./conf_to_src $(top_srcdir) @CHARSETS_NEED_SOURCE@ > \
