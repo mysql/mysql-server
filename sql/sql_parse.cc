@@ -890,7 +890,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     error=TRUE;					// End server
     break;
 
-  case COM_CREATE_DB:
+  case COM_CREATE_DB:				// QQ: To be removed
     {
       char *db=thd->strdup(packet);
       // null test to handle EOM
@@ -905,7 +905,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       mysql_create_db(thd,db,0);
       break;
     }
-  case COM_DROP_DB:
+  case COM_DROP_DB:				// QQ: To be removed
     {
       char *db=thd->strdup(packet);
       // null test to handle EOM
@@ -914,8 +914,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
-      if (check_access(thd,DROP_ACL,db,0,1) || end_active_trans(thd))
+      if (thd->locked_tables || thd->active_transaction())
+      {
+	send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
 	break;
+      }
       mysql_log.write(thd,command,db);
       mysql_rm_db(thd,db,0);
       break;
@@ -1632,7 +1635,7 @@ mysql_execute_command(void)
     */
     if (thd->locked_tables || thd->active_transaction())
     {
-      my_error(ER_LOCK_OR_ACTIVE_TRANSACTION,MYF(0));
+      send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION,NullS);
       goto error;
     }
     res=mysql_truncate(thd,tables);
@@ -1963,7 +1966,7 @@ mysql_execute_command(void)
     }
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
-    mysql_create_db(thd,lex->name,lex->create_info.options);
+    res=mysql_create_db(thd,lex->name,lex->create_info.options);
     break;
   }
   case SQLCOM_DROP_DB:
@@ -1977,10 +1980,10 @@ mysql_execute_command(void)
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
-      my_error(ER_LOCK_OR_ACTIVE_TRANSACTION,MYF(0));
+      send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
       goto error;
     }
-    mysql_rm_db(thd,lex->name,lex->drop_if_exists);
+    res=mysql_rm_db(thd,lex->name,lex->drop_if_exists);
     break;
   }
   case SQLCOM_CREATE_FUNCTION:
@@ -2057,7 +2060,7 @@ mysql_execute_command(void)
     {
       if (lex->columns.elements)
       {
-	net_printf(&thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
+	send_error(&thd->net,ER_ILLEGAL_GRANT_FOR_TABLE);
 	res=1;
       }
       else
@@ -2305,7 +2308,7 @@ static bool check_merge_table_access(THD *thd, char *db,
     {
       if (!tmp->db || !tmp->db[0])
 	tmp->db=db;
-      else if (!strcmp(tmp->db,db))
+      else if (strcmp(tmp->db,db))
       {
 	send_error(&thd->net,ER_UNION_TABLES_IN_DIFFERENT_DIR);
 	return 1;

@@ -394,8 +394,8 @@ int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list)
   error=0;
 
 end:
-  start_waiting_global_read_lock(thd);
   pthread_mutex_unlock(&LOCK_open);
+  start_waiting_global_read_lock(thd);
   DBUG_RETURN(error);
 }
 
@@ -532,6 +532,10 @@ bool lock_global_read_lock(THD *thd)
     (void) pthread_mutex_lock(&LOCK_open);
     const char *old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
 					    "Waiting to get readlock");
+    DBUG_PRINT("info",
+	       ("waiting_for: %d  protect_against: %d",
+		waiting_for_read_lock, protect_against_global_read_lock));
+
     waiting_for_read_lock++;
     while (protect_against_global_read_lock && !thd->killed)
       pthread_cond_wait(&COND_refresh, &LOCK_open);
@@ -573,8 +577,9 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh)
     if (thd->global_read_lock)		// This thread had the read locks
     {
       my_error(ER_CANT_UPDATE_WITH_READLOCK,MYF(0));
+      (void) pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(1);
-    }	
+    }
     old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
 				"Waiting for release of readlock");
     while (global_read_lock && ! thd->killed &&
@@ -594,9 +599,11 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh)
 void start_waiting_global_read_lock(THD *thd)
 {
   bool tmp;
+  DBUG_ENTER("start_waiting_global_read_lock");
   (void) pthread_mutex_lock(&LOCK_open);
   tmp= (!--protect_against_global_read_lock && waiting_for_read_lock);
   (void) pthread_mutex_unlock(&LOCK_open);
   if (tmp)
     pthread_cond_broadcast(&COND_refresh);
+  DBUG_VOID_RETURN;
 }

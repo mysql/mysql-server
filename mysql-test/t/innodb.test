@@ -512,3 +512,37 @@ replace into t1 (value,name,uid) values ('other value','two',102);
 select * from t1;
 drop table t1;
 
+#
+# Test DROP DATABASE
+#
+
+create database test_$1;
+create table test_$1.t1 (a int not null) type= innodb;
+insert into test_$1.t1 values(1);
+create table test_$1.t2 (a int not null) type= myisam;
+insert into test_$1.t2 values(1);
+create table test_$1.t3 (a int not null) type= heap;
+insert into test_$1.t3 values(1);
+commit;
+drop database test_$1;
+--error 12
+show tables from test_$1;
+
+#
+# Test truncate table
+#
+
+create table t1 (a int not null) type= innodb;
+insert into t1 values(1),(2);
+--error 1192
+truncate table t1;
+commit;
+truncate table t1;
+select * from t1;
+insert into t1 values(1),(2);
+delete from t1;
+select * from t1;
+commit;
+drop table t1;
+
+

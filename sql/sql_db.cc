@@ -40,32 +40,13 @@ int mysql_create_db(THD *thd, char *db, uint create_options)
   DBUG_ENTER("mysql_create_db");
   
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
-  VOID(pthread_mutex_lock(&LOCK_open));
 
   // do not create database if another thread is holding read lock
-  if (global_read_lock)
+  if (wait_if_global_read_lock(thd,0))
   {
-    if (thd->global_read_lock)
-    {
-      net_printf(&thd->net, ER_CREATE_DB_WITH_READ_LOCK);
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      goto exit;
-    }
-    while (global_read_lock && ! thd->killed)
-    {
-      (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
-    }
-    
-    if (thd->killed)
-    {
-      net_printf(&thd->net, ER_SERVER_SHUTDOWN);
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      goto exit;
-    }
-
+    error= -1;
+    goto exit2;
   }
-  
-  VOID(pthread_mutex_unlock(&LOCK_open));
 
   /* Check directory */
   (void)sprintf(path,"%s/%s", mysql_data_home, db);
@@ -75,7 +56,7 @@ int mysql_create_db(THD *thd, char *db, uint create_options)
     my_dirend(dirp);
     if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
     {
-      if(thd)
+      if (thd)
         net_printf(&thd->net,ER_DB_CREATE_EXISTS,db);
       error = 1;
       goto exit;
@@ -87,14 +68,14 @@ int mysql_create_db(THD *thd, char *db, uint create_options)
     strend(path)[-1]=0;				// Remove last '/' from path
     if (my_mkdir(path,0777,MYF(0)) < 0)
     {
-      if(thd)
+      if (thd)
         net_printf(&thd->net,ER_CANT_CREATE_DB,db,my_errno);
       error = 1;
       goto exit;
     }
   }
 
-  if(thd)
+  if (thd)
   {
     if (!thd->query)
     {
@@ -117,7 +98,10 @@ int mysql_create_db(THD *thd, char *db, uint create_options)
     }
     send_ok(&thd->net, result);
   }
+
 exit:
+  start_waiting_global_read_lock(thd);
+exit2:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   DBUG_RETURN(error);
 }
@@ -126,6 +110,10 @@ const char *del_exts[]= {".frm", ".BAK", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts};
 
+const char *known_exts[]=
+{".ISM",".ISD",".ISM",".MRG",".MYI",".MYD", ".db", NullS};
+static TYPELIB known_extentions=
+{array_elements(del_exts)-1,"del_exts", known_exts};
 
 /*
   Drop all tables in a database.
@@ -145,11 +133,13 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists)
   DBUG_ENTER("mysql_rm_db");
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
-  VOID(pthread_mutex_lock(&LOCK_open));
 
   // do not drop database if another thread is holding read lock
   if (wait_if_global_read_lock(thd,0))
-    goto exit;
+  {
+    error= -1;
+    goto exit2;
+  }
 
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
   unpack_dirname(path,path);			// Convert if not unix
@@ -188,14 +178,14 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists)
       thd->query = 0; // just in case
       thd->query_length = 0;
     }
-    
     send_ok(&thd->net,(ulong) deleted);
+    error = 0;
   }
 
 exit:
-  VOID(pthread_mutex_unlock(&LOCK_open));
-  VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   start_waiting_global_read_lock(thd);
+exit2:
+  VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
 
   DBUG_RETURN(error);
 }
@@ -246,7 +236,8 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     }
     if (find_type(fn_ext(file->name),&deletable_extentions,1+2) <= 0)
     {
-      found_other_files++;
+      if (find_type(fn_ext(file->name),&known_extentions,1+2) <= 0)
+	found_other_files++;
       continue;
     }
     strxmov(filePath,org_path,"/",file->name,NullS);

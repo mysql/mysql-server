@@ -691,7 +691,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   if (thd->killed)
     DBUG_RETURN(0);
   TABLE* table;
-  if(!(table = table_list->table))
+  if (!(table = table_list->table))
     DBUG_RETURN(0);
 
   char* db = thd->db ? thd->db : table_list->db;

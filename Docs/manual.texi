@@ -145,14 +145,14 @@ distribution for that version.
 @cindex online location of manual
 @cindex manual, online location
 
-This is the MySQL reference manual; it documents MySQL
-Version @value{mysql_version}.  As MySQL is work in progress,
-the manual gets updated frequently.  There is a very good chance that
-this version is out of date, unless you are looking at it online.  The
-most recent version of this manual is available at
-@uref{http://www.mysql.com/documentation/} in many different formats.  If you
-have a hard time finding information in the manual, you can try the
-searchable PHP version at @uref{http://www.mysql.com/documentation/manual.php}.
+This is the MySQL reference manual; it documents MySQL Version
+@value{mysql_version}.  As MySQL is work in progress, the manual gets
+updated frequently.  There is a very good chance that this version is
+out of date, unless you are looking at it online.  The most recent
+version of this manual is available at
+@uref{http://www.mysql.com/documentation/index.html} in many different
+formats.  If you have a hard time finding information in the manual, you
+can try the searchable PHP version at @uref{http://www.mysql.com/doc}.
 
 MySQL is a very fast, multi-threaded, multi-user, and robust SQL
 (Structured Query Language) database server.
@@ -180,6 +180,10 @@ For installation instructions, see @ref{Installing}.
 @item
 For tips on porting MySQL to new architectures or operating
 systems, see @ref{Porting}.
+
+@item
+For information about upgrading from a Version 3.23 release, see
+@ref{Upgrading-from-3.23}.
 
 @item
 For information about upgrading from a Version 3.22 release, see
@@ -1484,35 +1488,18 @@ A complete reference to DBI.
 @node General-SQL, Useful Links, MySQL-Books, MySQL Information Sources
 @subsection General SQL Information and Tutorials
 
-The following book has been recommended by several people on the MySQL
-mailing list:
+The MySQL book portal is split into different sections to make it easy
+to locate books for various purposes.
+@uref{http://www.mysql.com/portal/books/html/index.html}
 
-@example
-Judith S. Bowman, Sandra L. Emerson and Marcy Darnovsky
-@emph{The Practical SQL Handbook: Using Structured Query Language}
-Second Edition
-Addison-Wesley
-ISBN 0-201-62623-3
-http://www.awl.com
-@end example
-
-The following book has also received some recommendations by MySQL
-users:
-
-@example
-Martin Gruber
-@emph{Understanding SQL}
-ISBN 0-89588-644-8
-Publisher Sybex 510 523 8233
-Alameda, CA USA
-@end example
-
-A SQL tutorial is available on the net at
-http://w3.one.net/~jhoffman/sqltut.htm
-
+Tutorials can be found at:
+@uref{http://www.mysql.com/portal/development/html/development-61-1.html}
 
 @node Useful Links, Questions, General-SQL, MySQL Information Sources
 @subsection Useful MySQL-related Links
+
+The MySQL development portal is the ultimate source of MySQL related
+links. @uref{http://www.mysql.com/portal/development/html/index.html}
 
 Apart from the following links, you can find and download a lot of
 MySQL programs, tools and APIs from the
@@ -5347,10 +5334,11 @@ SQL functions and aggregates, but this is not yet as easy or as flexible
 as in PostgreSQL.  @xref{Adding functions}.
 
 @item
-Updates and deletes that run over multiple tables is harder to do in
-MySQL. This will, hoever, be fixed in MySQL 4.0 with multi-table
-@code{DELETE} and multi-table @code{UPDATE} and in MySQL 4.1
-with subselects.
+Updates that run over multiple tables is harder to do in MySQL.
+This will, however, be fixed in MySQL 4.0 with multi-table @code{UPDATE}
+and in MySQL 4.1 with subselects.
+In MySQL 4.0 one can use multi-table deletes to delete from many tables
+at the same time. @xref{DELETE}.
 @end itemize
 
 PostgreSQL currently offers the following advantages over MySQL:
@@ -5710,6 +5698,9 @@ master.
 @code{DELETE FROM table_name} will return the number of deleted rows. For
 fast execution one should use @code{TRUNCATE table_name}.
 @item
+Multi-table @code{DELETE} (cascading @code{DELETE} and multi-table
+@code{DELETE}.
+@item
 Allow @code{DELETE} on @code{MyISAM} tables to use the record cache.
 To do this, we need to update the threads record cache when we update
 the @code{.MYD} file.
@@ -5805,6 +5796,8 @@ Multiple result sets.
 @item
 Change the protocol to allow binary transfer of values. To do this
 efficiently, we need to add an API to allow binding of variables.
+@item
+Add @code{PREPARE} of statements and sending of parameters to @code{mysqld}.
 @item
 Make it possible to specify @code{long_query_time} with a granularity
 in microseconds.
@@ -6149,9 +6142,9 @@ Nothing;  In the long run we plan to be fully ANSI 92 / ANSI 99 compliant.
 @menu
 * Quick Standard Installation::  Quick Standard Installation of MySQL
 * General Installation Issues::  General Installation Issues
-* Installing source::            Installing a MySQL source distribution
-* Post-installation::            Post-installation setup and testing
-* Upgrade::                      Upgrading/Downgrading MySQL
+* Installing source::           Installing a MySQL source distribution
+* Post-installation::           Post-installation setup and testing
+* Upgrade::                     Upgrading/Downgrading MySQL
 * Operating System Specific Notes::  Operating System Specific Notes
 @end menu
 
@@ -9291,14 +9284,45 @@ particularly if you notice symptoms such as all your @code{DBI} scripts
 dumping core after you upgrade MySQL.
 
 @menu
+* Upgrading-from-3.23::         Upgrading from a 3.23 version to 4.0
 * Upgrading-from-3.22::         Upgrading from a 3.22 version to 3.23
 * Upgrading-from-3.21::         Upgrading from a 3.21 version to 3.22
 * Upgrading-from-3.20::         Upgrading from a 3.20 version to 3.21
 * Upgrading-to-arch::           Upgrading to another architecture
 @end menu
 
+@cindex compatibility, between MySQL versions
+@cindex upgrading, 3.23 to 4.0
+@node Upgrading-from-3.23, Upgrading-from-3.22, Upgrade, Upgrade
+@subsection Upgrading From Version 3.23 to Version 4.0
 
-@node Upgrading-from-3.22, Upgrading-from-3.21, Upgrade, Upgrade
+You can use your old data files without any modification with Version 4.0.
+If you want to move your data from a MySQL 4.0 server to an older server,
+you have to use @code{mysqldump}.
+
+Old clients should work with a Version 4.0 server without any problems.
+
+The following lists tell what you have to watch out for when upgrading to
+Version 4.0;
+
+@itemize @bullet
+@item
+@file{safe_mysqld} is renamed to @file{mysqld_safe}.
+@item
+The old C API functions @code{mysql_drop_db}, @code{mysql_create_db} and
+@code{mysql_connect} are not supported anymore, unless one compiles
+MySQL with @code{USE_OLD_FUNCTIONS}.
+@item
+You should use @code{TRUNCATE TABLE} when you want to delete all rows
+from a table and you don't care of how many rows where deleted.
+(Because @code{TRUNCATE TABLE} is faster than @code{DELETE FROM table_name}).
+@item
+You will get an error if you have an active @code{LOCK TABLES} or
+transaction when trying to execute @code{TRUNCATE TABLE} or @code{DROP
+DATABASE}.
+@end itemize
+
+@node Upgrading-from-3.22, Upgrading-from-3.21, Upgrading-from-3.23, Upgrade
 @subsection Upgrading From Version 3.22 to Version 3.23
 
 @cindex compatibility, between MySQL versions
@@ -16908,6 +16932,7 @@ GRANT priv_type [(column_list)] [, priv_type [(column_list)] ...]
     ON @{tbl_name | * | *.* | db_name.*@}
     TO user_name [IDENTIFIED BY 'password']
         [, user_name [IDENTIFIED BY 'password'] ...]
+    [REQUIRE @{SSL|X509@} [ISSUER issuer] [SUBJECT subject]]
     [WITH GRANT OPTION]
 
 REVOKE priv_type [(column_list)] [, priv_type [(column_list)] ...]
@@ -23651,6 +23676,15 @@ The number of seconds the slave thread will sleep before retrying to
 connect to the master in case the master goes down or the connection is
 lost.  Default is 60.  (Example: @code{master-connect-retry=60})
 
+@item @code{master-ssl} @tab
+Turn SSL on (Example: @code{master-ssl})
+
+@item @code{master-ssl-key} @tab
+Master SSL keyfile name (Example: @code{master-ssl-key=SSL/master-key.pem})
+
+@item @code{master-ssl-cert} @tab
+Master SSL certificate file name (Example: @code{master-ssl-key=SSL/master-cert.pem})
+
 @item @code{master-info-file=filename} @tab
 The location of the file that remembers where we left off on the master
 during the replication process. The default is master.info in the data
@@ -25348,6 +25382,8 @@ Some ways to speed up inserts:
 If you are inserting many rows from the same client at the same time, use
 multiple value lists @code{INSERT} statements. This is much faster (many
 times in some cases) than using separate @code{INSERT} statements.
+Tune up @code{myisam_bulk_insert_tree_size} variable to make it even
+faster. @xref{SHOW VARIABLES}.
 @item
 If you are inserting a lot of rows from different clients, you can get
 higher speed by using the @code{INSERT DELAYED} statement. @xref{INSERT,
@@ -25397,6 +25433,13 @@ flush-tables}.
 
 This procedure will be built into @code{LOAD DATA INFILE} in some future
 version of MySQL.
+
+Since @strong{MySQL 4.0} you can also use
+@code{ALTER TABLE tbl_name DISABLE KEYS} instead of
+@code{myisamchk --keys-used=0 -rq /path/to/db/tbl_name} and
+@code{ALTER TABLE tbl_name ENABLE KEYS} instead of
+@code{myisamchk -r -q /path/to/db/tbl_name}. This way you can also skip
+@code{FLUSH TABLES} steps.
 @item
 You can speed up insertions by locking your tables:
 
@@ -27197,8 +27240,6 @@ Things that are not yet supported:
 @end itemize
 
 
-
-
 @node Reference, Table types, MySQL Optimization, Top
 @chapter MySQL Language Reference
 
@@ -27210,6 +27251,7 @@ Things that are not yet supported:
 * Data Definition::             Data Definition: @code{CREATE}, @code{DROP}, @code{ALTER}
 * Basic User Commands::         Basic MySQL User Utility Commands
 * Transactional Commands::      MySQL Transactional and Locking Commands
+* HANDLER::                     
 * Fulltext Search::             MySQL Full-text Search
 @end menu
 
@@ -27458,12 +27500,16 @@ like an integer (64-bit precision). In string context these act like a binary
 string where each pair of hex digits is converted to a character:
 
 @example
+mysql> SELECT x'FF'
+       -> 255
 mysql> SELECT 0xa+0;
        -> 10
 mysql> select 0x5061756c;
        -> Paul
 @end example
 
+The x'hexstring' syntax (new in 4.0) is based on ANSI SQL and the 0x
+syntax is based on ODBC.
 Hexadecimal strings are often used by ODBC to give values for BLOB columns.
 
 
@@ -31988,6 +32034,7 @@ facilitate replication testing.
 
 @menu
 * SELECT::                      @code{SELECT} Syntax
+* UNION::                       
 * INSERT::                      @code{INSERT} Syntax
 * INSERT DELAYED::              @code{INSERT DELAYED} syntax
 * UPDATE::                      @code{UPDATE} Syntax
@@ -31997,7 +32044,7 @@ facilitate replication testing.
 * LOAD DATA::                   @code{LOAD DATA INFILE} Syntax
 @end menu
 
-@node SELECT, INSERT, Data Manipulation, Data Manipulation
+@node SELECT, UNION, Data Manipulation, Data Manipulation
 @subsection @code{SELECT} Syntax
 
 @findex SELECT
@@ -32425,7 +32472,40 @@ mysql> select * from table1 IGNORE INDEX (key3) WHERE key1=1 and key2=2 AND
 @xref{LEFT JOIN optimization, , @code{LEFT JOIN} optimization}.
 
 
-@node INSERT, INSERT DELAYED, SELECT, Data Manipulation
+@node UNION, INSERT, SELECT, Data Manipulation
+@subsection @code{UNION} Syntax
+
+@findex UNION
+
+@example
+SELECT ....
+UNION [ALL]
+SELECT ....
+  [UNION 
+   SELECT ...]
+@end example
+
+@code{UNION} is implemented in MySQL 4.0.0.
+
+@code{UNION} is used to combine the result from many @code{SELECT}
+statements into one result set.
+
+The @code{SELECT} commands are normal select commands, but with the following
+restrictions:
+
+@itemize @bullet
+@item
+Only the last @code{SELECT} command can have @code{INTO OUTFILE}.
+@item
+Only the last @code{SELECT} command can have @code{ORDER BY}.
+@end itemize
+
+If you don't use the keyword @code{ALL} for the @code{UNION}, all
+returned rows will be unique, like if you had done a @code{DISTINCT} for
+the total result set.  If you specify @code{ALL}, then you will get all
+matching rows from all the used @code{SELECT} statements.
+
+@node INSERT, INSERT DELAYED, UNION, Data Manipulation
 @subsection @code{INSERT} Syntax
 
 @findex INSERT
@@ -32800,40 +32880,82 @@ only a given number of rows are changed.
 @findex DELETE
 
 @example
-DELETE [LOW_PRIORITY] FROM tbl_name
+DELETE [LOW_PRIORITY | QUICK] FROM table_name
     [WHERE where_definition]
+    [ORDER BY ...]
     [LIMIT rows]
+
+or
+
+DELETE [LOW_PRIORITY | QUICK] table_name[.*] [table_name[.*] ...] FROM
+table-references [WHERE where_definition]
 @end example
 
-@code{DELETE} deletes rows from @code{tbl_name} that satisfy the condition
+@code{DELETE} deletes rows from @code{table_name} that satisfy the condition
 given by @code{where_definition}, and returns the number of records deleted.
 
 If you issue a @code{DELETE} with no @code{WHERE} clause, all rows are
 deleted.  If you do this in @code{AUTOCOMMIT} mode, this works as
-@code{TRUNCATE}. @xref{TRUNCATE}. One problem with this is that
-@code{DELETE} will return zero as the number of affected records, but
-this will be fixed in 4.0.
+@code{TRUNCATE}. @xref{TRUNCATE}.  In MySQL 3.23 @code{DELETE} without a
+@code{WHERE} clause will return zero as the number of affected records.
 
 If you really want to know how many records are deleted when you are deleting
 all rows, and are willing to suffer a speed penalty, you can use a
 @code{DELETE} statement of this form:
 
 @example
-mysql> DELETE FROM tbl_name WHERE 1>0;
+mysql> DELETE FROM table_name WHERE 1>0;
 @end example
 
-Note that this is MUCH slower than @code{DELETE FROM tbl_name} with no
+Note that this is MUCH slower than @code{DELETE FROM table_name} with no
 @code{WHERE} clause, because it deletes rows one at a time.
 
 If you specify the keyword @code{LOW_PRIORITY}, execution of the
 @code{DELETE} is delayed until no other clients are reading from the table.
 
-Deleted records are maintained in a linked list and subsequent @code{INSERT}
-operations reuse old record positions. To reclaim unused space and reduce
-file sizes, use the @code{OPTIMIZE TABLE} statement or the @code{myisamchk}
-utility to reorganize tables.  @code{OPTIMIZE TABLE} is easier, but
-@code{myisamchk} is faster.
-See @ref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}} and @ref{Optimization}.
+If you specify the word @code{QUICK} then the table handler will not
+merge index leafs during delete, which may speed up certain kind of
+deletes.
+
+In MyISAM tables deleted records are maintained in a linked list and
+subsequent @code{INSERT} operations reuse old record positions. To
+reclaim unused space and reduce file sizes, use the @code{OPTIMIZE
+TABLE} statement or the @code{myisamchk} utility to reorganize tables.
+@code{OPTIMIZE TABLE} is easier, but @code{myisamchk} is faster.  See
+@ref{OPTIMIZE TABLE, , @code{OPTIMIZE TABLE}} and @ref{Optimization}.
+
+The multi table delete format is supported starting from MySQL 4.0.0.
+
+The idea is that only matching rows from the tables listed BEFORE the
+@code{FROM} clause is deleted. The effect is that you can delete rows
+from many tables at the same time and also have additional tables that
+are used for searching.
+
+The @code{.*} after the table names is there just to be compatible with
+@code{Access}:
+
+@example
+DELETE t1,t2 FROM t1,t2,t3 WHERE t1.id=t2.id AND t2.id=t3.id
+@end example
+
+In the above case we delete matching rows just from tables @code{t1} and
+@code{t2}.
+
+@code{ORDER BY} and using multiple tables in the DELETE is supported in 
+MySQL 4.0.
+
+If an @code{ORDER BY} clause is used, the rows will be deleted in that order.
+This is really only useful in conjunction with @code{LIMIT}.  For example:
+
+@example
+DELETE FROM somelog
+WHERE user = 'jcole'
+ORDER BY timestamp
+LIMIT 1
+@end example
+
+This will delete the oldest entry (by @code{timestamp}) where the row matches
+the @code{WHERE} clause.
 
 The MySQL-specific @code{LIMIT rows} option to @code{DELETE} tells
 the server the maximum number of rows to be deleted before control is
@@ -32852,16 +32974,19 @@ the @code{LIMIT} value.
 TRUNCATE TABLE table_name
 @end example
 
-Is in 3.23 and the same thing as @code{DELETE FROM table_name}. @xref{DELETE}.
-The differences are:
+In 3.23 @code{TRUNCATE TABLE} is mapped to
+@code{COMMIT ; DELETE FROM table_name}. @xref{DELETE}.
+
+The differences between @code{TRUNCATE TABLE} and @code{DELETE FROM ..}
+are:
 
 @itemize @bullet
 @item
-Implemented as a drop and re-create of the table, which makes this
-much faster when deleting many rows.
+Truncates does a drop and re-create of the table, which is much faster
+than deleting rows one by one.
 @item
-Not transaction-safe; @code{TRUNCATE TABLE} will automatically end the current
-transaction as if @code{COMMIT} would have been called.
+Not transaction-safe; You will get an error if you have an active
+transaction or an active table lock.
 @item
 Doesn't return the number of deleted rows.
 @item
@@ -32871,7 +32996,6 @@ files have become corrupted.
 @end itemize
 
 @code{TRUNCATE} is an Oracle SQL extension.
-
 
 @node REPLACE, LOAD DATA, TRUNCATE, Data Manipulation
 @subsection @code{REPLACE} Syntax
@@ -34024,6 +34148,8 @@ alter_specification:
   or    DROP [COLUMN] col_name
   or    DROP PRIMARY KEY
   or    DROP INDEX index_name
+  or    DISABLE KEYS
+  or    ENABLE KEYS
   or    RENAME [TO] new_tbl_name
   or    ORDER BY col
   or    table_options
@@ -34090,6 +34216,15 @@ If you use @code{ALTER TABLE tbl_name RENAME TO new_name} without any other
 options, MySQL simply renames the files that correspond to the table
 @code{tbl_name}.  There is no need to create the temporary table.
 @xref{RENAME TABLE,, @code{RENAME TABLE}}.
+
+@item
+Since @strong{MySQL 4.0} the above feature can be activated explicitly.
+@code{ALTER TABLE ... DISABLE KEYS} makes MySQL to stop updating
+non-unique indexes for @code{MyISAM} table.
+@code{ALTER TABLE ... ENABLE KEYS} then should be used to recreate missing
+indexes. As MySQL does it with special algorithm which is much
+faster then inserting keys one by one, disabling keys could give a
+considerable speedup on bulk inserts.
 
 @item
 @code{create_definition} clauses use the same syntax for @code{ADD} and
@@ -34189,6 +34324,15 @@ performance.
 If you use @code{ALTER TABLE} on a @code{MyISAM} table, all non-unique
 indexes are created in a separate batch (like in @code{REPAIR}).
 This should make @code{ALTER TABLE} much faster when you have many indexes.
+
+@item
+Since @strong{MySQL 4.0} this can be activated explicitly.
+@code{ALTER TABLE ... DISABLE KEYS} makes MySQL to stop updating
+non-unique indexes for @code{MyISAM} table.
+@code{ALTER TABLE ... ENABLE KEYS} then should be used to recreate missing
+indexes. As MySQL does it with special algorithm which is much
+faster then inserting keys one by one, disabling keys could give a
+considerable speedup on bulk inserts.
 
 @item
 @findex mysql_info()
@@ -34486,7 +34630,7 @@ The @code{SHOW} statement provides similar information.
 @xref{SHOW, , @code{SHOW}}.
 
 
-@node Transactional Commands, Fulltext Search, Basic User Commands, Reference
+@node Transactional Commands, HANDLER, Basic User Commands, Reference
 @section MySQL Transactional and Locking Commands
 
 @menu
@@ -34719,8 +34863,48 @@ future transactions.
 You can set the default isolation level for @code{mysqld} with
 @code{--transaction-isolation=...}. @xref{Command-line options}.
 
+@findex HANDLER
+@node HANDLER, Fulltext Search, Transactional Commands, Reference
+@section @code{HANDLER} Syntax
 
-@node Fulltext Search,  , Transactional Commands, Reference
+@example
+HANDLER table OPEN [ AS alias ]
+HANDLER table READ index @{ = | >= | <= | < @} (value1, value2, ... )  [ WHERE ... ] [LIMIT ... ]
+HANDLER table READ index @{ FIRST | NEXT | PREV | LAST @} [ WHERE ... ] [LIMIT ... ]
+HANDLER table READ @{ FIRST | NEXT @}  [ WHERE ... ] [LIMIT ... ]
+HANDLER table CLOSE
+@end example
+
+The @code{HANDLER} statement provides direct access to MySQL table
+interface, bypassing SQL optimizer. Thus, it is faster then SELECT.
+
+The first form of @code{HANDLER} statement opens a table, making
+in accessible via the following @code{HANDLER ... READ} routines.
+
+The second form fetches one (or, specified by @code{LIMIT} clause) row
+where the index specified complies to the condition and @code{WHERE}
+condition is met. If the index consists of several parts (spans over
+several columns) the values are specified in comma-separated list,
+providing values only for few first columns is possible.
+
+The third form fetches one (or, specified by @code{LIMIT} clause) row
+from the table in index order, matching @code{WHERE} condition.
+
+The fourth form (without index specification) fetches one (or, specified
+by @code{LIMIT} clause) row from the table in natural row order (as stored
+in data file) matching @code{WHERE} condition. It is faster than
+@code{HANDLER table READ index} when full table scan is desired.
+
+The last form closes the table, opened with @code{HANDLER ... OPEN}.
+
+@code{HANDLER} is somewhat low-level statement, for example it does not
+provide consistency. That is @code{HANDLER ... OPEN} does @strong{not}
+takes a snapshot of the table, and does @strong{not} locks the table. The
+above means,  that after @code{HANDLER ... OPEN} table data can be
+modified (by this or other thread) and these modifications may appear only
+partially in @code{HANDLER ... NEXT} or @code{HANDLER ... PREV} scans.
+
+@node Fulltext Search,  , HANDLER, Reference
 @section MySQL Full-text Search
 
 @cindex searching, full-text
@@ -34978,8 +35162,6 @@ the user wants to treat as words, examples are "C++", "AS/400", "TCP/IP", etc.
 @item Make the model more flexible (by adding some adjustable
 parameters to @code{FULLTEXT} in @code{CREATE/ALTER TABLE}).
 @end itemize
-
-
 
 
 @node Table types, Clients, Reference, Top
@@ -37060,9 +37242,8 @@ InnoDB database.
 
 @strong{9.}
 Beware also of other big disk-bound operations.
-Use @code{DROP TABLE}
-or @code{TRUNCATE} (from MySQL-4.0 up) to empty a table, not
-@code{DELETE FROM yourtable}.
+Use @code{DROP TABLE} or @code{TRUNCATE} (from MySQL-4.0 up) to empty a
+table, not @code{DELETE FROM yourtable}.
 
 @strong{10.}
 Use the multi-line @code{INSERT} to reduce
@@ -46554,8 +46735,9 @@ this means that the version has not yet been released!
 @node News-4.0.x, News-3.23.x, News, News
 @appendixsec Changes in release 4.0.x (Development; Alpha)
 
-We have now started to work on MySQL 4.0.  We will update this
-section as we add new features, so that others can follow our development.
+We are now working actively on MySQL 4.0 and will only provide critical
+bug fixes for MySQL 3.23.  We will update this section as we add new
+features, so that others can follow our development.
 
 Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
@@ -46571,32 +46753,51 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Multi-table @code{DELETE}.
+@code{TRUNCATE TABLE} and @code{DELETE FROM table_name} are now separate
+functions. One bonus is that @code{DELETE FROM table_name} now returns
+the number of deleted rows.
 @item
-Don't support old client protocols prior to MySQL 3.21 any more.
+@code{DROP DATABASE} now executes a @code{DROP TABLE} on all tables in
+the database, which fixes a problem with InnoDB tables.
 @item
-Don't include the old C API functions @code{mysql_drop_db},
-@code{mysql_create_db} and @code{mysql_connect}, unless compiled with
-@code{USE_OLD_FUNCTIONS}.
+Changed @code{WEEK(#,0)} to match the calender in the USA.
+@item
+Cleaned up global lock handling for @code{FLUSH TABLES WITH READ LOCK}
+@item
+Fixed problem with @code{DATETIME = constant} in @code{WHERE} optimization.
+@item
+Speed up all internal list handling.
+@item
+Added support for @code{UNION}.
+@item
+Allow ANSI SQL syntax @code{X'hexadecimal-number'}
+@item
+Tree-like cache to speed up bulk inserts and
+@code{myisam_bulk_insert_tree_size} variable.
+@item
+Added @code{ALTER TABLE table_name DISABLE KEYS} and
+@code{ALTER TABLE table_name ENABLE KEYS} commands.
+@item
+@code{LOAD DATA FROM MASTER} "auto-magically" sets up a slave.
 @item
 Renamed @code{safe_mysqld} to @code{mysqld_safe}.
 @item
-Allow @code{IN} as a synonym for @code{FROM} in @code{SHOW} commands.
+Allow one to use @code{IN} instead of @code{FROM} in @code{SHOW} commands.
 @item
 @code{SHOW INDEXES} is now a synonym for @code{SHOW INDEX}.
 @item
 Added support for symbolic links to @code{MyISAM} tables. Symlink handling is
 now enabled by default for Windows.
 @item
-@code{LOAD DATA FROM MASTER} ``auto-magically'' sets up a slave.
+@code{LOAD DATA FROM MASTER} "auto-magically" sets up a slave.
 @item
 A new @code{HANDLER} interface to @code{MyISAM} tables.
 @item
 @code{COUNT(DISTINCT)} is about 30% faster.
 @item
-@code{FULLTEXT} index creation now is much faster.
+Creating full text indexes are now much faster.
 @item
-Searching on packed (@code{CHAR}/@code{VARCHAR}) keys now is much faster.
+Searching on packed (@code{CHAR}/@code{VARCHAR}) keys are now much faster.
 @item
 Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This makes it
 possible to know how many rows a query would have returned

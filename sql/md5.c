@@ -124,7 +124,7 @@ void my_MD5Init (my_MD5_CTX *context)      /* context */
   context.
  */
 
-void MD5Update (
+void my_MD5Update (
 my_MD5_CTX *context,                                        /* context */
 unsigned char *input,                                /* input block */
 unsigned int inputLen)                     /* length of input block */
@@ -165,9 +165,10 @@ unsigned int inputLen)                     /* length of input block */
 /* MD5 finalization. Ends an MD5 message-digest operation, writing the
   the message digest and zeroizing the context.
  */
+
 void my_MD5Final (
 unsigned char digest[16],                         /* message digest */
-MD5_CTX *context)                                 /* context */
+my_MD5_CTX *context)                              /* context */
 {
   unsigned char bits[8];
   unsigned int idx, padLen;
