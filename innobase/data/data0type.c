@@ -104,7 +104,6 @@ dtype_form_prtype(
 	return(old_prtype + (charset_coll << 16));
 }
 
-#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates a data type structure. */
 
