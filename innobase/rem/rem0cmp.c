@@ -331,7 +331,9 @@ cmp_data_data_slow(
 	
 	if (cur_type->mtype >= DATA_FLOAT
 	    || (cur_type->mtype == DATA_BLOB
-	        && (cur_type->prtype & DATA_NONLATIN1))) {
+	        && 0 == (cur_type->prtype & DATA_BINARY_TYPE)
+		&& dtype_get_charset_coll(cur_type->prtype) !=
+				data_mysql_latin1_swedish_charset_coll)) {
 
 		return(cmp_whole_field(cur_type, data1, len1, data2, len2));
 	}
@@ -532,8 +534,10 @@ cmp_dtuple_rec_with_match(
 		}
 
 		if (cur_type->mtype >= DATA_FLOAT
-		    || (cur_type->mtype == DATA_BLOB
-	                && (cur_type->prtype & DATA_NONLATIN1))) {
+	    	    || (cur_type->mtype == DATA_BLOB
+	        	&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
+			&& dtype_get_charset_coll(cur_type->prtype) !=
+				data_mysql_latin1_swedish_charset_coll)) {
 
 			ret = cmp_whole_field(cur_type,
 				dfield_get_data(dtuple_field), dtuple_f_len,
@@ -854,8 +858,10 @@ cmp_rec_rec_with_match(
 		}
 
 		if (cur_type->mtype >= DATA_FLOAT
-		    || (cur_type->mtype == DATA_BLOB
-	                && (cur_type->prtype & DATA_NONLATIN1))) {
+	    	    || (cur_type->mtype == DATA_BLOB
+	        	&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
+			&& dtype_get_charset_coll(cur_type->prtype) !=
+				data_mysql_latin1_swedish_charset_coll)) {
 
 			ret = cmp_whole_field(cur_type,
 						rec1_b_ptr, rec1_f_len,
