@@ -294,10 +294,12 @@ Item *create_func_pow(Item* a, Item *b)
 Item *create_func_current_user()
 {
   THD *thd=current_thd;
-  Item_string *res=new Item_string("CURRENT_USER()", thd->priv_user, 0);
-  res->append("@", 1);
-  res->append((char *)thd->host_or_ip, 0);
-  return res;
+  char buff[HOSTNAME_LENGTH+USERNAME_LENGTH+2];
+  uint length;
+
+  length= (uint) (strxmov(buff, thd->priv_user, "@", thd->host_or_ip, NullS) -
+		  buff);
+  return new Item_string("CURRENT_USER()", thd->memdup(buff, length), length);
 }
 
 Item *create_func_quarter(Item* a)
@@ -403,7 +405,7 @@ Item *create_func_ucase(Item* a)
 
 Item *create_func_version(void)
 {
-  return new Item_string("VERSION()",server_version, 0);
+  return new Item_string("VERSION()",server_version, strlen(server_version));
 }
 
 Item *create_func_weekday(Item* a)

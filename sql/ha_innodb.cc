@@ -1907,12 +1907,9 @@ ha_innobase::write_row(
 		the counter here. */
 
 	        skip_auto_inc_decr = FALSE;
-
-	        if (error == DB_DUPLICATE_KEY) {
-	                ut_a(user_thd->query);
-	                dict_accept(user_thd->query, "REPLACE",
-				                       &skip_auto_inc_decr);
-		}
+	        if (error == DB_DUPLICATE_KEY &&
+		    user_thd->lex.sql_command == SQLCOM_REPLACE)
+		  skip_auto_inc_decr= TRUE;
 
 	        if (!skip_auto_inc_decr && incremented_auto_inc_counter
 		    && prebuilt->trx->auto_inc_lock) {
