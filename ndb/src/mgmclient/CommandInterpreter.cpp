@@ -429,6 +429,8 @@ emptyString(const char* s)
 void
 CommandInterpreter::printError() 
 {
+  if (ndb_mgm_check_connection(m_mgmsrv))
+    connected= false;
   ndbout_c("* %5d: %s", 
 	   ndb_mgm_get_latest_error(m_mgmsrv),
 	   ndb_mgm_get_latest_error_msg(m_mgmsrv));
@@ -1030,9 +1032,6 @@ CommandInterpreter::executeShow(char* parameters)
 { 
   int i;
   if (emptyString(parameters)) {
-    ndbout << "Cluster Configuration" << endl
-	   << "---------------------" << endl;
-    
     ndb_mgm_cluster_state *state = ndb_mgm_get_status(m_mgmsrv);
     if(state == NULL) {
       ndbout_c("Could not get status");
@@ -1092,6 +1091,8 @@ CommandInterpreter::executeShow(char* parameters)
       }
     }
 
+    ndbout << "Cluster Configuration" << endl
+	   << "---------------------" << endl;
     print_nodes(state, it, "ndbd",     ndb_nodes, NDB_MGM_NODE_TYPE_NDB, master_id);
     print_nodes(state, it, "ndb_mgmd", mgm_nodes, NDB_MGM_NODE_TYPE_MGM, 0);
     print_nodes(state, it, "mysqld",   api_nodes, NDB_MGM_NODE_TYPE_API, 0);
