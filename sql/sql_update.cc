@@ -48,6 +48,35 @@ static bool compare_record(TABLE *table, ulong query_id)
 }
 
 
+/*
+  check that all fields are real fields
+
+  SYNOPSIS
+    check_fields()
+    items           Items for check
+
+  RETURN
+    TRUE  Items can't be used in UPDATE
+    FALSE Items are OK
+*/
+
+static bool check_fields(List<Item> &items)
+{
+  List_iterator_fast<Item> it(items);
+  Item *item;
+  while ((item= it++))
+  {
+    if (item->type() != Item::FIELD_ITEM)
+    {
+      /* as far as item comes from VIEW select list it has name */
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->name);
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+
 int mysql_update(THD *thd,
                  TABLE_LIST *table_list,
                  List<Item> &fields,
@@ -71,8 +100,6 @@ int mysql_update(THD *thd,
   TABLE		*table;
   SQL_SELECT	*select;
   READ_RECORD	info;
-  TABLE_LIST    *update_table_list= ((TABLE_LIST*) 
-				     thd->lex->select_lex.table_list.first);
   DBUG_ENTER("mysql_update");
 
   LINT_INIT(used_index);
@@ -89,10 +116,12 @@ int mysql_update(THD *thd,
   table->quick_keys.clear_all();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  want_privilege= table->grant.want_privilege;
+  /* In case of view TABLE_LIST contain right privilages request */
+  want_privilege= (table_list->view ?
+                   table_list->grant.want_privilege :
+                   table->grant.want_privilege);
 #endif
-  if ((error= mysql_prepare_update(thd, table_list, update_table_list,
-				   &conds, order_num, order)))
+  if ((error= mysql_prepare_update(thd, table_list, &conds, order_num, order)))
     DBUG_RETURN(error);
 
   old_used_keys= table->used_keys;		// Keys used in WHERE
@@ -108,10 +137,19 @@ int mysql_update(THD *thd,
 
   /* Check the fields we are going to modify */
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  table->grant.want_privilege=want_privilege;
+  table_list->grant.want_privilege= table->grant.want_privilege= want_privilege;
 #endif
-  if (setup_fields(thd, 0, update_table_list, fields, 1, 0, 0))
+  if (setup_fields(thd, 0, table_list, fields, 1, 0, 0))
     DBUG_RETURN(-1);				/* purecov: inspected */
+  if (check_fields(fields))
+  {
+    DBUG_RETURN(-1);
+  }
+  if (!table_list->updatable || check_key_in_view(thd, table_list))
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
+    DBUG_RETURN(-1);
+  }
   if (table->timestamp_field)
   {
     // Don't set timestamp column if this is modified
@@ -123,9 +161,10 @@ int mysql_update(THD *thd,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Check values */
-  table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
+  table_list->grant.want_privilege= table->grant.want_privilege=
+    (SELECT_ACL & ~table->grant.privilege);
 #endif
-  if (setup_fields(thd, 0, update_table_list, values, 0, 0, 0))
+  if (setup_fields(thd, 0, table_list, values, 0, 0, 0))
   {
     free_underlaid_joins(thd, &thd->lex->select_lex);
     DBUG_RETURN(-1);				/* purecov: inspected */
@@ -228,7 +267,7 @@ int mysql_update(THD *thd,
       if (select && select->quick && select->quick->reset())
         goto err;
       init_read_record(&info,thd,table,select,0,1);
-     
+
       thd->proc_info="Searching rows for update";
       uint tmp_limit= limit;
 
@@ -407,8 +446,7 @@ err:
   SYNOPSIS
     mysql_prepare_update()
     thd			- thread handler
-    table_list		- global table list
-    update_table_list	- local table list of UPDATE SELECT_LEX
+    table_list		- global/local table list
     conds		- conditions
     order_num		- number of ORDER BY list entries
     order		- ORDER BY clause list
@@ -419,7 +457,6 @@ err:
     -1 - error (message is not sent to user)
 */
 int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
-			 TABLE_LIST *update_table_list,
 			 Item **conds, uint order_num, ORDER *order)
 {
   TABLE *table= table_list->table;
@@ -429,34 +466,30 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   DBUG_ENTER("mysql_prepare_update");
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
+  table_list->grant.want_privilege= table->grant.want_privilege= 
+    (SELECT_ACL & ~table->grant.privilege);
 #endif
 
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY
   tables.table= table;
   tables.alias= table_list->alias;
 
-  if (setup_tables(update_table_list) ||
-      setup_conds(thd, update_table_list, conds) ||
+  if (setup_tables(thd, table_list, conds) ||
+      setup_conds(thd, table_list, conds) ||
       select_lex->setup_ref_array(thd, order_num) ||
       setup_order(thd, select_lex->ref_pointer_array,
-		  update_table_list, all_fields, all_fields, order) ||
+		  table_list, all_fields, all_fields, order) ||
       setup_ftfuncs(select_lex))
     DBUG_RETURN(-1);
 
   /* Check that we are not using table that we are updating in a sub select */
-  if (find_real_table_in_list(table_list->next, 
+  if (find_real_table_in_list(table_list->next_global, 
 			      table_list->db, table_list->real_name))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
   }
-  if (thd->current_arena && select_lex->first_execution)
-  {
-    select_lex->prep_where= select_lex->where;
-    select_lex->first_execution= 0;
-  }
-
+  select_lex->fix_prepare_information(thd, conds);
   DBUG_RETURN(0);
 }
 
@@ -469,6 +502,101 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   Setup multi-update handling and call SELECT to do the join
 */
 
+/*
+  make update specific preparation and checks after opening tables
+
+  SYNOPSIS
+    mysql_multi_update_prepare()
+    thd         thread handler
+
+  RETURN
+    0   OK
+    -1  Error
+*/
+
+int mysql_multi_update_prepare(THD *thd)
+{
+  LEX *lex= thd->lex;
+  TABLE_LIST *table_list= lex->query_tables;
+  List<Item> *fields= &lex->select_lex.item_list;
+  TABLE_LIST *tl;
+  table_map tables_for_update= 0, readonly_tables= 0;
+  DBUG_ENTER("mysql_multi_update_prepare");
+  /*
+    Ensure that we have update privilege for all tables and columns in the
+    SET part
+  */
+  for (tl= table_list; tl; tl= tl->next_local)
+  {
+    TABLE *table= tl->table;
+    /*
+      Update of derived tables is checked later
+      We don't check privileges here, becasue then we would get error
+      "UPDATE command denided .. for column N" instead of
+      "Target table ... is not updatable"
+    */
+    if (!tl->derived)
+      tl->grant.want_privilege= table->grant.want_privilege=
+        (UPDATE_ACL & ~table->grant.privilege);
+  }
+
+  /*
+    setup_tables() need for VIEWs. JOIN::prepare() will not do it second
+    time.
+  */
+  if (setup_tables(thd, table_list, &lex->select_lex.where) ||
+      setup_fields(thd, 0, table_list, *fields, 1, 0, 0))
+    DBUG_RETURN(-1);
+  if (check_fields(*fields))
+  {
+    DBUG_RETURN(-1);
+  }
+
+  {
+    // Find tables used in items
+    List_iterator_fast<Item> it(*fields);
+    Item *item;
+    while ((item= it++))
+    {
+      tables_for_update|= item->used_tables();
+    }
+  }
+
+  /*
+    Count tables and setup timestamp handling
+  */
+  for (tl= table_list; tl ; tl= tl->next_local)
+  {
+    TABLE *table= tl->table;
+
+    /* We only need SELECT privilege for columns in the values list */
+    tl->grant.want_privilege= table->grant.want_privilege=
+      (SELECT_ACL & ~table->grant.privilege);
+    // Only set timestamp column if this is not modified
+    if (table->timestamp_field &&
+        table->timestamp_field->query_id == thd->query_id)
+      table->timestamp_on_update_now= 0;
+
+    if (!tl->updatable || check_key_in_view(thd, tl))
+      readonly_tables|= table->map;
+  }
+  if (tables_for_update & readonly_tables)
+  {
+    // find readonly table/view which cause error
+    for (tl= table_list; tl ; tl= tl->next_local)
+    {
+      if ((readonly_tables & tl->table->map) &&
+          (tables_for_update & tl->table->map))
+      {
+	my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tl->alias, "UPDATE");
+	DBUG_RETURN(-1);
+      }
+    }
+  }
+  DBUG_RETURN (0);
+}
+
+
 int mysql_multi_update(THD *thd,
 		       TABLE_LIST *table_list,
 		       List<Item> *fields,
@@ -480,95 +608,21 @@ int mysql_multi_update(THD *thd,
 {
   int res;
   multi_update *result;
-  TABLE_LIST *tl;
-  TABLE_LIST *update_list= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
-  table_map item_tables= 0, derived_tables= 0;
   DBUG_ENTER("mysql_multi_update");
 
- if ((res=open_and_lock_tables(thd,table_list)))
+  if ((res= open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(res);
 
-  select_lex->select_limit= HA_POS_ERROR;
+  if ((res= mysql_multi_update_prepare(thd)))
+    DBUG_RETURN(res);
 
-  /*
-    Ensure that we have update privilege for all tables and columns in the
-    SET part
-  */
-  for (tl= update_list; tl; tl= tl->next)
-  {
-    TABLE *table= tl->table;
-    /*
-      Update of derived tables is checked later
-      We don't check privileges here, becasue then we would get error
-      "UPDATE command denided .. for column N" instead of
-      "Target table ... is not updatable"
-    */
-    if (!tl->derived)
-      table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
-  }
-
-  if (thd->lex->derived_tables)
-  {
-    // Assign table map values to check updatability of derived tables
-    uint tablenr=0;
-    for (TABLE_LIST *table_list= update_list;
-	 table_list;
-	 table_list= table_list->next, tablenr++)
-    {
-      table_list->table->map= (table_map) 1 << tablenr;
-    }
-  }
-  if (setup_fields(thd, 0, update_list, *fields, 1, 0, 0))
-    DBUG_RETURN(-1);
-  if (thd->lex->derived_tables)
-  {
-    // Find tables used in items
-    List_iterator_fast<Item> it(*fields);
-    Item *item;
-    while ((item= it++))
-    {
-      item_tables|= item->used_tables();
-    }
-  }
-
-  /*
-    Count tables and setup timestamp handling
-  */
-  for (tl= update_list; tl; tl= tl->next)
-  {
-    TABLE *table= tl->table;
-
-    /* We only need SELECT privilege for columns in the values list */
-    table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
-    // Only set timestamp column if this is not modified
-    if (table->timestamp_field &&
-        table->timestamp_field->query_id == thd->query_id)
-      table->timestamp_on_update_now= 0;
-    
-    if (tl->derived)
-      derived_tables|= table->map;
-  }
-  if (thd->lex->derived_tables && (item_tables & derived_tables))
-  {
-    // find derived table which cause error
-    for (tl= update_list; tl; tl= tl->next)
-    {
-      if (tl->derived && (item_tables & tl->table->map))
-      {
-	my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
-			MYF(0), tl->alias, "UPDATE");
-	DBUG_RETURN(-1);
-      }
-    }
-  }
-
-  if (!(result=new multi_update(thd, update_list, fields, values,
-				handle_duplicates)))
+  if (!(result= new multi_update(thd, table_list, fields, values,
+				 handle_duplicates)))
     DBUG_RETURN(-1);
 
   List<Item> total_list;
   res= mysql_select(thd, &select_lex->ref_pointer_array,
-		    select_lex->get_table_list(), select_lex->with_wild,
+		    table_list, select_lex->with_wild,
 		    total_list,
 		    conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
 		    (ORDER *)NULL,
@@ -633,7 +687,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   */
 
   update.empty();
-  for (table_ref= all_tables;  table_ref; table_ref=table_ref->next)
+  for (table_ref= all_tables;  table_ref; table_ref= table_ref->next_local)
   {
     TABLE *table=table_ref->table;
     if (tables_to_update & table->map)
@@ -642,7 +696,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 						sizeof(*tl));
       if (!tl)
 	DBUG_RETURN(1);
-      update.link_in_list((byte*) tl, (byte**) &tl->next);
+      update.link_in_list((byte*) tl, (byte**) &tl->next_local);
       tl->shared= table_count++;
       table->no_keyread=1;
       table->used_keys.clear_all();
@@ -702,7 +756,7 @@ int multi_update::prepare(List<Item> &not_used_values,
     which will cause an error when reading a row.
     (This issue is mostly relevent for MyISAM tables)
   */
-  for (table_ref= all_tables;  table_ref; table_ref=table_ref->next)
+  for (table_ref= all_tables;  table_ref; table_ref= table_ref->next_local)
   {
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) && 
@@ -737,7 +791,7 @@ multi_update::initialize_tables(JOIN *join)
   table_to_update= 0;
 
   /* Create a temporary table for keys to all tables, except main table */
-  for (table_ref= update_tables; table_ref; table_ref=table_ref->next)
+  for (table_ref= update_tables; table_ref; table_ref= table_ref->next_local)
   {
     TABLE *table=table_ref->table;
     uint cnt= table_ref->shared;
@@ -849,7 +903,7 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
 multi_update::~multi_update()
 {
   TABLE_LIST *table;
-  for (table= update_tables ; table; table= table->next)
+  for (table= update_tables ; table; table= table->next_local)
     table->table->no_keyread= table->table->no_cache= 0;
 
   if (tmp_tables)
@@ -876,7 +930,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
   TABLE_LIST *cur_table;
   DBUG_ENTER("multi_update::send_data");
 
-  for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
+  for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
   {
     TABLE *table= cur_table->table;
     /*
@@ -990,7 +1044,7 @@ int multi_update::do_updates(bool from_send_error)
   do_update= 0;					// Don't retry this function
   if (!found)
     DBUG_RETURN(0);
-  for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
+  for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
   {
     byte *ref_pos;
 

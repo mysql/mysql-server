@@ -404,6 +404,9 @@ bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list);
 int multi_update_precheck(THD *thd, TABLE_LIST *tables);
 int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count);
+int mysql_multi_update_prepare(THD *thd);
+int mysql_multi_delete_prepare(THD *thd);
+int mysql_insert_select_prepare(THD *thd);
 int insert_select_precheck(THD *thd, TABLE_LIST *tables);
 int update_precheck(THD *thd, TABLE_LIST *tables);
 int delete_precheck(THD *thd, TABLE_LIST *tables);
@@ -462,7 +465,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos, ushort flags);
 int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 		   my_bool drop_temporary);
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
-			 bool drop_temporary, bool log_query);
+			 bool drop_temporary, bool drop_view, bool log_query);
 int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
 				   bool if_exists, bool drop_temporary,
 				   bool log_query);
@@ -541,7 +544,6 @@ int mysql_select(THD *thd, Item ***rref_pointer_array,
 		 select_result *result, SELECT_LEX_UNIT *unit, 
 		 SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
-void fix_tables_pointers(SELECT_LEX *select_lex);
 int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
 			select_result *result);
 int mysql_explain_select(THD *thd, SELECT_LEX *sl, char const *type,
@@ -562,7 +564,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 		       List<create_field> &fields, List<Key> &keys,
 		       bool tmp_table, bool no_log, uint select_field_count);
 TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
-			       const char *db, const char *name,
+			       TABLE_LIST *create_table,
 			       List<create_field> *extra_fields,
 			       List<Key> *keys,
 			       List<Item> *items,
@@ -588,7 +590,6 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
 		     ALTER_INFO *alter_info);
 int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
-			 TABLE_LIST *update_table_list,
 			 Item **conds, uint order_num, ORDER *order);
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 		 List<Item> &values,COND *conds,
@@ -599,8 +600,7 @@ int mysql_multi_update(THD *thd, TABLE_LIST *table_list,
 		       COND *conds, ulong options,
 		       enum enum_duplicates handle_duplicates,
 		       SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex);
-int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
-			 TABLE_LIST *insert_table_list, TABLE *table,
+int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
 			 List<Item> &fields, List_item *values,
 			 List<Item> &update_fields,
 			 List<Item> &update_values, enum_duplicates duplic);
@@ -612,7 +612,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                  ha_rows rows, ulong options);
 int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok=0);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
-TABLE *open_table(THD *thd,const char *db,const char *table,const char *alias,
+TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT* mem,
 		  bool *refresh);
 TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table);
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name);
@@ -628,10 +628,14 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name);
 void execute_init_command(THD *thd, sys_var_str *init_command_var,
 			  rw_lock_t *var_mutex);
 extern const Field *not_found_field;
+extern const Field *view_ref_found;
 Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
-			    TABLE_LIST **where, bool report_error);
-Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
-                           bool check_grant,bool allow_rowid,
+			    Item **ref, bool report_error,
+                            bool check_privileges);
+Field *find_field_in_table(THD *thd, TABLE_LIST *tables, const char *name,
+			   uint length, Item **ref,
+                           bool check_grant_table,  bool check_grant_view,
+			   bool allow_rowid,
                            uint *cached_field_index_ptr);
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
@@ -693,8 +697,6 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name);
 void mysql_stmt_free(THD *thd, char *packet);
 void mysql_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
-int check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
-			List<Item> &values, ulong counter);
 void reset_stmt_for_execute(THD *thd, LEX *lex);
 
 /* sql_error.cc */
@@ -740,8 +742,8 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
-		   List_iterator<Item> *it);
-bool setup_tables(TABLE_LIST *tables);
+		   List_iterator<Item> *it, bool any_privileges);
+bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
 int setup_fields(THD *thd, Item** ref_pointer_array, TABLE_LIST *tables,
@@ -762,11 +764,12 @@ void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
 void close_temporary_tables(THD *thd);
-TABLE_LIST * find_table_in_list(TABLE_LIST *table,
-				const char *db_name, const char *table_name);
 TABLE_LIST * find_real_table_in_list(TABLE_LIST *table,
 				     const char *db_name,
 				     const char *table_name);
+TABLE_LIST * find_real_table_in_local_list(TABLE_LIST *table,
+					   const char *db_name,
+					   const char *table_name);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
 void close_temporary(TABLE *table, bool delete_table=1);
@@ -1147,6 +1150,8 @@ extern int yyparse(void *thd);
 #ifdef HAVE_CRYPTED_FRM
 SQL_CRYPT *get_crypt_for_frm(void);
 #endif
+
+#include "sql_view.h"
 
 /* Some inline functions for more speed */
 
