@@ -912,12 +912,9 @@ mysql_rename_table(enum db_type base,
   Win32 clients must also have a WRITE LOCK on the table !
 */
 
-bool close_cached_table(THD *thd,TABLE *table)
+static void safe_remove_from_cache(THD *thd,TABLE *table)
 {
-  bool result=0;
-  DBUG_ENTER("close_cached_table");
-  safe_mutex_assert_owner(&LOCK_open);
-
+  DBUG_ENTER("safe_remove_from_cache");
   if (table)
   {
     DBUG_PRINT("enter",("table: %s", table->real_name));
@@ -940,7 +937,18 @@ bool close_cached_table(THD *thd,TABLE *table)
 #endif
     /* When lock on LOCK_open is freed other threads can continue */
     pthread_cond_broadcast(&COND_refresh);
+  }
+  DBUG_VOID_RETURN;
+}
 
+bool close_cached_table(THD *thd,TABLE *table)
+{
+  DBUG_ENTER("close_cached_table");
+  safe_mutex_assert_owner(&LOCK_open);
+
+  if (table)
+  {
+    safe_remove_from_cache(thd,table);
     /* Close lock if this is not got with LOCK TABLES */
     if (thd->lock)
     {
@@ -949,7 +957,7 @@ bool close_cached_table(THD *thd,TABLE *table)
     /* Close all copies of 'table'.  This also frees all LOCK TABLES lock */
     thd->open_tables=unlink_open_table(thd,thd->open_tables,table);
   }
-  DBUG_RETURN(result);
+  DBUG_RETURN(0);
 }
 
 static int send_check_errmsg(THD* thd, TABLE_LIST* table,
@@ -1456,9 +1464,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       case LEAVE_AS_IS:
 	break;
       case ENABLE:
-	error=table->file->activate_all_index(thd);
+	safe_remove_from_cache(thd,table);
+	error=   table->file->activate_all_index(thd);
 	break;
       case DISABLE:
+	safe_remove_from_cache(thd,table);
 	table->file->deactivate_non_unique_index(HA_POS_ERROR);
 	break;
       }

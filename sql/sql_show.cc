@@ -728,7 +728,10 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       net_store_data(packet,convert,(const char*) pos);
       net_store_data(packet,convert,table->file->index_type(i));
       /* Comment */
-      net_store_data(packet,convert,"");
+      if (!(table->keys_in_use & ((key_map) 1 << i)))
+	net_store_data(packet,convert,"disabled",8);
+      else
+	net_store_data(packet,convert,"");
       if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
         DBUG_RETURN(1); /* purecov: inspected */
     }
