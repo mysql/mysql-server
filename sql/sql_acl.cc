@@ -33,52 +33,6 @@
 #include <stdarg.h>
 
 
-struct acl_host_and_ip
-{
-  char *hostname;
-  long ip,ip_mask;			// Used with masked ip:s
-};
-
-
-class ACL_ACCESS {
-public:
-  ulong sort;
-  ulong access;
-};
-
-
-/* ACL_HOST is used if no host is specified */
-
-class ACL_HOST :public ACL_ACCESS
-{
-public:
-  acl_host_and_ip host;
-  char *db;
-};
-
-
-class ACL_USER :public ACL_ACCESS
-{
-public:
-  acl_host_and_ip host;
-  uint hostname_length;
-  USER_RESOURCES user_resource;
-  char *user,*password;
-  ulong salt[6]; // New password has longer length
-  uint8 pversion; // password version 
-  enum SSL_type ssl_type;
-  const char *ssl_cipher, *x509_issuer, *x509_subject;
-};
-
-
-class ACL_DB :public ACL_ACCESS
-{
-public:
-  acl_host_and_ip host;
-  char *user,*db;
-};
-
-
 class acl_entry :public hash_filo_element
 {
 public:
@@ -105,6 +59,7 @@ static HASH acl_check_hosts, hash_tables;
 static DYNAMIC_ARRAY acl_wild_hosts;
 static hash_filo *acl_cache;
 static uint grant_version=0;
+static uint priv_version=0; /* Version of priv tables. incremented by acl_init */
 static ulong get_access(TABLE *form,uint fieldnr);
 static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b);
 static ulong get_sort(uint count,...);
@@ -148,7 +103,9 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   {
     DBUG_RETURN(0); /* purecov: tested */
   }    
-
+  
+  priv_version++; /* Priveleges updated */
+  
   /*
     To be able to run this from boot, we allocate a temporary THD
   */
@@ -515,15 +472,23 @@ void prepare_scramble(THD* thd, ACL_USER *acl_user,char* prepared_scramble)
 /*
   Get master privilges for user (priviliges for all tables).
   Required before connecting to MySQL
+  
+  as we have 2 stage handshake now we cache user not to lookup
+  it second time. At the second stage we do not lookup user in case 
+  we already know it;
+  
 */
 
 ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		  const char *password,const char *message,char **priv_user,
-		  bool old_ver, USER_RESOURCES  *mqh,char* prepared_scramble,int stage)
+		  bool old_ver, USER_RESOURCES  *mqh,char* prepared_scramble,
+                  int stage,uint *cur_priv_version,ACL_USER** hint_user)
 {
   ulong user_access=NO_ACCESS;
   *priv_user=(char*) user;
   bool password_correct=0;
+  ACL_USER *acl_user=NULL;
+  
   DBUG_ENTER("acl_getroot");
 
   bzero(mqh,sizeof(USER_RESOURCES));
@@ -533,158 +498,174 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
     DBUG_RETURN((ulong) ~NO_ACCESS);		/* purecov: tested */
   }
   VOID(pthread_mutex_lock(&acl_cache->lock));
-
+  
+  
   /*
     Get possible access from user_list. This is or'ed to others not
     fully specified
+    
+    If we have cached user use it, in other case look it up.
   */
-  for (uint i=0 ; i < acl_users.elements ; i++)
-  {
-    ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
-    if (!acl_user->user || !strcmp(user,acl_user->user))
+  
+  if (stage && (*cur_priv_version==priv_version))
+    acl_user=*hint_user;
+  else  
+    for (uint i=0 ; i < acl_users.elements ; i++)
     {
-      if (compare_hostname(&acl_user->host,host,ip))
+      ACL_USER *acl_user_search=dynamic_element(&acl_users,i,ACL_USER*);
+      if (!acl_user_search->user || !strcmp(user,acl_user_search->user))
       {
-	if (!acl_user->password && !*password ||
-	    (acl_user->password && *password))
-        {    
-          /* Quick check and accept for empty passwords*/
-          if (!acl_user->password && !*password)
-            password_correct=1;
-          else
-          {    
-            /* New version password is checked differently */
-            if (acl_user->pversion)
-            {
-              if (stage) /* We check password only on the second stage */
-              {
-                if (!validate_password(password,message,acl_user->salt))
-                  password_correct=1;
-              }      
-              else  /* First stage - just prepare scramble */
-                prepare_scramble(thd,acl_user,prepared_scramble);
-            }
-            /* Old way to check password */
-            else 
-            {
-              /* Checking the scramble at any stage. First - old clients */ 
-              if (!check_scramble(password,message,acl_user->salt,
-	                          (my_bool) old_ver))
-                password_correct=1;
-              else /* Password incorrect  */  
-                /* At the first stage - prepare scramble */
-                if (!stage)
-                  prepare_scramble(thd,acl_user,prepared_scramble);                 
-            }    
+        if (compare_hostname(&acl_user_search->host,host,ip))
+        {
+          /* Found mathing user */ 
+          acl_user=acl_user_search;
+          /* Store it as a cache */
+          *hint_user=acl_user;
+          *cur_priv_version=priv_version;
+          break;
+        }  
+      }
+    } 
+    
+  
+  /* Now we have acl_user found and may start our checks */
+  
+  if (acl_user)      
+  { 
+    /* Password should present for both or absend for both */       
+    if (!acl_user->password && !*password ||
+       (acl_user->password && *password))
+    {    
+      /* Quick check and accept for empty passwords*/
+      if (!acl_user->password && !*password)
+        password_correct=1;
+      else /* Normal password presents */
+      {    
+        /* New version password is checked differently */
+        if (acl_user->pversion)
+        {
+          if (stage) /* We check password only on the second stage */
+          {
+            if (!validate_password(password,message,acl_user->salt))
+              password_correct=1;
           }      
-          /* If password correct continue with checking other limitations */          
-          if (password_correct)                     
-	  {
-#ifdef HAVE_OPENSSL
-	    Vio *vio=thd->net.vio;
-            /*
-	      In this point we know that user is allowed to connect 
-	      from given host by given username/password pair. Now 
-	      we check if SSL is required, if user is using SSL and 
-	      if X509 certificate attributes are OK 
-	    */
-            switch (acl_user->ssl_type) {
-	    case SSL_TYPE_NOT_SPECIFIED:		// Impossible
-            case SSL_TYPE_NONE: /* SSL is not required to connect */
-	      user_access=acl_user->access;
-	      break;
-	    case SSL_TYPE_ANY: /* Any kind of SSL is good enough */
-	      if (vio_type(vio) == VIO_TYPE_SSL)
-	        user_access=acl_user->access;
-	      break;
-	    case SSL_TYPE_X509: /* Client should have any valid certificate. */
-	      /*
-	        Connections with non-valid certificates are dropped already 
-	        in sslaccept() anyway, so we do not check validity here. 
-	      */
-	      if (SSL_get_peer_certificate(vio->ssl_))
-	        user_access=acl_user->access;
-	      break;
-	    case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
-	      /*
-	        We do not check for absence of SSL because without SSL it does
-	        not pass all checks here anyway.
-	        If cipher name is specified, we compare it to actual cipher in
-	        use.
-	      */
-	      if (acl_user->ssl_cipher)
-	      {
-	        DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
-	  			 acl_user->ssl_cipher,
-	  			 SSL_get_cipher(vio->ssl_)));
-	        if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
-	          user_access=acl_user->access;
-	        else
-	        {
-		  user_access=NO_ACCESS;
-	          break;
-	        }
-	      }
-	      /* Prepare certificate (if exists) */
-	      DBUG_PRINT("info",("checkpoint 1"));
-	      X509* cert=SSL_get_peer_certificate(vio->ssl_);
-	      DBUG_PRINT("info",("checkpoint 2"));
-	      /* If X509 issuer is speified, we check it... */
-	      if (acl_user->x509_issuer) 
-	      {
-	        DBUG_PRINT("info",("checkpoint 3"));
-	        char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
-	        DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
-				 acl_user->x509_issuer, ptr));
-	        if (strcmp(acl_user->x509_issuer, ptr))
-	        {
-		  user_access=NO_ACCESS;
-		  free(ptr);
-		  break;
-	        }
-	        user_access=acl_user->access;
-	        free(ptr);
-	      }
-	      DBUG_PRINT("info",("checkpoint 4"));
-	      /* X509 subject is specified, we check it .. */
-	      if (acl_user->x509_subject)
-	      {
-	        char *ptr= X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
-	        DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
-				 acl_user->x509_subject, ptr));
-	        if (strcmp(acl_user->x509_subject,ptr))
-	  	  user_access=NO_ACCESS;
-	        else
-		  user_access=acl_user->access;
-	        free(ptr);
-	      }
-	      break;
-	    }
-#else  /* HAVE_OPENSSL */
-	    user_access=acl_user->access;
-#endif /* HAVE_OPENSSL */
-	    *mqh=acl_user->user_resource;
-	    if (!acl_user->user)
-	    *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
-	    break;
-	  } // correct password
-        } // found matching user
-            
-#ifndef ALLOW_DOWNGRADE_OF_USERS
-	break;				// Wrong password breaks loop /* purecov: inspected */
-#endif
+          else  /* First stage - just prepare scramble */
+            prepare_scramble(thd,acl_user,prepared_scramble);
+        }
+        /* Old way to check password */
+        else 
+        {
+          /* Checking the scramble at any stage. First - old clients */ 
+          if (!check_scramble(password,message,acl_user->salt,
+	       (my_bool) old_ver))
+            password_correct=1;
+           else /* Password incorrect  */  
+             /* At the first stage - prepare scramble */
+            if (!stage)
+              prepare_scramble(thd,acl_user,prepared_scramble);                 
+        }    
       }
     }
   }
+  
+  /* If user not found password_correct will also be zero */
+  if (!password_correct)           
+   goto unlock_and_exit; 
+  
+  /* OK. User found and password checked continue validation */
+  
+            
+#ifdef HAVE_OPENSSL
+  Vio *vio=thd->net.vio;
+  /*
+    In this point we know that user is allowed to connect 
+    from given host by given username/password pair. Now 
+    we check if SSL is required, if user is using SSL and 
+    if X509 certificate attributes are OK 
+  */
+  switch (acl_user->ssl_type) {
+  case SSL_TYPE_NOT_SPECIFIED:		// Impossible
+  case SSL_TYPE_NONE: /* SSL is not required to connect */
+    user_access=acl_user->access;
+    break;
+  case SSL_TYPE_ANY: /* Any kind of SSL is good enough */
+    if (vio_type(vio) == VIO_TYPE_SSL)
+    user_access=acl_user->access;
+    break;
+  case SSL_TYPE_X509: /* Client should have any valid certificate. */
+  /*
+    Connections with non-valid certificates are dropped already 
+    in sslaccept() anyway, so we do not check validity here. 
+  */
+    if (SSL_get_peer_certificate(vio->ssl_))
+      user_access=acl_user->access;
+    break;
+  case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
+  /*
+    We do not check for absence of SSL because without SSL it does
+    not pass all checks here anyway.
+    If cipher name is specified, we compare it to actual cipher in
+    use.
+  */
+    if (acl_user->ssl_cipher)
+    {
+      DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
+        	 acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)));
+      if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
+        user_access=acl_user->access;
+      else
+      {
+        user_access=NO_ACCESS;
+        break;
+      }
+    }
+    /* Prepare certificate (if exists) */
+    DBUG_PRINT("info",("checkpoint 1"));
+    X509* cert=SSL_get_peer_certificate(vio->ssl_);
+    DBUG_PRINT("info",("checkpoint 2"));
+    /* If X509 issuer is speified, we check it... */
+    if (acl_user->x509_issuer) 
+    {
+      DBUG_PRINT("info",("checkpoint 3"));
+      char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
+      DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
+    		 acl_user->x509_issuer, ptr));
+      if (strcmp(acl_user->x509_issuer, ptr))
+      {
+        user_access=NO_ACCESS;
+        free(ptr);
+        break;
+      }
+      user_access=acl_user->access;
+      free(ptr);
+    }
+    DBUG_PRINT("info",("checkpoint 4"));
+    /* X509 subject is specified, we check it .. */
+    if (acl_user->x509_subject)
+    {
+      char *ptr= X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
+      DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
+		 acl_user->x509_subject, ptr));
+      if (strcmp(acl_user->x509_subject,ptr))
+        user_access=NO_ACCESS;
+      else
+        user_access=acl_user->access;
+      free(ptr);
+    }
+    break;
+  }
+#else  /* HAVE_OPENSSL */
+  user_access=acl_user->access;
+#endif /* HAVE_OPENSSL */
+  *mqh=acl_user->user_resource;
+  if (!acl_user->user)
+    *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
+    
+unlock_and_exit:
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   DBUG_RETURN(user_access);
 }
 
-
-/*
-** Functions to add and change user and database privileges when one
-** changes things with GRANT
-*/
 
 static byte* check_get_key(ACL_USER *buff,uint *length,
 			   my_bool not_used __attribute__((unused)))

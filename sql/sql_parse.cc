@@ -188,14 +188,16 @@ end:
   thd->user, thd->master_access, thd->priv_user, thd->db, thd->db_access
 */
 
-static bool check_user(THD *thd,enum_server_command command, const char *user,
+static int check_user(THD *thd,enum_server_command command, const char *user,
 		       const char *passwd, const char *db, bool check_count, 
                        bool do_send_error, char* crypted_scramble,int stage,
-                       bool had_password)
+                       bool had_password,uint *cur_priv_version, 
+                       ACL_USER** hint_user)
 {
   thd->db=0;
   thd->db_length=0;
   USER_RESOURCES ur;
+  
   /* We shall avoid dupplicate user allocations here */ 
   if (!(thd->user))
     if (!(thd->user = my_strdup(user, MYF(0))))
@@ -207,7 +209,9 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
 				 passwd, thd->scramble, &thd->priv_user,
 				 protocol_version == 9 ||
 				 !(thd->client_capabilities &
-				   CLIENT_LONG_PASSWORD),&ur,crypted_scramble,stage);
+				   CLIENT_LONG_PASSWORD),&ur,crypted_scramble,
+                                   stage,cur_priv_version,hint_user);
+                                   
   DBUG_PRINT("info",
 	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
 	      thd->client_capabilities, thd->max_client_packet_length,
@@ -233,7 +237,7 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
     else     
       return(-1); // do not report error in special handshake
   }
-      
+  
   if (check_count)
   {
     VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -261,12 +265,13 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
   if (thd->user_connect && thd->user_connect->user_resources.connections && 
       check_for_max_user_connections(thd, thd->user_connect))
     return -1;
+ 
   if (db && db[0])
   {
     bool error=test(mysql_change_db(thd,db));
     if (error && thd->user_connect)
       decrease_user_connections(thd->user_connect);
-    return error;
+    return error;    
   }
   else
     send_ok(thd);				// Ready to handle questions
@@ -616,7 +621,7 @@ check_connections(THD *thd)
   /* We can get only old hash at this point */
   if (passwd[0] && strlen(passwd)!=SCRAMBLE_LENGTH) 
       return ER_HANDSHAKE_ERROR;
-
+      
   if (thd->client_capabilities & CLIENT_INTERACTIVE)
      thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
   if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
@@ -625,6 +630,9 @@ check_connections(THD *thd)
   net->read_timeout=(uint) thd->variables.net_read_timeout;
     
   char prepared_scramble[SCRAMBLE41_LENGTH+4]; /* Buffer for scramble and hash */
+  
+  ACL_USER* cached_user;
+  uint cur_priv_version;
    
   /* Simple connect only for old clients. New clients always use secure auth */
   bool simple_connect=(!(thd->client_capabilities & CLIENT_SECURE_CONNECTION));
@@ -634,7 +642,7 @@ check_connections(THD *thd)
   
   /* Check user permissions. If password failure we'll get scramble back */
   if (check_user(thd,COM_CONNECT, user, passwd, db, 1, simple_connect,
-      prepared_scramble,0,using_password))
+      prepared_scramble,0,using_password,&cur_priv_version,&cached_user)<0)
   { 
     /* If The client is old we just have to return error */
     if (simple_connect)
@@ -682,7 +690,8 @@ check_connections(THD *thd)
       }
     /* Final attempt to check the user based on reply */ 
     if (check_user(thd,COM_CONNECT, tmp_user, (char*)net->read_pos, 
-        tmp_db, 1, 1,prepared_scramble,1,using_password))
+        tmp_db, 1, 1,prepared_scramble,1,using_password,&cur_priv_version,
+        &cached_user))
       return -1;
   }
   thd->password=using_password;
@@ -1034,43 +1043,117 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *user=   (char*) packet;
     char *passwd= strend(user)+1;
     char *db=     strend(passwd)+1;
-
+    
     /* Save user and privileges */
     uint save_master_access=thd->master_access;
     uint save_db_access=    thd->db_access;
     uint save_db_length=    thd->db_length;
     char *save_user=	    thd->user;
+    thd->user=NULL; /* Needed for check_user to allocate new user */
     char *save_priv_user=   thd->priv_user;
     char *save_db=	    thd->db;
-    USER_CONN *save_uc=            thd->user_connect;
+    USER_CONN *save_uc=     thd->user_connect;
+    bool simple_connect;
+    bool using_password;
+    
+    ulong pkt_len=0; /* Length of reply packet */
+    
+    /* Small check for incomming packet */
 
     if ((uint) ((uchar*) db - net->read_pos) > packet_length)
-    {						// Check if protocol is ok
-      send_error(thd, ER_UNKNOWN_COM_ERROR);
-      break;
+      goto restore_user_err;
+    
+    /* Now we shall basically perform authentication again */
+    
+     /* We can get only old hash at this point */
+    if (passwd[0] && strlen(passwd)!=SCRAMBLE_LENGTH) 
+      goto restore_user_err;
+      
+    char prepared_scramble[SCRAMBLE41_LENGTH+4];/* Buffer for scramble,hash */  
+    ACL_USER* cached_user;                      /* Cached user */
+    uint cur_priv_version;                      /* Cached grant version */
+   
+    /* Simple connect only for old clients. New clients always use sec. auth*/
+    simple_connect=(!(thd->client_capabilities & CLIENT_SECURE_CONNECTION));
+  
+    /* Store information if we used password. passwd will be dammaged */
+    using_password=test(passwd[0]);
+    
+    /* 
+     Check user permissions. If password failure we'll get scramble back 
+     Do not retry if we already have sent error (result>0) 
+    */ 
+    if (check_user(thd,COM_CHANGE_USER, user, passwd, db, 0, simple_connect,
+        prepared_scramble,0,using_password,&cur_priv_version,&cached_user)<0) 
+    {
+      /* If The client is old we just have to have auth failure */
+      if (simple_connect)
+        goto restore_user; /* Error is already reported */
+          
+      /* Store current used and database as they are erased with next packet */
+    
+      char tmp_user[USERNAME_LENGTH+1];
+      char tmp_db[NAME_LEN+1];
+
+      if (user)
+      {
+        strncpy(tmp_user,user,USERNAME_LENGTH+1);
+        /* Extra safety if we have too long data */
+        tmp_user[USERNAME_LENGTH]=0;   
+      } 
+      else
+        tmp_user[0]=0;  
+      if (db)
+      {
+        strncpy(tmp_db,db,NAME_LEN+1);
+        tmp_db[NAME_LEN]=0;
+      }  
+      else 
+        tmp_db[0]=0;
+        
+      /* Write hash and encrypted scramble to client */
+      if (my_net_write(net,prepared_scramble,SCRAMBLE41_LENGTH+4) 
+        || net_flush(net))                      
+        goto restore_user_err;    
+        
+      /* Reading packet back */  
+      if ((pkt_len=my_net_read(net)) == packet_error)     
+        goto restore_user_err;
+      
+      /* We have to get very specific packet size  */  
+      if (pkt_len!=SCRAMBLE41_LENGTH) 
+        goto restore_user;
+      
+      /* Final attempt to check the user based on reply */ 
+      if (check_user(thd,COM_CONNECT, tmp_user, (char*)net->read_pos, 
+          tmp_db, 0, 1,prepared_scramble,1,using_password,&cur_priv_version,
+          &cached_user))
+        goto restore_user;
     }
-    /* WARNING THIS HAS TO BE REWRITTEN */
-    char tmp_buffer[64];
-    printf("Change user called: %s %s %s\n",user,passwd,db);
-    if (check_user(thd, COM_CHANGE_USER, user, passwd, db, 0,1,tmp_buffer,0,1))
-    {						// Restore old user
-      x_free(thd->user);
-      x_free(thd->db);
-      thd->master_access=save_master_access;
-      thd->db_access=save_db_access;
-      thd->db=save_db;
-      thd->db_length=save_db_length;
-      thd->user=save_user;
-      thd->priv_user=save_priv_user;
-      break;
-    }
+    /* Finally we've authenticated new user */
     if (max_connections && save_uc)
       decrease_user_connections(save_uc);
     x_free((gptr) save_db);
     x_free((gptr) save_user);
-    thd->password=test(passwd[0]);
+    thd->password=using_password;
+    break;
+    
+    /* Bad luck  we shall restore old user */
+    restore_user_err:
+    send_error(thd, ER_UNKNOWN_COM_ERROR);
+    
+    restore_user:
+    x_free(thd->user);
+    x_free(thd->db);
+    thd->master_access=save_master_access;
+    thd->db_access=save_db_access;
+    thd->db=save_db;
+    thd->db_length=save_db_length;
+    thd->user=save_user;
+    thd->priv_user=save_priv_user;    
     break;
   }
+  
   case COM_EXECUTE:
   {
     mysql_stmt_execute(thd, packet);

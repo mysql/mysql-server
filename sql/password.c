@@ -48,6 +48,8 @@
   This authentication needs 2 packet round trips instead of one but it is much 
   stronger. Now if one will steal mysql database content he will not be able 
   to break into MySQL.
+
+  New Password handling functions by Peter Zaitsev
   
   
 *****************************************************************************/
