@@ -395,11 +395,9 @@ struct dtuple_struct {
 	UT_LIST_NODE_T(dtuple_t) tuple_list;
 					/* data tuples can be linked into a
 					list using this field */
-#ifdef UNIV_DEBUG
-	ulint		magic_n;
-#define	DATA_TUPLE_MAGIC_N	65478679
-#endif /* UNIV_DEBUG */
+	ulint		magic_n;	
 };
+#define	DATA_TUPLE_MAGIC_N	65478679
 
 /* A slot for a field in a big rec vector */
 

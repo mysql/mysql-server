@@ -22,7 +22,6 @@ hash_mutex_enter(
 	hash_table_t* 	table,	/* in: hash table */
 	ulint 		fold)	/* in: fold */
 {
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	mutex_enter(hash_get_mutex(table, fold));
 }
 
@@ -35,8 +34,39 @@ hash_mutex_exit(
 	hash_table_t* 	table,	/* in: hash table */
 	ulint 		fold)	/* in: fold */
 {
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	mutex_exit(hash_get_mutex(table, fold));
+}
+
+/****************************************************************
+Reserves all the mutexes of a hash table, in an ascending order. */
+
+void
+hash_mutex_enter_all(
+/*=================*/
+	hash_table_t* 	table)	/* in: hash table */
+{
+	ulint	i;
+
+	for (i = 0; i < table->n_mutexes; i++) {
+
+		mutex_enter(table->mutexes + i);
+	}
+}
+
+/****************************************************************
+Releases all the mutexes of a hash table. */
+
+void
+hash_mutex_exit_all(
+/*================*/
+	hash_table_t* 	table)	/* in: hash table */
+{
+	ulint	i;
+
+	for (i = 0; i < table->n_mutexes; i++) {
+
+		mutex_exit(table->mutexes + i);
+	}
 }
 
 /*****************************************************************
@@ -67,9 +97,7 @@ hash_create(
 	table->mutexes = NULL;
 	table->heaps = NULL;
 	table->heap = NULL;
-#ifdef UNIV_DEBUG
 	table->magic_n = HASH_TABLE_MAGIC_N;
-#endif /* UNIV_DEBUG */
 	
 	/* Initialize the cell array */
 
@@ -90,7 +118,6 @@ hash_table_free(
 /*============*/
 	hash_table_t*	table)	/* in, own: hash table */
 {
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ut_a(table->mutexes == NULL);
 
 	ut_free(table->array);
@@ -112,7 +139,6 @@ hash_create_mutexes(
 	ulint	i;
 
 	ut_a(n_mutexes == ut_2_power_up(n_mutexes));
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
 	table->mutexes = mem_alloc(n_mutexes * sizeof(mutex_t));
 
