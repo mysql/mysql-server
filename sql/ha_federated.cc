@@ -376,12 +376,12 @@ static byte* federated_get_key(FEDERATED_SHARE *share,uint *length,
     parse_url()
       share     pointer to FEDERATED share
       table     pointer to current TABLE class
-      
+
   DESCRIPTION
     populates the share with information about the connection
     to the remote database that will serve as the data source.
     This string must be specified (currently) in the "comment" field,
-    listed in the CREATE TABLE statement. 
+    listed in the CREATE TABLE statement.
 
     This string MUST be in the format of any of these:
 
@@ -401,10 +401,10 @@ scheme://username:password@hostname/database/table
 
   RETURN VALUE
     0   success
-    -1  failure, wrong string format    
+    -1  failure, wrong string format
 
 */
-int parse_url(FEDERATED_SHARE *share, TABLE *table, uint table_create_flag)
+static int parse_url(FEDERATED_SHARE *share, TABLE *table, uint table_create_flag)
 {
   DBUG_ENTER("ha_federated::parse_url");
 
@@ -429,7 +429,7 @@ int parse_url(FEDERATED_SHARE *share, TABLE *table, uint table_create_flag)
     }
     share->username+= 3;
 
-    if (share->hostname= strchr(share->username, '@')) 
+    if (share->hostname= strchr(share->username, '@'))
     {
       share->username[share->hostname - share->username]= '\0';
       share->hostname++;
@@ -1522,7 +1522,7 @@ void ha_federated::position(const byte *record)
 {
   DBUG_ENTER("ha_federated::position");
   //ha_store_ptr Add seek storage
-  ha_store_ptr(ref, ref_length, current_position);
+  *(MYSQL_ROW_OFFSET *)ref=current_position;
   DBUG_VOID_RETURN;
 }
 
@@ -1541,7 +1541,7 @@ int ha_federated::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_federated::rnd_pos");
   statistic_increment(table->in_use->status_var.ha_read_rnd_count,&LOCK_status);
-  current_position= ha_get_ptr(pos,ref_length);
+  current_position= *(MYSQL_ROW_OFFSET *)pos;
   result->current_row= 0;
   result->data_cursor= current_position;
   DBUG_RETURN(rnd_next(buf));
@@ -1706,10 +1706,10 @@ THR_LOCK_DATA **ha_federated::store_lock(THD *thd,
 int ha_federated::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info)
 {
-  DBUG_ENTER("ha_federated::create");
   int retcode;
-  FEDERATED_SHARE *tmp;
-  retcode= parse_url(tmp, table_arg, 1);
+  FEDERATED_SHARE tmp;
+  DBUG_ENTER("ha_federated::create");
+  retcode= parse_url(&tmp, table_arg, 1);
   if (retcode < 0)
   {
     DBUG_PRINT("ha_federated::create",
