@@ -53,8 +53,8 @@ int main(int argc, char **argv)
   bzero((gptr) flags,sizeof(flags));
 
   printf("- Creating heap-file\n");
-  heap_create(filename);
-  if (!(file=heap_open(filename,2,1,keyinfo,30,(ulong) flag*100000l,10l)))
+  if (heap_create(filename,1,keyinfo,30,(ulong) flag*100000l,10l) ||
+      !(file= heap_open(filename, 2)))
     goto err;
   printf("- Writing records:s\n");
   strmov(record,"          ..... key           ");
@@ -77,7 +77,7 @@ int main(int argc, char **argv)
   if (heap_close(file))
     goto err;
   printf("- Reopening file\n");
-  if (!(file=heap_open(filename,2,1,keyinfo,30,(ulong) flag*100000l,10l)))
+  if (!(file=heap_open(filename, 2)))
     goto err;
 
   printf("- Removing records\n");
