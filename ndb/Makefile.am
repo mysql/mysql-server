@@ -1,4 +1,5 @@
-SUBDIRS = src test tools . include
+SUBDIRS = src tools . include $(ndb_opt_test_subdirs)
+DIST_SUBDIRS = src tools ndbapi include test
 
 include $(top_srcdir)/ndb/config/common.mk.am
 

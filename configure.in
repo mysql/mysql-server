@@ -2897,7 +2897,7 @@ AC_SUBST([ndb_transporter_opt_objs])
 ndb_bin_am_ldflags="-static"
 if test X"$have_ndb_test" = Xyes
 then
-  ndb_opt_test_subdirs="tools ndbapi run-test"
+  ndb_opt_test_subdirs="test"
   ndb_bin_am_ldflags=""
 fi
 AC_SUBST([ndb_bin_am_ldflags])
@@ -2911,7 +2911,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
    ndb/src/Makefile ndb/src/common/Makefile dnl
    ndb/tools/Makefile dnl
    ndb/src/common/debugger/Makefile ndb/src/common/debugger/signaldata/Makefile dnl
-   ndb/src/common/portlib/Makefile ndb/src/common/portlib/unix/Makefile dnl
+   ndb/src/common/portlib/Makefile dnl
    ndb/src/common/util/Makefile dnl
    ndb/src/common/logger/Makefile dnl
    ndb/src/common/transporter/Makefile dnl
