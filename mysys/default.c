@@ -15,22 +15,22 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /****************************************************************************
-** Add all options from files named "group".cnf from the default_directories
-** before the command line arguments.
-** On Windows defaults will also search in the Windows directory for a file
-** called 'group'.ini
-** As long as the program uses the last argument for conflicting
-** options one only have to add a call to "load_defaults" to enable
-** use of default values.
-** pre- and end 'blank space' are removed from options and values. The
-** following escape sequences are recognized in values:  \b \t \n \r \\
-**
-** The following arguments are handled automaticly;  If used, they must be
-** first argument on the command line!
-** --no-defaults	; no options are read.
-** --defaults-file=full-path-to-default-file	; Only this file will be read.
-** --defaults-extra-file=full-path-to-default-file ; Read this file before ~/
-** --print-defaults	; Print the modified command line and exit
+ Add all options from files named "group".cnf from the default_directories
+ before the command line arguments.
+ On Windows defaults will also search in the Windows directory for a file
+ called 'group'.ini
+ As long as the program uses the last argument for conflicting
+ options one only have to add a call to "load_defaults" to enable
+ use of default values.
+ pre- and end 'blank space' are removed from options and values. The
+ following escape sequences are recognized in values:  \b \t \n \r \\
+
+ The following arguments are handled automaticly;  If used, they must be
+ first argument on the command line!
+ --no-defaults	; no options are read.
+ --defaults-file=full-path-to-default-file	; Only this file will be read.
+ --defaults-extra-file=full-path-to-default-file ; Read this file before ~/
+ --print-defaults	; Print the modified command line and exit
 ****************************************************************************/
 
 #include "mysys_priv.h"
@@ -72,6 +72,39 @@ static int search_default_file(DYNAMIC_ARRAY *args,MEM_ROOT *alloc,
 
 static char *remove_end_comment(char *ptr);
 
+
+/*
+  Read options from configurations files
+
+  SYNOPSIS
+    load_defaults()
+    conf_file			Basename for configuration file to search for.
+    				If this is a path, then only this file is read.
+    groups			Which [group] entrys to read.
+				Points to an null terminated array of pointers
+    argc			Pointer to argc of original program
+    argv			Pointer to argv of original program
+
+  IMPLEMENTATION
+
+   Read options from configuration files and put them BEFORE the arguments
+   that are already in argc and argv.  This way the calling program can
+   easily command line options override options in configuration files
+
+   NOTES
+    In case of fatal error, the function will print a warning and do
+    exit(1)
+ 
+    To free used memory one should call free_defaults() with the argument
+    that was put in *argv
+
+   RETURN
+     0	ok
+     1	The given conf_file didn't exists
+     2	The given conf_file was not a normal readable file
+*/
+
+
 int load_defaults(const char *conf_file, const char **groups,
 		   int *argc, char ***argv)
 {
@@ -101,7 +134,7 @@ int load_defaults(const char *conf_file, const char **groups,
     (*argc)--;
     *argv=res;
     *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
-    return 0;
+    DBUG_RETURN(0);
   }
 
   /* Check if we want to force the use a specific default file */
@@ -131,13 +164,13 @@ int load_defaults(const char *conf_file, const char **groups,
   if (forced_default_file)
   {
     if ((error= search_default_file(&args, &alloc, "",
-				    forced_default_file, "", &group)) == 1)
+				    forced_default_file, "", &group)) < 0)
       goto err;
   }
   else if (dirname_length(conf_file))
   {
     if ((error= search_default_file(&args, &alloc, NullS, conf_file,
-				    default_ext, &group)) == 1)
+				    default_ext, &group)) < 0)
       goto err;
   }
   else
@@ -145,28 +178,36 @@ int load_defaults(const char *conf_file, const char **groups,
 #ifdef __WIN__
     char system_dir[FN_REFLEN];
     GetWindowsDirectory(system_dir,sizeof(system_dir));
-    if ((error= search_default_file(&args, &alloc, system_dir, conf_file,
-				    windows_ext, &group)) == 1)
+    if ((search_default_file(&args, &alloc, system_dir, conf_file,
+			     windows_ext, &group)))
       goto err;
 #endif
 #if defined(__EMX__) || defined(OS2)
     if (getenv("ETC") &&
-        (error= search_default_file(&args, &alloc, getenv("ETC"), conf_file, 
-				    default_ext, &group)) == 1)
+        (search_default_file(&args, &alloc, getenv("ETC"), conf_file, 
+			     default_ext, &group)) < 0)
       goto err;
 #endif
     for (dirs=default_directories ; *dirs; dirs++)
     {
       if (**dirs)
-	error= search_default_file(&args, &alloc, *dirs, conf_file,
-				   default_ext, &group);
+      {
+	if (search_default_file(&args, &alloc, *dirs, conf_file,
+				default_ext, &group) < 0)
+	  goto err;
+      }
       else if (defaults_extra_file)
-	error= search_default_file(&args, &alloc, NullS, defaults_extra_file,
-				   default_ext, &group);
-      if (error == 1)
-	goto err;
+      {
+	if (search_default_file(&args, &alloc, NullS, defaults_extra_file,
+				default_ext, &group) < 0)
+	  goto err;				/* Fatal error */
+      }
     }
   }
+  /*
+    Here error contains <> 0 only if we have a fully specified conf_file
+    or a forced default file
+  */
   if (!(ptr=(char*) alloc_root(&alloc,sizeof(alloc)+
 			       (args.elements + *argc +1) *sizeof(char*))))
     goto err;
@@ -202,13 +243,13 @@ int load_defaults(const char *conf_file, const char **groups,
     for (i=1 ; i < *argc ; i++)
       printf("%s ", (*argv)[i]);
     puts("");
-    exit(1);
+    exit(0);
   }
-  return error;
+  DBUG_RETURN(error);
 
  err:
-  fprintf(stderr,"Program aborted\n");
-  return(error);
+  fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
+  exit(1);
 }
 
 
@@ -221,10 +262,22 @@ void free_defaults(char **argv)
 
 
 /*
-  Return values: 0 Success
-                 1 Fatal error, abort
-                 2 File not found, continue
-                 3 File is not a regular file, continue
+  Open a configuration file (if exists) and read given options from it
+  
+  SYNOPSIS
+    search_default_file()
+    args			Store pointer to found options here
+    alloc			Allocate strings in this object
+    dir				directory to read
+    config_file			Name of configuration file
+    ext				Extension for configuration file
+    group			groups to read
+
+  RETURN
+    0   Success
+    -1	Fatal error, abort
+     1	File not found (Warning)
+     2  File is not a regular file (Warning)
 */
 
 static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
@@ -254,7 +307,7 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
   {
     MY_STAT stat_info;
     if (!my_stat(name,&stat_info,MYF(0)))
-      return 2;
+      return 1;
     /*
       Ignore world-writable regular files.
       This is mainly done to protect us to not read a file created by
@@ -268,7 +321,7 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
       return 0;
     }
     else if ((stat_info.st_mode & S_IFMT) != S_IFREG)
-      return 3;
+      return 2;
   }
 #endif
   if (!(fp = my_fopen(fn_format(name,name,"","",4),O_RDONLY,MYF(0))))
@@ -374,7 +427,7 @@ static int search_default_file(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
 
  err:
   my_fclose(fp,MYF(0));
-  return 1;
+  return -1;					/* Fatal error */
 }
 
 

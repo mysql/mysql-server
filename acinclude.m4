@@ -204,6 +204,28 @@ fi
 ])
 
 
+AC_DEFUN(MYSQL_CHECK_IN_ADDR_T,
+[AC_MSG_CHECKING(for type in_addr_t)
+AC_CACHE_VAL(ac_cv_in_addr_t,
+[AC_TRY_RUN([#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+int main(int argc, char **argv)
+{
+  in_addr_t foo;
+  exit(0);
+}], ac_cv_in_addr_t=yes, ac_cv_in_addr_t=no, ac_cv_in_addr_t=no)])
+AC_MSG_RESULT($ac_cv_in_addr_t)
+if test "$ac_cv_in_addr_t" = "yes"
+then
+  AC_DEFINE(HAVE_IN_ADDR_T)
+fi
+])
+
+
 AC_DEFUN(MYSQL_PTHREAD_YIELD,
 [AC_CACHE_CHECK([if pthread_yield takes zero arguments], ac_cv_pthread_yield_zero_arg,
 [AC_TRY_LINK([#define _GNU_SOURCE

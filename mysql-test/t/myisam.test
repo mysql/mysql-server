@@ -127,7 +127,6 @@ drop table t1;
 # test of myisam with huge number of packed fields
 #
 
-drop table if exists t1;
 create table t1 (i1 int, i2 int, i3 int, i4 int, i5 int, i6 int, i7 int, i8
 int, i9 int, i10 int, i11 int, i12 int, i13 int, i14 int, i15 int, i16 int, i17
 int, i18 int, i19 int, i20 int, i21 int, i22 int, i23 int, i24 int, i25 int,
@@ -292,7 +291,10 @@ insert into t1 values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, "Sergei");
-drop table if exists t1;
+update t1 set b=repeat('a',256);
+update t1 set i1=0, i2=0, i3=0, i4=0, i5=0, i6=0, i7=0;
+check table t1;
+drop table t1;
 
 #
 # Test of REPAIR that once failed

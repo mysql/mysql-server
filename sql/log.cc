@@ -1059,8 +1059,9 @@ bool MYSQL_LOG::write(Log_event* event_info)
   */
   if (is_open())
   {
-    bool should_rotate = 0;
-    const char *local_db = event_info->get_db();
+    bool should_rotate= 0;
+    const char *local_db= event_info->get_db();
+    IO_CACHE *file= &log_file;
 #ifdef USING_TRANSACTIONS    
     /*
       Should we write to the binlog cache or to the binlog on disk?
@@ -1071,13 +1072,11 @@ bool MYSQL_LOG::write(Log_event* event_info)
      trans/non-trans table types the best possible in binlogging)
       - or if the event asks for it (cache_stmt == true).
     */
-    IO_CACHE *file = ((event_info->get_cache_stmt() ||
-                       my_b_tell(&thd->transaction.trans_log)) ? 
-		      &thd->transaction.trans_log :
-		      &log_file);
-#else
-    IO_CACHE *file = &log_file;
-#endif    
+    if (opt_using_transactions &&
+	(event_info->get_cache_stmt() ||
+	 (thd && my_b_tell(&thd->transaction.trans_log))))
+      file= &thd->transaction.trans_log;
+#endif
     DBUG_PRINT("info",("event type=%d",event_info->get_type_code()));
     /* 
        In the future we need to add to the following if tests like

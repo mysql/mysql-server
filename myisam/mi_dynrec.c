@@ -58,11 +58,11 @@ int _mi_write_blob_record(MI_INFO *info, const byte *record)
 {
   byte *rec_buff;
   int error;
-  ulong reclength,extra;
+  ulong reclength,reclength2,extra;
 
   extra= (ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
 	  MI_DYN_DELETE_BLOCK_HEADER+1);
-  reclength= (info->s->base.pack_reclength + info->s->base.pack_bits +
+  reclength= (info->s->base.pack_reclength +
 	      _my_calc_total_blob_length(info,record)+ extra);
 #ifdef NOT_USED					/* We now support big rows */
   if (reclength > MI_DYN_MAX_ROW_LENGTH)
@@ -76,10 +76,13 @@ int _mi_write_blob_record(MI_INFO *info, const byte *record)
     my_errno=ENOMEM;
     return(-1);
   }
-  reclength=_mi_rec_pack(info,rec_buff+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER),
-			 record);
+  reclength2= _mi_rec_pack(info,rec_buff+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER),
+			   record);
+  DBUG_PRINT("info",("reclength: %lu  reclength2: %lu",
+		     reclength, reclength2));
+  DBUG_ASSERT(reclength2 <= reclength);
   error=write_dynamic_record(info,rec_buff+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER),
-			     reclength);
+			     reclength2);
   my_afree(rec_buff);
   return(error);
 }

@@ -92,7 +92,7 @@ void *my_pthread_getspecific_imp(pthread_key_t key)
 
 #ifdef __NETWARE__
 /*
-don't kill the LibC Reaper thread or the main thread
+  Don't kill the LibC Reaper thread or the main thread
 */
 #include <nks/thread.h>
 #undef pthread_exit
@@ -105,8 +105,10 @@ void my_pthread_exit(void *status)
   NXThreadGetContext(tid, &ctx);
   NXContextGetName(ctx, name, PATH_MAX);
 
-  // "MYSQLD.NLM's LibC Reaper" or "MYSQLD.NLM's main thread"
-  // with a debug build of LibC the reaper can have different names
+  /*
+    "MYSQLD.NLM's LibC Reaper" or "MYSQLD.NLM's main thread"
+    with a debug build of LibC the reaper can have different names
+  */
   if (!strindex(name, "\'s"))
   {
     pthread_exit(status);
@@ -114,8 +116,10 @@ void my_pthread_exit(void *status)
 }
 #endif
 
-/* Some functions for RTS threads, AIX, Siemens Unix and UnixWare 7
-   (and DEC OSF/1 3.2 too) */
+/*
+  Some functions for RTS threads, AIX, Siemens Unix and UnixWare 7
+  (and DEC OSF/1 3.2 too)
+*/
 
 int my_pthread_create_detached=1;
 
