@@ -134,6 +134,8 @@ public:
     Field *tmp= (Field*) memdup_root(root,(char*) this,size_of());
     if (tmp)
     {
+      if (tmp->table->maybe_null)
+	tmp->flags&= ~NOT_NULL_FLAG;
       tmp->table= new_table;
       tmp->key_start= tmp->part_of_key= tmp->part_of_sortkey= 0;
       tmp->unireg_check=Field::NONE;

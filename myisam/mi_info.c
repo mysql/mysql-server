@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Ger tillbaka en struct med information om isam-filen */
+/* Return useful base information for an open table */
 
 #include "myisamdef.h"
 #ifdef	__WIN__

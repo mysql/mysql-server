@@ -456,7 +456,7 @@ dict_load_indexes(
 		ut_ad(len == 8);
 		id = mach_read_from_8(field);
 
-		ut_a(0 == ut_strcmp((void*) "NAME",
+		ut_a(0 == ut_strcmp((char*) "NAME",
 			dict_field_get_col(
 			dict_index_get_nth_field(
 			dict_table_get_first_index(sys_indexes), 4))->name));
@@ -515,7 +515,7 @@ dict_load_indexes(
 		    && ((type & DICT_CLUSTERED)
 		        || ((table == dict_sys->sys_tables)
 		            && (name_len == ut_strlen("ID_IND"))
-			    && (0 == ut_memcmp(name_buf, (void*) "ID_IND",
+			    && (0 == ut_memcmp(name_buf, (char*) "ID_IND",
 							name_len))))) {
 
 			/* The index was created in memory already in
@@ -566,6 +566,7 @@ dict_load_table(
 	char*		buf;
 	ulint		space;
 	ulint		n_cols;
+	ulint		err;
 	mtr_t		mtr;
 	
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -674,8 +675,25 @@ dict_load_table(
 	
 	dict_load_indexes(table, heap);
 	
-	ut_a(DB_SUCCESS == dict_load_foreigns(table->name));
+	err = dict_load_foreigns(table->name);
+/*
+	if (err != DB_SUCCESS) {
+	
+ 		mutex_enter(&dict_foreign_err_mutex);
 
+ 		ut_print_timestamp(stderr);
+ 		
+		fprintf(stderr,
+"  InnoDB: Error: could not make a foreign key definition to match\n"
+"InnoDB: the foreign key table or the referenced table!\n"
+"InnoDB: The data dictionary of InnoDB is corrupt. You may need to drop\n"
+"InnoDB: and recreate the foreign key table or the referenced table.\n"
+"InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n"
+"InnoDB: Latest foreign key error printout:\n%s\n", dict_foreign_err_buf);
+				
+		mutex_exit(&dict_foreign_err_mutex);
+	}
+*/
 	mem_heap_free(heap);
 
 	return(table);
@@ -978,8 +996,8 @@ dict_load_foreign(
 	
 	field = rec_get_nth_field(rec, 4, &len);
 							
-	foreign->referenced_table_name = mem_heap_alloc(foreign->heap, 1 + len);
-				
+	foreign->referenced_table_name = mem_heap_alloc(foreign->heap,
+								1 + len);
 	ut_memcpy(foreign->referenced_table_name, field, len);
 	foreign->referenced_table_name[len] = '\0';	
 
@@ -988,10 +1006,19 @@ dict_load_foreign(
 
 	dict_load_foreign_cols(id, foreign);
 
+	/* If the foreign table is not yet in the dictionary cache, we
+	have to load it so that we are able to make type comparisons
+	in the next function call. */
+
+	dict_table_get_low(foreign->foreign_table_name);
+
 	/* Note that there may already be a foreign constraint object in
 	the dictionary cache for this constraint: then the following
 	call only sets the pointers in it to point to the appropriate table
-	and index objects and frees the newly created object foreign. */
+	and index objects and frees the newly created object foreign.
+	Adding to the cache should always succeed since we are not creating
+	a new foreign key constraint but loading one from the data
+	dictionary. */
 
 	err = dict_foreign_add_to_cache(foreign);
 

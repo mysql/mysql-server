@@ -1048,6 +1048,14 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
+/* In MySQL 4.1 this will always return STRING_RESULT */
+
+enum Item_result Item_varbinary::result_type () const
+{
+  return (current_thd->variables.new_mode) ? STRING_RESULT : INT_RESULT;
+}
+
+
 Item_varbinary::Item_varbinary(const char *str, uint str_length)
 {
   name=(char*) str-2;				// Lex makes this start with 0x

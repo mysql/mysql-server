@@ -107,7 +107,7 @@
 "BLOB column '%-.64s' can't have a default value",
 "指定した database 名 '%-.100s' が間違っています",
 "指定した table 名 '%-.100s' はまちがっています",
-"The SELECT would examine too many records and probably take a very long time. Check your WHERE and use SET OPTION SQL_BIG_SELECTS=1 if the SELECT is ok",
+"The SELECT would examine more rows than MAX_JOIN_SIZE. Check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is ok",
 "Unknown error",
 "Unknown procedure '%-.64s'",
 "Incorrect parameter count to procedure '%-.64s'",

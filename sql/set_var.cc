@@ -87,6 +87,8 @@ static void fix_max_join_size(THD *thd, enum_var_type type);
 static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
 static void fix_key_buffer_size(THD *thd, enum_var_type type);
+static void fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type);
+static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
 
@@ -184,8 +186,9 @@ sys_var_thd_ulong	sys_max_tmp_tables("max_tmp_tables",
 					   &SV::max_tmp_tables);
 sys_var_long_ptr	sys_max_write_lock_count("max_write_lock_count",
 						 &max_write_lock_count);
-sys_var_thd_ulonglong	sys_myisam_max_extra_sort_file_size("myisam_max_extra_sort_file_size", &SV::myisam_max_extra_sort_file_size);
-sys_var_thd_ulonglong	sys_myisam_max_sort_file_size("myisam_max_sort_file_size", &SV::myisam_max_sort_file_size);
+sys_var_thd_ulonglong	sys_myisam_max_extra_sort_file_size("myisam_max_extra_sort_file_size", &SV::myisam_max_extra_sort_file_size, fix_myisam_max_extra_sort_file_size, 1);
+sys_var_thd_ulonglong	sys_myisam_max_sort_file_size("myisam_max_sort_file_size", &SV::myisam_max_sort_file_size, fix_myisam_max_sort_file_size, 1);
+sys_var_thd_ulong       sys_myisam_repair_threads("myisam_repair_threads", &SV::myisam_repair_threads);
 sys_var_thd_ulong	sys_myisam_sort_buffer_size("myisam_sort_buffer_size", &SV::myisam_sort_buff_size);
 sys_var_thd_ulong	sys_net_buffer_length("net_buffer_length",
 					      &SV::net_buffer_length);
@@ -229,6 +232,8 @@ sys_var_bool_ptr	sys_slave_compressed_protocol("slave_compressed_protocol",
 sys_var_long_ptr	sys_slave_net_timeout("slave_net_timeout",
 					      &slave_net_timeout);
 #endif
+sys_var_bool_ptr	sys_readonly("read_only",
+				     &opt_readonly);
 sys_var_long_ptr	sys_slow_launch_time("slow_launch_time",
 					     &slow_launch_time);
 sys_var_thd_ulong	sys_sort_buffer("sort_buffer_size",
@@ -249,6 +254,11 @@ sys_var_thd_ulong	sys_tmp_table_size("tmp_table_size",
 					   &SV::tmp_table_size);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
+					     
+#ifdef HAVE_INNOBASE_DB
+sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_pct",
+                                                        &srv_max_buf_pool_modified_pct);
+#endif 					     
 /*
   Variables that are bits in THD
 */
@@ -267,7 +277,7 @@ static sys_var_thd_bit	sys_sql_big_tables("sql_big_tables",
 #endif
 static sys_var_thd_bit	sys_big_selects("sql_big_selects",
 					set_option_bit,
-					OPTION_BIG_TABLES);
+					OPTION_BIG_SELECTS);
 static sys_var_thd_bit	sys_log_off("sql_log_off",
 				    set_option_bit,
 				    OPTION_LOG_OFF);
@@ -395,6 +405,7 @@ sys_var *sys_variables[]=
   &sys_max_write_lock_count,
   &sys_myisam_max_extra_sort_file_size,
   &sys_myisam_max_sort_file_size,
+  &sys_myisam_repair_threads,
   &sys_myisam_sort_buffer_size,
   &sys_net_buffer_length,
   &sys_net_read_timeout,
@@ -426,6 +437,7 @@ sys_var *sys_variables[]=
   &sys_slave_net_timeout,
   &sys_slave_skip_counter,
 #endif
+  &sys_readonly,
   &sys_slow_launch_time,
   &sys_sort_buffer,
   &sys_sql_big_tables,
@@ -439,6 +451,9 @@ sys_var *sys_variables[]=
   &sys_timestamp,
   &sys_tmp_table_size,
   &sys_tx_isolation,
+#ifdef HAVE_INNOBASE_DB
+  &sys_innodb_max_dirty_pages_pct,
+#endif    
   &sys_unique_checks,
   &sys_warning_count
 };
@@ -514,6 +529,7 @@ struct show_var_st init_vars[]= {
   {"innodb_log_files_in_group", (char*) &innobase_log_files_in_group,	SHOW_LONG},
   {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
+  {sys_innodb_max_dirty_pages_pct.name, (char*) &sys_innodb_max_dirty_pages_pct, SHOW_SYS},
 #endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
@@ -550,13 +566,14 @@ struct show_var_st init_vars[]= {
   {sys_max_prep_stmt_count.name,(char*) &sys_max_prep_stmt_count,   SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
-  {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,   	    SHOW_SYS},
+  {sys_max_tmp_tables.name,	(char*) &sys_max_tmp_tables,	    SHOW_SYS},
   {sys_max_write_lock_count.name, (char*) &sys_max_write_lock_count,SHOW_SYS},
   {sys_myisam_max_extra_sort_file_size.name,
    (char*) &sys_myisam_max_extra_sort_file_size,
    SHOW_SYS},
-  {sys_myisam_max_sort_file_size.name,
-   (char*) &sys_myisam_max_sort_file_size,
+  {sys_myisam_max_sort_file_size.name, (char*) &sys_myisam_max_sort_file_size,
+   SHOW_SYS},
+  {sys_myisam_repair_threads.name, (char*) &sys_myisam_repair_threads,
    SHOW_SYS},
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
   {sys_myisam_sort_buffer_size.name, (char*) &sys_myisam_sort_buffer_size, SHOW_SYS},
@@ -595,6 +612,7 @@ struct show_var_st init_vars[]= {
 #ifdef HAVE_REPLICATION
   {sys_slave_net_timeout.name,(char*) &sys_slave_net_timeout,	    SHOW_SYS},
 #endif
+  {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
   {"skip_external_locking",   (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
@@ -660,6 +678,21 @@ static void fix_low_priority_updates(THD *thd, enum_var_type type)
 			       TL_WRITE_LOW_PRIORITY : TL_WRITE);
 }
 
+
+static void
+fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type)
+{
+  myisam_max_extra_temp_length=
+    (my_off_t) global_system_variables.myisam_max_extra_sort_file_size;
+}
+
+
+static void
+fix_myisam_max_sort_file_size(THD *thd, enum_var_type type)
+{
+  myisam_max_temp_length=
+    (my_off_t) global_system_variables.myisam_max_sort_file_size;
+}
 
 /*
   Set the OPTION_BIG_SELECTS flag if max_join_size == HA_POS_ERROR
@@ -911,15 +944,22 @@ byte *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type)
 
 bool sys_var_thd_ulonglong::update(THD *thd,  set_var *var)
 {
+  ulonglong tmp= var->value->val_int();
+
+  if ((ulonglong) tmp > max_system_variables.*offset)
+    tmp= max_system_variables.*offset;
+
+  if (option_limits)
+    tmp= (ulong) getopt_ull_limit_value(tmp, option_limits);
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
     pthread_mutex_lock(&LOCK_global_system_variables);
-    global_system_variables.*offset= var->value->val_int();
+    global_system_variables.*offset= (ulonglong) tmp;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
   else
-    thd->variables.*offset= var->value->val_int();
+    thd->variables.*offset= (ulonglong) tmp;
   return 0;
 }
 

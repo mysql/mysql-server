@@ -114,7 +114,7 @@ v/*
 "Blob polo-B¾ka '%-.64s' nemù¾e mít defaultní hodnotu",
 "Nep-Bøípustné jméno databáze '%-.64s'",
 "Nep-Bøípustné jméno tabulky '%-.64s'",
-"Zadan-Bý SELECT by procházel pøíli¹ mnoho záznamù a trval velmi dlouho. Zkontrolujte tvar WHERE a je-li SELECT v poøádku, pou¾ijte SET OPTION SQL_BIG_SELECTS=1",
+"Zadan-Bý SELECT by procházel pøíli¹ mnoho záznamù a trval velmi dlouho. Zkontrolujte tvar WHERE a je-li SELECT v poøádku, pou¾ijte SET SQL_BIG_SELECTS=1",
 "Nezn-Bámá chyba",
 "Nezn-Bámá procedura %s",
 "Chybn-Bý poèet parametrù procedury %s",

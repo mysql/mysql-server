@@ -110,11 +110,11 @@ GREP=grep
 if test $? != 0; then exit 1; fi
 PRINTF=printf
 RM=rm
-TIME=`which time`
 if test $? != 0; then exit 1; fi
 TR=tr
 XARGS=`which xargs`
 if test $? != 0; then exit 1; fi
+SORT=sort
 
 # Are we using a source or a binary distribution?
 
@@ -413,7 +413,7 @@ fi
 
 if test ${COLUMNS:-0} -lt 80 ; then COLUMNS=80 ; fi
 E=`$EXPR $COLUMNS - 8`
-DASH72=`$ECHO '------------------------------------------------------------------------'|$CUT -c 1-$E`
+DASH72=`$ECHO '------------------------------------------'|$CUT -c 1-$E`
 
 # on source dist, we pick up freshly build executables
 # on binary, use what is installed
@@ -592,9 +592,8 @@ skip_test() {
    USERT="    ...."
    SYST="    ...."
    REALT="    ...."
-   timestr="$USERT $SYST $REALT"
    pname=`$ECHO "$1                        "|$CUT -c 1-24`
-   RES="$pname  $timestr"
+   RES="$pname"
    skip_inc
    $ECHO "$RES$RES_SPACE [ skipped ]"
 }
@@ -1221,31 +1220,15 @@ run_testcase ()
     $RM -f r/$tname.*reject
     mysql_test_args="-R r/$tname.result $EXTRA_MYSQL_TEST_OPT"
     if [ -z "$DO_CLIENT_GDB" ] ; then
-      mytime=`$TIME -p $MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`
+      `$MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`;
     else
       do_gdb_test "$mysql_test_args" "$tf"
     fi
 
     res=$?
 
-    if [ $res = 0 ]; then
-	mytime=`$CAT $TIMEFILE | $TAIL -3 | $TR '\n' ':'`
-
-	USERT=`$ECHO $mytime | $CUT -d : -f 2 | $CUT -d ' ' -f 2`
-        USERT=`prefix_to_8 $USERT`
-	SYST=`$ECHO $mytime | $CUT -d : -f 3 | $CUT -d ' ' -f 2`
-        SYST=`prefix_to_8 $SYST`
-	REALT=`$ECHO $mytime | $CUT -d : -f 1 | $CUT -d ' ' -f 2`
-        REALT=`prefix_to_8 $REALT`
-    else
-	USERT="    ...."
-	SYST="    ...."
-	REALT="    ...."
-    fi
-
-    timestr="$USERT $SYST $REALT"
     pname=`$ECHO "$tname                        "|$CUT -c 1-24`
-    RES="$pname  $timestr"
+    RES="$pname"
 
     if [ x$many_slaves = x1 ] ; then
      stop_slave 1
@@ -1380,7 +1363,7 @@ then
 fi
 
 $ECHO
-$ECHO " TEST                         USER   SYSTEM  ELAPSED        RESULT"
+$ECHO " TEST                           RESULT"
 $ECHO $DASH72
 
 if [ -z "$1" ] ;
@@ -1389,7 +1372,7 @@ then
     $ECHO "Will not run in record mode without a specific test case."
   else
     if [ x$TEST_REPLICATION = x1 ]; then
-      for tf in $TESTDIR/rpl*.$TESTSUFFIX
+      for tf in `ls -1 $TESTDIR/*.$TESTSUFFIX | $SORT`
       do
         run_testcase $tf
       done

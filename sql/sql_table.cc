@@ -23,6 +23,7 @@
 #endif
 #include <hash.h>
 #include <myisam.h>
+#include <my_dir.h>
 
 #ifdef __WIN__
 #include <io.h>
@@ -716,6 +717,14 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 			column->field_name);
 	DBUG_RETURN(-1);
       }
+      /* for fulltext keys keyseg length is 1 for blobs (it's ignored in
+         ft code anyway, and 0 (set to column width later) for char's.
+         it has to be correct col width for char's, as char data are not
+         prefixed with length (unlike blobs, where ft code takes data length
+         from a data prefix, ignoring column->length).
+      */
+      if (key->type == Key::FULLTEXT)
+        column->length=test(f_is_blob(sql_field->pack_flag));
       if (f_is_blob(sql_field->pack_flag))
       {
 	if (!(file->table_flags() & HA_BLOB_KEY))
@@ -726,15 +735,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	}
 	if (!column->length)
 	{
-          if (key->type == Key::FULLTEXT)
-            column->length=1; /* ft-code ignores it anyway :-) */
-          else
-          {
-            my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
-                            ER(ER_BLOB_KEY_WITHOUT_LENGTH),MYF(0),
-                            column->field_name);
-            DBUG_RETURN(-1);
-          }
+          my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
+                          ER(ER_BLOB_KEY_WITHOUT_LENGTH),MYF(0),
+                          column->field_name);
+          DBUG_RETURN(-1);
 	}
       }
       if (key->type  == Key::SPATIAL)
@@ -752,8 +756,9 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       {
 	if (key->type == Key::PRIMARY)
 	{
-	  my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
-	  DBUG_RETURN(-1);
+	  /* Implicitly set primary key fields to NOT NULL for ISO conf. */
+	  sql_field->flags|= NOT_NULL_FLAG;
+	  sql_field->pack_flag&= ~FIELDFLAG_MAYBE_NULL;
 	}
 	if (!(file->table_flags() & HA_NULL_KEY))
 	{
@@ -1081,12 +1086,9 @@ mysql_rename_table(enum db_type base,
   Win32 clients must also have a WRITE LOCK on the table !
 */
 
-bool close_cached_table(THD *thd,TABLE *table)
+static void safe_remove_from_cache(THD *thd,TABLE *table)
 {
-  bool result=0;
-  DBUG_ENTER("close_cached_table");
-  safe_mutex_assert_owner(&LOCK_open);
-
+  DBUG_ENTER("safe_remove_from_cache");
   if (table)
   {
     DBUG_PRINT("enter",("table: %s", table->real_name));
@@ -1109,16 +1111,29 @@ bool close_cached_table(THD *thd,TABLE *table)
 #endif
     /* When lock on LOCK_open is freed other threads can continue */
     pthread_cond_broadcast(&COND_refresh);
+  }
+  DBUG_VOID_RETURN;
+}
 
+
+bool close_cached_table(THD *thd,TABLE *table)
+{
+  DBUG_ENTER("close_cached_table");
+  safe_mutex_assert_owner(&LOCK_open);
+
+  if (table)
+  {
+    safe_remove_from_cache(thd,table);
     /* Close lock if this is not got with LOCK TABLES */
     if (thd->lock)
     {
-      mysql_unlock_tables(thd, thd->lock); thd->lock=0;	// Start locked threads
+      mysql_unlock_tables(thd, thd->lock);
+      thd->lock=0;			// Start locked threads
     }
     /* Close all copies of 'table'.  This also frees all LOCK TABLES lock */
     thd->open_tables=unlink_open_table(thd,thd->open_tables,table);
   }
-  DBUG_RETURN(result);
+  DBUG_RETURN(0);
 }
 
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
@@ -1199,69 +1214,105 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
 }
 
 
-static int prepare_for_repair(THD* thd, TABLE_LIST* table,
+static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
 			      HA_CHECK_OPT *check_opt)
 {
+  int error= 0;
+  TABLE tmp_table, *table;
   DBUG_ENTER("prepare_for_repair");
 
   if (!(check_opt->sql_flags & TT_USEFRM))
-  {
     DBUG_RETURN(0);
-  }
-  else
+
+  if (!(table= table_list->table))		/* if open_ltable failed */
   {
+    char name[FN_REFLEN];
+    strxmov(name, mysql_data_home, "/", table_list->db, "/",
+	    table_list->real_name, NullS);
+    if (openfrm(name, "", 0, 0, 0, &tmp_table))
+      DBUG_RETURN(0);				// Can't open frm file
+    table= &tmp_table;
+  }
 
-    char from[FN_REFLEN],tmp[FN_REFLEN];
-    char* db = thd->db ? thd->db : table->db;
+  /*
+    User gave us USE_FRM which means that the header in the index file is
+    trashed.
+    In this case we will try to fix the table the following way:
+    - Rename the data file to a temporary name
+    - Truncate the table
+    - Replace the new data file with the old one
+    - Run a normal repair using the new index file and the old data file
+  */
 
-    sprintf(from, "%s/%s/%s", mysql_real_data_home, db, table->real_name);
-    fn_format(from, from, "", MI_NAME_DEXT, 4);
-    sprintf(tmp,"%s-%lx_%lx", from, current_pid, thd->thread_id);
+  char from[FN_REFLEN],tmp[FN_REFLEN+32];
+  const char **ext= table->file->bas_ext();
+  MY_STAT stat_info;
 
+  /*
+    Check if this is a table type that stores index and data separately,
+    like ISAM or MyISAM
+  */
+  if (!ext[0] || !ext[1])
+    goto end;					// No data file
+
+  strxmov(from, table->path, ext[1], NullS);	// Name of data file
+  if (!my_stat(from, &stat_info, MYF(0)))
+    goto end;				// Can't use USE_FRM flag
+
+  sprintf(tmp,"%s-%lx_%lx", from, current_pid, thd->thread_id);
+
+  pthread_mutex_lock(&LOCK_open);
+  close_cached_table(thd,table_list->table);
+  pthread_mutex_unlock(&LOCK_open);
+
+  if (lock_and_wait_for_table_name(thd,table_list))
+  {
+    error= -1;
+    goto end;
+  }
+  if (my_rename(from, tmp, MYF(MY_WME)))
+  {
     pthread_mutex_lock(&LOCK_open);
-    close_cached_table(thd,table->table);
+    unlock_table_name(thd, table_list);
     pthread_mutex_unlock(&LOCK_open);
-
-    if (lock_and_wait_for_table_name(thd,table))
-      DBUG_RETURN(-1);
-
-    if (my_rename(from, tmp, MYF(MY_WME)))
-    {
-      pthread_mutex_lock(&LOCK_open);
-      unlock_table_name(thd, table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
-				    "Failed renaming .MYD file"));
-    }
-    if (mysql_truncate(thd, table, 1))
-    {
-      pthread_mutex_lock(&LOCK_open);
-      unlock_table_name(thd, table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
-				    "Failed generating table from .frm file"));
-    }
-    if (my_rename(tmp, from, MYF(MY_WME)))
-    {
-      pthread_mutex_lock(&LOCK_open);
-      unlock_table_name(thd, table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
-				    "Failed restoring .MYD file"));
-    }
+    error= send_check_errmsg(thd, table_list, "repair",
+			     "Failed renaming data file");
+    goto end;
+  }
+  if (mysql_truncate(thd, table_list, 1))
+  {
+    pthread_mutex_lock(&LOCK_open);
+    unlock_table_name(thd, table_list);
+    pthread_mutex_unlock(&LOCK_open);
+    error= send_check_errmsg(thd, table_list, "repair",
+			     "Failed generating table from .frm file");
+    goto end;
+  }
+  if (my_rename(tmp, from, MYF(MY_WME)))
+  {
+    pthread_mutex_lock(&LOCK_open);
+    unlock_table_name(thd, table_list);
+    pthread_mutex_unlock(&LOCK_open);
+    error= send_check_errmsg(thd, table_list, "repair",
+			     "Failed restoring .MYD file");
+    goto end;
   }
 
   /*
     Now we should be able to open the partially repaired table
     to finish the repair in the handler later on.
   */
-  if (!(table->table = reopen_name_locked_table(thd, table)))
+  if (!(table_list->table = reopen_name_locked_table(thd, table_list)))
   {
     pthread_mutex_lock(&LOCK_open);
-    unlock_table_name(thd, table);
+    unlock_table_name(thd, table_list);
     pthread_mutex_unlock(&LOCK_open);
   }
-  DBUG_RETURN(0);
+
+end:
+  if (table == &tmp_table)
+    closefrm(table);				// Free allocated memory
+  DBUG_RETURN(error);
 }
 
 
@@ -1759,9 +1810,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       case LEAVE_AS_IS:
 	break;
       case ENABLE:
-	error=table->file->activate_all_index(thd);
+	safe_remove_from_cache(thd,table);
+	error=   table->file->activate_all_index(thd);
 	break;
       case DISABLE:
+	safe_remove_from_cache(thd,table);
 	table->file->deactivate_non_unique_index(HA_POS_ERROR);
 	break;
       }

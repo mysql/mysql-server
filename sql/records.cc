@@ -16,7 +16,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Functions to read, write and lock records */
+/* Functions for easy reading of records, possible through a cache */
 
 #include "mysql_priv.h"
 

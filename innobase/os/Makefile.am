@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libos.a
+noinst_LIBRARIES =	libos.a
 
 libos_a_SOURCES =	os0proc.c os0shm.c os0sync.c os0thread.c os0file.c
 

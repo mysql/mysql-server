@@ -2391,7 +2391,7 @@ ibuf_delete_rec(
 
 	ut_ad(ibuf_inside());
 
-	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur), mtr);	
+	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur), mtr);
 
 	if (success) {
 #ifdef UNIV_IBUF_DEBUG
@@ -2401,7 +2401,7 @@ ibuf_delete_rec(
 		return(FALSE);
 	}
 	
-	/* We have to resort to a pessimistic delete from ibuf */		
+	/* We have to resort to a pessimistic delete from ibuf */
 	btr_pcur_store_position(pcur, mtr);
 
 	btr_pcur_commit_specify_mtr(pcur, mtr);
@@ -2420,17 +2420,22 @@ ibuf_delete_rec(
 		fprintf(stderr, "InnoDB: ibuf cursor restoration fails!\n");
 		fprintf(stderr, "InnoDB: ibuf record inserted to page %lu\n",
 								page_no);
+		fflush(stderr);
+
 		rec_print(btr_pcur_get_rec(pcur));
 		rec_print(pcur->old_rec);
 		dtuple_print(search_tuple);
 
 		rec_print(page_rec_get_next(btr_pcur_get_rec(pcur)));
+		fflush(stdout);
 
 		mtr_commit(mtr);
 
 		fprintf(stderr, "InnoDB: Validating insert buffer tree:\n");
-		ut_a(btr_validate_tree(ibuf_data->index->tree));		
-		fprintf(stderr, "InnoDB: Ibuf tree ok\n");
+		ut_a(btr_validate_tree(ibuf_data->index->tree));
+
+		fprintf(stderr, "InnoDB: ibuf tree ok\n");
+		fflush(stderr);
 	}
 	
 	ut_a(success);

@@ -46,6 +46,20 @@ buf_LRU_get_recent_limit(void);
 /*==========================*/
 			/* out: the limit; zero if could not determine it */
 /**********************************************************************
+Look for a replaceable block from the end of the LRU list and put it to
+the free list if found. */
+
+ibool
+buf_LRU_search_and_free_block(
+/*==========================*/
+				/* out: TRUE if freed */
+	ulint	n_iterations);   /* in: how many times this has been called
+				repeatedly without result: a high value means
+				that we should search farther; if value is
+				k < 10, then we only search k/10 * number
+				of pages in the buffer pool from the end
+				of the LRU list */
+/**********************************************************************
 Returns a free block from the buf_pool. The block is taken off the
 free list. If it is empty, blocks are moved from the end of the
 LRU list to the free list. */
@@ -88,17 +102,6 @@ void
 buf_LRU_make_block_old(
 /*===================*/
 	buf_block_t*	block);	/* in: control block */
-/**********************************************************************
-Look for a replaceable block from the end of the LRU list and put it to
-the free list if found. */
-
-ibool
-buf_LRU_search_and_free_block(
-/*==========================*/
-				/* out: TRUE if freed */
-	ulint	n_iterations);	/* in: how many times this has been called
-				repeatedly without result: a high value
-				means that we should search farther */
 /**************************************************************************
 Validates the LRU list. */
 

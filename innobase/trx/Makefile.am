@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libtrx.a
+noinst_LIBRARIES =	libtrx.a
 
 libtrx_a_SOURCES =	trx0purge.c trx0rec.c trx0roll.c trx0rseg.c\
 			trx0sys.c trx0trx.c trx0undo.c

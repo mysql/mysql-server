@@ -555,11 +555,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %left   '^'
 %right	NOT
 %right	BINARY COLLATE_SYM
-/* These don't actually affect the way the query is really evaluated, but
-   they silence a few warnings for shift/reduce conflicts. */
-%left	','
-%left	STRAIGHT_JOIN JOIN_SYM
-%nonassoc	CROSS INNER_SYM NATURAL LEFT RIGHT
 
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
@@ -1933,7 +1928,10 @@ select_option:
 	    Select->options|= OPTION_FOUND_ROWS;
 	  }
 	| SQL_NO_CACHE_SYM { Lex->uncacheable(); }
-	| SQL_CACHE_SYM    { Select->options|= OPTION_TO_QUERY_CACHE; }
+	| SQL_CACHE_SYM
+	  {
+	    Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
+	  }
 	| ALL		{}
 	;
 
@@ -2581,8 +2579,12 @@ sum_expr:
 	  { $$=new Item_sum_count(new Item_int((int32) 0L,1)); }
 	| COUNT_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_count($3); }
-	| COUNT_SYM '(' DISTINCT expr_list ')'
-	  { $$=new Item_sum_count_distinct(* $4); }
+	| COUNT_SYM '(' DISTINCT
+	  { Select->in_sum_expr++; }
+	   expr_list
+	  { Select->in_sum_expr--; }
+	  ')'
+	  { $$=new Item_sum_count_distinct(* $5); }
 	| GROUP_UNIQUE_USERS '(' text_literal ',' NUM ',' NUM ',' in_sum_expr ')'
 	  { $$= new Item_sum_unique_users($3,atoi($5.str),atoi($7.str),$9); }
 	| MIN_SYM '(' in_sum_expr ')'
@@ -2711,7 +2713,7 @@ join_table_list:
 	| join_table_list ',' join_table_list { $$=$3; }
 	| join_table_list normal_join join_table_list { $$=$3; }
 	| join_table_list STRAIGHT_JOIN join_table_list
-	  { $$=$3 ; $$->straight=1; }
+	  { $$=$3 ; $1->next->straight=1; }
 	| join_table_list normal_join join_table_list ON expr
 	  { add_join_on($3,$5); $$=$3; }
 	| join_table_list normal_join join_table_list
@@ -2735,9 +2737,13 @@ join_table_list:
 	  USING '(' using_list ')'
 	  { add_join_on($5,$9); $5->outer_join|=JOIN_TYPE_LEFT; $$=$5; }
 	| join_table_list NATURAL LEFT opt_outer JOIN_SYM join_table_list
-	  { add_join_natural($1,$6); $6->outer_join|=JOIN_TYPE_LEFT; $$=$6; }
+	  {
+	    add_join_natural($1,$1->next);
+	    $1->next->outer_join|=JOIN_TYPE_LEFT;
+	    $$=$6;
+	  }
 	| join_table_list RIGHT opt_outer JOIN_SYM join_table_list ON expr
-	  { add_join_on($1,$7); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
+	  { add_join_on($1,$7); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$5; }
 	| join_table_list RIGHT opt_outer JOIN_SYM join_table_list
 	  {
 	    SELECT_LEX *sel= Select->select_lex();
@@ -2745,11 +2751,15 @@ join_table_list:
 	    sel->db2=$5->db; sel->table2=$5->alias;
 	  }
 	  USING '(' using_list ')'
-	  { add_join_on($1,$9); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
+	  { add_join_on($1,$9); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$5; }
 	| join_table_list NATURAL RIGHT opt_outer JOIN_SYM join_table_list
-	  { add_join_natural($6,$1); $1->outer_join|=JOIN_TYPE_RIGHT; $$=$1; }
+	  {
+	    add_join_natural($1->next,$1);
+	    $1->outer_join|=JOIN_TYPE_RIGHT;
+	    $$=$6;
+	  }
 	| join_table_list NATURAL JOIN_SYM join_table_list
-	  { add_join_natural($1,$4); $$=$4; };
+	  { add_join_natural($1,$1->next); $$=$4; };
 
 normal_join:
 	JOIN_SYM		{}
@@ -3076,7 +3086,7 @@ delete_limit_clause:
 
 ULONG_NUM:
 	NUM	    { $$= strtoul($1.str,NULL,10); }
-	| LONG_NUM  { $$= (ulonglong) strtoll($1.str,NULL,10); }
+	| LONG_NUM  { $$= (ulong) strtoll($1.str,NULL,10); }
 	| ULONGLONG_NUM { $$= (ulong) strtoull($1.str,NULL,10); }
 	| REAL_NUM  { $$= strtoul($1.str,NULL,10); }
 	| FLOAT_NUM { $$= strtoul($1.str,NULL,10); };

@@ -124,12 +124,7 @@ EXPORTS
         mysql_autocommit
         load_defaults
         free_defaults
-  
-  
-	
-	
-	
-
+	my_path
 	
 
 

@@ -58,7 +58,15 @@ class ha_innobase: public handler
 	ulong		start_of_scan;	/* this is set to 1 when we are
 					starting a table scan but have not
 					yet fetched any row, else 0 */
-
+	uint		active_index_before_scan;
+					/* since a table scan in InnoDB is
+					always done through an index, a table
+					scan may change active_index; but
+					MySQL may assume that active_index
+					after a table scan is the same as
+					before; we store the value here so
+					that we can restore the value after
+					a scan */
 	uint		last_match_mode;/* match mode of the latest search:
 					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,
 					or undefined */
@@ -118,6 +126,7 @@ class ha_innobase: public handler
   	void initialize(void);
   	int close(void);
   	double scan_time();
+	double read_time(uint index, uint ranges, ha_rows rows);
 
   	int write_row(byte * buf);
   	int update_row(const byte * old_data, byte * new_data);
@@ -143,6 +152,7 @@ class ha_innobase: public handler
 
   	void position(const byte *record);
   	void info(uint);
+        int analyze(THD* thd,HA_CHECK_OPT* check_opt);
   	int extra(enum ha_extra_function operation);
   	int reset(void);
   	int external_lock(THD *thd, int lock_type);
@@ -189,6 +199,9 @@ extern char *innobase_unix_file_flush_method;
 /* The following variables have to be my_bool for SHOW VARIABLES to work */
 extern my_bool innobase_log_archive,
                innobase_use_native_aio, innobase_fast_shutdown;
+extern "C" {
+extern ulong srv_max_buf_pool_modified_pct;
+}
 
 extern TYPELIB innobase_lock_typelib;
 
@@ -203,6 +216,8 @@ int innobase_report_binlog_offset_and_commit(
 	void*	trx_handle,
         char*   log_file_name,
         my_off_t end_offset);
+int innobase_commit_complete(
+        void*   trx_handle);
 int innobase_rollback(THD *thd, void* trx_handle);
 int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);

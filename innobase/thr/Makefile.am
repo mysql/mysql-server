@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libthr.a
+noinst_LIBRARIES =	libthr.a
 
 libthr_a_SOURCES =	thr0loc.c
 

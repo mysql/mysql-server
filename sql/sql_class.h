@@ -358,6 +358,7 @@ struct system_variables
   ulong max_prep_stmt_count;
   ulong max_sort_length;
   ulong max_tmp_tables;
+  ulong myisam_repair_threads;
   ulong myisam_sort_buff_size;
   ulong net_buffer_length;
   ulong net_interactive_timeout;
@@ -434,13 +435,14 @@ public:
     ip - client IP
    */
   char	  *host,*user,*priv_user,*db,*ip;
+  char	  priv_host[MAX_HOSTNAME];
   /* remote (peer) port */
   uint16 peer_port;
   /* Points to info-string that will show in SHOW PROCESSLIST */
   const char *proc_info;
   /* points to host if host is available, otherwise points to ip */
   const char *host_or_ip;
- 
+
   ulong client_capabilities;		/* What the client supports */
   /* Determines if which non-standard SQL behaviour should be enabled */
   ulong max_client_packet_length;

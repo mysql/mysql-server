@@ -1,0 +1,8 @@
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	error	Can't open file: 't1.MYI'. (errno: 130)
+repair table t1 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	warning	Number of rows changed from 0 to 1
+test.t1	repair	status	OK
+drop table t1;

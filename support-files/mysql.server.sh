@@ -10,7 +10,7 @@
 # started and shut down when the systems goes down.
 
 # Comments to support chkconfig on RedHat Linux
-# chkconfig: 2345 90 90
+# chkconfig: 2345 90 20
 # description: A very fast and reliable SQL database engine.
 
 # Comments to support LSB init script conventions
@@ -18,8 +18,8 @@
 # Provides: mysql
 # Required-Start: $local_fs $network $remote_fs
 # Required-Stop: $local_fs $network $remote_fs
-# Default-Start:  3 5
-# Default-Stop: 3 5
+# Default-Start:  2 3 4 5
+# Default-Stop: 2 3 4 5
 # Short-Description: start and stop MySQL
 # Description: MySQL is a very fast and reliable SQL database engine.
 ### END INIT INFO
@@ -118,7 +118,18 @@ else
   test -z "$print_defaults" && print_defaults="my_print_defaults"
 fi
 
-parse_arguments `$print_defaults mysqld mysql_server mysql.server`
+#
+# Test if someone changed datadir;  In this case we should also read the
+# default arguments from this directory
+#
+
+extra_args=""
+if test "$datadir" != "@localstatedir@"
+then
+  extra_args="-e $datadir/my.cnf"
+fi
+
+parse_arguments `$print_defaults $extra_args mysqld mysql_server mysql.server`
 
 # Safeguard (relative paths, core dumps..)
 cd $basedir

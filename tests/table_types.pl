@@ -66,13 +66,6 @@ $dbh = $server->connect();
 ####
 
 $table_name="bench1";
-<<<<<<< table_types.pl
-||||||| 1.2
-test("n","type=isam","char"); test("m","type=myisam pack_keys=1","char"); exit(1);
-
-=======
-
->>>>>>> /tmp/T4a17019
 test($table_name,"type=isam","char");
 test($table_name,"type=myisam pack_keys=0","char");
 test($table_name,"type=myisam pack_keys=0","char");
@@ -91,7 +84,7 @@ exit (0);
 
 sub test {
   my ($name,$options,$chartype)=@_;
-  
+
   print "\nTesting with options: '$options'\n";
   $dbh->do("drop table $name");
   do_many($dbh,$server->create("$name",
@@ -102,23 +95,23 @@ sub test {
 			       ["primary key (id,id2)",
 				"index index_id3 (id3)"],
 			      $options));
-  
+
   if ($opt_lock_tables)
   {
     $sth = $dbh->do("LOCK TABLES $name WRITE") || die $DBI::errstr;
   }
-  
+
   if ($opt_fast && defined($server->{vacuum}))
   {
     $server->vacuum(\$dbh,1);
   }
-  
+
   ####
   #### Insert $total_rows records in order, in reverse order and random.
   ####
-  
+
   $loop_time=new Benchmark;
-  
+
   if ($opt_fast_insert)
   {
     $query="insert into $name values ";
@@ -127,11 +120,11 @@ sub test {
   {
     $query="insert into $name (id,id2,id3,dummy1) values ";
   }
-  
+
   if (($opt_fast || $opt_fast_insert) && $limits->{'multi_value_insert'})
   {
     $query_size=$server->{'limits'}->{'query_size'};
-    
+
     print "Inserting $opt_loop_count multiple-value rows in order\n";
     $res=$query;
     for ($i=0 ; $i < $opt_loop_count ; $i++)
@@ -186,7 +179,7 @@ sub test {
     {
       $sth = $dbh->do($query . "($i,$i,$i,'ABCDEFGHIJ')") or die $DBI::errstr;
     }
-    
+
     print "Inserting $opt_loop_count rows in reverse order\n";
     for ($i=0 ; $i < $opt_loop_count ; $i++)
     {
@@ -195,25 +188,25 @@ sub test {
 		      ($total_rows-1-$i) . ",'BCDEFGHIJK')")
 	or die $DBI::errstr;
     }
-    
+
     print "Inserting $opt_loop_count rows in random order\n";
-    
+
     for ($i=0 ; $i < $opt_loop_count ; $i++)
     {
       $sth = $dbh->do($query . "(". $random[$i] . "," . $random[$i] .
 		      "," . $random[$i] . ",'CDEFGHIJKL')") or die $DBI::errstr;
     }
   }
-  
+
   $end_time=new Benchmark;
   print "Time for insert (" . ($total_rows) . "): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
-  
+
   if ($opt_fast && defined($server->{vacuum}))
   {
     $server->vacuum(\$dbh,1);
   }
-  
+
   $sth=$dbh->prepare("show table status like '$name'");
   $sth->execute || die "Show table status returned error: $DBI::errstr\n";
   while (@row = $sth->fetchrow_array)

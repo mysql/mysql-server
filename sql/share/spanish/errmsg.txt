@@ -106,7 +106,7 @@
 "Campo Blob '%-.64s' no puede tener valores patron",
 "Nombre de base de datos ilegal '%-.64s'",
 "Nombre de tabla ilegal '%-.64s'",
-"El SELECT puede examinar muchos registros y probablemente con mucho tiempo. Verifique tu WHERE y usa SET OPTION SQL_BIG_SELECTS=1 si el SELECT esta correcto",
+"El SELECT puede examinar muchos registros y probablemente con mucho tiempo. Verifique tu WHERE y usa SET SQL_BIG_SELECTS=1 si el SELECT esta correcto",
 "Error desconocido",
 "Procedimiento desconocido %s",
 "Equivocado parametro count para procedimiento %s",

@@ -1,0 +1,10 @@
+drop table if exists t1;
+SELECT 'A' || 'B';
+'A' || 'B'
+AB
+CREATE TABLE t1 (id INT, id2 int);
+SELECT id,NULL,1,1.1,'a' FROM t1 GROUP BY id;
+id	NULL	1	1.1	a
+SELECT id FROM t1 GROUP BY id2;
+'t1.id' isn't in GROUP BY
+drop table t1;

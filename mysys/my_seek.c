@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysys_priv.h"
+#include <assert.h>
 
 	/* Seek to position in file */
 	/*ARGSUSED*/
@@ -27,6 +28,8 @@ my_off_t my_seek(File fd, my_off_t pos, int whence,
   DBUG_PRINT("my",("Fd: %d  Hpos: %lu  Pos: %lu  Whence: %d  MyFlags: %d",
 		   fd, (ulong) (((ulonglong) pos) >> 32), (ulong) pos, 
 		   whence, MyFlags));
+  DBUG_ASSERT(pos != MY_FILEPOS_ERROR);		/* safety check */
+
   newpos=lseek(fd, pos, whence);
   if (newpos == (os_off_t) -1)
   {

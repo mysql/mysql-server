@@ -55,6 +55,7 @@
 #else
 #define MAX_REFLENGTH 4				/* Max length for record ref */
 #endif
+#define MAX_HOSTNAME  61			/* len+1 in mysql.user */
 
 #define MAX_FIELD_WIDTH 256			/* Max column width +1 */
 #define MAX_TABLES	(sizeof(table_map)*8-2)	/* Max tables in join */
