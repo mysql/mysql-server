@@ -116,7 +116,9 @@ select * from t1 order by a;
 a	b
 0	1
 17	18
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
 alter table  t1 modify column a int not null auto_increment;
+SET SQL_MODE='';
 select * from t1 order by a;
 a	b
 0	1

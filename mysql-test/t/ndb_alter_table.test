@@ -95,7 +95,9 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES (0,1),(17,18);
 select * from t1 order by a;
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
 alter table  t1 modify column a int not null auto_increment;
+SET SQL_MODE='';
 select * from t1 order by a;
 INSERT INTO t1 VALUES (0,19),(20,21);
 select * from t1 order by a;
