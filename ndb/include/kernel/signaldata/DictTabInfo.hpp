@@ -24,6 +24,28 @@
 #include <trigger_definitions.h>
 #include <NdbSqlUtil.hpp>
 
+#ifndef my_decimal_h
+
+// sql/my_decimal.h requires many more sql/*.h new to ndb
+// for now, copy the bit we need  TODO proper fix
+
+#define DECIMAL_MAX_LENGTH ((8 * 9) - 8)
+
+#ifndef NOT_FIXED_DEC
+#define NOT_FIXED_DEC                   31
+#endif
+
+C_MODE_START
+extern int decimal_bin_size(int, int);
+C_MODE_END
+
+inline int my_decimal_get_binary_size(uint precision, uint scale)
+{
+  return decimal_bin_size((int)precision, (int)scale);
+}
+
+#endif
+
 #define DTIMAP(x, y, z) \
   { DictTabInfo::y, offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
 
@@ -266,6 +288,8 @@ public:
     ExtDouble = NdbSqlUtil::Type::Double,
     ExtOlddecimal = NdbSqlUtil::Type::Olddecimal,
     ExtOlddecimalunsigned = NdbSqlUtil::Type::Olddecimalunsigned,
+    ExtDecimal = NdbSqlUtil::Type::Decimal,
+    ExtDecimalunsigned = NdbSqlUtil::Type::Decimalunsigned,
     ExtChar = NdbSqlUtil::Type::Char,
     ExtVarchar = NdbSqlUtil::Type::Varchar,
     ExtBinary = NdbSqlUtil::Type::Binary,
@@ -357,6 +381,19 @@ public:
         AttributeArraySize =
           (0 + AttributeExtPrecision + (int(AttributeExtScale) > 0)) *
           AttributeExtLength;
+        break;
+      case DictTabInfo::ExtDecimal:
+      case DictTabInfo::ExtDecimalunsigned:
+        {
+          // copy from Field_new_decimal ctor
+          uint precision = AttributeExtPrecision;
+          uint scale = AttributeExtScale;
+          if (precision > DECIMAL_MAX_LENGTH || scale >= NOT_FIXED_DEC)
+            precision = DECIMAL_MAX_LENGTH;
+          uint bin_size = my_decimal_get_binary_size(precision, scale);
+          AttributeSize = DictTabInfo::an8Bit;
+          AttributeArraySize = bin_size * AttributeExtLength;
+        }
         break;
       case DictTabInfo::ExtChar:
       case DictTabInfo::ExtBinary:
