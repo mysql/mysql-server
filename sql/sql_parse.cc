@@ -3184,9 +3184,15 @@ purposes internal to the MySQL server", MYF(0));
   }
   case SQLCOM_ALTER_DB:
   {
-    if (!strip_sp(lex->name) || check_db_name(lex->name))
+    char *db= lex->name ? lex->name : thd->db;
+    if (!db)
     {
-      net_printf(thd, ER_WRONG_DB_NAME, lex->name);
+      send_error(thd, ER_NO_DB_ERROR);
+      goto error;
+    }
+    if (!strip_sp(db) || check_db_name(db))
+    {
+      net_printf(thd, ER_WRONG_DB_NAME, db);
       break;
     }
     /*
@@ -3198,21 +3204,21 @@ purposes internal to the MySQL server", MYF(0));
     */
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread && 
-	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
-	 !db_ok_with_wild_table(lex->name)))
+	(!db_ok(db, replicate_do_db, replicate_ignore_db) ||
+	 !db_ok_with_wild_table(db)))
     {
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
 #endif
-    if (check_access(thd,ALTER_ACL,lex->name,0,1,0))
+    if (check_access(thd, ALTER_ACL, db, 0, 1, 0))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
       send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
       goto error;
     }
-    res=mysql_alter_db(thd,lex->name,&lex->create_info);
+    res= mysql_alter_db(thd, db, &lex->create_info);
     break;
   }
   case SQLCOM_SHOW_CREATE_DB:
