@@ -155,6 +155,8 @@ static char mysql_charsets_dir[FN_REFLEN+1];
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
+  ">", "&gt;",
+  "\"", "&quot;",
   0, 0
 };
 static const char *day_names[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
@@ -2126,13 +2128,11 @@ print_table_data_xml(MYSQL_RES *result)
     (void) tee_fputs("\n  <row>\n", PAGER);
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
-      tee_fprintf(PAGER, "\t<%s>", (fields[i].name ?
-				  (fields[i].name[0] ? fields[i].name :
-				   " &nbsp; ") : "NULL"));
+      tee_fprintf(PAGER, "\t<field name=\"");
+      xmlencode_print(fields[i].name, strlen(fields[i].name));
+      tee_fprintf(PAGER, "\">");
       xmlencode_print(cur[i], lengths[i]);
-      tee_fprintf(PAGER, "</%s>\n", (fields[i].name ?
-				     (fields[i].name[0] ? fields[i].name :
-				      " &nbsp; ") : "NULL"));
+      tee_fprintf(PAGER, "</field>\n");
     }
     (void) tee_fputs("  </row>\n", PAGER);
   }
