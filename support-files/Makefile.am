@@ -18,6 +18,7 @@
 ## Process this file with automake to create Makefile.in
 
 EXTRA_DIST =		mysql.spec.sh \
+			mysql-max.spec.sh \
 			my-small.cnf.sh \
 			my-medium.cnf.sh \
 			my-large.cnf.sh \
@@ -33,6 +34,7 @@ pkgdata_DATA =		my-small.cnf \
 			my-huge.cnf \
 			mysql-log-rotate \
 			mysql-@VERSION@.spec \
+			mysql-max-@VERSION@.spec \
 			binary-configure
 
 pkgdata_SCRIPTS =	mysql.server
@@ -42,6 +44,7 @@ CLEANFILES =		my-small.cnf \
 			my-large.cnf \
 			my-huge.cnf \
 			mysql.spec \
+			mysql-max-@VERSION@.spec \
 			mysql-@VERSION@.spec \
 			mysql-log-rotate \
 			mysql.server \
@@ -51,6 +54,10 @@ CLEANFILES =		my-small.cnf \
 mysql-@VERSION@.spec:	mysql.spec
 			rm -f $@
 			cp mysql.spec $@
+
+mysql-max-@VERSION@.spec:	mysql-max.spec
+			rm -f $@
+			cp mysql-max.spec $@
 
 SUFFIXES = .sh
 

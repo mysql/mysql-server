@@ -130,7 +130,7 @@ else
   $query="insert into bench1 (id,id2,id3,dummy1) values ";
 }
 
-if (($opt_fast || $opt_fast_insert) && $limits->{'insert_multi_value'})
+if (($opt_fast || $opt_fast_insert) && $server->{'limits'}->{'insert_multi_value'})
 {
   $query_size=$server->{'limits'}->{'query_size'};
 
@@ -1209,7 +1209,7 @@ if ($server->small_rollback_segment())
 
 $loop_time=new Benchmark;
 $fields=$#fields;
-if (($opt_fast || $opt_fast_insert) && $limits->{'insert_multi_value'})
+if (($opt_fast || $opt_fast_insert) && $server->{'limits'}->{'insert_multi_value'})
 {
   $query_size=$server->{'limits'}->{'query_size'};
   $query="insert into bench1 values ";
