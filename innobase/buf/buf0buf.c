@@ -863,6 +863,19 @@ buf_page_get_known_nowait(
 	
 	mutex_enter(&(buf_pool->mutex));
 
+	if (block->state == BUF_BLOCK_REMOVE_HASH) {
+	        /* Another thread is just freeing the block from the LRU list
+	        of the buffer pool: do not try to access this page; this
+		attempt to access the page can only come through the hash
+		index because when the buffer block state is ..._REMOVE_HASH,
+		we have already removed it from the page address hash table
+		of the buffer pool. */
+
+	        mutex_exit(&(buf_pool->mutex));
+
+		return(FALSE);
+	}
+
 #ifdef UNIV_SYNC_DEBUG
 	buf_block_buf_fix_inc_debug(block, file, line);
 #else

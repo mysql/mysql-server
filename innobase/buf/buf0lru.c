@@ -138,6 +138,8 @@ buf_LRU_search_and_free_block(
 
 			mutex_enter(&(buf_pool->mutex));
 
+			ut_a(block->buf_fix_count == 0);
+
 			buf_LRU_block_free_hashed_page(block);
 
 			freed = TRUE;
@@ -435,7 +437,7 @@ buf_LRU_add_block_to_end_low(
 		defined: init it */
 
 		buf_LRU_old_init();
-	}	
+	}
 }	    	
 
 /**********************************************************************
