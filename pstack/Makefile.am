@@ -14,12 +14,22 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+#
+# As pstack doesn't work on all configurations, we have to use
+# the USE_PSTACK hack to get all files into distribution
+#
+
 INCLUDES =		-I$(srcdir)/../include -I../include
-pkglib_LIBRARIES =	libpstack.a
 noinst_HEADERS =	bucomm.h debug.h ieee.h budbg.h demangle.h \
 			linuxthreads.h pstack.h pstacktrace.h
-libpstack_a_SOURCES =	bucomm.c filemode.c linuxthreads.c rddbg.c \
+SRC=			bucomm.c filemode.c linuxthreads.c rddbg.c \
 			debug.c ieee.c pstack.c stabs.c
+EXTRA_DIST=		$SRC
+
+if COMPILE_PSTACK
+pkglib_LIBRARIES =	libpstack.a
+libpstack_a_SOURCES =	bucomm.c filemode.c linuxthreads.c rddbg.c debug.c ieee.c pstack.c stabs.c
+endif
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
