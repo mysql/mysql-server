@@ -505,10 +505,16 @@ void ha_close_connection(THD* thd)
     "beginning of transaction" and "beginning of statement").
     Only storage engines registered for the transaction/statement
     will know when to commit/rollback it.
+
+  NOTE
+    trans_register_ha is idempotent - storage engine may register many
+    times per transaction.
+
 */
 void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
 {
   THD_TRANS *trans;
+  handlerton **ht;
   DBUG_ENTER("trans_register_ha");
   DBUG_PRINT("enter",("%s", all ? "all" : "stmt"));
 
@@ -520,15 +526,12 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   else
     trans= &thd->transaction.stmt;
 
-#ifndef DBUG_OFF
-  handlerton **ht=trans->ht;
-  while (*ht)
-  {
-    DBUG_ASSERT(*ht != ht_arg);
-    ht++;
-  }
-#endif
+  for (ht=trans->ht; *ht; ht++)
+    if (*ht == ht_arg)
+      DBUG_VOID_RETURN;
+
   trans->ht[trans->nht++]=ht_arg;
+  DBUG_ASSERT(*ht == ht_arg);
   trans->no_2pc|=(ht_arg->prepare==0);
   if (thd->transaction.xid.is_null())
     thd->transaction.xid.set(thd->query_id);
