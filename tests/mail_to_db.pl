@@ -17,7 +17,7 @@ use DBI;
 use Getopt::Long;
 
 $| = 1;
-$VER = "2.3";
+$VER = "2.4";
 
 $opt_help          = 0;
 $opt_version       = 0;
@@ -213,12 +213,12 @@ sub process_mail_file
   %values = ();
   $type = "";
   $check = 0;
-
   while (<FILE>)
   {
     chop;
+    chop if (substr($_, -1, 1) eq "\r");
     if ($type ne "message")
-    {
+    { 
       if (/^Reply-To: (.*)/i)
       {
 	$type = "reply";
