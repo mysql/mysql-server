@@ -26,6 +26,10 @@
 #include <thr_alarm.h>
 #include <ft_global.h>
 
+#ifndef DBUG_OFF
+#define ONE_THREAD
+#endif
+
 #ifdef	__cplusplus
 extern "C" {					// Because of SCO 3.2V4.2
 #endif
@@ -915,7 +919,7 @@ void end_thread(THD *thd, bool put_in_cache)
   (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info", ("unlocked thread_count mutex"))
-#ifndef DBUG_OFF
+#ifdef ONE_THREAD
   if (!(test_flags & TEST_NO_THREADS))	// For debugging under Linux
 #endif
   {
@@ -1805,7 +1809,7 @@ static void create_new_thread(THD *thd)
   thd->real_id=pthread_self();			// Keep purify happy
 
   /* Start a new thread to handle connection */
-#ifndef DBUG_OFF
+#ifdef ONE_THREAD
   if (test_flags & TEST_NO_THREADS)		// For debugging under Linux
   {
     thread_cache_size=0;			// Safety
@@ -2256,7 +2260,7 @@ static struct option long_options[] = {
   {"memlock",		    no_argument,       0, (int) OPT_MEMLOCK},
   {"new",                   no_argument,       0, 'n'},
   {"old-protocol",          no_argument,       0, 'o'},
-#ifndef DBUG_OFF
+#ifdef ONE_THREAD
   {"one-thread",            no_argument,       0, (int) OPT_ONE_THREAD},
 #endif
   {"pid-file",              required_argument, 0, (int) OPT_PID_FILE},
@@ -2509,7 +2513,7 @@ static void print_version(void)
 static void use_help(void)
 {
   print_version();
-  printf("Use %s --help for a list of available options\n",my_progname);
+  printf("Use '--help' or '--no-defaults --help' for a list of available options\n");
 }  
 
 static void usage(void)
@@ -2569,7 +2573,7 @@ static void usage(void)
   -n, --new		Use very new possible 'unsafe' functions\n\
   -o, --old-protocol	Use the old (3.20) protocol\n\
   -P, --port=...	Port number to use for connection\n");
-#ifndef DBUG_OFF
+#ifdef ONE_THREAD
   puts("\
   --one-thread		Only use one thread (for debugging under Linux)\n");
 #endif

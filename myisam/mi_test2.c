@@ -44,7 +44,8 @@ static void copy_key(struct st_myisam_info *info,uint inx,
 
 static	int verbose=0,testflag=0,
 	    first_key=0,async_io=0,key_cacheing=0,write_cacheing=0,locking=0,
-	    rec_pointer_size=0,pack_fields=1,use_log=0,silent=0;
+            rec_pointer_size=0,pack_fields=1,use_log=0,silent=0,
+            opt_quick_mode=0;
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1,
 	   create_flag=0;
 static ulong key_cache_size=IO_SIZE*16;
@@ -212,6 +213,8 @@ int main(int argc, char **argv)
     mi_lock_database(file,F_WRLCK);
   if (write_cacheing)
     mi_extra(file,HA_EXTRA_WRITE_CACHE);
+  if (opt_quick_mode)
+    mi_extra(file,HA_EXTRA_QUICK);
 
   for (i=0 ; i < recant ; i++)
   {
@@ -778,6 +781,8 @@ end:
       puts("Key cacheing used");
     if (write_cacheing)
       puts("Write cacheing used");
+    if (write_cacheing)
+      puts("quick mode");
     if (async_io && locking)
       puts("Asyncron io with locking used");
     else if (locking)
@@ -885,6 +890,9 @@ static void get_options(int argc, char **argv)
     case 't':
       testflag=atoi(++pos);		/* testmod */
       break;
+    case 'q':
+      opt_quick_mode=1;
+      break;
     case 'c':
       create_flag|= HA_CREATE_CHECKSUM;
       break;
@@ -894,9 +902,9 @@ static void get_options(int argc, char **argv)
     case '?':
     case 'I':
     case 'V':
-      printf("%s  Ver 1.1 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
+      printf("%s  Ver 1.2 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
       puts("By Monty, for your professional use\n");
-      printf("Usage: %s [-?AbBcDIKLPRSsVWltv] [-k#] [-f#] [-m#] [-t#]\n",
+      printf("Usage: %s [-?AbBcDIKLPRqSsVWltv] [-k#] [-f#] [-m#] [-t#]\n",
 	     progname);
       exit(0);
     case '#':

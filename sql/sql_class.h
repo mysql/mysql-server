@@ -275,8 +275,8 @@ public:
   ~THD();
   bool store_globals();
   inline time_t query_start() { query_start_used=1; return start_time; }
-  inline void	set_time()    { if (!user_time) time(&start_time); }
-  inline void	set_time(time_t t) { start_time=t; user_time=1; }
+  inline void	set_time()    { if (!user_time) time_after_lock=time(&start_time); }
+  inline void	set_time(time_t t) { time_after_lock=start_time=t; user_time=1; }
   inline void	lock_time()   { time(&time_after_lock); }
   inline void	insert_id(ulonglong id)
   { last_insert_id=id; insert_id_used=1; }

@@ -353,7 +353,8 @@ check_or_range("id3","select_range_key2");
 # Check reading on direct key on id and id3
 
 check_select_key("id","select_key_prefix");
-check_select_key("id3","select_key_key2");
+check_select_key2("id","id2","select_key");
+check_select_key("id3","select_key2");
 
 ####
 #### A lot of simple selects on ranges
@@ -921,7 +922,7 @@ if (!$opt_skip_delete)
   }
 
   $end_time=new Benchmark;
-  print "Time for delete_big ($count): " .
+  print "Time for delete_all ($count): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
   if ($opt_lock_tables)
@@ -1113,6 +1114,7 @@ $count=0;
 
 for ($i=0 ; $i < 128 ; $i++)
 {
+  $count++;
   $dbh->do("delete from bench1 where field1 = $i") or die $DBI::errstr;
 }
 
@@ -1245,6 +1247,38 @@ sub check_select_key
       or die $DBI::errstr;
     $tmp+=$total_rows;
     defined($row_count=fetch_all_rows($dbh,"select * from bench1 where $column=$tmp")) or die $DBI::errstr;
+    die "Found $row_count rows on impossible id: $tmp\n" if ($row_count);
+    $end_time=new Benchmark;
+    last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i,
+					   $opt_loop_count));
+  }
+  if ($estimated)
+  { print "Estimated time"; }
+  else
+  { print "Time"; }
+  print " for $check ($count): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n";
+}
+
+# Same as above, but select on 2 columns
+
+sub check_select_key2
+{
+  my ($column,$column2,$check)= @_;
+  my ($loop_time,$end_time,$i,$tmp_var,$tmp,$count,$row_count,$estimated);
+
+  $estimated=0;
+  $loop_time=new Benchmark;
+  $count=0;
+  for ($i=1 ; $i <= $opt_loop_count; $i++)
+  {
+    $count+=2;
+    $tmpvar^= ((($tmpvar + 63) + $i)*3 % $opt_loop_count);
+    $tmp=$tmpvar % ($total_rows);
+    fetch_all_rows($dbh,"select * from bench1 where $column=$tmp and $column2=$tmp")
+      or die $DBI::errstr;
+    $tmp+=$total_rows;
+    defined($row_count=fetch_all_rows($dbh,"select * from bench1 where $column=$tmp and $column2=$tmp")) or die $DBI::errstr;
     die "Found $row_count rows on impossible id: $tmp\n" if ($row_count);
     $end_time=new Benchmark;
     last if ($estimated=predict_query_time($loop_time,$end_time,\$count,$i,

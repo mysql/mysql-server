@@ -511,8 +511,12 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       if (mi_keyseg_write(file, &keydefs[i].seg[j]))
 	goto err;
     for (j=0 ; j < ft_segs ; j++)                                   /* SerG */
-      if (mi_keyseg_write(file, &ft_keysegs[j]))
+    {
+      MI_KEYSEG seg=ft_keysegs[j];
+      seg.language= keydefs[i].seg[0].language;
+      if (mi_keyseg_write(file, &seg))
         goto err;
+    }
   }
   /* Create extra keys for unique definitions */
   offset=reclength-uniques*MI_UNIQUE_HASH_LENGTH;

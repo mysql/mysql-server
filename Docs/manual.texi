@@ -465,7 +465,7 @@ Functions for use in @code{SELECT} and @code{WHERE} clauses
 MySQL table types
 
 * MyISAM::                      MyISAM tables
-* MERGE::                       
+* MERGE::                       MERGE tables
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
@@ -4846,7 +4846,7 @@ shell> /usr/sbin/swinstall -s /path/to/depot mysql.developer
 
 The depot places binaries and libraries in @file{/opt/mysql} and data in
 @file{/var/opt/mysql}. The depot also creates the appropriate entries in
-@file{/sbin/init.d} and @file{/sbin/rc2.d} to start the server automatically
+@file{/etc/init.d} and @file{/etc/rc2.d} to start the server automatically
 at boot time. Obviously, this entails being @code{root} to install.
 
 To install the HP-UX tar.gz distribution, you must have a copy of GNU
@@ -17900,6 +17900,8 @@ If you specify the keyword @code{LOW_PRIORITY}, execution of the
 In this case the client has to wait until the insert statement is completed,
 which may take a long time if the table is in heavy use. This is in
 contrast to @code{INSERT DELAYED} which lets the client continue at once.
+Note that @code{LOW_PRIORITY} should normally not be used with @code{MyISAM}
+tables as this disables concurrent inserts.@xref{MyISAM}.
 
 @item
 If you specify the keyword @code{IGNORE} in an @code{INSERT} with many value
@@ -18703,7 +18705,7 @@ the @code{mysql} database.
 
 @item @code{TABLES table_name [,table_name...]} @tab Flush only the given tables
 
-@item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}.
+@item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}. This is very convinient way to get backups if you have a file system, like Veritas,that can take snapshots in time.
 
 @item @code{STATUS} @tab Resets most status variables to zero.
 @end multitable
@@ -19871,7 +19873,10 @@ table in the server and implemented with @code{pthread_mutex_lock()} and
 See @ref{Internal locking}, for more information on locking policy.
 
 You can also lock all tables in all databases with read locks with the
-@code{FLUSH TABLES WITH READ LOCK} command. @xref{FLUSH}.
+@code{FLUSH TABLES WITH READ LOCK} command. @xref{FLUSH}. This is very
+convinient way to get backups if you have a file system, like Veritas,
+that can take snapshots in time.
+
 
 @findex SET OPTION
 @node SET OPTION, GRANT, LOCK TABLES, Reference
@@ -21536,6 +21541,14 @@ article (item number) for certain traders (dealers).  Supposing that each
 trader has a single fixed price per article, then (@code{item},
 @code{trader}) is a primary key for the records.
 
+Start the command line tool @code{mysql} and select a database:
+
+@example
+mysql your-database-name
+@end example
+
+(In most @strong{MySQL} installations, you can use the database-name 'test').
+
 You can create the example table as:
 
 @example
@@ -21671,7 +21684,7 @@ In @strong{MySQL} it's best do it in several steps:
 
 @enumerate
 @item
-Get the list of (article,maxprice). @xref{example-Maximum-column-group-row}.
+Get the list of (article,maxprice).
 @item
 For each article get the corresponding rows which have the stored maximum
 price.
@@ -21684,11 +21697,11 @@ CREATE TEMPORARY TABLE tmp (
         article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
         price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL);
 
-LOCK TABLES article read;
+LOCK TABLES shop read;
 
 INSERT INTO tmp SELECT article, MAX(price) FROM shop GROUP BY article;
 
-SELECT article, dealer, price FROM shop, tmp
+SELECT shop.article, dealer, price FROM shop, tmp
 WHERE shop.article=tmp.article AND shop.price=tmp.price;
 
 UNLOCK TABLES;
@@ -29155,6 +29168,10 @@ that when you export data to @strong{MySQL}, the table and column names
 aren't specified.  Another way to around this bug is to upgrade to
 MyODBC 2.50.33 and @strong{MySQL} 3.23.x, which together provides a
 workaround for this bug!
+
+Note that if you are using @strong{MySQL} 3.22, you must to apply the
+MDAC patch and use MyODBC 2.50.32 or 2.50.34 and above to go around
+this problem.
 @item
 Set the ``Return matching rows'' MyODBC option field when connecting to
 @strong{MySQL}.
@@ -36725,6 +36742,14 @@ though, so 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.25
 @itemize @bullet
 @item
+Fixed a bug where @code{FULLTEXT} index always used the koi8_ukr
+character set.
+@item
+Fixed privilege checking for @code{CHECK TABLE}.
+@item
+The @code{MyISAM} repair/reindex code didn't use the @code{--tempdir}
+option for it's temporary files.
+@item
 Added @code{BACKUP TABLE/RESTORE TABLE}.
 @item
 Fixed coredump on @code{CHANGE MASTER TO} when the slave did not have
@@ -36739,7 +36764,6 @@ Fixed a core dump bug when doing @code{FLUSH MASTER} when one didn't give
 a filename argument to @code{--log-bin}.
 @item
 Added missing @file{ha_berkeley.x} files to the @strong{MySQL} windows
-source distribution.
 @item
 Fixed some mutex bugs in the log code that could cause thread blocks if new
 log files couldn't be created.

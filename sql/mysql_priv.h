@@ -156,6 +156,7 @@ void sql_element_free(void *ptr);
 #define OPTION_BIN_LOG          OPTION_BUFFER_RESULT*2
 #define OPTION_AUTO_COMMIT	OPTION_BIN_LOG*2
 #define OPTION_BEGIN		OPTION_AUTO_COMMIT*2
+#define OPTION_QUICK		OPTION_BEGIN*2
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -324,7 +325,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 thr_lock_type lock_type);
 void kill_delayed_threads(void);
 int mysql_delete(THD *thd,TABLE_LIST *table,COND *conds,ha_rows rows,
-		 thr_lock_type lock_type);
+		 thr_lock_type lock_type, ulong options);
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update);
 TABLE *open_table(THD *thd,const char *db,const char *table,const char *alias,
 		  bool *refresh);
