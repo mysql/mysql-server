@@ -33,23 +33,22 @@ public:
   };
 
   Item **args, *tmp_args[2];
-  Item **args_copy;			/* copy of arguments for PS */
   uint arg_count;
   bool quick_group;			/* If incremental update of fields */
 
   void mark_as_sum_func();
-  Item_sum() :args_copy(0), arg_count(0), quick_group(1) 
+  Item_sum() :arg_count(0), quick_group(1) 
   {
     mark_as_sum_func();
   }
   Item_sum(Item *a)
-    :args(tmp_args), args_copy(0), arg_count(1), quick_group(1)
+    :args(tmp_args), arg_count(1), quick_group(1)
   {
     args[0]=a;
     mark_as_sum_func();
   }
   Item_sum( Item *a, Item *b )
-    :args(tmp_args), args_copy(0),  arg_count(2), quick_group(1)
+    :args(tmp_args), arg_count(2), quick_group(1)
   {
     args[0]=a; args[1]=b;
     mark_as_sum_func();
@@ -57,7 +56,6 @@ public:
   Item_sum(List<Item> &list);
   //Copy constructor, need to perform subselects with temporary tables
   Item_sum(THD *thd, Item_sum *item);
-  void cleanup();
   enum Type type() const { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func () const=0;
   inline bool reset() { clear(); return add(); };
@@ -92,8 +90,6 @@ public:
   virtual bool setup(THD *thd) {return 0;}
   virtual void make_unique() {}
   Item *get_tmp_table_item(THD *thd);
-  bool save_args_for_prepared_statement(THD *);
-  bool save_args(Item_arena *arena);
 
   bool walk (Item_processor processor, byte *argument);
 };

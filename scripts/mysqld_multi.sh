@@ -4,7 +4,7 @@ use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.8";
+$VER="2.10";
 
 $opt_config_file   = undef();
 $opt_example       = 0;
@@ -17,6 +17,8 @@ $opt_password      = undef();
 $opt_tcp_ip        = 0;
 $opt_user          = "root";
 $opt_version       = 0;
+$opt_silent        = 0;
+$opt_verbose       = 0;
 
 my $my_print_defaults_exists= 1;
 my $logdir= undef();
@@ -75,8 +77,15 @@ sub main
     splice @ARGV, 0, 0, @defops;
   }
   GetOptions("help","example","version","mysqld=s","mysqladmin=s",
-             "config-file=s","user=s","password=s","log=s","no-log","tcp-ip")
+             "config-file=s","user=s","password=s","log=s","no-log","tcp-ip",
+             "silent","verbose")
   || die "Wrong option! See $my_progname --help for detailed information!\n";
+
+  if ($opt_verbose && $opt_silent)
+  {
+    print "Both --verbose and --silent has been given. Some of the warnings ";
+    print "will be disabled\nand some will be enabled.\n\n";
+  }
 
   init_log() if (!defined($opt_log));
   $groupids = $ARGV[1];
@@ -86,16 +95,6 @@ sub main
     exit(0);
   }
   example() if ($opt_example);
-  if (!defined(($mysqld = my_which($opt_mysqld))))
-  {
-    print "Couldn't find the mysqld binary! Tried: $opt_mysqld\n";
-    $flag_exit=1;
-  }
-  if (!defined(($mysqladmin = my_which($opt_mysqladmin))))
-  {
-    print "Couldn't find the mysqladmin binary! Tried: $opt_mysqladmin\n";
-    $flag_exit=1;
-  }
   usage() if ($opt_help);
   if ($flag_exit)
   {
@@ -111,9 +110,9 @@ sub main
     exit(1);
   }
   usage() if (!defined($ARGV[0]) ||
-	      ($ARGV[0] ne 'start' && $ARGV[0] ne 'START' &&
-	       $ARGV[0] ne 'stop' && $ARGV[0] ne 'STOP' &&
-	       $ARGV[0] ne 'report' && $ARGV[0] ne 'REPORT'));
+	      (!($ARGV[0] =~ m/^start$/i) &&
+	       !($ARGV[0] =~ m/^stop$/i) &&
+	       !($ARGV[0] =~ m/^report$/i)));
 
   if (!$opt_no_log)
   {
@@ -126,17 +125,34 @@ sub main
     print strftime "%a %b %e %H:%M:%S %Y", localtime;
     print "\n";
   }
-  if ($ARGV[0] eq 'report' || $ARGV[0] eq 'REPORT')
+  if ($ARGV[0] =~ m/^start$/i)
   {
-    report_mysqlds();
-  }
-  elsif ($ARGV[0] eq 'start' || $ARGV[0] eq 'START')
-  {
+    if (!defined(($mysqld= my_which($opt_mysqld))) && $opt_verbose)
+    {
+      print "WARNING: Couldn't find the default mysqld binary.\n";
+      print "Tried: $opt_mysqld\n";
+      print "This is OK, if you are using option \"mysqld=...\" in ";
+      print "groups [mysqldN] separately for each.\n\n";
+    }
     start_mysqlds();
   }
   else
   {
-    stop_mysqlds();
+    if (!defined(($mysqladmin= my_which($opt_mysqladmin))) && $opt_verbose)
+    {
+      print "WARNING: Couldn't find the default mysqladmin binary.\n";
+      print "Tried: $opt_mysqladmin\n";
+      print "This is OK, if you are using option \"mysqladmin=...\" in ";
+      print "groups [mysqldN] separately for each.\n\n";
+    }
+    if ($ARGV[0] =~ m/^report$/i)
+    {
+      report_mysqlds();
+    }
+    else
+    {
+      stop_mysqlds();
+    }
   }
 }
 
@@ -170,7 +186,10 @@ sub init_log
   {
     # Log file was not specified and we could not log to a standard place,
     # so log file be disabled for now.
-    print "WARNING: Log file disabled. Maybe directory/file isn't writable?\n";
+    if (!$opt_silent)
+    {
+      print "WARNING: Log file disabled. Maybe directory or file isn't writable?\n";
+    }
     $opt_no_log= 1;
   }
   else
@@ -185,7 +204,7 @@ sub init_log
 
 sub report_mysqlds
 {
-  my (@groups, $com, $i, @options, $j, $pec);
+  my (@groups, $com, $i, @options, $pec);
 
   print "Reporting MySQL servers\n";
   if (!$opt_no_log)
@@ -195,23 +214,7 @@ sub report_mysqlds
   @groups = &find_groups($groupids);
   for ($i = 0; defined($groups[$i]); $i++)
   {
-    $com = "my_print_defaults";
-    $com.= defined($opt_config_file) ? " --config-file=$opt_config_file" : "";
-    $com.= " $groups[$i]";
-    @options = `$com`;
-    chop @options;
-
-    $com = "$mysqladmin -u $opt_user";
-    $com.= defined($opt_password) ? " -p$opt_password" : "";
-    $com.= $opt_tcp_ip ? " -h 127.0.0.1" : "";
-    for ($j = 0; defined($options[$j]); $j++)
-    {
-      if ((($options[$j] =~ m/^(\-\-socket\=)(.*)$/) && !$opt_tcp_ip) ||
-	  ($options[$j] =~ m/^(\-\-port\=)(.*)$/))
-      {
-	$com.= " $options[$j]";
-      }
-    }
+    $com= get_mysqladmin_options($i, @groups);
     $com.= " ping >> /dev/null 2>&1";
     system($com);
     $pec = $? >> 8;
@@ -250,7 +253,7 @@ sub report_mysqlds
 
 sub start_mysqlds()
 {
-  my (@groups, $com, $tmp, $i, @options, $j);
+  my (@groups, $com, $tmp, $i, @options, $j, $mysqld_found, $info_sent);
 
   if (!$opt_no_log)
   {
@@ -269,13 +272,20 @@ sub start_mysqlds()
     @options = `$com`;
     chop @options;
 
+    $mysqld_found= 1; # The default
+    $mysqld_found= 0 if (!length($mysqld));
     $com= "$mysqld";
     for ($j = 0, $tmp= ""; defined($options[$j]); $j++)
     {
-      if ("--mysqld=" eq substr($options[$j], 0, 9))
+      if ("--mysqladmin=" eq substr($options[$j], 0, 13))
+      {
+	# catch this and ignore
+      }
+      elsif ("--mysqld=" eq substr($options[$j], 0, 9))
       {
 	$options[$j]=~ s/\-\-mysqld\=//;
 	$com= $options[$j];
+        $mysqld_found= 1;
       }
       else
       {
@@ -283,9 +293,27 @@ sub start_mysqlds()
 	$tmp.= " $options[$j]";
       }
     }
+    if ($opt_verbose && $com =~ m/\/safe_mysqld$/ && !$info_sent)
+    {
+      print "WARNING: safe_mysqld is being used to start mysqld. In this case you ";
+      print "may need to pass\n\"ledir=...\" under groups [mysqldN] to ";
+      print "safe_mysqld in order to find the actual mysqld binary.\n";
+      print "ledir (library executable directory) should be the path to the ";
+      print "wanted mysqld binary.\n\n";
+      $info_sent= 1;
+    }
     $com.= $tmp;
     $com.= " >> $opt_log 2>&1" if (!$opt_no_log);
     $com.= " &";
+    if (!$mysqld_found)
+    {
+      print "\n";
+      print "FATAL ERROR: Tried to start mysqld under group [$groups[$i]], ";
+      print "but no mysqld binary was found.\n";
+      print "Please add \"mysqld=...\" in group [mysqld_multi], or add it to ";
+      print "group [$groups[$i]] separately.\n";
+      exit(1);
+    }
     system($com);
   }
   if (!$i && !$opt_no_log)
@@ -301,7 +329,7 @@ sub start_mysqlds()
 
 sub stop_mysqlds()
 {
-  my (@groups, $com, $i, @options, $j);
+  my (@groups, $com, $i, @options);
 
   if (!$opt_no_log)
   {
@@ -314,23 +342,7 @@ sub stop_mysqlds()
   @groups = &find_groups($groupids);
   for ($i = 0; defined($groups[$i]); $i++)
   {
-    $com = "my_print_defaults";
-    $com.= defined($opt_config_file) ? " --config-file=$opt_config_file" : "";
-    $com.= " $groups[$i]";
-    @options = `$com`;
-    chop @options;
-
-    $com = "$mysqladmin -u $opt_user";
-    $com.= defined($opt_password) ? " -p$opt_password" : "";
-    $com.= $opt_tcp_ip ? " -h 127.0.0.1" : "";
-    for ($j = 0; defined($options[$j]); $j++)
-    {
-      if ((($options[$j] =~ m/^(\-\-socket\=)(.*)$/) && !$opt_tcp_ip) ||
-	  ($options[$j] =~ m/^(\-\-port\=)(.*)$/))
-      {
-	$com.= " $options[$j]";
-      }
-    }
+    $com= get_mysqladmin_options($i, @groups);
     $com.= " shutdown";
     $com.= " >> $opt_log 2>&1" if (!$opt_no_log);
     $com.= " &";
@@ -341,6 +353,54 @@ sub stop_mysqlds()
     w2log("No MySQL servers to be stopped (check your GNRs)",
 	  "$opt_log", 0, 0);
   }
+}
+
+####
+#### Sub function for mysqladmin option parsing
+####
+
+sub get_mysqladmin_options
+{
+  my ($i, @groups)= @_;
+  my ($mysqladmin_found, $com, $tmp, $j);
+
+  $com = "my_print_defaults";
+  $com.= defined($opt_config_file) ? " --config-file=$opt_config_file" : "";
+  $com.= " $groups[$i]";
+  @options = `$com`;
+  chop @options;
+
+  $mysqladmin_found= 1; # The default
+  $mysqladmin_found= 0 if (!length($mysqladmin));
+  $com = "$mysqladmin";
+  $tmp = " -u $opt_user";
+  $tmp.= defined($opt_password) ? " -p$opt_password" : "";
+  $tmp.= $opt_tcp_ip ? " -h 127.0.0.1" : "";
+  for ($j = 0; defined($options[$j]); $j++)
+  {
+    if ("--mysqladmin=" eq substr($options[$j], 0, 13))
+    {
+      $options[$j]=~ s/\-\-mysqladmin\=//;
+      $com= $options[$j];
+      $mysqladmin_found= 1;
+    }
+    elsif ((($options[$j] =~ m/^(\-\-socket\=)(.*)$/) && !$opt_tcp_ip) ||
+	   ($options[$j] =~ m/^(\-\-port\=)(.*)$/))
+    {
+      $tmp.= " $options[$j]";
+    }
+  }
+  if (!$mysqladmin_found)
+  {
+    print "\n";
+    print "FATAL ERROR: Tried to use mysqladmin in group [$groups[$i]], ";
+    print "but no mysqladmin binary was found.\n";
+    print "Please add \"mysqladmin=...\" in group [mysqld_multi], or ";
+    print "in group [$groups[$i]].\n";
+    exit(1);
+  }
+  $com.= $tmp;
+  return $com;
 }
 
 ####
@@ -678,12 +738,14 @@ Options:
 --no-log           Print to stdout instead of the log file. By default the log
                    file is turned on.
 --password=...     Password for user for mysqladmin.
+--silent           Disable warnings.
 --tcp-ip           Connect to the MySQL server(s) via the TCP/IP port instead
                    of the UNIX socket. This affects stopping and reporting.
                    If a socket file is missing, the server may still be
                    running, but can be accessed only via the TCP/IP port.
                    By default connecting is done via the UNIX socket.
 --user=...         MySQL user for mysqladmin. Using: $opt_user
+--verbose          Be more verbose.
 --version          Print the version number and exit.
 EOF
   exit(0);
