@@ -87,6 +87,7 @@ enum enum_sql_command {
   SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
   SQLCOM_CREATE_VIEW, SQLCOM_DROP_VIEW,
   SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER,
+  SQLCOM_LOCK_TABLES_TRANSACTIONAL,
   /* This should be the last !!! */
   SQLCOM_END
 };
@@ -735,9 +736,8 @@ typedef struct st_lex
   /* Names of user variables holding parameters (in EXECUTE) */
   List<LEX_STRING> prepared_stmt_params; 
   /*
-    If points to fake_time_zone_tables_list indicates that time zone
-    tables are implicitly used by statement, also is used for holding
-    list of those tables after they are opened.
+    Points to part of global table list which contains time zone tables
+    implicitly used by the statement.
   */
   TABLE_LIST *time_zone_tables_used;
   sp_head *sphead;
@@ -802,6 +802,7 @@ typedef struct st_lex
     *(table->prev_global= query_tables_last)= table;
     query_tables_last= &table->next_global;
   }
+  bool add_time_zone_tables_to_query_tables(THD *thd);
 
   bool can_be_merged();
   bool can_use_merged();
@@ -810,7 +811,6 @@ typedef struct st_lex
   bool need_correct_ident();
 } LEX;
 
-extern TABLE_LIST fake_time_zone_tables_list;
 struct st_lex_local: public st_lex
 {
   static void *operator new(size_t size)

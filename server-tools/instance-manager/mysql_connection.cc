@@ -296,7 +296,6 @@ int Mysql_connection_thread::check_user(const char *user, const char *password)
 int Mysql_connection_thread::do_command()
 {
   char *packet;
-  uint old_timeout;
   ulong packet_length;
 
   /* We start to count packets from 0 for each new command */

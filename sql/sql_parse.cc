@@ -2123,19 +2123,6 @@ mysql_execute_command(THD *thd)
   }
 #endif /* !HAVE_REPLICATION */
 
-  if (lex->time_zone_tables_used)
-  {
-    TABLE_LIST *tmp;
-    if ((tmp= my_tz_get_table_list(thd, &lex->query_tables_last)) ==
-        &fake_time_zone_tables_list)
-    {
-      DBUG_RETURN(-1);
-    }
-    lex->time_zone_tables_used= tmp;
-    if (!all_tables)
-      all_tables= tmp;
-  }
-
   /*
     When option readonly is set deny operations which change tables.
     Except for the replication thread and the 'super' users.
@@ -3266,6 +3253,27 @@ create_error:
       thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
     thd->in_lock_tables=0;
     break;
+  case SQLCOM_LOCK_TABLES_TRANSACTIONAL:
+  {
+    uint counter = 0;
+
+    if (check_db_used(thd, all_tables))
+      goto error;
+    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables, 0))
+      goto error;
+
+    thd->in_lock_tables=1;
+    thd->options|= OPTION_TABLE_LOCK;
+
+    if (open_tables(thd, all_tables, &counter) == 0 &&
+        transactional_lock_tables(thd, all_tables, counter) == 0)
+        send_ok(thd);
+    else
+      thd->options&= ~(ulong) (OPTION_TABLE_LOCK);
+
+    thd->in_lock_tables=0;
+    break;
+  }
   case SQLCOM_CREATE_DB:
   {
     char *alias;

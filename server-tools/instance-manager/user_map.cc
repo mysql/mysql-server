@@ -123,7 +123,6 @@ int User_map::load(const char *password_file_name)
             1 +                               /* for ':' */
             1 +                               /* for newline */
             1];                               /* for trailing zero */
-  uint line_length;
   User *user;
   int rc= 1;
 
