@@ -158,7 +158,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       unpack_filename(name,ex->file_name);
 #ifndef __WIN__
       MY_STAT stat_info;
-      if (!my_stat(name,&stat_info,MYF(MY_FAE)))
+      if (!my_stat(name,&stat_info,MYF(MY_WME)))
 	DBUG_RETURN(-1);
       
       // the file must be:

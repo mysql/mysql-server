@@ -95,17 +95,6 @@ bool String::realloc(uint32 alloc_length)
   return FALSE;
 }
 
-
-#ifdef NOT_NEEDED
-bool String::set(long num)
-{
-  if (alloc(14))
-    return TRUE;
-  str_length=(uint32) (int10_to_str(num,Ptr,-10)-Ptr);
-  return FALSE;
-}
-#endif
-
 bool String::set(longlong num)
 {
   if (alloc(21))
@@ -274,11 +263,26 @@ bool String::append(const char *s,uint32 arg_length)
   return FALSE;
 }
 
+#ifdef TO_BE_REMOVED
 bool String::append(FILE* file, uint32 arg_length, myf my_flags)
 {
   if (realloc(str_length+arg_length))
     return TRUE;
   if (my_fread(file, (byte*) Ptr + str_length, arg_length, my_flags))
+  {
+    shrink(str_length);
+    return TRUE;
+  }
+  str_length+=arg_length;
+  return FALSE;
+}
+#endif
+
+bool String::append(IO_CACHE* file, uint32 arg_length)
+{
+  if (realloc(str_length+arg_length))
+    return TRUE;
+  if (my_b_read(file, (byte*) Ptr + str_length, arg_length))
   {
     shrink(str_length);
     return TRUE;

@@ -39,7 +39,7 @@
 # "3-byte int" or "same as xxx".
 
 
-$version="1.50";
+$version="1.51";
 
 use DBI;
 use Getopt::Long;
@@ -288,6 +288,11 @@ report("rename table","rename_table",
 # Make sure both tables will be dropped, even if rename fails.
 $dbh->do("drop table crash_q1");
 $dbh->do("drop table crash_q");
+
+report("truncate table","truncate_table",
+       "create table crash_q (a integer, b integer,c CHAR(10))",
+       "truncate table crash_q",
+       "drop table crash_q1");
 
 if ($dbh->do("create table crash_q (a integer, b integer,c CHAR(10))") &&
     $dbh->do("create table crash_q1 (a integer, b integer,c CHAR(10) not null)"))

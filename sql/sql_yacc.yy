@@ -111,6 +111,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  SLAVE
 %token  START_SYM
 %token  STOP_SYM
+%token	TRUNCATE_SYM
 %token  ROLLBACK_SYM
 %token	OPTIMIZE
 %token	SHOW
@@ -493,9 +494,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <NONE>
 	query verb_clause create change select drop insert replace insert2
-	insert_values update delete show describe load alter optimize flush
+	insert_values update delete truncate rename
+	show describe load alter optimize flush
 	reset purge begin commit rollback slave master_def master_defs
-	repair restore backup analyze check rename
+	repair restore backup analyze check 
 	field_list field_list_item field_spec kill
 	select_item_list select_item values_list no_braces
 	limit_clause delete_limit_clause fields opt_values values
@@ -562,6 +564,7 @@ verb_clause:
 	| set
 	| slave
 	| show
+	| truncate
 	| unlock
 	| update
 	| use
@@ -789,7 +792,7 @@ field_list_item:
 	    Lex->key_list.push_back(new Key($1,$2,Lex->col_list));
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
-	| opt_constraint FOREIGN KEY_SYM '(' key_list ')' references
+	| opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
@@ -1559,7 +1562,8 @@ simple_expr:
 	  { $$= new Item_func_trim($6,$4); }
 	| TRIM '(' expr FROM expr ')'
 	  { $$= new Item_func_trim($5,$3); }
-
+	| TRUNCATE_SYM '(' expr ',' expr ')'
+	  { $$= new Item_func_round($3,$5,1); }
 	| UDA_CHAR_SUM '(' udf_expr_list ')'
 	  {
 	    if ($3 != NULL)
@@ -2131,6 +2135,11 @@ opt_delete_option:
 	QUICK		{ Lex->options|= OPTION_QUICK; }
 	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
 
+truncate:
+	TRUNCATE_SYM TABLE_SYM table
+	{ Lex->sql_command= SQLCOM_TRUNCATE; Lex->options=0;
+	  Lex->lock_option= current_thd->update_lock_default; }
+
 /* Show things */
 
 show:	SHOW { Lex->wild=0;} show_param
@@ -2530,6 +2539,7 @@ keyword:
 	| STRING_SYM		{}
 	| TEMPORARY		{}
 	| TEXT_SYM		{}
+	| TRUNCATE_SYM		{}
 	| TIMESTAMP		{}
 	| TIME_SYM		{}
 	| TYPE_SYM		{}

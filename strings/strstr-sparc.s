@@ -31,7 +31,7 @@ strstr:
 !    if (*str++ == *search) {
 !      i=(char*) str; j=(char*) search+1;
 
-	ldsb	[%o1],%o2		! g6= First char of search
+	ldsb	[%o1],%o2		! o2= First char of search
 .top:
 	ldsb	[%o0],%g3		! g3= First char of rest of str
 	cmp	%g3,0
@@ -70,6 +70,3 @@ strstr:
 .strstr_end:
 	.size	 strstr,.strstr_end-strstr
 	.ident	"Matt Wagner & Monty"
-
-
-

@@ -59,6 +59,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_WME		16	/* Write message on error */
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_RAID         64      /* Support for RAID (not the "Johnson&Johnson"-s one ;) */
+#define MY_DONT_CHECK_FILESIZE 128	/* Option to init_io_cache() */
 #define MY_LINK_WARNING 32	/* my_redel() gives warning if links */
 #define MY_COPYTIME	64	/* my_redel() copys time */
 #define MY_HOLD_ORIGINAL_MODES 128  /* my_copy() holds to file modes */
@@ -506,6 +507,10 @@ extern int my_block_write(IO_CACHE *info, const byte *Buffer,
 			  uint Count, my_off_t pos);
 extern int flush_io_cache(IO_CACHE *info);
 extern int end_io_cache(IO_CACHE *info);
+extern uint my_b_fill(IO_CACHE *info);
+extern void my_b_seek(IO_CACHE *info,my_off_t pos);
+extern uint my_b_gets(IO_CACHE *info, char *to, uint max_length);
+extern uint my_b_printf(IO_CACHE *info, const char* fmt, ...);
 extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
 				 const char *prefix, uint cache_size,
 				 myf cache_myflags);

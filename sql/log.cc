@@ -25,8 +25,6 @@
 #include <stdarg.h>
 #include <m_ctype.h>				// For test_if_number
 
-
-
 MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;
 
@@ -75,26 +73,25 @@ static int find_uniq_filename(char *name)
   DBUG_RETURN(0);
 }
 
-
-
-MYSQL_LOG::MYSQL_LOG(): file(0),index_file(0),last_time(0),query_start(0),
-			name(0), log_type(LOG_CLOSED),write_error(0),inited(0),
-			no_rotate(0)
+MYSQL_LOG::MYSQL_LOG(): last_time(0), query_start(0),
+			name(0), log_type(LOG_CLOSED),write_error(0),
+			inited(0), opened(0), no_rotate(0)
 {
   /*
     We don't want to intialize LOCK_Log here as the thread system may
     not have been initailized yet. We do it instead at 'open'.
   */
-    index_file_name[0] = 0;
+  index_file_name[0] = 0;
+  bzero((char*) &log_file,sizeof(log_file));
 }
 
 MYSQL_LOG::~MYSQL_LOG()
 {
   if (inited)
-    {
-     (void) pthread_mutex_destroy(&LOCK_log);
-     (void) pthread_mutex_destroy(&LOCK_index);
-    }
+  {
+    (void) pthread_mutex_destroy(&LOCK_log);
+    (void) pthread_mutex_destroy(&LOCK_index);
+  }
 }
 
 void MYSQL_LOG::set_index_file_name(const char* index_file_name)
@@ -105,6 +102,7 @@ void MYSQL_LOG::set_index_file_name(const char* index_file_name)
   else
     this->index_file_name[0] = 0;
 }
+
 
 int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
 {      
@@ -129,58 +127,60 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
 void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 		     const char *new_name)
 {
+  MY_STAT tmp_stat;
+  char buff[512];
+  File file= -1;
+  bool do_magic;
 
   if (!inited)
   {
     inited=1;
     (void) pthread_mutex_init(&LOCK_log,NULL);
     (void) pthread_mutex_init(&LOCK_index, NULL);
-    if(log_type_arg == LOG_BIN && *fn_ext(log_name))
+    if (log_type_arg == LOG_BIN && *fn_ext(log_name))
       no_rotate = 1;
   }
-
+  
   log_type=log_type_arg;
-  name=my_strdup(log_name,MYF(0));
+  if (!(name=my_strdup(log_name,MYF(MY_WME))))
+    goto err;
   if (new_name)
     strmov(log_file_name,new_name);
   else if (generate_new_name(log_file_name, name))
-    return;
+    goto err;
 
   if (log_type == LOG_BIN && !index_file_name[0])
     fn_format(index_file_name, name, mysql_data_home, ".index", 6);
   
   db[0]=0;
-  MY_STAT tmp_stat;
-  bool do_magic = ((log_type == LOG_BIN) && !my_stat(log_file_name,
-						     &tmp_stat, MYF(0)));
+  do_magic = ((log_type == LOG_BIN) && !my_stat(log_file_name,
+						&tmp_stat, MYF(0)));
   
-  file=my_fopen(log_file_name,O_APPEND | O_WRONLY | O_BINARY,
-		MYF(MY_WME | ME_WAITTANG));
-  if (!file)
-  {
-    my_free(name,MYF(0));    
-    name=0;
-    log_type=LOG_CLOSED;
-    return;
-  }
+  if ((file=my_open(log_file_name,O_APPEND | O_WRONLY | O_BINARY,
+		    MYF(MY_WME | ME_WAITTANG))) < 0 ||
+      init_io_cache(&log_file, file, IO_SIZE, WRITE_CACHE,
+		    my_tell(file,MYF(MY_WME)), 0, MYF(MY_WME | MY_NABP)))
+    goto err;
 
   if (log_type == LOG_NORMAL)
   {
+    char *end;
 #ifdef __NT__
-    fprintf(file, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysql_port, mysql_unix_port);
+    sprintf(buff, "%s, Version: %s, started with:\nTCP Port: %d, Named Pipe: %s\n", my_progname, server_version, mysql_port, mysql_unix_port);
 #else
-    fprintf(file, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysql_port,mysql_unix_port);
+    sprintf(buff, "%s, Version: %s, started with:\nTcp port: %d  Unix socket: %s\n", my_progname,server_version,mysql_port,mysql_unix_port);
 #endif
-    fprintf(file,"Time                 Id Command    Argument\n");
-    (void) fflush(file);
+    end=strmov(strend(buff),"Time                 Id Command    Argument\n");
+    if (my_b_write(&log_file,buff,(uint) (end-buff)) ||
+	flush_io_cache(&log_file))
+      goto err;
   }
   else if (log_type == LOG_NEW)
   {
     time_t skr=time(NULL);
     struct tm tm_tmp;
     localtime_r(&skr,&tm_tmp);
-
-    fprintf(file,"# %s, Version: %s at %02d%02d%02d %2d:%02d:%02d\n",
+    sprintf(buff,"# %s, Version: %s at %02d%02d%02d %2d:%02d:%02d\n",
 	    my_progname,server_version,
 	    tm_tmp.tm_year % 100,
 	    tm_tmp.tm_mon+1,
@@ -188,45 +188,49 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 	    tm_tmp.tm_hour,
 	    tm_tmp.tm_min,
 	    tm_tmp.tm_sec);
-    (void) fflush(file);
+    if (my_b_write(&log_file,buff,(uint) strlen(buff)) ||
+	flush_io_cache(&log_file))
+      goto err;
   }
   else if (log_type == LOG_BIN)
   {
-
     // Explanation of the boolean black magic:
     //
     // if we are supposed to write magic number try write
     // clean up if failed
     // then if index_file has not been previously opened, try to open it
     // clean up if failed
-    if((do_magic && my_fwrite(file, (byte*)BINLOG_MAGIC, 4,
-			     MYF(MY_NABP|MY_WME)) ||
-	(!index_file && 
-       !(index_file = my_fopen(index_file_name,O_APPEND | O_BINARY | O_RDWR,
-			       MYF(MY_WME))))))
-    {
-      my_fclose(file,MYF(MY_WME));
-      my_free(name,MYF(0));    
-      name=0;
-      file=0;
-      log_type=LOG_CLOSED;
-      return;
-    }
+
+    if ((do_magic && my_b_write(&log_file, (byte*) BINLOG_MAGIC, 4)) ||
+	(index_file < 0 && 
+	 (index_file = my_open(index_file_name,O_APPEND | O_BINARY | O_RDWR,
+			       MYF(MY_WME))) < 0))
+      goto err;
     Start_log_event s;
-    s.write(file);
+    s.write(&log_file);
     pthread_mutex_lock(&LOCK_index);
-    my_fseek(index_file, 0L, MY_SEEK_END, MYF(MY_WME));
-    fprintf(index_file, "%s\n", log_file_name);
-    fflush(index_file);
+    my_write(index_file, log_file_name,strlen(log_file_name), MYF(0));
+    my_write(index_file, "\n",1, MYF(0));
     pthread_mutex_unlock(&LOCK_index);
   }
+  return;
+
+err:
+  if (file >= 0)
+    my_close(file,MYF(0));
+  end_io_cache(&log_file);
+  x_free(name); name=0;
+  log_type=LOG_CLOSED;
+
+  return;
+  
 }
 
 int MYSQL_LOG::get_current_log(LOG_INFO* linfo)
 {
   pthread_mutex_lock(&LOCK_log);
-  strmake(linfo->log_file_name, log_file_name, sizeof(linfo->log_file_name));
-  linfo->pos = my_ftell(file, MYF(MY_WME));
+  strmake(linfo->log_file_name, log_file_name, sizeof(linfo->log_file_name)-1);
+  linfo->pos = my_b_tell(&log_file);
   pthread_mutex_unlock(&LOCK_log);
   return 0;
 }
@@ -234,50 +238,85 @@ int MYSQL_LOG::get_current_log(LOG_INFO* linfo)
 // if log_name is "" we stop at the first entry
 int MYSQL_LOG::find_first_log(LOG_INFO* linfo, const char* log_name)
 {
-  // mutex needed because we need to make sure the file pointer does not move
-  // from under our feet
-  if(!index_file) return LOG_INFO_INVALID;
+  if (index_file < 0)
+    return LOG_INFO_INVALID;
   int error = 0;
   char* fname = linfo->log_file_name;
   int log_name_len = (uint) strlen(log_name);
+  IO_CACHE io_cache;
 
+  // mutex needed because we need to make sure the file pointer does not move
+  // from under our feet
   pthread_mutex_lock(&LOCK_index);
-  if(my_fseek(index_file, 0L, MY_SEEK_SET, MYF(MY_WME) ) == MY_FILEPOS_ERROR)
+  if (init_io_cache(&io_cache, index_file, IO_SIZE, READ_CACHE, (my_off_t) 0,
+		    0, MYF(MY_WME)))
+  {
+    error = LOG_INFO_SEEK;
+    goto err;
+  }
+  for(;;)
+  {
+    uint length;
+    if (!(length=my_b_gets(&io_cache, fname, FN_REFLEN)))
     {
-      error = LOG_INFO_SEEK;
+      error = !io_cache.error ? LOG_INFO_EOF : LOG_INFO_IO;
       goto err;
     }
 
-  for(;;)
+    // if the log entry matches, empty string matching anything
+    if (!log_name_len ||
+	(log_name_len == length+1 && fname[log_name_len] == '\n' &&
+	 !memcmp(fname, log_name, log_name_len)))
     {
-      if(!fgets(fname, FN_REFLEN, index_file))
-	{
-	  error = feof(index_file) ? LOG_INFO_EOF : LOG_INFO_IO;
-	  goto err;
-	}
-
-      // if the log entry matches, empty string matching anything
-      if(!log_name_len || (fname[log_name_len] == '\n' &&
-			   !memcmp(fname, log_name, log_name_len)))
-	{
-	  if(log_name_len)
-	    fname[log_name_len] = 0; // to kill \n
-	  else
-	    {
-	      *(strend(fname) - 1) = 0;
-	    }
-	  linfo->index_file_offset = my_ftell(index_file, MYF(MY_WME));
-	  break;
-	}
+      fname[length-1]=0;			// remove last \n
+      linfo->index_file_offset = my_b_tell(&io_cache);
+      break;
     }
-
+  }
   error = 0;
+
 err:
   pthread_mutex_unlock(&LOCK_index);
+  end_io_cache(&io_cache);
   return error;
      
 }
 
+
+int MYSQL_LOG::find_next_log(LOG_INFO* linfo)
+{
+  // mutex needed because we need to make sure the file pointer does not move
+  // from under our feet
+  if (!index_file) return LOG_INFO_INVALID;
+  int error = 0;
+  char* fname = linfo->log_file_name;
+  IO_CACHE io_cache;
+  uint length;
+
+  pthread_mutex_lock(&LOCK_index);
+  if (init_io_cache(&io_cache, index_file, IO_SIZE, 
+		    READ_CACHE, (my_off_t) linfo->index_file_offset, 0,
+		    MYF(MY_WME)))
+  {
+    error = LOG_INFO_SEEK;
+    goto err;
+  }
+  if (!(length=my_b_gets(&io_cache, fname, FN_REFLEN)))
+  {
+    error = !io_cache.error ? LOG_INFO_EOF : LOG_INFO_IO;
+    goto err;
+  }
+  fname[length-1]=0;				// kill /n
+  linfo->index_file_offset = my_b_tell(&io_cache);
+  error = 0;
+
+err:
+  pthread_mutex_unlock(&LOCK_index);
+  end_io_cache(&io_cache);
+  return error;
+}
+
+ 
 int MYSQL_LOG::purge_logs(THD* thd, const char* to_log)
 {
   if(!index_file) return LOG_INFO_INVALID;
@@ -409,63 +448,21 @@ err:
   
 }
 
-int MYSQL_LOG::find_next_log(LOG_INFO* linfo)
-{
-  // mutex needed because we need to make sure the file pointer does not move
-  // from under our feet
-  if(!index_file) return LOG_INFO_INVALID;
-  int error = 0;
-  char* fname = linfo->log_file_name;
-  char* end ;
-  
-  pthread_mutex_lock(&LOCK_index);
-  if(linfo->fatal)
-    {
-      error = LOG_INFO_FATAL;
-      goto err;
-    }
-  
-  if(my_fseek(index_file, linfo->index_file_offset, MY_SEEK_SET, MYF(MY_WME) ) == MY_FILEPOS_ERROR)
-    {
-      error = LOG_INFO_SEEK;
-      goto err;
-    }
-
-  if(!fgets(fname, FN_REFLEN, index_file))
-    {
-      error = feof(index_file) ? LOG_INFO_EOF : LOG_INFO_IO;
-      goto err;
-   }
-
-  end = strend(fname) - 1;
-  *end = 0; // kill /n
-  linfo->index_file_offset = ftell(index_file);
-  error = 0;
-err:
-  pthread_mutex_unlock(&LOCK_index);
-  return error;
-}
-
-
 // we assume that buf has at least FN_REFLEN bytes alloced
 void MYSQL_LOG::make_log_name(char* buf, const char* log_ident)
 {
-  if(inited)
-    {
-      int dir_len = dirname_length(log_file_name); 
-      int ident_len = (uint) strlen(log_ident);
-      if(dir_len + ident_len + 1 > FN_REFLEN)
-	{
-	  buf[0] = 0;
-	  return; // protection agains malicious buffer overflow
-	}
+  buf[0] = 0;					// In case of error
+  if (inited)
+  {
+    int dir_len = dirname_length(log_file_name); 
+    int ident_len = (uint) strlen(log_ident);
+    if (dir_len + ident_len + 1 > FN_REFLEN)
+      return; // protection agains malicious buffer overflow
       
-      memcpy(buf, log_file_name, dir_len);
-      memcpy(buf + dir_len, log_ident, ident_len + 1); // this takes care of  \0
-      // at the end
-    }
-  else
-    buf[0] = 0;
+    memcpy(buf, log_file_name, dir_len);
+    // copy filename + end null
+    memcpy(buf + dir_len, log_ident, ident_len + 1);
+  }
 }
 
 bool MYSQL_LOG::is_active(const char* log_file_name)
@@ -475,15 +472,17 @@ bool MYSQL_LOG::is_active(const char* log_file_name)
 
 void MYSQL_LOG::new_file()
 {
-  if (file)
+  // only rotate open logs that are marked non-rotatable
+  // (binlog with constant name are non-rotatable)
+  if (is_open() && ! no_rotate)
   {
-    if(no_rotate) // do not rotate logs that are marked non-rotatable
-      return;     // ( for binlog with constant name)
-    
     char new_name[FN_REFLEN], *old_name=name;
     VOID(pthread_mutex_lock(&LOCK_log));
     if (generate_new_name(new_name, name))
+    {
+      VOID(pthread_mutex_unlock(&LOCK_log));
       return;					// Something went wrong
+    }
     if (log_type == LOG_BIN)
     {
       /*
@@ -491,15 +490,13 @@ void MYSQL_LOG::new_file()
 	to change base names at some point.
       */
       Rotate_log_event r(new_name+dirname_length(new_name));
-      r.write(file);
+      r.write(&log_file);
       VOID(pthread_cond_broadcast(&COND_binlog_update));
     }
     name=0;
     close();
     open(old_name, log_type, new_name);
     my_free(old_name,MYF(0));
-    if (!file)					// Something went wrong
-      log_type=LOG_CLOSED;
     last_time=query_start=0;
     write_error=0;
     VOID(pthread_mutex_unlock(&LOCK_log));
@@ -514,7 +511,10 @@ void MYSQL_LOG::write(THD *thd,enum enum_server_command command,
   {
     va_list args;
     va_start(args,format);
+    char buff[32];
     VOID(pthread_mutex_lock(&LOCK_log));
+
+    /* Test if someone closed after the is_open test */
     if (log_type != LOG_CLOSED)
     {
       time_t skr;
@@ -544,28 +544,30 @@ void MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 	struct tm *start;
 	localtime_r(&skr,&tm_tmp);
 	start=&tm_tmp;
-	if (fprintf(file,"%02d%02d%02d %2d:%02d:%02d\t",
-		    start->tm_year % 100,
-		    start->tm_mon+1,
-		    start->tm_mday,
-		    start->tm_hour,
-		    start->tm_min,
-		    start->tm_sec) < 0)
+	/* Note that my_b_write() assumes it knows the length for this */
+	sprintf(buff,"%02d%02d%02d %2d:%02d:%02d\t",
+		start->tm_year % 100,
+		start->tm_mon+1,
+		start->tm_mday,
+		start->tm_hour,
+		start->tm_min,
+		start->tm_sec);
+	if (my_b_write(&log_file,buff,16))
 	  error=errno;
       }
-      else if (fputs("\t\t",file) < 0)
+      else if (my_b_write(&log_file,"\t\t",2) < 0)
 	error=errno;
-      if (fprintf(file,"%7ld %-10.10s",
-		  id,command_name[(uint) command]) < 0)
+      sprintf(buff,"%7ld %-10.10s", id,command_name[(uint) command]);
+      if (my_b_write(&log_file,buff,strlen(buff)))
 	error=errno;
       if (format)
       {
-	if (fputc(' ',file) < 0 || vfprintf(file,format,args) < 0)
+	if (my_b_write(&log_file," ",1) ||
+	    my_b_printf(&log_file,format,args) == (uint) -1)
 	  error=errno;
       }
-      if (fputc('\n',file) < 0)
-	error=errno;
-      if (fflush(file) < 0)
+      if (my_b_write(&log_file,"\n",1) ||
+	  flush_io_cache(&log_file))
 	error=errno;
       if (error && ! write_error)
       {
@@ -585,7 +587,7 @@ void MYSQL_LOG::write(Query_log_event* event_info)
   if (is_open())
   {
     VOID(pthread_mutex_lock(&LOCK_log));
-    if (file)
+    if (is_open())
     {
       THD *thd=event_info->thd;
       if ((!(thd->options & OPTION_BIN_LOG) &&
@@ -599,43 +601,38 @@ void MYSQL_LOG::write(Query_log_event* event_info)
       if (thd->last_insert_id_used)
       {
 	Intvar_log_event e((uchar)LAST_INSERT_ID_EVENT, thd->last_insert_id);
-	if (e.write(file))
+	if (e.write(&log_file))
 	{
 	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
 	  goto err;
 	}
       }
-
       if (thd->insert_id_used)
       {
 	Intvar_log_event e((uchar)INSERT_ID_EVENT, thd->last_insert_id);
-	if(e.write(file))
+	if (e.write(&log_file))
 	{
 	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
 	  goto err;
 	}
       }
-
-      if(thd->convert_set)
+      if (thd->convert_set)
+      {
+	char buf[1024] = "SET CHARACTER SET ";
+	char* p = strend(buf);
+	p = strmov(p, thd->convert_set->name);
+	int save_query_length = thd->query_length;
+	// just in case somebody wants it later
+	thd->query_length = (uint)(p - buf);
+	Query_log_event e(thd, buf);
+	if (e.write(&log_file))
 	{
-	  char buf[1024] = "SET CHARACTER SET ";
-	  char* p = strend(buf);
-	  p = strmov(p, thd->convert_set->name);
-	  int save_query_length = thd->query_length;
-	  // just in case somebody wants it later
-	  thd->query_length = (uint)(p - buf);
-	  Query_log_event e(thd, buf);
-	  if(e.write(file))
-	    {
-	      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
-	      goto err;
-	    }
-
-	  thd->query_length = save_query_length; // clean up
-	  
+	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+	  goto err;
 	}
-	  
-      if (event_info->write(file))
+	thd->query_length = save_query_length; // clean up
+      }
+      if (event_info->write(&log_file) || flush_io_cache(&log_file))
       {
 	sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
       }
@@ -651,13 +648,13 @@ void MYSQL_LOG::write(Load_log_event* event_info)
   if (is_open())
   {
     VOID(pthread_mutex_lock(&LOCK_log));
-    if (file)
+    if (is_open())
     {
       THD *thd=event_info->thd;
       if ((thd->options & OPTION_BIN_LOG) ||
 	  !(thd->master_access & PROCESS_ACL))
       {
-	if (event_info->write(file))
+	if (event_info->write(&log_file) || flush_io_cache(&log_file))
 	  sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
 	VOID(pthread_cond_broadcast(&COND_binlog_update));
       }
@@ -676,7 +673,7 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
   {
     time_t current_time;
     VOID(pthread_mutex_lock(&LOCK_log));
-    if (file)
+    if (is_open())
     {						// Safety agains reopen
       int error=0;
       char buff[80],*end;
@@ -695,37 +692,42 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 	  last_time=current_time;
 	  struct tm tm_tmp;
 	  struct tm *start;
+	  char buff[32];
 	  localtime_r(&current_time,&tm_tmp);
 	  start=&tm_tmp;
-	  if (fprintf(file,"# Time: %02d%02d%02d %2d:%02d:%02d\n",
-		      start->tm_year % 100,
-		      start->tm_mon+1,
-		      start->tm_mday,
-		      start->tm_hour,
-		      start->tm_min,
-		      start->tm_sec) < 0)
+	  /* Note that my_b_write() assumes it knows the length for this */
+	  sprintf(buff,"# Time: %02d%02d%02d %2d:%02d:%02d\n",
+		  start->tm_year % 100,
+		  start->tm_mon+1,
+		  start->tm_mday,
+		  start->tm_hour,
+		  start->tm_min,
+		  start->tm_sec);
+	  if (my_b_write(&log_file,buff,24))
 	    error=errno;
 	}
-	if (fprintf(file, "# User@Host: %s [%s] @ %s [%s]\n",
-		    thd->priv_user,
-		    thd->user,
-		    thd->host ? thd->host : "",
-		    thd->ip ? thd->ip : "") < 0)
-	  error=errno;;
+	if (my_b_printf(&log_file, "# User@Host: %s [%s] @ %s [%s]\n",
+			thd->priv_user,
+			thd->user,
+			thd->host ? thd->host : "",
+			thd->ip ? thd->ip : ""))
+	  error=errno;
       }
       if (query_start)
       {
 	/* For slow query log */
 	if (!(specialflag & SPECIAL_LONG_LOG_FORMAT))
 	  current_time=time(NULL);
-	fprintf(file,"# Time: %lu  Lock_time: %lu  Rows_sent: %lu\n",
-		(ulong) (current_time - query_start),
-		(ulong) (thd->time_after_lock - query_start),
-		(ulong) thd->sent_row_count);
+	if (my_b_printf(&log_file,
+			"# Time: %lu  Lock_time: %lu  Rows_sent: %lu\n",
+			(ulong) (current_time - query_start),
+			(ulong) (thd->time_after_lock - query_start),
+			(ulong) thd->sent_row_count))
+	    error=errno;
       }
       if (thd->db && strcmp(thd->db,db))
       {						// Database changed
-	if (fprintf(file,"use %s;\n",thd->db) < 0)
+	if (my_b_printf(&log_file,"use %s;\n",thd->db))
 	  error=errno;
 	strmov(db,thd->db);
       }
@@ -757,7 +759,8 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 	*end++=';';
 	*end++='\n';
 	*end=0;
-	if (fputs("SET ",file) < 0 || fputs(buff+1,file) < 0)
+	if (my_b_write(&log_file,"SET ",4) ||
+	    my_b_write(&log_file,buff+1,(uint) (end-buff)-1))
 	  error=errno;
       }
       if (!query)
@@ -765,10 +768,9 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 	query="#adminstrator command";
 	query_length=21;
       }
-      if (my_fwrite(file,(byte*) query,query_length,MYF(MY_NABP)) ||
-	  fputc(';',file) < 0 || fputc('\n',file) < 0)
-	error=errno;
-      if (fflush(file) < 0)
+      if (my_b_write(&log_file,(byte*) query,query_length) ||
+	  my_b_write(&log_file,";\n",2) ||
+	  flush_io_cache(&log_file))
 	error=errno;
       if (error && ! write_error)
       {
@@ -780,51 +782,48 @@ void MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
   }
 }
 
-
-
+#ifdef TO_BE_REMOVED
 void MYSQL_LOG::flush()
 {
-  if (file)
-    if (fflush(file) < 0 && ! write_error)
+  if (is_open())
+    if (flush_io_cache(log_file) && ! write_error)
     {
       write_error=1;
       sql_print_error(ER(ER_ERROR_ON_WRITE),name,errno);
     }
 }
+#endif
 
 
 void MYSQL_LOG::close(bool exiting)
 {					// One can't set log_type here!
-  if (file)
+  if (is_open())
   {
+    File file=log_file.file;
     if (log_type == LOG_BIN)
     {
       Stop_log_event s;
-      s.write(file);
+      s.write(&log_file);
       VOID(pthread_cond_broadcast(&COND_binlog_update));
     }
-    if (my_fclose(file,MYF(0)) < 0 && ! write_error)
+    end_io_cache(&log_file);
+    if (my_close(file,MYF(0)) < 0 && ! write_error)
     {
       write_error=1;
       sql_print_error(ER(ER_ERROR_ON_WRITE),name,errno);
     }
-    file=0;
+    log_type=LOG_CLOSED;
   }
-  if (name)
+  if (exiting && index_file >= 0)
   {
-    my_free(name,MYF(0));
-    name=0;
-  }
-
-  if (exiting && index_file)
-  {
-    if (my_fclose(index_file,MYF(0)) < 0 && ! write_error)
+    if (my_close(index_file,MYF(0)) < 0 && ! write_error)
     {
       write_error=1;
       sql_print_error(ER(ER_ERROR_ON_WRITE),name,errno);
     }
     index_file=0;
   }
+  safeFree(name);
 }
 
 

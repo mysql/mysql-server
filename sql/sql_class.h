@@ -52,16 +52,16 @@ typedef struct st_log_info
 
 
 class MYSQL_LOG {
- public:
  private:
   pthread_mutex_t LOCK_log, LOCK_index;
-  FILE *file, *index_file;
   time_t last_time,query_start;
+  IO_CACHE log_file;
+  File index_file;
   char *name;
-  enum_log_type log_type;
+  volatile enum_log_type log_type;
   char time_buff[20],db[NAME_LEN+1];
   char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];
-  bool write_error,inited;
+  bool write_error,inited,opened;
   bool no_rotate; // for binlog - if log name can never change
   // we should not try to rotate it or write any rotation events
   // the user should use FLUSH MASTER instead of FLUSH LOGS for
@@ -85,7 +85,6 @@ public:
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int purge_logs(THD* thd, const char* to_log);
-  void flush(void);
   void close(bool exiting = 0); // if we are exiting, we also want to close the
   // index file
 
@@ -244,6 +243,7 @@ public:
   thr_lock_type update_lock_default;
   delayed_insert *di;
   struct st_transactions {
+    IO_CACHE trans_log;
     void *bdb_tid;
     uint bdb_lock_count;
   } transaction;

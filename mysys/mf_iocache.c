@@ -22,10 +22,13 @@
   (and get a EOF-error).
   Possibly use of asyncronic io.
   macros for read and writes for faster io.
-  Used instead of FILE when reading or writing hole files.
-  This shall make mf_rec_cache obsolite.
-  One can change info->pos_in_file to a higer value to skipp bytes in file if
+  Used instead of FILE when reading or writing whole files.
+  This will make mf_rec_cache obsolete.
+  One can change info->pos_in_file to a higher value to skip bytes in file if
   also info->rc_pos is set to info->rc_end.
+  If called through open_cached_file(), then the temporary file will
+  only be created if a write exeeds the file buffer or if one calls
+  flush_io_cache().  
 */
 
 #define MAP_TO_USE_RAID
@@ -40,7 +43,7 @@ static void my_aiowait(my_aio_result *result);
 
 	/*
 	** if cachesize == 0 then use default cachesize (from s-file)
-	** if file == -1 then real_open_cached_file() will be called to
+	** if file == -1 then real_open_cached_file() will be called.
 	** returns 0 if ok
 	*/
 
@@ -59,17 +62,24 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   min_cache=use_async_io ? IO_SIZE*4 : IO_SIZE*2;
   if (type == READ_CACHE)
   {						/* Assume file isn't growing */
-    my_off_t file_pos,end_of_file;
-    if ((file_pos=my_tell(file,MYF(0)) == MY_FILEPOS_ERROR))
-      DBUG_RETURN(1);
-    end_of_file=my_seek(file,0L,MY_SEEK_END,MYF(0));
-    if (end_of_file < seek_offset)
-      end_of_file=seek_offset;
-    VOID(my_seek(file,file_pos,MY_SEEK_SET,MYF(0)));
-    if ((my_off_t) cachesize > end_of_file-seek_offset+IO_SIZE*2-1)
+    if (cache_myflags & MY_DONT_CHECK_FILESIZE)
     {
-      cachesize=(uint) (end_of_file-seek_offset)+IO_SIZE*2-1;
-      use_async_io=0;				/* No nead to use async */
+      cache_myflags &= ~MY_DONT_CHECK_FILESIZE;
+    }
+    else
+    {
+      my_off_t file_pos,end_of_file;
+      if ((file_pos=my_tell(file,MYF(0)) == MY_FILEPOS_ERROR))
+	DBUG_RETURN(1);
+      end_of_file=my_seek(file,0L,MY_SEEK_END,MYF(0));
+      if (end_of_file < seek_offset)
+	end_of_file=seek_offset;
+      VOID(my_seek(file,file_pos,MY_SEEK_SET,MYF(0)));
+      if ((my_off_t) cachesize > end_of_file-seek_offset+IO_SIZE*2-1)
+      {
+	cachesize=(uint) (end_of_file-seek_offset)+IO_SIZE*2-1;
+	use_async_io=0;				/* No nead to use async */
+      }
     }
   }
 
@@ -545,7 +555,6 @@ int my_block_write(register IO_CACHE *info, const byte *Buffer, uint Count,
   return error;
 }
 
-
 	/* Flush write cache */
 
 int flush_io_cache(IO_CACHE *info)
@@ -565,7 +574,9 @@ int flush_io_cache(IO_CACHE *info)
       length=(uint) (info->rc_pos - info->buffer);
       if (info->seek_not_done)
       {					/* File touched, do seek */
-	VOID(my_seek(info->file,info->pos_in_file,MY_SEEK_SET,MYF(0)));
+	if (my_seek(info->file,info->pos_in_file,MY_SEEK_SET,MYF(0)) ==
+	    MY_FILEPOS_ERROR)
+	  DBUG_RETURN((info->error= -1));
 	info->seek_not_done=0;
       }
       info->rc_pos=info->buffer;
