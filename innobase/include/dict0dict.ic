@@ -532,12 +532,11 @@ dict_tree_get_space_reserve(
 }
 
 /**************************************************************************
-Gets a table; loads it to the dictionary cache if necessary. A low-level
-function. */
+Checks if a table is in the dictionary cache. */
 UNIV_INLINE
 dict_table_t*
-dict_table_get_low(
-/*===============*/
+dict_table_check_if_in_cache_low(
+/*==============================*/
 				/* out: table, NULL if not found */
 	char*	table_name)	/* in: table name */
 {
@@ -552,6 +551,26 @@ dict_table_get_low(
 
 	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold, table,
 				ut_strcmp(table->name, table_name) == 0);
+	return(table);
+}
+
+/**************************************************************************
+Gets a table; loads it to the dictionary cache if necessary. A low-level
+function. */
+UNIV_INLINE
+dict_table_t*
+dict_table_get_low(
+/*===============*/
+				/* out: table, NULL if not found */
+	char*	table_name)	/* in: table name */
+{
+	dict_table_t*	table;
+	
+	ut_ad(table_name);
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+	
+	table = dict_table_check_if_in_cache_low(table_name);
+	
 	if (table == NULL) {
 		table = dict_load_table(table_name);
 	}
@@ -603,6 +622,7 @@ dict_table_get_on_id_low(
 	dict_table_t*	table;
 	ulint		fold;
 
+	ut_ad(mutex_own(&(dict_sys->mutex)));
 	UT_NOT_USED(trx);
 	
 	/* Look for the table name in the hash table */

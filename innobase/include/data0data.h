@@ -116,8 +116,8 @@ dfield_copy(
 Tests if data length and content is equal for two dfields. */
 UNIV_INLINE
 ibool
-dfield_datas_are_equal(
-/*===================*/
+dfield_datas_are_binary_equal(
+/*==========================*/
 				/* out: TRUE if equal */
 	dfield_t*	field1,	/* in: field */
 	dfield_t*	field2);/* in: field */
@@ -125,8 +125,8 @@ dfield_datas_are_equal(
 Tests if dfield data length and content is equal to the given. */
 UNIV_INLINE
 ibool
-dfield_data_is_equal(
-/*=================*/
+dfield_data_is_binary_equal(
+/*========================*/
 				/* out: TRUE if equal */
 	dfield_t*	field,	/* in: field */
 	ulint		len,	/* in: data length or UNIV_SQL_NULL */
@@ -230,14 +230,18 @@ dtuple_get_data_size(
 	dtuple_t*	tuple);	/* in: typed data tuple */
 /****************************************************************
 Returns TRUE if lengths of two dtuples are equal and respective data fields
-in them are equal. */
-UNIV_INLINE
+in them are equal when compared with collation in char fields (not as binary
+strings). */
+
 ibool
-dtuple_datas_are_equal(
-/*===================*/
-				/* out: TRUE if length and datas are equal */
+dtuple_datas_are_ordering_equal(
+/*============================*/
+				/* out: TRUE if length and fieds are equal
+				when compared with cmp_data_data:
+				NOTE: in character type fields some letters
+				are identified with others! (collation) */
 	dtuple_t*	tuple1,	/* in: tuple 1 */
-	dtuple_t*	tuple2);	/* in: tuple 2 */
+	dtuple_t*	tuple2);/* in: tuple 2 */
 /****************************************************************
 Folds a prefix given as the number of fields of a tuple. */
 UNIV_INLINE
@@ -447,7 +451,7 @@ struct dfield_struct{
 
 struct dtuple_struct {
 	ulint		info_bits;	/* info bits of an index record:
-					default is 0; this field is used
+					the default is 0; this field is used
 					if an index record is built from
 					a data tuple */
 	ulint		n_fields;	/* number of fields in dtuple */

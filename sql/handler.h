@@ -143,6 +143,7 @@ typedef struct st_ha_create_information
   ulonglong max_rows,min_rows;
   ulonglong auto_increment_value;
   char *comment,*password;
+  char *create_statement;
   uint options;					/* OR of HA_CREATE_ options */
   uint raid_type,raid_chunks;
   ulong raid_chunksize;
@@ -348,6 +349,7 @@ enum db_type ha_checktype(enum db_type database_type);
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
 int ha_delete_table(enum db_type db_type, const char *path);
+void ha_drop_database(char* path);
 void ha_key_cache(void);
 int ha_start_stmt(THD *thd); 
 int ha_commit_trans(THD *thd, THD_TRANS *trans);

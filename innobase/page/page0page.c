@@ -1258,8 +1258,8 @@ page_validate(
 			page_dir_get_nth_slot(page, n_slots - 1))) {
 		fprintf(stderr,
        	"Record heap and dir overlap on a page in index %s, %lu, %lu\n",
-       		index->name, page_header_get_ptr(page, PAGE_HEAP_TOP),
-       		page_dir_get_nth_slot(page, n_slots - 1));
+       		index->name, (ulint)page_header_get_ptr(page, PAGE_HEAP_TOP),
+       		(ulint)page_dir_get_nth_slot(page, n_slots - 1));
 
        		goto func_exit;
        	}

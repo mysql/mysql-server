@@ -12,6 +12,8 @@ Created 7/1/1994 Heikki Tuuri
 #include "rem0cmp.ic"
 #endif
 
+#include "srv0srv.h"
+
 /*		ALPHABETICAL ORDER
 		==================
 		
@@ -67,6 +69,54 @@ innobase_mysql_cmp(
 	unsigned char*	b,		/* in: data field */
 	unsigned int	b_length);	/* in: data field length,
 					not UNIV_SQL_NULL */
+
+/*************************************************************************
+Transforms the character code so that it is ordered appropriately for the
+language. This is only used for the latin1 char set. MySQL does the
+comparisons for other char sets. */
+UNIV_INLINE
+ulint
+cmp_collate(
+/*========*/
+				/* out: collation order position */
+	dtype_t*	type,	/* in: type */
+	ulint		code)	/* in: code of a character stored in database
+				record */
+{
+	ut_ad((type->mtype == DATA_CHAR) || (type->mtype == DATA_VARCHAR));
+
+	return((ulint) srv_latin1_ordering[code]);
+}
+
+					
+/*****************************************************************
+Returns TRUE if two types are equal for comparison purposes. */
+
+ibool
+cmp_types_are_equal(
+/*================*/
+				/* out: TRUE if the types are considered
+				equal in comparisons */
+	dtype_t*	type1,	/* in: type 1 */
+	dtype_t*	type2)	/* in: type 2 */
+{
+	if (type1->mtype != type2->mtype) {
+
+		return(FALSE);
+	}
+
+	if (type1->mtype == DATA_MYSQL
+	   || type1->mtype == DATA_VARMYSQL) {
+	
+		if ((type1->prtype & ~DATA_NOT_NULL)
+			!= (type2->prtype & ~DATA_NOT_NULL)) {
+
+			return(FALSE);
+		}
+	}
+
+	return(TRUE);
+}
 
 /*****************************************************************
 Innobase uses this function is to compare two data fields for which the
@@ -269,8 +319,8 @@ cmp_data_data_slow(
 		}
 
 		if (cur_type->mtype <= DATA_CHAR) {
-			data1_byte = dtype_collate(cur_type, data1_byte);
-			data2_byte = dtype_collate(cur_type, data2_byte);
+			data1_byte = cmp_collate(cur_type, data1_byte);
+			data2_byte = cmp_collate(cur_type, data2_byte);
 		}
 			
 		if (data1_byte > data2_byte) {
@@ -482,8 +532,8 @@ cmp_dtuple_rec_with_match(
 			}
 
 			if (cur_type->mtype <= DATA_CHAR) {
-				rec_byte = dtype_collate(cur_type, rec_byte);
-				dtuple_byte = dtype_collate(cur_type, 
+				rec_byte = cmp_collate(cur_type, rec_byte);
+				dtuple_byte = cmp_collate(cur_type, 
 								dtuple_byte);
 			}
 			
@@ -796,8 +846,8 @@ cmp_rec_rec_with_match(
 			}
 
 			if (cur_type->mtype <= DATA_CHAR) {
-				rec1_byte = dtype_collate(cur_type, rec1_byte);
-				rec2_byte = dtype_collate(cur_type, rec2_byte);
+				rec1_byte = cmp_collate(cur_type, rec1_byte);
+				rec2_byte = cmp_collate(cur_type, rec2_byte);
 			}
 
 			if (rec1_byte < rec2_byte) {

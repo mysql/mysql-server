@@ -21,15 +21,13 @@ Created 5/7/1996 Heikki Tuuri
 
 extern ibool	lock_print_waits;
 
-/*****************************************************************
-Cancels a waiting record lock request and releases the waiting transaction
-that requested it. NOTE: does NOT check if waiting lock requests behind this
-one can now be granted! */
+/*************************************************************************
+Gets the size of a lock struct. */
 
-void
-lock_rec_cancel(
-/*============*/
-	lock_t*	lock);	/* in: waiting record lock request */
+ulint
+lock_get_size(void);
+/*===============*/
+			/* out: size in bytes */
 /*************************************************************************
 Creates the lock system at database start. */
 
@@ -388,6 +386,14 @@ lock_is_on_table(
 				/* out: TRUE if there are lock(s) */
 	dict_table_t*	table);	/* in: database table in dictionary cache */
 /*************************************************************************
+Releases an auto-inc lock a transaction possibly has on a table.
+Releases possible other transactions waiting for this lock. */
+
+void
+lock_table_unlock_auto_inc(
+/*=======================*/
+	trx_t*	trx);	/* in: transaction */
+/*************************************************************************
 Releases transaction locks, and releases possible other transactions waiting
 because of these locks. */
 
@@ -395,6 +401,14 @@ void
 lock_release_off_kernel(
 /*====================*/
 	trx_t*	trx);	/* in: transaction */
+/*************************************************************************
+Cancels a waiting lock request and releases possible other transactions
+waiting behind it. */
+
+void
+lock_cancel_waiting_and_release(
+/*============================*/
+	lock_t*	lock);	/* in: waiting lock request */
 /*************************************************************************
 Resets all locks, both table and record locks, on a table to be dropped.
 No lock is allowed to be a wait lock. */
@@ -495,6 +509,8 @@ extern lock_sys_t*	lock_sys;
 #define	LOCK_IX		3	/* intention exclusive */
 #define	LOCK_S		4	/* shared */
 #define	LOCK_X		5	/* exclusive */
+#define	LOCK_AUTO_INC	6	/* locks the auto-inc counter of a table
+				in an exclusive mode */
 #define LOCK_MODE_MASK	0xF	/* mask used to extract mode from the
 				type_mode field in a lock */
 #define LOCK_TABLE	16	/* these type values should be so high that */

@@ -116,53 +116,30 @@ buf_frame_copy(
 NOTE! The following macros should be used instead of buf_page_get_gen,
 to improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed
 in LA! */
-#ifdef UNIV_SYNC_DEBUG
 #define buf_page_get(SP, OF, LA, MTR)    buf_page_get_gen(\
 				SP, OF, LA, NULL,\
 				BUF_GET, IB__FILE__, __LINE__, MTR)
-#else
-#define buf_page_get(SP, OF, LA, MTR)    buf_page_get_gen(\
-				SP, OF, LA, NULL,\
-				BUF_GET, MTR)
-#endif
 /******************************************************************
 Use these macros to bufferfix a page with no latching. Remember not to
 read the contents of the page unless you know it is safe. Do not modify
 the contents of the page! We have separated this case, because it is
 error-prone programming not to set a latch, and it should be used
 with care. */
-#ifdef UNIV_SYNC_DEBUG
 #define buf_page_get_with_no_latch(SP, OF, MTR)    buf_page_get_gen(\
 				SP, OF, RW_NO_LATCH, NULL,\
 				BUF_GET_NO_LATCH, IB__FILE__, __LINE__, MTR)
-#else
-#define buf_page_get_with_no_latch(SP, OF, MTR)    buf_page_get_gen(\
-				SP, OF, RW_NO_LATCH, NULL,\
-				BUF_GET_NO_LATCH, MTR)
-#endif
 /******************************************************************
 NOTE! The following macros should be used instead of buf_page_get_gen, to
 improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
-#ifdef UNIV_SYNC_DEBUG
 #define buf_page_get_nowait(SP, OF, LA, MTR)    buf_page_get_gen(\
 				SP, OF, LA, NULL,\
 				BUF_GET_NOWAIT, IB__FILE__, __LINE__, MTR)
-#else
-#define buf_page_get_nowait(SP, OF, LA, MTR)    buf_page_get_gen(\
-				SP, OF, LA, NULL,\
-				BUF_GET_NOWAIT, MTR)
-#endif
 /******************************************************************
 NOTE! The following macros should be used instead of
 buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
 RW_X_LATCH are allowed as LA! */
-#ifdef UNIV_SYNC_DEBUG
 #define buf_page_optimistic_get(LA, G, MC, MTR) buf_page_optimistic_get_func(\
 				LA, G, MC, IB__FILE__, __LINE__, MTR)
-#else
-#define buf_page_optimistic_get(LA, G, MC, MTR) buf_page_optimistic_get_func(\
-				LA, G, MC, MTR)
-#endif
 /************************************************************************
 This is the general function used to get optimistic access to a database
 page. */
@@ -175,10 +152,8 @@ buf_page_optimistic_get_func(
 	buf_frame_t*	guess,	/* in: guessed frame */
 	dulint		modify_clock,/* in: modify clock value if mode is
 				..._GUESS_ON_CLOCK */
-#ifdef UNIV_SYNC_DEBUG
 	char*		file,	/* in: file name */
 	ulint		line,	/* in: line where called */
-#endif
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
 Tries to get the page, but if file io is required, releases all latches
@@ -210,10 +185,8 @@ buf_page_get_known_nowait(
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH */
 	buf_frame_t*	guess,	/* in: the known page frame */
 	ulint		mode,	/* in: BUF_MAKE_YOUNG or BUF_KEEP_OLD */
-#ifdef UNIV_SYNC_DEBUG
 	char*		file,	/* in: file name */
 	ulint		line,	/* in: line where called */
-#endif
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
 This is the general function used to get access to a database page. */
@@ -228,10 +201,8 @@ buf_page_get_gen(
 	buf_frame_t*	guess,	/* in: guessed frame or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
 				BUF_GET_NO_LATCH */
-#ifdef UNIV_SYNC_DEBUG
 	char*		file,	/* in: file name */
 	ulint		line,	/* in: line where called */
-#endif
 	mtr_t*		mtr);	/* in: mini-transaction */
 /************************************************************************
 Initializes a page to the buffer buf_pool. The page is usually not read
@@ -455,12 +426,25 @@ Validates the buffer pool data structure. */
 ibool
 buf_validate(void);
 /*==============*/
+/************************************************************************
+Prints a page to stderr. */
+
+void
+buf_page_print(
+/*===========*/
+	byte*	read_buf);	/* in: a database page */
 /*************************************************************************
 Prints info of the buffer pool data structure. */
 
 void
 buf_print(void);
 /*===========*/
+/*************************************************************************
+Returns the number of pending buf pool ios. */
+
+ulint
+buf_get_n_pending_ios(void);
+/*=======================*/
 /*************************************************************************
 Prints info of the buffer i/o. */
 
@@ -760,6 +744,8 @@ struct buf_pool_struct{
 	byte*		frame_zero;	/* pointer to the first buffer frame:
 					this may differ from frame_mem, because
 					this is aligned by the frame size */
+	byte*		high_end;	/* pointer to the end of the
+					buffer pool */
 	buf_block_t*	blocks;		/* array of buffer control blocks */
 	ulint		max_size;	/* number of control blocks ==
 					maximum pool size in pages */
@@ -767,6 +753,9 @@ struct buf_pool_struct{
 	hash_table_t*	page_hash;	/* hash table of the file pages */
 
 	ulint		n_pend_reads;	/* number of pending read operations */
+
+	time_t		last_printout_time; /* when buf_print was last time
+					called */
 	ulint		n_pages_read;	/* number read operations */
 	ulint		n_pages_written;/* number write operations */
 	ulint		n_pages_created;/* number of pages created in the pool
@@ -782,6 +771,9 @@ struct buf_pool_struct{
 					hit rate */
 	ulint		n_pages_read_old;/* n_pages_read when buf_print was
 					last time called */
+	ulint		n_pages_written_old;/* number write operations */
+	ulint		n_pages_created_old;/* number of pages created in
+					the pool with no read */
 	/* 2. Page flushing algorithm fields */
 
 	UT_LIST_BASE_NODE_T(buf_block_t) flush_list;

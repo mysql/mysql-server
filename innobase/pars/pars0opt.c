@@ -543,6 +543,7 @@ opt_search_plan_for_table(
 	/* Calculate goodness for each index of the table */
 
 	index = dict_table_get_first_index(table);
+	best_index = index; /* Eliminate compiler warning */
 	best_goodness = 0;
 	
 	while (index) {

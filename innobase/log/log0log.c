@@ -569,9 +569,12 @@ log_init(void)
 	ut_a(LOG_BUFFER_SIZE >= 4 * UNIV_PAGE_SIZE);
 
 	buf = ut_malloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE);
-	log_sys->buf = ut_align(buf, OS_FILE_LOG_BLOCK_SIZE);	
+	log_sys->buf = ut_align(buf, OS_FILE_LOG_BLOCK_SIZE);
 
 	log_sys->buf_size = LOG_BUFFER_SIZE;
+
+	memset(log_sys->buf, '\0', LOG_BUFFER_SIZE);
+
 	log_sys->max_buf_free = log_sys->buf_size / LOG_BUF_FLUSH_RATIO
 				- LOG_BUF_FLUSH_MARGIN;
 	log_sys->check_flush_or_checkpoint = TRUE;
@@ -579,6 +582,8 @@ log_init(void)
 
 	log_sys->n_log_ios = 0;	
 
+	log_sys->n_log_ios_old = log_sys->n_log_ios;
+	log_sys->last_printout_time = time(NULL);
 	/*----------------------------*/
 	
 	log_sys->buf_next_to_write = 0;
@@ -609,6 +614,7 @@ log_init(void)
 	log_sys->checkpoint_buf = ut_align(
 				mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE),
 						OS_FILE_LOG_BLOCK_SIZE);
+	memset(log_sys->checkpoint_buf, '\0', OS_FILE_LOG_BLOCK_SIZE);
 	/*----------------------------*/
 
 	log_sys->archiving_state = LOG_ARCH_ON;
@@ -625,6 +631,8 @@ log_init(void)
 					  + OS_FILE_LOG_BLOCK_SIZE),
 						OS_FILE_LOG_BLOCK_SIZE);
 	log_sys->archive_buf_size = LOG_ARCHIVE_BUF_SIZE;
+
+	memset(log_sys->archive_buf, '\0', LOG_ARCHIVE_BUF_SIZE);
 
 	log_sys->archiving_on = os_event_create(NULL);
 
@@ -2791,8 +2799,35 @@ void
 log_print(void)
 /*===========*/
 {
-	printf("Log sequence number %lu %lu\n",
-				ut_dulint_get_high(log_sys->lsn),
-				ut_dulint_get_low(log_sys->lsn));
-}
+	double	time_elapsed;
+	time_t	current_time;
 
+	mutex_enter(&(log_sys->mutex));
+
+	printf("Log sequence number %lu %lu\n"
+	       "Log flushed up to   %lu %lu\n"
+	       "Last checkpoint at  %lu %lu\n",
+			ut_dulint_get_high(log_sys->lsn),
+			ut_dulint_get_low(log_sys->lsn),
+			ut_dulint_get_high(log_sys->written_to_some_lsn),
+			ut_dulint_get_low(log_sys->written_to_some_lsn),
+			ut_dulint_get_high(log_sys->last_checkpoint_lsn),
+			ut_dulint_get_low(log_sys->last_checkpoint_lsn));
+
+	current_time = time(NULL);
+			
+	time_elapsed = difftime(current_time, log_sys->last_printout_time);
+
+	printf(
+	"%lu pending log writes, %lu pending chkp writes\n"
+	"%lu log i/o's done, %.2f log i/o's/second\n",
+	log_sys->n_pending_writes,
+	log_sys->n_pending_checkpoint_writes,
+	log_sys->n_log_ios,
+	(log_sys->n_log_ios - log_sys->n_log_ios_old) / time_elapsed);
+
+	log_sys->n_log_ios_old = log_sys->n_log_ios;
+	log_sys->last_printout_time = current_time;
+
+	mutex_exit(&(log_sys->mutex));
+}

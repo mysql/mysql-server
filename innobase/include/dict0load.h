@@ -15,8 +15,19 @@ Created 4/24/1996 Heikki Tuuri
 #include "ut0byte.h"
 
 /************************************************************************
+Finds the first table name in the given database. */
+
+char*
+dict_get_first_table_name_in_db(
+/*============================*/
+			/* out, own: table name, NULL if does not exist;
+			the caller must free the memory in the string! */
+	char*	name);	/* in: database name which ends to '/' */
+/************************************************************************
 Loads a table definition and also all its index definitions, and also
-the cluster definition, if the table is a member in a cluster. */
+the cluster definition if the table is a member in a cluster. Also loads
+all foreign key constraints where the foreign key is in the table or where
+a foreign key references columns in this table. */
 
 dict_table_t*
 dict_load_table(
@@ -40,6 +51,25 @@ void
 dict_load_sys_table(
 /*================*/
 	dict_table_t*	table);	/* in: system table */
+/***************************************************************************
+Loads foreign key constraints where the table is either the foreign key
+holder or where the table is referenced by a foreign key. Adds these
+constraints to the data dictionary. Note that we know that the dictionary
+cache already contains all constraints where the other relevant table is
+already in the dictionary cache. */
+
+ulint
+dict_load_foreigns(
+/*===============*/
+				/* out: DB_SUCCESS or error code */
+	char*	table_name);	/* in: table name */
+/************************************************************************
+Prints to the standard output information on all tables found in the data
+dictionary system table. */
+
+void
+dict_print(void);
+/*============*/
 
 
 #ifndef UNIV_NONINL

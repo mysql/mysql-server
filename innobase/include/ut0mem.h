@@ -13,6 +13,9 @@ Created 5/30/1994 Heikki Tuuri
 #include <string.h>
 #include <stdlib.h>
 
+/* The total amount of memory currently allocated from the OS with malloc */
+extern ulint	ut_total_allocated_memory;
+
 UNIV_INLINE
 void*
 ut_memcpy(void* dest, void* sour, ulint n);
