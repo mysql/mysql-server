@@ -126,8 +126,7 @@ set_field_to_null(Field *field)
     return 0;
   }
   if (!current_thd->no_errors)
-    my_printf_error(ER_BAD_NULL_ERROR,ER(ER_BAD_NULL_ERROR),MYF(0),
-		    field->field_name);
+    my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return -1;
 }
 
@@ -185,8 +184,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     return 0;
   }
   if (!current_thd->no_errors)
-    my_printf_error(ER_BAD_NULL_ERROR,ER(ER_BAD_NULL_ERROR),MYF(0),
-		    field->field_name);
+    my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return -1;
 }
 
@@ -473,7 +471,7 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
 {
   if (to->flags & BLOB_FLAG)
   {
-    if (!(from->flags & BLOB_FLAG))
+    if (!(from->flags & BLOB_FLAG) || from->charset() != to->charset())
       return do_conv_blob;
     if (from_length != to_length ||
 	to->table->db_low_byte_first != from->table->db_low_byte_first)

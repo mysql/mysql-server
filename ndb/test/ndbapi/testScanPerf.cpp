@@ -80,7 +80,8 @@ main(int argc, const char** argv){
     { "verbose", 'v', arg_flag, &verbose, "Print verbose status", "verbose" }
   };
   const int num_args = 1 + P_MAX;
-  for(int i = 0; i<P_MAX; i++){
+  int i;
+  for(i = 0; i<P_MAX; i++){
     args[i+1].long_name = g_paramters[i].name;
     args[i+1].short_name = * g_paramters[i].name;
     args[i+1].type = arg_integer;
@@ -107,7 +108,7 @@ main(int argc, const char** argv){
     g_err << "Wait until ready failed" << endl;
     goto error;
   }
-  for(int i = optind; i<argc; i++){
+  for(i = optind; i<argc; i++){
     const char * T = argv[i];
     g_info << "Testing " << T << endl;
     BaseString::snprintf(g_tablename, sizeof(g_tablename), T);

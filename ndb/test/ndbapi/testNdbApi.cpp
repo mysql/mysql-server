@@ -88,10 +88,10 @@ int runTestMaxNdb(NDBT_Context* ctx, NDBT_Step* step){
     oldi = i;
       
     
-    for(size_t i = 0;  i < ndbVector.size(); i++){
-      delete ndbVector[i];
-      if(((i+1) % 250) == 0){
-	ndbout << "Deleted " << (Uint64) i << " ndb objects " << endl;
+    for(size_t j = 0;  j < ndbVector.size(); j++){
+      delete ndbVector[j];
+      if(((j+1) % 250) == 0){
+	ndbout << "Deleted " << (Uint64) j << " ndb objects " << endl;
       }
     }
     ndbVector.clear();
@@ -178,8 +178,8 @@ int runTestMaxTransaction(NDBT_Context* ctx, NDBT_Step* step){
     oldi = i;
       
     
-    for(size_t i = 0; i < conVector.size(); i++){
-      pNdb->closeTransaction(conVector[i]);
+    for(size_t j = 0; j < conVector.size(); j++){
+      pNdb->closeTransaction(conVector[j]);
     }
     conVector.clear();
     l++;
@@ -537,8 +537,8 @@ int runTestDeleteNdb(NDBT_Context* ctx, NDBT_Step* step){
     }
     
     // Delete the ndb objects
-    for(size_t i = 0;  i < ndbVector.size(); i++)
-      delete ndbVector[i];
+    for(size_t j = 0;  j < ndbVector.size(); j++)
+      delete ndbVector[j];
     ndbVector.clear();
     l++;
   }

@@ -383,7 +383,7 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
 
   if (create_fields.elements > MAX_FIELDS)
   {
-    my_error(ER_TOO_MANY_FIELDS,MYF(0));
+    my_message(ER_TOO_MANY_FIELDS, ER(ER_TOO_MANY_FIELDS), MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -448,7 +448,7 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
   if (info_length+(ulong) create_fields.elements*FCOMP+288+
       n_length+int_length+com_length > 65535L || int_count > 255)
   {
-    my_error(ER_TOO_MANY_FIELDS,MYF(0));
+    my_message(ER_TOO_MANY_FIELDS, ER(ER_TOO_MANY_FIELDS), MYF(0));
     DBUG_RETURN(1);
   }
 

@@ -2266,8 +2266,8 @@ dict_foreign_add_to_cache(
 
 /*************************************************************************
 Scans from pointer onwards. Stops if is at the start of a copy of
-'string' where characters are compared without case sensitivity. Stops
-also at '\0'. */
+'string' where characters are compared without case sensitivity, and
+only outside `` or "" quotes. Stops also at '\0'. */
 
 const char*
 dict_scan_to(
@@ -2276,31 +2276,34 @@ dict_scan_to(
 	const char*	ptr,	/* in: scan from */
 	const char*	string)	/* in: look for this */
 {
-	ibool	success;
-	ulint	i;
-loop:
-	if (*ptr == '\0') {
-		return(ptr);
-	}
+	char	quote	= '\0';
 
-	success = TRUE;
-	
-	for (i = 0; i < ut_strlen(string); i++) {
-		if (toupper((ulint)(ptr[i])) != toupper((ulint)(string[i]))) {
-			success = FALSE;
-
+	for (; *ptr; ptr++) {
+		if (*ptr == quote) {
+			/* Closing quote character: do not look for
+			starting quote or the keyword. */
+			quote = '\0';
+		} else if (quote) {
+			/* Within quotes: do nothing. */
+		} else if (*ptr == '`' || *ptr == '"') {
+			/* Starting quote: remember the quote character. */
+			quote = *ptr;
+		} else {
+			/* Outside quotes: look for the keyword. */
+			ulint	i;
+			for (i = 0; string[i]; i++) {
+				if (toupper((ulint)(ptr[i]))
+					!= toupper((ulint)(string[i]))) {
+					goto nomatch;
+				}
+			}
 			break;
+		nomatch:
+			;
 		}
 	}
 
-	if (success) {
-
-		return(ptr);
-	}
-
-	ptr++;
-
-	goto loop;
+	return(ptr);
 }
 
 /*************************************************************************
@@ -2877,13 +2880,13 @@ loop:
 
 		ut_a(success);
 
-		if (!isspace(*ptr)) {
+		if (!isspace(*ptr) && *ptr != '"' && *ptr != '`') {
 	        	goto loop;
 		}
 
-		do {
+		while (isspace(*ptr)) {
 			ptr++;
-		} while (isspace(*ptr));
+		}
 
 		/* read constraint name unless got "CONSTRAINT FOREIGN" */
 		if (ptr != ptr2) {

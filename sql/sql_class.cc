@@ -702,7 +702,7 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
   if (!new_table)
   {
     my_error(EE_OUTOFMEMORY, MYF(ME_BELL),
-	     ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
+             ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
     killed= KILL_CONNECTION;
     return 0;
   }
@@ -821,7 +821,7 @@ select_result::select_result()
 
 void select_result::send_error(uint errcode,const char *err)
 {
-  ::send_error(thd, errcode, err);
+  my_message(errcode, err, MYF(0));
 }
 
 
@@ -925,7 +925,7 @@ bool select_send::send_eof()
 
 void select_to_file::send_error(uint errcode,const char *err)
 {
-  ::send_error(thd,errcode,err);
+  my_message(errcode, err, MYF(0));
   if (file > 0)
   {
     (void) end_io_cache(&cache);
@@ -1249,7 +1249,7 @@ bool select_dump::send_data(List<Item> &items)
   }
   if (row_count++ > 1) 
   {
-    my_error(ER_TOO_MANY_ROWS, MYF(0));
+    my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
     goto err;
   }
   while ((item=li++))
@@ -1262,7 +1262,7 @@ bool select_dump::send_data(List<Item> &items)
     }
     else if (my_b_write(&cache,(byte*) res->ptr(),res->length()))
     {
-      my_error(ER_ERROR_ON_WRITE,MYF(0), path, my_errno);
+      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno);
       goto err;
     }
   }
@@ -1421,7 +1421,8 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
   if (var_list.elements != list.elements)
   {
-    my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
+    my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
+               ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT), MYF(0));
     return 1;
   }
   while ((item=li++))
@@ -1722,7 +1723,7 @@ bool select_dumpvar::send_data(List<Item> &items)
   }
   if (row_count++) 
   {
-    my_error(ER_TOO_MANY_ROWS, MYF(0));
+    my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
     DBUG_RETURN(1);
   }
   while ((zz=my_li++) && (item=it++))

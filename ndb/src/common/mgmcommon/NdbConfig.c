@@ -74,7 +74,7 @@ NdbConfig_NdbCfgName(int with_ndb_home){
 static
 char *get_prefix_buf(int len, int node_id)
 {
-  char tmp_buf[sizeof("ndb_pid#########")+1];
+  char tmp_buf[sizeof("ndb_pid#############")+1];
   char *buf;
   if (node_id > 0)
     snprintf(tmp_buf, sizeof(tmp_buf), "ndb_%u", node_id);

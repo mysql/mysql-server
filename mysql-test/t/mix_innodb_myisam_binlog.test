@@ -184,4 +184,36 @@ select a from t1 order by a; # check that savepoints work :)
 --replace_column 5 #
 show binlog events from 95;
 
+# Test for BUG#5714, where a MyISAM update in the transaction used to
+# release row-level locks in InnoDB
+
+connect (con3,localhost,root,,);
+
+connection con3;
+delete from t1;
+delete from t2;
+--disable_warnings
+alter table t2 type=MyISAM;
+--enable_warnings
+insert into t1 values (1);
+begin;
+select * from t1 for update;
+
+connection con2;
+select (@before:=unix_timestamp())*0; # always give repeatable output
+begin;
+send select * from t1 for update;
+
+connection con3;
+insert into t2 values (20);
+
+connection con2;
+--error 1205
+reap;
+select (@after:=unix_timestamp())*0; # always give repeatable output
+# verify that innodb_lock_wait_timeout was exceeded. When there was
+# the bug, the reap would return immediately after the insert into t2.
+select (@after-@before) >= 2;
+
+# cleanup
 drop table t1,t2;

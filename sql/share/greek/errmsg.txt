@@ -168,7 +168,7 @@ character-set=greek
 "You have an error in your SQL syntax",
 "Delayed insert thread couldn't get requested lock for table %-.64s",
 "Too many delayed threads in use",
-"Aborted connection %ld to db: '%-.64s' user: '%-32s' (%-.64s)",
+"Aborted connection %ld to db: '%-.64s' user: '%-.32s' (%-.64s)",
 "Got a packet bigger than 'max_allowed_packet' bytes",
 "Got a read error from the connection pipe",
 "Got an error from fcntl()",
@@ -387,3 +387,24 @@ character-set=greek
 "CHECK OPTION on non-updatable view '%-.64s.%-.64s'"
 "CHECK OPTION failed '%-.64s.%-.64s'"
 "Access denied; you are not the procedure/function definer of '%s'"
+"Failed purging old relay logs: %s"
+"Password hash should be a %d-digit hexadecimal number"
+"Target log not found in binlog index"
+"I/O error reading log index file"
+"Server configuration does not permit binlog purge"
+"Failed on fseek()"
+"Fatal error during log purge"
+"A purgeable log is in use, will not purge"
+"Unknown error during log purge"
+"Failed initializing relay log position: %s"
+"You are not using binary logging"
+"The '%-.64s' syntax is reserved for purposes internal to the MySQL server"
+"WSAStartup Failed"
+"Can't handle procedures with differents groups yet"
+"Select must have a group with this procedure"
+"Can't use ORDER clause with this procedure"
+"Binary logging and replication forbid changing the global server %s"
+"Can't map file: %-.64s, errno: %d"
+"Wrong magic in %-.64s"
+"Prepared statement contains too many placeholders"
+"Key part '%-.64s' length cannot be 0"

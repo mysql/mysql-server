@@ -1464,7 +1464,8 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
       if (flush_io_cache(file) || sync_binlog(file))
 	goto err;
 
-      if (opt_using_transactions && !my_b_tell(&thd->transaction.trans_log))
+      if (opt_using_transactions &&
+          !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
       {
         /*
           LOAD DATA INFILE in AUTOCOMMIT=1 mode writes to the binlog
@@ -1515,7 +1516,7 @@ err:
     if (error)
     {
       if (my_errno == EFBIG)
-	my_error(ER_TRANS_CACHE_FULL, MYF(0));
+	my_message(ER_TRANS_CACHE_FULL, ER(ER_TRANS_CACHE_FULL), MYF(0));
       else
 	my_error(ER_ERROR_ON_WRITE, MYF(0), name, errno);
       write_error=1;
@@ -1612,6 +1613,14 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
     {
       Query_log_event qinfo(thd, "BEGIN", 5, TRUE);
       /*
+        Imagine this is rollback due to net timeout, after all statements of
+        the transaction succeeded. Then we want a zero-error code in BEGIN.
+        In other words, if there was a really serious error code it's already
+        in the statement's events.
+        This is safer than thd->clear_error() against kills at shutdown.
+      */
+      qinfo.error_code= 0;
+      /*
         Now this Query_log_event has artificial log_pos 0. It must be adjusted
         to reflect the real position in the log. Not doing it would confuse the
 	slave: it would prevent this one from knowing where he is in the
@@ -1643,6 +1652,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
                             commit_or_rollback ? "COMMIT" : "ROLLBACK",
                             commit_or_rollback ? 6        : 8, 
                             TRUE);
+      qinfo.error_code= 0;
       if (qinfo.write(&log_file) || flush_io_cache(&log_file) ||
           sync_binlog(&log_file))
 	goto err;
@@ -1714,12 +1724,19 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
   time_t current_time;
   if (!is_open())
     return 0;
+  DBUG_ENTER("MYSQL_LOG::write");
+
   VOID(pthread_mutex_lock(&LOCK_log));
   if (is_open())
   {						// Safety agains reopen
     int tmp_errno=0;
     char buff[80],*end;
     end=buff;
+    if (!(thd->options & OPTION_UPDATE_LOG))
+    {
+      VOID(pthread_mutex_unlock(&LOCK_log));
+      DBUG_RETURN(0);
+    }
     if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT) || query_start_arg)
     {
       current_time=time(NULL);
@@ -1818,7 +1835,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     }
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -1838,16 +1855,19 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
     THD::enter_cond() (see NOTES in sql_class.h).
 */
 
-void MYSQL_LOG:: wait_for_update(THD* thd, bool master_or_slave)
+void MYSQL_LOG::wait_for_update(THD* thd, bool master_or_slave)
 {
-  const char* old_msg = thd->enter_cond(&update_cond, &LOCK_log,
-                                        master_or_slave ?
-                                        "Has read all relay log; waiting for \
-the slave I/O thread to update it" : 
-                                        "Has sent all binlog to slave; \
-waiting for binlog to be updated"); 
+  const char *old_msg;
+  DBUG_ENTER("wait_for_update");
+  old_msg= thd->enter_cond(&update_cond, &LOCK_log,
+                           master_or_slave ?
+                           "Has read all relay log; waiting for the slave I/O "
+                           "thread to update it" : 
+                           "Has sent all binlog to slave; waiting for binlog "
+                           "to be updated"); 
   pthread_cond_wait(&update_cond, &LOCK_log);
   thd->exit_cond(old_msg);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2203,6 +2223,15 @@ void MYSQL_LOG::report_pos_in_innodb()
 #endif
   DBUG_VOID_RETURN;
 }
+
+
+void MYSQL_LOG::signal_update()
+{
+  DBUG_ENTER("MYSQL_LOG::signal_update");
+  pthread_cond_broadcast(&update_cond);
+  DBUG_VOID_RETURN;
+}
+
 
 #ifdef __NT__
 void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,

@@ -276,7 +276,7 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
       (iindex_relations= find_type((char*) primary_key_name,
 				   &relations->keynames, 1+2)-1)<0)
   {
-    send_error(thd,ER_CORRUPT_HELP_DB);
+    my_message(ER_CORRUPT_HELP_DB, ER(ER_CORRUPT_HELP_DB), MYF(0));
     DBUG_RETURN(-1);
   }
   rtopic_id= find_fields[help_relation_help_topic_id].field;
@@ -607,12 +607,11 @@ SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, uint mlen,
     thd			Thread handler
 
   RETURN VALUES
-    0		Success
-    1		Error and send_error already commited
-    -1		error && send_error should be issued (normal case)
+    FALSE Success
+    TRUE  Error and send_error already commited
 */
 
-int mysqld_help(THD *thd, const char *mask)
+bool mysqld_help(THD *thd, const char *mask)
 {
   Protocol *protocol= thd->protocol;
   SQL_SELECT *select;
@@ -640,8 +639,8 @@ int mysqld_help(THD *thd, const char *mask)
   uint mlen= strlen(mask);
   MEM_ROOT *mem_root= thd->mem_root;
 
-  if ((res= open_and_lock_tables(thd, tables)))
-    goto end;
+  if (open_and_lock_tables(thd, tables))
+    goto error;
   /*
     Init tables and fields to be usable from items
 
@@ -650,10 +649,7 @@ int mysqld_help(THD *thd, const char *mask)
   setup_tables(thd, tables, 0);
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
-  {
-    res= -1;
-    goto end;
-  }
+    goto error;
   size_t i;
   for (i=0; i<sizeof(tables)/sizeof(TABLE_LIST); i++)
     tables[i].table->file->init_table_handle_for_HANDLER();
@@ -661,12 +657,8 @@ int mysqld_help(THD *thd, const char *mask)
   if (!(select=
 	prepare_select_for_name(thd,mask,mlen,tables,tables[0].table,
 				used_fields[help_topic_name].field,&error)))
-  {
-    res= -1;
-    goto end;
-  }
+    goto error;
 
-  res= 1;
   count_topics= search_topics(thd,tables[0].table,used_fields,
 			      select,&topics_list,
 			      &name, &description, &example);
@@ -678,10 +670,8 @@ int mysqld_help(THD *thd, const char *mask)
     if (!(select=
           prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
                                   used_fields[help_keyword_name].field,&error)))
-    {
-      res= -1;
-      goto end;
-    }
+      goto error;
+
     count_topics=search_keyword(thd,tables[3].table,used_fields,select,&key_id);
     delete select;
     count_topics= (count_topics != 1) ? 0 :
@@ -697,10 +687,7 @@ int mysqld_help(THD *thd, const char *mask)
     if (!(select=
           prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
                                   used_fields[help_category_name].field,&error)))
-    {
-      res= -1;
-      goto end;
-    }
+      goto error;
 
     count_categories= search_categories(thd, tables[1].table, used_fields,
 					select,
@@ -709,13 +696,13 @@ int mysqld_help(THD *thd, const char *mask)
     if (!count_categories)
     {
       if (send_header_2(protocol,FALSE))
-	goto end;
+	goto error;
     }
     else if (count_categories > 1)
     {
       if (send_header_2(protocol,FALSE) ||
 	  send_variant_2_list(mem_root,protocol,&categories_list,"Y",0))
-	goto end;
+	goto error;
     }
     else
     {
@@ -728,20 +715,14 @@ int mysqld_help(THD *thd, const char *mask)
 			    new Item_int((int32)category_id));
       if (!(select= prepare_simple_select(thd,cond_topic_by_cat,
                                           tables,tables[0].table,&error)))
-      {
-	res= -1;
-	goto end;
-      }
+        goto error;
       get_all_items_for_category(thd,tables[0].table,
 				 used_fields[help_topic_name].field,
 				 select,&topics_list);
       delete select;
       if (!(select= prepare_simple_select(thd,cond_cat_by_cat,tables,
 						     tables[1].table,&error)))
-      {
-	res= -1;
-	goto end;
-      }
+        goto error;
       get_all_items_for_category(thd,tables[1].table,
 				 used_fields[help_category_name].field,
 				 select,&subcategories_list);
@@ -750,39 +731,36 @@ int mysqld_help(THD *thd, const char *mask)
       if (send_header_2(protocol, TRUE) ||
 	  send_variant_2_list(mem_root,protocol,&topics_list,       "N",cat) ||
 	  send_variant_2_list(mem_root,protocol,&subcategories_list,"Y",cat))
-	goto end;
+	goto error;
     }
   }
   else if (count_topics == 1)
   {
     if (send_answer_1(protocol,&name,&description,&example))
-      goto end;
+      goto error;
   }
   else
   {
     /* First send header and functions */
     if (send_header_2(protocol, FALSE) ||
 	send_variant_2_list(mem_root,protocol, &topics_list, "N", 0))
-      goto end;
+      goto error;
     if (!(select=
           prepare_select_for_name(thd,mask,mlen,tables,tables[1].table,
                                   used_fields[help_category_name].field,&error)))
-    {
-      res= -1;
-      goto end;
-    }
+      goto error;
     search_categories(thd, tables[1].table, used_fields,
 		      select,&categories_list, 0);
     delete select;
     /* Then send categories */
     if (send_variant_2_list(mem_root,protocol, &categories_list, "Y", 0))
-      goto end;
+      goto error;
   }
-  res= 0;
-
   send_eof(thd);
 
 end:
-  DBUG_RETURN(res);
+  DBUG_RETURN(FALSE);
+error:
+  DBUG_RETURN(TRUE);
 }
 
