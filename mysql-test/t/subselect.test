@@ -981,3 +981,14 @@ INSERT INTO `t4` (`task_id`, `description`) VALUES (1, 'Daily Check List'),(2, '
 select  dbid, name, (date_format(now() , '%Y-%m-%d') - INTERVAL how_often DAY) >= ifnull((SELECT date_format(max(create_date),'%Y-%m-%d') FROM t1 WHERE dbid = b.db_id AND taskid = a.taskgenid), '1950-01-01') from t3 a, t2 b, t4  WHERE dbid = - 1 AND primary_uid = '1' AND t4.task_id = taskid;
 SELECT dbid, name FROM t3 a, t2 b, t4 WHERE dbid = - 1 AND primary_uid = '1' AND ((date_format(now() , '%Y-%m-%d') - INTERVAL how_often DAY) >= ifnull((SELECT date_format(max(create_date),'%Y-%m-%d') FROM t1 WHERE dbid = b.db_id AND taskid = a.taskgenid), '1950-01-01')) AND t4.task_id = taskid;
 drop table t1,t2,t3,t4;
+
+#
+# cardinality check
+#
+CREATE TABLE t1 (id int(11) default NULL) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 VALUES (1),(5);
+CREATE TABLE t2 (id int(11) default NULL) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t2 VALUES (2),(6);
+-- error 1240
+select * from t1 where (1,2,6) in (select * from t2);
+DROP TABLE t1,t2;
