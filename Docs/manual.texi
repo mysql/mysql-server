@@ -9333,10 +9333,9 @@ You can force a MySQL client to use named pipes by specifying the
 @code{--pipe} option or by specifying @code{.} as the host name.  Use the
 @code{--socket} option to specify the name of the pipe.
 
-Note that starting from 3.23.50, named pipes are only enabled if start
-mysqld with @code{--enable-named-pipe}.  This is because some users have
-experienced problems shutting down the MySQL server when one uses named
-pipes.
+Note that starting from 3.23.50, named pipes are only enabled if you start
+@code{mysqld} with @code{--enable-named-pipe}.  This is because some users have
+experienced problems shutting down the MySQL server when named pipes are used.
 
 You can test whether or not MySQL is working by executing the
 following commands:
@@ -49161,8 +49160,8 @@ New character set @code{latin_de} which provides correct German sorting.
 @code{STRCMP()} now uses the current character set when doing comparison,
 which means that the default comparison is case insensitive.
 @item
-@code{TRUNCATE TABLE} and @code{DELETE FROM table_name} are now separate
-functions. One bonus is that @code{DELETE FROM table_name} now returns
+@code{TRUNCATE TABLE} and @code{DELETE FROM tbl_name} are now separate
+functions. One bonus is that @code{DELETE FROM tbl_name} now returns
 the number of deleted rows, rather than zero.
 @item
 @code{DROP DATABASE} now executes a @code{DROP TABLE} on all tables in
@@ -49926,7 +49925,7 @@ Added database name to output for administrative commands like @code{CHECK},
 Lots of portability fixes for @code{InnoDB}.
 @item
 Changed optimiser so that queries like
-@code{SELECT * FROM table_name,table_name2 ... ORDER BY key_part1 LIMIT #}
+@code{SELECT * FROM tbl_name,tbl_name2 ... ORDER BY key_part1 LIMIT #}
 will use index on @code{key_part1} instead of @code{filesort}.
 @item
 Fixed bug when doing
@@ -50170,11 +50169,11 @@ Added @code{SEQUENCE()} as an example UDF function.
 Changed @code{mysql_install_db} to use @code{BINARY} for @code{CHAR}
 columns in the privilege tables.
 @item
-Changed @code{TRUNCATE table_name} to @code{TRUNCATE TABLE table_name}
+Changed @code{TRUNCATE tbl_name} to @code{TRUNCATE TABLE tbl_name}
 to use the same syntax as Oracle.  Until 4.0 we will also allow
-@code{TRUNCATE table_name} to not crash old code.
+@code{TRUNCATE tbl_name} to not crash old code.
 @item
-Fixed 'no found rows' bug in @code{MyISAM} tables when a @code{BLOB} was
+Fixed ``no found rows'' bug in @code{MyISAM} tables when a @code{BLOB} was
 first part of a multi-part key.
 @item
 Fixed bug where @code{CASE} didn't work with @code{GROUP BY}.
@@ -50187,7 +50186,7 @@ Fixed bug when using @code{DISTINCT} on results from functions that referred
 to a group function, like:
 @example
 SELECT a, DISTINCT SEC_TO_TIME(sum(a))
-from table_name GROUP BY a, b;
+from tbl_name GROUP BY a, b;
 @end example
 @item
 Fixed buffer overrun in @code{libmysqlclient} library.
