@@ -1337,7 +1337,7 @@ static int get_index_merge_params(PARAM *param, key_map& needed_reg,
     double n_blocks=
       ceil((double)(longlong)param->table->file->data_file_length / IO_SIZE);
     double busy_blocks=
-       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, records_for_unique));
+       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, (double) records_for_unique));
     
     JOIN *join= param->thd->lex->select_lex.join;
     if (!join || join->tables == 1)
