@@ -708,7 +708,7 @@ Query_cache::Query_cache(ulong query_cache_limit_arg,
   :query_cache_size(0),
    query_cache_limit(query_cache_limit_arg),
    queries_in_cache(0), hits(0), inserts(0), refused(0),
-   total_blocks(0),
+   total_blocks(0), lowmem_prunes(0),
    min_allocation_unit(ALIGN_SIZE(min_allocation_unit_arg)),
    min_result_data_size(ALIGN_SIZE(min_result_data_size_arg)),
    def_query_hash_size(ALIGN_SIZE(def_query_hash_size_arg)),
@@ -1512,6 +1512,7 @@ my_bool Query_cache::free_old_query()
     if (query_block != 0)
     {
       free_query(query_block);
+      lowmem_prunes++;
       DBUG_RETURN(0);
     }
   }
