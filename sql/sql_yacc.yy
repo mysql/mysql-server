@@ -824,13 +824,15 @@ create_select:
           {
 	    LEX *lex=Lex;
 	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
-            switch(lex->sql_command) {
-              case SQLCOM_INSERT: lex->sql_command=SQLCOM_INSERT_SELECT; break;
-              case SQLCOM_REPLACE: lex->sql_command=SQLCOM_REPLACE_SELECT; break;
-            }
+	    if (lex->sql_command == SQLCOM_INSERT)
+	      lex->sql_command= SQLCOM_INSERT_SELECT;
+	    else if (lex->sql_command == SQLCOM_REPLACE)
+	      lex->sql_command= SQLCOM_REPLACE_SELECT;
+	    lex->select->table_list.save_and_clear(&lex->save_list);
 	    mysql_init_select(lex);
           }
           select_options select_item_list opt_select_from
+	  { Lex->select->table_list.push_front(&Lex->save_list); }
           ;
 
 opt_as:

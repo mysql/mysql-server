@@ -1,4 +1,5 @@
 drop table if exists t1;
+drop database if exists mysqltest;
 create temporary table t1(n int not null primary key);
 drop table if exists t2;
 create table t2(n int);
@@ -11,7 +12,6 @@ drop table t2;
 Table 't2' was locked with a READ lock and can't be updated
  drop table t2;
 unlock tables;
-drop database if exists mysqltest;
 create database mysqltest;
 create table mysqltest.t1(n int);
 insert into mysqltest.t1 values (23);

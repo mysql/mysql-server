@@ -153,7 +153,7 @@ typedef struct st_lex
   List<Item>	      *insert_list,field_list,value_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
-  SQL_LIST	      proc_list, auxilliary_table_list;
+  SQL_LIST	      proc_list, auxilliary_table_list, save_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
   char*		      savepoint_name;		// Transaction savepoint id
