@@ -371,9 +371,8 @@ void berkeley_cleanup_log_files(void)
 ** Berkeley DB tables
 *****************************************************************************/
 
-static const char *ha_bdb_bas_exts[]= { ha_berkeley_ext, NullS };
 const char **ha_berkeley::bas_ext() const
-{ return ha_bdb_bas_exts; }
+{ static const char *ext[]= { ha_berkeley_ext, NullS }; return ext; }
 
 
 ulong ha_berkeley::index_flags(uint idx, uint part, bool all_parts) const
