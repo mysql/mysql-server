@@ -752,7 +752,7 @@ int ha_archive::rnd_next(byte *buf)
 }
 
 
-/* 
+/*
   Thanks to the table flag HA_REC_NOT_IN_SEQ this will be called after
   each call to ha_archive::rnd_next() if an ordering of the rows is
   needed.
@@ -761,7 +761,7 @@ int ha_archive::rnd_next(byte *buf)
 void ha_archive::position(const byte *record)
 {
   DBUG_ENTER("ha_archive::position");
-  ha_store_ptr(ref, ref_length, current_position);
+  my_store_ptr(ref, ref_length, current_position);
   DBUG_VOID_RETURN;
 }
 
@@ -778,7 +778,7 @@ int ha_archive::rnd_pos(byte * buf, byte *pos)
   DBUG_ENTER("ha_archive::rnd_pos");
   statistic_increment(table->in_use->status_var.ha_read_rnd_next_count,
 		      &LOCK_status);
-  current_position= ha_get_ptr(pos, ref_length);
+  current_position= my_get_ptr(pos, ref_length);
   z_off_t seek= gzseek(archive, current_position, SEEK_SET);
 
   DBUG_RETURN(get_row(archive, buf));
