@@ -1440,7 +1440,6 @@ select_create::prepare(List<Item> &values)
 
   if (table->fields < values.elements)
   {
-    do_not_drop=1;
     my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
                     ER(ER_WRONG_VALUE_COUNT_ON_ROW),
 		    MYF(0),1);
@@ -1528,7 +1527,7 @@ void select_create::abort()
     enum db_type table_type=table->db_type;
     if (!table->tmp_table)
       hash_delete(&open_cache,(byte*) table);
-    if (!do_not_drop)
+    if (!create_info->table_existed)
       quick_rm_table(table_type,db,name);
     table=0;
   }

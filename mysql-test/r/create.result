@@ -200,3 +200,19 @@ select * from t1;
 0	1	2
 0	0	1
 drop table t1;
+create table t1 (a int not null, b int, primary key (a));
+insert into t1 values (1,1);
+create table if not exists t1 select 2;
+select * from t1;
+a	b
+1	1
+0	2
+create table if not exists t1 select 3 as 'a',4 as 'b';
+create table if not exists t1 select 3 as 'a',3 as 'b';
+Duplicate entry '3' for key 1
+select * from t1;
+a	b
+1	1
+0	2
+3	4
+drop table t1;
