@@ -1830,8 +1830,8 @@ application residing outside the firewall.
 
 @item
 Our German, Austrian and Swiss users will note that we have a new character
-set latin_de which corrects the @emph{German sorting order}, placing German
-Umlauts in the same order as German telephone books.
+set @code{latin_de} which corrects the @emph{German sorting order},
+placing German Umlauts in the same order as German telephone books.
 
 @item
 Features to simplify migration from other database systems to MySQL
@@ -4879,7 +4879,7 @@ systems where you have log files that you order for example by month.
 The option to compress read-only tables, but still have direct access to
 the rows in the table, gives you better performance by minimising disk
 reads.  This is very useful when you are archiving things.
-@xref{myisampack}.
+@xref{myisampack, , @code{myisampack}}.
 
 @item
 MySQL Server has internal support for full-text search. @xref{Fulltext Search}.
@@ -20280,7 +20280,7 @@ character set configuration files listed in
 @file{SHAREDIR/charsets/Index}.  @xref{configure options}.
 
 If you change the character set when running MySQL (which may
-also change the sort order), you must run myisamchk -r -q on all
+also change the sort order), you must run @code{myisamchk -r -q} on all
 tables. Otherwise your indexes may not be ordered correctly.
 
 When a client connects to a MySQL server, the server sends the
@@ -36647,7 +36647,8 @@ The index is stored in a file with the @file{.MYI} (MYIndex) extension,
 and the data is stored in a file with the @file{.MYD} (MYData) extension.
 You can check/repair @code{MyISAM} tables with the @code{myisamchk}
 utility. @xref{Crash recovery}. You can compress @code{MyISAM} tables with
-@code{myisampack} to take up much less space. @xref{myisampack}.
+@code{myisampack} to take up much less space.
+@xref{myisampack, , @code{myisampack}}.
 
 The following is new in @code{MyISAM}:
 
@@ -37157,7 +37158,7 @@ With identical tables we mean that all tables are created with identical
 column and key information.  You can't put a MERGE over tables where the
 columns are packed differently, doesn't have exactly the same columns or
 have the keys in different order.  Some of the tables can however be
-compressed with @code{myisampack}.  @xref{myisampack}.
+compressed with @code{myisampack}.  @xref{myisampack, , @code{myisampack}}.
 
 When you create a @code{MERGE} table, you will get a @file{.frm} table
 definition file and a @file{.MRG} table list file.  The @file{.MRG} just
@@ -50719,7 +50720,7 @@ Fixed a bug in @code{SHOW CREATE} when using @code{AUTO_INCREMENT} columns.
 @item
 Changed @code{BDB} tables to use new compare function in Berkeley DB 3.2.3.
 @item
-You can now use Unix sockets with @code{mit-pthreads}.
+You can now use Unix sockets with MIT-pthreads.
 @item
 Added the @code{latin5} (turkish) character set.
 @item
@@ -51620,7 +51621,7 @@ Fixed problem with 8-bit characters as separators in @code{LOAD DATA INFILE}.
 @item
 Fixed problem when handling indexfiles larger than 8G.
 @item
-Added latest patches to mit-pthreads for NetBSD.
+Added latest patches to MIT-pthreads for NetBSD.
 @item
 Fixed problem with timezones that are < GMT - 11.
 @item
@@ -52280,7 +52281,7 @@ Fixed non-critical Y2K problem when writing short date to log files.
 Upgraded the configure and include files to match the latest 3.23 version.
 This should increase portability and make it easier to build shared libraries.
 @item
-Added latest patches to mit-pthreads for NetBSD.
+Added latest patches to MIT-pthreads for NetBSD.
 @item
 Fixed problem with timezones that are < GMT -11.
 @item
@@ -52324,7 +52325,7 @@ Fixed prototype in @file{my_ctype.h} when using other character sets.
 @item
 Some configure issues to fix problems with big file system detection.
 @item
-Fixed problem when sorting on big blob columns.
+Fixed problem when sorting on big @code{BLOB} columns.
 @item
 @code{ROUND()} will now work on Windows.
 @end itemize
@@ -52345,7 +52346,7 @@ construct returned the rightmost 'pos' characters.)
 @item
 Fixed problem with @code{LOCK TABLES} combined with @code{DELETE FROM table}
 @item
-Fixed problem that INSERT ... SELECT didn't use SQL_BIG_TABLES.
+Fixed problem that @code{INSERT ... SELECT} didn't use @code{SQL_BIG_TABLES}.
 @item
 @code{SET SQL_LOW_PRIORITY_UPDATES=#} didn't work.
 @item
@@ -52353,9 +52354,10 @@ Password wasn't updated correctly if privileges didn't change on:
 @code{GRANT ... IDENTIFIED BY}
 @item
 Fixed range optimiser bug in
-@code{SELECT * FROM table_name WHERE key_part1 >= const AND (key_part2 = const OR key_part2 = const)}
+@code{SELECT * FROM table_name WHERE key_part1 >= const AND (key_part2 = const
+OR key_part2 = const)}.
 @item
-Fixed bug in compression key handling in ISAM.
+Fixed bug in compression key handling in @code{ISAM}.
 @end itemize
 
 
@@ -52682,16 +52684,17 @@ Fix for @code{isamchk} for tables which need big temporary files.
 @strong{Important}: You must run the @code{mysql_fix_privilege_tables} script
 when you upgrade to this version!  This is needed because of the new
 @code{GRANT} system. If you don't do this, you will get @code{Access
-denied} when you try to use @code{ALTER TABLE}, @code{CREATE INDEX} or
+denied} when you try to use @code{ALTER TABLE}, @code{CREATE INDEX}, or
 @code{DROP INDEX}.
 @item
 @code{GRANT} to allow/deny users table and column access.
 @item
-Changed @code{USER()} to return @code{user@@host}
+Changed @code{USER()} to return a value in @code{user@@host} format.
+Formerly it returned only @code{user}.
 @item
 Changed the syntax for how to set @code{PASSWORD} for another user.
 @item
-New command @code{FLUSH STATUS} that sets most status variables to zero.
+New command @code{FLUSH STATUS} that resets most status variables to zero.
 @item
 New status variables: @code{aborted_threads}, @code{aborted_connects}.
 @item
@@ -52800,7 +52803,7 @@ Added @code{SELECT HIGH_PRIORITY}; this will get a lock for the
 @code{SELECT} even if there is a thread waiting for another
 @code{SELECT} to get a @code{WRITE LOCK}.
 @item
-Moved wild_compare to string class to be able to use @code{LIKE} on
+Moved @code{wild_compare()} to string class to be able to use @code{LIKE} on
 @code{BLOB}/@code{TEXT} columns with @code{\0}.
 @item
 Added @code{ESCAPE} option to @code{LIKE}.
@@ -52820,10 +52823,10 @@ much safer on the Windows platforms but also @strong{much} slower.
 @item
 Czech character sets should now work much better.  You must also install
 @uref{http://www.mysql.com/Downloads/Patches/czech-3.22.8-patch}.
-This patch should also be installed if you are using a character set with
-uses @code{my_strcoll()}!  The patch should always be safe to install (for any system),
-but as this patch changes ISAM internals it's not yet in the default
-distribution.
+This patch should also be installed if you are using a character set which
+uses @code{my_strcoll()}!  The patch should always be safe to install (for any
+system), but as this patch changes @code{ISAM} internals it's not yet in the
+default distribution.
 @item
 @code{DATE_ADD()} and @code{DATE_SUB()} didn't work with group functions.
 @item
@@ -53247,7 +53250,7 @@ Re-arranged @code{SELECT} code to handle some very specific queries
 involving group functions (like @code{COUNT(*)}) without a @code{GROUP BY} but
 with @code{HAVING}. The following now works:
 @example
-mysql> SELECT count(*) as C FROM table HAVING C > 1;
+mysql> SELECT COUNT(*) as C FROM table HAVING C > 1;
 @end example
 @item
 Changed the protocol for field functions to be faster and avoid some
@@ -53448,8 +53451,8 @@ columns.
 Sorting on a function which made a division / 0 produced a wrong set
 in some cases.
 @item
-Fixed @code{SELECT} problem with @code{LEFT()} when using the czech character
-set.
+Fixed @code{SELECT} problem with @code{LEFT()} when using the @code{czech}
+character set.
 @item
 Fixed problem in @code{isamchk}; it couldn't repair a packed table in a very
 unusual case.
@@ -53516,9 +53519,9 @@ Fixed bug in range optimiser when using
 @item
 Changed @code{configure} for detection of FreeBSD 3.0 9803xx and above
 @item
-@code{WHERE} with string_column_key = constant_string didn't always find
-all rows if the column had many values differing only with characters of
-the same sort value (like e and @'e).
+@code{WHERE} with @code{string_col_key = constant_string} didn't always
+find all rows if the column had many values differing only with
+characters of the same sort value (like e and @'e).
 @item
 Strings keys looked up with 'ref' were not compared in case-sensitive fashion.
 @item
@@ -53641,7 +53644,7 @@ but takes a time string (@code{'HH:MM:DD'}) as argument.
 Fixed unlikely(?) key optimiser bug when using @code{OR}s of key parts
 inside @code{AND}s.
 @item
-Added command @code{variables} to @code{mysqladmin}.
+Added @code{variables} command to @code{mysqladmin}.
 @item
 A lot of small changes to the binary releases.
 @item
@@ -53680,20 +53683,20 @@ Fixed bug that core dumped when using many @code{LEFT OUTER JOIN} clauses.
 @item
 Fixed bug in @code{ORDER BY} on string formula with possible @code{NULL} values.
 @item
-Fixed problem in range optimiser when using <= on sub index.
+Fixed problem in range optimiser when using @code{<=} on sub index.
 @item
 Added functions @code{DAYOFYEAR()}, @code{DAYOFMONTH()}, @code{MONTH()},
 @code{YEAR()}, @code{WEEK()}, @code{QUARTER()}, @code{HOUR()}, @code{MINUTE()},
 @code{SECOND()} and @code{FIND_IN_SET()}.
 @item
-Added command @code{SHOW VARIABLES}.
+Added @code{SHOW VARIABLES} command.
 @item
 Added support of ``long constant strings'' from ANSI SQL:
 @example
 mysql> SELECT 'first ' 'second';       -> 'first second'
 @end example
 @item
-Upgraded mSQL-Mysql-modules to 1.1825.
+Upgraded Msql-Mysql-modules to 1.1825.
 @item
 Upgraded @code{mysqlaccess} to 2.02.
 @item
@@ -53722,7 +53725,7 @@ Configure changes for some operating systems.
 Fixed optimiser bug when using
 @code{WHERE data_field = date_field2 AND date_field2 = constant}.
 @item
-Added command @code{SHOW STATUS}.
+Added @code{SHOW STATUS} command.
 @item
 Removed @file{manual.ps} from the source distribution to make it smaller.
 @end itemize
@@ -53755,8 +53758,8 @@ from 2G to 4G.
 
 @itemize @bullet
 @item
-Upgraded @code{DBD} to 1823. This version implements @code{mysql_use_result} in
-@code{DBD-Mysql}.
+Upgraded @code{DBD} to 1.1823. This version implements @code{mysql_use_result}
+in @code{DBD-Mysql}.
 @item
 Benchmarks updated for empress (by Luuk).
 @item
@@ -53958,7 +53961,7 @@ Fixed slow sorting when sorting on key field when using
 @item
 Sorting on calculated @code{DOUBLE} values sorted on integer results instead.
 @item
-@code{mysql} no longer needs a database argument.
+@code{mysql} no longer requires a database argument.
 @item
 Changed the place where @code{HAVING} should be. According to ANSI, it should
 be after @code{GROUP BY} but before @code{ORDER BY}. MySQL Version 3.20
@@ -54035,11 +54038,11 @@ Added @code{ENCRYPT()} function by Zeev Suraski.
 Fixed better @code{FOREIGN KEY} syntax skipping. New reserved words:
 @code{MATCH}, @code{FULL}, @code{PARTIAL}.
 @item
-@code{mysqld} now allows IP number and hostname to the @code{--bind-address}
+@code{mysqld} now allows IP number and hostname for the @code{--bind-address}
 option.
 @item
 Added @code{SET OPTION CHARACTER SET cp1251_koi8} to enable conversions of
-data to/from cp1251_koi8.
+data to and from the @code{cp1251_koi8} character set.
 @item
 Lots of changes for Windows 95 port. In theory, this version should now be
 easily portable to Windows 95.
@@ -54055,7 +54058,7 @@ ODBC or ANSI SQL92 syntax.
 Fixed syntax of @code{ALTER TABLE tbl_name ALTER COLUMN col_name SET DEFAULT
 NULL}.
 @item
-Added @code{CHAR} (with no length specifier) as a synonym for @code{CHAR(1)}.
+Added @code{CHAR} and @code{BIT} as synonyms for @code{CHAR(1)}.
 @item
 Fixed core dump when updating as a user who has only @strong{select} privilege.
 @item
@@ -54241,13 +54244,13 @@ Should now work with FreeBSD 3.0 if used with
 @file{FreeBSD-3.0-libc_r-1.0.diff},
 which can be found at @uref{http://www.mysql.com/Downloads/Patches/}.
 @item
-Added new option @code{-O tmp_table_size=#} to @code{mysqld}.
+Added new @code{-O tmp_table_size=#} option to @code{mysqld}.
 @item
 New function @code{FROM_UNIXTIME(timestamp)} which returns a date string in
-'YYYY-MM-DD HH:MM:DD' format.
+@code{'YYYY-MM-DD HH:MM:DD'} format.
 @item
 New function @code{SEC_TO_TIME(seconds)} which returns a string in
-'HH:MM:SS' format.
+@code{'HH:MM:SS'} format.
 @item
 New function @code{SUBSTRING_INDEX()}, originally by Zeev Suraski.
 @end itemize
@@ -54280,7 +54283,7 @@ Fixed some possible buffer overflows if filenames that are too long are used.
 @code{mysqld} doesn't accept hostnames that start with digits followed by a
 @code{'.'}, because the hostname may look like an IP number.
 @item
-Added @code{--skip-networking} option to @code{mysqld}, to only allow socket
+Added @code{--skip-networking} option to @code{mysqld}, to allow only socket
 connections.  (This will not work with MIT-pthreads!)
 @item
 Added check of too long table names for alias.
@@ -54622,7 +54625,7 @@ Changed @file{libmysql.c} to prefer @code{getpwuid()} instead of
 Fixed bug in @code{SELECT} optimiser when using many tables with the same
 column used as key to different tables.
 @item
-Added new latin2 and Russian KOI8 character tables.
+Added new @code{latin2} and Russian @code{KOI8} character tables.
 @item
 Added support for a dummy @code{GRANT} command to satisfy Powerbuilder.
 @end itemize
@@ -54676,7 +54679,7 @@ Fixed adding an @code{AUTO_INCREMENT} key with @code{ALTER_TABLE}.
 Added new @code{DATETIME} type (by Giovanni Maruzzelli
 @email{maruzz@@matrice.it}).
 @item
-Fixed that define @code{DONT_USE_DEFAULT_FIELDS} works.
+Fixed that defining @code{DONT_USE_DEFAULT_FIELDS} works.
 @item
 Changed to use a thread to handle alarms instead of signals on Solaris to
 avoid race conditions.
@@ -54880,7 +54883,7 @@ You must use @code{mysql_real_query()} to send the query.
 Added API function @code{mysql_get_client_info()}.
 @item
 @code{mysqld} now uses the @code{N_MAX_KEY_LENGTH} from @file{nisam.h} as
-the maximum allowed key length.
+the maximum allowable key length.
 @item
 The following now works:
 @example
@@ -54916,7 +54919,7 @@ which are not used in the group part. This makes it efficient to implement
 lookups.  The column that is used should be a constant for each group because
 the value is calculated only once for the first row that is found for a group.
 @example
-mysql> SELECT id,lookup.text,sum(*) FROM test,lookup
+mysql> SELECT id,lookup.text,SUM(*) FROM test,lookup
     ->        WHERE test.id=lookup.id GROUP BY id;
 @end example
 @item
@@ -54924,7 +54927,7 @@ Fixed bug in @code{SUM(function)} (could cause a core dump).
 @item
 Changed @code{AUTO_INCREMENT} placement in the SQL query:
 @example
-INSERT into table (auto_field) values (0);
+INSERT INTO table (auto_field) VALUES (0);
 @end example
 inserted 0, but it should insert an @code{AUTO_INCREMENT} value.
 @item
@@ -54984,7 +54987,7 @@ Fixed core dump bug in @code{sql_acl} (core on new connection).
 Removed @code{host}, @code{user} and @code{db} tables from database @code{test}
 in the distribution.
 @item
-@code{FIELD_TYPE_CHAR} can now be signed (-128 - 127) or unsigned (0 - 255)
+@code{FIELD_TYPE_CHAR} can now be signed (-128 to 127) or unsigned (0 to 255)
 Previously, it was always unsigned.
 @item
 Bug fixes in @code{CONCAT()} and @code{WEEKDAY()}.
