@@ -75,7 +75,7 @@ public:
      pointer in constructor initialization list, but we need pass pointer
      to subselect Item class to select_subselect classes constructor.
   */
-  virtual void init (THD *thd, st_select_lex *select_lex, 
+  virtual void init (st_select_lex *select_lex, 
 		     select_subselect *result);
 
   ~Item_subselect();
@@ -122,7 +122,7 @@ class Item_singlerow_subselect :public Item_subselect
 protected:
   Item_cache *value, **row;
 public:
-  Item_singlerow_subselect(THD *thd, st_select_lex *select_lex);
+  Item_singlerow_subselect(st_select_lex *select_lex);
   Item_singlerow_subselect(Item_singlerow_subselect *item):
     Item_subselect(item)
   {
@@ -171,7 +171,7 @@ protected:
   longlong value; /* value of this item (boolean: exists/not-exists) */
 
 public:
-  Item_exists_subselect(THD *thd, st_select_lex *select_lex);
+  Item_exists_subselect(st_select_lex *select_lex);
   Item_exists_subselect(Item_exists_subselect *item):
     Item_subselect(item)
   {
@@ -214,7 +214,7 @@ protected:
 public:
   Item_func_not_all *upper_not; // point on NOT before ALL subquery
 
-  Item_in_subselect(THD *thd, Item * left_expr, st_select_lex *select_lex);
+  Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect(Item_in_subselect *item);
   Item_in_subselect()
     :Item_exists_subselect(), abort_on_null(0), upper_not(0) {}
@@ -250,7 +250,7 @@ protected:
   compare_func_creator func;
 
 public:
-  Item_allany_subselect(THD *thd, Item * left_expr, compare_func_creator f,
+  Item_allany_subselect(Item * left_expr, compare_func_creator f,
 		     st_select_lex *select_lex);
   Item_allany_subselect(Item_allany_subselect *item);
   // only ALL subquery has upper not
@@ -268,16 +268,19 @@ protected:
   bool maybe_null; /* may be null (first item in select) */
 public:
 
-  subselect_engine(THD *thd, Item_subselect *si, select_subselect *res) 
+  subselect_engine(Item_subselect *si, select_subselect *res)
+    :thd(0)
   {
     result= res;
     item= si;
-    this->thd= thd;
     res_type= STRING_RESULT;
     maybe_null= 0;
   }
   virtual ~subselect_engine() {}; // to satisfy compiler
-
+  
+  // set_thd should be called before prepare()
+  void set_thd(THD *thd) { this->thd= thd; }
+  THD * get_thd() { return thd; }
   virtual int prepare()= 0;
   virtual void fix_length_and_dec(Item_cache** row)= 0;
   virtual int exec()= 0;
@@ -297,7 +300,7 @@ class subselect_single_select_engine: public subselect_engine
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
 public:
-  subselect_single_select_engine(THD *thd, st_select_lex *select,
+  subselect_single_select_engine(st_select_lex *select,
 				 select_subselect *result,
 				 Item_subselect *item);
   int prepare();
@@ -313,8 +316,7 @@ class subselect_union_engine: public subselect_engine
 {
   st_select_lex_unit *unit;  /* corresponding unit structure */
 public:
-  subselect_union_engine(THD *thd,
-			 st_select_lex_unit *u,
+  subselect_union_engine(st_select_lex_unit *u,
 			 select_subselect *result,
 			 Item_subselect *item);
   int prepare();
@@ -334,10 +336,13 @@ protected:
   Item *cond;
 public:
 
+  // constructor can assign THD because it will be called after JOIN::prepare
   subselect_uniquesubquery_engine(THD *thd, st_join_table *tab_arg,
 				  Item_subselect *subs, Item *where)
-    :subselect_engine(thd, subs, 0), tab(tab_arg), cond(where)
-  {}
+    :subselect_engine(subs, 0), tab(tab_arg), cond(where)
+  {
+    set_thd(thd);
+  }
     
   int prepare();
   void fix_length_and_dec(Item_cache** row);
@@ -353,6 +358,8 @@ class subselect_indexsubquery_engine: public subselect_uniquesubquery_engine
 {
   bool check_null;
 public:
+
+  // constructor can assign THD because it will be called after JOIN::prepare
   subselect_indexsubquery_engine(THD *thd, st_join_table *tab_arg,
 				 Item_subselect *subs, Item *where,
 				 bool chk_null)
