@@ -842,6 +842,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 	dfield_t*	new_val;
 	ulint		j;
 	ulint		i;
+	dtype_t*	cur_type;
 
 	ut_ad(index);
 
@@ -871,10 +872,19 @@ row_upd_index_replace_new_col_vals_index_pos(
 				}
 
 				if (field->prefix_len > 0
-			            && new_val->len != UNIV_SQL_NULL
-			            && new_val->len > field->prefix_len) {
+			            && new_val->len != UNIV_SQL_NULL) {
 
-				        dfield->len = field->prefix_len;
+				/* For prefix keys get the storage length
+				for the prefix_len characters. */
+
+				  cur_type = dict_col_get_type(
+					dict_field_get_col(field));
+
+				  dfield->len = 
+				    innobase_get_at_most_n_mbchars(
+				      dtype_get_charset_coll(cur_type->prtype),
+					field->prefix_len,
+					new_val->len,new_val->data);
 				}
 			}
 		}
@@ -904,6 +914,7 @@ row_upd_index_replace_new_col_vals(
 	dfield_t*	new_val;
 	ulint		j;
 	ulint		i;
+	dtype_t*	cur_type;
 
 	ut_ad(index);
 
@@ -933,10 +944,19 @@ row_upd_index_replace_new_col_vals(
 				}
 
 				if (field->prefix_len > 0
-			            && new_val->len != UNIV_SQL_NULL
-			            && new_val->len > field->prefix_len) {
+			            && new_val->len != UNIV_SQL_NULL) {
 
-				        dfield->len = field->prefix_len;
+				/* For prefix keys get the storage length
+				for the prefix_len characters. */
+
+				cur_type = dict_col_get_type(
+					dict_field_get_col(field));
+
+				  dfield->len = 
+				    innobase_get_at_most_n_mbchars(
+				      dtype_get_charset_coll(cur_type->prtype),
+					field->prefix_len,
+					new_val->len,new_val->data);
 				}
 			}
 		}
