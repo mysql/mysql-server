@@ -1120,6 +1120,24 @@ end|
 call bug2227(9)|
 drop procedure bug2227|
 
+#
+# BUG#2614
+#
+create procedure bug2614()
+begin
+  drop table if exists t3;
+  create table t3 (id int default '0' not null);
+  insert into t3 select 12;
+  insert into t3 select * from t3;
+end|
+
+--disable_warnings
+call bug2614()|
+--enable_warnings
+call bug2614()|
+drop table t3|
+drop procedure bug2614|
+
 
 #
 # Some "real" examples
@@ -1299,7 +1317,6 @@ show create procedure bar|
 --replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 drop procedure bar|
-
 delimiter ;|
 drop table t1;
 drop table t2;
