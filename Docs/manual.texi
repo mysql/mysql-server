@@ -21192,16 +21192,16 @@ Usually, @code{myisampack} packs the datafile 40%-70%.
 MySQL uses memory mapping (@code{mmap()}) on compressed tables and
 falls back to normal read/write file usage if @code{mmap()} doesn't work.
 
-There are currently two limitations with @code{myisampack}:
+Please note the following:
 @itemize @bullet
 @item
-After packing, the table is read-only.
+After packing, the table is read-only. This is generally intended
+(such as when accessing packed tables on a CD). Also allowing writes
+to a packed table is on our TODO list but with low priority.
 @item
-@code{myisampack} can also pack @code{BLOB} or @code{TEXT} columns. The
-older @code{pack_isam} could not do this.
+@code{myisampack} can also pack @code{BLOB} or @code{TEXT} columns.
+The older @code{pack_isam} (for @code{ISAM} tables) can not do this.
 @end itemize
-
-Fixing these limitations is on our TODO list but with low priority.
 
 @code{myisampack} is invoked like this:
 
