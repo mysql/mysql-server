@@ -59,6 +59,9 @@ static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, char **filename_ptr,
 			       char *table_name);
 
+inline bool single_table_command_access(THD *thd, ulong privilege,
+					TABLE_LIST *tables, int *res);
+
 const char *any_db="*any*";	// Special symbol for check_access
 
 const char *command_name[]={
@@ -2286,21 +2289,8 @@ mysql_execute_command(THD *thd)
     if (check_db_used(thd,tables))
       goto error;
 
-    if (check_access(thd,UPDATE_ACL,tables->db,&tables->grant.privilege))
-      goto error;
-    {
-      // Show only 1 table for check_grant
-      TABLE_LIST *subselects_tables= tables->next;
-      tables->next= 0;
-      if (grant_option && check_grant(thd, UPDATE_ACL, tables))
+    if (single_table_command_access(thd, UPDATE_ACL, tables, &res))
 	goto error;
-      tables->next= subselects_tables;
-
-      // check rights on tables of subselect (if exists)
-      if (subselects_tables &&
-	  (res= check_table_access(thd, SELECT_ACL, subselects_tables)))
-	goto error;
-    }
 
     if (select_lex->item_list.elements != lex->value_list.elements)
     {
@@ -2355,22 +2345,9 @@ mysql_execute_command(THD *thd)
     my_bool update=(lex->value_list.elements ? UPDATE_ACL : 0);
     ulong privilege= (lex->duplicates == DUP_REPLACE ?
                       INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
-    if (check_access(thd,privilege,tables->db,&tables->grant.privilege))
-      goto error; /* purecov: inspected */
-    
-    {
-      // Show only 1 table for check_grant
-      TABLE_LIST *subselects_tables= tables->next;
-      tables->next= 0;
-      if (grant_option && check_grant(thd, privilege, tables))
-	goto error;
-      tables->next= subselects_tables;
 
-      // check rights on tables of subselect (if exists)
-      if (subselects_tables &&
-	  (res= check_table_access(thd, SELECT_ACL, subselects_tables)))
+    if (single_table_command_access(thd, privilege, tables, &res))
 	goto error;
-    }
 
     if (select_lex->item_list.elements != lex->value_list.elements)
     {
@@ -2453,22 +2430,8 @@ mysql_execute_command(THD *thd)
     break;
   case SQLCOM_DELETE:
   {
-    if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
-      goto error; /* purecov: inspected */
-
-    {
-      // Show only 1 table for check_grant
-      TABLE_LIST *subselects_tables= tables->next;
-      tables->next= 0;
-      if (grant_option && check_grant(thd, DELETE_ACL, tables))
-	goto error;
-      tables->next= subselects_tables;
-
-      // check rights on tables of subselect (if exists)
-      if (subselects_tables &&
-	  (res= check_table_access(thd, SELECT_ACL, subselects_tables)))
-	goto error;
-    }
+    if (single_table_command_access(thd, DELETE_ACL, tables, &res))
+      goto error;
 
     // Set privilege for the WHERE clause
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
@@ -3125,6 +3088,44 @@ mysql_execute_command(THD *thd)
 
 error:
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  Check grants for commands which work only with one table and all other
+  tables belong to subselects.
+
+  SYNOPSYS
+    single_table_command_access()
+    thd - Thread handler
+    privilege - asked privelage
+    tables - table list of command
+    res - pointer on result code variable
+
+  RETURN
+    0 - OK
+    1 - access denied
+*/
+
+inline bool single_table_command_access(THD *thd, ulong privilege,
+					TABLE_LIST *tables, int *res)
+					 
+{
+    if (check_access(thd, privilege, tables->db, &tables->grant.privilege))
+      return 1;
+
+    // Show only 1 table for check_grant
+    TABLE_LIST *subselects_tables= tables->next;
+    tables->next= 0;
+    if (grant_option && check_grant(thd,  privilege, tables))
+      return 1;
+    tables->next= subselects_tables;
+
+    // check rights on tables of subselect (if exists)
+    if (subselects_tables &&
+	(*res= check_table_access(thd, SELECT_ACL, subselects_tables)))
+      return 1;
+    return 0;
 }
 
 
