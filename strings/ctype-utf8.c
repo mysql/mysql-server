@@ -1955,9 +1955,9 @@ static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
 CHARSET_INFO my_charset_utf8 =
 {
     33,			/* number       */
-    MY_CS_COMPILED,	/* state      */
+    MY_CS_COMPILED,	/* state        */
     "utf8",		/* name         */
-    "",			/* comment    */
+    "",			/* comment      */
     ctype_utf8,		/* ctype        */
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */
@@ -1968,6 +1968,7 @@ CHARSET_INFO my_charset_utf8 =
     my_strnncoll_utf8,	/* strnncoll    */
     my_strnxfrm_utf8,	/* strnxfrm     */
     NULL,		/* like_range   */
+    my_wildcmp_mb,	/* wildcmp      */
     3,			/* mbmaxlen     */
     my_ismbchar_utf8,	/* ismbchar     */
     my_ismbhead_utf8,	/* ismbhead     */
@@ -1978,12 +1979,18 @@ CHARSET_INFO my_charset_utf8 =
     my_casedn_str_utf8,
     my_caseup_utf8,
     my_casedn_utf8,
-    NULL,		/* tosort      */
+    NULL,		/* tosort       */
     my_strcasecmp_utf8,
     my_strncasecmp_utf8,
-    my_hash_caseup_utf8,/* hash_caseup */
-    my_hash_sort_utf8,	/* hash_sort   */
-    0
+    my_hash_caseup_utf8,/* hash_caseup  */
+    my_hash_sort_utf8,	/* hash_sort    */
+    0,
+    my_snprintf_8bit,
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
 };
 
 
@@ -2345,12 +2352,130 @@ static int my_mbcharlen_ucs2(CHARSET_INFO *cs  __attribute__((unused)) ,
 }
 
 
+#include <m_string.h>
+#include <stdarg.h>
+#include <assert.h>
+
+static int my_vsnprintf_ucs2(char *dst, uint n, const char* fmt, va_list ap)
+{
+  char *start=dst, *end=dst+n-1;
+  for (; *fmt ; fmt++)
+  {
+    if (fmt[0] != '%')
+    {
+      if (dst == end)			/* End of buffer */
+	break;
+      
+      *dst++='\0'; *dst++= *fmt;	/* Copy ordinary char */
+      continue;
+    }
+    
+    fmt++;
+    
+    /* Skip if max size is used (to be compatible with printf) */
+    while ( (*fmt>='0' && *fmt<='9') || *fmt == '.' || *fmt == '-')
+      fmt++;
+    
+    if (*fmt == 'l')
+      fmt++;
+    
+    if (*fmt == 's')				/* String parameter */
+    {
+      reg2 char	*par = va_arg(ap, char *);
+      uint plen;
+      uint left_len = (uint)(end-dst);
+      if (!par) par = (char*)"(null)";
+      plen = (uint) strlen(par);
+      if (left_len <= plen*2)
+	plen = left_len/2 - 1;
+
+      for ( ; plen ; plen--, dst+=2, par++)
+      {
+        dst[0]='\0';
+        dst[1]=par[0];
+      }
+      continue;
+    }
+    else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
+    {
+      register int iarg;
+      char nbuf[16];
+      char *pbuf=nbuf;
+      
+      if ((uint) (end-dst) < 32)
+	break;
+      iarg = va_arg(ap, int);
+      if (*fmt == 'd')
+	int10_to_str((long) iarg, nbuf, -10);
+      else
+	int10_to_str((long) (uint) iarg,nbuf,10);
+
+      for (; pbuf[0]; pbuf++)
+      {
+        *dst++='\0';
+        *dst++=*pbuf;
+      }
+      continue;
+    }
+    
+    /* We come here on '%%', unknown code or too long parameter */
+    if (dst == end)
+      break;
+    *dst++='\0';
+    *dst++='%';				/* % used as % or unknown code */
+  }
+  
+  DBUG_ASSERT(dst <= end);
+  *dst='\0';				/* End of errmessage */
+  return (uint) (dst - start);
+}
+
+static int my_snprintf_ucs2(CHARSET_INFO *cs __attribute__((unused))
+			    ,char* to, uint n, const char* fmt, ...)
+{
+  va_list args;
+  va_start(args,fmt);
+  return my_vsnprintf_ucs2(to, n, fmt, args);
+}
+
+
+static long my_strtol_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtol(s,e,base);
+}
+
+static ulong my_strtoul_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoul(s,e,base);
+}
+
+static longlong my_strtoll_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoll(s,e,base);
+}
+
+static ulonglong my_strtoull_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoul(s,e,base);
+}
+
+double my_strtod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e)
+{
+  return strtod(s,e);
+}
+
+
 CHARSET_INFO my_charset_ucs2 =
 {
     35,			/* number       */
-    MY_CS_COMPILED,	/* state      */
+    MY_CS_COMPILED,	/* state        */
     "ucs2",		/* name         */
-    "",			/* comment    */
+    "",			/* comment      */
     ctype_ucs2,		/* ctype        */
     to_lower_ucs2,	/* to_lower     */
     to_upper_ucs2,	/* to_upper     */
@@ -2361,6 +2486,7 @@ CHARSET_INFO my_charset_ucs2 =
     my_strnncoll_ucs2,	/* strnncoll    */
     my_strnxfrm_ucs2,	/* strnxfrm     */
     NULL,		/* like_range   */
+    my_wildcmp_mb,	/* wildcmp      */
     2,			/* mbmaxlen     */
     my_ismbchar_ucs2,	/* ismbchar     */
     my_ismbhead_ucs2,	/* ismbhead     */
@@ -2371,12 +2497,18 @@ CHARSET_INFO my_charset_ucs2 =
     my_casedn_str_ucs2,
     my_caseup_ucs2,
     my_casedn_ucs2,
-    NULL,		/* tosort      */
+    NULL,		/* tosort       */
     my_strcasecmp_ucs2,
     my_strncasecmp_ucs2,
-    my_hash_caseup_ucs2,/* hash_caseup */
-    my_hash_sort_ucs2,	/* hash_sort   */
-    0
+    my_hash_caseup_ucs2,/* hash_caseup  */
+    my_hash_sort_ucs2,	/* hash_sort    */
+    0,
+    my_snprintf_ucs2,
+    my_strtol_ucs2,
+    my_strtoul_ucs2,
+    my_strtoll_ucs2,
+    my_strtoull_ucs2,
+    my_strtod_ucs2
 };
 
 

@@ -1638,7 +1638,7 @@ err:
 
 volatile bool *killed_ptr(MI_CHECK *param)
 {
-  return (bool *)(param->thd); /* always NULL */
+  return (bool *)(& param->thd); /* always NULL */
 }
 
 	/* print warnings and errors */

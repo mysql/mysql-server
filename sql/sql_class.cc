@@ -434,6 +434,15 @@ void THD::close_active_vio()
 }
 #endif
 
+void THD::add_possible_loop (Item *item)
+{
+  if (!possible_loops)
+  {
+    possible_loops= new List<Item>;
+  }
+  possible_loops->push_back(item);
+}
+
 /*****************************************************************************
 ** Functions to provide a interface to select results
 *****************************************************************************/
@@ -873,7 +882,6 @@ bool select_singleval_subselect::send_data(List<Item> &items)
   DBUG_ENTER("select_singleval_subselect::send_data");
   Item_singleval_subselect *it= (Item_singleval_subselect *)item;
   if (it->assigned()){
-    thd->fatal_error= 1;
     my_message(ER_SUBSELECT_NO_1_ROW, ER(ER_SUBSELECT_NO_1_ROW), MYF(0));
     DBUG_RETURN(1);
   }

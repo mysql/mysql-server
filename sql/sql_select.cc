@@ -994,7 +994,8 @@ JOIN::exec()
   }
   having=having_list;				// Actually a parameter
   thd->proc_info="Sending data";
-  error=do_select(this, &fields_list, NULL, procedure);
+  error= thd->net.report_error ||
+    do_select(this, &fields_list, NULL, procedure);
   DBUG_VOID_RETURN;
 }
 
@@ -1034,6 +1035,24 @@ JOIN::cleanup(THD *thd)
   DBUG_RETURN(error);
 }
 
+bool JOIN::check_loop(uint id)
+{
+  DBUG_ENTER("JOIN::check_loop");
+  Item *item;
+  List_iterator<Item> it(all_fields);
+  DBUG_PRINT("info", ("all_fields:"));
+  while ((item= it++))
+    if (item->check_loop(id))
+      DBUG_RETURN(1);
+  DBUG_PRINT("info", ("where:"));
+  if (select_lex->where && select_lex->where->check_loop(id))
+    DBUG_RETURN(1);
+  DBUG_PRINT("info", ("having:"));
+  if (select_lex->having && select_lex->having->check_loop(id))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
 int
 mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
 	     ORDER *order, ORDER *group,Item *having, ORDER *proc_param,
@@ -1068,6 +1087,23 @@ mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
     {
       DBUG_RETURN(-1);
     }
+    if (thd->possible_loops)
+    {
+      Item *item;
+      while(thd->possible_loops->elements)
+      {
+	item= thd->possible_loops->pop();
+    	if (item->check_loop(thd->check_loops_counter++))
+	{
+	  delete thd->possible_loops;
+	  thd->possible_loops= 0;
+	  my_message(ER_CYCLIC_REFERENCE, ER(ER_CYCLIC_REFERENCE), MYF(0));
+	  return 1;
+	}
+      }
+      delete thd->possible_loops;
+      thd->possible_loops= 0;
+    }
   }
 
   switch (join->optimize()) 
@@ -1078,7 +1114,7 @@ mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
     goto err;
   } 
 
-  if (free_join && join->global_optimize())
+  if (thd->net.report_error || (free_join && join->global_optimize()))
     goto err;
 
   join->exec();
@@ -2911,27 +2947,43 @@ join_free(JOIN *join)
     */
     if (join->tables > join->const_tables) // Test for not-const tables
       free_io_cache(join->table[join->const_tables]);
-    for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
-    {
-      delete tab->select;
-      delete tab->quick;
-      x_free(tab->cache.buff);
-      if (tab->table)
+    if (join->select_lex->dependent)
+      for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
       {
-	if (tab->table->key_read)
+	if (tab->table)
 	{
-	  tab->table->key_read=0;
-	  tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
+	  if (tab->table->key_read)
+	  {
+	    tab->table->key_read= 0;
+	    tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
+	  }
+	  /* Don't free index if we are using read_record */
+	  if (!tab->read_record.table)
+	    tab->table->file->index_end();
 	}
-	/* Don't free index if we are using read_record */
-	if (!tab->read_record.table)
-	  tab->table->file->index_end();
       }
-      end_read_record(&tab->read_record);
+    else
+    {
+      for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
+      {
+	delete tab->select;
+	delete tab->quick;
+	x_free(tab->cache.buff);
+	if (tab->table)
+	{
+	  if (tab->table->key_read)
+	  {
+	    tab->table->key_read= 0;
+	    tab->table->file->extra(HA_EXTRA_NO_KEYREAD);
+	  }
+	  /* Don't free index if we are using read_record */
+	  if (!tab->read_record.table)
+	    tab->table->file->index_end();
+	}
+	end_read_record(&tab->read_record);
+      }
+      join->table= 0;
     }
-    //TODO: is enough join_free at the end of mysql_select?
-    if (!join->select_lex->dependent)
-      join->table=0;
   }
   /*
     We are not using tables anymore
@@ -4512,7 +4564,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     if (error == -1)
       table->file->print_error(my_errno,MYF(0));
   }
-  DBUG_RETURN(error);
+  DBUG_RETURN(error || join->thd->net.report_error);
 }
 
 
@@ -7458,8 +7510,10 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 			       ((sl->next_select_in_list())?"PRIMARY":
 				"SIMPLE"):
 			       ((sl == first)?
+				((sl->linkage == DERIVED_TABLE_TYPE) ?
+				 "DERIVED":
 				((sl->dependent)?"DEPENDENT SUBSELECT":
-				 "SUBSELECT"):
+				 "SUBSELECT")):
 				((sl->dependent)?"DEPENDENT UNION":
 				 "UNION"))),
 			      result);

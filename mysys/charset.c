@@ -388,6 +388,12 @@ static CHARSET_INFO *add_charset(CHARSET_INFO *cs, myf flags)
   cs->wc_mb       = my_wc_mb_8bit;
   cs->hash_caseup = my_hash_caseup_simple;
   cs->hash_sort   = my_hash_sort_simple;
+  cs->snprintf	  = my_snprintf_8bit;
+  cs->strtol      = my_strtol_8bit;
+  cs->strtoul     = my_strtoul_8bit;
+  cs->strtoll     = my_strtoll_8bit;
+  cs->strtoull     = my_strtoull_8bit;
+  cs->mbmaxlen    = 1;
   
   set_max_sort_char(cs);
   create_fromuni(cs);

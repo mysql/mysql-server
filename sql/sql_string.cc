@@ -93,18 +93,36 @@ bool String::realloc(uint32 alloc_length)
 
 bool String::set(longlong num, CHARSET_INFO *cs)
 {
-  if (alloc(21))
+  uint l=20*cs->mbmaxlen+1;
+
+  if (alloc(l))
     return TRUE;
-  str_length=(uint32) (longlong10_to_str(num,Ptr,-10)-Ptr);
+  if (cs->snprintf == my_snprintf_8bit)
+  {
+    str_length=(uint32) (longlong10_to_str(num,Ptr,-10)-Ptr);
+  }
+  else
+  {
+    str_length=cs->snprintf(cs,Ptr,l,"%d",num);
+  }
   str_charset=cs;
   return FALSE;
 }
 
 bool String::set(ulonglong num, CHARSET_INFO *cs)
 {
-  if (alloc(21))
+  uint l=20*cs->mbmaxlen+1;
+
+  if (alloc(l))
     return TRUE;
-  str_length=(uint32) (longlong10_to_str(num,Ptr,10)-Ptr);
+  if (cs->snprintf == my_snprintf_8bit)
+  {
+    str_length=(uint32) (longlong10_to_str(num,Ptr,10)-Ptr);
+  }
+  else
+  {
+    str_length=cs->snprintf(cs,Ptr,l,"%d",num);
+  }
   str_charset=cs;
   return FALSE;
 }
@@ -117,14 +135,14 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
   if (decimals >= NOT_FIXED_DEC)
   {
     sprintf(buff,"%.14g",num);			// Enough for a DATETIME
-    return copy(buff, (uint32) strlen(buff), my_charset_latin1);
+    return copy(buff, (uint32) strlen(buff), my_charset_latin1, cs);
   }
 #ifdef HAVE_FCONVERT
   int decpt,sign;
   char *pos,*to;
 
   VOID(fconvert(num,(int) decimals,&decpt,&sign,buff+1));
-  if (!my_isdigit(system_charset_info, buff[1]))
+  if (!my_isdigit(my_charset_latin1, buff[1]))
   {						// Nan or Inf
     pos=buff+1;
     if (sign)
@@ -132,7 +150,7 @@ bool String::set(double num,uint decimals, CHARSET_INFO *cs)
       buff[0]='-';
       pos=buff;
     }
-    return copy(pos,(uint32) strlen(pos));
+    return copy(pos,(uint32) strlen(pos), my_charset_latin1, cs);
   }
   if (alloc((uint32) ((uint32) decpt+3+decimals)))
     return TRUE;
@@ -182,7 +200,7 @@ end:
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
-  return copy(buff,(uint32) strlen(buff), my_charset_latin1);
+  return copy(buff,(uint32) strlen(buff), my_charset_latin1, cs);
 #endif
 }
 
@@ -216,6 +234,55 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
     memcpy(Ptr,str,arg_length);
   Ptr[arg_length]=0;
   str_charset=cs;
+  return FALSE;
+}
+
+/* Copy with charset convertion */
+bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *from, CHARSET_INFO *to)
+{
+  uint32      new_length=to->mbmaxlen*arg_length;
+  int         cnvres;
+  my_wc_t     wc;
+  const uchar *s=(const uchar *)str;
+  const uchar *se=s+arg_length;
+  uchar       *d, *de;
+
+  if (alloc(new_length))
+    return TRUE;
+
+  d=(uchar *)Ptr;
+  de=d+new_length;
+  
+  for (str_length=new_length ; s < se && d < de ; )
+  {
+    if ((cnvres=from->mb_wc(from,&wc,s,se)) > 0 )
+    {
+      s+=cnvres;
+    }
+    else if (cnvres==MY_CS_ILSEQ)
+    {
+      s++;
+      wc='?';
+    }
+    else
+      break;
+
+outp:
+    if((cnvres=to->wc_mb(to,wc,d,de)) >0 )
+    {
+      d+=cnvres;
+    }
+    else if (cnvres==MY_CS_ILUNI && wc!='?')
+    {
+      wc='?';
+      goto outp;
+    }
+    else
+      break;
+  }
+  Ptr[new_length]=0;
+  length((uint32) (d-(uchar *)Ptr));
+  str_charset=to;
   return FALSE;
 }
 

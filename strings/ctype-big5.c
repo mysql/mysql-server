@@ -6232,6 +6232,7 @@ CHARSET_INFO my_charset_big5 =
     my_strnncoll_big5,
     my_strnxfrm_big5,
     my_like_range_big5,
+    my_wildcmp_mb,
     2,			/* mbmaxlen   */
     ismbchar_big5,
     ismbhead_big5,
@@ -6247,7 +6248,13 @@ CHARSET_INFO my_charset_big5 =
     my_strncasecmp_mb,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit,
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
 };
 
 

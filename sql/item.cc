@@ -42,6 +42,20 @@ Item::Item()
   decimals=0; max_length=0;
   next=current_thd->free_list;			// Put in free list
   current_thd->free_list=this;
+  loop_id= 0;
+}
+
+bool Item::check_loop(uint id)
+{
+  DBUG_ENTER("Item::check_loop");
+  DBUG_PRINT("info", ("id %u, name %s", id, name));
+  if (loop_id == id)
+  {
+    DBUG_PRINT("info", ("id match"));
+    DBUG_RETURN(1);
+  }
+  loop_id= id;
+  DBUG_RETURN(0);
 }
 
 void Item::set_name(const char *str,uint length)
@@ -444,13 +458,16 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
       */
       SELECT_LEX *last= 0;
-      for (SELECT_LEX *sl= thd->lex.current_select->outer_select();
-	   sl;
-	   sl= sl->outer_select())
-	if ((tmp= find_field_in_tables(thd, this,
-				       (last= sl)->get_table_list(),
-				       0)) != not_found_field)
-	  break;
+      
+      // Prevent using outer fields in subselects, that is not supported now
+      if (thd->lex.current_select->linkage != DERIVED_TABLE_TYPE)
+	for (SELECT_LEX *sl= thd->lex.current_select->outer_select();
+	     sl;
+	     sl= sl->outer_select())
+	  if ((tmp= find_field_in_tables(thd, this,
+					 (last= sl)->get_table_list(),
+					 0)) != not_found_field)
+	    break;
       if (!tmp)
 	return -1;
       else if (tmp == not_found_field)
@@ -812,10 +829,18 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (!ref)
   {
     SELECT_LEX *sl= thd->lex.current_select->outer_select();
+    /*
+      Finding only in current select will be performed for selects that have 
+      not outer one and for derived tables (which not support using outer 
+      fields for now)
+    */
     if ((ref= find_item_in_list(this, 
 				*(thd->lex.current_select->get_item_list()),
-				(sl ? REPORT_EXCEPT_NOT_FOUND :
-				 REPORT_ALL_ERRORS))) ==
+				((sl && 
+				  thd->lex.current_select->linkage !=
+				  DERIVED_TABLE_TYPE) ? 
+				  REPORT_EXCEPT_NOT_FOUND :
+				  REPORT_ALL_ERRORS))) ==
 	(Item **)not_found_item)
     {
       /*
@@ -851,6 +876,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       {
 	depended_from= last;
 	thd->lex.current_select->mark_as_dependent(last);
+	thd->add_possible_loop(this);
       }
     }
     else if (!ref)
@@ -860,6 +886,14 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     decimals=	(*ref)->decimals;
   }
   return 0;
+}
+
+bool Item_ref::check_loop(uint id)
+{
+  DBUG_ENTER("Item_ref::check_loop");
+  if (Item_ident::check_loop(id))
+    DBUG_RETURN(1);
+  DBUG_RETURN((*ref)->check_loop(id));
 }
 
 /*

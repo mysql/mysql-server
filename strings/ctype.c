@@ -2823,7 +2823,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen   */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen   */
     NULL,		/* ismbchar   */
     NULL,		/* ismbhead   */
     NULL,		/* mbcharlen  */
@@ -2838,7 +2839,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit,
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -2859,7 +2866,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen   */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen   */
     NULL,		/* ismbchar   */
     NULL,		/* ismbhead   */
     NULL,		/* mbcharlen  */
@@ -2874,7 +2882,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -2894,7 +2908,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -2909,7 +2924,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -2929,7 +2950,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -2944,7 +2966,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -2965,7 +2993,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -2980,7 +3009,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3000,7 +3035,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3015,7 +3051,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3035,7 +3077,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3050,7 +3093,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3070,7 +3119,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3085,7 +3135,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3106,7 +3162,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3121,7 +3178,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3141,7 +3204,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3156,7 +3220,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3176,7 +3246,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3191,7 +3262,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3211,7 +3288,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3226,7 +3304,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3246,7 +3330,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3261,7 +3346,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3281,7 +3372,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3296,7 +3388,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3316,7 +3414,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3331,7 +3430,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3352,7 +3457,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3367,7 +3473,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3387,7 +3499,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3402,7 +3515,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3423,7 +3542,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3438,7 +3558,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3459,7 +3585,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3474,7 +3601,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3494,7 +3627,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3509,7 +3643,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3529,7 +3669,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3544,7 +3685,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3564,7 +3711,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3579,7 +3727,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3599,7 +3753,8 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
     NULL,		/* like_range */
-    0,			/* mbmaxlen  */
+    my_wildcmp_8bit,	/* wildcmp    */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
@@ -3614,7 +3769,13 @@ static CHARSET_INFO compiled_charsets[] = {
     my_strncasecmp_8bit,
     my_hash_caseup_simple,
     my_hash_sort_simple,
-    0
+    0,
+    my_snprintf_8bit
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
   },
 #endif
 
@@ -3630,9 +3791,10 @@ static CHARSET_INFO compiled_charsets[] = {
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     0,
-    NULL,
-    NULL,
-    NULL,
+    NULL,		/* strnncoll    */
+    NULL,		/* strnxfrm     */
+    NULL,		/* like_range   */
+    NULL,		/* wildcmp      */
     0,
     NULL,
     NULL,
@@ -3650,7 +3812,13 @@ static CHARSET_INFO compiled_charsets[] = {
     NULL,
     NULL,		/* hash_caseup */
     NULL,		/* hash_sort   */
-    0
+    0,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
   }
 };
 

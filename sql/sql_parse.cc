@@ -660,7 +660,7 @@ pthread_handler_decl(handle_one_connection,arg)
       goto end_thread;
     }
 
-    if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+    if ((ulong) thd->variables.max_join_size == (ulonglong) HA_POS_ERROR)
       thd->options |= OPTION_BIG_SELECTS;
     if (thd->client_capabilities & CLIENT_COMPRESS)
       net->compress=1;				// Use compression
@@ -736,7 +736,7 @@ pthread_handler_decl(handle_bootstrap,arg)
 
 #endif
 
-  if ((ulong) thd->variables.max_join_size == (ulong) HA_POS_ERROR)
+  if ((ulong) thd->variables.max_join_size == (ulonglong) HA_POS_ERROR)
     thd->options |= OPTION_BIG_SELECTS;
 
   thd->proc_info=0;
@@ -1297,7 +1297,7 @@ mysql_execute_command(THD *thd)
     that is not a SHOW command or a select that only access local
     variables, but for now this is probably good enough.
   */
-  if (tables)
+  if (tables || lex->select_lex.next_select_in_list())
     mysql_reset_errors(thd);
   /*
     Save old warning count to be able to send to client how many warnings we
@@ -1328,74 +1328,27 @@ mysql_execute_command(THD *thd)
 #endif
   }
   
-  select_result *explain_result= 0;  
   /*
     TODO: make derived tables processing 'inside' SELECT processing.
     TODO: solve problem with depended derived tables in subselects
   */
-  if (lex->sql_command == SQLCOM_SELECT && 
-      lex->describe && lex->derived_tables)
+  if (lex->derived_tables)
   {
-    if (!(explain_result= new select_send()))
-    {
-      send_error(thd, ER_OUT_OF_RESOURCES);
-      DBUG_VOID_RETURN;
-    }
-    //check rights
-    for (cursor= tables;
-	 cursor;
-	 cursor= cursor->next)
-      if (cursor->derived)
-      {
-	TABLE_LIST *tables= 
-	  (TABLE_LIST *)((SELECT_LEX_UNIT *)
-			 cursor->derived)->first_select()->table_list.first;
-	int res;
-	if (tables)
-	  res= check_table_access(thd,SELECT_ACL, tables);
-	else
-	  res= check_access(thd, SELECT_ACL, any_db);
-	if (res)
-	  DBUG_VOID_RETURN;
-      }
-    thd->send_explain_fields(explain_result);
-    // EXPLAIN derived tables
-    for (cursor= tables;
-	 cursor;
-	 cursor= cursor->next)
-      if (cursor->derived)
-      {
-	SELECT_LEX *select_lex= ((SELECT_LEX_UNIT *)
-				 cursor->derived)->first_select();
-	if (!open_and_lock_tables(thd, 
-				  (TABLE_LIST*) select_lex->table_list.first))
-	{
-	  mysql_explain_select(thd, select_lex,
-			       "DERIVED", explain_result);
-	  // execute derived table SELECT to provide table for other SELECTs
-	  if (mysql_derived(thd, lex, (SELECT_LEX_UNIT *)cursor->derived,
-			    cursor, 1))
+    for (SELECT_LEX *sl= &lex->select_lex; sl; sl= sl->next_select_in_list())
+      if (sl->linkage != DERIVED_TABLE_TYPE)
+	for (TABLE_LIST *cursor= sl->get_table_list();
+	     cursor;
+	     cursor= cursor->next)
+	  if (cursor->derived && (res=mysql_derived(thd, lex,
+						    (SELECT_LEX_UNIT *)
+						    cursor->derived,
+						    cursor)))
+	  {  
+	    if (res < 0)
+	      send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
 	    DBUG_VOID_RETURN;
-	}
-	else
-	  DBUG_VOID_RETURN;
-      }
-      
-  }
-  else if (lex->derived_tables)
-  {
-    for (TABLE_LIST *cursor= tables;
-	 cursor;
-	 cursor= cursor->next)
-      if (cursor->derived && (res=mysql_derived(thd, lex,
-					   (SELECT_LEX_UNIT *)cursor->derived,
-						cursor, 0)))
-      {  
-	if (res < 0)
-	  send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
-	DBUG_VOID_RETURN;
-      }
-  }
+	  }
+  } 
   if ((lex->select_lex.next_select_in_list() && 
        lex->unit.create_total_list(thd, lex, &tables)) ||
       (table_rules_on && tables && thd->slave_thread &&
@@ -1423,10 +1376,11 @@ mysql_execute_command(THD *thd)
       break;					// Error message is given
     }
 
-    unit->offset_limit_cnt= unit->global_parameters->offset_limit;
-    unit->select_limit_cnt= unit->global_parameters->select_limit+
-      unit->global_parameters->offset_limit;
-    if (unit->select_limit_cnt < unit->global_parameters->select_limit)
+    unit->offset_limit_cnt= (ha_rows) unit->global_parameters->offset_limit;
+    unit->select_limit_cnt= (ha_rows) (unit->global_parameters->select_limit+
+      unit->global_parameters->offset_limit);
+    if (unit->select_limit_cnt < 
+	(ha_rows) unit->global_parameters->select_limit)
       unit->select_limit_cnt= HA_POS_ERROR;		// no limit
     if (unit->select_limit_cnt == HA_POS_ERROR)
       select_lex->options&= ~OPTION_FOUND_ROWS;
@@ -1435,19 +1389,18 @@ mysql_execute_command(THD *thd)
     {
       if (lex->describe)
       {
-	if (!explain_result)
-	  if (!(explain_result= new select_send()))
-	  {
-	    send_error(thd, ER_OUT_OF_RESOURCES);
-	    DBUG_VOID_RETURN;
-	  }
-	  else
-	    thd->send_explain_fields(explain_result);
+	if (!(result= new select_send()))
+	{
+	  send_error(thd, ER_OUT_OF_RESOURCES);
+	  DBUG_VOID_RETURN;
+	}
+	else
+	  thd->send_explain_fields(result);
 	fix_tables_pointers(select_lex);
-	res= mysql_explain_union(thd, &thd->lex.unit, explain_result);
+	res= mysql_explain_union(thd, &thd->lex.unit, result);
 	MYSQL_LOCK *save_lock= thd->lock;
 	thd->lock= (MYSQL_LOCK *)0;
-	explain_result->send_eof();
+	result->send_eof();
 	thd->lock= save_lock;
       }
       else
@@ -2768,6 +2721,8 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   TABLE_LIST *org_tables=tables;
   for (; tables ; tables=tables->next)
   {
+    if (tables->derived || (tables->table && (int)tables->table->tmp_table))
+      continue;
     if ((thd->master_access & want_access) == (want_access & ~EXTRA_ACL) &&
 	thd->db)
       tables->grant.privilege= want_access;
@@ -2784,7 +2739,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 	found=1;
       }
     }
-    else if (tables->db && check_access(thd,want_access,tables->db,&tables->grant.privilege,
+    else if (check_access(thd,want_access,tables->db,&tables->grant.privilege,
 			  0, no_errors))
       return TRUE;
   }
@@ -2901,26 +2856,27 @@ void
 mysql_init_query(THD *thd)
 {
   DBUG_ENTER("mysql_init_query");
-  thd->lex.unit.init_query();
-  thd->lex.unit.init_select();
-  thd->lex.select_lex.init_query();
-  thd->lex.unit.slave= &thd->lex.select_lex;
-  thd->lex.unit.global_parameters= &thd->lex.select_lex; //Global limit & order
-  thd->lex.select_lex.master= &thd->lex.unit;
-  thd->lex.select_lex.prev= &thd->lex.unit.slave;
-  thd->select_number= thd->lex.select_lex.select_number= 1;
-  thd->lex.value_list.empty();
+  LEX *lex=&thd->lex;
+  lex->unit.init_query();
+  lex->unit.init_select();
+  lex->select_lex.init_query();
+  lex->value_list.empty();
+  lex->param_list.empty();
+  lex->unit.global_parameters= lex->unit.slave= lex->current_select= 
+    &lex->select_lex;
+  lex->select_lex.master= &lex->unit;
+  lex->select_lex.prev= &lex->unit.slave;
+  lex->olap=lex->describe=0;
+  lex->derived_tables= false;
+  thd->check_loops_counter= thd->select_number= 
+    lex->select_lex.select_number= 1;
   thd->free_list= 0;
-  thd->lex.current_select= &thd->lex.select_lex;
-  thd->lex.olap=thd->lex.describe=0;
-  thd->lex.select_lex.olap= UNSPECIFIED_OLAP_TYPE;
-  thd->fatal_error= 0;				// Safety
   thd->total_warn_count=0;			// Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
-  thd->rand_used=0;
+  thd->fatal_error= thd->rand_used=0;
   thd->safe_to_cache_query= 1;
-  thd->lex.param_list.empty();
+  thd->possible_loops= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -2932,7 +2888,6 @@ mysql_init_select(LEX *lex)
   select_lex->init_select();
   select_lex->master_unit()->select_limit= select_lex->select_limit= 
     lex->thd->variables.select_limit;
-  select_lex->olap=   UNSPECIFIED_OLAP_TYPE;
   lex->exchange= 0;
   lex->result= 0;
   lex->proc_list.first= 0;
@@ -3016,14 +2971,13 @@ mysql_parse(THD *thd, char *inBuf, uint length)
 
   mysql_init_query(thd);
   thd->query_length = length;
-  thd->lex.derived_tables= false;
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
     if (!yyparse() && ! thd->fatal_error)
     {
       if (mqh_used && thd->user_connect &&
-	  check_mqh(thd, thd->lex.sql_command))
+	  check_mqh(thd, lex->sql_command))
       {
 	thd->net.error = 0;
       }

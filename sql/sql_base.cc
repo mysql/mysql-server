@@ -1748,7 +1748,9 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
   }
   else
   {
-    Field **ptr=table->field;
+    Field **ptr;
+    if (!(ptr=table->field))
+      return (Field *)0;
     while ((field = *ptr++))
     {
       if (!my_strcasecmp(system_charset_info, field->field_name, name))

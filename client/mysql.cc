@@ -952,7 +952,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
       }
       if ((com=find_command(NullS,(char) inchar)))
       {
-	const String tmp(line,(uint) (out-line));
+	const String tmp(line,(uint) (out-line), system_charset_info);
 	buffer.append(tmp);
 	if ((*com->func)(&buffer,pos-1) > 0)
 	  return 1;				// Quit
@@ -1709,7 +1709,7 @@ print_table_data(MYSQL_RES *result)
     print_field_types(result);
     mysql_field_seek(result,0);
   }
-  separator.copy("+",1);
+  separator.copy("+",1,system_charset_info);
   while ((field = mysql_fetch_field(result)))
   {
     uint length= column_names ? (uint) strlen(field->name) : 0;
