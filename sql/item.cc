@@ -678,9 +678,7 @@ void Item_param::set_longdata(const char *str, ulong length)
 
 int Item_param::save_in_field(Field *field, bool no_conversions)
 {
-  THD *thd= current_thd;
-
-  DBUG_ASSERT(thd->command == COM_EXECUTE);
+  DBUG_ASSERT(current_thd->command == COM_EXECUTE);
   
   if (null_value)
     return (int) set_field_to_null(field);   
