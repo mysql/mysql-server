@@ -17724,9 +17724,9 @@ by row instead of creating one index at a time with sorting;  This may be
 better than sorting on fixed-length keys if you have long @code{char()}
 keys that compress very good.
 
-As of MySQL 4.0.2 there is @code{USE_FRM} mode for @code{REPAIR}.
-Use it if @file{.MYI} file is missing or its header is corrupted.
-In this mode MySQL will recreate the table, using information from
+As of @code{MySQL} 4.0.2 there is a @code{USE_FRM} mode for @code{REPAIR}.
+Use it if the @file{.MYI} file is missing or if its header is corrupted.
+In this mode MySQL will recreate the table, using information from the
 @file{.frm} file. This kind of repair cannot be done with @code{myisamchk}.
 
 @node Table maintenance, Maintenance regimen, REPAIR TABLE, Disaster Prevention
@@ -18391,8 +18391,8 @@ a copy in case something goes wrong.)
 Go back to Stage 2.  @code{myisamchk -r -q} should work now.  (This shouldn't
 be an endless loop.)
 
-As of MySQL 4.0.2 you can also use @code{REPAIR ... USE_FRM}
-that does the whole procedure automatically.
+As of @code{MySQL} 4.0.2 you can also use @code{REPAIR ... USE_FRM}
+which performs the whole procedure automatically.
 
 @noindent
 @strong{Stage 4: Very difficult repair}
