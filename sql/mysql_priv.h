@@ -671,8 +671,9 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 /* sql_handler.cc */
 int mysql_ha_open(THD *thd, TABLE_LIST *tables);
-int mysql_ha_close(THD *thd, TABLE_LIST *tables, bool dont_send_ok=0);
-int mysql_ha_closeall(THD *thd, TABLE_LIST *tables);
+int mysql_ha_close(THD *thd, TABLE_LIST *tables,
+                   bool dont_send_ok=0, bool dont_lock=0, bool no_alias=0);
+int mysql_ha_close_list(THD *thd, TABLE_LIST *tables, bool flushed=0);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
 

@@ -2283,7 +2283,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
       add_key_field(key_fields,*and_level,cond_func,
 		    ((Item_field*) (cond_func->key_item()->real_item()))->
-		    field, 0,
+		    field, cond_func->argument_count() == 2,
                     cond_func->arguments()+1, cond_func->argument_count()-1,
                     usable_tables);
     break;
