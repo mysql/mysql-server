@@ -110,7 +110,8 @@ int mysql_update(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege=want_privilege;
 #endif
-  if (setup_fields(thd, 0, update_table_list, fields, 1, 0, 0))
+  if (setup_fields(thd, 0, update_table_list, fields, 1, 0, 0) ||
+      setup_fields(thd, 0, update_table_list, values, 1, 0, 0))
     DBUG_RETURN(-1);				/* purecov: inspected */
   if (table->timestamp_field)
   {
