@@ -201,3 +201,4 @@
 "Unknown system variable '%-.64'",
 "Table '%-.64s' is marked as crashed and should be repaired",
 "Table '%-.64s' is marked as crashed and last (automatic?) repair failed",
+"Warning:  Some non-transactional changed tables couldn't be rolled back",

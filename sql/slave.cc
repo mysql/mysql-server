@@ -548,8 +548,7 @@ static int init_slave_thread(THD* thd)
   thd->master_access= ~0;
   thd->priv_user = 0;
   thd->slave_thread = 1;
-  thd->options = (((opt_log_slave_updates) ? OPTION_BIN_LOG:0)
-    | OPTION_AUTO_COMMIT | OPTION_AUTO_IS_NULL) ;
+  thd->options = (((opt_log_slave_updates) ? OPTION_BIN_LOG:0) | OPTION_AUTO_IS_NULL) ;
   thd->system_thread = 1;
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   slave_real_id=thd->real_id=pthread_self();

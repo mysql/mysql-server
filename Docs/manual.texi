@@ -243,7 +243,7 @@ Installing a MySQL Source Distribution
 
 Perl Installation Comments
 
-* Perl installation::           Installing Perl on UNIX
+* Perl installation::           Installing Perl on Unix
 * ActiveState Perl::            Installing ActiveState Perl on Windows
 * Windows Perl::                Installing the @strong{MySQL} Perl distribution on Windows
 * Perl support problems::       Problems using the Perl @code{DBI}/@code{DBD} interface
@@ -297,7 +297,7 @@ Windows Notes
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
 * Windows and BDB tables.::     Windows and BDB Tables
-* Windows vs Unix::             @strong{MySQL}-Windows compared to UNIX @strong{MySQL}
+* Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 
 Post-installation Setup and Testing
 
@@ -454,7 +454,7 @@ Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 
 * Silent column changes::       Silent column changes
 
-@code{SHOW} syntax (Get information about tables, columns,...)
+@code{SHOW} Syntax (Get Information About Tables, Columns,...)
 
 * SHOW DATABASE INFO::          
 * SHOW TABLE STATUS::           
@@ -464,7 +464,7 @@ Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 * SHOW GRANTS::                 
 * SHOW CREATE TABLE::           
 
-MySQL table types
+MySQL Table Types
 
 * MyISAM::                      MyISAM tables
 * MERGE::                       MERGE tables
@@ -472,18 +472,18 @@ MySQL table types
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
 
-MyISAM tables
+MyISAM Tables
 
 * Key space::                   Space needed for keys
 * MyISAM table formats::        MyISAM table formats
 
-MyISAM table formats
+MyISAM Table Formats
 
 * Static format::               Static (Fixed-length) table characteristics
 * Dynamic format::              Dynamic table characteristics
 * Compressed format::           Compressed table characteristics
 
-BDB or Berkeley_db tables
+BDB or Berkeley_db Tables
 
 * BDB overview::                
 * BDB install::                 
@@ -503,7 +503,7 @@ MySQL Tutorial
 * Batch mode::                  Using @code{mysql} in batch mode
 * Twin::                        Queries from twin project
 
-Examples of common queries
+Examples of Common Queries
 
 * example-Maximum-column::      The maximum value for a column
 * example-Maximum-row::         The row holding the maximum of a certain column
@@ -512,7 +512,7 @@ Examples of common queries
 * example-user-variables::      
 * example-Foreign keys::        Using foreign keys
 
-Creating and using a database
+Creating and Using a Database
 
 * Creating database::           Creating a database
 * Creating tables::             Creating a table
@@ -520,7 +520,7 @@ Creating and using a database
 * Retrieving data::             Retrieving information from a table
 * Multiple tables::             Using more than one table
 
-Retrieving information from a table
+Retrieving Information from a Table
 
 * Selecting all::               Selecting all data
 * Selecting rows::              Selecting particular rows
@@ -531,7 +531,7 @@ Retrieving information from a table
 * Pattern matching::            Pattern matching
 * Counting rows::               Counting rows
 
-Queries from twin project
+Queries from Twin Project
 
 * Twin pool::                   Find all non-distributed twins
 * Twin event::                  Show a table on twin pair status
@@ -541,7 +541,7 @@ MySQL server functions
 * Languages::                   What languages are supported by @strong{MySQL}?
 * Table size::                  How big @strong{MySQL} tables can be
 
-What languages are supported by MySQL?
+What Languages Are Supported by MySQL?
 
 * Character sets::              The character set used for data and sorting
 * Adding character set::        Adding a new character set
@@ -558,7 +558,7 @@ Replication in MySQL
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
 
-Getting maximum performance from MySQL
+Getting Maximum Performance from MySQL
 
 * Optimize Basics::             Optimization overview
 * System::                      System/Compile time and startup parameter tuning
@@ -572,7 +572,7 @@ Getting maximum performance from MySQL
 * Portability::                 Portability
 * Internal use::                What have we used MySQL for?
 
-System/Compile time and startup parameter tuning
+System/Compile Time and Startup Parameter Tuning
 
 * Compile and link options::    How compiling and linking affects the speed of MySQL
 * Disk issues::                 Disk issues
@@ -831,6 +831,7 @@ MySQL change history
 
 Changes in release 3.23.x  (Recommended; beta)
 
+* News-3.23.29::                Changes in release 3.23.29
 * News-3.23.28::                Changes in release 3.23.28
 * News-3.23.27::                Changes in release 3.23.27
 * News-3.23.26::                Changes in release 3.23.26
@@ -15573,7 +15574,7 @@ mysql> select ATAN(-2);
 @end example
 
 @findex ATAN2()
-@item ATAN2(X,Y)
+@item ATAN2(Y,X)
 Returns the arc tangent of the two variables @code{X} and @code{Y}. It is
 similar to calculating the arc tangent of @code{Y / X}, except that the
 signs of both arguments are used to determine the quadrant of the
@@ -17701,7 +17702,7 @@ using @code{myisampack}. @xref{Compressed format}.
 @section @code{ALTER TABLE} Syntax
 
 @example
-ALTER [IGNORE] TABLE tbl_name alter_spec [, alter_spec ...] [ORDER BY col]
+ALTER [IGNORE] TABLE tbl_name alter_spec [, alter_spec ...]
 
 alter_specification:
         ADD [COLUMN] create_definition [FIRST | AFTER column_name ]
@@ -17719,6 +17720,7 @@ alter_specification:
   or    DROP PRIMARY KEY
   or    DROP INDEX index_name
   or    RENAME [TO] new_tbl_name
+  or    ORDER BY col
   or    table_options
 @end example
 
@@ -17859,9 +17861,12 @@ if no @code{PRIMARY KEY} was specified explicitly.)
 @item
 @code{ORDER BY} allows you to create the new table with the rows in a
 specific order.  Note that the table will not remain in this order after
-inserts and deletes.  In some cases, it may make sorting easier for 
+inserts and deletes.  In some cases, it may make sorting easier for
 @strong{MySQL} if the table is in order by the column that you wish to
-order it by later.
+order it by later.  This option is mainly useful when you know that you
+are mostly going to query the rows in a certain order; By using this
+option after big changes to the table, you may be able to get higher
+performance.
 
 @findex ALTER TABLE
 @item
@@ -17991,7 +17996,7 @@ to the original state.
 @section @code{DROP TABLE} Syntax
 
 @example
-DROP TABLE [IF EXISTS] tbl_name [, tbl_name,...]
+DROP TABLE [IF EXISTS] tbl_name [, tbl_name,...] [RESTRICT | CASCADE]
 @end example
 
 @code{DROP TABLE} removes one or more tables. All table data and the table
@@ -18000,6 +18005,9 @@ definition are @emph{removed}, so @strong{be careful} with this command!
 In @strong{MySQL} Version 3.22 or later, you can use the keywords
 @code{IF EXISTS} to prevent an error from occurring for tables that don't
 exist.
+
+@code{RESTRICT} and @code{CASCADE} are allowed to make porting easier.
+For the moment they don't do anything.
 
 @findex OPTIMIZE TABLE
 @node OPTIMIZE TABLE, CHECK TABLE, DROP TABLE, Reference
@@ -20754,6 +20762,11 @@ COMMIT;
 
 Note that if you are using non-transaction-safe tables, the changes will be
 stored at once, independent of the status of the @code{autocommit} mode.
+
+If you do a @code{ROLLBACK} when you have updated a non-transactional
+table you will get an error (@code{ER_WARNING_NOT_COMPLETE_ROLLBACK}) as
+a warning.  All transactional safe tables will be restored but any
+non-transactional table will not change.
 
 @findex LOCK TABLES
 @findex UNLOCK TABLES
@@ -27240,6 +27253,10 @@ rows at the same time another table is reading from it.  If this is important
 for you, you should consider methods where you don't have to delete rows
 or run @code{OPTIMIZE TABLE} after you have deleted a lot of rows.
 @item
+Use @code{ALTER TABLE ... ORDER BY expr1,expr2...} if you mostly
+retrieve rows in expr1,expr2.. order.  By using this option after big
+changes to the table, you may be able to get higher performance.
+@item
 In some cases it may make sense to introduce a column that is 'hashed'
 based on information from other columns. If this column is short and
 reasonably unique it may be much faster than a big index on many
@@ -32980,6 +32997,9 @@ contain a path, the file is written in the data directory.
 
 The slow query log can be used to find queries that takes a long time to
 execute and are thus candidates for optimization.
+
+You are using @code{--log-long-format} then also queries that are not
+using indexes are printed. @xref{Command-line options}.
 
 @cindex database replication
 @cindex replication, database
@@ -38778,6 +38798,7 @@ version.  The replication and BerkeleyDB code is still under development,
 though, so Version 3.23 is not released as a stable version yet.
 
 @menu
+* News-3.23.29::                Changes in release 3.23.29
 * News-3.23.28::                Changes in release 3.23.28
 * News-3.23.27::                Changes in release 3.23.27
 * News-3.23.26::                Changes in release 3.23.26
@@ -38809,7 +38830,25 @@ though, so Version 3.23 is not released as a stable version yet.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.28, News-3.23.27, News-3.23.x, News-3.23.x
+@node News-3.23.29, News-3.23.28, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.29
+@itemize @bullet
+@item
+Changed crash-me and the MySQL benchmarks to also work with FrontBase.
+@item
+Allow @code{RESTRICT} and @code{CASCADE} after @code{DROP TABLE} to make
+porting easier.
+@item
+If we get an error we now only rollback the statement (for BDB tables),
+not the whole transaction.
+@item
+If you do a @code{ROLLBACK} when you have updated a non-transactional table
+you will get an error as a warning.
+@item
+Reset status variable which could cause problem if one used @code{--slow-log}.
+@end itemize
+
+@node News-3.23.28, News-3.23.27, News-3.23.29, News-3.23.x
 @appendixsubsec Changes in release 3.23.28
 @itemize @bullet
 @item

@@ -1943,7 +1943,7 @@ opt_into:
 */
 
 drop:
-	DROP TABLE_SYM if_exists table_list
+	DROP TABLE_SYM if_exists table_list opt_restrict
 	{
 	  Lex->sql_command = SQLCOM_DROP_TABLE;
 	  Lex->drop_if_exists = $3;
@@ -2573,6 +2573,13 @@ option_value:
 	  else
 	    Lex->options|= $1;
 	}
+	| AUTOCOMMIT equal NUM
+	{
+	  if (atoi($3.str) != 0)	/* Test NOT AUTOCOMMIT */
+	    Lex->options&= ~(OPTION_NOT_AUTO_COMMIT);
+	  else
+	    Lex->options|= OPTION_NOT_AUTO_COMMIT;
+	}
 	| SQL_SELECT_LIMIT equal ULONG_NUM
 	{
 	  Lex->select_limit= $3;
@@ -2656,7 +2663,6 @@ text_or_password:
 
 set_option:
 	SQL_BIG_TABLES		{ $$= OPTION_BIG_TABLES; }
-	| AUTOCOMMIT		{ $$= OPTION_AUTO_COMMIT; }
 	| SQL_BIG_SELECTS	{ $$= OPTION_BIG_SELECTS; }
 	| SQL_LOG_OFF		{ $$= OPTION_LOG_OFF; }
 	| SQL_LOG_UPDATE

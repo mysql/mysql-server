@@ -174,78 +174,83 @@ int ha_panic(enum ha_panic_function flag)
 } /* ha_panic */
 
 
+/*
+  This is used to commit or rollback a single statement depending
+  on the value of error
+*/
+
 int ha_autocommit_or_rollback(THD *thd, int error)
 {
   DBUG_ENTER("ha_autocommit_or_rollback");
-#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB)
-  if ((thd->options & OPTION_AUTO_COMMIT) && !(thd->options & OPTION_BEGIN)
-      && !thd->locked_tables)
+#ifdef USING_TRANSACTIONS
+  if (!(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)) &&
+      !thd->locked_tables)
   {
     if (!error)
     {
-      if (ha_commit(thd))
+      if (ha_commit_stmt(thd))
 	error=1;
-    }	
+    }
     else
-      (void) ha_rollback(thd);
+      (void) ha_rollback_stmt(thd);
   }
 #endif
   DBUG_RETURN(error);
 }
 
-int ha_commit(THD *thd)
+
+int ha_commit_trans(THD *thd, THD_TRANS* trans)
 {
   int error=0;
   DBUG_ENTER("ha_commit");
 #ifdef HAVE_BERKELEY_DB
-  if (thd->transaction.bdb_tid)
+  if (trans->bdb_tid)
   {
-    int error=berkeley_commit(thd);
-    if (error)
+    if ((error=berkeley_commit(thd,trans->bdb_tid)))
     {
       my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
       error=1;
     }
+    trans->bdb_tid=0;
   }
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (thd->transaction.innobase_tid)
   {
-    int error=innobase_commit(thd);
-    if (error)
+    if ((error=innobase_commit(thd,trans->innobase_tid))
     {
       my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
       error=1;
     }
+    trans->innobase_tid=0;
   }
 #endif
   DBUG_RETURN(error);
 }
 
-int ha_rollback(THD *thd)
+int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 {
   int error=0;
   DBUG_ENTER("ha_rollback");
 #ifdef HAVE_BERKELEY_DB
-  if (thd->transaction.bdb_tid)
+  if (trans->bdb_tid)
   {
-    int error=berkeley_rollback(thd);
-    if (error)
+    if ((error=berkeley_rollback(thd, trans->bdb_tid)))
     {
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
       error=1;
     }
+    trans->bdb_tid=0;
   }
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (thd->transaction.innobase_tid)
+  if (trans->innobase_tid)
   {
-    int error=innobase_rollback(thd);
-    if (error)
+    if ((error=innobase_rollback(thd)))
     {
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
       error=1;
     }
+    trans->innobase_tid=0;
   }
 #endif
   DBUG_RETURN(error);

@@ -57,7 +57,7 @@ if (!$opt_skip_create)
     my $array_ref = $tables[$ti];
 
     # This may fail if we have no table so do not check answer
-    $sth = $dbh->do("drop table $table_name");
+    $sth = $dbh->do("drop table $table_name" . $server->{'drop_attr'});
     print "Creating table $table_name\n" if ($opt_verbose);
     do_many($dbh,@$array_ref);
   }
@@ -201,7 +201,7 @@ if (!$opt_skip_delete)
   for ($ti = 0; $ti <= $#table_names; $ti++)
   {
     my $table_name = $table_names[$ti];
-    $sth = $dbh->do("drop table $table_name");
+    $sth = $dbh->do("drop table $table_name" . $server->{'drop_attr'});
   }
 }
 

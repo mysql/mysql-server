@@ -53,7 +53,7 @@ print "All tests are done $opt_loop_count times with $opt_field_count fields\n\n
 $dbh = $server->connect();
 print "Testing table with $opt_field_count fields\n";
 
-$sth = $dbh->do("drop table bench1");
+$sth = $dbh->do("drop table bench1" . $server->{'drop_attr'});
 
 my @fields=();
 my @index=();
@@ -81,10 +81,14 @@ test_query("Testing select * from table with 1 record",
 	   "select * from bench1",
 	   $dbh,$opt_loop_count);
 
-test_query("Testing select all_fields from table with 1 record",
-	   "Time to select_many_fields",
-	   "select $fields from bench1",
-	   $dbh,$opt_loop_count);
+
+if ($limits->{'working_all_fields'})
+{
+  test_query("Testing select all_fields from table with 1 record",
+	     "Time to select_many_fields",
+	     "select $fields from bench1",
+	     $dbh,$opt_loop_count);
+}
 
 test_query("Testing insert VALUES()",
 	   "Time to insert_many_fields",
@@ -101,7 +105,7 @@ test_command("Testing insert (all_fields) VALUES()",
 	     "insert into bench1 ($fields) values($values)",
 	     $dbh,$opt_loop_count);
 
-$sth = $dbh->do("drop table bench1") or die $DBI::errstr;
+$sth = $dbh->do("drop table bench1" . $server->{'drop_attr'}) or die $DBI::errstr;
 
 if ($opt_fast && defined($server->{vacuum}))
 {

@@ -34,7 +34,7 @@ int generate_table(THD *thd, TABLE_LIST *table_list,
 
   thd->proc_info="generate_table";
 
-  if(global_read_lock)
+  if (global_read_lock)
   {
     if(thd->global_read_lock)
     {
@@ -141,8 +141,8 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   use_generate_table= (!using_limit && !conds &&
 		       !(specialflag &
 			 (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
-		       (thd->options & OPTION_AUTO_COMMIT) &&
-                       !(thd->options & OPTION_BEGIN));
+		       !(thd->options &
+			 (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)));
   if (use_generate_table && ! thd->open_tables)
   {
     error=generate_table(thd,table_list,(TABLE*) 0);
@@ -175,7 +175,7 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   /* If running in safe sql mode, don't allow updates without keys */
   if (!table->quick_keys)
   {
-    thd->lex.options|=OPTION_NO_INDEX_USED;
+    thd->lex.options|=QUERY_NO_INDEX_USED;
     if ((thd->options & OPTION_SAFE_UPDATES) && limit == HA_POS_ERROR)
     {
       delete select;
@@ -223,6 +223,8 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
       Query_log_event qinfo(thd, thd->query);
       mysql_bin_log.write(&qinfo);
     }
+    if (!table->file->has_transactions())
+      thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
   if (ha_autocommit_or_rollback(thd,error >= 0))
     error=1;
