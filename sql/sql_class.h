@@ -625,6 +625,12 @@ public:
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
   int send_explain_fields(select_result *result);
+  inline void clear_error()
+  {
+    net.last_error[0]= 0;
+    net.last_errno= 0;
+    net.report_error= 0;
+  }
 };
 
 /*

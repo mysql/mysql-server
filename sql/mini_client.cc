@@ -451,6 +451,7 @@ mc_simple_command(MYSQL *mysql,enum enum_server_command command,
 
   mysql->net.last_error[0]=0;
   mysql->net.last_errno=0;
+  mysql->net.report_error=0;
   mysql->info=0;
   mysql->affected_rows= ~(my_ulonglong) 0;
   net_clear(net);			/* Clear receive buffer */
