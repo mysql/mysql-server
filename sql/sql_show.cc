@@ -2551,10 +2551,10 @@ int fill_schema_charsets(THD *thd, TABLE_LIST *tables, COND *cond)
     {
       restore_record(table, default_values);
       table->field[0]->store(tmp_cs->csname, strlen(tmp_cs->csname), scs);
-      table->field[1]->store(tmp_cs->comment ? tmp_cs->comment : "",
+      table->field[1]->store(tmp_cs->name, strlen(tmp_cs->name), scs);
+      table->field[2]->store(tmp_cs->comment ? tmp_cs->comment : "",
 			     strlen(tmp_cs->comment ? tmp_cs->comment : ""),
                              scs);
-      table->field[2]->store(tmp_cs->name, strlen(tmp_cs->name), scs);
       table->field[3]->store((longlong) tmp_cs->mbmaxlen);
       table->file->write_row(table->record[0]);
     }
@@ -3216,6 +3216,28 @@ int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 }
 
 
+int make_character_sets_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+{
+  int fields_arr[]= {0, 2, 1, 3, -1};
+  int *field_num= fields_arr;
+  ST_FIELD_INFO *field_info;
+  for (; *field_num >= 0; field_num++)
+  {
+    field_info= &schema_table->fields_info[*field_num];
+    Item_field *field= new Item_field(NullS, NullS, field_info->field_name);
+    if (field)
+    {
+      field->set_name(field_info->old_name,
+                      strlen(field_info->old_name),
+                      system_charset_info);
+      if (add_item_to_list(thd, field))
+        return 1;
+    }
+  }
+  return 0;
+}
+
+
 int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   int fields_arr[]= {2, 3, 4, 19, 16, 15, 14, 18, -1};
@@ -3439,8 +3461,8 @@ ST_FIELD_INFO columns_fields_info[]=
 ST_FIELD_INFO charsets_fields_info[]=
 {
   {"CHARACTER_SET_NAME", 30, MYSQL_TYPE_STRING, 0, 0, "Charset"},
-  {"DESCRIPTION", 60, MYSQL_TYPE_STRING, 0, 0, "Description"},
   {"DEFAULT_COLLATE_NAME", 60, MYSQL_TYPE_STRING, 0, 0, "Default collation"},
+  {"DESCRIPTION", 60, MYSQL_TYPE_STRING, 0, 0, "Description"},
   {"MAXLEN", 3 ,MYSQL_TYPE_LONG, 0, 0, "Maxlen"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
@@ -3621,7 +3643,7 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"COLUMNS", columns_fields_info, create_schema_table, 
    get_all_tables, make_columns_old_format, get_schema_column_record, 1, 2},
   {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-   fill_schema_charsets, make_old_format, 0, -1, -1},
+   fill_schema_charsets, make_character_sets_old_format, 0, -1, -1},
   {"COLLATIONS", collation_fields_info, create_schema_table, 
    fill_schema_collation, make_old_format, 0, -1, -1},
   {"COLLATION_CHARACTER_SET_APPLICABILITY", coll_charset_app_fields_info,
