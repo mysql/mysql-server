@@ -1573,7 +1573,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_access(thd,CREATE_ACL,db,0,1,0))
 	break;
       mysql_log.write(thd,command,packet);
-      mysql_create_db(thd,(lower_case_table_names == 2 ? alias : db),0,0);
+      if (mysql_create_db(thd, (lower_case_table_names == 2 ? alias : db),
+                          0, 0) < 0)
+        send_error(&thd->net, thd->killed ? ER_SERVER_SHUTDOWN : 0);
       break;
     }
   case COM_DROP_DB:				// QQ: To be removed
@@ -1594,7 +1596,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       mysql_log.write(thd,command,db);
-      mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db), 0, 0);
+      if (mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db),
+                      0, 0) < 0)
+        send_error(&thd->net, thd->killed ? ER_SERVER_SHUTDOWN : 0);
       break;
     }
 #ifndef EMBEDDED_LIBRARY
@@ -1862,8 +1866,8 @@ mysql_execute_command(THD *thd)
 {
   int	res= 0;
   LEX	*lex= thd->lex;
-  TABLE_LIST *tables= (TABLE_LIST*) lex->select_lex.table_list.first;
   SELECT_LEX *select_lex= &lex->select_lex;
+  TABLE_LIST *tables= (TABLE_LIST*) select_lex->table_list.first;
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
 
@@ -2333,30 +2337,6 @@ mysql_execute_command(THD *thd)
     {
       select_result *result;
 
-      if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-	  find_real_table_in_list(tables, create_table->db,
-				  create_table->real_name))
-      {
-	net_printf(thd,ER_UPDATE_TABLE_USED, create_table->real_name);
-	goto create_error;
-      }
-      if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
-      {
-        TABLE_LIST *tab;
-        for (tab= tables; tab; tab= tab->next)
-        {
-          if (find_real_table_in_list((TABLE_LIST*) lex->create_info.
-                                      merge_list.first,
-                                      tables->db, tab->real_name))
-          {
-            net_printf(thd, ER_UPDATE_TABLE_USED, tab->real_name);
-            goto create_error;
-          }
-        }  
-      }    
-
-      if (tables && check_table_access(thd, SELECT_ACL, tables,0))
-	goto create_error;			// Error message is given
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->offset_limit_cnt= select_lex->offset_limit;
       unit->select_limit_cnt= select_lex->select_limit+
@@ -5282,7 +5262,7 @@ int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
   INSERT ... SELECT query pre-check
 
   SYNOPSIS
-    multi_delete_precheck()
+    insert_delete_precheck()
     thd		Thread handler
     tables	Global table list
 
@@ -5404,26 +5384,69 @@ int insert_precheck(THD *thd, TABLE_LIST *tables)
   RETURN VALUE
     0   OK
     1   Error (message is sent to user)
-    -1  Error (message is not sent to user)
 */
 
 int create_table_precheck(THD *thd, TABLE_LIST *tables,
 			  TABLE_LIST *create_table)
 {
   LEX *lex= thd->lex;
+  SELECT_LEX *select_lex= &lex->select_lex;
+  ulong want_priv;
+  int error= 1;                                 // Error message is given
   DBUG_ENTER("create_table_precheck");
-  ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
-		    CREATE_TMP_ACL : CREATE_ACL);
+
+  want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
+              CREATE_TMP_ACL : CREATE_ACL);
   lex->create_info.alias= create_table->alias;
   if (check_access(thd, want_priv, create_table->db,
 		   &create_table->grant.privilege, 0, 0) ||
       check_merge_table_access(thd, create_table->db,
 			       (TABLE_LIST *)
 			       lex->create_info.merge_list.first))
-    DBUG_RETURN(1);
-  DBUG_RETURN((grant_option && want_priv != CREATE_TMP_ACL &&
-	       check_grant(thd, want_priv, create_table, 0, UINT_MAX, 0)) ?
-	      1 : 0);
+    goto err;
+  if (grant_option && want_priv != CREATE_TMP_ACL &&
+      check_grant(thd, want_priv, create_table, 0, UINT_MAX, 0))
+    goto err;
+
+  if (select_lex->item_list.elements)
+  {
+    /* Check permissions for used tables in CREATE TABLE ... SELECT */
+
+    /*
+      For temporary tables or PREPARED STATEMETNS we don't have to check
+      if the created table exists
+    */
+    if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+        ! thd->current_arena->is_stmt_prepare() &&
+        find_real_table_in_list(tables, create_table->db,
+                                create_table->real_name))
+    {
+      net_printf(thd,ER_UPDATE_TABLE_USED, create_table->real_name);
+
+      goto err;
+    }
+    if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
+    {
+      TABLE_LIST *tab;
+      for (tab= tables; tab; tab= tab->next)
+      {
+        if (find_real_table_in_list((TABLE_LIST*) lex->create_info.
+                                    merge_list.first,
+                                    tables->db, tab->real_name))
+        {
+          net_printf(thd, ER_UPDATE_TABLE_USED, tab->real_name);
+          goto err;
+        }
+      }  
+    }    
+
+    if (tables && check_table_access(thd, SELECT_ACL, tables,0))
+      goto err;
+  }
+  error= 0;
+
+err:
+  DBUG_RETURN(error);
 }
 
 

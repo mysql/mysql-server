@@ -1391,7 +1391,6 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
       lex->unit.create_total_list(thd, lex, &tables))
     DBUG_RETURN(1);
 
-  
   switch (sql_command) {
   case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
