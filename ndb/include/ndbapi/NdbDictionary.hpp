@@ -166,7 +166,7 @@ public:
      * The builtin column types
      */
     enum Type {
-      Undefined=0,///< Undefined 
+      Undefined=0,   ///< Undefined 
       Tinyint,       ///< 8 bit. 1 byte signed integer, can be used in array
       Tinyunsigned,  ///< 8 bit. 1 byte unsigned integer, can be used in array
       Smallint,      ///< 16 bit. 2 byte signed integer, can be used in array
@@ -374,16 +374,11 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const Table * getBlobTable() const;
 
-    /** 
-     * @name ODBC Specific methods 
-     * @{
-     */
-    void setAutoIncrement(bool);         
+    void setAutoIncrement(bool);
     bool getAutoIncrement() const;
     void setAutoIncrementInitialValue(Uint64 val);
     void setDefaultValue(const char*);   
     const char* getDefaultValue() const;
-    /** @} *******************************************************************/
 
     static const Column * FRAGMENT;
     static const Column * ROW_COUNT;
