@@ -46,8 +46,8 @@ the following commands in a terminal window:
   sudo ./bin/mysqld_safe
   (Enter your password)
   (Press CTRL+Z)
-  (Press CTRL+D to exit the shell)
   bg
+  (Press CTRL+D to exit the shell)
 
 You should now be able to connect to the MySQL server,
 e.g. by running /usr/local/mysql/bin/mysql
