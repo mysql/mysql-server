@@ -1,11 +1,9 @@
 #
 # Basic stored PROCEDURE tests
 #
-#
-
-# Let us reset binary logs in order to make show master status 
-# in test for bug 4902 repeatable.
-reset master;
+# Please keep this file free of --error cases and other
+# things that will not run in a single debugged mysqld
+# process (e.g. master-slave things).
 
 use test;
 
@@ -470,10 +468,10 @@ drop procedure i|
 
 # The non-standard GOTO, for compatibility
 #
-# QQQ The "label" syntax is temporary.
-# QQQ This is no nearly enough, more tests are needed
+# QQQ The "label" syntax is temporary, it will (hopefully)
+#     change to the more common "L:" syntax soon.
 #
-create procedure j()
+create procedure goto1()
 begin
   declare y int;
 
@@ -488,12 +486,11 @@ label a;
 label b;
 end|
 
-call j()|
-
-drop procedure j|
+call goto1()|
+drop procedure goto1|
 
 # With dummy handlers, just to test restore of contexts with jumps
-create procedure k(a int)
+create procedure goto2(a int)
 begin
   declare x int default 0;
   declare continue handler for sqlstate '42S98' set x = 1;
@@ -520,12 +517,69 @@ b:
   select * from t1;
 end|
 
-call k(0)|
-call k(1)|
-call k(2)|
+call goto2(0)|
+call goto2(1)|
+call goto2(2)|
 
-drop procedure k|
+drop procedure goto2|
 delete from t1|
+
+# Check label visibility for some more cases. We don't call these.
+create procedure goto3()
+begin
+ label L1;
+   begin
+   end;
+ goto L1;
+end|
+drop procedure goto3|
+
+create procedure goto4()
+begin
+  begin
+   label lab1;
+    begin
+      goto lab1;
+    end;
+  end;
+end|
+drop procedure goto4|
+
+create procedure goto5()
+begin
+  begin
+    begin
+      goto lab1;
+    end;
+   label lab1;
+  end;
+end|
+drop procedure goto5|
+
+create procedure goto6()
+begin
+  label L1;
+  goto L5;
+  begin
+    label L2;
+    goto L1;
+    goto L5;
+    begin
+      label L3;
+      goto L1;
+      goto L2;
+      goto L3;
+      goto L4;
+      goto L5;
+    end;
+    goto L2;
+    goto L4;
+    label L4;
+  end;
+  label L5;
+  goto L1;
+end|
+drop procedure goto6|
 
 # SELECT with one of more result set sent back to the clinet
 insert into t1 values ("foo", 3), ("bar", 19)|
@@ -1761,11 +1815,8 @@ begin
   show columns from t1;
   show grants for 'root'@'localhost';
   show keys from t1;
-  show master status;
   show open tables like 'foo';
   show privileges;
-  show slave hosts;
-  show slave status;
   show status like 'foo';
   show tables like 'foo';
   show variables like 'foo';
@@ -1773,6 +1824,9 @@ begin
 end|
 #show binlog events;
 #show storage engines;
+#show master status;
+#show slave hosts;
+#show slave status;
 
 call bug4902()|
 call bug4902()|
