@@ -1169,7 +1169,6 @@ create:
 	    LEX *lex= Lex;
 
 	    lex->sphead->m_param_end= lex->tok_start;
-	    lex->spcont->set_params();
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
 	  }
 	  sp_c_chistics
@@ -1258,7 +1257,6 @@ create_function_tail:
 	  {
 	    LEX *lex= Lex;
 
-	    lex->spcont->set_params();
 	    lex->sphead->m_param_end= lex->tok_start;
 	  }
 	  RETURNS_SYM
@@ -1470,25 +1468,28 @@ sp_decl:
 	  DECLARE_SYM sp_decl_idents type sp_opt_default
 	  {
 	    LEX *lex= Lex;
-	    uint max= lex->spcont->current_framesize();
+	    sp_pcontext *ctx= lex->spcont;
+	    uint max= ctx->context_pvars();
 	    enum enum_field_types type= (enum enum_field_types)$3;
 	    Item *it= $4;
 
 	    for (uint i = max-$2 ; i < max ; i++)
 	    {
-	      lex->spcont->set_type(i, type);
+	      ctx->set_type(i, type);
 	      if (! it)
-	        lex->spcont->set_isset(i, FALSE);
+	        ctx->set_isset(i, FALSE);
 	      else
 	      {
 	        sp_instr_set *in= new sp_instr_set(lex->sphead->instructions(),
-	                                           i, it, type);
+	                                           ctx,
+						   ctx->pvar_context2index(i),
+						   it, type);
 
 		in->tables= lex->query_tables;
 		lex->query_tables= 0;
 	        lex->sphead->add_instr(in);
-	        lex->spcont->set_isset(i, TRUE);
-		lex->spcont->set_default(i, it);
+	        ctx->set_isset(i, TRUE);
+		ctx->set_default(i, it);
 	      }
 	    }
 	    $$.vars= $2;
@@ -1514,30 +1515,33 @@ sp_decl:
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= lex->spcont;
 	    sp_instr_hpush_jump *i=
-              new sp_instr_hpush_jump(sp->instructions(), $2,
-	                              ctx->current_framesize());
+              new sp_instr_hpush_jump(sp->instructions(), ctx, $2,
+	                              ctx->current_pvars());
 
 	    sp->add_instr(i);
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
 	    ctx->add_handler();
+	    sp->m_in_handler= TRUE;
 	  }
 	  sp_hcond_list sp_proc_stmt
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
+	    sp_pcontext *ctx= lex->spcont;
 	    sp_label_t *hlab= lex->spcont->pop_label(); /* After this hdlr */
 
 	    if ($2 == SP_HANDLER_CONTINUE)
-	      sp->add_instr(new sp_instr_hreturn(sp->instructions(),
-	                                         lex->spcont->current_framesize()));
+	      sp->add_instr(new sp_instr_hreturn(sp->instructions(), ctx,
+	                                         ctx->current_pvars()));
 	    else
 	    {  /* EXIT or UNDO handler, just jump to the end of the block */
-	      sp_instr_jump *i= new sp_instr_jump(sp->instructions());
+	      sp_instr_jump *i= new sp_instr_jump(sp->instructions(), ctx);
 
 	      sp->add_instr(i);
 	      sp->push_backpatch(i, lex->spcont->last_label()); /* Block end */
 	    }
 	    lex->sphead->backpatch(hlab);
+	    sp->m_in_handler= FALSE;
 	    $$.vars= $$.conds= $$.curs= 0;
 	    $$.hndlrs= $6;
 	  }
@@ -1545,19 +1549,19 @@ sp_decl:
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
-	    sp_pcontext *spc= lex->spcont;
+	    sp_pcontext *ctx= lex->spcont;
 	    uint offp;
 	    sp_instr_cpush *i;
 
-	    if (spc->find_cursor(&$2, &offp, TRUE))
+	    if (ctx->find_cursor(&$2, &offp, TRUE))
 	    {
 	      net_printf(YYTHD, ER_SP_DUP_CURS, $2.str);
 	      delete $5;
 	      YYABORT;
 	    }
-            i= new sp_instr_cpush(sp->instructions(), $5);
+            i= new sp_instr_cpush(sp->instructions(), ctx, $5);
 	    sp->add_instr(i);
-	    lex->spcont->push_cursor(&$2);
+	    ctx->push_cursor(&$2);
 	    $$.vars= $$.conds= $$.hndlrs= 0;
 	    $$.curs= 1;
 	  }
@@ -1748,7 +1752,8 @@ sp_proc_stmt:
 	      }
 	      else
 	      {
-		sp_instr_stmt *i=new sp_instr_stmt(lex->sphead->instructions());
+		sp_instr_stmt *i=new sp_instr_stmt(lex->sphead->instructions(),
+						   lex->spcont);
 
 		i->set_lex(lex);
 		lex->sphead->add_instr(i);
@@ -1776,6 +1781,7 @@ sp_proc_stmt:
 	        YYABORT;
 	      }
 	      i= new sp_instr_freturn(lex->sphead->instructions(),
+				      lex->spcont,
 		                      $2, lex->sphead->m_returns);
 	      lex->sphead->add_instr(i);
 	      lex->sphead->m_has_return= TRUE;
@@ -1794,8 +1800,9 @@ sp_proc_stmt:
 	       at the same frame level, so we then know that it's the
 	       top-most variable in the frame. */
 	    LEX *lex= Lex;
-	    uint offset= lex->spcont->current_framesize();
+	    uint offset= lex->spcont->current_pvars();
 	    sp_instr_set *i = new sp_instr_set(lex->sphead->instructions(),
+					       lex->spcont,
 	                                       offset, $2, MYSQL_TYPE_STRING);
 	    LEX_STRING dummy;
 
@@ -1839,19 +1846,17 @@ sp_proc_stmt:
 	    else
 	    {
 	      uint ip= sp->instructions();
-	      sp_scope_t sdiff;
 	      sp_instr_jump *i;
 	      sp_instr_hpop *ih;
 	      sp_instr_cpop *ic;
 
-	      ctx->diff_scopes(0, &sdiff);
-	      ih= new sp_instr_hpop(ip++, sdiff.hndlrs);
+	      ih= new sp_instr_hpop(ip++, ctx, 0);
 	      sp->push_backpatch(ih, lab);
 	      sp->add_instr(ih);
-	      ic= new sp_instr_cpop(ip++, sdiff.curs);
+	      ic= new sp_instr_cpop(ip++, ctx, 0);
 	      sp->push_backpatch(ic, lab);
 	      sp->add_instr(ic);
-	      i= new sp_instr_jump(ip);
+	      i= new sp_instr_jump(ip, ctx);
 	      sp->push_backpatch(i, lab);  /* Jumping forward */
               sp->add_instr(i);
 	    }
@@ -1872,14 +1877,15 @@ sp_proc_stmt:
 	    {
 	      sp_instr_jump *i;
 	      uint ip= sp->instructions();
-	      sp_scope_t sdiff;
+	      uint n;
 
-	      ctx->diff_scopes(lab->scopes, &sdiff);
-	      if (sdiff.hndlrs)
-	        sp->add_instr(new sp_instr_hpop(ip++, sdiff.hndlrs));
-	      if (sdiff.curs)
-	        sp->add_instr(new sp_instr_cpop(ip++, sdiff.curs));
-	      i= new sp_instr_jump(ip, lab->ip); /* Jump back */
+	      n= ctx->diff_handlers(lab->ctx);
+	      if (n)
+	        sp->add_instr(new sp_instr_hpop(ip++, ctx, n));
+	      n= ctx->diff_cursors(lab->ctx);
+	      if (n)
+	        sp->add_instr(new sp_instr_cpop(ip++, ctx, n));
+	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
               sp->add_instr(i);
 	    }
 	  }
@@ -1890,8 +1896,6 @@ sp_proc_stmt:
 	    sp_pcontext *ctx= lex->spcont;
 	    sp_label_t *lab= ctx->find_label($2.str);
 
-	    if (! lab)
-	      lab= ctx->find_glabel($2.str);
 	    if (lab)
 	    {
 	      net_printf(YYTHD, ER_SP_LABEL_REDEFINE, $2.str);
@@ -1899,9 +1903,9 @@ sp_proc_stmt:
 	    }
 	    else
 	    {
-	      lab= ctx->push_glabel($2.str, sp->instructions());
+	      lab= ctx->push_label($2.str, sp->instructions());
 	      lab->type= SP_LAB_GOTO;
-	      lab->scopes= ctx->scopes();
+	      lab->ctx= ctx;
               sp->backpatch(lab);
 	    }
 	  }
@@ -1911,48 +1915,52 @@ sp_proc_stmt:
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= lex->spcont;
 	    uint ip= lex->sphead->instructions();
-	    sp_label_t *lab= ctx->find_label($2.str);
-	    sp_scope_t sdiff;
+	    sp_label_t *lab;
 	    sp_instr_jump *i;
 	    sp_instr_hpop *ih;
 	    sp_instr_cpop *ic;
 
-	    if (! lab)
-	      lab= ctx->find_glabel($2.str);
-
+	    if (sp->m_in_handler)
+	    {
+	      send_error(lex->thd, ER_SP_GOTO_IN_HNDLR);
+	      YYABORT;
+	    }
+	    lab= ctx->find_label($2.str);
 	    if (! lab)
 	    {
 	      lab= (sp_label_t *)YYTHD->alloc(sizeof(sp_label_t));
 	      lab->name= $2.str;
 	      lab->ip= 0;
 	      lab->type= SP_LAB_REF;
-	      lab->scopes= 0;
+	      lab->ctx= ctx;
 
-	      ctx->diff_scopes(0, &sdiff);
-	      ih= new sp_instr_hpop(ip++, sdiff.hndlrs);
+	      ih= new sp_instr_hpop(ip++, ctx, 0);
 	      sp->push_backpatch(ih, lab);
 	      sp->add_instr(ih);
-	      ic= new sp_instr_cpop(ip++, sdiff.curs);
+	      ic= new sp_instr_cpop(ip++, ctx, 0);
 	      sp->add_instr(ic);
 	      sp->push_backpatch(ic, lab);
-	      i= new sp_instr_jump(ip);
+	      i= new sp_instr_jump(ip, ctx);
 	      sp->push_backpatch(i, lab);  /* Jumping forward */
 	      sp->add_instr(i);
 	    }
 	    else
 	    {
-	      ctx->diff_scopes(lab->scopes, &sdiff);
-	      if (sdiff.hndlrs)
+	      uint n;
+
+	      n= ctx->diff_handlers(lab->ctx);
+	      if (n)
 	      {
-	        ih= new sp_instr_hpop(ip++, sdiff.hndlrs);
+	        ih= new sp_instr_hpop(ip++, ctx, n);
 	        sp->add_instr(ih);
 	      }
-	      if (sdiff.curs)
+	      n= ctx->diff_cursors(lab->ctx);
+	      if (n)
 	      {
-	        ic= new sp_instr_cpop(ip++, sdiff.curs);
+	        ic= new sp_instr_cpop(ip++, ctx, n);
 	        sp->add_instr(ic);
 	      }
-	      i= new sp_instr_jump(ip, lab->ip); /* Jump back */
+	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
 	      sp->add_instr(i);
 	    }
 	  }
@@ -1968,7 +1976,7 @@ sp_proc_stmt:
 	      net_printf(YYTHD, ER_SP_CURSOR_MISMATCH, $2.str);
 	      YYABORT;
 	    }
-	    i= new sp_instr_copen(sp->instructions(), offset);
+	    i= new sp_instr_copen(sp->instructions(), lex->spcont, offset);
 	    sp->add_instr(i);
 	  }
 	| FETCH_SYM ident INTO
@@ -1983,7 +1991,7 @@ sp_proc_stmt:
 	      net_printf(YYTHD, ER_SP_CURSOR_MISMATCH, $2.str);
 	      YYABORT;
 	    }
-	    i= new sp_instr_cfetch(sp->instructions(), offset);
+	    i= new sp_instr_cfetch(sp->instructions(), lex->spcont, offset);
 	    sp->add_instr(i);
 	  }
 	  sp_fetch_list
@@ -2000,7 +2008,7 @@ sp_proc_stmt:
 	      net_printf(YYTHD, ER_SP_CURSOR_MISMATCH, $2.str);
 	      YYABORT;
 	    }
-	    i= new sp_instr_cclose(sp->instructions(), offset);
+	    i= new sp_instr_cclose(sp->instructions(), lex->spcont,  offset);
 	    sp->add_instr(i);
 	  }
 	;
@@ -2056,7 +2064,7 @@ sp_if:
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= lex->spcont;
 	    uint ip= sp->instructions();
-	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $1);
+	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, ctx, $1);
 
 	    i->tables= lex->query_tables;
 	    lex->query_tables= 0;
@@ -2068,7 +2076,7 @@ sp_if:
 	    sp_head *sp= Lex->sphead;
 	    sp_pcontext *ctx= Lex->spcont;
 	    uint ip= sp->instructions();
-	    sp_instr_jump *i = new sp_instr_jump(ip);
+	    sp_instr_jump *i = new sp_instr_jump(ip, ctx);
 
 	    sp->add_instr(i);
 	    sp->backpatch(ctx->pop_label());
@@ -2098,7 +2106,7 @@ sp_case:
 	    sp_instr_jump_if_not *i;
 
 	    if (! sp->m_simple_case)
-	      i= new sp_instr_jump_if_not(ip, $1);
+	      i= new sp_instr_jump_if_not(ip, ctx, $1);
 	    else
 	    { /* Simple case: <caseval> = <whenval> */
 	      LEX_STRING ivar;
@@ -2106,10 +2114,10 @@ sp_case:
 	      ivar.str= (char *)"_tmp_";
 	      ivar.length= 5;
 	      Item *var= (Item*) new Item_splocal(ivar, 
-						  ctx->current_framesize()-1);
+						  ctx->current_pvars()-1);
 	      Item *expr= new Item_func_eq(var, $1);
 
-	      i= new sp_instr_jump_if_not(ip, expr);
+	      i= new sp_instr_jump_if_not(ip, ctx, expr);
               lex->variables_used= 1;
 	    }
 	    sp->push_backpatch(i, ctx->push_label((char *)"", 0));
@@ -2122,7 +2130,7 @@ sp_case:
 	    sp_head *sp= Lex->sphead;
 	    sp_pcontext *ctx= Lex->spcont;
 	    uint ip= sp->instructions();
-	    sp_instr_jump *i = new sp_instr_jump(ip);
+	    sp_instr_jump *i = new sp_instr_jump(ip, ctx);
 
 	    sp->add_instr(i);
 	    sp->backpatch(ctx->pop_label());
@@ -2141,7 +2149,8 @@ sp_whens:
 	  {
 	    sp_head *sp= Lex->sphead;
 	    uint ip= sp->instructions();
-	    sp_instr_error *i= new sp_instr_error(ip, ER_SP_CASE_NOT_FOUND);
+	    sp_instr_error *i= new sp_instr_error(ip, Lex->spcont,
+						  ER_SP_CASE_NOT_FOUND);
 
 	    sp->add_instr(i);
 	  }
@@ -2166,7 +2175,6 @@ sp_labeled_control:
 	      lab= lex->spcont->push_label($1.str,
 	                                   lex->sphead->instructions());
 	      lab->type= SP_LAB_ITER;
-	      lab->scopes= ctx->scopes();
 	    }
 	  }
 	  sp_unlabeled_control sp_opt_label
@@ -2204,32 +2212,24 @@ sp_unlabeled_control:
 	    sp_label_t *lab= lex->spcont->last_label();
 
 	    lab->type= SP_LAB_BEGIN;
-	    /* Scope duplicate checking */
-	    lex->spcont->push_scope();
+	    lex->spcont= lex->spcont->push_context();
 	  }
 	  sp_decls
-	  {
-	    Lex->spcont->push_handlers($3.hndlrs);
-	  }
 	  sp_proc_stmts
 	  END
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    sp_pcontext *ctx= lex->spcont;
-	    sp_scope_t scope;
 
   	    sp->backpatch(ctx->last_label());	/* We always have a label */
-	    ctx->pop_pvar($3.vars);
-	    ctx->pop_cond($3.conds);
-	    ctx->pop_handlers($3.hndlrs);
-	    ctx->pop_cursor($3.curs);
 	    if ($3.hndlrs)
-	      sp->add_instr(new sp_instr_hpop(sp->instructions(), $3.hndlrs));
+	      sp->add_instr(new sp_instr_hpop(sp->instructions(), ctx,
+					      $3.hndlrs));
 	    if ($3.curs)
-	      sp->add_instr(new sp_instr_cpop(sp->instructions(), $3.curs));
-	    ctx->pop_scope(&scope);
-	    ctx->pop_glabel(scope.glab);
+	      sp->add_instr(new sp_instr_cpop(sp->instructions(), ctx,
+					      $3.curs));
+	    lex->spcont= ctx->pop_context();
 	  }
 	| LOOP_SYM
 	  sp_proc_stmts END LOOP_SYM
@@ -2237,7 +2237,7 @@ sp_unlabeled_control:
 	    LEX *lex= Lex;
 	    uint ip= lex->sphead->instructions();
 	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
-	    sp_instr_jump *i = new sp_instr_jump(ip, lab->ip);
+	    sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
 
 	    lex->sphead->add_instr(i);
 	  }
@@ -2246,7 +2246,8 @@ sp_unlabeled_control:
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
 	    uint ip= sp->instructions();
-	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $2);
+	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
+							       $2);
 
 	    /* Jumping forward */
 	    sp->push_backpatch(i, lex->spcont->last_label());
@@ -2259,7 +2260,7 @@ sp_unlabeled_control:
 	    LEX *lex= Lex;
 	    uint ip= lex->sphead->instructions();
 	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
-	    sp_instr_jump *i = new sp_instr_jump(ip, lab->ip);
+	    sp_instr_jump *i = new sp_instr_jump(ip, lex->spcont, lab->ip);
 
 	    lex->sphead->add_instr(i);
 	  }
@@ -2268,7 +2269,8 @@ sp_unlabeled_control:
 	    LEX *lex= Lex;
 	    uint ip= lex->sphead->instructions();
 	    sp_label_t *lab= lex->spcont->last_label();  /* Jumping back */
-	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, $4, lab->ip);
+	    sp_instr_jump_if_not *i = new sp_instr_jump_if_not(ip, lex->spcont,
+							       $4, lab->ip);
 
 	    i->tables= lex->query_tables;
 	    lex->query_tables= 0;
@@ -6786,11 +6788,12 @@ option_value:
 	    }
             else
 	    { /* An SP local variable */
+	      sp_pcontext *ctx= lex->spcont;
 	      sp_pvar_t *spv;
               sp_instr_set *i;
 	      Item *it;
 
-	      spv= lex->spcont->find_pvar(&$1.base_name);
+	      spv= ctx->find_pvar(&$1.base_name);
 
 	      if ($3)
 	        it= $3;
@@ -6798,7 +6801,7 @@ option_value:
 	        it= spv->dflt;
 	      else
 	        it= new Item_null();
-              i= new sp_instr_set(lex->sphead->instructions(),
+              i= new sp_instr_set(lex->sphead->instructions(), ctx,
 	                          spv->offset, it, spv->type);
 	      i->tables= lex->query_tables;
 	      lex->query_tables= 0;
