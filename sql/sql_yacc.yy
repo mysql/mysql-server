@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -25,7 +25,7 @@
 #include "sql_acl.h"
 #include "lex_symbol.h"
 #include <myisam.h>
-  
+
 extern void yyerror(const char*);
 int yylex(void *yylval);
 
@@ -451,7 +451,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	literal text_literal insert_ident group_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
 	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
-	using_list 
+	using_list
 
 %type <item_list>
 	expr_list udf_expr_list when_list ident_list
@@ -548,7 +548,7 @@ verb_clause:
 	| rollback
 	| select
 	| set
-	| slave  
+	| slave
 	| show
 	| unlock
 	| update
@@ -557,7 +557,7 @@ verb_clause:
 /* change master */
 
 change:
-       CHANGE MASTER_SYM TO_SYM 
+       CHANGE MASTER_SYM TO_SYM
         {
 	  LEX *lex = Lex;
 	  lex->sql_command = SQLCOM_CHANGE_MASTER;
@@ -568,7 +568,7 @@ master_defs:
        master_def
        |
        master_defs ',' master_def
-	  
+
 master_def:
        MASTER_HOST_SYM EQ TEXT_STRING
        {
@@ -604,9 +604,9 @@ master_def:
        {
 	 Lex->mi.connect_retry = $3;
        }
-       
 
-	  
+
+
 /* create a table */
 
 create:
@@ -614,7 +614,7 @@ create:
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
-	  if (!add_table_to_list($5, 
+	  if (!add_table_to_list($5,
 				 ($2 & HA_LEX_CREATE_TMP_TABLE ?
 				   &tmp_table_alias : (LEX_STRING*) 0)))
 	    YYABORT;
@@ -678,7 +678,7 @@ create:
 	  }
 
 create2:
-	'(' field_list ')' opt_create_table_options create3 {} 
+	'(' field_list ')' opt_create_table_options create3 {}
 	| opt_create_table_options create3 {}
 
 create3:
@@ -690,18 +690,18 @@ create3:
           select_options select_item_list opt_select_from {}
 
 opt_table_options:
-	/* empty */	 { $$= 0; } 
+	/* empty */	 { $$= 0; }
 	| table_options  { $$= $1;}
 
 table_options:
 	table_option	{ $$=$1; }
 	| table_option table_options { $$= $1 | $2 }
-	
+
 table_option:
 	TEMPORARY	{ $$=HA_LEX_CREATE_TMP_TABLE; }
 
 opt_if_not_exists:
-	/* empty */	 { $$= 0; } 
+	/* empty */	 { $$= 0; }
 	| IF NOT EXISTS	 { $$=HA_LEX_CREATE_IF_NOT_EXISTS; }
 
 opt_create_table_options:
@@ -723,7 +723,7 @@ create_table_option:
 	| PACK_KEYS_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; }
 	| CHECKSUM_SYM EQ ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; }
 	| DELAY_KEY_WRITE_SYM EQ ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE; }
-	| ROW_FORMAT_SYM EQ row_types	{ Lex->create_info.row_type= $3; } 
+	| ROW_FORMAT_SYM EQ row_types	{ Lex->create_info.row_type= $3; }
 	| RAID_TYPE EQ raid_types	{ Lex->create_info.raid_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
 	| RAID_CHUNKS EQ ULONG_NUM	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
 	| RAID_CHUNKSIZE EQ ULONG_NUM	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
@@ -865,7 +865,7 @@ char:
 	CHAR_SYM {}
 	| NCHAR_SYM {}
 	| NATIONAL_SYM CHAR_SYM {}
-	
+
 varchar:
 	char VARYING {}
 	| VARCHAR {}
@@ -964,6 +964,7 @@ delete_option:
 key_type:
 	opt_constraint PRIMARY_SYM KEY_SYM  { $$= Key::PRIMARY; }
 	| key_or_index			    { $$= Key::MULTIPLE; }
+	| COLLECTION			    { $$= Key::FULLTEXT; }
 	| opt_constraint UNIQUE_SYM	    { $$= Key::UNIQUE; }
 	| opt_constraint UNIQUE_SYM key_or_index { $$= Key::UNIQUE; }
 
@@ -1095,7 +1096,7 @@ slave:
            Lex->sql_command = SQLCOM_SLAVE_STOP;
 	   Lex->type = 0;
          };
-	
+
 repair:
 	REPAIR table_or_tables
 	{
@@ -1123,7 +1124,7 @@ analyze:
 	}
 
 check:
-	CHECK_SYM table_or_tables 
+	CHECK_SYM table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_CHECK;
 	   Lex->check_opt.init();
@@ -1238,7 +1239,7 @@ select_alias:
 optional_braces:
 	/* empty */ {}
 	| '(' ')' {}
-	
+
 /* all possible expressions */
 expr:	expr_expr	{$$ = $1; }
 	| simple_expr	{$$ = $1; }
@@ -1380,7 +1381,7 @@ simple_expr:
                    (Item_func_match *)($$=new Item_func_match(*$2,$5))); }
 	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
-	  { $$= new Item_func_case(* $4, $2, $5 ) } 
+	  { $$= new Item_func_case(* $4, $2, $5 ) }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
 	| FUNC_ARG1 '(' expr ')'
@@ -1574,7 +1575,7 @@ simple_expr:
 	  { $$= new Item_func_yearweek($3, $5); }
 	| BENCHMARK_SYM '(' ULONG_NUM ',' expr ')'
 	  { $$=new Item_func_benchmark($3,$5); }
-	| EXTRACT_SYM '(' interval FROM expr ')' 
+	| EXTRACT_SYM '(' interval FROM expr ')'
 	{ $$=new Item_extract( $3, $5); }
 
 udf_expr_list:
@@ -1645,12 +1646,12 @@ when_list:
 	{ $$= Lex->when_list.pop(); }
 
 when_list2:
-	expr THEN_SYM expr 
+	expr THEN_SYM expr
 	  {
 	    Lex->when_list.head()->push_back($1);
 	    Lex->when_list.head()->push_back($3);
 	}
-	| when_list2 WHEN_SYM expr THEN_SYM expr 
+	| when_list2 WHEN_SYM expr THEN_SYM expr
 	  {
 	    Lex->when_list.head()->push_back($3);
 	    Lex->when_list.head()->push_back($5);
@@ -2113,11 +2114,11 @@ show_param:
         | MASTER_SYM STATUS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_MASTER_STAT;
-          }       
+          }
         | SLAVE STATUS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
-          }       
+          }
 
 opt_db:
 	/* empty */  { $$= 0; }
@@ -2166,8 +2167,8 @@ flush_option:
 	| PRIVILEGES	{ Lex->type|= REFRESH_GRANT; }
 	| LOGS_SYM	{ Lex->type|= REFRESH_LOG; }
 	| STATUS_SYM	{ Lex->type|= REFRESH_STATUS; }
-        | SLAVE         { Lex->type|= REFRESH_SLAVE; } 
-        | MASTER_SYM    { Lex->type|= REFRESH_MASTER; } 
+        | SLAVE         { Lex->type|= REFRESH_SLAVE; }
+        | MASTER_SYM    { Lex->type|= REFRESH_MASTER; }
 
 /* kill threads */
 
@@ -2200,13 +2201,13 @@ load:	LOAD DATA_SYM opt_low_priority opt_local INFILE TEXT_STRING
 	    YYABORT;
 	}
         |
-	LOAD TABLE_SYM table_ident FROM MASTER_SYM 
+	LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
 	  if (!add_table_to_list($3,NULL))
 	    YYABORT;
-	  
-        }   
+
+        }
 
 opt_local:
 	/* empty */	{ $$=0;}
@@ -2329,7 +2330,7 @@ ident:
 
 ident_or_text:
 	ident 		{ $$=$1;}
-	| TEXT_STRING	{ $$=$1;} 
+	| TEXT_STRING	{ $$=$1;}
 	| LEX_HOSTNAME	{ $$=$1;}
 
 user:
@@ -2412,10 +2413,10 @@ keyword:
 	| PROCESSLIST_SYM	{}
 	| QUICK			{}
 	| RAID_0_SYM            {}
-	| RAID_CHUNKS		{} 
-	| RAID_CHUNKSIZE	{} 
+	| RAID_CHUNKS		{}
+	| RAID_CHUNKSIZE	{}
 	| RAID_STRIPED_SYM      {}
-	| RAID_TYPE		{} 
+	| RAID_TYPE		{}
 	| RELOAD		{}
 	| REPAIR		{}
 	| ROLLBACK_SYM		{}
