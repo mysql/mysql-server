@@ -712,7 +712,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     }
 
     if (tmp_table->distinct)
-      select_distinct=0;			/* Each row is uniq */
+      select_distinct=0;			/* Each row is unique */
 
     join_free(&join);				/* Free quick selects */
     if (select_distinct && ! group)
@@ -3635,7 +3635,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       in the first 'hidden_null_pack_length' bytes of the row.
     */
     null_pack_length-=hidden_null_pack_length;
-    keyinfo->key_parts=field_count+ test(null_pack_length);
+    keyinfo->key_parts= ((field_count-hidden_field_count)+
+			 test(null_pack_length));
     if (allow_distinct_limit)
     {
       set_if_smaller(table->max_rows,thd->select_limit);
@@ -3673,6 +3674,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       key_part_info->type=    HA_KEYTYPE_BINARY;
       key_part_info++;
     }
+    /* Create a distinct key over the columns we are going to return */
     for (i=param->hidden_field_count, reg_field=table->field + i ;
 	 i < field_count;
 	 i++, reg_field++, key_part_info++)

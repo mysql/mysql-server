@@ -42395,6 +42395,13 @@ not yet 100 % confident in this code.
 @node News-3.23.36, News-3.23.35, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.36
 @itemize @bullet
+@item
+Fixed that one can't use database names with @code{.}.  This fixes a serious
+security issue when @code{mysqld} is run as root.
+@item
+Fixed a core-dump bug when using very complex query involving
+@code{DISTINCT} and summary functions.
+@item
 Added @code{SET TRANSACTION ISOLATION LEVEL ...}
 @item
 Added @code{SELECT ... FOR UPDATE}.

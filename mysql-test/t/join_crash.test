@@ -1,15 +1,9 @@
-# MySQL dump 8.13
 #
-# Host: localhost    Database: timeprep
-#--------------------------------------------------------
-# Server version	3.23.35-log
-
-#
-# Table structure for table 'project'
+# This test gave a core dump
 #
 
-DROP TABLE IF EXISTS project;
-CREATE TABLE project (
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+CREATE TABLE t1 (
   project_id int(11) NOT NULL auto_increment,
   project_row_lock int(11) NOT NULL default '0',
   project_name varchar(80) NOT NULL default '',
@@ -22,27 +16,18 @@ CREATE TABLE project (
   UNIQUE KEY project (client_ptr,project_name)
 ) TYPE=MyISAM PACK_KEYS=1;
 
-#
-# Dumping data for table 'project'
-#
+INSERT INTO t1 VALUES (1,0,'Rejected Time',1,NULL,NULL,NULL,NULL);
+INSERT INTO t1 VALUES (209,0,'MDGRAD Proposal/Investigation',97,NULL,NULL,NULL,'');
+INSERT INTO t1 VALUES (208,0,'Font 9 Design',84,NULL,NULL,NULL,'');
+INSERT INTO t1 VALUES (207,0,'Web Based Order Processing',95,NULL,NULL,NULL,'');
+INSERT INTO t1 VALUES (205,0,'Mac Screen Saver',95,NULL,NULL,NULL,'');
+INSERT INTO t1 VALUES (206,0,'Web Site',96,NULL,NULL,NULL,'');
+INSERT INTO t1 VALUES (204,0,'Magnafire Glue',94,NULL,NULL,NULL,'');
+INSERT INTO t1 VALUES (203,0,'Print Bid',93,NULL,NULL,NULL,'');
+INSERT INTO t1 VALUES (202,0,'EPOC Port',92,NULL,NULL,NULL,'');
+INSERT INTO t1 VALUES (201,0,'TravelMate',88,NULL,NULL,NULL,'');
 
-INSERT INTO project VALUES (1,0,'Rejected Time',1,NULL,NULL,NULL,NULL);
-INSERT INTO project VALUES (209,0,'MDGRAD Proposal/Investigation',97,NULL,NULL,NULL,'');
-INSERT INTO project VALUES (208,0,'Font 9 Design',84,NULL,NULL,NULL,'');
-INSERT INTO project VALUES (207,0,'Web Based Order Processing',95,NULL,NULL,NULL,'');
-INSERT INTO project VALUES (205,0,'Mac Screen Saver',95,NULL,NULL,NULL,'');
-INSERT INTO project VALUES (206,0,'Web Site',96,NULL,NULL,NULL,'');
-INSERT INTO project VALUES (204,0,'Magnafire Glue',94,NULL,NULL,NULL,'');
-INSERT INTO project VALUES (203,0,'Print Bid',93,NULL,NULL,NULL,'');
-INSERT INTO project VALUES (202,0,'EPOC Port',92,NULL,NULL,NULL,'');
-INSERT INTO project VALUES (201,0,'TravelMate',88,NULL,NULL,NULL,'');
-
-#
-# Table structure for table 'period'
-#
-
-DROP TABLE IF EXISTS period;
-CREATE TABLE period (
+CREATE TABLE t2 (
   period_id int(11) NOT NULL auto_increment,
   period_type enum('user_table','client_table','role_table','member_table','project_table') default NULL,
   period_key int(11) default NULL,
@@ -54,32 +39,23 @@ CREATE TABLE period (
   KEY date_index (start_date,end_date)
 ) TYPE=MyISAM PACK_KEYS=1;
 
-#
-# Dumping data for table 'period'
-#
+INSERT INTO t2 VALUES (1,'user_table',98,'2000-01-01 00:00:00',NULL,NULL);
+INSERT INTO t2 VALUES (2,'user_table',99,'2000-01-01 00:00:00',NULL,NULL);
+INSERT INTO t2 VALUES (3,'user_table',100,'2000-01-01 00:00:00',NULL,NULL);
+INSERT INTO t2 VALUES (49,'project_table',148,'2000-01-01 00:00:00',NULL,NULL);
+INSERT INTO t2 VALUES (50,'client_table',68,'2000-01-01 00:00:00',NULL,NULL);
+INSERT INTO t2 VALUES (51,'project_table',149,'2000-01-01 00:00:00',NULL,NULL);
+INSERT INTO t2 VALUES (52,'project_table',150,'2000-01-01 00:00:00',NULL,NULL);
+INSERT INTO t2 VALUES (53,'client_table',69,'2000-01-01 00:00:00',NULL,NULL);
+INSERT INTO t2 VALUES (54,'project_table',151,'2000-01-01 00:00:00',NULL,NULL);
+INSERT INTO t2 VALUES (55,'client_table',70,'2000-01-01 00:00:00',NULL,NULL);
+INSERT INTO t2 VALUES (155,'role_table',1,'2000-01-01 00:00:00',NULL,NULL);
+INSERT INTO t2 VALUES (156,'role_table',2,'2000-01-01 00:00:00',NULL,NULL);
+INSERT INTO t2 VALUES (160,'member_table',1,'2000-01-01 00:00:00',NULL,1);
+INSERT INTO t2 VALUES (161,'member_table',2,'2000-01-01 00:00:00',NULL,1);
+INSERT INTO t2 VALUES (162,'member_table',3,'2000-01-01 00:00:00',NULL,1);
 
-INSERT INTO period VALUES (1,'user_table',98,'2000-01-01 00:00:00',NULL,NULL);
-INSERT INTO period VALUES (2,'user_table',99,'2000-01-01 00:00:00',NULL,NULL);
-INSERT INTO period VALUES (3,'user_table',100,'2000-01-01 00:00:00',NULL,NULL);
-INSERT INTO period VALUES (49,'project_table',148,'2000-01-01 00:00:00',NULL,NULL);
-INSERT INTO period VALUES (50,'client_table',68,'2000-01-01 00:00:00',NULL,NULL);
-INSERT INTO period VALUES (51,'project_table',149,'2000-01-01 00:00:00',NULL,NULL);
-INSERT INTO period VALUES (52,'project_table',150,'2000-01-01 00:00:00',NULL,NULL);
-INSERT INTO period VALUES (53,'client_table',69,'2000-01-01 00:00:00',NULL,NULL);
-INSERT INTO period VALUES (54,'project_table',151,'2000-01-01 00:00:00',NULL,NULL);
-INSERT INTO period VALUES (55,'client_table',70,'2000-01-01 00:00:00',NULL,NULL);
-INSERT INTO period VALUES (155,'role_table',1,'2000-01-01 00:00:00',NULL,NULL);
-INSERT INTO period VALUES (156,'role_table',2,'2000-01-01 00:00:00',NULL,NULL);
-INSERT INTO period VALUES (160,'member_table',1,'2000-01-01 00:00:00',NULL,1);
-INSERT INTO period VALUES (161,'member_table',2,'2000-01-01 00:00:00',NULL,1);
-INSERT INTO period VALUES (162,'member_table',3,'2000-01-01 00:00:00',NULL,1);
-
-#
-# Table structure for table 'budget'
-#
-
-DROP TABLE IF EXISTS budget;
-CREATE TABLE budget (
+CREATE TABLE t3 (
   budget_id int(11) NOT NULL auto_increment,
   project_ptr int(11) NOT NULL default '0',
   po_number varchar(20) NOT NULL default '',
@@ -91,17 +67,7 @@ CREATE TABLE budget (
   UNIQUE KEY po (project_ptr,po_number)
 ) TYPE=MyISAM PACK_KEYS=1;
 
-#
-# Dumping data for table 'budget'
-#
-
-
-#
-# Table structure for table 'client'
-#
-
-DROP TABLE IF EXISTS client;
-CREATE TABLE client (
+CREATE TABLE t4 (
   client_id int(11) NOT NULL auto_increment,
   client_row_lock int(11) NOT NULL default '0',
   client_name varchar(80) NOT NULL default '',
@@ -111,45 +77,39 @@ CREATE TABLE client (
   UNIQUE KEY client_name (client_name)
 ) TYPE=MyISAM PACK_KEYS=1;
 
-#
-# Dumping data for table 'client'
-#
-
-INSERT INTO client VALUES (1,0,'CPS',NULL,NULL);
-
-
+INSERT INTO t4 VALUES (1,0,'CPS',NULL,NULL);
 
 #
 #	The query that fails...
 #
 select distinct
-    project.project_id as project_id,
-    project.project_name as project_name,
-    project.client_ptr as client_ptr,
-    project.comments as comments,
-    sum( budget.amount_received ) + sum( budget.adjustment ) as total_budget
+    t1.project_id as project_id,
+    t1.project_name as project_name,
+    t1.client_ptr as client_ptr,
+    t1.comments as comments,
+    sum( t3.amount_received ) + sum( t3.adjustment ) as total_budget
 from
-    project ,
-    period as client_period ,
-    period as project_period
+    t1 ,
+    t2 as client_period ,
+    t2 as project_period
     left join
-        budget
+        t3
     on
-        budget.project_ptr = project.project_id
-        and budget.date_received <= '2001-03-22 14:15:09'
+        t3.project_ptr = t1.project_id
+        and t3.date_received <= '2001-03-22 14:15:09'
     left join
-        client
+        t4
     on
-        client.client_id = project.client_ptr
+        t4.client_id = t1.client_ptr
    where
         1
         and ( client_period.period_type = 'client_table'
-            and client_period.period_key = client.client_id
+            and client_period.period_key = t4.client_id
             and ( client_period.start_date <= '2001-03-22 14:15:09' or isnull( client_period.start_date ))
             and ( client_period.end_date > '2001-03-21 14:15:09' or isnull( client_period.end_date ))
             )
         and ( project_period.period_type = 'project_table'
-        and project_period.period_key = project.project_id
+        and project_period.period_key = t1.project_id
         and ( project_period.start_date <= '2001-03-22 14:15:09' or isnull( project_period.start_date ))
         and ( project_period.end_date > '2001-03-21 14:15:09' or isnull( project_period.end_date )) )
     group by
@@ -159,5 +119,5 @@ from
         project_period.period_id
     order by
         client_name asc,
-        project_name asc 
-;
+        project_name asc;
+DROP TABLE t1,t2,t3,t4;
