@@ -36,6 +36,8 @@
 #endif
 #include <mysys_err.h>
 
+#include <sp_rcontext.h>
+
 /*
   The following is used to initialise Table_ident with a internal
   table name
@@ -86,7 +88,7 @@ extern "C" void free_user_var(user_var_entry *entry)
 THD::THD():user_time(0), is_fatal_error(0),
 	   last_insert_id_used(0),
 	   insert_id_used(0), rand_used(0), in_lock_tables(0),
-	   global_read_lock(0), bootstrap(0)
+	   global_read_lock(0), bootstrap(0), spcont(NULL)
 {
   host=user=priv_user=db=query=ip=0;
   host_or_ip= "connecting host";
@@ -196,6 +198,9 @@ THD::THD():user_time(0), is_fatal_error(0),
     pthread_mutex_unlock(&LOCK_thread_count);
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
   }
+
+  /* QQ init the temporary function cache */
+  spfuns.empty();
 }
 
 
@@ -287,6 +292,10 @@ void THD::cleanup(void)
     pthread_mutex_unlock(&LOCK_user_locks);
     ull= 0;
   }
+
+  //  extern void sp_clear_function_cache(THD *);
+  //  sp_clear_function_cache(this);
+
   cleanup_done=1;
   DBUG_VOID_RETURN;
 }
@@ -1008,9 +1017,12 @@ bool select_exists_subselect::send_data(List<Item> &items)
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   List_iterator_fast<Item> li(list);
-  List_iterator_fast<LEX_STRING> gl(var_list);
+  List_iterator_fast<my_var> gl(var_list);
   Item *item;
+  my_var *mv;
   LEX_STRING *ls;
+
+  row_count= 0;
   if (var_list.elements != list.elements)
   {
     my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
@@ -1019,19 +1031,39 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   unit=u;
   while ((item=li++))
   {
-    ls= gl++;
-    Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
-    xx->fix_fields(thd,(TABLE_LIST*) thd->lex.select_lex.table_list.first,&item);
-    xx->fix_length_and_dec();
-    vars.push_back(xx);
+    mv=gl++;
+    ls= &mv->s;
+    if (mv->local)
+    {
+      (void)local_vars.push_back(new Item_splocal(mv->offset));
+    }
+    else
+    {
+      Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
+      xx->fix_fields(thd,(TABLE_LIST*) thd->lex.select_lex.table_list.first,&item);
+      xx->fix_length_and_dec();
+      vars.push_back(xx);
+    }
   }
   return 0;
 }
+
 bool select_dumpvar::send_data(List<Item> &items)
 {
   List_iterator_fast<Item_func_set_user_var> li(vars);
+  List_iterator_fast<Item_splocal> var_li(local_vars);
+  List_iterator_fast<my_var> my_li(var_list);
+  List_iterator_fast<Item> it(items);
   Item_func_set_user_var *xx;
+  Item_splocal *yy;
+  Item *item;
+  my_var *zz;
   DBUG_ENTER("send_data");
+  if (unit->offset_limit_cnt)
+  {						// using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(0);
+  }
 
   if (unit->offset_limit_cnt)
   {				          // Using limit offset,count
@@ -1043,8 +1075,21 @@ bool select_dumpvar::send_data(List<Item> &items)
     my_error(ER_TOO_MANY_ROWS, MYF(0));
     DBUG_RETURN(1);
   }
-  while ((xx=li++))
-    xx->update();
+  while ((zz=my_li++) && (item=it++))
+  {
+    if (zz->local)
+    {
+      if ((yy=var_li++)) 
+      {
+	thd->spcont->set_item(yy->get_offset(), item);
+      }
+    }
+    else
+    {
+      if ((xx=li++))
+	xx->update();
+    }
+  }
   DBUG_RETURN(0);
 }
 

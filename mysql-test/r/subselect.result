@@ -593,7 +593,6 @@ x
 3
 3
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
-You can't specify target table 't1' for update in FROM clause
 INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
 select * from t1;
 x
@@ -601,6 +600,8 @@ x
 2
 3
 3
+11
+11
 0
 drop table t1, t2, t3;
 CREATE TABLE t1 (x int not null, y int, primary key (x));
