@@ -104,7 +104,7 @@ public:
   /**
    * this handle will be used in the client connect thread
    * to fetch information on dynamic ports.  The old handle
-   * id destroyed, and this is destroyed by the destructor
+   * (if set) is destroyed, and this is destroyed by the destructor
    */
   void set_mgm_handle(NdbMgmHandle h);
   NdbMgmHandle get_mgm_handle(void) { return m_mgm_handle; };
