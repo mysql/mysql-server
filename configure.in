@@ -123,6 +123,7 @@ AM_PROG_LIBTOOL
 AC_PROG_INSTALL
 # Not critical since the generated file is distributed
 AC_PROG_YACC
+AC_CHECK_PROG(PDFMANUAL, pdftex, manual.pdf)
 
 AC_MSG_CHECKING("return type of sprintf")
 
