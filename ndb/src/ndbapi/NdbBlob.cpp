@@ -99,8 +99,8 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   bt.setFragmentType(t->getFragmentType());
   { NdbDictionary::Column bc("PK");
     bc.setType(NdbDictionary::Column::Unsigned);
-    assert(t->m_sizeOfKeysInWords != 0);
-    bc.setLength(t->m_sizeOfKeysInWords);
+    assert(t->m_keyLenInWords != 0);
+    bc.setLength(t->m_keyLenInWords);
     bc.setPrimaryKey(true);
     bc.setDistributionKey(true);
     bt.addColumn(bc);
@@ -113,8 +113,6 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
   }
   { NdbDictionary::Column bc("PART");
     bc.setType(NdbDictionary::Column::Unsigned);
-    assert(t->m_keyLenInWords != 0);
-    bc.setLength(t->m_keyLenInWords);
     bc.setPrimaryKey(true);
     bc.setDistributionKey(false);
     bt.addColumn(bc);
