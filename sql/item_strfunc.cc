@@ -2593,7 +2593,7 @@ String *Item_func_quote::val_str(String *str)
   uint arg_length, new_length;
   if (!arg)					// Null argument
   {
-    str->copy("NULL", 4);			// Return the string 'NULL'
+    str->copy("NULL", 4, collation.collation);	// Return the string 'NULL'
     null_value= 0;
     return str;
   }
