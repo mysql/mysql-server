@@ -2705,7 +2705,7 @@ mysql_execute_command(THD *thd)
     if (check_access(thd,DELETE_ACL,"mysql",0,1))
       break;
 #ifdef HAVE_DLOPEN
-    if (!(res = mysql_drop_function(thd,lex->udf.name)))
+    if (!(res = mysql_drop_function(thd,&lex->udf.name)))
       send_ok(thd);
 #else
     res= -1;

@@ -1291,11 +1291,11 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
   }
   else
     thd=current_thd;				// In WHERE / const clause
-  udf_func *tmp_udf=find_udf(u_d->name,(uint) strlen(u_d->name),1);
+  udf_func *tmp_udf=find_udf(u_d->name.str,(uint) u_d->name.length,1);
 
   if (!tmp_udf)
   {
-    my_printf_error(ER_CANT_FIND_UDF,ER(ER_CANT_FIND_UDF),MYF(0),u_d->name,
+    my_printf_error(ER_CANT_FIND_UDF,ER(ER_CANT_FIND_UDF),MYF(0),u_d->name.str,
 		    errno);
     DBUG_RETURN(1);
   }
