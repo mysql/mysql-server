@@ -9,7 +9,7 @@
 "Kan inte skapa tabellen '%-.64s' (Felkod: %d)",
 "Kan inte skapa databasen '%-.64s'. (Felkod: %d)",
 "Databasen '%-.64s' existerar redan",
-"Kan inte radera databasen '%-.64s'. Databasen finns inte",
+"Kan inte radera databasen '%-.64s'; databasen finns inte",
 "Fel vid radering av databasen (Kan inte radera '%-.64s'. Felkod: %d)",
 "Fel vid radering av databasen (Kan inte radera biblioteket '%-.64s'. Felkod: %d)",
 "Kan inte radera filen '%-.64s' (Felkod: %d)",
