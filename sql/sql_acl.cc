@@ -698,12 +698,17 @@ uint acl_get(const char *host, const char *ip, const char *bin_ip,
 {
   uint host_access,db_access,i,key_length;
   db_access=0; host_access= ~0;
-  char key[ACL_KEY_LENGTH],*end;
+  char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
   memcpy_fixed(&key,bin_ip,sizeof(struct in_addr));
-  end=strmov(strmov(key+sizeof(struct in_addr),user)+1,db);
+  end=strmov((tmp_db=strmov(key+sizeof(struct in_addr),user)+1),db);
+  if (lower_case_table_names)
+  {
+    casedn_str(tmp_db);
+    db=tmp_db;
+  }
   key_length=(uint) (end-key);
   if ((entry=(acl_entry*) acl_cache->search(key,key_length)))
   {
@@ -1377,6 +1382,11 @@ public:
     db =   strdup_root(&memex,d);
     user = strdup_root(&memex,u);
     tname= strdup_root(&memex,t);
+    if (lower_case_table_names)
+    {
+      casedn_str(db);
+      casedn_str(tname);
+    }
     key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
     hash_key = (char*) alloc_root(&memex,key_length);
     strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
@@ -1398,7 +1408,13 @@ public:
       privs = cols = 0;				/* purecov: inspected */
       return;					/* purecov: inspected */
     }
-    key_length = (uint) strlen(db) + (uint) strlen(user) + (uint) strlen (tname) + 3;
+    if (lower_case_table_names)
+    {
+      casedn_str(db);
+      casedn_str(tname);
+    }
+    key_length = ((uint) strlen(db) + (uint) strlen(user) +
+		  (uint) strlen(tname) + 3);
     hash_key = (char*) alloc_root(&memex,key_length);
     strmov(strmov(strmov(hash_key,user)+1,db)+1,tname);
     privs = (uint) form->field[6]->val_int();
@@ -1990,7 +2006,7 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list, uint rights,
 {
   List_iterator <LEX_USER> str_list (list);
   LEX_USER *Str;
-  char what;
+  char what,tmp_db[NAME_LEN+1];
   bool create_new_users=0;
   TABLE_LIST tables[2];
   DBUG_ENTER("mysql_grant");
@@ -2002,6 +2018,12 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list, uint rights,
   }
 
   what = (revoke_grant) ? 'N' : 'Y';
+  if (lower_case_table_names && db)
+  {
+    strmov(tmp_db,db);
+    casedn_str(tmp_db);
+    db=tmp_db;
+  }
 
   /* open the mysql.user and mysql.db tables */
 
@@ -2220,8 +2242,8 @@ bool check_grant(THD *thd, uint want_access, TABLE_LIST *tables,
       table->grant.want_privilege=0;
       continue;					// Already checked
     }
-    const char *db = table->db ? table->db : thd->db;
-    GRANT_TABLE *grant_table = table_hash_search(thd->host,thd->ip,db,user,
+    GRANT_TABLE *grant_table = table_hash_search(thd->host,thd->ip,
+						 table->db,user,
 						 table->real_name,0);
     if (!grant_table)
     {

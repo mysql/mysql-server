@@ -1,3 +1,5 @@
+flush query cache;
+flush query cache;
 reset query cache;
 flush status;
 drop table if exists t1,t2,t3;
@@ -148,20 +150,6 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
 drop table t1, t2, t3;
-set autocommit=0;
-create table t1 (a int not null) type=innodb;
-insert into t1 values (1),(2),(3);
-select * from t1;
-a
-1
-2
-3
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	0
-drop table t1;
-commit;
-set autocommit=1;
 create table t1 (a int not null);
 insert into t1 values (1),(2),(3);
 create table t2 (a int not null);
@@ -291,10 +279,4 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
 reset query cache;
-show variables like "query_cache_size";
-Variable_name	Value
-query_cache_size	1039700
-show status like "Qcache_free_memory";
-Variable_name	Value
-Qcache_free_memory	1039700
 drop table t1;

@@ -229,11 +229,12 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   return ftb;
 }
 
-void _ftb_climb_the_tree(FTB_WORD *ftbw, my_off_t curdoc)
+void _ftb_climb_the_tree(FTB_WORD *ftbw)
 {
   FTB_EXPR *ftbe;
   float weight=ftbw->weight;
   int  yn=ftbw->yesno;
+  my_off_t curdoc=ftbw->docid;
 
   for (ftbe=ftbw->up; ftbe; ftbe=ftbe->up)
   {
@@ -307,7 +308,7 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
   {
     while (curdoc==(ftbw=(FTB_WORD *)queue_top(& ftb->queue))->docid)
     {
-      _ftb_climb_the_tree(ftbw, curdoc);
+      _ftb_climb_the_tree(ftbw);
 
       /* update queue */
       r=_mi_search(info, keyinfo, (uchar*) ftbw->word, USE_WHOLE_KEY,
@@ -358,10 +359,11 @@ int ft_boolean_read_next(FT_INFO *ftb, char *record)
 
 float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
 {
-  TREE      ptree;
-  FT_WORD   word;
+  FT_WORD word;
   FTB_WORD *ftbw;
   FTB_EXPR *ftbe;
+  FT_SEG_ITERATOR ftsi;
+  const byte *end;
   uint      i;
   my_off_t  docid=ftb->info->lastpos;
 
@@ -392,32 +394,43 @@ float ft_boolean_find_relevance(FT_INFO *ftb, byte *record, uint length)
   else if (ftb->state != SCAN)
     return -3.0;
 
-  bzero(&ptree, sizeof(ptree));
-  if ((ftb->keynr==NO_SUCH_KEY)
-       ? ft_parse(& ptree, record, length)
-       : _mi_ft_parse(& ptree, ftb->info, ftb->keynr, record))
-    return -4.0;
+  if (ftb->keynr==NO_SUCH_KEY)
+    _mi_ft_segiterator_dummy_init(record, length, &ftsi);
+  else
+    _mi_ft_segiterator_init(ftb->info, ftb->keynr, record, &ftsi);
 
-  for (i=1; i<=ftb->queue.elements; i++)
+  while (_mi_ft_segiterator(&ftsi))
   {
-    ftbw=(FTB_WORD *)(ftb->queue.root[i]);
-    ptree.custom_arg=(void *)(ftbw->trunc);
-    word.pos=ftbw->word+1;
-    word.len=ftbw->len-1;
-    if (tree_search(& ptree, & word))
-    { /* found! */
-      _ftb_climb_the_tree(ftbw, docid);
-    }
-    else
-    { /* not found! */
-      if (ftbw->yesno>0 && ftbw->up->up==0)
-      { /* but this word MUST BE present in every document matched,
-           so we can stop the search right now */
-        break;
+    if (!ftsi.pos)
+      continue;
+
+    end=ftsi.pos+ftsi.len;
+    while (ft_simple_get_word((byte **)&ftsi.pos,(byte *)end,&word))
+    {
+      uint a, b, c;
+      for (a=1, b=ftb->queue.elements+1, c=(a+b)/2; b-a>1; c=(a+b)/2)
+      {
+        ftbw=(FTB_WORD *)(ftb->queue.root[c]);
+        if (_mi_compare_text(default_charset_info, word.pos,word.len,
+                         (uchar*) ftbw->word+1,ftbw->len-1,ftbw->trunc) >0)
+          b=c;
+        else
+          a=c;
+      }
+      for (; c; c--)
+      {
+        ftbw=(FTB_WORD *)(ftb->queue.root[c]);
+        if (_mi_compare_text(default_charset_info, word.pos,word.len,
+                         (uchar*) ftbw->word+1,ftbw->len-1,ftbw->trunc))
+          break;
+        if (ftbw->docid == docid)
+          continue;
+        ftbw->docid=docid;
+        _ftb_climb_the_tree(ftbw);
       }
     }
   }
-  delete_tree(& ptree);
+
   ftbe=ftb->root;
   if (ftbe->docid==docid && ftbe->cur_weight>0 &&
       ftbe->yesses>=ftbe->ythresh && !ftbe->nos)

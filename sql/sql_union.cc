@@ -27,7 +27,7 @@
 
 int mysql_union(THD *thd, LEX *lex,select_result *result)
 {
-  SELECT_LEX *sl, *last_sl=(SELECT_LEX *)NULL, lex_sl;
+  SELECT_LEX *sl, *last_sl, *lex_sl;
   ORDER *order;
   List<Item> item_list;
   TABLE *table;
@@ -38,7 +38,10 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   DBUG_ENTER("mysql_union");
 
   /* Fix tables 'to-be-unioned-from' list to point at opened tables */
-  for (sl=&lex->select_lex; sl && sl->linkage != NOT_A_SELECT; last_sl=sl, sl=sl->next)
+  last_sl= &lex->select_lex;
+  for (sl= last_sl;
+       sl && sl->linkage != NOT_A_SELECT;
+       last_sl=sl, sl=sl->next)
   {
     for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
 	 cursor;
@@ -46,19 +49,27 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       cursor->table= ((TABLE_LIST*) cursor->table)->table;
   }
 
+  /* last_sel now points at the last select where the ORDER BY is stored */
   if (sl)
   {
-    lex_sl=*sl;
-    sl=(SELECT_LEX *)NULL;
-    if (last_sl) last_sl->next=sl;
+    /*
+      The found SL is an extra SELECT_LEX argument that contains
+      the ORDER BY and LIMIT parameter for the whole UNION
+    */
+    lex_sl= sl;
+    last_sl->next=0;				// Remove this extra element
+    order=  (ORDER *) lex_sl->order_list.first;
+  }
+  else if (!last_sl->braces)
+  {
+    lex_sl= last_sl;				// ORDER BY is here
+    order=  (ORDER *) lex_sl->order_list.first;
   }
   else
-    lex_sl.linkage=UNSPECIFIED_TYPE;
-
-  /* Find last select part as it's here ORDER BY and GROUP BY is stored */
-  for (last_sl= &lex->select_lex;
-       last_sl->next;
-       last_sl=last_sl->next) ;
+  {
+    lex_sl=0;
+    order=0;
+  }
 
   if (lex->select_lex.options & SELECT_DESCRIBE)
   {
@@ -68,7 +79,8 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       res=mysql_select(thd, (TABLE_LIST*) sl->table_list.first,
 		       sl->item_list,
 		       sl->where,
-		       (sl->braces) ? (ORDER *) sl->order_list.first : (ORDER *) 0,
+		       ((sl->braces) ?
+			(ORDER *) sl->order_list.first : (ORDER *) 0),
 		       (ORDER*) sl->group_list.first,
 		       sl->having,
 		       (ORDER*) NULL,
@@ -78,8 +90,6 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     }
     DBUG_RETURN(0);
   }
-
-  order = (lex_sl.linkage == UNSPECIFIED_TYPE) ? ( (last_sl->braces) ? (ORDER *) 0 :  (ORDER *) last_sl->order_list.first) : (ORDER *) lex_sl.order_list.first;
 
   {
     Item *item;
@@ -162,11 +172,11 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     }
     if (!thd->fatal_error)			// Check if EOM
     {
-      if (lex_sl.linkage == NOT_A_SELECT && ( lex_sl.select_limit || lex_sl.offset_limit))
+      if (lex_sl)
       {
-	thd->offset_limit=lex_sl.offset_limit;
-	thd->select_limit=lex_sl.select_limit+lex_sl.offset_limit;
-	if (thd->select_limit < lex_sl.select_limit)
+	thd->offset_limit=lex_sl->offset_limit;
+	thd->select_limit=lex_sl->select_limit+lex_sl->offset_limit;
+	if (thd->select_limit < lex_sl->select_limit)
 	  thd->select_limit= HA_POS_ERROR;		// no limit
 	if (thd->select_limit == HA_POS_ERROR)
 	  thd->options&= ~OPTION_FOUND_ROWS;

@@ -43,6 +43,40 @@ which ()
 }
 
 
+sleep_until_file_deleted ()
+{
+  file=$1
+  loop=$SLEEP_TIME_FOR_DELETE
+  while (test $loop -gt 0)
+  do
+    sleep 1
+    if [ ! -f $file ]
+    then
+      return
+    fi
+    loop=`expr $loop - 1`
+  done
+}
+
+sleep_until_file_exists ()
+{
+  file=$1
+  loop=$2
+  org_time=$2
+  while (test $loop -gt 0)
+  do
+    sleep 1
+    if [ -f $file ]
+    then
+      return
+    fi
+    loop=`expr $loop - 1`
+  done
+  echo "ERROR: $file was not created in $org_time seconds;  Aborting"
+  exit 1;
+}
+
+
 # No paths below as we can't be sure where the program is!
 
 BASENAME=`which basename | head -1`
@@ -91,7 +125,7 @@ else
    BINARY_DIST=1
 fi
 
-#BASEDIR is always one above mysql-test directory 
+#BASEDIR is always one above mysql-test directory
 CWD=`pwd`
 cd ..
 BASEDIR=`pwd`
@@ -101,7 +135,7 @@ export MYSQL_TEST_DIR
 STD_DATA=$MYSQL_TEST_DIR/std_data
 hostname=`hostname`		# Installed in the mysql privilege table
 
-MANAGER_QUIET_OPT="-q"    
+MANAGER_QUIET_OPT="-q"
 TESTDIR="$MYSQL_TEST_DIR/t"
 TESTSUFFIX=test
 TOT_SKIP=0
@@ -139,7 +173,11 @@ DO_GCOV=""
 DO_GDB=""
 DO_DDD=""
 DO_CLIENT_GDB=""
-SLEEP_TIME=2
+SLEEP_TIME_FOR_DELETE=10
+SLEEP_TIME_FOR_FIRST_MASTER=200		# Enough time to create innodb tables
+SLEEP_TIME_FOR_SECOND_MASTER=30
+SLEEP_TIME_FOR_FIRST_SLAVE=30
+SLEEP_TIME_FOR_SECOND_SLAVE=30
 CHARACTER_SET=latin1
 DBUSER=""
 START_WAIT_TIMEOUT=3
@@ -176,7 +214,7 @@ while test $# -gt 0; do
      ;;
     --start-and-exit)
      START_AND_EXIT=1
-     ;; 
+     ;;
     --skip-innobase)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-innobase"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-innobase" ;;
@@ -195,14 +233,13 @@ while test $# -gt 0; do
     --bench)
       DO_BENCH=1
       NO_SLAVE=1
-      ;;  
+      ;;
     --big*)			# Actually --big-test
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
     --compress)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
-      SLEEP_TIME=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
       ;;
     --mysqld=*)
        TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
@@ -218,7 +255,7 @@ while test $# -gt 0; do
       ;;
     --gprof )
       DO_GPROF=1
-      ;;  
+      ;;
     --gdb )
       START_WAIT_TIMEOUT=300
       STOP_WAIT_TIMEOUT=300
@@ -226,8 +263,8 @@ while test $# -gt 0; do
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --gdb option"
       fi
       DO_GDB=1
-      # We must use manager, as things doesn't work on Linux without it
-      USE_MANAGER=1
+      # This needs to be checked properly
+      # USE_MANAGER=1
       USE_RUNNING_SERVER=""
       ;;
     --client-gdb )
@@ -249,7 +286,7 @@ while test $# -gt 0; do
       ;;
     --strace-client )
       STRACE_CLIENT=1
-      ;;        
+      ;;
     --debug)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
        --debug=d:t:i:O,$MYSQL_TEST_DIR/var/log/master.trace"
@@ -292,7 +329,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
 else
  MY_BASEDIR=$BASEDIR
-fi  
+fi
 
 # Create the directories
 
@@ -321,7 +358,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
  if [ -n "$STRACE_CLIENT" ]; then
   MYSQL_TEST="strace -o $MYSQL_TEST_DIR/var/log/mysqltest.strace $MYSQL_TEST"
  fi
- 
+
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
  MYSQL_MANAGER_CLIENT="$BASEDIR/client/mysqlmanagerc"
  MYSQL_MANAGER="$BASEDIR/tools/mysqlmanager"
@@ -339,7 +376,7 @@ else
  MYSQL_MANAGER_PWGEN="$BASEDIR/bin/mysqlmanager-pwgen"
  MYSQL="$BASEDIR/bin/mysql"
  INSTALL_DB="./install_test_db -bin"
- if test -d "$BASEDIR/share/mysql/english" 
+ if test -d "$BASEDIR/share/mysql/english"
  then
    LANGUAGE="$BASEDIR/share/mysql/english/"
    CHARSETSDIR="$BASEDIR/share/mysql/charsets"
@@ -409,12 +446,12 @@ show_failed_diff ()
   reject_file=r/$1.reject
   result_file=r/$1.result
   eval_file=r/$1.eval
-  
+
   if [ -f $eval_file ]
   then
     result_file=$eval_file
   fi
-    
+
   if [ -x "$DIFF" ] && [ -f $reject_file ]
   then
     echo "Below are the diffs between actual and expected results:"
@@ -424,7 +461,7 @@ show_failed_diff ()
     echo "Please follow the instructions outlined at"
     echo "http://www.mysql.com/doc/R/e/Reporting_mysqltest_bugs.html"
     echo "to find the reason to this problem and how to report this."
-  fi  
+  fi
 }
 
 do_gdb_test ()
@@ -469,12 +506,12 @@ report_stats () {
     if [ $TOT_FAIL = 0 ]; then
 	$ECHO "All $TOT_TEST tests were successful."
     else
-	xten=`$EXPR $TOT_PASS \* 10000`   
-	raw=`$EXPR $xten / $TOT_TEST`     
-	raw=`$PRINTF %.4d $raw`           
-	whole=`$PRINTF %.2s $raw`         
-	xwhole=`$EXPR $whole \* 100`      
-	deci=`$EXPR $raw - $xwhole`       
+	xten=`$EXPR $TOT_PASS \* 10000`
+	raw=`$EXPR $xten / $TOT_TEST`
+	raw=`$PRINTF %.4d $raw`
+	whole=`$PRINTF %.2s $raw`
+	xwhole=`$EXPR $whole \* 100`
+	deci=`$EXPR $raw - $xwhole`
 	$ECHO  "Failed ${TOT_FAIL}/${TOT_TEST} tests, ${whole}.${deci}% successful."
 	$ECHO ""
         $ECHO "The log files in $MYSQL_TEST_DIR/var/log may give you some hint"
@@ -500,23 +537,21 @@ mysql_install_db () {
 	error "Could not install slave test DBs"
 	exit 1
     fi
-    
+
     for slave_num in 1 2 ;
     do
-     rm -rf var/slave$slave_num-data/
+     $RM -rf var/slave$slave_num-data/
      mkdir -p var/slave$slave_num-data/mysql
      mkdir -p var/slave$slave_num-data/test
      cp var/slave-data/mysql/* var/slave$slave_num-data/mysql
     done
-    # Give mysqld some time to die.
-    sleep $SLEEP_TIME
     return 0
 }
 
 gprof_prepare ()
 {
- rm -rf $GPROF_DIR
- mkdir -p $GPROF_DIR 
+ $RM -rf $GPROF_DIR
+ mkdir -p $GPROF_DIR
 }
 
 gprof_collect ()
@@ -556,7 +591,7 @@ abort_if_failed()
  if [ ! $? = 0 ] ; then
   echo $1
   exit 1
- fi 
+ fi
 }
 
 start_manager()
@@ -575,7 +610,7 @@ start_manager()
     fi
  fi
 
- rm -f $MANAGER_PID_FILE
+ $RM -f $MANAGER_PID_FILE
  MYSQL_MANAGER_PW=`$MYSQL_MANAGER_PWGEN -u $MYSQL_MANAGER_USER \
  -o $MYSQL_MANAGER_PW_FILE`
  $MYSQL_MANAGER --log=$MYSQL_MANAGER_LOG --port=$MYSQL_MANAGER_PORT \
@@ -613,7 +648,7 @@ manager_launch()
   shift
   if [ $USE_MANAGER = 0 ] ; then
    $@  >$CUR_MYERR 2>&1  &
-   sleep 2 #hack 
+   sleep 2 #hack
    return
   fi
   $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
@@ -646,185 +681,188 @@ EOF
 
 start_master()
 {
-    if [ x$MASTER_RUNNING = x1 ] || [ x$LOCAL_MASTER = x1 ] ; then
-      return
-    fi
-    # Remove old berkeley db log files that can confuse the server
-    $RM -f $MASTER_MYDDIR/log.*
-    # Remove stale binary logs
-    $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
-    # Remove files that can cause problems
-    $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
+  if [ x$MASTER_RUNNING = x1 ] || [ x$LOCAL_MASTER = x1 ] ; then
+    return
+  fi
+  # Remove old berkeley db log files that can confuse the server
+  $RM -f $MASTER_MYDDIR/log.*
+  # Remove stale binary logs
+  $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
 
-    #run master initialization shell script if one exists
+  #run master initialization shell script if one exists
 
-    if [ -f "$master_init_script" ] ;
-    then
-        /bin/sh $master_init_script
-    fi
-    cd $BASEDIR # for gcov
-    #start master
-    if [ -z "$DO_BENCH" ]
-    then
-      master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
-    	    --server-id=1 --rpl-recovery-rank=1 \
-            --basedir=$MY_BASEDIR --init-rpl-role=master \
-	    --port=$MASTER_MYPORT \
-	    --exit-info=256 \
-	    --core \
-            --datadir=$MASTER_MYDDIR \
-	    --pid-file=$MASTER_MYPID \
-	    --socket=$MASTER_MYSOCK \
-            --log=$MASTER_MYLOG \
-	    --character-sets-dir=$CHARSETSDIR \
-	    --default-character-set=$CHARACTER_SET \
-	    --tmpdir=$MYSQL_TMP_DIR \
-	    --language=$LANGUAGE \
-            --innodb_data_file_path=ibdata1:50M \
-	     $SMALL_SERVER \
-	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
-    else
-      master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
-	    --server-id=1 --rpl-recovery-rank=1 \
-            --basedir=$MY_BASEDIR --init-rpl-role=master \
-	    --port=$MASTER_MYPORT \
-            --datadir=$MASTER_MYDDIR \
-	    --pid-file=$MASTER_MYPID \
-	    --socket=$MASTER_MYSOCK \
-	    --character-sets-dir=$CHARSETSDIR \
-            --default-character-set=$CHARACTER_SET \
-	    --core \
-	    --tmpdir=$MYSQL_TMP_DIR \
-	    --language=$LANGUAGE \
-            --innodb_data_file_path=ibdata1:50M \
-	     $SMALL_SERVER \
-	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
-    fi
-    
-    CUR_MYERR=$MASTER_MYERR
-    CUR_MYSOCK=$MASTER_MYSOCK
-    
-    if [ x$DO_DDD = x1 ]
-    then
-      $ECHO "set args $master_args" > $GDB_MASTER_INIT
-      manager_launch master ddd -display $DISPLAY --debugger \
-      "gdb -x $GDB_MASTER_INIT" $MYSQLD 
-    elif [ x$DO_GDB = x1 ]
-    then
-      ( echo set args $master_args;
-        if [ $USE_MANAGER = 0 ] ; then
-	 cat <<EOF
+  if [ -f "$master_init_script" ] ;
+  then
+      /bin/sh $master_init_script
+  fi
+  cd $BASEDIR # for gcov
+  #start master
+  if [ -z "$DO_BENCH" ]
+  then
+    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
+  	    --server-id=1 --rpl-recovery-rank=1 \
+          --basedir=$MY_BASEDIR --init-rpl-role=master \
+          --port=$MASTER_MYPORT \
+          --exit-info=256 \
+          --core \
+          --datadir=$MASTER_MYDDIR \
+          --pid-file=$MASTER_MYPID \
+          --socket=$MASTER_MYSOCK \
+          --log=$MASTER_MYLOG \
+          --character-sets-dir=$CHARSETSDIR \
+          --default-character-set=$CHARACTER_SET \
+          --tmpdir=$MYSQL_TMP_DIR \
+          --language=$LANGUAGE \
+          --innodb_data_file_path=ibdata1:50M \
+           $SMALL_SERVER \
+           $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
+  else
+    master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
+          --server-id=1 --rpl-recovery-rank=1 \
+          --basedir=$MY_BASEDIR --init-rpl-role=master \
+          --port=$MASTER_MYPORT \
+          --datadir=$MASTER_MYDDIR \
+          --pid-file=$MASTER_MYPID \
+          --socket=$MASTER_MYSOCK \
+          --character-sets-dir=$CHARSETSDIR \
+          --default-character-set=$CHARACTER_SET \
+          --core \
+          --tmpdir=$MYSQL_TMP_DIR \
+          --language=$LANGUAGE \
+          --innodb_data_file_path=ibdata1:50M \
+           $SMALL_SERVER \
+           $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
+  fi
+
+  CUR_MYERR=$MASTER_MYERR
+  CUR_MYSOCK=$MASTER_MYSOCK
+
+  if [ x$DO_DDD = x1 ]
+  then
+    $ECHO "set args $master_args" > $GDB_MASTER_INIT
+    manager_launch master ddd -display $DISPLAY --debugger \
+    "gdb -x $GDB_MASTER_INIT" $MYSQLD
+  elif [ x$DO_GDB = x1 ]
+  then
+    ( echo set args $master_args;
+    if [ $USE_MANAGER = 0 ] ; then
+    cat <<EOF
 b mysql_parse
 commands 1
 disa 1
 end
 r
 EOF
-      fi )  > $GDB_MASTER_INIT     
-      manager_launch master $XTERM -display $DISPLAY \
-      -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD 
-    else	    
-      manager_launch master $MYSQLD $master_args  
-    fi  
+    fi )  > $GDB_MASTER_INIT
+    manager_launch master $XTERM -display $DISPLAY \
+    -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD
+  else
+    manager_launch master $MYSQLD $master_args
+  fi
+  sleep_until_file_exists $MASTER_MYPID $wait_for_master
+  wait_for_master=$SLEEP_TIME_FOR_SECOND_MASTER
   MASTER_RUNNING=1
 }
 
 start_slave()
 {
-    [ x$SKIP_SLAVE = x1 ] && return
-    eval "this_slave_running=\$SLAVE$1_RUNNING"
-    [ x$this_slave_running = 1 ] && return
-    #when testing fail-safe replication, we will have more than one slave
-    #in this case, we start secondary slaves with an argument
-    slave_ident="slave$1"
-    if [ -n "$1" ] ;
-    then
-     slave_server_id=`$EXPR 2 + $1`
-     slave_rpl_rank=$slave_server_id
-     slave_port=`expr $SLAVE_MYPORT + $1`
-     slave_log="$SLAVE_MYLOG.$1"
-     slave_err="$SLAVE_MYERR.$1"
-     slave_datadir="var/$slave_ident-data/"
-     slave_pid="$MYRUN_DIR/mysqld-$slave_ident.pid"
-     slave_sock="$SLAVE_MYSOCK-$1"
-    else
-     slave_server_id=2
-     slave_rpl_rank=2
-     slave_port=$SLAVE_MYPORT 
-     slave_log=$SLAVE_MYLOG
-     slave_err=$SLAVE_MYERR
-     slave_datadir=$SLAVE_MYDDIR
-     slave_pid=$SLAVE_MYPID
-     slave_sock="$SLAVE_MYSOCK"
-   fi 
-    # Remove stale binary logs
-    $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-bin.*
-    
-    #run slave initialization shell script if one exists
-    if [ -f "$slave_init_script" ] ;
-    then
-	  /bin/sh $slave_init_script
-    fi
-    
-    if [ -z "$SLAVE_MASTER_INFO" ] ; then
-      master_info="--master-user=root \
-	    --master-connect-retry=1 \
-	    --master-host=127.0.0.1 \
-	    --master-password= \
-	    --master-port=$MASTER_MYPORT \
-	    --server-id=$slave_server_id --rpl-recovery-rank=$slave_rpl_rank"
-   else
-     master_info=$SLAVE_MASTER_INFO
-   fi	    
-    
-    $RM -f $slave_datadir/log.*	
-    slave_args="--no-defaults $master_info \
-    	    --exit-info=256 \
-	    --log-bin=$MYSQL_TEST_DIR/var/log/$slave_ident-bin \
-	    --log-slave-updates \
-            --log=$slave_log \
-            --basedir=$MY_BASEDIR \
-            --datadir=$slave_datadir \
-	    --pid-file=$slave_pid \
-	    --port=$slave_port \
-	    --socket=$slave_sock \
-	    --character-sets-dir=$CHARSETSDIR \
-	    --default-character-set=$CHARACTER_SET \
-	    --core --init-rpl-role=slave \
-	    --tmpdir=$MYSQL_TMP_DIR \
-            --language=$LANGUAGE \
-	    --skip-innodb --skip-slave-start \
-	    --slave-load-tmpdir=$SLAVE_LOAD_TMPDIR \
-	    --report-host=127.0.0.1 --report-user=root \
-	    --report-port=$slave_port \
-	    --master-retry-count=5 \
-	     $SMALL_SERVER \
-             $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
-    CUR_MYERR=$slave_err
-    CUR_MYSOCK=$slave_sock
-  
-    if [ x$DO_DDD = x1 ]
-    then
-      $ECHO "set args $master_args" > $GDB_SLAVE_INIT
-      manager_launch $slave_ident ddd -display $DISPLAY --debugger \
-       "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD 
-    elif [ x$DO_GDB = x1 ]
-    then
-      $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
-      manager_launch $slave_ident $XTERM -display $DISPLAY -title "Slave" -e \
-      gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD 
-    else
-      manager_launch $slave_ident $SLAVE_MYSQLD $slave_args
-    fi
-    eval "SLAVE$1_RUNNING=1"
+  [ x$SKIP_SLAVE = x1 ] && return
+  eval "this_slave_running=\$SLAVE$1_RUNNING"
+  [ x$this_slave_running = 1 ] && return
+  #when testing fail-safe replication, we will have more than one slave
+  #in this case, we start secondary slaves with an argument
+  slave_ident="slave$1"
+  if [ -n "$1" ] ;
+  then
+   slave_server_id=`$EXPR 2 + $1`
+   slave_rpl_rank=$slave_server_id
+   slave_port=`expr $SLAVE_MYPORT + $1`
+   slave_log="$SLAVE_MYLOG.$1"
+   slave_err="$SLAVE_MYERR.$1"
+   slave_datadir="var/$slave_ident-data/"
+   slave_pid="$MYRUN_DIR/mysqld-$slave_ident.pid"
+   slave_sock="$SLAVE_MYSOCK-$1"
+  else
+   slave_server_id=2
+   slave_rpl_rank=2
+   slave_port=$SLAVE_MYPORT
+   slave_log=$SLAVE_MYLOG
+   slave_err=$SLAVE_MYERR
+   slave_datadir=$SLAVE_MYDDIR
+   slave_pid=$SLAVE_MYPID
+   slave_sock="$SLAVE_MYSOCK"
+ fi
+  # Remove stale binary logs
+  $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-bin.*
+
+  #run slave initialization shell script if one exists
+  if [ -f "$slave_init_script" ] ;
+  then
+        /bin/sh $slave_init_script
+  fi
+
+  if [ -z "$SLAVE_MASTER_INFO" ] ; then
+    master_info="--master-user=root \
+          --master-connect-retry=1 \
+          --master-host=127.0.0.1 \
+          --master-password= \
+          --master-port=$MASTER_MYPORT \
+          --server-id=$slave_server_id --rpl-recovery-rank=$slave_rpl_rank"
+ else
+   master_info=$SLAVE_MASTER_INFO
+ fi
+
+  $RM -f $slave_datadir/log.*
+  slave_args="--no-defaults $master_info \
+  	    --exit-info=256 \
+          --log-bin=$MYSQL_TEST_DIR/var/log/$slave_ident-bin \
+          --log-slave-updates \
+          --log=$slave_log \
+          --basedir=$MY_BASEDIR \
+          --datadir=$slave_datadir \
+          --pid-file=$slave_pid \
+          --port=$slave_port \
+          --socket=$slave_sock \
+          --character-sets-dir=$CHARSETSDIR \
+          --default-character-set=$CHARACTER_SET \
+          --core --init-rpl-role=slave \
+          --tmpdir=$MYSQL_TMP_DIR \
+          --language=$LANGUAGE \
+          --skip-innodb --skip-slave-start \
+          --slave-load-tmpdir=$SLAVE_LOAD_TMPDIR \
+          --report-host=127.0.0.1 --report-user=root \
+          --report-port=$slave_port \
+          --master-retry-count=5 \
+           $SMALL_SERVER \
+           $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
+  CUR_MYERR=$slave_err
+  CUR_MYSOCK=$slave_sock
+
+  if [ x$DO_DDD = x1 ]
+  then
+    $ECHO "set args $master_args" > $GDB_SLAVE_INIT
+    manager_launch $slave_ident ddd -display $DISPLAY --debugger \
+     "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD
+  elif [ x$DO_GDB = x1 ]
+  then
+    $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
+    manager_launch $slave_ident $XTERM -display $DISPLAY -title "Slave" -e \
+    gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD
+  else
+    manager_launch $slave_ident $SLAVE_MYSQLD $slave_args
+  fi
+  eval "SLAVE$1_RUNNING=1"
+  sleep_until_file_exists $slave_pid $wait_for_slave
+  wait_for_slave=$SLEEP_TIME_FOR_SECOND_SLAVE
 }
 
-mysql_start () {
-    $ECHO "Starting MySQL daemon"
-    start_master
-    start_slave
-    cd $MYSQL_TEST_DIR
-    return 1
+mysql_start ()
+{
+  $ECHO "Starting MySQL daemon"
+  start_master
+  start_slave
+  cd $MYSQL_TEST_DIR
+  return 1
 }
 
 stop_slave ()
@@ -836,7 +874,7 @@ stop_slave ()
    slave_pid="$MYRUN_DIR/mysqld-$slave_ident.pid"
   else
    slave_pid=$SLAVE_MYPID
-  fi 
+  fi
   if [ x$this_slave_running = x1 ]
   then
     manager_term $slave_ident
@@ -844,17 +882,17 @@ stop_slave ()
     then # try harder!
      $ECHO "slave not cooperating with mysqladmin, will try manual kill"
      kill `$CAT $slave_pid`
-     sleep $SLEEP_TIME
-     if [ -f $SLAVE_MYPID ] ; then
+     sleep_until_file_deleted $slave_pid
+     if [ -f $slave_pid ] ; then
        $ECHO "slave refused to die. Sending SIGKILL"
        kill -9 `$CAT $slave_pid`
        $RM -f $slave_pid
      else
-      $ECHO "slave responded to SIGTERM " 
+      $ECHO "slave responded to SIGTERM "
      fi
     fi
     eval "SLAVE$1_RUNNING=0"
-  fi  
+  fi
 }
 
 stop_master ()
@@ -866,13 +904,13 @@ stop_master ()
     then # try harder!
      $ECHO "master not cooperating with mysqladmin, will try manual kill"
      kill `$CAT $MASTER_MYPID`
-     sleep $SLEEP_TIME
+     sleep_until_file_deleted $MASTER_MYPID
      if [ -f $MASTER_MYPID ] ; then
        $ECHO "master refused to die. Sending SIGKILL"
        kill -9 `$CAT $MASTER_MYPID`
        $RM -f $MASTER_MYPID
      else
-      $ECHO "master responded to SIGTERM " 
+      $ECHO "master responded to SIGTERM "
      fi
     fi
     MASTER_RUNNING=0
@@ -890,21 +928,20 @@ mysql_stop ()
  stop_slave 1
  stop_slave 2
  $ECHO "Slave shutdown finished"
- 
+
  return 1
 }
 
-mysql_restart () {
-
-    mysql_stop
-    mysql_start
-
-    return 1
+mysql_restart ()
+{
+  mysql_stop
+  mysql_start
+  return 1
 }
 
 mysql_loadstd () {
-    
-    # cp $STD_DATA/*.frm $STD_DATA/*.MRG $MASTER_MYDDIR/test  
+
+    # cp $STD_DATA/*.frm $STD_DATA/*.MRG $MASTER_MYDDIR/test
     return 1
 }
 
@@ -920,9 +957,9 @@ run_testcase ()
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ $USE_MANAGER = 1 ] ; then
   many_slaves=`$EXPR \( $tname : rpl_failsafe \) != 0`
- fi 
- 
- if [ -n "$SKIP_TEST" ] ; then 
+ fi
+
+ if [ -n "$SKIP_TEST" ] ; then
    SKIP_THIS_TEST=`$EXPR \( $tname : "$SKIP_TEST" \) != 0`
    if [ x$SKIP_THIS_TEST = x1 ] ;
    then
@@ -930,7 +967,7 @@ run_testcase ()
    fi
   fi
 
- if [ -n "$DO_TEST" ] ; then 
+ if [ -n "$DO_TEST" ] ; then
    DO_THIS_TEST=`$EXPR \( $tname : "$DO_TEST" \) != 0`
    if [ x$DO_THIS_TEST = x0 ] ;
    then
@@ -965,10 +1002,10 @@ run_testcase ()
        EXTRA_MASTER_OPT=""
        stop_master
        start_master
-     fi  
+     fi
    fi
    do_slave_restart=0
- 
+
    if [ -f $slave_opt_file ] ;
    then
      EXTRA_SLAVE_OPT=`$CAT $slave_opt_file`
@@ -977,8 +1014,8 @@ run_testcase ()
     if [ ! -z "$EXTRA_SLAVE_OPT" ] || [ x$SLAVE_RUNNING != x1 ] ;
     then
       EXTRA_SLAVE_OPT=""
-      do_slave_restart=1    
-    fi  
+      do_slave_restart=1
+    fi
    fi
 
    if [ -f $slave_master_info_file ] ; then
@@ -988,8 +1025,8 @@ run_testcase ()
      if [ ! -z "$SLAVE_MASTER_INFO" ] || [ x$SLAVE_RUNNING != x1 ] ;
      then
        SLAVE_MASTER_INFO=""
-       do_slave_restart=1    
-     fi  
+       do_slave_restart=1
+     fi
    fi
 
    if [ x$do_slave_restart = x1 ] ; then
@@ -1002,7 +1039,7 @@ run_testcase ()
    fi
  fi
  cd $MYSQL_TEST_DIR
-   
+
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
     mysql_test_args="-R r/$tname.result $EXTRA_MYSQL_TEST_OPT"
@@ -1011,7 +1048,7 @@ run_testcase ()
     else
       do_gdb_test "$mysql_test_args" "$tf"
     fi
-     
+
     res=$?
 
     if [ $res = 0 ]; then
@@ -1032,12 +1069,12 @@ run_testcase ()
     timestr="$USERT $SYST $REALT"
     pname=`$ECHO "$tname                        "|$CUT -c 1-24`
     RES="$pname  $timestr"
-    
+
     if [ x$many_slaves = x1 ] ; then
      stop_slave 1
      stop_slave 2
     fi
-    
+
     if [ $res = 0 ]; then
       total_inc
       pass_inc
@@ -1065,7 +1102,7 @@ run_testcase ()
    	 fi
 	 exit 1
 	fi
-	 
+
         if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
 	then
 	  mysql_restart
@@ -1077,26 +1114,49 @@ run_testcase ()
   fi
 }
 
-
 ######################################################################
 # Main script starts here
 ######################################################################
 
 [ "$DO_GCOV" -a ! -x "$GCOV" ] && error "No gcov found"
 
-[ "$DO_GCOV" ] && gcov_prepare 
-[ "$DO_GPROF" ] && gprof_prepare 
+[ "$DO_GCOV" ] && gcov_prepare
+[ "$DO_GPROF" ] && gprof_prepare
 
-# Ensure that no old mysqld test servers are running
 if [ -z "$USE_RUNNING_SERVER" ]
 then
+  # Ensure that no old mysqld test servers are running
   $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
   $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+  $MYSQLADMIN --no-defaults --host=$hostname --port=$MASTER_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+  $MYSQLADMIN --no-defaults --host=$hostname --port=$SLAVE_MYPORT -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+  $MYSQLADMIN --no-defaults --host=$hostname --port=`expr $SLAVE_MYPORT + 1` -u root -O connect_timeout=5 -O shutdown_timeout=20 shutdown > /dev/null 2>&1
+  sleep_until_file_deleted $MASTER_MYPID
+  sleep_until_file_deleted $SLAVE_MYPID
+
+  # Kill any running managers
+  if [ -f "$MANAGER_PID_FILE" ]
+  then
+    kill `cat $MANAGER_PID_FILE`
+    sleep 1
+    if [ -f "$MANAGER_PID_FILE" ]
+    then
+      kill -9 `cat $MANAGER_PID_FILE`
+      sleep 1
+    fi
+  fi
+
+  # Remove files that can cause problems
+  $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
+
+  wait_for_master=$SLEEP_TIME_FOR_FIRST_MASTER
+  wait_for_slave=$SLEEP_TIME_FOR_FIRST_SLAVE
   $ECHO "Installing Test Databases"
   mysql_install_db
   start_manager
-#do not automagically start deamons if we are in gdb or running only one test
-#case
+
+# Do not automagically start deamons if we are in gdb or running only one test
+# case
   if [ -z "$DO_GDB" ] && [ -z "$DO_DDD" ]
   then
     mysql_start
@@ -1114,24 +1174,24 @@ $ECHO  "Starting Tests"
 
 if [ "$DO_BENCH" = 1 ]
 then
- BENCHDIR=$BASEDIR/sql-bench/
- savedir=`pwd`
- cd $BENCHDIR
- if [ -z "$1" ]
- then
-  ./run-all-tests --socket=$MASTER_MYSOCK --user=root
- else
- if [ -x "./$1" ]
+  BENCHDIR=$BASEDIR/sql-bench/
+  savedir=`pwd`
+  cd $BENCHDIR
+  if [ -z "$1" ]
   then
-   ./$1 --socket=$MASTER_MYSOCK --user=root
+    ./run-all-tests --socket=$MASTER_MYSOCK --user=root
   else
-   echo "benchmark $1 not found" 
+    if [ -x "./$1" ]
+    then
+       ./$1 --socket=$MASTER_MYSOCK --user=root
+    else
+      echo "benchmark $1 not found"
+    fi
   fi
- fi  
- cd $savedir
- mysql_stop
- stop_manager
- exit
+  cd $savedir
+  mysql_stop
+  stop_manager
+  exit
 fi
 
 $ECHO
@@ -1149,7 +1209,7 @@ then
   done
   $RM -f $TIMEFILE	# Remove for full test
  fi
-else 
+else
   while [ ! -z "$1" ]; do
     tname=`$BASENAME $1 .test`
     tf=$TESTDIR/$tname.$TESTSUFFIX
