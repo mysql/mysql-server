@@ -6,16 +6,16 @@ CREATE TABLE таблица
 );
 SHOW TABLES;
 Tables_in_test
-таблица
+я┌п╟п╠п╩п╦я├п╟
 SHOW CREATE TABLE таблица;
 Table	Create Table
-таблица	CREATE TABLE `таблица` (
-  `поле` char(32) character set koi8r NOT NULL default ''
+я┌п╟п╠п╩п╦я├п╟	CREATE TABLE `я┌п╟п╠п╩п╦я├п╟` (
+  `п©п╬п╩п╣` char(32) character set koi8r NOT NULL default ''
 ) TYPE=MyISAM CHARSET=latin1
 SHOW FIELDS FROM таблица;
 Field	Type	Collation	Null	Key	Default	Extra
-поле	char(32) character set koi8r	koi8r_general_ci				
-SET NAMES cp1251;
+п©п╬п╩п╣	char(32) character set koi8r	koi8r_general_ci				
+SET CHARACTER SET cp1251;
 SHOW TABLES;
 Tables_in_test
 РЮАКХЖЮ
@@ -27,7 +27,7 @@ Table	Create Table
 SHOW FIELDS FROM РЮАКХЖЮ;
 Field	Type	Collation	Null	Key	Default	Extra
 ОНКЕ	char(32) character set koi8r	koi8r_general_ci				
-SET NAMES utf8;
+SET CHARACTER SET utf8;
 SHOW TABLES;
 Tables_in_test
 я┌п╟п╠п╩п╦я├п╟
@@ -39,5 +39,5 @@ Table	Create Table
 SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
 Field	Type	Collation	Null	Key	Default	Extra
 п©п╬п╩п╣	char(32) character set koi8r	koi8r_general_ci				
-SET NAMES koi8r;
+SET CHARACTER SET koi8r;
 DROP TABLE таблица;

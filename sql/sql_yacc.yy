@@ -4411,7 +4411,7 @@ option_value:
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
 	  LEX *lex= Lex;
-	  lex->var_list.push_back(new set_var_client_collation($2,$3,1));
+	  lex->var_list.push_back(new set_var_client_collation($2,$3,0));
 	}
 	| PASSWORD equal text_or_password
 	  {
