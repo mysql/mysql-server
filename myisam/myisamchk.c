@@ -165,7 +165,7 @@ static struct my_option my_long_options[] =
   {"check", 'c', "Check table for errors.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"check-only-changed", 'C',
-   "Check only tables that has changed since last check.", 0, 0, 0, GET_NO_ARG,
+   "Check only tables that have changed since last check.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"correct-checksum", OPT_CORRECT_CHECKSUM,
    "Correct checksum information for table.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
@@ -183,7 +183,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"extend-check", 'e',
    "Try to recover every possible row from the data file. Normally this will also find a lot of garbage rows; Don't use this option if you are not totally desperate.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"fast", 'F', "Check only tables that hasn't been closed properly.", 0, 0, 0,
+  {"fast", 'F', "Check only tables that haven't been closed properly.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f',
    "Restart with -r if there are any errors in the table. States will be updated as with --update-state.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
@@ -220,7 +220,7 @@ static struct my_option my_long_options[] =
    "Change the character set used by the index", 0, 0, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is depricated; you can set variables directly with --variable-name=value.",
+   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's',
    "Only print errors. One can use two -s to make myisamchk very silent.", 0,
@@ -322,9 +322,9 @@ static void usage(void)
   -e, --extend-check  Check the table VERY throughly.  Only use this in\n\
                       extreme cases as myisamchk should normally be able to\n\
                       find out if the table is ok even without this switch\n\
-  -F, --fast	      Check only tables that hasn't been closed properly\n\
+  -F, --fast	      Check only tables that haven't been closed properly\n\
   -C, --check-only-changed\n\
-		      Check only tables that has changed since last check\n\
+		      Check only tables that have changed since last check\n\
   -f, --force         Restart with -r if there are any errors in the table.\n\
 		      States will be updated as with --update-state\n\
   -i, --information   Print statistics information about table that is checked\n\
@@ -733,7 +733,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   raid_chunks=share->base.raid_chunks;
 
   /*
-    Skipp the checking of the file if:
+    Skip the checking of the file if:
     We are using --fast and the table is closed properly
     We are using --check-only-changed-tables and the table hasn't changed
   */
