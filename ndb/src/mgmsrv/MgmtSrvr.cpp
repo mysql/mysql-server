@@ -2225,9 +2225,24 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     if (*nodeId != 0 ||
 	type != NDB_MGM_NODE_TYPE_MGM ||
 	no_mgm == 1) { // any match is ok
+
+      if (config_hostname == 0 &&
+	  *nodeId == 0 &&
+	  type != NDB_MGM_NODE_TYPE_MGM)
+      {
+	if (!id_found) // only set if not set earlier
+	  id_found= tmp;
+	continue; /* continue looking for a nodeid with specified
+		   * hostname
+		   */
+      }
+      assert(id_found == 0);
       id_found= tmp;
       break;
     }
+    assert(no_mgm > 1);
+    assert(*nodeId != 0);
+    assert(type != NDB_MGM_NODE_TYPE_MGM);
     if (id_found) { // mgmt server may only have one match
       error_string.appfmt("Ambiguous node id's %d and %d.\n"
 			  "Suggest specifying node id in connectstring,\n"
