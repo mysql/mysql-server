@@ -863,5 +863,5 @@ public:
   longlong val_int() { return val()!=0.0; }
 
   bool fix_index();
-  void init_search();
+  void init_search(bool no_order);
 };

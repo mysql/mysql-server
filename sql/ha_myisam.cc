@@ -1088,7 +1088,8 @@ int ha_myisam::ft_read(byte * buf)
 
   thread_safe_increment(ha_read_next_count,&LOCK_status); // why ?
 
-  error=ft_read_next((FT_DOCLIST *) ft_handler,(char*) buf);
+  if (error=ft_read_next((FT_DOCLIST *) ft_handler,(char*) buf))
+    ft_handler=NULL; // Magic here ! See Item_func_match::val()
 
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
