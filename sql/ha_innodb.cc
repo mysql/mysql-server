@@ -97,7 +97,7 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_buffer_pool_size, innobase_additional_mem_pool_size,
      innobase_file_io_threads, innobase_lock_wait_timeout,
      innobase_thread_concurrency, innobase_force_recovery,
-     innobase_open_files;
+     innobase_open_files, innobase_auto_extend_increment;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -963,6 +963,7 @@ innobase_init(void)
         srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
+	srv_auto_extend_increment = (ulint) innobase_auto_extend_increment;
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
