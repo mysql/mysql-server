@@ -84,6 +84,8 @@ static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_key_buffer_size(THD *thd, enum_var_type type);
 static void fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type);
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
+static void fix_max_binlog_size(THD *thd, enum_var_type type);
+static void fix_max_relay_log_size(THD *thd, enum_var_type type);
 
 /*
   Variable definition list
@@ -142,7 +144,8 @@ sys_var_thd_ulong	sys_max_allowed_packet("max_allowed_packet",
 sys_var_long_ptr	sys_max_binlog_cache_size("max_binlog_cache_size",
 						  &max_binlog_cache_size);
 sys_var_long_ptr	sys_max_binlog_size("max_binlog_size",
-					    &max_binlog_size);
+					    &max_binlog_size,
+                                            fix_max_binlog_size);
 sys_var_long_ptr	sys_max_connections("max_connections",
 					    &max_connections);
 sys_var_long_ptr	sys_max_connect_errors("max_connect_errors",
@@ -161,6 +164,9 @@ sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 					      &SV::max_join_size,
 					      fix_max_join_size);
 #endif
+sys_var_long_ptr	sys_max_relay_log_size("max_relay_log_size",
+                                               &max_relay_log_size,
+                                               fix_max_relay_log_size);
 sys_var_thd_ulong	sys_max_sort_length("max_sort_length",
 					    &SV::max_sort_length);
 sys_var_long_ptr	sys_max_user_connections("max_user_connections",
@@ -350,6 +356,7 @@ sys_var *sys_variables[]=
   &sys_max_delayed_threads,
   &sys_max_heap_table_size,
   &sys_max_join_size,
+  &sys_max_relay_log_size,
   &sys_max_seeks_for_key,
   &sys_max_sort_length,
   &sys_max_tmp_tables,
@@ -495,6 +502,7 @@ struct show_var_st init_vars[]= {
   {sys_max_delayed_threads.name,(char*) &sys_max_delayed_threads,   SHOW_SYS},
   {sys_max_heap_table_size.name,(char*) &sys_max_heap_table_size,   SHOW_SYS},
   {sys_max_join_size.name,	(char*) &sys_max_join_size,	    SHOW_SYS},
+  {sys_max_relay_log_size.name, (char*) &sys_max_relay_log_size,    SHOW_SYS},
   {sys_max_seeks_for_key.name,  (char*) &sys_max_seeks_for_key,	    SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
   {sys_max_user_connections.name,(char*) &sys_max_user_connections, SHOW_SYS},
@@ -697,6 +705,26 @@ void fix_delay_key_write(THD *thd, enum_var_type type)
   }
 }
 
+void fix_max_binlog_size(THD *thd, enum_var_type type)
+{
+  DBUG_ENTER("fix_max_binlog_size");
+  DBUG_PRINT("info",("max_binlog_size=%lu max_relay_log_size=%lu",
+                     max_binlog_size, max_relay_log_size));
+  mysql_bin_log.set_max_size(max_binlog_size);
+  if (!max_relay_log_size)
+    active_mi->rli.relay_log.set_max_size(max_binlog_size);
+  DBUG_VOID_RETURN;
+}
+
+void fix_max_relay_log_size(THD *thd, enum_var_type type)
+{
+  DBUG_ENTER("fix_max_relay_log_size");
+  DBUG_PRINT("info",("max_binlog_size=%lu max_relay_log_size=%lu",
+                     max_binlog_size, max_relay_log_size));
+  active_mi->rli.relay_log.set_max_size(max_relay_log_size ?
+                                        max_relay_log_size: max_binlog_size);
+  DBUG_VOID_RETURN;
+}
 
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
