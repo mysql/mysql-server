@@ -4342,7 +4342,6 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
   MYSQL_FIELD *field;
   ulong       bind_count= stmt->field_count;
   uint        param_count= 0;
-  uchar       report_data_truncation= 0;
   DBUG_ENTER("mysql_stmt_bind_result");
   DBUG_PRINT("enter",("field_count: %d", bind_count));
 
@@ -4380,8 +4379,6 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 
     if (!param->error)
       param->error= &param->error_value;
-    else
-      report_data_truncation= REPORT_DATA_TRUNCATION;
 
     param->param_number= param_count++;
     param->offset= 0;
@@ -4395,7 +4392,10 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
       DBUG_RETURN(1);
     }
   }
-  stmt->bind_result_done= BIND_RESULT_DONE | report_data_truncation;
+  stmt->bind_result_done= BIND_RESULT_DONE;
+  if (stmt->mysql->options.report_data_truncation)
+    stmt->bind_result_done|= REPORT_DATA_TRUNCATION;
+
   DBUG_RETURN(0);
 }
 
