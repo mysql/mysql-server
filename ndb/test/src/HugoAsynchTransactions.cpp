@@ -476,7 +476,7 @@ HugoAsynchTransactions::executeAsynchOperation(Ndb* pNdb,
       case NO_INSERT:
       case NO_UPDATE:
       case NO_DELETE:
-	abort();
+	break;
       }
 
       // Close all transactions
