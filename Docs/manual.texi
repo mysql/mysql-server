@@ -6813,9 +6813,15 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{http://mysql.netfirm.net, WWW}
 
 @item
-@c EMAIL: dnata@incaf.net "Denie Nataprawira"
-@image{Flags/indonesia} Indonesia [incaf.net]
+@c EMAIL: dnata@incaf.net (Denie Nataprawira)
+@image{Flags/indonesia} Indonesia [incaf.net] @
 @uref{http://mysql.incaf.net/, WWW}
+
+@item
+@c EMAIL: andika@piksi.itb.ac.id (Andika Triwidada)
+@image{Flags/indonesia} Indonesia [web.id] @
+@uref{http://mysql.itb.web.id/, WWW}
+@uref{ftp://mysql.itb.web.id/pub/MySQL/, FTP}
 
 @item
 @c Ok 980805
