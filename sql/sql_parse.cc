@@ -1029,7 +1029,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* We must allocate some extra memory for query cache */
     if (!(thd->query= (char*) thd->memdup_w_gap((gptr) (packet),
 						packet_length,
-						thd->db_length+2)))
+						thd->db_length+2+
+						sizeof(ha_rows))))
       break;
     thd->query[packet_length]=0;
     thd->packet.shrink(thd->variables.net_buffer_length);// Reclaim some memory
