@@ -4,15 +4,13 @@ include .defs.mk
 ifeq ($(NDB_OS), OSE)
 DIRS = basic flexBench flexAsynch
 else
-DIRS = lmc-bench bank
+DIRS = lmc-bench bank ronja
 BIN_DIRS = 			\
 	flexAsynch      \
 	flexBench       \
 	flexHammer	\
 	flexScan        \
 	flexTT          \
-        nodeRecovery    \
-	restartgci  	\
 	create_tab	\
 	create_all_tabs \
 	drop_all_tabs	\
@@ -33,16 +31,13 @@ BIN_DIRS = 			\
 	testRestartGci	\
 	testDataBuffers \
 	testDict	\
-        initronja 	\
-	benchronja 	\
         acid 		\
 	interpreterInTup \
 	telco       \
-        indexTest       \
+	indexTest       \
 	test_event      \
         indexTest2      \
 	testGrep                
-#	tables 		\
 
 ifeq ($(NDB_OS), SOLARIS)
 ifeq ($(NDB_COMPILER), FORTE6)
