@@ -82,14 +82,14 @@ RestoreMetaData::RestoreMetaData(const char* path, Uint32 nodeId, Uint32 bNo) {
 }
 
 RestoreMetaData::~RestoreMetaData(){
-  for(int i = 0; i<allTables.size(); i++)
+  for(Uint32 i= 0; i < allTables.size(); i++)
     delete allTables[i];
   allTables.clear();
 }
 
 const TableS * 
 RestoreMetaData::getTable(Uint32 tableId) const {
-  for(int i = 0; i<allTables.size(); i++)
+  for(Uint32 i= 0; i < allTables.size(); i++)
     if(allTables[i]->getTableId() == tableId)
       return allTables[i];
   return NULL;
@@ -207,7 +207,7 @@ TableS::TableS(NdbTableImpl* tableImpl)
 
 TableS::~TableS()
 {
-  for (int i = 0; i < allAttributesDesc.size(); i++)
+  for (Uint32 i= 0; i < allAttributesDesc.size(); i++)
     delete allAttributesDesc[i];
 }
 
@@ -334,7 +334,7 @@ RestoreDataIterator::getNextTuple(int  & res)
   Uint32 *buf_ptr = (Uint32*)_buf_ptr, *ptr = buf_ptr;
   ptr += m_currentTable->m_nullBitmaskSize;
 
-  for(int i = 0; i < m_currentTable->m_fixedKeys.size(); i++){
+  for(Uint32 i= 0; i < m_currentTable->m_fixedKeys.size(); i++){
     assert(ptr < buf_ptr + dataLength);
  
     const Uint32 attrId = m_currentTable->m_fixedKeys[i]->attrId;
@@ -355,7 +355,7 @@ RestoreDataIterator::getNextTuple(int  & res)
     ptr += sz;
   }
 
-  for(int i = 0; i<m_currentTable->m_fixedAttribs.size(); i++){
+  for(Uint32 i = 0; i < m_currentTable->m_fixedAttribs.size(); i++){
     assert(ptr < buf_ptr + dataLength);
 
     const Uint32 attrId = m_currentTable->m_fixedAttribs[i]->attrId;
@@ -377,7 +377,7 @@ RestoreDataIterator::getNextTuple(int  & res)
     ptr += sz;
   }
 
-  for(int i = 0; i<m_currentTable->m_variableAttribs.size(); i++){
+  for(Uint32 i = 0; i < m_currentTable->m_variableAttribs.size(); i++){
     const Uint32 attrId = m_currentTable->m_variableAttribs[i]->attrId;
 
     AttributeData * attr_data = m_tuple.getData(attrId);
@@ -911,7 +911,7 @@ operator<<(NdbOut& ndbout, const LogEntry& logE)
     ndbout << "Unknown log entry type (not insert, delete or update)" ;
   }
   
-  for (int i = 0; i < logE.size();i++) 
+  for (Uint32 i= 0; i < logE.size();i++) 
   {
     const AttributeS * attr = logE[i];
     ndbout << attr->Desc->m_column->getName() << "=";
