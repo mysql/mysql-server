@@ -217,11 +217,7 @@ static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
   - If not, open the 'log' binary file.
 
   TODO
-    - check proper initialization of master_log_name/master_log_pos
-    - We may always want to delete all logs before 'log'.
-      Currently if we are not calling this with 'log' as NULL or the first
-      log we will never delete relay logs.
-      If we want this we should not set skip_log_purge to 1.
+    - check proper initialization of group_master_log_name/group_master_log_pos
 
   RETURN VALUES
     0	ok
@@ -248,7 +244,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
     rli->cur_log_fd = -1;
   }
   
-  rli->relay_log_pos = pos;
+  rli->group_relay_log_pos = rli->event_relay_log_pos = pos;
 
   /*
     Test to see if the previous run was with the skip of purging
@@ -260,18 +256,15 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
     goto err;
   }
 
-  if (log)					// If not first log
+  if (log && rli->relay_log.find_log_pos(&rli->linfo, log, 1))
   {
-    if (strcmp(log, rli->linfo.log_file_name))
-      rli->skip_log_purge= 1;			// Different name; Don't purge
-    if (rli->relay_log.find_log_pos(&rli->linfo, log, 1))
-    {
-      *errmsg="Could not find target log during relay log initialization";
-      goto err;
-    }
+    *errmsg="Could not find target log during relay log initialization";
+    goto err;
   }
-  strmake(rli->relay_log_name,rli->linfo.log_file_name,
-	  sizeof(rli->relay_log_name)-1);
+  strmake(rli->group_relay_log_name,rli->linfo.log_file_name,
+	  sizeof(rli->group_relay_log_name)-1);
+  strmake(rli->event_relay_log_name,rli->linfo.log_file_name,
+	  sizeof(rli->event_relay_log_name)-1);
   if (rli->relay_log.is_active(rli->linfo.log_file_name))
   {
     /*
@@ -302,7 +295,7 @@ err:
     If we don't purge, we can't honour relay_log_space_limit ;
     silently discard it
   */
-  if (rli->skip_log_purge)
+  if (!relay_log_purge)
     rli->log_space_limit= 0;
   pthread_cond_broadcast(&rli->data_cond);
   if (need_data_lock)
@@ -383,9 +376,8 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
     to display fine in any case.
   */
 
-  rli->master_log_name[0]= 0;
-  rli->master_log_pos= 0;
-  rli->pending= 0;
+  rli->group_master_log_name[0]= 0;
+  rli->group_master_log_pos= 0;
 
   if (!rli->inited)
     DBUG_RETURN(0);
@@ -402,16 +394,18 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
     goto err;
   }
   /* Save name of used relay log file */
-  strmake(rli->relay_log_name, rli->relay_log.get_log_fname(),
-	  sizeof(rli->relay_log_name)-1);
+  strmake(rli->group_relay_log_name, rli->relay_log.get_log_fname(),
+	  sizeof(rli->group_relay_log_name)-1);
+  strmake(rli->event_relay_log_name, rli->relay_log.get_log_fname(),
+ 	  sizeof(rli->event_relay_log_name)-1);
   // Just first log with magic number and nothing else
   rli->log_space_total= BIN_LOG_HEADER_SIZE;
-  rli->relay_log_pos=   BIN_LOG_HEADER_SIZE;
+  rli->group_relay_log_pos= rli->event_relay_log_pos= BIN_LOG_HEADER_SIZE;
   rli->relay_log.reset_bytes_written();
   if (!just_reset)
-    error= init_relay_log_pos(rli, rli->relay_log_name, rli->relay_log_pos,
-			      0 /* do not need data lock */, errmsg);
-
+    error= init_relay_log_pos(rli, rli->group_relay_log_name, rli->group_relay_log_pos,
+  			      0 /* do not need data lock */, errmsg);
+  
 err:
 #ifndef DBUG_OFF
   char buf[22];
@@ -1238,13 +1232,11 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   fn_format(fname, info_fname, mysql_data_home, "", 4+32);
   pthread_mutex_lock(&rli->data_lock);
   info_fd = rli->info_fd;
-  rli->pending = 0;
   rli->cur_log_fd = -1;
   rli->slave_skip_counter=0;
   rli->abort_pos_wait=0;
-  rli->skip_log_purge=0;
-  rli->log_space_limit = relay_log_space_limit;
-  rli->log_space_total = 0;
+  rli->log_space_limit= relay_log_space_limit;
+  rli->log_space_total= 0;
 
   // TODO: make this work with multi-master
   if (!opt_relay_logname)
@@ -1285,8 +1277,8 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     if (init_relay_log_pos(rli,NullS,BIN_LOG_HEADER_SIZE,0 /* no data lock */,
 			   &msg))
       goto err;
-    rli->master_log_name[0]= 0;
-    rli->master_log_pos= 0;		
+    rli->group_master_log_name[0]= 0;
+    rli->group_master_log_pos= 0;		
     rli->info_fd= info_fd;
   }
   else // file exists
@@ -1307,31 +1299,33 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
       
     rli->info_fd = info_fd;
     int relay_log_pos, master_log_pos;
-    if (init_strvar_from_file(rli->relay_log_name,
-			      sizeof(rli->relay_log_name), &rli->info_file,
+    if (init_strvar_from_file(rli->group_relay_log_name,
+			      sizeof(rli->group_relay_log_name), &rli->info_file,
 			      "") ||
        init_intvar_from_file(&relay_log_pos,
 			     &rli->info_file, BIN_LOG_HEADER_SIZE) ||
-       init_strvar_from_file(rli->master_log_name,
-			     sizeof(rli->master_log_name), &rli->info_file,
+       init_strvar_from_file(rli->group_master_log_name,
+			     sizeof(rli->group_master_log_name), &rli->info_file,
 			     "") ||
        init_intvar_from_file(&master_log_pos, &rli->info_file, 0))
     {
       msg="Error reading slave log configuration";
       goto err;
     }
-    rli->relay_log_pos=  relay_log_pos;
-    rli->master_log_pos= master_log_pos;
+    strmake(rli->event_relay_log_name,rli->group_relay_log_name,
+            sizeof(rli->event_relay_log_name)-1);
+    rli->group_relay_log_pos= rli->event_relay_log_pos= relay_log_pos;
+    rli->group_master_log_pos= master_log_pos;
 
     if (init_relay_log_pos(rli,
-			   rli->relay_log_name,
-			   rli->relay_log_pos,
+			   rli->group_relay_log_name,
+			   rli->group_relay_log_pos,
 			   0 /* no data lock*/,
 			   &msg))
       goto err;
   }
-  DBUG_ASSERT(rli->relay_log_pos >= BIN_LOG_HEADER_SIZE);
-  DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->relay_log_pos);
+  DBUG_ASSERT(rli->event_relay_log_pos >= BIN_LOG_HEADER_SIZE);
+  DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->event_relay_log_pos);
   /*
     Now change the cache from READ to WRITE - must do this
     before flush_relay_log_info
@@ -1407,7 +1401,7 @@ static int count_relay_log_space(RELAY_LOG_INFO* rli)
 {
   LOG_INFO linfo;
   DBUG_ENTER("count_relay_log_space");
-  rli->log_space_total = 0;
+  rli->log_space_total= 0;
   if (rli->relay_log.find_log_pos(&linfo, NullS, 1))
   {
     sql_print_error("Could not find first log while counting relay log space");
@@ -1631,10 +1625,10 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store((uint32) mi->connect_retry);
     protocol->store(mi->master_log_name, &my_charset_bin);
     protocol->store((ulonglong) mi->master_log_pos);
-    protocol->store(mi->rli.relay_log_name +
-		   dirname_length(mi->rli.relay_log_name), &my_charset_bin);
-    protocol->store((ulonglong) mi->rli.relay_log_pos);
-    protocol->store(mi->rli.master_log_name, &my_charset_bin);
+    protocol->store(mi->rli.group_relay_log_name +
+		   dirname_length(mi->rli.group_relay_log_name), &my_charset_bin);
+    protocol->store((ulonglong) mi->rli.group_relay_log_pos);
+    protocol->store(mi->rli.group_master_log_name, &my_charset_bin);
     protocol->store(mi->slave_running ? "Yes":"No", &my_charset_bin);
     protocol->store(mi->rli.slave_running ? "Yes":"No", &my_charset_bin);
     protocol->store(&replicate_do_db);
@@ -1642,7 +1636,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store((uint32) mi->rli.last_slave_errno);
     protocol->store(mi->rli.last_slave_error, &my_charset_bin);
     protocol->store((uint32) mi->rli.slave_skip_counter);
-    protocol->store((ulonglong) mi->rli.master_log_pos);
+    protocol->store((ulonglong) mi->rli.group_master_log_pos);
     protocol->store((ulonglong) mi->rli.log_space_total);
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
@@ -1673,17 +1667,15 @@ bool flush_master_info(MASTER_INFO* mi)
 
 
 st_relay_log_info::st_relay_log_info()
-  :info_fd(-1), cur_log_fd(-1), master_log_pos(0), save_temporary_tables(0),
-   cur_log_old_open_count(0), log_space_total(0), ignore_log_space_limit(0),
-   slave_skip_counter(0), abort_pos_wait(0), slave_run_id(0),
-   sql_thd(0), last_slave_errno(0), inited(0), abort_slave(0),
-   slave_running(0), skip_log_purge(0),
-   inside_transaction(0) /* the default is autocommit=1 */
+  :info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
+   cur_log_old_open_count(0), group_master_log_pos(0), log_space_total(0),
+   ignore_log_space_limit(0), slave_skip_counter(0), abort_pos_wait(0),
+   slave_run_id(0), sql_thd(0), last_slave_errno(0), inited(0), abort_slave(0),
+   slave_running(0)
 {
-  relay_log_name[0] = master_log_name[0] = 0;
+  group_relay_log_name[0]= event_relay_log_name[0]= group_master_log_name[0]= 0;
   last_slave_error[0]=0;
   
-
   bzero(&info_file,sizeof(info_file));
   bzero(&cache_buf, sizeof(cache_buf));
   pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
@@ -1745,8 +1737,8 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
   set_timespec(abstime,timeout);
 
   DBUG_ENTER("wait_for_pos");
-  DBUG_PRINT("enter",("master_log_name: '%s'  pos: %lu timeout: %ld",
-                      master_log_name, (ulong) master_log_pos, 
+  DBUG_PRINT("enter",("group_master_log_name: '%s'  pos: %lu timeout: %ld",
+                      group_master_log_name, (ulong) group_master_log_pos, 
                       (long) timeout));
 
   pthread_mutex_lock(&data_lock);
@@ -1796,10 +1788,10 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
   {
     bool pos_reached;
     int cmp_result= 0;
-    DBUG_ASSERT(*master_log_name || master_log_pos == 0);
-    if (*master_log_name)
+    DBUG_ASSERT(*group_master_log_name || group_master_log_pos == 0);
+    if (*group_master_log_name)
     {
-      char *basename= master_log_name + dirname_length(master_log_name);
+      char *basename= group_master_log_name + dirname_length(group_master_log_name);
       /*
         First compare the parts before the extension.
         Find the dot in the master's log basename,
@@ -1814,13 +1806,13 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
       }
       // Now compare extensions.
       char *q_end;
-      ulong master_log_name_extension= strtoul(q, &q_end, 10);
-      if (master_log_name_extension < log_name_extension)
+      ulong group_master_log_name_extension= strtoul(q, &q_end, 10);
+      if (group_master_log_name_extension < log_name_extension)
         cmp_result = -1 ;
       else
-        cmp_result= (master_log_name_extension > log_name_extension) ? 1 : 0 ;
+        cmp_result= (group_master_log_name_extension > log_name_extension) ? 1 : 0 ;
     }
-    pos_reached = ((!cmp_result && master_log_pos >= (ulonglong)log_pos) ||
+    pos_reached = ((!cmp_result && group_master_log_pos >= (ulonglong)log_pos) ||
                    cmp_result > 0);
     if (pos_reached || thd->killed)
       break;
@@ -2127,7 +2119,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
 	(rli->slave_skip_counter && type_code != ROTATE_EVENT))
     {
       /* TODO: I/O thread should not even log events with the same server id */
-      rli->inc_pos(ev->get_event_len(),
+      rli->inc_group_relay_log_pos(ev->get_event_len(),
 		   type_code != STOP_EVENT ? ev->log_pos : LL(0),
 		   1/* skip lock*/);
       flush_relay_log_info(rli);
@@ -2497,15 +2489,13 @@ slave_begin:
   rli->abort_slave = 0;
   pthread_mutex_unlock(&rli->run_lock);
   pthread_cond_broadcast(&rli->start_cond);
-  // This should always be set to 0 when the slave thread is started
-  rli->pending = 0;
 
   //tell the I/O thread to take relay_log_space_limit into account from now on
   rli->ignore_log_space_limit= 0;
 
   if (init_relay_log_pos(rli,
-			 rli->relay_log_name,
-			 rli->relay_log_pos,
+			 rli->group_relay_log_name,
+			 rli->group_relay_log_pos,
 			 1 /*need data lock*/, &errmsg))
   {
     sql_print_error("Error initializing relay log position: %s",
@@ -2513,18 +2503,18 @@ slave_begin:
     goto err;
   }
   THD_CHECK_SENTRY(thd);
-  DBUG_ASSERT(rli->relay_log_pos >= BIN_LOG_HEADER_SIZE);
-  DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->relay_log_pos);
+  DBUG_ASSERT(rli->event_relay_log_pos >= BIN_LOG_HEADER_SIZE);
+  DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->event_relay_log_pos);
   DBUG_ASSERT(rli->sql_thd == thd);
 
   DBUG_PRINT("master_info",("log_file_name: %s  position: %s",
-			    rli->master_log_name,
-			    llstr(rli->master_log_pos,llbuff)));
+			    rli->group_master_log_name,
+			    llstr(rli->group_master_log_pos,llbuff)));
   if (global_system_variables.log_warnings)
     sql_print_error("Slave SQL thread initialized, starting replication in \
 log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
-		    llstr(rli->master_log_pos,llbuff),rli->relay_log_name,
-		    llstr(rli->relay_log_pos,llbuff1));
+		    llstr(rli->group_master_log_pos,llbuff),rli->group_relay_log_name,
+		    llstr(rli->group_relay_log_pos,llbuff1));
 
   /* Read queries from the IO/THREAD until this thread is killed */
 
@@ -2541,7 +2531,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
 Error running query, slave SQL thread aborted. Fix the problem, and restart \
 the slave SQL thread with \"SLAVE START\". We stopped at log \
 '%s' position %s",
-		      RPL_LOG_NAME, llstr(rli->master_log_pos, llbuff));
+		      RPL_LOG_NAME, llstr(rli->group_master_log_pos, llbuff));
       goto err;
     }
   }
@@ -2549,7 +2539,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   /* Thread stopped. Print the current replication position to the log */
   sql_print_error("Slave SQL thread exiting, replication stopped in log \
  '%s' at position %s",
-		  RPL_LOG_NAME, llstr(rli->master_log_pos,llbuff));
+		  RPL_LOG_NAME, llstr(rli->group_master_log_pos,llbuff));
 
  err:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
@@ -2699,7 +2689,7 @@ err:
     rev			The rotate log event read from the binary log
 
   DESCRIPTION
-    Updates the master info and relay data with the place in the next binary
+    Updates the master info with the place in the next binary
     log where we should start reading.
 
   NOTES
@@ -3073,18 +3063,14 @@ bool flush_relay_log_info(RELAY_LOG_INFO* rli)
   IO_CACHE *file = &rli->info_file;
   char buff[FN_REFLEN*2+22*2+4], *pos;
 
-  /* sql_thd is not set when calling from init_slave() */
-  if ((rli->sql_thd && rli->sql_thd->options & OPTION_BEGIN))
-    return 0;					// Wait for COMMIT
-
   my_b_seek(file, 0L);
-  pos=strmov(buff, rli->relay_log_name);
+  pos=strmov(buff, rli->group_relay_log_name);
   *pos++='\n';
-  pos=longlong2str(rli->relay_log_pos, pos, 10);
+  pos=longlong2str(rli->group_relay_log_pos, pos, 10);
   *pos++='\n';
-  pos=strmov(pos, rli->master_log_name);
+  pos=strmov(pos, rli->group_master_log_name);
   *pos++='\n';
-  pos=longlong2str(rli->master_log_pos, pos, 10);
+  pos=longlong2str(rli->group_master_log_pos, pos, 10);
   *pos='\n';
   if (my_b_write(file, (byte*) buff, (ulong) (pos-buff)+1))
     error=1;
@@ -3107,7 +3093,7 @@ static IO_CACHE *reopen_relay_log(RELAY_LOG_INFO *rli, const char **errmsg)
   DBUG_ENTER("reopen_relay_log");
 
   IO_CACHE *cur_log = rli->cur_log=&rli->cache_buf;
-  if ((rli->cur_log_fd=open_binlog(cur_log,rli->relay_log_name,
+  if ((rli->cur_log_fd=open_binlog(cur_log,rli->event_relay_log_name,
 				   errmsg)) <0)
     DBUG_RETURN(0);
   /*
@@ -3115,7 +3101,7 @@ static IO_CACHE *reopen_relay_log(RELAY_LOG_INFO *rli, const char **errmsg)
     relay_log_pos	Current log pos
     pending		Number of bytes already processed from the event
   */
-  my_b_seek(cur_log,rli->relay_log_pos + rli->pending);
+  my_b_seek(cur_log,rli->event_relay_log_pos);
   DBUG_RETURN(cur_log);
 }
 
@@ -3124,7 +3110,7 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 {
   Log_event* ev;
   IO_CACHE* cur_log = rli->cur_log;
-  pthread_mutex_t *log_lock = rli->relay_log.get_log_lock();
+  pthread_mutex_t *log_lock = rli->relay_log.get_log_lock(); 
   const char* errmsg=0;
   THD* thd = rli->sql_thd;
   DBUG_ENTER("next_event");
@@ -3173,7 +3159,7 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
       }
     }
     DBUG_ASSERT(my_b_tell(cur_log) >= BIN_LOG_HEADER_SIZE);
-    DBUG_ASSERT(my_b_tell(cur_log) == rli->relay_log_pos + rli->pending);
+    DBUG_ASSERT(my_b_tell(cur_log) == rli->event_relay_log_pos);
     /*
       Relay log is always in new format - if the master is 3.23, the
       I/O thread will convert the format for us
@@ -3240,8 +3226,8 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
         // prevent the I/O thread from blocking next times
         rli->ignore_log_space_limit= 1; 
         // If the I/O thread is blocked, unblock it
-        pthread_cond_broadcast(&rli->log_space_cond);
         pthread_mutex_unlock(&rli->log_space_lock);
+        pthread_cond_broadcast(&rli->log_space_cond);
         // Note that wait_for_update unlocks lock_log !
         rli->relay_log.wait_for_update(rli->sql_thd);
         // re-acquire data lock since we released it earlier
@@ -3258,16 +3244,25 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
       my_close(rli->cur_log_fd, MYF(MY_WME));
       rli->cur_log_fd = -1;
 	
-      /*
-	TODO: make skip_log_purge a start-up option. At this point this
-	is not critical priority
-      */
-      if (!rli->skip_log_purge)
+      if (relay_log_purge)
       {
-	// purge_first_log will properly set up relay log coordinates in rli
-	if (rli->relay_log.purge_first_log(rli))
+	/*
+          purge_first_log will properly set up relay log coordinates in rli.
+          If the group's coordinates are equal to the event's coordinates
+          (i.e. the relay log was not rotated in the middle of a group),
+          we can purge this relay log too.
+          We do ulonglong and string comparisons, this may be slow but
+          - purging the last relay log is nice (it can save 1GB of disk), so we
+          like to detect the case where we can do it, and given this,
+          - I see no better detection method
+          - purge_first_log is not called that often
+        */
+	if (rli->relay_log.purge_first_log
+            (rli,
+             rli->group_relay_log_pos == rli->event_relay_log_pos
+             && !strcmp(rli->group_relay_log_name,rli->event_relay_log_name)))
 	{
-	  errmsg = "Error purging processed log";
+	  errmsg = "Error purging processed logs";
 	  goto err;
 	}
       }
@@ -3285,10 +3280,9 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	  errmsg = "error switching to the next log";
 	  goto err;
 	}
-	rli->relay_log_pos = BIN_LOG_HEADER_SIZE;
-	rli->pending=0;
-	strmake(rli->relay_log_name,rli->linfo.log_file_name,
-		sizeof(rli->relay_log_name)-1);
+	rli->event_relay_log_pos = BIN_LOG_HEADER_SIZE;
+	strmake(rli->event_relay_log_name,rli->linfo.log_file_name,
+		sizeof(rli->event_relay_log_name)-1);
 	flush_relay_log_info(rli);
       }
 	
@@ -3336,7 +3330,7 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 event(errno: %d  cur_log->error: %d)",
 		      my_errno,cur_log->error);
       // set read position to the beginning of the event
-      my_b_seek(cur_log,rli->relay_log_pos+rli->pending);
+      my_b_seek(cur_log,rli->event_relay_log_pos);
       /* otherwise, we have had a partial read */
       errmsg = "Aborting slave SQL thread because of partial event read";
       break;					// To end of function

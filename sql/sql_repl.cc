@@ -292,7 +292,7 @@ int purge_master_logs(THD* thd, const char* to_log)
   char search_file_name[FN_REFLEN];
 
   mysql_bin_log.make_log_name(search_file_name, to_log);
-  int res = mysql_bin_log.purge_logs(thd, search_file_name);
+  int res = mysql_bin_log.purge_logs(search_file_name, 0, 1, 1, NULL);
 
   return purge_error_message(thd, res);
 }
@@ -300,7 +300,7 @@ int purge_master_logs(THD* thd, const char* to_log)
 
 int purge_master_logs_before_date(THD* thd, time_t purge_time)
 {
-  int res = mysql_bin_log.purge_logs_before_date(thd, purge_time);
+  int res = mysql_bin_log.purge_logs_before_date(purge_time);
   return purge_error_message(thd ,res);
 }
 
@@ -776,24 +776,25 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
     error=1;
     goto err;
   }
-  //delete relay logs, clear relay log coordinates
+  // delete relay logs, clear relay log coordinates
   if ((error= purge_relay_logs(&mi->rli, thd,
 			       1 /* just reset */,
 			       &errmsg)))
     goto err;
   
-  //Clear master's log coordinates (only for good display of SHOW SLAVE STATUS)
+  // Clear master's log coordinates (only for good display of SHOW SLAVE STATUS)
   mi->master_log_name[0]= 0;
   mi->master_log_pos= BIN_LOG_HEADER_SIZE;
-  //close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
+  // close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
   end_master_info(mi);
-  //and delete these two files
+  // and delete these two files
   fn_format(fname, master_info_file, mysql_data_home, "", 4+32);
   if (my_stat(fname, &stat_area, MYF(0)) && my_delete(fname, MYF(MY_WME)))
   {
     error=1;
     goto err;
   }
+  // delete relay_log_info_file
   fn_format(fname, relay_log_info_file, mysql_data_home, "", 4+32);
   if (my_stat(fname, &stat_area, MYF(0)) && my_delete(fname, MYF(MY_WME)))
   {
@@ -874,7 +875,6 @@ int change_master(THD* thd, MASTER_INFO* mi)
     // if we change host or port, we must reset the postion
     mi->master_log_name[0] = 0;
     mi->master_log_pos= BIN_LOG_HEADER_SIZE;
-    mi->rli.pending = 0;
   }
 
   if (lex_mi->log_file_name)
@@ -883,7 +883,6 @@ int change_master(THD* thd, MASTER_INFO* mi)
   if (lex_mi->pos)
   {
     mi->master_log_pos= lex_mi->pos;
-    mi->rli.pending = 0;
   }
   DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
 
@@ -901,20 +900,22 @@ int change_master(THD* thd, MASTER_INFO* mi)
   if (lex_mi->relay_log_name)
   {
     need_relay_log_purge= 0;
-    strmake(mi->rli.relay_log_name,lex_mi->relay_log_name,
-	    sizeof(mi->rli.relay_log_name)-1);
+    strmake(mi->rli.group_relay_log_name,lex_mi->relay_log_name,
+	    sizeof(mi->rli.group_relay_log_name)-1);
+    strmake(mi->rli.event_relay_log_name,lex_mi->relay_log_name,
+	    sizeof(mi->rli.event_relay_log_name)-1);
   }
 
   if (lex_mi->relay_log_pos)
   {
     need_relay_log_purge= 0;
-    mi->rli.relay_log_pos=lex_mi->relay_log_pos;
+    mi->rli.group_relay_log_pos= mi->rli.event_relay_log_pos= lex_mi->relay_log_pos;
   }
 
   flush_master_info(mi);
   if (need_relay_log_purge)
   {
-    mi->rli.skip_log_purge= 0;
+    relay_log_purge= 1;
     thd->proc_info="purging old relay logs";
     if (purge_relay_logs(&mi->rli, thd,
 			 0 /* not only reset, but also reinit */,
@@ -928,11 +929,11 @@ int change_master(THD* thd, MASTER_INFO* mi)
   else
   {
     const char* msg;
-    mi->rli.skip_log_purge= 1;
+    relay_log_purge= 0;
     /* Relay log is already initialized */
     if (init_relay_log_pos(&mi->rli,
-			   mi->rli.relay_log_name,
-			   mi->rli.relay_log_pos,
+			   mi->rli.group_relay_log_name,
+			   mi->rli.group_relay_log_pos,
 			   0 /*no data lock*/,
 			   &msg))
     {
@@ -941,12 +942,12 @@ int change_master(THD* thd, MASTER_INFO* mi)
       DBUG_RETURN(1);
     }
   }
-  mi->rli.master_log_pos = mi->master_log_pos;
+  mi->rli.group_master_log_pos = mi->master_log_pos;
   DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
-  strmake(mi->rli.master_log_name,mi->master_log_name,
-	  sizeof(mi->rli.master_log_name)-1);
-  if (!mi->rli.master_log_name[0]) // uninitialized case
-    mi->rli.master_log_pos=0;
+  strmake(mi->rli.group_master_log_name,mi->master_log_name,
+	  sizeof(mi->rli.group_master_log_name)-1);
+  if (!mi->rli.group_master_log_name[0]) // uninitialized case
+    mi->rli.group_master_log_pos=0;
 
   pthread_mutex_lock(&mi->rli.data_lock);
   mi->rli.abort_pos_wait++;
