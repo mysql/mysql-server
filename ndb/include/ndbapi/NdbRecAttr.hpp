@@ -74,8 +74,9 @@ class AttrInfo;
 class NdbRecAttr
 {
   friend class NdbOperation;
+  friend class NdbIndexScanOperation;
   friend class NdbEventOperationImpl;
-  friend class NdbScanReceiver;
+  friend class NdbReceiver;
   friend class Ndb;
   
 public:
@@ -244,15 +245,15 @@ private:
   NdbRecAttr();
 
   Uint32 attrId() const;        /* Get attribute id                     */
-  void setNULL();               /* Set NULL indicator                   */
-  void setNotNULL();            /* Set Not NULL indicator               */
-  void setUNDEFINED();          /* Set UNDEFINED indicator              */
+  bool setNULL();               /* Set NULL indicator                   */
+  bool receive_data(const Uint32*, Uint32);
 
   void release();               /* Release memory if allocated          */
   void init();                  /* Initialise object when allocated     */
 
   void next(NdbRecAttr* aRecAttr);
   NdbRecAttr* next() const;
+
 
   int setup(const class NdbColumnImpl* anAttrInfo, char* aValue);
                                 /* Set up attributes and buffers        */
@@ -268,6 +269,7 @@ private:
   Uint32        theAttrId;      /* The attribute id                     */
 
   int theNULLind;
+  bool m_nullable;
   Uint32 theAttrSize;
   Uint32 theArraySize;
   const NdbDictionary::Column* m_column;
@@ -288,29 +290,7 @@ NdbRecAttr::getColumn() const {
 inline
 Uint32
 NdbRecAttr::attrSize() const {
-
-  switch(getType()){
-  case NdbDictionary::Column::Int:
-  case NdbDictionary::Column::Unsigned:
-  case NdbDictionary::Column::Float:
-    return 4;
-  case NdbDictionary::Column::Decimal:
-  case NdbDictionary::Column::Char:
-  case NdbDictionary::Column::Varchar:
-  case NdbDictionary::Column::Binary:
-  case NdbDictionary::Column::Varbinary:
-    return 1;
-  case NdbDictionary::Column::Bigint:
-  case NdbDictionary::Column::Bigunsigned:
-  case NdbDictionary::Column::Double:
-  case NdbDictionary::Column::Datetime:
-    return 8;
-  case NdbDictionary::Column::Timespec:
-    return 12;
-  case NdbDictionary::Column::Undefined:
-  default:
-    return 0;
-  }
+  return theAttrSize;
 }
 
 inline
@@ -448,24 +428,11 @@ NdbRecAttr::attrId() const
 }
 
 inline
-void
+bool
 NdbRecAttr::setNULL()
 {
   theNULLind = 1;
-}
-
-inline
-void
-NdbRecAttr::setNotNULL()
-{
-  theNULLind = 0;
-}
-
-inline
-void
-NdbRecAttr::setUNDEFINED()
-{
-  theNULLind = -1;
+  return m_nullable;
 }
 
 inline

@@ -156,26 +156,22 @@ Ndb::NDB_connect(Uint32 tNode)
   tNdbCon->Status(NdbConnection::Connecting); // Set status to connecting
   Uint32 nodeSequence;
   { // send and receive signal
-    tp->lock_mutex();
+    Guard guard(tp->theMutexPtr);
     nodeSequence = tp->getNodeSequence(tNode);
     bool node_is_alive = tp->get_node_alive(tNode);
     if (node_is_alive) { 
       tReturnCode = tp->sendSignal(tSignal, tNode);  
       releaseSignal(tSignal); 
-      if (tReturnCode == -1) {
-        tp->unlock_mutex(); 
-      } else {  
+      if (tReturnCode != -1) {
         theWaiter.m_node = tNode;  
         theWaiter.m_state = WAIT_TC_SEIZE;  
         tReturnCode = receiveResponse(); 
       }//if
     } else {
       releaseSignal(tSignal);
-      tp->unlock_mutex();
       tReturnCode = -1;
     }//if
   }
-  
   if ((tReturnCode == 0) && (tNdbCon->Status() == NdbConnection::Connected)) {
     //************************************************
     // Send and receive was successful
@@ -465,9 +461,9 @@ Ndb::closeTransaction(NdbConnection* aConnection)
   CHECK_STATUS_MACRO_VOID;
   
   tCon = theTransactionList;
-
+  
   if (aConnection == tCon) {		// Remove the active connection object
-     theTransactionList = tCon->next();	// from the transaction list.
+    theTransactionList = tCon->next();	// from the transaction list.
   } else { 
     while (aConnection != tCon) {
       if (tCon == NULL) {
@@ -475,44 +471,33 @@ Ndb::closeTransaction(NdbConnection* aConnection)
 // closeTransaction called on non-existing transaction
 //-----------------------------------------------------
 
-  if(aConnection->theError.code == 4008){
-    /**
-     * When a SCAN timed-out, returning the NdbConnection leads
-     * to reuse. And TC crashes when the API tries to reuse it to
-     * something else...
-     */
+	if(aConnection->theError.code == 4008){
+	  /**
+	   * When a SCAN timed-out, returning the NdbConnection leads
+	   * to reuse. And TC crashes when the API tries to reuse it to
+	   * something else...
+	   */
 #ifdef VM_TRACE
-    printf("Scan timeout:ed NdbConnection-> not returning it-> memory leak\n");
+	  printf("Scan timeout:ed NdbConnection-> "
+		 "not returning it-> memory leak\n");
 #endif
-    return;
-  }
+	  return;
+	}
 
 #ifdef VM_TRACE
-        printf("Non-existing transaction into closeTransaction\n");
+	printf("Non-existing transaction into closeTransaction\n");
 	abort();
 #endif
-        return;
+	return;
       }//if
       tPreviousCon = tCon;
       tCon = tCon->next();
     }//while
     tPreviousCon->next(tCon->next());
   }//if
-
+  
   aConnection->release();
-
-  if(aConnection->theError.code == 4008){
-    /**
-     * When a SCAN timed-out, returning the NdbConnection leads
-     * to reuse. And TC crashes when the API tries to reuse it to
-     * something else...
-     */
-#ifdef VM_TRACE
-    printf("Scan timeout:ed NdbConnection-> not returning it-> memory leak\n");
-#endif
-    return;
-  }
-
+  
   if(aConnection->theError.code == 4008){
     /**
      * Something timed-out, returning the NdbConnection leads
@@ -524,7 +509,7 @@ Ndb::closeTransaction(NdbConnection* aConnection)
 #endif
     return;
   }
-
+  
   if (aConnection->theReleaseOnClose == false) {
     /**
      * Put it back in idle list for that node

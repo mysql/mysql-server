@@ -75,7 +75,6 @@
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/CreateFragmentation.hpp>
 #include <signaldata/CreateTab.hpp>
-#include "../dbtc/Dbtc.hpp"
 #include <NdbSleep.h>
 
 #define ZNOT_FOUND 626
@@ -254,6 +253,7 @@ Dbdict::packTableIntoPagesImpl(SimpleProperties::Writer & w,
   w.add(DictTabInfo::FragmentTypeVal, tablePtr.p->fragmentType);
   w.add(DictTabInfo::FragmentKeyTypeVal, tablePtr.p->fragmentKeyType);
   w.add(DictTabInfo::TableTypeVal, tablePtr.p->tableType);
+  w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
   
   if (tablePtr.p->primaryTableId != RNIL){
     TableRecordPtr primTab;
@@ -3599,30 +3599,37 @@ Dbdict::execCREATE_FRAGMENTATION_CONF(Signal* signal){
 
   SegmentedSectionPtr fragDataPtr;
   signal->getSection(fragDataPtr, CreateFragmentationConf::FRAGMENTS);
-
   signal->header.m_noOfSections = 0;
 
   /**
-   * Correct table
+   * Get table
    */
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_tablePtrI);
 
-  PageRecordPtr pagePtr;
-  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
-  SchemaFile::TableEntry * tabEntry = getTableEntry(pagePtr.p, tabPtr.i);
+  /**
+   * Save fragment count
+   */
+  tabPtr.p->fragmentCount = conf->noOfFragments;
 
   /**
    * Update table version
    */
+  PageRecordPtr pagePtr;
+  c_pageRecordArray.getPtr(pagePtr, c_schemaRecord.schemaPage);
+  SchemaFile::TableEntry * tabEntry = getTableEntry(pagePtr.p, tabPtr.i);
+
   tabPtr.p->tableVersion = tabEntry->m_tableVersion + 1;
-  
+
+  /**
+   * Pack
+   */
   SimplePropertiesSectionWriter w(getSectionSegmentPool());
   packTableIntoPagesImpl(w, tabPtr);
   
   SegmentedSectionPtr spDataPtr;
   w.getPtr(spDataPtr);
-
+  
   signal->setSection(spDataPtr, CreateTabReq::DICT_TAB_INFO);
   signal->setSection(fragDataPtr, CreateTabReq::FRAGMENTATION);
   
@@ -4252,7 +4259,9 @@ Dbdict::execDIADDTABCONF(Signal* signal){
     /**
      * No local fragment (i.e. no LQHFRAGREQ)
      */
-    sendSignal(DBDIH_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
+    execute(signal, createTabPtr.p->m_callback, 0);
+    return;
+    //sendSignal(DBDIH_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
   }
 }
 
@@ -4637,6 +4646,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->fragmentKeyType = (DictTabInfo::FragmentKeyType)tableDesc.FragmentKeyType;
   tablePtr.p->tableType = (DictTabInfo::TableType)tableDesc.TableType;
   tablePtr.p->kValue = tableDesc.TableKValue;
+  tablePtr.p->fragmentCount = tableDesc.FragmentCount;
 
   tablePtr.p->frmLen = tableDesc.FrmLen;
   memcpy(tablePtr.p->frmData, tableDesc.FrmData, tableDesc.FrmLen);  
@@ -5080,8 +5090,20 @@ Dbdict::execPREP_DROP_TAB_REF(Signal* signal){
   
   Uint32 nodeId = refToNode(prep->senderRef);
   dropTabPtr.p->m_coordinatorData.m_signalCounter.clearWaitingFor(nodeId);
- 
-  dropTabPtr.p->setErrorCode((Uint32)prep->errorCode);
+  
+  Uint32 block = refToBlock(prep->senderRef);
+  if((prep->errorCode == PrepDropTabRef::NoSuchTable && block == DBLQH) ||
+     (prep->errorCode == PrepDropTabRef::NF_FakeErrorREF)){
+    jam();
+    /**
+     * Ignore errors:
+     * 1) no such table and LQH, it might not exists in different LQH's
+     * 2) node failure...
+     */
+  } else {
+    dropTabPtr.p->setErrorCode((Uint32)prep->errorCode);
+  }
+  
   if(!dropTabPtr.p->m_coordinatorData.m_signalCounter.done()){
     jam();
     return;
@@ -5112,6 +5134,19 @@ void
 Dbdict::execDROP_TAB_REF(Signal* signal){
   jamEntry();
 
+  DropTabRef * const req = (DropTabRef*)signal->getDataPtr();
+
+  Uint32 block = refToBlock(req->senderRef);
+  ndbrequire(req->errorCode == DropTabRef::NF_FakeErrorREF ||
+	     (req->errorCode == DropTabRef::NoSuchTable &&
+	      (block == DBTUP || block == DBACC || block == DBLQH)));
+  
+  if(block != DBDICT){
+    jam();
+    ndbrequire(refToNode(req->senderRef) == getOwnNodeId());
+    dropTab_localDROP_TAB_CONF(signal);
+    return;
+  }
   ndbrequire(false);
 }
 

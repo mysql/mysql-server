@@ -13360,6 +13360,25 @@ Dbdih::checkPrepDropTabComplete(Signal* signal, TabRecordPtr tabPtr){
 }
 			
 void
+Dbdih::execWAIT_DROP_TAB_REF(Signal* signal){
+  jamEntry();
+  WaitDropTabRef * ref = (WaitDropTabRef*)signal->getDataPtr();
+  
+  TabRecordPtr tabPtr;
+  tabPtr.i = ref->tableId;
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+  
+  ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_DROPPING);
+  Uint32 nodeId = refToNode(ref->senderRef);
+ 
+  ndbrequire(ref->errorCode == WaitDropTabRef::NoSuchTable ||
+	     ref->errorCode == WaitDropTabRef::NF_FakeErrorREF);
+
+  tabPtr.p->m_prepDropTab.waitDropTabCount.clearWaitingFor(nodeId);
+  checkPrepDropTabComplete(signal, tabPtr);
+}
+
+void
 Dbdih::execWAIT_DROP_TAB_CONF(Signal* signal){
   jamEntry();
   WaitDropTabConf * conf = (WaitDropTabConf*)signal->getDataPtr();

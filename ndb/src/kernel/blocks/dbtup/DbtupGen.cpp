@@ -966,9 +966,7 @@ void Dbtup::initializeHostBuffer()
   for (hostId = 0; hostId < MAX_NODES; hostId++) {
     hostBuffer[hostId].inPackedList = false;
     hostBuffer[hostId].noOfPacketsTA = 0;
-    hostBuffer[hostId].noOfPacketsRC = 0;
     hostBuffer[hostId].packetLenTA = 0;
-    hostBuffer[hostId].packetLenRC = 0;
   }//for
 }//Dbtup::initializeHostBuffer()
 
