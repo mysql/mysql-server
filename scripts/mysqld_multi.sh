@@ -4,7 +4,7 @@ use Getopt::Long;
 use POSIX qw(strftime);
 
 $|=1;
-$VER="2.8";
+$VER="2.9";
 
 $opt_config_file   = undef();
 $opt_example       = 0;
@@ -17,6 +17,7 @@ $opt_password      = undef();
 $opt_tcp_ip        = 0;
 $opt_user          = "root";
 $opt_version       = 0;
+$opt_silent        = 0;
 
 my $my_print_defaults_exists= 1;
 my $logdir= undef();
@@ -41,10 +42,13 @@ sub main
   {
     # We can't throw out yet, since --version, --help, or --example may
     # have been given
-    print "WARNING! my_print_defaults command not found!\n";
-    print "Please make sure you have this command available and\n";
-    print "in your path. The command is available from the latest\n";
-    print "MySQL distribution.\n";
+    if (!$opt_silent)
+    {
+      print "WARNING! my_print_defaults command not found!\n";
+      print "Please make sure you have this command available and\n";
+      print "in your path. The command is available from the latest\n";
+      print "MySQL distribution.\n";
+    }
     $my_print_defaults_exists= 0;
   }
   if ($my_print_defaults_exists)
@@ -75,7 +79,8 @@ sub main
     splice @ARGV, 0, 0, @defops;
   }
   GetOptions("help","example","version","mysqld=s","mysqladmin=s",
-             "config-file=s","user=s","password=s","log=s","no-log","tcp-ip")
+             "config-file=s","user=s","password=s","log=s","no-log","tcp-ip",
+             "silent")
   || die "Wrong option! See $my_progname --help for detailed information!\n";
 
   init_log() if (!defined($opt_log));
@@ -86,11 +91,6 @@ sub main
     exit(0);
   }
   example() if ($opt_example);
-  if (!defined(($mysqld = my_which($opt_mysqld))))
-  {
-    print "Couldn't find the mysqld binary! Tried: $opt_mysqld\n";
-    $flag_exit=1;
-  }
   if (!defined(($mysqladmin = my_which($opt_mysqladmin))))
   {
     print "Couldn't find the mysqladmin binary! Tried: $opt_mysqladmin\n";
@@ -132,6 +132,14 @@ sub main
   }
   elsif ($ARGV[0] eq 'start' || $ARGV[0] eq 'START')
   {
+    if (!defined(($mysqld = my_which($opt_mysqld))) && !$opt_silent)
+    {
+      print "WARNING: Couldn't find the default mysqld binary. ";
+      print "Tried: $opt_mysqld\n";
+      print "This is OK, if you are using option --mysqld= under groups";
+      print " [mysqldN] separately for each.\n";
+      print "(Disable warnings with --silent)\n";
+    }
     start_mysqlds();
   }
   else
@@ -170,7 +178,10 @@ sub init_log
   {
     # Log file was not specified and we could not log to a standard place,
     # so log file be disabled for now.
-    print "WARNING: Log file disabled. Maybe directory/file isn't writable?\n";
+    if (!$opt_silent)
+    {
+      print "WARNING: Log file disabled. Maybe directory or file isn't writable?\n";
+    }
     $opt_no_log= 1;
   }
   else
@@ -269,6 +280,8 @@ sub start_mysqlds()
     @options = `$com`;
     chop @options;
 
+    $mysqld_found= 1; # The default
+    $mysqld_found= 0 if (!length($mysqld));
     $com= "$mysqld";
     for ($j = 0, $tmp= ""; defined($options[$j]); $j++)
     {
@@ -276,6 +289,7 @@ sub start_mysqlds()
       {
 	$options[$j]=~ s/\-\-mysqld\=//;
 	$com= $options[$j];
+        $mysqld_found= 1;
       }
       else
       {
@@ -286,6 +300,15 @@ sub start_mysqlds()
     $com.= $tmp;
     $com.= " >> $opt_log 2>&1" if (!$opt_no_log);
     $com.= " &";
+    if (!$mysqld_found)
+    {
+      print "\n\n";
+      print "FATAL ERROR: Tried to start mysqld under group [$groups[$i]], ";
+      print "but no mysqld binary was found.\n";
+      print "Please add --mysqld=... in group [mysqld_multi], or add it to ";
+      print "group [$groups[$i]] separately.\n";
+      exit(1);
+    }
     system($com);
   }
   if (!$i && !$opt_no_log)
@@ -678,6 +701,7 @@ Options:
 --no-log           Print to stdout instead of the log file. By default the log
                    file is turned on.
 --password=...     Password for user for mysqladmin.
+--silent           Disable warnings.
 --tcp-ip           Connect to the MySQL server(s) via the TCP/IP port instead
                    of the UNIX socket. This affects stopping and reporting.
                    If a socket file is missing, the server may still be
