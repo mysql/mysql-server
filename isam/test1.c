@@ -21,9 +21,7 @@ static void get_options(int argc, char *argv[]);
 static int rec_pointer_size=0,verbose=0,remove_ant=0,pack_keys=1,flags[50],
   packed_field=FIELD_SKIPP_PRESPACE;
 
-int main(argc,argv)
-int argc;
-char *argv[];
+int main(int argc, char *argv[])
 {
   N_INFO *file;
   int i,j,error,deleted,found;
@@ -145,9 +143,7 @@ err:
 	/* l{ser optioner */
 	/* OBS! intierar endast DEBUG - ingen debuggning h{r ! */
 
-static void get_options(argc,argv)
-int argc;
-char *argv[];
+static void get_options(int argc, char *argv[])
 {
   char *pos;
 

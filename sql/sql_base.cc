@@ -1401,7 +1401,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   {
     int error;
 
-#ifdef __WIN__
+#if defined( __WIN__) || defined(OS2)
     /* Win32 can't drop a file that is open */
     if (lock_type == TL_WRITE_ALLOW_READ
 #ifdef HAVE_GEMINI_DB
@@ -1411,7 +1411,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
     {
       lock_type= TL_WRITE;
     }
-#endif /* __WIN__ */
+#endif /* __WIN__ || OS2 */
 
     table_list->table=table;
     table->grant= table_list->grant;

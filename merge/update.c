@@ -18,9 +18,9 @@
 
 #include "mrgdef.h"
 
-int mrg_update(info,oldrec,newrec)
-register MRG_INFO *info;
-const byte *oldrec,*newrec;
+int mrg_update(
+register MRG_INFO *info,
+const byte *oldrec, const byte *newrec)
 {
   if (!info->current_table)
   {

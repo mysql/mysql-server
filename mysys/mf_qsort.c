@@ -52,7 +52,7 @@
 #define MAX_THRESH 8
 
 /* Stack node declarations used to store unfulfilled partition obligations. */
-typedef struct
+typedef struct _qsort_stack_node
   {
     char *lo;
     char *hi;
@@ -109,7 +109,7 @@ qsort_t qsort(void *base_ptr, size_t total_elems, size_t size, qsort_cmp cmp)
 
   if (total_elems > MAX_THRESH)
   {
-    char       *lo = base_ptr;
+    char       *lo = (char*) base_ptr;
     char       *hi = &lo[size * (total_elems - 1)];
     stack_node stack[STACK_SIZE]; /* Largest size needed for 32-bit int!!! */
     stack_node *top = stack + 1;

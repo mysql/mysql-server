@@ -30,10 +30,10 @@
 */
 
 
-MYRG_INFO *myrg_open(name,mode,handle_locking)
-const char *name;
-int mode;
-int handle_locking;
+MYRG_INFO *myrg_open(
+const char *name,
+int mode,
+int handle_locking)
 {
   int save_errno,i,errpos;
   uint files,dir_length,length;

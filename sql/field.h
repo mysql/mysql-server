@@ -38,8 +38,8 @@ public:
   static void operator delete(void *ptr_arg, size_t size) {} /*lint -e715 */
 
   enum utype { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
-	       CHECK,EMPTY,UNKNOWN,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,BIT_FIELD,
-	       TIMESTAMP_FIELD,CAPITALIZE,BLOB_FIELD};
+	       CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
+	       BIT_FIELD, TIMESTAMP_FIELD,CAPITALIZE,BLOB_FIELD};
   char	*ptr;				// Position to field in record
   uchar		*null_ptr;		// Byte where null_bit is
   uint8		null_bit;		// And position to it

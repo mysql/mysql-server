@@ -1,0 +1,68 @@
+// disable code inlining when building static libs
+InlineCode = "no"
+
+// include common options
+include "MySQL-Opt.icc"
+include "MySQL-Source.icc"
+
+option ProjectOptions = MySQLOptions
+                        , define( "MYSQL_SERVER", "")
+                        , link(defaultlibsname, "common.lib")
+                        , link(defaultlibsname, "myisam.lib")
+                        , link(defaultlibsname, "isam.lib")
+                        , link(defaultlibsname, "mysql.lib")
+{
+   option define( "MYSQL_SERVER", "")
+   {
+      target "..\\bin\\mysqlbinlog.exe"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') 'os2.h'
+            source type('cpp') 'errno.h', 'nerrno.h'
+            source type('cpp') 'config-os2.h', 'mysql_com.h'
+/*
+            source type('cpp')
+               'global.h', 'my_base.h', 'config-os2.h',
+               'my_dir.h', 'my_sys.h', 'mysql.h',
+               'my_bitmap.h', 'violite.h',
+               'mysql_priv.h',
+               'm_string.h'
+*/
+         }
+         // target source files
+         source type('cpp')
+                     "..\\sql\\mysqlbinlog.cc"
+         option macros('global', 'yes')
+         {
+            source type('cpp') 'sys/stat.h'
+         }
+         source type('cpp') "..\\sql\\mini_client.cc"
+         option macros('global', 'yes')
+         {
+            source type('cpp') 'os2.h'
+            source type('cpp') 'math.h'
+            source type('cpp') 'stdio.h'
+            source type('cpp') 'stdlib.h'
+            source type('cpp') 'stddef.h'
+            source type('cpp') 'limits.h'
+            source type('cpp') 'sys/types.h'
+            source type('cpp') 'sys/time.h'
+            source type('cpp') 'types.h'
+            source type('cpp') 'stdarg.h'
+            source type('cpp') 'string.h'
+         }
+         source type('cpp') "..\\sql\\net_serv.cc",
+                            "..\\sql\\mini_client_errors.c"
+                            option macros('global', 'yes')
+                            {
+                               source type('cpp') 'assert.h'
+                            }
+                            source type('cpp') "..\\sql\\violite.c",
+                            "..\\sql\\password.c"
+                            //"..\\sql\\thr_malloc.cc"
+      }
+   }
+
+}

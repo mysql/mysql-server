@@ -228,10 +228,10 @@ int my_strcoll_sjis(const uchar *s1, const uchar *s2)
 				  s2,(uint) strlen((char*) s2));
 }
 
-int my_strnxfrm_sjis(uchar *dest, uchar *src, int len, int srclen)
+int my_strnxfrm_sjis(uchar *dest, const uchar *src, int len, int srclen)
 {
   uchar *d_end = dest + len;
-  uchar *s_end = src + srclen;
+  uchar *s_end = (uchar*) src + srclen;
   while (dest < d_end && src < s_end) {
     if (ismbchar_sjis((char*) src, (char*) s_end)) {
       *dest++ = *src++;
@@ -244,7 +244,7 @@ int my_strnxfrm_sjis(uchar *dest, uchar *src, int len, int srclen)
   return srclen;
 }
 
-int my_strxfrm_sjis(uchar *dest, uchar *src, int len)
+int my_strxfrm_sjis(uchar *dest, const uchar *src, int len)
 {
   return my_strnxfrm_sjis(dest, src, len, (uint) strlen((char*) src));
 }

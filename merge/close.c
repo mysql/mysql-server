@@ -18,8 +18,7 @@
 
 #include "mrgdef.h"
 
-int mrg_close(info)
-register MRG_INFO *info;
+int mrg_close(register MRG_INFO *info)
 {
   int error=0,new_error;
   MRG_TABLE *file;

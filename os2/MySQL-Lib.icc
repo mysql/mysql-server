@@ -1,0 +1,72 @@
+// disable code inlining when building static libs
+InlineCode = "no"
+
+// include common options
+include "MySQL-Opt.icc"
+include "MySQL-Source.icc"
+
+option ProjectOptions = MySQLOptions
+{
+
+   option file(genobject, "..\\OBJ\\ZLIB\\")
+   {
+      target "..\\lib\\common.lib"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch //, 'sql_string.h'
+         }
+         // target source files
+         source zlib
+         if debug_build  {
+            source type('cpp') dbug
+         }
+         source type('cpp') heap
+         //source type('cpp') merge
+         source type('cpp') my_sys
+         source type('cpp') my_sys_cli
+         source type('cpp') my_sys_sql
+         source type('cpp') strings
+      }
+   }
+
+/*
+   option file(genobject, "..\\OBJ\\READLINE\\")
+   {
+      target "..\\lib\\readline.lib"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch //, 'sql_string.h'
+         }
+         // target source files
+         source readline
+      }
+   }
+*/
+
+      target "..\\lib\\myisam.lib"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch //, 'sql_string.h'
+         }
+         // target source files
+         source type('cpp') myisam
+      }
+
+      target "..\\lib\\isam.lib"
+      {
+         // optimized precompiled headers
+         option macros('global', 'yes')
+         {
+            source type('cpp') client_pch //, 'sql_string.h'
+         }
+         // target source files
+         source type('cpp') isam
+      }
+
+}

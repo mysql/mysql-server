@@ -47,7 +47,7 @@ CHARSET_INFO *find_compiled_charset_by_name(const char *name)
   return NULL;
 }
 
-uint8 compiled_charset_number(const char *name)
+uint compiled_charset_number(const char *name)
 {
   CHARSET_INFO *cs;
   for (cs = compiled_charsets; cs->number > 0; cs++)
@@ -57,7 +57,7 @@ uint8 compiled_charset_number(const char *name)
   return 0;   /* this mimics find_type() */
 }
 
-const char *compiled_charset_name(uint8 charset_number)
+const char *compiled_charset_name(uint charset_number)
 {
   CHARSET_INFO *cs;
   for (cs = compiled_charsets; cs->number > 0; cs++)

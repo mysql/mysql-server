@@ -20,9 +20,7 @@
 
 #include "mrgdef.h"
 
-int mrg_lock_database(info,lock_type)
-MRG_INFO *info;
-int lock_type;
+int mrg_lock_database(MRG_INFO *info,int lock_type)
 {
   int error,new_error;
   MRG_TABLE *file;

@@ -22,7 +22,7 @@
 
 #include <stdio.h>
 
-extern void _print_csinfo();
+extern void _print_csinfo(CHARSET_INFO *cs);
 
 int main(int argc, char **argv) {
   const char *the_set = MYSQL_CHARSET;

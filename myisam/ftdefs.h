@@ -45,7 +45,7 @@
 #define LWS_TF						  (count)
 #define LWS_BINARY					(count>0)
 #define LWS_SQUARE				    (count*count)
-#define LWS_LOG				 (count?(log(count)+1):0)
+#define LWS_LOG				 (count?(log( (double) count)+1):0)
 /*--------------------------------------------------------------*/
 #define PRENORM_NONE				      (p->weight)
 #define PRENORM_MAX			  (p->weight/docstat.max)

@@ -46155,6 +46155,8 @@ incredible help we got in managing the MySQL mailing lists.
 @item Igor Romanenko @email{igor@@frog.kiev.ua}
 @code{mysqldump} (previously @code{msqldump}, but ported and enhanced by
 Monty).
+@item Yuri Dario
+For keeping up and extending the MySQL OS/2 port.
 @item Tim Bunce, Alligator Descartes
 For the @code{DBD} (Perl) interface.
 @item Tim Bunce
@@ -46282,6 +46284,8 @@ MySQL server.
 @item Albert Chin-A-Young.
 Configure updates for Tru64, large file support and better TCP wrappers
 support.
+@item John Birrell
+Emulation of pthread_mutex() for OS/2.
 @end table
 
 Other contributors, bugfinders, and testers: James H. Thompson, Maurizio
@@ -46542,6 +46546,8 @@ not yet 100% confident in this code.
 @node News-3.23.42, News-3.23.41, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.42
 @itemize @bullet
+@item
+Applied large patch for OS/2 from Yuri Dario.
 @item
 Fixed problem with InnoDB when one could get the error @code{Can't
 execute the given command...} even when one didn't have an active

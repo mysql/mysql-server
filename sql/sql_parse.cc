@@ -62,8 +62,12 @@ extern VioSSLAcceptorFd* ssl_acceptor_fd;
 #ifdef __WIN__
 static void  test_signal(int sig_ptr)
 {
-#ifndef DBUG_OFF
+#if !defined( DBUG_OFF)
   MessageBox(NULL,"Test signal","DBUG",MB_OK);
+#endif
+#if defined(OS2)
+  fprintf( stderr, "Test signal %d\n", sig_ptr);
+  fflush( stderr);
 #endif
 }
 static void init_signals(void)
@@ -477,7 +481,7 @@ pthread_handler_decl(handle_one_connection,arg)
 
   pthread_detach_this_thread();
 
-#ifndef __WIN__	/* Win32 calls this in pthread_create */
+#if !defined( __WIN__) && !defined(OS2)	/* Win32 calls this in pthread_create */
   if (my_thread_init()) // needed to be called first before we call
     // DBUG_ macros
   {
@@ -499,9 +503,9 @@ pthread_handler_decl(handle_one_connection,arg)
 		      thd->thread_id));
   // now that we've called my_thread_init(), it is safe to call DBUG_*
 
-#ifdef __WIN__
+#if defined(__WIN__)
   init_signals();				// IRENA; testing ?
-#else
+#elif !defined(OS2)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -602,7 +606,7 @@ pthread_handler_decl(handle_bootstrap,arg)
   thd->thread_stack= (char*) &thd;
   thd->mysys_var=my_thread_var;
   thd->dbug_thread_id=my_thread_id();
-#ifndef __WIN__
+#if !defined(__WIN__) && !defined(OS2)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -940,7 +944,9 @@ bool do_command(THD *thd)
 #ifdef __WIN__
     sleep(1);					// must wait after eof()
 #endif
+#ifndef OS2
     send_eof(net);				// This is for 'quit request'
+#endif
     close_connection(net);
     close_thread_tables(thd);			// Free before kill
     free_root(&thd->mem_root,MYF(0));
