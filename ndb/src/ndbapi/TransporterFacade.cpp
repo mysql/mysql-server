@@ -472,12 +472,13 @@ void TransporterFacade::threadMainReceive(void)
   theTransporterRegistry->stopReceiving();
 }
 
-TransporterFacade::TransporterFacade() :
+TransporterFacade::TransporterFacade(NdbMgmHandle mgm_handle) :
   theTransporterRegistry(0),
   theStopReceive(0),
   theSendThread(NULL),
   theReceiveThread(NULL),
-  m_fragmented_signal_id(0)
+  m_fragmented_signal_id(0),
+  m_mgm_handle(mgm_handle)
 {
   theOwnId = 0;
 
@@ -501,7 +502,7 @@ bool
 TransporterFacade::init(Uint32 nodeId, const ndb_mgm_configuration* props)
 {
   theOwnId = nodeId;
-  theTransporterRegistry = new TransporterRegistry(this);
+  theTransporterRegistry = new TransporterRegistry(m_mgm_handle,this);
 
   const int res = IPCConfig::configureTransporters(nodeId, 
 						   * props, 

@@ -584,7 +584,8 @@ MgmtSrvr::start(BaseString &error_string)
       return false;
     }
   }
-  theFacade= TransporterFacade::theFacadeInstance= new TransporterFacade();
+  theFacade= TransporterFacade::theFacadeInstance
+    = new TransporterFacade(m_config_retriever->get_mgmHandle());
   
   if(theFacade == 0) {
     DEBUG("MgmtSrvr.cpp: theFacade is NULL.");
@@ -2806,7 +2807,8 @@ MgmtSrvr::getConnectionDbParameter(int node1,
     Uint32 n1,n2;
     iter.get(CFG_CONNECTION_NODE_1, &n1);
     iter.get(CFG_CONNECTION_NODE_2, &n2);
-    if(n1 == (unsigned)node1 && n2 == (unsigned)node2)
+    if((n1 == (unsigned)node1 && n2 == (unsigned)node2)
+       || (n1 == (unsigned)node2 && n2 == (unsigned)node1))
       break;
   }
   if(!iter.valid()) {
@@ -2820,7 +2822,7 @@ MgmtSrvr::getConnectionDbParameter(int node1,
   }
 
   msg.assfmt("%u",*value);
-  return 1;
+  DBUG_RETURN(1);
 }
 
 template class Vector<SigMatch>;

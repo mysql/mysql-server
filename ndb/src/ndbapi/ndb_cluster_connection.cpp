@@ -40,7 +40,6 @@ Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string)
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%x", this));
-  m_facade= TransporterFacade::theFacadeInstance= new TransporterFacade();
 
   m_config_retriever= 0;
   m_connect_thread= 0;
@@ -58,6 +57,10 @@ Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string)
 #endif
   m_config_retriever=
     new ConfigRetriever(connect_string, NDB_VERSION, NODE_TYPE_API);
+
+  m_facade= TransporterFacade::theFacadeInstance
+    = new TransporterFacade(m_config_retriever->get_mgmHandle());
+
   if (m_config_retriever->hasError())
   {
     printf("Could not connect initialize handle to management server: %s",

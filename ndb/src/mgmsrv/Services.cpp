@@ -1399,10 +1399,9 @@ MgmApiSession::getConnectionParameter(Parser_t::Context &ctx,
 					      &value,
 					      result);
   
-  m_output->println("set connection parameter reply");
-  m_output->println("message: %s", result.c_str());
+  m_output->println("get connection parameter reply");
   m_output->println("value: %u", value);
-  m_output->println("result: %s", (ret>0)?"Ok":"Failed");
+  m_output->println("result: %s", (ret>0)?"Ok":result.c_str());
   m_output->println("");
 }
 
