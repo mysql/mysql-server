@@ -37793,8 +37793,8 @@ The disadvantages with @code{MERGE} tables are:
 @itemize @bullet
 @item
 You can only use identical @code{MyISAM} tables for a @code{MERGE} table.
-@item
-@code{AUTO_INCREMENT} columns are not automatically updated on @code{INSERT}.
+@c @item
+@c @code{AUTO_INCREMENT} columns are not automatically updated on @code{INSERT}.
 @item
 @code{REPLACE} doesn't work.
 @item
@@ -37834,13 +37834,13 @@ CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20));
 CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20));
 INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
 INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
-CREATE TABLE total (a INT NOT NULL, message CHAR(20), KEY(a))
+CREATE TABLE total (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20))
              TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
 @end example
 
-Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
-@code{total} table as the key isn't going to be unique in the @code{total}
-table.
+@c Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
+@c @code{total} table as the key isn't going to be unique in the @code{total}
+@c table.
 
 Note that you can also manipulate the @file{.MRG} file directly from
 the outside of the MySQL server:
@@ -37866,6 +37866,10 @@ mysql> SELECT * FROM total;
 | 3 | t2      |
 +---+---------+
 @end example
+
+Note that the @code{a} column, though declared as @code{PRIMARY KEY},
+is not really unique, as @code{MERGE} table cannot enforce uniqueness
+over a set of underlying @code{MyISAM} tables.
 
 To remap a @code{MERGE} table you can do one of the following:
 
@@ -37894,8 +37898,8 @@ The following are the known problems with @code{MERGE} tables:
 A @code{MERGE} table cannot maintain @code{UNIQUE} constraints over the
 whole table.  When you do @code{INSERT}, the data goes into the first or
 last table (according to @code{INSERT_METHOD=xxx}) and this @code{MyISAM}
-table ensures that the data are unique, but it knows nothing about the
-first @code{MyISAM} table.
+table ensures that the data are unique, but it knows nothing about
+others @code{MyISAM} tables.
 @item
 @code{DELETE FROM merge_table} used without a @code{WHERE}
 will only clear the mapping for the table, not delete everything in the
@@ -49699,6 +49703,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @itemize @bullet
 @item
 Fixed a bug that made the pager option in the mysql client non-functional.
+@item
+Added full @code{AUTO_INCREMENT} support to @code{MERGE} tables.
 @end itemize
 
 
