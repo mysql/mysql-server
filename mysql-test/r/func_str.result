@@ -466,7 +466,7 @@ collation(hex(130))	coercibility(hex(130))
 latin1_swedish_ci	3
 select collation(char(130)), coercibility(hex(130));
 collation(char(130))	coercibility(hex(130))
-binary	3
+latin1_swedish_ci	3
 select collation(format(130,10)), coercibility(format(130,10));
 collation(format(130,10))	coercibility(format(130,10))
 latin1_swedish_ci	3

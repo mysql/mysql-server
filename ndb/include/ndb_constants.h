@@ -48,7 +48,7 @@
 #define NDB_TYPE_BIGUNSIGNED            10
 #define NDB_TYPE_FLOAT                  11
 #define NDB_TYPE_DOUBLE                 12
-#define NDB_TYPE_DECIMAL                13      // not used
+#define NDB_TYPE_DECIMAL                13      /* not used */
 #define NDB_TYPE_CHAR                   14
 #define NDB_TYPE_VARCHAR                15
 #define NDB_TYPE_BINARY                 16
