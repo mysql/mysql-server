@@ -1060,8 +1060,7 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
 	if (info->s->base.blobs)
 	{
 	  if (!(to=mi_alloc_rec_buff(info, block_info.rec_len,
-				     &info->rec_buff,
-				     &info->alloced_rec_buff_length)))
+				     &info->rec_buff)))
 	    goto err;
 	}
 	else
@@ -1107,12 +1106,8 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
 
   /* Don't let the compare destroy blobs that may be in use */
   rec_buff=info->rec_buff;
-  alloced_rec_buff_length=info->alloced_rec_buff_length;
   if (info->s->base.blobs)
-  {
     info->rec_buff=0;
-    info->alloced_rec_buff_length=0;
-  }
   error=_mi_read_dynamic_record(info,pos,old_record);
   if (!error)
     error=mi_unique_comp(def, record, old_record, def->null_are_equal);
@@ -1120,7 +1115,6 @@ int _mi_cmp_dynamic_unique(MI_INFO *info, MI_UNIQUEDEF *def,
   {
     my_free(mi_get_rec_buff_ptr(info, info->rec_buff), MYF(MY_ALLOW_ZERO_PTR));
     info->rec_buff=rec_buff;
-    info->alloced_rec_buff_length=alloced_rec_buff_length;
   }
   my_afree(old_record);
   DBUG_RETURN(error);
@@ -1331,8 +1325,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
       if (share->base.blobs)
       {
 	if (!(to= mi_alloc_rec_buff(info, block_info.rec_len,
-				    &info->rec_buff,
-				    &info->alloced_rec_buff_length)))
+				    &info->rec_buff)))
 	  goto err;
       }
       else
