@@ -282,7 +282,7 @@ tellThreads(ThreadData* pt, StartType what)
 NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
 {
   ThreadData*           pThreadsData;
-  int                   tLoops = 0;
+  int                   tLoops = 0, i;
   int                   returnValue = NDBT_OK;
     
   if (readArguments(argc, argv) != 0){
@@ -355,7 +355,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
      ****************************************************************/
     resetThreads(pThreadsData);
     
-    for (unsigned int i = 0; i < tNoOfThreads; i++){  
+    for (i = 0; i < tNoOfThreads; i++){  
       pThreadsData[i].threadNo = i;
       pThreadsData[i].threadLife = NdbThread_Create(flexBenchThread,
                                                     (void**)&pThreadsData[i],
@@ -531,7 +531,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
     waitForThreads(pThreadsData);
 
     void * tmp;
-    for(Uint32 i = 0; i<tNoOfThreads; i++){
+    for(i = 0; i<tNoOfThreads; i++){
       NdbThread_WaitFor(pThreadsData[i].threadLife, &tmp);
       NdbThread_Destroy(&pThreadsData[i].threadLife);
     }
@@ -540,7 +540,7 @@ NDB_COMMAND(flexBench, "flexBench", "flexBench", "flexbench", 65535)
   if (useLongKeys == true) {
     // Only free these areas if they have been allocated
     // Otherwise cores will happen
-    for (Uint32 i = 0; i < tNoOfLongPK; i++)
+    for (i = 0; i < tNoOfLongPK; i++)
       free(longKeyAttrName[i]);
     free(longKeyAttrName);
   } // if
@@ -629,9 +629,10 @@ static void* flexBenchThread(void* pArg)
   if(useLongKeys){
     // Allocate and populate the longkey array.
     longKeyAttrValue = (unsigned ***) malloc(sizeof(unsigned**) * tNoOfOperations );
-    for (Uint32 n = 0; n < tNoOfOperations; n++)
+    Uint32 n;
+    for (n = 0; n < tNoOfOperations; n++)
       longKeyAttrValue[n] = (unsigned **) malloc(sizeof(unsigned*) * tNoOfLongPK );
-    for (Uint32 n = 0; n < tNoOfOperations; n++){
+    for (n = 0; n < tNoOfOperations; n++){
       for (Uint32 i = 0; i < tNoOfLongPK ; i++) {
 	longKeyAttrValue[n][i] = (unsigned *) malloc(sizeof(unsigned) * tSizeOfLongPK);
 	memset(longKeyAttrValue[n][i], 0, sizeof(unsigned) * tSizeOfLongPK);
@@ -1064,13 +1065,14 @@ static void sleepBeforeStartingTest(int seconds){
 
 static int
 createTables(Ndb* pMyNdb){
-  for (Uint32 i = 0; i < tNoOfAttributes; i++){
+  int i;
+  for (i = 0; i < tNoOfAttributes; i++){
     snprintf(attrName[i], MAXSTRLEN, "COL%d", i);
   }
 
   // Note! Uses only uppercase letters in table name's
   // so that we can look at the tables with SQL
-  for (Uint32 i = 0; i < tNoOfTables; i++){
+  for (i = 0; i < tNoOfTables; i++){
     if (theStdTableNameFlag == 0){
       snprintf(tableName[i], MAXSTRLEN, "TAB%d_%d", i, 
 	       (int)(NdbTick_CurrentMillisecond() / 1000));
@@ -1079,7 +1081,7 @@ createTables(Ndb* pMyNdb){
     }
   }
   
-  for(unsigned i = 0; i < tNoOfTables; i++){
+  for(i = 0; i < tNoOfTables; i++){
     ndbout << "Creating " << tableName[i] << "... ";
     
     NdbDictionary::Table tmpTable(tableName[i]);

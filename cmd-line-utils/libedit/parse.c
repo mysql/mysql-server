@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.14 2001/01/23 15:55:30 jdolecek Exp $	*/
+/*	$NetBSD: parse.c,v 1.16 2003/01/21 18:40:24 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -36,7 +36,14 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: parse.c,v 1.16 2003/01/21 18:40:24 christos Exp $");
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * parse.c: parse an editline extended command
@@ -51,7 +58,6 @@
  *	settc
  *	setty
  */
-#include "sys.h"
 #include "el.h"
 #include "tokenizer.h"
 #include <stdlib.h>
@@ -63,7 +69,7 @@ private const struct {
 	{ "bind",	map_bind	},
 	{ "echotc",	term_echotc	},
 	{ "edit",	el_editmode	},
-	{ "history",	hist_list	},
+	{ "history",	hist_command	},
 	{ "telltc",	term_telltc	},
 	{ "settc",	term_settc	},
 	{ "setty",	tty_stty	},

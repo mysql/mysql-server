@@ -155,25 +155,32 @@ enum enum_field_types { FIELD_TYPE_DECIMAL, FIELD_TYPE_TINY,
 #define FIELD_TYPE_CHAR FIELD_TYPE_TINY		/* For compability */
 #define FIELD_TYPE_INTERVAL FIELD_TYPE_ENUM	/* For compability */
 
-enum enum_shutdown_level {
+
+/* Shutdown/kill enums and constants */ 
+
+/* Bits for THD::killable. */
+#define MYSQL_SHUTDOWN_KILLABLE_CONNECT    (unsigned char)(1 << 0)
+#define MYSQL_SHUTDOWN_KILLABLE_TRANS      (unsigned char)(1 << 1)
+#define MYSQL_SHUTDOWN_KILLABLE_LOCK_TABLE (unsigned char)(1 << 2)
+#define MYSQL_SHUTDOWN_KILLABLE_UPDATE     (unsigned char)(1 << 3)
+
+enum mysql_enum_shutdown_level {
   /*
-    We want levels to be in growing order of hardness. So we leave room
-    for future intermediate levels. For now, escalating one level is += 10;
-    later if we insert new levels in between we will need a function
-    next_shutdown_level(level). Note that DEFAULT does not respect the
-    growing property.
+    We want levels to be in growing order of hardness (because we use number
+    comparisons). Note that DEFAULT does not respect the growing property, but
+    it's ok.
   */
-  SHUTDOWN_DEFAULT= 0, /* mapped to WAIT_ALL_BUFFERS for now */
-  /*
-    Here is the list in growing order (the next does the previous plus
-    something). WAIT_ALL_BUFFERS is what we have now. Others are "this MySQL
-    server does not support this shutdown level yet".
-  */
-  SHUTDOWN_WAIT_CONNECTIONS= 10, /* wait for existing connections to finish */
-  SHUTDOWN_WAIT_TRANSACTIONS= 20, /* wait for existing trans to finish */
-  SHUTDOWN_WAIT_STATEMENTS= 30, /* wait for existing updating stmts to finish */
-  SHUTDOWN_WAIT_ALL_BUFFERS= 40, /* flush InnoDB buffers */
-  SHUTDOWN_WAIT_CRITICAL_BUFFERS= 50, /* flush MyISAM buffs (no corruption) */
+  DEFAULT= 0,
+  /* wait for existing connections to finish */
+  WAIT_CONNECTIONS= MYSQL_SHUTDOWN_KILLABLE_CONNECT,
+  /* wait for existing trans to finish */
+  WAIT_TRANSACTIONS= MYSQL_SHUTDOWN_KILLABLE_TRANS,
+  /* wait for existing updates to finish (=> no partial MyISAM update) */
+  WAIT_UPDATES= MYSQL_SHUTDOWN_KILLABLE_UPDATE,
+  /* flush InnoDB buffers and other storage engines' buffers*/
+  WAIT_ALL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1),
+  /* don't flush InnoDB buffers, flush other storage engines' buffers*/
+  WAIT_CRITICAL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1) + 1,
   /* Now the 2 levels of the KILL command */
 #if MYSQL_VERSION_ID >= 50000
   KILL_QUERY= 254,

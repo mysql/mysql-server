@@ -29,6 +29,7 @@ class ClusterMgr;
 class ArbitMgr;
 class IPCConfig;
 struct ndb_mgm_configuration;
+class ConfigRetriever;
 
 class Ndb;
 class NdbApiSignal;
@@ -56,6 +57,7 @@ public:
   static TransporterFacade* instance();
   static TransporterFacade* start_instance(int, const ndb_mgm_configuration*);
   static TransporterFacade* start_instance(const char *connectString);
+  static void close_configuration();
   static void stop_instance();
   
   /**
@@ -110,7 +112,6 @@ public:
 
   // Close this block number
   int close_local(BlockNumber blockNumber);
-  void setState(Uint32 aNodeId, PerformState aState);
 
 private:
   /**
@@ -160,7 +161,9 @@ private:
   /**
    * Block number handling
    */
+public:
   static const unsigned MAX_NO_THREADS = 4711;
+private:
 
   struct ThreadData {
     static const Uint32 ACTIVE = (1 << 16) | 1;
@@ -208,6 +211,8 @@ private:
     }
   } m_threads;
 
+  Uint32 m_open_count;
+
   /**
    * execute function
    */
@@ -219,6 +224,7 @@ public:
   NdbMutex* theMutexPtr;
 private:
   static TransporterFacade* theFacadeInstance;
+  static ConfigRetriever *s_config_retriever;
 
 public:
   GlobalDictCache m_globalDictCache;
@@ -312,6 +318,7 @@ TransporterFacade::getIsNodeSendable(NodeId n) const {
              "%d of node: %d", 
              node.m_info.m_type, n);
     abort();
+    return false; // to remove compiler warning
   }
 }
 

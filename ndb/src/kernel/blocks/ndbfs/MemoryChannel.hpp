@@ -120,8 +120,7 @@ template <class T> void MemoryChannel<T>::writeChannel( T *t)
 {
 
   NdbMutex_Lock(theMutexPtr);
-  REQUIRE(!full(theWriteIndex, theReadIndex), "Memory Channel Full");
-  REQUIRE(theChannel != NULL, "Memory Channel Full");
+  if(full(theWriteIndex, theReadIndex) || theChannel == NULL) abort();
   theChannel[theWriteIndex]= t;
   ++theWriteIndex;
   NdbMutex_Unlock(theMutexPtr);

@@ -479,7 +479,20 @@ page_rec_get_next(
 
 	offs = rec_get_next_offs(rec);
 
-	ut_a(offs < UNIV_PAGE_SIZE);
+	if (offs >= UNIV_PAGE_SIZE) {
+		fprintf(stderr,
+"InnoDB: Next record offset is nonsensical %lu in record at offset %lu\n",
+		(ulong)offs, (ulong)(rec - page));
+		fprintf(stderr,
+"\nInnoDB: rec address %lx, first buffer frame %lx\n"
+"InnoDB: buffer pool high end %lx, buf fix count %lu\n",
+				(ulong)rec, (ulong)buf_pool->frame_zero,
+				(ulong)buf_pool->high_end,
+				(ulong)buf_block_align(rec)->buf_fix_count);
+		buf_page_print(page);
+
+		ut_a(0);
+	}
 
 	if (offs == 0) {
 		

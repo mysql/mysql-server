@@ -19,35 +19,6 @@
 #include <NDBT.hpp>
 
 class NdbOut& 
-operator <<(class NdbOut& ndbout, const NDBT_Attribute & attr){
-
-  NdbDictionary::Column::Type type = attr.getType();
-
-  ndbout << attr.getName() << " " << type;
-  
-  switch(type){
-  case NdbDictionary::Column::Decimal:
-    ndbout << "(" << attr.getScale() << ", " << attr.getPrecision() << ")";
-    break;
-  default:
-    break;
-  }
-  
-  if(attr.getLength() != 1)
-    ndbout << "[" << attr.getLength() << "]";
-
-  if(attr.getNullable())
-    ndbout << " NULL";
-  else
-    ndbout << " NOT NULL";
-  
-  if(attr.getPrimaryKey())
-    ndbout << " PRIMARY KEY";
-  
-  return ndbout;
-}
-
-class NdbOut& 
 operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
 {
   ndbout << "-- " << tab.getName() << " --" << endl;

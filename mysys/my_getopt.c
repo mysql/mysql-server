@@ -17,9 +17,12 @@
 #include <my_global.h>
 #include <m_string.h>
 #include <stdlib.h>
-#include <my_getopt.h>
 #include <my_sys.h>
 #include <mysys_err.h>
+#include <my_getopt.h>
+
+static void default_reporter(enum loglevel level, const char *format, ...);
+my_error_reporter my_getopt_error_reporter= &default_reporter;
 
 static int findopt(char *optpat, uint length,
 		   const struct my_option **opt_res,
@@ -56,6 +59,14 @@ char *disabled_my_option= (char*) "0";
 
 my_bool my_getopt_print_errors= 1;
 
+static void default_reporter(enum loglevel level __attribute__((unused)),
+                             const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  vfprintf(stderr, format, args);
+  va_end(args);
+}
 
 /* 
   function: handle_options
@@ -76,10 +87,8 @@ void my_getopt_register_get_addr(gptr* (*func_addr)(const char *, uint,
 }
 
 int handle_options(int *argc, char ***argv, 
-		   const struct my_option *longopts, 
-		   my_bool (*get_one_option)(int,
-					     const struct my_option *,
-					     char *))
+		   const struct my_option *longopts,
+                   my_get_one_option get_one_option)
 {
   uint opt_found, argvpos= 0, length, i;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
@@ -118,8 +127,9 @@ int handle_options(int *argc, char ***argv,
 	    if (!*++pos)
 	    {
 	      if (my_getopt_print_errors)
-		fprintf(stderr, "%s: Option '-O' requires an argument\n",
-			my_progname);
+                my_getopt_error_reporter(ERROR_LEVEL,
+                                         "%s: Option '-O' requires an argument\n",
+                                         my_progname);
 	      return EXIT_ARGUMENT_REQUIRED;
 	    }
 	    cur_arg= *pos;
@@ -135,9 +145,9 @@ int handle_options(int *argc, char ***argv,
 	    if (!*cur_arg)
 	    {
 	      if (my_getopt_print_errors)
-		fprintf(stderr,
-			"%s: Option '--set-variable' requires an argument\n",
-			my_progname);
+                my_getopt_error_reporter(ERROR_LEVEL,
+                                         "%s: Option '--set-variable' requires an argument\n",
+                                         my_progname);
 	      return EXIT_ARGUMENT_REQUIRED;
 	    }
 	  }
@@ -149,9 +159,9 @@ int handle_options(int *argc, char ***argv,
 	    if (!*++pos)
 	    {
 	      if (my_getopt_print_errors)
-		fprintf(stderr,
-			"%s: Option '--set-variable' requires an argument\n",
-			my_progname);
+                my_getopt_error_reporter(ERROR_LEVEL,
+                                         "%s: Option '--set-variable' requires an argument\n",
+                                         my_progname);
 	      return EXIT_ARGUMENT_REQUIRED;
 	    }
 	    cur_arg= *pos;
@@ -210,10 +220,11 @@ int handle_options(int *argc, char ***argv,
 		  if (opt_found > 1)
 		  {
 		    if (my_getopt_print_errors)
-		      fprintf(stderr,
-			      "%s: ambiguous option '--%s-%s' (--%s-%s)\n",
-			      my_progname, special_opt_prefix[i], opt_str,
-			      special_opt_prefix[i], prev_found);
+                      my_getopt_error_reporter(ERROR_LEVEL,
+                                               "%s: ambiguous option '--%s-%s' (--%s-%s)\n",
+                                               my_progname, special_opt_prefix[i],
+                                               cur_arg, special_opt_prefix[i],
+                                               prev_found);
 		    return EXIT_AMBIGUOUS_OPTION;
 		  }
 		  switch (i) {
@@ -245,18 +256,20 @@ int handle_options(int *argc, char ***argv,
 	    if (must_be_var)
 	    {
 	      if (my_getopt_print_errors)
-		fprintf(stderr,
-			"%s: %s: unknown variable '%s'\n", my_progname,
-			option_is_loose ? "WARNING" : "ERROR", opt_str);
+                my_getopt_error_reporter(option_is_loose ? 
+                                           WARNING_LEVEL : ERROR_LEVEL,
+                                         "%s: unknown variable '%s'\n",
+                                         my_progname, cur_arg);
 	      if (!option_is_loose)
 		return EXIT_UNKNOWN_VARIABLE;
 	    }
 	    else
 	    {
 	      if (my_getopt_print_errors)
-		fprintf(stderr,
-			"%s: %s: unknown option '--%s'\n", my_progname,
-			option_is_loose ? "WARNING" : "ERROR", opt_str);
+                my_getopt_error_reporter(option_is_loose ? 
+                                           WARNING_LEVEL : ERROR_LEVEL,
+                                         "%s: unknown option '--%s'\n", 
+                                         my_progname, cur_arg);
 	      if (!option_is_loose)
 		return EXIT_UNKNOWN_OPTION;
 	    }
@@ -272,15 +285,18 @@ int handle_options(int *argc, char ***argv,
 	  if (must_be_var)
 	  {
 	    if (my_getopt_print_errors)
-	      fprintf(stderr, "%s: variable prefix '%s' is not unique\n",
-		      my_progname, opt_str);
+              my_getopt_error_reporter(ERROR_LEVEL,
+                                       "%s: variable prefix '%s' is not unique\n",
+                                       my_progname, opt_str);
 	    return EXIT_VAR_PREFIX_NOT_UNIQUE;
 	  }
 	  else
 	  {
 	    if (my_getopt_print_errors)
-	      fprintf(stderr, "%s: ambiguous option '--%s' (%s, %s)\n",
-		      my_progname, opt_str, prev_found, optp->name);
+              my_getopt_error_reporter(ERROR_LEVEL,
+                                       "%s: ambiguous option '--%s' (%s, %s)\n",
+                                       my_progname, opt_str, prev_found, 
+                                       optp->name);
 	    return EXIT_AMBIGUOUS_OPTION;
 	  }
 	}
@@ -300,8 +316,9 @@ int handle_options(int *argc, char ***argv,
 	if (must_be_var && (optp->var_type & GET_TYPE_MASK) == GET_NO_ARG)
 	{
 	  if (my_getopt_print_errors)
-	    fprintf(stderr, "%s: option '%s' cannot take an argument\n",
-		    my_progname, optp->name);
+            my_getopt_error_reporter(ERROR_LEVEL, 
+                                     "%s: option '%s' cannot take an argument\n",
+                                     my_progname, optp->name);
 	  return EXIT_NO_ARGUMENT_ALLOWED;
 	}
 	value= optp->var_type & GET_ASK_ADDR ?
@@ -312,8 +329,9 @@ int handle_options(int *argc, char ***argv,
 	  if (optend && (optp->var_type & GET_TYPE_MASK) != GET_BOOL)
 	  {
 	    if (my_getopt_print_errors)
-	      fprintf(stderr, "%s: option '--%s' cannot take an argument\n",
-		      my_progname, optp->name);
+              my_getopt_error_reporter(ERROR_LEVEL,
+                                       "%s: option '--%s' cannot take an argument\n",
+                                       my_progname, optp->name);
 	    return EXIT_NO_ARGUMENT_ALLOWED;
 	  }
 	  if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL)
@@ -351,8 +369,9 @@ int handle_options(int *argc, char ***argv,
 	  if (!*++pos)
 	  {
 	    if (my_getopt_print_errors)
-	      fprintf(stderr, "%s: option '--%s' requires an argument\n",
-		      my_progname, optp->name);
+              my_getopt_error_reporter(ERROR_LEVEL,
+                                       "%s: option '--%s' requires an argument\n",
+                                       my_progname, optp->name);
 	    return EXIT_ARGUMENT_REQUIRED;
 	  }
 	  argument= *pos;
@@ -410,9 +429,9 @@ int handle_options(int *argc, char ***argv,
 		  if (!pos[1])
 		  {
                     if (my_getopt_print_errors)
-                      fprintf(stderr,
-                              "%s: option '-%c' requires an argument\n",
-                              my_progname, optp->id);
+                      my_getopt_error_reporter(ERROR_LEVEL,
+                                               "%s: option '-%c' requires an argument\n",
+                                               my_progname, optp->id);
                     return EXIT_ARGUMENT_REQUIRED;
 		  }
 		  argument= *++pos;
@@ -423,9 +442,9 @@ int handle_options(int *argc, char ***argv,
 	      if ((error= setval(optp, optp->value, argument,
 				 set_maximum_value)))
 	      {
-		fprintf(stderr,
-			"%s: Error while setting value '%s' to '%s'\n",
-			my_progname, argument, optp->name);
+                my_getopt_error_reporter(ERROR_LEVEL,
+                                         "%s: Error while setting value '%s' to '%s'\n",
+                                         my_progname, argument, optp->name);
 		return error;
 	      }
 	      get_one_option(optp->id, optp, argument);
@@ -435,8 +454,9 @@ int handle_options(int *argc, char ***argv,
 	  if (!opt_found)
 	  {
 	    if (my_getopt_print_errors)
-	      fprintf(stderr,
-		      "%s: unknown option '-%c'\n", my_progname, *optend);
+              my_getopt_error_reporter(ERROR_LEVEL,
+                                       "%s: unknown option '-%c'\n", 
+                                       my_progname, *optend);
 	    return EXIT_UNKNOWN_OPTION;
 	  }
 	}
@@ -445,9 +465,9 @@ int handle_options(int *argc, char ***argv,
       }
       if ((error= setval(optp, value, argument, set_maximum_value)))
       {
-	fprintf(stderr,
-		"%s: Error while setting value '%s' to '%s'\n",
-		my_progname, argument, optp->name);
+        my_getopt_error_reporter(ERROR_LEVEL,
+                                 "%s: Error while setting value '%s' to '%s'\n",
+                                 my_progname, argument, optp->name);
 	return error;
       }
       get_one_option(optp->id, optp, argument);

@@ -15,132 +15,118 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <TransporterRegistry.hpp>
+#include <TransporterCallback.hpp>
 #include "Transporter.hpp"
 #include "TransporterInternalDefinitions.hpp"
 #include <NdbSleep.h>
+#include <SocketAuthenticator.hpp>
+#include <InputStream.hpp>
+#include <OutputStream.hpp>
 
-Transporter::Transporter(NodeId lNodeId, NodeId rNodeId, 
+Transporter::Transporter(TransporterRegistry &t_reg,
+			 const char *lHostName,
+			 const char *rHostName, 
+			 int r_port,
+			 NodeId lNodeId,
+			 NodeId rNodeId, 
 			 int _byteorder, 
 			 bool _compression, bool _checksum, bool _signalId)
-  : localNodeId(lNodeId), remoteNodeId(rNodeId),
-    m_packer(_signalId, _checksum)
+  : m_r_port(r_port), localNodeId(lNodeId), remoteNodeId(rNodeId),
+    isServer(lNodeId < rNodeId),
+    m_packer(_signalId, _checksum),
+    m_transporter_registry(t_reg)
 {
+  if (rHostName && strlen(rHostName) > 0){
+    strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
+    Ndb_getInAddr(&remoteHostAddress, rHostName);
+  }
+  else
+  {
+    if (!isServer) {
+      ndbout << "Unable to setup transporter. Node " << rNodeId 
+	     << " must have hostname. Update configuration." << endl; 
+      exit(-1);
+    }
+    remoteHostName[0]= 0;
+  }
+  strncpy(localHostName, lHostName, sizeof(localHostName));
+
+  if (strlen(lHostName) > 0)
+    Ndb_getInAddr(&localHostAddress, lHostName);
+
   byteOrder       = _byteorder;
   compressionUsed = _compression;
   checksumUsed    = _checksum;
   signalIdUsed    = _signalId;
 
-  _threadError = TE_NO_ERROR;  
+  m_connected     = false;
+  m_timeOutMillis = 1000;
 
-  _connecting    = false;
-  _disconnecting = false;
-  _connected     = false;
-  _timeOutMillis = 1000;
-  theThreadPtr   = NULL;
-  theMutexPtr    = NdbMutex_Create();
+  if (isServer)
+    m_socket_client= 0;
+  else
+    m_socket_client= new SocketClient(remoteHostName, r_port,
+				      new SocketAuthSimple("ndbd", "ndbd passwd"));
 }
 
 Transporter::~Transporter(){
-  NdbMutex_Destroy(theMutexPtr);
-
-  if(theThreadPtr != 0){
-    void * retVal;
-    NdbThread_WaitFor(theThreadPtr, &retVal);
-    NdbThread_Destroy(&theThreadPtr);
-  }
+  if (m_socket_client)
+    delete m_socket_client;
 }
 
-extern "C" 
-void *
-runConnect_C(void * me)
-{
-  runConnect(me);
-  NdbThread_Exit(0);
-  return NULL;
+bool
+Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
+  if(m_connected)
+    return true; // TODO assert(0);
+  
+  bool res = connect_server_impl(sockfd);
+  if(res){
+    m_connected  = true;
+    m_errorCount = 0;
+  }
+
+  return res;
 }
 
-void *
-runConnect(void * me){
-  Transporter * t = (Transporter *) me;
+bool
+Transporter::connect_client() {
+  if(m_connected)
+    return true;
+  NDB_SOCKET_TYPE sockfd = m_socket_client->connect();
+  
+  if (sockfd < 0)
+    return false;
 
-  DEBUG("Connect thread to " << t->remoteNodeId << " started");
-
-  while(true){
-    NdbMutex_Lock(t->theMutexPtr);
-    if(t->_disconnecting){
-      t->_connecting = false;
-      NdbMutex_Unlock(t->theMutexPtr);
-      DEBUG("Connect Thread " << t->remoteNodeId << " stop due to disconnect");
-      return 0;
-    }
-    NdbMutex_Unlock(t->theMutexPtr);
-    
-    bool res = t->connectImpl(t->_timeOutMillis); // 1000 ms
-    DEBUG("Waiting for " << t->remoteNodeId << "...");
-    if(res){
-      t->_connected  = true;
-      t->_connecting = false;
-      t->_errorCount = 0;
-      t->_threadError = TE_NO_ERROR;
-      DEBUG("Connect Thread " << t->remoteNodeId << " stop due to connect");
-      return 0;
-    }
+  // send info about own id 
+  SocketOutputStream s_output(sockfd);
+  s_output.println("%d", localNodeId);
+  // get remote id
+  int nodeId;
+  SocketInputStream s_input(sockfd);
+  char buf[256];
+  if (s_input.gets(buf, 256) == 0) {
+    NDB_CLOSE_SOCKET(sockfd);
+    return false;
   }
-}
-
-void
-Transporter::doConnect() {
-  
-  NdbMutex_Lock(theMutexPtr);
-  if(_connecting || _disconnecting || _connected){
-    NdbMutex_Unlock(theMutexPtr);
-    return;
+  if (sscanf(buf, "%d", &nodeId) != 1) {
+    NDB_CLOSE_SOCKET(sockfd);
+    return false;
   }
-  
-  _connecting = true;
-
-  _threadError = TE_NO_ERROR;
-
-  // Start thread
-  
-  char buf[16];
-  snprintf(buf, sizeof(buf), "ndb_con_%d", remoteNodeId);
-
-  if(theThreadPtr != 0){
-    void * retVal;
-    NdbThread_WaitFor(theThreadPtr, &retVal);
-    NdbThread_Destroy(&theThreadPtr);
+  bool res = connect_client_impl(sockfd);
+  if(res){
+    m_connected  = true;
+    m_errorCount = 0;
   }
-  
-  theThreadPtr = NdbThread_Create(runConnect_C,
-				  (void**)this,
-				  32768,
-				  buf, 
-                                  NDB_THREAD_PRIO_LOW);
-  
-  NdbSleep_MilliSleep(100); // Let thread start
-  
-  NdbMutex_Unlock(theMutexPtr);
+  return res;
 }
 
 void
-Transporter::doDisconnect() {  
-  
-  NdbMutex_Lock(theMutexPtr);
-  _disconnecting = true;
-  while(_connecting){
-    DEBUG("Waiting for connect to finish...");
-    
-    NdbMutex_Unlock(theMutexPtr);
-    NdbSleep_MilliSleep(500);
-    NdbMutex_Lock(theMutexPtr);
-  }
-    
-  _connected     = false;
-  
+Transporter::doDisconnect() {
+
+  if(!m_connected)
+    return; //assert(0); TODO will fail
+
+  m_connected= false;
   disconnectImpl();
-  _threadError = TE_NO_ERROR;
-  _disconnecting = false;
-  
-  NdbMutex_Unlock(theMutexPtr);
 }

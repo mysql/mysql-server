@@ -435,7 +435,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
   data->thread=pthread_self();			/* Must be reset ! */
   data->thread_id=my_thread_id();		/* Must be reset ! */
   VOID(pthread_mutex_lock(&lock->mutex));
-  DBUG_PRINT("lock",("data: %lx  thread: %ld  lock: %lx  type: %d",
+  DBUG_PRINT("lock",("data: 0x%lx  thread: %ld  lock: 0x%lx  type: %d",
 		      data,data->thread_id,lock,(int) lock_type));
   check_locks(lock,(uint) lock_type <= (uint) TL_READ_NO_INSERT ?
 	      "enter read_lock" : "enter write_lock",0);
@@ -656,7 +656,7 @@ void thr_unlock(THR_LOCK_DATA *data)
   THR_LOCK *lock=data->lock;
   enum thr_lock_type lock_type=data->type;
   DBUG_ENTER("thr_unlock");
-  DBUG_PRINT("lock",("data: %lx  thread: %ld  lock: %lx",
+  DBUG_PRINT("lock",("data: 0x%lx  thread: %ld  lock: 0x%lx",
 		     data,data->thread_id,lock));
   pthread_mutex_lock(&lock->mutex);
   check_locks(lock,"start of release lock",0);
@@ -827,7 +827,7 @@ int thr_multi_lock(THR_LOCK_DATA **data,uint count)
 {
   THR_LOCK_DATA **pos,**end;
   DBUG_ENTER("thr_multi_lock");
-  DBUG_PRINT("lock",("data: %lx  count: %d",data,count));
+  DBUG_PRINT("lock",("data: 0x%lx  count: %d",data,count));
   if (count > 1)
     sort_locks(data,count);
   /* lock everything */
@@ -839,7 +839,7 @@ int thr_multi_lock(THR_LOCK_DATA **data,uint count)
       DBUG_RETURN(1);
     }
 #ifdef MAIN
-    printf("Thread: %s  Got lock: %lx  type: %d\n",my_thread_name(),
+    printf("Thread: %s  Got lock: 0x%lx  type: %d\n",my_thread_name(),
 	   (long) pos[0]->lock, pos[0]->type); fflush(stdout);
 #endif
   }
@@ -899,12 +899,12 @@ void thr_multi_unlock(THR_LOCK_DATA **data,uint count)
 {
   THR_LOCK_DATA **pos,**end;
   DBUG_ENTER("thr_multi_unlock");
-  DBUG_PRINT("lock",("data: %lx  count: %d",data,count));
+  DBUG_PRINT("lock",("data: 0x%lx  count: %d",data,count));
 
   for (pos=data,end=data+count; pos < end ; pos++)
   {
 #ifdef MAIN
-    printf("Thread: %s  Rel lock: %lx  type: %d\n",
+    printf("Thread: %s  Rel lock: 0x%lx  type: %d\n",
 	   my_thread_name(), (long) pos[0]->lock, pos[0]->type);
     fflush(stdout);
 #endif
@@ -912,7 +912,7 @@ void thr_multi_unlock(THR_LOCK_DATA **data,uint count)
       thr_unlock(*pos);
     else
     {
-      DBUG_PRINT("lock",("Free lock: data: %lx  thread: %ld  lock: %lx",
+      DBUG_PRINT("lock",("Free lock: data: 0x%lx  thread: %ld  lock: 0x%lx",
 			 *pos,(*pos)->thread_id,(*pos)->lock));
     }
   }
@@ -1098,7 +1098,7 @@ static void thr_print_lock(const char* name,struct st_lock_list *list)
     prev= &list->data;
     for (data=list->data; data && count++ < MAX_LOCKS ; data=data->next)
     {
-      printf("%lx (%lu:%d); ",(ulong) data,data->thread_id,(int) data->type);
+      printf("0x%lx (%lu:%d); ",(ulong) data,data->thread_id,(int) data->type);
       if (data->prev != prev)
 	printf("\nWarning: prev didn't point at previous lock\n");
       prev= &data->next;
@@ -1120,7 +1120,7 @@ void thr_print_locks(void)
   {
     THR_LOCK *lock=(THR_LOCK*) list->data;
     VOID(pthread_mutex_lock(&lock->mutex));
-    printf("lock: %lx:",(ulong) lock);
+    printf("lock: 0x%lx:",(ulong) lock);
     if ((lock->write_wait.data || lock->read_wait.data) &&
 	(! lock->read.data && ! lock->write.data))
       printf(" WARNING: ");

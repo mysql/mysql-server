@@ -170,7 +170,7 @@ void report_stats()
 		log_msg("\nThe .out and .err files in %s may give you some\n", result_dir);
 		log_msg("hint of what when wrong.\n");
 		log_msg("\nIf you want to report this error, please first read the documentation\n");
-		log_msg("at: http://www.mysql.com/doc/M/y/MySQL_test_suite.html\n");
+		log_msg("at: http://www.mysql.com/doc/en/MySQL_test_suite.html\n");
   }
 
   log_msg("\n%.02f total minutes elapsed in the test cases\n\n", total_time / 60);

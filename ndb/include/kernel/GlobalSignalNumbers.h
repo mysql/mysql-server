@@ -84,7 +84,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_SCAN_NEXTREQ                28
 #define GSN_SCAN_TABCONF                29
-#define GSN_SCAN_TABINFO                30
+// 30 unused
 #define GSN_SCAN_TABREF                 31
 #define GSN_SCAN_TABREQ                 32
 #define GSN_KEYINFO20                   33
@@ -897,12 +897,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_MAINT_CONF              678
 #define GSN_TUX_MAINT_REF               679
 
-/*
- * TUP access
- */
-#define GSN_TUP_READ_ATTRS              680
-#define GSN_TUP_QUERY_TH                712
-#define GSN_TUP_STORE_TH                681
+// not used                             680
+// not used                             712
+// not used                             681
 
 /**
  * from mgmtsrvr to  NDBCNTR

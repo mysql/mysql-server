@@ -1,5 +1,20 @@
-/* Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
-   This file is public domain and comes with NO WARRANTY of any kind
+/* Copyright (C) 2003 MySQL AB
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+/*
    Traduccion por Miguel Angel Fernandez Roiz -- LoboCom Sistemas, s.l.
    From June 28, 2001 translated by Miguel Solorzano miguel@mysql.com */
 
@@ -81,7 +96,7 @@ character-set=latin1
 "La columna Blob '%-.64s' no puede ser usada en una declaracion de clave",
 "Longitud de columna demasiado grande para la columna '%-.64s' (maximo = %d).Usar BLOB en su lugar",
 "Puede ser solamente un campo automatico y este debe ser definido como una clave",
-"%s: preparado para conexiones\n",
+"%s: preparado para conexiones",
 "%s: Apagado normal\n",
 "%s: Recibiendo signal %d. Abortando!\n",
 "%s: Apagado completado\n",
@@ -306,7 +321,8 @@ character-set=latin1
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
 "Invalid %s character string: '%.64s'",
-"Result of %s() was larger than max_allowed_packet (%d) - truncated"
+"Result of %s() was larger than max_allowed_packet (%ld) - truncated"
+"Conflicting declarations: '%s%s' and '%s%s'"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"

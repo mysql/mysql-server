@@ -33,7 +33,7 @@ public:
     Uint32 data[sz];
     NdbOut& print(NdbOut& out){
       out << "[DataBuffer<" << sz << ">::Segment this=" 
-	  << hex << (Uint32)this << dec << " nextPool= "
+	  << this << dec << " nextPool= "
 	  << nextPool << " ]";
       return out;
     }

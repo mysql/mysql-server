@@ -1,0 +1,23 @@
+drop table if exists t1;
+create table t1 (a int) engine=innodb;
+begin;
+insert into t1 values(1);
+flush tables with read lock;
+select * from t1;
+a
+ commit;
+select * from t1;
+a
+unlock tables;
+begin;
+select * from t1 for update;
+a
+1
+begin;
+ select * from t1 for update;
+ flush tables with read lock;
+commit;
+a
+1
+unlock tables;
+drop table t1;

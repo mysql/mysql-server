@@ -271,3 +271,39 @@ i	i	COUNT(*)
 100	NULL	2
 NULL	NULL	2
 drop table t1,t2;
+CREATE TABLE user_day(
+user_id INT NOT NULL,
+date DATE NOT NULL,
+UNIQUE INDEX user_date (user_id, date)
+);
+INSERT INTO user_day VALUES
+(1, '2004-06-06' ),
+(1, '2004-06-07' ),
+(2, '2004-06-06' );
+SELECT
+d.date AS day,
+COUNT(d.user_id) as sample,
+COUNT(next_day.user_id) AS not_cancelled
+FROM user_day d
+LEFT JOIN user_day next_day 
+ON next_day.user_id=d.user_id AND 
+next_day.date= DATE_ADD( d.date, interval 1 day )
+GROUP BY day;
+day	sample	not_cancelled
+2004-06-06	2	1
+2004-06-07	1	0
+SELECT
+d.date AS day,
+COUNT(d.user_id) as sample,
+COUNT(next_day.user_id) AS not_cancelled
+FROM user_day d
+LEFT JOIN user_day next_day 
+ON next_day.user_id=d.user_id AND 
+next_day.date= DATE_ADD( d.date, interval 1 day )
+GROUP BY day
+WITH ROLLUP;
+day	sample	not_cancelled
+2004-06-06	2	1
+2004-06-07	1	0
+NULL	3	1
+DROP TABLE user_day;

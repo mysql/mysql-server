@@ -367,10 +367,12 @@ while test $# -gt 0; do
       VALGRIND=`which valgrind` # this will print an error if not found
       # Give good warning to the user and stop
       if [ -z "$VALGRIND" ] ; then
-        $ECHO "You need to have the 'valgrind' program in your PATH to run mysql-test-run with option --valgrind. Valgrind's home page is http://developer.kde.org/~sewardj ."
+        $ECHO "You need to have the 'valgrind' program in your PATH to run mysql-test-run with option --valgrind. Valgrind's home page is http://valgrind.kde.org ."
         exit 1
       fi
-      VALGRIND="$VALGRIND --tool=memcheck --alignment=8 --leak-check=yes --num-callers=16"
+      # >=2.1.2 requires the --tool option, some versions write to stdout, some to stderr
+      valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && VALGRIND="$VALGRIND --tool=memcheck"
+      VALGRIND="$VALGRIND --alignment=8 --leak-check=yes --num-callers=16"
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       SLEEP_TIME_AFTER_RESTART=10
@@ -436,7 +438,7 @@ SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/slave.err"
 CURRENT_TEST="$MYSQL_TEST_DIR/var/log/current_test"
 SMALL_SERVER="--key_buffer_size=1M --sort_buffer=256K --max_heap_table_size=1M"
 
-export MASTER_MYPORT SLAVE_MYPORT MYSQL_TCP_PORT
+export MASTER_MYPORT SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK
 
 if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
@@ -523,11 +525,6 @@ else
   fi
 fi
 
-MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
-MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
-MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
-MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
-
 if [ -z "$MASTER_MYSQLD" ]
 then
 MASTER_MYSQLD=$MYSQLD
@@ -559,6 +556,12 @@ then
   EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --user=root"
 fi
 
+
+MYSQL_DUMP="$MYSQL_DUMP --no-defaults -uroot --socket=$MASTER_MYSOCK --password=$DBPASSWD $EXTRA_MYSQLDUMP_OPT"
+MYSQL_BINLOG="$MYSQL_BINLOG --no-defaults --local-load=$MYSQL_TMP_DIR $EXTRA_MYSQLBINLOG_OPT"
+MYSQL_FIX_SYSTEM_TABLES="$MYSQL_FIX_SYSTEM_TABLES --no-defaults --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD --basedir=$BASEDIR --bindir=$CLIENT_BINDIR --verbose"
+MYSQL="$MYSQL --host=localhost --port=$MASTER_MYPORT --socket=$MASTER_MYSOCK --user=root --password=$DBPASSWD"
+export MYSQL MYSQL_DUMP MYSQL_BINLOG MYSQL_FIX_SYSTEM_TABLES CLIENT_BINDIR
 
 MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB \
  --user=$DBUSER --password=$DBPASSWD --silent -v --skip-safemalloc \
@@ -612,6 +615,7 @@ show_failed_diff ()
     echo "Please follow the instructions outlined at"
     echo "http://www.mysql.com/doc/en/Reporting_mysqltest_bugs.html"
     echo "to find the reason to this problem and how to report this."
+    echo ""
   fi
 }
 
@@ -1428,7 +1432,7 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     # Kill any running ndbcluster stuff
-    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --stop
+    ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
   fi
   fi
 
@@ -1449,11 +1453,11 @@ then
   if [ -z "$USE_RUNNING_NDBCLUSTER" ]
   then
     echo "Starting ndbcluster"
-    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --small --discless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
-    export NDB_CONNECTSTRING=`cat Ndb.cfg`
+    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --small --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
+    USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"host=localhost:$NDBCLUSTER_PORT\""
   else
-    export NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
-    echo "Using ndbcluster at $NDB_CONNECTSTRING"
+    USE_NDBCLUSTER="$USE_NDBCLUSTER --ndb-connectstring=\"$USE_RUNNING_NDBCLUSTER\""
+    echo "Using ndbcluster at $USE_NDBCLUSTER"
   fi
   fi
 
@@ -1549,7 +1553,7 @@ then
 if [ -z "$USE_RUNNING_NDBCLUSTER" ]
 then
   # Kill any running ndbcluster stuff
-  ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT --stop
+  ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
 fi
 fi
 
