@@ -1496,7 +1496,7 @@ longlong Item_string::val_int()
   char *org_end= end;
   CHARSET_INFO *cs= str_value.charset();
 
-  tmp= (*(cs->cset->my_strtoll10))(cs, str_value.ptr(), &end, &err);
+  tmp= (*(cs->cset->strtoll10))(cs, str_value.ptr(), &end, &err);
   /*
     TODO: Give error if we wanted a signed integer and we got an unsigned
     one
