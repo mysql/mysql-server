@@ -2085,16 +2085,16 @@ String *Item_func_quote::val_str(String *str)
   char *from, *to, *end;
   uint delta= 2; /* for beginning and ending ' signs */
 
+  if (!arg)
+    goto null;
+
   for (from= (char*) arg->ptr(), end= from + arg->length(); from < end; from++)
   {
     if (*(escmask + (*from >> 3)) and (1 << (*from & 7)))
       delta++;
   }
   if (str->alloc(arg->length() + delta))
-  {
-    null_value= 1;
-    return 0;
-  }
+    goto null;
   to= (char*) str->ptr() + arg->length() + delta - 1;
   *to--= '\'';
   for (end= (char*) arg->ptr(), from= end + arg->length() - 1; from >= end; 
@@ -2107,4 +2107,8 @@ String *Item_func_quote::val_str(String *str)
   *to= '\'';
   str->length(arg->length() + delta);
   return str;
+
+null:
+  null_value= 1;
+  return 0;
 }
