@@ -37,10 +37,9 @@ test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem
 CLEANFILES = 		$(test_SCRIPTS) $(test_DATA)
 
 INCLUDES =			-I$(srcdir)/../include -I../include -I..
-# remove mysql_test_run_new for now, it breaks the make
-#bin_PROGRAMS =		mysql_test_run_new
+EXTRA_PROGRAMS =		mysql_test_run_new
 noinst_HEADERS =	my_manage.h
-#mysql_test_run_new_SOURCES=		mysql_test_run_new.c my_manage.c
+mysql_test_run_new_SOURCES=		mysql_test_run_new.c my_manage.c
 
 
 dist-hook:
