@@ -1,0 +1,19 @@
+#
+# Test of different EXPLAIN's
+
+drop table if exists t1;
+create table t1 (id int not null, str char(10), unique(str));
+insert into t1 values (1, null),(2, null),(3, "foo"),(4, "bar");
+select * from t1 where str is null;
+select * from t1 where str="foo";
+explain select * from t1 where str is null;
+explain select * from t1 where str="foo";
+explain select * from t1 ignore key (str) where str="foo";
+explain select * from t1 use key (str,str) where str="foo";
+
+#The following should give errors
+!$1072 explain select * from t1 use key (str,str,foo) where str="foo";
+!$1072 explain select * from t1 ignore key (str,str,foo) where str="foo";
+drop table t1;
+
+explain select 1;

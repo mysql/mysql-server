@@ -1,0 +1,30 @@
+c	d
+1	
+2	a
+3	b
+a	b
+4	e
+5	f
+6	g
+a	b
+4	e
+5	f
+6	g
+a	b
+4	e
+5	f
+6	g
+c	d
+1	
+2	a
+3	b
+c	d	e
+1		2
+2	a	2
+3	b	2
+CONCAT_WS(pkCrash, strCrash)
+1
+id	val	elt(two.val,'one','two')
+1	1	one
+2	1	one
+4	2	two

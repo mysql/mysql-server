@@ -183,3 +183,5 @@ mysqld.S
 mysqld.sym
 .snprj/*
 sql-bench/output/*
+sql-bench/Results-linux/ATIS-mysql_bdb-Linux_2.2.14_my_SMP_i686
+Docs/my_sys.doc

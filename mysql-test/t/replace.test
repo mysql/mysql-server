@@ -1,5 +1,7 @@
+-- source include/have_isam.inc
+
 #
-# Test of REPLACE with ISAM and MyISAM and BDB
+# Test of REPLACE with ISAM and MyISAM and HEAP
 #
 
 drop table if exists t1;
@@ -14,8 +16,6 @@ replace into t1 (gesuchnr,benutzer_id) values (2,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 alter table t1 type=myisam;
-replace into t1 (gesuchnr,benutzer_id) values (1,1);
-alter table t1 type=bdb;
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 alter table t1 type=heap;
 replace into t1 (gesuchnr,benutzer_id) values (1,1);

@@ -51,6 +51,7 @@ parse_arguments() {
       --open-files-limit=*) open_files=`echo "$arg" | sed -e "s;--open-files-limit=;;"` ;;
       --core-file-size=*) core_file_size=`echo "$arg" | sed -e "s;--core_file_size=;;"` ;;
       --timezone=*) TZ=`echo "$arg" | sed -e "s;--timezone=;;"` ; export TZ; ;;
+      --mysqld=*)   MYSQLD=`echo "$arg" | sed -e "s;--mysqld=;;"` ;;
       *)
         if test -n "$pick_args"
         then
@@ -87,6 +88,7 @@ fi
 MYSQL_UNIX_PORT=${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}
 MYSQL_TCP_PORT=${MYSQL_TCP_PORT:-@MYSQL_TCP_PORT@}
 user=@MYSQLD_USER@
+MYSQLD=mysqld
 
 # these rely on $DATADIR by default, so we'll set them later on
 pid_file=
@@ -111,9 +113,9 @@ args=
 parse_arguments `$print_defaults $defaults mysqld safe_mysqld`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
-if test ! -x $ledir/mysqld
+if test ! -x $ledir/$MYSQLD
 then
-  echo "The file $ledir/mysqld doesn't exist or is not executable"
+  echo "The file $ledir/$MYSQLD doesn't exist or is not executable"
   echo "Please do a cd to the mysql installation directory and restart"
   echo "this script from there as follows:"
   echo "./bin/safe_mysqld".
@@ -195,7 +197,7 @@ fi
 # $MY_BASEDIR_VERSION/bin/myisamchk --silent --force --fast --medium-check -O key_buffer=64M -O sort_buffer=64M $DATADIR/*/*.MYI
 # $MY_BASEDIR_VERSION/bin/isamchk --silent --force -O sort_buffer=64M $DATADIR/*/*.ISM
 
-echo "Starting mysqld daemon with databases from $DATADIR"
+echo "Starting $MYSQLD daemon with databases from $DATADIR"
 
 # Does this work on all systems?
 #if type ulimit | grep "shell builtin" > /dev/null
@@ -209,9 +211,9 @@ do
   rm -f $MYSQL_UNIX_PORT $pid_file	# Some extra safety
   if test -z "$args"
   then
-    $NOHUP_NICENESS $ledir/mysqld $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ >> $err_log 2>&1
+    $NOHUP_NICENESS $ledir/$MYSQLD $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ >> $err_log 2>&1
   else
-    eval "$NOHUP_NICENESS $ledir/mysqld $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ $args >> $err_log 2>&1"
+    eval "$NOHUP_NICENESS $ledir/$MYSQLD $defaults --basedir=$MY_BASEDIR_VERSION --datadir=$DATADIR --user=$user --pid-file=$pid_file @MYSQLD_DEFAULT_SWITCHES@ $args >> $err_log 2>&1"
   fi
   if test ! -f $pid_file		# This is removed if normal shutdown
   then
@@ -225,12 +227,12 @@ do
     # but should work for the rest of the servers.
     # The only thing is ps x => redhat 5 gives warnings when using ps -x.
     # kill -9 is used or the process won't react on the kill.
-    numofproces=`ps xa | grep -v "grep" | grep -c $ledir/mysqld`
+    numofproces=`ps xa | grep -v "grep" | grep -c $ledir/$MYSQLD`
     echo -e "\nNumber of processes running now: $numofproces" | tee -a $err_log
     I=1
     while test "$I" -le "$numofproces"
     do 
-      PROC=`ps xa | grep $ledir/mysqld | grep -v "grep" | tail -1` 
+      PROC=`ps xa | grep $ledir/$MYSQLD | grep -v "grep" | tail -1` 
 	for T in $PROC
 	do
 	  break
@@ -238,7 +240,7 @@ do
 	#    echo "TEST $I - $T **"
 	if kill -9 $T
 	then
-	  echo "mysqld process hanging, pid $T - killed" | tee -a $err_log
+	  echo "$MYSQLD process hanging, pid $T - killed" | tee -a $err_log
 	else 
 	  break
 	fi

@@ -1,0 +1,23 @@
+#
+# test of into outfile|dumpfile
+#
+
+# We need to check that we have 'file' privilege.
+
+#drop table if exists t1;
+#create table t1 (`a` blob);
+#insert into t1 values("hello world"),("Hello mars"),(NULL);
+#select * into outfile "/tmp/select-test.1" from t1;
+#select load_file("/tmp/select-test.1");
+#select * into dumpfile "/tmp/select-test.2" from t1 limit 1;
+#select load_file("/tmp/select-test.2");
+#select * into dumpfile "/tmp/select-test.3" from t1 where a is null;
+#select load_file("/tmp/select-test.3");
+#
+## the following should give errors
+#
+#select * into outfile "/tmp/select-test.1" from t1;
+#select * into dumpfile "/tmp/select-test.1" from t1;
+#select * into dumpfile "/tmp/select-test.99" from t1;
+#select load_file("/tmp/select-test.not-exist");
+#drop table t1;

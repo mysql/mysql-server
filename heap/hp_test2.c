@@ -133,7 +133,7 @@ char *argv[];
       write_count++; key1[n1]++; key3[n3]=1;
       key_check+=n1;
     }
-    if (testflag == 1 && heap_check_heap(file))
+    if (testflag == 1 && heap_check_heap(file,0))
     {
       puts("Heap keys crashed");
       goto err;
@@ -141,7 +141,7 @@ char *argv[];
   }
   if (testflag == 1)
     goto end;
-  if (heap_check_heap(file))
+  if (heap_check_heap(file,0))
   {
     puts("Heap keys crashed");
     goto err;
@@ -173,7 +173,7 @@ char *argv[];
       key1[atoi(record+keyinfo[0].seg[0].start)]--;
       key3[atoi(record+keyinfo[2].seg[0].start)]=0;
       key_check-=atoi(record);
-      if (testflag == 2 && heap_check_heap(file))
+      if (testflag == 2 && heap_check_heap(file,0))
       {
 	puts("Heap keys crashed");
 	goto err;
@@ -183,7 +183,7 @@ char *argv[];
       puts("Warning: Skipping delete test because no dupplicate keys");
   }
   if (testflag==2) goto end;
-  if (heap_check_heap(file))
+  if (heap_check_heap(file,0))
   {
     puts("Heap keys crashed");
     goto err;
@@ -239,14 +239,14 @@ char *argv[];
       update++;
       key_check=key_check-atoi(record)+n1;
     }
-    if (testflag == 3 && heap_check_heap(file))
+    if (testflag == 3 && heap_check_heap(file,0))
     {
       puts("Heap keys crashed");
       goto err;
     }
   }
   if (testflag == 3) goto end;
-  if (heap_check_heap(file))
+  if (heap_check_heap(file,0))
   {
     puts("Heap keys crashed");
     goto err;
@@ -284,7 +284,7 @@ char *argv[];
       goto end;
     }
     dupp_keys--;
-    if (heap_check_heap(file))
+    if (heap_check_heap(file,0))
     {
       puts("Heap keys crashed");
       goto err;
@@ -320,7 +320,7 @@ char *argv[];
       goto end;
     }
     dupp_keys-=2;
-    if (heap_check_heap(file))
+    if (heap_check_heap(file,0))
     {
       puts("Heap keys crashed");
       goto err;
@@ -353,7 +353,7 @@ char *argv[];
     printf("next: Found: %d records of %d\n",ant,write_count-delete);
     goto end;
   }
-  if (heap_check_heap(file))
+  if (heap_check_heap(file,0))
   {
     puts("Heap keys crashed");
     goto err;
@@ -556,7 +556,8 @@ char *argv[];
     }
     pos++;
   }
-  if (heap_check_heap(file) || heap_check_heap(file2))
+  printf("- Checking heap tables\n");
+  if (heap_check_heap(file,1) || heap_check_heap(file2,1))
   {
     puts("Heap keys crashed");
     goto err;

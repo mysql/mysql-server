@@ -26,6 +26,7 @@ typedef struct st_line_buffer
   uint bufread;			/* Number of bytes to get with each read(). */
   uint eof;
   ulong max_size;
+  ulong read_length;		/* Length of last read string */
 } LINE_BUFFER;
 
 extern LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file);

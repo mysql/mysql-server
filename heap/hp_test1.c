@@ -65,7 +65,7 @@ int main(int argc, char **argv)
     sprintf(key,"%6d",j);
     bmove(record+1,key,6);
     error=heap_write(file,record);
-    if (heap_check_heap(file))
+    if (heap_check_heap(file,0))
     {
       puts("Heap keys crashed");
       goto err;
@@ -100,7 +100,7 @@ int main(int argc, char **argv)
       if (! error)
 	deleted++;
     }
-    if (heap_check_heap(file))
+    if (heap_check_heap(file,0))
     {
       puts("Heap keys crashed");
       goto err;
