@@ -343,6 +343,22 @@ t1	CREATE TABLE `t1` (
   `a` char(10) character set latin1 default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=cp1251
 drop table t1;
+create table t1 (myblob longblob,mytext longtext) 
+default charset latin1 collate latin1_general_cs;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `myblob` longblob,
+  `mytext` longtext character set latin1 collate latin1_general_cs
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+alter table t1 character set latin2;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `myblob` longblob,
+  `mytext` longtext character set latin2
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 CREATE TABLE t1 (
 Host varchar(16) binary NOT NULL default '',
 User varchar(16) binary NOT NULL default '',
