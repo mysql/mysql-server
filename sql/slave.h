@@ -94,6 +94,10 @@ extern bool do_table_inited, ignore_table_inited,
 	    wild_do_table_inited, wild_ignore_table_inited;
 extern bool table_rules_on;
 
+#ifndef DBUG_OFF
+extern int disconnect_slave_event_count ;
+#endif
+
 // the master variables are defaults read from my.cnf or command line
 extern uint master_port, master_connect_retry;
 extern my_string master_user, master_password, master_host,
