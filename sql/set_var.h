@@ -692,6 +692,9 @@ public:
   }
 };
 
+/* updated in sql_acl.cc */
+
+extern sys_var_thd_bool sys_old_passwords;
 
 /*
   Prototypes for helper functions
@@ -705,6 +708,7 @@ void fix_delay_key_write(THD *thd, enum_var_type type);
 ulong fix_sql_mode(ulong sql_mode);
 extern sys_var_str sys_charset_system;
 CHARSET_INFO *get_old_charset_by_name(const char *old_name);
+
 gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length);
 void delete_elements(I_List<NAMED_LIST> *list, void (*free_element)(gptr));
 
