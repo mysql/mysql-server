@@ -353,7 +353,8 @@ then
   then
     if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
     then
-      CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
+     # Statically link the language support function's found in libsupc++.a
+     LIBS="$LIBS -lsupc++"
     fi
   fi
 fi
