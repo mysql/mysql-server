@@ -1560,7 +1560,8 @@ end:
   {
     acl_cache->clear(1);			// Clear privilege cache
     if (old_row_exists)
-      acl_update_user(combo.user.str, combo.host.str, password, password_len,
+      acl_update_user(combo.user.str, combo.host.str,
+                      combo.password.str, password_len,
 		      thd->lex->ssl_type,
 		      thd->lex->ssl_cipher,
 		      thd->lex->x509_issuer,

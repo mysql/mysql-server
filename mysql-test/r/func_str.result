@@ -639,3 +639,14 @@ name
 aaaaaaaaaaccccc
 bbbbbbbbbbddddd
 drop table t1, t2;
+create table t1 (c1 INT);
+insert into t1 (c1) values ('21474836461');
+Warnings:
+Warning	1265	Data truncated for column 'c1' at row 1
+show warnings;
+Level	Code	Message
+Warning	1265	Data truncated for column 'c1' at row 1
+select * from t1;
+c1
+2147483647
+drop table t1;

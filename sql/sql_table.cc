@@ -1759,7 +1759,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 	char buf[ERRMSGSIZE+20];
 	uint length=my_snprintf(buf, ERRMSGSIZE,
 				ER(ER_CHECK_NOT_IMPLEMENTED), operator_name);
-	protocol->store("error", 5, system_charset_info);
+	protocol->store("note", 4, system_charset_info);
 	protocol->store(buf, length, system_charset_info);
       }
       break;

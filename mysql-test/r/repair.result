@@ -7,7 +7,7 @@ test.t1	repair	status	OK
 alter table t1 ENGINE=HEAP;
 repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	error	The storage engine for the table doesn't support repair
+test.t1	repair	note	The storage engine for the table doesn't support repair
 drop table t1;
 create table t1(id int PRIMARY KEY, st varchar(10), KEY st_key(st));
 insert into t1 values(1, "One");
