@@ -363,5 +363,5 @@ character-set=latin2
 "View '%-.64s.%-.64s' references invalid table(s) or column(s)"
 "Can't drop a %s from within another stored routine"
 "GOTO is not allowed in a stored procedure handler"
-"CHECK OPTION on non-updatable view"
-"CHECK OPTION failed"
+"CHECK OPTION on non-updatable view '%-.64s.%-.64s'"
+"CHECK OPTION failed '%-.64s.%-.64s'"
