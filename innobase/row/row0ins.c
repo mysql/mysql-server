@@ -627,6 +627,7 @@ row_ins_check_foreign_constraint(
 	dict_table_t*	check_table;
 	dict_index_t*	check_index;
 	ulint		n_fields_cmp;
+	ibool           timeout_expired;
 	rec_t*		rec;
 	btr_pcur_t	pcur;
 	ibool		moved;
@@ -790,10 +791,15 @@ do_possible_lock_wait:
 		thr_get_trx(thr)->error_state = err;
 
 		que_thr_stop_for_mysql(thr);
-	
-		row_mysql_handle_errors(&err, thr_get_trx(thr), thr, NULL);
 
-		goto run_again;
+		timeout_expired = srv_suspend_mysql_thread(thr);
+	
+		if (!timeout_expired) {
+
+		        goto run_again;
+		}
+
+		err = DB_LOCK_WAIT_TIMEOUT;
 	}
 
 	return(err);
