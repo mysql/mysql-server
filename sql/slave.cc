@@ -358,7 +358,10 @@ int init_master_info(MASTER_INFO* mi)
     {
       file = my_fopen(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME));
       if(!file)
-	return 1;
+	{
+	  pthread_mutex_unlock(&mi->lock);
+	  return 1;
+	}
       mi->log_file_name[0] = 0;
       mi->pos = 4; // skip magic number
       mi->file = file;
@@ -373,18 +376,25 @@ int init_master_info(MASTER_INFO* mi)
       mi->connect_retry = master_connect_retry;
       
       if(flush_master_info(mi))
-	return 1;
+	{
+	  pthread_mutex_unlock(&mi->lock);
+	  return 1;
+	}
     }
   else
     {
       file = my_fopen(fname, O_RDWR|O_BINARY, MYF(MY_WME));
       if(!file)
-	return 1;
+	{
+	  pthread_mutex_unlock(&mi->lock);
+	  return 1;
+	}
       
       if(!fgets(mi->log_file_name, sizeof(mi->log_file_name), file))
 	{
 	  sql_print_error("Error reading log file name from master info file ");
-	  return 1;
+	  pthread_mutex_unlock(&mi->lock);
+          return 1;
 	}
 
       *(strend(mi->log_file_name) - 1) = 0; // kill \n
@@ -392,6 +402,7 @@ int init_master_info(MASTER_INFO* mi)
       if(!fgets(buf, sizeof(buf), file))
 	{
 	  sql_print_error("Error reading log file position from master info file");
+	  pthread_mutex_unlock(&mi->lock);
 	  return 1;
 	}
 
