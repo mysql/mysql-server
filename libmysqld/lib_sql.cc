@@ -47,8 +47,9 @@ static bool check_user(THD *thd, enum_server_command command,
 char * get_mysql_home(){ return mysql_home;};
 char * get_mysql_real_data_home(){ return mysql_real_data_home;};
 
-my_bool simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
-	       ulong length, my_bool skipp_check)
+my_bool simple_command(MYSQL *mysql,enum enum_server_command command,
+		       const char *arg,
+		       ulong length, my_bool skipp_check)
 {
   my_bool result= 1;
   THD *thd=(THD *) mysql->thd;
@@ -56,7 +57,8 @@ my_bool simple_command(MYSQL *mysql,enum enum_server_command command, const char
   /* Check that we are calling the client functions in right order */
   if (mysql->status != MYSQL_STATUS_READY)
   {
-    strmov(thd->net.last_error,ER(thd->net.last_errno=CR_COMMANDS_OUT_OF_SYNC));
+    strmov(thd->net.last_error,
+	   ER(thd->net.last_errno=CR_COMMANDS_OUT_OF_SYNC));
     return 1;
   }
 
@@ -199,7 +201,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   if (!opt_mysql_tmpdir || !opt_mysql_tmpdir[0])
     opt_mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
 
-  if (init_thread_environement())
+  if (init_thread_environment())
   {
     mysql_server_end();
     return 1;

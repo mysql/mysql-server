@@ -670,6 +670,7 @@ static void close_connections(void)
 }
 #endif /*EMBEDDED_LIBRARY*/
 
+
 static void close_server_sock()
 {
 #ifdef HAVE_CLOSE_SERVER_SOCK
@@ -760,8 +761,6 @@ void kill_mysql(void)
   DBUG_VOID_RETURN;
 }
 
-#ifndef EMBEDDED_LIBRARY
-
 	/* Force server down. kill all connections and threads and exit */
 
 #if defined(OS2)
@@ -777,7 +776,7 @@ static void __cdecl kill_server(int sig_ptr)
 {
   int sig=(int) (long) sig_ptr;			// This is passed a int
   DBUG_ENTER("kill_server");
-
+#ifndef EMBEDDED_LIBRARY
   // if there is a signal during the kill in progress, ignore the other
   if (kill_in_progress)				// Safety
     RETURN_FROM_KILL_SERVER;
@@ -798,19 +797,17 @@ static void __cdecl kill_server(int sig_ptr)
   else
     unireg_end();
   pthread_exit(0);				/* purecov: deadcode */
+#endif /* EMBEDDED_LIBRARY */
   RETURN_FROM_KILL_SERVER;
 }
 
-#endif /* EMBEDDED_LIBRARY */
 
 #ifdef USE_ONE_SIGNAL_HAND
 extern "C" pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 {
   SHUTDOWN_THD;
   my_thread_init();				// Initialize new thread
-#ifndef EMBEDDED_LIBRARY
   kill_server(0);
-#endif /* EMBEDDED_LIBRARY */
   my_thread_end();				// Normally never reached
   return 0;
 }
@@ -1047,6 +1044,7 @@ static void set_root(const char *path)
 #endif
 }
 
+
 static void server_init(void)
 {
   struct sockaddr_in	IPaddr;
@@ -1158,7 +1156,7 @@ static void server_init(void)
   {
     DBUG_PRINT("general",("UNIX Socket is %s",mysql_unix_port));
 
-    if ((unix_sock = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+    if ((unix_sock= socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
     {
       sql_perror("Can't start server : UNIX Socket "); /* purecov: inspected */
       unireg_abort(1);				/* purecov: inspected */
@@ -1201,6 +1199,7 @@ void yyerror(const char *s)
 	     thd->lex.yylineno);
 }
 
+
 #ifndef EMBEDDED_LIBRARY
 void close_connection(NET *net,uint errcode,bool lock)
 {
@@ -1221,7 +1220,8 @@ void close_connection(NET *net,uint errcode,bool lock)
     (void) pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
 }
-#endif
+#endif /* EMBEDDED_LIBRARY */
+
 
 	/* Called when a thread is aborted */
 	/* ARGSUSED */
@@ -1772,7 +1772,7 @@ extern "C" pthread_handler_decl(handle_shutdown,arg)
   PeekMessage(&msg, NULL, 1, 65534,PM_NOREMOVE);
 #if !defined(EMBEDDED_LIBRARY)
   if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
-#endif
+#endif /* EMBEDDED_LIBRARY */
      kill_server(MYSQL_KILL_SIGNAL);
   return 0;
 }
@@ -1788,6 +1788,7 @@ int __stdcall handle_kill(ulong ctrl_type)
   return FALSE;
 }
 #endif
+
 
 #ifdef OS2
 extern "C" pthread_handler_decl(handle_shutdown,arg)
@@ -1856,8 +1857,8 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 }
 
 
-static int init_common_variables(const char *conf_file_name, int argc, char **argv,
-				 const char **groups)
+static int init_common_variables(const char *conf_file_name, int argc,
+				 char **argv, const char **groups)
 {
   my_umask=0660;		// Default umask for new files
   my_umask_dir=0700;		// Default umask for new directories
@@ -1943,12 +1944,12 @@ static int init_common_variables(const char *conf_file_name, int argc, char **ar
   charsets_list= list_charsets(MYF(MY_CS_COMPILED | MY_CS_CONFIG));
 
   if (use_temp_pool && bitmap_init(&temp_pool,1024,1))
-    return 2;
-
+    return 1;
   return 0;
 }
 
-static int init_thread_environement()
+
+static int init_thread_environment()
 {
   (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
   (void) pthread_mutex_init(&LOCK_Acl,MY_MUTEX_INIT_SLOW);
@@ -1966,9 +1967,6 @@ static int init_thread_environement()
   (void) pthread_mutex_init(&LOCK_bytes_received,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_timezone,MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
-#ifdef HAVE_REPLICATION
-  (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
-#endif
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
   (void) my_rwlock_init(&LOCK_grant, NULL);
@@ -1978,14 +1976,16 @@ static int init_thread_environement()
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
   (void) pthread_cond_init(&COND_manager,NULL);
 #ifdef HAVE_REPLICATION
+  (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_rpl_status, NULL);
 #endif
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
 				     PTHREAD_CREATE_DETACHED);
-  pthread_attr_setstacksize(&connection_attrib,thread_stack);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
+  if (!(opt_specialflag & SPECIAL_NO_PRIOR))
+    my_pthread_attr_setprio(&connection_attrib,WAIT_PRIOR);
 
   if (pthread_key_create(&THR_THD,NULL) ||
       pthread_key_create(&THR_MALLOC,NULL))
@@ -1993,11 +1993,9 @@ static int init_thread_environement()
     sql_print_error("Can't create thread-keys");
     return 1;
   }
-
-  (void) thr_setconcurrency(concurrency);	// 10 by default
-
   return 0;
 }
+
 
 static void init_ssl()
 {
@@ -2016,6 +2014,7 @@ static void init_ssl()
     load_des_key_file(des_key_file);
 #endif /* HAVE_OPENSSL */
 }
+
 
 static int init_server_components()
 {
@@ -2039,15 +2038,24 @@ static int init_server_components()
 	     NullS, LOG_NEW);
     using_update_log=1;
   }
- 
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
 	     NullS, LOG_NORMAL);
+
+  if (opt_bin_log)
+  {
+    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
+	     opt_binlog_index_name,LOG_BIN);
+    using_update_log=1;
+  }
+
   if (ha_init())
   {
     sql_print_error("Can't init databases");
     return 1;
   }
+  if (opt_myisam_log)
+    (void) mi_log(1);
   ha_key_cache();
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
@@ -2064,22 +2072,13 @@ static int init_server_components()
   locked_in_memory=0;
 #endif
 
-  if (opt_myisam_log)
-    (void) mi_log( 1 );
   ft_init_stopwords(ft_precompiled_stopwords);
 
   init_max_user_conn();
   init_update_queries();
-
-  if (opt_bin_log)
-  {
-    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     opt_binlog_index_name,LOG_BIN);
-    using_update_log=1;
-  }
-
   return 0;
 }
+
 
 static void create_maintenance_thread()
 {
@@ -2095,73 +2094,87 @@ static void create_maintenance_thread()
   }
 }
 
+
 static void create_shutdown_thread()
 {
-
 #ifdef __WIN__
-  {
-    hEventShutdown=CreateEvent(0, FALSE, FALSE, event_name);
-    pthread_t hThread;
-    if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
-      sql_print_error("Warning: Can't create thread to handle shutdown requests");
+  hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
+  pthread_t hThread;
+  if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
+    sql_print_error("Warning: Can't create thread to handle shutdown requests");
 
-    // On "Stop Service" we have to do regular shutdown
-    Service.SetShutdownEvent(hEventShutdown);
-  }
+  // On "Stop Service" we have to do regular shutdown
+  Service.SetShutdownEvent(hEventShutdown);
 #endif
 #ifdef OS2
-  {
-    pthread_cond_init( &eventShutdown, NULL);
-    pthread_t hThread;
-    if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
-      sql_print_error("Warning: Can't create thread to handle shutdown requests");
-  }
+  pthread_cond_init(&eventShutdown, NULL);
+  pthread_t hThread;
+  if (pthread_create(&hThread,&connection_attrib,handle_shutdown,0))
+    sql_print_error("Warning: Can't create thread to handle shutdown requests");
 #endif
 }
 
-#ifdef __NT__
-void create_named_pipe_thread()
+
+#if defined(__NT__) || defined(HAVE_SMEM)
+static void handle_connections_methods()
 {
+  pthread_t hThread;
+  DBUG_ENTER("handle_connections_methods");
+#ifdef __NT__
   if (hPipe == INVALID_HANDLE_VALUE &&
-      (!have_tcpip || opt_disable_networking))
+      (!have_tcpip || opt_disable_networking) &&
+      !opt_enable_shared_memory)
   {
-    sql_print_error("TCP/IP or --enable-named-pipe should be configured on NT OS");
-    unireg_abort(1);
+    sql_print_error("TCP/IP,--shared-memory or --named-pipe should be configured on NT OS");
+    unireg_abort(1);				// Will not return
   }
-  else
-  {
-    pthread_mutex_lock(&LOCK_thread_count);
-    (void) pthread_cond_init(&COND_handler_count,NULL);
-    {
-      pthread_t hThread;
-      handler_count=0;
-      if (hPipe != INVALID_HANDLE_VALUE && opt_enable_named_pipe)
-      {
-	handler_count++;
-	if (pthread_create(&hThread,&connection_attrib,
-			   handle_connections_namedpipes, 0))
-	{
-	  sql_print_error("Warning: Can't create thread to handle named pipes");
-	  handler_count--;
-	}
-      }
-      if (have_tcpip && !opt_disable_networking)
-      {
-	handler_count++;
-	if (pthread_create(&hThread,&connection_attrib,
-			   handle_connections_sockets, 0))
-	{
-	  sql_print_error("Warning: Can't create thread to handle named pipes");
-	  handler_count--;
-	}
-      }
-      while (handler_count > 0)
-	pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
-    }
-    pthread_mutex_unlock(&LOCK_thread_count);
-  }
-}
 #endif
+
+  pthread_mutex_lock(&LOCK_thread_count);
+  (void) pthread_cond_init(&COND_handler_count,NULL);
+  handler_count=0;
+#ifdef __NT__
+  if (hPipe != INVALID_HANDLE_VALUE)
+  {
+    handler_count++;
+    if (pthread_create(&hThread,&connection_attrib,
+		       handle_connections_namedpipes, 0))
+    {
+      sql_print_error("Warning: Can't create thread to handle named pipes");
+      handler_count--;
+    }
+  }
+#endif /* __NT__ */
+  if (have_tcpip && !opt_disable_networking)
+  {
+    handler_count++;
+    if (pthread_create(&hThread,&connection_attrib,
+		       handle_connections_sockets, 0))
+    {
+      sql_print_error("Warning: Can't create thread to handle TCP/IP");
+      handler_count--;
+    }
+  }
+#ifdef HAVE_SMEM
+  if (opt_enable_shared_memory)
+  {
+    handler_count++;
+    if (pthread_create(&hThread,&connection_attrib,
+		       handle_connections_shared_memory, 0))
+    {
+      sql_print_error("Warning: Can't create thread to handle shared memory");
+      handler_count--;
+    }
+  }
+#endif
+
+  while (handler_count > 0)
+    pthread_cond_wait(&COND_handler_count,&LOCK_thread_count);
+  pthread_mutex_unlock(&LOCK_thread_count);
+  DBUG_VOID_RETURN;
+}
+#endif /* defined(__NT__) || defined(HAVE_SMEM) */
+
 
 #ifndef EMBEDDED_LIBRARY
 #ifdef __WIN__
@@ -2170,9 +2183,9 @@ int win_main(int argc, char **argv)
 int main(int argc, char **argv)
 #endif
 {
-  int init_error;
-
   DEBUGGER_OFF;
+
+  MY_INIT(argv[0]);		// init my_sys library & pthreads
 
 #ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())
@@ -2182,26 +2195,20 @@ int main(int argc, char **argv)
   }
 #endif
 
-  MY_INIT(argv[0]);		// init my_sys library & pthreads
-
-  if ((init_error=init_common_variables(MYSQL_CONFIG_NAME, 
-					argc, argv, load_default_groups)))
-    if (init_error == 2)
-      unireg_abort(1);
-    else
-      exit(1);
+  if (init_common_variables(MYSQL_CONFIG_NAME,
+			    argc, argv, load_default_groups))
+    unireg_abort(1);				// Will do exit
 
   init_signals();
-  if (init_thread_environement())
-    exit(1);
-  select_thread=pthread_self();
-  select_thread_in_use=1;
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),CONNECT_PRIOR);
+  if (init_thread_environment())
+    unireg_abort(1);
+  pthread_attr_setstacksize(&connection_attrib,thread_stack);
+  (void) thr_setconcurrency(concurrency);	// 10 by default
 
-  if (!(opt_specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_attr_setprio(&connection_attrib,WAIT_PRIOR);
-
+  select_thread=pthread_self();
+  select_thread_in_use=1;
   init_ssl();
 
 #ifdef HAVE_LIBWRAP
@@ -2224,21 +2231,21 @@ int main(int argc, char **argv)
   if (opt_bin_log && !server_id)
   {
     server_id= !master_host ? 1 : 2;
-    switch (server_id) {
 #ifdef EXTRA_DEBUG
+    switch (server_id) {
     case 1:
       sql_print_error("\
 Warning: You have enabled the binary log, but you haven't set server-id:\n\
 Updates will be logged to the binary log, but connections to slaves will\n\
 not be accepted.");
       break;
-#endif
     case 2:
       sql_print_error("\
 Warning: You should set server-id to a non-0 value if master_host is set.\n\
 The server will not act as a slave.");
       break;
     }
+#endif
   }
 
   if (init_server_components())
@@ -2250,12 +2257,8 @@ The server will not act as a slave.");
   {
     freopen(MYSQL_ERR_FILE,"a+",stdout);
     freopen(MYSQL_ERR_FILE,"a+",stderr);
-  }
-#endif
-
-#ifdef __WIN__
-  if (!opt_console)
     FreeConsole();				// Remove window
+  }
 #endif
 
   /*
@@ -2273,6 +2276,8 @@ The server will not act as a slave.");
     if (!opt_bootstrap)
       (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
 #endif
+    if (unix_sock != INVALID_SOCKET)
+      unlink(mysql_unix_port);
     exit(1);
   }
   if (!opt_noacl)
@@ -2306,13 +2311,10 @@ The server will not act as a slave.");
   printf(ER(ER_READY),my_progname,server_version,"");
   fflush(stdout);
 
-#ifdef __NT__
-  create_named_pipe_thread();
+#if defined(__NT__) || defined(HAVE_SMEM)
+  handle_connections_methods();
 #else
   handle_connections_sockets(0);
-#ifdef EXTRA_DEBUG2
-  sql_print_error("Exiting main thread");
-#endif
 #endif /* __NT__ */
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
@@ -2494,13 +2496,14 @@ int main(int argc, char **argv)
   Execute all commands from a file. Used by the mysql_install_db script to
   create MySQL privilege tables without having to start a full MySQL server.
 */
-#ifndef EMBEDDED_LIBRARY
+
 static int bootstrap(FILE *file)
 {
-  THD *thd= new THD;
-  int error;
+  THD *thd;
+  int error= 0;
   DBUG_ENTER("bootstrap");
-
+#ifndef EMBEDDED_LIBRARY			// TODO:  Enable this
+  thd= new THD;
   thd->bootstrap=1;
   thd->client_capabilities=0;
   my_net_init(&thd->net,(st_vio*) 0);
@@ -2528,10 +2531,10 @@ static int bootstrap(FILE *file)
   net_end(&thd->net);
   thd->cleanup();
   delete thd;
+#endif /* EMBEDDED_LIBRARY */
   DBUG_RETURN(error);
 }
 
-#endif
 
 static bool read_init_file(char *file_name)
 {
@@ -2540,15 +2543,13 @@ static bool read_init_file(char *file_name)
   DBUG_PRINT("enter",("name: %s",file_name));
   if (!(file=my_fopen(file_name,O_RDONLY,MYF(MY_WME))))
     return(1);
-#ifndef EMBEDDED_LIBRARY
   bootstrap(file);				/* Ignore errors from this */
-#endif
   (void) my_fclose(file,MYF(MY_WME));
   return 0;
 }
 
-#ifndef EMBEDDED_LIBRARY
 
+#ifndef EMBEDDED_LIBRARY
 static void create_new_thread(THD *thd)
 {
   DBUG_ENTER("create_new_thread");
@@ -2629,7 +2630,8 @@ static void create_new_thread(THD *thd)
   DBUG_PRINT("info",("Thread created"));
   DBUG_VOID_RETURN;
 }
-#endif
+#endif /* EMBEDDED_LIBRARY */
+
 
 #ifdef SIGNALS_DONT_BREAK_READ
 inline void kill_broken_server()
@@ -2647,10 +2649,11 @@ inline void kill_broken_server()
 #define MAYBE_BROKEN_SYSCALL
 #endif
 
-#ifndef EMBEDDED_LIBRARY
 	/* Handle new connections and spawn new process to handle them */
 
-extern "C" pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
+#ifndef EMBEDDED_LIBRARY
+extern "C" pthread_handler_decl(handle_connections_sockets,
+				arg __attribute__((unused)))
 {
   my_socket sock,new_sock;
   uint error_count=0;
@@ -2939,6 +2942,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
 }
 #endif /* __NT__ */
 
+
 /*
   Thread of shared memory's service
 
@@ -2947,6 +2951,7 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg)
     handle_connections_shared_memory Thread handle
     arg                              Arguments of thread
 */
+
 #ifdef HAVE_SMEM
 pthread_handler_decl(handle_connections_shared_memory,arg)
 {
@@ -2979,13 +2984,13 @@ pthread_handler_decl(handle_connections_shared_memory,arg)
   DBUG_PRINT("general",("Waiting for allocated shared memory."));
 
 
-/*
-  The name of event and file-mapping events create agree next rule:
-            shared_memory_base_name+unique_part
-  Where:
-    shared_memory_base_name is unique value for each server
-    unique_part is unique value for each object (events and file-mapping)
-*/
+  /*
+    The name of event and file-mapping events create agree next rule:
+      shared_memory_base_name+unique_part
+    Where:
+      shared_memory_base_name is unique value for each server
+      unique_part is unique value for each object (events and file-mapping)
+  */
   suffix_pos = strxmov(tmp,shared_memory_base_name,"_",NullS);
   strmov(suffix_pos, "CONNECT_REQUEST");
   if ((event_connect_request = CreateEvent(NULL,FALSE,FALSE,tmp)) == 0)
@@ -3151,14 +3156,15 @@ error:
   DBUG_RETURN(0);
 }
 #endif /* HAVE_SMEM */
-
 #endif /* EMBEDDED_LIBRARY */
 
-/******************************************************************************
-** handle start options
+
+/****************************************************************************
+  Handle start options
 ******************************************************************************/
 
-enum options {
+enum options
+{
   OPT_ISAM_LOG=256,            OPT_SKIP_NEW,
   OPT_SKIP_GRANT,              OPT_SKIP_LOCK,
   OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
@@ -4039,7 +4045,7 @@ struct my_option my_long_options[] =
    "Number of seconds to wait for more data from a master/slave connection before aborting the read.",
    (gptr*) &slave_net_timeout, (gptr*) &slave_net_timeout, 0,
    GET_ULONG, REQUIRED_ARG, SLAVE_NET_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
-#endif
+#endif /* HAVE_REPLICATION */
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",
    (gptr*) &slow_launch_time, (gptr*) &slow_launch_time, 0, GET_ULONG,
@@ -4941,7 +4947,7 @@ static void fix_paths(void)
     if (!(slave_load_tmpdir = (char*) my_strdup(mysql_tmpdir, MYF(MY_FAE))))
       exit(1);
   }
-#endif
+#endif /* HAVE_REPLICATION */
 }
 
 

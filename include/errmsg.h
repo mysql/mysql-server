@@ -30,7 +30,7 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_MAX_ERROR		2999
 #if defined(OS2) && defined(MYSQL_SERVER)
 #define CER(X) client_errors[(X)-CR_MIN_ERROR]
-#else
+#elif !defined(ER)
 #define ER(X) client_errors[(X)-CR_MIN_ERROR]
 #endif
 #define CLIENT_ERRMAP		2	/* Errormap used by my_error() */

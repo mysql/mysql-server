@@ -2014,9 +2014,8 @@ String *Item_func_conv_charset::val_str(String *str)
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;
 
-  while (s < se && d < de)
+  while (1)
   {
-
     cnvres=from->mb_wc(from,&wc,s,se);
     if (cnvres>0)
     {
@@ -2089,8 +2088,8 @@ String *Item_func_conv_charset3::val_str(String *str)
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;
 
-  while (s < se && d < de){
-
+  while (1)
+  {
     cnvres=from_charset->mb_wc(from_charset,&wc,s,se);
     if (cnvres>0)
     {

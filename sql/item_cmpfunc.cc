@@ -392,51 +392,44 @@ longlong Item_func_strcmp::val_int()
   return !value ? 0 : (value < 0 ? (longlong) -1 : (longlong) 1);
 }
 
-
 void Item_func_interval::fix_length_and_dec()
 {
-  bool nums=1;
-  uint i;
-  for (i=0 ; i < arg_count ; i++)
+  if (row->cols() > 8)
   {
-    if (!args[i])
-      return;					// End of memory
-    if (args[i]->type() != Item::INT_ITEM &&
-	args[i]->type() != Item::REAL_ITEM)
+    bool consts=1;
+
+    for (uint i=1 ; consts && i < row->cols() ; i++)
     {
-      nums=0;
-      break;
+      consts&= row->el(i)->const_item();
     }
-  }
-  if (nums && arg_count >= 8)
-  {
-    if ((intervals=(double*) sql_alloc(sizeof(double)*arg_count)))
+
+    if (consts &&
+        (intervals=(double*) sql_alloc(sizeof(double)*(row->cols()-1))))
     {
-      for (i=0 ; i < arg_count ; i++)
-	intervals[i]=args[i]->val();
+      for (uint i=1 ; i < row->cols(); i++)
+        intervals[i-1]=row->el(i)->val();
     }
   }
   maybe_null= 0;
   max_length= 2;
-  used_tables_cache|=item->used_tables();
 }
 
 /*
   return -1 if null value,
 	  0 if lower than lowest
-	  1 - arg_count if between args[n] and args[n+1]
-	  arg_count+1 if higher than biggest argument
+	  1 - arg_count-1 if between args[n] and args[n+1]
+	  arg_count if higher than biggest argument
 */
 
 longlong Item_func_interval::val_int()
 {
-  double value=item->val();
-  if (item->null_value)
-    return -1;				// -1 if null /* purecov: inspected */
+  double value=row->el(0)->val();
+  if (row->el(0)->null_value)
+    return -1;				// -1 if null
   if (intervals)
   {					// Use binary search to find interval
     uint start,end;
-    start=0; end=arg_count-1;
+    start=1; end=row->cols()-2;
     while (start != end)
     {
       uint mid=(start+end+1)/2;
@@ -447,31 +440,14 @@ longlong Item_func_interval::val_int()
     }
     return (value < intervals[start]) ? 0 : start+1;
   }
-  if (args[0]->val() > value)
-    return 0;
-  for (uint i=1 ; i < arg_count ; i++)
+
+  uint i;
+  for (i=1 ; i < row->cols() ; i++)
   {
-    if (args[i]->val() > value)
-      return i;
+    if (row->el(i)->val() > value)
+      return i-1;
   }
-  return (longlong) arg_count;
-}
-
-
-void Item_func_interval::update_used_tables()
-{
-  Item_func::update_used_tables();
-  item->update_used_tables();
-  used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
-}
-
-bool Item_func_interval::check_loop(uint id)
-{
-  DBUG_ENTER("Item_func_interval::check_loop");
-  if (Item_func::check_loop(id))
-    DBUG_RETURN(1);
-  DBUG_RETURN(item->check_loop(id));
+  return i-1;
 }
 
 void Item_func_between::fix_length_and_dec()

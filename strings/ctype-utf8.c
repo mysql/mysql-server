@@ -1586,6 +1586,9 @@ static int my_utf8_uni (CHARSET_INFO *cs __attribute__((unused)) ,
 {
   unsigned char c = s[0];
   
+  if (s >= e)
+    return MY_CS_TOOFEW(0);
+
   if (c < 0x80) 
   {
     *pwc = c;
@@ -1688,6 +1691,9 @@ static int my_uni_utf8 (CHARSET_INFO *cs __attribute__((unused)) ,
 {
   int count;
 
+  if (r >= e)
+    return MY_CS_TOOSMALL;
+  
   if (wc < 0x80) 
     count = 1;
   else if (wc < 0x800) 

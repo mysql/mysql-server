@@ -1652,11 +1652,10 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   long tmp;
   int error= 0;
   char *end;
-  /* TODO: Make multi-byte-character safe */
-  while (len && my_isspace(cs,*from))
-  {
-    len--; from++;
-  }
+  
+  tmp= cs->scan(cs, from, from+len, MY_SEQ_SPACES);
+  len-= tmp;
+  from+= tmp;
   my_errno=0;
   if (unsigned_flag)
   {
@@ -1910,11 +1909,10 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
   longlong tmp;
   int error= 0;
   char *end;
-  /* TODO:  Make multi byte safe */
-  while (len && my_isspace(cs,*from))
-  {						// For easy error check
-    len--; from++;
-  }
+  
+  tmp= cs->scan(cs, from, from+len, MY_SEQ_SPACES);
+  len-= tmp;
+  from+= tmp;
   my_errno=0;
   if (unsigned_flag)
   {
@@ -3878,14 +3876,6 @@ void Field_datetime::sql_type(String &res) const
 int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
-#ifdef USE_TIS620
-  if (!binary()) {
-    ThNormalize((uchar *)ptr, field_length, (uchar *)from, length);
-    if (length < field_length) {
-      bfill(ptr + length, field_length - length, ' ');
-    }
-  }
-#else
   if (length <= field_length)
   {
     memcpy(ptr,from,length);
@@ -3909,7 +3899,6 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
       }
     }
   }
-#endif /* USE_TIS620 */
   return error;
 }
 
@@ -4062,12 +4051,6 @@ uint Field_string::max_packed_col_length(uint max_length)
 int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
 {
   int error= 0;
-#ifdef USE_TIS620
-  if (!binary())
-  {
-    ThNormalize((uchar *) ptr+2, field_length, (uchar *) from, length);
-  }
-#else
   if (length > field_length)
   {
     length=field_length;
@@ -4075,7 +4058,6 @@ int Field_varstring::store(const char *from,uint length,CHARSET_INFO *cs)
     error= 1;
   }
   memcpy(ptr+2,from,length);
-#endif /* USE_TIS620 */
   int2store(ptr, length);
   return error;
 }
@@ -4376,28 +4358,11 @@ int Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
   }
   else
   {
-#ifdef USE_TIS620
-    char *th_ptr=0;
-#endif
     Field_blob::store_length(len);
     if (table->copy_blobs || len <= MAX_FIELD_WIDTH)
     {						// Must make a copy
-#ifdef USE_TIS620
-      if (!binary())
-      {
-	/* If there isn't enough memory, use original string */
-	if ((th_ptr=(char * ) my_malloc(sizeof(char) * len,MYF(0))))
-	{
-	  ThNormalize((uchar *) th_ptr, len, (uchar *) from, len);
-	  from= (const char*) th_ptr;
-	}
-      }
-#endif /* USE_TIS620 */
       value.copy(from,len,charset());
       from=value.ptr();
-#ifdef USE_TIS620
-      my_free(th_ptr,MYF(MY_ALLOW_ZERO_PTR));
-#endif
     }
     bmove(ptr+packlength,(char*) &from,sizeof(char*));
   }

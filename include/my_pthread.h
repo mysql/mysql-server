@@ -1,3 +1,4 @@
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -587,7 +588,7 @@ extern int pthread_dummy(int);
 */
 #define DEFAULT_THREAD_STACK	(192*1024L)
 #else
-#define DEFAULT_THREAD_STACK	(192*1024L)
+#define DEFAULT_THREAD_STACK	(192*1024)
 #endif
 
 struct st_my_thread_var
@@ -601,6 +602,8 @@ struct st_my_thread_var
   long id;
   int cmp_length;
   int volatile abort;
+  struct st_my_thread_var *next,**prev;
+  void *opt_info;
 #ifndef DBUG_OFF
   gptr dbug;
   char name[THREAD_NAME_SIZE+1];

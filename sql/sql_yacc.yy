@@ -587,7 +587,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
 	table_wild opt_pad no_in_expr expr_expr simple_expr no_and_expr
-	using_list expr_or_default set_expr_or_default
+	using_list expr_or_default set_expr_or_default interval_expr
 	param_marker singlerow_subselect singlerow_subselect_init
 	exists_subselect exists_subselect_init
 
@@ -1930,10 +1930,10 @@ expr_expr:
         | expr '^' expr		{ $$= new Item_func_bit_xor($1,$3); }
 	| expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
 	| expr '%' expr		{ $$= new Item_func_mod($1,$3); }
-	| expr '+' INTERVAL_SYM expr interval
-	  { $$= new Item_date_add_interval($1,$4,$5,0); }
-	| expr '-' INTERVAL_SYM expr interval
-	  { $$= new Item_date_add_interval($1,$4,$5,1); }
+	| expr '+' interval_expr interval
+	  { $$= new Item_date_add_interval($1,$3,$4,0); }
+	| expr '-' interval_expr interval
+	  { $$= new Item_date_add_interval($1,$3,$4,1); }
 	| expr COLLATE_SYM collation_name
 	  { $$= new Item_func_set_collation($1,$3); };
 
@@ -1977,10 +1977,10 @@ no_in_expr:
 	| no_in_expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
 	| no_in_expr '%' expr		{ $$= new Item_func_mod($1,$3); }
 	| no_in_expr MOD_SYM expr	{ $$= new Item_func_mod($1,$3); }
-	| no_in_expr '+' INTERVAL_SYM expr interval
-	  { $$= new Item_date_add_interval($1,$4,$5,0); }
-	| no_in_expr '-' INTERVAL_SYM expr interval
-	  { $$= new Item_date_add_interval($1,$4,$5,1); }
+	| no_in_expr '+' interval_expr interval
+	  { $$= new Item_date_add_interval($1,$3,$4,0); }
+	| no_in_expr '-' interval_expr interval
+	  { $$= new Item_date_add_interval($1,$3,$4,1); }
 	| simple_expr;
 
 /* expressions that begin with 'expr' that does NOT follow AND */
@@ -2032,11 +2032,15 @@ no_and_expr:
 	| no_and_expr '&' expr		{ $$= new Item_func_bit_and($1,$3); }
 	| no_and_expr '%' expr		{ $$= new Item_func_mod($1,$3); }
 	| no_and_expr MOD_SYM expr	{ $$= new Item_func_mod($1,$3); }
-	| no_and_expr '+' INTERVAL_SYM expr interval
-	  { $$= new Item_date_add_interval($1,$4,$5,0); }
-	| no_and_expr '-' INTERVAL_SYM expr interval
-	  { $$= new Item_date_add_interval($1,$4,$5,1); }
+	| no_and_expr '+' interval_expr interval
+	  { $$= new Item_date_add_interval($1,$3,$4,0); }
+	| no_and_expr '-' interval_expr interval
+	  { $$= new Item_date_add_interval($1,$3,$4,1); }
 	| simple_expr;
+
+interval_expr:
+         INTERVAL_SYM expr { $$=$2; }
+        ;
 
 simple_expr:
 	simple_ident
@@ -2063,8 +2067,11 @@ simple_expr:
 	| NOT expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '!' expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '(' expr ')'		{ $$= $2; }
-          /* Note: In SQL-99 "ROW" is optional, but not having it mandatory
-	     causes conflicts with the INTERVAL syntax. */
+	| '(' expr ',' expr_list ')'
+	  {
+	    $4->push_front($2);
+	    $$= new Item_row(*$4);
+	  }
 	| ROW_SYM '(' expr ',' expr_list ')'
 	  {
 	    $5->push_front($3);
@@ -2122,10 +2129,10 @@ simple_expr:
 	    $$= new Item_func_curtime($3);
 	    Lex->safe_to_cache_query=0;
 	  }
-	| DATE_ADD_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
-	  { $$= new Item_date_add_interval($3,$6,$7,0); }
-	| DATE_SUB_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
-	  { $$= new Item_date_add_interval($3,$6,$7,1); }
+	| DATE_ADD_INTERVAL '(' expr ',' interval_expr interval ')'
+	  { $$= new Item_date_add_interval($3,$5,$6,0); }
+	| DATE_SUB_INTERVAL '(' expr ',' interval_expr interval ')'
+	  { $$= new Item_date_add_interval($3,$5,$6,1); }
 	| DATABASE '(' ')'
 	  {
 	    $$= new Item_func_database();
@@ -2185,14 +2192,21 @@ simple_expr:
 	  { $$= new Item_func_if($3,$5,$7); }
 	| INSERT '(' expr ',' expr ',' expr ',' expr ')'
 	  { $$= new Item_func_insert($3,$5,$7,$9); }
-	| INTERVAL_SYM expr interval '+' expr
+	| interval_expr interval '+' expr
 	  /* we cannot put interval before - */
-	  { $$= new Item_date_add_interval($5,$2,$3,0); }
-	| INTERVAL_SYM '(' expr ',' expr_list ')'
-	  { $$= new Item_func_interval($3,* $5); }
+	  { $$= new Item_date_add_interval($4,$1,$2,0); }
+	| interval_expr
+	  {
+            if ($1->type() != Item::ROW_ITEM)
+            {
+              send_error(Lex->thd, ER_SYNTAX_ERROR);
+              YYABORT;
+            }
+            $$= new Item_func_interval((Item_row *)$1);
+          }
 	| LAST_INSERT_ID '(' ')'
 	  {
-    	    $$= get_system_var(OPT_SESSION, "last_insert_id", 14,
+	    $$= get_system_var(OPT_SESSION, "last_insert_id", 14,
 			      "last_insert_id()");
 	  }
 	| LAST_INSERT_ID '(' expr ')'
@@ -2247,10 +2261,10 @@ simple_expr:
 	| MPOLYFROMTEXT '(' expr ',' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| MULTIPOINT '(' expr_list ')'
- 	  { $$= new Item_func_spatial_collection(* $3,
+	  { $$= new Item_func_spatial_collection(* $3,
                     Geometry::wkbMultiPoint, Geometry::wkbPoint); }
  	| MULTIPOLYGON '(' expr_list ')'
- 	  { $$= new Item_func_spatial_collection(* $3,
+	  { $$= new Item_func_spatial_collection(* $3,
                        Geometry::wkbMultiPolygon, Geometry::wkbPolygon ); }
 	| NOW_SYM optional_braces
 	  { $$= new Item_func_now(); Lex->safe_to_cache_query=0;}
@@ -2269,7 +2283,7 @@ simple_expr:
 	| POLYFROMTEXT '(' expr ',' expr ')'
 	  { $$= new Item_func_geometry_from_text($3); }
 	| POLYGON '(' expr_list ')'
- 	  { $$= new Item_func_spatial_collection(* $3,
+	  { $$= new Item_func_spatial_collection(* $3,
 			Geometry::wkbPolygon, Geometry::wkbLineString); }
 	| POSITION_SYM '(' no_in_expr IN_SYM expr ')'
 	  { $$ = new Item_func_locate($5,$3); }
@@ -2429,7 +2443,7 @@ in_sum_expr:
 	};
 
 cast_type:
-	BINARY 			{ $$=ITEM_CAST_BINARY; }
+	BINARY			{ $$=ITEM_CAST_BINARY; }
 	| CHAR_SYM		{ $$=ITEM_CAST_CHAR; }
 	| SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; }
 	| SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; }
@@ -4651,7 +4665,7 @@ subselect_start:
 	'(' SELECT_SYM
 	{
 	  LEX *lex=Lex;
-	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN && 
+	  if (((int)lex->sql_command >= (int)SQLCOM_HA_OPEN &&
 	       lex->sql_command <= (int)SQLCOM_HA_READ) || lex->sql_command == (int)SQLCOM_KILL)	  {	
 	    send_error(lex->thd, ER_SYNTAX_ERROR);
 	    YYABORT;
