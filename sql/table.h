@@ -188,6 +188,16 @@ struct st_table {
 #define VIEW_ALGORITHM_TMPTABLE	1
 #define VIEW_ALGORITHM_MERGE		2
 
+/* view WITH CHECK OPTION parameter options */
+#define VIEW_CHECK_NONE       0
+#define VIEW_CHECK_LOCAL      1
+#define VIEW_CHECK_CASCADED   2
+
+/* result of view WITH CHECK OPTION parameter check */
+#define VIEW_CHECK_OK         0
+#define VIEW_CHECK_ERROR      1
+#define VIEW_CHECK_SKIP       2
+
 struct st_lex;
 
 typedef struct st_table_list
@@ -223,6 +233,7 @@ typedef struct st_table_list
   /* next_global before adding VIEW tables */
   st_table_list	*old_next;
   Item          *where;                 /* VIEW WHERE clause condition */
+  Item          *check_option;          /* WITH CHECK OPTION condition */
   LEX_STRING	query;			/* text of (CRETE/SELECT) statement */
   LEX_STRING	md5;			/* md5 of query tesxt */
   LEX_STRING	source;			/* source of CREATE VIEW */
@@ -233,6 +244,7 @@ typedef struct st_table_list
   ulonglong     updatable_view;         /* VIEW can be updated */
   ulonglong	revision;		/* revision control number */
   ulonglong	algorithm;		/* 0 any, 1 tmp tables , 2 merging */
+  ulonglong     with_check;             /* WITH CHECK OPTION */
   uint          effective_algorithm;    /* which algorithm was really used */
   GRANT_INFO	grant;
   thr_lock_type lock_type;
@@ -244,6 +256,7 @@ typedef struct st_table_list
   bool          updating;               /* for replicate-do/ignore table */
   bool		force_index;		/* prefer index over table scan */
   bool          ignore_leaves;          /* preload only non-leaf nodes */
+  bool          no_where_clause;        /* do not attach WHERE to SELECT */
   table_map     dep_tables;             /* tables the table depends on      */
   table_map     on_expr_dep_tables;     /* tables on expression depends on  */
   struct st_nested_join *nested_join;   /* if the element is a nested join  */
@@ -262,6 +275,7 @@ typedef struct st_table_list
 
   void calc_md5(char *buffer);
   void set_ancestor();
+  int view_check_option(THD *thd, bool ignore_failure);
   bool setup_ancestor(THD *thd, Item **conds);
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
