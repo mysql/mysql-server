@@ -33348,6 +33348,8 @@ Note that if you are using @code{SELECT SQL_CALC_FOUND_ROWS ...} MySQL has
 to calculate all rows in the result set.  However, this is faster than
 if you would not use @code{LIMIT}, as the result set need not be sent
 to the client.
+
+@code{SQL_CALC_FOUND_ROWS} is available starting at MySQL version 4.0.0.
 @end table
 
 
