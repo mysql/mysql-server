@@ -19,9 +19,6 @@
   get_ptr_compare(len) returns a pointer to a optimal byte-compare function
   for a array of stringpointer where all strings have size len.
   The bytes are compare as unsigned chars.
-  Because the size is saved in a static variable.
-  When using threads the program must have called my_init and the thread
-  my_init_thread()
   */
 
 #include "mysys_priv.h"

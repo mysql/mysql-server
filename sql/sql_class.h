@@ -567,3 +567,32 @@ class user_var_entry
   Item_result type;
 };
 
+/* Class for unique (removing of duplicates) */
+
+class Unique :public Sql_alloc
+{
+  DYNAMIC_ARRAY file_ptrs;
+  ulong max_elements, max_in_memory_size;
+  IO_CACHE file;
+  TREE tree;
+  char *record_pointers;
+  bool flush();
+
+public:
+  ulong elements;
+  Unique(qsort_cmp2 comp_func, uint size, ulong max_in_memory_size_arg);
+  ~Unique();
+  inline bool Unique::unique_add(gptr ptr)
+  {
+    if (tree.elements_in_tree > max_elements && flush())
+      return 1;
+    return tree_insert(&tree,ptr,0);
+  }
+
+  bool get(TABLE *table);
+
+  friend int unique_write_to_file(gptr key, Unique *unique,
+				  element_count count);
+  friend int unique_write_to_ptrs(gptr key, Unique *unique,
+				  element_count count);
+};

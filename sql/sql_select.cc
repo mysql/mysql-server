@@ -3928,8 +3928,8 @@ bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
   table->file->rnd_init();
   if (table->no_rows)
   {
-    new_table->file->extra(HA_EXTRA_NO_ROWS);
-    new_table->no_rows=1;
+    new_table.file->extra(HA_EXTRA_NO_ROWS);
+    new_table.no_rows=1;
   }
 
   /* copy all old rows */
