@@ -778,7 +778,7 @@ fsp_init_file_page_low(
 		page[i] = 0xFF;
 	}
 #endif
-	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN,
+	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 							ut_dulint_zero);
 	mach_write_to_8(page + FIL_PAGE_LSN, ut_dulint_zero);
 }
@@ -2875,7 +2875,7 @@ fseg_free_step(
 	freed yet */
 
 	ut_a(descr);
-	ut_a(xdes_get_bit(descr, XDES_FREE_BIT, buf_frame_get_page_no(header)
+	ut_anp(xdes_get_bit(descr, XDES_FREE_BIT, buf_frame_get_page_no(header)
 					% FSP_EXTENT_SIZE, mtr) == FALSE);
 	inode = fseg_inode_get(header, mtr);
 

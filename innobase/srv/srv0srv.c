@@ -286,6 +286,7 @@ ulint	srv_test_n_mutexes	= ULINT_MAX;
 i/o handler thread */
 
 char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
+char* srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 
 time_t	srv_last_monitor_time;
 
@@ -2399,8 +2400,9 @@ srv_sprintf_innodb_monitor(
 			srv_conc_n_threads, srv_conc_n_waiting_threads);
 #ifdef UNIV_LINUX
 	buf += sprintf(buf,
-	"Main thread process no %lu, state: %s\n",
+	"Main thread process no. %lu, id %lu, state: %s\n",
 			srv_main_thread_process_no,
+			srv_main_thread_id,
 			srv_main_thread_op_info);
 #else
 	buf += sprintf(buf,
@@ -2464,8 +2466,8 @@ srv_lock_timeout_and_monitor_thread(
 	ulint		i;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	printf("Lock timeout thread starts\n");
-	printf("Thread id %lu\n", os_thread_pf(os_thread_get_curr_id()));
+	printf("Lock timeout thread starts, id %lu\n",
+			     os_thread_pf(os_thread_get_curr_id()));
 #endif
 	UT_NOT_USED(arg);
 	srv_last_monitor_time = time(NULL);
@@ -2637,8 +2639,8 @@ srv_error_monitor_thread(
 
 	UT_NOT_USED(arg);
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	printf("Error monitor thread starts\n");
-	printf("Thread id %lu\n", os_thread_pf(os_thread_get_curr_id()));
+	printf("Error monitor thread starts, id %lu\n",
+			      os_thread_pf(os_thread_get_curr_id()));
 #endif
 loop:
 	srv_error_monitor_active = TRUE;
@@ -2760,8 +2762,8 @@ srv_master_thread(
 	UT_NOT_USED(arg);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	printf("Master thread starts\n");
-	printf("Thread id %lu\n", os_thread_pf(os_thread_get_curr_id()));
+	printf("Master thread starts, id %lu\n",
+			      os_thread_pf(os_thread_get_curr_id()));
 #endif
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());

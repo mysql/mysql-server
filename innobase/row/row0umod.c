@@ -428,7 +428,8 @@ row_undo_mod_del_unmark_sec(
 	found = row_search_index_entry(index, entry, BTR_MODIFY_LEAF, &pcur,
 									&mtr);
 	if (!found) {
-	  	fprintf(stderr, "InnoDB: error in sec index entry del undo in\n"
+	  	fprintf(stderr,
+			"InnoDB: error in sec index entry del undo in\n"
 		  	"InnoDB: index %s table %s\n", index->name,
 		  	index->table->name);
 	  	dtuple_sprintf(err_buf, 900, entry);
@@ -570,7 +571,7 @@ row_undo_mod_upd_exist_sec(
 			the row */
 
 			row_upd_index_replace_new_col_vals(entry, index,
-								node->update);
+							node->update, NULL);
 
 			row_undo_mod_del_unmark_sec(node, thr, index, entry);
 		}

@@ -153,6 +153,7 @@ extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 /* Array of English strings describing the current state of an
 i/o handler thread */
 extern char* srv_io_thread_op_info[];
+extern char* srv_io_thread_function[];
 
 typedef struct srv_sys_struct	srv_sys_t;
 

@@ -453,8 +453,6 @@ struct dfield_struct{
 	void*		data;	/* pointer to data */
 	ulint		len;	/* data length; UNIV_SQL_NULL if SQL null; */
 	dtype_t		type;	/* type of data */
-	ulint		col_no;	/* when building index entries, the column
-				number can be stored here */
 };
 
 struct dtuple_struct {

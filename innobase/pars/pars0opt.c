@@ -1058,7 +1058,6 @@ opt_clust_access(
 	dfield_t*	dfield;
 	mem_heap_t*	heap;
 	ulint		n_fields;
-	ulint		col_no;
 	ulint		pos;
 	ulint		i;
 
@@ -1093,8 +1092,7 @@ opt_clust_access(
 	plan->clust_map = mem_heap_alloc(heap, n_fields * sizeof(ulint));
 	
 	for (i = 0; i < n_fields; i++) {
-		col_no = dict_index_get_nth_col_no(clust_index, i);
-		pos = dict_index_get_nth_col_pos(index, col_no);
+		pos = dict_index_get_nth_field_pos(index, clust_index, i);
 
 		*(plan->clust_map + i) = pos;
 
@@ -1109,7 +1107,8 @@ opt_clust_access(
 		
 		dfield = dtuple_get_nth_field(plan->clust_ref, table->mix_len);
 		
-		dfield_set_data(dfield, mem_heap_alloc(heap, table->mix_id_len),
+		dfield_set_data(dfield, mem_heap_alloc(heap,
+							table->mix_id_len),
 							table->mix_id_len);
 		ut_memcpy(dfield_get_data(dfield), table->mix_id_buf,
 							table->mix_id_len);

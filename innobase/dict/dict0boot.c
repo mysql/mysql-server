@@ -276,7 +276,7 @@ dict_boot(void)
 				      DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 1);
 
-	dict_mem_index_add_field(index, (char *) "NAME", 0);
+	dict_mem_index_add_field(index, (char *) "NAME", 0, 0);
 
 	index->page_no = mtr_read_ulint(dict_hdr + DICT_HDR_TABLES,
 							MLOG_4BYTES, &mtr);
@@ -287,7 +287,7 @@ dict_boot(void)
 	index = dict_mem_index_create((char *) "SYS_TABLES",
 				      (char *) "ID_IND", DICT_HDR_SPACE,
 				      DICT_UNIQUE, 1);
-	dict_mem_index_add_field(index, (char *) "ID", 0);
+	dict_mem_index_add_field(index, (char *) "ID", 0, 0);
 
 	index->page_no = mtr_read_ulint(dict_hdr + DICT_HDR_TABLE_IDS,
 							MLOG_4BYTES, &mtr);
@@ -313,8 +313,8 @@ dict_boot(void)
 				      (char *) "CLUST_IND", DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	dict_mem_index_add_field(index, (char *) "TABLE_ID", 0);
-	dict_mem_index_add_field(index, (char *) "POS", 0);
+	dict_mem_index_add_field(index, (char *) "TABLE_ID", 0, 0);
+	dict_mem_index_add_field(index, (char *) "POS", 0, 0);
 
 	index->page_no = mtr_read_ulint(dict_hdr + DICT_HDR_COLUMNS,
 							MLOG_4BYTES, &mtr);
@@ -343,8 +343,8 @@ dict_boot(void)
 				      (char *) "CLUST_IND", DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	dict_mem_index_add_field(index, (char *) "TABLE_ID", 0);
-	dict_mem_index_add_field(index, (char *) "ID", 0);
+	dict_mem_index_add_field(index, (char *) "TABLE_ID", 0, 0);
+	dict_mem_index_add_field(index, (char *) "ID", 0, 0);
 
 	index->page_no = mtr_read_ulint(dict_hdr + DICT_HDR_INDEXES,
 							MLOG_4BYTES, &mtr);
@@ -365,8 +365,8 @@ dict_boot(void)
 				      (char *) "CLUST_IND", DICT_HDR_SPACE,
 				      DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	dict_mem_index_add_field(index, (char *) "INDEX_ID", 0);
-	dict_mem_index_add_field(index, (char *) "POS", 0);
+	dict_mem_index_add_field(index, (char *) "INDEX_ID", 0, 0);
+	dict_mem_index_add_field(index, (char *) "POS", 0, 0);
 
 	index->page_no = mtr_read_ulint(dict_hdr + DICT_HDR_FIELDS,
 						MLOG_4BYTES, &mtr);
