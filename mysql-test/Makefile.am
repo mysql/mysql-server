@@ -30,8 +30,7 @@ dist-hook:
 	cp -p $(srcdir)/t/*.test $(srcdir)/t/*.opt $(distdir)/t
 	cp -p $(srcdir)/include/*.inc $(distdir)/include
 	cp -p $(srcdir)/r/*.result $(srcdir)/r/*.require $(distdir)/r
-	cp -p $(srcdir)/std_data/*.dat $(srcdir)/std_data/*.frm \
-$(srcdir)/std_data/*.MRG  $(distdir)/std_data
+	cp -p $(srcdir)/std_data/*.dat $(distdir)/std_data
 
 install-data-local:
 	$(mkinstalldirs) \

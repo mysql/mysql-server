@@ -275,7 +275,7 @@ char mysql_real_data_home[FN_REFLEN],
      blob_newline,f_fyllchar,max_sort_char,*mysqld_user,*mysqld_chroot,
      *opt_init_file;
 char *opt_bin_logname = 0; // this one needs to be seen in sql_parse.cc
-char server_version[60]=MYSQL_SERVER_VERSION;
+char server_version[SERVER_VERSION_LENGTH]=MYSQL_SERVER_VERSION;
 const char *first_keyword="first";
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
@@ -1428,7 +1428,10 @@ static void open_log(MYSQL_LOG *log, const char *hostname,
   char tmp[FN_REFLEN];
   if (!opt_name || !opt_name[0])
   {
-    strnmov(tmp,hostname,FN_REFLEN-5);
+    /* TODO: The following should be using fn_format();  We just need to
+     first change fn_format() to cut the file name if it's too long.
+    */
+    strmake(tmp,hostname,FN_REFLEN-5);
     strmov(strcend(tmp,'.'),extension);
     opt_name=tmp;
   }
@@ -1650,7 +1653,10 @@ The server will not act as a slave.");
     if (!opt_bin_logname)
     {
       char tmp[FN_REFLEN];
-      strnmov(tmp,glob_hostname,FN_REFLEN-5);
+      /* TODO: The following should be using fn_format();  We just need to
+	 first change fn_format() to cut the file name if it's too long.
+      */
+      strmake(tmp,glob_hostname,FN_REFLEN-5);
       strmov(strcend(tmp,'.'),"-bin");
       opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
     }

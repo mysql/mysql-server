@@ -22,14 +22,14 @@
 #include <my_sys.h>
 #include <getopt.h>
 #include <thr_alarm.h>
-#include "log_event.h"
 #define MYSQL_SERVER			// We want the C++ version of net
 #include <mysql.h>
+#include "log_event.h"
 #include "mini_client.h"
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
-char server_version[50];
+char server_version[SERVER_VERSION_LENGTH];
 uint32 server_id = 0;
 
 // needed by net_serv.c
