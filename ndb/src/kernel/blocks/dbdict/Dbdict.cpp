@@ -4561,7 +4561,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   
   TableRecordPtr tablePtr;
   c_tableRecordHash.find(tablePtr, keyRecord);
-
+  
   if (checkExist){
     jam();
     /* ---------------------------------------------------------------- */
@@ -4645,6 +4645,7 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 #ifdef VM_TRACE
     ndbout_c("Dbdict: name=%s,id=%u", tablePtr.p->tableName, tablePtr.i);
 #endif
+    c_tableRecordHash.add(tablePtr);
   }
   
   //tablePtr.p->noOfPrimkey = tableDesc.NoOfKeyAttr;
