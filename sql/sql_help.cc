@@ -274,9 +274,9 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
 
   DBUG_ENTER("get_topics_for_keyword");
   
-  if ((iindex_topic= find_type((char*) "PRIMARY",
+  if ((iindex_topic= find_type((char*) primary_key_name,
 			       &topics->keynames, 1+2)-1)<0 ||
-      (iindex_relations= find_type((char*) "PRIMARY",
+      (iindex_relations= find_type((char*) primary_key_name,
 				   &relations->keynames, 1+2)-1)<0)
   {
     send_error(thd,ER_CORRUPT_HELP_DB);

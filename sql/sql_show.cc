@@ -1167,7 +1167,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     bool found_primary=0;
     packet->append(",\n  ", 4);
 
-    if (i == primary_key && !strcmp(key_info->name,"PRIMARY"))
+    if (i == primary_key && !strcmp(key_info->name, primary_key_name))
     {
       found_primary=1;
       packet->append("PRIMARY ", 8);
