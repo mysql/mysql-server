@@ -529,7 +529,7 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(-1);
 
   /* Check that we are not using table that we are updating in a sub select */
-  if (unique_table(table_list, table_list->next_independent()))
+  if (unique_table(table_list, table_list->next_global))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
     DBUG_RETURN(-1);
