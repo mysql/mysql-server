@@ -16,3 +16,23 @@ INSERT INTO t1 VALUES ('HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
 INSERT INTO t1 VALUES ('WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW');
 CHECK TABLE t1;
 drop table t1;
+
+#
+# Test problem with rows that are 65517-65520 bytes long
+#
+
+create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a));
+
+let $1=100;
+while ($1)
+{
+  eval insert into t1 (b) values(repeat(char(65+$1),65550-$1));
+  dec $1;
+}
+check table t1;
+repair table t1;
+delete from t1 where (a & 1);
+check table t1;
+repair table t1;
+check table t1;
+drop table t1;
