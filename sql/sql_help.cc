@@ -763,7 +763,6 @@ bool mysqld_help(THD *thd, const char *mask)
   }
   send_eof(thd);
 
-end:
   DBUG_RETURN(FALSE);
 error:
   DBUG_RETURN(TRUE);

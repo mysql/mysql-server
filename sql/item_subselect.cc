@@ -675,7 +675,7 @@ bool Item_exists_subselect::val_bool()
     reset();
     return 0;
   }
-  return value;
+  return value != 0;
 }
 
 

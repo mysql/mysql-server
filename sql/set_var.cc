@@ -2652,7 +2652,7 @@ bool sys_var_max_user_conn::update(THD *thd, set_var *var)
 {
   DBUG_ASSERT(var->type == OPT_GLOBAL);
   pthread_mutex_lock(&LOCK_global_system_variables);
-  max_user_connections= var->save_result.ulonglong_value;
+  max_user_connections= (uint)var->save_result.ulonglong_value;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
 }

@@ -1720,7 +1720,7 @@ void Item_func_coalesce::fix_length_and_dec()
     decimals= 0;
     break;
   case ROW_RESULT:
-  defaullt:
+  default:
     DBUG_ASSERT(0);
   }
 }
