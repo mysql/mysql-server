@@ -337,15 +337,15 @@ connection conn2;
 use mysqltest_1;
 update mysqltest_2.t1, mysqltest_2.t2 set c=500,d=600;
 # the following failed before, should fail now.
---error 1044
+--error 1142
 update mysqltest_1.t1, mysqltest_1.t2 set a=100,b=200;
 use mysqltest_2;
 #the following used to succeed, it must fail now.
---error 1044
+--error 1142
 update mysqltest_1.t1, mysqltest_1.t2 set a=100,b=200;
---error 1044
+--error 1142
 update mysqltest_2.t1, mysqltest_1.t2 set c=100,b=200;
---error 1044
+--error 1142
 update mysqltest_1.t1, mysqltest_2.t2 set a=100,d=200;
 #lets see the result
 connection master;
