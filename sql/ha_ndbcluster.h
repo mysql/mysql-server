@@ -214,7 +214,8 @@ class ha_ndbcluster: public handler
   NdbConnection *m_active_trans;
   NdbResultSet *m_active_cursor;
   Ndb *m_ndb;
-  void *m_table;		
+  void *m_table;
+  void *m_table_info;
   char m_dbname[FN_HEADLEN];
   //char m_schemaname[FN_HEADLEN];
   char m_tabname[FN_HEADLEN];
@@ -238,6 +239,11 @@ class ha_ndbcluster: public handler
   char *blobs_buffer;
   uint32 blobs_buffer_size;
   uint dupkey;
+
+  void records_update();
+  void no_uncommitted_rows_update(int);
+  void no_uncommitted_rows_init(THD *);
+  void no_uncommitted_rows_reset(THD *);
 };
 
 bool ndbcluster_init(void);

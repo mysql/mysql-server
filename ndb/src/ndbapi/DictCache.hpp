@@ -27,6 +27,16 @@
 #include <Ndb.hpp>
 #include "NdbLinHash.hpp"
 
+class Ndb_local_table_info {
+public:
+  Ndb_local_table_info(NdbTableImpl *table_impl, Uint32 sz=0);
+  ~Ndb_local_table_info();
+  NdbTableImpl *m_table_impl;
+  Uint64 m_first_tuple_id;
+  Uint64 m_last_tuple_id;
+  void *m_local_data;
+};
+
 /**
  * A non thread safe dict cache
  */
@@ -35,12 +45,12 @@ public:
   LocalDictCache();
   ~LocalDictCache();
   
-  NdbTableImpl * get(const char * name);
+  Ndb_local_table_info * get(const char * name);
   
-  void put(const char * name, NdbTableImpl *);
+  void put(const char * name, Ndb_local_table_info *);
   void drop(const char * name);
   
-  NdbLinHash<NdbTableImpl> m_tableHash; // On name
+  NdbLinHash<Ndb_local_table_info> m_tableHash; // On name
 };
 
 /**

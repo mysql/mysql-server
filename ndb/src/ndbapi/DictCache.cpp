@@ -21,6 +21,21 @@
 #include <NdbCondition.h>
 #include <NdbSleep.h>
 
+Ndb_local_table_info::Ndb_local_table_info(NdbTableImpl *table_impl, Uint32 sz)
+{
+  m_table_impl= table_impl;
+  if (sz)
+    m_local_data= malloc(sz);
+  else
+    m_local_data= 0;
+}
+
+Ndb_local_table_info::~Ndb_local_table_info()
+{
+  if (m_local_data)
+    free(m_local_data);
+}
+
 LocalDictCache::LocalDictCache(){
   m_tableHash.createHashTable();
 }
@@ -29,22 +44,24 @@ LocalDictCache::~LocalDictCache(){
   m_tableHash.releaseHashTable();
 }
 
-NdbTableImpl * 
+Ndb_local_table_info * 
 LocalDictCache::get(const char * name){
   const Uint32 len = strlen(name);
   return m_tableHash.getData(name, len);
 }
 
 void 
-LocalDictCache::put(const char * name, NdbTableImpl * tab){
-  const Uint32 id = tab->m_tableId;
+LocalDictCache::put(const char * name, Ndb_local_table_info * tab_info){
+  const Uint32 id = tab_info->m_table_impl->m_tableId;
   
-  m_tableHash.insertKey(name, strlen(name), id, tab);
+  m_tableHash.insertKey(name, strlen(name), id, tab_info);
 }
 
 void
 LocalDictCache::drop(const char * name){
-  m_tableHash.deleteKey(name, strlen(name));
+  Ndb_local_table_info *info= m_tableHash.deleteKey(name, strlen(name));
+  DBUG_ASSERT(info != 0);
+  delete info;
 }
 
 /*****************************************************************
