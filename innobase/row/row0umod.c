@@ -589,6 +589,7 @@ row_undo_mod(
 		/* It is already undone, or will be undone by another query
 		thread, or table was dropped */
 	
+	        trx_undo_rec_release(node->trx, node->undo_no);
 		node->state = UNDO_NODE_FETCH_NEXT;
 
 		return(DB_SUCCESS);
