@@ -42,4 +42,7 @@ insert into t1 values ('a'), ('a\\b');
 select * from t1 where a like 'a\\%' escape '#';
 a
 a\b
+select * from t1 where a like 'a\\%' escape '#' and a like 'a\\\\b';
+a
+a\b
 drop table t1;
