@@ -24,6 +24,7 @@
 #pragma interface
 #endif
 
+class Instance;
 class Instance_map;
 
 #include "thread_registry.h"
@@ -34,6 +35,13 @@ C_MODE_START
 pthread_handler_decl(guardian, arg);
 
 C_MODE_END
+
+typedef struct st_guard_node
+{
+  Instance *instance;
+  uint restart_counter;
+  time_t crash_moment;
+} GUARD_NODE;
 
 
 struct Guardian_thread_args
@@ -67,13 +75,17 @@ public:
   void run();
   int init();
   int start();
+  void shutdown();
+  void request_stop_instances();
   int guard(Instance *instance);
   int stop_guard(Instance *instance);
+  bool is_stopped;
 
 public:
   pthread_cond_t COND_guardian;
 
 private:
+  int stop_instances();
   int add_instance_to_list(Instance *instance, LIST **list);
   void move_to_list(LIST **from, LIST **to);
 
@@ -84,6 +96,13 @@ private:
   LIST *starting_instances;
   MEM_ROOT alloc;
   enum { MEM_ROOT_BLOCK_SIZE= 512 };
+  /* this variable is set to TRUE when we want to stop Guardian thread */
+  bool shutdown_guardian;
+  /*
+    This var is usually set together with shutdown_guardian. this way we
+    request guardian to shut down all instances before termination
+  */
+  bool request_stop;
 };
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_GUARDIAN_H */

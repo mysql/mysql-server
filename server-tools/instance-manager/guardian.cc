@@ -46,6 +46,8 @@ Guardian_thread::Guardian_thread(Thread_registry &thread_registry_arg,
 {
   pthread_mutex_init(&LOCK_guardian, 0);
   pthread_cond_init(&COND_guardian, 0);
+  shutdown_guardian= FALSE;
+  is_stopped= FALSE;
   thread_registry.register_thread(&thread_info);
   init_alloc_root(&alloc, MEM_ROOT_BLOCK_SIZE, 0);
   guarded_instances= NULL;
@@ -65,6 +67,22 @@ Guardian_thread::~Guardian_thread()
 }
 
 
+void Guardian_thread::shutdown()
+{
+  pthread_mutex_lock(&LOCK_guardian);
+  shutdown_guardian= TRUE;
+  pthread_mutex_unlock(&LOCK_guardian);
+}
+
+
+void Guardian_thread::request_stop_instances()
+{
+  pthread_mutex_lock(&LOCK_guardian);
+  request_stop= TRUE;
+  pthread_mutex_unlock(&LOCK_guardian);
+}
+
+
 /*
   Run guardian thread
 
@@ -80,6 +98,7 @@ Guardian_thread::~Guardian_thread()
 void Guardian_thread::run()
 {
   Instance *instance;
+  int restart_retry= 100;
   LIST *loop;
   struct timespec timeout;
 
@@ -87,26 +106,68 @@ void Guardian_thread::run()
   pthread_mutex_lock(&LOCK_guardian);
 
 
-  while (!thread_registry.is_shutdown())
+  while (!shutdown_guardian)
   {
+    int status= 0;
     loop= guarded_instances;
     while (loop != NULL)
     {
-      instance= (Instance *) loop->data;
-      /* instance-> start already checks whether the instance is running */
-      if (instance->start() != ER_INSTANCE_ALREADY_STARTED)
-        log_info("guardian attempted to restart instance %s",
-                 instance->options.instance_name);
+      instance= ((GUARD_NODE *) loop->data)->instance;
+      if (!instance->is_running())
+      {
+        int state= 0;                           /* state of guardian */
+
+        if ((((GUARD_NODE *) loop->data)->crash_moment == 0))
+          state= 1;                             /* an instance just crashed */
+        else
+           if (time(NULL) - ((GUARD_NODE *) loop->data)->crash_moment <= 2)
+             /* try to restart an instance immediately */
+             state= 2;
+           else
+             state= 3;                          /* try to restart it */
+
+        if (state == 1)
+          ((GUARD_NODE *) loop->data)->crash_moment= time(NULL);
+
+        if ((state == 1) || (state == 2))
+        {
+          instance->start();
+          ((GUARD_NODE *) loop->data)->restart_counter++;
+          log_info("guardian: starting instance %s",
+                   instance->options.instance_name);
+        }
+        else
+        {
+          if ((status == ETIMEDOUT) &&
+             (((GUARD_NODE *) loop->data)->restart_counter < restart_retry))
+          {
+           instance->start();
+           ((GUARD_NODE *) loop->data)->restart_counter++;
+           log_info("guardian: starting instance %s",
+                    instance->options.instance_name);
+          }
+        }
+      }
+      else /* clear status fields */
+      {
+        ((GUARD_NODE *) loop->data)->restart_counter= 0;
+        ((GUARD_NODE *) loop->data)->crash_moment= 0;
+      }
       loop= loop->next;
     }
     move_to_list(&starting_instances, &guarded_instances);
     timeout.tv_sec= time(NULL) + monitoring_interval;
     timeout.tv_nsec= 0;
 
-    pthread_cond_timedwait(&COND_guardian, &LOCK_guardian, &timeout);
+    status= pthread_cond_timedwait(&COND_guardian, &LOCK_guardian, &timeout);
   }
 
   pthread_mutex_unlock(&LOCK_guardian);
+  if (request_stop)
+    stop_instances();
+  is_stopped= TRUE;
+  /* now, when the Guardian is stopped we can stop the IM */
+  thread_registry.request_shutdown();
   my_thread_end();
 }
 
@@ -119,7 +180,7 @@ int Guardian_thread::start()
   instance_map->lock();
   while ((instance= iterator.next()))
   {
-    if ((instance->options.is_guarded != NULL) && (instance->is_running()))
+    if ((instance->options.nonguarded == NULL))
       if (guard(instance))
         return 1;
   }
@@ -170,12 +231,18 @@ void Guardian_thread::move_to_list(LIST **from, LIST **to)
 int Guardian_thread::add_instance_to_list(Instance *instance, LIST **list)
 {
   LIST *node;
+  GUARD_NODE *content;
 
   node= (LIST *) alloc_root(&alloc, sizeof(LIST));
-  if (node == NULL)
+  content= (GUARD_NODE *) alloc_root(&alloc, sizeof(GUARD_NODE));
+
+  if ((node == NULL) || (content == NULL))
     return 1;
   /* we store the pointers to instances from the instance_map's MEM_ROOT */
-  node->data= (void *) instance;
+  content->instance= instance;
+  content->restart_counter= 0;
+  content->crash_moment= 0;
+  node->data= (void *) content;
 
   pthread_mutex_lock(&LOCK_guardian);
   *list= list_add(*list, node);
@@ -205,7 +272,7 @@ int Guardian_thread::stop_guard(Instance *instance)
       We compare only pointers, as we always use pointers from the
       instance_map's MEM_ROOT.
     */
-    if ((Instance *) node->data == instance)
+    if (((GUARD_NODE *) node->data)->instance == instance)
     {
       guarded_instances= list_delete(guarded_instances, node);
       pthread_mutex_unlock(&LOCK_guardian);
@@ -219,3 +286,21 @@ int Guardian_thread::stop_guard(Instance *instance)
   return 0;
 }
 
+int Guardian_thread::stop_instances()
+{
+  Instance *instance;
+  Instance_map::Iterator iterator(instance_map);
+
+  while ((instance= iterator.next()))
+  {
+    if ((instance->options.nonguarded == NULL))
+    {
+      if (stop_guard(instance))
+        return 1;
+      /* let us try to stop the server */
+      instance->stop();
+    }
+  }
+
+  return 0;
+}

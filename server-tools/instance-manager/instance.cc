@@ -42,10 +42,16 @@
 
 int Instance::start()
 {
-  /* echk for the pidfile and remove it */
+  pid_t pid;
+
   if (!is_running())
   {
-    stop();
+    if ((pid= options.get_pid()) != 0)          /* check the pidfile */
+      if (options.unlink_pidfile())             /* remove stalled pidfile */
+        log_error("cannot remove pidfile for instance %i, this might be \
+                  since IM lacks permmissions or hasn't found the pidifle",
+                  options.instance_name);
+
     log_info("starting instance %s", options.instance_name);
     switch (pid= fork()) {
     case 0:
@@ -145,14 +151,17 @@ int Instance::stop()
 {
   pid_t pid;
   struct timespec timeout;
-  time_t waitchild= 35;                         /*  */
+  int waitchild= DEFAULT_SHUTDOWN_DELAY;
+
+  if (options.shutdown_delay != NULL)
+    waitchild= atoi(options.shutdown_delay);
 
   if ((pid= options.get_pid()) != 0)            /* get pid from pidfile */
   {
     /*
       If we cannot kill mysqld, then it has propably crashed.
       Let us try to remove staled pidfile and return succes as mysqld
-      is stopped
+      is probably stopped
     */
     if (kill(pid, SIGTERM))
     {
@@ -161,9 +170,6 @@ int Instance::stop()
                   since IM lacks permmissions or hasn't found the pidifle",
                   options.instance_name);
 
-      log_error("The instance %s has probably crashed or IM lacks permissions \
-                to kill it. in either case something seems to be wrong. \
-                Check your setup", options.instance_name);
       return 0;
     }
 
@@ -174,7 +180,7 @@ int Instance::stop()
     if (pthread_mutex_lock(&instance_map->pid_cond.LOCK_pid))
       goto err; /* perhaps this should be procecced differently */
 
-    while (options.get_pid() != 0)
+    while (options.get_pid() != 0)              /* while server isn't stopped */
     {
       int status;
 

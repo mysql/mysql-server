@@ -113,9 +113,7 @@ pid_t Instance_options::get_pid()
 }
 
 
-int Instance_options::complete_initialization(const char *default_path,
-                                              const char *default_user,
-                                              const char *default_password)
+int Instance_options::complete_initialization(const char *default_path)
 {
   const char *tmp;
 
@@ -199,7 +197,8 @@ int Instance_options::add_option(const char* option)
     {"--bind-address=", 15, &mysqld_bind_address, SAVE_WHOLE_AND_ADD},
     {"--pid-file=", 11, &mysqld_pid_file, SAVE_WHOLE_AND_ADD},
     {"--mysqld-path=", 14, &mysqld_path, SAVE_VALUE},
-    {"--guarded", 9, &is_guarded, SAVE_WHOLE},
+    {"--nonguarded", 9, &nonguarded, SAVE_WHOLE},
+    {"--shutdown_delay", 9, &shutdown_delay, SAVE_VALUE},
     {NULL, 0, NULL, 0}
   };
   struct selected_options_st *selected_options;
