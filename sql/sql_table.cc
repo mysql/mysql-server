@@ -3343,7 +3343,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     Turn off recovery logging since rollback of an alter table is to
     delete the new table so there is no need to log the changes to it.
   */
-  error= ha_recovery_logging(thd,FALSE);
+  error= ha_enable_transaction(thd,FALSE);
   if (error)
   {
     error= 1;
@@ -3405,7 +3405,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   }
   to->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
-  ha_recovery_logging(thd,TRUE);
+  ha_enable_transaction(thd,TRUE);
   /*
     Ensure that the new table is saved properly to disk so that we
     can do a rename

@@ -191,6 +191,7 @@ NdbConnection::setErrorCode(int anErrorCode)
 
 int
 NdbConnection::restart(){
+  DBUG_ENTER("NdbConnection::restart");
   if(theCompletionStatus == CompletedSuccess){
     releaseCompletedOperations();
     Uint64 tTransid = theNdb->theFirstTransId;
@@ -201,9 +202,10 @@ NdbConnection::restart(){
       theNdb->theFirstTransId = tTransid + 1;
     }
     theCompletionStatus = NotCompleted;
-    return 0;
+    DBUG_RETURN(0);
   }
-  return -1;
+  DBUG_PRINT("error",("theCompletionStatus != CompletedSuccess"));
+  DBUG_RETURN(-1);
 }
 
 /*****************************************************************************
