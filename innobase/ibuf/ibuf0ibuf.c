@@ -1013,7 +1013,7 @@ ibuf_rec_get_volume(
 	ulint	i;
 
 	ut_ad(ibuf_inside());
-	ut_ad(rec_get_n_fields(rec) > 2);
+	ut_ad(rec_get_n_fields(ibuf_rec) > 2);
 	
 	n_fields = rec_get_n_fields(ibuf_rec) - 2;
 
@@ -1624,13 +1624,14 @@ ibuf_get_merge_page_nos(
 
 /*************************************************************************
 Contracts insert buffer trees by reading pages to the buffer pool. */
-
+static
 ulint
-ibuf_contract(
-/*==========*/
+ibuf_contract_ext(
+/*==============*/
 			/* out: a lower limit for the combined size in bytes
 			of entries which will be merged from ibuf trees to the
 			pages read, 0 if ibuf is empty */
+	ulint*	n_pages,/* out: number of pages to which merged */
 	ibool	sync)	/* in: TRUE if the caller wants to wait for the
 			issued read with the highest tablespace address
 			to complete */
@@ -1644,6 +1645,8 @@ ibuf_contract(
 	ulint		n_stored;
 	ulint		sum_sizes;
 	mtr_t		mtr;
+
+	*n_pages = 0;
 loop:
 	ut_ad(!ibuf_inside());
 
@@ -1730,7 +1733,62 @@ loop:
 
 	buf_read_ibuf_merge_pages(sync, space, page_nos, n_stored);
 
+	*n_pages = n_stored;
+	
 	return(sum_sizes + 1);
+}
+
+/*************************************************************************
+Contracts insert buffer trees by reading pages to the buffer pool. */
+
+ulint
+ibuf_contract(
+/*==========*/
+			/* out: a lower limit for the combined size in bytes
+			of entries which will be merged from ibuf trees to the
+			pages read, 0 if ibuf is empty */
+	ibool	sync)	/* in: TRUE if the caller wants to wait for the
+			issued read with the highest tablespace address
+			to complete */
+{
+	ulint	n_pages;
+
+	return(ibuf_contract_ext(&n_pages, sync));
+}
+
+/*************************************************************************
+Contracts insert buffer trees by reading pages to the buffer pool. */
+
+ulint
+ibuf_contract_for_n_pages(
+/*======================*/
+			/* out: a lower limit for the combined size in bytes
+			of entries which will be merged from ibuf trees to the
+			pages read, 0 if ibuf is empty */
+	ibool	sync,	/* in: TRUE if the caller wants to wait for the
+			issued read with the highest tablespace address
+			to complete */
+	ulint	n_pages)/* in: try to read at least this many pages to
+			the buffer pool and merge the ibuf contents to
+			them */
+{
+	ulint	sum_bytes	= 0;
+	ulint	sum_pages 	= 0;
+	ulint	n_bytes;
+	ulint	n_pag2;
+	
+	while (sum_pages < n_pages) {
+		n_bytes = ibuf_contract_ext(&n_pag2, sync);
+		
+		if (n_bytes == 0) {
+			return(sum_bytes);
+		}
+
+		sum_bytes += n_bytes;
+		sum_pages += n_pag2;
+	}
+
+	return(sum_bytes);
 }
 
 /*************************************************************************
@@ -2252,8 +2310,6 @@ ibuf_insert_to_index_page(
 	
 	if (low_match == dtuple_get_n_fields(entry)) {
 		rec = page_cur_get_rec(&page_cur);
-
-		ut_ad(rec_get_deleted_flag(rec));
 		
 		btr_cur_del_unmark_for_ibuf(rec, mtr);
 	} else {
@@ -2306,6 +2362,8 @@ ibuf_delete_rec(
 				should belong */
 	btr_pcur_t*	pcur,	/* in: pcur positioned on the record to
 				delete, having latch mode BTR_MODIFY_LEAF */
+	dtuple_t*	search_tuple,
+				/* in: search tuple for entries of page_no */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ibool		success;
@@ -2336,12 +2394,33 @@ ibuf_delete_rec(
 
 	mtr_start(mtr);
 	
-	ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
+	success = btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr);
+
+	if (!success) {
+		fprintf(stderr,
+		"InnoDB: ERROR: Send the output to heikki.tuuri@innodb.com\n");
+		fprintf(stderr, "InnoDB: ibuf cursor restoration fails!\n");
+		fprintf(stderr, "InnoDB: ibuf record inserted to page %lu\n",
+								page_no);
+		rec_print(btr_pcur_get_rec(pcur));
+		rec_print(pcur->old_rec);
+		dtuple_print(search_tuple);
+
+		rec_print(page_rec_get_next(btr_pcur_get_rec(pcur)));
+
+		mtr_commit(mtr);
+
+		fprintf(stderr, "InnoDB: Validating insert buffer tree:\n");
+		ut_a(btr_validate_tree(ibuf_data->index->tree));		
+		fprintf(stderr, "InnoDB: Ibuf tree ok\n");
+	}
+	
+	ut_a(success);
 
 	root = ibuf_tree_root_get(ibuf_data, space, mtr);
 
 	btr_cur_pessimistic_delete(&err, TRUE, btr_pcur_get_btr_cur(pcur),
-							FALSE, mtr);
+								FALSE, mtr);
 	ut_a(err == DB_SUCCESS);
 
 #ifdef UNIV_IBUF_DEBUG
@@ -2393,8 +2472,11 @@ ibuf_merge_or_delete_for_page(
 	dulint		max_trx_id;
 	mtr_t		mtr;
 
-	/* TODO: get MySQL type info to use in ibuf_insert_to_index_page */
+	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
+		return;
+	}
+	
 #ifdef UNIV_LOG_DEBUG
 	if (space % 2 != 0) {
 
@@ -2451,16 +2533,13 @@ loop:
 	if (page) {
 		success = buf_page_get_known_nowait(RW_X_LATCH, page,
 					BUF_KEEP_OLD,
-#ifdef UNIV_SYNC_DEBUG
 					IB__FILE__, __LINE__,
-#endif
 					&mtr);
-
 		ut_a(success);
 
 		buf_page_dbg_add_level(page, SYNC_TREE_NODE);
 	}
-	
+		
 	/* Position pcur in the insert buffer at the first entry for this
 	index page */
 	btr_pcur_open_on_user_rec(ibuf_data->index, search_tuple, PAGE_CUR_GE,
@@ -2476,7 +2555,7 @@ loop:
 		ut_ad(btr_pcur_is_on_user_rec(&pcur, &mtr));
 
 		ibuf_rec = btr_pcur_get_rec(&pcur);
-	
+
 		/* Check if the entry is for this index page */
 		if (ibuf_rec_get_page_no(ibuf_rec) != page_no) {
 
@@ -2508,13 +2587,13 @@ loop:
 					/ IBUF_PAGE_SIZE_PER_FREE_SPACE);
 #endif
 			ibuf_insert_to_index_page(entry, page, &mtr);
-
-			n_inserts++;
 		}
+
+		n_inserts++;
 		
 		/* Delete the record from ibuf */
-		closed = ibuf_delete_rec(space, page_no, &pcur, &mtr);
-
+		closed = ibuf_delete_rec(space, page_no, &pcur, search_tuple,
+									&mtr);
 		if (closed) {
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
@@ -2524,6 +2603,7 @@ loop:
 
 		if (btr_pcur_is_after_last_on_page(&pcur, &mtr)) {
 			mtr_commit(&mtr);
+ 			btr_pcur_close(&pcur);
 
 			goto loop;
 		}
@@ -2618,8 +2698,6 @@ ibuf_print(void)
 	ulint		i;
 #endif
 	mutex_enter(&ibuf_mutex);
-
-	printf("Ibuf size %lu max size %lu\n", ibuf->size, ibuf->max_size);
 
 	data = UT_LIST_GET_FIRST(ibuf->data_list);
 

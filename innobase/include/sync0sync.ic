@@ -22,13 +22,9 @@ for the mutex before suspending the thread. */
 void
 mutex_spin_wait(
 /*============*/
-        mutex_t*   mutex  	/* in: pointer to mutex */
-
-	#ifdef UNIV_SYNC_DEBUG
-	,char*		file_name, /* in: file name where mutex requested */
-	ulint		line	/* in: line where requested */
-	#endif
-);
+        mutex_t*	mutex,  	/* in: pointer to mutex */
+	char*		file_name,/* in: file name where mutex requested */
+	ulint		line);	/* in: line where requested */
 /**********************************************************************
 Sets the debug information for a reserved mutex. */
 
@@ -209,6 +205,18 @@ mutex_exit(
 #endif 
 	mutex_reset_lock_word(mutex);
 
+	/* A problem: we assume that mutex_reset_lock word
+	is a memory barrier, that is when we read the waiters
+	field next, the read must be serialized in memory
+	after the reset. A speculative processor might
+	perform the read first, which could leave a waiting
+	thread hanging indefinitely.
+
+	Our current solution call every 10 seconds
+	sync_arr_wake_threads_if_sema_free()
+	to wake up possible hanging threads if
+	they are missed in mutex_signal_object. */
+
 	if (mutex_get_waiters(mutex) != 0) {
 		
 		mutex_signal_object(mutex);
@@ -227,12 +235,9 @@ UNIV_INLINE
 void
 mutex_enter_func(
 /*=============*/
-	mutex_t*	mutex	/* in: pointer to mutex */
-	#ifdef UNIV_SYNC_DEBUG
-	,char*		file_name, /* in: file name where locked */
-	ulint		line	/* in: line where locked */
-	#endif
-	)
+	mutex_t*	mutex,	/* in: pointer to mutex */
+	char*		file_name,/* in: file name where locked */
+	ulint		line)	/* in: line where locked */
 {
 	ut_ad(mutex_validate(mutex));
 
@@ -245,13 +250,11 @@ mutex_enter_func(
 		mutex_set_debug_info(mutex, file_name, line);
 		#endif
 
+		mutex->file_name = file_name;
+		mutex->line = line;
+
 		return;	/* Succeeded! */
 	}
 
-	mutex_spin_wait(mutex
-			     #ifdef UNIV_SYNC_DEBUG
-			     ,file_name,
-			     line
-			     #endif
-			     );
+	mutex_spin_wait(mutex, file_name, line);
 }

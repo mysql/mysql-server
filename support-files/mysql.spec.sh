@@ -423,6 +423,9 @@ fi
 %files bench
 %attr(-, root, root) /usr/share/sql-bench
 %attr(-, root, root) /usr/share/mysql-test
+%attr(755, root, root) /usr/bin/mysqlmanager
+%attr(755, root, root) /usr/bin/mysqlmanager-pwgen
+%attr(755, root, root) /usr/bin/mysqlmanagerc
 
 %files Max
 %attr(755, root, root) /usr/sbin/mysqld-max

@@ -19,9 +19,15 @@ Created 2/23/1996 Heikki Tuuri
 #include "btr0types.h"
 
 /* Relative positions for a stored cursor position */
-#define BTR_PCUR_ON	1
-#define BTR_PCUR_BEFORE	2
-#define BTR_PCUR_AFTER	3
+#define BTR_PCUR_ON			1
+#define BTR_PCUR_BEFORE			2
+#define BTR_PCUR_AFTER			3
+/* Note that if the tree is not empty, btr_pcur_store_position does not
+use the following, but only uses the above three alternatives, where the
+position is stored relative to a specific record: this makes implementation
+of a scroll cursor easier */
+#define BTR_PCUR_BEFORE_FIRST_IN_TREE	4	/* in an empty tree */
+#define BTR_PCUR_AFTER_LAST_IN_TREE	5	/* in an empty tree */
 
 /******************************************************************
 Allocates memory for a persistent cursor object and initializes the cursor. */
@@ -170,13 +176,39 @@ btr_pcur_close(
 /******************************************************************
 The position of the cursor is stored by taking an initial segment of the
 record the cursor is positioned on, before, or after, and copying it to the
-cursor data structure. NOTE that the page where the cursor is positioned
-must not be empty! */
+cursor data structure, or just setting a flag if the cursor id before the
+first in an EMPTY tree, or after the last in an EMPTY tree. NOTE that the
+page where the cursor is positioned must not be empty if the index tree is
+not totally empty! */
 
 void
 btr_pcur_store_position(
 /*====================*/
-	btr_pcur_t*	cursor, 	/* in: persistent cursor */
+	btr_pcur_t*	cursor, /* in: persistent cursor */
+	mtr_t*		mtr);	/* in: mtr */
+/******************************************************************
+Restores the stored position of a persistent cursor bufferfixing the page and
+obtaining the specified latches. If the cursor position was saved when the
+(1) cursor was positioned on a user record: this function restores the position
+to the last record LESS OR EQUAL to the stored record;
+(2) cursor was positioned on a page infimum record: restores the position to
+the last record LESS than the user record which was the successor of the page
+infimum;
+(3) cursor was positioned on the page supremum: restores to the first record
+GREATER than the user record which was the predecessor of the supremum.
+(4) cursor was positioned before the first or after the last in an empty tree:
+restores to before first or after the last in the tree. */
+
+ibool
+btr_pcur_restore_position(
+/*======================*/
+					/* out: TRUE if the cursor position
+					was stored when it was on a user record
+					and it can be restored on a user record
+					whose ordering fields are identical to
+					the ones of the original user record */
+	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF, ... */
+	btr_pcur_t*	cursor, 	/* in: detached persistent cursor */
 	mtr_t*		mtr);		/* in: mtr */
 /******************************************************************
 If the latch mode of the cursor is BTR_LEAF_SEARCH or BTR_LEAF_MODIFY,
@@ -198,28 +230,6 @@ btr_pcur_get_rel_pos(
 /*=================*/
 				/* out: BTR_PCUR_ON, ... */
 	btr_pcur_t*	cursor);/* in: persistent cursor */
-/******************************************************************
-Restores the stored position of a persistent cursor bufferfixing the page and
-obtaining the specified latches. If the cursor position was saved when the
-(1) cursor was positioned on a user record: this function restores the position
-to the last record LESS OR EQUAL to the stored record;
-(2) cursor was positioned on a page infimum record: restores the position to
-the last record LESS than the user record which was the successor of the page
-infimum;
-(3) cursor was positioned on the page supremum: restores to the first record
-GREATER than the user record which was the predecessor of the supremum. */
-
-ibool
-btr_pcur_restore_position(
-/*======================*/
-					/* out: TRUE if the cursor position
-					was stored when it was on a user record
-					and it can be restored on a user record
-					whose ordering fields are identical to
-					the ones of the original user record */
-	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF, ... */
-	btr_pcur_t*	cursor, 	/* in: detached persistent cursor */
-	mtr_t*		mtr);		/* in: mtr */
 /*************************************************************
 Sets the mtr field for a pcur. */
 UNIV_INLINE
@@ -458,7 +468,7 @@ struct btr_pcur_struct{
 	ulint		search_mode;	/* PAGE_CUR_G, ... */
 	/*-----------------------------*/
 	/* NOTE that the following fields may possess dynamically allocated
-	memory, which should be freed if not needed anymore! */
+	memory which should be freed if not needed anymore! */
 
 	mtr_t*		mtr;		/* NULL, or this field may contain
 					a mini-transaction which holds the

@@ -800,7 +800,7 @@ trx_undo_update_rec_get_update(
 				TRX_UNDO_DEL_MARK_REC; in the last case,
 				only trx id and roll ptr fields are added to
 				the update vector */
-	dulint		trx_id,	/* in: transaction id from this undorecord */
+	dulint		trx_id,	/* in: transaction id from this undo record */
 	dulint		roll_ptr,/* in: roll pointer from this undo record */
 	ulint		info_bits,/* in: info bits from this undo record */
 	mem_heap_t*	heap,	/* in: memory heap from which the memory
@@ -1078,9 +1078,7 @@ trx_undo_report_row_operation(
 		undo_page = buf_page_get_gen(undo->space, page_no,
 						RW_X_LATCH, undo->guess_page,
 						BUF_GET,
-						#ifdef UNIV_SYNC_DEBUG
 						IB__FILE__, __LINE__,
-						#endif
 						&mtr);
 
 		buf_page_dbg_add_level(undo_page, SYNC_TRX_UNDO_PAGE);
@@ -1282,7 +1280,7 @@ trx_undo_prev_version_build(
 		return(DB_SUCCESS);
 	}
 
-	rec_trx_id = row_get_rec_trx_id(rec, index);
+ 	rec_trx_id = row_get_rec_trx_id(rec, index);
 	
 	err = trx_undo_get_undo_rec(roll_ptr, rec_trx_id, &undo_rec, heap);
 

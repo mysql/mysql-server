@@ -16,6 +16,28 @@ Created 4/20/1996 Heikki Tuuri
 #include "trx0types.h"
 #include "row0types.h"
 	
+/*******************************************************************
+Checks if foreign key constraint fails for an index entry. Sets shared locks
+which lock either the success or the failure of the constraint. NOTE that
+the caller must have a shared latch on dict_foreign_key_check_lock. */
+
+ulint
+row_ins_check_foreign_constraint(
+/*=============================*/
+				/* out: DB_SUCCESS, DB_LOCK_WAIT,
+				DB_NO_REFERENCED_ROW,
+				or DB_ROW_IS_REFERENCED */
+	ibool		check_ref,/* in: TRUE If we want to check that
+				the referenced table is ok, FALSE if we
+				want to to check the foreign key table */
+	dict_foreign_t*	foreign,/* in: foreign constraint; NOTE that the
+				tables mentioned in it must be in the
+				dictionary cache if they exist at all */
+	dict_table_t*	table,	/* in: if check_ref is TRUE, then the foreign
+				table, else the referenced table */
+	dict_index_t*	index,	/* in: index in table */
+	dtuple_t*	entry,	/* in: index entry for index */
+	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************
 Creates an insert node struct. */
 

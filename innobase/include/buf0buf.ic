@@ -486,11 +486,7 @@ buf_block_buf_fix_inc_debug(
 {
 	ibool	ret;
 	
-	ret = rw_lock_s_lock_func_nowait(&(block->debug_latch)
-#ifdef UNIV_SYNC_DEBUG	
-				,file, line
-#endif
-			    );
+	ret = rw_lock_s_lock_func_nowait(&(block->debug_latch), file, line);
 
 	ut_ad(ret == TRUE);
 
@@ -557,9 +553,7 @@ buf_page_get_release_on_io(
 
 	frame = buf_page_get_gen(space, offset, rw_latch, guess,
 				BUF_GET_IF_IN_POOL,
-#ifdef UNIV_SYNC_DEBUG
 				IB__FILE__, __LINE__,
-#endif
 				mtr);
 	if (frame != NULL) {
 
