@@ -69,16 +69,14 @@ NdbBackup::getBackupDataDirForNode(int _node_id){
   /**
    * Fetch configuration from management server
    */
-  LocalConfig lc;
-  if (!lc.init(0,0)) {
-    abort();
-  }
-  ConfigRetriever cr(lc, 0, NODE_TYPE_API);
+  ConfigRetriever cr(0, 0, NODE_TYPE_API);
   ndb_mgm_configuration * p = 0;
 
   BaseString tmp; tmp.assfmt("%s:%d", host.c_str(), port);
   NdbMgmHandle handle = ndb_mgm_create_handle();
-  if(handle == 0 || ndb_mgm_connect(handle, tmp.c_str()) != 0 ||
+  if(handle == 0 || 
+     ndb_mgm_set_connectstring(handle,tmp.c_str()) != 0 ||
+     ndb_mgm_connect(handle,0,0,0) != 0 ||
      (p = ndb_mgm_get_configuration(handle, 0)) == 0){
     
     const char * s = 0;
