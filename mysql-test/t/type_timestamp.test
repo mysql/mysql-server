@@ -286,3 +286,15 @@ insert into t1 values ('a', '2004-01-01 00:00:00'), ('a', '2004-01-01 01:00:00')
                       ('b', '2004-02-01 00:00:00');
 select max(t) from t1 group by a;
 drop table t1;
+
+#
+# Test for bug #7418 "TIMESTAMP not always converted to DATETIME in MAXDB
+# mode". TIMESTAMP columns should be converted DATETIME columns in MAXDB
+# mode regardless of whether a display width is given.
+#
+set sql_mode='maxdb';
+create table t1 (a timestamp, b timestamp(19));
+show create table t1;
+# restore default mode
+set sql_mode='';
+drop table t1;
