@@ -10293,6 +10293,7 @@ Dbdict::buildIndex_sendReply(Signal* signal, OpBuildIndexPtr opPtr,
   rep->setIndexId(opPtr.p->m_request.getIndexId());
   if (sendRef) {
     rep->setErrorCode(opPtr.p->m_errorCode);
+    rep->masterNodeId = opPtr.p->m_errorNode;
     gsn = GSN_BUILDINDXREF;
     length = BuildIndxRef::SignalLength;
   }
