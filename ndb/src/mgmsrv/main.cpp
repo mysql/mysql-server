@@ -161,9 +161,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+#if NDB_VERSION_MAJOR <= 4
   case 'c':
     printf("Warning: -c will be removed in 5.0, use -f instead\n");
     break;
+#endif
   case OPT_NDB_SHM:
 #ifndef NDB_SHM_TRANSPORTER
     printf("Warning: binary not compiled with shared memory support,\n"
