@@ -2072,8 +2072,8 @@ int main(int argc, char **argv)
 #endif
 
   if (opt_myisam_log)
-    (void) mi_log( 1 );
-  ft_init_stopwords(ft_precompiled_stopwords);
+    (void) mi_log(1);
+  ft_init_stopwords();
 
 #ifdef __WIN__
   if (!opt_console)
@@ -2929,7 +2929,7 @@ enum options {
   OPT_CONNECT_TIMEOUT, OPT_DELAYED_INSERT_TIMEOUT,
   OPT_DELAYED_INSERT_LIMIT, OPT_DELAYED_QUEUE_SIZE,
   OPT_FLUSH_TIME, OPT_FT_MIN_WORD_LEN,
-  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT,
+  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT, OPT_FT_STOPWORD_FILE,
   OPT_INTERACTIVE_TIMEOUT, OPT_JOIN_BUFF_SIZE,
   OPT_KEY_BUFFER_SIZE, OPT_LONG_QUERY_TIME,
   OPT_LOWER_CASE_TABLE_NAMES, OPT_MAX_ALLOWED_PACKET,
@@ -3415,7 +3415,8 @@ struct my_option my_long_options[] =
    (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   { "back_log", OPT_BACK_LOG,
-    "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.", (gptr*) &back_log, (gptr*) &back_log, 0, GET_ULONG,
+    "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.",
+    (gptr*) &back_log, (gptr*) &back_log, 0, GET_ULONG,
     REQUIRED_ARG, 50, 1, 65535, 0, 1, 0 },
 #ifdef HAVE_BERKELEY_DB
   { "bdb_cache_size", OPT_BDB_CACHE_SIZE,
@@ -3468,9 +3469,13 @@ struct my_option my_long_options[] =
     (gptr*) &ft_max_word_len, (gptr*) &ft_max_word_len, 0, GET_ULONG,
     REQUIRED_ARG, HA_FT_MAXLEN, 10, HA_FT_MAXLEN, 0, 1, 0},
   { "ft_max_word_len_for_sort", OPT_FT_MAX_WORD_LEN_FOR_SORT,
-    "Undocumented", (gptr*) &ft_max_word_len_for_sort,
-    (gptr*) &ft_max_word_len_for_sort, 0, GET_ULONG, REQUIRED_ARG, 20, 4,
-    HA_FT_MAXLEN, 0, 1, 0},
+    "The maximum length of the word for repair_by_sorting. Longer words are included the slow way. The lower this value, the more words will be put in one sort bucket.",
+    (gptr*) &ft_max_word_len_for_sort, (gptr*) &ft_max_word_len_for_sort, 0, GET_ULONG,
+    REQUIRED_ARG, 20, 4, HA_FT_MAXLEN, 0, 1, 0},
+  { "ft_stopword_file", OPT_FT_STOPWORD_FILE,
+    "Use stopwords from this file instead of built-in list.",
+    (gptr*) &ft_stopword_file, (gptr*) &ft_stopword_file, 0, GET_STR,
+    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_INNOBASE_DB
   {"innodb_mirrored_log_groups", OPT_INNODB_MIRRORED_LOG_GROUPS,
    "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.", 
