@@ -113,7 +113,7 @@ typedef longlong      dec2;
 #define ROUND_UP(X)  (((X)+DIG_PER_DEC1-1)/DIG_PER_DEC1)
 static const dec1 powers10[DIG_PER_DEC1+1]={
   1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
-static const int dig2bytes[DIG_PER_DEC1+1]={0, 1, 1, 2, 2, 3, 3, 3, 4, 4};
+static const int dig2bytes[DIG_PER_DEC1+1]={0, 1, 1, 2, 2, 3, 3, 4, 4, 4};
 
 #define sanity(d) DBUG_ASSERT((d)->len >0 && ((d)->buf[0] | \
                               (d)->buf[(d)->len-1] | 1))
@@ -719,10 +719,10 @@ int bin2decimal(char *from, decimal *to, int precision, int scale)
     dec1 x;
     switch (i)
     {
-      case 1: x=mi_uint1korr(from); break;
-      case 2: x=mi_uint2korr(from); break;
-      case 3: x=mi_uint3korr(from); break;
-      case 4: x=mi_uint4korr(from); break;
+      case 1: x=mi_sint1korr(from); break;
+      case 2: x=mi_sint2korr(from); break;
+      case 3: x=mi_sint3korr(from); break;
+      case 4: x=mi_sint4korr(from); break;
       default: DBUG_ASSERT(0);
     }
     from+=i;
@@ -735,7 +735,7 @@ int bin2decimal(char *from, decimal *to, int precision, int scale)
   for (stop=from+intg0*sizeof(dec1); from < stop; from+=sizeof(dec1))
   {
     DBUG_ASSERT(sizeof(dec1) == 4);
-    *buf=mi_uint4korr(from) ^ mask;
+    *buf=mi_sint4korr(from) ^ mask;
     if (buf > to->buf || *buf != 0)
       buf++;
     else
@@ -745,7 +745,7 @@ int bin2decimal(char *from, decimal *to, int precision, int scale)
   for (stop=from+frac0*sizeof(dec1); from < stop; from+=sizeof(dec1))
   {
     DBUG_ASSERT(sizeof(dec1) == 4);
-    *buf=mi_uint4korr(from) ^ mask;
+    *buf=mi_sint4korr(from) ^ mask;
     buf++;
   }
   if (frac0x)
@@ -754,10 +754,10 @@ int bin2decimal(char *from, decimal *to, int precision, int scale)
     dec1 x;
     switch (i)
     {
-      case 1: x=mi_uint1korr(from); break;
-      case 2: x=mi_uint2korr(from); break;
-      case 3: x=mi_uint3korr(from); break;
-      case 4: x=mi_uint4korr(from); break;
+      case 1: x=mi_sint1korr(from); break;
+      case 2: x=mi_sint2korr(from); break;
+      case 3: x=mi_sint3korr(from); break;
+      case 4: x=mi_sint4korr(from); break;
       default: DBUG_ASSERT(0);
     }
     *buf=(x ^ mask) * powers10[DIG_PER_DEC1 - frac0x];
@@ -1986,6 +1986,8 @@ main()
   test_md("234.567","-10.555");
 
   printf("==== decimal2bin/bin2decimal ====\n");
+  test_d2b2d("-10.55", 4, 2);
+  test_d2b2d("0.0123456789012345678912345", 30, 25);
   test_d2b2d("12345", 5, 0);
   test_d2b2d("12345", 10, 3);
   test_d2b2d("123.45", 10, 3);
