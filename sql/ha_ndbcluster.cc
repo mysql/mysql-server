@@ -1037,7 +1037,8 @@ int ha_ndbcluster::pk_read(const byte *key, uint key_len, byte *buf)
   {
     Field *field= table->field[i];
     if ((thd->query_id == field->query_id) ||
-	m_retrieve_all_fields)
+	m_retrieve_all_fields ||
+	(field->flags & PRI_KEY_FLAG) && m_retrieve_primary_key)
     {
       if (get_ndb_value(op, field, i, buf))
 	ERR_RETURN(trans->getNdbError());
@@ -1112,6 +1113,34 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
   DBUG_RETURN(0);
 }
 
+/*
+  Peek to check if a particular row already exists
+*/
+
+int ha_ndbcluster::peek_row()
+{
+  NdbConnection *trans= m_active_trans;
+  NdbOperation *op;
+  THD *thd= current_thd;
+  DBUG_ENTER("peek_row");
+                                                                                
+  NdbOperation::LockMode lm=
+    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
+  if (!(op= trans->getNdbOperation((const NDBTAB *) m_table)) ||
+      op->readTuple(lm) != 0)
+    ERR_RETURN(trans->getNdbError());
+                                                                                
+  int res;
+  if ((res= set_primary_key(op)))
+    ERR_RETURN(trans->getNdbError());
+                                                                                
+  if (execute_no_commit_ie(this,trans) != 0)
+    {
+      table->status= STATUS_NOT_FOUND;
+      DBUG_RETURN(ndb_err(trans));
+    }                                                                                
+  DBUG_RETURN(0);
+}
 
 /*
   Read one record from NDB using unique secondary index
@@ -1157,7 +1186,7 @@ int ha_ndbcluster::unique_index_read(const byte *key,
   {
     Field *field= table->field[i];
     if ((thd->query_id == field->query_id) ||
-        (field->flags & PRI_KEY_FLAG))
+        (field->flags & PRI_KEY_FLAG)) // && m_retrieve_primary_key ??
     {
       if (get_ndb_value(op, field, i, buf))
         ERR_RETURN(op->getNdbError());
@@ -1586,7 +1615,7 @@ int ha_ndbcluster::filtered_scan(const byte *key, uint key_len,
       Field* field= key_part->field;
       uint ndb_fieldnr= key_part->fieldnr-1;
       DBUG_PRINT("key_part", ("fieldnr: %d", ndb_fieldnr));
-      //      const NDBCOL *col= tab->getColumn(ndb_fieldnr);
+      //const NDBCOL *col= ((const NDBTAB *) m_table)->getColumn(ndb_fieldnr);
       uint32 field_len=  field->pack_length();
       DBUG_DUMP("key", (char*)key, field_len);
 	
@@ -1655,9 +1684,17 @@ int ha_ndbcluster::write_row(byte *record)
   int res;
   DBUG_ENTER("write_row");
 
-  if(m_ignore_dup_key_not_supported)
+  if(m_ignore_dup_key && table->primary_key != MAX_KEY)
   {
-    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+    int peek_res= peek_row();
+    
+    if (!peek_res) 
+    {
+      m_dupkey= table->primary_key;
+      DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
+    }
+    if (peek_res != HA_ERR_KEY_NOT_FOUND)
+      DBUG_RETURN(peek_res);
   }
   
   statistic_increment(ha_write_count,&LOCK_status);
@@ -2170,17 +2207,15 @@ void ha_ndbcluster::print_results()
       break;
     }
     case NdbDictionary::Column::Char:{
-      char buf[field->pack_length()+1];
-      char *value= (char *) field->ptr;
-      snprintf(buf, field->pack_length(), "%s", value);
-      fprintf(DBUG_FILE, "Char\t'%s'", buf);
+      const char *value= (char *) field->ptr;
+      fprintf(DBUG_FILE, "Char\t'%.*s'", field->pack_length(), value);
       break;
     }
     case NdbDictionary::Column::Varchar:
     case NdbDictionary::Column::Binary:
     case NdbDictionary::Column::Varbinary: {
-      char *value= (char *) field->ptr;
-      fprintf(DBUG_FILE, "'%s'", value);
+      const char *value= (char *) field->ptr;
+      fprintf(DBUG_FILE, "Var\t'%.*s'", field->pack_length(), value);
       break;
     }
     case NdbDictionary::Column::Datetime: {
@@ -2677,15 +2712,15 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
       m_use_write= TRUE;
     } else 
     {
-      if (table->keys)
-        m_ignore_dup_key_not_supported= TRUE;
+      DBUG_PRINT("info", ("Ignoring duplicate key"));
+      m_ignore_dup_key= TRUE;
     }
     break;
   case HA_EXTRA_NO_IGNORE_DUP_KEY:
     DBUG_PRINT("info", ("HA_EXTRA_NO_IGNORE_DUP_KEY"));
     DBUG_PRINT("info", ("Turning OFF use of write instead of insert"));
     m_use_write= FALSE;
-    m_ignore_dup_key_not_supported= FALSE;
+    m_ignore_dup_key= FALSE;
     break;
   case HA_EXTRA_RETRIEVE_ALL_COLS:    /* Retrieve all columns, not just those
 					 where field->query_id is the same as
@@ -2704,6 +2739,7 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     break;
   case HA_EXTRA_RETRIEVE_PRIMARY_KEY: 
     DBUG_PRINT("info", ("HA_EXTRA_RETRIEVE_PRIMARY_KEY"));
+    m_retrieve_primary_key= TRUE;
     break;
   case HA_EXTRA_CHANGE_KEY_TO_UNIQUE: 
     DBUG_PRINT("info", ("HA_EXTRA_CHANGE_KEY_TO_UNIQUE"));
@@ -2975,6 +3011,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     DBUG_ASSERT(m_active_trans);
     // Start of transaction
     m_retrieve_all_fields= FALSE;
+    m_retrieve_primary_key= FALSE;
     m_ops_pending= 0;    
     {
       NDBDICT *dict= m_ndb->getDictionary();
@@ -3067,6 +3104,7 @@ int ha_ndbcluster::start_stmt(THD *thd)
 
   // Start of statement
   m_retrieve_all_fields= FALSE;
+  m_retrieve_primary_key= FALSE;
   m_ops_pending= 0;    
   
   DBUG_RETURN(error);
@@ -3673,9 +3711,10 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
 		HA_NO_PREFIX_CHAR_KEYS),
   m_share(0),
   m_use_write(FALSE),
-  m_ignore_dup_key_not_supported(FALSE),
+  m_ignore_dup_key(FALSE),
   m_primary_key_update(FALSE),
   m_retrieve_all_fields(FALSE),
+  m_retrieve_primary_key(FALSE),
   m_rows_to_insert(1),
   m_rows_inserted(0),
   m_bulk_insert_rows(1024),

@@ -24,7 +24,7 @@ public:
   Ndb_mgmclient(const char*);
   ~Ndb_mgmclient();
   int execute(const char *_line, int _try_reconnect=-1);
-  int execute(int argc, const char** argv, int _try_reconnect=-1);
+  int execute(int argc, char** argv, int _try_reconnect=-1);
   int disconnect();
 private:
   CommandInterpreter *m_cmd;
