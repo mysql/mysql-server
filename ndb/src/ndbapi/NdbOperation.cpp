@@ -31,7 +31,8 @@
 #include "NdbApiSignal.hpp"
 #include "NdbRecAttr.hpp"
 #include "NdbUtil.hpp"
-#include "ndbapi_limits.h"
+#include "NdbBlob.hpp"
+
 #include <signaldata/TcKeyReq.hpp>
 #include "NdbDictionaryImpl.hpp"
 
@@ -103,7 +104,8 @@ NdbOperation::NdbOperation(Ndb* aNdb) :
   theFirstSCAN_TABINFO_Recv(NULL),
   theLastSCAN_TABINFO_Recv(NULL),
   theSCAN_TABCONF_Recv(NULL),
-  theBoundATTRINFO(NULL)
+  theBoundATTRINFO(NULL),
+  theBlobList(NULL)
 {
   theReceiver.init(NdbReceiver::NDB_OPERATION, this);
   theError.code = 0;
@@ -163,7 +165,7 @@ NdbOperation::init(NdbTableImpl* tab, NdbConnection* myConnection){
   m_currentTable = m_accessTable = tab;
   
   theNdbCon = myConnection;
-  for (Uint32 i=0; i<NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY; i++)
+  for (Uint32 i=0; i<MAXNROFTUPLEKEY; i++)
     for (int j=0; j<3; j++)
       theTupleKeyDefined[i][j] = false;  
 
@@ -197,6 +199,7 @@ NdbOperation::init(NdbTableImpl* tab, NdbConnection* myConnection){
   theTotalNrOfKeyWordInSignal = 8;
   theMagicNumber        = 0xABCDEF01;
   theBoundATTRINFO      = NULL;
+  theBlobList = NULL;
 
   tSignal = theNdb->getSignal();
   if (tSignal == NULL)
@@ -236,6 +239,8 @@ NdbOperation::release()
   NdbCall*	tSaveCall;
   NdbSubroutine* tSubroutine;
   NdbSubroutine* tSaveSubroutine;
+  NdbBlob* tBlob;
+  NdbBlob* tSaveBlob;
 
   if (theTCREQ != NULL)
   {
@@ -308,6 +313,14 @@ NdbOperation::release()
     }
     theBoundATTRINFO = NULL;
   }
+  tBlob = theBlobList;
+  while (tBlob != NULL)
+  {
+    tSaveBlob = tBlob;
+    tBlob = tBlob->theNext;
+    theNdb->releaseNdbBlob(tSaveBlob);
+  }
+  theBlobList = NULL;
   releaseScan();
 }
 
@@ -354,6 +367,18 @@ NdbOperation::setValue( Uint32 anAttrId,
 			Uint32 len)
 {
   return setValue(m_currentTable->getColumn(anAttrId), aValuePassed, len);
+}
+
+NdbBlob*
+NdbOperation::getBlobHandle(const char* anAttrName)
+{
+  return getBlobHandle(theNdbCon, m_currentTable->getColumn(anAttrName));
+}
+
+NdbBlob*
+NdbOperation::getBlobHandle(Uint32 anAttrId)
+{
+  return getBlobHandle(theNdbCon, m_currentTable->getColumn(anAttrId));
 }
 
 int
@@ -428,4 +453,8 @@ NdbOperation::setBound(Uint32 anAttrId, int type, const void* aValue, Uint32 len
   return setBound(m_accessTable->getColumn(anAttrId), type, aValue, len);
 }
 
-
+const char*
+NdbOperation::getTableName() const
+{
+  return m_currentTable->m_externalName.c_str();
+}

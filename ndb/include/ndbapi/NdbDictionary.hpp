@@ -182,7 +182,8 @@ public:
       Varbinary,     ///< Max len
       Datetime,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
       Timespec,    ///< Precision down to 1 nsec(sizeof(Datetime) == 12 bytes )
-      Blob         ///< Binary large object (see NdbBlob)
+      Blob,        ///< Binary large object (see NdbBlob)
+      Clob         ///< Text blob
     };
 
     /** 
@@ -297,11 +298,28 @@ public:
      * Array length for column or max length for variable length arrays.
      */
     int getLength() const;
-        
+
     /**
-     * Get size of element
+     * For blob, set or get "inline size" i.e. number of initial bytes
+     * to store in table's blob attribute.  This part is normally in
+     * main memory and can be indexed and interpreted.
      */
-    int Column::getSize() const;
+    void setInlineSize(int size) { setPrecision(size); }
+    int getInlineSize() const { return getPrecision(); }
+
+    /**
+     * For blob, set or get "part size" i.e. number of bytes to store in
+     * each tuple of the "blob table".  Must be less than 64k.
+     */
+    void setPartSize(int size) { setScale(size); }
+    int getPartSize() const { return getScale(); }
+
+    /**
+     * For blob, set or get "stripe size" i.e. number of consecutive
+     * <em>parts</em> to store in each node group.
+     */
+    void setStripeSize(int size) { setLength(size); }
+    int getStripeSize() const { return getLength(); }
 
     /** 
      * Set distribution key
@@ -354,7 +372,6 @@ public:
 #endif
     
   private:
-    friend class NdbRecAttr;
     friend class NdbColumnImpl;
     class NdbColumnImpl & m_impl;
     Column(NdbColumnImpl&);
@@ -1029,13 +1046,12 @@ public:
   private:
     friend class NdbDictionaryImpl;
     friend class UtilTransactions;
+    friend class NdbBlob;
     class NdbDictionaryImpl & m_impl;
     Dictionary(NdbDictionaryImpl&);
     const Table * getIndexTable(const char * indexName, 
 				const char * tableName);
   };
 };
-
-class NdbOut& operator <<(class NdbOut& ndbout, const NdbDictionary::Column::Type type);
 
 #endif

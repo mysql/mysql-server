@@ -78,6 +78,9 @@ SqlType::setType(Ctx& ctx, Type type, bool nullable)
     case Blob:
 	setType(ctx, Varbinary, FAKE_BLOB_SIZE, nullable);	// XXX BLOB hack
 	return;
+    case Clob:
+	setType(ctx, Varchar, FAKE_BLOB_SIZE, nullable);	// XXX BLOB hack
+	return;
     case Null:
     case Unbound:
 	break;
@@ -192,6 +195,9 @@ SqlType::setType(Ctx& ctx, const NdbDictionary::Column* ndbColumn)
 	return;
     case NdbDictionary::Column::Blob:
 	setType(ctx, Blob, nullable);
+	return;
+    case NdbDictionary::Column::Clob:
+	setType(ctx, Clob, nullable);
 	return;
     default:
 	break;

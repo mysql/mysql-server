@@ -37,7 +37,8 @@ BIN_DIRS = 			\
 	indexTest       \
 	test_event      \
         indexTest2      \
-	testGrep                
+	testGrep \
+	testBlobs
 
 ifeq ($(NDB_OS), SOLARIS)
 ifeq ($(NDB_COMPILER), FORTE6)
