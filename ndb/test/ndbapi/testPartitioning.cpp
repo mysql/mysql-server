@@ -60,20 +60,53 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when)
   int keys = tab.getNoOfPrimaryKeys();
   int dks = (2 * keys + 2) / 3; dks = (dks > max_dks ? max_dks : dks);
   int cnt = 0;
-  ndbout_c("%s pks: %d dks: %d", tab.getName(), keys, dks);
+  
   for(unsigned i = 0; i<tab.getNoOfColumns(); i++)
-  {
-    NdbDictionary::Column* col = tab.getColumn(i);
-    if(col->getPrimaryKey())
-    {
-      if(dks >= keys || (rand() % 100) > 50)
-      {
-	col->setDistributionKey(true);
-	dks--;
-      }
+    if(tab.getColumn(i)->getPrimaryKey() && 
+       tab.getColumn(i)->getCharset() != 0)
       keys--;
+  
+  Uint32 max = NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY - tab.getNoOfPrimaryKeys();
+
+  if(max_dks < max)
+    max = max_dks;
+  
+  if(keys <= 1 && max > 0)
+  {
+    dks = 1 + (rand() % max);
+    ndbout_c("%s pks: %d dks: %d", tab.getName(), keys, dks);
+    while(dks--)
+    {
+      NdbDictionary::Column col;
+      BaseString name;
+      name.assfmt("PK_DK_%d", dks);
+      col.setName(name.c_str());
+      col.setType(NdbDictionary::Column::Unsigned);
+      col.setLength(1); 
+      col.setNullable(false);
+      col.setPrimaryKey(1);
+      col.setDistributionKey(true);
+      tab.addColumn(col);
+    }
+  } 
+  else 
+  {
+    for(unsigned i = 0; i<tab.getNoOfColumns(); i++)
+    {
+      NdbDictionary::Column* col = tab.getColumn(i);
+      if(col->getPrimaryKey() && col->getCharset() == 0)
+      {
+	if(dks >= keys || (rand() % 100) > 50)
+	{
+	  col->setDistributionKey(true);
+	  dks--;
+	}
+	keys--;
+      }
     }
   }
+  ndbout << (NDBT_Table&)tab << endl;
+
   return 0;
 }
 
@@ -81,7 +114,7 @@ static int
 run_create_table(NDBT_Context* ctx, NDBT_Step* step)
 {
   max_dks = ctx->getProperty("distributionkey", (unsigned)0);
-
+  
   if(NDBT_Tables::createTable(GETNDB(step), 
 			      ctx->getTab()->getName(), 
 			      false, false, 
