@@ -290,8 +290,8 @@ protected:
 
   select_result *result;
   int res;
-  bool describe, found_rows_for_union,
-    prepared, // prepare phase already performed for UNION (unit)
+  ulong describe, found_rows_for_union;
+  bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
     executed, // already executed
     t_and_f;  // used for transferring tables_and_fields_initied UNIT:: methods 
