@@ -46,22 +46,6 @@
 #define OLD_EXT			".OLD"
 #define WRITE_COUNT		MY_HOW_OFTEN_TO_WRITE
 
-#ifdef __WIN__
-static double ulonglong2double(ulonglong value)
-{
-  longlong nr=(longlong) value;
-  if (nr >= 0)
-    return (double) nr;
-  return (18446744073709551616.0 + (double) nr);
-}
-
-#if SIZEOF_OFF_T > 4
-#define my_off_t2double(A) ulonglong2double(A)
-#else
-#define my_off_t2double(A) ((double) (A))
-#endif /* SIZEOF_OFF_T > 4 */
-#endif
-
 struct st_file_buffer {
   File file;
   char *buffer,*pos,*end;

@@ -25,7 +25,6 @@
 
 #include "mysql_priv.h"
 #include <stdarg.h>
-#include <assert.h>
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const char *from, uint length)

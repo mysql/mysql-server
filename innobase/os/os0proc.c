@@ -189,12 +189,12 @@ os_awe_allocate_physical_mem(
 
 #elif defined(__NT__)
 	BOOL		bResult;
-  	ULONG_PTR 	NumberOfPages;		/* Question: why does Windows
+  	os_awe_t 	NumberOfPages;		/* Question: why does Windows
   						use the name ULONG_PTR for
   						a scalar integer type? Maybe
   						because we may also refer to
   						&NumberOfPages? */
-  	ULONG_PTR 	NumberOfPagesInitial;
+  	os_awe_t 	NumberOfPagesInitial;
   	SYSTEM_INFO 	sSysInfo;
   	int 		PFNArraySize;
 
@@ -224,9 +224,9 @@ os_awe_allocate_physical_mem(
  
  	/* Calculate the size of page_info for allocated physical pages */
 
-  	PFNArraySize = NumberOfPages * sizeof(ULONG_PTR);
+  	PFNArraySize = NumberOfPages * sizeof(os_awe_t);
 
-   	*page_info = (ULONG_PTR*)HeapAlloc(GetProcessHeap(), 0, PFNArraySize);
+   	*page_info = (os_awe_t*)HeapAlloc(GetProcessHeap(), 0, PFNArraySize);
 
 	if (*page_info == NULL) {
     		fprintf(stderr,
@@ -426,9 +426,9 @@ os_awe_map_physical_mem_to_window(
 	
 #elif defined(__NT__)
 	BOOL		bResult;
-	ULONG_PTR	n_pages;
+	os_awe_t	n_pages;
 
-	n_pages = (ULONG_PTR)n_mem_pages;
+	n_pages = (os_awe_t)n_mem_pages;
 	
 	if (!(ptr >= os_awe_window)) {
 		fprintf(stderr,
