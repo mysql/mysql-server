@@ -247,3 +247,4 @@
 "Syklisk referens i subselect",
 "Konvertar kolumn '%s' från %s till %s",
 "Reference '%-.64s' not supported (%s)",
+"Select %u was reduced during optimisation",
