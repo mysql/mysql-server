@@ -36,7 +36,7 @@ NdbRestarter::NdbRestarter(const char* _addr):
   m_config(0)
 {
   if (_addr == NULL){
-    addr.assign("localhost");
+    addr.assign("");
   } else {
     addr.assign(_addr);
   }

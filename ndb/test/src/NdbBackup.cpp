@@ -146,13 +146,14 @@ NdbBackup::execRestore(bool _restore_data,
   
   ndbout << "scp res: " << res << endl;
   
-  BaseString::snprintf(buf, 255, "%sndb_restore -c \"%s\" -n %d -b %d %s %s .", 
+  BaseString::snprintf(buf, 255, "%sndb_restore -c \"%s:%d\" -n %d -b %d %s %s .", 
 #if 1
 	   "",
 #else
 	   "valgrind --leak-check=yes -v "
 #endif
-	   addr.c_str(),
+	   ndb_mgm_get_connected_host(handle),
+	   ndb_mgm_get_connected_port(handle),
 	   _node_id, 
 	   _backup_id,
 	   _restore_data?"-r":"",
