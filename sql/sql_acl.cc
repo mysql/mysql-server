@@ -883,7 +883,7 @@ static void acl_insert_db(const char *user, const char *host, const char *db,
 *****************************************************************************/
 
 ulong acl_get(const char *host, const char *ip, const char *bin_ip,
-	     const char *user, const char *db)
+	     const char *user, const char *db, my_bool db_is_pattern)
 {
   ulong host_access,db_access;
   uint i,key_length;
@@ -917,7 +917,7 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
     {
       if (compare_hostname(&acl_db->host,host,ip))
       {
-	if (!acl_db->db || !wild_compare(db,acl_db->db))
+	if (!acl_db->db || !wild_compare(db,acl_db->db,db_is_pattern))
 	{
 	  db_access=acl_db->access;
 	  if (acl_db->host.hostname)
@@ -939,7 +939,7 @@ ulong acl_get(const char *host, const char *ip, const char *bin_ip,
     ACL_HOST *acl_host=dynamic_element(&acl_hosts,i,ACL_HOST*);
     if (compare_hostname(&acl_host->host,host,ip))
     {
-      if (!acl_host->db || !wild_compare(db,acl_host->db))
+      if (!acl_host->db || !wild_compare(db,acl_host->db,db_is_pattern))
       {
 	host_access=acl_host->access;		// Fully specified. Take it
 	break;
@@ -1277,7 +1277,7 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
   return (!host->hostname ||
 	  (hostname && !wild_case_compare(&my_charset_latin1,
                                           hostname,host->hostname)) ||
-	  (ip && !wild_compare(ip,host->hostname)));
+	  (ip && !wild_compare(ip,host->hostname,0)));
 }
 
 
@@ -1337,7 +1337,7 @@ static bool test_if_create_new_users(THD *thd)
     tl.db=	   (char*) "mysql";
     tl.real_name=  (char*) "user";
     db_access=acl_get(thd->host, thd->ip, (char*) &thd->remote.sin_addr,
-		      thd->priv_user, tl.db);
+		      thd->priv_user, tl.db, 0);
     if (!(db_access & INSERT_ACL))
     {
       if (check_grant(thd,INSERT_ACL,&tl,0,1))
