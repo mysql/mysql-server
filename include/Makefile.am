@@ -1,15 +1,15 @@
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-# 
+#
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
 # License as published by the Free Software Foundation; either
 # version 2 of the License, or (at your option) any later version.
-# 
+#
 # This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Library General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Library General Public
 # License along with this library; if not, write to the Free
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
@@ -45,7 +45,7 @@ my_config.h:  ../config.h
 
 # This should be changed in the source and removed.
 my_global.h: global.h
-	-$(RM) my_global.h
+	-$(CHMOD) u+w my_global.h
 	$(CP) global.h my_global.h
 
 # These files should not be included in distributions since they are
