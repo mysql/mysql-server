@@ -1301,6 +1301,19 @@ void yyerror(const char *s)
 
 
 #ifndef EMBEDDED_LIBRARY
+/*
+  Close a connection
+
+  SYNOPSIS
+    close_connection()
+    thd		Thread handle
+    errcode	Error code to print to console
+    lock	1 if we have have to lock LOCK_thread_count
+
+  NOTES
+    For the connection that is doing shutdown, this is called twice
+*/
+
 void close_connection(THD *thd, uint errcode, bool lock)
 {
   st_vio *vio;
