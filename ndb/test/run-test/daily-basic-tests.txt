@@ -794,3 +794,39 @@ max-time: 300
 cmd: testBlobs
 args:
 
+max-time: 2500
+cmd: testOIBasic
+args: 
+
+#
+#
+# SYSTEM RESTARTS
+#
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 T7 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR1 T8 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR2 T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR2 T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR2 T7 
+
