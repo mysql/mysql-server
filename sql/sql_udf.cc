@@ -229,6 +229,11 @@ void udf_free()
   }
   hash_free(&udf_hash);
   free_root(&mem,MYF(0));
+  if (initialized)
+  {
+    initialized= 0;
+    pthread_mutex_destroy(&THR_LOCK_udf);
+  }    
   DBUG_VOID_RETURN;
 }
 

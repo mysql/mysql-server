@@ -122,7 +122,7 @@ class TMP_TABLE_PARAM :public Sql_alloc
   List_iterator_fast<Item> copy_funcs_it;
   Copy_field *copy_field, *copy_field_end;
   byte	    *group_buff;
-  Item_result_field **funcs;
+  Item	    **items_to_copy;			/* Fields in tmp table */
   MI_COLUMNDEF *recinfo,*start_recinfo;
   KEY *keyinfo;
   ha_rows end_write_records;
@@ -194,7 +194,7 @@ void count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
 		       bool reset_with_sum_func);
 bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,List<Item> &fields);
 void copy_fields(TMP_TABLE_PARAM *param);
-void copy_funcs(Item_result_field **func_ptr);
+void copy_funcs(Item **func_ptr);
 bool create_myisam_from_heap(TABLE *table, TMP_TABLE_PARAM *param, int error,
 			     bool ignore_last_dupp_error);
 

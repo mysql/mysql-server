@@ -416,6 +416,7 @@ struct show_var_st init_vars[]= {
   {"ft_max_word_len_for_sort",(char*) &ft_max_word_len_for_sort,    SHOW_LONG},
   {"ft_boolean_syntax",       (char*) ft_boolean_syntax,	    SHOW_CHAR},
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
+  {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},

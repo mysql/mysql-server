@@ -111,6 +111,7 @@ public:
   void init(enum_log_type log_type_arg,
 	    enum cache_type io_cache_type_arg = WRITE_CACHE,
 	    bool no_auto_events_arg = 0);
+  void cleanup();
   bool open(const char *log_name,enum_log_type log_type,
 	    const char *new_name, const char *index_file_name_arg,
 	    enum cache_type io_cache_type_arg,
@@ -320,7 +321,8 @@ struct system_variables
   a thread/connection descriptor
 */
 
-class THD :public ilink {
+class THD :public ilink
+{
 public:
   NET	  net;				// client connection descriptor
   LEX	  lex;				// parse tree descriptor
@@ -478,7 +480,7 @@ public:
     active_vio = 0;
     pthread_mutex_unlock(&LOCK_delete);
   }
-  void THD::close_active_vio();
+  void close_active_vio();
 #endif  
   void awake(bool prepare_to_die);
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
@@ -796,12 +798,7 @@ public:
 
  class multi_delete : public select_result {
    TABLE_LIST *delete_tables, *table_being_deleted;
-#ifdef SINISAS_STRIP
-   IO_CACHE **tempfiles;
-   byte *memory_lane;
-#else
    Unique  **tempfiles;
-#endif
    THD *thd;
    ha_rows deleted;
    uint num_of_tables;

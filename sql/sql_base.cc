@@ -549,7 +549,7 @@ void close_temporary_tables(THD *thd)
   query_buf_size= 50;   // Enough for DROP ... TABLE
 
   for (table=thd->temporary_tables ; table ; table=table->next)
-    query_buf_size += table->key_length;
+    query_buf_size+= table->key_length+1;
 
   if ((query = alloc_root(&thd->mem_root, query_buf_size)))
     end=strmov(query, "DROP /*!40005 TEMPORARY */ TABLE ");

@@ -33,8 +33,7 @@ typedef bool (*CHECK_KILLED_FUNC)(THD*,void*);
 
 volatile bool slave_sql_running = 0, slave_io_running = 0;
 char* slave_load_tmpdir = 0;
-MASTER_INFO main_mi;
-MASTER_INFO* active_mi;
+MASTER_INFO *active_mi;
 volatile int active_mi_in_use = 0;
 HASH replicate_do_table, replicate_ignore_table;
 DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
@@ -120,18 +119,19 @@ int init_slave()
     TODO: re-write this to interate through the list of files
     for multi-master
   */
-  active_mi = &main_mi;
+  active_mi= new MASTER_INFO;
 
   /*
     If master_host is not specified, try to read it from the master_info file.
     If master_host is specified, create the master_info file if it doesn't
     exists.
   */
-  if (init_master_info(active_mi,master_info_file,relay_log_info_file,
+  if (!active_mi ||
+      init_master_info(active_mi,master_info_file,relay_log_info_file,
 		       !master_host))
   {
-    sql_print_error("Warning: failed to initialized master info");
-    DBUG_RETURN(0);
+    sql_print_error("Note: Failed to initialized master info");
+    goto err;
   }
 
   /*
@@ -149,9 +149,15 @@ int init_slave()
 			    master_info_file,
 			    relay_log_info_file,
 			    SLAVE_IO | SLAVE_SQL))
+    {
       sql_print_error("Warning: Can't create threads to handle slave");
+      goto err;
+    }
   }
   DBUG_RETURN(0);
+
+err:
+  DBUG_RETURN(1);
 }
 
 
@@ -755,23 +761,29 @@ static int end_slave_on_walk(MASTER_INFO* mi, gptr /*unused*/)
 }
 #endif
 
+
 void end_slave()
 {
-  /*
-    TODO: replace the line below with
-    list_walk(&master_list, (list_walk_action)end_slave_on_walk,0);
-    once multi-master code is ready.
-  */
-  terminate_slave_threads(active_mi,SLAVE_FORCE_ALL);
-  end_master_info(active_mi);
-  if (do_table_inited)
-    hash_free(&replicate_do_table);
-  if (ignore_table_inited)
-    hash_free(&replicate_ignore_table);
-  if (wild_do_table_inited)
-    free_string_array(&replicate_wild_do_table);
-  if (wild_ignore_table_inited)
-    free_string_array(&replicate_wild_ignore_table);
+  if (active_mi)
+  {
+    /*
+      TODO: replace the line below with
+      list_walk(&master_list, (list_walk_action)end_slave_on_walk,0);
+      once multi-master code is ready.
+    */
+    terminate_slave_threads(active_mi,SLAVE_FORCE_ALL);
+    end_master_info(active_mi);
+    if (do_table_inited)
+      hash_free(&replicate_do_table);
+    if (ignore_table_inited)
+      hash_free(&replicate_ignore_table);
+    if (wild_do_table_inited)
+      free_string_array(&replicate_wild_do_table);
+    if (wild_ignore_table_inited)
+      free_string_array(&replicate_wild_ignore_table);
+    delete active_mi;
+    active_mi= 0;
+  }
 }
 
 
@@ -1563,6 +1575,42 @@ bool flush_master_info(MASTER_INFO* mi)
   DBUG_RETURN(0);
 }
 
+
+st_relay_log_info::st_relay_log_info()
+  :info_fd(-1), cur_log_fd(-1), master_log_pos(0), save_temporary_tables(0),
+   cur_log_old_open_count(0), log_space_total(0), 
+   slave_skip_counter(0), abort_pos_wait(0), slave_run_id(0),
+   sql_thd(0), last_slave_errno(0), inited(0), abort_slave(0),
+   slave_running(0), log_pos_current(0), skip_log_purge(0),
+   inside_transaction(0) /* the default is autocommit=1 */
+{
+  relay_log_name[0] = master_log_name[0] = 0;
+  last_slave_error[0]=0;
+  
+
+  bzero(&info_file,sizeof(info_file));
+  bzero(&cache_buf, sizeof(cache_buf));
+  pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&log_space_lock, MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&data_cond, NULL);
+  pthread_cond_init(&start_cond, NULL);
+  pthread_cond_init(&stop_cond, NULL);
+  pthread_cond_init(&log_space_cond, NULL);
+}
+
+
+st_relay_log_info::~st_relay_log_info()
+{
+  pthread_mutex_destroy(&run_lock);
+  pthread_mutex_destroy(&data_lock);
+  pthread_mutex_destroy(&log_space_lock);
+  pthread_cond_destroy(&data_cond);
+  pthread_cond_destroy(&start_cond);
+  pthread_cond_destroy(&stop_cond);
+  pthread_cond_destroy(&log_space_cond);
+}
+
 /*
   Waits until the SQL thread reaches (has executed up to) the
   log/position or timed out.
@@ -1755,7 +1803,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     DBUG_RETURN(-1);
   }
 
-#if !defined(__WIN__) && !defined(OS2)
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
@@ -2281,14 +2329,16 @@ err:
   THD_CHECK_SENTRY(thd);
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
-  my_thread_end();				// clean-up before broadcast
   pthread_cond_broadcast(&mi->stop_cond);	// tell the world we are done
   pthread_mutex_unlock(&mi->run_lock);
 #ifndef DBUG_OFF
   if (abort_slave_event_count && !events_till_abort)
     goto slave_begin;
 #endif  
+  my_thread_end();
+#ifndef __NETWARE__
   pthread_exit(0);
+#endif /* __NETWARE__ */
   DBUG_RETURN(0);				// Can't return anything here
 }
 
@@ -2420,7 +2470,6 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   THD_CHECK_SENTRY(thd);
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
-  my_thread_end(); // clean-up before broadcasting termination
   pthread_cond_broadcast(&rli->stop_cond);
   // tell the world we are done
   pthread_mutex_unlock(&rli->run_lock);
@@ -2428,9 +2477,13 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   if (abort_slave_event_count && !rli->events_till_abort)
     goto slave_begin;
 #endif  
+  my_thread_end(); // clean-up before broadcasting termination
+#ifndef __NETWARE__
   pthread_exit(0);
+#endif /* __NETWARE__ */
   DBUG_RETURN(0);				// Can't return anything here
 }
+
 
 static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
 {
@@ -2464,9 +2517,10 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
     goto err;
   }
 
-  /* this dummy block is so we could instantiate Append_block_log_event
-     once and then modify it slightly instead of doing it multiple times
-     in the loop
+  /*
+    This dummy block is so we could instantiate Append_block_log_event
+    once and then modify it slightly instead of doing it multiple times
+    in the loop
   */
   {
     Append_block_log_event aev(thd,0,0,0);

@@ -16,6 +16,8 @@
 
 /* Test av locking */
 
+#ifndef __NETWARE__
+
 #include "nisam.h"
 #include <sys/types.h>
 #ifdef HAVE_SYS_WAIT_H
@@ -477,3 +479,15 @@ int test_update(N_INFO *file,int id,int lock_type)
   printf("%2d: update: %5d\n",id,update); fflush(stdout);
   return 0;
 }
+
+#else /* __NETWARE__ */
+
+#include <stdio.h>
+
+main()
+{
+	fprintf(stderr,"this test has not been ported to NetWare\n");
+	return 0;
+}
+
+#endif /* __NETWARE__ */
