@@ -674,7 +674,6 @@ void NdbScanOperation::closeScan()
     
     if(m_api_receivers_count+m_conf_receivers_count){
       // Send close scan
-      ndbout_c("sending close %d %d", m_api_receivers_count, m_conf_receivers_count);
       send_next_scan(0, true); // Close scan
     }
     
