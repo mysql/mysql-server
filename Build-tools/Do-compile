@@ -108,7 +108,7 @@ $|=1;
 select STDOUT;
 $|=1;
 
-safe_cd("$host");
+safe_cd($host);
 if ($opt_stage == 0 && ! $opt_use_old_distribution)
 {
   safe_system("gunzip < $opt_distribution | $tar xf -");
@@ -118,6 +118,7 @@ if ($opt_stage == 0 && ! $opt_use_old_distribution)
   system("touch timestamp; find . -newer timestamp -print | xargs touch; rm -f timestamp");
   sleep(2);
   # Ensure that files we don't want to rebuild are newer than other files
+  safe_cd($ver);
   foreach $name ("configure",
 		 "Docs/include.texi",
 		 "Docs/*.html", "Docs/manual.txt", "Docs/mysql.info",
@@ -125,9 +126,11 @@ if ($opt_stage == 0 && ! $opt_use_old_distribution)
   {
     system("touch $name");
   }
+  # Fix some file modes in BDB tables that makes life harder.
+  system("chmod -R u+rw .");
 }
 
-safe_cd($ver);
+safe_cd("$pwd/$host/$ver");
 if ($opt_stage <= 1)
 {
   $opt_config_options.=" --with-low-memory" if ($opt_with_low_memory);
