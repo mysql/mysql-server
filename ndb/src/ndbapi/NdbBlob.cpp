@@ -32,7 +32,7 @@
   } while (0)
 #define EXE() assert(theNdbCon->executeNoBlobs(NoCommit) == 0)
 #else
-#undef DBG(x)
+#define DBG(x)
 #endif
 
 /*
@@ -209,48 +209,48 @@ inline bool
 NdbBlob::isKeyOp()
 {
   return
-    theNdbOp->theOperationType == InsertRequest ||
-    theNdbOp->theOperationType == UpdateRequest ||
-    theNdbOp->theOperationType == ReadRequest ||
-    theNdbOp->theOperationType == ReadExclusive ||
-    theNdbOp->theOperationType == DeleteRequest;
+    theNdbOp->theOperationType == NdbOperation::InsertRequest ||
+    theNdbOp->theOperationType == NdbOperation::UpdateRequest ||
+    theNdbOp->theOperationType == NdbOperation::ReadRequest ||
+    theNdbOp->theOperationType == NdbOperation::ReadExclusive ||
+    theNdbOp->theOperationType == NdbOperation::DeleteRequest;
 }
 
 inline bool
 NdbBlob::isReadOp()
 {
   return
-    theNdbOp->theOperationType == ReadRequest ||
-    theNdbOp->theOperationType == ReadExclusive;
+    theNdbOp->theOperationType == NdbOperation::ReadRequest ||
+    theNdbOp->theOperationType == NdbOperation::ReadExclusive;
 }
 
 inline bool
 NdbBlob::isInsertOp()
 {
   return
-    theNdbOp->theOperationType == InsertRequest;
+    theNdbOp->theOperationType == NdbOperation::InsertRequest;
 }
 
 inline bool
 NdbBlob::isUpdateOp()
 {
   return
-    theNdbOp->theOperationType == UpdateRequest;
+    theNdbOp->theOperationType == NdbOperation::UpdateRequest;
 }
 
 inline bool
 NdbBlob::isDeleteOp()
 {
   return
-    theNdbOp->theOperationType == DeleteRequest;
+    theNdbOp->theOperationType == NdbOperation::DeleteRequest;
 }
 
 inline bool
 NdbBlob::isScanOp()
 {
   return
-    theNdbOp->theOperationType == OpenScanRequest ||
-    theNdbOp->theOperationType == OpenRangeScanRequest;
+    theNdbOp->theOperationType == NdbOperation::OpenScanRequest ||
+    theNdbOp->theOperationType == NdbOperation::OpenRangeScanRequest;
 }
 
 // computations (inline)
