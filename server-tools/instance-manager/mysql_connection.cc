@@ -191,9 +191,11 @@ void Mysql_connection_thread::run()
 int Mysql_connection_thread::check_connection()
 {
   ulong pkt_len=0;                              // to hold client reply length
+  /* maximum size of the version string */
+  enum { MAX_VERSION_LENGTH= 80 };
 
   /* buffer for the first packet */             /* packet contains: */
-  char buff[mysqlmanager_version_length + 1 +   // server version, 0-ended
+  char buff[MAX_VERSION_LENGTH + 1 +            // server version, 0-ended
             4 +                                 // connection id
             SCRAMBLE_LENGTH + 2 +               // scramble (in 2 pieces)
             18];                                // server variables: flags,
