@@ -423,8 +423,14 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   const int sz = sizeof(tmp)/sizeof(AttribStorage);
   for(int i = 0; i<sz; i++){
     if(ndb_mgm_get_int_parameter(&db, tmp[i].paramId, tmp[i].storage)){
-      snprintf(buf, sizeof(buf), "ConfigParam: %d not found", tmp[i].paramId);
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+      if (tmp[i].paramId == CFG_DB_NO_LOCAL_SCANS) {
+        noOfLocalScanRecords = 0;
+      } else if (tmp[i].paramId == CFG_DB_NO_LOCAL_OPS) {
+        noOfLocalOperations = 0;
+      } else {
+        snprintf(buf, sizeof(buf),"ConfigParam: %d not found", tmp[i].paramId);
+        ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
+      }
     }
   }
 
