@@ -365,22 +365,19 @@ Item *create_func_sin(Item* a)
 
 Item *create_func_sha(Item* a)
 {
-  return new Item_func_sha(a);  
+  return new Item_func_sha(a);
 }
-    
+
 Item *create_func_space(Item *a)
 {
   CHARSET_INFO *cs= current_thd->variables.collation_connection;
   Item *sp;
-  
+
   if (cs->mbminlen > 1)
   {
+    uint dummy_errors;
     sp= new Item_string("",0,cs);
-    if (sp)
-    {
-      uint dummy_errors;
-      sp->str_value.copy(" ", 1, &my_charset_latin1, cs, &dummy_errors);
-    }
+    sp->str_value.copy(" ", 1, &my_charset_latin1, cs, &dummy_errors);
   }
   else
   {

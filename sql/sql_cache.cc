@@ -1157,12 +1157,12 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 	DBUG_ASSERT(!using_transactions || tables_used->table!=0);
 	if (tables_used->derived)
 	  continue;
-	if (using_transactions && 
-	   (tables_used->table->file->table_cache_type() == 
+	if (using_transactions &&
+	   (tables_used->table->file->table_cache_type() ==
 	    HA_CACHE_TBL_TRANSACT))
-	  /* 
+	  /*
 	     Tables_used->table can't be 0 in transaction.
-	     Only 'drop' invalidate not opened table, but 'drop' 
+	     Only 'drop' invalidate not opened table, but 'drop'
 	     force transaction finish.
 	  */
 	  thd->add_changed_table(tables_used->table);
@@ -1210,7 +1210,7 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
 */
 void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
 {
-  DBUG_ENTER("Query_cache::invalidate (changed table list)");
+  DBUG_ENTER("Query_cache::invalidate_locked_for_write");
   if (query_cache_size > 0 && tables_used)
   {
     STRUCT_LOCK(&structure_guard_mutex);
