@@ -813,7 +813,8 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
   pthread_mutex_lock(&LOCK_open);
-  if (open_unireg_entry(thd, table, db, table_name, table_name, 0, 0) ||
+  if (open_unireg_entry(thd, table, db, table_name, table_name, 0,
+                        &thd->mem_root) ||
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
   {
@@ -956,7 +957,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
     table->prev->next=table->next;		/* Remove from unused list */
     table->next->prev=table->prev;
-
+    table->in_use= thd;
   }
   else
   {
@@ -994,7 +995,6 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     VOID(my_hash_insert(&open_cache,(byte*) table));
   }
 
-  table->in_use=thd;
   check_unused();				// Debugging call
 
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1073,8 +1073,8 @@ bool reopen_table(TABLE *table,bool locked)
     VOID(pthread_mutex_lock(&LOCK_open));
   safe_mutex_assert_owner(&LOCK_open);
 
-  if (open_unireg_entry(current_thd, &tmp, db, table_name,
-			table->table_name, 0, 0))
+  if (open_unireg_entry(table->in_use, &tmp, db, table_name,
+			table->table_name, 0, &table->in_use->mem_root))
     goto end;
   free_io_cache(table);
 
@@ -1413,7 +1413,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
   DBUG_ENTER("open_unireg_entry");
 
   strxmov(path, mysql_data_home, "/", db, "/", name, NullS);
-  while ((error= openfrm(path, alias,
+  while ((error= openfrm(thd, path, alias,
 		         (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
 			         HA_GET_INDEX | HA_TRY_READ_ONLY |
                                  NO_ERR_ON_NEW_FRM),
@@ -1468,7 +1468,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     pthread_mutex_unlock(&LOCK_open);
     thd->clear_error();				// Clear error message
     error= 0;
-    if (openfrm(path,alias,
+    if (openfrm(thd, path, alias,
 		(uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX |
 			 HA_TRY_READ_ONLY),
 		READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
@@ -1713,7 +1713,8 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type)
   thd->current_tablenr= 0;
   /* open_ltable can be used only for BASIC TABLEs */
   table_list->required_type= FRMTYPE_TABLE;
-  while (!(table= open_table(thd, table_list, 0, &refresh)) && refresh)
+  while (!(table= open_table(thd, table_list, &thd->mem_root, &refresh)) &&
+         refresh)
     ;
 
   if (table)
@@ -1901,7 +1902,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 				     MYF(MY_WME))))
     DBUG_RETURN(0);				/* purecov: inspected */
 
-  if (openfrm(path, table_name,
+  if (openfrm(thd, path, table_name,
 	      (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE | HA_GET_INDEX),
 	      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
 	      ha_open_options,
@@ -1912,7 +1913,6 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   }
 
   tmp_table->reginfo.lock_type=TL_WRITE;	 // Simulate locked
-  tmp_table->in_use= thd;
   tmp_table->tmp_table = (tmp_table->file->has_transactions() ? 
 			  TRANSACTIONAL_TMP_TABLE : TMP_TABLE);
   tmp_table->table_cache_key=(char*) (tmp_table+1);
@@ -3396,9 +3396,6 @@ open_new_frm(const char *path, const char *alias,
 
   pathstr.str=    (char*) path;
   pathstr.length= strlen(path);
-
-  if (!mem_root)
-    mem_root= &current_thd->mem_root;
 
   if ((parser= sql_parse_prepare(&pathstr, mem_root, 1)))
   {

@@ -282,6 +282,18 @@ CHARSET_INFO *Item::default_charset()
 }
 
 
+int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
+{
+  int res;
+  THD *thd= field->table->in_use;
+  enum_check_fields tmp= thd->count_cuted_fields;
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  res= save_in_field(field, no_conversions);
+  thd->count_cuted_fields= tmp;
+  return res;
+}
+
+
 Item *
 Item_splocal::this_item()
 {

@@ -1069,8 +1069,8 @@ int rea_create_table(THD *thd, my_string file_name,HA_CREATE_INFO *create_info,
 		     uint key_count,KEY *key_info);
 int format_number(uint inputflag,uint max_length,my_string pos,uint length,
 		  my_string *errpos);
-int openfrm(const char *name,const char *alias,uint filestat,uint prgflag,
-	    uint ha_open_flags, TABLE *outparam);
+int openfrm(THD *thd, const char *name,const char *alias,uint filestat,
+            uint prgflag, uint ha_open_flags, TABLE *outparam);
 int readfrm(const char *name, const void** data, uint* length);
 int writefrm(const char* name, const void* data, uint len);
 int create_table_from_handler(const char *db, const char *name,

@@ -110,7 +110,11 @@ name_id	name
 SELECT * FROM t2 WHERE name='[T,U]_axpby';
 name_id	name
 2	[T,U]_axpby
-drop table t1,t2;
+CREATE TABLE t3 SELECT * FROM t2 WHERE name='[T,U]_axpby';
+SELECT * FROM t2 WHERE name='[T,U]_axpby';
+name_id	name
+2	[T,U]_axpby
+drop table t1,t2,t3;
 create table t1
 (
 SEQNO                         numeric(12 ) not null,
