@@ -2208,7 +2208,13 @@ build_template(
 	ulint		n_fields;
 	ulint		n_requested_fields	= 0;
 	ibool		fetch_all_in_key	= FALSE;
-	ibool		fetch_primary_key_cols	= FALSE;
+	ibool		fetch_primary_key_cols	= TRUE; /* The ROR code in
+						opt_range.cc assumes that the
+						primary key cols are always
+						retrieved. Starting from
+						MySQL-5.0.2, let us always
+						fetch them, even though it
+						wastes some CPU. */ 
 	ulint		i;
 
 	if (prebuilt->select_lock_type == LOCK_X) {
