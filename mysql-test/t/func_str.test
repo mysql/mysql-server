@@ -482,3 +482,19 @@ DROP TABLE t1;
 #
 SELECT CHAR(NULL,121,83,81,'76') as my_column;
 SELECT CHAR_LENGTH(CHAR(NULL,121,83,81,'76')) as my_column;
+#
+# Test case for bug #8669: null aes_decrypt result in order by query
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY, str char(255) NOT NULL);
+CREATE TABLE t2 (id int NOT NULL UNIQUE);
+INSERT INTO t2 VALUES (1),(2);
+INSERT INTO t1 VALUES (1, aes_encrypt('foo', 'bar'));
+INSERT INTO t1 VALUES (2, 'not valid');
+
+SELECT t1.id, aes_decrypt(str, 'bar') FROM t1, t2 WHERE t1.id = t2.id;
+SELECT t1.id, aes_decrypt(str, 'bar') FROM t1, t2 WHERE t1.id = t2.id
+ ORDER BY t1.id;
+
+DROP TABLE t1, t2;
+
