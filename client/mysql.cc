@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.6";
+const char *VER= "14.7";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -135,7 +135,7 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
 	       default_charset_used= 0, opt_secure_auth= 0,
-               default_pager_set= 0;
+               default_pager_set= 0, opt_sigint_ignore= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
@@ -394,7 +394,11 @@ int main(int argc,char *argv[])
   }
   if (!status.batch)
     ignore_errors=1;				// Don't abort monitor
-  signal(SIGINT, mysql_end);			// Catch SIGINT to clean up
+
+  if (opt_sigint_ignore)
+    signal(SIGINT, SIG_IGN);
+  else
+    signal(SIGINT, mysql_end);			// Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
 
   /*
@@ -573,6 +577,9 @@ static struct my_option my_long_options[] =
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"sigint-ignore", OPT_SIGINT_IGNORE, "Ignore SIGINT (CTRL-C)",
+   (gptr*) &opt_sigint_ignore,  (gptr*) &opt_sigint_ignore, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"one-database", 'o',
    "Only update the default database. This is useful for skipping updates to other database in the update log.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},

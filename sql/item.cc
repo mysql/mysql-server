@@ -106,7 +106,7 @@ void Item::print_item_w_name(String *str)
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
   :orig_db_name(db_name_par), orig_table_name(table_name_par), 
-   orig_field_name(field_name_par), changed_during_fix_field(0), 
+   orig_field_name(field_name_par),
    db_name(db_name_par), table_name(table_name_par), 
    field_name(field_name_par), cached_field_index(NO_CACHED_FIELD_INDEX), 
    cached_table(0), depended_from(0)
@@ -120,7 +120,6 @@ Item_ident::Item_ident(THD *thd, Item_ident *item)
    orig_db_name(item->orig_db_name),
    orig_table_name(item->orig_table_name), 
    orig_field_name(item->orig_field_name),
-   changed_during_fix_field(0),
    db_name(item->db_name),
    table_name(item->table_name),
    field_name(item->field_name),
@@ -137,11 +136,6 @@ void Item_ident::cleanup()
 		       table_name, orig_table_name,
 		       field_name, orig_field_name));
   Item::cleanup();
-  if (changed_during_fix_field)
-  {
-    *changed_during_fix_field= this;
-    changed_during_fix_field= 0;
-  }
   db_name= orig_db_name; 
   table_name= orig_table_name;
   field_name= orig_field_name;
@@ -1338,14 +1332,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  return -1;
 	}
 
-	Item_ref *rf;
-	*ref= rf= new Item_ref(last->ref_pointer_array + counter,
-			       ref,
-			       (char *)table_name,
-			       (char *)field_name);
-	register_item_tree_changing(ref);
+	Item_ref *rf= new Item_ref(last->ref_pointer_array + counter,
+                                   (char *)table_name, (char *)field_name);
 	if (!rf)
 	  return 1;
+        thd->change_item_tree(ref, rf);
 	/*
 	  rf is Item_ref => never substitute other items (in this case)
 	  during fix_fields() => we can use rf after fix_fields()
@@ -1362,12 +1353,11 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	if (last->having_fix_field)
 	{
 	  Item_ref *rf;
-	  *ref= rf= new Item_ref(ref, *ref,
-				 (where->db[0]?where->db:0), 
-				 (char *)where->alias,
-				 (char *)field_name);
+          rf= new Item_ref((where->db[0] ? where->db : 0),
+                           (char*) where->alias, (char*) field_name);
 	  if (!rf)
 	    return 1;
+          thd->change_item_tree(ref, rf);
 	  /*
 	    rf is Item_ref => never substitute other items (in this case)
 	    during fix_fields() => we can use rf after fix_fields()
@@ -2000,10 +1990,10 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       else if (tmp != not_found_field)
       {
 	ref= 0; // To prevent "delete *ref;" on ~Item_ref() of this item
-	Item_field* fld;
-	if (!((*reference)= fld= new Item_field(tmp)))
+	Item_field* fld= new Item_field(tmp);
+	if (!fld)
 	  return 1;
-	register_item_tree_changing(reference);
+	thd->change_item_tree(reference, fld);
 	mark_as_dependent(thd, last, thd->lex->current_select, fld);
 	return 0;
       }
@@ -2063,16 +2053,6 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (ref && (*ref)->check_cols(1))
     return 1;
   return 0;
-}
-
-
-void Item_ref::cleanup()
-{
-  DBUG_ENTER("Item_ref::cleanup");
-  Item_ident::cleanup();
-  if (hook_ptr)
-    *hook_ptr= orig_item;
-  DBUG_VOID_RETURN;
 }
 
 
@@ -2227,10 +2207,12 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 }
 
 
-Item *resolve_const_item(Item *item,Item *comp_item)
+void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 {
+  Item *item= *ref;
+  Item *new_item;
   if (item->basic_const_item())
-    return item;				// Can't be better
+    return;                                     // Can't be better
   Item_result res_type=item_cmp_type(comp_item->result_type(),
 				     item->result_type());
   char *name=item->name;			// Alloced by sql_alloc
@@ -2241,27 +2223,32 @@ Item *resolve_const_item(Item *item,Item *comp_item)
     String tmp(buff,sizeof(buff),&my_charset_bin),*result;
     result=item->val_str(&tmp);
     if (item->null_value)
-      return new Item_null(name);
-    uint length=result->length();
-    char *tmp_str=sql_strmake(result->ptr(),length);
-    return new Item_string(name,tmp_str,length,result->charset());
+      new_item= new Item_null(name);
+    else
+    {
+      uint length= result->length();
+      char *tmp_str= sql_strmake(result->ptr(), length);
+      new_item= new Item_string(name, tmp_str, length, result->charset());
+    }
   }
-  if (res_type == INT_RESULT)
+  else if (res_type == INT_RESULT)
   {
     longlong result=item->val_int();
     uint length=item->max_length;
     bool null_value=item->null_value;
-    return (null_value ? (Item*) new Item_null(name) :
-	    (Item*) new Item_int(name,result,length));
+    new_item= (null_value ? (Item*) new Item_null(name) :
+               (Item*) new Item_int(name, result, length));
   }
   else
   {						// It must REAL_RESULT
     double result=item->val();
     uint length=item->max_length,decimals=item->decimals;
     bool null_value=item->null_value;
-    return (null_value ? (Item*) new Item_null(name) :
-	    (Item*) new Item_real(name,result,decimals,length));
+    new_item= (null_value ? (Item*) new Item_null(name) : (Item*)
+               new Item_real(name, result, decimals, length));
   }
+  if (new_item)
+    thd->change_item_tree(ref, new_item);
 }
 
 /*
@@ -2645,6 +2632,14 @@ String *Item_type_holder::val_str(String*)
 {
   DBUG_ASSERT(0); // should never be called
   return 0;
+}
+
+void Item_result_field::cleanup()
+{
+  DBUG_ENTER("Item_result_field::cleanup()");
+  Item::cleanup();
+  result_field= 0;
+  DBUG_VOID_RETURN;
 }
 
 /*****************************************************************************

@@ -943,8 +943,16 @@ dict_table_rename_in_cache(
 	.ibd file */
 
 	if (table->space != 0) {
-		success = fil_rename_tablespace(table->name, table->space,
-								new_name);
+		if (table->dir_path_of_temp_table != NULL) {
+			fprintf(stderr,
+"InnoDB: Error: trying to rename a table %s (%s) created with CREATE\n"
+"InnoDB: TEMPORARY TABLE\n", table->name, table->dir_path_of_temp_table);
+			success = FALSE;
+		} else {
+			success = fil_rename_tablespace(table->name,
+						table->space, new_name);
+		}
+
 		if (!success) {
 
 			return(FALSE);
