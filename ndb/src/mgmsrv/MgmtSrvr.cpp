@@ -130,7 +130,7 @@ MgmtSrvr::signalRecvThreadRun()
 	(this->*handler->function)(signal);
     }
   }
-};
+}
 
 
 EventLogger g_EventLogger;
