@@ -201,6 +201,13 @@ os_thread_exit(
 #endif
 }
 
+int
+os_thread_join(
+/*=============*/
+  os_thread_id_t  thread_id)	/* in: id of the thread to join */
+{
+  return pthread_join(thread_id, NULL);
+}
 /*********************************************************************
 Returns handle to the current thread. */
 
