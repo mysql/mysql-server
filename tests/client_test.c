@@ -9912,6 +9912,35 @@ static void test_bug4079()
   mysql_stmt_close(stmt);
 }
 
+
+static void test_bug4236()
+{
+  MYSQL_STMT *stmt;
+  const char *stmt_text;
+  int rc;
+  MYSQL_STMT backup;
+
+  myheader("test_bug4296");
+
+  stmt= mysql_stmt_init(mysql);
+
+  /* mysql_stmt_execute() of statement with statement id= 0 crashed server */
+  stmt_text= "SELECT 1";
+  /* We need to prepare statement to pass by possible check in libmysql */
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  /* Hack to check that server works OK if statement wasn't found */
+  backup.stmt_id= stmt->stmt_id;
+  stmt->stmt_id= 0;
+  rc= mysql_stmt_execute(stmt);
+  assert(rc);
+  /* Restore original statement id to be able to reprepare it */
+  stmt->stmt_id= backup.stmt_id;
+
+  mysql_stmt_close(stmt);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -10206,6 +10235,7 @@ int main(int argc, char **argv)
     test_bug3796();         /* test for select concat(?, <string>) */
     test_bug4026();         /* test microseconds precision of time types */
     test_bug4079();         /* erroneous subquery in prepared statement */
+    test_bug4236();         /* init -> execute */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.
