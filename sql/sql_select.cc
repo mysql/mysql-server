@@ -3464,7 +3464,7 @@ best_access_path(JOIN      *join,
               {
                 /*
                   Assume that the first key part matches 1% of the file
-                  and that the hole key matches 10 (duplicates) or 1
+                  and that the whole key matches 10 (duplicates) or 1
                   (unique) records.
                   Assume also that more key matches proportionally more
                   records
@@ -3472,7 +3472,7 @@ best_access_path(JOIN      *join,
                   records = (x * (b-a) + a*c-b)/(c-1)
 
                   b = records matched by whole key
-                  a = records matched by first key part (10% of all records?)
+                  a = records matched by first key part (1% of all records?)
                   c = number of key parts in key
                   x = used key parts (1 <= x <= c)
                 */
@@ -3488,9 +3488,12 @@ best_access_path(JOIN      *join,
                 else
                 {
                   double a=s->records*0.01;
-                  tmp = (max_key_part * (rec_per_key - a) +
-                         a*keyinfo->key_parts - rec_per_key)/
-                    (keyinfo->key_parts-1);
+                  if (keyinfo->key_parts > 1)
+                    tmp= (max_key_part * (rec_per_key - a) +
+                          a*keyinfo->key_parts - rec_per_key)/
+                         (keyinfo->key_parts-1);
+                  else
+                    tmp= a;
                   set_if_bigger(tmp,1.0);
                 }
                 records = (ulong) tmp;
@@ -4421,7 +4424,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		{
 		  /*
 		    Assume that the first key part matches 1% of the file
-		    and that the hole key matches 10 (duplicates) or 1
+		    and that the whole key matches 10 (duplicates) or 1
 		    (unique) records.
 		    Assume also that more key matches proportionally more
 		    records
