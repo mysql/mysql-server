@@ -26,7 +26,8 @@
 #include "mysql_version.h"
 #include "lex.h"
 
-bool opt_search=0,opt_verbose=0;
+bool opt_search=0;
+uint opt_verbose=0;
 ulong opt_count=100000;
 
 #define max_allowed_array  8000	// Don't generate bigger arrays than this
@@ -526,8 +527,7 @@ int main(int argc,char **argv)
 	       best_functype);
       }
       if (opt_verbose && (i % 20000) == 0)
-	printf("\nstart_value=%ldL; best_t1=%ldL;  best_t2=%ldL;  best_type=%d;
-/* mode=%d  add=%d  type: %d */\n",
+	printf("\nstart_value=%ldL; best_t1=%ldL;  best_t2=%ldL;  best_type=%d; /* mode=%d  add=%d  type: %d */\n",
 	       best_start_value,best_t1,best_t2,best_type,best_mod,best_add,
 	       best_functype);
     }
