@@ -266,7 +266,7 @@ System-specific Issues
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
 * Mac OS X::                    Mac OS X notes
-* BEOS::                        
+* BEOS::
 
 Linux Notes (All Linux Versions)
 
@@ -277,7 +277,7 @@ Linux Notes (All Linux Versions)
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::                  
+* Linux-Ia64::
 
 BSD/OS Notes
 
@@ -294,7 +294,7 @@ Windows Notes
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
-* Windows and BDB tables.::     
+* Windows and BDB tables.::
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 
 Post-installation Setup and Testing
@@ -453,18 +453,18 @@ Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 
 @code{SHOW} syntax (Get information about tables, columns,...)
 
-* SHOW DATABASE INFO::          
-* SHOW TABLE STATUS::           
-* SHOW STATUS::                 
-* SHOW VARIABLES::              
-* SHOW PROCESSLIST::            
-* SHOW GRANTS::                 
-* SHOW CREATE TABLE::           
+* SHOW DATABASE INFO::
+* SHOW TABLE STATUS::
+* SHOW STATUS::
+* SHOW VARIABLES::
+* SHOW PROCESSLIST::
+* SHOW GRANTS::
+* SHOW CREATE TABLE::
 
 MySQL table types
 
 * MyISAM::                      MyISAM tables
-* MERGE::                       
+* MERGE::
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
@@ -580,7 +580,7 @@ Speed of queries that access or update data
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* DISTINCT optimization::       
+* DISTINCT optimization::
 * LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
@@ -612,10 +612,10 @@ Using @code{myisamchk} for table maintenance and crash recovery
 
 @code{myisamchk} invocation syntax
 
-* myisamchk general options::   
-* myisamchk check options::     
-* myisamchk repair options::    
-* myisamchk other options::     
+* myisamchk general options::
+* myisamchk check options::
+* myisamchk repair options::
+* myisamchk other options::
 
 Using @code{myisamchk} for crash recovery
 
@@ -688,7 +688,7 @@ Some common errors when using MySQL
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::               
+* Cannot create::
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -698,7 +698,7 @@ Solving some common problems with MySQL
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Binary log::                  
+* Binary log::
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 
@@ -951,7 +951,7 @@ Comments on porting to other systems
 * Debugging server::            Debugging a @strong{MySQL} server
 * Debugging client::            Debugging a @strong{MySQL} client
 * The DBUG package::            The DBUG package
-* Locking methods::             
+* Locking methods::
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 
@@ -991,7 +991,7 @@ searchable PHP version at @uref{http://www.mysql.com/documentation/manual.php}.
 (Structured Query Language) database server.
 
 @strong{MySQL} is free software. It is licensed with the @strong{GNU
-GENERAL PUBLIC LICENSE} @uref{http://www.gnu.org/}. 
+GENERAL PUBLIC LICENSE} @uref{http://www.gnu.org/}.
  @xref{Licensing and Support}.
 
 @uref{http://www.mysql.com/, The @strong{MySQL} home page}
@@ -1008,7 +1008,7 @@ For installation instructions, see @ref{Installing}. For tips on porting
 @strong{MySQL} to new architectures or operating systems, see @ref{Porting}.
 
 @item
-For tips on porting @strong{MySQL} to new architectures or operating 
+For tips on porting @strong{MySQL} to new architectures or operating
 systems, see @ref{Porting}.
 
 @item
@@ -1187,10 +1187,10 @@ Work against software patents
 @end menu
 
 This manual is currently available in Texinfo, plain text, Info, HTML,
-PostScript, and PDF versions.  The primary document is the Texinfo file. 
-The HTML version is produced automatically using a modified version of 
+PostScript, and PDF versions.  The primary document is the Texinfo file.
+The HTML version is produced automatically using a modified version of
 @code{texi2html}. The plain text and Info versions are produced with
- @code{makeinfo}. The Postscript version is produced using @code{texi2dvi} 
+ @code{makeinfo}. The Postscript version is produced using @code{texi2dvi}
 and @code{dvips}. The PDF version is produced with @code{pdftex}.
 
 @cindex manual, available formats
@@ -1325,7 +1325,7 @@ alternatives are listed within braces (@samp{@{} and @samp{@}}):
 
 @cindex MySQL version
 @cindex MySQL history
-@cindex history of MySQL 
+@cindex history of MySQL
 @node History, MySQL-Books, Manual-info, Introduction
 @section History of MySQL
 
@@ -1356,7 +1356,7 @@ English):
 
 @emph{MySQL}
 @multitable @columnfractions .3 .7
-@item Available	@tab		
+@item Available	@tab
 @uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?isbn=0735709211, Barnes and Noble}
 @item Publisher	@tab		New Riders
 @item Author	@tab		Paul DuBois
@@ -1364,9 +1364,9 @@ English):
 @item ISBN	@tab		0735709211
 @item Pages	@tab		800
 @item Price	@tab		$49.99 US
-@item Downloadable examples  @tab            
+@item Downloadable examples  @tab
  @uref{http://www.mysql.com/Contrib/Examples/samp_db.tar.gz, @code{samp_db.tar.gz}}
-@item Errata  @tab            
+@item Errata  @tab
  @uref{http://www.mysql.com/documentation/pauls-mysql-book-errata.html, are available here}
 @end multitable
 Foreword by Michael ``Monty'' Widenius, @strong{MySQL} Moderator.@*
@@ -1608,7 +1608,7 @@ No memory leaks. Tested with a commercial memory leakage detector
 (@code{purify}).
 
 @item
-Includes @code{myisamchk}, a very fast utility for table checking, 
+Includes @code{myisamchk}, a very fast utility for table checking,
 optimization, and repair.
 @xref{Maintenance}.
 
@@ -1713,7 +1713,7 @@ report about lost data because of bugs in @strong{MySQL}.
 
 
 @item The MyISAM table handler --- Gamma
-This is new in @strong{MySQL} Version 3.23. It's largely based on the ISAM 
+This is new in @strong{MySQL} Version 3.23. It's largely based on the ISAM
 table code but has a lot of new and very useful features.
 
 @item The parser and lexical analyser --- Stable
@@ -1721,7 +1721,7 @@ There hasn't been a single reported bug in this system for a long time.
 
 @item The C client code --- Stable
 No known problems. In early Version 3.20 releases, there were some limitations
-in the send/receive buffer size. As of Version 3.21, the buffer size is now 
+in the send/receive buffer size. As of Version 3.21, the buffer size is now
 dynamic up to a default of 24M.
 
 @item Standard client programs --- Stable
@@ -1761,9 +1761,9 @@ We use this for all our production work.
 
 @item MIT-pthreads (Other systems) --- Stable
 There have been no reported bugs since Version 3.20.15 and no known bugs since
-Version 3.20.16. On some systems, there is a ``misfeature'' where some 
-operations are quite slow (a 1/20 second sleep is done between each query). 
-Of course, MIT-pthreads may slow down everything a bit, but index-based 
+Version 3.20.16. On some systems, there is a ``misfeature'' where some
+operations are quite slow (a 1/20 second sleep is done between each query).
+Of course, MIT-pthreads may slow down everything a bit, but index-based
 @code{SELECT} statements are usually done in one time frame so there shouldn't
 be a mutex locking/thread juggling.
 
@@ -1901,8 +1901,8 @@ provide unambiguous input.  See @ref{Y2K issues} for @strong{MySQL}'s rules
 for dealing with ambiguous date input data (data containing 2-digit year
 values).
 
-@cindex manuals, about @strong{MySQL} 
-@cindex books, about @strong{MySQL} 
+@cindex manuals, about @strong{MySQL}
+@cindex books, about @strong{MySQL}
 @node General-SQL, Useful Links, Year 2000 compliance, Introduction
 @section General SQL Information and Tutorials
 
@@ -1918,7 +1918,7 @@ ISBN 0-201-62623-3
 http://www.awl.com
 @end example
 
-The following book has also received some recommendations by @strong{MySQL} 
+The following book has also received some recommendations by @strong{MySQL}
 users:
 
 @example
@@ -2011,7 +2011,7 @@ FutureForum Web Discussion Software.
 @itemize @bullet
 
 @item @uref{http://www.supportwizard.com/}@*
-SupportWizard; Interactive helpdesk on the Web (This product includes a 
+SupportWizard; Interactive helpdesk on the Web (This product includes a
 licensed copy of @strong{MySQL}.)
 
 @item @uref{http://www.stweb.org/}@*
@@ -2029,7 +2029,7 @@ Bazaar; Interactive Discussion Forums with Web interface.
 @cindex PhoneSweep
 @item @uref{http://www.phonesweep.com/}@*
 PhoneSweepT is the world's first commercial Telephone Scanner. Many break-ins
-in recent years have come not through the Internet, but through unauthorized 
+in recent years have come not through the Internet, but through unauthorized
 dial-up modems. PhoneSweep lets you find these modems by repeatedly placing
 phone calls to every phone number that your organization
 controls. PhoneSweep has a built-in expert system that can recognize
@@ -2059,7 +2059,7 @@ KMySQL is a database client for KDE that primarily supports @strong{MySQL}.
 A Windows GUI client by David Ecker.
 
 @item @uref{http://www.icaap.org/software/kiosk/}@*
-Kiosk; a @strong{MySQL} client for database management. Written in Perl. 
+Kiosk; a @strong{MySQL} client for database management. Written in Perl.
 Will be a part of Bazaar.
 
 @item @uref{http://home.skif.net/~voland/zeos/eng/index.html}@*
@@ -2089,20 +2089,20 @@ SuSE Linux (Suse 6.1 and above)
 PHP: A server-side HTML-embedded scripting language.
 
 @item @uref{http://www.midgard-project.org}@*
-The Midgard Application Server; a powerful Web development environment 
+The Midgard Application Server; a powerful Web development environment
 based on @strong{MySQL} and PHP.
 
 @item @uref{http://www.smartworker.org}@*
 SmartWorker is a platform for Web application development.
 
 @item @uref{http://xsp.lentus.se/}@*
-XSP: e(X)tendible (S)erver (P)ages and is a HTML embedded tag language 
+XSP: e(X)tendible (S)erver (P)ages and is a HTML embedded tag language
 written in Java (previously known as XTAGS.)
 
 @cindex dbServ
 @item @uref{http://www.dbServ.de/}@*
-dbServ is an extension to a web server to integrate database output into 
-your HTML code. You may use any HTML function in your output. Only the 
+dbServ is an extension to a web server to integrate database output into
+your HTML code. You may use any HTML function in your output. Only the
 client will stop you. It works as standalone server or as JAVA servlet.
 
 @item @uref{http://www.chilisoft.com/}@*
@@ -2188,8 +2188,8 @@ OMNIS Studio is a rapid application development (RAD) tool.
 
 @cindex Web+
 @item @uref{http://www.webplus.com}@*
-talentsoft Web+ 4.6 - a powerful and comprehensive development language for 
-use in creating web-based client/server applications without writing 
+talentsoft Web+ 4.6 - a powerful and comprehensive development language for
+use in creating web-based client/server applications without writing
 complicated, low-level, and time-consuming CGI programs.
 
 @end itemize
@@ -2241,7 +2241,7 @@ The FreeODBC Pages.
 
 @item @uref{http:/http://genix.net/unixODBC/}@*
 The unixODBC Project goals are to develop and promote unixODBC to be the
-definitive standard for ODBC on the Linux platform. This is to include GUI 
+definitive standard for ODBC on the Linux platform. This is to include GUI
 support for KDE.
 
 @item @uref{http://www.sw-soft.com/products/BtrieveODBC/}@*
@@ -2253,7 +2253,7 @@ A @strong{MySQL}-based ODBC drivers for Btrieve.
 @itemize @bullet
 @c FIX i get no route on this host on 7/31/2k, check later (jcole)
 @item @uref{http://www.amedea.cz/mysqlx/index.html}@*
-MySQL COM extension - With this COM object you can use MySQL also on 
+MySQL COM extension - With this COM object you can use MySQL also on
 Windows with ASP pages or with Delphi, Visual Basic, Visual C++, etc.
 
 @item @uref{http://www.jppp.com/}@*
@@ -2312,7 +2312,7 @@ SAL (Scientific Applications on Linux) @strong{MySQL} entry.
 A consulting company which mentions @strong{MySQL} in the right company.
 
 @item @uref{http://www.pmpcs.com/}@*
-PMP Computer Solutions. Database developers using @strong{MySQL} and 
+PMP Computer Solutions. Database developers using @strong{MySQL} and
 @code{mSQL}.
 
 @item @uref{http://www.aewa.org/}@*
@@ -2349,7 +2349,7 @@ Tcl interface.
 @c Added 990601
 @c EMAIL: thuss@little6.com (Todd Huss)
 @item @uref{http://www.little6.com/about/linux/}@*
-Little6 Inc., An online contract and job finding site that is powered by 
+Little6 Inc., An online contract and job finding site that is powered by
 @strong{MySQL}, PHP3, and Linux.
 
 @c Added 990521
@@ -2417,7 +2417,7 @@ Stopbit - A technology news site using @strong{MySQL} and PHP.
 Example scripts at Jokes2000.
 
 @item @uref{http://www.linuxsupportline.com/~kalendar/}@*
-KDE based calendar manager - The calendar manager has both single user 
+KDE based calendar manager - The calendar manager has both single user
 (file based) and multi-user (@strong{MySQL} database) support.
 
 @item @uref{http://tim.desert.net/~tim/imger/}@*
@@ -2430,11 +2430,11 @@ Online shopping cart system.
 @c Added 990928 from editor@city-gallery.com
 @cindex Old Photo Album
 @item @uref{http://www.city-gallery.com/album/}@*
-Old Photo Album - The album is a collaborative popular history of photography 
-project that generates all pages from data stored in a @strong{MySQL} 
-database. Pages are dynamically generated through a php3 interface to the 
+Old Photo Album - The album is a collaborative popular history of photography
+project that generates all pages from data stored in a @strong{MySQL}
+database. Pages are dynamically generated through a php3 interface to the
 database content. Users contribute images and descriptions. Contributed images
-are stored on the web server to avoid storing them in the database as BLOBs. 
+are stored on the web server to avoid storing them in the database as BLOBs.
 All other information is stored on the shared @strong{MySQL} server.
 @end itemize
 
@@ -2459,16 +2459,16 @@ database applications and systems.
 @cindex Tek-Tips forums
 @cindex forums, Tek-Tips
 @item @uref{http://www.Tek-Tips.com}@*
-Tek-Tips Forums are 800+ independent peer-to-peer non-commercial support 
-forums for Computer Professionals.  Features include automatic e-mail 
-notification of responses, a links library, and member confidentiality 
+Tek-Tips Forums are 800+ independent peer-to-peer non-commercial support
+forums for Computer Professionals.  Features include automatic e-mail
+notification of responses, a links library, and member confidentiality
 guaranteed.
 @end itemize
 
 There are also many Web pages that use
 @strong{MySQL}. @xref{Users}. Send any additions to this list to
 @email{webmaster@@mysql.com}. We now require that you show a
-@strong{MySQL} logo somewhere to be added (It is okay to have it on a 
+@strong{MySQL} logo somewhere to be added (It is okay to have it on a
 ``used tools'' page or something similar.)
 
 @cindex reporting, errors
@@ -2546,10 +2546,10 @@ the @code{mysqlbug} script (if you are running on Windows, you should
 include a description of the operating system and the @strong{MySQL} version).
 Preferably, you should test the problem using the latest stable or
 development version of @strong{MySQL} before posting!
-Anyone should be able to repeat the bug by just using 
-@code{mysql test < script} on the included test case.  All bugs posted on 
-this list will be corrected or documented in the next @strong{MySQL} release!  
-If there are only small code changes involved, we will also post a patch that 
+Anyone should be able to repeat the bug by just using
+@code{mysql test < script} on the included test case.  All bugs posted on
+this list will be corrected or documented in the next @strong{MySQL} release!
+If there are only small code changes involved, we will also post a patch that
 fixes the problem.
 
 @item @uref{mailto:bugs-digest-subscribe@@lists.mysql.com, bugs-digest}
@@ -2822,7 +2822,7 @@ should be and an account describing the basis for your opinion.
 @item
 When giving an example of the problem, it's better to use the variable names,
 table names, etc., that exist in your actual situation than to come up with
-new names. The problem could be related to the name of a variable or table! 
+new names. The problem could be related to the name of a variable or table!
 These cases are rare, perhaps, but it is better to be safe than
 sorry.  After all, it should be easier for you to provide an example that
 uses your actual situation, and it is by all means better for us.  In case you
@@ -2837,8 +2837,8 @@ Include all the options given to the relevant programs, if possible.  For
 example, indicate the options that you use when you start the @code{mysqld}
 daemon and that you use to run any @strong{MySQL} client programs.  The
 options to programs like @code{mysqld} and @code{mysql}, and to the
-@code{configure} script, are often keys to answers and are very relevant!  
-It is never a bad idea to include them anyway!  If you use any modules, such 
+@code{configure} script, are often keys to answers and are very relevant!
+It is never a bad idea to include them anyway!  If you use any modules, such
 as Perl or PHP, please include the version number(s) of those as well.
 
 @item
@@ -2857,8 +2857,8 @@ If your question is related to the privilege system, please include the
 output of @code{mysqlaccess}, the output of @code{mysqladmin reload}, and all
 the error messages you get when trying to connect!  When you test your
 privileges, you should first run @code{mysqlaccess}. After this, execute
-@code{mysqladmin reload version} and try to connect with the program that 
-gives you trouble.  @code{mysqlaccess} can be found in the @file{bin} 
+@code{mysqladmin reload version} and try to connect with the program that
+gives you trouble.  @code{mysqlaccess} can be found in the @file{bin}
 directory under your @strong{MySQL} installation directory.
 
 @item
@@ -2946,7 +2946,7 @@ responses you received that helped you solve your problem!
 @cindex net etiquette
 @cindex questions, answering
 @cindex answering questions, etiquette
-@cindex mailing lists, guidelines 
+@cindex mailing lists, guidelines
 @node Answering questions,  , Bug reports, Questions
 @section Guidelines for Answering Question on the Mailing List
 
@@ -3040,7 +3040,7 @@ A license is @strong{NOT} required if:
 @item
 You do not need a license to include the client code in commercial
 programs.  The client part of @strong{MySQL} licensed with the
-LGPL @code{GNU Library General Public License}. The @code{mysql} command-line 
+LGPL @code{GNU Library General Public License}. The @code{mysql} command-line
 client includes code from the @code{readline} library that is under
 the @code{GPL}.
 
@@ -3106,7 +3106,7 @@ distributions.
 
 @end enumerate
 
-One goal is that the SQL client library should be free enough that it is 
+One goal is that the SQL client library should be free enough that it is
 possible to add @strong{MySQL} support into commercial products
 without a license. For this reason, we chose the LGPL license for the
 client code.
@@ -3368,7 +3368,7 @@ team. The much preferred method is by e-mail to
 @email{licensing@@mysql.com}. Fax is also possible but handling of
 these may take much longer (Fax +46-8-729 69 05).
 
-If you represent a business that is interested in partnering with 
+If you represent a business that is interested in partnering with
 @strong{MySQL}, please send e-mail to @email{partner@@mysql.com}.
 
 For timely, precise answers to technical questions about @strong{MySQL}
@@ -3377,18 +3377,18 @@ you should @uref{https://order.mysql.com/, order} one of our
 @strong{MySQL} support is provided by the @strong{MySQL} developers so the
 standard is extremely high.
 
-If you are interested in placing a banner advertisement on our Web site, 
+If you are interested in placing a banner advertisement on our Web site,
 please send e-mail to @email{advertising@@mysql.com}.
 
 If you are interested in any of the jobs listed in our
 @uref{http://www.mysql.com/development/jobs/, jobs} section, please send e-mail
 to @email{jobs@@mysql.com}.
 
-For general discussion amongst our many users, please direct your attention to 
-the appropriate @uref{http://www.mysql.com/documentation/lists.html, mailing 
+For general discussion amongst our many users, please direct your attention to
+the appropriate @uref{http://www.mysql.com/documentation/lists.html, mailing
 list}.
 
-For general information inquires, please send e-mail to 
+For general information inquires, please send e-mail to
 @email{info@@mysql.com}.
 
 For questions or comments about the workings or content of this Web site,
@@ -3664,9 +3664,9 @@ Our main download mirror is located at:
 
 @uref{http://download.sourceforge.net/mirrors/mysql/, http://download.sourceforge.net/mirrors/mysql/}
 
-If you are interested in becoming a @strong{MySQL} mirror site, you may 
+If you are interested in becoming a @strong{MySQL} mirror site, you may
 anonymously rsync with: @code{rsync://download.sourceforge.net/mysql/}. Please
-send e-mail to @email{webmaster@@mysql.com} notifying us of your mirror to be 
+send e-mail to @email{webmaster@@mysql.com} notifying us of your mirror to be
 added to the list below.
 
 If you have problems downloading from our main site, try using one of the
@@ -4323,8 +4323,8 @@ client code, a C++ compiler is required but not threads.)  We use and develop
 the software ourselves primarily on Sun Solaris (Versions 2.5 - 2.7) and
 RedHat Linux Version 6.x.
 
-Note that for many operating systems, the native thread support works only 
-in the latest versions. @strong{MySQL} has been reported to compile 
+Note that for many operating systems, the native thread support works only
+in the latest versions. @strong{MySQL} has been reported to compile
 sucessfully on the following operating system/thread package combinations:
 
 @itemize @bullet
@@ -4593,7 +4593,7 @@ too.
 @end itemize
 
 The current stable release is Version 3.22; We have already moved active
-development to Version 3.23. Bugs will still be fixed in the stable version. 
+development to Version 3.23. Bugs will still be fixed in the stable version.
 We don't believe in a complete freeze, as this also leaves out bug fixes
 and things that ``must be done.'' ``Somewhat frozen'' means that we may
 add small things that ``almost surely will not affect anything that's
@@ -4743,8 +4743,8 @@ Obtain a distribution file from one of the sites listed in
 
 @strong{MySQL} binary distributions are provided as compressed @code{tar}
 archives and have names like @file{mysql-VERSION-OS.tar.gz}, where
-@code{VERSION} is a number (for example, @code{3.21.15}), and @code{OS} 
-indicates the type of operating system for which the distribution is intended 
+@code{VERSION} is a number (for example, @code{3.21.15}), and @code{OS}
+indicates the type of operating system for which the distribution is intended
 (for example, @code{pc-linux-gnu-i586}).
 
 @item
@@ -4839,7 +4839,7 @@ shell> chown -R mysql /usr/local/mysql
 shell> chgrp -R mysql /usr/local/mysql
 @end example
 
-The first command changes the @code{owner} attribute of the files to the 
+The first command changes the @code{owner} attribute of the files to the
 @code{mysql} user, and the second changes the @code{group} attribute to
 the @code{mysql} group.
 
@@ -4874,12 +4874,12 @@ shell> bin/safe_mysqld --user=mysql &
 @subsection Linux RPM Notes
 
 The recommended way to install @strong{MySQL} on Linux is by using an RPM
-file. The @strong{MySQL} RPMs are currently being built on a RedHat Version 
+file. The @strong{MySQL} RPMs are currently being built on a RedHat Version
 6.2 system but should work on other versions of Linux that support @code{rpm}
 and use @code{glibc}.
 
-If you have problems with an RPM file, for example, if you receive the error 
-``@code{Sorry, the host 'xxxx' could not be looked up}'', see 
+If you have problems with an RPM file, for example, if you receive the error
+``@code{Sorry, the host 'xxxx' could not be looked up}'', see
 @ref{Binary notes-Linux}.
 
 The RPM files you may want to use are:
@@ -5305,7 +5305,7 @@ shell> chown -R mysql /usr/local/mysql
 shell> chgrp -R mysql /usr/local/mysql
 @end example
 
-The first command changes the @code{owner} attribute of the files to the 
+The first command changes the @code{owner} attribute of the files to the
 @code{mysql} user, and the second changes the @code{group} attribute to
 the @code{mysql} group.
 
@@ -5445,8 +5445,8 @@ Note that the given file must be an absolute pathname!
 
 
 @item
-If you want to compile statically linked programs (for example, to make a 
-binary distribution, to get more speed, or to work around problems with some 
+If you want to compile statically linked programs (for example, to make a
+binary distribution, to get more speed, or to work around problems with some
 RedHat distributions), run @code{configure} like this:
 
 @example
@@ -5506,8 +5506,8 @@ shell> ./configure --with-charset=CHARSET
 @code{CHARSET} may be one of @code{big5}, @code{cp1251}, @code{cp1257},
 @code{czech}, @code{danish}, @code{dec8}, @code{dos}, @code{euc_kr},
 @code{gb2312}, @code{gbk}, @code{german1}, @code{hebrew}, @code{hp8},
-@code{hungarian}, @code{koi8_ru}, @code{koi8_ukr}, @code{latin1}, 
-@code{latin2}, @code{sjis}, @code{swe7}, @code{tis620}, @code{ujis}, 
+@code{hungarian}, @code{koi8_ru}, @code{koi8_ukr}, @code{latin1},
+@code{latin2}, @code{sjis}, @code{swe7}, @code{tis620}, @code{ujis},
 @code{usa7}, or @code{win1251ukr}.
 @xref{Character sets}.
 @cindex character sets
@@ -6137,7 +6137,7 @@ distribution.
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
 * Mac OS X::                    Mac OS X notes
-* BEOS::                        
+* BEOS::
 @end menu
 
 
@@ -6163,7 +6163,7 @@ distribution.  You can find a precompiled copy for Solaris at
 @uref{http://www.mysql.com/Downloads/}.
 
 Sun native threads work only on Solaris 2.5 and higher. For Version 2.4 and
-earlier, @strong{MySQL} will automatically use MIT-pt threads. 
+earlier, @strong{MySQL} will automatically use MIT-pt threads.
 @xref{MIT-pthreads}.
 
 If you get the following error from configure:
@@ -6437,16 +6437,16 @@ Note that @code{glibc} versions before and including Version 2.1.1 have a fatal
 bug in @code{pthread_mutex_timedwait} handling, which is used when you
 do @code{INSERT DELAYED}. If you are using @code{INSERT DELAYED}, you
 @strong{MUST} add the following patch to your glibc library:
-@uref{http://www.mysql.com/Downloads/Patches/glibc-pthread_cond_timedwait.patch}. 
-@strong{MySQL} Versions 3.23.7 and 3.22.32 contain a temporary 
+@uref{http://www.mysql.com/Downloads/Patches/glibc-pthread_cond_timedwait.patch}.
+@strong{MySQL} Versions 3.23.7 and 3.22.32 contain a temporary
 workaround for this bug.
 
 If you plan to have 1000+ concurrent connections, you will need to make
 some changes to LinuxThreads, recompile it, and relink MySQL against
 the new @file{libpthread.a}. Increase @code{PTHREAD_THREADS_MAX} in
-@file{sysdeps/unix/sysv/linux/bits/local_lim.h} to 4096 and decrease 
-@code{STACK_SIZE} in @file{internals.h} to 256 KB. Note that MySQL 
-will not be stable with around 1000 connections if @code{STACK_SIZE} 
+@file{sysdeps/unix/sysv/linux/bits/local_lim.h} to 4096 and decrease
+@code{STACK_SIZE} in @file{internals.h} to 256 KB. Note that MySQL
+will not be stable with around 1000 connections if @code{STACK_SIZE}
 is the default of 2 MB.
 
 If you have glibc 2.1.3-65 or newer, you don't have to increase STACK_SIZE;
@@ -6464,7 +6464,7 @@ the number of clients increases. In the process of trying to find a
 solution, we have received a kernel patch from one of our users, who
 claimed it made a lot of difference for his site. We have done some
 limited testing in which the patch greatly improved the scalabitility of
-MySQL. The patch is available here 
+MySQL. The patch is available here
 (@uref{http://www.mysql.com/Downloads/Patches/linux-fork.patch}). Be
 warned, though, that we assume no reponsibility for any damage that this
 patch could do. Use it at your own risk. We have also been told by the
@@ -6581,7 +6581,7 @@ CC=fcc CFLAGS="-O -K fast -K lib -K omitfp -Kpreex -D_GNU_SOURCE -DCONST=const -
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::                  
+* Linux-Ia64::
 @end menu
 
 @node Linux-x86, Linux-RedHat50, Linux, Linux
@@ -6629,7 +6629,7 @@ under the @strong{MySQL} installation directory or in the
 If @code{mysqld} always core dumps when it starts up, the problem may be that
 you have an old @file{/lib/libc.a}.  Try renaming it, then remove
 @file{sql/mysqld} and do a new @code{make install} and try again.  This
-problem has been reported on some Slackware installations. RedHat Version 5.0 
+problem has been reported on some Slackware installations. RedHat Version 5.0
 also has a similar problem with some new @code{glibc} versions.
 @xref{Linux-RedHat50}.
 
@@ -6677,7 +6677,7 @@ like this:
 shell> ./configure --with-mysqld-ldflags=-all-static
 @end example
 
-On Redhat Version 5.0, the easy way out is to install the @code{glibc} 
+On Redhat Version 5.0, the easy way out is to install the @code{glibc}
 2.0.7-19 RPM and run @code{configure} @strong{without} the
 @code{--with-mysqld-ldflags=-all-static} option.
 
@@ -6700,7 +6700,7 @@ wide range of different problems.
 @node Linux-RedHat51, Linux-SPARC, Linux-RedHat50, Linux
 @subsubsection RedHat Version 5.1 notes
 
-The @code{glibc} of RedHat Version 5.1 (@code{glibc} 2.0.7-13) has a memory 
+The @code{glibc} of RedHat Version 5.1 (@code{glibc} 2.0.7-13) has a memory
 leak, so to get a stable @strong{MySQL} version, you must upgrade @code{glibc},
 to 2.0.7-19, downgrade @code{glibc} or use a binary version of @code{mysqld}.
 If you don't do this, you will encounter memory problems (out of memory, etc.).
@@ -7153,7 +7153,7 @@ when @code{make} tries to run @code{lint} on C++ files.
 @node OpenBSD, BSDI, NetBSD, Source install system issues
 @subsection OpenBSD 2.5 Notes
 
-On OpenBSD Version 2.5, you can compile @strong{MySQL} with native threads 
+On OpenBSD Version 2.5, you can compile @strong{MySQL} with native threads
 with the following options:
 
 @example
@@ -7196,7 +7196,7 @@ If you get problems with the current date in @strong{MySQL}, setting the
 @node BSDI3, BSDI4, BSDI2, BSDI
 @subsubsection BSD/OS Version 3.x Notes
 
-Upgrade to BSD/OS Version 3.1. If that is not possible, install 
+Upgrade to BSD/OS Version 3.1. If that is not possible, install
 BSDIpatch M300-038.
 
 Use the following command when configuring @strong{MySQL}:
@@ -7236,7 +7236,7 @@ If this doesn't work and you are using @code{bash}, try switching to
 @node BSDI4,  , BSDI3, BSDI
 @subsubsection BSD/OS Version 4.x Notes
 
-BSDI Version 4.x has some thread-related bugs.  If you want to use 
+BSDI Version 4.x has some thread-related bugs.  If you want to use
 @strong{MySQL} on this, you should install all thread-related patches. At least
 M400-023 should be installed.
 
@@ -7409,7 +7409,7 @@ Automatic detection of @code{xlC} is missing from Autoconf, so a
 @strong{MySQL} (The example uses the IBM compiler):
 
 @example
-export CC="xlc_r -ma -O3 -qstrict -qoptimize=3 -qmaxmem=8192 " 
+export CC="xlc_r -ma -O3 -qstrict -qoptimize=3 -qmaxmem=8192 "
 export CXX="xlC_r -ma -O3 -qstrict -qoptimize=3 -qmaxmem=8192"
 export CFLAGS="-I /usr/local/include"
 export LDLFAGS="-L /usr/local/lib"
@@ -7471,8 +7471,8 @@ effect that you can't kill clients that are ``sleeping'' on a connection with
 @code{mysqladmin kill} or @code{mysqladmin shutdown}.  Instead, the client
 will die when it issues its next command.
 
-On some versions of AIX, linking with @code{libbind.a} makes 
-@code{getservbyname} core dump. This is an AIX bug and should be reported 
+On some versions of AIX, linking with @code{libbind.a} makes
+@code{getservbyname} core dump. This is an AIX bug and should be reported
 to IBM.
 
 @node HP-UX 10.20, HP-UX 11.x, IBM-AIX, Source install system issues
@@ -7639,7 +7639,7 @@ is also described in the @file{README} file that comes with the
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
-* Windows and BDB tables.::     
+* Windows and BDB tables.::
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 @end menu
 
@@ -7651,7 +7651,7 @@ one from @uref{http://www.mysql.com/}.
 
 If you plan to connect to @strong{MySQL} from some other program, you will
 probably also need the @strong{MyODBC} driver. You can find this at the
-@strong{MyODBC} download page 
+@strong{MyODBC} download page
 (@uref{http://www.mysql.com/downloads/api-myodbc.html}).
 
 To install either distribution, unzip it in some empty directory and run the
@@ -7882,11 +7882,11 @@ server, you can do so using this command:
 mysqladmin --user=root --password=your_password shutdown
 @end example
 
-If you are using the old shareware version of @strong{MySQL} Version 3.21 
+If you are using the old shareware version of @strong{MySQL} Version 3.21
 under Windows, the above command will fail with an error: @code{parse error
 near 'SET OPTION password'}.  This is because the old shareware version,
-which is based on @strong{MySQL} Version 3.21, doesn't have the 
-@code{SET PASSWORD} command.  The fix is in this case to upgrade to 
+which is based on @strong{MySQL} Version 3.21, doesn't have the
+@code{SET PASSWORD} command.  The fix is in this case to upgrade to
 the Version 3.22 shareware.
 
 With the newer @strong{MySQL} versions you can easily add new users
@@ -8152,7 +8152,7 @@ threads with @code{mysqladmin kill} on Windows.
 
 @item
 Documentation of which Windows programs work with
-@strong{MySQL}-Windows/@strong{MyODBC} and what must be done to get them 
+@strong{MySQL}-Windows/@strong{MyODBC} and what must be done to get them
 working.
 
 @item
@@ -8533,8 +8533,8 @@ shell> run-all-tests
 If you don't have the @file{sql-bench} directory, you are probably using an
 RPM for a binary distribution.  (Source distribution RPMs include the
 benchmark directory.) In this case, you must first install the benchmark
-suite before you can use it.  Beginning with @strong{MySQL} Version 3.22, 
-there are benchmark RPM files named @file{mysql-bench-VERSION-i386.rpm} that 
+suite before you can use it.  Beginning with @strong{MySQL} Version 3.22,
+there are benchmark RPM files named @file{mysql-bench-VERSION-i386.rpm} that
 contain benchmark code and data.
 
 If you have a source distribution, you can also run the tests in the
@@ -8597,9 +8597,9 @@ all.  You have to run @code{mysql_install_db} only once, when you install
 @item Installing a second @code{mysqld} daemon doesn't work when one daemon is running
 
 This can happen when you already have an existing @strong{MySQL}
-installation, but want to put a new installation in a different place (for 
-example, for testing, or perhaps you simply want to run two installations at 
-the same time).  Generally the problem that occurs when you try to run the 
+installation, but want to put a new installation in a different place (for
+example, for testing, or perhaps you simply want to run two installations at
+the same time).  Generally the problem that occurs when you try to run the
 second server is that it tries to use the same socket and port as the old one.
 In this case you will get the error message: @code{Can't start server: Bind on
 TCP/IP port: Address already in use} or @code{Can't start server : Bind on
@@ -8899,7 +8899,7 @@ You can take down the server manually by executing @code{mysqladmin shutdown}.
 You might want to add these start and stop commands to the appropriate places
 in your @file{/etc/rc*} files when you start using @strong{MySQL} for
 production applications.  Note that if you modify @code{mysql.server}, then
-upgrade @strong{MySQL} sometime, your modified version will be overwritten, 
+upgrade @strong{MySQL} sometime, your modified version will be overwritten,
 so you should make a copy of your edited version that you can reinstall.
 
 If your system uses @file{/etc/rc.local} to start external scripts, you
@@ -8924,7 +8924,7 @@ basedir=/usr/local/mysql
 @end example
 
 The @code{mysql.server} script uses the following variables:
-@code{user}, @code{datadir}, @code{basedir}, @code{bindir}, and 
+@code{user}, @code{datadir}, @code{basedir}, @code{bindir}, and
 @code{pid-file}.
 
 @xref{Option files}.
@@ -9084,7 +9084,7 @@ makes it harder for someone on the outside to get access by pretending
 to be another host. This option also adds some sanity checks of
 hostnames. The option is turned off by default in @strong{MySQL} Version 3.21
 because sometimes it takes a long time to perform backward resolutions.
-@strong{MySQL} Version 3.22 caches hostnames (unless @code{--skip-host-cache} 
+@strong{MySQL} Version 3.22 caches hostnames (unless @code{--skip-host-cache}
 is used) and has this option enabled by default.
 
 @item --skip-concurrent-insert
@@ -9098,7 +9098,7 @@ Ignore the @code{delay_key_write} option for all tables.
 
 @item --skip-locking
 Don't use system locking. To use @code{isamchk} or @code{myisamchk} you must
-shut down the server. @xref{Stability}.  Note that in @strong{MySQL} Version 
+shut down the server. @xref{Stability}.  Note that in @strong{MySQL} Version
 3.23 you can use @code{REPAIR} and @code{CHECK} to repair/check @code{MyISAM}
 tables.
 
@@ -9324,7 +9324,7 @@ base version of @strong{MySQL}. The current base version is
 also change the sort order), you must run @code{myisamchk -r -q} on all
 tables.  Otherwise your indexes may not be ordered correctly.
 
-If you are afraid of new versions, you can always rename your old 
+If you are afraid of new versions, you can always rename your old
 @code{mysqld} to something like @code{mysqld}-'old-version-number'.  If
 your new @code{mysqld} then does something unexpected, you can simply shut it
 down and restart with your old @code{mysqld}!
@@ -9370,10 +9370,10 @@ type @code{MyISAM} (unless you start @code{mysqld} with the
 table to a @code{MyISAM} table with @code{ALTER TABLE} or the Perl script
 @code{mysql_convert_table_format}.
 
-Version 3.22 and 3.21 clients will work without any problems with a Version 
+Version 3.22 and 3.21 clients will work without any problems with a Version
 3.23 server.
 
-The following lists tell what you have to watch out for when upgrading to 
+The following lists tell what you have to watch out for when upgrading to
 Version 3.23:
 
 @itemize @bullet
@@ -9411,7 +9411,7 @@ flag.
 or @code{myisamchk} for @code{MyISAM} tables (@code{.MYI}) and
 @code{isamchk} for ISAM (@code{.ISM}) tables.
 @item If you want your @code{mysqldump} files to be compatible between
-@strong{MySQL} Version 3.22 and Version 3.23, you should not use the 
+@strong{MySQL} Version 3.22 and Version 3.23, you should not use the
 @code{--opt} or @code{--full} option to @code{mysqldump}.
 @item Check all your calls to @code{DATE_FORMAT()} to make sure there is a
 @samp{%} before each format character.  (Later @strong{MySQL} Version 3.22
@@ -9442,13 +9442,13 @@ on an @code{AND/OR} expression as @code{NOT NULL} = @code{NULL}.
 @subsection Upgrading from Version 3.21 to Version 3.22
 @cindex upgrading, 3.21 to 3.22
 
-Nothing that affects compatibility has changed between Version 3.21 and 3.22. 
+Nothing that affects compatibility has changed between Version 3.21 and 3.22.
 The only pitfall is that new tables that are created with @code{DATE} type
 columns will use the new way to store the date. You can't access these new
 fields from an old version of @code{mysqld}.
 
-After installing @strong{MySQL} Version 3.22, you should start the new server 
-and then run the @code{mysql_fix_privilege_tables} script. This will add the 
+After installing @strong{MySQL} Version 3.22, you should start the new server
+and then run the @code{mysql_fix_privilege_tables} script. This will add the
 new privileges that you need to use the @code{GRANT} command.  If you forget
 this, you will get @code{Access denied} when you try to use @code{ALTER
 TABLE}, @code{CREATE INDEX}, or @code{DROP INDEX}. If your @strong{MySQL} root
@@ -9478,7 +9478,7 @@ You can start the @code{mysqld} Version 3.21 server with @code{safe_mysqld
 --old-protocol} to use it with clients from a Version 3.20 distribution.
 In this case, the new client function @code{mysql_errno()} will not
 return any server error, only @code{CR_UNKNOWN_ERROR} (but it
-works for client errors), and the server uses the old @code{password()} 
+works for client errors), and the server uses the old @code{password()}
 checking rather than the new one.
 
 If you are @strong{NOT} using the @code{--old-protocol} option to
@@ -9498,10 +9498,10 @@ rather than 31-bit passwords).
 The table format hasn't changed, so you don't have to convert any tables.
 @end itemize
 
-@strong{MySQL} Version 3.20.28 and above can handle the new @code{user} table 
+@strong{MySQL} Version 3.20.28 and above can handle the new @code{user} table
 format without affecting clients. If you have a @strong{MySQL} version earlier
 than Version 3.20.28, passwords will no longer work with it if you convert the
-@code{user} table. So to be safe, you should first upgrade to at least Version 
+@code{user} table. So to be safe, you should first upgrade to at least Version
 3.20.28 and then upgrade to Version 3.21.
 
 @cindex Protocol mismatch
@@ -9540,12 +9540,12 @@ There are some new reserved words. The most notable are @code{DATE},
 @node Upgrading-to-arch,  , Upgrading-from-3.20, Upgrade
 @subsection Upgrading to Another Architecture
 
-If you are using @strong{MySQL} Version 3.23, you can copy the @code{.frm}, 
-@code{.MYI}, and @code{.MYD} files between different architectures that 
-support the same floating point format.  (@strong{MySQL} takes care of any 
+If you are using @strong{MySQL} Version 3.23, you can copy the @code{.frm},
+@code{.MYI}, and @code{.MYD} files between different architectures that
+support the same floating point format.  (@strong{MySQL} takes care of any
 byte swapping issues.)
 
-The @strong{MySQL} @code{ISAM} data and index files (@file{.ISD} and 
+The @strong{MySQL} @code{ISAM} data and index files (@file{.ISD} and
 @file{*.ISM}, respectively) are architecture-dependent and in some cases
 OS-dependent.  If you want to move your applications to another machine
 that has a different architecture or OS than your current machine, you
@@ -9902,7 +9902,7 @@ of @strong{MySQL} changes:
 @item
 @code{||} is string concatenation instead of @code{OR}.
 @item
-You can have any number of spaces between a function name and the @samp{(}. 
+You can have any number of spaces between a function name and the @samp{(}.
 This forces all function names to be treated as reserved words.
 @item
 @samp{"} will be an identifier quote character (like the @strong{MySQL}
@@ -10109,7 +10109,7 @@ a read lock (as opposed to a write lock), then reads and inserts are
 still allowed to happen.  The new inserted records will not be seen by
 any of the clients that have a @code{READ} lock until they release their read
 locks.  With @code{INSERT DELAYED} you can queue inserts into a local queue,
-until the locks are released, without having the client wait for the insert 
+until the locks are released, without having the client wait for the insert
 to complete.
 
 ``Atomic,'' in the sense that we mean it, is nothing magical. It only means
@@ -10252,7 +10252,7 @@ other client programs the ability to see how a table is connected and to use
 this to show connection diagrams and to help in building applicatons.
 
 @strong{MySQL} will soon store @code{FOREIGN KEY} definitions so that
-a client can ask for and receive an answer about how the original connection 
+a client can ask for and receive an answer about how the original connection
 was made. The current @file{.frm} file format does not have any place for it.
 
 @node Missing Views, Missing comments, Missing Foreign Keys, Missing functions
@@ -10289,7 +10289,7 @@ What do you think will happen when the value of @code{payment} is negative?
 Because @code{1--1} is legal in SQL, we think it is terrible that
 @samp{--} means start comment.
 
-In @strong{MySQL} Version 3.23 you can, however, use: 
+In @strong{MySQL} Version 3.23 you can, however, use:
 @code{1-- This is a comment}
 
 The following discussion only concerns you if you are running a @strong{MySQL}
@@ -10349,8 +10349,8 @@ threads that do automatic cleanups on the tables, and the disk usage
 would be much higher. This would make these table types about 2-4 times
 slower than they are today.
 
-For the moment, we prefer implementing the SQL server language (something 
-like stored procedures). With this you would very seldom really need 
+For the moment, we prefer implementing the SQL server language (something
+like stored procedures). With this you would very seldom really need
 @code{COMMIT}-@code{ROLLBACK.} This would also give much better performance.
 
 Loops that need transactions normally can be coded with the help of
@@ -10547,8 +10547,8 @@ Do not use passwords from dictionaries. There are special programs to
 break them. Even passwords like ``xfish98'' are very bad.  Much better is
 ``duag98'' which contains the same word ``fish'' but typed one key to the
 left on a standard QWERTY keyboard. Another method is to use ``Mhall'' which
-is taken from the first characters of of each word in the sentence ``Mary had 
-a little lamb.'' This is easy to remember and type, but hard to guess for 
+is taken from the first characters of of each word in the sentence ``Mary had
+a little lamb.'' This is easy to remember and type, but hard to guess for
 someone who does not know it.
 @item
 Invest in a firewall. This protects from at least 50% of all types of
@@ -10560,7 +10560,7 @@ Checklist:
 @item
 Try to scan your ports from the Internet using a tool such as
 @code{nmap}. @strong{MySQL} uses port 3306 by default. This port should
-be inaccessible from untrusted hosts. Another simple way to check whether or 
+be inaccessible from untrusted hosts. Another simple way to check whether or
 not your @strong{MySQL} port is open is to type @code{telnet
 server_host 3306} from some remote machine, where
 @code{server_host} is the hostname of your @strong{MySQL}
@@ -10766,7 +10766,7 @@ IP numbers returned by the @code{gethostbyname()} system call are
 checked to make sure they resolve back to the original hostname. This
 makes it harder for someone on the outside to get access by pretending
 to be another host.  This option also adds some sanity checks of
-hostnames.  The option is turned off by default in @strong{MySQL} Version 
+hostnames.  The option is turned off by default in @strong{MySQL} Version
 3.21 because sometimes it takes a long time to perform backward resolutions.
 @strong{MySQL} Version 3.22 caches hostnames and has this option enabled by
 default.
@@ -11008,10 +11008,10 @@ file.
 @section Privileges Provided by MySQL
 @cindex privilege information, location
 
-Information about user privileges is stored in the @code{user}, @code{db}, 
-@code{host}, @code{tables_priv}, and @code{columns_priv} tables in the 
-@code{mysql} database (that is, in the database named @code{mysql}).  The 
-@strong{MySQL} server reads the contents of these tables when it starts up 
+Information about user privileges is stored in the @code{user}, @code{db},
+@code{host}, @code{tables_priv}, and @code{columns_priv} tables in the
+@code{mysql} database (that is, in the database named @code{mysql}).  The
+@strong{MySQL} server reads the contents of these tables when it starts up
 and under the circumstances indicated in @ref{Privilege changes}.
 
 The names used in this manual to refer to the privileges provided by
@@ -11079,7 +11079,7 @@ execute:
 @multitable @columnfractions .15 .85
 @item @strong{Privilege}  @tab @strong{Commands permitted to privilege holders}
 @item @strong{reload}     @tab @code{reload}, @code{refresh},
-@code{flush-privileges}, @code{flush-hosts}, @code{flush-logs}, and 
+@code{flush-privileges}, @code{flush-hosts}, @code{flush-logs}, and
 @code{flush-tables}
 @item @strong{shutdown}   @tab @code{shutdown}
 @item @strong{process}    @tab @code{processlist}, @code{kill}
@@ -11252,7 +11252,7 @@ to which each entry applies.
 For access-checking purposes, comparisons of @code{Host} values are
 case insensitive.  @code{User}, @code{Password}, @code{Db}, and
 @code{Table_name} values are case sensitive.
-@code{Column_name} values are case insensitive in @strong{MySQL} Version 
+@code{Column_name} values are case insensitive in @strong{MySQL} Version
 3.22.12 or later.
 
 Privilege fields indicate the privileges granted by a table entry, that is,
@@ -11752,8 +11752,8 @@ like this:
 @cindex tables, grant
 @cindex grant tables
 
-Naturally, you should always test your entries in the grant tables (for 
-example, using @code{mysqlaccess}) to make sure your access privileges are 
+Naturally, you should always test your entries in the grant tables (for
+example, using @code{mysqlaccess}) to make sure your access privileges are
 actually set up the way you think they are.
 
 @node Privilege changes, Default privileges, Request access, Privilege system
@@ -11888,9 +11888,9 @@ the database directory, which is listed when you run @code{mysqld
 --help}.) Then run the @code{mysql_install_db} script, possibly after
 editing it first to have the privileges you want.
 
-@strong{NOTE:} For @strong{MySQL} versions older than Version 3.22.10, 
-you should NOT delete the @file{.frm} files.  If you accidentally do this, 
-you should copy them back from your @strong{MySQL} distribution before 
+@strong{NOTE:} For @strong{MySQL} versions older than Version 3.22.10,
+you should NOT delete the @file{.frm} files.  If you accidentally do this,
+you should copy them back from your @strong{MySQL} distribution before
 running @code{mysql_install_db}.
 
 @cindex privileges, adding
@@ -12203,10 +12203,10 @@ host.
 
 @item
 @cindex @code{mysql_fix_privilege_tables}
-If you updated an existing @strong{MySQL} installation from a version earlier 
-than Version 3.22.11 to Version 3.22.11 or later, did you run the 
+If you updated an existing @strong{MySQL} installation from a version earlier
+than Version 3.22.11 to Version 3.22.11 or later, did you run the
 @code{mysql_fix_privilege_tables} script?  If not, do so.  The structure of
-the grant tables changed with @strong{MySQL} Version 3.22.11 when the 
+the grant tables changed with @strong{MySQL} Version 3.22.11 when the
 @code{GRANT} statement became functional.
 
 @item
@@ -12437,7 +12437,7 @@ feel you must post the problem to the mailing list, always provide a
 dump of the @strong{MySQL} grant tables. You can dump the tables with
 the @code{mysqldump mysql} command. As always, post your problem using
 the @code{mysqlbug} script.  @xref{Bug reports}.  In some cases you may need
-to restart @code{mysqld} with @code{--skip-grant-tables} to run 
+to restart @code{mysqld} with @code{--skip-grant-tables} to run
 @code{mysqldump}.
 @end itemize
 
@@ -12895,8 +12895,8 @@ or the @code{IGNORE number LINES} clause of a @code{LOAD DATA} statement.
 
 @strong{NOTE:}  In a @code{SELECT} statement, each expression is only
 evaluated when it's sent to the client.  This means that in the @code{HAVING},
-@code{GROUP BY}, or @code{ORDER BY} clause, you can't refer to an expression 
-that involves variables that are set in the @code{SELECT} part. For example, 
+@code{GROUP BY}, or @code{ORDER BY} clause, you can't refer to an expression
+that involves variables that are set in the @code{SELECT} part. For example,
 the following statement will NOT work as expected:
 
 @example
@@ -13001,9 +13001,9 @@ the result is larger than @code{9223372036854775807}.
 
 A floating-point number. Cannot be unsigned.  @code{precision} can be
 @code{<=24} for a single-precision floating-point number and between 25
-and 53 for a double-precision floating-point number. These types are like 
-the @code{FLOAT} and @code{DOUBLE} types described immediately below. 
-@code{FLOAT(X)} has the same range as the corresponding @code{FLOAT} and 
+and 53 for a double-precision floating-point number. These types are like
+the @code{FLOAT} and @code{DOUBLE} types described immediately below.
+@code{FLOAT(X)} has the same range as the corresponding @code{FLOAT} and
 @code{DOUBLE} types, but the display size and number of decimals is undefined.
 
 In @strong{MySQL} Version 3.23, this is a true floating-point value.  In
@@ -13057,7 +13057,7 @@ may be constrained by the choice of @code{M} and @code{D}.
 
 If @code{D} is left out it's set to 0. If @code{M} is left out it's set to 10.
 
-Note that in @strong{MySQL} Version 3.22 the @code{M} argument includes the 
+Note that in @strong{MySQL} Version 3.22 the @code{M} argument includes the
 sign and the decimal point.
 
 @tindex NUMERIC
@@ -13118,8 +13118,8 @@ numbers.
 A year in 2- or 4- digit formats (default is 4-digit).  The allowable values
 are @code{1901} to @code{2155}, and @code{0000} in the 4-digit year format,
 and 1970-2069 if you use the 2-digit format (70-69).  @strong{MySQL} displays
-@code{YEAR} values in @code{YYYY} format, but allows you to assign values to 
-@code{YEAR} columns using either strings or numbers. (The @code{YEAR} type is 
+@code{YEAR} values in @code{YYYY} format, but allows you to assign values to
+@code{YEAR} columns using either strings or numbers. (The @code{YEAR} type is
 new in @strong{MySQL} Version 3.22.)
 
 @tindex NATIONAL CHAR
@@ -13153,10 +13153,10 @@ as @code{NOT NULL}, will only occupy one bit and can only take 2 values:
 @tindex VARCHAR
 @item [NATIONAL] VARCHAR(M) [BINARY]
 
-A variable-length string.  @strong{NOTE:} Trailing spaces are removed when 
-the value is stored (this differs from the ANSI SQL specification). The range 
-of @code{M} is 1 to 255 characters. @code{VARCHAR} values are sorted and 
-compared in case-insensitive fashion unless the @code{BINARY} keyword is 
+A variable-length string.  @strong{NOTE:} Trailing spaces are removed when
+the value is stored (this differs from the ANSI SQL specification). The range
+of @code{M} is 1 to 255 characters. @code{VARCHAR} values are sorted and
+compared in case-insensitive fashion unless the @code{BINARY} keyword is
 given. @xref{Silent column changes}.
 
 @code{VARCHAR} is a shorthand for @code{CHARACTER VARYING}.
@@ -13383,7 +13383,7 @@ For example, for a column declared as @code{INT(5) ZEROFILL}, a value
 of @code{4} is retrieved as @code{00004}.  Note that if you store larger
 values than the display width in an integer column, you may experience
 problems when @strong{MySQL} generates temporary tables for some
-complicated joins, as in these cases @strong{MySQL} will trust that the 
+complicated joins, as in these cases @strong{MySQL} will trust that the
 data did fit into the original column width.
 
 All integral types can have an optional (non-standard) attribute
@@ -13474,16 +13474,16 @@ with date and time types:
 @item
 @strong{MySQL} retrieves values for a given date or time type in a standard
 format, but it attempts to interpret a variety of formats for values that
-you supply (for example, when you specify a value to be assigned to or 
-compared to a date or time type).  Nevertheless, only the formats described 
-in the following sections are supported.  It is expected that you will supply 
+you supply (for example, when you specify a value to be assigned to or
+compared to a date or time type).  Nevertheless, only the formats described
+in the following sections are supported.  It is expected that you will supply
 legal values, and unpredictable results may occur if you use values in other
 formats.
 
 @item
 Although @strong{MySQL} tries to interpret values in several formats, it
 always expects the year part of date values to be leftmost.  Dates must be
-given in year-month-day order (for example, @code{'98-09-04'}), rather than 
+given in year-month-day order (for example, @code{'98-09-04'}), rather than
 in the month-day-year or day-month-year orders commonly used elsewhere (for
 example, @code{'09-04-98'}, @code{'04-09-98'}).
 
@@ -13515,7 +13515,7 @@ using the values @code{'0'} or @code{0}, which are easier to write.
 
 @item
 ``Zero'' date or time values used through @strong{MyODBC} are converted
-automatically to @code{NULL} in @strong{MyODBC} Version 2.50.12 and above, 
+automatically to @code{NULL} in @strong{MyODBC} Version 2.50.12 and above,
 because ODBC can't handle such values.
 @end itemize
 
@@ -13550,7 +13550,7 @@ year values.
 @code{ORDER BY} will sort 2-digit @code{YEAR/DATE/DATETIME} types properly.
 
 Note also that some functions like @code{MIN()} and @code{MAX()} will convert a
-@code{TIMESTAMP/DATE} to a number. This means that a timestamp with a 
+@code{TIMESTAMP/DATE} to a number. This means that a timestamp with a
 2-digit year will not work properly with these functions.  The fix in this
 case is to convert the @code{TIMESTAMP/DATE} to 4-digit year format or
 use something like @code{MIN(DATE_ADD(timestamp,INTERVAL 0 DAYS))}.
@@ -15031,8 +15031,8 @@ relevance - similarity measure between the text in columns
 positive floating-point number. Zero relevance means no similarity.
 For @code{MATCH ... AGAINST()} to work, a @strong{FULLTEXT} index
 must be created first. @xref{CREATE TABLE, , @code{CREATE TABLE}}.
-@code{MATCH ... AGAINST()} is available in @strong{MySQL} Version 
-3.23.23 or later. For details and usage examples 
+@code{MATCH ... AGAINST()} is available in @strong{MySQL} Version
+3.23.23 or later. For details and usage examples
 @pxref{MySQL full-text search}.
 @end table
 
@@ -15491,7 +15491,7 @@ mysql> select GREATEST(34.0,3.0,5.0,767.0);
 mysql> select GREATEST("B","A","C");
         -> "C"
 @end example
-In @strong{MySQL} versions prior to Version 3.22.5, you can use @code{MAX()} 
+In @strong{MySQL} versions prior to Version 3.22.5, you can use @code{MAX()}
 instead of @code{GREATEST}.
 
 @findex DEGREES()
@@ -15686,7 +15686,7 @@ mysql> select OCTET_LENGTH('text');
         -> 4
 @end example
 
-Note that for @code{CHAR_LENGTH()}, multi-byte characters are only counted 
+Note that for @code{CHAR_LENGTH()}, multi-byte characters are only counted
 once.
 
 @findex LOCATE()
@@ -15999,9 +15999,9 @@ mysql> SELECT MAKE_SET(0,'a','b','c');
 
 @findex EXPORT_SET()
 @item EXPORT_SET(bits,on,off,[separator,[number_of_bits]])
-Returns a string where for every bit set in 'bit', you get an 'on' string 
-and for every reset bit you get an 'off' string. Each string is separated 
-with 'separator' (default ',') and only 'number_of_bits' (default 64) of 
+Returns a string where for every bit set in 'bit', you get an 'on' string
+and for every reset bit you get an 'off' string. Each string is separated
+with 'separator' (default ',') and only 'number_of_bits' (default 64) of
 'bits' is used:
 
 @example
@@ -16056,7 +16056,7 @@ mysql> UPDATE table_name
 @end example
 @end table
 
-If you are not using @strong{MySQL} Version 3.23, you have to do the reading 
+If you are not using @strong{MySQL} Version 3.23, you have to do the reading
 of the file inside your application and create an @code{INSERT} statement
 to update the database with the file information. One way to do this, if
 you are using the @strong{MySQL}++ library, can be found at
@@ -16639,7 +16639,7 @@ mysql> select USER();
 @end example
 
 In @strong{MySQL} Version 3.22.11 or later, this includes the client hostname
-as well  as the user name.  You can extract just the user name part like this 
+as well  as the user name.  You can extract just the user name part like this
 (which works whether or not the value includes a hostname part):
 
 @example
@@ -16954,7 +16954,7 @@ it returns NULL!
 @item STD(expr)
 @itemx STDDEV(expr)
 Returns the standard deviation of @code{expr}. This is an extension to
-ANSI SQL. The @code{STDDEV()} form of this function is provided for Oracle 
+ANSI SQL. The @code{STDDEV()} form of this function is provided for Oracle
 compatability.
 
 @findex BIT_OR()
@@ -17069,8 +17069,8 @@ directory all files with the following extensions:
 All subdirectories that consists of 2 digits (@code{RAID} directories)
 are also removed.
 
-In @strong{MySQL} Version 3.22 or later, you can use the keywords 
-@code{IF EXISTS} to prevent an error from occurring if the database doesn't 
+In @strong{MySQL} Version 3.22 or later, you can use the keywords
+@code{IF EXISTS} to prevent an error from occurring if the database doesn't
 exist.
 
 @cindex @code{mysqladmin}
@@ -17169,16 +17169,16 @@ In @strong{MySQL} Version 3.22 or later, the table name can be specified as
 @code{db_name.tbl_name}.  This works whether or not there is a current
 database.
 
-In @strong{MySQL} Version 3.23, you can use the @code{TEMPORARY} keyword when 
+In @strong{MySQL} Version 3.23, you can use the @code{TEMPORARY} keyword when
 you create a table.  A temporary table will automatically be deleted if a
 connection dies and the name is per connection.  This means that two different
 connections can both use the same temporary table name without conflicting
 with each other or with an existing table of the same name. (The existing table
 is hidden until the temporary table is deleted).
 
-In @strong{MySQL} Version 3.23 or later, you can use the keywords 
-@code{IF NOT EXISTS} so that an error does not occur if the table already 
-exists.  Note that there is no verification that the table structures are 
+In @strong{MySQL} Version 3.23 or later, you can use the keywords
+@code{IF NOT EXISTS} so that an error does not occur if the table already
+exists.  Note that there is no verification that the table structures are
 identical.
 
 Each table @code{tbl_name} is represented by some files in the database
@@ -17214,7 +17214,7 @@ table with @code{DELETE FROM table_name} (without a @code{WHERE}) in
 @code{AUTOCOMMIT} mode, the sequence starts over for both table types.
 
 @strong{NOTE:} There can be only one @code{AUTO_INCREMENT} column per
-table, and it must be indexed. @strong{MySQL} Version 3.23 will also only 
+table, and it must be indexed. @strong{MySQL} Version 3.23 will also only
 work properly if the auto_increment column only has positive
 values. Inserting a negative number is regarded as inserting a very large
 positive number.  This is done to avoid precision problems when
@@ -17439,9 +17439,9 @@ automatically be deleted if any errors occur while copying data
 into the table.
 @item
 The @code{RAID_TYPE} option will help you to break the 2G/4G limit on
-Operating Systems that don't support big files. You can get also more speed 
-from the I/O bottleneck by putting @code{RAID} directories on different 
-physical disks. @code{RAID_TYPE} will work on any OS, as long as you have 
+Operating Systems that don't support big files. You can get also more speed
+from the I/O bottleneck by putting @code{RAID} directories on different
+physical disks. @code{RAID_TYPE} will work on any OS, as long as you have
 configured @strong{MySQL} with @code{--with-raid}.  For now the only allowed
 @code{RAID_TYPE} is @code{STRIPED} (@code{1} and @code{RAID0} are aliases
 for this).
@@ -17635,11 +17635,11 @@ When you change a column type using @code{CHANGE} or @code{MODIFY},
 @strong{MySQL} tries to convert data to the new type as well as possible.
 
 @item
-In @strong{MySQL} Version 3.22 or later, you can use @code{FIRST} or 
+In @strong{MySQL} Version 3.22 or later, you can use @code{FIRST} or
 @code{ADD ... AFTER col_name} to add a column at a specific position within
 a table row. The default is to add the column last.
 
-@findex ALTER COLUMN 
+@findex ALTER COLUMN
 @item
 @code{ALTER COLUMN} specifies a new default value for a column
 or removes the old default value.
@@ -17768,8 +17768,8 @@ The rename is done from left to right, which means that if you want to
 swap two tables names, you have to:
 
 @example
-RENAME TABLE old_table    TO backup_table, 
-             new_table    TO old_table, 
+RENAME TABLE old_table    TO backup_table,
+             new_table    TO old_table,
              backup_table TO old_table;
 @end example
 
@@ -17952,11 +17952,11 @@ The command returns a table with the following columns:
 RESTORE TABLE tbl_name[,tbl_name...] FROM '/path/to/backup/directory'
 @end example
 
-Restores the table(s) from the backup that was made with 
+Restores the table(s) from the backup that was made with
 @code{BACKUP TABLE}. Existing tables will not be overwritten - if you
 try to restore over an existing table, you will get an error. Restore
 will take  longer than BACKUP due to the need to rebuilt the index. The
-more keys you have, the longer it is going to take. Just as 
+more keys you have, the longer it is going to take. Just as
 @code{BACKUP TABLE}, currently only works of @code{MyISAM} tables.
 
 
@@ -18090,7 +18090,7 @@ the @code{LIMIT} value.
 @node SELECT, JOIN, DELETE, Reference
 @section @code{SELECT} syntax
 
-@c help SELECT 
+@c help SELECT
 @example
 SELECT [STRAIGHT_JOIN] [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT]
        [HIGH_PRIORITY]
@@ -19396,13 +19396,13 @@ and @samp{_} wildcard characters.
 @findex SHOW INDEX
 @findex SHOW KEYS
 @menu
-* SHOW DATABASE INFO::          
-* SHOW TABLE STATUS::           
-* SHOW STATUS::                 
-* SHOW VARIABLES::              
-* SHOW PROCESSLIST::            
-* SHOW GRANTS::                 
-* SHOW CREATE TABLE::           
+* SHOW DATABASE INFO::
+* SHOW TABLE STATUS::
+* SHOW STATUS::
+* SHOW VARIABLES::
+* SHOW PROCESSLIST::
+* SHOW GRANTS::
+* SHOW CREATE TABLE::
 @end menu
 
 @cindex displaying, information, @code{SHOW}
@@ -20022,6 +20022,10 @@ Create Table: CREATE TABLE t (
 
 @end example
 
+@code{SHOW CREATE TABLE} will quote table and column names according to
+@code{SQL_QUOTE_SHOW_CREATE} option.
+@ref{SET OPTION, , @code{SET OPTION SQL_QUOTE_SHOW_CREATE}}.
+
 @findex EXPLAIN
 @findex SELECT, optimizing
 @node EXPLAIN, DESCRIBE, SHOW, Reference
@@ -20565,7 +20569,7 @@ for a table with an auto_increment row with the following construct:
 @code{WHERE auto_increment_column IS NULL}.  This is used by some
 ODBC programs like Access.
 
-@item SET AUTOCOMMIT= 0 | 1
+@item AUTOCOMMIT= 0 | 1
 If set to @code{1} all changes to a table will be done at once. To start
 an multi command transaction you have to use the @code{BEGIN}
 statement. @xref{COMMIT}. If set to @code{0} you have to use @code{COMMIT} /
@@ -20633,6 +20637,12 @@ affect the update log!
 If set to @code{0}, no logging will be done to the update log for the client,
 if the client has the @strong{process} privilege.  This does not affect the
 standard log!
+
+@item SQL_QUOTE_SHOW_CREATE = 0 | 1
+If set to @code{1}, @code{SHOW CREATE TABLE} will quote
+table and column names. This is @strong{on} by default,
+for replication of tables with fancy column names to work.
+@ref{SHOW CREATE TABLE, , @code{SHOW CREATE TABLE}}.
 
 @item TIMESTAMP = timestamp_value | DEFAULT
 Set the time for this client.  This is used to get the original timestamp if
@@ -20936,7 +20946,7 @@ For more information about how @strong{MySQL} uses indexes, see
 
 @code{FULLTEXT} indexes can index only @code{VARCHAR} and
 @code{TEXT} columns, and only in @code{MyISAM} tables. @code{FULLTEXT} indexes
-are available in @strong{MySQL} 3.23.23 and later. 
+are available in @strong{MySQL} 3.23.23 and later.
 @ref{MySQL full-text search}.
 
 @findex DROP INDEX
@@ -21217,7 +21227,7 @@ of both worlds.
 
 @menu
 * MyISAM::                      MyISAM tables
-* MERGE::                       
+* MERGE::
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
@@ -24507,7 +24517,7 @@ have, in effect, much bigger tables.  @xref{myisampack, ,
 
 Another solution can be the included MERGE library, which allows you to
 handle a collection of identical tables as one. @xref{MERGE, MERGE
-tables}. 
+tables}.
 
 @cindex replication
 @cindex increasing, speed
@@ -24610,8 +24620,8 @@ master-password=<replication user password>
 
 replacting the values in <> with what is relevant to your system.
 
-Starting in version 3.23.26, you must also have on both master and 
-slave 
+Starting in version 3.23.26, you must also have on both master and
+slave
 
 @example
 server-id=<some unique number between 1 and 2^32-1>
@@ -24647,7 +24657,7 @@ propogation. @code{LOAD LOCAL DATA INFILE} will be skipped.
 Update queries that use user variables are not replication-safe (yet)
 @item
 Starting in 3.23.26, it is safe to connect servers in a circular
-master-slave relationship with @code{log-slave-updates} enabled. 
+master-slave relationship with @code{log-slave-updates} enabled.
 Note, however, that many queries will not work right in this kind of
 setup unless your client code is written to take care of the potential
 problems that can happen from updates that occur in different sequence
@@ -24698,7 +24708,7 @@ TO }
 @item
 Starting in 3.23.23, you tell the master that updates in certain
 databases should not be logged to the binary log with @code{binlog-ignore-db}
-@item 
+@item
 Starting in 3.23.26, you can use @code{replicate-rewrite-db} to tell
 the slave to apply updates from one database on the master to the one
 with a different name on the slave
@@ -24713,42 +24723,42 @@ of the are available starting in 3.23.15 unless indicated otherwise.
 @multitable @columnfractions .3 .7
 
 @item @strong{Option} @tab @strong{Description}
-@item 
-@code{log-bin} 
- @tab Should be set on the master. Tells it to keep a binary update log. 
-If a parameter is specified, the log will be written to the specified 
-location. Note that if you give it a parameter with an extention 
-(eg. @code{log-bin=/mysql/logs/replication.log} ) versions up to 
-3.23.24 will not work right during replication if you do 
+@item
+@code{log-bin}
+ @tab Should be set on the master. Tells it to keep a binary update log.
+If a parameter is specified, the log will be written to the specified
+location. Note that if you give it a parameter with an extention
+(eg. @code{log-bin=/mysql/logs/replication.log} ) versions up to
+3.23.24 will not work right during replication if you do
 @code{FLUSH LOGS} . The problem is fixed
 in 3.23.25. If you are using this kind of log name, @code{FLUSH LOGS}
 will be ignored on binlog. To clear the log, run @code{FLUSH MASTER},
-and do not forget to run @code{FLUSH SLAVE} on all slaves. 
+and do not forget to run @code{FLUSH SLAVE} on all slaves.
 
-@item 
-@code{log-bin-index} 
+@item
+@code{log-bin-index}
  @tab Because the user could issue @code{FLUSH LOGS} command, we need to
-know which log is currently active and which ones have been rotated out 
-and it what sequence. This info is stored in the binary log index file. 
+know which log is currently active and which ones have been rotated out
+and it what sequence. This info is stored in the binary log index file.
 The default is `hostname`.index . You can use this option
 if you want to be a rebel.
 (Set on @strong{Master}, Example: @code{log-bin-index=db.index})
 
-@item 
-@code{master-host} 
- @tab Master hostname or IP address for replication. If not set, the slave 
+@item
+@code{master-host}
+ @tab Master hostname or IP address for replication. If not set, the slave
 thread will not be started.
 (Set on @strong{Slave}, Example: @code{master-host=db-master.mycompany.com})
 
-@item 
-@code{master-user} 
+@item
+@code{master-user}
  @tab The user the slave thread will authenticate as when connecting to
-the master. The user must have @code{FILE} privilige. If the master user 
-is not set, user @code{test} is assumed. 
+the master. The user must have @code{FILE} privilige. If the master user
+is not set, user @code{test} is assumed.
 (Set on @strong{Slave}, Example: @code{master-user=scott})
 
-@item 
-@code{master-password} 
+@item
+@code{master-password}
  @tab The password the slave thread will authenticate with when connecting
 to the master. If not set, empty password is assumed
 (Set on @strong{Slave}, Example: @code{master-password=tiger})
@@ -24757,70 +24767,70 @@ to the master. If not set, empty password is assumed
 @code{master-port}
  @tab The port the master is listening on. If not set, the compiled setting
 of @code{MYSQL_PORT} is assumed. If you have not tinkered with @code{configure}
-options, this should be 3306. 
+options, this should be 3306.
 (Set on @strong{Slave}, Example: @code{master-port=3306})
 
-@item 
+@item
 @code{master-connect-retry}
- @tab The number of seconds the slave thread will sleep before retrying to 
+ @tab The number of seconds the slave thread will sleep before retrying to
 connect to the master in case the master goes down or the connection is lost.
-Default is 60. 
+Default is 60.
 (Set on @strong{Slave}, Example: @code{master-connect-retry=60})
 
-@item 
-@code{master-info-file} 
+@item
+@code{master-info-file}
  @tab The location of the file that remembers where we left off on the master
 during the replication process. The default is master.info in the data
 directory.  Sasha: The only reason I see for ever changing the default
 is the desire to be rebelious.
 (Set on @strong{Slave}, Example: @code{master-info-file=master.info})
 
-@item 
+@item
 @code{replicate-do-db}
  @tab Tells the slave thread to restrict replication to the specified database.
 To specify more than one database, use the directive multiple times, once for
-each database. Note that this will only work if you do not use cross-database 
-queries such as @code{UPDATE some_db.some_table SET foo='bar'} while having 
-selected a different or no database. 
+each database. Note that this will only work if you do not use cross-database
+queries such as @code{UPDATE some_db.some_table SET foo='bar'} while having
+selected a different or no database.
 (Set on @strong{Slave}, Example: @code{replicate-do-db=some_db})
 
-@item 
-@code{replicate-ignore-db} 
- @tab Tells the slave thread to not replicate to the specified database. To 
+@item
+@code{replicate-ignore-db}
+ @tab Tells the slave thread to not replicate to the specified database. To
 specify more than one database to ignore, use the directive multiple times,
-once for each database. You must not use cross database updates for this 
-option. 
+once for each database. You must not use cross database updates for this
+option.
 (Set on @strong{Slave}, Example: @code{replicate-ignore-db=some_db})
 
-@item 
-@code{sql-bin-update-same} 
- @tab If set, setting  @code{SQL_LOG_BIN} to a value will automatically set 
-@code{SQL_LOG_UPDATE} to the same value and vice versa. 
+@item
+@code{sql-bin-update-same}
+ @tab If set, setting  @code{SQL_LOG_BIN} to a value will automatically set
+@code{SQL_LOG_UPDATE} to the same value and vice versa.
 (Set on @strong{Master}, Example: @code{sql-bin-update-same})
 
-@item 
-@code{log-slave-updates} 
- @tab Tells the slave to log the updates from the slave thread to the binary 
-log. Off by default. You will need to turn it on if you plan to daisy-chain 
-the slaves 
+@item
+@code{log-slave-updates}
+ @tab Tells the slave to log the updates from the slave thread to the binary
+log. Off by default. You will need to turn it on if you plan to daisy-chain
+the slaves
 (Set on @strong{Slave}, Example: @code{log-slave-updates})
 
-@item 
-@code{binlog-do-db} 
- @tab Tells the master it should log updates for the specified database, and 
-exclude all others not explicitly mentioned. 
+@item
+@code{binlog-do-db}
+ @tab Tells the master it should log updates for the specified database, and
+exclude all others not explicitly mentioned.
 (Set on @strong{Master}, Example: @code{binlog-do-db=some_database})
 
-@item 
+@item
 @code{binlog-ignore-db}
- @tab Tells the master that updates to the given database should not be logged 
-to the binary log 
+ @tab Tells the master that updates to the given database should not be logged
+to the binary log
 (Set on @strong{Master}, Example: @code{binlog-ignore-db=some_database})
 
 @item
 @code{replicate-rewrite-db}
  @tab Tells the slave to apply updates to a database with a different
-name than the original ( Set on @strong{Slave}, Example: 
+name than the original ( Set on @strong{Slave}, Example:
 @code{replicate-rewrite-db=master_db_name->slave_db_name}
 
 @item
@@ -24831,7 +24841,7 @@ The user can start it later with @code{SLAVE START}
 @item
 @code{server-id}
  @tab Sets the unique replicaiton numeric server id. You should pick one  to assign.
-The range is from 1 to 2^32-1. (Set on both @strong{Master} and 
+The range is from 1 to 2^32-1. (Set on both @strong{Master} and
 @strong{Slave}. Example: @code{server-id=3})
 @end multitable
 
@@ -24847,40 +24857,40 @@ summary of commands:
 @multitable @columnfractions .30 .70
 @item @strong{Command} @tab @strong{Description}
 
-@item @code{SLAVE START} 
+@item @code{SLAVE START}
  @tab Starts the slave thread. (Slave)
 
-@item @code{SLAVE STOP} 
+@item @code{SLAVE STOP}
  @tab Stops the slave thread. (Slave)
 
-@item @code{SET SQL_LOG_BIN=0} 
+@item @code{SET SQL_LOG_BIN=0}
  @tab Disables update logging (Master)
 
-@item @code{SET SQL_LOG_BIN=1} 
+@item @code{SET SQL_LOG_BIN=1}
  @tab Re-enable update logging (Master)
 
-@item @code{FLUSH MASTER} 
- @tab Deletes all binary logs listed in the index file, resetting the binlog 
+@item @code{FLUSH MASTER}
+ @tab Deletes all binary logs listed in the index file, resetting the binlog
 index file to be empty. (Master)
 
-@item @code{FLUSH SLAVE} 
- @tab Makes the slave forget its replication position in the master 
+@item @code{FLUSH SLAVE}
+ @tab Makes the slave forget its replication position in the master
 logs. (Slave)
 
-@item @code{LOAD TABLE tblname FROM MASTER} 
+@item @code{LOAD TABLE tblname FROM MASTER}
  @tab Downloads a copy of the table from master to the slave. (Slave)
 
-@item @code{CHANGE MASTER TO master_def_list} 
- @tab Changes the master parameters to the values specified in 
-@code{master_def_list} and restarts the slave thread. @code{master_def_list} 
-is a comma-separated list of @code{master_def} where @code{master_def} is 
-one of the following: @code{MASTER_HOST}, @code{MASTER_USER}, 
-@code{MASTER_PASSWORD}, @code{MASTER_PORT}, @code{MASTER_CONNECT_RETRY}, 
-@code{MASTER_LOG_FILE}, @code{MASTER_LOG_POS}. Example: 
+@item @code{CHANGE MASTER TO master_def_list}
+ @tab Changes the master parameters to the values specified in
+@code{master_def_list} and restarts the slave thread. @code{master_def_list}
+is a comma-separated list of @code{master_def} where @code{master_def} is
+one of the following: @code{MASTER_HOST}, @code{MASTER_USER},
+@code{MASTER_PASSWORD}, @code{MASTER_PORT}, @code{MASTER_CONNECT_RETRY},
+@code{MASTER_LOG_FILE}, @code{MASTER_LOG_POS}. Example:
 
 @example
 
-CHANGE MASTER TO 
+CHANGE MASTER TO
   MASTER_HOST='master2.mycompany.com',
   MASTER_USER='replication',
   MASTER_PASSWORD='bigs3cret',
@@ -24888,21 +24898,21 @@ CHANGE MASTER TO
 
 @end example
 
-You only need to specify the values that need to be changed. The values that 
-you omit will stay the same with the exception of when you change the host or 
+You only need to specify the values that need to be changed. The values that
+you omit will stay the same with the exception of when you change the host or
 the port. In that case, the slave will assume that since you are connecting to
 a different host or a different port, the master is different, therefore, the
-old values of log and position are not applicable anymore, and will 
-automatically be reset to an empty string and 0, respectively (the start 
+old values of log and position are not applicable anymore, and will
+automatically be reset to an empty string and 0, respectively (the start
 values). Note that if you restart the slave, it will remember its last master.
 If this is not desirable, you should delete the @file{master.info} file before
-restarting, and the slave will read its master from @code{my.cnf} or the 
+restarting, and the slave will read its master from @code{my.cnf} or the
 command line. (Slave)
 
 @item @code{SHOW MASTER STATUS}
  @tab Provides status info on the binlog of the master. (Master)
 
-@item @code{SHOW SLAVE STATUS} 
+@item @code{SHOW SLAVE STATUS}
  @tab Provides status info on essential parameters of the slave thread. (Slave)
 
 @end multitable
@@ -24923,23 +24933,23 @@ catch up on the updates
 @item
 once there are no more updates left, go into @code{pthread_cond_wait()},
 from which we can be woken up either by an update or a kill
-@item 
+@item
 on wake up, check the reason, if we are not supposed to die, continue
 the @code{Binlog_dump} loop
 @item
-if there is some fatal error, such as detecting a dead client, 
+if there is some fatal error, such as detecting a dead client,
 terminate the loop
 @end itemize
 
-So if the slave thread stops on the slave, the corresponding 
+So if the slave thread stops on the slave, the corresponding
 @code{Binlog_Dump} thread on the master will not notice it until after
 at least one update to the master ( or a kill), which is needed to wake
-it up from @code{pthread_cond_wait()}.  In the meantime, the slave 
-could have opened another connection, which resulted in another 
+it up from @code{pthread_cond_wait()}.  In the meantime, the slave
+could have opened another connection, which resulted in another
 @code{Binlog_Dump} thread.
 
 The above problem should not be present in 3.23.26 and later versions.
-In 3.23.26 we added @code{server-id} to each replication server, and 
+In 3.23.26 we added @code{server-id} to each replication server, and
 now all the old zombie threads are killed on the master when a new replication thread
 connects from the same slave
 
@@ -24948,16 +24958,16 @@ connects from the same slave
 lock the master tables, let the slave catch up, then run @code{FLUSH
 MASTER} on the master, and @code{FLUSH SLAVE} on the slave to reset the
 logs, then restart new versions of the master and the slave. Note that
-the slave can stay down for some time - since the master is logging 
+the slave can stay down for some time - since the master is logging
 all the updates, the slave will be able to catch up once it is up and
 can connect.
 
-We plan to make post 3.23.26 versions to be backwards compatible 
+We plan to make post 3.23.26 versions to be backwards compatible
 for replication down to 3.23.26, so upgrade should be just a matter
-of plug and play. Of course, as one joke goes, plug and play works 
+of plug and play. Of course, as one joke goes, plug and play works
 usually only 50% of the time - just the plug part. We hope to do much
-better than that, though. 
- 
+better than that, though.
+
 
 @cindex replication, two-way
 @strong{Q}: What issues should I be aware of when setting up two-way
@@ -24966,11 +24976,11 @@ replication?
 @strong{A}: @strong{MySQL} replication currently does not support any
 locking protocol between master and slave to guarantee the atomicity of
 a distributed ( cross-server) update. In in other words, it is possible
-for client A to make an update to  co-master 1, and in the meantime, 
+for client A to make an update to  co-master 1, and in the meantime,
 before it propogates to co-master 2, client B could make an update to
 co-master 2 that will make the update of client A work differently than
 it did on co-master 1. Thus when the update of client A will make it
-to co-master 2, it will produce  tables that will be different than 
+to co-master 2, it will produce  tables that will be different than
 what you have on co-master 1, even after all the updates from co-master
 2 have also propogated. So you should not co-chain two servers in a
 two-way replication relationship, unless you are sure that you updates
@@ -24978,16 +24988,16 @@ can safely happen in any order, or unless you take care of mis-ordered
 updates somehow in the client code.
 
 Until we implement @code{server_id} variable, you cannot have more than
-two servers in a co-master replication relationship, and you must 
+two servers in a co-master replication relationship, and you must
 run @code{mysqld} without @code{log-slave-updates} (default) to avoid
 infinite update loops.
 
 You must also realize that two-way replication actually does not improve
 performance very much, if at all, as far as updates are concerned. Both
-servers need to do the same amount of updates each, as you would have 
+servers need to do the same amount of updates each, as you would have
 one server do. The only difference is that there will be a little less
 lock contention, because the updates originating on another server will
-be serialized in one slave thread. This benefit, though, might be 
+be serialized in one slave thread. This benefit, though, might be
 offset by network delays.
 
 @cindex performance, improving
@@ -24998,18 +25008,18 @@ offset by network delays.
 writes to it, and configure as many slaves as you have the money and
 rackspace for, distributing the reads among the master and the slaves.
 
-@strong{Q}: What should I do to prepare my client code to use 
+@strong{Q}: What should I do to prepare my client code to use
 performance-enhancing replication?
 
-@strong{A}: 
+@strong{A}:
 If the part of your code that is responsible for database access has
 been properly abstracted/modularized, converting it to run with the
-replicated setup should be very smooth and easy - just change the 
+replicated setup should be very smooth and easy - just change the
 implementation of your database access to read from some slave or the
 master, and to awlays write to the master. If your code does not have
 this level of abstraction,
-setting up a replicated system will give you an opportunity/motivation 
-to it clean up. 
+setting up a replicated system will give you an opportunity/motivation
+to it clean up.
  You should start by creating a wrapper library
 /module with the following functions:
 
@@ -25025,18 +25035,18 @@ to it clean up.
 @end itemize
 
 @code{safe_} means that the function will take care of handling all
-the error conditions. 
+the error conditions.
 
 You should then convert your client code to use the wrapper library.
 It may be a painful and scary process at first, but it will pay off in
 the long run. All application that follow the above pattern will be
-able to take advantage of one-master/many slaves solution.  The 
-code will be a lot easier to maintain, and adding troubleshooting 
+able to take advantage of one-master/many slaves solution.  The
+code will be a lot easier to maintain, and adding troubleshooting
 options will be trivial - you will just need to modify one or two
 functions, for example, to log how long each query took, or which
 query, among your many thousands, gave you an error. If you have written a lot of code already,
-you may want to automate the conversion task by using Monty's 
-@code{replace} utility, which comes with the standard distribution of 
+you may want to automate the conversion task by using Monty's
+@code{replace} utility, which comes with the standard distribution of
 @strong{MySQL}, or just write your own Perl script. Hopefully, your
 code follows some recognizable pattern. If not, then you are probably
 better off re-writing it anyway, or at least going through and manually
@@ -25044,7 +25054,7 @@ beating it into a pattern.
 
 Note that, of course, you can use different names for the
 functions. What is important is having unified interface for connecting
-for reads, connecting for writes, doing a read, and doing a write. 
+for reads, connecting for writes, doing a read, and doing a write.
 
 
 @strong{Q}: When and how much can @code{MySQL} replication improve the performance
@@ -25053,15 +25063,15 @@ of my system?
 @strong{A}: @strong{MySQL} replication is most benefitial for a system
 with frequent reads and not so frequent writes. In theory, by using a
 one master/many slaves setup you can scale by adding more slaves until
-you either run out of network bandwidth, or your update 
+you either run out of network bandwidth, or your update
 load grows to the point
-that the master cannot handle it. 
+that the master cannot handle it.
 
 In order to determine how many slaves you can get before the added
 benefits begin to level out, and how much you can improve performance
 of your site, you need to know your query patterns, and empirically
  (by benchmarking) determine the relationship between the throughput
-on reads ( reads per second, or @code{max_reads}) and on writes 
+on reads ( reads per second, or @code{max_reads}) and on writes
 @code{max_writes}) on a typical master and a typical slave. The
 example below will show you a rather simplified calculation of what you
 can get with replication for our imagined system.
@@ -25069,8 +25079,8 @@ can get with replication for our imagined system.
 Let's say our system load consist of 10% writes and 90% reads, and we
 have determined that @code{max_reads} = 1200 - 2 * @code{max_writes},
 or in other words, our system can do 1200 reads per second with no
-writes, our average write is twice as slow as average read, 
-and the relationship is 
+writes, our average write is twice as slow as average read,
+and the relationship is
 linear. Let us suppose that our master and slave are of the same
 capacity, and we have N slaves and 1 master. Then we have for each
 server ( master or slave):
@@ -25086,7 +25096,7 @@ to all servers)
 
 So if N = 0, which means we have no replication, our system can handle
 1200/11, about 109 writes per second ( which means we will have 9 times
-as many reads to to the nature of our application) 
+as many reads to to the nature of our application)
 
 If N = 1, we can get up to 184 writes per second
 
@@ -25097,9 +25107,9 @@ If N = 17, 480 writes
 Eventually as N approaches infinity ( and our budget negative infinity),
 we can get very close to 600 writes per second, increasing system
 throughput about 5.5 times. However, with only 8 servers, we increased
-it almost 4 times already. 
+it almost 4 times already.
 
-Note that our computations assumed infitine network bandwidth, and 
+Note that our computations assumed infitine network bandwidth, and
 neglected several other factors that could turn out to be signficant on
 your system. In many cases, you may not be able to make a computation
 similar to the one above that will accurately predict what will happen
@@ -25116,19 +25126,19 @@ How much more write load can one server handle if you reduce the reads?
 How many slaves do you have bandwidth for on your network?
 @end itemize
 
-@strong{Q}: How can I use replication to provide redundancy/high 
+@strong{Q}: How can I use replication to provide redundancy/high
 availability?
 
 @strong{A}: With the currently available features, you would have to
-set up a master and a slave (or several slaves), and write a script 
+set up a master and a slave (or several slaves), and write a script
 that will monitor the
-master to see if it is up, and instruct your applications and 
+master to see if it is up, and instruct your applications and
 the slaves of the master change in case of failure. Some suggestions:
 
 @itemize
 @item
 To tell a slave to change the master use @code{CHANGE MASTER TO} command
-@item 
+@item
 A good way to keep your applications informed where the master is is by
 having a dynamic DNS entry for the master. With @strong{bind} you can
 use @code{nsupdate} to dynamically update your DNS
@@ -25137,11 +25147,11 @@ You should run your slaves with @code{log-bin} option and without
 @code{log-slave-updates}. This way the slave will be ready to become a
 master as soon as you issue @code{STOP SLAVE}; @code{FLUSH MASTER}, and
 @code{CHANGE MASTER TO} on the other slaves. It will also help you catch
-spurious updates that may happen because of misconfiguration of the 
+spurious updates that may happen because of misconfiguration of the
 slave ( ideally, you want to configure access rights so that no client
 can update the slave, except for the slave thread) combined with the
-bugs in your client programs ( they should never update the slave 
-directly). 
+bugs in your client programs ( they should never update the slave
+directly).
 
 @end itemize
 
@@ -26233,7 +26243,7 @@ great tool to find out if this is a problem with your query.
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* DISTINCT optimization::       
+* DISTINCT optimization::
 * LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
@@ -26517,7 +26527,7 @@ SELECT * FROM b,a LEFT JOIN c ON (c.key=a.key) LEFT JOIN d (d.key=a.key) WHERE b
 @end example
 
 @cindex optimizing, LIMIT
-@findex LIMIT 
+@findex LIMIT
 @node LIMIT optimization, Insert speed, LEFT JOIN optimization, Query Speed
 @subsection How MySQL optimizes @code{LIMIT}
 
@@ -27391,7 +27401,7 @@ Continue even if we get an SQL error.
 Named commands are disabled. Use \* form only, or use named commands
 only in the beginning of a line ending with a semicolon (;) Since
 version 10.9 the client now starts with this option ENABLED by default!
-With the -g option, long format commands will still work from the first 
+With the -g option, long format commands will still work from the first
 line, however.
 @cindex enable-named-commands option
 @item -G, --enable-named-commands
@@ -28457,10 +28467,10 @@ shell> myisamchk /path/to/datadir/*/*.MYI
 @code{myisamchk} supports the following options:
 
 @menu
-* myisamchk general options::   
-* myisamchk check options::     
-* myisamchk repair options::    
-* myisamchk other options::     
+* myisamchk general options::
+* myisamchk check options::
+* myisamchk repair options::
+* myisamchk other options::
 @end menu
 
 @cindex options, @code{myisamchk}
@@ -30327,7 +30337,7 @@ For example, create a db with a table with 2 columns text.
 Insert rows using the mysql client command line tool.
 @item
 Create a DSN file using the MyODBC driver e.g. my for the db above.
-@item 
+@item
 Open the Word application.
 @item
 Create a blank new documentation.
@@ -30355,7 +30365,7 @@ Click Finish.
 Click Insert data and select the records.
 @item
 Click OK and you see the rows in your Word document.
-@end itemize 
+@end itemize
 
 @cindex odbcadmin program
 @item odbcadmin
@@ -30945,7 +30955,7 @@ sure that no other programs is using the dynamic libraries!
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::               
+* Cannot create::
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -31658,7 +31668,7 @@ limits!  In this case you should start @code{safe_mysqld} with @code{sh}!
 
 @findex DATE
 @cindex DATE columns, problems
-@cindex problems, @code{DATE} columns 
+@cindex problems, @code{DATE} columns
 @node Using DATE, Timezone problems, Not enough file handles, Problems
 @section Problems using @code{DATE} columns
 
@@ -32035,7 +32045,7 @@ Drop or rename @code{old_table}
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Binary log::                  
+* Binary log::
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 @end menu
@@ -32202,7 +32212,7 @@ and the crash.
 @cindex binary log
 @cindex files, binary log
 @node Binary log, Slow query log, Update log, Common problems
-@section The binary log 
+@section The binary log
 
 In the future we expect the binary log to replace the update log!
 
@@ -35797,7 +35807,7 @@ The
 interface that is based on msqltcl 1.50.
 
 @cindex databases, MySQL vs. others
-@cindex comparisons, MySQL vs. others 
+@cindex comparisons, MySQL vs. others
 @node Comparisons, MySQL internals, Clients, Top
 @chapter How MySQL compares to other databases
 
@@ -36379,8 +36389,8 @@ DELAYED} threads.
 Since version 3.23.23, @strong{MySQL} has support for full-text indexing
 and searching. Full-text index in @strong{MySQL} is an
 index of type @code{FULLTEXT}. @code{FULLTEXT} indexes can be created from
-@code{VARCHAR} and @code{TEXT} columns at @code{CREATE TABLE} time or added 
-later with @code{ALTER TABLE} or @code{CREATE INDEX}. Full-text search is 
+@code{VARCHAR} and @code{TEXT} columns at @code{CREATE TABLE} time or added
+later with @code{ALTER TABLE} or @code{CREATE INDEX}. Full-text search is
 performed with the @code{MATCH}
 function.
 
@@ -36421,7 +36431,7 @@ mysql> SELECT *,MATCH a,b AGAINST ('collections support') as x FROM t;
 
 The function @code{MATCH} matches a natural language query @code{AGAINST} a
 text collection (which is simply the columns that are covered
-by a @strong{FULLTEXT} index). For every row in a table it returns 
+by a @strong{FULLTEXT} index). For every row in a table it returns
 relevance - similarity measure between the text in that row (in the columns
 that are part of the collection) and the query. When it is used in a
 @code{WHERE} clause (see example above) the rows returned are
@@ -36433,7 +36443,7 @@ number of documents (rows), that contain a particular word, etc.
 
 MySQL uses a very simple parser to split text into words. A "word" is
 any sequence of letters, numbers, @code{'}, and @code{_}. Any "word"
-that is present in the stopword list or just too short (3 characters 
+that is present in the stopword list or just too short (3 characters
 or less) is ignored.
 
 Every correct word in the collection and in the query is weighted,
@@ -37941,12 +37951,12 @@ be read only in part by the slave if it did it at the wrong time, which
 was not fatal, but resulted in a performance-degrading reconnect and
 a scary message in the error log
 @item
-Changed the format of the binary log - added magic number, server 
+Changed the format of the binary log - added magic number, server
 version, binlog version. Added server id and query error code for each query event
-@item 
+@item
 Replication thread from the slave will now kill all the stale threads
 from the same server
-@item 
+@item
 Long replication user names were not being handled properly
 @item
 Added --replicate-rewrite-db
@@ -38084,7 +38094,7 @@ temporary table.
 @item
 Fixed problem with BDB tables and reading on unique (not primary) key.
 @item
-Restored the win1251 character set (it's now only marked deprecated). 
+Restored the win1251 character set (it's now only marked deprecated).
 @end itemize
 
 @node News-3.23.23, News-3.23.22, News-3.23.24, News-3.23.x
@@ -42499,8 +42509,8 @@ show columns from t2;
 @item
 Implement function: @code{get_changed_tables(timeout,table1,table2,...)}
 @item
-Atomic multi-table updates, eg @code{update items,month set 
-items.price=month.price where items.id=month.id;}; 
+Atomic multi-table updates, eg @code{update items,month set
+items.price=month.price where items.id=month.id;};
 @item
 Change reading through tables to use memmap when possible. Now only
 compressed tables use memmap.
@@ -42665,7 +42675,7 @@ will ensure that your thread installation has even a remote chance to work!
 * Debugging server::            Debugging a @strong{MySQL} server
 * Debugging client::            Debugging a @strong{MySQL} client
 * The DBUG package::            The DBUG package
-* Locking methods::             
+* Locking methods::
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 @end menu
@@ -42751,7 +42761,7 @@ old threads.  You can avoid this problem by starting @code{mysqld} with
 @code{-O thread_cache_size= 'max_connections +1'}.  In most cases just
 using @code{-O thread_cache_size= 5'} will help a lot!
 
-If you want to get a core dump on Linux if @code{mysqld} dies with a 
+If you want to get a core dump on Linux if @code{mysqld} dies with a
 SIGSEGV signal, you can start mysqld with the @code{--core-file} option.
 
 If you are using gdb 4.17.x or above on Linux, you should install a
@@ -42823,7 +42833,7 @@ should also test complicated queries that didn't complete within the
 @code{mysql} command line tool.
 
 You can find the queries that take a long time to execute by starting
-@code{mysqld} with @code{--log-slow-queries}. @xref{Slow query log}. 
+@code{mysqld} with @code{--log-slow-queries}. @xref{Slow query log}.
 
 If you find the text @code{mysqld restarted} in the error log file
 (normally named @file{hostname.err}) you have probably found a query

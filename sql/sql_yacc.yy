@@ -407,6 +407,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SQL_WARNINGS
 %token	SQL_AUTO_IS_NULL
 %token	SQL_SAFE_UPDATES
+%token  SQL_QUOTE_SHOW_CREATE
 
 %left   SET_VAR
 %left	OR_OR_CONCAT OR
@@ -530,7 +531,7 @@ query:
 verb_clause:
 	  alter
 	| analyze
-	| backup  
+	| backup
 	| begin
 	| change
 	| check
@@ -549,7 +550,7 @@ verb_clause:
 	| rename
         | repair
 	| replace
-	| restore  
+	| restore
 	| revoke
 	| rollback
 	| select
@@ -2101,7 +2102,7 @@ opt_low_priority:
 /* Delete rows from a table */
 
 delete:
-	DELETE_SYM 
+	DELETE_SYM
 	{ Lex->sql_command= SQLCOM_DELETE; Lex->options=0;
 	  Lex->lock_option= current_thd->update_lock_default; }
         opt_delete_options FROM table
@@ -2625,6 +2626,7 @@ set_option:
 	| SQL_AUTO_IS_NULL	{ $$= OPTION_AUTO_IS_NULL; }
 	| SQL_SAFE_UPDATES	{ $$= OPTION_SAFE_UPDATES; }
 	| SQL_BUFFER_RESULT	{ $$= OPTION_BUFFER_RESULT; }
+	| SQL_QUOTE_SHOW_CREATE { $$= OPTION_QUOTE_SHOW_CREATE; }
 
 /* Lock function */
 
