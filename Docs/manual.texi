@@ -32592,9 +32592,6 @@ The following conditions hold for an @code{INSERT ... SELECT} statement:
 
 @itemize @minus
 @item
-The query cannot contain an @code{ORDER BY} clause.
-
-@item
 The target table of the @code{INSERT} statement cannot appear in the
 @code{FROM} clause of the @code{SELECT} part of the query because it's
 forbidden in ANSI SQL to @code{SELECT} from the same table into which you are
