@@ -995,23 +995,6 @@ Item_in_subselect::select_transformer(JOIN *join)
 }
 
 
-Item_subselect::trans_res
-Item_in_subselect::no_select_transform()
-{
-  DBUG_ENTER("Item_in_subselect::no_select_transform");
-  // We have execute fix_fields() for left expression
-  SELECT_LEX *current= thd->lex->current_select, *up;
-  thd->lex->current_select= up= current->return_after_parsing();
-  if (left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
-  {
-    thd->lex->current_select= current;
-    DBUG_RETURN(RES_ERROR);
-  }
-  thd->lex->current_select= current;
-  DBUG_RETURN(RES_OK);
-}
-
-
 void Item_in_subselect::print(String *str)
 {
   if (transformed)
