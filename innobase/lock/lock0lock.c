@@ -4094,8 +4094,9 @@ lock_rec_print(
 	ulint		i;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -4592,8 +4593,9 @@ lock_rec_validate_page(
 	ulint	i;
 	mtr_t	mtr;
 	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets		= offsets_;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
@@ -4841,9 +4843,11 @@ lock_rec_insert_check_and_lock(
 #ifdef UNIV_DEBUG
 	{
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100]	= { 100, };
-		const ulint*	offsets		= rec_get_offsets(
-						next_rec, index, offsets_,
+		ulint		offsets_[100];
+		const ulint*	offsets;
+		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
+		offsets = rec_get_offsets(next_rec, index, offsets_,
 						ULINT_UNDEFINED, &heap);
 		ut_ad(lock_rec_queue_validate(next_rec, index, offsets));
 		if (heap) {
@@ -4988,9 +4992,12 @@ lock_sec_rec_modify_check_and_lock(
 #ifdef UNIV_DEBUG
 	{
 		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[100]	= { 100, };
-		const ulint*	offsets		= rec_get_offsets(
-			rec, index, offsets_, ULINT_UNDEFINED, &heap);
+		ulint		offsets_[100];
+		const ulint*	offsets;
+		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
+
+		offsets = rec_get_offsets(rec, index, offsets_,
+						ULINT_UNDEFINED, &heap);
 		ut_ad(lock_rec_queue_validate(rec, index, offsets));
 		if (heap) {
 			mem_heap_free(heap);
@@ -5159,9 +5166,10 @@ lock_clust_rec_read_check_and_lock_alt(
 	que_thr_t*	thr)	/* in: query thread */
 {
 	mem_heap_t*	tmp_heap	= NULL;
-	ulint		offsets_[100]	= { 100, };
+	ulint		offsets_[100];
 	ulint*		offsets		= offsets_;
 	ulint		ret;
+	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	offsets = rec_get_offsets(rec, index, offsets,
 						ULINT_UNDEFINED, &tmp_heap);
