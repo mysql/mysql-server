@@ -58,7 +58,7 @@ Item_func::Item_func(List<Item> &list)
 }
 
 bool
-Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
+Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   Item **arg,**arg_end;
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
@@ -72,12 +72,23 @@ Item_func::fix_fields(THD *thd,TABLE_LIST *tables)
   {						// Print purify happy
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
-      if ((*arg)->fix_fields(thd,tables))
+      if ((*arg)->fix_fields(thd, tables, arg))
 	return 1;				/* purecov: inspected */
       if ((*arg)->maybe_null)
 	maybe_null=1;
       if ((*arg)->binary)
 	binary=1;
+      /*
+	Change charset to arg charset if it is not equal to 
+	default_charset_info. This will work for many cases, 
+	but generally this should be done more carefull. Each string 
+	function should have it's own fix_fields() method to correctly
+	setup it's result's character set taking in account arguments.
+	For example: left(a,b) should take in account only first argument,
+	but ignore the second one.
+      */
+      if ((*arg)->str_value.charset() != default_charset_info)
+	str_value.set_charset((*arg)->str_value.charset());
       with_sum_func= with_sum_func || (*arg)->with_sum_func;
       used_tables_cache|=(*arg)->used_tables();
       const_item_cache&= (*arg)->const_item();
@@ -1091,7 +1102,7 @@ udf_handler::~udf_handler()
 
 
 bool
-udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
+udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 			uint arg_count, Item **arguments)
 {
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
@@ -1135,7 +1146,7 @@ udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
-      if ((*arg)->fix_fields(thd,tables))
+      if ((*arg)->fix_fields(thd, tables, arg))
 	return 1;
       if ((*arg)->binary)
 	func->binary=1;
@@ -1754,11 +1765,12 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 }
 
 
-bool Item_func_set_user_var::fix_fields(THD *thd,TABLE_LIST *tables)
+bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
+					Item **ref)
 {
   if (!thd)
     thd=current_thd;
-  if (Item_func::fix_fields(thd,tables) ||
+  if (Item_func::fix_fields(thd, tables, ref) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return 1;
   entry->update_query_id=thd->query_id;
@@ -2084,7 +2096,7 @@ void Item_func_match::init_search(bool no_order)
   }
 }
 
-bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
+bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
 {
   List_iterator<Item> li(fields);
   Item *item;
@@ -2097,7 +2109,7 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
      modifications to find_best and auto_close as complement to auto_init code
      above.
    */
-  if (Item_func::fix_fields(thd,tlist) || !const_item())
+  if (Item_func::fix_fields(thd, tlist, ref) || !const_item())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
     return 1;
@@ -2105,7 +2117,7 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
 
   while ((item=li++))
   {
-    if (item->fix_fields(thd,tlist))
+    if (item->fix_fields(thd, tlist, li.ref()))
       return 1;
     if (item->type() == Item::REF_ITEM)
       li.replace(item= *((Item_ref *)item)->ref);

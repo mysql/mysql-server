@@ -115,7 +115,6 @@ sub new
   $self->{'data_source'}	= "DBI:mysql:database=$database;host=$host";
   $self->{'data_source'} .= ";mysql_socket=$socket" if($socket);
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "blob";
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
@@ -168,25 +167,6 @@ sub new
   $limits{'working_all_fields'} = 1;
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
 
-  $smds{'time'}			= 1;
-  $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
-  $smds{'q2'} 	= 'b';
-  $smds{'q3'} 	= 'b';		# with time ('')
-  $smds{'q4'} 	= 'c';		# with time not supp by mysql (d)
-  $smds{'q5'} 	= 'b';		# with time not supp by mysql ('')
-  $smds{'q6'} 	= 'c';		# with time not supp by mysql ('')
-  $smds{'q7'} 	= 'c';
-  $smds{'q8'} 	= 'f';
-  $smds{'q9'} 	= 'c';
-  $smds{'q10'} 	= 'b';
-  $smds{'q11'} 	= 'b';
-  $smds{'q12'} 	= 'd';
-  $smds{'q13'} 	= 'c';
-  $smds{'q14'} 	= 'd';
-  $smds{'q15'} 	= 'd';
-  $smds{'q16'} 	= 'a';
-  $smds{'q17'} 	= 'c';
-
   # Some fixes that depends on the environment
   if (defined($main::opt_create_options) &&
       $main::opt_create_options =~ /type=heap/i)
@@ -197,6 +177,11 @@ sub new
       $main::opt_create_options =~ /type=innodb/i)
   {
     $limits{'max_text_size'}	= 8000; # Limit in Innobase
+    $self->{'transactions'}	= 1;	# Transactions enabled
+  }
+  if (defined($main::opt_create_options) &&
+      $main::opt_create_options =~ /type=bdb/i)
+  {
     $self->{'transactions'}	= 1;	# Transactions enabled
   }
   if (defined($main::opt_create_options) &&
@@ -266,7 +251,6 @@ sub create
   {
     $field =~ s/ decimal/ double(10,2)/i;
     $field =~ s/ big_decimal/ double(10,2)/i;
-    $field =~ s/ date/ int/i;		# Because of tcp ?
     $query.= $field . ',';
   }
   foreach $index (@$index)
@@ -575,7 +559,6 @@ sub new
   $self->{'cmp_name'}		= "pg";
   $self->{'data_source'}	= "DBI:Pg:dbname=$database";
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "text";
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1;
@@ -626,27 +609,6 @@ sub new
   $limits{'working_all_fields'} = 1;
   $limits{'working_blobs'}	= 1; # If big varchar/blobs works
 
-  # the different cases per query ...
-  $smds{'q1'} 	= 'b'; # with time
-  $smds{'q2'} 	= 'b';
-  $smds{'q3'} 	= 'b'; # with time
-  $smds{'q4'} 	= 'c'; # with time
-  $smds{'q5'} 	= 'b'; # with time
-  $smds{'q6'} 	= 'c'; # strange error ....
-  $smds{'q7'} 	= 'c';
-  $smds{'q8'} 	= 'f'; # needs 128M to execute - can't do insert ...group by
-  $smds{'q9'} 	= 'c';
-  $smds{'q10'} 	= 'b';
-  $smds{'q11'} 	= 'b'; # can't do float8 * int4 - create operator
-  $smds{'q12'} 	= 'd'; # strange error???
-  $smds{'q13'} 	= 'c';
-  $smds{'q14'} 	= 'd'; # strange error???
-  $smds{'q15'} 	= 'd'; # strange error???
-  $smds{'q16'} 	= 'a';
-  $smds{'q17'} 	= 'c';
-  $smds{'time'} = 1;    # the use of the time table -> 1 is on.
-			# when 0 then the date field must be a
-			# date field not a int field!!!
   return $self;
 }
 
@@ -871,7 +833,6 @@ sub new
   $self->{'cmp_name'}		= "solid";
   $self->{'data_source'}	= "DBI:Solid:";
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "long varchar";
   $self->{'text'}		= "long varchar";
   $self->{'double_quotes'}	= 1;
@@ -922,28 +883,6 @@ sub new
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
 
-  # for the smds small benchmark test ....
-  # the different cases per query ...
-  $smds{'q1'} 	= 'a';
-  $smds{'q2'} 	= '';
-  $smds{'q3'} 	= 'b'; #doesn't work -> strange error about column -fixed
-  $smds{'q4'} 	= 'a';
-  $smds{'q5'} 	= 'b';
-  $smds{'q6'} 	= 'c';
-  $smds{'q7'} 	= 'b';
-  $smds{'q8'} 	= 'f';
-  $smds{'q9'} 	= 'b';
-  $smds{'q10'} 	= 'b';
-  $smds{'q11'} 	= '';
-  $smds{'q12'} 	= 'd';
-  $smds{'q13'} 	= 'b';
-  $smds{'q14'} 	= 'd';
-  $smds{'q15'} 	= 'd';
-  $smds{'q16'} 	= '';
-  $smds{'q17'} 	= '';
-  $smds{'time'} = 1;    # the use of the time table -> 1 is on.
-			# when 0 then the date field must be a
-			# date field not a int field!!!
   return $self;
 }
 
@@ -1119,7 +1058,6 @@ sub new
   $self->{'cmp_name'}		= "empress";
   $self->{'data_source'}        = "DBI:EmpressNet:SERVER=$host;Database=/usr/local/empress/rdbms/bin/$database";
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "text";
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
@@ -1172,28 +1110,6 @@ sub new
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
 
-  # for the smds small benchmark test ....
-  # the different cases per query ... EMPRESS
-  $smds{'q1'} 	= 'a';
-  $smds{'q2'} 	= '';
-  $smds{'q3'} 	= 'a';
-  $smds{'q4'} 	= 'a';
-  $smds{'q5'} 	= 'a';
-  $smds{'q6'} 	= 'a';
-  $smds{'q7'} 	= 'b';
-  $smds{'q8'} 	= 'd';
-  $smds{'q9'} 	= 'b';
-  $smds{'q10'} 	= 'a';
-  $smds{'q11'} 	= '';
-  $smds{'q12'} 	= 'd';
-  $smds{'q13'} 	= 'b';
-  $smds{'q14'} 	= 'b';
-  $smds{'q15'} 	= 'a';
-  $smds{'q16'} 	= '';
-  $smds{'q17'} 	= '';
-  $smds{'time'} = 1;    # the use of the time table -> 1 is on.
-			# when 0 then the date field must be a
-			# date field not a int field!!!
   return $self;
 }
 
@@ -1410,7 +1326,6 @@ sub new
   $self->{'cmp_name'}		= "Oracle";
   $self->{'data_source'}	= "DBI:Oracle:$database";
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "long";
   $self->{'text'}		= "long";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
@@ -1464,24 +1379,6 @@ sub new
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
 
-  $smds{'time'}			= 1;
-  $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
-  $smds{'q2'} 	= 'b';
-  $smds{'q3'} 	= 'b';		# with time ('')
-  $smds{'q4'} 	= 'c';		# with time not supp by mysql (d)
-  $smds{'q5'} 	= 'b';		# with time not supp by mysql ('')
-  $smds{'q6'} 	= 'c';		# with time not supp by mysql ('')
-  $smds{'q7'} 	= 'c';
-  $smds{'q8'} 	= 'f';
-  $smds{'q9'} 	= 'c';
-  $smds{'q10'} 	= 'b';
-  $smds{'q11'} 	= 'b';
-  $smds{'q12'} 	= 'd';
-  $smds{'q13'} 	= 'c';
-  $smds{'q14'} 	= 'd';
-  $smds{'q15'} 	= 'd';
-  $smds{'q16'} 	= 'a';
-  $smds{'q17'} 	= 'c';
 
   return $self;
 }
@@ -1675,7 +1572,6 @@ sub new
   $self->{'cmp_name'}		= "Informix";
   $self->{'data_source'}	= "DBI:Informix:$database";
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "byte in table";
   $self->{'text'}		= "byte in table";
   $self->{'double_quotes'}	= 0; # Can handle:  'Walker''s'
@@ -1888,7 +1784,6 @@ sub new
     $self->{'data_source'}	.= ":$host";
   }
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "blob";
   $self->{'text'}		= "blob"; # text ? 
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
@@ -2071,7 +1966,6 @@ sub new
     $self->{'data_source'}	.= ":$host";
   }
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "text";
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
@@ -2264,7 +2158,6 @@ sub new
     $self->{'data_source'}	.= ";hostname=$host";
   }
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "text";
   $self->{'text'}		= "text";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
@@ -2497,7 +2390,6 @@ sub new
   $self->{'cmp_name'}		= "Adabas";
   $self->{'data_source'}	= "DBI:Adabas:$database";
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "long";
   $self->{'text'}		= "long";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
@@ -2549,24 +2441,6 @@ sub new
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
 
-  $smds{'time'}			= 1;
-  $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
-  $smds{'q2'} 	= 'b';
-  $smds{'q3'} 	= 'b';		# with time ('')
-  $smds{'q4'} 	= 'c';		# with time not supp by mysql (d)
-  $smds{'q5'} 	= 'b';		# with time not supp by mysql ('')
-  $smds{'q6'} 	= 'c';		# with time not supp by mysql ('')
-  $smds{'q7'} 	= 'c';
-  $smds{'q8'} 	= 'f';
-  $smds{'q9'} 	= 'c';
-  $smds{'q10'} 	= 'b';
-  $smds{'q11'} 	= 'b';
-  $smds{'q12'} 	= 'd';
-  $smds{'q13'} 	= 'c';
-  $smds{'q14'} 	= 'd';
-  $smds{'q15'} 	= 'd';
-  $smds{'q16'} 	= 'a';
-  $smds{'q17'} 	= 'c';
 
   return $self;
 }
@@ -2718,7 +2592,6 @@ sub new
     $self->{'data_source'}	.= ":$host";
   }
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "varchar(255)";
   $self->{'text'}		= "varchar(255)";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
@@ -2894,7 +2767,6 @@ sub new
   $self->{'cmp_name'}		= "mimer";
   $self->{'data_source'}	= "DBI:mimer:$database:$host";
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "binary varying(15000)";
   $self->{'text'}		= "character varying(15000)";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
@@ -2950,24 +2822,6 @@ sub new
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
 
-  $smds{'time'}			= 1;
-  $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
-  $smds{'q2'} 	= 'b';
-  $smds{'q3'} 	= 'b';		# with time ('')
-  $smds{'q4'} 	= 'c';		# with time not supp by mysql (d)
-  $smds{'q5'} 	= 'b';		# with time not supp by mysql ('')
-  $smds{'q6'} 	= 'c';		# with time not supp by mysql ('')
-  $smds{'q7'} 	= 'c';
-  $smds{'q8'} 	= 'f';
-  $smds{'q9'} 	= 'c';
-  $smds{'q10'} 	= 'b';
-  $smds{'q11'} 	= 'b';
-  $smds{'q12'} 	= 'd';
-  $smds{'q13'} 	= 'c';
-  $smds{'q14'} 	= 'd';
-  $smds{'q15'} 	= 'd';
-  $smds{'q16'} 	= 'a';
-  $smds{'q17'} 	= 'c';
   return $self;
 }
 
@@ -3112,7 +2966,6 @@ sub new
   $self->{'cmp_name'}		= "interbase";
   $self->{'data_source'}	= "DBI:InterBase:database=$database:ib_dialect=3";
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "blob";
   $self->{'text'}		= "";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'
@@ -3166,24 +3019,6 @@ sub new
   $limits{'order_by_unused'}	= 1;
   $limits{'working_all_fields'} = 1;
 
-  $smds{'time'}			= 1;
-  $smds{'q1'} 	= 'b';		# with time not supp by mysql ('')
-  $smds{'q2'} 	= 'b';
-  $smds{'q3'} 	= 'b';		# with time ('')
-  $smds{'q4'} 	= 'c';		# with time not supp by mysql (d)
-  $smds{'q5'} 	= 'b';		# with time not supp by mysql ('')
-  $smds{'q6'} 	= 'c';		# with time not supp by mysql ('')
-  $smds{'q7'} 	= 'c';
-  $smds{'q8'} 	= 'f';
-  $smds{'q9'} 	= 'c';
-  $smds{'q10'} 	= 'b';
-  $smds{'q11'} 	= 'b';
-  $smds{'q12'} 	= 'd';
-  $smds{'q13'} 	= 'c';
-  $smds{'q14'} 	= 'd';
-  $smds{'q15'} 	= 'd';
-  $smds{'q16'} 	= 'a';
-  $smds{'q17'} 	= 'c';
 
   return $self;
 }
@@ -3331,7 +3166,6 @@ sub new
   $self->{'cmp_name'}		= "FrontBase";
   $self->{'data_source'}	= "DBI:FB:dbname=$database;host=$host";
   $self->{'limits'}		= \%limits;
-  $self->{'smds'}		= \%smds;
   $self->{'blob'}		= "varchar(8000000)";
   $self->{'text'}		= "varchar(8000000)";
   $self->{'double_quotes'}	= 1; # Can handle:  'Walker''s'

@@ -211,6 +211,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
   proc_param= proc_param_init;
   tables_list= tables_init;
   select_lex= select;
+  select->join= this;
   union_part= (unit->first_select()->next_select() != 0);
   
   /* Check that all tables, fields, conds and order are ok */
@@ -227,10 +228,9 @@ JOIN::prepare(TABLE_LIST *tables_init,
   {
     thd->where="having clause";
     thd->allow_sum_func=1;
-    bool having_fix_field_store= thd->having_fix_field;
-    thd->having_fix_field= 1;
-    bool having_fix_rc= having->fix_fields(thd,tables_list);
-    thd->having_fix_field= having_fix_field_store;
+    select_lex->having_fix_field= 1;
+    bool having_fix_rc= having->fix_fields(thd, tables_list, &having);
+    select_lex->having_fix_field= 0;
     if (having_fix_rc || thd->fatal_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
     if (having->with_sum_func)
@@ -349,7 +349,7 @@ JOIN::optimize()
     }
     else if ((conds=new Item_cond_and(conds,having)))
     {
-      conds->fix_fields(thd, tables_list);
+      conds->fix_fields(thd, tables_list, &conds);
       conds->change_ref_to_fields(thd, tables_list);
       having= 0;
     }
@@ -612,6 +612,15 @@ JOIN::reinit()
   
   if (setup_tables(tables_list))
     DBUG_RETURN(1);
+  
+  // Reset of sum functions
+  first_record= 0;
+  if (sum_funcs)
+  {
+    Item_sum *func, **func_ptr= sum_funcs;
+    while ((func= *(func_ptr++)))
+      func->null_value= 1;
+  }
 
   DBUG_RETURN(0);
 }
@@ -966,6 +975,21 @@ JOIN::cleanup(THD *thd)
   delete select;
   delete_dynamic(&keyuse);
   delete procedure;
+  for (SELECT_LEX_UNIT *unit= select_lex->first_inner_unit();
+       unit != 0;
+       unit= unit->next_unit())
+    for (SELECT_LEX *sl= unit->first_select();
+	 sl != 0;
+	 sl= sl->next_select())
+    {
+      if (sl->join)
+      {
+	int err= sl->join->cleanup(thd);
+	if (err)
+	  error= err;
+	sl->join= 0;
+      }
+    }
   return error;
 }
 
@@ -3381,7 +3405,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 						     21))))
 	{
 	  cond=new_cond;
-	  cond->fix_fields(thd,0);
+	  cond->fix_fields(thd, 0, &cond);
 	}
 	thd->insert_id(0);		// Clear for next request
       }
@@ -3395,7 +3419,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
 	{
 	  cond=new_cond;
-	  cond->fix_fields(thd,0);
+	  cond->fix_fields(thd, 0, &cond);
 	}
       }
     }
@@ -3523,7 +3547,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       case STRING_RESULT:
 	if (item_sum->max_length > 255)
 	  return  new Field_blob(item_sum->max_length,maybe_null,
-				 item->name,table,item->binary);
+				 item->name,table,item->binary,default_charset_info);
 	return	new Field_string(item_sum->max_length,maybe_null,
 				 item->name,table,item->binary,default_charset_info);
       }
@@ -3576,10 +3600,12 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case STRING_RESULT:
       if (item->max_length > 255)
 	new_field=  new Field_blob(item->max_length,maybe_null,
-				   item->name,table,item->binary);
+				   item->name,table,item->binary,
+				   item->str_value.charset());
       else
 	new_field= new Field_string(item->max_length,maybe_null,
-				    item->name,table,item->binary,default_charset_info);
+				    item->name,table,item->binary,
+				    item->str_value.charset());
       break;
     }
     if (copy_func)
@@ -4103,7 +4129,9 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
     {
       Field *field=keyinfo->key_part[i].field;
       seg->flag=     0;
-      seg->language= MY_CHARSET_CURRENT;
+      seg->language= field->binary() ? MY_CHARSET_CURRENT : 
+				     ((Field_str*)field)->charset()->number;
+
       seg->length=   keyinfo->key_part[i].length;
       seg->start=    keyinfo->key_part[i].offset;
       if (field->flags & BLOB_FLAG)
@@ -6428,7 +6456,7 @@ find_order_in_list(THD *thd,TABLE_LIST *tables,ORDER *order,List<Item> &fields,
     return 0;
   }
   order->in_field_list=0;
-  if ((*order->item)->fix_fields(thd,tables) || thd->fatal_error)
+  if ((*order->item)->fix_fields(thd, tables, order->item) || thd->fatal_error)
     return 1;					// Wrong field
   all_fields.push_front(*order->item);		// Add new field to field list
   order->item=(Item**) all_fields.head_ref();
@@ -6526,7 +6554,7 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
     else
     {
       thd->where="procedure list";
-      if ((*new_field->item)->fix_fields(thd,tables))
+      if ((*new_field->item)->fix_fields(thd, tables, new_field->item))
 	DBUG_RETURN(1); /* purecov: inspected */
       thd->where=0;
       all_fields.push_front(*new_field->item);
@@ -7091,7 +7119,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     Here we pass 0 as the first argument to fix_fields that don't need
     to do any stack checking (This is already done in the initial fix_fields).
   */
-  cond->fix_fields((THD *) 0,(TABLE_LIST *) 0);
+  cond->fix_fields((THD *) 0,(TABLE_LIST *) 0, (Item**)&cond);
   if (join_tab->select)
   {
     error=(int) cond->add(join_tab->select->cond);

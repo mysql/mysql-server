@@ -2310,7 +2310,7 @@ mysql_execute_command(void)
     }
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
-    res=mysql_create_db(thd,lex->name,lex->create_info.options,0);
+    res=mysql_create_db(thd,lex->name,&lex->create_info,0);
     break;
   }
   case SQLCOM_DROP_DB:
@@ -2328,6 +2328,40 @@ mysql_execute_command(void)
       goto error;
     }
     res=mysql_rm_db(thd,lex->name,lex->drop_if_exists,0);
+    break;
+  }
+  case SQLCOM_ALTER_DB:
+  {
+    if (!strip_sp(lex->name) || check_db_name(lex->name))
+    {
+      net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
+      break;
+    }
+    if (check_access(thd,ALTER_ACL,lex->name,0,1))
+      break;
+    if (thd->locked_tables || thd->active_transaction())
+    {
+      send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
+      goto error;
+    }
+    res=mysql_alter_db(thd,lex->name,&lex->create_info,0);
+    break;
+  }
+  case SQLCOM_SHOW_CREATE_DB:
+  {
+    if (!strip_sp(lex->name) || check_db_name(lex->name))
+    {
+      net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
+      break;
+    }
+    if (check_access(thd,DROP_ACL,lex->name,0,1))
+      break;
+    if (thd->locked_tables || thd->active_transaction())
+    {
+      send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
+      goto error;
+    }
+    res=mysqld_show_create_db(thd,lex->name);
     break;
   }
   case SQLCOM_CREATE_FUNCTION:

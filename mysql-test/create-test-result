@@ -32,7 +32,7 @@ result_file=$RESULT_DIR/$test_name.result
 
 touch $result_file
 echo "Running the test case against empty file, will fail, but don't worry"
-./mysql-test-run --do-test=$test_name
+./mysql-test-run --local $test_name
 
 reject_file=$result_file.reject
 

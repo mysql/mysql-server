@@ -1,0 +1,189 @@
+DROP TABLE IF EXISTS t1;
+
+CREATE TABLE t1 (
+  comment CHAR(32) CHARACTER SET latin1 NOT NULL,
+  koi8_ru_f CHAR(32) CHARACTER SET koi8_ru NOT NULL
+) CHARSET=latin5;
+
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 CHANGE comment comment CHAR(32) CHARACTER SET latin2 NOT NULL;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD latin5_f CHAR(32) NOT NULL;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 CHARSET=latin2;
+ALTER TABLE t1 ADD latin2_f CHAR(32) NOT NULL;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 DROP latin2_f, DROP latin5_f;
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('a','LAT SMALL A');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('b','LAT SMALL B');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('c','LAT SMALL C');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('d','LAT SMALL D');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('e','LAT SMALL E');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('f','LAT SMALL F');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('g','LAT SMALL G');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('h','LAT SMALL H');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('i','LAT SMALL I');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('j','LAT SMALL J');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('k','LAT SMALL K');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('l','LAT SMALL L');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('m','LAT SMALL M');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('n','LAT SMALL N');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('o','LAT SMALL O');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('p','LAT SMALL P');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('q','LAT SMALL Q');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('r','LAT SMALL R');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('s','LAT SMALL S');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('t','LAT SMALL T');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('u','LAT SMALL U');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('v','LAT SMALL V');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('w','LAT SMALL W');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('x','LAT SMALL X');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('y','LAT SMALL Y');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('z','LAT SMALL Z');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('A','LAT CAPIT A');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('B','LAT CAPIT B');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('C','LAT CAPIT C');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('D','LAT CAPIT D');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('E','LAT CAPIT E');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('F','LAT CAPIT F');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('G','LAT CAPIT G');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('H','LAT CAPIT H');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('I','LAT CAPIT I');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('J','LAT CAPIT J');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('K','LAT CAPIT K');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('L','LAT CAPIT L');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('M','LAT CAPIT M');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('N','LAT CAPIT N');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('O','LAT CAPIT O');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('P','LAT CAPIT P');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Q','LAT CAPIT Q');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('R','LAT CAPIT R');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('S','LAT CAPIT S');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('T','LAT CAPIT T');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('U','LAT CAPIT U');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('V','LAT CAPIT V');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('W','LAT CAPIT W');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('X','LAT CAPIT X');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Y','LAT CAPIT Y');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Z','LAT CAPIT Z');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Á','CYR SMALL A');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Â','CYR SMALL BE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('×','CYR SMALL VE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ç','CYR SMALL GE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ä','CYR SMALL DE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Å','CYR SMALL IE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('£','CYR SMALL IO');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ö','CYR SMALL ZHE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ú','CYR SMALL ZE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('É','CYR SMALL I');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ë','CYR SMALL KA');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ì','CYR SMALL EL');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Í','CYR SMALL EM');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Î','CYR SMALL EN');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ï','CYR SMALL O');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ð','CYR SMALL PE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ò','CYR SMALL ER');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ó','CYR SMALL ES');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ô','CYR SMALL TE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Õ','CYR SMALL U');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Æ','CYR SMALL EF');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('È','CYR SMALL HA');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ã','CYR SMALL TSE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Þ','CYR SMALL CHE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Û','CYR SMALL SHA');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ý','CYR SMALL SCHA');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ß','CYR SMALL HARD SIGN');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ù','CYR SMALL YERU');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ø','CYR SMALL SOFT SIGN');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ü','CYR SMALL E');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('À','CYR SMALL YU');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('Ñ','CYR SMALL YA');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('á','CYR CAPIT A');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('â','CYR CAPIT BE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('÷','CYR CAPIT VE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ç','CYR CAPIT GE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ä','CYR CAPIT DE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('å','CYR CAPIT IE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('³','CYR CAPIT IO');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ö','CYR CAPIT ZHE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ú','CYR CAPIT ZE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('é','CYR CAPIT I');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ë','CYR CAPIT KA');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ì','CYR CAPIT EL');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('í','CYR CAPIT EM');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('î','CYR CAPIT EN');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ï','CYR CAPIT O');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ð','CYR CAPIT PE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ò','CYR CAPIT ER');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ó','CYR CAPIT ES');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ô','CYR CAPIT TE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('õ','CYR CAPIT U');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('æ','CYR CAPIT EF');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('è','CYR CAPIT HA');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ã','CYR CAPIT TSE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('þ','CYR CAPIT CHE');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('û','CYR CAPIT SHA');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ý','CYR CAPIT SCHA');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ÿ','CYR CAPIT HARD SIGN');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ù','CYR CAPIT YERU');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ø','CYR CAPIT SOFT SIGN');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ü','CYR CAPIT E');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('à','CYR CAPIT YU');
+INSERT INTO t1 (koi8_ru_f,comment) VALUES ('ñ','CYR CAPIT YA');
+
+ALTER TABLE t1 ADD utf8_f CHAR(32) CHARACTER SET utf8 NOT NULL;
+UPDATE t1 SET utf8_f=CONVERT(koi8_ru_f USING utf8);
+
+SELECT * FROM t1;
+
+SELECT koi8_ru_f,MIN(comment) FROM t1 GROUP BY 1;
+SELECT utf8_f,MIN(comment) FROM t1 GROUP BY 1;
+SELECT DISTINCT koi8_ru_f FROM t1;
+SELECT DISTINCT utf8_f FROM t1;
+SELECT lower(koi8_ru_f) FROM t1 ORDER BY 1 DESC;
+SELECT lower(utf8_f) FROM t1 ORDER BY 1 DESC;
+
+SELECT t11.comment,t12.comment 
+FROM t1 t11,t1 t12 WHERE CONVERT(t11.koi8_ru_f USING utf8)=t12.utf8_f
+ORDER BY t11.koi8_ru_f;
+
+SELECT t11.comment,t12.comment 
+FROM t1 t11,t1 t12 
+WHERE t11.koi8_ru_f=CONVERT(t12.utf8_f USING koi8_ru)
+ORDER BY t12.utf8_f;
+
+ALTER TABLE t1 ADD ucs2_f CHAR(32) CHARACTER SET ucs2 NOT NULL;
+
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0391,'GREEK CAPIT ALPHA');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0392,'GREEK CAPIT BETA');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0393,'GREEK CAPIT GAMMA');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0394,'GREEK CAPIT DELTA');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0395,'GREEK CAPIT EPSILON');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x03B1,'GREEK SMALL ALPHA');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x03B2,'GREEK SMALL BETA');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x03B3,'GREEK SMALL GAMMA');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x03B4,'GREEK SMALL DELTA');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x03B5,'GREEK SMALL EPSILON');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0531,'ARMENIAN CAPIT AYB');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0532,'ARMENIAN CAPIT BEN');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0533,'ARMENIAN CAPIT GIM');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0534,'ARMENIAN CAPIT DA');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0535,'ARMENIAN CAPIT ECH');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0536,'ARMENIAN CAPIT ZA');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0561,'ARMENIAN SMALL YAB');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0562,'ARMENIAN SMALL BEN');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0563,'ARMENIAN SMALL GIM');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0564,'ARMENIAN SMALL DA');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0565,'ARMENIAN SMALL ECH');
+INSERT INTO t1 (ucs2_f,comment) VALUES (0x0566,'ARMENIAN SMALL ZA');
+
+ALTER TABLE t1 ADD armscii8_f CHAR(32) CHARACTER SET armscii8 NOT NULL;
+ALTER TABLE t1 ADD greek_f CHAR(32) CHARACTER SET greek NOT NULL;
+UPDATE t1 SET greek_f=CONVERT(ucs2_f USING greek) WHERE comment LIKE 'GRE%';
+UPDATE t1 SET armscii8_f=CONVERT(ucs2_f USING armscii8) WHERE comment LIKE 'ARM%';
+UPDATE t1 SET utf8_f=CONVERT(ucs2_f USING utf8) WHERE utf8_f='';
+UPDATE t1 SET ucs2_f=CONVERT(utf8_f USING ucs2) WHERE ucs2_f='';
+SELECT min(comment),count(*) FROM t1 GROUP BY ucs2_f;
+DROP TABLE t1;

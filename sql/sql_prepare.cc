@@ -448,7 +448,7 @@ static bool mysql_test_upd_fields(THD *thd, TABLE_LIST *table_list,
 static bool mysql_test_select_fields(THD *thd, TABLE_LIST *tables,
 				     List<Item> &fields, List<Item> &values,
 				     COND *conds, ORDER *order, ORDER *group,
-				     Item *having,thr_lock_type lock_type)
+				     Item *having, thr_lock_type lock_type)
 {
   TABLE *table;
   bool hidden_group_fields;
@@ -470,7 +470,7 @@ static bool mysql_test_select_fields(THD *thd, TABLE_LIST *tables,
   {
     thd->where="having clause";
     thd->allow_sum_func=1;
-    if (having->fix_fields(thd,tables) || thd->fatal_error)
+    if (having->fix_fields(thd, tables, &having) || thd->fatal_error)
       DBUG_RETURN(1);				
     if (having->with_sum_func)
       having->split_sum_func(all_fields);

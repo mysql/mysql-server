@@ -99,11 +99,20 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
     end= pos+length;
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT)
     {
-      uchar *sort_order=keyseg->charset->sort_order;
-      while (pos != end)
-	crc=((crc << 8) +
-	     (((uchar)  sort_order[*(uchar*) pos++]))) +
-	  (crc >> (8*sizeof(ha_checksum)-8));
+      if (keyseg->charset->hash_sort)
+      {
+        ulong nr=1, nr2=4;
+        keyseg->charset->hash_sort(keyseg->charset,(const uchar*)pos,length,&nr, &nr2);
+        crc=nr;
+      }
+      else
+      {
+        uchar *sort_order=keyseg->charset->sort_order;
+        while (pos != end)
+	  crc=((crc << 8) +
+	       (((uchar)  sort_order[*(uchar*) pos++]))) +
+	    (crc >> (8*sizeof(ha_checksum)-8));
+      }
     }
     else
       while (pos != end)
@@ -173,11 +182,19 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const byte *a, const byte *b,
     end= pos_a+length;
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT)
     {
-      uchar *sort_order=keyseg->charset->sort_order;
-      while (pos_a != end)
-	if (sort_order[*(uchar*) pos_a++] !=
-	    sort_order[*(uchar*) pos_b++])
+      if (use_strcoll(keyseg->charset))
+      {
+	if (my_strnncoll(keyseg->charset,pos_a,length,pos_b,length))
 	  return 1;
+      }
+      else
+      {
+       uchar *sort_order=keyseg->charset->sort_order;
+       while (pos_a != end)
+ 	if (sort_order[*(uchar*) pos_a++] !=
+ 	    sort_order[*(uchar*) pos_b++])
+ 	  return 1;
+      }
     }
     else
       while (pos_a != end)

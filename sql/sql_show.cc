@@ -1158,6 +1158,12 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   char buff[128];
   char* p;
 
+  if (table->table_charset)
+  {
+    packet->append(" CHARSET=");
+    packet->append(table->table_charset->name);
+  }
+
   if (table->min_rows)
   {
     packet->append(" MIN_ROWS=");
@@ -1389,7 +1395,7 @@ int mysqld_show_charsets(THD *thd, const char *wild)
       net_store_data(&packet2,(uint32) cs->mbmaxlen);
 
       if (my_net_write(&thd->net, (char*) packet2.ptr(),packet2.length()))
-         goto err;                               /* purecov: inspected */
+         goto err;
     }
   }
   send_eof(&thd->net); 
