@@ -37,6 +37,14 @@ a	b	c
 1	2	3
 2	3	5
 3	4	6
+select tt1.* from t1 as tt1, t1 as tt2 use index(b) where tt1.b = tt2.b order by tt1.c;
+a	b	c
+6	7	2
+5	6	2
+1	2	3
+2	3	5
+3	4	6
+4	5	8
 update t1 set c = 3 where b = 3;
 select * from t1 order by a;
 a	b	c

@@ -125,6 +125,7 @@ public:
    */
   int reset_bounds();
   
+  bool getSorted() const { return m_ordered; }
 private:
   NdbIndexScanOperation(Ndb* aNdb);
   virtual ~NdbIndexScanOperation();
