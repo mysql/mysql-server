@@ -216,6 +216,7 @@ insert into t1 values('GTM',3,'DAL',0.070,date'1977-09-23');
 insert into t1 values('SSJ',null,'CHI',null,date'1974-03-19');
 insert into t1 values('KKK',3,'ATL',null,null);
 insert into t1 values('XXX',null,'MIN',null,null);
+insert into t1 values('WWW',1,'LED',null,null);
 
 # Populate table t2
 insert into t2 values('TKF','Seattle','WA','AME');
