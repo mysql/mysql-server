@@ -2832,15 +2832,7 @@ rec_loop:
 
 	ut_ad(page_rec_is_user_rec(rec));
 
-	if (unique_search_from_clust_index && btr_pcur_get_up_match(pcur)
-					== dtuple_get_n_fields(search_tuple)) {
-		/* The record matches enough */
-
-		ut_ad(mode == PAGE_CUR_GE);
-#ifdef UNIV_SEARCH_DEBUG
-		ut_a(0 == cmp_dtuple_rec(search_tuple, rec));
-#endif	
-	} else if (match_mode == ROW_SEL_EXACT) {
+        if (match_mode == ROW_SEL_EXACT) {
 		/* Test if the index record matches completely to search_tuple
 		in prebuilt: if not, then we return with DB_RECORD_NOT_FOUND */
 
