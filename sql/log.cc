@@ -810,12 +810,8 @@ void MYSQL_LOG::new_file(bool need_lock)
     if (log_type == LOG_BIN)
     {
       if (generate_new_name(new_name, name))
-      {
-	/* Error;  Continue using old log file */
-	if (need_lock)
-	  VOID(pthread_mutex_unlock(&LOCK_log));
-	return;					// Something went wrong
-      }
+	goto end;	/* Error;  Continue using old log file */
+
       new_name_ptr=new_name;
       if (!no_auto_events)
       {
@@ -853,6 +849,7 @@ void MYSQL_LOG::new_file(bool need_lock)
        no_auto_events);
   my_free(old_name,MYF(0));
 
+end:
   if (need_lock)
   {
     pthread_mutex_unlock(&LOCK_index);
@@ -1358,16 +1355,24 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 
   NOTES
     One must have a lock on LOCK_log before calling this function.
+    This lock will be freed before return!
+
+    The reason for the above is that for enter_cond() / exit_cond() to
+    work the mutex must be got before enter_cond() but releases before
+    exit_cond().
+    If you don't do it this way, you will get a deadlock in THD::awake()
 */
 
 
 void MYSQL_LOG:: wait_for_update(THD* thd)
 {
+  safe_mutex_assert_owner(&LOCK_log);
   const char* old_msg = thd->enter_cond(&update_cond, &LOCK_log,
 					"Slave: waiting for binlog update");
   pthread_cond_wait(&update_cond, &LOCK_log);
+  pthread_mutex_unlock(&LOCK_log);		// See NOTES
   thd->exit_cond(old_msg);
-}  
+}
 
 
 /*

@@ -116,8 +116,8 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 #endif
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
-  pthread_mutex_init(&active_vio_lock, MY_MUTEX_INIT_FAST);
 #endif  
+  pthread_mutex_init(&LOCK_delete, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
   proc_info="login";
@@ -189,6 +189,10 @@ THD::~THD()
 {
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
+  /* Ensure that no one is using THD */
+  pthread_mutex_lock(&LOCK_delete);
+  pthread_mutex_unlock(&LOCK_delete);
+
   /* Close connection */
   if (net.vio)
   {
@@ -217,18 +221,19 @@ THD::~THD()
   free_root(&mem_root,MYF(0));
   free_root(&transaction.mem_root,MYF(0));
   mysys_var=0;					// Safety (shouldn't be needed)
-#ifdef SIGNAL_WITH_VIO_CLOSE
-  pthread_mutex_destroy(&active_vio_lock);
-#endif
+  pthread_mutex_destroy(&LOCK_delete);
 #ifndef DBUG_OFF
   dbug_sentry = THD_SENTRY_GONE;
 #endif  
   DBUG_VOID_RETURN;
 }
 
+
 void THD::awake(bool prepare_to_die)
 {
   THD_CHECK_SENTRY(this);
+  safe_mutex_assert_owner(&LOCK_delete); 
+
   if (prepare_to_die)
     killed = 1;
   thr_alarm_kill(real_id);

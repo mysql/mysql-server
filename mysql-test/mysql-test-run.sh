@@ -343,6 +343,7 @@ SLAVE_MYPID="$MYRUN_DIR/slave.pid"
 SLAVE_MYLOG="$MYSQL_TEST_DIR/var/log/slave.log"
 SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/slave.err"
 
+CURRENT_TEST="$MYSQL_TEST_DIR/var/log/current_test"
 SMALL_SERVER="-O key_buffer_size=1M -O sort_buffer=256K -O max_heap_table_size=1M"
 
 export MASTER_MYPORT
@@ -1034,6 +1035,7 @@ run_testcase ()
  master_init_script=$TESTDIR/$tname-master.sh
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
+ echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
  if [ $USE_MANAGER = 1 ] ; then
   many_slaves=`$EXPR \( $tname : rpl_failsafe \) != 0`

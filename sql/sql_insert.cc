@@ -562,8 +562,8 @@ public:
     thd.user=thd.host=0;
     thread_count--;
     delayed_insert_threads--;
-    VOID(pthread_cond_broadcast(&COND_thread_count)); /* Tell main we are ready */
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
+    VOID(pthread_cond_broadcast(&COND_thread_count)); /* Tell main we are ready */
   }
 
   /* The following is for checking when we can delete ourselves */

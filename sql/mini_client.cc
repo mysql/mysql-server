@@ -353,7 +353,7 @@ mc_net_safe_read(MYSQL *mysql)
       else
 	strmov(net->last_error, "Packet too large - increase \
 max_allowed_packet on this server");
-    }	
+    }
     return(packet_error);
   }
   if (net->read_pos[0] == 255)
@@ -671,7 +671,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   if ((pkt_length=mc_net_safe_read(mysql)) == packet_error)
     goto error;
 
-  /* Check if version of protocoll matches current one */
+  /* Check if version of protocol matches current one */
 
   mysql->protocol_version= net->read_pos[0];
   DBUG_DUMP("packet",(char*) net->read_pos,10);

@@ -230,7 +230,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
     Test to see if the previous run was with the skip of purging
     If yes, we do not purge when we restart
   */
-  if (rli->relay_log.find_log_pos(&rli->linfo,NullS))
+  if (rli->relay_log.find_log_pos(&rli->linfo, NullS, 1))
   {
     *errmsg="Could not find first log during relay log initialization";
     goto err;
@@ -240,7 +240,7 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
   {
     if (strcmp(log, rli->linfo.log_file_name))
       rli->skip_log_purge=1;			// Different name; Don't purge
-    if (rli->relay_log.find_log_pos(&rli->linfo, log))
+    if (rli->relay_log.find_log_pos(&rli->linfo, log, 1))
     {
       *errmsg="Could not find target log during relay log initialization";
       goto err;
@@ -1201,7 +1201,7 @@ static int count_relay_log_space(RELAY_LOG_INFO* rli)
   LOG_INFO linfo;
   DBUG_ENTER("count_relay_log_space");
   rli->log_space_total = 0;
-  if (rli->relay_log.find_log_pos(&linfo, NullS))
+  if (rli->relay_log.find_log_pos(&linfo, NullS, 1))
   {
     sql_print_error("Could not find first log while counting relay log space");
     DBUG_RETURN(1);
@@ -1210,7 +1210,7 @@ static int count_relay_log_space(RELAY_LOG_INFO* rli)
   {
     if (add_relay_log(rli,&linfo))
       DBUG_RETURN(1);
-  } while (!rli->relay_log.find_next_log(&linfo));
+  } while (!rli->relay_log.find_next_log(&linfo, 1));
   DBUG_RETURN(0);
 }
 
@@ -2538,9 +2538,10 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
     {
       last_errno=mc_mysql_errno(mysql);
       suppress_warnings= 0;
-      sql_print_error("Slave I/O thread: error connecting to master \
+      sql_print_error("Slave I/O thread: error %s to master \
 '%s@%s:%d': \
 Error: '%s'  errno: %d  retry-time: %d  retries: %d",
+		      (reconnect ? "reconnecting" : "connecting"),
 		      mi->user,mi->host,mi->port,
 		      mc_mysql_error(mysql), last_errno,
 		      mi->connect_retry,
@@ -2771,8 +2772,8 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	  update. If we do not, show slave status will block
 	*/
 	pthread_mutex_unlock(&rli->data_lock);
+ 	/* Note that wait_for_update unlocks lock_log ! */
 	rli->relay_log.wait_for_update(rli->sql_thd);
-	pthread_mutex_unlock(log_lock);
 	
 	// re-acquire data lock since we released it earlier
 	pthread_mutex_lock(&rli->data_lock);
