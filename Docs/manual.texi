@@ -28312,7 +28312,7 @@ For disaster recovery, one should use table backups plus
 @strong{MySQL}'s binary log. @xref{Backup}.
 
 @strong{Warning}: If you delete old log files that are in use, BDB will
-not be able to do recovery at all and you may loose data if something
+not be able to do recovery at all and you may lose data if something
 goes wrong.
 @item
 @strong{MySQL} requires a @code{PRIMARY KEY} in each BDB table to be
