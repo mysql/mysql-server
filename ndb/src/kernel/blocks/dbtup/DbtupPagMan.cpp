@@ -139,19 +139,21 @@ void Dbtup::initializePage()
   ptrAss(pagePtr, page);
   pagePtr.p->pageWord[ZPAGE_STATE_POS] = ~ZFREE_COMMON;
   
-  returnCommonArea(1, cnoOfPage - 1);
-  cnoOfAllocatedPages = 1;
+  cnoOfAllocatedPages = 1 + MAX_PARALLELL_TUP_SRREQ;
+  returnCommonArea(cnoOfAllocatedPages, cnoOfPage - cnoOfAllocatedPages);
+  c_sr_free_page_0 = ~0;
 }//Dbtup::initializePage()
 
 void Dbtup::allocConsPages(Uint32 noOfPagesToAllocate,
                            Uint32& noOfPagesAllocated,
                            Uint32& allocPageRef)
 {
-  if (noOfPagesToAllocate == 0) {
+  if (noOfPagesToAllocate == 0){ 
     ljam();
     noOfPagesAllocated = 0;
     return;
   }//if
+
   Uint32 firstListToCheck = nextHigherTwoLog(noOfPagesToAllocate - 1);
   for (Uint32 i = firstListToCheck; i < 16; i++) {
     ljam();

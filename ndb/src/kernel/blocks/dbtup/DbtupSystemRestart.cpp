@@ -92,12 +92,25 @@ void Dbtup::rfrReadRestartInfoLab(Signal* signal, RestartInfoRecordPtr riPtr)
 
   seizeDiskBufferSegmentRecord(dbsiPtr);
   riPtr.p->sriDataBufferSegmentP = dbsiPtr.i;
-  Uint32 retPageRef;
+  Uint32 retPageRef = RNIL;
   Uint32 noAllocPages = 1;
   Uint32 noOfPagesAllocated;
-  allocConsPages(noAllocPages, noOfPagesAllocated, retPageRef);
-  ndbrequire(noOfPagesAllocated == 1);
-
+  {
+    /**
+     * Use low pages for 0-pages during SR
+     *   bitmask of free pages is kept in c_sr_free_page_0
+     */
+    Uint32 tmp = c_sr_free_page_0;
+    for(Uint32 i = 1; i<(1+MAX_PARALLELL_TUP_SRREQ); i++){
+      if(tmp & (1 << i)){
+	retPageRef = i;
+	c_sr_free_page_0 = tmp & (~(1 << i));
+	break;
+      }
+    }
+    ndbrequire(retPageRef != RNIL);
+  }
+  
   dbsiPtr.p->pdxDataPage[0] = retPageRef;
   dbsiPtr.p->pdxNumDataPages = 1;
   dbsiPtr.p->pdxFilePage = 0;
@@ -150,7 +163,10 @@ Dbtup::rfrInitRestartInfoLab(Signal* signal, DiskBufferSegmentInfoPtr dbsiPtr)
   /* LETS REMOVE IT AND REUSE THE SEGMENT FOR REAL DATA PAGES             */
   /* REMOVE ONE PAGE ONLY, PAGEP IS ALREADY SET TO THE RESTART INFO PAGE */
   /************************************************************************/
-  returnCommonArea(pagePtr.i, 1);
+  {
+    ndbrequire(pagePtr.i > 0 && pagePtr.i <= MAX_PARALLELL_TUP_SRREQ);
+    c_sr_free_page_0 |= (1 << pagePtr.i);
+  }
 
   Uint32 undoFileVersion = TzeroDataPage[ZSRI_UNDO_FILE_VER];
   lliPtr.i = (undoFileVersion << 2) + (regTabPtr.i & 0x3);
