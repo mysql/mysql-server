@@ -1483,7 +1483,7 @@ String *Item_func_format::val_str(String *str)
     str= copy_if_not_alloced(&tmp_str,str,length);
     str->length(length);
     tmp= (char*) str->ptr()+length - dec-1;
-    for (pos= (char*) str->ptr()+length ; pos != tmp; pos--)
+    for (pos= (char*) str->ptr()+length-1; pos != tmp; pos--)
       pos[0]= pos[-(int) diff];
     while (diff)
     {
