@@ -50132,6 +50132,12 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed bug in multi-table update when updating a table confused do_select
+in reading records from a cache
+@item
+Fixed bug in multi-table update when several fields are referenced
+from a single table
+@item
 Fixed bug in @code{REVOKE} that caused user resources to be randomly set.
 @item
 Fixed bug in @code{GRANT} for the new @code{CREATE TEMPORARY TABLE} privilege.
