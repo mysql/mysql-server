@@ -361,6 +361,21 @@ drop table test.t1, t2;
 drop database mysqltest;
 
 #
+# BUG#6031 - DROP DATABASE doesn't drop database on first try
+#
+
+--disable_warnings
+drop database if exists ndbtest1;
+--enable_warnings
+
+create database ndbtest1;
+use ndbtest1;
+create table t1(id int) engine=ndbcluster;
+drop database ndbtest1;
+--error 1008
+drop database ndbtest1;
+
+#
 # test support of char(0)
 #
 

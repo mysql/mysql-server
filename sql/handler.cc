@@ -109,6 +109,8 @@ const char *tx_isolation_names[] =
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names, NULL};
 
+static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
+
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
   THD *thd=current_thd;
@@ -1633,3 +1635,57 @@ int handler::index_read_idx(byte * buf, uint index, const byte * key,
   return error;
 }
 
+/*
+  Returns a list of all known extensions.
+
+  SYNOPSIS
+    ha_known_exts()
+ 
+  NOTES
+    No mutexes, worst case race is a minor surplus memory allocation
+
+  RETURN VALUE
+    pointer		pointer to TYPELIB structure
+*/
+TYPELIB *ha_known_exts(void)
+{
+  if (!known_extensions.type_names)
+  {
+    show_table_type_st *types;
+    List<char> found_exts;
+    List_iterator_fast<char> it(found_exts);
+    const char *e, **ext;
+    
+    found_exts.push_back(".db");
+    for (types= sys_table_types; types->type; types++)
+    {      
+      if (*types->value == SHOW_OPTION_YES)
+      {
+	handler *file= get_new_handler(0,(enum db_type) types->db_type);
+	for (ext= file->bas_ext(); *ext; ext++)
+	{
+	  while (e=it++) 
+	    if (e == *ext)
+	      break;
+
+	  if (!e)
+	    found_exts.push_back((char *)*ext);
+
+	  it.rewind();
+	}
+	delete file;
+      }
+    }
+    ext= (const char **)my_once_alloc(sizeof(char *)*
+		  (found_exts.elements+1), MYF(MY_WME));
+    
+    DBUG_ASSERT(ext);
+    for (uint i=0; e=it++; i++)
+      ext[i]= e;
+    ext[found_exts.elements]= 0;
+    
+    known_extensions.count= found_exts.elements;
+    known_extensions.type_names= ext;
+  }
+  return &known_extensions;
+}
