@@ -193,7 +193,9 @@ static my_bool init_available_charsets(myf myflags)
     charset_initialized=1;
     pthread_mutex_unlock(&THR_LOCK_charset);
   }
-  return error || !available_charsets[0];
+  if(!available_charsets || !available_charsets[0])
+    error = TRUE;
+  return error;
 }
 
 
@@ -467,6 +469,7 @@ char * list_charsets(myf want_flags)
   DYNAMIC_STRING s;
   char *p;
 
+  (void)init_available_charsets(MYF(0));
   init_dynamic_string(&s, NullS, 256, 1024);
 
   if (want_flags & MY_COMPILED_SETS)
@@ -485,16 +488,17 @@ char * list_charsets(myf want_flags)
     char buf[FN_REFLEN];
     MY_STAT stat;
 
-    for (c = available_charsets; *c; ++c)
-    {
-      if (charset_in_string((*c)->name, &s))
-        continue;
-      get_charset_conf_name((*c)->number, buf);
-      if (!my_stat(buf, &stat, MYF(0)))
-        continue;       /* conf file doesn't exist */
-      dynstr_append(&s, (*c)->name);
-      dynstr_append(&s, " ");
-    }
+    if((c=available_charsets))
+      for (; *c; ++c)
+	{
+	  if (charset_in_string((*c)->name, &s))
+	    continue;
+	  get_charset_conf_name((*c)->number, buf);
+	  if (!my_stat(buf, &stat, MYF(0)))
+	    continue;       /* conf file doesn't exist */
+	  dynstr_append(&s, (*c)->name);
+	  dynstr_append(&s, " ");
+	}
   }
 
   if (want_flags & MY_INDEX_SETS)
