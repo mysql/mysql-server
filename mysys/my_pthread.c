@@ -102,7 +102,7 @@ int my_pthread_create_detached=1;
 
 int my_sigwait(const sigset_t *set,int *sig)
 {
-  int signal=sigwait(set);
+  int signal=sigwait((sigset_t*) set);
   if (signal < 0)
     return errno;
   *sig=signal;
