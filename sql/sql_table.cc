@@ -383,6 +383,12 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   it.rewind();
   while ((sql_field=it++))
   {
+    if(!sql_field->charset)
+      sql_field->charset = create_info->table_charset ?
+			   create_info->table_charset : 
+			   thd->db_charset? thd->db_charset :
+			   default_charset_info;
+    
     switch (sql_field->sql_type) {
     case FIELD_TYPE_BLOB:
     case FIELD_TYPE_MEDIUM_BLOB:
@@ -391,7 +397,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       sql_field->pack_flag=FIELDFLAG_BLOB |
 	pack_length_to_packflag(sql_field->pack_length -
 				portable_sizeof_char_ptr);
-      if (sql_field->flags & BINARY_FLAG)
+      if (sql_field->charset->state & MY_CS_BINSORT)
 	sql_field->pack_flag|=FIELDFLAG_BINARY;
       sql_field->length=8;			// Unireg field length
       sql_field->unireg_check=Field::BLOB_FIELD;
@@ -400,17 +406,21 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     case FIELD_TYPE_VAR_STRING:
     case FIELD_TYPE_STRING:
       sql_field->pack_flag=0;
-      if (sql_field->flags & BINARY_FLAG)
+      if (sql_field->charset->state & MY_CS_BINSORT)
 	sql_field->pack_flag|=FIELDFLAG_BINARY;
       break;
     case FIELD_TYPE_ENUM:
       sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
 	FIELDFLAG_INTERVAL;
+      if (sql_field->charset->state & MY_CS_BINSORT)
+	sql_field->pack_flag|=FIELDFLAG_BINARY;
       sql_field->unireg_check=Field::INTERVAL_FIELD;
       break;
     case FIELD_TYPE_SET:
       sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
 	FIELDFLAG_BITFIELD;
+      if (sql_field->charset->state & MY_CS_BINSORT)
+	sql_field->pack_flag|=FIELDFLAG_BINARY;
       sql_field->unireg_check=Field::BIT_FIELD;
       break;
     case FIELD_TYPE_DATE:			// Rest of string types
@@ -438,11 +448,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     sql_field->offset= pos;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
-    if(!sql_field->charset)
-      sql_field->charset = create_info->table_charset ?
-			   create_info->table_charset : 
-			   thd->db_charset? thd->db_charset :
-			   default_charset_info;
     pos+=sql_field->pack_length;
   }
   if (auto_increment > 1)
@@ -2018,16 +2023,24 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 #ifdef HAVE_BERKELEY_DB
   if (old_db_type == DB_TYPE_BERKELEY_DB)
   {
-    (void) berkeley_flush_logs();
     /*
       For the alter table to be properly flushed to the logs, we
       have to open the new table.  If not, we get a problem on server
       shutdown.
     */
-    if (!open_tables(thd, table_list))		// Should always succeed
+    char path[FN_REFLEN];
+    (void) sprintf(path,"%s/%s/%s",mysql_data_home,new_db,table_name);
+    fn_format(path,path,"","",4);
+    table=open_temporary_table(thd, path, new_db, tmp_name,0);
+    if (table)
     {
-      close_thread_table(thd, &table_list->table);
+      intern_close_table(table);
+      my_free((char*) table, MYF(0));
     }
+    else
+      sql_print_error("Warning: Could not open BDB table %s.%s after rename\n",
+		      new_db,table_name);
+    (void) berkeley_flush_logs();
   }
 #endif
   table_list->table=0;				// For query cache

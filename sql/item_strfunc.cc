@@ -232,6 +232,8 @@ String *Item_func_concat::val_str(String *str)
   use_as_buff= &tmp_value;
   for (i=1 ; i < arg_count ; i++)
   {
+    if (args[i]->binary())
+      set_charset(my_charset_bin);
     if (res->length() == 0)
     {
       if (!(res=args[i]->val_str(str)))
@@ -260,6 +262,7 @@ String *Item_func_concat::val_str(String *str)
 	  str->append(*res2);
 	}
 	res=str;
+	res->set_charset(charset());
       }
       else if (res == &tmp_value)
       {
@@ -271,6 +274,7 @@ String *Item_func_concat::val_str(String *str)
 	if (tmp_value.replace(0,0,*res))
 	  goto null;
 	res= &tmp_value;
+	res->set_charset(charset());
 	use_as_buff=str;			// Put next arg here
       }
       else if (tmp_value.is_alloced() && res2->ptr() >= tmp_value.ptr() &&
@@ -289,6 +293,7 @@ String *Item_func_concat::val_str(String *str)
 			      *res))
 	  goto null;
 	res= &tmp_value;
+	res->set_charset(charset());
 	use_as_buff=str;			// Put next arg here
       }
       else
@@ -298,6 +303,7 @@ String *Item_func_concat::val_str(String *str)
 	    tmp_value.append(*res2))
 	  goto null;
 	res= &tmp_value;
+	res->set_charset(charset());
 	use_as_buff=str;
       }
     }
@@ -626,7 +632,7 @@ String *Item_func_reverse::val_str(String *str)
   ptr = (char *) res->ptr();
   end=ptr+res->length();
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !binary)
+  if (use_mb(res->charset()) && !binary())
   {
     String tmpstr;
     tmpstr.copy(*res);
@@ -689,7 +695,7 @@ String *Item_func_replace::val_str(String *str)
     goto null;
 
 #ifdef USE_MB
-  binary_str = (args[0]->binary || args[1]->binary || !use_mb(res->charset()));
+  binary_str = (args[0]->binary() || args[1]->binary() || !use_mb(res->charset()));
 #endif
 
   if (res2->length() == 0)
@@ -797,7 +803,7 @@ String *Item_func_insert::val_str(String *str)
       args[3]->null_value)
     goto null; /* purecov: inspected */
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !args[0]->binary)
+  if (use_mb(res->charset()) && !args[0]->binary())
   {
     start=res->charpos(start);
     length=res->charpos(length,start);
@@ -870,7 +876,7 @@ String *Item_func_left::val_str(String *str)
   if (length <= 0)
     return &empty_string;
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !binary)
+  if (use_mb(res->charset()) && !binary())
     length = res->charpos(length);
 #endif
   if (res->length() > (ulong) length)
@@ -878,7 +884,7 @@ String *Item_func_left::val_str(String *str)
     if (!res->alloced_length())
     {						// Don't change const str
       str_value= *res;				// Not malloced string
-      str_value.set_charset(res->charset());
+      set_charset(res->charset());
       res= &str_value;
     }
     res->length((uint) length);
@@ -919,7 +925,7 @@ String *Item_func_right::val_str(String *str)
   if (res->length() <= (uint) length)
     return res; /* purecov: inspected */
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !binary)
+  if (use_mb(res->charset()) && !binary())
   {
     uint start=res->numchars()-(uint) length;
     if (start<=0) return res;
@@ -952,7 +958,7 @@ String *Item_func_substr::val_str(String *str)
 		   (arg_count == 3 && args[2]->null_value))))
     return 0; /* purecov: inspected */
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !binary)
+  if (use_mb(res->charset()) && !binary())
   {
     start=res->charpos(start);
     length=res->charpos(length,start);
@@ -1012,7 +1018,7 @@ String *Item_func_substr_index::val_str(String *str)
     return &empty_string;		// Wrong parameters
 
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !binary)
+  if (use_mb(res->charset()) && !binary())
   {
     const char *ptr=res->ptr();
     const char *strend = ptr+res->length();
@@ -1166,7 +1172,7 @@ String *Item_func_rtrim::val_str(String *str)
   {
     char chr=(*remove_str)[0];
 #ifdef USE_MB
-    if (use_mb(res->charset()) && !binary)
+    if (use_mb(res->charset()) && !binary())
     {
       while (ptr < end)
       {
@@ -1183,7 +1189,7 @@ String *Item_func_rtrim::val_str(String *str)
   {
     const char *r_ptr=remove_str->ptr();
 #ifdef USE_MB
-    if (use_mb(res->charset()) && !binary)
+    if (use_mb(res->charset()) && !binary())
     {
   loop:
       while (ptr + remove_length < end)
@@ -1234,7 +1240,7 @@ String *Item_func_trim::val_str(String *str)
   while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
     ptr+=remove_length;
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !binary)
+  if (use_mb(res->charset()) && !binary())
   {
     char *p=ptr;
     register uint32 l;
@@ -1979,7 +1985,7 @@ outp:
 void Item_func_conv_charset::fix_length_and_dec()
 {
   max_length = args[0]->max_length*(conv_charset->mbmaxlen?conv_charset->mbmaxlen:1);
-  str_value.set_charset(conv_charset);
+  set_charset(conv_charset);
 }
 
 
@@ -2054,7 +2060,6 @@ outp:
 bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables, Item **ref)
 {
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
-  binary=0;
   used_tables_cache=0;
   const_item_cache=1;
   
@@ -2063,9 +2068,8 @@ bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables, I
   if (args[0]->fix_fields(thd, tables, args))
     return 1;
   maybe_null=args[0]->maybe_null;
-  binary=args[0]->binary;
   const_item_cache=args[0]->const_item();
-  str_value.set_charset(conv_charset);
+  set_charset(conv_charset);
   fix_length_and_dec();
   return 0;
 }
@@ -2088,7 +2092,6 @@ String *Item_func_set_collation::val_str(String *str)
 bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, Item **ref)
 {
   char buff[STACK_BUFF_ALLOC];			// Max argument in function
-  binary=0;
   used_tables_cache=0;
   const_item_cache=1;
   
@@ -2097,8 +2100,7 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
   if (args[0]->fix_fields(thd, tables, args))
     return 1;
   maybe_null=args[0]->maybe_null;
-  binary=args[0]->binary;
-  str_value.set_charset(set_collation);
+  set_charset(set_collation);
   with_sum_func= with_sum_func || args[0]->with_sum_func;
   used_tables_cache=args[0]->used_tables();
   const_item_cache=args[0]->const_item();

@@ -371,7 +371,7 @@ JOIN::optimize()
 #endif
 
   conds=optimize_cond(conds,&cond_value);
-  if (thd->fatal_error)				// Out of memory
+  if (thd->fatal_error || thd->net.report_error)
   {
     delete procedure;
     error = 0;
@@ -3600,14 +3600,14 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case Item_sum::AVG_FUNC:			/* Place for sum & count */
       if (group)
 	return new Field_string(sizeof(double)+sizeof(longlong),
-				maybe_null, item->name,table,1,default_charset_info);
+				maybe_null, item->name,table,my_charset_bin);
       else
 	return new Field_double(item_sum->max_length,maybe_null,
 				item->name, table, item_sum->decimals);
     case Item_sum::STD_FUNC:			/* Place for sum & count */
       if (group)
 	return	new Field_string(sizeof(double)*2+sizeof(longlong),
-				 maybe_null, item->name,table,1,default_charset_info);
+				 maybe_null, item->name,table,my_charset_bin);
       else
 	return new Field_double(item_sum->max_length, maybe_null,
 				item->name,table,item_sum->decimals);
@@ -3624,9 +3624,9 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       case STRING_RESULT:
 	if (item_sum->max_length > 255)
 	  return  new Field_blob(item_sum->max_length,maybe_null,
-				 item->name,table,item->binary,default_charset_info);
+				 item->name,table,item->str_value.charset());
 	return	new Field_string(item_sum->max_length,maybe_null,
-				 item->name,table,item->binary,default_charset_info);
+				 item->name,table,item->str_value.charset());
       }
     }
     thd->fatal_error=1;
@@ -3678,12 +3678,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case STRING_RESULT:
       if (item->max_length > 255)
 	new_field=  new Field_blob(item->max_length,maybe_null,
-				   item->name,table,item->binary,
-				   item->str_value.charset());
+				   item->name,table,item->str_value.charset());
       else
 	new_field= new Field_string(item->max_length,maybe_null,
-				    item->name,table,item->binary,
-				    item->str_value.charset());
+				    item->name,table,item->str_value.charset());
       break;
     }
     if (copy_func)
@@ -4121,7 +4119,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 					    (uchar*) 0,
 					    (uint) 0,
 					    Field::NONE,
-					    NullS, table, (bool) 1, default_charset_info);
+					    NullS, table, my_charset_bin);
       key_part_info->key_type=FIELDFLAG_BINARY;
       key_part_info->type=    HA_KEYTYPE_BINARY;
       key_part_info++;
@@ -7253,16 +7251,18 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   select_result *result=join->result;
   Item *item_null= new Item_null();
   DBUG_ENTER("select_describe");
-
+  DBUG_PRINT("info", ("Select 0x%lx, type %s, message %s", 
+		      (ulong)join->select_lex, join->select_lex->type,
+		      message));
   /* Don't log this into the slow query log */
   select_lex->options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
   join->unit->offset_limit_cnt= 0;
 
   if (message)
   {
-    item_list.push_back(new Item_int((int32) thd->lex.select->select_number));
-    item_list.push_back(new Item_string(thd->lex.select->type,
-					strlen(thd->lex.select->type),
+    item_list.push_back(new Item_int((int32) join->select_lex->select_number));
+    item_list.push_back(new Item_string(join->select_lex->type,
+					strlen(join->select_lex->type),
 					default_charset_info));
     Item *empty= new Item_empty_string("",0);
     for (uint i=0 ; i < 7; i++)
@@ -7287,9 +7287,10 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       tmp2.length(0);
 
       item_list.empty();
-      item_list.push_back(new Item_int((int32) thd->lex.select->select_number));
-      item_list.push_back(new Item_string(thd->lex.select->type,
-					  strlen(thd->lex.select->type),
+      item_list.push_back(new Item_int((int32) 
+				       join->select_lex->select_number));
+      item_list.push_back(new Item_string(join->select_lex->type,
+					  strlen(join->select_lex->type),
 					  default_charset_info));
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
 	tab->type= JT_RANGE;
@@ -7447,6 +7448,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
 int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 {
+  DBUG_ENTER("mysql_explain_union");
   int res= 0;
   SELECT_LEX *first= unit->first_select();
   for (SELECT_LEX *sl= first;
@@ -7469,12 +7471,14 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   }
   if (res > 0)
     res= -res; // mysql_explain_select do not report error
-  return res;
+  DBUG_RETURN(res);
 }
 
 int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type, 
 			 select_result *result)
 {
+  DBUG_ENTER("mysql_explain_select");
+  DBUG_PRINT("info", ("Select 0x%lx, type %s", (ulong)select_lex, type))
   select_lex->type= type;
   thd->lex.select= select_lex;
   SELECT_LEX_UNIT *unit=  select_lex->master_unit();
@@ -7487,6 +7491,6 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
 			(ORDER*) thd->lex.proc_list.first,
 			select_lex->options | thd->options | SELECT_DESCRIBE,
 			result, unit, select_lex, 0);
-  return res;
+  DBUG_RETURN(res);
 }
   

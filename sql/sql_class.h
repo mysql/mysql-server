@@ -499,9 +499,9 @@ public:
   uint8	     query_cache_type;		// type of query cache processing
   bool       slave_thread;
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
-  bool	     no_errors, allow_sum_func, password;
-  bool	     fatal_error;
-  bool	     query_start_used,last_insert_id_used,insert_id_used;
+  bool	     no_errors, allow_sum_func, password, fatal_error;
+  bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
+  ulonglong  rand_saved_seed1, rand_saved_seed2;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
   bool	     safe_to_cache_query;

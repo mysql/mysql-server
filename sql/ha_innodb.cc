@@ -1404,7 +1404,7 @@ get_innobase_type_from_mysql_type(
 	DBUG_ASSERT((ulint)FIELD_TYPE_DECIMAL < 256);
 
 	switch (field->type()) {
-		case FIELD_TYPE_VAR_STRING: if (field->flags & BINARY_FLAG) {
+		case FIELD_TYPE_VAR_STRING: if (field->binary()) {
 
 						return(DATA_BINARY);
 					} else if (strcmp(
@@ -1414,7 +1414,7 @@ get_innobase_type_from_mysql_type(
 					} else {
 						return(DATA_VARMYSQL);
 					}
-		case FIELD_TYPE_STRING: if (field->flags & BINARY_FLAG) {
+		case FIELD_TYPE_STRING: if (field->binary()) {
 
 						return(DATA_FIXBINARY);
 					} else if (strcmp(

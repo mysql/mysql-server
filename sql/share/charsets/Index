@@ -17,7 +17,6 @@ swe7 		  10
 usa7 		  11
 ujis 		  12
 sjis 		  13
-# cp1251 is depreciated. Use cp1251cias, cp1251csas or cp1251bin instead.
 cp1251		  14
 danish		  15
 hebrew		  16

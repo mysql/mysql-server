@@ -2904,7 +2904,6 @@ mysql_init_query(THD *thd)
   thd->select_number= thd->lex.select_lex.select_number= 1;
   thd->lex.value_list.empty();
   thd->free_list= 0;
-  thd->lex.union_option= 0;
   thd->lex.select= &thd->lex.select_lex;
   thd->lex.olap=thd->lex.describe=0;
   thd->lex.select->olap= UNSPECIFIED_OLAP_TYPE;
@@ -2912,6 +2911,7 @@ mysql_init_query(THD *thd)
   thd->total_warn_count=0;			// Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
+  thd->rand_used=0;
   thd->safe_to_cache_query= 1;
   thd->lex.param_list.empty();
   DBUG_VOID_RETURN;
