@@ -423,6 +423,18 @@ select * from t1 where a='807780' and b='477' and c='165';
 drop table t1;
 
 #
+# space-stripping in _mi_prefix_search: BUG#5284
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a varchar(150) NOT NULL, KEY (a)); 
+INSERT t1 VALUES ("can \tcan"); 
+INSERT t1 VALUES ("can   can"); 
+INSERT t1 VALUES ("can"); 
+SELECT * FROM t1;
+CHECK TABLE t1;
+DROP TABLE t1;
+
+#
 # Verify blob handling
 #
 create table t1 (a blob);

@@ -427,13 +427,13 @@ public:
   */
   Item *free_list;
   MEM_ROOT mem_root;
-  enum 
+  enum enum_state 
   {
     INITIALIZED= 0, PREPARED= 1, EXECUTED= 3, CONVENTIONAL_EXECUTION= 2, 
     ERROR= -1
   };
   
-  int state;
+  enum_state state;
 
   /* We build without RTTI, so dynamic_cast can't be used. */
   enum Type
@@ -447,8 +447,8 @@ public:
   virtual Type type() const;
   virtual ~Item_arena();
 
-  inline bool is_stmt_prepare() const { return state < (int)PREPARED; }
-  inline bool is_first_stmt_execute() const { return state == (int)PREPARED; }
+  inline bool is_stmt_prepare() const { return (int)state < (int)PREPARED; }
+  inline bool is_first_stmt_execute() const { return state == PREPARED; }
   inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
   inline gptr calloc(unsigned int size)
   {
