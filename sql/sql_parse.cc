@@ -3805,21 +3805,21 @@ unsent_create_error:
     break;
   case SQLCOM_RELEASE_SAVEPOINT:
   {
-    SAVEPOINT **sv;
-    for (sv=&thd->transaction.savepoints; *sv; sv=&(*sv)->prev)
+    SAVEPOINT *sv;
+    for (sv=thd->transaction.savepoints; sv; sv=sv->prev)
     {
       if (my_strnncoll(system_charset_info,
                        (uchar *)lex->ident.str, lex->ident.length,
-                       (uchar *)(*sv)->name, (*sv)->length) == 0)
+                       (uchar *)sv->name, sv->length) == 0)
         break;
     }
-    if (*sv)
+    if (sv)
     {
-      if (ha_release_savepoint(thd, *sv))
+      if (ha_release_savepoint(thd, sv))
         res= TRUE; // cannot happen
       else
         send_ok(thd);
-      *sv=(*sv)->prev;
+      thd->transaction.savepoints=sv->prev;
     }
     else
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SAVEPOINT", lex->ident.str);
@@ -3827,17 +3827,17 @@ unsent_create_error:
   }
   case SQLCOM_ROLLBACK_TO_SAVEPOINT:
   {
-    SAVEPOINT **sv;
-    for (sv=&thd->transaction.savepoints; *sv; sv=&(*sv)->prev)
+    SAVEPOINT *sv;
+    for (sv=thd->transaction.savepoints; sv; sv=sv->prev)
     {
       if (my_strnncoll(system_charset_info,
                        (uchar *)lex->ident.str, lex->ident.length,
-                       (uchar *)(*sv)->name, (*sv)->length) == 0)
+                       (uchar *)sv->name, sv->length) == 0)
         break;
     }
-    if (*sv)
+    if (sv)
     {
-      if (ha_rollback_to_savepoint(thd, *sv))
+      if (ha_rollback_to_savepoint(thd, sv))
         res= TRUE; // cannot happen
       else
       {
@@ -3848,7 +3848,7 @@ unsent_create_error:
                        ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
         send_ok(thd);
       }
-      *sv=(*sv)->prev;
+      thd->transaction.savepoints=sv;
     }
     else
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SAVEPOINT", lex->ident.str);
