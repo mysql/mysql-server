@@ -6004,11 +6004,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_ndbcluster= SHOW_OPTION_DISABLED;
 #endif
     break;
-  case OPT_NDB_CONNECTSTRING:
 #ifdef HAVE_NDBCLUSTER_DB
+  case OPT_NDB_CONNECTSTRING:
     have_ndbcluster= SHOW_OPTION_YES;
-#endif
     break;
+#endif
   case OPT_INNODB:
 #ifdef HAVE_INNOBASE_DB
     if (opt_innodb)
