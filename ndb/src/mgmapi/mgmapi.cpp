@@ -430,7 +430,7 @@ const int no_of_type_values = (sizeof(type_values) /
 			       sizeof(ndb_mgm_type_atoi));
 
 extern "C"
-enum ndb_mgm_node_type
+ndb_mgm_node_type
 ndb_mgm_match_node_type(const char * type)
 {
   if(type == 0)
@@ -474,7 +474,7 @@ const int no_of_status_values = (sizeof(status_values) /
 				 sizeof(ndb_mgm_status_atoi));
 
 extern "C"
-enum ndb_mgm_node_status
+ndb_mgm_node_status
 ndb_mgm_match_node_status(const char * status)
 {
   if(status == 0)
