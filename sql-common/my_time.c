@@ -578,7 +578,7 @@ fractional:
 void init_time(void)
 {
   time_t seconds;
-  struct tm *l_time,tm_tmp;;
+  struct tm *l_time,tm_tmp;
   MYSQL_TIME my_time;
   bool not_used;
 
