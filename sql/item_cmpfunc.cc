@@ -1118,10 +1118,62 @@ byte *in_double::get_value(Item *item)
   return (byte*) &tmp;
 }
 
+cmp_item* cmp_item::get_comparator (Item *item)
+{
+  switch (item->result_type()) {
+  case STRING_RESULT:
+    if (item->binary())
+      return new cmp_item_binary_string;
+    else
+      return new cmp_item_sort_string;
+    break;
+  case INT_RESULT:
+    return new cmp_item_int;
+    break;
+  case REAL_RESULT:
+    return new cmp_item_real;
+    break;
+  case ROW_RESULT:
+    return new cmp_item_row;
+    break;
+  }
+  return 0; // to satisfy compiler :)
+}
+
+void cmp_item_row::store_value(Item *item)
+{
+  n= item->cols();
+  if ((comparators= (cmp_item **) sql_alloc(sizeof(cmp_item *)*n)))
+  {
+    for (uint i=0; i < n; i++)
+      if ((comparators[i]= cmp_item::get_comparator(item->el(i))))
+	comparators[i]->store_value(item->el(i));
+      else
+      {
+	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+	current_thd->fatal_error= 1;
+	return;
+      }	  
+  }
+  else
+  {
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+    current_thd->fatal_error= 1;
+    return;
+  }
+}
+
+int cmp_item_row::cmp(Item *arg)
+{
+  for(uint i=0; i < n; i++)
+    if(comparators[i]->cmp(arg->el(i)))
+      return 1;
+  return 0;
+}
 
 void Item_func_in::fix_length_and_dec()
 {
-  if (const_item())
+  if (const_item() && item->result_type()!=ROW_RESULT)
   {
     switch (item->result_type()) {
     case STRING_RESULT:
@@ -1155,24 +1207,7 @@ void Item_func_in::fix_length_and_dec()
   }
   else
   {
-    switch (item->result_type()) {
-    case STRING_RESULT:
-      if (item->binary())
-	in_item= new cmp_item_binary_string;
-      else
-	in_item= new cmp_item_sort_string;
-      break;
-    case INT_RESULT:
-      in_item=	  new cmp_item_int;
-      break;
-    case REAL_RESULT:
-      in_item=	  new cmp_item_real;
-      break;
-    case ROW_RESULT:
-      // This case should never be choosen
-      DBUG_ASSERT(0);
-      break;
-    }
+    in_item= cmp_item:: get_comparator(item);
   }
   maybe_null= item->maybe_null;
   max_length=2;
