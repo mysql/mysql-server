@@ -50,13 +50,16 @@ db_find_routine_aux(THD *thd, int type, char *name, uint namelen,
   tables.db= (char*)"mysql";
   tables.real_name= tables.alias= (char*)"proc";
   if (! (table= open_ltable(thd, &tables, ltype)))
+  {
+    *tablep= NULL;
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  }
 
   if (table->file->index_read_idx(table->record[0], 0,
 				  key, keylen,
 				  HA_READ_KEY_EXACT))
   {
-    close_thread_tables(thd);
+    *tablep= NULL;
     DBUG_RETURN(SP_KEY_NOT_FOUND);
   }
   *tablep= table;
@@ -94,7 +97,7 @@ db_find_routine(THD *thd, int type, char *name, uint namelen, sp_head **sphp)
     *sphp= tmplex->sphead;
 
  done:
-  if (ret != SP_OK && table)
+  if (table)
     close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
@@ -129,8 +132,7 @@ db_create_routine(THD *thd, int type,
       ret= SP_OK;
   }
 
-  if (ret == SP_OK && table)
-    close_thread_tables(thd);
+  close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
 
@@ -149,8 +151,7 @@ db_drop_routine(THD *thd, int type, char *name, uint namelen)
       ret= SP_DELETE_ROW_FAILED;
   }
 
-  if (ret == SP_OK && table)
-    close_thread_tables(thd);
+  close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
 
@@ -251,12 +252,13 @@ bool
 sp_function_exists(THD *thd, LEX_STRING *name)
 {
   TABLE *table;
+  bool ret= FALSE;
 
   if (db_find_routine_aux(thd, TYPE_ENUM_FUNCTION,
 			  name->str, name->length, TL_READ, &table) == SP_OK)
   {
-    close_thread_tables(thd);
-    return TRUE;
+    ret= TRUE;
   }
-  return FALSE;
+  close_thread_tables(thd);
+  return ret;
 }
