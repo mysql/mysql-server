@@ -199,7 +199,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   tcKeyReq->setKeyLength(tReqInfo, tTupKeyLen);
   
   // A simple read is always ignore error
-  abortOption = tSimpleIndicator ? IgnoreError : abortOption;
+  abortOption = tSimpleIndicator ? AO_IgnoreError : abortOption;
   tcKeyReq->setAbortOption(tReqInfo, abortOption);
   
   Uint8 tDistrKeyIndicator = theDistrKeyIndicator_;
@@ -542,7 +542,7 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
 
   theStatus = Finished;
   // blobs want this
-  if (m_abortOption != IgnoreError)
+  if (m_abortOption != AO_IgnoreError)
   {
     theNdbCon->theReturnStatus = NdbConnection::ReturnFailure;
   }
@@ -550,7 +550,7 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
   theNdbCon->setOperationErrorCodeAbort(aSignal->readData(4), ao);
 
   if(theOperationType != ReadRequest || !theSimpleIndicator) // not simple read
-    return theNdbCon->OpCompleteFailure(ao, m_abortOption != IgnoreError);
+    return theNdbCon->OpCompleteFailure(ao, m_abortOption != AO_IgnoreError);
   
   /**
    * If TCKEYCONF has arrived

@@ -1117,7 +1117,7 @@ ndb_mgm_listen_event(NdbMgmHandle handle, int filter[])
   int port= ndb_mgm_get_connected_port(handle);
   SocketClient s(hostname, port);
   const NDB_SOCKET_TYPE sockfd = s.connect();
-  if (sockfd < 0) {
+  if (sockfd == NDB_INVALID_SOCKET) {
     setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
 	     "Unable to connect to");
     return -1;

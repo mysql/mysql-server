@@ -89,7 +89,7 @@ public:
     return memcmp(this, &l, sizeof(* this)) == 0;
   }
 
-  LogLevel& operator=(const class EventSubscribeReq & req);
+  LogLevel& operator=(const struct EventSubscribeReq & req);
   
 private:
   /**

@@ -23,3 +23,5 @@ wrappers_SCRIPTS=atrt-testBackup atrt-mysql-test-run
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
+
+windoze-dsp:

@@ -186,13 +186,17 @@ Logger::addHandler(const BaseString &logstring) {
 
     LogHandler *handler = NULL;
 
-    if(type == "SYSLOG") {
+#ifndef NDB_WIN32
+    if(type == "SYSLOG")
+    {
       handler = new SysLogHandler();
-    } else if(type == "FILE")
+    } else 
+#endif
+    if(type == "FILE")
       handler = new FileLogHandler();
     else if(type == "CONSOLE")
       handler = new ConsoleLogHandler();
-
+    
     if(handler == NULL)
       DBUG_RETURN(false);
     if(!handler->parseParams(params))

@@ -14,29 +14,39 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef NDB_VERSION_H
-#define NDB_VERSION_H
 
 #include <ndb_global.h>
-#include <version.h>
+#include "NdbHost.h"
 
-#define MAKE_VERSION(A,B,C) (((A) << 16) | ((B) << 8)  | ((C) << 0))
 
-#define NDB_VERSION_D MAKE_VERSION(NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD)
+int NdbHost_GetHostName(char* buf)
+{
+    /* We must initialize TCP/IP if we want to call gethostname */
+    WORD wVersionRequested;
+    WSADATA wsaData;
+    int err; 
+    
+    wVersionRequested = MAKEWORD( 2, 0 ); 
+    err = WSAStartup( wVersionRequested, &wsaData );
+    if ( err != 0 ) {    
+    /**
+    * Tell the user that we couldn't find a usable
+    * WinSock DLL.                               
+        */
+        return -1;
+    }
+    
+    /* Get host name */
+    if(gethostname(buf, MAXHOSTNAMELEN))
+    {
+        return -1;
+    }
+    return 0;
+}
 
-#define NDB_VERSION_STRING (getVersionString(NDB_VERSION, NDB_VERSION_STATUS))
 
-#define NDB_VERSION_TAG_STRING "$Name:  $"
+int NdbHost_GetProcessId(void)
+{
+    return _getpid();
+}
 
-#define NDB_VERSION ndbGetOwnVersion()
-
-/**
- * Version id 
- *
- *  Used by transporter and when communicating with
- *     managment server
- */
-/*#define NDB_VERSION_ID 0*/
-
-#endif
- 
