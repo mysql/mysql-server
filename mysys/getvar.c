@@ -53,15 +53,16 @@ my_bool set_changeable_var(my_string str,CHANGEABLE_VAR *vars)
     else
     {
       uint length,found_count=0;
-      CHANGEABLE_VAR *var,*found, *var_end;
+      CHANGEABLE_VAR *var,*found;
+      my_string var_end;
       const char *name;
       long num;
 
       /* Skip end space from variable */
-      for (var_end=end ; end > str && is_space(end[-1]) ; end--) ;
+      for (var_end=end ; end > str && isspace(var_end[-1]) ; var_end--) ;
       length=(uint) (var_end-str);
       /* Skip start space from argument */
-      for (end++ ; is_space(*end) ; end++) ;
+      for (end++ ; isspace(*end) ; end++) ;
 
       for (var=vars,found=0 ; (name=var->name) ; var++)
       {
