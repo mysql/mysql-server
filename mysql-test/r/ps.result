@@ -450,3 +450,24 @@ PREPARE stmt FROM 'UPDATE t1 AS P1 INNER JOIN (SELECT N FROM t1 GROUP BY N HAVIN
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+prepare stmt from "select ? is null, ? is not null, ?";
+select @no_such_var is null, @no_such_var is not null, @no_such_var;
+@no_such_var is null	@no_such_var is not null	@no_such_var
+1	0	NULL
+execute stmt using @no_such_var, @no_such_var, @no_such_var;
+? is null	? is not null	?
+1	0	NULL
+set @var='abc';
+select @var is null, @var is not null, @var;
+@var is null	@var is not null	@var
+0	1	abc
+execute stmt using @var, @var, @var;
+? is null	? is not null	?
+0	1	abc
+set @var=null;
+select @var is null, @var is not null, @var;
+@var is null	@var is not null	@var
+1	0	NULL
+execute stmt using @var, @var, @var;
+? is null	? is not null	?
+1	0	NULL

@@ -752,8 +752,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    noOfMetaTables);
     
     cfg.put(CFG_TUP_TABLE_DESC, 
-	    4 * NO_OF_FRAG_PER_NODE * noOfAttributes* noOfReplicas +
-	    12 * NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas );
+	    2 * 6 * NO_OF_FRAG_PER_NODE * noOfAttributes * noOfReplicas +
+	    2 * 10 * NO_OF_FRAG_PER_NODE * noOfMetaTables * noOfReplicas );
     
     cfg.put(CFG_TUP_STORED_PROC,
 	    noOfLocalScanRecords);
