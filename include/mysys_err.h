@@ -26,10 +26,14 @@ extern "C" {
 extern const char * NEAR globerrs[];	/* my_error_messages is here */
 
 /* Error message numbers in global map */
-/* Do not add error numbers before EE_ERROR_FIRST. */
-/* If necessary to add lower numbers, change EE_ERROR_FIRST accordingly. */
-#define EE_ERROR_FIRST          0 /*Copy first error nr.*/
-#define EE_FILENOTFOUND		0
+/*
+  Do not add error numbers before EE_ERROR_FIRST.
+  If necessary to add lower numbers, change EE_ERROR_FIRST accordingly.
+
+  We start with error 1 to not confuse peoples with 'error 0'
+*/
+
+#define EE_ERROR_FIRST          1 /*Copy first error nr.*/
 #define EE_CANTCREATEFILE	1
 #define EE_READ			2
 #define EE_WRITE		3
@@ -57,7 +61,8 @@ extern const char * NEAR globerrs[];	/* my_error_messages is here */
 #define EE_REALPATH		26
 #define EE_SYNC			27
 #define EE_UNKNOWN_COLLATION	28
-#define EE_ERROR_LAST           28 /*Copy last error nr.*/
+#define EE_FILENOTFOUND		29
+#define EE_ERROR_LAST           29 /*Copy last error nr.*/
 /* Add error numbers before EE_ERROR_LAST and change it accordingly. */
 
   /* exit codes for all MySQL programs */
