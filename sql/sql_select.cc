@@ -199,6 +199,26 @@ void fix_tables_pointers(SELECT_LEX *select_lex)
   }
 }
 
+/*
+  Inline function to setup clauses without sum functions
+*/
+inline int setup_without_group(THD *thd, TABLE_LIST *tables,
+			       List<Item> &fields,
+			       List<Item> &all_fields,
+			       COND **conds,
+			       ORDER *order,
+			       ORDER *group, bool *hidden_group_fields)
+{
+  bool save_allow_sum_func= thd->allow_sum_func;
+  thd->allow_sum_func= 0;
+  int res= (setup_conds(thd,tables, conds) ||
+	    setup_order(thd,tables, fields, all_fields, order) ||
+	    setup_group(thd,tables, fields, all_fields, group,
+			hidden_group_fields));
+  thd->allow_sum_func= save_allow_sum_func;
+  return res;
+}
+
 /*****************************************************************************
   Check fields, find best join, do the select and output fields.
   mysql_select assumes that all tables are already opened
@@ -233,10 +253,8 @@ JOIN::prepare(TABLE_LIST *tables_init,
 
   if (setup_tables(tables_list) ||
       setup_fields(thd,tables_list,fields_list,1,&all_fields,1) ||
-      setup_conds(thd,tables_list,&conds) ||
-      setup_order(thd,tables_list,fields_list,all_fields,order) ||
-      setup_group(thd,tables_list,fields_list,all_fields,group_list,
-                &hidden_group_fields))
+      setup_without_group(thd, tables_list, fields_list, all_fields,
+			  &conds, order, group_list, &hidden_group_fields))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
   if (having)
