@@ -397,6 +397,11 @@ struct system_variables
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
+#ifdef HAVE_REPLICATION
+  ulong sync_replication;
+  ulong sync_replication_slave_id;
+  ulong sync_replication_timeout;
+#endif /* HAVE_REPLICATION */
 #ifdef HAVE_INNOBASE_DB
   my_bool innodb_table_locks;
 #endif /* HAVE_INNOBASE_DB */
