@@ -71,6 +71,14 @@ ulint	recv_previous_parsed_rec_is_multi = 0;
 
 ulint	recv_max_parsed_page_no		= 0;
 
+/* This many frames must be left free in the buffer pool when we scan
+the log and store the scanned log records in the buffer pool: we will
+use these free frames to read in pages when we start applying the
+log records to the database. */
+
+ulint	recv_n_pool_free_frames		= 256;
+
+
 /************************************************************
 Creates the recovery system. */
 
@@ -1018,10 +1026,10 @@ recv_recover_page(
 		block = buf_block_align(page);
 
 		if (just_read_in) {
-		  /* Move the ownership of the x-latch on the page to this OS
-		  thread, so that we can acquire a second x-latch on it. This
-		  is needed for the operations to the page to pass the debug
-		  checks. */
+		  	/* Move the ownership of the x-latch on the page to
+			this OS thread, so that we can acquire a second
+			x-latch on it. This is needed for the operations to
+			the page to pass the debug checks. */
 
 			rw_lock_x_lock_move_ownership(&(block->lock));
 		}
@@ -2362,8 +2370,8 @@ recv_group_scan_log_recs(
 						group, start_lsn, end_lsn);
 
 		finished = recv_scan_log_recs(TRUE,
-				buf_pool_get_curr_size()
-				- RECV_POOL_N_FREE_BLOCKS * UNIV_PAGE_SIZE,
+				(buf_pool->n_frames
+				- recv_n_pool_free_frames) * UNIV_PAGE_SIZE,
 				TRUE, log_sys->buf,
 				RECV_SCAN_SIZE, start_lsn,
 				contiguous_lsn, group_scanned_lsn);
@@ -3001,8 +3009,8 @@ ask_again:
 			read_offset % UNIV_PAGE_SIZE, len, buf, NULL);
 
 		ret = recv_scan_log_recs(TRUE,
-				buf_pool_get_curr_size() -
-				RECV_POOL_N_FREE_BLOCKS * UNIV_PAGE_SIZE,
+				(buf_pool->n_frames -
+				recv_n_pool_free_frames) * UNIV_PAGE_SIZE,
 				TRUE, buf, len, start_lsn,
 				&dummy_lsn, &scanned_lsn);
 

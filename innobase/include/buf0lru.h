@@ -53,7 +53,9 @@ LRU list to the free list. */
 buf_block_t*
 buf_LRU_get_free_block(void);
 /*=========================*/
-				/* out: the free control block */
+				/* out: the free control block; also if AWE is
+				used, it is guaranteed that the block has its
+				page mapped to a frame when we return */
 /**********************************************************************
 Puts a block back to the free list. */
 

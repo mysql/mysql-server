@@ -99,7 +99,7 @@ trx_create(
 
 	trx->mysql_log_file_name = NULL;
 	trx->mysql_log_offset = 0;
-	trx->mysql_master_log_file_name = (char*) "";
+	trx->mysql_master_log_file_name = "";
 	trx->mysql_master_log_pos = 0;
 	
 	trx->ignore_duplicates_in_insert = FALSE;

@@ -291,6 +291,7 @@ btr_cur_search_to_nth_level(
 		&& latch_mode <= BTR_MODIFY_LEAF && info->last_hash_succ
 		&& !estimate
 		&& mode != PAGE_CUR_LE_OR_EXTENDS
+		&& srv_use_adaptive_hash_indexes
 	        && btr_search_guess_on_hash(index, info, tuple, mode,
 						latch_mode, cursor,
 						has_search_latch, mtr)) {
@@ -495,9 +496,11 @@ retry_page_get:
 		cursor->up_bytes = up_bytes;
 
 #ifdef BTR_CUR_ADAPT		
-		btr_search_info_update(index, cursor);
-#endif
+		if (srv_use_adaptive_hash_indexes) {
 
+			btr_search_info_update(index, cursor);
+		}
+#endif
 		ut_ad(cursor->up_match != ULINT_UNDEFINED
 						|| mode != PAGE_CUR_GE);
 		ut_ad(cursor->up_match != ULINT_UNDEFINED
