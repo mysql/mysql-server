@@ -1004,6 +1004,7 @@ void st_select_lex_unit::init_query()
   table= 0;
   fake_select_lex= 0;
   cleaned= 0;
+  item_list.empty();
 }
 
 void st_select_lex::init_query()

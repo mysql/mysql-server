@@ -2378,8 +2378,10 @@ mysql_execute_command(THD *thd)
       if (grant_option)
       {
 	TABLE_LIST old_list,new_list;
-	bzero((char*) &old_list, sizeof(old_list));
-	bzero((char*) &new_list, sizeof(new_list)); // Safety
+	/*
+	  we do not need initialize old_list and new_list because we will
+	  come table[0] and table->next[0] there
+	*/
 	old_list=table[0];
 	new_list=table->next[0];
 	old_list.next=new_list.next=0;
