@@ -16,25 +16,26 @@
 
 INCLUDES =		@MT_INCLUDES@ -I$(top_srcdir)/include \
 			@ndbcluster_includes@ -I$(top_srcdir)/sql \
-			-I$(top_srcdir)/extra
+			-I$(top_builddir)/include
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../mysys/libmysys.a \
 			../dbug/libdbug.a ../strings/libmystrings.a
-BUILT_SOURCES=		mysqld_error.h sql_state.h mysqld_ername.h
+BUILT_SOURCES=		$(top_builddir)/include/mysqld_error.h \
+                        $(top_builddir)/include/sql_state.h \
+                        $(top_builddir)/include/mysqld_ername.h
 pkginclude_HEADERS=	$(BUILT_SOURCES)
-created_sources = 	created_include_files
-CLEANFILES =		$(created_sources)
-SUPERCLEANFILES =	$(BUILT_SOURCES)
-
-all: $(created_sources)
+CLEANFILES =		$(BUILT_SOURCES)
 
 # This will build mysqld_error.h and sql_state.h
-mysqld_error.h: created_include_files
-mysqld_ername.h: created_include_files
-sql_state.h:	created_include_files
-
-created_include_files: comp_err
-	$(top_builddir)/extra/comp_err --charset=$(srcdir)/../sql/share/charsets --out-dir=$(top_builddir)/sql/share/ --header_file=$(top_builddir)/extra/mysqld_error.h --name_file=$(top_builddir)/extra/mysqld_ername.h --state_file=$(top_builddir)/extra/sql_state.h --in_file=$(srcdir)/../sql/share/errmsg.txt
-	touch created_include_files
+$(top_builddir)/include/mysqld_error.h: comp_err
+	$(top_builddir)/extra/comp_err \
+	--charset=$(top_srcdir)/sql/share/charsets \
+	--out-dir=$(top_builddir)/sql/share/ \
+	--header_file=$(top_builddir)/include/mysqld_error.h \
+	--name_file=$(top_builddir)/include/mysqld_ername.h \
+	--state_file=$(top_builddir)/include/sql_state.h \
+	--in_file=$(top_srcdir)/sql/share/errmsg.txt
+$(top_builddir)/include/mysqld_ername.h: $(top_builddir)/include/mysqld_error.h
+$(top_builddir)/include/sql_state.h: $(top_builddir)/include/mysqld_error.h
 
 bin_PROGRAMS =		replace comp_err perror resolveip my_print_defaults \
 			resolve_stack_dump mysql_waitpid
