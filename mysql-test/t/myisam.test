@@ -15,7 +15,7 @@ SET SQL_WARNINGS=1;
 CREATE TABLE t1 (
   STRING_DATA char(255) default NULL,
   KEY string_data (STRING_DATA)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 
 INSERT INTO t1 VALUES ('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
 INSERT INTO t1 VALUES ('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD');
@@ -68,7 +68,7 @@ drop table t1;
 # Test of how ORDER BY works when doing it on the whole table
 #
 
-create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) type=myisam;
+create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) engine=myisam;
 insert into t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
 explain select * from t1 order by a;
 explain select * from t1 order by b;
@@ -324,7 +324,7 @@ CREATE TABLE `t1` (
   KEY `poster_login` (`poster_login`),
   KEY `topic_id` (`topic_id`),
   FULLTEXT KEY `post_text` (`post_text`)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 
 INSERT INTO t1 (post_text) VALUES ('ceci est un test'),('ceci est un test'),('ceci est un test'),('ceci est un test'),('ceci est un test');
 
@@ -402,7 +402,7 @@ drop table t1;
 # Test RTREE index
 #
 --error 1235
-CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`)) TYPE=MyISAM;
+CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`)) ENGINE=MyISAM;
 # INSERT INTO t1 VALUES (1,1),(1,1);
 # DELETE FROM rt WHERE a<1;
 # DROP TABLE IF EXISTS t1;

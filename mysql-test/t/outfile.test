@@ -22,7 +22,7 @@
 #select load_file("/tmp/select-test.not-exist");
 #drop table t1;
 #drop table if exists t;
-#CREATE TABLE t (  t timestamp NOT NULL,  c char(200) character set latin1 NOT NULL default '',  i int(11), v varchar(200), b blob, KEY t (t)) TYPE=MyISAM;
+#CREATE TABLE t (  t timestamp NOT NULL,  c char(200) character set latin1 NOT NULL default '',  i int(11), v varchar(200), b blob, KEY t (t)) ENGINE=MyISAM;
 #INSERT INTO t VALUES ('2002-12-20 12:01:20','',1,"aaa","bbb");
 #select * from t into outfile "check";
 #drop table if exists t;

@@ -132,10 +132,10 @@ help 'impossible_category_1';
 source_category_name	name	is_it_category
 impossible_category_1	impossible_function_1	N
 impossible_category_1	impossible_function_2	N
-alter table mysql.help_relation type=innodb;
-alter table mysql.help_keyword type=innodb;
-alter table mysql.help_topic type=innodb;
-alter table mysql.help_category type=innodb;
+alter table mysql.help_relation engine=innodb;
+alter table mysql.help_keyword engine=innodb;
+alter table mysql.help_topic engine=innodb;
+alter table mysql.help_category engine=innodb;
 help 'function_of_my_dream';
 name	is_it_category
 help '%possible_f%';
@@ -222,10 +222,10 @@ help 'impossible_category_1';
 source_category_name	name	is_it_category
 impossible_category_1	impossible_function_1	N
 impossible_category_1	impossible_function_2	N
-alter table mysql.help_relation type=myisam;
-alter table mysql.help_keyword type=myisam;
-alter table mysql.help_topic type=myisam;
-alter table mysql.help_category type=myisam;
+alter table mysql.help_relation engine=myisam;
+alter table mysql.help_keyword engine=myisam;
+alter table mysql.help_topic engine=myisam;
+alter table mysql.help_category engine=myisam;
 delete from mysql.help_topic where help_topic_id=@topic1_id;
 delete from mysql.help_topic where help_topic_id=@topic2_id;
 delete from mysql.help_topic where help_topic_id=@topic3_id;

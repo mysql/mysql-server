@@ -17,9 +17,9 @@ b
 
 
 drop table t1;
-create table t1 (a int not null auto_increment,primary key (a)) type=heap;
+create table t1 (a int not null auto_increment,primary key (a)) engine=heap;
 drop table t1;
-create table t2 type=heap select * from t1;
+create table t2 engine=heap select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 create table t2 select auto+1 from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
@@ -29,12 +29,12 @@ Note	1051	Unknown table 't1'
 Note	1051	Unknown table 't2'
 create table t1 (b char(0) not null, index(b));
 ERROR 42000: The used storage engine can't index column 'b'
-create table t1 (a int not null,b text) type=heap;
+create table t1 (a int not null,b text) engine=heap;
 ERROR 42000: The used table type doesn't support BLOB/TEXT columns
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
-create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
 ERROR 42000: Incorrect table definition; There can only be one auto column and it must be defined as a key
 create table not_existing_database.test (a int);
 Got one of the listed errors
@@ -180,7 +180,7 @@ t1	CREATE TABLE `t1` (
   KEY `b_29` (`b`),
   KEY `b_30` (`b`),
   KEY `b_31` (`b`)
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 select if(1,'1','0'), month("2002-08-02");
 drop table t1;
@@ -198,7 +198,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
-) TYPE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=HEAP DEFAULT CHARSET=latin1
 drop table t1;
 SET SESSION table_type="gemini";
 ERROR 42000: Unknown table engine 'gemini'
@@ -210,7 +210,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
-) TYPE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=HEAP DEFAULT CHARSET=latin1
 SET SESSION table_type=default;
 drop table t1;
 create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
@@ -275,7 +275,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL default '0',
   `name` char(20) default NULL
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t3;
 id	name
 create table if not exists t3 like t1;
@@ -289,7 +289,7 @@ show create table t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
   `id` int(11) NOT NULL default '0'
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t3;
 id
 drop table t3;
@@ -298,7 +298,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL default '0',
   `name` char(20) default NULL
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t3;
 id	name
 drop table t2, t3;
@@ -310,14 +310,14 @@ Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
   `id` int(11) NOT NULL default '0',
   `name` char(20) default NULL
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 create table t2 like t3;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `id` int(11) NOT NULL default '0',
   `name` char(20) default NULL
-) TYPE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t2;
 id	name
 create table t3 like t1;
@@ -343,7 +343,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
-) TYPE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=HEAP DEFAULT CHARSET=latin1
 drop table t1;
 SET SESSION table_type="gemini";
 ERROR 42000: Unknown table engine 'gemini'
@@ -355,7 +355,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
-) TYPE=HEAP DEFAULT CHARSET=latin1
+) ENGINE=HEAP DEFAULT CHARSET=latin1
 SET SESSION table_type=default;
 drop table t1;
 create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);
@@ -422,6 +422,17 @@ str	varchar(10)	YES		NULL
 strnull	varchar(10)	YES		NULL	
 intg	int(11)	YES		NULL	
 rel	double	YES		NULL	
+drop table t1, t2;
+create table t1(name varchar(10), age smallint default -1);
+describe t1;
+Field	Type	Null	Key	Default	Extra
+name	varchar(10)	YES		NULL	
+age	smallint(6)	YES		-1	
+create table t2(name varchar(10), age smallint default - 1);
+describe t2;
+Field	Type	Null	Key	Default	Extra
+name	varchar(10)	YES		NULL	
+age	smallint(6)	YES		-1	
 drop table t1, t2;
 create database test_$1;
 use test_$1;

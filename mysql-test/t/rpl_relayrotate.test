@@ -15,7 +15,7 @@ connection slave;
 stop slave;
 connection master;
 --disable_warnings
-create table t1 (a int) type=innodb;
+create table t1 (a int) engine=innodb;
 --enable_warnings
 let $1=8000;
 disable_query_log;

@@ -14,7 +14,7 @@ ChargeTimeStamp varchar(20),
 PRIMARY KEY (ChargeID),
 KEY ServiceID (ServiceID),
 KEY ChargeDate (ChargeDate)
-) type=BDB;
+) engine=BDB;
 BEGIN;
 INSERT INTO t1
 VALUES(NULL,1,'2001-03-01',1,1,1,'New',NULL,NULL,'now');
