@@ -1091,3 +1091,18 @@ create view v1 as select count(tg_column) as vg_column from t1;
 select avg(vg_column) from v1;
 drop view v1;
 drop table t1;
+
+#
+# VIEW of VIEW with column renaming
+#
+create table t1 (col1 bigint not null, primary key (col1));
+create table t2 (col1 bigint not null, key (col1));
+create view v1 as select * from t1;
+create view v2 as select * from t2;
+insert into v1 values (1);
+insert into v2 values (1);
+create view v3 (a,b) as select v1.col1 as a, v2.col1 as b from v1, v2 where v1.col1 = v2.col1;
+select * from v3;
+show create view v3;
+drop view v3, v2, v1;
+drop table t2, t1;
