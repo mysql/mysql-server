@@ -583,7 +583,7 @@ sql_exchange::sql_exchange(char *name,bool flag)
   :file_name(name), opt_enclosed(0), dumpfile(flag), skip_lines(0)
 {
   field_term= &default_field_term;
-  enclosed=   line_start= &empty_string;
+  enclosed=   line_start= &my_empty_string;
   line_term=  &default_line_term;
   escaped=    &default_escaped;
 }

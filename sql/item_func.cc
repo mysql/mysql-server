@@ -1153,7 +1153,6 @@ longlong Item_func_locate::val_int()
 {
   String *a=args[0]->val_str(&value1);
   String *b=args[1]->val_str(&value2);
-  bool binary_cmp= (cmp_collation.collation->state & MY_CS_BINSORT) ? 1 : 0;
   if (!a || !b)
   {
     null_value=1;
@@ -1161,55 +1160,26 @@ longlong Item_func_locate::val_int()
   }
   null_value=0;
   uint start=0;
-#ifdef USE_MB
   uint start0=0;
-#endif
+  int  ind;
+
   if (arg_count == 3)
   {
-    start=(uint) args[2]->val_int()-1;
-#ifdef USE_MB
-    if (use_mb(cmp_collation.collation))
-    {
-      start0=start;
-      if (!binary_cmp)
-        start=a->charpos(start);
-    }
-#endif
+    start0= start =(uint) args[2]->val_int()-1;
+    start=a->charpos(start);
+    
     if (start > a->length() || start+b->length() > a->length())
       return 0;
   }
+
   if (!b->length())				// Found empty string at start
     return (longlong) (start+1);
-#ifdef USE_MB
-  if (use_mb(cmp_collation.collation) && !binary_cmp)
-  {
-    const char *ptr=a->ptr()+start;
-    const char *search=b->ptr();
-    const char *strend = ptr+a->length();
-    const char *end=strend-b->length()+1;
-    const char *search_end=search+b->length();
-    register  uint32 l;
-    while (ptr < end)
-    {
-      if (*ptr == *search)
-      {
-        register char *i,*j;
-        i=(char*) ptr+1; j=(char*) search+1;
-        while (j != search_end)
-          if (*i++ != *j++) goto skipp;
-        return (longlong) start0+1;
-      }
-  skipp:
-      if ((l=my_ismbchar(cmp_collation.collation,ptr,strend)))
-	ptr+=l;
-      else ++ptr;
-      ++start0;
-    }
-    return 0;
-  }
-#endif /* USE_MB */
-  return (longlong) (binary_cmp ? a->strstr(*b,start) :
-		     (a->strstr_case(*b,start)))+1;
+  
+  ind= cmp_collation.collation->coll->instr(cmp_collation.collation,
+                                            a->ptr()+start, a->length()-start,
+                                            b->ptr(), b->length());
+
+  return (longlong) (ind >= 0 ? ind + start0 + 1 : ind + 1);
 }
 
 
@@ -1742,7 +1712,7 @@ public:
     pthread_cond_init(&cond,NULL);
     if (key)
     {
-      if (hash_insert(&hash_user_locks,(byte*) this))
+      if (my_hash_insert(&hash_user_locks,(byte*) this))
       {
 	my_free((gptr) key,MYF(0));
 	key=0;
@@ -2103,7 +2073,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->used_query_id=current_thd->query_id;
     entry->type=STRING_RESULT;
     memcpy(entry->name.str, name.str, name.length+1);
-    if (hash_insert(hash,(byte*) entry))
+    if (my_hash_insert(hash,(byte*) entry))
     {
       my_free((char*) entry,MYF(0));
       return 0;

@@ -818,7 +818,7 @@ HANDLE_DECL(handle_def_exec)
     update_req_len(e);
     hash_delete(&exec_hash,(byte*)old_e);
   }
-  hash_insert(&exec_hash,(byte*)e);
+  my_hash_insert(&exec_hash,(byte*)e);
   pthread_mutex_unlock(&lock_exec_hash);
   client_msg(&thd->net,MANAGER_OK,"Exec definition created");
   return 0;
@@ -1666,7 +1666,7 @@ static void init_user_hash()
     }
     else
     {
-      hash_insert(&user_hash,(gptr)u);
+      my_hash_insert(&user_hash,(gptr)u);
     }
   }
   my_fclose(f, MYF(0));

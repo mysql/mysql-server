@@ -1959,6 +1959,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_like_range_simple,
     my_wildcmp_mb,
     my_strcasecmp_utf8,
+    my_instr_mb,
     my_hash_sort_utf8
 };
 
@@ -2031,7 +2032,7 @@ CHARSET_INFO my_charset_utf8_bin=
     3,			/* mbmaxlen     */
     0,
     &my_charset_handler,
-    &my_collation_bin_handler
+    &my_collation_mb_bin_handler
 };
 
 

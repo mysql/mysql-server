@@ -177,7 +177,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
 
   pthread_mutex_lock(&LOCK_slave_list);
   unregister_slave(thd,0,0);
-  res= hash_insert(&slave_list, (byte*) si);
+  res= my_hash_insert(&slave_list, (byte*) si);
   pthread_mutex_unlock(&LOCK_slave_list);
   return res;
 
@@ -540,7 +540,7 @@ HOSTS";
 	goto err;
       }
       si->server_id = server_id;
-      hash_insert(&slave_list, (byte*)si);
+      my_hash_insert(&slave_list, (byte*)si);
     }
     strmake(si->host, row[1], sizeof(si->host)-1);
     si->port = atoi(row[port_ind]);

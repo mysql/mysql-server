@@ -359,6 +359,7 @@ int		STDCALL mysql_send_query(MYSQL *mysql, const char *q,
 int		STDCALL mysql_real_query(MYSQL *mysql, const char *q,
 					unsigned long length);
 MYSQL_RES *     STDCALL mysql_store_result(MYSQL *mysql);
+MYSQL_RES *     STDCALL mysql_use_result(MYSQL *mysql);
 
 /* perform query on master */
 my_bool		STDCALL mysql_master_query(MYSQL *mysql, const char *q,
@@ -460,6 +461,7 @@ int             STDCALL mysql_manager_command(MYSQL_MANAGER* con,
 int             STDCALL mysql_manager_fetch_line(MYSQL_MANAGER* con,
 						  char* res_buf,
 						 int res_buf_size);
+my_bool         STDCALL mysql_read_query_result(MYSQL *mysql);
 
 
 /*
@@ -540,9 +542,6 @@ typedef struct st_mysql_stmt
 } MYSQL_STMT;
 
 
-#define mysql_read_query_result(mysql) (*(mysql)->methods->read_query_result)(mysql)
-#define mysql_use_result(mysql) (*(mysql)->methods->use_result)(mysql)
-
 typedef struct st_mysql_methods
 {
   my_bool (STDCALL *read_query_result)(MYSQL *mysql);
@@ -554,14 +553,17 @@ typedef struct st_mysql_methods
 				      unsigned long arg_length,
 				      my_bool skip_check);
   MYSQL_DATA *(STDCALL *read_rows)(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
-				   uint fields);
+				   unsigned int fields);
   MYSQL_RES * (STDCALL *use_result)(MYSQL *mysql);
   void (STDCALL *fetch_lengths)(unsigned long *to, 
-				MYSQL_ROW column, uint field_count);
+				MYSQL_ROW column, unsigned int field_count);
+#if !defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
   MYSQL_FIELD * (STDCALL *list_fields)(MYSQL *mysql);
   my_bool (STDCALL *read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
   int (STDCALL *stmt_execute)(MYSQL_STMT *stmt);
   MYSQL_DATA *(STDCALL *read_binary_rows)(MYSQL_STMT *stmt);
+  int (STDCALL *unbuffered_fetch)(MYSQL *mysql, char **row);
+#endif
 
 } MYSQL_METHODS;
 

@@ -161,7 +161,7 @@ static int get_or_create_user_conn(THD *thd, const char *user,
     if (max_user_connections && mqh->connections > max_user_connections)
       uc->user_resources.connections = max_user_connections;
     uc->intime=thd->thr_create_time;
-    if (hash_insert(&hash_user_connections, (byte*) uc))
+    if (my_hash_insert(&hash_user_connections, (byte*) uc))
     {
       my_free((char*) uc,0);
       send_error(thd, 0, NullS);		// Out of memory

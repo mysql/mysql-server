@@ -221,7 +221,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 	goto error;
       if (mysql->fields)
       {
-	if (!(res= mysql_use_result(mysql)))
+	if (!(res= (*mysql->methods->use_result)(mysql)))
 	  goto error;
 	mysql_free_result(res);
       }
@@ -289,6 +289,9 @@ void STDCALL mysql_close(MYSQL *mysql)
 #endif /* HAVE_OPENSSL */
     if (mysql->free_me)
       my_free((gptr) mysql,MYF(0));
+    
+    free_embedded_thd(mysql);
+
   }
   DBUG_VOID_RETURN;
 }
