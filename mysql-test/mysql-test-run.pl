@@ -1532,6 +1532,7 @@ sub do_before_start_master ($$) {
        $tname ne "rpl_crash_binlog_ib_3b")
   {
     # FIXME we really want separate dir for binlogs
+    # FIXME replace 'rm' in backticks with portable Perl function
     `rm -f $glob_mysql_test_dir/var/log/master-bin*`;
 #    unlink("$glob_mysql_test_dir/var/log/master-bin*");
   }
@@ -1545,8 +1546,12 @@ sub do_before_start_master ($$) {
   # Run master initialization shell script if one exists
   if ( $init_script )
   {
-    # We ignore the return code
-    mtr_run("/bin/sh", ["-c",$init_script], "", "", "", "");
+    my $ret= mtr_run("/bin/sh", [$init_script], "", "", "", "");
+    if ( $ret != 0 )
+    {
+      # FIXME rewrite those scripts to return 0 if successful
+#      mtr_warning("$init_script exited with code $ret");
+    }
   }
   # for gcov  FIXME needed? If so we need more absolute paths
 # chdir($glob_basedir);
@@ -1563,6 +1568,7 @@ sub do_before_start_slave ($$) {
        $tname ne "rpl_crash_binlog_ib_3b" )
   {
     # FIXME we really want separate dir for binlogs
+    # FIXME replace 'rm' in backticks with portable Perl function
     `rm -fr $glob_mysql_test_dir/var/log/slave*-bin.*`;
 #    unlink("$glob_mysql_test_dir/var/log/slave*-bin.*"); # FIXME idx???
     # FIXME really master?!
@@ -1573,8 +1579,12 @@ sub do_before_start_slave ($$) {
   # Run slave initialization shell script if one exists
   if ( $init_script )
   {
-    # We ignore the return code
-    mtr_run("/bin/sh", ["-c",$init_script], "", "", "", "");
+    my $ret= mtr_run("/bin/sh", [$init_script], "", "", "", "");
+    if ( $ret != 0 )
+    {
+      # FIXME rewrite those scripts to return 0 if successful
+#      mtr_warning("$init_script exited with code $ret");
+    }
   }
 
   `rm -f $glob_mysql_test_dir/var/slave-data/log.*`;

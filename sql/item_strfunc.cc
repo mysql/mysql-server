@@ -1669,9 +1669,8 @@ String *Item_func_format::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   double nr= args[0]->val_real();
+  uint32 length,str_length,dec;
   int diff;
-  uint32 length, str_length;
-  uint dec;
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
   dec= decimals ? decimals+1 : 0;
@@ -1687,12 +1686,12 @@ String *Item_func_format::val_str(String *str)
   if (str_length >= dec+4)
   {
     char *tmp,*pos;
-    length= str->length()+(diff=(str_length- dec-1)/3);
+    length= str->length()+(diff=((int)(str_length- dec-1))/3);
     str= copy_if_not_alloced(&tmp_str,str,length);
     str->length(length);
     tmp= (char*) str->ptr()+length - dec-1;
     for (pos= (char*) str->ptr()+length-1; pos != tmp; pos--)
-      pos[0]= pos[-(int) diff];
+      pos[0]= pos[-diff];
     while (diff)
     {
       *pos= *(pos - diff);

@@ -554,6 +554,7 @@ private:
   void print_results();
 
   ulonglong get_auto_increment();
+  void invalidateDictionaryCache();
   int ndb_err(NdbTransaction*);
   bool uses_blob_value(bool all_fields);
 
