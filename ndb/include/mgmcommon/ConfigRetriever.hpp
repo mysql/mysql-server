@@ -73,6 +73,9 @@ public:
    * Verify config
    */
   bool verifyConfig(const struct ndb_mgm_configuration *, Uint32 nodeid);
+
+  Uint32 get_mgmd_port() const {return m_mgmd_port;};
+  const char *get_mgmd_host() const {return m_mgmd_host;};
 private:
   BaseString errorString;
   enum ErrorType {
@@ -85,7 +88,9 @@ private:
   
   struct LocalConfig&   _localConfig;
   Uint32                _ownNodeId;
-  
+  Uint32      m_mgmd_port;
+  const char *m_mgmd_host;
+
   Uint32 m_version;
   Uint32 m_node_type;
   NdbMgmHandle m_handle;
