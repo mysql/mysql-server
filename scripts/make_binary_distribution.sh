@@ -156,7 +156,7 @@ if [ -d man ] ; then
 fi
 $CP support-files/* $BASE/support-files
 
-if [ $BASE_SYSTEM == "netware" ] ; then
+if [ $BASE_SYSTEM = "netware" ] ; then
   rm -f $BASE/support-files/magic \
         $BASE/support-files/mysql.server \
         $BASE/support-files/mysql*.spec \
