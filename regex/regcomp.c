@@ -36,19 +36,19 @@ struct parse {
 static char nuls[10];		/* place to point scanner in event of error */
 
 struct cclass cclasses[CCLASS_LAST+1]= {
-  { "alnum",	"","" },
-  { "alpha",	"","" },
-  { "blank",	"","" },
-  { "cntrl",	"","" },
-  { "digit",	"","" },
-  { "graph",	"","" },
-  { "lower",	"","" },
-  { "print",	"","" },
-  { "punct",	"","" },
-  { "space",	"","" },
-  { "upper",	"","" },
-  { "xdigit",	"","" },
-  { NULL,NULL,NULL }
+  { "alnum",	"","", _U | _L | _NMR},
+  { "alpha",	"","", _U | _L },
+  { "blank",	"","", _B },
+  { "cntrl",	"","", _CTR },
+  { "digit",	"","", _NMR },
+  { "graph",	"","", _PNT | _U | _L | _NMR},
+  { "lower",	"","", _L },
+  { "print",	"","", _PNT | _U | _L | _NMR | _B },
+  { "punct",	"","", _PNT },
+  { "space",	"","", _SPC },
+  { "upper",	"","", _U },
+  { "xdigit",	"","", _X },
+  { NULL,NULL,NULL, 0 }
 };
 
 /*
@@ -747,9 +747,7 @@ register cset *cs;
 	register char *sp = p->next;
 	register struct cclass *cp;
 	register size_t len;
-	register char *u;
-	register char c;
-
+	
 	while (MORE() && my_isalpha(p->charset,PEEK()))
 		NEXT();
 	len = p->next - sp;
@@ -762,11 +760,26 @@ register cset *cs;
 		return;
 	}
 
-	u = (char*) cp->chars;
-	while ((c = *u++) != '\0')
-		CHadd(cs, c);
-	for (u = (char*) cp->multis; *u != '\0'; u += strlen(u) + 1)
-		MCadd(p, cs, u);
+#ifndef USE_ORIG_REGEX_CODE
+	{
+		register size_t i;
+		for (i=1 ; i<256 ; i++)
+			if (p->charset->ctype[i+1] & cp->mask)
+				CHadd(cs, i);
+	}
+#else	
+	{
+		register char *u = (char*) cp->chars;
+		register char c;
+		
+		while ((c = *u++) != '\0')
+			CHadd(cs, c);
+		
+		for (u = (char*) cp->multis; *u != '\0'; u += strlen(u) + 1)
+			MCadd(p, cs, u);
+	}
+#endif
+
 }
 
 /*
