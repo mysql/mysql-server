@@ -110,7 +110,7 @@ qsort_t qsort(void *base_ptr, size_t count, size_t size, qsort_cmp cmp)
   stack_ptr = stack + 1;
 #ifdef HAVE_purify
   /* The first element in the stack will be accessed for the last POP */
-  stack[0].lo=stack[0].hi=0;
+  stack[0].low=stack[0].high=0;
 #endif
   pivot = (char *) my_alloca((int) size);
   ptr_cmp= size == sizeof(char*) && !((low - (char*) 0)& (sizeof(char*)-1));

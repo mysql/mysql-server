@@ -3202,7 +3202,6 @@ static void usage(void)
 			BACKUP or FORCE.\n\
   --memlock		Lock mysqld in memory\n\
   -n, --new		Use very new possible 'unsafe' functions\n\
-  --no-mix-table-types  Do not use transactional and non-transactional tables in a single query\n
   -o, --old-protocol	Use the old (3.20) protocol\n\
   -P, --port=...	Port number to use for connection\n");
 #ifdef ONE_THREAD

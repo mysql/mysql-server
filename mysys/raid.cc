@@ -420,8 +420,8 @@ IsRaid(File fd)
 RaidFd::
 RaidFd(uint raid_type, uint raid_chunks, ulong raid_chunksize)
   :_raid_type(raid_type), _raid_chunks(raid_chunks),
-   _raid_chunksize(raid_chunksize), _position(0), _fd_vector(0),
-   _size(RAID_SIZE_UNKNOWN)
+   _raid_chunksize(raid_chunksize), _position(0), _size(RAID_SIZE_UNKNOWN),
+   _fd_vector(0)
 {
   DBUG_ENTER("RaidFd::RaidFd");
   DBUG_PRINT("enter",("RaidFd_type: %u  Disks: %u  Chunksize: %d",
