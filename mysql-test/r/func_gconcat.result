@@ -172,7 +172,7 @@ create table t1 ( URL_ID int(11), URL varchar(80));
 create table t2 ( REQ_ID int(11), URL_ID int(11));
 insert into t1 values (4,'www.host.com'), (5,'www.google.com'),(5,'www.help.com');
 insert into t2 values (1,4), (5,4), (5,5);
-select REQ_ID, Group_Concat(URL) as URL from t1, t2 where 
+select REQ_ID, Group_Concat(URL) as URL from t1, t2 where
 t2.URL_ID = t1.URL_ID group by REQ_ID;
 REQ_ID	URL
 1	X
