@@ -305,9 +305,6 @@ sasha@mysql.sashanet.com|mysql-test/r/3.23/rpl000013.status.result|2000120217115
 sasha@mysql.sashanet.com|mysql-test/r/3.23/sel000003.result|20001011230020|64653|d7b657b1e3a286a7
 sasha@mysql.sashanet.com|mysql-test/r/3.23/sel000100.res|20001205131218|23520|84ed46856cb3a69f
 sasha@mysql.sashanet.com|mysql-test/r/3.23/shw000001.result|20001121234128|16652|8b20b03d8319b9a5
-sasha@mysql.sashanet.com|mysql-test/r/mrg000002.result|20001212152450|11492|745be0854aaaaf5e
-sasha@mysql.sashanet.com|mysql-test/r/rpl000014.result|20001212220135|30510|ddf1e4582c964fa7
-sasha@mysql.sashanet.com|mysql-test/r/rpl000015.result|20001213165825|18511|40a167681c001086
 sasha@mysql.sashanet.com|mysql-test/r/slave-running.result|20001208141122|24303|f73e49462cf59e1f
 sasha@mysql.sashanet.com|mysql-test/r/slave-stopped.result|20001208141122|28916|25c134b1a4f1993a
 sasha@mysql.sashanet.com|mysql-test/std_data/select-key.master|20001009234916|07315|e6b83af25df0ce5
@@ -318,14 +315,3 @@ sasha@mysql.sashanet.com|mysql-test/t/include/master-slave.inc|20001118030458|01
 sasha@work.mysql.com|BitKeeper/etc/logging_ok|20001214015456|29919|32b6551b8288c2fa
 serg@serg.mysql.com|mysql-test/r/3.23/mrg000001.dummy.result|20001206231604|05053|bf7e6d609f22b897
 serg@serg.mysql.com|mysql-test/r/3.23/mrg000001.result|20001206231609|46662|db2ef2e717ab8332
-serg@serg.mysql.com|mysql-test/r/ft0000001.a.result|20001211130756|05199|3d17aff15fa5a9f1
-serg@serg.mysql.com|mysql-test/r/ft0000001.b.result|20001211130756|10153|505c4c00a0bddfc4
-serg@serg.mysql.com|mysql-test/r/ft0000001.c.result|20001211130756|14950|1040289a75243a92
-serg@serg.mysql.com|mysql-test/r/ft0000001.d.result|20001211130756|19773|7c549555fbc7663e
-serg@serg.mysql.com|mysql-test/r/ft0000001.e.result|20001212121413|40468|c58d30fd7fe86f4f
-serg@serg.mysql.com|mysql-test/r/ft0000002.a.result|20001212120058|27306|a89b4db1db19f944
-serg@serg.mysql.com|mysql-test/r/ft0000002.b.result|20001212120058|34425|5de41ce15ae1cedb
-serg@serg.mysql.com|mysql-test/r/ft0000002.c.result|20001212120059|07173|cd66b90918a87531
-serg@serg.mysql.com|mysql-test/r/sel000031.result|20001211130803|03576|d49aeac63ad7db4d
-serg@serg.mysql.com|mysql-test/r/sel000032.result|20001211130803|08537|6cb30e23cbca9fb0
-serg@serg.mysql.com|mysql-test/r/sel000033.result|20001211130803|13548|56d1d02d72b94602
