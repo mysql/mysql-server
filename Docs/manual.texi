@@ -18090,7 +18090,7 @@ Blocks until the slave reaches the specified position in the master log during
 replication. If master information is not initialized, returns NULL. If the
 slave is not running, will block and wait until it is started and goes to or
 past
-the specified position. If the slave is already past the specified postion,
+the specified position. If the slave is already past the specified position,
 returns immediately. The return value is the number of log events it had to
 wait to get to the specified position, or NULL in case of error. Useful for
 control of master-slave synchronization, but was originally written to
@@ -36217,9 +36217,9 @@ When started with the @code{--log-update[=file_name]} option,
 @code{mysqld} writes a log file containing all SQL commands that update
 data. If no filename is given, it defaults to the name of the host
 machine. If a filename is given, but it doesn't contain a path, the file
-is written in the data directory. If file_name doesn't have an
-extension, @code{mysqld} will create log file names of type
-@code{file_name.#}, where @code{#} is a number that is incremented each
+is written in the data directory. If @file{file_name} doesn't have an
+extension, @code{mysqld} will create log file names like so:
+@file{file_name.###}, where @code{###} is a number that is incremented each
 time you execute @code{mysqladmin refresh}, execute @code{mysqladmin
 flush-logs}, execute the @code{FLUSH LOGS} statement, or restart the server.
 
@@ -36283,7 +36283,7 @@ file name is given, it defaults to the name of the host machine followed
 by @code{-bin}. If file name is given, but it doesn't contain a path, the
 file is written in the data directory.
 
-To the binary log filename mysqld will append an extension that is a
+To the binary log filename @code{mysqld} will append an extension that is a
 number that is incremented each time you execute @code{mysqladmin
 refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH LOGS}
 statement or restart the server.
@@ -36300,7 +36300,7 @@ files until you are sure that no slave will ever need to use them.
 One way to do this is to do @code{mysqladmin flush-logs} once a day and then
 remove any logs that are more than 3 days old.
 
-You can examine the binary log file with the @code{mysqlbinlib} command.
+You can examine the binary log file with the @code{mysqlbinlog} command.
 For example, you can update a @strong{MySQL} server from the binary log
 as follows:
 
@@ -36308,23 +36308,23 @@ as follows:
 mysqlbinlog log-file | mysql -h server_name
 @end example
 
-You can also use the @file{mysqlbinlog} program to read the binary log
-direct from a remote mysql server!
+You can also use the @code{mysqlbinlog} program to read the binary log
+directly from a remote @strong{MySQL} server!
 
 @code{mysqlbinlog --help} will give you more information of how to use
 this program!
 
-If you are using @code{BEGIN} or @code{SET AUTOCOMMIT=0}, you must use
-the @strong{MySQL} binary log for backups instead of the old update log.
+If you are using @code{BEGIN [WORK]} or @code{SET AUTOCOMMIT=0}, you must
+use the @strong{MySQL} binary log for backups instead of the old update log.
 
 The binary logging is done immediately after a query completes but before
 any locks are released or any commit is done. This ensures that the log
 will be logged in the execution order.
 
-All updates (@code{UPDATE}, @code{DELETE} or @code{INSERT}) that changes
-a transactional table (like BDB tables) is cached until a @code{COMMIT}.
+All updates (@code{UPDATE}, @code{DELETE} or @code{INSERT}) that change
+a transactional table (like BDB tables) are cached until a @code{COMMIT}.
 Any updates to a non-transactional table are stored in the binary log at
-once.  Every thread will on start allocate a buffer of
+once.  Every thread will, on start, allocate a buffer of
 @code{binlog_cache_size} to buffer queries.  If a query is bigger than
 this, the thread will open a temporary file to handle the bigger cache.
 The temporary file will be deleted when the thread ends.
@@ -36332,10 +36332,11 @@ The temporary file will be deleted when the thread ends.
 The @code{max_binlog_cache_size} can be used to restrict the total size used
 to cache a multi-transaction query.
 
-If you are using the update or binary log then concurrent inserts will
+If you are using the update or binary log, concurrent inserts will
 not work together with @code{CREATE ... INSERT} and @code{INSERT ... SELECT}.
 This is to ensure that you can recreate an exact copy of your tables by
 applying the log on a backup.
+
 @cindex slow query log
 @cindex files, slow query log
 @node Slow query log,  , Binary log, Log files
