@@ -510,4 +510,22 @@ t1	CREATE TABLE `t1` (
 SHOW FIELDS FROM  t1;
 Field	Type	Collation	Null	Key	Default	Extra
 latin1_f	char(32)	latin1_bin	YES		NULL	
+SET NAMES 'latin1';
+SET NAMES latin1;
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+charset('a')	collation('a')	coercibility('a')	'a'='A'
+latin1	latin1	2	1
+SET NAMES latin1 COLLATE latin1_bin;
+SET NAMES 'latin1' COLLATE 'latin1_bin';
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+charset('a')	collation('a')	coercibility('a')	'a'='A'
+latin1	latin1_bin	2	0
+SET NAMES DEFAULT;
+SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
+charset('a')	collation('a')	coercibility('a')	'a'='A'
+latin1	latin1	2	1
+SET NAMES latin1 COLLATE koi8r;
+COLLATION 'koi8r' is not valid for CHARACTER SET 'latin1'
+SET NAMES 'DEFAULT';
+Unknown character set: 'DEFAULT'
 DROP TABLE t1;
