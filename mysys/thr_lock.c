@@ -85,6 +85,7 @@ multiple read locks.
 
 my_bool thr_lock_inited=0;
 ulong locks_immediate = 0L, locks_waited = 0L;
+enum thr_lock_type thr_upgraded_concurrent_insert_lock = TL_WRITE;
 
 /* The following constants are only for debug output */
 #define MAX_THREADS 100
@@ -514,7 +515,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
       }
     }
     else if (lock_type == TL_WRITE_CONCURRENT_INSERT && ! lock->check_status)
-      data->type=lock_type= TL_WRITE;		/* not supported */
+      data->type=lock_type= thr_upgraded_concurrent_insert_lock;
 
     if (lock->write.data)			/* If there is a write lock */
     {
@@ -556,7 +557,7 @@ int thr_lock(THR_LOCK_DATA *data,enum thr_lock_type lock_type)
       {						/* no scheduled write locks */
 	if (lock_type == TL_WRITE_CONCURRENT_INSERT &&
 	    (*lock->check_status)(data->status_param))
-	  data->type=lock_type=TL_WRITE;	/* Upgrade lock */
+	  data->type=lock_type= thr_upgraded_concurrent_insert_lock;
 
 	if (!lock->read.data ||
 	    (lock_type <= TL_WRITE_DELAYED &&
@@ -943,10 +944,10 @@ my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data)
   DBUG_ENTER("thr_upgrade_write_delay_lock");
 
   pthread_mutex_lock(&lock->mutex);
-  if (data->type == TL_UNLOCK || data->type == TL_WRITE) /* Aborted */
+  if (data->type == TL_UNLOCK || data->type >= TL_WRITE_LOW_PRIORITY)
   {
     pthread_mutex_unlock(&lock->mutex);
-    DBUG_RETURN(data->type == TL_UNLOCK);
+    DBUG_RETURN(data->type == TL_UNLOCK);	/* Test if Aborted */
   }
   check_locks(lock,"before upgrading lock",0);
   /* TODO:  Upgrade to TL_WRITE_CONCURRENT_INSERT in some cases */
