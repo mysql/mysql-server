@@ -660,8 +660,6 @@ typedef long		my_ptrdiff_t;
 typedef long long	my_ptrdiff_t;
 #endif
 
-/* typedef used for length of string;  Should be unsigned! */
-typedef ulong		size_str;
 
 #define MY_ALIGN(A,L)	(((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)	MY_ALIGN((A),sizeof(double))
@@ -739,6 +737,8 @@ typedef unsigned __int64 my_ulonglong;
 typedef unsigned long long my_ulonglong;
 #endif
 
+/* typedef used for length of string;  Should be unsigned! */
+typedef ulong		size_str;
 
 #ifdef USE_RAID
 /*
