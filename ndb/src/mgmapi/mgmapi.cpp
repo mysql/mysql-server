@@ -1070,6 +1070,48 @@ ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
 }
 
 extern "C"
+int
+ndb_mgm_listen_event(NdbMgmHandle handle, int filter[])
+{
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_listen_event");
+  const ParserRow<ParserDummy> stat_reply[] = {
+    MGM_CMD("listen event", NULL, ""),
+    MGM_ARG("result", Int, Mandatory, "Error message"),
+    MGM_ARG("msg", String, Optional, "Error message"),
+    MGM_END()
+  };
+  CHECK_HANDLE(handle, -1);
+  
+  SocketClient s(handle->hostname, handle->port);
+  const NDB_SOCKET_TYPE sockfd = s.connect();
+  if (sockfd < 0) {
+    setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
+	     "Unable to connect to");
+    return -1;
+  }
+
+  Properties args;
+  {
+    BaseString tmp;
+    for(int i = 0; filter[i] != 0; i += 2){
+      tmp.appfmt("%d=%d ", filter[i+1], filter[i]);
+    }
+    args.put("filter", tmp.c_str());
+  }
+  
+  int tmp = handle->socket;
+  handle->socket = sockfd;
+  
+  const Properties *reply;
+  reply = ndb_mgm_call(handle, stat_reply, "listen event", &args);
+  
+  handle->socket = tmp;
+  
+  CHECK_REPLY(reply, -1);
+  return sockfd;
+}
+
+extern "C"
 int 
 ndb_mgm_get_stat_port(NdbMgmHandle handle, struct ndb_mgm_reply* /*reply*/)
 {
