@@ -446,6 +446,7 @@ fi
 %attr(755, root, root) /usr/bin/mysql_explain_log
 %attr(755, root, root) /usr/bin/mysql_fix_privilege_tables
 %attr(755, root, root) /usr/bin/mysql_install_db
+%attr(755, root, root) /usr/bin/mysql_secure_installation
 %attr(755, root, root) /usr/bin/mysql_setpermission
 %attr(755, root, root) /usr/bin/mysql_zap
 %attr(755, root, root) /usr/bin/mysqlbug
@@ -534,6 +535,11 @@ fi
 %attr(644, root, root) /usr/lib/mysql/libmysqld.a
 
 %changelog 
+
+* Mon Mar 10 2003 Lenz Grimmer <lenz@mysql.com>
+
+- added missing file mysql_secure_installation to server subpackage
+  (bug #141)
 
 * Tue Feb 11 2003 Lenz Grimmer <lenz@mysql.com>
 
