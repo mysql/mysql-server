@@ -334,7 +334,7 @@ ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
 bool opt_using_transactions, using_update_log, opt_warnings=0;
-bool opt_local_infile=1;
+my_bool opt_local_infile=1;
 bool volatile abort_loop,select_thread_in_use,grant_option;
 bool volatile ready_to_exit,shutdown_in_progress;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
@@ -2806,7 +2806,20 @@ enum options {
 	       OPT_SORT_BUFFER, OPT_TABLE_CACHE,
 	       OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
 	       OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
-	       OPT_WAIT_TIMEOUT
+	       OPT_WAIT_TIMEOUT,
+	       OPT_INNODB_MIRRORED_LOG_GROUPS,
+	       OPT_INNODB_LOG_FILES_IN_GROUP,
+	       OPT_INNODB_LOG_FILE_SIZE,
+	       OPT_INNODB_LOG_BUFFER_SIZE,
+	       OPT_INNODB_BUFFER_POOL_SIZE,
+	       OPT_INNODB_ADDITIONAL_MEM_POOL_SIZE,
+	       OPT_INNODB_FILE_IO_THREADS,
+	       OPT_INNODB_LOCK_WAIT_TIMEOUT,
+	       OPT_INNODB_THREAD_CONCURRENCY,
+	       OPT_INNODB_FORCE_RECOVERY,
+	       OPT_BDB_CACHE_SIZE,
+	       OPT_BDB_LOG_BUFFER_SIZE,
+	       OPT_BDB_MAX_LOCK
 };
 
 
@@ -2945,7 +2958,7 @@ static struct my_option my_long_options[] =
    0, 0, 0},
   {"innodb_fast_shutdown", OPT_INNODB_FAST_SHUTDOWN,
    "Speeds up server shutdown process", (gptr*) &innobase_fast_shutdown,
-   (gptr*) &innobase_fast_shutdown, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &innobase_fast_shutdown, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #endif /* End HAVE_INNOBASE_DB */
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
@@ -2961,11 +2974,11 @@ static struct my_option my_long_options[] =
   {"local-infile", OPT_LOCAL_INFILE,
    "Enable/disable LOAD DATA LOCAL INFILE (takes values 1|0)",
    (gptr*) &opt_local_infile, (gptr*) &opt_local_infile, 0, GET_BOOL, OPT_ARG,
-   0, 0, 0, 0, 0, 0},
+   1, 0, 0, 0, 0, 0},
   {"log-bin", OPT_BIN_LOG,
    "Log queries in new binary format (for replication)",
-   (gptr*) &opt_bin_logname, (gptr*) &opt_bin_logname, 0, GET_STR, OPT_ARG, 0,
-   0, 0, 0, 0, 0},
+   (gptr*) &opt_bin_logname, (gptr*) &opt_bin_logname, 0, GET_STR_ALLOC,
+   OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", OPT_BIN_LOG_INDEX,
    "File that holds the names for last binary log files",
    (gptr*) &opt_binlog_index_name, (gptr*) &opt_binlog_index_name, 0, GET_STR,
@@ -3040,6 +3053,7 @@ static struct my_option my_long_options[] =
   */
   {"memlock", OPT_MEMLOCK, "Lock mysqld in memory", (gptr*) &locked_in_memory,
    (gptr*) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
   {"disconnect-slave-event-count", OPT_DISCONNECT_SLAVE_EVENT_COUNT,
    "Undocumented: Meant for debugging and testing of replication",
    (gptr*) &disconnect_slave_event_count,
@@ -3056,6 +3070,7 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_sporadic_binlog_dump_fail,
    (gptr*) &opt_sporadic_binlog_dump_fail, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
+#endif
   {"safemalloc-mem-limit", OPT_SAFEMALLOC_MEM_LIMIT,
    "Simulate memory shortage when compiled with the --with-debug=full option",
    0, 0, 0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3124,7 +3139,7 @@ static struct my_option my_long_options[] =
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relay-log", OPT_RELAY_LOG, "Undocumented",
    (gptr*) &opt_relay_logname, (gptr*) &opt_relay_logname, 0,
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relay-log-index", OPT_RELAY_LOG_INDEX, "Undocumented",
    (gptr*) &opt_relaylog_index_name, (gptr*) &opt_relaylog_index_name, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3193,10 +3208,10 @@ static struct my_option my_long_options[] =
    (gptr*) &relay_log_info_file, (gptr*) &relay_log_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"slave-load-tmpdir", OPT_SLAVE_LOAD_TMPDIR, "Undocumented",
-   (gptr*) &slave_load_tmpdir, (gptr*) &slave_load_tmpdir, 0, GET_STR,
+   (gptr*) &slave_load_tmpdir, (gptr*) &slave_load_tmpdir, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"slave-skip-errors", OPT_SLAVE_SKIP_ERRORS,
-   "Tells the slave thread to continue replication when a query returns an error from the provided list. Normally, replication will discontinue when an error is encountered, giving the user a chance to resolve the inconsistency in the data manually. Do not use this option unless you fully understand why you are getting the errors. If there are no bugs in your replication setup and client programs, and no bugs in MySQL itself, you should never get an abort with error. Indiscriminate use of this option will result in slaves being hopelessly out of sync with the master and you having no idea how the problem happened. For error codes, you should use the numbers provided by the error message in your slave error log and in the output of SHOW SLAVE STATUS. Full list of error messages can be found in the source distribution in `Docs/mysqld_error.txt'. You can (but should not) also use a very non-recommended value of all which will ignore all error messages and keep barging along regardless. Needless to say, if you use it, we make no promises regarding your data integrity. Please do not complain if your data on the slave is not anywhere close to what it is on the master in this case -- you have been warned. Example: slave-skip-errors=1062,1053 or slave-skip-errors=all",
+   "Tells the slave thread to continue replication when a query returns an error from the provided list",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", OPT_SOCKET, "Socket file to use for connection",
    (gptr*) &mysql_unix_port, (gptr*) &mysql_unix_port, 0, GET_STR,
@@ -3212,18 +3227,18 @@ static struct my_option my_long_options[] =
 #ifdef HAVE_OPENSSL
 #include "sslopt-longopts.h"
 #endif
-  {"transaction-isolation", OPT_TX_ISOLATION,
-   "Default transaction isolation level", (gptr*) &default_tx_isolation_name,
-   (gptr*) &default_tx_isolation_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
-   0, 0},
   {"temp-pool", OPT_TEMP_POOL, 
-   "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file. This is to work around a problem in the Linux kernel dealing with creating a bunch of new files with different names. With the old behavior, Linux seems to 'leak' memory, as it's being allocated to the directory entry cache instead of the disk cache.",
+   "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
    (gptr*) &use_temp_pool, (gptr*) &use_temp_pool, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"tmpdir", 't', "Path for temporary files", (gptr*) &mysql_tmpdir,
    (gptr*) &mysql_tmpdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"use-locking", OPT_USE_LOCKING, "Use system locking", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"transaction-isolation", OPT_TX_ISOLATION,
+   "Default transaction isolation level", (gptr*) &default_tx_isolation_name,
+   (gptr*) &default_tx_isolation_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"use-locking", OPT_USE_LOCKING, "Use system (external) locking",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef USE_SYMDIR
   {"use-symbolic-links", 's', "Enable symbolic link support",
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG, 0, 0,
@@ -3243,7 +3258,7 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 50, 1, 65535, 0, 1, 0 },
 #ifdef HAVE_BERKELEY_DB
   { "bdb_cache_size", OPT_BDB_CACHE_SIZE,
-    "The buffer that is allocated to cache index and rows for BDB tables."
+    "The buffer that is allocated to cache index and rows for BDB tables.",
     (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULONG,
     REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, (long) ~0, 0, IO_SIZE, 0},
   {"bdb_log_buffer_size", OPT_BDB_LOG_BUFFER_SIZE,
@@ -3719,12 +3734,12 @@ struct show_var_st status_vars[]= {
   {"Com_show_grants",	       (char*) (com_stat+(uint) SQLCOM_SHOW_GRANTS),SHOW_LONG},
   {"Com_show_keys",	       (char*) (com_stat+(uint) SQLCOM_SHOW_KEYS),SHOW_LONG},
   {"Com_show_logs",	       (char*) (com_stat+(uint) SQLCOM_SHOW_LOGS),SHOW_LONG},
-  {"Com_show_master_stat",     (char*) (com_stat+(uint) SQLCOM_SHOW_MASTER_STAT),SHOW_LONG},
+  {"Com_show_master_status",   (char*) (com_stat+(uint) SQLCOM_SHOW_MASTER_STAT),SHOW_LONG},
   {"Com_show_new_master",      (char*) (com_stat+(uint) SQLCOM_SHOW_NEW_MASTER),SHOW_LONG},
   {"Com_show_open_tables",     (char*) (com_stat+(uint) SQLCOM_SHOW_OPEN_TABLES),SHOW_LONG},
   {"Com_show_processlist",     (char*) (com_stat+(uint) SQLCOM_SHOW_PROCESSLIST),SHOW_LONG},
   {"Com_show_slave_hosts",     (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_HOSTS),SHOW_LONG},
-  {"Com_show_slave_stat",      (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_STAT),SHOW_LONG},
+  {"Com_show_slave_status",    (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_STAT),SHOW_LONG},
   {"Com_show_status",	       (char*) (com_stat+(uint) SQLCOM_SHOW_STATUS),SHOW_LONG},
   {"Com_show_tables",	       (char*) (com_stat+(uint) SQLCOM_SHOW_TABLES),SHOW_LONG},
   {"Com_show_variables",       (char*) (com_stat+(uint) SQLCOM_SHOW_VARIABLES),SHOW_LONG},
@@ -3792,29 +3807,29 @@ struct show_var_st status_vars[]= {
   {"Sort_rows",		       (char*) &filesort_rows,	        SHOW_LONG},
   {"Sort_scan",		       (char*) &filesort_scan_count,    SHOW_LONG},
 #ifdef HAVE_OPENSSL
-  {"ssl_accepts",              (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT},
-  {"ssl_finished_accepts",     (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
-  {"ssl_finished_connects",    (char*) 0,  	SHOW_SSL_CTX_SESS_CONNECT_GOOD},
-  {"ssl_accept_renegotiates",  (char*) 0, 	SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
-  {"ssl_connect_renegotiates", (char*) 0, 	SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE},
-  {"ssl_callback_cache_hits",  (char*) 0,	SHOW_SSL_CTX_SESS_CB_HITS},
-  {"ssl_session_cache_hits",   (char*) 0,	SHOW_SSL_CTX_SESS_HITS},
-  {"ssl_session_cache_misses", (char*) 0,	SHOW_SSL_CTX_SESS_MISSES},
-  {"ssl_session_cache_timeouts", (char*) 0,	SHOW_SSL_CTX_SESS_TIMEOUTS},
-  {"ssl_used_session_cache_entries",(char*) 0,	SHOW_SSL_CTX_SESS_NUMBER},
-  {"ssl_client_connects",      (char*) 0,	SHOW_SSL_CTX_SESS_CONNECT},
-  {"ssl_session_cache_overflows", (char*) 0,	SHOW_SSL_CTX_SESS_CACHE_FULL},
-  {"ssl_session_cache_size",   (char*) 0,	SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
-  {"ssl_session_cache_mode",   (char*) 0,	SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
-  {"ssl_sessions_reused",      (char*) 0,	SHOW_SSL_SESSION_REUSED},
-  {"ssl_ctx_verify_mode",      (char*) 0,	SHOW_SSL_CTX_GET_VERIFY_MODE},
-  {"ssl_ctx_verify_depth",     (char*) 0,	SHOW_SSL_CTX_GET_VERIFY_DEPTH},
-  {"ssl_verify_mode",          (char*) 0,	SHOW_SSL_GET_VERIFY_MODE},
-  {"ssl_verify_depth",         (char*) 0,	SHOW_SSL_GET_VERIFY_DEPTH},
-  {"ssl_version",   	       (char*) 0,  	SHOW_SSL_GET_VERSION},
-  {"ssl_cipher",               (char*) 0,  	SHOW_SSL_GET_CIPHER},
-  {"ssl_cipher_list",          (char*) 0,  	SHOW_SSL_GET_CIPHER_LIST},
-  {"ssl_default_timeout",      (char*) 0,  	SHOW_SSL_GET_DEFAULT_TIMEOUT},
+  {"Ssl_accepts",              (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT},
+  {"Ssl_finished_accepts",     (char*) 0,  	SHOW_SSL_CTX_SESS_ACCEPT_GOOD},
+  {"Ssl_finished_connects",    (char*) 0,  	SHOW_SSL_CTX_SESS_CONNECT_GOOD},
+  {"Ssl_accept_renegotiates",  (char*) 0, 	SHOW_SSL_CTX_SESS_ACCEPT_RENEGOTIATE},
+  {"Ssl_connect_renegotiates", (char*) 0, 	SHOW_SSL_CTX_SESS_CONNECT_RENEGOTIATE},
+  {"Ssl_callback_cache_hits",  (char*) 0,	SHOW_SSL_CTX_SESS_CB_HITS},
+  {"Ssl_session_cache_hits",   (char*) 0,	SHOW_SSL_CTX_SESS_HITS},
+  {"Ssl_session_cache_misses", (char*) 0,	SHOW_SSL_CTX_SESS_MISSES},
+  {"Ssl_session_cache_timeouts", (char*) 0,	SHOW_SSL_CTX_SESS_TIMEOUTS},
+  {"Ssl_used_session_cache_entries",(char*) 0,	SHOW_SSL_CTX_SESS_NUMBER},
+  {"Ssl_client_connects",      (char*) 0,	SHOW_SSL_CTX_SESS_CONNECT},
+  {"Ssl_session_cache_overflows", (char*) 0,	SHOW_SSL_CTX_SESS_CACHE_FULL},
+  {"Ssl_session_cache_size",   (char*) 0,	SHOW_SSL_CTX_SESS_GET_CACHE_SIZE},
+  {"Ssl_session_cache_mode",   (char*) 0,	SHOW_SSL_CTX_GET_SESSION_CACHE_MODE},
+  {"Ssl_sessions_reused",      (char*) 0,	SHOW_SSL_SESSION_REUSED},
+  {"Ssl_ctx_verify_mode",      (char*) 0,	SHOW_SSL_CTX_GET_VERIFY_MODE},
+  {"Ssl_ctx_verify_depth",     (char*) 0,	SHOW_SSL_CTX_GET_VERIFY_DEPTH},
+  {"Ssl_verify_mode",          (char*) 0,	SHOW_SSL_GET_VERIFY_MODE},
+  {"Ssl_verify_depth",         (char*) 0,	SHOW_SSL_GET_VERIFY_DEPTH},
+  {"Ssl_version",   	       (char*) 0,  	SHOW_SSL_GET_VERSION},
+  {"Ssl_cipher",               (char*) 0,  	SHOW_SSL_GET_CIPHER},
+  {"Ssl_cipher_list",          (char*) 0,  	SHOW_SSL_GET_CIPHER_LIST},
+  {"Ssl_default_timeout",      (char*) 0,  	SHOW_SSL_GET_DEFAULT_TIMEOUT},
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
@@ -3959,7 +3974,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'l':
     opt_log=1;
-    opt_logname=argument;			// Use hostname.log if null
     break;
   case 'h':
     strmake(mysql_real_data_home,argument, sizeof(mysql_real_data_home)-1);
@@ -3973,12 +3987,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'o':
     protocol_version=PROTOCOL_VERSION-1;
     break;
-  case 'P':
-    mysql_port= (unsigned int) atoi(argument);
-    break;
-  case OPT_LOCAL_INFILE:
-    opt_local_infile= test(!argument || atoi(argument) != 0);
-    break;
   case OPT_SLAVE_SKIP_ERRORS:
     init_slave_skip_errors(argument);
     break;
@@ -3986,24 +3994,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)      
     safemalloc_mem_limit = atoi(argument);
 #endif      
-    break;
-  case OPT_RPL_RECOVERY_RANK:
-    rpl_recovery_rank=atoi(argument);
-    break;
-  case OPT_SLAVE_LOAD_TMPDIR:
-    slave_load_tmpdir = my_strdup(argument, MYF(MY_FAE));
-    break;
-  case OPT_SOCKET:
-    mysql_unix_port= argument;
-    break;
-  case 'r':
-    mysqld_chroot=argument;
-    break;
-  case 't':
-    mysql_tmpdir=argument;
-    break;
-  case 'u':
-    mysqld_user=argument;
     break;
   case 'v':
   case 'V':
@@ -4022,45 +4012,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case (int) OPT_ISAM_LOG:
     opt_myisam_log=1;
-    if (argument)
-      myisam_log_filename=argument;
     break;
   case (int) OPT_UPDATE_LOG:
     opt_update_log=1;
-    opt_update_logname=argument;		// Use hostname.# if null
-    break;
-  case (int) OPT_RELAY_LOG_INDEX:
-    opt_relaylog_index_name = argument;
-    break;
-  case (int) OPT_RELAY_LOG:
-    x_free(opt_relay_logname);
-    if (argument && argument[0])
-      opt_relay_logname=my_strdup(argument,MYF(0));
-    break;
-  case (int) OPT_BIN_LOG_INDEX:
-    opt_binlog_index_name = argument;
     break;
   case (int) OPT_BIN_LOG:
     opt_bin_log=1;
-    x_free(opt_bin_logname);
-    if (argument && argument[0])
-      opt_bin_logname=my_strdup(argument,MYF(0));
-    break;
-    // needs to be handled (as no-op) in non-debugging mode for test suite
-  case (int)OPT_DISCONNECT_SLAVE_EVENT_COUNT:
-#ifndef DBUG_OFF      
-    disconnect_slave_event_count = atoi(argument);
-#endif      
-    break;
-  case (int)OPT_ABORT_SLAVE_EVENT_COUNT:
-#ifndef DBUG_OFF      
-    abort_slave_event_count = atoi(argument);
-#endif      
-    break;
-  case (int) OPT_MAX_BINLOG_DUMP_EVENTS:
-#ifndef DBUG_OFF      
-    max_binlog_dump_events = atoi(argument);
-#endif      
     break;
   case (int) OPT_INIT_RPL_ROLE:
     {
@@ -4182,7 +4139,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
   case (int) OPT_SLOW_QUERY_LOG:
     opt_slow_log=1;
-    opt_slow_logname=argument;
     break;
   case (int)OPT_RECKLESS_SLAVE:
     opt_reckless_slave = 1;
@@ -4282,9 +4238,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case (int) OPT_PID_FILE:
     strmake(pidfile_name, argument, sizeof(pidfile_name)-1);
     break;
-  case (int) OPT_INIT_FILE:
-    opt_init_file=argument;
-    break;
 #ifdef __WIN__
   case (int) OPT_STANDALONE:		/* Dummy option for NT */
     break;
@@ -4316,7 +4269,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       break;
     }
   case OPT_SERVER_ID:
-    server_id = atoi(argument);
     server_id_supplied = 1;
     break;
   case OPT_DELAY_KEY_WRITE:
@@ -4350,20 +4302,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       break;
     }
 #ifdef HAVE_BERKELEY_DB
-  case OPT_BDB_LOG:
-    berkeley_logdir=argument;
-    break;
-  case OPT_BDB_HOME:
-    berkeley_home=argument;
-    break;
   case OPT_BDB_NOSYNC:
     berkeley_env_flags|=DB_TXN_NOSYNC;
     break;
   case OPT_BDB_NO_RECOVER:
     berkeley_init_flags&= ~(DB_RECOVER);
-    break;
-  case OPT_BDB_TMP:
-    berkeley_tmpdir=argument;
     break;
   case OPT_BDB_LOCK:
     {
@@ -4405,15 +4348,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
     break;
 #ifdef HAVE_INNOBASE_DB
-  case OPT_INNODB_DATA_HOME_DIR:
-    innobase_data_home_dir=argument;
-    break;
-  case OPT_INNODB_LOG_GROUP_HOME_DIR:
-    innobase_log_group_home_dir=argument;
-    break;
-  case OPT_INNODB_LOG_ARCH_DIR:
-    innobase_log_arch_dir=argument;
-    break;
   case OPT_INNODB_LOG_ARCHIVE:
     innobase_log_archive= argument ? test(atoi(argument)) : 1;
     break;
@@ -4422,9 +4356,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_INNODB_FAST_SHUTDOWN:
     innobase_fast_shutdown= argument ? test(atoi(argument)) : 1;
-    break;
-  case OPT_INNODB_FLUSH_METHOD:
-    innobase_unix_file_flush_method=argument;
     break;
 #endif /* HAVE_INNOBASE_DB */
   case OPT_MYISAM_RECOVER:
@@ -4461,47 +4392,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 			     ISO_READ_COMMITTED);
       break;
     }
-  case OPT_MASTER_HOST:
-    master_host=argument;
-    break;
-  case OPT_MASTER_USER:
-    master_user=argument;
-    break;
   case OPT_MASTER_PASSWORD:
     master_password=argument;
-    break;
-  case OPT_MASTER_INFO_FILE:
-    master_info_file=argument;
-    break;
-  case OPT_RELAY_LOG_INFO_FILE:
-    relay_log_info_file=argument;
-    break;
-  case OPT_MASTER_PORT:
-    master_port= atoi(argument);
-    break;
-  case OPT_MASTER_SSL_KEY:
-    master_ssl_key=argument;
-    break;
-  case OPT_MASTER_SSL_CERT:
-    master_ssl_cert=argument;
-    break;
-  case OPT_REPORT_HOST:
-    report_host=argument;
-    break;
-  case OPT_REPORT_USER:
-    report_user=argument;
-    break;
-  case OPT_REPORT_PASSWORD:
-    report_password=argument;
-    break;
-  case OPT_REPORT_PORT:
-    report_port= atoi(argument);
-    break;
-  case OPT_MASTER_CONNECT_RETRY:
-    master_connect_retry= atoi(argument);
-    break;
-  case OPT_MASTER_RETRY_COUNT:
-    master_retry_count= atoi(argument);
     break;
   case OPT_SKIP_SAFEMALLOC:
 #ifdef SAFEMALLOC

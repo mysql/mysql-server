@@ -22,7 +22,7 @@
 #include <mysql_embed.h>
 #include <mysql.h>
 #include <errmsg.h>
-#include <getopt.h>
+#include <my_getopt.h>
 
 /* We have to define 'enum options' identical in all files to keep OS2 happy */
 

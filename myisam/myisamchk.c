@@ -196,7 +196,7 @@ static struct my_option my_long_options[] =
   {"keys-used", 'k',
    "Tell MyISAM to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts!",
    (gptr*) &check_param.keys_in_use, (gptr*) &check_param.keys_in_use, 0,
-   GET_LL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
+   GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extended-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -292,7 +292,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 2.4 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 2.5 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -380,7 +380,6 @@ static void usage(void)
 		      (It may be VERY slow to do a sort the first time!)");
 
   print_defaults("my", load_default_groups);
-  putchar('\n');
   my_print_variables(my_long_options);
 }
 

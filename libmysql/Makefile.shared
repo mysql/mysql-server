@@ -59,10 +59,10 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
                         charset.lo hash.lo mf_iocache.lo \
                         mf_iocache2.lo my_seek.lo \
 			my_pread.lo mf_cache.lo my_vsnprintf.lo md5.lo \
-			my_getopt.lo
+			my_getopt.lo my_gethostbyname.lo
 
 # Not needed in the minimum library
-mysysobjects2 =		getopt.lo getopt1.lo getvar.lo my_lib.lo
+mysysobjects2 =		getvar.lo my_lib.lo
 mysysobjects =		$(mysysobjects1) $(mysysobjects2)
 target_libadd = $(mysysobjects) $(mystringsobjects) $(dbugobjects) \
  $(vio_objects)

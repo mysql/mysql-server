@@ -58,7 +58,8 @@ class ACL_USER :public ACL_ACCESS
 {
 public:
   acl_host_and_ip host;
-  uint hostname_length, questions, updates;
+  uint hostname_length;
+  USER_RESOURCES user_resource;
   char *user,*password;
   ulong salt[2];
 #ifdef HAVE_OPENSSL  
@@ -109,6 +110,32 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
 static void update_hostname(acl_host_and_ip *host, const char *hostname);
 static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
 			     const char *ip);
+
+extern   char uc_update_queries[SQLCOM_END];
+
+static void init_update_queries(void)
+{
+  uc_update_queries[SQLCOM_CREATE_TABLE]=1;
+  uc_update_queries[SQLCOM_CREATE_INDEX]=1;
+  uc_update_queries[SQLCOM_ALTER_TABLE]=1;
+  uc_update_queries[SQLCOM_UPDATE]=1;
+  uc_update_queries[SQLCOM_INSERT]=1;
+  uc_update_queries[SQLCOM_INSERT_SELECT]=1;
+  uc_update_queries[SQLCOM_DELETE]=1;
+  uc_update_queries[SQLCOM_TRUNCATE]=1;
+  uc_update_queries[SQLCOM_DROP_TABLE]=1;
+  uc_update_queries[SQLCOM_LOAD]=1;
+  uc_update_queries[SQLCOM_CREATE_DB]=1;
+  uc_update_queries[SQLCOM_DROP_DB]=1;
+  uc_update_queries[SQLCOM_REPLACE]=1;
+  uc_update_queries[SQLCOM_REPLACE_SELECT]=1;
+  uc_update_queries[SQLCOM_RENAME_TABLE]=1;
+  uc_update_queries[SQLCOM_BACKUP_TABLE]=1;
+  uc_update_queries[SQLCOM_RESTORE_TABLE]=1;
+  uc_update_queries[SQLCOM_DELETE_MULTI]=1;
+  uc_update_queries[SQLCOM_DROP_INDEX]=1;
+  uc_update_queries[SQLCOM_MULTI_UPDATE]=1;
+}
 
 int acl_init(bool dont_read_acl_tables)
 {
@@ -247,14 +274,16 @@ int acl_init(bool dont_read_acl_tables)
     {
       /* Table has new MySQL usage limits */
       char *ptr = get_field(&mem, table, 21);
-      user.questions=atoi(ptr);
+      user.user_resource.questions=atoi(ptr);
       ptr = get_field(&mem, table, 22);
-      user.updates=atoi(ptr);
-      if (user.questions)
+      user.user_resource.updates=atoi(ptr);
+      ptr = get_field(&mem, table, 23);
+      user.user_resource.connections=atoi(ptr);
+      if (user.user_resource.questions || user.user_resource.updates || user.user_resource.connections)
 	mqh_used=1;
     }
     else
-      user.questions=user.updates=0;
+      bzero(&(user.user_resource),sizeof(user.user_resource));
 #ifndef TO_BE_REMOVED
     if (table->fields <= 13)
     {						// Without grant
@@ -299,6 +328,7 @@ int acl_init(bool dont_read_acl_tables)
   init_check_host();
 
   mysql_unlock_tables(thd, lock);
+  init_update_queries();
   thd->version--;				// Force close to free memory
   close_thread_tables(thd);
   delete thd;
@@ -442,13 +472,13 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 
 uint acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		 const char *password,const char *message,char **priv_user,
-		 bool old_ver, uint *max_questions)
+		 bool old_ver, USER_RESOURCES  *mqh)
 {
   uint user_access=NO_ACCESS;
   *priv_user=(char*) user;
   char *ptr=0;
 
-  *max_questions=0;
+  bzero(mqh,sizeof(USER_RESOURCES));
   if (!initialized)
     return (uint) ~NO_ACCESS;			// If no data allow anything /* purecov: tested */
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -556,7 +586,7 @@ uint acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 #else  /* HAVE_OPENSSL */
 	  user_access=acl_user->access;
 #endif /* HAVE_OPENSSL */
-	  *max_questions=acl_user->questions;
+	  *mqh=acl_user->user_resource;
 	  if (!acl_user->user)
 	    *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
 	  break;
@@ -590,7 +620,7 @@ static void acl_update_user(const char *user, const char *host,
 			    const char *ssl_cipher,
 			    const char *x509_issuer,
 			    const char *x509_subject,
-			    unsigned int mqh,
+			    USER_RESOURCES  *mqh, 
 			    uint privileges)
 {
   for (uint i=0 ; i < acl_users.elements ; i++)
@@ -604,8 +634,8 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->host.hostname && !strcmp(host,acl_user->host.hostname))
       {
 	acl_user->access=privileges;
-	acl_user->questions=mqh;
-#ifdef HAVE_OPENSSL
+	acl_user->user_resource=*mqh;
+#ifdef HAVE_OPENSSL  
 	acl_user->ssl_type=ssl_type;
         acl_user->ssl_cipher=ssl_cipher;
 	acl_user->x509_issuer=x509_issuer;
@@ -634,7 +664,7 @@ static void acl_insert_user(const char *user, const char *host,
 			    const char *ssl_cipher,
 			    const char *x509_issuer,
 			    const char *x509_subject,
-			    unsigned int mqh,
+			    USER_RESOURCES *mqh,
 			    uint privileges)
 {
   ACL_USER acl_user;
@@ -642,7 +672,7 @@ static void acl_insert_user(const char *user, const char *host,
   update_hostname(&acl_user.host,strdup_root(&mem,host));
   acl_user.password=0;
   acl_user.access=privileges;
-  acl_user.questions=mqh;
+  acl_user.user_resource = *mqh;
   acl_user.sort=get_sort(2,acl_user.host.hostname,acl_user.user);
   acl_user.hostname_length=(uint) strlen(acl_user.host.hostname);
 #ifdef HAVE_OPENSSL
@@ -1150,12 +1180,17 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   char *password,empty_string[1];
   DBUG_ENTER("replace_user_table");
 
+  password=empty_string;
+  empty_string[0]=0;
+
   if (combo.password.str && combo.password.str[0])
-    password=combo.password.str;
-  else
   {
-    password=empty_string;
-    empty_string[0]=0;
+    if (combo.password.length != HASH_PASSWORD_LENGTH)
+    {
+      my_error(ER_PASSWORD_NO_MATCH,MYF(0));
+      DBUG_RETURN(-1);
+    }
+    password=combo.password.str;
   }
 
   table->field[0]->store(combo.host.str,combo.host.length);
@@ -1233,10 +1268,16 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     }
   }
 #endif /* HAVE_OPENSSL */
-  if (table->fields >= 23 && thd->lex.mqh)
+  if (table->fields >= 23)
   {
-    table->field[21]->store((longlong) thd->lex.mqh);
-    mqh_used=1;
+    USER_RESOURCES mqh = thd->lex.mqh;
+    if (mqh.questions)
+      table->field[21]->store((longlong) mqh.questions);
+    if (mqh.updates)
+      table->field[22]->store((longlong) mqh.updates);
+    if (mqh.connections)
+      table->field[23]->store((longlong) mqh.connections);
+    mqh_used = mqh_used || mqh.questions || mqh.updates || mqh.connections;
   }
   if (old_row_exists)
   {
@@ -1276,7 +1317,7 @@ end:
 		      thd->lex.ssl_cipher,
 		      thd->lex.x509_issuer,
 		      thd->lex.x509_subject,
-		      thd->lex.mqh,
+		      &thd->lex.mqh,
 		      rights);
     else
       acl_insert_user(combo.user.str,combo.host.str,password,
@@ -1284,7 +1325,7 @@ end:
 		      thd->lex.ssl_cipher,
 		      thd->lex.x509_issuer,
 		      thd->lex.x509_subject,
-		      thd->lex.mqh,
+		      &thd->lex.mqh,
 		      rights);
   }
   table->file->index_end();
@@ -2691,11 +2732,25 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 #endif /* HAVE_OPENSSL */
     if (want_access & GRANT_ACL)
       global.append(" WITH GRANT OPTION",18); 
-    else if (acl_user->questions)
+    if (acl_user->user_resource.questions)
     {
       char buff[65], *p; // just as in int2str
       global.append(" WITH MAX_QUERIES_PER_HOUR = ",29);
-      p=int2str(acl_user->questions,buff,10);
+      p=int2str(acl_user->user_resource.questions,buff,10);
+      global.append(buff,p-buff);
+    }
+    if (acl_user->user_resource.updates)
+    {
+      char buff[65], *p; // just as in int2str
+      global.append(" WITH MAX_UPDATES_PER_HOUR = ",29);
+      p=int2str(acl_user->user_resource.updates,buff,10);
+      global.append(buff,p-buff);
+    }
+    if (acl_user->user_resource.connections)
+    {
+      char buff[65], *p; // just as in int2str
+      global.append(" WITH MAX_CONNECTIONS_PER_HOUR = ",33);
+      p=int2str(acl_user->user_resource.connections,buff,10);
       global.append(buff,p-buff);
     }
     thd->packet.length(0);
@@ -2860,14 +2915,15 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 }
 
 
-uint get_mqh(const char *user, const char *host)
+void get_mqh(const char *user, const char *host, USER_CONN *uc)
 {
-  if (!initialized) return 0;
-
   ACL_USER *acl_user;
-  acl_user= find_acl_user(host,user);
-  return (acl_user) ? acl_user->questions : 0;
+  if (initialized && (acl_user= find_acl_user(host,user)))
+    uc->user_resources= acl_user->user_resource;
+  else
+    bzero((char*) &uc->user_resources, sizeof(uc->user_resources));
 }
+
 
 
 /*****************************************************************************

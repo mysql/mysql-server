@@ -90,6 +90,8 @@ static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
+static my_bool org_my_init_done=0;
+
 int STDCALL mysql_server_init(int argc __attribute__((unused)),
 			      char **argv __attribute__((unused)),
 			      char **groups __attribute__((unused)))
@@ -98,7 +100,11 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
 }
 
 void STDCALL mysql_server_end()
-{}
+{
+  /* If library called my_init(), free memory allocated by it */
+  if (!org_my_init_done)
+    my_end(0);
+}
 
 my_bool STDCALL mysql_thread_init()
 {
@@ -1352,6 +1358,7 @@ static void mysql_once_init()
   if (!mysql_client_init)
   {
     mysql_client_init=1;
+    org_my_init_done=my_init_done;
     my_init();					/* Will init threads */
     init_client_errs();
     if (!mysql_port)
@@ -1631,7 +1638,6 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       memcpy_fixed(&sock_addr.sin_addr,&ip_addr,sizeof(ip_addr));
     }
     else
-#if defined(HAVE_GETHOSTBYNAME_R) && defined(_REENTRANT) && defined(THREAD)
     {
       int tmp_errno;
       struct hostent tmp_hostent,*hp;
@@ -1642,22 +1648,12 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       {
 	net->last_errno=CR_UNKNOWN_HOST;
 	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, tmp_errno);
+	my_gethostbyname_r_free();
 	goto error;
       }
       memcpy(&sock_addr.sin_addr,hp->h_addr, (size_t) hp->h_length);
+      my_gethostbyname_r_free();
     }
-#else
-    {
-      struct hostent *hp;
-      if (!(hp=gethostbyname(host)))
-      {
-	net->last_errno=CR_UNKNOWN_HOST;
-	sprintf(net->last_error, ER(CR_UNKNOWN_HOST), host, socket_errno);
-	goto error;
-      }
-      memcpy(&sock_addr.sin_addr,hp->h_addr, (size_t) hp->h_length);
-    }
-#endif
     sock_addr.sin_port = (ushort) htons((ushort) port);
     if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
 		 mysql->options.connect_timeout) <0)

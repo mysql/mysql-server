@@ -20,7 +20,7 @@
 
 #include <m_ctype.h>
 #include <stdarg.h>
-#include <getopt.h>
+#include <my_getopt.h>
 #ifdef HAVE_SYS_VADVICE_H
 #include <sys/vadvise.h>
 #endif
@@ -94,12 +94,16 @@ typedef struct st_isam_sort_info {
   N_KEYSEG *keyseg;
 } ISAM_SORT_INFO;
 
-enum ic_options {OPT_CHARSETS_DIR_IC=256};
+enum ic_options {OPT_CHARSETS_DIR_IC=256, OPT_KEY_BUFFER_SIZE,
+		 OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE,
+		 OPT_SORT_BUFFER_SIZE, OPT_SORT_KEY_BLOCKS,
+		 OPT_DECODE_BITS};
 
 static ulong	use_buffers=0,read_buffer_length=0,write_buffer_length=0,
 		sort_buffer_length=0,sort_key_blocks=0,crc=0,unique_count=0;
 static uint testflag=0,out_flag=0,warning_printed=0,error_printed=0,
-	    rep_quick=0,verbose=0,opt_follow_links=1;
+            verbose=0,opt_follow_links=1;
+static my_bool rep_quick= 0;
 static uint opt_sort_key=0,total_files=0,max_level=0,max_key=N_MAXKEY;
 static ulong keydata=0,totaldata=0,key_blocks=0;
 static ulong new_file_pos=0,record_checksum=0,key_file_blocks=0,decode_bits;
@@ -234,118 +238,118 @@ int main( int argc, char **argv)
 } /* main */
 
 
-static CHANGEABLE_VAR changeable_vars[] = {
-  { "key_buffer_size",(long*) &use_buffers,(long) USE_BUFFER_INIT,
-    (long) MALLOC_OVERHEAD, (long) ~0L,(long) MALLOC_OVERHEAD,(long) IO_SIZE },
-  { "read_buffer_size", (long*) &read_buffer_length,(long) READ_BUFFER_INIT,
-      (long) MALLOC_OVERHEAD,(long) ~0L,(long) MALLOC_OVERHEAD,(long) 1L },
-  { "write_buffer_size", (long*) &write_buffer_length,(long) READ_BUFFER_INIT,
-      (long) MALLOC_OVERHEAD,(long) ~0L,(long) MALLOC_OVERHEAD,(long) 1L },
-  { "sort_buffer_size",(long*) &sort_buffer_length,(long) SORT_BUFFER_INIT,
-      (long) (MIN_SORT_BUFFER+MALLOC_OVERHEAD),(long) ~0L,
-      (long) MALLOC_OVERHEAD,(long) 1L },
-  { "sort_key_blocks",(long*) &sort_key_blocks,BUFFERS_WHEN_SORTING,4L,100L,0L,
-    1L },
-  { "decode_bits",(long*) &decode_bits,9L,4L,17L,0L,1L },
-  { NullS,(long*) 0,0L,0L,0L,0L,0L,} };
-
-
-static struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"analyze",          no_argument,       0, 'a'},
-  {"character-sets-dir", required_argument, 0, OPT_CHARSETS_DIR_IC},
+  {"analyze", 'a',
+   "Analyze distribution of keys. Will make some joins in MySQL faster.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR_IC,
+   "Directory where character sets are", (gptr*) &charsets_dir,
+   (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
-  {"debug",            required_argument, 0, '#'},
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"default-character-set", required_argument, 0, 'C'},
-  {"description",      no_argument,       0, 'd'},
-  {"extend-check",     no_argument,       0, 'e'},
-  {"information",      no_argument,       0, 'i'},
-  {"force",            no_argument,       0, 'f'},
-  {"help",             no_argument,       0, '?'},
-  {"keys-used",        required_argument, 0, 'k'},
-  {"no-symlinks",      no_argument,       0, 'l'},
-  {"quick",            no_argument,       0, 'q'},
-  {"recover",          no_argument,       0, 'r'},
-  {"safe-recover",     no_argument,       0, 'o'},
-  {"block-search",     required_argument, 0, 'b'},
-  {"set-variable",     required_argument, 0, 'O'},
-  {"silent",           no_argument,       0, 's'},
-  {"sort-index",       no_argument,       0, 'S'},
-  {"sort-records",     required_argument, 0, 'R'},
-  {"unpack",           no_argument,       0, 'u'},
-  {"verbose",          no_argument,       0, 'v'},
-  {"version",          no_argument,       0, 'V'},
-  {"wait",             no_argument,       0, 'w'},
-  {0, 0, 0, 0}
+  {"default-character-set", 'C', "Set the default character set",
+   (gptr*) &default_charset, (gptr*) &default_charset, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"description", 'd', "Prints some information about table.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"extend-check", 'e',
+   "Check the table VERY thoroughly. One need to use this only in extreme cases, because isamchk should normally find all errors even without this switch.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"information", 'i', "Print statistics information about the table",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"force", 'f',
+   "Overwrite old temporary files. If one uses -f when checking tables (running isamchk without -r), isamchk will automatically restart with -r on any wrong table.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0},
+  {"keys-used", 'k',
+   "Used with '-r'. Tell ISAM to update only the first # keys. This can be used to get faster inserts!",
+   (gptr*) &max_key, (gptr*) &max_key, 0, GET_UINT, REQUIRED_ARG, N_MAXKEY, 0,
+   0, 0, 0, 0},
+  {"no-symlinks", 'l',
+   "Do not follow symbolic links when repairing. Normally isamchk repairs the table a symlink points at.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"quick", 'q', 
+   "Used with -r to get a faster repair. (The data file isn't touched.) One can give a second '-q' to force isamchk to modify the original datafile.",
+   (gptr*) &rep_quick, (gptr*) &rep_quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
+  {"recover", 'r',
+   "Can fix almost anything except unique keys that aren't unique.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"safe-recover", 'o',
+   "Uses old recovery method; slower than '-r' but can handle a couple of cases that '-r' cannot handle.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"set-variable", 'O',
+   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"block-search", 'b', "For debugging.", (gptr*) &search_after_block,
+   (gptr*) &search_after_block, 0, GET_ULONG, REQUIRED_ARG, NI_POS_ERROR, 0,
+   0, 0, 0, 0},
+  {"silent", 's',
+   "Only print errors. One can use two -s to make isamchk very silent.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"sort-index", 'S',
+   "Sort index blocks. This speeds up 'read-next' in applications.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"sort-records", 'R',
+   "Sort records according to an index. This makes your data much more localized and may speed up things (It may be VERY slow to do a sort the first time!)",
+   (gptr*) &opt_sort_key, (gptr*) &opt_sort_key, 0, GET_UINT, REQUIRED_ARG,
+   0, 0, (N_MAXKEY - 1), 1, 0, 0},
+  {"unpack", 'u', "Unpack file packed with pack_isam.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v',
+   "Print more information. This can be used with -d and -e. Use many -v for more verbosity!",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Print version and exit.", 
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"wait", 'w', "Wait if table is locked.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"key_buffer_size", OPT_KEY_BUFFER_SIZE, "", (gptr*) &use_buffers,
+   (gptr*) &use_buffers, 0, GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT,
+   (long) MALLOC_OVERHEAD, (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE,
+   0},
+  {"read_buffer_size", OPT_READ_BUFFER_SIZE, "",
+   (gptr*) &read_buffer_length, (gptr*) &read_buffer_length, 0, GET_ULONG,
+   REQUIRED_ARG, (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
+   (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
+  {"write_buffer_size", OPT_WRITE_BUFFER_SIZE, "",
+   (gptr*) &write_buffer_length, (gptr*) &write_buffer_length, 0, GET_ULONG,
+   REQUIRED_ARG, (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD, (long) ~0L,
+   (long) MALLOC_OVERHEAD, (long) 1L, 0},
+  {"sort_buffer_size", OPT_SORT_BUFFER_SIZE, "",
+   (gptr*) &sort_buffer_length, (gptr*) &sort_buffer_length, 0, GET_ULONG,
+   REQUIRED_ARG, (long) SORT_BUFFER_INIT,
+   (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD), (long) ~0L,
+   (long) MALLOC_OVERHEAD, (long) 1L, 0},
+  {"sort_key_blocks", OPT_SORT_KEY_BLOCKS, "",
+   (gptr*) &sort_key_blocks, (gptr*) &sort_key_blocks, 0, GET_ULONG,
+   REQUIRED_ARG, BUFFERS_WHEN_SORTING, 4L, 100L, 0L, 1L, 0},
+  {"decode_bits", OPT_DECODE_BITS, "",
+   (gptr*) &decode_bits, (gptr*) &decode_bits, 0, GET_ULONG, REQUIRED_ARG,
+   9L, 4L, 17L, 0L, 1L, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 static void print_version(void)
 {
-  printf("%s  Ver 5.17 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 6.00 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
 static void usage(void)
 {
-  uint i;
   print_version();
-  puts("TCX Datakonsult AB, by Monty, for your professional use");
+  puts("MySQL AB, by Monty, for your professional use");
   puts("This software comes with NO WARRANTY: see the PUBLIC for details.\n");
   puts("Description, check and repair of ISAM tables.");
   puts("Used without options all tables on the command will be checked for errors");
   printf("Usage: %s [OPTIONS] tables[.ISM]\n", my_progname);
-  puts("\n\
-  -a, --analyze	      Analyze distribution of keys. Will make some joins in\n\
-		      MySQL faster.\n\
-  -#, --debug=...     Output debug log. Often this is 'd:t:o,filename`\n\
-  --character-sets-dir=...\n\
-                      Directory where character sets are\n\
-  -C, --default-character-set=...\n\
-                      Set the default character set\n\
-  -d, --description   Prints some information about table.\n\
-  -e, --extend-check  Check the table VERY thoroughly.  One need use this\n\
-                      only in extreme cases as isamchk should normally find\n\
-                      all errors even without this switch\n\
-  -f, --force         Overwrite old temporary files.\n\
-		      If one uses -f when checking tables (running isamchk\n\
-		      without -r), isamchk will automatically restart with\n\
-		      -r on any wrong table.\n\
-  -?, --help          Display this help and exit.\n\
-  -i, --information   Print statistics information about the table\n\
-  -k, --keys-used=#   Used with '-r'. Tell ISAM to update only the first\n\
-		      # keys.  This can be used to get faster inserts!\n\
-  -l, --no-symlinks   Do not follow symbolic links when repairing. Normally\n\
-		      isamchk repairs the table a symlink points at.\n\
-  -q, --quick         Used with -r to get a faster repair. (The data file\n\
-                      isn't touched.) One can give a second '-q' to force\n\
-                      isamchk to modify the original datafile.");
-  puts("\
-  -r, --recover       Can fix almost anything except unique keys that aren't\n\
-                      unique.\n\
-  -o, --safe-recover  Uses old recovery method; slower than '-r' but can\n\
-		      handle a couple of cases that '-r' cannot handle.\n\
-  -O, --set-variable var=option\n\
-		      Change the value of a variable.\n\
-  -s, --silent	      Only print errors.  One can use two -s to make isamchk\n\
-		      very silent\n\
-  -S, --sort-index    Sort index blocks.  This speeds up 'read-next' in\n\
-		      applications\n\
-  -R, --sort-records=#\n\
-		      Sort records according to an index.  This makes your\n\
-		      data much more localized and may speed up things\n\
-		      (It may be VERY slow to do a sort the first time!)\n\
-  -u, --unpack        Unpack file packed with pack_isam.\n\
-  -v, --verbose       Print more information. This can be used with\n\
-                      -d and -e. Use many -v for more verbosity!\n\
-  -V, --version       Print version and exit.\n\
-  -w, --wait          Wait if table is locked.");
-  print_defaults("my",load_default_groups);
-  printf("\nPossible variables for option --set-variable (-O) are:\n");
-  for (i=0; changeable_vars[i].name ; i++)
-    printf("%-20s  current value: %lu\n",
-           changeable_vars[i].name,
-           *changeable_vars[i].varptr);
+  my_print_help(my_long_options);
+  print_defaults("my", load_default_groups);
+  my_print_variables(my_long_options);
 }
 
 	/* Check table */
@@ -575,112 +579,98 @@ end2:
 } /* nisamchk */
 
 
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+     
+{
+  switch(optid) {
+  case 'a':
+    testflag|= T_STATISTICS;
+    break;
+  case 's':				/* silent */
+    if (testflag & T_SILENT)
+      testflag|=T_VERY_SILENT;
+    testflag|= T_SILENT;
+    testflag&= ~T_WRITE_LOOP;
+    break;
+  case 'w':
+    testflag|= T_WAIT_FOREVER;
+    break;
+  case 'd':				/* description if isam-file */
+    testflag|= T_DESCRIPT;
+    break;
+  case 'e':				/* extend check */
+    testflag|= T_EXTEND;
+    break;
+  case 'i':
+    testflag|= T_INFO;
+    break;
+  case 'f':
+    tmpfile_createflag= O_RDWR | O_TRUNC;
+    testflag|=T_FORCE_CREATE;
+    break;
+  case 'l':
+    opt_follow_links=0;
+    break;
+  case 'r':				/* Repair table */
+    testflag= (testflag & ~T_REP) | T_REP_BY_SORT;
+    break;
+  case 'o':
+    testflag= (testflag & ~T_REP_BY_SORT) | T_REP;
+    my_disable_async_io=1;	        /* More safety */
+    break;
+  case 'u':
+    testflag|= T_UNPACK | T_REP_BY_SORT;
+    break;
+  case 'v':				/* Verbose */
+    testflag|= T_VERBOSE;
+    verbose++;
+    break;
+  case 'R':				/* Sort records */
+    testflag|= T_SORT_RECORDS;
+    if (opt_sort_key >= N_MAXKEY)
+    {
+      fprintf(stderr,
+	      "The value of the sort key is bigger than max key: %d.\n",
+	      N_MAXKEY);
+      exit(1);
+    }
+    break;
+  case 'S':                         /* Sort index */
+    testflag|= T_SORT_INDEX;
+    break;
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:o,/tmp/isamchk.trace");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
+  }
+  return 0;
+}
+
 	 /* Read options */
 
-static void get_options(register int *argc,register char ***argv)
+static void get_options(register int *argc, register char ***argv)
 {
-  int c,option_index=0;
+  int ho_error;
 
   load_defaults("my",load_default_groups,argc,argv);
   defaults_alloc=  *argv;
-  set_all_changeable_vars(changeable_vars);
   if (isatty(fileno(stdout)))
     testflag|=T_WRITE_LOOP;
-  while ((c=getopt_long(*argc,*argv,"adeif?lqrosSuvVw#:b:k:O:R:C:",
-			long_options, &option_index)) != EOF)
+
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
   {
-    switch(c) {
-    case 'a':
-      testflag|= T_STATISTICS;
-      break;
-    case 'C':
-      default_charset=optarg;
-      break;
-    case OPT_CHARSETS_DIR_IC:
-      charsets_dir = optarg;
-      break;
-    case 'b':
-      search_after_block=strtoul(optarg,NULL,10);
-      break;
-    case 's':				/* silent */
-      if (testflag & T_SILENT)
-	testflag|=T_VERY_SILENT;
-      testflag|= T_SILENT;
-      testflag&= ~T_WRITE_LOOP;
-      break;
-    case 'w':
-      testflag|= T_WAIT_FOREVER;
-      break;
-    case 'd':				/* description if isam-file */
-      testflag|= T_DESCRIPT;
-      break;
-    case 'e':				/* extend check */
-      testflag|= T_EXTEND;
-      break;
-    case 'i':
-      testflag|= T_INFO;
-      break;
-    case 'f':
-      tmpfile_createflag= O_RDWR | O_TRUNC;
-      testflag|=T_FORCE_CREATE;
-      break;
-    case 'k':
-      max_key= (uint) atoi(optarg);
-      break;
-    case 'l':
-      opt_follow_links=0;
-      break;
-    case 'r':				/* Repair table */
-      testflag= (testflag & ~T_REP) | T_REP_BY_SORT;
-      break;
-    case 'o':
-      testflag= (testflag & ~T_REP_BY_SORT) | T_REP;
-      my_disable_async_io=1;	        /* More safety */
-      break;
-    case 'q':
-      rep_quick++;
-      break;
-    case 'u':
-      testflag|= T_UNPACK | T_REP_BY_SORT;
-      break;
-    case 'v':				/* Verbose */
-      testflag|= T_VERBOSE;
-      verbose++;
-      break;
-    case 'O':
-      if (set_changeable_var(optarg, changeable_vars))
-      {
-	usage();
-	exit(1);
-      }
-      break;
-    case 'R':				/* Sort records */
-      testflag|= T_SORT_RECORDS;
-      opt_sort_key=(uint) atoi(optarg)-1;
-      if (opt_sort_key >= N_MAXKEY)
-      {
-	fprintf(stderr,
-		"The value of the sort key is bigger than max key: %d.\n",
-		N_MAXKEY);
-	exit(1);
-      }
-      break;
-    case 'S':                         /* Sort index */
-      testflag|= T_SORT_INDEX;
-      break;
-    case '#':
-      DBUG_PUSH(optarg ? optarg : "d:t:o,/tmp/isamchk.trace");
-      break;
-    case 'V':
-      print_version();
-      exit(0);
-    case '?':
-      usage();
-      exit(0);
-    }
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
   }
-  (*argc)-=optind;
-  (*argv)+=optind;
+
   if (*argc == 0)
   {
     usage();

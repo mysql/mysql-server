@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "9.03"
+#define DUMP_VERSION "9.05"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -46,7 +46,6 @@
 #include "mysql.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include <my_getopt.h>
 
 /* Exit codes */
 
@@ -97,8 +96,9 @@ static struct my_option my_long_options[] =
    "Dump all the databases. This will be same as --databases with all databases selected.",
    (gptr*) &opt_alldbs, (gptr*) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"all", 'a', "Include all MySQL specific create options.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"all", 'a', "Include all MySQL specific create options.",
+   (gptr*) &create_options, (gptr*) &create_options, 0, GET_BOOL, NO_ARG, 0,
+   0, 0, 0, 0, 0},
   {"add-drop-table", OPT_DROP, "Add a 'drop table' before each create.",
    (gptr*) &opt_drop, (gptr*) &opt_drop, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
@@ -111,8 +111,8 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"complete-insert", 'c', "Use complete insert statements.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"complete-insert", 'c', "Use complete insert statements.", (gptr*) &cFlag,
+   (gptr*) &cFlag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -158,7 +158,7 @@ static struct my_option my_long_options[] =
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (gptr*) &current_host,
-   (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lines-terminated-by", OPT_LTB, "Lines in the i.file are terminated by ...",
    (gptr*) &lines_terminated, (gptr*) &lines_terminated, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -176,9 +176,9 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_create_db, (gptr*) &opt_create_db, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"no-create-info", 't', "Don't write table creation info.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-data", 'd', "No row information.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
-   0, 0, 0, 0},
+   (gptr*) &tFlag, (gptr*) &tFlag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-data", 'd', "No row information.", (gptr*) &dFlag, (gptr*) &dFlag, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is depricated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -301,24 +301,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_master_data=1;
     opt_first_slave=1;
     break;
-  case 'a':
-    create_options=1;
-    break;
-  case OPT_DEFAULT_CHARSET:
-    default_charset= argument;
-    break;
-  case OPT_CHARSETS_DIR:
-    charsets_dir= argument;
-    break;
-  case 'h':
-    my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
-    current_host=my_strdup(argument,MYF(MY_WME));
-    break;
-#ifndef DONT_ALLOW_USER_CHANGE
-  case 'u':
-    current_user=argument;
-    break;
-#endif
   case 'p':
     if (argument)
     {
@@ -332,16 +314,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       tty_password=1;
     break;
-  case 'P':
-    opt_mysql_port= (unsigned int) atoi(argument);
-    break;
   case 'r':
     if (!(md_result_file = my_fopen(argument, O_WRONLY | O_BINARY,
 				    MYF(MY_WME))))
       exit(1);
-    break;
-  case 'S':
-    opt_mysql_unix_port= argument;
     break;
   case 'W':
 #ifdef __WIN__
@@ -349,19 +325,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
     break;
   case 'T':
-    path= argument;
     opt_disable_keys=0;
     break;
   case '#':
     DBUG_PUSH(argument ? argument : "d:t:o");
     break;
-  case 'c': cFlag=1; break;
-  case 'd': dFlag=1; break;
-  case 't': tFlag=1;  break;
   case 'V': print_version(); exit(0);
-  case 'w':
-    where=argument;
-    break;
   case 'X':
     opt_xml = 1;
     opt_disable_keys=0;
@@ -370,21 +339,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage();
     exit(0);
-  case (int) OPT_FTB:
-    fields_terminated= argument;
-    break;
-  case (int) OPT_LTB:
-    lines_terminated= argument;
-    break;
-  case (int) OPT_ENC:
-    enclosed= argument;
-    break;
-  case (int) OPT_O_ENC:
-    opt_enclosed= argument;
-    break;
-  case (int) OPT_ESC:
-    escaped= argument;
-    break;
   case (int) OPT_OPTIMIZE:
     extended_insert=opt_drop=opt_lock=lock_tables=quick=create_options=
       opt_disable_keys=1;

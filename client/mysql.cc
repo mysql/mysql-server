@@ -32,7 +32,6 @@
 #include "client_priv.h"
 #include <m_ctype.h>
 #include <stdarg.h>
-#include <my_getopt.h>
 #include <my_dir.h>
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__		      // Skip warnings in getopt.h
@@ -41,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.4";
+const char *VER= "12.7";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -458,8 +457,8 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Output debug log.", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"database", 'D', "Database to use.", 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0,
-   0, 0, 0, 0},
+  {"database", 'D', "Database to use.", (gptr*) &current_db,
+   (gptr*) &current_db, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"execute", 'e', "Execute command and quit. (Output like with --batch).", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"vertical", 'E', "Print the output of a query (rows) vertically.",
@@ -468,20 +467,21 @@ static struct my_option my_long_options[] =
   {"force", 'f', "Continue even if we get an sql error.",
    (gptr*) &ignore_errors, (gptr*) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
-  {"no-named-commands", 'g', "Named commands are disabled. Use \\* form only, or use named commands only in the beginning of a line ending with a semicolon (;) Since version 10.9 the client now starts with this option ENABLED by default! Disable with '-G'. Long format commands still work from the first line. WARNING: option depricated; use --disable-named-commands instead.",
+  {"no-named-commands", 'g',
+   "Named commands are disabled. Use \\* form only, or use named commands only in the beginning of a line ending with a semicolon (;) Since version 10.9 the client now starts with this option ENABLED by default! Disable with '-G'. Long format commands still work from the first line. WARNING: option depricated; use --disable-named-commands instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"named-commands", 'G',
-   "Enable named commands. Disable with --disable-named-commands. This option is disabled by default.",
+   "Enable named commands. Named commands mean this program's internal commands; see mysql> help . When enabled, the named commands can be used from any line of the query, otherwise only from the first line, before an enter. Disable with --disable-named-commands. This option is disabled by default.",
    (gptr*) &named_cmds, (gptr*) &named_cmds, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"ignore-space", 'i', "Ignore space after function names.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"local-infile", OPT_LOCAL_INFILE, "Enable/disable LOAD DATA LOCAL INFILE.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-beep", 'b', "Turn off beep on error.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-   0, 0, 0, 0, 0}, 
+  {"no-beep", 'b', "Turn off beep on error.", (gptr*) &opt_nobeep,
+   (gptr*) &opt_nobeep, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0}, 
   {"host", 'h', "Connect to host.", (gptr*) &current_host,
-   (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"html", 'H', "Produce HTML output.", (gptr*) &opt_html, (gptr*) &opt_html,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"xml", 'X', "Produce XML output", (gptr*) &opt_xml, (gptr*) &opt_xml, 0,
@@ -527,8 +527,9 @@ static struct my_option my_long_options[] =
   {"port", 'P', "Port number to use for connection.", (gptr*) &opt_mysql_port,
    (gptr*) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
    0},
-  {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.", 0, 0, 0,
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.",
+   (gptr*) &current_prompt, (gptr*) &current_prompt, 0, GET_STR_ALLOC,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q',
    "Don't cache result, print it row by row. This may slow down the server if the output is suspended. Doesn't use history file. ",
    (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -538,7 +539,8 @@ static struct my_option my_long_options[] =
   {"silent", 's', "Be more silent.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"socket", 'S', "Socket file to use for connection.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR_ALLOC,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
   {"table", 't', "Output in table format.", (gptr*) &output_tables,
    (gptr*) &output_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -549,7 +551,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &current_user,
-   (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &current_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"safe-updates", 'U', "Only allow UPDATE and DELETE that uses keys.",
    (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, OPT_ARG, 0, 0,
@@ -602,16 +604,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
-    case OPT_DEFAULT_CHARSET:
-      default_charset= argument;
-      break;
     case OPT_CHARSETS_DIR:
       strmov(mysql_charsets_dir, argument);
       charsets_dir = mysql_charsets_dir;
       break;
     case OPT_LOCAL_INFILE:
       using_opt_local_infile=1;
-      opt_local_infile= test(!optarg || atoi(optarg)>0);
+      opt_local_infile= test(!argument || atoi(argument)>0);
       break;
     case OPT_TEE:
       if (argument == disabled_my_option)
@@ -646,19 +645,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       printf("WARNING: option depricated; use --disable-pager instead.\n");
       opt_nopager= 1;
       break;
-    case OPT_PROMPT:
-      my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
-      current_prompt=my_strdup(optarg,MYF(MY_FAE));
-      break;
     case 'A':
       rehash= 0;
-      break;
-    case 'b':
-      opt_nobeep = 1;
-      break;
-    case 'D':
-      my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));      
-      current_db= my_strdup(argument, MYF(MY_WME));
       break;
     case 'e':
       status.batch= 1;
@@ -668,16 +656,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	return 1;
       ignore_errors= 0;
       break;
-    case 'h':
-      my_free(current_host, MYF(MY_ALLOW_ZERO_PTR));
-      current_host= my_strdup(argument, MYF(MY_WME));
-      break;
-#ifndef DONT_ALLOW_USER_CHANGE
-    case 'u':
-      my_free(current_user, MYF(MY_ALLOW_ZERO_PTR));
-      current_user= my_strdup(argument, MYF(MY_WME));
-      break;
-#endif
     case 'o':
       if (argument == disabled_my_option)
 	one_database= 0;
@@ -686,21 +664,18 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       break;
     case 'p':
       if (argument == disabled_my_option)
-	opt_password= (char*) "";
-      else
+	argument= (char*) "";			// Don't require password
+      if (argument)
       {
-	if (argument)
-	{
-	  char *start= argument;
-	  my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
-	  opt_password= my_strdup(argument, MYF(MY_FAE));
-	  while (*argument) *argument++= 'x';		// Destroy argument
-	  if (*start)
-	    start[1]=0 ;
-	}
-	else
-	  tty_password= 1;
+	char *start= argument;
+	my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+	opt_password= my_strdup(argument, MYF(MY_FAE));
+	while (*argument) *argument++= 'x';		// Destroy argument
+	if (*start)
+	  start[1]=0 ;
       }
+      else
+	tty_password= 1;
       break;
     case '#':
       DBUG_PUSH(argument ? argument : default_dbug_option);
@@ -725,13 +700,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	status.add_to_history= 0;
 	opt_silent++;				// more silent
       }
-      break;
-    case 'P':
-      opt_mysql_port= (unsigned int) atoi(argument);
-      break;
-    case 'S':
-      my_free(opt_mysql_unix_port, MYF(MY_ALLOW_ZERO_PTR));
-      opt_mysql_unix_port= my_strdup(argument, MYF(0));
       break;
     case 'W':
 #ifdef __WIN__

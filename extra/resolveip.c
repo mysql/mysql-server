@@ -16,7 +16,7 @@
 
 /* Resolves IP's to hostname and hostnames to IP's */
 
-#define RESOLVE_VERSION "2.0"
+#define RESOLVE_VERSION "2.1"
 
 #include <my_global.h>
 #include <m_ctype.h>
@@ -30,7 +30,7 @@
 #endif
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <getopt.h>
+#include <my_getopt.h>
 
 #ifdef SCO
 #undef h_errno
@@ -42,15 +42,19 @@ extern int h_errno;
 #endif
 
 
-static int silent=0;
+static my_bool silent;
 
-static struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"help",       no_argument,        0, '?'},
-  {"info",       no_argument,        0, 'I'},
-  {"silent",     no_argument,        0, 's'},
-  {"version",    no_argument,        0, 'V'},
-  {0, 0, 0, 0}
+  {"help", '?', "Displays this help and exits.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"info", 'I', "Synonym for --help",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"silent", 's', "Be more silent.", (gptr*) &silent, (gptr*) &silent,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Displays version information and exits.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 
@@ -67,41 +71,39 @@ static void usage(void)
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   puts("Get hostname based on IP-address or IP-address based on hostname.\n");
   printf("Usage: %s [OPTIONS] hostname or IP-address\n",my_progname);
-  printf("\n\
-  -?, --help     Displays this help and exits.\n\
-  -I, --info     Synonym for the above.\n\
-  -s, --silent   Be more silent.\n\
-  -V, --version  Displays version information and exits.\n");
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument __attribute__((unused)))
+{
+  switch (optid) {
+  case 'V': print_version(); exit(0);
+  case 'I':
+  case '?':
+    usage();
+    exit(0);
+  }
+  return 0;
 }
 
 /*static my_string load_default_groups[]= { "resolveip","client",0 }; */
 
 static int get_options(int *argc,char ***argv)
 {
-  int c,option_index;
+  int ho_error;
 
   /*  load_defaults("my",load_default_groups,argc,argv); */
-  while ((c=getopt_long(*argc,*argv,"?IsV",
-			long_options, &option_index)) != EOF)
+
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
   {
-    switch (c) {
-    case 's':
-      silent=1;
-      break;
-    case 'V': print_version(); exit(0);
-    case 'I':
-    case '?':
-      usage();
-      exit(0);
-    default:
-      fprintf(stderr,"%s: Illegal option character '%c'\n",
-	      my_progname,opterr);
-      return(1);
-      break;
-    }
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
   }
-  (*argc)-=optind;
-  (*argv)+=optind;
   if (*argc == 0)
   {
     usage();

@@ -1,11 +1,11 @@
-/* ==== socket.h.h ============================================================
+/* ==== socket.h ============================================================
  * Copyright (c) 1994 by Chris Provenzano, proven@athena.mit.edu	
  *
  * Description : Correct Linux header file.
  */
 
-#ifndef _PTHREAD_SOCKET_H_
-#define _PTHREAD_SOCKET_H_
+#ifndef _PTHREAD_BITS_SOCKET_H_
+#define _PTHREAD_BITS_SOCKET_H_
 
 /* #include <linux/socket.h> */
 #ifndef _LINUX_SOCKET_H
@@ -25,6 +25,15 @@
 #endif
 
 #endif
+
+/* Fixes to be able to configure with glibc 2.2 */
+typedef unsigned short int sa_family_t;
+#define	__SOCKADDR_COMMON(sa_prefix) \
+  sa_family_t sa_prefix##family
+#define __SOCKADDR_COMMON_SIZE	(sizeof (unsigned short int))
+
+/* Type for length arguments in socket calls.  */
+typedef unsigned int socklen_t;
 
 /* #include <asm/socket.h>				arch-dependent defines	*/
 #include <linux/sockios.h>			/* the SIOCxxx I/O controls	*/
@@ -156,28 +165,28 @@ struct msghdr
 
 __BEGIN_DECLS
 
-int			accept			__P_((int, struct sockaddr *, int *));
-int			bind			__P_((int, const struct sockaddr *, int));
-int			connect			__P_((int, const struct sockaddr *, int));
+int			accept			__P_((int, struct sockaddr *, socklen_t *));
+int			bind			__P_((int, const struct sockaddr *, socklen_t));
+int			connect			__P_((int, const struct sockaddr *, socklen_t));
 int			listen			__P_((int, int));
 int			socket			__P_((int, int, int));
 
 int getsockopt __P_((int __s, int __level, int __optname,
-                void *__optval, int *__optlen));
+                void *__optval, socklen_t *__optlen));
 int setsockopt __P_((int __s, int __level, int __optname,
-                __const void *__optval, int optlen));
+                __const void *__optval, socklen_t optlen));
 int getsockname __P_((int __sockfd, struct sockaddr *__addr,
-                int *__paddrlen));
+                socklen_t *__paddrlen));
 int getpeername __P_((int __sockfd, struct sockaddr *__peer,
-                int *__paddrlen));
+                socklen_t *__paddrlen));
 ssize_t send __P_((int __sockfd, __const void *__buff, size_t __len, int __flags));
 ssize_t recv __P_((int __sockfd, void *__buff, size_t __len, int __flags));
 ssize_t sendto __P_((int __sockfd, __const void *__buff, size_t __len,
                  int __flags, __const struct sockaddr *__to,
-                 int __tolen));
+                 socklen_t __tolen));
 ssize_t recvfrom __P_((int __sockfd, void *__buff, size_t __len,
                  int __flags, struct sockaddr *__from,
-                 int *__fromlen));
+                 socklen_t *__fromlen));
 extern ssize_t sendmsg __P_((int __fd, __const struct msghdr *__message,
                         int __flags));
 extern ssize_t recvmsg __P_((int __fd, struct msghdr *__message,
@@ -187,7 +196,3 @@ int shutdown __P_((int __sockfd, int __how));
 __END_DECLS
 
 #endif
-
-
-
-
