@@ -34,7 +34,8 @@ static int send_file(THD *thd)
   char fname[FN_REFLEN+1];
   char *buf;
   const char *errmsg = 0;
-  int old_timeout,packet_len;
+  int old_timeout;
+  uint packet_len;
   DBUG_ENTER("send_file");
 
   // the client might be slow loading the data, give him wait_timeout to do
@@ -63,7 +64,6 @@ static int send_file(THD *thd)
   // this is needed to make replicate-ignore-db
   if (!strcmp(fname,"/dev/null"))
     goto end;
-  // TODO: work on the well-known system that does not have a /dev/null :-)
 
   if ((fd = my_open(fname, O_RDONLY, MYF(MY_WME))) < 0)
   {
@@ -553,9 +553,8 @@ int stop_slave(THD* thd, bool net_report )
     // do not abort the slave in the middle of a query, so we do not set
     // thd->killed for the slave thread
     thd->proc_info = "waiting for slave to die";
-    while(slave_running) // we may miss slave start broadcast, if it starts
-      // very quickly
-     pthread_cond_wait(&COND_slave_stopped, &LOCK_slave);
+    while(slave_running) 
+      pthread_cond_wait(&COND_slave_stopped, &LOCK_slave);
   }
   else
     err = "Slave is not running";
@@ -643,8 +642,11 @@ int change_master(THD* thd)
   thd->proc_info = "changing master";
   LEX_MASTER_INFO* lex_mi = &thd->lex.mi;
 
-  if(!glob_mi.inited)
-    init_master_info(&glob_mi);
+  if(init_master_info(&glob_mi))
+    {
+      send_error(&thd->net, 0, "Could not initialize master info");
+      return 1;
+    }
   
   pthread_mutex_lock(&glob_mi.lock);
   if((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)

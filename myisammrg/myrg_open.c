@@ -45,6 +45,7 @@ int handle_locking;
   DBUG_ENTER("myrg_open");
 
   LINT_INIT(last_isam);
+  LINT_INIT(m_info);
   isam=0;
   errpos=files=0;
   bzero((gptr) &info,sizeof(info));
@@ -84,7 +85,7 @@ int handle_locking;
 				       MYF(MY_WME))))
     goto err;
   *m_info=info;
-  m_info->open_tables=(MYRG_TABLE *) (m_info+1);
+  m_info->open_tables=(files) ? (MYRG_TABLE *) (m_info+1) : 0;
   m_info->tables=files;
   errpos=2;
 
@@ -110,11 +111,10 @@ int handle_locking;
     my_errno=HA_ERR_RECORD_FILE_FULL;
     goto err;
   }
-  if (files)
-    m_info->keys=m_info->open_tables->table->s->base.keys;
-
+  m_info->keys=(files) ? m_info->open_tables->table->s->base.keys : 0;
   bzero((char*) &m_info->by_key,sizeof(m_info->by_key));
 
+  /* this works ok if the table list is empty */
   m_info->end_table=m_info->open_tables+files;
   m_info->last_used_table=m_info->open_tables;
 
