@@ -34,6 +34,8 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
   uint32 start;				/* Start of key in record */
   uint32 null_pos;			/* position to NULL indicator */
   CHARSET_INFO *charset;
+  uint8 bit_length;                     /* Length of bit part */
+  uint16 bit_pos;                       /* Position to bit part */
 } HA_KEYSEG;
 
 #define get_key_length(length,key) \
@@ -63,6 +65,21 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
   else \
   { *(key)=255; mi_int2store((key)+1,(length)); (key)+=3; } \
 }
+
+#define get_rec_bits(bit_ptr, bit_ofs, bit_len) \
+  (((((uint16) (bit_ptr)[1] << 8) | (uint16) (bit_ptr)[0]) >> (bit_ofs)) & \
+   ((1 << (bit_len)) - 1))
+
+#define set_rec_bits(bits, bit_ptr, bit_ofs, bit_len) \
+{ \
+  (bit_ptr)[0]= ((bit_ptr)[0] & ((1 << (bit_ofs)) - 1)) | \
+                ((bits) << (bit_ofs)); \
+  if ((bit_ofs) + (bit_len) > 8) \
+    (bit_ptr)[1]= ((bits) & ((1 << (bit_len)) - 1)) >> (8 - (bit_ofs)); \
+}
+
+#define clr_rec_bits(bit_ptr, bit_ofs, bit_len) \
+  set_rec_bits(0, bit_ptr, bit_ofs, bit_len)
 
 extern int mi_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
 			   my_bool, my_bool);
