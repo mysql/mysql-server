@@ -1966,14 +1966,9 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
   if (type == LOG_BIN)
   {
     char *p = fn_ext(opt_name);
-    if (p)
-    {
-      uint length=(uint) (p-opt_name);
-      strmake(tmp,opt_name,min(length,FN_REFLEN));
-      opt_name=tmp;
-    }
-    if (*fn_ext(opt_name))
-      log->set_no_rotate(1);
+    uint length=(uint) (p-opt_name);
+    strmake(tmp,opt_name,min(length,FN_REFLEN));
+    opt_name=tmp;
   }
   return log->open(opt_name, type, 0, index_file_name,
 		   (read_append) ? SEQ_READ_APPEND : WRITE_CACHE,
