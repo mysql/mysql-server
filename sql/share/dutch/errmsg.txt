@@ -218,3 +218,4 @@
 "Foutieve parameters voor %s",
 "%-.32s@%-.64s is not allowed to create new users",
 "Incorrect table definition; All MERGE tables must be in the same database",
+"Deadlock found when trying to get lock; Try restarting transaction",

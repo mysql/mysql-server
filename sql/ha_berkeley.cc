@@ -1996,6 +1996,12 @@ longlong ha_berkeley::get_auto_increment()
   return nr;
 }
 
+void ha_berkeley::print_error(int error, myf errflag)
+{
+  if (error == DB_LOCK_DEADLOCK)
+    error=HA_ERR_LOCK_DEADLOCK;
+  handler::print_error(error,errflag);
+}
 
 /****************************************************************************
 	 Analyzing, checking, and optimizing tables
