@@ -791,3 +791,6 @@ gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length,
 KEY_CACHE_VAR *get_key_cache(LEX_STRING *cache_name);
 KEY_CACHE_VAR *get_or_create_key_cache(const char *name, uint length);
 void free_key_cache(const char *name, KEY_CACHE_VAR *key_cache);
+bool process_key_caches(int (* func) (const char *name, KEY_CACHE_VAR *));
+void delete_elements(I_List<NAMED_LIST> *list,
+		     void (*free_element)(const char*, gptr));
