@@ -38521,7 +38521,7 @@ Corresponding columns in the foreign key
 and the referenced key must have similar internal data types
 inside InnoDB so that they can be compared without a type
 conversion.
-The size and the signedness of integer types has to be the same.
+The @strong{size and the signedness of integer types has to be the same}.
 The length of string types need not be the same.
 
 Starting from version 3.23.50 you can also associate the
