@@ -721,247 +721,9 @@ srv_get_thread_type(void)
 	return(type);
 }
 
-/***********************************************************************
-Increments by 1 the count of active threads of the type given
-and releases master thread if necessary. */
-static
-void
-srv_inc_thread_count(
-/*=================*/
-	ulint	type)	/* in: type of the thread */
-{
-	mutex_enter(&kernel_mutex);
-
-	srv_activity_count++;
-	
-	srv_n_threads_active[type]++;
-		
-	if (srv_n_threads_active[SRV_MASTER] == 0) {
-
-		srv_release_threads(SRV_MASTER, 1);
-	}
-
-	mutex_exit(&kernel_mutex);
-}
-
-/***********************************************************************
-Decrements by 1 the count of active threads of the type given. */
-static
-void
-srv_dec_thread_count(
-/*=================*/
-	ulint	type)	/* in: type of the thread */
-
-{
-	mutex_enter(&kernel_mutex);
-
-	/* FIXME: the following assertion sometimes fails: */
-
-	if (srv_n_threads_active[type] == 0) {
-		printf("Error: thread type %lu\n", type);
-
-		ut_ad(0);
-	}	
-
-	srv_n_threads_active[type]--;
-
-	mutex_exit(&kernel_mutex);
-}
-
-/***********************************************************************
-Calculates the number of allowed utility threads for a thread to decide if
-it has to suspend itself in the thread table. */
-static
-ulint
-srv_max_n_utilities(
-/*================*/
-			/* out: maximum number of allowed utilities
-			of the type given */
-	ulint	type)	/* in: utility type */
-{
-	ulint	ret;
-
-	if (srv_n_threads_active[SRV_COM] == 0) {
-		if (srv_meter[type] > srv_meter_low_water[type]) {
-			return(srv_n_threads[type] / 2);
-		} else {
-			return(0);
-		}
-	} else {
-
-		if (srv_meter[type] < srv_meter_foreground[type]) {
-			return(0);
-		}
-		ret = 1 + ((srv_n_threads[type]
-		     * (ulint)(srv_meter[type] - srv_meter_foreground[type]))
-		     / (ulint)(1000 - srv_meter_foreground[type]));
-		if (ret > srv_n_threads[type]) {
-			return(srv_n_threads[type]);
-		} else {
-			return(ret);
-		}
-	}
-}
-
-/***********************************************************************
-Increments the utility meter by the value given and releases utility
-threads if necessary. */
-
-void
-srv_increment_meter(
-/*================*/
-	ulint	type,	/* in: utility type */
-	ulint	n)	/* in: value to add to meter */
-{
-	ulint	m;
-
-	mutex_enter(&kernel_mutex);
-
-	srv_meter[type] += n;
-
-	m = srv_max_n_utilities(type);
-
-	if (m > srv_n_threads_active[type]) {
-		
-		srv_release_threads(type, m - srv_n_threads_active[type]);
-	}
-
-	mutex_exit(&kernel_mutex);
-}
-
-/***********************************************************************
-Releases max number of utility threads if no queries are active and
-the high-water mark for the utility is exceeded. */
-
-void
-srv_release_max_if_no_queries(void)
-/*===============================*/
-{
-	ulint	m;
-	ulint	type;
-
-	mutex_enter(&kernel_mutex);
-
-	if (srv_n_threads_active[SRV_COM] > 0) {
-		mutex_exit(&kernel_mutex);
-
-		return;
-	}
-
-	type = SRV_RECOVERY;
-	
-	m = srv_n_threads[type] / 2;
-
-	if ((srv_meter[type] > srv_meter_high_water[type])
-				&& (srv_n_threads_active[type] < m)) {
-
-		srv_release_threads(type, m - srv_n_threads_active[type]);
-
-		printf("Releasing max background\n");
-	}
-
-	mutex_exit(&kernel_mutex);
-}
-
-/*************************************************************************
-Creates the first communication endpoint for the server. This
-first call also initializes the com0com.* module. */
-
-void
-srv_communication_init(
-/*===================*/
-	char*	endpoint)	/* in: server address */
-{
-	ulint	ret;
-	ulint	len;
-
-	srv_sys->endpoint = com_endpoint_create(COM_SHM);
-
-	ut_a(srv_sys->endpoint);
-
-	len = ODBC_DATAGRAM_SIZE;
-	
-	ret = com_endpoint_set_option(srv_sys->endpoint,
-					COM_OPT_MAX_DGRAM_SIZE,
-					(byte*)&len, sizeof(ulint));
-	ut_a(ret == 0);
-
-	ret = com_bind(srv_sys->endpoint, endpoint, ut_strlen(endpoint));
-	
-	ut_a(ret == 0);
-}
-
-/*************************************************************************
-Creates the utility threads. */
-
-void
-srv_create_utility_threads(void)
-/*============================*/
-{
-/*      os_thread_t	thread;
- 	os_thread_id_t	thr_id; */
-	ulint		i;
-
-	mutex_enter(&kernel_mutex);
-
-	srv_n_threads[SRV_RECOVERY] = 1;
-	srv_n_threads_active[SRV_RECOVERY] = 1;
-
-	mutex_exit(&kernel_mutex);
-
-	for (i = 0; i < 1; i++) {
-	  /* thread = os_thread_create(srv_recovery_thread, NULL, &thr_id); */
-
-	  /* ut_a(thread); */
-	}
-
-/*	thread = os_thread_create(srv_purge_thread, NULL, &thr_id);
-
-	ut_a(thread); */
-}
-
-/*************************************************************************
-Creates the communication threads. */
-
-void
-srv_create_com_threads(void)
-/*========================*/
-{
-  /*	os_thread_t	thread;
-	os_thread_id_t	thr_id; */
-	ulint		i;
-
-	srv_n_threads[SRV_COM] = srv_n_com_threads;
-
-	for (i = 0; i < srv_n_com_threads; i++) {
-	  /* thread = os_thread_create(srv_com_thread, NULL, &thr_id); */
-	  /* ut_a(thread); */
-	}
-}
-
-/*************************************************************************
-Creates the worker threads. */
-
-void
-srv_create_worker_threads(void)
-/*===========================*/
-{
-/*	os_thread_t	thread;
-	os_thread_id_t	thr_id; */
-	ulint		i;
-
-	srv_n_threads[SRV_WORKER] = srv_n_worker_threads;
-	srv_n_threads_active[SRV_WORKER] = srv_n_worker_threads;
-
-	for (i = 0; i < srv_n_worker_threads; i++) {
-	  /* thread = os_thread_create(srv_worker_thread, NULL, &thr_id); */
-	  /* ut_a(thread); */
-	}
-}
-
 /*************************************************************************
 Initializes the server. */
-
+static
 void
 srv_init(void)
 /*==========*/
@@ -1762,13 +1524,13 @@ srv_sprintf_innodb_monitor(
 
 #ifdef UNIV_LINUX
 	buf += sprintf(buf,
-	"Main thread process no. %lu, id %lu, state: %s\n",
+	"Main thread process no. %lu, id %lu, state: %.29s\n",
 			srv_main_thread_process_no,
 			srv_main_thread_id,
 			srv_main_thread_op_info);
 #else
 	buf += sprintf(buf,
-	"Main thread id %lu, state: %s\n",
+	"Main thread id %lu, state: %.29s\n",
 			srv_main_thread_id,
 			srv_main_thread_op_info);
 #endif
@@ -2018,13 +1780,6 @@ loop:
 		srv_refresh_innodb_monitor_stats();
 	}
 
-/*	mem_print_new_info();
-
-	if (cnt % 10 == 0) {
-
-		mem_print_info();
-	}
-*/
 	sync_array_print_long_waits();
 
 	/* Flush stdout and stderr so that a database user gets their output
@@ -2490,12 +2245,6 @@ flush_loop:
 		goto background_loop;
 	}
 		
-/*	mem_print_new_info();
- */
-
-#ifdef UNIV_SEARCH_PERF_STAT
-/*	btr_search_print_info(); */
-#endif
 	/* There is no work for background operations either: suspend
 	master thread to wait for more server activity */
 	

@@ -209,13 +209,7 @@ srv_boot(void);
 /*==========*/
 			/* out: DB_SUCCESS or error code */
 /*************************************************************************
-Initializes the server. */
-
-void
-srv_init(void);
-/*==========*/
-/*************************************************************************
-Frees the OS fast mutex created in srv_init(). */
+Frees the OS fast mutex created in srv_boot(). */
 
 void
 srv_free(void);
@@ -265,23 +259,6 @@ srv_master_thread(
 			/* out: a dummy parameter */
 	void*	arg);	/* in: a dummy parameter required by
 			os_thread_create */
-/*************************************************************************
-Reads a keyword and a value from a file. */
-
-ulint
-srv_read_init_val(
-/*==============*/
-				/* out: DB_SUCCESS or error code */
-	FILE*	initfile,	/* in: file pointer */
-	char*	keyword,	/* in: keyword before value(s), or NULL if
-				no keyword read */
-	char*	str_buf,	/* in/out: buffer for a string value to read,
-				buffer size must be 10000 bytes, if NULL
-				then not read */
-	ulint*	num_val,	/* out:	numerical value to read, if NULL
-				then not read */
-	ibool	print_not_err);	/* in: if TRUE, then we will not print
-				error messages to console */
 /***********************************************************************
 Tells the Innobase server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
