@@ -50265,6 +50265,9 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.3 (Aug 2002: Beta)
 
 @itemize @bullet
+@item Fixed all boolean type variables to work with the old syntax,
+e.g. all of these work: --lower-case-table-names, --lower-case-table-names=1,
+-O lower-case-table-names=1, --set-variable=lower-case-table-names=1
 @item
 Fixed shutdown problem (SIGTERM signal handling) on Solaris. (Bug from 4.0.2).
 @item
