@@ -863,9 +863,9 @@ public:
 ** User level locks
 */
 
-class ULL;
+class User_level_lock;
 void item_user_lock_init(void);
-void item_user_lock_release(ULL *ull);
+void item_user_lock_release(User_level_lock *ull);
 void item_user_lock_free(void);
 
 class Item_func_get_lock :public Item_int_func
