@@ -2848,8 +2848,8 @@ CHARSET_INFO compiled_charsets[] = {
     ismbchar_big5,
     ismbhead_big5,
     mbcharlen_big5,
-    NULL,		/* mb_wc      */
-    NULL,		/* wc_mb      */
+    my_mb_wc_big5,	/* mb_wc      */
+    my_wc_mb_big5,	/* wc_mb      */
     my_caseup_str_mb,
     my_casedn_str_mb,
     my_caseup_mb,
