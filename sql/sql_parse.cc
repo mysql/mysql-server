@@ -4381,7 +4381,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->length=0;
       for (const char **pos=interval->type_names; *pos ; pos++)
       {
-	new_field->length+=(uint) strip_sp((char*) *pos)+1;
+        uint length= (uint) strip_sp((char*) *pos)+1;
+        CHARSET_INFO *cs= thd->variables.character_set_client;
+        length= cs->cset->numchars(cs, *pos, *pos+length);
+        new_field->length+= length;
       }
       new_field->length--;
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
@@ -4411,8 +4414,10 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->length=(uint) strip_sp((char*) interval->type_names[0]);
       for (const char **pos=interval->type_names+1; *pos ; pos++)
       {
-	uint length=(uint) strip_sp((char*) *pos);
-	set_if_bigger(new_field->length,length);
+        uint length=(uint) strip_sp((char*) *pos);
+        CHARSET_INFO *cs= thd->variables.character_set_client;
+        length= cs->cset->numchars(cs, *pos, *pos+length);
+        set_if_bigger(new_field->length,length);
       }
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)

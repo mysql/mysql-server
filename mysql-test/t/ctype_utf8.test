@@ -4,6 +4,7 @@
 
 --disable_warnings
 drop table if exists t1;
+drop table if exists t2;
 --enable_warnings
 set names utf8;
 
@@ -172,6 +173,20 @@ CREATE TABLE t1 (a enum ('Y', 'N') DEFAULT 'N' COLLATE utf8_unicode_ci);
 ALTER TABLE t1 ADD COLUMN b CHAR(20);
 DROP TABLE t1;
 
+# Customer Support Center issue # 3299 
+# ENUM and SET multibyte fields computed their length wronly 
+# when converted into a char field
+set names utf8;
+create table t1 (a enum('aaaa','проба') character set utf8);
+show create table t1;
+insert into t1 values ('проба');
+select * from t1;
+create table t2 select ifnull(a,a) from t1;
+show create table t2;
+select * from t2;
+drop table t1;
+drop table t2;
+
 #
 # Bug 4521: unique key prefix interacts poorly with utf8
 # Check keys with prefix compression
@@ -220,3 +235,4 @@ insert into t1 values ('ꪪꪪ');
 --error 1062
 insert into t1 values ('ꪪꪪꪪ');
 drop table t1;
+
