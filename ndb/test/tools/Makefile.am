@@ -1,5 +1,5 @@
 
-bin_PROGRAMS = waiter hugoCalculator hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc
+ndbtest_PROGRAMS = hugoCalculator hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc
 
 # transproxy 
 
@@ -14,7 +14,6 @@ hugoPkUpdate_SOURCES = hugoPkUpdate.cpp
 hugoScanRead_SOURCES = hugoScanRead.cpp
 hugoScanUpdate_SOURCES = hugoScanUpdate.cpp
 restart_SOURCES = restart.cpp
-waiter_SOURCES = waiter.cpp
 # transproxy_SOURCES = transproxy.cpp
 verify_index_SOURCES = verify_index.cpp
 copy_tab_SOURCES = copy_tab.cpp

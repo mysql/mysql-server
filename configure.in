@@ -2837,6 +2837,35 @@ then
   CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
 fi
 
+ndbbindir_root="\$(prefix)"
+ndbbindir="\$(ndbbindir_root)/ndb/bin"
+AC_SUBST(ndbbindir_root)
+AC_SUBST(ndbbindir)
+ndbtoolsdir_root="\$(prefix)"
+ndbtoolsdir="\$(ndbtoolsdir_root)/ndb/tools"
+AC_SUBST(ndbtoolsdir_root)
+AC_SUBST(ndbtoolsdir)
+ndblibdir_root="\$(prefix)"
+ndblibdir="\$(ndblibdir_root)/ndb/lib"
+AC_SUBST(ndblibdir_root)
+AC_SUBST(ndblibdir)
+ndbtestdir_root="\$(prefix)"
+ndbtestdir="\$(ndbtestdir_root)/ndb/test"
+AC_SUBST(ndbtestdir_root)
+AC_SUBST(ndbtestdir)
+ndbincludedir_root="\$(prefix)"
+ndbincludedir="\$(ndbincludedir_root)/ndb/include"
+AC_SUBST(ndbincludedir_root)
+AC_SUBST(ndbincludedir)
+ndbapiincludedir_root="\$(prefix)"
+ndbapiincludedir="\$(ndbapiincludedir_root)/ndb/include/ndbapi"
+AC_SUBST(ndbapiincludedir_root)
+AC_SUBST(ndbapiincludedir)
+mgmapiincludedir_root="\$(prefix)"
+mgmapiincludedir="\$(mgmapiincludedir_root)/ndb/include/mgmapi"
+AC_SUBST(mgmapiincludedir_root)
+AC_SUBST(mgmapiincludedir)
+
   NDB_UTIL_INCLUDES="-I\$(srcdir) -I\$(top_srcdir)/include -I\$(top_srcdir)/ndb/include \
         -I\$(top_srcdir)/ndb/include/util \
         -I\$(top_srcdir)/ndb/include/portlib \
@@ -2958,7 +2987,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  merge/Makefile dbug/Makefile scripts/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
- support-files/MacOSX/Makefile mysql-test/Makefile dnl
+ support-files/MacOSX/Makefile mysql-test/Makefile mysql-test/ndb/Makefile dnl
  netware/Makefile dnl
  include/mysql_version.h dnl
  cmd-line-utils/Makefile dnl

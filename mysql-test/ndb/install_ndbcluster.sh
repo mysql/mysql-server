@@ -9,8 +9,22 @@ port_base="22"  # using ports port_base{"00","01", etc}
 fsdir=`pwd`
 # end configurable parameters
 
-libdir=`pwd`/../ndb/lib
-bindir=`pwd`/../ndb/bin
+# Are we using a source or a binary distribution?
+
+if [ -d ../sql ] ; then
+   SOURCE_DIST=1
+   ndbtop=../ndb
+   exec_ndb=$ndbtop/src/kernel/ndb-main/ndb
+   exec_mgmtsrvr=$ndbtop/src/mgmsrv/mgmtsrvr
+   exec_waiter=$ndbtop/tools/ndbwaiter
+   exec_mgmtclient=$ndbtop/src/mgmclient/mgmtclient
+else
+   BINARY_DIST=1
+   exec_ndb=@ndbbindir@/ndb
+   exec_mgmtsrvr=@ndbbindir@/mgmtsrvr
+   exec_waiter=@ndbtoolsdir@/waiter
+   exec_mgmtclient=@ndbbindir@/mgmtclient
+fi
 
 pidfile=ndbcluster.pid
 
@@ -33,8 +47,6 @@ while test $# -gt 0; do
   shift
 done
 
-exec_ndb=$bindir/ndb
-exec_mgmtsrvr=$bindir/mgmtsrvr
 fs_ndb=$fsdir/ndbcluster
 fs_mgm_1=$fs_ndb/1.ndb_mgm
 fs_ndb_2=$fs_ndb/2.ndb_db
@@ -125,15 +137,14 @@ cat `find $fs_ndb -name 'node*.pid'` > $pidfile
 
 # Start management client
 
-sleep 5
-echo "show" | $bindir/mgmtclient $ndb_host $ndb_port
+sleep 10
+echo "show" | $exec_mgmtclient $ndb_host $ndb_port
 
 # test if Ndb Cluster starts properly
 
 NDB_ID="11"
 NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
-#if ( export LD_LIBRARY_PATH=$libdir ; $bindir/list_tables ) | grep "NDBT_ProgramExit: 0 - OK"; then :; else
-if ( export LD_LIBRARY_PATH=$libdir ; $bindir/waiter ) | grep "NDBT_ProgramExit: 0 - OK"; then :; else
+if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK"; then :; else
   echo "Ndbcluster startup failed"
   exit 1
 fi

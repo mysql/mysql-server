@@ -1,6 +1,7 @@
 
-bin_PROGRAMS = drop_tab delete_all desc drop_index list_tables select_all select_count
+ndbtools_PROGRAMS = ndb_waiter drop_tab delete_all desc drop_index list_tables select_all select_count
 
+ndb_waiter_SOURCES = waiter.cpp
 delete_all_SOURCES = delete_all.cpp
 desc_SOURCES = desc.cpp
 drop_index_SOURCES = drop_index.cpp

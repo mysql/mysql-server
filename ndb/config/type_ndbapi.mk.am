@@ -1,2 +1,3 @@
 
 INCLUDES += @NDB_NDBAPI_INCLUDES@
+LDADD += $(top_srcdir)/ndb/src/ndbapi/libNDB_API.la

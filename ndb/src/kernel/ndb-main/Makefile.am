@@ -1,5 +1,5 @@
 
-bin_PROGRAMS = ndb
+ndbbin_PROGRAMS = ndb
 
 ndb_SOURCES = Main.cpp SimBlockList.cpp
 
