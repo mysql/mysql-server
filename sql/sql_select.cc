@@ -3708,7 +3708,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   *blob_field= 0;				// End marker
 
   /* If result table is small; use a heap */
-  if (blob_count || using_unique_constraint || group_null_items ||
+  if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
       OPTION_BIG_TABLES)
   {
@@ -7193,56 +7193,32 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       {
 	if (tab->use_quick == 2)
 	{
-	  sprintf(buff_ptr,"range checked for each record (index map: %u)",
+	  sprintf(buff_ptr,"; Range checked for each record (index map: %u)",
 		  tab->keys);
 	  buff_ptr=strend(buff_ptr);
 	}
 	else
-	  buff_ptr=strmov(buff_ptr,"where used");
+	  buff_ptr=strmov(buff_ptr,"; Using where");
       }
       if (key_read)
-      {
-	if (buff != buff_ptr)
-	{
-	  buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
-	}
-	buff_ptr=strmov(buff_ptr,"Using index");
-      }
+	buff_ptr= strmov(buff_ptr,"; Using index");
       if (table->reginfo.not_exists_optimize)
-      {
-	if (buff != buff_ptr)
-	{
-	  buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
-	}
-	buff_ptr=strmov(buff_ptr,"Not exists");
-      }
+	buff_ptr= strmov(buff_ptr,"; Not exists");
       if (need_tmp_table)
       {
 	need_tmp_table=0;
-	if (buff != buff_ptr)
-	{
-	  buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
-	}
-	buff_ptr=strmov(buff_ptr,"Using temporary");
+	buff_ptr= strmov(buff_ptr,"; Using temporary");
       }
       if (need_order)
       {
 	need_order=0;
-	if (buff != buff_ptr)
-	{
-	  buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
-	}
-	buff_ptr=strmov(buff_ptr,"Using filesort");
+	buff_ptr= strmov(buff_ptr,"; Using filesort");
       }
-      if (distinct & test_all_bits(used_tables,thd->used_tables))
-      {
-	if (buff != buff_ptr)
-	{
-	  buff_ptr[0]=';' ; buff_ptr[1]=' '; buff_ptr+=2;
-	}
-	buff_ptr=strmov(buff_ptr,"Distinct");
-      }
-      item_list.push_back(new Item_string(buff,(uint) (buff_ptr - buff)));
+      if (distinct && test_all_bits(used_tables,thd->used_tables))
+	buff_ptr= strmov(buff_ptr,"; Distinct");
+      if (buff_ptr == buff)
+	buff_ptr+= 2;
+      item_list.push_back(new Item_string(buff+2,(uint) (buff_ptr - buff)-2));
       // For next iteration
       used_tables|=table->map;
       if (result->send_data(item_list))

@@ -77,9 +77,10 @@ int mysql_create_db(THD *thd, char *db, uint create_options, bool silent)
   {
     if (!thd->query)
     {
+      /* The client used the old obsolete mysql_create_db() call */
       thd->query = path;
-      thd->query_length = (uint) (strxmov(path,"create database ", db, NullS)-
-				  path);
+      thd->query_length = (uint) (strxmov(path,"create database `", db, "`",
+					  NullS) - path);
     }
     {
       mysql_update_log.write(thd,thd->query, thd->query_length);
