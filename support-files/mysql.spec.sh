@@ -429,9 +429,11 @@ ln -s %{_sysconfdir}/init.d/mysql $RPM_BUILD_ROOT%{_sbindir}/rcmysql
 # (safe_mysqld will be gone in MySQL 4.1)
 ln -sf ./mysqld_safe $RBR%{_bindir}/safe_mysqld
 
-# Touch the place where the my.cnf config file might be located
+# Touch the place where the my.cnf config file and mysqlmanager.passwd
+# (MySQL Instance Manager password file) might be located
 # Just to make sure it's in the file list and marked as a config file
 touch $RBR%{_sysconfdir}/my.cnf
+touch $RBR%{_sysconfdir}/mysqlmanager.passwd
 
 %pre server
 # Shut down a previously installed server first
@@ -551,6 +553,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
+%ghost %config(noreplace,missingok) %{_sysconfdir}/mysqlmanager.passwd
 
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisamchk
@@ -579,6 +582,7 @@ fi
 %attr(755, root, root) %{_bindir}/safe_mysqld
 
 %attr(755, root, root) %{_sbindir}/mysqld
+%attr(755, root, root) %{_sbindir}/mysqlmanager
 %attr(755, root, root) %{_sbindir}/rcmysql
 %attr(644, root, root) %{_libdir}/mysql/mysqld.sym
 
@@ -690,9 +694,14 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Sun Feb 20 2005 Petr Chardin <petr@mysql.com>
+
+- Install MySQL Instance Manager together with mysqld, toch mysqlmanager
+  password file
+
 * Mon Feb 14 2005 Lenz Grimmer <lenz@mysql.com>
 
-* Fixed the compilation comments and moved them into the separate build sections
+- Fixed the compilation comments and moved them into the separate build sections
   for Max and Standard
 
 * Mon Feb 7 2005 Tomas Ulin <tomas@mysql.com>
