@@ -475,14 +475,13 @@ public:
   bool send_eof();
 };
 class select_insert :public select_result {
- protected:
+ public:
   TABLE *table;
   List<Item> *fields;
   uint save_time_stamp;
   ulonglong last_insert_id;
   COPY_INFO info;
 
-public:
   select_insert(TABLE *table_par,List<Item> *fields_par,enum_duplicates duplic)
     :table(table_par),fields(fields_par), save_time_stamp(0),last_insert_id(0)
     {
