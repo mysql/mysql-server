@@ -21,14 +21,12 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+/* Store the MySQL bool type definition to this defined type:
+inside ha_innobase we use the Innobase definition of the bool type! */
+typedef bool	mysql_bool;
+
 /* This file defines the Innobase handler: the interface between MySQL and
 Innobase */
-
-extern "C" {
-#include <data0types.h>
-#include <dict0types.h>
-#include <row0types.h>
-}
 
 typedef struct st_innobase_share {
   THR_LOCK lock;
@@ -73,12 +71,6 @@ class ha_innobase: public handler
 	ulong max_row_length(const byte *buf);
 
 	uint store_key_val_for_row(uint keynr, char* buff, const byte* record);
-  	void convert_row_to_innobase(dtuple_t* row, char* record);
-	void convert_row_to_mysql(char*	record, dtuple_t* row);
-	dtuple_t* convert_key_to_innobase(dtuple_t* tuple, byte* buf,
-					dict_index_t* index,
-					KEY* key, byte*	key_ptr, int key_len);
-	int calc_row_difference(upd_t* uvect, byte* old_row, byte* new_row);
 	int update_thd(THD* thd);
 	int change_active_index(uint keynr);
 	int general_fetch(byte* buf, uint direction, uint match_mode);
@@ -110,7 +102,7 @@ class ha_innobase: public handler
   	bool fast_key_read()	 { return 1;}
   	bool has_transactions()  { return 1;}
 
-  	int open(const char *name, int mode, int test_if_locked);
+  	int open(const char *name, int mode, uint test_if_locked);
   	void initialize(void);
   	int close(void);
   	double scan_time();
@@ -162,13 +154,14 @@ extern uint innobase_init_flags, innobase_lock_type;
 extern ulong innobase_cache_size;
 extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;
 extern long innobase_lock_scan_time;
-extern long innobase_mirrored_log_groups, innobase_mirrored_log_groups;
+extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
 extern long innobase_log_file_size, innobase_log_buffer_size;
 extern long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
 extern long innobase_file_io_threads;
 extern char *innobase_data_home_dir, *innobase_data_file_path;
 extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
-extern bool innobase_flush_log_at_trx_commit,innobase_log_archive;
+extern bool innobase_flush_log_at_trx_commit, innobase_log_archive,
+		innobase_use_native_aio;
 
 extern TYPELIB innobase_lock_typelib;
 
@@ -176,7 +169,6 @@ bool innobase_init(void);
 bool innobase_end(void);
 bool innobase_flush_logs(void);
 
-int innobase_commit(THD *thd);
-int innobase_rollback(THD *thd);
+int innobase_commit(THD *thd, void* trx_handle);
+int innobase_rollback(THD *thd, void* trx_handle);
 int innobase_close_connection(THD *thd);
-
