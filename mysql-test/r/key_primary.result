@@ -13,7 +13,7 @@ t1
 AB%
 describe select * from t1 where t1="ABC";
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t1	const	PRIMARY	PRIMARY	3	const	1	
+t1	const	PRIMARY	PRIMARY	3	const	1	Using index
 describe select * from t1 where t1="ABCD";
 Comment
 Impossible WHERE noticed after reading const tables
