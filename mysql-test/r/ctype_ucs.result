@@ -173,6 +173,12 @@ SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630061005F';
 word
 cat
 DROP TABLE t1;
+select insert(_ucs2 0x006100620063,10,2,_ucs2 0x006400650066);
+insert(_ucs2 0x006100620063,10,2,_ucs2 0x006400650066)
+abc
+select insert(_ucs2 0x006100620063,1,2,_ucs2 0x006400650066);
+insert(_ucs2 0x006100620063,1,2,_ucs2 0x006400650066)
+defc
 SET NAMES latin1;
 CREATE TABLE t1 (
 word VARCHAR(64),
