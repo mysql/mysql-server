@@ -145,7 +145,7 @@ To make maintaining easier please:
   <alias>csascii</alias>
   <alias>iso-ir-6</alias>
   <alias>iso646-us</alias>
-  <collation name="usa7"	id="11"	order="Egnlish"	flag="primary"/>
+  <collation name="ascii"	id="11"	order="Egnlish"	flag="primary"/>
 </charset>
 
 <charset name="ujis">
