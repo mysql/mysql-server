@@ -156,7 +156,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   */
   {
     pthread_mutex_lock(&LOCK_thread_count);
-    ulong tmp=(ulong) (rnd(&sql_rand) * 3000000);
+    ulong tmp=(ulong) (rnd(&sql_rand) * ((ulong)~0L));
     randominit(&rand, tmp + (ulong) start_time,
 	       tmp + (ulong) thread_id);
     pthread_mutex_unlock(&LOCK_thread_count);
