@@ -50,7 +50,7 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "parallelism", 'p', "parallelism",
     (gptr*) &_parallelism, (gptr*) &_parallelism, 0,
-    GET_INT, REQUIRED_ARG, 240, 0, 0, 0, 0, 0 }, 
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "lock", 'l', "Read(0), Read-hold(1), Exclusive(2)",
     (gptr*) &_lock, (gptr*) &_lock, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
