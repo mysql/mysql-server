@@ -52,6 +52,7 @@ static int change_master(THD* thd);
 static void reset_slave();
 static void reset_master();
 
+extern int init_master_info(MASTER_INFO* mi);
 
 static const char *any_db="*any*";	// Special symbol for check_access
 
@@ -2462,7 +2463,7 @@ static int start_slave(THD* thd , bool net_report)
     return 1;
   pthread_mutex_lock(&LOCK_slave);
   if(!slave_running)
-    if(master_host)
+    if(glob_mi.inited && glob_mi.host)
       {
 	pthread_t hThread;
 	if(pthread_create(&hThread, &connection_attrib, handle_slave, 0))
@@ -2471,7 +2472,7 @@ static int start_slave(THD* thd , bool net_report)
 	  }
       }
     else
-      err = "Master host not set";
+      err = "Master host not set or master info not initialized";
   else
     err =  "Slave already running";
 
@@ -2557,6 +2558,9 @@ static int change_master(THD* thd)
   thd->proc_info = "changing master";
   LEX_MASTER_INFO* lex_mi = &thd->lex.mi;
 
+  if(!glob_mi.inited)
+    init_master_info(&glob_mi);
+  
   pthread_mutex_lock(&glob_mi.lock);
   if((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)
     {
