@@ -284,7 +284,9 @@ struct st_myisam_info {
 			  mi_int2store(x,boh); }
 #define mi_test_if_nod(x) (x[0] & 128 ? info->s->base.key_reflength : 0)
 #define mi_mark_crashed(x) (x)->s->state.changed|=2
+#define mi_mark_crashed_on_repair(x) (x)->s->state.changed|=4+2
 #define mi_is_crashed(x) ((x)->s->state.changed & 2)
+#define mi_is_crashed_on_repair(x) ((x)->s->state.changed & 4)
 
 /* Functions to store length of space packed keys, VARCHAR or BLOB keys */
 
@@ -606,6 +608,7 @@ void mi_get_status(void* param);
 void mi_update_status(void* param);
 void mi_copy_status(void* to,void *from);
 my_bool mi_check_status(void* param);
+void mi_dectivate_non_unique_index(MI_INFO *info, ha_rows rows);
 
 /* Functions needed by mi_check */
 #ifdef	__cplusplus

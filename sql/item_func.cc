@@ -1040,9 +1040,13 @@ udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
   char buff[sizeof(double)];			// Max argument in function
   DBUG_ENTER("Item_udf_func::fix_fields");
 
-  if (thd && check_stack_overrun(thd,buff))
-    return 0;					// Fatal error flag is set!
-
+  if (thd)
+  {
+    if (check_stack_overrun(thd,buff))
+      return 0;					// Fatal error flag is set!
+  }
+  else
+    thd=current_thd;				// In WHERE / const clause
   udf_func *tmp_udf=find_udf(u_d->name,strlen(u_d->name),1);
 
   if (!tmp_udf)
@@ -1140,9 +1144,7 @@ udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
 	break;
       }
     }
-    
-    if(thd)
-     thd->net.last_error[0]=0;
+    thd->net.last_error[0]=0;
     my_bool (*init)(UDF_INIT *, UDF_ARGS *, char *)=
       (my_bool (*)(UDF_INIT *, UDF_ARGS *,  char *))
       u_d->func_init;
@@ -1588,6 +1590,8 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
 
 bool Item_func_set_user_var::fix_fields(THD *thd,TABLE_LIST *tables)
 {
+  if (!thd)
+    thd=current_thd;
   if (Item_func::fix_fields(thd,tables) ||
       !(entry= get_variable(&thd->user_vars, name, 1)))
     return 1;

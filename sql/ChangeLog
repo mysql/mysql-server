@@ -1,3 +1,9 @@
+2000-08-08  Michael Widenius  <monty@mysql.com>
+
+* Changed ALTER TABLE and LOAD DATA INFILE to create non unique, small keys
+  after all rows are inserted.
+* Fixed use of UDF function with const arguments in WHERE clause.
+
 2000-07-11  Michael Widenius  <monty@mysql.com>
 
 * Extended safe_mysqld;  Patch by Christian Hammers

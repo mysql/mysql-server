@@ -6,8 +6,6 @@
 #include	<unistd.h>
 
 
-VIO_RCSID(vio, viotest_ssl, "$Id$")
-
 void
 fatal_error(	const char*	r)
 {

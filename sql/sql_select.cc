@@ -1939,35 +1939,37 @@ get_best_combination(JOIN *join)
       }
       else
       {
-      for (i=0 ; i < keyparts ; keyuse++,i++)
-      {
-	while (keyuse->keypart != i ||
-	       ((~used_tables) & keyuse->used_tables))
-	  keyuse++;				/* Skipp other parts */
+	THD *thd=current_thd;
+	for (i=0 ; i < keyparts ; keyuse++,i++)
+	{
+	  while (keyuse->keypart != i ||
+		 ((~used_tables) & keyuse->used_tables))
+	    keyuse++;				/* Skipp other parts */
 
-	uint maybe_null= test(keyinfo->key_part[i].null_bit);
-	j->ref.items[i]=keyuse->val;		// Save for cond removal
-	if (!keyuse->used_tables &&
-	    !(join->select_options & SELECT_DESCRIBE))
-	{					// Compare against constant
-	  store_key_item *tmp=new store_key_item(keyinfo->key_part[i].field,
-						 (char*)key_buff + maybe_null,
-						 maybe_null ?
-						 (char*) key_buff : 0,
-						 keyinfo->key_part[i].length,
-						 keyuse->val);
-	  if (current_thd->fatal_error)
-	  {
-	    return TRUE;
+	  uint maybe_null= test(keyinfo->key_part[i].null_bit);
+	  j->ref.items[i]=keyuse->val;		// Save for cond removal
+	  if (!keyuse->used_tables &&
+	      !(join->select_options & SELECT_DESCRIBE))
+	  {					// Compare against constant
+	    store_key_item *tmp=new store_key_item(keyinfo->key_part[i].field,
+						   (char*)key_buff +
+						   maybe_null,
+						   maybe_null ?
+						   (char*) key_buff : 0,
+						   keyinfo->key_part[i].length,
+						   keyuse->val);
+	    if (thd->fatal_error)
+	    {
+	      return TRUE;
+	    }
+	    tmp->copy();
 	  }
-	  tmp->copy();
+	  else
+	    *ref_key++= get_store_key(keyuse,join->const_table_map,
+				      &keyinfo->key_part[i],
+				      (char*) key_buff,maybe_null);
+	  key_buff+=keyinfo->key_part[i].store_length;
 	}
-	else
-	  *ref_key++= get_store_key(keyuse,join->const_table_map,
-				    &keyinfo->key_part[i],
-				    (char*) key_buff,maybe_null);
-	key_buff+=keyinfo->key_part[i].store_length;
-      }
       } /* not ftkey */
       *ref_key=0;				// end_marker
       if (j->type == JT_FT)  /* no-op */;
@@ -2319,8 +2321,11 @@ join_free(JOIN *join)
 
   if (join->table)
   {
-    /* only sorted table is cached */
-    if (join->tables > join->const_tables)
+    /*
+      Only a sorted table may be cached.  This sorted table is always the
+      first non const table in join->table
+    */
+    if (join->tables > join->const_tables) // Test for not-const tables
       free_io_cache(join->table[join->const_tables]);
     for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
     {
@@ -2858,23 +2863,24 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 
     Item_func_isnull *func=(Item_func_isnull*) cond;
     Item **args= func->arguments();
+    THD *thd=current_thd;
     if (args[0]->type() == Item::FIELD_ITEM)
     {
       Field *field=((Item_field*) args[0])->field;
       if (field->flags & AUTO_INCREMENT_FLAG && !field->table->maybe_null &&
-	  (current_thd->options & OPTION_AUTO_IS_NULL) &&
-	  current_thd->insert_id())
+	  (thd->options & OPTION_AUTO_IS_NULL) &&
+	  thd->insert_id())
       {
 	COND *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],
 					new Item_int("last_insert_id()",
-						     current_thd->insert_id(),
+						     thd->insert_id(),
 						     21))))
 	{
 	  cond=new_cond;
-	  cond->fix_fields(current_thd,0);
+	  cond->fix_fields(thd,0);
 	}
-	current_thd->insert_id(0);		// Clear for next request
+	thd->insert_id(0);		// Clear for next request
       }
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       else if (((field->type() == FIELD_TYPE_DATE) ||
@@ -2885,7 +2891,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 	if ((new_cond= new Item_func_eq(args[0],new Item_int("0", 0, 2))))
 	{
 	  cond=new_cond;
-	  cond->fix_fields(current_thd,0);
+	  cond->fix_fields(thd,0);
 	}
       }
     }
@@ -6229,6 +6235,11 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   }
   if (thd->fatal_error)
     DBUG_RETURN(TRUE);
+
+  /*
+    Here we pass 0 as the first argument to fix_fields that don't need
+    to do any stack checking (This is already done in the initial fix_fields).
+  */
   cond->fix_fields((THD *) 0,(TABLE_LIST *) 0);
   if (join_tab->select)
   {

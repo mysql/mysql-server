@@ -431,6 +431,7 @@ void Item_func_curdate::fix_length_and_dec()
   ltime.second=	0;
   ltime.second_part=0;
   ltime.neg=0;
+  ltime.time_type=TIMESTAMP_DATE;
 }
 
 bool Item_func_curdate::get_date(TIME *res,
@@ -487,6 +488,7 @@ void Item_func_now::fix_length_and_dec()
   ltime.second=	start->tm_sec;
   ltime.second_part=0;
   ltime.neg=0;
+  ltime.time_type=TIMESTAMP_FULL;
 }
 
 bool Item_func_now::get_date(TIME *res,

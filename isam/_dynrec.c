@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -63,8 +63,8 @@ int _nisam_write_blob_record(N_INFO *info, const byte *record)
   extra=ALIGN_SIZE(MAX_DYN_BLOCK_HEADER)+N_SPLITT_LENGTH+
     DYN_DELETE_BLOCK_HEADER;
   if (!(rec_buff=(byte*) my_alloca(info->s->base.pack_reclength+
-				    _calc_total_blob_length(info,record)+
-				    extra)))
+				   _calc_total_blob_length(info,record)+
+				   extra)))
     return(-1);
   reclength=_nisam_rec_pack(info,rec_buff+ALIGN_SIZE(MAX_DYN_BLOCK_HEADER),
 			 record);
@@ -84,8 +84,8 @@ int _nisam_update_blob_record(N_INFO *info, ulong pos, const byte *record)
   extra=ALIGN_SIZE(MAX_DYN_BLOCK_HEADER)+N_SPLITT_LENGTH+
     DYN_DELETE_BLOCK_HEADER;
   if (!(rec_buff=(byte*) my_alloca(info->s->base.pack_reclength+
-				    _calc_total_blob_length(info,record)+
-				    extra)))
+				   _calc_total_blob_length(info,record)+
+				   extra)))
     return(-1);
   reclength=_nisam_rec_pack(info,rec_buff+ALIGN_SIZE(MAX_DYN_BLOCK_HEADER),
 			 record);

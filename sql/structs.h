@@ -70,6 +70,9 @@ typedef struct st_key {
   KEY_PART_INFO *key_part;
   char	*name;				/* Name of key */
   ulong *rec_per_key;			/* Key part distribution */
+  union {
+    uint  bdb_return_if_eq;
+  } handler;
 } KEY;
 
 

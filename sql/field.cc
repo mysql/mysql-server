@@ -2418,6 +2418,7 @@ bool Field_timestamp::get_date(TIME *ltime,
     ltime->second=	start->tm_sec;
     ltime->second_part=	0;
     ltime->neg=		0;
+    ltime->time_type=TIMESTAMP_FULL;
   }
   return 0;
 }
@@ -3005,6 +3006,7 @@ bool Field_newdate::get_date(TIME *ltime,bool fuzzydate)
   ltime->day=   tmp & 31;
   ltime->month= (tmp >> 5) & 15;
   ltime->year=  (tmp >> 9);
+  ltime->time_type=TIMESTAMP_DATE;
   return (!fuzzydate && (!ltime->month || !ltime->day) && ltime->year) ? 1 : 0;
 }
 
@@ -3181,6 +3183,7 @@ bool Field_datetime::get_date(TIME *ltime,bool fuzzydate)
   part1=(long) (tmp/LL(1000000));
   part2=(long) (tmp - (ulonglong) part1*LL(1000000));
 
+  ltime->time_type=	TIMESTAMP_FULL;
   ltime->neg=0;
   ltime->second_part=0;
   ltime->second=	part2%100;

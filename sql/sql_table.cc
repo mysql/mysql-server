@@ -709,6 +709,7 @@ bool close_cached_table(THD *thd,TABLE *table)
   DBUG_RETURN(result);
 }
 
+
 int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 {
   TABLE_LIST *table;
@@ -1144,6 +1145,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       if (alter)
       {
+        if (def->sql_type == FIELD_TYPE_BLOB)
+        {
+          my_error(ER_BLOB_CANT_HAVE_DEFAULT,MYF(0),def->change);
+          DBUG_RETURN(-1);
+        }
 	def->def=alter->def;			// Use new default
 	alter_it.remove();
       }
@@ -1504,6 +1510,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,List<create_field> &create,
 
   to->file->external_lock(thd,F_WRLCK);
   to->file->extra(HA_EXTRA_WRITE_CACHE);
+  from->file->info(HA_STATUS_VARIABLE);
+  to->file->deactivate_non_unique_index(from->file->records);
 
   List_iterator<create_field> it(create);
   create_field *def;
@@ -1554,6 +1562,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,List<create_field> &create,
     to->file->print_error(tmp_error,MYF(0));
     error=1;
   }
+  if (to->file->activate_all_index(thd))
+    error=1;
   if (ha_commit(thd) || to->file->external_lock(thd,F_UNLCK))
     error=1;
   *copied= found_count;

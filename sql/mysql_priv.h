@@ -219,6 +219,7 @@ int quick_rm_table(enum db_type base,const char *db,
 		   const char *table_name);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
+void mysql_init_select(LEX *lex);
 pthread_handler_decl(handle_one_connection,arg);
 int handle_bootstrap(THD *thd,FILE *file);
 sig_handler end_thread_signal(int sig);

@@ -353,7 +353,11 @@ myf	MyFlags;
   ushort	mode;
   char		tmp_path[FN_REFLEN],*tmp_file,attrib;
   my_ptrdiff_t	diff;
+#ifdef _WIN64
+  __int64       handle;
+#else
   long		handle;
+#endif
   DBUG_ENTER("my_dir");
   DBUG_PRINT("my",("path: '%s' stat: %d  MyFlags: %d",path,MyFlags));
 

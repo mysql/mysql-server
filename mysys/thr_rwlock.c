@@ -87,7 +87,7 @@ int my_rw_rdlock( rw_lock_t *rwp ) {
   pthread_mutex_lock(&rwp->lock);
 
   /* active or queued writers		*/
-  while ( ( rwp->state < 0 ) && rwp->waiters )
+  while ( ( rwp->state < 0 ) || rwp->waiters )
     pthread_cond_wait( &rwp->readers, &rwp->lock);
 
   rwp->state++;
@@ -103,12 +103,8 @@ int my_rw_wrlock( rw_lock_t *rwp ) {
 
   while ( rwp->state )
     pthread_cond_wait( &rwp->writers, &rwp->lock);
-
   rwp->state	= -1;
-
-  if ( ( --rwp->waiters == 0 ) && ( rwp->state >= 0 ) )
-    pthread_cond_broadcast( &rwp->readers );
-
+  --rwp->waiters;
   pthread_mutex_unlock( &rwp->lock );
 
   return( 0 );

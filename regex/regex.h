@@ -6,7 +6,11 @@ extern "C" {
 #endif
 
 /* === regex2.h === */
+#ifdef _WIN64
+typedef __int64 regoff_t;
+#else
 typedef off_t regoff_t;
+#endif
 struct re_guts;			/* none of your business :-) */
 typedef struct {
 	int re_magic;

@@ -63,7 +63,8 @@ WF_PACK *wf_comp(my_string str)
 #endif
 
   if ((ret= (WF_PACK*) my_malloc((uint) ant*(sizeof(my_string*)+2)+
-				  sizeof(WF_PACK)+strlen(str)+1,MYF(MY_WME)))
+				 sizeof(WF_PACK)+ (uint) strlen(str)+1,
+				 MYF(MY_WME)))
 	== 0)
     DBUG_RETURN((WF_PACK *) NULL);
   ret->wild= (my_string*) (ret+1);

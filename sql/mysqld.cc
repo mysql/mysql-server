@@ -656,7 +656,7 @@ static void set_user(const char *user)
     unireg_abort(1);
   }
 #ifdef HAVE_INITGROUPS
-  initgroups(user,ent->pw_gid);
+  initgroups((char*) user,ent->pw_gid);
 #endif
   if (setgid(ent->pw_gid) == -1)
   {
@@ -876,8 +876,8 @@ void end_thread(THD *thd, bool put_in_cache)
   thread_count--;
   delete thd;
   
-  if (cached_thread_count < thread_cache_size && ! abort_loop &&
-      !kill_cached_threads)
+  if (put_in_cache && cached_thread_count < thread_cache_size &&
+      ! abort_loop && !kill_cached_threads)
   {
     /* Don't kill the thread, just put it in cache for reuse */
     DBUG_PRINT("info", ("Adding thread to cache"))
@@ -891,8 +891,9 @@ void end_thread(THD *thd, bool put_in_cache)
     {
       wake_thread--;
       thd=thread_cache.get();
-      threads.append(thd);
+      thd->real_id=pthread_self();
       (void) thd->store_globals();
+      threads.append(thd);
       pthread_mutex_unlock(&LOCK_thread_count);
       DBUG_VOID_RETURN;
     }
@@ -2229,7 +2230,7 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "bdb_cache_size",  (long*) &berkeley_cache_size, KEY_CACHE_SIZE,
       20*1024, (long) ~0, 0, IO_SIZE},
 #endif
-  { "connect_timeout", (long*) &connect_timeout,CONNECT_TIMEOUT,1,65535,0,1},
+  { "connect_timeout", (long*) &connect_timeout,CONNECT_TIMEOUT,2,65535,0,1},
   { "delayed_insert_timeout",(long*) &delayed_insert_timeout,
     DELAYED_WAIT_TIMEOUT,1,~0L,0,1},
   { "delayed_insert_limit",(long*) &delayed_insert_limit,
