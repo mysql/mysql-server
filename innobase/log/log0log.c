@@ -661,7 +661,18 @@ failure:
 
 	if (!success) {
 		fprintf(stderr,
-"InnoDB: Error: log file group too small for innodb_thread_concurrency\n");
+"InnoDB: Error: ib_logfiles are too small for innodb_thread_concurrency %lu.\n"
+"InnoDB: The combined size of ib_logfiles should be bigger than\n"
+"InnoDB: 200 kB * innodb_thread_concurrency.\n"
+"InnoDB: To get mysqld to start up, set innodb_thread_concurrency in my.cnf\n"
+"InnoDB: to a lower value, for example, to 8. After an ERROR-FREE shutdown\n"
+"InnoDB: of mysqld you can adjust the size of ib_logfiles, as explained in\n"
+"InnoDB: section 5 of http://www.innodb.com/ibman.php",
+			(ulong)srv_thread_concurrency);
+		fprintf(stderr,
+"InnoDB: Cannot continue operation. Calling exit(1).\n");
+
+		exit(1);
 	}
 
 	return(success);

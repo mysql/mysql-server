@@ -1032,9 +1032,8 @@ Item *sys_var::item(THD *thd, enum_var_type var_type)
   {
     if (var_type != OPT_DEFAULT)
     {
-      net_printf(&thd->net,
-		 var_type == OPT_GLOBAL ? ER_LOCAL_VARIABLE :
-		 ER_GLOBAL_VARIABLE, name);
+      net_printf(&thd->net,ER_INCORRECT_GLOBAL_LOCAL_VAR,
+		 name, var_type == OPT_GLOBAL ? "LOCAL" : "GLOBAL");
       return 0;
     }
     /* As there was no local variable, return the global value */
