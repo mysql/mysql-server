@@ -69,7 +69,7 @@ void Item_bool_func2::fix_length_and_dec()
   if (args[0]->type() == FIELD_ITEM)
   {
     Field *field=((Item_field*) args[0])->field;
-    if (field->store_for_compare())
+    if (field->store_for_compare() || field->result_type() == INT_RESULT)
     {
       if (convert_constant_item(field,&args[1]))
       {
@@ -81,7 +81,7 @@ void Item_bool_func2::fix_length_and_dec()
   if (args[1]->type() == FIELD_ITEM)
   {
     Field *field=((Item_field*) args[1])->field;
-    if (field->store_for_compare())
+    if (field->store_for_compare() || field->result_type() == INT_RESULT)
     {
       if (convert_constant_item(field,&args[0]))
       {
