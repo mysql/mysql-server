@@ -79,7 +79,8 @@ parse_arguments() {
   done
 }
 
-# Get arguments from the my.cnf file, groups [mysqld] and [mysql_server]
+# Get arguments from the my.cnf file,
+# groups [mysqld] [mysql_server] and [mysql.server]
 if test -x ./bin/my_print_defaults
 then
   print_defaults="./bin/my_print_defaults"
@@ -117,7 +118,7 @@ else
   test -z "$print_defaults" && print_defaults="my_print_defaults"
 fi
 
-parse_arguments `$print_defaults $defaults mysqld mysql_server`
+parse_arguments `$print_defaults mysqld mysql_server mysql.server`
 
 # Safeguard (relative paths, core dumps..)
 cd $basedir
