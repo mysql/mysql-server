@@ -157,7 +157,7 @@ SELECT @@table_type;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
---error 1284
+--error 1285
 SET SESSION table_type="gemini";
 SELECT @@table_type;
 CREATE TABLE t1 (a int not null);
@@ -277,7 +277,7 @@ SELECT @@table_type;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
---error 1284
+--error 1285
 SET SESSION table_type="gemini";
 SELECT @@table_type;
 CREATE TABLE t1 (a int not null);
