@@ -688,8 +688,8 @@ AC_MSG_CHECKING(for OpenSSL)
     openssl_includes=""
   fi
   NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS $openssl_libs"
-  AC_SUBST([openssl_libs])
-  AC_SUBST([openssl_includes])
+  AC_SUBST(openssl_libs)
+  AC_SUBST(openssl_includes)
 ])
 
 
