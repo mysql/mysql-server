@@ -473,8 +473,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	      (group && order) ||
 	      test(select_options & OPTION_BUFFER_RESULT)));
 
-  make_join_readinfo(&join,
-		     (select_options & SELECT_DESCRIBE) | SELECT_USE_CACHE);
+  make_join_readinfo(&join, (select_options & SELECT_DESCRIBE) | 
+           (ftfuncs.elements ? 0 : SELECT_USE_CACHE)); // No cache for MATCH
   DBUG_EXECUTE("info",TEST_join(&join););
   /*
     Because filesort always does a full table scan or a quick range scan
