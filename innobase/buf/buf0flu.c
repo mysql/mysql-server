@@ -531,7 +531,8 @@ buf_flush_try_page(
 		rw_lock_s_lock_gen(&(block->lock), BUF_IO_WRITE);
 
 		if (buf_debug_prints) {
-			printf("Flushing single page space %lu, page no %lu \n",
+			printf(
+			"Flushing single page space %lu, page no %lu \n",
 						block->space, block->offset);
 		}
 

@@ -228,9 +228,12 @@ loop:
 	   	fprintf(stderr,
 "  InnoDB: WARNING: over 4 / 5 of the buffer pool is occupied by\n"
 "InnoDB: lock heaps or the adaptive hash index! Check that your\n"
-"InnoDB: transactions do not set too many row locks. Starting InnoDB\n"
-"InnoDB: Monitor to print diagnostics, including lock heap and hash index\n"
-"InnoDB: sizes.\n");
+"InnoDB: transactions do not set too many row locks.\n"
+"InnoDB: Your buffer pool size is %lu MB. Maybe you should make\n"
+"InnoDB: the buffer pool bigger?\n"
+"InnoDB: Starting the InnoDB Monitor to print diagnostics, including\n"
+"InnoDB: lock heap and hash index sizes.\n",
+		buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE));
 
 		srv_print_innodb_monitor = TRUE;
 
