@@ -587,8 +587,10 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
       _ownNodeId= 0; // did not get nodeid requested
     }
     m_allocated_resources.reserve_node(_ownNodeId);
-  } else
-    NDB_ASSERT(0, "Unable to retrieve own node id");
+  } else {
+    ndbout_c("Unable to retrieve own node id");
+    exit(-1);
+  }
 }
 
 
