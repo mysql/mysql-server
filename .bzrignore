@@ -945,3 +945,4 @@ libmysqld/ha_example.cc
 libmysqld/ha_tina.cc
 analyse.test
 client/mysqladmin.c
+mysql-4.1.8-win-src.zip
