@@ -20,19 +20,19 @@ sum(a)
 NULL
 select a from t1 order by rand(10);
 a
+2
+6
 1
 3
-6
 5
-2
 4
 select distinct a from t1 order by rand(10);
 a
+2
+6
 1
 3
-6
 5
-2
 4
 select count(distinct a),count(distinct grp) from t1;
 count(distinct a)	count(distinct grp)

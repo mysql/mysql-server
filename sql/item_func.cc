@@ -621,8 +621,9 @@ double Item_func_rand::val()
 {
   if (arg_count)
   {					// Only use argument once in query
-    ulong tmp=((ulong) args[0]->val_int());
-    randominit(&current_thd->rand,tmp*0x10001L+55555555L,tmp*0x10000001L);
+    uint32 tmp= (uint32) (args[0]->val_int());
+    randominit(&current_thd->rand,(uint32) (tmp*0x10001L+55555555L),
+	       (uint32) (tmp*0x10000001L));
 #ifdef DELETE_ITEMS
     delete args[0];
 #endif
@@ -797,9 +798,7 @@ longlong Item_func_locate::val_int()
 {
   String *a=args[0]->val_str(&value1);
   String *b=args[1]->val_str(&value2);
-#ifdef USE_MB
   bool binary_str = args[0]->binary || args[1]->binary;
-#endif
   if (!a || !b)
   {
     null_value=1;
@@ -853,7 +852,8 @@ longlong Item_func_locate::val_int()
     return 0;
   }
 #endif /* USE_MB */
-  return (longlong) (a->strstr(*b,start)+1) ;
+  return (longlong) (binary ? a->strstr(*b,start) :
+		     (a->strstr_case(*b,start)))+1;
 }
 
 

@@ -14,11 +14,11 @@ monty was here again	5	h
 select locate('he','hello'),locate('he','hello',2),locate('lo','hello',2) ;
 locate('he','hello')	locate('he','hello',2)	locate('lo','hello',2)
 1	0	4
-select instr('hello','he');
-instr('hello','he')
-1
-select position('ll' in 'hello'),position('a' in 'hello');
-position('ll' in 'hello')	position('a' in 'hello')
+select instr('hello','HE'), instr('hello',binary 'HE'), instr(binary 'hello','HE');
+instr('hello','HE')	instr('hello',binary 'HE')	instr(binary 'hello','HE')
+1	0	0
+select position(binary 'll' in 'hello'),position('a' in binary 'hello');
+position(binary 'll' in 'hello')	position('a' in binary 'hello')
 3	0
 select left('hello',2),right('hello',2),substring('hello',2,2),mid('hello',1,5) ;
 left('hello',2)	right('hello',2)	substring('hello',2,2)	mid('hello',1,5)

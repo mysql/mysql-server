@@ -785,7 +785,10 @@ static void decode_bytes(MI_COLUMNDEF *rec,MI_BIT_BUFF *bit_buff,uchar *to,
     if (bits <= 32)
     {
       if (bit_buff->pos > bit_buff->end+4)
+      {
+	bit_buff->error=1;
 	return;				/* Can't be right */
+      }
       bit_buff->current_byte= (bit_buff->current_byte << 32) +
 	((((uint) bit_buff->pos[3])) +
 	 (((uint) bit_buff->pos[2]) << 8) +
@@ -829,7 +832,8 @@ static void decode_bytes(MI_COLUMNDEF *rec,MI_BIT_BUFF *bit_buff,uchar *to,
 
 #else
 
-static void decode_bytes(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to, uchar *end)
+static void decode_bytes(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
+			 uchar *end)
 {
   reg1 uint bits,low_byte;
   reg3 uint16 *pos;
@@ -846,7 +850,10 @@ static void decode_bytes(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to, uc
     if (bits < table_bits)
     {
       if (bit_buff->pos > bit_buff->end+1)
+      {
+	bit_buff->error=1;
 	return;				/* Can't be right */
+      }
 #if BITS_SAVED == 32
       bit_buff->current_byte= (bit_buff->current_byte << 24) +
 	(((uint) ((uchar) bit_buff->pos[2]))) +
